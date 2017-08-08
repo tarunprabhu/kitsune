@@ -15,6 +15,7 @@
 #define LLVM_TRANSFORMS_IPO_PASSMANAGERBUILDER_H
 
 #include "llvm-c/Transforms/PassManagerBuilder.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include <functional>
 #include <string>
 #include <vector>
@@ -71,6 +72,9 @@ public:
   ///    0 = none, 1 = -Os, 2 = -Oz
   unsigned SizeLevel;
 
+  /// What runtime ABI to lower Tapir instructions to.  None if no lowering.
+  TapirTargetID TapirTarget;
+
   /// LibraryInfo - Specifies information about the runtime library for the
   /// optimizer.  If this is non-null, it is added to both the function and
   /// per-module pass pipeline.
@@ -95,6 +99,7 @@ public:
   bool SLPVectorize;
   bool LoopVectorize;
   bool LoopsInterleaved;
+  bool LoopStripmine;
   bool DisableGVNLoadPRE;
   bool ForgetAllSCEVInLoopUnroll;
   bool VerifyInput;

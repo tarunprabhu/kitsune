@@ -59,10 +59,12 @@ class BasicBlock;
 class CatchPadInst;
 class CatchReturnInst;
 class DominatorTree;
+class DetachInst;
 class FenceInst;
 class Function;
 class LoopInfo;
 class PreservedAnalyses;
+class SyncInst;
 class TargetLibraryInfo;
 class Value;
 template <typename> class SmallPtrSetImpl;
@@ -278,6 +280,8 @@ public:
   ///   store %l, ...
   bool MayBeCrossIteration = false;
 
+  bool AssumeSameSpindle = false;
+
   AAQueryInfo(AAResults &AAR, CaptureInfo *CI) : AAR(AAR), CI(CI) {}
 };
 
@@ -330,6 +334,11 @@ public:
   /// each other. This is the interface that must be implemented by specific
   /// alias analysis implementations.
   AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB);
+
+  /// Version of alias() method where the assumption is explicitly stated of
+  /// whether the query applies to operations within the same spindle.
+  AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
+                    bool AssumeSameSpindle);
 
   /// A convenience wrapper around the primary \c alias interface.
   AliasResult alias(const Value *V1, LocationSize V1Size, const Value *V2,
@@ -419,6 +428,12 @@ public:
   /// Return the behavior when calling the given function.
   MemoryEffects getMemoryEffects(const Function *F);
 
+  /// Return the behavior for the task detached from a given detach instruction.
+  MemoryEffects getMemoryEffects(const DetachInst *D);
+
+  /// Return the behavior for a sync instruction.
+  MemoryEffects getMemoryEffects(const SyncInst *S);
+
   /// Checks if the specified call is known to never read or write memory.
   ///
   /// Note that if the call only reads from known-constant memory, it is also
@@ -475,6 +490,164 @@ public:
     return getMemoryEffects(F).onlyReadsMemory();
   }
 
+/*
+  /// Checks if functions with the specified behavior are known to read and
+  /// write at most from objects pointed to by their pointer-typed arguments
+  /// (with arbitrary offsets).
+  static bool onlyAccessesArgPointees(FunctionModRefBehavior MRB) {
+    return !((unsigned)MRB & FMRL_Anywhere & ~FMRL_ArgumentPointees);
+  }
+
+  /// Checks if functions with the specified behavior are known to potentially
+  /// read or write from objects pointed to be their pointer-typed arguments
+  /// (with arbitrary offsets).
+  static bool doesAccessArgPointees(FunctionModRefBehavior MRB) {
+    return isModOrRefSet(createModRefInfo(MRB)) &&
+           ((unsigned)MRB & FMRL_ArgumentPointees);
+  }
+
+  /// Checks if functions with the specified behavior are known to read and
+  /// write at most from memory that is inaccessible from LLVM IR.
+  static bool onlyAccessesInaccessibleMem(FunctionModRefBehavior MRB) {
+    return !((unsigned)MRB & FMRL_Anywhere & ~FMRL_InaccessibleMem);
+  }
+
+  /// Checks if functions with the specified behavior are known to potentially
+  /// read or write from memory that is inaccessible from LLVM IR.
+  static bool doesAccessInaccessibleMem(FunctionModRefBehavior MRB) {
+    return isModOrRefSet(createModRefInfo(MRB)) &&
+             ((unsigned)MRB & FMRL_InaccessibleMem);
+  }
+
+  /// Checks if functions with the specified behavior are known to read and
+  /// write at most from memory that is inaccessible from LLVM IR or objects
+  /// pointed to by their pointer-typed arguments (with arbitrary offsets).
+  static bool onlyAccessesInaccessibleOrArgMem(FunctionModRefBehavior MRB) {
+    return !((unsigned)MRB & FMRL_Anywhere &
+             ~(FMRL_InaccessibleMem | FMRL_ArgumentPointees));
+  }
+*/
+  /// getModRefInfo (for call sites) - Return information about whether
+  /// a particular call site modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const CallBase *Call, const MemoryLocation &Loc,
+                           bool SameSpindle);
+
+  /// getModRefInfo (for call sites) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const CallBase *Call, const Value *P,
+                           LocationSize Size, bool SameSpindle) {
+    return getModRefInfo(Call, MemoryLocation(P, Size), SameSpindle);
+  }
+
+  /// getModRefInfo (for call sites) - Return information about whether
+  /// a particular call site modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const CallBase *Call, const MemoryLocation &Loc);
+
+  /// getModRefInfo (for call sites) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const CallBase *Call, const Value *P,
+                           LocationSize Size) {
+    return getModRefInfo(Call, MemoryLocation(P, Size));
+  }
+
+  /// getModRefInfo (for detaches) - Return information about whether
+  /// a particular detach modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const DetachInst *D, const MemoryLocation &Loc);
+
+  /// getModRefInfo (for detaches) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const DetachInst *D, const Value *P,
+                           uint64_t Size) {
+    return getModRefInfo(D, MemoryLocation(P, Size));
+  }
+
+  /// getModRefInfo (for loads) - Return information about whether
+  /// a particular load modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const LoadInst *L, const MemoryLocation &Loc);
+
+  /// getModRefInfo (for loads) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const LoadInst *L, const Value *P,
+                           LocationSize Size) {
+    return getModRefInfo(L, MemoryLocation(P, Size));
+  }
+
+  /// getModRefInfo (for stores) - Return information about whether
+  /// a particular store modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const StoreInst *S, const MemoryLocation &Loc);
+
+  /// getModRefInfo (for stores) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const StoreInst *S, const Value *P,
+                           LocationSize Size) {
+    return getModRefInfo(S, MemoryLocation(P, Size));
+  }
+
+  /// getModRefInfo (for fences) - Return information about whether
+  /// a particular store modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const FenceInst *S, const MemoryLocation &Loc);
+
+  /// getModRefInfo (for fences) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const FenceInst *S, const Value *P,
+                           LocationSize Size) {
+    return getModRefInfo(S, MemoryLocation(P, Size));
+  }
+
+  /// getModRefInfo (for syncs) - Return information about whether
+  /// a particular store modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const SyncInst *S, const MemoryLocation &Loc);
+
+  /// getModRefInfo (for syncs) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const SyncInst *S, const Value *P, uint64_t Size) {
+    return getModRefInfo(S, MemoryLocation(P, Size));
+  }
+
+  /// getModRefInfo (for cmpxchges) - Return information about whether
+  /// a particular cmpxchg modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const AtomicCmpXchgInst *CX,
+                           const MemoryLocation &Loc);
+
+  /// getModRefInfo (for cmpxchges) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const AtomicCmpXchgInst *CX, const Value *P,
+                           LocationSize Size) {
+    return getModRefInfo(CX, MemoryLocation(P, Size));
+  }
+
+  /// getModRefInfo (for atomicrmws) - Return information about whether
+  /// a particular atomicrmw modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const AtomicRMWInst *RMW, const MemoryLocation &Loc);
+
+  /// getModRefInfo (for atomicrmws) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const AtomicRMWInst *RMW, const Value *P,
+                           LocationSize Size) {
+    return getModRefInfo(RMW, MemoryLocation(P, Size));
+  }
+
+  /// getModRefInfo (for va_args) - Return information about whether
+  /// a particular va_arg modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const VAArgInst *I, const MemoryLocation &Loc);
+
+  /// getModRefInfo (for va_args) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const VAArgInst *I, const Value *P,
+                           LocationSize Size) {
+    return getModRefInfo(I, MemoryLocation(P, Size));
+  }
+
+  /// getModRefInfo (for catchpads) - Return information about whether
+  /// a particular catchpad modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const CatchPadInst *I, const MemoryLocation &Loc);
+
+  /// getModRefInfo (for catchpads) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const CatchPadInst *I, const Value *P,
+                           LocationSize Size) {
+    return getModRefInfo(I, MemoryLocation(P, Size));
+  }
+
+  /// getModRefInfo (for catchrets) - Return information about whether
+  /// a particular catchret modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const CatchReturnInst *I, const MemoryLocation &Loc);
+
+  /// getModRefInfo (for catchrets) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const CatchReturnInst *I, const Value *P,
+                           LocationSize Size) {
+    return getModRefInfo(I, MemoryLocation(P, Size));
+  }
+
   /// Check whether or not an instruction may read or write the optionally
   /// specified memory location.
   ///
@@ -500,6 +673,29 @@ public:
   /// Return information about whether a call and an instruction may refer to
   /// the same memory locations.
   ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call);
+
+// /*
+//   ModRefInfo getModRefInfo(Instruction *I, const CallBase *Call) {
+//     return getModRefInfo(I, Call, /*AssumeSameSpindle*/ false);
+//   }
+
+  /// Return information about whether two call sites may refer to the same set
+  /// of memory locations. See the AA documentation for details:
+  ///   http://llvm.org/docs/AliasAnalysis.html#ModRefInfo
+  ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2) {
+    return getModRefInfo(Call1, Call2, /*AssumeSameSpindle*/ false);
+  }
+
+  /// Return information about whether a call and an instruction may refer to
+  /// the same memory locations.
+  ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call,
+                           bool AssumeSameSpindle);
+
+  /// Return information about whether two call sites may refer to the same set
+  /// of memory locations. See the AA documentation for details:
+  ///   http://llvm.org/docs/AliasAnalysis.html#ModRefInfo
+  ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2,
+                           bool AssumeSameSpindle);
 
   /// Return information about whether a particular call site modifies
   /// or reads the specified memory location \p MemLoc before instruction \p I
@@ -579,6 +775,10 @@ public:
                            AAQueryInfo &AAQI);
   ModRefInfo getModRefInfo(const CatchReturnInst *I, const MemoryLocation &Loc,
                            AAQueryInfo &AAQI);
+  ModRefInfo getModRefInfo(const DetachInst *D, const MemoryLocation &Loc,
+                           AAQueryInfo &AAQI);
+  ModRefInfo getModRefInfo(const SyncInst *S, const MemoryLocation &Loc,
+                           AAQueryInfo &AAQI);
   ModRefInfo getModRefInfo(const Instruction *I,
                            const std::optional<MemoryLocation> &OptLoc,
                            AAQueryInfo &AAQIP);
@@ -628,12 +828,28 @@ public:
                                bool IgnoreLocals = false) {
     return AA.getModRefInfoMask(Loc, AAQI, IgnoreLocals);
   }
+  ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2,
+                           bool AssumeSameSpindle) {
+    bool OldAssumeSameSpindle = AAQI.AssumeSameSpindle;
+    AAQI.AssumeSameSpindle = AssumeSameSpindle;
+    auto Result = AA.getModRefInfo(Call1, Call2, AAQI);
+    AAQI.AssumeSameSpindle = OldAssumeSameSpindle;
+    return Result;
+  }
   ModRefInfo getModRefInfo(const Instruction *I,
                            const std::optional<MemoryLocation> &OptLoc) {
     return AA.getModRefInfo(I, OptLoc, AAQI);
   }
   ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call2) {
     return AA.getModRefInfo(I, Call2, AAQI);
+  }
+  ModRefInfo getModRefInfo(Instruction *I, const CallBase *Call2,
+                           bool AssumeSameSpindle) {
+    bool OldAssumeSameSpindle = AAQI.AssumeSameSpindle;
+    AAQI.AssumeSameSpindle = AssumeSameSpindle;
+    auto Result = AA.getModRefInfo(I, Call2, AAQI);
+    AAQI.AssumeSameSpindle = OldAssumeSameSpindle;
+    return Result;
   }
   ModRefInfo getArgModRefInfo(const CallBase *Call, unsigned ArgIdx) {
     return AA.getArgModRefInfo(Call, ArgIdx);
@@ -837,6 +1053,11 @@ public:
 /// Return true if this pointer is returned by a noalias function.
 bool isNoAliasCall(const Value *V);
 
+/// Return true if this pointer is returned by a noalias function or, if one
+/// assumes the query pertains to operations in the same spindle, a
+/// strand_noalias function.
+bool isNoAliasCallIfInSameSpindle(const Value *V);
+
 /// Return true if this pointer refers to a distinct and identifiable object.
 /// This returns true for:
 ///    Global Variables and Functions (but not Global Aliases)
@@ -845,6 +1066,14 @@ bool isNoAliasCall(const Value *V);
 ///    NoAlias returns (e.g. calls to malloc)
 ///
 bool isIdentifiedObject(const Value *V);
+
+/// Return true if this pointer refers to a distinct and identifiable object
+/// when the query occurs between operations in the same spindle.
+/// This returns true for:
+///    Every value for which isIdentifiedObject(V) returns true
+///    StrandNoAlias returns
+///
+bool isIdentifiedObjectIfInSameSpindle(const Value *V);
 
 /// Return true if V is umabigously identified at the function-level.
 /// Different IdentifiedFunctionLocals can't alias.
