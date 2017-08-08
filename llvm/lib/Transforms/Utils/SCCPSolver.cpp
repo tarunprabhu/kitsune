@@ -610,6 +610,14 @@ private:
 
   void visitReturnInst(ReturnInst &I);
   void visitTerminator(Instruction &TI);
+  void visitReattachInst(ReattachInst &I) {
+    markOverdefined(&I);
+    visitTerminator(I);
+  }
+  void visitSyncInst(SyncInst &I) {
+    markOverdefined(&I);
+    visitTerminator(I);
+  }
 
   void visitCastInst(CastInst &I);
   void visitSelectInst(SelectInst &I);
@@ -1096,6 +1104,12 @@ void SCCPInstVisitor::getFeasibleSuccessors(Instruction &TI,
 
     // If we didn't find our destination in the IBR successor list, then we
     // have undefined behavior. Its ok to assume no successor is executable.
+    return;
+  }
+
+  // All destinations of a Tapir instruction are assumed to be feasible.
+  if (isa<DetachInst>(&TI) || isa<ReattachInst>(&TI) || isa<SyncInst>(&TI)) {
+    Succs.assign(TI.getNumSuccessors(), true);
     return;
   }
 
