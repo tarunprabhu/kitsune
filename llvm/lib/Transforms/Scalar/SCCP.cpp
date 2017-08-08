@@ -611,6 +611,14 @@ private:
 
   void visitReturnInst(ReturnInst &I);
   void visitTerminator(Instruction &TI);
+  void visitReattachInst(ReattachInst &I) {
+    markOverdefined(&I);
+    visitTerminator(I);
+  }
+  void visitSyncInst(SyncInst &I) {
+    markOverdefined(&I);
+    visitTerminator(I);
+  }
 
   void visitCastInst(CastInst &I);
   void visitSelectInst(SelectInst &I);
@@ -734,6 +742,13 @@ void SCCPSolver::getFeasibleSuccessors(Instruction &TI,
     return;
   }
 
+  if (isa<DetachInst>(&TI) ||
+      isa<ReattachInst>(&TI) ||
+      isa<SyncInst>(&TI)) {
+    // All destinations are executable.
+    Succs.assign(TI.getNumSuccessors(), true);
+    return;
+  }
   LLVM_DEBUG(dbgs() << "Unknown terminator instruction: " << TI << '\n');
   llvm_unreachable("SCCP: Don't know how to handle this terminator!");
 }
@@ -745,6 +760,66 @@ bool SCCPSolver::isEdgeFeasible(BasicBlock *From, BasicBlock *To) {
   // be more aggressive and try to consider edges which haven't been marked
   // yet, but there isn't any need.)
   return KnownFeasibleEdges.count(Edge(From, To));
+  assert(BBExecutable.count(To) && "Dest should always be alive!");
+
+  // Make sure the source basic block is executable!!
+  if (!BBExecutable.count(From)) return false;
+
+  // Check to make sure this edge itself is actually feasible now.
+  TerminatorInst *TI = From->getTerminator();
+  if (auto *BI = dyn_cast<BranchInst>(TI)) {
+    if (BI->isUnconditional())
+      return true;
+
+    LatticeVal BCValue = getValueState(BI->getCondition());
+
+    // Overdefined condition variables mean the branch could go either way,
+    // undef conditions mean that neither edge is feasible yet.
+    ConstantInt *CI = BCValue.getConstantInt();
+    if (!CI)
+      return !BCValue.isUnknown();
+
+    // Constant condition variables mean the branch can only go a single way.
+    return BI->getSuccessor(CI->isZero()) == To;
+  }
+
+  // Unwinding instructions successors are always executable.
+  if (TI->isExceptional())
+    return true;
+
+  if (auto *SI = dyn_cast<SwitchInst>(TI)) {
+    if (SI->getNumCases() < 1)
+      return true;
+
+    LatticeVal SCValue = getValueState(SI->getCondition());
+    ConstantInt *CI = SCValue.getConstantInt();
+
+    if (!CI)
+      return !SCValue.isUnknown();
+
+    return SI->findCaseValue(CI)->getCaseSuccessor() == To;
+  }
+
+  // In case of indirect branch and its address is a blockaddress, we mark
+  // the target as executable.
+  if (auto *IBR = dyn_cast<IndirectBrInst>(TI)) {
+    LatticeVal IBRValue = getValueState(IBR->getAddress());
+    BlockAddress *Addr = IBRValue.getBlockAddress();
+
+    if (!Addr)
+      return !IBRValue.isUnknown();
+
+    // At this point, the indirectbr is branching on a blockaddress.
+    return Addr->getBasicBlock() == To;
+  }
+
+  if (isa<ReattachInst>(TI) ||
+      isa<DetachInst>(TI) ||
+      isa<SyncInst>(TI))
+    return true;
+
+  LLVM_DEBUG(dbgs() << "Unknown terminator instruction: " << *TI << '\n');
+  llvm_unreachable("SCCP: Don't know how to handle this terminator!");
 }
 
 // visit Implementations - Something changed in this instruction, either an
