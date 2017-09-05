@@ -171,7 +171,8 @@ private:
 
 struct LegacyLICMPass : public LoopPass {
   static char ID; // Pass identification, replacement for typeid
-  LegacyLICMPass() : LoopPass(ID) {
+  bool Rhino;
+  LegacyLICMPass(bool rhino=false) : LoopPass(ID), Rhino(rhino) {
     initializeLegacyLICMPassPass(*PassRegistry::getPassRegistry());
   }
 
@@ -276,7 +277,7 @@ INITIALIZE_PASS_DEPENDENCY(MemorySSAWrapperPass)
 INITIALIZE_PASS_END(LegacyLICMPass, "licm", "Loop Invariant Code Motion", false,
                     false)
 
-Pass *llvm::createLICMPass() { return new LegacyLICMPass(); }
+Pass *llvm::createLICMPass(bool Rhino) { return new LegacyLICMPass(Rhino); }
 
 /// Hoist expressions out of the specified loop. Note, alias info for inner
 /// loop is not preserved so it is not a good idea to run LICM multiple
