@@ -19,6 +19,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include "llvm/Transforms/Tapir/TapirTypes.h"
 
 namespace llvm {
 class ModuleSummaryIndex;
