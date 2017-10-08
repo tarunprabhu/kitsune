@@ -203,7 +203,7 @@ void initializeLowerWidenableConditionLegacyPassPass(PassRegistry&);
 void initializeLowerIntrinsicsPass(PassRegistry&);
 void initializeLowerInvokeLegacyPassPass(PassRegistry&);
 void initializeLowerSwitchLegacyPassPass(PassRegistry &);
-void initializeLowerTapirToCilkPass(PassRegistry&);
+void initializeLowerTapirToTargetPass(PassRegistry&);
 void initializeLowerTypeTestsPass(PassRegistry&);
 void initializeKCFIPass(PassRegistry &);
 void initializeMIRAddFSDiscriminatorsPass(PassRegistry &);
