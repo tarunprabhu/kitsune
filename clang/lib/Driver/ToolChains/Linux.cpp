@@ -801,8 +801,10 @@ SanitizerMask Linux::getSupportedSanitizers() const {
       IsRISCV64 || IsSystemZ || IsHexagon || IsLoongArch64)
     Res |= SanitizerKind::Leak;
   if (IsX86_64 || IsMIPS64 || IsAArch64 || IsPowerPC64 || IsSystemZ ||
-      IsLoongArch64)
+      IsLoongArch64) {
     Res |= SanitizerKind::Thread;
+    Res |= SanitizerKind::Cilk;
+  }
   if (IsX86_64 || IsSystemZ)
     Res |= SanitizerKind::KernelMemory;
   if (IsX86_64 || IsMIPS64 || IsAArch64 || IsX86 || IsMIPS || IsArmArch ||
