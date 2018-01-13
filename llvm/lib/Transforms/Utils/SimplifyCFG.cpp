@@ -76,7 +76,6 @@
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/Transforms/Tapir/TapirUtils.h"
 #include <algorithm>
 #include <cassert>
 #include <climits>
@@ -270,6 +269,7 @@ class SimplifyCFGOpt {
   bool simplifyBranch(BranchInst *Branch, IRBuilder<> &Builder);
   bool simplifyUncondBranch(BranchInst *BI, IRBuilder<> &Builder);
   bool simplifyCondBranch(BranchInst *BI, IRBuilder<> &Builder);
+  bool simplifySync(SyncInst *SI);
 
   bool tryToSimplifyUncondBranchWithICmpInIt(ICmpInst *ICI,
                                              IRBuilder<> &Builder);
@@ -1491,6 +1491,14 @@ static bool isSafeToHoistInstr(Instruction *I, unsigned Flags) {
 
 static bool passingValueIsAlwaysUndefined(Value *V, Instruction *I, bool PtrValueMayBeModified = false);
 
+// Helper function to check if an instruction is a taskframe.create call.
+static bool isTaskFrameCreate(const Instruction *I) {
+  if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(I))
+    if (Intrinsic::taskframe_create == II->getIntrinsicID())
+      return true;
+  return false;
+}
+
 /// Helper function for hoistCommonCodeFromSuccessors. Return true if identical
 /// instructions \p I1 and \p I2 can and should be hoisted.
 static bool shouldHoistCommonInstructions(Instruction *I1, Instruction *I2,
@@ -1546,17 +1554,30 @@ bool SimplifyCFGOpt::hoistCommonCodeFromSuccessors(BasicBlock *BB,
     if (Succ->hasAddressTaken() || !Succ->getSinglePredecessor())
       return false;
 
-  auto *TI = BB->getTerminator();
+  BasicBlock::iterator BB1_Itr = BB1->begin();
+  BasicBlock::iterator BB2_Itr = BB2->begin();
 
-  // The second of pair is a SkipFlags bitmask.
-  using SuccIterPair = std::pair<BasicBlock::iterator, unsigned>;
-  SmallVector<SuccIterPair, 8> SuccIterPairs;
-  for (auto *Succ : successors(BB)) {
-    BasicBlock::iterator SuccItr = Succ->begin();
-    if (isa<PHINode>(*SuccItr))
-      return false;
-    SuccIterPairs.push_back(SuccIterPair(SuccItr, 0));
+  Instruction *I1 = &*BB1_Itr++, *I2 = &*BB2_Itr++;
+  // Skip debug info if it is not identical.
+  DbgInfoIntrinsic *DBI1 = dyn_cast<DbgInfoIntrinsic>(I1);
+  DbgInfoIntrinsic *DBI2 = dyn_cast<DbgInfoIntrinsic>(I2);
+  if (!DBI1 || !DBI2 || !DBI1->isIdenticalToWhenDefined(DBI2)) {
+    while (isa<DbgInfoIntrinsic>(I1))
+      I1 = &*BB1_Itr++;
+    while (isa<DbgInfoIntrinsic>(I2))
+      I2 = &*BB2_Itr++;
   }
+  if (isa<PHINode>(I1))
+    return false;
+
+  BasicBlock *BIParent = BI->getParent();
+
+  bool Changed = false;
+
+  auto _ = make_scope_exit([&]() {
+    if (Changed)
+      ++NumHoistCommonCode;
+  });
 
   // Check if only hoisting terminators is allowed. This does not add new
   // instructions to the hoist location.
@@ -1584,226 +1605,152 @@ bool SimplifyCFGOpt::hoistCommonCodeFromSuccessors(BasicBlock *BB,
       return false;
   }
 
-  bool Changed = false;
+  // Record any skipped instuctions that may read memory, write memory or have
+  // side effects, or have implicit control flow.
+  unsigned SkipFlagsBB1 = 0;
+  unsigned SkipFlagsBB2 = 0;
 
   for (;;) {
-    auto *SuccIterPairBegin = SuccIterPairs.begin();
-    auto &BB1ItrPair = *SuccIterPairBegin++;
-    auto OtherSuccIterPairRange =
-        iterator_range(SuccIterPairBegin, SuccIterPairs.end());
-    auto OtherSuccIterRange = make_first_range(OtherSuccIterPairRange);
-
-    Instruction *I1 = &*BB1ItrPair.first;
-    auto *BB1 = I1->getParent();
-
-    // Skip debug info if it is not identical.
-    bool AllDbgInstsAreIdentical = all_of(OtherSuccIterRange, [I1](auto &Iter) {
-      Instruction *I2 = &*Iter;
-      return I1->isIdenticalToWhenDefined(I2);
-    });
-    if (!AllDbgInstsAreIdentical) {
-      while (isa<DbgInfoIntrinsic>(I1))
-        I1 = &*++BB1ItrPair.first;
-      for (auto &SuccIter : OtherSuccIterRange) {
-        Instruction *I2 = &*SuccIter;
-        while (isa<DbgInfoIntrinsic>(I2))
-          I2 = &*++SuccIter;
-      }
-    }
-
-    bool AllInstsAreIdentical = true;
-    bool HasTerminator = I1->isTerminator();
-    for (auto &SuccIter : OtherSuccIterRange) {
-      Instruction *I2 = &*SuccIter;
-      HasTerminator |= I2->isTerminator();
-      if (AllInstsAreIdentical && !I1->isIdenticalToWhenDefined(I2))
-        AllInstsAreIdentical = false;
-    }
-
     // If we are hoisting the terminator instruction, don't move one (making a
     // broken BB), instead clone it, and remove BI.
-    if (HasTerminator) {
-      // Even if BB, which contains only one unreachable instruction, is ignored
-      // at the beginning of the loop, we can hoist the terminator instruction.
+    if (I1->isTerminator() || I2->isTerminator()) {
       // If any instructions remain in the block, we cannot hoist terminators.
-      if (NumSkipped || !AllInstsAreIdentical)
+      if (NumSkipped || !I1->isIdenticalToWhenDefined(I2))
         return Changed;
-      SmallVector<Instruction *, 8> Insts;
-      for (auto &SuccIter : OtherSuccIterRange)
-        Insts.push_back(&*SuccIter);
-      return hoistSuccIdenticalTerminatorToSwitchOrIf(TI, I1, Insts) || Changed;
+      goto HoistTerminator;
     }
 
-    if (AllInstsAreIdentical) {
-      unsigned SkipFlagsBB1 = BB1ItrPair.second;
-      AllInstsAreIdentical =
-          isSafeToHoistInstr(I1, SkipFlagsBB1) &&
-          all_of(OtherSuccIterPairRange, [=](const auto &Pair) {
-            Instruction *I2 = &*Pair.first;
-            unsigned SkipFlagsBB2 = Pair.second;
-            // Even if the instructions are identical, it may not
-            // be safe to hoist them if we have skipped over
-            // instructions with side effects or their operands
-            // weren't hoisted.
-            return isSafeToHoistInstr(I2, SkipFlagsBB2) &&
-                   shouldHoistCommonInstructions(I1, I2, TTI);
-          });
-    }
-
-    if (AllInstsAreIdentical) {
-      BB1ItrPair.first++;
-      if (isa<DbgInfoIntrinsic>(I1)) {
+    if (I1->isIdenticalToWhenDefined(I2) &&
+        // Even if the instructions are identical, it may not be safe to hoist
+        // them if we have skipped over instructions with side effects or their
+        // operands weren't hoisted.
+        isSafeToHoistInstr(I1, SkipFlagsBB1) &&
+        isSafeToHoistInstr(I2, SkipFlagsBB2) &&
+        shouldHoistCommonInstructions(I1, I2, TTI)) {
+      if (isa<DbgInfoIntrinsic>(I1) || isa<DbgInfoIntrinsic>(I2)) {
+        assert(isa<DbgInfoIntrinsic>(I1) && isa<DbgInfoIntrinsic>(I2));
         // The debug location is an integral part of a debug info intrinsic
         // and can't be separated from it or replaced.  Instead of attempting
         // to merge locations, simply hoist both copies of the intrinsic.
-        I1->moveBeforePreserving(TI);
-        for (auto &SuccIter : OtherSuccIterRange) {
-          auto *I2 = &*SuccIter++;
-          assert(isa<DbgInfoIntrinsic>(I2));
-          I2->moveBeforePreserving(TI);
-        }
+        BIParent->splice(BI->getIterator(), BB1, I1->getIterator());
+        BIParent->splice(BI->getIterator(), BB2, I2->getIterator());
       } else {
         // For a normal instruction, we just move one to right before the
         // branch, then replace all uses of the other with the first.  Finally,
         // we remove the now redundant second instruction.
-        I1->moveBeforePreserving(TI);
-        BB->splice(TI->getIterator(), BB1, I1->getIterator());
-        for (auto &SuccIter : OtherSuccIterRange) {
-          Instruction *I2 = &*SuccIter++;
-          assert(I2 != I1);
-          if (!I2->use_empty())
-            I2->replaceAllUsesWith(I1);
-          I1->andIRFlags(I2);
-          combineMetadataForCSE(I1, I2, true);
-          // I1 and I2 are being combined into a single instruction.  Its debug
-          // location is the merged locations of the original instructions.
-          I1->applyMergedLocation(I1->getDebugLoc(), I2->getDebugLoc());
-          I2->eraseFromParent();
-        }
+        BIParent->splice(BI->getIterator(), BB1, I1->getIterator());
+        if (!I2->use_empty())
+          I2->replaceAllUsesWith(I1);
+        I1->andIRFlags(I2);
+        combineMetadataForCSE(I1, I2, true);
+
+        // I1 and I2 are being combined into a single instruction.  Its debug
+        // location is the merged locations of the original instructions.
+        I1->applyMergedLocation(I1->getDebugLoc(), I2->getDebugLoc());
+
+        I2->eraseFromParent();
       }
-      if (!Changed)
-        NumHoistCommonCode += SuccIterPairs.size();
       Changed = true;
-      NumHoistCommonInstrs += SuccIterPairs.size();
+      ++NumHoistCommonInstrs;
     } else {
       if (NumSkipped >= HoistCommonSkipLimit)
         return Changed;
       // We are about to skip over a pair of non-identical instructions. Record
       // if any have characteristics that would prevent reordering instructions
       // across them.
-      for (auto &SuccIterPair : SuccIterPairs) {
-        Instruction *I = &*SuccIterPair.first++;
-        SuccIterPair.second |= skippedInstrFlags(I);
-      }
+      SkipFlagsBB1 |= skippedInstrFlags(I1);
+      SkipFlagsBB2 |= skippedInstrFlags(I2);
       ++NumSkipped;
     }
-  }
-}
 
-bool SimplifyCFGOpt::hoistSuccIdenticalTerminatorToSwitchOrIf(
-    Instruction *TI, Instruction *I1,
-    SmallVectorImpl<Instruction *> &OtherSuccTIs) {
-
-  auto *BI = dyn_cast<BranchInst>(TI);
-
-  bool Changed = false;
-  BasicBlock *TIParent = TI->getParent();
-  BasicBlock *BB1 = I1->getParent();
-
-  // Use only for an if statement.
-  auto *I2 = *OtherSuccTIs.begin();
-  auto *BB2 = I2->getParent();
-  if (BI) {
-    assert(OtherSuccTIs.size() == 1);
-    assert(BI->getSuccessor(0) == I1->getParent());
-    assert(BI->getSuccessor(1) == I2->getParent());
+    I1 = &*BB1_Itr++;
+    I2 = &*BB2_Itr++;
+    // Skip debug info if it is not identical.
+    DbgInfoIntrinsic *DBI1 = dyn_cast<DbgInfoIntrinsic>(I1);
+    DbgInfoIntrinsic *DBI2 = dyn_cast<DbgInfoIntrinsic>(I2);
+    if (!DBI1 || !DBI2 || !DBI1->isIdenticalToWhenDefined(DBI2)) {
+      while (isa<DbgInfoIntrinsic>(I1))
+        I1 = &*BB1_Itr++;
+      while (isa<DbgInfoIntrinsic>(I2))
+        I2 = &*BB2_Itr++;
+    }
   }
 
-  // In the case of an if statement, we try to hoist an invoke.
+  return Changed;
+
+HoistTerminator:
+  // It may not be possible to hoist an invoke.
   // FIXME: Can we define a safety predicate for CallBr?
-  // FIXME: Test case llvm/test/Transforms/SimplifyCFG/2009-06-15-InvokeCrash.ll
-  // removed in 4c923b3b3fd0ac1edebf0603265ca3ba51724937 commit?
-  if (isa<InvokeInst>(I1) && (!BI || !isSafeToHoistInvoke(BB1, BB2, I1, I2)))
-    return false;
+  if (isa<InvokeInst>(I1) && !isSafeToHoistInvoke(BB1, BB2, I1, I2))
+    return Changed;
 
   // TODO: callbr hoisting currently disabled pending further study.
   if (isa<CallBrInst>(I1))
-    return false;
+    return Changed;
 
   for (BasicBlock *Succ : successors(BB1)) {
     for (PHINode &PN : Succ->phis()) {
       Value *BB1V = PN.getIncomingValueForBlock(BB1);
-      for (Instruction *OtherSuccTI : OtherSuccTIs) {
-        Value *BB2V = PN.getIncomingValueForBlock(OtherSuccTI->getParent());
-        if (BB1V == BB2V)
-          continue;
+      Value *BB2V = PN.getIncomingValueForBlock(BB2);
+      if (BB1V == BB2V)
+        continue;
 
-        // In the case of an if statement, check for
-        // passingValueIsAlwaysUndefined here because we would rather eliminate
-        // undefined control flow then converting it to a select.
-        if (!BI || passingValueIsAlwaysUndefined(BB1V, &PN) ||
-            passingValueIsAlwaysUndefined(BB2V, &PN))
-          return false;
-      }
+      // Check for passingValueIsAlwaysUndefined here because we would rather
+      // eliminate undefined control flow then converting it to a select.
+      if (passingValueIsAlwaysUndefined(BB1V, &PN) ||
+          passingValueIsAlwaysUndefined(BB2V, &PN))
+        return Changed;
     }
   }
 
   // Okay, it is safe to hoist the terminator.
   Instruction *NT = I1->clone();
-  NT->insertInto(TIParent, TI->getIterator());
+  NT->insertInto(BIParent, BI->getIterator());
   if (!NT->getType()->isVoidTy()) {
     I1->replaceAllUsesWith(NT);
-    for (Instruction *OtherSuccTI : OtherSuccTIs)
-      OtherSuccTI->replaceAllUsesWith(NT);
+    I2->replaceAllUsesWith(NT);
     NT->takeName(I1);
   }
   Changed = true;
-  NumHoistCommonInstrs += OtherSuccTIs.size() + 1;
+  ++NumHoistCommonInstrs;
 
   // Ensure terminator gets a debug location, even an unknown one, in case
   // it involves inlinable calls.
-  SmallVector<DILocation *, 4> Locs;
-  Locs.push_back(I1->getDebugLoc());
-  for (auto *OtherSuccTI : OtherSuccTIs)
-    Locs.push_back(OtherSuccTI->getDebugLoc());
-  NT->setDebugLoc(DILocation::getMergedLocations(Locs));
+  NT->applyMergedLocation(I1->getDebugLoc(), I2->getDebugLoc());
 
   // PHIs created below will adopt NT's merged DebugLoc.
   IRBuilder<NoFolder> Builder(NT);
 
-  // In the case of an if statement, hoisting one of the terminators from our
-  // successor is a great thing. Unfortunately, the successors of the if/else
-  // blocks may have PHI nodes in them.  If they do, all PHI entries for BB1/BB2
-  // must agree for all PHI nodes, so we insert select instruction to compute
-  // the final result.
-  if (BI) {
-    std::map<std::pair<Value *, Value *>, SelectInst *> InsertedSelects;
-    for (BasicBlock *Succ : successors(BB1)) {
-      for (PHINode &PN : Succ->phis()) {
-        Value *BB1V = PN.getIncomingValueForBlock(BB1);
-        Value *BB2V = PN.getIncomingValueForBlock(BB2);
-        if (BB1V == BB2V)
-          continue;
+  // Hoisting one of the terminators from our successor is a great thing.
+  // Unfortunately, the successors of the if/else blocks may have PHI nodes in
+  // them.  If they do, all PHI entries for BB1/BB2 must agree for all PHI
+  // nodes, so we insert select instruction to compute the final result.
+  std::map<std::pair<Value *, Value *>, SelectInst *> InsertedSelects;
+  for (BasicBlock *Succ : successors(BB1)) {
+    for (PHINode &PN : Succ->phis()) {
+      Value *BB1V = PN.getIncomingValueForBlock(BB1);
+      Value *BB2V = PN.getIncomingValueForBlock(BB2);
+      if (BB1V == BB2V)
+        continue;
 
-        // These values do not agree.  Insert a select instruction before NT
-        // that determines the right value.
-        SelectInst *&SI = InsertedSelects[std::make_pair(BB1V, BB2V)];
-        if (!SI) {
-          // Propagate fast-math-flags from phi node to its replacement select.
-          IRBuilder<>::FastMathFlagGuard FMFGuard(Builder);
-          if (isa<FPMathOperator>(PN))
-            Builder.setFastMathFlags(PN.getFastMathFlags());
+      // These values do not agree.  Insert a select instruction before NT
+      // that determines the right value.
+      SelectInst *&SI = InsertedSelects[std::make_pair(BB1V, BB2V)];
+      if (!SI) {
+        // Propagate fast-math-flags from phi node to its replacement select.
+        IRBuilder<>::FastMathFlagGuard FMFGuard(Builder);
+        if (isa<FPMathOperator>(PN))
+          Builder.setFastMathFlags(PN.getFastMathFlags());
 
-          SI = cast<SelectInst>(Builder.CreateSelect(
-              BI->getCondition(), BB1V, BB2V,
-              BB1V->getName() + "." + BB2V->getName(), BI));
-        }
-
-        // Make the PHI node use the select for all incoming values for BB1/BB2
-        for (unsigned i = 0, e = PN.getNumIncomingValues(); i != e; ++i)
-          if (PN.getIncomingBlock(i) == BB1 || PN.getIncomingBlock(i) == BB2)
-            PN.setIncomingValue(i, SI);
+        SI = cast<SelectInst>(
+            Builder.CreateSelect(BI->getCondition(), BB1V, BB2V,
+                                 BB1V->getName() + "." + BB2V->getName(), BI));
       }
+
+      // Make the PHI node use the select for all incoming values for BB1/BB2
+      for (unsigned i = 0, e = PN.getNumIncomingValues(); i != e; ++i)
+        if (PN.getIncomingBlock(i) == BB1 || PN.getIncomingBlock(i) == BB2)
+          PN.setIncomingValue(i, SI);
     }
   }
 
@@ -1811,16 +1758,16 @@ bool SimplifyCFGOpt::hoistSuccIdenticalTerminatorToSwitchOrIf(
 
   // Update any PHI nodes in our new successors.
   for (BasicBlock *Succ : successors(BB1)) {
-    AddPredecessorToBlock(Succ, TIParent, BB1);
+    AddPredecessorToBlock(Succ, BIParent, BB1);
     if (DTU)
-      Updates.push_back({DominatorTree::Insert, TIParent, Succ});
+      Updates.push_back({DominatorTree::Insert, BIParent, Succ});
   }
 
   if (DTU)
-    for (BasicBlock *Succ : successors(TI))
-      Updates.push_back({DominatorTree::Delete, TIParent, Succ});
+    for (BasicBlock *Succ : successors(BI))
+      Updates.push_back({DominatorTree::Delete, BIParent, Succ});
 
-  EraseTerminatorAndDCECond(TI);
+  EraseTerminatorAndDCECond(BI);
   if (DTU)
     DTU->applyUpdates(Updates);
   return Changed;
@@ -4987,6 +4934,14 @@ bool SimplifyCFGOpt::simplifyCommonResume(ResumeInst *RI) {
   return !TrivialUnwindBlocks.empty();
 }
 
+static bool isTaskFrameUnassociated(const Value *TFCreate) {
+  for (const User *U : TFCreate->users())
+    if (const Instruction *I = dyn_cast<Instruction>(U))
+      if (isTapirIntrinsic(Intrinsic::taskframe_use, I))
+        return false;
+  return true;
+}
+
 // Simplify resume that is only used by a single (non-phi) landing pad.
 bool SimplifyCFGOpt::simplifySingleResume(ResumeInst *RI) {
   BasicBlock *BB = RI->getParent();
@@ -4998,6 +4953,14 @@ bool SimplifyCFGOpt::simplifySingleResume(ResumeInst *RI) {
   if (!isCleanupBlockEmpty(
           make_range<Instruction *>(LPInst->getNextNode(), RI)))
     return false;
+
+  // Check that no predecessor is a taskframe.resume for an unassociated
+  // taskframe.
+  for (const BasicBlock *Pred : predecessors(BB))
+    if (isTaskFrameResume(Pred->getTerminator()))
+      if (isTaskFrameUnassociated(
+              cast<InvokeInst>(Pred->getTerminator())->getArgOperand(0)))
+        return false;
 
   // Turn all invokes that unwind here into calls and delete the basic block.
   for (BasicBlock *Pred : llvm::make_early_inc_range(predecessors(BB))) {
@@ -5333,6 +5296,15 @@ bool SimplifyCFGOpt::simplifyUnreachable(UnreachableInst *UI) {
       new UnreachableInst(TI->getContext(), TI);
       TI->eraseFromParent();
       Changed = true;
+    } else if (DetachInst *DI = dyn_cast<DetachInst>(TI)) {
+      if (DI->getUnwindDest() == BB) {
+        // If the unwind destination of the detach is unreachable, simply remove
+        // the unwind edge.
+        removeUnwindEdge(DI->getParent());
+        Changed = true;
+      }
+      // Detaches of unreachables are handled via
+      // serializeDetachOfUnreachable.
     }
   }
 
@@ -6997,6 +6969,13 @@ static bool TryToMergeLandingPad(LandingPadInst *LPad, BranchInst *BI,
     // path instead and make ourselves dead.
     SmallSetVector<BasicBlock *, 16> UniquePreds(pred_begin(BB), pred_end(BB));
     for (BasicBlock *Pred : UniquePreds) {
+      // Handle detach predecessors.
+      if (DetachInst *DI = dyn_cast<DetachInst>(Pred->getTerminator())) {
+        assert(DI->getDetached() != BB && DI->getContinue() != BB &&
+               DI->getUnwindDest() == BB && "unexpected detach successor");
+        DI->setUnwindDest(OtherPred);
+        continue;
+      }
       InvokeInst *II = cast<InvokeInst>(Pred->getTerminator());
       assert(II->getNormalDest() != BB && II->getUnwindDest() == BB &&
              "unexpected successor");
@@ -7064,6 +7043,18 @@ bool SimplifyCFGOpt::simplifyUncondBranch(BranchInst *BI,
       !BlockIsEntryOfDetachedCtx(BB) &&
       !NeedCanonicalLoop && TryToSimplifyUncondBranchFromEmptyBlock(BB, DTU))
     return true;
+
+  // If this branch goes to a reattach block with a single predecessor, merge
+  // the two blocks.
+  if (isa<ReattachInst>(Succ->getTerminator()) && Succ->getSinglePredecessor()) {
+    assert(!NeedCanonicalLoop &&
+           "Reattach-terminated successor cannot by a loop header.");
+    // Preserve the name of BB, for cleanliness.
+    std::string BBName = BB->getName().str();
+    MergeBasicBlockIntoOnlyPred(Succ, DTU);
+    Succ->setName(BBName);
+    return true;
+  }
 
   // If the only instruction in the block is a seteq/setne comparison against a
   // constant, try to simplify the block.
@@ -7217,6 +7208,71 @@ bool SimplifyCFGOpt::simplifyCondBranch(BranchInst *BI, IRBuilder<> &Builder) {
   return false;
 }
 
+bool SimplifyCFGOpt::simplifySync(SyncInst *SI) {
+  const Value *SyncRegion = SI->getSyncRegion();
+  BasicBlock *Succ = SI->getSuccessor(0);
+
+  // Get the first non-trivial instruction in the successor of the sync.  Along
+  // the way, record a sync_unwind intrinsic for the sync if we find one.
+  Instruction *SyncUnwind = nullptr;
+  BasicBlock::iterator SuccI =
+      Succ->getFirstNonPHIOrDbg(true)->getIterator();
+  if (isSyncUnwind(&*SuccI, SyncRegion)) {
+    SyncUnwind = &*SuccI;
+    if (isa<InvokeInst>(SyncUnwind))
+      // We cannot eliminate syncs with associated sync-unwind that has an
+      // associated landingpad.
+      return false;
+    SuccI = Succ->getFirstNonPHIOrDbgOrSyncUnwind(true)->getIterator();
+  }
+
+  if (!SuccI->isTerminator())
+    // There's nontrivial code in the successor of the sync, so don't eliminate
+    // the sync.
+    return false;
+
+  if (SyncInst *SuccSI = dyn_cast<SyncInst>(&*SuccI)) {
+    if (SuccSI->getSyncRegion() == SyncRegion) {
+      // The successor block is terminated by a sync in the same sync region,
+      // meaning the given sync is redundant.  Eliminate the given sync.
+      if (SyncUnwind)
+        SyncUnwind->eraseFromParent();
+      ReplaceInstWithInst(SI, BranchInst::Create(Succ));
+      return requestResimplify();
+    }
+  }
+
+  // Otherwise check for an unconditional branch terminating the successor
+  // block.
+  if (!isa<BranchInst>(*SuccI))
+    return false;
+
+  BranchInst *BI = dyn_cast<BranchInst>(&*SuccI);
+  if (!BI->isUnconditional())
+    return false;
+
+  // Check if the successor of the unconditional branch simply contains a sync
+  // in the same sync region.
+  BasicBlock::iterator BrSuccI =
+      BI->getSuccessor(0)->getFirstNonPHIOrDbg(true)->getIterator();
+  if (!BrSuccI->isTerminator())
+    // There's nontrivial code in the successor of the sync, so don't eliminate
+    // it.
+    return false;
+  if (SyncInst *SuccSI = dyn_cast<SyncInst>(&*BrSuccI)) {
+    if (SuccSI->getSyncRegion() == SyncRegion) {
+      // The successor block is terminated by a sync in the same sync region,
+      // meaning the given sync is redundant.  Eliminate the given sync.
+      if (SyncUnwind)
+        SyncUnwind->eraseFromParent();
+      ReplaceInstWithInst(SI, BranchInst::Create(Succ));
+      return requestResimplify();
+    }
+  }
+
+  return false;
+}
+
 /// Check if passing a value to an instruction will cause undefined behavior.
 static bool passingValueIsAlwaysUndefined(Value *V, Instruction *I, bool PtrValueMayBeModified) {
   Constant *C = dyn_cast<Constant>(V);
@@ -7366,10 +7422,10 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB,
   return false;
 }
 
-/// If BB immediately syncs and BB's predecessor detaches, serialize
-/// the sync and detach.  This will allow normal serial
-/// optimization passes to remove the blocks appropriately.  Return
-/// false if BB does not terminate with a reattach.
+/// If BB immediately syncs and BB's predecessor detaches, serialize the sync
+/// and detach.  This will allow normal serial optimization passes to remove the
+/// blocks appropriately.  Return false if BB does not terminate with a
+/// reattach.
 static bool serializeDetachToImmediateSync(BasicBlock *BB,
                                            DomTreeUpdater *DTU) {
   Instruction *I = BB->getFirstNonPHIOrDbgOrLifetime();
@@ -7380,9 +7436,13 @@ static bool serializeDetachToImmediateSync(BasicBlock *BB,
     SmallSet<DetachInst *, 4> DetachPreds;
     SmallVector<Instruction *, 4> ReattachPreds;
     for (BasicBlock *PredBB : predecessors(BB)) {
-      if (DetachInst *DI = dyn_cast<DetachInst>(PredBB->getTerminator()))
+      if (DetachInst *DI = dyn_cast<DetachInst>(PredBB->getTerminator())) {
+        // This transformation gets too complicated if the detached task might
+        // throw, so abort.
+        if (DI->hasUnwindDest())
+          return false;
         DetachPreds.insert(DI);
-
+      }
       if (ReattachInst *RI = dyn_cast<ReattachInst>(PredBB->getTerminator()))
         ReattachPreds.push_back(RI);
     }
@@ -7390,6 +7450,24 @@ static bool serializeDetachToImmediateSync(BasicBlock *BB,
     Value *SyncRegion = cast<SyncInst>(I)->getSyncRegion();
     for (DetachInst *DI : DetachPreds) {
       BasicBlock *Detached = DI->getDetached();
+
+      // If this detached task uses a taskframe, mark those taskframe
+      // instrinsics to be erased.
+      SmallVector<Instruction *, 2> ToErase;
+      if (Value *TaskFrame = getTaskFrameUsed(Detached)) {
+        // If this detach uses a taskframe, record that taskframe.use.
+        for (User *U : TaskFrame->users()) {
+          if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(U)) {
+            if (Intrinsic::taskframe_use == II->getIntrinsicID())
+              ToErase.push_back(II);
+            else
+              // We need more complicated logic to effectively inline this
+              // taskframe, so abort.
+              return false;
+          }
+        }
+        ToErase.push_back(cast<Instruction>(TaskFrame));
+      }
 
       // Replace the detach with a branch to the detached block.
       BB->removePredecessor(DI->getParent());
@@ -7402,6 +7480,11 @@ static bool serializeDetachToImmediateSync(BasicBlock *BB,
       // appropriate entry block.
       MoveStaticAllocasInBlock(cast<Instruction>(SyncRegion)->getParent(),
                                Detached, ReattachPreds);
+
+      // Erase any instructions marked to be erased.
+      for (Instruction *I : ToErase)
+        I->eraseFromParent();
+
       // We should not need to add new llvm.stacksave/llvm.stackrestore
       // intrinsics, because we're not introducing new alloca's into a loop.
       Changed = true;
@@ -7419,29 +7502,44 @@ static bool serializeDetachToImmediateSync(BasicBlock *BB,
   return false;
 }
 
-/// If BB immediately reattaches and BB's predecessor detaches,
-/// serialize the reattach and detach.  This will allow normal serial
-/// optimization passes to remove the blocks appropriately.  Return
-/// false if BB does not terminate with a reattach or predecessor does
-/// terminate with detach.
+/// If BB immediately reattaches and BB's predecessor detaches, serialize the
+/// reattach and detach.  This will allow normal serial optimization passes to
+/// remove the blocks appropriately.  Return false if BB does not terminate with
+/// a reattach or predecessor does terminate with detach.
 static bool serializeTrivialDetachedBlock(BasicBlock *BB, DomTreeUpdater *DTU) {
-  Instruction *I = BB->getFirstNonPHI();
+  Instruction *I = BB->getFirstNonPHIOrDbgOrLifetime();
+  SmallVector<Instruction *, 2> ToErase;
+  // Skip a possible taskframe.use intrinsic in the task.
+  if (isTapirIntrinsic(Intrinsic::taskframe_use, I)) {
+    Value *TaskFrame = cast<IntrinsicInst>(I)->getArgOperand(0);
+    // Check for any other uses of TaskFrame.
+    for (User *U : TaskFrame->users())
+      if (U != I)
+        // We found another use of the taskframe, making it too complicated for
+        // us to handle.  Abort.
+        return false;
+    ToErase.push_back(I);
+    ToErase.push_back(cast<Instruction>(TaskFrame));
+    I = &*(++(I->getIterator()));
+  }
   if (ReattachInst *RI = dyn_cast<ReattachInst>(I)) {
-    // This detached block is empty
+    // This detached block is empty.
     // Scan predecessors to verify that all of them detach BB.
     for (BasicBlock *PredBB : predecessors(BB)) {
       if (!isa<DetachInst>(PredBB->getTerminator()))
 	return false;
     }
-    // All predecessors detach BB, so we can serialize
-    for (BasicBlock *PredBB : predecessors(BB)) {
+    // All predecessors detach BB, so we can serialize.  Copy the predecessors
+    // into a separate vector, so we can safely remove the predecessors.
+    SmallVector<BasicBlock *, 16> Preds(pred_begin(BB), pred_end(BB));
+    for (BasicBlock *PredBB : Preds) {
       DetachInst *DI = dyn_cast<DetachInst>(PredBB->getTerminator());
       BasicBlock *Detached = DI->getDetached();
       BasicBlock *Continue = DI->getContinue();
       assert(RI->getSuccessor(0) == Continue &&
-             "Reattach destination does not match continue block of associated detach.");
-      // Remove the predecessor through the detach from the continue
-      // block.
+             "Reattach destination does not match continue block of associated "
+             "detach.");
+      // Remove the predecessor through the detach from the continue block.
       Continue->removePredecessor(PredBB);
       // Serialize the detach: replace it with an unconditional branch.
       ReplaceInstWithInst(DI, BranchInst::Create(Detached));
@@ -7449,6 +7547,9 @@ static bool serializeTrivialDetachedBlock(BasicBlock *BB, DomTreeUpdater *DTU) {
       if (DTU)
         DTU->applyUpdates({{DominatorTree::Delete, PredBB, Continue}});
     }
+    // Erase any instructions marked to be erased.
+    for (Instruction *I : ToErase)
+      I->eraseFromParent();
     // Serialize the reattach: replace it with an unconditional branch.
     ReplaceInstWithInst(RI, BranchInst::Create(RI->getSuccessor(0)));
     return true;
@@ -7470,15 +7571,39 @@ static bool serializeDetachOfUnreachable(BasicBlock *BB, DomTreeUpdater *DTU) {
     for (BasicBlock *PredBB : predecessors(Continue))
       if (isa<ReattachInst>(PredBB->getTerminator()))
         return false;
-    // TODO: Add stronger checks to make sure the detached CFG is valid.
-    // Remove the predecessor through the detach from the continue
-    // block.
+
+    if (DI->hasUnwindDest())
+      // These detaches are too complicated for SimplifyCFG to handle.  Abort.
+      return false;
+
+    // If this detached task uses a taskframe, mark those taskframe instrinsics
+    // to be erased.
+    SmallVector<Instruction *, 2> ToErase;
+    if (Value *TaskFrame = getTaskFrameUsed(DI->getDetached())) {
+      // If this detach uses a taskframe, remove that taskframe.
+      for (User *U : TaskFrame->users()) {
+        if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(U)) {
+          if (Intrinsic::taskframe_use == II->getIntrinsicID())
+            ToErase.push_back(II);
+          else
+            // We need more complicated logic to effectively inline this
+            // taskframe, so abort.
+            return false;
+        }
+      }
+      ToErase.push_back(cast<Instruction>(TaskFrame));
+    }
+
+    // Remove the predecessor through the detach from the continue block.
     Continue->removePredecessor(BB);
     // Update DTU if available.
     if (DTU)
       DTU->applyUpdates({{DominatorTree::Delete, BB, Continue}});
     // Replace the detach with a branch to the detached block.
     ReplaceInstWithInst(DI, BranchInst::Create(DI->getDetached()));
+    // Erase any instructions marked to be erased.
+    for (Instruction *I : ToErase)
+      I->eraseFromParent();
     return true;
   }
   return false;
@@ -7505,8 +7630,25 @@ static bool removeEmptySyncs(BasicBlock *BB) {
     }
     // If the sync region is empty, then remove all sync instructions in it.
     if (SyncRegionIsEmpty) {
-      for (SyncInst *Sync : Syncs)
+      SmallPtrSet<CallBase *, 1> MaybeDeadSyncUnwinds;
+      for (SyncInst *Sync : Syncs) {
+        // Check for any sync.unwinds that might now be dead.
+        Instruction *MaybeSyncUnwind =
+            Sync->getSuccessor(0)->getFirstNonPHIOrDbgOrLifetime();
+        if (isSyncUnwind(MaybeSyncUnwind, SyncRegion))
+          MaybeDeadSyncUnwinds.insert(cast<CallBase>(MaybeSyncUnwind));
+
+        LLVM_DEBUG(dbgs() << "Removing empty sync " << *Sync << "\n");
         ReplaceInstWithInst(Sync, BranchInst::Create(Sync->getSuccessor(0)));
+      }
+      // Remove any dead sync.unwinds.
+      for (CallBase *CB : MaybeDeadSyncUnwinds) {
+        LLVM_DEBUG(dbgs() << "Remove dead sync unwind " << *CB << "?  ");
+        if (removeDeadSyncUnwind(CB))
+          LLVM_DEBUG(dbgs() << "Yes.\n");
+        else
+          LLVM_DEBUG(dbgs() << "No.\n");
+      }
       return true;
     }
   }
@@ -7598,6 +7740,8 @@ bool SimplifyCFGOpt::simplifyOnce(BasicBlock *BB) {
   case Instruction::IndirectBr:
     Changed |= simplifyIndirectBr(cast<IndirectBrInst>(Terminator));
     break;
+  case Instruction::Sync:
+    Changed |= simplifySync(cast<SyncInst>(Terminator));
   }
 
   return Changed;
