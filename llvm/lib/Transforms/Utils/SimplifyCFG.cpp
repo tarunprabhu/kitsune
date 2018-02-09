@@ -5249,8 +5249,8 @@ bool SimplifyCFGOpt::simplifyUnreachable(UnreachableInst *UI) {
           DTU->applyUpdates(Updates);
           Updates.clear();
         }
-        auto *CI = cast<CallInst>(removeUnwindEdge(TI->getParent(), DTU));
-        if (!CI->doesNotThrow())
+        auto *CI = dyn_cast<CallInst>(removeUnwindEdge(TI->getParent(), DTU));
+        if (CI && !CI->doesNotThrow())
           CI->setDoesNotThrow();
         Changed = true;
       }
@@ -7398,6 +7398,11 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB,
 /// and detach.  This will allow normal serial optimization passes to remove the
 /// blocks appropriately.  Return false if BB does not terminate with a
 /// reattach.
+///
+/// TODO: A more elaborate version of this transformation could handle many more
+/// cases, but requires heavy lifting similar to function inlining.  Create a
+/// new transformation pass to handle such cases.
+>>>>>>> 53f9982c832e ([Tapir] Updating existing analyses and transformations outside of)
 static bool serializeDetachToImmediateSync(BasicBlock *BB,
                                            DomTreeUpdater *DTU) {
   Instruction *I = BB->getFirstNonPHIOrDbgOrLifetime();
