@@ -506,7 +506,7 @@ public:
   bool CheckNew = false;
 
   /// \brief Runtime target for Tapir.
-  TapirTargetType TapirTarget = TapirTargetType::None;
+  TapirTargetType TapirTarget = TapirTargetType::Last_TapirTargetType;
 
   LangOptions();
 
