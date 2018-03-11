@@ -62,6 +62,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Transforms/Utils/AssumeBundleBuilder.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
@@ -1750,15 +1751,6 @@ static void AddAlignmentAssumptions(CallBase &CB, InlineFunctionInfo &IFI) {
       DT.recalculate(*CB.getCaller());
       DTCalculated = true;
     }
-    // If we can already prove the asserted alignment in the context of the
-    // caller, then don't bother inserting the assumption.
-    Value *ArgVal = CB.getArgOperand(Arg.getArgNo());
-    if (getKnownAlignment(ArgVal, DL, &CB, AC, &DT) >= *Alignment)
-      continue;
-
-    CallInst *NewAsmp = IRBuilder<>(&CB).CreateAlignmentAssumption(
-        DL, ArgVal, Alignment->value());
-    AC->registerAssumption(cast<AssumeInst>(NewAsmp));
   }
 }
 
@@ -2478,7 +2470,6 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       !Caller->getAttributes().hasFnAttr(Attribute::StrictFP)) {
     return InlineResult::failure("incompatible strictfp attributes");
   }
-
   // Canonicalize the caller by splitting blocks containing taskframe.create
   // intrinsics.
   if (splitTaskFrameCreateBlocks(*Caller))
