@@ -679,6 +679,7 @@ public:
     case Intrinsic::coro_suspend:
     case Intrinsic::coro_subfn_addr:
     case Intrinsic::threadlocal_address:
+    case Intrinsic::syncregion_start:
       // These intrinsics don't actually represent code after lowering.
       return 0;
     }
@@ -1280,6 +1281,11 @@ public:
       Type *DstTy = U->getOperand(0)->getType();
       return TargetTTI->getVectorInstrCost(*EEI, DstTy, CostKind, Idx);
     }
+    case Instruction::Detach:
+      // Ideally, we'd determine the number of arguments of the detached task.
+      // But because that computation is expensive, we settle for 30x the basic
+      // cost of a function call.
+      return 30 * TTI::TCC_Basic;
     }
 
     // By default, just classify everything as 'basic' or -1 to represent that
@@ -1293,6 +1299,41 @@ public:
     InstructionCost Cost = TargetTTI->getInstructionCost(
         I, Ops, TargetTransformInfo::TCK_SizeAndLatency);
     return Cost >= TargetTransformInfo::TCC_Expensive;
+  }
+
+  InstructionCost getInstructionLatency(const Instruction *I) {
+    SmallVector<const Value *, 4> Operands(I->operand_values());
+    if (getUserCost(I, Operands, TTI::TCK_Latency) == TTI::TCC_Free)
+      return 0;
+
+    if (isa<LoadInst>(I))
+      return 4;
+
+    // Mark a detach instruction to be 30x the cost of a function call.
+    if (isa<DetachInst>(I))
+      return 1200;
+
+    Type *DstTy = I->getType();
+
+    // Usually an intrinsic is a simple instruction.
+    // A real function call is much slower.
+    if (auto *CI = dyn_cast<CallInst>(I)) {
+      const Function *F = CI->getCalledFunction();
+      if (!F || static_cast<T *>(this)->isLoweredToCall(F))
+        return 40;
+      // Some intrinsics return a value and a flag, we use the value type
+      // to decide its latency.
+      if (StructType *StructTy = dyn_cast<StructType>(DstTy))
+        DstTy = StructTy->getElementType(0);
+      // Fall through to simple instructions.
+    }
+
+    if (VectorType *VectorTy = dyn_cast<VectorType>(DstTy))
+      DstTy = VectorTy->getElementType();
+    if (DstTy->isFloatingPointTy())
+      return 3;
+
+    return 1;
   }
 };
 } // namespace llvm
