@@ -342,6 +342,7 @@ void PassManagerBuilder::populateModulePassManager(
     if (TapirTargetID::None != TapirTarget) {
       MPM.add(createTaskCanonicalizePass());
       MPM.add(createLowerTapirToTargetPass());
+
       // The lowering pass may leave cruft around.  Clean it up.
       MPM.add(createCFGSimplificationPass());
       MPM.add(createAlwaysInlinerLegacyPass());
