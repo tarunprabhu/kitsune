@@ -40,7 +40,10 @@
 #include "llvm/Transforms/Scalar/SimpleLoopUnswitch.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Tapir.h"
+<<<<<<< HEAD
 #include "llvm/Transforms/Tapir/LoopStripMinePass.h"
+=======
+>>>>>>> 3964b8b7cdfc ([PassManager] Code cleanup for Tapir-lowering passes.)
 #include "llvm/Transforms/Vectorize.h"
 
 using namespace llvm;
@@ -604,7 +607,6 @@ void PassManagerBuilder::populateModulePassManager(
 
     if (MergeFunctions)
       MPM.add(createMergeFunctionsPass());
-    MPM.add(createBarrierNoopPass());
 
     // We add a module alias analysis pass here. In part due to bugs in the
     // analysis infrastructure this "works" in that the analysis stays alive
