@@ -74,7 +74,9 @@ static cl::opt<TapirTargetType> ClTapirTarget(
                clEnumValN(TapirTargetType::OpenMP,
                           "openmp", "OpenMP"),
                clEnumValN(TapirTargetType::CilkR,
-                          "cilkr", "CilkR")));
+                          "cilkr", "CilkR"),
+               clEnumValN(TapirTargetType::Qthreads,
+                          "qthreads", "Qthreads")));
 
 namespace {
 
