@@ -202,6 +202,11 @@ static MemoryEffects checkFunctionMemoryAccess(Function &F, bool ThisBody,
         }
       }
       continue;
+    } else if (isa<SyncInst>(I) || isa<DetachInst>(I) || isa<ReattachInst>(I)) {
+      // Tapir instructions only access memory accessed by other instructions in
+      // the function.  Hence we let the other instructions determine the
+      // attribute of this function.
+      continue;
     }
 
     ModRefInfo MR = ModRefInfo::NoModRef;
@@ -640,7 +645,7 @@ determinePointerAccessAttrs(Argument *A,
             if (Visited.insert(&UU).second)
               Worklist.push_back(&UU);
       }
-      
+
       if (CB.doesNotAccessMemory())
         continue;
 
