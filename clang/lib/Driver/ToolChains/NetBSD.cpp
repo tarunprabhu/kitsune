@@ -275,6 +275,7 @@ void netbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   bool NeedsSanitizerDeps = addSanitizerRuntimes(ToolChain, Args, CmdArgs);
   bool NeedsXRayDeps = addXRayRuntime(ToolChain, Args, CmdArgs);
+  bool NeedsCilkSanitizerDeps = needsCilkSanitizerDeps(ToolChain, Args);
   AddLinkerInputs(ToolChain, Inputs, Args, CmdArgs, JA);
 
   const SanitizerArgs &SanArgs = ToolChain.getSanitizerArgs(Args);
@@ -283,6 +284,10 @@ void netbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(Args.MakeArgString(ToolChain.getCompilerRTPath()));
   }
 
+  addCSIRuntime(getToolChain(), Args, CmdArgs);
+  addCilktoolRuntime(getToolChain(), Args, CmdArgs);
+
+  VersionTuple OsVersion = Triple.getOSVersion();
   bool useLibgcc = true;
   switch (ToolChain.getArch()) {
   case llvm::Triple::aarch64:
