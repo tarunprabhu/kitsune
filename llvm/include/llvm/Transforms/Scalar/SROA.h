@@ -35,6 +35,7 @@ class Function;
 class LLVMContext;
 class PHINode;
 class SelectInst;
+class TaskInfo;
 class Use;
 
 /// A private "module" namespace for types and utilities used by SROA. These
@@ -98,6 +99,7 @@ class SROAPass : public PassInfoMixin<SROAPass> {
   DomTreeUpdater *DTU = nullptr;
   AssumptionCache *AC = nullptr;
   const bool PreserveCFG;
+  TaskInfo *TI = nullptr;
 
   /// Worklist of alloca instructions to simplify.
   ///
@@ -175,7 +177,7 @@ private:
   PreservedAnalyses runImpl(Function &F, DomTreeUpdater &RunDTU,
                             AssumptionCache &RunAC);
   PreservedAnalyses runImpl(Function &F, DominatorTree &RunDT,
-                            AssumptionCache &RunAC);
+                            AssumptionCache &RunAC, TaskInfo &RunTI);
 
   bool presplitLoadsAndStores(AllocaInst &AI, sroa::AllocaSlices &AS);
   AllocaInst *rewritePartition(AllocaInst &AI, sroa::AllocaSlices &AS,
