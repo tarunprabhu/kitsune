@@ -63,6 +63,7 @@ namespace {
         return;
 
       (void) llvm::createAAEvalPass();
+      (void) llvm::createAnalyzeTapirPass();
       (void) llvm::createBasicAAWrapperPass();
       (void) llvm::createSCEVAAWrapperPass();
       (void) llvm::createTypeBasedAAWrapperPass();
