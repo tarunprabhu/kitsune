@@ -7402,7 +7402,6 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB,
 /// TODO: A more elaborate version of this transformation could handle many more
 /// cases, but requires heavy lifting similar to function inlining.  Create a
 /// new transformation pass to handle such cases.
->>>>>>> 53f9982c832e ([Tapir] Updating existing analyses and transformations outside of)
 static bool serializeDetachToImmediateSync(BasicBlock *BB,
                                            DomTreeUpdater *DTU) {
   Instruction *I = BB->getFirstNonPHIOrDbgOrLifetime();
