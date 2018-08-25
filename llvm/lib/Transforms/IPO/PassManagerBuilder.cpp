@@ -574,6 +574,7 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createMergeFunctionsPass());
     MPM.add(createBarrierNoopPass());
     // addFunctionSimplificationPasses(MPM);
+
 /*
     addExtensionsToPM(EP_TapirLoopEnd, MPM);
 */
