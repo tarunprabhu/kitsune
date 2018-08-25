@@ -40,10 +40,7 @@
 #include "llvm/Transforms/Scalar/SimpleLoopUnswitch.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Tapir.h"
-<<<<<<< HEAD
 #include "llvm/Transforms/Tapir/LoopStripMinePass.h"
-=======
->>>>>>> 3964b8b7cdfc ([PassManager] Code cleanup for Tapir-lowering passes.)
 #include "llvm/Transforms/Vectorize.h"
 
 using namespace llvm;
@@ -343,9 +340,11 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createTaskCanonicalizePass());
       MPM.add(createLowerTapirToTargetPass());
 
+      // MPM.add(createInferFunctionAttrsLegacyPass());
+      MPM.add(createLowerTapirToTargetPass(TapirTarget));
       // The lowering pass may leave cruft around.  Clean it up.
       MPM.add(createCFGSimplificationPass());
-      MPM.add(createAlwaysInlinerLegacyPass());
+      // MPM.add(createInferFunctionAttrsLegacyPass());
     }
 
     // FIXME: The BarrierNoopPass is a HACK! The inliner pass above implicitly
@@ -367,9 +366,9 @@ void PassManagerBuilder::populateModulePassManager(
   bool RerunAfterTapirLowering = false;
   bool TapirHasBeenLowered = (TapirTargetID::None == TapirTarget);
 
-  if (DisableTapirOpts && (TapirTargetID::None != TapirTarget)) {
-    MPM.add(createTaskCanonicalizePass());
-    MPM.add(createLowerTapirToTargetPass());
+  if ((TapirTargetID::None != TapirTarget) && DisableTapirOpts) { // -fdetach
+    MPM.add(createAnalyzeTapirPass());
+    MPM.add(createLowerTapirToTargetPass(TapirTarget));
     TapirHasBeenLowered = true;
   }
 
@@ -627,6 +626,18 @@ void PassManagerBuilder::populateModulePassManager(
     // FIXME: This is a HACK! The inliner pass above implicitly creates a CGSCC
     // pass manager that we are specifically trying to avoid. To prevent this
     // we must insert a no-op module pass to reset the pass manager.
+    //
+    // TODO: Make this sequence of passes check the library info for the target
+    // parallel RTS.
+
+    // MPM.add(createInferFunctionAttrsLegacyPass());
+    MPM.add(createLowerTapirToTargetPass(TapirTarget));
+    // The lowering pass introduces new functions and may leave cruft around.
+    // Clean it up.
+    MPM.add(createCFGSimplificationPass());
+    MPM.add(createInferFunctionAttrsLegacyPass());
+    MPM.add(createMergeFunctionsPass());
+
     MPM.add(createBarrierNoopPass());
 
     if (OptLevel > 1)
