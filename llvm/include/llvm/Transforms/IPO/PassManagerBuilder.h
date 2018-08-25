@@ -23,7 +23,6 @@
 namespace llvm {
 class ModuleSummaryIndex;
 class Pass;
-class TapirTarget;
 class TargetLibraryInfoImpl;
 
 // The old pass manager infrastructure is hidden in a legacy namespace now.
