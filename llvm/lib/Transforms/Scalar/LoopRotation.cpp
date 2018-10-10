@@ -60,8 +60,9 @@ PreservedAnalyses LoopRotatePass::run(Loop &L, LoopAnalysisManager &AM,
   if (AR.MSSA)
     MSSAU = MemorySSAUpdater(AR.MSSA);
   bool Changed = LoopRotation(&L, &AR.LI, &AR.TTI, &AR.AC, &AR.DT, &AR.SE,
-                              MSSAU ? &*MSSAU : nullptr, SQ, false, Threshold,
-                              false, PrepareForLTO || PrepareForLTOOption);
+                              MSSAU ? &*MSSAU : nullptr, &AR.TI, SQ, false,
+                              Threshold, false,
+                              PrepareForLTO || PrepareForLTOOption);
 
   if (!Changed)
     return PreservedAnalyses::all();
@@ -116,6 +117,7 @@ public:
     auto *AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
     auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
     auto &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
+    auto &TI = getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
     const SimplifyQuery SQ = getBestSimplifyQuery(*this, F);
     std::optional<MemorySSAUpdater> MSSAU;
     // Not requiring MemorySSA and getting it only if available will split
@@ -130,8 +132,8 @@ public:
                         ? DefaultRotationThreshold
                         : MaxHeaderSize;
 
-    return LoopRotation(L, LI, TTI, AC, &DT, &SE, MSSAU ? &*MSSAU : nullptr, SQ,
-                        false, Threshold, false,
+    return LoopRotation(L, LI, TTI, AC, &DT, &SE, MSSAU ? &*MSSAU : nullptr,
+                        &TI, SQ, false, Threshold, false,
                         PrepareForLTO || PrepareForLTOOption);
   }
 };
