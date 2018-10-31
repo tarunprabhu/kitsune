@@ -86,6 +86,7 @@
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include "llvm/Transforms/Utils/NameAnonGlobals.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
+#include "llvm/Transforms/Tapir/TapirToTarget.h"
 #include <memory>
 #include <optional>
 using namespace clang;
@@ -1434,7 +1435,8 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
     } else if (PrepareForLTO) {
       MPM = PB.buildLTOPreLinkDefaultPipeline(Level);
     } else {
-      MPM = PB.buildPerModuleDefaultPipeline(Level);
+      MPM = PB.buildPerModuleDefaultPipeline(Level, false,
+                                             TLII->hasTapirTarget());
     }
   }
 
