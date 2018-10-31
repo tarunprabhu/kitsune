@@ -1416,6 +1416,27 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
             MPM.addPass(InstrProfiling(*Options, false));
           });
 
+    // Register the Cilksan and CSI passes.
+    if (LangOpts.Sanitize.has(SanitizerKind::Cilk))
+      PB.registerTapirLateEPCallback(
+          [](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
+            // CilkSanitizer performs significant changes to the CFG before
+            // attempting to analyze and insert instrumentation.  Hence we
+            // invalidate all analysis passes before running CilkSanitizer.
+            MPM.addPass(InvalidateAllAnalysesPass());
+            MPM.addPass(CilkSanitizerPass());
+          });
+
+    if (LangOpts.ComprehensiveStaticInstrumentation)
+      PB.registerTapirLateEPCallback(
+          [](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
+            // CSI performs significant changes to the CFG before attempting
+            // to analyze and insert instrumentation.  Hence we invalidate all
+            // analysis passes before running CSI.
+            MPM.addPass(InvalidateAllAnalysesPass());
+            MPM.addPass(ComprehensiveStaticInstrumentationPass());
+          });
+
     // TODO: Consider passing the MemoryProfileOutput to the pass builder via
     // the PGOOptions, and set this up there.
     if (!CodeGenOpts.MemoryProfileOutput.empty()) {
@@ -1426,7 +1447,12 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
           });
     }
 
-    if (CodeGenOpts.FatLTO) {
+    bool IsThinOrUnifiedLTO = IsThinLTO || (IsLTO && CodeGenOpts.UnifiedLTO);
+    if (CodeGenOpts.OptimizationLevel == 0) {
+      MPM = PB.buildO0DefaultPipeline(
+          Level, IsLTO || CodeGenOpts.FatLTO || IsThinOrUnifiedLTO,
+          TLII->hasTapirTarget());
+    } else if (CodeGenOpts.FatLTO) {
       MPM = PB.buildFatLTODefaultPipeline(Level, PrepareForThinLTO,
                                           PrepareForThinLTO ||
                                               shouldEmitRegularLTOSummary());
