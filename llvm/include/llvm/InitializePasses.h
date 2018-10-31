@@ -84,7 +84,7 @@ void initializeCallGraphPrinterLegacyPassPass(PassRegistry&);
 void initializeCallGraphViewerPass(PassRegistry&);
 void initializeCallGraphWrapperPassPass(PassRegistry&);
 void initializeCheckDebugMachineModulePass(PassRegistry &);
-void initializeCilkSanitizerPass(PassRegistry&);
+void initializeCilkSanitizerLegacyPassPass(PassRegistry&);
 void initializeCodeGenPreparePass(PassRegistry&);
 void initializeComplexDeinterleavingLegacyPassPass(PassRegistry&);
 void initializeComprehensiveStaticInstrumentationPass(PassRegistry&);
