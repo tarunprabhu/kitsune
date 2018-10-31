@@ -93,7 +93,7 @@ void initializeCallGraphWrapperPassPass(PassRegistry&);
 void initializeCallSiteSplittingLegacyPassPass(PassRegistry&);
 void initializeCalledValuePropagationLegacyPassPass(PassRegistry &);
 void initializeCheckDebugMachineModulePass(PassRegistry &);
-void initializeCilkSanitizerPass(PassRegistry&);
+void initializeCilkSanitizerLegacyPassPass(PassRegistry&);
 void initializeCodeGenPreparePass(PassRegistry&);
 void initializeComplexDeinterleavingLegacyPassPass(PassRegistry&);
 void initializeComprehensiveStaticInstrumentationPass(PassRegistry&);
