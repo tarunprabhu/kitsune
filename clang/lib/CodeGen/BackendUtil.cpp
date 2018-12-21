@@ -73,6 +73,8 @@
 #include "llvm/Transforms/Instrumentation/SanitizerBinaryMetadata.h"
 #include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
 #include "llvm/Transforms/Instrumentation/ThreadSanitizer.h"
+#include "llvm/Transforms/Instrumentation/CilkSanitizer.h"
+#include "llvm/Transforms/Instrumentation/ComprehensiveStaticInstrumentation.h"
 #include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Scalar/EarlyCSE.h"
 #include "llvm/Transforms/Scalar/GVN.h"
@@ -382,7 +384,7 @@ addPostInlineEntryExitInstrumentationPass(const PassManagerBuilder &Builder,
 
 static void addCilkSanitizerPass(const PassManagerBuilder &Builder,
                                  legacy::PassManagerBase &PM) {
-  PM.add(createCilkSanitizerPass());
+  PM.add(createCilkSanitizerLegacyPass());
 
   // CilkSanitizer inserts complex instrumentation that mostly follows the logic
   // of the original code, but operates on "shadow" values.  It can benefit from
@@ -400,7 +402,7 @@ static void addCilkSanitizerPass(const PassManagerBuilder &Builder,
 static void
 addComprehensiveStaticInstrumentationPass(const PassManagerBuilder &Builder,
                                           PassManagerBase &PM) {
-  PM.add(createComprehensiveStaticInstrumentationPass());
+  PM.add(createComprehensiveStaticInstrumentationLegacyPass());
 
   // CSI inserts complex instrumentation that mostly follows the logic of the
   // original code, but operates on "shadow" values.  It can benefit from
@@ -1416,7 +1418,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
             MPM.addPass(InstrProfiling(*Options, false));
           });
 
-    // Register the Cilksan and CSI passes.
+    // Register the Cilksan pass.
     if (LangOpts.Sanitize.has(SanitizerKind::Cilk))
       PB.registerTapirLateEPCallback(
           [](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
@@ -1427,15 +1429,46 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
             MPM.addPass(CilkSanitizerPass());
           });
 
-    if (LangOpts.ComprehensiveStaticInstrumentation)
-      PB.registerTapirLateEPCallback(
-          [](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
-            // CSI performs significant changes to the CFG before attempting
-            // to analyze and insert instrumentation.  Hence we invalidate all
-            // analysis passes before running CSI.
-            MPM.addPass(InvalidateAllAnalysesPass());
-            MPM.addPass(ComprehensiveStaticInstrumentationPass());
-          });
+    // Register the CSI pass.
+    if (LangOpts.getComprehensiveStaticInstrumentation()) {
+      switch (LangOpts.getComprehensiveStaticInstrumentation()) {
+      case LangOptions::CSI_EarlyAsPossible:
+      case LangOptions::CSI_ModuleOptimizerEarly:
+        PB.registerPipelineStartEPCallback([](ModulePassManager &MPM) {
+          // CSI performs significant changes to the CFG before attempting
+          // to analyze and insert instrumentation.  Hence we invalidate all
+          // analysis passes before running CSI.
+          MPM.addPass(InvalidateAllAnalysesPass());
+          MPM.addPass(ComprehensiveStaticInstrumentationPass());
+        });
+        break;
+      case LangOptions::CSI_TapirLate:
+        PB.registerTapirLateEPCallback(
+            [](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
+              // CSI performs significant changes to the CFG before attempting
+              // to analyze and insert instrumentation.  Hence we invalidate all
+              // analysis passes before running CSI.
+              MPM.addPass(InvalidateAllAnalysesPass());
+              MPM.addPass(ComprehensiveStaticInstrumentationPass());
+            });
+        break;
+      case LangOptions::CSI_TapirLoopEnd:
+        PB.registerTapirLoopEndEPCallback(
+            [](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
+              // CSI performs significant changes to the CFG before attempting
+              // to analyze and insert instrumentation.  Hence we invalidate all
+              // analysis passes before running CSI.
+              MPM.addPass(InvalidateAllAnalysesPass());
+              MPM.addPass(ComprehensiveStaticInstrumentationPass());
+            });
+        break;
+      case LangOptions::CSI_OptimizerLast:
+        // FIXME: This is currently unsupported, just as the Sanitizers are
+        // not supported in the new pass manager.
+      case LangOptions::CSI_None:
+        break;
+      }
+    }
 
     // TODO: Consider passing the MemoryProfileOutput to the pass builder via
     // the PGOOptions, and set this up there.
