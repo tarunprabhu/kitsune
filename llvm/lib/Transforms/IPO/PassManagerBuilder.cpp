@@ -302,10 +302,9 @@ void PassManagerBuilder::populateModulePassManager(
       Inliner = nullptr;
     }
 
-<<<<<<< HEAD
-=======
-    // Add passes to run just before Tapir lowering.
-    addExtensionsToPM(EP_TapirLate, MPM);
+    // // Add passes to run just before Tapir lowering.
+    // addExtensionsToPM(EP_TapirLate, MPM);
+    // addExtensionsToPM(EP_TapirLoopEnd, MPM);
 
     if (TapirTargetID::None != TapirTarget) {
       // MPM.add(createAnalyzeTapirPass());
@@ -314,7 +313,6 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createCFGSimplificationPass());
     }
 
->>>>>>> 100e91461aa1 ([TargetLibraryInfo] Moving Tapir target for lowering into TargetLibraryInfo.)
     // FIXME: The BarrierNoopPass is a HACK! The inliner pass above implicitly
     // creates a CGSCC pass manager, but we don't want to add extensions into
     // that pass manager. To prevent this we insert a no-op module pass to reset
@@ -331,8 +329,6 @@ void PassManagerBuilder::populateModulePassManager(
 
   addInitialAliasAnalysisPasses(MPM);
 
-<<<<<<< HEAD
-=======
   bool RerunAfterTapirLowering = false;
   bool TapirHasBeenLowered = (TapirTargetID::None == TapirTarget);
 
@@ -346,7 +342,6 @@ void PassManagerBuilder::populateModulePassManager(
     RerunAfterTapirLowering =
        !TapirHasBeenLowered && (ParallelLevel > 0) && !PrepareForThinLTO;
 
->>>>>>> 100e91461aa1 ([TargetLibraryInfo] Moving Tapir target for lowering into TargetLibraryInfo.)
   // Infer attributes about declarations if possible.
   MPM.add(createInferFunctionAttrsLegacyPass());
 
@@ -477,8 +472,6 @@ void PassManagerBuilder::populateModulePassManager(
   // resulted in single-entry-single-exit or empty blocks. Clean up the CFG.
   MPM.add(createCFGSimplificationPass(
       SimplifyCFGOptions().convertSwitchRangeToICmp(true)));
-<<<<<<< HEAD
-=======
   MPM.add(createTaskSimplifyPass());
 
   if (RerunAfterTapirLowering || (TapirTargetID::None == TapirTarget))
@@ -508,6 +501,7 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createMergeFunctionsPass());
     MPM.add(createBarrierNoopPass());
     // addFunctionSimplificationPasses(MPM);
+    addExtensionsToPM(EP_TapirLoopEnd, MPM);
 
     // Now lower Tapir to Target runtime calls.
     //
@@ -532,10 +526,9 @@ void PassManagerBuilder::populateModulePassManager(
   }
   } while (RerunAfterTapirLowering);
 
-  addExtensionsToPM(EP_OptimizerLast, MPM);
+  // addExtensionsToPM(EP_OptimizerLast, MPM);
 
   MPM.add(createAnnotationRemarksLegacyPass());
->>>>>>> 100e91461aa1 ([TargetLibraryInfo] Moving Tapir target for lowering into TargetLibraryInfo.)
 }
 
 LLVMPassManagerBuilderRef LLVMPassManagerBuilderCreate() {
