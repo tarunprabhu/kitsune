@@ -544,6 +544,8 @@ namespace clang {
     ExpectedStmt VisitObjCAtSynchronizedStmt(ObjCAtSynchronizedStmt *S);
     ExpectedStmt VisitObjCAtThrowStmt(ObjCAtThrowStmt *S);
     ExpectedStmt VisitObjCAutoreleasePoolStmt(ObjCAutoreleasePoolStmt *S);
+    ExpectedStmt VisitSpawnStmt(SpawnStmt *S);
+    ExpectedStmt VisitSyncStmt(SyncStmt *S);
 
     // Importing expressions
     ExpectedStmt VisitExpr(Expr *E);
@@ -6049,6 +6051,22 @@ ExpectedStmt ASTNodeImporter::VisitObjCAutoreleasePoolStmt(
     return ToSubStmtOrErr.takeError();
   return new (Importer.getToContext()) ObjCAutoreleasePoolStmt(*ToAtLocOrErr,
                                                                *ToSubStmtOrErr);
+
+Stmt *ASTNodeImporter::VisitSpawnStmt(SpawnStmt *S) {
+  SourceLocation SpawnLoc = Importer.Import(S->getSpawnLoc());
+  StringRef SV = S->getSyncVar(); 
+  Stmt *Child = Importer.Import(S->getSpawnedStmt());
+  if (!Child && S->getSpawnedStmt())
+    return nullptr;
+  return new (Importer.getToContext()) SpawnStmt(SpawnLoc, SV, Child);
+}
+
+Stmt *ASTNodeImporter::VisitSyncStmt(SyncStmt *S) {
+  SourceLocation SyncLoc = Importer.Import(S->getSyncLoc());
+  StringRef SV = S->getSyncVar(); 
+  return new (Importer.getToContext()) SyncStmt(SyncLoc, SV);
+}
+
 }
 
 //----------------------------------------------------------------------------

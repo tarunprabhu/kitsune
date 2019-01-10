@@ -1296,3 +1296,20 @@ bool CapturedStmt::capturesVariable(const VarDecl *Var) const {
 
   return false;
 }
+
+const Stmt* SpawnStmt::getSpawnedStmt() const {
+  return SpawnedStmt;
+}
+
+Stmt* SpawnStmt::getSpawnedStmt() {
+  return SpawnedStmt;
+}
+
+StringRef SpawnStmt::getSyncVar() const {
+  return SyncVar;
+}
+
+StringRef SyncStmt::getSyncVar() const {
+  return SyncVar;
+}
+

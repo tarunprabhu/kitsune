@@ -2268,7 +2268,17 @@ void ASTStmtReader::VisitOMPTargetTeamsDistributeSimdDirective(
   VisitOMPLoopDirective(D);
 }
 
-//===----------------------------------------------------------------------===//
+void ASTStmtReader::VisitSpawnStmt(SpawnStmt *S) {
+  VisitStmt(S);
+  S->setSpawnLoc(ReadSourceLocation());
+  S->setSpawnedStmt(Record.readSubStmt());
+}
+
+void ASTStmtReader::VisitSyncStmt(SyncStmt *S) {
+  VisitStmt(S);
+  S->setSyncLoc(ReadSourceLocation());
+}
+
 // ASTReader Implementation
 //===----------------------------------------------------------------------===//
 

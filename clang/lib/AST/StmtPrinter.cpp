@@ -398,6 +398,14 @@ void StmtPrinter::VisitBreakStmt(BreakStmt *Node) {
   if (Policy.IncludeNewlines) OS << NL;
 }
 
+void StmtPrinter::VisitSpawnStmt(SpawnStmt *Node) {
+  Indent() << "spawn " << Node->getSyncVar(); 
+  PrintStmt(Node->getSpawnedStmt());
+  OS << ";";
+  if (Policy.IncludeNewlines) OS << "\n";
+}
+
+
 void StmtPrinter::VisitReturnStmt(ReturnStmt *Node) {
   Indent() << "return";
   if (Node->getRetValue()) {
@@ -2370,6 +2378,11 @@ void StmtPrinter::VisitAsTypeExpr(AsTypeExpr *Node) {
   OS << ", ";
   Node->getType().print(OS, Policy);
   OS << ")";
+}
+
+void StmtPrinter::VisitSyncStmt(SyncStmt *Node) {
+  Indent() << "sync " << Node->getSyncVar() << ";"; 
+  if (Policy.IncludeNewlines) OS << "\n";
 }
 
 //===----------------------------------------------------------------------===//

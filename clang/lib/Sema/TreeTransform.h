@@ -1337,6 +1337,14 @@ public:
     return getSema().BuildReturnStmt(ReturnLoc, Result);
   }
 
+  /// Build a new spawn statment.
+  ///
+  /// By default, performs semantic analysis to build the new expression.
+  /// Subclasses may override this routine to provide different behavior.
+  StmtResult RebuildSpawnStmt(SourceLocation SpawnLoc, StringRef SV, Stmt *S) {
+    return getSema().ActOnSpawnStmt(SpawnLoc, SV, S);
+  }
+
   /// Build a new declaration statement.
   ///
   /// By default, performs semantic analysis to build the new statement.
@@ -12886,6 +12894,26 @@ TreeTransform<Derived>::TransformCapturedStmt(CapturedStmt *S) {
   }
 
   return getSema().ActOnCapturedRegionEnd(Body.get());
+}
+
+template<typename Derived>
+StmtResult
+TreeTransform<Derived>::TransformSpawnStmt(SpawnStmt *S) {
+  StmtResult Child = getDerived().TransformStmt(S->getSpawnedStmt());
+  if (Child.isInvalid())
+    return StmtError();
+
+  if (!getDerived().AlwaysRebuild() &&
+      Child.get() == S->getSpawnedStmt())
+    return S;
+
+  return getDerived().RebuildSpawnStmt(S->getSpawnLoc(), S->getSyncVar(), Child.get());
+}
+
+template<typename Derived>
+StmtResult
+TreeTransform<Derived>::TransformSyncStmt(SyncStmt *S) {
+  return S;
 }
 
 } // end namespace clang

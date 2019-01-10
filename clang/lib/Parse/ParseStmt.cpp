@@ -362,6 +362,14 @@ Retry:
     ProhibitAttributes(Attrs);
     return HandlePragmaCaptured();
 
+  case tok::kw_spawn:              // spawn statement
+    return ParseSpawnStatement();
+
+  case tok::kw_sync:               // sync statement
+    Res = ParseSyncStatement();
+    SemiError = "sync";
+    break;
+
   case tok::annot_pragma_openmp:
     ProhibitAttributes(Attrs);
     return ParseOpenMPDeclarativeOrExecutableDirective(Allowed);

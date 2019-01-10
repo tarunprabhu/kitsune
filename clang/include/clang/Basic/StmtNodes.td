@@ -201,6 +201,9 @@ def MSDependentExistsStmt : Stmt;
 // OpenCL Extensions.
 def AsTypeExpr : DStmt<Expr>;
 
+def SyncStmt : Stmt;
+def SpawnStmt : Stmt;
+
 // OpenMP Directives.
 def OMPExecutableDirective : Stmt<1>;
 def OMPLoopDirective : DStmt<OMPExecutableDirective, 1>;
