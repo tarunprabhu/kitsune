@@ -1,3 +1,5 @@
+// RUN: %clang_cc1 -fsyntax-only -std=c99 %s -ftapir=cilk
+
 int bar();
 int foo();
 
