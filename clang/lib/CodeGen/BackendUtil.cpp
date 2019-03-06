@@ -866,18 +866,51 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
                            addPostInlineEntryExitInstrumentationPass);
   }
 
-  if (LangOpts.Sanitize.has(SanitizerKind::Cilk)) {
+  if (LangOpts.Sanitize.has(SanitizerKind::Cilk))
     PMBuilder.addExtension(PassManagerBuilder::EP_TapirLate,
                            addCilkSanitizerPass);
-    // PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
-    //                        addCilkSanitizerPass);
+
+  if (LangOpts.getCilktool() != LangOptions::CilktoolKind::Cilktool_None) {
+    switch (LangOpts.getCilktool()) {
+    default: break;
+    case LangOptions::CilktoolKind::Cilktool_Cilkscale:
+      PMBuilder.addExtension(PassManagerBuilder::EP_TapirLate,
+                             addCilkscaleInstrumentation);
+      break;
+    }
   }
 
-  if (LangOpts.ComprehensiveStaticInstrumentation) {
-    PMBuilder.addExtension(PassManagerBuilder::EP_TapirLate,
-                           addComprehensiveStaticInstrumentationPass);
-    // PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
-    //                        addComprehensiveStaticInstrumentationPass);
+  if (LangOpts.getComprehensiveStaticInstrumentation()) {
+    switch (LangOpts.getComprehensiveStaticInstrumentation()) {
+    case LangOptions::CSI_EarlyAsPossible:
+      PMBuilder.addExtension(PassManagerBuilder::EP_EarlyAsPossible,
+                             addComprehensiveStaticInstrumentationPass);
+      PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
+                             addComprehensiveStaticInstrumentationPass);
+      break;
+    case LangOptions::CSI_ModuleOptimizerEarly:
+      PMBuilder.addExtension(PassManagerBuilder::EP_ModuleOptimizerEarly,
+                             addComprehensiveStaticInstrumentationPass);
+      PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
+                             addComprehensiveStaticInstrumentationPass);
+      break;
+    case LangOptions::CSI_OptimizerLast:
+      PMBuilder.addExtension(PassManagerBuilder::EP_OptimizerLast,
+                             addComprehensiveStaticInstrumentationPass);
+      PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
+                             addComprehensiveStaticInstrumentationPass);
+      break;
+    case LangOptions::CSI_TapirLate:
+      PMBuilder.addExtension(PassManagerBuilder::EP_TapirLate,
+                             addComprehensiveStaticInstrumentationPass);
+      break;
+    case LangOptions::CSI_TapirLoopEnd:
+      PMBuilder.addExtension(PassManagerBuilder::EP_TapirLoopEnd,
+                             addComprehensiveStaticInstrumentationPass);
+      break;
+    case LangOptions::CSI_None:
+      break;
+    }
   }
 
   // Set up the per-function pass manager.
@@ -1429,6 +1462,25 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
             MPM.addPass(CilkSanitizerPass());
           });
 
+    // Register CSI instrumentation for Cilkscale
+    if (LangOpts.getCilktool() != LangOptions::CilktoolKind::Cilktool_None) {
+      switch (LangOpts.getCilktool()) {
+      default:
+        break;
+      case LangOptions::CilktoolKind::Cilktool_Cilkscale:
+        PB.registerTapirLateEPCallback(
+            [](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
+              // CilkSanitizer performs significant changes to the CFG before
+              // attempting to analyze and insert instrumentation.  Hence we
+              // invalidate all analysis passes before running CilkSanitizer.
+              MPM.addPass(InvalidateAllAnalysesPass());
+              MPM.addPass(ComprehensiveStaticInstrumentationPass(
+                  getCSIOptionsForCilkscale()));
+            });
+        break;
+      }
+    }
+
     // Register the CSI pass.
     if (LangOpts.getComprehensiveStaticInstrumentation()) {
       switch (LangOpts.getComprehensiveStaticInstrumentation()) {
@@ -1463,8 +1515,15 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
             });
         break;
       case LangOptions::CSI_OptimizerLast:
-        // FIXME: This is currently unsupported, just as the Sanitizers are
-        // not supported in the new pass manager.
+        PB.registerOptimizerLastEPCallback(
+            [](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
+              // CSI performs significant changes to the CFG before attempting
+              // to analyze and insert instrumentation.  Hence we invalidate all
+              // analysis passes before running CSI.
+              MPM.addPass(InvalidateAllAnalysesPass());
+              MPM.addPass(ComprehensiveStaticInstrumentationPass());
+            });
+        break;
       case LangOptions::CSI_None:
         break;
       }
