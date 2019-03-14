@@ -52,5 +52,4 @@ void SerialABI::postProcessFunction(Function &F) {}
 
 void SerialABI::postProcessHelper(Function &F) {}
 
-bool SerialABI::processMain(Function &F) {return false;}
 

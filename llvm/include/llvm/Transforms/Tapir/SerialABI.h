@@ -36,7 +36,7 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Transforms/Tapir/LoopSpawning.h"
-#include "llvm/Transforms/Tapir/TapirUtils.h"
+#include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include <deque>
 
 namespace llvm {
@@ -55,7 +55,6 @@ public:
   void preProcessFunction(Function &F) override final;
   void postProcessFunction(Function &F) override final;
   void postProcessHelper(Function &F) override final;
-  bool processMain(Function &F) override final;
 };
 
 }  // end of llvm namespace

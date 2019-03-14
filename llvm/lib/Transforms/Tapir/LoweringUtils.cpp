@@ -16,6 +16,8 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Transforms/Tapir/CilkABI.h"
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
+#include "llvm/Transforms/Tapir/QthreadsABI.h"
+#include "llvm/Transforms/Tapir/SerialABI.h"
 #include "llvm/Transforms/Tapir/CilkRABI.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -34,8 +36,11 @@ TapirTarget *llvm::getTapirTargetFromType(TapirTargetType Type) {
     return new OpenMPABI();
   case TapirTargetType::CilkR:
     return new CilkRABI();
-  case TapirTargetType::None:
+  case TapirTargetType::Qthreads:
+    return new QthreadsABI();
   case TapirTargetType::Serial:
+    return new SerialABI();
+  case TapirTargetType::None:
     return nullptr;
   default:
     llvm_unreachable("Invalid TapirTargetType");

@@ -14,14 +14,27 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/QthreadsABI.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/LoopIterator.h"
+#include "llvm/Analysis/OptimizationRemarkEmitter.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/Dominators.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/InstIterator.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/TypeBuilder.h"
 #include "llvm/IR/Verifier.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Transforms/Tapir/Outline.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
 
 using namespace llvm;
 
@@ -115,8 +128,10 @@ void QthreadsABI::createSync(SyncInst &SI, ValueToValueMapTy &DetachCtxToStackFr
 
 // Adds entry basic blocks to body of extracted, replacing extracted, and adds
 // necessary code to call, i.e. storing arguments in struct
-Function* formatFunctionToQthreadF(Function* extracted, CallInst* cal){
+Function* formatFunctionToQthreadF(Function* extracted, Instruction* ical){
   std::vector<Value*> LoadedCapturedArgs;
+  CallInst *cal = dyn_cast<CallInst>(ical);
+
   for(auto& a:cal->arg_operands()) {
     LoadedCapturedArgs.push_back(a);
   }
@@ -230,7 +245,7 @@ Function *QthreadsABI::createDetach(DetachInst &detach,
   std::vector<Value*> submitArgs = {sinc, null}; 
   footerB.CreateCall(QTHREAD_FUNC(qt_sinc_submit, *M), submitArgs); 
 
-  CallInst *cal = nullptr;
+  Instruction *cal = nullptr;
   Function *extracted = extractDetachBodyToFunction(detach, DT, AC, &cal);
   extracted = formatFunctionToQthreadF(extracted, cal); 
   
@@ -257,13 +272,8 @@ Function *QthreadsABI::createDetach(DetachInst &detach,
 void QthreadsABI::preProcessFunction(Function &F) {}
 
 void QthreadsABI::postProcessFunction(Function &F) {
-  
+  CallInst::Create(QTHREAD_FUNC(qthread_initialize, *F.getParent()), "", F.getEntryBlock().getFirstNonPHIOrDbg());
 }
 
 void QthreadsABI::postProcessHelper(Function &F) {}
-
-bool QthreadsABI::processMain(Function &F) {
-  CallInst::Create(QTHREAD_FUNC(qthread_initialize, *F.getParent()), "", F.getEntryBlock().getFirstNonPHIOrDbg());
-  return true;
-}
 
