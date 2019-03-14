@@ -4,7 +4,7 @@
 ; RUN: opt < %s -loop-spawning -S -ls-tapir-target=cilk | FileCheck %s
 
 ; Function Attrs: nounwind uwtable
-define void @foo(i32 %n) local_unnamed_addr #0 {
+define dso_local void @foo(i32 %n) local_unnamed_addr #0 {
 ; CHECK-LABEL: @foo(
 entry:
   %syncreg = call token @llvm.syncregion.start()

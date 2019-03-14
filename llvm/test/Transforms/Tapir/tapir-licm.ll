@@ -1,7 +1,7 @@
-; RUN: opt < %s -licm -S | FileCheck %s
+; RUN: opt < %s -licm-rhino -S | FileCheck %s
 
 ; Function Attrs: noinline nounwind uwtable
-define void @normalize(double* noalias %out, double* noalias %in, i32 %n) #0 {
+define dso_local void @normalize(double* noalias %out, double* noalias %in, i32 %n) #0 {
 ; CHECK-LABEL: @normalize(
 entry:
   %syncreg = call token @llvm.syncregion.start()
@@ -49,7 +49,7 @@ pfor.end.continue:                                ; preds = %pfor.end
 declare double @norm(double*, i32) #1
 
 ; Function Attrs: argmemonly nounwind
-declare token @llvm.syncregion.start() #3
+declare dso_local token @llvm.syncregion.start() #3
 
 attributes #0 = { noinline nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }

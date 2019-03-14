@@ -94,8 +94,8 @@ declare token @llvm.syncregion.start() #9
 declare void @llvm.detached.rethrow.sl_p0i8i32s(token, { i8*, i32 }) #10
 
 ; Function Attrs: uwtable
-define void @_Z12spawn_excepti(i32 %n) local_unnamed_addr #5 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
-; CHECK-LABEL: define void @_Z12spawn_excepti(i32 %n)
+define dso_local void @_Z12spawn_excepti(i32 %n) local_unnamed_addr #5 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+; CHECK-LABEL: define dso_local void @_Z12spawn_excepti(i32 %n)
 ; CHECK: %[[CILKSF:.+]] = alloca %struct.__cilkrts_stack_frame
 ; CHECK: call void @__cilkrts_enter_frame_1(%struct.__cilkrts_stack_frame* %[[CILKSF]])
 entry:
@@ -156,8 +156,8 @@ eh.resume:                                        ; preds = %lpad6
 }
 
 ; Function Attrs: uwtable
-define void @_Z18spawn_throw_inlinei(i32 %n) local_unnamed_addr #5 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
-; CHECK-LABEL: define void @_Z18spawn_throw_inlinei(i32 %n)
+define dso_local void @_Z18spawn_throw_inlinei(i32 %n) local_unnamed_addr #5 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+; CHECK-LABEL: define dso_local void @_Z18spawn_throw_inlinei(i32 %n)
 ; CHECK: %[[CILKSF:.+]] = alloca %struct.__cilkrts_stack_frame
 ; CHECK: call void @__cilkrts_enter_frame_1(%struct.__cilkrts_stack_frame* %[[CILKSF]])
 entry:
@@ -249,8 +249,8 @@ eh.resume:                                        ; preds = %lpad6
 }
 
 ; Function Attrs: uwtable
-define void @_Z14spawn_tryblocki(i32 %n) local_unnamed_addr #5 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
-; CHECK-LABEL: define void @_Z14spawn_tryblocki(i32 %n)
+define dso_local void @_Z14spawn_tryblocki(i32 %n) local_unnamed_addr #5 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+; CHECK-LABEL: define dso_local void @_Z14spawn_tryblocki(i32 %n)
 ; CHECK: %[[CILKSF:.+]] = alloca %struct.__cilkrts_stack_frame
 ; CHECK: call void @__cilkrts_enter_frame_1(%struct.__cilkrts_stack_frame* %[[CILKSF]])
 entry:

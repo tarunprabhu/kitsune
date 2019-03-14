@@ -382,7 +382,7 @@ bool CilkSanitizerImpl::run() {
   initializeCsanHooks();
 
   for (Function &F : M) {
-    DEBUG(dbgs() << "Instrumenting " << F.getName() << "\n");
+    LLVM_DEBUG(dbgs() << "Instrumenting " << F.getName() << "\n");
     instrumentFunction(F);
   }
 

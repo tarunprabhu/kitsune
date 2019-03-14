@@ -123,7 +123,7 @@ SmallVectorImpl<Function *> *LowerTapirToTarget::processFunction(
   if (unifyReturns(F))
     DT.recalculate(F);
 
-  DEBUG(dbgs() << "Tapir: Processing function " << F.getName() << "\n");
+  LLVM_DEBUG(dbgs() << "Tapir: Processing function " << F.getName() << "\n");
 
   tapirTarget->preProcessFunction(F);
 
@@ -184,7 +184,7 @@ SmallVectorImpl<Function *> *LowerTapirToTarget::processFunction(
   if (!Changed) return NewHelpers;
 
   if (verifyFunction(F, &errs())) {
-    DEBUG(F.dump());
+    LLVM_DEBUG(F.dump());
     assert(0);
   }
 

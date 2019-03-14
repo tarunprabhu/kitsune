@@ -213,7 +213,7 @@ Function* formatFunctionToQthreadF(Function* extracted, Instruction* ical){
   cal->eraseFromParent();
   extracted->eraseFromParent();
 
-  DEBUG(OutlinedFn->dump()); 
+  LLVM_DEBUG(OutlinedFn->dump()); 
 
   return OutlinedFn; 
 }
@@ -264,7 +264,7 @@ Function *QthreadsABI::createDetach(DetachInst &detach,
     }
   }
 
-  DEBUG(F.dump()); 
+  LLVM_DEBUG(F.dump()); 
 
   return extracted;
 }

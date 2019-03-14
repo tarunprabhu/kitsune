@@ -8,7 +8,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
 ; Function Attrs: nounwind uwtable
-define i32 @fib(i32 %n) local_unnamed_addr #0 {
+define dso_local i32 @fib(i32 %n) local_unnamed_addr #0 {
 entry:
   %x = alloca i32, align 4
   %syncreg = tail call token @llvm.syncregion.start()

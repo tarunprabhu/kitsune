@@ -959,7 +959,7 @@ bool makeFunctionDetachable(Function &extracted,
     }
   }
   if (!SimpleHelper)
-    DEBUG(dbgs() << "Detachable helper function itself detaches.\n");
+    LLVM_DEBUG(dbgs() << "Detachable helper function itself detaches.\n");
 
   BasicBlock::iterator II = extracted.getEntryBlock().getFirstInsertionPt();
   AllocaInst* curinst;
@@ -1135,7 +1135,7 @@ static inline void inlineCilkFunctions(Function &F) {
   }
 
   if (verifyFunction(F, &errs())) {
-    DEBUG(F.dump());
+    LLVM_DEBUG(F.dump());
     assert(0);
   }
 }

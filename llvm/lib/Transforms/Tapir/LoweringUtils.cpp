@@ -23,6 +23,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
+#include <iostream>
 
 using namespace llvm;
 
@@ -30,20 +31,20 @@ using namespace llvm;
 
 TapirTarget *llvm::getTapirTargetFromType(TapirTargetType Type) {
   switch (Type) {
-  case TapirTargetType::Cilk:
-    return new CilkABI();
-  case TapirTargetType::OpenMP:
-    return new OpenMPABI();
-  case TapirTargetType::CilkR:
-    return new CilkRABI();
-  case TapirTargetType::Qthreads:
-    return new QthreadsABI();
-  case TapirTargetType::Serial:
-    return new SerialABI();
-  case TapirTargetType::None:
-    return nullptr;
-  default:
-    llvm_unreachable("Invalid TapirTargetType");
+    case TapirTargetType::Cilk:
+      return new CilkABI();
+    case TapirTargetType::CilkR:
+      return new CilkRABI();
+    case TapirTargetType::OpenMP:
+      return new OpenMPABI();
+    case TapirTargetType::Qthreads:
+      return new QthreadsABI();
+    case TapirTargetType::Serial:
+      return new SerialABI();
+    case TapirTargetType::None:
+      return nullptr;
+    default:
+      llvm_unreachable("Invalid TapirTargetType");
   }
 }
 
@@ -100,8 +101,8 @@ bool llvm::verifyDetachedCFG(const DetachInst &Detach, DominatorTree &DT,
     } else if (isa<UnreachableInst>(Term)) {
       continue;
     } else {
-      DEBUG(Term->dump());
-      DEBUG(Term->getParent()->getParent()->dump());
+      LLVM_DEBUG(Term->dump());
+      LLVM_DEBUG(Term->getParent()->getParent()->dump());
       assert(!error && "Detached block did not absolutely terminate in reattach");
       return false;
     }
@@ -127,7 +128,7 @@ bool llvm::verifyDetachedCFG(const DetachInst &Detach, DominatorTree &DT,
 
       // Make sure that the control flow through these exception-handling blocks
       // doesn't reattach to the detached CFG's continuation.
-      DEBUG({
+      LLVM_DEBUG({
           if (ReattachInst *RI = dyn_cast<ReattachInst>(BB->getTerminator()))
             assert(RI->getSuccessor(0) != Continue &&
                    "Exit block reaches a reattach to the continuation.");
@@ -151,7 +152,7 @@ bool llvm::populateDetachedCFG(
   SmallVector<BasicBlock *, 32> Todo;
   SmallVector<BasicBlock *, 4> WorkListEH;
 
-  DEBUG(dbgs() << "Tapir: Populating CFG detached by " << Detach << "\n");
+  LLVM_DEBUG(dbgs() << "Tapir: Populating CFG detached by " << Detach << "\n");
 
   BasicBlock *Detached = Detach.getDetached();
   BasicBlock *Continue = Detach.getContinue();
@@ -165,7 +166,7 @@ bool llvm::populateDetachedCFG(
     if (!FunctionPieces.insert(BB).second)
       continue;
 
-    DEBUG(dbgs() << "  Found block " << BB->getName() << "\n");
+    LLVM_DEBUG(dbgs() << "  Found block " << BB->getName() << "\n");
 
     TerminatorInst *Term = BB->getTerminator();
     if (Term == nullptr) return false;
@@ -191,18 +192,18 @@ bool llvm::populateDetachedCFG(
     } else if (isa<BranchInst>(Term) || isa<SwitchInst>(Term) ||
                isa<InvokeInst>(Term)) {
       if (isDetachedRethrow(Term, SyncRegion)) {
-        DEBUG(dbgs() << "  Exit block " << BB->getName() << "\n");
+        LLVM_DEBUG(dbgs() << "  Exit block " << BB->getName() << "\n");
         ExitBlocks.insert(BB);
       } else {
         for (BasicBlock *Succ : successors(BB)) {
           if (!DT.dominates(DetachEdge, Succ)) {
             // We assume that this block is an exception-handling block and save
             // it for later processing.
-            DEBUG(dbgs() << "  Exit block to search " << Succ->getName() << "\n");
+            LLVM_DEBUG(dbgs() << "  Exit block to search " << Succ->getName() << "\n");
             ExitBlocks.insert(Succ);
             WorkListEH.push_back(Succ);
           } else {
-            DEBUG(dbgs() << "Adding successor " << Succ->getName() << "\n");
+            LLVM_DEBUG(dbgs() << "Adding successor " << Succ->getName() << "\n");
             Todo.push_back(Succ);
           }
         }
@@ -214,8 +215,8 @@ bool llvm::populateDetachedCFG(
     } else if (isa<UnreachableInst>(Term)) {
       continue;
     } else {
-      DEBUG(Term->dump());
-      DEBUG(Term->getParent()->getParent()->dump());
+      LLVM_DEBUG(Term->dump());
+      LLVM_DEBUG(Term->getParent()->getParent()->dump());
       llvm_unreachable("Detached block did not absolutely terminate in reattach");
       return false;
     }
@@ -243,7 +244,7 @@ bool llvm::populateDetachedCFG(
 
       // Make sure that the control flow through these exception-handling blocks
       // doesn't reattach to the detached CFG's continuation.
-      DEBUG({
+      LLVM_DEBUG({
           if (ReattachInst *RI = dyn_cast<ReattachInst>(BB->getTerminator()))
             assert(RI->getSuccessor(0) != Continue &&
                    "Exit block reaches a reattach to the continuation.");
@@ -265,7 +266,7 @@ bool llvm::populateDetachedCFG(
       FunctionPieces.insert(EHBlock);
   }
 
-  DEBUG({
+  LLVM_DEBUG({
       dbgs() << "Exit blocks:";
       for (BasicBlock *Exit : ExitBlocks) {
         if (DT.dominates(DetachEdge, Exit))
@@ -309,9 +310,9 @@ Function *llvm::extractDetachBodyToFunction(
     return nullptr;
 
   // Check the detached task's predecessors.  Perform simple cleanup if need be.
-  DEBUG(dbgs() << "Function pieces:");
+  LLVM_DEBUG(dbgs() << "Function pieces:");
   for (BasicBlock *BB : FunctionPieces) {
-    DEBUG(dbgs() << *BB);
+    LLVM_DEBUG(dbgs() << *BB);
     if (ExitBlocks.count(BB)) continue;
     for (pred_iterator PI = pred_begin(BB), E = pred_end(BB); PI != E; ++PI) {
       BasicBlock *Pred = *PI;
@@ -333,7 +334,7 @@ Function *llvm::extractDetachBodyToFunction(
         BB->removePredecessor(Pred);
 
       // There should be no other predecessor blocks of the detached task.
-      DEBUG({
+      LLVM_DEBUG({
           if (!(FunctionPieces.count(Pred) || !DT.isReachableFromEntry(Pred)))
             dbgs() << "Problem block found: " << *BB
                    << "reachable via " << *Pred;
@@ -346,7 +347,7 @@ Function *llvm::extractDetachBodyToFunction(
   // Get the inputs and outputs for the detached CFG.
   SetVector<Value *> BodyInputs, Outputs;
   findInputsOutputs(FunctionPieces, BodyInputs, Outputs, &ExitBlocks, &DT);
-  DEBUG({
+  LLVM_DEBUG({
       for (Value *V : Outputs)
         dbgs() << "EL output: " << *V << "\n";
     });
@@ -370,7 +371,7 @@ Function *llvm::extractDetachBodyToFunction(
       }
     }
     if (SRetInput) {
-      DEBUG(dbgs() << "sret input " << *SRetInput << "\n");
+      LLVM_DEBUG(dbgs() << "sret input " << *SRetInput << "\n");
       Inputs.insert(SRetInput);
     }
     // Add the remaining inputs.

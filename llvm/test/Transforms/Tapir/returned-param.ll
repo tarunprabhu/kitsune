@@ -12,7 +12,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @merge_grain = internal unnamed_addr global i64 0, align 8
 
 ; Function Attrs: nounwind uwtable
-define i64* @cilk_merge(i64* nocapture readonly %source_1, i64 %size_1, i64* nocapture readonly %source_2, i64 %size_2, i64* returned %target) local_unnamed_addr #0 {
+define dso_local i64* @cilk_merge(i64* nocapture readonly %source_1, i64 %size_1, i64* nocapture readonly %source_2, i64 %size_2, i64* returned %target) local_unnamed_addr #0 {
 entry:
   %0 = load i64, i64* @merge_grain, align 8, !tbaa !2
   br label %tailrecurse

@@ -9,7 +9,7 @@ $__clang_call_terminate = comdat any
 @_ZTIi = external constant i8*
 
 ; Function Attrs: alwaysinline uwtable
-define i32 @_Z3fooP3Foo(%class.Foo* %f) local_unnamed_addr #0 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+define dso_local i32 @_Z3fooP3Foo(%class.Foo* %f) local_unnamed_addr #0 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
 entry:
   %call = invoke i32 @_Z3barP3Foo(%class.Foo* %f)
           to label %try.cont unwind label %lpad
@@ -91,8 +91,8 @@ declare void @_ZSt9terminatev() local_unnamed_addr
 declare token @llvm.syncregion.start() #9
 
 ; Function Attrs: uwtable
-define void @_Z18parallelfor_excepti(i32 %n) local_unnamed_addr #5 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
-; CHECK-LABEL: define void @_Z18parallelfor_excepti(i32 %n)
+define dso_local void @_Z18parallelfor_excepti(i32 %n) local_unnamed_addr #5 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+; CHECK-LABEL: define dso_local void @_Z18parallelfor_excepti(i32 %n)
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp30 = icmp sgt i32 %n, 0
@@ -162,8 +162,8 @@ sync.continue12:                                  ; preds = %lpad7
 declare void @llvm.detached.rethrow.sl_p0i8i32s(token, { i8*, i32 }) #10
 
 ; Function Attrs: uwtable
-define void @_Z20parallelfor_tryblocki(i32 %n) local_unnamed_addr #5 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
-; CHECK-LABEL: define void @_Z20parallelfor_tryblocki(i32 %n)
+define dso_local void @_Z20parallelfor_tryblocki(i32 %n) local_unnamed_addr #5 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+; CHECK-LABEL: define dso_local void @_Z20parallelfor_tryblocki(i32 %n)
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %syncreg3 = tail call token @llvm.syncregion.start()
@@ -310,7 +310,7 @@ terminate.lpad:                                   ; preds = %lpad41
 }
 
 ; Function Attrs: uwtable
-define void @_Z27parallelfor_tryblock_inlinei(i32 %n) local_unnamed_addr #5 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+define dso_local void @_Z27parallelfor_tryblock_inlinei(i32 %n) local_unnamed_addr #5 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
 ; CHECK-LABEL: @_Z27parallelfor_tryblock_inlinei(i32 %n)
 entry:
   %syncreg = tail call token @llvm.syncregion.start()

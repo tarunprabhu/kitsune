@@ -208,8 +208,8 @@ Function *llvm::CreateHelper(
     SmallPtrSetImpl<BasicBlock *> *ExitBlocks, const BasicBlock *OldUnwind,
     const Instruction *InputSyncRegion, ClonedCodeInfo *CodeInfo,
     ValueMapTypeRemapper *TypeMapper, ValueMaterializer *Materializer) {
-  DEBUG(dbgs() << "inputs: " << Inputs.size() << "\n");
-  DEBUG(dbgs() << "outputs: " << Outputs.size() << "\n");
+  LLVM_DEBUG(dbgs() << "inputs: " << Inputs.size() << "\n");
+  LLVM_DEBUG(dbgs() << "outputs: " << Outputs.size() << "\n");
 
   Function *OldFunc = Header->getParent();
   Type *RetTy = Type::getVoidTy(Header->getContext());
@@ -218,17 +218,17 @@ Function *llvm::CreateHelper(
 
   // Add the types of the input values to the function's argument list
   for (Value *value : Inputs) {
-    DEBUG(dbgs() << "value used in func: " << *value << "\n");
+    LLVM_DEBUG(dbgs() << "value used in func: " << *value << "\n");
     paramTy.push_back(value->getType());
   }
 
   // Add the types of the output values to the function's argument list.
   for (Value *output : Outputs) {
-    DEBUG(dbgs() << "instr used in func: " << *output << "\n");
+    LLVM_DEBUG(dbgs() << "instr used in func: " << *output << "\n");
     paramTy.push_back(PointerType::getUnqual(output->getType()));
   }
 
-  DEBUG({
+  LLVM_DEBUG({
       dbgs() << "Function type: " << *RetTy << " f(";
       for (Type *i : paramTy)
 	dbgs() << *i << ", ";

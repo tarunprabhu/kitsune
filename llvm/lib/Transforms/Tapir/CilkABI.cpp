@@ -1301,7 +1301,7 @@ static bool makeFunctionDetachable(
   Value *args[1] = { SF };
 
   // Scan function to see if it detaches.
-  DEBUG({
+  LLVM_DEBUG({
       bool SimpleHelper = !canDetach(&Extracted);
       if (!SimpleHelper)
         dbgs() << "NOTE: Detachable helper function itself detaches.\n";
@@ -1493,13 +1493,13 @@ static inline void inlineCilkFunctions(Function &F) {
   } while (Changed);
 
   if (verifyFunction(F, &errs())) {
-    DEBUG(F.dump());
+    LLVM_DEBUG(F.dump());
     assert(0);
   }
 }
 
 void CilkABI::preProcessFunction(Function &F) {
-  DEBUG(dbgs() << "Processing function " << F.getName() << "\n");
+  LLVM_DEBUG(dbgs() << "Processing function " << F.getName() << "\n");
   if (fastCilk && F.getName() == "main") {
     IRBuilder<> B(F.getEntryBlock().getTerminator());
     B.CreateCall(CILKRTS_FUNC(init, *F.getParent()));
@@ -1565,7 +1565,7 @@ bool CilkABILoopSpawning::processLoop() {
 
   // Check the exit blocks of the loop.
   if (!ExitBlock) {
-    DEBUG(dbgs() << "LS loop does not contain valid exit block after latch.\n");
+    LLVM_DEBUG(dbgs() << "LS loop does not contain valid exit block after latch.\n");
     ORE.emit(OptimizationRemarkAnalysis(LS_NAME, "InvalidLatchExit",
                                         L->getStartLoc(),
                                         Header)
@@ -1578,7 +1578,7 @@ bool CilkABILoopSpawning::processLoop() {
   for (const BasicBlock *Exit : ExitBlocks) {
     if (Exit == ExitBlock) continue;
     if (!isa<UnreachableInst>(Exit->getTerminator())) {
-      DEBUG(dbgs() << "LS loop contains a bad exit block " << *Exit);
+      LLVM_DEBUG(dbgs() << "LS loop contains a bad exit block " << *Exit);
       ORE.emit(OptimizationRemarkAnalysis(LS_NAME, "BadExit",
                                           L->getStartLoc(),
                                           Header)
@@ -1590,24 +1590,24 @@ bool CilkABILoopSpawning::processLoop() {
   Function *F = Header->getParent();
   Module* M = F->getParent();
 
-  DEBUG(dbgs() << "LS loop header:" << *Header);
-  DEBUG(dbgs() << "LS loop latch:" << *Latch);
+  LLVM_DEBUG(dbgs() << "LS loop header:" << *Header);
+  LLVM_DEBUG(dbgs() << "LS loop latch:" << *Latch);
 
-  // DEBUG(dbgs() << "LS SE backedge taken count: " << *(SE.getBackedgeTakenCount(L)) << "\n");
-  // DEBUG(dbgs() << "LS SE max backedge taken count: " << *(SE.getMaxBackedgeTakenCount(L)) << "\n");
-  DEBUG(dbgs() << "LS SE exit count: " << *(SE.getExitCount(L, Latch)) << "\n");
+  // LLVM_DEBUG(dbgs() << "LS SE backedge taken count: " << *(SE.getBackedgeTakenCount(L)) << "\n");
+  // LLVM_DEBUG(dbgs() << "LS SE max backedge taken count: " << *(SE.getMaxBackedgeTakenCount(L)) << "\n");
+  LLVM_DEBUG(dbgs() << "LS SE exit count: " << *(SE.getExitCount(L, Latch)) << "\n");
 
   /// Get loop limit.
   const SCEV *BETC = SE.getExitCount(L, Latch);
   const SCEV *Limit = SE.getAddExpr(BETC, SE.getOne(BETC->getType()));
-  DEBUG(dbgs() << "LS Loop limit: " << *Limit << "\n");
+  LLVM_DEBUG(dbgs() << "LS Loop limit: " << *Limit << "\n");
   // PredicatedScalarEvolution PSE(SE, *L);
   // const SCEV *PLimit = PSE.getExitCount(L, Latch);
-  // DEBUG(dbgs() << "LS predicated loop limit: " << *PLimit << "\n");
+  // LLVM_DEBUG(dbgs() << "LS predicated loop limit: " << *PLimit << "\n");
   // emitAnalysis(LoopSpawningReport()
   //              << "computed loop limit " << *Limit << "\n");
   if (SE.getCouldNotCompute() == Limit) {
-    DEBUG(dbgs() << "SE could not compute loop limit.\n");
+    LLVM_DEBUG(dbgs() << "SE could not compute loop limit.\n");
     ORE.emit(OptimizationRemarkAnalysis(LS_NAME, "UnknownLoopLimit",
                                         L->getStartLoc(),
                                         Header)
@@ -1620,7 +1620,7 @@ bool CilkABILoopSpawning::processLoop() {
   /// Clean up the loop's induction variables.
   PHINode *CanonicalIV = canonicalizeIVs(Limit->getType());
   if (!CanonicalIV) {
-    DEBUG(dbgs() << "Could not get canonical IV.\n");
+    LLVM_DEBUG(dbgs() << "Could not get canonical IV.\n");
     // emitAnalysis(LoopSpawningReport()
     //              << "Could not get a canonical IV.\n");
     ORE.emit(OptimizationRemarkAnalysis(LS_NAME, "NoCanonicalIV",
@@ -1652,7 +1652,7 @@ bool CilkABILoopSpawning::processLoop() {
   }
 
   if (!CanRemoveIVs) {
-    DEBUG(dbgs() << "Could not compute scalar evolutions for all IV's.\n");
+    LLVM_DEBUG(dbgs() << "Could not compute scalar evolutions for all IV's.\n");
     return false;
   }
 
@@ -1689,7 +1689,7 @@ bool CilkABILoopSpawning::processLoop() {
   bool AllCanonical = true;
   for (BasicBlock::iterator II = Header->begin(); isa<PHINode>(II); ++II) {
     PHINode *PN = cast<PHINode>(II);
-    DEBUG({
+    LLVM_DEBUG({
         const SCEVAddRecExpr *PNSCEV =
           dyn_cast<const SCEVAddRecExpr>(SE.getSCEV(PN));
         assert(PNSCEV && "PHINode did not have corresponding SCEVAddRecExpr");
@@ -1706,7 +1706,7 @@ bool CilkABILoopSpawning::processLoop() {
         IVs.push_back(PN);
     } else {
       AllCanonical = false;
-      DEBUG(dbgs() << "Remaining non-canonical PHI Node found: " << *PN << "\n");
+      LLVM_DEBUG(dbgs() << "Remaining non-canonical PHI Node found: " << *PN << "\n");
       // emitAnalysis(LoopSpawningReport(PN)
       //              << "Found a remaining non-canonical IV.\n");
       ORE.emit(OptimizationRemarkAnalysis(DEBUG_TYPE, "NonCanonicalIV", PN)
@@ -1719,7 +1719,7 @@ bool CilkABILoopSpawning::processLoop() {
   // Insert the computation for the loop limit into the Preheader.
   Value *LimitVar = Exp.expandCodeFor(Limit, Limit->getType(),
                                       Preheader->getTerminator());
-  DEBUG(dbgs() << "LimitVar: " << *LimitVar << "\n");
+  LLVM_DEBUG(dbgs() << "LimitVar: " << *LimitVar << "\n");
 
   // Canonicalize the loop latch.
   Value *NewCond = canonicalizeLoopLatch(CanonicalIV, LimitVar);
@@ -1752,7 +1752,7 @@ bool CilkABILoopSpawning::processLoop() {
     // for (BasicBlock *BB : EHExits)
     //   LoopBlocks.push_back(BB);
 
-    // DEBUG({
+    // LLVM_DEBUG({
     //     dbgs() << "LoopBlocks: ";
     //     for (BasicBlock *LB : LoopBlocks)
     //       dbgs() << LB->getName() << "("
@@ -1771,7 +1771,7 @@ bool CilkABILoopSpawning::processLoop() {
     }
 
     // Add argument for start of CanonicalIV.
-    DEBUG({
+    LLVM_DEBUG({
         Value *CanonicalIVInput =
           CanonicalIV->getIncomingValueForBlock(Preheader);
         // CanonicalIVInput should be the constant 0.
@@ -1842,7 +1842,7 @@ bool CilkABILoopSpawning::processLoop() {
     assert(0 == BodyOutputs.size() &&
            "All results from parallel loop should be passed by memory already.");
   }
-  DEBUG({
+  LLVM_DEBUG({
       for (Value *V : Inputs)
         dbgs() << "EL input: " << *V << "\n";
       for (Value *V : Outputs)
@@ -1887,17 +1887,17 @@ bool CilkABILoopSpawning::processLoop() {
     // Rewrite other cloned IV's to start at their value at the start
     // iteration.
     const SCEV *StartIterSCEV = SE.getSCEV(NewCanonicalIVStart);
-    DEBUG(dbgs() << "StartIterSCEV: " << *StartIterSCEV << "\n");
+    LLVM_DEBUG(dbgs() << "StartIterSCEV: " << *StartIterSCEV << "\n");
     for (PHINode *IV : IVs) {
       if (CanonicalIV == IV) continue;
 
       // Get the value of the IV at the start iteration.
-      DEBUG(dbgs() << "IV " << *IV);
+      LLVM_DEBUG(dbgs() << "IV " << *IV);
       const SCEV *IVSCEV = SE.getSCEV(IV);
-      DEBUG(dbgs() << " (SCEV " << *IVSCEV << ")");
+      LLVM_DEBUG(dbgs() << " (SCEV " << *IVSCEV << ")");
       const SCEVAddRecExpr *IVSCEVAddRec = cast<const SCEVAddRecExpr>(IVSCEV);
       const SCEV *IVAtIter = IVSCEVAddRec->evaluateAtIteration(StartIterSCEV, SE);
-      DEBUG(dbgs() << " expands at iter " << *StartIterSCEV <<
+      LLVM_DEBUG(dbgs() << " expands at iter " << *StartIterSCEV <<
             " to " << *IVAtIter << "\n");
 
       // NOTE: Expanded code should not refer to other IV's.

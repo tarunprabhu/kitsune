@@ -398,7 +398,7 @@ void llvm::TapirLoopHints::setHint(StringRef Name, Metadata *Arg) {
       if (H->validate(Val))
         H->Value = Val;
       else
-        DEBUG(dbgs() << "Tapir: ignoring invalid hint '" <<
+        LLVM_DEBUG(dbgs() << "Tapir: ignoring invalid hint '" <<
               Name << "'\n");
       break;
     }

@@ -18,7 +18,7 @@ declare fastcc void @simple_sort(i64* noalias %result, i64* noalias %array, i64 
 declare fastcc void @parallel_merge(i64* noalias %result, i64* noalias %A, i64* noalias %B, i64 %size_a, i64 %size_b) unnamed_addr #0
 
 ; Function Attrs: nounwind uwtable
-define fastcc void @cilk_sort_routine(i64* noalias %result, i64* noalias %array, i64 %size, i32 %reverse, i32 %level) unnamed_addr #0 {
+define dso_local fastcc void @cilk_sort_routine(i64* noalias %result, i64* noalias %array, i64 %size, i32 %reverse, i32 %level) unnamed_addr #0 {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp = icmp slt i64 %size, 100

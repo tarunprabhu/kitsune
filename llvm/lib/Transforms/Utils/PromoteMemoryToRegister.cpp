@@ -644,7 +644,7 @@ void PromoteMem2Reg::run() {
            PI != E && !DetachedPred; ++PI) {
         BasicBlock *P = *PI;
         if (isa<ReattachInst>(P->getTerminator())) {
-          DEBUG(dbgs() << "Alloca " << *AI << " has use reattached from " <<
+          LLVM_DEBUG(dbgs() << "Alloca " << *AI << " has use reattached from " <<
                 P->getName() << "\n");
           DetachedPred = true;
         }

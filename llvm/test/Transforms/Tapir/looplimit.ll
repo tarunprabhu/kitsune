@@ -10,7 +10,7 @@ source_filename = "looplimittest.c"
 @str.3 = private unnamed_addr constant [9 x i8] c"Finished\00"
 
 ; Function Attrs: noinline nounwind uwtable
-define void @foo(i32 %limit) local_unnamed_addr #0 {
+define dso_local void @foo(i32 %limit) local_unnamed_addr #0 {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp9 = icmp slt i32 %limit, 0
