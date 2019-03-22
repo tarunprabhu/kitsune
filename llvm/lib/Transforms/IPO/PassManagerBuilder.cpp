@@ -41,7 +41,13 @@
 
 using namespace llvm;
 
+static cl::opt<bool> EnableTapirLoopStripmine(
+    "enable-tapir-loop-stripmine", cl::init(false), cl::Hidden,
+    cl::desc("Enable the new, experimental Tapir LoopStripMine Pass"));
+
 PassManagerBuilder::PassManagerBuilder() {
+    TapirTarget = TapirTargetID::None;
+    DisableTapirOpts = false;
     OptLevel = 2;
     SizeLevel = 0;
     LibraryInfo = nullptr;
@@ -428,6 +434,23 @@ void PassManagerBuilder::populateModulePassManager(
 
   MPM.add(createFloat2IntPass());
   MPM.add(createLowerConstantIntrinsicsPass());
+
+  if (EnableMatrix) {
+    MPM.add(createLowerMatrixIntrinsicsPass());
+    // CSE the pointer arithmetic of the column vectors.  This allows alias
+    // analysis to establish no-aliasing between loads and stores of different
+    // columns of the same matrix.
+    MPM.add(createEarlyCSEPass(false));
+  }
+
+  // Stripmine Tapir loops.  This pass is currently only performed when
+  // -enable-tapir-loop-stripmine is specified.
+  if (EnableTapirLoopStripmine) {
+    MPM.add(createLoopStripMinePass());
+    addFunctionSimplificationPasses(MPM);
+  }
+
+  // addExtensionsToPM(EP_VectorizerStart, MPM);
 
   // Re-rotate loops in all our loop nests. These may have fallout out of
   // rotated form due to GVN or other transformations, and the vectorizer relies
