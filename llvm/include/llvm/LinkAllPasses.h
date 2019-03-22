@@ -90,6 +90,7 @@ namespace {
       (void) llvm::createCalledValuePropagationPass();
       (void) llvm::createConstantMergePass();
       (void) llvm::createCostModelAnalysisPass();
+      (void) llvm::createDRFScopedNoAliasWrapperPass();
       (void) llvm::createDeadArgEliminationPass();
       (void) llvm::createDeadCodeEliminationPass();
       (void) llvm::createDeadStoreEliminationPass();
