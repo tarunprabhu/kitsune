@@ -103,6 +103,7 @@ namespace {
       (void) llvm::createLoopSpawningPass();
       (void) llvm::createLoopSpawningTIPass();
       (void) llvm::createLoopStrengthReducePass();
+      (void) llvm::createLoopStripMinePass();
       (void) llvm::createLoopUnrollPass();
       (void) llvm::createLoopRotatePass();
       (void) llvm::createLowerConstantIntrinsicsPass();
