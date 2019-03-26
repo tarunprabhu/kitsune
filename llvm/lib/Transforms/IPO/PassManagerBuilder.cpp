@@ -82,8 +82,6 @@ void PassManagerBuilder::addInitialAliasAnalysisPasses(
   // BasicAliasAnalysis wins if they disagree. This is intended to help
   // support "obvious" type-punning idioms.
   PM.add(createTypeBasedAAWrapperPass());
-  if (EnableDRFAA)
-    PM.add(createDRFAAWrapperPass());
   PM.add(createScopedNoAliasAAWrapperPass());
 }
 
@@ -463,6 +461,8 @@ void PassManagerBuilder::populateModulePassManager(
     MPM.add(createJumpThreadingPass());         // Thread jumps
     MPM.add(createCorrelatedValuePropagationPass());
     addInstructionCombiningPass(MPM);
+    if (EnableDRFAA)
+      MPM.add(createDRFScopedNoAliasWrapperPass());
   }
 
   // addExtensionsToPM(EP_VectorizerStart, MPM);
