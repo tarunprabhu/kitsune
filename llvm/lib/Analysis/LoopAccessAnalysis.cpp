@@ -32,6 +32,7 @@
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/VectorUtils.h"
@@ -135,6 +136,12 @@ static cl::opt<unsigned> MaxForkedSCEVDepth(
     "max-forked-scev-depth", cl::Hidden,
     cl::desc("Maximum recursion depth when finding forked SCEVs (default = 5)"),
     cl::init(5));
+/// Enable analysis using Tapir based on the data-race-free assumption.
+static cl::opt<bool> EnableDRFAA(
+    "enable-drf-laa", cl::Hidden,
+    cl::desc("Enable analysis using Tapir based on the data-race-free "
+             "assumption"),
+    cl::init(false));
 
 bool VectorizerParams::isInterleaveForced() {
   return ::VectorizationInterleave.getNumOccurrences() > 0;
@@ -1724,6 +1731,12 @@ void MemoryDepChecker::mergeInStatus(VectorizationSafetyStatus S) {
     Status = S;
 }
 
+/// Returns true if this loop is logically parallel as indicated by Tapir.
+static bool isLogicallyParallelViaTapir(const Loop *L, TaskInfo *TI) {
+  return L->wasDerivedFromTapirLoop() ||
+    (TI && getTaskIfTapirLoopStructure(L, TI));
+}
+
 /// Given a dependence-distance \p Dist between two
 /// memory accesses, that have the same stride whose absolute value is given
 /// in \p Stride, and that have the same type size \p TypeByteSize,
@@ -1840,6 +1853,11 @@ MemoryDepChecker::isDependent(const MemAccessInfo &A, unsigned AIdx,
 
   // Two reads are independent.
   if (!AIsWrite && !BIsWrite)
+    return Dependence::NoDep;
+
+  // Under certain assumptions, Tapir can guarantee that there are no
+  // loop-carried dependencies.
+  if (EnableDRFAA && isLogicallyParallelViaTapir(InnermostLoop, TI))
     return Dependence::NoDep;
 
   // We cannot check pointers in different address spaces.
@@ -2069,6 +2087,12 @@ bool MemoryDepChecker::areDepsSafe(DepCandidates &AccessSets,
 
             Dependence::DepType Type =
                 isDependent(*A.first, A.second, *B.first, B.second, Strides);
+            // Backward dependencies cannot happen in Tapir loops.
+            if ((Dependence::Backward == Type ||
+                 Dependence::BackwardVectorizable == Type ||
+                 Dependence::BackwardVectorizableButPreventsForwarding == Type)
+                && isLogicallyParallelViaTapir(InnermostLoop, TI))
+              Type = Dependence::NoDep;
             mergeInStatus(Dependence::isSafeForVectorization(Type));
 
             // Gather dependences unless we accumulated MaxDependences
@@ -2159,7 +2183,9 @@ bool LoopAccessInfo::canAnalyzeLoop() {
 
 void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
                                  const TargetLibraryInfo *TLI,
-                                 DominatorTree *DT) {
+                                 DominatorTree *DT, TaskInfo *TI) {
+  typedef SmallPtrSet<Value*, 16> ValueSet;
+
   // Holds the Load and Store instructions.
   SmallVector<LoadInst *, 16> Loads;
   SmallVector<StoreInst *, 16> Stores;
@@ -2176,7 +2202,8 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
   PtrRtChecking->Pointers.clear();
   PtrRtChecking->Need = false;
 
-  const bool IsAnnotatedParallel = TheLoop->isAnnotatedParallel();
+  const bool IsAnnotatedParallel = TheLoop->isAnnotatedParallel() ||
+    (EnableDRFAA && isLogicallyParallelViaTapir(TheLoop, TI));
 
   const bool EnableMemAccessVersioningOfLoop =
       EnableMemAccessVersioning &&
@@ -2409,7 +2436,7 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
                                SymbolicStrides, UncomputablePtr, false);
   if (!CanDoRTIfNeeded) {
     auto *I = dyn_cast_or_null<Instruction>(UncomputablePtr);
-    recordAnalysis("CantIdentifyArrayBounds", I) 
+    recordAnalysis("CantIdentifyArrayBounds", I)
         << "cannot identify array bounds";
     LLVM_DEBUG(dbgs() << "LAA: We can't vectorize because we can't find "
                       << "the array bounds.\n");
@@ -2627,14 +2654,13 @@ void LoopAccessInfo::collectStridedAccess(Value *MemAccess) {
 
 LoopAccessInfo::LoopAccessInfo(Loop *L, ScalarEvolution *SE,
                                const TargetLibraryInfo *TLI, AAResults *AA,
-                               DominatorTree *DT, LoopInfo *LI)
+                               DominatorTree *DT, LoopInfo *LI, TaskInfo *TI)
     : PSE(std::make_unique<PredicatedScalarEvolution>(*SE, *L)),
       PtrRtChecking(nullptr),
       DepChecker(std::make_unique<MemoryDepChecker>(*PSE, L)), TheLoop(L) {
   PtrRtChecking = std::make_unique<RuntimePointerChecking>(*DepChecker, SE);
-  if (canAnalyzeLoop()) {
-    analyzeLoop(AA, LI, TLI, DT);
-  }
+  if (canAnalyzeLoop())
+    analyzeLoop(AA, LI, TLI, DT, TI);
 }
 
 void LoopAccessInfo::print(raw_ostream &OS, unsigned Depth) const {
@@ -2701,7 +2727,10 @@ bool LoopAccessLegacyAnalysis::runOnFunction(Function &F) {
   auto &AA = getAnalysis<AAResultsWrapperPass>().getAAResults();
   auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  LAIs = std::make_unique<LoopAccessInfoManager>(SE, AA, DT, LI, TLI);
+  TaskInfo *TI = nullptr;
+  if (EnableDRFAA)
+    TI = &getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
+  LAIs = std::make_unique<LoopAccessInfoManager>(SE, AA, DT, LI, TLI, TI);
   return false;
 }
 
@@ -2710,6 +2739,8 @@ void LoopAccessLegacyAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequiredTransitive<AAResultsWrapperPass>();
   AU.addRequiredTransitive<DominatorTreeWrapperPass>();
   AU.addRequiredTransitive<LoopInfoWrapperPass>();
+  if (EnableDRFAA)
+    AU.addRequiredTransitive<TaskInfoWrapperPass>();
 
   AU.setPreservesAll();
 }
@@ -2731,6 +2762,7 @@ INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(TaskInfoWrapperPass)
 INITIALIZE_PASS_END(LoopAccessLegacyAnalysis, LAA_NAME, laa_name, false, true)
 
 AnalysisKey LoopAccessAnalysis::Key;
