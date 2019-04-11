@@ -688,6 +688,12 @@ void SCCPSolver::getFeasibleSuccessors(Instruction &TI,
     return;
   }
 
+  // Unwinding instructions successors are always executable.
+  if (TI.isExceptionalTerminator()) {
+      Succs.assign(TI.getNumSuccessors(), true);
+      return;
+  }
+
   if (auto *SI = dyn_cast<SwitchInst>(&TI)) {
     if (!SI->getNumCases()) {
       Succs[0] = true;
@@ -741,6 +747,7 @@ void SCCPSolver::getFeasibleSuccessors(Instruction &TI,
     Succs.assign(TI.getNumSuccessors(), true);
     return;
   }
+
   LLVM_DEBUG(dbgs() << "Unknown terminator instruction: " << TI << '\n');
   llvm_unreachable("SCCP: Don't know how to handle this terminator!");
 }

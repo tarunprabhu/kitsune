@@ -205,25 +205,26 @@ bool LoopSafetyInfo::allLoopPathsLeadToBlock(const Loop *CurLoop,
     if (blockMayThrow(Pred))
       return false;
     for (auto *Succ : successors(Pred))
-      if (CheckedSuccessors.insert(Succ).second &&
-          Succ != BB && !Predecessors.count(Succ))
-        // By discharging conditions that are not executed on the 1st iteration,
-        // we guarantee that *at least* on the first iteration all paths from
-        // header that *may* execute will lead us to the block of interest. So
-        // that if we had virtually peeled one iteration away, in this peeled
-        // iteration the set of predecessors would contain only paths from
-        // header to BB without any exiting edges that may execute.
-        //
-        // TODO: We only do it for exiting edges currently. We could use the
-        // same function to skip some of the edges within the loop if we know
-        // that they will not be taken on the 1st iteration.
-        //
-        // TODO: If we somehow know the number of iterations in loop, the same
-        // check may be done for any arbitrary N-th iteration as long as N is
-        // not greater than minimum number of iterations in this loop.
-        if (CurLoop->contains(Succ) ||
-            !CanProveNotTakenFirstIteration(Succ, DT, CurLoop))
-          return false;
+      if (!isa<DetachInst>(Pred->getTerminator()))
+        if (CheckedSuccessors.insert(Succ).second &&
+            Succ != BB && !Predecessors.count(Succ))
+          // By discharging conditions that are not executed on the 1st iteration,
+          // we guarantee that *at least* on the first iteration all paths from
+          // header that *may* execute will lead us to the block of interest. So
+          // that if we had virtually peeled one iteration away, in this peeled
+          // iteration the set of predecessors would contain only paths from
+          // header to BB without any exiting edges that may execute.
+          //
+          // TODO: We only do it for exiting edges currently. We could use the
+          // same function to skip some of the edges within the loop if we know
+          // that they will not be taken on the 1st iteration.
+          //
+          // TODO: If we somehow know the number of iterations in loop, the same
+          // check may be done for any arbitrary N-th iteration as long as N is
+          // not greater than minimum number of iterations in this loop.
+          if (CurLoop->contains(Succ) ||
+              !CanProveNotTakenFirstIteration(Succ, DT, CurLoop))
+            return false;
   }
 
   // All predecessors can only lead us to BB.

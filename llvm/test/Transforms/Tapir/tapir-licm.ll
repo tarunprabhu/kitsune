@@ -1,4 +1,4 @@
-; RUN: opt < %s -licm-rhino -S | FileCheck %s
+; RUN: opt < %s -licm -S | FileCheck %s
 
 ; Function Attrs: noinline nounwind uwtable
 define dso_local void @normalize(double* noalias %out, double* noalias %in, i32 %n) #0 {

@@ -1,4 +1,4 @@
-; RUN: opt < %s -licm-rhino -S | FileCheck %s
+; RUN: opt < %s -licm -S | FileCheck %s
 
 ; Function Attrs: nounwind uwtable
 define i32 @main() #0 {
