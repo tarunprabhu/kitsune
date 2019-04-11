@@ -688,12 +688,6 @@ void SCCPSolver::getFeasibleSuccessors(Instruction &TI,
     return;
   }
 
-  // Unwinding instructions successors are always executable.
-  if (TI.isExceptionalTerminator()) {
-    Succs.assign(TI.getNumSuccessors(), true);
-    return;
-  }
-
   if (auto *SI = dyn_cast<SwitchInst>(&TI)) {
     if (!SI->getNumCases()) {
       Succs[0] = true;
@@ -764,7 +758,7 @@ bool SCCPSolver::isEdgeFeasible(BasicBlock *From, BasicBlock *To) {
   if (!BBExecutable.count(From)) return false;
 
   // Check to make sure this edge itself is actually feasible now.
-  TerminatorInst *TI = From->getTerminator();
+  Instruction *TI = From->getTerminator();
   if (auto *BI = dyn_cast<BranchInst>(TI)) {
     if (BI->isUnconditional())
       return true;
@@ -782,7 +776,7 @@ bool SCCPSolver::isEdgeFeasible(BasicBlock *From, BasicBlock *To) {
   }
 
   // Unwinding instructions successors are always executable.
-  if (TI->isExceptional())
+  if (TI->isExceptionalTerminator())
     return true;
 
   if (auto *SI = dyn_cast<SwitchInst>(TI)) {

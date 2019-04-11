@@ -2203,7 +2203,6 @@ bool GVN::performScalarPRE(Instruction *CurInst) {
   BasicBlock *PREPred = nullptr;
   BasicBlock *CurrentBlock = CurInst->getParent();
   BasicBlock *DetachPred = nullptr, *ReattachPred = nullptr;
-  Value *DetachV = nullptr, *ReattachV = nullptr;
 
   // Update the RPO numbers for this function.
   if (InvalidBlockRPONumbers)

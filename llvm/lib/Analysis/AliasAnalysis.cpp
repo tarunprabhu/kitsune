@@ -162,14 +162,14 @@ ModRefInfo AAResults::getModRefInfo(Instruction *I, const CallBase *Call2) {
 
         if (isa<LoadInst>(DI) || isa<StoreInst>(DI) ||
             isa<AtomicCmpXchgInst>(DI) || isa<AtomicRMWInst>(DI) ||
-            DI.isFenceLike() || ImmutableCallSite(&DI))
-          Result = unionModRef(Result, getModRefInfo(&DI, Call));
-        if (&DI == Call.getInstruction())
+            DI.isFenceLike() || isa<CallBase>(&DI))
+          Result = unionModRef(Result, getModRefInfo(&DI, Call2));
+        if (&DI == Call2)
           return ModRefInfo::NoModRef;
       }
 
       // Add successors
-      const TerminatorInst *T = BB->getTerminator();
+      const Instruction *T = BB->getTerminator();
       if (const ReattachInst *RI = dyn_cast<ReattachInst>(T))
         if (D->getSyncRegion() == RI->getSyncRegion())
           continue;
@@ -444,8 +444,8 @@ FunctionModRefBehavior AAResults::getModRefBehavior(const DetachInst *D) {
       assert(!(D == &I) &&
              "Invalid CFG found: Detached CFG reaches its own Detach.");
 
-      if (auto CS = ImmutableCallSite(&I))
-        Result = FunctionModRefBehavior(Result | getModRefBehavior(CS));
+      if (auto CB = dyn_cast<CallBase>(&I))
+        Result = FunctionModRefBehavior(Result | getModRefBehavior(CB));
 
       // Early-exit the moment we reach the top of the lattice.
       if (Result == FMRB_UnknownModRefBehavior)
@@ -453,7 +453,7 @@ FunctionModRefBehavior AAResults::getModRefBehavior(const DetachInst *D) {
     }
 
     // Add successors
-    const TerminatorInst *T = BB->getTerminator();
+    const Instruction *T = BB->getTerminator();
     if (const ReattachInst *RI = dyn_cast<ReattachInst>(T))
       if (D->getSyncRegion() == RI->getSyncRegion())
         continue;
@@ -486,7 +486,7 @@ FunctionModRefBehavior AAResults::getModRefBehavior(const SyncInst *S) {
     for (const_pred_iterator PI = pred_begin(BB), E = pred_end(BB);
 	 PI != E; ++PI) {
       const BasicBlock *Pred = *PI;
-      const TerminatorInst *PT = Pred->getTerminator();
+      const Instruction *PT = Pred->getTerminator();
       // Ignore reattached predecessors and predecessors that end in syncs,
       // because this sync does not wait on those predecessors.
       if (isa<ReattachInst>(PT) || isa<SyncInst>(PT))
@@ -680,7 +680,7 @@ ModRefInfo AAResults::getModRefInfo(const DetachInst *D,
     }
 
     // Add successors
-    const TerminatorInst *T = BB->getTerminator();
+    const Instruction *T = BB->getTerminator();
     if (const ReattachInst *RI = dyn_cast<ReattachInst>(T))
       if (D->getSyncRegion() == RI->getSyncRegion())
         continue;
@@ -714,7 +714,7 @@ ModRefInfo AAResults::getModRefInfo(const SyncInst *S,
     for (const_pred_iterator PI = pred_begin(BB), E = pred_end(BB);
 	 PI != E; ++PI) {
       const BasicBlock *Pred = *PI;
-      const TerminatorInst *PT = Pred->getTerminator();
+      const Instruction *PT = Pred->getTerminator();
       // Ignore reattached predecessors and predecessors that end in syncs,
       // because this sync does not wait on those predecessors.
       if (isa<ReattachInst>(PT) || isa<SyncInst>(PT))

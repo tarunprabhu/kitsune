@@ -368,7 +368,7 @@ void PassManagerBuilder::addFunctionSimplificationPasses(
   }
   // Rotate Loop - disable header duplication at -Oz
   MPM.add(createLoopRotatePass(SizeLevel == 2 ? 0 : -1));
-  MPM.add(createLICMPass(Rhino));                  // Hoist loop invariants
+  MPM.add(createLICMPass());                  // Hoist loop invariants
   if (EnableSimpleLoopUnswitch)
     MPM.add(createSimpleLoopUnswitchLegacyPass());
   else

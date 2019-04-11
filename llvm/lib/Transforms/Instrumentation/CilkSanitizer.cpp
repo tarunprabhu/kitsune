@@ -262,7 +262,7 @@ uint64_t ObjectTable::add(Instruction &I,
   // Next, if this is an alloca instruction, look for a llvm.dbg.declare
   // intrinsic.
   if (AllocaInst *AI = dyn_cast<AllocaInst>(Obj)) {
-    TinyPtrVector<DbgInfoIntrinsic *> DbgDeclares = FindDbgAddrUses(AI);
+    auto DbgDeclares = FindDbgAddrUses(AI);
     if (!DbgDeclares.empty()) {
       auto *LV = DbgDeclares.front()->getVariable();
       if (LV->getName() != "") {

@@ -66,7 +66,7 @@ bool llvm::verifyDetachedCFG(const DetachInst &Detach, DominatorTree &DT,
     if (!FunctionPieces.insert(BB).second)
       continue;
 
-    TerminatorInst* Term = BB->getTerminator();
+    Instruction* Term = BB->getTerminator();
     if (Term == nullptr) return false;
     if (ReattachInst* Inst = dyn_cast<ReattachInst>(Term)) {
       // Only analyze reattaches going to the same continuation.
@@ -168,7 +168,7 @@ bool llvm::populateDetachedCFG(
 
     LLVM_DEBUG(dbgs() << "  Found block " << BB->getName() << "\n");
 
-    TerminatorInst *Term = BB->getTerminator();
+    Instruction *Term = BB->getTerminator();
     if (Term == nullptr) return false;
     if (isa<ReattachInst>(Term)) {
       // Only analyze reattaches going to the same continuation.

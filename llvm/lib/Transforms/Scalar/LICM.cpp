@@ -72,7 +72,6 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
-#include "llvm/Transforms/Utils/TapirUtils.h"
 #include <algorithm>
 #include <utility>
 using namespace llvm;
@@ -158,7 +157,7 @@ struct LoopInvariantCodeMotion {
   bool runOnLoop(Loop *L, AliasAnalysis *AA, LoopInfo *LI, DominatorTree *DT,
                  TargetLibraryInfo *TLI, TargetTransformInfo *TTI,
                  ScalarEvolution *SE, MemorySSA *MSSA,
-                 OptimizationRemarkEmitter *ORE, bool DeleteAST, bool Rhino);
+                 OptimizationRemarkEmitter *ORE, bool DeleteAST);
 
   ASTrackerMapTy &getLoopToAliasSetMap() { return LoopToAliasSetMap; }
 
@@ -169,101 +168,10 @@ private:
   collectAliasInfoForLoop(Loop *L, LoopInfo *LI, AliasAnalysis *AA);
 };
 
-/// Returns an owning pointer to an alias set which incorporates aliasing info
-/// from L and all subloops of L.
-/// FIXME: In new pass manager, there is no helper function to handle loop
-/// analysis such as cloneBasicBlockAnalysis, so the AST needs to be recomputed
-/// from scratch for every loop. Hook up with the helper functions when
-/// available in the new pass manager to avoid redundant computation.
-/*
-loop: pred [entry, cont]
-  detach det, cont
-
-det:
-  reattach cont
-
-cont:
-  if (), loop, ext
-
-exit:
-*/
-// Can ignore things coming from reattach edges as long as didn't encounter sync for
-
-AliasSetTracker *
-collectAliasInfoForLoopAtPoint(Loop *L, LoopInfo *LI,
-                                                 AliasAnalysis *AA, Instruction* I, bool collectBefore, bool ignoreBlock=false) {
-  auto CurAST = new AliasSetTracker(*AA);
-
-  std::set<BasicBlock*> Blocks;
-  for (Loop *L2 : L->getSubLoops()) {
-    for (BasicBlock *BB : L2->blocks())
-        Blocks.insert(BB);
-  }
-  for (BasicBlock *BB : L->blocks())
-    Blocks.insert(BB);
-
-  assert( Blocks.count(I->getParent()) );
-  /* (current block, [list of sync instructions encountered])*/
-  std::vector<std::pair<BasicBlock*,std::set<Value*>> > todo{ std::make_pair(I->getParent(), std::set<Value*>()) };
-  std::set<BasicBlock*> done;
-
-  if (!ignoreBlock) {
-    bool seenI = false;
-    for (auto& II : * I->getParent()) {
-      if (&II == I) {
-          seenI = true;
-          CurAST->add(&II);
-      } else if (seenI != collectBefore) {
-        // If collecting before I, this will add I if was not seen
-        // if collecting after I, this will add if I was seen
-        CurAST->add(&II);
-      }
-    }
-  }
-  
-  while (!todo.empty()) {
-    auto p = todo.back();
-    todo.pop_back();
-    BasicBlock *BB = p.first;
-    std::set<Value*> syncs = p.second;
-
-    if (collectBefore) {
-        if (auto RE = dyn_cast<ReattachInst>(BB->getTerminator())) {
-            if(!syncs.count(RE->getSyncRegion())) continue;
-        }
-        if (auto SY = dyn_cast<SyncInst>(BB->getTerminator())) {
-            syncs.insert(SY->getSyncRegion());
-        }
-        for (BasicBlock *B2 : successors(BB)) {
-            if (Blocks.count(B2) && !done.count(B2)) {
-                done.insert(B2);
-                CurAST->add(*B2);
-                todo.push_back(make_pair(B2,syncs));
-            }
-        }
-    } else { 
-        for (BasicBlock *B2 : predecessors(BB)) {
-            if (Blocks.count(B2) && !done.count(B2)) {
-                //TODO THIS NEEDS TO ALLOW pfor loops to not alias when inst sinking
-                done.insert(B2);
-                CurAST->add(*B2);
-                todo.push_back(make_pair(B2,syncs));
-            }
-        }
-    }
-  }
-  return CurAST;
-}
-
-template<bool Rhino=false>
-struct LegacyLICMCommonPass : public LoopPass {
+struct LegacyLICMPass : public LoopPass {
   static char ID; // Pass identification, replacement for typeid
-  LegacyLICMCommonPass() : LoopPass(ID) {
-    if (Rhino) {
-      initializeLegacyLICMRhinoPassPass(*PassRegistry::getPassRegistry());
-    } else {
-      initializeLegacyLICMPassPass(*PassRegistry::getPassRegistry());
-    }
+  LegacyLICMPass() : LoopPass(ID) {
+    initializeLegacyLICMPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnLoop(Loop *L, LPPassManager &LPM) override {
@@ -272,9 +180,6 @@ struct LegacyLICMCommonPass : public LoopPass {
       // (because we've hit the opt-bisect limit), we need to clear the
       // loop alias information.
       LICM.getLoopToAliasSetMap().clear();
-      for (auto &LTAS : LICM.getBlockToAliasSetMap())
-        delete LTAS.second;
-      LICM.getBlockToAliasSetMap().clear();
       return false;
     }
 
@@ -293,8 +198,7 @@ struct LegacyLICMCommonPass : public LoopPass {
                           &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(),
                           &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(
                               *L->getHeader()->getParent()),
-                          SE ? &SE->getSE() : nullptr, MSSA, &ORE, false,
-                          Rhino);
+                          SE ? &SE->getSE() : nullptr, MSSA, &ORE, false);
   }
 
   /// This transformation requires natural loop information & requires that
@@ -317,8 +221,6 @@ struct LegacyLICMCommonPass : public LoopPass {
   bool doFinalization() override {
     assert(LICM.getLoopToAliasSetMap().empty() &&
            "Didn't free loop alias sets");
-    assert(LICM.getBlockToAliasSetMap().empty() &&
-           "Didn't free loop alias sets");
     return false;
   }
 
@@ -327,33 +229,14 @@ private:
 
   /// cloneBasicBlockAnalysis - Simple Analysis hook. Clone alias set info.
   void cloneBasicBlockAnalysis(BasicBlock *From, BasicBlock *To,
-                               Loop *L) override {
-    AliasSetTracker *AST = LICM.getLoopToAliasSetMap().lookup(L);
-    if (!AST)
-      return;
-
-    AST->copyValue(From, To);
-  }
+                               Loop *L) override;
 
   /// deleteAnalysisValue - Simple Analysis hook. Delete value V from alias
   /// set.
-  void deleteAnalysisValue(Value *V, Loop *L) override {
-    AliasSetTracker *AST = LICM.getLoopToAliasSetMap().lookup(L);
-    if (!AST)
-      return;
-
-    AST->deleteValue(V);
-  }
+  void deleteAnalysisValue(Value *V, Loop *L) override;
 
   /// Simple Analysis hook. Delete loop L from alias set map.
-  void deleteAnalysisLoop(Loop *L) override {
-    AliasSetTracker *AST = LICM.getLoopToAliasSetMap().lookup(L);
-    if (!AST)
-      return;
-
-    delete AST;
-    LICM.getLoopToAliasSetMap().erase(L);
-  }
+  void deleteAnalysisLoop(Loop *L) override;
 };
 } // namespace
 
@@ -371,7 +254,7 @@ PreservedAnalyses LICMPass::run(Loop &L, LoopAnalysisManager &AM,
 
   LoopInvariantCodeMotion LICM;
   if (!LICM.runOnLoop(&L, &AR.AA, &AR.LI, &AR.DT, &AR.TLI, &AR.TTI, &AR.SE,
-                      AR.MSSA, ORE, true, Rhino))
+                      AR.MSSA, ORE, true))
     return PreservedAnalyses::all();
 
   auto PA = getLoopPassPreservedAnalyses();
@@ -382,12 +265,7 @@ PreservedAnalyses LICMPass::run(Loop &L, LoopAnalysisManager &AM,
   return PA;
 }
 
-
-using LegacyLICMPass = LegacyLICMCommonPass</*Rhino*/false>;
-
-template<>
 char LegacyLICMPass::ID = 0;
-
 INITIALIZE_PASS_BEGIN(LegacyLICMPass, "licm", "Loop Invariant Code Motion",
                       false, false)
 INITIALIZE_PASS_DEPENDENCY(LoopPass)
@@ -397,25 +275,7 @@ INITIALIZE_PASS_DEPENDENCY(MemorySSAWrapperPass)
 INITIALIZE_PASS_END(LegacyLICMPass, "licm", "Loop Invariant Code Motion", false,
                     false)
 
-using LegacyLICMRhinoPass = LegacyLICMCommonPass</*Rhino*/true>;
-
-template<>
-char LegacyLICMRhinoPass::ID = 0;
-
-INITIALIZE_PASS_BEGIN(LegacyLICMRhinoPass, "licm-rhino", "Loop Invariant Code Motion w/ Rhino",
-                      false, false)
-INITIALIZE_PASS_DEPENDENCY(LoopPass)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
-INITIALIZE_PASS_END(LegacyLICMRhinoPass, "licm-rhino", "Loop Invariant Code Motion w/ Rhino", false,
-                    false)
-
-Pass *llvm::createLICMPass(bool Rhino) { 
-  if (Rhino) {
-    return new LegacyLICMRhinoPass();
-  } else {
-    return new LegacyLICMPass();
-  }
-}
+Pass *llvm::createLICMPass() { return new LegacyLICMPass(); }
 
 /// Hoist expressions out of the specified loop. Note, alias info for inner
 /// loop is not preserved so it is not a good idea to run LICM multiple
@@ -426,8 +286,7 @@ Pass *llvm::createLICMPass(bool Rhino) {
 bool LoopInvariantCodeMotion::runOnLoop(
     Loop *L, AliasAnalysis *AA, LoopInfo *LI, DominatorTree *DT,
     TargetLibraryInfo *TLI, TargetTransformInfo *TTI, ScalarEvolution *SE,
-    MemorySSA *MSSA, OptimizationRemarkEmitter *ORE, bool DeleteAST,
-    bool Rhino) {
+    MemorySSA *MSSA, OptimizationRemarkEmitter *ORE, bool DeleteAST) {
   bool Changed = false;
 
   assert(L->isLCSSAForm(*DT) && "Loop is not in LCSSA form.");
@@ -461,10 +320,10 @@ bool LoopInvariantCodeMotion::runOnLoop(
   //
   if (L->hasDedicatedExits())
     Changed |= sinkRegion(DT->getNode(L->getHeader()), AA, LI, DT, TLI, TTI, L,
-                          CurAST.get(), MSSAU.get(), &SafetyInfo, ORE, Rhino);
+                          CurAST.get(), MSSAU.get(), &SafetyInfo, ORE);
   if (Preheader)
     Changed |= hoistRegion(DT->getNode(L->getHeader()), AA, LI, DT, TLI, L,
-                           CurAST.get(), MSSAU.get(), &SafetyInfo, ORE, Rhino);
+                           CurAST.get(), MSSAU.get(), &SafetyInfo, ORE);
 
   // Now that all loop invariants have been removed from the loop, promote any
   // memory references to scalars that we can.
@@ -561,7 +420,7 @@ bool llvm::sinkRegion(DomTreeNode *N, AliasAnalysis *AA, LoopInfo *LI,
                       TargetTransformInfo *TTI, Loop *CurLoop,
                       AliasSetTracker *CurAST, MemorySSAUpdater *MSSAU,
                       ICFLoopSafetyInfo *SafetyInfo,
-                      OptimizationRemarkEmitter *ORE, bool Rhino) {
+                      OptimizationRemarkEmitter *ORE) {
 
   // Verify inputs.
   assert(N != nullptr && AA != nullptr && LI != nullptr && DT != nullptr &&
@@ -583,15 +442,8 @@ bool llvm::sinkRegion(DomTreeNode *N, AliasAnalysis *AA, LoopInfo *LI,
     if (inSubLoop(BB, CurLoop, LI))
       continue;
 
-    if (Rhino)
-      CurAST = collectAliasInfoForLoopAtPoint(CurLoop, LI, AA, &*--BB->end(),
-                                              /*collectBefore*/false,
-                                              /*onlyBlock*/true);
-
     for (BasicBlock::iterator II = BB->end(); II != BB->begin();) {
       Instruction &I = *--II;
-      if (Rhino)
-        CurAST->add(&I);
 
       // If the instruction is dead, we would try to sink it because it isn't
       // used in the loop, instead, just delete it.
@@ -866,7 +718,7 @@ bool llvm::hoistRegion(DomTreeNode *N, AliasAnalysis *AA, LoopInfo *LI,
                        DominatorTree *DT, TargetLibraryInfo *TLI, Loop *CurLoop,
                        AliasSetTracker *CurAST, MemorySSAUpdater *MSSAU,
                        ICFLoopSafetyInfo *SafetyInfo,
-                       OptimizationRemarkEmitter *ORE, bool Rhino) {
+                       OptimizationRemarkEmitter *ORE) {
   // Verify inputs.
   assert(N != nullptr && AA != nullptr && LI != nullptr && DT != nullptr &&
          CurLoop != nullptr && SafetyInfo != nullptr &&
@@ -891,15 +743,9 @@ bool llvm::hoistRegion(DomTreeNode *N, AliasAnalysis *AA, LoopInfo *LI,
     // subloop (which would already have been processed).
     if (inSubLoop(BB, CurLoop, LI))
       continue;
-    if (Rhino)
-      CurAST = collectAliasInfoForLoopAtPoint(CurLoop, LI, AA, &*BB->begin(),
-                                              /*collectBefore*/true,
-                                              /*onlyBlock*/true);
 
     for (BasicBlock::iterator II = BB->begin(), E = BB->end(); II != E;) {
       Instruction &I = *II++;
-      if (Rhino)
-        CurAST->add(&I);
       // Try constant folding this instruction.  If all the operands are
       // constants, it is technically hoistable, but it would be better to
       // just fold it.
@@ -1929,18 +1775,6 @@ bool llvm::promoteLoopAccessesToScalars(
   bool DereferenceableInPH = false;
   bool SafeToInsertStore = false;
 
-  // We cannot speculate loads to values that are stored in a detached
-  // context within the loop.  Precompute whether or not there is a
-  // detach within this loop.
-  bool DetachWithinLoop =
-    isa<DetachInst>(CurLoop->getHeader()->getTerminator());
-  if (!DetachWithinLoop)
-    for (BasicBlock *BB : CurLoop->getBlocks())
-      if (isa<DetachInst>(BB->getTerminator())) {
-        DetachWithinLoop = true;
-        break;
-      }
-
   SmallVector<Instruction *, 64> LoopUses;
 
   // We start with an alignment of one and try to find instructions that allow
@@ -2003,23 +1837,6 @@ bool llvm::promoteLoopAccessesToScalars(
           continue;
         if (!Store->isUnordered())
           return false;
-
-	// We conservatively avoid promoting stores that are detached
-	// within the loop.  Technically it can be legal to move these
-	// stores -- the program already contains a determinacy race
-	// -- but to preserve the serial execution, we have to avoid
-	// moving stores that are loaded.  For now, we simply avoid
-	// moving these stores.
-	//
-	// TODO: The call to GetDetachedCtx can potentially be
-	// expensive.  Optimize this analysis in the future.
-	if (DetachWithinLoop &&
-	    CurLoop->contains(GetDetachedCtx(Store->getParent())))
-	  return false;
-
-        // Note that we only check GuaranteedToExecute inside the store case
-        // so that we do not introduce stores where they did not exist before
-        // (which would break the LLVM concurrency model).
 
         SawUnorderedAtomic |= Store->isAtomic();
         SawNotAtomic |= !Store->isAtomic();

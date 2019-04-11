@@ -591,7 +591,7 @@ void CSIImpl::instrumentBasicBlock(BasicBlock &BB) {
          "BB recieved different ID's in FED and sizeinfo tables.");
   Value *CsiId = BasicBlockFED.localToGlobalId(LocalId, IRB);
   CsiBBProperty Prop;
-  TerminatorInst *TI = BB.getTerminator();
+  Instruction *TI = BB.getTerminator();
   Value *PropVal = Prop.getValue(IRB);
   insertConditionalHookCall(&*IRB.GetInsertPoint(), CsiBBEntry,
                             {CsiId, PropVal});
@@ -757,7 +757,7 @@ void CSIImpl::insertConditionalHookCall(Instruction *I, Function *HookFunction,
                                         ArrayRef<Value *> HookArgs) {
   IRBuilder<> IRB(I);
   // Value *Cond = IRB.CreateICmpEQ(IRB.CreateLoad(DisableInstrGV), IRB.getInt1(false));
-  // TerminatorInst *TI = SplitBlockAndInsertIfThen(Cond, I, false);
+  // Instruction *TI = SplitBlockAndInsertIfThen(Cond, I, false);
   // IRB.SetInsertPoint(TI);
   // IRB.CreateStore(IRB.getInt1(true), DisableInstrGV);
   Instruction *Call = IRB.CreateCall(HookFunction, HookArgs);

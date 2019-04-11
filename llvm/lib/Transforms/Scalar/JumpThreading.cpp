@@ -987,8 +987,8 @@ bool JumpThreadingPass::ProcessBlock(BasicBlock *BB) {
   // because now the condition in this block can be threaded through
   // predecessors of our predecessor block.
   if (BasicBlock *SinglePred = BB->getSinglePredecessor()) {
-    const TerminatorInst *TI = SinglePred->getTerminator();
-    if (!TI->isExceptional() &&
+    const Instruction *TI = SinglePred->getTerminator();
+    if (!TI->isExceptionalTerminator() &&
         !isa<SyncInst>(SinglePred->getTerminator()) &&  // Can't remove syncs
         TI->getNumSuccessors() == 1 &&
         SinglePred != BB && !hasAddressTakenAndUsed(BB)) {

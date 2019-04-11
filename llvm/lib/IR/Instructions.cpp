@@ -998,7 +998,7 @@ void DetachInst::init(Value *SyncRegion, BasicBlock *Detached,
 
 DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
                        Value *SyncRegion, Instruction *InsertBefore)
-    : TerminatorInst(Type::getVoidTy(Detached->getContext()),
+    : Instruction(Type::getVoidTy(Detached->getContext()),
                      Instruction::Detach,
                      OperandTraits<DetachInst>::op_end(this) - 3, 3,
                      InsertBefore) {
@@ -1007,7 +1007,7 @@ DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
 
 DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
                        Value *SyncRegion, BasicBlock *InsertAtEnd)
-    : TerminatorInst(Type::getVoidTy(Detached->getContext()),
+    : Instruction(Type::getVoidTy(Detached->getContext()),
                      Instruction::Detach,
                      OperandTraits<DetachInst>::op_end(this) - 3, 3,
                      InsertAtEnd) {
@@ -1017,7 +1017,7 @@ DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
 DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
                        BasicBlock *Unwind, Value *SyncRegion,
                        Instruction *InsertBefore)
-    : TerminatorInst(Type::getVoidTy(Detached->getContext()),
+    : Instruction(Type::getVoidTy(Detached->getContext()),
                      Instruction::Detach,
                      OperandTraits<DetachInst>::op_end(this) - 4, 4,
                      InsertBefore) {
@@ -1027,7 +1027,7 @@ DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
 DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
                        BasicBlock *Unwind, Value *SyncRegion,
                        BasicBlock *InsertAtEnd)
-    : TerminatorInst(Type::getVoidTy(Detached->getContext()),
+    : Instruction(Type::getVoidTy(Detached->getContext()),
                      Instruction::Detach,
                      OperandTraits<DetachInst>::op_end(this) - 4, 4,
                      InsertAtEnd) {
@@ -1035,7 +1035,7 @@ DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
 }
 
 DetachInst::DetachInst(const DetachInst &DI)
-    : TerminatorInst(Type::getVoidTy(DI.getContext()), Instruction::Detach,
+    : Instruction(Type::getVoidTy(DI.getContext()), Instruction::Detach,
                      OperandTraits<DetachInst>::op_end(this) -
                      DI.getNumOperands(),
                      DI.getNumOperands()) {
@@ -1071,7 +1071,7 @@ void ReattachInst::AssertOK() {
 
 ReattachInst::ReattachInst(BasicBlock *DetachContinue, Value *SyncRegion,
                            Instruction *InsertBefore)
-    : TerminatorInst(Type::getVoidTy(DetachContinue->getContext()),
+    : Instruction(Type::getVoidTy(DetachContinue->getContext()),
                      Instruction::Reattach,
                      OperandTraits<ReattachInst>::op_end(this) - 2, 2,
                      InsertBefore) {
@@ -1084,7 +1084,7 @@ ReattachInst::ReattachInst(BasicBlock *DetachContinue, Value *SyncRegion,
 
 ReattachInst::ReattachInst(BasicBlock *DetachContinue, Value *SyncRegion,
                            BasicBlock *InsertAtEnd)
-    : TerminatorInst(Type::getVoidTy(DetachContinue->getContext()),
+    : Instruction(Type::getVoidTy(DetachContinue->getContext()),
                      Instruction::Reattach,
                      OperandTraits<ReattachInst>::op_end(this) - 2, 2,
                      InsertAtEnd) {
@@ -1096,7 +1096,7 @@ ReattachInst::ReattachInst(BasicBlock *DetachContinue, Value *SyncRegion,
 }
 
 ReattachInst::ReattachInst(const ReattachInst &RI)
-    : TerminatorInst(Type::getVoidTy(RI.getContext()), Instruction::Reattach,
+    : Instruction(Type::getVoidTy(RI.getContext()), Instruction::Reattach,
                      OperandTraits<ReattachInst>::op_end(this) -
                      RI.getNumOperands(),
                      RI.getNumOperands()) {
@@ -1129,7 +1129,7 @@ void SyncInst::AssertOK() {
 
 SyncInst::SyncInst(BasicBlock *Continue, Value *SyncRegion,
                    Instruction *InsertBefore)
-    : TerminatorInst(Type::getVoidTy(Continue->getContext()), Instruction::Sync,
+    : Instruction(Type::getVoidTy(Continue->getContext()), Instruction::Sync,
                      OperandTraits<SyncInst>::op_end(this) - 2, 2,
                      InsertBefore) {
   Op<-1>() = SyncRegion;
@@ -1141,7 +1141,7 @@ SyncInst::SyncInst(BasicBlock *Continue, Value *SyncRegion,
 
 SyncInst::SyncInst(BasicBlock *Continue, Value *SyncRegion,
                    BasicBlock *InsertAtEnd)
-    : TerminatorInst(Type::getVoidTy(Continue->getContext()), Instruction::Sync,
+    : Instruction(Type::getVoidTy(Continue->getContext()), Instruction::Sync,
                      OperandTraits<SyncInst>::op_end(this) - 2, 2,
                      InsertAtEnd) {
   Op<-1>() = SyncRegion;
@@ -1153,7 +1153,7 @@ SyncInst::SyncInst(BasicBlock *Continue, Value *SyncRegion,
 
 
 SyncInst::SyncInst(const SyncInst &SI) :
-    TerminatorInst(Type::getVoidTy(SI.getContext()), Instruction::Sync,
+    Instruction(Type::getVoidTy(SI.getContext()), Instruction::Sync,
                    OperandTraits<SyncInst>::op_end(this) - SI.getNumOperands(),
                    SI.getNumOperands()) {
   Op<-1>() = SI.Op<-1>();

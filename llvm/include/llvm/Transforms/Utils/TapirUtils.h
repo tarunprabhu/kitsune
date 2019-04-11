@@ -24,7 +24,6 @@ class DetachInst;
 class DominatorTree;
 class Loop;
 class OptimizationRemarkEmitter;
-class TerminatorInst;
 
 /// Returns true if the given instruction performs a detached rethrow, false
 /// otherwise.
@@ -51,7 +50,7 @@ BasicBlock *GetDetachedCtx(BasicBlock *BB);
 /// detach-continue edge.  Critical detach-continue edges are critical edges -
 /// from a block with multiple successors to a block with multiple predecessors
 /// - even after ignoring all reattach edges.
-bool isCriticalContinueEdge(const TerminatorInst *TI, unsigned SuccNum);
+bool isCriticalContinueEdge(const Instruction *TI, unsigned SuccNum);
 
 /// canDetach - Return true if the given function can perform a detach, false
 /// otherwise.
