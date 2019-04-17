@@ -938,7 +938,31 @@ public:
       return !VD->isLocalVarDeclOrParm() && CGF.LocalDeclMap.count(VD) > 0;
     }
   };
-  
+ 
+  class SyncRegion {
+    CodeGenFunction &CGF;
+    SyncRegion *ParentRegion;
+    llvm::Instruction *SyncRegionStart;
+
+    SyncRegion(const SyncRegion &) = delete;
+    void operator=(const SyncRegion &) = delete;
+  public:
+    explicit SyncRegion(CodeGenFunction &CGF)
+        : CGF(CGF), ParentRegion(CGF.CurSyncRegion), SyncRegionStart(nullptr)
+    {}
+
+    ~SyncRegion() {
+      CGF.CurSyncRegion = ParentRegion;
+    }
+
+    llvm::Instruction *getSyncRegionStart() {
+      return SyncRegionStart;
+    }
+    void setSyncRegionStart(llvm::Instruction *SRStart) {
+      SyncRegionStart = SRStart;
+    }
+  };
+
   llvm::DenseMap<StringRef, SyncRegion*> SyncRegions;
   SyncRegion *getOrCreateLabeledSyncRegion(const StringRef SV){
     auto it = SyncRegions.find(SV);
@@ -952,28 +976,24 @@ public:
     }
   }
 
-  /// The current sync region.
-  SyncRegion *CurSyncRegion;
+  /// \brief RAII object to set/unset CodeGenFunction::IsSpawned.
+  class IsSpawnedScope {
+    CodeGenFunction *CGF;
+    bool OldIsSpawned;
 
-  void PushSyncRegion() {
-    CurSyncRegion = new SyncRegion(*this);
-  }
+  public:
+    IsSpawnedScope(CodeGenFunction *CGF);
+    ~IsSpawnedScope();
+    bool OldScopeIsSpawned();
+    void RestoreOldScope();
+  };
 
-  llvm::Instruction *EmitSyncRegionStart();
   llvm::Instruction *EmitLabeledSyncRegionStart(StringRef SV);
 
-  void PopSyncRegion() {
-    delete CurSyncRegion;
-  }
+  SyncRegion* CurSyncRegion;
 
-  void EnsureSyncRegion() {
-    if (!CurSyncRegion)
-      PushSyncRegion();
-    if (!CurSyncRegion->getSyncRegionStart())
-      CurSyncRegion->setSyncRegionStart(EmitSyncRegionStart());
-  }
-
-  /// \brief RAII object to manage creation of detach/reattach instructions.
+/*
+  /// RAII object to manage creation of detach/reattach instructions.
   class DetachScope {
     CodeGenFunction &CGF;
     bool DetachStarted, DetachInitialized;
@@ -1010,6 +1030,7 @@ public:
 
     bool IsDetachStarted() { return DetachStarted; }
   };
+  */
 
   /// Takes the old cleanup stack size and emits the cleanup blocks
   /// that have been added.

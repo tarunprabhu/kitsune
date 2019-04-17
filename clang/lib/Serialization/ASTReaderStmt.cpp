@@ -2827,6 +2827,14 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
                                               nullptr);
       break;
 
+    case STMT_SPAWN:
+      S = new (Context) SpawnStmt(Empty); 
+      break;
+
+    case STMT_SYNC:
+      S = new (Context) SyncStmt(Empty);
+      break;
+
     case STMT_OMP_PARALLEL_DIRECTIVE:
       S =
         OMPParallelDirective::CreateEmpty(Context,

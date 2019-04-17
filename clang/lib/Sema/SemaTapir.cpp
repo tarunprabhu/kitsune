@@ -13,6 +13,8 @@
 
 #include "clang/AST/StmtTapir.h"
 #include "clang/Sema/SemaInternal.h"
+#include "clang/Sema/ScopeInfo.h"
+
 using namespace clang;
 using namespace sema;
 

@@ -6051,8 +6051,9 @@ ExpectedStmt ASTNodeImporter::VisitObjCAutoreleasePoolStmt(
     return ToSubStmtOrErr.takeError();
   return new (Importer.getToContext()) ObjCAutoreleasePoolStmt(*ToAtLocOrErr,
                                                                *ToSubStmtOrErr);
+}
 
-Stmt *ASTNodeImporter::VisitSpawnStmt(SpawnStmt *S) {
+ExpectedStmt ASTNodeImporter::VisitSpawnStmt(SpawnStmt *S) {
   SourceLocation SpawnLoc = Importer.Import(S->getSpawnLoc());
   StringRef SV = S->getSyncVar(); 
   Stmt *Child = Importer.Import(S->getSpawnedStmt());
@@ -6061,13 +6062,12 @@ Stmt *ASTNodeImporter::VisitSpawnStmt(SpawnStmt *S) {
   return new (Importer.getToContext()) SpawnStmt(SpawnLoc, SV, Child);
 }
 
-Stmt *ASTNodeImporter::VisitSyncStmt(SyncStmt *S) {
+ExpectedStmt ASTNodeImporter::VisitSyncStmt(SyncStmt *S) {
   SourceLocation SyncLoc = Importer.Import(S->getSyncLoc());
   StringRef SV = S->getSyncVar(); 
   return new (Importer.getToContext()) SyncStmt(SyncLoc, SV);
 }
 
-}
 
 //----------------------------------------------------------------------------
 // Import Expressions

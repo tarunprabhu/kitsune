@@ -47,9 +47,9 @@ public:
   SourceLocation getSpawnLoc() const { return SpawnLoc; }
   void setSpawnLoc(SourceLocation L) { SpawnLoc = L; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return SpawnLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY {
-    return SpawnedStmt->getLocEnd();
+  SourceLocation getBeginLoc() const LLVM_READONLY { return SpawnLoc; }
+  SourceLocation getEndLoc() const LLVM_READONLY {
+    return SpawnedStmt->getEndLoc();
   }
 
   static bool classof(const Stmt *T) {
@@ -78,8 +78,8 @@ public:
   SourceLocation getSyncLoc() const { return SyncLoc; }
   void setSyncLoc(SourceLocation L) { SyncLoc = L; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return SyncLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return SyncLoc; }
+  SourceLocation getBeginLoc() const LLVM_READONLY { return SyncLoc; }
+  SourceLocation getEndLoc() const LLVM_READONLY { return SyncLoc; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == SyncStmtClass;
@@ -90,5 +90,7 @@ public:
     return child_range(child_iterator(), child_iterator());
   }
 };
+
+}
 
 #endif

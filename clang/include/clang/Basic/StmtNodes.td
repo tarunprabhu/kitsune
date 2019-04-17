@@ -201,6 +201,7 @@ def MSDependentExistsStmt : Stmt;
 // OpenCL Extensions.
 def AsTypeExpr : DStmt<Expr>;
 
+// Tapir Extensions.
 def SyncStmt : Stmt;
 def SpawnStmt : Stmt;
 

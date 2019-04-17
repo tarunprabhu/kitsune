@@ -43,38 +43,6 @@ void CodeGenFunction::EmitSyncStmt(const SyncStmt &S) {
   EmitBlock(ContinueBlock);
 }
 
-/// Cleanup to ensure parent stack frame is synced.
-struct ImplicitSyncCleanup : public EHScopeStack::Cleanup {
-public:
-  ImplicitSyncCleanup() {}
-  void Emit(CodeGenFunction &CGF, Flags F) {
-    if (F.isForEHCleanup()) {
-      llvm::BasicBlock *ContinueBlock = CGF.createBasicBlock("sync.continue");
-      CGF.Builder.CreateSync(ContinueBlock,
-                             CGF.CurSyncRegion->getSyncRegionStart());
-      CGF.EmitBlock(ContinueBlock);
-    }
-  }
-};
-
-/// Cleanup to ensure parent stack frame is synced.
-struct RethrowCleanup : public EHScopeStack::Cleanup {
-  llvm::BasicBlock *InvokeDest;
-public:
-  RethrowCleanup(llvm::BasicBlock *InvokeDest = nullptr)
-      : InvokeDest(InvokeDest) {}
-  void Emit(CodeGenFunction &CGF, Flags F) {
-    llvm::BasicBlock *DetRethrowBlock = CGF.createBasicBlock("det.rethrow");
-    if (InvokeDest)
-      CGF.Builder.CreateInvoke(
-          CGF.CGM.getIntrinsic(llvm::Intrinsic::detached_rethrow),
-          DetRethrowBlock, InvokeDest);
-    else
-      CGF.Builder.CreateBr(DetRethrowBlock);
-    CGF.EmitBlock(DetRethrowBlock);
-  }
-};
-
 // TODO: When a spawn appears withiin a try-catch block and the spawned
 // computation can throw, add an implicit sync cleanup for the spawned
 // computation.  This cleanup path should appear as the unwind destination of
