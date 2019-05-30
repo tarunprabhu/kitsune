@@ -2328,6 +2328,7 @@ static Value *tryUseTestFPKind(CodeGenFunction &CGF, unsigned BuiltinID,
 RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                                         const CallExpr *E,
                                         ReturnValueSlot ReturnValue) {
+  IsSpawnedScope SpawnedScp(this);
   const FunctionDecl *FD = GD.getDecl()->getAsFunction();
   // See if we can constant fold this builtin.  If so, don't emit it at all.
   // TODO: Extend this handling to all builtin calls that we can constant-fold.
