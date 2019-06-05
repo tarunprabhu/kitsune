@@ -900,7 +900,7 @@ ModRefInfo AAResults::getModRefInfo(const SyncInst *S,
       // Ignore reattached predecessors and predecessors that end in syncs,
       // because this sync does not wait on those predecessors.
       if (isa<ReattachInst>(PT) || isa<SyncInst>(PT) || isDetachedRethrow(PT))
-	continue;
+        continue;
       // If this block is detached, ignore the predecessor that detaches it.
       if (const DetachInst *Det = dyn_cast<DetachInst>(PT))
         if (Det->getDetached() == BB)
@@ -1036,12 +1036,7 @@ char AAResultsWrapperPass::ID = 0;
 INITIALIZE_PASS_BEGIN(AAResultsWrapperPass, "aa",
                       "Function Alias Analysis Results", false, true)
 INITIALIZE_PASS_DEPENDENCY(BasicAAWrapperPass)
-<<<<<<< HEAD
-=======
-INITIALIZE_PASS_DEPENDENCY(CFLAndersAAWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(CFLSteensAAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(DRFAAWrapperPass)
->>>>>>> 04aae6bdb59b ([AliasAnalysis] Adding support to legacy pass manager for running DRFAA.)
 INITIALIZE_PASS_DEPENDENCY(ExternalAAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(GlobalsAAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(SCEVAAWrapperPass)
@@ -1114,8 +1109,6 @@ void AAResultsWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addUsedIfAvailable<TypeBasedAAWrapperPass>();
   AU.addUsedIfAvailable<GlobalsAAWrapperPass>();
   AU.addUsedIfAvailable<SCEVAAWrapperPass>();
-  AU.addUsedIfAvailable<CFLAndersAAWrapperPass>();
-  AU.addUsedIfAvailable<CFLSteensAAWrapperPass>();
   AU.addUsedIfAvailable<ExternalAAWrapperPass>();
 }
 
