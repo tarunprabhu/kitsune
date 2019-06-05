@@ -899,7 +899,7 @@ ModRefInfo AAResults::getModRefInfo(const SyncInst *S,
       // Ignore reattached predecessors and predecessors that end in syncs,
       // because this sync does not wait on those predecessors.
       if (isa<ReattachInst>(PT) || isa<SyncInst>(PT) || isDetachedRethrow(PT))
-	continue;
+        continue;
       // If this block is detached, ignore the predecessor that detaches it.
       if (const DetachInst *Det = dyn_cast<DetachInst>(PT))
         if (Det->getDetached() == BB)

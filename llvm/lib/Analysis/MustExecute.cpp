@@ -280,6 +280,7 @@ static bool isGuaranteedToExecuteInTask(const Instruction &Inst,
 /// once.
 bool SimpleLoopSafetyInfo::isGuaranteedToExecute(const Instruction &Inst,
                                                  const DominatorTree *DT,
+                                                 const TaskInfo *TI,
                                                  const Loop *CurLoop) const {
   // If the instruction is in the header block for the loop (which is very
   // common), it is always guaranteed to dominate the exit blocks.  Since this
@@ -327,6 +328,7 @@ bool SimpleLoopSafetyInfo::isGuaranteedToExecute(const Instruction &Inst,
 
 bool ICFLoopSafetyInfo::isGuaranteedToExecute(const Instruction &Inst,
                                               const DominatorTree *DT,
+                                              const TaskInfo *TI,
                                               const Loop *CurLoop) const {
   if (ICF.isDominatedByICFIFromSameBlock(&Inst))
     return false;
@@ -390,13 +392,14 @@ bool ICFLoopSafetyInfo::doesNotWriteMemoryBefore(const Instruction &I,
          doesNotWriteMemoryBefore(BB, CurLoop);
 }
 
-static bool isMustExecuteIn(const Instruction &I, Loop *L, DominatorTree *DT) {
+static bool isMustExecuteIn(const Instruction &I, Loop *L, DominatorTree *DT.
+                            TaskInfo *TI) {
   // TODO: merge these two routines.  For the moment, we display the best
   // result obtained by *either* implementation.  This is a bit unfair since no
   // caller actually gets the full power at the moment.
   SimpleLoopSafetyInfo LSI;
   LSI.computeLoopSafetyInfo(L);
-  return LSI.isGuaranteedToExecute(I, DT, L) ||
+  return LSI.isGuaranteedToExecute(I, DT, TI, L) ||
     isGuaranteedToExecuteForEveryIteration(&I, L);
 }
 
@@ -408,11 +411,11 @@ class MustExecuteAnnotatedWriter : public AssemblyAnnotationWriter {
 
 public:
   MustExecuteAnnotatedWriter(const Function &F,
-                             DominatorTree &DT, LoopInfo &LI) {
-    for (const auto &I: instructions(F)) {
+                             DominatorTree &DT, LoopInfo &LI, TaskInfo &TI) {
+    for (auto &I: instructions(F)) {
       Loop *L = LI.getLoopFor(I.getParent());
       while (L) {
-        if (isMustExecuteIn(I, L, &DT)) {
+        if (isMustExecuteIn(I, L, &DT, &TI)) {
           MustExec[&I].push_back(L);
         }
         L = L->getParentLoop();
@@ -420,12 +423,12 @@ public:
     }
   }
   MustExecuteAnnotatedWriter(const Module &M,
-                             DominatorTree &DT, LoopInfo &LI) {
-    for (const auto &F : M)
-    for (const auto &I: instructions(F)) {
+                             DominatorTree &DT, LoopInfo &LI, TaskInfo &TI) {
+    for (auto &F : M)
+    for (auto &I: instructions(F)) {
       Loop *L = LI.getLoopFor(I.getParent());
       while (L) {
-        if (isMustExecuteIn(I, L, &DT)) {
+        if (isMustExecuteIn(I, L, &DT, &TI)) {
           MustExec[&I].push_back(L);
         }
         L = L->getParentLoop();
