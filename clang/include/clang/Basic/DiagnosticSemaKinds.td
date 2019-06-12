@@ -8333,6 +8333,9 @@ def ext_mixed_decls_code : Extension<
 
 def err_non_local_variable_decl_in_for : Error<
   "declaration of non-local variable in 'for' loop">;
+// Kitsune
+def err_non_local_variable_decl_in_forall : Error<
+  "declaration of non-local variable in 'forall' loop">;
 def err_non_variable_decl_in_for : Error<
   "non-variable declaration in 'for' loop">;
 def err_toomany_element_decls : Error<

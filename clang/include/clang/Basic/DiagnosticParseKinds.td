@@ -74,6 +74,9 @@ def ext_ident_list_in_param : Extension<
   "type-less parameter names in function declaration">;
 def ext_c99_variable_decl_in_for_loop : Extension<
   "variable declaration in for loop is a C99-specific feature">, InGroup<C99>;
+// Kitsune
+def ext_c99_variable_decl_in_forall_loop : Extension<
+  "variable declaration in forall loop is a C99-specific feature">, InGroup<C99>;
 def ext_c99_compound_literal : Extension<
   "compound literals are a C99-specific feature">, InGroup<C99>;
 def ext_enumerator_list_comma_c : Extension<
@@ -183,6 +186,10 @@ def warn_gcc_attribute_location : Warning<
 def warn_gcc_variable_decl_in_for_loop : Warning<
   "GCC does not allow variable declarations in for loop initializers before "
   "C99">, InGroup<GccCompat>;
+// Kitsune
+def warn_gcc_variable_decl_in_forall_loop : Warning<
+  "GCC does not allow variable declarations in forall loop initializers before "
+  "C99">, InGroup<GccCompat>;
 def warn_attribute_no_decl : Warning<
   "attribute %0 ignored, because it is not attached to a declaration">,
   InGroup<IgnoredAttributes>;
@@ -238,6 +245,8 @@ def err_expected_semi_after_attribute_list : Error<
 def err_expected_semi_after_static_assert : Error<
   "expected ';' after static_assert">;
 def err_expected_semi_for : Error<"expected ';' in 'for' statement specifier">;
+// Kitsune
+def err_expected_semi_forall : Error<"expected ';' in 'forall' statement specifier">;
 def err_single_decl_assign_in_for_range : Error<
   "range-based 'for' statement uses ':', not '='">;
 def warn_missing_selector_name : Warning<

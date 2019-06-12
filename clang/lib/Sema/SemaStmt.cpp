@@ -1791,6 +1791,57 @@ StmtResult Sema::ActOnForStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
               Body, ForLoc, LParenLoc, RParenLoc);
 }
 
+StmtResult Sema::ActOnForallStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
+                              Stmt *First, ConditionResult Second,
+                              FullExprArg third, SourceLocation RParenLoc,
+                              Stmt *Body) {
+  if (Second.isInvalid())
+    return StmtError();
+
+  if (!getLangOpts().CPlusPlus) {
+    if (DeclStmt *DS = dyn_cast_or_null<DeclStmt>(First)) {
+      // C99 6.8.5p3: The declaration part of a 'forall' statement shall only
+      // declare identifiers for objects having storage class 'auto' or
+      // 'register'.
+      for (auto *DI : DS->decls()) {
+        VarDecl *VD = dyn_cast<VarDecl>(DI);
+        if (VD && VD->isLocalVarDecl() && !VD->hasLocalStorage())
+          VD = nullptr;
+        if (!VD) {
+          Diag(DI->getLocation(), diag::err_non_local_variable_decl_in_forall);
+          DI->setInvalidDecl();
+        }
+      }
+    }
+  }
+
+  CheckBreakContinueBinding(Second.get().second);
+  CheckBreakContinueBinding(third.get());
+
+  if (!Second.get().first)
+    CheckForLoopConditionalStatement(*this, Second.get().second, third.get(),
+                                     Body);
+  CheckForRedundantIteration(*this, third.get(), Body);
+
+  if (Second.get().second &&
+      !Diags.isIgnored(diag::warn_comma_operator,
+                       Second.get().second->getExprLoc()))
+    CommaVisitor(*this).Visit(Second.get().second);
+
+  Expr *Third  = third.release().getAs<Expr>();
+
+  DiagnoseUnusedExprResult(First);
+  DiagnoseUnusedExprResult(Third);
+  DiagnoseUnusedExprResult(Body);
+
+  if (isa<NullStmt>(Body))
+    getCurCompoundScope().setHasEmptyLoopBodies();
+
+  return new (Context)
+      ForallStmt(Context, First, Second.get().second, Second.get().first, Third,
+              Body, ForLoc, LParenLoc, RParenLoc);
+}
+
 /// In an Objective C collection iteration statement:
 ///   for (x in y)
 /// x can be an arbitrary l-value expression.  Bind it up as a

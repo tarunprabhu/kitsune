@@ -335,6 +335,24 @@ void StmtPrinter::VisitForStmt(ForStmt *Node) {
   PrintControlledStmt(Node->getBody());
 }
 
+// Kitsune
+void StmtPrinter::VisitForallStmt(ForallStmt *Node) {
+  Indent() << "forall (";
+  if (Node->getInit())
+    PrintInitStmt(Node->getInit(), 5);
+  else
+    OS << (Node->getCond() ? "; " : ";");
+  if (Node->getCond())
+    PrintExpr(Node->getCond());
+  OS << ";";
+  if (Node->getInc()) {
+    OS << " ";
+    PrintExpr(Node->getInc());
+  }
+  OS << ")";
+  PrintControlledStmt(Node->getBody());
+}
+
 void StmtPrinter::VisitObjCForCollectionStmt(ObjCForCollectionStmt *Node) {
   Indent() << "for (";
   if (auto *DS = dyn_cast<DeclStmt>(Node->getElement()))

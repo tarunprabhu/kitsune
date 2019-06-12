@@ -283,6 +283,10 @@ void StmtProfiler::VisitForStmt(const ForStmt *S) {
   VisitStmt(S);
 }
 
+void StmtProfiler::VisitForallStmt(const ForallStmt *S) {
+  VisitStmt(S);
+}
+
 void StmtProfiler::VisitGotoStmt(const GotoStmt *S) {
   VisitStmt(S);
   VisitDecl(S->getLabel());

@@ -3784,6 +3784,14 @@ public:
                           FullExprArg Third,
                           SourceLocation RParenLoc,
                           Stmt *Body);
+  // Kitsune
+  StmtResult ActOnForallStmt(SourceLocation ForLoc,
+                          SourceLocation LParenLoc,
+                          Stmt *First,
+                          ConditionResult Second,
+                          FullExprArg Third,
+                          SourceLocation RParenLoc,
+                          Stmt *Body);
   ExprResult CheckObjCForCollectionOperand(SourceLocation forLoc,
                                            Expr *collection);
   StmtResult ActOnObjCForCollectionStmt(SourceLocation ForColLoc,

@@ -1595,6 +1595,10 @@ namespace serialization {
       /// A ForStmt record.
       STMT_FOR,
 
+      // Kitsune
+      /// A ForallStmt record.
+      STMT_FORALL,
+
       /// A GotoStmt record.
       STMT_GOTO,
 

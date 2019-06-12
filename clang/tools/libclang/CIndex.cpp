@@ -5194,6 +5194,9 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
       return cxstring::createRef("DoStmt");
   case CXCursor_ForStmt:
       return cxstring::createRef("ForStmt");
+  // Kitsune
+  case CXCursor_ForallStmt:
+      return cxstring::createRef("ForallStmt");
   case CXCursor_GotoStmt:
       return cxstring::createRef("GotoStmt");
   case CXCursor_IndirectGotoStmt:

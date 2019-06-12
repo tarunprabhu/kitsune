@@ -219,6 +219,20 @@ void ASTStmtWriter::VisitForStmt(ForStmt *S) {
   Code = serialization::STMT_FOR;
 }
 
+// Kitsune
+void ASTStmtWriter::VisitForallStmt(ForallStmt *S) {
+  VisitStmt(S);
+  Record.AddStmt(S->getInit());
+  Record.AddStmt(S->getCond());
+  Record.AddDeclRef(S->getConditionVariable());
+  Record.AddStmt(S->getInc());
+  Record.AddStmt(S->getBody());
+  Record.AddSourceLocation(S->getForLoc());
+  Record.AddSourceLocation(S->getLParenLoc());
+  Record.AddSourceLocation(S->getRParenLoc());
+  Code = serialization::STMT_FORALL;
+}
+
 void ASTStmtWriter::VisitGotoStmt(GotoStmt *S) {
   VisitStmt(S);
   Record.AddDeclRef(S->getLabel());

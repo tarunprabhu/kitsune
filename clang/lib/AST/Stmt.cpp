@@ -899,6 +899,20 @@ ForStmt::ForStmt(const ASTContext &C, Stmt *Init, Expr *Cond, VarDecl *condVar,
   ForStmtBits.ForLoc = FL;
 }
 
+// Kitsune
+ForallStmt::ForallStmt(const ASTContext &C, Stmt *Init, Expr *Cond, VarDecl *condVar,
+                 Expr *Inc, Stmt *Body, SourceLocation FL, SourceLocation LP,
+                 SourceLocation RP)
+  : Stmt(ForallStmtClass), LParenLoc(LP), RParenLoc(RP)
+{
+  SubExprs[INIT] = Init;
+  setConditionVariable(C, condVar);
+  SubExprs[COND] = Cond;
+  SubExprs[INC] = Inc;
+  SubExprs[BODY] = Body;
+  ForallStmtBits.ForLoc = FL;
+}
+
 VarDecl *ForStmt::getConditionVariable() const {
   if (!SubExprs[CONDVAR])
     return nullptr;
@@ -907,7 +921,27 @@ VarDecl *ForStmt::getConditionVariable() const {
   return cast<VarDecl>(DS->getSingleDecl());
 }
 
+// Kitsune
+VarDecl *ForallStmt::getConditionVariable() const {
+  if (!SubExprs[CONDVAR])
+    return nullptr;
+
+  auto *DS = cast<DeclStmt>(SubExprs[CONDVAR]);
+  return cast<VarDecl>(DS->getSingleDecl());
+}
+
 void ForStmt::setConditionVariable(const ASTContext &C, VarDecl *V) {
+  if (!V) {
+    SubExprs[CONDVAR] = nullptr;
+    return;
+  }
+
+  SourceRange VarRange = V->getSourceRange();
+  SubExprs[CONDVAR] = new (C) DeclStmt(DeclGroupRef(V), VarRange.getBegin(),
+                                       VarRange.getEnd());
+}
+
+void ForallStmt::setConditionVariable(const ASTContext &C, VarDecl *V) {
   if (!V) {
     SubExprs[CONDVAR] = nullptr;
     return;
