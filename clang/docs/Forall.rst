@@ -26,3 +26,5 @@
   - clang-c/Index.h
   - libclang/CIndex.cpp
   - libclang/CXCursor.cpp
+
+  At this point the code should compile, but not necessary pass tests.
