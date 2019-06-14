@@ -160,6 +160,30 @@ static internal::Matcher<Stmt> forLoopMatcher() {
              unless(hasBody(hasSuspiciousStmt("initVarName")))).bind("forLoop");
 }
 
+// Kitsune
+static internal::Matcher<Stmt> forallLoopMatcher() {
+  return forallStmt(
+             hasCondition(simpleCondition("initVarName")),
+             // Initialization should match the form: 'int i = 6' or 'i = 42'.
+             hasForallLoopInit(
+                 anyOf(declStmt(hasSingleDecl(
+                           varDecl(allOf(hasInitializer(ignoringParenImpCasts(
+                                             integerLiteral().bind("initNum"))),
+                                         equalsBoundNode("initVarName"))))),
+                       binaryOperator(hasLHS(declRefExpr(to(varDecl(
+                                          equalsBoundNode("initVarName"))))),
+                                      hasRHS(ignoringParenImpCasts(
+                                          integerLiteral().bind("initNum")))))),
+             // Incrementation should be a simple increment or decrement
+             // operator call.
+             hasForallIncrement(unaryOperator(
+                 anyOf(hasOperatorName("++"), hasOperatorName("--")),
+                 hasUnaryOperand(declRefExpr(
+                     to(varDecl(allOf(equalsBoundNode("initVarName"),
+                                      hasType(isInteger())))))))),
+             unless(hasBody(hasSuspiciousStmt("initVarName")))).bind("forallLoop");
+}
+
 static bool isPossiblyEscaped(const VarDecl *VD, ExplodedNode *N) {
   // Global variables assumed as escaped variables.
   if (VD->hasGlobalStorage())

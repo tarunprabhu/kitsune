@@ -481,6 +481,7 @@ public:
 
   using HandlesStmtFunc = bool (*)(const Stmt *D);
 
+  // Kitsune check
   void _registerForPreStmt(CheckStmtFunc checkfn,
                            HandlesStmtFunc isForStmtFn);
   void _registerForPostStmt(CheckStmtFunc checkfn,
@@ -581,7 +582,7 @@ private:
 
   struct StmtCheckerInfo {
     CheckStmtFunc CheckFn;
-    HandlesStmtFunc IsForStmtFn;
+    HandlesStmtFunc IsForStmtFn; // Kitsune check
     bool IsPreVisit;
   };
   std::vector<StmtCheckerInfo> StmtCheckers;

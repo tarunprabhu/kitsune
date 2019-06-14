@@ -1251,6 +1251,8 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::DefaultStmtClass:
     case Stmt::DoStmtClass:
     case Stmt::ForStmtClass:
+    // Kitsune
+    case Stmt::ForallStmtClass:
     case Stmt::GotoStmtClass:
     case Stmt::IfStmtClass:
     case Stmt::IndirectGotoStmtClass:
@@ -1881,7 +1883,7 @@ void ExprEngine::processCFGBlockEntrance(const BlockEdge &L,
       AMgr.options.ShouldWidenLoops) {
     const Stmt *Term = nodeBuilder.getContext().getBlock()->getTerminator();
     if (!(Term &&
-          (isa<ForStmt>(Term) || isa<WhileStmt>(Term) || isa<DoStmt>(Term))))
+          (isa<ForStmt>(Term) || isa<ForallStmt>(Term) || isa<WhileStmt>(Term) || isa<DoStmt>(Term))))
       return;
     // Widen.
     const LocationContext *LCtx = Pred->getLocationContext();

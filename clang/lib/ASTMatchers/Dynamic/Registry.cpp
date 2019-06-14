@@ -42,7 +42,8 @@ namespace {
 
 using internal::MatcherDescriptor;
 
-using ConstructorMap = llvm::StringMap<std::unique_ptr<const MatcherDescriptor>>;
+using ConstructorMap =
+    llvm::StringMap<std::unique_ptr<const MatcherDescriptor>>;
 
 class RegistryMaps {
 public:
@@ -72,21 +73,20 @@ void RegistryMaps::registerMatcher(
 
 #define REGISTER_MATCHER_OVERLOAD(name)                                        \
   registerMatcher(#name,                                                       \
-      llvm::make_unique<internal::OverloadedMatcherDescriptor>(name##Callbacks))
+                  llvm::make_unique<internal::OverloadedMatcherDescriptor>(    \
+                      name##Callbacks))
 
 #define SPECIFIC_MATCHER_OVERLOAD(name, Id)                                    \
   static_cast<::clang::ast_matchers::name##_Type##Id>(                         \
       ::clang::ast_matchers::name)
 
 #define MATCHER_OVERLOAD_ENTRY(name, Id)                                       \
-        internal::makeMatcherAutoMarshall(SPECIFIC_MATCHER_OVERLOAD(name, Id), \
-                                          #name)
+  internal::makeMatcherAutoMarshall(SPECIFIC_MATCHER_OVERLOAD(name, Id), #name)
 
 #define REGISTER_OVERLOADED_2(name)                                            \
   do {                                                                         \
     std::unique_ptr<MatcherDescriptor> name##Callbacks[] = {                   \
-        MATCHER_OVERLOAD_ENTRY(name, 0),                                       \
-        MATCHER_OVERLOAD_ENTRY(name, 1)};                                      \
+        MATCHER_OVERLOAD_ENTRY(name, 0), MATCHER_OVERLOAD_ENTRY(name, 1)};     \
     REGISTER_MATCHER_OVERLOAD(name);                                           \
   } while (false)
 
@@ -223,6 +223,8 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(forField);
   REGISTER_MATCHER(forFunction);
   REGISTER_MATCHER(forStmt);
+  // Kitsune
+  REGISTER_MATCHER(forallStmt);
   REGISTER_MATCHER(friendDecl);
   REGISTER_MATCHER(functionDecl);
   REGISTER_MATCHER(functionProtoType);
@@ -272,6 +274,8 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(hasImplicitDestinationType);
   REGISTER_MATCHER(hasInClassInitializer);
   REGISTER_MATCHER(hasIncrement);
+  // Kitsune
+  REGISTER_MATCHER(hasForallIncrement);
   REGISTER_MATCHER(hasIndex);
   REGISTER_MATCHER(hasInit);
   REGISTER_MATCHER(hasInitializer);
@@ -280,6 +284,8 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(hasLocalQualifiers);
   REGISTER_MATCHER(hasLocalStorage);
   REGISTER_MATCHER(hasLoopInit);
+  // Kitsune
+  REGISTER_MATCHER(hasForallLoopInit);
   REGISTER_MATCHER(hasLoopVariable);
   REGISTER_MATCHER(hasMethod);
   REGISTER_MATCHER(hasName);
@@ -571,7 +577,7 @@ Registry::getMatcherCompletions(ArrayRef<ArgKind> AcceptedTypes) {
 
   // Search the registry for acceptable matchers.
   for (const auto &M : RegistryData->constructors()) {
-    const MatcherDescriptor& Matcher = *M.getValue();
+    const MatcherDescriptor &Matcher = *M.getValue();
     StringRef Name = M.getKey();
 
     std::set<ASTNodeKind> RetKinds;
@@ -579,7 +585,7 @@ Registry::getMatcherCompletions(ArrayRef<ArgKind> AcceptedTypes) {
     bool IsPolymorphic = Matcher.isPolymorphic();
     std::vector<std::vector<ArgKind>> ArgsKinds(NumArgs);
     unsigned MaxSpecificity = 0;
-    for (const ArgKind& Kind : AcceptedTypes) {
+    for (const ArgKind &Kind : AcceptedTypes) {
       if (Kind.getArgKind() != Kind.AK_Matcher)
         continue;
       unsigned Specificity;
@@ -615,13 +621,15 @@ Registry::getMatcherCompletions(ArrayRef<ArgKind> AcceptedTypes) {
             if (AK.getArgKind() == ArgKind::AK_Matcher) {
               MatcherKinds.insert(AK.getMatcherKind());
             } else {
-              if (!FirstArgKind) OS << "|";
+              if (!FirstArgKind)
+                OS << "|";
               FirstArgKind = false;
               OS << AK.asString();
             }
           }
           if (!MatcherKinds.empty()) {
-            if (!FirstArgKind) OS << "|";
+            if (!FirstArgKind)
+              OS << "|";
             OS << "Matcher<" << MatcherKinds << ">";
           }
         }
@@ -657,7 +665,8 @@ VariantMatcher Registry::constructBoundMatcher(MatcherCtor Ctor,
                                                ArrayRef<ParserValue> Args,
                                                Diagnostics *Error) {
   VariantMatcher Out = constructMatcher(Ctor, NameRange, Args, Error);
-  if (Out.isNull()) return Out;
+  if (Out.isNull())
+    return Out;
 
   llvm::Optional<DynTypedMatcher> Result = Out.getSingleMatcher();
   if (Result.hasValue()) {

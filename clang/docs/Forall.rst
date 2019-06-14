@@ -28,3 +28,13 @@
   - libclang/CXCursor.cpp
 
   At this point the code should compile, but not necessary pass tests.
+
+- Add AST matchers (search case sensitive on "forStmt")
+  - ASTMatchers/ASTMatchers.h
+  - Core/CheckerManager.h
+  - ASTMatchers/Dynamic/Registry.cpp
+  - StaticAnalyzer/Core/LoopUnrolling.cpp
+  - ASTMatchers/ASTMatchersInternal.cpp
+  - StaticAnalyzer/ExprEngine.cpp
+
+  Code compiles again

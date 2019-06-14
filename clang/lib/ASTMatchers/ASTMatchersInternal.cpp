@@ -693,6 +693,8 @@ const internal::VariadicDynCastAllOfMatcher<Stmt, ObjCIvarRefExpr> objcIvarRefEx
 const internal::VariadicDynCastAllOfMatcher<Stmt, BlockExpr> blockExpr;
 const internal::VariadicDynCastAllOfMatcher<Stmt, IfStmt> ifStmt;
 const internal::VariadicDynCastAllOfMatcher<Stmt, ForStmt> forStmt;
+// Kitsune
+const internal::VariadicDynCastAllOfMatcher<Stmt, ForallStmt> forallStmt;
 const internal::VariadicDynCastAllOfMatcher<Stmt, CXXForRangeStmt>
     cxxForRangeStmt;
 const internal::VariadicDynCastAllOfMatcher<Stmt, WhileStmt> whileStmt;
