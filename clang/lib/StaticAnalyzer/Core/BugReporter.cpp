@@ -433,6 +433,8 @@ static const Stmt *getEnclosingParent(const Stmt *S, const ParentMap &PM) {
 
   switch (Parent->getStmtClass()) {
   case Stmt::ForStmtClass:
+  // Kitsune
+  case Stmt::ForallStmtClass:
   case Stmt::DoStmtClass:
   case Stmt::WhileStmtClass:
   case Stmt::ObjCForCollectionStmtClass:
@@ -486,6 +488,11 @@ getEnclosingStmtLocation(const Stmt *S, SourceManager &SMgr, const ParentMap &P,
           return PathDiagnosticLocation(S, SMgr, LC);
       case Stmt::ForStmtClass:
         if (cast<ForStmt>(Parent)->getBody() == S)
+          return PathDiagnosticLocation(S, SMgr, LC);
+        break;
+      // Kitsune
+      case Stmt::ForallStmtClass:
+        if (cast<ForallStmt>(Parent)->getBody() == S)
           return PathDiagnosticLocation(S, SMgr, LC);
         break;
       case Stmt::IfStmtClass:
@@ -772,6 +779,8 @@ void generateMinimalDiagForBlockEdge(const ExplodedNode *N, BlockEdge BE,
 
   case Stmt::WhileStmtClass:
   case Stmt::ForStmtClass:
+  // Kitsune
+  case Stmt::ForallStmtClass:
     if (*(Src->succ_begin() + 1) == Dst) {
       std::string sbuf;
       llvm::raw_string_ostream os(sbuf);
@@ -892,6 +901,8 @@ static void reversePropagateInterestingSymbols(BugReport &R,
 static bool isLoop(const Stmt *Term) {
   switch (Term->getStmtClass()) {
     case Stmt::ForStmtClass:
+    // Kitsune
+    case Stmt::ForallStmtClass:
     case Stmt::WhileStmtClass:
     case Stmt::ObjCForCollectionStmtClass:
     case Stmt::CXXForRangeStmtClass:
@@ -945,6 +956,14 @@ static bool isInLoopBody(ParentMap &PM, const Stmt *S, const Stmt *Term) {
     }
     case Stmt::ForStmtClass: {
       const auto *FS = cast<ForStmt>(Term);
+      if (isContainedByStmt(PM, FS->getInc(), S))
+        return true;
+      LoopBody = FS->getBody();
+      break;
+    }
+    // Kitsune
+    case Stmt::ForallStmtClass: {
+      const auto *FS = cast<ForallStmt>(Term);
       if (isContainedByStmt(PM, FS->getInc(), S))
         return true;
       LoopBody = FS->getBody();
@@ -1178,6 +1197,9 @@ static void generatePathDiagnosticsForNode(const ExplodedNode *N,
 
       if (const auto *FS = dyn_cast<ForStmt>(Loop))
         Body = FS->getBody();
+      // Kitsune
+      else if (const auto *FS = dyn_cast<ForallStmt>(Loop))
+        Body = FS->getBody();
       else if (const auto *WS = dyn_cast<WhileStmt>(Loop))
         Body = WS->getBody();
       else if (const auto *OFS = dyn_cast<ObjCForCollectionStmt>(Loop)) {
@@ -1289,6 +1311,9 @@ static bool isConditionForTerminator(const Stmt *S, const Stmt *Cond) {
       return cast<IfStmt>(S)->getCond() == Cond;
     case Stmt::ForStmtClass:
       return cast<ForStmt>(S)->getCond() == Cond;
+    // Kitsune
+    case Stmt::ForallStmtClass:
+      return cast<ForallStmt>(S)->getCond() == Cond;
     case Stmt::WhileStmtClass:
       return cast<WhileStmt>(S)->getCond() == Cond;
     case Stmt::DoStmtClass:
@@ -1320,6 +1345,9 @@ static bool isConditionForTerminator(const Stmt *S, const Stmt *Cond) {
 
 static bool isIncrementOrInitInForLoop(const Stmt *S, const Stmt *FL) {
   if (const auto *FS = dyn_cast<ForStmt>(FL))
+    return FS->getInc() == S || FS->getInit() == S;
+  // Kitsune
+  if (const auto *FS = dyn_cast<ForallStmt>(FL))
     return FS->getInc() == S || FS->getInit() == S;
   if (const auto *FRS = dyn_cast<CXXForRangeStmt>(FL))
     return FRS->getInc() == S || FRS->getRangeStmt() == S ||
@@ -1465,7 +1493,7 @@ static void simplifySimpleBranches(PathPieces &pieces) {
 
     // We only perform this transformation for specific branch kinds.
     // We don't want to do this for do..while, for example.
-    if (!(isa<ForStmt>(s1Start) || isa<WhileStmt>(s1Start) ||
+    if (!(isa<ForStmt>(s1Start) || isa<ForallStmt>(s1Start) || isa<WhileStmt>(s1Start) || // Kitsune
           isa<IfStmt>(s1Start) || isa<ObjCForCollectionStmt>(s1Start) ||
           isa<CXXForRangeStmt>(s1Start)))
       continue;

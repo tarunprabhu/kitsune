@@ -8154,6 +8154,9 @@ def warn_empty_if_body : Warning<
   "if statement has empty body">, InGroup<EmptyBody>;
 def warn_empty_for_body : Warning<
   "for loop has empty body">, InGroup<EmptyBody>;
+// Kitsune
+def warn_empty_forall_body : Warning<
+  "forall loop has empty body">, InGroup<EmptyBody>;
 def warn_empty_range_based_for_body : Warning<
   "range-based for loop has empty body">, InGroup<EmptyBody>;
 def warn_empty_while_body : Warning<
@@ -8338,6 +8341,9 @@ def err_non_local_variable_decl_in_forall : Error<
   "declaration of non-local variable in 'forall' loop">;
 def err_non_variable_decl_in_for : Error<
   "non-variable declaration in 'for' loop">;
+// Kitsune
+def err_non_variable_decl_in_forall : Error<
+  "non-variable declaration in 'forall' loop">;
 def err_toomany_element_decls : Error<
   "only one element declaration is allowed">;
 def err_selector_element_not_lvalue : Error<

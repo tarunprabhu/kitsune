@@ -33,7 +33,6 @@
   - ASTMatchers/ASTMatchers.h
   - Core/CheckerManager.h
   - ASTMatchers/Dynamic/Registry.cpp
-  - StaticAnalyzer/Core/LoopUnrolling.cpp (need to trace forLoopMatcher
   - ASTMatchers/ASTMatchersInternal.cpp
   - StaticAnalyzer/ExprEngine.cpp
   - AST/ASTImporter.cpp
@@ -60,7 +59,20 @@
   - Sema/SemaDeclCXX.cpp
   - Sema/SemaStmt.cpp
   - Sema/SemaStmtAttr.cpp
+  - Sema/TreeTransform.h
 
 - Random stuff
   - ARCMigrate/Transforms.cpp 
   - Frontend/RewriteModernObjC.cpp
+  - Tooling/Refactoring/Extract/SourceExtraction.cpp
+
+- StaticAnalyzer stuff
+  - StaticAnalyzer/Checkers/CheckSecuritySyntaxOnly.cpp
+  - StaticAnalyzer/Checkers/IdenticalExprChecker.cpp
+  - StaticAnalyzer/Core/BugReporter.cpp
+  - StaticAnalyzer/Core/CoreEngine.cpp
+  - StaticAnalyzer/Core/ExprEngine.cpp
+  - StaticAnalyzer/Core/LoopUnrolling.cpp (need to trace forLoopMatcher)
+  - StaticAnalyzer/Core/LoopWidening.cpp
+  - StaticAnalyzer/Core/PathDiagnostic.cpp
+  

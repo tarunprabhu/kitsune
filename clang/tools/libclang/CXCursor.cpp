@@ -158,6 +158,7 @@ CXCursor cxcursor::MakeCXCursor(const Stmt *S, const Decl *Parent,
     K = CXCursor_ForStmt;
     break;
   
+  // Kitsune
   case Stmt::ForallStmtClass:
     K = CXCursor_ForallStmt;
     break;

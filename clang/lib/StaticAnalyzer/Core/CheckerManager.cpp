@@ -11,6 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Kitsune check
+// all occurences of forStmt in this file were ignored. I think they apply to 
+// all statements
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/Stmt.h"

@@ -1981,6 +1981,8 @@ public:
   void VisitDesignatedInitExpr(const DesignatedInitExpr *E);
   void VisitExplicitCastExpr(const ExplicitCastExpr *E);
   void VisitForStmt(const ForStmt *FS);
+  // Kitsune
+  void VisitForallStmt(const ForallStmt *FS);
   void VisitGotoStmt(const GotoStmt *GS);
   void VisitIfStmt(const IfStmt *If);
   void VisitInitListExpr(const InitListExpr *IE);
@@ -2585,6 +2587,14 @@ void EnqueueVisitor::VisitExplicitCastExpr(const ExplicitCastExpr *E) {
   AddTypeLoc(E->getTypeInfoAsWritten());
 }
 void EnqueueVisitor::VisitForStmt(const ForStmt *FS) {
+  AddStmt(FS->getBody());
+  AddStmt(FS->getInc());
+  AddStmt(FS->getCond());
+  AddDecl(FS->getConditionVariable());
+  AddStmt(FS->getInit());
+}
+// Kitsune
+void EnqueueVisitor::VisitForallStmt(const ForallStmt *FS) {
   AddStmt(FS->getBody());
   AddStmt(FS->getInc());
   AddStmt(FS->getCond());

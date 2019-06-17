@@ -249,6 +249,10 @@ private:
     void VisitForStmt(ForStmt *S) {
       return this->Visit(S->getBody());
     }
+    // Kitsune
+    void VisitForallStmt(ForallStmt *S) {
+      return this->Visit(S->getBody());
+    }
     void VisitDoStmt(DoStmt *S) {
       return this->Visit(S->getBody());
     }

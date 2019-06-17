@@ -37,6 +37,9 @@ bool isSemicolonRequiredAfter(const Stmt *S) {
     return isSemicolonRequiredAfter(While->getBody());
   if (const auto *For = dyn_cast<ForStmt>(S))
     return isSemicolonRequiredAfter(For->getBody());
+  // Kitsune
+  if (const auto *For = dyn_cast<ForallStmt>(S))
+    return isSemicolonRequiredAfter(For->getBody());
   if (const auto *CXXFor = dyn_cast<CXXForRangeStmt>(S))
     return isSemicolonRequiredAfter(CXXFor->getBody());
   if (const auto *ObjCFor = dyn_cast<ObjCForCollectionStmt>(S))

@@ -1883,7 +1883,7 @@ void ExprEngine::processCFGBlockEntrance(const BlockEdge &L,
       AMgr.options.ShouldWidenLoops) {
     const Stmt *Term = nodeBuilder.getContext().getBlock()->getTerminator();
     if (!(Term &&
-          (isa<ForStmt>(Term) || isa<ForallStmt>(Term) || isa<WhileStmt>(Term) || isa<DoStmt>(Term))))
+          (isa<ForStmt>(Term) || isa<ForallStmt>(Term) || isa<WhileStmt>(Term) || isa<DoStmt>(Term)))) // Kitsune
       return;
     // Widen.
     const LocationContext *LCtx = Pred->getLocationContext();
