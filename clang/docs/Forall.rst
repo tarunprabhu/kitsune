@@ -48,6 +48,7 @@ Systematic search/duplicate code.
   - forLoopMatcher
 
 
+
 Files that needed to be changed:
 
 - Basic
@@ -55,7 +56,6 @@ Files that needed to be changed:
 
 - Core
   - Core/CheckerManager.h
-
 
 - Add AST matchers 
   - AST/RecursiveASTVisitor.h
@@ -100,12 +100,6 @@ Files that needed to be changed:
   - Sema/SemaStmtAttr.cpp
   - Sema/TreeTransform.h
 
-- Random stuff
-  - ARCMigrate/Transforms.cpp 
-  - Frontend/Rewrite/RewriteModernObjC.cpp
-  - Frontend/Rewrite/RewriteObjC.cpp
-  - Tooling/Refactoring/Extract/SourceExtraction.cpp
-
 - Serialization
   - Serialization/ASTReaderStmt.cpp
   - Serialization/ASTWriterStmt.cpp
@@ -121,4 +115,11 @@ Files that needed to be changed:
   - StaticAnalyzer/Core/LoopUnrolling.cpp (need to trace forLoopMatcher)
   - StaticAnalyzer/Core/LoopWidening.cpp
   - StaticAnalyzer/Core/PathDiagnostic.cpp
-  
+
+- Random stuff
+  - ARCMigrate/Transforms.cpp 
+  - Frontend/Rewrite/RewriteModernObjC.cpp
+  - Frontend/Rewrite/RewriteObjC.cpp
+  - Tooling/Refactoring/Extract/SourceExtraction.cpp
+
+ 
