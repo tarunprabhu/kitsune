@@ -7957,6 +7957,9 @@ bool isBodyLikeChildStmt(const Stmt *S, const Stmt *Parent) {
     return cast<DoStmt>(Parent)->getBody() == S;
   case Stmt::ForStmtClass:
     return cast<ForStmt>(Parent)->getBody() == S;
+  // Kitsune
+  case Stmt::ForallStmtClass:
+    return cast<ForallStmt>(Parent)->getBody() == S;
   case Stmt::CXXForRangeStmtClass:
     return cast<CXXForRangeStmt>(Parent)->getBody() == S;
   case Stmt::ObjCForCollectionStmtClass:

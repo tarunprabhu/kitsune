@@ -904,6 +904,17 @@ static void DiagUninitUse(Sema &S, const VarDecl *VD, const UninitUse &Use,
       else
         Fixit1 = FixItHint::CreateReplacement(Range, FixitStr);
       break;
+    // Kitsune
+    case Stmt::ForallStmtClass:
+      DiagKind = 1;
+      Str = "forall";
+      Range = cast<ForallStmt>(Term)->getCond()->getSourceRange();
+      RemoveDiagKind = 1;
+      if (I->Output)
+        Fixit1 = FixItHint::CreateRemoval(Range);
+      else
+        Fixit1 = FixItHint::CreateReplacement(Range, FixitStr);
+      break;
     case Stmt::CXXForRangeStmtClass:
       if (I->Output == 1) {
         // The use occurs if a range-based for loop's body never executes.
@@ -1309,6 +1320,8 @@ static bool isInLoop(const ASTContext &Ctx, const ParentMap &PM,
   do {
     switch (S->getStmtClass()) {
     case Stmt::ForStmtClass:
+    // Kitsune
+    case Stmt::ForallStmtClass:
     case Stmt::WhileStmtClass:
     case Stmt::CXXForRangeStmtClass:
     case Stmt::ObjCForCollectionStmtClass:

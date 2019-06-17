@@ -1045,6 +1045,54 @@ struct CounterCoverageMappingBuilder
       pushRegion(OutCount);
   }
 
+  // Kitsune
+  void VisitForallStmt(const ForallStmt *S) {
+    extendRegion(S);
+    if (S->getInit())
+      Visit(S->getInit());
+
+    Counter ParentCount = getRegion().getCounter();
+    Counter BodyCount = getRegionCounter(S);
+
+    // The loop increment may contain a break or continue.
+    if (S->getInc())
+      BreakContinueStack.emplace_back();
+
+    // Handle the body first so that we can get the backedge count.
+    BreakContinueStack.emplace_back();
+    extendRegion(S->getBody());
+    Counter BackedgeCount = propagateCounts(BodyCount, S->getBody());
+    BreakContinue BodyBC = BreakContinueStack.pop_back_val();
+
+    // The increment is essentially part of the body but it needs to include
+    // the count for all the continue statements.
+    BreakContinue IncrementBC;
+    if (const Stmt *Inc = S->getInc()) {
+      propagateCounts(addCounters(BackedgeCount, BodyBC.ContinueCount), Inc);
+      IncrementBC = BreakContinueStack.pop_back_val();
+    }
+
+    // Go back to handle the condition.
+    Counter CondCount = addCounters(
+        addCounters(ParentCount, BackedgeCount, BodyBC.ContinueCount),
+        IncrementBC.ContinueCount);
+    if (const Expr *Cond = S->getCond()) {
+      propagateCounts(CondCount, Cond);
+      adjustForOutOfOrderTraversal(getEnd(S));
+    }
+
+    // The body count applies to the area immediately after the increment.
+    auto Gap = findGapAreaBetween(getPreciseTokenLocEnd(S->getRParenLoc()),
+                                  getStart(S->getBody()));
+    if (Gap)
+      fillGapAreaWithCount(Gap->getBegin(), Gap->getEnd(), BodyCount);
+
+    Counter OutCount = addCounters(BodyBC.BreakCount, IncrementBC.BreakCount,
+                                   subtractCounters(CondCount, BodyCount));
+    if (OutCount != ParentCount)
+      pushRegion(OutCount);
+  }
+
   void VisitCXXForRangeStmt(const CXXForRangeStmt *S) {
     extendRegion(S);
     if (S->getInit())

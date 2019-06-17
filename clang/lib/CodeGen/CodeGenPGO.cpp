@@ -92,6 +92,8 @@ public:
     WhileStmt,
     DoStmt,
     ForStmt,
+    // Kitsune
+    ForallStmt,
     CXXForRangeStmt,
     ObjCForCollectionStmt,
     SwitchStmt,
@@ -244,6 +246,8 @@ struct MapRegionCounters : public RecursiveASTVisitor<MapRegionCounters> {
   DEFINE_NESTABLE_TRAVERSAL(WhileStmt)
   DEFINE_NESTABLE_TRAVERSAL(DoStmt)
   DEFINE_NESTABLE_TRAVERSAL(ForStmt)
+  // Kitsune
+  DEFINE_NESTABLE_TRAVERSAL(ForallStmt)
   DEFINE_NESTABLE_TRAVERSAL(CXXForRangeStmt)
   DEFINE_NESTABLE_TRAVERSAL(ObjCForCollectionStmt)
   DEFINE_NESTABLE_TRAVERSAL(CXXTryStmt)
@@ -262,6 +266,9 @@ struct MapRegionCounters : public RecursiveASTVisitor<MapRegionCounters> {
       return PGOHash::DoStmt;
     case Stmt::ForStmtClass:
       return PGOHash::ForStmt;
+    // Kitsune
+    case Stmt::ForallStmtClass:
+      return PGOHash::ForallStmt;
     case Stmt::CXXForRangeStmtClass:
       return PGOHash::CXXForRangeStmt;
     case Stmt::ObjCForCollectionStmtClass:
@@ -513,6 +520,42 @@ struct ComputeRegionCounts : public ConstStmtVisitor<ComputeRegionCounts> {
   }
 
   void VisitForStmt(const ForStmt *S) {
+    RecordStmtCount(S);
+    if (S->getInit())
+      Visit(S->getInit());
+
+    uint64_t ParentCount = CurrentCount;
+
+    BreakContinueStack.push_back(BreakContinue());
+    // Visit the body region first. (This is basically the same as a while
+    // loop; see further comments in VisitWhileStmt.)
+    uint64_t BodyCount = setCount(PGO.getRegionCount(S));
+    CountMap[S->getBody()] = BodyCount;
+    Visit(S->getBody());
+    uint64_t BackedgeCount = CurrentCount;
+    BreakContinue BC = BreakContinueStack.pop_back_val();
+
+    // The increment is essentially part of the body but it needs to include
+    // the count for all the continue statements.
+    if (S->getInc()) {
+      uint64_t IncCount = setCount(BackedgeCount + BC.ContinueCount);
+      CountMap[S->getInc()] = IncCount;
+      Visit(S->getInc());
+    }
+
+    // ...then go back and propagate counts through the condition.
+    uint64_t CondCount =
+        setCount(ParentCount + BackedgeCount + BC.ContinueCount);
+    if (S->getCond()) {
+      CountMap[S->getCond()] = CondCount;
+      Visit(S->getCond());
+    }
+    setCount(BC.BreakCount + CondCount - BodyCount);
+    RecordNextStmtCount = true;
+  }
+
+  // Kitsune
+  void VisitForallStmt(const ForallStmt *S) {
     RecordStmtCount(S);
     if (S->getInit())
       Visit(S->getInit());

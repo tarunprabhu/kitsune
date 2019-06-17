@@ -1642,6 +1642,14 @@ namespace {
         Visit(Init);
     }
 
+    // Kitsune
+    void VisitForallStmt(const ForallStmt *S) {
+      // Only visit the init statement of a forall loop; the body
+      // has a different break/continue scope.
+      if (const Stmt *Init = S->getInit())
+        Visit(Init);
+    }
+
     void VisitWhileStmt(const WhileStmt *) {
       // Do nothing; the children of a while loop have a different
       // break/continue scope.
@@ -1791,6 +1799,7 @@ StmtResult Sema::ActOnForStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
               Body, ForLoc, LParenLoc, RParenLoc);
 }
 
+// Kitsune
 StmtResult Sema::ActOnForallStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
                               Stmt *First, ConditionResult Second,
                               FullExprArg third, SourceLocation RParenLoc,

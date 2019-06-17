@@ -90,6 +90,8 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
       PragmaNameLoc->Ident->getName() == "nounroll_and_jam";
   if (St->getStmtClass() != Stmt::DoStmtClass &&
       St->getStmtClass() != Stmt::ForStmtClass &&
+      // Kitsune
+      St->getStmtClass() != Stmt::ForallStmtClass &&
       St->getStmtClass() != Stmt::CXXForRangeStmtClass &&
       St->getStmtClass() != Stmt::WhileStmtClass) {
     const char *Pragma =

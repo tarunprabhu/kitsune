@@ -1874,6 +1874,8 @@ CheckConstexprFunctionStmt(Sema &SemaRef, const FunctionDecl *Dcl, Stmt *S,
   case Stmt::WhileStmtClass:
   case Stmt::DoStmtClass:
   case Stmt::ForStmtClass:
+  // Kitsune
+  case Stmt::ForallStmtClass:
   case Stmt::CXXForRangeStmtClass:
   case Stmt::ContinueStmtClass:
     // C++1y allows all of these. We don't allow them as extensions in C++11,

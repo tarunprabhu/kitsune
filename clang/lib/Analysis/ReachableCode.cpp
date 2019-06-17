@@ -640,6 +640,13 @@ void DeadCodeScan::reportDeadCode(const CFGBlock *B,
         R2 = Inc->getSourceRange();
       }
 
+      // Kitsune
+      if (const ForallStmt *FS = dyn_cast<ForallStmt>(LoopTarget)) {
+        const Expr *Inc = FS->getInc();
+        Loc = Inc->getBeginLoc();
+        R2 = Inc->getSourceRange();
+      }
+
       CB.HandleUnreachable(reachable_code::UK_Loop_Increment,
                            Loc, SourceRange(), SourceRange(Loc, Loc), R2);
       return;

@@ -6526,6 +6526,7 @@ StmtResult TreeTransform<Derived>::TransformForStmt(ForStmt *S) {
                                      S->getRParenLoc(), Body.get());
 }
 
+// Kitsune
 template <typename Derived>
 StmtResult TreeTransform<Derived>::TransformForallStmt(ForallStmt *S) {
   if (getSema().getLangOpts().OpenMP)

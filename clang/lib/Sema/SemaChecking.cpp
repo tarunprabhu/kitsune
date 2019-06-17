@@ -13212,6 +13212,10 @@ void Sema::DiagnoseEmptyLoopBody(const Stmt *S,
     StmtLoc = FS->getRParenLoc();
     Body = FS->getBody();
     DiagID = diag::warn_empty_for_body;
+  } else if (const ForallStmt *FS = dyn_cast<ForallStmt>(S)) {
+    StmtLoc = FS->getRParenLoc();
+    Body = FS->getBody();
+    DiagID = diag::warn_empty_forall_body;
   } else if (const WhileStmt *WS = dyn_cast<WhileStmt>(S)) {
     StmtLoc = WS->getCond()->getSourceRange().getEnd();
     Body = WS->getBody();

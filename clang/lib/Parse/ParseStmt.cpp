@@ -1885,6 +1885,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
                               Body.get());
 }
 
+// Kitsune
 /// ParseForallStatement
 ///       forall-statement: [C99 6.8.5.3]
 ///         'forall' '(' expr[opt] ';' expr[opt] ';' expr[opt] ')' statement

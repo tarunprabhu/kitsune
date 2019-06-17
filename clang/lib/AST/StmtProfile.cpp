@@ -283,6 +283,7 @@ void StmtProfiler::VisitForStmt(const ForStmt *S) {
   VisitStmt(S);
 }
 
+// Kitsune
 void StmtProfiler::VisitForallStmt(const ForallStmt *S) {
   VisitStmt(S);
 }

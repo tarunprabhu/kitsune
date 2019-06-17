@@ -1452,7 +1452,7 @@ bool CodeGenFunction::containsBreak(const Stmt *S) {
   // If this is a switch or loop that defines its own break scope, then we can
   // include it and anything inside of it.
   if (isa<SwitchStmt>(S) || isa<WhileStmt>(S) || isa<DoStmt>(S) ||
-      isa<ForStmt>(S))
+      isa<ForStmt>(S) || isa<ForallStmt>(S) ) // Kitsune
     return false;
 
   if (isa<BreakStmt>(S))
@@ -1474,7 +1474,7 @@ bool CodeGenFunction::mightAddDeclToScope(const Stmt *S) {
   // have an unscoped decl nested within them, but this way is conservatively
   // correct even if more statement kinds are added.
   if (isa<IfStmt>(S) || isa<SwitchStmt>(S) || isa<WhileStmt>(S) ||
-      isa<DoStmt>(S) || isa<ForStmt>(S) || isa<CompoundStmt>(S) ||
+      isa<DoStmt>(S) || isa<ForStmt>(S)|| isa<ForallStmt>(S) || isa<CompoundStmt>(S) || // Kitsune
       isa<CXXForRangeStmt>(S) || isa<CXXTryStmt>(S) ||
       isa<ObjCForCollectionStmt>(S) || isa<ObjCAtTryStmt>(S))
     return false;
