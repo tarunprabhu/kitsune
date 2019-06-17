@@ -11772,6 +11772,7 @@ buildSingleCopyAssignRecursively(Sema &S, SourceLocation Loc, QualType T,
                     VK_LValue, OK_Ordinary, Loc, Upper.isMaxValue());
 
   // Construct the loop that copies all elements of this array.
+  // Kitsune check (leave alone since internally generated for statement)
   return S.ActOnForStmt(
       Loc, Loc, InitStmt,
       S.ActOnCondition(nullptr, Loc, Comparison, Sema::ConditionKind::Boolean),

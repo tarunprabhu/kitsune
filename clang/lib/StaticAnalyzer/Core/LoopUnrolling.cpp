@@ -70,8 +70,8 @@ namespace clang {
 namespace ento {
 
 static bool isLoopStmt(const Stmt *S) {
-  return S && (isa<ForStmt>(S) || isa<ForallStmt>(S) || isa<WhileStmt>(S) ||
-               isa<DoStmt>(S)); // Kitsune
+  return S && (isa<ForStmt>(S) || isa<ForallStmt>(S) || isa<WhileStmt>(S) || // Kitsune
+               isa<DoStmt>(S)); 
 }
 
 ProgramStateRef processLoopEnd(const Stmt *LoopStmt, ProgramStateRef State) {

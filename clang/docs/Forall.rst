@@ -1,12 +1,17 @@
-- Add "forall" keyword to StmtNodes.td
-- Add ForallStmt to Stmt.h (lots of stuff here)
+Adding "forall" keyword logical steps
+
+- Add "forall" keyword
+  - Basic/StmtNodes.td
+- Add ForallStmt 
+  - AST/Stmt.h (lots of stuff here)
 - Add methods to AST/Stmt.cpp
   - constructor
   - getConditionVariable
   - setConditionVariable
 - Add ForallStmt bitfields
 - Add "forall" token to TokenKinds.def
-- Add DEF_TRAVERSE_STMT(ForallStmt, {}) to RecursiveASTVisitor.h
+- Add DEF_TRAVERSE_STMT(ForallStmt, {}) to 
+  - AST/RecursiveASTVisitor.h
 - Add ParseForallStatement
   - Parser.h
   - Parse/ParseStmt.cpp
@@ -17,29 +22,54 @@
 - Add ActOnForallStmt
   - Sema.h
   - add semantic errors to DiagnosticSemaKinds.td
-- Add visitor to AST/StmtPrinter.cpp
-- Add visitor to AST/StmtProfile.cpp
-- Add visitor to Serialization/ASTReaderStmt.cpp
-- Add visitor to Serialization/ASTWriterStmt.cpp
-- Add STMT_FORALL to ASTBitCodes.h
+- Add visitor
+  - AST/StmtPrinter.cpp
+- Add visitors
+  - AST/StmtProfile.cpp
+  - Serialization/ASTReaderStmt.cpp
+  - Serialization/ASTWriterStmt.cpp
+- Add STMT_FORALL
+  - ASTBitCodes.h
 - Add CXCursor support
   - clang-c/Index.h
   - libclang/CIndex.cpp
   - libclang/CXCursor.cpp
 
-  At this point the code should compile, but not necessary pass tests.
 
-- Add AST matchers (search case sensitive on "forStmt", trace forStmt, hasIncrement, hasLoopInit)
-  - ASTMatchers/ASTMatchers.h
+At this point the code should compile, but not necessary pass tests.
+
+Systematic search/duplicate code. 
+- Search on:
+  - ForStmt (72 files match)
+  - forStmt (case sensitive to find AST matching stuff
+  - _for (for errors and warnings)
+  - hasIncrement
+  - hasLoopInit
+  - forLoopMatcher
+
+
+Files that needed to be changed:
+
+- Basic
+  - Basic/StmtNodes.td
+
+- Core
   - Core/CheckerManager.h
+
+
+- Add AST matchers 
+  - AST/RecursiveASTVisitor.h
+  - AST/StmtNodes.td
+  - ASTMatchers/ASTMatchers.h
   - ASTMatchers/Dynamic/Registry.cpp
   - ASTMatchers/ASTMatchersInternal.cpp
-  - StaticAnalyzer/ExprEngine.cpp
   - AST/ASTImporter.cpp
   - AST/ExprConstant.cpp
   - AST/ParentMap.cpp
+  - AST/Stmt.cpp
+  - AST/StmtPrinter.cpp
+  - AST/StmtProfile.cpp
 
-  Code compiles again
 
 - Add Analysis stuff
   - Analysis/CFG.cpp
@@ -52,7 +82,16 @@
   - CodeGen/CodeGenPGO.cpp
   - CodeGen/CoverageMappingGen.cpp
 
+- libclang stuff
+  - libclang/CIndex.cpp
+  - libclang/CXCursor.cpp
+
+
+- Parse stuff
+  - Parse/ParseStmt.cpp
+
 - Sema stuff
+  - Sema/Sema.h
   - Sema/AnalysisBasesWarnings.cpp
   - Sema/SemaChecking.cpp
   - Sema/SemaDeclAttr.cpp
@@ -63,12 +102,19 @@
 
 - Random stuff
   - ARCMigrate/Transforms.cpp 
-  - Frontend/RewriteModernObjC.cpp
+  - Frontend/Rewrite/RewriteModernObjC.cpp
+  - Frontend/Rewrite/RewriteObjC.cpp
   - Tooling/Refactoring/Extract/SourceExtraction.cpp
+
+- Serialization
+  - Serialization/ASTReaderStmt.cpp
+  - Serialization/ASTWriterStmt.cpp
+  - Serialization/ASTBitCodes.h
 
 - StaticAnalyzer stuff
   - StaticAnalyzer/Checkers/CheckSecuritySyntaxOnly.cpp
   - StaticAnalyzer/Checkers/IdenticalExprChecker.cpp
+  - StaticAnalyzer/Checkers/MallocOverflowSecurityChecker.cpp
   - StaticAnalyzer/Core/BugReporter.cpp
   - StaticAnalyzer/Core/CoreEngine.cpp
   - StaticAnalyzer/Core/ExprEngine.cpp

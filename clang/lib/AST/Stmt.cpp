@@ -941,6 +941,7 @@ void ForStmt::setConditionVariable(const ASTContext &C, VarDecl *V) {
                                        VarRange.getEnd());
 }
 
+// Kitsune
 void ForallStmt::setConditionVariable(const ASTContext &C, VarDecl *V) {
   if (!V) {
     SubExprs[CONDVAR] = nullptr;

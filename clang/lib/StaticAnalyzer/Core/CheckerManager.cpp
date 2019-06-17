@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 // Kitsune check
-// all occurences of forStmt in this file were ignored. I think they apply to 
+// all occurences of forStmt in this file were ignored. I think "forStmt" in this file applies to 
 // all statements
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/AST/DeclBase.h"

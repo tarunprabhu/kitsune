@@ -2318,6 +2318,7 @@ public:
   }
 };
 
+// Kitsune
 /// ForallStmt - This represents a 'forall (init;cond;inc)' stmt.  Note that any
 /// of the init/cond/inc parts of the ForallStmt will be null if they were not
 /// specified in the source.

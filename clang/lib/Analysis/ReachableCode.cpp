@@ -641,7 +641,7 @@ void DeadCodeScan::reportDeadCode(const CFGBlock *B,
       }
 
       // Kitsune
-      if (const ForallStmt *FS = dyn_cast<ForallStmt>(LoopTarget)) {
+      else if (const ForallStmt *FS = dyn_cast<ForallStmt>(LoopTarget)) {
         const Expr *Inc = FS->getInc();
         Loc = Inc->getBeginLoc();
         R2 = Inc->getSourceRange();
