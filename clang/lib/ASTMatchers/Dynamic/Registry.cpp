@@ -174,6 +174,8 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(cxxDestructorDecl);
   REGISTER_MATCHER(cxxDynamicCastExpr);
   REGISTER_MATCHER(cxxForRangeStmt);
+  // Kitsune
+  REGISTER_MATCHER(cxxForallRangeStmt);
   REGISTER_MATCHER(cxxFunctionalCastExpr);
   REGISTER_MATCHER(cxxMemberCallExpr);
   REGISTER_MATCHER(cxxMethodDecl);

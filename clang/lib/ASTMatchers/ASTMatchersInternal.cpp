@@ -109,7 +109,8 @@ public:
                   ASTMatchFinder *Finder,
                   BoundNodesTreeBuilder *Builder) const override {
     bool Result = InnerMatcher->dynMatches(DynNode, Finder, Builder);
-    if (Result) Builder->setBinding(ID, DynNode);
+    if (Result)
+      Builder->setBinding(ID, DynNode);
     return Result;
   }
 
@@ -139,10 +140,10 @@ public:
 
 static llvm::ManagedStatic<TrueMatcherImpl> TrueMatcherInstance;
 
-DynTypedMatcher DynTypedMatcher::constructVariadic(
-    DynTypedMatcher::VariadicOperator Op,
-    ast_type_traits::ASTNodeKind SupportedKind,
-    std::vector<DynTypedMatcher> InnerMatchers) {
+DynTypedMatcher
+DynTypedMatcher::constructVariadic(DynTypedMatcher::VariadicOperator Op,
+                                   ast_type_traits::ASTNodeKind SupportedKind,
+                                   std::vector<DynTypedMatcher> InnerMatchers) {
   assert(!InnerMatchers.empty() && "Array must not be empty.");
   assert(llvm::all_of(InnerMatchers,
                       [SupportedKind](const DynTypedMatcher &M) {
@@ -190,8 +191,8 @@ DynTypedMatcher DynTypedMatcher::constructVariadic(
   llvm_unreachable("Invalid Op value.");
 }
 
-DynTypedMatcher DynTypedMatcher::trueMatcher(
-    ast_type_traits::ASTNodeKind NodeKind) {
+DynTypedMatcher
+DynTypedMatcher::trueMatcher(ast_type_traits::ASTNodeKind NodeKind) {
   return DynTypedMatcher(NodeKind, NodeKind, &*TrueMatcherInstance);
 }
 
@@ -200,8 +201,8 @@ bool DynTypedMatcher::canMatchNodesOfKind(
   return RestrictKind.isBaseOf(Kind);
 }
 
-DynTypedMatcher DynTypedMatcher::dynCastTo(
-    const ast_type_traits::ASTNodeKind Kind) const {
+DynTypedMatcher
+DynTypedMatcher::dynCastTo(const ast_type_traits::ASTNodeKind Kind) const {
   auto Copy = *this;
   Copy.SupportedKind = Kind;
   Copy.RestrictKind =
@@ -238,7 +239,8 @@ bool DynTypedMatcher::matchesNoKindCheck(
 }
 
 llvm::Optional<DynTypedMatcher> DynTypedMatcher::tryBind(StringRef ID) const {
-  if (!AllowBind) return llvm::None;
+  if (!AllowBind)
+    return llvm::None;
   auto Result = *this;
   Result.Implementation =
       new IdDynMatcher(ID, std::move(Result.Implementation));
@@ -251,7 +253,8 @@ bool DynTypedMatcher::canConvertTo(ast_type_traits::ASTNodeKind To) const {
   auto TypeKind = ast_type_traits::ASTNodeKind::getFromNodeKind<Type>();
   /// Mimic the implicit conversions of Matcher<>.
   /// - From Matcher<Type> to Matcher<QualType>
-  if (From.isSame(TypeKind) && To.isSame(QualKind)) return true;
+  if (From.isSame(TypeKind) && To.isSame(QualKind))
+    return true;
   /// - From Matcher<Base> to Matcher<Derived>
   return From.isBaseOf(To);
 }
@@ -325,8 +328,8 @@ bool AnyOfVariadicOperator(const ast_type_traits::DynTypedNode &DynNode,
   return false;
 }
 
-inline static
-std::vector<std::string> vectorFromRefs(ArrayRef<const StringRef *> NameRefs) {
+inline static std::vector<std::string>
+vectorFromRefs(ArrayRef<const StringRef *> NameRefs) {
   std::vector<std::string> Names;
   for (auto *Name : NameRefs)
     Names.emplace_back(*Name);
@@ -338,8 +341,8 @@ Matcher<NamedDecl> hasAnyNameFunc(ArrayRef<const StringRef *> NameRefs) {
   return internal::Matcher<NamedDecl>(new internal::HasNameMatcher(Names));
 }
 
-Matcher<ObjCMessageExpr> hasAnySelectorFunc(
-    ArrayRef<const StringRef *> NameRefs) {
+Matcher<ObjCMessageExpr>
+hasAnySelectorFunc(ArrayRef<const StringRef *> NameRefs) {
   return hasAnySelectorMatcher(vectorFromRefs(NameRefs));
 }
 
@@ -428,7 +431,7 @@ public:
   /// A match will be a pattern that was fully consumed, that also matches the
   /// 'fully qualified' requirement.
   bool foundMatch(bool AllowFullyQualified) const {
-    for (auto& P: Patterns)
+    for (auto &P : Patterns)
       if (P.P.empty() && (AllowFullyQualified || !P.IsFullyQualified))
         return true;
     return false;
@@ -637,8 +640,7 @@ const internal::VariadicDynCastAllOfMatcher<Decl, ObjCCategoryImplDecl>
     objcCategoryImplDecl;
 const internal::VariadicDynCastAllOfMatcher<Decl, ObjCMethodDecl>
     objcMethodDecl;
-const internal::VariadicDynCastAllOfMatcher<Decl, BlockDecl>
-    blockDecl;
+const internal::VariadicDynCastAllOfMatcher<Decl, BlockDecl> blockDecl;
 const internal::VariadicDynCastAllOfMatcher<Decl, ObjCIvarDecl> objcIvarDecl;
 const internal::VariadicDynCastAllOfMatcher<Decl, ObjCPropertyDecl>
     objcPropertyDecl;
@@ -689,7 +691,8 @@ const internal::VariadicDynCastAllOfMatcher<Stmt, CXXOperatorCallExpr>
     cxxOperatorCallExpr;
 const internal::VariadicDynCastAllOfMatcher<Stmt, Expr> expr;
 const internal::VariadicDynCastAllOfMatcher<Stmt, DeclRefExpr> declRefExpr;
-const internal::VariadicDynCastAllOfMatcher<Stmt, ObjCIvarRefExpr> objcIvarRefExpr;
+const internal::VariadicDynCastAllOfMatcher<Stmt, ObjCIvarRefExpr>
+    objcIvarRefExpr;
 const internal::VariadicDynCastAllOfMatcher<Stmt, BlockExpr> blockExpr;
 const internal::VariadicDynCastAllOfMatcher<Stmt, IfStmt> ifStmt;
 const internal::VariadicDynCastAllOfMatcher<Stmt, ForStmt> forStmt;
@@ -697,6 +700,9 @@ const internal::VariadicDynCastAllOfMatcher<Stmt, ForStmt> forStmt;
 const internal::VariadicDynCastAllOfMatcher<Stmt, ForallStmt> forallStmt;
 const internal::VariadicDynCastAllOfMatcher<Stmt, CXXForRangeStmt>
     cxxForRangeStmt;
+// Kitsune
+const internal::VariadicDynCastAllOfMatcher<Stmt, CXXForallRangeStmt>
+    cxxForallRangeStmt;
 const internal::VariadicDynCastAllOfMatcher<Stmt, WhileStmt> whileStmt;
 const internal::VariadicDynCastAllOfMatcher<Stmt, DoStmt> doStmt;
 const internal::VariadicDynCastAllOfMatcher<Stmt, BreakStmt> breakStmt;
@@ -723,7 +729,8 @@ const internal::VariadicDynCastAllOfMatcher<Stmt, CharacterLiteral>
 const internal::VariadicDynCastAllOfMatcher<Stmt, IntegerLiteral>
     integerLiteral;
 const internal::VariadicDynCastAllOfMatcher<Stmt, FloatingLiteral> floatLiteral;
-const internal::VariadicDynCastAllOfMatcher<Stmt, ImaginaryLiteral> imaginaryLiteral;
+const internal::VariadicDynCastAllOfMatcher<Stmt, ImaginaryLiteral>
+    imaginaryLiteral;
 const internal::VariadicDynCastAllOfMatcher<Stmt, UserDefinedLiteral>
     userDefinedLiteral;
 const internal::VariadicDynCastAllOfMatcher<Stmt, CompoundLiteralExpr>

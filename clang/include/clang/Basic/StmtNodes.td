@@ -49,6 +49,8 @@ def ObjCAutoreleasePoolStmt : Stmt;
 def CXXCatchStmt : Stmt;
 def CXXTryStmt : Stmt;
 def CXXForRangeStmt : Stmt;
+// Kitsune
+def CXXForallRangeStmt : Stmt;
 
 // C++ Coroutines TS statements
 def CoroutineBodyStmt : Stmt;

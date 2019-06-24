@@ -1822,9 +1822,13 @@ namespace serialization {
 
       /// A CXXTryStmt record.
       STMT_CXX_TRY,
-      /// A CXXForRangeStmt record.
 
+      /// A CXXForRangeStmt record.
       STMT_CXX_FOR_RANGE,
+
+      // Kitsune
+      /// A CXXForallRangeStmt record.
+      STMT_CXX_FORALL_RANGE,
 
       /// A CXXOperatorCallExpr record.
       EXPR_CXX_OPERATOR_CALL,

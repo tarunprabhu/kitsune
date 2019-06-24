@@ -1328,6 +1328,23 @@ void ASTStmtReader::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
   S->setBody(Record.readSubStmt());
 }
 
+// Kitsune
+void ASTStmtReader::VisitCXXForallRangeStmt(CXXForallRangeStmt *S) {
+  VisitStmt(S);
+  S->ForLoc = ReadSourceLocation();
+  S->CoawaitLoc = ReadSourceLocation();
+  S->ColonLoc = ReadSourceLocation();
+  S->RParenLoc = ReadSourceLocation();
+  S->setInit(Record.readSubStmt());
+  S->setRangeStmt(Record.readSubStmt());
+  S->setBeginStmt(Record.readSubStmt());
+  S->setEndStmt(Record.readSubStmt());
+  S->setCond(Record.readSubExpr());
+  S->setInc(Record.readSubExpr());
+  S->setLoopVarStmt(Record.readSubStmt());
+  S->setBody(Record.readSubStmt());
+}
+
 void ASTStmtReader::VisitMSDependentExistsStmt(MSDependentExistsStmt *S) {
   VisitStmt(S);
   S->KeywordLoc = ReadSourceLocation();
@@ -2459,7 +2476,7 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
           /*HasFoundDecl=*/Record[ASTStmtReader::NumExprFields + 1],
           /*HasTemplateKWAndArgsInfo=*/Record[ASTStmtReader::NumExprFields + 2],
           /*NumTemplateArgs=*/
-              Record[ASTStmtReader::NumExprFields + 2]
+          Record[ASTStmtReader::NumExprFields + 2]
               ? Record[ASTStmtReader::NumExprFields + 5]
               : 0);
       break;
@@ -2807,6 +2824,11 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
 
     case STMT_CXX_FOR_RANGE:
       S = new (Context) CXXForRangeStmt(Empty);
+      break;
+
+    // Kitsune
+    case STMT_CXX_FORALL_RANGE:
+      S = new (Context) CXXForallRangeStmt(Empty);
       break;
 
     case STMT_MS_DEPENDENT_EXISTS:
@@ -3265,7 +3287,7 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
           Context,
           /*HasTemplateKWAndArgsInfo=*/Record[ASTStmtReader::NumExprFields],
           /*NumTemplateArgs=*/
-              Record[ASTStmtReader::NumExprFields]
+          Record[ASTStmtReader::NumExprFields]
               ? Record[ASTStmtReader::NumExprFields + 1]
               : 0);
       break;

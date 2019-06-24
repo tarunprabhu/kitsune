@@ -4329,6 +4329,61 @@ static EvalStmtResult EvaluateStmt(StmtResult &Result, EvalInfo &Info,
     return ESR_Succeeded;
   }
 
+  // Kitsune
+  case Stmt::CXXForallRangeStmtClass: {
+    const CXXForallRangeStmt *FS = cast<CXXForallRangeStmt>(S);
+    BlockScopeRAII Scope(Info);
+
+    // Evaluate the init-statement if present.
+    if (FS->getInit()) {
+      EvalStmtResult ESR = EvaluateStmt(Result, Info, FS->getInit());
+      if (ESR != ESR_Succeeded)
+        return ESR;
+    }
+
+    // Initialize the __range variable.
+    EvalStmtResult ESR = EvaluateStmt(Result, Info, FS->getRangeStmt());
+    if (ESR != ESR_Succeeded)
+      return ESR;
+
+    // Create the __begin and __end iterators.
+    ESR = EvaluateStmt(Result, Info, FS->getBeginStmt());
+    if (ESR != ESR_Succeeded)
+      return ESR;
+    ESR = EvaluateStmt(Result, Info, FS->getEndStmt());
+    if (ESR != ESR_Succeeded)
+      return ESR;
+
+    while (true) {
+      // Condition: __begin != __end.
+      {
+        bool Continue = true;
+        FullExpressionRAII CondExpr(Info);
+        if (!EvaluateAsBooleanCondition(FS->getCond(), Continue, Info))
+          return ESR_Failed;
+        if (!Continue)
+          break;
+      }
+
+      // User's variable declaration, initialized by *__begin.
+      BlockScopeRAII InnerScope(Info);
+      ESR = EvaluateStmt(Result, Info, FS->getLoopVarStmt());
+      if (ESR != ESR_Succeeded)
+        return ESR;
+
+      // Loop body.
+      ESR = EvaluateLoopBody(Result, Info, FS->getBody());
+      if (ESR != ESR_Continue)
+        return ESR;
+
+      // Increment: ++__begin
+      if (!EvaluateIgnoredValue(Info, FS->getInc()))
+        return ESR_Failed;
+    }
+
+    return ESR_Succeeded;
+  }
+
   case Stmt::SwitchStmtClass:
     return EvaluateSwitch(Result, Info, cast<SwitchStmt>(S));
 

@@ -54,25 +54,27 @@
 // All unary operators.
 #define UNARYOP_LIST()                                                         \
   OPERATOR(PostInc)                                                            \
-  OPERATOR(PostDec) OPERATOR(PreInc) OPERATOR(PreDec) OPERATOR(AddrOf)         \
-      OPERATOR(Deref) OPERATOR(Plus) OPERATOR(Minus) OPERATOR(Not)             \
-          OPERATOR(LNot) OPERATOR(Real) OPERATOR(Imag) OPERATOR(Extension)     \
-              OPERATOR(Coawait)
+  OPERATOR(PostDec)                                                            \
+  OPERATOR(PreInc) OPERATOR(PreDec) OPERATOR(AddrOf) OPERATOR(Deref)           \
+      OPERATOR(Plus) OPERATOR(Minus) OPERATOR(Not) OPERATOR(LNot)              \
+          OPERATOR(Real) OPERATOR(Imag) OPERATOR(Extension) OPERATOR(Coawait)
 
 // All binary operators (excluding compound assign operators).
 #define BINOP_LIST()                                                           \
   OPERATOR(PtrMemD)                                                            \
-  OPERATOR(PtrMemI) OPERATOR(Mul) OPERATOR(Div) OPERATOR(Rem) OPERATOR(Add)    \
-      OPERATOR(Sub) OPERATOR(Shl) OPERATOR(Shr) OPERATOR(LT) OPERATOR(GT)      \
-          OPERATOR(LE) OPERATOR(GE) OPERATOR(EQ) OPERATOR(NE) OPERATOR(Cmp)    \
-              OPERATOR(And) OPERATOR(Xor) OPERATOR(Or) OPERATOR(LAnd)          \
-                  OPERATOR(LOr) OPERATOR(Assign) OPERATOR(Comma)
+  OPERATOR(PtrMemI)                                                            \
+  OPERATOR(Mul) OPERATOR(Div) OPERATOR(Rem) OPERATOR(Add) OPERATOR(Sub)        \
+      OPERATOR(Shl) OPERATOR(Shr) OPERATOR(LT) OPERATOR(GT) OPERATOR(LE)       \
+          OPERATOR(GE) OPERATOR(EQ) OPERATOR(NE) OPERATOR(Cmp) OPERATOR(And)   \
+              OPERATOR(Xor) OPERATOR(Or) OPERATOR(LAnd) OPERATOR(LOr)          \
+                  OPERATOR(Assign) OPERATOR(Comma)
 
 // All compound assign operators.
 #define CAO_LIST()                                                             \
   OPERATOR(Mul)                                                                \
-  OPERATOR(Div) OPERATOR(Rem) OPERATOR(Add) OPERATOR(Sub) OPERATOR(Shl)        \
-      OPERATOR(Shr) OPERATOR(And) OPERATOR(Or) OPERATOR(Xor)
+  OPERATOR(Div)                                                                \
+  OPERATOR(Rem) OPERATOR(Add) OPERATOR(Sub) OPERATOR(Shl) OPERATOR(Shr)        \
+      OPERATOR(And) OPERATOR(Or) OPERATOR(Xor)
 
 namespace clang {
 
@@ -2189,6 +2191,19 @@ DEF_TRAVERSE_STMT(ObjCForCollectionStmt, {})
 DEF_TRAVERSE_STMT(ObjCAutoreleasePoolStmt, {})
 
 DEF_TRAVERSE_STMT(CXXForRangeStmt, {
+  if (!getDerived().shouldVisitImplicitCode()) {
+    if (S->getInit())
+      TRY_TO_TRAVERSE_OR_ENQUEUE_STMT(S->getInit());
+    TRY_TO_TRAVERSE_OR_ENQUEUE_STMT(S->getLoopVarStmt());
+    TRY_TO_TRAVERSE_OR_ENQUEUE_STMT(S->getRangeInit());
+    TRY_TO_TRAVERSE_OR_ENQUEUE_STMT(S->getBody());
+    // Visit everything else only if shouldVisitImplicitCode().
+    ShouldVisitChildren = false;
+  }
+})
+
+// Kitsune
+DEF_TRAVERSE_STMT(CXXForallRangeStmt, {
   if (!getDerived().shouldVisitImplicitCode()) {
     if (S->getInit())
       TRY_TO_TRAVERSE_OR_ENQUEUE_STMT(S->getInit());

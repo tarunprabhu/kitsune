@@ -527,6 +527,8 @@ public:
   ExpectedStmt VisitCXXCatchStmt(CXXCatchStmt *S);
   ExpectedStmt VisitCXXTryStmt(CXXTryStmt *S);
   ExpectedStmt VisitCXXForRangeStmt(CXXForRangeStmt *S);
+  // Kitsune
+  ExpectedStmt VisitCXXForallRangeStmt(CXXForallRangeStmt *S);
   // FIXME: MSDependentExistsStmt
   ExpectedStmt VisitObjCForCollectionStmt(ObjCForCollectionStmt *S);
   ExpectedStmt VisitObjCAtCatchStmt(ObjCAtCatchStmt *S);
@@ -5834,6 +5836,31 @@ ExpectedStmt ASTNodeImporter::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
   std::tie(ToForLoc, ToCoawaitLoc, ToColonLoc, ToRParenLoc) = *Imp2;
 
   return new (Importer.getToContext()) CXXForRangeStmt(
+      ToInit, ToRangeStmt, ToBeginStmt, ToEndStmt, ToCond, ToInc, ToLoopVarStmt,
+      ToBody, ToForLoc, ToCoawaitLoc, ToColonLoc, ToRParenLoc);
+}
+
+// Kitsune
+ExpectedStmt ASTNodeImporter::VisitCXXForallRangeStmt(CXXForallRangeStmt *S) {
+  auto Imp1 = importSeq(S->getInit(), S->getRangeStmt(), S->getBeginStmt(),
+                        S->getEndStmt(), S->getCond(), S->getInc(),
+                        S->getLoopVarStmt(), S->getBody());
+  if (!Imp1)
+    return Imp1.takeError();
+  auto Imp2 = importSeq(S->getForLoc(), S->getCoawaitLoc(), S->getColonLoc(),
+                        S->getRParenLoc());
+  if (!Imp2)
+    return Imp2.takeError();
+
+  DeclStmt *ToRangeStmt, *ToBeginStmt, *ToEndStmt, *ToLoopVarStmt;
+  Expr *ToCond, *ToInc;
+  Stmt *ToInit, *ToBody;
+  std::tie(ToInit, ToRangeStmt, ToBeginStmt, ToEndStmt, ToCond, ToInc,
+           ToLoopVarStmt, ToBody) = *Imp1;
+  SourceLocation ToForLoc, ToCoawaitLoc, ToColonLoc, ToRParenLoc;
+  std::tie(ToForLoc, ToCoawaitLoc, ToColonLoc, ToRParenLoc) = *Imp2;
+
+  return new (Importer.getToContext()) CXXForallRangeStmt(
       ToInit, ToRangeStmt, ToBeginStmt, ToEndStmt, ToCond, ToInc, ToLoopVarStmt,
       ToBody, ToForLoc, ToCoawaitLoc, ToColonLoc, ToRParenLoc);
 }
