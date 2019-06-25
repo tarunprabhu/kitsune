@@ -6,7 +6,9 @@
     - include/clang/Basic/DiagnosticSemaKinds.td
   - add semantic stuff
     - include/clang/Sema/Sema.h
-    - lib/Sema/SemaStmt.cpp
+    - Sema/SemaStmt.cpp
+    - Sema/AnalysisBasedWarnings.cpp
+    - Sema/SemaDeclAttr.cpp
   - add the CXXForallRangeStmt
     - Basic/StmtNodes.td
     - include/clang/AST/StmtCXX.h
@@ -28,11 +30,35 @@
     - Serialization/ASTReaderStmt.cpp
     - Serialization/ASTWriterStmt.cpp
   - compiles without errors or warnings
+  - analysis stuff
+    - Analysis/CFG.cpp
+    - Analysis/ExprMutationAnalyzer.cpp
+  - codegen stuff
+    - CodeGen/CGStmt.cpp
+    - CodeGen/CodeGenFunction.cpp
+    - CodeGen/CodeGenFunction.h
+    - CodeGen/CodeGenPGO.cpp
+    - CodeGen/CoverageMappingGen.cpp
+  - fix CXXForRangeStmt misses
+
+Searches:
+  - CXXForRangeStmt
+  - cxxForRangeStmt (case sensitive)
+  - hasLoopVariable (AST matcher)
+  - hasRangeInit (AST matcher)
+  - findRangeLoopMutation
+  - RebuildForRangeWithDereference (function argument is CXXForRangeStmt)
+  - DiagnoseForallRangeVariableCopies (function argument is CXXForRangeStmt)
+
 
 Files changed by type:
 
 - random headers
   - include/clang-c/Index.h
+
+- Analysis
+  - Analysis/CFG.cpp
+  - Analysis/ExprMutationAnalyzer.cpp
 
 - AST
   - /include/clang/AST/StmtCXX.h
@@ -53,6 +79,13 @@ Files changed by type:
   - Basic/DiagnosticSemaKinds.td
   - Basic/StmtNodes.td
 
+- CodeGen
+  - CodeGen/CGStmt.cpp (has EmitCXXForRangeStmt)
+  - CodeGen/CodeGenFunction.cpp
+  - CodeGen/CodeGenFunction.h
+  - CodeGen/CodeGenPGO.cpp
+  - CodeGen/CoverageMappingGen.cpp
+
 - Parse
   - Parse/ParseStmt.cpp
 
@@ -60,8 +93,24 @@ Files changed by type:
   - include/clang/Sema/Sema.h
   - Sema/SemaStmt.cpp (BuildCXXForRangeStmt has lots of code, is where most of the logic lies)
   - Sema/TreeTransform.h
+  - Sema/AnalysisBasedWarnings.cpp
+  - Sema/SemaDeclAttr.cpp
+  - Sema/SemaDeclCXX.cpp
+  - Sema/SemaStmtAttr.cpp
 
 - Serialization
-  - Serialization/ASTBitCodes.h
+  - include/clang/Serialization/ASTBitCodes.h
   - Serialization/ASTReaderStmt.cpp
   - Serialization/ASTWriterStmt.cpp
+
+- StaticAnalyzer
+  - StaticAnalyzer/Core/BugReporter.cpp
+  - StaticAnalyzer/Core/CoreEngine.cpp
+  - StaticAnalyzer/Core/ExprEngine.cpp
+
+- Tooling
+  - Tooling/Refactoring/Extract/SourceExtraction.cpp
+
+- tools
+  - tools/libclang/CIndex.cpp
+  - tools/libclang/CXCursor.cpp

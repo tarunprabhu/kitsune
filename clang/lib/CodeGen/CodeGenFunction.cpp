@@ -1475,7 +1475,7 @@ bool CodeGenFunction::mightAddDeclToScope(const Stmt *S) {
   // correct even if more statement kinds are added.
   if (isa<IfStmt>(S) || isa<SwitchStmt>(S) || isa<WhileStmt>(S) ||
       isa<DoStmt>(S) || isa<ForStmt>(S)|| isa<ForallStmt>(S) || isa<CompoundStmt>(S) || // Kitsune
-      isa<CXXForRangeStmt>(S) || isa<CXXTryStmt>(S) ||
+      isa<CXXForRangeStmt>(S) || isa<CXXForallRangeStmt>(S) || isa<CXXTryStmt>(S) || // Kitsune
       isa<ObjCForCollectionStmt>(S) || isa<ObjCAtTryStmt>(S))
     return false;
 

@@ -1920,13 +1920,13 @@ AST_MATCHER_P(CXXForRangeStmt, hasLoopVariable, internal::Matcher<VarDecl>,
 /// Matches the initialization statement of a forall loop.
 ///
 /// Example:
-///     forallStmt(hasLoopVariable(anything()))
+///     forallStmt(hasForallLoopVariable(anything()))
 /// matches 'int x' in
 /// \code
 ///     for (int x : a) { }
 /// \endcode
-AST_MATCHER_P(CXXForallRangeStmt, hasForallLoopVariable, internal::Matcher<VarDecl>,
-              InnerMatcher) {
+AST_MATCHER_P(CXXForallRangeStmt, hasForallLoopVariable,
+              internal::Matcher<VarDecl>, InnerMatcher) {
   const VarDecl *const Var = Node.getLoopVariable();
   return (Var != nullptr && InnerMatcher.matches(*Var, Finder, Builder));
 }
@@ -1949,7 +1949,7 @@ AST_MATCHER_P(CXXForRangeStmt, hasRangeInit, internal::Matcher<Expr>,
 /// Matches the range initialization statement of a forall loop.
 ///
 /// Example:
-///     forallStmt(hasRangeInit(anything()))
+///     forallStmt(hasForallRangeInit(anything()))
 /// matches 'a' in
 /// \code
 ///     forall (int x : a) { }
@@ -4248,7 +4248,8 @@ AST_MATCHER_P(ArraySubscriptExpr, hasBase, internal::Matcher<Expr>,
 AST_POLYMORPHIC_MATCHER_P(
     hasBody,
     AST_POLYMORPHIC_SUPPORTED_TYPES(DoStmt, ForStmt, ForallStmt, // Kitsune
-                                    WhileStmt, CXXForRangeStmt, FunctionDecl),
+                                    WhileStmt, CXXForRangeStmt, CXXForallRangeStmt, // Kitsune
+                                    FunctionDecl),
     internal::Matcher<Stmt>, InnerMatcher) {
   const Stmt *const Statement = internal::GetBodyMatcher<NodeType>::get(Node);
   return (Statement != nullptr &&

@@ -289,6 +289,8 @@ RegistryMaps::RegistryMaps() {
   // Kitsune
   REGISTER_MATCHER(hasForallLoopInit);
   REGISTER_MATCHER(hasLoopVariable);
+  // Kitsune
+  REGISTER_MATCHER(hasForallLoopVariable);
   REGISTER_MATCHER(hasMethod);
   REGISTER_MATCHER(hasName);
   REGISTER_MATCHER(hasNullSelector);
@@ -299,6 +301,8 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(hasParent);
   REGISTER_MATCHER(hasQualifier);
   REGISTER_MATCHER(hasRangeInit);
+  // Kitsune
+  REGISTER_MATCHER(hasForallRangeInit);
   REGISTER_MATCHER(hasReceiver);
   REGISTER_MATCHER(hasReceiverType);
   REGISTER_MATCHER(hasReplacementType);

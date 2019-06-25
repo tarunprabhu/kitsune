@@ -97,8 +97,7 @@ static const Stmt *GetPreviousStmt(const ExplodedNode *N) {
   return nullptr;
 }
 
-static inline const Stmt*
-GetCurrentOrPreviousStmt(const ExplodedNode *N) {
+static inline const Stmt *GetCurrentOrPreviousStmt(const ExplodedNode *N) {
   if (const Stmt *S = PathDiagnosticLocation::getStmt(N))
     return S;
 
@@ -149,35 +148,34 @@ static void removeRedundantMsgs(PathPieces &path) {
     path.pop_front();
 
     switch (piece->getKind()) {
-      case PathDiagnosticPiece::Call:
-        removeRedundantMsgs(cast<PathDiagnosticCallPiece>(*piece).path);
+    case PathDiagnosticPiece::Call:
+      removeRedundantMsgs(cast<PathDiagnosticCallPiece>(*piece).path);
+      break;
+    case PathDiagnosticPiece::Macro:
+      removeRedundantMsgs(cast<PathDiagnosticMacroPiece>(*piece).subPieces);
+      break;
+    case PathDiagnosticPiece::ControlFlow:
+      break;
+    case PathDiagnosticPiece::Event: {
+      if (i == N - 1)
         break;
-      case PathDiagnosticPiece::Macro:
-        removeRedundantMsgs(cast<PathDiagnosticMacroPiece>(*piece).subPieces);
-        break;
-      case PathDiagnosticPiece::ControlFlow:
-        break;
-      case PathDiagnosticPiece::Event: {
-        if (i == N-1)
-          break;
 
-        if (auto *nextEvent =
-            dyn_cast<PathDiagnosticEventPiece>(path.front().get())) {
-          auto *event = cast<PathDiagnosticEventPiece>(piece.get());
-          // Check to see if we should keep one of the two pieces.  If we
-          // come up with a preference, record which piece to keep, and consume
-          // another piece from the path.
-          if (auto *pieceToKeep =
-                  eventsDescribeSameCondition(event, nextEvent)) {
-            piece = std::move(pieceToKeep == event ? piece : path.front());
-            path.pop_front();
-            ++i;
-          }
+      if (auto *nextEvent =
+              dyn_cast<PathDiagnosticEventPiece>(path.front().get())) {
+        auto *event = cast<PathDiagnosticEventPiece>(piece.get());
+        // Check to see if we should keep one of the two pieces.  If we
+        // come up with a preference, record which piece to keep, and consume
+        // another piece from the path.
+        if (auto *pieceToKeep = eventsDescribeSameCondition(event, nextEvent)) {
+          piece = std::move(pieceToKeep == event ? piece : path.front());
+          path.pop_front();
+          ++i;
         }
-        break;
       }
-      case PathDiagnosticPiece::Note:
-        break;
+      break;
+    }
+    case PathDiagnosticPiece::Note:
+      break;
     }
     path.push_back(std::move(piece));
   }
@@ -197,44 +195,44 @@ static bool removeUnneededCalls(PathPieces &pieces, BugReport *R,
   bool containsSomethingInteresting = IsInteresting;
   const unsigned N = pieces.size();
 
-  for (unsigned i = 0 ; i < N ; ++i) {
+  for (unsigned i = 0; i < N; ++i) {
     // Remove the front piece from the path.  If it is still something we
     // want to keep once we are done, we will push it back on the end.
     auto piece = std::move(pieces.front());
     pieces.pop_front();
 
     switch (piece->getKind()) {
-      case PathDiagnosticPiece::Call: {
-        auto &call = cast<PathDiagnosticCallPiece>(*piece);
-        // Check if the location context is interesting.
-        assert(LCM.count(&call.path));
-        if (!removeUnneededCalls(call.path, R, LCM,
-                                 R->isInteresting(LCM[&call.path])))
-          continue;
+    case PathDiagnosticPiece::Call: {
+      auto &call = cast<PathDiagnosticCallPiece>(*piece);
+      // Check if the location context is interesting.
+      assert(LCM.count(&call.path));
+      if (!removeUnneededCalls(call.path, R, LCM,
+                               R->isInteresting(LCM[&call.path])))
+        continue;
 
-        containsSomethingInteresting = true;
-        break;
-      }
-      case PathDiagnosticPiece::Macro: {
-        auto &macro = cast<PathDiagnosticMacroPiece>(*piece);
-        if (!removeUnneededCalls(macro.subPieces, R, LCM, IsInteresting))
-          continue;
-        containsSomethingInteresting = true;
-        break;
-      }
-      case PathDiagnosticPiece::Event: {
-        auto &event = cast<PathDiagnosticEventPiece>(*piece);
+      containsSomethingInteresting = true;
+      break;
+    }
+    case PathDiagnosticPiece::Macro: {
+      auto &macro = cast<PathDiagnosticMacroPiece>(*piece);
+      if (!removeUnneededCalls(macro.subPieces, R, LCM, IsInteresting))
+        continue;
+      containsSomethingInteresting = true;
+      break;
+    }
+    case PathDiagnosticPiece::Event: {
+      auto &event = cast<PathDiagnosticEventPiece>(*piece);
 
-        // We never throw away an event, but we do throw it away wholesale
-        // as part of a path if we throw the entire path away.
-        containsSomethingInteresting |= !event.isPrunable();
-        break;
-      }
-      case PathDiagnosticPiece::ControlFlow:
-        break;
+      // We never throw away an event, but we do throw it away wholesale
+      // as part of a path if we throw the entire path away.
+      containsSomethingInteresting |= !event.isPrunable();
+      break;
+    }
+    case PathDiagnosticPiece::ControlFlow:
+      break;
 
-      case PathDiagnosticPiece::Note:
-        break;
+    case PathDiagnosticPiece::Note:
+      break;
     }
 
     pieces.push_back(std::move(piece));
@@ -350,8 +348,8 @@ class PathDiagnosticBuilder : public BugReporterContext {
 public:
   const LocationContext *LC;
 
-  PathDiagnosticBuilder(GRBugReporter &br,
-                        BugReport *r, InterExplodedGraphMap &Backmap,
+  PathDiagnosticBuilder(GRBugReporter &br, BugReport *r,
+                        InterExplodedGraphMap &Backmap,
                         PathDiagnosticConsumer *pdc)
       : BugReporterContext(br, Backmap), R(r), PDC(pdc),
         LC(r->getErrorNode()->getLocationContext()) {}
@@ -365,11 +363,9 @@ public:
 
   Decl const &getCodeDecl() { return R->getErrorNode()->getCodeDecl(); }
 
-  ParentMap& getParentMap() { return LC->getParentMap(); }
+  ParentMap &getParentMap() { return LC->getParentMap(); }
 
-  const Stmt *getParent(const Stmt *S) {
-    return getParentMap().getParent(S);
-  }
+  const Stmt *getParent(const Stmt *S) { return getParentMap().getParent(S); }
 
   PathDiagnosticLocation getEnclosingStmtLocation(const Stmt *S);
 
@@ -404,8 +400,7 @@ PathDiagnosticBuilder::ExecutionContinues(llvm::raw_string_ostream &os,
 
   if (Loc.asStmt())
     os << "Execution continues on line "
-       << getSourceManager().getExpansionLineNumber(Loc.asLocation())
-       << '.';
+       << getSourceManager().getExpansionLineNumber(Loc.asLocation()) << '.';
   else {
     os << "Execution jumps to the end of the ";
     const Decl *D = N->getLocationContext()->getDecl();
@@ -440,6 +435,9 @@ static const Stmt *getEnclosingParent(const Stmt *S, const ParentMap &PM) {
   case Stmt::ObjCForCollectionStmtClass:
   case Stmt::CXXForRangeStmtClass:
     return Parent;
+  // Kitsune
+  case Stmt::CXXForallRangeStmtClass:
+    return Parent;
   default:
     break;
   }
@@ -455,60 +453,65 @@ getEnclosingStmtLocation(const Stmt *S, SourceManager &SMgr, const ParentMap &P,
 
   while (const Stmt *Parent = getEnclosingParent(S, P)) {
     switch (Parent->getStmtClass()) {
-      case Stmt::BinaryOperatorClass: {
-        const auto *B = cast<BinaryOperator>(Parent);
-        if (B->isLogicalOp())
-          return PathDiagnosticLocation(allowNestedContexts ? B : S, SMgr, LC);
-        break;
-      }
-      case Stmt::CompoundStmtClass:
-      case Stmt::StmtExprClass:
+    case Stmt::BinaryOperatorClass: {
+      const auto *B = cast<BinaryOperator>(Parent);
+      if (B->isLogicalOp())
+        return PathDiagnosticLocation(allowNestedContexts ? B : S, SMgr, LC);
+      break;
+    }
+    case Stmt::CompoundStmtClass:
+    case Stmt::StmtExprClass:
+      return PathDiagnosticLocation(S, SMgr, LC);
+    case Stmt::ChooseExprClass:
+      // Similar to '?' if we are referring to condition, just have the edge
+      // point to the entire choose expression.
+      if (allowNestedContexts || cast<ChooseExpr>(Parent)->getCond() == S)
+        return PathDiagnosticLocation(Parent, SMgr, LC);
+      else
         return PathDiagnosticLocation(S, SMgr, LC);
-      case Stmt::ChooseExprClass:
-        // Similar to '?' if we are referring to condition, just have the edge
-        // point to the entire choose expression.
-        if (allowNestedContexts || cast<ChooseExpr>(Parent)->getCond() == S)
-          return PathDiagnosticLocation(Parent, SMgr, LC);
-        else
-          return PathDiagnosticLocation(S, SMgr, LC);
-      case Stmt::BinaryConditionalOperatorClass:
-      case Stmt::ConditionalOperatorClass:
-        // For '?', if we are referring to condition, just have the edge point
-        // to the entire '?' expression.
-        if (allowNestedContexts ||
-            cast<AbstractConditionalOperator>(Parent)->getCond() == S)
-          return PathDiagnosticLocation(Parent, SMgr, LC);
-        else
-          return PathDiagnosticLocation(S, SMgr, LC);
-      case Stmt::CXXForRangeStmtClass:
-        if (cast<CXXForRangeStmt>(Parent)->getBody() == S)
-          return PathDiagnosticLocation(S, SMgr, LC);
-        break;
-      case Stmt::DoStmtClass:
-          return PathDiagnosticLocation(S, SMgr, LC);
-      case Stmt::ForStmtClass:
-        if (cast<ForStmt>(Parent)->getBody() == S)
-          return PathDiagnosticLocation(S, SMgr, LC);
-        break;
-      // Kitsune
-      case Stmt::ForallStmtClass:
-        if (cast<ForallStmt>(Parent)->getBody() == S)
-          return PathDiagnosticLocation(S, SMgr, LC);
-        break;
-      case Stmt::IfStmtClass:
-        if (cast<IfStmt>(Parent)->getCond() != S)
-          return PathDiagnosticLocation(S, SMgr, LC);
-        break;
-      case Stmt::ObjCForCollectionStmtClass:
-        if (cast<ObjCForCollectionStmt>(Parent)->getBody() == S)
-          return PathDiagnosticLocation(S, SMgr, LC);
-        break;
-      case Stmt::WhileStmtClass:
-        if (cast<WhileStmt>(Parent)->getCond() != S)
-          return PathDiagnosticLocation(S, SMgr, LC);
-        break;
-      default:
-        break;
+    case Stmt::BinaryConditionalOperatorClass:
+    case Stmt::ConditionalOperatorClass:
+      // For '?', if we are referring to condition, just have the edge point
+      // to the entire '?' expression.
+      if (allowNestedContexts ||
+          cast<AbstractConditionalOperator>(Parent)->getCond() == S)
+        return PathDiagnosticLocation(Parent, SMgr, LC);
+      else
+        return PathDiagnosticLocation(S, SMgr, LC);
+    case Stmt::CXXForRangeStmtClass:
+      if (cast<CXXForRangeStmt>(Parent)->getBody() == S)
+        return PathDiagnosticLocation(S, SMgr, LC);
+      break;
+    // Kitsune
+    case Stmt::CXXForallRangeStmtClass:
+      if (cast<CXXForallRangeStmt>(Parent)->getBody() == S)
+        return PathDiagnosticLocation(S, SMgr, LC);
+      break;
+    case Stmt::DoStmtClass:
+      return PathDiagnosticLocation(S, SMgr, LC);
+    case Stmt::ForStmtClass:
+      if (cast<ForStmt>(Parent)->getBody() == S)
+        return PathDiagnosticLocation(S, SMgr, LC);
+      break;
+    // Kitsune
+    case Stmt::ForallStmtClass:
+      if (cast<ForallStmt>(Parent)->getBody() == S)
+        return PathDiagnosticLocation(S, SMgr, LC);
+      break;
+    case Stmt::IfStmtClass:
+      if (cast<IfStmt>(Parent)->getCond() != S)
+        return PathDiagnosticLocation(S, SMgr, LC);
+      break;
+    case Stmt::ObjCForCollectionStmtClass:
+      if (cast<ObjCForCollectionStmt>(Parent)->getBody() == S)
+        return PathDiagnosticLocation(S, SMgr, LC);
+      break;
+    case Stmt::WhileStmtClass:
+      if (cast<WhileStmt>(Parent)->getCond() != S)
+        return PathDiagnosticLocation(S, SMgr, LC);
+      break;
+    default:
+      break;
     }
 
     S = Parent;
@@ -547,24 +550,20 @@ static void updateStackPiecesWithMessage(PathDiagnosticPiece &P,
         // The last message on the path to final bug is the most important
         // one. Since we traverse the path backwards, do not add the message
         // if one has been previously added.
-        if  (!CP->hasCallStackMessage())
+        if (!CP->hasCallStackMessage())
           CP->setCallStackMessage(stackMsg);
       }
   }
 }
 
 static void CompactMacroExpandedPieces(PathPieces &path,
-                                       const SourceManager& SM);
+                                       const SourceManager &SM);
 
-
-std::shared_ptr<PathDiagnosticControlFlowPiece> generateDiagForSwitchOP(
-  const ExplodedNode *N,
-  const CFGBlock *Dst,
-  const SourceManager &SM,
-  const LocationContext *LC,
-  PathDiagnosticBuilder &PDB,
-  PathDiagnosticLocation &Start
-  ) {
+std::shared_ptr<PathDiagnosticControlFlowPiece>
+generateDiagForSwitchOP(const ExplodedNode *N, const CFGBlock *Dst,
+                        const SourceManager &SM, const LocationContext *LC,
+                        PathDiagnosticBuilder &PDB,
+                        PathDiagnosticLocation &Start) {
   // Figure out what case arm we took.
   std::string sbuf;
   llvm::raw_string_ostream os(sbuf);
@@ -576,12 +575,12 @@ std::shared_ptr<PathDiagnosticControlFlowPiece> generateDiagForSwitchOP(
     switch (S->getStmtClass()) {
     default:
       os << "No cases match in the switch statement. "
-        "Control jumps to line "
-        << End.asLocation().getExpansionLineNumber();
+            "Control jumps to line "
+         << End.asLocation().getExpansionLineNumber();
       break;
     case Stmt::DefaultStmtClass:
       os << "Control jumps to the 'default' case at line "
-        << End.asLocation().getExpansionLineNumber();
+         << End.asLocation().getExpansionLineNumber();
       break;
 
     case Stmt::CaseStmtClass: {
@@ -614,31 +613,24 @@ std::shared_ptr<PathDiagnosticControlFlowPiece> generateDiagForSwitchOP(
     os << "'Default' branch taken. ";
     End = PDB.ExecutionContinues(os, N);
   }
-  return std::make_shared<PathDiagnosticControlFlowPiece>(Start, End,
-                                                       os.str());
+  return std::make_shared<PathDiagnosticControlFlowPiece>(Start, End, os.str());
 }
 
-
-std::shared_ptr<PathDiagnosticControlFlowPiece> generateDiagForGotoOP(
-  const Stmt *S,
-  PathDiagnosticBuilder &PDB,
-  PathDiagnosticLocation &Start) {
-    std::string sbuf;
-    llvm::raw_string_ostream os(sbuf);
-    const PathDiagnosticLocation &End = PDB.getEnclosingStmtLocation(S);
-    os << "Control jumps to line " << End.asLocation().getExpansionLineNumber();
-    return std::make_shared<PathDiagnosticControlFlowPiece>(Start, End, os.str());
-
+std::shared_ptr<PathDiagnosticControlFlowPiece>
+generateDiagForGotoOP(const Stmt *S, PathDiagnosticBuilder &PDB,
+                      PathDiagnosticLocation &Start) {
+  std::string sbuf;
+  llvm::raw_string_ostream os(sbuf);
+  const PathDiagnosticLocation &End = PDB.getEnclosingStmtLocation(S);
+  os << "Control jumps to line " << End.asLocation().getExpansionLineNumber();
+  return std::make_shared<PathDiagnosticControlFlowPiece>(Start, End, os.str());
 }
 
-std::shared_ptr<PathDiagnosticControlFlowPiece> generateDiagForBinaryOP(
-                                                 const ExplodedNode *N,
-                                                 const Stmt *T,
-                                                 const CFGBlock *Src,
-                                                 const CFGBlock *Dst,
-                                                 const SourceManager &SM,
-                                                 PathDiagnosticBuilder &PDB,
-                                                 const LocationContext *LC) {
+std::shared_ptr<PathDiagnosticControlFlowPiece>
+generateDiagForBinaryOP(const ExplodedNode *N, const Stmt *T,
+                        const CFGBlock *Src, const CFGBlock *Dst,
+                        const SourceManager &SM, PathDiagnosticBuilder &PDB,
+                        const LocationContext *LC) {
   const auto *B = cast<BinaryOperator>(T);
   std::string sbuf;
   llvm::raw_string_ostream os(sbuf);
@@ -647,13 +639,12 @@ std::shared_ptr<PathDiagnosticControlFlowPiece> generateDiagForBinaryOP(
 
   if (B->getOpcode() == BO_LAnd) {
     os << "&&"
-      << "' is ";
+       << "' is ";
 
     if (*(Src->succ_begin() + 1) == Dst) {
       os << "false";
       End = PathDiagnosticLocation(B->getLHS(), SM, LC);
-      Start =
-        PathDiagnosticLocation::createOperatorLoc(B, SM);
+      Start = PathDiagnosticLocation::createOperatorLoc(B, SM);
     } else {
       os << "true";
       Start = PathDiagnosticLocation(B->getLHS(), SM, LC);
@@ -662,7 +653,7 @@ std::shared_ptr<PathDiagnosticControlFlowPiece> generateDiagForBinaryOP(
   } else {
     assert(B->getOpcode() == BO_LOr);
     os << "||"
-      << "' is ";
+       << "' is ";
 
     if (*(Src->succ_begin() + 1) == Dst) {
       os << "false";
@@ -671,12 +662,10 @@ std::shared_ptr<PathDiagnosticControlFlowPiece> generateDiagForBinaryOP(
     } else {
       os << "true";
       End = PathDiagnosticLocation(B->getLHS(), SM, LC);
-      Start =
-        PathDiagnosticLocation::createOperatorLoc(B, SM);
+      Start = PathDiagnosticLocation::createOperatorLoc(B, SM);
     }
   }
-  return std::make_shared<PathDiagnosticControlFlowPiece>(Start, End,
-                                                         os.str());
+  return std::make_shared<PathDiagnosticControlFlowPiece>(Start, End, os.str());
 }
 
 void generateMinimalDiagForBlockEdge(const ExplodedNode *N, BlockEdge BE,
@@ -848,31 +837,30 @@ static void reversePropagateIntererstingSymbols(BugReport &R,
     return;
 
   switch (Ex->getStmtClass()) {
-    default:
-      if (!isa<CastExpr>(Ex))
-        break;
-      LLVM_FALLTHROUGH;
-    case Stmt::BinaryOperatorClass:
-    case Stmt::UnaryOperatorClass: {
-      for (const Stmt *SubStmt : Ex->children()) {
-        if (const auto *child = dyn_cast_or_null<Expr>(SubStmt)) {
-          IE.insert(child);
-          SVal ChildV = State->getSVal(child, LCtx);
-          R.markInteresting(ChildV);
-        }
-      }
+  default:
+    if (!isa<CastExpr>(Ex))
       break;
+    LLVM_FALLTHROUGH;
+  case Stmt::BinaryOperatorClass:
+  case Stmt::UnaryOperatorClass: {
+    for (const Stmt *SubStmt : Ex->children()) {
+      if (const auto *child = dyn_cast_or_null<Expr>(SubStmt)) {
+        IE.insert(child);
+        SVal ChildV = State->getSVal(child, LCtx);
+        R.markInteresting(ChildV);
+      }
     }
+    break;
+  }
   }
 
   R.markInteresting(V);
 }
 
-static void reversePropagateInterestingSymbols(BugReport &R,
-                                               InterestingExprs &IE,
-                                               const ProgramState *State,
-                                               const LocationContext *CalleeCtx)
-{
+static void
+reversePropagateInterestingSymbols(BugReport &R, InterestingExprs &IE,
+                                   const ProgramState *State,
+                                   const LocationContext *CalleeCtx) {
   // FIXME: Handle non-CallExpr-based CallEvents.
   const StackFrameContext *Callee = CalleeCtx->getStackFrame();
   const Stmt *CallSite = Callee->getCallSite();
@@ -900,23 +888,26 @@ static void reversePropagateInterestingSymbols(BugReport &R,
 
 static bool isLoop(const Stmt *Term) {
   switch (Term->getStmtClass()) {
-    case Stmt::ForStmtClass:
-    // Kitsune
-    case Stmt::ForallStmtClass:
-    case Stmt::WhileStmtClass:
-    case Stmt::ObjCForCollectionStmtClass:
-    case Stmt::CXXForRangeStmtClass:
-      return true;
-    default:
-      // Note that we intentionally do not include do..while here.
-      return false;
+  case Stmt::ForStmtClass:
+  // Kitsune
+  case Stmt::ForallStmtClass:
+  case Stmt::WhileStmtClass:
+  case Stmt::ObjCForCollectionStmtClass:
+  case Stmt::CXXForRangeStmtClass:
+    return true;
+  // Kitsune
+  case Stmt::CXXForallRangeStmtClass:
+    return true;
+  default:
+    // Note that we intentionally do not include do..while here.
+    return false;
   }
 }
 
 static bool isJumpToFalseBranch(const BlockEdge *BE) {
   const CFGBlock *Src = BE->getSrc();
   assert(Src->succ_size() == 2);
-  return (*(Src->succ_begin()+1) == BE->getDst());
+  return (*(Src->succ_begin() + 1) == BE->getDst());
 }
 
 static bool isContainedByStmt(ParentMap &PM, const Stmt *S, const Stmt *SubS) {
@@ -945,47 +936,56 @@ static const Stmt *getStmtBeforeCond(ParentMap &PM, const Stmt *Term,
 static bool isInLoopBody(ParentMap &PM, const Stmt *S, const Stmt *Term) {
   const Stmt *LoopBody = nullptr;
   switch (Term->getStmtClass()) {
-    case Stmt::CXXForRangeStmtClass: {
-      const auto *FR = cast<CXXForRangeStmt>(Term);
-      if (isContainedByStmt(PM, FR->getInc(), S))
-        return true;
-      if (isContainedByStmt(PM, FR->getLoopVarStmt(), S))
-        return true;
-      LoopBody = FR->getBody();
-      break;
-    }
-    case Stmt::ForStmtClass: {
-      const auto *FS = cast<ForStmt>(Term);
-      if (isContainedByStmt(PM, FS->getInc(), S))
-        return true;
-      LoopBody = FS->getBody();
-      break;
-    }
-    // Kitsune
-    case Stmt::ForallStmtClass: {
-      const auto *FS = cast<ForallStmt>(Term);
-      if (isContainedByStmt(PM, FS->getInc(), S))
-        return true;
-      LoopBody = FS->getBody();
-      break;
-    }
-    case Stmt::ObjCForCollectionStmtClass: {
-      const auto *FC = cast<ObjCForCollectionStmt>(Term);
-      LoopBody = FC->getBody();
-      break;
-    }
-    case Stmt::WhileStmtClass:
-      LoopBody = cast<WhileStmt>(Term)->getBody();
-      break;
-    default:
-      return false;
+  case Stmt::CXXForRangeStmtClass: {
+    const auto *FR = cast<CXXForRangeStmt>(Term);
+    if (isContainedByStmt(PM, FR->getInc(), S))
+      return true;
+    if (isContainedByStmt(PM, FR->getLoopVarStmt(), S))
+      return true;
+    LoopBody = FR->getBody();
+    break;
+  }
+  // Kitsune
+  case Stmt::CXXForallRangeStmtClass: {
+    const auto *FR = cast<CXXForallRangeStmt>(Term);
+    if (isContainedByStmt(PM, FR->getInc(), S))
+      return true;
+    if (isContainedByStmt(PM, FR->getLoopVarStmt(), S))
+      return true;
+    LoopBody = FR->getBody();
+    break;
+  }
+  case Stmt::ForStmtClass: {
+    const auto *FS = cast<ForStmt>(Term);
+    if (isContainedByStmt(PM, FS->getInc(), S))
+      return true;
+    LoopBody = FS->getBody();
+    break;
+  }
+  // Kitsune
+  case Stmt::ForallStmtClass: {
+    const auto *FS = cast<ForallStmt>(Term);
+    if (isContainedByStmt(PM, FS->getInc(), S))
+      return true;
+    LoopBody = FS->getBody();
+    break;
+  }
+  case Stmt::ObjCForCollectionStmtClass: {
+    const auto *FC = cast<ObjCForCollectionStmt>(Term);
+    LoopBody = FC->getBody();
+    break;
+  }
+  case Stmt::WhileStmtClass:
+    LoopBody = cast<WhileStmt>(Term)->getBody();
+    break;
+  default:
+    return false;
   }
   return isContainedByStmt(PM, LoopBody, S);
 }
 
 /// Adds a sanitized control-flow diagnostic edge to a path.
-static void addEdgeToPath(PathPieces &path,
-                          PathDiagnosticLocation &PrevLoc,
+static void addEdgeToPath(PathPieces &path, PathDiagnosticLocation &PrevLoc,
                           PathDiagnosticLocation NewLoc) {
   if (!NewLoc.isValid())
     return;
@@ -1020,10 +1020,9 @@ static const Stmt *getTerminatorCondition(const CFGBlock *B) {
 
 static const char StrEnteringLoop[] = "Entering loop body";
 static const char StrLoopBodyZero[] = "Loop body executed 0 times";
-static const char StrLoopRangeEmpty[] =
-  "Loop body skipped when range is empty";
+static const char StrLoopRangeEmpty[] = "Loop body skipped when range is empty";
 static const char StrLoopCollectionEmpty[] =
-  "Loop body skipped when collection is empty";
+    "Loop body skipped when collection is empty";
 
 static std::unique_ptr<FilesToLineNumsMap>
 findExecutedLines(SourceManager &SM, const ExplodedNode *N);
@@ -1032,16 +1031,12 @@ findExecutedLines(SourceManager &SM, const ExplodedNode *N);
 /// and write it into \p PD.
 /// \p AddPathEdges Whether diagnostic consumer can generate path arrows
 /// showing both row and column.
-static void generatePathDiagnosticsForNode(const ExplodedNode *N,
-      PathDiagnostic &PD,
-      PathDiagnosticLocation &PrevLoc,
-      PathDiagnosticBuilder &PDB,
-      LocationContextMap &LCM,
-      StackDiagVector &CallStack,
-      InterestingExprs &IE,
-      bool AddPathEdges) {
+static void generatePathDiagnosticsForNode(
+    const ExplodedNode *N, PathDiagnostic &PD, PathDiagnosticLocation &PrevLoc,
+    PathDiagnosticBuilder &PDB, LocationContextMap &LCM,
+    StackDiagVector &CallStack, InterestingExprs &IE, bool AddPathEdges) {
   ProgramPoint P = N->getLocation();
-  const SourceManager& SM = PDB.getSourceManager();
+  const SourceManager &SM = PDB.getSourceManager();
 
   // Have we encountered an entrance to a call?  It may be
   // the case that we have not encountered a matching
@@ -1061,7 +1056,7 @@ static void generatePathDiagnosticsForNode(const ExplodedNode *N,
       // not from declaration.
       if (D->hasBody())
         addEdgeToPath(PD.getActivePath(), PrevLoc,
-            PathDiagnosticLocation::createBegin(D, SM));
+                      PathDiagnosticLocation::createBegin(D, SM));
     }
 
     // Did we visit an entire call?
@@ -1079,14 +1074,14 @@ static void generatePathDiagnosticsForNode(const ExplodedNode *N,
         // Since we just transferred the path over to the call piece,
         // reset the mapping from active to location context.
         assert(PD.getActivePath().size() == 1 &&
-            PD.getActivePath().front().get() == C);
+               PD.getActivePath().front().get() == C);
         LCM[&PD.getActivePath()] = nullptr;
       }
 
       // Record the location context mapping for the path within
       // the call.
       assert(LCM[&C->path] == nullptr ||
-          LCM[&C->path] == CE->getCalleeContext());
+             LCM[&C->path] == CE->getCalleeContext());
       LCM[&C->path] = CE->getCalleeContext();
 
       // If this is the first item in the active path, record
@@ -1108,7 +1103,6 @@ static void generatePathDiagnosticsForNode(const ExplodedNode *N,
     }
     return;
   }
-
 
   if (AddPathEdges) {
     // Query the location context here and the previous location
@@ -1135,8 +1129,8 @@ static void generatePathDiagnosticsForNode(const ExplodedNode *N,
       // Propagate the interesting symbols accordingly.
       if (const auto *Ex = dyn_cast_or_null<Expr>(S)) {
         reversePropagateIntererstingSymbols(*PDB.getBugReport(), IE,
-            N->getState().get(), Ex,
-            N->getLocationContext());
+                                            N->getState().get(), Ex,
+                                            N->getLocationContext());
       }
       // Add the edge to the return site.
       addEdgeToPath(PD.getActivePath(), PrevLoc, C->callReturn);
@@ -1160,15 +1154,15 @@ static void generatePathDiagnosticsForNode(const ExplodedNode *N,
     // interesting symbols correctly.
     if (const Expr *Ex = PS->getStmtAs<Expr>())
       reversePropagateIntererstingSymbols(*PDB.getBugReport(), IE,
-          N->getState().get(), Ex,
-          N->getLocationContext());
+                                          N->getState().get(), Ex,
+                                          N->getLocationContext());
 
     // Add an edge.  If this is an ObjCForCollectionStmt do
     // not add an edge here as it appears in the CFG both
     // as a terminator and as a terminator condition.
     if (!isa<ObjCForCollectionStmt>(PS->getStmt())) {
       PathDiagnosticLocation L =
-        PathDiagnosticLocation(PS->getStmt(), SM, PDB.LC);
+          PathDiagnosticLocation(PS->getStmt(), SM, PDB.LC);
       addEdgeToPath(PD.getActivePath(), PrevLoc, L);
     }
 
@@ -1186,7 +1180,7 @@ static void generatePathDiagnosticsForNode(const ExplodedNode *N,
       const LocationContext *CalleeCtx = PDB.LC;
       if (CallerCtx != CalleeCtx && AddPathEdges) {
         reversePropagateInterestingSymbols(*PDB.getBugReport(), IE,
-            N->getState().get(), CalleeCtx);
+                                           N->getState().get(), CalleeCtx);
       }
     }
 
@@ -1207,11 +1201,15 @@ static void generatePathDiagnosticsForNode(const ExplodedNode *N,
       } else if (const auto *FRS = dyn_cast<CXXForRangeStmt>(Loop)) {
         Body = FRS->getBody();
       }
+      // Kitsune
+      else if (const auto *FRS = dyn_cast<CXXForallRangeStmt>(Loop)) {
+        Body = FRS->getBody();
+      }
       // do-while statements are explicitly excluded here
 
       auto p = std::make_shared<PathDiagnosticEventPiece>(
           L, "Looping back to the head "
-          "of the loop");
+             "of the loop");
       p->setPrunable(true);
 
       addEdgeToPath(PD.getActivePath(), PrevLoc, p->getLocation());
@@ -1219,7 +1217,7 @@ static void generatePathDiagnosticsForNode(const ExplodedNode *N,
 
       if (const auto *CS = dyn_cast_or_null<CompoundStmt>(Body)) {
         addEdgeToPath(PD.getActivePath(), PrevLoc,
-            PathDiagnosticLocation::createEndBrace(CS, SM));
+                      PathDiagnosticLocation::createEndBrace(CS, SM));
       }
     }
 
@@ -1232,7 +1230,7 @@ static void generatePathDiagnosticsForNode(const ExplodedNode *N,
       if (isLoop(Term)) {
         const Stmt *TermCond = getTerminatorCondition(BSrc);
         bool IsInLoopBody =
-          isInLoopBody(PM, getStmtBeforeCond(PM, TermCond, N), Term);
+            isInLoopBody(PM, getStmtBeforeCond(PM, TermCond, N), Term);
 
         const char *str = nullptr;
 
@@ -1241,6 +1239,9 @@ static void generatePathDiagnosticsForNode(const ExplodedNode *N,
             if (isa<ObjCForCollectionStmt>(Term)) {
               str = StrLoopCollectionEmpty;
             } else if (isa<CXXForRangeStmt>(Term)) {
+              str = StrLoopRangeEmpty;
+            } // Kitsune
+            else if (isa<CXXForallRangeStmt>(Term)) {
               str = StrLoopRangeEmpty;
             } else {
               str = StrLoopBodyZero;
@@ -1254,12 +1255,11 @@ static void generatePathDiagnosticsForNode(const ExplodedNode *N,
           PathDiagnosticLocation L(TermCond ? TermCond : Term, SM, PDB.LC);
           auto PE = std::make_shared<PathDiagnosticEventPiece>(L, str);
           PE->setPrunable(true);
-          addEdgeToPath(PD.getActivePath(), PrevLoc,
-              PE->getLocation());
+          addEdgeToPath(PD.getActivePath(), PrevLoc, PE->getLocation());
           PD.getActivePath().push_front(std::move(PE));
         }
       } else if (isa<BreakStmt>(Term) || isa<ContinueStmt>(Term) ||
-          isa<GotoStmt>(Term)) {
+                 isa<GotoStmt>(Term)) {
         PathDiagnosticLocation L(Term, SM, PDB.LC);
         addEdgeToPath(PD.getActivePath(), PrevLoc, L);
       }
@@ -1288,8 +1288,7 @@ static const Stmt *getStmtParent(const Stmt *S, const ParentMap &PM) {
     if (!S)
       break;
 
-    if (isa<FullExpr>(S) ||
-        isa<CXXBindTemporaryExpr>(S) ||
+    if (isa<FullExpr>(S) || isa<CXXBindTemporaryExpr>(S) ||
         isa<SubstNonTypeTemplateParmExpr>(S))
       continue;
 
@@ -1301,45 +1300,49 @@ static const Stmt *getStmtParent(const Stmt *S, const ParentMap &PM) {
 
 static bool isConditionForTerminator(const Stmt *S, const Stmt *Cond) {
   switch (S->getStmtClass()) {
-    case Stmt::BinaryOperatorClass: {
-      const auto *BO = cast<BinaryOperator>(S);
-      if (!BO->isLogicalOp())
-        return false;
-      return BO->getLHS() == Cond || BO->getRHS() == Cond;
-    }
-    case Stmt::IfStmtClass:
-      return cast<IfStmt>(S)->getCond() == Cond;
-    case Stmt::ForStmtClass:
-      return cast<ForStmt>(S)->getCond() == Cond;
-    // Kitsune
-    case Stmt::ForallStmtClass:
-      return cast<ForallStmt>(S)->getCond() == Cond;
-    case Stmt::WhileStmtClass:
-      return cast<WhileStmt>(S)->getCond() == Cond;
-    case Stmt::DoStmtClass:
-      return cast<DoStmt>(S)->getCond() == Cond;
-    case Stmt::ChooseExprClass:
-      return cast<ChooseExpr>(S)->getCond() == Cond;
-    case Stmt::IndirectGotoStmtClass:
-      return cast<IndirectGotoStmt>(S)->getTarget() == Cond;
-    case Stmt::SwitchStmtClass:
-      return cast<SwitchStmt>(S)->getCond() == Cond;
-    case Stmt::BinaryConditionalOperatorClass:
-      return cast<BinaryConditionalOperator>(S)->getCond() == Cond;
-    case Stmt::ConditionalOperatorClass: {
-      const auto *CO = cast<ConditionalOperator>(S);
-      return CO->getCond() == Cond ||
-             CO->getLHS() == Cond ||
-             CO->getRHS() == Cond;
-    }
-    case Stmt::ObjCForCollectionStmtClass:
-      return cast<ObjCForCollectionStmt>(S)->getElement() == Cond;
-    case Stmt::CXXForRangeStmtClass: {
-      const auto *FRS = cast<CXXForRangeStmt>(S);
-      return FRS->getCond() == Cond || FRS->getRangeInit() == Cond;
-    }
-    default:
+  case Stmt::BinaryOperatorClass: {
+    const auto *BO = cast<BinaryOperator>(S);
+    if (!BO->isLogicalOp())
       return false;
+    return BO->getLHS() == Cond || BO->getRHS() == Cond;
+  }
+  case Stmt::IfStmtClass:
+    return cast<IfStmt>(S)->getCond() == Cond;
+  case Stmt::ForStmtClass:
+    return cast<ForStmt>(S)->getCond() == Cond;
+  // Kitsune
+  case Stmt::ForallStmtClass:
+    return cast<ForallStmt>(S)->getCond() == Cond;
+  case Stmt::WhileStmtClass:
+    return cast<WhileStmt>(S)->getCond() == Cond;
+  case Stmt::DoStmtClass:
+    return cast<DoStmt>(S)->getCond() == Cond;
+  case Stmt::ChooseExprClass:
+    return cast<ChooseExpr>(S)->getCond() == Cond;
+  case Stmt::IndirectGotoStmtClass:
+    return cast<IndirectGotoStmt>(S)->getTarget() == Cond;
+  case Stmt::SwitchStmtClass:
+    return cast<SwitchStmt>(S)->getCond() == Cond;
+  case Stmt::BinaryConditionalOperatorClass:
+    return cast<BinaryConditionalOperator>(S)->getCond() == Cond;
+  case Stmt::ConditionalOperatorClass: {
+    const auto *CO = cast<ConditionalOperator>(S);
+    return CO->getCond() == Cond || CO->getLHS() == Cond ||
+           CO->getRHS() == Cond;
+  }
+  case Stmt::ObjCForCollectionStmtClass:
+    return cast<ObjCForCollectionStmt>(S)->getElement() == Cond;
+  case Stmt::CXXForRangeStmtClass: {
+    const auto *FRS = cast<CXXForRangeStmt>(S);
+    return FRS->getCond() == Cond || FRS->getRangeInit() == Cond;
+  }
+  // Kitsune
+  case Stmt::CXXForallRangeStmtClass: {
+    const auto *FRS = cast<CXXForallRangeStmt>(S);
+    return FRS->getCond() == Cond || FRS->getRangeInit() == Cond;
+  }
+  default:
+    return false;
   }
 }
 
@@ -1350,6 +1353,10 @@ static bool isIncrementOrInitInForLoop(const Stmt *S, const Stmt *FL) {
   if (const auto *FS = dyn_cast<ForallStmt>(FL))
     return FS->getInc() == S || FS->getInit() == S;
   if (const auto *FRS = dyn_cast<CXXForRangeStmt>(FL))
+    return FRS->getInc() == S || FRS->getRangeStmt() == S ||
+           FRS->getLoopVarStmt() || FRS->getRangeInit() == S;
+  // Kitsune
+  if (const auto *FRS = dyn_cast<CXXForallRangeStmt>(FL))
     return FRS->getInc() == S || FRS->getRangeStmt() == S ||
            FRS->getLoopVarStmt() || FRS->getRangeInit() == S;
   return false;
@@ -1393,7 +1400,7 @@ static void addContextEdges(PathPieces &pieces, SourceManager &SM,
       // We are looking at an edge. Is the destination within a larger
       // expression?
       PathDiagnosticLocation DstContext =
-        getEnclosingStmtLocation(Dst, SM, PM, LCtx, /*allowNested=*/true);
+          getEnclosingStmtLocation(Dst, SM, PM, LCtx, /*allowNested=*/true);
       if (!DstContext.isValid() || DstContext.asStmt() == Dst)
         break;
 
@@ -1452,12 +1459,13 @@ static void simplifySimpleBranches(PathPieces &pieces) {
       continue;
 
     const Stmt *s1Start = PieceI->getStartLocation().getStmtOrNull();
-    const Stmt *s1End   = PieceI->getEndLocation().getStmtOrNull();
+    const Stmt *s1End = PieceI->getEndLocation().getStmtOrNull();
 
     if (!s1Start || !s1End)
       continue;
 
-    PathPieces::iterator NextI = I; ++NextI;
+    PathPieces::iterator NextI = I;
+    ++NextI;
     if (NextI == E)
       break;
 
@@ -1486,16 +1494,18 @@ static void simplifySimpleBranches(PathPieces &pieces) {
       continue;
 
     const Stmt *s2Start = PieceNextI->getStartLocation().getStmtOrNull();
-    const Stmt *s2End   = PieceNextI->getEndLocation().getStmtOrNull();
+    const Stmt *s2End = PieceNextI->getEndLocation().getStmtOrNull();
 
     if (!s2Start || !s2End || s1End != s2Start)
       continue;
 
     // We only perform this transformation for specific branch kinds.
     // We don't want to do this for do..while, for example.
-    if (!(isa<ForStmt>(s1Start) || isa<ForallStmt>(s1Start) || isa<WhileStmt>(s1Start) || // Kitsune
+    if (!(isa<ForStmt>(s1Start) || isa<ForallStmt>(s1Start) ||
+          isa<WhileStmt>(s1Start) || // Kitsune
           isa<IfStmt>(s1Start) || isa<ObjCForCollectionStmt>(s1Start) ||
-          isa<CXXForRangeStmt>(s1Start)))
+          isa<CXXForRangeStmt>(s1Start) ||
+          isa<CXXForallRangeStmt>(s1Start))) // Kitsune
       continue;
 
     // Is s1End the branch condition?
@@ -1566,7 +1576,7 @@ static Optional<size_t> getLengthOnSingleLine(SourceManager &SM,
 /// - if the whole statement is large enough that having subexpression arrows
 ///   might be helpful.
 static void removeContextCycles(PathPieces &Path, SourceManager &SM) {
-  for (PathPieces::iterator I = Path.begin(), E = Path.end(); I != E; ) {
+  for (PathPieces::iterator I = Path.begin(), E = Path.end(); I != E;) {
     // Pattern match the current piece and its successor.
     const auto *PieceI = dyn_cast<PathDiagnosticControlFlowPiece>(I->get());
 
@@ -1576,9 +1586,10 @@ static void removeContextCycles(PathPieces &Path, SourceManager &SM) {
     }
 
     const Stmt *s1Start = PieceI->getStartLocation().getStmtOrNull();
-    const Stmt *s1End   = PieceI->getEndLocation().getStmtOrNull();
+    const Stmt *s1End = PieceI->getEndLocation().getStmtOrNull();
 
-    PathPieces::iterator NextI = I; ++NextI;
+    PathPieces::iterator NextI = I;
+    ++NextI;
     if (NextI == E)
       break;
 
@@ -1600,7 +1611,7 @@ static void removeContextCycles(PathPieces &Path, SourceManager &SM) {
     }
 
     const Stmt *s2Start = PieceNextI->getStartLocation().getStmtOrNull();
-    const Stmt *s2End   = PieceNextI->getEndLocation().getStmtOrNull();
+    const Stmt *s2End = PieceNextI->getEndLocation().getStmtOrNull();
 
     if (s1Start && s2Start && s1Start == s2End && s2Start == s1End) {
       const size_t MAX_SHORT_LINE_LENGTH = 80;
@@ -1644,7 +1655,7 @@ static void removePunyEdges(PathPieces &path, SourceManager &SM,
       continue;
 
     const Stmt *start = PieceI->getStartLocation().getStmtOrNull();
-    const Stmt *end   = PieceI->getEndLocation().getStmtOrNull();
+    const Stmt *end = PieceI->getEndLocation().getStmtOrNull();
 
     if (!start || !end)
       continue;
@@ -1690,7 +1701,8 @@ static void removeIdenticalEvents(PathPieces &path) {
     if (!PieceI)
       continue;
 
-    PathPieces::iterator NextI = I; ++NextI;
+    PathPieces::iterator NextI = I;
+    ++NextI;
     if (NextI == E)
       return;
 
@@ -1707,20 +1719,20 @@ static void removeIdenticalEvents(PathPieces &path) {
 }
 
 static bool optimizeEdges(PathPieces &path, SourceManager &SM,
-                          OptimizedCallsSet &OCS,
-                          LocationContextMap &LCM) {
+                          OptimizedCallsSet &OCS, LocationContextMap &LCM) {
   bool hasChanges = false;
   const LocationContext *LC = LCM[&path];
   assert(LC);
   ParentMap &PM = LC->getParentMap();
 
-  for (PathPieces::iterator I = path.begin(), E = path.end(); I != E; ) {
+  for (PathPieces::iterator I = path.begin(), E = path.end(); I != E;) {
     // Optimize subpaths.
     if (auto *CallI = dyn_cast<PathDiagnosticCallPiece>(I->get())) {
       // Record the fact that a call has been optimized so we only do the
       // effort once.
       if (!OCS.count(CallI)) {
-        while (optimizeEdges(CallI->path, SM, OCS, LCM)) {}
+        while (optimizeEdges(CallI->path, SM, OCS, LCM)) {
+        }
         OCS.insert(CallI);
       }
       ++I;
@@ -1736,15 +1748,17 @@ static bool optimizeEdges(PathPieces &path, SourceManager &SM,
     }
 
     const Stmt *s1Start = PieceI->getStartLocation().getStmtOrNull();
-    const Stmt *s1End   = PieceI->getEndLocation().getStmtOrNull();
+    const Stmt *s1End = PieceI->getEndLocation().getStmtOrNull();
     const Stmt *level1 = getStmtParent(s1Start, PM);
     const Stmt *level2 = getStmtParent(s1End, PM);
 
-    PathPieces::iterator NextI = I; ++NextI;
+    PathPieces::iterator NextI = I;
+    ++NextI;
     if (NextI == E)
       break;
 
-    const auto *PieceNextI = dyn_cast<PathDiagnosticControlFlowPiece>(NextI->get());
+    const auto *PieceNextI =
+        dyn_cast<PathDiagnosticControlFlowPiece>(NextI->get());
 
     if (!PieceNextI) {
       ++I;
@@ -1752,7 +1766,7 @@ static bool optimizeEdges(PathPieces &path, SourceManager &SM,
     }
 
     const Stmt *s2Start = PieceNextI->getStartLocation().getStmtOrNull();
-    const Stmt *s2End   = PieceNextI->getEndLocation().getStmtOrNull();
+    const Stmt *s2End = PieceNextI->getEndLocation().getStmtOrNull();
     const Stmt *level3 = getStmtParent(s2Start, PM);
     const Stmt *level4 = getStmtParent(s2End, PM);
 
@@ -1811,8 +1825,7 @@ static bool optimizeEdges(PathPieces &path, SourceManager &SM,
         //
         // This can eliminate edges where we dive into a subexpression
         // and then pop back out, etc.
-        else if (s1Start && s2End &&
-                 lexicalContains(PM, s2Start, s2End) &&
+        else if (s1Start && s2End && lexicalContains(PM, s2Start, s2End) &&
                  !lexicalContains(PM, s1End, s1Start)) {
           removeEdge = true;
         }
@@ -1824,8 +1837,7 @@ static bool optimizeEdges(PathPieces &path, SourceManager &SM,
         // A.1 -> B
         //
         // These edges just look ugly and don't usually add anything.
-        else if (s1Start && s2End &&
-                 lexicalContains(PM, s1Start, s1End)) {
+        else if (s1Start && s2End && lexicalContains(PM, s1Start, s1End)) {
           SourceRange EdgeRange(PieceI->getEndLocation().asLocation(),
                                 PieceI->getStartLocation().asLocation());
           if (!getLengthOnSingleLine(SM, EdgeRange).hasValue())
@@ -1902,12 +1914,12 @@ static void dropFunctionEntryEdge(PathPieces &Path, LocationContextMap &LCM,
   Path.pop_front();
 }
 
-using VisitorsDiagnosticsTy = llvm::DenseMap<const ExplodedNode *,
+using VisitorsDiagnosticsTy =
+    llvm::DenseMap<const ExplodedNode *,
                    std::vector<std::shared_ptr<PathDiagnosticPiece>>>;
 
 /// Populate executes lines with lines containing at least one diagnostics.
-static void updateExecutedLinesWithDiagnosticPieces(
-  PathDiagnostic &PD) {
+static void updateExecutedLinesWithDiagnosticPieces(PathDiagnostic &PD) {
 
   PathPieces path = PD.path.flatten(/*ShouldFlattenMacros=*/true);
   FilesToLineNumsMap &ExecutedLines = PD.getExecutedLines();
@@ -1935,8 +1947,7 @@ static void updateExecutedLinesWithDiagnosticPieces(
 /// the transitions in words.
 static std::unique_ptr<PathDiagnostic> generatePathDiagnosticForConsumer(
     PathDiagnosticConsumer::PathGenerationScheme ActiveScheme,
-    PathDiagnosticBuilder &PDB,
-    const ExplodedNode *ErrorNode,
+    PathDiagnosticBuilder &PDB, const ExplodedNode *ErrorNode,
     const VisitorsDiagnosticsTy &VisitorsDiagnostics) {
 
   bool GenerateDiagnostics = (ActiveScheme != PathDiagnosticConsumer::None);
@@ -1965,8 +1976,8 @@ static std::unique_ptr<PathDiagnostic> generatePathDiagnosticForConsumer(
   const ExplodedNode *NextNode = ErrorNode->getFirstPred();
   while (NextNode) {
     if (GenerateDiagnostics)
-      generatePathDiagnosticsForNode(
-          NextNode, *PD, PrevLoc, PDB, LCM, CallStack, IE, AddPathEdges);
+      generatePathDiagnosticsForNode(NextNode, *PD, PrevLoc, PDB, LCM,
+                                     CallStack, IE, AddPathEdges);
 
     auto VisitorNotes = VisitorsDiagnostics.find(NextNode);
     NextNode = NextNode->getFirstPred();
@@ -2001,12 +2012,10 @@ static std::unique_ptr<PathDiagnostic> generatePathDiagnosticForConsumer(
                   PathDiagnosticLocation::createBegin(D, SM));
   }
 
-
   // Finally, prune the diagnostic path of uninteresting stuff.
   if (!PD->path.empty()) {
     if (R->shouldPrunePath() && Opts.ShouldPrunePaths) {
-      bool stillHasNotes =
-          removeUnneededCalls(PD->getMutablePieces(), R, LCM);
+      bool stillHasNotes = removeUnneededCalls(PD->getMutablePieces(), R, LCM);
       assert(stillHasNotes);
       (void)stillHasNotes;
     }
@@ -2021,7 +2030,8 @@ static std::unique_ptr<PathDiagnostic> generatePathDiagnosticForConsumer(
       // to an aesthetically pleasing subset that conveys the
       // necessary information.
       OptimizedCallsSet OCS;
-      while (optimizeEdges(PD->getMutablePieces(), SM, OCS, LCM)) {}
+      while (optimizeEdges(PD->getMutablePieces(), SM, OCS, LCM)) {
+      }
 
       // Drop the very first function-entry edge. It's not really necessary
       // for top-level functions.
@@ -2040,7 +2050,6 @@ static std::unique_ptr<PathDiagnostic> generatePathDiagnosticForConsumer(
 
   return PD;
 }
-
 
 //===----------------------------------------------------------------------===//
 // Methods for BugType and subclasses.
@@ -2071,9 +2080,7 @@ void BugReport::addVisitor(std::unique_ptr<BugReporterVisitor> visitor) {
   Callbacks.push_back(std::move(visitor));
 }
 
-void BugReport::clearVisitors() {
-  Callbacks.clear();
-}
+void BugReport::clearVisitors() { Callbacks.clear(); }
 
 BugReport::~BugReport() {
   while (!interestingSymbols.empty()) {
@@ -2093,7 +2100,7 @@ const Decl *BugReport::getDeclWithIssue() const {
   return LC->getStackFrame()->getDecl();
 }
 
-void BugReport::Profile(llvm::FoldingSetNodeID& hash) const {
+void BugReport::Profile(llvm::FoldingSetNodeID &hash) const {
   hash.AddPointer(&BT);
   hash.AddString(Description);
   PathDiagnosticLocation UL = getUniqueingLocation();
@@ -2241,7 +2248,7 @@ llvm::iterator_range<BugReport::ranges_iterator> BugReport::getRanges() {
 PathDiagnosticLocation BugReport::getLocation(const SourceManager &SM) const {
   if (ErrorNode) {
     assert(!Location.isValid() &&
-     "Either Location or ErrorNode should be specified but not both.");
+           "Either Location or ErrorNode should be specified but not both.");
     return PathDiagnosticLocation::createEndOfPath(ErrorNode, SM);
   }
 
@@ -2261,8 +2268,9 @@ BugReporterData::~BugReporterData() = default;
 
 ExplodedGraph &GRBugReporter::getGraph() { return Eng.getGraph(); }
 
-ProgramStateManager&
-GRBugReporter::getStateManager() { return Eng.getStateManager(); }
+ProgramStateManager &GRBugReporter::getStateManager() {
+  return Eng.getStateManager();
+}
 
 BugReporter::~BugReporter() {
   FlushReports();
@@ -2322,8 +2330,7 @@ class TrimmedGraph {
   std::unique_ptr<ExplodedGraph> G;
 
   /// A helper class for sorting ExplodedNodes by priority.
-  template <bool Descending>
-  class PriorityCompare {
+  template <bool Descending> class PriorityCompare {
     const PriorityMapTy &PriorityMap;
 
   public:
@@ -2339,8 +2346,7 @@ class TrimmedGraph {
       if (RI == E)
         return !Descending;
 
-      return Descending ? LI->second > RI->second
-                        : LI->second < RI->second;
+      return Descending ? LI->second > RI->second : LI->second < RI->second;
     }
 
     bool operator()(const NodeIndexPair &LHS, const NodeIndexPair &RHS) const {
@@ -2392,7 +2398,7 @@ TrimmedGraph::TrimmedGraph(const ExplodedGraph *OriginalGraph,
     PriorityMapTy::iterator PriorityEntry;
     bool IsNew;
     std::tie(PriorityEntry, IsNew) =
-      PriorityMap.insert(std::make_pair(Node, Priority));
+        PriorityMap.insert(std::make_pair(Node, Priority));
     ++Priority;
 
     if (!IsNew) {
@@ -2434,8 +2440,8 @@ bool TrimmedGraph::popNextReportGraph(ReportGraph &GraphWrapper) {
   while (true) {
     // Create the equivalent node in the new graph with the same state
     // and location.
-    ExplodedNode *NewN = GNew->createUncachedNode(OrigN->getLocation(), OrigN->getState(),
-                                       OrigN->isSink());
+    ExplodedNode *NewN = GNew->createUncachedNode(
+        OrigN->getLocation(), OrigN->getState(), OrigN->isSink());
 
     // Store the mapping to the original node.
     InterExplodedGraphMap::const_iterator IMitr = InverseMap.find(OrigN);
@@ -2459,7 +2465,7 @@ bool TrimmedGraph::popNextReportGraph(ReportGraph &GraphWrapper) {
     // Find the next predeccessor node.  We choose the node that is marked
     // with the lowest BFS number.
     OrigN = *std::min_element(OrigN->pred_begin(), OrigN->pred_end(),
-                          PriorityCompare<false>(PriorityMap));
+                              PriorityCompare<false>(PriorityMap));
   }
 
   GraphWrapper.Graph = std::move(GNew);
@@ -2470,18 +2476,17 @@ bool TrimmedGraph::popNextReportGraph(ReportGraph &GraphWrapper) {
 /// CompactMacroExpandedPieces - This function postprocesses a PathDiagnostic
 /// object and collapses PathDiagosticPieces that are expanded by macros.
 static void CompactMacroExpandedPieces(PathPieces &path,
-                                       const SourceManager& SM) {
-  using MacroStackTy =
-      std::vector<
-          std::pair<std::shared_ptr<PathDiagnosticMacroPiece>, SourceLocation>>;
+                                       const SourceManager &SM) {
+  using MacroStackTy = std::vector<
+      std::pair<std::shared_ptr<PathDiagnosticMacroPiece>, SourceLocation>>;
 
   using PiecesTy = std::vector<std::shared_ptr<PathDiagnosticPiece>>;
 
   MacroStackTy MacroStack;
   PiecesTy Pieces;
 
-  for (PathPieces::const_iterator I = path.begin(), E = path.end();
-       I != E; ++I) {
+  for (PathPieces::const_iterator I = path.begin(), E = path.end(); I != E;
+       ++I) {
     const auto &piece = *I;
 
     // Recursively compact calls.
@@ -2494,9 +2499,8 @@ static void CompactMacroExpandedPieces(PathPieces &path,
 
     // Determine the instantiation location, which is the location we group
     // related PathDiagnosticPieces.
-    SourceLocation InstantiationLoc = Loc.isMacroID() ?
-                                      SM.getExpansionLoc(Loc) :
-                                      SourceLocation();
+    SourceLocation InstantiationLoc =
+        Loc.isMacroID() ? SM.getExpansionLoc(Loc) : SourceLocation();
 
     if (Loc.isFileID()) {
       MacroStack.clear();
@@ -2516,9 +2520,9 @@ static void CompactMacroExpandedPieces(PathPieces &path,
     // or are part of an old one?
     std::shared_ptr<PathDiagnosticMacroPiece> MacroGroup;
 
-    SourceLocation ParentInstantiationLoc = InstantiationLoc.isMacroID() ?
-                                          SM.getExpansionLoc(Loc) :
-                                          SourceLocation();
+    SourceLocation ParentInstantiationLoc = InstantiationLoc.isMacroID()
+                                                ? SM.getExpansionLoc(Loc)
+                                                : SourceLocation();
 
     // Walk the entire macro stack.
     while (!MacroStack.empty()) {
@@ -2617,13 +2621,10 @@ generateVisitorsDiagnostics(BugReport *R, const ExplodedNode *ErrorNode,
 /// Find a non-invalidated report for a given equivalence class,
 /// and return together with a cache of visitors notes.
 /// If none found, return a nullptr paired with an empty cache.
-static
-std::pair<BugReport*, std::unique_ptr<VisitorsDiagnosticsTy>> findValidReport(
-  TrimmedGraph &TrimG,
-  ReportGraph &ErrorGraph,
-  ArrayRef<BugReport *> &bugReports,
-  AnalyzerOptions &Opts,
-  GRBugReporter &Reporter) {
+static std::pair<BugReport *, std::unique_ptr<VisitorsDiagnosticsTy>>
+findValidReport(TrimmedGraph &TrimG, ReportGraph &ErrorGraph,
+                ArrayRef<BugReport *> &bugReports, AnalyzerOptions &Opts,
+                GRBugReporter &Reporter) {
 
   while (TrimG.popNextReportGraph(ErrorGraph)) {
     // Find the BugReport with the original location.
@@ -2696,7 +2697,7 @@ GRBugReporter::generatePathDiagnostics(
   TrimmedGraph TrimG(&getGraph(), errorNodes);
   ReportGraph ErrorGraph;
   auto ReportInfo = findValidReport(TrimG, ErrorGraph, bugReports,
-                  getAnalyzerOptions(), *this);
+                                    getAnalyzerOptions(), *this);
   BugReport *R = ReportInfo.first;
 
   if (R && R->isValid()) {
@@ -2712,16 +2713,14 @@ GRBugReporter::generatePathDiagnostics(
   return Out;
 }
 
-void BugReporter::Register(BugType *BT) {
-  BugTypes = F.add(BugTypes, BT);
-}
+void BugReporter::Register(BugType *BT) { BugTypes = F.add(BugTypes, BT); }
 
 void BugReporter::emitReport(std::unique_ptr<BugReport> R) {
   if (const ExplodedNode *E = R->getErrorNode()) {
     // An error node must either be a sink or have a tag, otherwise
     // it could get reclaimed before the path diagnostic is created.
     assert((E->isSink() || E->getLocation().getTag()) &&
-            "Error node must either be a sink or have a tag");
+           "Error node must either be a sink or have a tag");
 
     const AnalysisDeclContext *DeclCtx =
         E->getLocationContext()->getAnalysisDeclContext();
@@ -2746,10 +2745,10 @@ void BugReporter::emitReport(std::unique_ptr<BugReport> R) {
   R->Profile(ID);
 
   // Lookup the equivance class.  If there isn't one, create it.
-  BugType& BT = R->getBugType();
+  BugType &BT = R->getBugType();
   Register(&BT);
   void *InsertPos;
-  BugReportEquivClass* EQ = EQClasses.FindNodeOrInsertPos(ID, InsertPos);
+  BugReportEquivClass *EQ = EQClasses.FindNodeOrInsertPos(ID, InsertPos);
 
   if (!EQ) {
     EQ = new BugReportEquivClass(std::move(R));
@@ -2782,8 +2781,10 @@ static const CFGBlock *findBlockForNode(const ExplodedNode *N) {
 
   // Find the node's current statement in the CFG.
   if (const Stmt *S = PathDiagnosticLocation::getStmt(N))
-    return N->getLocationContext()->getAnalysisDeclContext()
-                                  ->getCFGStmtMap()->getBlock(S);
+    return N->getLocationContext()
+        ->getAnalysisDeclContext()
+        ->getCFGStmtMap()
+        ->getBlock(S);
 
   return nullptr;
 }
@@ -2860,11 +2861,11 @@ static bool isInevitablySinking(const ExplodedNode *N) {
 }
 
 static BugReport *
-FindReportInEquivalenceClass(BugReportEquivClass& EQ,
-                             SmallVectorImpl<BugReport*> &bugReports) {
+FindReportInEquivalenceClass(BugReportEquivClass &EQ,
+                             SmallVectorImpl<BugReport *> &bugReports) {
   BugReportEquivClass::iterator I = EQ.begin(), E = EQ.end();
   assert(I != E);
-  BugType& BT = I->getBugType();
+  BugType &BT = I->getBugType();
 
   // If we don't need to suppress any of the nodes because they are
   // post-dominated by a sink, simply add all the nodes in the equivalence class
@@ -2896,7 +2897,7 @@ FindReportInEquivalenceClass(BugReportEquivClass& EQ,
       continue;
     if (errorNode->isSink()) {
       llvm_unreachable(
-           "BugType::isSuppressSink() should not be 'true' for sink end nodes");
+          "BugType::isSuppressSink() should not be 'true' for sink end nodes");
     }
     // No successors?  By definition this nodes isn't post-dominated by a sink.
     if (errorNode->succ_empty()) {
@@ -2965,13 +2966,13 @@ FindReportInEquivalenceClass(BugReportEquivClass& EQ,
   return exampleReport;
 }
 
-void BugReporter::FlushReport(BugReportEquivClass& EQ) {
-  SmallVector<BugReport*, 10> bugReports;
+void BugReporter::FlushReport(BugReportEquivClass &EQ) {
+  SmallVector<BugReport *, 10> bugReports;
   BugReport *report = FindReportInEquivalenceClass(EQ, bugReports);
   if (!report)
     return;
 
-  ArrayRef<PathDiagnosticConsumer*> Consumers = getPathDiagnosticConsumers();
+  ArrayRef<PathDiagnosticConsumer *> Consumers = getPathDiagnosticConsumers();
   std::unique_ptr<DiagnosticForConsumerMapTy> Diagnostics =
       generateDiagnosticForConsumerMap(report, Consumers, bugReports);
 
@@ -2984,7 +2985,7 @@ void BugReporter::FlushReport(BugReportEquivClass& EQ) {
     if (PD->path.empty()) {
       PathDiagnosticLocation L = report->getLocation(getSourceManager());
       auto piece = llvm::make_unique<PathDiagnosticEventPiece>(
-        L, report->getDescription());
+          L, report->getDescription());
       for (SourceRange Range : report->getRanges())
         piece->addRange(Range);
       PD->setEndOfPath(std::move(piece));
@@ -2994,19 +2995,19 @@ void BugReporter::FlushReport(BugReportEquivClass& EQ) {
     if (getAnalyzerOptions().ShouldDisplayNotesAsEvents) {
       // For path diagnostic consumers that don't support extra notes,
       // we may optionally convert those to path notes.
-      for (auto I = report->getNotes().rbegin(),
-           E = report->getNotes().rend(); I != E; ++I) {
+      for (auto I = report->getNotes().rbegin(), E = report->getNotes().rend();
+           I != E; ++I) {
         PathDiagnosticNotePiece *Piece = I->get();
         auto ConvertedPiece = std::make_shared<PathDiagnosticEventPiece>(
-          Piece->getLocation(), Piece->getString());
-        for (const auto &R: Piece->getRanges())
+            Piece->getLocation(), Piece->getString());
+        for (const auto &R : Piece->getRanges())
           ConvertedPiece->addRange(R);
 
         Pieces.push_front(std::move(ConvertedPiece));
       }
     } else {
-      for (auto I = report->getNotes().rbegin(),
-           E = report->getNotes().rend(); I != E; ++I)
+      for (auto I = report->getNotes().rbegin(), E = report->getNotes().rend();
+           I != E; ++I)
         Pieces.push_front(*I);
     }
 
@@ -3022,11 +3023,12 @@ void BugReporter::FlushReport(BugReportEquivClass& EQ) {
 
 /// Insert all lines participating in the function signature \p Signature
 /// into \p ExecutedLines.
-static void populateExecutedLinesWithFunctionSignature(
-    const Decl *Signature, SourceManager &SM,
-    FilesToLineNumsMap &ExecutedLines) {
+static void
+populateExecutedLinesWithFunctionSignature(const Decl *Signature,
+                                           SourceManager &SM,
+                                           FilesToLineNumsMap &ExecutedLines) {
   SourceRange SignatureSourceRange;
-  const Stmt* Body = Signature->getBody();
+  const Stmt *Body = Signature->getBody();
   if (const auto FD = dyn_cast<FunctionDecl>(Signature)) {
     SignatureSourceRange = FD->getSourceRange();
   } else if (const auto OD = dyn_cast<ObjCMethodDecl>(Signature)) {
@@ -3035,8 +3037,8 @@ static void populateExecutedLinesWithFunctionSignature(
     return;
   }
   SourceLocation Start = SignatureSourceRange.getBegin();
-  SourceLocation End = Body ? Body->getSourceRange().getBegin()
-    : SignatureSourceRange.getEnd();
+  SourceLocation End =
+      Body ? Body->getSourceRange().getBegin() : SignatureSourceRange.getEnd();
   if (!Start.isValid() || !End.isValid())
     return;
   unsigned StartLine = SM.getExpansionLineNumber(Start);
@@ -3047,9 +3049,8 @@ static void populateExecutedLinesWithFunctionSignature(
     ExecutedLines[FID].insert(Line);
 }
 
-static void populateExecutedLinesWithStmt(
-    const Stmt *S, SourceManager &SM,
-    FilesToLineNumsMap &ExecutedLines) {
+static void populateExecutedLinesWithStmt(const Stmt *S, SourceManager &SM,
+                                          FilesToLineNumsMap &ExecutedLines) {
   SourceLocation Loc = S->getSourceRange().getBegin();
   if (!Loc.isValid())
     return;
@@ -3072,7 +3073,7 @@ findExecutedLines(SourceManager &SM, const ExplodedNode *N) {
       populateExecutedLinesWithFunctionSignature(D, SM, *ExecutedLines);
     } else if (auto CE = N->getLocationAs<CallEnter>()) {
       // Inlined function: show signature.
-      const Decl* D = CE->getCalleeContext()->getDecl();
+      const Decl *D = CE->getCalleeContext()->getDecl();
       populateExecutedLinesWithFunctionSignature(D, SM, *ExecutedLines);
     } else if (const Stmt *S = PathDiagnosticLocation::getStmt(N)) {
       populateExecutedLinesWithStmt(S, SM, *ExecutedLines);
@@ -3105,8 +3106,8 @@ BugReporter::generateDiagnosticForConsumerMap(
   if (!report->isPathSensitive()) {
     auto Out = llvm::make_unique<DiagnosticForConsumerMapTy>();
     for (auto *Consumer : consumers)
-      (*Out)[Consumer] = generateEmptyDiagnosticForReport(report,
-                                                          getSourceManager());
+      (*Out)[Consumer] =
+          generateEmptyDiagnosticForReport(report, getSourceManager());
     return Out;
   }
 
@@ -3117,7 +3118,7 @@ BugReporter::generateDiagnosticForConsumerMap(
   assert(!bugReports.empty());
   MaxBugClassSize.updateMax(bugReports.size());
   std::unique_ptr<DiagnosticForConsumerMapTy> Out =
-    generatePathDiagnostics(consumers, bugReports);
+      generatePathDiagnostics(consumers, bugReports);
 
   if (Out->empty())
     return Out;
@@ -3135,18 +3136,18 @@ BugReporter::generateDiagnosticForConsumerMap(
 }
 
 void BugReporter::EmitBasicReport(const Decl *DeclWithIssue,
-                                  const CheckerBase *Checker,
-                                  StringRef Name, StringRef Category,
-                                  StringRef Str, PathDiagnosticLocation Loc,
+                                  const CheckerBase *Checker, StringRef Name,
+                                  StringRef Category, StringRef Str,
+                                  PathDiagnosticLocation Loc,
                                   ArrayRef<SourceRange> Ranges) {
   EmitBasicReport(DeclWithIssue, Checker->getCheckName(), Name, Category, Str,
                   Loc, Ranges);
 }
 
 void BugReporter::EmitBasicReport(const Decl *DeclWithIssue,
-                                  CheckName CheckName,
-                                  StringRef name, StringRef category,
-                                  StringRef str, PathDiagnosticLocation Loc,
+                                  CheckName CheckName, StringRef name,
+                                  StringRef category, StringRef str,
+                                  PathDiagnosticLocation Loc,
                                   ArrayRef<SourceRange> Ranges) {
   // 'BT' is owned by BugReporter.
   BugType *BT = getBugTypeForName(CheckName, name, category);
@@ -3161,8 +3162,8 @@ void BugReporter::EmitBasicReport(const Decl *DeclWithIssue,
 BugType *BugReporter::getBugTypeForName(CheckName CheckName, StringRef name,
                                         StringRef category) {
   SmallString<136> fullDesc;
-  llvm::raw_svector_ostream(fullDesc) << CheckName.getName() << ":" << name
-                                      << ":" << category;
+  llvm::raw_svector_ostream(fullDesc)
+      << CheckName.getName() << ":" << name << ":" << category;
   BugType *&BT = StrBugTypes[fullDesc];
   if (!BT)
     BT = new BugType(CheckName, name, category);

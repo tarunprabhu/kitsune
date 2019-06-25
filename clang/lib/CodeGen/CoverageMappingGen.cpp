@@ -1122,6 +1122,36 @@ struct CounterCoverageMappingBuilder
       pushRegion(OutCount);
   }
 
+  // Kitsune
+  void VisitCXXForRangeStmt(const CXXForRangeStmt *S) {
+    extendRegion(S);
+    if (S->getInit())
+      Visit(S->getInit());
+    Visit(S->getLoopVarStmt());
+    Visit(S->getRangeStmt());
+
+    Counter ParentCount = getRegion().getCounter();
+    Counter BodyCount = getRegionCounter(S);
+
+    BreakContinueStack.push_back(BreakContinue());
+    extendRegion(S->getBody());
+    Counter BackedgeCount = propagateCounts(BodyCount, S->getBody());
+    BreakContinue BC = BreakContinueStack.pop_back_val();
+
+    // The body count applies to the area immediately after the range.
+    auto Gap = findGapAreaBetween(getPreciseTokenLocEnd(S->getRParenLoc()),
+                                  getStart(S->getBody()));
+    if (Gap)
+      fillGapAreaWithCount(Gap->getBegin(), Gap->getEnd(), BodyCount);
+
+    Counter LoopCount =
+        addCounters(ParentCount, BackedgeCount, BC.ContinueCount);
+    Counter OutCount =
+        addCounters(BC.BreakCount, subtractCounters(LoopCount, BodyCount));
+    if (OutCount != ParentCount)
+      pushRegion(OutCount);
+  }
+
   void VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S) {
     extendRegion(S);
     Visit(S->getElement());

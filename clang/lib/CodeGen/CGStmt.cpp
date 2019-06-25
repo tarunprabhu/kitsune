@@ -204,6 +204,10 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::CXXForRangeStmtClass:
     EmitCXXForRangeStmt(cast<CXXForRangeStmt>(*S), Attrs);
     break;
+  // Kitsune
+  case Stmt::CXXForallRangeStmtClass:
+    EmitCXXForallRangeStmt(cast<CXXForallRangeStmt>(*S), Attrs);
+    break;
   case Stmt::SEHTryStmtClass:
     EmitSEHTryStmt(cast<SEHTryStmt>(*S));
     break;
@@ -1109,6 +1113,85 @@ void CodeGenFunction::EmitCXXForRangeStmt(const CXXForRangeStmt &S,
 
   // Create a block for the increment. In case of a 'continue', we jump there.
   JumpDest Continue = getJumpDestInCurrentScope("for.inc");
+
+  // Store the blocks to use for break and continue.
+  BreakContinueStack.push_back(BreakContinue(LoopExit, Continue));
+
+  {
+    // Create a separate cleanup scope for the loop variable and body.
+    LexicalScope BodyScope(*this, S.getSourceRange());
+    EmitStmt(S.getLoopVarStmt());
+    EmitStmt(S.getBody());
+  }
+
+  EmitStopPoint(&S);
+  // If there is an increment, emit it next.
+  EmitBlock(Continue.getBlock());
+  EmitStmt(S.getInc());
+
+  BreakContinueStack.pop_back();
+
+  EmitBranch(CondBlock);
+
+  ForScope.ForceCleanup();
+
+  LoopStack.pop();
+
+  // Emit the fall-through block.
+  EmitBlock(LoopExit.getBlock(), true);
+}
+
+// Kitsune
+void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
+                                             ArrayRef<const Attr *> ForAttrs) {
+  JumpDest LoopExit = getJumpDestInCurrentScope("forall.end");
+
+  LexicalScope ForScope(*this, S.getSourceRange());
+
+  // Evaluate the first pieces before the loop.
+  if (S.getInit())
+    EmitStmt(S.getInit());
+  EmitStmt(S.getRangeStmt());
+  EmitStmt(S.getBeginStmt());
+  EmitStmt(S.getEndStmt());
+
+  // Start the loop with a block that tests the condition.
+  // If there's an increment, the continue scope will be overwritten
+  // later.
+  llvm::BasicBlock *CondBlock = createBasicBlock("forall.cond");
+  EmitBlock(CondBlock);
+
+  const SourceRange &R = S.getSourceRange();
+  LoopStack.push(CondBlock, CGM.getContext(), ForAttrs,
+                 SourceLocToDebugLoc(R.getBegin()),
+                 SourceLocToDebugLoc(R.getEnd()));
+
+  // If there are any cleanups between here and the loop-exit scope,
+  // create a block to stage a loop exit along.
+  llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
+  if (ForScope.requiresCleanups())
+    ExitBlock = createBasicBlock("forall.cond.cleanup");
+
+  // The loop body, consisting of the specified body and the loop variable.
+  llvm::BasicBlock *ForBody = createBasicBlock("forall.body");
+
+  // The body is executed if the expression, contextually converted
+  // to bool, is true.
+  llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
+  Builder.CreateCondBr(
+      BoolCondVal, ForBody, ExitBlock,
+      createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
+
+  if (ExitBlock != LoopExit.getBlock()) {
+    EmitBlock(ExitBlock);
+    EmitBranchThroughCleanup(LoopExit);
+  }
+
+  EmitBlock(ForBody);
+  incrementProfileCounter(&S);
+
+  // Create a block for the increment. In case of a 'continue', we jump there.
+  JumpDest Continue = getJumpDestInCurrentScope("forall.inc");
 
   // Store the blocks to use for break and continue.
   BreakContinueStack.push_back(BreakContinue(LoopExit, Continue));

@@ -7344,7 +7344,7 @@ TreeTransform<Derived>::TransformCXXForallRangeStmt(CXXForallRangeStmt *S) {
     return S;
 
   // Kitsune
-  return FinishCXXForRangeStmt(NewStmt.get(), Body.get());
+  return FinishCXXForallRangeStmt(NewStmt.get(), Body.get());
 }
 
 template <typename Derived>

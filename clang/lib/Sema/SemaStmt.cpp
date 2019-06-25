@@ -1652,6 +1652,20 @@ public:
       Visit(End);
   }
 
+  // Kitsune
+  void VisitCXXForallRangeStmt(const CXXForallRangeStmt *S) {
+    // Only visit the initialization of a for loop; the body
+    // has a different break/continue scope.
+    if (const Stmt *Init = S->getInit())
+      Visit(Init);
+    if (const Stmt *Range = S->getRangeStmt())
+      Visit(Range);
+    if (const Stmt *Begin = S->getBeginStmt())
+      Visit(Begin);
+    if (const Stmt *End = S->getEndStmt())
+      Visit(End);
+  }
+
   void VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S) {
     // Only visit the initialization of a for loop; the body
     // has a different break/continue scope.
@@ -2271,7 +2285,7 @@ StmtResult Sema::ActOnCXXForallRangeStmt(Scope *S, SourceLocation ForLoc,
 /// Create the initialization, compare, and increment steps for
 /// the range-based for loop expression.
 /// This function does not handle array-based for loops,
-/// which are created in Sema::BuildCXXForRangeStmt.
+/// which are created in Sema::BuildCXXForallRangeStmt.
 ///
 /// \returns a ForRangeStatus indicating success or what kind of error occurred.
 /// BeginExpr and EndExpr are set and FRS_Success is returned on success;
@@ -2437,6 +2451,41 @@ static StmtResult RebuildForRangeWithDereference(
   SemaRef.Diag(RangeLoc, diag::err_for_range_dereference)
       << Range->getType() << FixItHint::CreateInsertion(RangeLoc, "*");
   return SemaRef.ActOnCXXForRangeStmt(
+      S, ForLoc, CoawaitLoc, InitStmt, LoopVarDecl, ColonLoc,
+      AdjustedRange.get(), RParenLoc, Sema::BFRK_Rebuild);
+}
+
+// Kitsune
+/// Speculatively attempt to dereference an invalid range expression.
+/// If the attempt fails, this function will return a valid, null StmtResult
+/// and emit no diagnostics.
+static StmtResult RebuildForallRangeWithDereference(
+    Sema &SemaRef, Scope *S, SourceLocation ForLoc, SourceLocation CoawaitLoc,
+    Stmt *InitStmt, Stmt *LoopVarDecl, SourceLocation ColonLoc, Expr *Range,
+    SourceLocation RangeLoc, SourceLocation RParenLoc) {
+  // Determine whether we can rebuild the forall-range statement with a
+  // dereferenced range expression.
+  ExprResult AdjustedRange;
+  {
+    Sema::SFINAETrap Trap(SemaRef);
+
+    AdjustedRange = SemaRef.BuildUnaryOp(S, RangeLoc, UO_Deref, Range);
+    if (AdjustedRange.isInvalid())
+      return StmtResult();
+
+    StmtResult SR = SemaRef.ActOnCXXForallRangeStmt(
+        S, ForLoc, CoawaitLoc, InitStmt, LoopVarDecl, ColonLoc,
+        AdjustedRange.get(), RParenLoc, Sema::BFRK_Check);
+    if (SR.isInvalid())
+      return StmtResult();
+  }
+
+  // The attempt to dereference worked well enough that it could produce a valid
+  // loop. Produce a fixit, and rebuild the loop with diagnostics enabled, in
+  // case there are any other (non-fatal) problems with it.
+  SemaRef.Diag(RangeLoc, diag::err_forall_range_dereference)
+      << Range->getType() << FixItHint::CreateInsertion(RangeLoc, "*");
+  return SemaRef.ActOnCXXForallRangeStmt(
       S, ForLoc, CoawaitLoc, InitStmt, LoopVarDecl, ColonLoc,
       AdjustedRange.get(), RParenLoc, Sema::BFRK_Rebuild);
 }
@@ -2983,7 +3032,8 @@ StmtResult Sema::BuildCXXForallRangeStmt(
 
         // If building the range failed, try dereferencing the range expression
         // unless a diagnostic was issued or the end function is problematic.
-        StmtResult SR = RebuildForRangeWithDereference(
+        // Kitsune
+        StmtResult SR = RebuildForallRangeWithDereference(
             *this, S, ForLoc, CoawaitLoc, InitStmt, LoopVarDecl, ColonLoc,
             Range, RangeLoc, RParenLoc);
         if (SR.isInvalid() || SR.isUsable())

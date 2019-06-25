@@ -374,6 +374,7 @@ void StmtPrinter::VisitCXXForRangeStmt(CXXForRangeStmt *Node) {
 
 // Kitsune
 void StmtPrinter::VisitCXXForallRangeStmt(CXXForallRangeStmt *Node) {
+  // Kitsune
   Indent() << "forall (";
   if (Node->getInit())
     PrintInitStmt(Node->getInit(), 5);
