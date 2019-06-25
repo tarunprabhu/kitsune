@@ -63,6 +63,8 @@ private:
   const Stmt *findArrayElementMutation(const Expr *Exp);
   const Stmt *findCastMutation(const Expr *Exp);
   const Stmt *findRangeLoopMutation(const Expr *Exp);
+  // Kitsune
+  const Stmt *findForallRangeLoopMutation(const Expr *Exp);
   const Stmt *findReferenceMutation(const Expr *Exp);
   const Stmt *findFunctionArgMutation(const Expr *Exp);
 

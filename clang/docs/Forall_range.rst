@@ -59,6 +59,7 @@ Files changed by type:
 - Analysis
   - Analysis/CFG.cpp
   - Analysis/ExprMutationAnalyzer.cpp
+  - include/clang/Analysis/Analyses/ExprMutationAnalyzer.h
 
 - AST
   - /include/clang/AST/StmtCXX.h

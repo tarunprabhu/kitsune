@@ -15,9 +15,9 @@
 #include "CodeGenFunction.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Lex/Lexer.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ProfileData/Coverage/CoverageMapping.h"
 #include "llvm/ProfileData/Coverage/CoverageMappingReader.h"
 #include "llvm/ProfileData/Coverage/CoverageMappingWriter.h"
@@ -587,11 +587,13 @@ struct CounterCoverageMappingBuilder
             assert(SM.isWrittenInSameFile(NestedLoc, EndLoc));
 
             if (!isRegionAlreadyAdded(NestedLoc, EndLoc))
-              SourceRegions.emplace_back(Region.getCounter(), NestedLoc, EndLoc);
+              SourceRegions.emplace_back(Region.getCounter(), NestedLoc,
+                                         EndLoc);
 
             EndLoc = getPreciseTokenLocEnd(getIncludeOrExpansionLoc(EndLoc));
             if (EndLoc.isInvalid())
-              llvm::report_fatal_error("File exit not handled before popRegions");
+              llvm::report_fatal_error(
+                  "File exit not handled before popRegions");
             EndDepth--;
           }
           if (UnnestStart) {
@@ -601,11 +603,13 @@ struct CounterCoverageMappingBuilder
             assert(SM.isWrittenInSameFile(StartLoc, NestedLoc));
 
             if (!isRegionAlreadyAdded(StartLoc, NestedLoc))
-              SourceRegions.emplace_back(Region.getCounter(), StartLoc, NestedLoc);
+              SourceRegions.emplace_back(Region.getCounter(), StartLoc,
+                                         NestedLoc);
 
             StartLoc = getIncludeOrExpansionLoc(StartLoc);
             if (StartLoc.isInvalid())
-              llvm::report_fatal_error("File exit not handled before popRegions");
+              llvm::report_fatal_error(
+                  "File exit not handled before popRegions");
             StartDepth--;
           }
         }
@@ -1123,7 +1127,7 @@ struct CounterCoverageMappingBuilder
   }
 
   // Kitsune
-  void VisitCXXForRangeStmt(const CXXForRangeStmt *S) {
+  void VisitCXXForallRangeStmt(const CXXForallRangeStmt *S) {
     extendRegion(S);
     if (S->getInit())
       Visit(S->getInit());
@@ -1403,16 +1407,16 @@ void CoverageMappingModuleGen::addFunctionMappingRecord(
   if (!FunctionRecordTy) {
 #define COVMAP_FUNC_RECORD(Type, LLVMType, Name, Init) LLVMType,
     llvm::Type *FunctionRecordTypes[] = {
-      #include "llvm/ProfileData/InstrProfData.inc"
+#include "llvm/ProfileData/InstrProfData.inc"
     };
     FunctionRecordTy =
         llvm::StructType::get(Ctx, makeArrayRef(FunctionRecordTypes),
                               /*isPacked=*/true);
   }
 
-  #define COVMAP_FUNC_RECORD(Type, LLVMType, Name, Init) Init,
+#define COVMAP_FUNC_RECORD(Type, LLVMType, Name, Init) Init,
   llvm::Constant *FunctionRecordVals[] = {
-      #include "llvm/ProfileData/InstrProfData.inc"
+#include "llvm/ProfileData/InstrProfData.inc"
   };
   FunctionRecords.push_back(llvm::ConstantStruct::get(
       FunctionRecordTy, makeArrayRef(FunctionRecordVals)));
