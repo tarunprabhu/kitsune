@@ -93,11 +93,7 @@ public:
     WhileStmt,
     DoStmt,
     ForStmt,
-    // Kitsune
-    ForallStmt,
     CXXForRangeStmt,
-    // Kitsune
-    CXXForallRangeStmt,
     ObjCForCollectionStmt,
     SwitchStmt,
     CaseStmt,
@@ -128,6 +124,11 @@ public:
     BinaryOperatorEQ,
     BinaryOperatorNE,
     // The preceding values are available with PGO_HASH_V2.
+
+    // Kitsune
+    ForallStmt,
+    // Kitsune
+    CXXForallRangeStmt,
 
     // Keep this last.  It's for the static assert that follows.
     LastHashType
@@ -666,7 +667,7 @@ struct ComputeRegionCounts : public ConstStmtVisitor<ComputeRegionCounts> {
     setCount(BC.BreakCount + CondCount - BodyCount);
     RecordNextStmtCount = true;
   }
-
+  
   void VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S) {
     RecordStmtCount(S);
     Visit(S->getElement());
