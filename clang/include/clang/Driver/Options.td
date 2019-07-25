@@ -3245,12 +3245,29 @@ def fopenmp : Flag<["-"], "fopenmp">, Group<f_Group>,
   Flags<[NoArgumentUnused]>,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   HelpText<"Parse OpenMP pragmas and generate parallel code.">;
+
+// kitsune: Tapir, Kokkos and FleCSI support.
+def ftapir : Joined<["-"], "ftapir=">, Group<f_Group>,
+  Flags<[NoArgumentUnused]>,
+  HelpText<"Choose the backend for Tapir instructions (i.e., parallel runtime)">,
+  Values<"cilk,openmp,qthreads,serial,none">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>;
+def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>, 
+  Flags<[NoArgumentUnused]>, 
+  HelpText<"Enable Kokkos extensions: recognition and code generation">,
+  Visibility<[ClangOption, CC1Option]>;
+def fflecsi : Flag<["-"], "fflecsi">, Group<f_Group>, 
+  Flags<[NoArgumentUnused]>, 
+  HelpText<"Enable FleCSI extensions: recognition and code generation">,
+  Visibility<[ClangOption, CC1Option]>; 
+
 def fno_openmp : Flag<["-"], "fno-openmp">, Group<f_Group>,
   Flags<[NoArgumentUnused]>;
 def fopenmp_version_EQ : Joined<["-"], "fopenmp-version=">, Group<f_Group>,
   Flags<[NoArgumentUnused]>,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   HelpText<"Set OpenMP version (e.g. 45 for OpenMP 4.5, 51 for OpenMP 5.1). Default value is 51 for Clang">;
+
 defm openmp_extensions: BoolFOption<"openmp-extensions",
   LangOpts<"OpenMPExtensions">, DefaultTrue,
   PosFlag<SetTrue, [NoArgumentUnused], [ClangOption, CC1Option],
