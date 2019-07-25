@@ -389,6 +389,25 @@ static bool isIdenticalStmt(const ASTContext &Ctx, const Stmt *Stmt1,
       return false;
     return true;
   }
+  // Kitsune
+  case Stmt::ForallStmtClass: {
+    const ForallStmt *ForStmt1 = cast<ForallStmt>(Stmt1);
+    const ForallStmt *ForStmt2 = cast<ForallStmt>(Stmt2);
+
+    if (!isIdenticalStmt(Ctx, ForStmt1->getInit(), ForStmt2->getInit(),
+                         IgnoreSideEffects))
+      return false;
+    if (!isIdenticalStmt(Ctx, ForStmt1->getCond(), ForStmt2->getCond(),
+                         IgnoreSideEffects))
+      return false;
+    if (!isIdenticalStmt(Ctx, ForStmt1->getInc(), ForStmt2->getInc(),
+                         IgnoreSideEffects))
+      return false;
+    if (!isIdenticalStmt(Ctx, ForStmt1->getBody(), ForStmt2->getBody(),
+                         IgnoreSideEffects))
+      return false;
+    return true;
+  }
   case Stmt::DoStmtClass: {
     const DoStmt *DStmt1 = cast<DoStmt>(Stmt1);
     const DoStmt *DStmt2 = cast<DoStmt>(Stmt2);

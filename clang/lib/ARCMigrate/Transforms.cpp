@@ -283,6 +283,14 @@ public:
     return true;
   }
 
+  // Kitsune
+  bool VisitForallStmt(ForallStmt *S) {
+    mark(S->getInit());
+    mark(S->getInc());
+    mark(S->getBody());
+    return true;
+  }
+
 private:
   void mark(Stmt *S) {
     if (!S) return;

@@ -56,6 +56,8 @@ class ASTContext;
 class BlockDecl;
 class CXXDestructorDecl;
 class CXXForRangeStmt;
+// Kitsune
+class CXXForallRangeStmt;
 class CXXTryStmt;
 class Decl;
 class LabelDecl;
@@ -2957,6 +2959,9 @@ public:
   void EmitDoStmt(const DoStmt &S, ArrayRef<const Attr *> Attrs = None);
   void EmitForStmt(const ForStmt &S,
                    ArrayRef<const Attr *> Attrs = None);
+  // Kitsune
+  void EmitForallStmt(const ForallStmt &S,
+                   ArrayRef<const Attr *> Attrs = None);
   void EmitReturnStmt(const ReturnStmt &S);
   void EmitDeclStmt(const DeclStmt &S);
   void EmitBreakStmt(const BreakStmt &S);
@@ -3034,6 +3039,10 @@ public:
                                     llvm::Value *ParentFP);
 
   void EmitCXXForRangeStmt(const CXXForRangeStmt &S,
+                           ArrayRef<const Attr *> Attrs = None);
+
+  // Kitsune
+  void EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
                            ArrayRef<const Attr *> Attrs = None);
 
   /// Controls insertion of cancellation exit blocks in worksharing constructs.

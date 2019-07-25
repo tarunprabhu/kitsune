@@ -184,6 +184,9 @@ bool ParentMap::isConsumedExpr(Expr* E) const {
     }
     case Stmt::ForStmtClass:
       return DirectChild == cast<ForStmt>(P)->getCond();
+    // Kitsune
+    case Stmt::ForallStmtClass:
+      return DirectChild == cast<ForallStmt>(P)->getCond();
     case Stmt::WhileStmtClass:
       return DirectChild == cast<WhileStmt>(P)->getCond();
     case Stmt::DoStmtClass:

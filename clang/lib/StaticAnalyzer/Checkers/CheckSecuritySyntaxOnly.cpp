@@ -83,6 +83,8 @@ public:
   // Statement visitor methods.
   void VisitCallExpr(CallExpr *CE);
   void VisitForStmt(ForStmt *S);
+  // Kitsune
+  void VisitForallStmt(ForallStmt *S);
   void VisitCompoundStmt (CompoundStmt *S);
   void VisitStmt(Stmt *S) { VisitChildren(S); }
 
@@ -95,6 +97,8 @@ public:
 
   // Checker-specific methods.
   void checkLoopConditionForFloat(const ForStmt *FS);
+  // Kitsune
+  void checkLoopConditionForFloat(const ForallStmt *FS);
   void checkCall_bcmp(const CallExpr *CE, const FunctionDecl *FD);
   void checkCall_bcopy(const CallExpr *CE, const FunctionDecl *FD);
   void checkCall_bzero(const CallExpr *CE, const FunctionDecl *FD);
@@ -187,6 +191,14 @@ void WalkAST::VisitForStmt(ForStmt *FS) {
   VisitChildren(FS);
 }
 
+// Kitsune
+void WalkAST::VisitForallStmt(ForallStmt *FS) {
+  checkLoopConditionForFloat(FS);
+
+  // Recurse and check children.
+  VisitChildren(FS);
+}
+
 //===----------------------------------------------------------------------===//
 // Check: floating point variable used as loop counter.
 // Originally: <rdar://problem/6336718>
@@ -228,6 +240,91 @@ getIncrementedVar(const Expr *expr, const VarDecl *x, const VarDecl *y) {
 ///  CERT: FLP30-C, FLP30-CPP.
 ///
 void WalkAST::checkLoopConditionForFloat(const ForStmt *FS) {
+  if (!filter.check_FloatLoopCounter)
+    return;
+
+  // Does the loop have a condition?
+  const Expr *condition = FS->getCond();
+
+  if (!condition)
+    return;
+
+  // Does the loop have an increment?
+  const Expr *increment = FS->getInc();
+
+  if (!increment)
+    return;
+
+  // Strip away '()' and casts.
+  condition = condition->IgnoreParenCasts();
+  increment = increment->IgnoreParenCasts();
+
+  // Is the loop condition a comparison?
+  const BinaryOperator *B = dyn_cast<BinaryOperator>(condition);
+
+  if (!B)
+    return;
+
+  // Is this a comparison?
+  if (!(B->isRelationalOp() || B->isEqualityOp()))
+    return;
+
+  // Are we comparing variables?
+  const DeclRefExpr *drLHS =
+    dyn_cast<DeclRefExpr>(B->getLHS()->IgnoreParenLValueCasts());
+  const DeclRefExpr *drRHS =
+    dyn_cast<DeclRefExpr>(B->getRHS()->IgnoreParenLValueCasts());
+
+  // Does at least one of the variables have a floating point type?
+  drLHS = drLHS && drLHS->getType()->isRealFloatingType() ? drLHS : nullptr;
+  drRHS = drRHS && drRHS->getType()->isRealFloatingType() ? drRHS : nullptr;
+
+  if (!drLHS && !drRHS)
+    return;
+
+  const VarDecl *vdLHS = drLHS ? dyn_cast<VarDecl>(drLHS->getDecl()) : nullptr;
+  const VarDecl *vdRHS = drRHS ? dyn_cast<VarDecl>(drRHS->getDecl()) : nullptr;
+
+  if (!vdLHS && !vdRHS)
+    return;
+
+  // Does either variable appear in increment?
+  const DeclRefExpr *drInc = getIncrementedVar(increment, vdLHS, vdRHS);
+
+  if (!drInc)
+    return;
+
+  // Emit the error.  First figure out which DeclRefExpr in the condition
+  // referenced the compared variable.
+  assert(drInc->getDecl());
+  const DeclRefExpr *drCond = vdLHS == drInc->getDecl() ? drLHS : drRHS;
+
+  SmallVector<SourceRange, 2> ranges;
+  SmallString<256> sbuf;
+  llvm::raw_svector_ostream os(sbuf);
+
+  os << "Variable '" << drCond->getDecl()->getName()
+     << "' with floating point type '" << drCond->getType().getAsString()
+     << "' should not be used as a loop counter";
+
+  ranges.push_back(drCond->getSourceRange());
+  ranges.push_back(drInc->getSourceRange());
+
+  const char *bugType = "Floating point variable used as loop counter";
+
+  PathDiagnosticLocation FSLoc =
+    PathDiagnosticLocation::createBegin(FS, BR.getSourceManager(), AC);
+  BR.EmitBasicReport(AC->getDecl(), filter.checkName_FloatLoopCounter,
+                     bugType, "Security", os.str(),
+                     FSLoc, ranges);
+}
+
+// Kitsune
+/// CheckLoopConditionForFloat - This check looks for 'forall' statements that
+///  use a floating point variable as a loop counter.
+///  CERT: FLP30-C, FLP30-CPP.
+///
+void WalkAST::checkLoopConditionForFloat(const ForallStmt *FS) {
   if (!filter.check_FloatLoopCounter)
     return;
 

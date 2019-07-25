@@ -13,11 +13,11 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "clang/ASTMatchers/ASTMatchers.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/LoopUnrolling.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/LoopUnrolling.h"
 
 using namespace clang;
 using namespace ento;
@@ -70,7 +70,8 @@ namespace clang {
 namespace ento {
 
 static bool isLoopStmt(const Stmt *S) {
-  return S && (isa<ForStmt>(S) || isa<WhileStmt>(S) || isa<DoStmt>(S));
+  return S && (isa<ForStmt>(S) || isa<ForallStmt>(S) || isa<WhileStmt>(S) || // Kitsune
+               isa<DoStmt>(S)); 
 }
 
 ProgramStateRef processLoopEnd(const Stmt *LoopStmt, ProgramStateRef State) {
@@ -157,7 +158,33 @@ static internal::Matcher<Stmt> forLoopMatcher() {
                  hasUnaryOperand(declRefExpr(
                      to(varDecl(allOf(equalsBoundNode("initVarName"),
                                       hasType(isInteger())))))))),
-             unless(hasBody(hasSuspiciousStmt("initVarName")))).bind("forLoop");
+             unless(hasBody(hasSuspiciousStmt("initVarName"))))
+      .bind("forLoop");
+}
+
+// Kitsune
+static internal::Matcher<Stmt> forallLoopMatcher() {
+  return forallStmt(
+             hasCondition(simpleCondition("initVarName")),
+             // Initialization should match the form: 'int i = 6' or 'i = 42'.
+             hasForallLoopInit(
+                 anyOf(declStmt(hasSingleDecl(
+                           varDecl(allOf(hasInitializer(ignoringParenImpCasts(
+                                             integerLiteral().bind("initNum"))),
+                                         equalsBoundNode("initVarName"))))),
+                       binaryOperator(hasLHS(declRefExpr(to(varDecl(
+                                          equalsBoundNode("initVarName"))))),
+                                      hasRHS(ignoringParenImpCasts(
+                                          integerLiteral().bind("initNum")))))),
+             // Incrementation should be a simple increment or decrement
+             // operator call.
+             hasForallIncrement(unaryOperator(
+                 anyOf(hasOperatorName("++"), hasOperatorName("--")),
+                 hasUnaryOperand(declRefExpr(
+                     to(varDecl(allOf(equalsBoundNode("initVarName"),
+                                      hasType(isInteger())))))))),
+             unless(hasBody(hasSuspiciousStmt("initVarName"))))
+      .bind("forallLoop");
 }
 
 static bool isPossiblyEscaped(const VarDecl *VD, ExplodedNode *N) {
@@ -203,28 +230,57 @@ bool shouldCompletelyUnroll(const Stmt *LoopStmt, ASTContext &ASTCtx,
 
   // TODO: Match the cases where the bound is not a concrete literal but an
   // integer with known value
-  auto Matches = match(forLoopMatcher(), *LoopStmt, ASTCtx);
-  if (Matches.empty())
-    return false;
 
-  auto CounterVar = Matches[0].getNodeAs<VarDecl>("initVarName");
-  llvm::APInt BoundNum =
-      Matches[0].getNodeAs<IntegerLiteral>("boundNum")->getValue();
-  llvm::APInt InitNum =
-      Matches[0].getNodeAs<IntegerLiteral>("initNum")->getValue();
-  auto CondOp = Matches[0].getNodeAs<BinaryOperator>("conditionOperator");
-  if (InitNum.getBitWidth() != BoundNum.getBitWidth()) {
-    InitNum = InitNum.zextOrSelf(BoundNum.getBitWidth());
-    BoundNum = BoundNum.zextOrSelf(InitNum.getBitWidth());
+  // Kitsune
+  // had to change the logic a bit
+  auto MatchesForLoop = match(forLoopMatcher(), *LoopStmt, ASTCtx);
+
+  if (!MatchesForLoop.empty()) {
+    auto CounterVar = MatchesForLoop[0].getNodeAs<VarDecl>("initVarName");
+    llvm::APInt BoundNum =
+        MatchesForLoop[0].getNodeAs<IntegerLiteral>("boundNum")->getValue();
+    llvm::APInt InitNum =
+        MatchesForLoop[0].getNodeAs<IntegerLiteral>("initNum")->getValue();
+    auto CondOp = MatchesForLoop[0].getNodeAs<BinaryOperator>("conditionOperator");
+    if (InitNum.getBitWidth() != BoundNum.getBitWidth()) {
+      InitNum = InitNum.zextOrSelf(BoundNum.getBitWidth());
+      BoundNum = BoundNum.zextOrSelf(InitNum.getBitWidth());
+    }
+
+    if (CondOp->getOpcode() == BO_GE || CondOp->getOpcode() == BO_LE)
+      maxStep = (BoundNum - InitNum + 1).abs().getZExtValue();
+    else
+      maxStep = (BoundNum - InitNum).abs().getZExtValue();
+
+    // Check if the counter of the loop is not escaped before.
+    return !isPossiblyEscaped(CounterVar->getCanonicalDecl(), Pred);
   }
 
-  if (CondOp->getOpcode() == BO_GE || CondOp->getOpcode() == BO_LE)
-    maxStep = (BoundNum - InitNum + 1).abs().getZExtValue();
-  else
-    maxStep = (BoundNum - InitNum).abs().getZExtValue();
+  // Kitsune
+  auto MatchesForallLoop = match(forallLoopMatcher(), *LoopStmt, ASTCtx);
 
-  // Check if the counter of the loop is not escaped before.
-  return !isPossiblyEscaped(CounterVar->getCanonicalDecl(), Pred);
+  if (!MatchesForallLoop.empty()) {
+    auto CounterVar = MatchesForallLoop[0].getNodeAs<VarDecl>("initVarName");
+    llvm::APInt BoundNum =
+        MatchesForallLoop[0].getNodeAs<IntegerLiteral>("boundNum")->getValue();
+    llvm::APInt InitNum =
+        MatchesForallLoop[0].getNodeAs<IntegerLiteral>("initNum")->getValue();
+    auto CondOp = MatchesForallLoop[0].getNodeAs<BinaryOperator>("conditionOperator");
+    if (InitNum.getBitWidth() != BoundNum.getBitWidth()) {
+      InitNum = InitNum.zextOrSelf(BoundNum.getBitWidth());
+      BoundNum = BoundNum.zextOrSelf(InitNum.getBitWidth());
+    }
+
+    if (CondOp->getOpcode() == BO_GE || CondOp->getOpcode() == BO_LE)
+      maxStep = (BoundNum - InitNum + 1).abs().getZExtValue();
+    else
+      maxStep = (BoundNum - InitNum).abs().getZExtValue();
+
+    // Check if the counter of the loop is not escaped before.
+    return !isPossiblyEscaped(CounterVar->getCanonicalDecl(), Pred);
+  }
+
+  return false;
 }
 
 bool madeNewBranch(ExplodedNode *N, const Stmt *LoopStmt) {
@@ -290,5 +346,5 @@ bool isUnrolledState(ProgramStateRef State) {
     return false;
   return true;
 }
-}
-}
+} // namespace ento
+} // namespace clang

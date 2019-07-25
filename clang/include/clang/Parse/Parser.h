@@ -1900,6 +1900,8 @@ private:
   StmtResult ParseWhileStatement(SourceLocation *TrailingElseLoc);
   StmtResult ParseDoStatement();
   StmtResult ParseForStatement(SourceLocation *TrailingElseLoc);
+  // Kitsune
+  StmtResult ParseForallStatement(SourceLocation *TrailingElseLoc);
   StmtResult ParseGotoStatement();
   StmtResult ParseContinueStatement();
   StmtResult ParseBreakStatement();

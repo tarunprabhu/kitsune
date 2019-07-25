@@ -1874,7 +1874,11 @@ CheckConstexprFunctionStmt(Sema &SemaRef, const FunctionDecl *Dcl, Stmt *S,
   case Stmt::WhileStmtClass:
   case Stmt::DoStmtClass:
   case Stmt::ForStmtClass:
+  // Kitsune
+  case Stmt::ForallStmtClass:
   case Stmt::CXXForRangeStmtClass:
+  // Kitsune
+  case Stmt::CXXForallRangeStmtClass:
   case Stmt::ContinueStmtClass:
     // C++1y allows all of these. We don't allow them as extensions in C++11,
     // because they don't make sense without variable mutation.
@@ -11770,6 +11774,7 @@ buildSingleCopyAssignRecursively(Sema &S, SourceLocation Loc, QualType T,
                     VK_LValue, OK_Ordinary, Loc, Upper.isMaxValue());
 
   // Construct the loop that copies all elements of this array.
+  // Kitsune check (leave alone since internally generated for statement)
   return S.ActOnForStmt(
       Loc, Loc, InitStmt,
       S.ActOnCondition(nullptr, Loc, Comparison, Sema::ConditionKind::Boolean),

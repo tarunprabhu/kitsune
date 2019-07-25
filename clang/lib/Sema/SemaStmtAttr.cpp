@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Sema/SemaInternal.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Sema/DelayedDiagnostic.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/ScopeInfo.h"
+#include "clang/Sema/SemaInternal.h"
 #include "llvm/ADT/StringExtras.h"
 
 using namespace clang;
@@ -44,8 +44,7 @@ static Attr *handleFallThroughAttr(Sema &S, Stmt *St, const ParsedAttr &A,
 
   // If this is spelled as the standard C++17 attribute, but not in C++17, warn
   // about using it as an extension.
-  if (!S.getLangOpts().CPlusPlus17 && A.isCXX11Attribute() &&
-      !A.getScopeName())
+  if (!S.getLangOpts().CPlusPlus17 && A.isCXX11Attribute() && !A.getScopeName())
     S.Diag(A.getLoc(), diag::ext_cxx17_attr) << A.getName();
 
   FnScope->setHasFallthroughStmt();
@@ -90,7 +89,11 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
       PragmaNameLoc->Ident->getName() == "nounroll_and_jam";
   if (St->getStmtClass() != Stmt::DoStmtClass &&
       St->getStmtClass() != Stmt::ForStmtClass &&
+      // Kitsune
+      St->getStmtClass() != Stmt::ForallStmtClass &&
       St->getStmtClass() != Stmt::CXXForRangeStmtClass &&
+      // Kitsune
+      St->getStmtClass() != Stmt::CXXForallRangeStmtClass &&
       St->getStmtClass() != Stmt::WhileStmtClass) {
     const char *Pragma =
         llvm::StringSwitch<const char *>(PragmaNameLoc->Ident->getName())
@@ -355,7 +358,7 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
 StmtResult Sema::ProcessStmtAttributes(Stmt *S,
                                        const ParsedAttributesView &AttrList,
                                        SourceRange Range) {
-  SmallVector<const Attr*, 8> Attrs;
+  SmallVector<const Attr *, 8> Attrs;
   for (const ParsedAttr &AL : AttrList) {
     if (Attr *a = ProcessStmtAttribute(*this, S, AL, Range))
       Attrs.push_back(a);

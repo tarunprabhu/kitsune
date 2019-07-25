@@ -39,7 +39,8 @@ void CodeGenPGO::setFuncName(StringRef Name,
 
   // If we're generating a profile, create a variable for the name.
   if (CGM.getCodeGenOpts().hasProfileClangInstr())
-    FuncNameVar = llvm::createPGOFuncNameVar(CGM.getModule(), Linkage, FuncName);
+    FuncNameVar =
+        llvm::createPGOFuncNameVar(CGM.getModule(), Linkage, FuncName);
 }
 
 void CodeGenPGO::setFuncName(llvm::Function *Fn) {
@@ -123,6 +124,11 @@ public:
     BinaryOperatorEQ,
     BinaryOperatorNE,
     // The preceding values are available with PGO_HASH_V2.
+
+    // Kitsune
+    ForallStmt,
+    // Kitsune
+    CXXForallRangeStmt,
 
     // Keep this last.  It's for the static assert that follows.
     LastHashType
@@ -244,7 +250,11 @@ struct MapRegionCounters : public RecursiveASTVisitor<MapRegionCounters> {
   DEFINE_NESTABLE_TRAVERSAL(WhileStmt)
   DEFINE_NESTABLE_TRAVERSAL(DoStmt)
   DEFINE_NESTABLE_TRAVERSAL(ForStmt)
+  // Kitsune
+  DEFINE_NESTABLE_TRAVERSAL(ForallStmt)
   DEFINE_NESTABLE_TRAVERSAL(CXXForRangeStmt)
+  // Kitsune
+  DEFINE_NESTABLE_TRAVERSAL(CXXForallRangeStmt)
   DEFINE_NESTABLE_TRAVERSAL(ObjCForCollectionStmt)
   DEFINE_NESTABLE_TRAVERSAL(CXXTryStmt)
   DEFINE_NESTABLE_TRAVERSAL(CXXCatchStmt)
@@ -262,8 +272,14 @@ struct MapRegionCounters : public RecursiveASTVisitor<MapRegionCounters> {
       return PGOHash::DoStmt;
     case Stmt::ForStmtClass:
       return PGOHash::ForStmt;
+    // Kitsune
+    case Stmt::ForallStmtClass:
+      return PGOHash::ForallStmt;
     case Stmt::CXXForRangeStmtClass:
       return PGOHash::CXXForRangeStmt;
+    // Kitsune
+    case Stmt::CXXForallRangeStmtClass:
+      return PGOHash::CXXForallRangeStmt;
     case Stmt::ObjCForCollectionStmtClass:
       return PGOHash::ObjCForCollectionStmt;
     case Stmt::SwitchStmtClass:
@@ -547,6 +563,42 @@ struct ComputeRegionCounts : public ConstStmtVisitor<ComputeRegionCounts> {
     RecordNextStmtCount = true;
   }
 
+  // Kitsune
+  void VisitForallStmt(const ForallStmt *S) {
+    RecordStmtCount(S);
+    if (S->getInit())
+      Visit(S->getInit());
+
+    uint64_t ParentCount = CurrentCount;
+
+    BreakContinueStack.push_back(BreakContinue());
+    // Visit the body region first. (This is basically the same as a while
+    // loop; see further comments in VisitWhileStmt.)
+    uint64_t BodyCount = setCount(PGO.getRegionCount(S));
+    CountMap[S->getBody()] = BodyCount;
+    Visit(S->getBody());
+    uint64_t BackedgeCount = CurrentCount;
+    BreakContinue BC = BreakContinueStack.pop_back_val();
+
+    // The increment is essentially part of the body but it needs to include
+    // the count for all the continue statements.
+    if (S->getInc()) {
+      uint64_t IncCount = setCount(BackedgeCount + BC.ContinueCount);
+      CountMap[S->getInc()] = IncCount;
+      Visit(S->getInc());
+    }
+
+    // ...then go back and propagate counts through the condition.
+    uint64_t CondCount =
+        setCount(ParentCount + BackedgeCount + BC.ContinueCount);
+    if (S->getCond()) {
+      CountMap[S->getCond()] = CondCount;
+      Visit(S->getCond());
+    }
+    setCount(BC.BreakCount + CondCount - BodyCount);
+    RecordNextStmtCount = true;
+  }
+
   void VisitCXXForRangeStmt(const CXXForRangeStmt *S) {
     RecordStmtCount(S);
     if (S->getInit())
@@ -581,6 +633,41 @@ struct ComputeRegionCounts : public ConstStmtVisitor<ComputeRegionCounts> {
     RecordNextStmtCount = true;
   }
 
+  // Kitsune
+  void VisitCXXForallRangeStmt(const CXXForallRangeStmt *S) {
+    RecordStmtCount(S);
+    if (S->getInit())
+      Visit(S->getInit());
+    Visit(S->getLoopVarStmt());
+    Visit(S->getRangeStmt());
+    Visit(S->getBeginStmt());
+    Visit(S->getEndStmt());
+
+    uint64_t ParentCount = CurrentCount;
+    BreakContinueStack.push_back(BreakContinue());
+    // Visit the body region first. (This is basically the same as a while
+    // loop; see further comments in VisitWhileStmt.)
+    uint64_t BodyCount = setCount(PGO.getRegionCount(S));
+    CountMap[S->getBody()] = BodyCount;
+    Visit(S->getBody());
+    uint64_t BackedgeCount = CurrentCount;
+    BreakContinue BC = BreakContinueStack.pop_back_val();
+
+    // The increment is essentially part of the body but it needs to include
+    // the count for all the continue statements.
+    uint64_t IncCount = setCount(BackedgeCount + BC.ContinueCount);
+    CountMap[S->getInc()] = IncCount;
+    Visit(S->getInc());
+
+    // ...then go back and propagate counts through the condition.
+    uint64_t CondCount =
+        setCount(ParentCount + BackedgeCount + BC.ContinueCount);
+    CountMap[S->getCond()] = CondCount;
+    Visit(S->getCond());
+    setCount(BC.BreakCount + CondCount - BodyCount);
+    RecordNextStmtCount = true;
+  }
+  
   void VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S) {
     RecordStmtCount(S);
     Visit(S->getElement());
@@ -845,9 +932,8 @@ void CodeGenPGO::emitCounterRegionMapping(const Decl *D) {
       FuncNameVar, FuncName, FunctionHash, CoverageMapping);
 }
 
-void
-CodeGenPGO::emitEmptyCounterMapping(const Decl *D, StringRef Name,
-                                    llvm::GlobalValue::LinkageTypes Linkage) {
+void CodeGenPGO::emitEmptyCounterMapping(
+    const Decl *D, StringRef Name, llvm::GlobalValue::LinkageTypes Linkage) {
   if (skipRegionMappingForDecl(D))
     return;
 
@@ -880,9 +966,8 @@ void CodeGenPGO::computeRegionCounts(const Decl *D) {
     Walker.VisitCapturedDecl(const_cast<CapturedDecl *>(CD));
 }
 
-void
-CodeGenPGO::applyFunctionAttributes(llvm::IndexedInstrProfReader *PGOReader,
-                                    llvm::Function *Fn) {
+void CodeGenPGO::applyFunctionAttributes(
+    llvm::IndexedInstrProfReader *PGOReader, llvm::Function *Fn) {
   if (!haveRegionCounts())
     return;
 
@@ -916,7 +1001,8 @@ void CodeGenPGO::emitCounterIncrement(CGBuilderTy &Builder, const Stmt *S,
 // This method either inserts a call to the profile run-time during
 // instrumentation or puts profile data into metadata for PGO use.
 void CodeGenPGO::valueProfile(CGBuilderTy &Builder, uint32_t ValueKind,
-    llvm::Instruction *ValueSite, llvm::Value *ValuePtr) {
+                              llvm::Instruction *ValueSite,
+                              llvm::Value *ValuePtr) {
 
   if (!EnableValueProfiling)
     return;
@@ -936,8 +1022,7 @@ void CodeGenPGO::valueProfile(CGBuilderTy &Builder, uint32_t ValueKind,
         Builder.getInt64(FunctionHash),
         Builder.CreatePtrToInt(ValuePtr, Builder.getInt64Ty()),
         Builder.getInt32(ValueKind),
-        Builder.getInt32(NumValueSites[ValueKind]++)
-    };
+        Builder.getInt32(NumValueSites[ValueKind]++)};
     Builder.CreateCall(
         CGM.getIntrinsic(llvm::Intrinsic::instrprof_value_profile), Args);
     Builder.restoreIP(BuilderInsertPoint);
