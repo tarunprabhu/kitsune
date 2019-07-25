@@ -41,6 +41,8 @@
 #include "llvm/Transforms/Scalar/InstSimplifyPass.h"
 #include "llvm/Transforms/Scalar/SimpleLoopUnswitch.h"
 #include "llvm/Transforms/Utils.h"
+#include "llvm/Transforms/Tapir.h"
+#include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 #include "llvm/Transforms/Vectorize.h"
 
 using namespace llvm;
@@ -99,6 +101,10 @@ static cl::opt<bool> EnableLoopInterchange(
 static cl::opt<bool> EnableUnrollAndJam("enable-unroll-and-jam",
                                         cl::init(false), cl::Hidden,
                                         cl::desc("Enable Unroll And Jam Pass"));
+
+static cl::opt<bool> EnableLoopFuse(
+    "enable-loop-fuse", cl::init(false), cl::Hidden,
+    cl::desc("Enable the new, experimental LoopFusion Pass"));
 
 static cl::opt<bool>
     EnablePrepareForThinLTO("prepare-for-thinlto", cl::init(false), cl::Hidden,
@@ -161,6 +167,9 @@ static cl::opt<bool>
               cl::desc("Enable control height reduction optimization (CHR)"));
 
 PassManagerBuilder::PassManagerBuilder() {
+    tapirTarget = nullptr;
+    DisableTapirOpts = false;
+    Rhino = false;
     OptLevel = 2;
     SizeLevel = 0;
     LibraryInfo = nullptr;
@@ -267,7 +276,7 @@ void PassManagerBuilder::populateFunctionPassManager(
 
   FPM.add(createCFGSimplificationPass());
   FPM.add(createSROAPass());
-  FPM.add(createEarlyCSEPass());
+  FPM.add(createEarlyCSEPass(false, Rhino));
   FPM.add(createLowerExpectIntrinsicPass());
 }
 
@@ -291,7 +300,7 @@ void PassManagerBuilder::addPGOInstrPasses(legacy::PassManagerBase &MPM) {
 
     MPM.add(createFunctionInliningPass(IP));
     MPM.add(createSROAPass());
-    MPM.add(createEarlyCSEPass());             // Catch trivial redundancies
+    MPM.add(createEarlyCSEPass(false, Rhino)); // Catch trivial redundancies
     MPM.add(createCFGSimplificationPass());    // Merge & remove BBs
     MPM.add(createInstructionCombiningPass()); // Combine silly seq's
     addExtensionsToPM(EP_Peephole, MPM);
@@ -320,7 +329,7 @@ void PassManagerBuilder::addFunctionSimplificationPasses(
   // Start of function pass.
   // Break up aggregate allocas, using SSAUpdater.
   MPM.add(createSROAPass());
-  MPM.add(createEarlyCSEPass(EnableEarlyCSEMemSSA)); // Catch trivial redundancies
+  MPM.add(createEarlyCSEPass(EnableEarlyCSEMemSSA, Rhino)); // Catch trivial redundancies
   if (EnableGVNHoist)
     MPM.add(createGVNHoistPass());
   if (EnableGVNSink) {
@@ -423,6 +432,7 @@ void PassManagerBuilder::addFunctionSimplificationPasses(
     MPM.add(createControlHeightReductionLegacyPass());
 }
 
+// void PassManagerBuilder::prepopulateModulePassManager(
 void PassManagerBuilder::populateModulePassManager(
     legacy::PassManagerBase &MPM) {
   if (!PGOSampleUse.empty()) {
@@ -440,6 +450,14 @@ void PassManagerBuilder::populateModulePassManager(
     if (Inliner) {
       MPM.add(Inliner);
       Inliner = nullptr;
+    }
+
+    if (tapirTarget) {
+      MPM.add(createInferFunctionAttrsLegacyPass());
+      MPM.add(createLowerTapirToTargetPass(tapirTarget));
+      // The lowering pass may leave cruft around.  Clean it up.
+      MPM.add(createCFGSimplificationPass());
+      MPM.add(createInferFunctionAttrsLegacyPass());
     }
 
     // FIXME: The BarrierNoopPass is a HACK! The inliner pass above implicitly
@@ -497,6 +515,18 @@ void PassManagerBuilder::populateModulePassManager(
       PrepareForThinLTO && !PGOSampleUse.empty();
   if (PrepareForThinLTOUsingPGOSampleProfile)
     DisableUnrollLoops = true;
+
+  bool RerunAfterTapirLowering = false;
+  bool TapirHasBeenLowered = (tapirTarget == nullptr);
+
+  if (tapirTarget && DisableTapirOpts) { // -fdetach
+    MPM.add(createLowerTapirToTargetPass(tapirTarget));
+    TapirHasBeenLowered = true;
+  }
+
+  do {
+    RerunAfterTapirLowering =
+       !TapirHasBeenLowered && tapirTarget && !PrepareForThinLTO;
 
   // Infer attributes about declarations if possible.
   MPM.add(createInferFunctionAttrsLegacyPass());
@@ -659,7 +689,7 @@ void PassManagerBuilder::populateModulePassManager(
     // common computations, hoist loop-invariant aspects out of any outer loop,
     // and unswitch the runtime checks if possible. Once hoisted, we may have
     // dead (or speculatable) control flows or more combining opportunities.
-    MPM.add(createEarlyCSEPass());
+    MPM.add(createEarlyCSEPass(false, Rhino));
     MPM.add(createCorrelatedValuePropagationPass());
     addInstructionCombiningPass(MPM);
     MPM.add(createLICMPass());
@@ -678,7 +708,7 @@ void PassManagerBuilder::populateModulePassManager(
   if (RunSLPAfterLoopVectorization && SLPVectorize) {
     MPM.add(createSLPVectorizerPass()); // Vectorize parallel scalar chains.
     if (OptLevel > 1 && ExtraVectorizerPasses) {
-      MPM.add(createEarlyCSEPass());
+      MPM.add(createEarlyCSEPass(false, Rhino));
     }
   }
 
@@ -744,6 +774,45 @@ void PassManagerBuilder::populateModulePassManager(
   // LoopSink (and other loop passes since the last simplifyCFG) might have
   // resulted in single-entry-single-exit or empty blocks. Clean up the CFG.
   MPM.add(createCFGSimplificationPass());
+
+  if (RerunAfterTapirLowering || (tapirTarget == nullptr))
+    // Add passes to run just before Tapir lowering.
+    addExtensionsToPM(EP_TapirLate, MPM);
+
+  if (!TapirHasBeenLowered) {
+    // First handle Tapir loops.
+    MPM.add(createIndVarSimplifyPass());
+
+    // Re-rotate loops in all our loop nests. These may have fallout out of
+    // rotated form due to GVN or other transformations, and loop spawning
+    // relies on the rotated form.  Disable header duplication at -Oz.
+    MPM.add(createLoopRotatePass(SizeLevel == 2 ? 0 : -1));
+
+    MPM.add(createLoopSpawningPass(tapirTarget));
+
+    // The LoopSpawning pass may leave cruft around.  Clean it up.
+    MPM.add(createLoopDeletionPass());
+    MPM.add(createCFGSimplificationPass());
+    addInstructionCombiningPass(MPM);
+    addExtensionsToPM(EP_Peephole, MPM);
+
+    // Now lower Tapir to Target runtime calls.
+    //
+    // TODO: Make this sequence of passes check the library info for the Cilk
+    // RTS.
+
+    MPM.add(createInferFunctionAttrsLegacyPass());
+    // MPM.add(createUnifyFunctionExitNodesPass());
+    MPM.add(createLowerTapirToTargetPass(tapirTarget));
+    // The lowering pass may leave cruft around.  Clean it up.
+    MPM.add(createCFGSimplificationPass());
+    MPM.add(createInferFunctionAttrsLegacyPass());
+    MPM.add(createMergeFunctionsPass());
+    MPM.add(createBarrierNoopPass());
+
+    TapirHasBeenLowered = true;
+  }
+  } while (RerunAfterTapirLowering);
 
   addExtensionsToPM(EP_OptimizerLast, MPM);
 

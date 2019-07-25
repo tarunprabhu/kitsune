@@ -24,6 +24,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/CFLAndersAliasAnalysis.h"
@@ -139,6 +141,42 @@ ModRefInfo AAResults::getModRefInfo(Instruction *I, const CallBase *Call2) {
   } else if (I->isFenceLike()) {
     // If this is a fence, just return ModRef.
     return ModRefInfo::ModRef;
+  } else if (auto D = dyn_cast<DetachInst>(I)) {
+    ModRefInfo Result = ModRefInfo::NoModRef;
+    SmallPtrSet<BasicBlock *, 32> Visited;
+    SmallVector<BasicBlock *, 32> WorkList;
+    WorkList.push_back(D->getDetached());
+    while (!WorkList.empty()) {
+      BasicBlock *BB = WorkList.pop_back_val();
+      if (!Visited.insert(BB).second)
+        continue;
+
+      for (Instruction &DI : *BB) {
+        // Fail fast if we encounter an invalid CFG.
+        assert(!(D == &DI) &&
+               "Detached CFG reaches its own Detach instruction.");
+
+        // Ignore sync instructions in this analysis
+        if (isa<SyncInst>(DI) || isa<DetachInst>(DI))
+          continue;
+
+        if (isa<LoadInst>(DI) || isa<StoreInst>(DI) ||
+            isa<AtomicCmpXchgInst>(DI) || isa<AtomicRMWInst>(DI) ||
+            DI.isFenceLike() || isa<CallBase>(&DI))
+          Result = unionModRef(Result, getModRefInfo(&DI, Call2));
+        if (&DI == Call2)
+          return ModRefInfo::NoModRef;
+      }
+
+      // Add successors
+      const Instruction *T = BB->getTerminator();
+      if (const ReattachInst *RI = dyn_cast<ReattachInst>(T))
+        if (D->getSyncRegion() == RI->getSyncRegion())
+          continue;
+      for (unsigned idx = 0, max = T->getNumSuccessors(); idx < max; ++idx)
+        WorkList.push_back(T->getSuccessor(idx));
+    }
+    return Result;
   } else {
     // Otherwise, check if the call modifies or references the
     // location this memory access defines.  The best we can say
@@ -391,6 +429,80 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, AliasResult AR) {
   return OS;
 }
 
+FunctionModRefBehavior AAResults::getModRefBehavior(const DetachInst *D) {
+  FunctionModRefBehavior Result = FMRB_DoesNotAccessMemory;
+  SmallPtrSet<const BasicBlock *, 32> Visited;
+  SmallVector<const BasicBlock *, 32> WorkList;
+  WorkList.push_back(D->getDetached());
+  while (!WorkList.empty()) {
+    const BasicBlock *BB = WorkList.pop_back_val();
+    if (!Visited.insert(BB).second)
+      continue;
+
+    for (const Instruction &I : *BB) {
+      // Fail fast if we encounter an invalid CFG.
+      assert(!(D == &I) &&
+             "Invalid CFG found: Detached CFG reaches its own Detach.");
+
+      if (auto CB = dyn_cast<CallBase>(&I))
+        Result = FunctionModRefBehavior(Result | getModRefBehavior(CB));
+
+      // Early-exit the moment we reach the top of the lattice.
+      if (Result == FMRB_UnknownModRefBehavior)
+        return Result;
+    }
+
+    // Add successors
+    const Instruction *T = BB->getTerminator();
+    if (const ReattachInst *RI = dyn_cast<ReattachInst>(T))
+      if (D->getSyncRegion() == RI->getSyncRegion())
+        continue;
+
+    for (unsigned idx = 0, max = T->getNumSuccessors(); idx < max; ++idx)
+      WorkList.push_back(T->getSuccessor(idx));
+  }
+
+  return Result;
+}
+
+FunctionModRefBehavior AAResults::getModRefBehavior(const SyncInst *S) {
+  FunctionModRefBehavior Result = FMRB_DoesNotAccessMemory;
+  SmallPtrSet<const BasicBlock *, 32> Visited;
+  SmallVector<const BasicBlock *, 32> WorkList;
+  WorkList.push_back(S->getParent());
+  while (!WorkList.empty()) {
+    const BasicBlock *BB = WorkList.pop_back_val();
+    if (!Visited.insert(BB).second)
+      continue;
+
+    if (const DetachInst *D = dyn_cast<DetachInst>(BB->getTerminator()))
+      Result = FunctionModRefBehavior(Result | getModRefBehavior(D));
+
+    // Early-exit the moment we reach the top of the lattice.
+    if (Result == FMRB_UnknownModRefBehavior)
+      return Result;
+
+    // Add predecessors
+    for (const_pred_iterator PI = pred_begin(BB), E = pred_end(BB);
+	 PI != E; ++PI) {
+      const BasicBlock *Pred = *PI;
+      const Instruction *PT = Pred->getTerminator();
+      // Ignore reattached predecessors and predecessors that end in syncs,
+      // because this sync does not wait on those predecessors.
+      if (isa<ReattachInst>(PT) || isa<SyncInst>(PT))
+	continue;
+      // If this block is detached, ignore the predecessor that detaches it.
+      if (const DetachInst *Det = dyn_cast<DetachInst>(PT))
+        if (Det->getDetached() == BB)
+          continue;
+
+      WorkList.push_back(Pred);
+    }
+  }
+
+  return Result;
+}
+
 //===----------------------------------------------------------------------===//
 // Helper method implementation
 //===----------------------------------------------------------------------===//
@@ -540,7 +652,86 @@ ModRefInfo AAResults::getModRefInfo(const AtomicRMWInst *RMW,
   return ModRefInfo::ModRef;
 }
 
-/// Return information about whether a particular call site modifies
+ModRefInfo AAResults::getModRefInfo(const DetachInst *D,
+                                    const MemoryLocation &Loc) {
+  ModRefInfo Result = ModRefInfo::NoModRef;
+  SmallPtrSet<const BasicBlock *, 32> Visited;
+  SmallVector<const BasicBlock *, 32> WorkList;
+  WorkList.push_back(D->getDetached());
+  while (!WorkList.empty()) {
+    const BasicBlock *BB = WorkList.pop_back_val();
+    if (!Visited.insert(BB).second)
+      continue;
+
+    for (const Instruction &I : *BB) {
+      // Ignore sync instructions in this analysis
+      if (isa<SyncInst>(I))
+	continue;
+
+      // Fail fast if we encounter an invalid CFG.
+      assert(!(D == &I) &&
+             "Invalid CFG found: Detached CFG reaches its own Detach.");
+
+      Result = unionModRef(Result, getModRefInfo(&I, Loc));
+
+      // Early-exit the moment we reach the top of the lattice.
+      if (isModAndRefSet(Result))
+	return Result;
+    }
+
+    // Add successors
+    const Instruction *T = BB->getTerminator();
+    if (const ReattachInst *RI = dyn_cast<ReattachInst>(T))
+      if (D->getSyncRegion() == RI->getSyncRegion())
+        continue;
+    for (unsigned idx = 0, max = T->getNumSuccessors(); idx < max; ++idx)
+      WorkList.push_back(T->getSuccessor(idx));
+  }
+
+  return Result;
+}
+
+ModRefInfo AAResults::getModRefInfo(const SyncInst *S,
+                                    const MemoryLocation &Loc) {
+  ModRefInfo Result = ModRefInfo::NoModRef;
+  SmallPtrSet<const BasicBlock *, 32> Visited;
+  SmallVector<const BasicBlock *, 32> WorkList;
+  WorkList.push_back(S->getParent());
+  while(!WorkList.empty()) {
+    const BasicBlock *BB = WorkList.pop_back_val();
+    if (!Visited.insert(BB).second)
+      continue;
+
+    if (const DetachInst *D = dyn_cast<DetachInst>(BB->getTerminator())) {
+      Result = unionModRef(Result, getModRefInfo(D, Loc));
+
+      // Early-exit the moment we reach the top of the lattice.
+      if (isModAndRefSet(Result))
+	return Result;
+    }
+
+    // Add predecessors
+    for (const_pred_iterator PI = pred_begin(BB), E = pred_end(BB);
+	 PI != E; ++PI) {
+      const BasicBlock *Pred = *PI;
+      const Instruction *PT = Pred->getTerminator();
+      // Ignore reattached predecessors and predecessors that end in syncs,
+      // because this sync does not wait on those predecessors.
+      if (isa<ReattachInst>(PT) || isa<SyncInst>(PT))
+	continue;
+      // If this block is detached, ignore the predecessor that detaches it.
+      if (const DetachInst *Det = dyn_cast<DetachInst>(PT))
+        if (Det->getDetached() == BB)
+          continue;
+
+      WorkList.push_back(Pred);
+    }
+  }
+
+  return Result;
+}
+
+/// \brief Return information about whether a particular call site modifies
 /// or reads the specified memory location \p MemLoc before instruction \p I
 /// in a BasicBlock. An ordered basic block \p OBB can be used to speed up
 /// instruction-ordering queries inside the BasicBlock containing \p I.

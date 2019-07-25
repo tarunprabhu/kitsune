@@ -2276,7 +2276,17 @@ void ASTStmtReader::VisitOMPTargetTeamsDistributeSimdDirective(
   VisitOMPLoopDirective(D);
 }
 
-//===----------------------------------------------------------------------===//
+void ASTStmtReader::VisitSpawnStmt(SpawnStmt *S) {
+  VisitStmt(S);
+  S->setSpawnLoc(ReadSourceLocation());
+  S->setSpawnedStmt(Record.readSubStmt());
+}
+
+void ASTStmtReader::VisitSyncStmt(SyncStmt *S) {
+  VisitStmt(S);
+  S->setSyncLoc(ReadSourceLocation());
+}
+
 // ASTReader Implementation
 //===----------------------------------------------------------------------===//
 
@@ -2835,6 +2845,14 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
       S = new (Context) MSDependentExistsStmt(SourceLocation(), true,
                                               NestedNameSpecifierLoc(),
                                               DeclarationNameInfo(), nullptr);
+      break;
+
+    case STMT_SPAWN:
+      S = new (Context) SpawnStmt(Empty); 
+      break;
+
+    case STMT_SYNC:
+      S = new (Context) SyncStmt(Empty);
       break;
 
     case STMT_OMP_PARALLEL_DIRECTIVE:

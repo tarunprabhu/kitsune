@@ -80,6 +80,7 @@
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Transforms/Tapir/TapirTypes.h"
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -3302,6 +3303,24 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
       // anyway.
       Res.getDiagnosticOpts().Warnings.push_back("no-stdlibcxx-not-found");
     }
+  }
+
+  // Check if -ftapir is specified
+  if (Arg *A = Args.getLastArg(OPT_ftapir)){
+    StringRef Name = A->getValue();
+    if (Name == "none")
+      LangOpts.Tapir = llvm::TapirTargetType::None;
+    else if (Name == "cilk") 
+      LangOpts.Tapir = llvm::TapirTargetType::Cilk;
+    else if (Name == "openmp")
+      LangOpts.Tapir = llvm::TapirTargetType::OpenMP;
+    else if (Name == "qthreads")
+      LangOpts.Tapir = llvm::TapirTargetType::Qthreads;
+    else if (Name == "serial")
+      LangOpts.Tapir = llvm::TapirTargetType::Serial;
+    else
+      Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args) <<
+        Name;
   }
 
   LangOpts.FunctionAlignment =

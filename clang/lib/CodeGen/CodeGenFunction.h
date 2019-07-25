@@ -940,6 +940,99 @@ public:
       return !VD->isLocalVarDeclOrParm() && CGF.LocalDeclMap.count(VD) > 0;
     }
   };
+ 
+  class SyncRegion {
+    CodeGenFunction &CGF;
+    SyncRegion *ParentRegion;
+    llvm::Instruction *SyncRegionStart;
+
+    SyncRegion(const SyncRegion &) = delete;
+    void operator=(const SyncRegion &) = delete;
+  public:
+    explicit SyncRegion(CodeGenFunction &CGF)
+        : CGF(CGF), ParentRegion(CGF.CurSyncRegion), SyncRegionStart(nullptr)
+    {}
+
+    ~SyncRegion() {
+      CGF.CurSyncRegion = ParentRegion;
+    }
+
+    llvm::Instruction *getSyncRegionStart() {
+      return SyncRegionStart;
+    }
+    void setSyncRegionStart(llvm::Instruction *SRStart) {
+      SyncRegionStart = SRStart;
+    }
+  };
+
+  llvm::DenseMap<StringRef, SyncRegion*> SyncRegions;
+  SyncRegion *getOrCreateLabeledSyncRegion(const StringRef SV){
+    auto it = SyncRegions.find(SV);
+    if (it != SyncRegions.end()) {
+      return it->second; 
+    } else {
+      SyncRegion* SR = new SyncRegion(*this);
+      SR->setSyncRegionStart(EmitLabeledSyncRegionStart(SV));
+      SyncRegions.insert({SV, SR});    
+      return SR;
+    }
+  }
+
+  /// \brief RAII object to set/unset CodeGenFunction::IsSpawned.
+  class IsSpawnedScope {
+    CodeGenFunction *CGF;
+    bool OldIsSpawned;
+
+  public:
+    IsSpawnedScope(CodeGenFunction *CGF);
+    ~IsSpawnedScope();
+    bool OldScopeIsSpawned();
+    void RestoreOldScope();
+  };
+
+  llvm::Instruction *EmitLabeledSyncRegionStart(StringRef SV);
+
+  SyncRegion* CurSyncRegion;
+
+/*
+  /// RAII object to manage creation of detach/reattach instructions.
+  class DetachScope {
+    CodeGenFunction &CGF;
+    bool DetachStarted, DetachInitialized;
+    llvm::BasicBlock *DetachedBlock;
+    llvm::BasicBlock *ContinueBlock;
+    RunCleanupsScope *CleanupsScope;
+    DetachScope *ParentScope;
+
+    // Old state from the CGF to restore when we're done with the detach.
+    llvm::AssertingVH<llvm::Instruction> OldAllocaInsertPt;
+    llvm::BasicBlock *OldEHResumeBlock;
+    llvm::Value *OldExceptionSlot;
+    llvm::AllocaInst *OldEHSelectorSlot;
+
+    // Saved state in an initialized detach scope.
+    llvm::AssertingVH<llvm::Instruction> SavedDetachedAllocaInsertPt;
+
+    // Information about a reference temporary created early in the detached
+    // block.
+    Address RefTmp;
+    StorageDuration RefTmpSD;
+
+    void InitDetachScope();
+    void RestoreDetachScope();
+    void StartDetach();
+    void FinishDetach();
+
+    void StartLabeledDetach(SyncRegion* SR);
+    void FinishLabeledDetach(SyncRegion* SR);
+
+    Address CreateDetachedMemTemp(QualType Ty,
+                                  StorageDuration SD,
+                                  const Twine &Name = "det.tmp");
+
+    bool IsDetachStarted() { return DetachStarted; }
+  };
+  */
 
   /// Takes the old cleanup stack size and emits the cleanup blocks
   /// that have been added.
@@ -2878,6 +2971,9 @@ public:
   void EmitCaseStmt(const CaseStmt &S);
   void EmitCaseStmtRange(const CaseStmt &S);
   void EmitAsmStmt(const AsmStmt &S);
+
+  void EmitSpawnStmt(const SpawnStmt &S);
+  void EmitSyncStmt(const SyncStmt &S);
 
   void EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S);
   void EmitObjCAtTryStmt(const ObjCAtTryStmt &S);

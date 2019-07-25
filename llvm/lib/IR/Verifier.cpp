@@ -105,6 +105,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+//#include "llvm/Transforms/Tapir/CilkABI.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -342,6 +343,12 @@ public:
         BB.printAsOperand(*OS, true, MST);
         *OS << "\n";
       }
+      // if (const DetachInst* Det = dyn_cast<DetachInst>(&I->back())) {
+      //   if (!cilk::verifyDetachedCFG(*Det, DT)) {
+      //     OS << "Invalid end to detached CFG\n";
+      //     return true;
+      //   }
+      // }
       return false;
     }
 
@@ -3493,6 +3500,13 @@ void Verifier::visitEHPadPredecessors(Instruction &I) {
     // landing pad block may be branched to only by the unwind edge of an
     // invoke.
     for (BasicBlock *PredBB : predecessors(BB)) {
+      if (const auto *DI = dyn_cast<DetachInst>(PredBB->getTerminator())) {
+        Assert(DI && DI->getUnwindDest() == BB && DI->getDetached() != BB &&
+               DI->getContinue() != BB,
+               "A detach can only jump to a block containing a LandingPadInst "
+               "as the unwind destination.", LPI);
+        continue;
+      }
       const auto *II = dyn_cast<InvokeInst>(PredBB->getTerminator());
       Assert(II && II->getUnwindDest() == BB && II->getNormalDest() != BB,
              "Block containing LandingPadInst must be jumped to "
@@ -3981,9 +3995,10 @@ void Verifier::visitInstruction(Instruction &I) {
               F->getIntrinsicID() == Intrinsic::coro_destroy ||
               F->getIntrinsicID() == Intrinsic::experimental_patchpoint_void ||
               F->getIntrinsicID() == Intrinsic::experimental_patchpoint_i64 ||
-              F->getIntrinsicID() == Intrinsic::experimental_gc_statepoint,
+              F->getIntrinsicID() == Intrinsic::experimental_gc_statepoint ||
+              F->getIntrinsicID() == Intrinsic::detached_rethrow,
           "Cannot invoke an intrinsic other than donothing, patchpoint, "
-          "statepoint, coro_resume or coro_destroy",
+          "statepoint, coro_resume, coro_destroy, or detached_rethrow",
           &I);
       Assert(F->getParent() == &M, "Referencing function in another module!",
              &I, &M, F, F->getParent());

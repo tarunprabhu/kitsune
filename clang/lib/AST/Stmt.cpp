@@ -23,6 +23,7 @@
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/AST/StmtOpenMP.h"
+#include "clang/AST/StmtTapir.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/LLVM.h"
@@ -1331,3 +1332,20 @@ bool CapturedStmt::capturesVariable(const VarDecl *Var) const {
 
   return false;
 }
+
+const Stmt* SpawnStmt::getSpawnedStmt() const {
+  return SpawnedStmt;
+}
+
+Stmt* SpawnStmt::getSpawnedStmt() {
+  return SpawnedStmt;
+}
+
+StringRef SpawnStmt::getSyncVar() const {
+  return SyncVar;
+}
+
+StringRef SyncStmt::getSyncVar() const {
+  return SyncVar;
+}
+

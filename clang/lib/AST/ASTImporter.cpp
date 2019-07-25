@@ -386,44 +386,42 @@ public:
     IDK_Basic
   };
 
-  bool shouldForceImportDeclContext(ImportDefinitionKind IDK) {
-    return IDK == IDK_Everything ||
-           (IDK == IDK_Default && !Importer.isMinimalImport());
-  }
-
   Error ImportInitializer(VarDecl *From, VarDecl *To);
-  Error ImportDefinition(RecordDecl *From, RecordDecl *To,
-                         ImportDefinitionKind Kind = IDK_Default);
-  Error ImportDefinition(EnumDecl *From, EnumDecl *To,
-                         ImportDefinitionKind Kind = IDK_Default);
-  Error ImportDefinition(ObjCInterfaceDecl *From, ObjCInterfaceDecl *To,
-                         ImportDefinitionKind Kind = IDK_Default);
-  Error ImportDefinition(ObjCProtocolDecl *From, ObjCProtocolDecl *To,
-                         ImportDefinitionKind Kind = IDK_Default);
-  Expected<TemplateParameterList *>
-  ImportTemplateParameterList(TemplateParameterList *Params);
-  Error ImportTemplateArguments(const TemplateArgument *FromArgs,
-                                unsigned NumFromArgs,
-                                SmallVectorImpl<TemplateArgument> &ToArgs);
+  Error ImportDefinition(
+        RecordDecl *From, RecordDecl *To,
+        ImportDefinitionKind Kind = IDK_Default);
+  Error ImportDefinition(
+        EnumDecl *From, EnumDecl *To,
+        ImportDefinitionKind Kind = IDK_Default);
+  Error ImportDefinition(
+        ObjCInterfaceDecl *From, ObjCInterfaceDecl *To,
+        ImportDefinitionKind Kind = IDK_Default);
+  Error ImportDefinition(
+        ObjCProtocolDecl *From, ObjCProtocolDecl *To,
+        ImportDefinitionKind Kind = IDK_Default);
+  Expected<TemplateParameterList *> ImportTemplateParameterList(
+        TemplateParameterList *Params);
+  Error ImportTemplateArguments(
+        const TemplateArgument *FromArgs, unsigned NumFromArgs,
+        SmallVectorImpl<TemplateArgument> &ToArgs);
   Expected<TemplateArgument>
   ImportTemplateArgument(const TemplateArgument &From);
 
   template <typename InContainerTy>
-  Error ImportTemplateArgumentListInfo(const InContainerTy &Container,
-                                       TemplateArgumentListInfo &ToTAInfo);
+  Error ImportTemplateArgumentListInfo(
+        const InContainerTy &Container, TemplateArgumentListInfo &ToTAInfo);
 
-  template <typename InContainerTy>
-  Error ImportTemplateArgumentListInfo(SourceLocation FromLAngleLoc,
-                                       SourceLocation FromRAngleLoc,
-                                       const InContainerTy &Container,
-                                       TemplateArgumentListInfo &Result);
+  template<typename InContainerTy>
+  Error ImportTemplateArgumentListInfo(
+      SourceLocation FromLAngleLoc, SourceLocation FromRAngleLoc,
+      const InContainerTy &Container, TemplateArgumentListInfo &Result);
 
   using TemplateArgsTy = SmallVector<TemplateArgument, 8>;
   using FunctionTemplateAndArgsTy =
-      std::tuple<FunctionTemplateDecl *, TemplateArgsTy>;
+        std::tuple<FunctionTemplateDecl *, TemplateArgsTy>;
   Expected<FunctionTemplateAndArgsTy>
   ImportFunctionTemplateWithTemplateArgsFromSpecialization(
-      FunctionDecl *FromFD);
+        FunctionDecl *FromFD);
 
   Error ImportTemplateInformation(FunctionDecl *FromFD, FunctionDecl *ToFD);
 
@@ -434,7 +432,8 @@ public:
                          bool Complain = true);
   bool IsStructuralMatch(EnumDecl *FromEnum, EnumDecl *ToRecord);
   bool IsStructuralMatch(EnumConstantDecl *FromEC, EnumConstantDecl *ToEC);
-  bool IsStructuralMatch(FunctionTemplateDecl *From, FunctionTemplateDecl *To);
+  bool IsStructuralMatch(FunctionTemplateDecl *From,
+                         FunctionTemplateDecl *To);
   bool IsStructuralMatch(FunctionDecl *From, FunctionDecl *To);
   bool IsStructuralMatch(ClassTemplateDecl *From, ClassTemplateDecl *To);
   bool IsStructuralMatch(VarTemplateDecl *From, VarTemplateDecl *To);
@@ -489,11 +488,10 @@ public:
   ExpectedDecl VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D);
   ExpectedDecl VisitTemplateTemplateParmDecl(TemplateTemplateParmDecl *D);
   ExpectedDecl VisitClassTemplateDecl(ClassTemplateDecl *D);
-  ExpectedDecl
-  VisitClassTemplateSpecializationDecl(ClassTemplateSpecializationDecl *D);
+  ExpectedDecl VisitClassTemplateSpecializationDecl(
+                                            ClassTemplateSpecializationDecl *D);
   ExpectedDecl VisitVarTemplateDecl(VarTemplateDecl *D);
-  ExpectedDecl
-  VisitVarTemplateSpecializationDecl(VarTemplateSpecializationDecl *D);
+  ExpectedDecl VisitVarTemplateSpecializationDecl(VarTemplateSpecializationDecl *D);
   ExpectedDecl VisitFunctionTemplateDecl(FunctionTemplateDecl *D);
 
   // Importing statements
@@ -511,8 +509,10 @@ public:
   ExpectedStmt VisitWhileStmt(WhileStmt *S);
   ExpectedStmt VisitDoStmt(DoStmt *S);
   ExpectedStmt VisitForStmt(ForStmt *S);
+     
   // Kitsune
   ExpectedStmt VisitForallStmt(ForallStmt *S);
+      
   ExpectedStmt VisitGotoStmt(GotoStmt *S);
   ExpectedStmt VisitIndirectGotoStmt(IndirectGotoStmt *S);
   ExpectedStmt VisitContinueStmt(ContinueStmt *S);
@@ -537,6 +537,8 @@ public:
   ExpectedStmt VisitObjCAtSynchronizedStmt(ObjCAtSynchronizedStmt *S);
   ExpectedStmt VisitObjCAtThrowStmt(ObjCAtThrowStmt *S);
   ExpectedStmt VisitObjCAutoreleasePoolStmt(ObjCAutoreleasePoolStmt *S);
+  ExpectedStmt VisitSpawnStmt(SpawnStmt *S);
+  ExpectedStmt VisitSyncStmt(SyncStmt *S);
 
   // Importing expressions
   ExpectedStmt VisitExpr(Expr *E);
@@ -604,12 +606,11 @@ public:
   ExpectedStmt VisitArrayInitIndexExpr(ArrayInitIndexExpr *E);
   ExpectedStmt VisitCXXDefaultInitExpr(CXXDefaultInitExpr *E);
   ExpectedStmt VisitCXXNamedCastExpr(CXXNamedCastExpr *E);
-  ExpectedStmt
-  VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *E);
+  ExpectedStmt VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *E);
   ExpectedStmt VisitTypeTraitExpr(TypeTraitExpr *E);
   ExpectedStmt VisitCXXTypeidExpr(CXXTypeidExpr *E);
-
-  template <typename IIter, typename OIter>
+    
+  template<typename IIter, typename OIter>
   Error ImportArrayChecked(IIter Ibegin, IIter Iend, OIter Obegin) {
     using ItemT = typename std::remove_reference<decltype(*Obegin)>::type;
     for (; Ibegin != Iend; ++Ibegin, ++Obegin) {
@@ -620,25 +621,26 @@ public:
     }
     return Error::success();
   }
+  return Error::success();
+}
 
-  // Import every item from a container structure into an output container.
-  // If error occurs, stops at first error and returns the error.
-  // The output container should have space for all needed elements (it is not
-  // expanded, new items are put into from the beginning).
-  template <typename InContainerTy, typename OutContainerTy>
-  Error ImportContainerChecked(const InContainerTy &InContainer,
-                               OutContainerTy &OutContainer) {
-    return ImportArrayChecked(InContainer.begin(), InContainer.end(),
-                              OutContainer.begin());
-  }
+// Import every item from a container structure into an output container.
+// If error occurs, stops at first error and returns the error.
+// The output container should have space for all needed elements (it is not
+// expanded, new items are put into from the beginning).
+template <typename InContainerTy, typename OutContainerTy>
+Error ImportContainerChecked(const InContainerTy &InContainer,
+                             OutContainerTy &OutContainer) {
+  return ImportArrayChecked(InContainer.begin(), InContainer.end(),
+                            OutContainer.begin());
+}
 
-  template <typename InContainerTy, typename OIter>
-  Error ImportArrayChecked(const InContainerTy &InContainer, OIter Obegin) {
-    return ImportArrayChecked(InContainer.begin(), InContainer.end(), Obegin);
-  }
+template <typename InContainerTy, typename OIter>
+Error ImportArrayChecked(const InContainerTy &InContainer, OIter Obegin) {
+  return ImportArrayChecked(InContainer.begin(), InContainer.end(), Obegin);
+}
 
-  void ImportOverrides(CXXMethodDecl *ToMethod, CXXMethodDecl *FromMethod);
-
+void ImportOverrides(CXXMethodDecl *ToMethod, CXXMethodDecl *FromMethod);
   Expected<FunctionDecl *>
   FindFunctionTemplateSpecialization(FunctionDecl *FromFD);
 };
@@ -5968,6 +5970,22 @@ ASTNodeImporter::VisitObjCAutoreleasePoolStmt(ObjCAutoreleasePoolStmt *S) {
   return new (Importer.getToContext())
       ObjCAutoreleasePoolStmt(*ToAtLocOrErr, *ToSubStmtOrErr);
 }
+
+ExpectedStmt ASTNodeImporter::VisitSpawnStmt(SpawnStmt *S) {
+  SourceLocation SpawnLoc = Importer.Import(S->getSpawnLoc());
+  StringRef SV = S->getSyncVar(); 
+  Stmt *Child = Importer.Import(S->getSpawnedStmt());
+  if (!Child && S->getSpawnedStmt())
+    return nullptr;
+  return new (Importer.getToContext()) SpawnStmt(SpawnLoc, SV, Child);
+}
+
+ExpectedStmt ASTNodeImporter::VisitSyncStmt(SyncStmt *S) {
+  SourceLocation SyncLoc = Importer.Import(S->getSyncLoc());
+  StringRef SV = S->getSyncVar(); 
+  return new (Importer.getToContext()) SyncStmt(SyncLoc, SV);
+}
+
 
 //----------------------------------------------------------------------------
 // Import Expressions

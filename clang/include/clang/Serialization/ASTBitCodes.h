@@ -1923,6 +1923,10 @@ namespace serialization {
       STMT_SEH_FINALLY,           // SEHFinallyStmt
       STMT_SEH_TRY,               // SEHTryStmt
 
+      // Tapir stmts
+      STMT_SPAWN,
+      STMT_SYNC, 
+
       // OpenMP directives
       STMT_OMP_PARALLEL_DIRECTIVE,
       STMT_OMP_SIMD_DIRECTIVE,

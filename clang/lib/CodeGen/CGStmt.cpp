@@ -100,6 +100,8 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::CaseStmtClass:
   case Stmt::SEHLeaveStmtClass:
     llvm_unreachable("should have emitted these statements as simple");
+  case Stmt::SyncStmtClass:
+    llvm_unreachable("should have emitted these statements as simple");
 
 #define STMT(Type, Base)
 #define ABSTRACT_STMT(Op)
@@ -175,7 +177,10 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::CapturedStmtClass: {
     const CapturedStmt *CS = cast<CapturedStmt>(S);
     EmitCapturedStmt(*CS, CS->getCapturedRegionKind());
-  } break;
+    } break;
+  case Stmt::SpawnStmtClass:
+    EmitSpawnStmt(cast<SpawnStmt>(*S)); 
+      break;
   case Stmt::ObjCAtTryStmtClass:
     EmitObjCAtTryStmt(cast<ObjCAtTryStmt>(*S));
     break;
@@ -380,27 +385,14 @@ bool CodeGenFunction::EmitSimpleStmt(const Stmt *S) {
   case Stmt::LabelStmtClass:
     EmitLabelStmt(cast<LabelStmt>(*S));
     break;
-  case Stmt::AttributedStmtClass:
-    EmitAttributedStmt(cast<AttributedStmt>(*S));
-    break;
-  case Stmt::GotoStmtClass:
-    EmitGotoStmt(cast<GotoStmt>(*S));
-    break;
-  case Stmt::BreakStmtClass:
-    EmitBreakStmt(cast<BreakStmt>(*S));
-    break;
-  case Stmt::ContinueStmtClass:
-    EmitContinueStmt(cast<ContinueStmt>(*S));
-    break;
-  case Stmt::DefaultStmtClass:
-    EmitDefaultStmt(cast<DefaultStmt>(*S));
-    break;
-  case Stmt::CaseStmtClass:
-    EmitCaseStmt(cast<CaseStmt>(*S));
-    break;
-  case Stmt::SEHLeaveStmtClass:
-    EmitSEHLeaveStmt(cast<SEHLeaveStmt>(*S));
-    break;
+  case Stmt::AttributedStmtClass: EmitAttributedStmt(cast<AttributedStmt>(*S)); break;
+  case Stmt::GotoStmtClass:       EmitGotoStmt(cast<GotoStmt>(*S));         break;
+  case Stmt::BreakStmtClass:      EmitBreakStmt(cast<BreakStmt>(*S));       break;
+  case Stmt::ContinueStmtClass:   EmitContinueStmt(cast<ContinueStmt>(*S)); break;
+  case Stmt::DefaultStmtClass:    EmitDefaultStmt(cast<DefaultStmt>(*S));   break;
+  case Stmt::CaseStmtClass:       EmitCaseStmt(cast<CaseStmt>(*S));         break;
+  case Stmt::SEHLeaveStmtClass:   EmitSEHLeaveStmt(cast<SEHLeaveStmt>(*S)); break;
+  case Stmt::SyncStmtClass:       EmitSyncStmt(cast<SyncStmt>(*S));         break;
   }
 
   return true;

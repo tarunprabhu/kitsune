@@ -1652,6 +1652,9 @@ MemoryUseOrDef *MemorySSA::createNewAccess(Instruction *I,
     if (II->getIntrinsicID() == Intrinsic::assume)
       return nullptr;
 
+  if (isa<DetachInst>(I) || isa<SyncInst>(I))
+    return nullptr;
+
   bool Def, Use;
   if (Template) {
     Def = dyn_cast_or_null<MemoryDef>(Template) != nullptr;

@@ -3237,7 +3237,6 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case AsTypeExprClass:
     // These have a side-effect if any subexpression does.
     break;
-
   case UnaryOperatorClass:
     if (cast<UnaryOperator>(this)->isIncrementDecrementOp())
       return true;

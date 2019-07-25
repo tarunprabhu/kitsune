@@ -1134,6 +1134,7 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
   assert(!isa<Expr>(S) || S == cast<Expr>(S)->IgnoreParens());
 
   switch (S->getStmtClass()) {
+
   // C++, OpenMP and ARC stuff we don't support yet.
   case Expr::ObjCIndirectCopyRestoreExprClass:
   case Stmt::CXXDependentScopeMemberExprClass:

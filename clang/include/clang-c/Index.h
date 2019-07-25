@@ -2504,18 +2504,19 @@ enum CXCursorKind {
    */
   CXCursor_OMPTargetTeamsDistributeSimdDirective = 279,
 
+  CXCursor_SpawnStmt                     = 280,
+  CXCursor_SyncStmt                      = 281,
+  
   /* Kitsune */
   /** A forall statement.
    */
-  CXCursor_ForallStmt = 280,
+  CXCursor_ForallStmt = 282,
 
   /* Kitsune */
   /** C++'s forall (* : *) statement.
    */
-  CXCursor_CXXForallRangeStmt = 281,
-
+  CXCursor_CXXForallRangeStmt = 283,
   CXCursor_LastStmt = CXCursor_CXXForallRangeStmt,
-
   /**
    * Cursor that represents the translation unit itself.
    *
