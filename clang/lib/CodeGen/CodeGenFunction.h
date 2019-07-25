@@ -963,6 +963,22 @@ public:
     }
   };
 
+  /// The current sync region.
+  SyncRegion *CurSyncRegion;
+
+  void PushSyncRegion() { CurSyncRegion = new SyncRegion(*this); }
+
+  llvm::Instruction *EmitSyncRegionStart();
+
+  void PopSyncRegion() { delete CurSyncRegion; }
+
+  void EnsureSyncRegion() {
+    if (!CurSyncRegion)
+      PushSyncRegion();
+    if (!CurSyncRegion->getSyncRegionStart())
+      CurSyncRegion->setSyncRegionStart(EmitSyncRegionStart());
+  }
+
   llvm::DenseMap<StringRef, SyncRegion*> SyncRegions;
   SyncRegion *getOrCreateLabeledSyncRegion(const StringRef SV){
     auto it = SyncRegions.find(SV);
@@ -990,9 +1006,7 @@ public:
 
   llvm::Instruction *EmitLabeledSyncRegionStart(StringRef SV);
 
-  SyncRegion* CurSyncRegion;
-
-/*
+  /*
   /// RAII object to manage creation of detach/reattach instructions.
   class DetachScope {
     CodeGenFunction &CGF;
@@ -3014,6 +3028,18 @@ public:
   llvm::Value *EmitSEHExceptionCode();
   llvm::Value *EmitSEHExceptionInfo();
   llvm::Value *EmitSEHAbnormalTermination();
+
+  // kitsune: Kokkos support  
+  void EmitKokkosConstruct(const CallExpr *CE);
+  void EmitKokkosParallelFor(const CallExpr *CE);
+  void EmitKokkosParallelReduce(const CallExpr *CE);
+  // FIXME?: Should we/can we refactor this away?
+  bool InKokkosConstruct = false;
+
+
+
+
+
 
   /// Emit simple code for OpenMP directives in Simd-only mode.
   void EmitSimpleOMPExecutableDirective(const OMPExecutableDirective &D);

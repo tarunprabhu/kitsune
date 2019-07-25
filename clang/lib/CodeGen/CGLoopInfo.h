@@ -72,6 +72,12 @@ struct LoopAttributes {
 
   /// Value for llvm.loop.pipeline.iicount metadata.
   unsigned PipelineInitiationInterval;
+
+  /// Tapir-loop spawning strategy.
+  enum LSStrategy { Sequential, DAC, GPU };
+
+  /// Value for tapir.loop.spawn.strategy metadata.
+  LSStrategy SpawnStrategy;
 };
 
 /// Information used when generating a structured loop.
@@ -183,6 +189,11 @@ public:
   /// Set the pipeline initiation interval.
   void setPipelineInitiationInterval(unsigned C) {
     StagedAttrs.PipelineInitiationInterval = C;
+  }
+
+  /// Set the loop spawning strategy for the next loop pushed
+  void setSpawnStrategy(const LoopAttributes::LSStrategy &S) {
+    StagedAttrs.SpawnStrategy = S;
   }
 
 private:
