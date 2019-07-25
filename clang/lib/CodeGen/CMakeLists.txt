@@ -51,6 +51,7 @@ add_clang_library(clangCodeGen
   CGExprConstant.cpp
   CGExprScalar.cpp
   CGGPUBuiltin.cpp
+  CGKokkos.cpp   
   CGLoopInfo.cpp
   CGNonTrivialStruct.cpp
   CGObjC.cpp
