@@ -2272,6 +2272,55 @@ def err_objc_for_range_init_stmt : Error<
   "initialization statement is not supported when iterating over Objective-C "
   "collection">;
 
+// Kitsune
+// C++11 range-based forall loop
+def err_forall_range_decl_must_be_var : Error<
+  "forall range declaration must declare a variable">;
+def err_forall_range_storage_class : Error<
+  "loop variable %0 may not be declared %select{'extern'|'static'|"
+  "'__private_extern__'|'auto'|'register'|'constexpr'}1">;
+def err_type_defined_in_forall_range : Error<
+  "types may not be defined in a forall range declaration">;
+def err_forall_range_deduction_failure : Error<
+  "cannot use type %0 as a range">;
+def err_forall_range_incomplete_type : Error<
+  "cannot use incomplete type %0 as a range">;
+def err_forall_range_iter_deduction_failure : Error<
+  "cannot use type %0 as an iterator">;
+def ext_forall_range_begin_end_types_differ : ExtWarn<
+  "'begin' and 'end' returning different types (%0 and %1) is a C++17 extension">,
+  InGroup<CXX17>;
+def warn_forall_range_begin_end_types_differ : Warning<
+  "'begin' and 'end' returning different types (%0 and %1) is incompatible "
+  "with C++ standards before C++17">, InGroup<CXXPre17Compat>, DefaultIgnore;
+def note_in_forall_range: Note<
+  "when looking up '%select{begin|end}0' function forall range expression "
+  "of type %1">;
+def err_forall_range_invalid: Error<
+  "invalid range expression of type %0; no viable '%select{begin|end}1' "
+  "function available">;
+def note_forall_range_member_begin_end_ignored : Note<
+  "member is not a candidate because range type %0 has no '%select{end|begin}1' member">;
+def err_forall_range_dereference : Error<
+  "invalid range expression of type %0; did you mean to dereference it "
+  "with '*'?">;
+def note_forall_range_invalid_iterator : Note <
+  "in implicit call to 'operator%select{!=|*|++}0' for iterator of type %1">;
+def note_forall_range_begin_end : Note<
+  "selected '%select{begin|end}0' %select{function|template }1%2 with iterator type %3">;
+def warn_forall_range_const_reference_copy : Warning<
+  "loop variable %0 "
+  "%diff{has type $ but is initialized with type $"
+  "| is initialized with a value of a different type}1,2 resulting in a copy">,
+  InGroup<RangeLoopAnalysis>, DefaultIgnore;
+def warn_forall_range_variable_always_copy : Warning<
+  "loop variable %0 is always a copy because the range of type %1 does not "
+  "return a reference">,
+  InGroup<RangeLoopAnalysis>, DefaultIgnore;
+def warn_forall_range_copy : Warning<
+  "loop variable %0 of type %1 creates a copy from type %2">,
+  InGroup<RangeLoopAnalysis>, DefaultIgnore;
+
 // C++11 constexpr
 def warn_cxx98_compat_constexpr : Warning<
   "'constexpr' specifier is incompatible with C++98">,
@@ -8154,8 +8203,14 @@ def warn_empty_if_body : Warning<
   "if statement has empty body">, InGroup<EmptyBody>;
 def warn_empty_for_body : Warning<
   "for loop has empty body">, InGroup<EmptyBody>;
+// Kitsune
+def warn_empty_forall_body : Warning<
+  "forall loop has empty body">, InGroup<EmptyBody>;
 def warn_empty_range_based_for_body : Warning<
   "range-based for loop has empty body">, InGroup<EmptyBody>;
+// Kitsune
+def warn_empty_range_based_forall_body : Warning<
+  "range-based forall loop has empty body">, InGroup<EmptyBody>;
 def warn_empty_while_body : Warning<
   "while loop has empty body">, InGroup<EmptyBody>;
 def warn_empty_switch_body : Warning<
@@ -8333,8 +8388,14 @@ def ext_mixed_decls_code : Extension<
 
 def err_non_local_variable_decl_in_for : Error<
   "declaration of non-local variable in 'for' loop">;
+// Kitsune
+def err_non_local_variable_decl_in_forall : Error<
+  "declaration of non-local variable in 'forall' loop">;
 def err_non_variable_decl_in_for : Error<
   "non-variable declaration in 'for' loop">;
+// Kitsune
+def err_non_variable_decl_in_forall : Error<
+  "non-variable declaration in 'forall' loop">;
 def err_toomany_element_decls : Error<
   "only one element declaration is allowed">;
 def err_selector_element_not_lvalue : Error<

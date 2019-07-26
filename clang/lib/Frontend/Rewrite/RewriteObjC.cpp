@@ -4550,7 +4550,7 @@ bool RewriteObjC::IsDeclStmtInForeachHeader(DeclStmt *DS) {
 
 Stmt *RewriteObjC::RewriteFunctionBodyOrGlobalInitializer(Stmt *S) {
   if (isa<SwitchStmt>(S) || isa<WhileStmt>(S) ||
-      isa<DoStmt>(S) || isa<ForStmt>(S))
+      isa<DoStmt>(S) || isa<ForStmt>(S) || isa<ForallStmt>(S)) // Kitsune
     Stmts.push_back(S);
   else if (isa<ObjCForCollectionStmt>(S)) {
     Stmts.push_back(S);
@@ -4716,10 +4716,10 @@ Stmt *RewriteObjC::RewriteFunctionBodyOrGlobalInitializer(Stmt *S) {
     RewriteObjCQualifiedInterfaceTypes(CE);
 
   if (isa<SwitchStmt>(S) || isa<WhileStmt>(S) ||
-      isa<DoStmt>(S) || isa<ForStmt>(S)) {
+      isa<DoStmt>(S) || isa<ForStmt>(S)) { //Kitsune
     assert(!Stmts.empty() && "Statement stack is empty");
     assert ((isa<SwitchStmt>(Stmts.back()) || isa<WhileStmt>(Stmts.back()) ||
-             isa<DoStmt>(Stmts.back()) || isa<ForStmt>(Stmts.back()))
+             isa<DoStmt>(Stmts.back()) || isa<ForStmt>(Stmts.back()) || isa<ForallStmt>(Stmts.back())) //Kitsune
             && "Statement stack mismatch");
     Stmts.pop_back();
   }

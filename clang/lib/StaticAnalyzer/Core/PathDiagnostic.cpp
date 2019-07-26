@@ -923,6 +923,8 @@ PathDiagnosticRange
         case Stmt::WhileStmtClass:
         case Stmt::DoStmtClass:
         case Stmt::ForStmtClass:
+        // Kitsune
+        case Stmt::ForallStmtClass:
         case Stmt::ChooseExprClass:
         case Stmt::IndirectGotoStmtClass:
         case Stmt::SwitchStmtClass:

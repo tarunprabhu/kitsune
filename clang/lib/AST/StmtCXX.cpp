@@ -63,6 +63,25 @@ CXXForRangeStmt::CXXForRangeStmt(Stmt *Init, DeclStmt *Range,
   SubExprs[BODY] = Body;
 }
 
+// Kitsune
+CXXForallRangeStmt::CXXForallRangeStmt(Stmt *Init, DeclStmt *Range,
+                                       DeclStmt *BeginStmt, DeclStmt *EndStmt,
+                                       Expr *Cond, Expr *Inc, DeclStmt *LoopVar,
+                                       Stmt *Body, SourceLocation FL,
+                                       SourceLocation CAL, SourceLocation CL,
+                                       SourceLocation RPL)
+    : Stmt(CXXForallRangeStmtClass), ForLoc(FL), CoawaitLoc(CAL), ColonLoc(CL),
+      RParenLoc(RPL) {
+  SubExprs[INIT] = Init;
+  SubExprs[RANGE] = Range;
+  SubExprs[BEGINSTMT] = BeginStmt;
+  SubExprs[ENDSTMT] = EndStmt;
+  SubExprs[COND] = Cond;
+  SubExprs[INC] = Inc;
+  SubExprs[LOOPVAR] = LoopVar;
+  SubExprs[BODY] = Body;
+}
+
 Expr *CXXForRangeStmt::getRangeInit() {
   DeclStmt *RangeStmt = getRangeStmt();
   VarDecl *RangeDecl = dyn_cast_or_null<VarDecl>(RangeStmt->getSingleDecl());
@@ -70,8 +89,21 @@ Expr *CXXForRangeStmt::getRangeInit() {
   return RangeDecl->getInit();
 }
 
+// Kitsune
+Expr *CXXForallRangeStmt::getRangeInit() {
+  DeclStmt *RangeStmt = getRangeStmt();
+  VarDecl *RangeDecl = dyn_cast_or_null<VarDecl>(RangeStmt->getSingleDecl());
+  assert(RangeDecl && "forall-range should have a single var decl");
+  return RangeDecl->getInit();
+}
+
 const Expr *CXXForRangeStmt::getRangeInit() const {
   return const_cast<CXXForRangeStmt *>(this)->getRangeInit();
+}
+
+// Kitsune
+const Expr *CXXForallRangeStmt::getRangeInit() const {
+  return const_cast<CXXForallRangeStmt *>(this)->getRangeInit();
 }
 
 VarDecl *CXXForRangeStmt::getLoopVariable() {
@@ -80,12 +112,25 @@ VarDecl *CXXForRangeStmt::getLoopVariable() {
   return cast<VarDecl>(LV);
 }
 
+// Kitsune
+VarDecl *CXXForallRangeStmt::getLoopVariable() {
+  Decl *LV = cast<DeclStmt>(getLoopVarStmt())->getSingleDecl();
+  assert(LV && "No loop variable in CXXForallRangeStmt");
+  return cast<VarDecl>(LV);
+}
+
 const VarDecl *CXXForRangeStmt::getLoopVariable() const {
   return const_cast<CXXForRangeStmt *>(this)->getLoopVariable();
 }
 
-CoroutineBodyStmt *CoroutineBodyStmt::Create(
-    const ASTContext &C, CoroutineBodyStmt::CtorArgs const &Args) {
+// Kitsune
+const VarDecl *CXXForallRangeStmt::getLoopVariable() const {
+  return const_cast<CXXForallRangeStmt *>(this)->getLoopVariable();
+}
+
+CoroutineBodyStmt *
+CoroutineBodyStmt::Create(const ASTContext &C,
+                          CoroutineBodyStmt::CtorArgs const &Args) {
   std::size_t Size = totalSizeToAlloc<Stmt *>(
       CoroutineBodyStmt::FirstParamMove + Args.ParamMoves.size());
 
@@ -95,8 +140,8 @@ CoroutineBodyStmt *CoroutineBodyStmt::Create(
 
 CoroutineBodyStmt *CoroutineBodyStmt::Create(const ASTContext &C, EmptyShell,
                                              unsigned NumParams) {
-  std::size_t Size = totalSizeToAlloc<Stmt *>(
-      CoroutineBodyStmt::FirstParamMove + NumParams);
+  std::size_t Size =
+      totalSizeToAlloc<Stmt *>(CoroutineBodyStmt::FirstParamMove + NumParams);
 
   void *Mem = C.Allocate(Size, alignof(CoroutineBodyStmt));
   auto *Result = new (Mem) CoroutineBodyStmt(CtorArgs());

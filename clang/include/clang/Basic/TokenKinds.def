@@ -275,6 +275,8 @@ KEYWORD(enum                        , KEYALL)
 KEYWORD(extern                      , KEYALL)
 KEYWORD(float                       , KEYALL)
 KEYWORD(for                         , KEYALL)
+// Kitsune
+KEYWORD(forall                      , KEYALL)
 KEYWORD(goto                        , KEYALL)
 KEYWORD(if                          , KEYALL)
 KEYWORD(inline                      , KEYC99|KEYCXX|KEYGNU)

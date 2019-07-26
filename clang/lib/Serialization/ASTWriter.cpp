@@ -948,6 +948,8 @@ static void AddStmtsExprs(llvm::BitstreamWriter &Stream,
   RECORD(STMT_WHILE);
   RECORD(STMT_DO);
   RECORD(STMT_FOR);
+  // Kitsune
+  RECORD(STMT_FORALL);
   RECORD(STMT_GOTO);
   RECORD(STMT_INDIRECT_GOTO);
   RECORD(STMT_CONTINUE);

@@ -15,9 +15,9 @@
 #include "CodeGenFunction.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Lex/Lexer.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ProfileData/Coverage/CoverageMapping.h"
 #include "llvm/ProfileData/Coverage/CoverageMappingReader.h"
 #include "llvm/ProfileData/Coverage/CoverageMappingWriter.h"
@@ -587,11 +587,13 @@ struct CounterCoverageMappingBuilder
             assert(SM.isWrittenInSameFile(NestedLoc, EndLoc));
 
             if (!isRegionAlreadyAdded(NestedLoc, EndLoc))
-              SourceRegions.emplace_back(Region.getCounter(), NestedLoc, EndLoc);
+              SourceRegions.emplace_back(Region.getCounter(), NestedLoc,
+                                         EndLoc);
 
             EndLoc = getPreciseTokenLocEnd(getIncludeOrExpansionLoc(EndLoc));
             if (EndLoc.isInvalid())
-              llvm::report_fatal_error("File exit not handled before popRegions");
+              llvm::report_fatal_error(
+                  "File exit not handled before popRegions");
             EndDepth--;
           }
           if (UnnestStart) {
@@ -601,11 +603,13 @@ struct CounterCoverageMappingBuilder
             assert(SM.isWrittenInSameFile(StartLoc, NestedLoc));
 
             if (!isRegionAlreadyAdded(StartLoc, NestedLoc))
-              SourceRegions.emplace_back(Region.getCounter(), StartLoc, NestedLoc);
+              SourceRegions.emplace_back(Region.getCounter(), StartLoc,
+                                         NestedLoc);
 
             StartLoc = getIncludeOrExpansionLoc(StartLoc);
             if (StartLoc.isInvalid())
-              llvm::report_fatal_error("File exit not handled before popRegions");
+              llvm::report_fatal_error(
+                  "File exit not handled before popRegions");
             StartDepth--;
           }
         }
@@ -1045,7 +1049,85 @@ struct CounterCoverageMappingBuilder
       pushRegion(OutCount);
   }
 
+  // Kitsune
+  void VisitForallStmt(const ForallStmt *S) {
+    extendRegion(S);
+    if (S->getInit())
+      Visit(S->getInit());
+
+    Counter ParentCount = getRegion().getCounter();
+    Counter BodyCount = getRegionCounter(S);
+
+    // The loop increment may contain a break or continue.
+    if (S->getInc())
+      BreakContinueStack.emplace_back();
+
+    // Handle the body first so that we can get the backedge count.
+    BreakContinueStack.emplace_back();
+    extendRegion(S->getBody());
+    Counter BackedgeCount = propagateCounts(BodyCount, S->getBody());
+    BreakContinue BodyBC = BreakContinueStack.pop_back_val();
+
+    // The increment is essentially part of the body but it needs to include
+    // the count for all the continue statements.
+    BreakContinue IncrementBC;
+    if (const Stmt *Inc = S->getInc()) {
+      propagateCounts(addCounters(BackedgeCount, BodyBC.ContinueCount), Inc);
+      IncrementBC = BreakContinueStack.pop_back_val();
+    }
+
+    // Go back to handle the condition.
+    Counter CondCount = addCounters(
+        addCounters(ParentCount, BackedgeCount, BodyBC.ContinueCount),
+        IncrementBC.ContinueCount);
+    if (const Expr *Cond = S->getCond()) {
+      propagateCounts(CondCount, Cond);
+      adjustForOutOfOrderTraversal(getEnd(S));
+    }
+
+    // The body count applies to the area immediately after the increment.
+    auto Gap = findGapAreaBetween(getPreciseTokenLocEnd(S->getRParenLoc()),
+                                  getStart(S->getBody()));
+    if (Gap)
+      fillGapAreaWithCount(Gap->getBegin(), Gap->getEnd(), BodyCount);
+
+    Counter OutCount = addCounters(BodyBC.BreakCount, IncrementBC.BreakCount,
+                                   subtractCounters(CondCount, BodyCount));
+    if (OutCount != ParentCount)
+      pushRegion(OutCount);
+  }
+
   void VisitCXXForRangeStmt(const CXXForRangeStmt *S) {
+    extendRegion(S);
+    if (S->getInit())
+      Visit(S->getInit());
+    Visit(S->getLoopVarStmt());
+    Visit(S->getRangeStmt());
+
+    Counter ParentCount = getRegion().getCounter();
+    Counter BodyCount = getRegionCounter(S);
+
+    BreakContinueStack.push_back(BreakContinue());
+    extendRegion(S->getBody());
+    Counter BackedgeCount = propagateCounts(BodyCount, S->getBody());
+    BreakContinue BC = BreakContinueStack.pop_back_val();
+
+    // The body count applies to the area immediately after the range.
+    auto Gap = findGapAreaBetween(getPreciseTokenLocEnd(S->getRParenLoc()),
+                                  getStart(S->getBody()));
+    if (Gap)
+      fillGapAreaWithCount(Gap->getBegin(), Gap->getEnd(), BodyCount);
+
+    Counter LoopCount =
+        addCounters(ParentCount, BackedgeCount, BC.ContinueCount);
+    Counter OutCount =
+        addCounters(BC.BreakCount, subtractCounters(LoopCount, BodyCount));
+    if (OutCount != ParentCount)
+      pushRegion(OutCount);
+  }
+
+  // Kitsune
+  void VisitCXXForallRangeStmt(const CXXForallRangeStmt *S) {
     extendRegion(S);
     if (S->getInit())
       Visit(S->getInit());
@@ -1325,16 +1407,16 @@ void CoverageMappingModuleGen::addFunctionMappingRecord(
   if (!FunctionRecordTy) {
 #define COVMAP_FUNC_RECORD(Type, LLVMType, Name, Init) LLVMType,
     llvm::Type *FunctionRecordTypes[] = {
-      #include "llvm/ProfileData/InstrProfData.inc"
+#include "llvm/ProfileData/InstrProfData.inc"
     };
     FunctionRecordTy =
         llvm::StructType::get(Ctx, makeArrayRef(FunctionRecordTypes),
                               /*isPacked=*/true);
   }
 
-  #define COVMAP_FUNC_RECORD(Type, LLVMType, Name, Init) Init,
+#define COVMAP_FUNC_RECORD(Type, LLVMType, Name, Init) Init,
   llvm::Constant *FunctionRecordVals[] = {
-      #include "llvm/ProfileData/InstrProfData.inc"
+#include "llvm/ProfileData/InstrProfData.inc"
   };
   FunctionRecords.push_back(llvm::ConstantStruct::get(
       FunctionRecordTy, makeArrayRef(FunctionRecordVals)));

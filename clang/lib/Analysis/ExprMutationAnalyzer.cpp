@@ -25,6 +25,13 @@ AST_MATCHER_P(CXXForRangeStmt, hasRangeStmt,
   return InnerMatcher.matches(*Range, Finder, Builder);
 }
 
+// Kitsune
+AST_MATCHER_P(CXXForallRangeStmt, hasForallRangeStmt,
+              ast_matchers::internal::Matcher<DeclStmt>, InnerMatcher) {
+  const DeclStmt *const Range = Node.getRangeStmt();
+  return InnerMatcher.matches(*Range, Finder, Builder);
+}
+
 const ast_matchers::internal::VariadicDynCastAllOfMatcher<Stmt, CXXTypeidExpr>
     cxxTypeidExpr;
 
@@ -90,6 +97,8 @@ const Stmt *ExprMutationAnalyzer::findMutation(const Expr *Exp) {
                                &ExprMutationAnalyzer::findArrayElementMutation,
                                &ExprMutationAnalyzer::findCastMutation,
                                &ExprMutationAnalyzer::findRangeLoopMutation,
+                               // Kitsune
+                               &ExprMutationAnalyzer::findForallRangeLoopMutation,
                                &ExprMutationAnalyzer::findReferenceMutation,
                                &ExprMutationAnalyzer::findFunctionArgMutation},
                               Results);
@@ -328,6 +337,19 @@ const Stmt *ExprMutationAnalyzer::findRangeLoopMutation(const Expr *Exp) {
   return findDeclMutation(LoopVars);
 }
 
+// Kitsune
+const Stmt *ExprMutationAnalyzer::findForallRangeLoopMutation(const Expr *Exp) {
+  // If range forall looping over 'Exp' with a non-const reference loop
+  // variable, check all declRefExpr of the loop variable.
+  const auto LoopVars =
+      match(findAll(cxxForallRangeStmt(
+                hasForallLoopVariable(varDecl(hasType(nonConstReferenceType()))
+                                          .bind(NodeID<Decl>::value)),
+                hasForallRangeInit(equalsNode(Exp)))),
+            Stm, Context);
+  return findDeclMutation(LoopVars);
+}
+
 const Stmt *ExprMutationAnalyzer::findReferenceMutation(const Expr *Exp) {
   // Follow non-const reference returned by `operator*()` of move-only classes.
   // These are typically smart pointers with unique ownership so we treat
@@ -356,6 +378,8 @@ const Stmt *ExprMutationAnalyzer::findReferenceMutation(const Expr *Exp) {
               // Don't follow the reference in range statement, we've handled
               // that separately.
               unless(hasParent(declStmt(hasParent(
+                  // Kitsune check (I don't know how to generalize this, as hasParent
+                  // doesn't seem to return a boolean, so ignore for now)
                   cxxForRangeStmt(hasRangeStmt(equalsBoundNode("stmt"))))))))
               .bind(NodeID<Decl>::value))),
       Stm, Context);

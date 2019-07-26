@@ -32,6 +32,9 @@ static const Expr *getLoopCondition(const Stmt *LoopStmt) {
     return nullptr;
   case Stmt::ForStmtClass:
     return cast<ForStmt>(LoopStmt)->getCond();
+  // Kitsune
+  case Stmt::ForallStmtClass:
+    return cast<ForallStmt>(LoopStmt)->getCond();
   case Stmt::WhileStmtClass:
     return cast<WhileStmt>(LoopStmt)->getCond();
   case Stmt::DoStmtClass:
@@ -46,7 +49,7 @@ ProgramStateRef getWidenedLoopState(ProgramStateRef PrevState,
                                     const LocationContext *LCtx,
                                     unsigned BlockCount, const Stmt *LoopStmt) {
 
-  assert(isa<ForStmt>(LoopStmt) || isa<WhileStmt>(LoopStmt) ||
+  assert(isa<ForStmt>(LoopStmt) || isa<ForallStmt>(LoopStmt) || isa<WhileStmt>(LoopStmt) || // Kitsune
          isa<DoStmt>(LoopStmt));
 
   // Invalidate values in the current state.
