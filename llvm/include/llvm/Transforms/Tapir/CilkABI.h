@@ -49,7 +49,9 @@ protected:
 
 class CilkABI : public TapirTarget {
 public:
-  CilkABI();
+  CilkABI() {};
+  ~CilkABI() {};
+
   Value *GetOrCreateWorker8(Function &F) override final;
   void createSync(SyncInst &inst, ValueToValueMapTy &DetachCtxToStackFrame)
     override final;
