@@ -21,8 +21,9 @@ namespace llvm {
 
 class QthreadsABI : public TapirTarget {
 public:
-  QthreadsABI();
-  virtual ~QthreadsABI(); 
+  QthreadsABI() {};
+  ~QthreadsABI() {};
+
   Value *GetOrCreateWorker8(Function &F) override final;
   void createSync(SyncInst &inst, ValueToValueMapTy &DetachCtxToStackFrame)
     override final;

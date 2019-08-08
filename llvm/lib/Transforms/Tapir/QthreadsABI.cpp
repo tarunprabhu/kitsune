@@ -72,9 +72,6 @@ DEFAULT_GET_QTHREAD_FUNC(qt_sinc_submit)
 DEFAULT_GET_QTHREAD_FUNC(qt_sinc_wait)
 DEFAULT_GET_QTHREAD_FUNC(qt_sinc_destroy)
 
-QthreadsABI::QthreadsABI() { }
-QthreadsABI::~QthreadsABI() { }
-
 static const StringRef worker8_name = "qthread_nworker8";
 
 /// \brief Get/Create the worker count for the spawning function. We stick it

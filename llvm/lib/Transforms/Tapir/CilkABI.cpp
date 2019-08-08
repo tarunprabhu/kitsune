@@ -1377,8 +1377,6 @@ static bool makeFunctionDetachable(
   return true;
 }
 
-CilkABI::CilkABI() {}
-
 /// \brief Get/Create the worker count for the spawning function.
 Value *CilkABI::GetOrCreateWorker8(Function &F) {
   // Value* W8 = F.getValueSymbolTable()->lookup(worker8_name);

@@ -347,8 +347,6 @@ Value *getOrCreateDefaultLocation(Module *M) {
 
 //##############################################################################
 
-llvm::OpenMPABI::OpenMPABI() {}
-
 /// \brief Get/Create the worker count for the spawning function.
 Value *llvm::OpenMPABI::GetOrCreateWorker8(Function &F) {
   /*
