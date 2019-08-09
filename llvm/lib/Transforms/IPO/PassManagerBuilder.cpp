@@ -64,6 +64,7 @@ PassManagerBuilder::PassManagerBuilder() {
     SLPVectorize = false;
     LoopVectorize = true;
     LoopsInterleaved = true;
+    LoopStripmine = true;
     LicmMssaOptCap = SetLicmMssaOptCap;
     LicmMssaNoAccForPromotionCap = SetLicmMssaNoAccForPromotionCap;
     DisableGVNLoadPRE = false;
@@ -492,9 +493,8 @@ void PassManagerBuilder::populateModulePassManager(
     MPM.add(createEarlyCSEPass(false));
   }
 
-  // Stripmine Tapir loops.  This pass is currently only performed when
-  // -enable-tapir-loop-stripmine is specified.
-  if (EnableTapirLoopStripmine) {
+  // Stripmine Tapir loops.
+  if (LoopStripmine) {
     MPM.add(createLoopStripMinePass());
     // Cleanup the IR after stripminning.
     MPM.add(createTaskSimplifyPass());
