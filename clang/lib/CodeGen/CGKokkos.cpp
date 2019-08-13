@@ -52,8 +52,6 @@
 using namespace clang;
 using namespace CodeGen;
 
-#include <iostream>
-
 namespace {
 
   // A helper function used to extract the lamba expression 
@@ -119,18 +117,14 @@ void CodeGenFunction::EmitKokkosConstruct(const CallExpr *CE) {
   using namespace std;
 
   assert(CE != 0 && "CodeGenFunction::EmitKokkosConstruct: null callexpr passed!");
-  cerr << "EmitKokkosConstruct: happy with CE.\n";
 
   const FunctionDecl *Func = CE->getDirectCallee();
   assert(Func != 0 && "Kokkos construct doesn't have a function declaration!");
-  cerr << "EmitKokkosConstruct: happy with Func.\n";
 
   // FIXME: This is repeated code from CGExpr... 
   if (Func->getQualifiedNameAsString() == "Kokkos::parallel_for") {
-    cerr << "EmitKokkosConstruct: emit parallel for.\n";
     EmitKokkosParallelFor(CE);
   } else if (Func->getQualifiedNameAsString() == "Kokkos::parallel_reduce") {
-    cerr << "EmitKokkosConstruct: emit reduce.\n";
     EmitKokkosParallelReduce(CE);
   } else {
     assert(false && "unsupported Kokkos construct!");
@@ -146,6 +140,16 @@ void CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE) {
   // first step is to extract the lambda, which we will then be 
   // transformed into a parallel-for loop body when we have 
   // completed lowering. 
+  //
+  /*
+  const Expr *E = nullptr;
+  for(int i = 0; i < CE->getNumArgs(); i++) {
+    const Expr *E = CE->getArg(i);
+    if (E) {
+      E->dump();
+    }
+  }
+  */
   const LambdaExpr *LE = ExtractLambdaExpr(CE->getArg(1));
   assert(LE && "EmitKokkosParallelFor -- unable to extract lambda!");  
   
@@ -156,10 +160,16 @@ void CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE) {
   
   LexicalScope ForallScope(*this, CE->getSourceRange());
 
-  // Emit the loop that is the sole argument to the lambda 
-  // expression -- initialize it to zero.
-  // FIXME: Do we know that this is the only form that Kokkos will 
-  // use here? 
+  // Transform the kokkos lambda expression into a loop.  
+
+  // The first step is to extract the argument to the lamba and convert it 
+  // into the loop iterator...  
+  // 
+  // FIXME: We assume some aspects of the kokkos parallel for construct here
+  //        that need to be carefully consdiered...  in particular, 
+  //   - the iterator can be assigned a value of zero. 
+  //   - the details of what is captured in the lambda seems to be mostly 
+  //     ignored... 
   const CXXMethodDecl *MD = LE->getCallOperator();
   assert(MD && "EmitKokkosParallelFor() -- bad method decl!");
 
@@ -264,7 +274,7 @@ void CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE) {
     EHSelectorSlot = nullptr;
     EmitBlock(ForallBodyEntry);
   }
-  std::cerr << "before clean up scope.\n";
+
   // Create a scope for the loop-variable cleanup.
   RunCleanupsScope DetachCleanupScope(*this);
   EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
