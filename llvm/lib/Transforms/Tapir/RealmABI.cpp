@@ -19,14 +19,27 @@
 #endif
 
 #include "llvm/Transforms/Tapir/RealmABI.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/LoopIterator.h"
+#include "llvm/Analysis/OptimizationRemarkEmitter.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/Dominators.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/InstIterator.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/TypeBuilder.h"
 #include "llvm/IR/Verifier.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/Transforms/Tapir/Outline.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
 
 using namespace llvm;
 
@@ -65,8 +78,10 @@ void RealmABI::createSync(SyncInst &SI, ValueToValueMapTy &DetachCtxToStackFrame
 
 // Adds entry basic blocks to body of extracted, replacing extracted, and adds
 // necessary code to call, i.e. storing arguments in struct
-Function* formatFunctionToRealmF(Function* extracted, CallInst* cal){
+Function* formatFunctionToRealmF(Function* extracted, Instruction* ical){
   std::vector<Value*> LoadedCapturedArgs;
+  CallInst *cal = dyn_cast<CallInst>(ical);
+
   for(auto& a:cal->arg_operands()) {
     LoadedCapturedArgs.push_back(a);
   }
@@ -179,7 +194,7 @@ Function* formatFunctionToRealmF(Function* extracted, CallInst* cal){
   cal->eraseFromParent();
   extracted->eraseFromParent();
 
-  DEBUG(OutlinedFn->dump()); 
+  LLVM_DEBUG(OutlinedFn->dump()); 
 
   return OutlinedFn; 
 }
@@ -192,7 +207,7 @@ Function *RealmABI::createDetach(DetachInst &detach,
   BasicBlock *Spawned  = detach.getDetached();
   BasicBlock *Continue = detach.getContinue();
 
-  CallInst *cal = nullptr;
+  Instruction *cal = nullptr;
   Function *extracted = extractDetachBodyToFunction(detach, DT, AC, &cal);
   extracted = formatFunctionToRealmF(extracted, cal); 
 
@@ -209,7 +224,7 @@ Function *RealmABI::createDetach(DetachInst &detach,
     }
   }
 
-  DEBUG(F.dump()); 
+  LLVM_DEBUG(F.dump()); 
 
   return extracted;
 }
