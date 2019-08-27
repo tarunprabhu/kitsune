@@ -274,6 +274,7 @@ set(files
   ${webassembly_files}
   ${windows_only_files}
   ${utility_files}
+  kitsune.h
   )
 
 set(cilk_header_files
