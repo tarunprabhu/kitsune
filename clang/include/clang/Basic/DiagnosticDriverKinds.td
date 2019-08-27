@@ -730,3 +730,23 @@ def err_drv_riscv_unsupported_with_linker_relaxation : Error<
 def err_drv_loongarch_invalid_mfpu_EQ : Error<
   "invalid argument '%0' to -mfpu=; must be one of: 64, 32, none, 0 (alias for none)">;
 }
+
+// +----- kitsune 
+def warn_kokkos_missing_build_params : Warning<
+  "'-fkokkos' mode enabled but build configuration missing details for "
+  "automatic argument generation. Include and linking arguments must be "
+  "provided on command line.">; 
+def warn_cilkrts_missing_build_params : Warning<
+  "'-ftapir=cilk' enabled but build configuration missing details for "
+  "automatic argument generation. Include and linking arguments must be "
+  "provided on command line.">; 
+def warn_qthreads_missing_build_params : Warning<
+  "'-ftapir=qthreads' enabled but build configuration missing details for "
+  "automatic argument generation. Include and linking arguments must be"
+  "provided on command line.">; 
+def warn_realm_missing_build_params : Warning<
+  "'-ftapir=realm' enabled but build configuration missing details for "
+  "automatic argument generation. Include and linking arguments must be "
+  "provided on command line.">; 
+// -----+
+}
