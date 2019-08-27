@@ -567,4 +567,24 @@ def remark_cc1_round_trip_generated : Remark<"Generated arguments #%0 in round-t
 def err_cc1_round_trip_fail_then_ok : Error<"Original arguments parse failed, then succeeded in round-trip">;
 def err_cc1_round_trip_ok_then_fail : Error<"Generated arguments parse failed in round-trip">;
 def err_cc1_round_trip_mismatch : Error<"Generated arguments do not match in round-trip">;
+
+// +----- kitsune 
+def warn_kokkos_missing_build_params : Warning<
+  "'-fkokkos' mode enabled but build configuration missing details for "
+  "automatic argument generation. Include and linking arguments must be "
+  "provided on command line.">; 
+def warn_cilkrts_missing_build_params : Warning<
+  "'-ftapir=cilk' enabled but build configuration missing details for "
+  "automatic argument generation. Include and linking arguments must be "
+  "provided on command line.">; 
+def warn_qthreads_missing_build_params : Warning<
+  "'-ftapir=qthreads' enabled but build configuration missing details for "
+  "automatic argument generation. Include and linking arguments must be"
+  "provided on command line.">; 
+def warn_realm_missing_build_params : Warning<
+  "'-ftapir=realm' enabled but build configuration missing details for "
+  "automatic argument generation. Include and linking arguments must be "
+  "provided on command line.">; 
+// -----+
+
 }
