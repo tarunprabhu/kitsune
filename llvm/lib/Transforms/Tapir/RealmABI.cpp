@@ -97,7 +97,7 @@ Function* formatFunctionToRealmF(Function* extracted, Instruction* ical){
   auto *ArgsPtrTy = PointerType::getUnqual(ArgsTy);
 
   //Create the canonical TaskFuncPtr
-  ArrayRef<Type*> typeArray = {ArgsPtrTy, Type::getInt64Ty(C), ArgsPtrTy, Type::getInt64Ty(C), Type::getInt64Ty(C)}; //trying int64 as stand-in for Realm::Processor because a ::realm_id_t is ultimately and unsigned long long
+  ArrayRef<Type*> typeArray = {ArgsPtrTy, Type::getInt64Ty(C), ArgsPtrTy, Type::getInt64Ty(C), Type::getInt64Ty(C)}; //trying int64 as stand-in for Realm::Processor because a ::realm_id_t is ultimately an unsigned long long
 
   FunctionType *OutlinedFnTy = FunctionType::get(
       Type::getVoidTy(C), 
@@ -113,7 +113,8 @@ Function* formatFunctionToRealmF(Function* extracted, Instruction* ical){
   StringRef ArgNames[] = {".args"};
   std::vector<Value*> out_args;
   for (auto &Arg : OutlinedFn->args()) {
-    Arg.setName(ArgNames[out_args.size()]);
+    //Arg.setName(ArgNames[out_args.size()]);
+    Arg.setName("");
     out_args.push_back(&Arg);
   }
 
@@ -184,7 +185,7 @@ Function* formatFunctionToRealmF(Function* extracted, Instruction* ical){
 		Type::getInt64Ty(C),
 		Type::getInt64Ty(C)}, //end argument list
 		false);
-  Function * thisFunc = Function::Create(Fty, GlobalValue::ExternalLinkage, "realmSync", M);
+  Function * thisFunc = Function::Create(Fty, GlobalValue::ExternalLinkage, "realmSpawn", M);
   //std::cout << "args size: " << callerArgs.size() << std::endl;
   //std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
   //std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
