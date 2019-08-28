@@ -324,6 +324,9 @@ BENIGN_LANGOPT(Kokkos, 1, 0, "Enable specialized Kokkos code generation")
 // kitsune: FleCSI support. 
 BENIGN_LANGOPT(FleCSI, 1, 0, "Enable specialized FleCSI code generation")
 
+// kitsune: Forall support. 
+BENIGN_LANGOPT(Forall, 1, 0, "Enable specialized Forall code generation")
+
 #undef LANGOPT
 #undef COMPATIBLE_LANGOPT
 #undef BENIGN_LANGOPT

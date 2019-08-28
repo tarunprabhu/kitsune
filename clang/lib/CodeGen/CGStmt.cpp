@@ -961,6 +961,12 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
                                      ArrayRef<const Attr *> ForAttrs) {
   JumpDest LoopExit = getJumpDestInCurrentScope("forall.end");
 
+  bool emitParallelForallStmt=getLangOpts().Forall;
+
+  if (emitParallelForallStmt){
+    printf("compiler called with -fforall\n");
+  }
+
   LexicalScope ForScope(*this, S.getSourceRange());
 
   // Evaluate the first part before the loop.
