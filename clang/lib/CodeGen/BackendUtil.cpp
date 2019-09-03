@@ -417,6 +417,39 @@ addComprehensiveStaticInstrumentationPass(const PassManagerBuilder &Builder,
   }
 }
 
+static CSIOptions getCSIOptionsForCilkscale() {
+  CSIOptions Options;
+  // Disable CSI hooks that Cilkscale doesn't need.
+  Options.InstrumentBasicBlocks = false;
+  Options.InstrumentLoops = false;
+  Options.InstrumentMemoryAccesses = false;
+  Options.InstrumentCalls = false;
+  Options.InstrumentAtomics = false;
+  Options.InstrumentMemIntrinsics = false;
+  Options.InstrumentAllocas = false;
+  Options.InstrumentAllocFns = false;
+  return Options;
+}
+
+static void
+addCilkscaleInstrumentation(const PassManagerBuilder &Builder,
+                            legacy::PassManagerBase &PM) {
+  PM.add(createComprehensiveStaticInstrumentationLegacyPass(
+             getCSIOptionsForCilkscale()));
+
+  // CSI inserts complex instrumentation that mostly follows the logic of the
+  // original code, but operates on "shadow" values.  It can benefit from
+  // re-running some general purpose optimization passes.
+  if (Builder.OptLevel > 0) {
+    PM.add(createEarlyCSEPass());
+    PM.add(createReassociatePass());
+    PM.add(createLICMPass());
+    PM.add(createGVNPass());
+    PM.add(createInstructionCombiningPass());
+    PM.add(createDeadStoreEliminationPass());
+  }
+}
+
 static TargetLibraryInfoImpl *createTLII(llvm::Triple &TargetTriple,
                                          const CodeGenOptions &CodeGenOpts) {
   TargetLibraryInfoImpl *TLII = new TargetLibraryInfoImpl(TargetTriple);
