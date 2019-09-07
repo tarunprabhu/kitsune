@@ -3491,20 +3491,23 @@ def note_protocol_decl_undefined : Note<
 
 // +===== kitsune: errors related to parallel-ir specific attributes. 
 
-// target-centric error/warnings. 
-def err_kitsune_target_attr_unsupported_stmt: Error<
-    "target attribute applied to unsupported statement.">;
-def err_kitsune_target_attr_wrong_nargs: Error<
-    "target attribute takes a single argument.">;
-def err_kitsune_target_unknown: Error<
-    "attribute uses unrecognized target.">;
+// target/strategy incorrect arg count. 
+def err_kitsune_attr_wrong_nargs: Error<
+    "attribute has incorrect number of arguments.">;
+def err_kitsune_attr_wrong_arg_type: Error<
+    "attribute is of the wrong type -- expected literal string">;
 
-def err_kitsune_strategy_attr_unsupported_stmt: Error<
-    "strategy attribute applied to unsupported statement.">;
-def err_kitsune_strategy_attr_wrong_nargs: Error<
-    "strategy attribute takes a single argument.">;
-def err_kitsune_strategy_unknown: Error<
-    "attribute uses uncognized strategy.">;
+// target-centric errors/warnings. 
+def warn_kitsune_attr_target_unsupported_stmt: Warning<
+    "target attribute applied to unsupported statement kind.">;
+def err_kitsune_attr_unknown_target: Error<
+    "attribute specifies unrecognized target.">;
+
+// strategy-centric errors/warnings. 
+def warn_kitsune_attr_strategy_unsupported_stmt: Warning<
+    "strategy attribute applied to unsupported statement kind.">;
+def err_kitsune_attr_unknown_strategy: Error<
+    "attribute specifies unrecognized strategy.">;
 
 // =====+
 

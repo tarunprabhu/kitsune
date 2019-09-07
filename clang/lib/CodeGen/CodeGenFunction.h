@@ -2356,7 +2356,7 @@ public:
   llvm::Value *EvaluateExprAsBool(const Expr *E);
 
   /// EmitIgnoredExpr - Emit an expression in a context which ignores the result.
-  void EmitIgnoredExpr(const Expr *E);
+  void EmitIgnoredExpr(const Expr *E, ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
 
   /// EmitAnyExpr - Emit code to compute the specified expression which can have
   /// any type.  The result is returned as an RValue struct.  If this is an
@@ -2366,7 +2366,8 @@ public:
   /// \param ignoreResult True if the resulting value isn't used.
   RValue EmitAnyExpr(const Expr *E,
                      AggValueSlot aggSlot = AggValueSlot::ignored(),
-                     bool ignoreResult = false);
+                     bool ignoreResult = false,
+		     ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
 
   // EmitVAListRef - Emit a "reference" to a va_list; this is either the address
   // or the value of the expression, depending on how va_list is defined.
@@ -3034,13 +3035,16 @@ public:
   llvm::Value *EmitSEHExceptionInfo();
   llvm::Value *EmitSEHAbnormalTermination();
 
-  // kitsune: Kokkos support  
-  bool EmitKokkosConstruct(const CallExpr *CE);
-  bool EmitKokkosParallelFor(const CallExpr *CE);
-  bool EmitKokkosParallelReduce(const CallExpr *CE);
-  // FIXME?: Should/can we refactor this away?
-  bool InKokkosConstruct = false;
+  // -----+ kitsune
+  // 
+  LoopAttributes::LSStrategy GetKitsuneStrategyAttr(ArrayRef<const Attr*> Attrs);
+  LoopAttributes::LTarget GetKitsuneTargetAttr(ArrayRef<const Attr*> Attrs);
 
+  // Kokkos support  
+  bool EmitKokkosConstruct(const CallExpr *CE, ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
+  bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
+  bool EmitKokkosParallelReduce(const CallExpr *CE, ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
+  bool InKokkosConstruct = false;   // FIXME?: Should/can we refactor this away?
 
   /// Emit simple code for OpenMP directives in Simd-only mode.
   void EmitSimpleOMPExecutableDirective(const OMPExecutableDirective &D);
@@ -3717,7 +3721,8 @@ public:
   RValue EmitCall(QualType FnType, const CGCallee &Callee, const CallExpr *E,
                   ReturnValueSlot ReturnValue, llvm::Value *Chain = nullptr);
   RValue EmitCallExpr(const CallExpr *E,
-                      ReturnValueSlot ReturnValue = ReturnValueSlot());
+                      ReturnValueSlot ReturnValue = ReturnValueSlot(),
+		      ArrayRef<const Attr *> Attrs = ArrayRef<const Attr*>());
   RValue EmitSimpleCallExpr(const CallExpr *E, ReturnValueSlot ReturnValue);
   CGCallee EmitCallee(const Expr *E);
 
@@ -3988,7 +3993,8 @@ public:
 
   /// EmitScalarExpr - Emit the computation of the specified expression of LLVM
   /// scalar type, returning the result.
-  llvm::Value *EmitScalarExpr(const Expr *E , bool IgnoreResultAssign = false);
+  llvm::Value *EmitScalarExpr(const Expr *E , bool IgnoreResultAssign = false, 
+			      ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
 
   /// Emit a conversion from the specified type to the specified destination
   /// type, both of which are LLVM scalar types.
@@ -4019,6 +4025,7 @@ public:
   ComplexPairTy EmitComplexExpr(const Expr *E,
                                 bool IgnoreReal = false,
                                 bool IgnoreImag = false);
+
 
   /// EmitComplexExprIntoLValue - Emit the given expression of complex
   /// type and place its result into the specified l-value.

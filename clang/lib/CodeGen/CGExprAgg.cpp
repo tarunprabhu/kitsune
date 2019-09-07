@@ -10,6 +10,7 @@
 // This contains code to emit Aggregate Expr nodes as LLVM code.
 //
 //===----------------------------------------------------------------------===//
+#include <cstdio>
 
 #include "CodeGenFunction.h"
 #include "CGCXXABI.h"
@@ -60,7 +61,7 @@ class AggExprEmitter : public StmtVisitor<AggExprEmitter> {
 public:
   AggExprEmitter(CodeGenFunction &cgf, AggValueSlot Dest, bool IsResultUnused)
     : CGF(cgf), Builder(CGF.Builder), Dest(Dest),
-    IsResultUnused(IsResultUnused) { }
+      IsResultUnused(IsResultUnused) { }
 
   //===--------------------------------------------------------------------===//
   //                               Utilities

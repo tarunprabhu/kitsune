@@ -10,6 +10,7 @@
 // This contains code to emit Stmt nodes as LLVM code.
 //
 //===----------------------------------------------------------------------===//
+#include <cstdio>
 
 #include "CGDebugInfo.h"
 #include "CodeGenFunction.h"
@@ -112,7 +113,7 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
       llvm::BasicBlock *incoming = Builder.GetInsertBlock();
       assert(incoming && "expression emission must have an insertion point");
 
-      EmitIgnoredExpr(cast<Expr>(S));
+      EmitIgnoredExpr(cast<Expr>(S), Attrs); // kitsune extension for kokkos attribute support. 
 
       llvm::BasicBlock *outgoing = Builder.GetInsertBlock();
       assert(outgoing && "expression emission cleared block!");

@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <cstdio>
+
 #include "CGCXXABI.h"
 #include "CGCleanup.h"
 #include "CGDebugInfo.h"
@@ -217,11 +219,12 @@ class ScalarExprEmitter
   CGBuilderTy &Builder;
   bool IgnoreResultAssign;
   llvm::LLVMContext &VMContext;
+  ArrayRef<const Attr *>  Attrs;
 public:
 
-  ScalarExprEmitter(CodeGenFunction &cgf, bool ira=false)
+  ScalarExprEmitter(CodeGenFunction &cgf, bool ira=false, ArrayRef<const Attr *> Attrs = ArrayRef<const Attr*>())
     : CGF(cgf), Builder(CGF.Builder), IgnoreResultAssign(ira),
-      VMContext(cgf.getLLVMContext()) {
+      VMContext(cgf.getLLVMContext()), Attrs(Attrs) {
   }
 
   //===--------------------------------------------------------------------===//
@@ -557,7 +560,7 @@ public:
     if (E->getCallReturnType(CGF.getContext())->isReferenceType())
       return EmitLoadOfLValue(E);
 
-    Value *V = CGF.EmitCallExpr(E).getScalarVal();
+    Value *V = CGF.EmitCallExpr(E, ReturnValueSlot(), Attrs).getScalarVal();
 
     EmitLValueAlignmentAssumption(E, V);
     return V;
@@ -4287,11 +4290,12 @@ Value *ScalarExprEmitter::VisitAtomicExpr(AtomicExpr *E) {
 
 /// Emit the computation of the specified expression of scalar type, ignoring
 /// the result.
-Value *CodeGenFunction::EmitScalarExpr(const Expr *E, bool IgnoreResultAssign) {
+Value *CodeGenFunction::EmitScalarExpr(const Expr *E, bool IgnoreResultAssign, 
+				       ArrayRef<const Attr *> Attrs) {
   assert(E && hasScalarEvaluationKind(E->getType()) &&
          "Invalid scalar expression to emit");
 
-  return ScalarExprEmitter(*this, IgnoreResultAssign)
+  return ScalarExprEmitter(*this, IgnoreResultAssign, Attrs)
       .Visit(const_cast<Expr *>(E));
 }
 

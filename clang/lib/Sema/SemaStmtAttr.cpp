@@ -187,6 +187,7 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                                       ValueExpr, A.getRange());
 }
 
+
 static void
 CheckForIncompatibleAttributes(Sema &S,
                                const SmallVectorImpl<const Attr *> &Attrs) {
@@ -331,39 +332,76 @@ static Attr *handleOpenCLUnrollHint(Sema &S, Stmt *St, const ParsedAttr &A,
 
 // +===== Handle kitsune-centric attributes 
 // 
-static Attr *handleKitsuneTargetAttr(Sema &S, Stmt *St, 
-				     const ParsedAttr &A,
-				     SourceRange Range)
+
+// This is a helper function to work through the details of the
+// statement to see if we are dealing with a kokkos statement under
+// the hood.
+static const CallExpr *isStmtKokkosCallExpr(Stmt *St) {
+
+  const CallExpr *CE = nullptr;
+
+  if (isa<ExprWithCleanups>(St)) {
+
+    if (const ExprWithCleanups *EWC = dyn_cast<ExprWithCleanups>(St)) {
+
+      if (const Expr *E = EWC->getSubExpr()) {
+	CE = dyn_cast<CallExpr>(E);
+	if (CE) {
+	  const FunctionDecl *Func = CE->getDirectCallee();
+	  if (Func->getQualifiedNameAsString() != "Kokkos::parallel_for")
+	    CE = nullptr;
+	}
+      }
+    }
+  }
+
+  return CE;
+}
+
+
+static Attr *handleKitsuneTargetAttr(Sema &S, Stmt *St, const ParsedAttr &A,
+				     SourceRange Range) 
 {
-  if (! isa<ForallStmt>(St) && ! isa<CXXForallRangeStmt>(St)) {
-    S.Diag(A.getLoc(), diag::err_kitsune_target_attr_unsupported_stmt);
-    return nullptr;
+  // We only support the kitsune 'target' attribute on forall
+  // statements and supported kokkos statements.  At present we don't
+  // treat the association with other statements kinds as an error but
+  // instead issue a warning.
+  const CallExpr *CE = nullptr;
+  if (S.getLangOpts().Kokkos) {
+    CE = isStmtKokkosCallExpr(St);
   }
 
-  if (A.getNumArgs() != 1) {
-    S.Diag(A.getLoc(), diag::err_kitsune_target_attr_wrong_nargs);
+  if (CE || isa<ForallStmt>(St) || isa<CXXForallRangeStmt>(St)) {
+
+    if (A.getNumArgs() != 1) {
+      S.Diag(A.getLoc(), diag::err_kitsune_attr_wrong_nargs);
+      return nullptr;
+    }
+
+    StringRef      targetStr;
+    SourceLocation argLoc;
+
+    if (!S.checkStringLiteralArgumentAttr(A, 0, targetStr, &argLoc)) {
+      S.Diag(A.getLoc(), diag::err_kitsune_attr_unknown_target);
+      return nullptr;
+    }
+
+    KitsuneTargetAttr::KitsuneTargetTy   targetKind;
+    if(!KitsuneTargetAttr::ConvertStrToKitsuneTargetTy(targetStr, targetKind)) {
+      // FIXME: Is this redundant w/ CheckString call above???
+      S.Diag(A.getLoc(), diag::err_kitsune_attr_unknown_target)
+	<< A.getName() << targetStr << argLoc;
+      return nullptr;
+    }
+
+    unsigned Index = A.getAttributeSpellingListIndex();
+    return ::new(S.Context)
+      KitsuneTargetAttr(A.getLoc(), S.Context, targetKind, Index);
+
+  } else {
+    S.Diag(A.getLoc(), diag::warn_kitsune_attr_target_unsupported_stmt);
     return nullptr;
-  }
-
-  StringRef      targetStr;
-  SourceLocation argLoc;
-
-  if (!S.checkStringLiteralArgumentAttr(A, 0, targetStr, &argLoc)) {
-    S.Diag(A.getLoc(), diag::err_kitsune_target_unknown);
-    return nullptr;
-  }
-
-  KitsuneTargetAttr::KitsuneTargetTy   targetKind;
-  if(!KitsuneTargetAttr::ConvertStrToKitsuneTargetTy(targetStr, targetKind)) {
-    // FIXME: Is this redundant w/ CheckString call above???
-    S.Diag(A.getLoc(), diag::err_kitsune_target_unknown)
-      << A.getName() << targetStr << argLoc;
-    return nullptr;
-  }
-
-  unsigned Index = A.getAttributeSpellingListIndex();
-  return ::new(S.Context)
-    KitsuneTargetAttr(A.getLoc(), S.Context, targetKind, Index);
+  }  
 }
 
 
@@ -371,34 +409,40 @@ static Attr *handleKitsuneStrategyAttr(Sema &S, Stmt *St,
 				       const ParsedAttr &A,
 				       SourceRange Range) 
 {
-  if (! isa<ForallStmt>(St) || ! isa<CXXForallRangeStmt>(St)) {
-    S.Diag(A.getLoc(), diag::err_kitsune_strategy_attr_unsupported_stmt);
-    return nullptr;
+  const CallExpr *CE = nullptr;
+  if (S.getLangOpts().Kokkos) {
+    CE = isStmtKokkosCallExpr(St);
   }
 
-  if (A.getNumArgs() != 1) {
-    S.Diag(A.getLoc(), diag::err_kitsune_strategy_attr_wrong_nargs);
+  if (CE || isa<ForallStmt>(St) || isa<CXXForallRangeStmt>(St)) {
+
+    if (A.getNumArgs() != 1) {
+      S.Diag(A.getLoc(), diag::err_kitsune_attr_wrong_nargs);
+      return nullptr;
+    }
+
+    StringRef      strategyStr;
+    SourceLocation argLoc;
+    if (!S.checkStringLiteralArgumentAttr(A, 0, strategyStr, &argLoc)) {
+      S.Diag(A.getLoc(), diag::err_kitsune_attr_unknown_strategy);
+      return nullptr;
+    }
+
+    KitsuneStrategyAttr::KitsuneStrategyTy strategyKind;
+    if (!KitsuneStrategyAttr::ConvertStrToKitsuneStrategyTy(strategyStr, strategyKind)) {
+      // FIXME: Is this redundant w/ CheckString call above???
+      S.Diag(A.getLoc(), diag::err_kitsune_attr_unknown_strategy)
+	<< A.getName() << strategyStr << argLoc;
+      return nullptr;
+    }
+
+    unsigned Index = A.getAttributeSpellingListIndex();
+    return ::new (S.Context)
+      KitsuneStrategyAttr(A.getLoc(), S.Context, strategyKind, Index);
+  } else {
+    S.Diag(A.getLoc(), diag::warn_kitsune_attr_strategy_unsupported_stmt);
     return nullptr;
   }
-
-  StringRef      strategyStr;
-  SourceLocation argLoc;
-  if (!S.checkStringLiteralArgumentAttr(A, 0, strategyStr, &argLoc)) {
-    S.Diag(A.getLoc(), diag::err_kitsune_strategy_unknown);
-    return nullptr;
-  }
-
-  KitsuneStrategyAttr::KitsuneStrategyTy strategyKind;
-  if (!KitsuneStrategyAttr::ConvertStrToKitsuneStrategyTy(strategyStr, strategyKind)) {
-    // FIXME: Is this redundant w/ CheckString call above???
-    S.Diag(A.getLoc(), diag::err_kitsune_strategy_unknown)
-      << A.getName() << strategyStr << argLoc;
-    return nullptr;
-  }
-
-  unsigned Index = A.getAttributeSpellingListIndex();
-  return ::new (S.Context)
-    KitsuneStrategyAttr(A.getLoc(), S.Context, strategyKind, Index);
 }
 
 // =====+

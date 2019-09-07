@@ -215,17 +215,6 @@ namespace {
   }
 }
 
-// FIXME: This should probably be moved out of the kokkos-centric implementation.  
-llvm::Instruction *CodeGenFunction::EmitSyncRegionStart() {
-  // Start the sync region.  To ensure the syncregion.start call dominates all
-  // uses of the generated token, we insert this call at the alloca insertion
-  // point.
-  llvm::Instruction *SRStart = llvm::CallInst::Create(
-				CGM.getIntrinsic(llvm::Intrinsic::syncregion_start),
-				"syncreg", AllocaInsertPt);
-  return SRStart;
-}
-
 /// \brief Emit a kokkos-centric construct. 
 ///
 /// This is our high-level entry point for lowering kokkos constructs
@@ -237,18 +226,20 @@ llvm::Instruction *CodeGenFunction::EmitSyncRegionStart() {
 // feature that would be nice is a way to backtrack and fall through to 
 // default C++ codegen if we hit a particular case that is currently not 
 // supported. 
-bool CodeGenFunction::EmitKokkosConstruct(const CallExpr *CE) {
+bool CodeGenFunction::EmitKokkosConstruct(const CallExpr *CE, 
+					  ArrayRef<const Attr *> Attrs) {
+
   assert(CE != 0 && "CodeGenFunction::EmitKokkosConstruct: null callexpr passed!");
 
   const FunctionDecl *Func = CE->getDirectCallee();
   assert(Func != 0 && "Kokkos construct doesn't have a function declaration!");
-
-  // FIXME: This is repeated code from CGExpr... 
   if (Func->getQualifiedNameAsString() == "Kokkos::parallel_for") {
-    return EmitKokkosParallelFor(CE);
+    return EmitKokkosParallelFor(CE, Attrs);
   } else if (Func->getQualifiedNameAsString() == "Kokkos::parallel_reduce") {
-    return EmitKokkosParallelReduce(CE);
+    return EmitKokkosParallelReduce(CE, Attrs);
   } else {
+    // FIXME: should return false here vs. crapping out...  Let the normal 
+    // code gen path complete.  Maybe a warning is worthwhile to share... 
     llvm_unreachable("unsupported kokkos construct encountered");
   }
 }
@@ -261,9 +252,8 @@ bool CodeGenFunction::EmitKokkosConstruct(const CallExpr *CE) {
 // FIXME: As discussed above it would be nice to find a way to fallback to the 
 // standard C++ codegen if we hit an unhandled construct/feature. 
 // 
-bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE) {
-    
-  ArrayRef<const Attr *> ForallAttrs; // FIXME: This is unused... 
+bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE, 
+					    ArrayRef<const Attr *> ForallAttrs) {
 
   std::string      PFName; 
   const Expr       *BE = nullptr; // "bounds" expression
@@ -344,13 +334,13 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE) {
   llvm::BasicBlock *CondBlock = Continue.getBlock();
   EmitBlock(CondBlock);
 
-  // FIXME: Need to get attributes for spawning strategy from 
-  // code versus this hard-coded route... 
-  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
   const SourceRange &R = CE->getSourceRange();
+
+  LoopStack.setSpawnStrategy(GetKitsuneStrategyAttr(ForallAttrs));
   LoopStack.push(CondBlock, CGM.getContext(), ForallAttrs,
-                 SourceLocToDebugLoc(R.getBegin()),
-                 SourceLocToDebugLoc(R.getEnd()));
+		 SourceLocToDebugLoc(R.getBegin()),
+		 SourceLocToDebugLoc(R.getEnd()));
+
   JumpDest Preattach = getJumpDestInCurrentScope("kokkos.forall.preattach");
   Continue = getJumpDestInCurrentScope("kokkos.forall.inc");
 
@@ -488,7 +478,8 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE) {
   return true;
 }
 
-bool CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE) {
+bool CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE, 
+					       ArrayRef<const Attr *> ReduceAttrs) {
   assert(false && "kokkos reductions currently not supported!");
   return false;
 }

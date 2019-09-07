@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <cstdio>
+
 #include "CGCXXABI.h"
 #include "CGCall.h"
 #include "CGCleanup.h"
@@ -179,9 +181,12 @@ llvm::Value *CodeGenFunction::EvaluateExprAsBool(const Expr *E) {
 
 /// EmitIgnoredExpr - Emit code to compute the specified expression,
 /// ignoring the result.
-void CodeGenFunction::EmitIgnoredExpr(const Expr *E) {
-  if (E->isRValue())
-    return (void) EmitAnyExpr(E, AggValueSlot::ignored(), true);
+void CodeGenFunction::EmitIgnoredExpr(const Expr *E, ArrayRef<const Attr *> Attrs) {
+
+  // Just emit it as an l-value and drop the result.
+  if (E->isRValue()) {
+    return (void) EmitAnyExpr(E, AggValueSlot::ignored(), true, Attrs);
+  }
 
   // Just emit it as an l-value and drop the result.
   EmitLValue(E);
@@ -193,10 +198,11 @@ void CodeGenFunction::EmitIgnoredExpr(const Expr *E) {
 /// result should be returned.
 RValue CodeGenFunction::EmitAnyExpr(const Expr *E,
                                     AggValueSlot aggSlot,
-                                    bool ignoreResult) {
+                                    bool ignoreResult, 
+				    ArrayRef<const Attr *> Attrs) {
   switch (getEvaluationKind(E->getType())) {
   case TEK_Scalar:
-    return RValue::get(EmitScalarExpr(E, ignoreResult));
+    return RValue::get(EmitScalarExpr(E, ignoreResult, Attrs));
   case TEK_Complex:
     return RValue::getComplex(EmitComplexExpr(E, ignoreResult, ignoreResult));
   case TEK_Aggregate:
@@ -4366,27 +4372,17 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 //===--------------------------------------------------------------------===//
 
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
-                                     ReturnValueSlot ReturnValue) {
-  // kitsune: handle kokkos-centric details -- specifically we are
-  // dealing with a case where we transform a lambda construct into 
-  // a traditional loop construct -- thus our result is not a call expr 
-  // but essentially the removal of the call. 
+                                     ReturnValueSlot ReturnValue,
+				     ArrayRef<const Attr *> Attrs) {
   // 
-  // FIXME: is this sound in all lambda use cases?  --PM 
-  // 
+  // +===== kitsune support for direct kokkos transformations
   if (getLangOpts().Kokkos) {
-    const FunctionDecl *fdecl = E->getDirectCallee();
-    if (fdecl) {
-      std::string qname = fdecl->getQualifiedNameAsString();
-      if (qname == "Kokkos::parallel_for" || 
-          qname == "Kokkos::parallel_reduce") {
-	if (EmitKokkosConstruct(E))
-	  return RValue::get(nullptr);
-	// else fall through to standard C++ support. 
-      }
-    }
+    if (EmitKokkosConstruct(E, Attrs))
+      return RValue::get(nullptr);
+    // note that if we don't sucessfully emit a kokkos construct we 
+    // will simply continue to the standard C++ code-gen below... 
   }
-  
+  // =====+ 
   
   // Builtins never have block type.
   if (E->getCallee()->getType()->isBlockPointerType())
