@@ -2976,6 +2976,8 @@ public:
   // Kitsune
   void EmitForallStmt(const ForallStmt &S,
                    ArrayRef<const Attr *> Attrs = None);
+  void EmitParallelForallStmt(const ForallStmt &S,
+                   ArrayRef<const Attr *> Attrs = None);
   void EmitReturnStmt(const ReturnStmt &S);
   void EmitDeclStmt(const DeclStmt &S);
   void EmitBreakStmt(const BreakStmt &S);
