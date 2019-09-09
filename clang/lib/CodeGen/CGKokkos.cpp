@@ -301,6 +301,10 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   const CXXMethodDecl *MD = Lambda->getCallOperator();
   assert(MD && "EmitKokkosParallelFor() -- bad method decl!");
 
+
+  llvm::MDBuilder MDHelper(getLLVMContext());
+  llvm::MDString *KokkosMDS = MDHelper.createString("kitsune:parallel for");
+
   const ParmVarDecl *LoopVar = MD->getParamDecl(0);
   assert(LoopVar && "EmitKokkosParallelFor() -- bad loop variable!");
   EmitVarDecl(*LoopVar);
@@ -397,7 +401,17 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
     }
 
     EmitBlock(DetachBlock);
-    Builder.CreateDetach(ForallBodyEntry, Continue.getBlock(), SRStart);
+
+    llvm::DetachInst *Detach = Builder.CreateDetach(ForallBodyEntry, Continue.getBlock(), SRStart);
+
+    llvm::LLVMContext &Ctx = CGM.getModule().getContext();
+
+    llvm::NamedMDNode *MD = CGM.getModule().getOrInsertNamedMetadata("kitsune.semantics");
+    llvm::Metadata *MDVals[] = {
+      llvm::MDString::get(Ctx, "kokkos.parallel_for")
+    };
+    MD->addOperand(llvm::MDNode::get(Ctx, MDVals));
+    Detach->setMetadata("kitsune.semantics", MD->getOperand(0));
 
     // Create a new alloca insertion point.
     llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);

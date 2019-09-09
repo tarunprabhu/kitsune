@@ -982,12 +982,13 @@ public:
   /// \brief Create a detach instruction,
   ///  'detach within SyncRegion, Detached, Continue'.
   DetachInst *CreateDetach(BasicBlock *Detached, BasicBlock *Continue,
-                           Value *SyncRegion, MDNode *BranchWeights = nullptr) {
+                           Value *SyncRegion, MDNode *BranchWeights = nullptr)
+  {
     return Insert(addBranchMetadata(
                       DetachInst::Create(Detached, Continue, SyncRegion),
                       BranchWeights, nullptr));
   }
-
+ 
   /// \brief Create a detach instruction,
   ///  'detach within SyncRegion, Detached, Continue, Unwind'.
   DetachInst *CreateDetach(BasicBlock *Detached, BasicBlock *Continue,
