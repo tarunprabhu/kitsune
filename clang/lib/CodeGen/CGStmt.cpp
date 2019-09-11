@@ -982,7 +982,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
     return;
   }
 
-  printf("Codegen a serial for loop\n");
+  printf("Codegen a serial forall loop\n");
 
   JumpDest LoopExit = getJumpDestInCurrentScope("forall.end");
 
@@ -1084,13 +1084,14 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
                                              ArrayRef<const Attr *> ForAttrs) {
 
-  printf("Codegen a parallel for loop\n");
+  printf("Codegen a parallel forall loop\n");
 
   assert(S.getInit() && "forall loop has no init");
   assert(S.getCond() && "forall loop has no condition");
   assert(S.getInc() && "forall loop has no increment");
 
   // Create all jump destinations and blocks in the order they appear in the IR
+  // some are jump destinations, some are basic blocks
   JumpDest Condition = getJumpDestInCurrentScope("forall.cond");
   llvm::BasicBlock *Detach = createBasicBlock("forall.detach");
   llvm::BasicBlock *ForBody = createBasicBlock("forall.body");
@@ -1100,14 +1101,8 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
   JumpDest Sync = getJumpDestInCurrentScope("forall.sync");
   llvm::BasicBlock *End = createBasicBlock("forall.end");
 
-  // Extract convenience blocks from jump destinations
+  // Extract a convenience block
   llvm::BasicBlock *ConditionBlock = Condition.getBlock();
-  // llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
-
-  // If there are any cleanups between here and the loop-exit scope,
-  // create a block to stage a loop exit along.
-
-  // As long as the condition is true, iterate the loop.
 
   const SourceRange &R = S.getSourceRange();
   LexicalScope ForScope(*this, R);
@@ -1138,16 +1133,9 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
 
   // If the for statement has a condition scope, emit the local variable
   // declaration.
-  // DWS I think we always have this and the test is unnecessary, but not sure
   if (S.getConditionVariable()) {
-    // DWS emit happens within the current block
     EmitDecl(*S.getConditionVariable());
   }
-
-  // If there are any cleanups between here and the loop-exit scope,
-  // create a block to stage a loop exit along.
-  //////////if (ForScope.requiresCleanups())
-  ////////  ExitBlock = createBasicBlock("forall.cond.cleanup");
 
   // C99 6.8.5p2/p4: The first substatement is executed if the expression
   // compares unequal to 0.  The condition must be a scalar type.
@@ -1183,23 +1171,16 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
 
   EmitBlock(Increment);
 
-  // DWS emit happens within the current block
   EmitStmt(S.getInc());
 
   BreakContinueStack.pop_back();
 
-  // DWS lexical scope has ForceCleanup
   ConditionScope.ForceCleanup();
 
-  // DWS adds a debugging stop point
   EmitStopPoint(&S);
 
-  // DWS changes the terminator (go to the condition)
-  // DWS has a side effect that the return value now needs to be loaded since
-  // the code doesn't fall through to the forall.end block
-  EmitBranch(Condition.getBlock());
+  EmitBranch(ConditionBlock);
 
-  // DWS lexical scope has ForceCleanup
   ForScope.ForceCleanup();
 
   LoopStack.pop();
@@ -1207,150 +1188,9 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
   EmitBlock(Sync.getBlock());
   Builder.CreateSync(End, SRStart);
 
-  // Emit the fall-through block.
   EmitBlock(End, true);
 }
 
-/*
-// Kitsune
-void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
-                                             ArrayRef<const Attr *> ForAttrs) {
-
-  printf("Codegen a parallel for loop\n");
-
-  assert(S.getInit() && "forall loop has no init");
-  assert(S.getCond() && "forall loop has no condition");
-  assert(S.getInc() && "forall loop has no increment");
-
-  // llvm::BasicBlock *Sync = createBasicBlock("forall.sync");
-  JumpDest Sync = getJumpDestInCurrentScope("forall.sync");
-
-  JumpDest LoopExit = getJumpDestInCurrentScope("forall.end");
-  LexicalScope ForScope(*this, S.getSourceRange());
-
-  // Evaluate the first part before the loop.
-  if (S.getInit())
-    EmitStmt(S.getInit());
-
-  // create the sync region
-  PushSyncRegion();
-  llvm::Instruction *SRStart = EmitSyncRegionStart();
-  CurSyncRegion->setSyncRegionStart(SRStart);
-
-  // FIXME: Need to get attributes for spawning strategy from
-  // code versus this hard-coded route...
-  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
-
-  // Start the loop with a block that tests the condition.
-  // If there's an increment, the continue scope will be overwritten
-  // later.
-  JumpDest Continue = getJumpDestInCurrentScope("forall.cond");
-  llvm::BasicBlock *CondBlock = Continue.getBlock();
-  EmitBlock(CondBlock);
-
-  const SourceRange &R = S.getSourceRange();
-  LoopStack.push(CondBlock, CGM.getContext(), ForAttrs,
-                 SourceLocToDebugLoc(R.getBegin()),
-                 SourceLocToDebugLoc(R.getEnd()));
-
-  // If the for loop doesn't have an increment we can just use the
-  // condition as the continue block.  Otherwise we'll need to create
-  // a block for it (in the current scope, i.e. in the scope of the
-  // condition), and that we will become our continue block.
-  if (S.getInc())
-    Continue = getJumpDestInCurrentScope("forall.inc");
-
-  // Store the blocks to use for break and continue.
-  BreakContinueStack.push_back(BreakContinue(LoopExit, Continue));
-
-  // Create a cleanup scope for the condition variable cleanups.
-  LexicalScope ConditionScope(*this, S.getSourceRange());
-
-  if (S.getCond()) {
-    // If the for statement has a condition scope, emit the local variable
-    // declaration.
-    if (S.getConditionVariable()) {
-      // DWS emit happens within the current block
-      EmitDecl(*S.getConditionVariable());
-    }
-
-    llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
-    // If there are any cleanups between here and the loop-exit scope,
-    // create a block to stage a loop exit along.
-    if (ForScope.requiresCleanups())
-      ExitBlock = createBasicBlock("forall.cond.cleanup");
-
-    // Create the detach jump destination
-    JumpDest Detach = getJumpDestInCurrentScope("forall.detach");
-
-    // C99 6.8.5p2/p4: The first substatement is executed if the expression
-    // compares unequal to 0.  The condition must be a scalar type.
-    llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
-    Builder.CreateCondBr(
-        BoolCondVal, Detach.getBlock(), Sync.getBlock(),
-        createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
-
-    if (ExitBlock != LoopExit.getBlock()) {
-      EmitBlock(ExitBlock);
-      EmitBranchThroughCleanup(LoopExit);
-    }
-
-    // emit the detach block
-    EmitBlock(Detach.getBlock());
-
-    // As long as the condition is true, iterate the loop.
-    llvm::BasicBlock *ForBody = createBasicBlock("forall.body");
-
-    // create the detach terminator
-    Builder.CreateDetach(ForBody, Continue.getBlock(), SRStart);
-
-    EmitBlock(ForBody);
-  } else {
-    // Treat it as a non-zero constant.  Don't even create a new block for the
-    // body, just fall into it.
-  }
-  incrementProfileCounter(&S);
-
-  {
-    // Create a separate cleanup scope for the body, in case it is not
-    // a compound statement.
-    RunCleanupsScope BodyScope(*this);
-    EmitStmt(S.getBody());
-    Builder.CreateReattach(Continue.getBlock(), SRStart);
-  }
-
-  // If there is an increment, emit it next.
-  if (S.getInc()) {
-    EmitBlock(Continue.getBlock());
-    // DWS emit happens within the current block
-    EmitStmt(S.getInc());
-  }
-
-  BreakContinueStack.pop_back();
-
-  // DWS lexical scope has ForceCleanup
-  ConditionScope.ForceCleanup();
-
-  // DWS adds a debugging stop point
-  EmitStopPoint(&S);
-
-  // DWS changes the terminator (go to the condition)
-  // DWS has a side effect that the return value now needs to be loaded since
-  // the code doesn't fall through to the forall.end block
-  EmitBranch(CondBlock);
-
-  // DWS lexical scope has ForceCleanup
-  ForScope.ForceCleanup();
-
-  LoopStack.pop();
-
-  EmitBlock(Sync.getBlock());
-  Builder.CreateSync(LoopExit.getBlock(), SRStart);
-
-  // Emit the fall-through block.
-  EmitBlock(LoopExit.getBlock(), true);
-}
-*/
 void CodeGenFunction::EmitCXXForRangeStmt(const CXXForRangeStmt &S,
                                           ArrayRef<const Attr *> ForAttrs) {
   JumpDest LoopExit = getJumpDestInCurrentScope("for.end");
