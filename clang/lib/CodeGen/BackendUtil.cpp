@@ -565,6 +565,10 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
     case TapirTargetType::Qthreads:
       PMBuilder.tapirTarget = new llvm::QthreadsABI();
       break;
+    case TapirTargetType::Cuda:
+      llvm_unreachable("need to implement cuda abi");
+      //PMBuilder.tapirTarget = new llvm::CudaABI();
+      break;
     case TapirTargetType::Serial:
       assert(0 && "TODO MAKE OTHER TAPIR OPTS");
     case TapirTargetType::None:

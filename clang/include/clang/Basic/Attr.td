@@ -3171,3 +3171,31 @@ def ObjCExternallyRetained : InheritableAttr {
   let Subjects = SubjectList<[NonParmVar, Function, Block, ObjCMethod]>;
   let Documentation = [ObjCExternallyRetainedDocs];
 }
+
+
+// +===== kitsune-centric attributes 
+
+def KitsuneTarget : StmtAttr {
+    let Spellings = [CXX11<"kitsune","target">];
+    let Args = [ 
+    	EnumArgument<"KitsuneTargetType", "KitsuneTargetTy", 
+	["qthreads", "realm", "omp", "cuda", "rocm"],
+	["KitsuneTargetQthreads", "KitsuneTargetRealm", "KitsuneTargetOMP", 
+         "KitsuneTargetCuda", "KitsuneTargetROCm"], 0>
+    ];
+    // FIXME -- how do we document this?
+    let Documentation = [Undocumented];
+}
+
+def KitsuneStrategy : StmtAttr {
+  let Spellings = [CXX11<"tapir", "strategy">];
+  let Args = [
+      EnumArgument<"KitsuneStrategyType", "KitsuneStrategyTy",
+      ["gpu", "seq", "dac"],
+      ["KitsuneGPUStrategy", "KitsuneSequentialStrategy", "KitsuneDivAndConquerStrategy"], 0>
+  ];
+  // FIXME -- how do we document this?
+  let Documentation = [Undocumented];
+}
+
+// =====+
