@@ -23,8 +23,8 @@ namespace llvm {
 
 class RealmABI : public TapirTarget {
 public:
-  RealmABI();
-  virtual ~RealmABI(); 
+  RealmABI() {};
+  ~RealmABI() {}; 
   Value *GetOrCreateWorker8(Function &F) override final;
   void createSync(SyncInst &inst, ValueToValueMapTy &DetachCtxToStackFrame)
     override final;
@@ -35,8 +35,6 @@ public:
   void preProcessFunction(Function &F) override final;
   void postProcessFunction(Function &F) override final;
   void postProcessHelper(Function &F) override final;
-
-  bool processMain(Function &F); // Realm backend needs this, though other backends do not
 };
 
 }  // end of llvm namespace

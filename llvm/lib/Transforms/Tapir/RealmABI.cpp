@@ -13,10 +13,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define MYDEBUG true
-#if MYDEBUG
-#include <iostream>
-#endif
+//Need to add some way to include the kitsune-rt stuff I wrote
 
 #include "llvm/Transforms/Tapir/RealmABI.h"
 #include "llvm/ADT/Statistic.h"
@@ -44,12 +41,32 @@
 using namespace llvm;
 
 #define DEBUG_TYPE "realmabi"
-typedef void (*TaskFuncPtr)(const void *args, size_t arglen,
-			    const void *user_data, size_t user_data_len,
-			    unsigned long long);
 
-RealmABI::RealmABI() { }
-RealmABI::~RealmABI() { }
+//can I replace the following by just using the realm_task_pointer_t type in realm_c.h?
+typedef void (*TaskFuncPtr)(const void *args, size_t arglen,
+			   const void *user_data, size_t user_data_len,
+			   unsigned long long proc);
+
+//typedefs used as part of the auto-function generation for calls to Realm
+typedef int (realmInitRuntime_t)(int argc, char** argv); 
+typedef int (realmSync_t)();
+typedef int (realmSpawn_t)(TaskFuncPtr fxn, const void *args, size_t arglen,
+			   void *user_data, size_t user_data_len);
+
+#define REALM_FUNC(name, CGF) get_##name(CGF)
+
+#define DEFAULT_GET_REALM_FUNC(name)                                  \
+  static Function *get_##name(Module& M) {         \
+    return cast<Function>(M.getOrInsertFunction(            \
+                                          #name,            \
+                                          TypeBuilder< name ## _t , false >::get(M.getContext()) \
+							)); \
+  }
+
+DEFAULT_GET_REALM_FUNC(realmSpawn)
+DEFAULT_GET_REALM_FUNC(realmSync)
+DEFAULT_GET_REALM_FUNC(realmInitRuntime)
+
 
 Value *RealmABI::GetOrCreateWorker8(Function &F) {
   LLVMContext& C = F.getParent()->getContext(); 
@@ -60,16 +77,8 @@ void RealmABI::createSync(SyncInst &SI, ValueToValueMapTy &DetachCtxToStackFrame
   IRBuilder<> builder(&SI); 
   auto F = SI.getParent()->getParent(); 
   auto M = F->getParent();
-  auto& C = M->getContext(); 
 
-  std::vector<Value*> args; //empty because realmSync takes no arguments
-  FunctionType * Fty = FunctionType::get(Type::getVoidTy(C), Type::getVoidTy(C), false);
-  Function * thisFunc = Function::Create(Fty, GlobalValue::ExternalLinkage, "realmSync", M);
-  //std::cout << "args size: " << args.size() << std::endl;
-  //std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
-  //std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
-
-  CallInst::Create(Fty, thisFunc, args, "", F->getEntryBlock().getFirstNonPHIOrDbg());
+  CallInst::Create(REALM_FUNC(realmSync, *M), "", F->getEntryBlock().getFirstNonPHIOrDbg());
 
   BranchInst *PostSync = BranchInst::Create(SI.getSuccessor(0));
   ReplaceInstWithInst(&SI, PostSync);
@@ -97,10 +106,10 @@ Function* formatFunctionToRealmF(Function* extracted, Instruction* ical){
   auto *ArgsPtrTy = PointerType::getUnqual(ArgsTy);
 
   //Create the canonical TaskFuncPtr
-  ArrayRef<Type*> typeArray = {ArgsPtrTy, Type::getInt64Ty(C), ArgsPtrTy, Type::getInt64Ty(C), Type::getInt64Ty(C)}; //trying int64 as stand-in for Realm::Processor because a ::realm_id_t is ultimately an unsigned long long
+  ArrayRef<Type*> typeArray = {Type::getInt8PtrTy(C), Type::getInt64Ty(C), Type::getInt8PtrTy(C), Type::getInt64Ty(C), Type::getInt64Ty(C)}; //trying int64 as stand-in for Realm::Processor because a ::realm_id_t is ultimately an unsigned long long
 
   FunctionType *OutlinedFnTy = FunctionType::get(
-      Type::getVoidTy(C), 
+      Type::getInt8Ty(C), 
       typeArray,
       false);
 
@@ -110,7 +119,7 @@ Function* formatFunctionToRealmF(Function* extracted, Instruction* ical){
   OutlinedFn->addFnAttr(Attribute::NoUnwind);
   OutlinedFn->addFnAttr(Attribute::UWTable);
 
-  StringRef ArgNames[] = {".args"};
+  //StringRef ArgNames[] = {".args"};
   std::vector<Value*> out_args;
   for (auto &Arg : OutlinedFn->args()) {
     //Arg.setName(ArgNames[out_args.size()]);
@@ -134,17 +143,14 @@ Function* formatFunctionToRealmF(Function* extracted, Instruction* ical){
     argc++;
   }
 
-  // Replace return values with return void
+  // Replace return values with return zero 
   SmallVector< ReturnInst *,5> retinsts;
   CloneFunctionInto(OutlinedFn, extracted, valmap, true, retinsts);
   EntryBuilder.CreateBr(OutlinedFn->getBasicBlockList().getNextNode(*EntryBB));
 
-  Value * dummyVal = nullptr;
-  Instruction * dummyInst = nullptr;
   for (auto& ret : retinsts) {
-    //qthread way: auto retzero = ReturnInst::Create(C, ConstantInt::get(Type::getInt64Ty(C), 0));
-    auto retvoid = ReturnInst::Create(C, dummyVal, dummyInst);
-    ReplaceInstWithInst(ret, retvoid);
+    auto retzero = ReturnInst::Create(C, ConstantInt::get(Type::getInt8Ty(C), 0));
+    ReplaceInstWithInst(ret, retzero);
   }
 
   // Caller code
@@ -160,7 +166,6 @@ Function* formatFunctionToRealmF(Function* extracted, Instruction* ical){
   }
 
   assert(argc == cArgc && "Wrong number of arguments passed to outlined function"); 
-  //assert(argc == ArgsTy->getNumElements() && "Wrong number of arguments passed to outlined function"); 
 
   auto outlinedFnPtr = CallerIRBuilder.CreatePointerBitCastOrAddrSpaceCast(
 									   OutlinedFn, TypeBuilder<TaskFuncPtr, false>::get(M->getContext())); 
@@ -168,29 +173,11 @@ Function* formatFunctionToRealmF(Function* extracted, Instruction* ical){
   auto argDataSize = ConstantInt::get(Type::getInt64Ty(C), DL.getTypeAllocSize(ArgsTy)); 
   auto argsStructVoidPtr = CallerIRBuilder.CreateBitCast(callerArgStruct, Type::getInt8PtrTy(C)); 
 
-  std::vector<Value *> callerArgs = { outlinedFnPtr, argsStructVoidPtr, argSize, argsStructVoidPtr, argDataSize}; 
+  //std::vector<Value *> callerArgs = { outlinedFnPtr, argsStructVoidPtr, argSize, argsStructVoidPtr, argDataSize}; 
 
-  FunctionType * TaskFuncPtrTy = FunctionType::get(Type::getVoidTy(C),
-	       {PointerType::getUnqual(Type::getVoidTy(C)),
-		Type::getInt64Ty(C),
-		PointerType::getUnqual(Type::getVoidTy(C)),
-		Type::getInt64Ty(C),
-		Type::getInt64Ty(C)}, //end argument list
-		false);
-  FunctionType * Fty = FunctionType::get(Type::getVoidTy(C), 
-	       {TaskFuncPtrTy,
-		PointerType::getUnqual(Type::getVoidTy(C)),
-		Type::getInt64Ty(C),
-		PointerType::getUnqual(Type::getVoidTy(C)),
-		Type::getInt64Ty(C),
-		Type::getInt64Ty(C)}, //end argument list
-		false);
-  Function * thisFunc = Function::Create(Fty, GlobalValue::ExternalLinkage, "realmSpawn", M);
-  //std::cout << "args size: " << callerArgs.size() << std::endl;
-  //std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
-  //std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
+  ArrayRef<Value *> callerArgs = { outlinedFnPtr, argsStructVoidPtr, argSize, argsStructVoidPtr, argDataSize}; 
 
-  CallInst::Create(Fty, thisFunc, callerArgs, "", extracted->getEntryBlock().getFirstNonPHIOrDbg());
+  CallerIRBuilder.CreateCall(REALM_FUNC(realmSpawn, *M), callerArgs); 
 
   cal->eraseFromParent();
   extracted->eraseFromParent();
@@ -201,8 +188,8 @@ Function* formatFunctionToRealmF(Function* extracted, Instruction* ical){
 }
 
 Function *RealmABI::createDetach(DetachInst &detach,
-				    ValueToValueMapTy &DetachCtxToStackFrame,
-				    DominatorTree &DT, AssumptionCache &AC) {
+				 ValueToValueMapTy &DetachCtxToStackFrame,
+				 DominatorTree &DT, AssumptionCache &AC) {
   BasicBlock *detB = detach.getParent();
   Function &F = *(detB->getParent());
   BasicBlock *Spawned  = detach.getDetached();
@@ -232,45 +219,19 @@ Function *RealmABI::createDetach(DetachInst &detach,
 
 void RealmABI::preProcessFunction(Function &F) {}
 
-void RealmABI::postProcessFunction(Function &F) {}
+void RealmABI::postProcessFunction(Function &F) {
+  Module *M = F.getParent();
+  LLVMContext &C = M->getContext();
+  IRBuilder<> builder(F.getEntryBlock().getFirstNonPHIOrDbg());
+
+  //default values of 0 and nullptr
+  //TODO: handle the case where main actually has an argc and argv
+  Value* zero = ConstantInt::get(Type::getInt32Ty(C), 0);
+  Value* null = Constant::getNullValue(PointerType::getUnqual(Type::getInt8PtrTy(C))); //TODO: make a char**?
+  ArrayRef<Value*> initArgs = {zero, null};
+
+  builder.CreateCall(REALM_FUNC(realmInitRuntime, *M), initArgs);
+}
 
 void RealmABI::postProcessHelper(Function &F) {}
 
-bool RealmABI::processMain(Function &F) {
-  Module *M = F.getParent(); 
-  LLVMContext& C = M->getContext(); 
-  IRBuilder<> B(C);
-
-  //get argc and argv 
-  //auto argTypes = F.getFunctionType()->params();
-
-  std::vector<Value*> args;
-
-  #if 0
-  ValueSymbolTable *symtab = F.getValueSymbolTable();
-  std::cout << "got symbol table" << std::endl;
-  if (symtab != nullptr) {
-    args.push_back(symtab->lookup("argc"));
-    args.push_back(symtab->lookup("argv"));
-    std::cout << "finished symbol table lookup" << std::endl;
-  }
-  else
-    std::cout << "symbol table is a nullptr" << std::endl;
-  #endif
-
-  for (auto arg = F.arg_begin(); arg < F.arg_end(); arg++) {
-    args.push_back(arg);
-  }
-
-  //This is the real signature of realmInitRuntime, but there's a problem with voids
-  //FunctionType * Fty = FunctionType::get(Type::getVoidTy(C), {Type::getInt32Ty(C), PointerType::getUnqual(Type::getInt8PtrTy(C))}, false);
-  FunctionType * Fty = FunctionType::get(Type::getInt32Ty(C), {Type::getInt32Ty(C), PointerType::getUnqual(Type::getInt8PtrTy(C))}, false);
-
-  Function * thisFunc = Function::Create(Fty, GlobalValue::ExternalLinkage, "realmInitRuntime", M);
-  //std::cout << "args size: " << args.size() << std::endl;
-  //std::cout << "thisFunc arg size: " << thisFunc->arg_size() << std::endl;
-  //std::cout << "thisFunc num params: " << thisFunc->getFunctionType()->getNumParams() << std::endl;
-
-  CallInst::Create(Fty, thisFunc, args, "", F.getEntryBlock().getFirstNonPHIOrDbg());
-  return true;
-}
