@@ -366,10 +366,10 @@ Retry:
     ProhibitAttributes(Attrs);
     return HandlePragmaCaptured();
 
-  case tok::kw_spawn:              // spawn statement
+  case tok::kw__tapir_spawn:              // spawn statement
     return ParseSpawnStatement();
 
-  case tok::kw_sync:               // sync statement
+  case tok::kw__tapir_sync:               // sync statement
     Res = ParseSyncStatement();
     SemiError = "sync";
     break;

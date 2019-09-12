@@ -472,7 +472,7 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   // The profile runtime also needs access to system libraries.
   getToolChain().addProfileRTLibs(Args, CmdArgs);
 
-  if (Args.hasArg(options::OPT_ftapir)) {
+/*  if (Args.hasArg(options::OPT_ftapir)) {
     if (Arg *A = Args.getLastArg(options::OPT_ftapir)) {
       StringRef Name = A->getValue();
       if (Name == "cilk") 
@@ -487,6 +487,11 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
         CmdArgs.push_back("-lrealm");
     }
   }
+*/
+  // +===== kitsune -- support for adding library search paths and 
+  //        various libraries required to support runtimes and other
+  //        backend components. 
+  getToolChain().AddKitsuneLibArgs(Args, CmdArgs);
 
   if (D.CCCIsCXX() &&
       !Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs)) {
@@ -501,6 +506,7 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     }
     CmdArgs.push_back("-lm");
   }
+
   // Silence warnings when linking C code with a C++ '-stdlib' argument.
   Args.ClaimAllArgs(options::OPT_stdlib_EQ);
 
@@ -1705,6 +1711,7 @@ static llvm::StringRef getGCCToolchainDir(const ArgList &Args,
 
   return GCC_INSTALL_PREFIX;
 }
+
 
 /// Initialize a GCCInstallationDetector from the driver.
 ///
