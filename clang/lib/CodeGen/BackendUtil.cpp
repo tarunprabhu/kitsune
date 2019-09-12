@@ -568,6 +568,7 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
       break;
     case TapirTargetType::Realm:
       PMBuilder.tapirTarget = new llvm::RealmABI();
+      break;
     case TapirTargetType::Cuda:
       llvm_unreachable("need to implement cuda abi");
       //PMBuilder.tapirTarget = new llvm::CudaABI();
