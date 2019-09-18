@@ -181,7 +181,7 @@ public:
 
 
 public:
-  llvm::TapirTargetType Tapir = llvm::TapirTargetType::None;
+  llvm::TapirTargetType Tapir = llvm::TapirTargetType::Last_TapirTargetType;
 
   /// Set of enabled sanitizers.
   SanitizerSet Sanitize;
