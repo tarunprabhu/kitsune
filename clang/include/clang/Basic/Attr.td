@@ -3198,4 +3198,14 @@ def KitsuneStrategy : StmtAttr {
   let Documentation = [Undocumented];
 }
 
+def KitsuneThreadLocalDeclAttr : DeclOrTypeAttr {
+  let Spellings = [CXX11<"kitsune", "local">];
+  let Documentation = [Undocumented];
+}
+
+def KitsuneThreadSharedDeclAttr : DeclOrTypeAttr {
+  let Spellings = [CXX11<"kitsune", "shared">];
+  let Documentation = [Undocumented];
+}
+
 // =====+

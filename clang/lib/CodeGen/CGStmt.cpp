@@ -10,7 +10,6 @@
 // This contains code to emit Stmt nodes as LLVM code.
 //
 //===----------------------------------------------------------------------===//
-#include <cstdio>
 
 #include "CGDebugInfo.h"
 #include "CodeGenFunction.h"

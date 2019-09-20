@@ -11,8 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <cstdio>
-
 #include "CGCXXABI.h"
 #include "CGCleanup.h"
 #include "CGDebugInfo.h"

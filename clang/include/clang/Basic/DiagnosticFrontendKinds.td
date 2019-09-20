@@ -265,6 +265,13 @@ def warn_kokkos_no_functor : Warning<
 def warn_kokkos_unknown_bounds_expr : Warning<
     "-fkokkos : unrecognized bounds/limit expression (reverting to C++ mode for construct).">,
     InGroup<BackendOptimizationFailure>;
+def warn_kokkos_reduce_bad_intermediate_vardecl : Warning<
+    "-fkokkos : failure determining intermediate reduction variable (reverting to C++ mode for construct).">, 
+    InGroup<BackendOptimizationFailure>;
+def warn_kokkos_reduce_bad_final_vardecl : Warning<
+    "-fkokkos : failure determining final reduction variable (reverting to C++ mode for construct).">, 
+    InGroup<BackendOptimizationFailure>;
+
 
 let CategoryName = "Instrumentation Issue" in {
 def warn_profile_data_out_of_date : Warning<

@@ -48,6 +48,7 @@
  *
  ***************************************************************************/
 #include <cstdio>
+
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "CodeGenFunction.h"
@@ -80,21 +81,13 @@ namespace {
   ///    - named constructs are extracted but not yet handed off to
   ///      kokkos' underlying profiling/debugging infrastructure 
   ///      hooks. 
-  ///    - there are likely still some holes in types that are legal 
-  ///      constructs but not yet captured by the code below; these
-  ///      cases should result in an 'llvm_unreachable' assertion. 
-  ///   
-
-  // FIXME -- functor support needs some thought... Seems unlikely 
-  // that we can support all general cases (e.g., code in separate 
-  // compilation units). 
+  /// 
   static void ExtractParallelForComponents(const CallExpr* CE,
 					   std::string &CN, 
 					   const Expr *& BE, 
 					   const LambdaExpr *& LE)
   {
-    // Currently supported kokkos constructs for parallel_for come
-    // in two forms: 
+    // Two lambda-based forms are currently supported:
     // 
     //   1. parallel_for(N, lambda_expr...);
     //
@@ -119,11 +112,6 @@ namespace {
     // actual string from the argument and return it to the caller via
     // the passed in 'CN' string.
     //
-    // FIXME: All kokkos examples we have seen use a literal string
-    // value here.  We are essentailly hard-coded to deal with this
-    // form -- the code is not robust in a situation where this
-    // is not the case. 
-
     const Expr *OE = CE->getArg(curArgIndex);   // Original expression 
     const Expr *SE = SimplifyExpr(OE);          // Simplified expression. 
 
@@ -238,9 +226,7 @@ bool CodeGenFunction::EmitKokkosConstruct(const CallExpr *CE,
   } else if (Func->getQualifiedNameAsString() == "Kokkos::parallel_reduce") {
     return EmitKokkosParallelReduce(CE, Attrs);
   } else {
-    // FIXME: should return false here vs. crapping out...  Let the normal 
-    // code gen path complete.  Maybe a warning is worthwhile to share... 
-    llvm_unreachable("unsupported kokkos construct encountered");
+    return false;
   }
 }
 
@@ -255,27 +241,27 @@ bool CodeGenFunction::EmitKokkosConstruct(const CallExpr *CE,
 bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE, 
 					    ArrayRef<const Attr *> ForallAttrs) {
 
-  std::string      PFName; 
-  const Expr       *BE = nullptr; // "bounds" expression
+  std::string      PFName;            // debug/profile name for parallel_for construct.  
+  const Expr       *BE = nullptr;     // "bounds" expression
   const LambdaExpr *Lambda = nullptr; // the lambda  
   ExtractParallelForComponents(CE, PFName, BE, Lambda);
   
   if (Lambda == nullptr) { 
-    // If we didn't get a lambda expression back it is likely that we're 
-    // looking at a functor-based parallel_for.  Given the challenges 
-    // of separate compilation units we punt on lowering this into 
-    // tapir and instead return control (back upstream) to the stanard 
-    // C++ code gen path(s). 
+    // If we didn't get a lambda expression back it is likely that
+    // we're looking at a functor-based parallel_for.  Given the
+    // challenges of separate compilation units we punt on lowering
+    // this into tapir and instead return control (back upstream) to
+    // the stanard C++ codegen path.
     DiagnosticsEngine &Diags = CGM.getDiags();
     Diags.Report(CE->getExprLoc(), diag::warn_kokkos_no_functor);
     return false;
   }
 
   if (BE == nullptr) {
-    // We didn't get a "nice" bounds expression back -- this is most likely 
-    // due to some type of expression that we have yet to deal with in a 
-    // code base.  Our default response in this case it return back to the 
-    // standard C++ codegen path and skip lowering to tapir. 
+    // Something bad happened and we didn't get a "nice" bounds
+    // expression back -- this is most likely due to some type of
+    // expression that we have yet to deal with...  Play it safe and
+    // return back to the standard C++ codegen path.
     DiagnosticsEngine &Diags = CGM.getDiags();
     Diags.Report(CE->getExprLoc(), diag::warn_kokkos_unknown_bounds_expr);
     return false;
@@ -302,15 +288,13 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   assert(MD && "EmitKokkosParallelFor() -- bad method decl!");
 
 
-  llvm::MDBuilder MDHelper(getLLVMContext());
-  llvm::MDString *KokkosMDS = MDHelper.createString("kitsune:parallel for");
-
   const ParmVarDecl *LoopVar = MD->getParamDecl(0);
   assert(LoopVar && "EmitKokkosParallelFor() -- bad loop variable!");
   EmitVarDecl(*LoopVar);
   Address Addr = GetAddrOfLocalVar(LoopVar);
   llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 0);
   Builder.CreateStore(Zero, Addr);
+
 
   // Next, work towards determining the end of the loop range.
   llvm::Value *LoopEnd = nullptr;
@@ -366,7 +350,6 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
 
   llvm::BasicBlock *SyncContinueBlock = createBasicBlock("kokkos.end.continue");
   bool madeSync = false;
-
 
   llvm::BasicBlock  *DetachBlock;
   llvm::BasicBlock  *ForallBodyEntry;
@@ -492,9 +475,377 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   return true;
 }
 
-bool CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE, 
-					       ArrayRef<const Attr *> ReduceAttrs) {
-  assert(false && "kokkos reductions currently not supported!");
-  return false;
+namespace {
+
+
+  /// \brief Extract the various components from the parallel_reduce.  
+  /// 
+  /// Extract the various components from the CallExpr that correspond
+  /// to the kokkos parallel_reduce construct.  Given that the
+  /// construct has already passed through parsing and sema we take
+  /// some liberties here in sorting out the details.  
+  ///
+  /// A few caveats: 
+  ///
+  ///    - functors are not supported.
+  ///    - named constructs are extracted but are not handed off
+  ///      to any profiling/debugging infrastructure hooks. 
+  ///    - there are potentially holes in the types of the various 
+  ///      parameters to the construct (and lambda).  These will
+  ///      (hopefully) trigger an llvm_unreachable assertion. 
+  /// 
+  static void ExtractParallelReduceComponents(const CallExpr *CE, 
+					      std::string &CN, 
+					      const Expr *&BE,
+					      const VarDecl *&IntermediateVar,
+					      const Expr *&RE,
+					      const LambdaExpr *&LE) 
+  {
+    // 1. parallel_reduce(N, lambexpr, reduced_value)
+    // 
+    // 2. parallel_reduce("name", N, lambdaexpr, reduced_value)
+    // 
+
+    unsigned int curArgIndex = 0;
+
+    // If the call expr starts with a "construct name" (we will assume
+    // form #2 of parallel_for as shown above). We will extract the
+    // actual string from the argument and return it to the caller via
+    // the passed in 'CN' string.
+    //
+    const Expr *OE = CE->getArg(curArgIndex);   // Original expression 
+    const Expr *SE = SimplifyExpr(OE);          // Simplified expression. 
+
+    if (SE->getStmtClass() == Expr::CXXConstructExprClass) {
+      const CXXConstructExpr *CXXCE = dyn_cast<CXXConstructExpr>(SE);
+      SE = CXXCE->getArg(0)->IgnoreImplicit();
+      if (SE->getStmtClass() == Expr::StringLiteralClass) {
+	CN = dyn_cast<StringLiteral>(SE)->getString().str();
+	curArgIndex++;
+	OE = CE->getArg(curArgIndex);
+	SE = SimplifyExpr(OE);
+      } 
+    } 
+
+    if (SE->getStmtClass() == Expr::IntegerLiteralClass) {
+      BE = OE;
+      curArgIndex++;
+      OE = CE->getArg(curArgIndex);
+      SE = SimplifyExpr(OE);
+    } else if (SE->getStmtClass() == Expr::BinaryOperatorClass) {
+      BE = OE;
+      curArgIndex++;
+      OE = CE->getArg(curArgIndex);
+      SE = SimplifyExpr(OE);
+    } else if (SE->getStmtClass() == Expr::DeclRefExprClass) {
+      BE = OE;
+      curArgIndex++;
+      OE = CE->getArg(curArgIndex);
+      SE = SimplifyExpr(OE);
+    } else if (SE->getStmtClass() == Expr::CallExprClass) { 
+      BE = OE;
+      curArgIndex++;
+      OE = CE->getArg(curArgIndex);
+      SE = SimplifyExpr(OE);
+    } else {
+      SE->dump();
+      BE = nullptr;
+      LE = nullptr;
+      return;
+    }
+
+    if (SE->getStmtClass() == Expr::LambdaExprClass) {
+      LE = dyn_cast<LambdaExpr>(SE);
+      curArgIndex++;
+    } else {
+      LE = nullptr;
+      return;
+    }
+
+    const CXXMethodDecl* MD = LE->getCallOperator();
+    IntermediateVar = MD->getParamDecl(1);
+
+    const FunctionDecl *FD = CE->getDirectCallee();
+    if (FD != nullptr) {
+      RE = CE->getArg(curArgIndex);
+    }
+
+  }
 }
 
+bool CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE, 
+					       ArrayRef<const Attr *> ReduceAttrs) {
+
+  std::string ReductionName;          // debug/profile name for reduction construct. 
+  const Expr  *BE = nullptr;          // "bounds" expression. 
+  const VarDecl *LocalVD = nullptr;   // local reduction variable.  
+  const Expr *RE = nullptr;           // final reduction expression. 
+  const LambdaExpr *Lambda = nullptr; // the lambda 
+  ExtractParallelReduceComponents(CE, ReductionName, BE, LocalVD, RE, Lambda);
+
+  if (Lambda == nullptr) {
+    // If we didn't get a lambda expression back it is likely that
+    // we're looking at a functor-based reduction.  Given the
+    // challenges of separate compilation units we punt on lowering
+    // this into tapir and instead return control (back upstream) to
+    // the standard C++ codegen path.
+    DiagnosticsEngine &Diags = CGM.getDiags();
+    Diags.Report(CE->getExprLoc(), diag::warn_kokkos_no_functor);
+    return false;
+  }
+
+  if (BE == nullptr) { 
+    // Something bad happened and we didn't get a "nice" bounds
+    // expression back -- this is most likely due to some type of
+    // expression that we have yet to deal with...  Play it safe and
+    // return back to the standard C++ codegen path.
+    DiagnosticsEngine &Diags = CGM.getDiags();
+    Diags.Report(CE->getExprLoc(), diag::warn_kokkos_unknown_bounds_expr);
+    return false;
+  }
+
+  if (LocalVD == nullptr) {
+    // Something bad happened and we don't have a nice intermediate 
+    // reduction variable.... 
+    DiagnosticsEngine &Diags = CGM.getDiags();
+    Diags.Report(CE->getExprLoc(), diag::warn_kokkos_reduce_bad_intermediate_vardecl);
+    return false;
+  }
+
+  if (RE == nullptr) {
+    // Something bad happened and we don't have a nice final reduction
+    // variable...
+    DiagnosticsEngine &Diags = CGM.getDiags();
+    Diags.Report(CE->getExprLoc(), diag::warn_kokkos_reduce_bad_final_vardecl);
+    return false;
+  }
+
+  llvm::LLVMContext &Ctx = CGM.getModule().getContext();
+  
+  JumpDest LoopExit = getJumpDestInCurrentScope("kokkos.forall.end");
+  PushSyncRegion();
+  llvm::Instruction *SRStart = EmitSyncRegionStart();
+  CurSyncRegion->setSyncRegionStart(SRStart);
+
+  LexicalScope ReductionScope(*this, CE->getSourceRange());
+  
+  // Transform the kokkos lambda expression into a loop. 
+  
+  // The first step is to extract the argument to the lambda and convert it into the 
+  // loop iterator. 
+  const CXXMethodDecl *MD = Lambda->getCallOperator();
+  assert(MD && "EmitKokkosParallelReduce() -- bad method decl!");
+
+  const ParmVarDecl *LoopVar = MD->getParamDecl(0);
+  assert(LoopVar && "EmitKokkosParallelReduce() -- bad loop variable!");
+  EmitVarDecl(*LoopVar);
+  Address Addr = GetAddrOfLocalVar(LoopVar);
+  llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 0);
+  Builder.CreateStore(Zero, Addr);
+
+  // The intermediate value here is actually representative of a
+  // per-thread local value that needs to then be further reduced
+  // (across all threads) to obtain the final answer.
+
+
+
+  const ParmVarDecl *ReduceVarD = MD->getParamDecl(1);
+  assert(ReduceVarD && "EmitKokkosParallelReduce() -- bad local reduction variable!");
+  llvm::Value *RZero = llvm::ConstantInt::get(ConvertType(ReduceVarD->getType()), 0);
+
+  QualType Ty = ReduceVD->getType();
+
+
+
+  Addr = GetAddrOfLocalVar(ReduceVarD);
+
+  LValue ReduceVarLV = EmitLValue(
+  // Maybe we should use EmitReferenceBindingToExpr????
+  LValue ReduceVarLV = EmitLoadOfReferenceLValue(Addr, ReduceVarD->getType(), AlignmentSource::Decl);
+  EmitStoreThroughLValue(RValue::get(RZero), ReduceVarLV);
+
+  if (llvm::Instruction *I = dyn_cast<llvm::Instruction>(Addr.getPointer())) {
+    llvm::NamedMDNode *DeclMD = CGM.getModule().getOrInsertNamedMetadata("kitsune.codegen");
+    llvm::Metadata *DeclMDVals[] = {
+      llvm::MDString::get(Ctx, "reduction.thread_local")
+    };
+    DeclMD->addOperand(llvm::MDNode::get(Ctx, DeclMDVals));
+    I->setMetadata("kitsune.codegen", DeclMD->getOperand(0));  
+  }
+
+  // Next, work towards determining the end of the loop range.
+  llvm::Value *LoopEnd = nullptr;
+  if (BE->getStmtClass() == Expr::BinaryOperatorClass) {
+    RValue RV = EmitAnyExpr(BE);
+    LoopEnd = RV.getScalarVal();
+  } else { 
+    LoopEnd = EmitScalarExpr(BE);
+  }
+
+  llvm::Type  *LoopVarTy = ConvertType(LoopVar->getType());
+  unsigned NBits  = LoopEnd->getType()->getPrimitiveSizeInBits();
+  unsigned LVBits = LoopVarTy->getPrimitiveSizeInBits();
+  // We may need to truncate/extend the range to get it to match 
+  // the type of loop variable. 
+  if (NBits > LVBits) {
+    LoopEnd = Builder.CreateTrunc(LoopEnd, LoopVarTy);
+  } else if (NBits < LVBits) {
+    LoopEnd = Builder.CreateZExt(LoopEnd, LoopVarTy);
+  } else {
+    // bit count matches, nothing to do... 
+  }
+  
+  JumpDest Continue = getJumpDestInCurrentScope("kokkos.reduce.cond");
+  llvm::BasicBlock *CondBlock = Continue.getBlock();
+  EmitBlock(CondBlock);
+
+  const SourceRange &R = CE->getSourceRange();
+
+  LoopStack.setSpawnStrategy(GetKitsuneStrategyAttr(ReduceAttrs));
+  LoopStack.push(CondBlock, CGM.getContext(), ReduceAttrs,
+		 SourceLocToDebugLoc(R.getBegin()),
+		 SourceLocToDebugLoc(R.getEnd()));
+
+  JumpDest Preattach = getJumpDestInCurrentScope("kokkos.reduce.preattach");
+  Continue = getJumpDestInCurrentScope("kokkos.reduce.inc");
+
+  // Store the blocks to use for break and continue. 
+  // 
+  // FIXME?: Why is the code below BreakContinue(Preattach, Preattach)
+  // versus BreakContinue(Preattach, Continue)?  
+  BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));
+
+  // Create a clean up scope for the condition variable. 
+  LexicalScope ConditionalScope(*this, R);
+
+  // Save the old alloca insertion point. 
+  llvm::AssertingVH<llvm::Instruction> OldAllocaInsertPt = AllocaInsertPt;
+  // Save the old exception handling state. 
+  llvm::BasicBlock *OldEHResumeBlock  = EHResumeBlock;
+  llvm::Value      *OldExceptionSlot  = ExceptionSlot;
+  llvm::AllocaInst *OldEHSelectorSlot = EHSelectorSlot;
+
+  llvm::BasicBlock *SyncContinueBlock = createBasicBlock("kokkos.end.continue");
+  bool madeSync = false;
+
+  llvm::BasicBlock  *DetachBlock;
+  llvm::BasicBlock  *ReduceBodyEntry;
+  llvm::BasicBlock  *ReduceBody;
+
+ {
+    llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
+    // If there is any cleanup between here and the loop-exit scope
+    // we need to create a block to stage the loop exit. 
+    if (ReductionScope.requiresCleanups()) {
+      ExitBlock = createBasicBlock("kokkos.cond.cleanup");
+    }
+
+    // As long as the conditional is true we continue looping... 
+    DetachBlock = createBasicBlock("kokkos.reduce.detach");
+    // Emit extra entry block for the detached body, this ensures 
+    // that the detached block has only one predecessor. 
+    ReduceBodyEntry = createBasicBlock("kokkos.reduce.body.entry");
+    ReduceBody      = createBasicBlock("kokkos.reduce.body");
+
+    llvm::Value *LoopVal     = Builder.CreateLoad(Addr);
+    llvm::Value *BoolCondVal = Builder.CreateICmpULT(LoopVal, LoopEnd);
+    Builder.CreateCondBr(BoolCondVal, DetachBlock, ExitBlock);
+
+    if (ExitBlock != LoopExit.getBlock()) {
+      EmitBlock(ExitBlock);
+      Builder.CreateSync(SyncContinueBlock, SRStart);
+      EmitBlock(SyncContinueBlock);
+      PopSyncRegion();
+      madeSync = true;
+      EmitBranchThroughCleanup(LoopExit);
+    }
+
+    EmitBlock(DetachBlock);
+
+    llvm::DetachInst *Detach = Builder.CreateDetach(ReduceBodyEntry, Continue.getBlock(), SRStart);
+    llvm::NamedMDNode *MD = CGM.getModule().getOrInsertNamedMetadata("kitsune.semantics");
+    llvm::Metadata *MDVals[] = {
+      llvm::MDString::get(Ctx, "kokkos.reduce")
+    };
+    MD->addOperand(llvm::MDNode::get(Ctx, MDVals));
+    Detach->setMetadata("kitsune.semantics", MD->getOperand(0));
+
+    // Create a new alloca insertion point.
+    llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
+    AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, 
+       "", ReduceBodyEntry);
+    // Set up nested exception handling state. 
+    EHResumeBlock  = nullptr;
+    ExceptionSlot  = nullptr;
+    EHSelectorSlot = nullptr;
+    EmitBlock(ReduceBodyEntry);
+  }
+
+ // Create a scope for the loop-variable cleanup.
+  RunCleanupsScope DetachCleanupScope(*this);
+  EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
+
+  Builder.CreateBr(ReduceBody);
+  EmitBlock(ReduceBody);
+  incrementProfileCounter(CE);
+
+  {
+    // Create a separate cleanup scope for the forall body
+    // (in case it is not a compound statement).
+    RunCleanupsScope BodyScope(*this);
+
+    // Emit the lambda expression as the body of the forall 
+    // loop.  Given this is a lambda it may have special wrapped 
+    // AST for handling captured variables -- to address this we 
+    // have to flag it so we handle it as a special case... 
+    InKokkosConstruct = true;
+    EmitStmt(Lambda->getBody());
+    InKokkosConstruct = false;
+    Builder.CreateBr(Preattach.getBlock());
+  }
+  
+  {
+    EmitBlock(Preattach.getBlock());
+    DetachCleanupScope.ForceCleanup();
+    Builder.CreateReattach(Continue.getBlock(), SRStart);
+  }
+
+
+  {
+    llvm::Instruction *Ptr = AllocaInsertPt;
+    AllocaInsertPt = OldAllocaInsertPt;
+    Ptr->eraseFromParent();
+
+    // Restore the exception handling state. 
+    EmitIfUsed(*this, EHResumeBlock);
+    EHResumeBlock  = OldEHResumeBlock;
+    ExceptionSlot  = OldExceptionSlot;
+    EHSelectorSlot = OldEHSelectorSlot;
+  }
+
+  // Emit the increment next. 
+  EmitBlock(Continue.getBlock());
+
+  // Emit the loop variable increment. 
+  llvm::Value *IncVal = Builder.CreateLoad(Addr);
+  llvm::Value *One    = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 1);
+  IncVal = Builder.CreateAdd(IncVal, One);
+  Builder.CreateStore(IncVal, Addr);
+  BreakContinueStack.pop_back();
+  ConditionalScope.ForceCleanup();
+
+  EmitStopPoint(CE);
+  EmitBranch(CondBlock);
+  ReductionScope.ForceCleanup();
+  LoopStack.pop();
+
+  // Emit the fall-through block. 
+  EmitBlock(LoopExit.getBlock(), true);
+  if (!madeSync) {
+    Builder.CreateSync(SyncContinueBlock, SRStart);
+    EmitBlock(SyncContinueBlock);
+    PopSyncRegion();
+  }
+
+  return true;
+}

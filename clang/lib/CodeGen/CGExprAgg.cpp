@@ -10,7 +10,6 @@
 // This contains code to emit Aggregate Expr nodes as LLVM code.
 //
 //===----------------------------------------------------------------------===//
-#include <cstdio>
 
 #include "CodeGenFunction.h"
 #include "CGCXXABI.h"

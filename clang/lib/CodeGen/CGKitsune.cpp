@@ -47,7 +47,6 @@
  *  SUCH DAMAGE.
  *
  ***************************************************************************/
-#include <cstdio>
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "CodeGenFunction.h"
@@ -68,7 +67,8 @@ llvm::Instruction *CodeGenFunction::EmitSyncRegionStart() {
 }
 
 
-LoopAttributes::LSStrategy CodeGenFunction::GetKitsuneStrategyAttr(ArrayRef<const Attr *> Attrs) {
+LoopAttributes::LSStrategy CodeGenFunction::GetKitsuneStrategyAttr(
+       ArrayRef<const Attr *> Attrs) {
 
   auto curAttr = Attrs.begin();
 
@@ -106,7 +106,8 @@ LoopAttributes::LSStrategy CodeGenFunction::GetKitsuneStrategyAttr(ArrayRef<cons
 }
 
 
-LoopAttributes::LTarget CodeGenFunction::GetKitsuneTargetAttr(ArrayRef<const Attr *> Attrs) {
+LoopAttributes::LTarget CodeGenFunction::GetKitsuneTargetAttr(
+      ArrayRef<const Attr *> Attrs) {
 
   auto curAttr = Attrs.begin();
 
