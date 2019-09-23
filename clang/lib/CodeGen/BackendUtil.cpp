@@ -66,6 +66,7 @@
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
 #include "llvm/Transforms/Tapir/QthreadsABI.h"
 #include "llvm/Transforms/Tapir/RealmABI.h"
+#include "llvm/Transforms/Tapir/SerialABI.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/CanonicalizeAliases.h"
 #include "llvm/Transforms/Utils/NameAnonGlobals.h"
@@ -569,12 +570,13 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
     case TapirTargetType::Realm:
       PMBuilder.tapirTarget = new llvm::RealmABI();
       break;
+    case TapirTargetType::Serial:
+      PMBuilder.tapirTarget = new llvm::SerialABI(); 
+      break; 
     case TapirTargetType::Cuda:
       llvm_unreachable("need to implement cuda abi");
       //PMBuilder.tapirTarget = new llvm::CudaABI();
       break;
-    case TapirTargetType::Serial:
-      assert(0 && "TODO MAKE OTHER TAPIR OPTS");
     case TapirTargetType::None:
       PMBuilder.tapirTarget = nullptr;
       break;
