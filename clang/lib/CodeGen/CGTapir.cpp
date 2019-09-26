@@ -56,8 +56,15 @@ void CodeGenFunction::EmitSpawnStmt(const SpawnStmt &S) {
 
   llvm::BasicBlock* DetachedBlock = createBasicBlock("det.achd");
   llvm::BasicBlock* ContinueBlock = createBasicBlock("det.cont");
+
+  auto OldAllocaInsertPt = AllocaInsertPt; 
+  llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
+  AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, "",
+                                             DetachedBlock);
+
   Builder.CreateDetach(DetachedBlock, ContinueBlock,
                            SR->getSyncRegionStart());
+
 
   EmitBlock(DetachedBlock);
   EmitStmt(S.getSpawnedStmt());
@@ -65,9 +72,10 @@ void CodeGenFunction::EmitSpawnStmt(const SpawnStmt &S) {
   Builder.CreateReattach(ContinueBlock,
                              SR->getSyncRegionStart());
 
+  llvm::Instruction* ptr = AllocaInsertPt; 
+  AllocaInsertPt = OldAllocaInsertPt; 
+  ptr->eraseFromParent(); 
+
   EmitBlock(ContinueBlock);
-  // Finish the detach.
-  //CurDetachScope->FinishLabeledDetach(SR);
-  //delete CurDetachScope;
 }
 
