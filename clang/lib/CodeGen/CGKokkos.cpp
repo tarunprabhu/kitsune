@@ -643,34 +643,31 @@ bool CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE,
   llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 0);
   Builder.CreateStore(Zero, Addr);
 
-  // The intermediate value here is actually representative of a
-  // per-thread local value that needs to then be further reduced
-  // (across all threads) to obtain the final answer.
-
-
-
-  const ParmVarDecl *ReduceVarD = MD->getParamDecl(1);
-  assert(ReduceVarD && "EmitKokkosParallelReduce() -- bad local reduction variable!");
-  llvm::Value *RZero = llvm::ConstantInt::get(ConvertType(ReduceVarD->getType()), 0);
-
-  QualType Ty = ReduceVD->getType();
-
-
-
-  Addr = GetAddrOfLocalVar(ReduceVarD);
-
-  LValue ReduceVarLV = EmitLValue(
-  // Maybe we should use EmitReferenceBindingToExpr????
-  LValue ReduceVarLV = EmitLoadOfReferenceLValue(Addr, ReduceVarD->getType(), AlignmentSource::Decl);
-  EmitStoreThroughLValue(RValue::get(RZero), ReduceVarLV);
+  llvm::Metadata *DeclMDVals[] = {
+    llvm::MDString::get(Ctx, ".loop_var"),
+    llvm::MDString::get(Ctx, ".reduce_var.local")
+  };
 
   if (llvm::Instruction *I = dyn_cast<llvm::Instruction>(Addr.getPointer())) {
     llvm::NamedMDNode *DeclMD = CGM.getModule().getOrInsertNamedMetadata("kitsune.codegen");
-    llvm::Metadata *DeclMDVals[] = {
-      llvm::MDString::get(Ctx, "reduction.thread_local")
-    };
     DeclMD->addOperand(llvm::MDNode::get(Ctx, DeclMDVals));
-    I->setMetadata("kitsune.codegen", DeclMD->getOperand(0));  
+    I->setMetadata("kitsune.reduction", DeclMD->getOperand(0));  
+  }
+
+  const ParmVarDecl *PVD = MD->getParamDecl(1);
+  assert(PVD && "EmitKokkosParallelReduce() -- bad local reduction variable!");
+  assert(PVD->getType()->isReferenceType() && "EmitKokkosParallelReduce -- expected reference type");
+  EmitVarDecl(*PVD);
+  QualType RefType = PVD->getType();
+  Address  ReduceVarAddr = CreateMemTemp(RefType, PVD->getName());
+  LValue   RefLVal = MakeAddrLValue(ReduceVarAddr, RefType);
+  //EmitStoreThroughLValue(RValue::get(ReduceVarAddr), RefLValue, /*isInit=*/true);
+  //llvm::Value *RZero = llvm::ConstantInt::get(ConvertType(PVD->getType()), 0);
+
+  if (llvm::Instruction *I = dyn_cast<llvm::Instruction>(ReduceVarAddr.getPointer())) {
+    llvm::NamedMDNode *DeclMD = CGM.getModule().getOrInsertNamedMetadata("kitsune.codegen");
+    DeclMD->addOperand(llvm::MDNode::get(Ctx, DeclMDVals));
+    I->setMetadata("kitsune.codegen", DeclMD->getOperand(1));  
   }
 
   // Next, work towards determining the end of the loop range.
