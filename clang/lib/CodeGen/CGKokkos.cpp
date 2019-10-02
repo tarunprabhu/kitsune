@@ -667,7 +667,7 @@ bool CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE,
   if (llvm::Instruction *I = dyn_cast<llvm::Instruction>(ReduceVarAddr.getPointer())) {
     llvm::NamedMDNode *DeclMD = CGM.getModule().getOrInsertNamedMetadata("kitsune.codegen");
     DeclMD->addOperand(llvm::MDNode::get(Ctx, DeclMDVals));
-    I->setMetadata("kitsune.codegen", DeclMD->getOperand(1));  
+    I->setMetadata("kitsune.codegen", DeclMD->getOperand(0));  
   }
 
   // Next, work towards determining the end of the loop range.
