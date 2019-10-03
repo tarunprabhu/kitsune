@@ -636,38 +636,62 @@ bool CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE,
   const CXXMethodDecl *MD = Lambda->getCallOperator();
   assert(MD && "EmitKokkosParallelReduce() -- bad method decl!");
 
+  llvm::Metadata *MDVals[] = {
+    llvm::MDString::get(Ctx, "kokkos.parallel_reduce"), 
+    llvm::MDString::get(Ctx, "loop_index"),
+    llvm::MDString::get(Ctx, "loop_reduce_ref"),
+    llvm::MDString::get(Ctx, "loop_reduce_var"),
+    llvm::MDString::get(Ctx, "gathered_reduce_var")
+  };
+
+  const char* KITSUNE_SEMANTICS_NAME = "kitsune.semantics";
+  llvm::NamedMDNode *DeclMD = CGM.getModule().getOrInsertNamedMetadata("kitsune.semantics");
+  DeclMD->addOperand(llvm::MDNode::get(Ctx, MDVals[0]));
+  DeclMD->addOperand(llvm::MDNode::get(Ctx, MDVals[1]));
+  DeclMD->addOperand(llvm::MDNode::get(Ctx, MDVals[2]));
+  DeclMD->addOperand(llvm::MDNode::get(Ctx, MDVals[3]));
+
+  // Emit the loop variable and initialize it to zero... 
   const ParmVarDecl *LoopVar = MD->getParamDecl(0);
   assert(LoopVar && "EmitKokkosParallelReduce() -- bad loop variable!");
   EmitVarDecl(*LoopVar);
   Address Addr = GetAddrOfLocalVar(LoopVar);
-  llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 0);
+  llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(LoopVar->getType()), 1);
   Builder.CreateStore(Zero, Addr);
-
-  llvm::Metadata *DeclMDVals[] = {
-    llvm::MDString::get(Ctx, ".loop_var"),
-    llvm::MDString::get(Ctx, ".reduce_var.local")
-  };
-
   if (llvm::Instruction *I = dyn_cast<llvm::Instruction>(Addr.getPointer())) {
-    llvm::NamedMDNode *DeclMD = CGM.getModule().getOrInsertNamedMetadata("kitsune.codegen");
-    DeclMD->addOperand(llvm::MDNode::get(Ctx, DeclMDVals));
-    I->setMetadata("kitsune.reduction", DeclMD->getOperand(0));  
+    I->setMetadata(KITSUNE_SEMANTICS_NAME, DeclMD->getOperand(/*index_var*/1));
   }
 
+
+
+
+  // Emit the reduction variable (gathered value) and initialize it to zero... 
   const ParmVarDecl *PVD = MD->getParamDecl(1);
   assert(PVD && "EmitKokkosParallelReduce() -- bad local reduction variable!");
   assert(PVD->getType()->isReferenceType() && "EmitKokkosParallelReduce -- expected reference type");
-  EmitVarDecl(*PVD);
-  QualType RefType = PVD->getType();
-  Address  ReduceVarAddr = CreateMemTemp(RefType, PVD->getName());
-  LValue   RefLVal = MakeAddrLValue(ReduceVarAddr, RefType);
-  //EmitStoreThroughLValue(RValue::get(ReduceVarAddr), RefLValue, /*isInit=*/true);
-  //llvm::Value *RZero = llvm::ConstantInt::get(ConvertType(PVD->getType()), 0);
 
-  if (llvm::Instruction *I = dyn_cast<llvm::Instruction>(ReduceVarAddr.getPointer())) {
-    llvm::NamedMDNode *DeclMD = CGM.getModule().getOrInsertNamedMetadata("kitsune.codegen");
-    DeclMD->addOperand(llvm::MDNode::get(Ctx, DeclMDVals));
-    I->setMetadata("kitsune.codegen", DeclMD->getOperand(0));  
+  QualType RefType        = PVD->getType();
+  QualType ReductionType  = RefType.getNonReferenceType();
+  llvm::Type *LReduceType = getTypes().ConvertType(ReductionType);
+
+  Address  ReduceAddr     = CreateMemTemp(RefType, ".reduce_var_addr");
+  llvm::AllocaInst *RInst = Builder.CreateAlloca(LReduceType, nullptr, ".reduce_var");
+  Address RVarAddr        = Address(RInst, getContext().getTypeAlignInChars(ReductionType));
+  LValue  RefLVal         = MakeAddrLValue(RVarAddr, RefType);
+
+  llvm::Value *RZero = llvm::ConstantInt::get(ConvertType(ReductionType), 0);
+  Builder.CreateStore(RZero, RVarAddr);
+
+
+  EmitVarDecl(*PVD);
+
+  llvm::Instruction *RefStore = Builder.CreateStore(RVarAddr.getPointer(), ReduceAddr);
+  //EmitStoreThroughLValue(RValue::get(ReduceVarAddr), RVarAddr, /*isInit=*/true);
+
+  if (llvm::Instruction *I = dyn_cast<llvm::Instruction>(ReduceAddr.getPointer())) {
+    I->setMetadata(KITSUNE_SEMANTICS_NAME, DeclMD->getOperand(/*reduce_var*/2));
+    RInst->setMetadata(KITSUNE_SEMANTICS_NAME, DeclMD->getOperand(/*reduce_var*/3));
+    RefStore->setMetadata(KITSUNE_SEMANTICS_NAME, DeclMD->getOperand(/*reduce_var*/3));
   }
 
   // Next, work towards determining the end of the loop range.
@@ -760,12 +784,7 @@ bool CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE,
     EmitBlock(DetachBlock);
 
     llvm::DetachInst *Detach = Builder.CreateDetach(ReduceBodyEntry, Continue.getBlock(), SRStart);
-    llvm::NamedMDNode *MD = CGM.getModule().getOrInsertNamedMetadata("kitsune.semantics");
-    llvm::Metadata *MDVals[] = {
-      llvm::MDString::get(Ctx, "kokkos.reduce")
-    };
-    MD->addOperand(llvm::MDNode::get(Ctx, MDVals));
-    Detach->setMetadata("kitsune.semantics", MD->getOperand(0));
+    Detach->setMetadata(KITSUNE_SEMANTICS_NAME, DeclMD->getOperand(0));
 
     // Create a new alloca insertion point.
     llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
