@@ -52,6 +52,7 @@ typedef int (realmInitRuntime_t)(int argc, char** argv);
 typedef int (realmSync_t)();
 typedef int (realmSpawn_t)(TaskFuncPtr fxn, const void *args, size_t arglen,
 			   void *user_data, size_t user_data_len);
+typedef size_t (realmGetNumProcs_t)();
 
 #define REALM_FUNC(name, CGF) get_##name(CGF)
 
@@ -66,11 +67,14 @@ typedef int (realmSpawn_t)(TaskFuncPtr fxn, const void *args, size_t arglen,
 DEFAULT_GET_REALM_FUNC(realmSpawn)
 DEFAULT_GET_REALM_FUNC(realmSync)
 DEFAULT_GET_REALM_FUNC(realmInitRuntime)
+DEFAULT_GET_REALM_FUNC(realmGetNumProcs)
 
+static const StringRef worker8_name = "realm_nworker8";
 
 Value *RealmABI::GetOrCreateWorker8(Function &F) {
-  LLVMContext& C = F.getParent()->getContext(); 
-  return ConstantInt::get(C, APInt(16, 8)); //Note: stole this from PTXABI.cpp
+  Value *P0 = CallInst::Create(REALM_FUNC(realmGetNumProcs, *F.getParent()), "", F.getEntryBlock().getTerminator());
+  Value *P8 = BinaryOperator::Create(Instruction::Mul, P0, ConstantInt::get(P0->getType(), 8), worker8_name, F.getEntryBlock().getTerminator());
+  return P8;
 }
 
 void RealmABI::createSync(SyncInst &SI, ValueToValueMapTy &DetachCtxToStackFrame) {
