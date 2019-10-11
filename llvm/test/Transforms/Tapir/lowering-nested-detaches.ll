@@ -14,7 +14,7 @@ loop_body:                                        ; preds = %loop_latch, %entry
   %c06 = phi i64 [ 0, %entry ], [ %0, %loop_latch ]
   detach within %syncreg, label %det.achd, label %loop_latch
 ; CHECK: loop_body.split:
-; CHECK-NEXT: call fastcc void @kernel_anon_det.achd.cilk([24 x float]* %O1, i64 %c06, [24 x float]* %B, [24 x [21 x [33 x float]]]* %A)
+; CHECK-NEXT: call fastcc void @kernel_anon_det.achd.tapir([24 x float]* %O1, i64 %c06, [24 x float]* %B, [24 x [21 x [33 x float]]]* %A)
 ; CHECK-NEXT: br label %loop_latch
 
 loop_latch:                                       ; preds = %synced21, %loop_body
@@ -32,10 +32,10 @@ det.achd:                                         ; preds = %loop_body
 loop_body2:                                       ; preds = %loop_latch3, %det.achd
   %c14 = phi i64 [ 0, %det.achd ], [ %1, %loop_latch3 ]
   detach within %syncreg5, label %block_exit, label %loop_latch3
-; CHECK-LABEL: define internal fastcc void @kernel_anon_det.achd.cilk(
-; CHECK: loop_body2.cilk.split:
-; CHECK-NEXT: call fastcc void @kernel_anon_det.achd.cilk_block_exit.cilk.cilk([24 x float]* %O1.cilk, i64 %c06.cilk, i64 %c14.cilk, [24 x float]* %B.cilk, [24 x [21 x [33 x float]]]* %A.cilk)
-; CHECK-NEXT: br label %loop_latch3.cilk
+; CHECK-LABEL: define internal fastcc void @kernel_anon_det.achd.tapir(
+; CHECK: loop_body2.tapir.split:
+; CHECK-NEXT: call fastcc void @kernel_anon_det.achd.tapir_block_exit.tapir.tapir([24 x float]* %O1.tapir, i64 %c06.tapir, i64 %c14.tapir, [24 x float]* %B.tapir, [24 x [21 x [33 x float]]]* %A.tapir)
+; CHECK-NEXT: br label %loop_latch3.tapir
 
 loop_latch3:                                      ; preds = %block_exit20, %loop_body2
   %1 = add nuw nsw i64 %c14, 1
@@ -56,10 +56,10 @@ block_exit:                                       ; preds = %loop_body2
 loop_body8:                                       ; preds = %loop_latch9, %block_exit
   %c22 = phi i64 [ 0, %block_exit ], [ %5, %loop_latch9 ]
   detach within %syncreg11, label %det.achd12, label %loop_latch9
-; CHECK-LABEL: define internal fastcc void @kernel_anon_det.achd.cilk_block_exit.cilk.cilk(
-; CHECK: loop_body8.cilk.cilk.split:
-; CHECK-NEXT: call fastcc void @kernel_anon_det.achd.cilk_block_exit.cilk.cilk_det.achd12.cilk.cilk.cilk([24 x [21 x [33 x float]]]* %A.cilk.cilk, i64 %c06.cilk.cilk, i64 %c14.cilk.cilk, i64 %c22.cilk.cilk, float %2, float* nonnull %0)
-; CHECK-NEXT: br label %loop_latch9.cilk.cilk
+; CHECK-LABEL: define internal fastcc void @kernel_anon_det.achd.tapir_block_exit.tapir.tapir(
+; CHECK: loop_body8.tapir.tapir.split:
+; CHECK-NEXT: call fastcc void @kernel_anon_det.achd.tapir_block_exit.tapir.tapir_det.achd12.tapir.tapir.tapir([24 x [21 x [33 x float]]]* %A.tapir.tapir, i64 %c06.tapir.tapir, i64 %c14.tapir.tapir, i64 %c22.tapir.tapir, float %2, float* nonnull %0)
+; CHECK-NEXT: br label %loop_latch9.tapir.tapir
 
 loop_latch9:                                      ; preds = %synced, %loop_body8
   %5 = add nuw nsw i64 %c22, 1
@@ -76,10 +76,10 @@ det.achd12:                                       ; preds = %loop_body8
 loop_body14:                                      ; preds = %loop_latch15, %det.achd12
   %c31 = phi i64 [ 0, %det.achd12 ], [ %6, %loop_latch15 ]
   detach within %syncreg17, label %det.achd18, label %loop_latch15
-; CHECK-LABEL: define internal fastcc void @kernel_anon_det.achd.cilk_block_exit.cilk.cilk_det.achd12.cilk.cilk.cilk(
-; CHECK: loop_body14.cilk.cilk.cilk.split:
-; CHECK-NEXT: call fastcc void @kernel_anon_det.achd.cilk_block_exit.cilk.cilk_det.achd12.cilk.cilk.cilk_det.achd18.cilk.cilk.cilk.cilk([24 x [21 x [33 x float]]]* %A.cilk.cilk.cilk, i64 %c06.cilk.cilk.cilk, i64 %c14.cilk.cilk.cilk, i64 %c22.cilk.cilk.cilk, i64 %c31.cilk.cilk.cilk, float %.cilk, float* %.cilk1)
-; CHECK-NEXT: br label %loop_latch15.cilk.cilk.cilk
+; CHECK-LABEL: define internal fastcc void @kernel_anon_det.achd.tapir_block_exit.tapir.tapir_det.achd12.tapir.tapir.tapir(
+; CHECK: loop_body14.tapir.tapir.tapir.split:
+; CHECK-NEXT: call fastcc void @kernel_anon_det.achd.tapir_block_exit.tapir.tapir_det.achd12.tapir.tapir.tapir_det.achd18.tapir.tapir.tapir.tapir([24 x [21 x [33 x float]]]* %A.tapir.tapir.tapir, i64 %c06.tapir.tapir.tapir, i64 %c14.tapir.tapir.tapir, i64 %c22.tapir.tapir.tapir, i64 %c31.tapir.tapir.tapir, float %.tapir, float* %.tapir1)
+; CHECK-NEXT: br label %loop_latch15.tapir.tapir.tapir
 
 loop_latch15:                                     ; preds = %det.achd18, %loop_body14
   %6 = add nuw nsw i64 %c31, 1
@@ -97,7 +97,7 @@ det.achd18:                                       ; preds = %loop_body14
   %11 = fadd float %10, %9
   store float %11, float* %2, align 4
   reattach within %syncreg17, label %loop_latch15
-; CHECK-LABEL: define internal fastcc void @kernel_anon_det.achd.cilk_block_exit.cilk.cilk_det.achd12.cilk.cilk.cilk_det.achd18.cilk.cilk.cilk.cilk(
+; CHECK-LABEL: define internal fastcc void @kernel_anon_det.achd.tapir_block_exit.tapir.tapir_det.achd12.tapir.tapir.tapir_det.achd18.tapir.tapir.tapir.tapir(
 ; CHECK: getelementptr
 ; CHECK-NEXT: load
 ; CHECK-NEXT: fmul

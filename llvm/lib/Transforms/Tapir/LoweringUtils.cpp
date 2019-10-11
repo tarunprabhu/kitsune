@@ -396,7 +396,7 @@ Function *llvm::extractDetachBodyToFunction(
     Extracted = CreateHelper(Inputs, Outputs, Blocks,
                              Detached, Detacher, Continue,
                              VMap, F.getParent(),
-                             F.getSubprogram() != nullptr, Returns, ".cilk",
+                             F.getSubprogram() != nullptr, Returns, ".tapir",
                              &ExitBlocks, nullptr, nullptr, nullptr, nullptr,
                              nullptr);
 
