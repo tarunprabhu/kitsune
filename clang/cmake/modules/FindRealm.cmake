@@ -1,8 +1,8 @@
 # 
-#  REALM_FOUND       -- kokkos was found.
-#  REALM_INCLUDE_DIR -- directory with kokkos header files. 
-#  REALM_LIBRARY     -- full path to the kokkos library. 
-#  REALM_LIBRARY_DIR -- path to where the kokkos library is installed. 
+#  REALM_FOUND       -- realm was found.
+#  REALM_INCLUDE_DIR -- directory with realm header files. 
+#  REALM_LIBRARY     -- full path to the realm library. 
+#  REALM_LIBRARY_DIR -- path to where the realm library is installed. 
 #  REALM_LINK_LIBS   -- set of link libraries (e.g. -lrealm) 
 # 
 
