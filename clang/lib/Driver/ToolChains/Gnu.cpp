@@ -472,22 +472,6 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   // The profile runtime also needs access to system libraries.
   getToolChain().addProfileRTLibs(Args, CmdArgs);
 
-/*  if (Args.hasArg(options::OPT_ftapir)) {
-    if (Arg *A = Args.getLastArg(options::OPT_ftapir)) {
-      StringRef Name = A->getValue();
-      if (Name == "cilk") 
-        CmdArgs.push_back("-lcilkrts");
-      else if (Name == "qthreads"){
-        CmdArgs.push_back("-lqthread");
-        CmdArgs.push_back("-lhwloc");
-        CmdArgs.push_back("-lnuma");
-        CmdArgs.push_back("-lpthread");
-      }
-      else if (Name == "realm")
-        CmdArgs.push_back("-lrealm");
-    }
-  }
-*/
   // +===== kitsune -- support for adding library search paths and 
   //        various libraries required to support runtimes and other
   //        backend components. 

@@ -112,7 +112,7 @@ det.achd:                                         ; preds = %entry
   %call5 = invoke i32 @_Z3barP3Foo(%class.Foo* nonnull %0)
           to label %invoke.cont4 unwind label %lpad1
 ; CHECK: [[CALLHELPER]]:
-; CHECK-NEXT: invoke fastcc void @_Z12spawn_excepti_det.achd.cilk(%class.Foo*
+; CHECK-NEXT: invoke fastcc void @_Z12spawn_excepti_det.achd.tapir(%class.Foo*
 ; CHECK-NEXT: to label %[[INVOKECONT:.+]] unwind label %lpad6
 ; CHECK: [[INVOKECONT]]:
 ; CHECK-NEXT: br label %[[CONTINUE]]
@@ -174,7 +174,7 @@ det.achd:                                         ; preds = %entry
   %call.i = invoke i32 @_Z3barP3Foo(%class.Foo* nonnull %0)
           to label %invoke.cont4 unwind label %lpad.i
 ; CHECK: [[CALLHELPER]]:
-; CHECK-NEXT: invoke fastcc void @_Z18spawn_throw_inlinei_det.achd.cilk(%class.Foo*
+; CHECK-NEXT: invoke fastcc void @_Z18spawn_throw_inlinei_det.achd.tapir(%class.Foo*
 ; CHECK-NEXT: to label %[[INVOKECONT:.+]] unwind label %lpad6
 ; CHECK: [[INVOKECONT]]:
 ; CHECK-NEXT: br label %[[CONTINUE]]
@@ -264,7 +264,7 @@ det.achd:                                         ; preds = %entry
   %call = tail call i32 @_Z4quuzi(i32 %n) #11
   reattach within %syncreg, label %det.cont
 ; CHECK: [[CALLHELPER1]]:
-; CHECK-NEXT: call fastcc void @_Z14spawn_tryblocki_det.achd.cilk(i32 %n)
+; CHECK-NEXT: call fastcc void @_Z14spawn_tryblocki_det.achd.tapir(i32 %n)
 ; CHECK-NEXT: br label %[[CONTINUE1]]
 ; CHECK: [[CONTINUE1]]:
 ; CHECK-NEXT: br label %det.cont
@@ -285,7 +285,7 @@ det.achd4:                                        ; preds = %invoke.cont
   %call9 = invoke i32 @_Z3barP3Foo(%class.Foo* nonnull %0)
           to label %invoke.cont8 unwind label %lpad5
 ; CHECK: [[CALLHELPER2]]:
-; CHECK-NEXT: invoke fastcc void @_Z14spawn_tryblocki_det.achd4.cilk(%class.Foo*
+; CHECK-NEXT: invoke fastcc void @_Z14spawn_tryblocki_det.achd4.tapir(%class.Foo*
 ; CHECK-NEXT: to label %[[INVOKECONT:.+]] unwind label %lpad11
 ; CHECK: [[INVOKECONT]]:
 ; CHECK-NEXT: br label %[[CONTINUE2]]
@@ -305,7 +305,7 @@ det.achd13:                                       ; preds = %det.cont10
   %call14 = tail call i32 @_Z4quuzi(i32 %n) #11
   reattach within %syncreg, label %det.cont15
 ; CHECK: [[CALLHELPER3]]:
-; CHECK-NEXT: call fastcc void @_Z14spawn_tryblocki_det.achd13.cilk(i32 %n)
+; CHECK-NEXT: call fastcc void @_Z14spawn_tryblocki_det.achd13.tapir(i32 %n)
 ; CHECK-NEXT: br label %[[CONTINUE3]]
 ; CHECK: [[CONTINUE3]]:
 ; CHECK-NEXT: br label %det.cont15
@@ -438,7 +438,7 @@ terminate.lpad:                                   ; preds = %lpad30
 }
 
 
-; CHECK-DAG: define internal fastcc void @_Z14spawn_tryblocki_det.achd13.cilk(i32
+; CHECK-DAG: define internal fastcc void @_Z14spawn_tryblocki_det.achd13.tapir(i32
 ; CHECK: %[[ARG:[a-zA-Z0-9._]+]])
 ; CHECK: %[[CILKSF:.+]] = alloca %struct.__cilkrts_stack_frame
 ; CHECK: call void @__cilkrts_enter_frame_fast_1(%struct.__cilkrts_stack_frame* %[[CILKSF]])
@@ -450,7 +450,7 @@ terminate.lpad:                                   ; preds = %lpad30
 ; CHECK-NEXT: br label %{{.+}}
 
 
-; CHECK-DAG: define internal fastcc void @_Z14spawn_tryblocki_det.achd4.cilk(%class.Foo*
+; CHECK-DAG: define internal fastcc void @_Z14spawn_tryblocki_det.achd4.tapir(%class.Foo*
 ; CHECK: %[[ARG:[a-zA-Z0-9._]+]])
 ; CHECK: %[[CILKSF:.+]] = alloca %struct.__cilkrts_stack_frame
 ; CHECK: call void @__cilkrts_enter_frame_fast_1(%struct.__cilkrts_stack_frame* %[[CILKSF]])
@@ -475,7 +475,7 @@ terminate.lpad:                                   ; preds = %lpad30
 ; CHECK-NEXT: resume { i8*, i32 } %[[LPADVAL]]
  
 
-; CHECK-DAG: define internal fastcc void @_Z18spawn_throw_inlinei_det.achd.cilk(%class.Foo*
+; CHECK-DAG: define internal fastcc void @_Z18spawn_throw_inlinei_det.achd.tapir(%class.Foo*
 ; CHECK: %[[ARG:[a-zA-Z0-9._]+]])
 ; CHECK: %[[CILKSF:.+]] = alloca %struct.__cilkrts_stack_frame
 ; CHECK: call void @__cilkrts_enter_frame_fast_1(%struct.__cilkrts_stack_frame* %[[CILKSF]])
@@ -511,7 +511,7 @@ terminate.lpad:                                   ; preds = %lpad30
 ; CHECK: [[LPADIN]]:
 ; CHECK: br label %[[RESUMEIN]]
 
-; CHECK-DAG: define internal fastcc void @_Z12spawn_excepti_det.achd.cilk(%class.Foo*
+; CHECK-DAG: define internal fastcc void @_Z12spawn_excepti_det.achd.tapir(%class.Foo*
 ; CHECK: %[[ARG:[a-zA-Z0-9._]+]])
 ; CHECK: %[[CILKSF:.+]] = alloca %struct.__cilkrts_stack_frame
 ; CHECK: call void @__cilkrts_enter_frame_fast_1(%struct.__cilkrts_stack_frame* %[[CILKSF]])
