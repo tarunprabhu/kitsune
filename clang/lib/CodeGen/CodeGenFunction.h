@@ -3068,6 +3068,8 @@ public:
   // Kitsune
   void EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
                            ArrayRef<const Attr *> Attrs = None);
+  void EmitParallelCXXForallRangeStmt(const CXXForallRangeStmt &S,
+                           ArrayRef<const Attr *> Attrs = None);
 
   /// Controls insertion of cancellation exit blocks in worksharing constructs.
   class OMPCancelStackRAII {

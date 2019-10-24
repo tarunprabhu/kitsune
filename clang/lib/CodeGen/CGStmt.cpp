@@ -1129,7 +1129,7 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
   BreakContinueStack.push_back(BreakContinue(Reattach, Reattach));
 
   // Create a cleanup scope for the condition variable cleanups.
-  LexicalScope ConditionScope(*this, S.getSourceRange());
+  LexicalScope ConditionScope(*this, R);
 
   // If the for statement has a condition scope, emit the local variable
   // declaration.
@@ -1272,6 +1272,13 @@ void CodeGenFunction::EmitCXXForRangeStmt(const CXXForRangeStmt &S,
 // Kitsune
 void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
                                              ArrayRef<const Attr *> ForAttrs) {
+  if (getLangOpts().Forall) {
+    EmitParallelCXXForallRangeStmt(S, ForAttrs);
+    return;
+  }
+
+  printf("Codegen a serial forall range loop\n");
+
   JumpDest LoopExit = getJumpDestInCurrentScope("forall.end");
 
   LexicalScope ForScope(*this, S.getSourceRange());
@@ -1346,6 +1353,106 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
 
   // Emit the fall-through block.
   EmitBlock(LoopExit.getBlock(), true);
+}
+
+// Kitsune
+void CodeGenFunction::EmitParallelCXXForallRangeStmt(const CXXForallRangeStmt &S,
+                                             ArrayRef<const Attr *> ForAttrs) {
+
+  printf("Codegen a parallel forall range loop\n");
+
+  // Create all jump destinations and blocks in the order they appear in the IR
+  // some are jump destinations, some are basic blocks
+  JumpDest Condition = getJumpDestInCurrentScope("forall.cond");
+  llvm::BasicBlock *Detach = createBasicBlock("forall.detach");
+  llvm::BasicBlock *ForBody = createBasicBlock("forall.body");
+  JumpDest Reattach = getJumpDestInCurrentScope("forall.reattach");
+  llvm::BasicBlock *Increment = createBasicBlock("forall.inc");
+  JumpDest Cleanup = getJumpDestInCurrentScope("forall.cond.cleanup");
+  JumpDest Sync = getJumpDestInCurrentScope("forall.sync");
+  llvm::BasicBlock *End = createBasicBlock("forall.end");
+
+  // Extract a convenience block
+  llvm::BasicBlock *ConditionBlock = Condition.getBlock();
+
+  const SourceRange &R = S.getSourceRange();
+  LexicalScope ForScope(*this, S.getSourceRange());
+
+  // Evaluate the first pieces before the loop.
+  if (S.getInit())
+    EmitStmt(S.getInit());
+  EmitStmt(S.getRangeStmt());
+  EmitStmt(S.getBeginStmt());
+  EmitStmt(S.getEndStmt());
+
+  // create the sync region
+  PushSyncRegion();
+  llvm::Instruction *SRStart = EmitSyncRegionStart();
+  CurSyncRegion->setSyncRegionStart(SRStart);
+
+  // FIXME: Need to get attributes for spawning strategy from
+  // code versus this hard-coded route...
+  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+
+  EmitBlock(ConditionBlock);
+
+  LoopStack.push(ConditionBlock, CGM.getContext(), ForAttrs,
+                 SourceLocToDebugLoc(R.getBegin()),
+                 SourceLocToDebugLoc(R.getEnd()));
+
+  // Store the blocks to use for break and continue.
+   BreakContinueStack.push_back(BreakContinue(Reattach, Reattach));
+
+  // The body is executed if the expression, contextually converted
+  // to bool, is true.
+  llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
+  Builder.CreateCondBr(
+      BoolCondVal, Detach, Sync.getBlock(),
+      createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody())));
+
+  if (ForScope.requiresCleanups()) {
+    EmitBlock(Cleanup.getBlock());
+    EmitBranchThroughCleanup(Sync);
+  }
+
+  // emit the detach block
+  EmitBlock(Detach);
+
+  // create the detach terminator
+  Builder.CreateDetach(ForBody, Increment, SRStart);
+
+  EmitBlock(ForBody);
+
+  incrementProfileCounter(&S);
+
+  {
+    // Create a separate cleanup scope for the loop variable and body.
+    LexicalScope BodyScope(*this, R);
+    EmitStmt(S.getLoopVarStmt());
+    EmitStmt(S.getBody());
+  }
+
+  EmitBlock(Reattach.getBlock());
+  Builder.CreateReattach(Increment, SRStart);
+
+  EmitBlock(Increment);
+
+  EmitStmt(S.getInc());
+
+  BreakContinueStack.pop_back();
+
+  EmitStopPoint(&S);
+  
+  EmitBranch(ConditionBlock);
+
+  ForScope.ForceCleanup();
+
+  LoopStack.pop();
+
+  EmitBlock(Sync.getBlock());
+  Builder.CreateSync(End, SRStart);
+
+  EmitBlock(End, true);
 }
 
 void CodeGenFunction::EmitReturnOfRValue(RValue RV, QualType Ty) {
