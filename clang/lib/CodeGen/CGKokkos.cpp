@@ -81,7 +81,6 @@ namespace {
     return false;
   }
 
-
   static void ExtractParallelForComponents(const CallExpr* CE,
 					   std::string &ConstructName, 
 					   const Expr *&PolicyExpr, 
@@ -199,6 +198,7 @@ bool CodeGenFunction::EmitKokkosConstruct(const CallExpr *CE,
 //     - TeamPolicy: define a one-dimensional iteration range to be executed by
 //       a thread team (only valid inside a parallel region executed through a 
 //       TeamPolicy or TaskTeam.
+//
 //   * FunctorType: A valid functor having an operator() with a matching signature
 //     for ExecPolicy.  The functor can be defined using a C++ class/struct or lambda.
 //
@@ -265,8 +265,8 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *KokkosExpr,
   // parallel loop structure... 
   JumpDest LoopExit = getJumpDestInCurrentScope("kokkos.forall.end");
   PushSyncRegion();
-  llvm::Instruction *SRStart = EmitSyncRegionStart();
-  CurSyncRegion->setSyncRegionStart(SRStart);
+  llvm::Instruction *SyncRegionStart = EmitSyncRegionStart();
+  CurSyncRegion->setSyncRegionStart(SyncRegionStart);
 
   LexicalScope ForallScope(*this, KokkosExpr->getSourceRange());
 
@@ -278,8 +278,6 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *KokkosExpr,
   Address Addr = GetAddrOfLocalVar(LoopVarD);
   llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(LoopVarD->getType()), 0);
   Builder.CreateStore(Zero, Addr);
-
-
 
 
   // Next, work towards determining the end of the loop range.
@@ -362,7 +360,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *KokkosExpr,
 
     if (ExitBlock != LoopExit.getBlock()) {
       EmitBlock(ExitBlock);
-      Builder.CreateSync(SyncContinueBlock, SRStart);
+      Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
       EmitBlock(SyncContinueBlock);
       PopSyncRegion();
       madeSync = true;
@@ -371,8 +369,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *KokkosExpr,
 
     EmitBlock(DetachBlock);
 
-    llvm::DetachInst *Detach = Builder.CreateDetach(ForallBodyEntry, Continue.getBlock(), SRStart);
-
+    llvm::DetachInst *Detach = Builder.CreateDetach(ForallBodyEntry, Continue.getBlock(), SyncRegionStart);
     llvm::LLVMContext &Ctx = CGM.getModule().getContext();
 
     llvm::NamedMDNode *MD = CGM.getModule().getOrInsertNamedMetadata("kitsune.semantics");
@@ -419,7 +416,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *KokkosExpr,
   {
     EmitBlock(Preattach.getBlock());
     DetachCleanupScope.ForceCleanup();
-    Builder.CreateReattach(Continue.getBlock(), SRStart);
+    Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
   }
 
   {
@@ -453,7 +450,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *KokkosExpr,
   // Emit the fall-through block. 
   EmitBlock(LoopExit.getBlock(), true);
   if (!madeSync) {
-    Builder.CreateSync(SyncContinueBlock, SRStart);
+    Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
     EmitBlock(SyncContinueBlock);
     PopSyncRegion();
   }
@@ -529,14 +526,14 @@ namespace {
 
 bool 
 CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE, 
-  	                                      ArrayRef<const Attr *> ReduceAttrs) {
+					  ArrayRef<const Attr *> ReduceAttrs) {
 
   std::string ConstructName;          // debug/profile name. 
   const Expr  *BE = nullptr;          // "bounds" expression. 
   const VarDecl *LocalVD = nullptr;   // local reduction variable.  
   const DeclRefExpr *RE = nullptr;    // final reduction expression. 
   const LambdaExpr *Lambda = nullptr; // the lambda 
-
+  DiagnosticsEngine &Diags = CGM.getDiags();
   llvm::LLVMContext &Ctx = CGM.getModule().getContext();
   
   llvm::Metadata *MDVals[] = {
@@ -558,66 +555,42 @@ CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE,
   DeclMD->addOperand(llvm::MDNode::get(Ctx, MDVals[4]));
   DeclMD->addOperand(llvm::MDNode::get(Ctx, MDVals[5]));
 
-
-
   ExtractParallelReduceComponents(CE, ConstructName, BE, LocalVD, RE, Lambda);
 
   if (Lambda == nullptr) {
-    // A null lambda most likely suggests the call expr uses a 
-    // functor, 
-    DiagnosticsEngine &Diags = CGM.getDiags();
     Diags.Report(CE->getExprLoc(), diag::warn_kokkos_no_functor);
     return false;
   }
 
   if (BE == nullptr) { 
-    // We got an unexpected bounds expression (most likely due to 
-    // a use case we haven't encountered before).
-    DiagnosticsEngine &Diags = CGM.getDiags();
     Diags.Report(CE->getExprLoc(), diag::warn_kokkos_unknown_bounds_expr);
     return false;
   }
 
   if (LocalVD == nullptr) {
-    // We got an unexpected local reduction decl -- mostly like due 
-    // to a unrecognized type (e.g. a class) that supports reductions 
-    // but not something we know how to handle (yet). 
-    DiagnosticsEngine &Diags = CGM.getDiags();
     Diags.Report(CE->getExprLoc(), diag::warn_kokkos_reduce_bad_intermediate_vardecl);
     return false;
   }
 
   if (RE == nullptr) {
-    // We got an unexpected final reduction parameter type -- most likely 
-    // due to a unrecognized type (e.g. a class) that supports reductions 
-    // but not something we know how to handle (yet). 
-    DiagnosticsEngine &Diags = CGM.getDiags();
     Diags.Report(CE->getExprLoc(), diag::warn_kokkos_reduce_bad_final_vardecl);
     return false;
   }
 
-  JumpDest LoopExit = getJumpDestInCurrentScope("kokkos.forall.end");
+
+  JumpDest LoopExit = getJumpDestInCurrentScope("kokkos.reduce.end");
   PushSyncRegion();
-  llvm::Instruction *SRStart = EmitSyncRegionStart();
-  CurSyncRegion->setSyncRegionStart(SRStart);
+  llvm::Instruction *SyncRegionStart = EmitSyncRegionStart();
+  CurSyncRegion->setSyncRegionStart(SyncRegionStart);
 
   LexicalScope ReductionScope(*this, CE->getSourceRange());
-  
-  // Transform the kokkos lambda expression into a loop. 
-  
-  // The first step is to extract the argument to the lambda and convert it into the 
-  // loop iterator. 
+
   const CXXMethodDecl *MD = Lambda->getCallOperator();
   assert(MD && "EmitKokkosParallelReduce() -- bad method decl!");
-
- 
- 
-
-  // Emit the loop variable and initialize it to zero... 
   const ParmVarDecl *LoopVarD = MD->getParamDecl(0);
   assert(LoopVarD && "EmitKokkosParallelReduce() -- bad loop variable!");
-  
   EmitVarDecl(*LoopVarD);
+
   Address LoopVarAddr = GetAddrOfLocalVar(LoopVarD);
   llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(LoopVarD->getType()), 0);
   Builder.CreateStore(Zero, LoopVarAddr);
@@ -693,11 +666,6 @@ CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE,
 
   JumpDest Preattach = getJumpDestInCurrentScope("kokkos.reduce.preattach");
   Continue = getJumpDestInCurrentScope("kokkos.reduce.inc");
-
-  // Store the blocks to use for break and continue. 
-  // 
-  // FIXME?: Why is the code below BreakContinue(Preattach, Preattach)
-  // versus BreakContinue(Preattach, Continue)?  
   BreakContinueStack.push_back(BreakContinue(Preattach, Preattach));
 
   // Create a clean up scope for the condition variable. 
@@ -717,7 +685,7 @@ CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE,
   llvm::BasicBlock  *ReduceBodyEntry;
   llvm::BasicBlock  *ReduceBody;
 
- {
+  {
     llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
     // If there is any cleanup between here and the loop-exit scope
     // we need to create a block to stage the loop exit. 
@@ -734,11 +702,12 @@ CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE,
 
     llvm::Value *LoopVal     = Builder.CreateLoad(LoopVarAddr);
     llvm::Value *BoolCondVal = Builder.CreateICmpULT(LoopVal, LoopEnd);
-    Builder.CreateCondBr(BoolCondVal, DetachBlock, ExitBlock);
+    Builder.CreateCondBr(BoolCondVal, DetachBlock, ExitBlock
+			 /* FIXME: createProfileWeights()... */);
 
     if (ExitBlock != LoopExit.getBlock()) {
       EmitBlock(ExitBlock);
-      Builder.CreateSync(SyncContinueBlock, SRStart);
+      Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
       EmitBlock(SyncContinueBlock);
       PopSyncRegion();
       madeSync = true;
@@ -746,8 +715,9 @@ CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE,
     }
 
     EmitBlock(DetachBlock);
-
-    llvm::DetachInst *Detach = Builder.CreateDetach(ReduceBodyEntry, Continue.getBlock(), SRStart);
+    llvm::DetachInst *Detach = Builder.CreateDetach(ReduceBodyEntry, 
+						    Continue.getBlock(), 
+						    SyncRegionStart);
     Detach->setMetadata(KITSUNE_MD_NAME, DeclMD->getOperand(0));
 
     // Create a new alloca insertion point.
@@ -761,41 +731,56 @@ CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE,
     EmitBlock(ReduceBodyEntry);
   }
 
- // Create a scope for the loop-variable cleanup.
+  // Create a scope for the loop-variable cleanup.
   RunCleanupsScope DetachCleanupScope(*this);
   EHStack.pushCleanup<RethrowCleanup>(EHCleanup);
+
+
+  if (LoopVarD) {
+    AutoVarEmission LVEmission = EmitAutoVarAlloca(*LoopVarD);
+    QualType type = LoopVarD->getType();
+    Address Loc = LVEmission.getObjectAddress(*this);
+    LValue LV = MakeAddrLValue(Loc, type);
+    LV.setNonGC(true);
+    EmitStoreThroughLValue(RValue::get(LoopVarAddr.getPointer()), LV, true);
+
+    EmitAutoVarCleanups(LVEmission);
+  }
 
   Builder.CreateBr(ReduceBody);
   EmitBlock(ReduceBody);
   incrementProfileCounter(CE);
 
+  // Create a separate cleanup scope for the reduce body and emit 
+  // the lambda as the body of the reduction loop. 
   {
-    // Create a separate cleanup scope for the forall body
-    // (in case it is not a compound statement).
     RunCleanupsScope BodyScope(*this);
-
-    // Emit the lambda expression as the body of the forall 
-    // loop.  Given this is a lambda it may have special wrapped 
-    // AST for handling captured variables -- to address this we 
-    // have to flag it so we handle it as a special case... 
+    // Given this is a lambda it may have special wrapped AST for
+    // handling captured variables -- to address this we have to flag
+    // that we're in Kokkos-mode so when we emit the body it is
+    // handled correctly...
     InKokkosConstruct = true;
     EmitStmt(Lambda->getBody());
     InKokkosConstruct = false;
     Builder.CreateBr(Preattach.getBlock());
   }
   
+  // Finish the detached body and emit the reattach. 
   {
     EmitBlock(Preattach.getBlock());
+
     DetachCleanupScope.ForceCleanup();
-    Builder.CreateReattach(Continue.getBlock(), SRStart);
+    Builder.CreateReattach(Continue.getBlock(), SyncRegionStart);
   }
 
+  // Restore CFG state after the detached region... 
   {
+    // Restore alloca insertion point. 
     llvm::Instruction *Ptr = AllocaInsertPt;
     AllocaInsertPt = OldAllocaInsertPt;
     Ptr->eraseFromParent();
 
-    // Restore the exception handling state. 
+    // Restore EH state. 
     EmitIfUsed(*this, EHResumeBlock);
     EHResumeBlock  = OldEHResumeBlock;
     ExceptionSlot  = OldExceptionSlot;
@@ -804,29 +789,30 @@ CodeGenFunction::EmitKokkosParallelReduce(const CallExpr *CE,
 
   // Emit the increment next. 
   EmitBlock(Continue.getBlock());
-
-  // Emit the loop variable increment. 
   llvm::Value *IncVal = Builder.CreateLoad(LoopVarAddr);
   llvm::Value *One    = llvm::ConstantInt::get(ConvertType(LoopVarD->getType()), 1);
   IncVal = Builder.CreateAdd(IncVal, One);
   Builder.CreateStore(IncVal, LoopVarAddr);
+
   BreakContinueStack.pop_back();
   ConditionalScope.ForceCleanup();
+
   EmitStopPoint(CE);
   EmitBranch(CondBlock);
 
   ReductionScope.ForceCleanup();
+
   LoopStack.pop();
-  
-  // Emit the fall-through block. 
+
   EmitBlock(LoopExit.getBlock(), true);
 
   llvm::LoadInst *LI = Builder.CreateLoad(RVarAddr, "local.lsum");
   LI->setMetadata(KITSUNE_MD_NAME, DeclMD->getOperand(/*reduce_var*/4));
   Builder.CreateStore(LI, FinalReductionLValue.getAddress());
 
+  // Emit the fall-through block. 
   if (!madeSync) {
-    Builder.CreateSync(SyncContinueBlock, SRStart);
+    Builder.CreateSync(SyncContinueBlock, SyncRegionStart);
     EmitBlock(SyncContinueBlock);
     PopSyncRegion();
   }
