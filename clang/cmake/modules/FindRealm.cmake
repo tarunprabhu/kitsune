@@ -15,6 +15,13 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Realm DEFAULT_MSG
 				  REALM_INCLUDE_DIR 
 				  REALM_LIBRARY)
+message(STATUS "kitsune: looking for kitsune-rt's realm wrapper...")
+
+find_path(REALM_WRAPPER_INCLUDE_DIR  kitsune_realm_c.h)
+find_library(REALM_WRAPPER_LIBRARY kitsunerealm)
+find_package_handle_standard_args(Realm_Wrapper DEFAULT_MSG
+				  REALM_WRAPPER_INCLUDE_DIR 
+				  REALM_WRAPPER_LIBRARY)
 
 if (Realm_FOUND) 
   message(STATUS "kitsune: looking for realm... FOUND")
@@ -22,11 +29,30 @@ if (Realm_FOUND)
                          ${REALM_LIBRARY}
                          DIRECTORY
                          CACHE)
-  set(KITSUNE_ENABLE_REALM TRUE CACHE BOOL "Enable automatic include and library flags for Realm.")
-  set(REALM_LINK_LIBS "-lrealm" CACHE STRING "List of libraries need to link with for Realm.")
+  set(REALM_LINK_LIBS -lrealm CACHE STRING "List of libraries need to link with for Realm.")
+
   message(STATUS "        realm include directory: ${REALM_INCLUDE_DIR}")
   message(STATUS "        realm library directory: ${REALM_LIBRARY_DIR}")
   message(STATUS "        realm link libraries   : ${REALM_LINK_LIBS}")
+
+  if (Realm_Wrapper_FOUND)
+     message(STATUS "kitsune: looking for kitsune-rt's realm wrapper... FOUND")
+     get_filename_component(REALM_WRAPPER_LIBRARY_DIR
+	                    ${REALM_WRAPPER_LIBRARY}
+                            DIRECTORY
+                            CACHE)
+     set(KITSUNE_ENABLE_REALM TRUE CACHE BOOL "Enable automatic include and library flags for Realm.")
+     set(REALM_LINK_LIBS "-lrealm -lkitsunerealm" CACHE STRING "List of libraries need to link with for Realm." FORCE)
+
+     message(STATUS "        kitsune-rt's realm wrapper include directory: ${REALM_WRAPPER_INCLUDE_DIR}")
+     message(STATUS "        kitsune-rt's realm wrapper library directory: ${REALM_WRAPPER_LIBRARY_DIR}")
+     message(STATUS "        all realm link libraries   : ${REALM_LINK_LIBS}")
+
+  else()
+    message(STATUS "kitsune: looking for kitsune-rt's realm wrapper... NOT FOUND")
+    set(KITSUNE_ENABLE_REALM FALSE CACHE BOOL "Enable automatic include and library flags for Realm.")
+    set(REALM_LINK_LIBS "" CACHE STRING "List of libraries need to link with for Realm.")
+  endif()
 else()
   message(STATUS "kitsune: looking for realm... NOT FOUND")
   set(KITSUNE_ENABLE_REALM FALSE CACHE BOOL "Enable automatic include and library flags for Realm.")
