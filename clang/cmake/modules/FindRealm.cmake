@@ -31,10 +31,6 @@ if (Realm_FOUND)
                          CACHE)
   set(REALM_LINK_LIBS -lrealm CACHE STRING "List of libraries need to link with for Realm.")
 
-  message(STATUS "        realm include directory: ${REALM_INCLUDE_DIR}")
-  message(STATUS "        realm library directory: ${REALM_LIBRARY_DIR}")
-  message(STATUS "        realm link libraries   : ${REALM_LINK_LIBS}")
-
   if (Realm_Wrapper_FOUND)
      message(STATUS "kitsune: looking for kitsune-rt's realm wrapper... FOUND")
      get_filename_component(REALM_WRAPPER_LIBRARY_DIR
@@ -43,10 +39,6 @@ if (Realm_FOUND)
                             CACHE)
      set(KITSUNE_ENABLE_REALM TRUE CACHE BOOL "Enable automatic include and library flags for Realm.")
      set(REALM_LINK_LIBS "-lrealm -lkitsunerealm" CACHE STRING "List of libraries need to link with for Realm." FORCE)
-
-     message(STATUS "        kitsune-rt's realm wrapper include directory: ${REALM_WRAPPER_INCLUDE_DIR}")
-     message(STATUS "        kitsune-rt's realm wrapper library directory: ${REALM_WRAPPER_LIBRARY_DIR}")
-     message(STATUS "        all realm link libraries   : ${REALM_LINK_LIBS}")
 
   else()
     message(STATUS "kitsune: looking for kitsune-rt's realm wrapper... NOT FOUND")
