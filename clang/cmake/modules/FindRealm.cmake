@@ -15,13 +15,6 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Realm DEFAULT_MSG
 				  REALM_INCLUDE_DIR 
 				  REALM_LIBRARY)
-message(STATUS "kitsune: looking for kitsune-rt's realm wrapper...")
-
-find_path(REALM_WRAPPER_INCLUDE_DIR  kitsune_realm_c.h)
-find_library(REALM_WRAPPER_LIBRARY kitsunerealm)
-find_package_handle_standard_args(Realm_Wrapper DEFAULT_MSG
-				  REALM_WRAPPER_INCLUDE_DIR 
-				  REALM_WRAPPER_LIBRARY)
 
 if (Realm_FOUND) 
   message(STATUS "kitsune: looking for realm... FOUND")
@@ -31,20 +24,24 @@ if (Realm_FOUND)
                          CACHE)
   set(REALM_LINK_LIBS -lrealm CACHE STRING "List of libraries need to link with for Realm.")
 
+  message(STATUS "kitsune: looking for kitsune-rt's realm wrapper...")
+  
+  #find_package(kitsunerealm REQUIRED) # kitsune-rt dependency, if externally installed prior to clang build
+  set(REALM_WRAPPER_LIBRARY_DIR ${CMAKE_INSTALL_PREFIX}/lib CACHE STRING "directory where the kitsune-rt wrapper library for realm is installed")
+
+  find_package_handle_standard_args(Realm_Wrapper DEFAULT_MSG
+				    REALM_WRAPPER_LIBRARY_DIR) 
+
   if (Realm_Wrapper_FOUND)
      message(STATUS "kitsune: looking for kitsune-rt's realm wrapper... FOUND")
-     get_filename_component(REALM_WRAPPER_LIBRARY_DIR
-	                    ${REALM_WRAPPER_LIBRARY}
-                            DIRECTORY
-                            CACHE)
      set(KITSUNE_ENABLE_REALM TRUE CACHE BOOL "Enable automatic include and library flags for Realm.")
      set(REALM_LINK_LIBS "-lrealm -lkitsunerealm" CACHE STRING "List of libraries need to link with for Realm." FORCE)
-
   else()
     message(STATUS "kitsune: looking for kitsune-rt's realm wrapper... NOT FOUND")
     set(KITSUNE_ENABLE_REALM FALSE CACHE BOOL "Enable automatic include and library flags for Realm.")
     set(REALM_LINK_LIBS "" CACHE STRING "List of libraries need to link with for Realm.")
   endif()
+
 else()
   message(STATUS "kitsune: looking for realm... NOT FOUND")
   set(KITSUNE_ENABLE_REALM FALSE CACHE BOOL "Enable automatic include and library flags for Realm.")

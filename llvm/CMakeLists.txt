@@ -1090,3 +1090,11 @@ if (LLVM_INCLUDE_BENCHMARKS)
   add_subdirectory(utils/benchmark)
   add_subdirectory(benchmarks)
 endif()
+
+# If kitsune is being built with the realm backend enabled, then kitsune-rt needs to be built before clang
+if(TARGET clang AND TARGET kitsunerealm AND KITSUNE_ENABLE_REALM)
+  add_dependencies(clang kitsunerealm)
+  message(STATUS "kitsune: ADDED clang dependency on kitsunerealm")  
+else()
+  message(STATUS "kitsune: DID NOT ADD clang dependency on kitsunerealm")  
+endif()
