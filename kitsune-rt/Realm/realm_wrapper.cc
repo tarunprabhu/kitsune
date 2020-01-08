@@ -3,10 +3,7 @@
 #include "kitsune_realm_c.h"
 #include "realm.h"
 #include <set>
-//#include <array>
 #include <vector>
-//#include <typeinfo>
-//#include <typeindex>
 
 extern "C" {
   
@@ -20,7 +17,7 @@ extern "C" {
   } context;
 
   static context *_globalCTX;  //global variable
-  
+
   context * getRealmCTX() {
     if ( _globalCTX) 
       return _globalCTX;
@@ -44,8 +41,7 @@ extern "C" {
     for(auto it = locprocquery.begin(); it != locprocquery.end(); it++)
       _globalCTX->procs.push_back(*it);
 
-    (_globalCTX->procgroup).create_group(_globalCTX->procs); //TODO: fix this?
-
+    (_globalCTX->procgroup).create_group(_globalCTX->procs);
 
     _globalCTX->cur_task = Realm::Processor::TASK_ID_FIRST_AVAILABLE;
 
@@ -74,19 +70,16 @@ extern "C" {
     
     context *ctx = getRealmCTX();
 
-    //update current taskID
-    ctx->cur_task++;
     Realm::Processor::TaskFuncID taskID = ctx->cur_task;
 
     //get a processor to run on
-    Realm::Machine::ProcessorQuery procquery(Realm::Machine::get_machine());
-    Realm::Processor p = procquery.local_address_space().random();
-    assert ( p != Realm::Processor::NO_PROC); //assert that the processor exists
+    Realm::Processor p = ctx->procgroup; //spawn on the group to enable Realm's magic load-balancing
+    //Realm::Processor p = (ctx->procs)[i]; //do round-robin spawning on the vector of procs (needs i calculated)
 
     //get a memory associated with that processor to copy to
-    Realm::Machine::MemoryQuery memquery(Realm::Machine::get_machine());
-    Realm::Memory m = memquery.local_address_space().best_affinity_to(p).random();
-    assert ( m != Realm::Memory::NO_MEMORY); //assert that the memory exists
+    //Realm::Machine::MemoryQuery memquery(Realm::Machine::get_machine());
+    //Realm::Memory m = memquery.local_address_space().best_affinity_to(p).random();
+    //assert ( m != Realm::Memory::NO_MEMORY); //assert that the memory exists
 
     // Create a CodeDescriptor from the TaskFuncPtr   
     Realm::CodeDescriptor cd = Realm::CodeDescriptor(func);
