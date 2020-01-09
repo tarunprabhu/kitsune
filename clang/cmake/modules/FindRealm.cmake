@@ -3,6 +3,7 @@
 #  REALM_INCLUDE_DIR -- directory with realm header files. 
 #  REALM_LIBRARY     -- full path to the realm library. 
 #  REALM_LIBRARY_DIR -- path to where the realm library is installed. 
+#  REALM_WRAPPER_LIBRARY_DIR -- path to where the kitsune-rt realm wrapper library is installed. 
 #  REALM_LINK_LIBS   -- set of link libraries (e.g. -lrealm) 
 # 
 
