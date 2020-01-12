@@ -1821,10 +1821,6 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
       Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args)
                                                 << A->getValue();
   Opts.setTapirTarget(TapirTarget);
-  // Early outlining of Tapir
-  Opts.TapirEarlyOutline = Args.hasArg(OPT_foutline_tapir_early);
-  // Rhino optimizations of Tapir control-flow construct.
-  Opts.TapirRhino = Args.hasArg(OPT_frhino);
 
   for (const auto &Arg : Args.getAllArgValues(OPT_fdebug_prefix_map_EQ)) {
     auto Split = StringRef(Arg).split('=');
