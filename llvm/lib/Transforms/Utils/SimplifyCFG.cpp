@@ -7398,10 +7398,6 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB,
 /// and detach.  This will allow normal serial optimization passes to remove the
 /// blocks appropriately.  Return false if BB does not terminate with a
 /// reattach.
-///
-/// TODO: A more elaborate version of this transformation could handle many more
-/// cases, but requires heavy lifting similar to function inlining.  Create a
-/// new transformation pass to handle such cases.
 static bool serializeDetachToImmediateSync(BasicBlock *BB,
                                            DomTreeUpdater *DTU) {
   Instruction *I = BB->getFirstNonPHIOrDbgOrLifetime();
