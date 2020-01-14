@@ -866,11 +866,7 @@ ModRefInfo AAResults::getModRefInfo(const DetachInst *D,
 
 ModRefInfo AAResults::getModRefInfo(const SyncInst *S,
                                     const MemoryLocation &Loc) {
-<<<<<<< HEAD
   SimpleAAQueryInfo AAQIP(*this);
-=======
-  AAQueryInfo AAQIP;
->>>>>>> f8ba672af99c (Bug fixes for LLVM 9 rebase)
   return getModRefInfo(S, Loc, AAQIP);
 }
 
