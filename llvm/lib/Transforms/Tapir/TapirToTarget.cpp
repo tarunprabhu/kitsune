@@ -35,6 +35,8 @@ static cl::opt<TapirTargetType> ClTapirTarget(
                           "cilk", "Cilk Plus"),
                clEnumValN(TapirTargetType::Qthreads,
                           "qthreads", "Qthreads"),
+               clEnumValN(TapirTargetType::Realm,
+                          "realm", "Realm"),
                clEnumValN(TapirTargetType::OpenMP,
                           "openmp", "OpenMP"),
                clEnumValN(TapirTargetType::CilkR,

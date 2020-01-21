@@ -135,7 +135,7 @@ pfor.detach.lr.ph:                                ; preds = %invoke.cont4
 ; LS: invoke fastcc void @_Z14func_with_sretidRSt6vectorI6paramsSaIS0_EE_pfor.detach.ls(%"class.std::vector.0"* %agg.result, [[IVTYPE:i[0-9]+]] 0, [[IVTYPE]] %{{.+}}, [[IVTYPE]] %{{.+}},
 ; LS-NEXT: to label %{{.+}} unwind label %lpad78.loopexit
 ; TT: pfor.detach.split1:
-; TT-NEXT: invoke fastcc void @_Z14func_with_sretidRSt6vectorI6paramsSaIS0_EE_pfor.body.cilk(%"class.std::vector.0"* %agg.result,
+; TT-NEXT: invoke fastcc void @_Z14func_with_sretidRSt6vectorI6paramsSaIS0_EE_pfor.body.tapir(%"class.std::vector.0"* %agg.result,
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc76, %if.end.i, %invoke.cont4
   %__cur.0.lcssa.i.i.i.i.i368 = phi %"class.std::vector.0"* [ %__cur.0.lcssa.i.i.i.i.i, %invoke.cont4 ], [ null, %if.end.i ], [ %__cur.0.lcssa.i.i.i.i.i, %pfor.inc76 ]
@@ -813,7 +813,7 @@ declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i32, i1) #1
 ; LS: {{^.split:}}
 ; LS-NEXT: invoke fastcc void @_Z14func_with_sretidRSt6vectorI6paramsSaIS0_EE_pfor.detach.ls(%"class.std::vector.0"* %agg.result.ls, [[IVTYPE]] {{.+}}, [[IVTYPE]] {{.+}}, [[IVTYPE]] {{.*}}[[GRAINSIZE]],
 
-; TT-LABEL: define internal fastcc void @_Z14func_with_sretidRSt6vectorI6paramsSaIS0_EE_pfor.body.cilk(%"class.std::vector.0"* {{.*}}sret {{.*}}%agg.result.cilk,
+; TT-LABEL: define internal fastcc void @_Z14func_with_sretidRSt6vectorI6paramsSaIS0_EE_pfor.body.tapir(%"class.std::vector.0"* {{.*}}sret {{.*}}%agg.result.tapir,
 
 attributes #0 = { uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { argmemonly nounwind }
