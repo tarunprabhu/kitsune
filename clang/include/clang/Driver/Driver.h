@@ -37,21 +37,21 @@ namespace clang {
 
 namespace driver {
 
-class Command;
-class Compilation;
-class InputInfo;
-class JobList;
-class JobAction;
-class SanitizerArgs;
-class ToolChain;
+  class Command;
+  class Compilation;
+  class InputInfo;
+  class JobList;
+  class JobAction;
+  class SanitizerArgs;
+  class ToolChain;
 
 /// Describes the kind of LTO mode selected via -f(no-)?lto(=.*)? options.
-enum LTOKind { 
-  LTOK_None, 
-  LTOK_Full, 
-  LTOK_Thin, 
-  LTOK_Unknown 
-  };
+enum LTOKind {
+  LTOK_None,
+  LTOK_Full,
+  LTOK_Thin,
+  LTOK_Unknown
+};
 
 /// Driver - Encapsulate logic for constructing compilation processes
 /// from a set of gcc-driver-like command line arguments.
@@ -72,17 +72,17 @@ class Driver {
     ForallMode  // kitsune: custom Forall extensions
   } Mode;
 
-  enum SaveTempsMode { 
-    SaveTempsNone, 
-    SaveTempsCwd, 
-    SaveTempsObj 
-    } SaveTemps;
+  enum SaveTempsMode {
+    SaveTempsNone,
+    SaveTempsCwd,
+    SaveTempsObj
+  } SaveTemps;
 
-  enum BitcodeEmbedMode { 
-    EmbedNone, 
-    EmbedMarker, 
-    EmbedBitcode 
-    } BitcodeEmbed;
+  enum BitcodeEmbedMode {
+    EmbedNone,
+    EmbedMarker,
+    EmbedBitcode
+  } BitcodeEmbed;
 
   /// LTO mode selected via -f(no-)?lto(=.*)? options.
   LTOKind LTOMode;
@@ -109,9 +109,9 @@ public:
   };
 
   // Diag - Forwarding function for diagnostics.
-  DiagnosticBuilder Diag(unsigned DiagID) const { 
-    return Diags.Report(DiagID); 
-    }
+  DiagnosticBuilder Diag(unsigned DiagID) const {
+    return Diags.Report(DiagID);
+  }
 
   // FIXME: Privatize once interface is stable.
 public:
@@ -172,9 +172,9 @@ public:
   typedef SmallVector<std::pair<types::ID, const llvm::opt::Arg *>, 16>
       InputList;
 
-  /// Whether the driver should follow g++ like behavior.
-  /// kitsune: Modified to reflect that Kokkos and FleCSI
-  /// modes also imply GXXMode.
+  /// Whether the driver should follow g++ like behavior. 
+  /// kitsune: Modified to reflect that Kokkos and FleCSI 
+  /// modes also imply GXXMode. 
   bool CCCIsCXX() const { return Mode == GXXMode    || 
                                  Mode == KokkosMode || 
                                  Mode == FleCSIMode ||
@@ -192,7 +192,7 @@ public:
   /// kitsune: Whether the driver should follow custom Kokkos behaviors.
   bool IsKokkosMode() const { return Mode == KokkosMode; }
 
-  /// kitsune: Whether the driver should follow custom FleCSI behaviors.
+  /// kitsune: Whether the driver should follow custom FleCSI behaviors. 
   bool isFleCSIMode() const { return Mode == FleCSIMode; }
 
   /// kitsune: Whether the driver should follow custom Forall behaviors.
@@ -325,8 +325,8 @@ public:
   std::string getTargetTriple() const { return TargetTriple; }
 
   /// Get the path to the main clang executable.
-  const char *getClangProgramPath() const { 
-    return ClangExecutable.c_str(); 
+  const char *getClangProgramPath() const {
+    return ClangExecutable.c_str();
   }
 
   /// Get the path to where the clang executable was installed.
@@ -335,7 +335,7 @@ public:
       return InstalledDir.c_str();
     return Dir.c_str();
   }
-  void setInstalledDir(StringRef Value) { 
+  void setInstalledDir(StringRef Value) {
     InstalledDir = Value;
   }
 

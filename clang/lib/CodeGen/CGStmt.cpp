@@ -178,9 +178,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::CapturedStmtClass: {
     const CapturedStmt *CS = cast<CapturedStmt>(S);
     EmitCapturedStmt(*CS, CS->getCapturedRegionKind());
-  } break;
+    } break;
   case Stmt::SpawnStmtClass:
-    EmitSpawnStmt(cast<SpawnStmt>(*S));
+    EmitSpawnStmt(cast<SpawnStmt>(*S)); 
     break;
   case Stmt::ObjCAtTryStmtClass:
     EmitObjCAtTryStmt(cast<ObjCAtTryStmt>(*S));
