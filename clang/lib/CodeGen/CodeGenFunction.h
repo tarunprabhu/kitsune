@@ -2976,6 +2976,8 @@ public:
   // Kitsune
   void EmitForallStmt(const ForallStmt &S,
                    ArrayRef<const Attr *> Attrs = None);
+  void EmitParallelForallStmt(const ForallStmt &S,
+                   ArrayRef<const Attr *> Attrs = None);
   void EmitReturnStmt(const ReturnStmt &S);
   void EmitDeclStmt(const DeclStmt &S);
   void EmitBreakStmt(const BreakStmt &S);
@@ -3065,6 +3067,8 @@ public:
 
   // Kitsune
   void EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
+                           ArrayRef<const Attr *> Attrs = None);
+  void EmitParallelCXXForallRangeStmt(const CXXForallRangeStmt &S,
                            ArrayRef<const Attr *> Attrs = None);
 
   /// Controls insertion of cancellation exit blocks in worksharing constructs.

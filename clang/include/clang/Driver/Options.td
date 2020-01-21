@@ -1553,6 +1553,9 @@ def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>,
 def fflecsi : Flag<["-"], "fflecsi">, Group<f_Group>, 
   Flags<[CC1Option,NoArgumentUnused]>, 
   HelpText<"Enable FleCSI extensions: recognition and code generation">; 
+def fforall : Flag<["-"], "fforall">, Group<f_Group>, 
+  Flags<[CC1Option,NoArgumentUnused]>, 
+  HelpText<"Enable Forall extensions: recognition and code generation">; 
 
 def fopenmp : Flag<["-"], "fopenmp">, Group<f_Group>, Flags<[CC1Option, NoArgumentUnused]>,
   HelpText<"Parse OpenMP pragmas and generate parallel code.">;
