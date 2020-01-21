@@ -25,7 +25,7 @@ if (Realm_FOUND)
 
   add_library(kitsunerealm SHARED ${realm_srcs} ${realm_incs})
 
-  target_link_libraries(kitsunerealm PUBLIC realm)
+  target_link_libraries(kitsunerealm PUBLIC realm pthread dl rt)
 
   # The following is intended to enable the use of find_package(kitsunerealm REQUIRED)
   # primarily in the case that clang is being built with the kitsune realm backend enabled
