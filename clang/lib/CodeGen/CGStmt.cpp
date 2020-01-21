@@ -386,30 +386,14 @@ bool CodeGenFunction::EmitSimpleStmt(const Stmt *S) {
   case Stmt::LabelStmtClass:
     EmitLabelStmt(cast<LabelStmt>(*S));
     break;
-  case Stmt::AttributedStmtClass:
-    EmitAttributedStmt(cast<AttributedStmt>(*S));
-    break;
-  case Stmt::GotoStmtClass:
-    EmitGotoStmt(cast<GotoStmt>(*S));
-    break;
-  case Stmt::BreakStmtClass:
-    EmitBreakStmt(cast<BreakStmt>(*S));
-    break;
-  case Stmt::ContinueStmtClass:
-    EmitContinueStmt(cast<ContinueStmt>(*S));
-    break;
-  case Stmt::DefaultStmtClass:
-    EmitDefaultStmt(cast<DefaultStmt>(*S));
-    break;
-  case Stmt::CaseStmtClass:
-    EmitCaseStmt(cast<CaseStmt>(*S));
-    break;
-  case Stmt::SEHLeaveStmtClass:
-    EmitSEHLeaveStmt(cast<SEHLeaveStmt>(*S));
-    break;
-  case Stmt::SyncStmtClass:
-    EmitSyncStmt(cast<SyncStmt>(*S));
-    break;
+  case Stmt::AttributedStmtClass: EmitAttributedStmt(cast<AttributedStmt>(*S)); break;
+  case Stmt::GotoStmtClass:       EmitGotoStmt(cast<GotoStmt>(*S));         break;
+  case Stmt::BreakStmtClass:      EmitBreakStmt(cast<BreakStmt>(*S));       break;
+  case Stmt::ContinueStmtClass:   EmitContinueStmt(cast<ContinueStmt>(*S)); break;
+  case Stmt::DefaultStmtClass:    EmitDefaultStmt(cast<DefaultStmt>(*S));   break;
+  case Stmt::CaseStmtClass:       EmitCaseStmt(cast<CaseStmt>(*S));         break;
+  case Stmt::SEHLeaveStmtClass:   EmitSEHLeaveStmt(cast<SEHLeaveStmt>(*S)); break;
+  case Stmt::SyncStmtClass:       EmitSyncStmt(cast<SyncStmt>(*S));         break;
   }
 
   return true;
