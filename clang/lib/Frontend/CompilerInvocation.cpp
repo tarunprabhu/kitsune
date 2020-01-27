@@ -2799,7 +2799,10 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   Opts.Kokkos = Args.hasArg(options::OPT_fkokkos) ? 1 : 0;
 
   // Check if -fflecsi is specified. 
-Opts.FleCSI = Args.hasArg(options::OPT_fflecsi) ? 1 : 0;
+  Opts.FleCSI = Args.hasArg(options::OPT_fflecsi) ? 1 : 0;
+
+  // Check if -fforall is specified. 
+  Opts.Forall = Args.hasArg(options::OPT_fforall) ? 1 : 0;
 
   // Check if -fopenmp is specified.
   Opts.OpenMP = Args.hasArg(options::OPT_fopenmp) ? 1 : 0;
@@ -3322,6 +3325,10 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
       LangOpts.Tapir = llvm::TapirTargetType::OpenMP;
     else if (Name == "qthreads")
       LangOpts.Tapir = llvm::TapirTargetType::Qthreads;
+    else if (Name == "realm")
+      LangOpts.Tapir = llvm::TapirTargetType::Realm;
+    else if (Name == "cuda")
+      LangOpts.Tapir = llvm::TapirTargetType::Cuda;
     else if (Name == "serial")
       LangOpts.Tapir = llvm::TapirTargetType::Serial;
     else

@@ -23,7 +23,9 @@ enum class TapirTargetType {
   OpenMP = 3,
   CilkR = 4,
   Qthreads = 5,
-  Last_TapirTargetType = 6
+  Cuda = 6,
+  Realm = 7,
+  Last_TapirTargetType = 8
 };
 
 } // end namespace llvm

@@ -425,4 +425,27 @@ def warn_drv_msp430_hwmult_no_device : Warning<"no MCU device specified, but "
   "specify a MSP430 device, or -mhwmult to set hardware multiply type "
   "explicitly.">, InGroup<InvalidCommandLineArgument>;
 
+// +----- kitsune  FIXME: should probably use kitsune-centric naming here.
+def warn_kokkos_missing_build_params : Warning<
+  "'-fkokkos' mode enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on command line.">, InGroup<UnknownRuntime>; 
+def warn_cilkrts_missing_build_params : Warning<
+  "'-ftapir=cilk' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on command line.">, InGroup<UnknownRuntime>; 
+def warn_qthreads_missing_build_params : Warning<
+  "'-ftapir=qthreads' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on command line.">, InGroup<UnknownRuntime>; 
+def warn_realm_missing_build_params : Warning<
+  "'-ftapir=realm' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on command line.">, InGroup<UnknownRuntime>; 
+def warn_cuda_missing_build_params : Warning<
+  "'-ftapir=cuda' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on command line.">, InGroup<UnknownRuntime>; 
+// -----+
+
 }

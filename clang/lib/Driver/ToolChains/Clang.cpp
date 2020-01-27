@@ -1250,6 +1250,9 @@ void Clang::AddPreprocessingOptions(Compilation &C, const JobAction &JA,
   // arguments of related offloading toolchains or arguments that are specific
   // of an offloading programming model.
 
+  // +==== Handle special include paths for kitsune-/tapir-centric modes. 
+  getToolChain().AddKitsuneIncludeArgs(Args, CmdArgs);
+
   // Add C++ include arguments, if needed.
   if (types::isCXX(Inputs[0].getType()))
     forAllAssociatedToolChains(C, JA, getToolChain(),
@@ -4432,6 +4435,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_ftapir);
   Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
   Args.AddLastArg(CmdArgs, options::OPT_fflecsi);
+  Args.AddLastArg(CmdArgs, options::OPT_fforall);
 
   // Forward flags for OpenMP. We don't do this if the current action is an
   // device offloading action other than OpenMP.

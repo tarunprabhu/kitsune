@@ -67,8 +67,9 @@ class Driver {
     GXXMode,
     CPPMode,
     CLMode,
-    KokkosMode, // kitsune: custom Kokkos extensions 
-    FleCSIMode  // kitsune: custom FleCSI extensions 
+    KokkosMode, // kitsune: custom Kokkos extensions
+    FleCSIMode, // kitsune: custom FleCSI extensions
+    ForallMode  // kitsune: custom Forall extensions
   } Mode;
 
   enum SaveTempsMode {
@@ -171,12 +172,13 @@ public:
   typedef SmallVector<std::pair<types::ID, const llvm::opt::Arg *>, 16>
       InputList;
 
-  /// Whether the driver should follow g++ like behavior.
+  /// Whether the driver should follow g++ like behavior. 
   /// kitsune: Modified to reflect that Kokkos and FleCSI 
   /// modes also imply GXXMode. 
   bool CCCIsCXX() const { return Mode == GXXMode    || 
-                                 Mode == KokkosMode ||
-                                 Mode == FleCSIMode; }
+                                 Mode == KokkosMode || 
+                                 Mode == FleCSIMode ||
+                                 Mode == ForallMode; }
 
   /// Whether the driver is just the preprocessor.
   bool CCCIsCPP() const { return Mode == CPPMode; }
@@ -192,6 +194,9 @@ public:
 
   /// kitsune: Whether the driver should follow custom FleCSI behaviors. 
   bool isFleCSIMode() const { return Mode == FleCSIMode; }
+
+  /// kitsune: Whether the driver should follow custom Forall behaviors.
+  bool isForallMode() const { return Mode == ForallMode; }
 
   /// Only print tool bindings, don't build any jobs.
   unsigned CCCPrintBindings : 1;

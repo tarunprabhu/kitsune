@@ -21,8 +21,8 @@ using namespace clang;
 ///       sync-statement:
 ///         'sync' identifier ';'
 StmtResult Parser::ParseSyncStatement() {
-  assert(Tok.is(tok::kw_sync) && "Not a sync stmt!");
-  SourceLocation SyncLoc = ConsumeToken();
+  assert(Tok.is(tok::kw__tapir_sync) && "Not a sync stmt!");
+  SourceLocation SyncLoc = ConsumeToken(); // eat the '_tapir_sync'
   assert(Tok.is(tok::identifier) && Tok.getIdentifierInfo() &&
          "Not an identifier!");
   Token IdentTok = Tok; 
@@ -34,8 +34,8 @@ StmtResult Parser::ParseSyncStatement() {
 ///       spawn-statement:
 ///         'spawn' identifier statement
 StmtResult Parser::ParseSpawnStatement() {
-  assert(Tok.is(tok::kw_spawn) && "Not a spawn stmt!");
-  SourceLocation SpawnLoc = ConsumeToken();  // eat the '__spawn'.
+  assert(Tok.is(tok::kw__tapir_spawn) && "Not a spawn stmt!");
+  SourceLocation SpawnLoc = ConsumeToken();  // eat the '_tapir_spawn'.
 
   assert(Tok.is(tok::identifier) && Tok.getIdentifierInfo() &&
          "Not an identifier!");

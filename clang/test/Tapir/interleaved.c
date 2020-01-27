@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 -fsyntax-only -std=c99 %s -ftapir=cilk
+#include <kitsune.h>
 
 int bar();
 int foo();
