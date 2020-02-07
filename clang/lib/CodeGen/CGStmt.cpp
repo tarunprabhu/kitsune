@@ -1136,7 +1136,29 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
   // emit the detach block
   EmitBlock(Detach);
 
-  // create the detach terminator
+    // extract the DeclStmt and a single VarDecl for now
+  const DeclStmt *DS = cast<DeclStmt>(S.getInit());
+  const VarDecl *LoopVar = cast<VarDecl>(DS->getSingleDecl());
+
+  // Get the Clang QualType for the Loop Variable
+  QualType RefType = LoopVar->getType();
+
+  // Use the Clang::CodeGen::CGBuilderTy  to load the outer loop variable
+  // e.g. %1 = load i32, i32* %i, align 4
+  llvm::Value *OuterLoopVal = Builder.CreateLoad(GetAddrOfLocalVar(LoopVar));
+
+  // Use the LLVM Builder to create the detach alloca
+  // e.g. %i.detach = alloca i32
+  // At the moment, I don't know how to force an alignment into the alloca
+  llvm::AllocaInst *RInst = Builder.CreateAlloca(
+      getTypes().ConvertType(RefType), nullptr, LoopVar->getName() + ".detach");
+
+  // Use the Clang::CodeGen::CGBuilderTy to store the outer loop var
+  // store i32 %1, i32* %i.detach, align 4
+  Builder.CreateAlignedStore(OuterLoopVal, RInst,
+                             getContext().getTypeAlignInChars(RefType));
+
+// create the detach terminator
   Builder.CreateDetach(ForBody, Increment, SRStart);
 
   EmitBlock(ForBody);
@@ -1150,7 +1172,28 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
     EmitStmt(S.getBody());
   }
 
-  EmitBlock(Reattach.getBlock());
+    // try to get a handle on the load instruction
+  llvm::Value *LoopVal = GetAddrOfLocalVar(LoopVar).getPointer();
+  for (llvm::User *U : LoopVal->users()) {
+    llvm::LoadInst *LI = dyn_cast<llvm::LoadInst>(U);
+    if (LI && LI->getParent() == ForBody) {
+      // llvm::errs() << "found a matching load in ForBody:\n" << *LI << "\n";
+      LI->setOperand(0, RInst);
+    }
+  }
+
+  /*
+    // Loop over ForBody instructions
+    // might be better to loop over users and check if in block
+        // if it is a load instruction
+    for (llvm::Instruction &Inst : ForBody->getInstList()) {
+      if (llvm::LoadInst *LI = dyn_cast<llvm::LoadInst>(&Inst)) {
+        // if this is a load instruction swap the load to the detach
+        LI->setOperand(0, RInst);
+      }
+    }
+  */
+EmitBlock(Reattach.getBlock());
   Builder.CreateReattach(Increment, SRStart);
 
   EmitBlock(Increment);
