@@ -11,6 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+// A flag used to codegen the parallel for two different ways
+// If "__TB__" is defined, no local storage happens in the inner loop (which 
+// prevents stack overflows for large numbers of loops)
+// If "__TB__" is not defined, a local copy of the outer loop variable is stored
+// which is guaranteed to be correct, but may stack overflow.
+//# define __TB__
+
 #include "CGDebugInfo.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
@@ -1139,13 +1146,20 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
     // extract the DeclStmt and a single VarDecl for now
   const DeclStmt *DS = cast<DeclStmt>(S.getInit());
   const VarDecl *LoopVar = cast<VarDecl>(DS->getSingleDecl());
-
-  // Get the Clang QualType for the Loop Variable
-  QualType RefType = LoopVar->getType();
+  llvm::Value *LoopVal = GetAddrOfLocalVar(LoopVar).getPointer();
 
   // Use the Clang::CodeGen::CGBuilderTy  to load the outer loop variable
   // e.g. %1 = load i32, i32* %i, align 4
+  // In principle, the following line could be put in the #ifndef block and
+  // the load instruction in TB's variant could be derived directly from the
+  // condition block. But by keeping the load here I have a known handle without
+  // doing any searching. It will likely get optimized away anyway.
   llvm::Value *OuterLoopVal = Builder.CreateLoad(GetAddrOfLocalVar(LoopVar));
+
+  #ifndef __TB__
+
+  // Get the Clang QualType for the Loop Variable
+  QualType RefType = LoopVar->getType();
 
   // Use the LLVM Builder to create the detach alloca
   // e.g. %i.detach = alloca i32
@@ -1158,7 +1172,9 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
   Builder.CreateAlignedStore(OuterLoopVal, RInst,
                              getContext().getTypeAlignInChars(RefType));
 
-// create the detach terminator
+  #endif
+
+  // create the detach terminator
   Builder.CreateDetach(ForBody, Increment, SRStart);
 
   EmitBlock(ForBody);
@@ -1172,15 +1188,40 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
     EmitStmt(S.getBody());
   }
 
-    // try to get a handle on the load instruction
-  llvm::Value *LoopVal = GetAddrOfLocalVar(LoopVar).getPointer();
+  // try to get a handle on the load instruction for the outer induction variable within the for body
+
+  // loop over the uses of the outer induction variable
   for (llvm::User *U : LoopVal->users()) {
+
+    // dynamically cast to a load instruction
     llvm::LoadInst *LI = dyn_cast<llvm::LoadInst>(U);
+
+    // is this a load instruction in the body basic block? If so act with one of the options below
     if (LI && LI->getParent() == ForBody) {
-      // llvm::errs() << "found a matching load in ForBody:\n" << *LI << "\n";
+
+      #ifdef __TB__
+
+      //llvm::errs() << "TB: found a matching load in ForBody, trying to replace all uses:\n" << *LI << "\n";
+
+      // In this version, we replace all uses of the outer induction variable 
+      // with the loaded version in the detach block
+      // referencing %1=load %i, replace uses of %1 with the load in the detach block
+      LI->replaceAllUsesWith(OuterLoopVal);
+
+      #else
+
+      //llvm::errs() << "found a matching load in ForBody:\n" << *LI << "\n";
+
+      // In this version in the load itself, change the global induction variable to the local version
+      // we created in the detach block.
+      // replace load %i with the detach loop variable %i.detach in the load %1 = load %i.detach
       LI->setOperand(0, RInst);
+
+      #endif
+      
     }
   }
+
 
   /*
     // Loop over ForBody instructions
@@ -1193,7 +1234,8 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
       }
     }
   */
-EmitBlock(Reattach.getBlock());
+
+  EmitBlock(Reattach.getBlock());
   Builder.CreateReattach(Increment, SRStart);
 
   EmitBlock(Increment);
