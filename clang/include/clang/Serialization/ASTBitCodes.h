@@ -1958,6 +1958,8 @@ public:
 
       // FixedPointLiteral
       EXPR_FIXEDPOINT_LITERAL,
+      STMT_SPAWN,
+      STMT_SYNC,
 
       // Cilk Plus
       STMT_CILKSPAWN,
