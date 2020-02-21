@@ -1231,6 +1231,7 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
   // this code is pulled essentially verbatim from ReplaceNonLocalUsesWith
   // FYI: A Use is an operand to an instruction, A User is an instruction. 
   llvm::Instruction *IV = dyn_cast<llvm::Instruction>(InductionVar);
+
   // this code is pulled essentially verbatim from ReplaceNonLocalUsesWith
   for (llvm::Value::use_iterator UI = IV->use_begin(), UE = IV->use_end();
        UI != UE;) {
@@ -1488,12 +1489,58 @@ void CodeGenFunction::EmitParallelCXXForallRangeStmt(const CXXForallRangeStmt &S
     EmitBranchThroughCleanup(Sync);
   }
 
-  // emit the detach block
+  /////////////////////////////////
+  // Create the detach block
+  /////////////////////////////////
+
+  // Emit the (currently empty) detach block
   EmitBlock(Detach);
+
+  // Extract the DeclStmt from the statement init
+  const DeclStmt *DS = cast<DeclStmt>(S.getBeginStmt());
+
+  // Extract a single VarDecl for now (this would be a loop to handle multiple induction vars)
+  const VarDecl *InductionVarDecl = cast<VarDecl>(DS->getSingleDecl());
+
+  // Get the induction variable (e.g. %i)
+  llvm::Value *InductionVar = GetAddrOfLocalVar(InductionVarDecl).getPointer();
+
+  // Use the Clang::CodeGen::CGBuilderTy::CreateLoad to load the induction variable.
+  // This is the current value of the induction variable (e.g. %1 below)
+  // e.g. %1 = load i32, i32* %i, align 4
+  // In principle, the following line could be put in the #ifndef block and
+  // the load instruction in TB's variant could be derived directly from the
+  // condition block. But by keeping the load here I have a known handle without
+  // doing any searching. It will likely get optimized away anyway.
+  llvm::Value *InductionVal = Builder.CreateLoad(GetAddrOfLocalVar(InductionVarDecl));
+
+  #ifndef __TB__
+  // Codegen a local copy in the detach block of the induction variable and 
+  // store the induction variable value
+
+  // Get the Clang QualType for the Induction Variable
+  QualType RefType = InductionVarDecl->getType();
+
+  // Use the LLVM Builder to create the detach variable alloca
+  // e.g. %i.detach = alloca i32
+  // At the moment, I don't know how to force an alignment into the alloca
+  llvm::AllocaInst *DetachVar = Builder.CreateAlloca(
+      getTypes().ConvertType(RefType), nullptr, InductionVar->getName() + ".detach");
+
+  // Use the Clang::CodeGen::CGBuilderTy to store the induction variable
+  // into the detach variable mirror (e.g. store i32 %1, i32* %i.detach, align 4)
+  Builder.CreateAlignedStore(InductionVal, DetachVar,
+                             getContext().getTypeAlignInChars(RefType));
+
+  #endif
 
   // create the detach terminator
   Builder.CreateDetach(ForBody, Increment, SRStart);
 
+  /////////////////////////////////
+  // Finished the detach block
+  /////////////////////////////////
+  
   EmitBlock(ForBody);
 
   incrementProfileCounter(&S);
@@ -1505,7 +1552,27 @@ void CodeGenFunction::EmitParallelCXXForallRangeStmt(const CXXForallRangeStmt &S
     EmitStmt(S.getBody());
   }
 
-  EmitBlock(Reattach.getBlock());
+  /////////////////////////////////////////////////////////////////
+  // Modify the body block to use the detach block variable mirror.
+  // At this point in the codegen, the body block has been emitted
+  // and we can safely replace the induction variable with the detach
+  // block mirror in the entire function, since the increment block
+  // (a valid use of the induction variable) has not been emitted yet.
+  /////////////////////////////////////////////////////////////////
+
+  // this code is pulled essentially verbatim from ReplaceNonLocalUsesWith
+  // FYI: A Use is an operand to an instruction, A User is an instruction. 
+  llvm::Instruction *IV = dyn_cast<llvm::Instruction>(InductionVar);
+
+  // this code is pulled essentially verbatim from ReplaceNonLocalUsesWith
+  for (llvm::Value::use_iterator UI = IV->use_begin(), UE = IV->use_end();
+       UI != UE;) {
+    llvm::Use &U = *UI++;
+    llvm::Instruction *I = cast<llvm::Instruction>(U.getUser());
+    if (I->getParent() == ForBody) U.set(DetachVar);
+  }
+
+EmitBlock(Reattach.getBlock());
   Builder.CreateReattach(Increment, SRStart);
 
   EmitBlock(Increment);
