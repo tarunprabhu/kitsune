@@ -1954,6 +1954,8 @@ public:
       EXPR_FIXEDPOINT_LITERAL,
       STMT_SPAWN,
       STMT_SYNC,
+      STMT_FORALL,
+      STMT_CXX_FORALL_RANGE,
 
       // Cilk Plus
       STMT_CILKSPAWN,
