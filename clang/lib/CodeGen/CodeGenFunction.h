@@ -39,6 +39,8 @@
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/SanitizerStats.h"
+// Kitsune
+#include "llvm/IR/ValueMap.h"
 
 namespace llvm {
 class BasicBlock;
@@ -2974,10 +2976,13 @@ public:
   void EmitForStmt(const ForStmt &S,
                    ArrayRef<const Attr *> Attrs = None);
   // Kitsune
+  void EmitDetachBlock(const DeclStmt *DS, llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
+  void ReplaceAllUsesInCurrentBlock(llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
   void EmitForallStmt(const ForallStmt &S,
                    ArrayRef<const Attr *> Attrs = None);
   void EmitParallelForallStmt(const ForallStmt &S,
                    ArrayRef<const Attr *> Attrs = None);
+
   void EmitReturnStmt(const ReturnStmt &S);
   void EmitDeclStmt(const DeclStmt &S);
   void EmitBreakStmt(const BreakStmt &S);

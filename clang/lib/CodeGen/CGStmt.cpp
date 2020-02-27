@@ -36,6 +36,7 @@
 // Kitsune
 #include "llvm/Transforms/Utils/Local.h"
 #include <iostream>
+#include "llvm/IR/ValueMap.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -1075,6 +1076,84 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 }
 
 // Kitsune
+void CodeGenFunction::EmitDetachBlock(const DeclStmt *DS, llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &InductionDetachMap){
+
+  // iterate over all VarDecl's in the DeclStmt
+  for (auto *DI : DS->decls()){
+
+    // convert the Decl iterator into a VarDecl
+    const VarDecl *InductionVarDecl=dyn_cast<VarDecl>(DI);
+
+    // Get the induction variable (e.g. %i)
+    llvm::Value *InductionVar = GetAddrOfLocalVar(InductionVarDecl).getPointer();
+
+    // Use the Clang::CodeGen::CGBuilderTy::CreateLoad to load the induction variable.
+    // This is the current value of the induction variable (e.g. %1 below)
+    // e.g. %1 = load i32, i32* %i, align 4
+    // In principle, the following line could be put in the #ifndef block and
+    // the load instruction in TB's variant could be derived directly from the
+    // condition block. But by keeping the load here I have a known handle without
+    // doing any searching. It will likely get optimized away anyway.
+    llvm::Value *InductionVal = Builder.CreateLoad(GetAddrOfLocalVar(InductionVarDecl));
+
+    #ifndef __TB__
+    // Codegen a local copy in the detach block of the induction variable and 
+    // store the induction variable value
+
+    // Get the Clang QualType for the Induction Variable
+    QualType RefType = InductionVarDecl->getType();
+
+    // Use the LLVM Builder to create the detach variable alloca
+    // e.g. %i.detach = alloca i32
+    // At the moment, I don't know how to force an alignment into the alloca
+    llvm::AllocaInst *DetachVar = Builder.CreateAlloca(
+        getTypes().ConvertType(RefType), nullptr, InductionVar->getName() + ".detach");
+
+    // Use the Clang::CodeGen::CGBuilderTy to store the induction variable
+    // into the detach variable mirror (e.g. store i32 %1, i32* %i.detach, align 4)
+    Builder.CreateAlignedStore(InductionVal, DetachVar,
+                              getContext().getTypeAlignInChars(RefType));
+
+    // Add the mapping from induction variable to detach variable
+    InductionDetachMap[InductionVar]=DetachVar;         
+
+    #endif
+  }
+
+}
+
+// Kitsune
+void CodeGenFunction::ReplaceAllUsesInCurrentBlock(llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &InductionDetachMap){
+
+  // get the current basic block
+  llvm::BasicBlock *CurrentBlock = Builder.GetInsertBlock();
+
+  for (auto &&kv: InductionDetachMap){
+  /*
+    // At the moment, I believe the following block of code should be equivalent
+    // to the one following, but there is an llvm bug? that makes them inequivalent 
+    for (auto &U : InductionVar->uses()) {
+      auto I = cast<llvm::Instruction>(U.getUser());
+      if (I->getParent() == ForBody) U.set(DetachVar);
+    }
+  */
+  
+    // this code is pulled essentially verbatim from ReplaceNonLocalUsesWith
+    // FYI: A Use is an operand to an instruction, A User is an instruction. 
+    llvm::Instruction *IV = dyn_cast<llvm::Instruction>(kv.first);
+
+    // this code is pulled essentially verbatim from ReplaceNonLocalUsesWith
+    for (llvm::Value::use_iterator UI = IV->use_begin(), UE = IV->use_end();
+        UI != UE;) {
+      llvm::Use &U = *UI++;
+      llvm::Instruction *I = cast<llvm::Instruction>(U.getUser());
+      if (I->getParent() == CurrentBlock) U.set(kv.second);
+    }
+
+  }
+}
+
+// Kitsune
 void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
                                              ArrayRef<const Attr *> ForAttrs) {
 
@@ -1147,58 +1226,29 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
     EmitBranchThroughCleanup(Sync);
   }
 
-  /////////////////////////////////
-  // Create the detach block
-  /////////////////////////////////
+  //////////////////////////////
+  // Handle the Detach block
+  //////////////////////////////
 
   // Emit the (currently empty) detach block
   EmitBlock(Detach);
 
   // Extract the DeclStmt from the statement init
   const DeclStmt *DS = cast<DeclStmt>(S.getInit());
+  
+  // create the value map between the induction variables and their corresponding detach mirrors
+  llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> InductionDetachMap;
 
-  // Extract a single VarDecl for now (this would be a loop to handle multiple induction vars)
-  const VarDecl *InductionVarDecl = cast<VarDecl>(DS->getSingleDecl());
-
-  // Get the induction variable (e.g. %i)
-  llvm::Value *InductionVar = GetAddrOfLocalVar(InductionVarDecl).getPointer();
-
-  // Use the Clang::CodeGen::CGBuilderTy::CreateLoad to load the induction variable.
-  // This is the current value of the induction variable (e.g. %1 below)
-  // e.g. %1 = load i32, i32* %i, align 4
-  // In principle, the following line could be put in the #ifndef block and
-  // the load instruction in TB's variant could be derived directly from the
-  // condition block. But by keeping the load here I have a known handle without
-  // doing any searching. It will likely get optimized away anyway.
-  llvm::Value *InductionVal = Builder.CreateLoad(GetAddrOfLocalVar(InductionVarDecl));
-
-  #ifndef __TB__
-  // Codegen a local copy in the detach block of the induction variable and 
-  // store the induction variable value
-
-  // Get the Clang QualType for the Induction Variable
-  QualType RefType = InductionVarDecl->getType();
-
-  // Use the LLVM Builder to create the detach variable alloca
-  // e.g. %i.detach = alloca i32
-  // At the moment, I don't know how to force an alignment into the alloca
-  llvm::AllocaInst *DetachVar = Builder.CreateAlloca(
-      getTypes().ConvertType(RefType), nullptr, InductionVar->getName() + ".detach");
-
-  // Use the Clang::CodeGen::CGBuilderTy to store the induction variable
-  // into the detach variable mirror (e.g. store i32 %1, i32* %i.detach, align 4)
-  Builder.CreateAlignedStore(InductionVal, DetachVar,
-                             getContext().getTypeAlignInChars(RefType));
-
-  #endif
+  // Emit the detach block
+  EmitDetachBlock(DS, InductionDetachMap);
 
   // create the detach terminator
-  Builder.CreateDetach(ForBody, Increment, SRStart);
+  Builder.CreateDetach(ForBody, Increment, SRStart);  
 
-  /////////////////////////////////
-  // Finished the detach block
-  /////////////////////////////////
-  
+  //////////////////////////////
+  // End the Detach block
+  //////////////////////////////
+
   EmitBlock(ForBody);
 
   incrementProfileCounter(&S);
@@ -1210,7 +1260,7 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
     EmitStmt(S.getBody());
   }
 
-  
+
   /////////////////////////////////////////////////////////////////
   // Modify the body block to use the detach block variable mirror.
   // At this point in the codegen, the body block has been emitted
@@ -1219,26 +1269,7 @@ void CodeGenFunction::EmitParallelForallStmt(const ForallStmt &S,
   // (a valid use of the induction variable) has not been emitted yet.
   /////////////////////////////////////////////////////////////////
 
-/*
-  // At the moment, I believe the following block of code should be equivalent
-  // to the one following, but there is an llvm bug? that makes them inequivalent 
-  for (auto &U : InductionVar->uses()) {
-    auto I = cast<llvm::Instruction>(U.getUser());
-    if (I->getParent() == ForBody) U.set(DetachVar);
-  }
-*/
- 
-  // this code is pulled essentially verbatim from ReplaceNonLocalUsesWith
-  // FYI: A Use is an operand to an instruction, A User is an instruction. 
-  llvm::Instruction *IV = dyn_cast<llvm::Instruction>(InductionVar);
-
-  // this code is pulled essentially verbatim from ReplaceNonLocalUsesWith
-  for (llvm::Value::use_iterator UI = IV->use_begin(), UE = IV->use_end();
-       UI != UE;) {
-    llvm::Use &U = *UI++;
-    llvm::Instruction *I = cast<llvm::Instruction>(U.getUser());
-    if (I->getParent() == ForBody) U.set(DetachVar);
-  }
+  ReplaceAllUsesInCurrentBlock(InductionDetachMap);
 
   EmitBlock(Reattach.getBlock());
   Builder.CreateReattach(Increment, SRStart);
@@ -1499,40 +1530,12 @@ void CodeGenFunction::EmitParallelCXXForallRangeStmt(const CXXForallRangeStmt &S
   // Extract the DeclStmt from the statement init
   const DeclStmt *DS = cast<DeclStmt>(S.getBeginStmt());
 
-  // Extract a single VarDecl for now (this would be a loop to handle multiple induction vars)
-  const VarDecl *InductionVarDecl = cast<VarDecl>(DS->getSingleDecl());
+  // create the value map between the induction variables and their corresponding detach mirrors
+  llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> InductionDetachMap;
 
-  // Get the induction variable (e.g. %i)
-  llvm::Value *InductionVar = GetAddrOfLocalVar(InductionVarDecl).getPointer();
+  // Emit the detach block
+  EmitDetachBlock(DS, InductionDetachMap);
 
-  // Use the Clang::CodeGen::CGBuilderTy::CreateLoad to load the induction variable.
-  // This is the current value of the induction variable (e.g. %1 below)
-  // e.g. %1 = load i32, i32* %i, align 4
-  // In principle, the following line could be put in the #ifndef block and
-  // the load instruction in TB's variant could be derived directly from the
-  // condition block. But by keeping the load here I have a known handle without
-  // doing any searching. It will likely get optimized away anyway.
-  llvm::Value *InductionVal = Builder.CreateLoad(GetAddrOfLocalVar(InductionVarDecl));
-
-  #ifndef __TB__
-  // Codegen a local copy in the detach block of the induction variable and 
-  // store the induction variable value
-
-  // Get the Clang QualType for the Induction Variable
-  QualType RefType = InductionVarDecl->getType();
-
-  // Use the LLVM Builder to create the detach variable alloca
-  // e.g. %i.detach = alloca i32
-  // At the moment, I don't know how to force an alignment into the alloca
-  llvm::AllocaInst *DetachVar = Builder.CreateAlloca(
-      getTypes().ConvertType(RefType), nullptr, InductionVar->getName() + ".detach");
-
-  // Use the Clang::CodeGen::CGBuilderTy to store the induction variable
-  // into the detach variable mirror (e.g. store i32 %1, i32* %i.detach, align 4)
-  Builder.CreateAlignedStore(InductionVal, DetachVar,
-                             getContext().getTypeAlignInChars(RefType));
-
-  #endif
 
   // create the detach terminator
   Builder.CreateDetach(ForBody, Increment, SRStart);
@@ -1560,19 +1563,9 @@ void CodeGenFunction::EmitParallelCXXForallRangeStmt(const CXXForallRangeStmt &S
   // (a valid use of the induction variable) has not been emitted yet.
   /////////////////////////////////////////////////////////////////
 
-  // this code is pulled essentially verbatim from ReplaceNonLocalUsesWith
-  // FYI: A Use is an operand to an instruction, A User is an instruction. 
-  llvm::Instruction *IV = dyn_cast<llvm::Instruction>(InductionVar);
+  ReplaceAllUsesInCurrentBlock(InductionDetachMap);
 
-  // this code is pulled essentially verbatim from ReplaceNonLocalUsesWith
-  for (llvm::Value::use_iterator UI = IV->use_begin(), UE = IV->use_end();
-       UI != UE;) {
-    llvm::Use &U = *UI++;
-    llvm::Instruction *I = cast<llvm::Instruction>(U.getUser());
-    if (I->getParent() == ForBody) U.set(DetachVar);
-  }
-
-EmitBlock(Reattach.getBlock());
+  EmitBlock(Reattach.getBlock());
   Builder.CreateReattach(Increment, SRStart);
 
   EmitBlock(Increment);
