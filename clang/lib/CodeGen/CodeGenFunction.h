@@ -3460,6 +3460,8 @@ public:
 
   void EmitSpawnStmt(const SpawnStmt &S);
   void EmitSyncStmt(const SyncStmt &S);
+  void EmitForallStmt(const ForallStmt &S,
+                       ArrayRef<const Attr *> Attrs = None);
 
   void EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S);
   void EmitObjCAtTryStmt(const ObjCAtTryStmt &S);
