@@ -225,6 +225,7 @@ protected:
 
   class ForStmtBitfields {
     friend class ForStmt;
+    friend class ForallStmt;
 
     unsigned : NumStmtBits;
 
