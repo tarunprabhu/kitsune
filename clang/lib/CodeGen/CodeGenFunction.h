@@ -42,6 +42,8 @@
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/SanitizerStats.h"
+#include "llvm/IR/ValueMap.h"
+
 #include <optional>
 
 namespace llvm {
@@ -1204,7 +1206,7 @@ public:
     ~OMPLocalDeclMapRAII() { SavedMap.swap(CGF.LocalDeclMap); }
   };
 
-  
+
   /// In Cilk, flag indicating whether the current call/invoke is spawned.
   bool IsSpawned = false;
   bool SpawnedCleanup = false;
@@ -1316,11 +1318,11 @@ public:
   SyncRegion *getOrCreateLabeledSyncRegion(const StringRef SV){
     auto it = SyncRegions.find(SV);
     if (it != SyncRegions.end()) {
-      return it->second; 
+      return it->second;
     } else {
       SyncRegion* SR = new SyncRegion(*this);
       SR->setSyncRegionStart(EmitLabeledSyncRegionStart(SV));
-      SyncRegions.insert({SV, SR});    
+      SyncRegions.insert({SV, SR});
       return SR;
     }
   };
@@ -3844,10 +3846,15 @@ public:
                        ArrayRef<const Attr *> Attrs = None);
   LValue EmitCilkSpawnExprLValue(const CilkSpawnExpr *E);
 
+  void EmitDetachBlock(const DeclStmt *DS, llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
+  void ReplaceAllUsesInCurrentBlock(llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
+
   void EmitSpawnStmt(const SpawnStmt &S);
   void EmitSyncStmt(const SyncStmt &S);
   void EmitForallStmt(const ForallStmt &S,
                        ArrayRef<const Attr *> Attrs = None);
+  void EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
+                           ArrayRef<const Attr *> Attrs = None);
 
   void EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S);
   void EmitObjCAtTryStmt(const ObjCAtTryStmt &S);
@@ -3896,13 +3903,12 @@ public:
   llvm::Value *EmitSEHExceptionInfo();
   llvm::Value *EmitSEHAbnormalTermination();
 
-  // kitsune: Kokkos support  
+  // kitsune: Kokkos support
   bool EmitKokkosConstruct(const CallExpr *CE);
   bool EmitKokkosParallelFor(const CallExpr *CE);
   bool EmitKokkosParallelReduce(const CallExpr *CE);
   // FIXME?: Should/can we refactor this away?
   bool InKokkosConstruct = false;
-
 
   /// Emit simple code for OpenMP directives in Simd-only mode.
   void EmitSimpleOMPExecutableDirective(const OMPExecutableDirective &D);
