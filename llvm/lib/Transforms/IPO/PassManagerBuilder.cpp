@@ -328,6 +328,7 @@ void PassManagerBuilder::populateModulePassManager(
     // addExtensionsToPM(EP_TapirLoopEnd, MPM);
 
     if (TapirTargetID::None != TapirTarget) {
+      MPM.add(createTaskCanonicalizePass());
       MPM.add(createLowerTapirToTargetPass());
       // The lowering pass may leave cruft around.  Clean it up.
       MPM.add(createCFGSimplificationPass());
@@ -353,6 +354,7 @@ void PassManagerBuilder::populateModulePassManager(
   bool TapirHasBeenLowered = (TapirTargetID::None == TapirTarget);
 
   if (DisableTapirOpts && (TapirTargetID::None != TapirTarget)) {
+    MPM.add(createTaskCanonicalizePass());
     MPM.add(createLowerTapirToTargetPass());
     TapirHasBeenLowered = true;
   }
@@ -577,7 +579,7 @@ void PassManagerBuilder::populateModulePassManager(
     addExtensionsToPM(EP_TapirLoopEnd, MPM);
 
     // Now lower Tapir to Target runtime calls.
-
+    MPM.add(createTaskCanonicalizePass());
     MPM.add(createLowerTapirToTargetPass());
     // The lowering pass introduces new functions and may leave cruft around.
     // Clean it up.
