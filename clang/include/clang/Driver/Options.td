@@ -3252,9 +3252,13 @@ def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>,
   Flags<[NoArgumentUnused]>, 
   HelpText<"Enable Kokkos extensions: recognition and code generation">,
   Visibility<[ClangOption, CC1Option]>;
+def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Group<f_Group>, 
+  Flags<[NoArgumentUnused]>, 
+  HelpText<"Skip code gen of Kokkos initialization (and finalize) calls.">,
+  Visibility<[ClangOption, CC1Option]>;
 def fflecsi : Flag<["-"], "fflecsi">, Group<f_Group>, 
   Flags<[NoArgumentUnused]>, 
-  HelpText<"Enable FleCSI extensions: recognition and code generation">,
+  HelpText<"Enable FleCSI extensions: recognition and custom code generation">,
   Visibility<[ClangOption, CC1Option]>; 
 
 def fopenmp : Flag<["-"], "fopenmp">, Group<f_Group>,
