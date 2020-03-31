@@ -357,9 +357,8 @@ private:
   const TargetLibraryInfo &TLI;
   DominatorTree &DT;
   PredIteratorCache PredCache;
-  TaskInfo *TI;
-
   unsigned DefaultBlockScanLimit;
+  TaskInfo *TI;
 
   /// Offsets to dependant clobber loads.
   using ClobberOffsetsMapType = DenseMap<LoadInst *, int32_t>;
