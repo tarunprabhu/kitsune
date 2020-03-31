@@ -89,4 +89,9 @@ build
 # VS2017 and VSCode config files.
 .vscode
 .vs
+
+# Kitsune
+cheatsheet.sh
+do_all.sh
+
 >>>>>>> 1a8eede97ac... Initial tweaks for kokkos support.  Buggy (generated IR looks wrong!).
