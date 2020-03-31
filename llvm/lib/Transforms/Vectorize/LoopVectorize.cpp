@@ -2942,7 +2942,12 @@ BasicBlock *InnerLoopVectorizer::createVectorizedLoopSkeleton() {
    ...
    */
 
+  BasicBlock *OldBasicBlock = OrigLoop->getHeader();
+  BasicBlock *VectorPH = OrigLoop->getLoopPreheader();
+  BasicBlock *ExitBlock = OrigLoop->getExitBlock();
   MDNode *OrigLoopID = OrigLoop->getLoopID();
+  assert(VectorPH && "Invalid loop structure");
+  assert(ExitBlock && "Must have an exit block");
 
   // Some loops have a single integer induction variable, while other loops
   // don't. One example is c++ iterators that often have multiple pointer
@@ -2994,6 +2999,9 @@ BasicBlock *InnerLoopVectorizer::createVectorizedLoopSkeleton() {
   // before calling any utilities such as SCEV that require valid LoopInfo.
   if (ParentLoop) {
     ParentLoop->addChildLoop(Lp);
+    ParentLoop->addBasicBlockToLoop(LoopScalarPreHeader, *LI);
+    ParentLoop->addBasicBlockToLoop(LoopMiddleBlock, *LI);
+    if (SyncSplit) ParentLoop->addBasicBlockToLoop(SyncSplit, *LI);
   } else {
     LI->addTopLevelLoop(Lp);
   }
