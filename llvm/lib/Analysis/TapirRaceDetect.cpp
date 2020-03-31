@@ -1100,11 +1100,6 @@ bool AccessPtrAnalysis::checkOpaqueAccesses(GeneralAccess &GA1,
   if (!I1Spindle->isSharedEH() && !I2Spindle->isSharedEH()) {
     if (!CommonLoop->contains(CommonTask->getEntry())) {
       const Loop *CommonTaskLoop = LI.getLoopFor(CommonTask->getEntry());
-      // Typically, CommonTaskLoop is a subloop of CommonLoop.  But that doesn't
-      // have to be true, e.g., if CommonLoop appears in an exit of
-      // CommonTaskLoop.
-      // assert((!CommonTaskLoop || CommonTaskLoop->contains(CommonLoop)) &&
-      //        "Loop for common task does not contain common loop.");
       CommonLoop = CommonTaskLoop;
     }
     // Update MaxLoopDepthToCheck
