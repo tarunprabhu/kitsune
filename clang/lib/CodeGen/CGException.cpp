@@ -618,16 +618,26 @@ void CodeGenFunction::EmitEndEHSpec(const Decl *D) {
 }
 
 void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
+  // If compiling Cilk code, create a nested sync region, with an implicit
+  // sync, for the try-catch.
+  const LangOptions &LO = CGM.getLangOpts();
   const llvm::Triple &T = Target.getTriple();
   // If we encounter a try statement on in an OpenMP target region offloaded to
   // a GPU, we treat it as a basic block.
   const bool IsTargetDevice =
-      (CGM.getLangOpts().OpenMPIsTargetDevice && (T.isNVPTX() || T.isAMDGCN()));
-  if (!IsTargetDevice)
+      (LO.OpenMPIsTargetDevice && (T.isNVPTX() || T.isAMDGCN()));
+  if (!IsTargetDevice) {
     EnterCXXTryStmt(S);
+    if (LO.Cilk)
+      PushSyncRegion()->addImplicitSync();
+  }
   EmitStmt(S.getTryBlock());
-  if (!IsTargetDevice)
+  if (!IsTargetDevice) {
+    // Pop the nested sync region after the try block.
+    if (LO.Cilk)
+      PopSyncRegion();
     ExitCXXTryStmt(S);
+  }
 }
 
 void CodeGenFunction::EnterCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
