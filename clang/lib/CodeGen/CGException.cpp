@@ -629,14 +629,14 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
   if (!IsTargetDevice) {
     EnterCXXTryStmt(S);
     SyncedScopeRAII SyncedScp(*this);
-    if (LO.Cilk) {
+    if (LO.getCilk() != LangOptions::Cilk_none) {
       PushSyncRegion()->addImplicitSync();
       if (isa<CompoundStmt>(S.getTryBlock()))
         ScopeIsSynced = true;
     }
     EmitStmt(S.getTryBlock());
     // Pop the nested sync region after the try block.
-    if (LO.Cilk)
+    if (LO.getCilk() != LangOptions::Cilk_none)
       PopSyncRegion();
     ExitCXXTryStmt(S);
   } else {
