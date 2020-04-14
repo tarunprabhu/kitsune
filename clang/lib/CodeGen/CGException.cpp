@@ -628,15 +628,19 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
       (LO.OpenMPIsTargetDevice && (T.isNVPTX() || T.isAMDGCN()));
   if (!IsTargetDevice) {
     EnterCXXTryStmt(S);
-    if (LO.Cilk)
+    SyncedScopeRAII SyncedScp(*this);
+    if (LO.Cilk) {
       PushSyncRegion()->addImplicitSync();
-  }
-  EmitStmt(S.getTryBlock());
-  if (!IsTargetDevice) {
+      if (isa<CompoundStmt>(S.getTryBlock()))
+        ScopeIsSynced = true;
+    }
+    EmitStmt(S.getTryBlock());
     // Pop the nested sync region after the try block.
     if (LO.Cilk)
       PopSyncRegion();
     ExitCXXTryStmt(S);
+  } else {
+    EmitStmt(S.getTryBlock());
   }
 }
 
