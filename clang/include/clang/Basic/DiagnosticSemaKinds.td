@@ -3537,6 +3537,8 @@ def err_kitsune_strategy_attr_wrong_nargs: Error<
 def err_kitsune_strategy_unknown: Error<
     "attribute uses uncognized strategy.">;
 
+def warn_spawn_in_for_body: Warning<
+    "for loop with spawn statment body has undefined behavior.">;
 // =====+
 
 // objc_designated_initializer attribute diagnostics.

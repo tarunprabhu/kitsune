@@ -1831,6 +1831,10 @@ StmtResult Sema::ActOnForStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
   if (Second.isInvalid())
     return StmtError();
 
+  if (Body->getStmtClass() == Stmt::SpawnStmtClass) {
+    Diag(ForLoc, diag::warn_spawn_in_for_body);
+  }
+
   if (!getLangOpts().CPlusPlus) {
     if (DeclStmt *DS = dyn_cast_or_null<DeclStmt>(First)) {
       // C99 6.8.5p3: The declaration part of a 'for' statement shall only
