@@ -2402,6 +2402,7 @@ static void HandleInlinedResumeInTask(BasicBlock *EntryBlock, BasicBlock *Ctx,
       return;
     }
 
+
     // Insert an invocation of detached.rethrow before the resume.
     BasicBlock *NewBB = SplitResume(Resume, Intrinsic::detached_rethrow,
                                     SyncRegion, Unreachable);
