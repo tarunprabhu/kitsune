@@ -95,6 +95,17 @@ check_cxx_compiler_flag("-Werror -mcrc"      COMPILER_RT_HAS_MCRC_FLAG)
 check_cxx_compiler_flag(-fno-partial-inlining COMPILER_RT_HAS_FNO_PARTIAL_INLINING_FLAG)
 check_cxx_compiler_flag(-Werror -ftrivial-auto-var-init=pattern COMPILER_RT_HAS_TRIVIAL_AUTO_INIT)
 
+set(OLD_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
+find_library(LIBOPENCILK opencilk
+  PATHS
+  ${COMPILER_RT_OUTPUT_DIR}/lib/${LLVM_DEFAULT_TARGET_TRIPLE}
+  ${COMPILER_RT_INSTALL_PATH}/lib/${LLVM_DEFAULT_TARGET_TRIPLE})
+if (IS_ABSOLUTE ${LIBOPENCILK})
+  list(APPEND CMAKE_REQUIRED_LIBRARIES ${LIBOPENCILK})
+endif()
+check_cxx_compiler_flag(-fopencilk COMPILER_RT_HAS_CILK_FLAG)
+set(CMAKE_REQUIRED_LIBRARIES ${OLD_CMAKE_REQUIRED_LIBRARIES})
+
 if(NOT WIN32 AND NOT CYGWIN)
   # MinGW warns if -fvisibility-inlines-hidden is used.
   check_cxx_compiler_flag("-fvisibility-inlines-hidden" COMPILER_RT_HAS_FVISIBILITY_INLINES_HIDDEN_FLAG)
