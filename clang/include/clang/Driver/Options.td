@@ -3243,6 +3243,10 @@ def fomit_frame_pointer : Flag<["-"], "fomit-frame-pointer">, Group<f_Group>,
   "-m[no-]omit-leaf-frame-pointer takes precedence for leaf functions">;
 
 // kitsune: Tapir, Kokkos and FleCSI support.
+def fkitsune : Flag<["-"], "fkitsune">, Group<f_Group>,
+  Flags<[NoArgumentUnused]>,
+  HelpText<"Enable Kitsune extensions (e.g., forall, spwan+sync, etc.)">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>;
 def ftapir : Joined<["-"], "ftapir=">, Group<f_Group>,
   Flags<[NoArgumentUnused]>,
   HelpText<"Choose the backend for Tapir instructions (i.e., parallel runtime)">,
@@ -3250,7 +3254,7 @@ def ftapir : Joined<["-"], "ftapir=">, Group<f_Group>,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>;
 def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>, 
   Flags<[NoArgumentUnused]>, 
-  HelpText<"Enable Kokkos extensions: recognition and code generation">,
+  HelpText<"Enable Kokkos extensions: recognition and custom code generation">,
   Visibility<[ClangOption, CC1Option]>;
 def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Group<f_Group>, 
   Flags<[NoArgumentUnused]>, 
