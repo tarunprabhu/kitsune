@@ -291,6 +291,8 @@ public:
   /// The used language standard.
   LangStandard::Kind LangStd;
 
+  bool Kitsune = false;
+
   /// Set of enabled sanitizers.
   SanitizerSet Sanitize;
 
