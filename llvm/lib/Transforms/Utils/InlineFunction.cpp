@@ -670,15 +670,26 @@ static void HandleInlinedTasksHelper(
         isDetachedRethrow(BB->getTerminator()))
       continue;
 
-    // If we find a taskframe.resume terminator, add its successor to the
-    // parent search.
-    if (isTaskFrameResume(BB->getTerminator())) {
+    // If we find a taskframe.end, add its successor to the parent search.
+    if (endsTaskFrame(BB, CurrentTaskFrame)) {
+      // We may not have a parent worklist, if inlining itself created
+      // the taskframe.
+      if (ParentWorklist)
+        ParentWorklist->push_back(BB->getSingleSuccessor());
+      continue;
+    }
+
+    // If we find a taskframe.resume terminator, add its successor to the parent
+    // search.
+    if (isTaskFrameResume(BB->getTerminator()) && ParentWorklist) {
       assert(isTaskFrameUnwind(UnwindEdge) &&
              "Unexpected taskframe.resume, doesn't correspond to unwind edge");
       InvokeInst *II = cast<InvokeInst>(BB->getTerminator());
-      assert(ParentWorklist &&
-             "Unexpected taskframe.resume: no parent worklist");
-      ParentWorklist->push_back(II->getUnwindDest());
+
+      // We may not have a parent worklist, however, if inlining itself created
+      // the taskframe.
+      if (ParentWorklist)
+        ParentWorklist->push_back(II->getUnwindDest());
       continue;
     }
 
@@ -738,7 +749,7 @@ static void HandleInlinedTasksHelper(
 
 static void HandleInlinedTasks(
     SmallPtrSetImpl<BasicBlock *> &BlocksToProcess, BasicBlock *FirstNewBlock,
-    BasicBlock *UnwindEdge, LandingPadInliningInfo &Invoke,
+    Value *TFCreate, BasicBlock *UnwindEdge, LandingPadInliningInfo &Invoke,
     SmallPtrSetImpl<LandingPadInst *> &InlinedLPads) {
   Function *Caller = UnwindEdge->getParent();
 
@@ -748,7 +759,7 @@ static void HandleInlinedTasks(
 
   // Recursively handle inlined tasks.
   HandleInlinedTasksHelper(BlocksToProcess, FirstNewBlock, UnwindEdge,
-                           UnreachableBlk, nullptr, nullptr, Invoke,
+                           UnreachableBlk, TFCreate, nullptr, Invoke,
                            InlinedLPads);
 
   // Either finish the unreachable block or remove it, depending on whether it
