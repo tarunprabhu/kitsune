@@ -9,6 +9,7 @@ add_llvm_component_library(LLVMTapirOpts
   LoweringUtils.cpp
   OpenCilkABI.cpp
   OpenMPABI.cpp
+  OpenCLABI.cpp
   Outline.cpp
   QthreadsABI.cpp
   RealmABI.cpp
@@ -38,4 +39,7 @@ add_llvm_component_library(LLVMTapirOpts
   Support
   TransformUtils
   Vectorize
+
+  LINK_LIBS LLVMSPIRVLib
   )
+
