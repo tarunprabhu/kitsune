@@ -244,6 +244,7 @@ public:
   enum SpawningStrategy {
     ST_SEQ,
     ST_DAC,
+    ST_OCL,
     ST_END,
   };
 
@@ -285,6 +286,8 @@ public:
       return "Spawn iterations sequentially";
     case TapirLoopHints::ST_DAC:
       return "Use divide-and-conquer";
+    case TapirLoopHints::ST_OCL:
+      return "Use opencl";
     case TapirLoopHints::ST_END:
       return "Unknown";
     }
