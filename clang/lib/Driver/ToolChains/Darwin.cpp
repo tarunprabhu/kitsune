@@ -1429,6 +1429,17 @@ void DarwinClang::AddLinkSanitizerLibArgs(const ArgList &Args,
   AddLinkRuntimeLib(Args, CmdArgs, Sanitizer, RLO, Shared);
 }
 
+void DarwinClang::AddCilktoolRTLibs(const ArgList &Args,
+				    ArgStringList &CmdArgs) const {
+  if (Arg *A = Args.getLastArg(options::OPT_fcilktool_EQ)) {
+    StringRef Val = A->getValue();
+    auto RLO = RuntimeLinkOptions(RLO_AlwaysLink);
+    AddLinkRuntimeLib(Args, CmdArgs, Val, RLO);
+    // Link in the C++ standard library
+    AddCXXStdlibLibArgs(Args, CmdArgs);
+  }
+}
+
 ToolChain::RuntimeLibType DarwinClang::GetRuntimeLibType(
     const ArgList &Args) const {
   if (Arg* A = Args.getLastArg(options::OPT_rtlib_EQ)) {
@@ -1483,6 +1494,7 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
     }
   }
 
+<<<<<<< HEAD
   if (Sanitize.linkRuntimes()) {
     if (Sanitize.needsAsanRt()) {
       if (Sanitize.needsStableAbi()) {
@@ -1523,6 +1535,8 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
       AddLinkSanitizerLibArgs(Args, CmdArgs, "stats");
     }
   }
+
+  AddCilktoolRTLibs(Args, CmdArgs);
 
   const XRayArgs &XRay = getXRayArgs();
   if (XRay.needsXRayRt()) {
