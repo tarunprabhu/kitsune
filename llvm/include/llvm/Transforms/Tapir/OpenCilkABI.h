@@ -24,6 +24,7 @@ class TapirLoopInfo;
 class OpenCilkABI : public TapirTarget {
   ValueToValueMapTy DetachCtxToStackFrame;
   SmallPtrSet<CallBase *, 8> CallsToInline;
+  LoopOutlineProcessor *LOP = nullptr;
 
   // Cilk RTS data types
   StructType *StackFrameTy = nullptr;
@@ -91,7 +92,11 @@ class OpenCilkABI : public TapirTarget {
 
 public:
   OpenCilkABI(Module &M);
-  ~OpenCilkABI() { DetachCtxToStackFrame.clear(); }
+  ~OpenCilkABI() {
+    DetachCtxToStackFrame.clear();
+    if (LOP)
+      delete LOP;
+  }
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
   void lowerSync(SyncInst &SI) override final;
 
@@ -117,8 +122,8 @@ public:
   void processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT)
     override final;
 
-  LoopOutlineProcessor *getLoopOutlineProcessor(const TapirLoopInfo *TL) const
-    override final;
+  LoopOutlineProcessor *
+  getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
 };
 }  // end of llvm namespace
 

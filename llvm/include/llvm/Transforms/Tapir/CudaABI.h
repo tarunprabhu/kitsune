@@ -47,7 +47,7 @@ public:
   void processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT)
     override final;
 
-  LoopOutlineProcessor *getLoopOutlineProcessor(const TapirLoopInfo *TL) const
+  LoopOutlineProcessor *getLoopOutlineProcessor(const TapirLoopInfo *TL)
     override final;
 };
 

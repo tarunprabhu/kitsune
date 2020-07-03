@@ -1784,8 +1784,8 @@ void CilkABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
 void CilkABI::postProcessHelper(Function &F) {}
 
 LoopOutlineProcessor *CilkABI::getLoopOutlineProcessor(
-    const TapirLoopInfo *TL) const {
-  if (UseRuntimeCilkFor)
-    return new RuntimeCilkFor(M);
-  return nullptr;
+    const TapirLoopInfo *TL) {
+  if (UseRuntimeCilkFor && !LOP)
+    LOP = new RuntimeCilkFor(M);
+  return LOP;
 }

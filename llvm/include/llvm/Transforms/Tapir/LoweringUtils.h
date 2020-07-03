@@ -287,7 +287,7 @@ public:
 
   // Get the LoopOutlineProcessor associated with this Tapir target.
   virtual LoopOutlineProcessor *getLoopOutlineProcessor(
-      const TapirLoopInfo *TL) const {
+      const TapirLoopInfo *TL) {
     return nullptr;
   }
 };
