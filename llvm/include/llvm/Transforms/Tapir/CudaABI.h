@@ -21,11 +21,97 @@ namespace llvm {
 
 class DataLayout;
 class TargetMachine;
+class CudaABI;
+
+class PTXLoop : public LoopOutlineProcessor {
+  friend class CudaABI;
+
+protected:
+  static unsigned NextKernelID;
+  unsigned MyKernelID;
+  Module PTXM;
+  TargetMachine *PTXTargetMachine;
+  GlobalVariable *PTXGlobal;
+
+  FunctionCallee GetThreadIdx = nullptr;
+  FunctionCallee GetBlockIdx = nullptr;
+  FunctionCallee GetBlockDim = nullptr;
+
+  void makeFatBinaryString();
+  virtual Function *makeModuleCtorFunction() { return nullptr; }
+  virtual Function *makeModuleDtorFunction() { return nullptr; }
+public:
+  PTXLoop(Module &M);
+
+  void setupLoopOutlineArgs(
+      Function &F, ValueSet &HelperArgs, SmallVectorImpl<Value *> &HelperInputs,
+      ValueSet &InputSet, const SmallVectorImpl<Value *> &LCArgs,
+      const SmallVectorImpl<Value *> &LCInputs,
+      const ValueSet &TLInputsFixed)
+    override final;
+  unsigned getIVArgIndex(const Function &F, const ValueSet &Args) const
+    override final;
+  unsigned getLimitArgIndex(const Function &F, const ValueSet &Args) const
+    override final;
+  void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
+                          ValueToValueMapTy &VMap) override final;
+};
+
+class CudaLoop : public PTXLoop {
+private:
+  Type *Dim3Ty = nullptr;
+  Type *CudaStreamTy = nullptr;
+
+  FunctionCallee CudaLaunchKernel = nullptr;
+  FunctionCallee CudaPopCallConfig = nullptr;
+  FunctionCallee CudaPushCallConfig = nullptr;
+
+  GlobalVariable *GpuBinaryHandle = nullptr;
+
+  FunctionType *getRegisterGlobalsFnTy() const;
+  FunctionType *getCallbackFnTy() const;
+  FunctionType *getRegisterLinkedBinaryFnTy() const;
+
+  Function *makeRegisterGlobalsFn();
+  Function *makeModuleCtorFunction() override;
+  Function *makeModuleDtorFunction() override;
+
+  /// Keeps track of kernel launch stubs emitted in this module
+  struct KernelInfo {
+    Function *Kernel; // HostFunc
+    StringRef DeviceFunc;
+  };
+  SmallVector<KernelInfo, 16> EmittedKernels;
+public:
+  CudaLoop(Module &M);
+
+  void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
+                               DominatorTree &DT) override final;
+};
+
+class KitsuneCudaLoop : public PTXLoop {
+private:
+  FunctionCallee KitsuneCUDAInit = nullptr;
+  FunctionCallee KitsuneGPUInitKernel = nullptr;
+  FunctionCallee KitsuneGPUInitField = nullptr;
+  FunctionCallee KitsuneGPUSetRunSize = nullptr;
+  FunctionCallee KitsuneGPURunKernel = nullptr;
+  FunctionCallee KitsuneGPUFinish = nullptr;
+public:
+  KitsuneCudaLoop(Module &M);
+
+  void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
+                               DominatorTree &DT) override final;
+};
 
 class CudaABI : public TapirTarget {
+  PTXLoop *LOP = nullptr;
 public:
   CudaABI(Module &M) : TapirTarget(M) {}
-  ~CudaABI() {}
+  ~CudaABI() {
+    if (LOP)
+      delete LOP;
+  }
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
   void lowerSync(SyncInst &SI) override final;
 
@@ -49,42 +135,6 @@ public:
 
   LoopOutlineProcessor *getLoopOutlineProcessor(const TapirLoopInfo *TL)
     override final;
-};
-
-class PTXLoop : public LoopOutlineProcessor {
-private:
-  static unsigned NextKernelID;
-  unsigned MyKernelID;
-  Module PTXM;
-  TargetMachine *PTXTargetMachine;
-  GlobalVariable *PTXGlobal;
-
-  FunctionCallee GetThreadIdx = nullptr;
-  FunctionCallee GetBlockIdx = nullptr;
-  FunctionCallee GetBlockDim = nullptr;
-  FunctionCallee KitsuneCUDAInit = nullptr;
-  FunctionCallee KitsuneGPUInitKernel = nullptr;
-  FunctionCallee KitsuneGPUInitField = nullptr;
-  FunctionCallee KitsuneGPUSetRunSize = nullptr;
-  FunctionCallee KitsuneGPURunKernel = nullptr;
-  FunctionCallee KitsuneGPUFinish = nullptr;
-public:
-  PTXLoop(Module &M);
-
-  void setupLoopOutlineArgs(
-      Function &F, ValueSet &HelperArgs, SmallVectorImpl<Value *> &HelperInputs,
-      ValueSet &InputSet, const SmallVectorImpl<Value *> &LCArgs,
-      const SmallVectorImpl<Value *> &LCInputs,
-      const ValueSet &TLInputsFixed)
-    override final;
-  unsigned getIVArgIndex(const Function &F, const ValueSet &Args) const
-    override final;
-  unsigned getLimitArgIndex(const Function &F, const ValueSet &Args) const
-    override final;
-  void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
-                          ValueToValueMapTy &VMap) override final;
-  void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
-                               DominatorTree &DT) override final;
 };
 }
 
