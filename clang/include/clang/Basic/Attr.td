@@ -390,6 +390,7 @@ def BlocksSupported : LangOpt<"Blocks">;
 def ObjCAutoRefCount : LangOpt<"ObjCAutoRefCount">;
 def ObjCNonFragileRuntime
     : LangOpt<"", "LangOpts.ObjCRuntime.allowsClassStubs()">;
+def Cilk : LangOpt<"Cilk", "LangOpts.getCilk() != LangOptions::Cilk_none">;
 
 def HLSL : LangOpt<"HLSL">;
 
@@ -4219,6 +4220,21 @@ def FunctionReturnThunks : InheritableAttr,
   >];
   let Subjects = SubjectList<[Function]>;
   let Documentation = [FunctionReturnThunksDocs];
+
+// Cilk attributes
+
+// TODO: Add docs to these attributes
+
+def Stealable : InheritableAttr {
+  let Spellings = [Clang<"stealable">];
+  let Subjects = SubjectList<[FunctionLike]>;
+  let Documentation = [StealableDocs];
+}
+
+def StrandPure : InheritableAttr {
+  let Spellings = [Clang<"strand_pure">];
+  let Subjects = SubjectList<[FunctionLike]>;
+  let Documentation = [StrandPureDocs];
 }
 
 def WebAssemblyFuncref : TypeAttr, TargetSpecificAttr<TargetWebAssembly> {
