@@ -96,7 +96,6 @@ check_cxx_compiler_flag(-fno-partial-inlining COMPILER_RT_HAS_FNO_PARTIAL_INLINI
 check_cxx_compiler_flag(-Werror -ftrivial-auto-var-init=pattern COMPILER_RT_HAS_TRIVIAL_AUTO_INIT)
 
 set(OLD_CMAKE_REQUIRED_LINK_OPTIONS ${CMAKE_REQUIRED_LINK_OPTIONS})
-list(APPEND CMAKE_REQUIRED_LINK_OPTIONS -fopencilk)
 set(OLD_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
 if (NOT APPLE)
   find_library(LIBOPENCILK opencilk
@@ -111,6 +110,8 @@ else()
 endif()
 if (IS_ABSOLUTE ${LIBOPENCILK})
   list(APPEND CMAKE_REQUIRED_LIBRARIES ${LIBOPENCILK})
+else()
+  list(APPEND CMAKE_REQUIRED_LINK_OPTIONS -fopencilk)
 endif()
 check_cxx_compiler_flag(-fopencilk COMPILER_RT_HAS_CILK_FLAG)
 set(CMAKE_REQUIRED_LIBRARIES ${OLD_CMAKE_REQUIRED_LIBRARIES})
