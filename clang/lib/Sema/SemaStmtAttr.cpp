@@ -124,7 +124,6 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
     else
       SetHints(LoopHintAttr::UnrollAndJam, LoopHintAttr::Enable);
   } else if (PragmaName == "cilk") {
-    Spelling = LoopHintAttr::Pragma_cilk;
     Option = llvm::StringSwitch<LoopHintAttr::OptionType>(
                  OptionLoc->Ident->getName())
                  .Case("grainsize", LoopHintAttr::TapirGrainsize)
@@ -350,7 +349,7 @@ CheckForIncompatibleAttributes(Sema &S,
     NumberOfCategories
   };
   // There are 8 categories of loop hints attributes: vectorize, interleave,
-  // unroll, unroll_and_jam, pipeline, distribute, vectorize_predicate and
+  // unroll, unroll_and_jam, pipeline, distribute, vectorize_predicate, and
   // (Tapir) grainsize. Except for distribute they come in two variants: a state
   // form and a numeric form. The state form selectively
   // defaults/enables/disables the transformation for the loop (for unroll,
