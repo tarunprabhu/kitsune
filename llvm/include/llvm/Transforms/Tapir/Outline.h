@@ -61,20 +61,22 @@ void CloneIntoFunction(
 /// Outputs as follows: f(in0, ..., inN, out0, ..., outN)
 ///
 /// TODO: Fix the std::vector part of the type of this function.
-Function *
-CreateHelper(const ValueSet &Inputs, const ValueSet &Outputs,
-             std::vector<BasicBlock *> Blocks, BasicBlock *Header,
-             const BasicBlock *OldEntry, const BasicBlock *OldExit,
-             ValueToValueMapTy &VMap, Module *DestM, bool ModuleLevelChanges,
-             SmallVectorImpl<ReturnInst *> &Returns, const StringRef NameSuffix,
-             SmallPtrSetImpl<BasicBlock *> *ReattachBlocks = nullptr,
-             SmallPtrSetImpl<BasicBlock *> *TaskResumeBlocks = nullptr,
-             SmallPtrSetImpl<BasicBlock *> *SharedEHEntries = nullptr,
-             const BasicBlock *OldUnwind = nullptr,
-             SmallPtrSetImpl<BasicBlock *> *UnreachableExits = nullptr,
-             Type *ReturnType = nullptr, ClonedCodeInfo *CodeInfo = nullptr,
-             ValueMapTypeRemapper *TypeMapper = nullptr,
-             OutlineMaterializer *Materializer = nullptr);
+Function *CreateHelper(
+    const ValueSet &Args, const ValueSet &Inputs, const ValueSet &Outputs,
+    std::vector<BasicBlock *> Blocks, BasicBlock *Header,
+    const BasicBlock *OldEntry, const BasicBlock *OldExit,
+    ValueToValueMapTy &VMap, Module *DestM, bool ModuleLevelChanges,
+    SmallVectorImpl<ReturnInst *> &Returns, const StringRef NameSuffix,
+    SmallPtrSetImpl<BasicBlock *> *ReattachBlocks = nullptr,
+    SmallPtrSetImpl<BasicBlock *> *TaskResumeBlocks = nullptr,
+    SmallPtrSetImpl<BasicBlock *> *SharedEHEntries = nullptr,
+    const BasicBlock *OldUnwind = nullptr,
+    SmallPtrSetImpl<BasicBlock *> *UnreachableExits = nullptr,
+    const Instruction *InputSyncRegion = nullptr,
+    Type *ReturnType = nullptr,
+    ClonedCodeInfo *CodeInfo = nullptr,
+    ValueMapTypeRemapper *TypeMapper = nullptr,
+    ValueMaterializer *Materializer = nullptr);
 
 // Add alignment assumptions to parameters of outlined function, based on known
 // alignment data in the caller.
