@@ -2691,6 +2691,7 @@ void Verifier::verifyTask(const DetachInst *DI) {
         Assert(DI->getSyncRegion() == II->getArgOperand(0),
                "Mismatched sync regions between detach and detached.rethrow",
                DI, II);
+
         Assert(isa<UnreachableInst>(II->getNormalDest()->getTerminator()),
                "detached.rethrow intrinsic has an "
                "unexpected normal destination.",
