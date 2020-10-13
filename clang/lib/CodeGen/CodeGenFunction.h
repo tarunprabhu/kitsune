@@ -1231,8 +1231,8 @@ public:
       if (!InnerSyncScope)
         InnerSyncScope = new ImplicitSyncScope(CGF);
       }
-    }
-  };
+    }; 
+
   llvm::DenseMap<StringRef, SyncRegion*> SyncRegions;
   SyncRegion *getOrCreateLabeledSyncRegion(const StringRef SV){
     auto it = SyncRegions.find(SV);
@@ -1255,6 +1255,7 @@ public:
   }
 
   llvm::Instruction *EmitSyncRegionStart();
+  llvm::Instruction *EmitLabeledSyncRegionStart(StringRef SV); 
 
   void PopSyncRegion() {
     if (CurSyncRegion)
