@@ -5070,7 +5070,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       }
     }
   }
-  Args.AddLastArg(CmdArgs, options::OPT_ftapir);
+  Args.AddLastArg(CmdArgs, options::OPT_ftapir_EQ);
   Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
   Args.AddLastArg(CmdArgs, options::OPT_fkitsune);
   Args.AddLastArg(CmdArgs, options::OPT_fkokkos_no_init);  
