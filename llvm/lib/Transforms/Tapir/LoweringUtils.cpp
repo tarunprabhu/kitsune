@@ -707,17 +707,16 @@ Function *llvm::createHelperForTask(
   Twine NameSuffix = ".otd" + Twine(T->getTaskDepth());
   Function *Helper;
   {
-    NamedRegionTimer NRT("CreateHelper", "Create helper function",
-                         TimerGroupName, TimerGroupDescription,
-                         TimePassesIsEnabled);
-    std::unique_ptr<OutlineMaterializer> Mat =
-        std::make_unique<OutlineMaterializer>(
-            dyn_cast<Instruction>(DI->getSyncRegion()));
-    Helper = CreateHelper(
-        Args, Outputs, TaskBlocks, Header, Entry, DI->getContinue(), VMap,
-        DestM, F.getSubprogram() != nullptr, Returns, NameSuffix.str(),
-        &ReattachBlocks, &TaskResumeBlocks, &SharedEHEntries, nullptr, nullptr,
-        ReturnType, nullptr, nullptr, Mat.get());
+  NamedRegionTimer NRT("CreateHelper", "Create helper function",
+                       TimerGroupName, TimerGroupDescription,
+                       TimePassesIsEnabled);
+  Helper =
+    CreateHelper(Args, Args, Outputs, TaskBlocks, Header, Entry, DI->getContinue(),
+                 VMap, DestM, F.getSubprogram() != nullptr, Returns,
+                 NameSuffix.str(), &ReattachBlocks, &TaskResumeBlocks,
+                 &SharedEHEntries, nullptr, nullptr,
+                 dyn_cast<Instruction>(DI->getSyncRegion()), ReturnType,
+                 nullptr, nullptr, nullptr);
   }
   assert(Returns.empty() && "Returns cloned when cloning detached CFG.");
 
@@ -893,16 +892,15 @@ Function *llvm::createHelperForTaskFrame(
   Twine NameSuffix = ".otf" + Twine(TF->getTaskFrameDepth());
   Function *Helper;
   {
-    NamedRegionTimer NRT("CreateHelper", "Create helper function",
-                         TimerGroupName, TimerGroupDescription,
-                         TimePassesIsEnabled);
-    std::unique_ptr<OutlineMaterializer> Mat =
-        std::make_unique<OutlineMaterializer>();
-    Helper = CreateHelper(Args, Outputs, TaskBlocks, Header, Entry, Continue,
-                          VMap, DestM, F.getSubprogram() != nullptr, Returns,
-                          NameSuffix.str(), &TFEndBlocks, &TFResumeBlocks,
-                          &SharedEHEntries, nullptr, nullptr, ReturnType,
-                          nullptr, nullptr, Mat.get());
+  NamedRegionTimer NRT("CreateHelper", "Create helper function",
+                       TimerGroupName, TimerGroupDescription,
+                       TimePassesIsEnabled);
+  Helper =
+    CreateHelper(Args, Args, Outputs, TaskBlocks, Header, Entry, Continue,
+                 VMap, DestM, F.getSubprogram() != nullptr, Returns,
+                 NameSuffix.str(), &TFEndBlocks, &TFResumeBlocks,
+                 &SharedEHEntries, nullptr, nullptr, nullptr, ReturnType,
+                 nullptr, nullptr, nullptr);
   } // end timed region
   assert(Returns.empty() && "Returns cloned when cloning detached CFG.");
 
