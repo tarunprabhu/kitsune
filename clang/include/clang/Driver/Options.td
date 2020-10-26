@@ -1078,6 +1078,11 @@ def config_user_dir_EQ : Joined<["--"], "config-user-dir=">,
   HelpText<"User directory for configuration files">;
 def coverage : Flag<["-", "--"], "coverage">, Group<Link_Group>,
   Visibility<[ClangOption, CLOption]>;
+def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">,
+  Flags<[NoXarchOption, HelpHidden]>,
+  Visibility<[ClangOption,FlangOption]>,
+  HelpText<"Kitsune directory for configuration files">;
+
 def cpp_precomp : Flag<["-"], "cpp-precomp">, Group<clang_ignored_f_Group>;
 def current__version : JoinedOrSeparate<["-"], "current_version">;
 def cxx_isystem : JoinedOrSeparate<["-"], "cxx-isystem">, Group<clang_i_Group>,
@@ -3036,22 +3041,38 @@ def fno_knr_functions : Flag<["-"], "fno-knr-functions">, Group<f_Group>,
   HelpText<"Disable support for K&R C function declarations">,
   Visibility<[ClangOption, CC1Option, CLOption]>;
 
-def ftapir_EQ : Joined<["-"], "ftapir=">, Group<f_Group>, Flags<[CC1Option]>,
-  HelpText<"Choose the backend parallel runtime for Tapir instructions">,
-  Values<"none,serial,cilkplus,cheetah,cuda,opencilk,openmp,qthreads">;
+def ftapir : Joined<["-"], "ftapir=">, Group<f_Group>,
+  Flags<[NoArgumentUnused]>,
+  Values<"none,serial,cilk,cheetah,cuda,opencilk,openmp,qthreads,realm">, 
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Choose the backend for Tapir instructions (i.e., parallel runtime)">;
+def ftapir_nvarch_EQ : Joined<["-"], "ftapir-nvarch=">, Group<f_Group>,
+  Flags<[NoArgumentUnused]>,
+  Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Choose the target nvida gpu architecture (e.g., sm_80) for gpu and cuda backend runtimes">;
+
 def fcilkplus : Flag<["-"], "fcilkplus">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Enable Cilk Plus extensions">;
-def fopencilk : Flag<["-"], "fopencilk">, Group<f_Group>, Flags<[CC1Option]>,
+def fopencilk : Flag<["-"], "fopencilk">, Group<f_Group>,
+  Flags<[NoArgumentUnused]>,
+  Visibility<[ClangOption]>,
   HelpText<"Enable OpenCilk extensions">;
-def static_libopencilk : Flag<["-"], "static-libopencilk">;
+def static_libopencilk : Flag<["-"], "static-libopencilk">,
+  Visibility<[ClangOption]>;
 def opencilk_resource_dir_EQ : Joined<["--"], "opencilk-resource-dir=">,
   Flags<[NoXarchOption]>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"The directory that holds OpenCilk resource files">;
 def opencilk_abi_bitcode_EQ : Joined<["--"], "opencilk-abi-bitcode=">,
-  Flags<[CC1Option]>, HelpText<"Path to OpenCilk ABI bitcode file">,
+  Flags<[NoArgumentUnused]>,
+  Visibility<[ClangOption]>,
+  HelpText<"Path to OpenCilk ABI bitcode file">,
   MarshallingInfoString<CodeGenOpts<"OpenCilkABIBitcodeFile">>;
 def fopencilk_enable_pedigrees : Flag<["-"], "fopencilk-enable-pedigrees">,
-  Group<f_Group>, Flags<[CC1Option]>, HelpText<"Enable OpenCilk pedigrees">;
+  Group<f_Group>, Flags<[NoArgumentUnused]>,
+  Visibility<[ClangOption]>,
+  HelpText<"Enable OpenCilk pedigrees">;
 
 def fmudflapth : Flag<["-"], "fmudflapth">, Group<f_Group>;
 def fmudflap : Flag<["-"], "fmudflap">, Group<f_Group>;
@@ -3246,11 +3267,6 @@ def fomit_frame_pointer : Flag<["-"], "fomit-frame-pointer">, Group<f_Group>,
 def fkitsune : Flag<["-"], "fkitsune">, Group<f_Group>,
   Flags<[NoArgumentUnused]>,
   HelpText<"Enable Kitsune extensions (e.g., forall, spwan+sync, etc.)">,
-  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>;
-def ftapir : Joined<["-"], "ftapir=">, Group<f_Group>,
-  Flags<[NoArgumentUnused]>,
-  HelpText<"Choose the backend for Tapir instructions (i.e., parallel runtime)">,
-  Values<"cilk,openmp,qthreads,serial,none">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>;
 def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>, 
   Flags<[NoArgumentUnused]>, 
