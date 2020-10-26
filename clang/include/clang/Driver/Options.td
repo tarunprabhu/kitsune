@@ -922,6 +922,8 @@ def config_system_dir_EQ : Joined<["--"], "config-system-dir=">, Flags<[NoXarchO
 def config_user_dir_EQ : Joined<["--"], "config-user-dir=">, Flags<[NoXarchOption, CoreOption, HelpHidden]>,
   HelpText<"User directory for configuration files">;
 def coverage : Flag<["-", "--"], "coverage">, Group<Link_Group>, Flags<[CoreOption]>;
+def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">, Flags<[NoXarchOption, HelpHidden]>,
+  HelpText<"Kitsune directory for configuration files">;
 def cpp_precomp : Flag<["-"], "cpp-precomp">, Group<clang_ignored_f_Group>;
 def current__version : JoinedOrSeparate<["-"], "current_version">;
 def cxx_isystem : JoinedOrSeparate<["-"], "cxx-isystem">, Group<clang_i_Group>,
@@ -2461,7 +2463,11 @@ def fno_knr_functions : Flag<["-"], "fno-knr-functions">, Group<f_Group>,
 
 def ftapir_EQ : Joined<["-"], "ftapir=">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Choose the backend parallel runtime for Tapir instructions">,
-  Values<"none,serial,cilkplus,cheetah,cuda,opencilk,openmp,qthreads">;
+  Values<"none,serial,cilk,cheetah,cuda,opencilk,openmp,qthreads,realm,opencl">;
+def ftapir_nvarch_EQ : Joined<["-"], "ftapir-nvarch=">, Group<f_Group>, Flags<[CC1Option]>,
+  HelpText<"Choose the target nvida gpu architecture (e.g., sm_80) for gpu and cuda backend runtimes">,
+  Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80">;
+
 def fcilkplus : Flag<["-"], "fcilkplus">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Enable Cilk Plus extensions">;
 def fopencilk : Flag<["-"], "fopencilk">, Group<f_Group>, Flags<[CC1Option]>,
@@ -2638,16 +2644,15 @@ def fopenmp : Flag<["-"], "fopenmp">, Group<f_Group>, Flags<[CC1Option, NoArgume
 def fkitsune : Flag<["-"], "fkitsune">, Group<f_Group>,
   Flags<[CC1Option, NoArgumentUnused]>,
   HelpText<"Enable Kitsune extensions (e.g., forall, spwan+sync, etc.)">;
-
-def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>, 
-  Flags<[CC1Option, NoArgumentUnused]>, 
+def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>,
+  Flags<[CC1Option, NoArgumentUnused]>,
   HelpText<"Enable Kokkos extensions: recognition and custom code generation">;
-def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Group<f_Group>, 
-  Flags<[CC1Option, NoArgumentUnused]>, 
+def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Group<f_Group>,
+  Flags<[CC1Option, NoArgumentUnused]>,
   HelpText<"Skip code gen of Kokkos initialization (and finalize) calls.">;
-def fflecsi : Flag<["-"], "fflecsi">, Group<f_Group>, 
-  Flags<[CC1Option,NoArgumentUnused]>, 
-  HelpText<"Enable FleCSI extensions: recognition and custom code generation">; 
+def fflecsi : Flag<["-"], "fflecsi">, Group<f_Group>,
+  Flags<[CC1Option,NoArgumentUnused]>,
+  HelpText<"Enable FleCSI extensions: recognition and custom code generation">;
 def fno_openmp : Flag<["-"], "fno-openmp">, Group<f_Group>, Flags<[NoArgumentUnused]>;
 def fopenmp_version_EQ : Joined<["-"], "fopenmp-version=">, Group<f_Group>, Flags<[CC1Option, NoArgumentUnused]>,
   HelpText<"Set OpenMP version (e.g. 45 for OpenMP 4.5, 50 for OpenMP 5.0). Default value is 50.">;

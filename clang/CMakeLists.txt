@@ -149,6 +149,10 @@ if(CLANG_BUILT_STANDALONE)
   endif() # LLVM_INCLUDE_TESTS
 endif() # standalone
 
+if(NOT DEFINED LLVM_COMMON_CMAKE_UTILS)
+  set(LLVM_COMMON_CMAKE_UTILS ${CMAKE_CURRENT_SOURCE_DIR}/../cmake)
+endif()
+
 # Make sure that our source directory is on the current cmake module path so that
 # we can include cmake files from this directory.
 list(INSERT CMAKE_MODULE_PATH 0
@@ -172,11 +176,6 @@ if(CLANG_ENABLE_LIBXML2)
     endif()
   endif()
 endif()
-
-find_package(Kokkos QUIET) 
-find_package(CilkRTS QUIET) 
-find_package(Qthreads QUIET) 
-find_package(Realm QUIET)
 
 include(CheckIncludeFile)
 check_include_file(sys/resource.h CLANG_HAVE_RLIMITS)
@@ -357,11 +356,15 @@ endif()
 include(CMakeParseArguments)
 include(AddClang)
 
+add_subdirectory(kitsune)
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(BEFORE
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${KITSUNE_SOURCE_DIR}/include
+  ${KITSUNE_BINARY_DIR}/include
   )
 
 if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
