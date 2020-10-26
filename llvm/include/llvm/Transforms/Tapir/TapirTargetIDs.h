@@ -29,7 +29,8 @@ enum class TapirTargetID {
   OpenCilk, // Lower to OpenCilk ABI
   OpenMP,   // Lower to OpenMP
   Qthreads, // Lower to Qthreads
-  Realm,    // Lower to Realm 
+  Realm,    // Lower to Realm
+  OpenCL,   // Lower to OpenCL 
   Last_TapirTargetID
 };
 
