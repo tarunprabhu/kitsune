@@ -2808,6 +2808,10 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
   case TapirTargetID::Qthreads:
     CmdArgs.push_back("-lqthread");
     break;
+  case TapirTargetID::Realm:
+    CmdArgs.push_back("-lrealm");
+    CmdArgs.push_back("-lkitsunerealm");
+    break;
   default:
     break;
   }
