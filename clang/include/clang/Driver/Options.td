@@ -2652,6 +2652,7 @@ def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Group<f_Group>,
 def fflecsi : Flag<["-"], "fflecsi">, Group<f_Group>,
   Flags<[CC1Option,NoArgumentUnused]>,
   HelpText<"Enable FleCSI extensions: recognition and custom code generation">;
+
 def fno_openmp : Flag<["-"], "fno-openmp">, Group<f_Group>, Flags<[NoArgumentUnused]>;
 def fopenmp_version_EQ : Joined<["-"], "fopenmp-version=">, Group<f_Group>, Flags<[CC1Option, NoArgumentUnused]>,
   HelpText<"Set OpenMP version (e.g. 45 for OpenMP 4.5, 50 for OpenMP 5.0). Default value is 50.">;
