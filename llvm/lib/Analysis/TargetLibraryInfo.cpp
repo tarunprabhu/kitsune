@@ -44,6 +44,8 @@ static cl::opt<TapirTargetID> ClTapirTarget(
                           "cilkr", "CilkR"),
                clEnumValN(TapirTargetID::Qthreads,
                           "qthreads", "Qthreads"),
+               clEnumValN(TapirTargetID::Realm,
+                          "realm", "Realm"),
                clEnumValN(TapirTargetID::Cheetah,
                           "cheetah", "Cheetah"),
                clEnumValN(TapirTargetID::OpenCilk,
