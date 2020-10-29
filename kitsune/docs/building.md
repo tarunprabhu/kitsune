@@ -75,5 +75,6 @@ specifics of Kitsune.  This page is a good starting point:
         -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=70 -DCLANG_OPENMP_NVPTX_DEFAULT_ARCH=sm70 \
         -DLLVM_PARALLEL_COMPILE_JOBS=14 -DLLVM_PARALLEL_LINK_JOBS=4 \
         ../llvm
-    ```
-* __Kitsune-centric build options__: 
+
+### Specific Kitsune Build Options
+
