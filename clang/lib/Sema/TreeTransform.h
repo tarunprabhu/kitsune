@@ -2203,11 +2203,12 @@ public:
   }
 
   StmtResult RebuildCXXForallRangeStmt(SourceLocation ForLoc,
-                                    SourceLocation CoawaitLoc, Stmt *Init,
-                                    SourceLocation ColonLoc, Stmt *Range,
-                                    Stmt *Begin, Stmt *End, Expr *Cond,
-                                    Expr *Inc, Stmt *LoopVar,
-                                    SourceLocation RParenLoc) {
+                                       SourceLocation CoawaitLoc, Stmt *Init,
+                                       SourceLocation ColonLoc, Stmt *Range,
+                                       Stmt *Begin, Stmt *End, Stmt *Index,
+                                       Stmt *IndexEnd, Expr *Cond, Expr *Inc,
+                                       Stmt *LoopVar,
+                                       SourceLocation RParenLoc) {
     // If we've just learned that the range is actually an Objective-C
     // collection, treat this as an Objective-C fast enumeration loop.
     if (DeclStmt *RangeStmt = dyn_cast<DeclStmt>(Range)) {
@@ -2233,9 +2234,9 @@ public:
       }
     }
 
-    return getSema().BuildCXXForallRangeStmt(ForLoc, CoawaitLoc, Init, ColonLoc,
-                                          Range, Begin, End, Cond, Inc, LoopVar,
-                                          RParenLoc, Sema::BFRK_Rebuild);
+    return getSema().BuildCXXForallRangeStmt(
+        ForLoc, CoawaitLoc, Init, ColonLoc, Range, Begin, End, Index, IndexEnd,
+        Cond, Inc, LoopVar, RParenLoc, Sema::BFRK_Rebuild);
   }
 
   /// Build a new C++0x range-based for statement.
@@ -7930,6 +7931,12 @@ TreeTransform<Derived>::TransformCXXForallRangeStmt(CXXForallRangeStmt *S) {
   StmtResult End = getDerived().TransformStmt(S->getEndStmt());
   if (End.isInvalid())
     return StmtError();
+  StmtResult Index = getDerived().TransformStmt(S->getIndexStmt());
+  if (Index.isInvalid())
+    return StmtError();
+  StmtResult IndexEnd = getDerived().TransformStmt(S->getIndexEndStmt());
+  if (IndexEnd.isInvalid())
+    return StmtError();
 
   ExprResult Cond = getDerived().TransformExpr(S->getCond());
   if (Cond.isInvalid())
@@ -7957,16 +7964,15 @@ TreeTransform<Derived>::TransformCXXForallRangeStmt(CXXForallRangeStmt *S) {
       Range.get() != S->getRangeStmt() ||
       Begin.get() != S->getBeginStmt() ||
       End.get() != S->getEndStmt() ||
+      Index.get() != S->getIndexStmt() ||
+      IndexEnd.get() != S->getIndexEndStmt() ||
       Cond.get() != S->getCond() ||
       Inc.get() != S->getInc() ||
       LoopVar.get() != S->getLoopVarStmt()) {
-    NewStmt = getDerived().RebuildCXXForallRangeStmt(S->getForLoc(),
-                                                  S->getCoawaitLoc(), Init.get(),
-                                                  S->getColonLoc(), Range.get(),
-                                                  Begin.get(), End.get(),
-                                                  Cond.get(),
-                                                  Inc.get(), LoopVar.get(),
-                                                  S->getRParenLoc());
+    NewStmt = getDerived().RebuildCXXForallRangeStmt(
+        S->getForLoc(), S->getCoawaitLoc(), Init.get(), S->getColonLoc(),
+        Range.get(), Begin.get(), End.get(), Index.get(), IndexEnd.get(),
+        Cond.get(), Inc.get(), LoopVar.get(), S->getRParenLoc());
     if (NewStmt.isInvalid())
       return StmtError();
   }
@@ -7978,13 +7984,10 @@ TreeTransform<Derived>::TransformCXXForallRangeStmt(CXXForallRangeStmt *S) {
   // Body has changed but we didn't rebuild the for-range statement. Rebuild
   // it now so we have a new statement to attach the body to.
   if (Body.get() != S->getBody() && NewStmt.get() == S) {
-    NewStmt = getDerived().RebuildCXXForallRangeStmt(S->getForLoc(),
-                                                     S->getCoawaitLoc(), Init.get(),
-                                                     S->getColonLoc(), Range.get(),
-                                                     Begin.get(), End.get(),
-                                                     Cond.get(),
-                                                     Inc.get(), LoopVar.get(),
-                                                     S->getRParenLoc());
+    NewStmt = getDerived().RebuildCXXForallRangeStmt(
+        S->getForLoc(), S->getCoawaitLoc(), Init.get(), S->getColonLoc(),
+        Range.get(), Begin.get(), End.get(), Index.get(), IndexEnd.get(),
+        Cond.get(), Inc.get(), LoopVar.get(), S->getRParenLoc());
     if (NewStmt.isInvalid())
       return StmtError();
   }
