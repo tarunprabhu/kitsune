@@ -773,11 +773,6 @@ def warn_android_unversioned_fallback : Warning<
 }
 
 // +----- kitsune  FIXME: should probably use kitsune-centric naming here.
-def warn_kokkos_missing_build_params : Warning<
-  "'kokkos' mode enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>; 
-
 def warn_cilkrts_missing_build_params : Warning<
   "'-ftapir=cilk' enabled but build configuration missing details for "
   "automatic argument generation. Target-centric link arguments must be"
@@ -802,6 +797,11 @@ def warn_opencl_missing_build_params : Warning<
   "'-ftapir=opencl' enabled but build configuration missing details for "
   "automatic argument generation. Target-centric link arguments must be"
   "provided on command line.">, InGroup<UnknownRuntime>; 
+
+// FIXME: Probably the wrong group for this... 
+def warn_kokkos_missing_build_params : Warning<
+  "'-fkokkos' mode enabled but build configuration did not include support.">,
+  InGroup<UnknownRuntime>;  
   
 // -----+
 }

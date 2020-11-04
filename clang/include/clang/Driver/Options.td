@@ -3044,12 +3044,12 @@ def fno_knr_functions : Flag<["-"], "fno-knr-functions">, Group<f_Group>,
 def ftapir : Joined<["-"], "ftapir=">, Group<f_Group>,
   Flags<[NoArgumentUnused]>,
   Values<"none,serial,cilk,cheetah,cuda,opencilk,openmp,qthreads,realm">, 
-  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  Visibility<[ClangOption, FlangOption]>,
   HelpText<"Choose the backend for Tapir instructions (i.e., parallel runtime)">;
 def ftapir_nvarch_EQ : Joined<["-"], "ftapir-nvarch=">, Group<f_Group>,
   Flags<[NoArgumentUnused]>,
   Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80">,
-  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  Visibility<[ClangOption, FlangOption]>,
   HelpText<"Choose the target nvida gpu architecture (e.g., sm_80) for gpu and cuda backend runtimes">;
 
 def fcilkplus : Flag<["-"], "fcilkplus">, Group<f_Group>, Flags<[CC1Option]>,
