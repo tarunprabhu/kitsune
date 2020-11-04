@@ -1974,7 +1974,7 @@ def fretain_comments_from_system_headers : Flag<["-"], "fretain-comments-from-sy
 
 def ftapir_EQ : Joined<["-"], "ftapir=">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Choose the backend parallel runtime for Tapir instructions">,
-  Values<"none,serial,cilk,cheetah,cuda,opencilk,openmp,qthreads,realm,opencl">;
+  Values<"none,serial,cilk,cheetah,cuda,kitcuda,opencilk,openmp,qthreads,realm,opencl">;
 def fcilkplus : Flag<["-"], "fcilkplus">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Enable Cilk Plus extensions">;
 def fopencilk : Flag<["-"], "fopencilk">, Group<f_Group>, Flags<[CC1Option]>,
