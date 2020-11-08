@@ -4220,6 +4220,19 @@ def FunctionReturnThunks : InheritableAttr,
   >];
   let Subjects = SubjectList<[Function]>;
   let Documentation = [FunctionReturnThunksDocs];
+}
+
+def WebAssemblyFuncref : TypeAttr, TargetSpecificAttr<TargetWebAssembly> {
+  let Spellings = [Keyword<"__funcref">];
+  let Documentation = [WebAssemblyExportNameDocs];
+  let Subjects = SubjectList<[FunctionPointer], ErrorDiag>;
+}
+
+def ReadOnlyPlacement : InheritableAttr {
+  let Spellings = [Clang<"enforce_read_only_placement">];
+  let Subjects = SubjectList<[Record]>;
+  let Documentation = [ReadOnlyPlacementDocs];
+}
 
 // Cilk attributes
 
@@ -4237,16 +4250,10 @@ def StrandPure : InheritableAttr {
   let Documentation = [StrandPureDocs];
 }
 
-def WebAssemblyFuncref : TypeAttr, TargetSpecificAttr<TargetWebAssembly> {
-  let Spellings = [CustomKeyword<"__funcref">];
-  let Documentation = [WebAssemblyExportNameDocs];
-  let Subjects = SubjectList<[FunctionPointer], ErrorDiag>;
-}
-
-def ReadOnlyPlacement : InheritableAttr {
-  let Spellings = [Clang<"enforce_read_only_placement">];
-  let Subjects = SubjectList<[Record]>;
-  let Documentation = [ReadOnlyPlacementDocs];
+def StrandMalloc : InheritableAttr {
+  let Spellings = [Clang<"strand_malloc">];
+  let Subjects = SubjectList<[Function]>;
+  let Documentation = [StrandMallocDocs];
 }
 
 def AvailableOnlyInDefaultEvalMethod : InheritableAttr {
