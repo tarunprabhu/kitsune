@@ -582,6 +582,7 @@ static TargetLibraryInfoImpl *createTLII(llvm::Triple &TargetTriple,
   }
 
   TLII->setTapirTarget(CodeGenOpts.getTapirTarget());
+  TLII->addTapirTargetLibraryFunctions();
 
   return TLII;
 }
