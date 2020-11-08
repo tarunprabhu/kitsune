@@ -121,6 +121,13 @@ AliasResult AAResults::alias(const MemoryLocation &LocA,
 }
 
 AliasResult AAResults::alias(const MemoryLocation &LocA,
+                             const MemoryLocation &LocB, AAQueryInfo &AAQIP,
+                             bool AssumeSameSpindle) {
+  AAQIP.AssumeSameSpindle = AssumeSameSpindle;
+  return alias(LocA, LocB, AAQIP);
+}
+
+AliasResult AAResults::alias(const MemoryLocation &LocA,
                              const MemoryLocation &LocB, AAQueryInfo &AAQI,
                              const Instruction *CtxI) {
   AliasResult Result = AliasResult::MayAlias;
@@ -295,6 +302,18 @@ ModRefInfo AAResults::getModRefInfo(const CallBase *Call,
                                     const MemoryLocation &Loc,
                                     bool SameSpindle) {
   SimpleAAQueryInfo AAQIP(*this);
+  AAQIP.AssumeSameSpindle = SameSpindle;
+  return getModRefInfo(Call, Loc, AAQIP);
+}
+
+static bool effectivelyArgMemOnly(const CallBase *Call, AAQueryInfo &AAQI) {
+  return Call->isStrandPure() && AAQI.AssumeSameSpindle;
+}
+
+ModRefInfo AAResults::getModRefInfo(const CallBase *Call,
+                                    const MemoryLocation &Loc,
+                                    bool SameSpindle) {
+  AAQueryInfo AAQIP;
   AAQIP.AssumeSameSpindle = SameSpindle;
   return getModRefInfo(Call, Loc, AAQIP);
 }
@@ -1150,7 +1169,7 @@ bool llvm::isNoAliasCall(const Value *V) {
   return false;
 }
 
-bool llvm::isNoAliasCallIfInSameSpindle(const Value *V) {
+bool llvm::isNoAliasCallInSameSpindle(const Value *V) {
   if (const auto *Call = dyn_cast<CallBase>(V))
     return Call->hasRetAttr(Attribute::StrandNoAlias);
   return isNoAliasCall(V);
@@ -1174,10 +1193,10 @@ bool llvm::isIdentifiedObject(const Value *V) {
   return false;
 }
 
-bool llvm::isIdentifiedObjectIfInSameSpindle(const Value *V) {
+bool llvm::isIdentifiedObjectInSameSpindle(const Value *V) {
   if (isIdentifiedObject(V))
     return true;
-  if (isNoAliasCallIfInSameSpindle(V))
+  if (isNoAliasCallInSameSpindle(V))
     return true;
   return false;
 }
