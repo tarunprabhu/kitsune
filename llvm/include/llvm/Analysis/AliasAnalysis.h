@@ -288,7 +288,6 @@ public:
   ///      alias(%p, %addr1) -> MayAlias !
   ///   store %l, ...
   bool MayBeCrossIteration = false;
-
   bool AssumeSameSpindle = false;
 
   AAQueryInfo(AAResults &AAR, CaptureInfo *CI) : AAR(AAR), CI(CI) {}
@@ -555,6 +554,17 @@ public:
 
   /// getModRefInfo (for call sites) - Return information about whether
   /// a particular call site modifies or reads the specified memory location.
+  ModRefInfo getModRefInfo(const CallBase *Call, const MemoryLocation &Loc,
+                           bool SameSpindle);
+
+  /// getModRefInfo (for call sites) - A convenience wrapper.
+  ModRefInfo getModRefInfo(const CallBase *Call, const Value *P,
+                           LocationSize Size, bool SameSpindle) {
+    return getModRefInfo(Call, MemoryLocation(P, Size), SameSpindle);
+  }
+
+  /// getModRefInfo (for call sites) - Return information about whether
+  /// a particular call site modifies or reads the specified memory location.
   ModRefInfo getModRefInfo(const CallBase *Call, const MemoryLocation &Loc);
 
   /// getModRefInfo (for call sites) - A convenience wrapper.
@@ -687,12 +697,9 @@ public:
 
   /// Return information about whether a call and an instruction may refer to
   /// the same memory locations.
-  ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call);
-
-// /*
-//   ModRefInfo getModRefInfo(Instruction *I, const CallBase *Call) {
-//     return getModRefInfo(I, Call, /*AssumeSameSpindle*/ false);
-//   }
+  ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call) {
+    return getModRefInfo(I, Call, /*AssumeSameSpindle*/ false);
+  }
 
   /// Return information about whether two call sites may refer to the same set
   /// of memory locations. See the AA documentation for details:
@@ -842,6 +849,14 @@ public:
   ModRefInfo getModRefInfoMask(const MemoryLocation &Loc,
                                bool IgnoreLocals = false) {
     return AA.getModRefInfoMask(Loc, AAQI, IgnoreLocals);
+  }
+  ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2,
+                           bool AssumeSameSpindle) {
+    bool OldAssumeSameSpindle = AAQI.AssumeSameSpindle;
+    AAQI.AssumeSameSpindle = AssumeSameSpindle;
+    auto Result = AA.getModRefInfo(Call1, Call2, AAQI);
+    AAQI.AssumeSameSpindle = OldAssumeSameSpindle;
+    return Result;
   }
   ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2,
                            bool AssumeSameSpindle) {
@@ -1071,7 +1086,7 @@ bool isNoAliasCall(const Value *V);
 /// Return true if this pointer is returned by a noalias function or, if one
 /// assumes the query pertains to operations in the same spindle, a
 /// strand_noalias function.
-bool isNoAliasCallIfInSameSpindle(const Value *V);
+bool isNoAliasCallInSameSpindle(const Value *V);
 
 /// Return true if this pointer refers to a distinct and identifiable object.
 /// This returns true for:
@@ -1088,7 +1103,7 @@ bool isIdentifiedObject(const Value *V);
 ///    Every value for which isIdentifiedObject(V) returns true
 ///    StrandNoAlias returns
 ///
-bool isIdentifiedObjectIfInSameSpindle(const Value *V);
+bool isIdentifiedObjectInSameSpindle(const Value *V);
 
 /// Return true if V is umabigously identified at the function-level.
 /// Different IdentifiedFunctionLocals can't alias.
