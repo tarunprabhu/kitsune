@@ -61,8 +61,7 @@ FunctionCallee RealmABI::get_createRealmBarrier(){
 }
 
 FunctionCallee RealmABI::get_destroyRealmBarrier(){
-  if(DestroyBar) 
-    return DestroyBar; 
+  if(DestroyBar) return DestroyBar; 
   LLVMContext &C = M.getContext(); 
 
   AttributeList AL; 
@@ -228,7 +227,7 @@ void RealmABI::lowerSync(SyncInst &SI) {
   ReplaceInstWithInst(&SI, PostSync);
   return;
 }
-#endif //old sync
+#endif
 
 void RealmABI::lowerSync(SyncInst &SI) {
   IRBuilder<> builder(&SI); 
