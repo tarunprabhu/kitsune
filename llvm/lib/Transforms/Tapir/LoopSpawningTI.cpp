@@ -418,9 +418,6 @@ public:
     TapirLoops.clear();
     TaskToTapirLoop.clear();
     LoopToTapirLoop.clear();
-    // Delete any loop outline processors we're managing.
-    for (LoopOutlineProcessor *ManagedLOP : ManagedOutlineProcessors)
-      delete ManagedLOP;
   }
 
   bool run();
@@ -469,7 +466,8 @@ private:
   // Get the LoopOutlineProcessor for handling Tapir loop \p TL.
   LoopOutlineProcessor *getOutlineProcessor(TapirLoopInfo *TL);
 
-  using LOPMapTy = DenseMap<TapirLoopInfo *, LoopOutlineProcessor *>;
+  using LOPMapTy = DenseMap<TapirLoopInfo *,
+                            std::unique_ptr<LoopOutlineProcessor>>;
 
   // For all recorded Tapir loops, determine the function arguments and inputs
   // for the outlined helper functions for those loops.
@@ -533,7 +531,6 @@ private:
   DenseMap<Task *, TapirLoopInfo *> TaskToTapirLoop;
   DenseMap<Loop *, TapirLoopInfo *> LoopToTapirLoop;
   LOPMapTy OutlineProcessors;
-  SmallVector<LoopOutlineProcessor *, 16> ManagedOutlineProcessors;
 };
 } // end anonymous namespace
 
@@ -872,17 +869,10 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   Loop *L = TL->getLoop();
   TapirLoopHints Hints(L);
 
-  LoopOutlineProcessor *ManagedLOP;
   switch (Hints.getStrategy()) {
-  case TapirLoopHints::ST_DAC:
-    ManagedLOP = new DACSpawning(M);
-    break;
-  default:
-    ManagedLOP = new DefaultLoopOutlineProcessor(M);
-    break;
+  case TapirLoopHints::ST_DAC: return new DACSpawning(M);
+  default: return new DefaultLoopOutlineProcessor(M);
   }
-  ManagedOutlineProcessors.push_back(ManagedLOP);
-  return ManagedLOP;
 }
 
 /// Associate tasks with Tapir loops that enclose them.
@@ -1188,33 +1178,32 @@ namespace {
 // ValueMaterializer to manage remapping uses of the tripcount in the helper
 // function for the loop, when the only uses of tripcount occur in the condition
 // for the loop backedge and, possibly, in metadata.
-class ArgEndMaterializer final : public OutlineMaterializer {
+class ArgEndMaterializer final : public ValueMaterializer {
 private:
-  Value *TripCount = nullptr;
-  Value *ArgEnd = nullptr;
+  Value *TripCount;
+  Value *ArgEnd;
 public:
-  ArgEndMaterializer(Value *TripCount, Value *ArgEnd, Module *DstM)
-      : OutlineMaterializer(DstM), TripCount(TripCount), ArgEnd(ArgEnd) {}
+  ArgEndMaterializer(Value *TripCount, Value *ArgEnd)
+      : TripCount(TripCount), ArgEnd(ArgEnd) {}
 
-  Value *materialize(Value *V) override final {
-    if (TripCount && ArgEnd) {
-      // If we're materializing metadata for TripCount, materialize empty
-      // metadata instead.
-      if (auto *MDV = dyn_cast<MetadataAsValue>(V)) {
-        Metadata *MD = MDV->getMetadata();
-        if (auto *LAM = dyn_cast<LocalAsMetadata>(MD))
-          if (LAM->getValue() == TripCount)
-            return MetadataAsValue::get(V->getContext(),
-                                        MDTuple::get(V->getContext(), None));
-      }
-
-      // Materialize TripCount with ArgEnd.  This should only occur in the loop
-      // latch, and we'll overwrite the use of ArgEnd later.
-      if (V == TripCount)
-        return ArgEnd;
+  Value *materialize(Value *V) final {
+    // If we're materializing metadata for TripCount, materialize empty metadata
+    // instead.
+    if (auto *MDV = dyn_cast<MetadataAsValue>(V)) {
+      Metadata *MD = MDV->getMetadata();
+      if (auto *LAM = dyn_cast<LocalAsMetadata>(MD))
+        if (LAM->getValue() == TripCount)
+          return MetadataAsValue::get(V->getContext(),
+                                      MDTuple::get(V->getContext(), None));
     }
 
-    return OutlineMaterializer::materialize(V);
+    // Materialize TripCount with ArgEnd.  This should only occur in the loop
+    // latch, and we'll overwrite the use of ArgEnd later.
+    if (V == TripCount)
+      return ArgEnd;
+
+    // Otherwise go with the default behavior.
+    return nullptr;
   }
 };
 }
@@ -1250,15 +1239,12 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
   const Instruction *InputSyncRegion =
       dyn_cast<Instruction>(DI->getSyncRegion());
 
-  OutlineMaterializer *Mat = nullptr;
+  ArgEndMaterializer *Mat = nullptr;
   // If the trip count is variable and we're not otherwise passing the trip
   // count as an argument, temporarily map the trip count to the end argument.
   if (!isa<Constant>(TL->getTripCount()) && !Args.count(TL->getTripCount())) {
     // Create an ArgEndMaterializer to handle uses of TL->getTripCount().
-    Mat = new ArgEndMaterializer(TL->getTripCount(), Args[LimitArgIndex],
-                                 (F.getParent() != DestM ? DestM : nullptr));
-  } else if (F.getParent() != DestM) {
-    Mat = new OutlineMaterializer(DestM);
+    Mat = new ArgEndMaterializer(TL->getTripCount(), Args[LimitArgIndex]);
   }
 
   Twine NameSuffix = ".ls" + Twine(TL->getLoop()->getLoopDepth());
@@ -1407,7 +1393,8 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
       }
 
       // Get an outline processor for each Tapir loop.
-      OutlineProcessors[TL] = getOutlineProcessor(TL);
+      OutlineProcessors[TL] =
+        std::unique_ptr<LoopOutlineProcessor>(getOutlineProcessor(TL));
     }
   }
 
@@ -1587,12 +1574,15 @@ bool LoopSpawningImpl::run() {
   // Perform any Target-dependent postprocessing of F.
   Target->postProcessFunction(F, true);
 
-#ifndef NDEBUG
-  if (verifyModule(*F.getParent(), &errs())) {
-    LLVM_DEBUG(dbgs() << "Module after loop spawning:" << *F.getParent());
-    llvm_unreachable("Loop spawning produced bad IR!");
-  }
-#endif
+  LLVM_DEBUG({
+    NamedRegionTimer NRT("verify", "Post-loop-spawning verification",
+                         TimerGroupName, TimerGroupDescription,
+                         TimePassesIsEnabled);
+    if (verifyModule(*F.getParent(), &errs())) {
+      LLVM_DEBUG(dbgs() << "Module after loop spawning:" << *F.getParent());
+      llvm_unreachable("Loop spawning produced bad IR!");
+    }
+  });
 
   return true;
 }
