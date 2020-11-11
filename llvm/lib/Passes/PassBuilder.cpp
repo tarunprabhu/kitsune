@@ -291,6 +291,11 @@ static cl::opt<bool>
                         cl::Hidden,
                         cl::desc("Verify IR after Tapir lowering steps"));
 
+static cl::opt<bool>
+    VerifyTapirLowering("verify-tapir-lowering-npm", cl::init(false),
+                        cl::Hidden,
+                        cl::desc("Verify IR after Tapir lowering steps"));
+
 PipelineTuningOptions::PipelineTuningOptions() {
   LoopInterleaving = true;
   LoopVectorization = true;
