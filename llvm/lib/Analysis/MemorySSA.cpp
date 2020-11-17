@@ -297,7 +297,7 @@ template <typename AliasAnalysisType>
 static bool
 instructionClobbersQuery(const MemoryDef *MD, const MemoryLocation &UseLoc,
                          const Instruction *UseInst, AliasAnalysisType &AA,
-                         TaskInfo *TI = nullptr) {
+                         TaskInfo *TI) {
   Instruction *DefInst = MD->getMemoryInst();
   assert(DefInst && "Defining instruction not actually an instruction");
 
@@ -554,7 +554,7 @@ class ClobberWalker {
   const MemorySSA &MSSA;
   DominatorTree &DT;
   BatchAAResults *AA;
-  TaskInfo *TI = nullptr;
+  TaskInfo *TI;
   UpwardsMemoryQuery *Query;
   unsigned *UpwardWalkLimit;
 
@@ -1593,7 +1593,7 @@ void MemorySSA::buildMemorySSA(BatchAAResults &BAA) {
 
   ClobberWalkerBase<BatchAAResults> WalkerBase(this, &BAA, DT, TI);
   CachingWalker<BatchAAResults> WalkerLocal(this, &WalkerBase);
-  OptimizeUses(this, &WalkerLocal, &BAA, DT).optimizeUses();
+  OptimizeUses(this, &WalkerLocal, &BAA, DT, TI).optimizeUses();
 
   // Mark the uses in unreachable blocks as live on entry, so that they go
   // somewhere.
