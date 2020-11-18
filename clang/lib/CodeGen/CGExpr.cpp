@@ -39,6 +39,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Transforms/Utils/SanitizerStats.h"
 
+#include <cstdio>
 #include <string>
 
 using namespace clang;
@@ -4870,7 +4871,12 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
 	if (EmitKokkosConstruct(E))
 	  return RValue::get(nullptr);
 	// else fall through to standard C++ support. 
-      }
+      } else if (getLangOpts().KokkosNoInit &&
+		 (qname == "Kokkos::initialize" ||
+		  qname == "Kokkos::finalize"))
+	// In "no-init" mode we skip code generation for the
+	// Kokkos initialization entry (and finalize) points. 
+	return RValue::get(nullptr);
     }
   }
   
