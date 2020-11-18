@@ -1403,6 +1403,22 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
     if (OnlyStaticOpenCilk)
       CmdArgs.push_back("-Bdynamic");
     CmdArgs.push_back("-lpthread");
+
+    if (KITSUNE_ENABLE_OPENCILK_TARGET) {
+      CmdArgs.push_back("-L" OPENCILK_LIBRARY_DIR);
+      if (Triple.isOSDarwin()) {
+	CmdArgs.push_back("-rpath");
+	CmdArgs.push_back(OPENCILK_LIBRARY_DIR);
+      } else {
+	CmdArgs.push_back("-rpath=" OPENCILK_LIBRARY_DIR);
+      } 
+      ExtractArgsFromString(CILKRTS_EXTRA_LINK_LIBS, CmdArgs, Args);
+      // This was done above... 
+      //CmdArgs.push_back("-lopencilk");      
+    } else {
+      // FIXME: we should hard error here if cilkrts support was not built-in.
+      getDriver().Diag(diag::warn_cilkrts_missing_build_params);
+    }
     break;
   }
   case TapirTargetID::Cilk:
