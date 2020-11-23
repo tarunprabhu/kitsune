@@ -30,8 +30,13 @@ set(KITSUNE_ENABLED TRUE
 )
     
 set(KITSUNE_SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR})
+set(KITSUNE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(KITSUNE_BINARY_DIR  ${CMAKE_CURRENT_BINARY_DIR})
-set(KITSUNE_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
+
+
+message(STATUS "Kitsune source directory: ${KITSUNE_SOURCE_DIR}")
+message(STATUS "Kitsune include directory: ${KITSUNE_INCLUDE_DIR}")
+message(STATUS "Kitsune binary directory: ${KITSUNE_BINARY_DIR}")
 
 option(KITSUNE_INCLUDE_TESTS
   "Enable Kitsune tests." ${LLVM_INCLUDE_TESTS})
@@ -96,14 +101,25 @@ if (KITSUNE_ENABLE_CILKRTS_TARGET)
   )
 endif()
 
+find_package(OpenCilk)
+option(KITSUNE_ENABLE_OPENCILK_TARGET
+  "Enable OpenCilk runtime backend target." ${OpenCilk_FOUND})
+if (KITSUNE_ENABLE_OPENCILK_TARGET) 
+  set(OPENCILK_EXTRA_LINK_LIBS ""
+    CACHE 
+    STRING "Extra link libraries for the OpenCilk runtime target."
+  )
+endif()
+
 find_package(Qthreads)
 option(KITSUNE_ENABLE_QTHREADS_TARGET
   "Enable Qthreads runtime backend target." ${Qthreads_FOUND})
 if (Qthreads_FOUND)
   message(STATUS "Qthreads runtime target enabled.")
-  option(QTHREADS_EXTRA_LINK_LIBS
-    "Additional libraries needed by Qthreads backend runtime."
-    "")
+  set(QTHREADS_EXTRA_LINK_LIBS "-ldl"
+    CACHE 
+    STRING "Additional libraries needed by Qthreads backend runtime."
+  )
 endif()
 
 find_package(Realm)

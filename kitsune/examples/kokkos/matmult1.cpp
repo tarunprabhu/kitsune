@@ -1,6 +1,6 @@
 // 
-// Simple example of an element-wise vector sum.  
-// To enable kitsune+tapir compilation add the flags to a standard 
+// Non-square matrix multiplication example. To enable 
+// kitsune+tapir compilation add the flags to a standard 
 // clang compilation: 
 //
 //    * -fkokkos : enable specialized Kokkos recognition and 
@@ -17,39 +17,46 @@
 using namespace std;
 using namespace kitsune;
 
-const size_t VEC_SIZE = 1024 * 1024 * 256;
+const size_t N = 8192;
+const size_t M = 4096;
+const size_t K = 512;
 
 void random_fill(float *data, size_t N) {
   for(size_t i = 0; i < N; ++i) 
     data[i] = rand() / (float)RAND_MAX;
 }
 
+void zero_fill(float *data, size_t N) {
+  for(size_t i = 0; i < N; ++i) 
+    data[i] = 0.0f;
+}
+
 int main (int argc, char* argv[]) {
 
-  fprintf(stderr, "kitsune+tapir kokkos example: element-wise vector addition\n");
-  
-  float *A = new float[VEC_SIZE];
-  float *B = new float[VEC_SIZE];
-  float *C = new float[VEC_SIZE];
+  fprintf(stderr, "**** kitsune+tapir kokkos example: matrix multiply\n");
 
-  random_fill(A, VEC_SIZE);
-  random_fill(B, VEC_SIZE);
+  float *A = new float[N*K];
+  float *B = new float[K*M];
+  float *C = new float[N*M];
+
+  random_fill(A, N*K);
+  random_fill(B, M*K);
+  zero_fill(C, N*M);
   
   Kokkos::initialize (argc, argv);
   timer t;  
   {
-    Kokkos::parallel_for(VEC_SIZE, KOKKOS_LAMBDA(const int i) {
-        C[i] = A[i] + B[i];
+    Kokkos::parallel_for(N, KOKKOS_LAMBDA(const int i) {
+      for(size_t k = 0; k < K; ++k) 
+        for(size_t j = 0; j < M; ++j) 
+          C[i*M + j] += A[i*K + k] * B[k*M +j];
     });
   }
   double loop_secs = t.seconds();
   Kokkos::finalize();
 
-  // Note: If we don't use the outputs there are cases where tapir+kitsune 
-  // will simply remove the entire parallel loop above... 
   fprintf(stderr, "(%s) %lf, %lf, %lf, %lf\n", 
-          argv[0], C[0], C[VEC_SIZE/4], C[VEC_SIZE/2], C[VEC_SIZE-1]);   
-  
+         argv[0], C[0], C[(N*M)/4], C[(N*M)/2], C[(N*M)-1]);     
   fprintf(stdout, "%lf\n", loop_secs);
 
   delete []A;

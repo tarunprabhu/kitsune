@@ -50,7 +50,7 @@ macro(add_kitsune_library name)
         ${export_to_kitsunetargets}
         LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
         ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX}
-        RUNTIME DESTINATION bin)
+        RUNTIME DESTINATION examples)
 
       if (NOT LLVM_ENABLE_IDE)
         add_llvm_install_targets(install-${name}
@@ -73,6 +73,18 @@ macro(add_kitsune_executable name)
   add_llvm_executable(${name} ${ARGN})
 endmacro(add_kitsune_executable)
 
+macro(add_cxx_llvmir_file name flags)
+  get_filename_component(target ${name} NAME_WE)
+  message(STATUS "added custom target: ${target}.ll")
+  message(STATUS "   compile flags: ${flags}")
+  add_custom_target(${target}.ll
+	${CMAKE_CXX_COMPILER} ${flags} -S -emit-llvm ${name} -o ${target}.ll
+	COMMENT "generating IR file: ${target}.ll..."
+	DEPENDS ${name}
+	)
+  add_dependencies(${target}.ll clang)
+
+endmacro(add_cxx_llvmir_file) 
 
 macro(add_kitsune_example name)
   if ( NOT KITSUNE_BUILD_EXAMPLES )
@@ -84,11 +96,6 @@ macro(add_kitsune_example name)
   add_kitsune_executable(${name} 
                          ${ARGN}
                          DEPENDS clang)
-
-  if ( KITSUNE_BUILD_EXAMPLES )
-    install(TARGETS ${name} RUNTIME DESTINATION kitsune/examples)
-  endif()
-
 endmacro(add_kitsune_example)
 
 macro(add_kitsune_tool name)
@@ -136,8 +143,8 @@ macro(get_kitsune_tapir_rt_flags arglist)
   # The list of possible runtime targets for the compiler (via tapir).
   # These are expanded to match the ENABLE options in the kitsune cmake
   # configuration (and thus we match capitalization here). 
-  set(_kitsune_rt_names CILKRTS;QTHREADS;REALM;OPENMP;CUDART;OPENCL)
-  set(_kitsune_rt_flags cilk;qthreads;realm;omp;cuda;opencl)  
+  set(_kitsune_rt_names CILKRTS;OPENCILK;QTHREADS;REALM;OPENMP;CUDART;OPENCL)
+  set(_kitsune_rt_flags cilk;opencilk;qthreads;realm;omp;cuda;opencl)  
   foreach(rt IN ITEMS ${_kitsune_rt_names})
     set(_ENABLE_VAR "KITSUNE_ENABLE_${rt}_TARGET")
     if (${_ENABLE_VAR})
