@@ -547,10 +547,11 @@ bool llvm::isLibFreeFunction(const Function *F, const LibFunc TLIFn) {
   return true;
 }
 
-Value *llvm::getFreedOperand(const CallBase *CB, const TargetLibraryInfo *TLI) {
+Value *llvm::getFreedOperand(const CallBase *CB, const TargetLibraryInfo *TLI,
+                             bool IgnoreBuiltinAttr) {
   bool IsNoBuiltinCall;
   const Function *Callee = getCalledFunction(CB, IsNoBuiltinCall);
-  if (Callee == nullptr || IsNoBuiltinCall)
+  if (Callee == nullptr || (IsNoBuiltinCall && !IgnoreBuiltinAttr))
     return nullptr;
 
   LibFunc TLIFn;
