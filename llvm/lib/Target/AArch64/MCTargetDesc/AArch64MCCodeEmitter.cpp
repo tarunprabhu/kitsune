@@ -684,6 +684,12 @@ void AArch64MCCodeEmitter::encodeInstruction(const MCInst &MI,
     return;
   }
 
+  if (MI.getOpcode() == AArch64::CompilerBarrier ||
+      MI.getOpcode() == AArch64::EH_SjLj_Setup) {
+    // CompilerBarrier just prevents the compiler from reordering accesses
+    return;
+  }
+
   uint64_t Binary = getBinaryCodeForInstr(MI, Fixups, STI);
   support::endian::write<uint32_t>(CB, Binary, support::little);
   ++MCNumEmitted; // Keep track of the # of mi's emitted.
