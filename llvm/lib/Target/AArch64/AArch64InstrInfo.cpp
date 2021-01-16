@@ -2212,6 +2212,7 @@ unsigned AArch64InstrInfo::isStoreToStackSlot(const MachineInstr &MI,
   case AArch64::STRSui:
   case AArch64::STRDui:
   case AArch64::STRQui:
+  case AArch64::LDR_PXI:
   case AArch64::STR_PXI:
     if (MI.getOperand(0).getSubReg() == 0 && MI.getOperand(1).isFI() &&
         MI.getOperand(2).isImm() && MI.getOperand(2).getImm() == 0) {
@@ -8540,23 +8541,6 @@ AArch64InstrInfo::getOutliningCandidateInfo(
                                     NumBytesToCreateFrame, FrameID);
 }
 
-void AArch64InstrInfo::mergeOutliningCandidateAttributes(
-    Function &F, std::vector<outliner::Candidate> &Candidates) const {
-  // If a bunch of candidates reach this point they must agree on their return
-  // address signing. It is therefore enough to just consider the signing
-  // behaviour of one of them
-  const auto &CFn = Candidates.front().getMF()->getFunction();
-
-  // Since all candidates belong to the same module, just copy the
-  // function-level attributes of an arbitrary function.
-  if (CFn.hasFnAttribute("sign-return-address"))
-    F.addFnAttr(CFn.getFnAttribute("sign-return-address"));
-  if (CFn.hasFnAttribute("sign-return-address-key"))
-    F.addFnAttr(CFn.getFnAttribute("sign-return-address-key"));
-
-  AArch64GenInstrInfo::mergeOutliningCandidateAttributes(F, Candidates);
-}
-
 bool AArch64InstrInfo::isFunctionSafeToOutlineFrom(
     MachineFunction &MF, bool OutlineFromLinkOnceODRs) const {
   const Function &F = MF.getFunction();
@@ -9402,6 +9386,83 @@ bool AArch64InstrInfo::isReallyTriviallyReMaterializable(
   }
 
   return TargetInstrInfo::isReallyTriviallyReMaterializable(MI);
+}
+
+Optional<BlockBRNZ> AArch64InstrInfo::isZeroTest(MachineBasicBlock &MBB) const {
+  const AArch64RegisterInfo *TRI = &getRegisterInfo();
+  MachineBasicBlock *U = nullptr, *Zero = nullptr, *Nonzero = nullptr;
+
+  MachineBasicBlock::const_reverse_instr_iterator MI = MBB.instr_rbegin();
+  while (MI != MBB.instr_rend() && MI->isUnconditionalBranch()) {
+    U = getBranchDestBlock(*MI);
+    ++MI;
+  }
+
+  if (MI == MBB.instr_rend())
+    return Optional<BlockBRNZ>();
+
+  switch (MI->getOpcode()) {
+  case AArch64::CBNZW:
+  case AArch64::CBNZX:
+    Zero = U;
+    Nonzero = MI->getOperand(1).getMBB();
+    break;
+  case AArch64::CBZW:
+  case AArch64::CBZX:
+    Nonzero = U;
+    Zero = MI->getOperand(1).getMBB();
+    break;
+  default:
+    return Optional<BlockBRNZ>();
+  }
+
+  BlockBRNZ Desc;
+  Desc.IsKill = MI->getOperand(0).isKill();
+  Desc.Regs.push_back(MI->getOperand(0).getReg());
+  Desc.Zero = Zero;
+  Desc.Nonzero = Nonzero;
+
+  const Register &Reg0 = Desc.Regs[0];
+
+  while (++MI != MBB.instr_rend()) {
+    if (MI->isPHI()) {
+      if (MI->getOperand(0).getReg() == Reg0) {
+        unsigned NumOperands = MI->getNumOperands();
+        for (unsigned I = 1; I < NumOperands; I += 2) {
+          Desc.Regs.push_back(MI->getOperand(I).getReg());
+        }
+      }
+      // There should be only one PHI setting the register.
+      return Desc;
+    }
+    if (MI->modifiesRegister(Reg0, TRI))
+      return Optional<BlockBRNZ>();
+    if (MI->readsRegister(Reg0, TRI))
+      Desc.IsKill = false;
+  }
+  return Desc;
+}
+
+bool
+AArch64InstrInfo::isSetConstant(const MachineInstr &MI, Register &Reg,
+                                int64_t &Value) const {
+  if (MI.getNumOperands() < 3 || !MI.getOperand(0).isReg())
+    return false;
+  // describeLoadedValue, but ParamLoadedValue is complicated...
+  switch (MI.getOpcode()) {
+  case AArch64::MOVZWi:
+  case AArch64::MOVZXi: {
+    if (!MI.getOperand(1).isImm())
+      return false;
+    Reg = MI.getOperand(0).getReg();
+    int64_t Immediate = MI.getOperand(1).getImm();
+    int Shift = MI.getOperand(2).getImm();
+    Value = Immediate << Shift;
+    // range check is easier than worrying about extension and truncation
+    return (Value & 0x7fffffff) == Value;
+  }
+  }
+  return false;
 }
 
 #define GET_INSTRINFO_HELPERS
