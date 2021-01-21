@@ -61,7 +61,8 @@ FunctionCallee RealmABI::get_createRealmBarrier(){
 }
 
 FunctionCallee RealmABI::get_destroyRealmBarrier(){
-  if(DestroyBar) return DestroyBar; 
+  if(DestroyBar) 
+    return DestroyBar; 
   LLVMContext &C = M.getContext(); 
 
   AttributeList AL; 
