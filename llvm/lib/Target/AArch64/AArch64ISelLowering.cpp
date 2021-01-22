@@ -24167,6 +24167,10 @@ AArch64TargetLowering::EmitSetjmp(MachineInstr &MI,
   MIB = BuildMI(*thisMBB, MI, DL, TII->get(AArch64::EH_SjLj_Setup))
             .addMBB(restoreMBB);
 
+  // XXX This unnecessarily flushes registers on the fallthrough
+  // path, but only restoreMBB loses register state.
+  MIB.addRegMask(MRI.getTargetRegisterInfo()->getNoPreservedMask());
+  
   thisMBB->addSuccessor(mainMBB);
   thisMBB->addSuccessor(restoreMBB);
 
