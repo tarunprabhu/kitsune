@@ -81,7 +81,7 @@ extern "C" {
     b.arrive(); 
   }
 
-  void realmSpawn(Realm::Processor::TaskFuncPtr func, const void* args, size_t arglen, void* user_data, size_t user_data_len);
+  void realmSpawn(Realm::Processor::TaskFuncPtr func, const void* args, size_t argsize);
 
   void realmSpawn(void (*func)(void *), 
 		  const void* args, 

@@ -253,6 +253,122 @@ void RealmABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
   LLVMContext &C = M.getContext();
   const DataLayout &DL = M.getDataLayout();
 
+  //Create the canonical TaskFuncPtr
+  //trying int64 as stand-in for Realm::Processor because a ::realm_id_t is ultimately an unsigned long long
+  Type* typeArray[] = {Type::getInt8PtrTy(C), // const void*
+		       DL.getIntPtrType(C),   // size_t
+		       Type::getInt8PtrTy(C), // const void*
+		       DL.getIntPtrType(C),   // size_t
+		       DL.getIntPtrType(C)};  // unsigned long long
+
+  FunctionType *RealmFnTy = FunctionType::get(
+      Type::getInt8Ty(C), 
+      typeArray,
+      false);
+
+  Function *RealmFn = Function::Create(
+      RealmFnTy, GlobalValue::InternalLinkage, ".realm_outlined.", M);
+  RealmFn->addFnAttr(Attribute::AlwaysInline);
+  RealmFn->addFnAttr(Attribute::NoUnwind);
+  RealmFn->addFnAttr(Attribute::UWTable);
+
+  //get the argument types
+  std::vector<Type*> FnParams = Outlined->getFunctionType()->params();
+  StructType *ArgsTy = StructType::create(FnParams, "realm_arg_struct");
+  PointerType *ArgsPtrTy = PointerType::getUnqual(ArgsTy);
+
+  std::vector<Value*> out_args;
+  for (auto &Arg : RealmFn->args()) {
+    Arg.setName("");
+    out_args.push_back(&Arg);
+  }
+
+  // Entry Code for newly-minted Function
+  BasicBlock *EntryBB = BasicBlock::Create(C, "entry", RealmFn, nullptr);
+  IRBuilder<> EntryBuilder(EntryBB);
+  Value *argStructPtr = EntryBuilder.CreateBitCast(out_args[0], ArgsPtrTy); 
+  ValueToValueMapTy valmap;
+
+  unsigned int argc = 0;
+  for (auto& arg : Outlined->args()) {
+    auto *DataAddrEP = EntryBuilder.CreateStructGEP(ArgsTy, argStructPtr, argc); 
+    auto *DataAddr = EntryBuilder.CreateAlignedLoad(
+        DataAddrEP,
+        DL.getTypeAllocSize(DataAddrEP->getType()->getPointerElementType()));
+    valmap.insert(std::pair<Value*,Value*>(&arg,DataAddr));
+    argc++;
+  }
+
+  // Replace return values with return zero 
+  SmallVector< ReturnInst *,5> retinsts;
+  CloneFunctionInto(RealmFn, Outlined, valmap, true, retinsts);
+  EntryBuilder.CreateBr(RealmFn->getBasicBlockList().getNextNode(*EntryBB));
+
+  for (auto& ret : retinsts) {
+    auto retzero = ReturnInst::Create(C, ConstantInt::get(Type::getInt8Ty(C), 0));
+    ReplaceInstWithInst(ret, retzero);
+  }
+
+  // Caller code
+  IRBuilder<> CallerIRBuilder(ReplCall);
+  CallerIRBuilder.SetInsertPoint(ReplStart);
+  AllocaInst *CallerArgStruct = CallerIRBuilder.CreateAlloca(ArgsTy); 
+  std::vector<Value*> LoadedCapturedArgs;
+  CallInst *cal = dyn_cast<CallInst>(ReplCall); //could also be TOI.ReplCall
+
+  for(auto& a:cal->arg_operands()) {
+    LoadedCapturedArgs.push_back(a);
+  }
+
+  unsigned int cArgc = 0;
+  for (auto& arg : LoadedCapturedArgs) {
+    auto *DataAddrEP2 = CallerIRBuilder.CreateStructGEP(ArgsTy, CallerArgStruct, cArgc); 
+    CallerIRBuilder.CreateAlignedStore(
+        LoadedCapturedArgs[cArgc], DataAddrEP2,
+        DL.getTypeAllocSize(arg->getType()));
+    cArgc++;
+  }
+
+  assert(argc == cArgc && "Wrong number of arguments passed to outlined function"); 
+
+  Value *RealmFnPtr = CallerIRBuilder.CreatePointerBitCastOrAddrSpaceCast(
+                                        RealmFn, TaskFuncPtrTy);
+  ConstantInt *ArgSize = ConstantInt::get(DL.getIntPtrType(C), ArgsTy->getNumElements()); 
+  ConstantInt *ArgDataSize = ConstantInt::get(DL.getIntPtrType(C), DL.getTypeAllocSize(ArgsTy)); 
+  
+  CallerIRBuilder.SetInsertPoint(ReplStart);
+  CallerIRBuilder.CreateLifetimeStart(CallerArgStruct, ArgDataSize);
+
+  Value *ArgsStructVoidPtr = CallerIRBuilder.CreateBitCast(CallerArgStruct, Type::getInt8PtrTy(C)); 
+
+  std::vector<Value*> callerArgs = { RealmFnPtr, 
+				     ArgsStructVoidPtr, 
+				     ArgDataSize}; 
+
+  CallInst *Call = CallerIRBuilder.CreateCall(REALM_FUNC(realmSpawn), callerArgs); 
+  Call->setDebugLoc(ReplCall->getDebugLoc());
+
+  CallerIRBuilder.SetInsertPoint(CallBlock, ++Call->getIterator());
+  CallerIRBuilder.CreateLifetimeEnd(CallerArgStruct, ArgDataSize);
+
+  TOI.replaceReplCall(Call);
+  ReplCall->eraseFromParent();
+
+  if (TOI.ReplUnwind)
+    // We assume that realmSpawn dealt with the exception.  But
+    // replacing the invocation of the helper function with the call to
+    // realmSpawn will remove the terminator from CallBlock.  Restore
+    // that terminator here.
+    BranchInst::Create(TOI.ReplRet, CallBlock);
+
+  //LLVM_DEBUG(RealmFn->dump()); 
+
+#if 0
+  // NOTE: the code from here through the end of processSubTaskCall is only
+  // retained for reference purposes and because things are undergoing
+  // development.  It should be deleted if not used once debugging is complete.
+  Function *RealmFnPtr = formatFunctionToRealmF(Outlined, ReplStart);
+
   // At this point, we have a call in the parent to a function containing the
   // task body.  That function takes as its argument a pointer to a structure
   // containing the inputs to the task body.  This structure is initialized in
