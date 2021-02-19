@@ -81,7 +81,7 @@ extern "C" {
     b.arrive(); 
   }
 
-  void realmSpawn(Realm::Processor::TaskFuncPtr func, const void* args, size_t argsize);
+  void realmSpawn(void (*func)(void *), const void* args, size_t argsize);
 
   void realmSpawn(void (*func)(void *), 
 		  const void* args, 
@@ -109,19 +109,15 @@ extern "C" {
     assert(p.exists());
     assert(p != Realm::Processor::NO_PROC);
 
-    // Create a CodeDescriptor from the TaskFuncPtr   
-    Realm::CodeDescriptor cd = Realm::CodeDescriptor(func);
+    // Create a CodeDescriptor from the TaskFuncPtr
+    // cast func to be the TaskFuncPtr type 
+    // (func is passed as a RealmFTy (= QthreadFTy) initially)
+    Realm::CodeDescriptor cd = Realm::CodeDescriptor((Realm::Processor::TaskFuncPtr)func);
     std::cout << "    got a CodeDescriptor" << std::endl;
 
     const Realm::ProfilingRequestSet prs;  //We don't care what it is for now, the default is fine
     std::cout << "    got a default ProfilingRequestSet" << std::endl;
 
-    //make sure processor is not busy
-    //Realm::Event done_yet = p.get_current_finish_event();
-    //std::cout << "      got processor current finish event" << std::endl;
-    //done_yet.wait();
-    //std::cout << "      done_yet complete" << std::endl;
-    
     //register the task with the runtime
     Realm::Event e1 = p.register_task(taskID, cd, prs, nullptr, 0);
     std::cout << "     registered task: " << taskID << std::endl;
@@ -174,7 +170,7 @@ extern "C" {
     
     return 0;
   }
-#endif
+#endif //old sync
   
   void realmSync(Realm::Barrier b) {
     b.arrive(); 
