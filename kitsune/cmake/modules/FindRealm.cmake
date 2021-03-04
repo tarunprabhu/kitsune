@@ -49,4 +49,3 @@ else()
   set(Realm_LINK_LIBS "" CACHE STRING "List of libraries need to link with for Realm.")
 endif()
 
-#mark_as_advanced(Realm_INCLUDE_DIR Realm_LIBRARY Realm_LIBRARY_DIR Realm_FOUND)
