@@ -23,25 +23,16 @@ if (Realm_FOUND)
                          ${Realm_LIBRARY}
                          DIRECTORY
                          CACHE)
-  set(Realm_LINK_LIBS -lrealm CACHE STRING "List of libraries need to link with for Realm.")
 
-  message(STATUS "kitsune: looking for kitsune-rt's realm wrapper...")
-  
-  #find_package(kitsunerealm REQUIRED) # kitsune-rt dependency, if externally installed prior to clang build
-  set(Realm_WRAPPER_LIBRARY_DIR ${CMAKE_INSTALL_PREFIX}/lib CACHE STRING "directory where the kitsune-rt wrapper library for realm is installed")
+  # Basic set of libraries -- will potenitally need additional
+  # libraries based on Realm is built.
+  set(Realm_LINK_LIBS "-lrealm -lpthread -ldl -lrt"
+    CACHE
+    STRING "List of libraries needed for Realm linking.")
 
-  find_package_handle_standard_args(Realm_Wrapper DEFAULT_MSG
-                                    Realm_WRAPPER_LIBRARY_DIR) 
-
-  if (Realm_Wrapper_FOUND)
-     message(STATUS "kitsune: looking for kitsune-rt's realm wrapper... FOUND")
-     set(KITSUNE_ENABLE_REALM TRUE CACHE BOOL "Enable automatic include and library flags for Realm.")
-     set(Realm_LINK_LIBS "-lrealm -lkitsunerealm -lhwloc -lnuma -lpthread" CACHE STRING "List of libraries need to link with for Realm." FORCE)
-  else()
-    message(STATUS "kitsune: looking for kitsune-rt's realm wrapper... NOT FOUND")
-    set(KITSUNE_ENABLE_REALM FALSE CACHE BOOL "Enable automatic include and library flags for Realm.")
-    set(Realm_LINK_LIBS "" CACHE STRING "List of libraries need to link with for Realm.")
-  endif()
+  message(STATUS "Realm runtime include directory: ${Realm_INCLUDE_DIR}")
+  message(STATUS "Realm runtime library directory: ${Realm_LIBRARY_DIR}")
+  message(STATUS "Realm runtime link libraries   : ${Realm_LINK_LIBS}")
 
 else()
   message(STATUS "kitsune: looking for realm... NOT FOUND")
