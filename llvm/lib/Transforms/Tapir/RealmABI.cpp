@@ -21,6 +21,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 #include <vector>
+#include <iostream>
 
 using namespace llvm;
 
@@ -198,8 +199,12 @@ Value *RealmABI::getOrCreateBarrier(Value *SyncRegion, Function *F) {
   if((barrier = SyncRegionToBarrier[SyncRegion]))
     return barrier;
   else {
-    barrier = CallInst::Create(get_createRealmBarrier(), {}, "",
-                            F->getEntryBlock().getTerminator());
+    IRBuilder<> builder(F->getEntryBlock().getTerminator());
+    AllocaInst* ab = builder.CreateAlloca(getBarrierType(C)); 
+    barrier = ab; 
+    Value *barrierVal = builder.CreateCall(get_createRealmBarrier(), {}, "");
+    builder.CreateAlignedStore(barrierVal, barrier, ab->getAlignment()); 
+
     SyncRegionToBarrier[SyncRegion] = barrier;
 
     // Make sure we destroy the barrier at all exit points to prevent memory leaks
@@ -209,7 +214,7 @@ Value *RealmABI::getOrCreateBarrier(Value *SyncRegion, Function *F) {
                          BB.getTerminator());
       }
     }
-
+    
     return barrier;
   }
 }

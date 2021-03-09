@@ -102,10 +102,10 @@ if (KITSUNE_ENABLE_CILKRTS_TARGET)
 endif()
 
 find_package(OpenCilk)
-option(KITSUNE_ENABLE_OPENCILK_TARGET
+option(KITSUNE_ENABLE_OPENCILKRTS_TARGET
   "Enable OpenCilk runtime backend target." ${OpenCilk_FOUND})
-if (KITSUNE_ENABLE_OPENCILK_TARGET)
-  set(OPENCILK_EXTRA_LINK_LIBS ""
+if (KITSUNE_ENABLE_OPENCILKRTS_TARGET)
+  set(OPENCILKRTS_EXTRA_LINK_LIBS "-lopencilk-personality-cpp"
     CACHE
     STRING "Extra link libraries for the OpenCilk runtime target."
   )
@@ -127,10 +127,9 @@ option(KITSUNE_ENABLE_REALM_TARGET
   "Enable Realm runtime backend target." ${Realm_FOUND})
 if (Realm_FOUND)
   message(STATUS "Realm runtime target enabled.")
-  set(REALM_EXTRA_LINK_LIBS "-ldl -lrt"
+  set(REALM_EXTRA_LINK_LIBS  "-lpthread -ldl -lrt"
     CACHE
-    STRING "Additional libraries needed by Realm backend runtime."
-    )
+    STRING "Additional libraries needed by Realm runtime target.")
   add_subdirectory(lib/Realm)
 endif()
 

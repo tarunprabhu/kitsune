@@ -1189,9 +1189,11 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
       } else {
         CmdArgs.push_back("-rpath=" OPENCILKRTS_LIBRARY_DIR);
       }
+      if (getDriver().CCCIsCXX())
+        CmdArgs.push_back("-lopencilk-personality-cpp");
+      else
+        CmdArgs.push_back("-lopencilk-personality-c");
       ExtractArgsFromString(OPENCILKRTS_EXTRA_LINK_LIBS, CmdArgs, Args);
-      // This was done above...
-      //CmdArgs.push_back("-lopencilk");
     } else {
       // FIXME: we should hard error here if cilkrts support was not built-in.
       getDriver().Diag(diag::warn_cilkrts_missing_build_params);
@@ -1260,6 +1262,7 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
       } else {
         CmdArgs.push_back("-rpath=" REALM_LIBRARY_DIR);
       }
+      CmdArgs.push_back("-lkitsunerealm");
       CmdArgs.push_back("-lrealm");
       ExtractArgsFromString(REALM_EXTRA_LINK_LIBS, CmdArgs, Args);
     } else {
