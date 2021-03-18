@@ -971,7 +971,7 @@ TaskOutlineInfo llvm::outlineTaskFrame(
                                               ReturnType, AC, DT);
   Instruction *ClonedTF = cast<Instruction>(VMap[TF->getTaskFrameCreate()]);
   return TaskOutlineInfo(Helper, nullptr, ClonedTF, Inputs,
-                         ArgsStart, StorePt, Continue, Unwind);
+                         ArgsStart, StorePt, Continue, nullptr, Unwind);
 }
 
 /// Replaces the spawned task \p T, with associated TaskOutlineInfo \p Out, with
@@ -1068,7 +1068,7 @@ TaskOutlineInfo llvm::outlineTask(
   return TaskOutlineInfo(
       Helper, dyn_cast_or_null<Instruction>(VMap[DI]),
       dyn_cast_or_null<Instruction>(ClonedTFCreate), Inputs,
-      ArgsStart, StorePt, DI->getContinue(), Unwind);
+      ArgsStart, StorePt, DI->getContinue(), T->getDetach()->getSyncRegion(), Unwind);
 }
 
 //----------------------------------------------------------------------------//
