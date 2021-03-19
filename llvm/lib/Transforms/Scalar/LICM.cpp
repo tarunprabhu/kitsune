@@ -249,6 +249,8 @@ struct LegacyLICMPass : public LoopPass {
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addPreserved<DominatorTreeWrapperPass>();
     AU.addPreserved<LoopInfoWrapperPass>();
+    AU.addRequired<TaskInfoWrapperPass>();
+    AU.addPreserved<TaskInfoWrapperPass>();
     AU.addRequired<TargetLibraryInfoWrapperPass>();
     AU.addRequired<MemorySSAWrapperPass>();
     AU.addPreserved<MemorySSAWrapperPass>();
@@ -533,6 +535,13 @@ bool LoopInvariantCodeMotion::runOnLoop(Loop *L, AAResults *AA, LoopInfo *LI,
 
   if (Changed && SE)
     SE->forgetLoopDispositions();
+
+  if (Changed && TI)
+    // Recompute task info.
+    // FIXME: Figure out a way to update task info that is less computationally
+    // wasteful.
+    TI->recalculate(*DT->getRoot()->getParent(), *DT);
+
   return Changed;
 }
 
