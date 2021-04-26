@@ -6613,7 +6613,7 @@ bool LLParser::parseDetach(Instruction *&Inst, PerFunctionState &PFS) {
 
   if (Lex.getKind() != lltok::kw_none && Lex.getKind() != lltok::LocalVar &&
       Lex.getKind() != lltok::LocalVarID)
-    return TokError("expected scope value for detach");
+    return tokError("expected scope value for detach");
 
   if (parseValue(Type::getTokenTy(Context), SR, PFS))
     return true;
@@ -6649,7 +6649,7 @@ bool LLParser::parseReattach(Instruction *&Inst, PerFunctionState &PFS) {
 
   if (Lex.getKind() != lltok::kw_none && Lex.getKind() != lltok::LocalVar &&
       Lex.getKind() != lltok::LocalVarID)
-    return TokError("expected scope value for reattach");
+    return tokError("expected scope value for reattach");
 
   if (parseValue(Type::getTokenTy(Context), SR, PFS))
     return true;
@@ -6676,7 +6676,7 @@ bool LLParser::parseSync(Instruction *&Inst, PerFunctionState &PFS) {
 
   if (Lex.getKind() != lltok::kw_none && Lex.getKind() != lltok::LocalVar &&
       Lex.getKind() != lltok::LocalVarID)
-    return TokError("expected scope value for reattach");
+    return tokError("expected scope value for reattach");
 
   if (parseValue(Type::getTokenTy(Context), SR, PFS))
     return true;

@@ -107,9 +107,7 @@
 ; CHECK-O-NEXT: Running pass: SROAPass
 ; These next three can appear in any order since they are accessed as parameters
 ; on the same call to SROA::runImpl
-; CHECK-O-DAG: Running analysis: DominatorTreeAnalysis on foo
 ; CHECK-O-DAG: Running analysis: TaskAnalysis on foo
-; CHECK-O-DAG: Running analysis: AssumptionAnalysis on foo
 ; CHECK-O-NEXT: Running pass: EarlyCSEPass
 ; CHECK-O-NEXT: Running analysis: MemorySSAAnalysis
 ; CHECK-O-NEXT: Running analysis: AAManager
