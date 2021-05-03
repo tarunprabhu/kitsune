@@ -9,6 +9,7 @@ add_llvm_component_library(LLVMTapirOpts
   LoweringUtils.cpp
   OpenCilkABI.cpp
   OpenMPABI.cpp
+  OpenCLABI.cpp
   Outline.cpp
   QthreadsABI.cpp
   SerialABI.cpp
@@ -24,3 +25,7 @@ add_llvm_component_library(LLVMTapirOpts
   DEPENDS
   intrinsics_gen
   )
+
+if(KITSUNE_ENABLE_OPENCL_TARGET)
+  target_link_libraries(LLVMTapirOpts LLVMSPIRVLib)
+endif()
