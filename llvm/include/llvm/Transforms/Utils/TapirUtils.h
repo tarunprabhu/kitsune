@@ -333,7 +333,7 @@ public:
   }
 
   void setAlreadyStripMined() {
-    Grainsize.Value = 1;
+    //Grainsize.Value = 1;
     Hint Hints[] = {Grainsize};
     writeHintsToMetadata(Hints);
   }
