@@ -37,7 +37,6 @@ extern "C" {
   }
 
   int realmInitRuntime(int argc, char** argv) {
-    //std::cout << "realmInitRuntime" << std::endl;
     if (initCalled)
       return 0;
 
@@ -59,7 +58,6 @@ extern "C" {
 
     _globalCTX->procgroup = Realm::ProcessorGroup::create_group(_globalCTX->procs);
 
-    //_globalCTX->cur_task = Realm::Processor::TASK_ID_FIRST_AVAILABLE;
     (_globalCTX->cur_task).store(Realm::Processor::TASK_ID_FIRST_AVAILABLE);
 
     initCalled = true;
@@ -67,7 +65,11 @@ extern "C" {
   }
 
   size_t realmGetNumProcs() {
-    std::cout << "realmGetNumProcs" << std::endl;
+    //DEBUG std::cout << "init runtime within realmGetNumProcs" << std::endl;
+    char *dummy = "";
+    realmInitRuntime(0,&dummy);
+
+    //DEBUG std::cout << "realmGetNumProcs" << std::endl;
     if ( _globalCTX)
       return _globalCTX->numprocs;
     else
