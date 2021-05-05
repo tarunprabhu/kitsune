@@ -22,7 +22,7 @@ extern "C" {
   static bool initCalled = false; //global variable
 
   context * getRealmCTX() {
-    std::cout << "  getRealmCTX" << std::endl;
+    //DEBUG std::cout << "  getRealmCTX" << std::endl;
     if ( _globalCTX) 
       return _globalCTX;
     else
@@ -39,7 +39,7 @@ extern "C" {
 
   
   int realmInitRuntime(int argc, char** argv) {
-    std::cout << "realmInitRuntime" << std::endl;
+    //DEBUG std::cout << "realmInitRuntime" << std::endl;
     if (initCalled)
       return 0;
 
@@ -61,7 +61,6 @@ extern "C" {
 
     _globalCTX->procgroup = Realm::ProcessorGroup::create_group(_globalCTX->procs);
 
-    //_globalCTX->cur_task = Realm::Processor::TASK_ID_FIRST_AVAILABLE;
     (_globalCTX->cur_task).store(Realm::Processor::TASK_ID_FIRST_AVAILABLE);
 
     initCalled = true;
@@ -69,7 +68,11 @@ extern "C" {
   }
 
   size_t realmGetNumProcs() {
-    std::cout << "realmGetNumProcs" << std::endl;
+    //DEBUG std::cout << "init runtime within realmGetNumProcs" << std::endl;
+    char *dummy = "";
+    realmInitRuntime(0,&dummy);
+
+    //DEBUG std::cout << "realmGetNumProcs" << std::endl;
     if ( _globalCTX)
       return _globalCTX->numprocs;
     else
@@ -93,44 +96,6 @@ extern "C" {
     return;
   }
 
-#if 0 //the old realmSync (non-barrier)  
-  int realmSync() {
-    std::cout << " realmSync" << std::endl;
-    context *ctx = getRealmCTX();
-    assert(ctx);
-    //create an event that does not trigger until all previous events have triggered
-    Realm::Event e;
-
-    if (!(ctx->events).empty()) {
-      e = Realm::Event::merge_events(ctx->events);
-      std::cout << "  merged events" << std::endl;
-      //can clear the events in the list now and insert only the sync event
-      ctx->events.clear();
-      std::cout << "   cleared events" << std::endl;
-      //ctx->events.insert(e);
-    }
-    else {
-      std::cout << "ctx->events is empty" << std::endl;
-      e = Realm::Event::NO_EVENT;
-    }      
-
-    // Do not return until sync is complete
-    if (Realm::Thread::self())
-      e.wait();
-    else
-      e.external_wait();
-    std::cout << "e.wait() has completed" << std::endl;
-    
-    //while (!e.has_triggered()) {
-    //std::cout << "not done yet" << std::endl;
-    //continue;
-    //}
-    //std:: cout << "done waiting" << std::endl;
-    
-    return 0;
-  }
-#endif //old sync
-  
   void realmSync(Realm::Barrier& b) {
     b.arrive(1); 
     if(Realm::Thread::self())
