@@ -45,6 +45,8 @@
 #include "llvm/IR/ValueMap.h"
 #include <optional>
 
+#include <queue>
+
 namespace llvm {
 class BasicBlock;
 class LLVMContext;
@@ -3914,16 +3916,10 @@ public:
                                  llvm::BasicBlock *ExitBlock,
 				 JumpDest &Sync);
   bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
-  bool EmitKokkosParallelForMD(const CallExpr *CE, std::string PFName,
-            const Expr *BE,
-            const LambdaExpr *Lambda,
-            ArrayRef<const Attr *> ForallAttrs);
   bool EmitKokkosInnerLoop(const CallExpr *CE, const LambdaExpr *Lambda,
             llvm::BasicBlock *TopBlock,
-            std::vector<std::pair<const Expr*, const Expr*>> BoundsList,
-            std::vector<const ParmVarDecl*> params,
-            std::vector<std::pair<llvm::Value*, llvm::AllocaInst*>> TLIVarList,
-            ArrayRef<const Attr *> ForallAttrs);
+            std::queue<const Expr*> DimQueue,
+            std::vector<const ParmVarDecl*> params);
   bool EmitKokkosParallelReduce(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
   bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?
 
