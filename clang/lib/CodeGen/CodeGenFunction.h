@@ -45,6 +45,7 @@
 #include "llvm/IR/ValueMap.h"
 
 #include <optional>
+#include <queue>
 
 namespace llvm {
 class BasicBlock;
@@ -1312,7 +1313,7 @@ public:
       if (!InnerSyncScope)
         InnerSyncScope = new ImplicitSyncScope(CGF);
       }
-    }; 
+    };
 
   llvm::DenseMap<StringRef, SyncRegion*> SyncRegions;
   SyncRegion *getOrCreateLabeledSyncRegion(const StringRef SV){
@@ -1336,7 +1337,7 @@ public:
   }
 
   llvm::Instruction *EmitSyncRegionStart();
-  llvm::Instruction *EmitLabeledSyncRegionStart(StringRef SV); 
+  llvm::Instruction *EmitLabeledSyncRegionStart(StringRef SV);
 
   void PopSyncRegion() {
     delete CurSyncRegion; // ~SyncRegion updates CurSyncRegion
@@ -3915,6 +3916,10 @@ public:
                                  llvm::BasicBlock *ExitBlock,
 				 JumpDest &Sync);
   bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
+  bool EmitKokkosInnerLoop(const CallExpr *CE, const LambdaExpr *Lambda,
+            llvm::BasicBlock *TopBlock,
+            std::queue<const Expr*> DimQueue,
+            std::vector<const ParmVarDecl*> params);
   bool EmitKokkosParallelReduce(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
   bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?
 
