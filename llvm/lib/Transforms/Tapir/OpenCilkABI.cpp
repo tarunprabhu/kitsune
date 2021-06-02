@@ -31,6 +31,7 @@
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
+#include "llvm/Support/Process.h"
 
 using namespace llvm;
 
@@ -103,8 +104,14 @@ void OpenCilkABI::prepareModule() {
   Type *Int32Ty = Type::getInt32Ty(C);
 
   if (UseOpenCilkRuntimeBC) {
-    assert("" != OpenCilkRuntimeBCPath &&
-           "Missing path to OpenCilk runtime bitcode file.");
+    Optional<std::string> path; 
+    if("" == OpenCilkRuntimeBCPath){
+      path = sys::Process::FindInEnvPath("LD_LIBRARY_PATH", "libopencilk-abi.bc");
+      assert(path.hasValue() &&
+             "Couldn't find OpenCilk runtime bitcode file in LD_LIBRARY_PATH.");
+    } else {
+      path = OpenCilkRuntimeBCPath.getValue();
+    }
     LLVM_DEBUG(dbgs() << "Using external bitcode file for OpenCilk ABI: "
                       << OpenCilkRuntimeBCPath << "\n");
     SMDiagnostic SMD;
@@ -112,7 +119,7 @@ void OpenCilkABI::prepareModule() {
     // Parse the bitcode file.  This call imports structure definitions, but not
     // function definitions.
     std::unique_ptr<Module> ExternalModule =
-        parseIRFile(OpenCilkRuntimeBCPath.getValue(), SMD, C);
+        parseIRFile(*path, SMD, C);
 
     // Strip any debug info from the external module.  For convenience, this
     // Tapir target synthesizes some helper functions, like
@@ -504,8 +511,13 @@ Function *OpenCilkABI::Get__cilkrts_pop_frame() {
   Function *Fn = nullptr;
   if (GetOrCreateFunction(M, "__cilkrts_pop_frame",
                           FunctionType::get(VoidTy, {StackFramePtrTy}, false),
-                          Fn))
+                          Fn)) {
+    Fn->setLinkage(Function::AvailableExternallyLinkage);
+    Fn->setDoesNotThrow();
+    if (!DebugABICalls && !UseExternalABIFunctions)
+      Fn->addFnAttr(Attribute::AlwaysInline);
     return Fn;
+  }
 
   // Create the body of __cilkrts_pop_frame.
   const DataLayout &DL = M.getDataLayout();
@@ -575,8 +587,13 @@ Function *OpenCilkABI::Get__cilkrts_detach() {
   Function *Fn = nullptr;
   if (GetOrCreateFunction(M, "__cilkrts_detach",
                           FunctionType::get(VoidTy, {StackFramePtrTy}, false),
-                          Fn))
+                          Fn)) {
+    Fn->setLinkage(Function::AvailableExternallyLinkage);
+    Fn->setDoesNotThrow();
+    if (!DebugABICalls && !UseExternalABIFunctions)
+      Fn->addFnAttr(Attribute::AlwaysInline);
     return Fn;
+  }
 
   // Create the body of __cilkrts_detach.
   const DataLayout &DL = M.getDataLayout();
@@ -976,10 +993,19 @@ Function *OpenCilkABI::Get__cilkrts_enter_frame() {
   Type *VoidTy = Type::getVoidTy(Ctx);
   PointerType *StackFramePtrTy = PointerType::getUnqual(StackFrameTy);
   Function *Fn = nullptr;
+  // NOTE(TFK): If the function was imported from the opencilk bitcode file
+  //            then it will not have the requisite attributes. It is perhaps
+  //            better to set these attributes when creating the opencilk bitcode
+  //            file... for now I set them here.
   if (GetOrCreateFunction(M, "__cilkrts_enter_frame",
                           FunctionType::get(VoidTy, {StackFramePtrTy}, false),
-                          Fn))
+                          Fn)) {
+    Fn->setLinkage(Function::AvailableExternallyLinkage);
+    Fn->setDoesNotThrow();
+    if (!DebugABICalls && !UseExternalABIFunctions)
+      Fn->addFnAttr(Attribute::AlwaysInline);
     return Fn;
+  }
 
   // Create the body of __cilkrts_enter_frame.
   const DataLayout &DL = M.getDataLayout();
@@ -1093,10 +1119,19 @@ Function *OpenCilkABI::Get__cilkrts_enter_frame_fast() {
   Type *VoidTy = Type::getVoidTy(Ctx);
   PointerType *StackFramePtrTy = PointerType::getUnqual(StackFrameTy);
   Function *Fn = nullptr;
+  // NOTE(TFK): If the function was imported from the opencilk bitcode file
+  //            then it will not have the requisite attributes. It is perhaps
+  //            better to set these attributes when creating the opencilk bitcode
+  //            file... for now I set them here.
   if (GetOrCreateFunction(M, "__cilkrts_enter_frame_fast",
                           FunctionType::get(VoidTy, {StackFramePtrTy}, false),
-                          Fn))
+                          Fn)) {
+    Fn->setLinkage(Function::AvailableExternallyLinkage);
+    Fn->setDoesNotThrow();
+    if (!DebugABICalls && !UseExternalABIFunctions)
+      Fn->addFnAttr(Attribute::AlwaysInline);
     return Fn;
+  }
 
   // Create the body of __cilkrts_enter_frame_fast.
   const DataLayout &DL = M.getDataLayout();
@@ -1563,9 +1598,9 @@ void OpenCilkABI::postProcessFunction(Function &F, bool ProcessingTapirLoops) {
 
 void OpenCilkABI::postProcessHelper(Function &F) {}
 
-LoopOutlineProcessor *
-OpenCilkABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
-  if (UseRuntimeCilkFor && !LOP)
-    LOP = new RuntimeCilkFor(M);
-  return LOP;
+LoopOutlineProcessor *OpenCilkABI::getLoopOutlineProcessor(
+    const TapirLoopInfo *TL) {
+  if (UseRuntimeCilkFor)
+    return new RuntimeCilkFor(M);
+  return nullptr;
 }

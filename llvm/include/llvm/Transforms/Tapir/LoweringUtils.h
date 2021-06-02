@@ -256,6 +256,8 @@ public:
   /// Returns true if Function F should be processed.
   virtual bool shouldProcessFunction(const Function &F) const;
 
+  virtual void prepareModule() {}
+
   /// Returns true if tasks in Function F should be outlined into their own
   /// functions.  Such outlining is a common step for many Tapir backends.
   virtual bool shouldDoOutlining(const Function &F) const { return true; }
