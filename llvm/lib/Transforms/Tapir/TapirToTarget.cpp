@@ -475,6 +475,8 @@ bool TapirToTargetImpl::run() {
   if (WorkList.empty())
     return false;
 
+  Target->prepareModule();
+
   bool Changed = false;
   while (!WorkList.empty()) {
     // Process the next function.
