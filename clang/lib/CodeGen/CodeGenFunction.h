@@ -45,8 +45,6 @@
 #include "llvm/IR/ValueMap.h"
 #include <optional>
 
-#include <queue>
-
 namespace llvm {
 class BasicBlock;
 class LLVMContext;
@@ -3910,7 +3908,7 @@ public:
 
   // Kitsune support for Kokkos.
   bool EmitKokkosConstruct(const CallExpr *CE, ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
-  std::queue<const ParmVarDecl*> EmitKokkosParallelForInductionVar(const LambdaExpr* Lambda);
+  std::vector<const ParmVarDecl*> EmitKokkosParallelForInductionVar(const LambdaExpr* Lambda);
   void EmitKokkosParallelForCond(const Expr *BoundsExpr, const ParmVarDecl *LoopVar,
                                  llvm::BasicBlock *DetachBlock,
                                  llvm::BasicBlock *ExitBlock,
@@ -3918,9 +3916,9 @@ public:
   bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
   bool EmitKokkosInnerLoop(const CallExpr *CE, const LambdaExpr *Lambda,
             llvm::BasicBlock *TopBlock,
-            std::queue<const Expr*> DimQueue,
-            std::queue<const Expr*> StartQueue,
-            std::queue<const ParmVarDecl*> params);
+            std::vector<const Expr*> DimQueue,
+            std::vector<const Expr*> StartQueue,
+            std::vector<const ParmVarDecl*> params);
   bool EmitKokkosParallelReduce(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
   bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?
 
