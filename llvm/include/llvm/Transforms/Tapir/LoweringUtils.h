@@ -78,9 +78,6 @@ struct TaskOutlineInfo {
   // of the original detach instruction.  For an outlined Tapir loop, this
   // block corresponds to the normal exit block after the loop latch.
   BasicBlock *ReplRet = nullptr;
-  
-  // Task that corresponds to the task outline
-  Value* SR = nullptr; 
 
   // Basic block denoting the unwind destination of an invocation of the
   // outlined helper function.  This block corresponds to the unwind block of
@@ -88,11 +85,14 @@ struct TaskOutlineInfo {
   // unwind block.
   BasicBlock *ReplUnwind = nullptr;
 
+  // Sync region for task
+  Value *SR = nullptr; 
+
   TaskOutlineInfo() = default;
   TaskOutlineInfo(Function *Outline, Instruction *DetachPt,
                   Instruction *TaskFrameCreate, ValueSet &InputSet,
                   Instruction *ReplStart, Instruction *ReplCall,
-                  BasicBlock *ReplRet, Value* SR, BasicBlock *ReplUnwind = nullptr)
+                  BasicBlock *ReplRet, Value* SR = nullptr, BasicBlock *ReplUnwind = nullptr)
       : Outline(Outline), DetachPt(DetachPt), TaskFrameCreate(TaskFrameCreate),
         InputSet(InputSet), ReplStart(ReplStart), ReplCall(ReplCall),
         ReplRet(ReplRet), SR(SR), ReplUnwind(ReplUnwind) {}
@@ -132,28 +132,6 @@ struct TaskOutlineInfo {
 // Map from tasks to TaskOutlineInfo structures.
 using TaskOutlineMapTy = DenseMap<const Task *, TaskOutlineInfo>;
 using TFOutlineMapTy = DenseMap<const Spindle *, TaskOutlineInfo>;
-
-// Value materializer for Tapir outlining.
-//
-// If a non-null destination module DstM is specified, then it is assumed that
-// Tapir lowering will place the code into the module DstM that is distinct from
-// the source module.  In that case, this materializer will ensure will
-// materialize any necessary information, such as global values, in DstM to
-// produce a valid module.
-//
-// If DstM is null, then it's assumed that the outlining process uses the same
-// destination and source modules.  In that case, this value materializer does
-// nothing.
-//
-// TODO: Extend this value materializer to materialize any additional data in
-// DstM.
-class OutlineMaterializer : public ValueMaterializer {
-  Module *DstM = nullptr;
-public:
-  OutlineMaterializer(Module *DstM) : DstM(DstM) {}
-
-  Value *materialize(Value *V) override;
-};
 
 /// Abstract class for a parallel-runtime-system target for Tapir lowering.
 ///
@@ -255,8 +233,6 @@ public:
 
   /// Returns true if Function F should be processed.
   virtual bool shouldProcessFunction(const Function &F) const;
-
-  virtual void prepareModule() {}
 
   /// Returns true if tasks in Function F should be outlined into their own
   /// functions.  Such outlining is a common step for many Tapir backends.
@@ -544,6 +520,7 @@ TaskOutlineInfo outlineTaskFrame(
 /// Given a Tapir loop \p TL and the set of inputs to the task inside that loop,
 /// returns the set of inputs for the Tapir loop itself.
 ValueSet getTapirLoopInputs(TapirLoopInfo *TL, ValueSet &TaskInputs);
+
 
 /// Replaces the Tapir loop \p TL, with associated TaskOutlineInfo \p Out, with
 /// a call or invoke to the outlined helper function created for \p TL.

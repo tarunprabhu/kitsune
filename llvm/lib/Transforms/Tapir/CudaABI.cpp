@@ -566,7 +566,8 @@ void CudaABI::lowerSync(SyncInst &SI) {
 }
 
 void CudaABI::preProcessFunction(Function &F, TaskInfo &TI,
-                                 bool ProcessingTapirLoops) {}
+                                 bool OutliningTapirLoops) {
+}
 
 // Adapted from Transforms/Utils/ModuleUtils.cpp
 static void appendToGlobalArray(const char *Array, Module &M, Constant *C,
@@ -629,27 +630,31 @@ void CudaABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
   }
 }
 
-void CudaABI::postProcessHelper(Function &F) {}
+void CudaABI::postProcessHelper(Function &F) {
+}
 
 void CudaABI::preProcessOutlinedTask(Function &F, Instruction *DetachPt,
                                      Instruction *TaskFrameCreate,
-                                     bool IsSpawner) {}
+                                     bool IsSpawner) {
+}
 
 void CudaABI::postProcessOutlinedTask(Function &F, Instruction *DetachPt,
                                       Instruction *TaskFrameCreate,
-                                      bool IsSpawner) {}
+                                      bool IsSpawner) {
+}
 
-void CudaABI::preProcessRootSpawner(Function &F) {}
+void CudaABI::preProcessRootSpawner(Function &F) {
+}
 
-void CudaABI::postProcessRootSpawner(Function &F) {}
+void CudaABI::postProcessRootSpawner(Function &F) {
+}
 
-void CudaABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {}
+void CudaABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
+}
 
 LoopOutlineProcessor *CudaABI::getLoopOutlineProcessor(
-    const TapirLoopInfo *TL) {
-  if (!LOP)
-    LOP = new CudaLoop(M);
-  return LOP;
+    const TapirLoopInfo *TL) const {
+  return new CudaLoop(M);
 }
 
 // Static counter for assigning IDs to kernels.
@@ -995,11 +1000,11 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   Function *Outlined = TOI.Outline;
   Instruction *ReplStart = TOI.ReplStart;
   Instruction *ReplCall = TOI.ReplCall;
-  CallSite CS(ReplCall);
+  CallBase *CS = cast<CallBase>(TOI.ReplCall);
   BasicBlock *CallCont = TOI.ReplRet;
   BasicBlock *UnwindDest = TOI.ReplUnwind;
   Function *Parent = ReplCall->getFunction();
-  Value *TripCount = CS.getArgOperand(getLimitArgIndex(*Parent, TOI.InputSet));
+  Value *TripCount = CS->getArgOperand(getLimitArgIndex(*Parent, TOI.InputSet));
 
   // Fixup name of outlined function, since PTX does not like '.' characters in
   // function names.
@@ -1067,15 +1072,15 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // Calculate amount of space we will need for all arguments.  If we have no
   // args, allocate a single pointer so we still have a valid pointer to the
   // argument array that we can pass to runtime, even if it will be unused.
-  if (CS.arg_empty())
+  if (CS->arg_empty())
     // CS.args() contains no arguments to pass to the kernel.
     KernelArgs = B.CreateAlloca(VoidPtrTy, nullptr, "kernel_args");
   else {
-    KernelArgs = B.CreateAlloca(VoidPtrTy, B.getInt8(CS.arg_size()),
+    KernelArgs = B.CreateAlloca(VoidPtrTy, B.getInt8(CS->arg_size()),
                                 "kernel_args");
     // Store pointers to the arguments.
     unsigned Index = 0, ArgNum = 0;
-    for (Value *Arg : CS.args()) {
+    for (Value *Arg : CS->args()) {
       AllocaInst *ArgAlloc = B.CreateAlloca(Arg->getType());
       B.CreateStore(Arg, ArgAlloc);
       B.CreateStore(
@@ -1101,7 +1106,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   // cudaLaunchKernel needs this function to have the same type as the kernel
   ValueSet SHInputs;
-  for (Value *Arg : CS.args())
+  for (Value *Arg : CS->args())
     SHInputs.insert(Arg);
 
   ValueSet Outputs;  // Should be empty.

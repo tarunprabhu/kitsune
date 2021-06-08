@@ -37,6 +37,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Support/TargetParser.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/VersionTuple.h"
@@ -1358,7 +1359,14 @@ void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
       CmdArgs.push_back(Args.MakeArgString(("-opencilk-runtime-bc-path=" + P)));
       return;
     }
+  } else if (auto path = sys::Process::FindInEnvPath("LD_LIBRARY_PATH", OpenCilkABIBCFilename)){
+    CmdArgs.push_back("-mllvm");
+    CmdArgs.push_back(Args.MakeArgString(("-use-opencilk-runtime-bc=true")));
+    CmdArgs.push_back("-mllvm");
+    CmdArgs.push_back(Args.MakeArgString(("-opencilk-runtime-bc-path=" + *path)));
+    return; 
   }
+
   getDriver().Diag(diag::err_drv_opencilk_missing_abi_bitcode)
       << OpenCilkABIBCFilename;
 }
@@ -1478,16 +1486,16 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
 
   case TapirTargetID::Realm:
     if (KITSUNE_ENABLE_REALM_TARGET) {
-      CmdArgs.push_back("-L" REALM_LIBRARY_DIR);
+      CmdArgs.push_back("-L" KITSUNE_REALM_LIBRARY_DIR);
       if (Triple.isOSDarwin()) {
         CmdArgs.push_back("-rpath");
-        CmdArgs.push_back(REALM_LIBRARY_DIR);
+        CmdArgs.push_back(KITSUNE_REALM_LIBRARY_DIR);
       } else {
-        CmdArgs.push_back("-rpath=" REALM_LIBRARY_DIR);
+        CmdArgs.push_back("-rpath=" KITSUNE_REALM_LIBRARY_DIR);
       }
       CmdArgs.push_back("-lkitsunerealm");
       CmdArgs.push_back("-lrealm");
-      ExtractArgsFromString(REALM_EXTRA_LINK_LIBS, CmdArgs, Args);
+      ExtractArgsFromString(KITSUNE_REALM_LINK_LIBS, CmdArgs, Args);
     } else {
       // FIXME: we should hard error here if realm support was not built-in.
       getDriver().Diag(diag::warn_realm_missing_build_params);

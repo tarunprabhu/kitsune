@@ -21,35 +21,7 @@ namespace llvm {
 
 class DataLayout;
 class TargetMachine;
-
-class CudaABI : public TapirTarget {
-public:
-  CudaABI(Module &M) : TapirTarget(M) {}
-  ~CudaABI() {}
-  Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
-  void lowerSync(SyncInst &SI) override final;
-
-  void addHelperAttributes(Function &F) override final {}
-  void preProcessFunction(Function &F, TaskInfo &TI,
-                          bool ProcessingTapirLoops) override final;
-  void postProcessFunction(Function &F,
-                           bool ProcessingTapirLoops) override final;
-  void postProcessHelper(Function &F) override final;
-
-  void preProcessOutlinedTask(Function &F, Instruction *DetachPt,
-                              Instruction *TaskFrameCreate,
-                              bool IsSpawner) override final;
-  void postProcessOutlinedTask(Function &F, Instruction *DetachPt,
-                               Instruction *TaskFrameCreate,
-                               bool IsSpawner) override final;
-  void preProcessRootSpawner(Function &F) override final;
-  void postProcessRootSpawner(Function &F) override final;
-  void processSubTaskCall(TaskOutlineInfo &TOI,
-                          DominatorTree &DT) override final;
-
-  LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL) const override final;
-};
+class CudaABI;
 
 class PTXLoop : public LoopOutlineProcessor {
   friend class CudaABI;
@@ -163,7 +135,7 @@ public:
     override final;
 
   LoopOutlineProcessor *getLoopOutlineProcessor(const TapirLoopInfo *TL)
-    override final;
+    const override final;
 };
 }
 

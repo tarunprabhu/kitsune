@@ -465,6 +465,8 @@ bool TapirToTargetImpl::run() {
   if (WorkList.empty())
     return false;
 
+  // There are functions in this module to lower.  Prepare the module for Tapir
+  // lowering.
   Target->prepareModule();
 
   bool Changed = false;

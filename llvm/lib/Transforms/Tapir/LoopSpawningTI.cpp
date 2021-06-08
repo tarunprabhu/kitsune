@@ -1210,7 +1210,7 @@ namespace {
 // ValueMaterializer to manage remapping uses of the tripcount in the helper
 // function for the loop, when the only uses of tripcount occur in the condition
 // for the loop backedge and, possibly, in metadata.
-class ArgEndMaterializer final : public ValueMaterializer {
+class ArgEndMaterializer final : public OutlineMaterializer {
 private:
   Value *TripCount;
   Value *ArgEnd;
@@ -1231,19 +1231,13 @@ public:
                                       MDTuple::get(V->getContext(), None));
     }
 
-      // Materialize TripCount with ArgEnd.  This should only occur in the loop
-      // latch, and we'll overwrite the use of ArgEnd later.
-      if (V == TripCount)
-        return ArgEnd;
-    }
-
     // Materialize TripCount with ArgEnd.  This should only occur in the loop
     // latch, and we'll overwrite the use of ArgEnd later.
     if (V == TripCount)
       return ArgEnd;
 
     // Otherwise go with the default behavior.
-    return nullptr;
+    return OutlineMaterializer::materialize(V);
   }
 };
 }
@@ -1292,17 +1286,14 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
   ValueSet Outputs;  // Outputs must be empty.
   Function *Helper;
   {
-  NamedRegionTimer NRT("CreateHelper",
-                       "Create helper for Tapir loop",
-                       TimerGroupName, TimerGroupDescription,
-                       TimePassesIsEnabled);
-  Helper =
-    CreateHelper(Args, Outputs, TLBlocks, Header,
-                 Preheader, TL->getExitBlock(), VMap, DestM,
-                 F.getSubprogram() != nullptr, Returns,
-                 NameSuffix.str(), nullptr, &DetachedRethrowBlocks,
-                 &SharedEHEntries, TL->getUnwindDest(), &UnreachableExits,
-                 InputSyncRegion, nullptr, nullptr, nullptr, Mat);
+    NamedRegionTimer NRT("CreateHelper", "Create helper for Tapir loop",
+                         TimerGroupName, TimerGroupDescription,
+                         TimePassesIsEnabled);
+    Helper = CreateHelper(
+        Args, Outputs, TLBlocks, Header, Preheader, TL->getExitBlock(), VMap,
+        DestM, F.getSubprogram() != nullptr, Returns, NameSuffix.str(), nullptr,
+        &DetachedRethrowBlocks, &SharedEHEntries, TL->getUnwindDest(),
+        &UnreachableExits, nullptr, nullptr, nullptr, Mat);
   } // end timed region
 
   assert(Returns.empty() && "Returns cloned when cloning detached CFG.");
@@ -1531,7 +1522,7 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
         dyn_cast_or_null<Instruction>(VMap[T->getTaskFrameUsed()]),
         LoopInputSets[L], LoopArgStarts[L],
         L->getLoopPreheader()->getTerminator(), TL->getExitBlock(),
-        T->getDetach()->getSyncRegion(), TL->getUnwindDest());
+        TL->getUnwindDest());
 
     // Do ABI-dependent processing of each outlined Tapir loop.
     {

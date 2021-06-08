@@ -972,7 +972,7 @@ void PassManagerBuilder::populateModulePassManager(
     // Now lower Tapir to Target runtime calls.
     MPM.add(createTaskCanonicalizePass());
     MPM.add(createLowerTapirToTargetPass());
-    if (VerifyTapirLowering)
+    if (VerifyTapir)
       // Verify the IR produced by Tapir lowering
       MPM.add(createVerifierPass());
     // The lowering pass introduces new functions and may leave cruft around.

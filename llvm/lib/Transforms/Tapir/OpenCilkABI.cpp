@@ -1599,7 +1599,7 @@ void OpenCilkABI::postProcessFunction(Function &F, bool ProcessingTapirLoops) {
 void OpenCilkABI::postProcessHelper(Function &F) {}
 
 LoopOutlineProcessor *OpenCilkABI::getLoopOutlineProcessor(
-    const TapirLoopInfo *TL) {
+    const TapirLoopInfo *TL) const {
   if (UseRuntimeCilkFor)
     return new RuntimeCilkFor(M);
   return nullptr;
