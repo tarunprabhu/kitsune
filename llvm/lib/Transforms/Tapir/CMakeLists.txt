@@ -25,6 +25,7 @@ add_llvm_component_library(LLVMTapirOpts
 
   DEPENDS
   intrinsics_gen
+	LLVMLinker
   )
 
 if(KITSUNE_ENABLE_OPENCL_TARGET)
