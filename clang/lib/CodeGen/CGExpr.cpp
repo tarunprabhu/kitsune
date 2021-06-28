@@ -2780,7 +2780,6 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
 
     // Check for captured variables.
     if (E->refersToEnclosingVariableOrCapture()) {
-
       // kitsune: if we are generating a kokkos-based lambda construct
       // we are likely going to eventually tarnsform it into a parallel
       // loop construct. Thus we have to carefully consider how we handle
@@ -5007,7 +5006,7 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
   // a traditional loop construct -- thus our result is not a call expr
   // but essentially the removal of the call.
   //
-  // FIXME: is this sound in all lambda use cases?  --PM
+  // TODO: is this path sound in all lambda use cases?  --PM
   //
   if (getLangOpts().Kokkos) {
     const FunctionDecl *fdecl = E->getDirectCallee();
@@ -5027,7 +5026,6 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
       }
     }
   }
-
   // Builtins never have block type.
   if (E->getCallee()->getType()->isBlockPointerType())
     return EmitBlockCallExpr(E, ReturnValue);
