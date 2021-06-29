@@ -24,7 +24,6 @@ class TapirLoopInfo;
 class OpenCilkABI : public TapirTarget {
   ValueToValueMapTy DetachCtxToStackFrame;
   SmallPtrSet<CallBase *, 8> CallsToInline;
-  LoopOutlineProcessor *LOP = nullptr;
 
   // Cilk RTS data types
   StructType *StackFrameTy = nullptr;
@@ -66,6 +65,7 @@ class OpenCilkABI : public TapirTarget {
   Function *Get__cilkrts_enter_frame();
   Function *Get__cilkrts_enter_frame_fast();
   Function *Get__cilkrts_detach();
+  Function *Get__cilkrts_save_fp_ctrl_state();
   Function *Get__cilkrts_pop_frame();
 
   // Helper functions for implementing the Cilk ABI protocol
@@ -73,7 +73,6 @@ class OpenCilkABI : public TapirTarget {
   Function *GetCilkSyncNoThrowFn();
   Function *GetCilkPauseFrameFn();
   Function *GetCilkParentEpilogueFn();
-  void EmitSaveFloatingPointState(IRBuilder<> &B, Value *SF);
 
   AllocaInst *CreateStackFrame(Function &F);
   Value *GetOrCreateCilkStackFrame(Function &F);
@@ -92,11 +91,8 @@ class OpenCilkABI : public TapirTarget {
 
 public:
   OpenCilkABI(Module &M);
-  ~OpenCilkABI() {
-    DetachCtxToStackFrame.clear();
-    if (LOP)
-      delete LOP;
-  }
+  ~OpenCilkABI() { DetachCtxToStackFrame.clear(); }
+  void prepareModule() override final;
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
   void lowerSync(SyncInst &SI) override final;
 
@@ -106,9 +102,9 @@ public:
   void addHelperAttributes(Function &F) override final;
 
   void preProcessFunction(Function &F, TaskInfo &TI,
-                          bool OutliningTapirLoops) override final;
-  void postProcessFunction(Function &F, bool OutliningTapirLoops)
-    override final;
+                          bool ProcessingTapirLoops) override final;
+  void postProcessFunction(Function &F,
+                           bool ProcessingTapirLoops) override final;
   void postProcessHelper(Function &F) override final;
 
   void preProcessOutlinedTask(Function &F, Instruction *DetachPt,
@@ -119,12 +115,12 @@ public:
                                bool IsSpawner) override final;
   void preProcessRootSpawner(Function &F) override final;
   void postProcessRootSpawner(Function &F) override final;
-  void processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT)
-    override final;
+  void processSubTaskCall(TaskOutlineInfo &TOI,
+                          DominatorTree &DT) override final;
 
   LoopOutlineProcessor *
   getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
 };
-}  // end of llvm namespace
+} // namespace llvm
 
 #endif
