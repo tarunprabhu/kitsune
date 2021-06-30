@@ -550,20 +550,26 @@ def err_aix_default_altivec_abi : Error<
   "The default Altivec ABI on AIX is not yet supported, use '-mabi=vec-extabi' for the extended Altivec ABI">;
 
 // +----- kitsune  FIXME: should probably use kitsune-centric naming here.
-def warn_cilkrts_missing_build_params : Warning<
-  "'-ftapir=cilk' enabled but build configuration missing details for "
+// deprecate cilkrts (opencilk should no be default)
+//def warn_cilkrts_missing_build_params : Warning<
+//  "'-ftapir=cilk' enabled but build configuration missing details for "
+//  "automatic argument generation. Target-centric link arguments must be"
+//  "provided on command line.">, InGroup<UnknownRuntime>;
+
+def warn_opencilkrts_missing_build_params : Warning<
+  "'-ftapir=opencilk' enabled but build configuration missing details for "
   "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>; 
+  "provided on command line.">, InGroup<UnknownRuntime>;
 
 def warn_qthreads_missing_build_params : Warning<
   "'-ftapir=qthreads' enabled but build configuration missing details for "
   "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>; 
+  "provided on command line.">, InGroup<UnknownRuntime>;
 
 def warn_realm_missing_build_params : Warning<
   "'-ftapir=realm' enabled but build configuration missing details for "
   "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>; 
+  "provided on command line.">, InGroup<UnknownRuntime>;
 
 def warn_cuda_missing_build_params : Warning<
   "'-ftapir=cuda' enabled but build configuration missing details for "
@@ -573,13 +579,13 @@ def warn_cuda_missing_build_params : Warning<
 def warn_opencl_missing_build_params : Warning<
   "'-ftapir=opencl' enabled but build configuration missing details for "
   "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>; 
+  "provided on command line.">, InGroup<UnknownRuntime>;
 
-// FIXME: Probably the wrong group for this... 
+// FIXME: Probably the wrong group for this...
 def warn_kokkos_missing_build_params : Warning<
   "'-fkokkos' mode enabled but build configuration did not include support.">,
-  InGroup<UnknownRuntime>;  
-  
+  InGroup<UnknownRuntime>;
+
 // -----+
 
 }
