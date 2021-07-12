@@ -1306,7 +1306,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
   ReplaceInstWithInst(NewReattB->getTerminator(),
                       ReattachInst::Create(NewLatch, NewSyncReg));
   // Update the dominator tree, and determine predecessors of epilog.
-  if (DT->dominates(Header, Latch) && SerialInnerLoop)
+  if (DT->dominates(Header, Latch) && SerialInnerLoop && ReattachDom)
     DT->changeImmediateDominator(Latch, ReattachDom);
   if (ParallelEpilog)
     DT->changeImmediateDominator(LoopReattach, NewLatch);
@@ -1400,7 +1400,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
     NestedSyncBlock->setName(Header->getName() + ".strpm.detachloop.sync");
     ReplaceInstWithInst(NestedSyncBlock->getTerminator(),
                         SyncInst::Create(LoopReattach, NewSyncReg));
-    if (OrigUnwindDest || !F->doesNotThrow()) {
+    if (!OrigUnwindDest && F->doesNotThrow()) {
       // Insert a call to sync.unwind.
       CallInst *SyncUnwind = CallInst::Create(
           Intrinsic::getDeclaration(M, Intrinsic::sync_unwind), { NewSyncReg },
