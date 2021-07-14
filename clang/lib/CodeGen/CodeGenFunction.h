@@ -3520,12 +3520,22 @@ public:
 
   // Kitsune support for Kokkos.  
   bool EmitKokkosConstruct(const CallExpr *CE, ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
-  const ParmVarDecl *EmitKokkosParallelForInductionVar(const LambdaExpr* Lambda);
+  std::vector<const ParmVarDecl*> EmitKokkosParallelForInductionVar(const LambdaExpr* Lambda);
   void EmitKokkosParallelForCond(const Expr *BoundsExpr, const ParmVarDecl *LoopVar,
                                  llvm::BasicBlock *DetachBlock,
                                  llvm::BasicBlock *ExitBlock,
 				 JumpDest &Sync);
   bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
+  bool EmitKokkosParallelForMD(const CallExpr *CE, std::string PFName,
+            const Expr *BE,
+            const LambdaExpr *Lambda,
+            ArrayRef<const Attr *> ForallAttrs);
+  bool EmitKokkosInnerLoop(const CallExpr *CE, const LambdaExpr *Lambda,
+            llvm::BasicBlock *TopBlock,
+            std::vector<std::pair<const Expr*, const Expr*>> BoundsList,
+            std::vector<const ParmVarDecl*> params,
+            std::vector<std::pair<llvm::Value*, llvm::AllocaInst*>> TLIVarList,
+            ArrayRef<const Attr *> ForallAttrs);
   bool EmitKokkosParallelReduce(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
   bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?
 
