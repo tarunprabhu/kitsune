@@ -5180,6 +5180,7 @@ public:
                                   bool SupressSimplerImplicitMoves = false);
 
   void DiagnoseCilkSpawn(Stmt *S);
+  StmtResult ActOnCilkScopeStmt(SourceLocation ScopeLoc, Stmt *S);
   StmtResult ActOnCilkSyncStmt(SourceLocation SyncLoc);
   StmtResult ActOnCilkSpawnStmt(SourceLocation SpawnLoc, Stmt *S);
   ExprResult ActOnCilkSpawnExpr(SourceLocation SpawnLoc, Expr *E);
