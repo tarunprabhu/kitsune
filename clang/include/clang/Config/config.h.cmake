@@ -47,6 +47,7 @@
 /* Directories clang will search for configuration files */
 #cmakedefine CLANG_CONFIG_FILE_SYSTEM_DIR "${CLANG_CONFIG_FILE_SYSTEM_DIR}"
 #cmakedefine CLANG_CONFIG_FILE_USER_DIR "${CLANG_CONFIG_FILE_USER_DIR}"
+#cmakedefine KITSUNE_CONFIG_FILE_USER_DIR "${KITSUNE_CONFIG_FILE_DIR}"
 
 /* Default <path> to all compiler invocations for --sysroot=<path>. */
 #define DEFAULT_SYSROOT "${DEFAULT_SYSROOT}"
@@ -100,9 +101,9 @@
 #define KITSUNE_QTHREADS_LINK_LIBS       "${QTHREADS_LINK_LIBS}"
 
 #cmakedefine01 KITSUNE_ENABLE_REALM
-#define KITSUNE_REALM_LIBRARY_DIR          "${REALM_LIBRARY_DIR}"
-#define KITSUNE_REALM_WRAPPER_LIBRARY_DIR  "${REALM_WRAPPER_LIBRARY_DIR}"
-#define KITSUNE_REALM_LINK_LIBS            "${REALM_LINK_LIBS}"
+#define KITSUNE_REALM_LIBRARY_DIR          "${Realm_LIBRARY_DIR}"
+#define KITSUNE_REALM_WRAPPER_LIBRARY_DIR  "${Realm_WRAPPER_LIBRARY_DIR}"
+#define KITSUNE_REALM_LINK_LIBS            "${Realm_LINK_LIBS}"
 
 #cmakedefine01 KITSUNE_ENABLE_OPENMP
 #define KITSUNE_OPENMP_LIBRARY_DIR       "${OPENMP_LIBRARY_DIR}"
