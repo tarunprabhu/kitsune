@@ -227,6 +227,9 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
     UserConfigDir = static_cast<std::string>(P);
   }
 #endif
+#if defined(KITSUNE_CONFIG_FILE_DIR)
+  KitsuneConfigDir = KITSUNE_CONFIG_FILE_DIR;
+#endif
 
   // Compute the path to the resource directory.
   ResourceDir = GetResourcesPath(ClangExecutable, CLANG_RESOURCE_DIR);
@@ -1058,12 +1061,124 @@ bool Driver::loadConfigFiles() {
         UserConfigDir.clear();
       else
         UserConfigDir = static_cast<std::string>(CfgDir);
+#error "Temporary hack for merge but this needs proper fixing"
+      /*
+=======
+      CfgDir.append(
+          CLOptions->getLastArgValue(options::OPT_config_user_dir_EQ));
+      if (!CfgDir.empty()) {
+        if (llvm::sys::fs::make_absolute(CfgDir).value() != 0)
+          UserConfigDir.clear();
+        else
+          UserConfigDir = static_cast<std::string>(CfgDir);
+      }
+    }
+    if (CLOptions->hasArg(options::OPT_kitsune_config_dir_EQ)) {
+      SmallString<128> CfgDir;
+      CfgDir.append(
+          CLOptions->getLastArgValue(options::OPT_kitsune_config_dir_EQ));
+      if (!CfgDir.empty()) {
+        if (llvm::sys::fs::make_absolute(CfgDir).value() != 0)
+          KitsuneConfigDir.clear();
+        else
+          KitsuneConfigDir = std::string(CfgDir.begin(), CfgDir.end());
+      }
+    }
+  }
+
+  // First try to find config file specified in command line.
+  if (CLOptions) {
+    std::vector<std::string> ConfigFiles =
+        CLOptions->getAllArgValues(options::OPT_config);
+    if (ConfigFiles.size() > 1) {
+      if (!llvm::all_of(ConfigFiles, [ConfigFiles](const std::string &s) {
+            return s == ConfigFiles[0];
+          })) {
+        Diag(diag::err_drv_duplicate_config);
+        return true;
+      }
+    }
+
+    if (!ConfigFiles.empty()) {
+      CfgFileName = ConfigFiles.front();
+      assert(!CfgFileName.empty());
+
+      // If argument contains directory separator, treat it as a path to
+      // configuration file.
+      if (llvm::sys::path::has_parent_path(CfgFileName)) {
+        SmallString<128> CfgFilePath;
+        if (llvm::sys::path::is_relative(CfgFileName))
+          llvm::sys::fs::current_path(CfgFilePath);
+        llvm::sys::path::append(CfgFilePath, CfgFileName);
+        if (!llvm::sys::fs::is_regular_file(CfgFilePath)) {
+          Diag(diag::err_drv_config_file_not_exist) << CfgFilePath;
+          return true;
+        }
+        return readConfigFile(CfgFilePath);
+      }
+
+      FileSpecifiedExplicitly = true;
+    }
+  }
+
+  // If config file is not specified explicitly, try to deduce configuration
+  // from executable name. For instance, an executable 'armv7l-clang' will
+  // search for config file 'armv7l-clang.cfg'.
+  if (CfgFileName.empty() && !ClangNameParts.TargetPrefix.empty())
+    CfgFileName = ClangNameParts.TargetPrefix + '-' + ClangNameParts.ModeSuffix;
+
+  if (CfgFileName.empty())
+    return false;
+
+  // Determine architecture part of the file name, if it is present.
+  StringRef CfgFileArch = CfgFileName;
+  size_t ArchPrefixLen = CfgFileArch.find('-');
+  if (ArchPrefixLen == StringRef::npos)
+    ArchPrefixLen = CfgFileArch.size();
+  llvm::Triple CfgTriple;
+  CfgFileArch = CfgFileArch.take_front(ArchPrefixLen);
+  CfgTriple = llvm::Triple(llvm::Triple::normalize(CfgFileArch));
+  if (CfgTriple.getArch() == llvm::Triple::ArchType::UnknownArch)
+    ArchPrefixLen = 0;
+
+  if (!StringRef(CfgFileName).endswith(".cfg"))
+    CfgFileName += ".cfg";
+
+  // If config file starts with architecture name and command line options
+  // redefine architecture (with options like -m32 -LE etc), try finding new
+  // config file with that architecture.
+  SmallString<128> FixedConfigFile;
+  size_t FixedArchPrefixLen = 0;
+  if (ArchPrefixLen) {
+    // Get architecture name from config file name like 'i386.cfg' or
+    // 'armv7l-clang.cfg'.
+    // Check if command line options changes effective triple.
+    llvm::Triple EffectiveTriple = computeTargetTriple(*this,
+                                             CfgTriple.getTriple(), *CLOptions);
+    if (CfgTriple.getArch() != EffectiveTriple.getArch()) {
+      FixedConfigFile = EffectiveTriple.getArchName();
+      FixedArchPrefixLen = FixedConfigFile.size();
+      // Append the rest of original file name so that file name transforms
+      // like: i386-clang.cfg -> x86_64-clang.cfg.
+      if (ArchPrefixLen < CfgFileName.size())
+        FixedConfigFile += CfgFileName.substr(ArchPrefixLen);
+>>>>>>> cec726fce6d2 (Overhaul of some build mechanisms:)
+      */
     }
   }
 
   // Prepare list of directories where config file is searched for.
   StringRef CfgFileSearchDirs[] = {UserConfigDir, SystemConfigDir, Dir};
   ExpCtx.setSearchDirs(CfgFileSearchDirs);
+  #error "Temporary hack for merge but this needs proper fixing"
+  /*
+=======
+  CfgFileSearchDirs.push_back(UserConfigDir);
+  CfgFileSearchDirs.push_back(KitsuneConfigDir);
+  CfgFileSearchDirs.push_back(SystemConfigDir);
+  CfgFileSearchDirs.push_back(Dir);
+>>>>>>> cec726fce6d2 (Overhaul of some build mechanisms:)
+  */
 
   // First try to load configuration from the default files, return on error.
   if (loadDefaultConfigFiles(ExpCtx))
@@ -2093,6 +2208,9 @@ bool Driver::HandleImmediateArgs(const Compilation &C) {
     if (!UserConfigDir.empty())
       llvm::errs() << "User configuration file directory: "
                    << UserConfigDir << "\n";
+    if (!KitsuneConfigDir.empty())
+      llvm::errs() << "Kitsune configuration file directory: "
+                   << KitsuneConfigDir << "\n";
   }
 
   const ToolChain &TC = C.getDefaultToolChain();
