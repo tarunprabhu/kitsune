@@ -38,16 +38,17 @@ TapirTargetID clang::parseTapirTarget(const ArgList &Args) {
     TapirTarget = llvm::StringSwitch<TapirTargetID>(A->getValue())
       .Case("none", TapirTargetID::None)
       .Case("serial", TapirTargetID::Serial)
-      .Case("cilk", TapirTargetID::Cilk)
-      .Case("cilkr", TapirTargetID::CilkR)      
       .Case("cheetah", TapirTargetID::Cheetah)
-      .Case("cuda", TapirTargetID::Cuda)
-      .Case("kitcuda", TapirTargetID::KitCuda) 
       .Case("opencilk", TapirTargetID::OpenCilk)      
+      .Case("cuda", TapirTargetID::Cuda)
       .Case("openmp", TapirTargetID::OpenMP)
       .Case("qthreads", TapirTargetID::Qthreads)
       .Case("realm", TapirTargetID::Realm)
       .Case("opencl", TapirTargetID::OpenCL) 
+      // Eventually we will only support opencilk target(s)... 
+      // TODO: Deprecate non-opencilk support... 
+      .Case("cilk", TapirTargetID::Cilk)
+      .Case("cilkr", TapirTargetID::CilkR)
       .Default(TapirTargetID::Last_TapirTargetID);
 
   return TapirTarget;

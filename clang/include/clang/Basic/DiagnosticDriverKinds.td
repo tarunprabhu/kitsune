@@ -488,43 +488,29 @@ def warn_drv_libstdcxx_not_found : Warning<
 
 def err_drv_cannot_mix_options : Error<"cannot specify '%1' along with '%0'">;
 
-// +----- kitsune  FIXME: should probably use kitsune-centric naming here.
-// deprecate cilkrts (opencilk should no be default)
-//def warn_cilkrts_missing_build_params : Warning<
-//  "'-ftapir=cilk' enabled but build configuration missing details for "
-//  "automatic argument generation. Target-centric link arguments must be"
-//  "provided on command line.">, InGroup<UnknownRuntime>;
+def warn_missing_tapir_opencilk_config_opts : Warning<
+  "Unable to find configuration options file ('opencilk-opts.cfg') for "
+  "'-ftapir=opencilk' option.">, InGroup<UnknownRuntime>;
 
-def warn_opencilkrts_missing_build_params : Warning<
-  "'-ftapir=opencilk' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>;
+def warn_missing_tapir_qthreads_config_opts : Warning<
+  "Unable to find configuration options file ('qtheads-opts.cfg') for "
+  "'-ftapir=qthreads' option.">, InGroup<UnknownRuntime>;
 
-def warn_qthreads_missing_build_params : Warning<
-  "'-ftapir=qthreads' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>;
+def warn_missing_tapir_realm_config_opts : Warning<
+  "Unable to find configuration options file ('realm-opts.cfg') for "
+  "'-ftapir=realm' option.">, InGroup<UnknownRuntime>;
 
-def warn_realm_missing_build_params : Warning<
-  "'-ftapir=realm' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>;
+def warn_missing_tapir_cuda_config_opts : Warning<
+  "Unable to find configuration options file ('cuda-opts.cfg') for "
+  "'-ftapir=cuda' option.">, InGroup<UnknownRuntime>;
 
-def warn_cuda_missing_build_params : Warning<
-  "'-ftapir=cuda' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>;
+def warn_missing_tapir_opencl_config_opts : Warning<
+  "Unable to find configuration options file ('opencl-opts.cfg') for "
+  "'-ftapir=opencl' option.">, InGroup<UnknownRuntime>;
 
-def warn_opencl_missing_build_params : Warning<
-  "'-ftapir=opencl' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>;
-
-// FIXME: Probably the wrong group for this...
-def warn_kokkos_missing_build_params : Warning<
-  "'-fkokkos' mode enabled but build configuration did not include support.">,
-  InGroup<UnknownRuntime>;
-
+def warn_missing_kitsune_kokkos_opts : Warning<
+  "'Unable to find configuration options file ('kokkos-opts.cfg') for "
+  "'-fkokkos' option.">, InGroup<UnknownRuntime>;
 // -----+
 
 }
