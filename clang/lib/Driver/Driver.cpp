@@ -154,6 +154,9 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
 #if defined(CLANG_CONFIG_FILE_USER_DIR)
   UserConfigDir = CLANG_CONFIG_FILE_USER_DIR;
 #endif
+#if defined(KITSUNE_CONFIG_FILE_DIR)
+  KitsuneConfigDir = KITSUNE_CONFIG_FILE_DIR;
+#endif
 
   // Compute the path to the resource directory.
   ResourceDir = GetResourcesPath(ClangExecutable, CLANG_RESOURCE_DIR);
@@ -847,6 +850,17 @@ bool Driver::loadConfigFile() {
           UserConfigDir = std::string(CfgDir.begin(), CfgDir.end());
       }
     }
+    if (CLOptions->hasArg(options::OPT_kitsune_config_dir_EQ)) {
+      SmallString<128> CfgDir;
+      CfgDir.append(
+          CLOptions->getLastArgValue(options::OPT_kitsune_config_dir_EQ));
+      if (!CfgDir.empty()) {
+        if (llvm::sys::fs::make_absolute(CfgDir).value() != 0)
+          KitsuneConfigDir.clear();
+        else
+          KitsuneConfigDir = std::string(CfgDir.begin(), CfgDir.end());
+      }
+    }
   }
 
   // First try to find config file specified in command line.
@@ -931,6 +945,7 @@ bool Driver::loadConfigFile() {
   // Prepare list of directories where config file is searched for.
   SmallVector<std::string, 3> CfgFileSearchDirs;
   CfgFileSearchDirs.push_back(UserConfigDir);
+  CfgFileSearchDirs.push_back(KitsuneConfigDir);
   CfgFileSearchDirs.push_back(SystemConfigDir);
   CfgFileSearchDirs.push_back(Dir);
 
@@ -1734,6 +1749,9 @@ bool Driver::HandleImmediateArgs(const Compilation &C) {
     if (!UserConfigDir.empty())
       llvm::errs() << "User configuration file directory: "
                    << UserConfigDir << "\n";
+    if (!KitsuneConfigDir.empty())
+      llvm::errs() << "Kitsune configuration file directory: "
+                   << KitsuneConfigDir << "\n";
   }
 
   const ToolChain &TC = C.getDefaultToolChain();

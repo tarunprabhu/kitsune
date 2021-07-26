@@ -82,11 +82,7 @@ endif()
 # LLVM_EXTERNAL_${project}_SOURCE_DIR using LLVM_ALL_PROJECTS
 # This allows an easy way of setting up a build directory for llvm and another
 # one for llvm+clang+... using the same sources.
-set(LLVM_ALL_PROJECTS "cheetah;cilktools;clang;clang-tools-extra;compiler-rt;kitsune-rt;debuginfo-tests;libc;libclc;libcxx;libcxxabi;libunwind;lld;lldb;mlir;openmp;parallel-libs;polly;pstl")
-# The flang project is not yet part of "all" projects (see C++ requirements)
-set(LLVM_EXTRA_PROJECTS "flang")
-# List of all known projects in the mono repo
-set(LLVM_KNOWN_PROJECTS "${LLVM_ALL_PROJECTS};${LLVM_EXTRA_PROJECTS}")
+set(LLVM_ALL_PROJECTS "clang;clang-tools-extra;compiler-rt;debuginfo-tests;kitsune-rt;libc;libclc;libcxx;libcxxabi;libunwind;lld;lldb;llgo;mlir;openmp;parallel-libs;polly;pstl")
 set(LLVM_ENABLE_PROJECTS "" CACHE STRING
 	"Semicolon-separated list of projects to build (${LLVM_KNOWN_PROJECTS}), or \"all\".")
 if( LLVM_ENABLE_PROJECTS STREQUAL "all" )
@@ -135,7 +131,6 @@ if (LLVM_ENABLE_PROJECTS_USED OR NOT LLVM_ENABLE_PROJECTS STREQUAL "")
       message(STATUS "${proj} project is enabled")
       set(SHOULD_ENABLE_PROJECT TRUE)
     else()
-      message(STATUS "${proj} project is disabled")
       set(SHOULD_ENABLE_PROJECT FALSE)
     endif()
     # Force `LLVM_TOOL_${upper_proj}_BUILD` variables to have values that
@@ -1223,35 +1218,4 @@ endif()
 
 if (LLVM_INCLUDE_UTILS AND LLVM_INCLUDE_TOOLS)
   add_subdirectory(utils/llvm-locstats)
-endif()
-
-if(LLVM_TOOL_KITSUNE_RT_BUILD)
-  add_llvm_external_project(kitsune-rt)
-endif()
-
-# If kitsune is being built with the realm backend enabled, then kitsune-rt needs to be built before clang
-if(TARGET clang AND TARGET kitsunerealm AND KITSUNE_ENABLE_REALM_TARGET)
-  add_dependencies(clang kitsunerealm)
-  message(STATUS "kitsune: ADDED clang dependency on kitsunerealm")
-else()
-  message(STATUS "kitsune: DID NOT ADD clang dependency on kitsunerealm")
-
-  if(TARGET clang)
-    message(STATUS "kitsune: TARGET clang is TRUE")
-  else()
-    message(STATUS "kitsune: TARGET clang is FALSE")
-  endif()
-
-  if(TARGET kitsunerealm)
-    message(STATUS "kitsune: TARGET kitsunerealm is TRUE")
-  else()
-    message(STATUS "kitsune: TARGET kitsunerealm is FALSE")
-  endif()
-
-  if(KITSUNE_ENABLE_REALM_TARGET)
-    message(STATUS "kitsune: KITSUNE_ENABLE_REALM_TARGET is TRUE")
-  else()
-    message(STATUS "kitsune: KITSUNE_ENABLE_REALM_TARGET is FALSE")
-  endif()
-
 endif()

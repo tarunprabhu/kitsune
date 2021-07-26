@@ -105,24 +105,26 @@ void OpenCilkABI::prepareModule() {
 
   if (UseOpenCilkRuntimeBC) {
     Optional<std::string> path;
+
     if("" == OpenCilkRuntimeBCPath){
       path = sys::Process::FindInEnvPath("LD_LIBRARY_PATH", "libopencilk-abi.bc");
-      assert(path.hasValue() &&
-             "Couldn't find OpenCilk runtime bitcode file in LD_LIBRARY_PATH.");
+      if (! path.hasValue())
+        report_fatal_error("Could not find OpenCilk runtime bitcode file " 
+                           "(libopencilk-abi.bc) in LD_LIBRARY_PATH.");
     } else {
       path = OpenCilkRuntimeBCPath.getValue();
     }
     LLVM_DEBUG(dbgs() << "Using external bitcode file for OpenCilk ABI: "
                       << path << "\n");
-    dbgs() << "Using external bitcode file for OpenCilk ABI: "
-           << path << "\n";
-
     SMDiagnostic SMD;
 
     // Parse the bitcode file.  This call imports structure definitions, but not
     // function definitions.
     std::unique_ptr<Module> ExternalModule =
         parseIRFile(*path, SMD, C);
+    if (ExternalModule == nullptr) { 
+      report_fatal_error("Error parsing OpenCilk runtime bitcode file!");
+    }
 
     // Strip any debug info from the external module.  For convenience, this
     // Tapir target synthesizes some helper functions, like
@@ -146,7 +148,9 @@ void OpenCilkABI::prepareModule() {
                                          << "\n";
                               });
                             });
-    assert(!Fail && "Failed to link OpenCilk runtime bitcode module.\n");
+    
+    if (Fail)
+      report_fatal_error("Failed to link OpenCilk runtime bitcode module.");                            
   }
 
   // Get or create local definitions of Cilk RTS structure types.

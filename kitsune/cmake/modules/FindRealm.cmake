@@ -1,17 +1,35 @@
-# 
-#  Realm_FOUND       -- realm was found.
-#  Realm_INCLUDE_DIR -- directory with realm header files. 
-#  Realm_LIBRARY     -- full path to the realm library. 
-#  Realm_LIBRARY_DIR -- path to where the realm library is installed. 
-#  Realm_WRAPPER_LIBRARY_DIR -- path to where the kitsune-rt realm wrapper library is installed. 
-#  Realm_LINK_LIBS   -- set of link libraries (e.g. -lrealm) 
-# 
+# This module will set the following variables in your project:
+#
+#  Realm_FOUND       -- Realm was found.
+#  Realm_INCLUDE_DIR -- directory with Realm header files.
+#  Realm_LIBRARY     -- full path to the Realm library.
+#  Realm_LIBRARY_DIR -- path to where the Realm library is installed.
+#  Realm_LINK_LIBS   -- set of link libraries (e.g. -lrealm)
+
+find_path(Realm_INCLUDE_DIR realm.h
+  PATHS /usr/local/include
+        /opt/include
+        /opt/local/include
+        $ENV{REALM_PATH}/include
+)
+
+find_library(Realm_LIBRARY realm
+  PATHS /usr/local/lib64
+        /usr/local/lib
+	      /opt/lib64
+	      /opt/lib
+	      /opt/local/lib64
+	      /opt/local/lib
+        $ENV{REALM_PATH}/lib
+        $ENV{REALM_PATH}/lib64
+)
 
 message(STATUS "kitsune: looking for realm...")
 
 find_path(Realm_INCLUDE_DIR  realm.h)
 find_library(Realm_LIBRARY realm)
 
+<<<<<<< HEAD
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Realm DEFAULT_MSG
                                   Realm_INCLUDE_DIR 
@@ -19,6 +37,8 @@ find_package_handle_standard_args(Realm DEFAULT_MSG
 
 if (Realm_FOUND) 
   message(STATUS "kitsune: looking for realm... FOUND")
+=======
+>>>>>>> 2b9a987053b1 (Overhaul of some build mechanisms:)
   get_filename_component(Realm_LIBRARY_DIR
                          ${Realm_LIBRARY}
                          DIRECTORY

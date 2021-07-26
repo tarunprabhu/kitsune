@@ -11,6 +11,13 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   project(Runtimes C CXX ASM)
 endif()
 
+include(FetchContent)
+FetchContent_Declare(cheetahrt
+  GIT_REPOSITORY    git@github.com:OpenCilk/cheetah.git
+  GIT_TAG           opencilk/v1.0
+  SOURCE_DIR        ${CMAKE_CURRENT_SOURCE_DIR}/../../cheetah
+)
+
 # Find all subdirectories containing CMake projects
 file(GLOB entries *)
 foreach(entry ${entries})
@@ -20,12 +27,23 @@ foreach(entry ${entries})
 endforeach()
 
 # Side-by-side subprojects layout.
-set(LLVM_ALL_RUNTIMES "libcxx;libcxxabi;libunwind;compiler-rt;cheetah;cilktools")
+set(LLVM_ALL_RUNTIMES "libcxx;libcxxabi;libunwind;compiler-rt;cheetah;kitsune")
 set(LLVM_ENABLE_RUNTIMES "" CACHE STRING
   "Semicolon-separated list of runtimes to build (${LLVM_ALL_RUNTIMES}), or \"all\".")
 if(LLVM_ENABLE_RUNTIMES STREQUAL "all" )
   set(LLVM_ENABLE_RUNTIMES ${LLVM_ALL_RUNTIMES})
 endif()
+
+if ("cheetah" IN_LIST LLVM_ENABLE_RUNTIMES)
+  message(STATUS "cheetah is in the enabled runtimes list.")
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../cheetah)
+  FetchContent_GetProperties(cheetahrt)
+  if (NOT cheetahrt_POPULATED)
+    message(STATUS "     NOTE: <<<< fetching cheetah runtime source via git... >>>>")
+    FetchContent_Populate(cheetahrt)
+  endif()
+endif()
+
 foreach(proj ${LLVM_ENABLE_RUNTIMES})
   set(proj_dir "${CMAKE_CURRENT_SOURCE_DIR}/../../${proj}")
   if(IS_DIRECTORY ${proj_dir} AND EXISTS ${proj_dir}/CMakeLists.txt)

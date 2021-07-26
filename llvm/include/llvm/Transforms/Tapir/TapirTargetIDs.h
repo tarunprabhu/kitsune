@@ -20,8 +20,8 @@ enum class TapirTargetID {
   None,     // Perform no lowering
   Serial,   // Lower to serial projection
   Cheetah,  // Lower to the Cheetah ABI
-  Cilk,     // Lower to the Cilk Plus ABI
-  CilkR,    // Lower to the CilkR ABI
+  Cilk,   // Lower to the Cilk Plus ABI
+  CilkR,  // Lower to the CilkR ABI
   Cuda,     // Lower to Cuda ABI
   KitCuda,  // Lower to Kitsune's Cuda ABI 
   OpenCilk, // Lower to OpenCilk ABI
