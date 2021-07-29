@@ -3,16 +3,14 @@
 #include <stdint.h>
 
 #define ocl_mmap(a, n) __kitsune_opencl_mmap_marker((void*)a, n)
-#ifdef __cplusplus
-extern "C" { 
-#endif
-void __kitsune_opencl_mmap_marker(void* ptr, uint64_t n);
-#ifdef __cplusplus
-}
-#endif
+extern "C" void __kitsune_opencl_mmap_marker(void* ptr, uint64_t n);
 
-#define spawn _kitsune_spawn
-#define sync _kitsune_sync
-#define forall _kitsune_forall
+#if defined(CLANG_ENABLE_KITSUNE)
+
+#if defined(KITSUNE_MANGLE_PARALLEL_KEYWORDS)
+  #define spawn _kitsune_spawn
+  #define sync _kitsune_sync
+  #define forall _kitsune_forall
+#endif
 
 #endif

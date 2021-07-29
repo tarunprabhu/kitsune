@@ -359,7 +359,7 @@ void StmtPrinter::VisitCXXForRangeStmt(CXXForRangeStmt *Node) {
 }
 
 void StmtPrinter::VisitCXXForallRangeStmt(CXXForallRangeStmt *Node) {
-  Indent() << "_kitsune_forall (";
+  Indent() << "forall (";
   if (Node->getInit())
     PrintInitStmt(Node->getInit(), 5);
   PrintingPolicy SubPolicy(Policy);
@@ -422,7 +422,7 @@ void StmtPrinter::VisitCilkSpawnExpr(CilkSpawnExpr *Node) {
 }
 
 void StmtPrinter::VisitSpawnStmt(SpawnStmt *Node) {
-  Indent() << "spawn " << Node->getSyncVar(); 
+  Indent() << "spawn " << Node->getSyncVar();
   PrintStmt(Node->getSpawnedStmt());
   OS << ";";
   if (Policy.IncludeNewlines) OS << "\n";
@@ -2614,7 +2614,7 @@ void StmtPrinter::VisitCilkForStmt(CilkForStmt *Node) {
 }
 
 void StmtPrinter::VisitForallStmt(ForallStmt *Node) {
-  Indent() << "_kitsune_forall (";
+  Indent() << "forall (";
   if (Node->getInit())
     PrintInitStmt(Node->getInit(), 5);
   else
@@ -2631,7 +2631,7 @@ void StmtPrinter::VisitForallStmt(ForallStmt *Node) {
 }
 
 void StmtPrinter::VisitSyncStmt(SyncStmt *Node) {
-  Indent() << "sync " << Node->getSyncVar() << ";"; 
+  Indent() << "sync " << Node->getSyncVar() << ";";
   if (Policy.IncludeNewlines) OS << "\n";
 }
 
