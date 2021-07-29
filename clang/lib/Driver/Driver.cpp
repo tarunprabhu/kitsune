@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/Driver.h"
+#include "clang/Driver/Tapir.h"
+#include "InputInfo.h"
 #include "ToolChains/AIX.h"
 #include "ToolChains/AMDGPU.h"
 #include "ToolChains/AMDGPUOpenMP.h"
@@ -220,6 +222,7 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
 #if defined(CLANG_CONFIG_FILE_SYSTEM_DIR)
   SystemConfigDir = CLANG_CONFIG_FILE_SYSTEM_DIR;
 #endif
+
 #if defined(CLANG_CONFIG_FILE_USER_DIR)
   {
     SmallString<128> P;
@@ -227,8 +230,54 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
     UserConfigDir = static_cast<std::string>(P);
   }
 #endif
+
 #if defined(KITSUNE_CONFIG_FILE_DIR)
   KitsuneConfigDir = KITSUNE_CONFIG_FILE_DIR;
+#endif
+#if defined(KITSUNE_KOKKOS_CFG_FILENAME)
+  KitsuneKokkosCfgFile = KITSUNE_KOKKOS_CFG_FILENAME;
+#else
+  KitsuneKokkosCfgFile = "kokkos.cfg";
+#endif
+#if defined(TAPIR_SERIAL_TARGET_CFG_FILENAME)
+  TapirSerialCfgFile = TAPIR_SERIAL_TARGET_CFG_FILENAME;
+#else
+  TapirSerialCfgFile = "serial.cfg";
+#endif
+#if defined(TAPIR_OPENCILK_TARGET_CFG_FILENAME)
+  TapirOpenCilkCfgFile = TAPIR_OPENCILK_TARGET_CFG_FILENAME;
+#else
+  TapirOpenCilkCfgFile = "opencilk.cfg";
+#endif
+#if defined(TAPIR_CUDA_TARGET_CFG_FILENAME)
+  TapirCudaCfgFile = TAPIR_CUDA_TARGET_CFG_FILENAME;
+#else
+  TapirCudaCfgFile = "cuda.cfg";
+#endif
+#if defined(TAPIR_REALM_TARGET_CFG_FILENAME)
+  TapirRealmCfgFile = TAPIR_REALM_TARGET_CFG_FILENAME;
+#else
+  TapirRealmCfgFile = "realm.cfg";
+#endif
+#if defined(TAPIR_OPENMP_TARGET_CFG_FILENAME)
+  TapirOpenMPCfgFile = TAPIR_OPENMP_TARGET_CFG_FILENAME;
+#else
+  TapirOpenMPCfgFile = "openmp.cfg";
+#endif
+#if defined(TAPIR_QTHREADS_TARGET_CFG_FILENAME)
+  TapirQthreadsCfgFile = TAPIR_QTHREADS_TARGET_CFG_FILENAME;
+#else
+  TapirQthreadsCfgFile = "qthreads.cfg";
+#endif
+#if defined(TAPIR_OPENCL_TARGET_CFG_FILENAME)
+  TapirOpenCLCfgFile = TAPIR_OPENCL_TARGET_CFG_FILENAME;
+#else
+  TapirOpenCLCfgFile = "opencl.cfg";
+#endif
+#if defined(TAPIR_HIP_TARGET_CFG_FILENAME)
+  TapirHIPCfgFile = TAPIR_HIP_TARGET_CFG_FILENAME;
+#else
+  TapirHIPCfgFile = "hip.cfg";
 #endif
 
   // Compute the path to the resource directory.
@@ -985,6 +1034,35 @@ static void appendOneArg(InputArgList &Args, const Arg *Opt,
   Args.append(Copy);
 }
 
+/// Looks the given directories for the specified file.
+///
+/// \param[out] FilePath File path, if the file was found.
+/// \param[in]  Dirs Directories used for the search.
+/// \param[in]  FileName Name of the file to search for.
+/// \return True if file was found.
+///
+/// Looks for file specified by FileName sequentially in directories specified
+/// by Dirs.
+///
+static bool searchForFile(SmallVectorImpl<char> &FilePath,
+                          ArrayRef<StringRef> Dirs, StringRef FileName) {
+  SmallString<128> WPath;
+  for (const StringRef &Dir : Dirs) {
+    if (Dir.empty())
+      continue;
+    WPath.clear();
+    llvm::sys::path::append(WPath, Dir, FileName);
+    llvm::sys::path::native(WPath);
+    LLVM_DEBUG(llvm::dbgs() << "clang config file search path: " << WPath.c_str());
+    if (llvm::sys::fs::is_regular_file(WPath)) {
+      FilePath = std::move(WPath);
+      LLVM_DEBUG(llvm::dbgs() << "  found config file: " << FileName.str());
+      return true;
+    }
+  }
+  return false;
+}
+
 bool Driver::readConfigFile(StringRef FileName,
                             llvm::cl::ExpansionContext &ExpCtx) {
   // Try opening the given file.
@@ -1121,16 +1199,62 @@ bool Driver::loadConfigFiles() {
     }
   }
 
-  #if defined(KITSUNE_CONFIG_FILE_DIR)
-  // If a config file is not specified explicity, make a pass over
-  // Kitsune-centric paths based on what modes we are running in.
-  if (CfgFileName.empty()) {
-    if (CLOptions->hasArg(options::options::OPT_fkokkos)) {
+  // Prepare list of directories where config file is searched for.
+  SmallVector<std::string, 3> CfgFileSearchDirs;
+  CfgFileSearchDirs.push_back(UserConfigDir);
+  CfgFileSearchDirs.push_back(KitsuneConfigDir);
+  CfgFileSearchDirs.push_back(SystemConfigDir);
+  CfgFileSearchDirs.push_back(Dir);
 
+  // kitsune: check for a kokkos configuration file.
+  if (CLOptions->hasArg(options::OPT_fkokkos)) {
+    llvm::SmallString<128> KokkosCfgFilePath;
+    if (searchForFile(KokkosCfgFilePath, CfgFileSearchDirs,
+                      KitsuneKokkosCfgFile)) {
+      if (readConfigFile(KokkosCfgFilePath)) {
+        Diag(diag::err_drv_cannot_read_kitsune_cfg_file)
+           << KokkosCfgFilePath << "-fkokkos";
+        return true;
+      }
+    } else {
+      Diag(diag::warn_drv_missing_cfg_file)
+        << KitsuneKokkosCfgFile
+        << "-fkokkos";
     }
   }
-  #endif
 
+  // tapir: check for a tapir target specific configuration file.
+  if (CLOptions->hasArg(options::OPT_ftapir_EQ)) {
+    if (const Arg *A = CLOptions->getLastArg(options::OPT_ftapir_EQ)) {
+      std::string TapirTargetCfgFileName;
+      TapirTargetCfgFileName = llvm::StringSwitch<std::string>(A->getValue())
+        .Case("serial", TapirSerialCfgFile)
+        // NOTE: OpenCilk has internal flags automatically set
+        // .Case("opencilk", TapirOpenCilkCfgFile)
+        .Case("opencilk", "")
+        .Case("cuda", TapirCudaCfgFile)
+        .Case("openmp", TapirOpenMPCfgFile)
+        .Case("qthreads", TapirQthreadsCfgFile)
+        .Case("realm", TapirRealmCfgFile)
+        .Case("opencl", TapirOpenCLCfgFile)
+        .Case("hip", TapirHIPCfgFile)
+        .Default("");
+      if (TapirTargetCfgFileName.length() != 0) {
+        llvm::SmallString<128> TapirTargetCfgFilePath;
+        if (searchForFile(TapirTargetCfgFilePath, CfgFileSearchDirs,
+                TapirTargetCfgFileName)) {
+          if (readConfigFile(TapirTargetCfgFilePath)) {
+            Diag(diag::err_drv_cannot_read_kitsune_cfg_file)
+              << TapirTargetCfgFilePath << A->getValue();
+            return true;
+          }
+        } else {
+          Diag(diag::warn_drv_missing_cfg_file)
+            << TapirTargetCfgFileName << A->getValue();
+        }
+      }
+    }
+  }
 
   // If config file is not specified explicitly, try to deduce configuration
   // from executable name. For instance, an executable 'armv7l-clang' will
