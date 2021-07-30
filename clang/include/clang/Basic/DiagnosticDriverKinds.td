@@ -592,11 +592,11 @@ def warn_missing_kitsune_kokkos_opts : Warning<
 // used but were not enabled at build time.  
 def warn_drv_kokkos_disabled : Warning<
   "kokkos support was not enabled when clang was built.">;
-def warn_drv_openmp_rt_target_disabled : Warning<
+def warn_drv_openmp_target_disabled : Warning<
   "the openmp runtime ABI transform target was not enabled when clang was built.">;
-def warn_drv_qthreads_rt_target_disabled: Warning<
+def warn_drv_qthreads_target_disabled: Warning<
   "the qthreads runtime ABI transform target was not enabled when clang was built.">;
-def warn_drv_realm_rt_target_disabled: Warning<
+def warn_drv_realm_target_disabled: Warning<
   "the realm runtime ABI transform target was not enabled when clang was built.">;
 def warn_drv_cudatk_target_disabled: Warning<
   "the cuda toolkit runtime ABI transform target was not enabled when clang was built.">;
