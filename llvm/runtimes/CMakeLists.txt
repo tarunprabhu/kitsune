@@ -15,8 +15,7 @@ include(FetchContent)
 FetchContent_Declare(cheetahrt
   GIT_REPOSITORY    git@github.com:OpenCilk/cheetah.git
   GIT_TAG           opencilk/v1.0
-  SOURCE_DIR        ${CMAKE_CURRENT_SOURCE_DIR}/../../cheetah
-)
+  SOURCE_DIR        ${CMAKE_CURRENT_SOURCE_DIR}/../../cheetah)
 
 # Find all subdirectories containing CMake projects
 file(GLOB entries *)
@@ -35,11 +34,9 @@ if(LLVM_ENABLE_RUNTIMES STREQUAL "all" )
 endif()
 
 if ("cheetah" IN_LIST LLVM_ENABLE_RUNTIMES)
-  message(STATUS "cheetah is in the enabled runtimes list.")
-  file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../cheetah)
   FetchContent_GetProperties(cheetahrt)
   if (NOT cheetahrt_POPULATED)
-    message(STATUS "     NOTE: <<<< fetching cheetah runtime source via git... >>>>")
+    message(STATUS "NOTE: <<<< fetching cheetah runtime source via git... >>>>")
     FetchContent_Populate(cheetahrt)
   endif()
 endif()
