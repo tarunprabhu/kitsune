@@ -816,7 +816,7 @@ def config_system_dir_EQ : Joined<["--"], "config-system-dir=">, Flags<[NoXarchO
 def config_user_dir_EQ : Joined<["--"], "config-user-dir=">, Flags<[NoXarchOption, HelpHidden]>,
   HelpText<"User directory for configuration files">;
 def coverage : Flag<["-", "--"], "coverage">, Group<Link_Group>, Flags<[CoreOption]>;
-def kitsune_config_dir_EQ : Joined<["--"], "kitsune-config-dir=">, Flags<[DriverOption, HelpHidden]>,
+def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">, Flags<[DriverOption, HelpHidden]>,
   HelpText<"Kitsune directory for configuration files">;
 def cpp_precomp : Flag<["-"], "cpp-precomp">, Group<clang_ignored_f_Group>;
 def current__version : JoinedOrSeparate<["-"], "current_version">;
