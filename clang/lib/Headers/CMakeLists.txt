@@ -274,7 +274,7 @@ set(files
   ${webassembly_files}
   ${windows_only_files}
   ${utility_files}
-  kitsune.h
+  kitsune_rt.h
   )
 
 set(cilk_header_files
@@ -527,6 +527,9 @@ get_clang_resource_dir(header_install_dir SUBDIR include)
 
 #############################################################
 # Install rules for the catch-all clang-resource-headers target
+configure_file(kitsune.h.cmake
+  ${LLVM_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION}/include/kitsune.h)
+
 install(
   FILES ${files} ${generated_files}
   DESTINATION ${header_install_dir}
