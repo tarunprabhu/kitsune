@@ -19,6 +19,7 @@
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
 using namespace llvm;
@@ -275,10 +276,17 @@ bool TapirLoopInfo::getLoopCondition(const char *PassName,
   LLVM_DEBUG(dbgs() << "\tLoop condition " << *Condition << "\n");
 
   if (Condition->getOperand(0) == PrimaryInduction ||
-      Condition->getOperand(1) == PrimaryInduction)
-    // The condition examines the primary induction before the increment.
-    // Hence, the end iteration is included in the loop bounds.
-    InclusiveRange = true;
+      Condition->getOperand(1) == PrimaryInduction) {
+    // The condition examines the primary induction before the increment.  Check
+    // to see if the condition directs control to exit the loop once
+    // PrimaryInduction equals the end value.
+    if ((ICmpInst::ICMP_EQ == Condition->getPredicate() &&
+         BI->getSuccessor(1) == L->getHeader()) ||
+        (ICmpInst::ICMP_NE == Condition->getPredicate() &&
+         BI->getSuccessor(0) == L->getHeader()))
+      // The end iteration is included in the loop bounds.
+      InclusiveRange = true;
+  }
 
   return true;
 }
@@ -410,17 +418,17 @@ Value *TapirLoopInfo::getOrCreateTripCount(PredicatedScalarEvolution &PSE,
 
   Value *ConditionEnd = Condition->getOperand(0);
   {
-    Value *PrimaryIVInc =
-      PrimaryInduction->getIncomingValueForBlock(Condition->getParent());
-    if (ConditionEnd == (InclusiveRange ? PrimaryInduction : PrimaryIVInc))
+    if (!L->isLoopInvariant(ConditionEnd))
       ConditionEnd = Condition->getOperand(1);
   }
+  assert(L->isLoopInvariant(ConditionEnd) &&
+         "Condition end is not loop invariant.");
 
   IRBuilder<> Builder(L->getLoopPreheader()->getTerminator());
   ScalarEvolution *SE = PSE.getSE();
 
   // Find the loop boundaries.
-  const SCEV *BackedgeTakenCount = getBackedgeTakenCount(PSE);
+  const SCEV *BackedgeTakenCount = SE->getExitCount(L, L->getLoopLatch());
 
   if (BackedgeTakenCount == SE->getCouldNotCompute()) {
     LLVM_DEBUG(dbgs() << "Could not compute backedge-taken count.\n");
@@ -429,14 +437,13 @@ Value *TapirLoopInfo::getOrCreateTripCount(PredicatedScalarEvolution &PSE,
 
   const SCEV *ExitCount = getExitCount(BackedgeTakenCount, PSE);
 
-  Type *IdxTy = getWidestInductionType();
-
-  const DataLayout &DL = L->getHeader()->getModule()->getDataLayout();
-
   if (ExitCount == SE->getSCEV(ConditionEnd)) {
     TripCount = ConditionEnd;
     return TripCount;
   }
+
+  const DataLayout &DL = L->getHeader()->getModule()->getDataLayout();
+  Type *IdxTy = getWidestInductionType();
 
   // Expand the trip count and place the new instructions in the preheader.
   // Notice that the pre-header does not change, only the loop body.
@@ -452,10 +459,16 @@ Value *TapirLoopInfo::getOrCreateTripCount(PredicatedScalarEvolution &PSE,
                                     L->getLoopPreheader()->getTerminator());
 
   // Try to use the existing ConditionEnd for the trip count.
-  if (TripCount != ConditionEnd)
-    if (PSE.areAddRecsEqualWithPreds(PSE.getAsAddRec(TripCount),
-                                     PSE.getAsAddRec(ConditionEnd)))
+  if (TripCount != ConditionEnd) {
+    // Compare the SCEV's of the TripCount and ConditionEnd to see if they're
+    // equal.  Normalize these SCEV types to be IdxTy.
+    const SCEV *TripCountSCEV =
+        SE->getNoopOrAnyExtend(SE->getSCEV(TripCount), IdxTy);
+    const SCEV *ConditionEndSCEV =
+        SE->getNoopOrAnyExtend(SE->getSCEV(ConditionEnd), IdxTy);
+    if (SE->getMinusSCEV(TripCountSCEV, ConditionEndSCEV)->isZero())
       TripCount = ConditionEnd;
+  }
 
   return TripCount;
 }
@@ -496,6 +509,36 @@ bool TapirLoopInfo::prepareForOutlining(
   }
 
   LLVM_DEBUG(dbgs() << "\tTrip count " << *TripCount << "\n");
+
+  // If necessary, rewrite the loop condition to use TripCount.  This code
+  // should run very rarely, since IndVarSimplify should have already simplified
+  // the loop's induction variables.
+  if ((Condition->getOperand(0) != TripCount) &&
+      (Condition->getOperand(1) != TripCount)) {
+    Loop *L = getLoop();
+    // For now, we don't handle the case where there are multiple uses of the
+    // condition.
+    assert(Condition->hasOneUse() &&
+           "Attempting to rewrite Condition with multiple uses.");
+    // Get the IV to use for the new condition: either PrimaryInduction or its
+    // incremented value, depending on whether the range is inclusive.
+    Value *IVForCond =
+        InclusiveRange
+            ? PrimaryInduction
+            : PrimaryInduction->getIncomingValueForBlock(L->getLoopLatch());
+    // Get the parity of the LoopLatch terminator, i.e., whether the true or
+    // false branch is the backedge.
+    BranchInst *BI = dyn_cast<BranchInst>(L->getLoopLatch()->getTerminator());
+    bool BEBranchParity = (BI->getSuccessor(0) == L->getHeader());
+    // Create the new Condition
+    ICmpInst *NewCond =
+        new ICmpInst(BEBranchParity ? ICmpInst::ICMP_NE : ICmpInst::ICMP_EQ,
+                     IVForCond, TripCount);
+    NewCond->setDebugLoc(Condition->getDebugLoc());
+    // Replace the old Condition with the new Condition.
+    ReplaceInstWithInst(Condition, NewCond);
+    Condition = NewCond;
+  }
 
   // FIXME: This test is probably too simple.
   assert(((Condition->getOperand(0) == TripCount) ||

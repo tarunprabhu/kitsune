@@ -28,19 +28,42 @@ using namespace llvm;
 static const char TimerGroupName[] = DEBUG_TYPE;
 static const char TimerGroupDescription[] = "Tapir outlining";
 
+// Materialize any necessary information in DstM when outlining Tapir into DstM.
+Value *OutlineMaterializer::materialize(Value *V) {
+  if (V == SrcSyncRegion) {
+    // Create a new sync region to replace the sync region SrcSyncRegion from
+    // the source.
+
+    // Get the destination function
+    User *U = *(V->materialized_user_begin());
+    Function *DstFunc = cast<Instruction>(U)->getFunction();
+    // Add a new syncregion to the entry block of the destination function
+    Instruction *NewSyncReg = cast<Instruction>(SrcSyncRegion)->clone();
+    BasicBlock *EntryBlock = &DstFunc->getEntryBlock();
+    EntryBlock->getInstList().push_back(NewSyncReg);
+    // Record the entry block as needing remapping
+    BlocksToRemap.insert(EntryBlock);
+    return NewSyncReg;
+  }
+
+  return nullptr;
+}
+
 // Clone Blocks into NewFunc, transforming the old arguments into references to
 // VMap values.
 //
 /// TODO: Fix the std::vector part of the type of this function.
-void llvm::CloneIntoFunction(
-    Function *NewFunc, const Function *OldFunc,
-    std::vector<BasicBlock *> Blocks, ValueToValueMapTy &VMap,
-    bool ModuleLevelChanges, SmallVectorImpl<ReturnInst *> &Returns,
-    const StringRef NameSuffix, SmallPtrSetImpl<BasicBlock *> *ReattachBlocks,
-    SmallPtrSetImpl<BasicBlock *> *TaskResumeBlocks,
-    SmallPtrSetImpl<BasicBlock *> *SharedEHEntries,
-    DISubprogram *SP, ClonedCodeInfo *CodeInfo,
-    ValueMapTypeRemapper *TypeMapper, ValueMaterializer *Materializer) {
+void llvm::CloneIntoFunction(Function *NewFunc, const Function *OldFunc,
+                             std::vector<BasicBlock *> Blocks,
+                             ValueToValueMapTy &VMap, bool ModuleLevelChanges,
+                             SmallVectorImpl<ReturnInst *> &Returns,
+                             const StringRef NameSuffix,
+                             SmallPtrSetImpl<BasicBlock *> *ReattachBlocks,
+                             SmallPtrSetImpl<BasicBlock *> *TaskResumeBlocks,
+                             SmallPtrSetImpl<BasicBlock *> *SharedEHEntries,
+                             DISubprogram *SP, ClonedCodeInfo *CodeInfo,
+                             ValueMapTypeRemapper *TypeMapper,
+                             OutlineMaterializer *Materializer) {
   // Get the predecessors of the exit blocks
   SmallPtrSet<const BasicBlock *, 4> EHEntryPreds, ClonedEHEntryPreds;
   if (SharedEHEntries)
@@ -157,16 +180,8 @@ void llvm::CloneIntoFunction(
     if (ISP != SP)
       VMap.MD()[ISP].reset(ISP);
 
-  NamedMDNode *NMD = nullptr;
-  for (DICompileUnit *CU : DIFinder.compile_units()) {
+  for (DICompileUnit *CU : DIFinder.compile_units())
     VMap.MD()[CU].reset(CU);
-    // Populate llvm.dbg.cu in NewFunc's module, if necessary.
-    if (NewFunc->getParent() != OldFunc->getParent()) {
-      if (!NMD)
-        NMD = NewFunc->getParent()->getOrInsertNamedMetadata("llvm.dbg.cu");
-      NMD->addOperand(CU);
-    }
-  }
 
   for (DIType *Type : DIFinder.types())
     VMap.MD()[Type].reset(Type);
@@ -188,7 +203,38 @@ void llvm::CloneIntoFunction(
                        TypeMapper, Materializer);
     }
   }
+
+  // Remapping instructions could cause the Materializer to insert new
+  // instructions in the entry block. Now remap the instructions in the entry
+  // block.
+  if (Materializer)
+    while (!Materializer->BlocksToRemap.empty()) {
+      BasicBlock *BB = Materializer->BlocksToRemap.pop_back_val();
+      for (Instruction &II : *BB) {
+        LLVM_DEBUG(dbgs() << "  Remapping " << II << "\n");
+        RemapInstruction(&II, VMap,
+                         ModuleLevelChanges ? RF_None : RF_NoModuleLevelChanges,
+                         TypeMapper, Materializer);
+      }
+    }
   } // end timed region
+
+  // Register all DICompileUnits of the old parent module in the new parent
+  // module
+  auto *OldModule = OldFunc->getParent();
+  auto *NewModule = NewFunc->getParent();
+  if (OldModule && NewModule && OldModule != NewModule &&
+      DIFinder.compile_unit_count()) {
+    auto *NMD = NewModule->getOrInsertNamedMetadata("llvm.dbg.cu");
+    // Avoid multiple insertions of the same DICompileUnit to NMD.
+    SmallPtrSet<const void *, 8> Visited;
+    for (auto *Operand : NMD->operands())
+      Visited.insert(Operand);
+    for (auto *Unit : DIFinder.compile_units())
+      // VMap.MD()[Unit] == Unit
+      if (Visited.insert(Unit).second)
+        NMD->addOperand(Unit);
+  }
 }
 
 /// Create a helper function whose signature is based on Inputs and
@@ -206,9 +252,8 @@ Function *llvm::CreateHelper(
     SmallPtrSetImpl<BasicBlock *> *SharedEHEntries,
     const BasicBlock *OldUnwind,
     SmallPtrSetImpl<BasicBlock *> *UnreachableExits,
-    const Instruction *InputSyncRegion,
     Type *ReturnType, ClonedCodeInfo *CodeInfo,
-    ValueMapTypeRemapper *TypeMapper, ValueMaterializer *Materializer) {
+    ValueMapTypeRemapper *TypeMapper, OutlineMaterializer *Materializer) {
   LLVM_DEBUG(dbgs() << "inputs: " << Inputs.size() << "\n");
   LLVM_DEBUG(dbgs() << "outputs: " << Outputs.size() << "\n");
 
@@ -322,23 +367,29 @@ Function *llvm::CreateHelper(
       AttributeList::ReturnIndex,
       AttributeFuncs::typeIncompatible(NewFunc->getReturnType()));
 
-  // Remove any attributes in the caller invalidated by outlining.
+  // Update vector-related attributes in the caller and new function
   if (VectorArg && OldFunc->hasFnAttribute("min-legal-vector-width")) {
     uint64_t CallerVectorWidth;
     OldFunc->getFnAttribute("min-legal-vector-width")
         .getValueAsString()
         .getAsInteger(0, CallerVectorWidth);
-    if (std::numeric_limits<uint64_t>::max() == MaxVectorArgWidth)
+    if (std::numeric_limits<uint64_t>::max() == MaxVectorArgWidth) {
       // MaxVectorArgWidth is not a finite value.  Give up and remove the
       // min-legal-vector-width attribute, so OldFunc wil be treated
       // conservatively henceforth.
       OldFunc->removeFnAttr("min-legal-vector-width");
-    else if (MaxVectorArgWidth > CallerVectorWidth)
+      // Update the min-legal-vector-width in the new function as well
+      NewFunc->removeFnAttr("min-legal-vector-width");
+    } else if (MaxVectorArgWidth > CallerVectorWidth) {
       // If MaxVectorArgWidth is a finite value and larger than the
-      // min-legal-vector-width of OldFunc, then set the min-legal-vector-width
-      // of OldFunc to match MaxVectorArgWidth.
+      // min-legal-vector-width of OldFunc, then set the
+      // min-legal-vector-width of OldFunc to match MaxVectorArgWidth.
       OldFunc->addFnAttr("min-legal-vector-width",
                          llvm::utostr(MaxVectorArgWidth));
+      // Update the min-legal-vector-width in the new function
+      NewFunc->addFnAttr("min-legal-vector-width",
+                         llvm::utostr(MaxVectorArgWidth));
+    }
   }
 
   // Clone the metadata from the old function into the new.
@@ -405,16 +456,6 @@ Function *llvm::CreateHelper(
     NewUnwind = BasicBlock::Create(
         NewFunc->getContext(), OldUnwind->getName()+NameSuffix);
     VMap[OldUnwind] = NewUnwind;
-  }
-
-  // Create new sync region to replace the old one containing any cloned Tapir
-  // instructions, and add the appropriate mappings.
-  if (InputSyncRegion) {
-    Instruction *NewSR = InputSyncRegion->clone();
-    if (InputSyncRegion->hasName())
-      NewSR->setName(InputSyncRegion->getName()+NameSuffix);
-    NewEntry->getInstList().push_back(NewSR);
-    VMap[InputSyncRegion] = NewSR;
   }
 
   // Create an new unreachable exit block, if needed.

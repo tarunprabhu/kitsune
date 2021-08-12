@@ -31,7 +31,6 @@
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
-#include "llvm/Support/Process.h"
 
 using namespace llvm;
 
@@ -87,14 +86,8 @@ void OpenCilkABI::prepareModule() {
   Type *Int32Ty = Type::getInt32Ty(C);
 
   if (UseOpenCilkRuntimeBC) {
-    Optional<std::string> path; 
-    if("" == OpenCilkRuntimeBCPath){
-      path = sys::Process::FindInEnvPath("LD_LIBRARY_PATH", "libopencilk-abi.bc");
-      assert(path.hasValue() &&
-             "Couldn't find OpenCilk runtime bitcode file in LD_LIBRARY_PATH.");
-    } else {
-      path = OpenCilkRuntimeBCPath.getValue();
-    }
+    assert("" != OpenCilkRuntimeBCPath &&
+           "Missing path to OpenCilk runtime bitcode file.");
     LLVM_DEBUG(dbgs() << "Using external bitcode file for OpenCilk ABI: "
                       << OpenCilkRuntimeBCPath << "\n");
     SMDiagnostic SMD;
@@ -102,7 +95,7 @@ void OpenCilkABI::prepareModule() {
     // Parse the bitcode file.  This call imports structure definitions, but not
     // function definitions.
     std::unique_ptr<Module> ExternalModule =
-        parseIRFile(*path, SMD, C);
+        parseIRFile(OpenCilkRuntimeBCPath.getValue(), SMD, C);
 
     // Strip any debug info from the external module.  For convenience, this
     // Tapir target synthesizes some helper functions, like
@@ -1579,7 +1572,7 @@ void OpenCilkABI::postProcessFunction(Function &F, bool ProcessingTapirLoops) {
 void OpenCilkABI::postProcessHelper(Function &F) {}
 
 LoopOutlineProcessor *OpenCilkABI::getLoopOutlineProcessor(
-    const TapirLoopInfo *TL) {
+    const TapirLoopInfo *TL) const {
   if (UseRuntimeCilkFor)
     return new RuntimeCilkFor(M);
   return nullptr;

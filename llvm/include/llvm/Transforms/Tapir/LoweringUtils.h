@@ -60,6 +60,8 @@ struct TaskOutlineInfo {
   // Instruction in Outline corresponding to the taskframe.create.
   Instruction *TaskFrameCreate = nullptr;
 
+  Instruction *SR = nullptr; 
+
   // The set of values in the caller passed to the helper function.  These
   // values might be passed directly to a call to the helper function, or they
   // might be marshalled into a structure.
@@ -78,9 +80,6 @@ struct TaskOutlineInfo {
   // of the original detach instruction.  For an outlined Tapir loop, this
   // block corresponds to the normal exit block after the loop latch.
   BasicBlock *ReplRet = nullptr;
-  
-  // Task that corresponds to the task outline
-  Value* SR = nullptr; 
 
   // Basic block denoting the unwind destination of an invocation of the
   // outlined helper function.  This block corresponds to the unwind block of
@@ -92,10 +91,10 @@ struct TaskOutlineInfo {
   TaskOutlineInfo(Function *Outline, Instruction *DetachPt,
                   Instruction *TaskFrameCreate, ValueSet &InputSet,
                   Instruction *ReplStart, Instruction *ReplCall,
-                  BasicBlock *ReplRet, Value* SR, BasicBlock *ReplUnwind = nullptr)
+                  BasicBlock *ReplRet, BasicBlock *ReplUnwind = nullptr)
       : Outline(Outline), DetachPt(DetachPt), TaskFrameCreate(TaskFrameCreate),
         InputSet(InputSet), ReplStart(ReplStart), ReplCall(ReplCall),
-        ReplRet(ReplRet), SR(SR), ReplUnwind(ReplUnwind) {}
+        ReplRet(ReplRet), ReplUnwind(ReplUnwind) {}
 
   // Replaces the stored call or invoke instruction to the outlined function
   // with \p NewReplCall, and updates other information in this TaskOutlineInfo
@@ -132,28 +131,6 @@ struct TaskOutlineInfo {
 // Map from tasks to TaskOutlineInfo structures.
 using TaskOutlineMapTy = DenseMap<const Task *, TaskOutlineInfo>;
 using TFOutlineMapTy = DenseMap<const Spindle *, TaskOutlineInfo>;
-
-// Value materializer for Tapir outlining.
-//
-// If a non-null destination module DstM is specified, then it is assumed that
-// Tapir lowering will place the code into the module DstM that is distinct from
-// the source module.  In that case, this materializer will ensure will
-// materialize any necessary information, such as global values, in DstM to
-// produce a valid module.
-//
-// If DstM is null, then it's assumed that the outlining process uses the same
-// destination and source modules.  In that case, this value materializer does
-// nothing.
-//
-// TODO: Extend this value materializer to materialize any additional data in
-// DstM.
-class OutlineMaterializer : public ValueMaterializer {
-  Module *DstM = nullptr;
-public:
-  OutlineMaterializer(Module *DstM) : DstM(DstM) {}
-
-  Value *materialize(Value *V) override;
-};
 
 /// Abstract class for a parallel-runtime-system target for Tapir lowering.
 ///
@@ -225,17 +202,20 @@ protected:
   Module &DestM;
 
   TapirTarget(Module &M, Module &DestM) : M(M), DestM(DestM) {}
+
 public:
   // Enumeration of ways arguments can be passed to outlined functions.
-  enum class ArgStructMode
-    {
-     None,   // Pass arguments directly.
-     Static, // Statically allocate a structure to store arguments.
-     Dynamic // Dynamically allocate a structure to store arguments.
-    };
+  enum class ArgStructMode {
+    None,   // Pass arguments directly.
+    Static, // Statically allocate a structure to store arguments.
+    Dynamic // Dynamically allocate a structure to store arguments.
+  };
 
   TapirTarget(Module &M) : M(M), DestM(M) {}
   virtual ~TapirTarget() {}
+
+  // Prepare the module for final Tapir lowering.
+  virtual void prepareModule() {}
 
   /// Lower a call to the tapir.loop.grainsize intrinsic into a grainsize
   /// (coarsening) value.
@@ -253,8 +233,6 @@ public:
   /// Returns true if Function F should be processed.
   virtual bool shouldProcessFunction(const Function &F) const;
 
-  virtual void prepareModule() {}
-
   /// Returns true if tasks in Function F should be outlined into their own
   /// functions.  Such outlining is a common step for many Tapir backends.
   virtual bool shouldDoOutlining(const Function &F) const { return true; }
@@ -262,7 +240,7 @@ public:
   /// Process Function F before any function outlining is performed.  This
   /// routine should not modify the CFG structure.
   virtual void preProcessFunction(Function &F, TaskInfo &TI,
-                                  bool OutliningTapirLoops = false) = 0;
+                                  bool ProcessingTapirLoops = false) = 0;
 
   /// Returns an ArgStructMode enum value describing how inputs to a task should
   /// be passed to the task, e.g., directly as arguments to the outlined
@@ -306,15 +284,15 @@ public:
 
   // Process Function F at the end of the lowering process.
   virtual void postProcessFunction(Function &F,
-                                   bool OutliningTapirLoops = false) = 0;
+                                   bool ProcessingTapirLoops = false) = 0;
 
   // Process a generated helper Function F produced via outlining, at the end of
   // the lowering process.
   virtual void postProcessHelper(Function &F) = 0;
 
   // Get the LoopOutlineProcessor associated with this Tapir target.
-  virtual LoopOutlineProcessor *getLoopOutlineProcessor(
-      const TapirLoopInfo *TL) {
+  virtual LoopOutlineProcessor *
+  getLoopOutlineProcessor(const TapirLoopInfo *TL) const {
     return nullptr;
   }
 };
@@ -541,6 +519,7 @@ TaskOutlineInfo outlineTaskFrame(
 /// Given a Tapir loop \p TL and the set of inputs to the task inside that loop,
 /// returns the set of inputs for the Tapir loop itself.
 ValueSet getTapirLoopInputs(TapirLoopInfo *TL, ValueSet &TaskInputs);
+
 
 /// Replaces the Tapir loop \p TL, with associated TaskOutlineInfo \p Out, with
 /// a call or invoke to the outlined helper function created for \p TL.
