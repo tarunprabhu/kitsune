@@ -829,7 +829,7 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
 /// by Dirs.
 ///
 static bool searchForFile(SmallVectorImpl<char> &FilePath,
-                          ArrayRef<StringRef> Dirs, 
+                          ArrayRef<StringRef> Dirs,
                           StringRef FileName) {
   SmallString<128> WPath;
   for (const StringRef &Dir : Dirs) {
@@ -859,12 +859,32 @@ bool Driver::readConfigFile(StringRef FileName) {
   llvm::SmallString<128> CfgFileName(FileName);
   llvm::sys::path::native(CfgFileName);
   ConfigFile = std::string(CfgFileName.str());
-  bool ContainErrors;
-  CfgOptions = std::make_unique<InputArgList>(
-      ParseArgStrings(NewCfgArgs, IsCLMode(), ContainErrors));
-  if (ContainErrors) {
-    CfgOptions.reset();
-    return true;
+  ConfigFileList.push_back(ConfigFile);
+
+  bool ContainsErrors;
+  if (CfgOptions.get() == nullptr) {
+    // processing the first .cfg file...
+    CfgOptions = std::make_unique<InputArgList>(
+        ParseArgStrings(NewCfgArgs, IsCLMode(), ContainsErrors));
+
+    if (ContainsErrors) {
+      CfgOptions.reset();
+      return true;
+    }
+  } else {
+    // we've been through a previous config file so we don't want to
+    // trash the cfg options previously captured...
+    std::unique_ptr<InputArgList> NextCfgOpts;
+    NextCfgOpts = std::make_unique<InputArgList>(
+      ParseArgStrings(NewCfgArgs, IsCLMode(), ContainsErrors));
+
+    if (ContainsErrors) {
+      CfgOptions.reset();
+      return true;
+    }
+
+    for(Arg *A: *NextCfgOpts)
+      CfgOptions->append(A);
   }
 
   if (CfgOptions->hasArg(options::OPT_config)) {
@@ -921,7 +941,6 @@ bool Driver::loadConfigFile() {
           UserConfigDir = std::string(CfgDir.begin(), CfgDir.end());
       }
     }
-
   }
 
   // First try to find config file specified in command line.
@@ -959,29 +978,30 @@ bool Driver::loadConfigFile() {
     }
   }
 
-  // Prepare list of directories where config file is searched for.  Note that the directories 
-  // appear in the order they will be searched -- the first matched file will be used and the 
-  // search will stop from that point. 
+  // Prepare list of directories where config file is searched for.  Note that the directories
+  // appear in the order they will be searched -- the first matched file will be used and the
+  // search will stop from that point.
   StringRef CfgFileSearchDirs[] = {Dir, UserConfigDir, KitsuneConfigDir, SystemConfigDir};
 
   // kitsune: check for a kokkos configuration file.
   if (CLOptions->hasArg(options::OPT_fkokkos)) {
-    LLVM_DEBUG(llvm::dbgs()
-               << "looking for -fkokkos mode config file '" 
-               << KitsuneKokkosCfgFile.c_str() << "'.\n");
+    LLVM_DEBUG(llvm::dbgs() << "looking for -fkokkos mode config file '"
+                            << KitsuneKokkosCfgFile.c_str() << "'.\n");
     llvm::SmallString<128> KokkosCfgFilePath;
-    if (searchForFile(KokkosCfgFilePath, CfgFileSearchDirs, KitsuneKokkosCfgFile)) {
+    if (searchForFile(KokkosCfgFilePath, CfgFileSearchDirs,
+                      KitsuneKokkosCfgFile)) {
       if (readConfigFile(KokkosCfgFilePath))
         Diag(diag::err_drv_cannot_read_kitsune_cfg_file)
-           << KokkosCfgFilePath << "-fkokkos";
+            << KokkosCfgFilePath << "-fkokkos";
     } else {
-      Diag(diag::warn_drv_missing_cfg_file) << KitsuneKokkosCfgFile << "-fkokkos";
+      Diag(diag::warn_drv_missing_cfg_file)
+          << KitsuneKokkosCfgFile << "-fkokkos";
       for (const StringRef &SearchDir : CfgFileSearchDirs)
         if (!SearchDir.empty())
           Diag(diag::note_drv_config_file_searched_in) << SearchDir;
     }
   }
-
+  
   // tapir: check for a tapir target specific configuration file.
   if (CLOptions->hasArg(options::OPT_ftapir_EQ)) {
     if (const Arg *A = CLOptions->getLastArg(options::OPT_ftapir_EQ)) {
@@ -1004,7 +1024,7 @@ bool Driver::loadConfigFile() {
             Diag(diag::err_drv_cannot_read_kitsune_cfg_file)
               << TapirTargetCfgFilePath << A->getValue();
         } else {
-          Diag(diag::warn_drv_missing_cfg_file) 
+          Diag(diag::warn_drv_missing_cfg_file)
               << TapirTargetCfgFile << A->getValue();
           for (const StringRef &SearchDir : CfgFileSearchDirs)
             if (!SearchDir.empty())
@@ -1013,6 +1033,7 @@ bool Driver::loadConfigFile() {
       }
     }
   }
+
 
   // If config file is not specified explicitly, try to deduce configuration
   // from executable name. For instance, an executable 'armv7l-clang' will
