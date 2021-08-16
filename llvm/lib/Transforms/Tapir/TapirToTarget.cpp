@@ -180,19 +180,6 @@ TapirToTargetImpl::outlineAllTasks(Function &F,
     // Outline the task, if necessary, and add the outlined function to the
     // mapping.
 
-    // If task T tracks any exception-handling spindles for its subtasks, remove
-    // any dependencies from those shared-EH spindles to T.
-    for (Spindle *SharedEH : T->shared_eh_spindles()) {
-      // Remove blocks in shared-EH spindles from PHI's in T.
-      for (Spindle::SpindleEdge &SuccEdge : SharedEH->out_edges()) {
-        Spindle *Succ = SuccEdge.first;
-        BasicBlock *Exit = SuccEdge.second;
-        if (Succ->getParentTask() != T || T->containsSharedEH(Succ))
-          continue;
-        Succ->getEntry()->removePredecessor(Exit);
-      }
-    }
-
     ValueToValueMapTy VMap;
     ValueToValueMapTy InputMap;
     TFToOutline[TF] = outlineTask(T, TFInputs[TF], HelperInputs[TF],
@@ -301,7 +288,7 @@ bool TapirToTargetImpl::processRootTask(
 
     // Process each call to a subtask.
     for (Spindle *TF : TI.getRootTask()->taskframe_roots())
-      if (Task *SubT = TF->getTaskFromTaskFrame())
+      if (TF->getTaskFromTaskFrame())
         Target->processSubTaskCall(TFToOutline[TF], DT);
 
     Target->postProcessRootSpawner(F);
@@ -324,7 +311,7 @@ bool TapirToTargetImpl::processSpawnerTaskFrame(
 
   // Process each call to a subtask.
   for (Spindle *SubTF : TF->subtaskframes())
-    if (Task *SubT = SubTF->getTaskFromTaskFrame())
+    if (SubTF->getTaskFromTaskFrame())
       Target->processSubTaskCall(TFToOutline[SubTF], DT);
 
   Target->postProcessRootSpawner(F);
@@ -350,7 +337,7 @@ bool TapirToTargetImpl::processOutlinedTask(
                                  !T->isSerial());
   // Process each call to a subtask.
   for (Spindle *SubTF : TF->subtaskframes())
-    if (Task *SubT = SubTF->getTaskFromTaskFrame())
+    if (SubTF->getTaskFromTaskFrame())
       Target->processSubTaskCall(TFToOutline[SubTF], DT);
 
   Target->postProcessOutlinedTask(F, DetachPt, TaskFrameCreate,
@@ -472,9 +459,12 @@ bool TapirToTargetImpl::run() {
   }
   }
 
+  // Quit early if there are no functions in this module to lower.
   if (WorkList.empty())
     return false;
 
+  // There are functions in this module to lower.  Prepare the module for Tapir
+  // lowering.
   Target->prepareModule();
 
   bool Changed = false;

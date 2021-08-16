@@ -653,10 +653,8 @@ void CudaABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
 }
 
 LoopOutlineProcessor *CudaABI::getLoopOutlineProcessor(
-    const TapirLoopInfo *TL) {
-  if (!LOP)
-    LOP = new CudaLoop(M);
-  return LOP;
+    const TapirLoopInfo *TL) const {
+  new CudaLoop(M);
 }
 
 // Static counter for assigning IDs to kernels.

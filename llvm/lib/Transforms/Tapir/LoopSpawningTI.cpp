@@ -604,10 +604,30 @@ void DACSpawning::implementDACIterSpawnOnHelper(
   }
 
   BasicBlock *DACHead = Preheader;
-  if (&(Helper->getEntryBlock()) == Preheader)
+  if (&(Helper->getEntryBlock()) == Preheader) {
     // Split the entry block.  We'll want to create a backedge into
     // the split block later.
-    DACHead = SplitBlock(Preheader, Preheader->getTerminator());
+    DACHead = SplitBlock(Preheader, &Preheader->front());
+
+    // Move any syncregion_start's in DACHead into Preheader.
+    BasicBlock::iterator InsertPoint = Preheader->begin();
+    for (BasicBlock::iterator I = DACHead->begin(), E = DACHead->end();
+         I != E;) {
+      IntrinsicInst *II = dyn_cast<IntrinsicInst>(I++);
+      if (!II)
+        continue;
+      if (Intrinsic::syncregion_start != II->getIntrinsicID())
+        continue;
+
+      while (isa<IntrinsicInst>(I) &&
+             Intrinsic::syncregion_start ==
+                 cast<IntrinsicInst>(I)->getIntrinsicID())
+        ++I;
+
+      Preheader->getInstList().splice(InsertPoint, DACHead->getInstList(),
+                                      II->getIterator(), I);
+    }
+  }
 
   Value *PrimaryIVInput = PrimaryIV->getIncomingValueForBlock(DACHead);
   Value *PrimaryIVInc = PrimaryIV->getIncomingValueForBlock(
@@ -639,16 +659,20 @@ void DACSpawning::implementDACIterSpawnOnHelper(
   BasicBlock *RecurHead, *RecurDet, *RecurCont;
   Value *IterCount;
   PHINode *PrimaryIVStart;
+  Value *Start;
   {
     Instruction *PreheaderOrigFront = &(DACHead->front());
     IRBuilder<> Builder(PreheaderOrigFront);
     // Create branch based on grainsize.
-    //CanonicalIVInput = CanonicalIV->getIncomingValueForBlock(DACHead);
     PrimaryIVStart = Builder.CreatePHI(PrimaryIV->getType(), 2,
                                        PrimaryIV->getName()+".dac");
     PrimaryIVStart->setDebugLoc(PrimaryIV->getDebugLoc());
     PrimaryIVInput->replaceAllUsesWith(PrimaryIVStart);
-    IterCount = Builder.CreateSub(End, PrimaryIVStart, "itercount");
+    Start = PrimaryIVStart;
+    // Extend or truncate start, if necessary.
+    if (PrimaryIVStart->getType() != End->getType())
+      Start = Builder.CreateZExtOrTrunc(PrimaryIVStart, End->getType());
+    IterCount = Builder.CreateSub(End, Start, "itercount");
     Value *IterCountCmp = Builder.CreateICmpUGT(IterCount, Grainsize);
     Instruction *RecurTerm =
       SplitBlockAndInsertIfThen(IterCountCmp, PreheaderOrigFront,
@@ -671,10 +695,8 @@ void DACSpawning::implementDACIterSpawnOnHelper(
   Instruction *MidIter;
   {
     IRBuilder<> Builder(&(RecurHead->front()));
-    MidIter = cast<Instruction>(
-        Builder.CreateAdd(PrimaryIVStart,
-                          Builder.CreateLShr(IterCount, 1, "halfcount"),
-                          "miditer"));
+    Value *HalfCount = Builder.CreateLShr(IterCount, 1, "halfcount");
+    MidIter = cast<Instruction>(Builder.CreateAdd(Start, HalfCount, "miditer"));
     // Copy flags from the increment operation on the primary IV.
     MidIter->copyIRFlags(PrimaryIVInc);
   }
@@ -755,6 +777,14 @@ void DACSpawning::implementDACIterSpawnOnHelper(
                           "miditerplusone"));
     // Copy flags from the increment operation on the primary IV.
     NextIter->copyIRFlags(PrimaryIVInc);
+    // Extend or truncate NextIter, if necessary
+    if (PrimaryIVStart->getType() != NextIter->getType())
+      NextIter = cast<Instruction>(
+          Builder.CreateZExtOrTrunc(NextIter, PrimaryIVStart->getType()));
+  } else if (PrimaryIVStart->getType() != NextIter->getType()) {
+    IRBuilder<> Builder(&(RecurCont->front()));
+    NextIter = cast<Instruction>(
+        Builder.CreateZExtOrTrunc(NextIter, PrimaryIVStart->getType()));
   }
 
   // Finish the phi node in DACHead.
@@ -764,7 +794,6 @@ void DACSpawning::implementDACIterSpawnOnHelper(
   //   ...
   PrimaryIVStart->addIncoming(PrimaryIVInput, Preheader);
   PrimaryIVStart->addIncoming(NextIter, RecurCont);
-  // PrimaryIVStart->addIncoming(MidIterPlusOne, RecurCont);
 
   // Make the recursive DAC call parallel.
   //
@@ -995,6 +1024,9 @@ void LoopSpawningImpl::getTapirLoopTaskBlocks(
             ReattachBlocks.insert(B);
           if (isDetachedRethrow(B->getTerminator()))
             DetachedRethrowBlocks.insert(B);
+          if (isTaskFrameResume(B->getTerminator()))
+            UnreachableExits.insert(
+                cast<InvokeInst>(B->getTerminator())->getNormalDest());
         } else if (isDetachedRethrow(B->getTerminator()) ||
                    isTaskFrameResume(B->getTerminator())) {
           UnreachableExits.insert(
@@ -1178,13 +1210,15 @@ namespace {
 // ValueMaterializer to manage remapping uses of the tripcount in the helper
 // function for the loop, when the only uses of tripcount occur in the condition
 // for the loop backedge and, possibly, in metadata.
-class ArgEndMaterializer final : public ValueMaterializer {
+class ArgEndMaterializer final : public OutlineMaterializer {
 private:
   Value *TripCount;
   Value *ArgEnd;
 public:
-  ArgEndMaterializer(Value *TripCount, Value *ArgEnd)
-      : TripCount(TripCount), ArgEnd(ArgEnd) {}
+  ArgEndMaterializer(const Instruction *SrcSyncRegion, Value *TripCount,
+                     Value *ArgEnd)
+      : OutlineMaterializer(SrcSyncRegion), TripCount(TripCount),
+        ArgEnd(ArgEnd) {}
 
   Value *materialize(Value *V) final {
     // If we're materializing metadata for TripCount, materialize empty metadata
@@ -1203,7 +1237,7 @@ public:
       return ArgEnd;
 
     // Otherwise go with the default behavior.
-    return nullptr;
+    return OutlineMaterializer::materialize(V);
   }
 };
 }
@@ -1239,30 +1273,27 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
   const Instruction *InputSyncRegion =
       dyn_cast<Instruction>(DI->getSyncRegion());
 
-  ArgEndMaterializer *Mat = nullptr;
-  // If the trip count is variable and we're not otherwise passing the trip
-  // count as an argument, temporarily map the trip count to the end argument.
-  if (!isa<Constant>(TL->getTripCount()) && !Args.count(TL->getTripCount())) {
+  OutlineMaterializer *Mat = nullptr;
+  if (!isa<Constant>(TL->getTripCount()) && !Args.count(TL->getTripCount()))
     // Create an ArgEndMaterializer to handle uses of TL->getTripCount().
-    Mat = new ArgEndMaterializer(TL->getTripCount(), Args[LimitArgIndex]);
-  }
+    Mat = new ArgEndMaterializer(InputSyncRegion, TL->getTripCount(),
+                                 Args[LimitArgIndex]);
+  else
+    Mat = new OutlineMaterializer(InputSyncRegion);
 
   Twine NameSuffix = ".ls" + Twine(TL->getLoop()->getLoopDepth());
   SmallVector<ReturnInst *, 4> Returns;  // Ignore returns cloned.
   ValueSet Outputs;  // Outputs must be empty.
   Function *Helper;
   {
-  NamedRegionTimer NRT("CreateHelper",
-                       "Create helper for Tapir loop",
-                       TimerGroupName, TimerGroupDescription,
-                       TimePassesIsEnabled);
-  Helper =
-    CreateHelper(Args, Outputs, TLBlocks, Header,
-                 Preheader, TL->getExitBlock(), VMap, DestM,
-                 F.getSubprogram() != nullptr, Returns,
-                 NameSuffix.str(), nullptr, &DetachedRethrowBlocks,
-                 &SharedEHEntries, TL->getUnwindDest(), &UnreachableExits,
-                 InputSyncRegion, nullptr, nullptr, nullptr, Mat);
+    NamedRegionTimer NRT("CreateHelper", "Create helper for Tapir loop",
+                         TimerGroupName, TimerGroupDescription,
+                         TimePassesIsEnabled);
+    Helper = CreateHelper(
+        Args, Outputs, TLBlocks, Header, Preheader, TL->getExitBlock(), VMap,
+        DestM, F.getSubprogram() != nullptr, Returns, NameSuffix.str(), nullptr,
+        &DetachedRethrowBlocks, &SharedEHEntries, TL->getUnwindDest(),
+        &UnreachableExits, nullptr, nullptr, nullptr, Mat);
   } // end timed region
 
   assert(Returns.empty() && "Returns cloned when cloning detached CFG.");
@@ -1323,16 +1354,15 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
 
     // Move allocas in cloned detached block to entry of helper function.
     BasicBlock *ClonedTaskEntry = cast<BasicBlock>(VMap[T->getEntry()]);
-    bool ContainsDynamicAllocas =
-      MoveStaticAllocasInBlock(&Helper->getEntryBlock(), ClonedTaskEntry,
-                               TaskEnds);
+    bool ContainsDynamicAllocas = MoveStaticAllocasInBlock(
+        &Helper->getEntryBlock(), ClonedTaskEntry, TaskEnds);
 
     // If this task uses a taskframe, move allocas in cloned taskframe entry to
     // entry of helper function.
     if (Spindle *TFCreate = T->getTaskFrameCreateSpindle()) {
       BasicBlock *ClonedTFEntry = cast<BasicBlock>(VMap[TFCreate->getEntry()]);
-      MoveStaticAllocasInBlock(&Helper->getEntryBlock(), ClonedTFEntry,
-                               TaskEnds);
+      ContainsDynamicAllocas |= MoveStaticAllocasInBlock(
+          &Helper->getEntryBlock(), ClonedTFEntry, TaskEnds);
     }
     // If the cloned loop contained dynamic alloca instructions, wrap the cloned
     // loop with llvm.stacksave/llvm.stackrestore intrinsics.
@@ -1341,12 +1371,12 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
       // Get the two intrinsics we care about.
       Function *StackSave = Intrinsic::getDeclaration(M, Intrinsic::stacksave);
       Function *StackRestore =
-        Intrinsic::getDeclaration(M,Intrinsic::stackrestore);
+          Intrinsic::getDeclaration(M, Intrinsic::stackrestore);
 
       // Insert the llvm.stacksave.
-      CallInst *SavedPtr = IRBuilder<>(&*ClonedTaskEntry,
-                                       ClonedTaskEntry->begin())
-                             .CreateCall(StackSave, {}, "savedstack");
+      CallInst *SavedPtr =
+          IRBuilder<>(&*ClonedTaskEntry, ClonedTaskEntry->begin())
+              .CreateCall(StackSave, {}, "savedstack");
 
       // Insert a call to llvm.stackrestore before the reattaches in the
       // original Tapir loop.
@@ -1492,7 +1522,7 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
         dyn_cast_or_null<Instruction>(VMap[T->getTaskFrameUsed()]),
         LoopInputSets[L], LoopArgStarts[L],
         L->getLoopPreheader()->getTerminator(), TL->getExitBlock(),
-        T->getDetach()->getSyncRegion(), TL->getUnwindDest());
+        TL->getUnwindDest());
 
     // Do ABI-dependent processing of each outlined Tapir loop.
     {
@@ -1678,8 +1708,8 @@ struct LoopSpawningTI : public FunctionPass {
 
     LLVM_DEBUG(dbgs() << "LoopSpawningTI on function " << F.getName() << "\n");
     TapirTarget *Target = getTapirTargetFromID(M, TargetID);
-    bool Changed = LoopSpawningImpl(F, DT, LI, TI, SE, AC, TTI, Target,
-                                    ORE).run();
+    bool Changed =
+        LoopSpawningImpl(F, DT, LI, TI, SE, AC, TTI, Target, ORE).run();
     delete Target;
     return Changed;
   }

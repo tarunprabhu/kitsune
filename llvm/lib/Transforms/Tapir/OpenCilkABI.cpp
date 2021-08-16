@@ -31,7 +31,6 @@
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
-#include "llvm/Support/Process.h"
 
 using namespace llvm;
 
@@ -1591,7 +1590,7 @@ void OpenCilkABI::postProcessFunction(Function &F, bool ProcessingTapirLoops) {
 void OpenCilkABI::postProcessHelper(Function &F) {}
 
 LoopOutlineProcessor *OpenCilkABI::getLoopOutlineProcessor(
-    const TapirLoopInfo *TL) {
+    const TapirLoopInfo *TL) const {
   if (UseRuntimeCilkFor)
     return new RuntimeCilkFor(M);
   return nullptr;

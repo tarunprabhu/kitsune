@@ -64,10 +64,8 @@ void OpenCLABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
 }
 
 LoopOutlineProcessor *OpenCLABI::getLoopOutlineProcessor(
-    const TapirLoopInfo *TL) {
-  if(!LOP) 
-    return new SPIRVLoop(M);
-  return LOP;
+    const TapirLoopInfo *TL) const {
+  return new SPIRVLoop(M);
 }
 
 // Static counter for assigning IDs to kernels.
