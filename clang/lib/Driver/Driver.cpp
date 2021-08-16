@@ -857,6 +857,7 @@ bool Driver::readConfigFile(StringRef FileName) {
 
     for(Arg *A: *NextCfgOpts)
       CfgOptions->append(A);
+    NextCfgOpts.release();
   }
 
   if (CfgOptions->hasArg(options::OPT_config)) {
