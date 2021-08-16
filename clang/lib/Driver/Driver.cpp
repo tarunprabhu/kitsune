@@ -1170,7 +1170,6 @@ bool Driver::loadConfigFiles() {
           UserConfigDir = static_cast<std::string>(CfgDir);
       }
     }
-
   }
 
   // First try to find config file specified in command line.
@@ -1215,6 +1214,7 @@ bool Driver::loadConfigFiles() {
 
   // kitsune: check for a kokkos configuration file.
   if (CLOptions->hasArg(options::OPT_fkokkos)) {
+<<<<<<< HEAD
     LLVM_DEBUG(llvm::dbgs()
                << "looking for -fkokkos mode config file '"
                << KitsuneKokkosCfgFile.c_str() << "'.\n");
@@ -1232,18 +1232,26 @@ bool Driver::loadConfigFiles() {
       for (const std::string &SearchDir : CfgFileSearchDirs)
 =======
     if (searchForFile(KokkosCfgFilePath, CfgFileSearchDirs, KitsuneKokkosCfgFile)) {
+=======
+    LLVM_DEBUG(llvm::dbgs() << "looking for -fkokkos mode config file '"
+                            << KitsuneKokkosCfgFile.c_str() << "'.\n");
+    llvm::SmallString<128> KokkosCfgFilePath;
+    if (searchForFile(KokkosCfgFilePath, CfgFileSearchDirs,
+                      KitsuneKokkosCfgFile)) {
+>>>>>>> 82bcded6f6c2 (Tweaks to address some issues with the -fkokkos option and the addition of)
       if (readConfigFile(KokkosCfgFilePath))
         Diag(diag::err_drv_cannot_read_kitsune_cfg_file)
-           << KokkosCfgFilePath << "-fkokkos";
+            << KokkosCfgFilePath << "-fkokkos";
     } else {
-      Diag(diag::warn_drv_missing_cfg_file) << KitsuneKokkosCfgFile << "-fkokkos";
+      Diag(diag::warn_drv_missing_cfg_file)
+          << KitsuneKokkosCfgFile << "-fkokkos";
       for (const StringRef &SearchDir : CfgFileSearchDirs)
 >>>>>>> ca84ea8623bb (A pretty significant overhaul to our cmake build approach to make it more)
         if (!SearchDir.empty())
           Diag(diag::note_drv_config_file_searched_in) << SearchDir;
     }
   }
-
+  
   // tapir: check for a tapir target specific configuration file.
   if (CLOptions->hasArg(options::OPT_ftapir_EQ)) {
     if (const Arg *A = CLOptions->getLastArg(options::OPT_ftapir_EQ)) {
@@ -1281,6 +1289,7 @@ bool Driver::loadConfigFiles() {
       }
     }
   }
+
 
   // If config file is not specified explicitly, try to deduce configuration
   // from executable name. For instance, an executable 'armv7l-clang' will
