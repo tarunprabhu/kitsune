@@ -3499,6 +3499,7 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
                            !StaticOpenCilk);
     break;
   }
+  /*
   case TapirTargetID::Cilk:
     CmdArgs.push_back("-lcilkrts");
     break;
@@ -3509,9 +3510,10 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
     CmdArgs.push_back("-lqthread");
     break;
   case TapirTargetID::Realm:
+    CmdArgs.push_back("-lrealm-abi");
     CmdArgs.push_back("-lrealm");
-    CmdArgs.push_back("-lkitsunerealm");
     break;
+  */
   default:
     break;
   }
