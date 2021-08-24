@@ -21,8 +21,10 @@
 #include "llvm/Transforms/Tapir/CudaABI.h"
 #include "llvm/Transforms/Tapir/OpenCilkABI.h"
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
+#include "llvm/Transforms/Tapir/OpenCLABI.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/QthreadsABI.h"
+#include "llvm/Transforms/Tapir/RealmABI.h"
 #include "llvm/Transforms/Tapir/SerialABI.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -51,8 +53,12 @@ TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID) {
     return new OpenCilkABI(M);
   case TapirTargetID::OpenMP:
     return new OpenMPABI(M);
+  case TapirTargetID::OpenCL:
+    return new OpenCLABI(M);
   case TapirTargetID::Qthreads:
     return new QthreadsABI(M);
+  case TapirTargetID::Realm:
+    return new RealmABI(M);
   default:
     llvm_unreachable("Invalid TapirTargetID");
   }
