@@ -12,10 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/OpenCilkABI.h"
-#include "llvm/IRReader/IRReader.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -24,7 +23,9 @@
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker/Linker.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Transforms/Tapir/CilkRTSCilkFor.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -87,22 +88,32 @@ void OpenCilkABI::prepareModule() {
   Type *Int32Ty = Type::getInt32Ty(C);
 
   if (UseOpenCilkRuntimeBC) {
-    Optional<std::string> path; 
+    Optional<std::string> path;
+
     if("" == OpenCilkRuntimeBCPath){
       path = sys::Process::FindInEnvPath("LD_LIBRARY_PATH", "libopencilk-abi.bc");
-      assert(path.hasValue() &&
-             "Couldn't find OpenCilk runtime bitcode file in LD_LIBRARY_PATH.");
+      if (! path.hasValue())
+        // TODO: This is an in-tree build solution for now... 
+        #if defined(OPENCILK_BC_PATH)
+        path = OPENCILK_BC_PATH;
+        #else  
+        report_fatal_error("Could not find OpenCilk runtime bitcode file " 
+                           "(libopencilk-abi.bc) in LD_LIBRARY_PATH.");
+        #endif 
     } else {
       path = OpenCilkRuntimeBCPath.getValue();
     }
     LLVM_DEBUG(dbgs() << "Using external bitcode file for OpenCilk ABI: "
-                      << OpenCilkRuntimeBCPath << "\n");
+                      << path << "\n");
     SMDiagnostic SMD;
 
     // Parse the bitcode file.  This call imports structure definitions, but not
     // function definitions.
     std::unique_ptr<Module> ExternalModule =
         parseIRFile(*path, SMD, C);
+    if (ExternalModule == nullptr) { 
+      report_fatal_error("Error parsing OpenCilk runtime bitcode file!");
+    }
 
     // Strip any debug info from the external module.  For convenience, this
     // Tapir target synthesizes some helper functions, like
@@ -126,7 +137,9 @@ void OpenCilkABI::prepareModule() {
                                          << "\n";
                               });
                             });
-    assert(!Fail && "Failed to link OpenCilk runtime bitcode module.\n");
+    
+    if (Fail)
+      report_fatal_error("Failed to link OpenCilk runtime bitcode module.");                            
   }
 
   // Get or create local definitions of Cilk RTS structure types.

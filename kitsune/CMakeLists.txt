@@ -2,165 +2,81 @@
 # Copyright (c) 2020 Triad National Security, LLC
 #                         All rights reserved.
 #
-# This file is part of the kitsune/llvm project.  It is released under
+# This file is part of the kitsune+tapir project.  It is released under
 # the LLVM license.
 #
-cmake_minimum_required(VERSION 3.13.4)
+cmake_minimum_required(VERSION 3.19)
+project(Kitsune)
+include(FetchContent)
 
-# RPATH settings on macOS do not affect INSTALL_NAME.
-if (POLICY CMP0068)
-  cmake_policy(SET CMP0068 NEW)
-  set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
-endif()
-
-# Include file check macros honor CMAKE_REQUIRED_LIBRARIES.
-if(POLICY CMP0075)
-  cmake_policy(SET CMP0075 NEW)
-endif()
-
-# option() honors normal variables.
-if (POLICY CMP0077)
-  cmake_policy(SET CMP0077 NEW)
-endif()
-
-set(KITSUNE_ENABLED TRUE
-    CACHE
-    BOOL
-    "Enable Kitsune and Tapir features to the LLVM infrastructure."
-)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
+include(KitsuneUtils)
 
 set(KITSUNE_SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR})
 set(KITSUNE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
-set(KITSUNE_BINARY_DIR  ${CMAKE_CURRENT_BINARY_DIR})
 
+if (KITSUNE_ENABLE_KOKKOS_SUPPORT)
+  set(KITSUNE_KOKKOS_SRC_DIR  ${LLVM_BINARY_DIR}/kokkos)
+  FetchContent_Declare(kokkos
+    GIT_REPOSITORY    https://github.com/kokkos/kokkos.git
+    GIT_TAG           3.3.01
+    SOURCE_DIR        ${KITSUNE_KOKKOS_SRC_DIR})
 
-message(STATUS "Kitsune source directory: ${KITSUNE_SOURCE_DIR}")
-message(STATUS "Kitsune include directory: ${KITSUNE_INCLUDE_DIR}")
-message(STATUS "Kitsune binary directory: ${KITSUNE_BINARY_DIR}")
+  set(Kokkos_ENABLE_SERIAL ON CACHE BOOL "")
+  FetchContent_MakeAvailable(kokkos)
+endif()
 
-option(KITSUNE_INCLUDE_TESTS
-  "Enable Kitsune tests." FALSE) # TODO: temp patch ${LLVM_INCLUDE_TESTS})
-option(KITSUNE_BUILD_EXAMPLES
-  "Build Kitsune example programs by default." ${KITSUNE_INCLUDE_TESTS})
-
-# Add Kitsune-centric modules to cmake path.
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
-
-include(AddKitsune)
-
-option(KITSUNE_ENABLE_WERROR
-  "Fail kitsune builds if a warning is triggered." OFF)
-
-# Runtime backend targets.
-
-find_package(CUDAToolkit)
-option(KITSUNE_ENABLE_CUDA
-  "Enable Kitsune-centric CUDA support." ${CUDAToolkit_FOUND})
-if (KITSUNE_ENABLE_CUDA)
-  option(KITSUNE_ENABLE_CUDA_TARGET
-    "Enable the CUDA runtime ABI target." ${CUDAToolkit_FOUND})
-  if (KITSUNE_ENABLE_CUDA_TARGET)
-    option(KITSUNE_CUDA_LIBRARY_DIR
-    "Enable the CUDA runtime ABI target." ${CUDAToolkit_LIBRARY_DIR})
-    set(KITSUNE_EXTRA_CUDA_LINK_LIBS ""
-      CACHE
-      STRING "Extra link libraries for CUDA ABI runtime target."
-    )
+option(KITSUNE_ENABLE_RUNTIME_ABIS "Enable the various Kitsune ABI libraries." ON)
+if (KITSUNE_ENABLE_RUNTIME_ABIS)
+  message(STATUS "kitsune: enabling target runtime ABI library selection.")  
+  if (KITSUNE_ENABLE_REALM_TARGET)
+    set(KITSUNE_REALM_SOURCE_DIR ${LLVM_BINARY_DIR}/legion)
+    set(KITSUNE_LEGION_INCLUDE_DIR ${KITSUNE_REALM_SOURCE_DIR}/runtime)
+    set(KITSUNE_REALM_INCLUDE_DIR ${KITSUNE_LEGION_SRC_DIR}/realm)
+    set(KITSUNE_REALM_BINARY_DIR ${LLVM_BINARY_DIR}/runtimes/runtimes-bins/_deps/realm-build)
+    FetchContent_Declare(realm 
+      GIT_REPOSITORY   https://github.com/StanfordLegion/legion.git
+      GIT_TAG          master
+      SOURCE_DIR       ${KITSUNE_REALM_SOURCE_DIR})
+    set(Legion_BUILD_REALM_ONLY ON)
+    set(Legion_USE_LVVM OFF)
+    set(Legion_LINK_LLVM_LIBS OFF)
+    set(Legion_USE_CUDA OFF)
+    set(Legion_USE_HIP OFF)
+    FetchContent_MakeAvailable(realm)
+  endif()
+  
+  # Following llvm style we use a list to pick the set of runtime abi libraries (i.e., wrappers
+  # around various runtime systems that aim to simplify code generation details in the Tapir
+  # transforms within LLVM.
+  set(KITSUNE_ALL_RT_ABIS "realm")
+  set(KITSUNE_ENABLE_ABI_LIBRARIES "" CACHE STRING
+    "Semicolon-separated list of runtime ABI target libraries to build (${KITSUNE_ALL_ABI_LIBS}), or \"all\".")
+  if (KITSUNE_ENABLE_ABI_LIBRARIES STREQUAL "all")
+    set(KITSUNE_ENABLE_ABI_LIBRARIES ${KITSUNE_ALL_RT_ABIS})
   endif()
 
-  option(KITSUNE_ENABLE_KITCUDA_TARGET
-    "Enable Kitsune's CUDA runtime ABI target." ${CUDAToolkit_FOUND})
-  if (KITSUNE_ENABLE_KITCUDA_TARGET)
-    set(KITSUNE_EXTRA_KITCUDA_LINK_LIBS ""
-      CACHE
-      STRING "Extra link libraries for Kitsune's CUDA ABI runtime target."
-    )
-    add_subdirectory(lib/CudaRT)
+  if (NOT KITSUNE_ENABLE_ABI_LIBRARIES STREQUAL "'")
+    foreach(lib ${KITSUNE_ENABLE_ABI_LIBRARIES})
+      string(TOUPPER "${lib}" upper_lib)
+      string(REGEX REPLACE "-" "_" upper_lib ${upper_lib})
+      if ("${lib}" IN_LIST KITSUNE_ENABLE_ABI_LIBRARIES)
+        message(STATUS "${lib} runtime abi target library is enabled")
+        set(ABI_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/runtimes/${lib}")
+        if (NOT EXISTS "${ABI_LIB_DIR}" OR NOT IS_DIRECTORY "${ABI_LIB_DIR}")
+          message(FATAL_ERROR "KITSUNE_ENABLE_ABI_LIBRARIES requests library ${lib} but directory not found: ${ABI_LIB_DIR}")
+        else()
+          set(KITSUNE_ENABLE_${upper_lib}_ABI ON CACHE BOOL "Wether to build ${upper_lib} ABI library.")
+          add_subdirectory(runtimes/${lib})
+        endif()
+      endif()
+    endforeach()
   endif()
 endif()
 
-find_package(OpenCL)
-# FIXME: Re-enable OpenCL default once code gen pieces are complete.
-option(KITSUNE_ENABLE_OPENCL_TARGET
-  "Enable SPIRV+OpenCL backend target." FALSE) # ${OpenCL_FOUND}
-if (KITSUNE_ENABLE_OPENCL_TARGET)
-	add_definitions(-DKITSUNE_ENABLE_OPENCL_TARGET)
-  set(OPENCL_EXTRA_LINK_LIBS "-lkitopencl"
-    CACHE
-    STRING "Extra link libraries for OpenCL runtime target."
-  )
-  add_subdirectory(lib/OpenCL)
-endif()
-
-find_package(CilkRTS)
-option(KITSUNE_ENABLE_CILKRTS_TARGET
-  "Enable Cilk runtime backend target." ${CilkRTS_FOUND})
-if (KITSUNE_ENABLE_CILKRTS_TARGET)
-  set(CILKRTS_EXTRA_LINK_LIBS ""
-    CACHE
-    STRING "Extra link libraries for the Cilk runtime target."
-  )
-endif()
-
-find_package(OpenCilk)
-option(KITSUNE_ENABLE_OPENCILKRTS_TARGET
-  "Enable OpenCilk runtime backend target." ${OpenCilk_FOUND})
-if (KITSUNE_ENABLE_OPENCILKRTS_TARGET)
-  set(OPENCILKRTS_EXTRA_LINK_LIBS "-lopencilk-personality-cpp"
-    CACHE
-    STRING "Extra link libraries for the OpenCilk runtime target."
-  )
-endif()
-
-find_package(Qthreads)
-option(KITSUNE_ENABLE_QTHREADS_TARGET
-  "Enable Qthreads runtime backend target." ${Qthreads_FOUND})
-if (Qthreads_FOUND)
-  message(STATUS "Qthreads runtime target enabled.")
-  set(QTHREADS_EXTRA_LINK_LIBS "-ldl"
-    CACHE
-    STRING "Additional libraries needed by Qthreads backend runtime."
-  )
-endif()
-
-find_package(Realm)
-option(KITSUNE_ENABLE_REALM_TARGET
-  "Enable Realm runtime backend target." ${Realm_FOUND})
-if (Realm_FOUND)
-  message(STATUS "Realm runtime target enabled.")
-  set(REALM_EXTRA_LINK_LIBS  "-lpthread -ldl -lrt"
-    CACHE
-    STRING "Additional libraries needed by Realm runtime target.")
-  add_subdirectory(lib/Realm)
-endif()
-
-if ("openmp" IN_LIST LLVM_ENABLE_PROJECTS)
-  message(STATUS "adding support for libomp target code generation...")
-  option(KITSUNE_ENABLE_OPENMP "Enable OpenMP/libomp runtime backend target." ON)
-  set(OPENMP_EXTRA_LINK_LIBS "")
-else()
-  option(KITSUNE_ENABLE_OPENMP_TARGET "Enable OpenMP/libomp runtime backend target." OFF)
-endif()
-
-# Special kitsune modes for clang.
-find_package(Kokkos)
-option(KITSUNE_ENABLE_KOKKOS
-  "Enable Kokkos support." ${Kokkos_FOUND})
-if (Kokkos_FOUND)
-  set(KOKKOS_EXTRA_LINK_LIBS "-ldl")
-endif()
-
-if (KITSUNE_INCLUDE_TESTS)
-  add_subdirectory(tests)
-endif()
-
+option(KITSUNE_BUILD_EXAMPLES "Build the Kitsune example programs." OFF)
 if (KITSUNE_BUILD_EXAMPLES)
-  add_kitsune_subdirectory(examples)
+  add_subdirectory(examples)
 endif()
 
-message(STATUS "building kitsune configuration header...")
-message(STATUS "   kitsune/config will live at ${LLVM_BINARY_DIR}/include/")
-configure_file(
-  ${KITSUNE_SOURCE_DIR}/include/kitsune/config.h.cmake
-  ${LLVM_BINARY_DIR}/include/kitsune/config.h
-)
+option(KITSUNE_INCLUDE_TESTS "Enable Kitsune test suite." OFF)

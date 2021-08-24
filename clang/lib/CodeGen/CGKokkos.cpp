@@ -219,7 +219,7 @@ void CodeGenFunction::EmitKokkosParallelForCond(const Expr *BoundsExpr,
   if (BoundsExpr->getStmtClass() == Expr::BinaryOperatorClass) {
     RValue RV = EmitAnyExpr(BoundsExpr);
     LoopEnd = RV.getScalarVal();
-  } else {
+  } else { 
     LoopEnd = EmitScalarExpr(BoundsExpr);
   }
 
@@ -279,8 +279,8 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
     }
   }
 
-  // Create all jump destinations and basic blocks in the order they
-  // appear in the IR.
+  // Create all jump destinations and basic blocks in the order they 
+  // appear in the IR. 
   JumpDest Condition = getJumpDestInCurrentScope("kokkos.forall.cond");
   llvm::BasicBlock *Detach = createBasicBlock("kokkos.forall.detach");
   llvm::BasicBlock *PForBody = createBasicBlock("kokkos.forall.body");
@@ -290,23 +290,23 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   JumpDest Sync = getJumpDestInCurrentScope("kokkos.forall.sync");
   llvm::BasicBlock *End = createBasicBlock("kokkos.forall.end");
 
-  // Extract a conveince block and setup the lexical scope based on
-  // the lambda's source range.
+  // Extract a conveince block and setup the lexical scope based on 
+  // the lambda's source range. 
   llvm::BasicBlock *ConditionBlock = Condition.getBlock();
-
+  
   const SourceRange &R = CE->getSourceRange();
   LexicalScope PForScope(*this, R);
 
-  // Now we can start the dirty work of transforming the lambda into a
-  // for loop.
+  // Now we can start the dirty work of transforming the lambda into a 
+  // for loop.  
 
 
-  // The first step is to extract the argument to the lambda and transform it into
+  // The first step is to extract the argument to the lambda and transform it into 
   // the loop induction variable.  As part of this we assume the following are true
   // about the parallel_for:
-  //    1. The iterator can be assigned a value of zero.
+  //    1. The iterator can be assigned a value of zero. 
   //    2. We ignore the details of what is captured by the lambda.
-  //
+  // 
   // TODO: Do we need to "relax" these assumptions to support broader code coverage?
   
   // This is 'equivalent' to the Init statement in a traditional for loop (e.g. int i = 0). 
@@ -318,24 +318,24 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   llvm::Value *Zero = llvm::ConstantInt::get(ConvertType(InductionVarDecl->getType()), 0);
   Builder.CreateStore(Zero, Addr);
 
-   // Create the sync region.
+   // Create the sync region. 
   PushSyncRegion();
   llvm::Instruction *SRStart = EmitSyncRegionStart();
   CurSyncRegion->setSyncRegionStart(SRStart);
 
-  // TODO: Need to check attributes for spawning strategy.
+  // TODO: Need to check attributes for spawning strategy. 
   LoopStack.setSpawnStrategy(LoopAttributes::DAC);
-
+  
   EmitBlock(ConditionBlock);
-
+  
   LoopStack.push(ConditionBlock, CGM.getContext(), ForallAttrs,
                  SourceLocToDebugLoc(R.getBegin()),
                  SourceLocToDebugLoc(R.getEnd()));
 
-  // Store the blocks to use for break and continue.
+  // Store the blocks to use for break and continue. 
   BreakContinueStack.push_back(BreakContinue(Reattach, Reattach));
 
-  // Create a scope for the condition variable cleanup.
+  // Create a scope for the condition variable cleanup. 
   LexicalScope ConditionScope(*this, R);
 
   // Create the conditional.
@@ -357,8 +357,8 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   llvm::Value *GInductionVal = Builder.CreateLoad(GetAddrOfLocalVar(InductionVarDecl));
 
   QualType RefType = InductionVarDecl->getType();
-
-  // Create the detach terminator
+  
+  // Create the detach terminator 
   Builder.CreateDetach(PForBody, Increment, SRStart);
 
   EmitBlock(PForBody);
@@ -378,20 +378,20 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
     InKokkosConstruct = false;
   }
 
-  auto tmp = AllocaInsertPt;
-  AllocaInsertPt = OldAllocaInsertPt;
-  tmp->removeFromParent();
+  auto tmp = AllocaInsertPt; 
+  AllocaInsertPt = OldAllocaInsertPt; 
+  tmp->removeFromParent(); 
 
   // Modify the body to use the ''detach''-local induction variable.
-  // At this point in the codegen, the body block has been emitted
-  // and we can safely replace the ''sequential`` induction variable
+  // At this point in the codegen, the body block has been emitted 
+  // and we can safely replace the ''sequential`` induction variable 
   // within the detach basic block.
   llvm::BasicBlock *CurrentBlock = Builder.GetInsertBlock();
-  for(llvm::Value::use_iterator UI = GInductionVar->use_begin(), UE = GInductionVar->use_end();
+  for(llvm::Value::use_iterator UI = GInductionVar->use_begin(), UE = GInductionVar->use_end(); 
       UI != UE; ) {
     llvm::Use &U = *UI++;
     llvm::Instruction *I = cast<llvm::Instruction>(U.getUser());
-    if (I->getParent() == CurrentBlock)
+    if (I->getParent() == CurrentBlock) 
       U.set(TLInductionVar);
   }
 

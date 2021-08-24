@@ -1,135 +1,147 @@
+# This file provides a basic configuration for developer's working
+# with the Kitsune+Tapir toolchain -- it is more designed for
+# active testing and development vs. general use.
 #
-# This file sets up a basic CMakeCache for building a Kitsune toolchain for
-# active testing and development (not necessarily as the best possible choice
-# for a full end-user install).
-#
-# Notes:
-#
-#  1. The use of ninja for building is recommended (vs. make).  This is
-#     done with:
+# We often use a ninja-based build with a command line of the
+# form:
 #
 #      $ cmake -G Ninja [...] -C this-cache-file.cmake ../llvm
 #
-#     If you need to tweak ninja's parallel compilation and linking loads use
-#     the LLVM_PARALLEL_COMPILE_JOBS and LLVM_PARALLEL_LINK_JOBS variables below
-#     to tweak the settings for your system. By default they are not set which
-#     will run the "widest" possible set of jobs during the build (you'll need
-#     a nice hefty system to support this). .
+# For development the cmake log-level can be helpful.  For example,
 #
-#  2. This file uses a set of enviornment variables to configure runtime
-#     targets for code generation in the mid-stage of the compiler (via Tapir
-#     to llvm transformation).  Although there are several the runtime targets
-#     will be enabled if the path for each runtime's base install location is
-#     specified.  For example:
-#
-#         $ export OPENCILKRTS_PATH=/projects/kitsune/x86_64/
-#         $ export QTHREADS_PATH=/projects/kitsune/x86_64/
-#         $ export REALM_PATH=/projects/kitsune/x86_64/
-#
-#     in each of these cases the base dir is the base directory for the installed
-#     location for each (i.e., includes header files, libraries, etc.).
-#
-#     Kokkos is handled in the same fashion:
-#
-#         $ export KOKKOS_PATH=/projects/kitsune/x86_64/
-#
-#####
+#      $ cmake ...  --log-level=DEBUG ...
 #
 
+message(DEBUG "KITSUNE-DEV - loading example cache file...")
+cmake_policy(SET CMP0057 NEW)
+
+# Pick a path for the install location -- note you can use the 
+# build directory for in-tree testing but this is a nice way to
+# also check the install does the right things and can be tested
+# within the tree.
+set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/local CACHE STRING "")
+
+# Careful with a full debug build -- linking can be painfully slow
+# and you'll want to tweak the parallel 'width' of the compile and
+# link stages below to make sure all is within the capabilities of
+# the system you are developing on (see compile+link thread count
+# settings below).
+set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "")
+
+# You'll want to tweak this to reduce build times based on what
+# you are working on.  By default we provide the full suite of
+# clang+tools, openmp, lld, and a debugger via lldb.
 set(LLVM_ENABLE_PROJECTS
-  clang;clang-tools-extra;openmp
+  clang;openmp;
   CACHE STRING "")
 
-set(LLVM_TARGETS_TO_BUILD
-  host;NVPTX;AMDGPU
-  CACHE STRING "")
-
-set(CMAKE_BUILD_TYPE
-  # Release
-  RelWithDebInfo
-  CACHE STRING "")
+message(DEBUG "  --> KITSUNE-DEV - enabled LLVM projects: ${LLVM_ENABLE_PROJECTS}")
 
 
-set(KITSUNE_ENABLED ON CACHE BOOL "") # not sure this is really needed these days...
 
-if (DEFINED ENV{KOKKOS_PATH})
-  set(KITSUNE_ENABLE_KOKKOS ON CACHE BOOL "")
-  set(Kokkos_INCLUDE_DIR $ENV{KOKKOS_PATH}/include CACHE STRING "")
-  set(Kokkos_LIBRARY_DIR $ENV{KOKKOS_PATH}/lib CACHE STRING "")
-  if (DEFINED ENV{KOKKOS_LINK_LIBS})
-    set(Kokkos_LINK_LIBS $ENV{KOKKOS_LINK_LIBS} CACHE STRING "")
-  else()
-    set(Kokkos_LINK_LIBS "-lkokkoscore -ldl -lrt" CACHE STRING "")
-  endif()
-else()
-  set(KITSUNE_ENABLE_KOKKOS OFF CACHE BOOL "")
-endif()
+# Keep the in-tree paths sound (i.e., no need for a full install to use these).
+set(CLANG_CONFIG_SYSTEM_DIR "${CMAKE_BINARY_DIR}/bin" CACHE STRING "")
+set(CLANG_CONFIG_FILE_KITSUNE_DIR "${CMAKE_BINARY_DIR}/share/kitsune" CACHE STRING "")
+set(CLANG_CONFIG_FILE_USER_DIR "$ENV{HOME}/.kitsune" CACHE STRING "")
 
+#if ("openmp" IN_LIST LLVM_ENABLE_PROJECTS)
+  # Disable this for now -- openmp backend needs to be udpated. 
+  #set(KITSUNE_ENABLE_OPENMP_TARGET ON CACHE BOOL "")
 
-if (DEFINED ENV{OPENCILKRTS_PATH})
-  set(KITSUNE_ENABLE_OPENCILKRTS_TARGET ON CACHE BOOL "")
-  set(OpenCilkRTS_INCLUDE_DIR $ENV{OPENCILKRTS_PATH}/include CACHE STRING "")
-  set(OpenCilkRTS_LIBRARY_DIR $ENV{OPENCILKRTS_PATH}/lib CACHE STRING "")
-  if (DEFINED ENV{OPENCILKRTS_LINK_LIBS})
-    set(OpenCilkRTS_LINK_LIBS $ENV{OPENCILKRTS_LINK_LIBS} CACHE STRING "")
-  else()
-    set(OpenCilkRTS_LINK_LIBS "-lopencilk -lopencilk-personality-cpp" CACHE STRING "")
-  endif()
-else()
-  set(KITSUNE_ENABLE_OPENCILKRTS OFF CACHE BOOL "")
-endif()
+  # The default nvidia architecture versions within the openmp project
+  # are a bit crufty and can be problematic -- we just blindly set 
+  # them to something a bit more modern so the build at least has a 
+  # chance.  You may have to tweak this depending upon what you are 
+  # doing. 
+  set(LIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES 70 CACHE STRING "")
+  set(CLANG_OPENMP_NVPTX_DEFAULT_ARCH sm_70 CACHE STRING "")
 
+  # CUDA/NVCC is really only happy with older host compilers.  You 
+  # may need to tweak this to make things happy but we typically 
+  # need to fall back to older compilers than what we use to build 
+  # LLVM/Clang/etc.  gcc 8.x and 9.x are typically safe here... 
+ set(CUDA_HOST_COMPILER "/usr/bin/gcc-8" CACHE STRING "")
+#endif()
 
-if (DEFINED ENV{QTHREADS_PATH})
-  set(KITSUNE_ENABLE_QTHREADS_TARGET ON CACHE BOOL "")
-  set(Qthreads_INCLUDE_DIR $ENV{QTHREADS_PATH}/include CACHE STRING "")
-  set(Qthreads_LIBRARY_DIR $ENV{QTHREADS_PATH}/lib CACHE STRING "")
-  if (DEFINED ENV{QTHREADS_LINK_LIBS})
-    set(Qthreads_LINK_LIBS $ENV{QTHREADS_LINK_LIBS} CACHE STRING "")
-  else()
-    set(Qthreads_LINK_LIBS "-lqthread -lhwloc" CACHE STRING "")
-  endif()
-else()
-  set(KITSUNE_ENABLE_QTHREADS OFF CACHE BOOL "")
-endif()
+set(_runtimes_list "cheetah")
 
-
-if (DEFINED ENV{REALM_PATH})
-  set(KITSUNE_ENABLE_REALM_TARGET ON CACHE BOOL "")
-  set(Realm_INCLUDE_DIR $ENV{REALM_PATH}/include CACHE STRING "")
-  set(Realm_LIBRARY_DIR $ENV{REALM_PATH}/lib CACHE STRING "")
-  if (DEFINED ENV{REALM_LINK_LIBS})
-    set(Realm_LINK_LIBS $ENV{REALM_LINK_LIBS} CACHE STRING "")
-  else()
-    set(Realm_LINK_LIBS "-lrealm -ldl -lpthread" CACHE STRING "")
-  endif()
-else()
-  set(KITSUNE_ENABLE_REALM_TARGET OFF CACHE BOOL "")
-endif()
-
-# Defaults for NVIDIA GPU targets are old...  Let's bump it up
-# a bit to make it more "modern"...
-set(CLANG_OPENMP_NVPTX_DEFAULT_ARCH sm_70 CACHE STRING "")
-set(LIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES 70 CACHE STRING "")
-# After all that we're now going to shut off target offload...
-# We're debugging build issues with this enabled on some systems.
-set(OPENMP_ENABLE_LIBOMPTARGET OFF CACHE BOOL "")
-
-# Get a little help w/ debugging issues.
+# Various helpful LLVM-level settings for development/debugging.
+set(LLVM_ENABLE_WARNINGS OFF CACHE BOOL "")    # sometimes errors get lost in all the warnings... 
+set(LLVM_ENABLE_ASSERTIONS ON CACHE BOOL "")
 set(LLVM_ENABLE_BACKTRACES ON CACHE BOOL "")
 set(LLVM_ENABLE_DUMP ON CACHE BOOL "")
 set(LLVM_ENABLE_TERMINFO ON CACHE BOOL "")
 set(LLVM_ENABLE_THREADS ON CACHE BOOL "")
-set(LLVM_INSTALL_TOOLCHAIN_ONLY OFF CACHE BOOL "")
 set(LLVM_INCLUDE_TESTS ON CACHE BOOL "")
 set(LLVM_INCLUDE_UTILS ON CACHE BOOL "")
 set(LLVM_INSTALL_UTILS ON CACHE BOOL "")
 set(LLVM_INSTALL_BINUTILS_SYMLINKS ON CACHE BOOL "")
+# You should carefully look at the parallel workload parameters as
+# LLVM builds can easily swamp systems if the level of parallelism
+# exceeds system resources -- especially memory during the linking
+# stages.  Also use care when building on network mounted file 
+# systems as parallel I/O operations can also bog down the 
+# scalability of the parallel build. 
+#
+# desktop: 
+set(LLVM_PARALLEL_COMPILE_JOBS 12 CACHE STRING "")
+set(LLVM_PARALLEL_LINK_JOBS 4 CACHE STRING "")
+# server-class:
+#set(LLVM_PARALLEL_COMPILE_JOBS 128 CACHE STRING "")
+#set(LLVM_PARALLEL_LINK_JOBS 32 CACHE STRING"")
 
+# Various helpful Clang-level settings for development/debugging.
 set(CLANG_BUILD_TOOLS ON CACHE BOOL "")
 set(CLANG_INCLUDE_TESTS ON CACHE BOOL "")
+set(CLANG_TOOL_CLANG_CHECK_BUILD ON CACHE BOOL "")
 set(CLANG_PLUGIN_SUPPORT ON CACHE BOOL "")
+set(CLANG_VENDOR "kitsune+tapir" CACHE STRING "")
+set(CLANG_VENDOR_UTI "gov.lanl.kitsune" CACHE STRING "")
 
+# Build a minimal set of targets under the assumption the
+# build host is the appropriate platform.
+set(LLVM_TARGETS_TO_BUILD host;NVPTX;AMDGPU CACHE STRING "")
+message(DEBUG "  --> kitsune-dev: enabled LLVM targets: ${LLVM_TARGETS_TO_BUILD}")
+
+
+
+# Enable Kitsune mode within the toolchain.
+set(CLANG_ENABLE_KITSUNE ON CACHE BOOL
+  "Enable Kitsune features in Clang.")
+
+# Enable tailored Kokkos compilation.
+set(KITSUNE_ENABLE_KOKKOS_SUPPORT ON CACHE BOOL
+  "Enable custom recognition and compilation of Kokkos.")
+
+# NOTE: The OpenCilk runtime is always enabled within our builds
+# so it is no longer necessary to explicitly list it (the runtime
+# will be downloaded and built as part of the full llvm build 
+# process).
+
+set(KITSUNE_ENABLE_RUNTIME_ABIS ON CACHE BOOL "")
+set(KITSUNE_ENABLE_ABI_LIBRARIES realm CACHE STRING "")
+
+set(KITSUNE_ENABLE_QTHREADS_TARGET OFF CACHE BOOL "")
+set(KITSUNE_ENABLE_REALM_TARGET ON CACHE BOOL "")
+set(KITSUNE_ENABLE_CUDATK_TARGET OFF CACHE BOOL "")
+set(KITSUNE_ENABLE_HIP_TARGET OFF CACHE BOOL "")
+set(KITSUNE_ENABLE_OPENCL_TARGET OFF CACHE BOOL "")
+
+
+if (KITSUNE_ENABLE_CUDATK_TARGET OR
+    KITSUNE_ENABLE_HIP_TARGET OR 
+    KITSUNE_ENABLE_REALM_TARGET OR 
+    KITSUNE_ENABLE_EXAMPLES OR 
+    KITSUNE_ENABLE_KOKKOS_SUPPORT)
+  list(APPEND _runtimes_list "kitsune")
+endif()
+
+set(LLVM_ENABLE_RUNTIMES ${_runtimes_list} CACHE STRING "")
+message(DEBUG "  --> KITSUNE-DEV - enabled LLVM runtimes: ${LLVM_ENABLE_RUNTIMES}")
+
+set(KITSUNE_BUILD_EXAMPLES ON CACHE BOOL "")
+
+message(DEBUG "  --> KITSUNE-DEV: fixing gcc prefix path.")
 execute_process(
   COMMAND /bin/bash --norc --noprofile -c "dirname \$(dirname `which gcc`)"
   OUTPUT_VARIABLE _gcc_prefix
@@ -140,3 +152,12 @@ if (_gcc_prefix_len GREATER 0)
   string(REGEX REPLACE "\n$" "" _gcc_prefix "${_gcc_prefix}")
   set(GCC_INSTALL_PREFIX ${_gcc_prefix} CACHE STRING "")
 endif()
+message(DEBUG "  --> KITSUNE-DEV - gcc prefix: ${GCC_INSTALL_PREFIX}")
+
+unset(_gcc_prefix)
+unset(_gcc_prefix_len)
+unset(_runtimes_list)
+
+message(DEBUG "kitsune-dev: DONE.")
+#
+#####

@@ -538,6 +538,8 @@ def config_system_dir_EQ : Joined<["--"], "config-system-dir=">, Flags<[DriverOp
   HelpText<"System directory for configuration files">;
 def config_user_dir_EQ : Joined<["--"], "config-user-dir=">, Flags<[DriverOption, HelpHidden]>,
   HelpText<"User directory for configuration files">;
+def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">, Flags<[DriverOption, HelpHidden]>,
+  HelpText<"Kitsune directory for configuration files">;
 def coverage : Flag<["-", "--"], "coverage">, Flags<[CoreOption]>;
 def cpp_precomp : Flag<["-"], "cpp-precomp">, Group<clang_ignored_f_Group>;
 def current__version : JoinedOrSeparate<["-"], "current_version">;

@@ -67,7 +67,7 @@ class Driver {
     CPPMode,
     CLMode,
     FlangMode,
-    KitsuneMode, 
+    KitsuneMode,
     KokkosMode,
     FleCSIMode
   } Mode;
@@ -140,6 +140,19 @@ public:
   /// User directory for config files.
   std::string UserConfigDir;
 
+  /// Kitsune directory for config files.
+  std::string KitsuneConfigDir;
+  std::string KitsuneKokkosCfgFile;
+  std::string TapirNoneCfgFile;
+  std::string TapirSerialCfgFile;
+  std::string TapirOpenCilkCfgFile;
+  std::string TapirCudaCfgFile;
+  std::string TapirRealmCfgFile;
+  std::string TapirOpenMPCfgFile;
+  std::string TapirQthreadsCfgFile;
+  std::string TapirOpenCLCfgFile;
+  std::string TapirHIPCfgFile;
+
   /// A prefix directory used to emulate a limited subset of GCC's '-Bprefix'
   /// functionality.
   /// FIXME: This type of customization should be removed in favor of the
@@ -173,9 +186,9 @@ public:
       InputList;
 
   /// Whether the driver should follow g++ like behavior.
-  /// kitsune: Modified to reflect that Kokkos and FleCSI 
-  /// modes also imply GXXMode. 
-  bool CCCIsCXX() const { return Mode == GXXMode    || 
+  /// kitsune: Modified to reflect that Kokkos and FleCSI
+  /// modes also imply GXXMode.
+  bool CCCIsCXX() const { return Mode == GXXMode    ||
                                  Mode == KokkosMode ||
                                  Mode == FleCSIMode; }
 
@@ -198,7 +211,7 @@ public:
   /// Whether the driver should follow custom Kokkos behaviors.
   bool IsKokkosMode() const { return Mode == KokkosMode; }
 
-  /// kitsune: Whether the driver should follow custom FleCSI behaviors. 
+  /// kitsune: Whether the driver should follow custom FleCSI behaviors.
   bool isFleCSIMode() const { return Mode == FleCSIMode; }
 
   /// Only print tool bindings, don't build any jobs.
@@ -236,6 +249,7 @@ private:
 
   /// Name of configuration file if used.
   std::string ConfigFile;
+  llvm::SmallVector<std::string, 8> ConfigFileList;
 
   /// Allocator for string saver.
   llvm::BumpPtrAllocator Alloc;
@@ -576,6 +590,11 @@ private:
 
   /// Tries to load options from configuration file.
   ///
+  /// \p DefaultMode (true) enables the driver's default mode
+  /// for processing configuration files.  If set to false, extra
+  /// steps will be taken to load a kitsune+tapir set of default
+  /// configuration files (for kokkos, runtime targets, etc.).
+  ///
   /// \returns true if error occurred.
   bool loadConfigFile();
 
@@ -588,6 +607,10 @@ private:
   /// Set the driver mode (cl, gcc, etc) from an option string of the form
   /// --driver-mode=<mode>.
   void setDriverModeFromOption(StringRef Opt);
+
+  //bool isCompileOnly();
+  //bool isLinkOnly();
+  //bool isCompileAndLink();
 
   /// Parse the \p Args list for LTO options and record the type of LTO
   /// compilation based on which -f(no-)?lto(=.*)? option occurs last.

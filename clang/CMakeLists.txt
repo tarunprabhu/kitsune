@@ -123,7 +123,6 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   endif()
 
   include_directories("${LLVM_BINARY_DIR}/include" "${LLVM_MAIN_INCLUDE_DIR}")
-  message(STATUS "kitsune dirs: ${KITSUNE_SOURCE_DIR} ${KITSUNE_BINARY_DIR}")
   link_directories("${LLVM_LIBRARY_DIR}")
 
   set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
@@ -205,8 +204,6 @@ endif()
 # Make sure that our source directory is on the current cmake module path so that
 # we can include cmake files from this directory.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
-
-add_subdirectory(kitsune)
 
 if(LLVM_ENABLE_LIBXML2)
   # Don't look for libxml if we're using MSan, since uninstrumented third party
@@ -310,7 +307,8 @@ if (NOT DEFINED MATCHED_ARCH OR "${CMAKE_MATCH_1}" LESS 35)
     "Default architecture for OpenMP offloading to Nvidia GPUs." FORCE)
 endif()
 
-set(CLANG_DEFAULT_TAPIR_RUNTIME "cilk" CACHE STRING
+# Changed as 'cilk' target is deprecated.
+set(CLANG_DEFAULT_TAPIR_RUNTIME "opencilk" CACHE STRING
   "Default Tapir runtime used by -ftapir.")
 
 set(CLANG_VENDOR ${PACKAGE_VENDOR} CACHE STRING
@@ -421,7 +419,7 @@ include_directories(BEFORE
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${KITSUNE_SOURCE_DIR}/include
-  ${KITSUNE_BINARY_DIR}/include 
+  ${KITSUNE_BINARY_DIR}/include
   )
 
 if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
@@ -875,6 +873,15 @@ if(CLANG_BUILT_STANDALONE)
   llvm_distribution_add_targets()
 endif()
 
+option(CLANG_ENABLE_KITSUNE "Enable Kitsune features in Clang." ON)
+if(CLANG_ENABLE_KITSUNE)
+  add_subdirectory(kitsune)
+endif()
+
 configure_file(
   ${CLANG_SOURCE_DIR}/include/clang/Config/config.h.cmake
   ${CLANG_BINARY_DIR}/include/clang/Config/config.h)
+
+configure_file(
+  ${CLANG_SOURCE_DIR}/include/clang/Config/kitsune.h.cmake
+  ${CLANG_BINARY_DIR}/include/clang/Config/kitsune.h)

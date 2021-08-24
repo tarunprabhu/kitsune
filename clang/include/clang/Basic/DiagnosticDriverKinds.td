@@ -488,37 +488,26 @@ def warn_drv_libstdcxx_not_found : Warning<
 
 def err_drv_cannot_mix_options : Error<"cannot specify '%1' along with '%0'">;
 
-// +----- kitsune  FIXME: should probably use kitsune-centric naming here.
-def warn_cilkrts_missing_build_params : Warning<
-  "'-ftapir=cilk' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>; 
+def warn_drv_missing_cfg_file : Warning<
+  "cannot find clang configuration file, %0, in support of option: %1.">;
+def err_drv_cannot_read_kitsune_cfg_file : Error<
+  "cannot read clang configuration file, %0, in support of option: %1.">;
 
-def warn_qthreads_missing_build_params : Warning<
-  "'-ftapir=qthreads' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>; 
-
-def warn_realm_missing_build_params : Warning<
-  "'-ftapir=realm' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>; 
-
-def warn_cuda_missing_build_params : Warning<
-  "'-ftapir=cuda' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>;
-
-def warn_opencl_missing_build_params : Warning<
-  "'-ftapir=opencl' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>; 
-
-// FIXME: Probably the wrong group for this... 
-def warn_kokkos_missing_build_params : Warning<
-  "'-fkokkos' mode enabled but build configuration did not include support.">,
-  InGroup<UnknownRuntime>;  
-  
-// -----+
-
+// catching configuration issues at build is a pain w/out a ton of #ifdef 
+// litter.  we instead opt to warning users in cases where the options are
+// used but were not enabled at build time.  
+def warn_drv_kokkos_disabled : Warning<
+  "kokkos support was not enabled when clang was built.">;
+def warn_drv_openmp_target_disabled : Warning<
+  "the openmp runtime ABI transform target was not enabled when clang was built.">;
+def warn_drv_qthreads_target_disabled: Warning<
+  "the qthreads runtime ABI transform target was not enabled when clang was built.">;
+def warn_drv_realm_target_disabled: Warning<
+  "the realm runtime ABI transform target was not enabled when clang was built.">;
+def warn_drv_cudatk_target_disabled: Warning<
+  "the cuda toolkit runtime ABI transform target was not enabled when clang was built.">;
+def warn_drv_hip_target_disabled: Warning<
+  "the hip runtime ABI transform target was not enabled when clang was built.">;
+def warn_drv_opencl_target_disabled: Warning<
+  "the opencl toolkit runtime ABI transform target was not enabled when clang was built.">;
 }
