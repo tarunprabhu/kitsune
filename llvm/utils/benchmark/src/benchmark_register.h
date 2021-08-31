@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <limits>
-
 #include "check.h"
 
 template <typename T>
