@@ -2146,15 +2146,15 @@ def fomit_frame_pointer : Flag<["-"], "fomit-frame-pointer">, Group<f_Group>;
 def fkitsune : Flag<["-"], "fkitsune">, Group<f_Group>,
   Flags<[CC1Option, NoArgumentUnused]>,
   HelpText<"Enable Kitsune extensions (e.g., forall, spwan+sync, etc.)">;
-def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>, 
-  Flags<[CC1Option, NoArgumentUnused]>, 
+def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>,
+  Flags<[CC1Option, NoArgumentUnused]>,
   HelpText<"Enable Kokkos extensions: recognition and custom code generation">;
-def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Group<f_Group>, 
-  Flags<[CC1Option, NoArgumentUnused]>, 
+def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Group<f_Group>,
+  Flags<[CC1Option, NoArgumentUnused]>,
   HelpText<"Skip code gen of Kokkos initialization (and finalize) calls.">;
-def fflecsi : Flag<["-"], "fflecsi">, Group<f_Group>, 
-  Flags<[CC1Option,NoArgumentUnused]>, 
-  HelpText<"Enable FleCSI extensions: recognition and custom code generation">; 
+def fflecsi : Flag<["-"], "fflecsi">, Group<f_Group>,
+  Flags<[CC1Option,NoArgumentUnused]>,
+  HelpText<"Enable FleCSI extensions: recognition and custom code generation">;
 def fopenmp : Flag<["-"], "fopenmp">, Group<f_Group>, Flags<[CC1Option, NoArgumentUnused]>,
   HelpText<"Parse OpenMP pragmas and generate parallel code.">,
   MarshallingInfoFlag<LangOpts<"OpenMP">, "0u">, Normalizer<"makeFlagToValueNormalizer(50u)">;
