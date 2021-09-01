@@ -3707,7 +3707,9 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
     else if (Name == "realm")
       LangOpts.Tapir = TapirTargetID::Realm;
     else if (Name == "opencl")
-      LangOpts.Tapir = TapirTargetID::OpenCL;    
+      LangOpts.Tapir = TapirTargetID::OpenCL;
+    else if (Name == "gpu")
+      LangOpts.Tapir = TapirTargetID::GPU;
     else if (Name == "serial")
       LangOpts.Tapir = TapirTargetID::Serial;
     else
