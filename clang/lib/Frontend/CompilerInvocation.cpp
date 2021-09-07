@@ -4067,7 +4067,7 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   // Set the flag to prevent the implementation from emitting device exception
   // handling code for those requiring so.
   if ((Opts.OpenMPIsTargetDevice && (T.isNVPTX() || T.isAMDGCN())) ||
-      Opts.OpenCLCPlusPlus) {
+      Opts.OpenCLCPlusPlus || Opts.Kokkos) {
 
     Opts.Exceptions = 0;
     Opts.CXXExceptions = 0;
