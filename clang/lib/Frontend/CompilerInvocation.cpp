@@ -3097,14 +3097,14 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   // Check if -fopenmp is specified and set default version to 4.5.
   Opts.OpenMP = Args.hasArg(options::OPT_fopenmp) ? 45 : 0;
 
-  // Check if -fkitsune is specified. 
+  // Check if -fkitsune is specified.
   Opts.Kitsune = Args.hasArg(options::OPT_fkitsune) ? 1 : 0;
-  
-  // Check if -fkokkos is specified. 
+
+  // Check if -fkokkos is specified.
   Opts.Kokkos = Args.hasArg(options::OPT_fkokkos) ? 1 : 0;
   Opts.KokkosNoInit = Args.hasArg(options::OPT_fkokkos_no_init) ? 1: 0;
 
-  // Check if -fflecsi is specified. 
+  // Check if -fflecsi is specified.
   Opts.FleCSI = Args.hasArg(options::OPT_fflecsi) ? 1 : 0;
 
   // Check if -fopenmp-simd is specified.
@@ -3146,7 +3146,8 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
 
   // Set the flag to prevent the implementation from emitting device exception
   // handling code for those requiring so.
-  if ((Opts.OpenMPIsDevice && T.isNVPTX()) || Opts.OpenCLCPlusPlus) {
+  if ((Opts.OpenMPIsDevice && T.isNVPTX()) || Opts.OpenCLCPlusPlus ||
+      Opts.Kokkos) {
     Opts.Exceptions = 0;
     Opts.CXXExceptions = 0;
   }
@@ -3690,10 +3691,10 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
     StringRef Name = A->getValue();
     if (Name == "none")
       LangOpts.Tapir = TapirTargetID::None;
-    else if (Name == "cilk") 
+    else if (Name == "cilk")
       LangOpts.Tapir = TapirTargetID::Cilk;
     else if (Name == "opencilk")
-      LangOpts.Tapir = TapirTargetID::OpenCilk; 
+      LangOpts.Tapir = TapirTargetID::OpenCilk;
     else if (Name == "openmp")
       LangOpts.Tapir = TapirTargetID::OpenMP;
     else if (Name == "qthreads")
@@ -3702,12 +3703,12 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
       LangOpts.Tapir = TapirTargetID::Realm;
     else if (Name == "cuda")
       LangOpts.Tapir = TapirTargetID::Cuda;
-    else if (Name == "kitcuda")
-      LangOpts.Tapir = TapirTargetID::KitCuda;
     else if (Name == "realm")
       LangOpts.Tapir = TapirTargetID::Realm;
     else if (Name == "opencl")
-      LangOpts.Tapir = TapirTargetID::OpenCL;    
+      LangOpts.Tapir = TapirTargetID::OpenCL;
+    else if (Name == "gpu")
+      LangOpts.Tapir = TapirTargetID::GPU;
     else if (Name == "serial")
       LangOpts.Tapir = TapirTargetID::Serial;
     else
