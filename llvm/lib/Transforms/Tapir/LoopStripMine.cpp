@@ -1197,7 +1197,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
   ReplaceInstWithInst(NewReattB->getTerminator(),
                       ReattachInst::Create(NewLatch, NewSyncReg));
   // Update the dominator tree, and determine predecessors of epilog.
-  if (DT->dominates(Header, Latch) && SerialInnerLoop && ReattachDom)
+  if (DT->dominates(Header, Latch))
     DT->changeImmediateDominator(Latch, ReattachDom);
   if (ParallelEpilog)
     DT->changeImmediateDominator(LoopReattach, NewLatch);
