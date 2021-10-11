@@ -43,6 +43,10 @@ bool isDetachedRethrow(const Instruction *I, const Value *SyncRegion = nullptr);
 /// taskframe.resume uses \p TaskFrame.
 bool isTaskFrameResume(const Instruction *I, const Value *TaskFrame = nullptr);
 
+/// Returns true if the given basic block \p B is a placeholder successor of a
+/// taskframe.resume or detached.rethrow.
+bool isTapirPlaceholderSuccessor(const BasicBlock *B);
+
 /// Returns a taskframe.resume that uses the given taskframe, or nullptr if no
 /// taskframe.resume uses this taskframe.
 InvokeInst *getTaskFrameResume(Value *TaskFrame);
@@ -61,9 +65,10 @@ bool isSyncUnwind(const Instruction *I, const Value *SyncRegion = nullptr);
 /// instructions.
 bool isPlaceholderSuccessor(const BasicBlock *B);
 
-/// Returns true if the given basic block ends a taskframe, false otherwise.  If
-/// \p TaskFrame is specified, then additionally checks that the
-/// taskframe.end uses \p TaskFrame.
+/// Returns true if the given basic block ends a taskframe, false otherwise.  In
+/// particular, this method checks if the penultimate instruction in the basic
+/// block is a taskframe.end intrinsic call.  If \p TaskFrame is specified, then
+/// additionally checks that the taskframe.end uses \p TaskFrame.
 bool endsTaskFrame(const BasicBlock *B, const Value *TaskFrame = nullptr);
 
 /// Returns the spindle containing the taskframe.create used by task \p T, or
@@ -218,7 +223,6 @@ public:
   enum SpawningStrategy {
     ST_SEQ,
     ST_DAC,
-    ST_OCL,
     ST_END,
   };
 
@@ -260,12 +264,9 @@ public:
       return "Spawn iterations sequentially";
     case TapirLoopHints::ST_DAC:
       return "Use divide-and-conquer";
-    case TapirLoopHints::ST_OCL:
-      return "Use opencl";
     case TapirLoopHints::ST_END:
       return "Unknown";
     }
-    return "Unknown";
   }
 
   TapirLoopHints(const Loop *L)
@@ -310,7 +311,7 @@ public:
   }
 
   void setAlreadyStripMined() {
-    //Grainsize.Value = 1;
+    Grainsize.Value = 1;
     Hint Hints[] = {Grainsize};
     writeHintsToMetadata(Hints);
   }

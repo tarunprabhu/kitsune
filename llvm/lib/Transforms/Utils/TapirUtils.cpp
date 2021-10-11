@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/TapirUtils.h"
+#include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/EHPersonalities.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
@@ -54,6 +55,21 @@ bool llvm::isDetachedRethrow(const Instruction *I, const Value *SyncRegion) {
 bool llvm::isTaskFrameResume(const Instruction *I, const Value *TaskFrame) {
   return isa<InvokeInst>(I) &&
       isTapirIntrinsic(Intrinsic::taskframe_resume, I, TaskFrame);
+}
+
+/// Returns true if the given basic block \p B is a placeholder successor of a
+/// taskframe.resume or detached.rethrow.
+bool llvm::isTapirPlaceholderSuccessor(const BasicBlock *B) {
+  for (const BasicBlock *Pred : predecessors(B)) {
+    if (!isDetachedRethrow(Pred->getTerminator()) &&
+        !isTaskFrameResume(Pred->getTerminator()))
+      return false;
+
+    const InvokeInst *II = dyn_cast<InvokeInst>(Pred->getTerminator());
+    if (B != II->getNormalDest())
+      return false;
+  }
+  return true;
 }
 
 /// Returns a taskframe.resume that uses the given taskframe, or nullptr if no
@@ -1174,11 +1190,7 @@ bool llvm::mayBeUnsynced(const BasicBlock *BB) {
       // that detach spawned the current basic block.
       if (isa<DetachInst>(PredBB->getTerminator())) {
         const DetachInst *DI = cast<DetachInst>(PredBB->getTerminator());
-        if (DI->getDetached() == CurrBB)
-          // Return the current block, which is the entry of this detached
-          // sub-CFG.
-          continue;
-        else
+        if (DI->getDetached() != CurrBB)
           // We encountered a continue or unwind destination of a detach.
           // Conservatively return that we may not be synced.
           return true;
@@ -1486,6 +1498,7 @@ bool llvm::splitTaskFrameCreateBlocks(Function &F, DominatorTree *DT,
   SmallVector<Instruction *, 32> TFCreateToSplit;
   SmallVector<DetachInst *, 8> DetachesWithTaskFrames;
   SmallVector<Instruction *, 8> TFEndToSplit;
+  SmallVector<Instruction *, 8> TFResumeToSplit;
   SmallVector<BasicBlock *, 8> WorkList;
   SmallPtrSet<BasicBlock *, 32> Visited;
   WorkList.push_back(&F.getEntryBlock());
@@ -1517,7 +1530,11 @@ bool llvm::splitTaskFrameCreateBlocks(Function &F, DominatorTree *DT,
               } else if (Intrinsic::taskframe_end == UI->getIntrinsicID()) {
                 // Record this taskframe.end.
                 TFEndToSplit.push_back(UI);
-                break;
+              }
+            } else if (Instruction *UI = dyn_cast<Instruction>(U)) {
+              if (isTaskFrameResume(UI, II)) {
+                // Record this taskframe.resume.
+                TFResumeToSplit.push_back(UI);
               }
             }
           }
@@ -1553,7 +1570,7 @@ bool llvm::splitTaskFrameCreateBlocks(Function &F, DominatorTree *DT,
       Changed = true;
     }
 
-  // Also split critical continue edges, if we need to.  For example, we need to
+  // Split critical continue edges, if we need to.  For example, we need to
   // split critical continue edges if we're planning to fixup external uses of
   // variables defined in a taskframe.
   //
@@ -1564,6 +1581,16 @@ bool llvm::splitTaskFrameCreateBlocks(Function &F, DominatorTree *DT,
       SplitCriticalEdge(
           DI, 1,
           CriticalEdgeSplittingOptions(DT, nullptr).setSplitDetachContinue());
+      Changed = true;
+    }
+  }
+  // Similarly, split unwind edges from taskframe.resume's.
+  for (Instruction *TFResume : TFResumeToSplit) {
+    InvokeInst *II = cast<InvokeInst>(TFResume);
+    if (DT && isCriticalEdge(II, 1)) {
+      BasicBlock *Unwind = II->getUnwindDest();
+      SplitBlockPredecessors(Unwind, {II->getParent()}, ".tfsplit", DT, nullptr,
+                             nullptr);
       Changed = true;
     }
   }
@@ -1836,15 +1863,26 @@ BasicBlock *llvm::CreateSubTaskUnwindEdge(Intrinsic::ID TermFunc, Value *Token,
 }
 
 static BasicBlock *MaybePromoteCallInBlock(BasicBlock *BB,
-                                           BasicBlock *UnwindEdge) {
-  for (BasicBlock::iterator BBI = BB->begin(), E = BB->end(); BBI != E; ) {
+                                           BasicBlock *UnwindEdge,
+                                           const Value *TaskFrame) {
+  for (BasicBlock::iterator BBI = BB->begin(), E = BB->end(); BBI != E;) {
     Instruction *I = &*BBI++;
 
     // We only need to check for function calls: inlined invoke
     // instructions require no special handling.
     CallInst *CI = dyn_cast<CallInst>(I);
 
-    if (!CI || CI->doesNotThrow() || isa<InlineAsm>(CI->getCalledValue()))
+    if (!CI || isa<InlineAsm>(CI->getCalledValue()))
+      continue;
+
+    // Stop the search early if we encounter a taskframe.create or a
+    // taskframe.end.
+    if (isTapirIntrinsic(Intrinsic::taskframe_create, CI) ||
+        (TaskFrame &&
+         isTapirIntrinsic(Intrinsic::taskframe_end, CI, TaskFrame)))
+      return nullptr;
+
+    if (CI->doesNotThrow())
       continue;
 
     // We do not need to (and in fact, cannot) convert possibly throwing calls
@@ -1860,6 +1898,28 @@ static BasicBlock *MaybePromoteCallInBlock(BasicBlock *BB,
 
     changeToInvokeAndSplitBasicBlock(CI, UnwindEdge);
     return BB;
+  }
+  return nullptr;
+}
+
+static Instruction *GetTaskFrameInstructionInBlock(BasicBlock *BB,
+                                                   const Value *TaskFrame) {
+  for (BasicBlock::iterator BBI = BB->begin(), E = BB->end(); BBI != E;) {
+    Instruction *I = &*BBI++;
+
+    // We only need to check for function calls: inlined invoke
+    // instructions require no special handling.
+    CallInst *CI = dyn_cast<CallInst>(I);
+
+    if (!CI || isa<InlineAsm>(CI->getCalledValue()))
+      continue;
+
+    // Stop the search early if we encounter a taskframe.create or a
+    // taskframe.end.
+    if (isTapirIntrinsic(Intrinsic::taskframe_create, CI) ||
+        (TaskFrame &&
+         isTapirIntrinsic(Intrinsic::taskframe_end, CI, TaskFrame)))
+      return I;
   }
   return nullptr;
 }
@@ -1881,7 +1941,14 @@ static void PromoteCallsInTasksHelper(
     if (!Visited.insert(BB).second)
       continue;
 
-    if (Instruction *TFCreate = FindTaskFrameCreateInBlock(BB)) {
+    // Promote any calls in the block to invokes.
+    while (BasicBlock *NewBB =
+           MaybePromoteCallInBlock(BB, UnwindEdge, CurrentTaskFrame))
+      BB = cast<InvokeInst>(NewBB->getTerminator())->getNormalDest();
+
+    Instruction *TFI = GetTaskFrameInstructionInBlock(BB, CurrentTaskFrame);
+    if (TFI && isTapirIntrinsic(Intrinsic::taskframe_create, TFI)) {
+      Instruction *TFCreate = TFI;
       if (TFCreate != CurrentTaskFrame) {
         // Split the block at the taskframe.create, if necessary.
         BasicBlock *NewBB;
@@ -1904,25 +1971,20 @@ static void PromoteCallsInTasksHelper(
           TaskFrameUnwindEdge->eraseFromParent();
         continue;
       }
-    }
-
-    // Promote any calls in the block to invokes.
-    while (BasicBlock *NewBB = MaybePromoteCallInBlock(BB, UnwindEdge)) {
-      BB = cast<InvokeInst>(NewBB->getTerminator())->getNormalDest();
+    } else if (TFI && isTapirIntrinsic(Intrinsic::taskframe_end, TFI,
+                                       CurrentTaskFrame)) {
+      // If we find a taskframe.end in this block that ends the current
+      // taskframe, add this block to the parent search.
+      assert(ParentWorklist &&
+             "Unexpected taskframe.resume: no parent worklist");
+      ParentWorklist->push_back(BB);
+      continue;
     }
 
     // Ignore reattach terminators.
     if (isa<ReattachInst>(BB->getTerminator()) ||
         isDetachedRethrow(BB->getTerminator()))
       continue;
-
-    // If we find a taskframe.end, add its successor to the parent search.
-    if (endsTaskFrame(BB, CurrentTaskFrame)) {
-      assert(ParentWorklist &&
-             "Unexpected taskframe.resume: no parent worklist");
-      ParentWorklist->push_back(BB->getSingleSuccessor());
-      continue;
-    }
 
     // If we find a taskframe.resume terminator, add its successor to the
     // parent search.
@@ -1955,9 +2017,9 @@ static void PromoteCallsInTasksHelper(
           DetachesToReplace.push_back(DI);
 
       } else {
-        PromoteCallsInTasksHelper(DI->getDetached(), DI->getUnwindDest(),
-                                  Unreachable, CurrentTaskFrame, &Worklist);
-
+        // Because this detach has an unwind destination, Any calls in the
+        // spawned task that may throw should already be invokes.  Hence there
+        // is no need to promote calls in this task.
         if (Visited.insert(DI->getUnwindDest()).second)
           // If the detach-unwind isn't dead, add it to the worklist.
           Worklist.push_back(DI->getUnwindDest());
@@ -2251,7 +2313,6 @@ void llvm::TapirLoopHints::clearHintsMetadata() {
 bool llvm::hintsDemandOutlining(const TapirLoopHints &Hints) {
   switch (Hints.getStrategy()) {
   case TapirLoopHints::ST_DAC: return true;
-  case TapirLoopHints::ST_OCL: return true;
   default: return false;
   }
 }

@@ -71,7 +71,7 @@ static const char *const CsiDisableInstrumentationName =
 using csi_id_t = int64_t;
 static const csi_id_t CsiUnknownId = -1;
 static const csi_id_t CsiCallsiteUnknownTargetId = CsiUnknownId;
-// See llvm/tools/clang/lib/CodeGen/CodeGenModule.h:
+// See clang/lib/CodeGen/CodeGenModule.h:
 static const int CsiUnitCtorPriority = 0;
 
 /// Maintains a mapping from CSI ID to static data for that ID.
@@ -803,6 +803,7 @@ public:
                         IntegerType::get(C, PropBits.IsConstant),
                         IntegerType::get(C, PropBits.IsOnStack),
                         IntegerType::get(C, PropBits.MayBeCaptured),
+                        IntegerType::get(C, PropBits.IsAtomic),
                         IntegerType::get(C, PropBits.LoadReadBeforeWriteInBB),
                         IntegerType::get(C, PropBits.Padding)));
   }
@@ -844,6 +845,8 @@ public:
   void setIsOnStack(bool v) { PropValue.Fields.IsOnStack = v; }
   /// Set the value of the MayBeCaptured property.
   void setMayBeCaptured(bool v) { PropValue.Fields.MayBeCaptured = v; }
+  /// Set the value of the IsAtomic property.
+  void setIsAtomic(bool v) { PropValue.Fields.IsAtomic = v; }
   /// Set the value of the LoadReadBeforeWriteInBB property.
   void setLoadReadBeforeWriteInBB(bool v) {
     PropValue.Fields.LoadReadBeforeWriteInBB = v;
@@ -858,8 +861,9 @@ private:
       unsigned IsConstant : 1;
       unsigned IsOnStack : 1;
       unsigned MayBeCaptured : 1;
+      unsigned IsAtomic : 1;
       unsigned LoadReadBeforeWriteInBB : 1;
-      uint64_t Padding : 53;
+      uint64_t Padding : 50;
     } Fields;
     uint64_t Bits;
   } Property;
@@ -873,13 +877,14 @@ private:
     int IsConstant;
     int IsOnStack;
     int MayBeCaptured;
+    int IsAtomic;
     int LoadReadBeforeWriteInBB;
     int Padding;
   } PropertyBits;
 
   /// The number of bits representing each property.
   static constexpr PropertyBits PropBits = {
-      8, 1, 1, 1, 1, 1, (64 - 8 - 1 - 1 - 1 - 1 - 1)};
+      8, 1, 1, 1, 1, 1, 1, (64 - 8 - 1 - 1 - 1 - 1 - 1 - 1)};
 };
 
 class CsiAllocaProperty : public CsiProperty {
@@ -1049,18 +1054,6 @@ public:
         Options(Options) {
     loadConfiguration();
   }
-  CSIImpl(Module &M, CallGraph *CG,
-          function_ref<DominatorTree &(Function &)> GetDomTree,
-          function_ref<LoopInfo &(Function &)> GetLoopInfo,
-          function_ref<TaskInfo &(Function &)> GetTaskInfo,
-          function_ref<TargetLibraryInfo &(Function &)> GetTLI,
-          function_ref<ScalarEvolution &(Function &)> GetSE,
-          const CSIOptions &Options = CSIOptions())
-      : M(M), DL(M.getDataLayout()), CG(CG), GetDomTree(GetDomTree),
-        GetLoopInfo(GetLoopInfo), GetTaskInfo(GetTaskInfo), GetTLI(GetTLI), 
-        GetScalarEvolution(GetSE), Options(Options) {
-    loadConfiguration();
-  }
 
   virtual ~CSIImpl() {}
 
@@ -1073,7 +1066,7 @@ public:
   static bool isVtableAccess(Instruction *I);
   static bool addrPointsToConstantData(Value *Addr);
   static bool isAtomic(Instruction *I);
-  static void getAllocFnArgs(const Instruction *I,
+  static bool getAllocFnArgs(const Instruction *I,
                              SmallVectorImpl<Value *> &AllocFnArgs,
                              Type *SizeTy, Type *AddrTy,
                              const TargetLibraryInfo &TLI);
@@ -1094,6 +1087,9 @@ public:
   }
 
   static bool spawnsTapirLoopBody(DetachInst *DI, LoopInfo &LI, TaskInfo &TI);
+
+  static BasicBlock::iterator
+  getFirstInsertionPtInDetachedBlock(BasicBlock *Detached);
 
 protected:
   /// Initialize the CSI pass.
@@ -1239,6 +1235,9 @@ protected:
     ZnwmSt11align_val_tRKSt9nothrow_t,
     ZnajSt11align_val_tRKSt9nothrow_t,
     ZnamSt11align_val_tRKSt9nothrow_t,
+    posix_memalign,
+    strdup,
+    strndup,
     LAST_ALLOCFNTY
   };
 
@@ -1250,8 +1249,8 @@ protected:
       return AllocFnTy::malloc;
     case LibFunc_valloc:
       return AllocFnTy::valloc;
-      // aligned_alloc(align_val_t, size_t)
     case LibFunc_aligned_alloc:
+      // aligned_alloc(align_val_t, size_t)
       return AllocFnTy::aligned_alloc;
     case LibFunc_calloc:
       return AllocFnTy::calloc;
@@ -1331,6 +1330,15 @@ protected:
     case LibFunc_ZnamSt11align_val_tRKSt9nothrow_t:
       // new[](unsigned long, align_val_t, nothrow)
       return AllocFnTy::ZnamSt11align_val_tRKSt9nothrow_t;
+    case LibFunc_posix_memalign:
+      // posix_memalign(void **, size_t, size_t)
+      return AllocFnTy::posix_memalign;
+    case LibFunc_strdup:
+      // strdup(const char *)
+      return AllocFnTy::strdup;
+    case LibFunc_strndup:
+      // strdup(const char *, size_t)
+      return AllocFnTy::strndup;
     }
   }
 
@@ -1496,6 +1504,7 @@ protected:
 
   DenseMap<std::pair<BasicBlock *, Function *>,
            SmallVector<PHINode *, 4>> ArgPHIs;
+  SmallPtrSet<SyncInst *, 12> SyncsWithUnwinds;
   DenseMap<BasicBlock *, CallInst *> callsAfterSync;
   std::unique_ptr<InstrumentationConfig> Config;
 
