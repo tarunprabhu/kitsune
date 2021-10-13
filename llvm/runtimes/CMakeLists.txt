@@ -17,6 +17,11 @@ FetchContent_Declare(cheetahrt
   GIT_TAG           opencilk/v1.0
   SOURCE_DIR        ${CMAKE_CURRENT_SOURCE_DIR}/../../cheetah)
 
+FetchContent_Declare(cilktools
+  GIT_REPOSITORY   https://github.com/OpenCilk/productivity-tools.git
+  GIT_TAG          opencilk/v1.0
+  SOURCE_DIR       ${CMAKE_CURRENT_SOURCE_DIR}/../../cilktools)
+
 # Find all subdirectories containing CMake projects
 file(GLOB entries *)
 foreach(entry ${entries})
@@ -26,7 +31,7 @@ foreach(entry ${entries})
 endforeach()
 
 # Side-by-side subprojects layout.
-set(LLVM_ALL_RUNTIMES "libcxx;libcxxabi;libunwind;compiler-rt;cheetah;kitsune")
+set(LLVM_ALL_RUNTIMES "libcxx;libcxxabi;libunwind;compiler-rt;cheetah;cilktools;kitsune")
 set(LLVM_ENABLE_RUNTIMES "" CACHE STRING
   "Semicolon-separated list of runtimes to build (${LLVM_ALL_RUNTIMES}), or \"all\".")
 if(LLVM_ENABLE_RUNTIMES STREQUAL "all" )
@@ -38,6 +43,14 @@ if ("cheetah" IN_LIST LLVM_ENABLE_RUNTIMES)
   if (NOT cheetahrt_POPULATED)
     message(STATUS "NOTE: <<<< fetching cheetah runtime source via git... >>>>")
     FetchContent_Populate(cheetahrt)
+  endif()
+endif()
+
+if ("cilktools" IN_LIST LLVM_ENABLE_RUNTIMES)
+  FetchContent_GetProperties(cilktools)
+  if (NOT cilktools_POPULATED)
+    message(STATUS "NOTE: <<<< fetching cilktools source via git... >>>>")
+    FetchContent_Populate(cilktools)
   endif()
 endif()
 
