@@ -18,4 +18,4 @@
 type = Library
 name = TapirOpts
 parent = Transforms
-required_libraries = Analysis Core IRReader Scalar Linker Support TransformUtils
+required_libraries = Analysis Core IRReader Scalar Linker Support TransformUtils BitWriter
