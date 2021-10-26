@@ -28,6 +28,7 @@ add_llvm_component_library(LLVMTapirOpts
   intrinsics_gen
 	LLVMLinker
   LLVMBitWriter
+  LLVMPasses
   )
 
 if(KITSUNE_ENABLE_OPENCL_TARGET)

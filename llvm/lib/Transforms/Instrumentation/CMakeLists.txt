@@ -26,4 +26,5 @@ add_llvm_component_library(LLVMInstrumentation
 
   DEPENDS
   intrinsics_gen
+  LLVMBitReader
   )
