@@ -542,14 +542,6 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
     return handleLikely(S, St, A, Range);
   case ParsedAttr::AT_Unlikely:
     return handleUnlikely(S, St, A, Range);
-  // +==== kitsune attr support 
-  case ParsedAttr::AT_KitsuneTarget:
-    return handleKitsuneTargetAttr(S, St, A, Range);
-    break;
-  case ParsedAttr::AT_KitsuneStrategy:
-    return handleKitsuneStrategyAttr(S, St, A, Range);
-    break;
-  // =====+
   default:
     // if we're here, then we parsed a known attribute, but didn't recognize
     // it as a statement attribute => it is declaration attribute

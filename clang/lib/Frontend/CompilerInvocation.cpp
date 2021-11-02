@@ -3025,9 +3025,6 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
     }
   }
 
-  if (Diags.isIgnored(diag::warn_profile_data_misexpect, SourceLocation()))
-    Res.FrontendOpts.LLVMArgs.push_back("-pgo-warn-misexpect");
-
   // Check if -ftapir is specified
   if (Arg *A = Args.getLastArg(OPT_ftapir_EQ)){
     StringRef Name = A->getValue();
