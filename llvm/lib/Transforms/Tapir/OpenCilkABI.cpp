@@ -112,7 +112,7 @@ void OpenCilkABI::prepareModule() {
                            "(libopencilk-abi.bc) in LD_LIBRARY_PATH.");
         #endif 
     } else {
-      path = OpenCilkRuntimeBCPath.getValue();
+      path = ClOpenCilkRuntimeBCPath.getValue();
     }
     LLVM_DEBUG(dbgs() << "Using external bitcode file for OpenCilk ABI: "
                       << path << "\n");
@@ -947,14 +947,14 @@ bool OpenCilkABI::processOrdinaryFunction(Function &F, BasicBlock *TFEntry) {
   if (!TapirRTCalls[TFEntry].empty())
     LowerTapirRTCalls(F, TFEntry);
 
-  return true;
+  return Changed;
 }
 
 void OpenCilkABI::postProcessHelper(Function &F) {}
 
 LoopOutlineProcessor *
-OpenCilkABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
-  if (UseRuntimeCilkFor && !LOP)
-    LOP = new RuntimeCilkFor(M);
-  return LOP;
+OpenCilkABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) const {
+  if (UseRuntimeCilkFor)
+    return new RuntimeCilkFor(M);
+  return nullptr;
 }
