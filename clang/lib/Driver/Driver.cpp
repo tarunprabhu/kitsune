@@ -1210,7 +1210,7 @@ bool Driver::loadConfigFiles() {
   // Prepare list of directories where config file is searched for.  Note that the directories
   // appear in the order they will be searched -- the first matched file will be used and the
   // search will stop from that point.
-  StringRef CfgFileSearchDirs[] = {Dir, UserConfigDir, KitsuneConfigDir, SystemConfigDir};
+  std::vector<StringRef> CfgFileSearchDirs = {Dir, UserConfigDir, KitsuneConfigDir, SystemConfigDir};
 
   // kitsune: check for a kokkos configuration file.
   if (CLOptions->hasArg(options::OPT_fkokkos)) {
@@ -1251,7 +1251,7 @@ bool Driver::loadConfigFiles() {
           Diag(diag::note_drv_config_file_searched_in) << SearchDir;
     }
   }
-  
+
   // tapir: check for a tapir target specific configuration file.
   if (CLOptions->hasArg(options::OPT_ftapir_EQ)) {
     if (const Arg *A = CLOptions->getLastArg(options::OPT_ftapir_EQ)) {
@@ -1343,6 +1343,8 @@ bool Driver::loadConfigFiles() {
   #error "Temporary hack for merge but this needs proper fixing"
   /*
 =======
+=======
+>>>>>>> 2f42d87ceefe (Tapir abi 12.x merge fixes)
   CfgFileSearchDirs.push_back(UserConfigDir);
   CfgFileSearchDirs.push_back(KitsuneConfigDir);
   CfgFileSearchDirs.push_back(SystemConfigDir);
