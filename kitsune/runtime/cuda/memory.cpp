@@ -98,7 +98,7 @@ __kitcuda_mem_alloc_managed(size_t size) {
   // Register this allocation so the runtime can help track the
   // locality (and affinity) of data.
   _kitcuda_mem_alloc_mutex.lock();
-  __kitrt_register_mem_alloc(__kitsune_mobile_cast_unsafe((void*)devp), size);
+  __kitrt_register_mem_alloc(__kitsune_mobile_cast_unsafe((void *)devp), size);
   _kitcuda_mem_alloc_mutex.unlock();
 
   // NOTE: We can no longer do this in a thread-safe manner...
@@ -298,13 +298,13 @@ void *__kitcuda_mem_gpu_prefetch(void *vp, void *opaque_stream) {
       CU_SAFE_CALL(cuMemPrefetchAsync_p((CUdeviceptr)vp, size, _kitcuda_device,
                                         cu_stream));
 #else
-      CU_SAFE_CALL(cuMemPrefetchAsync_p((CUdeviceptr)vp, size, _kitcuda_mem_location, 0,
-                                        cu_stream));
+      CU_SAFE_CALL(cuMemPrefetchAsync_p((CUdeviceptr)vp, size,
+                                        _kitcuda_mem_location, 0, cu_stream));
 #endif // KITSUNE_CUDA_VERSION_MAJOR
       _kitcuda_mem_alloc_mutex.lock();
       __kitrt_mark_mem_prefetched(vp);
       _kitcuda_mem_alloc_mutex.unlock();
-      return (void*)cu_stream;
+      return (void *)cu_stream;
     }
   }
 
@@ -350,8 +350,7 @@ void *__kitcuda_mem_host_prefetch(void *vp, void *opaque_stream) {
       cpu.type = CU_MEM_LOCATION_TYPE_HOST;
       cpu.id = 0;
       CU_SAFE_CALL(cuMemAdvise_p((CUdeviceptr)vp, size,
-                                 CU_MEM_ADVISE_SET_PREFERRED_LOCATION,
-                                 cpu));
+                                 CU_MEM_ADVISE_SET_PREFERRED_LOCATION, cpu));
 #endif // KITSUNE_CUDA_VERSION_MAJOR
       // Issue a prefetch request on the stream associated with the
       // calling thread. Once issued go ahead and mark the memory as
@@ -368,8 +367,8 @@ void *__kitcuda_mem_host_prefetch(void *vp, void *opaque_stream) {
       CU_SAFE_CALL(cuMemPrefetchAsync_p((CUdeviceptr)vp, size, CU_DEVICE_CPU,
                                         cu_stream));
 #else
-      CU_SAFE_CALL(cuMemPrefetchAsync_p((CUdeviceptr)vp, size, cpu, 0,
-                                        cu_stream));
+      CU_SAFE_CALL(
+          cuMemPrefetchAsync_p((CUdeviceptr)vp, size, cpu, 0, cu_stream));
 #endif // KITSUNE_CUDA_VERSION_MAJOR
       __kitrt_set_mem_prefetch(vp, false);
       return cu_stream;
@@ -396,8 +395,7 @@ void __kitcuda_memcpy_sym_to_device(void *hostPtr, uint64_t devPtr,
   KIT_NVTX_POP();
 }
 
-void __kitcuda_memcpy_sym_to_host(uint64_t devPtr, void *hostPtr,
-                                  size_t size) {
+void __kitcuda_memcpy_sym_to_host(uint64_t devPtr, void *hostPtr, size_t size) {
   assert(devPtr != 0 && "unexpected null device pointer!");
   assert(hostPtr != nullptr && "unexpected null host pointer!");
   assert(size != 0 && "requested a 0 byte copy!");
