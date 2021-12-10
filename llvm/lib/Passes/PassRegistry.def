@@ -198,6 +198,7 @@ MODULE_PASS("kit-strip-addr-spaces", StripKitAddrSpacesPass())
 MODULE_PASS("kit-serialize", SerializePass())
 MODULE_PASS("kit-verify-prelower",
             PreLowerVerificationPass(/*exitIfError=*/true))
+MODULE_PASS("loop-stripmine", LoopStripMinePass())
 
 #undef MODULE_PASS
 
@@ -516,7 +517,6 @@ FUNCTION_PASS("loop-fusion", LoopFusePass())
 FUNCTION_PASS("loop-load-elim", LoopLoadEliminationPass())
 FUNCTION_PASS("loop-simplify", LoopSimplifyPass())
 FUNCTION_PASS("loop-sink", LoopSinkPass())
-FUNCTION_PASS("loop-stripmine", LoopStripMinePass())
 FUNCTION_PASS("loop-versioning", LoopVersioningPass())
 FUNCTION_PASS("lower-atomic", LowerAtomicPass())
 FUNCTION_PASS("lower-constant-intrinsics", LowerConstantIntrinsicsPass())
