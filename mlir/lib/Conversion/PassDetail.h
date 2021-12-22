@@ -63,6 +63,10 @@ namespace vector {
 class VectorDialect;
 } // end namespace vector
 
+namespace acc {
+class OpenACCDialect;
+} // end namespace acc
+
 #define GEN_PASS_CLASSES
 #include "mlir/Conversion/Passes.h.inc"
 
