@@ -634,7 +634,7 @@ static void HandleInlinedTasksHelper(
         // Create an unwind edge for the taskframe.
         BasicBlock *TaskFrameUnwindEdge = CreateSubTaskUnwindEdge(
             Intrinsic::taskframe_resume, TFCreate, UnwindEdge,
-            Unreachable);
+            Unreachable, TFCreate);
 
         // Recursively check all blocks
         HandleInlinedTasksHelper(BlocksToProcess, NewBB, TaskFrameUnwindEdge,
@@ -700,7 +700,7 @@ static void HandleInlinedTasksHelper(
         // detached-rethrow.
         BasicBlock *SubTaskUnwindEdge = CreateSubTaskUnwindEdge(
             Intrinsic::detached_rethrow, DI->getSyncRegion(), UnwindEdge,
-            Unreachable);
+            Unreachable, DI);
         // Recursively check all blocks in the detached task.
         HandleInlinedTasksHelper(BlocksToProcess, DI->getDetached(),
                                  SubTaskUnwindEdge, Unreachable,
