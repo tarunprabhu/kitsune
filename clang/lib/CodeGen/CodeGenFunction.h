@@ -3758,6 +3758,7 @@ public:
                           DeclMapByValueTy & IVDeclMap);
   void EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,4>& Values);
   void RestoreDeclMap(const VarDecl* IV, const Address);
+  void EmitAndInitializeIV(const ParmVarDecl* IV);
 
   void EmitSpawnStmt(const SpawnStmt &S);
   void EmitSyncStmt(const SyncStmt &S);
@@ -3816,11 +3817,9 @@ public:
 
   // Kitsune support for Kokkos.  
   bool EmitKokkosConstruct(const CallExpr *CE, ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
-  std::vector<const ParmVarDecl*> EmitKokkosParallelForInductionVar(const LambdaExpr* Lambda);
-  void EmitKokkosParallelForCond(const Expr *BoundsExpr, const ParmVarDecl *LoopVar,
-                                 llvm::BasicBlock *DetachBlock,
-                                 llvm::BasicBlock *ExitBlock,
-				 JumpDest &Sync);
+  //std::vector<const ParmVarDecl*> EmitKokkosParallelForInductionVar(const LambdaExpr* Lambda);
+  llvm::Value * EmitKokkosParallelForCond(const ParmVarDecl *IV, const Expr *BoundsExpr);
+  void EmitKokkosIncrement(const ParmVarDecl *IV);
   bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
   bool EmitKokkosParallelForMD(const CallExpr *CE, std::string PFName,
             const Expr *BE,
