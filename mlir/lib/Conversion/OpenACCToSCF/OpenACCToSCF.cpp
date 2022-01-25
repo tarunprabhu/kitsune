@@ -9,6 +9,8 @@
 #include "mlir/Conversion/OpenACCToSCF/OpenACCToSCF.h"
 
 #include "../PassDetail.h"
+#include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/OpenACC/OpenACC.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -25,6 +27,15 @@ public:
   matchAndRewrite(acc::LoopOp op, ArrayRef<Value> operands,
                   ConversionPatternRewriter &rewriter) const override;
 };
+
+class ParallelOpConversion : public OpConversionPattern<acc::ParallelOp> {
+public:
+  using OpConversionPattern<acc::ParallelOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(acc::ParallelOp op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const override;
+};
 } // namespace
 
 namespace {
@@ -36,7 +47,7 @@ class ConvertOpenACCToSCFPass
     populateOpenACCToSCFConversionPatterns(patterns, &getContext());
     ConversionTarget target(getContext());
     target
-        .addLegalDialect<scf::SCFDialect>();
+        .addLegalDialect<scf::SCFDialect, StandardOpsDialect>();
     if (failed(applyPartialConversion(getOperation(), target,
                                       std::move(patterns))))
       signalPassFailure();
@@ -45,43 +56,94 @@ class ConvertOpenACCToSCFPass
 
 } // namespace
 
+// Converts acc::parallel { acc::loop { scf::for { body } } } to scf::parallel { body }
+LogicalResult
+ParallelOpConversion::matchAndRewrite(acc::ParallelOp op, ArrayRef<Value> operands,
+                                 ConversionPatternRewriter &rewriter) const {
+  // We only continue if first op in the loop is an scf::for and the first op in
+  // a parallel is a loop. If not, the transform is a noop
+  auto loop = dyn_cast<acc::LoopOp>(op.region().front().begin());
+  if(!loop) return success();
+  auto fop = dyn_cast<scf::ForOp>(loop.region().front().begin());
+  if(!fop) return success(); 
+
+  SmallVector<Value, 8> steps = {fop.step()} ; 
+  SmallVector<Value, 8> ivs = {fop.getInductionVar()};  
+  SmallVector<Value, 8> upperBoundTuple = {fop.upperBound()};
+  SmallVector<Value, 8> lowerBoundTuple = {fop.lowerBound()};
+  
+  if(auto collapse = loop.collapse()){ 
+    for(uint64_t i=0; i < *collapse - 1; i++){
+      fop = dyn_cast<scf::ForOp>(fop.region().front().begin());
+      if(!fop) return failure();
+      steps.push_back(fop.step());
+      upperBoundTuple.push_back(fop.upperBound());
+      lowerBoundTuple.push_back(fop.lowerBound()); 
+      ivs.push_back(fop.getInductionVar()); 
+    }
+  }
+
+  // Both scf::ForOps and scf::ParallelOps must be single-block, so we only need
+  // to clone that block.
+  scf::ParallelOp par = rewriter.create<scf::ParallelOp>(
+    op.getLoc(), lowerBoundTuple, upperBoundTuple, steps, op.reductionOperands(), 
+    [&](OpBuilder& ob, Location l, ValueRange newivs, ValueRange otherargs){
+      BlockAndValueMapping map;
+      for(auto dim : llvm::zip(ivs, newivs)){
+        Value iv, newiv;
+        std::tie(iv, newiv) = dim; 
+        map.map(iv, newiv);
+      }
+      map.map(fop.getBody(), ob.getBlock()); 
+      for(auto &op : *fop.getBody()){
+        auto newop = ob.clone(op, map); 
+        map.map(op.getResults(), newop->getResults()); 
+      }
+    }); 
+
+  rewriter.replaceOp(op, par.results());
+  
+  /*
+  scf::ParallelOp par = rewriter.create<scf::ParallelOp>(
+    op.getLoc(), lowerBoundTuple, upperBoundTuple, steps); 
+
+  BlockAndValueMapping map;
+  for(auto dim : llvm::zip(ivs, par.getInductionVars())){
+    Value iv, newiv;
+    std::tie(iv, newiv) = dim; 
+    map.map(iv, newiv);
+  }
+
+  rewriter.cloneRegionBefore(op.region(), par.region(), par.region().begin(), map); 
+  rewriter.setInsertionPointToStart(parBody); 
+  for(auto &op : *fop.getBody()){
+    auto newop = rewriter.clone(op, map); 
+    map.map(op.getResults(), newop->getResults()); 
+  }
+  */
+  //rewriter.eraseOp(&*par.end()); 
+  //rewriter.eraseBlock(fop.getBody()); 
+  //rewriter.cloneRegionBefore(fop.region(), par.region(),
+  //                           std::next(par.region().begin()), map);
+
+  //rewriter.eraseOp(op); 
+
+  //par.dump(); 
+
+  return success(); 
+}
+
+// Not clear what a standalone loop means
 LogicalResult
 LoopOpConversion::matchAndRewrite(acc::LoopOp loop, ArrayRef<Value> operands,
                                  ConversionPatternRewriter &rewriter) const {
-  
-  // TODO: handle nested case
 
-  // We assert that the first op in the loop is an scf::for
-  auto fop = dyn_cast<scf::ForOp>(loop.region().begin()->begin());
-  if(!fop)
-    return failure(); 
-
-  SmallVector<Value, 8> steps = {fop.step()} ; 
-  SmallVector<Value, 8> upperBoundTuple = {fop.upperBound()};
-  SmallVector<Value, 8> lowerBoundTuple = {fop.lowerBound()};
-
-  // The fact that we construct an op that contains regions by creating it and
-  // then mutating the region insode is grotesque, but seems to be the MLIR
-  // Way™.
-  scf::ParallelOp par = rewriter.create<scf::ParallelOp>(
-    fop.getLoc(), lowerBoundTuple, upperBoundTuple, steps); 
- 
-  rewriter.eraseBlock(par.getBody());
-  rewriter.inlineRegionBefore(fop.region(), par.region(),
-                              par.region().end());
-  rewriter.replaceOp(loop, par.results());
-
-  // I believe we have to delete these ops explicitly, as they are not removed
-  // by the removal of the surrounding acc::Loop op. I hate it.
-  rewriter.eraseOp(loop.getBody()->getTerminator()); 
-  rewriter.eraseOp(fop); 
   return success();
-
 }
 
 void mlir::populateOpenACCToSCFConversionPatterns(
     OwningRewritePatternList &patterns, MLIRContext *ctx) {
-  patterns.insert<LoopOpConversion>(ctx);
+  patterns.insert<ParallelOpConversion>(ctx);
 }
 
 std::unique_ptr<Pass>
