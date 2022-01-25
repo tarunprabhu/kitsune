@@ -3753,10 +3753,10 @@ public:
   //                                 >
                         // > DeclMapByValueTy;
   typedef llvm::DenseMap<const VarDecl *, 
-                        std::pair<Address,llvm::SmallVector<llvm::Value*,4>>> DeclMapByValueTy;
+                        std::pair<Address,llvm::SmallVector<llvm::Value*,6>>> DeclMapByValueTy;
   void EmitIVLoad(const VarDecl* LoopVar, 
                           DeclMapByValueTy & IVDeclMap);
-  void EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,4>& Values);
+  void EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,6>& Values);
   void RestoreDeclMap(const VarDecl* IV, const Address);
   void EmitAndInitializeIV(const ParmVarDecl* IV);
 
@@ -3817,7 +3817,6 @@ public:
 
   // Kitsune support for Kokkos.  
   bool EmitKokkosConstruct(const CallExpr *CE, ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
-  //std::vector<const ParmVarDecl*> EmitKokkosParallelForInductionVar(const LambdaExpr* Lambda);
   llvm::Value * EmitKokkosParallelForCond(const ParmVarDecl *IV, const Expr *BoundsExpr);
   void EmitKokkosIncrement(const ParmVarDecl *IV);
   bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
@@ -3833,6 +3832,12 @@ public:
             ArrayRef<const Attr *> ForallAttrs);
   bool EmitKokkosParallelReduce(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
   bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?
+  bool ParseAndValidateParallelFor(const CallExpr* CE,
+					   std::string &CN, 
+             SmallVector<std::pair<const ParmVarDecl*,std::pair<const Expr*, const Expr*>>,6> &IVinfos,
+					   const LambdaExpr *& LE,
+             DiagnosticsEngine &Diags);
+
 
   /// Emit simple code for OpenMP directives in Simd-only mode.
   void EmitSimpleOMPExecutableDirective(const OMPExecutableDirective &D);
