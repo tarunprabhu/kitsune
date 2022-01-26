@@ -24,6 +24,7 @@
 #include "mlir/Dialect/LLVMIR/LLVMAVX512Dialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMArmNeonDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMArmSVEDialect.h"
+#include "mlir/Dialect/LLVMIR/LLVMTapirDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/NVVMDialect.h"
 #include "mlir/Dialect/LLVMIR/ROCDLDialect.h"
@@ -59,6 +60,7 @@ inline void registerAllDialects(DialectRegistry &registry) {
                   LLVM::LLVMDialect,
                   LLVM::LLVMArmNeonDialect,
                   LLVM::LLVMArmSVEDialect,
+                  LLVM::LLVMTapirDialect,
                   linalg::LinalgDialect,
                   scf::SCFDialect,
                   omp::OpenMPDialect,
