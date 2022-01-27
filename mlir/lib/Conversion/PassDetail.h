@@ -33,6 +33,7 @@ class LLVMArmNeonDialect;
 class LLVMArmSVEDialect;
 class LLVMAVX512Dialect;
 class LLVMDialect;
+class LLVMTapirDialect; 
 } // end namespace LLVM
 
 namespace NVVM {
