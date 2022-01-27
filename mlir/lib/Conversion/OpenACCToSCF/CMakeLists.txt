@@ -11,10 +11,8 @@ add_mlir_conversion_library(MLIROpenACCToSCF
   Core
 
   LINK_LIBS PUBLIC
-  MLIREDSC
   MLIRIR
   MLIROpenACC
-  MLIRTensor
   MLIRPass
   MLIRSCF
   MLIRTransforms
