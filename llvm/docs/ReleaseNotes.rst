@@ -315,6 +315,10 @@ Changes to the X86 Backend
 * ``-mcpu=raptorlake``, ``-mcpu=meteorlake`` and ``-mcpu=emeraldrapids`` are now supported.
 * ``-mcpu=sierraforest``, ``-mcpu=graniterapids`` and ``-mcpu=grandridge`` are now supported.
 
+* Handling of temporary files on more uncommon file systems (network
+  mounts, ramdisks) on Windows is fixed now (which previously either
+  errored out or left stray files behind).
+
 Changes to the OCaml bindings
 -----------------------------
 
