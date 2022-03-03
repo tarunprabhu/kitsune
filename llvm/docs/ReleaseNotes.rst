@@ -419,9 +419,6 @@ Changes to LLDB
 
 * Avoiding duplicate DLLs in the runtime list of loaded modules on Windows.
 
-* LLDB has been included in Windows on ARM64 binary release with Python support
-  disabled.
-
 Changes to Sanitizers
 ---------------------
 
