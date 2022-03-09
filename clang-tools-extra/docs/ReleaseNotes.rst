@@ -224,10 +224,6 @@ Changes in existing checks
   :doc:`readability-redundant-string-cstr <clang-tidy/checks/readability/redundant-string-cstr>`
   check.
 
-- Fixed a crash in :doc:`readability-suspicious-call-argument
-  <clang-tidy/checks/readability-suspicious-call-argument>` related to passing
-  arguments that refer to program elements without a trivial identifier.
-
 Removed checks
 ^^^^^^^^^^^^^^
 
