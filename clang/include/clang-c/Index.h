@@ -2614,10 +2614,10 @@ enum CXCursorKind {
    */
   CXCursor_CilkScopeStmt = 298,
 
-  CXCursor_ForallStmt               = 293,
-  CXCursor_CXXForallRangeStmt       = 294,
-  CXCursor_SpawnStmt                 = 295,
-  CXCursor_SyncStmt                 = 296,
+  CXCursor_ForallStmt               = 299,
+  CXCursor_CXXForallRangeStmt       = 300,
+  CXCursor_SpawnStmt                 = 301,
+  CXCursor_SyncStmt                 = 302,
 
 
   CXCursor_LastStmt = CXCursor_SyncStmt,
@@ -2627,7 +2627,7 @@ enum CXCursorKind {
    * The translation unit cursor exists primarily to act as the root
    * cursor for traversing the contents of a translation unit.
    */
-  CXCursor_TranslationUnit = 300,
+  CXCursor_TranslationUnit = 350,
 
   /* Attributes */
   CXCursor_FirstAttr = 400,
