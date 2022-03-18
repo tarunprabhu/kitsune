@@ -2020,6 +2020,12 @@ enum StmtCode {
   STMT_CILKSYNC,
   STMT_CILKFOR,
   STMT_CILKSCOPE,
+  
+  // Kitsune
+  STMT_SPAWN,
+  STMT_SYNC,
+  STMT_FORALL,
+  STMT_CXX_FORALL_RANGE
 };
 
 /// The kinds of designators that can occur in a
