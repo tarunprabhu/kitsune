@@ -3753,10 +3753,11 @@ public:
   //                                 >
                         // > DeclMapByValueTy;
   typedef llvm::DenseMap<const VarDecl *, 
-                        std::pair<Address,llvm::SmallVector<llvm::Value*,6>>> DeclMapByValueTy;
+
+                        std::pair<Address,llvm::SmallVector<llvm::Value*,4>>> DeclMapByValueTy;
   void EmitIVLoad(const VarDecl* LoopVar, 
                           DeclMapByValueTy & IVDeclMap);
-  void EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,6>& Values);
+  void EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,4>& Values);
   void RestoreDeclMap(const VarDecl* IV, const Address);
 
   void EmitSpawnStmt(const SpawnStmt &S);
