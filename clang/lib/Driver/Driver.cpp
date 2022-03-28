@@ -219,8 +219,12 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
     SysRoot = std::string(P);
   }
 
+  #error "Temporarily commented for merge, but need to check what happens with SystemConfigDir if CLANG_CONFIG_FILE_SYSTEM_DIR is not defined."
 #if defined(CLANG_CONFIG_FILE_SYSTEM_DIR)
   SystemConfigDir = CLANG_CONFIG_FILE_SYSTEM_DIR;
+// #else
+//   llvm::StringRef PrefixDir = llvm::sys::path::parent_path(Dir);
+//   SystemConfigDir = PrefixDir.str() + std::string("/share/kitsune");
 #endif
 #if defined(CLANG_CONFIG_FILE_USER_DIR)
   {
@@ -240,48 +244,48 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
   KitsuneKokkosCfgFile = "kokkos.cfg";
 #endif
 
-#if defined(TAPIR_NONE_TARGET_CFG_FILENAME)
-  TapirNoneCfgFile = TAPIR_NONE_TARGET_CFG_FILENAME;
+#if defined(TAPIR_NONE_ABI_TARGET_CFG_FILENAME)
+  TapirNoneCfgFile = TAPIR_NONE_ABI_TARGET_CFG_FILENAME;
 #else
   TapirNoneCfgFile = "none.cfg";
 #endif
-#if defined(TAPIR_SERIAL_TARGET_CFG_FILENAME)
-  TapirSerialCfgFile = TAPIR_SERIAL_TARGET_CFG_FILENAME;
+#if defined(TAPIR_SERIAL_ABI_TARGET_CFG_FILENAME)
+  TapirSerialCfgFile = TAPIR_SERIAL_ABI_TARGET_CFG_FILENAME;
 #else
   TapirSerialCfgFile = "serial.cfg";
 #endif
-#if defined(TAPIR_OPENCILK_TARGET_CFG_FILENAME)
-  TapirOpenCilkCfgFile = TAPIR_OPENCILK_TARGET_CFG_FILENAME;
+#if defined(TAPIR_OPENCILK_ABI_TARGET_CFG_FILENAME)
+  TapirOpenCilkCfgFile = TAPIR_OPENCILK_ABI_TARGET_CFG_FILENAME;
 #else
   TapirOpenCilkCfgFile = "opencilk.cfg";
 #endif
-#if defined(TAPIR_CUDA_TARGET_CFG_FILENAME)
-  TapirCudaCfgFile = TAPIR_CUDA_TARGET_CFG_FILENAME;
+#if defined(TAPIR_CUDA_ABI_TARGET_CFG_FILENAME)
+  TapirCudaCfgFile = TAPIR_CUDA_ABI_TARGET_CFG_FILENAME;
 #else
   TapirCudaCfgFile = "cuda.cfg";
 #endif
-#if defined(TAPIR_REALM_TARGET_CFG_FILENAME)
-  TapirRealmCfgFile = TAPIR_REALM_TARGET_CFG_FILENAME;
+#if defined(TAPIR_REALM_ABI_TARGET_CFG_FILENAME)
+  TapirRealmCfgFile = TAPIR_REALM_ABI_TARGET_CFG_FILENAME;
 #else
   TapirRealmCfgFile = "realm.cfg";
 #endif
-#if defined(TAPIR_OPENMP_TARGET_CFG_FILENAME)
-  TapirOpenMPCfgFile = TAPIR_OPENMP_TARGET_CFG_FILENAME;
+#if defined(TAPIR_OPENMP_ABI_TARGET_CFG_FILENAME)
+  TapirOpenMPCfgFile = TAPIR_OPENMP_ABI_TARGET_CFG_FILENAME;
 #else
   TapirOpenMPCfgFile = "openmp.cfg";
 #endif
-#if defined(TAPIR_QTHREADS_TARGET_CFG_FILENAME)
-  TapirQthreadsCfgFile = TAPIR_QTHREADS_TARGET_CFG_FILENAME;
+#if defined(TAPIR_QTHREADS_ABI_TARGET_CFG_FILENAME)
+  TapirQthreadsCfgFile = TAPIR_QTHREADS_ABI_TARGET_CFG_FILENAME;
 #else
   TapirQthreadsCfgFile = "qthreads.cfg";
 #endif
-#if defined(TAPIR_OPENCL_TARGET_CFG_FILENAME)
-  TapirOpenCLCfgFile = TAPIR_OPENCL_TARGET_CFG_FILENAME;
+#if defined(TAPIR_OPENCL_ABI_TARGET_CFG_FILENAME)
+  TapirOpenCLCfgFile = TAPIR_OPENCL_ABI_TARGET_CFG_FILENAME;
 #else
   TapirOpenCLCfgFile = "opencl.cfg";
 #endif
-#if defined(TAPIR_HIP_TARGET_CFG_FILENAME)
-  TapirHIPCfgFile = TAPIR_HIP_TARGET_CFG_FILENAME;
+#if defined(TAPIR_HIP_ABI_TARGET_CFG_FILENAME)
+  TapirHIPCfgFile = TAPIR_HIP_ABI_TARGET_CFG_FILENAME;
 #else
   TapirHIPCfgFile = "hip.cfg";
 #endif
@@ -836,10 +840,18 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
                      return types::isHIP(I.first);
                    }) ||
       C.getInputArgs().hasArg(options::OPT_hip_link);
+
   if (IsCuda && IsHIP) {
     Diag(clang::diag::err_drv_mix_cuda_hip);
     return;
   }
+
+  bool IsTapir = C.getInputArgs().hasArg(options::OPT_ftapir_EQ);
+  if (IsTapir && (IsCuda || IsHIP)) {
+    Diag(clang::diag::err_drv_mix_tapir_cuda_hip);
+    return;
+  }
+
   if (IsCuda) {
     const ToolChain *HostTC = C.getSingleOffloadToolChain<Action::OFK_Host>();
     const llvm::Triple &HostTriple = HostTC->getTriple();
@@ -953,6 +965,27 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
           Diag(clang::diag::err_drv_failed_to_deduce_target_from_arch) << Arch;
           return;
         }
+
+  // the -fopenmp-targets option.
+  if (Arg *OpenMPTargets =
+          C.getInputArgs().getLastArg(options::OPT_fopenmp_targets_EQ)) {
+
+    if (IsTapir) {
+      Diag(clang::diag::err_drv_mix_tapir_omp_offload);
+      return;
+    }
+
+    if (OpenMPTargets->getNumValues()) {
+      // We expect that -fopenmp-targets is always used in conjunction with the
+      // option -fopenmp specifying a valid runtime with offloading support,
+      // i.e. libomp or libiomp.
+      bool HasValidOpenMPRuntime = C.getInputArgs().hasFlag(
+          options::OPT_fopenmp, options::OPT_fopenmp_EQ,
+          options::OPT_fno_openmp, false);
+      if (HasValidOpenMPRuntime) {
+        OpenMPRuntimeKind OpenMPKind = getOpenMPRuntime(C.getInputArgs());
+        HasValidOpenMPRuntime =
+            OpenMPKind == OMPRT_OMP || OpenMPKind == OMPRT_IOMP5;
       }
 
       // If the set is empty then we failed to find a native architecture.
@@ -1147,7 +1180,7 @@ bool Driver::loadConfigFiles() {
         else
           KitsuneConfigDir = std::string(CfgDir.begin(), CfgDir.end());
       }
-    } else {}
+    }
 
     if (CLOptions->hasArg(options::OPT_config_user_dir_EQ)) {
       SmallString<128> CfgDir;
@@ -1260,6 +1293,7 @@ bool Driver::loadConfigFiles() {
               .Case("serial", TapirSerialCfgFile)
               .Case("opencilk", TapirOpenCilkCfgFile)
               .Case("cuda", TapirCudaCfgFile)
+              .Case("gpu", TapirGPUCfgFile)
               .Case("openmp", TapirOpenMPCfgFile)
               .Case("qthreads", TapirQthreadsCfgFile)
               .Case("realm", TapirRealmCfgFile)
