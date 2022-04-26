@@ -74,7 +74,8 @@ for gs in grainsizes:
 # by nvcc.
 executables = ["raytrace.clang."+march,
                "raytrace.nvcc."+march, 
-               "raytrace.kokkos."+march]
+               "raytrace.kokkos."+march,
+	       "raytrace.kokkos.noview."+march]
 executables = executables + additional_executables
 
 # The benchmark run will have a CSV file that is automatically created with the

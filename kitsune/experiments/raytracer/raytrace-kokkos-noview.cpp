@@ -7,8 +7,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <time.h>
-#include "kitsune/timer.h"
-#include <kitsune.h>
+#include "Kokkos_Core.hpp"
 #include "kitsune/llvm-gpu-abi/llvm-gpu.h"
 #include "kitsune/llvm-gpu-abi/kitrt-cuda.h"
 
@@ -22,16 +21,15 @@ struct Pixel {
 
 struct Vec {
   float x,y,z;
-  inline __attribute__((always_inline)) Vec(float v = 0) {x = y = z = v;}
-  inline __attribute__((always_inline)) Vec(float a, float b, float c = 0) {x = a;y = b;z = c;}
-  inline __attribute__((always_inline)) Vec operator+(const Vec r) const  { return Vec(x + r.x , y + r.y , z + r.z); }
-  inline __attribute__((always_inline)) Vec operator*(const Vec r) const { return   Vec(x * r.x , y * r.y , z * r.z); }
-  inline __attribute__((always_inline)) float operator%(const Vec r) const {return     x * r.x + y * r.y + z * r.z;}
-  inline __attribute__((always_inline)) Vec operator!() { return *this * (1.0/sqrtf(*this % *this)); }
+  KOKKOS_FORCEINLINE_FUNCTION Vec(float v = 0) {x = y = z = v;}
+  KOKKOS_FORCEINLINE_FUNCTION Vec(float a, float b, float c = 0) {x = a;y = b;z = c;}
+  KOKKOS_FORCEINLINE_FUNCTION Vec operator+(const Vec r) const  { return Vec(x + r.x , y + r.y , z + r.z); }
+  KOKKOS_FORCEINLINE_FUNCTION Vec operator*(const Vec r) const { return   Vec(x * r.x , y * r.y , z * r.z); }
+  KOKKOS_FORCEINLINE_FUNCTION float operator%(const Vec r) const {return     x * r.x + y * r.y + z * r.z;}
+  KOKKOS_FORCEINLINE_FUNCTION Vec operator!() { return *this * (1.0/sqrtf(*this % *this)); }
 };
 
-inline __attribute__((always_inline))
-float randomVal(unsigned int& x) {
+KOKKOS_FORCEINLINE_FUNCTION float randomVal(unsigned int& x) {
   x = (214013*x+2531011);
   return ((x>>16)&0x7FFF) / (float)66635;
 }
@@ -39,8 +37,7 @@ float randomVal(unsigned int& x) {
 // Rectangle CSG equation. Returns minimum signed distance from
 // space carved by
 // lowerLeft vertex and opposite rectangle vertex upperRight.
-inline __attribute__((always_inline))
-float BoxTest(const Vec& position, Vec lowerLeft, Vec upperRight) {
+KOKKOS_FORCEINLINE_FUNCTION float BoxTest(const Vec& position, Vec lowerLeft, Vec upperRight) {
   lowerLeft = position + lowerLeft * -1.0f;
   upperRight = upperRight + position * -1.0f;
   return -fminf(
@@ -54,8 +51,7 @@ float BoxTest(const Vec& position, Vec lowerLeft, Vec upperRight) {
 #define HIT_SUN 3
 
 // Sample the world using Signed Distance Fields.
-inline __attribute__((always_inline))
-float QueryDatabase(const Vec& position, int &hitType) {
+KOKKOS_FORCEINLINE_FUNCTION float QueryDatabase(const Vec& position, int &hitType) {
   float distance = 1e9;//FLT_MAX;
   Vec f = position; // Flattened position (z=0)
   f.z = 0;
@@ -82,7 +78,7 @@ float QueryDatabase(const Vec& position, int &hitType) {
   }
 
   distance = sqrtf(distance); // Get real distance, not square distance.
-  distance = powf(powf(distance, 8.0f)+powf(position.z, 8.0f), 0.125f) - 0.5f;
+  distance = powf(powf(distance, 8)+powf(position.z, 8), 0.125f) - 0.5f;
   hitType = HIT_LETTER;
 
   float roomDist ;
@@ -107,8 +103,7 @@ float QueryDatabase(const Vec& position, int &hitType) {
 
 // Perform signed sphere marching
 // Returns hitType 0, 1, 2, or 3 and update hit position/normal
-
-inline __attribute__((always_inline)) 
+KOKKOS_FORCEINLINE_FUNCTION
 int RayMarching(const Vec& origin, const Vec& direction, Vec& hitPos, Vec& hitNorm) {
   int hitType = HIT_NONE;
   int noHitCount = 0;
@@ -127,8 +122,7 @@ int RayMarching(const Vec& origin, const Vec& direction, Vec& hitPos, Vec& hitNo
   return 0;
 }
 
-inline __attribute__((always_inline))
-Vec Trace(Vec origin, Vec direction, unsigned int& rn) {
+KOKKOS_FORCEINLINE_FUNCTION Vec Trace(Vec origin, Vec direction, unsigned int& rn) {
   Vec sampledPosition;
   Vec normal;
   Vec color(0.0f, 0.0f, 0.0f);
@@ -175,7 +169,6 @@ Vec Trace(Vec origin, Vec direction, unsigned int& rn) {
   return color;
 }
 
-
 int main(int argc, char **argv)
 {
   unsigned int samplesCount = 1 << 7;
@@ -188,52 +181,52 @@ int main(int argc, char **argv)
       imageHeight = atoi(argv[3]);
     }
   }
+  
+  Kokkos::initialize(argc, argv);
+  {
+    Pixel *img = (Pixel*)__kitrt_cuMemAllocManaged(sizeof(Pixel) * imageWidth * imageHeight);
+    unsigned int samplesCount = 1 << 7;
 
-  //fprintf(stderr, "image size: %d x %d\n", imageWidth, imageHeight);
-  //fprintf(stderr, "sample count %d\n", samplesCount);
-  Pixel *img = (Pixel*)__kitrt_cuMemAllocManaged(sizeof(Pixel) * imageWidth * imageHeight);
+    if (argc > 1 )
+      samplesCount = atoi(argv[1]);
 
-  __kitrt_cuEnableEventTiming();
-  unsigned totalPixels = imageWidth * imageHeight;
-  forall(size_t i = 0; i < totalPixels; ++i) { 
-    int x = i % imageWidth;
-    int y = i / imageWidth;
-    unsigned int v = i;
-    const Vec position(-12.0f, 5.0f, 25.0f);
-    const Vec goal = !(Vec(-3.0f, 4.0f, 0.0f) + position * -1.0f);
-    const Vec left = !Vec(goal.z, 0, -goal.x) * (1.0f / imageWidth);
-    // Cross-product to get the up vector
-    const Vec up(goal.y *left.z - goal.z * left.y,
-		 goal.z *left.x - goal.x * left.z,
-		 goal.x *left.y - goal.y * left.x);
-    Vec color;
-    for (unsigned int p = samplesCount; p--;) {
-      Vec rand_left = Vec(randomVal(v), randomVal(v), randomVal(v))*.001;
-      color = color + Trace(position,
-			    !((goal+rand_left) + left *
-			      ((x+randomVal(v)) - imageWidth / 2.0f + randomVal(v)) + up *
-			      ((y+randomVal(v)) - imageHeight / 2.0f + randomVal(v))), v);
-    }
-    // Reinhard tone mapping
-    color = color * (1.0f / samplesCount) + 14.0f / 241.0f;
-    Vec o = color + 1.0f;
-    color = Vec(color.x / o.x, color.y / o.y, color.z / o.z) * 255.0f;
-    img[i].r = (unsigned char)color.x;
-    img[i].g = (unsigned char)color.y;
-    img[i].b = (unsigned char)color.z;
-  }
-  __kitrt_cuDisableEventTiming();
+    __kitrt_cuEnableEventTiming();    
+    Kokkos::parallel_for(imageWidth * imageHeight, KOKKOS_LAMBDA(const unsigned int i) {
+	int x = i % imageWidth;
+	int y = i / imageWidth;
+	unsigned int v = i;
+	const Vec position(-12.0f, 5.0f, 25.0f);
+	const Vec goal = !(Vec(-3.0f, 4.0f, 0.0f) + position * -1.0f);
+	const Vec left = !Vec(goal.z, 0, -goal.x) * (1.0f / imageWidth);
+	// Cross-product to get the up vector
+	const Vec up(goal.y *left.z - goal.z * left.y,
+		     goal.z *left.x - goal.x * left.z,
+		     goal.x *left.y - goal.y * left.x);
+	Vec color;
+	for (unsigned int p = samplesCount; p--;) {
+	  Vec rand_left = Vec(randomVal(v), randomVal(v), randomVal(v))*.001;
+	  color = color + Trace(position,
+				!((goal+rand_left) + left *
+				  ((x+randomVal(v)) - imageWidth / 2.0f + randomVal(v)) + up *
+				  ((y+randomVal(v)) - imageHeight / 2.0f + randomVal(v))), v);
+	}
+	// Reinhard tone mapping
+	color = color * (1.0f / samplesCount) + 14.0f / 241.0f;
+	Vec o = color + 1.0f;
+	color = Vec(color.x / o.x, color.y / o.y, color.z / o.z) * 255.0f;
+	img[i].r = (unsigned char)color.x;
+	img[i].g = (unsigned char)color.y;
+	img[i].b = (unsigned char)color.z;
+      });
+    __kitrt_cuDisableEventTiming();    
 
-  std::ofstream myfile;
-  myfile.open ("raytrace-forall.ppm");
-  if (myfile.is_open()) {
+    std::ofstream myfile;
+    myfile.open ("raytrace-cpu.ppm");
     myfile << "P6 " << imageWidth << " " << imageHeight << " 255 ";
-    for(int i = totalPixels-1; i >= 0; i--) {
+    for(int i = (imageWidth*imageHeight)-1; i >= 0; i--) {
       myfile << img[i].r << img[i].g << img[i].b;
     }
-    myfile.close();
-    fprintf(stderr, "saved image file.\n");
   }
-
-  return 0;
+  Kokkos::finalize();
+  return EXIT_SUCCESS;
 }

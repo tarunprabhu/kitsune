@@ -43,12 +43,15 @@ all: raytrace-forall.cuda.${host_arch} \
      raytrace-forall.cuda.${GRAINSIZE}.${host_arch} \
      raytrace.nvcc.${host_arch} \
      raytrace.clang.${host_arch} \
-     raytrace.kokkos.${host_arch} 
+     raytrace.kokkos.${host_arch} \
+     raytrace.kokkos.noview.${host_arch}
 
 
 # Kitsune-Tapir versions.
 raytrace-forall.cuda.${host_arch}: raytrace-forall.cpp
 	${clangxx} ${clang_flags} ${tapir_cu_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+raytrace.kokkos.noview.${host_arch}: raytrace-kokkos-noview.cpp
+	${clangxx} ${clang_flags} ${tapir_cu_flags} ${kit_kokkos_flags} ${tapir_stripmine_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
 
 raytrace-forall.cuda.${GRAINSIZE}.${host_arch}: raytrace-forall.cpp
 	${clangxx} ${clang_flags} ${tapir_cu_flags} ${tapir_stripmine_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
@@ -69,5 +72,4 @@ clean:
 	-rm -f *.fatbin
 
 realclean:
-	-rm -f *.ll *.ptx *.csv *.log 
-	
+	-rm -f *.ll *.ptx *.csv *.log
