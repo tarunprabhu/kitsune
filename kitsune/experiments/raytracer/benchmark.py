@@ -41,7 +41,7 @@ coarsen_factor = 1
 
 # Set up some values to control the code generation grainsize.
 grainsizes = []
-for cf in (2**p for p in range(0, 3)):
+for cf in (2**p for p in range(0, 1)):
   grainsizes.append(cf)
 
 sample_counts = []
@@ -75,7 +75,8 @@ for gs in grainsizes:
 executables = ["raytrace.clang."+march,
                "raytrace.nvcc."+march, 
                "raytrace.kokkos."+march,
-	       "raytrace.kokkos.noview."+march]
+               "raytrace.kokkos.noview."+march,
+               "raytrace.openmp."+march]
 executables = executables + additional_executables
 
 # The benchmark run will have a CSV file that is automatically created with the

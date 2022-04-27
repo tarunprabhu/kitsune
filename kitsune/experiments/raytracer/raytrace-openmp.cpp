@@ -1,17 +1,12 @@
-#include <iostream>
-#include <fstream>
-#include <math.h>
-#include <stdio.h>
-#include <stdint.h>
 #include <float.h>
+#include <fstream>
+#include <iostream>
 #include <limits.h>
-#include <stdlib.h>
+#include <math.h>
 #include <omp.h>
-#include <time.h>
-#include "kitsune/timer.h"
-#include <kitsune.h>
-#include "kitsune/llvm-gpu-abi/llvm-gpu.h"
-#include "kitsune/llvm-gpu-abi/kitrt-cuda.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define DEFAULT_WIDTH  2048
 #define DEFAULT_HEIGHT 1024
@@ -192,11 +187,24 @@ int main(int argc, char **argv)
 
   //fprintf(stderr, "image size: %d x %d\n", imageWidth, imageHeight);
   //fprintf(stderr, "sample count %d\n", samplesCount);
-  Pixel *img = (Pixel*)__kitrt_cuMemAllocManaged(sizeof(Pixel) * imageWidth * imageHeight);
-
-  __kitrt_cuEnableEventTiming();
   unsigned totalPixels = imageWidth * imageHeight;
-  forall(size_t i = 0; i < totalPixels; ++i) { 
+  Pixel *img = new Pixel[totalPixels];
+  int runningOnGPU = 0;
+  #pragma omp target map(from:runningOnGPU)
+  {
+    if (omp_is_initial_device() == 0)
+      runningOnGPU = 1;
+  }
+
+  if (!runningOnGPU) {
+    fprintf(stderr, "unable to use the GPU via OpenMP... aborting...\n");
+    return 1;
+  }
+
+  //#pragma omp target data map(alloc:img)
+  double tb = omp_get_wtime();
+  #pragma omp target teams distribute parallel for map(to:img[0:totalPixels]) thread_limit(128)
+  for(size_t i = 0; i < totalPixels; ++i) { 
     int x = i % imageWidth;
     int y = i / imageWidth;
     unsigned int v = i;
@@ -223,17 +231,20 @@ int main(int argc, char **argv)
     img[i].g = (unsigned char)color.y;
     img[i].b = (unsigned char)color.z;
   }
-  __kitrt_cuDisableEventTiming();
+  double te = omp_get_wtime();
+  #pragma omp target update from(img)
+  double et = te - tb;
+  printf("%lg\n", et);
+
 
   std::ofstream myfile;
-  myfile.open ("raytrace-forall.ppm");
+  myfile.open ("raytrace-openmp.ppm");
   if (myfile.is_open()) {
     myfile << "P6 " << imageWidth << " " << imageHeight << " 255 ";
     for(int i = totalPixels-1; i >= 0; i--) {
       myfile << img[i].r << img[i].g << img[i].b;
     }
     myfile.close();
-    fprintf(stderr, "saved image file.\n");
   }
 
   return 0;

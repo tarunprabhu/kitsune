@@ -44,7 +44,8 @@ all: raytrace-forall.cuda.${host_arch} \
      raytrace.nvcc.${host_arch} \
      raytrace.clang.${host_arch} \
      raytrace.kokkos.${host_arch} \
-     raytrace.kokkos.noview.${host_arch}
+     raytrace.kokkos.noview.${host_arch} \
+     raytrace.openmp.${host_arch}
 
 
 # Kitsune-Tapir versions.
@@ -52,7 +53,6 @@ raytrace-forall.cuda.${host_arch}: raytrace-forall.cpp
 	${clangxx} ${clang_flags} ${tapir_cu_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
 raytrace.kokkos.noview.${host_arch}: raytrace-kokkos-noview.cpp
 	${clangxx} ${clang_flags} ${tapir_cu_flags} ${kit_kokkos_flags} ${tapir_stripmine_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
-
 raytrace-forall.cuda.${GRAINSIZE}.${host_arch}: raytrace-forall.cpp
 	${clangxx} ${clang_flags} ${tapir_cu_flags} ${tapir_stripmine_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
 
@@ -63,6 +63,10 @@ raytrace.clang.${host_arch}: raytrace.cu
 	${clangxx} ${clang_cuda_flags} -o $@ $< -L${CUDA_HOME}/lib64 -lcudart_static -ldl -lrt -pthread
 raytrace.kokkos.${host_arch}: raytrace-kokkos.cpp
 	${nvcc_wrapper} ${kokkos_cu_flags} -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+
+# OpenMP version.
+raytrace.openmp.${host_arch}: raytrace-openmp.cpp
+	${clangxx} ${clang_flags} -fopenmp -fopenmp-targets=nvptx64-cuda -Xopenmp-target -march=${NVARCH} -I${kitsune_prefix}/include -fopenmp -o $@ $<
 
 clean:
 	-rm -f *.${host_arch}
