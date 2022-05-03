@@ -630,8 +630,8 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
     if (unsigned ConstGrainsize = TLI.getGrainsize())
       Grainsize = ConstantInt::get(PrimaryIV->getType(), ConstGrainsize);
     else
-      // Grainsize argument is the third LC arg.
-      Grainsize = &*++(++OutlineArgsIter);
+      Grainsize = ConstantInt::get(PrimaryIV->getType(),
+				   DefaultGrainSize.getValue());      
   }
 
   IRBuilder<> B(Entry->getTerminator());
