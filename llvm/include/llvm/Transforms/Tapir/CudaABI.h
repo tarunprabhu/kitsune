@@ -148,11 +148,20 @@ public:
   void setValid(bool flag) { Valid = flag; }
   bool isValid() const { return Valid; }
 
-  unsigned getKernelID() const { return KernelID; }
+  Constant * createConstantStr(const std::string &Str, 
+                               const std::string &Name = "",
+                               const std::string &SectionName = "",
+                               unsigned Alignment = 0);
+
+  unsigned getKernelID() const {
+    return KernelID;
+  }
 
   void transformForPTX();
 
-  GlobalVariable *createKernelBuffer();
+  Constant *createKernelBuffer();
+  Function *createCudaCtor(Constant *FatBinaryPtr);
+  Function *createCudaDtor(GlobalVariable *BinHandle);
 
   void postProcessOutline(TapirLoopInfo & TL, TaskOutlineInfo & Out,
                           ValueToValueMapTy & VMap) override final;

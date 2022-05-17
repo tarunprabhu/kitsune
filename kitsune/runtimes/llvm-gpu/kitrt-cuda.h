@@ -54,6 +54,8 @@
 #ifndef __KITRT_CUDA_H__
 #define __KITRT_CUDA_H__
 
+#include <stdlib.h>
+
 /// Initialize the runtime.  This call may be made mulitple 
 /// times -- only the intial call will initialize CUDA and 
 /// subsequent calls are essentially no-ops. 

@@ -53,11 +53,11 @@ using namespace llvm;
 
 #define DEBUG_TYPE "cuda-abi"
 
-
 // Some default naming convensions. 
-const std::string CUABI_KERNEL_NAME_PREFIX = "__cuabi_kern_";
-const std::string CUABI_MODULE_NAME_PREFIX = "__cuabi_module_";
+static const std::string CUABI_KERNEL_NAME_PREFIX = "__cuabi_kern_";
+static const std::string CUABI_MODULE_NAME_PREFIX = "__cuabi_module_";
 
+static constexpr unsigned FATBINARY_MAGIC_ID = 0x466243b1;
 
 /// Selected target GPU architecture --  passed directly to ptxas.
 static cl::opt<std::string>
@@ -138,10 +138,10 @@ DisableConstantBank("cuabi-disable-constant-bank", cl::init(false),
 /// Set the CUDA ABI's default grainsize value.  This is used internally 
 /// by the transform.  
 static cl::opt<unsigned>
-DefaultGrainSize("cuabi-default-grainsize", cl::init(8), 
-                 cl::Hidden, 
-                 cl::desc("The default grainsize used by the "
-                          "transform when analysis fails to determine one."));
+DefaultGrainSize("cuabi-default-grainsize", cl::init(1), 
+         cl::Hidden, 
+         cl::desc("The default grainsize used by the "
+           "transform when analysis fails to determine one. (default=1)"));
 
 /// Keep the complete set of intermediate files around after compilation.  This 
 /// includes LLVM IR, PTX, and the fatbinary file. 
@@ -213,6 +213,48 @@ DefaultBlocksPerGrid("cuabi-blocks-per-grid", cl::init(0),
                cl::desc("Experimental feature -- see 'ptxas' documentaiton. "
                         "(default=5)"));
 */
+
+// Adapted from Transforms/Utils/ModuleUtils.cpp
+static void appendToGlobalArray(const char *Array, Module &M, Constant *C,
+                                int Priority, Constant *Data) {
+  IRBuilder<> IRB(M.getContext());
+  FunctionType *FnTy = FunctionType::get(IRB.getVoidTy(), false);
+
+  // Get the current set of static global constructors and add the new ctor
+  // to the list.
+  SmallVector<Constant *, 16> CurrentCtors;
+  StructType *EltTy = StructType::get(
+      IRB.getInt32Ty(), PointerType::getUnqual(FnTy), IRB.getInt8PtrTy());
+  if (GlobalVariable *GVCtor = M.getNamedGlobal(Array)) {
+    if (Constant *Init = GVCtor->getInitializer()) {
+      unsigned n = Init->getNumOperands();
+      CurrentCtors.reserve(n + 1);
+      for (unsigned i = 0; i != n; ++i)
+        CurrentCtors.push_back(cast<Constant>(Init->getOperand(i)));
+    }
+    GVCtor->eraseFromParent();
+  }
+
+  // Build a 3 field global_ctor entry.  We don't take a comdat key.
+  Constant *CSVals[3];
+  CSVals[0] = IRB.getInt32(Priority);
+  CSVals[1] = C;
+  CSVals[2] = Data ? ConstantExpr::getPointerCast(Data, IRB.getInt8PtrTy())
+                   : Constant::getNullValue(IRB.getInt8PtrTy());
+  Constant *RuntimeCtorInit =
+      ConstantStruct::get(EltTy, makeArrayRef(CSVals, EltTy->getNumElements()));
+
+  CurrentCtors.push_back(RuntimeCtorInit);
+
+  // Create a new initializer.
+  ArrayType *AT = ArrayType::get(EltTy, CurrentCtors.size());
+  Constant *NewInit = ConstantArray::get(AT, CurrentCtors);
+
+  // Create the new global variable and replace all uses of
+  // the old global variable with the new one.
+  (void)new GlobalVariable(M, NewInit->getType(), false,
+                           GlobalValue::AppendingLinkage, NewInit, Array);
+}
 
 /// Take the NVIDIA CUDA 'sm_' architecture format and convert it into 
 /// the 'compute_' form.  Note that we require CUDA 11 or greater and 
@@ -491,6 +533,35 @@ CudaLoop::CudaLoop(Module &M, const std::string &KN, bool MakeUniqueName)
 CudaLoop::~CudaLoop() 
 { }
 
+Constant *CudaLoop::createConstantStr(const std::string &Str,
+                                      const std::string &Name,
+                                      const std::string &SectionName,
+                                      unsigned Alignment) {
+  LLVMContext &Ctx = KernelModule.getContext();
+  Type *SizeTy = Type::getInt64Ty(Ctx);
+
+  Constant *CSN = ConstantDataArray::getString(Ctx, Name);
+  GlobalVariable *GV =
+      new GlobalVariable(KernelModule, CSN->getType(), true,
+                         GlobalVariable::PrivateLinkage, CSN, ".devstr");
+  Type *StrTy = GV->getType();
+  const DataLayout &DL = KernelModule.getDataLayout();
+  Constant *Zeros[] = {ConstantInt::get(DL.getIndexType(StrTy), 0),
+                       ConstantInt::get(DL.getIndexType(StrTy), 0)};
+  if (!SectionName.empty()) {
+    GV->setSection(SectionName);
+    // Mark the address as used which make sure that this section isn't
+    // merged and we will really have it in the object file.
+    GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::None);
+  }
+
+  if (Alignment)
+    GV->setAlignment(llvm::Align(Alignment));
+
+  Constant *CS = ConstantExpr::getGetElementPtr(GV->getValueType(), GV, Zeros);
+  return CS;
+}
+
 void CudaLoop::setupLoopOutlineArgs(Function &F, ValueSet &HelperArgs,
                                     SmallVectorImpl<Value *> &HelperInputs,
                                     ValueSet &InputSet,
@@ -528,7 +599,7 @@ void CudaLoop::setupLoopOutlineArgs(Function &F, ValueSet &HelperArgs,
   // not constant.
   if (!isa<ConstantInt>(LCInputs[2])) {
     Argument *GrainsizeArg = cast<Argument>(LCArgs[2]);
-    GrainsizeArg->setName("runStride");
+    GrainsizeArg->setName("grainSize");
     HelperArgs.insert(GrainsizeArg);
 
     Value *InputVal = LCInputs[2];
@@ -562,6 +633,7 @@ unsigned CudaLoop::getLimitArgIndex(const Function &F,
   // The argument for the loop limit is the first input.
   return 0;
 }
+
 
 void CudaLoop::updateKernelName(const std::string &KN, bool addID) {
   // Use the kernel ID to create a unique name.
@@ -631,7 +703,7 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
       Grainsize = ConstantInt::get(PrimaryIV->getType(), ConstGrainsize);
     else
       Grainsize = ConstantInt::get(PrimaryIV->getType(),
-				   DefaultGrainSize.getValue());      
+				                           DefaultGrainSize.getValue());      
   }
 
   IRBuilder<> B(Entry->getTerminator());
@@ -1044,7 +1116,7 @@ std::string CudaLoop::createFatBinaryFile(const std::string &PTXFileName) {
 // Create a global variable that contains the contents of a fat binary file
 // created using the cuda 'ptxas' and 'fatbinary' components from the cuda
 // toolchain.
-GlobalVariable* CudaLoop::createKernelBuffer() {
+Constant* CudaLoop::createKernelBuffer() {
 
   // Before we move along too far check to see if want to save the kernel 
   // module -- this can be helpful if we bomb-out in PTX code generation 
@@ -1120,11 +1192,17 @@ GlobalVariable* CudaLoop::createKernelBuffer() {
   GV = new GlobalVariable(M, FBCS->getType(), true,
                           GlobalValue::PrivateLinkage, FBCS,
                           getKernelName() + Twine("_fatbin"));
-  //GV->setSection(FatbinSectionName);
-  //GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::None);
+
 
   LLVM_DEBUG( dbgs() << "\tcreated fat binary global variable '"
                      << GV->getName() << "'.\n");
+
+  Type *StrTy = GV->getType();
+  const DataLayout &DL = M.getDataLayout();
+  Constant *Zeros[] = {ConstantInt::get(DL.getIndexType(StrTy), 0),
+                       ConstantInt::get(DL.getIndexType(StrTy), 0)};
+  Constant *FBPtr = ConstantExpr::getGetElementPtr(GV->getValueType(),
+                                                   GV, Zeros);
 
   // Clean up temporary PTX and fat binary files now that we've 
   // successfully created the global variable.
@@ -1139,7 +1217,94 @@ GlobalVariable* CudaLoop::createKernelBuffer() {
       errs() << "error removing fatbinary file: " << EC.message() << "\n";
   }
 
-  return GV;
+  return FBPtr;
+}
+
+Function *CudaLoop::createCudaDtor(GlobalVariable *GpuBinaryHandle) {
+  // No need for destructor if we don't have a handle to unregister.
+  LLVMContext &Ctx = M.getContext();
+  const DataLayout &DL = M.getDataLayout();
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  Type *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  Type *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
+
+  // void __cudaUnregisterFatBinary(void ** handle);
+  FunctionCallee UnregisterFatbinFunc =
+      M.getOrInsertFunction("__cudaUnregisterFatBinary",
+                            FunctionType::get(VoidTy, VoidPtrPtrTy, false));
+
+  Function *ModuleDtorFunc =
+      Function::Create(FunctionType::get(VoidTy, VoidPtrTy, false),
+                       GlobalValue::InternalLinkage, "__cuda_module_dtor", &M);
+
+  BasicBlock *DtorEntryBB = BasicBlock::Create(Ctx, "entry", ModuleDtorFunc);
+  IRBuilder<> DtorBuilder(DtorEntryBB);
+
+  Value *HandleValue = DtorBuilder.CreateAlignedLoad(
+      VoidPtrPtrTy, GpuBinaryHandle, DL.getPointerABIAlignment(0));
+  DtorBuilder.CreateCall(UnregisterFatbinFunc, HandleValue);
+  DtorBuilder.CreateRetVoid();
+  return ModuleDtorFunc;
+}
+
+Function *CudaLoop::createCudaCtor(Constant *FBPtr) {
+  LLVMContext &Ctx = M.getContext();
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
+
+  Function *ModuleCtorFunc =
+      Function::Create(FunctionType::get(VoidTy, VoidPtrTy, false),
+                       GlobalValue::InternalLinkage, "__cuda_module_ctor", &M);
+  BasicBlock *CtorEntryBB = BasicBlock::Create(Ctx, "entry", ModuleCtorFunc);
+  IRBuilder<> CtorBuilder(CtorEntryBB);
+
+  const DataLayout &DL = M.getDataLayout();
+
+  Type *IntTy = Type::getInt32Ty(Ctx);
+  StructType *FBWTy = StructType::get(IntTy, IntTy, VoidPtrTy, VoidPtrTy);
+  Constant *FBWVal = ConstantStruct::get(
+      FBWTy, ConstantInt::get(IntTy, FATBINARY_MAGIC_ID),
+      ConstantInt::get(IntTy, 1), FBPtr, ConstantPointerNull::get(VoidPtrTy));
+  GlobalVariable *FBWrapper =
+      new GlobalVariable(M, FBWTy,
+                         /*isConstant*/ true, GlobalValue::InternalLinkage,
+                         FBWVal, "__cuabi_cufatbin_wrapper");
+  FBWrapper->setSection(".nvFatBinSegment");
+  FBWrapper->setAlignment(Align(DL.getPrefTypeAlignment(FBWrapper->getType())));
+
+  FunctionCallee RegisterFatbinFunc =
+      M.getOrInsertFunction("__cudaRegisterFatBinary",
+                            FunctionType::get(VoidPtrPtrTy, VoidPtrTy, false));
+  CallInst *RegisterFatbinCall = CtorBuilder.CreateCall(RegisterFatbinFunc, 
+                              CtorBuilder.CreateBitCast(FBWrapper, VoidPtrTy));
+  GlobalVariable *GpuBinaryHandle = new GlobalVariable(M, VoidPtrPtrTy, 
+                                       /*isConstant*/ false, 
+                                       GlobalValue::InternalLinkage,
+                                       ConstantPointerNull::get(VoidPtrPtrTy), 
+                                       "__cuabi_cubin_handle");
+  GpuBinaryHandle->setAlignment(Align(DL.getPointerABIAlignment(0)));
+  GpuBinaryHandle->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
+  CtorBuilder.CreateAlignedStore(RegisterFatbinCall, GpuBinaryHandle,
+                                 DL.getPointerABIAlignment(0));
+  
+  // TODO: Add global variables here... 
+
+  FunctionCallee RegisterFatbinEndFunc = M.getOrInsertFunction("__cudaRegisterFatBinaryEnd",
+                            FunctionType::get(VoidTy, VoidPtrPtrTy, false));
+  CtorBuilder.CreateCall(RegisterFatbinEndFunc, RegisterFatbinCall);
+
+  if (Function *CleanupFn = createCudaDtor(GpuBinaryHandle)) {
+    // extern "C" int atexit(void (*f)(void));
+    FunctionType *AtExitTy =
+        FunctionType::get(IntTy, CleanupFn->getType(), false);
+    FunctionCallee AtExitFunc =
+        M.getOrInsertFunction("atexit", AtExitTy, AttributeList());
+    CtorBuilder.CreateCall(AtExitFunc, CleanupFn);
+  }
+
+  CtorBuilder.CreateRetVoid();
+  return ModuleCtorFunc;
 }
 
 
@@ -1151,7 +1316,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
   Type *Int8Ty = Type::getInt8Ty(Ctx);
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
-  Type *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
                                              
   Function *Parent = TOI.ReplCall->getFunction();
   Value *TripCount = OrderedInputs[0];
@@ -1279,6 +1444,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
       }
     }
   }
+  const DataLayout &DL = M.getDataLayout();
 
   Value *GrainSize = TL.getGrainsize()
                      ? ConstantInt::get(TripCount->getType(), TL.getGrainsize())
@@ -1299,14 +1465,25 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
                                                KNameCS, ".str");
   KNameGV->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
   Type *StrTy = KNameGV->getType();
-  const DataLayout &DL = M.getDataLayout();
   Constant *Zeros[] = { ConstantInt::get(DL.getIndexType(StrTy), 0),
                         ConstantInt::get(DL.getIndexType(StrTy), 0) };
   Constant *KNameParam = ConstantExpr::getGetElementPtr(KNameGV->getValueType(),
                                                         KNameGV, Zeros);
 
-  GlobalVariable *FBB = createKernelBuffer();
-  Value *FBPtr = B.CreateConstInBoundsGEP2_32(FBB->getValueType(), FBB, 0, 0, "fatbin");
+  Constant *FBPtr = createKernelBuffer();
+  Function *CudaCtorFn = createCudaCtor(FBPtr);
+
+  if (CudaCtorFn) {
+    Type *VoidTy = Type::getVoidTy(Ctx);
+    // Ctor function type is void()*.
+    FunctionType *CtorFTy = FunctionType::get(VoidTy, false);
+    Type *CtorPFTy = PointerType::get(CtorFTy, 
+                         M.getDataLayout().getProgramAddressSpace());
+    appendToGlobalArray("llvm.global_ctors", M,
+                        ConstantExpr::getBitCast(CudaCtorFn, CtorPFTy),
+                        65536, nullptr);
+  }
+
   Value *Stream = B.CreateCall(KitCudaLaunchFn,
                               { FBPtr, KNameParam, argsPtr, RunSize }, "stream");
   B.CreateCall(KitCudaWaitFn, Stream);
