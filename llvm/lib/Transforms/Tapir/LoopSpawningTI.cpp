@@ -1526,6 +1526,10 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
     LoopArgStarts[L] = ArgStart;
 
     ValueToValueMapTy VMap;
+
+    // Run a pre-processing step before we create the helper function.
+    OutlineProcessors[TL]->preProcessTapirLoop(*TL, VMap);
+
     // Create the helper function.
     Function *Outline = createHelperForTapirLoop(
         TL, LoopArgs[L], OutlineProcessors[TL]->getIVArgIndex(F, LoopArgs[L]),

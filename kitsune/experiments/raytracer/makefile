@@ -79,6 +79,7 @@ clean:
 	-rm -rf *-cfg-tmp
 	-rm -f *.bc
 	-rm -f *.fatbin
+	-rm -f *.ppm *.jpg 
 
 realclean:
 	-rm -f *.ll *.ptx *.csv *.log

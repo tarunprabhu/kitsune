@@ -215,8 +215,10 @@ DefaultBlocksPerGrid("cuabi-blocks-per-grid", cl::init(0),
 */
 
 // Adapted from Transforms/Utils/ModuleUtils.cpp
-static void appendToGlobalArray(const char *Array, Module &M, Constant *C,
-                                int Priority, Constant *Data) {
+static void appendToGlobalArray(const char *Array, Module &M,
+				Constant *C, int Priority,
+				Constant *Data) {
+  
   IRBuilder<> IRB(M.getContext());
   FunctionType *FnTy = FunctionType::get(IRB.getVoidTy(), false);
 
@@ -643,6 +645,12 @@ void CudaLoop::updateKernelName(const std::string &KN, bool addID) {
     KernelName = UN;
   } else
     KernelName = KN;
+}
+
+void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
+  // TODO: process loop prior to outlining to do GPU/CUDA-specific things 
+  // like capturing global variables, etc. 
+  LLVM_DEBUG(dbgs() << "\tpreprocessing tapir loop...\n");
 }
 
 void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
@@ -1330,17 +1338,52 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
 
   // We recursively add definitions and declarations to the device module
   SmallVector<Function *> todo;
+  SmallVector<GlobalValue *, 16> DeviceVars;
   Function *KF = KernelModule.getFunction(KernelName);
   assert((KF != nullptr) && "No kernel/function found in the module!");
   todo.push_back(KF);
+
 
   while (!todo.empty()) {
     auto *F = todo.back();
     todo.pop_back();
     assert((F != nullptr) && "null function in todo list");
-
+    
     for (auto &BB : *F) {
       for (auto &I : BB) {
+
+        for (auto &op : I.operands()) {
+          if (GlobalVariable *GV = dyn_cast<GlobalVariable>(op)) {
+            Value *V = VMap.lookup(op);
+            if (V == nullptr && GV->getParent() == &M) {
+              LLVM_DEBUG(dbgs() << "\tfound global variable '" << GV->getName() << "'.\n");
+              DeviceVars.push_back(GV);
+              GlobalVariable *NewGV = new GlobalVariable(KernelModule, 
+                  GV->getValueType(), GV->isConstant(),
+                  GV->getLinkage(), (Constant *)nullptr, GV->getName(),
+                  (GlobalVariable *)nullptr, GV->getThreadLocalMode(),
+                  GV->getType()->getAddressSpace());
+              NewGV->copyAttributesFrom(GV);
+              VMap[op] = NewGV;
+
+              /*
+              const Comdat *SC = GV->getComdat();
+              if (SC) {
+                Comdat *DC = NewGV->getParent()->getOrInsertComdat(SC->getName());
+                DC->setSelectionKind(SC->getSelectionKind());
+                NewGV->setComdat(DC);
+              }
+              */
+              NewGV->setLinkage(GV->getLinkage());
+              NewGV->setInitializer(GV->getInitializer());
+              //op = NewGV;
+            }
+          } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(op)) {
+            LLVM_DEBUG(dbgs() << "\tfound a constant expr.\n");
+            CE->dump();
+          }
+        }
+
         if (auto *CI = dyn_cast<CallInst>(&I)) {
           if (Function *f = CI->getCalledFunction()) {
             if (f->getParent() != &KernelModule) {
@@ -1373,29 +1416,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
           }
         }
 
-        for (auto &op : I.operands()) {
-          if (GlobalVariable *GV = dyn_cast<GlobalVariable>(op)) {
-            if (GV->getParent() == &M) {
-              GlobalVariable *NewGV = new GlobalVariable(
-                  KernelModule, GV->getValueType(), GV->isConstant(),
-                  GV->getLinkage(), (Constant *)nullptr, GV->getName(),
-                  (GlobalVariable *)nullptr, GV->getThreadLocalMode(),
-                  GV->getType()->getAddressSpace());
-              NewGV->copyAttributesFrom(GV);
-              //NewGV->getAttributes().dump();
-              VMap[op] = NewGV;
-              const Comdat *SC = GV->getComdat();
-              if (!SC)
-                return;
-              Comdat *DC = NewGV->getParent()->getOrInsertComdat(SC->getName());
-              DC->setSelectionKind(SC->getSelectionKind());
-              NewGV->setComdat(DC);
-              NewGV->setLinkage(GV->getLinkage());
-              NewGV->setInitializer(GV->getInitializer());
-              op = NewGV;
-            }
-          }
-        }
+
       }
     }
   } 

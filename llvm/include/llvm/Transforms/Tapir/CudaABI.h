@@ -163,11 +163,14 @@ public:
   Function *createCudaCtor(Constant *FatBinaryPtr);
   Function *createCudaDtor(GlobalVariable *BinHandle);
 
-  void postProcessOutline(TapirLoopInfo & TL, TaskOutlineInfo & Out,
-                          ValueToValueMapTy & VMap) override final;
+  void preProcessTapirLoop(TapirLoopInfo &TL, 
+                           ValueToValueMapTy &VMap);
 
-  void processOutlinedLoopCall(TapirLoopInfo & TL, TaskOutlineInfo & TOI,
-                               DominatorTree & DT) override final;
+  void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo & Out,
+                          ValueToValueMapTy &VMap) override final;
+
+  void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo & TOI,
+                               DominatorTree &DT) override final;
 };
 }
 

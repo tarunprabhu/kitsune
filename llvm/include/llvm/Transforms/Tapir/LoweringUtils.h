@@ -413,6 +413,13 @@ public:
     return getIVArgIndex(F, Args) + 1;
   }
 
+  /// Process the TapirLoop before it is outlined -- just prior to the 
+  /// outlining occurs.  This allows the VMap and related details to be 
+  /// customized prior to outlining related operations (e.g. cloning of 
+  /// LLVM constructs).
+  virtual void preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap)
+  { /* no-op */ }
+
   /// Processes an outlined Function Helper for a Tapir loop, just after the
   /// function has been outlined.
   virtual void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
