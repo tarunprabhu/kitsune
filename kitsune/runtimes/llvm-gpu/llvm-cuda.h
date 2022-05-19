@@ -79,41 +79,59 @@ extern_declare(cuCtxSetCurrent);
 extern_declare(cuMemAllocManaged);
 extern_declare(cuDeviceGetAttribute);
 
-/// Initialize the cuda portion of the Kitsune runtime ABI.
-/// Returns true on success and will return false or abort
-/// on error.
-extern "C" 
-bool __kitrt_cuInit();
+#ifdef __cplusplus 
+extern "C" {
+#endif 
 
-/// Allocate a managed memory buffer of the given size in
-/// bytes.  Upon failure the call will return a null pointer,
-/// otherwise a pointer to the allocated memory is returned.
-extern "C" 
-void *__kitrt_cuMemAllocManaged(size_t size);
+  /// Initialize the cuda portion of the Kitsune runtime ABI.
+  /// Returns true on success and will return false or abort
+  /// on error.
+  bool __kitrt_cuInit();
 
-/// Launch the named kernel that is part of the "fat binary"
-/// image pointed to by 'fatBin'.  The kernel arguments and
-/// number of elements to be processed by the kernel are
-/// provided by 'kernelArgs' and 'numElements' respectively.
-/// The call returns a CUDA stream assocaited with the kernel
-/// launch; or null if the kernel failed to launch.
-extern "C" 
-void *__kitrt_cuLaunchFBKernel(const void* fatBin,
-                               const char *kernelName,
-                               void **kernelArgs,
-                               size_t numElements);
+  /// Allocate a managed memory buffer of the given size in
+  /// bytes.  Upon failure the call will return a null pointer,
+  /// otherwise a pointer to the allocated memory is returned.
+  void *__kitrt_cuMemAllocManaged(size_t size);
 
-/// Launch the kernel named "kitsune_kernel" that is part
-/// of the ELF image pointed to by 'elfImg'.  The kernel
-/// arguments and number of elements to be processed by
-/// the kernel are provided by 'kernelArgs' and
-/// 'numElements' respectively.  The call returns a CUDA
-/// stream assocaited with teh kernel launch; or null if the
-/// kernel failed to launch.
-extern "C" 
-void *__kitrt_cuLaunchELFKernel(const void *elfImg,
-                                void **kernelArgs,
-                                size_t numElements);
+  /// Launch the named kernel that is part of the "fat binary"
+  /// image pointed to by 'fatBin'.  The kernel arguments and
+  /// number of elements to be processed by the kernel are
+  /// provided by 'kernelArgs' and 'numElements' respectively.
+  /// The call returns a CUDA stream assocaited with the kernel
+  /// launch; or null if the kernel failed to launch.
+  void *__kitrt_cuLaunchFBKernel(const void* fatBin,
+                                 const char *kernelName,
+                                 void **kernelArgs,
+                                 size_t numElements);
+
+  /// Launch the kernel named "kitsune_kernel" that is part
+  /// of the ELF image pointed to by 'elfImg'.  The kernel
+  /// arguments and number of elements to be processed by
+  /// the kernel are provided by 'kernelArgs' and
+  /// 'numElements' respectively.  The call returns a CUDA
+  /// stream assocaited with teh kernel launch; or null if the
+  /// kernel failed to launch.
+  void *__kitrt_cuLaunchELFKernel(const void *elfImg,
+                                  void **kernelArgs,
+                                  size_t numElements);
+
+  /// Synchronize execution with the given CUDA stream
+  /// object (typically a stream returned by one of the launch
+  /// calls above).
+  void __kitrt_cuStreamSynchronize(void *cu_stream);
+
+  /// Convert the given PTX source, pointed to by 'PTXBuffer'
+  /// into an ELF image that is suitable for launch via the
+  /// CUDA API.  A pointer to the ELF image is returned upon
+  /// success, otherwise null will be returned.
+  void *__kitrt_cuPTXtoELF(const char *PTXBuffer);
+
+#ifdef __cplusplus
+} // extern "C" 
+#endif 
+
+
+#ifdef __cplusplus
 
 /// Launch the LLVM IR kernel named "kitsune_kernel" that
 /// is contained with the given LLVM Module.  The kernel
@@ -122,34 +140,21 @@ void *__kitrt_cuLaunchELFKernel(const void *elfImg,
 /// 'numElements' respectively. The call returns a CUDA
 /// stream associated with the kernel launch; or null if
 /// the kernel failed to launch.
-#ifdef __cplusplus
 namespace llvm {
   class Module;
 }
 extern "C" void *__kitrt_cuLaunchKernel(llvm::Module &M,
                                         void **args,
                                         size_t numElements);
-#endif
-
-/// Synchronize execution with the given CUDA stream
-/// object (typically a stream returned by one of the launch
-/// calls above).
-extern "C" 
-void __kitrt_cuStreamSynchronize(void *cu_stream);
-
-/// Convert the given PTX source, pointed to by 'PTXBuffer'
-/// into an ELF image that is suitable for launch via the
-/// CUDA API.  A pointer to the ELF image is returned upon
-/// success, otherwise null will be returned.
-extern "C" 
-void *__kitrt_cuPTXtoELF(const char *PTXBuffer);
 
 /// Convert the given LLVM Module into PTX source and return
 /// it to the caller.  Note that the string will be empty if
 /// an error occurred; otherwise it will contain a PTX
 /// representation of the "kitsune_kernel" (and any supporting
 /// device functions) in the LLVM module.
-extern "C"
 std::string __kitrt_cuLLVMtoPTX(llvm::Module &M, CUdevice device);
 
-#endif
+#endif  // __cplusplus 
+
+
+#endif // __KITSUNE_RUNTIME_ABI_CUDA_H__  
