@@ -647,10 +647,170 @@ void CudaLoop::updateKernelName(const std::string &KN, bool addID) {
     KernelName = KN;
 }
 
+static std::set<GlobalValue*>& collect(Constant& c,
+                                       std::set<GlobalValue*>& seen);
+
+static std::set<GlobalValue*>& collect(BasicBlock& bb,
+                                       std::set<GlobalValue*>& seen) {
+  for (auto& inst : bb)
+    for (auto& op : inst.operands())
+      if (auto* c = dyn_cast<Constant>(&op))
+        collect(*c, seen);
+  return seen;
+}
+
+static std::set<GlobalValue*>& collect(Function& f,
+                                       std::set<GlobalValue*>& seen) {
+  llvm::errs() << "collect function: " << f.getName() << "\n";
+  seen.insert(&f);
+
+  for (auto& bb : f)
+    collect(bb, seen);
+  return seen;
+}
+
+static std::set<GlobalValue*>& collect(GlobalVariable& g,
+                                       std::set<GlobalValue*>& seen) {
+  seen.insert(&g);
+
+  if (g.hasInitializer())
+    collect(*g.getInitializer(), seen);
+  return seen;
+}
+
+static std::set<GlobalValue*>& collect(GlobalIFunc& g,
+                                       std::set<GlobalValue*>& seen) {
+  seen.insert(&g);
+
+  llvm_unreachable("kitsune: GNU IFUNC not yet supported");
+  return seen;
+}
+
+static std::set<GlobalValue*>& collect(GlobalAlias &g,
+                                       std::set<GlobalValue*>& seen) {
+  seen.insert(&g);
+
+  llvm_unreachable("kitsune: GlobalAlias not yet supported");
+  return seen;
+}
+
+static std::set<GlobalValue*>& collect(BlockAddress& blkaddr,
+                                       std::set<GlobalValue*>& seen) {
+  if (Function* f = blkaddr.getFunction())
+    collect(*f, seen);
+  if (BasicBlock* bb = blkaddr.getBasicBlock())
+    collect(*bb, seen);
+  return seen;
+}
+
+std::set<GlobalValue*>& collect(Constant& c,
+                                std::set<GlobalValue*>& seen) {
+  if (GlobalValue* g = dyn_cast<GlobalValue>(&c))
+    if (seen.find(g) != seen.end())
+      return seen;
+
+  if (auto* f = dyn_cast<Function>(&c))
+    return collect(*f, seen);
+  else if (auto* g = dyn_cast<GlobalVariable>(&c))
+    return collect(*g, seen);
+  else if (auto* g = dyn_cast<GlobalAlias>(&c))
+    return collect(*g, seen);
+  else if (auto* g = dyn_cast<GlobalIFunc>(&c))
+    return collect(*g, seen);
+  else if (auto* blkaddr = dyn_cast<BlockAddress>(&c))
+    return collect(*blkaddr, seen);
+  else
+    for (auto& op : c.operands())
+      if (auto* cop = dyn_cast<Constant>(op))
+        collect(*cop, seen);
+  return seen;
+}
+
 void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
   // TODO: process loop prior to outlining to do GPU/CUDA-specific things 
   // like capturing global variables, etc. 
   LLVM_DEBUG(dbgs() << "\tpreprocessing tapir loop...\n");
+
+  // Collect the top-level entities (Function, GlobalVariable, GlobalAlias
+  // and GlobalIFunc) that are used in the outlined loop. Since the outlined
+  // loop will live in the KernelModule, any GlobalValue's used in it will
+  // need to be cloned into the KernelModule.
+  std::set<GlobalValue*> usedGlobalValues;
+
+  Loop& loop = *TL.getLoop();
+
+  for (Loop* subloop : loop)
+    for (BasicBlock* bb : subloop->blocks())
+      collect(*bb, usedGlobalValues);
+
+  for (BasicBlock* bb : loop.blocks())
+    collect(*bb, usedGlobalValues);
+
+  // Create declarations for all functions first. These may be needed in the
+  // global variables and aliases.
+  for (GlobalValue* g : usedGlobalValues) {
+    if (Function* f = dyn_cast<Function>(g)) {
+      Function* deviceF = KernelModule.getFunction(f->getName());
+      if (not deviceF)
+        deviceF = Function::Create(f->getFunctionType(),
+                                   f->getLinkage(),
+                                   f->getName(),
+                                   KernelModule);
+      for(auto i = 0; i < f->arg_size(); i++) {
+        Argument* arg = f->getArg(i);
+        Argument* newa = deviceF->getArg(i);
+        newa->setName(arg->getName());
+        VMap[arg] = newa;
+      }
+      VMap[f] = deviceF;
+    }
+  }
+
+  // Clone any global variables and aliases.
+  for (GlobalValue* v : usedGlobalValues) {
+    if (GlobalVariable* g = dyn_cast<GlobalVariable>(v)) {
+      GlobalVariable *newg
+        = new GlobalVariable(KernelModule,
+                             g->getValueType(),
+                             g->isConstant(),
+                             g->getLinkage(),
+                             g->getInitializer(),
+                             g->getName(),
+                             nullptr,
+                             g->getThreadLocalMode(),
+                             g->getType()->getAddressSpace(),
+                             g->isExternallyInitialized());
+      newg->copyAttributesFrom(g);
+      VMap[g] = newg;
+    } else if (GlobalAlias *a = dyn_cast<GlobalAlias>(v)) {
+      llvm_unreachable("kitsune: GlobalAlias not implemented.");
+    }
+  }
+
+  // FIXME: Support GlobalIFunc at some point. This is a GNU extension, so we
+  // may not want to support it at all, but just in case, this is here.
+  for (GlobalValue* v : usedGlobalValues) {
+    if (GlobalIFunc * g = dyn_cast<GlobalIFunc>(v)) {
+      llvm_unreachable("kitsune: GlobalIFunc not yet supported.");
+    }
+  }
+
+  // Now clone any function bodies that need to be cloned. This should be
+  // done as late as possible so that the VMap is populated with any other
+  // global values that need to be remapped.
+  for (GlobalValue *v : usedGlobalValues) {
+    if (Function* f = dyn_cast<Function>(v)) {
+      if (f->size()) {
+        SmallVector<ReturnInst *, 8> Returns;
+        Function* deviceF = cast<Function>(VMap[f]);
+        CloneFunctionInto(deviceF, f, VMap,
+                          CloneFunctionChangeType::DifferentModule,
+                          Returns);
+        // GPU calls are slow, try to force inlining
+        deviceF->addFnAttr(Attribute::AlwaysInline);
+      }
+    }
+  }
 }
 
 void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
@@ -1333,93 +1493,6 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
   TOI.ReplCall->eraseFromParent();
 
   IRBuilder<> B(&NBB->front());
-  LLVMContext &KModCtx = KernelModule.getContext();
-  ValueToValueMapTy VMap;
-
-  // We recursively add definitions and declarations to the device module
-  SmallVector<Function *> todo;
-  SmallVector<GlobalValue *, 16> DeviceVars;
-  Function *KF = KernelModule.getFunction(KernelName);
-  assert((KF != nullptr) && "No kernel/function found in the module!");
-  todo.push_back(KF);
-
-
-  while (!todo.empty()) {
-    auto *F = todo.back();
-    todo.pop_back();
-    assert((F != nullptr) && "null function in todo list");
-    
-    for (auto &BB : *F) {
-      for (auto &I : BB) {
-
-        for (auto &op : I.operands()) {
-          if (GlobalVariable *GV = dyn_cast<GlobalVariable>(op)) {
-            Value *V = VMap.lookup(op);
-            if (V == nullptr && GV->getParent() == &M) {
-              LLVM_DEBUG(dbgs() << "\tfound global variable '" << GV->getName() << "'.\n");
-              DeviceVars.push_back(GV);
-              GlobalVariable *NewGV = new GlobalVariable(KernelModule, 
-                  GV->getValueType(), GV->isConstant(),
-                  GV->getLinkage(), (Constant *)nullptr, GV->getName(),
-                  (GlobalVariable *)nullptr, GV->getThreadLocalMode(),
-                  GV->getType()->getAddressSpace());
-              NewGV->copyAttributesFrom(GV);
-              VMap[op] = NewGV;
-
-              /*
-              const Comdat *SC = GV->getComdat();
-              if (SC) {
-                Comdat *DC = NewGV->getParent()->getOrInsertComdat(SC->getName());
-                DC->setSelectionKind(SC->getSelectionKind());
-                NewGV->setComdat(DC);
-              }
-              */
-              NewGV->setLinkage(GV->getLinkage());
-              NewGV->setInitializer(GV->getInitializer());
-              //op = NewGV;
-            }
-          } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(op)) {
-            LLVM_DEBUG(dbgs() << "\tfound a constant expr.\n");
-            CE->dump();
-          }
-        }
-
-        if (auto *CI = dyn_cast<CallInst>(&I)) {
-          if (Function *f = CI->getCalledFunction()) {
-            if (f->getParent() != &KernelModule) {
-              // TODO: improve check for function, could be overloaded
-              auto *deviceF = KernelModule.getFunction(f->getName());
-              if (!deviceF) {
-                if (f->getParent() == &M) {
-                  deviceF = Function::Create(f->getFunctionType(), 
-                                             f->getLinkage(),
-                                             f->getName(),
-                                             KernelModule);
-                  VMap[f] = deviceF;
-                  auto *NewFArgIt = deviceF->arg_begin();
-                  for (auto &Arg : f->args()) {
-                    auto ArgName = Arg.getName();
-                    NewFArgIt->setName(ArgName);
-                    VMap[&Arg] = &(*NewFArgIt++);
-                  }
-                  SmallVector<ReturnInst *, 8> Returns;
-                  CloneFunctionInto(deviceF, f, VMap,
-                                    CloneFunctionChangeType::DifferentModule,
-                                    Returns);
-                  // GPU calls are slow, try to force inlining
-                  deviceF->addFnAttr(Attribute::AlwaysInline);
-                  todo.push_back(deviceF);
-                }
-              }
-              CI->setCalledFunction(deviceF);
-            }
-          }
-        }
-
-
-      }
-    }
-  } 
 
   runOptimizationPasses(KernelModule, OptLevel);
   transformForPTX();
