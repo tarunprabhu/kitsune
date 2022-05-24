@@ -19,7 +19,6 @@
 /* capacitance fitting factor	*/
 #define FACTOR_CHIP	0.5
 
-
 /* chip parameters	*/
 const float t_chip = 0.0005;
 const float chip_height = 0.016; 
@@ -142,12 +141,10 @@ void computeTempForall(const float *pIn,
 {  
 
   float ce, cw, cn, cs, ct, cb, cc;
-
   float stepDivCap = dt / Cap;
   ce = cw =stepDivCap/ Rx;
   cn = cs =stepDivCap/ Ry;
   ct = cb =stepDivCap/ Rz;
-
   cc = 1.0 - (2.0*ce + 2.0*cn + 3.0*ct);
 
   float *tIn_t = tIn;
@@ -155,24 +152,25 @@ void computeTempForall(const float *pIn,
 
   for(unsigned count = 0; count < numiter; count++) {
     
-    forall(unsigned z = 0; z < nz; z++) {
-      for(unsigned y = 0; y < ny; y++) {
-	for(unsigned x = 0; x < nx; x++) {
-	  int c, w, e, n, s, b, t;
+    for(unsigned z = 0; z < nz; z++) {
+      // launch a parallel computation over an nx-by-nz slice...
+      forall(unsigned y = 0; y < ny; y++) {
+	forall(unsigned x = 0; x < nx; x++) {
+	  int c, w, e, n, s, b, t;      
 	  c =  x + y * nx + z * nx * ny;
-	  w = (x == 0)    ? c : c - 1;
-	  e = (x == nx-1) ? c : c + 1;
-	  n = (y == 0)    ? c : c - nx;
-	  s = (y == ny-1) ? c : c + nx;
-	  b = (z == 0)    ? c : c - nx * ny;
-	  t = (z == nz-1) ? c : c + nx * ny;
+	  w = c - 1 * (x != 0);
+	  e = c + 1 * (x != (nx-1));
+	  n = c - nx * (y != 0);
+	  s = c + nx * (y != (ny-1));
+	  b = c - (nx * ny) * (z != 0);
+	  t = c + (nx * ny) * (z != (nz - 1));
 	  tOut_t[c] = cc * tIn_t[c] + cw * tIn_t[w] + ce * tIn_t[e] + 
-	    cs * tIn_t[s] + cn * tIn_t[n] + cb * tIn_t[b] + 
-	    ct * tIn_t[t]+(dt/Cap) * pIn[c] + ct*amb_temp;
+	              cs * tIn_t[s] + cn * tIn_t[n] + cb * tIn_t[b] + 
+	              ct * tIn_t[t]+(dt/Cap) * pIn[c] + ct*amb_temp;
 	}
       }
+      
     }
-
     float *t = tIn_t;
     tIn_t = tOut_t;
     tOut_t = t; 
