@@ -106,6 +106,10 @@ Improvements to clang-tidy
   which is no longer in use. The option will be fully removed in
   :program:`clang-tidy` version 18.
 
+- Fixed a regression introduced in clang-tidy 14.0.0, which prevented NOLINTs
+  from suppressing diagnostics associated with macro arguments. This fixes
+  `Issue 55134 <https://github.com/llvm/llvm-project/issues/55134>`_.
+
 New checks
 ^^^^^^^^^^
 
