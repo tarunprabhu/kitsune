@@ -1196,15 +1196,15 @@ std::string CudaLoop::createFatBinaryFile(const std::string &PTXFileName) {
   );
 
   std::string errMsg;
-  bool execFailed;
-  int execStat = sys::ExecuteAndWait(*PTXASExe, PTXASArgs, None, {},
+  bool ExecFailed;
+  int ExecStat = sys::ExecuteAndWait(*PTXASExe, PTXASArgs, None, {},
                                      0, /* secs to wait -- 0 --> unlimited */
                                      0, /* memory limit -- 0 --> unlimited */
-                                     &errMsg, &execFailed);
-  if (execFailed)
+                                     &errMsg, &ExecFailed);
+  if (ExecFailed)
     report_fatal_error("unable to execute 'ptxas'.");
 
-  if (execStat != 0)
+  if (ExecStat != 0)
     // 'ptxas' ran but returned an error state.
     // TODO: Need to check what sort of actual state 'ptxas'
     // returns to the environment -- currently assuming it
@@ -1258,15 +1258,15 @@ std::string CudaLoop::createFatBinaryFile(const std::string &PTXFileName) {
     }
   });
 
-  execStat = sys::ExecuteAndWait(*FatBinExe, FatBinArgs, None, {},
+  ExecStat = sys::ExecuteAndWait(*FatBinExe, FatBinArgs, None, {},
                                  0, /* secs to wait -- 0 --> unlimited */
                                  0, /* memory limit -- 0 --> unlimited */
-                                 &errMsg, &execFailed);
+                                 &errMsg, &ExecFailed);
 
-  if (execFailed)
+  if (ExecFailed)
     report_fatal_error("unable to execute 'fatbinary'.");
 
-  if (execStat != 0)
+  if (ExecStat != 0)
     // 'fatbinary' ran but returned an error state.
     // TODO: Need to check what sort of actual state 'fatbinary'
     // returns to the environment -- currently assuming it
@@ -1291,7 +1291,6 @@ Constant* CudaLoop::createKernelBuffer() {
   // below. 
   if (KeepIntermediateFiles) {
     std::error_code EC;
-    std::error_condition ok;
     std::unique_ptr<ToolOutputFile> KMFile;
     std::string KMFileName = KernelName + ".ll";
     KMFile = std::make_unique<ToolOutputFile>(KMFileName, EC,
@@ -1579,7 +1578,8 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
   }
 
   Value *Stream = B.CreateCall(KitCudaLaunchFn,
-                              { FBPtr, KNameParam, argsPtr, RunSize }, "stream");
+                               { FBPtr, KNameParam, argsPtr, RunSize }, 
+                              "stream");
   B.CreateCall(KitCudaWaitFn, Stream);
 }
 
@@ -1658,13 +1658,13 @@ CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) const {
   std::replace(ModuleName.begin(), ModuleName.end(), '.', '_');
   std::replace(ModuleName.begin(), ModuleName.end(), '-', '_');
   std::string KN;
-  bool makeKNUnique = true;
+  bool MakeKNUnique = true;
   if (M.getNamedMetadata("llvm.dbg.cu") || M.getNamedMetadata("llvm.dbg")) {
-    unsigned lineNumber = TL->getLoop()->getStartLoc()->getLine();
-    KN = CUABI_KERNEL_NAME_PREFIX + ModuleName + "_" + Twine(lineNumber).str();
-    makeKNUnique = false;
+    unsigned LineNumber = TL->getLoop()->getStartLoc()->getLine();
+    KN = CUABI_KERNEL_NAME_PREFIX + ModuleName + "_" + Twine(LineNumber).str();
+    MakeKNUnique = false;
   } else
     KN = CUABI_KERNEL_NAME_PREFIX + ModuleName;
-  CudaLoop *CLOP = new CudaLoop(M, KN, makeKNUnique);
+  CudaLoop *CLOP = new CudaLoop(M, KN, MakeKNUnique);
   return CLOP;
 }
