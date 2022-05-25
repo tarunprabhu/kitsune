@@ -1086,19 +1086,6 @@ WebAssembly Support
 - The -mcpu=generic configuration now enables sign-ext and mutable-globals. These
   proposals are standardized and available in all major engines.
 
-The ``_Float16`` type requires SSE2 feature and above due to the instruction
-limitations. When using it on i386 targets, you need to specify ``-msse2``
-explicitly.
-
-For targets without F16C feature or above, please make sure:
-
-- Use GCC 12.0 and above if you are using libgcc.
-- If you are using compiler-rt, use the same version with the compiler.
-Early versions provided FP16 builtins in a different ABI. A workaround is to use
-a small code snippet to check the ABI if you cannot make sure of it.
-- If you are using downstream runtimes that provide FP16 conversions, update
-them with the new ABI.
-
 DWARF Support in Clang
 ----------------------
 Previously when emitting DWARFv4 and tuning for GDB, Clang would use DWARF v2's
