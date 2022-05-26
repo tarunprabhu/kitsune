@@ -53,43 +53,42 @@ using namespace llvm;
 
 #define DEBUG_TYPE "cuda-abi"
 
-// Some default naming convensions. 
+// Some default naming convensions.
 static const std::string CUABI_KERNEL_NAME_PREFIX = "__cuabi_kern_";
 static const std::string CUABI_MODULE_NAME_PREFIX = "__cuabi_module_";
-
 static constexpr unsigned FATBINARY_MAGIC_ID = 0x466243b1;
 
 /// Selected target GPU architecture --  passed directly to ptxas.
 static cl::opt<std::string>
-GPUArch("cuabi-arch", cl::init("sm_75"), cl::NotHidden, 
+GPUArch("cuabi-arch", cl::init("sm_75"), cl::NotHidden,
         cl::desc("Target GPU architecture for CUDA ABI transformation."
-                "(default: sm_75)"));
+                 "(default: sm_75)"));
 /// Select 32- vs. 64-bit host architecture. Passed directly to ptxas.
-static cl::opt<std::string>            
+static cl::opt<std::string>
 HostMArch("cuabi-march", cl::init("64"), cl::NotHidden,
           cl::desc("Specify 32- or 64-bit host architecture."
                    "(default=64-bit)."));
-/// Enable verbose mode.  Handled internally as well as passed on to 
+/// Enable verbose mode.  Handled internally as well as passed on to
 /// ptxas.
 static cl::opt<bool>
-Verbose("cuabi-verbose", cl::init(false), cl::NotHidden, 
+Verbose("cuabi-verbose", cl::init(false), cl::NotHidden,
          cl::desc("Enable verbose mode and also print out code "
                   "generation statistics. (default=off)"));
-/// Enable debug mode. Passed directly to ptxas. 
+/// Enable debug mode. Passed directly to ptxas.
 static cl::opt<bool>
-Debug("cuabi-debug", cl::init(false), cl::NotHidden, 
+Debug("cuabi-debug", cl::init(false), cl::NotHidden,
         cl::desc("Enable debug information for GPU device code. "
-                 "(default=false)")); 
-/// Surpress the generation of debug sections in the final object 
-/// file.  This option is ignored if not used with the debug or 
-/// generate-line-info options. 
+                 "(default=false)"));
+/// Surpress the generation of debug sections in the final object
+/// file.  This option is ignored if not used with the debug or
+/// generate-line-info options.
 static cl::opt<bool>
-SurpressDBInfo("cuabi-surpress-debug-info", cl::init(false), 
-               cl::Hidden, 
+SurpressDBInfo("cuabi-surpress-debug-info", cl::init(false),
+               cl::Hidden,
                cl::desc(" Do not generate debug information sections "
                         "in final output object file."));
-/// Generate line information for all generated GPU kernels.  Passed 
-/// directly to 'ptxas' as '--generate-line-info'. 
+/// Generate line information for all generated GPU kernels.  Passed
+/// directly to 'ptxas' as '--generate-line-info'.
 static cl::opt<bool>
 GenLineInfo("cuabi-generate-line-info", cl::init(false), cl::NotHidden,
               cl::desc("Generate line information for generated GPU "
@@ -100,101 +99,100 @@ GenLineInfo("cuabi-generate-line-info", cl::init(false), cl::NotHidden,
 static cl::opt<bool>
 BoundsCheck("cuabi-bounds-check", cl::init(false), cl::NotHidden,
             cl::desc("Enable GPU static pointer bounds checking. "
-                       "(default=false)"));
-/// Set the optimization level for the compiler.  Values can be 0, 1, 
-/// 2, or 3; following standard compiler practice. 
+                     "(default=false)"));
+/// Set the optimization level for the compiler.  Values can be 0, 1,
+/// 2, or 3; following standard compiler practice.
 static cl::opt<unsigned>
-OptLevel("cuabi-opt-level", cl::init(3), cl::NotHidden, 
+OptLevel("cuabi-opt-level", cl::init(3), cl::NotHidden,
          cl::desc("Specify the GPU kernel optimization level."));
-/// Enable expensive optimizations to allow the compiler to use the 
-/// maximum amount of resources (memory and time).  If the 
-/// optimization level if >= 2 this flag is enabled. 
+/// Enable expensive optimizations to allow the compiler to use the
+/// maximum amount of resources (memory and time).  If the
+/// optimization level if >= 2 this flag is enabled.
 static cl::opt<bool>
-AllowExpensiveOpts("cuabi-enable-expensive-optimizations", 
-                   cl::init(false), cl::Hidden, 
+AllowExpensiveOpts("cuabi-enable-expensive-optimizations",
+                   cl::init(false), cl::Hidden,
                    cl::desc("Enable expensive optimizations that use "
                             "maximum available resources."));
-/// Disable the generatino of floating point multiply add instructions. 
+/// Disable the generatino of floating point multiply add instructions.
 /// This is passed on to 'ptxas' to disable the contraction of floating
-/// point multiply-add operations (FMAD, FFMA, or DFMA).  This is 
+/// point multiply-add operations (FMAD, FFMA, or DFMA).  This is
 /// equivalent to passing '-fmad false' to 'ptxas'.
 static cl::opt<bool>
-DisableFMA("cuabi-disable-fma", cl::init(false), cl::Hidden, 
+DisableFMA("cuabi-disable-fma", cl::init(false), cl::Hidden,
            cl::desc("Disable the generation of FMA instructions."
-                    "(default=false)")); 
+                    "(default=false)"));
 /// Disable the optimizer's constant bank optimizations.  Passed directly
-/// to 'ptxas' as '--disable-optimizer-constants'.  
+/// to 'ptxas' as '--disable-optimizer-constants'.
 static cl::opt<bool>
-DisableConstantBank("cuabi-disable-constant-bank", cl::init(false), 
-                    cl::Hidden, 
+DisableConstantBank("cuabi-disable-constant-bank", cl::init(false),
+                    cl::Hidden,
                     cl::desc("Disable the use of the constants bank in "
                     "GPU code generation. (default=false)"));
 
 
 
-
-
-
-/// Set the CUDA ABI's default grainsize value.  This is used internally 
-/// by the transform.  
+/// Set the CUDA ABI's default grainsize value.  This is used internally
+/// by the transform.
 static cl::opt<unsigned>
-DefaultGrainSize("cuabi-default-grainsize", cl::init(1), 
-         cl::Hidden, 
-         cl::desc("The default grainsize used by the "
-           "transform when analysis fails to determine one. (default=1)"));
+DefaultGrainSize("cuabi-default-grainsize", cl::init(1),
+         cl::Hidden,
+         cl::desc("The default grainsize used by the transform "
+                 "when analysis fails to determine one. (default=1)"));
 
-/// Keep the complete set of intermediate files around after compilation.  This 
-/// includes LLVM IR, PTX, and the fatbinary file. 
+/// Keep the complete set of intermediate files around after compilation.  This
+/// includes LLVM IR, PTX, and the fatbinary file.
 static cl::opt<bool>
-KeepIntermediateFiles("cuabi-keep-files", cl::init(false), 
-                      cl::Hidden, 
-                      cl::desc("Keep all the intermediate files on disk "
-                               "after successsful completion of the transforms "
-                               "various steps.")); 
+KeepIntermediateFiles("cuabi-keep-files", cl::init(false),
+                      cl::Hidden,
+                      cl::desc("Keep all the intermediate files on disk after"
+                               "successsful completion of the transforms "
+                               "various steps."));
 
-/// Generate code to prefetch data prior to kernel launches.  This is literally 
-/// in the few lines right before a launch so obviously less than ideal. 
+/// Generate code to prefetch data prior to kernel launches.  This is literally
+/// in the few lines right before a launch so obviously less than ideal.
 static cl::opt<bool>
-CodeGenDisablePrefetch("cuabi-disable-prefetch", cl::init(false), 
+CodeGenDisablePrefetch("cuabi-disable-prefetch", cl::init(false),
                          cl::Hidden,
-                         cl::desc("Disable insertion of calls to do data prefetching "
-                                  "for UVM-based kernel parameters."));
+                         cl::desc("Disable insertion of calls to do data "
+                                  "prefetching for UVM-based kernel  "
+                                  "parameters."));
 
-/// Provide a hard-coded default value for the number of threads per block to 
-/// use in kernel launches.  This provides a compile-time mechanisms for setting 
-/// this value and it will persist throughout the execution of the associated 
-/// compilation unit(s).  The runtime internally currently uses the equations, 
-/// 
-///   ``unsigned blockSize = 4 * warpSize;``
-///   ``blocksPerGrid = (numElements + threadsPerBlock - 1) / threadsPerBlock;`` 
-/// 
-/// to determine the overall set of launch parameters.  This is mostly meant for 
-/// experimentation and testing. 
+/// Provide a hard-coded default value for the number of threads per block to
+/// use in kernel launches.  This provides a compile-time mechanisms for
+/// setting this value and it will persist throughout the execution of the
+/// associated compilation unit(s).  The runtime internally currently uses the
+/// equations,
+///
+///  ``unsigned blockSize = 4 * warpSize;``
+///  ``blocksPerGrid = (numElements + threadsPerBlock - 1) / threadsPerBlock;``
+///
+/// to determine the overall set of launch parameters.  This is mostly meant
+/// for experimentation and testing.
 static cl::opt<unsigned>
-DefaultThreadsPerBlock("cuabi-threads-per-block", cl::init(256), 
-                       cl::Hidden, 
+DefaultThreadsPerBlock("cuabi-threads-per-block", cl::init(256),
+                       cl::Hidden,
                        cl::desc("Set the runtime system's value for "
                                 "the default number of threads per block. "
                                 "(default=256)"));
 
-static cl::opt<unsigned> 
-DefaultBlocksPerGrid("cuabi-blocks-per-grid", cl::init(0), 
-                     cl::Hidden, 
+static cl::opt<unsigned>
+DefaultBlocksPerGrid("cuabi-blocks-per-grid", cl::init(0),
+                     cl::Hidden,
                      cl::desc("Hard-code the runtime system's value for "
                               "the number of blocks per grid in kernel "
-                              "launches. (default=0=disabled)"));  
+                              "launches. (default=0=disabled)"));
 
 
 /*
- * TODO: work here needs to be done to support these additional arguments 
- * to expose more of the ptxas feature set within the ABI transform. 
- * 
+ * TODO: work here needs to be done to support these additional arguments
+ * to expose more of the ptxas feature set within the ABI transform.
+ *
  /// Specify the maximum number of registers that GPU functions can use.
- /// Until a function-specific limit, a higher value will generally 
+ /// Until a function-specific limit, a higher value will generally
  /// increase the performance of individual GPU threads that execute this
- /// function. However, because thread registers are allocated from a 
+ /// function. However, because thread registers are allocated from a
  /// global register pool on each GPU, a higher value of this option
- /// will also reduce the maximum thread block size, thereby reducing the 
+ /// will also reduce the maximum thread block size, thereby reducing the
  /// amount of thread parallelism.
  static cl::opt<int>
  MaxRegCount("cuabi-maxregcount", cl::init(-1), cl::Hidden,
@@ -218,7 +216,7 @@ DefaultBlocksPerGrid("cuabi-blocks-per-grid", cl::init(0),
 static void appendToGlobalArray(const char *Array, Module &M,
         Constant *C, int Priority,
         Constant *Data) {
-  
+
   IRBuilder<> IRB(M.getContext());
   FunctionType *FnTy = FunctionType::get(IRB.getVoidTy(), false);
 
@@ -258,17 +256,17 @@ static void appendToGlobalArray(const char *Array, Module &M,
                            GlobalValue::AppendingLinkage, NewInit, Array);
 }
 
-/// Take the NVIDIA CUDA 'sm_' architecture format and convert it into 
-/// the 'compute_' form.  Note that we require CUDA 11 or greater and 
-/// we have removed support for sm_2x and sm_3x architectures. 
+/// Take the NVIDIA CUDA 'sm_' architecture format and convert it into
+/// the 'compute_' form.  Note that we require CUDA 11 or greater and
+/// we have removed support for sm_2x and sm_3x architectures.
 
 static std::string VirtualArchForCudaArch(StringRef Arch) {
   // TODO: We've scaled back some from the full suite of Nvidia targets
   // as we are going in assuming we will support only CUDA 11 or greater.
-  // We should probably raise an error for sm_2x and sm_3x -- this is 
-  // different than the current CUDA support in Clang and could be 
-  // confusing to users... That said, not sure it makes a lot of sense 
-  // to work on support for deprecated architectures (and thus older 
+  // We should probably raise an error for sm_2x and sm_3x -- this is
+  // different than the current CUDA support in Clang and could be
+  // confusing to users... That said, not sure it makes a lot of sense
+  // to work on support for deprecated architectures (and thus older
   // versions of CUDA).
   return llvm::StringSwitch<std::string>(Arch)
       // sm_20 (Fermi) is deprecated as of CUDA 9.
@@ -285,8 +283,8 @@ static std::string VirtualArchForCudaArch(StringRef Arch) {
       .Case("sm_80", "compute_80") // Ampere
       // TODO: LLVM's PTX target doesn't appear to support
       // anything past sm_80???  For LLVM 12.x.  Need to
-      // update for new architectures -- 13.x will support 
-      // through sm_86. 
+      // update for new architectures -- 13.x will support
+      // through sm_86.
       .Case("sm_86", "compute_86") //
       .Case("sm_87", "compute_87") //
       .Default("unknown");
@@ -294,19 +292,19 @@ static std::string VirtualArchForCudaArch(StringRef Arch) {
 
 static std::string PTXVersionFromCudaVersion() {
   #ifdef CUDATOOLKIT_VERSION
-  Twine CudaVersionStr = Twine(CUDATOOLKIT_VERSION_MAJOR) + 
-                   Twine(".") + 
+  Twine CudaVersionStr = Twine(CUDATOOLKIT_VERSION_MAJOR) +
+                   Twine(".") +
                    Twine(CUDATOOLKIT_VERSION_MINOR);
-  #else 
+  #else
   #pragma message("warning, no CUDA Toolkit version info available.")
   Twine CudaVersionStr = "unknown";
   #endif
 
-  // TODO: There could a tighter connection here with the GPU 
-  // architecture choice that we are not cross referencing. 
+  // TODO: There could a tighter connection here with the GPU
+  // architecture choice that we are not cross referencing.
   return llvm::StringSwitch<std::string>(CudaVersionStr.str())
-      // TODO: These CUDA to PTX version translations will have 
-      // to be watched between CUDA and LLVM resources.  It is 
+      // TODO: These CUDA to PTX version translations will have
+      // to be watched between CUDA and LLVM resources.  It is
       // not uncommon for LLVM to lag behind CUDA PTX versions.
       // The details below are based on Cuda 11.6 and LLVM 13.x.
       .Case("10.0", "+ptx63")
@@ -323,15 +321,16 @@ static std::string PTXVersionFromCudaVersion() {
       .Default("+ptx72"); // TODO: fall back or go with latest?
 }
 
-// Helper function to configure the details of our post-Tapir transformation 
-// passes. 
+// Helper function to configure the details of our post-Tapir transformation
+// passes.
 //
-// TODO: Need to spend some time exploring the selected set of passes here. 
+// TODO: Need to spend some time exploring the selected set of passes here.
 //
 const unsigned OptLevel0  = 0;
 const unsigned OptLevel1  = 1;
 const unsigned OptLevel2  = 2;
 const unsigned OptLevel3  = 3;
+
 const unsigned SizeLevel0 = 0;
 const unsigned SizeLevel1 = 1;
 const unsigned SizeLevel2 = 2;
@@ -364,12 +363,12 @@ const unsigned SizeLevel2 = 2;
 //      TM->adjustPassManager(PMBuilder);
 //
 
-/// Add a set of customized optimization passes over the LLVM code 
-/// post Tapir transformation but prior to conversion to PTX.  The 
-/// 'OptLevel' parameter controls the compiler optimization level 
+/// Add a set of customized optimization passes over the LLVM code
+/// post Tapir transformation but prior to conversion to PTX.  The
+/// 'OptLevel' parameter controls the compiler optimization level
 /// for performance, while 'SizeLevel' controls the size optimization
-/// target. 
-static 
+/// target.
+static
 void runOptimizationPasses(Module &KM,
                            unsigned OptLevel = OptLevel3,
                            unsigned SizeLevel = OptLevel2) {
@@ -386,28 +385,28 @@ void runOptimizationPasses(Module &KM,
   PM.run(KM);
 }
 
-// NOTE: The NextKernelID variable below is not thread safe.  
-// This currently isn't an issue but if LLVM at some point 
+// NOTE: The NextKernelID variable below is not thread safe.
+// This currently isn't an issue but if LLVM at some point
 // in the future starts supporting multiple compilation threads
-// (e.g. over Modules for example) the support code for kernel 
-// IDs will have a race... 
+// (e.g. over Modules for example) the support code for kernel
+// IDs will have a race...
 
 /// Static ID for kernel naming -- each encountered kernel (loop)
-/// during compilation will receive a unique ID. 
+/// during compilation will receive a unique ID.
 unsigned CudaLoop::NextKernelID = 0;
 
 
 CudaLoop::CudaLoop(Module &M, const std::string &KN, bool MakeUniqueName)
     : LoopOutlineProcessor(M, KernelModule),
-      KernelModule(CUABI_MODULE_NAME_PREFIX+M.getName().str(), 
-                   M.getContext()), 
+      KernelModule(CUABI_MODULE_NAME_PREFIX+M.getName().str(),
+                   M.getContext()),
       KernelName(KN) {
 
   if (MakeUniqueName) {
     std::string UN = KN + "_" + Twine(NextKernelID).str();
-    NextKernelID++;  // rand();  
+    NextKernelID++;  // rand();
     KernelName = UN;
-  }        
+  }
 
   LLVM_DEBUG(dbgs() << "tapir cuda ABI loop outliner creation:\n"
                     << "\tbase kernel name: " << KernelName << "\n"
@@ -418,10 +417,10 @@ CudaLoop::CudaLoop(Module &M, const std::string &KN, bool MakeUniqueName)
   std::string ArchString;
   if (HostMArch == "64")
     ArchString = "nvptx64";
-  else 
+  else
     ArchString = "nvptx";
 
-  // Note the "cuda" choice as part of the OS portion of the triple selects 
+  // Note the "cuda" choice as part of the OS portion of the triple selects
   // compatability with the CUDA Driver API.
   Triple TT(ArchString, "nvidia", "cuda");
 
@@ -433,18 +432,18 @@ CudaLoop::CudaLoop(Module &M, const std::string &KN, bool MakeUniqueName)
                        "Was LLVM built with the NVPTX target enabled?");
   }
 
-  // The feature string for the target machine can be confusing (this is the 
-  // 3rd parameter to createTargetMachine())).  The most common usage seems 
+  // The feature string for the target machine can be confusing (this is the
+  // 3rd parameter to createTargetMachine())).  The most common usage seems
   // to suggest a 32- or 64-bit mode (e.g., "+ptx64").  However, digging into
-  // clang's implementation it turns out the feature string is actually a 
-  // PTX version specifier that goes along with CUDA version. 
+  // clang's implementation it turns out the feature string is actually a
+  // PTX version specifier that goes along with CUDA version.
   std::string PTXVersionStr = PTXVersionFromCudaVersion();
 
-  LLVM_DEBUG(dbgs() << "Cuda abi: ptx target feature version " 
+  LLVM_DEBUG(dbgs() << "Cuda abi: ptx target feature version "
                      << PTXVersionStr << ".\n");
 
   PTXTargetMachine = PTXTarget->createTargetMachine(TT.getTriple(), GPUArch,
-                                                    PTXVersionStr.c_str(), 
+                                                    PTXVersionStr.c_str(),
                                                     TargetOptions(),
                                                     Reloc::PIC_,
                                                     CodeModel::Small,
@@ -500,9 +499,9 @@ CudaLoop::CudaLoop(Module &M, const std::string &KN, bool MakeUniqueName)
 
   // NVVM-centric barrier -- equivalent to Cuda's __sync_threads().
   CUSyncThreads = Intrinsic::getDeclaration(&KernelModule, Intrinsic::nvvm_barrier0);
- 
+
   // Get entry points into the Cuda-centric portion of the Kitsune GPU runtime.
-  // These are a layer deeper than the interface used by the GPUABI.  While we 
+  // These are a layer deeper than the interface used by the GPUABI.  While we
   // could codegen straight to the CudaRT API, the higher level calls still help
   // to simplify the code at this level.
 
@@ -518,21 +517,21 @@ CudaLoop::CudaLoop(Module &M, const std::string &KN, bool MakeUniqueName)
                                           VoidTy,
                                           VoidPtrTy);
   KitCudaMemPrefetchFn = M.getOrInsertFunction("__kitrt_cuMemPrefetch",
-                                          VoidTy, 
+                                          VoidTy,
                                           VoidPtrTy);
-  KitCudaSetDefaultTBPFn = 
+  KitCudaSetDefaultTBPFn =
           M.getOrInsertFunction("__kitrt_cuSetDefaultThreadsPerBlock",
                                 VoidTy,
                                 Int32Ty);  // threads per block.
-  KitCudaSetDefaultLaunchParamsFn = 
+  KitCudaSetDefaultLaunchParamsFn =
           M.getOrInsertFunction("__kitrt_cuSetDefaultLaunchParameters",
-                                VoidTy, 
-                                Int32Ty,   // blocks per grid 
+                                VoidTy,
+                                Int32Ty,   // blocks per grid
                                 Int32Ty);  // threads per block
 }
 
 
-CudaLoop::~CudaLoop() 
+CudaLoop::~CudaLoop()
 { }
 
 Constant *CudaLoop::createConstantStr(const std::string &Str,
@@ -610,7 +609,7 @@ void CudaLoop::setupLoopOutlineArgs(Function &F, ValueSet &HelperArgs,
     InputSet.insert(InputVal);
   }
 
-  // Add the loop-centric kernel parameters (i.e., variables/arrays 
+  // Add the loop-centric kernel parameters (i.e., variables/arrays
   // used in the loop body).
   for (Value *V : TLInputsFixed) {
     HelperArgs.insert(V);
@@ -727,8 +726,8 @@ std::set<GlobalValue*>& collect(Constant& c,
 }
 
 void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
-  // TODO: process loop prior to outlining to do GPU/CUDA-specific things 
-  // like capturing global variables, etc. 
+  // TODO: process loop prior to outlining to do GPU/CUDA-specific things
+  // like capturing global variables, etc.
   LLVM_DEBUG(dbgs() << "\tpreprocessing tapir loop...\n");
 
   // Collect the top-level entities (Function, GlobalVariable, GlobalAlias
@@ -837,7 +836,7 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   Function *Helper = Out.Outline;
   Helper->setName(KernelName);
   Helper->setLinkage(Function::ExternalLinkage);
-  // Set the target features for the helper. 
+  // Set the target features for the helper.
   AttrBuilder Attrs;
   Attrs.addAttribute("target-cpu", GPUArch);
   Attrs.addAttribute("target-features", PTXVersionFromCudaVersion() + "," + GPUArch);
@@ -871,21 +870,21 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
       Grainsize = ConstantInt::get(PrimaryIV->getType(), ConstGrainsize);
     else
       Grainsize = ConstantInt::get(PrimaryIV->getType(),
-                                   DefaultGrainSize.getValue());      
+                                   DefaultGrainSize.getValue());
   }
 
   IRBuilder<> B(Entry->getTerminator());
 
   // Get the thread ID for this invocation of Helper.
-  // 
-  // This is the classic CUDA thread ID calculation: 
+  //
+  // This is the classic CUDA thread ID calculation:
   //      i = blockDim.x * blockIdx.x + threadIdx.x;
-  // For now we only generate 1-D thread IDs. 
+  // For now we only generate 1-D thread IDs.
   Value *ThreadIdx = B.CreateCall(CUThreadIdxX);
   Value *BlockIdx = B.CreateCall(CUBlockIdxX);
   Value *BlockDim = B.CreateCall(CUBlockDimX);
-  Value *ThreadID = B.CreateIntCast(B.CreateAdd(ThreadIdx, 
-                                    B.CreateMul(BlockIdx, BlockDim), 
+  Value *ThreadID = B.CreateIntCast(B.CreateAdd(ThreadIdx,
+                                    B.CreateMul(BlockIdx, BlockDim),
                                     "thread_id"), PrimaryIV->getType(), false);
   ThreadID = B.CreateMul(ThreadID, Grainsize);
   Value *ThreadEnd = B.CreateAdd(ThreadID, Grainsize);
@@ -909,28 +908,28 @@ void CudaLoop::transformForPTX() {
   LLVMContext &Ctx = KernelModule.getContext();
   Function &F = *KernelModule.getFunction(KernelName.c_str());
 
-  // ThreadID.x 
+  // ThreadID.x
   auto tid   = Intrinsic::getDeclaration(&KernelModule,
                           Intrinsic::nvvm_read_ptx_sreg_tid_x);
 
-  // BlockID.x 
+  // BlockID.x
   auto ctaid = Intrinsic::getDeclaration(&KernelModule,
                           Intrinsic::nvvm_read_ptx_sreg_ctaid_x);
-  // BlockDim.x 
+  // BlockDim.x
   auto ntid  = Intrinsic::getDeclaration(&KernelModule,
                           Intrinsic::nvvm_read_ptx_sreg_ntid_x);
 
   IRBuilder<> B(F.getEntryBlock().getFirstNonPHI());
 
   // Compute blockDim.x * blockIdx.x + threadIdx.x;
-  Value *tidv = B.CreateCall(tid, {}, "thread_idx"); 
-  Value *ntidv = B.CreateCall(ntid, {}, "block_idx"); 
+  Value *tidv = B.CreateCall(tid, {}, "thread_idx");
+  Value *ntidv = B.CreateCall(ntid, {}, "block_idx");
   Value *ctaidv = B.CreateCall(ctaid, {}, "block_dimx");
-  Value *tidoff = B.CreateMul(ctaidv, ntidv, "block_off"); // 
+  Value *tidoff = B.CreateMul(ctaidv, ntidv, "block_off"); //
   Value *gtid = B.CreateAdd(tidoff, tidv, "cu_idx");
 
   // PTX doesn't like .<n> global names, rename them to
-  // replace the '.' with an underscore, '_'. 
+  // replace the '.' with an underscore, '_'.
   for (GlobalVariable &G : KernelModule.globals()) {
     auto name = G.getName().str();
     std::replace(name.begin(), name.end(), '.', '_');
@@ -1055,7 +1054,7 @@ std::string CudaLoop::createPTXFile() {
     Builder.populateModulePassManager(PM);
 
     bool Fail;
-    Fail = PTXTargetMachine->addPassesToEmitFile(PM, PTXFile->os(), 
+    Fail = PTXTargetMachine->addPassesToEmitFile(PM, PTXFile->os(),
                nullptr, CodeGenFileType::CGFT_AssemblyFile, false);
     if (Fail)
       report_fatal_error("An unknown error caused the Tapir Cuda-abi "
@@ -1123,27 +1122,27 @@ std::string CudaLoop::createFatBinaryFile(const std::string &PTXFileName) {
   }
 
   if (SurpressDBInfo) {
-    if (Debug || GenLineInfo) 
+    if (Debug || GenLineInfo)
       PTXASArgList.push_back("--suppress-debug-info");
-    else 
+    else
       errs() << "warning: ignoring -tapir-cu-surpress-debug-info as it "
              << "requires debug or generate-line-info option.\n";
   }
 
   if (OptLevel > 3) {
-    errs() << "warning: -tapir-cu-opt-level=" << OptLevel 
+    errs() << "warning: -tapir-cu-opt-level=" << OptLevel
            << " is not supported, using level 3 instead.\n";
     OptLevel = 3;
-  }      
+  }
   PTXASArgList.push_back("--opt-level");
   switch(OptLevel) {
-    case 0: 
+    case 0:
       PTXASArgList.push_back("0");
       break;
     case 1:
       PTXASArgList.push_back("1");
       break;
-    case 2: 
+    case 2:
       PTXASArgList.push_back("2");
       break;
     case 3:
@@ -1165,9 +1164,9 @@ std::string CudaLoop::createFatBinaryFile(const std::string &PTXFileName) {
     PTXASArgList.push_back("false");
   }
 
-  if (DisableConstantBank) 
+  if (DisableConstantBank)
     PTXASArgList.push_back("--disable-optimizer-constants");
-  
+
   if (KernelModule.getNamedMetadata("llvm.dbg.cu")) {
     PTXASArgList.push_back("-g");
     PTXASArgList.push_back("--generate-line-info");
@@ -1195,12 +1194,12 @@ std::string CudaLoop::createFatBinaryFile(const std::string &PTXFileName) {
     }
   );
 
-  std::string errMsg;
+  std::string ErrMsg;
   bool ExecFailed;
   int ExecStat = sys::ExecuteAndWait(*PTXASExe, PTXASArgs, None, {},
                                      0, /* secs to wait -- 0 --> unlimited */
                                      0, /* memory limit -- 0 --> unlimited */
-                                     &errMsg, &ExecFailed);
+                                     &ErrMsg, &ExecFailed);
   if (ExecFailed)
     report_fatal_error("unable to execute 'ptxas'.");
 
@@ -1209,7 +1208,7 @@ std::string CudaLoop::createFatBinaryFile(const std::string &PTXFileName) {
     // TODO: Need to check what sort of actual state 'ptxas'
     // returns to the environment -- currently assuming it
     // matches standard practices...
-    report_fatal_error("ptxas execution error:" + errMsg);
+    report_fatal_error("ptxas execution error:" + ErrMsg);
 
   FBFile->keep();
 
@@ -1223,7 +1222,7 @@ std::string CudaLoop::createFatBinaryFile(const std::string &PTXFileName) {
 
   FatBinArgList.push_back(FatBinExe->c_str());
 
-  if (HostMArch == "32") 
+  if (HostMArch == "32")
     FatBinArgList.push_back("--32");
   else if (HostMArch == "64")
     FatBinArgList.push_back("--64");
@@ -1234,7 +1233,7 @@ std::string CudaLoop::createFatBinaryFile(const std::string &PTXFileName) {
   std::string img_scode_args = std::string("--image=profile=") + GPUArch + ",file=" +
       scode_filename;
   FatBinArgList.push_back(img_scode_args.c_str());
-  std::string VArch = VirtualArchForCudaArch(GPUArch); 
+  std::string VArch = VirtualArchForCudaArch(GPUArch);
   if (VArch == "unknown") {
     std::string Msg = GPUArch + ": unsupported CUDA architecture!";
     report_fatal_error(Msg.c_str());
@@ -1261,7 +1260,7 @@ std::string CudaLoop::createFatBinaryFile(const std::string &PTXFileName) {
   ExecStat = sys::ExecuteAndWait(*FatBinExe, FatBinArgs, None, {},
                                  0, /* secs to wait -- 0 --> unlimited */
                                  0, /* memory limit -- 0 --> unlimited */
-                                 &errMsg, &ExecFailed);
+                                 &ErrMsg, &ExecFailed);
 
   if (ExecFailed)
     report_fatal_error("unable to execute 'fatbinary'.");
@@ -1271,7 +1270,7 @@ std::string CudaLoop::createFatBinaryFile(const std::string &PTXFileName) {
     // TODO: Need to check what sort of actual state 'fatbinary'
     // returns to the environment -- currently assuming it
     // matches standard practices...
-    report_fatal_error("'fatbinary' error:" + errMsg);
+    report_fatal_error("'fatbinary' error:" + ErrMsg);
 
   FBFile->keep();
 
@@ -1286,9 +1285,9 @@ std::string CudaLoop::createFatBinaryFile(const std::string &PTXFileName) {
 // toolchain.
 Constant* CudaLoop::createKernelBuffer() {
 
-  // Before we move along too far check to see if want to save the kernel 
-  // module -- this can be helpful if we bomb-out in PTX code generation 
-  // below. 
+  // Before we move along too far check to see if want to save the kernel
+  // module -- this can be helpful if we bomb-out in PTX code generation
+  // below.
   if (KeepIntermediateFiles) {
     std::error_code EC;
     std::unique_ptr<ToolOutputFile> KMFile;
@@ -1339,12 +1338,12 @@ Constant* CudaLoop::createKernelBuffer() {
           MemoryBuffer::getFile(FBFileName);
   if (std::error_code EC = FBBufferOrErr.getError()) {
     report_fatal_error("failed to load cuda fat binary image: " + EC.message());
-    return nullptr;  // no-op. 
+    return nullptr;  // no-op.
   }
 
   FBBuffer = std::move(FBBufferOrErr.get());
   LLVM_DEBUG(dbgs() << "\tloaded fat binary file size is "
-                    << FBBuffer->getBufferSize() 
+                    << FBBuffer->getBufferSize()
                     << " bytes.\n");
   LLVMContext &Ctx = M.getContext();
   const char *FatbinConstantName = ".nv_fatbin";
@@ -1353,7 +1352,7 @@ Constant* CudaLoop::createKernelBuffer() {
 
   Type *Int8Ty = Type::getInt8Ty(Ctx);
   Constant *FBCS = ConstantDataArray::getRaw(
-                StringRef(FBBuffer->getBufferStart(), FBBuffer->getBufferSize()), 
+                StringRef(FBBuffer->getBufferStart(), FBBuffer->getBufferSize()),
                 FBBuffer->getBufferSize(), Int8Ty);
   GlobalVariable *GV;
   GV = new GlobalVariable(M, FBCS->getType(), true,
@@ -1371,13 +1370,13 @@ Constant* CudaLoop::createKernelBuffer() {
   Constant *FBPtr = ConstantExpr::getGetElementPtr(GV->getValueType(),
                                                    GV, Zeros);
 
-  // Clean up temporary PTX and fat binary files now that we've 
+  // Clean up temporary PTX and fat binary files now that we've
   // successfully created the global variable.
   if (!KeepIntermediateFiles) {
     std::error_code EC;
     std::error_condition ok;
 
-    if (EC = llvm::sys::fs::remove(PTXFileName)) 
+    if (EC = llvm::sys::fs::remove(PTXFileName))
       errs() << "error removing PTX file: " <<  EC.message() << "\n";
 
     if (EC = llvm::sys::fs::remove(FBFileName))
@@ -1443,19 +1442,19 @@ Function *CudaLoop::createCudaCtor(Constant *FBPtr) {
   FunctionCallee RegisterFatbinFunc =
       M.getOrInsertFunction("__cudaRegisterFatBinary",
                             FunctionType::get(VoidPtrPtrTy, VoidPtrTy, false));
-  CallInst *RegisterFatbinCall = CtorBuilder.CreateCall(RegisterFatbinFunc, 
+  CallInst *RegisterFatbinCall = CtorBuilder.CreateCall(RegisterFatbinFunc,
                               CtorBuilder.CreateBitCast(FBWrapper, VoidPtrTy));
-  GlobalVariable *GpuBinaryHandle = new GlobalVariable(M, VoidPtrPtrTy, 
-                                       /*isConstant*/ false, 
+  GlobalVariable *GpuBinaryHandle = new GlobalVariable(M, VoidPtrPtrTy,
+                                       /*isConstant*/ false,
                                        GlobalValue::InternalLinkage,
-                                       ConstantPointerNull::get(VoidPtrPtrTy), 
+                                       ConstantPointerNull::get(VoidPtrPtrTy),
                                        "__cuabi_cubin_handle");
   GpuBinaryHandle->setAlignment(Align(DL.getPointerABIAlignment(0)));
   GpuBinaryHandle->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
   CtorBuilder.CreateAlignedStore(RegisterFatbinCall, GpuBinaryHandle,
                                  DL.getPointerABIAlignment(0));
-  
-  // TODO: Add global variables here... 
+
+  // TODO: Add global variables here...
 
   FunctionCallee RegisterFatbinEndFunc = M.getOrInsertFunction("__cudaRegisterFatBinaryEnd",
                             FunctionType::get(VoidTy, VoidPtrPtrTy, false));
@@ -1484,7 +1483,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
-                                             
+
   Function *Parent = TOI.ReplCall->getFunction();
   Value *TripCount = OrderedInputs[0];
   BasicBlock* RCBB = TOI.ReplCall->getParent();
@@ -1505,7 +1504,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
     // TODO: At present, the runtime's kernel launch parameters can be
     // overriden in a per compiler invocation right now.  We should
     // probably ponder a way to make this work per loop (via metadata?).
-    // 
+    //
     // NOTE: These parameters only "stick" for the next kernel launch.
     Value *BPG = ConstantInt::get(Int32Ty, DefaultBlocksPerGrid);
     Value *TPB = ConstantInt::get(Int32Ty, DefaultThreadsPerBlock);
@@ -1515,7 +1514,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
     EB.CreateCall(KitCudaSetDefaultTBPFn, {TPB});
   }
   */
- 
+
   ArrayType *ArrayTy = ArrayType::get(VoidPtrTy, OrderedInputs.size());
   Value *ArgArray = B.CreateAlloca(ArrayTy);
   unsigned int i = 0;
@@ -1526,11 +1525,11 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
     Value *ArgPtr = B.CreateConstInBoundsGEP2_32(ArrayTy, ArgArray, 0, i++);
     B.CreateStore(VoidVPtr, ArgPtr);
 
-    // TODO: This is still experimental and currently just about as simple of 
-    // an approach as we can take on issuing prefetch calls.  Is it better 
-    // than nothing -- it is obviously very far from ideal placement. 
+    // TODO: This is still experimental and currently just about as simple of
+    // an approach as we can take on issuing prefetch calls.  Is it better
+    // than nothing -- it is obviously very far from ideal placement.
     if (CodeGenDisablePrefetch == false) {
-      Type *VT = V->getType(); 
+      Type *VT = V->getType();
       if (VT->isPointerTy()) {
         Value *VoidPP = B.CreateBitCast(V, VoidPtrTy);
         B.CreateCall(KitCudaMemPrefetchFn, { VoidPP });
@@ -1550,11 +1549,11 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
   Value *RunSize = B.CreateZExt(B.CreateAdd(RunSizeQ, isRemAdd), Int64Ty);
   Value *argsPtr = B.CreateConstInBoundsGEP2_32(ArrayTy, ArgArray, 0, 0);
 
-  // Generate a call to launch the kernel. 
+  // Generate a call to launch the kernel.
   Constant *KNameCS = ConstantDataArray::getString(Ctx, KernelName);
-  GlobalVariable *KNameGV = new GlobalVariable(M, KNameCS->getType(), 
+  GlobalVariable *KNameGV = new GlobalVariable(M, KNameCS->getType(),
                                                true,
-                                               GlobalValue::PrivateLinkage, 
+                                               GlobalValue::PrivateLinkage,
                                                KNameCS, ".str");
   KNameGV->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
   Type *StrTy = KNameGV->getType();
@@ -1570,7 +1569,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
     Type *VoidTy = Type::getVoidTy(Ctx);
     // Ctor function type is void()*.
     FunctionType *CtorFTy = FunctionType::get(VoidTy, false);
-    Type *CtorPFTy = PointerType::get(CtorFTy, 
+    Type *CtorPFTy = PointerType::get(CtorFTy,
                          M.getDataLayout().getProgramAddressSpace());
     appendToGlobalArray("llvm.global_ctors", M,
                         ConstantExpr::getBitCast(CudaCtorFn, CtorPFTy),
@@ -1578,7 +1577,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
   }
 
   Value *Stream = B.CreateCall(KitCudaLaunchFn,
-                               { FBPtr, KNameParam, argsPtr, RunSize }, 
+                               { FBPtr, KNameParam, argsPtr, RunSize },
                               "stream");
   B.CreateCall(KitCudaWaitFn, Stream);
 }
@@ -1587,20 +1586,20 @@ CudaABI::CudaABI(Module & M)
   : TapirTarget(M)
 { }
 
-CudaABI::~CudaABI() 
+CudaABI::~CudaABI()
 { }
 
 Value *CudaABI::lowerGrainsizeCall(CallInst * GrainsizeCall) {
   // TODO: Some quick checks suggest we are almost always getting
-  // called to select this value (at least when trip counts can't 
-  // be easily determined?).  More work needs to go into picking 
-  // this value that likely strongly correlates with the launch 
+  // called to select this value (at least when trip counts can't
+  // be easily determined?).  More work needs to go into picking
+  // this value that likely strongly correlates with the launch
   // parameters...  More parameter studies are likely a key piece
   // of this puzzle.
-  Value *Grainsize = ConstantInt::get(GrainsizeCall->getType(), 
+  Value *Grainsize = ConstantInt::get(GrainsizeCall->getType(),
                                       DefaultGrainSize);
-  // Replace uses of grainsize intrinsic call with a computed 
-  // grainsize value. 
+  // Replace uses of grainsize intrinsic call with a computed
+  // grainsize value.
   GrainsizeCall->replaceAllUsesWith(Grainsize);
   return Grainsize;
 }
@@ -1653,8 +1652,8 @@ void CudaABI::preProcessRootSpawner(llvm::Function &,
 LoopOutlineProcessor*
 CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) const {
   std::string ModuleName = M.getName().str();
-  // PTX dislikes names containing '.' -- replace them with 
-  // underscores. 
+  // PTX dislikes names containing '.' -- replace them with
+  // underscores.
   std::replace(ModuleName.begin(), ModuleName.end(), '.', '_');
   std::replace(ModuleName.begin(), ModuleName.end(), '-', '_');
   std::string KN;
