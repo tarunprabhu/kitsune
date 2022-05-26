@@ -129,15 +129,13 @@ DisableConstantBank("cuabi-disable-constant-bank", cl::init(false),
                     cl::desc("Disable the use of the constants bank in "
                     "GPU code generation. (default=false)"));
 
-
-
 /// Set the CUDA ABI's default grainsize value.  This is used internally
 /// by the transform.
 static cl::opt<unsigned>
 DefaultGrainSize("cuabi-default-grainsize", cl::init(1),
          cl::Hidden,
          cl::desc("The default grainsize used by the transform "
-                 "when analysis fails to determine one. (default=1)"));
+                  "when analysis fails to determine one. (default=1)"));
 
 /// Keep the complete set of intermediate files around after compilation.  This
 /// includes LLVM IR, PTX, and the fatbinary file.
