@@ -515,6 +515,11 @@ private:
   // Outline all recorded Tapir loops in the function.
   TaskOutlineMapTy outlineAllTapirLoops();
 
+  // Get the outermost tapir loop in a nest. The first argument is the current
+  // loop and the second is the outermost tapir loop seen in the nest so far.
+  // A nest could consist of interspersed Tapir and non-Tapir loops.
+  TapirLoopInfo* getOutermostTapirLoopInNest(Loop* loop, TapirLoopInfo* OTL);
+
 private:
   Function &F;
 
@@ -1420,6 +1425,17 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
   return Helper;
 }
 
+TapirLoopInfo* LoopSpawningImpl::getOutermostTapirLoopInNest(Loop* loop,
+                                                             TapirLoopInfo* OTL) {
+  Loop* parent = loop->getParentLoop();
+  if (not parent)
+    return OTL;
+  else if (TapirLoopInfo* PTL = getTapirLoop(parent))
+    return getOutermostTapirLoopInNest(parent, PTL);
+  else
+    return getOutermostTapirLoopInNest(parent, OTL);
+}
+
 /// Outline all recorded Tapir loops in the function.
 TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
   // Prepare Tapir loops for outlining.
@@ -1428,6 +1444,8 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
       PredicatedScalarEvolution PSE(SE, *TL->getLoop());
       bool canOutline = TL->prepareForOutlining(DT, LI, TI, PSE, AC, LS_NAME,
                                                 ORE, TTI);
+      bool shouldOutline = TL == getOutermostTapirLoopInNest(TL->getLoop(), TL);
+      canOutline = canOutline and shouldOutline;
       if (!canOutline) {
         const Loop *L = TL->getLoop();
         TapirLoopHints Hints(L);
@@ -1455,6 +1473,13 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
 
   associateTasksToTapirLoops();
 
+  // The root task is the LLVM function. Therefore, this will be called for all
+  // "real" tasks and the LLVM function. If any loops are outlined, the call to
+  // the outlined function will be inserted in replaceLoopWithCallToOutline()
+  // which will only be called when processing the task of which the outlined
+  // loop was a subtask. Since the root task is the LLVM function, the loop
+  // will iterate one more time to allow the call to the outlined loop to be
+  // made for the top-level (non-root) task.
   for (Task *T : post_order(TI.getRootTask())) {
     LLVM_DEBUG(dbgs() << "Examining task@" << T->getEntry()->getName() <<
                " for outlining\n");
