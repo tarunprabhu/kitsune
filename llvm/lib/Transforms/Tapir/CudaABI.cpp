@@ -155,6 +155,15 @@ CodeGenDisablePrefetch("cuabi-disable-prefetch", cl::init(false),
                                   "prefetching for UVM-based kernel  "
                                   "parameters."));
 
+/// Pass the globals used by a kernel as a kernel argument. This effectively
+/// carries out a copy-in-copy-out of all the global variables (constant
+/// global variables are copied in, but not copied out)
+static cl::opt<bool>
+DoLocalizeGlobals("cuabi-localize-globals", cl::init(false),
+                  cl::Hidden,
+                  cl::desc("Pass the global variables used by a Cuda kernel as "
+                           "an additional parameter to the kernel."));
+
 /// Provide a hard-coded default value for the number of threads per block to
 /// use in kernel launches.  This provides a compile-time mechanisms for
 /// setting this value and it will persist throughout the execution of the
@@ -658,7 +667,6 @@ static std::set<GlobalValue*>& collect(BasicBlock& bb,
 
 static std::set<GlobalValue*>& collect(Function& f,
                                        std::set<GlobalValue*>& seen) {
-  llvm::errs() << "collect function: " << f.getName() << "\n";
   seen.insert(&f);
 
   for (auto& bb : f)
@@ -734,6 +742,13 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
   // need to be cloned into the KernelModule.
   std::set<GlobalValue*> usedGlobalValues;
 
+  // Reverse map going from device global to host global. It would be useful
+  // to just use the ValueToValueMap VMap and reverse it, but that type uses
+  // a const llvm::Value* as the key which is not usable. Of course, one could
+  // just cast away the const, but that is seldom a great idea. So it'll be
+  // done this way at the expense of a bit more memory being used.
+  LocalizeGlobals::DeviceToHostMap deviceToHostMap;
+
   Loop& loop = *TL.getLoop();
 
   for (Loop* subloop : loop)
@@ -779,6 +794,8 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
                              g->isExternallyInitialized());
       newg->copyAttributesFrom(g);
       VMap[g] = newg;
+      if (DoLocalizeGlobals)
+        deviceToHostMap[newg] = g;
     } else if (GlobalAlias *a = dyn_cast<GlobalAlias>(v)) {
       llvm_unreachable("kitsune: GlobalAlias not implemented.");
     }
@@ -808,6 +825,9 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
       }
     }
   }
+
+  if (DoLocalizeGlobals)
+    localizeGlobals.reset(new LocalizeGlobals(KernelModule, deviceToHostMap));
 }
 
 void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
@@ -1481,6 +1501,19 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+
+  // This has to be done before the ReplCall is removed.
+  if (DoLocalizeGlobals) {
+    Function* KernelFunc = KernelModule.getFunction(KernelName);
+
+    assert(KernelFunc && "Could not find kernel function.");
+
+    LLVM_DEBUG(dbgs() << "Localizing global variables in device\n");
+    localizeGlobals->localizeGlobalsInDeviceFunction(*KernelFunc);
+
+    LLVM_DEBUG(dbgs() << "Fixing calls to localized kernel in host\n");
+    localizeGlobals->fixCallsToLocalizedFunction(*KernelFunc, M);
+  }
 
   Function *Parent = TOI.ReplCall->getFunction();
   Value *TripCount = OrderedInputs[0];

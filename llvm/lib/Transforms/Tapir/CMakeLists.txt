@@ -5,6 +5,7 @@ add_llvm_component_library(LLVMTapirOpts
   CilkRTSCilkFor.cpp
   CudaABI.cpp
   DRFScopedNoAliasAA.cpp
+  LocalizeGlobals.cpp
   LoopSpawningTI.cpp
   LoopStripMine.cpp
   LoopStripMinePass.cpp

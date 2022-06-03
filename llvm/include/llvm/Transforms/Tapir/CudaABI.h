@@ -19,6 +19,7 @@
 
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
+#include "llvm/Transforms/Tapir/LocalizeGlobals.h"
 
 namespace llvm {
 
@@ -86,6 +87,11 @@ private:
   std::string KernelName;             // A unique name for the kernel.
   Module  KernelModule;                // PTX module holds the generated kernel(s).
   TargetMachine  *PTXTargetMachine;
+
+  // If the global variables used in the kernel are to be passed as explicitly
+  // to the kernel as an additional parameter, this will carry out that
+  // transformation.
+  std::unique_ptr<LocalizeGlobals> localizeGlobals;
 
   bool Valid = false;
 
