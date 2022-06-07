@@ -158,11 +158,37 @@ CodeGenDisablePrefetch("cuabi-disable-prefetch", cl::init(false),
 /// Pass the globals used by a kernel as a kernel argument. This effectively
 /// carries out a copy-in-copy-out of all the global variables (constant
 /// global variables are copied in, but not copied out)
-static cl::opt<bool>
-DoLocalizeGlobals("cuabi-localize-globals", cl::init(false),
-                  cl::Hidden,
-                  cl::desc("Pass the global variables used by a Cuda kernel as "
-                           "an additional parameter to the kernel."));
+static cl::opt<bool> LocalizeGlobalsEnable(
+    "cuabi-localize-globals", cl::init(false), cl::Hidden,
+    cl::desc("Pass the global variables used by a kernel as "
+             "an additional parameter(s)."));
+
+/// The maximum total size of the global closure. On certain platformm such as
+/// NVIDIA GPU's, this maximum size will be reduced by the total size of the
+/// rest of the arguments in the kernel (device function).
+static cl::opt<size_t> LocalizeGlobalsMaxSize(
+    "cuabi-localize-globals-max-size", cl::init(4096), cl::Hidden,
+    cl::desc("The maximum total size of the global variables that can be "
+             "passed as additional parameters to the kernel."));
+
+/// The mode by which used globals are passed to the kernel.
+static cl::opt<string> LocalizeGlobalsMode(
+    "cuabi-localize-globals-mode",
+    cl::Hidden,
+    cl::init(LocalizeGlobals::RefStruct),
+    cl::desc("The mode by which the global closure is passed to the kernel."),
+    cl::values(
+        clEnumVal(LocalizeGlobals::ValueStruct,
+                  "Combine the globals into a struct. The closure of locally "
+                  "constant globals is passed by value. The closure of "
+                  "non-const globals is passed by reference"),
+        clEnumVal(LocalizeGlobals::RefStruct,
+                  "Combine the globals into a struct and pass the struct by "
+                  "reference."),
+        clEnumVal(LocalizeGlobals::Individual,
+                  "Pass the globals as additional parameters to the kernel "
+                  "individually. Locally const globals are passed by value. "
+                  "Non-const globals are passed by reference.")));
 
 /// Provide a hard-coded default value for the number of threads per block to
 /// use in kernel launches.  This provides a compile-time mechanisms for
@@ -794,7 +820,7 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
                              g->isExternallyInitialized());
       newg->copyAttributesFrom(g);
       VMap[g] = newg;
-      if (DoLocalizeGlobals)
+      if (LocalizeGlobalsEnabled)
         deviceToHostMap[newg] = g;
     } else if (GlobalAlias *a = dyn_cast<GlobalAlias>(v)) {
       llvm_unreachable("kitsune: GlobalAlias not implemented.");
@@ -826,7 +852,7 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
     }
   }
 
-  if (DoLocalizeGlobals)
+  if (LocalizeGlobalsEnabled)
     localizeGlobals.reset(new LocalizeGlobals(KernelModule, deviceToHostMap));
 }
 
@@ -1503,7 +1529,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
   PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
 
   // This has to be done before the ReplCall is removed.
-  if (DoLocalizeGlobals) {
+  if (LocalizeGlobalsEnabled) {
     Function* KernelFunc = KernelModule.getFunction(KernelName);
 
     assert(KernelFunc && "Could not find kernel function.");

@@ -26,6 +26,9 @@
 
 namespace llvm {
 
+// The actual implementation class for each function.
+class LocalizeGlobalsImpl;
+
 // Maintains the state needed to carry out the localization of globals. This was
 // originally written for the Cuda backend, but is general enough to be of use
 // by other backends. The terminology used in this class methods reflect this.
@@ -86,26 +89,31 @@ namespace llvm {
 //
 class LocalizeGlobals {
 public:
+  enum Mode {
+    // The global closure is passed by value for locally-const globals and by
+    // reference otherwise.
+    ValueStruct,
+
+    // The global closure is always passed by reference.
+    RefStruct,
+
+    // The globals are not combined into a single closure. Each is passed as an
+    // additional parameter to the kernel. Locally-const globals are passed by
+    // value. Non-const globals are passed by reference.
+    Individiual,
+  };
+
+public:
   using DeviceToHostMap =
       std::map<llvm::GlobalVariable *, llvm::GlobalVariable *>;
 
-  Module& DeviceModule;
+  Mode mode;
 
-  // The set of global variables used in each function. The keys in the map
-  // are device functions.
-  std::map<Function*, std::vector<GlobalVariable*>> usedGlobals;
-
-  // The struct types for each function that will contain all the global
-  // variables that have been localized. The keys in the map are device
-  // functions.
-  std::map<Function*, StructType*> closureTypes;
-
-  // Maps the device globals to the corresponding host globals.
+  // Maps the device globals to the corresponding host globals. If an entry
+  // for a device global variable does not exit in this map, then it is
+  // assumed to be the same as the host. This is only true when the host and
+  // device module are the same.
   DeviceToHostMap deviceToHostMap;
-
-  // Maps the original device function to the new device function with an
-  // additional parameter for the global closure.
-  std::map<Function*, Function*> localizedFuncs;
 
 private:
   // Convert ConstantExpr's to Instruction in a single function. Return true if
@@ -114,31 +122,32 @@ private:
   constantExprToInstruction(Function &F);
 
   Function& cloneFunction(Function &F,
-                                StructType* ClosureType);
+                          StructType* ConstClosureType,
+                          StructType* NonConstClosureType);
 
-  StructType* createClosureType(Function &F);
+  // Create the closure type. If isConst is true, the closure type will only
+  // be for locally-const globals, otherwise, it will be only for non-const
+  // globals.
+  StructType* createClosureType(Function &F, bool isConst);
 
   // Update the call at the given instruction to call the localized function.
   void fixCallToLocalizedFunction(CallBase& Call, Function& DeviceF);
 
 public:
+  friend class LocalizeGlobalsImpl;
+
+public:
   // The module is the device module.
   LocalizeGlobals(Module& DeviceModule,
+                  LocalizeGlobals::Mode mode,
                   const DeviceToHostMap &deviceToHostMap = DeviceToHostMap());
 
-  // Localize the globals in the given device function. Return true if at
-  // least one global variable was localized, false otherwise. If no globals
-  // were localized, a new device function with an additional parameter is not
-  // needed or created.
-  bool localizeGlobalsInDeviceFunction(Function& F);
+  // Preprocess the function prior to localizing globals. This must be called
+  // before localizeGlobalsInDeviceFunction. This is intended to find the
+  // locally-const and non-const global variables used in the function.
+  void preProcessDeviceFunction(Function& f);
 
-  // Modify the callers of the given device function in the given host module
-  // to pass a global closure. This assumes that the globals in the device
-  // function have already been localized. If the device function does not
-  // access any global variables, the host module will be unchanged. Returns
-  // true if the host module was changed.
-  bool fixCallsToLocalizedFunction(Function& F,
-                                   Module& HostModule);
+  bool localizeGlobalsInDeviceFunction(Function& F);
 
   StructType* getClosureTypeForDeviceFunction(Function& F);
   std::vector<GlobalVariable*> getHostGlobalsUsedByDeviceFunction(Function& F);
