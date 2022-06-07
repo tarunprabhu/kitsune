@@ -7,23 +7,26 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This is the Tapir to CUDA transformation that targets the direct CUDA 
-// support in the Kitsune runtime API.  The transform currently targets 
-// ahead-of-time (non-JIT) code generation and should allow cross-compilation 
-// on systems without a local GPU -- as long as the CUDA toolchain is 
-// available. 
-// 
+// This is the Tapir to CUDA transformation that targets the direct CUDA
+// support in the Kitsune runtime API.  The transform currently targets
+// ahead-of-time (non-JIT) code generation and should allow cross-compilation
+// on systems without a local GPU -- as long as the CUDA toolchain is
+// available.
+//
 //===----------------------------------------------------------------------===//
 #ifndef TapirCuda_ABI_H_
 #define TapirCuda_ABI_H_
 
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
+#include "llvm/Support/ToolOutputFile.h"
 
 namespace llvm {
 
 class TargetMachine;
 class CudaLoop;
+
+typedef std::unique_ptr<ToolOutputFile> CudaABIOutputFile;
 
 class CudaABI : public TapirTarget {
 
@@ -60,8 +63,18 @@ public:
   void processSubTaskCall(TaskOutlineInfo &TOI,
                           DominatorTree &DT) override final;
 
+  void postProcessModule(Module &M) override final;
+
   LoopOutlineProcessor *getLoopOutlineProcessor(const TapirLoopInfo *TL)
-                                                const override final;
+                          override final;
+
+  void addToPTXFileList(const std::string &PTXFilename);
+
+  private:
+    CudaABIOutputFile postProcessPTXFiles(Module &TM);
+    CudaABIOutputFile postProcessAsmFile(CudaABIOutputFile &AsmFile,
+                                         Module &TM);
+    std::list<std::string> PTXFileList;
 };
 
 /// The loop outline process for transforming a Tapir parallel loop
@@ -81,11 +94,15 @@ class CudaLoop : public LoopOutlineProcessor {
   friend class CudaABI;
 
 private:
-  static unsigned NextKernelID;       // Give the generated kernel a unique ID.
-  unsigned KernelID;                  // Unique ID for this transformed loop.
-  std::string KernelName;             // A unique name for the kernel.
-  Module  KernelModule;                // PTX module holds the generated kernel(s).
+  CudaABI *TTarget = nullptr;
+  static unsigned NextKernelID;    // Give the generated kernel a unique ID.
+  unsigned KernelID;               // Unique ID for this transformed loop.
+  std::string KernelName;          // A unique name for the kernel.
+  Module  KernelModule;            // PTX module holds the generated kernel(s).
   TargetMachine  *PTXTargetMachine;
+
+  typedef std::list<GlobalVariable*> GlobalVarListTy;
+  GlobalVarListTy GVarList;
 
   bool Valid = false;
 
@@ -111,21 +128,28 @@ private:
 
   // Kitsune Cuda-centric runtime entry points.
   FunctionCallee KitCudaInitFn   = nullptr;
+  FunctionCallee KitCudaCtxCheckFn = nullptr;
   FunctionCallee KitCudaLaunchFn = nullptr;
+  FunctionCallee KitCudaLaunchModuleFn = nullptr;
   FunctionCallee KitCudaWaitFn   = nullptr;
   FunctionCallee KitCudaMemPrefetchFn = nullptr;
   FunctionCallee KitCudaSetDefaultTBPFn = nullptr;
   FunctionCallee KitCudaSetDefaultLaunchParamsFn = nullptr;
+  FunctionCallee KitCudaCreateFBModuleFn = nullptr;
+  FunctionCallee KitCudaGetGlobalSymbolFn = nullptr;
+  FunctionCallee KitCudaMemcpySymbolToDeviceFn = nullptr;
+
+  GlobalVariable *GpuBinaryHandle = nullptr;
 
   bool emitFatBinary();
   std::string createPTXFile();
   std::string createFatBinaryFile(const std::string &PTXFileName);
-
   SmallVector<Value *, 5> OrderedInputs;
 
 public:
-  CudaLoop(Module &M, 
-           const std::string &KernelName, 
+  CudaLoop(Module &M,
+           const std::string &KernelName,
+           CudaABI *TT = nullptr,
            bool MakeUniqueName = true);
   ~CudaLoop();
 
@@ -148,7 +172,7 @@ public:
   void setValid(bool flag) { Valid = flag; }
   bool isValid() const { return Valid; }
 
-  Constant * createConstantStr(const std::string &Str, 
+  Constant * createConstantStr(const std::string &Str,
                                const std::string &Name = "",
                                const std::string &SectionName = "",
                                unsigned Alignment = 0);
@@ -161,9 +185,10 @@ public:
 
   Constant *createKernelBuffer();
   Function *createCudaCtor(Constant *FatBinaryPtr);
-  Function *createCudaDtor(GlobalVariable *BinHandle);
+  Function *createCudaDtor();
+  void bindGlobalVars(Value *CudaModule, IRBuilder<> &B);
 
-  void preProcessTapirLoop(TapirLoopInfo &TL, 
+  void preProcessTapirLoop(TapirLoopInfo &TL,
                            ValueToValueMapTy &VMap);
 
   void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo & Out,

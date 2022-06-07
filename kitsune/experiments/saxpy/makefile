@@ -28,10 +28,8 @@ saxpy-forall.cuda.${host_arch}: saxpy-forall.cpp
 
 clean:
 	-rm -f *.${host_arch}
-	-rm -f *.fatbin
+	-rm -f *.fbin *.s *.ptx *.ll 
 	-rm -rf *-cfg-tmp
 	-rm -f *.bc
 	-rm -f *.fatbin
-
-realclean:
-	-rm -f *.ll *.ptx *.csv *.log
+	-rm -f *.csv *.log *.s 

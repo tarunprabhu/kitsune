@@ -154,8 +154,8 @@ void computeTempForall(const float *pIn,
     
     for(unsigned z = 0; z < nz; z++) {
       // launch a parallel computation over an nx-by-nz slice...
-      forall(unsigned y = 0; y < ny; y++) {
-	forall(unsigned x = 0; x < nx; x++) {
+      for(unsigned y = 0; y < ny; y++) {
+	for(unsigned x = 0; x < nx; x++) {
 	  int c, w, e, n, s, b, t;      
 	  c =  x + y * nx + z * nx * ny;
 	  w = c - 1 * (x != 0);
