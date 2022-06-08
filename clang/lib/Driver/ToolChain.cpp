@@ -41,6 +41,8 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
+#include "llvm/Support/TargetParser.h"
 #include "llvm/Support/VersionTuple.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/TargetParser/AArch64TargetParser.h"
@@ -1708,6 +1710,7 @@ void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
     if (IsLTO)
       CmdArgs.push_back(
           Args.MakeArgString("--plugin-opt=opencilk-abi-bitcode=" + P));
+    return; 
   }
 
   bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
@@ -1721,6 +1724,12 @@ void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
                                            *OpenCilkABIBCFilename));
     return;
   }
+
+  // Check if libopencilk is in LD_LIBRARY_PATH, and if it is, we're OK
+  if(llvm::sys::Process::FindInEnvPath("LD_LIBRARY_PATH", "libopencilk-abi.bc").hasValue()){
+    return;
+  }
+
 
   // Error if we could not find a bitcode file.
   getDriver().Diag(diag::err_drv_opencilk_missing_abi_bitcode)
