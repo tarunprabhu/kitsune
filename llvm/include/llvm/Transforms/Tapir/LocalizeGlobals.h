@@ -100,57 +100,44 @@ public:
     // The globals are not combined into a single closure. Each is passed as an
     // additional parameter to the kernel. Locally-const globals are passed by
     // value. Non-const globals are passed by reference.
-    Individiual,
+    Individual,
   };
 
-public:
   using DeviceToHostMap =
       std::map<llvm::GlobalVariable *, llvm::GlobalVariable *>;
 
-  Mode mode;
-
-  // Maps the device globals to the corresponding host globals. If an entry
-  // for a device global variable does not exit in this map, then it is
-  // assumed to be the same as the host. This is only true when the host and
-  // device module are the same.
-  DeviceToHostMap deviceToHostMap;
+  using GlobalVariables = std::vector<GlobalVariable*>;
 
 private:
-  // Convert ConstantExpr's to Instruction in a single function. Return true if
-  // at least one ConstantExpr was replaced, false otherwise.
-  bool
-  constantExprToInstruction(Function &F);
+  Mode mode;
+  Module& DeviceModule;
 
-  Function& cloneFunction(Function &F,
-                          StructType* ConstClosureType,
-                          StructType* NonConstClosureType);
-
-  // Create the closure type. If isConst is true, the closure type will only
-  // be for locally-const globals, otherwise, it will be only for non-const
-  // globals.
-  StructType* createClosureType(Function &F, bool isConst);
-
-  // Update the call at the given instruction to call the localized function.
-  void fixCallToLocalizedFunction(CallBase& Call, Function& DeviceF);
+  // Maps the device globals to the corresponding host globals. All global
+  // variables from the device module must have an entry in this map.
+  DeviceToHostMap deviceToHostMap;
 
 public:
   friend class LocalizeGlobalsImpl;
 
 public:
-  // The module is the device module.
-  LocalizeGlobals(Module& DeviceModule,
-                  LocalizeGlobals::Mode mode,
-                  const DeviceToHostMap &deviceToHostMap = DeviceToHostMap());
+  // This constructor is used when the host and device modules are the same
+  // and all named globals in the module are to be localized.
+  LocalizeGlobals(LocalizeGlobals::Mode mode, Module& M);
 
-  // Preprocess the function prior to localizing globals. This must be called
-  // before localizeGlobalsInDeviceFunction. This is intended to find the
-  // locally-const and non-const global variables used in the function.
-  void preProcessDeviceFunction(Function& f);
+  // This constructor is used when all named globals in the host module need to
+  // be localized in the device module.
+  LocalizeGlobals(LocalizeGlobals::Mode mode, Module &DeviceModule,
+                  Module &HostModule);
 
-  bool localizeGlobalsInDeviceFunction(Function& F);
+  // This constructor is used when only a subset of the variables in the
+  // device module need to be localized. This is useful in cases where the host
+  // and device modules are the same but only the global variables used in some
+  // function(s) need to be localized.
+  LocalizeGlobals(LocalizeGlobals::Mode mode, Module &DeviceModule,
+                  const GlobalVariables &HostGlobals);
 
-  StructType* getClosureTypeForDeviceFunction(Function& F);
-  std::vector<GlobalVariable*> getHostGlobalsUsedByDeviceFunction(Function& F);
+  bool localizeGlobalsInDeviceFunction(Function& DeviceFunction,
+                                       Module& HostModule);
 };
 
 } // namespace llvm

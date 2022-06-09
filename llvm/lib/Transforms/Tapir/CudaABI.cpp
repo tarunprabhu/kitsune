@@ -158,7 +158,7 @@ CodeGenDisablePrefetch("cuabi-disable-prefetch", cl::init(false),
 /// Pass the globals used by a kernel as a kernel argument. This effectively
 /// carries out a copy-in-copy-out of all the global variables (constant
 /// global variables are copied in, but not copied out)
-static cl::opt<bool> LocalizeGlobalsEnable(
+static cl::opt<bool> LocalizeGlobalsEnabled(
     "cuabi-localize-globals", cl::init(false), cl::Hidden,
     cl::desc("Pass the global variables used by a kernel as "
              "an additional parameter(s)."));
@@ -172,20 +172,19 @@ static cl::opt<size_t> LocalizeGlobalsMaxSize(
              "passed as additional parameters to the kernel."));
 
 /// The mode by which used globals are passed to the kernel.
-static cl::opt<string> LocalizeGlobalsMode(
-    "cuabi-localize-globals-mode",
-    cl::Hidden,
+static cl::opt<LocalizeGlobals::Mode> LocalizeGlobalsMode(
+    "cuabi-localize-globals-mode", cl::Hidden,
     cl::init(LocalizeGlobals::RefStruct),
     cl::desc("The mode by which the global closure is passed to the kernel."),
     cl::values(
-        clEnumVal(LocalizeGlobals::ValueStruct,
+        clEnumVal(LocalizeGlobals::Mode::ValueStruct,
                   "Combine the globals into a struct. The closure of locally "
                   "constant globals is passed by value. The closure of "
                   "non-const globals is passed by reference"),
-        clEnumVal(LocalizeGlobals::RefStruct,
+        clEnumVal(LocalizeGlobals::Mode::RefStruct,
                   "Combine the globals into a struct and pass the struct by "
                   "reference."),
-        clEnumVal(LocalizeGlobals::Individual,
+        clEnumVal(LocalizeGlobals::Mode::Individual,
                   "Pass the globals as additional parameters to the kernel "
                   "individually. Locally const globals are passed by value. "
                   "Non-const globals are passed by reference.")));
@@ -768,13 +767,6 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
   // need to be cloned into the KernelModule.
   std::set<GlobalValue*> usedGlobalValues;
 
-  // Reverse map going from device global to host global. It would be useful
-  // to just use the ValueToValueMap VMap and reverse it, but that type uses
-  // a const llvm::Value* as the key which is not usable. Of course, one could
-  // just cast away the const, but that is seldom a great idea. So it'll be
-  // done this way at the expense of a bit more memory being used.
-  LocalizeGlobals::DeviceToHostMap deviceToHostMap;
-
   Loop& loop = *TL.getLoop();
 
   for (Loop* subloop : loop)
@@ -820,8 +812,6 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
                              g->isExternallyInitialized());
       newg->copyAttributesFrom(g);
       VMap[g] = newg;
-      if (LocalizeGlobalsEnabled)
-        deviceToHostMap[newg] = g;
     } else if (GlobalAlias *a = dyn_cast<GlobalAlias>(v)) {
       llvm_unreachable("kitsune: GlobalAlias not implemented.");
     }
@@ -852,8 +842,14 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
     }
   }
 
-  if (LocalizeGlobalsEnabled)
-    localizeGlobals.reset(new LocalizeGlobals(KernelModule, deviceToHostMap));
+  if (LocalizeGlobalsEnabled) {
+    std::vector<GlobalVariable*> localize;
+    for (GlobalValue* V : usedGlobalValues)
+      if (GlobalVariable* GV = dyn_cast<GlobalVariable>(V))
+        localize.push_back(GV);
+    localizeGlobals.reset(new LocalizeGlobals(LocalizeGlobalsMode, KernelModule,
+                                              localize));
+  }
 }
 
 void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
@@ -1535,10 +1531,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
     assert(KernelFunc && "Could not find kernel function.");
 
     LLVM_DEBUG(dbgs() << "Localizing global variables in device\n");
-    localizeGlobals->localizeGlobalsInDeviceFunction(*KernelFunc);
-
-    LLVM_DEBUG(dbgs() << "Fixing calls to localized kernel in host\n");
-    localizeGlobals->fixCallsToLocalizedFunction(*KernelFunc, M);
+    localizeGlobals->localizeGlobalsInDeviceFunction(*KernelFunc, M);
   }
 
   Function *Parent = TOI.ReplCall->getFunction();
