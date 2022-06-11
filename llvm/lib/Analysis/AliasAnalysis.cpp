@@ -313,7 +313,7 @@ static bool effectivelyArgMemOnly(const CallBase *Call, AAQueryInfo &AAQI) {
 ModRefInfo AAResults::getModRefInfo(const CallBase *Call,
                                     const MemoryLocation &Loc,
                                     bool SameSpindle) {
-  AAQueryInfo AAQIP;
+  SimpleAAQueryInfo AAQIP;
   AAQIP.AssumeSameSpindle = SameSpindle;
   return getModRefInfo(Call, Loc, AAQIP);
 }
@@ -885,7 +885,11 @@ ModRefInfo AAResults::getModRefInfo(const DetachInst *D,
 
 ModRefInfo AAResults::getModRefInfo(const SyncInst *S,
                                     const MemoryLocation &Loc) {
+<<<<<<< HEAD
   SimpleAAQueryInfo AAQIP(*this);
+=======
+  SimpleAAQueryInfo AAQIP;
+>>>>>>> 9261c6b33cf6 (Bug fixes for rebase onto LLVM 14.0.5)
   return getModRefInfo(S, Loc, AAQIP);
 }
 
