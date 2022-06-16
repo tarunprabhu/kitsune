@@ -67,6 +67,9 @@ extern "C" {
   /// subsequent calls are essentially no-ops.
   bool __kitrt_cuInit();
 
+  /// Clean up and destroy runtime components.
+  void __kitrt_cuDestroy();
+
   /// Provide a set of launch parameters for the next kernel
   /// to be launched after this call.  If these values are not
   /// provided, the runtime will use a simple (commonly used)

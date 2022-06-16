@@ -97,6 +97,8 @@ declare(cuDeviceGetCount);
 declare(cuDeviceGet);
 declare(cuCtxCreate_v2);
 declare(cuDevicePrimaryCtxRetain);
+declare(cuDevicePrimaryCtxRelease_v2);
+declare(cuDevicePrimaryCtxReset_v2);
 declare(cuCtxDestroy_v2);
 declare(cuCtxSetCurrent);
 declare(cuCtxPushCurrent_v2);
@@ -191,6 +193,8 @@ static bool __kitrt_load_dlsyms() {
     DLSYM_LOAD(cuDeviceGetCount);
     DLSYM_LOAD(cuDeviceGet);
     DLSYM_LOAD(cuDevicePrimaryCtxRetain);
+    DLSYM_LOAD(cuDevicePrimaryCtxRelease_v2);
+    DLSYM_LOAD(cuDevicePrimaryCtxReset_v2);
     DLSYM_LOAD(cuCtxCreate_v2);
     DLSYM_LOAD(cuCtxDestroy_v2);
     DLSYM_LOAD(cuCtxSetCurrent);
@@ -264,6 +268,22 @@ bool __kitrt_cuInit() {
   CU_SAFE_CALL(cuCtxSetCurrent_p(_kitrtCUcontext));
   _kitrtIsInitialized = true;
   return _kitrtIsInitialized;
+}
+
+extern "C" void __kitrt_cuDestroy() {
+  // Note that this call will destroy the context regardless of how many
+  // threads might be using it.  It is also assumed there will be no calls
+  // using the context when destroy is called -- thus when we transition to
+  // supporting more complex streams we will need to revisit the details
+  // here.
+  //
+  // Note that all resources associated with the context will be destroyed.
+  CU_SAFE_CALL(cuDevicePrimaryCtxRelease_v2_p(_kitrtCUdevice));
+  // This might be unfriendly in the grand scheme of things so be careful
+  // how and when you call this...
+  CU_SAFE_CALL(cuDevicePrimaryCtxReset_v2_p(_kitrtCUdevice));
+  // We can't destroy the primary context...
+  //CU_SAFE_CALL(cuCtxDestroy_v2_p(_kitrtCUcontext));
 }
 
 extern "C" void __kitrt_cuSetCustomLaunchParameters(unsigned BlocksPerGrid,

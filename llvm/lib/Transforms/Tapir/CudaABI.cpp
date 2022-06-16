@@ -1753,6 +1753,11 @@ Function *CudaABI::createDtor(GlobalVariable *FBHandle) {
   Value *HandleValue = DtorBuilder.CreateAlignedLoad(
       VoidPtrPtrTy, FBHandle, DL.getPointerABIAlignment(0));
   DtorBuilder.CreateCall(UnregisterFatbinFn, HandleValue);
+
+  FunctionCallee KitRTDestroyFn = M.getOrInsertFunction("__kitrt_cuDestroy",
+                                                        VoidTy);
+  DtorBuilder.CreateCall(KitRTDestroyFn, {});
+
   DtorBuilder.CreateRetVoid();
   return DtorFn;
 }
