@@ -241,7 +241,8 @@ static bool __kitrt_load_dlsyms() {
   }
 }
 
-extern "C"
+extern "C" {
+
 bool __kitrt_cuInit() {
   if (_kitrtIsInitialized)
     return true;
@@ -270,13 +271,18 @@ bool __kitrt_cuInit() {
   return _kitrtIsInitialized;
 }
 
-extern "C" void __kitrt_cuDestroy() {
+void __kitrt_cuDestroy() {
   // Note that this call will destroy the context regardless of how many
   // threads might be using it.  It is also assumed there will be no calls
   // using the context when destroy is called -- thus when we transition to
   // supporting more complex streams we will need to revisit the details
   // here.
   //
+
+  for(auto &AM: _kitrtAllocMap) {
+    cuMemFree_v2_p((CUdeviceptr)AM.first);
+  }
+
   // Note that all resources associated with the context will be destroyed.
   CU_SAFE_CALL(cuDevicePrimaryCtxRelease_v2_p(_kitrtCUdevice));
   // This might be unfriendly in the grand scheme of things so be careful
@@ -286,58 +292,58 @@ extern "C" void __kitrt_cuDestroy() {
   //CU_SAFE_CALL(cuCtxDestroy_v2_p(_kitrtCUcontext));
 }
 
-extern "C" void __kitrt_cuSetCustomLaunchParameters(unsigned BlocksPerGrid,
+void __kitrt_cuSetCustomLaunchParameters(unsigned BlocksPerGrid,
                                                     unsigned ThreadsPerBlock) {
   _kitrtUseCustomLaunchParameters = true;
   _kitrtDefaultBlocksPerGrid = BlocksPerGrid;
   _kitrtDefaultThreadsPerBlock = ThreadsPerBlock;
 }
 
-extern "C" void __kitrt_cuSetDefaultThreadsPerBlock(unsigned ThreadsPerBlock) {
+void __kitrt_cuSetDefaultThreadsPerBlock(unsigned ThreadsPerBlock) {
   _kitrtDefaultThreadsPerBlock = ThreadsPerBlock;
 }
 
-extern "C" void __kitrt_cuEnableEventTiming() {
+void __kitrt_cuEnableEventTiming() {
   _kitrtEnableTiming = true;
 }
 
-extern "C" void __kitrt_cuDisableEventTiming() {
+void __kitrt_cuDisableEventTiming() {
   _kitrtEnableTiming = false;
 }
 
-extern "C" void __kitrt_cuToggleEventTiming() {
+void __kitrt_cuToggleEventTiming() {
   _kitrtEnableTiming = _kitrtEnableTiming ? false : true;
 }
 
-extern "C" void* __kitrt_cuCreateEvent() {
+void* __kitrt_cuCreateEvent() {
   CUevent e;
   CU_SAFE_CALL(cuEventCreate_p(&e, CU_EVENT_DEFAULT));
   return (void*)e;
 }
 
-extern "C" void __kitrt_cuRecordEvent(void *E) {
+void __kitrt_cuRecordEvent(void *E) {
   assert(E && "__kitrt_cuRecordEvent() null event!");
   CU_SAFE_CALL(cuEventRecord_p((CUevent)E, 0));
 }
 
-extern "C" void __kitrt_cuSynchronizeEvent(void *E) {
+void __kitrt_cuSynchronizeEvent(void *E) {
   assert(E && "__kitrt_cuSynchronizeEvent() null event!");
   CU_SAFE_CALL(cuEventSynchronize_p((CUevent)E));
 }
 
-extern "C" void __kitrt_cuDestroyEvent(void *E) {
+void __kitrt_cuDestroyEvent(void *E) {
   assert(E && "__kitrt_cuEventDestroy() null event!");
   CU_SAFE_CALL(cuEventDestroy_v2_p((CUevent)E));
 }
 
-extern "C" float __kitrt_cuElapsedEventTime(void *start, void *stop) {
+float __kitrt_cuElapsedEventTime(void *start, void *stop) {
   assert(start && "__kitrt_cuElapsedEventTime() null starting event");
   float msecs;
   CU_SAFE_CALL(cuEventElapsedTime_p(&msecs, (CUevent)start, (CUevent)stop));
   return(msecs/1000.0f);
 }
 
-extern "C" bool __kitrt_cuIsMemManaged(void *vp) {
+bool __kitrt_cuIsMemManaged(void *vp) {
   assert(vp && "__kitrt_cuIsMemManaged() null data pointer!");
   CUdeviceptr devp = (CUdeviceptr)vp;
 
@@ -354,18 +360,18 @@ extern "C" bool __kitrt_cuIsMemManaged(void *vp) {
     return false;
 }
 
-extern "C" void __kitrt_cuMemPrefetchIfManaged(void *vp, size_t size) {
+void __kitrt_cuMemPrefetchIfManaged(void *vp, size_t size) {
   if (__kitrt_cuIsMemManaged(vp))
     __kitrt_cuMemPrefetchAsync(vp, size);
 }
 
-extern "C" void __kitrt_cuMemPrefetchAsync(void *vp, size_t size) {
+void __kitrt_cuMemPrefetchAsync(void *vp, size_t size) {
   assert(vp && "__kitrt_cuMemPrefetchAsync() null data pointer!");
   CUdeviceptr devp = (CUdeviceptr)vp;
   CU_SAFE_CALL(cuMemPrefetchAsync_p(devp, size, _kitrtCUdevice, NULL));
 }
 
-extern "C" void __kitrt_cuMemPrefetch(void *vp) {
+void __kitrt_cuMemPrefetch(void *vp) {
   assert(vp && "__kitrt_cmMemPrefetch() null data pointer!");
   size_t size = __kitrt_getMemAllocSize(vp);
   // TODO: In theory -- but perhaps not practice -- we should only get a
@@ -379,7 +385,6 @@ extern "C" void __kitrt_cuMemPrefetch(void *vp) {
             "pointer.\n");
 }
 
-extern "C"
 void *__kitrt_cuMemAllocManaged(size_t size) {
   //(void)__kitrt_cuInit();
   CUdeviceptr devp;
@@ -388,7 +393,7 @@ void *__kitrt_cuMemAllocManaged(size_t size) {
   return (void *)devp;
 }
 
-extern "C" void __kitrt_cuMemFree(void *vp) {
+void __kitrt_cuMemFree(void *vp) {
     assert(vp && "__kitrt_cuMemFree() null data pointer!");
     if (__kitrt_unregisterMemAlloc(vp)) {
       // TODO: we shold probably do something more here than ignore a 'false' unregister call.
@@ -397,7 +402,6 @@ extern "C" void __kitrt_cuMemFree(void *vp) {
     }
 }
 
-extern "C"
 void __kitrt_cuAdviseRead(void *vp, size_t size) {
   CUdeviceptr devp = (CUdeviceptr)vp;
   CU_SAFE_CALL(cuMemAdvise_p(devp, size, CU_MEM_ADVISE_SET_READ_MOSTLY, _kitrtCUdevice));
@@ -405,7 +409,6 @@ void __kitrt_cuAdviseRead(void *vp, size_t size) {
 }
 
 
-extern "C"
 void __kitrt_cuMemcpySymbolToDevice(void *hostPtr,
                                     uint64_t devPtr,
                                     size_t size) {
@@ -444,7 +447,6 @@ static void __kitrt_cuGetLaunchParameters(size_t &threadsPerBlock,
 }
 
 
-extern "C"
 void *__kitrt_cuCreateFBModule(const void *fatBin) {
   assert(fatBin && "request to create module from null fatbinary!");
   CUmodule module;
@@ -453,7 +455,6 @@ void *__kitrt_cuCreateFBModule(const void *fatBin) {
   return (void*)module;
 }
 
-extern "C"
 uint64_t __kitrt_cuGetGlobalSymbol(const char *SN, void *CM) {
   assert(SN && "null symbol name (SN)!");
   assert(CM && "null (opaque) CUDA module");
@@ -468,7 +469,6 @@ uint64_t __kitrt_cuGetGlobalSymbol(const char *SN, void *CM) {
 }
 
 
-extern "C"
 void *__kitrt_cuLaunchModuleKernel(void *mod,
                                    const char *kernelName,
                                    void **fatBinArgs,
@@ -521,7 +521,6 @@ void *__kitrt_cuLaunchModuleKernel(void *mod,
 }
 
 
-extern "C"
 void *__kitrt_cuStreamLaunchFBKernel(const void *fatBin,
                                      const char *kernelName,
                                      void **fatBinArgs,
@@ -582,7 +581,7 @@ void *__kitrt_cuStreamLaunchFBKernel(const void *fatBin,
   return (void *)stream;
 }
 
-extern "C" void *__kitrt_cuLaunchFBKernel(const void *fatBin,
+void *__kitrt_cuLaunchFBKernel(const void *fatBin,
                                           const char *kernelName,
                                           void **fatBinArgs,
                                           uint64_t numElements) {
@@ -653,7 +652,6 @@ extern "C" void *__kitrt_cuLaunchFBKernel(const void *fatBin,
 // TODO: This call currently uses a hard-coded kernel name in the
 // launch.  Once that is fixed in the ABI code, we can repalce this
 // call with the FB ("fat binary") launch call above...
-extern "C"
 void *__kitrt_cuLaunchELFKernel(const void *elf,
                                 void **args,
                                 size_t numElements) {
@@ -672,7 +670,6 @@ void *__kitrt_cuLaunchELFKernel(const void *elf,
   return stream;
 }
 
-extern "C"
 void *__kitrt_cuLaunchKernel(llvm::Module &m, void **args, size_t n) {
   std::string ptx = __kitrt_cuLLVMtoPTX(m, _kitrtCUdevice);
   void *elf = __kitrt_cuPTXtoELF(ptx.c_str());
@@ -680,7 +677,6 @@ void *__kitrt_cuLaunchKernel(llvm::Module &m, void **args, size_t n) {
   return __kitrt_cuLaunchELFKernel(elf, args, n);
 }
 
-extern "C"
 void __kitrt_cuStreamSynchronize(void *vs) {
   if (_kitrtEnableTiming)
     return; // TODO: In theory we sync'ed at kernel launch to time
@@ -696,7 +692,6 @@ void __kitrt_cuStreamSynchronize(void *vs) {
   }
 }
 
-extern "C"
 void __kitrt_cuCheckCtxState() {
   if (_kitrtIsInitialized) {
     CUcontext c;
@@ -712,3 +707,4 @@ void __kitrt_cuCheckCtxState() {
   }
 }
 
+} // extern "C"
