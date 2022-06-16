@@ -1688,7 +1688,7 @@ llvm::Constant *ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
   }
   InConstantContext = D.hasConstantInitialization();
 
-  QualType destType = D.getType();
+  QualType destType = D.getType().stripHyperobject();
   const Expr *E = D.getInit();
   assert(E && "No initializer to emit");
 
@@ -1785,7 +1785,7 @@ llvm::Constant *ConstantEmitter::tryEmitPrivate(const Expr *E,
     Success = E->EvaluateAsRValue(Result, CGM.getContext(), InConstantContext);
 
   if (Success && !Result.HasSideEffects)
-    return tryEmitPrivate(Result.Val, destType);
+    C = tryEmitPrivate(Result.Val, destType);
 
   return nullptr;
 }

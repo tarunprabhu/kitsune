@@ -2097,6 +2097,8 @@ public:
                               SourceLocation AttrLoc);
   QualType BuildMatrixType(QualType T, Expr *NumRows, Expr *NumColumns,
                            SourceLocation AttrLoc);
+  QualType BuildHyperobjectType(QualType Element, Expr *Identity, Expr *Reduce,
+                                Expr *Destroy, SourceLocation Loc);
 
   QualType BuildAddressSpaceAttr(QualType &T, LangAS ASIdx, Expr *AddrSpace,
                                  SourceLocation AttrLoc);
@@ -5705,6 +5707,9 @@ public:
                    NamedDecl *FoundD = nullptr,
                    SourceLocation TemplateKWLoc = SourceLocation(),
                    const TemplateArgumentListInfo *TemplateArgs = nullptr);
+
+  Expr *BuildHyperobjectLookup(Expr *, bool Pointer = false);
+  Expr *ValidateReducerCallback(Expr *E, unsigned NumArgs);
 
   ExprResult
   BuildAnonymousStructUnionMemberReference(
