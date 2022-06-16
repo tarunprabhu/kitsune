@@ -1373,6 +1373,16 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
   return AsmFile;
 }
 
+// We can't create a correct launch sequence until all the kernels
+// within a (LLVM) module are generated.  When post-processing the
+// module we create the fatbinary and then to revisit the kernel
+// launch calls we created at the loop level and replace the fat
+// binary pointer/handle with the completed version.
+//
+// In addition, we must copy data for global variables from the
+// host to the device prior to kernel launches.  This requires
+// digging some additonal details out of the fat binary (CUDA
+// module).
 void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
 
   LLVM_DEBUG(dbgs() << "\tpatching kernel launch calls...\n");
@@ -1385,13 +1395,13 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
   Type *IntTy = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
 
+  // Look up a global (device-side) symbol via a module
+  // created from the fat binary.
   FunctionCallee KitCudaGetGlobalSymbolFn =
           M.getOrInsertFunction("__kitrt_cuGetGlobalSymbol",
                                 Int64Ty,  // device pointer
                                 CharPtrTy,  // symbol name
                                 VoidPtrTy); // CUDA module
-  FunctionCallee KitCudaCreateFBModuleFn =
-          M.getOrInsertFunction("__kitrt_cuCreateFBModule", VoidPtrTy, VoidPtrTy);
 
   FunctionCallee KitCudaMemcpyToDeviceFn =
           M.getOrInsertFunction("__kitrt_cuMemcpySymbolToDevice",
@@ -1400,7 +1410,19 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
                                 Int64Ty, // device ptr
                                 Int64Ty);  // num bytes
 
-  Value *CUMod = nullptr;
+
+  // There are two forms of kernel launch we need to search for.  The first
+  // is a kernel launch without any global variables in use.  In this case
+  // we have a simple replacement of the first parameter with the now complete
+  // fat binary.
+  //
+  // The second case is a kernel launch with globals.  In this case, we need to
+  // find the corresponding global within the fat binary and then issue a copy
+  // of the host side data to the device (prior to the kernel launch).
+  // Therefore this path is bit more complex as we have to find the creation of
+  // the CUDA module that requires the updated fat binary, then fetch the
+  // device pointer for each global, issue a corresponding memcpy, and then
+  // launch the kernel.
   auto &FnList = M.getFunctionList();
   for(auto &Fn : FnList) {
     for (auto &BB : Fn) {
@@ -1408,16 +1430,12 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
         if (CallInst *CI = dyn_cast<CallInst>(&I)) {
           if (Function *CFn = CI->getCalledFunction()) {
             if (CFn->getName().startswith("__kitrt_cuLaunchFBKernel")) {
-              LLVM_DEBUG(dbgs() << "\t\treplace fatbin parameter in fat binary "
-                                << "kernel launch.\n");
               Value *CFatbin;
               CFatbin = CastInst::CreateBitOrPointerCast(Fatbin, VoidPtrTy,
                                                          "_cubin.fatbin",
                                                          CI);
               CI->setOperand(0, CFatbin);
             } else if (CFn->getName().startswith("__kitrt_cuCreateFBModule")) {
-              LLVM_DEBUG(dbgs() << "\t\treplacing fatbin parameter in "
-                                << "module-based kernel launch.\n");
               Value *CFatbin;
               CFatbin = CastInst::CreateBitOrPointerCast(Fatbin, VoidPtrTy,
                                                          "_cubin.fatbin", CI);
