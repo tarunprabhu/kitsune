@@ -4268,6 +4268,12 @@ def Injective : InheritableAttr {
   let Documentation = [Undocumented];
 }
 
+def AvailableOnlyInDefaultEvalMethod : InheritableAttr {
+  let Spellings = [Clang<"available_only_in_default_eval_method">];
+  let Subjects = SubjectList<[TypedefName], ErrorDiag>;
+  let Documentation = [Undocumented];
+}
+
 def HyperView : InheritableAttr {
   let Spellings = [Clang<"hyper_view">];
   let Subjects = SubjectList<[FunctionLike]>;

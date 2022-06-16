@@ -3750,9 +3750,6 @@ QualType ASTContext::getVariableArrayDecayedType(QualType type) const {
     break;
   }
 
-  case Type::Hyperobject:
-    return getVariableArrayDecayedType(cast<HyperobjectType>(ty)->getElementType());
-
   case Type::ConstantArray: {
     const auto *cat = cast<ConstantArrayType>(ty);
     result = getConstantArrayType(
