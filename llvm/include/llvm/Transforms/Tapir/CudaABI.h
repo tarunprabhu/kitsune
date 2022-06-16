@@ -63,18 +63,39 @@ public:
   void processSubTaskCall(TaskOutlineInfo &TOI,
                           DominatorTree &DT) override final;
 
-  void postProcessModule(Module &M) override final;
+  void postProcessModule() override final;
 
   LoopOutlineProcessor *getLoopOutlineProcessor(const TapirLoopInfo *TL)
                           override final;
 
-  void addToPTXFileList(const std::string &PTXFilename);
+  void pushPTXFilename(const std::string &PTXFilename);
+
+  void pushGlobalVariable(GlobalVariable *GV);
+  bool hasGlobalVariables() const {
+    return !GlobalVars.empty();
+  }
+  int globalVarCount() const {
+    return GlobalVars.size();
+  }
 
   private:
-    CudaABIOutputFile postProcessPTXFiles(Module &TM);
-    CudaABIOutputFile postProcessAsmFile(CudaABIOutputFile &AsmFile,
-                                         Module &TM);
-    std::list<std::string> PTXFileList;
+    CudaABIOutputFile generatePTX();
+    CudaABIOutputFile assemblePTXFile(CudaABIOutputFile &PTXFile);
+    CudaABIOutputFile createFatbinaryFile(CudaABIOutputFile &AsmFile);
+    GlobalVariable *embedFatbinary(CudaABIOutputFile &FatbinaryFile);
+    void registerFatbinary(GlobalVariable *RawFatbinary);
+    void finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin);
+    void bindGlobalVariables(Value *CM, IRBuilder<> &B);
+    Function *createCtor(GlobalVariable *Fatbinary, GlobalVariable *Wrapper);
+    Function *createDtor(GlobalVariable *FBHandle);
+
+    typedef std::list<std::string> StringListTy;
+    StringListTy ModulePTXFileList;
+    typedef std::list<GlobalVariable *> GlobalVarListTy;
+    GlobalVarListTy GlobalVars;
+
+    Module   KM;
+    TargetMachine *PTXTargetMachine;
 };
 
 /// The loop outline process for transforming a Tapir parallel loop
@@ -98,15 +119,10 @@ private:
   static unsigned NextKernelID;    // Give the generated kernel a unique ID.
   unsigned KernelID;               // Unique ID for this transformed loop.
   std::string KernelName;          // A unique name for the kernel.
-  Module  KernelModule;            // PTX module holds the generated kernel(s).
-  TargetMachine  *PTXTargetMachine;
-
-  typedef std::list<GlobalVariable*> GlobalVarListTy;
-  GlobalVarListTy GVarList;
-
-  bool Valid = false;
+  Module  &KernelModule;           // PTX module holds the generated kernel(s).
 
   FunctionCallee GetThreadIdx = nullptr;
+
   // Cuda/PTX thread index access.
   Function *CUThreadIdxX  = nullptr,
            *CUThreadIdxY  = nullptr,
@@ -126,30 +142,20 @@ private:
   // Cuda thread synchronize
   Function *CUSyncThreads = nullptr;
 
-  // Kitsune Cuda-centric runtime entry points.
-  FunctionCallee KitCudaInitFn   = nullptr;
-  FunctionCallee KitCudaCtxCheckFn = nullptr;
   FunctionCallee KitCudaLaunchFn = nullptr;
   FunctionCallee KitCudaLaunchModuleFn = nullptr;
   FunctionCallee KitCudaWaitFn   = nullptr;
   FunctionCallee KitCudaMemPrefetchFn = nullptr;
-  FunctionCallee KitCudaSetDefaultTBPFn = nullptr;
-  FunctionCallee KitCudaSetDefaultLaunchParamsFn = nullptr;
   FunctionCallee KitCudaCreateFBModuleFn = nullptr;
   FunctionCallee KitCudaGetGlobalSymbolFn = nullptr;
   FunctionCallee KitCudaMemcpySymbolToDeviceFn = nullptr;
-
-  GlobalVariable *GpuBinaryHandle = nullptr;
-
-  bool emitFatBinary();
-  std::string createPTXFile();
-  std::string createFatBinaryFile(const std::string &PTXFileName);
   SmallVector<Value *, 5> OrderedInputs;
 
 public:
-  CudaLoop(Module &M,
-           const std::string &KernelName,
-           CudaABI *TT = nullptr,
+  CudaLoop(Module &M,   // Input module (host side)
+           Module &KM,  // Target module for CUDA code
+           const std::string &KernelName, // CUDA kernel name
+           CudaABI *TT, // Target
            bool MakeUniqueName = true);
   ~CudaLoop();
 
@@ -167,36 +173,21 @@ public:
                             const override final;
 
   std::string getKernelName() const { return KernelName; }
-  void updateKernelName(const std::string &N, bool addID = false);
-
-  void setValid(bool flag) { Valid = flag; }
-  bool isValid() const { return Valid; }
-
-  Constant * createConstantStr(const std::string &Str,
-                               const std::string &Name = "",
-                               const std::string &SectionName = "",
-                               unsigned Alignment = 0);
 
   unsigned getKernelID() const {
     return KernelID;
   }
 
-  void transformForPTX();
-
-  Constant *createKernelBuffer();
-  Function *createCudaCtor(Constant *FatBinaryPtr);
-  Function *createCudaDtor();
-  void bindGlobalVars(Value *CudaModule, IRBuilder<> &B);
-
   void preProcessTapirLoop(TapirLoopInfo &TL,
                            ValueToValueMapTy &VMap);
-
   void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo & Out,
                           ValueToValueMapTy &VMap) override final;
-
   void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo & TOI,
                                DominatorTree &DT) override final;
+  void transformForPTX();
+
 };
+
 }
 
 #endif

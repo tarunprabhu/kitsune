@@ -311,9 +311,7 @@ public:
 
   // Process a host module at the end of lowering all functions within the
   // module.
-  virtual void postProcessModule(Module &M) {
-    return;
-  };
+  virtual void postProcessModule() { return; };
 
   // Process a generated helper Function F produced via outlining, at the end of
   // the lowering process.

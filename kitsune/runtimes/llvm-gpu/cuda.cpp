@@ -52,6 +52,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+
+// TODO:
+//   * Need to do a better job tracking and freeing resources as necessary.
+//   * Need to ponder a path for better stream usage (probably related to
+//     more complex code generation on the compiler side).
+//
+//
+
 #include "kitrt-debug.h"
 #include "llvm-cuda.h"
 #include "kitrt-cuda.h"
@@ -63,7 +71,6 @@
 #include <sstream>
 #include <stdbool.h>
 
-
 // Has the runtime been initialized (successfully)?
 static bool _kitrtIsInitialized = false;
 static bool _kitrtEnableTiming = false;
@@ -73,27 +80,37 @@ static bool _kitrtUseCustomLaunchParameters = false;
 static CUdevice  _kitrtCUdevice = -1;
 static CUcontext _kitrtCUcontext = nullptr;
 
+
+// NOTE: Over a series of CUDA releases it is worthwhile to
+// check in on the header files for replacement versioned
+// entry points into the driver API.  These are typically
+// denoted with a '*_vN' naming scheme and don't always
+// play well with older entry points.  If you suddenly
+// start to see context errors this is certainly worth
+// digging into.  We are vulnerable to this issue because
+// we are loading dynamic symbols by name and must therefore
+// match version details explicity in the code.
 #define declare(name) extern decltype(name) *name##_p = NULL;
+
 declare(cuInit);
 declare(cuDeviceGetCount);
 declare(cuDeviceGet);
-
-declare(cuCtxCreate);
+declare(cuCtxCreate_v2);
 declare(cuDevicePrimaryCtxRetain);
-declare(cuCtxDestroy);
+declare(cuCtxDestroy_v2);
 declare(cuCtxSetCurrent);
-declare(cuCtxPushCurrent);
-declare(cuCtxPopCurrent);
+declare(cuCtxPushCurrent_v2);
+declare(cuCtxPopCurrent_v2);
 declare(cuCtxGetCurrent);
 declare(cuStreamCreate);
-//declare(cuStreamDestroy_v2);
+declare(cuStreamDestroy_v2);
 declare(cuStreamSynchronize);
 declare(cuLaunchKernel);
 declare(cuEventCreate);
 declare(cuEventRecord);
 declare(cuEventSynchronize);
 declare(cuEventElapsedTime);
-declare(cuEventDestroy);
+declare(cuEventDestroy_v2);
 declare(cuGetErrorName);
 declare(cuGetErrorString);
 declare(cuModuleLoadDataEx);
@@ -103,17 +120,15 @@ declare(cuModuleGetFunction);
 declare(cuModuleUnload);
 
 declare(cuMemAllocManaged);
-declare(cuMemFree);
+declare(cuMemFree_v2);
 declare(cuMemPrefetchAsync);
 declare(cuMemAdvise);
 declare(cuPointerGetAttribute);
 declare(cuDeviceGetAttribute);
 declare(cuCtxSynchronize);
-declare(cuModuleGetGlobal);
+declare(cuModuleGetGlobal_v2);
 declare(cuMemcpy);
-declare(cuMemcpyHtoD);
-
-// TODO: We could make these checks optional for optimized builds.
+declare(cuMemcpyHtoD_v2);
 
 #define CU_SAFE_CALL(x)                                      \
   {                                                          \
@@ -176,17 +191,15 @@ static bool __kitrt_load_dlsyms() {
     DLSYM_LOAD(cuDeviceGetCount);
     DLSYM_LOAD(cuDeviceGet);
     DLSYM_LOAD(cuDevicePrimaryCtxRetain);
-    DLSYM_LOAD(cuCtxCreate);
-    DLSYM_LOAD(cuCtxDestroy);
+    DLSYM_LOAD(cuCtxCreate_v2);
+    DLSYM_LOAD(cuCtxDestroy_v2);
     DLSYM_LOAD(cuCtxSetCurrent);
-    DLSYM_LOAD(cuCtxPushCurrent);
-    DLSYM_LOAD(cuCtxPopCurrent);
+    DLSYM_LOAD(cuCtxPushCurrent_v2);
+    DLSYM_LOAD(cuCtxPopCurrent_v2);
     DLSYM_LOAD(cuCtxGetCurrent);
 
-    //DLSYM_LOAD(cuCtxCreate_v2);
-    //DLSYM_LOAD(cuCtxDestroy_v2);
     DLSYM_LOAD(cuMemAllocManaged);
-    DLSYM_LOAD(cuMemFree);
+    DLSYM_LOAD(cuMemFree_v2);
     DLSYM_LOAD(cuMemPrefetchAsync);
     DLSYM_LOAD(cuMemAdvise);
 
@@ -194,11 +207,11 @@ static bool __kitrt_load_dlsyms() {
     DLSYM_LOAD(cuModuleLoadDataEx);
     DLSYM_LOAD(cuModuleLoadFatBinary);
     DLSYM_LOAD(cuModuleGetFunction);
-    DLSYM_LOAD(cuModuleGetGlobal);
+    DLSYM_LOAD(cuModuleGetGlobal_v2);
     DLSYM_LOAD(cuModuleUnload);
 
     DLSYM_LOAD(cuStreamCreate);
-    //DLSYM_LOAD(cuStreamDestroy_v2);
+    DLSYM_LOAD(cuStreamDestroy_v2);
     DLSYM_LOAD(cuStreamSynchronize);
     DLSYM_LOAD(cuLaunchKernel);
 
@@ -206,7 +219,7 @@ static bool __kitrt_load_dlsyms() {
     DLSYM_LOAD(cuEventRecord);
     DLSYM_LOAD(cuEventSynchronize);
     DLSYM_LOAD(cuEventElapsedTime);
-    DLSYM_LOAD(cuEventDestroy);
+    DLSYM_LOAD(cuEventDestroy_v2);
 
 
 
@@ -215,7 +228,7 @@ static bool __kitrt_load_dlsyms() {
     DLSYM_LOAD(cuCtxSynchronize);
 
     DLSYM_LOAD(cuMemcpy);
-    DLSYM_LOAD(cuMemcpyHtoD);
+    DLSYM_LOAD(cuMemcpyHtoD_v2);
     return true;
   } else {
     fprintf(stderr, "kitrt: Failed to load CUDA dynamic library.\n");
@@ -228,7 +241,6 @@ extern "C"
 bool __kitrt_cuInit() {
   if (_kitrtIsInitialized)
     return true;
-  fprintf(stderr, "called __kitrt_cuInit()...\n");
 
   if (!__kitrt_load_dlsyms()) {
     fprintf(stderr, "kitrt: Unable to resolve dynamic symbols for CUDA.\n");
@@ -294,8 +306,8 @@ extern "C" void __kitrt_cuSynchronizeEvent(void *E) {
 }
 
 extern "C" void __kitrt_cuDestroyEvent(void *E) {
-  assert(E && "__kitrt_cuEventDestory() null event!");
-  CU_SAFE_CALL(cuEventDestroy_p((CUevent)E));
+  assert(E && "__kitrt_cuEventDestroy() null event!");
+  CU_SAFE_CALL(cuEventDestroy_v2_p((CUevent)E));
 }
 
 extern "C" float __kitrt_cuElapsedEventTime(void *start, void *stop) {
@@ -342,13 +354,14 @@ extern "C" void __kitrt_cuMemPrefetch(void *vp) {
   if (size > 0)
     __kitrt_cuMemPrefetchAsync(vp, size);
   else
-    fprintf(stderr, "__kitrt: warning, prefetch requested but referenced pointer not found?\n");
+    fprintf(stderr,
+            "__kitrt: warning, prefetch requested for an unregistered "
+            "pointer.\n");
 }
 
 extern "C"
 void *__kitrt_cuMemAllocManaged(size_t size) {
-  fprintf(stderr, "called __kitrt_cuMemAllocManaged()...\n");
-  (void)__kitrt_cuInit();
+  //(void)__kitrt_cuInit();
   CUdeviceptr devp;
   CU_SAFE_CALL(cuMemAllocManaged_p(&devp, size, CU_MEM_ATTACH_HOST));
   __kitrt_registerMemAlloc((void*)devp, size);
@@ -360,10 +373,9 @@ extern "C" void __kitrt_cuMemFree(void *vp) {
     if (__kitrt_unregisterMemAlloc(vp)) {
       // TODO: we shold probably do something more here than ignore a 'false' unregister call.
       CUdeviceptr devp = (CUdeviceptr)vp;
-      CU_SAFE_CALL(cuMemFree_p(devp));
+      CU_SAFE_CALL(cuMemFree_v2_p(devp));
     }
 }
-
 
 extern "C"
 void __kitrt_cuAdviseRead(void *vp, size_t size) {
@@ -374,16 +386,16 @@ void __kitrt_cuAdviseRead(void *vp, size_t size) {
 
 
 extern "C"
-void __kitrt_cuMemcpySymbolToDevice(void *hostPtr, void *devSym, size_t size) {
-  (void)__kitrt_cuInit();
-  assert(devSym != nullptr &&
-         "__kitrt_cuMemcpySymbolToDevice() -- null device symbol pointer!");
+void __kitrt_cuMemcpySymbolToDevice(void *hostPtr,
+                                    uint64_t devPtr,
+                                    size_t size) {
+  assert(devPtr != 0 &&
+         "__kitrt_cuMemcpySymbolToDevice() -- null device pointer!");
   assert(hostPtr != nullptr &&
-         "__kitrt_cuMemcpySymbolToDevice() -- null host symbol pointer!");
+         "__kitrt_cuMemcpySymbolToDevice() -- null host pointer!");
   assert(size != 0 &&
          "__kitrt_cuMemcpySymbolToDevice() -- requested a 0 byte copy!");
-  CUdeviceptr DevPtr = (CUdeviceptr)devSym;
-  CU_SAFE_CALL(cuMemcpyHtoD_p(DevPtr, hostPtr, size));
+  CU_SAFE_CALL(cuMemcpyHtoD_v2_p(devPtr, hostPtr, size));
 }
 
 static void __kitrt_cuGetLaunchParameters(size_t &threadsPerBlock,
@@ -418,25 +430,21 @@ void *__kitrt_cuCreateFBModule(const void *fatBin) {
   CUmodule module;
   CU_SAFE_CALL(cuModuleLoadData_p(&module, fatBin));
   //CU_SAFE_CALL(cuModuleLoadFatBinary_p(&module, fatBin));
-  printf("global symbol module: %p\n", (void*)module);
   return (void*)module;
 }
 
 extern "C"
-void *__kitrt_cuGetGlobalSymbol(const char *SN, void *CM) {
+uint64_t __kitrt_cuGetGlobalSymbol(const char *SN, void *CM) {
   assert(SN && "null symbol name (SN)!");
   assert(CM && "null (opaque) CUDA module");
   CUmodule Module = (CUmodule)CM;
-  // NOTE: The device poitner and size ('bytes') parameters for
+  // NOTE: The device pointer and size ('bytes') parameters for
   // cuModuleGetGlobal are optional.  To simplify our code gen
   // work we ignore the size parameter (which is NULL below).
   CUdeviceptr DevPtr;
-  size_t nbytes;
-  fprintf(stderr, "kitrt_cuGetGlobalSymbol '%s'\n", SN);
-  CU_SAFE_CALL(cuModuleGetGlobal_p(&DevPtr, &nbytes, Module, SN));
-
-  //CU_SAFE_CALL(cuCtxPopCurrent_p(&_kitrtCUcontext));
-  return (void*)DevPtr;
+  size_t bytes;
+  CU_SAFE_CALL(cuModuleGetGlobal_v2_p(&DevPtr, &bytes, Module, SN));
+  return DevPtr;
 }
 
 
@@ -485,8 +493,8 @@ void *__kitrt_cuLaunchModuleKernel(void *mod,
     float msecs = 0;
     cuEventElapsedTime_p(&msecs, start, stop);
     printf("%.8lg\n", msecs / 1000.0);
-    cuEventDestroy_p(start);
-    cuEventDestroy_p(stop);
+    cuEventDestroy_v2_p(start);
+    cuEventDestroy_v2_p(stop);
   }
 
   return nullptr;
@@ -547,8 +555,8 @@ void *__kitrt_cuStreamLaunchFBKernel(const void *fatBin,
     float msecs = 0;
     cuEventElapsedTime_p(&msecs, start, stop);
     printf("%.8lg\n", msecs / 1000.0);
-    cuEventDestroy_p(start);
-    cuEventDestroy_p(stop);
+    cuEventDestroy_v2_p(start);
+    cuEventDestroy_v2_p(stop);
   }
 
   return (void *)stream;
@@ -585,7 +593,7 @@ extern "C" void *__kitrt_cuLaunchFBKernel(const void *fatBin,
     //
     // A nice overview for measuring performance in CUDA:
     //
-    //   https://developer.nvidia.com/blog/how-implement-performance-metrics-cuda-cc/
+    // https://developer.nvidia.com/blog/how-implement-performance-metrics-cuda-cc/
     //
     // In the non-stream kernel launch we use the default stream and thus
     // some behaviors related to timing could vary...
@@ -614,8 +622,8 @@ extern "C" void *__kitrt_cuLaunchFBKernel(const void *fatBin,
     float msecs = 0;
     cuEventElapsedTime_p(&msecs, start, stop);
     printf("%.8lg\n", msecs / 1000.0);
-    cuEventDestroy_p(start);
-    cuEventDestroy_p(stop);
+    cuEventDestroy_v2_p(start);
+    cuEventDestroy_v2_p(stop);
   }
 
   return nullptr;
@@ -643,7 +651,6 @@ void *__kitrt_cuLaunchELFKernel(const void *elf,
                                 args, NULL)); // arguments
   return stream;
 }
-
 
 extern "C"
 void *__kitrt_cuLaunchKernel(llvm::Module &m, void **args, size_t n) {

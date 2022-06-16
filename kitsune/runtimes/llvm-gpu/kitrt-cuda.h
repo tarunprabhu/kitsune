@@ -95,7 +95,7 @@ extern "C" {
   void  __kitrt_cuMemFree(void *vp);
   void  __kitrt_cuAdviseRead(void *vp, size_t size);
   void  __kitrt_cuMemcpySymbolToDevice(void *hostSym,
-                                       void *devSym,
+                                       uint64_t devSym,
                                        size_t size);
   void *__kitrt_cuLaunchFBKernel(const void *fatBin,
                                  const char *kernelName,

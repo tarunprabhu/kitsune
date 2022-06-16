@@ -1695,7 +1695,7 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
                    .run();
   }
 
-  Target->postProcessModule(M);
+  Target->postProcessModule();
 
   if (Changed)
     return PreservedAnalyses::none();

@@ -150,13 +150,13 @@ extern "C" {
   /// Look up the given global symbol by name in the specified
   /// CUDA module; see __kitrt_cuCreateFBModule().  The size
   /// of the global is returned in bytes (storage size).
-  void *__kitrt_cuGetGlobalSymbol(const char *SN, void *CM);
+  uint64_t __kitrt_cuGetGlobalSymbol(const char *SN, void *CM);
 
   /// Copy the given host-side symbol to the device.
   /// NOTE: This call assumes the device pointer was
   /// acquired using __kitrt_cuGetGlobalSymbol().
   void __kitrt_cuMemcpySymbolToDevice(void *HostPtr,
-                                      void *DevPtr,
+                                      uint64_t DevPtr,
                                       size_t SizeInBytes);
 
   /// Check the status of the runtime's CUDA context to make
