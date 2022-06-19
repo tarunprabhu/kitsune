@@ -8,41 +8,20 @@
 //===----------------------------------------------------------------------===//
 //
 // This file implements the Kitsune+Tapir GPU ABI to convert Tapir
-// instructions to call into the Cuda-centric portions of the Kitsune
-// runtime system for GPUs (bypassing the top-level platform independent API
-// that is a JIT-only interface).
+// instructions to calls into the CUDA-centric portions of the Kitsune
+// runtime for GPUs and produce a fully compiled (not JIT) executable
+// that is suitable for a given architecture target.
 //
-// TODO:
-//
-//    1. Functionality with CUDA toolchain components is only partially
-//       working.  In particular, only one kernel per executable is visible
-//       with `cuobjdump`.  Should we be adding multiple binaries to the
-//       same handle vs. creating multiple handles?  Code does seem to
-//       execute correctly but structure is likely incorrect for tool
-//       support.  For more specific details on the tools look here:
-//
-//          https://docs.nvidia.com/cuda/cuda-binary-utilities/index.html
-//
-//       It is worth doing some poking around...  The fatbinary struct
-//       is
-//
-//         struct fatBinWrapper {
-//           int magic;
-//           int version;
-//           const unsigned long long* data;
-//           void *filename_or_fatbins;  /* version 1: offline filename,
-//                                          version 2: array of prelinked
-//                                          fatbins */
-//         };
-//
-//       This certainly suggests we want to append fatbins at the end of
-//       struct and not create a new one every time!
-//
-//    2. Global variable registration and handling is broken; currently
-//       via a invalid CUDA context at runtime.  Could be a mixture of
-//       CUDA and driver runtime use -- #1 becomes worse if we don't
-//       register the fat binary (do correct driver interface calls
-//       exist?).
+// While portions of this transform mimic aspects of what Clang does
+// to provide CUDA support it uses the CUDA Driver API.  Given many
+// details about NVIDIA's fat binary structure are not 100% documented
+// many things are still a work in progress. This incldues robust
+// behavior for portions of the CUDA tools (e.g., cuobjdump,
+// debugging, profiling).  Most tools appear to work but we have not
+// yet make a complete and thorough pass through the full feature set.
+// 
+// More notes regarding these aspects are sprinkled throughout the
+// comments in the code.
 //
 //===----------------------------------------------------------------------===//
 #include "llvm/Transforms/Tapir/CudaABI.h"
@@ -85,31 +64,51 @@ using namespace llvm;
 
 #define DEBUG_TYPE "cuda-abi"
 
-// Some default naming convensions.
-static const std::string CUABI_KERNEL_NAME_PREFIX = "__cuabi_kern_";
-static const std::string CUABI_MODULE_NAME_PREFIX = "__cuabi_mod_";
 
-/// Selected target GPU architecture --  passed directly to ptxas.
+// Some default naming convensions.  Use some care here as it appears that
+// the PTX path (sometimes?) dislikes names that contains periods '.'. 
+static const std::string CUABI_PREFIX = "__cuabi";
+static const std::string CUABI_KERNEL_NAME_PREFIX = CUABI_PREFIX + "_kern";
+
+//
+// The transform relies on some of the CUDA command line tools to build the
+// final binary/executable.  In particular it uses 'ptxas' and 'fatbinary'.
+// Given this usage, we attempt to expose similar options via additions to
+// LLVM command line options. Recall these can be provided using the -mllvm
+// option followed by one of the options below.
+//
+// NOTE: At this point in time we do not provide support for the older range
+// of GPU architectures supported by CUDA.  This is primarily due to the fact
+// that we do not have older architectures to test on.  Our defaults tend to
+// lean towards newer host and GPU architectures (e.g., 64-bit and SM_60 or
+// newer -- following trends of CUDA's support as well).  Note we have not
+// tested 32-bit host support. 
+// 
+
+/// Selected target GPU architecture. Passed directly to ptxas.
 static cl::opt<std::string>
     GPUArch("cuabi-arch", cl::init("sm_75"), cl::NotHidden,
             cl::desc("Target GPU architecture for CUDA ABI transformation."
                      "(default: sm_75)"));
+
 /// Select 32- vs. 64-bit host architecture. Passed directly to ptxas.
 static cl::opt<std::string>
     HostMArch("cuabi-march", cl::init("64"), cl::NotHidden,
               cl::desc("Specify 32- or 64-bit host architecture."
                        "(default=64-bit)."));
 /// Enable verbose mode.  Handled internally as well as passed on to
-/// ptxas.
+/// ptxas to reveal PTX info (register use, etc.). 
 static cl::opt<bool>
     Verbose("cuabi-verbose", cl::init(false), cl::NotHidden,
             cl::desc("Enable verbose mode and also print out code "
                      "generation statistics. (default=off)"));
+
 /// Enable debug mode. Passed directly to ptxas.
 static cl::opt<bool>
     Debug("cuabi-debug", cl::init(false), cl::NotHidden,
           cl::desc("Enable debug information for GPU device code. "
                    "(default=false)"));
+
 /// Surpress the generation of debug sections in the final object
 /// file.  This option is ignored if not used with the debug or
 /// generate-line-info options.
@@ -117,12 +116,14 @@ static cl::opt<bool>
     SurpressDBInfo("cuabi-surpress-debug-info", cl::init(false), cl::Hidden,
                    cl::desc(" Do not generate debug information sections "
                             "in final output object file."));
+
 /// Generate line information for all generated GPU kernels.  Passed
 /// directly to 'ptxas' as '--generate-line-info'.
 static cl::opt<bool>
     GenLineInfo("cuabi-generate-line-info", cl::init(false), cl::NotHidden,
                 cl::desc("Generate line information for generated GPU "
                          "kernels. (default=false)"));
+
 /// Enable stack bounds checking. Passed directly to 'ptxas', which
 /// will automatically turn this on if 'device-debug' or 'opt-level=0'
 /// is used.
@@ -130,19 +131,25 @@ static cl::opt<bool>
     BoundsCheck("cuabi-bounds-check", cl::init(false), cl::NotHidden,
                 cl::desc("Enable GPU static pointer bounds checking. "
                          "(default=false)"));
+
 /// Set the optimization level for the compiler.  Values can be 0, 1,
-/// 2, or 3; following standard compiler practice.
+/// 2, or 3; following standard compiler practice. Passed directly to
+/// 'ptxas' (does not necessarily need to align with the main compiler
+/// flags). 
 static cl::opt<unsigned>
     OptLevel("cuabi-opt-level", cl::init(3), cl::NotHidden,
              cl::desc("Specify the GPU kernel optimization level."));
+
 /// Enable expensive optimizations to allow the compiler to use the
-/// maximum amount of resources (memory and time).  If the
-/// optimization level if >= 2 this flag is enabled.
+/// maximum amount of resources (memory and time).  This will follow
+/// the behavior of 'ptxas' -- if the optimization level is >= 2 this
+/// is enabled.
 static cl::opt<bool>
     AllowExpensiveOpts("cuabi-enable-expensive-optimizations", cl::init(false),
                        cl::Hidden,
                        cl::desc("Enable expensive optimizations that use "
                                 "maximum available resources."));
+
 /// Disable the generatino of floating point multiply add instructions.
 /// This is passed on to 'ptxas' to disable the contraction of floating
 /// point multiply-add operations (FMAD, FFMA, or DFMA).  This is
@@ -151,6 +158,7 @@ static cl::opt<bool>
     DisableFMA("cuabi-disable-fma", cl::init(false), cl::Hidden,
                cl::desc("Disable the generation of FMA instructions."
                         "(default=false)"));
+
 /// Disable the optimizer's constant bank optimizations.  Passed directly
 /// to 'ptxas' as '--disable-optimizer-constants'.
 static cl::opt<bool>
@@ -297,11 +305,7 @@ static void appendToGlobalArray(const char *Array, Module &M, Constant *C,
 static std::string virtualArchForCudaArch(StringRef Arch) {
   // TODO: We've scaled back some from the full suite of Nvidia targets
   // as we are going in assuming we will support only CUDA 11 or greater.
-  // We should probably raise an error for sm_2x and sm_3x -- this is
-  // different than the current CUDA support in Clang and could be
-  // confusing to users... That said, not sure it makes a lot of sense
-  // to work on support for deprecated architectures (and thus older
-  // versions of CUDA).
+  // We should probably raise an error for sm_2x and sm_3x targets.
   return llvm::StringSwitch<std::string>(Arch)
       // sm_20 (Fermi) is deprecated as of CUDA 9.
       // sm_3X (Kepler) is deprecated as of CUDA 11.
@@ -1135,7 +1139,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
 }
 
 CudaABI::CudaABI(Module &M)
-    : KM("__cuabi_" + M.getName().str(), M.getContext()),
+    : KM(CUABI_PREFIX + M.getName().str(), M.getContext()),
       TapirTarget(M) {
 
   LLVM_DEBUG(dbgs() << "cuabi: creating tapir target for module: "
@@ -1191,12 +1195,12 @@ void CudaABI::pushGlobalVariable(GlobalVariable *GV) {
 }
 
 Value *CudaABI::lowerGrainsizeCall(CallInst *GrainsizeCall) {
-  // TODO: Some quick checks suggest we are almost always getting
-  // called to select this value (at least when trip counts can't
-  // be easily determined?).  More work needs to go into picking
-  // this value that likely strongly correlates with the launch
-  // parameters...  More parameter studies are likely a key piece
-  // of this puzzle.
+  // TODO: The grainsize on the GPU is a completely different beast
+  // than the CPU cases Tapir was originally designed for.  At present
+  // keeping the grainsize at 1 has almost always shown to yeild the
+  // best results in terms of performance.  We have yet to really do
+  // a detailed study of the aspects here so consider anything done
+  // here as a lot of remaining work and exploration. 
   Value *Grainsize =
       ConstantInt::get(GrainsizeCall->getType(), DefaultGrainSize);
   // Replace uses of grainsize intrinsic call with a computed
@@ -1272,20 +1276,22 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
   opt::ArgStringList PTXASArgList;
   PTXASArgList.push_back(PTXASExe->c_str());
 
-  // TODO: Do we want to add support for generating relocatable
+  // TODO: Do we need/want to add support for generating relocatable
   // code?
   //PTXASArgList.push_back("-c");
 
   // --machine <bits>: Specify 32-bit vs. 64-bit host architecture.
-    PTXASArgList.push_back("--machine"); // host (32- vs. 64-bit)
+  PTXASArgList.push_back("--machine"); // host (32- vs. 64-bit)
   PTXASArgList.push_back(HostMArch.c_str());
   // --gpu-name <gpu name>: Specify name of GPU to generate code for.
   // (e.g., 'sm_70','sm_72','sm_75','sm_80','sm_86', 'sm_87')
   PTXASArgList.push_back("--gpu-name"); // target gpu architecture.
   PTXASArgList.push_back(GPUArch.c_str());
-  if (Verbose)
+  if (Verbose) {
     // --verbose: prints code generation statistics.
     PTXASArgList.push_back("--verbose");
+    PTXASArgList.push_back("-warn-spills");
+  }
   if (Debug) {
     // TODO: It currently isn't possible to use both debug
     // and an optimization flags with ptxas -- need to check for
@@ -1503,8 +1509,8 @@ CudaABI::createFatbinaryFile(CudaABIOutputFile &AsmFile) {
                                  ",file=" + AsmFile->getFilename().str();
   FatbinaryArgList.push_back(FatbinaryImgArgs.c_str());
 
-std::list<std::string> PTXFilesArgList;
-if (EmbedPTXInFatbinaries) {
+  std::list<std::string> PTXFilesArgList;
+  if (EmbedPTXInFatbinaries) {
     std::string VArchStr = virtualArchForCudaArch(GPUArch);
     if (VArchStr == "unknown")
       report_fatal_error("cuabi: no virtual target for given gpuarch '"
@@ -1553,6 +1559,7 @@ if (EmbedPTXInFatbinaries) {
       PTXFilesArgList.erase(it++);
     }
   }
+  
   // TODO: Not sure we need to force 'keep' here as we return
   // the output file but will keep it here for now just to play it
   // safe.
@@ -1652,7 +1659,7 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary, GlobalVariable *Wrapper
   Function *CtorFn = Function::Create(
           FunctionType::get(VoidTy, VoidPtrTy, false),
           GlobalValue::InternalLinkage,
-          "__cuabi_ctor_" + M.getName(), &M);
+          CUABI_PREFIX + ".ctor." + M.getName(), &M);
 
   BasicBlock *CtorEntryBB = BasicBlock::Create(Ctx, "entry", CtorFn);
   IRBuilder<> CtorBuilder(CtorEntryBB);
@@ -1695,7 +1702,7 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary, GlobalVariable *Wrapper
   GlobalVariable *Handle = new GlobalVariable(M, VoidPtrPtrTy, false,
                                 GlobalValue::InternalLinkage,
                                 ConstantPointerNull::get(VoidPtrPtrTy),
-                                "__cuabi_fbh");
+                                CUABI_PREFIX + ".fbhand");
   Handle->setAlignment(Align(DL.getPointerABIAlignment(0)));
   CtorBuilder.CreateAlignedStore(RegFatbin, Handle,
                                  DL.getPointerABIAlignment(0));
@@ -1703,7 +1710,7 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary, GlobalVariable *Wrapper
 
   Value *HandlePtr = CtorBuilder.CreateLoad(VoidPtrPtrTy,
                                             Handle,
-                                            "_cuabi_fb_hptr");
+                                            CUABI_PREFIX + ".fbhand.ptr");
 
   // TODO: It is not 100% clear what calls we actually need to make
   // here for kernel, variable, etc. registration with CUDA.  Clang
@@ -1751,7 +1758,7 @@ Function *CudaABI::createDtor(GlobalVariable *FBHandle) {
   Function *DtorFn =
             Function::Create(FunctionType::get(VoidTy, VoidPtrTy, false),
                              GlobalValue::InternalLinkage,
-                             "__cuabi_dtor", &M);
+                             CUABI_PREFIX + ".dtor", &M);
 
   BasicBlock *DtorEntryBB = BasicBlock::Create(Ctx, "entry", DtorFn);
   IRBuilder<> DtorBuilder(DtorEntryBB);
@@ -1861,7 +1868,7 @@ CudaABIOutputFile CudaABI::generatePTX() {
   // the original input source modle (M) with the extension changed
   // to PTX.
   std::error_code  EC;
-  SmallString<255> PTXFileName(Twine("__cuabi_" + M.getName()).str());
+  SmallString<255> PTXFileName(Twine(CUABI_PREFIX + M.getName()).str());
   sys::path::replace_extension(PTXFileName, ".ptx");
 
   LLVM_DEBUG(dbgs() << "\tgenerating PTX file '"
@@ -1871,6 +1878,8 @@ CudaABIOutputFile CudaABI::generatePTX() {
   PTXFile = std::make_unique<ToolOutputFile>(PTXFileName, EC,
                 sys::fs::OpenFlags::OF_None);
 
+  pushPTXFilename(PTXFileName.c_str());
+  
   LLVMContext &Ctx = KM.getContext();
   KM.addModuleFlag(llvm::Module::Override, "nvvm-reflect-ftz", true);
 
