@@ -51,6 +51,31 @@ using namespace clang::driver::tools;
 using namespace clang;
 using namespace llvm::opt;
 
+static std::string GetKitsunePluginDir(const Driver& D) {
+  // The implementation of Driver::GetResourcesPath does similar things, so I
+  // suppose it is safe
+  llvm::StringRef Dir = llvm::sys::path::parent_path(D.ClangExecutable);
+  llvm::StringRef Prefix = llvm::sys::path::parent_path(Dir);
+
+  SmallString<128> P(Prefix);
+  llvm::sys::path::append(P, Twine("lib"), Twine("kitsune"));
+  return P.c_str();
+}
+
+static std::string GetKitsunePluginLib(const Driver& D) {
+  SmallString<128> P(GetKitsunePluginDir(D));
+  llvm::sys::path::append(P, "KitsunePlugin.so");
+
+  return P.c_str();
+}
+
+static std::string GetKitsunePassPluginLib(const Driver& D) {
+  SmallString<128> P(GetKitsunePluginDir(D));
+  llvm::sys::path::append(P, "KitsunePassPlugin.so");
+
+  return P.c_str();
+}
+
 static void CheckPreprocessingOptions(const Driver &D, const ArgList &Args) {
   if (Arg *A =
           Args.getLastArg(clang::driver::options::OPT_C, options::OPT_CC)) {
@@ -6566,11 +6591,30 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // Forward -fparse-all-comments to -cc1.
   Args.AddAllArgs(CmdArgs, options::OPT_fparse_all_comments);
 
+  // Register the kitunse-specific plugins unconditionally before any others.
+  //
+  // FIXME: This should not really be done this way. Ideally, they should only
+  // be registered if -fkitsune is passed, but apparently, we currently don't
+  // (aren't allowed to?) do that.
+  //
+  // FIXME: If we really can't use -fkitsune or a different compiler name, we
+  // should try to find a way to disable this when compiling clang (or parts
+  // of it).
+  std::string KitsunePluginLib = GetKitsunePluginLib(D);
+  if (llvm::sys::fs::exists(KitsunePluginLib)) {
+    CmdArgs.push_back("-load");
+    CmdArgs.push_back(Args.MakeArgString(KitsunePluginLib.c_str()));
+  }
   // Turn -fplugin=name.so into -load name.so
   for (const Arg *A : Args.filtered(options::OPT_fplugin_EQ)) {
     CmdArgs.push_back("-load");
     CmdArgs.push_back(A->getValue());
     A->claim();
+  }
+
+  std::string KitsunePassPluginLib = GetKitsunePassPluginLib(D);
+  if (llvm::sys::fs::exists(KitsunePassPluginLib)) {
+    CmdArgs.push_back(Args.MakeArgString(Twine("-fpass-plugin=") + KitsunePassPluginLib));
   }
 
   // Forward -fpass-plugin=name.so to -cc1.

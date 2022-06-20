@@ -77,5 +77,5 @@ if (KITSUNE_BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif()
 
+add_subdirectory(plugins)
 add_subdirectory(include)
-
