@@ -44,8 +44,8 @@ all: raytrace-forall.cuda.${host_arch} \
      raytrace-forall.cuda.${GRAINSIZE}.${host_arch} \
      raytrace.nvcc.${host_arch} \
      raytrace.clang.${host_arch} \
-#     raytrace.kokkos.${host_arch} \
-#     raytrace.kokkos.noview.${host_arch} \
+     raytrace.kokkos.${host_arch} \
+     raytrace.kokkos.noview.${host_arch} \
      raytrace.openmp.clang.${host_arch} \
      raytrace.openmp.gcc.${host_arch} 
 

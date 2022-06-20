@@ -76,7 +76,7 @@ executables = ["raytrace.clang."+march,
                "raytrace.nvcc."+march, 
                "raytrace.kokkos."+march,
                "raytrace.kokkos.noview."+march,
-               "raytrace.openmp."+march]
+               "raytrace.openmp.clang."+march]
 executables = executables + additional_executables
 
 # The benchmark run will have a CSV file that is automatically created with the

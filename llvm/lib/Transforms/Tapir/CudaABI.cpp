@@ -19,7 +19,7 @@
 // behavior for portions of the CUDA tools (e.g., cuobjdump,
 // debugging, profiling).  Most tools appear to work but we have not
 // yet make a complete and thorough pass through the full feature set.
-// 
+//
 // More notes regarding these aspects are sprinkled throughout the
 // comments in the code.
 //
@@ -66,7 +66,7 @@ using namespace llvm;
 
 
 // Some default naming convensions.  Use some care here as it appears that
-// the PTX path (sometimes?) dislikes names that contains periods '.'. 
+// the PTX path (sometimes?) dislikes names that contains periods '.'.
 static const std::string CUABI_PREFIX = "__cuabi";
 static const std::string CUABI_KERNEL_NAME_PREFIX = CUABI_PREFIX + "_kern";
 
@@ -82,8 +82,8 @@ static const std::string CUABI_KERNEL_NAME_PREFIX = CUABI_PREFIX + "_kern";
 // that we do not have older architectures to test on.  Our defaults tend to
 // lean towards newer host and GPU architectures (e.g., 64-bit and SM_60 or
 // newer -- following trends of CUDA's support as well).  Note we have not
-// tested 32-bit host support. 
-// 
+// tested 32-bit host support.
+//
 
 /// Selected target GPU architecture. Passed directly to ptxas.
 static cl::opt<std::string>
@@ -97,7 +97,7 @@ static cl::opt<std::string>
               cl::desc("Specify 32- or 64-bit host architecture."
                        "(default=64-bit)."));
 /// Enable verbose mode.  Handled internally as well as passed on to
-/// ptxas to reveal PTX info (register use, etc.). 
+/// ptxas to reveal PTX info (register use, etc.).
 static cl::opt<bool>
     Verbose("cuabi-verbose", cl::init(false), cl::NotHidden,
             cl::desc("Enable verbose mode and also print out code "
@@ -135,7 +135,7 @@ static cl::opt<bool>
 /// Set the optimization level for the compiler.  Values can be 0, 1,
 /// 2, or 3; following standard compiler practice. Passed directly to
 /// 'ptxas' (does not necessarily need to align with the main compiler
-/// flags). 
+/// flags).
 static cl::opt<unsigned>
     OptLevel("cuabi-opt-level", cl::init(3), cl::NotHidden,
              cl::desc("Specify the GPU kernel optimization level."));
@@ -670,7 +670,6 @@ static std::set<GlobalValue *> &collect(BasicBlock &bb,
 
 static std::set<GlobalValue *> &collect(Function &f,
                                         std::set<GlobalValue *> &seen) {
-  llvm::errs() << "collect function: " << f.getName() << "\n";
   seen.insert(&f);
 
   for (auto &bb : f)
@@ -1200,7 +1199,7 @@ Value *CudaABI::lowerGrainsizeCall(CallInst *GrainsizeCall) {
   // keeping the grainsize at 1 has almost always shown to yeild the
   // best results in terms of performance.  We have yet to really do
   // a detailed study of the aspects here so consider anything done
-  // here as a lot of remaining work and exploration. 
+  // here as a lot of remaining work and exploration.
   Value *Grainsize =
       ConstantInt::get(GrainsizeCall->getType(), DefaultGrainSize);
   // Replace uses of grainsize intrinsic call with a computed
@@ -1559,7 +1558,7 @@ CudaABI::createFatbinaryFile(CudaABIOutputFile &AsmFile) {
       PTXFilesArgList.erase(it++);
     }
   }
-  
+
   // TODO: Not sure we need to force 'keep' here as we return
   // the output file but will keep it here for now just to play it
   // safe.
@@ -1879,7 +1878,7 @@ CudaABIOutputFile CudaABI::generatePTX() {
                 sys::fs::OpenFlags::OF_None);
 
   pushPTXFilename(PTXFileName.c_str());
-  
+
   LLVMContext &Ctx = KM.getContext();
   KM.addModuleFlag(llvm::Module::Override, "nvvm-reflect-ftz", true);
 
