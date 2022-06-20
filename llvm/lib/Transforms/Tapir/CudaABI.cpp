@@ -1759,6 +1759,11 @@ Function *CudaABI::createDtor(GlobalVariable *FBHandle) {
                              GlobalValue::InternalLinkage,
                              CUABI_PREFIX + ".dtor", &M);
 
+  // TODO: One problem with this path is that we actually will insert an entry
+  // here for ever module with a parallel construct in it...  We really only
+  // need to tear down the runtime infrastructure once...  We have addressed
+  // this via the runtime entry point but it would be nice to avoid stuffing
+  // repeatative calls into the dtor if possible.
   BasicBlock *DtorEntryBB = BasicBlock::Create(Ctx, "entry", DtorFn);
   IRBuilder<> DtorBuilder(DtorEntryBB);
   Value *HandleValue = DtorBuilder.CreateAlignedLoad(

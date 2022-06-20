@@ -278,18 +278,22 @@ void __kitrt_cuDestroy() {
   // supporting more complex streams we will need to revisit the details
   // here.
   //
+  if ( _kitrtIsInitialized) {
+    for(auto &AM: _kitrtAllocMap) {
+      cuMemFree_v2_p((CUdeviceptr)AM.first);
+    }
 
-  for(auto &AM: _kitrtAllocMap) {
-    cuMemFree_v2_p((CUdeviceptr)AM.first);
+    // Note that all resources associated with the context will be destroyed.
+    CU_SAFE_CALL(cuDevicePrimaryCtxRelease_v2_p(_kitrtCUdevice));
+    // This might be unfriendly in the grand scheme of things so be careful
+    // how and when you call this...
+    CU_SAFE_CALL(cuDevicePrimaryCtxReset_v2_p(_kitrtCUdevice));
+
+    // We can't destroy the primary context...
+    //CU_SAFE_CALL(cuCtxDestroy_v2_p(_kitrtCUcontext));
+
+     _kitrtIsInitialized = false;
   }
-
-  // Note that all resources associated with the context will be destroyed.
-  CU_SAFE_CALL(cuDevicePrimaryCtxRelease_v2_p(_kitrtCUdevice));
-  // This might be unfriendly in the grand scheme of things so be careful
-  // how and when you call this...
-  CU_SAFE_CALL(cuDevicePrimaryCtxReset_v2_p(_kitrtCUdevice));
-  // We can't destroy the primary context...
-  //CU_SAFE_CALL(cuCtxDestroy_v2_p(_kitrtCUcontext));
 }
 
 void __kitrt_cuSetCustomLaunchParameters(unsigned BlocksPerGrid,
