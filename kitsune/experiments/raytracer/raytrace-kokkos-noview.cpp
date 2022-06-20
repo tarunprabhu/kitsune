@@ -221,7 +221,7 @@ int main(int argc, char **argv)
     __kitrt_cuDisableEventTiming();    
 
     std::ofstream myfile;
-    myfile.open ("raytrace-cpu.ppm");
+    myfile.open ("raytrace-kokkos-noview.ppm");
     myfile << "P6 " << imageWidth << " " << imageHeight << " 255 ";
     for(int i = (imageWidth*imageHeight)-1; i >= 0; i--) {
       myfile << img[i].r << img[i].g << img[i].b;

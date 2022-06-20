@@ -80,6 +80,4 @@ clean:
 	-rm -f *.bc
 	-rm -f *.fatbin
 	-rm -f *.ppm *.jpg 
-
-realclean:
-	-rm -f *.ll *.ptx *.csv *.log
+	-rm -f *.ll *.ptx *.csv *.log *.s *.fbin
