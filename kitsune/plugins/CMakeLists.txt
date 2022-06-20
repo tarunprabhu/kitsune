@@ -6,6 +6,14 @@
 # the LLVM license.
 #
 
+# ----------------------------------------------------------------------------
+#
+#            Add subdirectories containing plugins to this list.
+#
+set(PLUGIN_DIRS ConstGlobalVars)
+#
+# ----------------------------------------------------------------------------
+
 # The sources will be passed as additional arguments to this function. This
 # should not be called directly outside of this file.
 function(add_plugin_sources PROP)
@@ -27,12 +35,19 @@ function(add_kitsune_plugin_backend_sources)
   add_plugin_sources(kitsune_plugin_backend_srcs ${ARGN})
 endfunction(add_kitsune_plugin_backend_sources)
 
+# This should be called to add sources to be added to both the clang plugin and
+# the LLVM pass plugin.
+function(add_kitsune_plugin_common_sources)
+  add_plugin_sources(kitsune_plugin_frontend_srcs ${ARGN})
+  add_plugin_sources(kitsune_plugin_backend_srcs ${ARGN})
+endfunction(add_kitsune_plugin_common_sources)
+
 function(add_kitsune_plugin_lib SONAME SOURCES LIBS)
   add_library(${SONAME} SHARED ${SOURCES})
 
   target_link_libraries(${SONAME} PUBLIC ${LIBS})
 
-  # Don't give the plugin a lib prefix.
+  # Don't give the plugin a 'lib' prefix.
   set_target_properties(${SONAME} PROPERTIES PREFIX "")
 
   install(TARGETS ${SONAME} DESTINATION lib/kitsune)
@@ -56,6 +71,9 @@ set(PLUGIN_LIBS
 )
 
 add_compile_options(-fno-exceptions)
+
+# Include directory paths must be before the default include paths to ensure
+# that any system-level files do not get included.
 include_directories(BEFORE
   ${PROJECT_SOURCE_DIR}/../clang/include
   ${PROJECT_SOURCE_DIR}/../llvm/include
@@ -72,7 +90,9 @@ set_property(GLOBAL PROPERTY kitsune_plugin_backend_srcs "")
 # Add subdirectories for all the plugins first so the source files list can
 # be populated. This must be done before the shared library targets are
 # declared.
-add_subdirectory(ConstGlobalVars)
+foreach(dir IN LISTS PLUGIN_DIRS)
+  add_subdirectory(${dir})
+endforeach()
 
 get_property(FRONTEND_SOURCES GLOBAL PROPERTY kitsune_plugin_frontend_srcs)
 get_property(BACKEND_SOURCES GLOBAL PROPERTY kitsune_plugin_backend_srcs)

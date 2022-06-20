@@ -6,13 +6,11 @@
 # the LLVM license.
 #
 
-set(FRONTEND_SOURCES
-  ${CMAKE_CURRENT_SOURCE_DIR}/ConstGlobalVarsPlugin.cpp
+add_kitsune_plugin_common_sources(
   ${CMAKE_CURRENT_SOURCE_DIR}/ConstGlobalVarsContext.cpp)
 
-set(BACKEND_SOURCES
-  ${CMAKE_CURRENT_SOURCE_DIR}/ConstGlobalVarsPass.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/ConstGlobalVarsContext.cpp)
+add_kitsune_plugin_frontend_sources(
+  ${CMAKE_CURRENT_SOURCE_DIR}/ConstGlobalVarsPlugin.cpp)
 
-add_kitsune_plugin_frontend_sources(${FRONTEND_SOURCES})
-add_kitsune_plugin_backend_sources(${BACKEND_SOURCES})
+add_kitsune_plugin_backend_sources(
+  ${CMAKE_CURRENT_SOURCE_DIR}/ConstGlobalVarsPass.cpp)
