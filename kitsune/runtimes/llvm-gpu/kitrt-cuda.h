@@ -56,26 +56,29 @@
 
 #include <stdlib.h>
 
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" {
-#else 
+#else
 #include <stdbool.h>
-#endif 
+#endif
 
-  /// Initialize the runtime.  This call may be made mulitple 
-  /// times -- only the intial call will initialize CUDA and 
-  /// subsequent calls are essentially no-ops. 
+  /// Initialize the runtime.  This call may be made mulitple
+  /// times -- only the intial call will initialize CUDA and
+  /// subsequent calls are essentially no-ops.
   bool __kitrt_cuInit();
 
-  /// Provide a set of launch parameters for the next kernel 
-  /// to be launched after this call.  If these values are not 
-  /// provided, the runtime will use a simple (commonly used) 
+  /// Clean up and destroy runtime components.
+  void __kitrt_cuDestroy();
+
+  /// Provide a set of launch parameters for the next kernel
+  /// to be launched after this call.  If these values are not
+  /// provided, the runtime will use a simple (commonly used)
   /// calculation for determining the launch parameters.
   void __kitrt_cuSetCustomLaunchParameters(unsigned BlockPerGrid,
                                            unsigned ThreadsPerBlock);
 
   /// Provide the number of threads per block to use as part of the
-  /// parameters for the next kernel launch. 
+  /// parameters for the next kernel launch.
   void  __kitrt_cuSetDefaultThreadsPerBlock(unsigned tpb);
   void  __kitrt_cuEnableEventTiming();
   void  __kitrt_cuDisableEventTiming();
@@ -94,7 +97,10 @@ extern "C" {
   void *__kitrt_cuMemAllocManaged(size_t size);
   void  __kitrt_cuMemFree(void *vp);
   void  __kitrt_cuAdviseRead(void *vp, size_t size);
-  void *__kitrt_cuLaunchFBKernel(const void *fatBin, 
+  void  __kitrt_cuMemcpySymbolToDevice(void *hostSym,
+                                       uint64_t devSym,
+                                       size_t size);
+  void *__kitrt_cuLaunchFBKernel(const void *fatBin,
                                  const char *kernelName,
                                  void **fatBinArgs,
                                  uint64_t numElements);
@@ -106,11 +112,11 @@ extern "C" {
                                   size_t numElements);
   void __kitrt_cuStreamSynchronize(void *vs);
 
-#ifdef __cplusplus 
+#ifdef __cplusplus
   void *__kitrt_cuLaunchKernel(llvm::Module & m, void **args,
                                size_t n);
-} // extern "C" 
-#endif  
+} // extern "C"
+#endif
 
-#endif // __KITRT_CUDA_H__ 
+#endif // __KITRT_CUDA_H__
 

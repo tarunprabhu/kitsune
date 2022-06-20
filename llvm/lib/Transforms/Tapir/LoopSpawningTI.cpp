@@ -1693,8 +1693,11 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
     if (!F.empty())
       WorkList.push_back(&F);
 
+  Function *SavedF = nullptr;
   // Transform all loops into simplified, LCSSA form before we process them.
   for (Function *F : WorkList) {
+    if (SavedF == nullptr)
+      SavedF = F;
     LoopInfo &LI = GetLI(*F);
     DominatorTree &DT = GetDT(*F);
     ScalarEvolution &SE = GetSE(*F);
@@ -1708,14 +1711,17 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
       Changed |= formLCSSARecursively(*L, DT, &LI, &SE);
   }
 
+  TapirTargetID TargetID = GetTLI(*SavedF).getTapirTarget();
+  std::unique_ptr<TapirTarget> Target(getTapirTargetFromID(M, TargetID));
   // Now process each loop.
   for (Function *F : WorkList) {
-    TapirTargetID TargetID = GetTLI(*F).getTapirTarget();
-    std::unique_ptr<TapirTarget> Target(getTapirTargetFromID(M, TargetID));
     Changed |= LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
                                 GetAC(*F), GetTTI(*F), Target.get(), GetORE(*F))
                    .run();
   }
+
+  Target->postProcessModule();
+
   if (Changed)
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
