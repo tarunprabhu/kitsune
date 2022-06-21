@@ -191,6 +191,7 @@ struct Config {
   StringRef zBtiReport = "none";
   StringRef zCetReport = "none";
   llvm::StringRef ltoBasicBlockSections;
+  llvm::TapirTargetID tapirTarget;
   std::pair<llvm::StringRef, llvm::StringRef> thinLTOObjectSuffixReplace;
   llvm::StringRef thinLTOPrefixReplaceOld;
   llvm::StringRef thinLTOPrefixReplaceNew;
