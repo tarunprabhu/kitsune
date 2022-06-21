@@ -40,6 +40,8 @@ clang_cuda_flags = -xcuda --cuda-gpu-arch=${NVARCH} ${cxx_flags} ${opt_flags} -I
 ### Kokkos stuff 
 kokkos_cu_flags=-I${kokkos_cu_prefix}/include ${nvcc_cxx_flags} -m64 -arch=${NVARCH} --resource-usage -O3 --no-exceptions -I${kitsune_prefix}/include
 
+default: vecadd-forall.cuda.${host_arch}
+
 all: vecadd-forall.cuda.${host_arch} \
      vecadd-forall.cuda.${GRAINSIZE}.${host_arch} \
      vecadd.nvcc.${host_arch} \
