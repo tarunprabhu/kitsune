@@ -68,7 +68,7 @@ using namespace llvm;
 // Some default naming convensions.  Use some care here as it appears that
 // the PTX path (sometimes?) dislikes names that contains periods '.'.
 static const std::string CUABI_PREFIX = "__cuabi";
-static const std::string CUABI_KERNEL_NAME_PREFIX = CUABI_PREFIX + "_kern";
+static const std::string CUABI_KERNEL_NAME_PREFIX = CUABI_PREFIX + "_kern_";
 
 //
 // The transform relies on some of the CUDA command line tools to build the
@@ -1812,6 +1812,11 @@ Function *CudaABI::createDtor(GlobalVariable *FBHandle) {
                              GlobalValue::InternalLinkage,
                              CUABI_PREFIX + ".dtor", &M);
 
+  // TODO: One problem with this path is that we actually will insert an entry
+  // here for ever module with a parallel construct in it...  We really only
+  // need to tear down the runtime infrastructure once...  We have addressed
+  // this via the runtime entry point but it would be nice to avoid stuffing
+  // repeatative calls into the dtor if possible.
   BasicBlock *DtorEntryBB = BasicBlock::Create(Ctx, "entry", DtorFn);
   IRBuilder<> DtorBuilder(DtorEntryBB);
   Value *HandleValue = DtorBuilder.CreateAlignedLoad(
@@ -1991,10 +1996,17 @@ void CudaABI::postProcessModule() {
                     << M.getName() << "'\n");
 
   runKernelOptimizationPasses(KM, OptLevel);
-  CudaABIOutputFile PTXFileName = generatePTX();
-  CudaABIOutputFile AsmFile = assemblePTXFile(PTXFileName);
+  CudaABIOutputFile PTXFile = generatePTX();
+  CudaABIOutputFile AsmFile = assemblePTXFile(PTXFile);
   CudaABIOutputFile FatbinFile = createFatbinaryFile(AsmFile);
   GlobalVariable *Fatbinary = embedFatbinary(FatbinFile);
+
+  if (! KeepIntermediateFiles) {
+    sys::fs::remove(PTXFile->getFilename());
+    sys::fs::remove(AsmFile->getFilename());
+    sys::fs::remove(FatbinFile->getFilename());
+  }
+
   finalizeLaunchCalls(M, Fatbinary);
   registerFatbinary(Fatbinary);
 }
