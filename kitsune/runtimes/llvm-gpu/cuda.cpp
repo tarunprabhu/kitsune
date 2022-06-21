@@ -428,7 +428,6 @@ void __kitrt_cuMemcpySymbolToDevice(void *hostPtr,
 static void __kitrt_cuGetLaunchParameters(size_t &threadsPerBlock,
                                           size_t &blocksPerGrid,
                                           size_t numElements) {
-
   if (_kitrtUseCustomLaunchParameters) {
     threadsPerBlock = _kitrtDefaultThreadsPerBlock;
     blocksPerGrid = _kitrtDefaultBlocksPerGrid;
@@ -552,7 +551,7 @@ void *__kitrt_cuStreamLaunchFBKernel(const void *fatBin,
   CUevent start, stop;
   if (_kitrtEnableTiming) {
     // Recall that we have to take a bit of care about how we time the
-    // launched kernel's execution time.  The problme with using host-device
+    // launched kernel's execution time.  The problem with using host-device
     // synchronization points is that they can potentially stall the entire
     // GPU pipeline, which we want to avoid to enable asynchronous data
     // movement and the execution of other kernels on the GPU.

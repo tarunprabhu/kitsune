@@ -1077,7 +1077,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL,
     // TODO: This is still experimental and currently just about as simple
     // of an approach as we can take on issuing prefetch calls.  Is it
     // better than nothing -- it is obviously very far from ideal placement.
-    if (! CodeGenDisablePrefetch == false) {
+    if (! CodeGenDisablePrefetch) {
       Type *VT = V->getType();
       if (VT->isPointerTy()) {
         Value *VoidPP = B.CreateBitCast(V, VoidPtrTy);
