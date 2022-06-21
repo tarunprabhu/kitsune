@@ -14,7 +14,6 @@
 #include <cstdio>
 #include <stdlib.h>
 #include <math.h>
-#include "kitsune/timer.h"
 #include <kitsune.h>
 #include "kitsune/llvm-gpu-abi/llvm-gpu.h"
 #include "kitsune/llvm-gpu-abi/kitrt-cuda.h"
@@ -36,21 +35,19 @@ bool check_saxpy(const float *v, size_t N) {
 }
 
 int main(int argc, char *argv[]) {
-
   size_t N = DEFAULT_SIZE;
   if (argc > 1) 
     N = atol(argv[1]);
-
+  
   float *x = (float*)__kitrt_cuMemAllocManaged(sizeof(float) * N);
   float *y = (float*)__kitrt_cuMemAllocManaged(sizeof(float) * N);
 
-  __kitrt_cuEnableEventTiming();  
-
+  __kitrt_cuEnableEventTiming();    
   forall(size_t i = 0; i < N; i++) {
     x[i] = DEFAULT_X_VALUE;
     y[i] = DEFAULT_Y_VALUE;
   }
-
+  
   forall(size_t i = 0; i < N; i++) {
     y[i] = DEFAULT_A_VALUE * x[i] + y[i];
   }

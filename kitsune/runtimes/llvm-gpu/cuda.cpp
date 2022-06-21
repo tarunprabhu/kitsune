@@ -297,7 +297,7 @@ void __kitrt_cuDestroy() {
 }
 
 void __kitrt_cuSetCustomLaunchParameters(unsigned BlocksPerGrid,
-                                                    unsigned ThreadsPerBlock) {
+                                         unsigned ThreadsPerBlock) {
   _kitrtUseCustomLaunchParameters = true;
   _kitrtDefaultBlocksPerGrid = BlocksPerGrid;
   _kitrtDefaultThreadsPerBlock = ThreadsPerBlock;
@@ -551,7 +551,7 @@ void *__kitrt_cuStreamLaunchFBKernel(const void *fatBin,
   CUevent start, stop;
   if (_kitrtEnableTiming) {
     // Recall that we have to take a bit of care about how we time the
-    // launched kernel's execution time.  The problme with using host-device
+    // launched kernel's execution time.  The problem with using host-device
     // synchronization points is that they can potentially stall the entire
     // GPU pipeline, which we want to avoid to enable asynchronous data
     // movement and the execution of other kernels on the GPU.
@@ -592,9 +592,6 @@ void *__kitrt_cuLaunchFBKernel(const void *fatBin,
   assert(fatBin && "request to launch null fat binary image!");
   assert(kernelName && "request to launch kernel w/ null name!");
 
-  // TODO: we probably want to calculate the launch compilers during code
-  // generation (when we have some more information about the actual kernel
-  // code -- in that case, we should pass launch parameters to this call.
   size_t threadsPerBlock, blocksPerGrid;
   __kitrt_cuGetLaunchParameters(threadsPerBlock, blocksPerGrid, numElements);
 
@@ -609,7 +606,7 @@ void *__kitrt_cuLaunchFBKernel(const void *fatBin,
   CUevent start, stop;
   if (_kitrtEnableTiming) {
     // Recall that we have to take a bit of care about how we time the
-    // launched kernel's execution time.  The problme with using host-device
+    // launched kernel's execution time.  The problem with using host-device
     // synchronization points is that they can potentially stall the entire
     // GPU pipeline, which we want to avoid to enable asynchronous data
     // movement and the execution of other kernels on the GPU.
