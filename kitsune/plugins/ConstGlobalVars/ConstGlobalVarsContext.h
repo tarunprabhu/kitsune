@@ -27,14 +27,6 @@ namespace clang {
 // additional data from the frontend.
 class ConstGlobalVarsContext {
 private:
-  // The pointers here *may* be freed before the LLVM pass has a chance to
-  // run. I don't actually think that is happening, but I haven't been able to
-  // figure it out to my satisfaction. Therefore,
-  //
-  // -------------------------------------------------------------------------
-  //    Decl's in this set MUST **NOT** be dereferenced in the LLVM passes
-  // -------------------------------------------------------------------------
-  //
   std::set<const clang::Decl*> constGlobalVars;
 
   // This context is only used to create the parallel LLVM module.
@@ -46,7 +38,7 @@ private:
   // instance lives until after LLVM-IR generation which is what we need.
   //
   // NOTE: If no source files are parsed (as may happen during linking), this
-  // will be unset.
+  // will be null.
   clang::CodeGenerator* CG = nullptr;
 
 public:

@@ -8,6 +8,7 @@
 
 #include "clang/CodeGen/ModuleBuilder.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "llvm/IR/Module.h"
 
 #include "ConstGlobalVarsContext.h"
 
@@ -19,16 +20,27 @@ using namespace clang;
 // and the AST plugin. This is only accessible through the static method on
 // ConstGlobalVarsContext, so that's the small saving grace here.
 //
-static thread_local std::unique_ptr<ConstGlobalVarsContext> singletonContext;
+// FIXME: There is a bug here somewhere, I think. When deleting this object,
+// everything crashes because a use was around when a def was destroyed.
+// Frustratingly, this does not happen in all cases. It seems to reliably fail
+// when building the kitsune experiments but just as reliably seems to work
+// otherwise. This happens when deleting the LLVMContext that is owned by this
+// object. It may be a double-free but I am not sure. Not wrapping this in a
+// unique_ptr ensures that the destructor does not automatically run and the
+// error is squelched (NOTE: although untested, it is possible that this will
+// not be an issue in non-debug builds since the assertion is wrapped in
+// NDEBUG).
+//
+static thread_local ConstGlobalVarsContext* singletonContext;
 
 ConstGlobalVarsContext& ConstGlobalVarsContext::getOrCreate() {
   if (not singletonContext)
-    singletonContext.reset(new ConstGlobalVarsContext());
+    singletonContext = new ConstGlobalVarsContext();
   return *singletonContext;
 }
 
 const ConstGlobalVarsContext* ConstGlobalVarsContext::getIfExists() {
-  return singletonContext.get();
+  return singletonContext;
 }
 
 void ConstGlobalVarsContext::addConstGlobal(const Decl* D) {
@@ -50,7 +62,7 @@ bool ConstGlobalVarsContext::isConstGlobal(llvm::StringRef Name) const {
 
 CodeGenerator* ConstGlobalVarsContext::makeCodeGenerator(CompilerInstance& CI) {
   CG = CreateLLVMCodeGen(CI.getDiagnostics(),
-                         "kitsune-parallel-module",
+                         "kitsune-const-global-vars-plugin-module",
                          CI.getHeaderSearchOpts(),
                          CI.getPreprocessorOpts(),
                          CI.getCodeGenOpts(),

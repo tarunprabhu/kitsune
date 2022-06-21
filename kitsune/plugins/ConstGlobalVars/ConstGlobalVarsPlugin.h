@@ -44,7 +44,8 @@ namespace clang {
 class ConstGlobalVarsPlugin : public clang::PluginASTAction {
 protected:
   std::unique_ptr<clang::ASTConsumer>
-  CreateASTConsumer(clang::CompilerInstance& CI, clang::StringRef File) override;
+  CreateASTConsumer(clang::CompilerInstance &CI,
+                    clang::StringRef File) override;
 
   virtual bool ParseArgs(const clang::CompilerInstance& CI,
                          const std::vector<std::string>& Args) override;

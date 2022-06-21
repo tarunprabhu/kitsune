@@ -27,8 +27,7 @@ public:
     // PluginASTAction is launched and its CreateASTConsumer() method called.
     // However, if no source files were parsed during the invocation, an
     // instance will not have been created.
-    if (const ConstGlobalVarsContext *SharedCtxt =
-            ConstGlobalVarsContext::getIfExists()) {
+    if (const auto *SharedCtxt = ConstGlobalVarsContext::getIfExists()) {
       LLVMContext &Ctxt = M.getContext();
 
       for (llvm::GlobalVariable &GV : M.globals()) {

@@ -66,6 +66,7 @@ public:
     : SharedCtxt(SharedCtxt) {
     ;
   }
+
   virtual ~Consumer() = default;
 
   virtual void HandleTranslationUnit(clang::ASTContext& Ctxt) override {
