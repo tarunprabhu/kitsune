@@ -169,30 +169,9 @@
 ; CHECK-O3-NEXT: Running pass: ControlHeightReductionPass
 ; CHECK-O3-NEXT: Running analysis: RegionInfoAnalysis
 ; CHECK-O3-NEXT: Running analysis: DominanceFrontierAnalysis
-; CHECK-O2-NEXT: Running pass: LoopStripMinePass
-; CHECK-O2-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-O2-NEXT: Running pass: LoopSimplifyPass
 ; CHECK-O2-NEXT: Running pass: LCSSAPass
-; CHECK-O2-NEXT: Running pass: LoopSimplifyCFGPass
-; CHECK-O2-NEXT: Running pass: LICMPass
-; CHECK-O2-NEXT: Running pass: EarlyCSEPass
-; CHECK-O2-NEXT: Running pass: JumpThreadingPass
-; CHECK-O2-NEXT: Running analysis: LazyValueAnalysis
-; CHECK-O2-NEXT: Running pass: CorrelatedValuePropagationPass
-; CHECK-O2-NEXT: Invalidating analysis: LazyValueAnalysis
-; CHECK-O2-NEXT: Running pass: InstCombinePass
-; CHECK-O3-NEXT: Running pass: LoopStripMinePass
-; CHECK-O3-NEXT: Running pass: TaskSimplifyPass
-; CHECK-O3-NEXT: Running pass: LoopSimplifyPass
-; CHECK-O3-NEXT: Running pass: LCSSAPass
-; CHECK-O3-NEXT: Running pass: LoopSimplifyCFGPass
-; CHECK-O3-NEXT: Running pass: LICMPass
-; CHECK-O3-NEXT: Running pass: EarlyCSEPass
-; CHECK-O3-NEXT: Running pass: JumpThreadingPass
-; CHECK-O3-NEXT: Running analysis: LazyValueAnalysis
-; CHECK-O3-NEXT: Running pass: CorrelatedValuePropagationPass
-; CHECK-O3-NEXT: Invalidating analysis: LazyValueAnalysis
-; CHECK-O3-NEXT: Running pass: InstCombinePass
+; CHECK-O2-NEXT: Running pass: TapirIndVarSimplifyPass
 ; CHECK-EXT: Running pass: {{.*}}::Bye
 ; CHECK-O-NEXT: Running pass: LoopSimplifyPass on foo
 ; CHECK-O-NEXT: Running pass: LCSSAPass on foo

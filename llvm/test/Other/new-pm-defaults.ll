@@ -240,7 +240,13 @@
 ; CHECK-O-NEXT: Running pass: LowerConstantIntrinsicsPass on foo
 ; CHECK-MATRIX: Running pass: LowerMatrixIntrinsicsPass on f
 ; CHECK-MATRIX-NEXT: Running pass: EarlyCSEPass on f
+<<<<<<< HEAD
 ; CHECK-O3-NEXT: Running pass: ControlHeightReductionPass
+=======
+; CHECK-O2-NEXT: Running pass: LoopSimplifyPass
+; CHECK-O2-NEXT: Running pass: LCSSAPass
+; CHECK-O2-NEXT: Running pass: TapirIndVarSimplifyPass
+>>>>>>> a4348582893e ([IndVarSimplify] Add TapirIndVarSimplify pass, a version of the IndVarSimplify pass that applies only to Tapir loops.  Run TapirIndVarSimplify before loop stripmining to help ensure that Tapir loops can be stripmined after other optimizations, such as loop peeling.  Addresses issue #88.)
 ; CHECK-O2-NEXT: Running pass: LoopStripMinePass
 ; CHECK-O2-NEXT: Running pass: TaskSimplifyPass on foo
 ; CHECK-O2-NEXT: Running pass: LoopSimplifyPass
@@ -253,6 +259,9 @@
 ; CHECK-O2-NEXT: Running pass: CorrelatedValuePropagationPass
 ; CHECK-O2-NEXT: Invalidating analysis: LazyValueAnalysis
 ; CHECK-O2-NEXT: Running pass: InstCombinePass
+; CHECK-O3-NEXT: Running pass: LoopSimplifyPass
+; CHECK-O3-NEXT: Running pass: LCSSAPass
+; CHECK-O3-NEXT: Running pass: TapirIndVarSimplifyPass
 ; CHECK-O3-NEXT: Running pass: LoopStripMinePass
 ; CHECK-O3-NEXT: Running pass: TaskSimplifyPass on foo
 ; CHECK-O3-NEXT: Running pass: LoopSimplifyPass
