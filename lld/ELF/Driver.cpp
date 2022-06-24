@@ -1393,7 +1393,8 @@ static void readConfigs(opt::InputArgList &args) {
   config->splitStackAdjustSize = args::getInteger(args, OPT_split_stack_adjust_size, 16384);
   config->strip = getStrip(args);
   config->sysroot = args.getLastArgValue(OPT_sysroot);
-  config->tapirTarget = args::parseTapirTarget(args.getLastArgValue(OPT_tapir_target));
+  config->tapirTarget =
+      args::parseTapirTarget(args.getLastArgValue(OPT_tapir_target));
   config->target1Rel = args.hasFlag(OPT_target1_rel, OPT_target1_abs, false);
   config->target2 = getTarget2(args);
   config->thinLTOCacheDir = args.getLastArgValue(OPT_thinlto_cache_dir);
