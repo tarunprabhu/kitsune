@@ -1809,12 +1809,10 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
                                                     << A->getValue();
 
   switch (TapirTarget) {
-
   case TapirTargetID::Cheetah:
     CmdArgs.push_back("-lcheetah");
     CmdArgs.push_back("-lpthread");
     break;
-
   case TapirTargetID::OpenCilk: {
     bool StaticOpenCilk = Args.hasArg(options::OPT_static_libopencilk) ||
                               Args.hasArg(options::OPT_static);
