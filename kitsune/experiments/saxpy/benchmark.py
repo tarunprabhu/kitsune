@@ -33,14 +33,12 @@ NUM_RUNS = 5
 
 # Array of problem sizes (trip counts) to benchmark.
 array_sizes = []
-for x in (2**p for p in range(27, 30)):
+for x in (2**p for p in range(24, 30)):
   array_sizes.append(x)
 
-executables = ["vecadd.clang."+march,
-               "vecadd.nvcc."+march,
-               "vecadd-kokkos."+march,
-               "vecadd-forall.cuda."+march]
-csv_filename = str("vecadd-benchmark-") + march + "-" + date_str + ".csv";
+executables = ["saxpy-forall.cuda."+march,
+               "saxpy-kokkos."+march]
+csv_filename = str("saxpy-benchmark-") + march + "-" + date_str + ".csv";
 
 header = ['Size', 'Benchmark', 'Time']
 
@@ -68,8 +66,8 @@ with open(csv_filename, 'w', newline='') as csvfile:
       print("")
       kernel_runtime = kernel_runtime / NUM_RUNS
       overall_runtime = overall_runtime / NUM_RUNS
-      print("    average kernel runtime:", kernel_runtime)
-      print("    average overall runtime:", overall_runtime, flush=True)
+      print("    average kernel runtime:", float("{:.6f}".format( kernel_runtime)))
+      print("    average overall runtime:", float("{:.6f}".format(overall_runtime)), flush=True)
       row.append(kernel_runtime)
       writer.writerow(row)
       row.clear()
@@ -81,9 +79,9 @@ df = pd.read_csv(csv_filename)
 plotdf = df.pivot(index='Size', columns='Benchmark', values='Time')
 plotdf.plot(kind='bar', figsize=(15, 13))
 plt.xlabel('Array Size (# of elements)', fontsize=14, )
-plt.ylabel('Kernel Execution Time (secs)', fontsize=14)
-plt.title('Vector Addition Benchmark', fontsize=20, fontweight='bold')
-pdf_name = str("plots/vecadd-benchmark-") + march + "-" + date_str + ".pdf"
+plt.ylabel('Total Kernel Execution Times (secs)', fontsize=14)
+plt.title('Saxpy Benchmark', fontsize=20, fontweight='bold')
+pdf_name = str("plots/saxpy-benchmark-") + march + "-" + date_str + ".pdf"
 plt.savefig(pdf_name)
-jpg_name = str("plots/vecadd-benchmark-") + march + "-" + date_str + ".jpg"
+jpg_name = str("plots/saxpy-benchmark-") + march + "-" + date_str + ".jpg"
 plt.savefig(jpg_name)

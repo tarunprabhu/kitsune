@@ -80,6 +80,8 @@ static bool _kitrtUseCustomLaunchParameters = false;
 static CUdevice  _kitrtCUdevice = -1;
 static CUcontext _kitrtCUcontext = nullptr;
 
+static bool   _kitrtReportTiming = false;
+static double _kitrtLastEventTime = 0.0f;
 
 // NOTE: Over a series of CUDA releases it is worthwhile to
 // check in on the header files for replacement versioned
@@ -309,14 +311,18 @@ void __kitrt_cuSetDefaultThreadsPerBlock(unsigned ThreadsPerBlock) {
 
 void __kitrt_cuEnableEventTiming() {
   _kitrtEnableTiming = true;
+  _kitrtReportTiming = report > 0;
 }
 
 void __kitrt_cuDisableEventTiming() {
   _kitrtEnableTiming = false;
+  _kitrtReportTiming = false;
+  _kitrtLastEventTime = 0.0;
 }
 
 void __kitrt_cuToggleEventTiming() {
   _kitrtEnableTiming = _kitrtEnableTiming ? false : true;
+  _kitrtLastEventTime = 0.0;
 }
 
 void* __kitrt_cuCreateEvent() {

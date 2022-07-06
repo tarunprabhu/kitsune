@@ -119,4 +119,3 @@ extern "C" {
 #endif
 
 #endif // __KITRT_CUDA_H__
-

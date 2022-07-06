@@ -181,7 +181,7 @@ int main(int argc, char **argv)
       imageHeight = atoi(argv[3]);
     }
   }
-  
+
   Kokkos::initialize(argc, argv);
   {
     Pixel *img = (Pixel*)__kitrt_cuMemAllocManaged(sizeof(Pixel) * imageWidth * imageHeight);
@@ -190,7 +190,7 @@ int main(int argc, char **argv)
     if (argc > 1 )
       samplesCount = atoi(argv[1]);
 
-    __kitrt_cuEnableEventTiming();    
+    __kitrt_cuEnableEventTiming();
     Kokkos::parallel_for(imageWidth * imageHeight, KOKKOS_LAMBDA(const unsigned int i) {
 	int x = i % imageWidth;
 	int y = i / imageWidth;
@@ -218,7 +218,7 @@ int main(int argc, char **argv)
 	img[i].g = (unsigned char)color.y;
 	img[i].b = (unsigned char)color.z;
       });
-    __kitrt_cuDisableEventTiming();    
+    __kitrt_cuDisableEventTiming();
 
     std::ofstream myfile;
     myfile.open ("raytrace-kokkos-noview.ppm");

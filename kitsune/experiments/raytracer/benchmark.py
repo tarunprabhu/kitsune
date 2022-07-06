@@ -1,23 +1,40 @@
+###########
 #
 # NOTE: You will need at least Python 3.7 for this script.
 #
+<<<<<<< HEAD
 from audioop import add
 import sys
+=======
+# Run the set of benchmarks in the directory and capture the results
+# in a CSV output file.  The file is then read and processed via pandas
+# and matplotlib to provide a plot of the performance across all the
+# benchmarks.
+#
+# The code to gather run time data is dependent upon the output format
+# from the benchmarks.  Any changes to the output format will likely
+# break this script.
+#
+>>>>>>> 56b47224e6c8dfccd8543c7eb4d5109031112ebf
 import subprocess
 import platform
 import csv
 from datetime import datetime
+import pandas as pd
 import matplotlib.pyplot as plt
-import numpy  as np
+import matplotlib.pylab as pylab
 
 
 # Grab the local machine's architecture details and the date+time to
 # create a unique filename for this benchmark run.
 march = platform.machine()
-date_str = str(datetime.now())
-date_str = date_str.replace(' ', '_')
-date_str = date_str.replace(':', '.')
+now = datetime.now()
+date_str = now.strftime("%m-%d-%Y_%H:%M")
+print(date_str)
 
+# Number of times to run each benchmark to get an average
+# execution time.
+NUM_RUNS = 5
 
 # NOTE: For now it is best not to tweak the coarsening factor -- it makes
 # controlling the benchmark characteristics a bit too difficult...
@@ -85,7 +102,6 @@ header = ["Dimensions"] + executables
 benchmark_data = {}
 
 with open(csv_filename, 'w', newline='') as csvfile:
-
   writer = csv.writer(csvfile)
   writer.writerow(header)
   row=[]
@@ -107,5 +123,17 @@ with open(csv_filename, 'w', newline='') as csvfile:
       print("***")
       writer.writerow(row)
       row.clear()
+    print(" ")
 
 print("benchmark results saved to: ", csv_filename)
+
+df=pd.read_csv(csv_filename)
+plotdf=df.pivot(index='Samples', columns='Benchmark', values='Time')
+plotdf.plot(kind = 'bar', figsize = (15, 13))
+plt.xlabel('Samples per Pixel', fontsize = 14, )
+plt.ylabel('Kernel Execution Time (secs)', fontsize=14)
+plt.title('Raytracer Benchmark', fontsize=20, fontweight='bold')
+pdf_name=str("plots/raytracer-benchmark-") + march + "-" + date_str + ".pdf"
+plt.savefig(pdf_name)
+jpg_name=str("plots/raytracer-benchmark-") + march + "-" + date_str + ".jpg"
+plt.savefig(jpg_name)

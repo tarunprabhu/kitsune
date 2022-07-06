@@ -121,11 +121,14 @@ private:
   unsigned KernelID;               // Unique ID for this transformed loop.
   std::string KernelName;          // A unique name for the kernel.
   Module  &KernelModule;           // PTX module holds the generated kernel(s).
+<<<<<<< HEAD
 
   // If the global variables used in the kernel are to be passed as explicitly
   // to the kernel as an additional parameter, this will carry out that
   // transformation.
   std::unique_ptr<LocalizeGlobals> localizeGlobals;
+=======
+>>>>>>> 56b47224e6c8dfccd8543c7eb4d5109031112ebf
 
   FunctionCallee GetThreadIdx = nullptr;
 

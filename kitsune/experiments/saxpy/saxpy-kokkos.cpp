@@ -30,7 +30,7 @@ const size_t DEFAULT_SIZE = 1 << 26;
 // global constants with a dynamic allocation/assignment.  As a result
 // we have to stuff in some CUDA-centric pieces; perhaps Kokkos has
 // some equivalent to this that is similar to KOKKOS_INLINE_FUNCTION?
-// For now we will just use CUDA syntax to do this... 
+// For now we will just use CUDA syntax to do this...
 __managed__ __device__ float DEFAULT_X_VALUE;
 __managed__ __device__ float DEFAULT_Y_VALUE;
 __managed__ __device__ float DEFAULT_A_VALUE;
@@ -52,18 +52,18 @@ int main(int argc, char *argv[]) {
   DEFAULT_X_VALUE = rand() % 1000000;
   DEFAULT_Y_VALUE = rand() % 1000000;
   DEFAULT_A_VALUE = rand() % 1000000;
-  
+
   size_t N = DEFAULT_SIZE;
-  if (argc > 1) 
+  if (argc > 1)
     N = atol(argv[1]);
-  
+
   Kokkos::initialize(argc, argv); {
     SaxpyDualView x = SaxpyDualView("x", N);
     SaxpyDualView y = SaxpyDualView("y", N);
 
     x.modify_device();
     y.modify_device();
-    kitsune::timer t;    
+    kitsune::timer t;
     Kokkos::parallel_for("init", N, KOKKOS_LAMBDA(const int &i) {
 	x.d_view(i) = DEFAULT_X_VALUE;
 	y.d_view(i) = DEFAULT_Y_VALUE;
@@ -81,8 +81,8 @@ int main(int argc, char *argv[]) {
     loop_secs = t.seconds();
     std::cout << loop_secs << std::endl;
     y.sync_host();
-    
-    if (! check_saxpy(y, N)) 
+
+    if (! check_saxpy(y, N))
       retval = 1;
     else
       retval = 0;
@@ -90,4 +90,3 @@ int main(int argc, char *argv[]) {
   Kokkos::finalize();
   return retval;
 }
-
