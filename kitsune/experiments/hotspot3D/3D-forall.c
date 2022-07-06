@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <time.h>
 #include <assert.h>
-#include <stdlib.h>
-#include <math.h>
+#include <stdlib.h> 
+#include <math.h> 
 #include <sys/time.h>
 #include <string.h>
 #include <kitsune.h>
@@ -21,8 +21,8 @@
 
 /* chip parameters	*/
 const float t_chip = 0.0005;
-const float chip_height = 0.016;
-const float chip_width = 0.016;
+const float chip_height = 0.016; 
+const float chip_width = 0.016; 
 
 /* ambient temperature, assuming no package at all	*/
 const float amb_temp = 80.0;
@@ -31,10 +31,10 @@ void fatal(char *s) {
   fprintf(stderr, "Error: %s\n", s);
 }
 
-void readinput(float *vect,
-               int grid_rows,
-               int grid_cols,
-               int layers,
+void readinput(float *vect, 
+               int grid_rows, 
+               int grid_cols, 
+               int layers, 
                char *file) {
   int i,j,k;
   FILE *fp;
@@ -44,7 +44,7 @@ void readinput(float *vect,
   if( (fp  = fopen(file, "r" )) == 0 )
     fatal( "The file was not opened" );
 
-  for (i=0; i <= grid_rows-1; i++)
+  for (i=0; i <= grid_rows-1; i++) 
     for (j=0; j <= grid_cols-1; j++)
       for (k=0; k <= layers-1; k++) {
         if (fgets(str, STR_SIZE, fp) == NULL) fatal("Error reading file\n");
@@ -54,11 +54,11 @@ void readinput(float *vect,
       	vect[i*grid_cols+j+k*grid_rows*grid_cols] = val;
       }
 
-  fclose(fp);
+  fclose(fp);	
 }
 
 
-void writeoutput(float *vect,
+void writeoutput(float *vect, 
                  int grid_rows,
                  int grid_cols,
                  int layers,
@@ -70,19 +70,19 @@ void writeoutput(float *vect,
   if( (fp = fopen(file, "w" )) == 0 )
     printf( "The file was not opened\n" );
 
-  for (i=0; i < grid_rows; i++)
+  for (i=0; i < grid_rows; i++) 
     for (j=0; j < grid_cols; j++)
       for (k=0; k < layers; k++) {
 	sprintf(str, "%d\t%g\n", index, vect[i*grid_cols+j+k*grid_rows*grid_cols]);
 	fputs(str,fp);
 	index++;
       }
-  fclose(fp);
+  fclose(fp);	
 }
 
-void computeTempCPU(float *pIn, float* tIn, float *tOut,
-		    int nx, int ny, int nz, float Cap,
-		    float Rx, float Ry, float Rz,
+void computeTempCPU(float *pIn, float* tIn, float *tOut, 
+		    int nx, int ny, int nz, float Cap, 
+		    float Rx, float Ry, float Rz, 
 		    float dt, int numiter) {
   float ce, cw, cn, cs, ct, cb, cc;
   float stepDivCap = dt / Cap;
@@ -106,23 +106,23 @@ void computeTempCPU(float *pIn, float* tIn, float *tOut,
           s = (y == ny - 1) ? c : c + nx;
           b = (z == 0) ? c      : c - nx * ny;
           t = (z == nz - 1) ? c : c + nx * ny;
-	  tOut[c] = tIn[c]*cc + tIn[n]*cn + tIn[s]*cs +
-                    tIn[e]*ce + tIn[w]*cw + tIn[t]*ct +
+	  tOut[c] = tIn[c]*cc + tIn[n]*cn + tIn[s]*cs + 
+                    tIn[e]*ce + tIn[w]*cw + tIn[t]*ct + 
                     tIn[b]*cb + (dt/Cap) * pIn[c] + ct*amb_temp;
       	}
       }
     }
-
+    
     float *temp = tIn;
     tIn = tOut;
-    tOut = temp;
+    tOut = temp; 
     i++;
   } while(i < numiter);
 }
 
 float accuracy(float *arr1, float *arr2, int len)
 {
-  float err = 0.0;
+  float err = 0.0; 
   int i;
   for(i = 0; i < len; i++) {
     err += (arr1[i]-arr2[i]) * (arr1[i]-arr2[i]);
@@ -131,14 +131,14 @@ float accuracy(float *arr1, float *arr2, int len)
   return (float)sqrt(err/len);
 }
 
-void computeTempForall(const float *pIn,
-		       float* tIn,
-		       float *tOut,
-                       const int nx, const int ny, const int nz,
-		       float Cap,
-                       float Rx, float Ry, float Rz,
-                       float dt, int numiter)
-{
+void computeTempForall(const float *pIn, 
+		       float* tIn, 
+		       float *tOut, 
+                       const int nx, const int ny, const int nz, 
+		       float Cap, 
+                       float Rx, float Ry, float Rz, 
+                       float dt, int numiter) 
+{  
 
   float ce, cw, cn, cs, ct, cb, cc;
   float stepDivCap = dt / Cap;
@@ -151,12 +151,12 @@ void computeTempForall(const float *pIn,
   float *tOut_t = tOut;
 
   for(unsigned count = 0; count < numiter; count++) {
-
+    
     for(unsigned z = 0; z < nz; z++) {
       // launch a parallel computation over an nx-by-nz slice...
-      forall(unsigned y = 0; y < ny; y++) {
-	forall(unsigned x = 0; x < nx; x++) {
-	  int c, w, e, n, s, b, t;
+      for(unsigned y = 0; y < ny; y++) {
+	for(unsigned x = 0; x < nx; x++) {
+	  int c, w, e, n, s, b, t;      
 	  c =  x + y * nx + z * nx * ny;
 	  w = c - 1 * (x != 0);
 	  e = c + 1 * (x != (nx-1));
@@ -164,20 +164,20 @@ void computeTempForall(const float *pIn,
 	  s = c + nx * (y != (ny-1));
 	  b = c - (nx * ny) * (z != 0);
 	  t = c + (nx * ny) * (z != (nz - 1));
-	  tOut_t[c] = cc * tIn_t[c] + cw * tIn_t[w] + ce * tIn_t[e] +
-	              cs * tIn_t[s] + cn * tIn_t[n] + cb * tIn_t[b] +
+	  tOut_t[c] = cc * tIn_t[c] + cw * tIn_t[w] + ce * tIn_t[e] + 
+	              cs * tIn_t[s] + cn * tIn_t[n] + cb * tIn_t[b] + 
 	              ct * tIn_t[t]+(dt/Cap) * pIn[c] + ct*amb_temp;
 	}
       }
-
+      
     }
     float *t = tIn_t;
     tIn_t = tOut_t;
-    tOut_t = t;
+    tOut_t = t; 
   }
-
-}
-
+  
+} 
+ 
 
 void usage(int argc, char **argv)
 {
@@ -232,8 +232,8 @@ int main(int argc, char** argv)
   powerIn = (float*)__kitrt_cuMemAllocManaged(sizeof(float) * size);
   tempCopy = (float*)__kitrt_cuMemAllocManaged(sizeof(float) * size);
   tempIn = (float*)__kitrt_cuMemAllocManaged(sizeof(float) * size);
-  tempOut = (float*)__kitrt_cuMemAllocManaged(sizeof(float) * size);
-  float* answer = (float*)__kitrt_cuMemAllocManaged(sizeof(float) * size);
+  tempOut = (float*)__kitrt_cuMemAllocManaged(sizeof(float) * size); 
+  float* answer = (float*)__kitrt_cuMemAllocManaged(sizeof(float) * size); 
 
   readinput(powerIn,numRows, numCols, layers,pfile);
   readinput(tempIn, numRows, numCols, layers, tfile);
@@ -252,9 +252,11 @@ int main(int argc, char** argv)
   printf("Time: %.3f (s)\n",time);
   printf("Accuracy: %e\n",acc);
   writeoutput(tempOut,numRows, numCols, layers, ofile);
-
+  
   //free(tempIn);
   //free(tempOut); free(powerIn);
 
   return 0;
-}
+}	
+
+
