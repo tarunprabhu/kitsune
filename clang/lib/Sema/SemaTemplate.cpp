@@ -3917,12 +3917,6 @@ QualType Sema::CheckTemplateIdType(TemplateName Name,
   } else if (auto *BTD = dyn_cast<BuiltinTemplateDecl>(Template)) {
     CanonType = checkBuiltinTemplateIdType(*this, BTD, SugaredConverted,
                                            TemplateLoc, TemplateArgs);
-#if 0 /* this was needed for OpenCilk, maybe no longer */
-    if (AliasTemplate->getTemplatedDecl()->hasAttrs()) {
-      const Attr *First = *AliasTemplate->getTemplatedDecl()->attr_begin();
-      Diag(First->getLocation(), diag::warn_attribute_no_decl) << First;
-    }
-#endif
   } else if (Name.isDependent() ||
              TemplateSpecializationType::anyDependentTemplateArguments(
                  TemplateArgs, CanonicalConverted)) {
