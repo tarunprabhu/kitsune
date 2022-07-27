@@ -76,9 +76,9 @@ int main(int argc, char* argv[])
     fprintf(stderr, "rows and cols must be multiples of 16\n");
     exit(1);
   }
-  
+
   timer r;
-  
+
   size_I = cols * rows;
   size_R = (r2-r1+1)*(c2-c1+1);
 
@@ -137,7 +137,7 @@ int main(int argc, char* argv[])
         // directional derivatives
         dN[k] = J[iN[i] * cols + j] - Jc;
         dS[k] = J[iS[i] * cols + j] - Jc;
-        dE[k] = J[i * cols + jE[j]] - Jc;	
+        dE[k] = J[i * cols + jE[j]] - Jc;
         dW[k] = J[i * cols + jW[j]] - Jc;
 
         float G2 = (dN[k]*dN[k] + dS[k]*dS[k] +
