@@ -5,7 +5,7 @@
 #
 host_arch := $(shell uname -o -m | awk '{print $$1}')
 ifeq ($(KITSUNE_PREFIX),)
-  kitsune_prefix=$$HOME/work/projects/kitsune/local
+  kitsune_prefix=/projects/kitsune/13.x/${host_arch}
 else
   kitsune_prefix=$(KITSUNE_PREFIX)
 endif
@@ -13,7 +13,7 @@ $(info kitsune+tapir install prefix: ${kitsune_prefix})
 
 c_flags=-I${kitsune_prefix}/include
 cxx_flags=-std=c++17 -fno-exceptions -I${kitsune_prefix}/include
-opt_flags=-O3
+opt_flags=-O3 
 clang_info_flags=
 
 clang=${kitsune_prefix}/bin/clang
