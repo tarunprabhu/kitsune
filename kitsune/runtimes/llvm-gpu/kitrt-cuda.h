@@ -62,6 +62,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
+
   /// Initialize the runtime.  This call may be made mulitple
   /// times -- only the intial call will initialize CUDA and
   /// subsequent calls are essentially no-ops.
@@ -91,8 +92,20 @@ extern "C" {
   void  __kitrt_cuDestroyEvent(void*);
   float __kitrt_cuElapsedEventTime(void *start, void *stop);
 
+
+  // Location of the most recently updated UVM allocated memory.
+  // This can be either host or device, or host AND device meaning
+  // there is valid data in both locations (e.g., computed on host
+  // and then prefetched and used as a read-only variable on the
+  // GPU).
+  enum KitRTMemoryAffinity {
+    _KITRT_Host = 0x01,
+    _KITRT_Device = 0x02,
+    _KITRT_HostAndDevice = 0x04
+  };
+
   bool  __kitrt_cuIsMemManaged(void *vp);
-  void  __kitrt_cuEnablePrefetch();  
+  void  __kitrt_cuEnablePrefetch();
   void  __kitrt_cuDisablePrefetch();
   void  __kitrt_cuMemPrefetchIfManaged(void *vp, size_t size);
   void  __kitrt_cuMemPrefetchAsync(void *vp, size_t size);
@@ -100,6 +113,16 @@ extern "C" {
   void *__kitrt_cuMemAllocManaged(size_t size);
   void  __kitrt_cuMemFree(void *vp);
   void  __kitrt_cuAdviseRead(void *vp, size_t size);
+
+  bool  __kitrt_cuMemHasHostAffinity(const void *vp);
+  bool  __kitrt_cuMemHasDeviceAffinity(const void *vp);
+  void  __kitrt_cuMemSetAffinity(void *vp, KitRTMemoryAffinity affinity);
+  void  __kitrt_cuMemSetHostAffinity(void *vp);
+  void  __kitrt_cuMemSetDeviceAffinity(void *vp);
+  void  __kitrt_cuMemHintReadOnly(void *vp);
+  void  __kitrt_cuMemHintWriteOnly(void *vp);
+  void  __kitrt_cuMemHintReadWrite(void *vp);
+
   void  __kitrt_cuMemcpySymbolToDevice(void *hostSym,
                                        uint64_t devSym,
                                        size_t size);
@@ -114,6 +137,7 @@ extern "C" {
   void *__kitrt_cuLaunchELFKernel(const void *elf, void **args,
                                   size_t numElements);
   void __kitrt_cuStreamSynchronize(void *vs);
+
 
 #ifdef __cplusplus
   void *__kitrt_cuLaunchKernel(llvm::Module & m, void **args,

@@ -70,7 +70,9 @@ public:
 
   void pushPTXFilename(const std::string &PTXFilename);
 
-  void pushGlobalVariable(GlobalVariable *GV);
+  std::unique_ptr<Module>& getLibDeviceModule();
+
+      void pushGlobalVariable(GlobalVariable *GV);
   bool hasGlobalVariables() const {
     return !GlobalVars.empty();
   }
@@ -89,7 +91,9 @@ public:
     Function *createCtor(GlobalVariable *Fatbinary, GlobalVariable *Wrapper);
     Function *createDtor(GlobalVariable *FBHandle);
 
-    typedef std::list<std::string> StringListTy;
+    std::unique_ptr<Module> LibDeviceModule;
+
+        typedef std::list<std::string> StringListTy;
     StringListTy ModulePTXFileList;
     typedef std::list<GlobalVariable *> GlobalVarListTy;
     GlobalVarListTy GlobalVars;
@@ -179,13 +183,14 @@ public:
   }
 
   void preProcessTapirLoop(TapirLoopInfo &TL,
-                           ValueToValueMapTy &VMap);
+                           ValueToValueMapTy &VMap) override;
   void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo & Out,
                           ValueToValueMapTy &VMap) override final;
   void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo & TOI,
                                DominatorTree &DT) override final;
-  void transformForPTX();
+  void transformForPTX(Function &F);
 
+  Function *resolveLibDeviceFunction(Function *F);
 };
 
 }
