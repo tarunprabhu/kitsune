@@ -214,6 +214,7 @@
 #include "llvm/Transforms/Scalar/StructurizeCFG.h"
 #include "llvm/Transforms/Scalar/TailRecursionElimination.h"
 #include "llvm/Transforms/Scalar/WarnMissedTransforms.h"
+#include "llvm/Transforms/Tapir/AsyncPrefetch.h"
 #include "llvm/Transforms/Tapir/LoopSpawningTI.h"
 #include "llvm/Transforms/Tapir/LoopStripMinePass.h"
 #include "llvm/Transforms/Tapir/SerializeSmallTasks.h"
@@ -1537,6 +1538,13 @@ PassBuilder::buildTapirLoweringPipeline(OptimizationLevel Level,
   ModulePassManager MPM;
 
   LoopPassManager LPM1, LPM2;
+
+  // FIXME: There is probably a better place to put it but this pass currently
+  // relies on Tapir loops being found, so this is probably a better place for
+  // it. Some of the transformations that are done below are presumably to
+  // make it easier for Tapir. But it makes things harder for us, so do this
+  // as early as possible.
+  MPM.addPass(createModuleToFunctionPassAdaptor(AsyncPrefetchPass()));
 
   // Rotate Loop - disable header duplication at -Oz
   LPM1.addPass(LoopRotatePass(Level != OptimizationLevel::Oz));

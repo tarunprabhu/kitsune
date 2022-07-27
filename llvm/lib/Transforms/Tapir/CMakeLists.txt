@@ -1,6 +1,7 @@
 find_package(CUDAToolkit)
 
 add_llvm_component_library(LLVMTapirOpts
+  AsyncPrefetch.cpp
   CilkABI.cpp
   CilkRTSCilkFor.cpp
   CudaABI.cpp
