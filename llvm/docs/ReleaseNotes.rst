@@ -419,6 +419,14 @@ Changes to LLDB
 
 * Avoiding duplicate DLLs in the runtime list of loaded modules on Windows.
 
+* LLDB now supports the gnu debuglink section for reading debug information
+  from a separate file on Windows
+
+* LLDB now allows selecting the C++ ABI to use on Windows (between Itanium,
+  used for MingW, and MSVC) via the ``plugin.object-file.pe-coff.abi`` setting.
+  In Windows builds of LLDB, this defaults to the style used for LLVM's default
+  target.
+
 Changes to Sanitizers
 ---------------------
 
