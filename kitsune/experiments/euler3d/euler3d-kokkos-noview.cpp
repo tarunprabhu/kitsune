@@ -5,12 +5,13 @@
 #include <fstream>
 #include <chrono>
 #include <cmath>
+#include "Kokkos_Core.hpp"
+#include "kitsune/timer.h"
+#include "kitsune/llvm-gpu-abi/llvm-gpu.h"
+#include "kitsune/llvm-gpu-abi/kitrt-cuda.h"
 
 using namespace std;
-
-#include "Kokkos_DualView.hpp"
-template <typename T>
-using View = Kokkos::DualView<T*>;
+using namespace kitsune;
 
 struct Float3 {
   float x, y, z;
@@ -45,58 +46,71 @@ struct Float3 {
 #define __restrict
 #endif
 
+/*
+ * Generic functions
+ */
 template <typename T>
-void cpy(View<T> &dst, View<T> &src, int N) {
-  src.sync_device();
-  dst.sync_device();
-  Kokkos::parallel_for("copy", N, KOKKOS_LAMBDA(const int &i) {
-    dst.d_view(i) = src.d_view(i);
-  });
-  Kokkos::fence();
-  dst.modify_device();
+T* alloc(int N)
+{
+  return (T*)__kitrt_cuMemAllocManaged(sizeof(T) * N);
 }
 
-void dump(View<float> &variables, int nel, int nelr)
+template <typename T>
+void dealloc(T* array)
 {
-  variables.sync_host();
+  // We don't really need this -- we cleanup all runtime
+  // allocations via a global dtor at program exit.
+  __kitrt_cuMemFree((void*)array);
+}
 
+template <typename T>
+void cpy(T* dst, const T* src, int N)
+{
+  Kokkos::parallel_for(N, KOKKOS_LAMBDA(const int i) {
+    dst[i] = src[i];
+  });
+  Kokkos::fence();
+}
+
+
+void dump(float* variables, int nel, int nelr)
+{
   {
-    std::ofstream file("density-kokkos.dat");
+    ofstream file("density-kokkos-noview.dat");
     file << nel << " " << nelr << endl;
     for(int i = 0; i < nel; i++)
-      file << variables.h_view(i + VAR_DENSITY*nelr) << endl;
+      file << variables[i + VAR_DENSITY*nelr] << endl;
   }
 
   {
-    std::ofstream file("momentum-kokkos.dat");
+    ofstream file("momentum-kokkos-noview.dat");
     file << nel << " " << nelr << endl;
     for(int i = 0; i < nel; i++) {
-      for(int j = 0; j != NDIM; j++)
-        file << variables.h_view(i + (VAR_MOMENTUM+j)*nelr) << " ";
-      file << endl;
+    	for(int j = 0; j != NDIM; j++)
+        file << variables[i + (VAR_MOMENTUM+j)*nelr] << " ";
+    	file << endl;
     }
   }
 
   {
-    ofstream file("density_energy-kokkos.dat");
+    ofstream file("density_energy-kokkos-noview.dat");
     file << nel << " " << nelr << endl;
     for(int i = 0; i < nel; i++)
-      file << variables.h_view(i + VAR_DENSITY_ENERGY*nelr) << endl;
+      file << variables[i + VAR_DENSITY_ENERGY*nelr] << endl;
   }
 
 }
 
+
 void initialize_variables(int nelr,
-                          View<float> & variables,
-                          View<float> &ff_variable)
+                          float* variables,
+                          const float* ff_variable)
 {
-  variables.sync_device();
-  ff_variable.sync_device();
-  variables.modify_device();
-  Kokkos::parallel_for("initialize_variables", nelr,
-        KOKKOS_LAMBDA(const int &i) {
+  __kitrt_cuMemNeedsPrefetch((void *)variables);
+  __kitrt_cuMemNeedsPrefetch((void *)ff_variable);
+  Kokkos::parallel_for(nelr, KOKKOS_LAMBDA(const size_t i) {		       
     for(int j = 0; j < NVAR; j++)
-      variables.d_view(i + j*nelr) = ff_variable.d_view(j);
+      variables[i + j*nelr] = ff_variable[j];
   });
   Kokkos::fence();
 }
@@ -110,8 +124,7 @@ void compute_flux_contribution(const float density,
                                Float3& fc_momentum_x,
                                Float3& fc_momentum_y,
                                Float3& fc_momentum_z,
-                               Float3& fc_density_energy)
-{
+                               Float3& fc_density_energy) {
   fc_momentum_x.x = velocity.x*momentum.x + pressure;
   fc_momentum_x.y = velocity.x*momentum.y;
   fc_momentum_x.z = velocity.x*momentum.z;
@@ -130,6 +143,7 @@ void compute_flux_contribution(const float density,
   fc_density_energy.z = velocity.z*de_p;
 }
 
+
 KOKKOS_FORCEINLINE_FUNCTION
 void compute_velocity(float density,
                       const Float3& momentum,
@@ -139,6 +153,7 @@ void compute_velocity(float density,
   velocity.y = momentum.y / density;
   velocity.z = momentum.z / density;
 }
+
 
 KOKKOS_FORCEINLINE_FUNCTION
 float compute_speed_sqd(const Float3 &velocity)
@@ -153,8 +168,7 @@ float compute_pressure(float density,
                        float density_energy,
                        float speed_sqd)
 {
-  return (float(GAMMA)-float(1.0f))*(density_energy -
-          float(0.5f)*density*speed_sqd);
+  return (float(GAMMA)-float(1.0f))*(density_energy - float(0.5f)*density*speed_sqd);
 }
 
 KOKKOS_FORCEINLINE_FUNCTION
@@ -163,30 +177,25 @@ float compute_speed_of_sound(float density, float pressure)
   return sqrtf(float(GAMMA)*pressure/density);
 }
 
-void compute_step_factor(int nelr,
-                        View<float>& __restrict variables,
-                        View<float>& areas,
-                        View<float>& __restrict step_factors)
-{
-  variables.sync_device();
-  areas.sync_device();
-  step_factors.sync_device();
-  step_factors.modify_device();
 
-  Kokkos::parallel_for("compute_step_factor", nelr/block_length,
-        KOKKOS_LAMBDA(const int &blk) {
+void compute_step_factor(int nelr,
+                         const float* __restrict variables,
+                         const float* areas,
+                         float* __restrict step_factors)
+{
+  Kokkos::parallel_for(nelr/block_length, KOKKOS_LAMBDA(const size_t blk) {
     int b_start = blk*block_length;
     int b_end = (blk+1)*block_length > nelr ? nelr : (blk+1)*block_length;
 
     for(int i = b_start; i < b_end; i++) {
-      float density = variables.d_view(i + VAR_DENSITY*nelr);
+      float density = variables[i + VAR_DENSITY*nelr];
 
       Float3 momentum;
-      momentum.x = variables.d_view(i + (VAR_MOMENTUM+0)*nelr);
-      momentum.y = variables.d_view(i + (VAR_MOMENTUM+1)*nelr);
-      momentum.z = variables.d_view(i + (VAR_MOMENTUM+2)*nelr);
+      momentum.x = variables[i + (VAR_MOMENTUM+0)*nelr];
+      momentum.y = variables[i + (VAR_MOMENTUM+1)*nelr];
+      momentum.z = variables[i + (VAR_MOMENTUM+2)*nelr];
 
-      float density_energy = variables.d_view(i + VAR_DENSITY_ENERGY*nelr);
+      float density_energy = variables[i + VAR_DENSITY_ENERGY*nelr];
       Float3 velocity;
       compute_velocity(density, momentum, velocity);
       float speed_sqd = compute_speed_sqd(velocity);
@@ -196,7 +205,7 @@ void compute_step_factor(int nelr,
       // dt = float(0.5f) * sqrt(areas[i]) / (||v|| + c).... but
       // when we do time stepping, this later would need to be divided
       // by the area, so we just do it all at once
-      step_factors.d_view(i) = float(0.5f) / (sqrtf(areas.d_view(i)) *
+      step_factors[i] = float(0.5f) / (sqrtf(areas[i]) *
         (sqrtf(speed_sqd) + speed_of_sound));
     }
   });
@@ -204,37 +213,30 @@ void compute_step_factor(int nelr,
 }
 
 void compute_flux(int nelr,
-                  View<int>& elements_surrounding_elements,
-                  View<float>& normals,
-                  View<float>& variables,
-                  View<float>& fluxes,
-                  View<float>& ff_variable,
+                  const int* elements_surrounding_elements,
+                  const float* normals,
+                  const float* variables,
+                  float* fluxes,
+                  const float* ff_variable,
                   const Float3 ff_flux_contribution_momentum_x,
                   const Float3 ff_flux_contribution_momentum_y,
                   const Float3 ff_flux_contribution_momentum_z,
                   const Float3 ff_flux_contribution_density_energy) {
-
+  using namespace std;
   const float smoothing_coefficient = float(0.2f);
-  elements_surrounding_elements.sync_device();
-  normals.sync_device();
-  variables.sync_device();
-  fluxes.sync_device();
-  ff_variable.sync_device();
-  fluxes.modify_device();
 
-  Kokkos::parallel_for("compute_flux", nelr/block_length,
-        KOKKOS_LAMBDA(const int &blk) {
+  Kokkos::parallel_for(nelr/block_length, KOKKOS_LAMBDA(const size_t blk) {  
     int b_start = blk*block_length;
     int b_end = (blk+1)*block_length > nelr ? nelr : (blk+1)*block_length;
 
     for(int i = b_start; i < b_end; ++i) {
-      float density_i = variables.d_view(i + VAR_DENSITY*nelr);
+      float density_i = variables[i + VAR_DENSITY*nelr];
       Float3 momentum_i;
-      momentum_i.x = variables.d_view(i + (VAR_MOMENTUM+0)*nelr);
-      momentum_i.y = variables.d_view(i + (VAR_MOMENTUM+1)*nelr);
-      momentum_i.z = variables.d_view(i + (VAR_MOMENTUM+2)*nelr);
+      momentum_i.x = variables[i + (VAR_MOMENTUM+0)*nelr];
+      momentum_i.y = variables[i + (VAR_MOMENTUM+1)*nelr];
+      momentum_i.z = variables[i + (VAR_MOMENTUM+2)*nelr];
 
-      float density_energy_i = variables.d_view(i + VAR_DENSITY_ENERGY*nelr);
+      float density_energy_i = variables[i + VAR_DENSITY_ENERGY*nelr];
 
       Float3 velocity_i;
       compute_velocity(density_i, momentum_i, velocity_i);
@@ -265,30 +267,30 @@ void compute_flux(int nelr,
       Float3 velocity_nb;
       float density_nb, density_energy_nb;
       Float3 momentum_nb;
-      Float3 flux_contribution_nb_momentum_x, flux_contribution_nb_momentum_y,
+      Float3 flux_contribution_nb_momentum_x,
+             flux_contribution_nb_momentum_y,
              flux_contribution_nb_momentum_z;
       Float3 flux_contribution_nb_density_energy;
       float speed_sqd_nb, speed_of_sound_nb, pressure_nb;
 
       for(int j = 0; j < NNB; j++) {
-        Float3 normal;
-        float normal_len;
+        Float3 normal; float normal_len;
         float factor;
 
-        int nb = elements_surrounding_elements.d_view(i + j*nelr);
-        normal.x = normals.d_view(i + (j + 0*NNB)*nelr);
-        normal.y = normals.d_view(i + (j + 1*NNB)*nelr);
-        normal.z = normals.d_view(i + (j + 2*NNB)*nelr);
+        int nb = elements_surrounding_elements[i + j*nelr];
+        normal.x = normals[i + (j + 0*NNB)*nelr];
+        normal.y = normals[i + (j + 1*NNB)*nelr];
+        normal.z = normals[i + (j + 2*NNB)*nelr];
         normal_len = sqrtf(normal.x*normal.x +
                           normal.y*normal.y +
                           normal.z*normal.z);
 
         if (nb >= 0) { // a legitimate neighbor
-          density_nb = variables.d_view(nb + VAR_DENSITY*nelr);
-          momentum_nb.x = variables.d_view(nb + (VAR_MOMENTUM)*nelr);
-          momentum_nb.y = variables.d_view(nb + (VAR_MOMENTUM+1)*nelr);
-          momentum_nb.z = variables.d_view(nb + (VAR_MOMENTUM+2)*nelr);
-          density_energy_nb = variables.d_view(nb + VAR_DENSITY_ENERGY*nelr);
+          density_nb = variables[nb + VAR_DENSITY*nelr];
+          momentum_nb.x = variables[nb + (VAR_MOMENTUM)*nelr];
+          momentum_nb.y = variables[nb + (VAR_MOMENTUM+1)*nelr];
+          momentum_nb.z = variables[nb + (VAR_MOMENTUM+2)*nelr];
+          density_energy_nb = variables[nb + VAR_DENSITY_ENERGY*nelr];
           compute_velocity(density_nb, momentum_nb, velocity_nb);
           speed_sqd_nb = compute_speed_sqd(velocity_nb);
           pressure_nb = compute_pressure(density_nb, density_energy_nb,
@@ -350,8 +352,7 @@ void compute_flux(int nelr,
           flux_i_momentum.z += normal.z*pressure_i;
         } else if(nb == -2) { // a far field boundary
           factor = float(0.5f)*normal.x;
-          flux_i_density += factor*(ff_variable.d_view(VAR_MOMENTUM+0) +
-                              momentum_i.x);
+          flux_i_density += factor*(ff_variable[VAR_MOMENTUM]+momentum_i.x);
           flux_i_density_energy += factor*(ff_flux_contribution_density_energy.x
                                     + flux_contribution_i_density_energy.x);
           flux_i_momentum.x += factor*(ff_flux_contribution_momentum_x.x
@@ -362,8 +363,7 @@ void compute_flux(int nelr,
                                     + flux_contribution_i_momentum_z.x);
 
           factor = float(0.5f)*normal.y;
-          flux_i_density += factor*(ff_variable.d_view(VAR_MOMENTUM+1) +
-                              momentum_i.y);
+          flux_i_density += factor*(ff_variable[VAR_MOMENTUM+1]+momentum_i.y);
           flux_i_density_energy += factor*(ff_flux_contribution_density_energy.y
                                     + flux_contribution_i_density_energy.y);
           flux_i_momentum.x += factor*(ff_flux_contribution_momentum_x.y
@@ -374,8 +374,7 @@ void compute_flux(int nelr,
                                     + flux_contribution_i_momentum_z.y);
 
           factor = float(0.5f)*normal.z;
-          flux_i_density += factor*(ff_variable.d_view(VAR_MOMENTUM+2) +
-                                  momentum_i.z);
+          flux_i_density += factor*(ff_variable[VAR_MOMENTUM+2]+momentum_i.z);
           flux_i_density_energy += factor*(ff_flux_contribution_density_energy.z
                                     + flux_contribution_i_density_energy.z);
           flux_i_momentum.x += factor*(ff_flux_contribution_momentum_x.z
@@ -386,48 +385,40 @@ void compute_flux(int nelr,
                                     + flux_contribution_i_momentum_z.z);
         }
       }
-    fluxes.d_view(i + VAR_DENSITY*nelr) = flux_i_density;
-    fluxes.d_view(i + (VAR_MOMENTUM+0)*nelr) = flux_i_momentum.x;
-    fluxes.d_view(i + (VAR_MOMENTUM+1)*nelr) = flux_i_momentum.y;
-    fluxes.d_view(i + (VAR_MOMENTUM+2)*nelr) = flux_i_momentum.z;
-    fluxes.d_view(i + VAR_DENSITY_ENERGY*nelr) = flux_i_density_energy;
+
+    fluxes[i + VAR_DENSITY*nelr] = flux_i_density;
+    fluxes[i + (VAR_MOMENTUM+0)*nelr] = flux_i_momentum.x;
+    fluxes[i + (VAR_MOMENTUM+1)*nelr] = flux_i_momentum.y;
+    fluxes[i + (VAR_MOMENTUM+2)*nelr] = flux_i_momentum.z;
+    fluxes[i + VAR_DENSITY_ENERGY*nelr] = flux_i_density_energy;
     }
   });
   Kokkos::fence();
 }
 
-void time_step(int j, int nelr,
-               View<float>& old_variables,
-               View<float>& variables,
-               View<float>& step_factors,
-               View<float>& fluxes)
+void time_step(int j, int nelr, float* old_variables, float* variables,
+               float*  step_factors, float* fluxes)
 {
-  old_variables.sync_device();
-  variables.sync_device();
-  step_factors.sync_device();
-  fluxes.sync_device();
-  variables.modify_device();
-  Kokkos::parallel_for("time_step", nelr/block_length,
-      KOKKOS_LAMBDA(const int &blk) {
+
+  Kokkos::parallel_for(nelr/block_length, KOKKOS_LAMBDA(const size_t blk) {  
     int b_start = blk*block_length;
     int b_end = (blk+1)*block_length > nelr ? nelr : (blk+1)*block_length;
     for(int i = b_start; i < b_end; ++i) {
-      float factor = step_factors.d_view(i)/float(RK+1-j);
-      variables.d_view(i + VAR_DENSITY*nelr) =
-                old_variables.d_view(i + VAR_DENSITY*nelr) +
-                factor*fluxes.d_view(i + VAR_DENSITY*nelr);
-      variables.d_view(i + (VAR_MOMENTUM+0)*nelr) =
-                old_variables.d_view(i + (VAR_MOMENTUM+0)*nelr) +
-                factor*fluxes.d_view(i + (VAR_MOMENTUM+0)*nelr);
-      variables.d_view(i + (VAR_MOMENTUM+1)*nelr) =
-                old_variables.d_view(i + (VAR_MOMENTUM+1)*nelr) +
-                factor*fluxes.d_view(i + (VAR_MOMENTUM+1)*nelr);
-      variables.d_view(i + (VAR_MOMENTUM+2)*nelr) =
-                old_variables.d_view(i + (VAR_MOMENTUM+2)*nelr) +
-                factor*fluxes.d_view(i + (VAR_MOMENTUM+2)*nelr);
-      variables.d_view(i + VAR_DENSITY_ENERGY*nelr) =
-                old_variables.d_view(i + VAR_DENSITY_ENERGY*nelr) +
-                factor*fluxes.d_view(i + VAR_DENSITY_ENERGY*nelr);
+      float factor = step_factors[i]/float(RK+1-j);
+      variables[i + VAR_DENSITY*nelr] = old_variables[i + VAR_DENSITY*nelr]
+                  + factor*fluxes[i + VAR_DENSITY*nelr];
+      variables[i + (VAR_MOMENTUM+0)*nelr] =
+              old_variables[i + (VAR_MOMENTUM+0)*nelr] + factor*fluxes[i
+                  + (VAR_MOMENTUM+0)*nelr];
+      variables[i + (VAR_MOMENTUM+1)*nelr] = old_variables[i
+                  + (VAR_MOMENTUM+1)*nelr] + factor*fluxes[i
+                  + (VAR_MOMENTUM+1)*nelr];
+      variables[i + (VAR_MOMENTUM+2)*nelr] = old_variables[i
+                  + (VAR_MOMENTUM+2)*nelr] + factor*fluxes[i
+                  + (VAR_MOMENTUM+2)*nelr];
+      variables[i + VAR_DENSITY_ENERGY*nelr] = old_variables[i
+                  + VAR_DENSITY_ENERGY*nelr] + factor*fluxes[i
+                  + VAR_DENSITY_ENERGY*nelr];
     }
   });
   Kokkos::fence();
@@ -440,7 +431,7 @@ int main(int argc, char** argv)
 {
   if (argc < 2) {
     cout << "specify data file name" << endl;
-    return 1;
+    return 0;
   }
 
   int iterations = ITERATIONS;
@@ -449,160 +440,145 @@ int main(int argc, char** argv)
 
   const char* data_file_name = argv[1];
 
-  // these need to be computed the first time in order to compute time step
+  float *ff_variable = alloc<float>(NVAR);
+  Float3 ff_flux_contribution_momentum_x,
+    ff_flux_contribution_momentum_y,
+    ff_flux_contribution_momentum_z;
+  Float3 ff_flux_contribution_density_energy;
 
+  // set far field conditions
+  const float angle_of_attack = float(3.1415926535897931 / 180.0f) *
+    float(deg_angle_of_attack);
 
-  Kokkos::initialize(argc, argv); {
+  ff_variable[VAR_DENSITY] = float(1.4);
 
-    View<float> ff_variable("ff_variable", NVAR);
-    Float3 ff_flux_contribution_momentum_x,
-           ff_flux_contribution_momentum_y,
-           ff_flux_contribution_momentum_z;
-    Float3 ff_flux_contribution_density_energy;
+  float ff_pressure = float(1.0f);
+  float ff_speed_of_sound = sqrtf(GAMMA*ff_pressure /
+                                    ff_variable[VAR_DENSITY]);
+  float ff_speed = float(ff_mach)*ff_speed_of_sound;
 
-    // set far field conditions
-    const float angle_of_attack =
-          float(3.1415926535897931 / 180.0f) * float(deg_angle_of_attack);
+  Float3 ff_velocity;
+  ff_velocity.x = ff_speed*float(cos((float)angle_of_attack));
+  ff_velocity.y = ff_speed*float(sin((float)angle_of_attack));
+  ff_velocity.z = 0.0f;
 
-    ff_variable.h_view(VAR_DENSITY) = float(1.4);
+  ff_variable[VAR_MOMENTUM+0] = ff_variable[VAR_DENSITY] * ff_velocity.x;
+  ff_variable[VAR_MOMENTUM+1] = ff_variable[VAR_DENSITY] * ff_velocity.y;
+  ff_variable[VAR_MOMENTUM+2] = ff_variable[VAR_DENSITY] * ff_velocity.z;
 
-    float ff_pressure = float(1.0f);
-    float ff_speed_of_sound =
-          sqrtf(GAMMA * ff_pressure / ff_variable.h_view(VAR_DENSITY));
-    float ff_speed = float(ff_mach) * ff_speed_of_sound;
+  ff_variable[VAR_DENSITY_ENERGY] = ff_variable[VAR_DENSITY]*(float(0.5f)*
+                                           (ff_speed*ff_speed)) +
+    (ff_pressure / float(GAMMA-1.0f));
 
-    Float3 ff_velocity;
-    ff_velocity.x = ff_speed * float(cos((float)angle_of_attack));
-    ff_velocity.y = ff_speed * float(sin((float)angle_of_attack));
-    ff_velocity.z = 0.0f;
+  Float3 ff_momentum;
+  ff_momentum.x = *(ff_variable+VAR_MOMENTUM+0);
+  ff_momentum.y = *(ff_variable+VAR_MOMENTUM+1);
+  ff_momentum.z = *(ff_variable+VAR_MOMENTUM+2);
+  compute_flux_contribution(ff_variable[VAR_DENSITY], ff_momentum,
+                            ff_variable[VAR_DENSITY_ENERGY],
+                            ff_pressure, ff_velocity,
+                            ff_flux_contribution_momentum_x,
+                            ff_flux_contribution_momentum_y,
+                            ff_flux_contribution_momentum_z,
+                            ff_flux_contribution_density_energy);
 
-    ff_variable.h_view(VAR_MOMENTUM + 0) =
-        ff_variable.h_view(VAR_DENSITY) * ff_velocity.x;
-    ff_variable.h_view(VAR_MOMENTUM + 1) =
-        ff_variable.h_view(VAR_DENSITY) * ff_velocity.y;
-    ff_variable.h_view(VAR_MOMENTUM + 2) =
-        ff_variable.h_view(VAR_DENSITY) * ff_velocity.z;
+  int nel;
+  int nelr;
 
-    ff_variable.h_view(VAR_DENSITY_ENERGY) =
-        ff_variable.h_view(VAR_DENSITY) *
-            (float(0.5f) * (ff_speed * ff_speed)) +
-        (ff_pressure / float(GAMMA - 1.0f));
+  // read in domain geometry
+  float* areas;
+  int* elements_surrounding_elements;
+  float* normals;
 
-    ff_variable.modify_host();
+  ifstream file(data_file_name);
+  file >> nel;
+  nelr = block_length*((nel / block_length )+ min(1, nel % block_length));
 
-    Float3 ff_momentum;
-    ff_momentum.x = ff_variable.h_view(VAR_MOMENTUM);
-    ff_momentum.y = ff_variable.h_view(VAR_MOMENTUM + 1);
-    ff_momentum.z = ff_variable.h_view(VAR_MOMENTUM + 2);
-    compute_flux_contribution(ff_variable.h_view(VAR_DENSITY), ff_momentum,
-          ff_variable.h_view(VAR_DENSITY_ENERGY), ff_pressure, ff_velocity,
-          ff_flux_contribution_momentum_x, ff_flux_contribution_momentum_y,
-          ff_flux_contribution_momentum_z, ff_flux_contribution_density_energy);
+  areas = alloc<float>(nelr);
+  elements_surrounding_elements = alloc<int>(nelr*NNB);
+  normals = alloc<float>(NDIM*NNB*nelr);
 
-    int nel;
-    int nelr;
+  // read in data
+  for(int i = 0; i < nel; i++) {
+    file >> areas[i];
+    for(int j = 0; j < NNB; j++) {
+      file >> elements_surrounding_elements[i + j*nelr];
+      if (elements_surrounding_elements[i+j*nelr] < 0)
+        elements_surrounding_elements[i+j*nelr] = -1;
+      // it's coming in with Fortran numbering
+      elements_surrounding_elements[i + j*nelr]--;
 
-    // read in domain geometry
-    ifstream file(data_file_name);
-    file >> nel;
-    nelr = block_length * ((nel / block_length) + min(1, nel % block_length));
-    View<float> areas("areas", nelr);
-    View<int> elements_surrounding_elements("elements_surrounding_elements",
-                                            nelr * NNB);
-    View<float> normals("normals", NDIM * NNB * nelr);
-
-    // read in data
-    for (int i = 0; i < nel; i++) {
-      file >> areas.h_view(i);
-      for (int j = 0; j < NNB; j++) {
-        file >> elements_surrounding_elements.h_view(i + j * nelr);
-        if (elements_surrounding_elements.h_view(i + j * nelr) < 0)
-          elements_surrounding_elements.h_view(i + j * nelr) = -1;
-        // it's coming in with Fortran numbering
-        elements_surrounding_elements.h_view(i + j * nelr)--;
-
-        for (int k = 0; k < NDIM; k++) {
-          file >> normals.h_view(i + (j + k * NNB) * nelr);
-          normals.h_view(i + (j + k*NNB)*nelr) =
-                      -normals.h_view(i + (j + k*NNB)*nelr);
-        }
+      for(int k = 0; k < NDIM; k++) {
+        file >>  normals[i + (j + k*NNB)*nelr];
+        normals[i + (j + k*NNB)*nelr] = -normals[i + (j + k*NNB)*nelr];
       }
     }
-    normals.modify_host();
-    elements_surrounding_elements.modify_host();
+  }
 
-    int last = nel-1;
-    for(int i = nel; i < nelr; i++) {
-
-      areas.h_view(i) = areas.h_view(last);
-
-      for(int j = 0; j < NNB; j++) {
-        // duplicate the last element
-        elements_surrounding_elements.h_view(i + j*nelr) =
-                elements_surrounding_elements.h_view(last + j*nelr);
-
-        for(int k = 0; k < NDIM; k++)
-          normals.h_view(i + (j + k*NNB)*nelr) =
-                normals.h_view(last + (j + k*NNB)*nelr);
-      }
+  // fill in remaining data
+  int last = nel-1;
+  for(int i = nel; i < nelr; i++) {
+    areas[i] = areas[last];
+    for(int j = 0; j < NNB; j++) {
+      // duplicate the last element
+      elements_surrounding_elements[i + j*nelr] =
+              elements_surrounding_elements[last + j*nelr];
+      for(int k = 0; k < NDIM; k++)
+        normals[i + (j + k*NNB)*nelr] = normals[last + (j + k*NNB)*nelr];
     }
-    normals.modify_host();
-    areas.modify_host();
-    elements_surrounding_elements.modify_host();
+  }
 
-    // Create arrays and set initial conditions
-    View<float> variables = View<float>("variables", nelr * NVAR);
+  // Create arrays and set initial conditions
+  float* variables = alloc<float>(nelr*NVAR);
+  initialize_variables(nelr, variables, ff_variable);
 
-    initialize_variables(nelr, variables, ff_variable);
+  float* old_variables = alloc<float>(nelr*NVAR);
+  float* fluxes = alloc<float>(nelr*NVAR);
+  float* step_factors = alloc<float>(nelr);
 
-    View<float> old_variables = View<float>("old_variables", nelr*NVAR);
-    View<float> fluxes = View<float>("fluxes", nelr*NVAR);
-    View<float> step_factors = View<float>("step_factors", nelr);
+  cout << "Starting " << ITERATIONS << " iterations..." << endl;
+  auto start = chrono::steady_clock::now();
+  double copy_total = 0.0;
+  double sf_total = 0.0;
+  double rk_total = 0.0;
+  // Begin iterations
+  for(int i = 0; i < iterations; i++) {
 
-    // Begin iterations
-    cout << "Starting " << ITERATIONS << " iterations..." << endl;
-    auto start = chrono::steady_clock::now();
-    double copy_total = 0.0;
-    double sf_total = 0.0;
-    double rk_total = 0.0;
-    for(int i = 0; i < iterations; i++) {
+    auto copy_start = chrono::steady_clock::now();
+    cpy(old_variables, variables, nelr*NVAR);
+    auto copy_end = chrono::steady_clock::now();
+    copy_total += chrono::duration<double>(copy_end-copy_start).count();
 
-      auto copy_start = chrono::steady_clock::now();
-      cpy(old_variables, variables, nelr*NVAR);
-      auto copy_end = chrono::steady_clock::now();
-      copy_total += chrono::duration<double>(copy_end-copy_start).count();
+    // for the first iteration we compute the time step
+    auto sf_start = chrono::steady_clock::now();
+    compute_step_factor(nelr, variables, areas, step_factors);
+    auto sf_end = chrono::steady_clock::now();
+    sf_total += chrono::duration<double>(sf_end-sf_start).count();
 
-      // for the first iteration we compute the time step
-      auto sf_start = chrono::steady_clock::now();
-      compute_step_factor(nelr, variables, areas, step_factors);
-      auto sf_end = chrono::steady_clock::now();
-      sf_total += chrono::duration<double>(sf_end-sf_start).count();
-
-      auto rk_start = chrono::steady_clock::now();
-      for(int j = 0; j < RK; j++) {
-        compute_flux(nelr, elements_surrounding_elements, normals, variables,
-                    fluxes, ff_variable,
-                    ff_flux_contribution_momentum_x,
-                    ff_flux_contribution_momentum_y,
-                    ff_flux_contribution_momentum_z,
-                    ff_flux_contribution_density_energy);
-        time_step(j, nelr, old_variables, variables, step_factors, fluxes);
-      }
-      auto rk_end = chrono::steady_clock::now();
-      rk_total += chrono::duration<double>(rk_end-rk_start).count();
+    auto rk_start = chrono::steady_clock::now();
+    for(int j = 0; j < RK; j++) {
+      compute_flux(nelr, elements_surrounding_elements, normals, variables,
+                   fluxes, ff_variable,
+                   ff_flux_contribution_momentum_x,
+                   ff_flux_contribution_momentum_y,
+                   ff_flux_contribution_momentum_z,
+                   ff_flux_contribution_density_energy);
+      time_step(j, nelr, old_variables, variables, step_factors, fluxes);
     }
+    auto rk_end = chrono::steady_clock::now();
+    rk_total += chrono::duration<double>(rk_end-rk_start).count();
+  }
 
-    auto end = chrono::steady_clock::now();
-    cout  << "Compute time: " << chrono::duration<double>(end-start).count() << endl;
-    cout << "\ttotal copy time: " << copy_total << endl;
-    cout << "\tstep factor time: " << sf_total << endl;
-    cout << "\trk loop time: " << rk_total << endl;
+  auto end = chrono::steady_clock::now();
+  cout << "Compute time: " << chrono::duration<double>(end-start).count() << endl;
+  cout << "\ttotal copy time: " << copy_total << endl;
+  cout << "\tstep factor time: " << sf_total << endl;
+  cout << "\trk loop time: " << rk_total << endl;
 
-    cout << "Saving solution..." << endl;
-    dump(variables, nel, nelr);
-    cout << "Saved solution..." << endl;
-    cout << "Done..." << endl;
-  }  Kokkos::finalize();
+  cout << "Saving solution..." << endl;
+  dump(variables, nel, nelr);
+  cout << "Saved solution..." << endl;
+  cout << "Done..." << endl;
 
   return 0;
 }
