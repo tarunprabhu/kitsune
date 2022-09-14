@@ -7298,9 +7298,9 @@ memory operations within the same strand.
 
 def TapirDocs : DocumentationCategory<"Tapir Attributes"> {
   let Content = [{
-Tapir and Kitsune introduce custom C++ attributres that let developer 
-control behaviors at the source code level vs. only through command line 
-arguments.  
+Tapir and Kitsune introduce custom C++ attributres that let developer
+control behaviors at the source code level vs. only through command line
+arguments.
   }];
 }
 
@@ -7310,23 +7310,23 @@ def TapirRTDocs : Documentation {
 
 **Experimental**
 
-The kitsune/tapir runtime target attribute `rt_target` let's developers target a 
-specific runtime at the source level vs. using a command line argument to 
-apply the target to all constructs.  The current target runtime are: 
+The kitsune/tapir runtime target attribute `rt_target` let's developers target a
+specific runtime at the source level vs. using a command line argument to
+apply the target to all constructs.  The current target runtime are:
 
-- cilk     : Cilk runtime system. 
-- cuda     : Nvidia's cuda runtime. 
-- hip      : AMD's (cuda-ish) hip runtime.  
-- libomp   : The OpenMP runtime 
-- qthreads : The Qthreads library 
+- cilk     : Cilk runtime system.
+- cuda     : Nvidia's cuda runtime.
+- hip      : AMD's (cuda-ish) hip runtime.
+- libomp   : The OpenMP runtime
+- qthreads : The Qthreads library
 - realm    : The Realm runtime (lower level of the Legion Programming System)
-- rocm     : AMD's Rocm runtime. 
-- zero     : Intel's Level Zero runtime. 
+- rocm     : AMD's Rocm runtime.
+- zero     : Intel's Level Zero runtime.
 
-Example: 
+Example:
 
 .. code-block:: c++
-  
+
   [[kitsune:rt_target("cilk")]]
   forall(...) {
   }];
@@ -7338,17 +7338,17 @@ def TapirStrategyDocs : Documentation {
 
 **Experimental**
 
-The tapir/kitsune strategy attribute `strategy` let's developers target a 
-specific execution strategy at the source level vs. using a command line 
-argument to apply the approach source (construct) code wide.  The current 
-strategies are: 
+The tapir/kitsune strategy attribute `strategy` let's developers target a
+specific execution strategy at the source level vs. using a command line
+argument to apply the approach source (construct) code wide.  The current
+strategies are:
 
-- dac      : execute using a divide-and-conquer approach. 
-- seq      : force sequential executition.  
-- gpu      : use a GPU-centric strategy. 
+- dac      : execute using a divide-and-conquer approach.
+- seq      : force sequential executition.
+- gpu      : use a GPU-centric strategy.
 
 .. code-block:: c++
-  
+
   [[kitsune:strategy("dac")]]
   forall(...) {
   }];
@@ -7358,27 +7358,23 @@ def KitsuneMemAccessDocs : Documentation {
   let Category = TapirDocs;
   let Content = [{
 
-The kitsune memaccess attribute lets programmers inform the compiler of what
-variables their function or loop accesses and how they use them so the compiler
-can make better decisions.  This information is not verified in any way; it's
-entirely up to the programmer to understand their code and communicate this
-information correctly.
+The kitsune memory access attributes lets programmers inform the compiler of
+how variables are used so the compiler can make better decisions for analysis
+and optimization operations.  This information is not verified in any way; it's
+entirely up to the programmer to communicate the details correctly (i.e., it
+might entirely lead to errors in code generation if the attributes are
+inaccurate).
 
-- read	    : these variables are only read, never written to
-- write	    : these variables are only written to, never read
-- readwrite : these variables are both read and written, but no ordering of
-  	      those two operations is implied
+- _readonly	 : these variables are only read, never written to
+- _writeonly : these variables are only written to, never read
+- _readwrite : these variables are both read and written, but no ordering of
+               those two operations is implied
 
 .. code-block:: c++
 
-   [[kitsune:memaccess("read", "n;x;p;")]]
-   [[kitsune:memaccess("write", "acc;")]]
-   forall(...){
-
-   OR
-
-   [[kitsune:memaccess("readwrite", "n;")]]
-   bool funcname (int n) {
-   
+   bool funcname (_readonly float *A,
+                  _readonly float *B,
+                  _writeonly float *C) {
+    ...
   }];
 }
