@@ -106,10 +106,6 @@ Improvements to clang-tidy
   which is no longer in use. The option will be fully removed in
   :program:`clang-tidy` version 18.
 
-- Fixed a regression introduced in clang-tidy 14.0.0, which prevented NOLINTs
-  from suppressing diagnostics associated with macro arguments. This fixes
-  `Issue 55134 <https://github.com/llvm/llvm-project/issues/55134>`_.
-
 New checks
 ^^^^^^^^^^
 
@@ -227,11 +223,6 @@ Changes in existing checks
 - Support removing ``c_str`` calls from ``std::string_view`` constructor calls in
   :doc:`readability-redundant-string-cstr <clang-tidy/checks/readability/redundant-string-cstr>`
   check.
-
-- Fixed a bug in :doc:`bugprone-use-after-move
-  <clang-tidy/checks/bugprone-use-after-move> where a move in a lambda capture
-  was treated as if it happened within the body of the lambda, not within the
-  function that defines the lambda.
 
 Removed checks
 ^^^^^^^^^^^^^^

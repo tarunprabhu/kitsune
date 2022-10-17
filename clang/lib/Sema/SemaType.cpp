@@ -5894,6 +5894,7 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
     }
 
     case DeclaratorChunk::Hyperobject: {
+      #error "Only one of the two calls to BuildHyperobjectType nneds to be here."
       T = S.BuildHyperobjectType(T, DeclType.Hyper.Arg[0],
                                  DeclType.Hyper.Arg[1], DeclType.Hyper.Arg[2],
                                  DeclType.Loc);
@@ -8532,7 +8533,6 @@ static void HandleKitsuneMemAccessAttr(QualType &CurType, const ParsedAttr &Attr
                                    Sema &S) {
 
   if (const TypedefType* TypedefTy = CurType->getAs<TypedefType>()) {
-
     std::string PrevAccessQual;
     if (TypedefTy->getDecl()->hasAttr<KitsuneMemAccessAttr>()) {
       KitsuneMemAccessAttr *Attr =
@@ -8549,11 +8549,11 @@ static void HandleKitsuneMemAccessAttr(QualType &CurType, const ParsedAttr &Attr
          << AttrName << Attr.getRange();
     } else {
       // Contradicting qualifiers
-      S.Diag(Attr.getLoc(), diag::err_kitsune_multiple_access_qualifiers); 
+      S.Diag(Attr.getLoc(), diag::err_kitsune_multiple_access_qualifiers);
     }
 
     S.Diag(TypedefTy->getDecl()->getBeginLoc(),
-	   diag::note_kitsune_typedef_access_qualifier) << PrevAccessQual; 
+	   diag::note_kitsune_typedef_access_qualifier) << PrevAccessQual;
   }
 }
 

@@ -1484,6 +1484,7 @@ Parser::isCXXDeclarationSpecifier(ImplicitTypenameContext AllowImplicitTypename,
 
     // Cilk
   case tok::kw__Hyperobject:
+
     // Kitsune memaccess qualifiers
   case tok::kw__readonly:
   case tok::kw__writeonly:

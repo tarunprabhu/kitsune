@@ -1640,10 +1640,6 @@ public:
                               DominatorTree *DT, LoopVectorizationLegality *LVL,
                               InterleavedAccessInfo *IAI) = 0;
   virtual PredicationStyle emitGetActiveLaneMask() = 0;
-  virtual bool
-  preferPredicateOverEpilogue(Loop *L, LoopInfo *LI, ScalarEvolution &SE,
-                              AssumptionCache &AC, TargetLibraryInfo *TLI,
-                              DominatorTree *DT, const LoopAccessInfo *LAI) = 0;
   virtual void getStripMiningPreferences(Loop *L, ScalarEvolution &,
                                          StripMiningPreferences &SMP) = 0;
   virtual std::optional<Instruction *> instCombineIntrinsic(

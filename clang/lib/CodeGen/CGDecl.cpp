@@ -2001,13 +2001,11 @@ void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
     return;
   }
 
-  emitStoresForConstant(CGM, D, Builder.CreateElementBitCast(Loc, CGM.Int8Ty),
-                        type.isVolatileQualified(), Builder, constant,
-                        /*IsAutoInit=*/false);
-
   llvm::Type *BP = CGM.Int8Ty->getPointerTo(Loc.getAddressSpace());
   emitStoresForConstant(
-      CGM, D, (Loc.getType() == BP) ? Loc : Builder.CreateBitCast(Loc, BP),
+      CGM, D,
+      (Loc.getType() == BP) ? Loc
+                            : Builder.CreateElementBitCast(Loc, CGM.Int8Ty),
       type.isVolatileQualified(), Builder, constant, /*IsAutoInit=*/false);
 
   if (Reducer)
@@ -2037,7 +2035,6 @@ void CodeGenFunction::EmitExprAsInit(const Expr *init, const ValueDecl *D,
     EmitStoreThroughLValue(rvalue, lvalue, true);
     return;
   }
-
   switch (getEvaluationKind(type)) {
   case TEK_Scalar:
     EmitScalarInit(init, D, lvalue, capturedByInit);

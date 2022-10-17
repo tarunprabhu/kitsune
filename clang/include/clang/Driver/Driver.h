@@ -84,7 +84,7 @@ class Driver {
     CPPMode,
     CLMode,
     FlangMode,
-    DXCMode
+    DXCMode,
     KitsuneMode,
     KokkosMode,
     FleCSIMode
@@ -736,10 +736,6 @@ private:
   /// Set the driver mode (cl, gcc, etc) from the value of the `--driver-mode`
   /// option.
   void setDriverMode(StringRef DriverModeValue);
-
-  //bool isCompileOnly();
-  //bool isLinkOnly();
-  //bool isCompileAndLink();
 
   /// Parse the \p Args list for LTO options and record the type of LTO
   /// compilation based on which -f(no-)?lto(=.*)? option occurs last.

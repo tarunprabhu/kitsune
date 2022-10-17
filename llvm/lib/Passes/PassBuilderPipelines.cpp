@@ -267,6 +267,7 @@ static cl::opt<bool> EnableOrderFileInstrumentation(
     "enable-order-file-instrumentation", cl::init(false), cl::Hidden,
     cl::desc("Enable order file instrumentation (default = off)"));
 
+static cl::opt<bool>
     EnableMatrix("enable-matrix", cl::init(false), cl::Hidden,
                  cl::desc("Enable lowering of the matrix intrinsics"));
 
@@ -1406,8 +1407,6 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
   OptimizePM.addPass(
       SimplifyCFGPass(SimplifyCFGOptions().convertSwitchRangeToICmp(true)));
 
-  OptimizePM.addPass(CoroCleanupPass());
-
   // Cleanup tasks as well.
   OptimizePM.addPass(TaskSimplifyPass());
 
@@ -2079,7 +2078,7 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   for (auto &C : FullLinkTimeOptimizationLastEPCallbacks)
     C(MPM, Level);
 
-    // Add passes to run just before Tapir lowering.
+  // Add passes to run just before Tapir lowering.
   for (auto &C : TapirLateEPCallbacks)
     C(MPM, Level);
 
@@ -2232,7 +2231,8 @@ void PassBuilder::addPostCilkInstrumentationPipeline(ModulePassManager &MPM,
     // inner loops with implications on the outer loop.
     LPM.addPass(LoopInstSimplifyPass());
     LPM.addPass(LoopSimplifyCFGPass());
-    LPM.addPass(LICMPass());
+    LPM.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap,
+                        /*AllowSpeculation=*/false));
     LPM.addPass(SimpleLoopUnswitchPass(/* NonTrivial */ Level ==
                                            OptimizationLevel::O3 &&
                                        EnableO3NonTrivialUnswitching));
@@ -2269,7 +2269,8 @@ void PassBuilder::addPostCilkInstrumentationPipeline(ModulePassManager &MPM,
       // or on inner loops with implications on the outer loop.
       LPM.addPass(LoopInstSimplifyPass());
       LPM.addPass(LoopSimplifyCFGPass());
-      LPM.addPass(LICMPass());
+      LPM.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap,
+                        /*AllowSpeculation=*/false));
       FPM.addPass(
           RequireAnalysisPass<OptimizationRemarkEmitterAnalysis, Function>());
       FPM.addPass(

@@ -840,7 +840,6 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
                      return types::isHIP(I.first);
                    }) ||
       C.getInputArgs().hasArg(options::OPT_hip_link);
-
   if (IsCuda && IsHIP) {
     Diag(clang::diag::err_drv_mix_cuda_hip);
     return;
@@ -920,6 +919,26 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
             << OpenMPTargets->getAsString(C.getInputArgs());
         return;
       }
+
+      if (IsTapir) {
+        Diag(clang::diag::err_drv_mix_tapir_omp_offload);
+        return;
+      }
+
+      if (OpenMPTargets->getNumValues()) {
+        // We expect that -fopenmp-targets is always used in conjunction with
+        // the option -fopenmp specifying a valid runtime with offloading
+        // support, i.e. libomp or libiomp.
+        bool HasValidOpenMPRuntime = C.getInputArgs().hasFlag(
+            options::OPT_fopenmp, options::OPT_fopenmp_EQ,
+            options::OPT_fno_openmp, false);
+        if (HasValidOpenMPRuntime) {
+          OpenMPRuntimeKind OpenMPKind = getOpenMPRuntime(C.getInputArgs());
+          HasValidOpenMPRuntime =
+              OpenMPKind == OMPRT_OMP || OpenMPKind == OMPRT_IOMP5;
+        }
+      }
+
       llvm::copy(OpenMPTargets->getValues(), std::back_inserter(OpenMPTriples));
     } else if (C.getInputArgs().hasArg(options::OPT_offload_arch_EQ) &&
                !IsHIP && !IsCuda) {
@@ -965,27 +984,6 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
           Diag(clang::diag::err_drv_failed_to_deduce_target_from_arch) << Arch;
           return;
         }
-
-  // the -fopenmp-targets option.
-  if (Arg *OpenMPTargets =
-          C.getInputArgs().getLastArg(options::OPT_fopenmp_targets_EQ)) {
-
-    if (IsTapir) {
-      Diag(clang::diag::err_drv_mix_tapir_omp_offload);
-      return;
-    }
-
-    if (OpenMPTargets->getNumValues()) {
-      // We expect that -fopenmp-targets is always used in conjunction with the
-      // option -fopenmp specifying a valid runtime with offloading support,
-      // i.e. libomp or libiomp.
-      bool HasValidOpenMPRuntime = C.getInputArgs().hasFlag(
-          options::OPT_fopenmp, options::OPT_fopenmp_EQ,
-          options::OPT_fno_openmp, false);
-      if (HasValidOpenMPRuntime) {
-        OpenMPRuntimeKind OpenMPKind = getOpenMPRuntime(C.getInputArgs());
-        HasValidOpenMPRuntime =
-            OpenMPKind == OMPRT_OMP || OpenMPKind == OMPRT_IOMP5;
       }
 
       // If the set is empty then we failed to find a native architecture.
@@ -1239,10 +1237,11 @@ bool Driver::loadConfigFiles() {
     }
   }
 
-  // Prepare list of directories where config file is searched for.  Note that the directories
-  // appear in the order they will be searched -- the first matched file will be used and the
-  // search will stop from that point.
-  std::vector<StringRef> CfgFileSearchDirs = {Dir, UserConfigDir, KitsuneConfigDir, SystemConfigDir};
+  // Prepare list of directories where config file is searched for.  Note that
+  // the directories appear in the order they will be searched -- the first
+  // matched file will be used and the search will stop from that point.
+  std::vector<StringRef> CfgFileSearchDirs = {
+      Dir, UserConfigDir, KitsuneConfigDir, SystemConfigDir};
 
   // kitsune: check for a kokkos configuration file.
   if (CLOptions->hasArg(options::OPT_fkokkos)) {
@@ -1303,15 +1302,20 @@ bool Driver::loadConfigFiles() {
       if (!TapirTargetCfgFile.empty()) {
         llvm::SmallString<128> TapirTargetCfgFilePath;
 <<<<<<< HEAD
+<<<<<<< HEAD
         if (searchForFile(TapirTargetCfgFilePath, CfgFileSearchDirs,
                 TapirTargetCfgFileName)) {
           if (readConfigFile(TapirTargetCfgFilePath)) {
 =======
         if (searchForFile(TapirTargetCfgFilePath, CfgFileSearchDirs, TapirTargetCfgFile)) {
+=======
+        if (searchForFile(TapirTargetCfgFilePath, CfgFileSearchDirs,
+                          TapirTargetCfgFile)) {
+>>>>>>> a3d55b61ac16 (More fixes after merge with 15.x)
           if (readConfigFile(TapirTargetCfgFilePath))
 >>>>>>> ca84ea8623bb (A pretty significant overhaul to our cmake build approach to make it more)
             Diag(diag::err_drv_cannot_read_kitsune_cfg_file)
-              << TapirTargetCfgFilePath << A->getValue();
+                << TapirTargetCfgFilePath << A->getValue();
         } else {
           Diag(diag::warn_drv_missing_cfg_file)
               << TapirTargetCfgFile << A->getValue();
@@ -1322,7 +1326,6 @@ bool Driver::loadConfigFiles() {
       }
     }
   }
-
 
   // If config file is not specified explicitly, try to deduce configuration
   // from executable name. For instance, an executable 'armv7l-clang' will
@@ -1384,6 +1387,45 @@ bool Driver::loadConfigFiles() {
   CfgFileSearchDirs.push_back(Dir);
 >>>>>>> cec726fce6d2 (Overhaul of some build mechanisms:)
   */
+
+  #error "Not sure if this is necessary, so figure out what to do with it."
+  /*
+    =======
+  // Try to find config file. First try file with corrected architecture.
+  llvm::SmallString<128> CfgFilePath;
+  if (!FixedConfigFile.empty()) {
+    if (searchForFile(CfgFilePath, CfgFileSearchDirs, FixedConfigFile))
+      return readConfigFile(CfgFilePath);
+    // If 'x86_64-clang.cfg' was not found, try 'x86_64.cfg'.
+    FixedConfigFile.resize(FixedArchPrefixLen);
+    FixedConfigFile.append(".cfg");
+    if (searchForFile(CfgFilePath, CfgFileSearchDirs, FixedConfigFile))
+      return readConfigFile(CfgFilePath);
+  }
+
+  // Then try original file name.
+  if (searchForFile(CfgFilePath, CfgFileSearchDirs, CfgFileName))
+    return readConfigFile(CfgFilePath);
+
+  // Finally try removing driver mode part: 'x86_64-clang.cfg' -> 'x86_64.cfg'.
+  if (!ClangNameParts.ModeSuffix.empty() &&
+      !ClangNameParts.TargetPrefix.empty()) {
+    CfgFileName.assign(ClangNameParts.TargetPrefix);
+    CfgFileName.append(".cfg");
+    if (searchForFile(CfgFilePath, CfgFileSearchDirs, CfgFileName))
+      return readConfigFile(CfgFilePath);
+  }
+
+  // Report error but only if config file was specified explicitly, by option
+  // --config. If it was deduced from executable name, it is not an error.
+  if (FileSpecifiedExplicitly) {
+    Diag(diag::err_drv_config_file_not_found) << CfgFileName;
+    for (const StringRef &SearchDir : CfgFileSearchDirs)
+      if (!SearchDir.empty())
+        Diag(diag::note_drv_config_file_searched_in) << SearchDir;
+>>>>>>> a3d55b61ac16 (More fixes after merge with 15.x)
+
+   */
 
   // First try to load configuration from the default files, return on error.
   if (loadDefaultConfigFiles(ExpCtx))
@@ -1544,7 +1586,7 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
 
   // In CL mode, look for any pass-through arguments
   if (IsCLMode() && !ContainsError) {
-    SmallVector<const char *, 32> CLModePassThroughArgList;
+    SmallVector<const char *, 16> CLModePassThroughArgList;
     for (const auto *A : Args.filtered(options::OPT__SLASH_clang)) {
       A->claim();
       CLModePassThroughArgList.push_back(A->getValue());
