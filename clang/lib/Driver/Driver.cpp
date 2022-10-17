@@ -219,9 +219,9 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
 
 #if defined(CLANG_CONFIG_FILE_SYSTEM_DIR)
   SystemConfigDir = CLANG_CONFIG_FILE_SYSTEM_DIR;
-#else 
+#else
   llvm::StringRef PrefixDir = llvm::sys::path::parent_path(Dir);
-  SystemConfigDir = PrefixDir.str() + std::string("/share/kitsune");  
+  SystemConfigDir = PrefixDir.str() + std::string("/share/kitsune");
 #endif
 
 #if defined(CLANG_CONFIG_FILE_USER_DIR)
@@ -806,7 +806,6 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
                      return types::isHIP(I.first);
                    }) ||
       C.getInputArgs().hasArg(options::OPT_hip_link);
-
   if (IsCuda && IsHIP) {
     Diag(clang::diag::err_drv_mix_cuda_hip);
     return;
@@ -886,6 +885,26 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
             << OpenMPTargets->getAsString(C.getInputArgs());
         return;
       }
+
+      if (IsTapir) {
+        Diag(clang::diag::err_drv_mix_tapir_omp_offload);
+        return;
+      }
+
+      if (OpenMPTargets->getNumValues()) {
+        // We expect that -fopenmp-targets is always used in conjunction with
+        // the option -fopenmp specifying a valid runtime with offloading
+        // support, i.e. libomp or libiomp.
+        bool HasValidOpenMPRuntime = C.getInputArgs().hasFlag(
+            options::OPT_fopenmp, options::OPT_fopenmp_EQ,
+            options::OPT_fno_openmp, false);
+        if (HasValidOpenMPRuntime) {
+          OpenMPRuntimeKind OpenMPKind = getOpenMPRuntime(C.getInputArgs());
+          HasValidOpenMPRuntime =
+              OpenMPKind == OMPRT_OMP || OpenMPKind == OMPRT_IOMP5;
+        }
+      }
+
       llvm::copy(OpenMPTargets->getValues(), std::back_inserter(OpenMPTriples));
     } else if (C.getInputArgs().hasArg(options::OPT_offload_arch_EQ) &&
                !IsHIP && !IsCuda) {
@@ -910,27 +929,6 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
           Diag(clang::diag::err_drv_failed_to_deduce_target_from_arch) << Arch;
           return;
         }
-
-  // the -fopenmp-targets option.
-  if (Arg *OpenMPTargets =
-          C.getInputArgs().getLastArg(options::OPT_fopenmp_targets_EQ)) {
-
-    if (IsTapir) {
-      Diag(clang::diag::err_drv_mix_tapir_omp_offload);
-      return;
-    } 
-
-    if (OpenMPTargets->getNumValues()) {
-      // We expect that -fopenmp-targets is always used in conjunction with the
-      // option -fopenmp specifying a valid runtime with offloading support,
-      // i.e. libomp or libiomp.
-      bool HasValidOpenMPRuntime = C.getInputArgs().hasFlag(
-          options::OPT_fopenmp, options::OPT_fopenmp_EQ,
-          options::OPT_fno_openmp, false);
-      if (HasValidOpenMPRuntime) {
-        OpenMPRuntimeKind OpenMPKind = getOpenMPRuntime(C.getInputArgs());
-        HasValidOpenMPRuntime =
-            OpenMPKind == OMPRT_OMP || OpenMPKind == OMPRT_IOMP5;
       }
 
       for (const auto &TripleAndArchs : DerivedArchs)
@@ -1354,7 +1352,7 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
 
   // In CL mode, look for any pass-through arguments
   if (IsCLMode() && !ContainsError) {
-    SmallVector<const char *, 32> CLModePassThroughArgList;
+    SmallVector<const char *, 16> CLModePassThroughArgList;
     for (const auto *A : Args.filtered(options::OPT__SLASH_clang)) {
       A->claim();
       CLModePassThroughArgList.push_back(A->getValue());

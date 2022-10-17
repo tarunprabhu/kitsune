@@ -2033,7 +2033,6 @@ void CodeGenFunction::EmitExprAsInit(const Expr *init, const ValueDecl *D,
     EmitStoreThroughLValue(rvalue, lvalue, true);
     return;
   }
-
   switch (getEvaluationKind(type)) {
   case TEK_Scalar:
     EmitScalarInit(init, D, lvalue, capturedByInit);
