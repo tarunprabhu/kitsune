@@ -570,7 +570,7 @@ static void GetGeneralAccesses(
 
     // If we find a free call and we assume malloc is safe, don't worry about
     // opaque accesses by that free call.
-    if (AssumeSafeMalloc && isFreeCall(Call, TLI))
+    if (AssumeSafeMalloc && getFreedOperand(Call, TLI))
       return;
 
     if (!Call->onlyAccessesArgMemory())
@@ -1715,7 +1715,7 @@ bool RTPtrCheckAnalysis::createCheckForAccess(
     DepId = RunningDepId++;
 
   bool IsWrite = Access.getInt();
-  RtCheck.insert(TheLoop, Ptr, IsWrite, DepId, ASId, SymbolicStrides, PSE);
+  // RtCheck.insert(TheLoop, Ptr, IsWrite, DepId, ASId, SymbolicStrides, PSE);
   LLVM_DEBUG(dbgs() << "TapirRD: Found a runtime check ptr:" << *Ptr << '\n');
 
   return true;
@@ -1846,7 +1846,7 @@ void AccessPtrAnalysis::getRTPtrChecks(Loop *L, RaceInfo::ResultTy &Result,
                                        RaceInfo::PtrChecksTy &AllPtrRtChecks) {
   LLVM_DEBUG(dbgs() << "getRTPtrChecks: " << *L << "\n");
 
-  AllPtrRtChecks[L] = std::make_unique<RuntimePointerChecking>(&SE);
+  // AllPtrRtChecks[L] = std::make_unique<RuntimePointerChecking>(&SE);
 
   RTPtrCheckAnalysis RPCA(L, *AllPtrRtChecks[L].get(), AA, SE);
   SmallPtrSet<const Value *, 16> Seen;
@@ -1903,7 +1903,7 @@ void AccessPtrAnalysis::processAccessPtrs(
         if (const CallBase *Call = dyn_cast<CallBase>(GA.I)) {
           if (!Call->onlyAccessesArgMemory() &&
               !(AssumeSafeMalloc && (isAllocationFn(Call, TLI) ||
-                                     isFreeCall(Call, TLI)))) {
+                                     getFreedOperand(Call, TLI)))) {
             LLVM_DEBUG(dbgs() << "Setting opaque race:\n"
                               << "  GA.I: " << *GA.I << "\n"
                               << "  no explicit racer\n");

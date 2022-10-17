@@ -235,6 +235,7 @@ if (LLVM_ENABLE_PROJECTS_USED OR NOT LLVM_ENABLE_PROJECTS STREQUAL "")
       message(STATUS "${proj} project is enabled")
       set(SHOULD_ENABLE_PROJECT TRUE)
     else()
+      message(STATUS "${proj} project is disabled")
       set(SHOULD_ENABLE_PROJECT FALSE)
     endif()
     # Force `LLVM_TOOL_${upper_proj}_BUILD` variables to have values that

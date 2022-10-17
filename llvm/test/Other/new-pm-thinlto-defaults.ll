@@ -270,9 +270,7 @@
 ; CHECK-POSTLINK-O-NEXT: Running pass: TailCallElimPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: SimplifyCFGPass
 ; CHECK-POST-EP-OPT-LAST-NEXT: Running pass: NoOpModulePass
-; CHECK-O-NEXT: Running pass: CoroCleanupPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: TaskSimplifyPass
-; CHECK-POSTLINK-O-NEXT: Running pass: CGProfilePass
 ; CHECK-POSTLINK-O-NEXT: Running pass: GlobalDCEPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: ConstantMergePass
 ; CHECK-POSTLINK-O-NEXT: Running pass: CGProfilePass

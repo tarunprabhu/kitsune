@@ -892,7 +892,7 @@ determinePointerAccessAttrs(Argument *A,
             if (Visited.insert(&UU).second)
               Worklist.push_back(&UU);
       }
-
+      
       if (CB.doesNotAccessMemory())
         continue;
 

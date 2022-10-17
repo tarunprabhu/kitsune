@@ -921,9 +921,9 @@ def config_system_dir_EQ : Joined<["--"], "config-system-dir=">, Flags<[NoXarchO
   HelpText<"System directory for configuration files">;
 def config_user_dir_EQ : Joined<["--"], "config-user-dir=">, Flags<[NoXarchOption, CoreOption, HelpHidden]>,
   HelpText<"User directory for configuration files">;
-def coverage : Flag<["-", "--"], "coverage">, Group<Link_Group>, Flags<[CoreOption]>;
-def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">, Flags<[NoXarchOption, HelpHidden]>,
+def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">, Flags<[NoXarchOption, CoreOption, HelpHidden]>,
   HelpText<"Kitsune directory for configuration files">;
+def coverage : Flag<["-", "--"], "coverage">, Group<Link_Group>, Flags<[CoreOption]>;
 def cpp_precomp : Flag<["-"], "cpp-precomp">, Group<clang_ignored_f_Group>;
 def current__version : JoinedOrSeparate<["-"], "current_version">;
 def cxx_isystem : JoinedOrSeparate<["-"], "cxx-isystem">, Group<clang_i_Group>,
@@ -1919,9 +1919,9 @@ def fcilktool_EQ : Joined<["-"], "fcilktool=">, Group<f_clang_Group>,
                    MetaVarName<"<check>">,
                    HelpText<"Turn on the designated Cilk tool">;
 def shared_libcilktool : Flag<["-"], "shared-libcilktool">,
-  HelpText<"Dynamically link the cilktool runtime">;
+                         HelpText<"Dynamically link the cilktool runtime">;
 def static_libcilktool : Flag<["-"], "static-libcilktool">,
-  HelpText<"Statically link the cilktool runtime">;
+                         HelpText<"Statically link the cilktool runtime">;
 
 } // end -f[no-]sanitize* flags
 

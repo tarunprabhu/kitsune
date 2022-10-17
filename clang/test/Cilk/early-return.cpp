@@ -28,7 +28,7 @@ void foo(int p) {
 // CHECK: br i1 %{{.+}}, label %[[THEN:.+]], label %[[END:.+]]
 
 // CHECK: [[THEN]]:
-// CHECK-NEXT: sync within %[[SYNCREG]], label %[[SYNCCONT:.+]]
+// CHECK-NEXT: tapir_sync within %[[SYNCREG]], label %[[SYNCCONT:.+]]
 
 // CHECK: [[SYNCCONT]]:
 // CHECK-NEXT: invoke void @llvm.sync.unwind(token %[[SYNCREG]])
@@ -38,7 +38,7 @@ void foo(int p) {
 // CHECK: br label %[[CLEANUP:.+]]
 
 // CHECK: [[END]]:
-// CHECK-NEXT: invoke void @_ZN3ObjC1Ev(%class.Obj* {{.*}}dereferenceable(1) %[[O2:.+]])
+// CHECK-NEXT: invoke void @_ZN3ObjC1Ev(ptr {{.*}}dereferenceable(1) %[[O2:.+]])
 // CHECK-NEXT: to label %[[INVOKECONT:.+]] unwind label
 
 // CHECK: [[INVOKECONT]]:
@@ -46,17 +46,17 @@ void foo(int p) {
 // CHECK-NEXT: to label %[[INVOKECONT2:.+]] unwind label
 
 // CHECK: [[INVOKECONT2]]:
-// CHECK-NEXT: sync within %[[SYNCREG]], label %[[SYNCCONT2:.+]]
+// CHECK-NEXT: tapir_sync within %[[SYNCREG]], label %[[SYNCCONT2:.+]]
 
 // CHECK: [[SYNCCONT2]]:
 // CHECK-NEXT: invoke void @llvm.sync.unwind(token %[[SYNCREG]])
 // CHECK-NEXT: to label %[[SUCONT2:.+]] unwind label
 
 // CHECK: [[SUCONT2]]:
-// CHECK-NEXT: call void @_ZN3ObjD1Ev(%class.Obj* {{.*}}dereferenceable(1) %[[O2:.+]])
+// CHECK-NEXT: call void @_ZN3ObjD1Ev(ptr {{.*}}dereferenceable(1) %[[O2:.+]])
 // CHECK: br label %[[CLEANUP]]
 
 // CHECK: [[CLEANUP]]:
-// CHECK-NEXT: call void @_ZN3ObjD1Ev(%class.Obj* {{.*}}dereferenceable(1) %[[O1:.+]])
+// CHECK-NEXT: call void @_ZN3ObjD1Ev(ptr {{.*}}dereferenceable(1) %[[O1:.+]])
 
 // CHECK: ret void

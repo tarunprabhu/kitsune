@@ -7,6 +7,12 @@
 @d = internal global i32 0, align 4
 
 define i32 @main() {
+; This is different from LLVM upstream. During the course of optimizing, a
+; conditional branch ends up with a constant value. In our case, jump-threading
+; gets run on this code, while in vanilla LLVM, instcombine is run on it.
+; Apparently the two passes deal with the constant conditionals slightly
+; differently. The result is that in our case, the basic block get the name of
+; the destination of the branch whereas in vanilla LLVM, it retains its name.
 ; CHECK-LABEL: @main(
 ; CHECK-NEXT:  entry:
 ; CHECK-NEXT:    [[TMP0:%.*]] = load ptr, ptr @e, align 8
