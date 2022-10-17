@@ -1620,8 +1620,11 @@ bool CilkSanitizerImpl::SimpleInstrumentor::InstrumentCalls(
   bool Result = false;
   for (Instruction *I : Calls) {
     // Allocation-function and free calls are handled separately.
-    if (isAllocFn(I, TLI) || isFreeCall(I, TLI, true))
+    if (isAllocFn(I, TLI))
       continue;
+    else if(auto* CB = dyn_cast<CallBase>(I))
+      if (getFreedOperand(CB, TLI, true))
+        continue;
 
     bool LocalResult = false;
     if (isa<IntrinsicInst>(I))
@@ -1919,8 +1922,11 @@ bool CilkSanitizerImpl::Instrumentor::InstrumentCalls(
   bool Result = false;
   for (Instruction *I : Calls) {
     // Allocation-function and free calls are handled separately.
-    if (isAllocFn(I, TLI) || isFreeCall(I, TLI, true))
+    if (isAllocFn(I, TLI))
       continue;
+    else if (auto* CB = dyn_cast<CallBase>(I))
+      if (getFreedOperand(CB, TLI, true))
+        continue;
 
     bool LocalResult = false;
     bool GetDetaches = false;
@@ -3102,7 +3108,7 @@ bool CilkSanitizerImpl::instrumentLoadOrStoreHoisted(
   // are needed.
   CsiLoadStoreProperty Prop;
   if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
-    Prop.setAlignment(LI->getAlignment());
+    Prop.setAlignment(LI->getAlign().value());
     Prop.setIsThreadLocal(isThreadLocalObject(lookupUnderlyingObject(Addr)));
     // Instrument the load
     Value *CsiId = LoadFED.localToGlobalId(LocalId, IRB);
@@ -3110,7 +3116,7 @@ bool CilkSanitizerImpl::instrumentLoadOrStoreHoisted(
     Instruction *Call = IRB.CreateCall(CsanLargeRead, Args);
     IRB.SetInstDebugLocation(Call);
   } else if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
-    Prop.setAlignment(SI->getAlignment());
+    Prop.setAlignment(SI->getAlign().value());
     Prop.setIsThreadLocal(isThreadLocalObject(lookupUnderlyingObject(Addr)));
     // Instrument the store
     Value *CsiId = StoreFED.localToGlobalId(LocalId, IRB);
@@ -3342,7 +3348,7 @@ bool CilkSanitizerImpl::instrumentFunctionUsingRI(Function &F) {
           AtomicAccesses.push_back(&Inst);
         else if (isa<AllocaInst>(Inst))
           Allocas.insert(&Inst);
-        else if (isa<CallBase>(Inst)) {
+        else if (CallBase* CB = dyn_cast<CallBase>(&Inst)) {
           // if (CallInst *CI = dyn_cast<CallInst>(&Inst))
           //   maybeMarkSanitizerLibraryCallNoBuiltin(CI, TLI);
 
@@ -3365,7 +3371,7 @@ bool CilkSanitizerImpl::instrumentFunctionUsingRI(Function &F) {
           // call.
           if (isAllocFn(&Inst, TLI))
             AllocationFnCalls.insert(&Inst);
-          else if (isFreeCall(&Inst, TLI, /*IgnoreBuiltinAttr*/ true))
+          else if (getFreedOperand(CB, TLI, /*IgnoreBuiltinAttr*/ true))
             FreeCalls.insert(&Inst);
           else if (isa<AnyMemIntrinsic>(Inst))
             MemIntrinCalls.push_back(&Inst);
@@ -3580,9 +3586,8 @@ bool CilkSanitizerImpl::instrumentLoadOrStore(Instruction *I,
   if (!(InstrumentationSet & SHADOWMEMORY))
     return true;
 
-  const unsigned Alignment = IsWrite
-      ? cast<StoreInst>(I)->getAlignment()
-      : cast<LoadInst>(I)->getAlignment();
+  const unsigned Alignment = IsWrite ? cast<StoreInst>(I)->getAlign().value()
+                                     : cast<LoadInst>(I)->getAlign().value();
   CsiLoadStoreProperty Prop;
   Prop.setAlignment(Alignment);
   Prop.setIsAtomic(I->isAtomic());
@@ -4580,7 +4585,7 @@ bool CilkSanitizerImpl::getAllocFnArgs(
 
   // Return the old pointer argument for realloc-like functions or nullptr for
   // other allocation functions.
-  if (isReallocLikeFn(CB, &TLI))
+  if (isReallocLikeFn(CB->getCalledFunction(), &TLI))
     AllocFnArgs.push_back(CB->getArgOperand(0));
   else
     AllocFnArgs.push_back(Constant::getNullValue(AddrTy));

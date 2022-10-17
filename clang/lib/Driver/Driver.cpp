@@ -66,6 +66,7 @@
 #include "clang/Driver/Types.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
@@ -918,6 +919,11 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
       }
       for (StringRef T : OpenMPTargets->getValues())
         OpenMPTriples.insert(T);
+
+      if (IsTapir) {
+        Diag(clang::diag::err_drv_mix_tapir_omp_offload);
+        return;
+      }
     } else if (C.getInputArgs().hasArg(options::OPT_offload_arch_EQ) &&
                !IsHIP && !IsCuda) {
       const ToolChain *HostTC = C.getSingleOffloadToolChain<Action::OFK_Host>();
@@ -1236,10 +1242,11 @@ bool Driver::loadConfigFiles() {
     }
   }
 
-  // Prepare list of directories where config file is searched for.  Note that the directories
-  // appear in the order they will be searched -- the first matched file will be used and the
-  // search will stop from that point.
-  std::vector<StringRef> CfgFileSearchDirs = {Dir, UserConfigDir, KitsuneConfigDir, SystemConfigDir};
+  // Prepare list of directories where config file is searched for.  Note that
+  // the directories appear in the order they will be searched -- the first
+  // matched file will be used and the search will stop from that point.
+  std::vector<StringRef> CfgFileSearchDirs = {
+      Dir, UserConfigDir, KitsuneConfigDir, SystemConfigDir};
 
   // kitsune: check for a kokkos configuration file.
   if (CLOptions->hasArg(options::OPT_fkokkos)) {

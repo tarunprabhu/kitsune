@@ -458,10 +458,6 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
     Changed |= setRetDoesNotAlias(F);
     Changed |= setWillReturn(F);
     break;
-  case LibFunc_aligned_alloc:
-    Changed |= setDoesNotThrow(F);
-    Changed |= setRetDoesNotAlias(F);
-    break;
   case LibFunc_memcmp:
     Changed |= setOnlyAccessesArgMemory(F);
     Changed |= setOnlyReadsMemory(F);
@@ -1290,7 +1286,6 @@ static void markRegisterParameterAttributes(Function *F) {
   }
 }
 
-<<<<<<< HEAD
 FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
                                         LibFunc TheLibFunc, FunctionType *T,
                                         AttributeList AttributeList) {

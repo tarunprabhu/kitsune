@@ -1466,8 +1466,6 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
   OptimizePM.addPass(
       SimplifyCFGPass(SimplifyCFGOptions().convertSwitchRangeToICmp(true)));
 
-  OptimizePM.addPass(CoroCleanupPass());
-
   // Cleanup tasks as well.
   OptimizePM.addPass(TaskSimplifyPass());
 
@@ -2159,7 +2157,7 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
 
   invokeFullLinkTimeOptimizationLastEPCallbacks(MPM, Level);
 
-    // Add passes to run just before Tapir lowering.
+  // Add passes to run just before Tapir lowering.
   for (auto &C : TapirLateEPCallbacks)
     C(MPM, Level);
 
@@ -2304,7 +2302,8 @@ void PassBuilder::addPostCilkInstrumentationPipeline(ModulePassManager &MPM,
     // inner loops with implications on the outer loop.
     LPM.addPass(LoopInstSimplifyPass());
     LPM.addPass(LoopSimplifyCFGPass());
-    LPM.addPass(LICMPass());
+    LPM.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap,
+                        /*AllowSpeculation=*/false));
     LPM.addPass(SimpleLoopUnswitchPass(/* NonTrivial */ Level ==
                                            OptimizationLevel::O3 &&
                                        EnableO3NonTrivialUnswitching));
@@ -2341,7 +2340,8 @@ void PassBuilder::addPostCilkInstrumentationPipeline(ModulePassManager &MPM,
       // or on inner loops with implications on the outer loop.
       LPM.addPass(LoopInstSimplifyPass());
       LPM.addPass(LoopSimplifyCFGPass());
-      LPM.addPass(LICMPass());
+      LPM.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap,
+                        /*AllowSpeculation=*/false));
       FPM.addPass(
           RequireAnalysisPass<OptimizationRemarkEmitterAnalysis, Function>());
       FPM.addPass(
