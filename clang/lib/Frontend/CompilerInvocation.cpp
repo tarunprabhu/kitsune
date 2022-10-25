@@ -4644,7 +4644,6 @@ bool CompilerInvocation::CreateFromArgsImpl(
 
   // LangOpts.Cilk = Args.hasArg(OPT_fcilkplus);
   // LangOpts.Detach = Args.hasArg(OPT_fdetach);
-  // LangOpts.Rhino = Args.hasArg(OPT_frhino);
   TapirTargetID TapirTarget = parseTapirTarget(Args);
   if (TapirTarget == TapirTargetID::Last_TapirTargetID)
     if (const Arg *A = Args.getLastArg(OPT_ftapir_EQ))
@@ -4678,8 +4677,6 @@ bool CompilerInvocation::CreateFromArgsImpl(
       LangOpts.Tapir = TapirTargetID::Realm;
     else if (Name == "cuda")
       LangOpts.Tapir = TapirTargetID::Cuda;
-    else if (Name == "realm")
-      LangOpts.Tapir = TapirTargetID::Realm;
     else if (Name == "opencl")
       LangOpts.Tapir = TapirTargetID::OpenCL;
     else if (Name == "gpu")
