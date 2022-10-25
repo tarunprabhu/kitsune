@@ -1204,7 +1204,7 @@ public:
     ~OMPLocalDeclMapRAII() { SavedMap.swap(CGF.LocalDeclMap); }
   };
 
-  
+
   /// In Cilk, flag indicating whether the current call/invoke is spawned.
   bool IsSpawned = false;
   bool SpawnedCleanup = false;
@@ -1310,17 +1310,17 @@ public:
       if (!InnerSyncScope)
         InnerSyncScope = new ImplicitSyncScope(CGF);
       }
-    }; 
+    };
 
   llvm::DenseMap<StringRef, SyncRegion*> SyncRegions;
   SyncRegion *getOrCreateLabeledSyncRegion(const StringRef SV){
     auto it = SyncRegions.find(SV);
     if (it != SyncRegions.end()) {
-      return it->second; 
+      return it->second;
     } else {
       SyncRegion* SR = new SyncRegion(*this);
       SR->setSyncRegionStart(EmitLabeledSyncRegionStart(SV));
-      SyncRegions.insert({SV, SR});    
+      SyncRegions.insert({SV, SR});
       return SR;
     }
   };
@@ -1334,7 +1334,7 @@ public:
   }
 
   llvm::Instruction *EmitSyncRegionStart();
-  llvm::Instruction *EmitLabeledSyncRegionStart(StringRef SV); 
+  llvm::Instruction *EmitLabeledSyncRegionStart(StringRef SV);
 
   void PopSyncRegion() {
     delete CurSyncRegion; // ~SyncRegion updates CurSyncRegion
@@ -1396,9 +1396,16 @@ public:
       // Recreate the landingpad's return value for the rethrow invoke.  Tapir
       // lowering will replace this rethrow with a resume.
       llvm::Value *Exn = CGF.Builder.CreateLoad(
-          Address(CGF.ExceptionSlot, CGF.getPointerAlign()), "exn");
+          Address(CGF.ExceptionSlot,
+                  cast<llvm::AllocaInst>(CGF.ExceptionSlot)->getAllocatedType(),
+                  CGF.getPointerAlign()),
+          "exn");
       llvm::Value *Sel = CGF.Builder.CreateLoad(
-          Address(CGF.EHSelectorSlot, CharUnits::fromQuantity(4)), "sel");
+          Address(
+              CGF.EHSelectorSlot,
+              cast<llvm::AllocaInst>(CGF.EHSelectorSlot)->getAllocatedType(),
+              CharUnits::fromQuantity(4)),
+          "sel");
       llvm::Type *LPadType = llvm::StructType::get(Exn->getType(),
                                                    Sel->getType());
       llvm::Value *LPadVal = llvm::UndefValue::get(LPadType);
@@ -1431,9 +1438,16 @@ public:
       // Recreate the landingpad's return value for the rethrow invoke.  Tapir
       // lowering will replace this rethrow with a resume.
       llvm::Value *Exn = CGF.Builder.CreateLoad(
-          Address(CGF.ExceptionSlot, CGF.getPointerAlign()), "exn");
+          Address(CGF.ExceptionSlot,
+                  cast<llvm::AllocaInst>(CGF.ExceptionSlot)->getAllocatedType(),
+                  CGF.getPointerAlign()),
+          "exn");
       llvm::Value *Sel = CGF.Builder.CreateLoad(
-          Address(CGF.EHSelectorSlot, CharUnits::fromQuantity(4)), "sel");
+          Address(
+              CGF.EHSelectorSlot,
+              cast<llvm::AllocaInst>(CGF.EHSelectorSlot)->getAllocatedType(),
+              CharUnits::fromQuantity(4)),
+          "sel");
       llvm::Type *LPadType = llvm::StructType::get(Exn->getType(),
                                                    Sel->getType());
       llvm::Value *LPadVal = llvm::UndefValue::get(LPadType);
@@ -1680,9 +1694,16 @@ public:
       // Recreate the landingpad's return value for the rethrow invoke.  Tapir
       // lowering will replace this rethrow with a resume.
       llvm::Value *Exn = CGF.Builder.CreateLoad(
-          Address(CGF.ExceptionSlot, CGF.getPointerAlign()), "exn");
+          Address(CGF.ExceptionSlot,
+                  cast<llvm::AllocaInst>(CGF.ExceptionSlot)->getAllocatedType(),
+                  CGF.getPointerAlign()),
+          "exn");
       llvm::Value *Sel = CGF.Builder.CreateLoad(
-          Address(CGF.EHSelectorSlot, CharUnits::fromQuantity(4)), "sel");
+          Address(
+              CGF.EHSelectorSlot,
+              cast<llvm::AllocaInst>(CGF.EHSelectorSlot)->getAllocatedType(),
+              CharUnits::fromQuantity(4)),
+          "sel");
       llvm::Type *LPadType = llvm::StructType::get(Exn->getType(),
                                                    Sel->getType());
       llvm::Value *LPadVal = llvm::UndefValue::get(LPadType);
@@ -3852,16 +3873,16 @@ public:
   void SetAllocaInsertPoint(llvm::Value* v, llvm::BasicBlock* bb);
 
   // typedef llvm::DenseMap<
-  //                       const VarDecl *, 
+  //                       const VarDecl *,
   //                       std::pair<
-  //                                 Address, 
+  //                                 Address,
   //                                 std::unique_ptr<llvm::SmallVector<llvm::Value *, 4>>
   //                                 >
                         // > DeclMapByValueTy;
-  typedef llvm::DenseMap<const VarDecl *, 
+  typedef llvm::DenseMap<const VarDecl *,
 
                         std::pair<Address,llvm::SmallVector<llvm::Value*,4>>> DeclMapByValueTy;
-  void EmitIVLoad(const VarDecl* LoopVar, 
+  void EmitIVLoad(const VarDecl* LoopVar,
                           DeclMapByValueTy & IVDeclMap);
   void EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,4>& Values);
   void RestoreDeclMap(const VarDecl* IV, const Address);
@@ -3923,13 +3944,13 @@ public:
   LoopAttributes::LSStrategy GetTapirStrategyAttr(ArrayRef<const Attr*> Attrs);
   LoopAttributes::LTarget GetTapirTargetAttr(ArrayRef<const Attr*> Attrs);
 
-  // Kitsune support for Kokkos.  
+  // Kitsune support for Kokkos.
   bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?
   bool EmitKokkosConstruct(const CallExpr *CE, ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
   bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
   bool EmitKokkosParallelReduce(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
   bool ParseAndValidateParallelFor(const CallExpr* CE,
-					   std::string &CN, 
+					   std::string &CN,
              SmallVector<std::pair<const ParmVarDecl*,std::pair<const Expr*, const Expr*>>,6> &IVinfos,
 					   const LambdaExpr *& LE,
              DiagnosticsEngine &Diags);

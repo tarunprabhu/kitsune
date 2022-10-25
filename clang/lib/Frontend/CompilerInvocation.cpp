@@ -4642,11 +4642,9 @@ bool CompilerInvocation::CreateFromArgsImpl(
     }
   }
 
-  LangOpts.Rhino = Args.hasArg(OPT_frhino);
-  LangOpts.Detach = Args.hasArg(OPT_fdetach);
-  LangOpts.Cilk = Args.hasArg(OPT_fcilkplus);
-  LangOpts.Detach = Args.hasArg(OPT_fdetach);
-  LangOpts.Rhino = Args.hasArg(OPT_frhino);
+  // LangOpts.Cilk = Args.hasArg(OPT_fcilkplus);
+  // LangOpts.Detach = Args.hasArg(OPT_fdetach);
+  // LangOpts.Rhino = Args.hasArg(OPT_frhino);
   TapirTargetID TapirTarget = parseTapirTarget(Args);
   if (TapirTarget == TapirTargetID::Last_TapirTargetID)
     if (const Arg *A = Args.getLastArg(OPT_ftapir_EQ))
@@ -4654,7 +4652,8 @@ bool CompilerInvocation::CreateFromArgsImpl(
                                                 << A->getValue();
   LangOpts.TapirTarget = TapirTarget;
 
-  if (LangOpts.Cilk && (LangOpts.ObjC1 || LangOpts.ObjC2))
+  // if (LangOpts.Cilk && (LangOpts.ObjC1 || LangOpts.ObjC2))
+  if (LangOpts.Cilk && LangOpts.ObjC)
     Diags.Report(diag::err_drv_cilk_objc);
 
   if (Diags.isIgnored(diag::warn_profile_data_misexpect, SourceLocation()))
@@ -4666,8 +4665,8 @@ bool CompilerInvocation::CreateFromArgsImpl(
     if (Name == "none")
       LangOpts.Tapir = TapirTargetID::None;
     else if (Name == "cilk")
-      // for now, our deprecation path for cilk is to 
-      // use the opencilk ABI. 
+      // for now, our deprecation path for cilk is to
+      // use the opencilk ABI.
       LangOpts.Tapir = TapirTargetID::OpenCilk;
     else if (Name == "opencilk")
       LangOpts.Tapir = TapirTargetID::OpenCilk;
