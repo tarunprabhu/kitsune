@@ -90,6 +90,7 @@ add_llvm_component_library(LLVMAnalysis
   LoopAnalysisManager.cpp
   LoopCacheAnalysis.cpp
   LoopNestAnalysis.cpp
+  LoopObjectsAnalysis.cpp
   LoopUnrollAnalyzer.cpp
   LoopInfo.cpp
   LoopPass.cpp

@@ -52,6 +52,10 @@ public:
   /// level.
   bool SLPVectorization;
 
+  /// Tuning option to enable/disable loop blocking and prefetch. Its default
+  /// value is that of the flag: `-blocking-prefetch-loops`.
+  bool LoopBlockingPrefetch;
+
   /// Tuning option to enable/disable loop stripmining. Its default value
   /// is that of the flag: `-stripmine-loops`.
   bool LoopStripmine;

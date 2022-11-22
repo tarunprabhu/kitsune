@@ -6,6 +6,7 @@ add_llvm_component_library(LLVMTapirOpts
   CudaABI.cpp
   DRFScopedNoAliasAA.cpp
   HipABI.cpp
+  LoopBlockingPrefetchPass.cpp
   LoopSpawningTI.cpp
   LoopStripMine.cpp
   LoopStripMinePass.cpp
