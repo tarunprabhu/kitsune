@@ -95,10 +95,10 @@ static double _kitrtLastEventTime = 0.0;
 
 
 // === Kernel launch parameters.
-static bool _kitrtUseHueristicLaunchParameters = false;
-static unsigned _kitrtDefaultThreadsPerBlock = 256;
-static unsigned _kitrtDefaultBlocksPerGrid = 0;
-static bool _kitrtUseCustomLaunchParameters = false;
+//static bool _kitrtUseHueristicLaunchParameters = false;
+//static unsigned _kitrtDefaultThreadsPerBlock = 256;
+//static unsigned _kitrtDefaultBlocksPerGrid = 0;
+//static bool _kitrtUseCustomLaunchParameters = false;
 
 // Enable auto-prefetching of managed memory pointers.
 // This is a very simple approach that likely will
@@ -156,7 +156,7 @@ static bool __kitrt_hipLoadDLSyms() {
   if (dlHandle)
     return true; // don't reload symbols...
 
-  if (dlHandle = dlopen(HIP_DSO_LIBNAME, RTLD_LAZY)) {
+  if ((dlHandle = dlopen(HIP_DSO_LIBNAME, RTLD_LAZY))) {
     // ---- Initialize, properties, error handling, clean up, etc.
     DLSYM_LOAD(hipInit);
     DLSYM_LOAD(hipSetDevice);
@@ -202,13 +202,13 @@ extern "C" {
 
 #define HIP_SAFE_CALL(x)                                                       \
   {                                                                            \
-    hipError_t result = x;                                                     \
-    if (result != hipSuccess) {                                                \
+    hipError_t hip_result = x;                                                 \
+    if (hip_result != hipSuccess) {                                            \
+      fprintf(stderr, "kitrt: %s:%d:\n", __FILE__, __LINE__);                  \
       const char *msg;                                                         \
-      msg = hipGetErrorName_p(result);                                         \
-      fprintf(stderr, "kitrt %s:%d:\n, __FILE__, __LINE__");                   \
+      msg = hipGetErrorName_p(hip_result);                                     \
       fprintf(stderr, "  %s failed ('%s')\n", #x, msg);                        \
-      msg = hipGetErrorString_p(result);                                       \
+      msg = hipGetErrorString_p(hip_result);                                   \
       fprintf(stderr, "  error: '%s'\n", msg);                                 \
       abort();                                                                 \
     }                                                                          \
@@ -444,7 +444,6 @@ void *__kitrt_hipLaunchModuleKernel(void *module, const char *kernelName,
 
   // TODO: need to set launch parameters!
   int threadsPerBlock, blocksPerGrid;
-
   __kitrt_getLaunchParameters(numElements, threadsPerBlock, blocksPerGrid);
 
   HIP_SAFE_CALL(hipModuleLaunchKernel_p(function,
@@ -464,7 +463,7 @@ void *__kitrt_hipLaunchFBKernel(const void *fatBin, const char *kernelName,
   // allocated resources -- as it stands we will "leak" modules,
   // streams, functions, etc.
   static bool module_built = false;
-  hipModule_t module;
+  static hipModule_t module;
   if (!module_built) {
     HIP_SAFE_CALL(hipModuleLoadData_p(&module, fatBin));
     module_built = true;
@@ -512,5 +511,20 @@ float __kitrt_hipElapsedEventTime(void *start, void *stop) {
                                       (hipEvent_t)stop));
   return msecs;
 }
+
+// ---- Event management for timing, etc.
+
+void __kitrt_hipEnableEventTiming(unsigned report) {
+  _kitrtEnableTiming = true;
+  _kitrtReportTiming = report > 0;
+}
+
+void __kitrt_hipDisableEventTiming() {
+  _kitrtEnableTiming = false;
+  _kitrtReportTiming = false;
+  _kitrtLastEventTime = 0.0;
+}
+
+double __kitrt_hipGetLastEventTime() { return _kitrtLastEventTime; }
 
 } // extern "C"
