@@ -121,9 +121,7 @@ extern "C" {
     else
       __kitrt_disableStackTraces();
 
-    // Initialize the supported runtime layer(s).
-    bool __kitrt_runtimesInit();
-    return __kitrt_runtimesInit();
+    return true;
   }
 
   void __kitrt_getLaunchParameters(size_t numElements,
@@ -156,5 +154,3 @@ extern "C" {
 #ifdef __cplusplus
 } // extern "C"
 #endif
-
-

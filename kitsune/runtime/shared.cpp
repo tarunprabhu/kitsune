@@ -54,20 +54,20 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#include "kitrt.h"
+
 static unsigned _kitrtDefaultThreadsPerBlock = 256;
 static bool _kitrtUseCustomLaunchParameters = false;
 static unsigned _kitrtThreadsPerBlock = 0;
 static unsigned _kitrtBlocksPerGrid = 0;
 
 void __kitrt_CommonInit() {
-
   char *envValue;
   if ((envValue = getenv("KITRT_THREADS_PER_BLOCK"))) {
     _kitrtDefaultThreadsPerBlock = atoi(envValue);
-    #ifdef _KITRT_VERBOSE_
-    fprintf(stderr, "kitrt: enviornment threads per block setting = %d.\n",
-            _kitrtDefaultThreadsPerBlock);
-    #endif
+    if (__kitrt_verboseMode())
+      fprintf(stderr, "kitrt: enviornment threads per block setting = %d.\n",
+              _kitrtDefaultThreadsPerBlock);
   }
 }
 
@@ -101,4 +101,3 @@ void __kitrt_getLaunchParameters(size_t numElements,
     blocksPerGrid = _kitrtBlocksPerGrid;
   }
 }
-

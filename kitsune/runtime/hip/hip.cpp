@@ -223,6 +223,11 @@ bool __kitrt_hipInit() {
     return true;
   }
 
+  if (!__kitrt_init()) {
+    fprintf(stderr, "kitrt: failed to initialize Kitsune runtime.\n");
+    abort();
+  }
+
   if (!__kitrt_hipLoadDLSyms()) {
     fprintf(stderr, "kitrt: unable to resolve dynamic symbols for HIP.\n");
     fprintf(stderr, "       check environment settings and installation.\n");
@@ -298,9 +303,8 @@ bool __kitrt_hipInit() {
                     "managed memory accesses!\n");
     abort(); // TODO: eventually want to return false so JIT runtime won't fail.
   } else {
-    #ifdef _KITRT_VERBOSE_
-    fprintf(stderr, "kitrt: hip runtime component successfully initialized.\n");
-    #endif
+    if (__kitrt_verboseMode())
+      fprintf(stderr, "kitrt: hip runtime component successfully initialized.\n");
     _kitrt_hipIsInitialized = true;
   }
 
@@ -313,9 +317,8 @@ void __kitrt_hipDestroy() {
     __kitrt_destroyMemoryMap(__kitrt_hipFreeManagedMem);
     HIP_SAFE_CALL(hipDeviceReset_p());
     _kitrt_hipIsInitialized = false;
-    #ifdef _KITRT_VERBOSE_
-    fprintf(stderr, "kitrt: shutdown hip runtime component.\n");
-    #endif
+    if (__kitrt_verboseMode())
+      fprintf(stderr, "kitrt: shutdown hip runtime component.\n");
   }
 }
 
@@ -325,18 +328,16 @@ void *__kitrt_hipMemAllocManaged(size_t size) {
   assert(_kitrt_hipIsInitialized && "kitrt: hip has not been initialized!");
   void *memPtr;
   HIP_SAFE_CALL(hipMallocManaged_p(&memPtr, size, hipMemAttachGlobal));
-  #ifdef _KITRT_VERBOSE_
-  fprintf(stderr, "kitrt: allocated hip managed memory (%ld bytes @ %p).\n", size, memPtr);
-  #endif
+  if (__kitrt_verboseMode())
+    fprintf(stderr, "kitrt: allocated hip managed memory (%ld bytes @ %p).\n", size, memPtr);
   __kitrt_registerMemAlloc(memPtr, size);
   return (void*)memPtr;
 }
 
 void __kitrt_hipMemFree(void *memPtr) {
   assert(memPtr != nullptr && "unexpected null pointer!");
-  #ifdef _KITRT_VERBOSE_
-  fprintf(stderr, "kitrt: freed hip managed memory @ %p.\n", memPtr);
-  #endif
+  if (__kitrt_verboseMode())
+    fprintf(stderr, "kitrt: freed hip managed memory @ %p.\n", memPtr);
   __kitrt_unregisterMemAlloc(memPtr);
   HIP_SAFE_CALL(hipFree_p(memPtr));
 }
@@ -379,10 +380,9 @@ void __kitrt_hipMemPrefetch(void *vp) {
     if (not __kitrt_isMemPrefetched(vp)) {
       size_t size = __kitrt_getMemAllocSize(vp);
       if (size > 0) {
-        #ifdef _KITRT_VERBOSE_
-        fprintf(stderr, "kitrt: prefetch managed memory @ %p, %ld bytes.\n",
-                vp, size);
-        #endif
+        if (__kitrt_verboseMode())
+          fprintf(stderr, "kitrt: prefetch managed memory @ %p, %ld bytes.\n",
+                  vp, size);
         __kitrt_hipMemPrefetchAsync(vp, size);
       }
     }
@@ -395,10 +395,9 @@ void __kitrt_hipMemcpySymbolToDevice(void *hostPtr,
   assert(devPtr != 0 && "unexpected null device pointer!");
   assert(hostPtr != nullptr && "unexpected null host pointer!");
   assert(size != 0 && "requested a 0 byte copy!");
-  #ifdef _KITRT_VERBOSE_
-  fprintf(stderr, "kitrt: hip copy symbol (%ld bytes) to device (%p --> %p).\n",
-          size, hostPtr, devPtr);
-  #endif
+  if (__kitrt_verboseMode())
+    fprintf(stderr, "kitrt: hip copy symbol (%ld bytes) to device (%p --> %p).\n",
+            size, hostPtr, devPtr);
   HIP_SAFE_CALL(hipMemcpyHtoD_p((hipDeviceptr_t)devPtr, hostPtr, size));
 }
 
@@ -415,9 +414,8 @@ uint64_t __kitrt_hipGetGlobalSymbol(const char *symName, void *mod) {
   assert(symName && "unexpected null symbol name!");
   assert(mod && "unexpected null module pointer!");
 
-  #ifdef _KITRT_VERBOSE_
-  fprintf(stderr, "kitrt: get hip global symbol (%s).\n", symName);
-  #endif
+  if (__kitrt_verboseMode())
+    fprintf(stderr, "kitrt: get hip global symbol (%s).\n", symName);
 
   // TODO: Might need to revisit the details here to make sure they
   // fit the HIP API details.
@@ -435,9 +433,8 @@ void *__kitrt_hipLaunchModuleKernel(void *module, const char *kernelName,
                                        (hipModule_t)module,
                                        kernelName));
 
-  #ifdef _KITRT_VERBOSE_
-  fprintf(stderr, "kitrt: module-launch of hip kernel '%s'.\n", kernelName);
-  #endif
+  if (__kitrt_verboseMode())
+    fprintf(stderr, "kitrt: module-launch of hip kernel '%s'.\n", kernelName);
 
   // TODO: The HIP documentation is not entirely clear about the
   // existence of a default stream...  This could break...

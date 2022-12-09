@@ -56,6 +56,7 @@
 #include <unordered_map>
 #include <map>
 #include "memory_map.h"
+#include "kitrt.h"
 
 //#define _KITRT_VERBOSE_
 
@@ -69,10 +70,9 @@ void __kitrt_registerMemAlloc(void *addr, size_t size, bool prefetched) {
   entry.size = size;
   entry.prefetched = false;
   _kitrtAllocMap[addr] = entry;
-  #ifdef _KITRT_VERBOSE_
-  fprintf(stderr, "kitrt: registered memory allocation (%p) "
-		  "of %ld bytes.\n", addr, size);
-  #endif
+  if (__kitrt_verboseMode())
+    fprintf(stderr, "kitrt: registered memory allocation (%p) "
+            "of %ld bytes.\n", addr, size);
 }
 
 void __kitrt_setMemPrefetch(void *addr, bool prefetched) {
@@ -80,18 +80,16 @@ void __kitrt_setMemPrefetch(void *addr, bool prefetched) {
   KitRTAllocMap::iterator ait = _kitrtAllocMap.find(addr);
   if (ait != _kitrtAllocMap.end()) {
     ait->second.prefetched = prefetched;
-    #ifdef _KITRT_VERBOSE
-    fprintf(stderr, "kitrt: __kitrt_setMemPrefetch() -- "
-            "marked memory at %p, size %ld, as '%s'.\n", addr, ait->second.size,
-            prefetched ? "prefetched" : "not prefetched");
-    #endif
+    if (__kitrt_verboseMode())
+      fprintf(stderr, "kitrt: __kitrt_setMemPrefetch() -- "
+              "marked memory at %p, size %ld, as '%s'.\n", addr, ait->second.size,
+              prefetched ? "prefetched" : "not prefetched");
   } else {
-    #ifdef _KITRT_VERBOSE_
-    fprintf(stderr,
-            "kitrt: __kitrt_setMemPrefetch() -- "
-            "warning, address %p not found in memory map.\n",
-            addr);
-    #endif
+    if (__kitrt_verboseMode())
+      fprintf(stderr,
+              "kitrt: __kitrt_setMemPrefetch() -- "
+              "warning, address %p not found in memory map.\n",
+              addr);
   }
 }
 
@@ -101,13 +99,12 @@ bool __kitrt_isMemPrefetched(void *addr) {
   if (cit != _kitrtAllocMap.end()) {
     return cit->second.prefetched;
   } else {
-    #ifdef _KITRT_VERBOSE_
-    fprintf(stderr,
-            "kitrt: __kitrt_isMemPrefetched() -- "
-            "warning, address %p not found in address map. "
-            "returning false state!\n",
-            addr);
-    #endif
+    if (__kitrt_verboseMode())
+      fprintf(stderr,
+              "kitrt: __kitrt_isMemPrefetched() -- "
+              "warning, address %p not found in address map. "
+              "returning false state!\n",
+              addr);
     return true;
   }
 }
@@ -118,13 +115,12 @@ size_t __kitrt_getMemAllocSize(void *addr) {
   if (cit != _kitrtAllocMap.end()) {
     return cit->second.size;
   } else {
-    #ifdef _KITRT_VERBOSE_
-    fprintf(stderr,
-            "kitrt: __kitrt_getMemAllocSize() -- "
-            "warning, address %p not found in address map. "
-            "returning zero size.\n",
-            addr);
-    #endif
+    if (__kitrt_verboseMode())
+      fprintf(stderr,
+              "kitrt: __kitrt_getMemAllocSize() -- "
+              "warning, address %p not found in address map. "
+              "returning zero size.\n",
+              addr);
     return 0;
   }
 }
@@ -135,12 +131,11 @@ void __kitrt_unregisterMemAlloc(void *addr) {
   if (ait != _kitrtAllocMap.end()) {
     _kitrtAllocMap.erase(ait);
   } else {
-    #ifdef _KITRT_VERBOSE_
-    fprintf(stderr,
-            "kitrt: __kitrt_unregisterMemAlloc() -- "
-            "warning, address %p not found in address map.\n",
-            addr);
-    #endif
+    if (__kitrt_verboseMode())
+      fprintf(stderr,
+              "kitrt: __kitrt_unregisterMemAlloc() -- "
+              "warning, address %p not found in address map.\n",
+              addr);
   }
 }
 
@@ -148,11 +143,10 @@ void __kitrt_memNeedsPrefetch(void *addr) {
   assert(addr != nullptr && "unexpected null pointer!");
   KitRTAllocMap::iterator it = _kitrtAllocMap.find(addr);
   if (it != _kitrtAllocMap.end()) {
-    #ifdef _KITRT_VERBOSE_
-    fprintf(stderr,
-            "kitrt: allocation (%p) needs prefetching (updated on host).\n",
-            addr);
-    #endif
+    if (__kitrt_verboseMode())
+      fprintf(stderr,
+              "kitrt: allocation (%p) needs prefetching (updated on host).\n",
+              addr);
     it->second.prefetched = false;
   }
 }
@@ -161,4 +155,3 @@ extern "C" void __kitrt_destroyMemoryMap(void (*freeMem)(void *)) {
   for (auto &mapEntry : _kitrtAllocMap)
     freeMem(mapEntry.first);
 }
-

@@ -206,7 +206,7 @@ static bool __kitrt_cuLoadDLSyms() {
   if (dlHandle)
     return true;
 
-  if (dlHandle = dlopen("libcuda.so", RTLD_LAZY)) {
+  if ((dlHandle = dlopen("libcuda.so", RTLD_LAZY))) {
     DLSYM_LOAD(cuInit);
     DLSYM_LOAD(cuGetErrorName);
     DLSYM_LOAD(cuGetErrorString);
@@ -281,9 +281,13 @@ extern "C" {
 // ---- Initialization, properties, clean up, etc.
 
 bool __kitrt_cuInit() {
-
   if (_kitrt_cuIsInitialized)
     return true;
+
+  if (!__kitrt_init()) {
+    fprintf(stderr, "kitrt: failed to initialize Kitsune runtime.\n");
+    abort();
+  }
 
   if (!__kitrt_cuLoadDLSyms()) {
     fprintf(stderr, "kitrt: unable to resolve dynamic symbols for CUDA.\n");
@@ -413,10 +417,9 @@ void __kitrt_cuDisablePrefetch() {
 
 void __kitrt_cuMemPrefetchOnStream(void *vp, void *stream) {
   assert(vp && "unexpected null pointer!");
-  #ifdef _KITRT_VERBOSE_
-  fprintf(stderr, "kitrt: prefetch request for pointer %p on stream %p.\n",
-          vp, stream);
-  #endif
+  if (__kitrt_verboseMode())
+    fprintf(stderr, "kitrt: prefetch request for pointer %p on stream %p.\n",
+            vp, stream);
   if (__kitrt_cuIsMemManaged(vp) && not __kitrt_isMemPrefetched(vp)) {
     size_t size = __kitrt_getMemAllocSize(vp);
     if (size > 0) {
@@ -471,10 +474,9 @@ static void __kitrt_cuMaxPotentialBlockSize(int &blocksPerGrid,
                                           &threadsPerBlock, F, 0,
                                           0, // no dynamic shared memory...
                                           0));
-  #ifdef _KITRT_VERBOSE_
-  fprintf(stderr, "occupancy returned: %d, %d\n", blocksPerGrid,
-          threadsPerBlock);
-  #endif
+  if (__kitrt_verboseMode())
+    fprintf(stderr, "occupancy returned: %d, %d\n", blocksPerGrid,
+            threadsPerBlock);
   blocksPerGrid = (numElements + threadsPerBlock - 1) / threadsPerBlock;
 }
 
@@ -533,12 +535,12 @@ void *__kitrt_cuLaunchModuleKernel(void *mod, const char *kernelName,
     cuEventCreate_p(&stop, CU_EVENT_DEFAULT);
     cuEventRecord_p(start, 0);
   }
-#ifdef _KITRT_VERBOSE_
-  fprintf(stderr, "launch parameters:\n");
-  fprintf(stderr, "\tnumber of overall elements: %ld\n", numElements);
-  fprintf(stderr, "\tblocks/grid = %d\n", blocksPerGrid);
-  fprintf(stderr, "\tthreads/block = %d\n", threadsPerBlock);
-#endif
+  if (__kitrt_verboseMode()) {
+    fprintf(stderr, "launch parameters:\n");
+    fprintf(stderr, "\tnumber of overall elements: %ld\n", numElements);
+    fprintf(stderr, "\tblocks/grid = %d\n", blocksPerGrid);
+    fprintf(stderr, "\tthreads/block = %d\n", threadsPerBlock);
+  }
 
   CU_SAFE_CALL(cuLaunchKernel_p(kFunc,
                                 blocksPerGrid, 1, 1,
@@ -610,12 +612,12 @@ void *__kitrt_cuStreamLaunchFBKernel(const void *fatBin,
     cuEventRecord_p(start, stream);
   }
 
-#ifdef _KITRT_VERBOSE_
-  fprintf(stderr, "launch parameters:\n");
-  fprintf(stderr, "\tnumber of overall elements: %ld\n", numElements);
-  fprintf(stderr, "\tblocks/grid = %d\n", blocksPerGrid);
-  fprintf(stderr, "\tthreads/block = %d\n", threadsPerBlock);
-#endif
+  if (__kitrt_verboseMode()) {
+    fprintf(stderr, "launch parameters:\n");
+    fprintf(stderr, "\tnumber of overall elements: %ld\n", numElements);
+    fprintf(stderr, "\tblocks/grid = %d\n", blocksPerGrid);
+    fprintf(stderr, "\tthreads/block = %d\n", threadsPerBlock);
+  }
 
   CU_SAFE_CALL(cuLaunchKernel_p(kFunc,
                                 blocksPerGrid, 1, 1,
@@ -685,12 +687,12 @@ void __kitrt_cuLaunchFBKernelOnStream(const void *fatBin,
     cuEventRecord_p(start, cu_stream);
   }
 
-#ifdef _KITRT_VERBOSE_
-  fprintf(stderr, "launch parameters:\n");
-  fprintf(stderr, "\tnumber of overall elements: %ld\n", numElements);
-  fprintf(stderr, "\tblocks/grid = %d\n", blocksPerGrid);
-  fprintf(stderr, "\tthreads/block = %d\n", threadsPerBlock);
-#endif
+  if (__kitrt_verboseMode()) {
+    fprintf(stderr, "launch parameters:\n");
+    fprintf(stderr, "\tnumber of overall elements: %ld\n", numElements);
+    fprintf(stderr, "\tblocks/grid = %d\n", blocksPerGrid);
+    fprintf(stderr, "\tthreads/block = %d\n", threadsPerBlock);
+  }
 
   CU_SAFE_CALL(cuLaunchKernel_p(kFunc, blocksPerGrid, 1, 1, threadsPerBlock, 1,
                                 1, 0, cu_stream, fatBinArgs, NULL));
@@ -736,12 +738,12 @@ void __kitrt_cuLaunchKernel(const void *fatBin,
   }
 
   __kitrt_getLaunchParameters(numElements, threadsPerBlock, blocksPerGrid);
-  #ifdef _KITRT_VERBOSE_
-  fprintf(stderr, "launch parameters for %s:\n", kernelName);
-  fprintf(stderr, "\tnumber of overall elements: %ld\n", numElements);
-  fprintf(stderr, "\tblocks/grid = %d\n", blocksPerGrid);
-  fprintf(stderr, "\tthreads/block = %d\n", threadsPerBlock);
-  #endif
+  if (__kitrt_verboseMode()) {
+    fprintf(stderr, "launch parameters for %s:\n", kernelName);
+    fprintf(stderr, "\tnumber of overall elements: %ld\n", numElements);
+    fprintf(stderr, "\tblocks/grid = %d\n", blocksPerGrid);
+    fprintf(stderr, "\tthreads/block = %d\n", threadsPerBlock);
+  }
 
   CUevent start, stop;
   if (_kitrtEnableTiming) {
