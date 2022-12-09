@@ -117,11 +117,12 @@
 #include "llvm/Transforms/Scalar/SpeculativeExecution.h"
 #include "llvm/Transforms/Scalar/TailRecursionElimination.h"
 #include "llvm/Transforms/Scalar/WarnMissedTransforms.h"
+#include "llvm/Transforms/Tapir/DRFScopedNoAliasAA.h"
+#include "llvm/Transforms/Tapir/LoopBlockingPrefetchPass.h"
 #include "llvm/Transforms/Tapir/LoopSpawningTI.h"
 #include "llvm/Transforms/Tapir/LoopStripMinePass.h"
 #include "llvm/Transforms/Tapir/SerializeSmallTasks.h"
 #include "llvm/Transforms/Tapir/TapirToTarget.h"
-#include "llvm/Transforms/Tapir/DRFScopedNoAliasAA.h"
 #include "llvm/Transforms/Utils/AddDiscriminators.h"
 #include "llvm/Transforms/Utils/AssumeBundleBuilder.h"
 #include "llvm/Transforms/Utils/CanonicalizeAliases.h"
@@ -200,7 +201,8 @@ PipelineTuningOptions::PipelineTuningOptions() {
   LoopInterleaving = true;
   LoopVectorization = true;
   SLPVectorization = false;
-  LoopStripmine = true;
+  LoopBlockingPrefetch = EnableTapirLoopBlockingPrefetch;
+  LoopStripmine = EnableTapirLoopStripmine;
   LoopUnrolling = true;
   ForgetAllSCEVInLoopUnroll = ForgetSCEVInLoopUnroll;
   LicmMssaOptCap = SetLicmMssaOptCap;
@@ -658,7 +660,7 @@ void PassBuilder::addPGOInstrPasses(ModulePassManager &MPM,
 
     FunctionPassManager FPM;
     FPM.addPass(SROAPass());
-    FPM.addPass(EarlyCSEPass());    // Catch trivial redundancies.
+    FPM.addPass(EarlyCSEPass()); // Catch trivial redundancies.
     FPM.addPass(SimplifyCFGPass(SimplifyCFGOptions().convertSwitchRangeToICmp(
         true)));                    // Merge & remove basic blocks.
     FPM.addPass(InstCombinePass()); // Combine silly sequences.
@@ -751,10 +753,9 @@ PassBuilder::buildInlinerPipeline(OptimizationLevel Level,
   if (PGOOpt)
     IP.EnableDeferral = EnablePGOInlineDeferral;
 
-  ModuleInlinerWrapperPass MIWP(
-      IP, PerformMandatoryInliningsFirst,
-      InlineContext{Phase, InlinePass::CGSCCInliner},
-      UseInlineAdvisor, MaxDevirtIterations);
+  ModuleInlinerWrapperPass MIWP(IP, PerformMandatoryInliningsFirst,
+                                InlineContext{Phase, InlinePass::CGSCCInliner},
+                                UseInlineAdvisor, MaxDevirtIterations);
 
   // Require the GlobalsAA analysis for the module so we can query it within
   // the CGSCC pipeline.
@@ -1265,6 +1266,32 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
     OptimizePM.addPass(InstCombinePass());
   }
 
+  // Block and prefetch Tapir loops, if pass is enabled.
+  if (PTO.LoopBlockingPrefetch && Level != OptimizationLevel::O1 &&
+      !Level.isOptimizingForSize()) {
+    LoopPassManager LPM1, LPM2;
+    LPM1.addPass(TapirIndVarSimplifyPass());
+    OptimizePM.addPass(
+        createFunctionToLoopPassAdaptor(std::move(LPM1),
+                                        /*UseMemorySSA=*/true,
+                                        /*UseBlockFrequencyInfo=*/true));
+    OptimizePM.addPass(LoopBlockingPrefetchPass());
+    OptimizePM.addPass(TaskSimplifyPass());
+    LPM2.addPass(LoopSimplifyCFGPass());
+    LPM2.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap,
+                          /*AllowSpeculation=*/true));
+    OptimizePM.addPass(
+        createFunctionToLoopPassAdaptor(std::move(LPM2),
+                                        /*UseMemorySSA=*/true,
+                                        /*UseBlockFrequencyInfo=*/true));
+    // Don't run IndVarSimplify at this point, as it can actually inhibit
+    // vectorization in some cases.
+    OptimizePM.addPass(EarlyCSEPass(true /* Enable mem-ssa */));
+    OptimizePM.addPass(JumpThreadingPass());
+    OptimizePM.addPass(CorrelatedValuePropagationPass());
+    OptimizePM.addPass(InstCombinePass());
+  }
+
   for (auto &C : VectorizerStartEPCallbacks)
     C(OptimizePM, Level);
 
@@ -1394,9 +1421,8 @@ PassBuilder::buildTapirLoweringPipeline(OptimizationLevel Level,
 
   // The LoopSpawning pass may leave cruft around.  Clean it up using the
   // function simplification pipeline.
-  MPM.addPass(
-      createModuleToFunctionPassAdaptor(
-          buildFunctionSimplificationPipeline(Level, Phase)));
+  MPM.addPass(createModuleToFunctionPassAdaptor(
+      buildFunctionSimplificationPipeline(Level, Phase)));
 
   // Add passes to run just after Tapir loops are processed.
   for (auto &C : TapirLoopEndEPCallbacks)
@@ -1412,9 +1438,8 @@ PassBuilder::buildTapirLoweringPipeline(OptimizationLevel Level,
 
   // The TapirToTarget pass may leave cruft around.  Clean it up using the
   // function simplification pipeline.
-  MPM.addPass(
-      createModuleToFunctionPassAdaptor(
-          buildFunctionSimplificationPipeline(Level, Phase)));
+  MPM.addPass(createModuleToFunctionPassAdaptor(
+      buildFunctionSimplificationPipeline(Level, Phase)));
 
   // Interprocedural constant propagation now that basic cleanup has occurred
   // and prior to optimizing globals.
@@ -1840,7 +1865,7 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
       getInlineParamsFromOptLevel(Level),
       /* MandatoryFirst */ true,
       InlineContext{ThinOrFullLTOPhase::FullLTOPostLink,
-                          InlinePass::CGSCCInliner}));
+                    InlinePass::CGSCCInliner}));
 
   // Optimize globals again after we ran the inliner.
   MPM.addPass(GlobalOptPass());
@@ -1914,7 +1939,6 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   MainFPM.addPass(DSEPass());
   MainFPM.addPass(MergedLoadStoreMotionPass());
 
-
   if (EnableConstraintElimination)
     MainFPM.addPass(ConstraintEliminationPass());
 
@@ -1939,8 +1963,7 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   addVectorPasses(Level, MainFPM, /* IsFullLTO */ true);
 
   // Run the OpenMPOpt CGSCC pass again late.
-  MPM.addPass(
-      createModuleToPostOrderCGSCCPassAdaptor(OpenMPOptCGSCCPass()));
+  MPM.addPass(createModuleToPostOrderCGSCCPassAdaptor(OpenMPOptCGSCCPass()));
 
   invokePeepholeEPCallbacks(MainFPM, Level);
   MainFPM.addPass(JumpThreadingPass());
@@ -2135,7 +2158,7 @@ void PassBuilder::addPostCilkInstrumentationPipeline(ModulePassManager &MPM,
     LPM.addPass(LoopInstSimplifyPass());
     LPM.addPass(LoopSimplifyCFGPass());
     LPM.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap,
-                        /*AllowSpeculation=*/false));
+                         /*AllowSpeculation=*/false));
     LPM.addPass(SimpleLoopUnswitchPass(/* NonTrivial */ Level ==
                                            OptimizationLevel::O3 &&
                                        EnableO3NonTrivialUnswitching));
@@ -2173,7 +2196,7 @@ void PassBuilder::addPostCilkInstrumentationPipeline(ModulePassManager &MPM,
       LPM.addPass(LoopInstSimplifyPass());
       LPM.addPass(LoopSimplifyCFGPass());
       LPM.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap,
-                        /*AllowSpeculation=*/false));
+                           /*AllowSpeculation=*/false));
       FPM.addPass(
           RequireAnalysisPass<OptimizationRemarkEmitterAnalysis, Function>());
       FPM.addPass(
