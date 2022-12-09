@@ -18,6 +18,7 @@
 #include "llvm/Analysis/LoopObjectsAnalysis.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
+#include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
@@ -966,7 +967,6 @@ void LoopBlockingPrefetchImpl::createEpilogLoop() {
 }
 
 void LoopBlockingPrefetchImpl::createPrfLoop() {
-  BasicBlock *loopPreheader = theLoop.getPreheader();
   BasicBlock *loopHeader = theLoop.getHeader();
   BasicBlock *loopExit = theLoop.getExit();
 
@@ -1208,9 +1208,6 @@ void LoopBlockingPrefetchImpl::populateEpilogLoop() {
 }
 
 void LoopBlockingPrefetchImpl::fixTheLoop() {
-  Type *ivTy = theLoop.getIVType();
-  Value *numBlocks = paramCalc.getNumBlocks(ivTy);
-
   BasicBlock *loopPreheader = theLoop.getPreheader();
   BasicBlock *loopHeader = theLoop.getHeader();
   BasicBlock *loopLatch = theLoop.getLatch();
