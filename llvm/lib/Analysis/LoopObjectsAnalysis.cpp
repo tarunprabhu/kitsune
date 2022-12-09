@@ -60,12 +60,12 @@ void LoopObjectsInfo::analyzeLoop(const TargetLibraryInfo *TLI) {
 // This function is kept separate because the way to check the return attribute
 // will change when upgrading to a newer version of LLVM.
 static bool hasReturnAttr(Function &Func, Attribute::AttrKind attr) {
-  return Func.getAttributes().hasAttribute(0, attr);
+  return Func.getAttributes().hasRetAttr(attr);
 }
 
 bool LoopObjectsInfo::isAllocator(Function *Func,
                                   const TargetLibraryInfo *TLI) {
-  if (isMallocOrCallocLikeFn(Func, TLI, true))
+  if (isMallocOrCallocLikeFn(Func, TLI))
     return true;
   else if (hasReturnAttr(*Func, Attribute::NoAlias))
     // FIXME: Not sure if it is necessarily true that just because a function
