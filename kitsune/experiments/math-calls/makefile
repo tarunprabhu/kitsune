@@ -1,10 +1,12 @@
-include ../common.mk
-include ../cuda.mk
-include ../kokkos.mk
-include ../gcc.mk
+include ../experiments.mk
+
+experiment = mathcalls
+exp_forall = ${experiment}-forall
+
+cxx_flags += -I${kitsune_prefix}/include
 
 # General (shared) flags (see common.mk)
-clang_flags=${cxx_flags} ${opt_flags} ${clang_info_flags}
+clang_flags=${cxx_flags} ${kitflags} ${opt_flags} ${clang_info_flags}
 # kitsune kokkos mode flags.
 
 #### Kitsune+Tapir options
@@ -19,7 +21,7 @@ tapir_stripmine_flags=-mllvm -stripmine-count=1 -mllvm -stripmine-coarsen-factor
 ####
 
 #### CUDA flags
-nvcc_flags=--std c++17 -m64 -arch=${NVARCH} --resource-usage ${opt_flags} --no-exceptions -I${kitsune_prefix}/include 
+nvcc_flags=--std c++17 -m64 -arch=${NVARCH} --resource-usage ${opt_flags} --no-exceptions -I${kitsune_prefix}/include
 nvcc_kokkos_flags=${nvcc_flags} -I${kokkos_cuda_prefix}/include -I${kitsune_prefix}/include
 clang_cuda_flags=-xcuda --cuda-gpu-arch=${NVARCH} ${cxx_flags} ${opt_flags} -I${kitsune_prefix}/include
 ####
@@ -30,10 +32,13 @@ kokkos_clang_flags=${clang_cuda_flags} -I${kokkos_cu_prefix}/include
 kokkos_nvcc_flags=-I${kokkos_cu_prefix}/include ${nvcc_cxx_flags} ${opt_flags} -m64 -arch=${NVARCH} --resource-usage --no-exceptions -I${kitsune_prefix}/include
 
 
-all: mathcalls-forall.cuda.${host_arch}
+all: ${exp_forall}.cuda.${host_arch}
 
-mathcalls-forall.cuda.${host_arch}: mathcalls-forall.cpp
+${exp_forall}.cuda.${host_arch}: ${exp_forall}.cpp
 	${clangxx} ${clang_flags} ${tapir_cu_flags} ${tapir_stripmine_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+
+${exp_forall}.cuda.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} -S -emit-llvm ${clang_flags} ${tapir_cu_flags} ${tapir_stripmine_flags} -o $@ $<
 
 clean:
 	-rm -f *.${host_arch}

@@ -1,37 +1,52 @@
 include ../experiments.mk
 
-cxx_flags += -I${kitsune_prefix}/include 
+experiment = copy
+exp_forall = ${experiment}-forall
+exp_kokkos = ${experiment}-kokkos
 
-targets = copy-forall.opencilk.${host_arch}
+cxx_flags += -I${kitsune_prefix}/include
+
+targets = ${exp_forall}.opencilk.${host_arch}
 
 ifeq ($(KITSUNE_ENABLE_CUDA),TRUE)
-  targets += copy-forall.cuda.${host_arch}
-  targets += copy-kokkos.nvcc.${host_arch}
-  targets += copy-kokkos.clang.${host_arch}
+  targets += ${exp_forall}.cuda.${host_arch}
+  targets += ${exp_kokkos}.nvcc.${host_arch}
+  targets += ${exp_kokkos}.clang.${host_arch}
 endif
 ifeq ($(KITSUNE_ENABLE_HIP),TRUE)
-  targets += copy-forall.hip.${host_arch}
+  targets += ${exp_forall}.hip.${host_arch}
 endif
 
 all: ${targets}
 
 #############################
 # Kitsune+Tapir versions.
-copy-forall.opencilk.${host_arch}: copy-forall.cpp 
-	/usr/bin/time ${clangxx} ${cxx_flags} ${kitflags} ${tapir_opencilk_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
-copy-forall.cuda.${host_arch}: copy-forall.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${kitflags} ${tapir_cu_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
-copy-forall.hip.${host_arch}: copy-forall.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+${exp_forall}.opencilk.${host_arch}: ${exp_forall}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_opencilk_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+${exp_forall}.cuda.${host_arch}: ${exp_forall}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_cu_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+${exp_forall}.hip.${host_arch}: ${exp_forall}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
 #############################
 
+#############################
+# Kitsune+Tapir versions that only dump LLVM-IR. Intended for debugging.
+#
+${exp_forall}.opencilk.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} -S -emit-llvm ${cxx_flags} ${kitflags} ${tapir_opencilk_flags} -o $@ $<
+${exp_forall}.cuda.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} -S -emit-llvm ${cxx_flags} ${kitflags} ${tapir_cu_flags} -o $@ $<
+${exp_forall}.hip.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} -S -emit-llvm ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $<
+${exp_forall}.kokkos.${host_arch}.ll: ${exp_kokkos}.cpp
+	${clangxx} -S -emit-llvm ${cxx_flags} ${kitflags} ${tapir_cu_flags} ${kokkos_cu_flags} ${kitsune_kokkos_flags} -o $@ $<
 
 #############################
-# Kokkos version. 
-copy-kokkos.nvcc.${host_arch}: copy-kokkos.cpp
-	/usr/bin/time ${nvcc_wrapper} ${kokkos_nvcc_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
-copy-kokkos.clang.${host_arch}: copy-kokkos.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${clang_cu_flags} ${kokkos_cu_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+# Kokkos version.
+${exp_kokkos}.nvcc.${host_arch}: ${exp_kokkos}.cpp
+	$(KITSUNE_TIME_COMPILES) ${nvcc_wrapper} ${kokkos_nvcc_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+${exp_kokkos}.clang.${host_arch}: ${exp_kokkos}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${clang_cu_flags} ${kokkos_cu_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
 #
 #############################
 
@@ -42,4 +57,3 @@ clean:
 	-rm -rf *-cfg-tmp
 	-rm -f *.bc
 	-rm -f *.ll *.ptx *.csv *.log *.fbin *.s
-	

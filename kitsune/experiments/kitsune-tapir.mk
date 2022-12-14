@@ -125,6 +125,7 @@ kitflags = ${opt_flags} ${kitsune_flags} ${tapir_flags}
 clang = ${kitsune_prefix}/bin/clang
 clangxx = ${kitsune_prefix}/bin/clang++
 opt = ${kitsune_prefix}/bin/opt
+llvm_dis = ${kitsune_prefix}/bin/llvm-dis
 
 $(info kitsune install prefix: ${kitsune_prefix})
 $(info kitsune stripmine flags: ${stripmine_flags})

@@ -1,57 +1,76 @@
-include ../experiments.mk 
+include ../experiments.mk
 
-cxx_flags += -I${kitsune_prefix}/include 
+experiment = raytracer
+exp_forall = ${experiment}-forall
+exp_kokkos = ${experiment}-kokkos
 
-targets = raytracer-forall.opencilk.${host_arch}
+cxx_flags += -I${kitsune_prefix}/include
+
+targets = ${exp_forall}.opencilk.${host_arch}
 
 ifeq ($(KITSUNE_ENABLE_CUDA), TRUE)
-  targets += raytracer-forall.cuda.${host_arch}
-  targets += raytracer-kokkos.nvcc.${host_arch}
-  targets += raytracer-kokkos.clang.${host_arch}
-  targets += raytracer-kokkos-noview.cuda.${host_arch}
-  targets += raytracer-kokkos-noview.nvcc.${host_arch}
-  targets += raytracer-kokkos-noview.clang.${host_arch}
-endif 
+  targets += ${exp_forall}.cuda.${host_arch}
+  targets += ${exp_kokkos}.nvcc.${host_arch}
+  targets += ${exp_kokkos}.clang.${host_arch}
+  targets += ${exp_kokkos}-noview.cuda.${host_arch}
+  targets += ${exp_kokkos}-noview.nvcc.${host_arch}
+  targets += ${exp_kokkos}-noview.clang.${host_arch}
+endif
 
 ifeq ($(KITSUNE_ENABLE_HIP), TRUE)
-  targets += raytracer-forall.hip.${host_arch}
-  targets += raytracer-kokkos-noview.hip.${host_arch}
-endif 
+  targets += ${exp_forall}.hip.${host_arch}
+  targets += ${exp_kokkos}-noview.hip.${host_arch}
+endif
 
-all: ${targets} 
+all: ${targets}
 
 
 #############################
 # Kitsune+Tapir versions.
 #
-kokkos_cu_inc=-I{kokkos_cu_prefix}/include 
+kokkos_cu_inc=-I{kokkos_cu_prefix}/include
 
-raytracer-forall.opencilk.${host_arch}: raytracer-forall.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${kitflags} ${tapir_opencilk_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
-raytracer-forall.cuda.${host_arch}: raytracer-forall.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${kitflags} ${tapir_cu_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
-raytracer-kokkos-noview.cuda.${host_arch}: raytracer-kokkos-noview.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${kitflags} -fkokkos -fkokkos-no-init ${tapir_cu_flags} ${kokkos_cu_inc} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
-raytracer-forall.hip.${host_arch}: raytracer-forall.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
-raytracer-kokkos-noview.hip.${host_arch}: raytracer-kokkos-noview.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+${exp_forall}.opencilk.${host_arch}: ${exp_forall}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_opencilk_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+${exp_forall}.cuda.${host_arch}: ${exp_forall}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_cu_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+${exp_kokkos}-noview.cuda.${host_arch}: ${exp_kokkos}-noview.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} -fkokkos -fkokkos-no-init ${tapir_cu_flags} ${kokkos_cu_inc} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+${exp_forall}.hip.${host_arch}: ${exp_forall}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+${exp_kokkos}-noview.hip.${host_arch}: ${exp_kokkos}-noview.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+#
+#############################
+
+
+#############################
+# Kitsune+Tapir versions that only dump LLVM-IR. Intended for debugging.
+#
+${exp_forall}.opencilk.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} -S -emit-llvm ${cxx_flags} ${kitflags} ${tapir_opencilk_flags} -o $@ $<
+${exp_forall}.cuda.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} -S -emit-llvm ${cxx_flags} ${kitflags} ${tapir_cu_flags} -o $@ $<
+${exp_forall}.hip.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} -S -emit-llvm ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $<
+${exp_forall}.kokkos.${host_arch}.ll: ${exp_kokkos}.cpp
+	${clangxx} -S -emit-llvm ${cxx_flags} ${kitflags} ${tapir_cu_flags} ${kokkos_cu_flags} ${kitsune_kokkos_flags} -o $@ $<
 #
 #############################
 
 
 #############################
 # Kokkos versions w/ both nvcc and clang for comparison.
-raytracer-kokkos.nvcc.${host_arch}: raytracer-kokkos.cpp
-	/usr/bin/time ${nvcc_wrapper} ${kokkos_nvcc_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
-raytracer-kokkos.clang.${host_arch}: raytracer-kokkos.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${clang_cu_flags} ${kokkos_cu_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+${exp_kokkos}.nvcc.${host_arch}: ${exp_kokkos}.cpp
+	$(KITSUNE_TIME_COMPILES) ${nvcc_wrapper} ${kokkos_nvcc_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+${exp_kokkos}.clang.${host_arch}: ${exp_kokkos}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${clang_cu_flags} ${kokkos_cu_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
 #
-raytracer-kokkos-noview.nvcc.${host_arch}: raytracer-kokkos-noview.cpp
-	/usr/bin/time ${nvcc_wrapper} ${kokkos_nvcc_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
-raytracer-kokkos-noview.clang.${host_arch}: raytracer-kokkos-noview.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${clang_cu_flags} ${kokkos_cu_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
-# 
+${exp_kokkos}-noview.nvcc.${host_arch}: ${exp_kokkos}-noview.cpp
+	$(KITSUNE_TIME_COMPILES) ${nvcc_wrapper} ${kokkos_nvcc_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+${exp_kokkos}-noview.clang.${host_arch}: ${exp_kokkos}-noview.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${clang_cu_flags} ${kokkos_cu_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+#
 #############################
 
 clean:
@@ -83,10 +102,10 @@ clean:
 
 
 #raytracer-kokkos.nvcc.${host_arch}: raytracer-kokkos.cpp
-#	 /usr/bin/time ${nvcc} ${kokkos_nvcc_flags} -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+#	 $(KITSUNE_TIME_COMPILES) ${nvcc} ${kokkos_nvcc_flags} -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
 
 #raytracer-kokkos.clang.${host_arch}: raytracer-kokkos.cpp
-#	 /usr/bin/time ${clangxx} ${clang_cuda_flags} ${kokkos_cu_flags} -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+#	 $(KITSUNE_TIME_COMPILES) ${clangxx} ${clang_cuda_flags} ${kokkos_cu_flags} -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
 
 #raytracer-kokkos-noview.clang.${host_arch}: raytracer-kokkos-noview.cpp
-#	 /usr/bin/time ${clangxx} ${clang_cuda_flags} ${kokkos_cu_flags} -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -lkitrt -lLLVM -Xlinker -rpath=${kokkos_cu_prefix}/lib
+#	 $(KITSUNE_TIME_COMPILES) ${clangxx} ${clang_cuda_flags} ${kokkos_cu_flags} -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -lkitrt -lLLVM -Xlinker -rpath=${kokkos_cu_prefix}/lib

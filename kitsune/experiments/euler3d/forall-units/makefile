@@ -10,10 +10,10 @@ link_flags=-ftapir=cuda
 objs = compute_flux.o compute_step_factor.o euler3d-forall.o time_step.o
 
 euler3d-forall.cuda.${host_arch}: ${objs}
-	/usr/bin/time ${clangxx} ${link_flags} ${opt_flags} -o $@ ${objs} -Xlinker -rpath=${kitsune_prefix}/lib
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${link_flags} ${opt_flags} -o $@ ${objs} -Xlinker -rpath=${kitsune_prefix}/lib
 
 %.o: %.cpp
-	/usr/bin/time $(clangxx) ${clang_flags} -c $< -o $@
+	$(KITSUNE_TIME_COMPILES) $(clangxx) ${clang_flags} -c $< -o $@
 
 clean:
 	-rm -f *.${host_arch} *.o 

@@ -1,16 +1,20 @@
 include ../experiments.mk
 
-cxx_flags += -I${kitsune_prefix}/include 
+experiment = vecadd
+exp_forall = ${experiment}-forall
+exp_kokkos = ${experiment}-kokkos
 
-targets = vecadd-forall.opencilk.${host_arch}
+cxx_flags += -I${kitsune_prefix}/include
+
+targets = ${exp_forall}.opencilk.${host_arch}
 
 ifeq ($(KITSUNE_ENABLE_CUDA),TRUE)
-  targets += vecadd-forall.cuda.${host_arch}
-  targets += vecadd-kokkos.nvcc.${host_arch}
-  targets += vecadd-kokkos.clang.${host_arch}
+  targets += ${exp_forall}.cuda.${host_arch}
+  targets += ${exp_kokkos}.nvcc.${host_arch}
+  targets += ${exp_kokkos}.clang.${host_arch}
 endif
 ifeq ($(KITSUNE_ENABLE_HIP),TRUE)
-  targets += vecadd-forall.hip.${host_arch}
+  targets += ${exp_forall}.hip.${host_arch}
 endif
 
 all: ${targets}
@@ -18,34 +22,50 @@ all: ${targets}
 
 #############################
 # Kitsune+Tapir versions.
-vecadd-forall.opencilk.${host_arch}: vecadd-forall.cpp 
-	/usr/bin/time ${clangxx} ${cxx_flags} ${kitflags} ${tapir_opencilk_flags} -o $@ $< \
+${exp_forall}.opencilk.${host_arch}: ${exp_forall}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_opencilk_flags} -o $@ $< \
 	-Xlinker -rpath=${kitsune_prefix}/lib
-vecadd-forall.cuda.${host_arch}: vecadd-forall.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${kitflags} ${tapir_cu_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
-vecadd-forall.hip.${host_arch}: vecadd-forall.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
-# 
+${exp_forall}.cuda.${host_arch}: ${exp_forall}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_cu_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+${exp_forall}.hip.${host_arch}: ${exp_forall}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+#
+#############################
+
+
+#############################
+# Kitsune+Tapir versions that only dump LLVM-IR. Intended for debugging.
+#
+${exp_forall}.opencilk.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} -S -emit-llvm ${cxx_flags} ${kitflags} ${tapir_opencilk_flags} -o $@ $<
+${exp_forall}.cuda.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} -S -emit-llvm ${cxx_flags} ${kitflags} ${tapir_cu_flags} -o $@ $<
+${exp_forall}.hip.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} -S -emit-llvm ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $<
+${exp_forall}.kokkos.${host_arch}.ll: ${exp_kokkos}.cpp
+	${clangxx} -S -emit-llvm ${cxx_flags} ${kitflags} ${tapir_cu_flags} ${kokkos_cu_flags} ${kitsune_kokkos_flags} -o $@ $<
+
+#
 #############################
 
 
 #############################
 # Cuda version w/ both nvcc and clang for comparison.
-vecadd-cuda.nvcc.${host_arch}: vecadd.cu
-	/usr/bin/time ${nvcc} -I${kitsune_prefix}/include ${nvcc_cxx_flags} -o $@ $<
-vecadd-cuda.clang.${host_arch}: vecadd.cu
-	/usr/bin/time ${clangxx} ${clang_cuda_flags} -o $@ $< -L${CUDA_HOME}/lib64 -lcudart_static -ldl -lrt -pthread
-# 
+${experiment}-cuda.nvcc.${host_arch}: ${experiment}.cu
+	$(KITSUNE_TIME_COMPILES) ${nvcc} -I${kitsune_prefix}/include ${nvcc_cxx_flags} -o $@ $<
+${experiment}-cuda.clang.${host_arch}: ${experiment}.cu
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${clang_cuda_flags} -o $@ $< -L${CUDA_HOME}/lib64 -lcudart_static -ldl -lrt -pthread
+#
 #############################
 
 
 #############################
 # Kokkos version w/ both nvcc and clang for comparison.
-vecadd-kokkos.nvcc.${host_arch}: vecadd-kokkos.cpp
-	/usr/bin/time ${nvcc_wrapper} ${kokkos_nvcc_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
-vecadd-kokkos.clang.${host_arch}: vecadd-kokkos.cpp
-	/usr/bin/time ${clangxx} ${cxx_flags} ${clang_cu_flags} ${kokkos_cu_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
-# 
+${exp_kokkos}.nvcc.${host_arch}: ${exp_kokkos}.cpp
+	$(KITSUNE_TIME_COMPILES) ${nvcc_wrapper} ${kokkos_nvcc_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+${exp_kokkos}.clang.${host_arch}: ${exp_kokkos}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${clang_cu_flags} ${kokkos_cu_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+#
 #############################
 
 clean:
@@ -54,4 +74,3 @@ clean:
 	-rm -rf *-cfg-tmp
 	-rm -f *.bc
 	-rm -f *.ll *.ptx *.csv *.log *.fbin *.s
-	

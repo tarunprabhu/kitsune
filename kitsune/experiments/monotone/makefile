@@ -1,55 +1,57 @@
-include ../common.mk
-include ../cuda.mk
-include ../kokkos.mk
-include ../gcc.mk
+include ../experiments.mk
 
-# General (shared) flags (see common.mk)
-clang_flags=${cxx_flags} ${opt_flags} ${clang_info_flags}
-# kitsune kokkos mode flags.
+experiment = monotone
+exp_forall = ${experiment}-forall
+exp_kokkos = ${experiment}-kokkos
 
-#### Kitsune+Tapir options
-#  Notes:
-#   -ftapir=cuda will target the CUDA ABI transform.
-#   -cuabi-verbose dumps kernel stats via ptxas output.
-#   -cuabi-keep-files saves intermediate files (.ll, .ptx, .fatbin) on disk for a closer look at codegen details.
+cxx_flags += -I${kitsune_prefix}/include
+
+targets = ${exp_forall}.opencilk.${host_arch}
+
+ifeq ($(KITSUNE_ENABLE_CUDA),TRUE)
+  targets += ${exp_forall}.cuda.${host_arch}
+  targets += ${exp_kokkos}.nvcc.${host_arch}
+  targets += ${exp_kokkos}.clang.${host_arch}
+endif
+ifeq ($(KITSUNE_ENABLE_HIP),TRUE)
+  targets += ${exp_forall}.hip.${host_arch}
+endif
+
+all: ${targets}
+
+#############################
+# Kitsune+Tapir versions.
+${exp_forall}.opencilk.${host_arch}: ${exp_forall}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_opencilk_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+${exp_forall}.cuda.${host_arch}: ${exp_forall}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_cu_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+${exp_forall}.hip.${host_arch}: ${exp_forall}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+#############################
+
+#############################
+# Kitsune+Tapir versions that only dump LLVM-IR. Intended for debugging.
 #
-tapir_cu_launch_flags=-I${CUDA_HOME}/include
-tapir_cu_flags=-ftapir=cuda -ffp-contract=fast -mllvm -cuabi-verbose -mllvm -cuabi-arch=${NVARCH} ${tapir_cu_launch_flags}
-# tapir_stripmine_flags=-mllvm -stripmine-loops -mllvm -stripmine-count=1 -mllvm -stripmine-coarsen-factor=1 -mllvm -cuabi-default-grainsize=1
-tapir_blocking_prefetch_flags=-mllvm -block-and-prefetch-loops
-####
+${exp_forall}.opencilk.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} ${cxx_flags} ${kitflags} ${tapir_opencilk_flags} -o $@ $<
+${exp_forall}.cuda.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} ${cxx_flags} ${kitflags} ${tapir_cu_flags} -o $@ $<
+${exp_forall}.hip.${host_arch}.ll: ${exp_forall}.cpp
+	${clangxx} ${cxx_flags} ${kitflags} ${tapir_hip_flags} -o $@ $<
 
-#### CUDA flags
-nvcc_flags=--std c++17 -m64 -arch=${NVARCH} --resource-usage ${opt_flags} --no-exceptions -I${kitsune_prefix}/include --keep
-nvcc_kokkos_flags=${nvcc_flags} -I${kokkos_cuda_prefix}/include -I${kitsune_prefix}/include
-clang_cuda_flags=-xcuda --cuda-gpu-arch=${NVARCH} ${cxx_flags} ${opt_flags} -I${kitsune_prefix}/include
-####
+#############################
+# Kokkos version.
+${exp_kokkos}.nvcc.${host_arch}: ${exp_kokkos}.cpp
+	$(KITSUNE_TIME_COMPILES) ${nvcc_wrapper} ${kokkos_nvcc_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+${exp_kokkos}.clang.${host_arch}: ${exp_kokkos}.cpp
+	$(KITSUNE_TIME_COMPILES) ${clangxx} ${cxx_flags} ${clang_cu_flags} ${kokkos_cu_flags} -I${kitsune_prefix}/include -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+#
+#############################
 
-#### Kokkos stuff
-kokkos_cu_flags=-I${kokkos_cu_prefix}/include
-kokkos_clang_flags=${clang_cuda_flags} -I${kokkos_cu_prefix}/include
-kokkos_nvcc_flags=-I${kokkos_cu_prefix}/include ${nvcc_cxx_flags} ${opt_flags} -m64 -arch=${NVARCH} --resource-usage --no-exceptions -I${kitsune_prefix}/include
-
-
-all: monotone-forall.cuda.${host_arch} \
-     monotone-kokkos.nvcc.${host_arch} \
-     monotone-kokkos.clang.${host_arch}
-
-monotone-forall.cuda.${host_arch}: monotone-forall.cpp
-	${clangxx} ${clang_flags} ${tapir_cu_flags} ${tapir_blocking_prefetch_flags} ${tapir_stripmine_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
-
-monotone-kokkos.nvcc.${host_arch}: monotone-kokkos.cpp
-	 ${nvcc_wrapper} ${kokkos_nvcc_flags} -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
-
-monotone-kokkos.clang.${host_arch}: monotone-kokkos.cpp
-	 ${clangxx} ${clang_cuda_flags} ${kokkos_cu_flags} -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
 
 clean:
 	-rm -f *.${host_arch}
-	-rm -f *.fatbin *.fbin
+	-rm -f *.fatbin
 	-rm -rf *-cfg-tmp
 	-rm -f *.bc
-	-rm -f *.tapir
-	-rm -f *.ppm *.jpg
-	-rm -f *.ll *.ptx *.csv *.log *.s
-	-rm -f *.dat
+	-rm -f *.ll *.ptx *.csv *.log *.fbin *.s
