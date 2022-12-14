@@ -459,8 +459,9 @@ public:
 //               added as a result of the original loop being blocked. The body
 //               of the prefetch loop will contain the prefetch call(s).
 //
-//     NB        The number of blocks. This will be the same as the number of
-//               prefetch calls issued.
+//     NB        The number of blocks. This will be the same as the total number
+//               of prefetch calls issued at runtime per array/object being
+//               prefetched.
 //
 //     IPB       Iterations per block.
 //
@@ -539,9 +540,7 @@ public:
 //      }
 //
 //
-// The corresponding structure in terms of basic blocks is shown below. The
-// first figure is the original loop structure, the second is the structure
-// after transformation.
+// The corresponding structure in terms of basic blocks is shown below.
 //
 //
 //      +------<------ loop.predecessor
@@ -557,7 +556,7 @@ public:
 //      +------>------ loop.exit
 //
 //
-// Into something like this:
+// The structure after transformation is:
 //
 //
 //      +------<------ loop.predecessor
