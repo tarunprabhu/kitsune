@@ -1,4 +1,4 @@
-; RUN: opt < %s -enable-new-pm=0 -simple-loop-unswitch -S -o - | FileCheck %s
+; RUN: opt < %s -passes='simple-loop-unswitch' -S -o - | FileCheck %s
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
@@ -88,13 +88,13 @@ lpad4:                                            ; preds = %invoke.cont7, %pfor
           to label %unreachable unwind label %lpad10.loopexit
 
 ; CHECK: lpad4:
-; CHECK-NEXT: %call2.i.i.i.i1.i.i.lcssa1 = phi i8*
+; CHECK-NEXT: %call2.i.i.i.i1.i.i.lcssa1 = phi ptr
 ; CHECK-NEXT: %.lcssa = phi
-; CHECK: invoke void @llvm.detached.rethrow.sl_p0i8i32s(
+; CHECK: invoke void @llvm.detached.rethrow.sl_p0i32s(
 ; CHECK: to label %{{.+}} unwind label %[[DRDEST:.+]]
 
 ; CHECK: [[DRDEST]]:
-; CHECK-DAG: phi i8* {{.*}}[ %call2.i.i.i.i1.i.i.lcssa1, %lpad4 ]
+; CHECK-DAG: phi ptr {{.*}}[ %call2.i.i.i.i1.i.i.lcssa1, %lpad4 ]
 
 ; CHECK: _ZNSt6vectorIiSaIiEED2Ev.exit11:
 ; CHECK-NOT: %call2.i.i.i.i1.i.i.lcssa1,

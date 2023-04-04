@@ -2290,7 +2290,7 @@ void PassBuilder::addPostCilkInstrumentationPipeline(ModulePassManager &MPM,
                                                      OptimizationLevel Level) {
   if (Level != OptimizationLevel::O0) {
     FunctionPassManager FPM;
-    FPM.addPass(SROAPass());
+    FPM.addPass(SROAPass(SROAOptions::ModifyCFG));
     FPM.addPass(EarlyCSEPass(true /* Enable mem-ssa. */));
     FPM.addPass(JumpThreadingPass());
     FPM.addPass(CorrelatedValuePropagationPass());
@@ -2328,7 +2328,7 @@ void PassBuilder::addPostCilkInstrumentationPipeline(ModulePassManager &MPM,
       MPM.addPass(GlobalOptPass());
       MPM.addPass(GlobalDCEPass());
       FunctionPassManager FPM;
-      FPM.addPass(SROAPass());
+      FPM.addPass(SROAPass(SROAOptions::ModifyCFG));
       FPM.addPass(EarlyCSEPass(true /* Enable mem-ssa. */));
       FPM.addPass(JumpThreadingPass());
       FPM.addPass(CorrelatedValuePropagationPass());

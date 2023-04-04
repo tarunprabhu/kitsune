@@ -1267,6 +1267,7 @@ bool AddressSanitizer::isInterestingAlloca(const AllocaInst &AI) {
        ((!AI.isStaticAlloca()) || !getAllocaSizeInBytes(AI).isZero()) &&
        // We are only interested in allocas not promotable to registers.
        // Promotable allocas are common under -O0.
+       (!ClSkipPromotableAllocas || !isAllocaPromotable(&AI)) &&
        (!ClSkipPromotableAllocas ||
         (TI->isSerial() || !TI->isAllocaParallelPromotable(&AI))) &&
        // inalloca allocas are not treated as static, and we don't want

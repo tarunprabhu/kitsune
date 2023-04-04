@@ -1,4 +1,3 @@
-; RUN: opt < %s -enable-new-pm=0 -licm -require-taskinfo-memoryssa -S -o - | FileCheck %s
 ; RUN: opt < %s -aa-pipeline=basic-aa -passes='require<opt-remark-emit>,loop-mssa(licm)' -S -o - | FileCheck %s
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
@@ -153,14 +152,14 @@ pfor.inc:                                         ; preds = %invoke.cont2
   br i1 %inneriter.ncmp, label %pfor.inc.reattach, label %pfor.cond, !llvm.loop !27
 
 ; CHECK: pfor.cond.strpm.outer:
-; CHECK: call strand_noalias i8* @__cilkrts_hyper_lookup(
+; CHECK: call strand_noalias ptr @__cilkrts_hyper_lookup(
 ; CHECK: br label %pfor.cond
 
 ; CHECK: pfor.cond:
 ; CHECK: br label %pfor.body
 
 ; CHECK: pfor.body:
-; CHECK-NOT: call strand_noalias i8* @__cilkrts_hyper_lookup(
+; CHECK-NOT: call strand_noalias ptr @__cilkrts_hyper_lookup(
 ; CHECK: br label %pfor.inc
 
 ; CHECK: pfor.inc:
@@ -438,7 +437,7 @@ declare dso_local noalias nonnull i8* @_Znwm(i64) local_unnamed_addr #7
 ; Function Attrs: nobuiltin nounwind
 declare dso_local void @_ZdlPv(i8*) local_unnamed_addr #8
 
-; Function Attrs: nounwind readonly strand_pure
+; Function Attrs: nounwind memory(argmem:read) strand_pure
 declare dso_local strand_noalias i8* @__cilkrts_hyper_lookup(%struct.__cilkrts_hyperobject_base*) local_unnamed_addr #9
 
 attributes #0 = { uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
@@ -450,7 +449,7 @@ attributes #5 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-
 attributes #6 = { noreturn nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #7 = { nobuiltin nofree "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #8 = { nobuiltin nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #9 = { nounwind readonly strand_pure "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #9 = { nounwind memory(argmem:read) strand_pure "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #10 = { nounwind }
 attributes #11 = { nounwind readonly strand_pure }
 attributes #12 = { noreturn nounwind }

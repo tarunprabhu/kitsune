@@ -33,7 +33,7 @@ set(CMAKE_BUILD_TYPE Release CACHE STRING "")
 # you are working on.  By default we provide the full suite of
 # clang+tools, openmp, lld, and a debugger via lldb.
 set(LLVM_ENABLE_PROJECTS
-  clang;clang-tools-extra;openmp;
+  clang;clang-tools-extra;lld;compiler-rt 
   CACHE STRING "")
 
 set(LIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES 80 CACHE STRING "")
@@ -83,13 +83,14 @@ set(CLANG_VENDOR "kitsune+tapir" CACHE STRING "")
 set(CLANG_VENDOR_UTI "gov.lanl.kitsune" CACHE STRING "")
 
 #set(LLVM_TARGETS_TO_BUILD X86;AArch64;AMDGPU;NVPTX;RISCV CACHE STRING "")
-set(LLVM_TARGETS_TO_BUILD "X86;NVPTX" CACHE STRING "")
+set(LLVM_TARGETS_TO_BUILD "X86;NVPTX;AMDGPU" CACHE STRING "")
 
 # Enable Kitsune mode within the toolchain.
 set(CLANG_ENABLE_KITSUNE ON CACHE BOOL
   "Enable Kitsune features in Clang.")
 set(KITSUNE_ENABLE_GPU_ABI_TARGET ON CACHE BOOL "")
 set(KITSUNE_ENABLE_CUDA_ABI_TARGET ON CACHE BOOL "")
+set(KITSUNE_ENABLE_HIP_ABI_TARGET ON CACHE BOOL "")
 set(KITSUNE_ENABLE_OPENMP_ABI_TARGET OFF CACHE BOOL "")
 set(KITSUNE_ENABLE_QTHREADS_ABI_TARGET OFF CACHE BOOL "")
 set(KITSUNE_ENABLE_OPENCL_ABI_TARGET OFF CACHE BOOL "")

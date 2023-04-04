@@ -1,7 +1,6 @@
 ; Check static race detection with calls to bitcast functions in
 ; blocks terminated by unreachable.
 ;
-; RUN: opt < %s -enable-new-pm=0 -passes='print<race-detect>' 2>&1 | FileCheck %s
 ; RUN: opt < %s -passes='print<race-detect>' -disable-output 2>&1 | FileCheck %s
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
@@ -13,7 +12,7 @@ entry:
   unreachable
 }
 
-; CHECK: tail call void (i32, ...) bitcast (void (...)* @bpnn_initialize to void (i32, ...)*)(i32 7)
+; CHECK: tail call void (i32, ...) @bpnn_initialize(i32 7)
 ; CHECK: Opaque
 ; CHECK: Opaque racer
 

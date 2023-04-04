@@ -1817,6 +1817,10 @@ static bool isSafeToExecuteUnconditionally(
     }
   }
 
+  if (AllowSpeculation &&
+      isSafeToSpeculativelyExecute(&Inst, CtxI, AC, DT, TLI))
+    return true;
+
   if (CtxI) {
     // Check for a call to a strand-pure function.  Such a call is safe to
     // execute unconditionally if CtxI and Inst belong to the same spindle.
@@ -1828,10 +1832,6 @@ static bool isSafeToExecuteUnconditionally(
           return false;
     }
   }
-
-  if (AllowSpeculation &&
-      isSafeToSpeculativelyExecute(&Inst, CtxI, AC, DT, TLI))
-    return true;
 
   bool GuaranteedToExecute =
       SafetyInfo->isGuaranteedToExecute(Inst, DT, TI, CurLoop);
@@ -2014,7 +2014,7 @@ bool llvm::promoteLoopAccessesToScalars(
     LoopInfo *LI, DominatorTree *DT, AssumptionCache *AC,
     const TargetLibraryInfo *TLI, TargetTransformInfo *TTI, Loop *CurLoop,
     MemorySSAUpdater &MSSAU, ICFLoopSafetyInfo *SafetyInfo,
-    TaskInfo* TI, OptimizationRemarkEmitter *ORE, bool AllowSpeculation,
+    TaskInfo *TI, OptimizationRemarkEmitter *ORE, bool AllowSpeculation,
     bool HasReadsOutsideSet) {
   // Verify inputs.
   assert(LI != nullptr && DT != nullptr && CurLoop != nullptr &&
@@ -2184,14 +2184,11 @@ bool llvm::promoteLoopAccessesToScalars(
         bool GuaranteedToExecute =
             SafetyInfo->isGuaranteedToExecute(*UI, DT, TI, CurLoop);
         StoreIsGuanteedToExecute |= GuaranteedToExecute;
-        if (!DereferenceableInPH || !SafeToInsertStore ||
-            (InstAlignment > Alignment)) {
-          if (GuaranteedToExecute) {
-            DereferenceableInPH = true;
-            if (StoreSafety == StoreSafetyUnknown)
-              StoreSafety = StoreSafe;
-            Alignment = std::max(Alignment, InstAlignment);
-          }
+        if (GuaranteedToExecute) {
+          DereferenceableInPH = true;
+          if (StoreSafety == StoreSafetyUnknown)
+            StoreSafety = StoreSafe;
+          Alignment = std::max(Alignment, InstAlignment);
         }
 
         // If a store dominates all exit blocks, it is safe to sink.

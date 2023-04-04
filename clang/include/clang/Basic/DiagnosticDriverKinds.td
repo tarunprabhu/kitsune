@@ -806,6 +806,11 @@ def warn_opencl_missing_build_params : Warning<
   "automatic argument generation. Target-centric link arguments must be"
   "provided on command line.">, InGroup<UnknownRuntime>;
 
+def warn_hip_missing_build_params : Warning<
+  "'-ftapir=hip' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on command line.">, InGroup<UnknownRuntime>;
+
 // FIXME: Probably the wrong group for this...
 def warn_kokkos_missing_build_params : Warning<
   "'-fkokkos' mode enabled but build configuration did not include support.">,
@@ -827,6 +832,10 @@ def warn_missing_tapir_cuda_config_opts : Warning<
   "Unable to find configuration options file ('cuda-opts.cfg') for "
   "'-ftapir=cuda' option.">, InGroup<UnknownRuntime>;
 
+def warn_missing_tapir_hip_config_opts : Warning<
+  "Unable to find configuration options file ('hip-opts.cfg') for "
+  "'-ftapir=hip' option.">, InGroup<UnknownRuntime>;
+
 def warn_missing_tapir_opencl_config_opts : Warning<
   "Unable to find configuration options file ('opencl-opts.cfg') for "
   "'-ftapir=opencl' option.">, InGroup<UnknownRuntime>;
@@ -847,26 +856,26 @@ def err_drv_cannot_read_kitsune_cfg_file : Error<
 // used but were not enabled at build time.
 def warn_drv_kitsune_kokkos_disabled : Warning<
   "kokkos support was not enabled when clang was built.">,
-  InGroup<Kitsune>;
+  InGroup<UnknownRuntime>;
 def warn_drv_tapir_openmp_target_disabled : Warning<
   "the openmp runtime ABI transform target was not enabled when clang was "
-  "built.">, InGroup<TapirTarget>;
+  "built.">, InGroup<UnknownRuntime>;
 def warn_drv_tapir_qthreads_target_disabled: Warning<
   "the qthreads runtime ABI transform target was not enabled when clang was "
-  "built.">, InGroup<TapirTarget>;
+  "built.">, InGroup<UnknownRuntime>;
 def warn_drv_tapir_realm_target_disabled: Warning<
   "the realm runtime ABI transform target was not enabled when clang was "
-  "built.">, InGroup<TapirTarget>;
+  "built.">, InGroup<UnknownRuntime>;
 def warn_drv_tapir_cuda_target_disabled: Warning<
   "the cuda toolkit runtime ABI transform target was not enabled when clang "
-  "was built.">, InGroup<TapirTarget>;
+  "was built.">, InGroup<UnknownRuntime>;
 def warn_drv_tapir_hip_target_disabled: Warning<
   "the hip runtime ABI transform target was not enabled when clang was "
-  "built.">, InGroup<TapirTarget>;
+  "built.">, InGroup<UnknownRuntime>;
 def warn_drv_tapir_opencl_target_disabled: Warning<
   "the opencl toolkit runtime ABI transform target was not enabled when clang "
-  "was built.">, InGroup<TapirTarget>;
+  "was built.">, InGroup<UnknownRuntime>;
 def warn_drv_tapir_gpu_target_disabled: Warning<
   "the gpu runtime ABI transform target was not enabled when clang was "
-  "built.">, InGroup<TapirTarget>;
+  "built.">, InGroup<UnknownRuntime>;
 }

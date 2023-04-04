@@ -3,7 +3,6 @@
 ; Credit to I-Ting Angelina Lee for the original source code for this
 ; test.
 ;
-; RUN: opt < %s -tailcallelim -S | FileCheck %s
 ; RUN: opt < %s -passes='tailcallelim' -S | FileCheck %s
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
@@ -74,7 +73,7 @@ det.cont:                                         ; preds = %det.achd, %if.end7
   tapir_sync within %syncreg, label %cleanup
 
 ; CHECK: det.cont:
-; CHECK-NOT: call i64* @cilk_merge(
+; CHECK-NOT: call ptr @cilk_merge(
 ; CHECK-NOT: sync
 ; CHECK: br label %[[TAILRECURSE]]
 
@@ -85,8 +84,8 @@ cleanup:                                          ; preds = %det.cont, %if.then6
 ; CHECK-NEXT: tapir_sync within %[[SYNCREG]], label %[[CLEANUP_SPLIT:.+]]
 
 ; CHECK: [[CLEANUP_SPLIT]]:
-; CHECK-NEXT: %[[CURRENT_RET:.+]] = select i1 %{{.+}}, i64* %{{.+}}, i64* %{{.+}}
-; CHECK-NEXT: ret i64* %[[CURRENT_RET]]
+; CHECK-NEXT: %[[CURRENT_RET:.+]] = select i1 %{{.+}}, ptr %{{.+}}, ptr %{{.+}}
+; CHECK-NEXT: ret ptr %[[CURRENT_RET]]
 }
 
 ; Function Attrs: argmemonly nounwind

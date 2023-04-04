@@ -19,6 +19,7 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Transforms/Tapir/CilkABI.h"
 #include "llvm/Transforms/Tapir/CudaABI.h"
+#include "llvm/Transforms/Tapir/HipABI.h"
 #include "llvm/Transforms/Tapir/OpenCilkABI.h"
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
 #include "llvm/Transforms/Tapir/OpenCLABI.h"
@@ -49,6 +50,8 @@ TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID) {
     return new CilkABI(M);
   case TapirTargetID::Cuda:
     return new CudaABI(M);
+  case TapirTargetID::Hip:
+    return new HipABI(M);
   case TapirTargetID::Cheetah:
   case TapirTargetID::OpenCilk:
     return new OpenCilkABI(M);
@@ -431,8 +434,7 @@ llvm::createTaskArgsStruct(const ValueSet &Inputs, Task *T,
   IRBuilder<> B2(LoadPt);
   for (unsigned i = 0; i < StructInputs.size(); ++i) {
     auto STGEP = cast<Instruction>(B2.CreateConstGEP2_32(ST, Closure, 0, i));
-    auto STLoad = B2.CreateLoad(
-        STGEP->getType()->getScalarType()->getPointerElementType(), STGEP);
+    auto STLoad = B2.CreateLoad(ST->getElementType(i), STGEP);
     InputsMap[StructInputs[i]] = STLoad;
 
     // Update all uses of the struct inputs in the loop body.
@@ -1051,7 +1053,7 @@ TaskOutlineInfo llvm::outlineTask(
   return TaskOutlineInfo(Helper, T->getEntry(),
                          dyn_cast_or_null<Instruction>(VMap[DI]),
                          dyn_cast_or_null<Instruction>(ClonedTFCreate), Inputs,
-                         ArgsStart, StorePt, T->getDetach()->getSyncRegion(), 
+                         ArgsStart, StorePt, T->getDetach()->getSyncRegion(),
                          DI->getContinue(), Unwind);
 }
 

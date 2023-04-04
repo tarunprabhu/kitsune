@@ -610,15 +610,6 @@ void CilkSanitizerLegacyPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<ScalarEvolutionWrapperPass>();
 }
 
-ModulePass *llvm::createCilkSanitizerLegacyPass(bool CallsMayThrow) {
-  return new CilkSanitizerLegacyPass(CallsMayThrow);
-}
-
-ModulePass *llvm::createCilkSanitizerLegacyPass(bool CallsMayThrow,
-                                                bool JitMode) {
-  return new CilkSanitizerLegacyPass(CallsMayThrow, JitMode);
-}
-
 uint64_t ObjectTable::add(Instruction &I, Value *Obj) {
   uint64_t ID = getId(&I);
   if (isa<UndefValue>(Obj)) {
@@ -911,8 +902,6 @@ void CilkSanitizerImpl::initializeCsanHooks() {
   Type *SyncRegType = IRB.getInt32Ty();
 
   AttributeList GeneralFnAttrs;
-  GeneralFnAttrs =
-      GeneralFnAttrs.addFnAttribute(C, Attribute::InaccessibleMemOrArgMemOnly);
   GeneralFnAttrs = GeneralFnAttrs.addFnAttribute(C, Attribute::NoUnwind);
   {
     AttributeList FnAttrs = GeneralFnAttrs;
@@ -1085,7 +1074,6 @@ void CilkSanitizerImpl::initializeCsanHooks() {
   Function *CsiAfterAllocaFn = cast<Function>(CsiAfterAlloca.getCallee());
   CsiAfterAllocaFn->addParamAttr(1, Attribute::NoCapture);
   CsiAfterAllocaFn->addParamAttr(1, Attribute::ReadNone);
-  CsiAfterAllocaFn->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
   CsiAfterAllocaFn->setDoesNotThrow();
 }
 
@@ -3745,7 +3733,6 @@ bool CilkSanitizerImpl::instrumentIntrinsicCall(
 
   Type *IDType = IRB.getInt64Ty();
   AttributeList FnAttrs;
-  FnAttrs = FnAttrs.addFnAttribute(Ctx, Attribute::InaccessibleMemOrArgMemOnly);
   FnAttrs = FnAttrs.addFnAttribute(Ctx, Attribute::NoUnwind);
 
   // If the intrinsic does not return, insert the hook before the intrinsic.
@@ -3912,7 +3899,6 @@ bool CilkSanitizerImpl::instrumentLibCall(Instruction *I,
 
   Type *IDType = IRB.getInt64Ty();
   AttributeList FnAttrs;
-  FnAttrs = FnAttrs.addFnAttribute(Ctx, Attribute::InaccessibleMemOrArgMemOnly);
   FnAttrs = FnAttrs.addFnAttribute(Ctx, Attribute::NoUnwind);
 
   // If the intrinsic does not return, insert the hook before the intrinsic.
@@ -4585,7 +4571,7 @@ bool CilkSanitizerImpl::getAllocFnArgs(
 
   // Return the old pointer argument for realloc-like functions or nullptr for
   // other allocation functions.
-  if (isReallocLikeFn(CB->getCalledFunction(), &TLI))
+  if (isReallocLikeFn(CB->getCalledFunction()))
     AllocFnArgs.push_back(CB->getArgOperand(0));
   else
     AllocFnArgs.push_back(Constant::getNullValue(AddrTy));
@@ -4636,7 +4622,6 @@ bool CilkSanitizerImpl::instrumentAllocFnLibCall(Instruction *I,
 
   Type *IDType = IRB.getInt64Ty();
   AttributeList FnAttrs;
-  FnAttrs = FnAttrs.addFnAttribute(Ctx, Attribute::InaccessibleMemOrArgMemOnly);
   FnAttrs = FnAttrs.addFnAttribute(Ctx, Attribute::NoUnwind);
 
   // Synthesize the after hook for this function.

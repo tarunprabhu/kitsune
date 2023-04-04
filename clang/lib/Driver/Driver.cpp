@@ -220,13 +220,13 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
     SysRoot = std::string(P);
   }
 
-  #error "Temporarily commented for merge, but need to check what happens with SystemConfigDir if CLANG_CONFIG_FILE_SYSTEM_DIR is not defined."
 #if defined(CLANG_CONFIG_FILE_SYSTEM_DIR)
   SystemConfigDir = CLANG_CONFIG_FILE_SYSTEM_DIR;
-// #else
-//   llvm::StringRef PrefixDir = llvm::sys::path::parent_path(Dir);
-//   SystemConfigDir = PrefixDir.str() + std::string("/share/kitsune");
+#else
+  llvm::StringRef PrefixDir = llvm::sys::path::parent_path(Dir);
+  SystemConfigDir = PrefixDir.str() + std::string("/share/kitsune");
 #endif
+
 #if defined(CLANG_CONFIG_FILE_USER_DIR)
   {
     SmallString<128> P;
@@ -968,27 +968,6 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
           Diag(clang::diag::err_drv_failed_to_deduce_target_from_arch) << Arch;
           return;
         }
-
-  // the -fopenmp-targets option.
-  if (Arg *OpenMPTargets =
-          C.getInputArgs().getLastArg(options::OPT_fopenmp_targets_EQ)) {
-
-    if (IsTapir) {
-      Diag(clang::diag::err_drv_mix_tapir_omp_offload);
-      return;
-    }
-
-    if (OpenMPTargets->getNumValues()) {
-      // We expect that -fopenmp-targets is always used in conjunction with the
-      // option -fopenmp specifying a valid runtime with offloading support,
-      // i.e. libomp or libiomp.
-      bool HasValidOpenMPRuntime = C.getInputArgs().hasFlag(
-          options::OPT_fopenmp, options::OPT_fopenmp_EQ,
-          options::OPT_fno_openmp, false);
-      if (HasValidOpenMPRuntime) {
-        OpenMPRuntimeKind OpenMPKind = getOpenMPRuntime(C.getInputArgs());
-        HasValidOpenMPRuntime =
-            OpenMPKind == OMPRT_OMP || OpenMPKind == OMPRT_IOMP5;
       }
 
       // If the set is empty then we failed to find a native architecture.
@@ -1193,201 +1172,13 @@ bool Driver::loadConfigFiles() {
         UserConfigDir.clear();
       else
         UserConfigDir = static_cast<std::string>(CfgDir);
-#error "Temporary hack for merge but this needs proper fixing"
-      /*
-=======
-      CfgDir.append(
-          CLOptions->getLastArgValue(options::OPT_config_user_dir_EQ));
-      if (!CfgDir.empty()) {
-        if (llvm::sys::fs::make_absolute(CfgDir).value() != 0)
-          UserConfigDir.clear();
-        else
-          UserConfigDir = static_cast<std::string>(CfgDir);
-      }
-    }
-  }
-
-  // First try to find config file specified in command line.
-  if (CLOptions) {
-    std::vector<std::string> ConfigFiles =
-        CLOptions->getAllArgValues(options::OPT_config);
-    if (ConfigFiles.size() > 1) {
-      if (!llvm::all_of(ConfigFiles, [ConfigFiles](const std::string &s) {
-            return s == ConfigFiles[0];
-          })) {
-        Diag(diag::err_drv_duplicate_config);
-        return true;
-      }
-    }
-
-    if (!ConfigFiles.empty()) {
-      CfgFileName = ConfigFiles.front();
-      assert(!CfgFileName.empty());
-
-      // If argument contains directory separator, treat it as a path to
-      // configuration file.
-      if (llvm::sys::path::has_parent_path(CfgFileName)) {
-        SmallString<128> CfgFilePath;
-        if (llvm::sys::path::is_relative(CfgFileName))
-          llvm::sys::fs::current_path(CfgFilePath);
-        llvm::sys::path::append(CfgFilePath, CfgFileName);
-        if (!llvm::sys::fs::is_regular_file(CfgFilePath)) {
-          Diag(diag::err_drv_config_file_not_exist) << CfgFilePath;
-          return true;
-        }
-        return readConfigFile(CfgFilePath);
-      }
-
-      FileSpecifiedExplicitly = true;
-    }
-  }
-
-  // Prepare list of directories where config file is searched for.  Note that
-  // the directories appear in the order they will be searched -- the first
-  // matched file will be used and the search will stop from that point.
-  std::vector<StringRef> CfgFileSearchDirs = {
-      Dir, UserConfigDir, KitsuneConfigDir, SystemConfigDir};
-
-  // kitsune: check for a kokkos configuration file.
-  if (CLOptions->hasArg(options::OPT_fkokkos)) {
-<<<<<<< HEAD
-    LLVM_DEBUG(llvm::dbgs()
-               << "looking for -fkokkos mode config file '"
-               << KitsuneKokkosCfgFile.c_str() << "'.\n");
-    llvm::SmallString<128> KokkosCfgFilePath;
-<<<<<<< HEAD
-    if (searchForFile(KokkosCfgFilePath, CfgFileSearchDirs,
-                      KitsuneKokkosCfgFile)) {
-      if (readConfigFile(KokkosCfgFilePath)) {
-        Diag(diag::err_drv_cannot_read_kitsune_cfg_file)
-           << KokkosCfgFilePath << "-fkokkos";
-    } else {
-      Diag(diag::warn_drv_missing_cfg_file)
-        << KitsuneKokkosCfgFile
-        << "-fkokkos";
-      for (const std::string &SearchDir : CfgFileSearchDirs)
-=======
-    if (searchForFile(KokkosCfgFilePath, CfgFileSearchDirs, KitsuneKokkosCfgFile)) {
-=======
-    LLVM_DEBUG(llvm::dbgs() << "looking for -fkokkos mode config file '"
-                            << KitsuneKokkosCfgFile.c_str() << "'.\n");
-    llvm::SmallString<128> KokkosCfgFilePath;
-    if (searchForFile(KokkosCfgFilePath, CfgFileSearchDirs,
-                      KitsuneKokkosCfgFile)) {
->>>>>>> 82bcded6f6c2 (Tweaks to address some issues with the -fkokkos option and the addition of)
-      if (readConfigFile(KokkosCfgFilePath))
-        Diag(diag::err_drv_cannot_read_kitsune_cfg_file)
-            << KokkosCfgFilePath << "-fkokkos";
-    } else {
-      Diag(diag::warn_drv_missing_cfg_file)
-          << KitsuneKokkosCfgFile << "-fkokkos";
-      for (const StringRef &SearchDir : CfgFileSearchDirs)
->>>>>>> ca84ea8623bb (A pretty significant overhaul to our cmake build approach to make it more)
-        if (!SearchDir.empty())
-          Diag(diag::note_drv_config_file_searched_in) << SearchDir;
-    }
-  }
-
-  // tapir: check for a tapir target specific configuration file.
-  if (CLOptions->hasArg(options::OPT_ftapir_EQ)) {
-    if (const Arg *A = CLOptions->getLastArg(options::OPT_ftapir_EQ)) {
-      llvm::StringRef TapirTargetCfgFile(
-          llvm::StringSwitch<std::string>(A->getValue())
-              .Case("none", TapirNoneCfgFile)
-              .Case("serial", TapirSerialCfgFile)
-              .Case("opencilk", TapirOpenCilkCfgFile)
-              .Case("cuda", TapirCudaCfgFile)
-              .Case("gpu", TapirGPUCfgFile)
-              .Case("openmp", TapirOpenMPCfgFile)
-              .Case("qthreads", TapirQthreadsCfgFile)
-              .Case("realm", TapirRealmCfgFile)
-              .Case("opencl", TapirOpenCLCfgFile)
-              .Case("hip", TapirHIPCfgFile)
-              .Default(""));
-      if (!TapirTargetCfgFile.empty()) {
-        llvm::SmallString<128> TapirTargetCfgFilePath;
-<<<<<<< HEAD
-        if (searchForFile(TapirTargetCfgFilePath, CfgFileSearchDirs,
-                TapirTargetCfgFileName)) {
-          if (readConfigFile(TapirTargetCfgFilePath)) {
-=======
-        if (searchForFile(TapirTargetCfgFilePath, CfgFileSearchDirs, TapirTargetCfgFile)) {
-          if (readConfigFile(TapirTargetCfgFilePath))
->>>>>>> ca84ea8623bb (A pretty significant overhaul to our cmake build approach to make it more)
-            Diag(diag::err_drv_cannot_read_kitsune_cfg_file)
-              << TapirTargetCfgFilePath << A->getValue();
-        } else {
-          Diag(diag::warn_drv_missing_cfg_file)
-              << TapirTargetCfgFile << A->getValue();
-          for (const StringRef &SearchDir : CfgFileSearchDirs)
-            if (!SearchDir.empty())
-              Diag(diag::note_drv_config_file_searched_in) << SearchDir;
-        }
-      }
-    }
-  }
-
-
-  // If config file is not specified explicitly, try to deduce configuration
-  // from executable name. For instance, an executable 'armv7l-clang' will
-  // search for config file 'armv7l-clang.cfg'.
-  if (CfgFileName.empty() && !ClangNameParts.TargetPrefix.empty())
-    CfgFileName = ClangNameParts.TargetPrefix + '-' + ClangNameParts.ModeSuffix;
-
-  if (CfgFileName.empty())
-    return false;
-
-  // Determine architecture part of the file name, if it is present.
-  StringRef CfgFileArch = CfgFileName;
-  size_t ArchPrefixLen = CfgFileArch.find('-');
-  if (ArchPrefixLen == StringRef::npos)
-    ArchPrefixLen = CfgFileArch.size();
-  llvm::Triple CfgTriple;
-  CfgFileArch = CfgFileArch.take_front(ArchPrefixLen);
-  CfgTriple = llvm::Triple(llvm::Triple::normalize(CfgFileArch));
-  if (CfgTriple.getArch() == llvm::Triple::ArchType::UnknownArch)
-    ArchPrefixLen = 0;
-
-  if (!StringRef(CfgFileName).endswith(".cfg"))
-    CfgFileName += ".cfg";
-
-  // If config file starts with architecture name and command line options
-  // redefine architecture (with options like -m32 -LE etc), try finding new
-  // config file with that architecture.
-  SmallString<128> FixedConfigFile;
-  size_t FixedArchPrefixLen = 0;
-  if (ArchPrefixLen) {
-    // Get architecture name from config file name like 'i386.cfg' or
-    // 'armv7l-clang.cfg'.
-    // Check if command line options changes effective triple.
-    llvm::Triple EffectiveTriple = computeTargetTriple(*this,
-                                             CfgTriple.getTriple(), *CLOptions);
-    if (CfgTriple.getArch() != EffectiveTriple.getArch()) {
-      FixedConfigFile = EffectiveTriple.getArchName();
-      FixedArchPrefixLen = FixedConfigFile.size();
-      // Append the rest of original file name so that file name transforms
-      // like: i386-clang.cfg -> x86_64-clang.cfg.
-      if (ArchPrefixLen < CfgFileName.size())
-        FixedConfigFile += CfgFileName.substr(ArchPrefixLen);
->>>>>>> cec726fce6d2 (Overhaul of some build mechanisms:)
-      */
     }
   }
 
   // Prepare list of directories where config file is searched for.
-  StringRef CfgFileSearchDirs[] = {UserConfigDir, SystemConfigDir, Dir};
+  StringRef CfgFileSearchDirs[] = {UserConfigDir, KitsuneConfigDir,
+                                   SystemConfigDir, Dir};
   ExpCtx.setSearchDirs(CfgFileSearchDirs);
-  #error "Temporary hack for merge but this needs proper fixing"
-  /*
-=======
-=======
->>>>>>> 2f42d87ceefe (Tapir abi 12.x merge fixes)
-  CfgFileSearchDirs.push_back(UserConfigDir);
-  CfgFileSearchDirs.push_back(KitsuneConfigDir);
-  CfgFileSearchDirs.push_back(SystemConfigDir);
-  CfgFileSearchDirs.push_back(Dir);
->>>>>>> cec726fce6d2 (Overhaul of some build mechanisms:)
-  */
 
   // First try to load configuration from the default files, return on error.
   if (loadDefaultConfigFiles(ExpCtx))
@@ -1396,6 +1187,58 @@ bool Driver::loadConfigFiles() {
   // Then load configuration files specified explicitly.
   SmallString<128> CfgFilePath;
   if (CLOptions) {
+    // kitsune: check for a kokkos configuration file.
+    if (CLOptions->hasArg(options::OPT_fkokkos)) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "looking for -fkokkos mode config file '"
+                 << KitsuneKokkosCfgFile.c_str() << "'.\n");
+      if (!ExpCtx.findConfigFile(KitsuneKokkosCfgFile, CfgFilePath)) {
+        // Report an error that the config file could not be found.
+        Diag(diag::err_drv_config_file_not_found) << KitsuneKokkosCfgFile;
+        for (const StringRef &SearchDir : CfgFileSearchDirs)
+          if (!SearchDir.empty())
+            Diag(diag::note_drv_config_file_searched_in) << SearchDir;
+        return true;
+      }
+
+      // Try to read the config file, return on error.
+      if (readConfigFile(CfgFilePath, ExpCtx))
+        return true;
+    }
+
+    // tapir: check for a tapir target specific configuration file.
+    if (CLOptions->hasArg(options::OPT_ftapir_EQ)) {
+      if (const Arg *A = CLOptions->getLastArg(options::OPT_ftapir_EQ)) {
+        llvm::StringRef TapirTargetCfgFile(
+            llvm::StringSwitch<std::string>(A->getValue())
+                .Case("none", TapirNoneCfgFile)
+                .Case("serial", TapirSerialCfgFile)
+                .Case("opencilk", TapirOpenCilkCfgFile)
+                .Case("cuda", TapirCudaCfgFile)
+                .Case("gpu", TapirGPUCfgFile)
+                .Case("openmp", TapirOpenMPCfgFile)
+                .Case("qthreads", TapirQthreadsCfgFile)
+                .Case("realm", TapirRealmCfgFile)
+                .Case("opencl", TapirOpenCLCfgFile)
+                .Case("hip", TapirHIPCfgFile)
+                .Default(""));
+        if (!TapirTargetCfgFile.empty()) {
+          if (!ExpCtx.findConfigFile(TapirTargetCfgFile, CfgFilePath)) {
+            // Report an error that the config file could not be found.
+            Diag(diag::err_drv_config_file_not_found) << TapirTargetCfgFile;
+            for (const StringRef &SearchDir : CfgFileSearchDirs)
+              if (!SearchDir.empty())
+                Diag(diag::note_drv_config_file_searched_in) << SearchDir;
+            return true;
+          }
+
+          // Try to read the config file, return on error.
+          if (readConfigFile(CfgFilePath, ExpCtx))
+            return true;
+        }
+      }
+    }
+
     for (auto CfgFileName : CLOptions->getAllArgValues(options::OPT_config)) {
       // If argument contains directory separator, treat it as a path to
       // configuration file.

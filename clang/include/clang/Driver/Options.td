@@ -3043,7 +3043,7 @@ def fno_knr_functions : Flag<["-"], "fno-knr-functions">, Group<f_Group>,
 
 def ftapir : Joined<["-"], "ftapir=">, Group<f_Group>,
   Flags<[NoArgumentUnused]>,
-  Values<"none,serial,cilk,cheetah,cuda,opencilk,openmp,qthreads,realm">, 
+  Values<"none,serial,cheetah,cuda,hip,opencilk,openmp,qthreads,realm">, 
   Visibility<[ClangOption, FlangOption]>,
   HelpText<"Choose the backend for Tapir instructions (i.e., parallel runtime)">;
 def ftapir_nvarch_EQ : Joined<["-"], "ftapir-nvarch=">, Group<f_Group>,

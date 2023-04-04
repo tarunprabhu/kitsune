@@ -158,7 +158,7 @@ CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
 static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
   if (!BB) return;
   if (!BB->use_empty())
-    return CGF.CurFn->getBasicBlockList().push_back(BB);
+    return BB->insertInto(CGF.CurFn);
   delete BB;
 }
 

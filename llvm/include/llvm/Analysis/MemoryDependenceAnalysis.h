@@ -313,7 +313,7 @@ private:
   /// local dependencies.
   DenseMap<AssertingVH<const Value>, NonLocalDepResult> NonLocalDefsCache;
   using ReverseNonLocalDefsCacheTy =
-    DenseMap<Instruction *, SmallPtrSet<const Value*, 4>>;
+      DenseMap<Instruction *, SmallPtrSet<const Value *, 4>>;
   ReverseNonLocalDefsCacheTy ReverseNonLocalDefsCache;
 
   /// This map stores the cached results of doing a pointer lookup at the
@@ -358,8 +358,9 @@ private:
   DominatorTree &DT;
   PredIteratorCache PredCache;
 
-  unsigned DefaultBlockScanLimit;
   TaskInfo *TI;
+
+  unsigned DefaultBlockScanLimit;
 
   /// Offsets to dependant clobber loads.
   using ClobberOffsetsMapType = DenseMap<LoadInst *, int32_t>;
@@ -370,7 +371,7 @@ public:
                           const TargetLibraryInfo &TLI, DominatorTree &DT,
                           unsigned DefaultBlockScanLimit,
                           TaskInfo *TI = nullptr)
-      : AA(AA), AC(AC), TLI(TLI), DT(DT), TI(TI)
+      : AA(AA), AC(AC), TLI(TLI), DT(DT), TI(TI),
         DefaultBlockScanLimit(DefaultBlockScanLimit) {}
 
   /// Handle invalidation in the new PM.
@@ -456,8 +457,7 @@ public:
 
   MemDepResult getPointerDependencyFrom(const MemoryLocation &Loc, bool isLoad,
                                         BasicBlock::iterator ScanIt,
-                                        BasicBlock *BB,
-                                        Instruction *QueryInst,
+                                        BasicBlock *BB, Instruction *QueryInst,
                                         unsigned *Limit,
                                         BatchAAResults &BatchAA);
 
@@ -525,7 +525,8 @@ public:
   using Result = MemoryDependenceResults;
 
   MemoryDependenceAnalysis();
-  MemoryDependenceAnalysis(unsigned DefaultBlockScanLimit) : DefaultBlockScanLimit(DefaultBlockScanLimit) { }
+  MemoryDependenceAnalysis(unsigned DefaultBlockScanLimit)
+      : DefaultBlockScanLimit(DefaultBlockScanLimit) {}
 
   MemoryDependenceResults run(Function &F, FunctionAnalysisManager &AM);
 };

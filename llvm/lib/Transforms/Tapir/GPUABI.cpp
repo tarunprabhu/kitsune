@@ -373,7 +373,7 @@ void LLVMLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   bcw.writeStrtab(); 
 
   char* heapbuf = new char[mbuf.size()];
-  for(int i=0; i<mbuf.size(); i++) { heapbuf[i] = mbuf[i]; } 
+  for(size_t i=0; i<mbuf.size(); i++) { heapbuf[i] = mbuf[i]; } 
 
   std::string strbuf(mbuf.data(), mbuf.size()); 
   std::ofstream out("compile_time.bc"); 

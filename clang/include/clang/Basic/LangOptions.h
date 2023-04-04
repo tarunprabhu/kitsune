@@ -27,6 +27,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Tapir/TapirTypes.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include <optional>
 #include <string>
 #include <vector>
