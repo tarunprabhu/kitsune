@@ -983,55 +983,6 @@ void PromoteMem2Reg::ComputeLiveInBlocks(
   }
 }
 
-// \brief Augmentation is isAllocaPromotable to handle detach and reattach.
-//
-// TODO: Replace the implementation of this method to use an analysis of
-// parallel regions.
-bool llvm::isAllocaParallelPromotable(const AllocaInst *AIP,
-                                      DominatorTree &DT) {
-  AllocaInst* AI = const_cast<AllocaInst*>(AIP);
-  AllocaInfo Info;
-  LargeBlockInfo LBI;
-  ForwardIDFCalculator IDF(DT);
-
-  // Calculate the set of read and write-locations for each alloca.  This is
-  // analogous to finding the 'uses' and 'definitions' of each variable.
-  Info.AnalyzeAlloca(AI);
-
-  if (Info.OnlyUsedInOneBlock) return true;
-
-  // Unique the set of defining blocks for efficient lookup.
-  SmallPtrSet<BasicBlock *, 32> DefBlocks;
-  DefBlocks.insert(Info.DefiningBlocks.begin(), Info.DefiningBlocks.end());
-
-  // Determine which blocks the value is live in.  These are blocks which lead
-  // to uses.
-  SmallPtrSet<BasicBlock *, 32> LiveInBlocks;
-  PromoteMem2Reg::ComputeLiveInBlocks(AI, Info, DefBlocks, LiveInBlocks);
-
-  // Determine which blocks need PHI nodes and see if we can optimize out some
-  // work by avoiding insertion of dead phi nodes.
-  IDF.setLiveInBlocks(LiveInBlocks);
-  IDF.setDefiningBlocks(DefBlocks);
-  SmallVector<BasicBlock *, 32> PHIBlocks;
-  IDF.calculate(PHIBlocks);
-
-  // Determine which PHI nodes want to use a value from a detached predecessor.
-  // Because register state is not preserved across a reattach, these alloca's
-  // cannot be promoted.
-  for (unsigned i = 0, e = PHIBlocks.size(); i != e; ++i) {
-    BasicBlock *BB = PHIBlocks[i];
-    for (pred_iterator PI = pred_begin(BB), E = pred_end(BB);
-         PI != E; ++PI) {
-      BasicBlock *P = *PI;
-      if (isa<ReattachInst>(P->getTerminator()))
-        return false;
-    }
-  }
-
-  return true;
-}
-
 /// Queue a phi-node to be added to a basic-block for a specific Alloca.
 ///
 /// Returns true if there wasn't already a phi-node for that variable

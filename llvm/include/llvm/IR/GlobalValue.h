@@ -565,6 +565,14 @@ public:
     return Name;
   }
 
+  #warning "Really, really bad idea to have a mutateType here."
+  // FIXME: Don't do this.
+  // TODO: REALLY, don't do this!!!
+  // XXX: I mean it! MAKE THIS GO AWAY!
+  void mutateValueType(Type *Ty) {
+    ValueType = Ty;
+  }
+
   /// Return the modified name for a global value suitable to be
   /// used as the key for a global lookup (e.g. profile or ThinLTO).
   /// The value's original name is \c Name and has linkage of type

@@ -1,7 +1,6 @@
 ; Check that PHI nodes are properly updated when inlining introduces a
 ; detached.rethrow instruction.
 ;
-; RUN: opt < %s -inline -S -o - | FileCheck %s
 ; RUN: opt < %s -passes='inline' -S -o - | FileCheck %s
 ; REQUIRES: x86-registered-target
 
@@ -65,15 +64,15 @@ unreachable:                                      ; preds = %lpad42
 ; CHECK-NEXT: to label %{{.+}} unwind label %[[LPAD_I:.+]]
 
 ; CHECK: [[LPAD_I]]:
-; CHECK: %[[LPAD_I_VAL:.+]] = landingpad { i8*, i32 }
+; CHECK: %[[LPAD_I_VAL:.+]] = landingpad { ptr, i32 }
 ; CHECK-NEXT: cleanup
-; CHECK: invoke void @llvm.detached.rethrow.sl_p0i8i32s(token %syncreg86, { i8*, i32 } %[[LPAD_I_VAL]])
+; CHECK: invoke void @llvm.detached.rethrow.sl_p0i32s(token %syncreg86, { ptr, i32 } %[[LPAD_I_VAL]])
 ; CHECK-NEXT: to label %{{.+}} unwind label %lpad75
 
 ; CHECK: lpad75:
-; CHECK-NEXT: phi i64*
-; CHECK-DAG: [ getelementptr inbounds ([109 x i64], [109 x i64]* @__llvm_gcov_ctr.566, i64 0, i64 8), %entry ]
-; CHECK-DAG: [ getelementptr inbounds ([109 x i64], [109 x i64]* @__llvm_gcov_ctr.566, i64 0, i64 8), %[[LPAD_I]] ]
+; CHECK-NEXT: phi ptr
+; CHECK-DAG: [ getelementptr inbounds ([109 x i64], ptr @__llvm_gcov_ctr.566, i64 0, i64 8), %entry ]
+; CHECK-DAG: [ getelementptr inbounds ([109 x i64], ptr @__llvm_gcov_ctr.566, i64 0, i64 8), %[[LPAD_I]] ]
 ; CHECK: landingpad
 ; CHECK-NEXT: cleanup
 ; CHECK-NEXT: resume

@@ -1,7 +1,6 @@
 ; Check that DependenceAnalysis properly handles memory accesses in
 ; different loops.
 ;
-; RUN: opt < %s -enable-new-pm=0 -passes='print<da>' 2>&1 | FileCheck %s
 ; RUN: opt < %s -disable-output -passes='print<da>' 2>&1 | FileCheck %s
 
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
@@ -135,7 +134,7 @@ for.inc.us.i.8:                                   ; preds = %for.inc.us.i.7
   br i1 undef, label %getneighbors.exit, label %for.cond2.preheader.us.i, !llvm.loop !7
 }
 
-; CHECK: Src:  store <2 x i32> undef, <2 x i32>* %6, align 4, !tbaa !3 --> Dst:  %8 = load i32, i32* %arrayidx283.1, align 4, !tbaa !3
+; CHECK: Src:  store <2 x i32> undef, ptr %6, align 4, !tbaa !3 --> Dst:  %8 = load i32, ptr %arrayidx283.1, align 4, !tbaa !3
 ; CHECK-NEXT: da analyze - flow [|<]!
 
 ; Function Attrs: argmemonly nofree nosync nounwind willreturn

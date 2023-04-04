@@ -1071,7 +1071,7 @@ public:
           function_ref<ScalarEvolution &(Function &)> GetSE,
           const CSIOptions &Options = CSIOptions())
       : M(M), DL(M.getDataLayout()), CG(CG), GetDomTree(GetDomTree),
-        GetLoopInfo(GetLoopInfo), GetTaskInfo(GetTaskInfo), GetTLI(GetTLI), 
+        GetLoopInfo(GetLoopInfo), GetTaskInfo(GetTaskInfo), GetTLI(GetTLI),
         GetScalarEvolution(GetSE), Options(Options) {
     loadConfiguration();
   }
@@ -1487,8 +1487,8 @@ protected:
   function_ref<LoopInfo &(Function &)> GetLoopInfo;
   function_ref<TaskInfo &(Function &)> GetTaskInfo;
   function_ref<TargetLibraryInfo &(Function &)> GetTLI;
-  Optional<function_ref<ScalarEvolution &(Function &)>> GetScalarEvolution;
-  Optional<function_ref<TargetTransformInfo &(Function &)>> GetTTI;
+  std::optional<function_ref<ScalarEvolution &(Function &)>> GetScalarEvolution;
+  std::optional<function_ref<TargetTransformInfo &(Function &)>> GetTTI;
   CSIOptions Options;
 
   FrontEndDataTable FunctionFED, FunctionExitFED, BasicBlockFED, LoopFED,

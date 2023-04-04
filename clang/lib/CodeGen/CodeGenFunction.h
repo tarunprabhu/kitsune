@@ -3867,7 +3867,7 @@ public:
   void EmitCilkSpawnStmt(const CilkSpawnStmt &S);
   void EmitCilkSyncStmt(const CilkSyncStmt &S);
   void EmitCilkForStmt(const CilkForStmt &S,
-                       ArrayRef<const Attr *> Attrs = None);
+                       ArrayRef<const Attr *> Attrs = std::nullopt);
   LValue EmitCilkSpawnExprLValue(const CilkSpawnExpr *E);
 
   void EmitDetachBlock(const DeclStmt *DS, llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
@@ -3892,9 +3892,9 @@ public:
   void EmitSpawnStmt(const SpawnStmt &S);
   void EmitSyncStmt(const SyncStmt &S);
   void EmitForallStmt(const ForallStmt &S,
-                       ArrayRef<const Attr *> Attrs = None);
+                      ArrayRef<const Attr *> Attrs = std::nullopt);
   void EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
-                           ArrayRef<const Attr *> Attrs = None);
+                              ArrayRef<const Attr *> Attrs = std::nullopt);
 
   void EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S);
   void EmitObjCAtTryStmt(const ObjCAtTryStmt &S);

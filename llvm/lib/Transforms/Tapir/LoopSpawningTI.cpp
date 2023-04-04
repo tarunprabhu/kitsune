@@ -250,8 +250,7 @@ static void moveInstrumentation(StringRef Name, BasicBlock &From,
     while (isa<Instruction>(II) && ToHoist.count(cast<Instruction>(II)))
       ++II;
 
-    To.getInstList().splice(InsertPoint, From.getInstList(), I->getIterator(),
-                            II);
+    To.splice(InsertPoint, &From, I->getIterator(), II);
   }
 }
 
@@ -629,8 +628,7 @@ void DACSpawning::implementDACIterSpawnOnHelper(
                  cast<IntrinsicInst>(I)->getIntrinsicID())
         ++I;
 
-      Preheader->getInstList().splice(InsertPoint, DACHead->getInstList(),
-                                      II->getIterator(), I);
+      Preheader->splice(InsertPoint, DACHead, II->getIterator(), I);
     }
 
     if (!Preheader->getTerminator()->getDebugLoc())
@@ -1241,7 +1239,7 @@ public:
       if (auto *LAM = dyn_cast<LocalAsMetadata>(MD))
         if (LAM->getValue() == TripCount)
           return MetadataAsValue::get(V->getContext(),
-                                      MDTuple::get(V->getContext(), None));
+                                      MDTuple::get(V->getContext(), std::nullopt));
     }
 
     // Materialize TripCount with ArgEnd.  This should only occur in the loop

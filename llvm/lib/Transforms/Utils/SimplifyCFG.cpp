@@ -1543,9 +1543,7 @@ bool SimplifyCFGOpt::HoistThenElseCodeToIf(BranchInst *BI,
   while (isTaskFrameCreate(I2))
     I2 = &*BB2_Itr++;
   // FIXME: Can we define a safety predicate for CallBr?
-  if (isa<PHINode>(I1) || !I1->isIdenticalToWhenDefined(I2) ||
-      (isa<InvokeInst>(I1) && !isSafeToHoistInvoke(BB1, BB2, I1, I2)) ||
-      isa<CallBrInst>(I1))
+  if (isa<PHINode>(I1))
     return false;
 
   BasicBlock *BIParent = BI->getParent();
@@ -1589,25 +1587,25 @@ bool SimplifyCFGOpt::HoistThenElseCodeToIf(BranchInst *BI,
       if (NumSkipped || !I1->isIdenticalToWhenDefined(I2))
         return Changed;
       goto HoistTerminator;
+    }
 
-      // If we're going to hoist a call, make sure that the two instructions we're
-      // commoning/hoisting are both marked with musttail, or neither of them is
-      // marked as such. Otherwise, we might end up in a situation where we hoist
-      // from a block where the terminator is a `ret` to a block where the terminator
-      // is a `br`, and `musttail` calls expect to be followed by a return.
-      auto *C1 = dyn_cast<CallInst>(I1);
-      auto *C2 = dyn_cast<CallInst>(I2);
-      if (C1 && C2) {
-        if (C1->isMustTailCall() != C2->isMustTailCall())
+    // If we're going to hoist a call, make sure that the two instructions we're
+    // commoning/hoisting are both marked with musttail, or neither of them is
+    // marked as such. Otherwise, we might end up in a situation where we hoist
+    // from a block where the terminator is a `ret` to a block where the terminator
+    // is a `br`, and `musttail` calls expect to be followed by a return.
+    auto *C1 = dyn_cast<CallInst>(I1);
+    auto *C2 = dyn_cast<CallInst>(I2);
+    if (C1 && C2) {
+      if (C1->isMustTailCall() != C2->isMustTailCall())
+        return Changed;
+
+      // Disallow hoisting of setjmp.  Although hoisting the setjmp technically
+      // produces valid IR, it seems hard to generate appropariate machine code
+      // from this IR, e.g., for X86.
+      if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(C1))
+        if (Intrinsic::eh_sjlj_setjmp == II->getIntrinsicID())
           return Changed;
-
-        // Disallow hoisting of setjmp.  Although hoisting the setjmp technically
-        // produces valid IR, it seems hard to generate appropariate machine code
-        // from this IR, e.g., for X86.
-        if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(C1))
-          if (Intrinsic::eh_sjlj_setjmp == II->getIntrinsicID())
-            return Changed;
-      }
     }
 
     if (I1->isIdenticalToWhenDefined(I2)) {
@@ -7717,6 +7715,7 @@ bool SimplifyCFGOpt::simplifyOnce(BasicBlock *BB) {
     break;
   case Instruction::Sync:
     Changed |= simplifySync(cast<SyncInst>(Terminator));
+    break;
   }
 
   return Changed;

@@ -178,10 +178,6 @@ static cl::opt<unsigned> CodeGenOptLevel(
 static cl::opt<std::string>
 TargetTriple("mtriple", cl::desc("Override target triple for module"));
 
-static cl::opt<bool> DisableLoopUnrolling(
-    "disable-loop-unrolling",
-    cl::desc("Disable loop unrolling in all relevant passes"), cl::init(false));
-
 static cl::opt<bool>
 DisableLoopStripmining("disable-loop-stripmining",
                         cl::desc("Disable loop stripmining pass"),

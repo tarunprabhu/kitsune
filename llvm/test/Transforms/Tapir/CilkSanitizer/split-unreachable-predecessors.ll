@@ -58,7 +58,7 @@ lpad:                                             ; preds = %pfor.body
           to label %unreachable unwind label %lpad9
 
 ; CHECK: lpad:
-; CHECK: invoke void @llvm.detached.rethrow.sl_p0i8i32s(token %syncreg,
+; CHECK: invoke void @llvm.detached.rethrow.sl_p0i32s(token %syncreg,
 ; CHECK-NEXT: to label %[[DR_UNREACHABLE:.+]] unwind label %[[DR_LPAD:.+]]
 
 pfor.inc:                                         ; preds = %pfor.cond

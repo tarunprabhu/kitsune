@@ -11,10 +11,11 @@ set(LLVM_LINK_COMPONENTS Support)
 add_clang_tool(amdgpu-arch AMDGPUArch.cpp)
 
 # If we find the HSA runtime we link with it directly.
-find_package(hsa-runtime64 QUIET 1.2.0 HINTS ${CMAKE_INSTALL_PREFIX} PATHS /opt/rocm)
+find_package(hsa-runtime64 QUIET 1.2.0 HINTS ${CMAKE_INSTALL_PREFIX})
 if (${hsa-runtime64_FOUND})
   set_target_properties(amdgpu-arch PROPERTIES INSTALL_RPATH_USE_LINK_PATH ON)
   target_link_libraries(amdgpu-arch PRIVATE hsa-runtime64::hsa-runtime64)
+  # target_include_directories(amdgpu-arch hsa-runtime64)
 else()
   target_compile_definitions(amdgpu-arch PRIVATE "DYNAMIC_HSA")
 endif()

@@ -1,7 +1,6 @@
 ; Verify that task-simplify preserves both sync regions in this
 ; example code.
 ;
-; RUN: opt < %s -task-simplify -S -o - | FileCheck %s
 ; RUN: opt < %s -passes='task-simplify' -S -o - | FileCheck %s
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"

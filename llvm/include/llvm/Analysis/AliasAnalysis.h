@@ -343,6 +343,9 @@ public:
   /// alias analysis implementations.
   AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB);
 
+  AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
+                    AAQueryInfo &AAQIP, bool AssumeSameSpindle);
+
   /// Version of alias() method where the assumption is explicitly stated of
   /// whether the query applies to operations within the same spindle.
   AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
@@ -541,17 +544,6 @@ public:
              ~(FMRL_InaccessibleMem | FMRL_ArgumentPointees));
   }
 */
-  /// getModRefInfo (for call sites) - Return information about whether
-  /// a particular call site modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const CallBase *Call, const MemoryLocation &Loc,
-                           bool SameSpindle);
-
-  /// getModRefInfo (for call sites) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const CallBase *Call, const Value *P,
-                           LocationSize Size, bool SameSpindle) {
-    return getModRefInfo(Call, MemoryLocation(P, Size), SameSpindle);
-  }
-
   /// getModRefInfo (for call sites) - Return information about whether
   /// a particular call site modifies or reads the specified memory location.
   ModRefInfo getModRefInfo(const CallBase *Call, const MemoryLocation &Loc,
@@ -849,14 +841,6 @@ public:
   ModRefInfo getModRefInfoMask(const MemoryLocation &Loc,
                                bool IgnoreLocals = false) {
     return AA.getModRefInfoMask(Loc, AAQI, IgnoreLocals);
-  }
-  ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2,
-                           bool AssumeSameSpindle) {
-    bool OldAssumeSameSpindle = AAQI.AssumeSameSpindle;
-    AAQI.AssumeSameSpindle = AssumeSameSpindle;
-    auto Result = AA.getModRefInfo(Call1, Call2, AAQI);
-    AAQI.AssumeSameSpindle = OldAssumeSameSpindle;
-    return Result;
   }
   ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2,
                            bool AssumeSameSpindle) {

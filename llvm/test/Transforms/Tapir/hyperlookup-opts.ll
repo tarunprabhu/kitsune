@@ -2,7 +2,6 @@
 ; __cilkrts_hyper_lookup calls, i.e., by moving __cilkrts_hyper_lookup
 ; calls out of serial loops and subsequently vectorizing those loops.
 ;
-; RUN: opt < %s -enable-new-pm=0 -tti -tbaa -loop-stripmine -indvars -licm -loop-vectorize -instcombine -simplifycfg -S -o - | FileCheck %s
 ; RUN: opt < %s -aa-pipeline=tbaa,basic-aa -passes='loop-stripmine,loop-mssa(licm),loop-vectorize,instcombine,simplifycfg' -S -o - | FileCheck %s
 ; REQUIRES: x86-registered-target
 
@@ -189,8 +188,7 @@ _ZN4cilk7reducerINS_6op_addIxLb1EEEED2Ev.exit:    ; preds = %cond.end.i.i
 ; CHECK: detach within %syncreg, label %[[DETACHED:.+]], label %[[CONTINUE:.+]]
 
 ; CHECK: [[DETACHED]]:
-; CHECK: %[[CALL:.+]] = call strand_noalias i8* @__cilkrts_hyper_lookup(
-; CHECK: %[[VIEW:.+]] = bitcast i8* %[[CALL]] to i64*
+; CHECK: %[[CALL:.+]] = call strand_noalias ptr @__cilkrts_hyper_lookup(
 ; CHECK: br label %[[VECTOR_PH:.+]]
 
 ; CHECK: [[VECTOR_PH]]:
@@ -205,14 +203,13 @@ _ZN4cilk7reducerINS_6op_addIxLb1EEEED2Ev.exit:    ; preds = %cond.end.i.i
 ; CHECK: [[MIDDLE_BLOCK]]:
 ; CHECK: add <2 x i64>
 ; CHECK: %[[RESULT:.+]] = call i64 @llvm.vector.reduce.add.v2i64(<2 x i64>
-; CHECK: store i64 %[[RESULT]], i64* %[[VIEW]]
+; CHECK: store i64 %[[RESULT]], ptr %[[CALL]]
 ; CHECK: reattach within %syncreg
 
 ; CHECK: tapir_sync within %syncreg
 
-; CHECK: %[[CALL2:.+]] = call strand_noalias i8* @__cilkrts_hyper_lookup(
-; CHECK-NEXT: %[[VIEW2:.+]] = bitcast i8* %[[CALL2]] to i64*
-; CHECK-NEXT: %[[SUM:.+]] = load i64, i64* %[[VIEW2]]
+; CHECK: %[[CALL2:.+]] = call strand_noalias ptr @__cilkrts_hyper_lookup(
+; CHECK-NEXT: %[[SUM:.+]] = load i64, ptr %[[CALL2]]
 
 ; CHECK: invoke void @__cilkrts_hyper_destroy(
 ; CHECK-NEXT: to label %[[RET_BLOCK:.+]] unwind label %{{.+}}
@@ -284,7 +281,7 @@ entry:
 
 declare dso_local void @__cilkrts_hyper_create(%struct.__cilkrts_hyperobject_base*) local_unnamed_addr #5
 
-; Function Attrs: nounwind readonly strand_pure
+; Function Attrs: nounwind memory(argmem:read) strand_pure
 declare dso_local strand_noalias i8* @__cilkrts_hyper_lookup(%struct.__cilkrts_hyperobject_base*) local_unnamed_addr #8
 
 attributes #0 = { argmemonly nounwind willreturn }
@@ -295,7 +292,7 @@ attributes #4 = { noreturn nounwind "correctly-rounded-divide-sqrt-fp-math"="fal
 attributes #5 = { willreturn "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="none" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #6 = { nobuiltin nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="none" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #7 = { nobuiltin nofree "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="none" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #8 = { nounwind readonly strand_pure willreturn "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="none" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #8 = { nounwind memory(argmem:read) strand_pure willreturn "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="none" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #9 = { nounwind }
 attributes #10 = { nounwind readonly strand_pure }
 attributes #11 = { noreturn nounwind }

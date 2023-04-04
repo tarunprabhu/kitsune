@@ -28,7 +28,7 @@ det.achd:                                         ; preds = %if.end
 ; CHECK-LABEL: det.achd:
 ; CHECK: call i32 @fib(
 ; CHECK: @__csan_store(
-; CHECK: store i32 %call, i32* %x
+; CHECK: store i32 %call, ptr %x
 ; CHECK: reattach within %syncreg,
 
 det.cont:                                         ; preds = %det.achd, %if.end
@@ -43,7 +43,7 @@ det.cont:                                         ; preds = %det.achd, %if.end
 ; CHECK-LABEL: det.cont:
 ; CHECK: call i32 @fib(
 ; CHECK: @__csan_store(
-; CHECK: store i32 %add, i32* %x
+; CHECK: store i32 %add, ptr %x
 
 ; CHECK: call void @__csan_sync(
 ; CHECK: tapir_sync within %syncreg,

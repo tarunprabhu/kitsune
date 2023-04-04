@@ -267,7 +267,7 @@ pfor.body56:                                      ; preds = %pfor.cond50
 
 ; CHECK: call void @__csan_before_call(
 
-; CHECK: %call67167 = invoke { i64*, i64 } @_ZN8sequence10packSerialIll9identityFIlEEE4_seqIT_EPS4_PbT0_S8_T1_(
+; CHECK: %call67167 = invoke { ptr, i64 } @_ZN8sequence10packSerialIll9identityFIlEEE4_seqIT_EPS4_PbT0_S8_T1_(
 ; CHECK-NEXT: to label %call67.noexc unwind label %csi.cleanup165
 
 call67.noexc:                                     ; preds = %pfor.body56

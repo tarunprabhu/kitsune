@@ -252,41 +252,6 @@ set(files
   kitsune_rt.h
   )
 
-set(cilk_header_files
-  cilk/cilk.h
-  cilk/cilk_api.h
-  cilk/cilk_api_linux.h
-  cilk/cilk_stub.h
-  cilk/cilk_undocumented.h
-  cilk/common.h
-  cilk/holder.h
-  cilk/hyperobject_base.h
-  cilk/metaprogramming.h
-  cilk/reducer.h
-  cilk/reducer_file.h
-  cilk/reducer_list.h
-  cilk/reducer_max.h
-  cilk/reducer_min.h
-  cilk/reducer_min_max.h
-  cilk/reducer_opadd.h
-  cilk/reducer_opand.h
-  cilk/reducer_opmul.h
-  cilk/reducer_opor.h
-  cilk/reducer_opxor.h
-  cilk/reducer_ostream.h
-  cilk/reducer_string.h
-  cilk/reducer_vector.h
-  cilktools/cilkscreen.h
-  cilktools/cilkview.h
-  cilktools/fake_mutex.h
-  cilktools/lock_guard.h
-  internal/abi.h
-  internal/cilk_fake.h
-  internal/cilk_version.h
-  internal/metacall.h
-  internal/rev.mk
-)
-
 set(cuda_wrapper_files
   cuda_wrappers/algorithm
   cuda_wrappers/cmath
@@ -352,7 +317,7 @@ endfunction(clang_generate_header)
 
 
 # Copy header files from the source directory to the build directory
-foreach( f ${files} ${cuda_wrapper_files} ${ppc_wrapper_files} ${openmp_wrapper_files} ${hlsl_files} ${cilk_header_files})
+foreach( f ${files} ${cuda_wrapper_files} ${ppc_wrapper_files} ${openmp_wrapper_files} ${hlsl_files})
   copy_header_to_output_dir(${CMAKE_CURRENT_SOURCE_DIR} ${f})
 endforeach( f )
 
@@ -478,8 +443,8 @@ set(header_install_dir lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION_MAJOR}/inc
 #############################################################
 # Install rules for the catch-all clang-resource-headers target
 configure_file(kitsune.h.cmake
-  ${LLVM_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION}/include/kitsune.h)
-list(APPEND generated_files ${LLVM_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION}/include/kitsune.h)
+  ${LLVM_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION_MAJOR}/include/kitsune.h)
+list(APPEND generated_files ${LLVM_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION_MAJOR}/include/kitsune.h)
 
 install(
   FILES ${files} ${generated_files}

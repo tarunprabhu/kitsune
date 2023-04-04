@@ -107,7 +107,7 @@ bool TapirToTargetImpl::unifyReturns(Function &F) {
     // If the function doesn't return void... add a PHI node to the block...
     PN = PHINode::Create(F.getReturnType(), ReturningBlocks.size(),
                          "UnifiedRetVal");
-    NewRetBlock->getInstList().push_back(PN);
+    PN->insertInto(NewRetBlock, NewRetBlock->end());
     ReturnInst::Create(F.getContext(), PN, NewRetBlock);
   }
 
@@ -120,7 +120,7 @@ bool TapirToTargetImpl::unifyReturns(Function &F) {
     if (PN)
       PN->addIncoming(BB->getTerminator()->getOperand(0), BB);
 
-    BB->getInstList().pop_back();  // Remove the return insn
+    BB->getTerminator()->eraseFromParent(); // Remove the return insn
     BranchInst::Create(NewRetBlock, BB);
   }
   return true;

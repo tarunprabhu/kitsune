@@ -305,7 +305,7 @@ instructionClobbersQuery(const MemoryDef *MD, const MemoryLocation &UseLoc,
     if ((TI->getTaskFor(MD->getBlock()) !=
          TI->getTaskFor(UseInst->getParent())) &&
         TI->mayHappenInParallel(MD->getBlock(), UseInst->getParent()))
-      return {false, AliasResult(AliasResult::NoAlias)};
+      return false;
 
   // Check for invokes of detached.rethrow, taskframe.resume, or sync.unwind.
   if (const InvokeInst *II = dyn_cast<InvokeInst>(DefInst))
@@ -313,7 +313,7 @@ instructionClobbersQuery(const MemoryDef *MD, const MemoryLocation &UseLoc,
       if (Intrinsic::detached_rethrow == Called->getIntrinsicID() ||
           Intrinsic::taskframe_resume == Called->getIntrinsicID() ||
           Intrinsic::sync_unwind == Called->getIntrinsicID())
-        return {false, AliasResult(AliasResult::NoAlias)};
+        return false;
 
   if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(DefInst)) {
     // These intrinsics will show up as affecting memory, but they are just
@@ -367,8 +367,7 @@ instructionClobbersQuery(const MemoryDef *MD, const MemoryLocation &UseLoc,
 template <typename AliasAnalysisType>
 static bool instructionClobbersQuery(MemoryDef *MD, const MemoryUseOrDef *MU,
                                      const MemoryLocOrCall &UseMLOC,
-                                     AliasAnalysisType &AA,
-                                     TaskInfo* TI = nullptr) {
+                                     AliasAnalysisType &AA, TaskInfo *TI) {
   // FIXME: This is a temporary hack to allow a single instructionClobbersQuery
   // to exist while MemoryLocOrCall is pushed through places.
   if (UseMLOC.IsCall)
@@ -965,8 +964,7 @@ class ClobberWalker {
   }
 
 public:
-  ClobberWalker(const MemorySSA &MSSA, DominatorTree &DT,
-                TaskInfo *TI = nullptr)
+  ClobberWalker(const MemorySSA &MSSA, DominatorTree &DT, TaskInfo *TI)
     : MSSA(MSSA), DT(DT), TI(TI) {}
 
   /// Finds the nearest clobber for the given query, optimizing phis if
@@ -1329,7 +1327,7 @@ namespace llvm {
 class MemorySSA::OptimizeUses {
 public:
   OptimizeUses(MemorySSA *MSSA, CachingWalker *Walker, BatchAAResults *BAA,
-               DominatorTree *DT, TaskInfo *TI = nullptr)
+               DominatorTree *DT, TaskInfo *TI)
     : MSSA(MSSA), Walker(Walker), AA(BAA), DT(DT), TI(TI) {}
 
   void optimizeUses();
@@ -1591,10 +1589,6 @@ void MemorySSA::buildMemorySSA(BatchAAResults &BAA) {
   // filled in with all blocks.
   SmallPtrSet<BasicBlock *, 16> Visited;
   renamePass(DT->getRootNode(), LiveOnEntryDef.get(), Visited);
-
-  ClobberWalkerBase<BatchAAResults> WalkerBase(this, &BAA, DT, TI);
-  CachingWalker<BatchAAResults> WalkerLocal(this, &WalkerBase);
-  OptimizeUses(this, &WalkerLocal, &BAA, DT, TI).optimizeUses();
 
   // Mark the uses in unreachable blocks as live on entry, so that they go
   // somewhere.

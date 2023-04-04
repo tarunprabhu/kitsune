@@ -269,8 +269,8 @@
 ; CHECK-POSTLINK-O-NEXT: Running pass: DivRemPairsPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: TailCallElimPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: SimplifyCFGPass
-; CHECK-POST-EP-OPT-LAST-NEXT: Running pass: NoOpModulePass
 ; CHECK-POSTLINK-O-NEXT: Running pass: TaskSimplifyPass
+; CHECK-POST-EP-OPT-LAST-NEXT: Running pass: NoOpModulePass
 ; CHECK-POSTLINK-O-NEXT: Running pass: GlobalDCEPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: ConstantMergePass
 ; CHECK-POSTLINK-O-NEXT: Running pass: CGProfilePass

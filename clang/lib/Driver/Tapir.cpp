@@ -42,6 +42,7 @@ TapirTargetID clang::parseTapirTarget(const ArgList &Args) {
       .Case("cilkplus", TapirTargetID::Cilk)
       .Case("opencilk", TapirTargetID::OpenCilk)
       .Case("cuda", TapirTargetID::Cuda)
+      .Case("hip", TapirTargetID::Hip)
       .Case("openmp", TapirTargetID::OpenMP)
       .Case("qthreads", TapirTargetID::Qthreads)
       .Case("realm", TapirTargetID::Realm)
@@ -91,14 +92,25 @@ clang::serializeTapirTarget(TapirTargetID Target) {
   case TapirTargetID::GPU:
     TapirTargetStr = "gpu";
     break;
+  case TapirTargetID::Hip:
+    TapirTargetStr = "hip";
+    break;
   case TapirTargetID::OpenCilk:
     TapirTargetStr = "opencilk";
+    break;
+  case TapirTargetID::OpenCL:
+    TapirTargetStr = "opencl";
     break;
   case TapirTargetID::OpenMP:
     TapirTargetStr = "openmp";
     break;
   case TapirTargetID::Qthreads:
     TapirTargetStr = "qthreads";
+    break;
+  case TapirTargetID::Realm:
+    TapirTargetStr = "realm";
+    break;
+  case TapirTargetID::Off:
     break;
   case TapirTargetID::Last_TapirTargetID:
     break;

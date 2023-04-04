@@ -148,11 +148,40 @@ else()
   endif()
 endif()
 
+############
+# For Kitsune+Tapir drop the Cheetah and OpenCilk Tools into the LLVM
+# mono-repo structure.  This allows them to be listed and processed
+# along with the rest of LLVM's components.
+include(FetchContent)
+FetchContent_Declare(cheetahrt
+  GIT_REPOSITORY    https://github.com/pmccormick/cheetah.git
+  GIT_TAG           kitsune
+  SOURCE_DIR        ${CMAKE_CURRENT_SOURCE_DIR}/../cheetah)
+
+FetchContent_Declare(cilktools
+  GIT_REPOSITORY   https://github.com/pmccormick/productivity-tools.git
+  GIT_TAG          kitsune
+  SOURCE_DIR       ${CMAKE_CURRENT_SOURCE_DIR}/../cilktools)
+
+FetchContent_GetProperties(cheetahrt)
+if (NOT cheetahrt_POPULATED)
+  message(STATUS "NOTE: <<<< fetching cheetah runtime source via git... >>>>")
+  FetchContent_Populate(cheetahrt)
+endif()
+
+FetchContent_GetProperties(cilktools)
+if (NOT cilktools_POPULATED)
+  message(STATUS "NOTE: <<<< fetching cilktools source via git... >>>>")
+  FetchContent_Populate(cilktools)
+endif()
+#
+############
+
 # Side-by-side subprojects layout: automatically set the
 # LLVM_EXTERNAL_${project}_SOURCE_DIR using LLVM_ALL_PROJECTS
 # This allows an easy way of setting up a build directory for llvm and another
 # one for llvm+clang+... using the same sources.
-set(LLVM_ALL_PROJECTS "bolt;cheetah;cilktools;clang;clang-tools-extra;compiler-rt;cross-project-tests;libc;libclc;lld;lldb;mlir;openmp;polly;pstl")
+set(LLVM_ALL_PROJECTS "bolt;cheetah;cilktools;clang;clang-tools-extra;compiler-rt;kitsune;cross-project-tests;libc;libclc;lld;lldb;mlir;openmp;polly;pstl")
 # The flang project is not yet part of "all" projects (see C++ requirements)
 set(LLVM_EXTRA_PROJECTS "flang")
 # List of all known projects in the mono repo
@@ -184,8 +213,8 @@ endif()
 #
 # As we migrate runtimes to using the bootstrapping build, the set of default runtimes
 # should grow as we remove those runtimes from LLVM_ENABLE_PROJECTS above.
-set(LLVM_DEFAULT_RUNTIMES "cheetah;cilktools;libcxx;libcxxabi;libunwind")
-set(LLVM_SUPPORTED_RUNTIMES "cheetah;cilktools;libc;libunwind;libcxxabi;pstl;libcxx;compiler-rt;openmp;llvm-libgcc")
+set(LLVM_DEFAULT_RUNTIMES "cheetah;cilktools;kitsune;libcxx;libcxxabi;libunwind")
+set(LLVM_SUPPORTED_RUNTIMES "cheetah;cilktools;kitsune;libc;libunwind;libcxxabi;pstl;libcxx;compiler-rt;openmp;llvm-libgcc")
 set(LLVM_ENABLE_RUNTIMES "" CACHE STRING
   "Semicolon-separated list of runtimes to build, or \"all\" (${LLVM_DEFAULT_RUNTIMES}). Supported runtimes are ${LLVM_SUPPORTED_RUNTIMES}.")
 if(LLVM_ENABLE_RUNTIMES STREQUAL "all")

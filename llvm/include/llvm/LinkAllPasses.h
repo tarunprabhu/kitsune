@@ -79,7 +79,6 @@ namespace {
       (void) llvm::createTypeBasedAAWrapperPass();
       (void) llvm::createScopedNoAliasAAWrapperPass();
       (void) llvm::createDRFAAWrapperPass();
-      (void) llvm::createBoundsCheckingLegacyPass();
       (void) llvm::createBreakCriticalEdgesPass();
       (void) llvm::createCallGraphDOTPrinterPass();
       (void) llvm::createCallGraphViewerPass();

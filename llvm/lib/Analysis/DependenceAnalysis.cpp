@@ -391,7 +391,7 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, const GeneralAccess &GA) {
     else
       OS << *GA.Loc->Ptr;
     OS << ", GA.OperandNum: " << static_cast<int>(GA.OperandNum);
-    OS << ", GA.ModRef: " << static_cast<int>(GA.ModRef);
+    OS << ", GA.ModRef: " << static_cast<int>(GA.ME.getModRef());
     OS << ")";
   }
   return OS;

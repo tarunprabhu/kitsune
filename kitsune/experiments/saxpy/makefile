@@ -1,34 +1,61 @@
-include ../common.mk
-include ../cuda.mk
-include ../kokkos.mk
+include ../experiments.mk 
 
-# General (shared) flags (see common.mk)
-clang_flags=${cxx_flags} ${opt_flags} ${clang_info_flags}
+targets = saxpy-forall.opencilk.${host_arch}
 
-#### Kitsune+Tapir options 
-#  Notes:
-#   -ftapir=cuda will target the CUDA ABI transform. 
-#   -cuabi-verbose dumps kernel stats via ptxas output. 
-#   -cuabi-keep-files saves intermediate files (.ll, .ptx, .fatbin) on disk for a closer look at codegen details. 
-#
-tapir_cu_flags=-ftapir=cuda -ffp-contract=fast -mllvm -cuabi-arch=${NVARCH} -I${CUDA_HOME}/include 
-tapir_stripmine_flags=-mllvm -stripmine-count=1 -mllvm -stripmine-coarsen-factor=1 -mllvm -cuabi-default-grainsize=1
-####
+ifeq ($(BUILD_CUDA_EXPERIMENTS),true)
+  targets += saxpy-forall.cuda.${host_arch}
+  targets += saxpy-kokkos.nvcc.${host_arch}
+endif
 
-kokkos_cu_flags=-I${kokkos_cu_prefix}/include ${nvcc_cxx_flags} -m64 -arch=${NVARCH} --resource-usage -O3 --no-exceptions -I${kitsune_prefix}/include
+ifeq ($(BUILD_HIP_EXPERIMENTS),true)
+  targets += saxpy-forall.hip.${host_arch}
+  targets += saxpy-kokkos.hipcc.${host_arch}
+endif
 
-all: saxpy-forall.cuda.${host_arch} saxpy-kokkos.${host_arch}
+all: ${targets}
 
-saxpy-forall.cuda.${host_arch}: saxpy-forall.cpp
-	${clangxx} -ftime-report ${clang_flags} ${tapir_cu_flags} ${tapir_stripmine_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+# forall-based tests
+saxpy-forall.opencilk.${host_arch}: saxpy-forall.cpp 
+	@echo $@
+	@$(TIME_CMD) $(KIT_CXX) $(TAPIR_OPENCILK_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
+	@$(FILE_SIZE)
+saxpy-forall.cuda.${host_arch}: saxpy-forall.cpp 
+	@echo $@
+	@$(TIME_CMD)  $(KIT_CXX) $(TAPIR_CUDA_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
+	@$(FILE_SIZE)
+saxpy-forall.hip.${host_arch}: saxpy-forall.cpp 
+	@echo $@
+	@$(TIME_CMD) $(KIT_CXX) $(TAPIR_HIP_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
+	@$(FILE_SIZE)
+# kokkos-based tests (w/out views)
+#saxpy-kokkos.cuda.kitsune.${host_arch}: saxpy-kokkos-no-view.cpp 
+#	/usr/bin/time $(KIT_CXX) $(TAPIR_CUDA_FLAGS) $(KITSUNE_KOKKOS_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
+#saxpy-kokkos.hip.kitsune.${host_arch}: saxpy-kokkos-no-view.cpp 
+#	/usr/bin/time $(KIT_CXX) $(TAPIR_HIP_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
 
-saxpy-kokkos.${host_arch}: saxpy-kokkos.cpp
-	${nvcc_wrapper} ${kokkos_cu_flags} -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+# kokkos-based tests (using views -- currently not compatible w/ kitsune)
+saxpy-kokkos.nvcc.${host_arch}: saxpy-kokkos.cpp 
+	@echo $@
+	@$(TIME_CMD) $(KOKKOS_NVCC) $(KOKKOS_NVCC_FLAGS) -o $@ $< $(KOKKOS_CUDA_LIBS) -Xlinker -rpath=$(KOKKOS_CUDA_PREFIX)/lib64
+	@$(FILE_SIZE)
+saxpy-kokkos.hipcc.${host_arch}: saxpy-kokkos.cpp 
+	@echo $@
+	@$(TIME_CMD) $(KOKKOS_HIPCC) $(KOKKOS_HIP_FLAGS) -o $@ $< $(KOKKOS_HIP_LIBS) -Xlinker -rpath=$(KOKKOS_HIP_PREFIX)/lib64 
+	@$(FILE_SIZE)
+#####
+define newline 
+
+
+endef 
+
+run: $(targets) 
+	@echo "running generated exeutables..."
+	$(foreach prog,$(targets),$(call RUN_test,$(prog)))
+##### 
+
+.PHONY: all clean run
 
 clean:
-	-rm -f *.${host_arch}
-	-rm -f *.fbin *.s *.ptx *.ll 
-	-rm -rf *-cfg-tmp
-	-rm -f *.bc
-	-rm -f *.fatbin
-	-rm -f *.csv *.log *.s 
+	-rm -f *.${host_arch} *.ll *.o
+	-rm -f *~ core *.log  
+

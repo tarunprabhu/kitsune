@@ -129,9 +129,8 @@ bool DRFScopedNoAliasImpl::populateTaskScopeNoAliasInBlock(
         continue;
 
       IsFuncCall = true;
-      FunctionModRefBehavior MRB = AA.getModRefBehavior(ICS);
-      if (MRB == FMRB_OnlyAccessesArgumentPointees ||
-          MRB == FMRB_OnlyReadsArgumentPointees)
+      MemoryEffects ME = AA.getMemoryEffects(ICS);
+      if (ME.onlyAccessesArgPointees())
         IsArgMemOnlyCall = true;
 
       for (Value *Arg : ICS->args()) {
@@ -211,7 +210,7 @@ bool DRFScopedNoAliasImpl::populateTaskScopeNoAliasInBlock(
   }
   return true;
 }
-                                     
+
 bool DRFScopedNoAliasImpl::populateSubTaskScopeNoAlias(
     const Task *T, MDBuilder &MDB, SmallVectorImpl<Metadata *> &CurrScopes,
     SmallVectorImpl<Metadata *> &CurrNoAlias,

@@ -1311,7 +1311,7 @@ public:
 
   InstructionCost getInstructionLatency(const Instruction *I) {
     SmallVector<const Value *, 4> Operands(I->operand_values());
-    if (getUserCost(I, Operands, TTI::TCK_Latency) == TTI::TCC_Free)
+    if (getInstructionCost(I, Operands, TTI::TCK_Latency) == TTI::TCC_Free)
       return 0;
 
     if (isa<LoadInst>(I))

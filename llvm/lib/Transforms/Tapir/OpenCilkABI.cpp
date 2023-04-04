@@ -147,10 +147,10 @@ void OpenCilkABI::prepareModule() {
     if ("" != ClOpenCilkRuntimeBCPath)
       RuntimeBCPath = ClOpenCilkRuntimeBCPath;
 
-    Optional<std::string> path;
+    std::optional<std::string> path;
     if("" == RuntimeBCPath){
       path = sys::Process::FindInEnvPath("LD_LIBRARY_PATH", "libopencilk-abi.bc");
-      if (! path.hasValue())
+      if (! path)
         // TODO: This is an in-tree build solution for now...
         #if defined(OPENCILK_BC_PATH)
         path = OPENCILK_BC_PATH;
@@ -307,7 +307,7 @@ void OpenCilkABI::prepareModule() {
     if (GlobalVariable *AlignVar =
         M.getGlobalVariable("__cilkrts_stack_frame_align", true)) {
       if (auto Align = AlignVar->getAlign())
-        StackFrameAlign = Align.getValue();
+        StackFrameAlign = *Align;
       // Mark this variable with private linkage, to avoid linker failures when
       // compiling with no optimizations.
       AlignVar->setLinkage(GlobalValue::PrivateLinkage);
@@ -355,8 +355,7 @@ void OpenCilkABI::addHelperAttributes(Function &Helper) {
   // function.
   if (getArgStructMode() != ArgStructMode::None) {
     Helper.removeFnAttr(Attribute::WriteOnly);
-    Helper.removeFnAttr(Attribute::ArgMemOnly);
-    Helper.removeFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+    Helper.removeFnAttr(Attribute::Memory);
   }
   // Note that the address of the helper is unimportant.
   Helper.setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
@@ -607,7 +606,7 @@ void OpenCilkABI::MarkSpawner(Function &F) {
 
   // Mark this function as stealable.
   F.addFnAttr(Attribute::Stealable);
-  F.removeFnAttr(Attribute::ArgMemOnly);
+  F.removeFnAttr(Attribute::Memory);
 }
 
 /// Lower a call to get the grainsize of a Tapir loop.
