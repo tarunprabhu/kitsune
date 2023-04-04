@@ -130,7 +130,7 @@ $_ZN4absl13base_internal8HideMaskEv = comdat any
 @.str.4 = private unnamed_addr constant [43 x i8] c"Edge %u->%d has bad rank assignment %d->%d\00", align 1
 @llvm.global_ctors = appending global [0 x { i32, void ()*, i8* }] zeroinitializer
 
-; CHECK: @llvm.global_ctors = appending global [1 x { i32, void ()*, i8* }] [{ i32, void ()*, i8* } { i32 0, void ()* @csirt.unit_ctor, i8* null }]
+; CHECK: @llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 0, ptr @csirt.unit_ctor, ptr null }]
 
 @_ZN4absl24synchronization_internal11GraphCyclesC1Ev = dso_local unnamed_addr alias void (%"class.absl::synchronization_internal::GraphCycles"*), void (%"class.absl::synchronization_internal::GraphCycles"*)* @_ZN4absl24synchronization_internal11GraphCyclesC2Ev
 @_ZN4absl24synchronization_internal11GraphCyclesD1Ev = dso_local unnamed_addr alias void (%"class.absl::synchronization_internal::GraphCycles"*), void (%"class.absl::synchronization_internal::GraphCycles"*)* @_ZN4absl24synchronization_internal11GraphCyclesD2Ev

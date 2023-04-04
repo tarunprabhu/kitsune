@@ -2749,7 +2749,7 @@ LoopAccessInfoManager LoopAccessAnalysis::run(Function &F,
   return LoopAccessInfoManager(
       AM.getResult<ScalarEvolutionAnalysis>(F), AM.getResult<AAManager>(F),
       AM.getResult<DominatorTreeAnalysis>(F), AM.getResult<LoopAnalysis>(F),
-      &AM.getResult<TargetLibraryAnalysis>(F));
+      &AM.getResult<TargetLibraryAnalysis>(F), &AM.getResult<TaskAnalysis>(F));
 }
 
 char LoopAccessLegacyAnalysis::ID = 0;

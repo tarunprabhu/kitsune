@@ -447,16 +447,16 @@ void PassManagerBuilder::populateModulePassManager(
   if (EnableSerializeSmallTasks)
     MPM.add(createSerializeSmallTasksPass());
 
-  // Scheduling LoopVersioningLICM when inlining is over, because after that
-  // we may see more accurate aliasing. Reason to run this late is that too
-  // early versioning may prevent further inlining due to increase of code
-  // size. By placing it just after inlining other optimizations which runs
-  // later might get benefit of no-alias assumption in clone loop.
-  if (UseLoopVersioningLICM) {
-    MPM.add(createLoopVersioningLICMPass());    // Do LoopVersioningLICM
-    MPM.add(createLICMPass(LicmMssaOptCap, LicmMssaNoAccForPromotionCap,
-                           /*AllowSpeculation=*/true));
-  }
+  // // Scheduling LoopVersioningLICM when inlining is over, because after that
+  // // we may see more accurate aliasing. Reason to run this late is that too
+  // // early versioning may prevent further inlining due to increase of code
+  // // size. By placing it just after inlining other optimizations which runs
+  // // later might get benefit of no-alias assumption in clone loop.
+  // if (UseLoopVersioningLICM) {
+  //   MPM.add(createLoopVersioningLICMPass());    // Do LoopVersioningLICM
+  //   MPM.add(createLICMPass(LicmMssaOptCap, LicmMssaNoAccForPromotionCap,
+  //                          /*AllowSpeculation=*/true));
+  // }
 
   // We add a fresh GlobalsModRef run at this point. This is particularly
   // useful as the above will have inlined, DCE'ed, and function-attr
@@ -477,14 +477,6 @@ void PassManagerBuilder::populateModulePassManager(
 
   MPM.add(createFloat2IntPass());
   MPM.add(createLowerConstantIntrinsicsPass());
-
-  if (EnableMatrix) {
-    MPM.add(createLowerMatrixIntrinsicsPass());
-    // CSE the pointer arithmetic of the column vectors.  This allows alias
-    // analysis to establish no-aliasing between loads and stores of different
-    // columns of the same matrix.
-    MPM.add(createEarlyCSEPass(false));
-  }
 
   // Stripmine Tapir loops.
   if (LoopStripmine) {
@@ -553,9 +545,9 @@ void PassManagerBuilder::populateModulePassManager(
       SimplifyCFGOptions().convertSwitchRangeToICmp(true)));
   MPM.add(createTaskSimplifyPass());
 
-  if (RerunAfterTapirLowering || (TapirTargetID::None == TapirTarget))
-    // Add passes to run just before Tapir lowering.
-    addExtensionsToPM(EP_TapirLate, MPM);
+  // if (RerunAfterTapirLowering || (TapirTargetID::None == TapirTarget))
+  //   // Add passes to run just before Tapir lowering.
+  //   addExtensionsToPM(EP_TapirLate, MPM);
 
   if (!TapirHasBeenLowered) {
     // First handle Tapir loops.  First, simplify their induction variables.
@@ -584,7 +576,7 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createMergeFunctionsPass());
     MPM.add(createBarrierNoopPass());
     // addFunctionSimplificationPasses(MPM);
-    addExtensionsToPM(EP_TapirLoopEnd, MPM);
+    // addExtensionsToPM(EP_TapirLoopEnd, MPM);
 
     // Now lower Tapir to Target runtime calls.
     MPM.add(createTaskCanonicalizePass());
@@ -623,7 +615,6 @@ void PassManagerBuilder::populateModulePassManager(
     MPM.add(createGlobalsAAWrapperPass());
 
     // Start of CallGraph SCC passes.
-    MPM.add(createPruneEHPass()); // Remove dead EH info
     MPM.add(createAlwaysInlinerLegacyPass());
 
     MPM.add(createPostOrderFunctionAttrsLegacyPass());
@@ -636,9 +627,6 @@ void PassManagerBuilder::populateModulePassManager(
     // pass manager that we are specifically trying to avoid. To prevent this
     // we must insert a no-op module pass to reset the pass manager.
     MPM.add(createBarrierNoopPass());
-
-    if (RunPartialInlining)
-      MPM.add(createPartialInliningPass());
 
     if (OptLevel > 1)
       // Remove avail extern fns and globals definitions if we aren't
@@ -672,8 +660,6 @@ void PassManagerBuilder::populateModulePassManager(
   } while (RerunAfterTapirLowering);
 
   // addExtensionsToPM(EP_OptimizerLast, MPM);
-
-  MPM.add(createAnnotationRemarksLegacyPass());
 }
 
 LLVMPassManagerBuilderRef LLVMPassManagerBuilderCreate() {

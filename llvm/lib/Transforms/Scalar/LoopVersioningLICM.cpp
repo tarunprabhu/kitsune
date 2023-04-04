@@ -639,10 +639,11 @@ PreservedAnalyses LoopVersioningLICMPass::run(Loop &L, LoopAnalysisManager &AM,
   AliasAnalysis *AA = &LAR.AA;
   ScalarEvolution *SE = &LAR.SE;
   DominatorTree *DT = &LAR.DT;
+  TaskInfo* TI = &LAR.TI;
   const Function *F = L.getHeader()->getParent();
   OptimizationRemarkEmitter ORE(F);
 
-  LoopAccessInfoManager LAIs(*SE, *AA, *DT, LAR.LI, nullptr);
+  LoopAccessInfoManager LAIs(*SE, *AA, *DT, LAR.LI, nullptr, TI);
   if (!LoopVersioningLICM(AA, SE, &ORE, LAIs, LAR.LI, &L).run(DT))
     return PreservedAnalyses::all();
   return getLoopPassPreservedAnalyses();

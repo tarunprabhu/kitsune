@@ -1297,8 +1297,9 @@ static LangOptions::CilktoolKind parseCilktoolKind(StringRef FlagName,
   return LangOptions::Cilktool_None;
 }
 
-static Optional<StringRef> serializeCilktoolKind(LangOptions::CilktoolKind K) {
-  Optional<StringRef> CilktoolStr;
+static std::optional<StringRef>
+serializeCilktoolKind(LangOptions::CilktoolKind K) {
+  std::optional<StringRef> CilktoolStr;
   switch (K) {
   case LangOptions::Cilktool_Cilkscale:
     CilktoolStr = "cilkscale";
@@ -1339,9 +1340,9 @@ parseCSIExtensionPoint(StringRef FlagName, ArgList &Args,
   return LangOptions::CSI_None;
 }
 
-static Optional<StringRef>
+static std::optional<StringRef>
 serializeCSIExtensionPoint(LangOptions::CSIExtensionPoint X) {
-  Optional<StringRef> CSIExtPtStr;
+  std::optional<StringRef> CSIExtPtStr;
   switch (X) {
   case LangOptions::CSI_EarlyAsPossible:
     CSIExtPtStr = "first";
@@ -1458,6 +1459,12 @@ void CompilerInvocation::GenerateCodeGenArgs(
   if (std::optional<StringRef> TapirTargetStr =
           serializeTapirTarget(Opts.getTapirTarget()))
     GenerateArg(Args, OPT_ftapir_EQ, *TapirTargetStr, SA);
+
+  if (Opts.Kokkos)
+    GenerateArg(Args, OPT_fkokkos, SA);
+
+  if (Opts.KokkosNoInit)
+    GenerateArg(Args, OPT_fkokkos_no_init, SA);
 
   std::optional<StringRef> DebugInfoVal;
   switch (Opts.DebugInfo) {
@@ -3421,10 +3428,10 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
       GenerateArg(Args, OPT_pic_is_pie, SA);
     for (StringRef Sanitizer : serializeSanitizerKinds(Opts.Sanitize))
       GenerateArg(Args, OPT_fsanitize_EQ, Sanitizer, SA);
-    if (Optional<StringRef> CSIExtPt = serializeCSIExtensionPoint(
+    if (std::optional<StringRef> CSIExtPt = serializeCSIExtensionPoint(
             Opts.getComprehensiveStaticInstrumentation()))
       GenerateArg(Args, OPT_fcsi_EQ, *CSIExtPt, SA);
-    if (Optional<StringRef> Cilktool =
+    if (std::optional<StringRef> Cilktool =
             serializeCilktoolKind(Opts.getCilktool()))
       GenerateArg(Args, OPT_fcilktool_EQ, *Cilktool, SA);
 
@@ -3500,6 +3507,11 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
 
   if (Opts.IgnoreXCOFFVisibility)
     GenerateArg(Args, OPT_mignore_xcoff_visibility, SA);
+
+  if (Opts.Kokkos)
+    GenerateArg(Args, OPT_fkokkos, SA);
+  if (Opts.KokkosNoInit)
+    GenerateArg(Args, OPT_fkokkos_no_init, SA);
 
   if (Opts.getCilk() == LangOptions::Cilk_opencilk)
     GenerateArg(Args, OPT_fopencilk, SA);
@@ -3628,10 +3640,11 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
   else if (Opts.DefaultFPContractMode == LangOptions::FPM_FastHonorPragmas)
     GenerateArg(Args, OPT_ffp_contract, "fast-honor-pragmas", SA);
 
-  if (Optional<StringRef> CSIExtPt = serializeCSIExtensionPoint(
+  if (std::optional<StringRef> CSIExtPt = serializeCSIExtensionPoint(
           Opts.getComprehensiveStaticInstrumentation()))
     GenerateArg(Args, OPT_fcsi_EQ, *CSIExtPt, SA);
-  if (Optional<StringRef> Cilktool = serializeCilktoolKind(Opts.getCilktool()))
+  if (std::optional<StringRef> Cilktool =
+          serializeCilktoolKind(Opts.getCilktool()))
     GenerateArg(Args, OPT_fcilktool_EQ, *Cilktool, SA);
 
   for (StringRef Sanitizer : serializeSanitizerKinds(Opts.Sanitize))
@@ -4686,8 +4699,8 @@ bool CompilerInvocation::CreateFromArgsImpl(
   if (LangOpts.Cilk && LangOpts.ObjC)
     Diags.Report(diag::err_drv_cilk_objc);
 
-  if (Diags.isIgnored(diag::warn_profile_data_misexpect, SourceLocation()))
-    Res.FrontendOpts.LLVMArgs.push_back("-pgo-warn-misexpect");
+  // if (Diags.isIgnored(diag::warn_profile_data_misexpect, SourceLocation()))
+  //   Res.FrontendOpts.LLVMArgs.push_back("-pgo-warn-misexpect");
 
   // Check if -ftapir is specified
   if (Arg *A = Args.getLastArg(OPT_ftapir_EQ)){
@@ -4710,6 +4723,8 @@ bool CompilerInvocation::CreateFromArgsImpl(
       LangOpts.Tapir = TapirTargetID::Realm;
     else if (Name == "cuda")
       LangOpts.Tapir = TapirTargetID::Cuda;
+    else if (Name == "hip")
+      LangOpts.Tapir = TapirTargetID::Hip;
     else if (Name == "opencl")
       LangOpts.Tapir = TapirTargetID::OpenCL;
     else if (Name == "gpu")

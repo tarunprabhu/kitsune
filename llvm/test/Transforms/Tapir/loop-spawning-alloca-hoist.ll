@@ -1,7 +1,6 @@
 ; Check that loop-spawning hoists allocas out of the parallel-loop
 ; body but below the recursive calls in the generated helper.
 ;
-; RUN: opt < %s -enable-new-pm=0 -loop-spawning-ti -S -o - | FileCheck %s
 ; RUN: opt < %s -passes='loop-spawning' -S -o - | FileCheck %s
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
@@ -68,10 +67,7 @@ _ZL5ilog2i.exit:                                  ; preds = %while.body.i, %entr
 ; CHECK: pfor.body.ls1:
 ; CHECK-NOT: alloca [512 x [18 x %struct.dcomplex]], align 16
 ; CHECK-NOT: alloca [512 x [18 x %struct.dcomplex]], align 16
-; CHECK: %[[Y08BITCAST:.+]] = bitcast [512 x [18 x %struct.dcomplex]]* %[[Y08ALLOC]] to i8*
-; CHECK: call void @llvm.lifetime.start.p0i8({{.+}}, i8* {{.*}}%[[Y08BITCAST]])
-; CHECK: %[[Y19BITCAST:.+]] = bitcast [512 x [18 x %struct.dcomplex]]* %[[Y19ALLOC]] to i8*
-; CHECK: call void @llvm.lifetime.start.p0i8({{.+}}, i8* {{.*}}%[[Y19BITCAST]])
+; CHECK: call void @llvm.lifetime.start.p0({{.+}}, ptr {{.*}}%[[Y08ALLOC]])
 
 pfor.cond:                                        ; preds = %pfor.inc, %pfor.cond.preheader
   %indvars.iv29 = phi i64 [ 0, %pfor.cond.preheader ], [ %indvars.iv.next30, %pfor.inc ]

@@ -31,34 +31,33 @@ if (KITSUNE_ENABLE_KOKKOS_SUPPORT)
   #
   # TODO: Look for newer Kokkos updates.
   #
-  FetchContent_Declare(kokkos
+  message(STATUS "kokkos fetch content: ${KITSUNE_KOKKOS_SRC_DIR}")
+  FetchContent_Declare(
+    kokkos
     GIT_REPOSITORY      https://github.com/kokkos/kokkos.git
-    GIT_TAG             3.5.00
+    GIT_TAG             606866d # 4.0.00
     SOURCE_DIR          ${KITSUNE_KOKKOS_SRC_DIR}
-    UPDATE_DISCONNECTED TRUE
     CMAKE_ARGS          ${KITSUNE_KOKKOS_BUILD_ARGS}
-    PATCH_COMMAND patch -p0 --verbose --input=${KITSUNE_SOURCE_DIR}/patches/Kokkos_MemorySpace.patch)
-
+    UPDATE_DISCONNECTED FALSE
+    # Kokkos has exceptions that we have to disable to currently work with kitsune+tapir. 
+    PATCH_COMMAND patch -p0 --verbose --input=${KITSUNE_SOURCE_DIR}/patches/Kokkos_Exceptions.patch)
+  #
   FetchContent_MakeAvailable(kokkos)
-
 endif()
 
-
-option(KITSUNE_ENABLE_KITRT "Build the Kitsune runtime library (kitrt)." ON)
+option(KITSUNE_ENABLE_KITRT "Build and install the Kitsune runtime library (kitrt)." ON)
 if (KITSUNE_ENABLE_KITRT)
-  set(KITSUNE_ALL_KITRT_TARGETS "cuda;hip;llvm;realm;spirv" CACHE STRING "List of all Kitsune runtime targets.")
+  # TODO: Need to update to add JIT GPU target and Realm back into the mix.
+  set(KITSUNE_ALL_KITRT_TARGETS "cuda;hip" CACHE STRING "List of all Kitsune runtime targets.")
   set(KITSUNE_ENABLE_KITRT_TARGETS "" CACHE STRING
     "Semicolon-separated list of runtime targets to build (or \"all\".)")
-
   # When building the full suite (LLVM + runtime) we use the
   # compiler-side flags to also enable runtime target support.
-
   message(STATUS "kitsune: checking compiler build settings to enable runtime components...")
 
   if (KITSUNE_ENABLE_KITRT_TARGETS STREQUAL "all")
     set(KITSUNE_ENABLE_KITRT_TARGETS ${KITSUNE_ALL_KITRT_TARGETS})
   else()
-
     if (KITSUNE_ENABLE_CUDA_ABI_TARGET)
       message(STATUS "kitsune: cuda compiler target enabled -- enabling runtime support.")
       list(APPEND KITSUNE_ENABLE_KITRT_TARGETS "cuda")
@@ -83,29 +82,23 @@ if (KITSUNE_ENABLE_KITRT)
       message(STATUS "kitsune: spirv compiler target enabled -- enabling runtime support.")
       list(APPEND KITSUNE_ENABLE_KITRT_TARGETS "spirv")
     endif()
-
   endif()
 
   if (NOT KITSUNE_ENABLE_KITRT_TARGETS STREQUAL "'")
-    foreach(target ${KITSUNE_ALL_KITRT_TARGETS})
-      string(TOUPPER "${target}" upper_target)
-      message(STATUS "Kitsune runtime: ${target} --> ${upper_target}")
-      if (${target} IN_LIST KITSUNE_ENABLE_KITRT_TARGETS)
-        message(STATUS "Kitsune runtime target '${target}' ENABLED.")
-        message(STATUS "    KITSUNE_RT_ENABLE_${upper_target} ON")
-        set(KITSUNE_RT_ENABLE_${upper_target} ON CACHE
-            BOOL "Build kitsune runtime support for ${upper_lib} target.")
-      else()
-        message(STATUS "Kitsune runtime target ${target} DISABLED.")
-        message(STATUS "    KITSUNE_RT_ENABLE_${upper_target} OFF")
-        set(KITSUNE_RT_ENABLE_${upper_target} OFF CACHE
-            BOOL "Build kitsune runtime support for ${upper_lib} target.")
+    message(STATUS "Kitsune runtime targets list: ${KITSUNE_ENABLE_KITRT_TARGETS}")
+    foreach(rt_target IN LISTS KITSUNE_ENABLE_KITRT_TARGETS)
+      message(STATUS "  runtime target: ${rt_target}")
+      string(TOUPPER "${rt_target}" upper_target)
+      if (rt_target IN_LIST KITSUNE_ENABLE_KITRT_TARGETS)
+        set(KITRT_ENABLE_${upper_target} ON CACHE BOOL
+            "Build kitsune runtime support for ${upper_target} target.")
       endif()
+      message(STATUS "Kitsune runtime target KITRT_ENABLE_${upper_target} is ${KITRT_ENABLE_${upper_target}}.")
     endforeach()
+    add_subdirectory(runtime)
   endif()
 endif()
 
-add_subdirectory(runtime)
 add_subdirectory(include)
 
 #option(KITSUNE_BUILD_EXAMPLES "Build the Kitsune example programs." OFF)

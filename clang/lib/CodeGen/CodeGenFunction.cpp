@@ -662,8 +662,6 @@ void CodeGenFunction::EmitKitsuneMetadata(const FunctionDecl *FD,
 					                      llvm::Function *Fn) {
   CGM.GenKitsuneArgMetadata(Fn, FD, this);
 
-  llvm::LLVMContext &Context = getLLVMContext();
-
   if (const KitsuneMemAccessAttr *A = FD->getAttr<KitsuneMemAccessAttr>()) {
     if (A->isWriteOnly())
       Fn->addFnAttr("kitsune.writeonly");

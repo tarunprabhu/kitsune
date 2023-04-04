@@ -2006,23 +2006,23 @@ enum CXCursorKind {
 
   /** A _Cilk_scope statement.
    */
-  CXCursor_CilkScopeStmt = 309,
+  CXCursor_CilkScopeStmt = 310,
 
   /** Kitsune forall statement.
    */
-  CXCursor_ForallStmt               = 310,
+  CXCursor_ForallStmt               = 311,
 
   /** Kitsune range-based forall statement.
    */
-  CXCursor_CXXForallRangeStmt       = 311,
+  CXCursor_CXXForallRangeStmt       = 312,
 
   /** Kitsune spawn statement.
    */
-  CXCursor_SpawnStmt                 = 312,
+  CXCursor_SpawnStmt                 = 313,
 
   /** Kitsune sync statement.
    */
-  CXCursor_SyncStmt                 = 313,
+  CXCursor_SyncStmt                 = 314,
 
   CXCursor_LastStmt = CXCursor_SyncStmt,
   /**

@@ -4886,19 +4886,17 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
   // since this is the job for its original source.
   bool IsDefinitionAvailableExternally =
       getContext().GetGVALinkageForVariable(D) == GVA_AvailableExternally;
-  bool NeedsGlobalDtor =
-      !IsDefinitionAvailableExternally &&
-      D->needsDestruction(getContext()) == QualType::DK_cxx_destructor;
-
+  bool NeedsGlobalDtor = false;
   switch (D->needsDestruction(getContext())) {
   case QualType::DK_cxx_destructor:
-    NeedsGlobalDtor = true;
+    NeedsGlobalDtor = !IsDefinitionAvailableExternally;
     break;
   case QualType::DK_hyperobject:
     NeedsGlobalCtor = true;
     NeedsGlobalDtor = true;
     break;
   default:
+    NeedsGlobalDtor = false;
     break;
   }
 

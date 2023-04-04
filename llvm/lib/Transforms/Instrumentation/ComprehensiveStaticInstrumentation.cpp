@@ -156,46 +156,7 @@ static CSIOptions OverrideFromCL(CSIOptions Options) {
   return Options;
 }
 
-/// The Comprehensive Static Instrumentation pass.
-/// Inserts calls to user-defined hooks at predefined points in the IR.
-struct ComprehensiveStaticInstrumentationLegacyPass : public ModulePass {
-  static char ID; // Pass identification, replacement for typeid.
-
-  ComprehensiveStaticInstrumentationLegacyPass(
-      const CSIOptions &Options = OverrideFromCL(CSIOptions()))
-      : ModulePass(ID), Options(Options) {
-    initializeComprehensiveStaticInstrumentationLegacyPassPass(
-        *PassRegistry::getPassRegistry());
-  }
-  StringRef getPassName() const override {
-    return "ComprehensiveStaticInstrumentation";
-  }
-  bool runOnModule(Module &M) override;
-  void getAnalysisUsage(AnalysisUsage &AU) const override;
-
-private:
-  CSIOptions Options;
-}; // struct ComprehensiveStaticInstrumentation
 } // anonymous namespace
-
-char ComprehensiveStaticInstrumentationLegacyPass::ID = 0;
-
-INITIALIZE_PASS_BEGIN(ComprehensiveStaticInstrumentationLegacyPass, "csi",
-                      "ComprehensiveStaticInstrumentation pass", false, false)
-INITIALIZE_PASS_DEPENDENCY(CallGraphWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(TaskInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
-INITIALIZE_PASS_END(ComprehensiveStaticInstrumentationLegacyPass, "csi",
-                    "ComprehensiveStaticInstrumentation pass", false, false)
-
-ModulePass *llvm::createComprehensiveStaticInstrumentationLegacyPass() {
-  return new ComprehensiveStaticInstrumentationLegacyPass();
-}
-ModulePass *llvm::createComprehensiveStaticInstrumentationLegacyPass(
-    const CSIOptions &Options) {
-  return new ComprehensiveStaticInstrumentationLegacyPass(Options);
-}
 
 /// Return the first DILocation in the given basic block, or nullptr
 /// if none exists.
@@ -390,7 +351,7 @@ Value *ForensicTable::localToGlobalId(uint64_t LocalId,
   LLVMContext &C = IRB.getContext();
   Type *BaseIdTy = IRB.getInt64Ty();
   LoadInst *Base = IRB.CreateLoad(BaseIdTy, BaseId);
-  MDNode *MD = llvm::MDNode::get(C, None);
+  MDNode *MD = llvm::MDNode::get(C, std::nullopt);
   Base->setMetadata(LLVMContext::MD_invariant_load, MD);
   Value *Offset = IRB.getInt64(LocalId);
   return IRB.CreateAdd(Base, Offset);
@@ -1508,7 +1469,7 @@ bool CSIImpl::getAllocFnArgs(const Instruction *I,
 
   // Return the old pointer argument for realloc-like functions or nullptr for
   // other allocation functions.
-  if (isReallocLikeFn(CB->getCalledFunction(), &TLI))
+  if (isReallocLikeFn(CB->getCalledFunction()))
     AllocFnArgs.push_back(CB->getArgOperand(0));
   else
     AllocFnArgs.push_back(Constant::getNullValue(AddrTy));
@@ -2399,9 +2360,6 @@ void CSIImpl::computeLoadAndStoreProperties(
 void CSIImpl::updateInstrumentedFnAttrs(Function &F) {
   F.removeFnAttr(Attribute::ReadOnly);
   F.removeFnAttr(Attribute::ReadNone);
-  F.removeFnAttr(Attribute::ArgMemOnly);
-  F.removeFnAttr(Attribute::InaccessibleMemOnly);
-  F.removeFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
 }
 
 void CSIImpl::instrumentFunction(Function &F) {
@@ -2655,52 +2613,6 @@ Function *CSIImpl::getInterpositionFunction(Function *F) {
   InterpositionFunctions.insert({F, InterpositionFunction});
 
   return InterpositionFunction;
-}
-
-void ComprehensiveStaticInstrumentationLegacyPass::getAnalysisUsage(
-    AnalysisUsage &AU) const {
-  AU.addRequired<CallGraphWrapperPass>();
-  AU.addRequired<DominatorTreeWrapperPass>();
-  AU.addRequired<LoopInfoWrapperPass>();
-  AU.addRequired<ScalarEvolutionWrapperPass>();
-  AU.addRequired<TaskInfoWrapperPass>();
-  AU.addRequired<TargetLibraryInfoWrapperPass>();
-  AU.addRequired<TargetTransformInfoWrapperPass>();
-}
-
-bool ComprehensiveStaticInstrumentationLegacyPass::runOnModule(Module &M) {
-  if (skipModule(M))
-    return false;
-
-  CallGraph *CG = &getAnalysis<CallGraphWrapperPass>().getCallGraph();
-  auto GetTLI = [this](Function &F) -> TargetLibraryInfo & {
-    return this->getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
-  };
-  auto GetDomTree = [this](Function &F) -> DominatorTree & {
-    return this->getAnalysis<DominatorTreeWrapperPass>(F).getDomTree();
-  };
-  auto GetLoopInfo = [this](Function &F) -> LoopInfo & {
-    return this->getAnalysis<LoopInfoWrapperPass>(F).getLoopInfo();
-  };
-  auto GetTTI = [this](Function &F) -> TargetTransformInfo & {
-    return this->getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
-  };
-  auto GetSE = [this](Function &F) -> ScalarEvolution & {
-    return this->getAnalysis<ScalarEvolutionWrapperPass>(F).getSE();
-  };
-  auto GetTaskInfo = [this](Function &F) -> TaskInfo & {
-    return this->getAnalysis<TaskInfoWrapperPass>(F).getTaskInfo();
-  };
-
-  bool res = CSIImpl(M, CG, GetDomTree, GetLoopInfo, GetTaskInfo, GetTLI, GetSE,
-                     GetTTI, Options)
-                 .run();
-
-  verifyModule(M, &llvm::errs());
-
-  numPassRuns++;
-
-  return res;
 }
 
 CSISetupPass::CSISetupPass() : Options(OverrideFromCL(CSIOptions())) {}

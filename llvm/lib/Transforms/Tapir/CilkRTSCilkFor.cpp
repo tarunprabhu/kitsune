@@ -122,8 +122,7 @@ void RuntimeCilkFor::postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
   // function.
   if (getArgStructMode() != ArgStructMode::None) {
     Helper->removeFnAttr(Attribute::WriteOnly);
-    Helper->removeFnAttr(Attribute::ArgMemOnly);
-    Helper->removeFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+    Helper->removeFnAttr(Attribute::Memory);
   }
 }
 

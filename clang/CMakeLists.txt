@@ -357,7 +357,10 @@ endif()
 include(CMakeParseArguments)
 include(AddClang)
 
-add_subdirectory(kitsune)
+option(CLANG_ENABLE_KITSUNE "Enable Kitsune features in Clang." ON)
+if(CLANG_ENABLE_KITSUNE)
+  add_subdirectory(kitsune)
+endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -986,11 +989,6 @@ if(CLANG_BUILT_STANDALONE)
 endif()
 
 set(CLANG_INSTALL_LIBDIR_BASENAME "lib${CLANG_LIBDIR_SUFFIX}")
-
-option(CLANG_ENABLE_KITSUNE "Enable Kitsune features in Clang." ON)
-if(CLANG_ENABLE_KITSUNE)
-  add_subdirectory(kitsune)
-endif()
 
 configure_file(
   ${CLANG_SOURCE_DIR}/include/clang/Config/config.h.cmake

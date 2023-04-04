@@ -6145,7 +6145,7 @@ void Parser::ParseDeclaratorInternal(Declarator &D,
       SourceLocation Close = Tok.getLocation();
 
       if (!Tok.is(tok::r_paren))
-        Reported = ParseSimpleExpressionList(Args, Commas);
+        Reported = ParseSimpleExpressionList(Args);
       if (Tok.is(tok::r_paren))
         Close = ConsumeParen(); // Eat the parenthesis
       else

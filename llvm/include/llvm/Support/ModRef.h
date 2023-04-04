@@ -206,6 +206,11 @@ public:
     return isModOrRefSet(getModRef(ArgMem));
   }
 
+  /// Whether this function may access inaccessible memory.
+  bool doesAccessInaccessibleMem() const {
+    return isModOrRefSet(getModRef(InaccessibleMem));
+  }
+
   /// Whether this function only (at most) accesses inaccessible memory.
   bool onlyAccessesInaccessibleMem() const {
     return getWithoutLoc(InaccessibleMem).doesNotAccessMemory();

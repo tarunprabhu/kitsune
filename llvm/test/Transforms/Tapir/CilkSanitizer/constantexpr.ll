@@ -451,10 +451,10 @@ __cxx_global_var_init.27.exit:                    ; preds = %__cxx_global_var_in
 
 ; CHECK: define internal void @foo()
 ; CHECK: call void @__csan_func_entry(
-; CHECK: call void @__csan_large_store(i64 %{{.+}}, i8* bitcast (%union.anon.1* getelementptr inbounds (%"class.std::__cxx11::basic_string", %"class.std::__cxx11::basic_string"* @_ZN7cxxopts12_GLOBAL__N_16LQUOTEB5cxx11E, i64 0, i32 2) to i8*)
-; CHECK-NEXT: call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 bitcast (%union.anon.1* getelementptr inbounds (%"class.std::__cxx11::basic_string", %"class.std::__cxx11::basic_string"* @_ZN7cxxopts12_GLOBAL__N_16LQUOTEB5cxx11E, i64 0, i32 2) to i8*)
-; CHECK: call void @__csan_store(i64 %{{.+}}, i8* getelementptr inbounds (i8, i8* bitcast (%union.anon.1* getelementptr inbounds (%"class.std::__cxx11::basic_string", %"class.std::__cxx11::basic_string"* @_ZN7cxxopts12_GLOBAL__N_16LQUOTEB5cxx11E, i64 0, i32 2) to i8*), i64 3)
-; CHECK-NEXT: store i8 0, i8* getelementptr inbounds (i8, i8* bitcast (%union.anon.1* getelementptr inbounds (%"class.std::__cxx11::basic_string", %"class.std::__cxx11::basic_string"* @_ZN7cxxopts12_GLOBAL__N_16LQUOTEB5cxx11E, i64 0, i32 2) to i8*), i64 3)
+; CHECK: call void @__csan_large_store(i64 %{{.+}}, ptr getelementptr inbounds (%"class.std::__cxx11::basic_string", ptr @_ZN7cxxopts12_GLOBAL__N_16LQUOTEB5cxx11E, i64 0, i32 2),
+; CHECK-NEXT: call void @llvm.memcpy.p0.p0.i64(ptr align 8 getelementptr inbounds (%"class.std::__cxx11::basic_string", ptr @_ZN7cxxopts12_GLOBAL__N_16LQUOTEB5cxx11E, i64 0, i32 2),
+; CHECK: call void @__csan_store(i64 %{{.+}}, ptr getelementptr inbounds (i8, ptr getelementptr inbounds (%"class.std::__cxx11::basic_string", ptr @_ZN7cxxopts12_GLOBAL__N_16RQUOTEB5cxx11E, i64 0, i32 2), i64 3)
+; CHECK-NEXT: store i8 0, ptr getelementptr inbounds (i8, ptr getelementptr inbounds (%"class.std::__cxx11::basic_string", ptr @_ZN7cxxopts12_GLOBAL__N_16RQUOTEB5cxx11E, i64 0, i32 2), i64 3)
 
 ; Function Attrs: nounwind readnone speculatable
 declare void @llvm.dbg.value(metadata, metadata, metadata) #4

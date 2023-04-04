@@ -1,7 +1,7 @@
 ; Thanks to Sai Sameer Pusapaty and Shreyas Balaji for the original
 ; source code for this test case.
 ;
-; RUN: opt < %s -enable-new-pm=0 -simple-loop-unswitch -S -o - | FileCheck %s
+; RUN: opt < %s -passes='simple-loop-unswitch' -S -o - | FileCheck %s
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
@@ -381,7 +381,7 @@ cleanup78:                                        ; preds = %pfor.cond.cleanup72
 ; CHECK: lpad:
 ; The sync region of this detached-rethrow should match that of the
 ; detach in pfor.cond22
-; CHECK: invoke void @llvm.detached.rethrow.sl_p0i8i32s(token %[[OGSYNCREG]]
+; CHECK: invoke void @llvm.detached.rethrow.sl_p0i32s(token %[[OGSYNCREG]]
 
 ; CHECK: lpad52.loopexit:
 ; CHECK: br label %lpad52
@@ -392,7 +392,7 @@ cleanup78:                                        ; preds = %pfor.cond.cleanup72
 ; CHECK: sync.continue57:
 ; The sync region of this detached-rethrow should match that of the
 ; detach in pfor.cond.
-; CHECK-NEXT: invoke void @llvm.detached.rethrow.sl_p0i8i32s(token %syncreg
+; CHECK-NEXT: invoke void @llvm.detached.rethrow.sl_p0i32s(token %syncreg
 
 ; CHECK: lpad62.loopexit:
 ; CHECK: br label %lpad62

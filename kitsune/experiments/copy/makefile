@@ -1,54 +1,73 @@
-include ../common.mk
-include ../cuda.mk
-include ../kokkos.mk
-include ../gcc.mk
+SHELL := /bin/bash 
+include ../experiments.mk
 
-# General (shared) flags (see common.mk)
-clang_flags=${cxx_flags} ${opt_flags} ${clang_info_flags}
-# kitsune kokkos mode flags.
-
-#### Kitsune+Tapir options
-#  Notes:
-#   -ftapir=cuda will target the CUDA ABI transform.
-#   -cuabi-verbose dumps kernel stats via ptxas output.
-#   -cuabi-keep-files saves intermediate files (.ll, .ptx, .fatbin) on disk for a closer look at codegen details.
-#
-tapir_cu_launch_flags=-I${CUDA_HOME}/include
-tapir_cu_flags=-ftapir=cuda -ffp-contract=fast -mllvm -cuabi-verbose -mllvm -cuabi-arch=${NVARCH} ${tapir_cu_launch_flags} -mllvm -cuabi-keep-files 
-tapir_stripmine_flags=-mllvm -stripmine-count=1 -mllvm -stripmine-coarsen-factor=1 -mllvm -cuabi-default-grainsize=1
-####
-
-#### CUDA flags
-nvcc_flags=--std c++17 -m64 -arch=${NVARCH} --resource-usage ${opt_flags} --no-exceptions -I${kitsune_prefix}/include --keep
-nvcc_kokkos_flags=${nvcc_flags} -I${kokkos_cuda_prefix}/include -I${kitsune_prefix}/include
-clang_cuda_flags=-xcuda --cuda-gpu-arch=${NVARCH} ${cxx_flags} ${opt_flags} -I${kitsune_prefix}/include
-####
-
-#### Kokkos stuff
-kokkos_cu_flags=-I${kokkos_cu_prefix}/include
-kokkos_clang_flags=${clang_cuda_flags} -I${kokkos_cu_prefix}/include
-kokkos_nvcc_flags=-I${kokkos_cu_prefix}/include ${nvcc_cxx_flags} ${opt_flags} -m64 -arch=${NVARCH} --resource-usage --no-exceptions -I${kitsune_prefix}/include
+targets = copy-forall.opencilk.${host_arch}
 
 
-all: copy-forall.cuda.${host_arch} \
-     copy-kokkos.nvcc.${host_arch} \
-     copy-kokkos.clang.${host_arch} 
+ifeq ($(BUILD_CUDA_EXPERIMENTS),true)
+  targets += copy-forall.cuda.${host_arch}
+  targets += copy-kokkos.nvcc.${host_arch}
+  targets += copy-kokkos.cuda.kitsune.${host_arch}
+endif
 
-copy-forall.cuda.${host_arch}: copy-forall.cpp
-	${clangxx} ${clang_flags} ${tapir_cu_flags} ${tapir_stripmine_flags} -o $@ $< -Xlinker -rpath=${kitsune_prefix}/lib
+ifeq ($(BUILD_HIP_EXPERIMENTS),true)
+  targets += copy-forall.hip.${host_arch}
+  targets += copy-kokkos.hipcc.${host_arch}
+  targets += copy-kokkos.hip.kitsune.${host_arch}
+endif
 
-copy-kokkos.nvcc.${host_arch}: copy-kokkos.cpp
-	 ${nvcc_wrapper} ${kokkos_nvcc_flags} -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
 
-copy-kokkos.clang.${host_arch}: copy-kokkos.cpp
-	 ${clangxx} ${clang_cuda_flags} ${kokkos_cu_flags} -o $@ $< ${kokkos_ld_flags} ${kokkos_ld_libs} -Xlinker -rpath=${kokkos_cu_prefix}/lib
+all: ${targets}
+
+# forall-based tests
+copy-forall.opencilk.${host_arch}: copy-forall.cpp 
+	@echo $@ 
+	@${TIME_CMD} $(KIT_CXX) $(TAPIR_OPENCILK_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
+	@${FILE_SIZE}
+copy-forall.cuda.${host_arch}: copy-forall.cpp 
+	@echo $@
+	@${TIME_CMD} $(KIT_CXX) $(TAPIR_CUDA_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
+	@${FILE_SIZE}
+copy-forall.hip.${host_arch}: copy-forall.cpp 
+	@echo $@
+	@${TIME_CMD} $(KIT_CXX) $(TAPIR_HIP_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
+	@${FILE_SIZE}
+
+# kokkos-based tests (w/out views)
+copy-kokkos.cuda.kitsune.${host_arch}: copy-kokkos-no-views.cpp 
+	@echo $@
+	@${TIME_CMD} $(KIT_CXX) $(TAPIR_CUDA_FLAGS) $(KITSUNE_KOKKOS_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
+	@${FILE_SIZE}
+copy-kokkos.hip.kitsune.${host_arch}: copy-kokkos-no-views.cpp 
+	@echo $@
+	@${TIME_CMD} $(KIT_CXX) $(TAPIR_HIP_FLAGS) $(KITSUNE_KOKKOS_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
+	@${FILE_SIZE}
+
+# kokkos-based tests (using views -- currently not compatible w/ kitsune)
+copy-kokkos.nvcc.${host_arch}: copy-kokkos.cpp 
+	@echo $@
+	@${TIME_CMD} $(KOKKOS_NVCC) $(KOKKOS_NVCC_FLAGS) -o $@ $< $(KOKKOS_CUDA_LIBS) -Xlinker -rpath=$(KOKKOS_CUDA_PREFIX)/lib64 
+	@${FILE_SIZE}
+copy-kokkos.hipcc.${host_arch}: copy-kokkos.cpp 
+	@echo $@
+	@${TIME_CMD} $(KOKKOS_HIPCC) $(KOKKOS_HIP_FLAGS) -o $@ $< $(KOKKOS_HIP_LIBS) -Xlinker -rpath=$(KOKKOS_HIP_PREFIX)/lib64 
+	@${FILE_SIZE}
+
+
+#####
+define newline 
+
+
+endef 
+
+run: $(targets) 
+	@echo "running generated exeutables..."
+	$(foreach prog,$(targets),$(call RUN_test,$(prog)))
+##### 
+
+.PHONY: all clean run
 
 clean:
-	-rm -f *.${host_arch}
-	-rm -f *.fatbin
-	-rm -rf *-cfg-tmp
-	-rm -f *.bc
-	-rm -f *.fatbin
-	-rm -f *.ppm *.jpg
-	-rm -f *.ll *.ptx *.csv *.log *.s *.fbin *.tapir
-	-rm -f *.dat
+	-rm -f *.${host_arch} *.ll *.o
+	-rm -f *~ core *.log 
+

@@ -192,7 +192,7 @@ bool llvm::simplifySyncs(Task *T, MaybeParallelTasks &MPTasks) {
   Changed |= removeRedundantSyncRegions(MPTasks, T);
 
   return Changed;
-}  
+}
 
 static bool taskCanThrow(const Task *T) {
   for (const Spindle *S : T->spindles())
@@ -360,8 +360,7 @@ static bool hoistOutOfTaskFrame(Instruction *TFCreate) {
       ++I;
 
     // Move the instructions
-    Entry->getInstList().splice(InsertPoint, Entry->getInstList(),
-                                Start->getIterator(), I);
+    Entry->splice(InsertPoint, Entry, Start->getIterator(), I);
 
     Changed = true;
   }

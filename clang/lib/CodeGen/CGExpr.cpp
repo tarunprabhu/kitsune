@@ -5003,11 +5003,8 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue) {
   // kitsune: handle kokkos-centric details -- specifically we are
   // dealing with a case where we transform a lambda construct into
-  // a traditional loop construct -- thus our result is not a call expr
-  // but essentially the removal of the call.
-  //
-  // TODO: is this path sound in all lambda use cases?  --PM
-  //
+  // a traditional loop construct; thus our parallel_for and
+  // parallel_reduce calls result in the removal of a lambda/call.
   if (getLangOpts().Kokkos) {
     const FunctionDecl *fdecl = E->getDirectCallee();
     if (fdecl) {
@@ -5016,16 +5013,13 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
           qname == "Kokkos::parallel_reduce") {
         if (EmitKokkosConstruct(E))
           return RValue::get(nullptr);
-      // else fall through to standard C++ support.
       } else if (getLangOpts().KokkosNoInit &&
                  (qname == "Kokkos::initialize" ||
-                  qname == "Kokkos::finalize")) {
-        // In "no-init" mode we skip code generation for the
-        // Kokkos initialization entry (and finalize) points.
+                  qname == "Kokkos::finalize"))
         return RValue::get(nullptr);
-      }
     }
   }
+
   // Builtins never have block type.
   if (E->getCallee()->getType()->isBlockPointerType())
     return EmitBlockCallExpr(E, ReturnValue);

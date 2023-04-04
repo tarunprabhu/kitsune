@@ -113,14 +113,14 @@ static bool tryToStripMineLoop(
     Loop *L, DominatorTree &DT, LoopInfo *LI, ScalarEvolution &SE,
     const TargetTransformInfo &TTI, AssumptionCache &AC, TaskInfo *TI,
     OptimizationRemarkEmitter &ORE, TargetLibraryInfo *TLI, bool PreserveLCSSA,
-    Optional<unsigned> ProvidedCount) {
+    std::optional<unsigned> ProvidedCount) {
   Task *T = getTaskIfTapirLoopStructure(L, TI);
   if (!T)
     return false;
   TapirLoopHints Hints(L);
 
-  if (!EnableTapirLoopStripmine) 
-    return false; 
+  if (!EnableTapirLoopStripmine)
+    return false;
 
   if (TM_Disable == hasLoopStripmineTransformation(L))
     return false;
@@ -274,8 +274,8 @@ static bool tryToStripMineLoop(
       RequireParallelEpilog ||
       (AllowParallelEpilog &&
        ((SMP.Count < SMP.DefaultCoarseningFactor) ||
-        (2 *
-         TTI.getUserCost(DetachI, TargetTransformInfo::TCK_SizeAndLatency)) <=
+        (2 * TTI.getInstructionCost(DetachI,
+                                    TargetTransformInfo::TCK_SizeAndLatency)) <=
             LoopCost));
 
   // Some parallel runtimes, such as Cilk, require nested parallel tasks to be
@@ -319,9 +319,9 @@ class LoopStripMine : public LoopPass {
 public:
   static char ID; // Pass ID, replacement for typeid
 
-  Optional<unsigned> ProvidedCount;
+  std::optional<unsigned> ProvidedCount;
 
-  LoopStripMine(Optional<unsigned> Count = None)
+  LoopStripMine(std::optional<unsigned> Count = std::nullopt)
       : LoopPass(ID), ProvidedCount(Count) {
     initializeLoopStripMinePass(*PassRegistry::getPassRegistry());
   }
@@ -377,8 +377,8 @@ Pass *llvm::createLoopStripMinePass(int Count) {
   // TODO: It would make more sense for this function to take the optionals
   // directly, but that's dangerous since it would silently break out of tree
   // callers.
-  return new LoopStripMine(
-      Count == -1 ? None : Optional<unsigned>(Count));
+  return new LoopStripMine(Count == -1 ? std::nullopt
+                                       : std::optional<unsigned>(Count));
 }
 
 PreservedAnalyses LoopStripMinePass::run(Function &F,
@@ -435,7 +435,7 @@ PreservedAnalyses LoopStripMinePass::run(Function &F,
     std::string LoopName = std::string(L.getName());
     bool LoopChanged =
       tryToStripMineLoop(&L, DT, &LI, SE, TTI, AC, &TI, ORE, &TLI,
-                         /*PreserveLCSSA*/ true, /*Count*/ None);
+                         /*PreserveLCSSA*/ true, /*Count*/ std::nullopt);
     Changed |= LoopChanged;
 
     // The parent must not be damaged by stripmining!

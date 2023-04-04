@@ -451,7 +451,7 @@ if.end48:                                         ; preds = %if.end39
   %call56 = invoke dereferenceable(280) %"class.std::basic_istream"* @_ZNSi6ignoreEli(%"class.std::basic_istream"* nonnull %22, i64 9223372036854775807, i32 10)
           to label %while.cond unwind label %lpad.loopexit.split-lp
 ; CHECK: if.end48:
-; CHECK: invoke dereferenceable(280) %"class.std::basic_istream"* @_ZNSi6ignoreEli(%"class.std::basic_istream"* nonnull %{{.+}}, i64 9223372036854775807, i32 10)
+; CHECK: invoke dereferenceable(280) ptr @_ZNSi6ignoreEli(ptr nonnull %{{.+}}, i64 9223372036854775807, i32 10)
 ; CHECK-NEXT: to label %[[WHILE_COND_PREHEADER:.+]] unwind label %lpad.loopexit.split-lp
 
 ; CHECK: [[WHILE_COND_PREHEADER]]:
@@ -469,7 +469,7 @@ while.cond:                                       ; preds = %if.end48, %while.bo
 ; CHECK-CSAN: call void @__csan_before_call(
 ; CHECK-CSI-NOT: call void @__csi_after_call(
 ; CHECK-CSI: call void @__csi_before_call(
-; CHECK-NEXT: invoke i32 @_ZNSi4peekEv(%"class.std::basic_istream"* nonnull %{{.+}})
+; CHECK-NEXT: invoke i32 @_ZNSi4peekEv(ptr nonnull %{{.+}})
 
 invoke.cont57:                                    ; preds = %while.cond
   %cmp = icmp eq i32 %call58, 37
@@ -482,7 +482,7 @@ while.body:                                       ; preds = %invoke.cont57
 ; CHECK: while.body:
 ; CHECK-CSAN: call void @__csan_before_call(
 ; CHECK-CSI: call void @__csi_before_call(
-; CHECK-NEXT: invoke dereferenceable(280) %"class.std::basic_istream"* @_ZNSi6ignoreEli(%"class.std::basic_istream"* nonnull %{{.+}}, i64 2048, i32 10)
+; CHECK-NEXT: invoke dereferenceable(280) ptr @_ZNSi6ignoreEli(ptr nonnull %{{.+}}, i64 2048, i32 10)
 ; CHECK-NOT: to label %while.cond unwind label %lpad.loopexit
 
 while.end:                                        ; preds = %invoke.cont57

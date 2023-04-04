@@ -47,16 +47,9 @@ define i32 @main() {
 ; CHECK-NEXT:    [[INPUT_SPILL_ADDR_I:%.*]] = getelementptr inbounds i8, i8* [[TMP0]], i64 8
 ; CHECK-NEXT:    [[TMP2:%.*]] = bitcast i8* [[INPUT_SPILL_ADDR_I]] to i32*
 ; CHECK-NEXT:    store i32 2, i32* [[TMP2]], align 4, !noalias !0
-; CHECK-NEXT:    [[INPUT_RELOAD_ADDR13_I:%.*]] = getelementptr inbounds i8, i8* [[TMP0]], i64 8
-; CHECK-NEXT:    [[TMP3:%.*]] = bitcast i8* [[INPUT_RELOAD_ADDR13_I]] to i32*
-; CHECK-NEXT:    [[N_VAL3_RELOAD_ADDR11_I:%.*]] = getelementptr inbounds i8, i8* [[TMP0]], i64 4
-; CHECK-NEXT:    [[TMP4:%.*]] = bitcast i8* [[N_VAL3_RELOAD_ADDR11_I]] to i32*
-; CHECK-NEXT:    [[N_VAL3_RELOAD12_I:%.*]] = load i32, i32* [[TMP4]], align 4, !noalias !3
-; CHECK-NEXT:    [[SUM7_I:%.*]] = add i32 [[N_VAL3_RELOAD12_I]], 2
-; CHECK-NEXT:    store i32 [[SUM7_I]], i32* [[TMP4]], align 4, !noalias !3
-; CHECK-NEXT:    store i32 4, i32* [[TMP3]], align 4, !noalias !3
-; CHECK-NEXT:    [[SUM7_I7:%.*]] = add i32 [[N_VAL3_RELOAD12_I]], 6
-; CHECK-NEXT:    tail call void @print(i32 [[SUM7_I7]]), !noalias !6
+; CHECK-NEXT:    store i32 3, i32* [[TMP1]], align 4, !noalias !3
+; CHECK-NEXT:    store i32 4, i32* [[TMP2]], align 4, !noalias !3
+; CHECK-NEXT:    tail call void @print(i32 7), !noalias !6
 ; CHECK-NEXT:    tail call void @deallocate(i8* [[TMP0]]), !noalias !6
 ; CHECK-NEXT:    ret i32 0
 ;

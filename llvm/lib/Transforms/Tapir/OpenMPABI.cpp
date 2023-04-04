@@ -206,7 +206,7 @@ FunctionCallee createRuntimeFunction(OpenMPRuntimeFunction Function,
 
 CallInst *emitRuntimeCall(FunctionCallee Callee, ArrayRef<Value *> Args,
                           const Twine &Name, IRBuilder<> &IRBuilder) {
-  CallInst *Call = IRBuilder.CreateCall(Callee, Args, None, Name);
+  CallInst *Call = IRBuilder.CreateCall(Callee, Args, std::nullopt, Name);
   return Call;
 }
 
@@ -500,7 +500,7 @@ Function* formatFunctionToTask(Function* extracted, Instruction* CallSite) {
 
   	SmallVector< ReturnInst *,5> retinsts;
     CloneFunctionInto(OutlinedFn, extracted, valmap, CloneFunctionChangeType::GlobalChanges, retinsts);
-    IRBuilder.CreateBr(OutlinedFn->getBasicBlockList().getNextNode(*EntryBB));
+    IRBuilder.CreateBr(EntryBB->getNextNode());
 
   // We only need tied tasks for now and that's what the 1 value is for.
   auto *TaskFlags = CallerIRBuilder.getInt32(1);
@@ -707,7 +707,7 @@ void OpenMPABI::postProcessFunction(Function &F, bool ProcessingTapirLoops) {
 
   	SmallVector< ReturnInst *,5> retinsts;
     CloneFunctionInto(OMPRegionFn, RegionFn, VMap, CloneFunctionChangeType::LocalChangesOnly, retinsts);
-    IRBuilder0.CreateBr(OMPRegionFn->getBasicBlockList().getNextNode(*EntryBB));
+    IRBuilder0.CreateBr(EntryBB->getNextNode());
 
   auto FindCallToExtractedFn = [](Function *SpawningFn,
                                     Function *ExtractedFn) {

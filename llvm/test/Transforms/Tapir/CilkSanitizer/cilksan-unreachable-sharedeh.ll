@@ -114,11 +114,11 @@ pfor.inc173:                                      ; preds = %pfor.preattach172, 
 ; CHECK: unreachable
 
 ; CHECK: [[CSI_CLEANUP_TASK2]]:
-; CHECK: invoke void @llvm.detached.rethrow.sl_p0i8i32s(
+; CHECK: invoke void @llvm.detached.rethrow.sl_p0i32s(
 ; CHECK-NEXT: to label %csi.cleanup.unreachable unwind label %{{.+}}
 
 ; CHECK: [[CSI_CLEANUP_TASK]]:
-; CHECK: invoke void @llvm.detached.rethrow.sl_p0i8i32s(
+; CHECK: invoke void @llvm.detached.rethrow.sl_p0i32s(
 ; CHECK-NEXT: to label %csi.cleanup.unreachable unwind label %{{.+}}
 
 ; Function Attrs: argmemonly nounwind willreturn

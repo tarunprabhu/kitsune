@@ -2831,8 +2831,8 @@ call.i.i.i.i.noexc72:                             ; preds = %if.then.i20
 
 ; CHECK: define linkonce_odr dso_local void @_ZN8oct_treeI6vertexI7point2dIdEEE4nodeD2Ev(
 ; CHECK: call.i.i.i.i.noexc72:
-; CHECK: call void @__csan_load(i64 %{{[0-9]+}}, i8* bitcast (%"struct.parlay::block_allocator::thread_list.33.344.651.958.1265.1572.1879"** getelementptr inbounds (%"struct.parlay::block_allocator.36.347.654.961.1268.1575.1882", %"struct.parlay::block_allocator.36.347.654.961.1268.1575.1882"* @_ZN6parlay14type_allocatorIN8oct_treeI6vertexI7point2dIdEEE4nodeEE9allocatorE, i64 0, i32 4) to i8*)
-; CHECK: load %"struct.parlay::block_allocator::thread_list.33.344.651.958.1265.1572.1879"*, %"struct.parlay::block_allocator::thread_list.33.344.651.958.1265.1572.1879"** getelementptr inbounds (%"struct.parlay::block_allocator.36.347.654.961.1268.1575.1882", %"struct.parlay::block_allocator.36.347.654.961.1268.1575.1882"* @_ZN6parlay14type_allocatorIN8oct_treeI6vertexI7point2dIdEEE4nodeEE9allocatorE, i64 0, i32 4), align 64
+; CHECK: call void @__csan_load(i64 %{{[0-9]+}}, ptr getelementptr inbounds (%"struct.parlay::block_allocator.36.347.654.961.1268.1575.1882", ptr @_ZN6parlay14type_allocatorIN8oct_treeI6vertexI7point2dIdEEE4nodeEE9allocatorE, i64 0, i32 4)
+; CHECK: load ptr, ptr getelementptr inbounds (%"struct.parlay::block_allocator.36.347.654.961.1268.1575.1882", ptr @_ZN6parlay14type_allocatorIN8oct_treeI6vertexI7point2dIdEEE4nodeEE9allocatorE, i64 0, i32 4), align 64
 
 ; CHECK: if.then.i.i.i59:
 

@@ -1328,7 +1328,7 @@ static std::optional<unsigned> ContainsHyperobject(QualType Outer) {
     return diag::confusing_hyperobject;
   }
   case Type::TypeOf:
-    Inner = cast<TypeOfType>(T)->getUnderlyingType();
+    Inner = cast<TypeOfType>(T)->getUnmodifiedType();
     break;
   case Type::TypeOfExpr:
     Inner = cast<TypeOfExprType>(T)->getUnderlyingExpr()->getType();
@@ -2402,39 +2402,6 @@ Expr *Sema::ValidateReducerCallback(Expr *E, unsigned NumArgs,
     return ImplicitCastExpr::Create(Context, Context.VoidPtrTy,
                                     CK_NullToPointer, E, nullptr,
                                     VK_PRValue, FPOptionsOverride());
-
-  if (const IntegerLiteral *L = dyn_cast<IntegerLiteral>(E)) {
-    if (L->getValue().isNullValue())
-      return ImplicitCastExpr::Create(Context, Context.VoidPtrTy,
-                                      CK_NullToPointer, E, nullptr,
-                                      VK_PRValue, FPOptionsOverride());
-    Diag(E->getExprLoc(), diag::err_invalid_reducer_callback) << Args;
-    return ImplicitCastExpr::Create(Context, Context.VoidPtrTy,
-  }
-
-  if (T == Context.OverloadTy) {
-    QualType Ptr = Context.getPointerType(Element);
-    llvm::SmallVector<QualType, 2> ArgTy;
-    ArgTy.push_back(Ptr);
-    if (Args > 1)
-      ArgTy.push_back(Ptr);
-    QualType Fn =
-      BuildFunctionType(Context.VoidTy, ArgTy, E->getExprLoc(),
-                        DeclarationName(), FunctionProtoType::ExtProtoInfo());
-    DeclAccessPair What;
-    bool Multiple = false;
-    if (FunctionDecl *F =
-        ResolveAddressOfOverloadedFunction(E, Fn, true, What, &Multiple)) {
-      T = F->getType();
-      E = BuildDeclRefExpr(F, T, VK_LValue, E->getExprLoc());
-    }
-  }
-
-  if (CheckReducerParams(T, Args)) {
-    Diag(E->getExprLoc(), diag::err_invalid_reducer_callback) << Args;
-    return new (Context) CXXNullPtrLiteralExpr(Context.NullPtrTy,
-                                               E->getExprLoc());
-  }
 
   if (T->isFunctionType()) {
     E = ImplicitCastExpr::Create(Context, Context.getPointerType(T),
@@ -5894,10 +5861,6 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
     }
 
     case DeclaratorChunk::Hyperobject: {
-      #error "Only one of the two calls to BuildHyperobjectType nneds to be here."
-      T = S.BuildHyperobjectType(T, DeclType.Hyper.Arg[0],
-                                 DeclType.Hyper.Arg[1], DeclType.Hyper.Arg[2],
-                                 DeclType.Loc);
       T = S.BuildHyperobjectType(T, DeclType.Hyper.Arg[0],
                                  DeclType.Hyper.Arg[1], DeclType.Loc);
       break;

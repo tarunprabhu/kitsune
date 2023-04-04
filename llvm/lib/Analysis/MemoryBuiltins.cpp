@@ -374,7 +374,7 @@ llvm::getAllocSizeArgs(const CallBase *CB, const TargetLibraryInfo *TLI,
                        bool IgnoreBuiltinAttr) {
   // Note: This handles both explicitly listed allocation functions and
   // allocsize.  The code structure could stand to be cleaned up a bit.
-  const Optional<AllocFnsTy> FnData =
+  const std::optional<AllocFnsTy> FnData =
       getAllocationSize(CB, TLI, IgnoreBuiltinAttr);
   if (!FnData)
     return std::make_pair(nullptr, nullptr);

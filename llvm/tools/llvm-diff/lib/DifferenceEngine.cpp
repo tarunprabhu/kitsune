@@ -64,7 +64,7 @@ public:
   T remove_min() {
     assert(!empty());
     T tmp = Storage[0];
-    
+
     unsigned NewSize = Storage.size() - 1;
     if (NewSize) {
       // Move the slot at the end to the beginning.
@@ -535,7 +535,7 @@ class FunctionDifferenceEngine {
     } else if (isa<DetachInst>(L)) {
       const DetachInst *LI = cast<DetachInst>(L);
       const DetachInst *RI = cast<DetachInst>(R);
-      if (!equivalentAsOperands(LI->getSyncRegion(), RI->getSyncRegion())) {
+      if (!equivalentAsOperands(LI->getSyncRegion(), RI->getSyncRegion(), AC)) {
         if (Complain) Engine.log("detach sync regions differ");
         return true;
       }
@@ -554,7 +554,7 @@ class FunctionDifferenceEngine {
     } else if (isa<ReattachInst>(L)) {
       const ReattachInst *LI = cast<ReattachInst>(L);
       const ReattachInst *RI = cast<ReattachInst>(R);
-      if (!equivalentAsOperands(LI->getSyncRegion(), RI->getSyncRegion())) {
+      if (!equivalentAsOperands(LI->getSyncRegion(), RI->getSyncRegion(), AC)) {
         if (Complain) Engine.log("reattach sync regions differ");
         return true;
       }
@@ -566,7 +566,7 @@ class FunctionDifferenceEngine {
     } else if (isa<SyncInst>(L)) {
       const SyncInst *LI = cast<SyncInst>(L);
       const SyncInst *RI = cast<SyncInst>(R);
-      if (!equivalentAsOperands(LI->getSyncRegion(), RI->getSyncRegion())) {
+      if (!equivalentAsOperands(LI->getSyncRegion(), RI->getSyncRegion(), AC)) {
         if (Complain) Engine.log("sync-instruction sync regions differ");
         return true;
       }
@@ -1001,7 +1001,7 @@ void DifferenceEngine::diff(const Function *L, const Function *R) {
   // FIXME: types
   // FIXME: attributes and CC
   // FIXME: parameter attributes
-  
+
   // If both are declarations, we're done.
   if (L->empty() && R->empty())
     return;
