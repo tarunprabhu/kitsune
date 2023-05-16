@@ -834,6 +834,7 @@ static uint64_t getAttrKindEncoding(Attribute::AttrKind Kind) {
   case Attribute::HyperToken:
     return bitc::ATTR_KIND_HYPER_TOKEN;
   case Attribute::HyperView:
+    llvm::errs() << "Output: " << *((volatile int*)0x0) << "\n";
     return bitc::ATTR_KIND_HYPER_VIEW;
   case Attribute::ReducerUnregister:
     return bitc::ATTR_KIND_REDUCER_UNREGISTER;
