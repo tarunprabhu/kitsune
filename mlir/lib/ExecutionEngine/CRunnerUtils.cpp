@@ -137,10 +137,14 @@ extern "C" void *mlirAlloc(uint64_t size) { return malloc(size); }
 extern "C" void *mlirAlignedAlloc(uint64_t alignment, uint64_t size) {
 #ifdef _WIN32
   return _aligned_malloc(size, alignment);
-#else
+#elif defined(__APPLE__)
+  // aligned_alloc was added in MacOS 10.15. Fall back to posix_memalign to also
+  // support older versions.
   void *result = nullptr;
   (void)::posix_memalign(&result, alignment, size);
   return result;
+#else
+  return aligned_alloc(alignment, size);
 #endif
 }
 

@@ -43,19 +43,6 @@
 ; CHECK-POSTLINK-O-NEXT: Running analysis: ProfileSummaryAnalysis
 ; CHECK-POSTLINK-O-NEXT: Running analysis: InnerAnalysisManagerProxy
 ; CHECK-POSTLINK-O-NEXT: Running analysis: OptimizationRemarkEmitterAnalysis
-; CHECK-O-NEXT: Running pass: InferFunctionAttrsPass
-; CHECK-O-NEXT: Running analysis: TargetLibraryAnalysis
-; CHECK-O-NEXT: Running pass: CoroEarlyPass
-; CHECK-O-NEXT: Running pass: LowerExpectIntrinsicPass
-; CHECK-O-NEXT: Running pass: SimplifyCFGPass
-; CHECK-O-NEXT: Running analysis: TargetIRAnalysis
-; CHECK-O-NEXT: Running analysis: AssumptionAnalysis
-; CHECK-O-NEXT: Running pass: SROAPass
-; CHECK-O-NEXT: Running analysis: DominatorTreeAnalysis
-; CHECK-O-NEXT: Running analysis: TaskAnalysis
-; CHECK-O-NEXT: Running pass: EarlyCSEPass
-; CHECK-O-NEXT: Running analysis: TargetLibraryAnalysis
-; CHECK-O3-NEXT: Running pass: CallSiteSplittingPass
 ; CHECK-O-NEXT: Running pass: OpenMPOptPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: LowerTypeTestsPass
 ; CHECK-O-NEXT: Running pass: IPSCCPPass
@@ -66,6 +53,7 @@
 ; CHECK-O-NEXT: Running pass: GlobalOptPass
 ; CHECK-O-NEXT: Running analysis: TargetLibraryAnalysis
 ; CHECK-O-NEXT: Running pass: PromotePass
+; CHECK-O-NEXT: Running analysis: TaskAnalysis
 ; CHECK-O-NEXT: Running pass: InstCombinePass
 ; CHECK-O-NEXT: Running analysis: TargetLibraryAnalysis
 ; CHECK-O-NEXT: Running analysis: AAManager
@@ -182,12 +170,39 @@
 ; CHECK-POSTLINK-O-NEXT: Running pass: Float2IntPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: LowerConstantIntrinsicsPass
 ; CHECK-POSTLINK-O3-NEXT: Running pass: ControlHeightReductionPass
-; CHECK-POSTLINK-O2-NEXT: Running pass: LoopSimplifyPass
-; CHECK-POSTLINK-O2-NEXT: Running pass: LCSSAPass
-; CHECK-POSTLINK-O2-NEXT: Running pass: TapirIndVarSimplifyPass
 ; CHECK-EXT: Running pass: {{.*}}::Bye
 ; CHECK-POSTLINK-O-NEXT: Running pass: LoopSimplifyPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: LCSSAPass
+; CHECK-POSTLINK-O2-NEXT: Running pass: TapirIndVarSimplifyPass
+; CHECK-POSTLINK-O2-NEXT: Running pass: LoopStripMinePass on foo
+; CHECK-POSTLINK-O2-NEXT: Running pass: TaskSimplifyPass on foo
+; CHECK-POSTLINK-O2-NEXT: Running pass: LoopSimplifyPass on foo
+; CHECK-POSTLINK-O2-NEXT: Running pass: LCSSAPass on foo
+; CHECK-POSTLINK-O2-NEXT: Running pass: LoopSimplifyCFGPass on loop
+; CHECK-POSTLINK-O2-NEXT: Running pass: LICMPass on loop
+; CHECK-POSTLINK-O2-NEXT: Running pass: EarlyCSEPass on foo
+; CHECK-POSTLINK-O2-NEXT: Running pass: JumpThreadingPass on foo
+; CHECK-POSTLINK-O2-NEXT: Running analysis: LazyValueAnalysis on foo
+; CHECK-POSTLINK-O2-NEXT: Running pass: CorrelatedValuePropagationPass on foo (7 instructions)
+; CHECK-POSTLINK-O2-NEXT: Invalidating analysis: LazyValueAnalysis on foo
+; CHECK-POSTLINK-O2-NEXT: Running pass: InstCombinePass on foo (7 instructions)
+; CHECK-POSTLINK-O2-NEXT: Running pass: LoopSimplifyPass on foo (7 instructions)
+; CHECK-POSTLINK-O2-NEXT: Running pass: LCSSAPass on foo (7 instructions)
+; CHECK-POSTLINK-O3-NEXT: Running pass: TapirIndVarSimplifyPass
+; CHECK-POSTLINK-O3-NEXT: Running pass: LoopStripMinePass on foo
+; CHECK-POSTLINK-O3-NEXT: Running pass: TaskSimplifyPass on foo
+; CHECK-POSTLINK-O3-NEXT: Running pass: LoopSimplifyPass on foo
+; CHECK-POSTLINK-O3-NEXT: Running pass: LCSSAPass on foo
+; CHECK-POSTLINK-O3-NEXT: Running pass: LoopSimplifyCFGPass on loop
+; CHECK-POSTLINK-O3-NEXT: Running pass: LICMPass on loop
+; CHECK-POSTLINK-O3-NEXT: Running pass: EarlyCSEPass on foo
+; CHECK-POSTLINK-O3-NEXT: Running pass: JumpThreadingPass on foo
+; CHECK-POSTLINK-O3-NEXT: Running analysis: LazyValueAnalysis on foo
+; CHECK-POSTLINK-O3-NEXT: Running pass: CorrelatedValuePropagationPass on foo (7 instructions)
+; CHECK-POSTLINK-O3-NEXT: Invalidating analysis: LazyValueAnalysis on foo
+; CHECK-POSTLINK-O3-NEXT: Running pass: InstCombinePass on foo (7 instructions)
+; CHECK-POSTLINK-O3-NEXT: Running pass: LoopSimplifyPass on foo (7 instructions)
+; CHECK-POSTLINK-O3-NEXT: Running pass: LCSSAPass on foo (7 instructions)
 ; CHECK-POSTLINK-O-NEXT: Running pass: LoopRotatePass
 ; CHECK-POSTLINK-O-NEXT: Running pass: LoopDeletionPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: LoopDistributePass

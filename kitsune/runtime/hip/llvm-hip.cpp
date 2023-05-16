@@ -17,7 +17,6 @@
 #include<llvm/Target/TargetMachine.h>
 #include<llvm/Support/ToolOutputFile.h>
 #include<llvm/MC/TargetRegistry.h>
-#include<llvm/Transforms/IPO/PassManagerBuilder.h>
 #define __HIP_PLATFORM_HCC__ 1
 #include<hip/hip_runtime.h>
 

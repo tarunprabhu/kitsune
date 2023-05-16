@@ -153,8 +153,8 @@ private:
   path_list ProgramPaths;
 
   /// Kitsune-centric list of link library arguments for cases where
-  /// strings need to be extracted from CMake settings and need to 
-  /// persist... 
+  /// strings need to be extracted from CMake settings and need to
+  /// persist...
   // link_library_list  KitsuneLibArgs;
 
   mutable std::unique_ptr<Tool> Clang;
@@ -717,27 +717,27 @@ public:
                                    llvm::opt::ArgStringList &CmdArgs) const;
 
 
-  /// Some of our command line arguments come in via cmake as a single 
+  /// Some of our command line arguments come in via cmake as a single
   /// string.  We use this to extract each argument from the string and
-  /// push it onto the argument list. 
+  /// push it onto the argument list.
   ///
-  void ExtractArgsFromString(const char *s, 
+  void ExtractArgsFromString(const char *s,
 			     llvm::opt::ArgStringList &CmdArgs,
 			     const llvm::opt::ArgList &Args,
 			     const char delimiter = ' ') const;
 
 
-  /// AddKitsuneIncludeArgs - Add some kitsune-centric arguments to expand 
-  /// the default include file search path. 
-  virtual void AddKitsuneIncludeArgs(const llvm::opt::ArgList &Args, 
+  /// AddKitsuneIncludeArgs - Add some kitsune-centric arguments to expand
+  /// the default include file search path.
+  virtual void AddKitsuneIncludeArgs(const llvm::opt::ArgList &Args,
 				     llvm::opt::ArgStringList &CmdArgs) const;
 
-  /// AddKitsuneLibArgs - Add some kitsune-centric linker arguments to use 
-  /// given the special modes of operation (kitsune, kokkos, backend runtime 
-  /// arguments, etc.). 
-  //virtual void AddKitsuneLibArgs(const llvm::opt::ArgList &Args, 
+  /// AddKitsuneLibArgs - Add some kitsune-centric linker arguments to use
+  /// given the special modes of operation (kitsune, kokkos, backend runtime
+  /// arguments, etc.).
+  //virtual void AddKitsuneLibArgs(const llvm::opt::ArgList &Args,
   //			 llvm::opt::ArgStringList &CmdArgs) const;
-  
+
   /// AddFilePathLibArgs - Add each thing in getFilePaths() as a "-L" option.
   void AddFilePathLibArgs(const llvm::opt::ArgList &Args,
                           llvm::opt::ArgStringList &CmdArgs) const;
@@ -844,8 +844,8 @@ public:
                                             StringRef Component,
                                             bool AddArch) const;
 
-  virtual Optional<std::string> getOpenCilkBC(const llvm::opt::ArgList &Args,
-                                              StringRef Component) const;
+  virtual std::optional<std::string>
+  getOpenCilkBC(const llvm::opt::ArgList &Args, StringRef Component) const;
 
   virtual std::string getOpenCilkRTBasename(const llvm::opt::ArgList &Args,
                                             StringRef Component, FileType Type,

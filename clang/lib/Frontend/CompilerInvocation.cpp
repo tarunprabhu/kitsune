@@ -4718,8 +4718,6 @@ bool CompilerInvocation::CreateFromArgsImpl(
     }
   }
 
-  LangOpts.Detach = Args.hasArg(OPT_fdetach);
-  LangOpts.Cilk = Args.hasArg(OPT_fcilkplus);
   TapirTargetID TapirTarget = parseTapirTarget(Args);
   if (TapirTarget == TapirTargetID::Last_TapirTargetID)
     if (const Arg *A = Args.getLastArg(OPT_ftapir_EQ))

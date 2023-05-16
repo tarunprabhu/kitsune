@@ -18,7 +18,6 @@
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/CaptureTracking.h"
-#include "llvm/Analysis/EHPersonalities.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -30,6 +29,7 @@
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
+#include "llvm/IR/EHPersonalities.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
@@ -2050,9 +2050,8 @@ static GlobalVariable *copyGlobalArray(const char *Array, Module &M) {
     if (Constant *Init = GVA->getInitializer()) {
       // Copy the existing global constructors into a new variable.
       GlobalVariable *NGV = new GlobalVariable(
-          Init->getType(), GVA->isConstant(), GVA->getLinkage(), Init, "",
-          GVA->getThreadLocalMode());
-      GVA->getParent()->getGlobalList().insert(GVA->getIterator(), NGV);
+          M, Init->getType(), GVA->isConstant(), GVA->getLinkage(), Init, "",
+          GVA, GVA->getThreadLocalMode());
       return NGV;
     }
   }
@@ -2097,9 +2096,8 @@ static void restoreGlobalArray(const char *Array, Module &M,
       Constant *CARepl = ConstantArray::get(
           ArrayType::get(NewCA->getType()->getElementType(), 0), {});
       GlobalVariable *GVRepl = new GlobalVariable(
-          CARepl->getType(), NewGV->isConstant(), NewGV->getLinkage(), CARepl,
-          "", NewGV->getThreadLocalMode());
-      NewGV->getParent()->getGlobalList().insert(NewGV->getIterator(), GVRepl);
+          M, CARepl->getType(), NewGV->isConstant(), NewGV->getLinkage(),
+          CARepl, "", NewGV, NewGV->getThreadLocalMode());
 
       // Replace the global array with the zero-initialized version.
       replaceGlobalArray(Array, M, GVRepl);

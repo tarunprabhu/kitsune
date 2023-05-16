@@ -2509,7 +2509,7 @@ QualType Sema::BuildHyperobjectType(QualType Element, Expr *Identity,
   QualType Result = Element;
   if (!RequireCompleteType(Loc, Element, CompleteTypeKind::Normal,
                            diag::incomplete_hyperobject)) {
-    if (Optional<unsigned> Code = ContainsHyperobject(Result))
+    if (std::optional<unsigned> Code = ContainsHyperobject(Result))
       Diag(Loc, *Code) << Result;
   }
 

@@ -1041,10 +1041,10 @@ void Parser::ParseHLSLQualifiers(ParsedAttributes &Attrs) {
 
 void Parser::ParseKitsuneMemAccessQualifiers(ParsedAttributes &Attrs) {
   IdentifierInfo *AttrName = Tok.getIdentifierInfo();
+  auto Kind = Tok.getKind();
   SourceLocation AttrNameLoc = Tok.getLocation();
 
-  Attrs.addNew(AttrName, AttrNameLoc, nullptr, AttrNameLoc, nullptr, 0,
-               ParsedAttr::AS_Keyword);
+  Attrs.addNew(AttrName, AttrNameLoc, nullptr, AttrNameLoc, nullptr, 0, Kind);
 }
 
 void Parser::ParseNullabilityTypeSpecifiers(ParsedAttributes &attrs) {

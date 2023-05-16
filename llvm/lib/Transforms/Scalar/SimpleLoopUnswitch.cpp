@@ -3419,14 +3419,14 @@ static NonTrivialUnswitchCandidate findBestNonTrivialUnswitchCandidate(
 // of the loop. Insert a freeze to prevent this case.
 // 3. The branch condition may be poison or undef
 static bool shouldInsertFreeze(Loop &L, Instruction &TI, DominatorTree &DT,
-                               AssumptionCache &AC) {
+                               AssumptionCache &AC, TaskInfo* TaskI) {
   assert(isa<BranchInst>(TI) || isa<SwitchInst>(TI));
   if (!FreezeLoopUnswitchCond)
     return false;
 
   ICFLoopSafetyInfo SafetyInfo;
   SafetyInfo.computeLoopSafetyInfo(&L);
-  if (SafetyInfo.isGuaranteedToExecute(TI, &DT, &L))
+  if (SafetyInfo.isGuaranteedToExecute(TI, &DT, TaskI, &L))
     return false;
 
   Value *Cond;
@@ -3500,7 +3500,7 @@ static bool unswitchBestCondition(
     if (isGuard(Best.TI))
       Best.TI =
           turnGuardIntoBranch(cast<IntrinsicInst>(Best.TI), L, DT, LI, MSSAU);
-    InsertFreeze = shouldInsertFreeze(L, *Best.TI, DT, AC);
+    InsertFreeze = shouldInsertFreeze(L, *Best.TI, DT, AC, TaskI);
   }
 
   LLVM_DEBUG(dbgs() << "  Unswitching non-trivial (cost = " << Best.Cost

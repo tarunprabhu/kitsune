@@ -1402,44 +1402,6 @@ void AccessPtrAnalysis::checkForRacesHelper(
   }
 }
 
-/// Check whether a pointer can participate in a runtime bounds check.
-/// If \p Assume, try harder to prove that we can compute the bounds of \p Ptr
-/// by adding run-time checks (overflow checks) if necessary.
-static bool hasComputableBounds(PredicatedScalarEvolution &PSE,
-                                const ValueToValueMap &Strides, Value *Ptr,
-                                Loop *L, bool Assume) {
-  const SCEV *PtrScev = replaceSymbolicStrideSCEV(PSE, Strides, Ptr);
-
-  // The bounds for loop-invariant pointer is trivial.
-  if (PSE.getSE()->isLoopInvariant(PtrScev, L))
-    return true;
-
-  const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(PtrScev);
-
-  if (!AR && Assume)
-    AR = PSE.getAsAddRec(Ptr);
-
-  if (!AR)
-    return false;
-
-  return AR->isAffine();
-}
-
-/// Check whether a pointer address cannot wrap.
-static bool isNoWrap(PredicatedScalarEvolution &PSE,
-                     const ValueToValueMap &Strides, Value *Ptr, Loop *L) {
-  const SCEV *PtrScev = PSE.getSCEV(Ptr);
-  if (PSE.getSE()->isLoopInvariant(PtrScev, L))
-    return true;
-
-  Type *AccessTy = Ptr->getType()->getPointerElementType();
-  std::optional<int64_t> Stride = getPtrStride(PSE, AccessTy, Ptr, L, Strides);
-  if (Stride && (*Stride == 1 || PSE.hasNoOverflow(Ptr, SCEVWrapPredicate::IncrementNUSW)))
-    return true;
-
-  return false;
-}
-
 void AccessPtrAnalysis::processAccessPtrs(
     RaceInfo::ResultTy &Result, RaceInfo::ObjectMRTy &ObjectMRForRace,
     RaceInfo::PtrChecksTy &AllPtrRtChecks) {

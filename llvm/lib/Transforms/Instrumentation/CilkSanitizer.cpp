@@ -23,6 +23,7 @@
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/CaptureTracking.h"
+#include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
@@ -197,7 +198,8 @@ struct CilkSanitizerImpl : public CSIImpl {
     SimpleInstrumentor(CilkSanitizerImpl &CilkSanImpl, TaskInfo &TI,
                        LoopInfo &LI, DominatorTree *DT,
                        const TargetLibraryInfo *TLI)
-        : CilkSanImpl(CilkSanImpl), TI(TI), LI(LI), DT(DT), TLI(TLI) {}
+        : CilkSanImpl(CilkSanImpl), TI(TI), LI(LI), DT(DT),
+          DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy), TLI(TLI) {}
 
     bool InstrumentSimpleInstructions(
         SmallVectorImpl<Instruction *> &Instructions);
@@ -218,6 +220,7 @@ struct CilkSanitizerImpl : public CSIImpl {
     TaskInfo &TI;
     LoopInfo &LI;
     DominatorTree *DT;
+    DomTreeUpdater DTU;
     const TargetLibraryInfo *TLI;
 
     SmallPtrSet<DetachInst *, 8> Detaches;
@@ -228,7 +231,8 @@ struct CilkSanitizerImpl : public CSIImpl {
   public:
     Instrumentor(CilkSanitizerImpl &CilkSanImpl, RaceInfo &RI, TaskInfo &TI,
                  LoopInfo &LI, DominatorTree *DT, const TargetLibraryInfo *TLI)
-        : CilkSanImpl(CilkSanImpl), RI(RI), TI(TI), LI(LI), DT(DT), TLI(TLI) {}
+        : CilkSanImpl(CilkSanImpl), RI(RI), TI(TI), LI(LI), DT(DT),
+          DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy), TLI(TLI) {}
 
     void InsertArgMAAPs(Function &F, Value *FuncId);
     bool InstrumentSimpleInstructions(
@@ -291,6 +295,7 @@ struct CilkSanitizerImpl : public CSIImpl {
     TaskInfo &TI;
     LoopInfo &LI;
     DominatorTree *DT;
+    DomTreeUpdater DTU;
     const TargetLibraryInfo *TLI;
 
     SmallPtrSet<DetachInst *, 8> Detaches;
@@ -649,7 +654,9 @@ uint64_t ObjectTable::add(Instruction &I, Value *Obj) {
   // Next, if this is an alloca instruction, look for a llvm.dbg.declare
   // intrinsic.
   if (AllocaInst *AI = dyn_cast<AllocaInst>(Obj)) {
-    TinyPtrVector<DbgVariableIntrinsic *> DbgDeclares = FindDbgAddrUses(AI);
+    TinyPtrVector<DbgVariableIntrinsic *> DbgDeclares;
+    for (auto* DbgDeclare : FindDbgDeclareUses(AI))
+      DbgDeclares.push_back(DbgDeclare);
     if (!DbgDeclares.empty()) {
       auto *LV = DbgDeclares.front()->getVariable();
       add(ID, LV->getLine(), LV->getFilename(), LV->getDirectory(),
@@ -2555,7 +2562,7 @@ bool CilkSanitizerImpl::Instrumentor::PerformDelayedInstrumentation() {
       Value *MAAPChk = getMAAPCheck(I, IRB);
       if (MAAPChk != IRB.getFalse()) {
         Instruction *CheckTerm = SplitBlockAndInsertIfThen(
-            IRB.CreateICmpEQ(MAAPChk, IRB.getFalse()), I, false, nullptr, DT,
+            IRB.CreateICmpEQ(MAAPChk, IRB.getFalse()), I, false, nullptr, &DTU,
             /*LI*/ nullptr);
         IRB.SetInsertPoint(CheckTerm);
       }
@@ -2583,7 +2590,7 @@ bool CilkSanitizerImpl::Instrumentor::PerformDelayedInstrumentation() {
       Value *MAAPChk = getMAAPCheck(I, IRB, OperandNum);
       if (MAAPChk != IRB.getFalse()) {
         Instruction *CheckTerm = SplitBlockAndInsertIfThen(
-            IRB.CreateICmpEQ(MAAPChk, IRB.getFalse()), I, false, nullptr, DT,
+            IRB.CreateICmpEQ(MAAPChk, IRB.getFalse()), I, false, nullptr, &DTU,
             /*LI*/ nullptr);
         IRB.SetInsertPoint(CheckTerm);
       }
@@ -3000,7 +3007,7 @@ bool CilkSanitizerImpl::Instrumentor::InstrumentLoops(
       if (MAAPChk != IRB.getFalse()) {
         Instruction *CheckTerm =
             SplitBlockAndInsertIfThen(IRB.CreateICmpEQ(MAAPChk, IRB.getFalse()),
-                                      InsertPt, false, nullptr, DT, &LI);
+                                      InsertPt, false, nullptr, &DTU, &LI);
         IRB.SetInsertPoint(CheckTerm);
       }
     }
@@ -3074,7 +3081,7 @@ bool CilkSanitizerImpl::Instrumentor::InstrumentLoops(
         if (MAAPChk != IRB.getFalse()) {
           Instruction *CheckTerm = SplitBlockAndInsertIfThen(
               IRB.CreateICmpEQ(MAAPChk, IRB.getFalse()), &*InsertPt, false,
-              nullptr, DT, &LI);
+              nullptr, &DTU, &LI);
           IRB.SetInsertPoint(CheckTerm);
         }
       }

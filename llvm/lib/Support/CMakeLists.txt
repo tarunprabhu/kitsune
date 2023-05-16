@@ -121,7 +121,6 @@ endif()
 add_subdirectory(BLAKE3)
 
 add_llvm_component_library(LLVMSupport
-  AddressRanges.cpp
   ABIBreak.cpp
   AMDGPUMetadata.cpp
   APFixedPoint.cpp

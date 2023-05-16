@@ -565,7 +565,6 @@ public:
     return Name;
   }
 
-  #warning "Really, really bad idea to have a mutateType here."
   // FIXME: Don't do this.
   // TODO: REALLY, don't do this!!!
   // XXX: I mean it! MAKE THIS GO AWAY!

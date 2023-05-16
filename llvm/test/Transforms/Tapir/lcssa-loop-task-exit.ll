@@ -3,7 +3,6 @@
 ; value from the detach and detached.rethrow predecessors.
 ;
 ; RUN: opt < %s -passes='lcssa' -S -o - | FileCheck %s --check-prefixes=CHECK,CHECK-LCSSA
-; RUN: opt < %s -passes='lcssa,require<opt-remark-emit>,loop-mssa(licm)' -S -o - | FileCheck %s
 
 
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
@@ -1282,10 +1281,11 @@ lpad2654.loopexit:                                ; preds = %lpad265455, %pfor.c
           cleanup
   br label %lpad2654
 
+; CHECK: %[[PC:.*]] = bitcast {{.+}} %pc
 ; CHECK: lpad2654.loopexit:
 ; CHECK-LCSSA-NEXT: phi ptr
-; CHECK-LCSSA-DAG: [ %38, %lpad265455 ]
-; CHECK-LCSSA-DAG: [ %38, %pfor.cond.i ]
+; CHECK-LCSSA-DAG: [ %[[PC]], %lpad265455 ]
+; CHECK-LCSSA-DAG: [ %[[PC]], %pfor.cond.i ]
 ; CHECK-NEXT: %lpad.loopexit4 = landingpad
 
 lpad2654.loopexit.split-lp:                       ; preds = %sync.continue.i

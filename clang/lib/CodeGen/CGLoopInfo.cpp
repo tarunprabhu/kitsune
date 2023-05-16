@@ -38,7 +38,7 @@ MDNode *LoopInfo::createTapirLoopMetadata(const LoopAttributes &Attrs,
                                           bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
-  Optional<bool> Enabled;
+  std::optional<bool> Enabled;
   if (Attrs.SpawnStrategy == LoopAttributes::SEQ)
     Enabled = false;
   else
@@ -48,7 +48,7 @@ MDNode *LoopInfo::createTapirLoopMetadata(const LoopAttributes &Attrs,
     return createLoopPropertiesMetadata(LoopProperties);
 
   SmallVector<Metadata *, 4> Args;
-  TempMDTuple TempNode = MDNode::getTemporary(Ctx, None);
+  TempMDTuple TempNode = MDNode::getTemporary(Ctx, std::nullopt);
   Args.push_back(TempNode.get());
   Args.append(LoopProperties.begin(), LoopProperties.end());
 

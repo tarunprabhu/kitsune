@@ -359,28 +359,29 @@ void SPIRVLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   //                                                   1)));
   //Annotations->addOperand(MDNode::get(Ctx, AV));
 
-  legacy::PassManager *PassManager = new legacy::PassManager;
+  assert(0 && "Use new pass manager instead of legacy pass manager.");
+  // legacy::PassManager *PassManager = new legacy::PassManager;
 
-  PassManager->add(createVerifierPass());
+  // PassManager->add(createVerifierPass());
 
-  // Add in our optimization passes
+  // // Add in our optimization passes
 
-  //PassManager->add(createInstructionCombiningPass());
-  PassManager->add(createReassociatePass());
-  PassManager->add(createGVNPass());
-  PassManager->add(createCFGSimplificationPass());
-  PassManager->add(createLoopVectorizePass());
-  PassManager->add(createSLPVectorizerPass());
-  //PassManager->add(createBreakCriticalEdgesPass());
-  //PassManager->add(createConstantPropagationPass());
-  //PassManager->add(createDeadInstEliminationPass());
-  PassManager->add(createDeadStoreEliminationPass());
-  //PassManager->add(createInstructionCombiningPass());
-  PassManager->add(createCFGSimplificationPass());
-  PassManager->add(createDeadCodeEliminationPass());
-  PassManager->run(SPIRVM);
+  // //PassManager->add(createInstructionCombiningPass());
+  // PassManager->add(createReassociatePass());
+  // PassManager->add(createGVNPass());
+  // PassManager->add(createCFGSimplificationPass());
+  // PassManager->add(createLoopVectorizePass());
+  // PassManager->add(createSLPVectorizerPass());
+  // //PassManager->add(createBreakCriticalEdgesPass());
+  // //PassManager->add(createConstantPropagationPass());
+  // //PassManager->add(createDeadInstEliminationPass());
+  // PassManager->add(createDeadStoreEliminationPass());
+  // //PassManager->add(createInstructionCombiningPass());
+  // PassManager->add(createCFGSimplificationPass());
+  // PassManager->add(createDeadCodeEliminationPass());
+  // PassManager->run(SPIRVM);
 
-  delete PassManager;
+  // delete PassManager;
 
   LLVM_DEBUG(dbgs() << "SPIRV Module: " << SPIRVM);
 

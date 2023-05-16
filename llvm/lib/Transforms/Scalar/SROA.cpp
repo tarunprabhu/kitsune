@@ -5091,16 +5091,6 @@ PreservedAnalyses SROAPass::runImpl(Function &F, DomTreeUpdater &RunDTU,
   TI = &RunTI;
 
   const DataLayout &DL = F.getParent()->getDataLayout();
-  BasicBlock &EntryBB = F.getEntryBlock();
-  for (BasicBlock::iterator I = EntryBB.begin(), E = std::prev(EntryBB.end());
-       I != E; ++I) {
-    if (AllocaInst *AI = dyn_cast<AllocaInst>(I)) {
-      if (DL.getTypeAllocSize(AI->getAllocatedType()).isScalable() &&
-          isAllocaPromotable(AI))
-        PromotableAllocas.push_back(AI);
-      else
-        Worklist.insert(AI);
-
   // Scan the function to get its entry block and all entry blocks of detached
   // CFG's.  We can perform this scan for entry blocks once for the function,
   // because this pass preserves the CFG.
@@ -5116,12 +5106,11 @@ PreservedAnalyses SROAPass::runImpl(Function &F, DomTreeUpdater &RunDTU,
     for (BasicBlock::iterator I = EntryBB.begin(), E = std::prev(EntryBB.end());
          I != E; ++I) {
       if (AllocaInst *AI = dyn_cast<AllocaInst>(I)) {
-        if (isa<ScalableVectorType>(AI->getAllocatedType())) {
-          if (isAllocaPromotable(AI) && TI->isAllocaParallelPromotable(AI))
-            PromotableAllocas.push_back(AI);
-        } else {
+        if (DL.getTypeAllocSize(AI->getAllocatedType()).isScalable() &&
+            isAllocaPromotable(AI) && TI->isAllocaParallelPromotable(AI))
+          PromotableAllocas.push_back(AI);
+        else
           Worklist.insert(AI);
-        }
       }
     }
   }

@@ -14,7 +14,7 @@
 #define LLVM_CLANG_DRIVER_TAPIR_H
 
 #include "clang/Basic/Tapir.h"
-#include "llvm/ADT/Optional.h"
+#include <optional>
 
 namespace llvm {
 namespace opt {
@@ -26,7 +26,7 @@ namespace clang {
 
 TapirTargetID parseTapirTarget(const llvm::opt::ArgList &Args);
 TapirNVArchTargetID parseTapirNVArchTarget(const llvm::opt::ArgList &Args);
-llvm::Optional<llvm::StringRef> serializeTapirTarget(TapirTargetID Target);
+std::optional<llvm::StringRef> serializeTapirTarget(TapirTargetID Target);
 
 } // end namespace clang
 

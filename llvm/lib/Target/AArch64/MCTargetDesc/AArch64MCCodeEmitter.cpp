@@ -684,9 +684,7 @@ void AArch64MCCodeEmitter::encodeInstruction(const MCInst &MI,
     return;
   }
 
-  if (MI.getOpcode() == AArch64::CompilerBarrier ||
-      MI.getOpcode() == AArch64::EH_SjLj_Setup) {
-    // CompilerBarrier just prevents the compiler from reordering accesses
+  if (MI.getOpcode() == AArch64::EH_SjLj_Setup) {
     return;
   }
 

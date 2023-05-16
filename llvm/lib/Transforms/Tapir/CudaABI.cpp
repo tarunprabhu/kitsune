@@ -52,7 +52,6 @@
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
 #include "llvm/Transforms/IPO/Inliner.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Tapir/Outline.h"
@@ -428,15 +427,16 @@ static void runKernelOptimizationPasses(Module &KM,
   // assert(0 && "Need to switch to new pass manager");
   if (OptLevel > 0) {
     LLVM_DEBUG(dbgs() << "\tcuabi: optimizing generated kernel module...\n");
-    legacy::PassManager PM;
-    PM.add(createReassociatePass());
-    PM.add(createGVNPass());
-    PM.add(createCFGSimplificationPass());
-    PM.add(createDeadStoreEliminationPass());
-    PM.add(createCFGSimplificationPass());
-    PM.add(createVerifierPass());
-    PM.run(KM);
-    LLVM_DEBUG(dbgs() << "\t\tpasses (+verifier) complete.\n");
+    assert(0 && "Use new pass manager instead of legacy pass manager.");
+    // legacy::PassManager PM;
+    // PM.add(createReassociatePass());
+    // PM.add(createGVNPass());
+    // PM.add(createCFGSimplificationPass());
+    // PM.add(createDeadStoreEliminationPass());
+    // PM.add(createCFGSimplificationPass());
+    // PM.add(createVerifierPass());
+    // PM.run(KM);
+    // LLVM_DEBUG(dbgs() << "\t\tpasses (+verifier) complete.\n");
   }
 }
 
@@ -2089,24 +2089,24 @@ void CudaABI::postProcessModule() {
   finalizeLaunchCalls(M, Fatbinary);
   registerFatbinary(Fatbinary);
   if (RunHostPostOpt) {
-    // assert(0 && "Need to switch to new pass manager");
-    legacy::PassManager PM;
-    legacy::FunctionPassManager FPM(&M);
-    PassManagerBuilder PMB;
-    PMB.Inliner = createFunctionInliningPass(OptLevel, 0, false);
-    PMB.OptLevel = OptLevel;
-    PMB.SizeLevel = 0; // No size optimizations.
-    PMB.VerifyInput = 1;
-    PMB.DisableUnrollLoops = false;
-    PMB.LoopVectorize = true;
-    PMB.SLPVectorize = true;
-    PMB.populateFunctionPassManager(FPM);
-    PMB.populateModulePassManager(PM);
-    FPM.doInitialization();
-    for (Function &Fn : M)
-      FPM.run(Fn);
-    FPM.doFinalization();
-    PM.run(M);
+    assert(0 && "Use new pass manager instead of legacy pass manager.");
+    // legacy::PassManager PM;
+    // legacy::FunctionPassManager FPM(&M);
+    // PassManagerBuilder PMB;
+    // PMB.Inliner = createFunctionInliningPass(OptLevel, 0, false);
+    // PMB.OptLevel = OptLevel;
+    // PMB.SizeLevel = 0; // No size optimizations.
+    // PMB.VerifyInput = 1;
+    // PMB.DisableUnrollLoops = false;
+    // PMB.LoopVectorize = true;
+    // PMB.SLPVectorize = true;
+    // PMB.populateFunctionPassManager(FPM);
+    // PMB.populateModulePassManager(PM);
+    // FPM.doInitialization();
+    // for (Function &Fn : M)
+    //   FPM.run(Fn);
+    // FPM.doFinalization();
+    // PM.run(M);
   }
 
   if (!KeepIntermediateFiles) {

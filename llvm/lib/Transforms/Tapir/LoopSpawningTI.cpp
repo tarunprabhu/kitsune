@@ -1683,7 +1683,7 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
       LoopWorkList.push_back(L);
     }
     for (Loop *L : LoopWorkList)
-      Changed |= formLCSSARecursively(*L, DT, &LI, &SE);
+      Changed |= formLCSSARecursively(*L, DT, &LI);
   }
 
   TapirTargetID TargetID = GetTLI(*SavedF).getTapirTarget();

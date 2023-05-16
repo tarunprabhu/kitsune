@@ -959,7 +959,7 @@ class ClobberWalker {
 
 public:
   ClobberWalker(const MemorySSA &MSSA, DominatorTree &DT, TaskInfo *TI)
-    : MSSA(MSSA), DT(DT), TI(TI) {}
+      : MSSA(MSSA), DT(DT), TI(TI) {}
 
   /// Finds the nearest clobber for the given query, optimizing phis if
   /// possible.

@@ -411,7 +411,7 @@ PreservedAnalyses LoopStripMinePass::run(Function &F,
   for (auto &L : LI) {
     Changed |= simplifyLoop(L, &DT, &LI, &SE, &AC, nullptr,
                             /* PreserveLCSSA */ false);
-    Changed |= formLCSSARecursively(*L, DT, &LI, &SE);
+    Changed |= formLCSSARecursively(*L, DT, &LI);
   }
 
   SmallPriorityWorklist<Loop *, 4> Worklist;

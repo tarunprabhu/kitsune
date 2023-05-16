@@ -171,7 +171,8 @@ static void hoist(Instruction &I, const DominatorTree *DT, const Loop *CurLoop,
                   const TaskInfo *TI, OptimizationRemarkEmitter *ORE);
 static bool sink(Instruction &I, LoopInfo *LI, DominatorTree *DT,
                  const Loop *CurLoop, ICFLoopSafetyInfo *SafetyInfo,
-                 MemorySSAUpdater &MSSAU, OptimizationRemarkEmitter *ORE);
+                 MemorySSAUpdater &MSSAU, TaskInfo* TaskI,
+                 OptimizationRemarkEmitter *ORE);
 static bool isSafeToExecuteUnconditionally(
     Instruction &Inst, const DominatorTree *DT, const TargetLibraryInfo *TLI,
     const Loop *CurLoop, const LoopSafetyInfo *SafetyInfo, const TaskInfo *TI,
@@ -1642,7 +1643,8 @@ static void splitPredecessorsOfLoopExit(PHINode *PN, DominatorTree *DT,
 ///
 static bool sink(Instruction &I, LoopInfo *LI, DominatorTree *DT,
                  const Loop *CurLoop, ICFLoopSafetyInfo *SafetyInfo,
-                 MemorySSAUpdater &MSSAU, OptimizationRemarkEmitter *ORE) {
+                 MemorySSAUpdater &MSSAU, TaskInfo* TaskI,
+                 OptimizationRemarkEmitter *ORE) {
   bool Changed = false;
   LLVM_DEBUG(dbgs() << "LICM sinking instruction: " << I << "\n");
 
@@ -1817,10 +1819,6 @@ static bool isSafeToExecuteUnconditionally(
     }
   }
 
-  if (AllowSpeculation &&
-      isSafeToSpeculativelyExecute(&Inst, CtxI, AC, DT, TLI))
-    return true;
-
   if (CtxI) {
     // Check for a call to a strand-pure function.  Such a call is safe to
     // execute unconditionally if CtxI and Inst belong to the same spindle.
@@ -1832,6 +1830,10 @@ static bool isSafeToExecuteUnconditionally(
           return false;
     }
   }
+
+  if (AllowSpeculation &&
+      isSafeToSpeculativelyExecute(&Inst, CtxI, AC, DT, TLI))
+    return true;
 
   bool GuaranteedToExecute =
       SafetyInfo->isGuaranteedToExecute(Inst, DT, TI, CurLoop);
