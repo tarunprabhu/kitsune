@@ -392,7 +392,7 @@ bool ICFLoopSafetyInfo::doesNotWriteMemoryBefore(const Instruction &I,
          doesNotWriteMemoryBefore(BB, CurLoop);
 }
 
-static bool isMustExecuteIn(const Instruction &I, Loop *L, DominatorTree *DT.
+static bool isMustExecuteIn(const Instruction &I, Loop *L, DominatorTree *DT,
                             TaskInfo *TI) {
   // TODO: merge these two routines.  For the moment, we display the best
   // result obtained by *either* implementation.  This is a bit unfair since no

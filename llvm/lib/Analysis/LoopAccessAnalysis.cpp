@@ -2916,7 +2916,7 @@ const LoopAccessInfo &LoopAccessInfoManager::getInfo(Loop &L) {
 
   if (I.second)
     I.first->second =
-        std::make_unique<LoopAccessInfo>(&L, &SE, TLI, &AA, &DT, &LI, &TI);
+        std::make_unique<LoopAccessInfo>(&L, &SE, TLI, &AA, &DT, &LI, TI);
 
   return *I.first->second;
 }

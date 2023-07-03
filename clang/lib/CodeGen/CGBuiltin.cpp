@@ -289,7 +289,6 @@ static RValue EmitBinaryAtomicPost(CodeGenFunction &CGF,
   assert(CGF.getContext().hasSameUnqualifiedType(T, E->getArg(1)->getType()));
 
   llvm::Value *DestPtr = CheckAtomicAlignment(CGF, E);
-  unsigned AddrSpace = DestPtr->getType()->getPointerAddressSpace();
 
   llvm::IntegerType *IntType = llvm::IntegerType::get(
       CGF.getLLVMContext(), CGF.getContext().getTypeSize(T));
@@ -331,11 +330,9 @@ static Value *MakeAtomicCmpXchgValue(CodeGenFunction &CGF, const CallExpr *E,
   CodeGenFunction::IsSpawnedScope SpawnedScp(&CGF);
   QualType T = ReturnBool ? E->getArg(1)->getType() : E->getType();
   llvm::Value *DestPtr = CheckAtomicAlignment(CGF, E);
-  unsigned AddrSpace = DestPtr->getType()->getPointerAddressSpace();
 
   llvm::IntegerType *IntType = llvm::IntegerType::get(
       CGF.getLLVMContext(), CGF.getContext().getTypeSize(T));
-  llvm::Type *IntPtrType = IntType->getPointerTo(AddrSpace);
 
   Value *Args[3];
   Args[0] = DestPtr;
@@ -2331,7 +2328,6 @@ static Value *tryUseTestFPKind(CodeGenFunction &CGF, unsigned BuiltinID,
 RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                                         const CallExpr *E,
                                         ReturnValueSlot ReturnValue) {
-  IsSpawnedScope SpawnedScp(this);
   const FunctionDecl *FD = GD.getDecl()->getAsFunction();
   // See if we can constant fold this builtin.  If so, don't emit it at all.
   // TODO: Extend this handling to all builtin calls that we can constant-fold.

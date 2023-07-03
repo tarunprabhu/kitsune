@@ -4223,7 +4223,7 @@ def FunctionReturnThunks : InheritableAttr,
 }
 
 def WebAssemblyFuncref : TypeAttr, TargetSpecificAttr<TargetWebAssembly> {
-  let Spellings = [Keyword<"__funcref">];
+  let Spellings = [CustomKeyword<"__funcref">];
   let Documentation = [WebAssemblyExportNameDocs];
   let Subjects = SubjectList<[FunctionPointer], ErrorDiag>;
 }
@@ -4324,16 +4324,16 @@ def TapirStrategy : StmtAttr {
 }
 
 def KitsuneMemAccess : InheritableAttr {
-    let Spellings = [Keyword<"_readonly">,
-                     Keyword<"_writeonly">,
-                     Keyword<"_readwrite">];
+    let Spellings = [CustomKeyword<"_readonly">,
+                     CustomKeyword<"_writeonly">,
+                     CustomKeyword<"_readwrite">];
 
     let Subjects = SubjectList<[Function, LocalVar, ParmVar, TypedefName],
                                 ErrorDiag>; // TODO: not sure about Loops
     let Accessors = [
-      Accessor<"isReadOnly", [Keyword<"_readonly">]>,
-      Accessor<"isWriteOnly", [Keyword<"_writeonly">]>,
-      Accessor<"isReadWrite", [Keyword<"_readwrite">]>
+      Accessor<"isReadOnly", [CustomKeyword<"_readonly">]>,
+      Accessor<"isWriteOnly", [CustomKeyword<"_writeonly">]>,
+      Accessor<"isReadWrite", [CustomKeyword<"_readwrite">]>
     ];
 
     let Documentation = [KitsuneMemAccessDocs];

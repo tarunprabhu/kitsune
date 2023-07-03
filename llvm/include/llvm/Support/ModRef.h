@@ -209,7 +209,7 @@ public:
 
   /// Whether this function may access inaccessible memory.
   bool doesAccessInaccessibleMem() const {
-    return isModOrRefSet(getModRef(InaccessibleMem));
+    return isModOrRefSet(getModRef(Location::InaccessibleMem));
   }
 
   /// Whether this function only (at most) accesses inaccessible memory.

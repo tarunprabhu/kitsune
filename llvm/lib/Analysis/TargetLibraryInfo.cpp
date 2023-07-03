@@ -1316,6 +1316,8 @@ void TargetLibraryInfoImpl::addTapirTargetLibraryFunctions(
   case TapirTargetID::Serial:
   case TapirTargetID::Cheetah:
   case TapirTargetID::Cuda:
+  case TapirTargetID::Hip:
+  case TapirTargetID::OpenCL:
   case TapirTargetID::OpenMP:
   case TapirTargetID::Qthreads:
   case TapirTargetID::Last_TapirTargetID:

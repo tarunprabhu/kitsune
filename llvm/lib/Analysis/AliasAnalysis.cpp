@@ -29,6 +29,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/CaptureTracking.h"
+#include "llvm/Analysis/DataRaceFreeAliasAnalysis.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/Analysis/ObjCARCAliasAnalysis.h"
@@ -1090,6 +1091,7 @@ char AAResultsWrapperPass::ID = 0;
 INITIALIZE_PASS_BEGIN(AAResultsWrapperPass, "aa",
                       "Function Alias Analysis Results", false, true)
 INITIALIZE_PASS_DEPENDENCY(BasicAAWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(DRFAAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(ExternalAAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(GlobalsAAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(SCEVAAWrapperPass)
@@ -1132,6 +1134,8 @@ bool AAResultsWrapperPass::runOnFunction(Function &F) {
     AAR->addAAResult(WrapperPass->getResult());
   if (auto *WrapperPass = getAnalysisIfAvailable<SCEVAAWrapperPass>())
     AAR->addAAResult(WrapperPass->getResult());
+  if (auto *WrapperPass = getAnalysisIfAvailable<DRFAAWrapperPass>())
+    AAR->addAAResult(WrapperPass->getResult());
 
   // If available, run an external AA providing callback over the results as
   // well.
@@ -1164,31 +1168,6 @@ AAManager::Result AAManager::run(Function &F, FunctionAnalysisManager &AM) {
   for (auto &Getter : ResultGetters)
     (*Getter)(F, AM, R);
   return R;
-}
-
-AAResults llvm::createLegacyPMAAResults(Pass &P, Function &F,
-                                        BasicAAResult &BAR) {
-  AAResults AAR(P.getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F));
-
-  // Add in our explicitly constructed BasicAA results.
-  if (!DisableBasicAA)
-    AAR.addAAResult(BAR);
-
-  // Populate the results with the other currently available AAs.
-  if (auto *WrapperPass =
-          P.getAnalysisIfAvailable<ScopedNoAliasAAWrapperPass>())
-    AAR.addAAResult(WrapperPass->getResult());
-  if (auto *WrapperPass = P.getAnalysisIfAvailable<TypeBasedAAWrapperPass>())
-    AAR.addAAResult(WrapperPass->getResult());
-  if (auto *WrapperPass = P.getAnalysisIfAvailable<GlobalsAAWrapperPass>())
-    AAR.addAAResult(WrapperPass->getResult());
-  if (auto *WrapperPass = P.getAnalysisIfAvailable<DRFAAWrapperPass>())
-    AAR.addAAResult(WrapperPass->getResult());
-  if (auto *WrapperPass = P.getAnalysisIfAvailable<ExternalAAWrapperPass>())
-    if (WrapperPass->CB)
-      WrapperPass->CB(P, F, AAR);
-
-  return AAR;
 }
 
 bool llvm::isNoAliasCall(const Value *V) {

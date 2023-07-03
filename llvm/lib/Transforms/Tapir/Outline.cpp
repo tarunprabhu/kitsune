@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/Outline.h"
+#include "llvm/IR/AttributeMask.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/IntrinsicInst.h"
