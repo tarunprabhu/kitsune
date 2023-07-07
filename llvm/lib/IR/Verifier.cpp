@@ -5340,6 +5340,28 @@ void Verifier::visitIntrinsicCall(Intrinsic::ID ID, CallBase &Call) {
     Check(cast<ConstantInt>(Call.getArgOperand(3))->getZExtValue() < 2,
           "cache type argument to llvm.prefetch must be 0-1", Call);
     break;
+  case Intrinsic::asyncprefetch: {
+    ConstantInt* rw = cast<ConstantInt>(Call.getArgOperand(1));
+    Check(rw->getZExtValue() >= 1 and rw->getZExtValue() <= 3,
+          "Argument #2 (rw) to llvm.asyncprefetch must be in [1, 3].", Call);
+    if (const auto* size = dyn_cast<ConstantInt>(Call.getArgOperand(2)))
+      Check(size->getSExtValue() >= 0,
+            "Argument #3 (size) to llvm.asyncprefetch must be >= 0.", Call);
+    break;
+  }
+  case Intrinsic::memory_used:
+    Check(cast<ConstantInt>(Call.getArgOperand(1))->getZExtValue() < 4,
+          "Argument #2 (use) to llvm.memory.used must be in [0, 4).", Call);
+    if (const auto* where = dyn_cast<ConstantInt>(Call.getArgOperand(2)))
+      Check(where->getSExtValue() >= 0,
+            "Argument #3 (where) to llvm.memory.used must be >= 0.", Call);
+    if (const auto* beg = dyn_cast<ConstantInt>(Call.getArgOperand(3)))
+      Check(beg->getSExtValue() >= -1,
+            "Argument #4 (begin) to llvm.memory.used must be >= -1.", Call);
+    if (const auto* end = dyn_cast<ConstantInt>(Call.getArgOperand(4)))
+      Check(end->getSExtValue() >= -1,
+            "Argument #5 (end) to llvm.memory.used must be >= -1.", Call);
+    break;
   case Intrinsic::stackprotector:
     Check(isa<AllocaInst>(Call.getArgOperand(1)->stripPointerCasts()),
           "llvm.stackprotector parameter #2 must resolve to an alloca.", Call);

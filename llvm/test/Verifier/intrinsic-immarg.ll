@@ -207,6 +207,15 @@ define void @test_invariant_end(ptr %scope, i64 %arg1, ptr %ptr) {
   ret void
 }
 
+declare void @llvm.memory.used(ptr, i32, i32, i64, i64)
+define void @test_memory_used(ptr %ptr, i32 %use, i32 %where, i64 %beg, i64 %end) {
+  ; CHECK: immarg operand has non-immediate parameter
+  ; CHECK-NEXT: i32 %use
+  ; CHECK-NEXT: call void @llvm.memory.used.p0(ptr %ptr, i32 %use, i32 %where, i64 %beg, i64 %end)
+  call void @llvm.memory.used(ptr %ptr, i32 %use, i32 %where, i64 %beg, i64 %end)
+  ret void
+}
+
 declare void @llvm.prefetch(ptr, i32, i32, i32)
 define void @test_prefetch(ptr %ptr, i32 %arg0, i32 %arg1) {
   ; CHECK: immarg operand has non-immediate parameter
@@ -216,6 +225,15 @@ define void @test_prefetch(ptr %ptr, i32 %arg0, i32 %arg1) {
   ; CHECK-NEXT:  i32 %arg1
   call void @llvm.prefetch(ptr %ptr, i32 %arg0, i32 0, i32 0)
   call void @llvm.prefetch(ptr %ptr, i32 0, i32 %arg1, i32 0)
+  ret void
+}
+
+declare void @llvm.asyncprefetch(ptr, i32, i64)
+define void @test_asyncprefetch(ptr %ptr, i32 %rw, i64 %size) {
+  ; CHECK: immarg operand has non-immediate parameter
+  ; CHECK-NEXT: i32 %rw
+  ; CHECK-NEXT: call void @llvm.asyncprefetch.p0(ptr %ptr, i32 %rw, i64 %size)
+  call void @llvm.asyncprefetch(ptr %ptr, i32 %rw, i64 %size)
   ret void
 }
 

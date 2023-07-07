@@ -595,7 +595,7 @@ def int_asyncprefetch
     : DefaultAttrsIntrinsic<[], [ llvm_anyptr_ty, llvm_i32_ty, llvm_i64_ty ],
                 [IntrInaccessibleMemOrArgMemOnly, IntrWillReturn,
                  ReadOnly<ArgIndex<0>>, NoCapture<ArgIndex<0>>,
-                 ImmArg<ArgIndex<1>>, ImmArg<ArgIndex<2>>]>;
+                 ImmArg<ArgIndex<1>>]>;
 
 def int_pcmarker      : DefaultAttrsIntrinsic<[], [llvm_i32_ty]>;
 
@@ -1256,6 +1256,15 @@ def int_launder_invariant_group : DefaultAttrsIntrinsic<[llvm_anyptr_ty],
 def int_strip_invariant_group : DefaultAttrsIntrinsic<[llvm_anyptr_ty],
                                           [LLVMMatchType<0>],
                                           [IntrSpeculatable, IntrNoMem, IntrWillReturn]>;
+
+// This intrinsic marks some memory as having been used in some way, read,
+// written, allocated or freed. This is used by Kitsune to determine when to
+// move/prefetch data between host and device memory. The intrinsics are
+// intended to be inserted after the memory in question has been accessed. 
+def int_memory_used : DefaultAttrsIntrinsic<[],
+    [llvm_anyptr_ty, llvm_i32_ty, llvm_i32_ty, llvm_i64_ty, llvm_i64_ty],
+    [IntrInaccessibleMemOrArgMemOnly, IntrWillReturn,
+     ReadOnly<ArgIndex<0>>, NoCapture<ArgIndex<0>>, ImmArg<ArgIndex<1>>]>;
 
 //===------------------------ Stackmap Intrinsics -------------------------===//
 //
