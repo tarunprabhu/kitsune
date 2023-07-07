@@ -192,7 +192,7 @@ public:
     return Expression;
   }
 
-  bool hasSjLjLowering() const override; 
+  bool hasSjLjLowering() const override;
 
   int getEHDataRegisterNumber(unsigned RegNo) const override;
 
