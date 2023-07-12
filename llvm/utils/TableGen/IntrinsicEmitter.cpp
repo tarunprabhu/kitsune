@@ -631,7 +631,7 @@ void IntrinsicEmitter::EmitAttributes(const CodeGenIntrinsicTable &Ints,
         Intrinsic.isNoDuplicate || Intrinsic.isNoMerge ||
         Intrinsic.isConvergent || Intrinsic.isSpeculatable ||
         Intrinsic.isStrictFP || Intrinsic.isInjective || 
-        Intrinsic.isStrandPure || Intrinsic.isReducerRegister || 
+        Intrinsic.isStrandPure || Intrinsic.isReducerRegister ||
         Intrinsic.isReducerUnregister || Intrinsic.isHyperView ||
         Intrinsic.isHyperToken) {
       unsigned ID = UniqFnAttributes.find(&Intrinsic)->second;
