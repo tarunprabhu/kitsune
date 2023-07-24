@@ -303,7 +303,7 @@ static void appendToGlobalArray(const char *Array, Module &M, Constant *C,
   CSVals[2] = Data ? ConstantExpr::getPointerCast(Data, IRB.getInt8PtrTy())
                    : Constant::getNullValue(IRB.getInt8PtrTy());
   Constant *RuntimeCtorInit =
-      ConstantStruct::get(EltTy, makeArrayRef(CSVals, EltTy->getNumElements()));
+      ConstantStruct::get(EltTy, ArrayRef(CSVals, EltTy->getNumElements()));
 
   CurrentCtors.push_back(RuntimeCtorInit);
 
@@ -375,14 +375,14 @@ static std::string PTXVersionFromCudaVersion() {
 
 // Some named values to make optimization levels a bit
 // easier to read in the code.
-const unsigned OptLevel0 = 0;
-const unsigned OptLevel1 = 1;
-const unsigned OptLevel2 = 2;
-const unsigned OptLevel3 = 3;
+static const unsigned OptLevel0 = 0;
+static const unsigned OptLevel1 = 1;
+static const unsigned OptLevel2 = 2;
+static const unsigned OptLevel3 = 3;
 // Code size.
-const unsigned SizeLevel0 = 0;
-const unsigned SizeLevel1 = 1;
-const unsigned SizeLevel2 = 2;
+static const unsigned SizeLevel0 = 0;
+static const unsigned SizeLevel1 = 1;
+static const unsigned SizeLevel2 = 2;
 
 // NOTES: From the NVPTX target documentation.
 //  (See: https://llvm.org/docs/NVPTXUsage.html)
@@ -742,22 +742,11 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
   // Clone global variables (TODO: and aliases).
   for (GlobalValue *V : UsedGlobalValues) {
     if (GlobalVariable *GV = dyn_cast<GlobalVariable>(V)) {
-      // TODO: Make sure this logic makes sense...
-      // We don't necessarily need a GPU-side clone of a
-      // global variable -- instead we need a location where
-      // we can copy symbol information over from the host.
-      GlobalValue::LinkageTypes LinkType;
-
-      if (GV->hasInitializer())
-        LinkType = GlobalValue::InternalLinkage;
-      else
-        LinkType = GlobalValue::ExternalLinkage;
       GlobalVariable *NewGV = nullptr;
-      // If GV is a constant we can clone the entire
-      // variable over, including the initalizer
-      // details, and deal with it as an internal
-      // variable (i.e., no need to coordinate with
-      // host).  TODO: make sure this is sound!
+      // If GV is a constant we can clone the entire variable over, including
+      // the initializer details, and deal with it as an internal variable
+      // (i.e., no need to coordinate with host).
+      // TODO: make sure this is sound!
       if (GV->isConstant())
         NewGV = new GlobalVariable(
             KernelModule, GV->getValueType(), /* isConstant*/ true,
@@ -765,11 +754,9 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
             GV->getName() + "_devvar", (GlobalVariable *)nullptr,
             GlobalValue::NotThreadLocal);
       else {
-        // If GV is non-constant we will need to
-        // create a device-side version that will
-        // have the host-side value copied over
-        // prior to launching the cooresponding
-        // kernel...
+        // If GV is non-constant we will need to create a device-side version
+        // that will have the host-side value copied over prior to launching the
+        // corresponding kernel...
         NewGV = new GlobalVariable(
             KernelModule, GV->getValueType(), /* isConstant*/ false,
             GlobalValue::ExternalWeakLinkage,
@@ -1968,7 +1955,7 @@ void CudaABI::registerFatbinary(GlobalVariable *Fatbinary) {
       new GlobalVariable(M, WrapperTy, true, GlobalValue::InternalLinkage,
                          WrapperS, "_cuabi_wrapper");
   Wrapper->setSection(FATBIN_CONTROL_SECTION_NAME);
-  Wrapper->setAlignment(Align(DL.getPrefTypeAlignment(Wrapper->getType())));
+  Wrapper->setAlignment(DL.getPrefTypeAlign(Wrapper->getType()));
 
   // The rest of the registration details are tucked into a constructor
   // entry...
@@ -2054,7 +2041,7 @@ CudaABIOutputFile CudaABI::generatePTX() {
                                             false))
     report_fatal_error("Cuda ABI transform -- PTX generation failed!");
   PassMgr.run(KM);
-  return std::move(PTXFile);
+  return PTXFile;
 }
 
 void CudaABI::postProcessModule() {

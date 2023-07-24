@@ -233,11 +233,11 @@ Value *getThreadID(Function *F, IRBuilder<> &IRBuilder) {
     auto ThreadIDAddrs =
         IRBuilder.CreateLoad(Alloca->getAllocatedType(), Alloca);
     ThreadIDAddrs->setAlignment(
-        Align(DL.getPrefTypeAlignment(ThreadIDAddrs->getType())));
+        Align(DL.getPrefTypeAlign(ThreadIDAddrs->getType())));
     ThreadID = IRBuilder.CreateLoad(
         ThreadIDAddrs->getType()->getPointerElementType(), ThreadIDAddrs);
     ((LoadInst *)ThreadID)
-        ->setAlignment(Align(DL.getPrefTypeAlignment(ThreadID->getType())));
+        ->setAlignment(Align(DL.getPrefTypeAlign(ThreadID->getType())));
     auto &Elem = OpenMPThreadIDLoadMap.FindAndConstruct(F);
     Elem.second = ThreadID;
     return ThreadID;

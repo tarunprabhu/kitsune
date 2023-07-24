@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/IR/AttributeMask.h"
 #include "llvm/IR/DebugInfo.h"

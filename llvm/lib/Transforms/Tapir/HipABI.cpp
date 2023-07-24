@@ -415,7 +415,7 @@ void HipABI::transformConstants(Function *Fn) {
             new AddrSpaceCastInst(NewGEP, OldGEP->getType(), "", Call);
         Call->setArgOperand(argNo, asCast);
       } else
-        assert(nullptr && "unexpected use of gep");
+        assert(false && "unexpected use of gep");
     }
     OldGEP->eraseFromParent();
   }
@@ -604,6 +604,10 @@ static std::set<GlobalValue *> &collect(Constant &c,
   return seen;
 }
 
+// The function promoteConstantExprsToInsts is commented out for now because it
+// is not used and generates compiler warnings, but it may be used in the future
+// when global variables are properly supported.
+/*
 static void promoteConstantExprsToInsts(Function &f) {
   using Operand = std::pair<Instruction *, unsigned>;
   std::map<ConstantExpr *, Operand> exprs;
@@ -624,6 +628,7 @@ static void promoteConstantExprsToInsts(Function &f) {
     }
   } while (exprs.size());
 }
+*/
 
 // --- Loop Outliner
 
@@ -637,7 +642,7 @@ Value *HipLoop::emitWorkItemId(IRBuilder<> &Builder, int ItemIndex, int Low,
   LLVMContext &Ctx = KernelModule.getContext();
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   llvm::MDBuilder MDHelper(Ctx);
-  Constant *IndexVal = ConstantInt::get(Int32Ty, ItemIndex, ".x");
+  Constant *IndexVal = ConstantInt::get(Int32Ty, ItemIndex, true);
 
   std::string WIName = "threadIdx.";
   switch (ItemIndex) {
@@ -1181,7 +1186,7 @@ std::unique_ptr<Module> HipABI::loadBCFile(const std::string &BCFile) {
   std::unique_ptr<Module> BCM = parseIRFile(BCFile, SMD, Ctx);
   if (not BCM)
     report_fatal_error("Failed to parse bitcode file!");
-  return std::move(BCM);
+  return BCM;
 }
 
 bool HipABI::linkInModule(std::unique_ptr<Module> &Mod) {
@@ -1374,7 +1379,7 @@ HipABI::HipABI(Module &InputModule)
     TMOptLevel = CodeGenOpt::Level::Less;
   else if (OptLevel == 2)
     TMOptLevel = CodeGenOpt::Level::Default;
-  else if (OptLevel >= 3)
+  else
     TMOptLevel = CodeGenOpt::Level::Aggressive;
   std::string Features = "";
 
@@ -1712,7 +1717,7 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
   PassMgr.run(KernelModule);
   LLVM_DEBUG(dbgs() << "\toptimizations and code gen complete.\n\n");
   LLVM_DEBUG(dbgs() << "\t\tobject file: " << ObjFile->getFilename() << "\n");
-  return std::move(ObjFile);
+  return ObjFile;
 }
 
 HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
@@ -1769,7 +1774,7 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   if (ExecStat != 0)
     report_fatal_error("hipabi: 'ldd' failure - " + StringRef(ErrMsg));
 
-  return std::move(LinkedObjFile);
+  return LinkedObjFile;
 }
 
 HipABIOutputFile HipABI::createBundleFile() {
@@ -1916,10 +1921,6 @@ void HipABI::bindGlobalVariables(Value *Handle, IRBuilder<> &B) {
     std::string DevVarName = HostGV->getName().str() + ".dev_gv";
     GlobalVariable *DevGV = KernelModule.getGlobalVariable(DevVarName);
     assert(DevGV && "unable to find global variable!");
-    PointerType *VoidDevPtrTy =
-        Type::getInt8PtrTy(Ctx, DevGV->getAddressSpace());
-    Value *DevGVAddrCast =
-        B.CreatePointerBitCastOrAddrSpaceCast(DevGV, VoidPtrTy);
     Value *VarName = tapir::createConstantStr(DevVarName, M);
     uint64_t VarSize = DL.getTypeAllocSize(HostGV->getValueType());
     LLVM_DEBUG(dbgs() << "\t\thost global '" << HostGV->getName().str()
@@ -2071,7 +2072,7 @@ void HipABI::registerBundle(GlobalVariable *Bundle) {
                          WrapperS, "__hip_fatbin_wrapper");
   const char *BundleSectionName = ".hipFatBinSegment";
   Wrapper->setSection(BundleSectionName);
-  Wrapper->setAlignment(Align(DL.getPrefTypeAlignment(Wrapper->getType())));
+  Wrapper->setAlignment(DL.getPrefTypeAlign(Wrapper->getType()));
 
   Function *CtorFn = createCtor(Bundle, Wrapper);
   if (CtorFn) {

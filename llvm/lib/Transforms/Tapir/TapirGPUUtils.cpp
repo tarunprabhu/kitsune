@@ -96,7 +96,7 @@ void appendToGlobalCtors(Module &M, Constant *C,
   CSVals[2] = Data ? ConstantExpr::getPointerCast(Data, IRB.getInt8PtrTy())
                    : Constant::getNullValue(IRB.getInt8PtrTy());
   Constant *RuntimeCtorInit =
-      ConstantStruct::get(EltTy, makeArrayRef(CSVals, EltTy->getNumElements()));
+      ConstantStruct::get(EltTy, ArrayRef(CSVals, EltTy->getNumElements()));
 
   CurrentCtors.push_back(RuntimeCtorInit);
 

@@ -1055,27 +1055,88 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
             MPM.addPass(InstrProfiling(*Options, false));
           });
 
-    // Register the Cilksan and CSI passes.
+    // Register the Cilksan pass.
     if (LangOpts.Sanitize.has(SanitizerKind::Cilk))
       PB.registerTapirLateEPCallback(
-          [](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
-            // CilkSanitizer performs significant changes to the CFG before
-            // attempting to analyze and insert instrumentation.  Hence we
-            // invalidate all analysis passes before running CilkSanitizer.
-            MPM.addPass(InvalidateAllAnalysesPass());
+          [&](ModulePassManager &MPM, OptimizationLevel Level) {
+            MPM.addPass(CSISetupPass());
             MPM.addPass(CilkSanitizerPass());
             PB.addPostCilkInstrumentationPipeline(MPM, Level);
           });
-
-    if (LangOpts.ComprehensiveStaticInstrumentation)
-      PB.registerTapirLateEPCallback(
-          [](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
-            // CSI performs significant changes to the CFG before attempting
-            // to analyze and insert instrumentation.  Hence we invalidate all
-            // analysis passes before running CSI.
-            MPM.addPass(InvalidateAllAnalysesPass());
-            MPM.addPass(ComprehensiveStaticInstrumentationPass());
-          });
+    // Register CSI instrumentation for Cilkscale
+    if (LangOpts.getCilktool() != LangOptions::CilktoolKind::Cilktool_None) {
+      switch (LangOpts.getCilktool()) {
+      default:
+        break;
+      case LangOptions::CilktoolKind::Cilktool_Cilkscale:
+        PB.registerTapirLoopEndEPCallback(
+            [&](ModulePassManager &MPM, OptimizationLevel Level) {
+              MPM.addPass(CSISetupPass(getCSIOptionsForCilkscale(false)));
+              MPM.addPass(ComprehensiveStaticInstrumentationPass(
+                  getCSIOptionsForCilkscale(false)));
+              PB.addPostCilkInstrumentationPipeline(MPM, Level);
+            });
+        break;
+      case LangOptions::CilktoolKind::Cilktool_Cilkscale_InstructionCount:
+        PB.registerTapirLoopEndEPCallback(
+            [&](ModulePassManager &MPM, OptimizationLevel Level) {
+              MPM.addPass(CSISetupPass(getCSIOptionsForCilkscale(true)));
+              MPM.addPass(ComprehensiveStaticInstrumentationPass(
+                  getCSIOptionsForCilkscale(true)));
+              PB.addPostCilkInstrumentationPipeline(MPM, Level);
+            });
+        break;
+      case LangOptions::CilktoolKind::Cilktool_Cilkscale_Benchmark:
+          PB.registerTapirLoopEndEPCallback(
+            [&](ModulePassManager &MPM, OptimizationLevel Level) {
+              MPM.addPass(CSISetupPass(getCSIOptionsForCilkscaleBenchmark()));
+              MPM.addPass(ComprehensiveStaticInstrumentationPass(
+                  getCSIOptionsForCilkscaleBenchmark()));
+              PB.addPostCilkInstrumentationPipeline(MPM, Level);
+            });
+        break;
+      }
+    }
+    // Register the CSI pass.
+    if (LangOpts.getComprehensiveStaticInstrumentation()) {
+      switch (LangOpts.getComprehensiveStaticInstrumentation()) {
+      case LangOptions::CSI_EarlyAsPossible:
+      case LangOptions::CSI_ModuleOptimizerEarly:
+        PB.registerPipelineStartEPCallback(
+            [&](ModulePassManager &MPM, OptimizationLevel Level) {
+              MPM.addPass(CSISetupPass());
+              MPM.addPass(ComprehensiveStaticInstrumentationPass());
+              PB.addPostCilkInstrumentationPipeline(MPM, Level);
+            });
+        break;
+      case LangOptions::CSI_TapirLate:
+        PB.registerTapirLateEPCallback(
+            [&](ModulePassManager &MPM, OptimizationLevel Level) {
+              MPM.addPass(CSISetupPass());
+              MPM.addPass(ComprehensiveStaticInstrumentationPass());
+              PB.addPostCilkInstrumentationPipeline(MPM, Level);
+            });
+        break;
+      case LangOptions::CSI_TapirLoopEnd:
+        PB.registerTapirLoopEndEPCallback(
+            [&](ModulePassManager &MPM, OptimizationLevel Level) {
+              MPM.addPass(CSISetupPass());
+              MPM.addPass(ComprehensiveStaticInstrumentationPass());
+              PB.addPostCilkInstrumentationPipeline(MPM, Level);
+            });
+        break;
+      case LangOptions::CSI_OptimizerLast:
+        PB.registerOptimizerLastEPCallback(
+            [&](ModulePassManager &MPM, OptimizationLevel Level) {
+              MPM.addPass(CSISetupPass());
+              MPM.addPass(ComprehensiveStaticInstrumentationPass());
+              PB.addPostCilkInstrumentationPipeline(MPM, Level);
+            });
+        break;
+      case LangOptions::CSI_None:
+        break;
+      }
+    }
 
     // TODO: Consider passing the MemoryProfileOutput to the pass builder via
     // the PGOOptions, and set this up there.

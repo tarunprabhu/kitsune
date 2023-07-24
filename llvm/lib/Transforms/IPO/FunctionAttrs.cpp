@@ -81,11 +81,6 @@ STATISTIC(NumNoUnwind, "Number of functions marked as nounwind");
 STATISTIC(NumNoFree, "Number of functions marked as nofree");
 STATISTIC(NumWillReturn, "Number of functions marked as willreturn");
 STATISTIC(NumNoSync, "Number of functions marked as nosync");
-STATISTIC(NumArgMem, "Number of functions marked as argmemonly");
-STATISTIC(NumInaccessibleMem,
-          "Number of functions marked as inaccessiblememonly");
-STATISTIC(NumInaccessibleMemOrArgMem,
-          "Number of functions marked as inaccessiblemem_or_argmemonly");
 
 STATISTIC(NumThinLinkNoRecurse,
           "Number of functions marked as norecurse during thinlink");

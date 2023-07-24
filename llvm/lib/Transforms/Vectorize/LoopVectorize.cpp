@@ -10280,7 +10280,6 @@ PreservedAnalyses LoopVectorizePass::run(Function &F,
     auto &AC = AM.getResult<AssumptionAnalysis>(F);
     auto &DB = AM.getResult<DemandedBitsAnalysis>(F);
     auto &ORE = AM.getResult<OptimizationRemarkEmitterAnalysis>(F);
-    auto &TI = AM.getResult<TaskAnalysis>(F);
 
     LoopAccessInfoManager &LAIs = AM.getResult<LoopAccessAnalysis>(F);
     auto &MAMProxy = AM.getResult<ModuleAnalysisManagerFunctionProxy>(F);
