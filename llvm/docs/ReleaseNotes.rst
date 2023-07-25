@@ -90,8 +90,11 @@ Changes to TableGen
   * `!repr` bang operator to inspect the content of values, see
      https://github.com/llvm/llvm-project/pull/68716.
 
-Changes to Interprocedural Optimizations
+Changes to Optimizations
 ----------------------------------------
+
+* :ref:`llvm.assume <int_assume>` now recognizes certain
+  floating-point tests. e.g. ``__builtin_assume(!isnan(x))``
 
 Changes to the AArch64 Backend
 ------------------------------
