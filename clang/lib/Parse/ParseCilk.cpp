@@ -235,7 +235,7 @@ StmtResult Parser::ParseCilkForStatement(SourceLocation *TrailingElseLoc) {
 
     ForRangeInfo.LoopVar = Actions.ActOnCXXForRangeIdentifier(
         getCurScope(), Loc, Name, attrs);
-  } else if (isForInitDeclaration()) {  // _Cilk_for (int X = 4;
+  } else if (isForInitDeclaration()) { // _Cilk_for (int X = 4;
     ParenBraceBracketBalancer BalancerRAIIObj(*this);
 
     // Parse declaration, which eats the ';'.

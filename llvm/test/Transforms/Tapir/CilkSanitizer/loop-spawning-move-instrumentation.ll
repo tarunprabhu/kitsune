@@ -1,4 +1,3 @@
-; RUN: opt < %s -enable-new-pm=0 -loop-spawning-ti -S -o - | FileCheck %s
 ; RUN: opt < %s -passes='loop-spawning' -S -o - | FileCheck %s
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
@@ -420,7 +419,7 @@ cleanup:                                          ; preds = %pfor.cond.cleanup, 
   ret i64 %sum.0.load21
 }
 
-; CHECK-LABEL: define private fastcc void @_Z11accum_wrongPKll.outline_pfor.cond.ls1(
+; CHECK-LABEL: define internal fastcc void @_Z11accum_wrongPKll.outline_pfor.cond.ls1(
 
 ; CHECK: call void @__csan_detach(
 ; CHECK: call void @__csan_task(
@@ -637,7 +636,7 @@ csi.cleanup:                                      ; preds = %entry
   resume { i8*, i32 } %csi.cleanup.lpad
 }
 
-; CHECK-LABEL: define private fastcc void @_Z13accum_reducerPKll.outline_pfor.cond.ls1(
+; CHECK-LABEL: define internal fastcc void @_Z13accum_reducerPKll.outline_pfor.cond.ls1(
 
 ; CHECK: call void @__csan_detach(
 ; CHECK: call void @__csan_task(

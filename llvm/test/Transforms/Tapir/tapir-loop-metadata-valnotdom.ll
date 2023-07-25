@@ -1,4 +1,3 @@
-; RUN: opt < %s -enable-new-pm=0 -loop-spawning-ti -S -o - | FileCheck %s
 ; RUN: opt < %s -passes='loop-spawning' -S -o - | FileCheck %s
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
@@ -593,7 +592,7 @@ pfor.cond.cleanup:                                ; preds = %pfor.inc
   unreachable
 }
 
-; CHECK-LABEL: define private fastcc void @_Z19readGraphFromBinaryI16asymmetricVertexE5graphIT_EPcb.outline_pfor.cond.ls1(i64 %{{.+}}, i64 %{{.+}}, i64 %{{.+}}) unnamed_addr
+; CHECK-LABEL: define internal fastcc void @_Z19readGraphFromBinaryI16asymmetricVertexE5graphIT_EPcb.outline_pfor.cond.ls1(i64 %{{.+}}, i64 %{{.+}}, i64 %{{.+}}) unnamed_addr
 ; CHECK: pfor.body.ls1:
 ; CHECK-NOT: call void @llvm.dbg.value(metadata i64 %{{.+}},
 

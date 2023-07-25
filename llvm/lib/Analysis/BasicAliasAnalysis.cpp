@@ -1497,8 +1497,8 @@ static inline bool isPureSet(const TapirFnBehavior TFB) {
 }
 static inline bool isViewSet(const TapirFnBehavior TFB) {
   return (static_cast<uint8_t>(TFB) &
-          static_cast<uint8_t>(TapirFnBehavior::Pure)) ==
-         static_cast<uint8_t>(TapirFnBehavior::Pure);
+          static_cast<uint8_t>(TapirFnBehavior::View)) ==
+         static_cast<uint8_t>(TapirFnBehavior::View);
 }
 static inline bool isInjectiveOrPureOrViewSet(const TapirFnBehavior TFB) {
   return static_cast<uint8_t>(TFB) &
@@ -1549,7 +1549,7 @@ static const Value *getRecognizedArgument(const Value *V, bool InSameSpindle,
   if (!C)
     return nullptr;
   unsigned NumOperands = C->getNumOperands();
-  if (NumOperands != 2)
+  if (NumOperands != 2 && NumOperands != 5)
     return nullptr;
   for (auto E : TapirFnAttrTable) {
     if (C->hasFnAttr(E.first))
@@ -1668,8 +1668,9 @@ BasicAAResult::checkInjectiveArguments(const Value *V1, const Value *O1,
         DecomposeGEPExpression(A2, DL, &AC, DT);
     if (DecompGEP1.VarIndices.empty() && DecompGEP2.VarIndices.empty() &&
         isValueEqualInPotentialCycles(DecompGEP1.Base, DecompGEP2.Base, AAQI))
-      return DecompGEP1.Offset == DecompGEP2.Offset ?
-          Equal : AliasResult(AliasResult::NoAlias);
+      return DecompGEP1.Offset == DecompGEP2.Offset
+                 ? Equal
+                 : AliasResult(AliasResult::NoAlias);
     return AliasResult::MayAlias;
   }
 

@@ -129,8 +129,7 @@ bool DRFScopedNoAliasImpl::populateTaskScopeNoAliasInBlock(
         continue;
 
       IsFuncCall = true;
-      MemoryEffects ME = AA.getMemoryEffects(ICS);
-      if (ME.onlyAccessesArgPointees())
+      if (ICS->onlyAccessesArgMemory())
         IsArgMemOnlyCall = true;
 
       for (Value *Arg : ICS->args()) {

@@ -536,11 +536,13 @@ class FunctionDifferenceEngine {
       const DetachInst *LI = cast<DetachInst>(L);
       const DetachInst *RI = cast<DetachInst>(R);
       if (!equivalentAsOperands(LI->getSyncRegion(), RI->getSyncRegion(), AC)) {
-        if (Complain) Engine.log("detach sync regions differ");
+        if (Complain)
+          Engine.log("detach sync regions differ");
         return true;
       }
       if (LI->hasUnwindDest() != RI->hasUnwindDest()) {
-        if (Complain) Engine.log("unwind destinations of detaches differ");
+        if (Complain)
+          Engine.log("detaches differ in having unwind destinations");
         return true;
       }
       if (TryUnify) {
@@ -555,7 +557,8 @@ class FunctionDifferenceEngine {
       const ReattachInst *LI = cast<ReattachInst>(L);
       const ReattachInst *RI = cast<ReattachInst>(R);
       if (!equivalentAsOperands(LI->getSyncRegion(), RI->getSyncRegion(), AC)) {
-        if (Complain) Engine.log("reattach sync regions differ");
+        if (Complain)
+          Engine.log("reattach sync regions differ");
         return true;
       }
       if (TryUnify)
@@ -567,7 +570,8 @@ class FunctionDifferenceEngine {
       const SyncInst *LI = cast<SyncInst>(L);
       const SyncInst *RI = cast<SyncInst>(R);
       if (!equivalentAsOperands(LI->getSyncRegion(), RI->getSyncRegion(), AC)) {
-        if (Complain) Engine.log("sync-instruction sync regions differ");
+        if (Complain)
+          Engine.log("sync-instruction sync regions differ");
         return true;
       }
       if (TryUnify)

@@ -103,8 +103,8 @@ do.body.i.i.i:                                    ; preds = %_ZN4pbbs14list_allo
   ret void
 
 ; CHECK: do.body.i.i.i:
-; CHECK: @__csan_load(i64 %{{.+}}, ptr getelementptr inbounds (%"class.pbbs::concurrent_stack.3", ptr @_ZN4pbbs14list_allocatorIN4gbbs13em_data_blockEE12global_stackE, i64 0, i32 1), i32 8
-; CHECK-NEXT: %oldHead.sroa.0.0.copyload.i.i.i = load ptr, ptr getelementptr inbounds (%"class.pbbs::concurrent_stack.3", ptr @_ZN4pbbs14list_allocatorIN4gbbs13em_data_blockEE12global_stackE, i64 0, i32 1)
+; CHECK: @__csan_load(i64 %{{.+}}, ptr getelementptr inbounds (%"class.pbbs::concurrent_stack.3", ptr @_ZN4pbbs14list_allocatorIN4gbbs13em_data_blockEE12global_stackE, i64 0, i32 1),
+; CHEK-NEXT: %oldHead.sroa.5.0.copyload.i.i.i = load ptr, ptr getelementptr inbounds ("class.pbbs::concurrent_stack.3", ptr @_ZN4pbbs14list_allocatorIN4gbbs13em_data_blockEE12global_stackE, i64 0, i32 1),
 
 if.else13:                                        ; preds = %det.cont, %entry
   %sub67 = phi i64 [ %sub6, %det.cont ], [ %sub64, %entry ]

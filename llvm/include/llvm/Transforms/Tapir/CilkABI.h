@@ -24,7 +24,6 @@ class TapirLoopInfo;
 class CilkABI : public TapirTarget {
   ValueToValueMapTy DetachCtxToStackFrame;
   SmallPtrSet<CallBase *, 8> CallsToInline;
-  LoopOutlineProcessor *LOP = nullptr;
 
   // Cilk RTS data types
   StructType *PedigreeTy = nullptr;
@@ -110,7 +109,7 @@ public:
   ArgStructMode getArgStructMode() const override final;
   void addHelperAttributes(Function &F) override final;
 
-  void preProcessFunction(Function &F, TaskInfo &TI,
+  bool preProcessFunction(Function &F, TaskInfo &TI,
                           bool ProcessingTapirLoops) override final;
   void postProcessFunction(Function &F,
                            bool ProcessingTapirLoops) override final;
@@ -128,7 +127,7 @@ public:
                           DominatorTree &DT) override final;
 
   LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
+  getLoopOutlineProcessor(const TapirLoopInfo *TL) const override final;
 };
 } // namespace llvm
 

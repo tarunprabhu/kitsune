@@ -37,7 +37,7 @@ TargetTransformInfo::StripMiningPreferences gatherStripMiningPreferences(
     std::optional<unsigned> UserCount);
 
 bool computeStripMineCount(Loop *L, const TargetTransformInfo &TTI,
-                           int64_t LoopCost,
+                           InstructionCost LoopCost,
                            TargetTransformInfo::StripMiningPreferences &UP);
 
 Loop *StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,

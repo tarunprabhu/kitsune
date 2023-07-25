@@ -163,7 +163,7 @@ void derived_class() {
   // CHECK: detach within %[[SYNCREG:.+]], label %[[DETACHED:.+]], label %[[CONTINUE:.+]] unwind label %[[TFLPAD:.+]]
   // CHECK: [[DETACHED]]:
   // CHECK: call void @llvm.taskframe.use(token %[[TASKFRAME]])
-   // CHECK-O1-NEXT: call void @llvm.lifetime.start.p0(i64 16, ptr nonnull %[[REFTMP]])
+  // CHECK-O1-NEXT: call void @llvm.lifetime.start.p0(i64 16, ptr nonnull %[[REFTMP]])
   // CHECK: invoke void @_Z8makeDBarv(ptr {{.*}}sret(%class.DBar) {{.*}}%[[REFTMP]])
   // CHECK-NEXT: to label %[[INVOKECONT:.+]] unwind label %[[DETLPAD:.+]]
   // CHECK: [[INVOKECONT]]:
@@ -244,7 +244,7 @@ void derived_class() {
   // CHECK: [[TFLPAD2]]:
   // CHECK-NEXT: landingpad
   // CHECK-NEXT: cleanup
-  // CHECK-O1: invoke void @llvm.taskframe.resume.sl_p0i32s(token %[[TASKFRAME2]],
+  // CHECK-O1-NEXT: invoke void @llvm.taskframe.resume.sl_p0i32s(token %[[TASKFRAME2]],
   // CHECK-O1-NEXT: to label %[[UNREACHABLE]] unwind
 
   // CHECK: [[DETLPAD2]]:
@@ -426,7 +426,6 @@ void array_out() {
   Bar ArrBar[5];
   // ArrBar[0] = makeBazFromBar((Bar()));
   ArrBar[1] = _Cilk_spawn makeBazFromBar((Bar()));
-  // CHECK: %[[ListBar2:.+]] = alloca [3 x %class.Bar]
   // CHECK: %[[TASKFRAME:.+]] = call token @llvm.taskframe.create()
   // CHECK: %[[AGGTMP2:.+]] = alloca %class.Bar
   // CHECK: %[[REFTMP:.+]] = alloca %class.Baz
@@ -453,24 +452,24 @@ void array_out() {
   // CHECK-O1-NEXT: call void @llvm.lifetime.end.p0(i64 1, ptr nonnull %[[REFTMP]])
   // CHECK-NEXT: call void @_ZN3BarD1Ev(ptr {{.*}}dereferenceable(16) %[[AGGTMP]])
   // CHECK-NEXT: reattach within %[[SYNCREG]], label %[[CONTINUE]]
-  // CHECL: [[CONTINUE]]:
+  // CHECK: [[CONTINUE]]:
 
   // List initialization
   // Bar ListBar1[3] = { Bar(), makeBar(), makeBazFromBar((Bar())) };
   Bar ListBar2[3] = { _Cilk_spawn Bar(), _Cilk_spawn makeBar(), _Cilk_spawn makeBazFromBar((Bar())) };
-  // CHECK-O0: %[[ARRIDX0:.+]] = getelementptr inbounds [3 x %class.Bar], ptr %ListBar2, i64 0, i64 0
+  // CHECK-O0: %[[ARRIDX2:.+]] = getelementptr inbounds [3 x %class.Bar], ptr %[[LISTBAR2:.+]], i64 0, i64 0
   // CHECK: %[[TASKFRAME2:.+]] = call token @llvm.taskframe.create()
   // CHECK: detach within %[[SYNCREG]], label %[[DETACHED2:.+]], label %[[CONTINUE2:.+]] unwind label %[[TFLPAD2:.+]]
   // CHECK: [[DETACHED2]]:
-  // CHECK-O0: invoke void @_ZN3BarC1Ev(ptr {{.*}}dereferenceable(16) %[[ARRIDX0]])
-  // CHECK-O1: invoke void @_ZN3BarC1Ev(ptr {{.*}}dereferenceable(16) %[[ListBar2]])
+  // CHECK-O0: invoke void @_ZN3BarC1Ev(ptr {{.*}}dereferenceable(16) %[[ARRIDX2]])
+  // CHECK-O1: invoke void @_ZN3BarC1Ev(ptr {{.*}}dereferenceable(16) %[[LISTBAR2:.+]])
   // CHECK-NEXT: to label %[[INVOKECONT5:.+]] unwind label %[[DETLPAD2:.+]]
   // CHECK: [[INVOKECONT5]]:
   // CHECK-NEXT: reattach within %[[SYNCREG]], label %[[CONTINUE2]]
   // CHECK: [[CONTINUE2]]:
 
-  // CHECK-O0: %[[ARRIDX3:.+]] = getelementptr inbounds %class.Bar, ptr %[[ARRIDX0]], i64 1
-  // CHECK-O1: %[[ARRIDX3:.+]] = getelementptr inbounds %class.Bar, ptr %[[ListBar2]], i64 1
+  // CHECK-O0: %[[ARRIDX3:.+]] = getelementptr inbounds %class.Bar, ptr %[[ARRIDX2]], i64 1
+  // CHECK-O1: %[[ARRIDX3:.+]] = getelementptr inbounds %class.Bar, ptr %[[LISTBAR2]], i64 1
   // CHECK: %[[TASKFRAME3:.+]] = call token @llvm.taskframe.create()
   // CHECK: detach within %[[SYNCREG]], label %[[DETACHED3:.+]], label %[[CONTINUE3:.+]] unwind label %[[TFLPAD3:.+]]
   // CHECK: [[DETACHED3]]:
@@ -480,7 +479,7 @@ void array_out() {
   // CHECK-NEXT: reattach within %[[SYNCREG]], label %[[CONTINUE3]]
 
   // CHECK-O0: %[[ARRIDX4:.+]] = getelementptr inbounds %class.Bar, ptr %[[ARRIDX3]], i64 1
-  // CHECK-O1: %[[ARRIDX4:.+]] = getelementptr inbounds %class.Bar, ptr %[[ListBar2]], i64 2
+  // CHECK-O1: %[[ARRIDX4:.+]] = getelementptr inbounds %class.Bar, ptr %[[LISTBAR2]], i64 2
   // CHECK-O0: %[[TASKFRAME4:.+]] = call token @llvm.taskframe.create()
   // CHECK: %[[REFTMP2:.+]] = alloca %class.Baz
   // CHECK: %[[AGGTMP3:.+]] = alloca %class.Bar

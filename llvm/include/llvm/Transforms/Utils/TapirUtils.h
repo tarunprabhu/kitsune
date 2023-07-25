@@ -88,6 +88,9 @@ bool removeDeadSyncUnwind(CallBase *SyncUnwind, DomTreeUpdater *DTU = nullptr);
 bool ReattachMatchesDetach(const ReattachInst *RI, const DetachInst *DI,
                            DominatorTree *DT = nullptr);
 
+/// Returns true of the given task itself contains a sync instruction.
+bool taskContainsSync(const Task *T);
+
 /// Move static allocas in Block into Entry, which is assumed to dominate Block.
 /// Leave lifetime markers behind in Block and before each instruction in
 /// ExitPoints for those static allocas.  Returns true if Block still contains
@@ -124,6 +127,7 @@ void SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
                      SmallPtrSetImpl<BasicBlock *> *EHBlockPreds,
                      SmallPtrSetImpl<LandingPadInst *> *InlinedLPads,
                      SmallVectorImpl<Instruction *> *DetachedRethrows,
+                     bool ReplaceWithTaskFrame = false,
                      DominatorTree *DT = nullptr, LoopInfo *LI = nullptr);
 
 /// Analyze a task T for serialization.  Gets the reattaches, landing pads, and
@@ -137,12 +141,8 @@ void AnalyzeTaskForSerialization(
 
 /// Serialize the detach DI that spawns task T.  If \p DT is provided, then it
 /// will be updated to reflect the CFG changes.
-void SerializeDetach(DetachInst *DI, Task *T, DominatorTree *DT = nullptr);
-
-/// Serialize the sub-CFG detached by the specified detach
-/// instruction.  Removes the detach instruction and returns a pointer
-/// to the branch instruction that replaces it.
-BranchInst *SerializeDetachedCFG(DetachInst *DI, DominatorTree *DT = nullptr);
+void SerializeDetach(DetachInst *DI, Task *T, bool ReplaceWithTaskFrame = false,
+                     DominatorTree *DT = nullptr);
 
 /// Get the entry basic block to the detached context that contains
 /// the specified block.
@@ -212,8 +212,10 @@ void fixupTaskFrameExternalUses(Spindle *TF, const TaskInfo &TI,
                                 const DominatorTree &DT);
 
 /// FindTaskFrameCreateInBlock - Return the taskframe.create intrinsic in \p BB,
-/// or nullptr if no taskframe.create intrinsic exists in \p BB.
-Instruction *FindTaskFrameCreateInBlock(BasicBlock *BB);
+/// or nullptr if no taskframe.create intrinsic exists in \p BB.  If specified,
+/// ignores TFToIgnore when scanning for a taskframe.create.
+Instruction *FindTaskFrameCreateInBlock(BasicBlock *BB,
+                                        const Value *TFToIgnore = nullptr);
 
 /// CreateSubTaskUnwindEdge - Create a landingpad for the exit of a taskframe or
 /// task.
@@ -245,7 +247,6 @@ public:
   enum SpawningStrategy {
     ST_SEQ,
     ST_DAC,
-    ST_OCL,
     ST_END,
   };
 
@@ -287,12 +288,9 @@ public:
       return "Spawn iterations sequentially";
     case TapirLoopHints::ST_DAC:
       return "Use divide-and-conquer";
-    case TapirLoopHints::ST_OCL:
-      return "Use opencl";
     case TapirLoopHints::ST_END:
       return "Unknown";
     }
-    return "Unknown";
   }
 
   TapirLoopHints(const Loop *L)

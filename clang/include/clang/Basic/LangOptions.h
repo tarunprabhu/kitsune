@@ -395,8 +395,6 @@ public:
     CSI_TapirLate,
     CSI_TapirLoopEnd
   };
-public:
-  TapirTargetID Tapir = TapirTargetID::Last_TapirTargetID;
 
   enum CilktoolKind {
     // No Cilktool

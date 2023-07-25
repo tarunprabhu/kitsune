@@ -15,6 +15,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/Support/ModRef.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
@@ -122,7 +123,8 @@ void RuntimeCilkFor::postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
   // function.
   if (getArgStructMode() != ArgStructMode::None) {
     Helper->removeFnAttr(Attribute::WriteOnly);
-    Helper->removeFnAttr(Attribute::Memory);
+    Helper->setMemoryEffects(
+        MemoryEffects(MemoryEffects::Location::Other, ModRefInfo::ModRef));
   }
 }
 
@@ -252,8 +254,8 @@ void RuntimeCilkFor::processOutlinedLoopCall(TapirLoopInfo &TL,
   SpawnHelper->setCallingConv(CallingConv::Fast);
   // Note that the address of the helper is unimportant.
   SpawnHelper->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
-  // The helper is private to this module.
-  SpawnHelper->setLinkage(GlobalValue::PrivateLinkage);
+  // The helper is internal to this module.
+  SpawnHelper->setLinkage(GlobalValue::InternalLinkage);
 
   // Add alignment assumptions to arguments of helper, based on alignment of
   // values in old function.

@@ -437,8 +437,7 @@ LLVM_ATTRIBUTE_UNUSED static void
 checkClobberSanity(const MemoryAccess *Start, MemoryAccess *ClobberAt,
                    const MemoryLocation &StartLoc, const MemorySSA &MSSA,
                    const UpwardsMemoryQuery &Query, BatchAAResults &AA,
-                   TaskInfo *TI = nullptr,
-                   bool AllowImpreciseClobber = false) {
+                   TaskInfo *TI = nullptr, bool AllowImpreciseClobber = false) {
   assert(MSSA.dominates(ClobberAt, Start) && "Clobber doesn't dominate start?");
 
   if (MSSA.isLiveOnEntryDef(Start)) {
@@ -965,7 +964,7 @@ class ClobberWalker {
 
 public:
   ClobberWalker(const MemorySSA &MSSA, DominatorTree &DT, TaskInfo *TI)
-    : MSSA(MSSA), DT(DT), TI(TI) {}
+      : MSSA(MSSA), DT(DT), TI(TI) {}
 
   /// Finds the nearest clobber for the given query, optimizing phis if
   /// possible.
@@ -1032,8 +1031,8 @@ class MemorySSA::ClobberWalkerBase {
   MemorySSA *MSSA;
 
 public:
-  ClobberWalkerBase(MemorySSA *M, DominatorTree *D,
-                    TaskInfo *TI) : Walker(*M, *D, TI), MSSA(M) {}
+  ClobberWalkerBase(MemorySSA *M, DominatorTree *D, TaskInfo *TI)
+      : Walker(*M, *D, TI), MSSA(M) {}
 
   MemoryAccess *getClobberingMemoryAccessBase(MemoryAccess *,
                                               const MemoryLocation &,
@@ -1328,7 +1327,7 @@ class MemorySSA::OptimizeUses {
 public:
   OptimizeUses(MemorySSA *MSSA, CachingWalker *Walker, BatchAAResults *BAA,
                DominatorTree *DT, TaskInfo *TI)
-    : MSSA(MSSA), Walker(Walker), AA(BAA), DT(DT), TI(TI) {}
+      : MSSA(MSSA), Walker(Walker), AA(BAA), DT(DT), TI(TI) {}
 
   void optimizeUses();
 

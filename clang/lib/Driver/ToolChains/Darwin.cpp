@@ -523,8 +523,6 @@ static void renderRemarksOptions(const ArgList &Args, ArgStringList &CmdArgs,
   }
 }
 
-static void AppendPlatformPrefix(SmallString<128> &Path, const llvm::Triple &T);
-
 static void renderTapirLoweringOptions(const ArgList &Args,
                                        ArgStringList &CmdArgs,
                                        const ToolChain &TC,
@@ -545,6 +543,8 @@ static void renderTapirLoweringOptions(const ArgList &Args,
       CmdArgs.push_back("--tapir-target=cilkplus");
   }
 }
+
+static void AppendPlatformPrefix(SmallString<128> &Path, const llvm::Triple &T);
 
 void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
                                   const InputInfo &Output,
@@ -3319,11 +3319,6 @@ SanitizerMask Darwin::getSupportedSanitizers() const {
        isTargetTvOSSimulator() || isTargetWatchOSSimulator())) {
     Res |= SanitizerKind::Thread;
     Res |= SanitizerKind::Cilk;
-  } else if (isTargetIOSSimulator() || isTargetTvOSSimulator()) {
-    if (IsX86_64) {
-      Res |= SanitizerKind::Thread;
-      Res |= SanitizerKind::Cilk;
-    }
   }
   return Res;
 }
@@ -3497,7 +3492,6 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
                            !StaticOpenCilk);
     break;
   }
-  /*
   case TapirTargetID::Cilk:
     CmdArgs.push_back("-lcilkrts");
     break;
@@ -3511,7 +3505,6 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
     CmdArgs.push_back("-lrealm-abi");
     CmdArgs.push_back("-lrealm");
     break;
-  */
   default:
     break;
   }

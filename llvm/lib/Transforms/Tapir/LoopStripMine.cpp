@@ -177,7 +177,7 @@ static unsigned StripMineCountPragmaValue(const Loop *L) {
 // Returns true if stripmine count was set explicitly.
 // Calculates stripmine count and writes it to SMP.Count.
 bool llvm::computeStripMineCount(
-    Loop *L, const TargetTransformInfo &TTI, int64_t LoopCost,
+    Loop *L, const TargetTransformInfo &TTI, InstructionCost LoopCost,
     TargetTransformInfo::StripMiningPreferences &SMP) {
   // Check for explicit Count.
   // 1st priority is stripmine count set by "stripmine-count" option.
@@ -210,11 +210,11 @@ bool llvm::computeStripMineCount(
   // Solving for G yeilds G >= d/(\eps * S).  Substituting in \eps = 1/C for a
   // given coarsening factor C gives the equation below.
   Instruction *DetachI = L->getHeader()->getTerminator();
-  SMP.Count =
-      *((SMP.DefaultCoarseningFactor *
-         TTI.getInstructionCost(DetachI, TargetTransformInfo::TCK_SizeAndLatency) /
-         LoopCost)
-            .getValue());
+  SMP.Count = *((SMP.DefaultCoarseningFactor *
+                 TTI.getInstructionCost(
+                     DetachI, TargetTransformInfo::TCK_SizeAndLatency) /
+                 LoopCost)
+                    .getValue());
 
   return false;
 }
@@ -1009,6 +1009,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
   // Analyze the original task for serialization.
   AnalyzeTaskForSerialization(T, Reattaches, EHBlocksToClone, EHBlockPreds,
                               InlinedLPads, DetachedRethrows);
+  bool NeedToInsertTaskFrame = taskContainsSync(T);
 
   // If this detach can throw, get the exceptional continuation of the detach
   // and its associated landingpad value.
@@ -1044,7 +1045,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
                       ExtraTaskBlocks, SharedEHTaskBlocks, VMap, DT, LI);
 
   // Insert the cloned blocks into the function.
-  F->splice(InsertBot->getIterator(), F, NewBlocks[0]->getIterator(),
+  F->splice(InsertBot->getIterator(), &*F, NewBlocks[0]->getIterator(),
             F->end());
 
   // Loop structure should be the following:
@@ -1101,7 +1102,8 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
     // Serialize the new task.
     SerializeDetach(ClonedDI, ParentEntry, EHCont, EHContLPadVal,
                     ClonedReattaches, &ClonedEHBlocks, &ClonedEHBlockPreds,
-                    &ClonedInlinedLPads, &ClonedDetachedRethrows, DT, LI);
+                    &ClonedInlinedLPads, &ClonedDetachedRethrows,
+                    NeedToInsertTaskFrame, DT, LI);
   }
 
   // Detach the stripmined loop.

@@ -38,7 +38,7 @@ public:
   void lowerSync(SyncInst &SI) override final;
 
   void addHelperAttributes(Function &F) override final;
-  void preProcessFunction(Function &F, TaskInfo &TI,
+  bool preProcessFunction(Function &F, TaskInfo &TI,
                           bool OutliningTapirLoops) override final;
   void postProcessFunction(Function &F, bool OutliningTapirLoops) override final;
   void postProcessHelper(Function &F) override final;
@@ -195,7 +195,7 @@ public:
                            ValueToValueMapTy &VMap) override;
   void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo & Out,
                           ValueToValueMapTy &VMap) override final;
-  void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo & TOI,
+  void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
                                DominatorTree &DT) override final;
   void transformForPTX(Function &F);
 

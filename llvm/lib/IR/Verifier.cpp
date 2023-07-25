@@ -559,6 +559,7 @@ private:
 
   void verifyTask(const DetachInst *DI);
   void visitDetachInst(DetachInst &DI);
+  void visitReattachInst(ReattachInst &RI);
 
   void verifySwiftErrorCall(CallBase &Call, const Value *SwiftErrorVal);
   void verifySwiftErrorValue(const Value *SwiftErrorVal);
@@ -2968,9 +2969,9 @@ void Verifier::verifyTask(const DetachInst *DI) {
 
     if (const ReattachInst *RI = dyn_cast<ReattachInst>(BB->getTerminator())) {
       Check(DI->getSyncRegion() == RI->getSyncRegion(),
-             "Mismatched sync regions between detach and reattach", DI, RI);
+            "Mismatched sync regions between detach and reattach", DI, RI);
       Check(RI->getDetachContinue() == DI->getContinue(),
-             "Mismatched continuations between detach and reattach", DI, RI);
+            "Mismatched continuations between detach and reattach", DI, RI);
       // Don't add the successor of the reattach, since that's outside of the
       // task.
       continue;
@@ -2979,8 +2980,8 @@ void Verifier::verifyTask(const DetachInst *DI) {
     if (const InvokeInst *II = dyn_cast<InvokeInst>(BB->getTerminator())) {
       if (isDetachedRethrow(II)) {
         Check(DI->getSyncRegion() == II->getArgOperand(0),
-              "Mismatched sync regions between detach and detached.rethrow",
-              DI, II);
+              "Mismatched sync regions between detach and detached.rethrow", DI,
+              II);
         Check(isa<UnreachableInst>(II->getNormalDest()->getTerminator()),
               "detached.rethrow intrinsic has an "
               "unexpected normal destination.",
@@ -2999,17 +3000,35 @@ void Verifier::verifyTask(const DetachInst *DI) {
       }
     }
 
-    // Assert that do not encounter a return or resume in the middle of the
+    // Check that do not encounter a return or resume in the middle of the
     // task.
     Check(!isa<ReturnInst>(BB->getTerminator()) &&
-           !isa<ResumeInst>(BB->getTerminator()),
-           "Unexpected return or resume in task", BB->getTerminator());
+              !isa<ResumeInst>(BB->getTerminator()),
+          "Unexpected return or resume in task", BB->getTerminator());
 
     // Add the successors of this basic block.
     for (const BasicBlock *Successor : successors(BB))
       Worklist.push_back(Successor);
 
   } while (!Worklist.empty());
+}
+
+void Verifier::visitReattachInst(ReattachInst &RI) {
+  if (DT.isReachableFromEntry(RI.getParent())) {
+    // Check that the continuation of the reattach has a detach predecessor.
+    const BasicBlock *Continue = RI.getDetachContinue();
+    bool FoundDetachPred = false;
+    for (const BasicBlock *Pred : predecessors(Continue)) {
+      if (isa<DetachInst>(Pred->getTerminator()) &&
+          DT.dominates(Pred, RI.getParent())) {
+        FoundDetachPred = true;
+        break;
+      }
+    }
+    Check(FoundDetachPred,
+          "No detach predecessor found for successor of reattach.", &RI);
+  }
+  visitTerminator(RI);
 }
 
 void Verifier::visitDetachInst(DetachInst &DI) {
@@ -4187,9 +4206,10 @@ void Verifier::visitEHPadPredecessors(Instruction &I) {
     for (BasicBlock *PredBB : predecessors(BB)) {
       if (const auto *DI = dyn_cast<DetachInst>(PredBB->getTerminator())) {
         Check(DI && DI->getUnwindDest() == BB && DI->getDetached() != BB &&
-              DI->getContinue() != BB,
+                  DI->getContinue() != BB,
               "A detach can only jump to a block containing a LandingPadInst "
-              "as the unwind destination.", LPI);
+              "as the unwind destination.",
+              LPI);
         continue;
       }
       const auto *II = dyn_cast<InvokeInst>(PredBB->getTerminator());
@@ -5936,8 +5956,7 @@ void Verifier::visitIntrinsicCall(Intrinsic::ID ID, CallBase &Call) {
       for (const DetachInst *DI2 : DetachUsers)
         if (DI1 != DI2)
           Check(!DT.dominates(DI1->getDetached(), DI2->getParent()),
-                "One detach user of a sync region dominates another",
-                DI1, DI2);
+                "One detach user of a sync region dominates another", DI1, DI2);
     break;
   }
   };

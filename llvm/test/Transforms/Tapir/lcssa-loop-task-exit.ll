@@ -2,8 +2,8 @@
 ; properly inserts PHI nodes in exit blocks that inherit the same
 ; value from the detach and detached.rethrow predecessors.
 ;
-; RUN: opt < %s -passes='lcssa' -S -o - | FileCheck %s --check-prefixes=CHECK,CHECK-LCSSA
-; RUN: opt < %s -passes='lcssa,require<opt-remark-emit>,loop-mssa(licm)' -S -o - | FileCheck %s
+; RUN: opt < %s -passes='lcssa' -S | FileCheck %s --check-prefixes=CHECK,CHECK-LCSSA
+; RUN: opt < %s -passes='lcssa,require<opt-remark-emit>,loop-mssa(licm)' -S | FileCheck %s
 
 
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"

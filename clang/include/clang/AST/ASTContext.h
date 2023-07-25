@@ -185,6 +185,7 @@ class ASTContext : public RefCountedBase<ASTContext> {
   mutable SmallVector<Type *, 0> Types;
   mutable llvm::FoldingSet<ExtQuals> ExtQualNodes;
   mutable llvm::FoldingSet<ComplexType> ComplexTypes;
+  mutable llvm::FoldingSet<HyperobjectType> HyperobjectTypes;
   mutable llvm::FoldingSet<PointerType> PointerTypes{GeneralTypesLog2InitSize};
   mutable llvm::FoldingSet<HyperobjectType> HyperobjectTypes;
   mutable llvm::FoldingSet<AdjustedType> AdjustedTypes;

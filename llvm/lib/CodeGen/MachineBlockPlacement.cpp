@@ -782,10 +782,11 @@ bool MachineBlockPlacement::shouldTailDuplicate(MachineBasicBlock *BB) {
   // Blocks with single successors don't create additional fallthrough
   // opportunities. Don't duplicate them. TODO: When conditional exits are
   // analyzable, allow them to be duplicated.
-  BlockDesc Desc = TailDup.getBlockDesc(BB);
-
   if (BB->succ_size() == 1)
     return false;
+
+  BlockDesc Desc = TailDup.getBlockDesc(BB);
+
   return TailDup.shouldTailDuplicate(Desc, *BB);
 }
 

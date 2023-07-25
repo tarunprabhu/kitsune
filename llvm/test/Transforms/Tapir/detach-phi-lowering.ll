@@ -48,7 +48,7 @@ pfor.inc:                                         ; preds = %pfor.cond
 ; CHECK: br label %pfor.inc
 
 ; CHECK: pfor.body.entry:
-; CHECK-NOT: phi i64*
+; CHECK-NOT: phi ptr
 
 ; CHECK: pfor.inc:
 

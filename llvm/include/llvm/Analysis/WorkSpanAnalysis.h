@@ -36,8 +36,8 @@ class TargetLibraryInfo;
 class TargetTransformInfo;
 
 struct WSCost {
-  int64_t Work = 0;
-  int64_t Span = 0;
+  InstructionCost Work = 0;
+  InstructionCost Span = 0;
 
   bool UnknownCost = false;
 

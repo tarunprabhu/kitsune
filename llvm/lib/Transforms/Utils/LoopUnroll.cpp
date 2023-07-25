@@ -287,28 +287,30 @@ template <> struct GraphTraits<TaskExitGraph<BasicBlock *>> {
 
 // Clone task-exit blocks that are effectively part of the loop but don't appear
 // to be based on standard loop analysis.
-static void handleTaskExits(SmallPtrSetImpl<BasicBlock *> &TaskExits,
-                            SmallPtrSetImpl<BasicBlock *> &TaskExitSrcs,
-                            unsigned It, Loop *L, BasicBlock *Header,
-                            LoopInfo *LI, NewLoopsMap &NewLoops,
-                            SmallSetVector<Loop *, 4> &LoopsToSimplify,
-                            ValueToValueMapTy &LastValueMap,
-                            SmallVectorImpl<BasicBlock *> &NewBlocks,
-                            std::vector<BasicBlock *> &UnrolledLoopBlocks,
-                            DominatorTree *DT) {
+static void handleTaskExits(
+    SmallPtrSetImpl<BasicBlock *> &TaskExits,
+    SmallPtrSetImpl<BasicBlock *> &TaskExitSrcs, unsigned It, Loop *L,
+    BasicBlock *Header, BasicBlock *BBInsertPt, LoopInfo *LI,
+    NewLoopsMap &NewLoops, SmallSetVector<Loop *, 4> &LoopsToSimplify,
+    ValueToValueMapTy &LastValueMap, SmallVectorImpl<BasicBlock *> &NewBlocks,
+    std::vector<BasicBlock *> &UnrolledLoopBlocks, DominatorTree *DT) {
   // Get the TaskExits in reverse post order.  Using post_order here seems
   // necessary to ensure the custom filter for processing task exits is used.
   SmallVector<BasicBlock *, 8> TaskExitsRPO;
   for (BasicBlock *TEStart : TaskExitSrcs)
     for (BasicBlock *BB : post_order<TaskExitGraph<BasicBlock *>>((TEStart)))
       TaskExitsRPO.push_back(BB);
-  std::reverse(TaskExitsRPO.begin(), TaskExitsRPO.end());
+
+  if (TaskExitsRPO.empty())
+    // No task exits to handle.
+    return;
 
   // Process the task exits similarly to loop blocks.
-  for (BasicBlock *BB : TaskExitsRPO) {
+  auto BlockInsertPt = std::next(BBInsertPt->getIterator());
+  for (BasicBlock *BB : reverse(TaskExitsRPO)) {
     ValueToValueMapTy VMap;
     BasicBlock *New = CloneBasicBlock(BB, VMap, "." + Twine(It));
-    Header->getParent()->insert(Header->getParent()->end(), New);
+    Header->getParent()->insert(BlockInsertPt, New);
 
     assert(BB != Header && "Header should not be a task exit");
     // Tell LI about New.
@@ -426,6 +428,7 @@ LoopUnrollResult llvm::UnrollLoop(Loop *L, UnrollLoopOptions ULO, LoopInfo *LI,
     unsigned TripMultiple;
     unsigned BreakoutTrip;
     bool ExitOnTrue;
+    BasicBlock *FirstExitingBlock = nullptr;
     SmallVector<BasicBlock *> ExitingBlocks;
   };
   DenseMap<BasicBlock *, ExitInfo> ExitInfos;
@@ -737,8 +740,8 @@ LoopUnrollResult llvm::UnrollLoop(Loop *L, UnrollLoopOptions ULO, LoopInfo *LI,
 
     // Handle task-exit blocks from this loop similarly to ordinary loop-body
     // blocks.
-    handleTaskExits(TaskExits, TaskExitSrcs, It, L, Header, LI, NewLoops,
-                    LoopsToSimplify, LastValueMap, NewBlocks,
+    handleTaskExits(TaskExits, TaskExitSrcs, It, L, Header, Latches.back(), LI,
+                    NewLoops, LoopsToSimplify, LastValueMap, NewBlocks,
                     UnrolledLoopBlocks, DT);
 
     // Remap all instructions in the most recent iteration
@@ -809,8 +812,7 @@ LoopUnrollResult llvm::UnrollLoop(Loop *L, UnrollLoopOptions ULO, LoopInfo *LI,
   assert(!UnrollVerifyDomtree ||
          DT->verify(DominatorTree::VerificationLevel::Fast));
 
-  DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
-
+  SmallVector<DominatorTree::UpdateType> DTUpdates;
   auto SetDest = [&](BasicBlock *Src, bool WillExit, bool ExitOnTrue) {
     auto *Term = cast<BranchInst>(Src->getTerminator());
     const unsigned Idx = ExitOnTrue ^ WillExit;
@@ -824,7 +826,7 @@ LoopUnrollResult llvm::UnrollLoop(Loop *L, UnrollLoopOptions ULO, LoopInfo *LI,
     BranchInst::Create(Dest, Term);
     Term->eraseFromParent();
 
-    DTU.applyUpdates({{DominatorTree::Delete, Src, DeadSucc}});
+    DTUpdates.emplace_back(DominatorTree::Delete, Src, DeadSucc);
   };
 
   auto WillExit = [&](const ExitInfo &Info, unsigned i, unsigned j,
@@ -862,31 +864,64 @@ LoopUnrollResult llvm::UnrollLoop(Loop *L, UnrollLoopOptions ULO, LoopInfo *LI,
 
   // Fold branches for iterations where we know that they will exit or not
   // exit.
-  for (const auto &Pair : ExitInfos) {
-    const ExitInfo &Info = Pair.second;
+  for (auto &Pair : ExitInfos) {
+    ExitInfo &Info = Pair.second;
     for (unsigned i = 0, e = Info.ExitingBlocks.size(); i != e; ++i) {
       // The branch destination.
       unsigned j = (i + 1) % e;
       bool IsLatch = Pair.first == LatchBlock;
       std::optional<bool> KnownWillExit = WillExit(Info, i, j, IsLatch);
-      if (!KnownWillExit)
+      if (!KnownWillExit) {
+        if (!Info.FirstExitingBlock)
+          Info.FirstExitingBlock = Info.ExitingBlocks[i];
         continue;
+      }
 
       // We don't fold known-exiting branches for non-latch exits here,
       // because this ensures that both all loop blocks and all exit blocks
       // remain reachable in the CFG.
       // TODO: We could fold these branches, but it would require much more
       // sophisticated updates to LoopInfo.
-      if (*KnownWillExit && !IsLatch)
+      if (*KnownWillExit && !IsLatch) {
+        if (!Info.FirstExitingBlock)
+          Info.FirstExitingBlock = Info.ExitingBlocks[i];
         continue;
+      }
 
       SetDest(Info.ExitingBlocks[i], *KnownWillExit, Info.ExitOnTrue);
     }
   }
 
+  DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
+  DomTreeUpdater *DTUToUse = &DTU;
+  if (ExitingBlocks.size() == 1 && ExitInfos.size() == 1) {
+    // Manually update the DT if there's a single exiting node. In that case
+    // there's a single exit node and it is sufficient to update the nodes
+    // immediately dominated by the original exiting block. They will become
+    // dominated by the first exiting block that leaves the loop after
+    // unrolling. Note that the CFG inside the loop does not change, so there's
+    // no need to update the DT inside the unrolled loop.
+    DTUToUse = nullptr;
+    auto &[OriginalExit, Info] = *ExitInfos.begin();
+    if (!Info.FirstExitingBlock)
+      Info.FirstExitingBlock = Info.ExitingBlocks.back();
+    for (auto *C : to_vector(DT->getNode(OriginalExit)->children())) {
+      if (L->contains(C->getBlock()))
+        continue;
+      C->setIDom(DT->getNode(Info.FirstExitingBlock));
+    }
+  } else {
+    DTU.applyUpdates(DTUpdates);
+  }
+
   // When completely unrolling, the last latch becomes unreachable.
-  if (!LatchIsExiting && CompletelyUnroll)
-    changeToUnreachable(Latches.back()->getTerminator(), PreserveLCSSA, &DTU);
+  if (!LatchIsExiting && CompletelyUnroll) {
+    // There is no need to update the DT here, because there must be a unique
+    // latch. Hence if the latch is not exiting it must directly branch back to
+    // the original loop header and does not dominate any nodes.
+    assert(LatchBlock->getSingleSuccessor() && "Loop with multiple latches?");
+    changeToUnreachable(Latches.back()->getTerminator(), PreserveLCSSA);
+  }
 
   // Merge adjacent basic blocks, if possible.
   for (BasicBlock *Latch : Latches) {
@@ -898,16 +933,21 @@ LoopUnrollResult llvm::UnrollLoop(Loop *L, UnrollLoopOptions ULO, LoopInfo *LI,
     if (Term && Term->isUnconditional()) {
       BasicBlock *Dest = Term->getSuccessor(0);
       BasicBlock *Fold = Dest->getUniquePredecessor();
-      if (MergeBlockIntoPredecessor(Dest, &DTU, LI)) {
+      if (MergeBlockIntoPredecessor(Dest, /*DTU=*/DTUToUse, LI,
+                                    /*MSSAU=*/nullptr, /*MemDep=*/nullptr,
+                                    /*PredecessorWithTwoSuccessors=*/false,
+                                    DTUToUse ? nullptr : DT)) {
         // Dest has been folded into Fold. Update our worklists accordingly.
         std::replace(Latches.begin(), Latches.end(), Dest, Fold);
         llvm::erase_value(UnrolledLoopBlocks, Dest);
       }
     }
   }
-  // Apply updates to the DomTree.
-  DT = &DTU.getDomTree();
 
+  if (DTUToUse) {
+    // Apply updates to the DomTree.
+    DT = &DTU.getDomTree();
+  }
   assert(!UnrollVerifyDomtree ||
          DT->verify(DominatorTree::VerificationLevel::Fast));
 

@@ -2217,7 +2217,6 @@ namespace {
 
 } // end namespace
 
-
 void Sema::CheckBreakContinueBinding(Expr *E) {
   if (!E || getLangOpts().CPlusPlus)
     return;
@@ -4147,9 +4146,10 @@ StmtResult Sema::HandleSimpleCilkForStmt(SourceLocation CilkForLoc,
   else // DeclUseInRHS
     InitCond = BuildBinOp(S, CondLoc, Cond->getOpcode(), LimitRef.get(),
                           CastInit.get());
-  assert(!InitCond.isInvalid());
-  if (InitCond.isInvalid())
+  if (InitCond.isInvalid()) {
+    llvm_unreachable("Invalid InitCond");
     return StmtError();
+  }
 
   // Compute the range of this _Cilk_for loop.
   ExprResult Range;
@@ -4178,16 +4178,20 @@ StmtResult Sema::HandleSimpleCilkForStmt(SourceLocation CilkForLoc,
     NewLimit = BuildBinOp(S, CondLoc, BO_Add, NewLimit.get(),
                           ActOnIntegerConstant(CilkForLoc, 1).get());
 
+  // The range is the result of subtracting the loop bounds
+  // and should be an integer.
+  QualType CountTy = NewLimit.get()->getType();
+
   // Create new declarations for replacement loop control variables.
   // Declaration for new beginning loop control variable.
-  VarDecl *BeginVar = BuildForRangeVarDecl(*this, CondLoc, LoopVarTy,
+  VarDecl *BeginVar = BuildForRangeVarDecl(*this, CondLoc, CountTy,
                                            "__begin");
   AddInitializerToDecl(BeginVar, ActOnIntegerConstant(CondLoc, 0).get(),
                        /*DirectInit=*/false);
   FinalizeDeclaration(BeginVar);
   CurContext->addHiddenDecl(BeginVar);
   // Declaration for new end loop control variable.
-  VarDecl *EndVar = BuildForRangeVarDecl(*this, CondLoc, LoopVarTy, "__end");
+  VarDecl *EndVar = BuildForRangeVarDecl(*this, CondLoc, CountTy, "__end");
   AddInitializerToDecl(EndVar, NewLimit.get(), /*DirectInit=*/false);
   FinalizeDeclaration(EndVar);
   CurContext->addHiddenDecl(EndVar);
@@ -4209,10 +4213,8 @@ StmtResult Sema::HandleSimpleCilkForStmt(SourceLocation CilkForLoc,
 
   // Create a new condition expression that uses the new VarDecl
   // in place of the lifted expression.
-  ExprResult BeginRef = BuildDeclRefExpr(BeginVar, LoopVarTy, VK_LValue,
-                                         CondLoc);
-  ExprResult EndRef = BuildDeclRefExpr(EndVar, LoopVarTy, VK_LValue,
-                                       CondLoc);
+  ExprResult BeginRef = BuildDeclRefExpr(BeginVar, CountTy, VK_LValue, CondLoc);
+  ExprResult EndRef = BuildDeclRefExpr(EndVar, CountTy, VK_LValue, CondLoc);
   ExprResult NewCond;
   if (CompareUpperLimit == DeclUseInLHS)
     NewCond = BuildBinOp(S, CondLoc, Cond->getOpcode(), BeginRef.get(),
@@ -4254,7 +4256,8 @@ StmtResult Sema::HandleSimpleCilkForStmt(SourceLocation CilkForLoc,
     BuildBinOp(S, LoopVarLoc, StrideIsNegative ? BO_Sub : BO_Add, InitRef.get(),
                BuildBinOp(S, LoopVarLoc, BO_Mul,
                           BeginRef.get(), Stride).get());
-  AddInitializerToDecl(LoopVar, NewLoopVarInit.get(), /*DirectInit=*/false);
+  if (!NewLoopVarInit.isInvalid())
+    AddInitializerToDecl(LoopVar, NewLoopVarInit.get(), /*DirectInit=*/false);
 
   return new (Context) CilkForStmt(
       NewInit.get(), cast<DeclStmt>(LimitDecl.get()), InitCond.get(),

@@ -350,8 +350,8 @@ void getLoopAnalysisUsage(AnalysisUsage &AU);
 /// If \p ORE is set use it to emit optimization remarks.
 bool canSinkOrHoistInst(Instruction &I, AAResults *AA, DominatorTree *DT,
                         Loop *CurLoop, MemorySSAUpdater &MSSAU,
-                        bool TargetExecutesOncePerLoop,
-                        SinkAndHoistLICMFlags &LICMFlags, TaskInfo *TI,
+                        bool TargetExecutesOncePerLoop, TaskInfo *TI,
+                        SinkAndHoistLICMFlags &LICMFlags,
                         OptimizationRemarkEmitter *ORE = nullptr);
 
 /// Returns the comparison predicate used when expanding a min/max reduction.

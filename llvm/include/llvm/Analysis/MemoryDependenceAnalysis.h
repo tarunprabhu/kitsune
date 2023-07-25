@@ -357,6 +357,7 @@ private:
   const TargetLibraryInfo &TLI;
   DominatorTree &DT;
   PredIteratorCache PredCache;
+  TaskInfo *TI;
 
   TaskInfo *TI;
 

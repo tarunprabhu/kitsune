@@ -1,4 +1,4 @@
-; RUN: opt < %s -passes='loop-spawning,function(simplifycfg),cgscc(function-attrs),csi-setup,csi' -csi-instrument-basic-blocks=false -csi-instrument-memory-accesses=false -csi-instrument-atomics=false -csi-instrument-memintrinsics=false -csi-instrument-allocfn=false -csi-instrument-alloca=false -csi-instrument-function-calls=false -S -o - | FileCheck %s --check-prefixes=CHECK
+; RUN: opt < %s -passes='loop-spawning,function(simplifycfg),cgscc(function-attrs),csi-setup,csi' -csi-instrument-basic-blocks=false -csi-instrument-memory-accesses=false -csi-instrument-atomics=false -csi-instrument-memintrinsics=false -csi-instrument-allocfn=false -csi-instrument-alloca=false -csi-instrument-function-calls=false -S | FileCheck %s --check-prefixes=CHECK
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
@@ -3326,7 +3326,7 @@ if.then146.us.4:                                  ; preds = %if.end141.us.4
 ; CHECK: define void @_ZN3tfk6Render23render_stack_with_patchEPNS_5StackESt4pairIN2cv6Point_IfEES6_ENS_10ResolutionESs(
 ; CHECK: csi.cleanup:
 
-; CHECK-LABEL: define private fastcc void @_ZN3tfk6Render23render_stack_with_patchEPNS_5StackESt4pairIN2cv6Point_IfEES6_ENS_10ResolutionESs.outline_pfor.detach236.ls3(
+; CHECK-LABEL: define internal fastcc void @_ZN3tfk6Render23render_stack_with_patchEPNS_5StackESt4pairIN2cv6Point_IfEES6_ENS_10ResolutionESs.outline_pfor.detach236.ls3(
 ; CHECK: unnamed_addr #[[ATTRIBUTE:[0-9]+]]
 ; CHECK: detach within %[[SYNCREG:.+]], label %[[DETACHED:.+]], label %[[CONTINUE:.+]]
 ; CHECK: [[DETACHED]]:
@@ -3335,7 +3335,7 @@ if.then146.us.4:                                  ; preds = %if.end141.us.4
 ; CHECK: call void @__csi_task_exit(
 ; CHECK: reattach within %[[SYNCREG]], label %[[CONTINUE]]
 
-; CHECK-LABEL: define private fastcc void @_ZN3tfk6Render23render_stack_with_patchEPNS_5StackESt4pairIN2cv6Point_IfEES6_ENS_10ResolutionESs.outline_pfor.detach216.ls2(
+; CHECK-LABEL: define internal fastcc void @_ZN3tfk6Render23render_stack_with_patchEPNS_5StackESt4pairIN2cv6Point_IfEES6_ENS_10ResolutionESs.outline_pfor.detach216.ls2(
 ; CHECK: unnamed_addr #[[ATTRIBUTE]]
 ; CHECK: detach within %[[SYNCREG:.+]], label %[[DETACHED:.+]], label %[[CONTINUE:.+]]
 ; CHECK: [[DETACHED]]:
@@ -3344,7 +3344,7 @@ if.then146.us.4:                                  ; preds = %if.end141.us.4
 ; CHECK: call void @__csi_task_exit(
 ; CHECK: reattach within %[[SYNCREG]], label %[[CONTINUE]]
 
-; CHECK-LABEL: define private fastcc void @_ZN3tfk6Render23render_stack_with_patchEPNS_5StackESt4pairIN2cv6Point_IfEES6_ENS_10ResolutionESs.outline_pfor.detach64.ls2(
+; CHECK-LABEL: define internal fastcc void @_ZN3tfk6Render23render_stack_with_patchEPNS_5StackESt4pairIN2cv6Point_IfEES6_ENS_10ResolutionESs.outline_pfor.detach64.ls2(
 ; CHECK: unnamed_addr #[[ATTRIBUTE]]
 ; CHECK: detach within %[[SYNCREG:.+]], label %[[DETACHED:.+]], label %[[CONTINUE:.+]]
 ; CHECK: [[DETACHED]]:
@@ -3353,7 +3353,7 @@ if.then146.us.4:                                  ; preds = %if.end141.us.4
 ; CHECK: call void @__csi_task_exit(
 ; CHECK: reattach within %[[SYNCREG]], label %[[CONTINUE]]
 
-; CHECK-LABEL: define private fastcc void @_ZN3tfk6Render23render_stack_with_patchEPNS_5StackESt4pairIN2cv6Point_IfEES6_ENS_10ResolutionESs.outline_pfor.detach.us.ls2(
+; CHECK-LABEL: define internal fastcc void @_ZN3tfk6Render23render_stack_with_patchEPNS_5StackESt4pairIN2cv6Point_IfEES6_ENS_10ResolutionESs.outline_pfor.detach.us.ls2(
 ; CHECK: unnamed_addr #[[ATTRIBUTE2:[0-9]+]]
 ; CHECK: detach within %[[SYNCREG:.+]], label %[[DETACHED:.+]], label %[[CONTINUE:.+]]
 ; CHECK: [[DETACHED]]:
@@ -3366,7 +3366,6 @@ attributes #0 = { argmemonly nounwind }
 attributes #1 = { nounwind readnone speculatable }
 
 ; CHECK: attributes #[[ATTRIBUTE]] = { {{.*}}nounwind
-; CHECK: attributes #[[ATTRIBUTE2]] = { {{.*}}nounwind
 
 !0 = !{!1, !3, i64 8}
 !1 = !{!"_ZTSSt12_Vector_baseIPN3tfk7SectionESaIS2_EE", !2, i64 0}

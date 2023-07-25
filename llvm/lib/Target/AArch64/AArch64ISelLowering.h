@@ -1086,6 +1086,8 @@ private:
   SDValue LowerWindowsDYNAMIC_STACKALLOC(SDValue Op, SDValue Chain,
                                          SDValue &Size,
                                          SelectionDAG &DAG) const;
+  SDValue LowerSetjmp(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerLongjmp(SDValue Op, SelectionDAG &DAG) const;
 
   SDValue LowerSVEStructLoad(unsigned Intrinsic, ArrayRef<SDValue> LoadOps,
                              EVT VT, SelectionDAG &DAG, const SDLoc &DL) const;

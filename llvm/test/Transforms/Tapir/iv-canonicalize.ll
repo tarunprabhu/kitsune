@@ -1,10 +1,7 @@
 ; Thanks to Valentin Churavy for providing this test case.
 ;
-; RUN: opt %s -enable-new-pm=0 -indvars -S | FileCheck %s -check-prefix=IV
 ; RUN: opt %s -passes='indvars' -S | FileCheck %s -check-prefix=IV
-; RUN: opt %s -enable-new-pm=0 -indvars -instcombine -S | FileCheck %s -check-prefix=IC
 ; RUN: opt %s -passes='loop(indvars),instcombine' -S | FileCheck %s -check-prefix=IC
-; RUN: opt %s -enable-new-pm=0 -indvars -instcombine -loop-spawning-ti -S | FileCheck %s -check-prefix=LS
 ; RUN: opt %s -passes='function(loop(indvars),instcombine),loop-spawning' -S | FileCheck %s -check-prefix=LS
 
 ; ModuleID = 'simple.ll'
@@ -70,7 +67,7 @@ exit:                                             ; preds = %L27
   ret void
 }
 
-; LS: define private fastcc void @julia_mynorm.outline_L12.ls1(i64 %indvar.start.ls1, i64 %end.ls1, i64 %grainsize.ls1)
+; LS: define internal fastcc void @julia_mynorm.outline_L12.ls1(i64 %indvar.start.ls1, i64 %end.ls1, i64 %grainsize.ls1)
 
 declare %jl_value_t*** @julia.ptls_states()
 

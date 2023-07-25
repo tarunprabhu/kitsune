@@ -46,14 +46,17 @@ void LoopBase<BlockT, LoopT>::getExitingBlocks(
 /// getExitingBlock - If getExitingBlocks would return exactly one block,
 /// return that block. Otherwise return null.
 template <class BlockT, class LoopT>
-BlockT *LoopBase<BlockT, LoopT>::getExitingBlock(
-    bool IgnoreDetachUnwind) const {
+BlockT *
+LoopBase<BlockT, LoopT>::getExitingBlock(bool IgnoreDetachUnwind) const {
   assert(!isInvalid() && "Loop not in a valid state!");
-  SmallVector<BlockT *, 8> ExitingBlocks;
-  getExitingBlocks(ExitingBlocks, IgnoreDetachUnwind);
-  if (ExitingBlocks.size() == 1)
-    return ExitingBlocks[0];
-  return nullptr;
+  auto notInLoop = [&](BlockT *BB) { return !contains(BB); };
+  auto isExitBlock = [&](BlockT *BB, bool AllowRepeats) -> BlockT * {
+    assert(!AllowRepeats && "Unexpected parameter value.");
+    // Child not in current loop?  It must be an exit block.
+    return any_of(children<BlockT *>(BB), notInLoop) ? BB : nullptr;
+  };
+
+  return find_singleton<BlockT>(blocks(), isExitBlock);
 }
 
 /// getExitBlocks - Return all of the successor blocks of this loop.  These

@@ -103,6 +103,8 @@ TapirTargetID lld::args::parseTapirTarget(StringRef tapirTarget) {
       .Case("cheetah", TapirTargetID::Cheetah)
       .Case("cilkplus", TapirTargetID::Cilk)
       .Case("cuda", TapirTargetID::Cuda)
+      .Case("lambda", TapirTargetID::Lambda)
+      .Case("omptask", TapirTargetID::OMPTask)
       .Case("opencilk", TapirTargetID::OpenCilk)
       .Case("openmp", TapirTargetID::OpenMP)
       .Case("qthreads", TapirTargetID::Qthreads)

@@ -106,7 +106,8 @@ static bool isTapirPlaceholderSuccessor(const BasicBlock *B) {
 
 /// Helper method to find loop-exit blocks that are contained within tasks
 /// spawned within the loop.
-static void getTaskExitsHelper(BasicBlock *TaskEntry, const Loop *L,
+static void getTaskExitsHelper(BasicBlock *TaskEntry, const Value *SyncRegion,
+                               const Loop *L,
                                SmallPtrSetImpl<BasicBlock *> &TaskExits) {
   // Traverse the CFG to find the exit blocks from SubT.
   SmallVector<BasicBlock *, 4> Worklist;
@@ -121,19 +122,13 @@ static void getTaskExitsHelper(BasicBlock *TaskEntry, const Loop *L,
     if (!L->contains(BB))
       TaskExits.insert(BB);
 
-    // Stop the CFG traversal at any reattach or detached.rethrow
-    if (isa<ReattachInst>(BB->getTerminator()) ||
-        isDetachedRethrow(BB->getTerminator()))
+    // Stop the CFG traversal at any reattach or detached.rethrow in the same
+    // sync region.
+    if (ReattachInst *RI = dyn_cast<ReattachInst>(BB->getTerminator()))
+      if (SyncRegion == RI->getSyncRegion())
+        continue;
+    if (isDetachedRethrow(BB->getTerminator(), SyncRegion))
       continue;
-
-    // If we encounter a detach, only add its continuation and unwind
-    // destination
-    if (DetachInst *DI = dyn_cast<DetachInst>(BB->getTerminator())) {
-      Worklist.push_back(DI->getContinue());
-      if (DI->hasUnwindDest())
-        Worklist.push_back(DI->getUnwindDest());
-      continue;
-    }
 
     // For all other basic blocks, traverse all successors
     for (BasicBlock *Succ : successors(BB))
@@ -145,15 +140,16 @@ static void getTaskExitsHelper(BasicBlock *TaskEntry, const Loop *L,
 /// analysis, but inside tasks created within the loop.
 ///
 void Loop::getTaskExits(SmallPtrSetImpl<BasicBlock *> &TaskExits) const {
-  SmallVector<BasicBlock *, 4> TaskEntriesToCheck;
+  SmallVector<std::pair<BasicBlock *, Value *>, 4> TaskEntriesToCheck;
   for (auto *BB : blocks())
     if (DetachInst *DI = dyn_cast<DetachInst>(BB->getTerminator()))
       if (DI->hasUnwindDest())
         if (!contains(DI->getUnwindDest()))
-          TaskEntriesToCheck.push_back(DI->getDetached());
+          TaskEntriesToCheck.push_back(
+              std::make_pair(DI->getDetached(), DI->getSyncRegion()));
 
-  for (BasicBlock *TaskEntry : TaskEntriesToCheck)
-    getTaskExitsHelper(TaskEntry, this, TaskExits);
+  for (std::pair<BasicBlock *, Value *> &TaskEntry : TaskEntriesToCheck)
+    getTaskExitsHelper(TaskEntry.first, TaskEntry.second, this, TaskExits);
 }
 
 /// getExitingBlocks - Return all blocks inside the loop that have successors
@@ -663,8 +659,9 @@ bool Loop::isCanonical(ScalarEvolution &SE) const {
 
 // Check that 'BB' doesn't have any uses outside of the 'L'
 static bool isBlockInLCSSAForm(const Loop &L, const BasicBlock &BB,
-                               const DominatorTree &DT, bool IgnoreTokens,
-                               SmallPtrSetImpl<BasicBlock *> &TaskExits) {
+                               const DominatorTree &DT,
+                               SmallPtrSetImpl<BasicBlock *> &TaskExits,
+                               bool IgnoreTokens) {
   for (const Instruction &I : BB) {
     // Tokens can't be used in PHI nodes and live-out tokens prevent loop
     // optimizations, so for the purposes of considered LCSSA form, we
@@ -699,7 +696,7 @@ bool Loop::isLCSSAForm(const DominatorTree &DT, bool IgnoreTokens) const {
   SmallPtrSet<BasicBlock *, 4> TaskExits;
   getTaskExits(TaskExits);
   return all_of(this->blocks(), [&](const BasicBlock *BB) {
-    return isBlockInLCSSAForm(*this, *BB, DT, IgnoreTokens, TaskExits);
+    return isBlockInLCSSAForm(*this, *BB, DT, TaskExits, IgnoreTokens);
   });
 }
 
@@ -711,8 +708,8 @@ bool Loop::isRecursivelyLCSSAForm(const DominatorTree &DT, const LoopInfo &LI,
   SmallPtrSet<BasicBlock *, 4> TaskExits;
   getTaskExits(TaskExits);
   return all_of(this->blocks(), [&](const BasicBlock *BB) {
-    return isBlockInLCSSAForm(*LI.getLoopFor(BB), *BB, DT, IgnoreTokens,
-                              TaskExits);
+    return isBlockInLCSSAForm(*LI.getLoopFor(BB), *BB, DT, TaskExits,
+                              IgnoreTokens);
   });
 }
 

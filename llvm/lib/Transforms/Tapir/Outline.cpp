@@ -12,9 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/Outline.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/Support/ModRef.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -302,11 +304,11 @@ Function *llvm::CreateHelper(
   }
 
   LLVM_DEBUG({
-      dbgs() << "Function type: " << *RetTy << " f(";
-      for (Type *i : paramTy)
-	dbgs() << *i << ", ";
-      dbgs() << ")\n";
-    });
+    dbgs() << "Function type: " << *RetTy << " f(";
+    for (Type *i : paramTy)
+      dbgs() << *i << ", ";
+    dbgs() << ")\n";
+  });
 
   FunctionType *FTy = FunctionType::get(RetTy, paramTy, false);
 
@@ -435,14 +437,14 @@ Function *llvm::CreateHelper(
       MD[SP].reset(SP);
   }
 
-  // We assume that the Helper reads and writes its arguments.  If the parent
-  // function had stronger attributes on memory access -- specifically, if the
-  // parent is marked as only reading memory -- we must replace this attribute
-  // with an appropriate weaker form.
-  if (OldFunc->onlyReadsMemory()) {
-    NewFunc->removeFnAttr(Attribute::ReadNone);
-    NewFunc->removeFnAttr(Attribute::ReadOnly);
-    NewFunc->setOnlyAccessesArgMemory();
+  // If the outlined function has pointer arguments its memory effects are
+  // unknown.  Otherwise it inherits the memory effects of its parent.
+  // The caller can improve on this if desired.
+  for (Argument &Arg : NewFunc->args()) {
+    if (Arg.getType()->isPointerTy()) {
+      NewFunc->removeFnAttr(Attribute::Memory);
+      break;
+    }
   }
 
   // Inherit the calling convention from the parent.

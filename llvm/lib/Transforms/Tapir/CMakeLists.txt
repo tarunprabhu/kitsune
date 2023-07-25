@@ -5,11 +5,13 @@ add_llvm_component_library(LLVMTapirOpts
   CilkRTSCilkFor.cpp
   CudaABI.cpp
   DRFScopedNoAliasAA.cpp
+  LambdaABI.cpp
   HipABI.cpp
   LoopSpawningTI.cpp
   LoopStripMine.cpp
   LoopStripMinePass.cpp
   LoweringUtils.cpp
+  OMPTaskABI.cpp
   OpenCilkABI.cpp
   OpenMPABI.cpp
   OpenCLABI.cpp
@@ -41,6 +43,7 @@ add_llvm_component_library(LLVMTapirOpts
   Core
   IRReader
   Linker
+  MC
   Scalar
   Support
   TransformUtils

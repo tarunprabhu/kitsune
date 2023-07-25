@@ -136,6 +136,7 @@ static cl::opt<unsigned> MaxForkedSCEVDepth(
     "max-forked-scev-depth", cl::Hidden,
     cl::desc("Maximum recursion depth when finding forked SCEVs (default = 5)"),
     cl::init(5));
+
 /// Enable analysis using Tapir based on the data-race-free assumption.
 static cl::opt<bool> EnableDRFAA(
     "enable-drf-laa", cl::Hidden,
@@ -2184,8 +2185,6 @@ bool LoopAccessInfo::canAnalyzeLoop() {
 void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
                                  const TargetLibraryInfo *TLI,
                                  DominatorTree *DT, TaskInfo *TI) {
-  typedef SmallPtrSet<Value*, 16> ValueSet;
-
   // Holds the Load and Store instructions.
   SmallVector<LoadInst *, 16> Loads;
   SmallVector<StoreInst *, 16> Stores;
@@ -2658,8 +2657,9 @@ LoopAccessInfo::LoopAccessInfo(Loop *L, ScalarEvolution *SE,
       PtrRtChecking(nullptr),
       DepChecker(std::make_unique<MemoryDepChecker>(*PSE, L)), TheLoop(L) {
   PtrRtChecking = std::make_unique<RuntimePointerChecking>(*DepChecker, SE);
-  if (canAnalyzeLoop())
+  if (canAnalyzeLoop()) {
     analyzeLoop(AA, LI, TLI, DT, TI);
+  }
 }
 
 void LoopAccessInfo::print(raw_ostream &OS, unsigned Depth) const {
@@ -2710,7 +2710,7 @@ const LoopAccessInfo &LoopAccessInfoManager::getInfo(Loop &L) {
 
   if (I.second)
     I.first->second =
-        std::make_unique<LoopAccessInfo>(&L, &SE, TLI, &AA, &DT, &LI);
+        std::make_unique<LoopAccessInfo>(&L, &SE, TLI, &AA, &DT, &LI, &TI);
 
   return *I.first->second;
 }
@@ -2726,10 +2726,8 @@ bool LoopAccessLegacyAnalysis::runOnFunction(Function &F) {
   auto &AA = getAnalysis<AAResultsWrapperPass>().getAAResults();
   auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  TaskInfo *TI = nullptr;
-  if (EnableDRFAA)
-    TI = &getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
-  LAIs = std::make_unique<LoopAccessInfoManager>(SE, AA, DT, LI, TLI, TI);
+  auto &TI = getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
+  LAIs = std::make_unique<LoopAccessInfoManager>(SE, AA, DT, LI, TI, TLI);
   return false;
 }
 
@@ -2738,8 +2736,7 @@ void LoopAccessLegacyAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequiredTransitive<AAResultsWrapperPass>();
   AU.addRequiredTransitive<DominatorTreeWrapperPass>();
   AU.addRequiredTransitive<LoopInfoWrapperPass>();
-  if (EnableDRFAA)
-    AU.addRequiredTransitive<TaskInfoWrapperPass>();
+  AU.addRequiredTransitive<TaskInfoWrapperPass>();
 
   AU.setPreservesAll();
 }
@@ -2749,7 +2746,7 @@ LoopAccessInfoManager LoopAccessAnalysis::run(Function &F,
   return LoopAccessInfoManager(
       AM.getResult<ScalarEvolutionAnalysis>(F), AM.getResult<AAManager>(F),
       AM.getResult<DominatorTreeAnalysis>(F), AM.getResult<LoopAnalysis>(F),
-      &AM.getResult<TargetLibraryAnalysis>(F), &AM.getResult<TaskAnalysis>(F));
+      AM.getResult<TaskAnalysis>(F), &AM.getResult<TargetLibraryAnalysis>(F));
 }
 
 char LoopAccessLegacyAnalysis::ID = 0;

@@ -1,7 +1,6 @@
 ; Check that the loop-spawning pass properly handles Tapir loops where
 ; the primary IV and trip count do not have the same type.
 ;
-; RUN: opt < %s -enable-new-pm=0 -loop-spawning-ti -S -o - | FileCheck %s
 ; RUN: opt < %s -passes='loop-spawning' -S -o - | FileCheck %s
 
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
@@ -207,7 +206,7 @@ pfor.cond.cleanup:                                ; preds = %pfor.inc
   unreachable
 }
 
-; CHECK-LABEL: define private fastcc void @_ZL9conj_gradPiS_PdS0_S0_S0_S0_S0_S0_S0_.outline_pfor.cond.ls1(i64 %indvars.iv376.start.ls1,
+; CHECK-LABEL: define internal fastcc void @_ZL9conj_gradPiS_PdS0_S0_S0_S0_S0_S0_S0_.outline_pfor.cond.ls1(i64 %indvars.iv376.start.ls1,
 ; CHECK: i32 %[[END:.+]], i32 %[[GRAINSIZE:.+]],
 
 ; CHECK: _Z10initializePdS_S_S_S_mm.exit.ls1:

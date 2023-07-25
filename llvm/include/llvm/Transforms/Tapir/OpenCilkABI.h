@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the OpenCilk ABI to converts Tapir instructions to calls
+// This file implements the OpenCilk ABI to convert Tapir instructions to calls
 // into the OpenCilk runtime system.
 //
 //===----------------------------------------------------------------------===//
@@ -59,7 +59,7 @@ class OpenCilkABI final : public TapirTarget {
   FunctionCallee CilkRTSCilkForGrainsize32 = nullptr;
   FunctionCallee CilkRTSCilkForGrainsize64 = nullptr;
 
-  Align StackFrameAlign{8};  
+  MaybeAlign StackFrameAlign{8};
 
   // Accessors for CilkRTS ABI functions. When a bitcode file is loaded, these
   // functions should return the function defined in the bitcode file.
@@ -149,6 +149,8 @@ class OpenCilkABI final : public TapirTarget {
 
   void MarkSpawner(Function &F);
 
+  BasicBlock *GetDefaultSyncLandingpad(Function &F, Value *SF, DebugLoc Loc);
+
 public:
   OpenCilkABI(Module &M);
   ~OpenCilkABI() { DetachCtxToStackFrame.clear(); }
@@ -168,7 +170,7 @@ public:
   void remapAfterOutlining(BasicBlock *TFEntry,
                            ValueToValueMapTy &VMap) override final;
 
-  void preProcessFunction(Function &F, TaskInfo &TI,
+  bool preProcessFunction(Function &F, TaskInfo &TI,
                           bool ProcessingTapirLoops) override final;
   void postProcessFunction(Function &F,
                            bool ProcessingTapirLoops) override final;
@@ -187,7 +189,7 @@ public:
   bool processOrdinaryFunction(Function &F, BasicBlock *TFEntry) override final;
 
   LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
+  getLoopOutlineProcessor(const TapirLoopInfo *TL) const override final;
 };
 } // namespace llvm
 

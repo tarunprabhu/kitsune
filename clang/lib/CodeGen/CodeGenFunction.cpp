@@ -367,6 +367,8 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
   bool HasOnlyLifetimeMarkers =
       HasCleanups && EHStack.containsOnlyLifetimeMarkers(PrologueCleanupDepth);
   bool EmitRetDbgLoc = !HasCleanups || HasOnlyLifetimeMarkers;
+  bool SyncEmitted = false;
+  bool CompilingCilk = (getLangOpts().getCilk() != LangOptions::Cilk_none);
 
   std::optional<ApplyDebugLocation> OAL;
   bool SyncEmitted = false;

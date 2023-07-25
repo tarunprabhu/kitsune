@@ -28,15 +28,14 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker/Linker.h"
-#include "llvm/Support/Process.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/ModRef.h"
 #include "llvm/Transforms/Tapir/CilkRTSCilkFor.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
-#include "llvm/Support/Process.h"
-#include "llvm/Support/SourceMgr.h"
 
 using namespace llvm;
 
@@ -147,22 +146,11 @@ void OpenCilkABI::prepareModule() {
     if ("" != ClOpenCilkRuntimeBCPath)
       RuntimeBCPath = ClOpenCilkRuntimeBCPath;
 
-    std::optional<std::string> path;
-    if("" == RuntimeBCPath){
-      path = sys::Process::FindInEnvPath("LD_LIBRARY_PATH", "libopencilk-abi.bc");
-      if (! path)
-        // TODO: This is an in-tree build solution for now...
-        #if defined(OPENCILK_BC_PATH)
-        path = OPENCILK_BC_PATH;
-        #else
-        report_fatal_error("Could not find OpenCilk runtime bitcode file "
-                           "(libopencilk-abi.bc) in LD_LIBRARY_PATH.");
-        #endif
-    } else {
-      path = ClOpenCilkRuntimeBCPath.getValue();
-    }
+    if ("" == RuntimeBCPath)
+      C.emitError("OpenCilkABI: No OpenCilk bitcode ABI file given.");
+
     LLVM_DEBUG(dbgs() << "Using external bitcode file for OpenCilk ABI: "
-                      << path << "\n");
+                      << RuntimeBCPath << "\n");
     SMDiagnostic SMD;
 
     // Parse the bitcode file.  This call imports structure definitions, but not
@@ -238,7 +226,8 @@ void OpenCilkABI::prepareModule() {
   FunctionType *Grainsize16FnTy = FunctionType::get(Int16Ty, {Int16Ty}, false);
   FunctionType *Grainsize32FnTy = FunctionType::get(Int32Ty, {Int32Ty}, false);
   FunctionType *Grainsize64FnTy = FunctionType::get(Int64Ty, {Int64Ty}, false);
-  FunctionType *PtrPtrTy = FunctionType::get(VoidPtrTy, {VoidPtrTy}, false);
+  FunctionType *LookupTy = FunctionType::get(
+      VoidPtrTy, {VoidPtrTy, Int64Ty, VoidPtrTy, VoidPtrTy}, false);
   FunctionType *UnregTy = FunctionType::get(VoidTy, {VoidPtrTy}, false);
   FunctionType *Reg32Ty =
       FunctionType::get(VoidTy, {VoidPtrTy, Int32Ty, VoidPtrTy,
@@ -273,7 +262,7 @@ void OpenCilkABI::prepareModule() {
        CilkRTSCilkForGrainsize32},
       {"__cilkrts_cilk_for_grainsize_64", Grainsize64FnTy,
        CilkRTSCilkForGrainsize64},
-      {"__cilkrts_reducer_lookup", PtrPtrTy, CilkRTSReducerLookup},
+      {"__cilkrts_reducer_lookup", LookupTy, CilkRTSReducerLookup},
       {"__cilkrts_reducer_register_32", Reg32Ty, CilkRTSReducerRegister32},
       {"__cilkrts_reducer_register_64", Reg64Ty, CilkRTSReducerRegister64},
       {"__cilkrts_reducer_unregister", UnregTy, CilkRTSReducerUnregister},
@@ -306,8 +295,7 @@ void OpenCilkABI::prepareModule() {
     }
     if (GlobalVariable *AlignVar =
         M.getGlobalVariable("__cilkrts_stack_frame_align", true)) {
-      if (auto Align = AlignVar->getAlign())
-        StackFrameAlign = *Align;
+      StackFrameAlign = AlignVar->getAlign();
       // Mark this variable with private linkage, to avoid linker failures when
       // compiling with no optimizations.
       AlignVar->setLinkage(GlobalValue::PrivateLinkage);
@@ -355,7 +343,8 @@ void OpenCilkABI::addHelperAttributes(Function &Helper) {
   // function.
   if (getArgStructMode() != ArgStructMode::None) {
     Helper.removeFnAttr(Attribute::WriteOnly);
-    Helper.removeFnAttr(Attribute::Memory);
+    Helper.setMemoryEffects(
+        MemoryEffects(MemoryEffects::Location::Other, ModRefInfo::ModRef));
   }
   // Note that the address of the helper is unimportant.
   Helper.setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
@@ -445,7 +434,8 @@ Value *OpenCilkABI::CreateStackFrame(Function &F) {
   AllocaInst *SF = B.CreateAlloca(SFTy, DL.getAllocaAddrSpace(),
                                   /*ArraySize*/ nullptr,
                                   /*Name*/ StackFrameName);
-  SF->setAlignment(StackFrameAlign);
+  if (StackFrameAlign)
+    SF->setAlignment(StackFrameAlign.valueOrOne());
 
   return SF;
 }
@@ -501,6 +491,19 @@ CallInst *OpenCilkABI::InsertStackFramePush(Function &F,
         break;
       }
       ++BI;
+    }
+
+    // Next, try to find debug information earlier in this block.
+    if (!B.getCurrentDebugLocation()) {
+      BI = B.GetInsertPoint();
+      BasicBlock::const_iterator BB(B.GetInsertBlock()->begin());
+      while (BI != BB) {
+        --BI;
+        if (DebugLoc Loc = BI->getDebugLoc()) {
+          B.SetCurrentDebugLocation(Loc);
+          break;
+        }
+      }
     }
   }
 
@@ -606,7 +609,8 @@ void OpenCilkABI::MarkSpawner(Function &F) {
 
   // Mark this function as stealable.
   F.addFnAttr(Attribute::Stealable);
-  F.removeFnAttr(Attribute::Memory);
+  F.setMemoryEffects(
+      MemoryEffects(MemoryEffects::Location::Other, ModRefInfo::ModRef));
 }
 
 /// Lower a call to get the grainsize of a Tapir loop.
@@ -634,6 +638,34 @@ Value *OpenCilkABI::lowerGrainsizeCall(CallInst *GrainsizeCall) {
   return Grainsize;
 }
 
+BasicBlock *OpenCilkABI::GetDefaultSyncLandingpad(Function &F, Value *SF,
+                                                  DebugLoc Loc) {
+  // Return an existing default sync landingpad, if there is one.
+  if (DefaultSyncLandingpad.count(&F))
+    return cast<BasicBlock>(DefaultSyncLandingpad[&F]);
+
+  // Create a default cleanup landingpad block.
+  LLVMContext &C = F.getContext();
+  const Twine Name = "default_sync_lpad";
+  BasicBlock *CleanupBB = BasicBlock::Create(C, Name, &F);
+  Type *ExnTy = StructType::get(Type::getInt8PtrTy(C), Type::getInt32Ty(C));
+
+  IRBuilder<> Builder(CleanupBB);
+  Builder.SetCurrentDebugLocation(Loc);
+  LandingPadInst *LPad = Builder.CreateLandingPad(ExnTy, 1, Name + ".lpad");
+  LPad->setCleanup(true);
+  // Insert a call to __cilkrts_enter_landingpad.
+  Value *Sel = Builder.CreateExtractValue(LPad, {1}, "sel");
+  Value *CilkLPadArgs[] = {SF, Sel};
+  Builder.CreateCall(CILKRTS_FUNC(enter_landingpad), CilkLPadArgs, "");
+  // Insert a resume.
+  Builder.CreateResume(LPad);
+
+  DefaultSyncLandingpad[&F] = CleanupBB;
+
+  return CleanupBB;
+}
+
 // Lower a sync instruction SI.
 void OpenCilkABI::lowerSync(SyncInst &SI) {
   Function &Fn = *SI.getFunction();
@@ -657,17 +689,39 @@ void OpenCilkABI::lowerSync(SyncInst &SI) {
       SyncCont = II->getNormalDest();
       SyncUnwindDest = II->getUnwindDest();
     }
+  } else if (CallBase *CB = dyn_cast<CallBase>(
+                 SyncCont->getFirstNonPHIOrDbgOrLifetime())) {
+    if (isSyncUnwind(CB))
+      SyncUnwind = CB;
   }
 
   CallBase *CB;
   if (!SyncUnwindDest) {
-    if (Fn.doesNotThrow())
+    if (Fn.doesNotThrow()) {
+      // This function doesn't throw any exceptions, so use the no-throw version
+      // of cilk_sync.
       CB = CallInst::Create(GetCilkSyncNoThrowFn(), Args, "",
                             /*insert before*/ &SI);
-    else
-      CB = CallInst::Create(GetCilkSyncFn(), Args, "", /*insert before*/ &SI);
+      BranchInst::Create(SyncCont, CB->getParent());
+    } else if (SyncUnwind) {
+      // The presence of the sync.unwind indicates that the sync might rethrow
+      // an exception, but there isn't a landingpad associated with the sync.
 
-    BranchInst::Create(SyncCont, CB->getParent());
+      // Get the default sync-landingpad block to use instead, creating it if
+      // necessary.
+      BasicBlock *DefaultSyncLandingpad =
+          GetDefaultSyncLandingpad(Fn, SF, SI.getDebugLoc());
+
+      // Invoke __cilk_sync, using DefaultSyncLandingpad as the unwind
+      // destination.
+      CB = InvokeInst::Create(GetCilkSyncFn(), SyncCont, DefaultSyncLandingpad,
+                              Args, "",
+                              /*insert before*/ &SI);
+    } else {
+      // TODO: This case shouldn't be reachable.  Check whether it is reachable.
+      CB = CallInst::Create(GetCilkSyncFn(), Args, "", /*insert before*/ &SI);
+      BranchInst::Create(SyncCont, CB->getParent());
+    }
   } else {
     CB = InvokeInst::Create(GetCilkSyncFn(), SyncCont, SyncUnwindDest, Args, "",
                             /*insert before*/ &SI);
@@ -976,21 +1030,22 @@ void OpenCilkABI::GetTapirRTCalls(Spindle *TaskFrame, bool IsRootTask,
   }
 }
 
-void OpenCilkABI::preProcessFunction(Function &F, TaskInfo &TI,
+bool OpenCilkABI::preProcessFunction(Function &F, TaskInfo &TI,
                                      bool ProcessingTapirLoops) {
   if (ProcessingTapirLoops)
     // Don't do any preprocessing when outlining Tapir loops.
-    return;
+    return false;
 
   // Find all Tapir-runtime calls in this function that may be translated to
   // enter_frame/leave_frame calls.
   GetTapirRTCalls(TI.getRootTask()->getEntrySpindle(), true, TI);
 
   if (!TI.isSerial() || TapirRTCalls[&F.getEntryBlock()].empty())
-    return;
+    return false;
 
   MarkSpawner(F);
   LowerTapirRTCalls(F, &F.getEntryBlock());
+  return false;
 }
 
 void OpenCilkABI::postProcessFunction(Function &F, bool ProcessingTapirLoops) {
@@ -1056,8 +1111,8 @@ bool OpenCilkABI::processOrdinaryFunction(Function &F, BasicBlock *TFEntry) {
 
 void OpenCilkABI::postProcessHelper(Function &F) {}
 
-LoopOutlineProcessor *
-OpenCilkABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
+LoopOutlineProcessor *OpenCilkABI::getLoopOutlineProcessor(
+    const TapirLoopInfo *TL) const {
   if (UseRuntimeCilkFor)
     return new RuntimeCilkFor(M);
   return nullptr;

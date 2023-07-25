@@ -1,11 +1,7 @@
-; RUN: opt < %s -sroa -S | FileCheck %s
+; Check that SROA works on allocas inside entry blocks of detached
+; tasks, not just allocas in the entry block of the function.
 ;
-; COM: TODO: This is causing a failure, but I don't know why. This has been
-; punted onto TB to fix when he gets around to merging with LLVM 15. Once that
-; is done, this should revert to his version and the expected failure should
-; be removed - [31-Oct-2022]
-;
-; XFAIL: *
+; RUN: opt < %s -passes='sroa' -S | FileCheck %s
 
 %"class.std::basic_ostream" = type { i32 (...)**, %"class.std::basic_ios" }
 %"class.std::basic_ios" = type { %"class.std::ios_base", %"class.std::basic_ostream"*, i8, i8, %"class.std::basic_streambuf"*, %"class.std::ctype"*, %"class.std::num_put"*, %"class.std::num_get"* }%struct.tri = type { [3 x %struct.tri*], [3 x %struct.vertex*], i32, i8, i8 }
@@ -130,9 +126,8 @@ for.cond:                                         ; preds = %invoke.cont100, %if
   br i1 %cmp26, label %for.body, label %for.cond.cleanup
 
 ; CHECK: for.cond:
-; CHECK: %t.sroa.0.0 = phi %struct.tri* [ %arrayidx22, %if.then ], [ %52, %invoke.cont100 ]
-; CHECK: %t.sroa.11.sroa.0.0 = phi i40 [ 0, %if.then ], [ %t.sroa.11.sroa.0.0.extract.trunc, %invoke.cont100 ]
-; CHECK: %t.sroa.11.sroa.9.0 = phi i8 [ 0, %if.then ], [ %t.sroa.11.sroa.9.0.extract.trunc, %invoke.cont100 ]
+; CHECK: %t.sroa.0.0 = phi ptr [ %arrayidx22, %if.then ], [ %52, %invoke.cont100 ]
+; CHECK: %t.sroa.11.0 = phi i40 [ %t.sroa.11.12.insert.insert, %if.then ], [ %ref.tmp98.sroa.5.0.extract.trunc, %invoke.cont100 ]
 
 for.cond.cleanup:                                 ; preds = %for.cond
   call void @llvm.lifetime.end.p0i8(i64 16, i8* %6) #3
@@ -155,16 +150,17 @@ for.body:                                         ; preds = %for.cond
   br i1 %cmp.i, label %if.else.i, label %if.then.i
 
 ; CHECK: for.body:
-; CHECK-NOT: %t.i209 = getelementptr inbounds %struct.simplex, %struct.simplex* %t, i64 0, i32 0
-; CHECK-NOT: %8 = load %struct.tri*, %struct.tri** %t.i209, align 8
-; CHECK-NOT: %o.i210 = getelementptr inbounds %struct.simplex, %struct.simplex* %t, i64 0, i32 1
-; CHECK-NOT: %9 = load i32, i32* %o.i210, align 8
+; CHECK-NOT: %t.i209 = getelementptr inbounds %struct.simplex, ptr %t, i64 0, i32 0
+; CHECK-NOT: %8 = load ptr, ptr %t.i209, align 8
+; CHECK-NOT: %o.i210 = getelementptr inbounds %struct.simplex, ptr %t, i64 0, i32 1
+; CHECK-NOT: %9 = load i32, ptr %o.i210, align 8
 ; CHECK-NOT: %idxprom.i = sext i32 %9 to i64
-; CHECK-NOT: %arrayidx.i = getelementptr inbounds %struct.tri, %struct.tri* %8, i64 0, i32 0, i64 %idxprom.i
-; CHECK-NOT: %10 = load %struct.tri*, %struct.tri** %arrayidx.i, align 8, !tbaa !21
-; CHECK: %idxprom.i = sext i32 %t.sroa.11.sroa.0.0 to i64
-; CHECK: %arrayidx.i = getelementptr inbounds %struct.tri, %struct.tri* %t.sroa.0.0, i64 0, i32 0, i64 %idxprom.i
-; CHECK: %6 = load %struct.tri*, %struct.tri** %arrayidx.i, align 8
+; CHECK-NOT: %arrayidx.i = getelementptr inbounds %struct.tri, ptr %8, i64 0, i32 0, i64 %idxprom.i
+; CHECK-NOT: %10 = load ptr, ptr %arrayidx.i, align 8, !tbaa !21
+; CHECK: %t.sroa.11.8.extract.trunc = trunc i40 %t.sroa.11.0 to i32
+; CHECK: %idxprom.i = sext i32 %t.sroa.11.8.extract.trunc to i64
+; CHECK: %arrayidx.i = getelementptr inbounds %struct.tri, ptr %t.sroa.0.0, i64 0, i32 0, i64 %idxprom.i
+; CHECK: %6 = load ptr, ptr %arrayidx.i, align 8
 
 if.then.i:                                        ; preds = %for.body
   %arrayidx.i.i = getelementptr inbounds %struct.tri, %struct.tri* %10, i64 0, i32 0, i64 0
@@ -173,8 +169,8 @@ if.then.i:                                        ; preds = %for.body
   br i1 %cmp2.i.i, label %_ZN7simplex6acrossEv.exit, label %for.inc.i.i
 
 ; CHECK: if.then.i:
-; CHECK-NOT: %cmp2.i.i = icmp eq %struct.tri* %11, %8
-; CHECK: %cmp2.i.i = icmp eq %struct.tri* %7, %t.sroa.0.0
+; CHECK-NOT: %cmp2.i.i = icmp eq ptr %11, %8
+; CHECK: %cmp2.i.i = icmp eq ptr %7, %t.sroa.0.0
 
 for.inc.i.i:                                      ; preds = %if.then.i
   %arrayidx.1.i.i = getelementptr inbounds %struct.tri, %struct.tri* %10, i64 0, i32 0, i64 1
@@ -183,8 +179,8 @@ for.inc.i.i:                                      ; preds = %if.then.i
   br i1 %cmp2.1.i.i, label %_ZN7simplex6acrossEv.exit, label %for.inc.1.i.i
 
 ; CHECK: for.inc.i.i:
-; CHECK-NOT: %cmp2.1.i.i = icmp eq %struct.tri* %12, %8
-; CHECK: %cmp2.1.i.i = icmp eq %struct.tri* %8, %t.sroa.0.0
+; CHECK-NOT: %cmp2.1.i.i = icmp eq ptr %12, %8
+; CHECK: %cmp2.1.i.i = icmp eq ptr %8, %t.sroa.0.0
 
 for.inc.1.i.i:                                    ; preds = %for.inc.i.i
   %arrayidx.2.i.i = getelementptr inbounds %struct.tri, %struct.tri* %10, i64 0, i32 0, i64 2
@@ -193,8 +189,8 @@ for.inc.1.i.i:                                    ; preds = %for.inc.i.i
   br i1 %cmp2.2.i.i, label %_ZN7simplex6acrossEv.exit, label %for.inc.2.i.i
 
 ; CHECK: for.inc.1.i.i:
-; CHECK-NOT: %cmp2.2.i.i = icmp eq %struct.tri* %13, %8
-; CHECK: %cmp2.2.i.i = icmp eq %struct.tri* %9, %t.sroa.0.0
+; CHECK-NOT: %cmp2.2.i.i = icmp eq ptr %13, %8
+; CHECK: %cmp2.2.i.i = icmp eq ptr %9, %t.sroa.0.0
 
 for.inc.2.i.i:                                    ; preds = %for.inc.1.i.i
   %call.i.i211 = invoke dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc(%"class.std::basic_ostream"* nonnull dereferenceable(272) @_ZSt4cout, i8* getelementptr inbounds ([46 x i8], [46 x i8]* @.str.5, i64 0, i64 0))
@@ -211,7 +207,7 @@ if.else.i:                                        ; preds = %for.body
 
 ; CHECK: if.else.i:
 ; CHECK-NOT: %retval.sroa.3.8.insert.ext13.i = zext i32 %9 to i64
-; CHECK: %retval.sroa.3.8.insert.ext13.i = zext i32 %t.sroa.11.sroa.0.0 to i64
+; CHECK: %retval.sroa.3.8.insert.ext13.i = zext i32 %t.sroa.11.8.extract.trunc to i64
 
 _ZN7simplex6acrossEv.exit:                        ; preds = %if.then.i, %for.inc.i.i, %for.inc.1.i.i, %if.else.i
   %retval.sroa.3.0.i = phi i64 [ %retval.sroa.3.12.insert.insert.i, %if.else.i ], [ 0, %if.then.i ], [ 1, %for.inc.i.i ], [ 2, %for.inc.1.i.i ]
@@ -221,8 +217,8 @@ _ZN7simplex6acrossEv.exit:                        ; preds = %if.then.i, %for.inc
   br label %invoke.cont29
 
 ; CHECK: _ZN7simplex6acrossEv.exit:
-; CHECK-NOT: %retval.sroa.0.0.i = phi %struct.tri* [ %8, %if.else.i ], [ %10, %if.then.i ], [ %10, %for.inc.i.i ], [ %10, %for.inc.1.i.i ]
-; CHECK: %retval.sroa.0.0.i = phi %struct.tri* [ %t.sroa.0.0, %if.else.i ], [ %6, %if.then.i ], [ %6, %for.inc.i.i ], [ %6, %for.inc.1.i.i ]
+; CHECK-NOT: %retval.sroa.0.0.i = phi ptr [ %8, %if.else.i ], [ %10, %if.then.i ], [ %10, %for.inc.i.i ], [ %10, %for.inc.1.i.i ]
+; CHECK: %retval.sroa.0.0.i = phi ptr [ %t.sroa.0.0, %if.else.i ], [ %6, %if.then.i ], [ %6, %for.inc.i.i ], [ %6, %for.inc.1.i.i ]
 
 invoke.cont29:                                    ; preds = %_ZN7simplex6acrossEv.exit
   %14 = getelementptr inbounds { %struct.tri*, i64 }, { %struct.tri*, i64 }* %a, i64 0, i32 0
@@ -272,11 +268,11 @@ invoke.cont35:                                    ; preds = %if.then33
   br i1 %tobool.i228, label %lor.lhs.false.i, label %_ZN7simplex7outsideEP6vertex.exit
 
 ; CHECK: invoke.cont35:
-; CHECK-NOT: %boundary.i227 = getelementptr inbounds %struct.simplex, %struct.simplex* %t, i64 0, i32 2
-; CHECK-NOT: %29 = load i8, i8* %boundary.i227, align 4
+; CHECK-NOT: %boundary.i227 = getelementptr inbounds %struct.simplex, ptr %t, i64 0, i32 2
+; CHECK-NOT: %29 = load i8, ptr %boundary.i227, align 4
 ; CHECK: %ref.tmp.sroa.5.8.extract.trunc = trunc i64 %13 to i32
 ; CHECK: %idxprom.i219 = sext i32 %ref.tmp.sroa.5.8.extract.trunc to i64
-; CHECK: %tobool.i228 = icmp eq i8 %t.sroa.11.sroa.9.0, 0
+; CHECK: %tobool.i228 = icmp eq i8 %t.sroa.11.12.extract.trunc, 0
 
 lor.lhs.false.i:                                  ; preds = %invoke.cont35
   %t.i229 = getelementptr inbounds %struct.simplex, %struct.simplex* %t, i64 0, i32 0
@@ -285,9 +281,9 @@ lor.lhs.false.i:                                  ; preds = %invoke.cont35
   br i1 %cmp.i230, label %_ZN7simplex7outsideEP6vertex.exit, label %if.end.i237
 
 ; CHECK: lor.lhs.false.i:
-; CHECK-NOT: %t.i229 = getelementptr inbounds %struct.simplex, %struct.simplex* %t, i64 0, i32 0
-; CHECK-NOT: %30 = load %struct.tri*, %struct.tri** %t.i229, align 8
-; CHECK: %cmp.i230 = icmp eq %struct.tri* %t.sroa.0.0, null
+; CHECK-NOT: %t.i229 = getelementptr inbounds %struct.simplex, ptr %t, i64 0, i32 0
+; CHECK-NOT: %30 = load ptr, ptr %t.i229, align 8
+; CHECK: %cmp.i230 = icmp eq ptr %t.sroa.0.0, null
 
 if.end.i237:                                      ; preds = %lor.lhs.false.i
   %o.i231 = getelementptr inbounds %struct.simplex, %struct.simplex* %t, i64 0, i32 1
@@ -324,10 +320,11 @@ if.end.i237:                                      ; preds = %lor.lhs.false.i
   br label %_ZN7simplex7outsideEP6vertex.exit
 
 ; CHECK: if.end.i237:
-; CHECK-NOT: %o.i231 = getelementptr inbounds %struct.simplex, %struct.simplex* %t, i64 0, i32 1
-; CHECK-NOT: %31 = load i32, i32* %o.i231, align 8
-; CHECK: %cmp.i.i232 = icmp sgt i32 %t.sroa.11.sroa.0.0, 0
-; CHECK: %cond.i.i234 = add i32 %cond.i.v.i233, %t.sroa.11.sroa.0.0
+; CHECK-NOT: %o.i231 = getelementptr inbounds %struct.simplex, ptr %t, i64 0, i32 1
+; CHECK-NOT: %31 = load i32, ptr %o.i231, align 8
+; CHECK: %t.sroa.11.8.extract.trunc7 = trunc i40 %t.sroa.11.0 to i32
+; CHECK: %cmp.i.i232 = icmp sgt i32 %t.sroa.11.8.extract.trunc7, 0
+; CHECK: %cond.i.i234 = add i32 %cond.i.v.i233, %t.sroa.11.8.extract.trunc7
 
 _ZN7simplex7outsideEP6vertex.exit:                ; preds = %invoke.cont35, %lor.lhs.false.i, %if.end.i237
   %retval.0.i238 = phi i1 [ %cmp.i17.i, %if.end.i237 ], [ false, %invoke.cont35 ], [ false, %lor.lhs.false.i ]
@@ -380,10 +377,11 @@ if.then42:                                        ; preds = %invoke.cont40
   br label %invoke.cont57
 
 ; CHECK: if.then42:
-; CHECK-NOT: %o = getelementptr inbounds %struct.simplex, %struct.simplex* %t, i64 0, i32 1
-; CHECK-NOT: %35 = load i32, i32* %o, align 8
-; CHECK: %add44 = add nsw i32 %t.sroa.11.sroa.0.0, 2
-; CHECK: %idxprom53 = sext i32 %t.sroa.11.sroa.0.0 to i64
+; CHECK-NOT: %o = getelementptr inbounds %struct.simplex, ptr %t, i64 0, i32 1
+; CHECK-NOT: %35 = load i32, ptr %o, align 8
+; CHECK: %[[EXTRACT_TRUNC_21:t.sroa.11.8.extract.trunc[0-9]+]] = trunc i40 %t.sroa.11.0 to i32
+; CHECK: %add44 = add nsw i32 %[[EXTRACT_TRUNC_21]], 2
+; CHECK: %idxprom53 = sext i32 %[[EXTRACT_TRUNC_21]] to i64
 
 invoke.cont57:                                    ; preds = %if.then42
   %cmp59 = fcmp fast olt double %div.i, -1.000000e-10
@@ -442,9 +440,10 @@ if.end63:                                         ; preds = %_ZN5utils8writeMinI
   br i1 %tobool.i254, label %lor.lhs.false.i257, label %_ZN7simplex6inCircEP6vertex.exit
 
 ; CHECK: if.end63:
-; CHECK-NOT: %boundary.i253 = getelementptr inbounds %struct.simplex, %struct.simplex* %t, i64 0, i32 2
-; CHECK-NOT: %55 = load i8, i8* %boundary.i253, align 4
-; CHECK: %tobool.i254 = icmp eq i8 %t.sroa.11.sroa.9.0, 0
+; CHECK-NOT: %boundary.i253 = getelementptr inbounds %struct.simplex, ptr %t, i64 0, i32 2
+; CHECK-NOT: %55 = load i8, ptr %boundary.i253, align 4
+; CHECK: %t.sroa.11.12.extract.trunc14 = trunc i40 %t.sroa.11.12.extract.shift13 to i8
+; CHECK: %tobool.i254 = icmp eq i8 %t.sroa.11.12.extract.trunc14, 0
 
 lor.lhs.false.i257:                               ; preds = %if.end63
   %t.i255 = getelementptr inbounds %struct.simplex, %struct.simplex* %t, i64 0, i32 0
@@ -453,9 +452,9 @@ lor.lhs.false.i257:                               ; preds = %if.end63
   br i1 %cmp.i256, label %_ZN7simplex6inCircEP6vertex.exit, label %if.end.i270
 
 ; CHECK: lor.lhs.false.i257:
-; CHECK-NOT: %t.i255 = getelementptr inbounds %struct.simplex, %struct.simplex* %t, i64 0, i32 0
-; CHECK-NOT: %56 = load %struct.tri*, %struct.tri** %t.i255, align 8
-; CHECK: %cmp.i256 = icmp eq %struct.tri* %t.sroa.0.0, null
+; CHECK-NOT: %t.i255 = getelementptr inbounds %struct.simplex, ptr %t, i64 0, i32 0
+; CHECK-NOT: %56 = load ptr, ptr %t.i255, align 8
+; CHECK: %cmp.i256 = icmp eq ptr %t.sroa.0.0, null
 
 if.end.i270:                                      ; preds = %lor.lhs.false.i257
   %arrayidx.i258 = getelementptr inbounds %struct.tri, %struct.tri* %56, i64 0, i32 1, i64 0
@@ -634,10 +633,11 @@ if.end97:                                         ; preds = %_ZN5utils8writeMinI
   br label %invoke.cont100
 
 ; CHECK: if.end97:
-; CHECK-NOT: %o.i287 = getelementptr inbounds %struct.simplex, %struct.simplex* %t, i64 0, i32 1
-; CHECK-NOT: %75 = load i32, i32* %o.i287, align 8
-; CHECK: %cmp.i.i288 = icmp sgt i32 %t.sroa.11.sroa.0.0, 1
-; CHECK: %cond.i.i290 = add i32 %cond.i.v.i289, %t.sroa.11.sroa.0.0
+; CHECK-NOT: %o.i287 = getelementptr inbounds %struct.simplex, ptr %t, i64 0, i32 1
+; CHECK-NOT: %75 = load i32, ptr %o.i287, align 8
+; CHECK: %[[EXTRACT_TRUNC_23:t.sroa.11.8.extract.trunc[0-9]+]] = trunc i40 %t.sroa.11.0 to i32
+; CHECK: %cmp.i.i288 = icmp sgt i32 %[[EXTRACT_TRUNC_23]], 1
+; CHECK: %cond.i.i290 = add i32 %cond.i.v.i289, %[[EXTRACT_TRUNC_23]]
 
 invoke.cont100:                                   ; preds = %if.end97
   %76 = extractvalue { %struct.tri*, i64 } %.fca.1.insert.i293, 0

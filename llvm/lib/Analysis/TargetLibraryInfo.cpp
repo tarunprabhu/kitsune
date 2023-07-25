@@ -40,35 +40,28 @@ static cl::opt<TapirTargetID> ClTapirTarget(
     cl::init(TapirTargetID::OpenCilk),
     cl::values(clEnumValN(TapirTargetID::None,
                           "none", "None"),
+               clEnumValN(TapirTargetID::GPU,
+                          "gpu", "GPU"),
                clEnumValN(TapirTargetID::Serial,
                           "serial", "Serial code"),
                clEnumValN(TapirTargetID::Cilk,
                           "cilk", "Cilk Plus"),
-               clEnumValN(TapirTargetID::OpenMP,
-                          "openmp", "OpenMP"),
+               clEnumValN(TapirTargetID::Cheetah,
+                          "cheetah", "Cheetah"),
+               clEnumValN(TapirTargetID::Lambda,
+                          "lambda", "Lambda"),
+               clEnumValN(TapirTargetID::OMPTask,
+                          "omptask", "OMPTask"),
+               clEnumValN(TapirTargetID::OpenCilk,
+                          "opencilk", "OpenCilk"),
                clEnumValN(TapirTargetID::OpenCL,
                           "opencl", "OpenCL"),
+               clEnumValN(TapirTargetID::OpenMP,
+                          "openmp", "OpenMP"),
                clEnumValN(TapirTargetID::Qthreads,
                           "qthreads", "Qthreads"),
                clEnumValN(TapirTargetID::Realm,
-                          "realm", "Realm"),
-               clEnumValN(TapirTargetID::GPU,
-                          "gpu", "GPU"),
-               clEnumValN(TapirTargetID::Cheetah,
-                          "cheetah", "Cheetah"),
-               clEnumValN(TapirTargetID::OpenCilk,
-                          "opencilk", "OpenCilk")));
-
-TapirTargetOptions *TapirTargetOptions::clone() const {
-  TapirTargetOptions *New = nullptr;
-  switch (getKind()) {
-  default:
-    llvm_unreachable("Unhandled TapirTargetOption.");
-  case TTO_OpenCilk:
-    New = cast<OpenCilkABIOptions>(this)->cloneImpl();
-  }
-  return New;
-}
+                          "realm", "Realm")));
 
 StringLiteral const TargetLibraryInfoImpl::StandardNames[LibFunc::NumLibFuncs] =
     {
@@ -109,6 +102,17 @@ static const FuncProtoTy Signatures[] = {
 
 static_assert(sizeof Signatures / sizeof *Signatures == LibFunc::NumLibFuncs,
               "Missing library function signatures");
+
+TapirTargetOptions *TapirTargetOptions::clone() const {
+  TapirTargetOptions *New = nullptr;
+  switch (getKind()) {
+  default:
+    llvm_unreachable("Unhandled TapirTargetOption.");
+  case TTO_OpenCilk:
+    New = cast<OpenCilkABIOptions>(this)->cloneImpl();
+  }
+  return New;
+}
 
 static bool hasSinCosPiStret(const Triple &T) {
   // Only Darwin variants have _stret versions of combined trig functions.
@@ -1269,6 +1273,8 @@ void TargetLibraryInfoImpl::addTapirTargetLibraryFunctions(
   case TapirTargetID::Serial:
   case TapirTargetID::Cheetah:
   case TapirTargetID::Cuda:
+  case TapirTargetID::Lambda:
+  case TapirTargetID::OMPTask:
   case TapirTargetID::OpenMP:
   case TapirTargetID::Qthreads:
   case TapirTargetID::Last_TapirTargetID:

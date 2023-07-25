@@ -170,8 +170,8 @@ void LoopOutlineProcessor::postProcessOutline(TapirLoopInfo &TL,
   Helper->setCallingConv(CallingConv::Fast);
   // Note that the address of the helper is unimportant.
   Helper->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
-  // The helper is private to this module.
-  Helper->setLinkage(GlobalValue::PrivateLinkage);
+  // The helper is internal to this module.
+  Helper->setLinkage(GlobalValue::InternalLinkage);
 }
 
 void LoopOutlineProcessor::addSyncToOutlineReturns(TapirLoopInfo &TL,
@@ -628,7 +628,7 @@ void DACSpawning::implementDACIterSpawnOnHelper(
                  cast<IntrinsicInst>(I)->getIntrinsicID())
         ++I;
 
-      Preheader->splice(InsertPoint, DACHead, II->getIterator(), I);
+      Preheader->splice(InsertPoint, &*DACHead, II->getIterator(), I);
     }
 
     if (!Preheader->getTerminator()->getDebugLoc())
@@ -752,7 +752,7 @@ void DACSpawning::implementDACIterSpawnOnHelper(
       // Create call instruction.
       RecurCall = Builder.CreateCall(Helper, RecurCallInputs);
       // Use a fast calling convention for the outline.
-      RecurCall->setCallingConv(CallingConv::Fast);
+      RecurCall->setCallingConv(Helper->getCallingConv());
       RecurCall->setDebugLoc(TLDebugLoc);
       if (Helper->doesNotThrow())
         RecurCall->setDoesNotThrow();
@@ -765,7 +765,7 @@ void DACSpawning::implementDACIterSpawnOnHelper(
       RecurCall = InvokeInst::Create(Helper, CallDest, CallUnwind,
                                      RecurCallInputs);
       // Use a fast calling convention for the outline.
-      RecurCall->setCallingConv(CallingConv::Fast);
+      RecurCall->setCallingConv(Helper->getCallingConv());
       RecurCall->setDebugLoc(TLDebugLoc);
       ReplaceInstWithInst(RecurDet->getTerminator(), RecurCall);
       RecurCallDest = CallDest;
@@ -1238,8 +1238,8 @@ public:
       Metadata *MD = MDV->getMetadata();
       if (auto *LAM = dyn_cast<LocalAsMetadata>(MD))
         if (LAM->getValue() == TripCount)
-          return MetadataAsValue::get(V->getContext(),
-                                      MDTuple::get(V->getContext(), std::nullopt));
+          return MetadataAsValue::get(
+              V->getContext(), MDTuple::get(V->getContext(), std::nullopt));
     }
 
     // Materialize TripCount with ArgEnd.  This should only occur in the loop
@@ -1526,10 +1526,6 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
     LoopArgStarts[L] = ArgStart;
 
     ValueToValueMapTy VMap;
-
-    // Run a pre-processing step before we create the helper function.
-    OutlineProcessors[TL]->preProcessTapirLoop(*TL, VMap);
-
     // Create the helper function.
     Function *Outline = createHelperForTapirLoop(
         TL, LoopArgs[L], OutlineProcessors[TL]->getIVArgIndex(F, LoopArgs[L]),
@@ -1539,8 +1535,8 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
         Outline, T->getEntry(), cast<Instruction>(VMap[T->getDetach()]),
         dyn_cast_or_null<Instruction>(VMap[T->getTaskFrameUsed()]),
         LoopInputSets[L], LoopArgStarts[L],
-        L->getLoopPreheader()->getTerminator(), T->getDetach()->getSyncRegion(),
-        TL->getExitBlock(), TL->getUnwindDest());
+        L->getLoopPreheader()->getTerminator(), TL->getExitBlock(),
+        TL->getUnwindDest());
 
     // Do ABI-dependent processing of each outlined Tapir loop.
     {
@@ -1668,11 +1664,8 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
     if (!F.empty())
       WorkList.push_back(&F);
 
-  Function *SavedF = nullptr;
   // Transform all loops into simplified, LCSSA form before we process them.
   for (Function *F : WorkList) {
-    if (SavedF == nullptr)
-      SavedF = F;
     LoopInfo &LI = GetLI(*F);
     DominatorTree &DT = GetDT(*F);
     ScalarEvolution &SE = GetSE(*F);
@@ -1686,17 +1679,14 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
       Changed |= formLCSSARecursively(*L, DT, &LI, &SE);
   }
 
-  TapirTargetID TargetID = GetTLI(*SavedF).getTapirTarget();
-  std::unique_ptr<TapirTarget> Target(getTapirTargetFromID(M, TargetID));
   // Now process each loop.
   for (Function *F : WorkList) {
+    TapirTargetID TargetID = GetTLI(*F).getTapirTarget();
+    std::unique_ptr<TapirTarget> Target(getTapirTargetFromID(M, TargetID));
     Changed |= LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
                                 GetAC(*F), GetTTI(*F), Target.get(), GetORE(*F))
                    .run();
   }
-
-  Target->postProcessModule();
-
   if (Changed)
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();

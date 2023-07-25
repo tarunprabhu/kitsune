@@ -20,9 +20,7 @@
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
-#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/DebugInfo.h"
@@ -812,6 +810,12 @@ bool LoopRotate::simplifyLoopLatch(Loop *L) {
 
   if (MSSAU && VerifyMemorySSA)
     MSSAU->getMemorySSA()->verifyMemorySSA();
+
+  if (TaskI && DT)
+    // Recompute task info.
+    // FIXME: Figure out a way to update task info that is less
+    // computationally wasteful.
+    TaskI->recalculate(*DT->getRoot()->getParent(), *DT);
 
   return true;
 }

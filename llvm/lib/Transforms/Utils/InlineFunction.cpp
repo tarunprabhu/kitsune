@@ -646,35 +646,34 @@ static void HandleInlinedTasksHelper(
     if (!BlocksToProcess.count(BB))
       continue;
 
-    if (Instruction *TFCreate = FindTaskFrameCreateInBlock(BB)) {
-      if (TFCreate != CurrentTaskFrame) {
-        // Split the block at the taskframe.create, if necessary.
-        BasicBlock *NewBB;
-        if (TFCreate != &BB->front()) {
-          NewBB = SplitBlock(BB, TFCreate);
-          BlocksToProcess.insert(NewBB);
-        } else
-          NewBB = BB;
+    if (Instruction *TFCreate =
+            FindTaskFrameCreateInBlock(BB, CurrentTaskFrame)) {
+      // Split the block at the taskframe.create, if necessary.
+      BasicBlock *NewBB;
+      if (TFCreate != &BB->front()) {
+        NewBB = SplitBlock(BB, TFCreate);
+        BlocksToProcess.insert(NewBB);
+      } else
+        NewBB = BB;
 
-        // Split any blocks containing taskframe.end intrinsics that use
-        // TFCreate.
-        splitTaskFrameEnds(TFCreate);
+      // Split any blocks containing taskframe.end intrinsics that use
+      // TFCreate.
+      splitTaskFrameEnds(TFCreate);
 
-        // Create an unwind edge for the taskframe.
-        BasicBlock *TaskFrameUnwindEdge = CreateSubTaskUnwindEdge(
-            Intrinsic::taskframe_resume, TFCreate, UnwindEdge,
-            Unreachable, TFCreate);
+      // Create an unwind edge for the taskframe.
+      BasicBlock *TaskFrameUnwindEdge =
+          CreateSubTaskUnwindEdge(Intrinsic::taskframe_resume, TFCreate,
+                                  UnwindEdge, Unreachable, TFCreate);
 
-        // Recursively check all blocks
-        HandleInlinedTasksHelper(BlocksToProcess, NewBB, TaskFrameUnwindEdge,
-                                 Unreachable, TFCreate, &Worklist, Invoke,
-                                 InlinedLPads);
+      // Recursively check all blocks
+      HandleInlinedTasksHelper(BlocksToProcess, NewBB, TaskFrameUnwindEdge,
+                               Unreachable, TFCreate, &Worklist, Invoke,
+                               InlinedLPads);
 
-        // Remove the unwind edge for the taskframe if it is not needed.
-        if (pred_empty(TaskFrameUnwindEdge))
-          TaskFrameUnwindEdge->eraseFromParent();
-        continue;
-      }
+      // Remove the unwind edge for the taskframe if it is not needed.
+      if (pred_empty(TaskFrameUnwindEdge))
+        TaskFrameUnwindEdge->eraseFromParent();
+      continue;
     }
 
     // Promote any calls in the block to invokes.
@@ -1897,9 +1896,10 @@ static Value *HandleByValArgument(Type *ByValType, Value *Arg,
   if (ByValAlignment)
     Alignment = std::max(Alignment, *ByValAlignment);
 
+  BasicBlock *NewCtx = GetDetachedCtx(TheCall->getParent());
   Value *NewAlloca =
       new AllocaInst(ByValType, DL.getAllocaAddrSpace(), nullptr, Alignment,
-                     Arg->getName(), &*Caller->begin()->begin());
+                     Arg->getName(), &*NewCtx->begin());
   IFI.StaticAllocas.push_back(cast<AllocaInst>(NewAlloca));
 
   // Uses of the argument in the function should use our new alloca
@@ -2479,10 +2479,6 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       !Caller->getAttributes().hasFnAttr(Attribute::StrictFP)) {
     return InlineResult::failure("incompatible strictfp attributes");
   }
-  // Canonicalize the caller by splitting blocks containing taskframe.create
-  // intrinsics.
-  if (splitTaskFrameCreateBlocks(*Caller))
-    OrigBB = CB.getParent();
 
   // GC poses two hazards to inlining, which only occur when the callee has GC:
   //  1. If the caller has no GC, then the callee's GC must be propagated to the
@@ -2512,14 +2508,41 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
     Triple T(Caller->getParent()->getTargetTriple());
     if (!CallerPersonality)
       Caller->setPersonalityFn(CalledPersonality);
-    // If the personality functions match, then we can perform the
-    // inlining. Otherwise, we can't inline.
-    // TODO: This isn't 100% true. Some personality functions are proper
-    //       supersets of others and can be used in place of the other.
-    else if (CalledPersonality != CallerPersonality &&
-             classifyEHPersonality(CalledPersonality) !=
-                 getDefaultEHPersonality(T))
-      return InlineResult::failure("incompatible personality");
+    else if (CalledPersonality != CallerPersonality) {
+      // See if we want to replace CallerPersonality with the CalledPersonality,
+      // because CalledPersonality is a proper superset.
+      if (classifyEHPersonality(CallerPersonality) ==
+          getDefaultEHPersonality(T))
+        // The caller is using the default personality function.  We assume
+        // CalledPersonality is a superset.
+        Caller->setPersonalityFn(CalledPersonality);
+
+      else if (classifyEHPersonality(CalledPersonality) ==
+                   EHPersonality::Cilk_CXX &&
+               classifyEHPersonality(CallerPersonality) ==
+                   EHPersonality::GNU_CXX)
+        // The Cilk personality is a superset of the caller's.
+        Caller->setPersonalityFn(CalledPersonality);
+
+      // If the personality functions match, then we can perform the
+      // inlining. Otherwise, we can't inline.
+      // TODO: This isn't 100% true. Some personality functions are proper
+      //       supersets of others and can be used in place of the other.
+      else {
+        EHPersonality CalledEHPersonality =
+            classifyEHPersonality(CalledPersonality);
+        // We can inline if:
+        // - CalledPersonality is the default personality, or
+        // - CallerPersonality is the Cilk personality and CalledPersonality is
+        //   GNU_CXX.
+        // Otherwise, declare that we can't inline.
+        if (CalledEHPersonality != getDefaultEHPersonality(T) &&
+            (classifyEHPersonality(CallerPersonality) !=
+                 EHPersonality::Cilk_CXX ||
+             CalledEHPersonality != EHPersonality::GNU_CXX))
+          return InlineResult::failure("incompatible personality");
+      }
+    }
   }
 
   // We need to figure out which funclet the callsite was in so that we may
@@ -2558,6 +2581,11 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       }
     }
   }
+
+  // Canonicalize the caller by splitting blocks containing taskframe.create
+  // intrinsics.
+  if (splitTaskFrameCreateBlocks(*Caller))
+    OrigBB = CB.getParent();
 
   // Determine if we are dealing with a call in an EHPad which does not unwind
   // to caller.

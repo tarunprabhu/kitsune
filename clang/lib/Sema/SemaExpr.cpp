@@ -2103,12 +2103,10 @@ Expr *Sema::BuildHyperobjectLookup(Expr *E, bool Pointer) {
 
   // For now all hyperobjects use the same lookup function.
   IdentifierInfo *ID = PP.getIdentifierInfo("__hyper_lookup");
-  ValueDecl *Builtin =
-      dyn_cast<ValueDecl>
-      (LazilyCreateBuiltin(ID, ID->getBuiltinID(),
-                           /* Scope = */ nullptr,
-                           /* ForRedeclaration = */ false,
-                           SourceLocation()));
+  ValueDecl *Builtin = dyn_cast<ValueDecl>(
+      LazilyCreateBuiltin(ID, ID->getBuiltinID(),
+                          /* Scope = */ nullptr,
+                          /* ForRedeclaration = */ false, SourceLocation()));
   // __hyper_lookup must be defined in Builtins.def.
   assert(Builtin && "no __hyper_lookup builtin");
 
@@ -2119,59 +2117,62 @@ Expr *Sema::BuildHyperobjectLookup(Expr *E, bool Pointer) {
       InputType.getLocalFastQualifiers());
   QualType Ptr = Context.getPointerType(ResultType);
 
-  Expr *VarAddr;
-  if (Pointer)
-    VarAddr = E;
-  else if (Difficult) {
-    IdentifierInfo *BAI = PP.getIdentifierInfo("__builtin_addressof");
-    ValueDecl *BAV =
-      dyn_cast<ValueDecl>
-      (LazilyCreateBuiltin(BAI, BAI->getBuiltinID(),
-                           /* Scope = */ nullptr,
-                           /* ForRedeclaration = */ false,
-                           SourceLocation()));
-    assert(BAV && "no __builtin_addressof builtin");
-    DeclRefExpr *BAD = BuildDeclRefExpr(BAV, Builtin->getType(),
-                                        VK_PRValue, SourceLocation(),
-                                        nullptr);
+  ExprResult SizeExpr;
+  if (ResultType.getTypePtr()->isDependentType()) {
+    SizeExpr = CreateUnaryExprOrTypeTraitExpr(E, E->getExprLoc(), UETT_SizeOf);
+  } else {
+    QualType SizeType = Context.getSizeType();
+    llvm::APInt Size(Context.getTypeSize(SizeType),
+                     Context.getTypeSizeInChars(ResultType).getQuantity());
+    SizeExpr = IntegerLiteral::Create(Context, Size, SizeType, E->getExprLoc());
+  }
 
-    ExprResult Address = BuildCallExpr(nullptr, BAD, E->getExprLoc(),
-                                       { E }, E->getExprLoc(), nullptr);
+  Expr *VarAddr;
+  if (Pointer) {
+    VarAddr = E;
+  } else if (Difficult) {
+    IdentifierInfo *BAI = PP.getIdentifierInfo("__builtin_addressof");
+    ValueDecl *BAV = dyn_cast<ValueDecl>(
+        LazilyCreateBuiltin(BAI, BAI->getBuiltinID(),
+                            /* Scope = */ nullptr,
+                            /* ForRedeclaration = */ false, SourceLocation()));
+    assert(BAV && "no __builtin_addressof builtin");
+    DeclRefExpr *BAD = BuildDeclRefExpr(BAV, Builtin->getType(), VK_PRValue,
+                                        SourceLocation(), nullptr);
+
+    ExprResult Address = BuildCallExpr(nullptr, BAD, E->getExprLoc(), {E},
+                                       E->getExprLoc(), nullptr);
     assert(Address.isUsable());
     VarAddr = Address.get();
   } else {
-    VarAddr = UnaryOperator::Create(Context, E, UO_AddrOf, Ptr,
-                                    VK_PRValue, OK_Ordinary,
-                                    SourceLocation(), false,
+    VarAddr = UnaryOperator::Create(Context, E, UO_AddrOf, Ptr, VK_PRValue,
+                                    OK_Ordinary, SourceLocation(), false,
                                     CurFPFeatureOverrides());
   }
-  ExprResult Call = BuildCallExpr(nullptr, Lookup, E->getExprLoc(),
-				  { VarAddr }, E->getExprLoc(), nullptr);
+  Expr *CallArgs[] = {VarAddr, SizeExpr.get(), HT->getIdentity(),
+                      HT->getReduce()};
+  ExprResult Call = BuildCallExpr(nullptr, Lookup, E->getExprLoc(), CallArgs,
+                                  E->getExprLoc(), nullptr);
 
-  // Template expansion normally strips out implicit casts,
-  // so make this explicit in C++.
+  // Template expansion normally strips out implicit casts, so make this
+  // explicit in C++.
   CastExpr *Casted = nullptr;
   if (Difficult)
-    Casted = CXXStaticCastExpr::Create(Context, Ptr, VK_PRValue,
-                                       CK_BitCast, Call.get(), nullptr,
-                                       Context.CreateTypeSourceInfo(Ptr),
-                                       FPOptionsOverride(),
-                                       SourceLocation(),
-                                       SourceLocation(),
-                                       SourceRange());
+    Casted = CXXStaticCastExpr::Create(
+        Context, Ptr, VK_PRValue, CK_BitCast, Call.get(), nullptr,
+        Context.CreateTypeSourceInfo(Ptr), FPOptionsOverride(),
+        SourceLocation(), SourceLocation(), SourceRange());
   else
-    Casted = ImplicitCastExpr::Create(Context, Ptr,
-                                      CK_BitCast,
-                                      Call.get(), nullptr, VK_PRValue,
-                                      CurFPFeatureOverrides());
+    Casted =
+        ImplicitCastExpr::Create(Context, Ptr, CK_BitCast, Call.get(), nullptr,
+                                 VK_PRValue, CurFPFeatureOverrides());
 
   if (Pointer)
     return Casted;
 
-  auto *Deref =
-    UnaryOperator::Create(Context, Casted, UO_Deref, ResultType,
-                          VK_LValue, OK_Ordinary, SourceLocation(),
-                          false, CurFPFeatureOverrides());
+  auto *Deref = UnaryOperator::Create(Context, Casted, UO_Deref, ResultType,
+                                      VK_LValue, OK_Ordinary, SourceLocation(),
+                                      false, CurFPFeatureOverrides());
 
   return Deref;
 }
@@ -16245,16 +16246,20 @@ ExprResult Sema::BuildUnaryOp(Scope *S, SourceLocation OpLoc,
     Input = Result.get();
   }
 
-  if (getLangOpts().CPlusPlus && Input->getType()->isOverloadableType() &&
-      UnaryOperator::getOverloadedOperator(Opc) != OO_None &&
-      !(Opc == UO_AddrOf && isQualifiedMemberAccess(Input))) {
-    // Find all of the overloaded operators visible from this point.
-    UnresolvedSet<16> Functions;
-    OverloadedOperatorKind OverOp = UnaryOperator::getOverloadedOperator(Opc);
-    if (S && OverOp != OO_None)
-      LookupOverloadedOperatorName(OverOp, S, Functions);
+  if (getLangOpts().CPlusPlus) {
+    // A hyperobject may need to be converted to a view.
+    QualType Real = Input->getType().stripHyperobject();
+    if (Real->isOverloadableType() &&
+        UnaryOperator::getOverloadedOperator(Opc) != OO_None &&
+        !(Opc == UO_AddrOf && isQualifiedMemberAccess(Input))) {
+      // Find all of the overloaded operators visible from this point.
+      UnresolvedSet<16> Functions;
+      OverloadedOperatorKind OverOp = UnaryOperator::getOverloadedOperator(Opc);
+      if (S && OverOp != OO_None)
+        LookupOverloadedOperatorName(OverOp, S, Functions);
 
-    return CreateOverloadedUnaryOp(OpLoc, Opc, Functions, Input);
+      return CreateOverloadedUnaryOp(OpLoc, Opc, Functions, Input);
+    }
   }
 
   return CreateBuiltinUnaryOp(OpLoc, Opc, Input, IsAfterAmp);
@@ -17967,6 +17972,7 @@ static void EvaluateAndDiagnoseImmediateInvocation(
   bool Result = CE->EvaluateAsConstantExpr(
       Eval, SemaRef.getASTContext(), ConstantExprKind::ImmediateInvocation);
   if (!Result || !Notes.empty()) {
+    SemaRef.FailedImmediateInvocations.insert(CE);
     Expr *InnerExpr = CE->getSubExpr()->IgnoreImplicit();
     if (auto *FunctionalCast = dyn_cast<CXXFunctionalCastExpr>(InnerExpr))
       InnerExpr = FunctionalCast->getSubExpr();
@@ -18011,10 +18017,16 @@ static void RemoveNestedImmediateInvocation(
                              [E](Sema::ImmediateInvocationCandidate Elem) {
                                return Elem.getPointer() == E;
                              });
-      assert(It != IISet.rend() &&
-             "ConstantExpr marked IsImmediateInvocation should "
-             "be present");
-      It->setInt(1); // Mark as deleted
+      // It is possible that some subexpression of the current immediate
+      // invocation was handled from another expression evaluation context. Do
+      // not handle the current immediate invocation if some of its
+      // subexpressions failed before.
+      if (It == IISet.rend()) {
+        if (SemaRef.FailedImmediateInvocations.contains(E))
+          CurrentII->setInt(1);
+      } else {
+        It->setInt(1); // Mark as deleted
+      }
     }
     ExprResult TransformConstantExpr(ConstantExpr *E) {
       if (!E->isImmediateInvocation())
@@ -18087,10 +18099,13 @@ HandleImmediateInvocations(Sema &SemaRef,
       SemaRef.RebuildingImmediateInvocation)
     return;
 
-  /// When we have more then 1 ImmediateInvocationCandidates we need to check
-  /// for nested ImmediateInvocationCandidates. when we have only 1 we only
-  /// need to remove ReferenceToConsteval in the immediate invocation.
-  if (Rec.ImmediateInvocationCandidates.size() > 1) {
+  /// When we have more than 1 ImmediateInvocationCandidates or previously
+  /// failed immediate invocations, we need to check for nested
+  /// ImmediateInvocationCandidates in order to avoid duplicate diagnostics.
+  /// Otherwise we only need to remove ReferenceToConsteval in the immediate
+  /// invocation.
+  if (Rec.ImmediateInvocationCandidates.size() > 1 ||
+      !SemaRef.FailedImmediateInvocations.empty()) {
 
     /// Prevent sema calls during the tree transform from adding pointers that
     /// are already in the sets.

@@ -24080,8 +24080,8 @@ AArch64TargetLowering::EmitSetjmp(MachineInstr &MI,
                                   MachineBasicBlock *MBB) const {
   MachineFunction *MF = MBB->getParent();
   const TargetInstrInfo *TII = Subtarget->getInstrInfo();
-  const AArch64RegisterInfo *TRI = static_cast<const AArch64RegisterInfo *>(
-      MF->getSubtarget().getRegisterInfo());
+  const AArch64RegisterInfo *TRI =
+      &Subtarget->getInstrInfo()->getRegisterInfo();
   MachineRegisterInfo &MRI = MF->getRegInfo();
   DebugLoc DL = MI.getDebugLoc();
 
@@ -24124,7 +24124,7 @@ AArch64TargetLowering::EmitSetjmp(MachineInstr &MI,
   MF->insert(I, mainMBB);
   MF->insert(I, sinkMBB);
   MF->push_back(restoreMBB);
-  restoreMBB->setMachineBlockAddressTaken();
+  restoreMBB->setIsEHPad(true);
 
   MachineInstrBuilder MIB;
 
@@ -24160,7 +24160,6 @@ AArch64TargetLowering::EmitSetjmp(MachineInstr &MI,
   // Add a special terminator instruction to make the resume block reachable.
   MIB = BuildMI(*thisMBB, MI, DL, TII->get(AArch64::EH_SjLj_Setup))
             .addMBB(restoreMBB);
-
   // TODO: This unnecessarily flushes registers on the fallthrough
   // path even though only restoreMBB loses register state.  The data
   // loss needs to be added to the edge.  Putting the register mask in

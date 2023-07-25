@@ -1410,10 +1410,13 @@ void ToolChain::AddOpenCilkIncludeDir(const ArgList &Args,
 
 ToolChain::path_list
 ToolChain::getOpenCilkRuntimePaths(const ArgList &Args) const {
-  if (!Args.hasArg(options::OPT_opencilk_resource_dir_EQ))
-    return getRuntimePaths();
-
   path_list Paths;
+
+  if (!Args.hasArg(options::OPT_opencilk_resource_dir_EQ)) {
+    Paths = getRuntimePaths();
+    Paths.push_back(getCompilerRTPath());
+    return Paths;
+  }
 
   // If -opencilk-resource-dir= is specified, try to use that directory, and
   // raise an error if that fails.
@@ -1482,8 +1485,8 @@ std::string ToolChain::getOpenCilkBCBasename(const ArgList &Args,
   return (Prefix + Component + ArchAndEnv + Suffix).str();
 }
 
-Optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
-                                               StringRef Component) const {
+std::optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
+                                                    StringRef Component) const {
   // Check for runtime files without the architecture first.
   std::string BCBasename =
       getOpenCilkBCBasename(Args, Component, /*AddArch=*/false);
@@ -1491,7 +1494,7 @@ Optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
     SmallString<128> P(RuntimePath);
     llvm::sys::path::append(P, BCBasename);
     if (getVFS().exists(P))
-      return llvm::Optional<std::string>(std::string(P.str()));
+      return std::optional<std::string>(std::string(P.str()));
   }
 
   // Fall back to the OpenCilk name with the arch if the no-arch version does
@@ -1501,10 +1504,10 @@ Optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
     SmallString<128> P(RuntimePath);
     llvm::sys::path::append(P, BCBasename);
     if (getVFS().exists(P))
-      return llvm::Optional<std::string>(std::string(P.str()));
+      return std::optional<std::string>(std::string(P.str()));
   }
 
-  return None;
+  return std::nullopt;
 }
 
 void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
@@ -1521,7 +1524,6 @@ void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
     if (IsLTO)
       CmdArgs.push_back(
           Args.MakeArgString("--plugin-opt=opencilk-abi-bitcode=" + P));
-    return;
   }
 
   bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
@@ -1533,12 +1535,6 @@ void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
     else
       CmdArgs.push_back(Args.MakeArgString("--opencilk-abi-bitcode=" +
                                            *OpenCilkABIBCFilename));
-    return;
-  }
-
-  // Check if libopencilk is in LD_LIBRARY_PATH, and if it is, we're OK
-  if (llvm::sys::Process::FindInEnvPath("LD_LIBRARY_PATH",
-                                        "libopencilk-abi.bc")) {
     return;
   }
 
@@ -1621,12 +1617,10 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
                                                     << A->getValue();
 
   switch (TapirTarget) {
-
   case TapirTargetID::Cheetah:
     CmdArgs.push_back("-lcheetah");
     CmdArgs.push_back("-lpthread");
     break;
-
   case TapirTargetID::OpenCilk: {
     bool StaticOpenCilk = Args.hasArg(options::OPT_static_libopencilk) ||
                               Args.hasArg(options::OPT_static);
@@ -1655,15 +1649,6 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
           UseAsan ? "opencilk-asan-personality-c" : "opencilk-personality-c",
           StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
 
-
-    // Link the correct Cilk personality fn if running in opencilk mode.
-    if (Args.hasArg(options::OPT_fopencilk)) {
-      if (getDriver().CCCIsCXX())
-        CmdArgs.push_back("-lopencilk-personality-cpp");
-      else
-        CmdArgs.push_back("-lopencilk-personality-c");
-    }
-
     // Link the opencilk runtime.  We do this after linking the personality
     // function, to ensure that symbols are resolved correctly when using static
     // linking.
@@ -1674,9 +1659,10 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
     // Add to the executable's runpath the default directory containing OpenCilk
     // runtime.
     addOpenCilkRuntimeRunPath(*this, Args, CmdArgs, Triple);
-    if (OnlyStaticOpenCilk)
+    if (OnlyStaticOpenCilk) {
       CmdArgs.push_back("-Bdynamic");
-    CmdArgs.push_back("-lpthread");
+      CmdArgs.push_back("-lpthread");
+    }
     break;
   }
   case TapirTargetID::Cilk:
@@ -1690,6 +1676,8 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
   case TapirTargetID::Qthreads:
     if (! KITSUNE_ENABLE_QTHREADS_ABI_TARGET)
       getDriver().Diag(diag::warn_drv_tapir_qthreads_target_disabled);
+    else 
+      CmdArgs.push_back("-lqthread");
     break;
 
   case TapirTargetID::Realm:
@@ -1751,7 +1739,7 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
     break;
 
   default:
-    llvm::report_fatal_error("enternal error -- unhandled tapir target ID!");
+    llvm::report_fatal_error("Internal error -- unhandled tapir target ID!");
     break;
   }
 

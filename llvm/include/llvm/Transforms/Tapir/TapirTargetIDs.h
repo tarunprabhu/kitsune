@@ -21,15 +21,16 @@ namespace llvm {
 enum class TapirTargetID {
   Off,      // Completely disabled (i.e., no -ftapir argument was present).
   None,     // Perform no lowering
+  GPU,      // Lower for LLVM JIT.
   Serial,   // Lower to serial projection
   Cheetah,  // Lower to the Cheetah ABI
   Cilk,     // Lower to the Cilk Plus ABI (TODO: deprecated?)
   Cuda,     // Lower to Cuda ABI
-  OpenCilk, // Lower to OpenCilk ABI
   Hip,      // Lower to the Hip (AMD GPU) ABI.
-  OpenCL,   // Lower to OpenCL ABI (TODO: deprecated?)
+  Lambda,   // Lower to generic Lambda ABI
+  OMPTask,  // Lower to OpenMP task ABI
+  OpenCilk, // Lower to OpenCilk ABI
   OpenMP,   // Lower to OpenMP (TODO: Needs to be updated.)
-  GPU,      // Lower for LLVM JIT.
   Qthreads, // Lower to Qthreads (TODO: deprecated?)
   Realm,    // Lower to Realm (TODO: Needs to be updated.)
   Last_TapirTargetID

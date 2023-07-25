@@ -1070,13 +1070,8 @@ CodeGenModule::mergeTBAAInfoForMemoryTransfer(TBAAAccessInfo DestInfo,
 
 void CodeGenModule::DecorateInstructionWithTBAA(llvm::Instruction *Inst,
                                                 TBAAAccessInfo TBAAInfo) {
-  if (llvm::MDNode *Tag = getTBAAAccessTagInfo(TBAAInfo)) {
+  if (llvm::MDNode *Tag = getTBAAAccessTagInfo(TBAAInfo))
     Inst->setMetadata(llvm::LLVMContext::MD_tbaa, Tag);
-    /* A good sanity check for TBAA issues but slows down compilation...
-     * llvm::TBAAVerifier V;
-     * assert(V.visitTBAAMetadata(*Inst, Tag) && "invalid TBAA metadata!");
-     */
-  }
 }
 
 void CodeGenModule::DecorateInstructionWithInvariantGroup(
@@ -4886,19 +4881,13 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
   // since this is the job for its original source.
   bool IsDefinitionAvailableExternally =
       getContext().GetGVALinkageForVariable(D) == GVA_AvailableExternally;
-  bool NeedsGlobalDtor = false;
-  switch (D->needsDestruction(getContext())) {
-  case QualType::DK_cxx_destructor:
-    NeedsGlobalDtor = !IsDefinitionAvailableExternally;
-    break;
-  case QualType::DK_hyperobject:
-    NeedsGlobalCtor = true;
-    NeedsGlobalDtor = true;
-    break;
-  default:
-    NeedsGlobalDtor = false;
-    break;
-  }
+  bool NeedsGlobalDtor =
+      !IsDefinitionAvailableExternally &&
+      (D->needsDestruction(getContext()) == QualType::DK_cxx_destructor ||
+       D->needsDestruction(getContext()) == QualType::DK_hyperobject);
+  NeedsGlobalCtor =
+      !IsDefinitionAvailableExternally &&
+      D->needsDestruction(getContext()) == QualType::DK_hyperobject;
 
   const VarDecl *InitDecl;
   const Expr *InitExpr = D->getAnyInitializer(InitDecl);

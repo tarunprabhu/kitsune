@@ -108,16 +108,16 @@ bool AAResults::invalidate(Function &F, const PreservedAnalyses &PA,
 
 AliasResult AAResults::alias(const MemoryLocation &LocA,
                              const MemoryLocation &LocB) {
-  SimpleAAQueryInfo AAQI(*this);
-  return alias(LocA, LocB, AAQI, nullptr);
+  SimpleAAQueryInfo AAQIP(*this);
+  return alias(LocA, LocB, AAQIP, nullptr);
 }
 
 AliasResult AAResults::alias(const MemoryLocation &LocA,
                              const MemoryLocation &LocB,
                              bool AssumeSameSpindle) {
-  SimpleAAQueryInfo AAQI(*this);
-  AAQI.AssumeSameSpindle = AssumeSameSpindle;
-  return alias(LocA, LocB, AAQI);
+  SimpleAAQueryInfo AAQIP(*this);
+  AAQIP.AssumeSameSpindle = AssumeSameSpindle;
+  return alias(LocA, LocB, AAQIP, nullptr);
 }
 
 AliasResult AAResults::alias(const MemoryLocation &LocA,
@@ -167,8 +167,8 @@ AliasResult AAResults::alias(const MemoryLocation &LocA,
 
 ModRefInfo AAResults::getModRefInfoMask(const MemoryLocation &Loc,
                                         bool IgnoreLocals) {
-  SimpleAAQueryInfo AAQI(*this);
-  return getModRefInfoMask(Loc, AAQI, IgnoreLocals);
+  SimpleAAQueryInfo AAQIP(*this);
+  return getModRefInfoMask(Loc, AAQIP, IgnoreLocals);
 }
 
 ModRefInfo AAResults::getModRefInfoMask(const MemoryLocation &Loc,
@@ -200,11 +200,18 @@ ModRefInfo AAResults::getArgModRefInfo(const CallBase *Call, unsigned ArgIdx) {
   return Result;
 }
 
-ModRefInfo AAResults::getModRefInfo(const Instruction *I, const CallBase *Call2,
+ModRefInfo AAResults::getModRefInfo(const Instruction *I,
+                                    const CallBase *Call2) {
+  SimpleAAQueryInfo AAQIP(*this);
+  return getModRefInfo(I, Call2, AAQIP);
+}
+
+ModRefInfo AAResults::getModRefInfo(const Instruction *I,
+                                    const CallBase *Call2,
                                     bool AssumeSameSpindle) {
-  SimpleAAQueryInfo AAQI(*this);
-  AAQI.AssumeSameSpindle = AssumeSameSpindle;
-  return getModRefInfo(I, Call2, AAQI);
+  SimpleAAQueryInfo AAQIP(*this);
+  AAQIP.AssumeSameSpindle = AssumeSameSpindle;
+  return getModRefInfo(I, Call2, AAQIP);
 }
 
 /// Returns true if the given instruction performs a detached rethrow, false
@@ -365,14 +372,6 @@ ModRefInfo AAResults::getModRefInfo(const CallBase *Call,
 }
 
 ModRefInfo AAResults::getModRefInfo(const CallBase *Call1,
-                                    const CallBase *Call2,
-                                    bool AssumeSameSpindle) {
-  SimpleAAQueryInfo AAQI(*this);
-  AAQI.AssumeSameSpindle = AssumeSameSpindle;
-  return getModRefInfo(Call1, Call2, AAQI);
-}
-
-ModRefInfo AAResults::getModRefInfo(const CallBase *Call1,
                                     const CallBase *Call2, AAQueryInfo &AAQI) {
   ModRefInfo Result = ModRefInfo::ModRef;
 
@@ -410,7 +409,7 @@ ModRefInfo AAResults::getModRefInfo(const CallBase *Call1,
   // If Call2 only access memory through arguments, accumulate the mod/ref
   // information from Call1's references to the memory referenced by
   // Call2's arguments.
-  if (Call2B.onlyAccessesArgPointees() || effectivelyArgMemOnly(Call2, AAQI)) {
+  if (Call2B.onlyAccessesArgPointees()) {
     if (!Call2B.doesAccessArgPointees())
       return ModRefInfo::NoModRef;
     ModRefInfo R = ModRefInfo::NoModRef;
@@ -448,7 +447,7 @@ ModRefInfo AAResults::getModRefInfo(const CallBase *Call1,
 
   // If Call1 only accesses memory through arguments, check if Call2 references
   // any of the memory referenced by Call1's arguments. If not, return NoModRef.
-  if (Call1B.onlyAccessesArgPointees() || effectivelyArgMemOnly(Call1, AAQI)) {
+  if (Call1B.onlyAccessesArgPointees()) {
     if (!Call1B.doesAccessArgPointees())
       return ModRefInfo::NoModRef;
     ModRefInfo R = ModRefInfo::NoModRef;
@@ -491,6 +490,10 @@ MemoryEffects AAResults::getMemoryEffects(const CallBase *Call,
       return Result;
   }
 
+  if (effectivelyArgMemOnly(Call, AAQI))
+    return MemoryEffects(MemoryEffects::Location::ArgMem,
+                         Result.getModRef(MemoryEffects::Location::ArgMem));
+
   return Result;
 }
 
@@ -508,6 +511,79 @@ MemoryEffects AAResults::getMemoryEffects(const Function *F) {
     // Early-exit the moment we reach the bottom of the lattice.
     if (Result.doesNotAccessMemory())
       return Result;
+  }
+
+  return Result;
+}
+
+MemoryEffects AAResults::getMemoryEffects(const DetachInst *D,
+                                          AAQueryInfo &AAQI) {
+  MemoryEffects Result = MemoryEffects::none();
+  SmallPtrSet<const BasicBlock *, 32> Visited;
+  SmallVector<const BasicBlock *, 32> WorkList;
+  WorkList.push_back(D->getDetached());
+  while (!WorkList.empty()) {
+    const BasicBlock *BB = WorkList.pop_back_val();
+    if (!Visited.insert(BB).second)
+      continue;
+
+    for (const Instruction &I : *BB) {
+      // Fail fast if we encounter an invalid CFG.
+      assert(!(D == &I) &&
+             "Invalid CFG found: Detached CFG reaches its own Detach.");
+
+      if (const auto *CS = dyn_cast<CallBase>(&I))
+        Result |= getMemoryEffects(CS, AAQI);
+
+      // Early-exit the moment we reach the top of the lattice.
+      if (Result == MemoryEffects::unknown())
+        return Result;
+    }
+
+    // Add successors
+    const Instruction *T = BB->getTerminator();
+    if (taskTerminator(T, D->getSyncRegion()))
+      continue;
+    for (unsigned idx = 0, max = T->getNumSuccessors(); idx < max; ++idx)
+      WorkList.push_back(T->getSuccessor(idx));
+  }
+
+  return Result;
+}
+
+MemoryEffects AAResults::getMemoryEffects(const SyncInst *S,
+                                          AAQueryInfo &AAQI) {
+  MemoryEffects Result = MemoryEffects::none();
+  SmallPtrSet<const BasicBlock *, 32> Visited;
+  SmallVector<const BasicBlock *, 32> WorkList;
+  WorkList.push_back(S->getParent());
+  while (!WorkList.empty()) {
+    const BasicBlock *BB = WorkList.pop_back_val();
+    if (!Visited.insert(BB).second)
+      continue;
+
+    if (const DetachInst *D = dyn_cast<DetachInst>(BB->getTerminator()))
+      Result |= getMemoryEffects(D, AAQI);
+
+    // Early-exit the moment we reach the top of the lattice.
+    if (Result == MemoryEffects::unknown())
+      return Result;
+
+    // Add predecessors
+    for (const BasicBlock *Pred : predecessors(BB)) {
+      const Instruction *PT = Pred->getTerminator();
+      // Ignore reattached predecessors and predecessors that end in syncs,
+      // because this sync does not wait on those predecessors.
+      if (isa<ReattachInst>(PT) || isa<SyncInst>(PT) || isDetachedRethrow(PT))
+	continue;
+
+      // If this block is detached, ignore the predecessor that detaches it.
+      if (const DetachInst *Det = dyn_cast<DetachInst>(PT))
+        if (Det->getDetached() == BB)
+          continue;
+
+      WorkList.push_back(Pred);
+    }
   }
 
   return Result;
@@ -569,87 +645,9 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, MemoryEffects ME) {
   return OS;
 }
 
-MemoryEffects AAResults::getMemoryEffects(const DetachInst *D) {
-  MemoryEffects Result = MemoryEffects::none();
-  SmallPtrSet<const BasicBlock *, 32> Visited;
-  SmallVector<const BasicBlock *, 32> WorkList;
-  WorkList.push_back(D->getDetached());
-  while (!WorkList.empty()) {
-    const BasicBlock *BB = WorkList.pop_back_val();
-    if (!Visited.insert(BB).second)
-      continue;
-
-    for (const Instruction &I : *BB) {
-      // Fail fast if we encounter an invalid CFG.
-      assert(!(D == &I) &&
-             "Invalid CFG found: Detached CFG reaches its own Detach.");
-
-      if (const auto *CS = dyn_cast<CallBase>(&I))
-        Result |= getMemoryEffects(CS);
-
-      // Early-exit the moment we reach the top of the lattice.
-      if (Result == MemoryEffects::unknown())
-        return Result;
-    }
-
-    // Add successors
-    const Instruction *T = BB->getTerminator();
-    if (taskTerminator(T, D->getSyncRegion()))
-      continue;
-    for (unsigned idx = 0, max = T->getNumSuccessors(); idx < max; ++idx)
-      WorkList.push_back(T->getSuccessor(idx));
-  }
-
-  return Result;
-}
-
-MemoryEffects AAResults::getMemoryEffects(const SyncInst *S) {
-  FunctionModRefBehavior Result = MemoryEffects::none();
-  SmallPtrSet<const BasicBlock *, 32> Visited;
-  SmallVector<const BasicBlock *, 32> WorkList;
-  WorkList.push_back(S->getParent());
-  while (!WorkList.empty()) {
-    const BasicBlock *BB = WorkList.pop_back_val();
-    if (!Visited.insert(BB).second)
-      continue;
-
-    if (const DetachInst *D = dyn_cast<DetachInst>(BB->getTerminator()))
-      if (D->getSyncRegion() == S->getSyncRegion())
-        Result |= getMemoryEffects(D);
-
-    // Early-exit the moment we reach the top of the lattice.
-    if (Result == MemoryEffects::unknown())
-      return Result;
-
-    // Add predecessors
-    for (const BasicBlock *Pred : predecessors(BB)) {
-      const Instruction *PT = Pred->getTerminator();
-      // Ignore reattached predecessors and predecessors that end in syncs,
-      // because this sync does not wait on those predecessors.
-      if (isa<ReattachInst>(PT) || isa<SyncInst>(PT) || isDetachedRethrow(PT))
-        continue;
-
-      // If this block is detached, ignore the predecessor that detaches it.
-      if (const DetachInst *Det = dyn_cast<DetachInst>(PT))
-        if (Det->getDetached() == BB)
-          continue;
-
-      WorkList.push_back(Pred);
-    }
-  }
-
-  return Result;
-}
-
 //===----------------------------------------------------------------------===//
 // Helper method implementation
 //===----------------------------------------------------------------------===//
-
-ModRefInfo AAResults::getModRefInfo(const LoadInst *L,
-                                    const MemoryLocation &Loc) {
-  SimpleAAQueryInfo AAQI(*this);
-  return getModRefInfo(L, Loc, AAQI);
-}
 
 ModRefInfo AAResults::getModRefInfo(const LoadInst *L,
                                     const MemoryLocation &Loc,
@@ -667,12 +665,6 @@ ModRefInfo AAResults::getModRefInfo(const LoadInst *L,
   }
   // Otherwise, a load just reads.
   return ModRefInfo::Ref;
-}
-
-ModRefInfo AAResults::getModRefInfo(const StoreInst* S,
-                                    const MemoryLocation &Loc) {
-  SimpleAAQueryInfo AAQI(*this);
-  return getModRefInfo(S, Loc, AAQI);
 }
 
 ModRefInfo AAResults::getModRefInfo(const StoreInst *S,
@@ -701,12 +693,6 @@ ModRefInfo AAResults::getModRefInfo(const StoreInst *S,
   return ModRefInfo::Mod;
 }
 
-ModRefInfo AAResults::getModRefInfo(const FenceInst* S,
-                                    const MemoryLocation &Loc) {
-  SimpleAAQueryInfo AAQI(*this);
-  return getModRefInfo(S, Loc, AAQI);
-}
-
 ModRefInfo AAResults::getModRefInfo(const FenceInst *S,
                                     const MemoryLocation &Loc,
                                     AAQueryInfo &AAQI) {
@@ -716,12 +702,6 @@ ModRefInfo AAResults::getModRefInfo(const FenceInst *S,
   if (Loc.Ptr)
     return getModRefInfoMask(Loc);
   return ModRefInfo::ModRef;
-}
-
-ModRefInfo AAResults::getModRefInfo(const VAArgInst* V,
-                                    const MemoryLocation &Loc) {
-  SimpleAAQueryInfo AAQI(*this);
-  return getModRefInfo(V, Loc, AAQI);
 }
 
 ModRefInfo AAResults::getModRefInfo(const VAArgInst *V,
@@ -743,12 +723,6 @@ ModRefInfo AAResults::getModRefInfo(const VAArgInst *V,
   return ModRefInfo::ModRef;
 }
 
-ModRefInfo AAResults::getModRefInfo(const CatchPadInst* CatchPad,
-                                    const MemoryLocation &Loc) {
-  SimpleAAQueryInfo AAQI(*this);
-  return getModRefInfo(CatchPad, Loc, AAQI);
-}
-
 ModRefInfo AAResults::getModRefInfo(const CatchPadInst *CatchPad,
                                     const MemoryLocation &Loc,
                                     AAQueryInfo &AAQI) {
@@ -763,12 +737,6 @@ ModRefInfo AAResults::getModRefInfo(const CatchPadInst *CatchPad,
 }
 
 ModRefInfo AAResults::getModRefInfo(const CatchReturnInst *CatchRet,
-                                    const MemoryLocation &Loc) {
-  SimpleAAQueryInfo AAQI(*this);
-  return getModRefInfo(CatchRet, Loc, AAQI);
-}
-
-ModRefInfo AAResults::getModRefInfo(const CatchReturnInst *CatchRet,
                                     const MemoryLocation &Loc,
                                     AAQueryInfo &AAQI) {
   if (Loc.Ptr) {
@@ -779,12 +747,6 @@ ModRefInfo AAResults::getModRefInfo(const CatchReturnInst *CatchRet,
 
   // Otherwise, a catchret reads and writes.
   return ModRefInfo::ModRef;
-}
-
-ModRefInfo AAResults::getModRefInfo(const AtomicCmpXchgInst *CX,
-                                    const MemoryLocation &Loc) {
-  SimpleAAQueryInfo AAQI(*this);
-  return getModRefInfo(CX, Loc, AAQI);
 }
 
 ModRefInfo AAResults::getModRefInfo(const AtomicCmpXchgInst *CX,
@@ -803,12 +765,6 @@ ModRefInfo AAResults::getModRefInfo(const AtomicCmpXchgInst *CX,
   }
 
   return ModRefInfo::ModRef;
-}
-
-ModRefInfo AAResults::getModRefInfo(const AtomicRMWInst *RMW,
-                                    const MemoryLocation &Loc) {
-  SimpleAAQueryInfo AAQI(*this);
-  return getModRefInfo(RMW, Loc, AAQI);
 }
 
 ModRefInfo AAResults::getModRefInfo(const AtomicRMWInst *RMW,
@@ -831,52 +787,46 @@ ModRefInfo AAResults::getModRefInfo(const AtomicRMWInst *RMW,
 
 ModRefInfo AAResults::getModRefInfo(const Instruction *I,
                                     const std::optional<MemoryLocation> &OptLoc,
-                                    AAQueryInfo &AAQI) {
+                                    AAQueryInfo &AAQIP) {
   if (OptLoc == std::nullopt) {
     if (const auto *Call = dyn_cast<CallBase>(I))
-      return getMemoryEffects(Call, AAQI).getModRef();
-    else if (const auto *D = dyn_cast<DetachInst>(I))
-      return getMemoryEffects(D).getModRef();
+      return getMemoryEffects(Call, AAQIP).getModRef();
+    if (const auto *D = dyn_cast<DetachInst>(I))
+      return getMemoryEffects(D, AAQIP).getModRef();
   }
 
   const MemoryLocation &Loc = OptLoc.value_or(MemoryLocation());
 
   switch (I->getOpcode()) {
   case Instruction::VAArg:
-    return getModRefInfo((const VAArgInst *)I, Loc, AAQI);
+    return getModRefInfo((const VAArgInst *)I, Loc, AAQIP);
   case Instruction::Load:
-    return getModRefInfo((const LoadInst *)I, Loc, AAQI);
+    return getModRefInfo((const LoadInst *)I, Loc, AAQIP);
   case Instruction::Store:
-    return getModRefInfo((const StoreInst *)I, Loc, AAQI);
+    return getModRefInfo((const StoreInst *)I, Loc, AAQIP);
   case Instruction::Fence:
-    return getModRefInfo((const FenceInst *)I, Loc, AAQI);
+    return getModRefInfo((const FenceInst *)I, Loc, AAQIP);
   case Instruction::AtomicCmpXchg:
-    return getModRefInfo((const AtomicCmpXchgInst *)I, Loc, AAQI);
+    return getModRefInfo((const AtomicCmpXchgInst *)I, Loc, AAQIP);
   case Instruction::AtomicRMW:
-    return getModRefInfo((const AtomicRMWInst *)I, Loc, AAQI);
+    return getModRefInfo((const AtomicRMWInst *)I, Loc, AAQIP);
   case Instruction::Call:
   case Instruction::CallBr:
   case Instruction::Invoke:
-    return getModRefInfo((const CallBase *)I, Loc, AAQI);
+    return getModRefInfo((const CallBase *)I, Loc, AAQIP);
   case Instruction::CatchPad:
-    return getModRefInfo((const CatchPadInst *)I, Loc, AAQI);
+    return getModRefInfo((const CatchPadInst *)I, Loc, AAQIP);
   case Instruction::CatchRet:
-    return getModRefInfo((const CatchReturnInst *)I, Loc, AAQI);
+    return getModRefInfo((const CatchReturnInst *)I, Loc, AAQIP);
   case Instruction::Detach:
-    return getModRefInfo((const DetachInst *)I, Loc, AAQI);
+    return getModRefInfo((const DetachInst *)I, Loc, AAQIP);
   case Instruction::Sync:
-    return getModRefInfo((const SyncInst *)I, Loc, AAQI);
+    return getModRefInfo((const SyncInst *)I, Loc, AAQIP);
   default:
     assert(!I->mayReadOrWriteMemory() &&
            "Unhandled memory access instruction!");
     return ModRefInfo::NoModRef;
   }
-}
-
-ModRefInfo AAResults::getModRefInfo(const DetachInst *D,
-                                    const MemoryLocation &Loc) {
-  SimpleAAQueryInfo AAQI(*this);
-  return getModRefInfo(D, Loc, AAQI);
 }
 
 ModRefInfo AAResults::getModRefInfo(const DetachInst *D,
@@ -917,12 +867,6 @@ ModRefInfo AAResults::getModRefInfo(const DetachInst *D,
   }
 
   return Result;
-}
-
-ModRefInfo AAResults::getModRefInfo(const SyncInst *S,
-                                    const MemoryLocation &Loc) {
-  SimpleAAQueryInfo AAQI(*this);
-  return getModRefInfo(S, Loc, AAQI);
 }
 
 ModRefInfo AAResults::getModRefInfo(const SyncInst *S,
@@ -1164,6 +1108,7 @@ void AAResultsWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addUsedIfAvailable<TypeBasedAAWrapperPass>();
   AU.addUsedIfAvailable<GlobalsAAWrapperPass>();
   AU.addUsedIfAvailable<SCEVAAWrapperPass>();
+  AU.addUsedIfAvailable<DRFAAWrapperPass>();
   AU.addUsedIfAvailable<ExternalAAWrapperPass>();
 }
 

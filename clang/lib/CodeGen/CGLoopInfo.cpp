@@ -500,7 +500,7 @@ LoopAttributes::LoopAttributes(bool IsParallel)
       TapirGrainsize(0),
       DistributeEnable(LoopAttributes::Unspecified), PipelineDisabled(false),
       PipelineInitiationInterval(0), MustProgress(false),
-      SpawnStrategy(LoopAttributes::SEQ) {}
+      SpawnStrategy(LoopAttributes::Sequential) {}
 
 void LoopAttributes::clear() {
   IsParallel = false;
@@ -518,7 +518,7 @@ void LoopAttributes::clear() {
   PipelineDisabled = false;
   PipelineInitiationInterval = 0;
   MustProgress = false;
-  SpawnStrategy = LoopAttributes::SEQ;
+  SpawnStrategy = LoopAttributes::Sequential;
 }
 
 LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
@@ -545,7 +545,7 @@ LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
       Attrs.UnrollAndJamEnable == LoopAttributes::Unspecified &&
       Attrs.DistributeEnable == LoopAttributes::Unspecified && !StartLoc &&
       !EndLoc && !Attrs.MustProgress &&
-      Attrs.SpawnStrategy == LoopAttributes::SEQ)
+      Attrs.SpawnStrategy == LoopAttributes::Sequential)
     return;
 
   TempLoopID = MDNode::getTemporary(Header->getContext(), std::nullopt);
@@ -555,11 +555,11 @@ void LoopInfo::getTapirLoopProperties(
     const LoopAttributes &Attrs, SmallVectorImpl<Metadata *> &LoopProperties) {
   LLVMContext &Ctx = Header->getContext();
 
-  if (Attrs.SpawnStrategy == LoopAttributes::SEQ)
+  if (Attrs.SpawnStrategy == LoopAttributes::Sequential)
     return;
 
   // Setting tapir.loop.spawn.strategy
-  if (Attrs.SpawnStrategy != LoopAttributes::SEQ) {
+  if (Attrs.SpawnStrategy != LoopAttributes::Sequential) {
     Metadata *Vals[] = {
         MDString::get(Ctx, "tapir.loop.spawn.strategy"),
         ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),

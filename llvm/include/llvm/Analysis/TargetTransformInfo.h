@@ -537,7 +537,7 @@ public:
   /// transformation. The caller will initialize SMP with the current
   /// target-independent defaults.
   void getStripMiningPreferences(Loop *L, ScalarEvolution &,
-	                             StripMiningPreferences &SMP) const;
+                                 StripMiningPreferences &SMP) const;
 
   /// Query the target whether lowering of the llvm.get.active.lane.mask
   /// intrinsic is supported and how the mask should be used. A return value
@@ -1639,9 +1639,9 @@ public:
                               AssumptionCache &AC, TargetLibraryInfo *TLI,
                               DominatorTree *DT, LoopVectorizationLegality *LVL,
                               InterleavedAccessInfo *IAI) = 0;
-  virtual PredicationStyle emitGetActiveLaneMask() = 0;
   virtual void getStripMiningPreferences(Loop *L, ScalarEvolution &,
                                          StripMiningPreferences &SMP) = 0;
+  virtual PredicationStyle emitGetActiveLaneMask() = 0;
   virtual std::optional<Instruction *> instCombineIntrinsic(
       InstCombiner &IC, IntrinsicInst &II) = 0;
   virtual std::optional<Value *> simplifyDemandedUseBitsIntrinsic(
@@ -2041,12 +2041,12 @@ public:
                                    InterleavedAccessInfo *IAI) override {
     return Impl.preferPredicateOverEpilogue(L, LI, SE, AC, TLI, DT, LVL, IAI);
   }
-  PredicationStyle emitGetActiveLaneMask() override {
-    return Impl.emitGetActiveLaneMask();
-  }
   void getStripMiningPreferences(Loop *L, ScalarEvolution &SE,
                                  StripMiningPreferences &SMP) override {
     return Impl.getStripMiningPreferences(L, SE, SMP);
+  }
+  PredicationStyle emitGetActiveLaneMask() override {
+    return Impl.emitGetActiveLaneMask();
   }
   std::optional<Instruction *>
   instCombineIntrinsic(InstCombiner &IC, IntrinsicInst &II) override {

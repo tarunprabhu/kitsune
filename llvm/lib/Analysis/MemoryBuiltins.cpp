@@ -205,30 +205,27 @@ getAllocationDataForFunction(const Function *Callee, AllocType AllocTy,
 
 static std::optional<AllocFnsTy>
 getAllocationData(const Value *V, AllocType AllocTy,
-                  const TargetLibraryInfo *TLI,
-                  bool IgnoreBuiltinAttr = false) {
+                  const TargetLibraryInfo *TLI) {
   bool IsNoBuiltinCall;
   if (const Function *Callee = getCalledFunction(V, IsNoBuiltinCall))
-    if (IgnoreBuiltinAttr || !IsNoBuiltinCall)
+    if (!IsNoBuiltinCall)
       return getAllocationDataForFunction(Callee, AllocTy, TLI);
   return std::nullopt;
 }
 
 static std::optional<AllocFnsTy>
 getAllocationData(const Value *V, AllocType AllocTy,
-                  function_ref<const TargetLibraryInfo &(Function &)> GetTLI,
-                  bool IgnoreBuiltinAttr = false) {
+                  function_ref<const TargetLibraryInfo &(Function &)> GetTLI) {
   bool IsNoBuiltinCall;
   if (const Function *Callee = getCalledFunction(V, IsNoBuiltinCall))
-    if (IgnoreBuiltinAttr || !IsNoBuiltinCall)
+    if (!IsNoBuiltinCall)
       return getAllocationDataForFunction(
           Callee, AllocTy, &GetTLI(const_cast<Function &>(*Callee)));
   return std::nullopt;
 }
 
 static std::optional<AllocFnsTy>
-getAllocationSize(const Value *V, const TargetLibraryInfo *TLI,
-                  bool IgnoreBuiltinAttr = false) {
+getAllocationSize(const Value *V, const TargetLibraryInfo *TLI) {
   bool IsNoBuiltinCall;
   const Function *Callee =
       getCalledFunction(V, IsNoBuiltinCall);
@@ -237,7 +234,7 @@ getAllocationSize(const Value *V, const TargetLibraryInfo *TLI,
 
   // Prefer to use existing information over allocsize. This will give us an
   // accurate AllocTy.
-  if (IgnoreBuiltinAttr || !IsNoBuiltinCall)
+  if (!IsNoBuiltinCall)
     if (std::optional<AllocFnsTy> Data =
             getAllocationDataForFunction(Callee, AnyAlloc, TLI))
       return Data;
@@ -287,16 +284,14 @@ static bool checkFnAllocKind(const Function *F, AllocFnKind Wanted) {
 /// Tests if a value is a call or invoke to a library function that
 /// allocates or reallocates memory (either malloc, calloc, realloc, or strdup
 /// like).
-bool llvm::isAllocationFn(const Value *V, const TargetLibraryInfo *TLI,
-                          bool IgnoreBuiltinAttr) {
-  return getAllocationData(V, AnyAlloc, TLI, IgnoreBuiltinAttr).has_value() ||
+bool llvm::isAllocationFn(const Value *V, const TargetLibraryInfo *TLI) {
+  return getAllocationData(V, AnyAlloc, TLI).has_value() ||
          checkFnAllocKind(V, AllocFnKind::Alloc | AllocFnKind::Realloc);
 }
 bool llvm::isAllocationFn(
     const Value *V,
-    function_ref<const TargetLibraryInfo &(Function &)> GetTLI,
-    bool IgnoreBuiltinAttr) {
-  return getAllocationData(V, AnyAlloc, GetTLI, IgnoreBuiltinAttr).has_value() ||
+    function_ref<const TargetLibraryInfo &(Function &)> GetTLI) {
+  return getAllocationData(V, AnyAlloc, GetTLI).has_value() ||
          checkFnAllocKind(V, AllocFnKind::Alloc | AllocFnKind::Realloc);
 }
 
@@ -343,10 +338,9 @@ bool llvm::isRemovableAlloc(const CallBase *CB, const TargetLibraryInfo *TLI) {
   return isAllocLikeFn(CB, TLI);
 }
 
-Value *llvm::getAllocAlignment(const CallBase *V, const TargetLibraryInfo *TLI,
-                               bool IgnoreBuiltinAttr) {
-  const std::optional<AllocFnsTy> FnData =
-      getAllocationData(V, AnyAlloc, TLI, IgnoreBuiltinAttr);
+Value *llvm::getAllocAlignment(const CallBase *V,
+                               const TargetLibraryInfo *TLI) {
+  const std::optional<AllocFnsTy> FnData = getAllocationData(V, AnyAlloc, TLI);
   if (FnData && FnData->AlignParam >= 0) {
     return V->getOperand(FnData->AlignParam);
   }
@@ -370,12 +364,10 @@ static bool CheckedZextOrTrunc(APInt &I, unsigned IntTyBits) {
 }
 
 std::pair<Value *, Value *>
-llvm::getAllocSizeArgs(const CallBase *CB, const TargetLibraryInfo *TLI,
-                       bool IgnoreBuiltinAttr) {
+llvm::getAllocSizeArgs(const CallBase *CB, const TargetLibraryInfo *TLI) {
   // Note: This handles both explicitly listed allocation functions and
   // allocsize.  The code structure could stand to be cleaned up a bit.
-  const std::optional<AllocFnsTy> FnData =
-      getAllocationSize(CB, TLI, IgnoreBuiltinAttr);
+  const std::optional<AllocFnsTy> FnData = getAllocationSize(CB, TLI);
   if (!FnData)
     return std::make_pair(nullptr, nullptr);
 
@@ -572,11 +564,10 @@ bool llvm::isLibFreeFunction(const Function *F, const LibFunc TLIFn) {
   return true;
 }
 
-Value *llvm::getFreedOperand(const CallBase *CB, const TargetLibraryInfo *TLI,
-                             bool IgnoreBuiltinAttr) {
+Value *llvm::getFreedOperand(const CallBase *CB, const TargetLibraryInfo *TLI) {
   bool IsNoBuiltinCall;
   const Function *Callee = getCalledFunction(CB, IsNoBuiltinCall);
-  if (Callee == nullptr || (IsNoBuiltinCall && !IgnoreBuiltinAttr))
+  if (Callee == nullptr || IsNoBuiltinCall)
     return nullptr;
 
   LibFunc TLIFn;

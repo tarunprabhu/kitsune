@@ -245,6 +245,7 @@ void tools::MinGW::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   TC.AddTapirRuntimeLibArgs(Args, CmdArgs);
+
   // TODO: Add profile stuff here
 
   if (TC.ShouldLinkCXXStdlib(Args)) {

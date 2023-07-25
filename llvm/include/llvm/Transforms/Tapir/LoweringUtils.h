@@ -41,6 +41,14 @@ using SpindleSet = SetVector<Spindle *>;
 using TaskValueSetMap = DenseMap<const Task *, ValueSet>;
 using TFValueSetMap = DenseMap<const Spindle *, ValueSet>;
 
+struct OutlineAnalysis {
+  OutlineAnalysis(AAResults &AA, AssumptionCache &AC, DominatorTree &DT)
+    : AA(AA), AC(AC), DT(DT) { }
+  AAResults &AA;
+  AssumptionCache &AC;
+  DominatorTree &DT;
+};
+
 /// Structure that captures relevant information about an outlined task,
 /// including the following:
 /// -) A pointer to the outlined function.
@@ -79,9 +87,6 @@ struct TaskOutlineInfo {
   // block corresponds to the normal exit block after the loop latch.
   BasicBlock *ReplRet = nullptr;
 
-  // Task that corresponds to the task outline
-  Value* SR = nullptr;
-
   // Basic block denoting the unwind destination of an invocation of the
   // outlined helper function.  This block corresponds to the unwind block of
   // the original detach instruction, or nullptr if the original detach had no
@@ -98,11 +103,11 @@ struct TaskOutlineInfo {
   TaskOutlineInfo(Function *Outline, BasicBlock *OriginalTFEntry,
                   Instruction *DetachPt, Instruction *TaskFrameCreate,
                   ValueSet &InputSet, Instruction *ReplStart,
-                  Instruction *ReplCall, Value* SR, BasicBlock *ReplRet,
+                  Instruction *ReplCall, BasicBlock *ReplRet,
                   BasicBlock *ReplUnwind = nullptr)
       : Outline(Outline), DetachPt(DetachPt), TaskFrameCreate(TaskFrameCreate),
         InputSet(InputSet), ReplStart(ReplStart), ReplCall(ReplCall),
-        ReplRet(ReplRet), SR(SR), ReplUnwind(ReplUnwind),
+        ReplRet(ReplRet), ReplUnwind(ReplUnwind),
         OriginalTFEntry(OriginalTFEntry) {}
 
   // Replaces the stored call or invoke instruction to the outlined function
@@ -140,7 +145,6 @@ struct TaskOutlineInfo {
 // Map from tasks to TaskOutlineInfo structures.
 using TaskOutlineMapTy = DenseMap<const Task *, TaskOutlineInfo>;
 using TFOutlineMapTy = DenseMap<const Spindle *, TaskOutlineInfo>;
-
 
 /// Abstract class for a parallel-runtime-system target for Tapir lowering.
 ///
@@ -259,8 +263,10 @@ public:
   virtual bool shouldDoOutlining(const Function &F) const { return true; }
 
   /// Process Function F before any function outlining is performed.  This
-  /// routine should not modify the CFG structure.
-  virtual void preProcessFunction(Function &F, TaskInfo &TI,
+  /// routine should not modify the CFG structure, unless it processes all Tapir
+  /// instructions in F itself.  Returns true if it modifies the CFG, false
+  /// otherwise.
+  virtual bool preProcessFunction(Function &F, TaskInfo &TI,
                                   bool ProcessingTapirLoops = false) = 0;
 
   /// Returns an ArgStructMode enum value describing how inputs to a task should
@@ -312,10 +318,6 @@ public:
   virtual void postProcessFunction(Function &F,
                                    bool ProcessingTapirLoops = false) = 0;
 
-  // Process a host module at the end of lowering all functions within the
-  // module.
-  virtual void postProcessModule() { return; };
-
   // Process a generated helper Function F produced via outlining, at the end of
   // the lowering process.
   virtual void postProcessHelper(Function &F) = 0;
@@ -324,7 +326,7 @@ public:
 
   // Get the LoopOutlineProcessor associated with this Tapir target.
   virtual LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL) {
+  getLoopOutlineProcessor(const TapirLoopInfo *TL) const {
     return nullptr;
   }
 };
@@ -420,13 +422,6 @@ public:
     return getIVArgIndex(F, Args) + 1;
   }
 
-  /// Process the TapirLoop before it is outlined -- just prior to the
-  /// outlining occurs.  This allows the VMap and related details to be
-  /// customized prior to outlining related operations (e.g. cloning of
-  /// LLVM constructs).
-  virtual void preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap)
-  { /* no-op */ }
-
   /// Processes an outlined Function Helper for a Tapir loop, just after the
   /// function has been outlined.
   virtual void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
@@ -515,8 +510,7 @@ void getTaskBlocks(Task *T, std::vector<BasicBlock *> &TaskBlocks,
 /// \p T to instructions in the new helper function.
 Function *createHelperForTask(
     Function &F, Task *T, ValueSet &Inputs, Module *DestM,
-    ValueToValueMapTy &VMap, Type *ReturnType, AssumptionCache *AC,
-    DominatorTree *DT);
+    ValueToValueMapTy &VMap, Type *ReturnType, OutlineAnalysis &OA);
 
 /// Outlines the content of taskframe \p TF in function \p F into a new helper
 /// function.  The parameter \p Inputs specified the inputs to the helper
@@ -524,8 +518,7 @@ Function *createHelperForTask(
 /// TF to instructions in the new helper function.
 Function *createHelperForTaskFrame(
     Function &F, Spindle *TF, ValueSet &Args, Module *DestM,
-    ValueToValueMapTy &VMap, Type *ReturnType, AssumptionCache *AC,
-    DominatorTree *DT);
+    ValueToValueMapTy &VMap, Type *ReturnType, OutlineAnalysis &OA);
 
 /// Replaces the taskframe \p TF, with associated TaskOutlineInfo \p Out, with a
 /// call or invoke to the outlined helper function created for \p TF.
@@ -540,7 +533,7 @@ TaskOutlineInfo outlineTask(
     Task *T, ValueSet &Inputs, SmallVectorImpl<Value *> &HelperInputs,
     Module *DestM, ValueToValueMapTy &VMap,
     TapirTarget::ArgStructMode useArgStruct, Type *ReturnType,
-    ValueToValueMapTy &InputMap, AssumptionCache *AC, DominatorTree *DT);
+    ValueToValueMapTy &InputMap, OutlineAnalysis &OA);
 
 /// Outlines a taskframe \p TF into a helper function that accepts the inputs \p
 /// Inputs.  The map \p VMap is updated with the mapping of instructions in \p
@@ -550,7 +543,7 @@ TaskOutlineInfo outlineTaskFrame(
     Spindle *TF, ValueSet &Inputs, SmallVectorImpl<Value *> &HelperInputs,
     Module *DestM, ValueToValueMapTy &VMap,
     TapirTarget::ArgStructMode useArgStruct, Type *ReturnType,
-    ValueToValueMapTy &InputMap, AssumptionCache *AC, DominatorTree *DT);
+    ValueToValueMapTy &InputMap, OutlineAnalysis &OA);
 
 //----------------------------------------------------------------------------//
 // Methods for lowering Tapir loops

@@ -1,7 +1,7 @@
 ; Thanks to Sai Sameer Pusapaty and Shreyas Balaji for the original
 ; source code for this test case.
 ;
-; RUN: opt < %s -passes='simple-loop-unswitch' -S -o - | FileCheck %s
+; RUN: opt < %s -passes='simple-loop-unswitch' -S | FileCheck %s
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
@@ -366,7 +366,7 @@ cleanup78:                                        ; preds = %pfor.cond.cleanup72
 ; CHECK: define {{.+}}@_Z11algorithm_45graphIiE(
 
 ; CHECK: pfor.cond:
-; CHECK: detach within %syncreg, label %pfor.body, label %pfor.inc60 unwind label %lpad62.loopexit
+; CHECK: detach within %syncreg, label %pfor.body, label %pfor.inc60 unwind label %lpad62.loopexit.us-lcssa
 
 ; CHECK: pfor.body:
 ; CHECK: %[[OGSYNCREG:.+]] = {{.+}}call token @llvm.syncregion

@@ -564,6 +564,61 @@ private:
   static constexpr PropertyBits PropBits = {1, 1, (64 - 1 - 1)};
 };
 
+class CsiDetachProperty : public CsiProperty {
+public:
+  CsiDetachProperty() { PropValue.Bits = 0; }
+
+  /// Return the Type of a property.
+  static StructType *getStructType(LLVMContext &C) {
+    // Must match the definition of property type in csi.h
+    return StructType::get(IntegerType::get(C, PropBits.ForTapirLoopBody),
+                           IntegerType::get(C, PropBits.Padding));
+  }
+  static Type *getType(LLVMContext &C) {
+    return getCoercedType(C, getStructType(C));
+  }
+  /// Get the default value for this property.
+  static Constant *getDefaultValueImpl(LLVMContext &C) {
+    return Constant::getNullValue(getType(C));
+  }
+
+  /// Return a constant value holding this property.
+  Constant *getValueImpl(LLVMContext &C) const override {
+    // Must match the definition of property type in csi.h
+    // StructType *StructTy = getType(C);
+    // return ConstantStruct::get(StructTy,
+    //                            ConstantInt::get(IntegerType::get(C, 64), 0),
+    //                            nullptr);
+    // TODO: This solution works for x86, but should be generalized to support
+    // other architectures in the future.
+    return ConstantInt::get(getType(C), PropValue.Bits);
+  }
+
+  /// Set the value of the IsTapirLoopBody property.
+  void setForTapirLoopBody(bool v) { PropValue.Fields.ForTapirLoopBody = v; }
+
+private:
+  typedef union {
+    // Must match the definition of property type in csi.h
+    struct {
+      unsigned ForTapirLoopBody : 1;
+      uint64_t Padding : 63;
+    } Fields;
+    uint64_t Bits;
+  } Property;
+
+  /// The underlying values of the properties.
+  Property PropValue;
+
+  typedef struct {
+    int ForTapirLoopBody;
+    int Padding;
+  } PropertyBits;
+
+  /// The number of bits representing each property.
+  static constexpr PropertyBits PropBits = {1, (64 - 1)};
+};
+
 class CsiTaskProperty : public CsiProperty {
 public:
   CsiTaskProperty() { PropValue.Bits = 0; }
@@ -687,6 +742,7 @@ public:
   static StructType *getStructType(LLVMContext &C) {
     // Must match the definition of property type in csi.h
     return StructType::get(IntegerType::get(C, PropBits.IsUnwind),
+                           IntegerType::get(C, PropBits.ForTapirLoopBody),
                            IntegerType::get(C, PropBits.Padding));
   }
   static Type *getType(LLVMContext &C) {
@@ -712,12 +768,18 @@ public:
   /// Set the value of the IsUnwind property.
   void setIsUnwind(bool v = true) { PropValue.Fields.IsUnwind = v; }
 
+  /// Set the value of the ForTapirLoopBody property.
+  void setForTapirLoopBody(bool v = true) {
+    PropValue.Fields.ForTapirLoopBody = v;
+  }
+
 private:
   typedef union {
     // Must match the definition of property type in csi.h
     struct {
       unsigned IsUnwind : 1;
-      uint64_t Padding : 63;
+      unsigned ForTapirLoopBody : 1;
+      uint64_t Padding : 62;
     } Fields;
     uint64_t Bits;
   } Property;
@@ -727,11 +789,12 @@ private:
 
   typedef struct {
     int IsUnwind;
+    int ForTapirLoopBody;
     int Padding;
   } PropertyBits;
 
   /// The number of bits representing each property.
-  static constexpr PropertyBits PropBits = {1, (64 - 1)};
+  static constexpr PropertyBits PropBits = {1, 1, (64 - 1 - 1)};
 };
 
 class CsiCallProperty : public CsiProperty {
@@ -827,7 +890,18 @@ public:
   }
 
   /// Set the value of the Alignment property.
-  void setAlignment(char v) { PropValue.Fields.Alignment = v; }
+  void setAlignment(const MaybeAlign A) {
+    if (unsigned EncAlign = encode(A))
+      PropValue.Fields.Alignment = 1 << (EncAlign - 1);
+    else
+      PropValue.Fields.Alignment = 0;
+  }
+  void setAlignment(const Align A) {
+    if (unsigned EncAlign = encode(A))
+      PropValue.Fields.Alignment = 1 << (EncAlign - 1);
+    else
+      PropValue.Fields.Alignment = 0;
+  }
   /// Set the value of the IsVtableAccess property.
   void setIsVtableAccess(bool v) { PropValue.Fields.IsVtableAccess = v; }
   /// Set the value of the IsConstant property.
@@ -1063,32 +1137,19 @@ public:
         Options(Options) {
     loadConfiguration();
   }
-  CSIImpl(Module &M, CallGraph *CG,
-          function_ref<DominatorTree &(Function &)> GetDomTree,
-          function_ref<LoopInfo &(Function &)> GetLoopInfo,
-          function_ref<TaskInfo &(Function &)> GetTaskInfo,
-          function_ref<TargetLibraryInfo &(Function &)> GetTLI,
-          function_ref<ScalarEvolution &(Function &)> GetSE,
-          const CSIOptions &Options = CSIOptions())
-      : M(M), DL(M.getDataLayout()), CG(CG), GetDomTree(GetDomTree),
-        GetLoopInfo(GetLoopInfo), GetTaskInfo(GetTaskInfo), GetTLI(GetTLI),
-        GetScalarEvolution(GetSE), Options(Options) {
-    loadConfiguration();
-  }
 
   virtual ~CSIImpl() {}
 
   bool run();
 
   /// Get the number of bytes accessed via the given address.
-  static int getNumBytesAccessed(Value *Addr, Type *OrigTy,
-                                 const DataLayout &DL);
+  static int getNumBytesAccessed(Type *OrigTy, const DataLayout &DL);
 
   /// Members to extract properties of loads/stores.
-  static bool isVtableAccess(Instruction *I);
-  static bool addrPointsToConstantData(Value *Addr);
-  static bool isAtomic(Instruction *I);
-  static bool isThreadLocalObject(Value *Obj);
+  static bool isVtableAccess(const Instruction *I);
+  static bool addrPointsToConstantData(const Value *Addr);
+  static bool isAtomic(const Instruction *I);
+  static bool isThreadLocalObject(const Value *Obj);
   static bool getAllocFnArgs(const Instruction *I,
                              SmallVectorImpl<Value *> &AllocFnArgs,
                              Type *SizeTy, Type *AddrTy,

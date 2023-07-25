@@ -1638,6 +1638,7 @@ pfor.inc.i.i.4:                                   ; preds = %.noexc179.4, %pfor.
 ; CHECK-LABEL: define {{.*}}void @_ZN6parlay8to_charsIjjEENS_8sequenceIcNS_9allocatorIcEEEERKSt4pairIT_T0_E.outline_pfor.body.i.i.4.otd1(
 ; CHECK: i64 %[[ARG1:[a-zA-Z0-9._]+]],
 ; CHECK: i64 %[[ARG2:[a-zA-Z0-9._]+]],
+; CHECK: ptr
 
 ; CHECK: pfor.body.i.i.4.otd1:
 ; CHECK: call void @__csan_task(i64 %[[ARG1]], i64 %[[ARG2]]
@@ -1651,6 +1652,7 @@ pfor.inc.i.i.4:                                   ; preds = %.noexc179.4, %pfor.
 ; CHECK-LABEL: define {{.*}}void @_ZN6parlay8to_charsIjjEENS_8sequenceIcNS_9allocatorIcEEEERKSt4pairIT_T0_E.outline_pfor.body.i.i.3.otd1(
 ; CHECK: i64 %[[ARG1:[a-zA-Z0-9._]+]],
 ; CHECK: i64 %[[ARG2:[a-zA-Z0-9._]+]],
+; CHECK: ptr
 
 ; CHECK: pfor.body.i.i.3.otd1:
 ; CHECK: call void @__csan_task(i64 %[[ARG1]], i64 %[[ARG2]]
@@ -1664,6 +1666,7 @@ pfor.inc.i.i.4:                                   ; preds = %.noexc179.4, %pfor.
 ; CHECK-LABEL: define {{.*}}void @_ZN6parlay8to_charsIjjEENS_8sequenceIcNS_9allocatorIcEEEERKSt4pairIT_T0_E.outline_pfor.body.i.i.2.otd1(
 ; CHECK: i64 %[[ARG1:[a-zA-Z0-9._]+]],
 ; CHECK: i64 %[[ARG2:[a-zA-Z0-9._]+]],
+; CHECK: ptr
 
 ; CHECK: pfor.body.i.i.2.otd1:
 ; CHECK: call void @__csan_task(i64 %[[ARG1]], i64 %[[ARG2]]
@@ -1677,6 +1680,7 @@ pfor.inc.i.i.4:                                   ; preds = %.noexc179.4, %pfor.
 ; CHECK-LABEL: define {{.*}}void @_ZN6parlay8to_charsIjjEENS_8sequenceIcNS_9allocatorIcEEEERKSt4pairIT_T0_E.outline_pfor.body.i.i.otd1(
 ; CHECK: i64 %[[ARG1:[a-zA-Z0-9._]+]],
 ; CHECK: i64 %[[ARG2:[a-zA-Z0-9._]+]],
+; CHECK: ptr
 
 ; CHECK: pfor.body.i.i.otd1:
 ; CHECK: call void @__csan_task(i64 %[[ARG1]], i64 %[[ARG2]]

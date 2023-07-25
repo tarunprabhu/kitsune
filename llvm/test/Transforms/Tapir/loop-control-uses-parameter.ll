@@ -1,4 +1,3 @@
-; RUN: opt < %s -enable-new-pm=0 -loop-spawning-ti -S 2>&1 | FileCheck %s
 ; RUN: opt < %s -passes=loop-spawning -S 2>&1 | FileCheck %s
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
@@ -364,7 +363,7 @@ eh.resume:                                        ; preds = %lpad43, %lpad23
   resume { i8*, i32 } %lpad.val59
 }
 
-; CHECK: define private fastcc void @_ZN4pbbs9transposeIjjE6transREmmmmmm.outline_pfor.detach.ls1(
+; CHECK: define internal fastcc void @_ZN4pbbs9transposeIjjE6transREmmmmmm.outline_pfor.detach.ls1(
 ; CHECK: i64 %rStart.ls1
 ; CHECK: )
 ; CHECK: call fastcc void @_ZN4pbbs9transposeIjjE6transREmmmmmm.outline_pfor.detach.ls1(

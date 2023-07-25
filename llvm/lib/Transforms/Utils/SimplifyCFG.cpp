@@ -73,7 +73,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Transforms/Utils/SSAUpdater.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include <algorithm>
@@ -181,6 +180,11 @@ static cl::opt<bool> EnableMergeCompatibleInvokes(
 static cl::opt<unsigned> MaxSwitchCasesPerResult(
     "max-switch-cases-per-result", cl::Hidden, cl::init(16),
     cl::desc("Limit cases to analyze when converting a switch to select"));
+
+static cl::opt<bool> PreserveAllSpawns(
+    "simplifycfg-preserve-all-spawns", cl::Hidden, cl::init(false),
+    cl::desc("Temporary development switch to ensure SimplifyCFG does not "
+             "eliminate spawns that immediately sync."));
 
 STATISTIC(NumBitMaps, "Number of switch instructions turned into bitmaps");
 STATISTIC(NumLinearMaps,
@@ -1542,7 +1546,6 @@ bool SimplifyCFGOpt::HoistThenElseCodeToIf(BranchInst *BI,
     I1 = &*BB1_Itr++;
   while (isTaskFrameCreate(I2))
     I2 = &*BB2_Itr++;
-  // FIXME: Can we define a safety predicate for CallBr?
   if (isa<PHINode>(I1))
     return false;
 
@@ -1589,25 +1592,6 @@ bool SimplifyCFGOpt::HoistThenElseCodeToIf(BranchInst *BI,
       goto HoistTerminator;
     }
 
-    // If we're going to hoist a call, make sure that the two instructions we're
-    // commoning/hoisting are both marked with musttail, or neither of them is
-    // marked as such. Otherwise, we might end up in a situation where we hoist
-    // from a block where the terminator is a `ret` to a block where the terminator
-    // is a `br`, and `musttail` calls expect to be followed by a return.
-    auto *C1 = dyn_cast<CallInst>(I1);
-    auto *C2 = dyn_cast<CallInst>(I2);
-    if (C1 && C2) {
-      if (C1->isMustTailCall() != C2->isMustTailCall())
-        return Changed;
-
-      // Disallow hoisting of setjmp.  Although hoisting the setjmp technically
-      // produces valid IR, it seems hard to generate appropariate machine code
-      // from this IR, e.g., for X86.
-      if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(C1))
-        if (Intrinsic::eh_sjlj_setjmp == II->getIntrinsicID())
-          return Changed;
-    }
-
     if (I1->isIdenticalToWhenDefined(I2)) {
       // Even if the instructions are identical, it may not be safe to hoist
       // them if we have skipped over instructions with side effects or their
@@ -1626,6 +1610,16 @@ bool SimplifyCFGOpt::HoistThenElseCodeToIf(BranchInst *BI,
       auto *C2 = dyn_cast<CallInst>(I2);
       if (C1 && C2)
         if (C1->isMustTailCall() != C2->isMustTailCall())
+          return Changed;
+
+      // Disallow hoisting of setjmp.  Although hoisting the setjmp technically
+      // produces valid IR, it seems hard to generate appropariate machine code
+      // from this IR, e.g., for X86.
+      if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I1))
+        if (Intrinsic::eh_sjlj_setjmp == II->getIntrinsicID())
+          return Changed;
+      if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I2))
+        if (Intrinsic::eh_sjlj_setjmp == II->getIntrinsicID())
           return Changed;
 
       if (!TTI.isProfitableToHoist(I1) || !TTI.isProfitableToHoist(I2))
@@ -1698,7 +1692,6 @@ bool SimplifyCFGOpt::HoistThenElseCodeToIf(BranchInst *BI,
       while (isa<DbgInfoIntrinsic>(I2))
         I2 = &*BB2_Itr++;
     }
-
     // Skip taskframe.create calls.
     while (isTaskFrameCreate(I1))
       I1 = &*BB1_Itr++;
@@ -2497,9 +2490,13 @@ bool CompatibleSets::shouldBelongToSameSet(ArrayRef<InvokeInst *> Invokes) {
 
   // Can we theoretically form the data operands for the merged `invoke`?
   auto IsIllegalToMergeArguments = [](auto Ops) {
-    Type *Ty = std::get<0>(Ops)->getType();
-    assert(Ty == std::get<1>(Ops)->getType() && "Incompatible types?");
-    return Ty->isTokenTy() && std::get<0>(Ops) != std::get<1>(Ops);
+    Use &U0 = std::get<0>(Ops);
+    Use &U1 = std::get<1>(Ops);
+    if (U0 == U1)
+      return false;
+    return U0->getType()->isTokenTy() ||
+           !canReplaceOperandWithVariable(cast<Instruction>(U0.getUser()),
+                                          U0.getOperandNo());
   };
   assert(Invokes.size() == 2 && "Always called with exactly two candidates.");
   if (any_of(zip(Invokes[0]->data_ops(), Invokes[1]->data_ops()),
@@ -2673,12 +2670,13 @@ static bool MergeCompatibleInvokes(BasicBlock *BB, DomTreeUpdater *DTU) {
   // Record all the predecessors of this `landingpad`. As per verifier,
   // the only allowed predecessor is the unwind edge of an `invoke`.
   // We want to group "compatible" `invokes` into the same set to be merged.
-  for (BasicBlock *PredBB : predecessors(BB))
-    // FIXME: In Tapir, predecessors of a landing pad could be a DetachInst.
-    // This should be fixed to make merge compatible invokes work correctly
-    // even in that case.
-    if (auto* invoke = dyn_cast<InvokeInst>(PredBB->getTerminator()))
-      Grouper.insert(invoke);
+  for (BasicBlock *PredBB : predecessors(BB)) {
+    // Tapir allows a detach to be a predecessor of a landingpad.  If we find a
+    // detach predecessor, quit early.
+    if (isa<DetachInst>(PredBB->getTerminator()))
+      return Changed;
+    Grouper.insert(cast<InvokeInst>(PredBB->getTerminator()));
+  }
 
   // And now, merge `invoke`s that were grouped togeter.
   for (ArrayRef<InvokeInst *> Invokes : Grouper.Sets) {
@@ -5247,9 +5245,10 @@ bool SimplifyCFGOpt::simplifyUnreachable(UnreachableInst *UI) {
           DTU->applyUpdates(Updates);
           Updates.clear();
         }
-        auto *CI = dyn_cast<CallInst>(removeUnwindEdge(TI->getParent(), DTU));
-        if (CI && !CI->doesNotThrow())
-          CI->setDoesNotThrow();
+        if (auto *CI =
+                dyn_cast<CallInst>(removeUnwindEdge(TI->getParent(), DTU)))
+          if (!CI->doesNotThrow())
+            CI->setDoesNotThrow();
         Changed = true;
       }
     } else if (auto *CSI = dyn_cast<CatchSwitchInst>(TI)) {
@@ -5317,7 +5316,7 @@ bool SimplifyCFGOpt::simplifyUnreachable(UnreachableInst *UI) {
       if (DI->getUnwindDest() == BB) {
         // If the unwind destination of the detach is unreachable, simply remove
         // the unwind edge.
-        removeUnwindEdge(DI->getParent());
+        removeUnwindEdge(DI->getParent(), DTU);
         Changed = true;
       }
       // Detaches of unreachables are handled via
@@ -7144,9 +7143,10 @@ bool SimplifyCFGOpt::simplifyCondBranch(BranchInst *BI, IRBuilder<> &Builder) {
       // execute Successor #0 if it branches to Successor #1.
       Instruction *Succ0TI = BI->getSuccessor(0)->getTerminator();
       if (Succ0TI->getNumSuccessors() == 1 &&
-          Succ0TI->getSuccessor(0) == BI->getSuccessor(1))
+          Succ0TI->getSuccessor(0) == BI->getSuccessor(1)) {
         if (SpeculativelyExecuteBB(BI, BI->getSuccessor(0), TTI))
           return requestResimplify();
+      }
     }
   } else if (BI->getSuccessor(1)->getSinglePredecessor()) {
     // If Successor #0 has multiple preds, we may be able to conditionally
@@ -7654,7 +7654,8 @@ bool SimplifyCFGOpt::simplifyOnce(BasicBlock *BB) {
 
   // Check for and remove trivial detached blocks.
   Changed |= serializeTrivialDetachedBlock(BB, DTU);
-  Changed |= serializeDetachToImmediateSync(BB, DTU);
+  if (!PreserveAllSpawns)
+    Changed |= serializeDetachToImmediateSync(BB, DTU);
   Changed |= serializeDetachOfUnreachable(BB, DTU);
 
   // Check for and remove sync instructions in empty sync regions.
@@ -7711,7 +7712,6 @@ bool SimplifyCFGOpt::simplifyOnce(BasicBlock *BB) {
     break;
   case Instruction::Sync:
     Changed |= simplifySync(cast<SyncInst>(Terminator));
-    break;
   }
 
   return Changed;

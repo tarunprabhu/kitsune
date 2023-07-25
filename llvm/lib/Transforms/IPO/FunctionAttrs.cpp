@@ -43,6 +43,7 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/IR/PassManager.h"
@@ -83,11 +84,6 @@ STATISTIC(NumNoUnwind, "Number of functions marked as nounwind");
 STATISTIC(NumNoFree, "Number of functions marked as nofree");
 STATISTIC(NumWillReturn, "Number of functions marked as willreturn");
 STATISTIC(NumNoSync, "Number of functions marked as nosync");
-STATISTIC(NumArgMem, "Number of functions marked as argmemonly");
-STATISTIC(NumInaccessibleMem,
-          "Number of functions marked as inaccessiblememonly");
-STATISTIC(NumInaccessibleMemOrArgMem,
-          "Number of functions marked as inaccessiblemem_or_argmemonly");
 
 STATISTIC(NumThinLinkNoRecurse,
           "Number of functions marked as norecurse during thinlink");
@@ -1393,9 +1389,11 @@ static bool InstrBreaksNonThrowing(Instruction &I, const SCCNodeSet &SCCNodes) {
     return false;
   if (const auto *CI = dyn_cast<CallInst>(&I)) {
     if (Function *Callee = CI->getCalledFunction()) {
-      // Ignore sync.unwind when checking if a function can throw, since
-      // sync.unwind is simply a placeholder.
-      if (Intrinsic::sync_unwind == Callee->getIntrinsicID())
+      // Ignore sync.unwind, detached.rethrow, and taskframe.resume when
+      // checking if a function can throw, since they are simply placeholders.
+      if (Intrinsic::sync_unwind == Callee->getIntrinsicID() ||
+          Intrinsic::detached_rethrow == Callee->getIntrinsicID() ||
+          Intrinsic::taskframe_resume == Callee->getIntrinsicID())
         return false;
 
       // I is a may-throw call to a function inside our SCC. This doesn't

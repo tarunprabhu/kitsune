@@ -52,6 +52,12 @@ pfor.inc:                                         ; preds = %pfor.preattach, %pf
 
 ; CHECK: pfor.inc.1:
 ; CHECK-NEXT: detach within %syncreg, label %pfor.body.2, label %pfor.inc.2 unwind label %lpad23
+
+; CHECK: lpad8.1:
+; CHECK: bitcast ptr %times
+; CHECK: invoke void @llvm.detached.rethrow.sl_p0i32s(token %syncreg, { ptr, i32 } undef)
+; CHECK-NEXT: to label %unreachable unwind label %lpad23
+
 ; CHECK: pfor.body.2:
 ; CHECK: %times.2 = alloca [4 x i64]
 ; CHECK: invoke void @_Z27test_btree_unordered_insertImEvmRSt8seed_seqPm
@@ -59,6 +65,11 @@ pfor.inc:                                         ; preds = %pfor.preattach, %pf
 
 ; CHECK: pfor.inc.2:
 ; CHECK-NEXT: detach within %syncreg, label %pfor.body.3, label %pfor.inc.3 unwind label %lpad23
+
+; CHECK: lpad8.2:
+; CHECK: bitcast ptr %times.2
+; CHECK: invoke void @llvm.detached.rethrow.sl_p0i32s(token %syncreg, { ptr, i32 } undef)
+; CHECK-NEXT: to label %unreachable unwind label %lpad23
 
 ; CHECK: pfor.body.3:
 ; CHECK: %times.3 = alloca [4 x i64]
@@ -68,15 +79,8 @@ pfor.inc:                                         ; preds = %pfor.preattach, %pf
 ; CHECK: pfor.inc.3:
 ; CHECK-NEXT: ret i32 undef
 
-; CHECK: lpad8.1:
-; CHECK: invoke void @llvm.detached.rethrow.sl_p0i32s(token %syncreg, { ptr, i32 } undef)
-; CHECK-NEXT: to label %unreachable unwind label %lpad23
-
-; CHECK: lpad8.2:
-; CHECK: invoke void @llvm.detached.rethrow.sl_p0i32s(token %syncreg, { ptr, i32 } undef)
-; CHECK-NEXT: to label %unreachable unwind label %lpad23
-
 ; CHECK: lpad8.3:
+; CHECK: bitcast ptr %times.3
 ; CHECK: invoke void @llvm.detached.rethrow.sl_p0i32s(token %syncreg, { ptr, i32 } undef)
 ; CHECK-NEXT: to label %unreachable unwind label %lpad23
 

@@ -294,15 +294,15 @@ namespace llvm {
     Instruction *I = nullptr;
     std::optional<MemoryLocation> Loc;
     unsigned OperandNum = unsigned(-1);
-    MemoryEffects ME = MemoryEffects::none();
+    ModRefInfo ModRef = ModRefInfo::NoModRef;
 
     GeneralAccess() = default;
     GeneralAccess(Instruction *I, std::optional<MemoryLocation> Loc,
-                  unsigned OperandNum, MemoryEffects ME)
-        : I(I), Loc(Loc), OperandNum(OperandNum), ME(ME) {}
+                  unsigned OperandNum, ModRefInfo MRI)
+        : I(I), Loc(Loc), OperandNum(OperandNum), ModRef(MRI) {}
     GeneralAccess(Instruction *I, std::optional<MemoryLocation> Loc,
-                  MemoryEffects ME)
-        : I(I), Loc(Loc), ME(ME) {}
+                  ModRefInfo MRI)
+        : I(I), Loc(Loc), ModRef(MRI) {}
 
     bool isValid() const {
       return (I && Loc);
@@ -313,10 +313,10 @@ namespace llvm {
       return Loc->Ptr;
     }
     bool isRef() const {
-      return isRefSet(ME.getModRef());
+      return isRefSet(ModRef);
     }
     bool isMod() const {
-      return isModSet(ME.getModRef());
+      return isModSet(ModRef);
     }
 
     inline bool operator==(const GeneralAccess &RHS) {
@@ -325,7 +325,7 @@ namespace llvm {
       if (!isValid() || !RHS.isValid())
         return false;
       return (I == RHS.I) && (Loc == RHS.Loc) &&
-          (OperandNum == RHS.OperandNum) && (ME == RHS.ME);
+          (OperandNum == RHS.OperandNum) && (ModRef == RHS.ModRef);
     }
   };
 

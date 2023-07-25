@@ -1848,17 +1848,15 @@ void CodeGenFunction::EmitReducerInit(const VarDecl *D,
   RValue Reduce = EmitAnyExpr(C.Reduce);
 
   llvm::Type *SizeType = ConvertType(getContext().getSizeType());
-  unsigned SizeBits = SizeType->getIntegerBitWidth();
   llvm::Value *Size = nullptr;
   QualType Type = D->getType();
-  if (uint64_t Bits = getContext().getTypeSize(Type)) {
-    Size = llvm::Constant::getIntegerValue(SizeType,
-                                           llvm::APInt(SizeBits, Bits / 8));
-  } else {
-    auto V = getVLASize(Type);
-    llvm::Value *Size1 = llvm::Constant::getIntegerValue(
-        SizeType, llvm::APInt(64, getContext().getTypeSize(V.Type) / 8));
+  if (const VariableArrayType *VLA =
+      getContext().getAsVariableArrayType(Type)) {
+    auto V = getVLASize(VLA);
+    llvm::Value *Size1 = CGM.getSize(getContext().getTypeSizeInChars(V.Type));
     Size = Builder.CreateNUWMul(V.NumElts, Size1);
+  } else {
+    Size = CGM.getSize(getContext().getTypeSizeInChars(Type));
   }
   // TODO: mark this call as registering a local
   // TODO: add better handling of attribute arguments that evaluate to null
@@ -2001,12 +1999,9 @@ void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
     return;
   }
 
-  llvm::Type *BP = CGM.Int8Ty->getPointerTo(Loc.getAddressSpace());
-  emitStoresForConstant(
-      CGM, D,
-      (Loc.getType() == BP) ? Loc
-                            : Builder.CreateElementBitCast(Loc, CGM.Int8Ty),
-      type.isVolatileQualified(), Builder, constant, /*IsAutoInit=*/false);
+  emitStoresForConstant(CGM, D, Builder.CreateElementBitCast(Loc, CGM.Int8Ty),
+                        type.isVolatileQualified(), Builder, constant,
+                        /*IsAutoInit=*/false);
 
   if (Reducer)
     EmitReducerInit(&D, RCB,

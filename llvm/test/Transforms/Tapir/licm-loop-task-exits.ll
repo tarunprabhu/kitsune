@@ -1,4 +1,4 @@
-; RUN: opt < %s -aa-pipeline=basic-aa -passes='require<opt-remark-emit>,loop-mssa(licm)' -S -o - | FileCheck %s
+; RUN: opt < %s -aa-pipeline=basic-aa -passes='require<opt-remark-emit>,loop-mssa(licm)' -S | FileCheck %s
 
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
@@ -2165,6 +2165,7 @@ pfor.body.entry157:                               ; preds = %pfor.cond153
   br label %pfor.body159, !dbg !5067
 
 ; CHECK: pfor.body.entry157:
+; CHECK: %78 = bitcast ptr %i158 to ptr
 ; CHECK: call void @llvm.lifetime.start.p0(i64 4, ptr nonnull %78)
 
 pfor.body159:                                     ; preds = %pfor.body.entry157

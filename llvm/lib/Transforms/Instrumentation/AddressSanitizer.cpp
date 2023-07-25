@@ -655,7 +655,7 @@ struct AddressSanitizer {
         UseAfterScope(UseAfterScope || ClUseAfterScope),
         UseAfterReturn(ClUseAfterReturn.getNumOccurrences() ? ClUseAfterReturn
                                                             : UseAfterReturn),
-        SSGI(SSGI), TI(TI) {
+        TI(TI), SSGI(SSGI) {
     C = &(M.getContext());
     LongSize = M.getDataLayout().getPointerSizeInBits();
     IntptrTy = Type::getIntNTy(*C, LongSize);
@@ -1165,9 +1165,9 @@ PreservedAnalyses AddressSanitizerPass::run(Module &M,
     TaskInfo *TI = nullptr;
     if (!F.empty())
       TI = &FAM.getResult<TaskAnalysis>(F);
-    AddressSanitizer FunctionSanitizer(
-        M, SSGI, TI, Options.CompileKernel, Options.Recover,
-        Options.UseAfterScope, Options.UseAfterReturn);
+    AddressSanitizer FunctionSanitizer(M, SSGI, TI, Options.CompileKernel,
+                                       Options.Recover, Options.UseAfterScope,
+                                       Options.UseAfterReturn);
     const TargetLibraryInfo &TLI = FAM.getResult<TargetLibraryAnalysis>(F);
     Modified |= FunctionSanitizer.instrumentFunction(F, &TLI);
   }

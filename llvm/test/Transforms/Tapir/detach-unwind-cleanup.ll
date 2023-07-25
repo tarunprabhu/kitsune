@@ -2,7 +2,7 @@
 ; detach when it is shared with another detach instruction but is
 ; unused with the other detach instruction.
 ;
-; RUN: opt < %s -passes='simplifycfg' -S | FileCheck %s
+; RUN: opt < %s -passes=simplifycfg -S | FileCheck %s
 
 ; ModuleID = 'simplifycfg-test.ll'
 source_filename = "KCore-0917ee.cpp"

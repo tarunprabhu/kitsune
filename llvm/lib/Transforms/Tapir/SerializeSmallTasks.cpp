@@ -26,7 +26,6 @@
 #include "llvm/Transforms/Tapir/LoopStripMine.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
-#include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
 
@@ -55,7 +54,7 @@ static bool trySerializeSmallLoop(
   TapirLoopHints Hints(L);
 
   TargetTransformInfo::StripMiningPreferences SMP =
-    gatherStripMiningPreferences(L, SE, TTI, std::nullopt);
+      gatherStripMiningPreferences(L, SE, TTI, std::nullopt);
 
   SmallPtrSet<const Value *, 32> EphValues;
   CodeMetrics::collectEphemeralValues(L, &AC, EphValues);
@@ -79,6 +78,8 @@ static bool trySerializeSmallLoop(
   if (!ConstTripCount || SMP.Count < ConstTripCount)
     return Changed;
 
+  // Serialize the loop's detach, since it appears to be too small to be worth
+  // parallelizing.
   ORE.emit([&]() {
              return OptimizationRemark("serialize-small-tasks",
                                        "SerializingSmallLoop",
@@ -86,7 +87,8 @@ static bool trySerializeSmallLoop(
                << "Serializing parallel loop that appears to be unprofitable "
                << "to parallelize.";
            });
-  SerializeDetach(cast<DetachInst>(L->getHeader()->getTerminator()), T, &DT);
+  SerializeDetach(cast<DetachInst>(L->getHeader()->getTerminator()), T,
+                  /* ReplaceWithTaskFrame = */ taskContainsSync(T), &DT);
   Hints.clearHintsMetadata();
   L->setDerivedFromTapirLoop();
   return true;

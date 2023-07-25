@@ -118,6 +118,15 @@ public:
 
   operator Kind() const { return static_cast<Kind>(Alias); }
 
+  bool operator==(const AliasResult &Other) const {
+    return Alias == Other.Alias && HasOffset == Other.HasOffset &&
+           Offset == Other.Offset;
+  }
+  bool operator!=(const AliasResult &Other) const { return !(*this == Other); }
+
+  bool operator==(Kind K) const { return Alias == K; }
+  bool operator!=(Kind K) const { return !(*this == K); }
+
   constexpr bool hasOffset() const { return HasOffset; }
   constexpr int32_t getOffset() const {
     assert(HasOffset && "No offset!");
@@ -279,6 +288,9 @@ public:
   ///      alias(%p, %addr1) -> MayAlias !
   ///   store %l, ...
   bool MayBeCrossIteration = false;
+
+  /// Whether the instructions corresponding with this query should be
+  /// considered as part of the same spindle.
   bool AssumeSameSpindle = false;
 
   AAQueryInfo(AAResults &AAR, CaptureInfo *CI) : AAR(AAR), CI(CI) {}
@@ -498,164 +510,6 @@ public:
     return getMemoryEffects(F).onlyReadsMemory();
   }
 
-/*
-  /// Checks if functions with the specified behavior are known to read and
-  /// write at most from objects pointed to by their pointer-typed arguments
-  /// (with arbitrary offsets).
-  static bool onlyAccessesArgPointees(FunctionModRefBehavior MRB) {
-    return !((unsigned)MRB & FMRL_Anywhere & ~FMRL_ArgumentPointees);
-  }
-
-  /// Checks if functions with the specified behavior are known to potentially
-  /// read or write from objects pointed to be their pointer-typed arguments
-  /// (with arbitrary offsets).
-  static bool doesAccessArgPointees(FunctionModRefBehavior MRB) {
-    return isModOrRefSet(createModRefInfo(MRB)) &&
-           ((unsigned)MRB & FMRL_ArgumentPointees);
-  }
-
-  /// Checks if functions with the specified behavior are known to read and
-  /// write at most from memory that is inaccessible from LLVM IR.
-  static bool onlyAccessesInaccessibleMem(FunctionModRefBehavior MRB) {
-    return !((unsigned)MRB & FMRL_Anywhere & ~FMRL_InaccessibleMem);
-  }
-
-  /// Checks if functions with the specified behavior are known to potentially
-  /// read or write from memory that is inaccessible from LLVM IR.
-  static bool doesAccessInaccessibleMem(FunctionModRefBehavior MRB) {
-    return isModOrRefSet(createModRefInfo(MRB)) &&
-             ((unsigned)MRB & FMRL_InaccessibleMem);
-  }
-
-  /// Checks if functions with the specified behavior are known to read and
-  /// write at most from memory that is inaccessible from LLVM IR or objects
-  /// pointed to by their pointer-typed arguments (with arbitrary offsets).
-  static bool onlyAccessesInaccessibleOrArgMem(FunctionModRefBehavior MRB) {
-    return !((unsigned)MRB & FMRL_Anywhere &
-             ~(FMRL_InaccessibleMem | FMRL_ArgumentPointees));
-  }
-*/
-  /// getModRefInfo (for call sites) - Return information about whether
-  /// a particular call site modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const CallBase *Call, const MemoryLocation &Loc,
-                           bool SameSpindle);
-
-  /// getModRefInfo (for call sites) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const CallBase *Call, const Value *P,
-                           LocationSize Size, bool SameSpindle) {
-    return getModRefInfo(Call, MemoryLocation(P, Size), SameSpindle);
-  }
-
-  /// getModRefInfo (for call sites) - Return information about whether
-  /// a particular call site modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const CallBase *Call, const MemoryLocation &Loc);
-
-  /// getModRefInfo (for call sites) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const CallBase *Call, const Value *P,
-                           LocationSize Size) {
-    return getModRefInfo(Call, MemoryLocation(P, Size));
-  }
-
-  /// getModRefInfo (for detaches) - Return information about whether
-  /// a particular detach modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const DetachInst *D, const MemoryLocation &Loc);
-
-  /// getModRefInfo (for detaches) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const DetachInst *D, const Value *P,
-                           uint64_t Size) {
-    return getModRefInfo(D, MemoryLocation(P, Size));
-  }
-
-  /// getModRefInfo (for loads) - Return information about whether
-  /// a particular load modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const LoadInst *L, const MemoryLocation &Loc);
-
-  /// getModRefInfo (for loads) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const LoadInst *L, const Value *P,
-                           LocationSize Size) {
-    return getModRefInfo(L, MemoryLocation(P, Size));
-  }
-
-  /// getModRefInfo (for stores) - Return information about whether
-  /// a particular store modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const StoreInst *S, const MemoryLocation &Loc);
-
-  /// getModRefInfo (for stores) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const StoreInst *S, const Value *P,
-                           LocationSize Size) {
-    return getModRefInfo(S, MemoryLocation(P, Size));
-  }
-
-  /// getModRefInfo (for fences) - Return information about whether
-  /// a particular store modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const FenceInst *S, const MemoryLocation &Loc);
-
-  /// getModRefInfo (for fences) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const FenceInst *S, const Value *P,
-                           LocationSize Size) {
-    return getModRefInfo(S, MemoryLocation(P, Size));
-  }
-
-  /// getModRefInfo (for syncs) - Return information about whether
-  /// a particular store modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const SyncInst *S, const MemoryLocation &Loc);
-
-  /// getModRefInfo (for syncs) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const SyncInst *S, const Value *P, uint64_t Size) {
-    return getModRefInfo(S, MemoryLocation(P, Size));
-  }
-
-  /// getModRefInfo (for cmpxchges) - Return information about whether
-  /// a particular cmpxchg modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const AtomicCmpXchgInst *CX,
-                           const MemoryLocation &Loc);
-
-  /// getModRefInfo (for cmpxchges) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const AtomicCmpXchgInst *CX, const Value *P,
-                           LocationSize Size) {
-    return getModRefInfo(CX, MemoryLocation(P, Size));
-  }
-
-  /// getModRefInfo (for atomicrmws) - Return information about whether
-  /// a particular atomicrmw modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const AtomicRMWInst *RMW, const MemoryLocation &Loc);
-
-  /// getModRefInfo (for atomicrmws) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const AtomicRMWInst *RMW, const Value *P,
-                           LocationSize Size) {
-    return getModRefInfo(RMW, MemoryLocation(P, Size));
-  }
-
-  /// getModRefInfo (for va_args) - Return information about whether
-  /// a particular va_arg modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const VAArgInst *I, const MemoryLocation &Loc);
-
-  /// getModRefInfo (for va_args) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const VAArgInst *I, const Value *P,
-                           LocationSize Size) {
-    return getModRefInfo(I, MemoryLocation(P, Size));
-  }
-
-  /// getModRefInfo (for catchpads) - Return information about whether
-  /// a particular catchpad modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const CatchPadInst *I, const MemoryLocation &Loc);
-
-  /// getModRefInfo (for catchpads) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const CatchPadInst *I, const Value *P,
-                           LocationSize Size) {
-    return getModRefInfo(I, MemoryLocation(P, Size));
-  }
-
-  /// getModRefInfo (for catchrets) - Return information about whether
-  /// a particular catchret modifies or reads the specified memory location.
-  ModRefInfo getModRefInfo(const CatchReturnInst *I, const MemoryLocation &Loc);
-
-  /// getModRefInfo (for catchrets) - A convenience wrapper.
-  ModRefInfo getModRefInfo(const CatchReturnInst *I, const Value *P,
-                           LocationSize Size) {
-    return getModRefInfo(I, MemoryLocation(P, Size));
-  }
-
   /// Check whether or not an instruction may read or write the optionally
   /// specified memory location.
   ///
@@ -791,6 +645,12 @@ public:
                                 const MemoryLocation &MemLoc, DominatorTree *DT,
                                 AAQueryInfo &AAQIP);
   MemoryEffects getMemoryEffects(const CallBase *Call, AAQueryInfo &AAQI);
+
+  /// Return the behavior for the task detached from a given detach instruction.
+  MemoryEffects getMemoryEffects(const DetachInst *D, AAQueryInfo &AAQI);
+
+  /// Return the behavior for a sync instruction.
+  MemoryEffects getMemoryEffects(const SyncInst *S, AAQueryInfo &AAQI);
 
 private:
   class Concept;

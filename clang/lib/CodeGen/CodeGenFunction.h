@@ -1205,7 +1205,6 @@ public:
     ~OMPLocalDeclMapRAII() { SavedMap.swap(CGF.LocalDeclMap); }
   };
 
-
   /// In Cilk, flag indicating whether the current call/invoke is spawned.
   bool IsSpawned = false;
   bool SpawnedCleanup = false;
@@ -1397,18 +1396,13 @@ public:
       // Recreate the landingpad's return value for the rethrow invoke.  Tapir
       // lowering will replace this rethrow with a resume.
       llvm::Value *Exn = CGF.Builder.CreateLoad(
-          Address(CGF.ExceptionSlot,
-                  cast<llvm::AllocaInst>(CGF.ExceptionSlot)->getAllocatedType(),
-                  CGF.getPointerAlign()),
+          Address(CGF.ExceptionSlot, CGF.Int8PtrTy, CGF.getPointerAlign()),
           "exn");
       llvm::Value *Sel = CGF.Builder.CreateLoad(
-          Address(
-              CGF.EHSelectorSlot,
-              cast<llvm::AllocaInst>(CGF.EHSelectorSlot)->getAllocatedType(),
-              CharUnits::fromQuantity(4)),
+          Address(CGF.EHSelectorSlot, CGF.Int32Ty, CharUnits::fromQuantity(4)),
           "sel");
-      llvm::Type *LPadType = llvm::StructType::get(Exn->getType(),
-                                                   Sel->getType());
+      llvm::Type *LPadType =
+          llvm::StructType::get(Exn->getType(), Sel->getType());
       llvm::Value *LPadVal = llvm::UndefValue::get(LPadType);
       LPadVal = CGF.Builder.CreateInsertValue(LPadVal, Exn, 0, "lpad.val");
       LPadVal = CGF.Builder.CreateInsertValue(LPadVal, Sel, 1, "lpad.val");
@@ -1439,18 +1433,13 @@ public:
       // Recreate the landingpad's return value for the rethrow invoke.  Tapir
       // lowering will replace this rethrow with a resume.
       llvm::Value *Exn = CGF.Builder.CreateLoad(
-          Address(CGF.ExceptionSlot,
-                  cast<llvm::AllocaInst>(CGF.ExceptionSlot)->getAllocatedType(),
-                  CGF.getPointerAlign()),
+          Address(CGF.ExceptionSlot, CGF.Int8PtrTy, CGF.getPointerAlign()),
           "exn");
       llvm::Value *Sel = CGF.Builder.CreateLoad(
-          Address(
-              CGF.EHSelectorSlot,
-              cast<llvm::AllocaInst>(CGF.EHSelectorSlot)->getAllocatedType(),
-              CharUnits::fromQuantity(4)),
+          Address(CGF.EHSelectorSlot, CGF.Int32Ty, CharUnits::fromQuantity(4)),
           "sel");
-      llvm::Type *LPadType = llvm::StructType::get(Exn->getType(),
-                                                   Sel->getType());
+      llvm::Type *LPadType =
+          llvm::StructType::get(Exn->getType(), Sel->getType());
       llvm::Value *LPadVal = llvm::UndefValue::get(LPadType);
       LPadVal = CGF.Builder.CreateInsertValue(LPadVal, Exn, 0, "lpad.val");
       LPadVal = CGF.Builder.CreateInsertValue(LPadVal, Sel, 1, "lpad.val");
@@ -1592,6 +1581,8 @@ public:
     void StartLabeledDetach(SyncRegion* SR);
     void FinishLabeledDetach(SyncRegion* SR);
 
+    // Create a temporary for the spawned task, specifically, before the spawned
+    // task has started.
     Address CreateDetachedMemTemp(QualType Ty, StorageDuration SD,
                                   const Twine &Name = "det.tmp");
   };
@@ -1695,18 +1686,13 @@ public:
       // Recreate the landingpad's return value for the rethrow invoke.  Tapir
       // lowering will replace this rethrow with a resume.
       llvm::Value *Exn = CGF.Builder.CreateLoad(
-          Address(CGF.ExceptionSlot,
-                  cast<llvm::AllocaInst>(CGF.ExceptionSlot)->getAllocatedType(),
-                  CGF.getPointerAlign()),
+          Address(CGF.ExceptionSlot, CGF.Int8PtrTy, CGF.getPointerAlign()),
           "exn");
       llvm::Value *Sel = CGF.Builder.CreateLoad(
-          Address(
-              CGF.EHSelectorSlot,
-              cast<llvm::AllocaInst>(CGF.EHSelectorSlot)->getAllocatedType(),
-              CharUnits::fromQuantity(4)),
+          Address(CGF.EHSelectorSlot, CGF.Int32Ty, CharUnits::fromQuantity(4)),
           "sel");
-      llvm::Type *LPadType = llvm::StructType::get(Exn->getType(),
-                                                   Sel->getType());
+      llvm::Type *LPadType =
+          llvm::StructType::get(Exn->getType(), Sel->getType());
       llvm::Value *LPadVal = llvm::UndefValue::get(LPadType);
       LPadVal = CGF.Builder.CreateInsertValue(LPadVal, Exn, 0, "lpad.val");
       LPadVal = CGF.Builder.CreateInsertValue(LPadVal, Sel, 1, "lpad.val");
@@ -3870,6 +3856,9 @@ public:
                        ArrayRef<const Attr *> Attrs = std::nullopt);
   LValue EmitCilkSpawnExprLValue(const CilkSpawnExpr *E);
 
+/*
+  !!!! Probably don't need this after merge with dev/opencilk/16.x, so remove if redundent
+
   void EmitDetachBlock(const DeclStmt *DS, llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
   void ReplaceAllUsesInCurrentBlock(llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
   void SetAllocaInsertPoint(llvm::Value* v, llvm::BasicBlock* bb);
@@ -3888,6 +3877,7 @@ public:
                           DeclMapByValueTy & IVDeclMap);
   void EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,4>& Values);
   void RestoreDeclMap(const VarDecl* IV, const Address);
+*/
 
   void EmitSpawnStmt(const SpawnStmt &S);
   void EmitSyncStmt(const SyncStmt &S);

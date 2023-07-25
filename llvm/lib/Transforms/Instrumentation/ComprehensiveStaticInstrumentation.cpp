@@ -39,6 +39,7 @@
 #include "llvm/Linker/Linker.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/DynamicLibrary.h"
+#include "llvm/Support/ModRef.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/Transforms/Instrumentation/CSI.h"
@@ -49,7 +50,6 @@
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
-#include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
 
@@ -156,7 +156,38 @@ static CSIOptions OverrideFromCL(CSIOptions Options) {
   return Options;
 }
 
+/// The Comprehensive Static Instrumentation pass.
+/// Inserts calls to user-defined hooks at predefined points in the IR.
+struct ComprehensiveStaticInstrumentationLegacyPass : public ModulePass {
+  static char ID; // Pass identification, replacement for typeid.
+
+  ComprehensiveStaticInstrumentationLegacyPass(
+      const CSIOptions &Options = OverrideFromCL(CSIOptions()))
+      : ModulePass(ID), Options(Options) {
+    initializeComprehensiveStaticInstrumentationLegacyPassPass(
+        *PassRegistry::getPassRegistry());
+  }
+  StringRef getPassName() const override {
+    return "ComprehensiveStaticInstrumentation";
+  }
+  bool runOnModule(Module &M) override;
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+
+private:
+  CSIOptions Options;
+}; // struct ComprehensiveStaticInstrumentation
 } // anonymous namespace
+
+char ComprehensiveStaticInstrumentationLegacyPass::ID = 0;
+
+INITIALIZE_PASS_BEGIN(ComprehensiveStaticInstrumentationLegacyPass, "csi",
+                      "ComprehensiveStaticInstrumentation pass", false, false)
+INITIALIZE_PASS_DEPENDENCY(CallGraphWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(TaskInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
+INITIALIZE_PASS_END(ComprehensiveStaticInstrumentationLegacyPass, "csi",
+                    "ComprehensiveStaticInstrumentation pass", false, false)
 
 /// Return the first DILocation in the given basic block, or nullptr
 /// if none exists.
@@ -351,7 +382,7 @@ Value *ForensicTable::localToGlobalId(uint64_t LocalId,
   LLVMContext &C = IRB.getContext();
   Type *BaseIdTy = IRB.getInt64Ty();
   LoadInst *Base = IRB.CreateLoad(BaseIdTy, BaseId);
-  MDNode *MD = llvm::MDNode::get(C, std::nullopt);
+  MDNode *MD = MDNode::get(C, std::nullopt);
   Base->setMetadata(LLVMContext::MD_invariant_load, MD);
   Value *Offset = IRB.getInt64(LocalId);
   return IRB.CreateAdd(Base, Offset);
@@ -691,11 +722,13 @@ void CSIImpl::initializeTapirHooks() {
   Type *RetType = IRB.getVoidTy();
   Type *TaskPropertyTy = CsiTaskProperty::getType(C);
   Type *TaskExitPropertyTy = CsiTaskExitProperty::getType(C);
+  Type *DetachPropertyTy = CsiDetachProperty::getType(C);
   Type *DetContPropertyTy = CsiDetachContinueProperty::getType(C);
 
   CsiDetach = M.getOrInsertFunction("__csi_detach", RetType,
                                     /* detach_id */ IDType,
-                                    IntegerType::getInt32Ty(C)->getPointerTo());
+                                    IntegerType::getInt32Ty(C)->getPointerTo(),
+                                    DetachPropertyTy);
   CsiTaskEntry = M.getOrInsertFunction("__csi_task", RetType,
                                        /* task_id */ IDType,
                                        /* detach_id */ IDType,
@@ -863,8 +896,7 @@ void CSIImpl::splitBlocksAtCalls(Function &F, DominatorTree *DT, LoopInfo *LI) {
     SplitBlock(Call->getParent(), Call->getNextNode(), DT, LI);
 }
 
-int CSIImpl::getNumBytesAccessed(Value *Addr, Type *OrigTy,
-                                 const DataLayout &DL) {
+int CSIImpl::getNumBytesAccessed(Type *OrigTy, const DataLayout &DL) {
   assert(OrigTy->isSized());
   uint32_t TypeSize = DL.getTypeStoreSizeInBits(OrigTy);
   if (TypeSize % 8 != 0)
@@ -899,7 +931,7 @@ void CSIImpl::instrumentLoadOrStore(Instruction *I,
                         : cast<LoadInst>(I)->getPointerOperand();
   Type *Ty =
       IsWrite ? cast<StoreInst>(I)->getValueOperand()->getType() : I->getType();
-  int NumBytes = getNumBytesAccessed(Addr, Ty, DL);
+  int NumBytes = getNumBytesAccessed(Ty, DL);
   Type *AddrType = IRB.getInt8PtrTy();
 
   if (NumBytes == -1)
@@ -1240,7 +1272,10 @@ void CSIImpl::instrumentDetach(DetachInst *DI, DominatorTree *DT, TaskInfo &TI,
     IRB.CreateStore(
         Constant::getIntegerValue(IntegerType::getInt32Ty(Ctx), APInt(32, 1)),
         TrackVar);
-    insertHookCall(DI, CsiDetach, {DetachID, TrackVar});
+    CsiDetachProperty DetachProp;
+    DetachProp.setForTapirLoopBody(TapirLoopBody);
+    insertHookCall(DI, CsiDetach,
+                   {DetachID, TrackVar, DetachProp.getValue(IRB)});
   }
 
   // Find the detached block, continuation, and associated reattaches.
@@ -1311,6 +1346,7 @@ void CSIImpl::instrumentDetach(DetachInst *DI, DominatorTree *DT, TaskInfo &TI,
     uint64_t LocalID = DetachContinueFED.add(*ContinueBlock);
     Value *ContinueID = DetachContinueFED.localToGlobalId(LocalID, IDBuilder);
     CsiDetachContinueProperty ContProp;
+    ContProp.setForTapirLoopBody(TapirLoopBody);
     Instruction *Call = IRB.CreateCall(
         CsiDetachContinue, {ContinueID, DetachID, ContProp.getValue(IRB)});
     setInstrumentationDebugLoc(*ContinueBlock, Call);
@@ -1334,6 +1370,7 @@ void CSIImpl::instrumentDetach(DetachInst *DI, DominatorTree *DT, TaskInfo &TI,
     CsiDetachContinueProperty ContProp;
     Value *DefaultPropVal = ContProp.getValueImpl(Ctx);
     ContProp.setIsUnwind();
+    ContProp.setForTapirLoopBody(TapirLoopBody);
     insertHookCallInSuccessorBB(UnwindBlock, PredBlock, CsiDetachContinue,
                                 {ContinueID, DetachID, ContProp.getValue(Ctx)},
                                 {DefaultID, DefaultID, DefaultPropVal});
@@ -1442,14 +1479,13 @@ bool CSIImpl::getAllocFnArgs(const Instruction *I,
                              const TargetLibraryInfo &TLI) {
   const CallBase *CB = dyn_cast<CallBase>(I);
 
-  std::pair<Value *, Value *> SizeArgs =
-      getAllocSizeArgs(CB, &TLI, /*IgnoreBuiltinAttr=*/true);
+  std::pair<Value *, Value *> SizeArgs = getAllocSizeArgs(CB, &TLI);
   // If the first size argument is null, then we failed to get size arguments
   // for this call.
   if (!SizeArgs.first)
     return false;
 
-  Value *AlignmentArg = getAllocAlignment(CB, &TLI, /*IgnoreBuiltinAttr=*/true);
+  Value *AlignmentArg = getAllocAlignment(CB, &TLI);
 
   // Push the size arguments.
   AllocFnArgs.push_back(SizeArgs.first);
@@ -1469,8 +1505,8 @@ bool CSIImpl::getAllocFnArgs(const Instruction *I,
 
   // Return the old pointer argument for realloc-like functions or nullptr for
   // other allocation functions.
-  if (isReallocLikeFn(CB->getCalledFunction()))
-    AllocFnArgs.push_back(CB->getArgOperand(0));
+  if (Value *Reallocated = getReallocatedOperand(CB))
+    AllocFnArgs.push_back(Reallocated);
   else
     AllocFnArgs.push_back(Constant::getNullValue(AddrTy));
 
@@ -1571,6 +1607,7 @@ void CSIImpl::instrumentFree(Instruction *I, const TargetLibraryInfo *TLI) {
   uint64_t LocalId = FreeFED.add(*I);
   Value *FreeId = FreeFED.localToGlobalId(LocalId, IRB);
 
+  // All currently supported free functions free the first argument.
   Value *Addr = FC->getArgOperand(0);
   CsiFreeProperty Prop;
   LibFunc FreeLibF;
@@ -1964,7 +2001,7 @@ CallInst *CSIImpl::createRTUnitInitCall(IRBuilder<> &IRB) {
   // Insert call to __csirt_unit_init
   return IRB.CreateCall(
       RTUnitInit,
-      {IRB.CreateGlobalStringPtr(M.getName()),
+      {IRB.CreateGlobalStringPtr(M.getName(), "__csi_module_name"),
        ConstantExpr::getGetElementPtr(FEDGV->getValueType(), FEDGV, GepArgs),
        ConstantExpr::getGetElementPtr(SizeGV->getValueType(), SizeGV, GepArgs),
        InitCallsiteToFunction});
@@ -2252,22 +2289,22 @@ bool CSIImpl::shouldNotInstrumentFunction(Function &F) {
   return false;
 }
 
-bool CSIImpl::isVtableAccess(Instruction *I) {
-  if (MDNode *Tag = I->getMetadata(LLVMContext::MD_tbaa))
+bool CSIImpl::isVtableAccess(const Instruction *I) {
+  if (const MDNode *Tag = I->getMetadata(LLVMContext::MD_tbaa))
     return Tag->isTBAAVtableAccess();
   return false;
 }
 
-bool CSIImpl::addrPointsToConstantData(Value *Addr) {
+bool CSIImpl::addrPointsToConstantData(const Value *Addr) {
   // If this is a GEP, just analyze its pointer operand.
-  if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(Addr))
+  if (const GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(Addr))
     Addr = GEP->getPointerOperand();
 
-  if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Addr)) {
+  if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(Addr)) {
     if (GV->isConstant()) {
       return true;
     }
-  } else if (LoadInst *L = dyn_cast<LoadInst>(Addr)) {
+  } else if (const LoadInst *L = dyn_cast<LoadInst>(Addr)) {
     if (isVtableAccess(L)) {
       return true;
     }
@@ -2275,10 +2312,10 @@ bool CSIImpl::addrPointsToConstantData(Value *Addr) {
   return false;
 }
 
-bool CSIImpl::isAtomic(Instruction *I) {
-  if (LoadInst *LI = dyn_cast<LoadInst>(I))
+bool CSIImpl::isAtomic(const Instruction *I) {
+  if (const LoadInst *LI = dyn_cast<LoadInst>(I))
     return LI->isAtomic() && LI->getSyncScopeID() != SyncScope::SingleThread;
-  if (StoreInst *SI = dyn_cast<StoreInst>(I))
+  if (const StoreInst *SI = dyn_cast<StoreInst>(I))
     return SI->isAtomic() && SI->getSyncScopeID() != SyncScope::SingleThread;
   if (isa<AtomicRMWInst>(I))
     return true;
@@ -2289,8 +2326,10 @@ bool CSIImpl::isAtomic(Instruction *I) {
   return false;
 }
 
-bool CSIImpl::isThreadLocalObject(Value *Obj) {
-  if (GlobalValue *GV = dyn_cast<GlobalValue>(Obj))
+bool CSIImpl::isThreadLocalObject(const Value *Obj) {
+  if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(Obj))
+    return Intrinsic::threadlocal_address == II->getIntrinsicID();
+  if (const GlobalValue *GV = dyn_cast<GlobalValue>(Obj))
     return GV->isThreadLocal();
   return false;
 }
@@ -2306,14 +2345,12 @@ void CSIImpl::computeLoadAndStoreProperties(
            E = BBLoadsAndStores.rend();
        It != E; ++It) {
     Instruction *I = *It;
-    unsigned Alignment;
     if (StoreInst *Store = dyn_cast<StoreInst>(I)) {
       Value *Addr = Store->getPointerOperand();
       WriteTargets.insert(Addr);
       CsiLoadStoreProperty Prop;
       // Update alignment property data
-      Alignment = Store->getAlign().value();
-      Prop.setAlignment(Alignment);
+      Prop.setAlignment(MaybeAlign(Store->getAlign()));
       // Set vtable-access property
       Prop.setIsVtableAccess(isVtableAccess(Store));
       // Set constant-data-access property
@@ -2332,8 +2369,7 @@ void CSIImpl::computeLoadAndStoreProperties(
       Value *Addr = Load->getPointerOperand();
       CsiLoadStoreProperty Prop;
       // Update alignment property data
-      Alignment = Load->getAlign().value();
-      Prop.setAlignment(Alignment);
+      Prop.setAlignment(MaybeAlign(Load->getAlign()));
       // Set vtable-access property
       Prop.setIsVtableAccess(isVtableAccess(Load));
       // Set constant-data-access-property
@@ -2360,6 +2396,8 @@ void CSIImpl::computeLoadAndStoreProperties(
 void CSIImpl::updateInstrumentedFnAttrs(Function &F) {
   F.removeFnAttr(Attribute::ReadOnly);
   F.removeFnAttr(Attribute::ReadNone);
+  F.setMemoryEffects(
+      MemoryEffects(MemoryEffects::Location::Other, ModRefInfo::ModRef));
 }
 
 void CSIImpl::instrumentFunction(Function &F) {
@@ -2439,7 +2477,7 @@ void CSIImpl::instrumentFunction(Function &F) {
           SyncsWithUnwinds.insert(SI);
           BBsToIgnore.insert(SI->getSuccessor(0));
         }
-      } else if (CallBase* CB = dyn_cast<CallBase>(&I)) {
+      } else if (CallBase *CB = dyn_cast<CallBase>(&I)) {
         // Record this function call as either an allocation function, a call to
         // free (or delete), a memory intrinsic, or an ordinary real function
         // call.
@@ -2613,6 +2651,52 @@ Function *CSIImpl::getInterpositionFunction(Function *F) {
   InterpositionFunctions.insert({F, InterpositionFunction});
 
   return InterpositionFunction;
+}
+
+void ComprehensiveStaticInstrumentationLegacyPass::getAnalysisUsage(
+    AnalysisUsage &AU) const {
+  AU.addRequired<CallGraphWrapperPass>();
+  AU.addRequired<DominatorTreeWrapperPass>();
+  AU.addRequired<LoopInfoWrapperPass>();
+  AU.addRequired<ScalarEvolutionWrapperPass>();
+  AU.addRequired<TaskInfoWrapperPass>();
+  AU.addRequired<TargetLibraryInfoWrapperPass>();
+  AU.addRequired<TargetTransformInfoWrapperPass>();
+}
+
+bool ComprehensiveStaticInstrumentationLegacyPass::runOnModule(Module &M) {
+  if (skipModule(M))
+    return false;
+
+  CallGraph *CG = &getAnalysis<CallGraphWrapperPass>().getCallGraph();
+  auto GetTLI = [this](Function &F) -> TargetLibraryInfo & {
+    return this->getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
+  };
+  auto GetDomTree = [this](Function &F) -> DominatorTree & {
+    return this->getAnalysis<DominatorTreeWrapperPass>(F).getDomTree();
+  };
+  auto GetLoopInfo = [this](Function &F) -> LoopInfo & {
+    return this->getAnalysis<LoopInfoWrapperPass>(F).getLoopInfo();
+  };
+  auto GetTTI = [this](Function &F) -> TargetTransformInfo & {
+    return this->getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
+  };
+  auto GetSE = [this](Function &F) -> ScalarEvolution & {
+    return this->getAnalysis<ScalarEvolutionWrapperPass>(F).getSE();
+  };
+  auto GetTaskInfo = [this](Function &F) -> TaskInfo & {
+    return this->getAnalysis<TaskInfoWrapperPass>(F).getTaskInfo();
+  };
+
+  bool res = CSIImpl(M, CG, GetDomTree, GetLoopInfo, GetTaskInfo, GetTLI, GetSE,
+                     GetTTI, Options)
+                 .run();
+
+  verifyModule(M, &llvm::errs());
+
+  numPassRuns++;
+
+  return res;
 }
 
 CSISetupPass::CSISetupPass() : Options(OverrideFromCL(CSIOptions())) {}

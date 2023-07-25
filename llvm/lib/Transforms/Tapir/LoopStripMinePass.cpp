@@ -30,6 +30,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/InstructionCost.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Tapir.h"
 #include "llvm/Transforms/Tapir/LoopStripMine.h"
@@ -88,7 +89,7 @@ createMissedAnalysis(StringRef RemarkName, const Loop *TheLoop,
 
 /// Approximate the work of the body of the loop L.  Returns several relevant
 /// properties of loop L via by-reference arguments.
-static int64_t ApproximateLoopCost(
+static InstructionCost ApproximateLoopCost(
     const Loop *L, unsigned &NumCalls, bool &NotDuplicatable,
     bool &Convergent, bool &IsRecursive, bool &UnknownSize,
     const TargetTransformInfo &TTI, LoopInfo *LI, ScalarEvolution &SE,
@@ -119,9 +120,6 @@ static bool tryToStripMineLoop(
     return false;
   TapirLoopHints Hints(L);
 
-  if (!EnableTapirLoopStripmine)
-    return false;
-
   if (TM_Disable == hasLoopStripmineTransformation(L))
     return false;
 
@@ -149,7 +147,7 @@ static bool tryToStripMineLoop(
   SmallPtrSet<const Value *, 32> EphValues;
   CodeMetrics::collectEphemeralValues(L, &AC, EphValues);
 
-  int64_t LoopCost =
+  InstructionCost LoopCost =
       ApproximateLoopCost(L, NumCalls, NotDuplicatable, Convergent, IsRecursive,
                           UnknownSize, TTI, LI, SE, EphValues, TLI);
   // Determine the iteration count of the eventual stripmined the loop.
@@ -167,7 +165,7 @@ static bool tryToStripMineLoop(
   // If the loop size is enormous, then we might want to use a stripmining count
   // of 1 for it.
   LLVM_DEBUG(dbgs() << "  Loop Cost = " << LoopCost << "\n");
-  if (!explicitCount && std::numeric_limits<int64_t>::max() == LoopCost) {
+  if (!explicitCount && InstructionCost::getMax() == LoopCost) {
     LLVM_DEBUG(dbgs() << "  Not stripmining loop with very large size.\n");
     if (Hints.getGrainsize() == 1)
       return false;
@@ -434,8 +432,8 @@ PreservedAnalyses LoopStripMinePass::run(Function &F,
     //   AllowPeeling = false;
     std::string LoopName = std::string(L.getName());
     bool LoopChanged =
-      tryToStripMineLoop(&L, DT, &LI, SE, TTI, AC, &TI, ORE, &TLI,
-                         /*PreserveLCSSA*/ true, /*Count*/ std::nullopt);
+        tryToStripMineLoop(&L, DT, &LI, SE, TTI, AC, &TI, ORE, &TLI,
+                           /*PreserveLCSSA*/ true, /*Count*/ std::nullopt);
     Changed |= LoopChanged;
 
     // The parent must not be damaged by stripmining!

@@ -391,7 +391,7 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, const GeneralAccess &GA) {
     else
       OS << *GA.Loc->Ptr;
     OS << ", GA.OperandNum: " << static_cast<int>(GA.OperandNum);
-    OS << ", GA.ModRef: " << static_cast<int>(GA.ME.getModRef());
+    OS << ", GA.ModRef: " << static_cast<int>(GA.ModRef);
     OS << ")";
   }
   return OS;
@@ -4337,19 +4337,63 @@ bool DependenceInfo::tryDelinearize(GeneralAccess *SrcA, GeneralAccess *DstA,
   return true;
 }
 
+static bool tryDelinearizeGAFixedSizeImpl(
+    ScalarEvolution *SE, GeneralAccess *GA, const SCEV *AccessFn,
+    SmallVectorImpl<const SCEV *> &Subscripts, SmallVectorImpl<int> &Sizes) {
+  Value *SrcPtr = getGeneralAccessPointerOperand(GA);
+
+  // Check the simple case where the array dimensions are fixed size.
+  auto *SrcGEP = dyn_cast<GetElementPtrInst>(SrcPtr);
+  if (!SrcGEP)
+    return false;
+
+  getIndexExpressionsFromGEP(*SE, SrcGEP, Subscripts, Sizes);
+
+  // Check that the two size arrays are non-empty and equal in length and
+  // value.
+  // TODO: it would be better to let the caller to clear Subscripts, similar
+  // to how we handle Sizes.
+  if (Sizes.empty() || Subscripts.size() <= 1) {
+    Subscripts.clear();
+    return false;
+  }
+
+  // Check that for identical base pointers we do not miss index offsets
+  // that have been added before this GEP is applied.
+  Value *SrcBasePtr = SrcGEP->getOperand(0)->stripPointerCasts();
+  const SCEVUnknown *SrcBase =
+      dyn_cast<SCEVUnknown>(SE->getPointerBase(AccessFn));
+  if (!SrcBase || SrcBasePtr != SrcBase->getValue()) {
+    Subscripts.clear();
+    return false;
+  }
+
+  assert(Subscripts.size() == Sizes.size() + 1 &&
+         "Expected equal number of entries in the list of size and "
+         "subscript.");
+
+  return true;
+}
+
 bool DependenceInfo::tryDelinearizeFixedSize(
     GeneralAccess *SrcA, GeneralAccess *DstA, const SCEV *SrcAccessFn,
     const SCEV *DstAccessFn, SmallVectorImpl<const SCEV *> &SrcSubscripts,
     SmallVectorImpl<const SCEV *> &DstSubscripts) {
+  LLVM_DEBUG({
+    const SCEVUnknown *SrcBase =
+        dyn_cast<SCEVUnknown>(SE->getPointerBase(SrcAccessFn));
+    const SCEVUnknown *DstBase =
+        dyn_cast<SCEVUnknown>(SE->getPointerBase(DstAccessFn));
+    assert(SrcBase && DstBase && SrcBase == DstBase &&
+           "expected src and dst scev unknowns to be equal");
+  });
 
-  // In general we cannot safely assume that the subscripts recovered from GEPs
-  // are in the range of values defined for their corresponding array
-  // dimensions. For example some C language usage/interpretation make it
-  // impossible to verify this at compile-time. As such we give up here unless
-  // we can assume that the subscripts do not overlap into neighboring
-  // dimensions and that the number of dimensions matches the number of
-  // subscripts being recovered.
-  if (!DisableDelinearizationChecks)
+  SmallVector<int, 4> SrcSizes;
+  SmallVector<int, 4> DstSizes;
+  if (!tryDelinearizeGAFixedSizeImpl(SE, SrcA, SrcAccessFn, SrcSubscripts,
+                                     SrcSizes) ||
+      !tryDelinearizeGAFixedSizeImpl(SE, DstA, DstAccessFn, DstSubscripts,
+                                     DstSizes))
     return false;
 
   Value *SrcPtr = getGeneralAccessPointerOperand(SrcA);
@@ -4373,39 +4417,59 @@ bool DependenceInfo::tryDelinearizeFixedSize(
 
   // Check that the two size arrays are non-empty and equal in length and
   // value.
-  if (SrcSizes.empty() || SrcSubscripts.size() <= 1 ||
-      SrcSizes.size() != DstSizes.size() ||
+  if (SrcSizes.size() != DstSizes.size() ||
       !std::equal(SrcSizes.begin(), SrcSizes.end(), DstSizes.begin())) {
     SrcSubscripts.clear();
     DstSubscripts.clear();
     return false;
   }
 
-  Value *SrcBasePtr = SrcGEP->getOperand(0);
-  Value *DstBasePtr = DstGEP->getOperand(0);
-  while (auto *PCast = dyn_cast<BitCastInst>(SrcBasePtr))
-    SrcBasePtr = PCast->getOperand(0);
-  while (auto *PCast = dyn_cast<BitCastInst>(DstBasePtr))
-    DstBasePtr = PCast->getOperand(0);
+  assert(SrcSubscripts.size() == DstSubscripts.size() &&
+         "Expected equal number of entries in the list of SrcSubscripts and "
+         "DstSubscripts.");
 
-  // Check that for identical base pointers we do not miss index offsets
-  // that have been added before this GEP is applied.
-  if (SrcBasePtr == SrcBase->getValue() && DstBasePtr == DstBase->getValue()) {
-    assert(SrcSubscripts.size() == DstSubscripts.size() &&
-           SrcSubscripts.size() == SrcSizes.size() + 1 &&
-           "Expected equal number of entries in the list of sizes and "
-           "subscripts.");
-    LLVM_DEBUG({
-      dbgs() << "Delinearized subscripts of fixed-size array\n"
-             << "SrcGEP:" << *SrcGEP << "\n"
-             << "DstGEP:" << *DstGEP << "\n";
-    });
-    return true;
+  Value *SrcPtr = getGeneralAccessPointerOperand(SrcA);
+  Value *DstPtr = getGeneralAccessPointerOperand(DstA);
+
+  // In general we cannot safely assume that the subscripts recovered from GEPs
+  // are in the range of values defined for their corresponding array
+  // dimensions. For example some C language usage/interpretation make it
+  // impossible to verify this at compile-time. As such we give up here unless
+  // we can assume that the subscripts do not overlap into neighboring
+  // dimensions and that the number of dimensions matches the number of
+  // subscripts being recovered.
+  if (!DisableDelinearizationChecks) {
+    auto AllIndiciesInRange = [&](SmallVector<int, 4> &DimensionSizes,
+                                  SmallVectorImpl<const SCEV *> &Subscripts,
+                                  Value *Ptr) {
+      size_t SSize = Subscripts.size();
+      for (size_t I = 1; I < SSize; ++I) {
+        const SCEV *S = Subscripts[I];
+        if (!isKnownNonNegative(S, Ptr))
+          return false;
+        if (auto *SType = dyn_cast<IntegerType>(S->getType())) {
+          const SCEV *Range = SE->getConstant(
+              ConstantInt::get(SType, DimensionSizes[I - 1], false));
+          if (!isKnownLessThan(S, Range))
+            return false;
+        }
+      }
+      return true;
+    };
+
+    if (!AllIndiciesInRange(SrcSizes, SrcSubscripts, SrcPtr) ||
+        !AllIndiciesInRange(DstSizes, DstSubscripts, DstPtr)) {
+      SrcSubscripts.clear();
+      DstSubscripts.clear();
+      return false;
+    }
   }
-
-  SrcSubscripts.clear();
-  DstSubscripts.clear();
-  return false;
+  LLVM_DEBUG({
+    dbgs() << "Delinearized subscripts of fixed-size array\n"
+           << "SrcGEP:" << *SrcPtr << "\n"
+           << "DstGEP:" << *DstPtr << "\n";
+  });
+  return true;
 }
 
 bool DependenceInfo::tryDelinearizeParametricSize(

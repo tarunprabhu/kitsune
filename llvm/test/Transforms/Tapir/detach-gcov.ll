@@ -42,7 +42,7 @@ pfor.body:                                        ; preds = %pfor.body.entry
   call void @llvm.instrprof.increment(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @__profn_main, i32 0, i32 0), i64 560837720, i32 2, i32 1), !dbg !13
   reattach within %syncreg, label %pfor.inc, !dbg !14
 
-; CHECK: pfor.body:{{.*}}
+; CHECK: pfor.body:
 ; CHECK: %[[GCOV_CTR:.+]] = load i64, ptr getelementptr inbounds ([{{[0-9]+}} x i64], ptr @__llvm_gcov_ctr, i64 {{[0-9]+}}, i64 {{[0-9]+}})
 ; CHECK: %[[ADD:.+]] = add i64 %[[GCOV_CTR]], 1
 ; CHECK: store i64 %[[ADD]], ptr getelementptr inbounds ([{{[0-9]+}} x i64], ptr @__llvm_gcov_ctr, i64 {{[0-9]+}}, i64 {{[0-9]+}})

@@ -37,17 +37,19 @@ TapirTargetID clang::parseTapirTarget(const ArgList &Args) {
   if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
     TapirTarget = llvm::StringSwitch<TapirTargetID>(A->getValue())
       .Case("none", TapirTargetID::None)
+      .Case("gpu", TapirTargetID::GPU)
       .Case("serial", TapirTargetID::Serial)
-      .Case("cilk", TapirTargetID::Cilk)
+      .Case("cheetah", TapirTargetID::Cheetah)
       .Case("cilkplus", TapirTargetID::Cilk)
-      .Case("opencilk", TapirTargetID::OpenCilk)
       .Case("cuda", TapirTargetID::Cuda)
       .Case("hip", TapirTargetID::Hip)
+      .Case("lambda", TapirTargetID::Lambda)
+      .Case("omptask", TapirTargetID::OMPTask)
+      .Case("opencilk", TapirTargetID::OpenCilk)
+      .Case("opencl", TapirTargetID::OpenCL)
       .Case("openmp", TapirTargetID::OpenMP)
       .Case("qthreads", TapirTargetID::Qthreads)
       .Case("realm", TapirTargetID::Realm)
-      .Case("opencl", TapirTargetID::OpenCL)
-      .Case("gpu", TapirTargetID::GPU)
       .Default(TapirTargetID::Last_TapirTargetID);
 
   return TapirTarget;
@@ -77,6 +79,9 @@ clang::serializeTapirTarget(TapirTargetID Target) {
   case TapirTargetID::None:
     TapirTargetStr = "none";
     break;
+  case TapirTargetID::GPU:
+    TapirTargetStr = "gpu";
+    break;
   case TapirTargetID::Serial:
     TapirTargetStr = "serial";
     break;
@@ -89,11 +94,14 @@ clang::serializeTapirTarget(TapirTargetID Target) {
   case TapirTargetID::Cuda:
     TapirTargetStr = "cuda";
     break;
-  case TapirTargetID::GPU:
-    TapirTargetStr = "gpu";
-    break;
   case TapirTargetID::Hip:
     TapirTargetStr = "hip";
+    break;
+  case TapirTargetID::Lambda:
+    TapirTargetStr = "lambda";
+    break;
+  case TapirTargetID::OMPTask:
+    TapirTargetStr = "omptask";
     break;
   case TapirTargetID::OpenCilk:
     TapirTargetStr = "opencilk";

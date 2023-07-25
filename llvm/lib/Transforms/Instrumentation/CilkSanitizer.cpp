@@ -342,6 +342,7 @@ struct CilkSanitizerImpl : public CSIImpl {
   static Constant *objTableToUnitObjTable(Module &M,
                                           StructType *UnitObjTableType,
                                           ObjectTable &ObjTable);
+  static bool isFreeFn(const Instruction *I, const TargetLibraryInfo *TLI);
   static bool isAllocFn(const Instruction *I, const TargetLibraryInfo *TLI);
   static bool isLibCall(const Instruction &I, const TargetLibraryInfo *TLI);
   static bool simpleCallCannotRace(const Instruction &I);
@@ -368,10 +369,10 @@ struct CilkSanitizerImpl : public CSIImpl {
     BI = I->getIterator();
     BasicBlock::const_iterator BB(I->getParent()->begin());
     while (BI != BB) {
+      --BI;
       if (DebugLoc Loc = BI->getDebugLoc()) {
         return Loc;
       }
-      --BI;
     }
 
     return I->getDebugLoc();
@@ -380,6 +381,31 @@ struct CilkSanitizerImpl : public CSIImpl {
   void setupBlocks(Function &F, DominatorTree *DT = nullptr,
                    LoopInfo *LI = nullptr);
   bool setupFunction(Function &F, bool NeedToSetupCalls);
+
+  FunctionCallee getHookFunction(StringRef Name, FunctionType *FnTy,
+                                 AttributeList AL) {
+    FunctionCallee Callee = M.getOrInsertFunction(Name, FnTy, AL);
+    if (Function *Fn = dyn_cast<Function>(Callee.getCallee())) {
+      Fn->setOnlyAccessesInaccessibleMemOrArgMem();
+      Fn->setDoesNotThrow();
+    }
+    return Callee;
+  }
+  template <typename... ArgsTy>
+  FunctionCallee getHookFunction(StringRef Name, AttributeList AL, Type *RetTy,
+                                 ArgsTy... Args) {
+    FunctionCallee Callee = M.getOrInsertFunction(Name, AL, RetTy, Args...);
+    if (Function *Fn = dyn_cast<Function>(Callee.getCallee())) {
+      Fn->setOnlyAccessesInaccessibleMemOrArgMem();
+      Fn->setDoesNotThrow();
+    }
+    return Callee;
+  }
+  template <typename... ArgsTy>
+  FunctionCallee getHookFunction(StringRef Name, Type *RetTy,
+                                 ArgsTy... Args) {
+    return getHookFunction(Name, AttributeList{}, RetTy, Args...);
+  }
 
   // Methods for handling FED tables
   void initializeFEDTables() {}
@@ -557,7 +583,7 @@ private:
   }
 
   FunctionCallee getOrInsertSynthesizedHook(StringRef Name, FunctionType *T,
-                                            AttributeList AL);
+                                            AttributeList AL = AttributeList());
 };
 
 /// CilkSanitizer: instrument the code in module to find races.
@@ -893,6 +919,7 @@ void CilkSanitizerImpl::initializeCsanHooks() {
   Type *LoopPropertyTy = CsiLoopProperty::getType(C);
   Type *AllocFnPropertyTy = CsiAllocFnProperty::getType(C);
   Type *FreePropertyTy = CsiFreeProperty::getType(C);
+  Type *DetachPropertyTy = CsiDetachProperty::getType(C);
   Type *DetContPropertyTy = CsiDetachContinueProperty::getType(C);
   Type *RetType = IRB.getVoidTy();
   Type *AddrType = IRB.getInt8PtrTy();
@@ -901,179 +928,158 @@ void CilkSanitizerImpl::initializeCsanHooks() {
   Type *IDType = IRB.getInt64Ty();
   Type *SyncRegType = IRB.getInt32Ty();
 
-  AttributeList GeneralFnAttrs;
-  GeneralFnAttrs = GeneralFnAttrs.addFnAttribute(C, Attribute::NoUnwind);
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
+    AttributeList FnAttrs;
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::NoCapture);
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::ReadNone);
     FnAttrs = FnAttrs.addParamAttribute(C, 2, Attribute::NoCapture);
     FnAttrs = FnAttrs.addParamAttribute(C, 2, Attribute::ReadNone);
-    CsanFuncEntry = M.getOrInsertFunction("__csan_func_entry", FnAttrs, RetType,
-                                          /* func_id */ IDType,
-                                          /* frame_ptr */ AddrType,
-                                          /* stack_ptr */ AddrType,
-                                          FuncPropertyTy);
+    CsanFuncEntry = getHookFunction("__csan_func_entry", FnAttrs, RetType,
+                                    /* func_id */ IDType,
+                                    /* frame_ptr */ AddrType,
+                                    /* stack_ptr */ AddrType, FuncPropertyTy);
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
-    CsanFuncExit = M.getOrInsertFunction("__csan_func_exit", FnAttrs, RetType,
-                                         /* func_exit_id */ IDType,
-                                         /* func_id */ IDType,
-                                         FuncExitPropertyTy);
+    CsanFuncExit = getHookFunction("__csan_func_exit", RetType,
+                                   /* func_exit_id */ IDType,
+                                   /* func_id */ IDType, FuncExitPropertyTy);
   }
 
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
+    AttributeList FnAttrs;
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::NoCapture);
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::ReadNone);
-    CsanRead = M.getOrInsertFunction("__csan_load", FnAttrs, RetType, IDType,
+    CsanRead = getHookFunction("__csan_load", FnAttrs, RetType, IDType,
                                      AddrType, NumBytesType, LoadPropertyTy);
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
+    AttributeList FnAttrs;
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::NoCapture);
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::ReadNone);
-    CsanWrite = M.getOrInsertFunction("__csan_store", FnAttrs, RetType, IDType,
-                                      AddrType, NumBytesType, StorePropertyTy);
+    CsanWrite = getHookFunction("__csan_store", FnAttrs, RetType, IDType,
+                                AddrType, NumBytesType, StorePropertyTy);
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
+    AttributeList FnAttrs;
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::NoCapture);
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::ReadNone);
-    CsanLargeRead = M.getOrInsertFunction("__csan_large_load", FnAttrs, RetType,
-                                          IDType, AddrType, LargeNumBytesType,
-                                          LoadPropertyTy);
+    CsanLargeRead =
+        getHookFunction("__csan_large_load", FnAttrs, RetType, IDType, AddrType,
+                        LargeNumBytesType, LoadPropertyTy);
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
+    AttributeList FnAttrs;
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::NoCapture);
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::ReadNone);
-    CsanLargeWrite = M.getOrInsertFunction("__csan_large_store", FnAttrs,
-                                           RetType, IDType, AddrType,
-                                           LargeNumBytesType, StorePropertyTy);
+    CsanLargeWrite =
+        getHookFunction("__csan_large_store", FnAttrs, RetType, IDType,
+                        AddrType, LargeNumBytesType, StorePropertyTy);
   }
 
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
-    CsanBeforeCallsite = M.getOrInsertFunction("__csan_before_call", FnAttrs,
-                                               IRB.getVoidTy(), IDType,
-                                               /*callee func_id*/ IDType,
-                                               IRB.getInt8Ty(), CallPropertyTy);
+    CsanBeforeCallsite = getHookFunction(
+        "__csan_before_call", IRB.getVoidTy(), IDType,
+        /*callee func_id*/ IDType, IRB.getInt8Ty(), CallPropertyTy);
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
-    CsanAfterCallsite = M.getOrInsertFunction("__csan_after_call", FnAttrs,
-                                              IRB.getVoidTy(), IDType, IDType,
-                                              IRB.getInt8Ty(), CallPropertyTy);
+    CsanAfterCallsite =
+        getHookFunction("__csan_after_call", IRB.getVoidTy(), IDType, IDType,
+                        IRB.getInt8Ty(), CallPropertyTy);
   }
 
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
-    CsanDetach = M.getOrInsertFunction("__csan_detach", FnAttrs, RetType,
-                                       /* detach_id */ IDType,
-                                       /* sync_reg */ SyncRegType);
+    CsanDetach = getHookFunction("__csan_detach", RetType,
+                                 /* detach_id */ IDType,
+                                 /* sync_reg */ SyncRegType, DetachPropertyTy);
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
+    AttributeList FnAttrs;
     FnAttrs = FnAttrs.addParamAttribute(C, 2, Attribute::NoCapture);
     FnAttrs = FnAttrs.addParamAttribute(C, 2, Attribute::ReadNone);
     FnAttrs = FnAttrs.addParamAttribute(C, 3, Attribute::NoCapture);
     FnAttrs = FnAttrs.addParamAttribute(C, 3, Attribute::ReadNone);
-    CsanTaskEntry = M.getOrInsertFunction("__csan_task", FnAttrs, RetType,
-                                          /* task_id */ IDType,
-                                          /* detach_id */ IDType,
-                                          /* frame_ptr */ AddrType,
-                                          /* stack_ptr */ AddrType,
-                                          TaskPropertyTy);
+    CsanTaskEntry = getHookFunction("__csan_task", FnAttrs, RetType,
+                                    /* task_id */ IDType,
+                                    /* detach_id */ IDType,
+                                    /* frame_ptr */ AddrType,
+                                    /* stack_ptr */ AddrType, TaskPropertyTy);
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
-    CsanTaskExit = M.getOrInsertFunction("__csan_task_exit", FnAttrs, RetType,
-                                         /* task_exit_id */ IDType,
-                                         /* task_id */ IDType,
-                                         /* detach_id */ IDType,
-                                         /* sync_reg */ SyncRegType,
-                                         TaskExitPropertyTy);
+    CsanTaskExit =
+        getHookFunction("__csan_task_exit", RetType,
+                        /* task_exit_id */ IDType,
+                        /* task_id */ IDType,
+                        /* detach_id */ IDType,
+                        /* sync_reg */ SyncRegType, TaskExitPropertyTy);
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
-    CsanDetachContinue = M.getOrInsertFunction("__csan_detach_continue",
-                                               FnAttrs, RetType,
-                                               /* detach_continue_id */ IDType,
-                                               /* detach_id */ IDType,
-                                               /* sync_reg */ SyncRegType,
-                                               DetContPropertyTy);
+    CsanDetachContinue =
+        getHookFunction("__csan_detach_continue", RetType,
+                        /* detach_continue_id */ IDType,
+                        /* detach_id */ IDType,
+                        /* sync_reg */ SyncRegType, DetContPropertyTy);
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
-    CsanSync = M.getOrInsertFunction("__csan_sync", FnAttrs, RetType, IDType,
-                                     /* sync_reg */ SyncRegType);
+    CsanSync = getHookFunction("__csan_sync", RetType, IDType,
+                               /* sync_reg */ SyncRegType);
   }
 
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
+    AttributeList FnAttrs;
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::NoCapture);
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::ReadNone);
     FnAttrs = FnAttrs.addParamAttribute(C, 5, Attribute::NoCapture);
     FnAttrs = FnAttrs.addParamAttribute(C, 5, Attribute::ReadNone);
-    CsanAfterAllocFn = M.getOrInsertFunction(
+    CsanAfterAllocFn = getHookFunction(
         "__csan_after_allocfn", FnAttrs, RetType, IDType,
         /* new ptr */ AddrType, /* size */ LargeNumBytesType,
         /* num elements */ LargeNumBytesType, /* alignment */ LargeNumBytesType,
         /* old ptr */ AddrType, /* property */ AllocFnPropertyTy);
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
+    AttributeList FnAttrs;
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::NoCapture);
     FnAttrs = FnAttrs.addParamAttribute(C, 1, Attribute::ReadNone);
-    CsanAfterFree = M.getOrInsertFunction("__csan_after_free", FnAttrs, RetType,
-                                          IDType, AddrType,
-                                          /* property */ FreePropertyTy);
+    CsanAfterFree =
+        getHookFunction("__csan_after_free", FnAttrs, RetType, IDType, AddrType,
+                        /* property */ FreePropertyTy);
   }
 
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
-    CsanDisableChecking = M.getOrInsertFunction("__cilksan_disable_checking",
-                                                FnAttrs, RetType);
+    CsanDisableChecking =
+        getHookFunction("__cilksan_disable_checking", RetType);
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
-    CsanEnableChecking = M.getOrInsertFunction("__cilksan_enable_checking",
-                                               FnAttrs, RetType);
+    CsanEnableChecking = getHookFunction("__cilksan_enable_checking",
+                                         RetType);
   }
 
   Type *MAAPTy = IRB.getInt8Ty();
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
+    AttributeList FnAttrs;
     FnAttrs = FnAttrs.addParamAttribute(C, 0, Attribute::NoCapture);
-    GetMAAP = M.getOrInsertFunction("__csan_get_MAAP", FnAttrs, RetType,
-                                    PointerType::get(MAAPTy, 0), IDType,
-                                    IRB.getInt8Ty());
+    GetMAAP =
+        getHookFunction("__csan_get_MAAP", FnAttrs, RetType,
+                        PointerType::get(MAAPTy, 0), IDType, IRB.getInt8Ty());
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
-    SetMAAP = M.getOrInsertFunction("__csan_set_MAAP", FnAttrs, RetType, MAAPTy,
-                                    IDType);
+    SetMAAP = getHookFunction("__csan_set_MAAP", RetType, MAAPTy, IDType);
   }
 
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
-    CsanBeforeLoop = M.getOrInsertFunction(
-        "__csan_before_loop", FnAttrs, IRB.getVoidTy(), IDType,
-        IRB.getInt64Ty(), LoopPropertyTy);
+    CsanBeforeLoop = getHookFunction("__csan_before_loop", IRB.getVoidTy(),
+                                     IDType, IRB.getInt64Ty(), LoopPropertyTy);
   }
   {
-    AttributeList FnAttrs = GeneralFnAttrs;
-    CsanAfterLoop = M.getOrInsertFunction("__csan_after_loop", FnAttrs,
-                                          IRB.getVoidTy(), IDType,
-                                          IRB.getInt8Ty(), LoopPropertyTy);
+    CsanAfterLoop = getHookFunction("__csan_after_loop", IRB.getVoidTy(),
+                                    IDType, IRB.getInt8Ty(), LoopPropertyTy);
   }
 
   // Cilksan-specific attributes on CSI hooks
   Function *CsiAfterAllocaFn = cast<Function>(CsiAfterAlloca.getCallee());
   CsiAfterAllocaFn->addParamAttr(1, Attribute::NoCapture);
   CsiAfterAllocaFn->addParamAttr(1, Attribute::ReadNone);
+  CsiAfterAllocaFn->setOnlyAccessesInaccessibleMemOrArgMem();
   CsiAfterAllocaFn->setDoesNotThrow();
 }
 
@@ -1465,6 +1471,27 @@ void CilkSanitizerImpl::chooseInstructionsToInstrument(
   Local.clear();
 }
 
+bool CilkSanitizerImpl::isFreeFn(const Instruction *I,
+                                 const TargetLibraryInfo *TLI) {
+  if (!isa<CallBase>(I))
+    return false;
+
+  const Function *Callee = dyn_cast<CallBase>(I)->getCalledFunction();
+  if (!Callee)
+    return false;
+
+  LibFunc TLIFn;
+  if (TLI && TLI->getLibFunc(*Callee, TLIFn) && TLI->has(TLIFn) &&
+      isLibFreeFunction(Callee, TLIFn))
+    return true;
+
+  Attribute Attr = Callee->getFnAttribute(Attribute::AllocKind);
+  if (!Attr.isValid())
+    return false;
+  AllocFnKind Kind = AllocFnKind(Attr.getValueAsInt());
+  return ((Kind & AllocFnKind::Free) != AllocFnKind::Unknown);
+}
+
 bool CilkSanitizerImpl::isAllocFn(const Instruction *I,
                                   const TargetLibraryInfo *TLI) {
   if (!isa<CallBase>(I))
@@ -1473,7 +1500,7 @@ bool CilkSanitizerImpl::isAllocFn(const Instruction *I,
   if (!TLI)
     return false;
 
-  if (isAllocationFn(I, TLI, /*IgnoreBuiltinAttr*/ true))
+  if (isAllocationFn(I, TLI))
     return true;
 
   if (const Function *Called = dyn_cast<CallBase>(I)->getCalledFunction()) {
@@ -1608,7 +1635,7 @@ bool CilkSanitizerImpl::SimpleInstrumentor::InstrumentCalls(
   bool Result = false;
   for (Instruction *I : Calls) {
     // Allocation-function and free calls are handled separately.
-    if (isAllocFn(I, TLI))
+    if (isAllocFn(I, TLI) || isFreeFn(I, TLI))
       continue;
     else if(auto* CB = dyn_cast<CallBase>(I))
       if (getFreedOperand(CB, TLI, true))
@@ -1910,7 +1937,7 @@ bool CilkSanitizerImpl::Instrumentor::InstrumentCalls(
   bool Result = false;
   for (Instruction *I : Calls) {
     // Allocation-function and free calls are handled separately.
-    if (isAllocFn(I, TLI))
+    if (isAllocFn(I, TLI) || isFreeFn(I, TLI))
       continue;
     else if (auto* CB = dyn_cast<CallBase>(I))
       if (getFreedOperand(CB, TLI, true))
@@ -3089,14 +3116,16 @@ bool CilkSanitizerImpl::Instrumentor::InstrumentLoops(
   return Result;
 }
 
-bool CilkSanitizerImpl::instrumentLoadOrStoreHoisted(
-    Instruction *I, Value *Addr, Value *Size, IRBuilder<> &IRB, uint64_t LocalId) {
+bool CilkSanitizerImpl::instrumentLoadOrStoreHoisted(Instruction *I,
+                                                     Value *Addr, Value *Size,
+                                                     IRBuilder<> &IRB,
+                                                     uint64_t LocalId) {
   // The caller of this method is guaranteed to have computed the Addr and Size
   // values with the right type for the hook, so no additional type conversions
   // are needed.
   CsiLoadStoreProperty Prop;
   if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
-    Prop.setAlignment(LI->getAlign().value());
+    Prop.setAlignment(MaybeAlign(LI->getAlign()));
     Prop.setIsThreadLocal(isThreadLocalObject(lookupUnderlyingObject(Addr)));
     // Instrument the load
     Value *CsiId = LoadFED.localToGlobalId(LocalId, IRB);
@@ -3104,7 +3133,7 @@ bool CilkSanitizerImpl::instrumentLoadOrStoreHoisted(
     Instruction *Call = IRB.CreateCall(CsanLargeRead, Args);
     IRB.SetInstDebugLocation(Call);
   } else if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
-    Prop.setAlignment(SI->getAlign().value());
+    Prop.setAlignment(SI->getAlign());
     Prop.setIsThreadLocal(isThreadLocalObject(lookupUnderlyingObject(Addr)));
     // Instrument the store
     Value *CsiId = StoreFED.localToGlobalId(LocalId, IRB);
@@ -3336,7 +3365,7 @@ bool CilkSanitizerImpl::instrumentFunctionUsingRI(Function &F) {
           AtomicAccesses.push_back(&Inst);
         else if (isa<AllocaInst>(Inst))
           Allocas.insert(&Inst);
-        else if (CallBase* CB = dyn_cast<CallBase>(&Inst)) {
+        else if (isa<CallBase>(Inst)) {
           // if (CallInst *CI = dyn_cast<CallInst>(&Inst))
           //   maybeMarkSanitizerLibraryCallNoBuiltin(CI, TLI);
 
@@ -3359,7 +3388,7 @@ bool CilkSanitizerImpl::instrumentFunctionUsingRI(Function &F) {
           // call.
           if (isAllocFn(&Inst, TLI))
             AllocationFnCalls.insert(&Inst);
-          else if (getFreedOperand(CB, TLI, /*IgnoreBuiltinAttr*/ true))
+          else if (isFreeFn(&Inst, TLI))
             FreeCalls.insert(&Inst);
           else if (isa<AnyMemIntrinsic>(Inst))
             MemIntrinCalls.push_back(&Inst);
@@ -3563,7 +3592,7 @@ bool CilkSanitizerImpl::instrumentLoadOrStore(Instruction *I,
   if (Addr->isSwiftError())
     return false;
 
-  int NumBytesAccessed = getNumBytesAccessed(Addr, Ty, DL);
+  int NumBytesAccessed = getNumBytesAccessed(Ty, DL);
   if (-1 == NumBytesAccessed) {
     // Ignore accesses with bad sizes.
     NumAccessesWithBadSize++;
@@ -3574,8 +3603,9 @@ bool CilkSanitizerImpl::instrumentLoadOrStore(Instruction *I,
   if (!(InstrumentationSet & SHADOWMEMORY))
     return true;
 
-  const unsigned Alignment = IsWrite ? cast<StoreInst>(I)->getAlign().value()
-                                     : cast<LoadInst>(I)->getAlign().value();
+  const Align Alignment = IsWrite
+      ? cast<StoreInst>(I)->getAlign()
+      : cast<LoadInst>(I)->getAlign();
   CsiLoadStoreProperty Prop;
   Prop.setAlignment(Alignment);
   Prop.setIsAtomic(I->isAtomic());
@@ -3615,17 +3645,20 @@ bool CilkSanitizerImpl::instrumentLoadOrStore(Instruction *I,
 bool CilkSanitizerImpl::instrumentAtomic(Instruction *I, IRBuilder<> &IRB) {
   Value *Addr;
   Type *Ty;
+  Align Alignment;
   if (AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(I)) {
     Addr = RMWI->getPointerOperand();
     Ty = RMWI->getValOperand()->getType();
+    Alignment = RMWI->getAlign();
   } else if (AtomicCmpXchgInst *CASI = dyn_cast<AtomicCmpXchgInst>(I)) {
     Addr = CASI->getPointerOperand();
     Ty = CASI->getNewValOperand()->getType();
+    Alignment = CASI->getAlign();
   } else {
     return false;
   }
 
-  int NumBytesAccessed = getNumBytesAccessed(Addr, Ty, DL);
+  int NumBytesAccessed = getNumBytesAccessed(Ty, DL);
   if (-1 == NumBytesAccessed) {
     // Ignore accesses with bad sizes.
     NumAccessesWithBadSize++;
@@ -3637,6 +3670,7 @@ bool CilkSanitizerImpl::instrumentAtomic(Instruction *I, IRBuilder<> &IRB) {
     return true;
 
   CsiLoadStoreProperty Prop;
+  Prop.setAlignment(Alignment);
   Prop.setIsAtomic(true);
   Prop.setIsThreadLocal(isThreadLocalObject(lookupUnderlyingObject(Addr)));
   uint64_t LocalId = StoreFED.add(*I);
@@ -3661,17 +3695,19 @@ FunctionCallee CilkSanitizerImpl::getOrInsertSynthesizedHook(StringRef Name,
   // particular library hook.  Simply return the hook.  If the Cilksan library
   // doesn't contain that hook, the linker will raise an error.
   if (!LinkedBitcode)
-    return M.getOrInsertFunction(Name, T, AL);
+    return getHookFunction(Name, T, AL);
 
   // Check if the linked bitcode file contains the library hook.  If it does,
   // return that hook.
   if (FunctionsInBitcode.contains(std::string(Name)))
-    return M.getOrInsertFunction(Name, T, AL);
+    return getHookFunction(Name, T, AL);
 
   // We did not find the library hook in the linked bitcode file.  Synthesize a
   // default version of the hook that simply calls __csan_default_libhook.
   FunctionCallee NewHook = M.getOrInsertFunction(Name, T, AL);
   Function *NewHookFn = cast<Function>(NewHook.getCallee());
+  NewHookFn->setOnlyAccessesInaccessibleMemOrArgMem();
+  NewHookFn->setDoesNotThrow();
   BasicBlock *Entry = BasicBlock::Create(M.getContext(), "entry", NewHookFn);
   IRBuilder<> IRB(ReturnInst::Create(M.getContext(), Entry));
 
@@ -3688,6 +3724,12 @@ FunctionCallee CilkSanitizerImpl::getOrInsertSynthesizedHook(StringRef Name,
   IRB.CreateCall(DefaultHook, {NewHookFn->getArg(0), NewHookFn->getArg(1),
                                NewHookFn->getArg(2)});
   return NewHook;
+}
+
+// Check if we need to spill a value of this type onto the stack to pass it to a
+// hook.
+static bool NeedToSpillType(const Type *T) {
+  return T->isVectorTy() || T->isStructTy();
 }
 
 bool CilkSanitizerImpl::instrumentIntrinsicCall(
@@ -3730,10 +3772,7 @@ bool CilkSanitizerImpl::instrumentIntrinsicCall(
     else
       Buf.push_back(C);
   }
-
   Type *IDType = IRB.getInt64Ty();
-  AttributeList FnAttrs;
-  FnAttrs = FnAttrs.addFnAttribute(Ctx, Attribute::NoUnwind);
 
   // If the intrinsic does not return, insert the hook before the intrinsic.
   if (CB->doesNotReturn()) {
@@ -3749,32 +3788,32 @@ bool CilkSanitizerImpl::instrumentIntrinsicCall(
     Value *SavedStack = nullptr;
     const DataLayout &DL = M.getDataLayout();
     for (Value *Arg : CB->args()) {
-      if (!Arg->getType()->isVectorTy()) {
-        BeforeHookParamTys.push_back(Arg->getType());
+      Type *ArgTy = Arg->getType();
+      if (!NeedToSpillType(ArgTy)) {
+        // We can simply pass the argument directly to the hook.
+        BeforeHookParamTys.push_back(ArgTy);
         BeforeHookParamVals.push_back(Arg);
         continue;
       }
-      // We need to deal with a vector-type argument.  Spill the vector onto the
-      // stack.
+      // We need to spill the argument onto the stack.
 
       // Save the stack pointer, if we haven't already
       if (!SavedStack)
         SavedStack =
             IRB.CreateCall(Intrinsic::getDeclaration(&M, Intrinsic::stacksave));
 
-      // Spill the vector argument onto the stack
-      VectorType *VecTy = cast<VectorType>(Arg->getType());
-      AllocaInst *ArgSpill = IRB.CreateAlloca(VecTy);
+      // Spill the argument onto the stack
+      AllocaInst *ArgSpill = IRB.CreateAlloca(ArgTy);
       IRB.CreateAlignedStore(Arg, ArgSpill, DL.getStackAlignment());
 
-      // Add the spilled vector argument
+      // Add the spilled argument
       BeforeHookParamTys.push_back(ArgSpill->getType());
       BeforeHookParamVals.push_back(ArgSpill);
     }
     FunctionType *BeforeHookTy = FunctionType::get(
         IRB.getVoidTy(), BeforeHookParamTys, Called->isVarArg());
     FunctionCallee BeforeIntrinCallHook = getOrInsertSynthesizedHook(
-        ("__csan_" + Buf).str(), BeforeHookTy, FnAttrs);
+        ("__csan_" + Buf).str(), BeforeHookTy);
 
     // Insert the hook before the call
     insertHookCall(I, BeforeIntrinCallHook, BeforeHookParamVals);
@@ -3806,55 +3845,73 @@ bool CilkSanitizerImpl::instrumentIntrinsicCall(
   Value *SavedStack = nullptr;
   const DataLayout &DL = M.getDataLayout();
   if (!Called->getReturnType()->isVoidTy()) {
-    if (!Called->getReturnType()->isVectorTy()) {
-      AfterHookParamTys.push_back(Called->getReturnType());
+    Type *RetTy = Called->getReturnType();
+    if (!NeedToSpillType(RetTy)) {
+      // We can simply pass the return value directly to the hook.
+      AfterHookParamTys.push_back(RetTy);
       AfterHookParamVals.push_back(CB);
     } else {
-      // We need to deal with a vector-type return value.  Spill the vector onto
-      // the stack.
+      // We need to spill the return value onto the stack.
 
       // Save the stack pointer, if we haven't already
       if (!SavedStack)
         SavedStack =
             IRB.CreateCall(Intrinsic::getDeclaration(&M, Intrinsic::stacksave));
 
-      // Spill the vector return value onto the stack
-      VectorType *VecTy = cast<VectorType>(Called->getReturnType());
-      AllocaInst *RetSpill = IRB.CreateAlloca(VecTy);
+      // Spill the return value onto the stack
+      AllocaInst *RetSpill = IRB.CreateAlloca(RetTy);
       IRB.CreateAlignedStore(CB, RetSpill, DL.getStackAlignment());
 
-      // Add the spilled vector return value
+      // Add the spilled return value
       AfterHookParamTys.push_back(RetSpill->getType());
       AfterHookParamVals.push_back(RetSpill);
     }
   }
   for (Value *Arg : CB->args()) {
-    if (!Arg->getType()->isVectorTy()) {
-      AfterHookParamTys.push_back(Arg->getType());
+    Type *ArgTy = Arg->getType();
+    if (!NeedToSpillType(ArgTy)) {
+      // We can simply pass the argument directly to the hook.
+      AfterHookParamTys.push_back(ArgTy);
       AfterHookParamVals.push_back(Arg);
       continue;
     }
-    // We need to deal with a vector-type argument.  Spill the vector onto the
-    // stack.
+    // We need to spill the argument onto the stack.
 
     // Save the stack pointer, if we haven't already
     if (!SavedStack)
       SavedStack =
           IRB.CreateCall(Intrinsic::getDeclaration(&M, Intrinsic::stacksave));
 
-    // Spill the vector argument onto the stack
-    VectorType *VecTy = cast<VectorType>(Arg->getType());
-    AllocaInst *ArgSpill = IRB.CreateAlloca(VecTy);
+    // Spill the argument onto the stack
+    AllocaInst *ArgSpill = IRB.CreateAlloca(ArgTy);
     IRB.CreateAlignedStore(Arg, ArgSpill, DL.getStackAlignment());
 
-    // Add the spolled vector argument
+    // Add the spilled argument
     AfterHookParamTys.push_back(ArgSpill->getType());
     AfterHookParamVals.push_back(ArgSpill);
   }
+
+  // Special-case intrinsics.
+  IntrinsicInst *II = dyn_cast<IntrinsicInst>(I);
+  switch (II->getIntrinsicID()) {
+  case Intrinsic::hyper_lookup: {
+    FunctionType *AfterHookTy =
+        FunctionType::get(IRB.getInt8PtrTy(), AfterHookParamTys, Called->isVarArg());
+    FunctionCallee AfterIntrinCallHook =
+        getOrInsertSynthesizedHook(("__csan_" + Buf).str(), AfterHookTy);
+    CallInst *HookCall =
+        insertHookCall(&*Iter, AfterIntrinCallHook, AfterHookParamVals);
+    II->replaceUsesWithIf(HookCall, [HookCall](Use &U) {
+      return cast<Instruction>(U.getUser()) != HookCall;
+    });
+    return true;
+  }
+  }
+
   FunctionType *AfterHookTy =
       FunctionType::get(IRB.getVoidTy(), AfterHookParamTys, Called->isVarArg());
   FunctionCallee AfterIntrinCallHook =
-      getOrInsertSynthesizedHook(("__csan_" + Buf).str(), AfterHookTy, FnAttrs);
+      getOrInsertSynthesizedHook(("__csan_" + Buf).str(), AfterHookTy);
 
   // Insert the hook call
   insertHookCall(&*Iter, AfterIntrinCallHook, AfterHookParamVals);
@@ -3896,10 +3953,7 @@ bool CilkSanitizerImpl::instrumentLibCall(Instruction *I,
   Value *DefaultPropVal = Prop.getValue(IRB);
   // TODO: Set appropriate property values for this intrinsic call
   Value *PropVal = Prop.getValue(IRB);
-
   Type *IDType = IRB.getInt64Ty();
-  AttributeList FnAttrs;
-  FnAttrs = FnAttrs.addFnAttribute(Ctx, Attribute::NoUnwind);
 
   // If the intrinsic does not return, insert the hook before the intrinsic.
   if (CB->doesNotReturn()) {
@@ -3915,7 +3969,7 @@ bool CilkSanitizerImpl::instrumentLibCall(Instruction *I,
     FunctionType *BeforeHookTy = FunctionType::get(
         IRB.getVoidTy(), BeforeHookParamTys, Called->isVarArg());
     FunctionCallee BeforeLibCallHook = getOrInsertSynthesizedHook(
-        ("__csan_" + Called->getName()).str(), BeforeHookTy, FnAttrs);
+        ("__csan_" + Called->getName()).str(), BeforeHookTy);
 
     insertHookCall(I, BeforeLibCallHook, BeforeHookParamVals);
     return true;
@@ -3945,7 +3999,7 @@ bool CilkSanitizerImpl::instrumentLibCall(Instruction *I,
   FunctionType *AfterHookTy =
       FunctionType::get(IRB.getVoidTy(), AfterHookParamTys, Called->isVarArg());
   FunctionCallee AfterLibCallHook = getOrInsertSynthesizedHook(
-      ("__csan_" + Called->getName()).str(), AfterHookTy, FnAttrs);
+      ("__csan_" + Called->getName()).str(), AfterHookTy);
 
   BasicBlock::iterator Iter(I);
   if (IsInvoke) {
@@ -4108,7 +4162,7 @@ bool CilkSanitizerImpl::instrumentAnyMemIntrinAcc(Instruction *I,
         return true;
 
       Value *Addr = M->getDest();
-      Prop.setAlignment(M->getDestAlignment());
+      Prop.setAlignment(M->getDestAlign());
       Prop.setIsThreadLocal(isThreadLocalObject(lookupUnderlyingObject(Addr)));
       // Instrument the store
       uint64_t StoreId = StoreFED.add(*I);
@@ -4134,7 +4188,7 @@ bool CilkSanitizerImpl::instrumentAnyMemIntrinAcc(Instruction *I,
         return true;
 
       Value *Addr = M->getSource();
-      Prop.setAlignment(M->getSourceAlignment());
+      Prop.setAlignment(M->getSourceAlign());
       Prop.setIsThreadLocal(isThreadLocalObject(lookupUnderlyingObject(Addr)));
       // Instrument the load
       uint64_t LoadId = LoadFED.add(*I);
@@ -4160,7 +4214,7 @@ bool CilkSanitizerImpl::instrumentAnyMemIntrinAcc(Instruction *I,
       return true;
 
     Value *Addr = M->getDest();
-    Prop.setAlignment(M->getDestAlignment());
+    Prop.setAlignment(M->getDestAlign());
     Prop.setIsThreadLocal(isThreadLocalObject(lookupUnderlyingObject(Addr)));
     uint64_t LocalId = StoreFED.add(*I);
 
@@ -4234,13 +4288,16 @@ bool CilkSanitizerImpl::instrumentDetach(DetachInst *DI, unsigned SyncRegNum,
   bool TapirLoopBody = spawnsTapirLoopBody(DI, LI, TI);
   ConstantInt *SyncRegVal = ConstantInt::get(Type::getInt32Ty(Ctx), SyncRegNum);
   ConstantInt *DefaultSyncRegVal = ConstantInt::get(Type::getInt32Ty(Ctx), 0);
+  CsiDetachProperty DetachProp;
+  DetachProp.setForTapirLoopBody(TapirLoopBody);
   // Instrument the detach instruction itself
   Value *DetachID;
   {
     IRBuilder<> IRB(DI);
     uint64_t LocalID = DetachFED.add(*DI);
     DetachID = DetachFED.localToGlobalId(LocalID, IDBuilder);
-    Instruction *Call = IRB.CreateCall(CsanDetach, {DetachID, SyncRegVal});
+    Instruction *Call = IRB.CreateCall(
+        CsanDetach, {DetachID, SyncRegVal, DetachProp.getValue(IRB)});
     IRB.SetInstDebugLocation(Call);
   }
   NumInstrumentedDetaches++;
@@ -4327,6 +4384,7 @@ bool CilkSanitizerImpl::instrumentDetach(DetachInst *DI, unsigned SyncRegNum,
     uint64_t LocalID = DetachContinueFED.add(*ContinueBlock);
     Value *ContinueID = DetachContinueFED.localToGlobalId(LocalID, IDBuilder);
     CsiDetachContinueProperty ContProp;
+    ContProp.setForTapirLoopBody(TapirLoopBody);
     Instruction *Call =
         IRB.CreateCall(CsanDetachContinue, {ContinueID, DetachID, SyncRegVal,
                                             ContProp.getValue(IRB)});
@@ -4351,6 +4409,7 @@ bool CilkSanitizerImpl::instrumentDetach(DetachInst *DI, unsigned SyncRegNum,
     CsiDetachContinueProperty ContProp;
     Value *DefaultPropVal = ContProp.getValueImpl(Ctx);
     ContProp.setIsUnwind();
+    ContProp.setForTapirLoopBody(TapirLoopBody);
     insertHookCallInSuccessorBB(
         UnwindBlock, PredBlock, CsanDetachContinue,
         {ContinueID, DetachID, SyncRegVal, ContProp.getValue(Ctx)},
@@ -4544,14 +4603,13 @@ bool CilkSanitizerImpl::getAllocFnArgs(
     Type *SizeTy, Type *AddrTy, const TargetLibraryInfo &TLI) {
   const CallBase *CB = dyn_cast<CallBase>(I);
 
-  std::pair<Value *, Value *> SizeArgs =
-      getAllocSizeArgs(CB, &TLI, /*IgnoreBuiltinAttr=*/true);
+  std::pair<Value *, Value *> SizeArgs = getAllocSizeArgs(CB, &TLI);
   // If the first size argument is null, then we failed to get size arguments
   // for this call.
   if (!SizeArgs.first)
     return false;
 
-  Value *AlignmentArg = getAllocAlignment(CB, &TLI, /*IgnoreBuiltinAttr=*/true);
+  Value *AlignmentArg = getAllocAlignment(CB, &TLI);
 
   // Push the size arguments.
   AllocFnArgs.push_back(SizeArgs.first);
@@ -4571,8 +4629,8 @@ bool CilkSanitizerImpl::getAllocFnArgs(
 
   // Return the old pointer argument for realloc-like functions or nullptr for
   // other allocation functions.
-  if (isReallocLikeFn(CB->getCalledFunction()))
-    AllocFnArgs.push_back(CB->getArgOperand(0));
+  if (Value *Reallocated = getReallocatedOperand(CB))
+    AllocFnArgs.push_back(Reallocated);
   else
     AllocFnArgs.push_back(Constant::getNullValue(AddrTy));
 
@@ -4619,10 +4677,7 @@ bool CilkSanitizerImpl::instrumentAllocFnLibCall(Instruction *I,
   TLI->getLibFunc(*Called, AllocLibF);
   Prop.setAllocFnTy(static_cast<unsigned>(getAllocFnTy(AllocLibF)));
   Value *PropVal = Prop.getValue(IRB);
-
   Type *IDType = IRB.getInt64Ty();
-  AttributeList FnAttrs;
-  FnAttrs = FnAttrs.addFnAttribute(Ctx, Attribute::NoUnwind);
 
   // Synthesize the after hook for this function.
   SmallVector<Type *, 8> AfterHookParamTys({IDType, /*callee func_id*/ IDType,
@@ -4646,7 +4701,7 @@ bool CilkSanitizerImpl::instrumentAllocFnLibCall(Instruction *I,
   FunctionType *AfterHookTy =
       FunctionType::get(IRB.getVoidTy(), AfterHookParamTys, Called->isVarArg());
   FunctionCallee AfterLibCallHook = getOrInsertSynthesizedHook(
-      ("__csan_alloc_" + Called->getName()).str(), AfterHookTy, FnAttrs);
+      ("__csan_alloc_" + Called->getName()).str(), AfterHookTy);
 
   // Insert the hook after the call.
   BasicBlock::iterator Iter(I);
@@ -4777,10 +4832,8 @@ bool CilkSanitizerImpl::instrumentFree(Instruction *I,
   IRBuilder<> IRB(I);
   uint64_t LocalId = FreeFED.add(*I);
   Value *FreeId = FreeFED.localToGlobalId(LocalId, IRB);
-  // uint64_t FreeObjId = FreeObj.add(*I, getHeapObject(I));
-  // assert(LocalId == FreeObjId &&
-  //        "Allocation fn received different ID's in FED and object tables.");
 
+  // All currently supported free functions free the first argument.
   Value *Addr = FC->getArgOperand(0);
   CsiFreeProperty Prop;
   LibFunc FreeLibF;
@@ -4801,8 +4854,6 @@ bool CilkSanitizerLegacyPass::runOnModule(Module &M) {
     return false;
 
   CallGraph *CG = &getAnalysis<CallGraphWrapperPass>().getCallGraph();
-  // const TargetLibraryInfo *TLI =
-  //     &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
   auto GetTLI = [this](Function &F) -> TargetLibraryInfo & {
     return this->getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
   };

@@ -9,9 +9,9 @@ extern struct S b __attribute__((aligned(8)));
 // CHECK-LABEL: scopy
 void scopy()
 {
-  // CHECK: call ptr @llvm.hyper.lookup(ptr @a)
-  // CHECK: call void @llvm.memcpy.p0.p0.i64(ptr align {{.*}} @b
-  // CHECK: call ptr @llvm.hyper.lookup(ptr @a)
+  // CHECK: call ptr @llvm.hyper.lookup.i64(ptr @a, i64 8, ptr null, ptr null)
+  // CHECK: call void @llvm.memcpy.p0.p0.i64(ptr align 8 @b,
+  // CHECK: call ptr @llvm.hyper.lookup.i64(ptr @a, i64 8, ptr null, ptr null)
   // CHECK: call void @llvm.memcpy.p0.p0.i64
   // CHECK: ret void
   b = a;

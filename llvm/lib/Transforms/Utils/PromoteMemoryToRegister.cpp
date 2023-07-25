@@ -725,10 +725,8 @@ void PromoteMem2Reg::run() {
         LiveInBlocks.erase(ToRemove);
     }
 
-    // At this point, we're committed to promoting the alloca using IDF's, and
-    // the standard SSA construction algorithm.  Determine which blocks need phi
-    // nodes and see if we can optimize out some work by avoiding insertion of
-    // dead phi nodes.
+    // Determine which blocks need PHI nodes and see if we can optimize out some
+    // work by avoiding insertion of dead phi nodes.
     IDF.setLiveInBlocks(LiveInBlocks);
     IDF.setDefiningBlocks(DefBlocks);
     SmallVector<BasicBlock *, 32> PHIBlocks;

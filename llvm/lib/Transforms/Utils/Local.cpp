@@ -2574,10 +2574,14 @@ Instruction *llvm::removeUnwindEdge(BasicBlock *BB, DomTreeUpdater *DTU) {
     if (auto *Called = II->getCalledFunction()) {
       if (Intrinsic::detached_rethrow == Called->getIntrinsicID() ||
           Intrinsic::taskframe_resume == Called->getIntrinsicID()) {
-        BranchInst* br = BranchInst::Create(II->getNormalDest(), II);
+        BranchInst *BI = BranchInst::Create(II->getNormalDest(), II);
+        BI->takeName(II);
+        BI->setDebugLoc(II->getDebugLoc());
         II->getUnwindDest()->removePredecessor(BB);
         II->eraseFromParent();
-        return br;
+        if (DTU)
+          DTU->applyUpdates({{DominatorTree::Delete, BB, II->getUnwindDest()}});
+        return BI;
       }
     }
     return changeToCall(II, DTU);

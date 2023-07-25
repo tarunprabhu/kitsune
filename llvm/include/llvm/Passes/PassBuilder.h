@@ -225,8 +225,17 @@ public:
   buildModuleOptimizationPipeline(OptimizationLevel Level,
                                   ThinOrFullLTOPhase LTOPhase);
 
-  /// Construct the pipeline for lowering Tapir constructions to a target
-  /// parallel runtime.
+  /// Construct the pipeline for lowering Tapir loops to a target parallel
+  /// runtime.
+  ///
+  /// This pipeline is intended to be used early within
+  /// buildTapirLoweringPipeline at Level > O0 or run on its own for debugging
+  /// purposes.
+  ModulePassManager buildTapirLoopLoweringPipeline(OptimizationLevel Level,
+                                                   ThinOrFullLTOPhase Phase);
+
+  /// Construct the pipeline for lowering Tapir constructs to a target parallel
+  /// runtime.
   ///
   /// This pipeline is intended to be used with the PerModuleDefault pipeline
   /// and various LTO pipelines to lower Tapir constructs.  This pipeline is
@@ -398,8 +407,8 @@ public:
 
   /// Add optimizations to run immediately after an
   /// instrumentation pass, such as CilkSanitizer or CSI.
-  void addPostCilkInstrumentationPipeline(ModulePassManager &MPM,
-                                          OptimizationLevel Level);
+  ModulePassManager
+  buildPostCilkInstrumentationPipeline(OptimizationLevel Level);
 
   /// Register a callback for a default optimizer pipeline extension
   /// point
@@ -540,6 +549,7 @@ public:
   /// target runtime.
   void registerTapirLoopEndEPCallback(
       const std::function<void(ModulePassManager &, OptimizationLevel)> &C) {
+    TapirLoopEndEPCallbacks.push_back(C);
   }
 
   /// Register a callback for parsing an AliasAnalysis Name to populate
@@ -677,7 +687,6 @@ private:
       TapirLateEPCallbacks;
   SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
       TapirLoopEndEPCallbacks;
-  // Module callbacks
   SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
       PipelineStartEPCallbacks;
   SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>

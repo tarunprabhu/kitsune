@@ -319,8 +319,6 @@ private:
                                      RaceInfo::ObjectMRTy &ObjectMRForRace);
   bool checkDependence(std::unique_ptr<Dependence> D, GeneralAccess &GA1,
                        GeneralAccess &GA2);
-  void getRTPtrChecks(Loop *L, RaceInfo::ResultTy &Result,
-                      RaceInfo::PtrChecksTy &AllPtrRtChecks);
 
   bool PointerCapturedBefore(const Value *Ptr, const Instruction *I,
                              unsigned MaxUsesToExplore) const;
@@ -476,23 +474,22 @@ static void GetGeneralAccesses(
   if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
     MemoryLocation Loc = MemoryLocation::get(LI);
     if (!AA->pointsToConstantMemory(Loc))
-      AccI.push_back(GeneralAccess(LI, Loc, MemoryEffects::readOnly()));
+      AccI.push_back(GeneralAccess(LI, Loc, ModRefInfo::Ref));
     return;
   }
   if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
-    AccI.push_back(
-        GeneralAccess(SI, MemoryLocation::get(SI), MemoryEffects::writeOnly()));
+    AccI.push_back(GeneralAccess(SI, MemoryLocation::get(SI), ModRefInfo::Mod));
     return;
   }
   // Handle atomic instructions
   if (AtomicCmpXchgInst *CXI = dyn_cast<AtomicCmpXchgInst>(I)) {
     AccI.push_back(GeneralAccess(CXI, MemoryLocation::get(CXI),
-                                 MemoryEffects::writeOnly()));
+                                 ModRefInfo::Mod));
     return;
   }
   if (AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(I)) {
     AccI.push_back(GeneralAccess(RMWI, MemoryLocation::get(RMWI),
-                                 MemoryEffects::writeOnly()));
+                                 ModRefInfo::Mod));
     return;
   }
 
@@ -500,22 +497,22 @@ static void GetGeneralAccesses(
   if (VAArgInst *VAAI = dyn_cast<VAArgInst>(I)) {
     MemoryLocation Loc = MemoryLocation::get(VAAI);
     if (!AA->pointsToConstantMemory(Loc))
-      AccI.push_back(GeneralAccess(VAAI, Loc, MemoryEffects::unknown()));
+      AccI.push_back(GeneralAccess(VAAI, Loc, ModRefInfo::ModRef));
     return;
   }
 
   // Handle memory intrinsics.
   if (AnyMemSetInst *MSI = dyn_cast<AnyMemSetInst>(I)) {
     AccI.push_back(GeneralAccess(MSI, MemoryLocation::getForDest(MSI),
-                                 MemoryEffects::writeOnly()));
+                                 ModRefInfo::Mod));
     return;
   }
   if (AnyMemTransferInst *MTI = dyn_cast<AnyMemTransferInst>(I)) {
     AccI.push_back(GeneralAccess(MTI, MemoryLocation::getForDest(MTI),
-                                 0, MemoryEffects::writeOnly()));
+                                 0, ModRefInfo::Mod));
     MemoryLocation Loc = MemoryLocation::getForSource(MTI);
     if (!AA->pointsToConstantMemory(Loc))
-      AccI.push_back(GeneralAccess(MTI, Loc, 1, MemoryEffects::readOnly()));
+      AccI.push_back(GeneralAccess(MTI, Loc, 1, ModRefInfo::Ref));
     return;
   }
 
@@ -523,14 +520,14 @@ static void GetGeneralAccesses(
   //
   // This logic is based on that in AliasSetTracker.cpp.
   if (const CallBase *Call = dyn_cast<CallBase>(I)) {
-    MemoryEffects CallMask = AA->getMemoryEffects(Call);
+    ModRefInfo CallMask = AA->getMemoryEffects(Call).getModRef();
 
     // Some intrinsics are marked as modifying memory for control flow modelling
     // purposes, but don't actually modify any specific memory location.
     using namespace PatternMatch;
     if (Call->use_empty() &&
         match(Call, m_Intrinsic<Intrinsic::invariant_start>()))
-      CallMask &= MemoryEffects(~ModRefInfo::Mod);
+      CallMask &= ModRefInfo::Ref;
     // TODO: See if we need to exclude additional intrinsics.
 
     if (isAllocationFn(Call, TLI)) {
@@ -539,9 +536,9 @@ static void GetGeneralAccesses(
       bool FoundLibFunc = TLI->getLibFunc(*Call->getCalledFunction(), F);
       if (FoundLibFunc && ((F == LibFunc_realloc || F == LibFunc_reallocf))) {
         // TODO: Try to get the size of the object being copied from.
-        AccI.push_back(
-            GeneralAccess(I, MemoryLocation::getForArgument(Call, 0, TLI), 0,
-                          MemoryEffects(AA->getArgModRefInfo(Call, 0))));
+        AccI.push_back(GeneralAccess(I, MemoryLocation::getForArgument(
+                                         Call, 0, TLI), 0,
+                                     AA->getArgModRefInfo(Call, 0)));
         // If we assume malloc is safe, don't worry about opaque accesses by
         // realloc.
         if (!AssumeSafeMalloc)
@@ -559,12 +556,9 @@ static void GetGeneralAccesses(
         MemoryLocation::getForArgument(Call, ArgIdx, TLI);
       if (AA->pointsToConstantMemory(ArgLoc))
         continue;
-      MemoryEffects ArgMask = MemoryEffects(AA->getArgModRefInfo(Call, ArgIdx));
+      ModRefInfo ArgMask = AA->getArgModRefInfo(Call, ArgIdx);
       ArgMask &= CallMask;
-      if (!isNoModRef(ArgMask.getModRef())) {
-        // dbgs() << "New GA for " << *I << "\n  arg " << *Arg << "\n";
-        // if (ArgLoc.Size != LocationSize::unknown())
-        //   dbgs() << "  size " << ArgLoc.Size.getValue() << "\n";
+      if (!isNoModRef(ArgMask)) {
         AccI.push_back(GeneralAccess(I, ArgLoc, ArgIdx, ArgMask));
       }
     }
@@ -1227,6 +1221,8 @@ AccessPtrAnalysis::underlyingObjectsAlias(const GeneralAccess &GAA,
 }
 
 static bool isThreadLocalObject(const Value *V) {
+  if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(V))
+    return Intrinsic::threadlocal_address == II->getIntrinsicID();
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(V))
     return GV->isThreadLocal();
   return false;
@@ -1400,44 +1396,6 @@ void AccessPtrAnalysis::checkForRacesHelper(
       }
     }
   }
-}
-
-/// Check whether a pointer can participate in a runtime bounds check.
-/// If \p Assume, try harder to prove that we can compute the bounds of \p Ptr
-/// by adding run-time checks (overflow checks) if necessary.
-static bool hasComputableBounds(PredicatedScalarEvolution &PSE,
-                                const ValueToValueMap &Strides, Value *Ptr,
-                                Loop *L, bool Assume) {
-  const SCEV *PtrScev = replaceSymbolicStrideSCEV(PSE, Strides, Ptr);
-
-  // The bounds for loop-invariant pointer is trivial.
-  if (PSE.getSE()->isLoopInvariant(PtrScev, L))
-    return true;
-
-  const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(PtrScev);
-
-  if (!AR && Assume)
-    AR = PSE.getAsAddRec(Ptr);
-
-  if (!AR)
-    return false;
-
-  return AR->isAffine();
-}
-
-/// Check whether a pointer address cannot wrap.
-static bool isNoWrap(PredicatedScalarEvolution &PSE,
-                     const ValueToValueMap &Strides, Value *Ptr, Loop *L) {
-  const SCEV *PtrScev = PSE.getSCEV(Ptr);
-  if (PSE.getSE()->isLoopInvariant(PtrScev, L))
-    return true;
-
-  Type *AccessTy = Ptr->getType()->getPointerElementType();
-  std::optional<int64_t> Stride = getPtrStride(PSE, AccessTy, Ptr, L, Strides);
-  if (Stride && (*Stride == 1 || PSE.hasNoOverflow(Ptr, SCEVWrapPredicate::IncrementNUSW)))
-    return true;
-
-  return false;
 }
 
 void AccessPtrAnalysis::processAccessPtrs(

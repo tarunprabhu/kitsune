@@ -1452,7 +1452,6 @@ CilkForStmt::CilkForStmt(Stmt *Init, DeclStmt *Limit, Expr *InitCond,
   SubExprs[INC] = Inc;
   SubExprs[LOOPVAR] = LoopVar;
   SubExprs[BODY] = Body;
-  // SubExprs[LOOP_COUNT] = LoopCount;
 }
 
 // ForallStmt

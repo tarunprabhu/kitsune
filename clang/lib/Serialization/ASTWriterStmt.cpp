@@ -2239,6 +2239,7 @@ void ASTStmtWriter::VisitForallStmt(ForallStmt *S) {
 
 //===----------------------------------------------------------------------===//
 // Microsoft Expressions and Statements.
+//===----------------------------------------------------------------------===//
 void ASTStmtWriter::VisitMSPropertyRefExpr(MSPropertyRefExpr *E) {
   VisitExpr(E);
   Record.push_back(E->isArrow());

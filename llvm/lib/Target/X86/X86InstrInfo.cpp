@@ -43,6 +43,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetOptions.h"
+#include <optional>
 
 using namespace llvm;
 
@@ -4717,7 +4718,8 @@ bool X86InstrInfo::optimizeCompareInstr(MachineInstr &CmpInstr, Register SrcReg,
   return true;
 }
 
-std::optional<BlockBRNZ> X86InstrInfo::isZeroTest(MachineBasicBlock &MBB) const {
+std::optional<BlockBRNZ>
+X86InstrInfo::isZeroTest(MachineBasicBlock &MBB) const {
   const X86RegisterInfo *TRI = &getRegisterInfo();
   SmallVector<MachineOperand, 4> Cond;
   MachineBasicBlock *TBB = nullptr, *FBB = nullptr;

@@ -781,14 +781,14 @@ class LoopAccessInfoManager {
   AAResults &AA;
   DominatorTree &DT;
   LoopInfo &LI;
+  TaskInfo &TI;
   const TargetLibraryInfo *TLI = nullptr;
-  TaskInfo *TI = nullptr;
 
 public:
   LoopAccessInfoManager(ScalarEvolution &SE, AAResults &AA, DominatorTree &DT,
-                        LoopInfo &LI, const TargetLibraryInfo *TLI,
-                        TaskInfo *TI)
-      : SE(SE), AA(AA), DT(DT), LI(LI), TLI(TLI), TI(TI) {}
+                        LoopInfo &LI, TaskInfo &TI,
+                        const TargetLibraryInfo *TLI)
+      : SE(SE), AA(AA), DT(DT), LI(LI), TI(TI), TLI(TLI) {}
 
   const LoopAccessInfo &getInfo(Loop &L);
 

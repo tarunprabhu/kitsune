@@ -65,7 +65,7 @@ static bool notDifferentParent(const Value *O1, const Value *O2) {
 
 AliasResult DRFAAResult::alias(const MemoryLocation &LocA,
                                const MemoryLocation &LocB, AAQueryInfo &AAQI,
-                               const Instruction* CtxI) {
+                               const Instruction *CtxI) {
   if (!EnableDRFAA)
     return AAResultBase::alias(LocA, LocB, AAQI, CtxI);
 
