@@ -211,6 +211,11 @@ StringRef AsanDetectStackUseAfterReturnModeToString(
 llvm::AsanDetectStackUseAfterReturnMode
 AsanDetectStackUseAfterReturnModeFromString(StringRef modeStr);
 
+/// Return true if an execute-only target disallows data access to code
+/// sections.
+bool isExecuteOnlyTarget(const llvm::Triple &Triple,
+                         const llvm::opt::ArgList &Args);
+
 } // namespace clang
 
 #endif // LLVM_CLANG_BASIC_SANITIZERS_H
