@@ -92,7 +92,7 @@ lpad29:                                           ; preds = %lpad29.loopexit
   %lpad.phi = phi { i8*, i32 } [ %lpad.loopexit, %lpad29.loopexit ]
   %14 = extractvalue { i8*, i32 } %lpad.phi, 0
   %15 = extractvalue { i8*, i32 } %lpad.phi, 1
-  tapir_sync within %syncreg, label %eh.resume
+  sync within %syncreg, label %eh.resume
 
 if.else:                                          ; preds = %entry
   %idx.ext51 = sext i32 %shl7 to i64
@@ -178,10 +178,10 @@ lpad81:                                           ; preds = %lpad81.loopexit
   %lpad.phi219 = phi { i8*, i32 } [ %lpad.loopexit217, %lpad81.loopexit ]
   %29 = extractvalue { i8*, i32 } %lpad.phi219, 0
   %30 = extractvalue { i8*, i32 } %lpad.phi219, 1
-  tapir_sync within %syncreg, label %eh.resume
+  sync within %syncreg, label %eh.resume
 
 if.end:                                           ; preds = %det.cont80.2, %invoke.cont79.3, %cond.end.3, %invoke.cont.3
-  tapir_sync within %syncreg, label %sync.continue92
+  sync within %syncreg, label %sync.continue92
 
 sync.continue92:                                  ; preds = %if.end
   %cnt.i = getelementptr inbounds %class.gTreeNode, %class.gTreeNode* %parent, i64 0, i32 2, i32 0

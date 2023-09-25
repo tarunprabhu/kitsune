@@ -145,7 +145,7 @@ test_fft_elem.exit.loopexit.us.i:                 ; preds = %for.body.i.us.i
   reattach within %syncreg.i, label %pfor.inc.us.i
 
 pfor.cond.cleanup.i:                              ; preds = %pfor.inc.us.i
-  tapir_sync within %syncreg.i, label %pfor.cond.cleanup.i.split
+  sync within %syncreg.i, label %pfor.cond.cleanup.i.split
 
 pfor.cond.cleanup.i.split:                        ; preds = %pfor.cond.cleanup.i
   br label %for.body18

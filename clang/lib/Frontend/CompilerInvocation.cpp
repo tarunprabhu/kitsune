@@ -4706,36 +4706,34 @@ bool CompilerInvocation::CreateFromArgsImpl(
   if (Arg *A = Args.getLastArg(OPT_ftapir_EQ)){
     StringRef Name = A->getValue();
     if (Name == "none")
-      LangOpts.Tapir = TapirTargetID::None;
+      LangOpts.TapirTarget = TapirTargetID::None;
     else if (Name == "cilk")
       // for now, our deprecation path for cilk is to
       // use the opencilk ABI.
-      LangOpts.Tapir = TapirTargetID::Cilk;
+      LangOpts.TapirTarget = TapirTargetID::Cilk;
     else if (Name == "cilkplus")
-      LangOpts.Tapir = TapirTargetID::Cilk;
+      LangOpts.TapirTarget = TapirTargetID::Cilk;
     else if (Name == "opencilk")
-      LangOpts.Tapir = TapirTargetID::OpenCilk;
+      LangOpts.TapirTarget = TapirTargetID::OpenCilk;
     else if (Name == "openmp")
-      LangOpts.Tapir = TapirTargetID::OpenMP;
+      LangOpts.TapirTarget = TapirTargetID::OpenMP;
     else if (Name == "qthreads")
-      LangOpts.Tapir = TapirTargetID::Qthreads;
+      LangOpts.TapirTarget = TapirTargetID::Qthreads;
     else if (Name == "realm")
-      LangOpts.Tapir = TapirTargetID::Realm;
+      LangOpts.TapirTarget = TapirTargetID::Realm;
     else if (Name == "cuda")
-      LangOpts.Tapir = TapirTargetID::Cuda;
+      LangOpts.TapirTarget = TapirTargetID::Cuda;
     else if (Name == "hip")
-      LangOpts.Tapir = TapirTargetID::Hip;
-    else if (Name == "opencl")
-      LangOpts.Tapir = TapirTargetID::OpenCL;
+      LangOpts.TapirTarget = TapirTargetID::Hip;
     else if (Name == "gpu")
-      LangOpts.Tapir = TapirTargetID::GPU;
+      LangOpts.TapirTarget = TapirTargetID::GPU;
     else if (Name == "serial")
-      LangOpts.Tapir = TapirTargetID::Serial;
+      LangOpts.TapirTarget = TapirTargetID::Serial;
     else
       Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args) <<
         Name;
   } else {
-    LangOpts.Tapir = TapirTargetID::Off;
+    LangOpts.TapirTarget = TapirTargetID::Off;
   }
 
   LangOpts.FunctionAlignment =

@@ -53,11 +53,9 @@ class Value;
 /// Tests if a value is a call or invoke to a library function that
 /// allocates or reallocates memory (either malloc, calloc, realloc, or strdup
 /// like).
-bool isAllocationFn(const Value *V, const TargetLibraryInfo *TLI,
-                    bool IgnoreBuiltinAttr = false);
+bool isAllocationFn(const Value *V, const TargetLibraryInfo *TLI);
 bool isAllocationFn(const Value *V,
-                    function_ref<const TargetLibraryInfo &(Function &)> GetTLI,
-                    bool IgnoreBuiltinAttr = false);
+                    function_ref<const TargetLibraryInfo &(Function &)> GetTLI);
 
 /// Tests if a value is a call or invoke to a library function that
 /// allocates memory via new.
@@ -86,8 +84,7 @@ Value *getReallocatedOperand(const CallBase *CB);
 bool isLibFreeFunction(const Function *F, const LibFunc TLIFn);
 
 /// If this if a call to a free function, return the freed operand.
-Value *getFreedOperand(const CallBase *CB, const TargetLibraryInfo *TLI,
-                       bool IgnoreBuiltinAttr = false);
+Value *getFreedOperand(const CallBase *CB, const TargetLibraryInfo *TLI);
 
 //===----------------------------------------------------------------------===//
 //  Properties of allocation functions
@@ -108,8 +105,7 @@ bool isRemovableAlloc(const CallBase *V, const TargetLibraryInfo *TLI);
 /// built-in knowledge based on fuction names/signatures or allocalign
 /// attributes. Note: the Value returned may not indicate a valid alignment, per
 /// the definition of the allocalign attribute.
-Value *getAllocAlignment(const CallBase *V, const TargetLibraryInfo *TLI,
-                         bool IgnoreBuiltinAttr = false);
+Value *getAllocAlignment(const CallBase *V, const TargetLibraryInfo *TLI);
 
 /// Return the size of the requested allocation. With a trivial mapper, this is
 /// similar to calling getObjectSize(..., Exact), but without looking through
@@ -132,11 +128,6 @@ std::pair<Value *, Value *> getAllocSizeArgs(const CallBase *CB,
 Constant *getInitialValueOfAllocation(const Value *V,
                                       const TargetLibraryInfo *TLI,
                                       Type *Ty);
-
-/// Gets the size arguments for the requested allocation.
-std::pair<Value *, Value *> getAllocSizeArgs(const CallBase *CB,
-                                             const TargetLibraryInfo *TLI,
-                                             bool IgnoreBuiltinAttr = false);
 
 /// If a function is part of an allocation family (e.g.
 /// malloc/realloc/calloc/free), return the identifier for its family

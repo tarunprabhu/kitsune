@@ -21,7 +21,7 @@ namespace llvm {
 
 class DataLayout;
 class TargetMachine;
-class SPIRVLoop; 
+class SPIRVLoop;
 
 class OpenCLABI : public TapirTarget {
   SPIRVLoop *LOP = nullptr;
@@ -32,7 +32,7 @@ public:
   void lowerSync(SyncInst &SI) override final;
 
   void addHelperAttributes(Function &F) override final {}
-  void preProcessFunction(Function &F, TaskInfo &TI,
+  bool preProcessFunction(Function &F, TaskInfo &TI,
                           bool OutliningTapirLoops) override final;
   void postProcessFunction(Function &F, bool OutliningTapirLoops)
     override final;
@@ -50,11 +50,11 @@ public:
     override final;
 
   LoopOutlineProcessor *getLoopOutlineProcessor(const TapirLoopInfo *TL)
-    override final;
+    const override final;
 };
 
 class SPIRVLoop : public LoopOutlineProcessor {
-  friend class OpenCLABI; 
+  friend class OpenCLABI;
 
 private:
   static unsigned NextKernelID;
@@ -75,7 +75,7 @@ private:
   FunctionCallee KitsuneGPURunKernel = nullptr;
   FunctionCallee KitsuneGPUFinish = nullptr;
 
-  SmallVector<Value *, 5> OrderedInputs; 
+  SmallVector<Value *, 5> OrderedInputs;
 public:
   SPIRVLoop(Module &M);
 
@@ -102,13 +102,13 @@ public:
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/ADT/DenseMap.h"
 
-using namespace llvm; 
+using namespace llvm;
 
 class OpenCL : public LoopOutlineProcessor {
 public:
   OpenCL(Module &M) : LoopOutlineProcessor(M) {}
   void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
-                          ValueToValueMapTy &VMap) override final;  
-  GlobalVariable* SPIRVKernel; 
+                          ValueToValueMapTy &VMap) override final;
+  GlobalVariable* SPIRVKernel;
 };
 */

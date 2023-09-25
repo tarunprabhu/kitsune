@@ -1637,9 +1637,6 @@ bool CilkSanitizerImpl::SimpleInstrumentor::InstrumentCalls(
     // Allocation-function and free calls are handled separately.
     if (isAllocFn(I, TLI) || isFreeFn(I, TLI))
       continue;
-    else if(auto* CB = dyn_cast<CallBase>(I))
-      if (getFreedOperand(CB, TLI, true))
-        continue;
 
     bool LocalResult = false;
     if (isa<IntrinsicInst>(I))
@@ -1939,9 +1936,6 @@ bool CilkSanitizerImpl::Instrumentor::InstrumentCalls(
     // Allocation-function and free calls are handled separately.
     if (isAllocFn(I, TLI) || isFreeFn(I, TLI))
       continue;
-    else if (auto* CB = dyn_cast<CallBase>(I))
-      if (getFreedOperand(CB, TLI, true))
-        continue;
 
     bool LocalResult = false;
     bool GetDetaches = false;

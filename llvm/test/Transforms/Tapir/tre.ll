@@ -70,10 +70,10 @@ det.cont:                                         ; preds = %det.achd, %if.end7
   %add14 = add nsw i64 %add9, %div
   %add.ptr15 = getelementptr inbounds i64, i64* %target, i64 %add14
   %call16 = call i64* @cilk_merge(i64* %add.ptr, i64 %sub11, i64* %add.ptr12, i64 %sub13, i64* %add.ptr15)
-  tapir_sync within %syncreg, label %cleanup
+  sync within %syncreg, label %cleanup
 
 ; CHECK: det.cont:
-; CHECK-NOT: call ptr @cilk_merge(
+; CHECK-NOT: call i64* @cilk_merge(
 ; CHECK-NOT: sync
 ; CHECK: br label %[[TAILRECURSE]]
 
@@ -81,7 +81,7 @@ cleanup:                                          ; preds = %det.cont, %if.then6
   ret i64* %target
 
 ; CHECK: cleanup:
-; CHECK-NEXT: tapir_sync within %[[SYNCREG]], label %[[CLEANUP_SPLIT:.+]]
+; CHECK-NEXT: sync within %[[SYNCREG]], label %[[CLEANUP_SPLIT:.+]]
 
 ; CHECK: [[CLEANUP_SPLIT]]:
 ; CHECK-NEXT: %[[CURRENT_RET:.+]] = select i1 %{{.+}}, ptr %{{.+}}, ptr %{{.+}}

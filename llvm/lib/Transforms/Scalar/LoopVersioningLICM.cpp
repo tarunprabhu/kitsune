@@ -639,7 +639,6 @@ PreservedAnalyses LoopVersioningLICMPass::run(Loop &L, LoopAnalysisManager &AM,
   AliasAnalysis *AA = &LAR.AA;
   ScalarEvolution *SE = &LAR.SE;
   DominatorTree *DT = &LAR.DT;
-  TaskInfo* TI = &LAR.TI;
   const Function *F = L.getHeader()->getParent();
   OptimizationRemarkEmitter ORE(F);
 

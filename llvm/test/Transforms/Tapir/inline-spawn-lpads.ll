@@ -71,7 +71,7 @@ det.achd:                                         ; preds = %entry
 
 det.cont:                                         ; preds = %det.achd, %entry
   tail call void @_Z7nothrowv() #5
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %det.cont
   ret void
@@ -119,7 +119,7 @@ sync.continue:                                    ; preds = %det.cont
 
 ; CHECK: [[CONTINUE]]:
 ; CHECK-NEXT: tail call void @_Z7nothrowv()
-; CHECK-NEXT: tapir_sync within %[[SYNCREG]],
+; CHECK-NEXT: sync within %[[SYNCREG]],
 
 ; Function Attrs: argmemonly nounwind
 declare token @llvm.syncregion.start() #3
@@ -147,7 +147,7 @@ det.achd:                                         ; preds = %entry
 
 det.cont:                                         ; preds = %det.achd, %entry
   tail call void @_Z7nothrowv() #5
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %det.cont
   ret void
@@ -202,7 +202,7 @@ eh.resume:                                        ; preds = %lpad
 
 ; CHECK: [[CONTINUE]]:
 ; CHECK-NEXT: call void @_Z7nothrowv()
-; CHECK-NEXT: tapir_sync within %[[SYNCREG]], label %[[EXITI:.+]]
+; CHECK-NEXT: sync within %[[SYNCREG]], label %[[EXITI:.+]]
 
 ; CHECK: [[NEWUNREACHABLE:.+]]:
 ; CHECK-NEXT: unreachable
@@ -256,7 +256,7 @@ invoke.cont:                                      ; preds = %det.achd
 
 det.cont:                                         ; preds = %entry, %invoke.cont
   tail call void @_Z7nothrowv() #5
-  tapir_sync within %syncreg, label %try.cont
+  sync within %syncreg, label %try.cont
 
 lpad:                                             ; preds = %det.achd
   %1 = landingpad { i8*, i32 }
@@ -350,7 +350,7 @@ eh.resume:                                        ; preds = %lpad
 
 ; CHECK: [[CONTINUE]]:
 ; CHECK-NEXT: call void @_Z7nothrowv()
-; CHECK-NEXT: tapir_sync within %[[SYNCREG]], label %[[EXITI:.+]]
+; CHECK-NEXT: sync within %[[SYNCREG]], label %[[EXITI:.+]]
 
 ; CHECK: [[TASKLPADI]]:
 ; CHECK-NEXT: %[[TASKLPADIVAL:.+]] = landingpad [[LPADTYPE:{.+}]]

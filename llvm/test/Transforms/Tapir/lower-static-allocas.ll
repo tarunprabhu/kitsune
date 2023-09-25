@@ -22,7 +22,7 @@ det.achd:                                         ; preds = %entry
 det.cont:                                         ; preds = %det.achd, %entry
   %arraydecay3 = getelementptr inbounds [16 x i32], [16 x i32]* %x, i32 0, i32 0
   call void @bar(i32* %arraydecay3)
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %det.cont
   ret void
@@ -64,7 +64,7 @@ pfor.detach.preheader:                            ; preds = %entry
   br label %pfor.detach
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc, %entry
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 pfor.detach:                                      ; preds = %pfor.detach.preheader, %pfor.inc
   %__begin.048 = phi i32 [ %inc, %pfor.inc ], [ 0, %pfor.detach.preheader ]
@@ -92,7 +92,7 @@ pfor.detach17.preheader:                          ; preds = %sync.continue
   br label %pfor.detach17
 
 pfor.cond.cleanup16:                              ; preds = %pfor.inc26, %sync.continue
-  tapir_sync within %syncreg6, label %sync.continue28
+  sync within %syncreg6, label %sync.continue28
 
 pfor.detach17:                                    ; preds = %pfor.detach17.preheader, %pfor.inc26
   %__begin8.046 = phi i32 [ %inc27, %pfor.inc26 ], [ 0, %pfor.detach17.preheader ]

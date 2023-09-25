@@ -192,19 +192,17 @@ static std::tuple<ELFKind, uint16_t, uint8_t> parseEmulation(StringRef emul) {
 TapirTargetID parseTapirTarget(const  llvm::StringRef &Target) {
   // Otherwise use the runtime specified by -ftapir.
   TapirTargetID TapirTarget = llvm::StringSwitch<TapirTargetID>(Target)
-      .Case("none", TapirTargetID::None)
-      .Case("serial", TapirTargetID::Serial)
-      .Case("cilk", TapirTargetID::Cilk)
-      .Case("cuda", TapirTargetID::Cuda)
-      .Case("opencilk", TapirTargetID::OpenCilk)      
-      .Case("cuda", TapirTargetID::Cuda)
-      .Case("openmp", TapirTargetID::OpenMP)
-      .Case("qthreads", TapirTargetID::Qthreads)
-      .Case("realm", TapirTargetID::Realm)
-      .Case("opencl", TapirTargetID::OpenCL)
-      .Case("cilk", TapirTargetID::Cilk)
-      .Case("gpu", TapirTargetID::GPU)
-      .Default(TapirTargetID::Last_TapirTargetID);
+                                  .Case("none", TapirTargetID::None)
+                                  .Case("serial", TapirTargetID::Serial)
+                                  .Case("cilk", TapirTargetID::Cilk)
+                                  .Case("cuda", TapirTargetID::Cuda)
+                                  .Case("hip", TapirTargetID::Hip)
+                                  .Case("opencilk", TapirTargetID::OpenCilk)
+                                  .Case("openmp", TapirTargetID::OpenMP)
+                                  .Case("qthreads", TapirTargetID::Qthreads)
+                                  .Case("realm", TapirTargetID::Realm)
+                                  .Case("gpu", TapirTargetID::GPU)
+                                  .Default(TapirTargetID::Last_TapirTargetID);
 
   return TapirTarget;
 }

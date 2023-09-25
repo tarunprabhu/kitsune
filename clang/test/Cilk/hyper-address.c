@@ -27,3 +27,4 @@ void assorted_addresses()
   // CHECK-NOT: call void @llvm.reducer.unregister
   // CHECK: ret void
 }
+

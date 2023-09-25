@@ -11,7 +11,6 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/PassManagerImpl.h"

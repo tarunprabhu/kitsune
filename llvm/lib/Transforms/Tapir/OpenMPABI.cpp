@@ -233,11 +233,13 @@ Value *getThreadID(Function *F, IRBuilder<> &IRBuilder) {
     auto ThreadIDAddrs =
         IRBuilder.CreateLoad(Alloca->getAllocatedType(), Alloca);
     ThreadIDAddrs->setAlignment(
-        Align(DL.getPrefTypeAlignment(ThreadIDAddrs->getType())));
-    ThreadID = IRBuilder.CreateLoad(
-        ThreadIDAddrs->getType()->getPointerElementType(), ThreadIDAddrs);
+        Align(DL.getPrefTypeAlign(ThreadIDAddrs->getType())));
+    llvm_unreachable("OpenMPABI: getPointerElementType() has been deprecated "
+                     "but is used here.");
+    // ThreadID = IRBuilder.CreateLoad(
+    //     ThreadIDAddrs->getType()->getPointerElementType(), ThreadIDAddrs);
     ((LoadInst *)ThreadID)
-        ->setAlignment(Align(DL.getPrefTypeAlignment(ThreadID->getType())));
+        ->setAlignment(Align(DL.getPrefTypeAlign(ThreadID->getType())));
     auto &Elem = OpenMPThreadIDLoadMap.FindAndConstruct(F);
     Elem.second = ThreadID;
     return ThreadID;
@@ -488,13 +490,15 @@ Function* formatFunctionToTask(Function* extracted, Instruction* CallSite) {
 
     unsigned int argc = 0;
     for (auto& arg : extracted->args()) {
-      auto *DataAddrEP = IRBuilder.CreateInBoundsGEP(
-          Context->getType()->getScalarType()->getPointerElementType(),
-          Context, {IRBuilder.getInt32(0), IRBuilder.getInt32(argc)});
-      auto *DataAddr = IRBuilder.CreateAlignedLoad(
-          DataAddrEP->getType()->getPointerElementType(), DataAddrEP,
-          DL.getPrefTypeAlign(DataAddrEP->getType()->getPointerElementType()));
-      valmap.insert(std::pair<Value*,Value*>(&arg,DataAddr));
+      llvm_unreachable("OpenMPABI: getPointerElementType() has been deprecated "
+                       "but use has not been fixed.");
+      // auto *DataAddrEP = IRBuilder.CreateInBoundsGEP(
+      //     Context->getType()->getScalarType()->getPointerElementType(),
+      //     Context, {IRBuilder.getInt32(0), IRBuilder.getInt32(argc)});
+      // auto *DataAddr = IRBuilder.CreateAlignedLoad(
+      //     DataAddrEP->getType()->getPointerElementType(), DataAddrEP,
+      //     DL.getPrefTypeAlign(DataAddrEP->getType()->getPointerElementType()));
+      // valmap.insert(std::pair<Value*,Value*>(&arg,DataAddr));
       argc++;
     }
 
@@ -560,14 +564,15 @@ void OpenMPABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
   TOI.Outline = formatFunctionToTask(Outline, ReplCall);
 }
 
-void OpenMPABI::preProcessFunction(Function &F, TaskInfo &TI,
+bool OpenMPABI::preProcessFunction(Function &F, TaskInfo &TI,
                                    bool ProcessingTapirLoops) {
   if (ProcessingTapirLoops)
     // Don't do any preprocessing when outlining Tapir loops.
-    return;
+    return false;
 
   getOrCreateIdentTy(M);
   getOrCreateDefaultLocation(M);
+  return true;
 }
 
 void OpenMPABI::postProcessFunction(Function &F, bool ProcessingTapirLoops) {
@@ -664,9 +669,11 @@ void OpenMPABI::postProcessFunction(Function &F, bool ProcessingTapirLoops) {
 
     // Allow speculative loading from shared data.
     if (Arg.getType()->isPointerTy()) {
-      AttrBuilder B(Context);
-      B.addDereferenceableAttr(
-          DL.getTypeAllocSize(Arg.getType()->getPointerElementType()));
+      llvm_unreachable("OpenMPABI: getPointerElementType() has been deprecated "
+                       " but is used here.");
+      // AttrBuilder B(Context);
+      // B.addDereferenceableAttr(
+      //     DL.getTypeAllocSize(Arg.getType()->getPointerElementType()));
       //FnArgAttrs.push_back(AttributeSet::get(Context, ++ArgOffset, B));
     } else {
       //FnArgAttrs.push_back(AttributeSet());
@@ -692,7 +699,9 @@ void OpenMPABI::postProcessFunction(Function &F, bool ProcessingTapirLoops) {
 
     auto *EntryBB = BasicBlock::Create(Context, "entry", OMPRegionFn, nullptr);
     IRBuilder<> IRBuilder0(EntryBB);
-    tmp = IRBuilder0.CreateLoad(tmp->getType()->getPointerElementType(), tmp);
+    llvm_unreachable("OpenMPABI: getPointerElementType() has been deprecated "
+                     "but is used here.");
+    // tmp = IRBuilder0.CreateLoad(tmp->getType()->getPointerElementType(), tmp);
 
     ValueToValueMapTy VMap;
     for (auto &Arg : RegionFn->args()) {

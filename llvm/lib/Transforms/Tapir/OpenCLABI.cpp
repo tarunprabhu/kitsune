@@ -50,8 +50,9 @@ void OpenCLABI::postProcessOutlinedTask(Function&, Instruction*, Instruction*, b
 void OpenCLABI::preProcessRootSpawner(Function &F, BasicBlock *TFEntry) {}
 void OpenCLABI::postProcessRootSpawner(Function&, BasicBlock *TFEntry){}
 
-void OpenCLABI::preProcessFunction(Function &F, TaskInfo &TI,
-                                 bool OutliningTapirLoops) {
+bool OpenCLABI::preProcessFunction(Function &F, TaskInfo &TI,
+                                   bool OutliningTapirLoops) {
+  return false;
 }
 
 void OpenCLABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
@@ -64,7 +65,7 @@ void OpenCLABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
 }
 
 LoopOutlineProcessor *OpenCLABI::getLoopOutlineProcessor(
-    const TapirLoopInfo *TL) {
+    const TapirLoopInfo *TL) const {
   if(!LOP)
     return new SPIRVLoop(M);
   return LOP;
@@ -175,9 +176,11 @@ unsigned SPIRVLoop::getLimitArgIndex(const Function &F, const ValueSet &Args)
 }
 
 void changeAddressSpace(Value* V, unsigned AS){
-  if(isa<PointerType>(V->getType())){
-    V->mutateType(PointerType::get(V->getType()->getPointerElementType(), AS));
-  }
+  llvm_unreachable("OpenCLABI: getPointerElementType() is deprecated but is "
+                   "still used here.");
+  // if(isa<PointerType>(V->getType())){
+  //   V->mutateType(PointerType::get(V->getType()->getPointerElementType(), AS));
+  // }
 }
 
 void fixAddressSpaces(Function *F){
@@ -292,37 +295,40 @@ void SPIRVLoop::postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
   SmallVector<Type*, 8> paramTys;
   for(auto &arg : Helper->args()){
     if (auto *apty = dyn_cast<PointerType>(arg.getType())){
-      paramTys.push_back(PointerType::get(apty->getPointerElementType(), 1));
+      llvm_unreachable("OpenCLABI: getPointerElementType() is");
+      // paramTys.push_back(PointerType::get(apty->getPointerElementType(), 1));
     } else {
       paramTys.push_back(arg.getType());
     }
   }
   ArrayRef<Type*> newParams(paramTys);
   if(auto *fpty = dyn_cast<PointerType>(Helper->getType())){
-    if(auto *fty = dyn_cast<FunctionType>(fpty->getPointerElementType())){
-      LLVM_DEBUG(dbgs() << "Helper is pointer to function " << *Helper->getType() << "\n");
-      auto *NewHelper = Function::Create(
-          FunctionType::get(fty->getReturnType(), newParams, false),
-          GlobalValue::ExternalLinkage,
-          "kitsune_spirv_kernel",
-          SPIRVM);
+    llvm_unreachable("OpenCLABI: getPointerElementType() is deprecated but is "
+                     "used here.");
+    // if(auto *fty = dyn_cast<FunctionType>(fpty->getPointerElementType())){
+    //   LLVM_DEBUG(dbgs() << "Helper is pointer to function " << *Helper->getType() << "\n");
+    //   auto *NewHelper = Function::Create(
+    //       FunctionType::get(fty->getReturnType(), newParams, false),
+    //       GlobalValue::ExternalLinkage,
+    //       "kitsune_spirv_kernel",
+    //       SPIRVM);
 
-      ValueToValueMapTy NewVMap;
-      auto argit = NewHelper->arg_begin();
-      for (auto &arg : Helper->args()) {
-        NewVMap[&arg] = argit++;
-      }
-      SmallVector< ReturnInst *,5> retinsts;
-      CloneFunctionInto(NewHelper, Helper, NewVMap, CloneFunctionChangeType::DifferentModule, retinsts);
-      //Helper->mutateType(PointerType::get(FunctionType::get(fty->getReturnType(), newParams, false), 0));
-      NewHelper->setCallingConv(CallingConv::SPIR_KERNEL);
-      for(auto &arg : NewHelper->args()){
-        if (auto *apty = dyn_cast<PointerType>(arg.getType())){
-          arg.addAttr(Attribute::NoCapture);
-        }
-      }
-      Helper = NewHelper;
-    }
+    //   ValueToValueMapTy NewVMap;
+    //   auto argit = NewHelper->arg_begin();
+    //   for (auto &arg : Helper->args()) {
+    //     NewVMap[&arg] = argit++;
+    //   }
+    //   SmallVector< ReturnInst *,5> retinsts;
+    //   CloneFunctionInto(NewHelper, Helper, NewVMap, CloneFunctionChangeType::DifferentModule, retinsts);
+    //   //Helper->mutateType(PointerType::get(FunctionType::get(fty->getReturnType(), newParams, false), 0));
+    //   NewHelper->setCallingConv(CallingConv::SPIR_KERNEL);
+    //   for(auto &arg : NewHelper->args()){
+    //     if (auto *apty = dyn_cast<PointerType>(arg.getType())){
+    //       arg.addAttr(Attribute::NoCapture);
+    //     }
+    //   }
+    //   Helper = NewHelper;
+    // }
   }
 
   fixAddressSpaces(Helper);

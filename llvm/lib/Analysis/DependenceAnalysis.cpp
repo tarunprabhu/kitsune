@@ -4396,25 +4396,6 @@ bool DependenceInfo::tryDelinearizeFixedSize(
                                      DstSizes))
     return false;
 
-  Value *SrcPtr = getGeneralAccessPointerOperand(SrcA);
-  Value *DstPtr = getGeneralAccessPointerOperand(DstA);
-  const SCEVUnknown *SrcBase =
-      dyn_cast<SCEVUnknown>(SE->getPointerBase(SrcAccessFn));
-  const SCEVUnknown *DstBase =
-      dyn_cast<SCEVUnknown>(SE->getPointerBase(DstAccessFn));
-  assert(SrcBase && DstBase && SrcBase == DstBase &&
-         "expected src and dst scev unknowns to be equal");
-
-  // Check the simple case where the array dimensions are fixed size.
-  auto *SrcGEP = dyn_cast<GetElementPtrInst>(SrcPtr);
-  auto *DstGEP = dyn_cast<GetElementPtrInst>(DstPtr);
-  if (!SrcGEP || !DstGEP)
-    return false;
-
-  SmallVector<int, 4> SrcSizes, DstSizes;
-  getIndexExpressionsFromGEP(*SE, SrcGEP, SrcSubscripts, SrcSizes);
-  getIndexExpressionsFromGEP(*SE, DstGEP, DstSubscripts, DstSizes);
-
   // Check that the two size arrays are non-empty and equal in length and
   // value.
   if (SrcSizes.size() != DstSizes.size() ||

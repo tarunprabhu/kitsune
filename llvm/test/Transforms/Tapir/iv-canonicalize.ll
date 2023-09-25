@@ -61,7 +61,7 @@ L27.loopexit:                                     ; preds = %loop.cond
   br label %L27
 
 L27:                                              ; preds = %L27.loopexit, %top
-  tapir_sync within %syncreg, label %exit
+  sync within %syncreg, label %exit
 
 exit:                                             ; preds = %L27
   ret void

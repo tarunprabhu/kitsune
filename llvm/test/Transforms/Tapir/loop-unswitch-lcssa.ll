@@ -1,5 +1,4 @@
-; RUN: opt < %s -passes=simple-loop-unswitch -S | FileCheck %s
-; XFAIL: *
+; RUN: opt < %s -passes=simple-loop-unswitch -S -o - | FileCheck %s
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
@@ -77,7 +76,7 @@ pfor.inc:                                         ; preds = %invoke.cont8, %pfor
   br i1 %exitcond, label %pfor.cond.cleanup, label %pfor.cond, !llvm.loop !6
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 lpad4:                                            ; preds = %invoke.cont7, %pfor.body
   %call2.i.i.i.i1.i.i.lcssa1 = phi i8* [ %call2.i.i.i.i1.i.i, %invoke.cont7 ], [ %call2.i.i.i.i1.i.i, %pfor.body ]

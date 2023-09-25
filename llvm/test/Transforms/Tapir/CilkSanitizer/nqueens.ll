@@ -133,7 +133,7 @@ for.body.lr.ph:                                   ; preds = %if.end
   br label %for.body, !dbg !115
 
 for.cond.cleanup:                                 ; preds = %for.inc, %if.end
-  tapir_sync within %syncreg, label %sync.continue, !dbg !116
+  sync within %syncreg, label %sync.continue, !dbg !116
 
 for.body:                                         ; preds = %for.inc, %for.body.lr.ph
   %indvars.iv64 = phi i64 [ 0, %for.body.lr.ph ], [ %indvars.iv.next65, %for.inc ]

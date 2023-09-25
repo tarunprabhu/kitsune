@@ -36,7 +36,7 @@ pfor.inc:                                         ; preds = %pfor.body, %pfor.co
   br i1 %exitcond.not, label %pfor.cond.cleanup, label %pfor.cond, !llvm.loop !6
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %pfor.cond.cleanup
   unreachable

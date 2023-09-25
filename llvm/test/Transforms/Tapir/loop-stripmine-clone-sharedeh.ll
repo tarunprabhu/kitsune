@@ -23,7 +23,7 @@ cond.true.i.i:                                    ; preds = %pfor.body61
   unreachable
 
 pfor.inc182:                                      ; preds = %entry
-  tapir_sync within %syncreg.i, label %sync.continue187
+  sync within %syncreg.i, label %sync.continue187
 
 sync.continue187:                                 ; preds = %pfor.inc182
   br label %cleanup190
@@ -41,7 +41,7 @@ cond.true.i.i444:                                 ; preds = %pfor.body212
   unreachable
 
 pfor.inc344:                                      ; preds = %pfor.cond206.preheader
-  tapir_sync within %syncreg.i, label %sync.continue349
+  sync within %syncreg.i, label %sync.continue349
 
 sync.continue349:                                 ; preds = %pfor.inc344
   unreachable
@@ -196,7 +196,7 @@ pfor.inc1049.us:                                  ; preds = %pfor.preattach1048.
 ; CHECK: br i1 {{.+}}, label %pfor.cond864.us.strpm.detachloop.sync, label %pfor.cond864.us.strpm.outer
 
 ; CHECK: pfor.cond864.us.strpm.detachloop.sync:
-; CHECK: tapir_sync within %[[SYNCREG_US_DETLOOP]], label %pfor.cond864.us.strpm.detachloop.reattach.split
+; CHECK: sync within %[[SYNCREG_US_DETLOOP]], label %pfor.cond864.us.strpm.detachloop.reattach.split
 
 ; CHECK: pfor.cond864.us.strpm.detachloop.reattach.split:
 ; CHECK: reattach within %syncreg.i, label %pfor.cond.cleanup1052.[[LOOPEXIT_US]].strpm-lcssa.loopexit
@@ -318,7 +318,7 @@ pfor.inc1049:                                     ; preds = %pfor.preattach1048,
 ; CHECK: br i1 {{.+}}, label %pfor.cond864.strpm.detachloop.sync, label %pfor.cond864.strpm.outer
 
 ; CHECK: pfor.cond864.strpm.detachloop.sync:
-; CHECK-NEXT: tapir_sync within %[[SYNCREG_DETLOOP]], label %pfor.cond864.strpm.detachloop.reattach.split
+; CHECK-NEXT: sync within %[[SYNCREG_DETLOOP]], label %pfor.cond864.strpm.detachloop.reattach.split
 
 ; CHECK: pfor.cond864.strpm.detachloop.reattach.split:
 ; CHECK-NEXT: reattach within %syncreg.i, label %pfor.cond.cleanup1052.[[LOOPEXIT]].strpm-lcssa.loopexit
@@ -452,7 +452,7 @@ pfor.inc1049:                                     ; preds = %pfor.preattach1048,
 ; CHECK-NEXT: br label %pfor.cond.cleanup1052
 
 pfor.cond.cleanup1052:                            ; preds = %pfor.inc1049, %pfor.inc1049.us
-  tapir_sync within %syncreg.i, label %sync.continue1054
+  sync within %syncreg.i, label %sync.continue1054
 
 sync.continue1054:                                ; preds = %pfor.cond.cleanup1052
   unreachable
@@ -467,7 +467,7 @@ if.then1101:                                      ; preds = %pfor.body1080
   unreachable
 
 pfor.inc1173:                                     ; preds = %cleanup1057
-  tapir_sync within %syncreg.i, label %sync.continue1178
+  sync within %syncreg.i, label %sync.continue1178
 
 sync.continue1178:                                ; preds = %pfor.inc1173
   detach within %syncreg.i, label %pfor.body1203, label %pfor.inc1297
@@ -479,7 +479,7 @@ if.then1224:                                      ; preds = %pfor.body1203
   unreachable
 
 pfor.inc1297:                                     ; preds = %sync.continue1178
-  tapir_sync within %syncreg.i, label %sync.continue1302
+  sync within %syncreg.i, label %sync.continue1302
 
 sync.continue1302:                                ; preds = %pfor.inc1297
   unreachable

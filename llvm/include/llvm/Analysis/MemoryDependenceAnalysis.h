@@ -313,7 +313,7 @@ private:
   /// local dependencies.
   DenseMap<AssertingVH<const Value>, NonLocalDepResult> NonLocalDefsCache;
   using ReverseNonLocalDefsCacheTy =
-      DenseMap<Instruction *, SmallPtrSet<const Value *, 4>>;
+    DenseMap<Instruction *, SmallPtrSet<const Value*, 4>>;
   ReverseNonLocalDefsCacheTy ReverseNonLocalDefsCache;
 
   /// This map stores the cached results of doing a pointer lookup at the
@@ -357,8 +357,6 @@ private:
   const TargetLibraryInfo &TLI;
   DominatorTree &DT;
   PredIteratorCache PredCache;
-  TaskInfo *TI;
-
   TaskInfo *TI;
 
   unsigned DefaultBlockScanLimit;

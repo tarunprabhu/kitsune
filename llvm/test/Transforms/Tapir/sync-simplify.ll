@@ -74,10 +74,10 @@ for.inc18:                                        ; preds = %for.cond14
   br label %for.cond
 
 for.end20:                                        ; preds = %for.cond
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 ; Verify that the Task-simplify pass does not remove the sync in this function.
-; CHECK: tapir_sync within %syncreg
+; CHECK: sync within %syncreg
 
 sync.continue:                                    ; preds = %for.end20
   ret i32 0

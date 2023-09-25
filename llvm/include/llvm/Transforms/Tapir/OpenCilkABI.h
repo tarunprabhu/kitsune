@@ -26,6 +26,7 @@ class OpenCilkABI final : public TapirTarget {
   ValueToValueMapTy DetachCtxToStackFrame;
   SmallPtrSet<CallBase *, 8> CallsToInline;
   DenseMap<BasicBlock *, SmallVector<IntrinsicInst *, 4>> TapirRTCalls;
+  ValueToValueMapTy DefaultSyncLandingpad;
 
   StringRef RuntimeBCPath = "";
 

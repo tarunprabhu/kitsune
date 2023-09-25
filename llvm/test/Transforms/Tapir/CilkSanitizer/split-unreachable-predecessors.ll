@@ -62,7 +62,7 @@ lpad:                                             ; preds = %pfor.body
 ; CHECK-NEXT: to label %[[DR_UNREACHABLE:.+]] unwind label %[[DR_LPAD:.+]]
 
 pfor.inc:                                         ; preds = %pfor.cond
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 ; CHECK: [[DR_LPAD]]:
 ; CHECK: call void @__{{csi|csan}}_detach_continue(

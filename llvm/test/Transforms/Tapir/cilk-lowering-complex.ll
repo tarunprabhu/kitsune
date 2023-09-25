@@ -486,7 +486,7 @@ pfor.cond.cleanup:                                ; preds = %168, %pfor.cond.cle
   %179 = load i64, i64* @__csi_unit_sync_base_id, align 8, !invariant.load !2
   %180 = add i64 %179, 50
   call void @__csan_sync(i64 %180, i8 0)
-  tapir_sync within %syncreg11.i, label %cleanup
+  sync within %syncreg11.i, label %cleanup
 
 cleanup:                                          ; preds = %pfor.cond.cleanup
   invoke void @llvm.sync.unwind(token %syncreg11.i)
@@ -816,7 +816,7 @@ pfor.cond.cleanup.i:                              ; preds = %pfor.cond.i.epil, %
   %289 = load i64, i64* @__csi_unit_sync_base_id, align 8, !invariant.load !2
   %290 = add i64 %289, 51
   call void @__csan_sync(i64 %290, i8 0)
-  tapir_sync within %syncreg11.i, label %sync.continue.i
+  sync within %syncreg11.i, label %sync.continue.i
 
 sync.continue.i:                                  ; preds = %pfor.cond.cleanup.i
   invoke void @llvm.sync.unwind(token %syncreg11.i)
@@ -1043,7 +1043,7 @@ pfor.cond.cleanup37.i:                            ; preds = %pfor.cond23.i.epil,
   %355 = load i64, i64* @__csi_unit_sync_base_id, align 8, !invariant.load !2
   %356 = add i64 %355, 52
   call void @__csan_sync(i64 %356, i8 0)
-  tapir_sync within %syncreg11.i, label %sync.continue39.i
+  sync within %syncreg11.i, label %sync.continue39.i
 
 sync.continue39.i:                                ; preds = %pfor.cond.cleanup37.i
   invoke void @llvm.sync.unwind(token %syncreg11.i)
@@ -1496,7 +1496,7 @@ pfor.cond.cleanup:                                ; preds = %pfor.inc
   %67 = load i64, i64* @__csi_unit_sync_base_id, align 8, !invariant.load !2
   %68 = add i64 %67, 15
   call void @__csan_sync(i64 %68, i8 0)
-  tapir_sync within %syncreg1, label %sync.continue
+  sync within %syncreg1, label %sync.continue
 
 sync.continue:                                    ; preds = %pfor.cond.cleanup
   invoke void @llvm.sync.unwind(token %syncreg1)
@@ -1580,7 +1580,7 @@ _ZZN4pbbs4scanI10array_imapImES2_ZNS_8scan_addIS2_S2_EENT_1TES4_T0_jEUlmmE_EES5_
   %86 = load i64, i64* @__csi_unit_sync_base_id, align 8, !invariant.load !2
   %87 = add i64 %86, 16
   call void @__csan_sync(i64 %87, i8 0)
-  tapir_sync within %syncreg, label %sync.continue12
+  sync within %syncreg, label %sync.continue12
 
 sync.continue12:                                  ; preds = %_ZZN4pbbs4scanI10array_imapImES2_ZNS_8scan_addIS2_S2_EENT_1TES4_T0_jEUlmmE_EES5_S4_S6_RKT1_S5_jENKUlmmmE0_clEmmm.exit
   invoke void @llvm.sync.unwind(token %syncreg)

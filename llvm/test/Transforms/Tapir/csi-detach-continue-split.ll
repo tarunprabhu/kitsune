@@ -41,10 +41,10 @@ det.achd1.tf.tf.tf.tf:                            ; preds = %det.achd1.tf.tf.tf
 ; CHECK: reattach within %syncreg.i28, label %[[CONTINUE]]
 
 if.else:                                          ; preds = %entry
-  tapir_sync within %syncreg.i28, label %if.end
+  sync within %syncreg.i28, label %if.end
 
 ; CHECK: if.else:
-; CHECK: tapir_sync within %syncreg.i28, label %[[SYNC_SPLIT:.+]]
+; CHECK: sync within %syncreg.i28, label %[[SYNC_SPLIT:.+]]
 
 ; CHECK: [[SYNC_SPLIT]]:
 ; CHECK: call void @__csi_after_sync(

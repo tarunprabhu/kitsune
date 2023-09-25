@@ -1089,11 +1089,6 @@ private:
   SDValue LowerSetjmp(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerLongjmp(SDValue Op, SelectionDAG &DAG) const;
 
-  SDValue LowerSVEStructLoad(unsigned Intrinsic, ArrayRef<SDValue> LoadOps,
-                             EVT VT, SelectionDAG &DAG, const SDLoc &DL) const;
-  SDValue LowerSetjmp(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerLongjmp(SDValue Op, SelectionDAG &DAG) const;
-
   SDValue LowerFixedLengthVectorIntDivideToSVE(SDValue Op,
                                                SelectionDAG &DAG) const;
   SDValue LowerFixedLengthVectorIntExtendToSVE(SDValue Op,

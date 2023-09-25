@@ -67,7 +67,7 @@ using namespace CodeGen;
 LoopAttributes::LSStrategy
 CodeGenFunction::GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs) {
 
-  LoopAttributes::LSStrategy Strategy = LoopAttributes::SEQ;
+  LoopAttributes::LSStrategy Strategy = LoopAttributes::Sequential;
 
   auto curAttr = Attrs.begin();
 
@@ -80,7 +80,7 @@ CodeGenFunction::GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs) {
 
       switch(SAttr->getTapirStrategyType()) {
         case TapirStrategyAttr::SEQ:
-          Strategy = LoopAttributes::SEQ;
+          Strategy = LoopAttributes::Sequential;
           break;
         case TapirStrategyAttr::DAC:
           Strategy = LoopAttributes::DAC;

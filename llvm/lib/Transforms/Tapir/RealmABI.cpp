@@ -229,12 +229,15 @@ void RealmABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
   Instruction *ReplStart = TOI.ReplStart;
   CallBase *ReplCall = cast<CallBase>(TOI.ReplCall);
   BasicBlock *CallBlock = ReplStart->getParent();
-  Value* SR = TOI.SR;
-  if(!SR){
-    // If there's no syncregion, we leave it as a function call
-    return;
-  }
-  auto barrier = getOrCreateBarrier(SR, CallBlock->getParent());
+  llvm_unreachable("RealmABI: TaskOutlineInfo::SR has been removed, but "
+                   "continues to be used here.");
+  // Value* SR = TOI.SR;
+  // if(!SR){
+  //   // If there's no syncregion, we leave it as a function call
+  //   return;
+  // }
+  // FIXME: Fix call to getOrCreateBarrier below.
+  Value* barrier = nullptr; // getOrCreateBarrier(SR, CallBlock->getParent());
   LLVMContext &C = M.getContext();
   const DataLayout &DL = M.getDataLayout();
 
@@ -254,8 +257,8 @@ void RealmABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
                                                       Type::getInt8PtrTy(C));
   ConstantInt *ArgSize = ConstantInt::get(DL.getIntPtrType(C),
                                           DL.getTypeAllocSize(ArgsTy));
-  CallInst *Call = CallerIRBuilder.CreateCall(
-      get_realmSpawn(), { barrier, OutlinedFnPtr, ArgStructPtr, ArgSize});
+  Value* CallArgs[] = { barrier, OutlinedFnPtr, ArgStructPtr, ArgSize };
+  CallInst *Call = CallerIRBuilder.CreateCall(get_realmSpawn(), CallArgs);
   Call->setDebugLoc(ReplCall->getDebugLoc());
   TOI.replaceReplCall(Call);
   ReplCall->eraseFromParent();
@@ -271,8 +274,9 @@ void RealmABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
   // function to manage the allocation of the argument structure.
 }
 
-void RealmABI::preProcessFunction(Function &F, TaskInfo &TI,
+bool RealmABI::preProcessFunction(Function &F, TaskInfo &TI,
 				  bool OutliningTapirLoops) {
+  return false;
 }
 
 void RealmABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {

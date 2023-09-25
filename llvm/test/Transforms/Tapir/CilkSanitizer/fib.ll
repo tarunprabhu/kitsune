@@ -33,7 +33,7 @@ det.cont:                                         ; preds = %det.achd, %if.end
   %sub1 = add nsw i32 %n, -2, !dbg !29
   %call2 = tail call i32 @fib(i32 %sub1), !dbg !30
   call void @llvm.dbg.value(metadata i32 %call2, metadata !19, metadata !DIExpression()), !dbg !31
-  tapir_sync within %syncreg, label %sync.continue, !dbg !32
+  sync within %syncreg, label %sync.continue, !dbg !32
 
 sync.continue:                                    ; preds = %det.cont
   %x.0.load9 = load i32, i32* %x, align 4, !dbg !33

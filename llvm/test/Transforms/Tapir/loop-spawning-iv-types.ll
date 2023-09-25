@@ -19,7 +19,7 @@ pfor.inc:                                         ; preds = %pfor.cond
   br i1 undef, label %pfor.cond.cleanup, label %pfor.cond
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg165, label %sync.continue
+  sync within %syncreg165, label %sync.continue
 
 sync.continue:                                    ; preds = %pfor.cond.cleanup
   br label %for.cond37.preheader

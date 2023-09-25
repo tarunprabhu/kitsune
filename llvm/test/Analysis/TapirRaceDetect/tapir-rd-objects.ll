@@ -84,7 +84,7 @@ det.cont:                                         ; preds = %_ZN3BagIiE5splitEPP
           to label %invoke.cont7 unwind label %lpad3, !dbg !2280
 
 invoke.cont7:                                     ; preds = %det.cont
-  tapir_sync within %syncreg, label %if.end, !dbg !2281
+  sync within %syncreg, label %if.end, !dbg !2281
 
 lpad:                                             ; preds = %det.achd
   %6 = landingpad { i8*, i32 }
@@ -100,7 +100,7 @@ lpad3:                                            ; preds = %det.cont, %_ZN3BagI
           cleanup, !dbg !2282
   %8 = extractvalue { i8*, i32 } %7, 0, !dbg !2282
   %9 = extractvalue { i8*, i32 } %7, 1, !dbg !2282
-  tapir_sync within %syncreg, label %eh.resume, !dbg !2283
+  sync within %syncreg, label %eh.resume, !dbg !2283
 
 if.else:                                          ; preds = %entry
   call void @llvm.dbg.value(metadata %class.Bag* %b, metadata !2284, metadata !DIExpression()), !dbg !2287
@@ -433,7 +433,7 @@ pfor.inc.i.strpm.outer:                           ; preds = %pfor.inc.i.reattach
   br i1 %niter308.ncmp, label %pfor.cond.i.strpm.detachloop.sync, label %pfor.cond.i.strpm.outer, !dbg !2432, !llvm.loop !2449
 
 pfor.cond.i.strpm.detachloop.sync:                ; preds = %pfor.inc.i.strpm.outer
-  tapir_sync within %syncreg.i.strpm.detachloop, label %pfor.cond.i.strpm.detachloop.reattach.split, !dbg !2432
+  sync within %syncreg.i.strpm.detachloop, label %pfor.cond.i.strpm.detachloop.reattach.split, !dbg !2432
 
 pfor.cond.i.strpm.detachloop.reattach.split:      ; preds = %pfor.cond.i.strpm.detachloop.sync
   reattach within %syncreg.i, label %pfor.cond.cleanup.i.strpm-lcssa, !dbg !2432
@@ -481,7 +481,7 @@ lpad.i.epil:                                      ; preds = %if.then32.i.epil
   br label %lpad37.i.body
 
 pfor.cond.cleanup.i:                              ; preds = %if.end35.i.epil, %pfor.cond.cleanup.i.strpm-lcssa
-  tapir_sync within %syncreg.i, label %if.end44.i, !dbg !2445
+  sync within %syncreg.i, label %if.end44.i, !dbg !2445
 
 lpad37.loopexit.i:                                ; preds = %pfor.cond.i.strpm.outer, %lpad.i
   %lpad.loopexit.i = landingpad { i8*, i32 }
@@ -503,7 +503,7 @@ lpad37.i.strpm.detachloop.unwind.loopexit:        ; preds = %pfor.cond.preheader
 
 lpad37.i.body:                                    ; preds = %lpad37.i.strpm.detachloop.unwind.loopexit, %lpad.i.epil
   %eh.lpad-body303 = phi { i8*, i32 } [ %53, %lpad.i.epil ], [ %lpad.loopexit313, %lpad37.i.strpm.detachloop.unwind.loopexit ]
-  tapir_sync within %syncreg.i, label %lpad14.body, !dbg !2445
+  sync within %syncreg.i, label %lpad14.body, !dbg !2445
 
 if.end44.i:                                       ; preds = %if.end.i104, %pfor.cond.cleanup.i, %if.else.i, %for.cond8.preheader.i
   %indvars.iv.next112.i = add nuw nsw i64 %indvars.iv111.i, 1, !dbg !2452
@@ -880,7 +880,7 @@ pfor.inc.i153.strpm.outer:                        ; preds = %pfor.inc.i153.reatt
   br i1 %niter.ncmp, label %pfor.cond.i140.strpm.detachloop.sync, label %pfor.cond.i140.strpm.outer, !dbg !2550, !llvm.loop !2563
 
 pfor.cond.i140.strpm.detachloop.sync:             ; preds = %pfor.inc.i153.strpm.outer
-  tapir_sync within %syncreg.i109.strpm.detachloop, label %pfor.cond.i140.strpm.detachloop.reattach.split, !dbg !2550
+  sync within %syncreg.i109.strpm.detachloop, label %pfor.cond.i140.strpm.detachloop.reattach.split, !dbg !2550
 
 pfor.cond.i140.strpm.detachloop.reattach.split:   ; preds = %pfor.cond.i140.strpm.detachloop.sync
   reattach within %syncreg.i109, label %pfor.cond.cleanup.i154.strpm-lcssa, !dbg !2550
@@ -928,7 +928,7 @@ lpad.i148.epil:                                   ; preds = %if.then32.i146.epil
   br label %lpad37.i160.body
 
 pfor.cond.cleanup.i154:                           ; preds = %if.end35.i150.epil, %pfor.cond.cleanup.i154.strpm-lcssa
-  tapir_sync within %syncreg.i109, label %if.end44.i164, !dbg !2561
+  sync within %syncreg.i109, label %if.end44.i164, !dbg !2561
 
 lpad37.loopexit.i156:                             ; preds = %pfor.cond.i140.strpm.outer, %lpad.i148
   %lpad.loopexit.i155 = landingpad { i8*, i32 }
@@ -950,7 +950,7 @@ lpad37.i160.strpm.detachloop.unwind.loopexit:     ; preds = %pfor.cond.preheader
 
 lpad37.i160.body:                                 ; preds = %lpad37.i160.strpm.detachloop.unwind.loopexit, %lpad.i148.epil
   %eh.lpad-body298 = phi { i8*, i32 } [ %100, %lpad.i148.epil ], [ %lpad.loopexit311, %lpad37.i160.strpm.detachloop.unwind.loopexit ]
-  tapir_sync within %syncreg.i109, label %lpad35.body, !dbg !2561
+  sync within %syncreg.i109, label %lpad35.body, !dbg !2561
 
 if.end44.i164:                                    ; preds = %if.end.i135, %pfor.cond.cleanup.i154, %if.else.i136, %for.cond8.preheader.i123
   %indvars.iv.next112.i162 = add nuw nsw i64 %indvars.iv111.i112, 1, !dbg !2566
@@ -968,7 +968,7 @@ pfor.inc:                                         ; preds = %pfor.cond, %pfor.pr
   br i1 %exitcond, label %pfor.cond.cleanup, label %pfor.cond, !dbg !2571, !llvm.loop !2572
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg, label %cleanup, !dbg !2571
+  sync within %syncreg, label %cleanup, !dbg !2571
 
 lpad35.loopexit:                                  ; preds = %if.end.i176, %call.i.noexc
   %lpad.loopexit = landingpad { i8*, i32 }
@@ -997,15 +997,15 @@ lpad39:                                           ; preds = %lpad39.loopexit
   %lpad.phi229 = phi { i8*, i32 } [ %lpad.loopexit227, %lpad39.loopexit ]
   %101 = extractvalue { i8*, i32 } %lpad.phi229, 0, !dbg !2576
   %102 = extractvalue { i8*, i32 } %lpad.phi229, 1, !dbg !2576
-  tapir_sync within %syncreg, label %ehcleanup, !dbg !2571
+  sync within %syncreg, label %ehcleanup, !dbg !2571
 
 cleanup:                                          ; preds = %pfor.cond.cleanup, %det.cont18
-  tapir_sync within %syncreg, label %if.end, !dbg !2577
+  sync within %syncreg, label %if.end, !dbg !2577
 
 ehcleanup:                                        ; preds = %lpad39, %lpad19
   %ehselector.slot5.0 = phi i32 [ %56, %lpad19 ], [ %102, %lpad39 ], !dbg !2578
   %exn.slot4.0 = phi i8* [ %55, %lpad19 ], [ %101, %lpad39 ], !dbg !2578
-  tapir_sync within %syncreg, label %eh.resume, !dbg !2579
+  sync within %syncreg, label %eh.resume, !dbg !2579
 
 if.end:                                           ; preds = %invoke.cont7, %cleanup
   ret void, !dbg !2580

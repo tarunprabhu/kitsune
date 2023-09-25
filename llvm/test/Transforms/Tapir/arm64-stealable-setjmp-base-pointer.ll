@@ -1,7 +1,7 @@
 ; Check that setjmp properly stores the base pointer (x19) when it is
 ; used for computing stack offsets.
 ;
-; RUN: llc < %s -o - | FileCheck %s;
+; RUN: llc < %s -o - | FileCheck %s
 ; REQUIRES: aarch64-registered-target
 target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 target triple = "arm64-apple-macosx12.0.0"

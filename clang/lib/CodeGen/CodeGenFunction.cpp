@@ -371,8 +371,6 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
   bool CompilingCilk = (getLangOpts().getCilk() != LangOptions::Cilk_none);
 
   std::optional<ApplyDebugLocation> OAL;
-  bool SyncEmitted = false;
-  bool CompilingCilk = (getLangOpts().getCilk() != LangOptions::Cilk_none);
   if (HasCleanups) {
     // Make sure the line table doesn't jump back into the body for
     // the ret after it's been at EndLoc.

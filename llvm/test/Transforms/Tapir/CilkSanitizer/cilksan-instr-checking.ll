@@ -109,7 +109,7 @@ pfor.inc41:
 ; CHECK: call void @__csan_detach_continue(
 
 pfor.cond.cleanup44:
-  tapir_sync within %syncreg, label %sync.continue46
+  sync within %syncreg, label %sync.continue46
 
 sync.continue46:
   ret void

@@ -80,9 +80,6 @@
 /* Spawn a new process clang.exe for the CC1 tool invocation, when necessary */
 #cmakedefine01 CLANG_SPAWN_CC1
 
-/* Whether to enable opaque pointers by default */
-#cmakedefine01 CLANG_ENABLE_OPAQUE_POINTERS_INTERNAL
-
 /* ===== kitsune-centric settings  */
 #cmakedefine01 KITSUNE_ENABLE_KOKKOS
 #define KITSUNE_KOKKOS_INCLUDE_DIR       "${KOKKOS_INCLUDE_DIR}"

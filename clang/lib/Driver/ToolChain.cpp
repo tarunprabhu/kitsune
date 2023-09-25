@@ -1676,7 +1676,7 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
   case TapirTargetID::Qthreads:
     if (! KITSUNE_ENABLE_QTHREADS_ABI_TARGET)
       getDriver().Diag(diag::warn_drv_tapir_qthreads_target_disabled);
-    else 
+    else
       CmdArgs.push_back("-lqthread");
     break;
 
@@ -1715,11 +1715,6 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_LINK_LIBS, CmdArgs, Args);
       #endif
     }
-    break;
-
-  case TapirTargetID::OpenCL:
-    if (! KITSUNE_ENABLE_OPENCL_ABI_TARGET)
-      getDriver().Diag(diag::warn_drv_tapir_opencl_target_disabled);
     break;
 
   case TapirTargetID::GPU:

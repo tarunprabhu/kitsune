@@ -83,7 +83,7 @@ pfor.inc:                                         ; preds = %pfor.body, %pfor.co
   br i1 %exitcond, label %pfor.cond.cleanup, label %pfor.cond, !llvm.loop !6
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg, label %cleanup
+  sync within %syncreg, label %cleanup
 
 cleanup:                                          ; preds = %pfor.cond.cleanup, %entry
   %accum.0.load19 = load i64, i64* %accum, align 8
@@ -155,7 +155,7 @@ pfor.inc:                                         ; preds = %invoke.cont5, %pfor
   br i1 %exitcond, label %pfor.cond.cleanup, label %pfor.cond, !llvm.loop !28
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 lpad9:                                            ; preds = %sync.continue
   %14 = landingpad { i8*, i32 }

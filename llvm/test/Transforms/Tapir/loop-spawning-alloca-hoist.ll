@@ -286,7 +286,7 @@ pfor.inc:                                         ; preds = %for.end96, %pfor.co
   br i1 %exitcond32, label %pfor.cond.cleanup, label %pfor.cond, !llvm.loop !11
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg, label %cleanup
+  sync within %syncreg, label %cleanup
 
 cleanup:                                          ; preds = %_ZL5ilog2i.exit.2, %pfor.cond.cleanup
   ret void

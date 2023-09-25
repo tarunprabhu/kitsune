@@ -47,7 +47,7 @@ pfor.inc:                                         ; preds = %cont11, %pfor.cond
 ; CHECK-NEXT: to label %{{.+}} unwind label %[[TSAN_CLEANUP]]
 }
 
-declare void @foo(i64, i64, ptr, ptr, i64) #2
+declare void @foo(i64, i64, i8*, i8*, i64) #2
 
 ; Function Attrs: argmemonly nounwind willreturn
 declare token @llvm.syncregion.start() #1
@@ -59,13 +59,13 @@ declare void @llvm.sync.unwind(token) #2
 declare i64 @llvm.ctlz.i64(i64, i1 immarg) #0
 
 ; Function Attrs: nofree nosync nounwind readnone willreturn
-declare ptr @llvm.frameaddress.p0i8(i32 immarg) #3
+declare i8* @llvm.frameaddress.p0i8(i32 immarg) #3
 
 ; Function Attrs: nofree nosync nounwind willreturn
-declare ptr @llvm.stacksave() #4
+declare i8* @llvm.stacksave() #4
 
 ; Function Attrs: nounwind willreturn
-declare ptr @llvm.task.frameaddress(i32) #5
+declare i8* @llvm.task.frameaddress(i32) #5
 
 attributes #0 = { nofree nosync nounwind readnone speculatable willreturn }
 attributes #1 = { argmemonly nounwind willreturn }

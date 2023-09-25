@@ -117,7 +117,7 @@ try.cont43.tfend:                                 ; preds = %catch35, %sync.cont
   br label %try.cont43.tfend.tfend
 
 try.cont43.tfend.tfend:                           ; preds = %try.cont43.tfend
-  tapir_sync within %syncreg, label %sync.continue52
+  sync within %syncreg, label %sync.continue52
 
 sync.continue52:                                  ; preds = %try.cont43.tfend.tfend
   tail call void @llvm.sync.unwind(token %syncreg)
@@ -146,7 +146,7 @@ try.cont.tfend:                                   ; preds = %catch, %det.cont7.t
   br label %try.cont.tfend.tfend
 
 try.cont.tfend.tfend:                             ; preds = %try.cont.tfend
-  tapir_sync within %syncreg1, label %sync.continue
+  sync within %syncreg1, label %sync.continue
 
 sync.continue:                                    ; preds = %try.cont.tfend.tfend
   invoke void @llvm.sync.unwind(token %syncreg1)

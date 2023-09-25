@@ -1308,41 +1308,6 @@ public:
         I, Ops, TargetTransformInfo::TCK_SizeAndLatency);
     return Cost >= TargetTransformInfo::TCC_Expensive;
   }
-
-  InstructionCost getInstructionLatency(const Instruction *I) {
-    SmallVector<const Value *, 4> Operands(I->operand_values());
-    if (getInstructionCost(I, Operands, TTI::TCK_Latency) == TTI::TCC_Free)
-      return 0;
-
-    if (isa<LoadInst>(I))
-      return 4;
-
-    // Mark a detach instruction to be 30x the cost of a function call.
-    if (isa<DetachInst>(I))
-      return 1200;
-
-    Type *DstTy = I->getType();
-
-    // Usually an intrinsic is a simple instruction.
-    // A real function call is much slower.
-    if (auto *CI = dyn_cast<CallInst>(I)) {
-      const Function *F = CI->getCalledFunction();
-      if (!F || static_cast<T *>(this)->isLoweredToCall(F))
-        return 40;
-      // Some intrinsics return a value and a flag, we use the value type
-      // to decide its latency.
-      if (StructType *StructTy = dyn_cast<StructType>(DstTy))
-        DstTy = StructTy->getElementType(0);
-      // Fall through to simple instructions.
-    }
-
-    if (VectorType *VectorTy = dyn_cast<VectorType>(DstTy))
-      DstTy = VectorTy->getElementType();
-    if (DstTy->isFloatingPointTy())
-      return 3;
-
-    return 1;
-  }
 };
 } // namespace llvm
 

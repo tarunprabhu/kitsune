@@ -39,7 +39,7 @@ pfor.cond.pfor.end_crit_edge:                     ; preds = %pfor.inc
   br label %pfor.end
 
 pfor.end:                                         ; preds = %pfor.cond.pfor.end_crit_edge, %entry
-  tapir_sync within %syncreg, label %pfor.end.continue
+  sync within %syncreg, label %pfor.end.continue
 
 pfor.end.continue:                                ; preds = %pfor.end
   ret void

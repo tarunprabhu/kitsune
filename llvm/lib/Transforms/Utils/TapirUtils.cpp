@@ -885,7 +885,6 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
   // If the cloned loop contained dynamic alloca instructions, wrap the inlined
   // code with llvm.stacksave/llvm.stackrestore intrinsics.
   if (ContainsDynamicAllocas) {
-    Module *M = Spawner->getParent()->getParent();
     // Get the two intrinsics we care about.
     Function *StackSave = Intrinsic::getDeclaration(M, Intrinsic::stacksave);
     Function *StackRestore =
@@ -2444,7 +2443,6 @@ void llvm::TapirLoopHints::clearHintsMetadata() {
 bool llvm::hintsDemandOutlining(const TapirLoopHints &Hints) {
   switch (Hints.getStrategy()) {
   case TapirLoopHints::ST_DAC: return true;
-  case TapirLoopHints::ST_OCL: return true;
   default: return false;
   }
 }

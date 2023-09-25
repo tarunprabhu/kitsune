@@ -106,7 +106,7 @@ public:
     return false;
   }
 
-  bool hasSjLjLowering() const override { return true; }
+  bool hasSjLjLowering() const override;
 
   void setArchFeatures();
 
@@ -193,8 +193,6 @@ public:
                                   StringRef Expression) const override {
     return Expression;
   }
-
-  bool hasSjLjLowering() const override;
 
   int getEHDataRegisterNumber(unsigned RegNo) const override;
 

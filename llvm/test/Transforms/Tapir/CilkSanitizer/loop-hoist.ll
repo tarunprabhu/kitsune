@@ -292,7 +292,7 @@ if.then67:                                        ; preds = %if.end62
   br label %if.end73
 
 if.end73:                                         ; preds = %if.end62, %if.then67
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %if.end73
   %arrayidx74 = getelementptr inbounds [4 x %struct.IntersectionEventList], [4 x %struct.IntersectionEventList]* %temp_lists, i64 0, i64 0

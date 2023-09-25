@@ -225,7 +225,7 @@ det.achd:                                         ; preds = %entry
 
 det.cont:                                         ; preds = %det.achd, %entry
   %call1 = tail call i32 @_Z4quuzi(i32 %n) #10
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %det.cont
   ret void
@@ -264,7 +264,7 @@ det.achd:                                         ; preds = %entry
 
 det.cont:                                         ; preds = %det.achd, %entry
   %call6 = tail call i32 @_Z4quuzi(i32 %n) #10
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %det.cont
   ret void
@@ -306,7 +306,7 @@ invoke.cont:                                      ; preds = %det.achd
 
 det.cont:                                         ; preds = %entry, %invoke.cont
   %call12 = call i32 @_Z4quuzi(i32 %n) #10
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %det.cont
   ret void
@@ -360,7 +360,7 @@ invoke.cont:                                      ; preds = %det.achd
 
 det.cont:                                         ; preds = %entry, %invoke.cont
   %call12 = call i32 @_Z4quuzi(i32 %n) #10
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %det.cont
   ret void
@@ -406,7 +406,7 @@ det.cont:                                         ; preds = %entry, %invoke.cont
   %call12 = call i32 @_Z4quuzi(i32 %n) #10
   call void @_ZN3FooD2Ev(%class.Foo* nonnull %f) #10
   call void @llvm.lifetime.end.p0i8(i64 1, i8* nonnull %0) #10
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %det.cont
   ret void
@@ -496,7 +496,7 @@ _Z3fooP3Foo.exit:                                 ; preds = %det.achd, %invoke.c
 
 det.cont:                                         ; preds = %entry, %_Z3fooP3Foo.exit
   %call6 = tail call i32 @_Z4quuzi(i32 %n) #10
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %det.cont
   ret void
@@ -574,7 +574,7 @@ invoke.cont22:                                    ; preds = %det.cont21
           to label %invoke.cont27 unwind label %lpad16
 
 invoke.cont27:                                    ; preds = %invoke.cont22
-  tapir_sync within %syncreg, label %try.cont
+  sync within %syncreg, label %try.cont
 
 lpad:                                             ; preds = %invoke.cont, %lpad5, %det.cont
   %5 = landingpad { i8*, i32 }

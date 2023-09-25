@@ -346,9 +346,6 @@ public:
   /// alias analysis implementations.
   AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB);
 
-  AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
-                    AAQueryInfo &AAQIP, bool AssumeSameSpindle);
-
   /// Version of alias() method where the assumption is explicitly stated of
   /// whether the query applies to operations within the same spindle.
   AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
@@ -442,18 +439,6 @@ public:
   /// Return the behavior when calling the given function.
   MemoryEffects getMemoryEffects(const Function *F);
 
-  /// Return the behavior for the task detached from a given detach instruction.
-  MemoryEffects getMemoryEffects(const DetachInst *D);
-
-  /// Return the behavior for a sync instruction.
-  MemoryEffects getMemoryEffects(const SyncInst *S);
-
-  /// Return the behavior for the task detached from a given detach instruction.
-  FunctionModRefBehavior getModRefBehavior(const DetachInst *D);
-
-  /// Return the behavior for a sync instruction.
-  FunctionModRefBehavior getModRefBehavior(const SyncInst *S);
-
   /// Checks if the specified call is known to never read or write memory.
   ///
   /// Note that if the call only reads from known-constant memory, it is also
@@ -534,26 +519,8 @@ public:
 
   /// Return information about whether a call and an instruction may refer to
   /// the same memory locations.
-  ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call) {
-    return getModRefInfo(I, Call, /*AssumeSameSpindle*/ false);
-  }
-
-  /// Return information about whether two call sites may refer to the same set
-  /// of memory locations. See the AA documentation for details:
-  ///   http://llvm.org/docs/AliasAnalysis.html#ModRefInfo
-  ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2) {
-    return getModRefInfo(Call1, Call2, /*AssumeSameSpindle*/ false);
-  }
-
-  /// Return information about whether a call and an instruction may refer to
-  /// the same memory locations.
+  ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call);
   ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call,
-                           bool AssumeSameSpindle);
-
-  /// Return information about whether two call sites may refer to the same set
-  /// of memory locations. See the AA documentation for details:
-  ///   http://llvm.org/docs/AliasAnalysis.html#ModRefInfo
-  ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2,
                            bool AssumeSameSpindle);
 
   /// Return information about whether a particular call site modifies

@@ -119,7 +119,7 @@ pfor.inc:                                         ; preds = %pfor.body, %pfor.co
   br i1 %exitcond, label %pfor.cond.cleanup, label %pfor.cond, !llvm.loop !6
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg, label %cleanup
+  sync within %syncreg, label %cleanup
 
 cleanup:                                          ; preds = %pfor.cond.cleanup, %entry
   ret void
@@ -155,7 +155,7 @@ pfor.inc:                                         ; preds = %pfor.cond, %pfor.bo
   br i1 %exitcond, label %pfor.cond.cleanup, label %pfor.cond, !llvm.loop !8
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg, label %cleanup
+  sync within %syncreg, label %cleanup
 
 cleanup:                                          ; preds = %pfor.cond.cleanup, %entry
   ret void
@@ -187,7 +187,7 @@ pfor.inc:                                         ; preds = %pfor.body, %pfor.co
   br i1 %exitcond95, label %pfor.cond.cleanup, label %pfor.cond, !llvm.loop !9
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg5, label %cleanup
+  sync within %syncreg5, label %cleanup
 
 cleanup:                                          ; preds = %pfor.cond.cleanup
   br i1 %cmp, label %pfor.cond17, label %try.cont
@@ -217,7 +217,7 @@ pfor.inc35:                                       ; preds = %pfor.cond17, %pfor.
   br i1 %exitcond, label %pfor.cond.cleanup38, label %pfor.cond17, !llvm.loop !10
 
 pfor.cond.cleanup38:                              ; preds = %pfor.inc35
-  tapir_sync within %syncreg5, label %try.cont
+  sync within %syncreg5, label %try.cont
 
 lpad:                                             ; preds = %invoke.cont, %pfor.body23
   %1 = landingpad { i8*, i32 }
@@ -364,7 +364,7 @@ pfor.inc:                                         ; preds = %pfor.cond, %pfor.pr
   br i1 %exitcond, label %pfor.cond.cleanup, label %pfor.cond, !llvm.loop !11
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg, label %try.cont
+  sync within %syncreg, label %try.cont
 
 lpad:                                             ; preds = %pfor.body
   %11 = landingpad { i8*, i32 }

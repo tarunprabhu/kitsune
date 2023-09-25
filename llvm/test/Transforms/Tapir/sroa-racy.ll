@@ -2745,9 +2745,9 @@ forall.inc:                                       ; preds = %forall.reattach, %f
 ; CHECK: br
 
 forall.sync:                                      ; preds = %forall.cond
-  tapir_sync within %syncreg, label %forall.end
+  sync within %syncreg, label %forall.end
 
-; CHECK: tapir_sync within %syncreg, label %{{.+}}
+; CHECK: sync within %syncreg, label %{{.+}}
 
 forall.end:                                       ; preds = %forall.sync
   call void @llvm.lifetime.end.p0i8(i64 32, i8* %7) #3

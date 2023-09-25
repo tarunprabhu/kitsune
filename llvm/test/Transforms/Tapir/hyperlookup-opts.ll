@@ -121,7 +121,7 @@ pfor.inc:                                         ; preds = %invoke.cont7, %pfor
   br i1 %exitcond, label %pfor.cond.cleanup, label %pfor.cond, !llvm.loop !28
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 lpad10:                                           ; preds = %sync.continue
   %20 = landingpad { i8*, i32 }

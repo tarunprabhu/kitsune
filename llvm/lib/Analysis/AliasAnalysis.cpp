@@ -122,13 +122,6 @@ AliasResult AAResults::alias(const MemoryLocation &LocA,
 
 AliasResult AAResults::alias(const MemoryLocation &LocA,
                              const MemoryLocation &LocB, AAQueryInfo &AAQI,
-                             bool AssumeSameSpindle) {
-  AAQI.AssumeSameSpindle = AssumeSameSpindle;
-  return alias(LocA, LocB, AAQI);
-}
-
-AliasResult AAResults::alias(const MemoryLocation &LocA,
-                             const MemoryLocation &LocB, AAQueryInfo &AAQI,
                              const Instruction *CtxI) {
   AliasResult Result = AliasResult::MayAlias;
 
@@ -297,20 +290,6 @@ ModRefInfo AAResults::getModRefInfo(const Instruction *I, const CallBase *Call2,
   if (isModOrRefSet(MR))
     return ModRefInfo::ModRef;
   return ModRefInfo::NoModRef;
-}
-
-ModRefInfo AAResults::getModRefInfo(const CallBase* Call,
-                                    const MemoryLocation &Loc) {
-  SimpleAAQueryInfo AAQI(*this);
-  return getModRefInfo(Call, Loc, AAQI);
-}
-
-ModRefInfo AAResults::getModRefInfo(const CallBase *Call,
-                                    const MemoryLocation &Loc,
-                                    bool SameSpindle) {
-  SimpleAAQueryInfo AAQI(*this);
-  AAQI.AssumeSameSpindle = SameSpindle;
-  return getModRefInfo(Call, Loc, AAQI);
 }
 
 static bool effectivelyArgMemOnly(const CallBase *Call, AAQueryInfo &AAQI) {

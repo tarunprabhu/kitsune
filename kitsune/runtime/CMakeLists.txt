@@ -25,14 +25,6 @@ set(KITSUNE_BITCODE_INSTALL_DIR  "lib/bitcode/" CACHE STRING
 include_directories(${KITSUNE_SOURCE_DIR}/include)
 include_directories(${KITSUNE_RUNTIME_INCLUDE_DIR})
 
-if (KITRT_ENABLE_DEBUG)
-  add_definitions(-D_KITRT_DEBUG_)
-endif()
-
-if (KITRT_ENABLE_VERBOSE)
-  add_definitions(-D_KITRT_VERBOSE_)
-endif()
-
 # Common headers and source files.
 set(KITRT_HDRS
   kitrt.h
@@ -48,57 +40,87 @@ set(KITRT_SRCS
   support.cpp)
 
 set(KITRT_LINK_LIBS "")
+add_library(kitrt SHARED ${KITRT_SRCS})
+set(CMAKE_LINK_WHAT_YOU_USE ON)
+
+if (KITRT_ENABLE_DEBUG)
+  target_compile_definitions(kitrt _KITRT_DEBUG_)
+endif()
+
+if (KITRT_ENABLE_VERBOSE)
+  target_compile_definitions(kitrt _KITRT_VERBOSE_)
+endif()
+
+target_include_directories(kitrt
+  BEFORE PRIVATE
+  ${LLVM_MAIN_INCLUDE_DIR}
+  ${LLVM_INCLUDE_DIR}
+  ${KITSUNE_SOURCE_DIR}/include
+  ${KITSUNE_RUNTIME_INCLUDE_DIR})
+
+target_link_libraries(kitrt
+  PUBLIC
+  # FIXME: Make sure this links to the libLLVM.so that was built here.
+  LLVM)
 
 if (KITRT_ENABLE_CUDA)
   message(STATUS "Kitsune runtime adding CUDA components to build...")
+
   find_package(CUDAToolkit REQUIRED)
-  add_definitions(-DKITRT_CUDA_ENABLED)
+  find_library(NVPTXCOMPILER_STATIC nvptxcompiler_static REQUIRED
+    PATHS ${CUDAToolkit_LIBRARY_DIR}
+    NO_DEFAULT_PATH)
+
   list(APPEND KITRT_HDRS
     cuda/cuda.h
     cuda/llvm-cuda.h)
-  list(APPEND KITRT_SRCS
-     cuda/cuda.cpp
-     cuda/llvm-cuda.cpp)
-  link_directories(${CUDAToolkit_LIBRARY_DIR})
-  include_directories(${CUDAToolkit_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/cuda)
-  list(APPEND KITRT_LINK_LIBS
-    "-lnvptxcompiler_static -lcudart -lcuda")
+
+  target_sources(kitrt
+    PUBLIC cuda/cuda.cpp cuda/llvm-cuda.cpp)
+
+  target_compile_definitions(kitrt
+    PUBLIC KITRT_CUDA_ENABLED)
+
+  target_include_directories(kitrt
+    PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
+
+  target_link_libraries(kitrt
+    PUBLIC ${NVPTXCOMPILER_STATIC} CUDA::cudart CUDA::cuda_driver)
 endif()
 
 if (KITRT_ENABLE_HIP)
   message(STATUS "Kitsune runtime adding HIP components to build...")
+
   # TODO: This probably needs external settings in order to
-  # manage moudles and other ways to install rocm...
+  # manage modules and other ways to install rocm...
   list(APPEND CMAKE_PREFIX_PATH
-       $ENV{ROCM_PATH}/hip $ENV{ROCM_PATH}
-       /opt/rocm/hip /opt/rocm)
-  find_package(hip REQUIRED)
-  add_definitions(-DKITRT_HIP_ENABLED)
+    PATHS $ENV{ROCM_PATH} $ENV{ROCM_PATH} /opt/rocm/hip /opt/rocm
+  )
+  find_package(hip CONFIG REQUIRED)
+
   list(APPEND KITRT_HDRS
     hip/hip.h
     hip/llvm-hip.h)
-  list(APPEND KITRT_SRCS
-    hip/hip.cpp
-    hip/llvm-hip.cpp)
-  list(APPEND KITRT_LINK_LIBS hip::host)
+
+  target_sources(kitrt
+    PUBLIC hip/hip.cpp hip/llvm-hip.cpp)
+
+  target_compile_definitions(kitrt
+    PUBLIC KITRT_HIP_ENABLED)
+
+  target_link_libraries(kitrt
+    PUBLIC hip::host)
+
   add_subdirectory(hip)
 endif()
 
-set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
-message(STATUS "kitsune runtime library source files: ${KITRT_SRCS}")
-add_library(kitrt SHARED ${KITRT_SRCS})
-target_include_directories(kitrt
-  BEFORE PRIVATE
-    ${LLVM_MAIN_INCLUDE_DIR}
-    ${LLVM_INCLUDE_DIR}
-    ${KITSUNE_SOURCE_DIR}/include
-    ${KITSUNE_RUNTIME_INCLUDE_DIR})
-
 target_link_libraries(kitrt
-  PUBLIC
-    ${KITRT_LINK_LIBS}
-    LLVM -lpthread -lrt -ldl)
+  PUBLIC dl rt pthread)
+
+set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
+
+# FIXME: LLVM now requires C++17. Is this necessary any longer? We will probably
+# not support older versions of LLVM anyway.
 set_property(TARGET kitrt PROPERTY CXX_STANDARD 17)
 
 install(TARGETS kitrt
@@ -106,6 +128,9 @@ install(TARGETS kitrt
   ARCHIVE DESTINATION lib COMPONENT kitrt)
 install(FILES ${KITRT_HDRS}
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kitrt)
+# FIXME: Are there any headers here that are not added to KITRT_HDRS? If so,
+# why not? These also currently get copied unconditionally. Should they be
+# guarded depending on the runtimes that are actually built?
 install(DIRECTORY cuda hip realm
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kitrt/
   FILES_MATCHING PATTERN "*.h")

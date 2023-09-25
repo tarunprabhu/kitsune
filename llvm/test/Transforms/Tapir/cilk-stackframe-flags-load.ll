@@ -115,7 +115,7 @@ factor.exit:                                      ; preds = %for.body.i, %for.in
   br i1 %cmp, label %do.body, label %do.end, !llvm.loop !8
 
 do.end:                                           ; preds = %factor.exit
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %do.end
   call fastcc void @fft_aux(i32 %n, %struct.COMPLEX* %in, %struct.COMPLEX* %out, i32* nonnull %arraydecay, %struct.COMPLEX* %1, i32 %n)
@@ -1476,7 +1476,7 @@ for.inc:                                          ; preds = %for.body.tf, %det.a
   br i1 %cmp34, label %for.body.tf, label %for.end, !llvm.loop !17
 
 for.end:                                          ; preds = %for.inc, %if.end33
-  tapir_sync within %syncreg, label %if.end38
+  sync within %syncreg, label %if.end38
 
 if.end38:                                         ; preds = %for.end, %if.end12
   switch i32 %639, label %if.else58 [

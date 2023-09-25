@@ -3856,28 +3856,18 @@ public:
                        ArrayRef<const Attr *> Attrs = std::nullopt);
   LValue EmitCilkSpawnExprLValue(const CilkSpawnExpr *E);
 
-/*
-  !!!! Probably don't need this after merge with dev/opencilk/16.x, so remove if redundent
-
   void EmitDetachBlock(const DeclStmt *DS, llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
   void ReplaceAllUsesInCurrentBlock(llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
   void SetAllocaInsertPoint(llvm::Value* v, llvm::BasicBlock* bb);
 
-  // typedef llvm::DenseMap<
-  //                       const VarDecl *,
-  //                       std::pair<
-  //                                 Address,
-  //                                 std::unique_ptr<llvm::SmallVector<llvm::Value *, 4>>
-  //                                 >
-                        // > DeclMapByValueTy;
-  typedef llvm::DenseMap<const VarDecl *,
+  typedef llvm::DenseMap<
+      const VarDecl *, std::pair<Address, llvm::SmallVector<llvm::Value *, 4>>>
+      DeclMapByValueTy;
 
-                        std::pair<Address,llvm::SmallVector<llvm::Value*,4>>> DeclMapByValueTy;
-  void EmitIVLoad(const VarDecl* LoopVar,
-                          DeclMapByValueTy & IVDeclMap);
-  void EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,4>& Values);
+  void EmitIVLoad(const VarDecl *LoopVar, DeclMapByValueTy &IVDeclMap);
+  void EmitThreadSafeIV(const VarDecl *IV,
+                        const llvm::SmallVector<llvm::Value *, 4> &Values);
   void RestoreDeclMap(const VarDecl* IV, const Address);
-*/
 
   void EmitSpawnStmt(const SpawnStmt &S);
   void EmitSyncStmt(const SyncStmt &S);

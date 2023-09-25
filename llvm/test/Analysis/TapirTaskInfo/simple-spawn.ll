@@ -21,7 +21,7 @@ det.achd:                                         ; preds = %entry
 det.cont:                                         ; preds = %det.achd, %entry
   %arraydecay3 = getelementptr inbounds [16 x i32], [16 x i32]* %x, i32 0, i32 0
   call void @bar(i32* %arraydecay3)
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %det.cont
   ret void

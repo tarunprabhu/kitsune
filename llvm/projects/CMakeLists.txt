@@ -30,7 +30,7 @@ if(${LLVM_BUILD_RUNTIME})
   if(NOT MSVC OR LLVM_FORCE_BUILD_RUNTIME)
     # Add the projects in reverse order of their dependencies so that the
     # dependent projects can see the target names of their dependencies.
-    add_llvm_external_project(cilktools)
+    # add_llvm_external_project(cilktools)
     add_llvm_external_project(cheetah)
     add_llvm_external_project(libunwind)
     add_llvm_external_project(pstl)

@@ -15,6 +15,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 using namespace llvm;
 
 static cl::opt<TargetLibraryInfoImpl::VectorLibrary> ClVectorLibrary(
@@ -54,8 +55,6 @@ static cl::opt<TapirTargetID> ClTapirTarget(
                           "omptask", "OMPTask"),
                clEnumValN(TapirTargetID::OpenCilk,
                           "opencilk", "OpenCilk"),
-               clEnumValN(TapirTargetID::OpenCL,
-                          "opencl", "OpenCL"),
                clEnumValN(TapirTargetID::OpenMP,
                           "openmp", "OpenMP"),
                clEnumValN(TapirTargetID::Qthreads,
@@ -1270,13 +1269,16 @@ void TargetLibraryInfoImpl::addTapirTargetLibraryFunctions(
     break;
   }
   case TapirTargetID::None:
+  case TapirTargetID::GPU:
   case TapirTargetID::Serial:
   case TapirTargetID::Cheetah:
   case TapirTargetID::Cuda:
+  case TapirTargetID::Hip:
   case TapirTargetID::Lambda:
   case TapirTargetID::OMPTask:
   case TapirTargetID::OpenMP:
   case TapirTargetID::Qthreads:
+  case TapirTargetID::Realm:
   case TapirTargetID::Last_TapirTargetID:
     break;
   }

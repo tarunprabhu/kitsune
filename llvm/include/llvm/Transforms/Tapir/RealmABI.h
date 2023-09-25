@@ -35,7 +35,7 @@ class RealmABI : public TapirTarget {
   FunctionCallee RealmInitRuntime = nullptr;
   FunctionCallee RealmFinalize = nullptr;
   FunctionCallee CreateBar = nullptr;
-  FunctionCallee DestroyBar = nullptr; 
+  FunctionCallee DestroyBar = nullptr;
 
   //Accessors for opaque Realm RTS functions
   FunctionCallee get_realmGetNumProcs();
@@ -51,14 +51,14 @@ public:
   ~RealmABI();
 
   Value * lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
-  Value *getOrCreateBarrier(Value *SyncRegion, Function *F); 
+  Value *getOrCreateBarrier(Value *SyncRegion, Function *F);
   void lowerSync(SyncInst &inst) override final;
   void processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT)
     override final;
 
-  void preProcessFunction(Function &F, TaskInfo &TI,
+  bool preProcessFunction(Function &F, TaskInfo &TI,
 			  bool OutliningTapirLoops) override final;
-  void postProcessFunction(Function &F, bool OutliningTapirLoops) 
+  void postProcessFunction(Function &F, bool OutliningTapirLoops)
     override final;
   void postProcessHelper(Function &F) override final;
   Function* formatFunctionToRealmF(Function* extracted, Instruction* ical);
@@ -66,14 +66,14 @@ public:
   // not used
   //void processOutlinedTask(Function &F) override final {}
   //void processSpawner(Function &F) override final {}
-  
+
   //void lowerTaskFrameAddrCall(CallInst *TaskFrameAddrCall) override final;
   //bool shouldProcessFunction(const Function &F) const override final;
-  
+
   ArgStructMode getArgStructMode() const override final {
     return ArgStructMode::Static;
   }
-  
+
   Type *getReturnType() const override final {
     return Type::getInt32Ty(M.getContext());
   }

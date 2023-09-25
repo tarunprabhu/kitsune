@@ -54,7 +54,7 @@ pfor.detach.lr.ph:                                ; preds = %if.then
 ; CHECK: )
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc, %if.then
-  tapir_sync within %syncreg22, label %sync.continue55
+  sync within %syncreg22, label %sync.continue55
 
 pfor.detach:                                      ; preds = %pfor.inc, %pfor.detach.lr.ph
   %__begin.0117 = phi i64 [ 0, %pfor.detach.lr.ph ], [ %inc15, %pfor.inc ]
@@ -298,7 +298,7 @@ det.cont:                                         ; preds = %if.then18, %invoke.
           to label %invoke.cont28 unwind label %lpad23
 
 invoke.cont28:                                    ; preds = %det.cont
-  tapir_sync within %syncreg22, label %sync.continue55
+  sync within %syncreg22, label %sync.continue55
 
 lpad:                                             ; preds = %det.achd
   %90 = landingpad { i8*, i32 }
@@ -314,7 +314,7 @@ lpad23:                                           ; preds = %det.cont, %if.then1
           cleanup
   %92 = extractvalue { i8*, i32 } %91, 0
   %93 = extractvalue { i8*, i32 } %91, 1
-  tapir_sync within %syncreg22, label %eh.resume
+  sync within %syncreg22, label %eh.resume
 
 if.else31:                                        ; preds = %if.else
   %div33 = lshr i64 %rCount, 1
@@ -334,7 +334,7 @@ det.cont42:                                       ; preds = %if.else31, %invoke.
           to label %invoke.cont51 unwind label %lpad43
 
 invoke.cont51:                                    ; preds = %det.cont42
-  tapir_sync within %syncreg22, label %sync.continue55
+  sync within %syncreg22, label %sync.continue55
 
 lpad38:                                           ; preds = %det.achd37
   %94 = landingpad { i8*, i32 }
@@ -350,7 +350,7 @@ lpad43:                                           ; preds = %det.cont42, %if.els
           cleanup
   %96 = extractvalue { i8*, i32 } %95, 0
   %97 = extractvalue { i8*, i32 } %95, 1
-  tapir_sync within %syncreg22, label %eh.resume
+  sync within %syncreg22, label %eh.resume
 
 sync.continue55:                                  ; preds = %pfor.cond.cleanup, %invoke.cont28, %invoke.cont51
   ret void

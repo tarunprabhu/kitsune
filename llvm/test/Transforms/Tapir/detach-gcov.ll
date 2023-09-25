@@ -60,7 +60,7 @@ pfor.inc:                                         ; preds = %pfor.body, %pfor.co
 ; CHECK: br i1 %cmp3, label %pfor.cond, label %pfor.cond.cleanup
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg, label %sync.continue, !dbg !13
+  sync within %syncreg, label %sync.continue, !dbg !13
 
 sync.continue:                                    ; preds = %pfor.cond.cleanup
   call void @llvm.sync.unwind(token %syncreg), !dbg !13

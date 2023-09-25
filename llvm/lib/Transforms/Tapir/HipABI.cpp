@@ -1530,9 +1530,9 @@ void HipABI::addHelperAttributes(Function &F) {
   // no-op
 }
 
-void HipABI::preProcessFunction(Function &F, TaskInfo &TI,
+bool HipABI::preProcessFunction(Function &F, TaskInfo &TI,
                                 bool OutliningTapirLoops) {
-  // no-op
+  return false;
 }
 
 void HipABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
@@ -2093,7 +2093,7 @@ void HipABI::postProcessModule() {
   // module-wide changes for both modules.
   LLVM_DEBUG(dbgs() << "\n\n"
                     << "hipabi: postprocessing the kernel '"
-                    << KernelModule.getName() << "' and input '" 
+                    << KernelModule.getName() << "' and input '"
                     << M.getName() << "' modules.\n");
   LLVM_DEBUG(saveModuleToFile(&KernelModule, KernelModule.getName().str() +
                                                  ".post.preopt.ll"));
@@ -2211,7 +2211,8 @@ void HipABI::postProcessModule() {
     sys::fs::remove(BundleFile->getFilename());
 }
 
-LoopOutlineProcessor *HipABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
+LoopOutlineProcessor *
+HipABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) const {
   // Create a HIP loop outline processor for transforming parallel tapir loop
   // constructs into suitable GPU device code.  We hand the outliner the kernel
   // module (KM) as the destination for all generated (device-side) code.
@@ -2233,7 +2234,8 @@ LoopOutlineProcessor *HipABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
     KernelName = HIPABI_KERNEL_NAME_PREFIX + ModName.c_str();
   }
 
-  HipLoop *Outliner = new HipLoop(M, KernelModule, KernelName, this);
+  HipLoop *Outliner = new HipLoop(M, const_cast<Module &>(KernelModule),
+                                  KernelName, const_cast<HipABI *>(this));
   return Outliner;
 }
 

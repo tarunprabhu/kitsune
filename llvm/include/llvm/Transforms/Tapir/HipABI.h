@@ -13,9 +13,9 @@
 #ifndef TapirHip_ABI_H_
 #define TapirHip_ABI_H_
 
+#include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
-#include "llvm/Support/ToolOutputFile.h"
 
 namespace llvm {
 
@@ -42,7 +42,7 @@ public:
 
   /// Process Function F before any function outlining is performed.  This
   /// routine should not modify the CFG structure.
-  virtual void preProcessFunction(Function &F, TaskInfo &TI,
+  virtual bool preProcessFunction(Function &F, TaskInfo &TI,
                                   bool ProcessingTapirLoops) override;
 
   // Add attributes to the Function Helper produced from outlining a task.
@@ -51,38 +51,39 @@ public:
   // Pre-process the Function F that has just been outlined from a task.  This
   // routine is executed on each outlined function by traversing in post-order
   // the tasks in the original function.
-  void preProcessOutlinedTask(Function &F,
-                              Instruction *DetachPt,
-                              Instruction *TaskFrameCreate,
-                              bool isSpawner,
-                              BasicBlock *BB) override
-  { /* no-op */ }
+  void preProcessOutlinedTask(Function &F, Instruction *DetachPt,
+                              Instruction *TaskFrameCreate, bool isSpawner,
+                              BasicBlock *BB) override { /* no-op */
+  }
 
   // Post-process the Function F that has just been outlined from a task.  This
   // routine is executed on each outlined function by traversing in post-order
   // the tasks in the original function.
   void postProcessOutlinedTask(Function &F, Instruction *DetachPtr,
                                Instruction *TaskFrameCreate, bool IsSpawner,
-                               BasicBlock *TFEntry) override
-  { /* no-op */ }
+                               BasicBlock *TFEntry) override { /* no-op */
+  }
 
   // Pre-process the root Function F as a function that can spawn subtasks.
-  void preProcessRootSpawner(Function &F, BasicBlock *TFEntry) override
-  { /* no-op */ }
+  void preProcessRootSpawner(Function &F,
+                             BasicBlock *TFEntry) override { /* no-op */
+  }
 
   // Post-process the root Function F as a function that can spawn subtasks.
-  void postProcessRootSpawner(Function &F, BasicBlock *TFEntry) override
-  { /* no-op */ }
+  void postProcessRootSpawner(Function &F,
+                              BasicBlock *TFEntry) override { /* no-op */
+  }
 
   // Process the invocation of a task for an outlined function.  This routine is
   // invoked after processSpawner once for each child subtask.
-  void processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) override
-  { /* no-op */ }
+  void processSubTaskCall(TaskOutlineInfo &TOI,
+                          DominatorTree &DT) override { /* no-op */
+  }
 
   // Process Function F at the end of the lowering process.
   void postProcessFunction(Function &F, bool OutliningTapirLoops) override;
 
-  std::unique_ptr<Module>& getLibDeviceModule();
+  std::unique_ptr<Module> &getLibDeviceModule();
 
   /// @brief  Add a global var of those that need a host-to-device connection.
   /// @param GV: The global variable to add to the set.
@@ -99,9 +100,7 @@ public:
   /// @brief Save a kernel for post-processing.
   /// @param KF - the kernel function to save.
   /// @return void
-  void saveKernel(Function *KF) {
-    KernelFunctions.push_back(KF);
-  }
+  void saveKernel(Function *KF) { KernelFunctions.push_back(KF); }
 
   void transformConstants(Function *M);
 
@@ -113,14 +112,14 @@ public:
 
   // Process a generated helper Function F produced via outlining, at the end of
   // the lowering process.
-  void postProcessHelper(Function &F) override
-  { /* no-op */ }
+  void postProcessHelper(Function &F) override { /* no-op */
+  }
 
   // Return the HIP outline processor associated with this target.
-  LoopOutlineProcessor *getLoopOutlineProcessor(const TapirLoopInfo *TL)
-                                                override final;
+  LoopOutlineProcessor *
+  getLoopOutlineProcessor(const TapirLoopInfo *TL) const override final;
 
-  private:
+private:
   // ----- Hip-centric transformation support.
 
   /// @brief Generate a AMDGPU (GCN) object file for the kernel module.
@@ -146,14 +145,15 @@ public:
   /// @brief Load the given ROCM-centric bitcode file and return a module.
   /// @param BCFileName: The file name for the bitcode file (not a full path)
   /// @return  A module holding the bitcode.
-  std::unique_ptr<Module> loadBCFile(const std::string& BCFileName);
+  std::unique_ptr<Module> loadBCFile(const std::string &BCFileName);
 
   /// @brief Load (link) the given module into the generated kernel module.
   /// @param M - the module to load/link into the generated kernel module.
   /// @return  True on success, false otherwise.
-  bool linkInModule(std::unique_ptr<Module>& M);
+  bool linkInModule(std::unique_ptr<Module> &M);
 
-  /// @brief Register all the create kernels (device entry points) with HIP runtime.
+  /// @brief Register all the create kernels (device entry points) with HIP
+  /// runtime.
   /// @param Handle - HIP handle for fat binary.
   /// @param B - the IR builder to use for code gen.
   /// @return void
@@ -182,17 +182,16 @@ public:
   std::unique_ptr<Module> LibDeviceModule;
   std::string BaseModuleName;
 
-
   /// @brief  Make a final pass and 'bind' launch calls to fat binary image.
   /// @param M -- the module containing the launch calls.
   /// @param BundleBin -- the fat binary image that contains the kernels.
   void finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin);
 
-  typedef std::list<GlobalVariable*> GlobalVarListTy;
+  typedef std::list<GlobalVariable *> GlobalVarListTy;
   GlobalVarListTy GlobalVars;
   typedef std::set<Value *> SyncRegionListTy;
   SyncRegionListTy SyncRegList;
-  typedef std::list<Function*> KernelListTy;
+  typedef std::list<Function *> KernelListTy;
   KernelListTy KernelFunctions;
 
   Module KernelModule;
@@ -242,7 +241,7 @@ public:
   /// in Args that specifies the starting iteration number.  This return value
   /// must complement the behavior of setupLoopOutlineArgs().
   unsigned getIVArgIndex(const Function &F,
-		         const ValueSet &Args) const override;
+                         const ValueSet &Args) const override;
 
   /// Returns an integer identifying the index of the helper-function argument
   /// in Args that specifies the ending iteration number.  This return value
@@ -254,8 +253,7 @@ public:
   /// outlining occurs.  This allows the VMap and related details to be
   /// customized prior to outlining related operations (e.g. cloning of
   /// LLVM constructs).
-  void preProcessTapirLoop(TapirLoopInfo &TL,
-                           ValueToValueMapTy &VMap) override;
+  void preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) override;
 
   /// Processes an outlined Function Helper for a Tapir loop, just after the
   /// function has been outlined.
@@ -271,7 +269,6 @@ public:
 
 private:
   // ----- Hip-centric loop code generation support.
-
 
   Value *emitWorkItemId(IRBuilder<> &Builder, int ItemIndex, int Low, int High);
   Value *emitWorkGroupId(IRBuilder<> &Builder, int ItemIndex);
@@ -292,11 +289,11 @@ private:
   /// @brief Resolve a call on the device side.
   /// @param Fn: The function to resolve on the device side.
   /// @return  The new Function for the device side call.
-  //Function *resolveDeviceFunction(Function *Fn);
+  // Function *resolveDeviceFunction(Function *Fn);
 
   /// @brief Transform the given Function so it is ready for GCN generation.
   /// @param F The function to transform.
-  //void transformForGCN(Function &F);
+  // void transformForGCN(Function &F);
 
   HipABI *TTarget = nullptr;
   static unsigned NextKernelID; // Give the generated kernel a unique ID.
@@ -306,34 +303,31 @@ private:
 
   // AMDGCN intrinsics.  TODO: These should probably not be
   // prefixed with the kitsune runtime...
-  FunctionCallee   KitHipWorkItemIdFn;
-  FunctionCallee   KitHipWorkItemIdXFn,
-                   KitHipWorkItemIdYFn,
-                   KitHipWorkItemIdZFn;
-  FunctionCallee   KitHipWorkGroupIdFn;
-  FunctionCallee   KitHipWorkGroupIdXFn,
-                   KitHipWorkGroupIdYFn,
-                   KitHipWorkGroupIdZFn;
-  FunctionCallee   KitHipBlockDimFn;
+  FunctionCallee KitHipWorkItemIdFn;
+  FunctionCallee KitHipWorkItemIdXFn, KitHipWorkItemIdYFn, KitHipWorkItemIdZFn;
+  FunctionCallee KitHipWorkGroupIdFn;
+  FunctionCallee KitHipWorkGroupIdXFn, KitHipWorkGroupIdYFn,
+      KitHipWorkGroupIdZFn;
+  FunctionCallee KitHipBlockDimFn;
 
   // Kitsune runtime entry points.
-  FunctionCallee   KitHipLaunchFn = nullptr;
-  FunctionCallee   KitHipModuleLoadDataFn = nullptr;
-  FunctionCallee   KitHipModuleLaunchFn = nullptr;
-  FunctionCallee   KitHipWaitFn = nullptr;
+  FunctionCallee KitHipLaunchFn = nullptr;
+  FunctionCallee KitHipModuleLoadDataFn = nullptr;
+  FunctionCallee KitHipModuleLaunchFn = nullptr;
+  FunctionCallee KitHipWaitFn = nullptr;
 
   // Runtime prefetch support entry points.
-  FunctionCallee   KitHipMemPrefetchFn =  nullptr;
-  FunctionCallee   KitHipMemPrefetchOnStreamFn = nullptr;
-  FunctionCallee   KitHipStreamMemPrefetchFn = nullptr;
+  FunctionCallee KitHipMemPrefetchFn = nullptr;
+  FunctionCallee KitHipMemPrefetchOnStreamFn = nullptr;
+  FunctionCallee KitHipStreamMemPrefetchFn = nullptr;
 
-  FunctionCallee   KitHipCreateFBModuleFn = nullptr;
-  FunctionCallee   KitHipGetGlobalSymbolFn = nullptr;
-  FunctionCallee   KitHipMemcpySymbolToDevFn = nullptr;
+  FunctionCallee KitHipCreateFBModuleFn = nullptr;
+  FunctionCallee KitHipGetGlobalSymbolFn = nullptr;
+  FunctionCallee KitHipMemcpySymbolToDevFn = nullptr;
 
   SmallVector<Value *, 5> OrderedInputs;
 };
 
-}
+} // namespace llvm
 
 #endif

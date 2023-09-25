@@ -12,6 +12,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/Support/InstructionCost.h"
 
 namespace llvm {
 

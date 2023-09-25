@@ -704,7 +704,7 @@ pfor.cond.i.i.epil:                               ; preds = %pfor.cond.i.i.epil,
   br i1 %epil.iter22.cmp.1, label %pfor.cond.cleanup.i.i, label %pfor.cond.i.i.epil, !llvm.loop !26
 
 pfor.cond.cleanup.i.i:                            ; preds = %pfor.cond.i.i.epil, %pfor.cond.i.i.epil.prol.loopexit
-  tapir_sync within %syncreg19.i.i.i516, label %sync.continue.i.i
+  sync within %syncreg19.i.i.i516, label %sync.continue.i.i
 
 sync.continue.i.i:                                ; preds = %pfor.cond.cleanup.i.i
   invoke void @llvm.sync.unwind(token %syncreg19.i.i.i516)
@@ -1005,7 +1005,7 @@ pfor.inc.i.i.i541.epil:                           ; preds = %if.then.i.i.i3.i.i.
   br i1 %epil.iter15.cmp, label %pfor.cond.cleanup.i.i.i542, label %pfor.cond.i.i.i529.epil, !llvm.loop !48
 
 pfor.cond.cleanup.i.i.i542:                       ; preds = %pfor.inc.i.i.i541.epil, %pfor.cond.cleanup.i.i.i542.strpm-lcssa
-  tapir_sync within %syncreg19.i.i.i516, label %sync.continue.i.i.i543
+  sync within %syncreg19.i.i.i516, label %sync.continue.i.i.i543
 
 sync.continue.i.i.i543:                           ; preds = %pfor.cond.cleanup.i.i.i542
   invoke void @llvm.sync.unwind(token %syncreg19.i.i.i516)
@@ -1465,7 +1465,7 @@ pfor.inc.i:                                       ; preds = %call4.i.i.noexc, %p
   br i1 %exitcond.i, label %pfor.cond.cleanup.i, label %pfor.cond.i, !llvm.loop !59
 
 pfor.cond.cleanup.i:                              ; preds = %pfor.inc.i
-  tapir_sync within %syncreg.i, label %sync.continue.i
+  sync within %syncreg.i, label %sync.continue.i
 
 sync.continue.i:                                  ; preds = %pfor.cond.cleanup.i
   invoke void @llvm.sync.unwind(token %syncreg.i)
@@ -1995,7 +1995,7 @@ pfor.inc.i.i.i.epil:                              ; preds = %if.then.i.i.i3.i.i.
   br i1 %epil.iter.cmp, label %pfor.cond.cleanup.i.i.i, label %pfor.cond.i.i.i.epil, !llvm.loop !78
 
 pfor.cond.cleanup.i.i.i:                          ; preds = %pfor.inc.i.i.i.epil, %pfor.cond.cleanup.i.i.i.strpm-lcssa
-  tapir_sync within %syncreg19.i.i.i516, label %sync.continue.i.i.i
+  sync within %syncreg19.i.i.i516, label %sync.continue.i.i.i
 
 sync.continue.i.i.i:                              ; preds = %pfor.cond.cleanup.i.i.i
   invoke void @llvm.sync.unwind(token %syncreg19.i.i.i516)
@@ -2343,7 +2343,7 @@ pfor.inc.i.i.i416.epil:                           ; preds = %if.then.i.i.i3.i.i.
   br i1 %epil.iter8.cmp, label %pfor.cond.cleanup.i.i.i417, label %pfor.cond.i.i.i404.epil, !llvm.loop !81
 
 pfor.cond.cleanup.i.i.i417:                       ; preds = %pfor.inc.i.i.i416.epil, %pfor.cond.cleanup.i.i.i417.strpm-lcssa
-  tapir_sync within %syncreg19.i.i.i391, label %sync.continue.i.i.i418
+  sync within %syncreg19.i.i.i391, label %sync.continue.i.i.i418
 
 sync.continue.i.i.i418:                           ; preds = %pfor.cond.cleanup.i.i.i417
   invoke void @llvm.sync.unwind(token %syncreg19.i.i.i391)
@@ -2957,7 +2957,7 @@ if.then11.i.i.i91:                                ; preds = %if.else.i.i.i85
   br label %.noexc11
 
 .noexc11:                                         ; preds = %.noexc25, %det.cont.i
-  tapir_sync within %syncreg.i, label %sync.continue.i
+  sync within %syncreg.i, label %sync.continue.i
 
 sync.continue.i:                                  ; preds = %.noexc11
   invoke void @llvm.sync.unwind(token %syncreg.i)
@@ -3627,7 +3627,7 @@ det.achd.i.i:                                     ; preds = %if.then.i
 det.cont.i.i:                                     ; preds = %det.achd.i.i, %if.then.i
   %add.ptr3.i.i7 = getelementptr inbounds %"struct.std::pair.149.202.511.818.1125.1432.1739.2046", %"struct.std::pair.149.202.511.818.1125.1432.1739.2046"* %Pts.coerce0, i64 %add8.i
   %call2.i = tail call %"struct.oct_tree<vertex<point2d<double> > >::node.110.421.728.1035.1342.1649.1956"* @_ZN8oct_treeI6vertexI7point2dIdEEE15build_recursiveEN6parlay5sliceIPSt4pairImPS3_ESA_EEi(%"struct.std::pair.149.202.511.818.1125.1432.1739.2046"* %Pts.coerce0, %"struct.std::pair.149.202.511.818.1125.1432.1739.2046"* %add.ptr3.i.i7, i32 %sub)
-  tapir_sync within %syncreg.i.i, label %_ZN6parlay6par_doIZN8oct_treeI6vertexI7point2dIdEEE15build_recursiveENS_5sliceIPSt4pairImPS5_ESB_EEiEUlvE_ZNS6_15build_recursiveESC_iEUlvE0_EEvT_T0_b.exit.i
+  sync within %syncreg.i.i, label %_ZN6parlay6par_doIZN8oct_treeI6vertexI7point2dIdEEE15build_recursiveENS_5sliceIPSt4pairImPS5_ESB_EEiEUlvE_ZNS6_15build_recursiveESC_iEUlvE0_EEvT_T0_b.exit.i
 
 _ZN6parlay6par_doIZN8oct_treeI6vertexI7point2dIdEEE15build_recursiveENS_5sliceIPSt4pairImPS5_ESB_EEiEUlvE_ZNS6_15build_recursiveESC_iEUlvE0_EEvT_T0_b.exit.i: ; preds = %det.cont.i.i
   tail call void @llvm.sync.unwind(token %syncreg.i.i)
@@ -3930,7 +3930,7 @@ _ZZN6parlay8sequenceImNS_9allocatorImEEEC1IZNS_8internal17transpose_bucketsINS_2
   br i1 %epil.iter.cmp, label %pfor.cond.cleanup, label %pfor.cond.epil, !llvm.loop !133
 
 pfor.cond.cleanup:                                ; preds = %_ZZN6parlay8sequenceImNS_9allocatorImEEEC1IZNS_8internal17transpose_bucketsINS_26uninitialized_relocate_tagEPSt4pairImP6vertexI7point2dIdEEESF_jEES3_T0_T1_RNS0_IT2_NS1_ISI_EEEEmmmmEUlmE1_EEmOT_NS3_18_from_function_tagEmENKUlmE_clEm.exit.epil, %pfor.cond.cleanup.strpm-lcssa
-  tapir_sync within %syncreg19, label %sync.continue
+  sync within %syncreg19, label %sync.continue
 
 sync.continue:                                    ; preds = %pfor.cond.cleanup
   tail call void @llvm.sync.unwind(token %syncreg19)
@@ -4024,7 +4024,7 @@ det.achd:                                         ; preds = %if.else13.tf
 
 det.cont:                                         ; preds = %det.achd, %if.else13.tf
   tail call void @_ZN6parlay12parallel_forIZNS_8sequenceImNS_9allocatorImEEEC1IZNS_8internal17transpose_bucketsINS_26uninitialized_relocate_tagEPSt4pairImP6vertexI7point2dIdEEESG_jEES4_T0_T1_RNS1_IT2_NS2_ISJ_EEEEmmmmEUlmE1_EEmOT_NS4_18_from_function_tagEmEUlmE_EEvmmSO_mb(i64 %add18, i64 %end, %class.anon.225.266.574.881.1188.1495.1802.2109* nonnull byval(%class.anon.225.266.574.881.1188.1495.1802.2109) align 8 %f, i64 %granularity, i1 zeroext false)
-  tapir_sync within %syncreg19, label %sync.continue21
+  sync within %syncreg19, label %sync.continue21
 
 sync.continue21:                                  ; preds = %det.cont
   tail call void @llvm.sync.unwind(token %syncreg19)

@@ -16,7 +16,7 @@ entry:
   br label %while.body
 
 while.body:                                       ; preds = %entry, %det.cont4
-  tapir_sync within %syncrega, label %sync.continue
+  sync within %syncrega, label %sync.continue
 
 sync.continue:                                    ; preds = %while.body
   detach within %syncrega, label %det.achd, label %det.cont
@@ -26,7 +26,7 @@ det.achd:                                         ; preds = %sync.continue
   reattach within %syncrega, label %det.cont
 
 det.cont:                                         ; preds = %det.achd, %sync.continue
-  tapir_sync within %syncregb, label %sync.continue1
+  sync within %syncregb, label %sync.continue1
 
 sync.continue1:                                   ; preds = %det.cont
   detach within %syncregb, label %det.achd2, label %det.cont4

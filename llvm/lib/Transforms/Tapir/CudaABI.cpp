@@ -340,7 +340,7 @@ static std::string virtualArchForCudaArch(StringRef Arch) {
           .Case("sm_80", "compute_80") // Ampere
           .Case("sm_86", "compute_86") //
           .Case("sm_87", "compute_87") //
-          .Case("sm_90", "compute_90") // Hopper 
+          .Case("sm_90", "compute_90") // Hopper
           .Default("unknown");
   LLVM_DEBUG(dbgs() << "cuabi: compute architecture '" << VirtArch << "'.\n");
   return VirtArch;
@@ -1295,8 +1295,9 @@ void CudaABI::lowerSync(SyncInst &SI) {
 void CudaABI::addHelperAttributes(Function &F) { /* no-op */
 }
 
-void CudaABI::preProcessFunction(Function &F, TaskInfo &TI,
-                                 bool OutliningTapirLoops) { /* no-op */
+bool CudaABI::preProcessFunction(Function &F, TaskInfo &TI,
+                                 bool OutliningTapirLoops) {
+  return false;
 }
 
 void CudaABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
@@ -2066,7 +2067,7 @@ void CudaABI::postProcessModule() {
 }
 
 LoopOutlineProcessor *
-CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
+CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) const {
   // Create a CUDA loop outline processor for transforming parallel tapir loop
   // constructs into suitable GPU device code.  We hand the outliner the kernel
   // module (KernelModule) as the destination for all generated (device-side)
@@ -2091,6 +2092,7 @@ CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
     KernelName = CUABI_PREFIX + KernelName;
   }
 
-  CudaLoop *Outliner = new CudaLoop(M, KernelModule, KernelName, this);
+  CudaLoop *Outliner = new CudaLoop(M, const_cast<Module &>(KernelModule),
+                                    KernelName, const_cast<CudaABI *>(this));
   return Outliner;
 }

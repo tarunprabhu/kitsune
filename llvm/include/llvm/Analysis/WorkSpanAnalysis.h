@@ -16,6 +16,7 @@
 
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/CodeMetrics.h"
+#include "llvm/Support/InstructionCost.h"
 
 // TODO: Build a CGSCC pass based on these analyses to efficiently estimate the
 // work and span of all the functions in a module.

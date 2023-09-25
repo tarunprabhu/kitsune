@@ -1351,7 +1351,7 @@ void Clang::AddPreprocessingOptions(Compilation &C, const JobAction &JA,
   // arguments of related offloading toolchains or arguments that are specific
   // of an offloading programming model.
 
-  // +==== Handle special include paths for kitsune-/tapir-centric modes. 
+  // +==== Handle special include paths for kitsune-/tapir-centric modes.
   getToolChain().AddKitsuneIncludeArgs(Args, CmdArgs);
 
   // Add C++ include arguments, if needed.
@@ -6156,11 +6156,14 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     /* JFC: Is it possible to confuse with with -fno-opencilk? */
     bool OpenCilk = Args.hasArgNoClaim(options::OPT_fopencilk);
     bool Cheetah = false;
+    bool CustomTarget = false;
 
     if (Arg *TapirRuntime = Args.getLastArgNoClaim(options::OPT_ftapir_EQ)) {
       Cheetah = TapirRuntime->getValue() == StringRef("cheetah");
       if (TapirRuntime->getValue() == StringRef("opencilk")) {
         OpenCilk = true;
+      } else {
+        CustomTarget = true;
       }
     }
 
@@ -6207,7 +6210,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_ftapir_EQ);
   Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
   Args.AddLastArg(CmdArgs, options::OPT_fkitsune);
-  Args.AddLastArg(CmdArgs, options::OPT_fkokkos_no_init);  
+  Args.AddLastArg(CmdArgs, options::OPT_fkokkos_no_init);
   Args.AddLastArg(CmdArgs, options::OPT_fflecsi);
 
   // Forward flags for OpenMP. We don't do this if the current action is an

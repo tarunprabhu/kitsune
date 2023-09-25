@@ -284,7 +284,7 @@ invoke.cont22.i.i.i:                              ; preds = %det.cont.i.i.i
 
 invoke.cont25.i.i.i:                              ; preds = %invoke.cont22.i.i.i
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i.i.i) #7
-  tapir_sync within %syncreg.i.i.i, label %sync.continue.i.i.i
+  sync within %syncreg.i.i.i, label %sync.continue.i.i.i
 
 sync.continue.i.i.i:                              ; preds = %invoke.cont25.i.i.i
   invoke void @llvm.sync.unwind(token %syncreg.i.i.i)
@@ -529,7 +529,7 @@ invoke.cont22.i90.i.i:                            ; preds = %det.cont.i87.i.i
 
 invoke.cont25.i91.i.i:                            ; preds = %invoke.cont22.i90.i.i
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i70.i.i) #7
-  tapir_sync within %syncreg.i69.i.i, label %sync.continue.i92.i.i
+  sync within %syncreg.i69.i.i, label %sync.continue.i92.i.i
 
 sync.continue.i92.i.i:                            ; preds = %invoke.cont25.i91.i.i
   invoke void @llvm.sync.unwind(token %syncreg.i69.i.i)
@@ -919,7 +919,7 @@ invoke.cont22.i.i200.i:                           ; preds = %det.cont.i.i197.i
 
 invoke.cont25.i.i201.i:                           ; preds = %invoke.cont22.i.i200.i
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i.i174.i) #7
-  tapir_sync within %syncreg.i.i175.i, label %sync.continue.i.i202.i
+  sync within %syncreg.i.i175.i, label %sync.continue.i.i202.i
 
 sync.continue.i.i202.i:                           ; preds = %invoke.cont25.i.i201.i
   invoke void @llvm.sync.unwind(token %syncreg.i.i175.i)
@@ -1164,7 +1164,7 @@ invoke.cont22.i90.i282.i:                         ; preds = %det.cont.i87.i279.i
 
 invoke.cont25.i91.i283.i:                         ; preds = %invoke.cont22.i90.i282.i
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i70.i145.i) #7
-  tapir_sync within %syncreg.i69.i146.i, label %sync.continue.i92.i284.i
+  sync within %syncreg.i69.i146.i, label %sync.continue.i92.i284.i
 
 sync.continue.i92.i284.i:                         ; preds = %invoke.cont25.i91.i283.i
   invoke void @llvm.sync.unwind(token %syncreg.i69.i146.i)
@@ -1671,7 +1671,7 @@ invoke.cont22.i.i.i142:                           ; preds = %det.cont.i.i.i139
 
 invoke.cont25.i.i.i143:                           ; preds = %invoke.cont22.i.i.i142
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i.i.i116) #7
-  tapir_sync within %syncreg.i.i.i117, label %sync.continue.i.i.i144
+  sync within %syncreg.i.i.i117, label %sync.continue.i.i.i144
 
 sync.continue.i.i.i144:                           ; preds = %invoke.cont25.i.i.i143
   invoke void @llvm.sync.unwind(token %syncreg.i.i.i117)
@@ -1910,7 +1910,7 @@ invoke.cont22.i90.i.i224:                         ; preds = %det.cont.i87.i.i221
 
 invoke.cont25.i91.i.i225:                         ; preds = %invoke.cont22.i90.i.i224
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i70.i.i81) #7
-  tapir_sync within %syncreg.i69.i.i88, label %sync.continue.i92.i.i226
+  sync within %syncreg.i69.i.i88, label %sync.continue.i92.i.i226
 
 sync.continue.i92.i.i226:                         ; preds = %invoke.cont25.i91.i.i225
   invoke void @llvm.sync.unwind(token %syncreg.i69.i.i88)
@@ -2291,7 +2291,7 @@ invoke.cont22.i.i200.i365:                        ; preds = %det.cont.i.i197.i36
 
 invoke.cont25.i.i201.i366:                        ; preds = %invoke.cont22.i.i200.i365
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i.i174.i339) #7
-  tapir_sync within %syncreg.i.i175.i340, label %sync.continue.i.i202.i367
+  sync within %syncreg.i.i175.i340, label %sync.continue.i.i202.i367
 
 sync.continue.i.i202.i367:                        ; preds = %invoke.cont25.i.i201.i366
   invoke void @llvm.sync.unwind(token %syncreg.i.i175.i340)
@@ -2530,7 +2530,7 @@ invoke.cont22.i90.i282.i447:                      ; preds = %det.cont.i87.i279.i
 
 invoke.cont25.i91.i283.i448:                      ; preds = %invoke.cont22.i90.i282.i447
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i70.i145.i43) #7
-  tapir_sync within %syncreg.i69.i146.i50, label %sync.continue.i92.i284.i449
+  sync within %syncreg.i69.i146.i50, label %sync.continue.i92.i284.i449
 
 sync.continue.i92.i284.i449:                      ; preds = %invoke.cont25.i91.i283.i448
   invoke void @llvm.sync.unwind(token %syncreg.i69.i146.i50)
@@ -2978,14 +2978,14 @@ lpad14:                                           ; preds = %sync.continue, %det
   br label %eh.resume
 
 for.end:                                          ; preds = %for.cond
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %for.end
   invoke void @llvm.sync.unwind(token %syncreg)
           to label %invoke.cont18 unwind label %lpad14
 
 invoke.cont18:                                    ; preds = %sync.continue
-  tapir_sync within %syncreg, label %sync.continue19
+  sync within %syncreg, label %sync.continue19
 
 sync.continue19:                                  ; preds = %invoke.cont18
   call void @llvm.sync.unwind(token %syncreg)
@@ -3388,7 +3388,7 @@ invoke.cont22.i.i.i.i:                            ; preds = %det.cont.i.i.i.i
 
 invoke.cont25.i.i.i.i:                            ; preds = %invoke.cont22.i.i.i.i
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i.i.i.i) #7
-  tapir_sync within %syncreg.i.i.i.i, label %sync.continue.i.i.i.i
+  sync within %syncreg.i.i.i.i, label %sync.continue.i.i.i.i
 
 sync.continue.i.i.i.i:                            ; preds = %invoke.cont25.i.i.i.i
   invoke void @llvm.sync.unwind(token %syncreg.i.i.i.i)
@@ -3633,7 +3633,7 @@ invoke.cont22.i90.i.i.i:                          ; preds = %det.cont.i87.i.i.i
 
 invoke.cont25.i91.i.i.i:                          ; preds = %invoke.cont22.i90.i.i.i
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i70.i.i.i) #7
-  tapir_sync within %syncreg.i69.i.i.i, label %sync.continue.i92.i.i.i
+  sync within %syncreg.i69.i.i.i, label %sync.continue.i92.i.i.i
 
 sync.continue.i92.i.i.i:                          ; preds = %invoke.cont25.i91.i.i.i
   invoke void @llvm.sync.unwind(token %syncreg.i69.i.i.i)
@@ -4023,7 +4023,7 @@ invoke.cont22.i.i200.i.i:                         ; preds = %det.cont.i.i197.i.i
 
 invoke.cont25.i.i201.i.i:                         ; preds = %invoke.cont22.i.i200.i.i
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i.i174.i.i) #7
-  tapir_sync within %syncreg.i.i175.i.i, label %sync.continue.i.i202.i.i
+  sync within %syncreg.i.i175.i.i, label %sync.continue.i.i202.i.i
 
 sync.continue.i.i202.i.i:                         ; preds = %invoke.cont25.i.i201.i.i
   invoke void @llvm.sync.unwind(token %syncreg.i.i175.i.i)
@@ -4268,7 +4268,7 @@ invoke.cont22.i90.i282.i.i:                       ; preds = %det.cont.i87.i279.i
 
 invoke.cont25.i91.i283.i.i:                       ; preds = %invoke.cont22.i90.i282.i.i
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i70.i145.i.i) #7
-  tapir_sync within %syncreg.i69.i146.i.i, label %sync.continue.i92.i284.i.i
+  sync within %syncreg.i69.i146.i.i, label %sync.continue.i92.i284.i.i
 
 sync.continue.i92.i284.i.i:                       ; preds = %invoke.cont25.i91.i283.i.i
   invoke void @llvm.sync.unwind(token %syncreg.i69.i146.i.i)
@@ -4774,7 +4774,7 @@ invoke.cont22.i.i.i415.i:                         ; preds = %det.cont.i.i.i412.i
 
 invoke.cont25.i.i.i416.i:                         ; preds = %invoke.cont22.i.i.i415.i
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i.i.i389.i) #7
-  tapir_sync within %syncreg.i.i.i390.i, label %sync.continue.i.i.i417.i
+  sync within %syncreg.i.i.i390.i, label %sync.continue.i.i.i417.i
 
 sync.continue.i.i.i417.i:                         ; preds = %invoke.cont25.i.i.i416.i
   invoke void @llvm.sync.unwind(token %syncreg.i.i.i390.i)
@@ -5019,7 +5019,7 @@ invoke.cont22.i90.i.i497.i:                       ; preds = %det.cont.i87.i.i494
 
 invoke.cont25.i91.i.i498.i:                       ; preds = %invoke.cont22.i90.i.i497.i
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i70.i.i354.i) #7
-  tapir_sync within %syncreg.i69.i.i361.i, label %sync.continue.i92.i.i499.i
+  sync within %syncreg.i69.i.i361.i, label %sync.continue.i92.i.i499.i
 
 sync.continue.i92.i.i499.i:                       ; preds = %invoke.cont25.i91.i.i498.i
   invoke void @llvm.sync.unwind(token %syncreg.i69.i.i361.i)
@@ -5409,7 +5409,7 @@ invoke.cont22.i.i200.i638.i:                      ; preds = %det.cont.i.i197.i63
 
 invoke.cont25.i.i201.i639.i:                      ; preds = %invoke.cont22.i.i200.i638.i
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i.i174.i612.i) #7
-  tapir_sync within %syncreg.i.i175.i613.i, label %sync.continue.i.i202.i640.i
+  sync within %syncreg.i.i175.i613.i, label %sync.continue.i.i202.i640.i
 
 sync.continue.i.i202.i640.i:                      ; preds = %invoke.cont25.i.i201.i639.i
   invoke void @llvm.sync.unwind(token %syncreg.i.i175.i613.i)
@@ -5654,7 +5654,7 @@ invoke.cont22.i90.i282.i720.i:                    ; preds = %det.cont.i87.i279.i
 
 invoke.cont25.i91.i283.i721.i:                    ; preds = %invoke.cont22.i90.i282.i720.i
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i70.i145.i316.i) #7
-  tapir_sync within %syncreg.i69.i146.i323.i, label %sync.continue.i92.i284.i722.i
+  sync within %syncreg.i69.i146.i323.i, label %sync.continue.i92.i284.i722.i
 
 sync.continue.i92.i284.i722.i:                    ; preds = %invoke.cont25.i91.i283.i721.i
   invoke void @llvm.sync.unwind(token %syncreg.i69.i146.i323.i)
@@ -6286,7 +6286,7 @@ invoke.cont22.i.i.i.i202:                         ; preds = %det.cont.i.i.i.i199
 
 invoke.cont25.i.i.i.i203:                         ; preds = %invoke.cont22.i.i.i.i202
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i.i.i.i176) #7
-  tapir_sync within %syncreg.i.i.i.i177, label %sync.continue.i.i.i.i204
+  sync within %syncreg.i.i.i.i177, label %sync.continue.i.i.i.i204
 
 sync.continue.i.i.i.i204:                         ; preds = %invoke.cont25.i.i.i.i203
   invoke void @llvm.sync.unwind(token %syncreg.i.i.i.i177)
@@ -6525,7 +6525,7 @@ invoke.cont22.i90.i.i.i284:                       ; preds = %det.cont.i87.i.i.i2
 
 invoke.cont25.i91.i.i.i285:                       ; preds = %invoke.cont22.i90.i.i.i284
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i70.i.i.i141) #7
-  tapir_sync within %syncreg.i69.i.i.i148, label %sync.continue.i92.i.i.i286
+  sync within %syncreg.i69.i.i.i148, label %sync.continue.i92.i.i.i286
 
 sync.continue.i92.i.i.i286:                       ; preds = %invoke.cont25.i91.i.i.i285
   invoke void @llvm.sync.unwind(token %syncreg.i69.i.i.i148)
@@ -6906,7 +6906,7 @@ invoke.cont22.i.i200.i.i425:                      ; preds = %det.cont.i.i197.i.i
 
 invoke.cont25.i.i201.i.i426:                      ; preds = %invoke.cont22.i.i200.i.i425
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i.i174.i.i399) #7
-  tapir_sync within %syncreg.i.i175.i.i400, label %sync.continue.i.i202.i.i427
+  sync within %syncreg.i.i175.i.i400, label %sync.continue.i.i202.i.i427
 
 sync.continue.i.i202.i.i427:                      ; preds = %invoke.cont25.i.i201.i.i426
   invoke void @llvm.sync.unwind(token %syncreg.i.i175.i.i400)
@@ -7145,7 +7145,7 @@ invoke.cont22.i90.i282.i.i507:                    ; preds = %det.cont.i87.i279.i
 
 invoke.cont25.i91.i283.i.i508:                    ; preds = %invoke.cont22.i90.i282.i.i507
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i70.i145.i.i95) #7
-  tapir_sync within %syncreg.i69.i146.i.i110, label %sync.continue.i92.i284.i.i509
+  sync within %syncreg.i69.i146.i.i110, label %sync.continue.i92.i284.i.i509
 
 sync.continue.i92.i284.i.i509:                    ; preds = %invoke.cont25.i91.i283.i.i508
   invoke void @llvm.sync.unwind(token %syncreg.i69.i146.i.i110)
@@ -7639,7 +7639,7 @@ invoke.cont22.i.i.i415.i704:                      ; preds = %det.cont.i.i.i412.i
 
 invoke.cont25.i.i.i416.i705:                      ; preds = %invoke.cont22.i.i.i415.i704
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i.i.i389.i678) #7
-  tapir_sync within %syncreg.i.i.i390.i679, label %sync.continue.i.i.i417.i706
+  sync within %syncreg.i.i.i390.i679, label %sync.continue.i.i.i417.i706
 
 sync.continue.i.i.i417.i706:                      ; preds = %invoke.cont25.i.i.i416.i705
   invoke void @llvm.sync.unwind(token %syncreg.i.i.i390.i679)
@@ -7878,7 +7878,7 @@ invoke.cont22.i90.i.i497.i786:                    ; preds = %det.cont.i87.i.i494
 
 invoke.cont25.i91.i.i498.i787:                    ; preds = %invoke.cont22.i90.i.i497.i786
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i70.i.i354.i643) #7
-  tapir_sync within %syncreg.i69.i.i361.i650, label %sync.continue.i92.i.i499.i788
+  sync within %syncreg.i69.i.i361.i650, label %sync.continue.i92.i.i499.i788
 
 sync.continue.i92.i.i499.i788:                    ; preds = %invoke.cont25.i91.i.i498.i787
   invoke void @llvm.sync.unwind(token %syncreg.i69.i.i361.i650)
@@ -8259,7 +8259,7 @@ invoke.cont22.i.i200.i638.i927:                   ; preds = %det.cont.i.i197.i63
 
 invoke.cont25.i.i201.i639.i928:                   ; preds = %invoke.cont22.i.i200.i638.i927
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i.i174.i612.i901) #7
-  tapir_sync within %syncreg.i.i175.i613.i902, label %sync.continue.i.i202.i640.i929
+  sync within %syncreg.i.i175.i613.i902, label %sync.continue.i.i202.i640.i929
 
 sync.continue.i.i202.i640.i929:                   ; preds = %invoke.cont25.i.i201.i639.i928
   invoke void @llvm.sync.unwind(token %syncreg.i.i175.i613.i902)
@@ -8498,7 +8498,7 @@ invoke.cont22.i90.i282.i720.i1009:                ; preds = %det.cont.i87.i279.i
 
 invoke.cont25.i91.i283.i721.i1010:                ; preds = %invoke.cont22.i90.i282.i720.i1009
   call void @_ZN6objectILi0EED1Ev(%class.object.2* %agg.tmp20.i70.i145.i316.i38) #7
-  tapir_sync within %syncreg.i69.i146.i323.i53, label %sync.continue.i92.i284.i722.i1011
+  sync within %syncreg.i69.i146.i323.i53, label %sync.continue.i92.i284.i722.i1011
 
 sync.continue.i92.i284.i722.i1011:                ; preds = %invoke.cont25.i91.i283.i721.i1010
   invoke void @llvm.sync.unwind(token %syncreg.i69.i146.i323.i53)
@@ -8982,14 +8982,14 @@ ehcleanup:                                        ; preds = %lpad5, %lpad1.body
   br label %ehcleanup10
 
 for.end:                                          ; preds = %for.cond
-  tapir_sync within %syncreg, label %sync.continue
+  sync within %syncreg, label %sync.continue
 
 sync.continue:                                    ; preds = %for.end
   invoke void @llvm.sync.unwind(token %syncreg)
           to label %invoke.cont8 unwind label %lpad
 
 invoke.cont8:                                     ; preds = %sync.continue
-  tapir_sync within %syncreg, label %sync.continue9
+  sync within %syncreg, label %sync.continue9
 
 sync.continue9:                                   ; preds = %invoke.cont8
   call void @llvm.sync.unwind(token %syncreg)

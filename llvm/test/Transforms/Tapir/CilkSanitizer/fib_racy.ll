@@ -39,14 +39,14 @@ det.cont:                                         ; preds = %det.achd, %if.end
   %add = add nsw i32 %x.0.load10, %call2, !dbg !30
   call void @llvm.dbg.value(metadata i32 %add, metadata !18, metadata !DIExpression()), !dbg !26
   store i32 %add, i32* %x, align 4, !dbg !30
-  tapir_sync within %syncreg, label %sync.continue, !dbg !31
+  sync within %syncreg, label %sync.continue, !dbg !31
 ; CHECK-LABEL: det.cont:
 ; CHECK: call i32 @fib(
 ; CHECK: @__csan_store(
 ; CHECK: store i32 %add, ptr %x
 
 ; CHECK: call void @__csan_sync(
-; CHECK: tapir_sync within %syncreg,
+; CHECK: sync within %syncreg,
 
 sync.continue:                                    ; preds = %det.cont
   %x.0.load11 = load i32, i32* %x, align 4, !dbg !32

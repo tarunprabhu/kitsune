@@ -172,7 +172,7 @@ pfor.inc:                                         ; preds = %for.cond.cleanup, %
   br i1 %cmp28, label %pfor.cond, label %pfor.cond.cleanup, !llvm.loop !12
 
 pfor.cond.cleanup:                                ; preds = %pfor.inc
-  tapir_sync within %syncreg, label %cleanup32
+  sync within %syncreg, label %cleanup32
 
 cleanup32:                                        ; preds = %pfor.cond.cleanup, %entry
   %qt34 = getelementptr inbounds %struct.CollisionWorld.30.74.129.140.151, %struct.CollisionWorld.30.74.129.140.151* %collisionWorld, i32 0, i32 5

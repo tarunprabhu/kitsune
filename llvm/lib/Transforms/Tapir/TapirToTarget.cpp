@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/TapirToTarget.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
@@ -534,7 +535,7 @@ PreservedAnalyses TapirToTargetPass::run(Module &M, ModuleAnalysisManager &AM) {
   };
   auto GetTI = [&FAM](Function &F) -> TaskInfo & {
     return FAM.getResult<TaskAnalysis>(F);
-  };
+   };
   auto GetAC = [&FAM](Function &F) -> AssumptionCache & {
     return FAM.getResult<AssumptionAnalysis>(F);
   };

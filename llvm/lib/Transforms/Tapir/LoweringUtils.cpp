@@ -66,8 +66,6 @@ TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID) {
     return new OMPTaskABI(M);
   case TapirTargetID::OpenMP:
     return new OpenMPABI(M);
-  case TapirTargetID::OpenCL:
-    return new OpenCLABI(M);
   case TapirTargetID::Qthreads:
     return new QthreadsABI(M);
   case TapirTargetID::Realm:
