@@ -81,6 +81,7 @@
 ; CHECK-O-NEXT: Running analysis: AssumptionAnalysis
 ; CHECK-O-NEXT: Running pass: SROAPass
 ; CHECK-O-NEXT: Running analysis: DominatorTreeAnalysis
+; CHECK-O-NEXT: Running analysis: TaskAnalysis
 ; CHECK-O-NEXT: Running pass: EarlyCSEPass
 ; CHECK-O-NEXT: Running analysis: TargetLibraryAnalysis
 ; CHECK-O3-NEXT: Running pass: CallSiteSplittingPass
@@ -99,6 +100,7 @@
 ; CHECK-O-NEXT: Running analysis: TypeBasedAA
 ; CHECK-O-NEXT: Running analysis: OuterAnalysisManagerProxy
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
+; CHECK-O-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-O-NEXT: Running pass: ModuleInlinerWrapperPass
 ; CHECK-O-NEXT: Running analysis: InlineAdvisorAnalysis
 ; CHECK-O-NEXT: Running pass: RequireAnalysisPass<{{.*}}GlobalsAA
@@ -129,6 +131,7 @@
 ; CHECK-O23SZ-NEXT: Running pass: CorrelatedValuePropagationPass
 ; CHECK-O23SZ-NEXT: Invalidating analysis: LazyValueAnalysis
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
+; CHECK-O-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-O-NEXT: Running pass: InstCombinePass
 ; CHECK-O3-NEXT: Running pass: AggressiveInstCombinePass
 ; CHECK-O1-NEXT: Running pass: LibCallsShrinkWrapPass
@@ -136,6 +139,7 @@
 ; CHECK-O3-NEXT: Running pass: LibCallsShrinkWrapPass
 ; CHECK-O23SZ-NEXT: Running pass: TailCallElimPass
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
+; CHECK-O-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-O-NEXT: Running pass: ReassociatePass
 ; CHECK-O-NEXT: Running pass: RequireAnalysisPass<{{.*}}OptimizationRemarkEmitterAnalysis
 ; CHECK-O-NEXT: Running pass: LoopSimplifyPass
@@ -151,6 +155,7 @@
 ; CHECK-O-NEXT: Running pass: SimpleLoopUnswitchPass
 ; CHECK-O-NEXT: Running analysis: OuterAnalysisManagerProxy
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
+; CHECK-O-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-O-NEXT: Running pass: InstCombinePass
 ; CHECK-O-NEXT: Running pass: LoopSimplifyPass
 ; CHECK-O-NEXT: Running pass: LCSSAPass
@@ -182,6 +187,7 @@
 ; CHECK-O23SZ-NEXT: Running pass: LICMPass on loop
 ; CHECK-O23SZ-NEXT: Running pass: CoroElidePass
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
+; CHECK-O-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-O-NEXT: Running pass: InstCombinePass
 ; CHECK-O-NEXT: Running analysis: ShouldNotRunFunctionPassesAnalysis
 ; CHECK-O-NEXT: Running pass: CoroSplitPass
@@ -199,6 +205,34 @@
 ; CHECK-POST-EP-OPT-EARLY-NEXT: Running pass: NoOpModulePass
 ; CHECK-POSTLINK-O-NEXT: Running pass: Float2IntPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: LowerConstantIntrinsicsPass
+; CHECK-POSTLINK-O2-NEXT: Running pass: LoopSimplifyPass
+; CHECK-POSTLINK-O2-NEXT: Running pass: LCSSAPass
+; CHECK-POSTLINK-O2-NEXT: Running pass: TapirIndVarSimplifyPass
+; CHECK-POSTLINK-O2-NEXT: Running pass: LoopStripMinePass on foo
+; CHECK-POSTLINK-O2-NEXT: Running pass: TaskSimplifyPass on foo
+; CHECK-POSTLINK-O2-NEXT: Running pass: LoopSimplifyPass on foo
+; CHECK-POSTLINK-O2-NEXT: Running pass: LCSSAPass on foo
+; CHECK-POSTLINK-O2-NEXT: Running pass: LoopSimplifyCFGPass
+; CHECK-POSTLINK-O2-NEXT: Running pass: LICMPass
+; CHECK-POSTLINK-O2-NEXT: Running pass: JumpThreadingPass
+; CHECK-POSTLINK-O2-NEXT: Running analysis: LazyValueAnalysis
+; CHECK-POSTLINK-O2-NEXT: Running pass: CorrelatedValuePropagationPass
+; CHECK-POSTLINK-O2-NEXT: Invalidating analysis: LazyValueAnalysis
+; CHECK-POSTLINK-O2-NEXT: Running pass: InstCombinePass
+; CHECK-POSTLINK-O3-NEXT: Running pass: LoopSimplifyPass
+; CHECK-POSTLINK-O3-NEXT: Running pass: LCSSAPass
+; CHECK-POSTLINK-O3-NEXT: Running pass: TapirIndVarSimplifyPass
+; CHECK-POSTLINK-O3-NEXT: Running pass: LoopStripMinePass on foo
+; CHECK-POSTLINK-O3-NEXT: Running pass: TaskSimplifyPass on foo
+; CHECK-POSTLINK-O3-NEXT: Running pass: LoopSimplifyPass on foo
+; CHECK-POSTLINK-O3-NEXT: Running pass: LCSSAPass on foo
+; CHECK-POSTLINK-O3-NEXT: Running pass: LoopSimplifyCFGPass
+; CHECK-POSTLINK-O3-NEXT: Running pass: LICMPass
+; CHECK-POSTLINK-O3-NEXT: Running pass: JumpThreadingPass
+; CHECK-POSTLINK-O3-NEXT: Running analysis: LazyValueAnalysis
+; CHECK-POSTLINK-O3-NEXT: Running pass: CorrelatedValuePropagationPass
+; CHECK-POSTLINK-O3-NEXT: Invalidating analysis: LazyValueAnalysis
+; CHECK-POSTLINK-O3-NEXT: Running pass: InstCombinePass
 ; CHECK-EXT: Running pass: {{.*}}::Bye
 ; CHECK-POSTLINK-O-NEXT: Running pass: LoopSimplifyPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: LCSSAPass
@@ -217,6 +251,7 @@
 ; CHECK-POSTLINK-O3-NEXT: Running pass: SLPVectorizerPass
 ; CHECK-POSTLINK-Os-NEXT: Running pass: SLPVectorizerPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: VectorCombinePass
+; CHECK-POSTLINK-O-NEXT: Running pass: EarlyCSEPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: InstCombinePass
 ; CHECK-POSTLINK-O-NEXT: Running pass: LoopUnrollPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: WarnMissedTransformationsPass
@@ -232,6 +267,7 @@
 ; CHECK-POSTLINK-O-NEXT: Running pass: DivRemPairsPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: TailCallElimPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: SimplifyCFGPass
+; CHECK-POSTLINK-O-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-POST-EP-OPT-LAST-NEXT: Running pass: NoOpModulePass
 ; CHECK-POSTLINK-O-NEXT: Running pass: GlobalDCEPass
 ; CHECK-POSTLINK-O-NEXT: Running pass: ConstantMergePass

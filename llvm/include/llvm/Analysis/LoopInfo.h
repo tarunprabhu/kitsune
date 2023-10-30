@@ -287,11 +287,12 @@ public:
   /// Return all blocks inside the loop that have successors outside of the
   /// loop. These are the blocks _inside of the current loop_ which branch out.
   /// The returned list is always unique.
-  void getExitingBlocks(SmallVectorImpl<BlockT *> &ExitingBlocks) const;
+  void getExitingBlocks(SmallVectorImpl<BlockT *> &ExitingBlocks,
+                        bool IgnoreDetachUnwind = false) const;
 
   /// If getExitingBlocks would return exactly one block, return that block.
   /// Otherwise return null.
-  BlockT *getExitingBlock() const;
+  BlockT *getExitingBlock(bool IgnoreDetachUnwind = false) const;
 
   /// Return all of the successor blocks of this loop. These are the blocks
   /// _outside of the current loop_ which are branched to.
@@ -564,6 +565,51 @@ public:
     ///
     explicit operator bool() const { return Start && End; }
   };
+
+  /// Return all blocks inside the loop that have successors outside of the
+  /// loop. These are the blocks _inside of the current loop_ which branch out.
+  /// The returned list is always unique.
+  void getExitingBlocks(SmallVectorImpl<BasicBlock *> &ExitingBlocks,
+                        bool IgnoreDetachUnwind = false) const;
+
+  /// If getExitingBlocks would return exactly one block, return that block.
+  /// Otherwise return null.
+  BasicBlock *getExitingBlock(bool IgnoreDetachUnwind = false) const;
+
+  /// Get basic blocks that are outside of the loop, based on CFG analysis, but
+  /// inside tasks created within the loop.  Many analyses and optimizations
+  /// should treat these blocks as part of the loop.
+  void getTaskExits(SmallPtrSetImpl<BasicBlock *> &TaskExits) const;
+
+  /// Return all of the successor blocks of this loop. These are the blocks
+  /// _outside of the current loop_ which are branched to.
+  void getExitBlocks(SmallVectorImpl<BasicBlock *> &ExitBlocks) const;
+
+  /// If getExitBlocks would return exactly one block, return that block.
+  /// Otherwise return null.
+  BasicBlock *getExitBlock() const;
+
+  /// Return true if no exit block for the loop has a predecessor that is
+  /// outside the loop.
+  bool hasDedicatedExits() const;
+
+  /// Return all unique successor blocks of this loop.
+  /// These are the blocks _outside of the current loop_ which are branched to.
+  void getUniqueExitBlocks(SmallVectorImpl<BasicBlock *> &ExitBlocks) const;
+
+  /// Return all unique successor blocks of this loop except successors from
+  /// Latch block are not considered. If the exit comes from Latch has also
+  /// non Latch predecessor in a loop it will be added to ExitBlocks.
+  /// These are the blocks _outside of the current loop_ which are branched to.
+  void
+  getUniqueNonLatchExitBlocks(SmallVectorImpl<BasicBlock *> &ExitBlocks) const;
+
+  /// If getUniqueExitBlocks would return exactly one block, return that block.
+  /// Otherwise return null.
+  BasicBlock *getUniqueExitBlock() const;
+
+  /// Return all pairs of (_inside_block_,_outside_block_).
+  void getExitEdges(SmallVectorImpl<Edge> &ExitEdges) const;
 
   /// Return true if the specified value is loop invariant.
   bool isLoopInvariant(const Value *V) const;
@@ -874,6 +920,14 @@ public:
 
   /// Add llvm.loop.mustprogress to this loop's loop id metadata.
   void setLoopMustProgress();
+
+  /// Add llvm.loop.from.tapir.loop to this loop's loop id metadata, to indicate
+  /// that this loop was derived from a Tapir loop.
+  void setDerivedFromTapirLoop();
+
+  /// Returns true if the loop was derived from a Tapir loop, according to its
+  /// metadata.
+  bool wasDerivedFromTapirLoop() const;
 
   void dump() const;
   void dumpVerbose() const;

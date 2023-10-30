@@ -51,6 +51,10 @@ public:
   /// level.
   bool SLPVectorization;
 
+  /// Tuning option to enable/disable loop stripmining. Its default value
+  /// is that of the flag: `-stripmine-loops`.
+  bool LoopStripmine;
+
   /// Tuning option to enable/disable loop unrolling. Its default value is true.
   bool LoopUnrolling;
 
@@ -221,6 +225,24 @@ public:
   buildModuleOptimizationPipeline(OptimizationLevel Level,
                                   ThinOrFullLTOPhase LTOPhase);
 
+  /// Construct the pipeline for lowering Tapir loops to a target parallel
+  /// runtime.
+  ///
+  /// This pipeline is intended to be used early within
+  /// buildTapirLoweringPipeline at Level > O0 or run on its own for debugging
+  /// purposes.
+  ModulePassManager buildTapirLoopLoweringPipeline(OptimizationLevel Level,
+                                                   ThinOrFullLTOPhase Phase);
+
+  /// Construct the pipeline for lowering Tapir constructs to a target parallel
+  /// runtime.
+  ///
+  /// This pipeline is intended to be used with the PerModuleDefault pipeline
+  /// and various LTO pipelines to lower Tapir constructs.  This pipeline is
+  /// expected to run late in the parent pipelines.
+  ModulePassManager buildTapirLoweringPipeline(OptimizationLevel Level,
+                                               ThinOrFullLTOPhase Phase);
+
   /// Build a per-module default optimization pipeline.
   ///
   /// This provides a good default optimization pipeline for per-module
@@ -233,7 +255,8 @@ public:
   /// require some transformations for semantic reasons, they should explicitly
   /// build them.
   ModulePassManager buildPerModuleDefaultPipeline(OptimizationLevel Level,
-                                                  bool LTOPreLink = false);
+                                                  bool LTOPreLink = false,
+                                                  bool LowerTapir = false);
 
   /// Build a pre-link, ThinLTO-targeting default optimization pipeline to
   /// a pass manager.
@@ -262,7 +285,8 @@ public:
   /// build them.
   ModulePassManager
   buildThinLTODefaultPipeline(OptimizationLevel Level,
-                              const ModuleSummaryIndex *ImportSummary);
+                              const ModuleSummaryIndex *ImportSummary,
+                              bool LowerTapir = false);
 
   /// Build a pre-link, LTO-targeting default optimization pipeline to a pass
   /// manager.
@@ -290,13 +314,15 @@ public:
   /// require some transformations for semantic reasons, they should explicitly
   /// build them.
   ModulePassManager buildLTODefaultPipeline(OptimizationLevel Level,
-                                            ModuleSummaryIndex *ExportSummary);
+                                            ModuleSummaryIndex *ExportSummary,
+                                            bool LowerTapir = false);
 
   /// Build an O0 pipeline with the minimal semantically required passes.
   ///
   /// This should only be used for non-LTO and LTO pre-link pipelines.
   ModulePassManager buildO0DefaultPipeline(OptimizationLevel Level,
-                                           bool LTOPreLink = false);
+                                           bool LTOPreLink = false,
+                                           bool LowerTapir = false);
 
   /// Build the default `AAManager` with the default alias analysis pipeline
   /// registered.
@@ -501,6 +527,26 @@ public:
     FullLinkTimeOptimizationLastEPCallbacks.push_back(C);
   }
 
+  /// Register a callback for a default optimizer pipeline extension point.
+  ///
+  /// This extension point allows adding passes after optimizations have been
+  /// performed on the Tapir IR, but before Tapir constructs are lowered to a
+  /// target runtime.
+  void registerTapirLateEPCallback(
+      const std::function<void(ModulePassManager &, OptimizationLevel)> &C) {
+    TapirLateEPCallbacks.push_back(C);
+  }
+
+  /// Register a callback for a default optimizer pipeline extension point.
+  ///
+  /// This extension point allows adding passes after optimizations have been
+  /// performed on the Tapir IR, but before Tapir constructs are lowered to a
+  /// target runtime.
+  void registerTapirLoopEndEPCallback(
+      const std::function<void(ModulePassManager &, OptimizationLevel)> &C) {
+    TapirLoopEndEPCallbacks.push_back(C);
+  }
+
   /// Register a callback for parsing an AliasAnalysis Name to populate
   /// the given AAManager \p AA
   void registerParseAACallback(
@@ -632,6 +678,10 @@ private:
       FullLinkTimeOptimizationEarlyEPCallbacks;
   SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
       FullLinkTimeOptimizationLastEPCallbacks;
+  SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
+      TapirLateEPCallbacks;
+  SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
+      TapirLoopEndEPCallbacks;
   SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
       PipelineStartEPCallbacks;
   SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>

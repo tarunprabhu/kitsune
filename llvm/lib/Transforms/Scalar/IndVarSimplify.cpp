@@ -38,6 +38,7 @@
 #include "llvm/Analysis/MemorySSAUpdater.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -78,6 +79,7 @@
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
 #include "llvm/Transforms/Utils/SimplifyIndVar.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
 #include <cassert>
 #include <cstdint>
 #include <utility>
@@ -145,9 +147,11 @@ class IndVarSimplify {
   TargetLibraryInfo *TLI;
   const TargetTransformInfo *TTI;
   std::unique_ptr<MemorySSAUpdater> MSSAU;
+  TaskInfo *TI;
 
   SmallVector<WeakTrackingVH, 16> DeadInsts;
   bool WidenIndVars;
+  bool TapirLoopsOnly;
 
   bool handleFloatingPointIV(Loop *L, PHINode *PH);
   bool rewriteNonIntegerIVs(Loop *L);
@@ -174,9 +178,10 @@ class IndVarSimplify {
 public:
   IndVarSimplify(LoopInfo *LI, ScalarEvolution *SE, DominatorTree *DT,
                  const DataLayout &DL, TargetLibraryInfo *TLI,
-                 TargetTransformInfo *TTI, MemorySSA *MSSA, bool WidenIndVars)
-      : LI(LI), SE(SE), DT(DT), DL(DL), TLI(TLI), TTI(TTI),
-        WidenIndVars(WidenIndVars) {
+                 TargetTransformInfo *TTI, MemorySSA *MSSA, TaskInfo *TI,
+                 bool WidenIndVars, bool TapirLoopsOnly)
+      : LI(LI), SE(SE), DT(DT), DL(DL), TLI(TLI), TTI(TTI), TI(TI),
+        WidenIndVars(WidenIndVars), TapirLoopsOnly(TapirLoopsOnly) {
     if (MSSA)
       MSSAU = std::make_unique<MemorySSAUpdater>(MSSA);
   }
@@ -710,9 +715,35 @@ static bool isLoopExitTestBasedOn(Value *V, BasicBlock *ExitingBB) {
   return ICmp->getOperand(0) == V || ICmp->getOperand(1) == V;
 }
 
+/// Helper method to check if the given IV has the widest induction type.
+static bool isWidestInductionType(Loop *L, PHINode *SimpleIV) {
+  const DataLayout &DL = L->getHeader()->getModule()->getDataLayout();
+  uint64_t IVWidth = SimpleIV->getType()->getPrimitiveSizeInBits();
+  for (BasicBlock::iterator I = L->getHeader()->begin(); isa<PHINode>(I); ++I) {
+    PHINode *Phi = cast<PHINode>(I);
+    if (Phi == SimpleIV)
+      continue;
+
+    // Skip PHI nodes that are not of integer type.
+    if (!Phi->getType()->isIntegerTy())
+      continue;
+
+    // Skip PHI nodes that are not loop counters.
+    int Idx = Phi->getBasicBlockIndex(L->getLoopLatch());
+    if (Idx < 0)
+      continue;
+
+    // Check if Phi has a larger valid width than SimpleIV.
+    uint64_t PhiWidth = Phi->getType()->getPrimitiveSizeInBits();
+    if (IVWidth < PhiWidth && DL.isLegalInteger(PhiWidth))
+      return false;
+  }
+  return true;
+}
+
 /// linearFunctionTestReplace policy. Return true unless we can show that the
 /// current exit test is already sufficiently canonical.
-static bool needsLFTR(Loop *L, BasicBlock *ExitingBB) {
+static bool needsLFTR(Loop *L, BasicBlock *ExitingBB, TaskInfo *TI) {
   assert(L->getLoopLatch() && "Must be in simplified form");
 
   // Avoid converting a constant or loop invariant test back to a runtime
@@ -756,7 +787,24 @@ static bool needsLFTR(Loop *L, BasicBlock *ExitingBB) {
 
   // Do LFTR if the exit condition's IV is *not* a simple counter.
   Value *IncV = Phi->getIncomingValue(Idx);
-  return Phi != getLoopPhiForCounter(IncV, L);
+  if (Phi != getLoopPhiForCounter(IncV, L))
+    return true;
+
+  // Tapir loops are particularly picky about having canonical induction
+  // variables, so check if LFTR needs to create one.
+  if (getTaskIfTapirLoop(L, TI)) {
+    // Check that the simple IV has the widest induction type.
+    if (!isWidestInductionType(L, Phi))
+      return true;
+
+    // Check that the simple IV starts at 0.
+    if (BasicBlock *Preheader = L->getLoopPreheader())
+      if (Constant *Start =
+          dyn_cast<Constant>(Phi->getIncomingValueForBlock(Preheader)))
+        return !(Start->isZeroValue());
+  }
+
+  return false;
 }
 
 /// Return true if undefined behavior would provable be executed on the path to
@@ -2001,6 +2049,31 @@ bool IndVarSimplify::predicateLoopExits(Loop *L, SCEVExpander &Rewriter) {
   return Changed;
 }
 
+static bool ensureZeroStartIV(Loop *L, const DataLayout &DL,
+                              ScalarEvolution *SE, DominatorTree *DT) {
+  BasicBlock *LatchBlock = L->getLoopLatch();
+
+  const SCEV *ExitCount = SE->getExitCount(L, LatchBlock);
+  if (isa<SCEVCouldNotCompute>(ExitCount))
+    return false;
+
+  PHINode *IndVar = FindLoopCounter(L, LatchBlock, ExitCount, SE, DT);
+  if (!IndVar)
+    return false;
+
+  Instruction * const IncVar =
+      cast<Instruction>(IndVar->getIncomingValueForBlock(LatchBlock));
+
+  const SCEVAddRecExpr *AR = cast<SCEVAddRecExpr>(SE->getSCEV(IncVar));
+
+  if (!AR->getStart()->isZero()) {
+    SCEVExpander ARRewriter(*SE, DL, "indvars");
+    ARRewriter.expandCodeFor(AR, AR->getType(),
+                             &L->getHeader()->front());
+  }
+  return true;
+}
+
 //===----------------------------------------------------------------------===//
 //  IndVarSimplify driver. Manage several subpasses of IV simplification.
 //===----------------------------------------------------------------------===//
@@ -2022,6 +2095,9 @@ bool IndVarSimplify::run(Loop *L) {
   if (!L->isLoopSimplifyForm())
     return false;
 
+  bool IsTapirLoop = (nullptr != getTaskIfTapirLoop(L, TI));
+  if (TapirLoopsOnly && !IsTapirLoop)
+    return false;
 #ifndef NDEBUG
   // Used below for a consistency check only
   // Note: Since the result returned by ScalarEvolution may depend on the order
@@ -2030,12 +2106,19 @@ bool IndVarSimplify::run(Loop *L) {
   const SCEV *BackedgeTakenCount;
   if (VerifyIndvars)
     BackedgeTakenCount = SE->getBackedgeTakenCount(L);
+  if (IsTapirLoop)
+    BackedgeTakenCount = SE->getExitCount(L, L->getLoopLatch());
 #endif
 
   bool Changed = false;
   // If there are any floating-point recurrences, attempt to
   // transform them to use integer recurrences.
   Changed |= rewriteNonIntegerIVs(L);
+
+  // See if we need to create a canonical IV that starts at 0.  Right now we
+  // only check for a Tapir loop, but this check might be generalized.
+  if (IsTapirLoop)
+    Changed |= ensureZeroStartIV(L, DL, SE, DT);
 
   // Create a rewriter object which we'll use to transform the code with.
   SCEVExpander Rewriter(*SE, DL, "indvars");
@@ -2106,7 +2189,7 @@ bool IndVarSimplify::run(Loop *L) {
       if (LI->getLoopFor(ExitingBB) != L)
         continue;
 
-      if (!needsLFTR(L, ExitingBB))
+      if (!needsLFTR(L, ExitingBB, TI))
         continue;
 
       const SCEV *ExitCount = SE->getExitCount(L, ExitingBB);
@@ -2126,7 +2209,8 @@ bool IndVarSimplify::run(Loop *L) {
 
       // Avoid high cost expansions.  Note: This heuristic is questionable in
       // that our definition of "high cost" is not exactly principled.
-      if (Rewriter.isHighCostExpansion(ExitCount, L, SCEVCheapExpansionBudget,
+      if (!IsTapirLoop &&
+          Rewriter.isHighCostExpansion(ExitCount, L, SCEVCheapExpansionBudget,
                                        TTI, PreHeader->getTerminator()))
         continue;
 
@@ -2212,7 +2296,27 @@ PreservedAnalyses IndVarSimplifyPass::run(Loop &L, LoopAnalysisManager &AM,
   const DataLayout &DL = F->getParent()->getDataLayout();
 
   IndVarSimplify IVS(&AR.LI, &AR.SE, &AR.DT, DL, &AR.TLI, &AR.TTI, AR.MSSA,
-                     WidenIndVars && AllowIVWidening);
+                     &AR.TI, WidenIndVars && AllowIVWidening,
+                     /*TapirLoopsOnly=*/false);
+  if (!IVS.run(&L))
+    return PreservedAnalyses::all();
+
+  auto PA = getLoopPassPreservedAnalyses();
+  PA.preserveSet<CFGAnalyses>();
+  if (AR.MSSA)
+    PA.preserve<MemorySSAAnalysis>();
+  return PA;
+}
+
+PreservedAnalyses TapirIndVarSimplifyPass::run(Loop &L, LoopAnalysisManager &AM,
+                                               LoopStandardAnalysisResults &AR,
+                                               LPMUpdater &) {
+  Function *F = L.getHeader()->getParent();
+  const DataLayout &DL = F->getParent()->getDataLayout();
+
+  IndVarSimplify IVS(&AR.LI, &AR.SE, &AR.DT, DL, &AR.TLI, &AR.TTI, AR.MSSA,
+                     &AR.TI, WidenIndVars && AllowIVWidening,
+                     /*TapirLoopsOnly=*/true);
   if (!IVS.run(&L))
     return PreservedAnalyses::all();
 
@@ -2243,13 +2347,15 @@ struct IndVarSimplifyLegacyPass : public LoopPass {
     auto *TLI = TLIP ? &TLIP->getTLI(*L->getHeader()->getParent()) : nullptr;
     auto *TTIP = getAnalysisIfAvailable<TargetTransformInfoWrapperPass>();
     auto *TTI = TTIP ? &TTIP->getTTI(*L->getHeader()->getParent()) : nullptr;
+    auto *TI = &getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
     const DataLayout &DL = L->getHeader()->getModule()->getDataLayout();
     auto *MSSAAnalysis = getAnalysisIfAvailable<MemorySSAWrapperPass>();
     MemorySSA *MSSA = nullptr;
     if (MSSAAnalysis)
       MSSA = &MSSAAnalysis->getMSSA();
 
-    IndVarSimplify IVS(LI, SE, DT, DL, TLI, TTI, MSSA, AllowIVWidening);
+    IndVarSimplify IVS(LI, SE, DT, DL, TLI, TTI, MSSA, TI, AllowIVWidening,
+                       /*TapirLoopsOnly=*/false);
     return IVS.run(L);
   }
 

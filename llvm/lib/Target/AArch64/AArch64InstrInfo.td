@@ -1513,8 +1513,10 @@ def : Pat<(AArch64mrs imm:$id),
 
 // The thread pointer (on Linux, at least, where this has been implemented) is
 // TPIDR_EL0.
+let mayLoad = 1 in {
 def MOVbaseTLS : Pseudo<(outs GPR64:$dst), (ins),
                        [(set GPR64:$dst, AArch64threadpointer)]>, Sched<[WriteSys]>;
+}
 
 // This gets lowered into a 24-byte instruction sequence
 let Defs = [ X9, X16, X17, NZCV ], Size = 24 in {
@@ -8786,6 +8788,30 @@ let Predicates = [HasD128] in {
     bits<16> systemreg;
     let Inst{20-5} = systemreg;
   }
+}
+
+def AArch64eh_sjlj_setjmp : SDNode<"AArch64ISD::EH_SJLJ_SETJMP",
+                            SDTypeProfile<1, 1, [SDTCisInt<0>, SDTCisPtrTy<1>]>,
+                            [SDNPHasChain, SDNPSideEffect]>;
+def AArch64eh_sjlj_longjmp : SDNode<"AArch64ISD::EH_SJLJ_LONGJMP",
+                             SDTypeProfile<0, 1, [SDTCisPtrTy<0>]>,
+                             [SDNPHasChain, SDNPSideEffect]>;
+
+let isCodeGenOnly = 1, usesCustomInserter = 1, hasNoSchedulingInfo = 1 in {
+  def AArch64_setjmp_instr : Pseudo<(outs GPR32:$dst), (ins GPR64:$buf),
+                      [(set GPR32:$dst, (AArch64eh_sjlj_setjmp GPR64:$buf))]>;
+  def AArch64_longjmp_instr : Pseudo<(outs), (ins GPR64:$buf),
+                      [(AArch64eh_sjlj_longjmp GPR64:$buf)]>;
+}
+
+// This instruction is needed to make the longjmp target block reachable.
+def EH_SjLj_Setup : AArch64Inst<PseudoFrm, ""> {
+  let isTerminator = 1;
+  let isCodeGenOnly = 1;
+  let hasNoSchedulingInfo = 1;
+  let AsmString = "#EH_SjLj_Setup\t$dst";
+  dag OutOperandList = (outs);
+  dag InOperandList  = (ins am_brcond:$dst);
 }
 
 

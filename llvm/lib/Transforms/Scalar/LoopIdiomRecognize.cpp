@@ -58,6 +58,7 @@
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -282,6 +283,7 @@ public:
         &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(
             *L->getHeader()->getParent());
     const DataLayout *DL = &L->getHeader()->getModule()->getDataLayout();
+    TaskInfo *TI = &getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
     auto *MSSAAnalysis = getAnalysisIfAvailable<MemorySSAWrapperPass>();
     MemorySSA *MSSA = nullptr;
     if (MSSAAnalysis)
@@ -293,7 +295,12 @@ public:
     OptimizationRemarkEmitter ORE(L->getHeader()->getParent());
 
     LoopIdiomRecognize LIR(AA, DT, LI, SE, TLI, TTI, MSSA, DL, ORE);
-    return LIR.runOnLoop(L);
+    bool Changed = LIR.runOnLoop(L);
+    if (Changed && TI)
+      // FIXME: Recalculating TaskInfo for the whole function is wasteful.
+      // Optimize this routine in the future.
+      TI->recalculate(*L->getHeader()->getParent(), *DT);
+    return Changed;
   }
 
   /// This transformation requires natural loop information & requires that
@@ -327,6 +334,10 @@ PreservedAnalyses LoopIdiomRecognizePass::run(Loop &L, LoopAnalysisManager &AM,
                          AR.MSSA, DL, ORE);
   if (!LIR.runOnLoop(&L))
     return PreservedAnalyses::all();
+
+  // FIXME: Recalculating TaskInfo for the whole function is wasteful.
+  // Optimize this routine in the future.
+  AR.TI.recalculate(*AR.DT.getRoot()->getParent(), AR.DT);
 
   auto PA = getLoopPassPreservedAnalyses();
   if (AR.MSSA)

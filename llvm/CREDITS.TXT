@@ -353,6 +353,10 @@ N: Scott Michel
 E: scottm@aero.org
 D: Added STI Cell SPU backend.
 
+N: William S. Moses
+E: wmoses@mit.edu
+D: Tapir, Tapir lowering passes for Cilk and OpenMP
+
 N: Kai Nacke
 E: kai@redstar.de
 D: Support for implicit TLS model used with MS VC runtime

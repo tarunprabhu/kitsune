@@ -531,6 +531,53 @@ class FunctionDifferenceEngine {
       return Difference;
     } else if (isa<UnreachableInst>(L)) {
       return false;
+
+    } else if (isa<DetachInst>(L)) {
+      const DetachInst *LI = cast<DetachInst>(L);
+      const DetachInst *RI = cast<DetachInst>(R);
+      if (!equivalentAsOperands(LI->getSyncRegion(), RI->getSyncRegion(), AC)) {
+        if (Complain)
+          Engine.log("detach sync regions differ");
+        return true;
+      }
+      if (LI->hasUnwindDest() != RI->hasUnwindDest()) {
+        if (Complain)
+          Engine.log("detaches differ in having unwind destinations");
+        return true;
+      }
+      if (TryUnify) {
+        tryUnify(LI->getDetached(), RI->getDetached());
+        tryUnify(LI->getContinue(), RI->getContinue());
+        if (LI->hasUnwindDest())
+          tryUnify(LI->getUnwindDest(), RI->getUnwindDest());
+      }
+      return false;
+
+    } else if (isa<ReattachInst>(L)) {
+      const ReattachInst *LI = cast<ReattachInst>(L);
+      const ReattachInst *RI = cast<ReattachInst>(R);
+      if (!equivalentAsOperands(LI->getSyncRegion(), RI->getSyncRegion(), AC)) {
+        if (Complain)
+          Engine.log("reattach sync regions differ");
+        return true;
+      }
+      if (TryUnify)
+        tryUnify(LI->getSuccessor(0), RI->getSuccessor(0));
+
+      return false;
+
+    } else if (isa<SyncInst>(L)) {
+      const SyncInst *LI = cast<SyncInst>(L);
+      const SyncInst *RI = cast<SyncInst>(R);
+      if (!equivalentAsOperands(LI->getSyncRegion(), RI->getSyncRegion(), AC)) {
+        if (Complain)
+          Engine.log("sync-instruction sync regions differ");
+        return true;
+      }
+      if (TryUnify)
+        tryUnify(LI->getSuccessor(0), RI->getSuccessor(0));
+
+      return false;
     }
 
     if (L->getNumOperands() != R->getNumOperands()) {

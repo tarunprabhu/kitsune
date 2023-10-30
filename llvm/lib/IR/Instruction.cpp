@@ -409,6 +409,9 @@ const char *Instruction::getOpcodeName(unsigned OpCode) {
   case CatchPad: return "catchpad";
   case CatchSwitch: return "catchswitch";
   case CallBr: return "callbr";
+  case Detach: return "detach";
+  case Reattach: return "reattach";
+  case Sync:   return "sync";
 
   // Standard unary operators...
   case FNeg: return "fneg";
@@ -629,6 +632,7 @@ bool Instruction::mayReadFromMemory() const {
   case Instruction::VAArg:
   case Instruction::Load:
   case Instruction::Fence: // FIXME: refine definition of mayReadFromMemory
+  case Instruction::Sync: // Like Instruction::Fence
   case Instruction::AtomicCmpXchg:
   case Instruction::AtomicRMW:
   case Instruction::CatchPad:
@@ -647,6 +651,7 @@ bool Instruction::mayWriteToMemory() const {
   switch (getOpcode()) {
   default: return false;
   case Instruction::Fence: // FIXME: refine definition of mayWriteToMemory
+  case Instruction::Sync: // Like Instruction::Fence
   case Instruction::Store:
   case Instruction::VAArg:
   case Instruction::AtomicCmpXchg:
@@ -780,6 +785,15 @@ bool Instruction::isLaunderOrStripInvariantGroup() const {
 
 bool Instruction::isDebugOrPseudoInst() const {
   return isa<DbgInfoIntrinsic>(this) || isa<PseudoProbeInst>(this);
+}
+
+bool Instruction::isTaskFrameMarker() const {
+  auto II = dyn_cast<IntrinsicInst>(this);
+  if (!II)
+    return false;
+  Intrinsic::ID ID = II->getIntrinsicID();
+  return ID == Intrinsic::taskframe_create || ID == Intrinsic::taskframe_use ||
+      ID == Intrinsic::taskframe_end || ID == Intrinsic::taskframe_resume;
 }
 
 const Instruction *

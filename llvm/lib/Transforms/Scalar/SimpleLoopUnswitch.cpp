@@ -29,6 +29,7 @@
 #include "llvm/Analysis/MustExecute.h"
 #include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/BasicBlock.h"
@@ -1149,6 +1150,13 @@ static BasicBlock *buildClonedLoopBlocks(
     if (!SkipBlock(LoopBB))
       CloneBlock(LoopBB);
 
+  // Clone any task-exit blocks in the loop as well.
+  SmallPtrSet<BasicBlock*, 8> TaskExitBlocks;
+  L.getTaskExits(TaskExitBlocks);
+  for (auto *LoopBB : TaskExitBlocks)
+    if (!SkipBlock(LoopBB))
+      CloneBlock(LoopBB);
+
   // Split all the loop exit edges so that when we clone the exit blocks, if
   // any of the exit blocks are *also* a preheader for some other loop, we
   // don't create multiple predecessors entering the loop header.
@@ -2078,7 +2086,7 @@ static void unswitchNontrivialInvariants(
     IVConditionInfo &PartialIVInfo, DominatorTree &DT, LoopInfo &LI,
     AssumptionCache &AC,
     function_ref<void(bool, bool, ArrayRef<Loop *>)> UnswitchCB,
-    ScalarEvolution *SE, MemorySSAUpdater *MSSAU,
+    ScalarEvolution *SE, TaskInfo *TaskI, MemorySSAUpdater *MSSAU,
     function_ref<void(Loop &, StringRef)> DestroyLoopCB) {
   auto *ParentBB = TI.getParent();
   BranchInst *BI = dyn_cast<BranchInst>(&TI);
@@ -2149,7 +2157,7 @@ static void unswitchNontrivialInvariants(
   // Compute the parent loop now before we start hacking on things.
   Loop *ParentL = L.getParentLoop();
   // Get blocks in RPO order for MSSA update, before changing the CFG.
-  LoopBlocksRPO LBRPO(&L);
+  LoopBlocksRPO LBRPO(&L, /*IncludeTaskExits*/ true);
   if (MSSAU)
     LBRPO.perform(&LI);
 
@@ -2185,7 +2193,7 @@ static void unswitchNontrivialInvariants(
   if (FreezeLoopUnswitchCond) {
     ICFLoopSafetyInfo SafetyInfo;
     SafetyInfo.computeLoopSafetyInfo(&L);
-    InsertFreeze = !SafetyInfo.isGuaranteedToExecute(TI, &DT, &L);
+    InsertFreeze = !SafetyInfo.isGuaranteedToExecute(TI, &DT, TaskI, &L);
   }
 
   // Perform the isGuaranteedNotToBeUndefOrPoison() query before the transform,
@@ -2251,7 +2259,7 @@ static void unswitchNontrivialInvariants(
       // guaranteed no reach implicit null check after following this branch.
       ICFLoopSafetyInfo SafetyInfo;
       SafetyInfo.computeLoopSafetyInfo(&L);
-      if (!SafetyInfo.isGuaranteedToExecute(TI, &DT, &L))
+      if (!SafetyInfo.isGuaranteedToExecute(TI, &DT, TaskI, &L))
         TI.setMetadata(LLVMContext::MD_make_implicit, nullptr);
     }
   }
@@ -2864,7 +2872,7 @@ static bool isSafeForNoNTrivialUnswitching(Loop &L, LoopInfo &LI) {
   // loops "out of thin air". If we ever discover important use cases for doing
   // this, we can add support to loop unswitch, but it is a lot of complexity
   // for what seems little or no real world benefit.
-  LoopBlocksRPO RPOT(&L);
+  LoopBlocksRPO RPOT(&L, /*IncludeTaskExits*/ true);
   RPOT.perform(&LI);
   if (containsIrreducibleCFG<const BasicBlock *>(RPOT, LI))
     return false;
@@ -3037,7 +3045,7 @@ static bool unswitchBestCondition(
     Loop &L, DominatorTree &DT, LoopInfo &LI, AssumptionCache &AC,
     AAResults &AA, TargetTransformInfo &TTI,
     function_ref<void(bool, bool, ArrayRef<Loop *>)> UnswitchCB,
-    ScalarEvolution *SE, MemorySSAUpdater *MSSAU,
+    ScalarEvolution *SE, TaskInfo *TaskI, MemorySSAUpdater *MSSAU,
     function_ref<void(Loop &, StringRef)> DestroyLoopCB) {
   // Collect all invariant conditions within this loop (as opposed to an inner
   // loop which would be handled when visiting that inner loop).
@@ -3076,7 +3084,8 @@ static bool unswitchBestCondition(
   LLVM_DEBUG(dbgs() << "  Unswitching non-trivial (cost = " << Best.Cost
                     << ") terminator: " << *Best.TI << "\n");
   unswitchNontrivialInvariants(L, *Best.TI, Best.Invariants, PartialIVInfo, DT,
-                               LI, AC, UnswitchCB, SE, MSSAU, DestroyLoopCB);
+                               LI, AC, UnswitchCB, SE, TaskI, MSSAU,
+                               DestroyLoopCB);
   return true;
 }
 
@@ -3106,7 +3115,7 @@ unswitchLoop(Loop &L, DominatorTree &DT, LoopInfo &LI, AssumptionCache &AC,
              AAResults &AA, TargetTransformInfo &TTI, bool Trivial,
              bool NonTrivial,
              function_ref<void(bool, bool, ArrayRef<Loop *>)> UnswitchCB,
-             ScalarEvolution *SE, MemorySSAUpdater *MSSAU,
+             ScalarEvolution *SE, TaskInfo *TaskI, MemorySSAUpdater *MSSAU,
              ProfileSummaryInfo *PSI, BlockFrequencyInfo *BFI,
              function_ref<void(Loop &, StringRef)> DestroyLoopCB) {
   assert(L.isRecursivelyLCSSAForm(DT, LI) &&
@@ -3164,8 +3173,8 @@ unswitchLoop(Loop &L, DominatorTree &DT, LoopInfo &LI, AssumptionCache &AC,
 
   // Try to unswitch the best invariant condition. We prefer this full unswitch to
   // a partial unswitch when possible below the threshold.
-  if (unswitchBestCondition(L, DT, LI, AC, AA, TTI, UnswitchCB, SE, MSSAU,
-                            DestroyLoopCB))
+  if (unswitchBestCondition(L, DT, LI, AC, AA, TTI, UnswitchCB, SE, TaskI,
+                            MSSAU, DestroyLoopCB))
     return true;
 
   // No other opportunities to unswitch.
@@ -3227,8 +3236,8 @@ PreservedAnalyses SimpleLoopUnswitchPass::run(Loop &L, LoopAnalysisManager &AM,
       AR.MSSA->verifyMemorySSA();
   }
   if (!unswitchLoop(L, AR.DT, AR.LI, AR.AC, AR.AA, AR.TTI, Trivial, NonTrivial,
-                    UnswitchCB, &AR.SE, MSSAU ? &*MSSAU : nullptr, PSI, AR.BFI,
-                    DestroyLoopCB))
+                    UnswitchCB, &AR.SE, &AR.TI, MSSAU ? &*MSSAU : nullptr, PSI,
+                    AR.BFI, DestroyLoopCB))
     return PreservedAnalyses::all();
 
   if (AR.MSSA && VerifyMemorySSA)
@@ -3237,6 +3246,11 @@ PreservedAnalyses SimpleLoopUnswitchPass::run(Loop &L, LoopAnalysisManager &AM,
   // Historically this pass has had issues with the dominator tree so verify it
   // in asserts builds.
   assert(AR.DT.verify(DominatorTree::VerificationLevel::Fast));
+
+  // Recompute task info.
+  // FIXME: Figure out a way to update task info that is less computationally
+  // wasteful.
+  AR.TI.recalculate(F, AR.DT);
 
   auto PA = getLoopPassPreservedAnalyses();
   if (AR.MSSA)
@@ -3297,6 +3311,7 @@ bool SimpleLoopUnswitchLegacyPass::runOnLoop(Loop *L, LPPassManager &LPM) {
   auto &TTI = getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
   MemorySSA *MSSA = &getAnalysis<MemorySSAWrapperPass>().getMSSA();
   MemorySSAUpdater MSSAU(MSSA);
+  auto &TI = getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
 
   auto *SEWP = getAnalysisIfAvailable<ScalarEvolutionWrapperPass>();
   auto *SE = SEWP ? &SEWP->getSE() : nullptr;
@@ -3328,7 +3343,7 @@ bool SimpleLoopUnswitchLegacyPass::runOnLoop(Loop *L, LPPassManager &LPM) {
     MSSA->verifyMemorySSA();
   bool Changed =
       unswitchLoop(*L, DT, LI, AC, AA, TTI, true, NonTrivial, UnswitchCB, SE,
-                   &MSSAU, nullptr, nullptr, DestroyLoopCB);
+                   &TI, &MSSAU, nullptr, nullptr, DestroyLoopCB);
 
   if (VerifyMemorySSA)
     MSSA->verifyMemorySSA();
@@ -3336,6 +3351,12 @@ bool SimpleLoopUnswitchLegacyPass::runOnLoop(Loop *L, LPPassManager &LPM) {
   // Historically this pass has had issues with the dominator tree so verify it
   // in asserts builds.
   assert(DT.verify(DominatorTree::VerificationLevel::Fast));
+
+  if (Changed)
+    // Recompute task info.
+    // FIXME: Figure out a way to update task info that is less computationally
+    // wasteful.
+    TI.recalculate(F, DT);
 
   return Changed;
 }

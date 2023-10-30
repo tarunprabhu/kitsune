@@ -346,6 +346,10 @@ class Verifier : public InstVisitor<Verifier>, VerifierSupport {
   // Keeps track of duplicate function argument debug info.
   SmallVector<const DILocalVariable *, 16> DebugFnArgs;
 
+  // Keeps track of detach instructions whose task structures have been
+  // verified.
+  SmallPtrSet<const DetachInst *, 32> DetachesVisited;
+
   TBAAVerifier TBAAVerifyHelper;
 
   SmallVector<IntrinsicInst *, 4> NoAliasScopeDecls;
@@ -552,6 +556,10 @@ private:
   void visitFuncletPadInst(FuncletPadInst &FPI);
   void visitCatchSwitchInst(CatchSwitchInst &CatchSwitch);
   void visitCleanupReturnInst(CleanupReturnInst &CRI);
+
+  void verifyTask(const DetachInst *DI);
+  void visitDetachInst(DetachInst &DI);
+  void visitReattachInst(ReattachInst &RI);
 
   void verifySwiftErrorCall(CallBase &Call, const Value *SwiftErrorVal);
   void verifySwiftErrorValue(const Value *SwiftErrorVal);
@@ -2915,6 +2923,121 @@ void Verifier::visitCallBrInst(CallBrInst &CBI) {
   visitTerminator(CBI);
 }
 
+// Check if the given instruction is an intrinsic with the specified ID.  If a
+// value \p V is specified, then additionally checks that the first argument of
+// the intrinsic matches \p V.
+static bool isTapirIntrinsic(Intrinsic::ID ID, const Instruction *I,
+                             const Value *V) {
+  if (const CallBase *CB = dyn_cast<CallBase>(I))
+    if (const Function *Called = CB->getCalledFunction())
+      if (ID == Called->getIntrinsicID())
+        if (!V || (V == CB->getArgOperand(0)))
+          return true;
+  return false;
+}
+
+/// Returns true if the given instruction performs a detached.rethrow, false
+/// otherwise.  If \p SyncRegion is specified, then additionally checks that the
+/// detached.rethrow uses \p SyncRegion.
+static bool isDetachedRethrow(const Instruction *I,
+                              const Value *SyncRegion = nullptr) {
+  return isa<InvokeInst>(I) &&
+      isTapirIntrinsic(Intrinsic::detached_rethrow, I, SyncRegion);
+}
+
+void Verifier::verifyTask(const DetachInst *DI) {
+  SmallVector<const BasicBlock *, 32> Worklist;
+  SmallPtrSet<const BasicBlock *, 32> Visited;
+  Worklist.push_back(DI->getDetached());
+  do {
+    const BasicBlock *BB = Worklist.pop_back_val();
+    if (!Visited.insert(BB).second)
+      continue;
+
+    if (const DetachInst *SDI = dyn_cast<DetachInst>(BB->getTerminator())) {
+      Check(DI != SDI, "Detached task reaches its own detach", DI);
+      if (DetachesVisited.insert(SDI).second)
+        // Recursively verify the detached task.
+        verifyTask(SDI);
+
+      // Add the continuation and unwind destination to the worklist.
+      Worklist.push_back(SDI->getContinue());
+      if (SDI->hasUnwindDest())
+        Worklist.push_back(SDI->getUnwindDest());
+      continue;
+    }
+
+    if (const ReattachInst *RI = dyn_cast<ReattachInst>(BB->getTerminator())) {
+      Check(DI->getSyncRegion() == RI->getSyncRegion(),
+            "Mismatched sync regions between detach and reattach", DI, RI);
+      Check(RI->getDetachContinue() == DI->getContinue(),
+            "Mismatched continuations between detach and reattach", DI, RI);
+      // Don't add the successor of the reattach, since that's outside of the
+      // task.
+      continue;
+    }
+
+    if (const InvokeInst *II = dyn_cast<InvokeInst>(BB->getTerminator())) {
+      if (isDetachedRethrow(II)) {
+        Check(DI->getSyncRegion() == II->getArgOperand(0),
+              "Mismatched sync regions between detach and detached.rethrow", DI,
+              II);
+        Check(isa<UnreachableInst>(II->getNormalDest()->getTerminator()),
+              "detached.rethrow intrinsic has an "
+              "unexpected normal destination.",
+              DI, II);
+        Check(DI->hasUnwindDest(),
+              "Task contains a detached.rethrow terminator, but detach has no "
+              "unwind destination",
+              DI, II);
+        Check(DI->getUnwindDest() == II->getUnwindDest(),
+              "Mismatched unwind destinations between detach and "
+              "detached.rethrow",
+              DI, II);
+        // Don't add the successors of the detached.rethrow, since they're
+        // outside of the task.
+        continue;
+      }
+    }
+
+    // Check that do not encounter a return or resume in the middle of the
+    // task.
+    Check(!isa<ReturnInst>(BB->getTerminator()) &&
+              !isa<ResumeInst>(BB->getTerminator()),
+          "Unexpected return or resume in task", BB->getTerminator());
+
+    // Add the successors of this basic block.
+    for (const BasicBlock *Successor : successors(BB))
+      Worklist.push_back(Successor);
+
+  } while (!Worklist.empty());
+}
+
+void Verifier::visitReattachInst(ReattachInst &RI) {
+  if (DT.isReachableFromEntry(RI.getParent())) {
+    // Check that the continuation of the reattach has a detach predecessor.
+    const BasicBlock *Continue = RI.getDetachContinue();
+    bool FoundDetachPred = false;
+    for (const BasicBlock *Pred : predecessors(Continue)) {
+      if (isa<DetachInst>(Pred->getTerminator()) &&
+          DT.dominates(Pred, RI.getParent())) {
+        FoundDetachPred = true;
+        break;
+      }
+    }
+    Check(FoundDetachPred,
+          "No detach predecessor found for successor of reattach.", &RI);
+  }
+  visitTerminator(RI);
+}
+
+void Verifier::visitDetachInst(DetachInst &DI) {
+  if (DetachesVisited.insert(&DI).second)
+    verifyTask(&DI);
+
+  visitTerminator(DI);
+}
+
 void Verifier::visitSelectInst(SelectInst &SI) {
   Check(!SelectInst::areInvalidOperands(SI.getOperand(0), SI.getOperand(1),
                                         SI.getOperand(2)),
@@ -4081,6 +4204,14 @@ void Verifier::visitEHPadPredecessors(Instruction &I) {
     // landing pad block may be branched to only by the unwind edge of an
     // invoke.
     for (BasicBlock *PredBB : predecessors(BB)) {
+      if (const auto *DI = dyn_cast<DetachInst>(PredBB->getTerminator())) {
+        Check(DI && DI->getUnwindDest() == BB && DI->getDetached() != BB &&
+                  DI->getContinue() != BB,
+              "A detach can only jump to a block containing a LandingPadInst "
+              "as the unwind destination.",
+              LPI);
+        continue;
+      }
       const auto *II = dyn_cast<InvokeInst>(PredBB->getTerminator());
       Check(II && II->getUnwindDest() == BB && II->getNormalDest() != BB,
             "Block containing LandingPadInst must be jumped to "
@@ -4770,9 +4901,13 @@ void Verifier::visitInstruction(Instruction &I) {
                 F->getIntrinsicID() == Intrinsic::experimental_patchpoint_i64 ||
                 F->getIntrinsicID() == Intrinsic::experimental_gc_statepoint ||
                 F->getIntrinsicID() == Intrinsic::wasm_rethrow ||
+                F->getIntrinsicID() == Intrinsic::detached_rethrow ||
+                F->getIntrinsicID() == Intrinsic::taskframe_resume ||
+                F->getIntrinsicID() == Intrinsic::sync_unwind ||
                 IsAttachedCallOperand(F, CBI, i),
             "Cannot invoke an intrinsic other than donothing, patchpoint, "
-            "statepoint, coro_resume, coro_destroy or clang.arc.attachedcall",
+            "statepoint, coro_resume, coro_destroy, detached_rethrow, "
+            "taskframe_resume, sync_unwind or clang.arc.attachedcall",
             &I);
       Check(F->getParent() == &M, "Referencing function in another module!", &I,
             &M, F, F->getParent());
@@ -5786,6 +5921,20 @@ void Verifier::visitIntrinsicCall(Intrinsic::ID ID, CallBase &Call) {
           "stream argument to llvm.aarch64.prefetch must be 0 or 1", Call);
     Check(cast<ConstantInt>(Call.getArgOperand(4))->getZExtValue() < 2,
           "isdata argument to llvm.aarch64.prefetch must be 0 or 1", Call);
+    break;
+  }
+  case Intrinsic::syncregion_start: {
+    SmallVector<const DetachInst *, 4> DetachUsers;
+    for (const User *U : Call.users())
+      if (const DetachInst *DI = dyn_cast<DetachInst>(U))
+        if (DT.isReachableFromEntry(DI->getParent()))
+          DetachUsers.push_back(DI);
+
+    for (const DetachInst *DI1 : DetachUsers)
+      for (const DetachInst *DI2 : DetachUsers)
+        if (DI1 != DI2)
+          Check(!DT.dominates(DI1->getDetached(), DI2->getParent()),
+                "One detach user of a sync region dominates another", DI1, DI2);
     break;
   }
   };

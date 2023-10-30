@@ -43,6 +43,7 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/IR/PassManager.h"
@@ -201,6 +202,11 @@ static MemoryEffects checkFunctionMemoryAccess(Function &F, bool ThisBody,
           AddLocAccess(MemoryLocation::getBeforeOrAfter(Arg, I.getAAMetadata()), ArgMR);
         }
       }
+      continue;
+    } else if (isa<SyncInst>(I) || isa<DetachInst>(I) || isa<ReattachInst>(I)) {
+      // Tapir instructions only access memory accessed by other instructions in
+      // the function.  Hence we let the other instructions determine the
+      // attribute of this function.
       continue;
     }
 
@@ -1383,6 +1389,13 @@ static bool InstrBreaksNonThrowing(Instruction &I, const SCCNodeSet &SCCNodes) {
     return false;
   if (const auto *CI = dyn_cast<CallInst>(&I)) {
     if (Function *Callee = CI->getCalledFunction()) {
+      // Ignore sync.unwind, detached.rethrow, and taskframe.resume when
+      // checking if a function can throw, since they are simply placeholders.
+      if (Intrinsic::sync_unwind == Callee->getIntrinsicID() ||
+          Intrinsic::detached_rethrow == Callee->getIntrinsicID() ||
+          Intrinsic::taskframe_resume == Callee->getIntrinsicID())
+        return false;
+
       // I is a may-throw call to a function inside our SCC. This doesn't
       // invalidate our current working assumption that the SCC is no-throw; we
       // just have to scan that other function.
@@ -1518,9 +1531,48 @@ static void addNoRecurseAttrs(const SCCNodeSet &SCCNodes,
     for (auto &I : BB.instructionsWithoutDebug())
       if (auto *CB = dyn_cast<CallBase>(&I)) {
         Function *Callee = CB->getCalledFunction();
-        if (!Callee || Callee == F || !Callee->doesNotRecurse())
-          // Function calls a potentially recursive function.
-          return;
+        if (!Callee || Callee == F || !Callee->doesNotRecurse()) {
+          if (Callee && Callee != F)
+            // Ignore certain intrinsics when inferring norecurse.
+            switch (Callee->getIntrinsicID()) {
+            default: return;
+            case Intrinsic::annotation:
+            case Intrinsic::assume:
+            case Intrinsic::sideeffect:
+            case Intrinsic::invariant_start:
+            case Intrinsic::invariant_end:
+            case Intrinsic::launder_invariant_group:
+            case Intrinsic::strip_invariant_group:
+            case Intrinsic::is_constant:
+            case Intrinsic::lifetime_start:
+            case Intrinsic::lifetime_end:
+            case Intrinsic::objectsize:
+            case Intrinsic::ptr_annotation:
+            case Intrinsic::var_annotation:
+            case Intrinsic::experimental_gc_result:
+            case Intrinsic::experimental_gc_relocate:
+            case Intrinsic::coro_alloc:
+            case Intrinsic::coro_begin:
+            case Intrinsic::coro_free:
+            case Intrinsic::coro_end:
+            case Intrinsic::coro_frame:
+            case Intrinsic::coro_size:
+            case Intrinsic::coro_suspend:
+            case Intrinsic::coro_subfn_addr:
+            case Intrinsic::syncregion_start:
+            case Intrinsic::detached_rethrow:
+            case Intrinsic::taskframe_create:
+            case Intrinsic::taskframe_use:
+            case Intrinsic::taskframe_end:
+            case Intrinsic::taskframe_resume:
+            case Intrinsic::taskframe_load_guard:
+            case Intrinsic::sync_unwind:
+              continue;
+            }
+          else
+            // Function calls a potentially recursive function.
+            return;
+        }
       }
 
   // Every call was to a non-recursive function other than this function, and
