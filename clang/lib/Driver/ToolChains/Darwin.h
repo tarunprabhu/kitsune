@@ -170,6 +170,10 @@ public:
   virtual void AddLinkARCArgs(const llvm::opt::ArgList &Args,
                               llvm::opt::ArgStringList &CmdArgs) const {}
 
+  /// Add the linker arguments to link a Tapir runtime library.
+  virtual void AddLinkTapirRuntime(const llvm::opt::ArgList &Args,
+                                   llvm::opt::ArgStringList &CmdArgs) const {}
+
   /// Add the linker arguments to link the compiler runtime library.
   ///
   /// FIXME: This API is intended for use with embedded libraries only, and is
@@ -604,6 +608,9 @@ public:
   void AddLinkARCArgs(const llvm::opt::ArgList &Args,
                       llvm::opt::ArgStringList &CmdArgs) const override;
 
+  void AddLinkTapirRuntime(const llvm::opt::ArgList &Args,
+                           llvm::opt::ArgStringList &CmdArgs) const override;
+
   unsigned GetDefaultDwarfVersion() const override;
   // Until dtrace (via CTF) and LLDB can deal with distributed debug info,
   // Darwin defaults to standalone/full debug info.
@@ -619,6 +626,11 @@ private:
                                llvm::opt::ArgStringList &CmdArgs,
                                StringRef Sanitizer,
                                bool shared = true) const;
+
+  void AddLinkTapirRuntimeLib(const llvm::opt::ArgList &Args,
+                              llvm::opt::ArgStringList &CmdArgs,
+                              StringRef LibName, RuntimeLinkOptions Opts,
+                              bool IsShared) const;
 
   bool AddGnuCPlusPlusIncludePaths(const llvm::opt::ArgList &DriverArgs,
                                    llvm::opt::ArgStringList &CC1Args,

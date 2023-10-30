@@ -2376,6 +2376,23 @@ void StmtProfiler::VisitTemplateArgument(const TemplateArgument &Arg) {
   }
 }
 
+void StmtProfiler::VisitKitsuneForallStmt(const KitsuneForallStmt *S) {
+  VisitStmt(S);
+}
+
+void StmtProfiler::VisitKitsuneForallRangeStmt(
+    const KitsuneForallRangeStmt *S) {
+  VisitStmt(S);
+}
+
+void StmtProfiler::VisitKitsuneSpawnStmt(const KitsuneSpawnStmt *S) {
+  VisitStmt(S);
+}
+
+void StmtProfiler::VisitKitsuneSyncStmt(const KitsuneSyncStmt *S) {
+  VisitStmt(S);
+}
+
 void Stmt::Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Context,
                    bool Canonical) const {
   StmtProfilerWithPointers Profiler(ID, Context, Canonical);

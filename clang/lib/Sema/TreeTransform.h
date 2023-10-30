@@ -30,6 +30,7 @@
 #include "clang/AST/StmtOpenMP.h"
 #include "clang/Basic/DiagnosticParse.h"
 #include "clang/Basic/OpenMPKinds.h"
+#include "clang/AST/StmtKitsune.h"
 #include "clang/Sema/Designator.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Ownership.h"
@@ -2520,6 +2521,75 @@ public:
     return getSema().BuildCXXForRangeStmt(ForLoc, CoawaitLoc, Init, ColonLoc,
                                           Range, Begin, End, Cond, Inc, LoopVar,
                                           RParenLoc, Sema::BFRK_Rebuild);
+  }
+
+  /// Build a new Kitsune forall statement.
+  ///
+  /// By default, performs semantic analysis to build the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  StmtResult RebuildKitsuneForallStmt(SourceLocation ForLoc,
+                                      SourceLocation LParenLoc, Stmt *Init,
+                                      Sema::ConditionResult Cond,
+                                      Sema::FullExprArg Inc,
+                                      SourceLocation RParenLoc, Stmt *Body) {
+    return getSema().ActOnKitsuneForallStmt(ForLoc, LParenLoc, Init, Cond, Inc,
+                                            RParenLoc, Body);
+  }
+
+  // FIXME: Kitsune: This is essentially the same as the code for the regular
+  // C++11 for-range statement. Could that code be used instead?
+  StmtResult RebuildKitsuneForallRangeStmt(SourceLocation ForLoc,
+                                           SourceLocation CoawaitLoc,
+                                           Stmt *Init, SourceLocation ColonLoc,
+                                           Stmt *Range, Stmt *Begin, Stmt *End,
+                                           Stmt *Index, Stmt *IndexEnd,
+                                           Expr *Cond, Expr *Inc, Stmt *LoopVar,
+                                           SourceLocation RParenLoc) {
+    // If we've just learned that the range is actually an Objective-C
+    // collection, treat this as an Objective-C fast enumeration loop.
+    if (DeclStmt *RangeStmt = dyn_cast<DeclStmt>(Range)) {
+      if (RangeStmt->isSingleDecl()) {
+        if (VarDecl *RangeVar = dyn_cast<VarDecl>(RangeStmt->getSingleDecl())) {
+          if (RangeVar->isInvalidDecl())
+            return StmtError();
+
+          Expr *RangeExpr = RangeVar->getInit();
+          if (!RangeExpr->isTypeDependent() &&
+              RangeExpr->getType()->isObjCObjectPointerType()) {
+            // FIXME: Support init-statements in Objective-C++20 ranged for
+            // statement.
+            if (Init) {
+              return SemaRef.Diag(Init->getBeginLoc(),
+                                  diag::err_objc_for_range_init_stmt)
+                     << Init->getSourceRange();
+            }
+            return getSema().ActOnObjCForCollectionStmt(ForLoc, LoopVar,
+                                                        RangeExpr, RParenLoc);
+          }
+        }
+      }
+    }
+
+    return getSema().BuildKitsuneForallRangeStmt(
+        ForLoc, CoawaitLoc, Init, ColonLoc, Range, Begin, End, Index, IndexEnd,
+        Cond, Inc, LoopVar, RParenLoc, Sema::BFRK_Rebuild);
+  }
+
+  /// Attach body to a C++0x range-based for statement.
+  ///
+  /// By default, performs semantic analysis to finish the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  StmtResult FinishKitsuneForallRangeStmt(Stmt *ForRange, Stmt *Body) {
+    return getSema().FinishKitsuneForallRangeStmt(ForRange, Body);
+  }
+
+  /// Build a new Kitsune spawn statment.
+  ///
+  /// By default, performs semantic analysis to build the new expression.
+  /// Subclasses may override this routine to provide different behavior.
+  StmtResult RebuildKitsuneSpawnStmt(SourceLocation SpawnLoc, StringRef SV,
+                                     Stmt *S) {
+    return getSema().ActOnKitsuneSpawnStmt(SpawnLoc, SV, S);
   }
 
   /// Build a new C++0x range-based for statement.
@@ -15239,6 +15309,157 @@ TreeTransform<Derived>::TransformCapturedStmt(CapturedStmt *S) {
   }
 
   return getSema().ActOnCapturedRegionEnd(Body.get());
+}
+
+// FIXME: This is is a clone of the TransformForStmt function. We could
+// refactor the code to use that instead and avoid the duplication.
+template <typename Derived>
+StmtResult
+TreeTransform<Derived>::TransformKitsuneForallStmt(KitsuneForallStmt *S) {
+  if (getSema().getLangOpts().OpenMP)
+    getSema().startOpenMPLoop();
+
+  // Transform the initialization statement
+  StmtResult Init = getDerived().TransformStmt(S->getInit());
+  if (Init.isInvalid())
+    return StmtError();
+
+  // In OpenMP loop region loop control variable must be captured and be
+  // private. Perform analysis of first part (if any).
+  if (getSema().getLangOpts().OpenMP && Init.isUsable())
+    getSema().ActOnOpenMPLoopInitialization(S->getForallLoc(), Init.get());
+
+  // Transform the condition
+  Sema::ConditionResult Cond = getDerived().TransformCondition(
+      S->getForallLoc(), S->getConditionVariable(), S->getCond(),
+      Sema::ConditionKind::Boolean);
+  if (Cond.isInvalid())
+    return StmtError();
+
+  // Transform the increment
+  ExprResult Inc = getDerived().TransformExpr(S->getInc());
+  if (Inc.isInvalid())
+    return StmtError();
+
+  Sema::FullExprArg FullInc(getSema().MakeFullDiscardedValueExpr(Inc.get()));
+  if (S->getInc() && !FullInc.get())
+    return StmtError();
+
+  // Transform the body
+  StmtResult Body = getDerived().TransformStmt(S->getBody());
+  if (Body.isInvalid())
+    return StmtError();
+
+  if (!getDerived().AlwaysRebuild() && Init.get() == S->getInit() &&
+      Cond.get() == std::make_pair(S->getConditionVariable(), S->getCond()) &&
+      Inc.get() == S->getInc() && Body.get() == S->getBody())
+    return S;
+
+  return getDerived().RebuildKitsuneForallStmt(
+      S->getForallLoc(), S->getLParenLoc(), Init.get(), Cond, FullInc,
+      S->getRParenLoc(), Body.get());
+}
+
+// FIXME: Kitsune: This is essentially a clone of the code for the standard
+// C++11 for-range statement. This could be refactored to use most of that
+// code directly.
+template <typename Derived>
+StmtResult TreeTransform<Derived>::TransformKitsuneForallRangeStmt(
+    KitsuneForallRangeStmt *S) {
+  StmtResult Init =
+      S->getInit() ? getDerived().TransformStmt(S->getInit()) : StmtResult();
+  if (Init.isInvalid())
+    return StmtError();
+
+  StmtResult Range = getDerived().TransformStmt(S->getRangeStmt());
+  if (Range.isInvalid())
+    return StmtError();
+
+  StmtResult Begin = getDerived().TransformStmt(S->getBeginStmt());
+  if (Begin.isInvalid())
+    return StmtError();
+  StmtResult End = getDerived().TransformStmt(S->getEndStmt());
+  if (End.isInvalid())
+    return StmtError();
+  StmtResult Index = getDerived().TransformStmt(S->getIndexStmt());
+  if (Index.isInvalid())
+    return StmtError();
+  StmtResult IndexEnd = getDerived().TransformStmt(S->getIndexEndStmt());
+  if (IndexEnd.isInvalid())
+    return StmtError();
+
+  ExprResult Cond = getDerived().TransformExpr(S->getCond());
+  if (Cond.isInvalid())
+    return StmtError();
+  if (Cond.get())
+    Cond = SemaRef.CheckBooleanCondition(S->getColonLoc(), Cond.get());
+  if (Cond.isInvalid())
+    return StmtError();
+  if (Cond.get())
+    Cond = SemaRef.MaybeCreateExprWithCleanups(Cond.get());
+
+  ExprResult Inc = getDerived().TransformExpr(S->getInc());
+  if (Inc.isInvalid())
+    return StmtError();
+  if (Inc.get())
+    Inc = SemaRef.MaybeCreateExprWithCleanups(Inc.get());
+
+  StmtResult LoopVar = getDerived().TransformStmt(S->getLoopVarStmt());
+  if (LoopVar.isInvalid())
+    return StmtError();
+
+  StmtResult NewStmt = S;
+  if (getDerived().AlwaysRebuild() || Init.get() != S->getInit() ||
+      Range.get() != S->getRangeStmt() || Begin.get() != S->getBeginStmt() ||
+      End.get() != S->getEndStmt() || Index.get() != S->getIndexStmt() ||
+      IndexEnd.get() != S->getIndexEndStmt() || Cond.get() != S->getCond() ||
+      Inc.get() != S->getInc() || LoopVar.get() != S->getLoopVarStmt()) {
+    NewStmt = getDerived().RebuildCXXForallRangeStmt(
+        S->getForLoc(), S->getCoawaitLoc(), Init.get(), S->getColonLoc(),
+        Range.get(), Begin.get(), End.get(), Index.get(), IndexEnd.get(),
+        Cond.get(), Inc.get(), LoopVar.get(), S->getRParenLoc());
+    if (NewStmt.isInvalid())
+      return StmtError();
+  }
+
+  StmtResult Body = getDerived().TransformStmt(S->getBody());
+  if (Body.isInvalid())
+    return StmtError();
+
+  // Body has changed but we didn't rebuild the for-range statement. Rebuild
+  // it now so we have a new statement to attach the body to.
+  if (Body.get() != S->getBody() && NewStmt.get() == S) {
+    NewStmt = getDerived().RebuildCXXForallRangeStmt(
+        S->getForLoc(), S->getCoawaitLoc(), Init.get(), S->getColonLoc(),
+        Range.get(), Begin.get(), End.get(), Index.get(), IndexEnd.get(),
+        Cond.get(), Inc.get(), LoopVar.get(), S->getRParenLoc());
+    if (NewStmt.isInvalid())
+      return StmtError();
+  }
+
+  if (NewStmt.get() == S)
+    return S;
+
+  return FinishKitsuneForallRangeStmt(NewStmt.get(), Body.get());
+}
+
+template <typename Derived>
+StmtResult
+TreeTransform<Derived>::TransformKitsuneSpawnStmt(KitsuneSpawnStmt *S) {
+  StmtResult Child = getDerived().TransformStmt(S->getSpawnedStmt());
+  if (Child.isInvalid())
+    return StmtError();
+
+  if (!getDerived().AlwaysRebuild() && Child.get() == S->getSpawnedStmt())
+    return S;
+
+  return getDerived().RebuildKitsuneSpawnStmt(S->getSpawnLoc(), S->getSyncVar(),
+                                              Child.get());
+}
+
+template <typename Derived>
+StmtResult TreeTransform<Derived>::TransformKitsuneSyncStmt(SyncStmt *S) {
+  return S;
 }
 
 } // end namespace clang

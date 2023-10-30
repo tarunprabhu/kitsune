@@ -2124,6 +2124,10 @@ private:
   StmtResult ParsePragmaLoopHint(StmtVector &Stmts, ParsedStmtContext StmtCtx,
                                  SourceLocation *TrailingElseLoc,
                                  ParsedAttributes &Attrs);
+  StmtResult ParseKitsuneForallStatement(SourceLocation *TrailingElseLoc);
+  StmtResult ParseKitsuneSpawnStatement();
+  StmtResult ParseKitsuneSyncStatement();
+  void ParseKitsuneMemAccessQualifiers(ParsedAttributes &Attrs);
 
   /// Describes the behavior that should be taken for an __if_exists
   /// block.

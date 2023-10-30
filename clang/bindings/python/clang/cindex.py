@@ -1305,6 +1305,18 @@ CursorKind.OMP_TARGET_SIMD_DIRECTIVE = CursorKind(270)
 # OpenMP teams distribute directive.
 CursorKind.OMP_TEAMS_DISTRIBUTE_DIRECTIVE = CursorKind(271)
 
+# Kitsune forall statement.
+CursorKind.KITSUNE_FORALL_STMT = CursorKind(296)
+
+# Kitsune forall range statement.
+CursorKind.KITSUNE_FORALL_RANGE_STMT = CursorKind(297)
+
+# Kitsune spawn statement.
+CursorKind.KITSUNE_SPAWN_STMT = CursorKind(298)
+
+# Kitsune sync statement.
+CursorKind.KITSUNE_SYNC_STMT = CursorKind(299)
+
 ###
 # Other Kinds
 

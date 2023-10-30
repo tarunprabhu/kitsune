@@ -1242,7 +1242,7 @@ ExprEngine::prepareStateForArrayDestruction(const ProgramStateRef State,
                                             const QualType &ElementTy,
                                             const LocationContext *LCtx,
                                             SVal *ElementCountVal) {
-  assert(Region != nullptr && "Not-null region expected");	
+  assert(Region != nullptr && "Not-null region expected");
 
   QualType Ty = ElementTy.getDesugaredType(getContext());
   while (const auto *NTy = dyn_cast<ArrayType>(Ty))
@@ -1727,6 +1727,8 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::SEHExceptStmtClass:
     case Stmt::SEHLeaveStmtClass:
     case Stmt::SEHFinallyStmtClass:
+    case Stmt::KitsuneSpawnStmtClass:
+    case Stmt::KitsuneSyncStmtClass:
     case Stmt::OMPCanonicalLoopClass:
     case Stmt::OMPParallelDirectiveClass:
     case Stmt::OMPSimdDirectiveClass:
@@ -1834,6 +1836,10 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
       // Moreover, no additional evaluation required for them, the
       // analyzer can reconstruct these values from the AST.
       llvm_unreachable("Should be pruned from CFG");
+
+    case Stmt::KitsuneForallStmtClass:
+    case Stmt::KitsuneForallRangeStmtClass:
+      llvm_unreachable("Stmt should not be in analyzer evaluation loop");
 
     case Stmt::ObjCSubscriptRefExprClass:
     case Stmt::ObjCPropertyRefExprClass:

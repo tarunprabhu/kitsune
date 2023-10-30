@@ -939,6 +939,9 @@ void JumpScopeChecker::CheckJump(Stmt *From, Stmt *To, SourceLocation DiagLoc,
         S.Diag(From->getBeginLoc(), diag::warn_jump_out_of_seh_finally);
         break;
       }
+      // FIXME: Do we need to check for jumps out of a Kitsune forall or spawn
+      // here? Cilk does this, but I am not sure to what extent we want to
+      // support exceptions in Kitsune.
       if (Scopes[I].InDiag == diag::note_omp_protected_structured_block) {
         S.Diag(From->getBeginLoc(), diag::err_goto_into_protected_scope);
         S.Diag(To->getBeginLoc(), diag::note_omp_exits_structured_block);

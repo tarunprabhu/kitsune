@@ -4253,6 +4253,59 @@ def note_called_once_gets_called_twice : Note<
   "previous call is here%select{; set to nil to indicate "
   "it cannot be called afterwards|}0">;
 
+
+// +===== kitsune/tapir: errors related to custom codegen attributes. 
+def warn_tapir_attr_not_enabled: Warning<
+    "tapir attribute encountered but tapir is not enabled (via -ftapir).  "
+    "Attribute ignored.">,
+    InGroup<Tapir>;
+
+def warn_tapir_target_attr_bad_stmt_class: Warning<
+    "tapir target runtime attribute applied to an unsupported statement.  "
+    "Attribute ignored.">,
+    InGroup<Tapir>;
+
+def warn_kitsune_not_enabled: Warning<
+    "kitsune not enabled (-fkitsune) tapir attribute will be ignored.">,
+    InGroup<Kitsune>;
+
+// Kitsune runtime target-centric errors/warnings. 
+def err_tapir_target_attr_unsupported_stmt: Error<
+    "tapir target runtime attribute applied to unsupported statement kind.">;
+def err_tapir_target_attr_wrong_nargs: Error<
+    "tapir target runtime attribute takes a single argument.">;
+def err_tapir_target_unknown: Error<
+    "statement using unknonwn tapir target runtime attribute.">;
+
+// Kitsune execution strategy/policy errors/warnings. 
+def err_tapir_strategy_attr_unsupported_stmt: Error<
+    "strategy attribute applied to unsupported statement kind.">;
+def err_tapir_strategy_attr_wrong_nargs: Error<
+    "strategy attribute takes a single argument.">;
+def err_tapir_strategy_unknown: Error<
+    "statement using unknown strategy attribute.">;
+
+// Kitsune spawn+sync errors/warnings.
+def warn_kitsune_spawn_as_loop_body: Warning<
+    "%0 loop with spawn statement body has undefined behavior.">,
+    InGroup<Kitsune>;
+
+// Kitsune forall errors/warnings
+def err_kitsune_forall_no_init: Error<
+    "A forall statement must have an initialization expression.">;
+def err_kitsune_forall_no_cond: Error<
+    "A forall statement must have a condition.">;
+def err_kitsune_forall_no_inc: Error<
+    "A forall statement must have an increment expression.">;
+def err_kitsune_forall_has_break: Error<
+    "A forall body may not have a break statement.">;
+
+// Kitsune memaccess qualifier errors
+def err_kitsune_multiple_access_qualifiers : Error<
+  "multiple access qualifiers">;
+def note_kitsune_typedef_access_qualifier : Note<
+  "previously declared '%0' here">;
+
 // objc_designated_initializer attribute diagnostics.
 def warn_objc_designated_init_missing_super_call : Warning<
   "designated initializer missing a 'super' call to a designated initializer of the super class">,

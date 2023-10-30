@@ -921,6 +921,8 @@ def config_system_dir_EQ : Joined<["--"], "config-system-dir=">, Flags<[NoXarchO
   HelpText<"System directory for configuration files">;
 def config_user_dir_EQ : Joined<["--"], "config-user-dir=">, Flags<[NoXarchOption, CoreOption, HelpHidden]>,
   HelpText<"User directory for configuration files">;
+def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">, Flags<[NoXarchOption, CoreOption, HelpHidden]>,
+  HelpText<"Kitsune directory for configuration files">;
 def coverage : Flag<["-", "--"], "coverage">, Group<Link_Group>, Flags<[CoreOption]>;
 def cpp_precomp : Flag<["-"], "cpp-precomp">, Group<clang_ignored_f_Group>;
 def current__version : JoinedOrSeparate<["-"], "current_version">;
@@ -2444,6 +2446,13 @@ def fno_knr_functions : Flag<["-"], "fno-knr-functions">, Group<f_Group>,
   HelpText<"Disable support for K&R C function declarations">,
   Flags<[CC1Option, CoreOption]>;
 
+def ftapir_EQ : Joined<["-"], "ftapir=">, Group<f_Group>, Flags<[CC1Option]>,
+  HelpText<"Choose the backend parallel runtime for Tapir instructions">,
+  Values<"none,serial,cuda,hip,opencilk,openmp,qthreads,realm">;
+def ftapir_nvarch_EQ : Joined<["-"], "ftapir-nvarch=">, Group<f_Group>, Flags<[CC1Option]>,
+  HelpText<"Choose the target nvida gpu architecture (e.g., sm_80) for gpu and cuda backend runtimes">,
+  Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80">;
+
 def fmudflapth : Flag<["-"], "fmudflapth">, Group<f_Group>;
 def fmudflap : Flag<["-"], "fmudflap">, Group<f_Group>;
 def fnested_functions : Flag<["-"], "fnested-functions">, Group<f_Group>;
@@ -2601,6 +2610,21 @@ defm objc_avoid_heapify_local_blocks : BoolFOption<"objc-avoid-heapify-local-blo
 def fomit_frame_pointer : Flag<["-"], "fomit-frame-pointer">, Group<f_Group>;
 def fopenmp : Flag<["-"], "fopenmp">, Group<f_Group>, Flags<[CC1Option, NoArgumentUnused, FlangOption, FC1Option]>,
   HelpText<"Parse OpenMP pragmas and generate parallel code.">;
+
+// kitsune: Tapir, Kokkos and FleCSI support.
+def fkitsune : Flag<["-"], "fkitsune">, Group<f_Group>,
+  Flags<[CC1Option, NoArgumentUnused]>,
+  HelpText<"Enable Kitsune extensions (e.g., forall, spwan+sync, etc.)">;
+def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>,
+  Flags<[CC1Option, NoArgumentUnused]>,
+  HelpText<"Enable Kokkos extensions: recognition and custom code generation">;
+def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Group<f_Group>,
+  Flags<[CC1Option, NoArgumentUnused]>,
+  HelpText<"Skip code gen of Kokkos initialization (and finalize) calls.">;
+def fflecsi : Flag<["-"], "fflecsi">, Group<f_Group>,
+  Flags<[CC1Option,NoArgumentUnused]>,
+  HelpText<"Enable FleCSI extensions: recognition and custom code generation">;
+
 def fno_openmp : Flag<["-"], "fno-openmp">, Group<f_Group>, Flags<[NoArgumentUnused]>;
 def fopenmp_version_EQ : Joined<["-"], "fopenmp-version=">, Group<f_Group>, Flags<[CC1Option, NoArgumentUnused]>,
   HelpText<"Set OpenMP version (e.g. 45 for OpenMP 4.5, 50 for OpenMP 5.0). Default value is 50.">;
@@ -2916,6 +2940,10 @@ def Wlarge_by_value_copy_def : Flag<["-"], "Wlarge-by-value-copy">,
            "in bytes than a given value">, Flags<[HelpHidden]>;
 def Wlarge_by_value_copy_EQ : Joined<["-"], "Wlarge-by-value-copy=">, Flags<[CC1Option]>,
   MarshallingInfoInt<LangOpts<"NumLargeByValueCopy">>;
+
+def fstripmine : Flag<["-"], "fstripmine">, Group<f_Group>,
+  HelpText<"Enable the Tapir loop stripmining passes">;
+def fno_stripmine : Flag<["-"], "fno-stripmine">, Group<f_Group>;
 
 // These "special" warning flags are effectively processed as f_Group flags by the driver:
 // Just silence warnings about -Wlarger-than for now.
@@ -5554,6 +5582,9 @@ def vectorize_loops : Flag<["-"], "vectorize-loops">,
 def vectorize_slp : Flag<["-"], "vectorize-slp">,
   HelpText<"Run the SLP vectorization passes">,
   MarshallingInfoFlag<CodeGenOpts<"VectorizeSLP">>;
+def stripmine_loops : Flag<["-"], "stripmine-loops">,
+  HelpText<"Run the Tapir Loop stripmining passes">,
+  MarshallingInfoFlag<CodeGenOpts<"StripmineLoop">>;
 def dependent_lib : Joined<["--"], "dependent-lib=">,
   HelpText<"Add dependent library">,
   MarshallingInfoStringVector<CodeGenOpts<"DependentLibraries">>;

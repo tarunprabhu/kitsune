@@ -18,6 +18,7 @@
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
+#include "clang/Driver/Tapir.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/ProfileData/InstrProf.h"
@@ -522,6 +523,20 @@ static void renderRemarksOptions(const ArgList &Args, ArgStringList &CmdArgs,
   }
 }
 
+static void renderTapirLoweringOptions(const ArgList &Args,
+                                       ArgStringList &CmdArgs,
+                                       const ToolChain &TC,
+                                       bool LinkerIsLLD) {
+  if (!(TC.getDriver().isUsingLTO() && LinkerIsLLD))
+    return;
+
+  if (Args.hasArg(options::OPT_ftapir_EQ)) {
+    if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
+      CmdArgs.push_back(
+          Args.MakeArgString(Twine("--tapir-target=") + A->getValue()));
+  }
+}
+
 static void AppendPlatformPrefix(SmallString<128> &Path, const llvm::Triple &T);
 
 void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
@@ -570,6 +585,8 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       checkRemarksOptions(getToolChain().getDriver(), Args,
                           getToolChain().getTriple()))
     renderRemarksOptions(Args, CmdArgs, getToolChain().getTriple(), Output, JA);
+
+  renderTapirLoweringOptions(Args, CmdArgs, getToolChain(), LinkerIsLLD);
 
   // Propagate the -moutline flag to the linker in LTO.
   if (Arg *A =
@@ -701,6 +718,8 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       Args.ClaimAllArgs(options::OPT_pthreads);
     }
   }
+
+  getMachOToolChain().AddLinkTapirRuntime(Args, CmdArgs);
 
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles)) {
     // endfile_spec is empty.

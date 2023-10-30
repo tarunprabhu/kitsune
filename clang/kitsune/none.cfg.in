@@ -1,0 +1,4 @@
+# FIXME: Do we need this config file at all?
+# Flags for the serial 'none' ABI target.
+# FIXME: Do we need the opencilk flags here for some reason?
+${KITSUNE_OPENCILK_TARGET_EXTRA_LINK_FLAGS} 

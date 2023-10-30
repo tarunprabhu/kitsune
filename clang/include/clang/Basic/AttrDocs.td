@@ -6847,3 +6847,85 @@ def ReadOnlyPlacementDocs : Documentation {
      ``enforce_read_only_placement`` attribute.
   }];
 }
+
+def TapirDocs : DocumentationCategory<"Tapir Attributes"> {
+  let Content = [{
+Tapir and Kitsune introduce custom C++ attributres that let developer
+control behaviors at the source code level vs. only through command line
+arguments.
+  }];
+}
+
+def TapirRTDocs : Documentation {
+  let Category = TapirDocs;
+  let Content = [{
+
+**Experimental**
+
+The kitsune/tapir runtime target attribute `rt_target` let's developers target a
+specific runtime at the source level vs. using a command line argument to
+apply the target to all constructs.  The current runtime targets are:
+
+- serial   : No parallel runtime - just sequential code
+- cuda     : Nvidia's cuda runtime.
+- hip      : AMD's (cuda-ish) hip runtime.
+- opencilk : OpenCilk runtime system.
+- openmp   : The OpenMP runtime
+- qthreads : The Qthreads library
+- realm    : The Realm runtime (lower level of the Legion Programming System)
+
+Example:
+
+.. code-block:: c++
+
+  [[kitsune:rt_target("opencilk")]]
+  forall(...) {
+  }];
+}
+
+def TapirStrategyDocs : Documentation {
+  let Category = TapirDocs;
+  let Content = [{
+
+**Experimental**
+
+The tapir/kitsune strategy attribute `strategy` let's developers target a
+specific execution strategy at the source level vs. using a command line
+argument to apply the approach source (construct) code wide.  The current
+strategies are:
+
+- dac      : execute using a divide-and-conquer approach.
+- seq      : force sequential executition.
+- gpu      : use a GPU-centric strategy.
+
+.. code-block:: c++
+
+  [[kitsune:strategy("dac")]]
+  forall(...) {
+  }];
+}
+
+def KitsuneMemAccessDocs : Documentation {
+  let Category = TapirDocs;
+  let Content = [{
+
+The kitsune memory access attributes lets programmers inform the compiler of
+how variables are used so the compiler can make better decisions for analysis
+and optimization operations.  This information is not verified in any way; it's
+entirely up to the programmer to communicate the details correctly (i.e., it
+might entirely lead to errors in code generation if the attributes are
+inaccurate).
+
+- _readonly	 : these variables are only read, never written to
+- _writeonly : these variables are only written to, never read
+- _readwrite : these variables are both read and written, but no ordering of
+               those two operations is implied
+
+.. code-block:: c++
+
+   bool funcname (_readonly float *A,
+                  _readonly float *B,
+                  _writeonly float *C) {
+    ...
+  }];
+}

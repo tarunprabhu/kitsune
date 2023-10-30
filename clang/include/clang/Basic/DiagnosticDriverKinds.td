@@ -114,6 +114,8 @@ def warn_drv_unsupported_option_for_flang : Warning<
   "the argument '%0' is not supported for option '%1'. Mapping to '%1%2'">,
   InGroup<OptionIgnored>;
 
+def err_drv_mix_tapir_cuda_hip : Error<"Mixed Tapir and Cuda/HIP compilation is currently not supported.">;
+def err_drv_mix_tapir_omp_offload : Error<"Mixed Tapir and OpenMP offload compilation is currently not supported.">;
 def err_drv_invalid_thread_model_for_target : Error<
   "invalid thread model '%0' in '%1' for this target">;
 def err_drv_invalid_linker_name : Error<
@@ -717,4 +719,96 @@ def err_drv_riscv_unsupported_with_linker_relaxation : Error<
 
 def err_drv_loongarch_invalid_mfpu_EQ : Error<
   "invalid argument '%0' to -mfpu=; must be one of: 64, 32, none, 0 (alias for none)">;
-}
+
+def warn_cuda_missing_build_params : Warning<
+  "'-ftapir=cuda' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on the command line.">, InGroup<UnknownRuntime>;
+
+def warn_hip_missing_build_params : Warning<
+  "'-ftapir=hip' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on the command line.">, InGroup<UnknownRuntime>;
+
+def warn_opencilkrts_missing_build_params : Warning<
+  "'-ftapir=opencilk' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on the command line.">, InGroup<UnknownRuntime>;
+
+def warn_openmp_missing_build_params : Warning<
+  "'-ftapir=openmp' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on the command line.">, InGroup<UnknownRuntime>;
+
+def warn_qthreads_missing_build_params : Warning<
+  "'-ftapir=qthreads' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on the command line.">, InGroup<UnknownRuntime>;
+
+def warn_realm_missing_build_params : Warning<
+  "'-ftapir=realm' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on the command line.">, InGroup<UnknownRuntime>;
+
+// FIXME: Kitsune: Probably the wrong group for these
+def warn_kokkos_missing_build_params : Warning<
+  "'-fkokkos' mode enabled but build configuration did not include support.">,
+  InGroup<UnknownRuntime>;
+
+def warn_missing_kitsune_kokkos_opts : Warning<
+  "'Unable to find configuration options file ('kokkos-opts.cfg') for "
+  "'-fkokkos' option.">, InGroup<UnknownRuntime>;
+
+def warn_missing_tapir_cuda_config_opts : Warning<
+  "Unable to find configuration options file ('cuda-opts.cfg') for "
+  "'-ftapir=cuda' option.">, InGroup<UnknownRuntime>;
+
+def warn_missing_tapir_hip_config_opts : Warning<
+  "Unable to find configuration options file ('hip-opts.cfg') for "
+  "'-ftapir=hip' option.">, InGroup<UnknownRuntime>;
+
+def warn_missing_tapir_opencilk_config_opts : Warning<
+  "Unable to find configuration options file ('opencilk-opts.cfg') for "
+  "'-ftapir=opencilk' option.">, InGroup<UnknownRuntime>;
+
+def warn_missing_tapir_openmp_config_opts : Warning<
+  "Unable to find configuration options file ('openmp-opts.cfg') for "
+  "'-ftapir=openmp' option.">, InGroup<UnknownRuntime>;
+
+def warn_missing_tapir_qthreads_config_opts : Warning<
+  "Unable to find configuration options file ('qtheads-opts.cfg') for "
+  "'-ftapir=qthreads' option.">, InGroup<UnknownRuntime>;
+
+def warn_missing_tapir_realm_config_opts : Warning<
+  "Unable to find configuration options file ('realm-opts.cfg') for "
+  "'-ftapir=realm' option.">, InGroup<UnknownRuntime>;
+
+// -----+
+
+def warn_drv_missing_cfg_file : Warning<
+  "cannot find clang configuration file, %0, in support of option: %1.">,
+  InGroup<Kitsune>;
+def err_drv_cannot_read_kitsune_cfg_file : Error<
+  "cannot read kitsune configuration file, %0, in support of option: %1.">;
+
+// catching configuration issues at build is a pain w/out a ton of #ifdef
+// litter.  we instead opt to warning users in cases where the options are
+// used but were not enabled at build time.
+def warn_drv_kitsune_kokkos_disabled : Warning<
+  "kokkos support was not enabled when clang was built.">,
+  InGroup<UnknownRuntime>;
+def warn_drv_tapir_cuda_target_disabled: Warning<
+  "the cuda toolkit runtime ABI transform target was not enabled when clang "
+  "was built.">, InGroup<UnknownRuntime>;
+def warn_drv_tapir_hip_target_disabled: Warning<
+  "the hip runtime ABI transform target was not enabled when clang was "
+  "built.">, InGroup<UnknownRuntime>;
+def warn_drv_tapir_openmp_target_disabled : Warning<
+  "the openmp runtime ABI transform target was not enabled when clang was "
+  "built.">, InGroup<UnknownRuntime>;
+def warn_drv_tapir_qthreads_target_disabled: Warning<
+  "the qthreads runtime ABI transform target was not enabled when clang was "
+  "built.">, InGroup<UnknownRuntime>;
+def warn_drv_tapir_realm_target_disabled: Warning<
+  "the realm runtime ABI transform target was not enabled when clang was "
+  "built.">, InGroup<UnknownRuntime>;

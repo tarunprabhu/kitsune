@@ -84,7 +84,10 @@ class Driver {
     CPPMode,
     CLMode,
     FlangMode,
-    DXCMode
+    DXCMode,
+    KitsuneMode,
+    KokkosMode,
+    FleCSIMode
   } Mode;
 
   enum SaveTempsMode {
@@ -171,6 +174,19 @@ public:
   /// User directory for config files.
   std::string UserConfigDir;
 
+  /// Kitsune directory for config files.
+  std::string KitsuneConfigDir;
+  std::string KitsuneKokkosCfgFile;
+  std::string TapirNoneCfgFile;
+  std::string TapirSerialCfgFile;
+  std::string TapirCudaCfgFile;
+  std::string TapirGPUCfgFile;
+  std::string TapirHIPCfgFile;
+  std::string TapirOpenCilkCfgFile;
+  std::string TapirOpenMPCfgFile;
+  std::string TapirQthreadsCfgFile;
+  std::string TapirRealmCfgFile;
+
   /// A prefix directory used to emulate a limited subset of GCC's '-Bprefix'
   /// functionality.
   /// FIXME: This type of customization should be removed in favor of the
@@ -209,7 +225,11 @@ public:
   using InputList = SmallVector<InputTy, 16>;
 
   /// Whether the driver should follow g++ like behavior.
-  bool CCCIsCXX() const { return Mode == GXXMode; }
+  /// kitsune: Modified to reflect that Kokkos and FleCSI
+  /// modes also imply GXXMode.
+  bool CCCIsCXX() const { return Mode == GXXMode    ||
+                                 Mode == KokkosMode ||
+                                 Mode == FleCSIMode; }
 
   /// Whether the driver is just the preprocessor.
   bool CCCIsCPP() const { return Mode == CPPMode; }
@@ -226,6 +246,15 @@ public:
 
   /// Whether the driver should follow dxc.exe like behavior.
   bool IsDXCMode() const { return Mode == DXCMode; }
+
+  /// Whether the driver should follow custom Kitsune behaviors.
+  bool isKitsuneMode() const { return Mode == KitsuneMode; }
+
+  /// Whether the driver should follow custom Kokkos behaviors.
+  bool IsKokkosMode() const { return Mode == KokkosMode; }
+
+  /// kitsune: Whether the driver should follow custom FleCSI behaviors.
+  bool isFleCSIMode() const { return Mode == FleCSIMode; }
 
   /// Only print tool bindings, don't build any jobs.
   unsigned CCCPrintBindings : 1;

@@ -66,6 +66,7 @@ StmtResult Parser::ParseStatement(SourceLocation *TrailingElseLoc,
 /// [OBC]   objc-synchronized-statement
 /// [GNU]   asm-statement
 /// [OMP]   openmp-construct             [TODO]
+/// [KIT]   spawn-statement
 ///
 ///       labeled-statement:
 ///         identifier ':' statement
@@ -80,6 +81,7 @@ StmtResult Parser::ParseStatement(SourceLocation *TrailingElseLoc,
 ///         while-statement
 ///         do-statement
 ///         for-statement
+/// [KIT]   forall-statement
 ///
 ///       expression-statement:
 ///         expression[opt] ';'
@@ -90,6 +92,8 @@ StmtResult Parser::ParseStatement(SourceLocation *TrailingElseLoc,
 ///         'break' ';'
 ///         'return' expression[opt] ';'
 /// [GNU]   'goto' '*' expression ';'
+/// [KIT]   'sync' ';'
+
 ///
 /// [OBC] objc-throw-statement:
 /// [OBC]   '@' 'throw' expression ';'
@@ -457,6 +461,17 @@ Retry:
     ProhibitAttributes(CXX11Attrs);
     ProhibitAttributes(GNUAttrs);
     return HandlePragmaCaptured();
+
+  case tok::kw__kitsune_forall:
+    return ParseKitsuneForallStatement(TrailingElseLoc);
+
+  case tok::kw__kitsune_spawn:              // spawn statement
+    return ParseKitsuneSpawnStatement();
+
+  case tok::kw__kitsune_sync:               // sync statement
+    Res = ParseKitsuneSyncStatement();
+    SemiError = "sync";
+    break;
 
   case tok::annot_pragma_openmp:
     // Prohibit attributes that are not OpenMP attributes, but only before

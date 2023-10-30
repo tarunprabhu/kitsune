@@ -5799,6 +5799,14 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
     return cxstring::createRef("CXXAccessSpecifier");
   case CXCursor_ModuleImportDecl:
     return cxstring::createRef("ModuleImport");
+  case CXCursor_KitsuneForallStmt:
+    return cxstring::createRef("KitsuneForallStmt");
+  case CXCursor_KitsuneForallRangeStmt:
+    return cxstring::createRef("KitsuneForallRangeStmt");
+  case CXCursor_KitsuneSpawnStmt:
+    return cxstring::createRef("KitsuneSpawnStmt");
+  case CXCursor_KitsuneSyncStmt:
+    return cxstring::createRef("KitsuneSyncStmt");
   case CXCursor_OMPCanonicalLoop:
     return cxstring::createRef("OMPCanonicalLoop");
   case CXCursor_OMPMetaDirective:

@@ -131,6 +131,16 @@ static void renderRemarksHotnessOptions(const ArgList &Args,
                            "opt-remarks-hotness-threshold=" + A->getValue()));
 }
 
+static void renderTapirLoweringOptions(const ArgList &Args,
+                                       ArgStringList &CmdArgs,
+                                       const ToolChain &TC) {
+  if (Args.hasArg(options::OPT_ftapir_EQ)) {
+    if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
+      CmdArgs.push_back(Args.MakeArgString(Twine("--plugin-opt=tapir-target=") +
+                                           A->getValue()));
+  }
+}
+
 void tools::addPathIfExists(const Driver &D, const Twine &Path,
                             ToolChain::path_list &Paths) {
   if (D.getVFS().exists(Path))
@@ -793,6 +803,8 @@ void tools::addLTOOptions(const ToolChain &ToolChain, const ArgList &Args,
 
   // Handle remarks hotness/threshold related options.
   renderRemarksHotnessOptions(Args, CmdArgs, PluginOptPrefix);
+
+  renderTapirLoweringOptions(Args, CmdArgs, ToolChain);
 
   addMachineOutlinerArgs(D, Args, CmdArgs, ToolChain.getEffectiveTriple(),
                          /*IsLTO=*/true, PluginOptPrefix);

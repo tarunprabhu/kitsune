@@ -2720,6 +2720,48 @@ void ASTStmtReader::VisitOMPTargetParallelGenericLoopDirective(
 }
 
 //===----------------------------------------------------------------------===//
+// Kitsune statements
+//===----------------------------------------------------------------------===//
+void ASTStmtReader::VisitKitsuneForallStmt(KitsuneForallStmt *S) {
+  VisitStmt(S);
+  S->setInit(Record.readSubStmt());
+  S->setCond(Record.readSubExpr());
+  S->setConditionVariable(Record.getContext(), readDeclAs<VarDecl>());
+  S->setInc(Record.readSubExpr());
+  S->setBody(Record.readSubStmt());
+  S->setForallLoc(readSourceLocation());
+  S->setLParenLoc(readSourceLocation());
+  S->setRParenLoc(readSourceLocation());
+}
+
+void ASTStmtReader::VisitKitsuneForallRangeStmt(KitsuneForallRangeStmt *S) {
+  VisitStmt(S);
+  S->ForLoc = readSourceLocation();
+  S->CoawaitLoc = readSourceLocation();
+  S->ColonLoc = readSourceLocation();
+  S->RParenLoc = readSourceLocation();
+  S->setInit(Record.readSubStmt());
+  S->setRangeStmt(Record.readSubStmt());
+  S->setBeginStmt(Record.readSubStmt());
+  S->setEndStmt(Record.readSubStmt());
+  S->setCond(Record.readSubExpr());
+  S->setInc(Record.readSubExpr());
+  S->setLoopVarStmt(Record.readSubStmt());
+  S->setBody(Record.readSubStmt());
+}
+
+void ASTStmtReader::VisitKitsuneSpawnStmt(KitsuneSpawnStmt *S) {
+  VisitStmt(S);
+  S->setSpawnLoc(readSourceLocation());
+  S->setSpawnedStmt(Record.readSubStmt());
+}
+
+void ASTStmtReader::VisitKitsuneSyncStmt(KitsuneSyncStmt *S) {
+  VisitStmt(S);
+  S->setSyncLoc(readSourceLocation());
+}
+
+//===----------------------------------------------------------------------===//
 // ASTReader Implementation
 //===----------------------------------------------------------------------===//
 
@@ -2919,6 +2961,22 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
 
     case EXPR_SYCL_UNIQUE_STABLE_NAME:
       S = SYCLUniqueStableNameExpr::CreateEmpty(Context);
+      break;
+
+    case STMT_KITSUNE_FORALL:
+      S = new (Context) KitsuneForallStmt(Empty);
+      break;
+
+    case STMT_KITSUNE_FORALL_RANGE:
+      S = new (Context) KitsuneForallRangeStmt(Empty);
+      break;
+
+    case STMT_KITSUNE_SPAWN:
+      S = new (Context) KitsuneSpawnStmt(Empty);
+      break;
+
+    case STMT_KITSUNE_SYNC:
+      S = new (Context) KitsuneSyncStmt(Empty);
       break;
 
     case EXPR_PREDEFINED:
@@ -3519,7 +3577,7 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
                                                   CollapsedNum, Empty);
       break;
     }
-    
+
     case STMT_OMP_MASKED_TASKLOOP_DIRECTIVE: {
       unsigned CollapsedNum = Record[ASTStmtReader::NumStmtFields];
       unsigned NumClauses = Record[ASTStmtReader::NumStmtFields + 1];

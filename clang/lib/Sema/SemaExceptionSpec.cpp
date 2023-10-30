@@ -1520,6 +1520,14 @@ CanThrowResult Sema::canThrow(const Stmt *S) {
   case Stmt::WhileStmtClass:
     return canSubStmtsThrow(*this, S);
 
+  // Given their parallel nature we won't let forall and others throw.
+  // FIXME: Kitsune: Is this a sane assumption?
+  case Stmt::KitsuneForallStmtClass:
+  case Stmt::KitsuneForallRangeStmtClass:
+  case Stmt::KitsuneSpawnStmtClass:
+  case Stmt::KitsuneSyncStmtClass:
+    return CT_Cannot;
+    
   case Stmt::DeclStmtClass: {
     CanThrowResult CT = CT_Cannot;
     for (const Decl *D : cast<DeclStmt>(S)->decls()) {

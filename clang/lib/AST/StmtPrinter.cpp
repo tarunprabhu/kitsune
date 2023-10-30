@@ -2734,6 +2734,50 @@ void StmtPrinter::VisitAsTypeExpr(AsTypeExpr *Node) {
   OS << ")";
 }
 
+void StmtPrinter::VisitKitsuneForallStmt(KitsuneForallStmt *Node) {
+  Indent() << "forall (";
+  if (Node->getInit())
+    PrintInitStmt(Node->getInit(), 5);
+  else
+    OS << (Node->getCond() ? "; " : ";");
+  if (Node->getCond())
+    PrintExpr(Node->getCond());
+  OS << ";";
+  if (Node->getInc()) {
+    OS << " ";
+    PrintExpr(Node->getInc());
+  }
+  OS << ")";
+  PrintControlledStmt(Node->getBody());
+}
+
+void StmtPrinter::VisitKitsuneForallRangeStmt(KitsuneForallRangeStmt *Node) {
+  Indent() << "forall (";
+  if (Node->getInit())
+    PrintInitStmt(Node->getInit(), 5);
+  PrintingPolicy SubPolicy(Policy);
+  SubPolicy.SuppressInitializers = true;
+  Node->getLoopVariable()->print(OS, SubPolicy, IndentLevel);
+  OS << " : ";
+  PrintExpr(Node->getRangeInit());
+  OS << ")";
+  PrintControlledStmt(Node->getBody());
+}
+
+void StmtPrinter::VisitKitsuneSpawnStmt(KitsuneSpawnStmt *Node) {
+  Indent() << "spawn " << Node->getSyncVar();
+  PrintStmt(Node->getSpawnedStmt());
+  OS << ";";
+  if (Policy.IncludeNewlines)
+    OS << "\n";
+}
+
+void StmtPrinter::VisitKitsuneSyncStmt(KitsuneSyncStmt *Node) {
+  Indent() << "sync " << Node->getSyncVar() << ";";
+  if (Policy.IncludeNewlines)
+    OS << "\n";
+}
+
 //===----------------------------------------------------------------------===//
 // Stmt method implementations
 //===----------------------------------------------------------------------===//

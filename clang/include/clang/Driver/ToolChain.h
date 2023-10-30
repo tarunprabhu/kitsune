@@ -685,6 +685,25 @@ public:
   virtual void AddCXXStdlibLibArgs(const llvm::opt::ArgList &Args,
                                    llvm::opt::ArgStringList &CmdArgs) const;
 
+  /// Some of our command line arguments come in via cmake as a single
+  /// string.  We use this to extract each argument from the string and
+  /// push it onto the argument list.
+  ///
+  void ExtractArgsFromString(const char *s, llvm::opt::ArgStringList &CmdArgs,
+                             const llvm::opt::ArgList &Args,
+                             const char delimiter = ' ') const;
+
+  /// AddKitsuneIncludeArgs - Add some kitsune-centric arguments to expand
+  /// the default include file search path.
+  virtual void AddKitsuneIncludeArgs(const llvm::opt::ArgList &Args,
+                                     llvm::opt::ArgStringList &CmdArgs) const;
+
+  /// AddKitsuneLibArgs - Add some kitsune-centric linker arguments to use
+  /// given the special modes of operation (kitsune, kokkos, backend runtime
+  /// arguments, etc.).
+  virtual void AddKitsuneLibArgs(const llvm::opt::ArgList &Args,
+                                 llvm::opt::ArgStringList &CmdArgs) const;
+
   /// AddFilePathLibArgs - Add each thing in getFilePaths() as a "-L" option.
   void AddFilePathLibArgs(const llvm::opt::ArgList &Args,
                           llvm::opt::ArgStringList &CmdArgs) const;
@@ -778,6 +797,17 @@ public:
     }
     return TT;
   }
+
+  /// AddOpenCilkBitcodeABI - Add compiler arguments for linking against the
+  /// OpenCilk runtime ABI bitcode file.
+  virtual void AddOpenCilkABIBitcode(const llvm::opt::ArgList &Args,
+                                     llvm::opt::ArgStringList &CmdArgs,
+                                     bool IsLTO = false) const;
+
+  /// AddTapirRuntimeLibArgs - Add the specific linker arguments to use for the
+  /// given Tapir runtime library type.
+  virtual void AddTapirRuntimeLibArgs(const llvm::opt::ArgList &Args,
+                                      llvm::opt::ArgStringList &CmdArgs) const;
 };
 
 /// Set a ToolChain's effective triple. Reset it when the registration object

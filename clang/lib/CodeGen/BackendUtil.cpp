@@ -84,6 +84,7 @@
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Scalar/JumpThreading.h"
 #include "llvm/Transforms/Scalar/LowerMatrixIntrinsics.h"
+#include "llvm/Transforms/Tapir/TapirToTarget.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/CanonicalizeAliases.h"
 #include "llvm/Transforms/Utils/Debugify.h"
@@ -297,6 +298,12 @@ static TargetLibraryInfoImpl *createTLII(llvm::Triple &TargetTriple,
   default:
     break;
   }
+
+  TLII->setTapirTarget(CodeGenOpts.getTapirTarget());
+  // TLII->setTapirTargetOptions(
+  //     std::make_unique<OpenCilkABIOptions>(CodeGenOpts.OpenCilkABIBitcodeFile));
+  TLII->addTapirTargetLibraryFunctions();
+
   return TLII;
 }
 
@@ -827,6 +834,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.LoopInterleaving = CodeGenOpts.UnrollLoops;
   PTO.LoopVectorization = CodeGenOpts.VectorizeLoop;
   PTO.SLPVectorization = CodeGenOpts.VectorizeSLP;
+  PTO.LoopStripmine = CodeGenOpts.StripmineLoop;
   PTO.MergeFunctions = CodeGenOpts.MergeFunctions;
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
@@ -983,13 +991,15 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
           });
 
     if (CodeGenOpts.OptimizationLevel == 0) {
-      MPM = PB.buildO0DefaultPipeline(Level, IsLTO || IsThinLTO);
+      MPM = PB.buildO0DefaultPipeline(Level, IsLTO || IsThinLTO,
+                                      TLII->hasTapirTarget());
     } else if (IsThinLTO) {
       MPM = PB.buildThinLTOPreLinkDefaultPipeline(Level);
     } else if (IsLTO) {
       MPM = PB.buildLTOPreLinkDefaultPipeline(Level);
     } else {
-      MPM = PB.buildPerModuleDefaultPipeline(Level);
+      MPM = PB.buildPerModuleDefaultPipeline(Level, /* LTOPreLink */ false,
+                                             TLII->hasTapirTarget());
     }
 
     if (!CodeGenOpts.MemoryProfileOutput.empty()) {
@@ -1183,6 +1193,8 @@ static void runThinLTOBackend(
   Conf.RemarksFormat = CGOpts.OptRecordFormat;
   Conf.SplitDwarfFile = CGOpts.SplitDwarfFile;
   Conf.SplitDwarfOutput = CGOpts.SplitDwarfOutput;
+  Conf.TapirTarget = CGOpts.getTapirTarget();
+  Conf.OpenCilkABIBitcodeFile = CGOpts.OpenCilkABIBitcodeFile;
   switch (Action) {
   case Backend_EmitNothing:
     Conf.PreCodeGenModuleHook = [](size_t Task, const Module &Mod) {

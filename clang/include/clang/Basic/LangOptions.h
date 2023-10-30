@@ -22,8 +22,11 @@
 #include "clang/Basic/TargetCXXABI.h"
 #include "clang/Basic/Visibility.h"
 #include "llvm/ADT/FloatingPointMode.h"
+#include "clang/Basic/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+
 #include <optional>
 #include <string>
 #include <vector>
@@ -384,6 +387,9 @@ public:
   /// The used language standard.
   LangStandard::Kind LangStd;
 
+  /// Whether Kitsune-specific extensions have been enabled.
+  bool Kitsune = false;
+
   /// Set of enabled sanitizers.
   SanitizerSet Sanitize;
   /// Is at least one coverage instrumentation type enabled.
@@ -486,6 +492,9 @@ public:
   /// The plaform-specific path separator is the backslash(\) for Windows and
   /// forward slash (/) elsewhere.
   bool UseTargetPathSeparator = false;
+
+  /// Runtime target for Tapir.
+  TapirTargetID TapirTarget = TapirTargetID::Last_TapirTargetID;
 
   LangOptions();
 

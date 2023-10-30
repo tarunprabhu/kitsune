@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/StmtKitsune.h"
 
 #include "clang/AST/ASTContext.h"
 
@@ -81,6 +82,47 @@ VarDecl *CXXForRangeStmt::getLoopVariable() {
 
 const VarDecl *CXXForRangeStmt::getLoopVariable() const {
   return const_cast<CXXForRangeStmt *>(this)->getLoopVariable();
+}
+
+// Should this be moved elsewhere? Probably to KitsuneStmt.cpp
+KitsuneForallRangeStmt::KitsuneForallRangeStmt(
+    Stmt *Init, DeclStmt *Range, DeclStmt *BeginStmt, DeclStmt *EndStmt,
+    DeclStmt *IndexStmt, DeclStmt *IndexEndStmt, Expr *Cond, Expr *Inc,
+    DeclStmt *LoopVar, Stmt *Body, SourceLocation FL, SourceLocation CAL,
+    SourceLocation CL, SourceLocation RPL)
+    : Stmt(KitsuneForallRangeStmtClass), ForLoc(FL), CoawaitLoc(CAL),
+      ColonLoc(CL), RParenLoc(RPL) {
+  SubExprs[INIT] = Init;
+  SubExprs[RANGE] = Range;
+  SubExprs[BEGINSTMT] = BeginStmt;
+  SubExprs[ENDSTMT] = EndStmt;
+  SubExprs[INDEXSTMT] = IndexStmt;
+  SubExprs[INDEXENDSTMT] = IndexEndStmt;
+  SubExprs[COND] = Cond;
+  SubExprs[INC] = Inc;
+  SubExprs[LOOPVAR] = LoopVar;
+  SubExprs[BODY] = Body;
+}
+
+Expr *KitsuneForallRangeStmt::getRangeInit() {
+  DeclStmt *RangeStmt = getRangeStmt();
+  VarDecl *RangeDecl = dyn_cast_or_null<VarDecl>(RangeStmt->getSingleDecl());
+  assert(RangeDecl && "for-range should have a single var decl");
+  return RangeDecl->getInit();
+}
+
+const Expr *KitsuneForallRangeStmt::getRangeInit() const {
+  return const_cast<CXXForallRangeStmt *>(this)->getRangeInit();
+}
+
+VarDecl *KitsuneForallRangeStmt::getLoopVariable() {
+  Decl *LV = cast<DeclStmt>(getLoopVarStmt())->getSingleDecl();
+  assert(LV && "No loop variable in CXXForallRangeStmt");
+  return cast<VarDecl>(LV);
+}
+
+const VarDecl *KitsuneForallRangeStmt::getLoopVariable() const {
+  return const_cast<CXXForallRangeStmt *>(this)->getLoopVariable();
 }
 
 CoroutineBodyStmt *CoroutineBodyStmt::Create(

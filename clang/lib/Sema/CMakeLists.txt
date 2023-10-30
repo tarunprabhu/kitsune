@@ -48,6 +48,7 @@ add_clang_library(clangSema
   SemaFixItUtils.cpp
   SemaHLSL.cpp
   SemaInit.cpp
+  SemaKitsune.cpp
   SemaLambda.cpp
   SemaLookup.cpp
   SemaModule.cpp

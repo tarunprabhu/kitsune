@@ -650,6 +650,23 @@ CXCursor cxcursor::MakeCXCursor(const Stmt *S, const Decl *Parent,
   case Stmt::MSDependentExistsStmtClass:
     K = CXCursor_UnexposedStmt;
     break;
+
+  case Stmt::KitsuneForallStmtClass:
+    K = CXCursor_KitsuneForallStmt;
+    break;
+  
+  case Stmt::KitsuneForallRangeStmtClass:
+    K = CXCursor_KitsuneForallRangeStmt;
+    break;
+
+  case Stmt::SpawnStmtClass:
+    K = CXCursor_SpawnStmt;
+    break;
+
+  case Stmt::SyncStmtClass: 
+    K = CXCursor_SyncStmt;
+    break;
+  
   case Stmt::OMPCanonicalLoopClass:
     K = CXCursor_OMPCanonicalLoop;
     break;

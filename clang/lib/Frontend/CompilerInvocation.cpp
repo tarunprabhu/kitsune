@@ -31,6 +31,7 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
+#include "clang/Driver/Tapir.h"
 #include "clang/Frontend/CommandLineSourceLoc.h"
 #include "clang/Frontend/DependencyOutputOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -87,6 +88,8 @@
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "llvm/Support/ScopedPrinter.h"
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -1364,6 +1367,16 @@ void CompilerInvocation::GenerateCodeGenArgs(
   else if (!Opts.DirectAccessExternalData && LangOpts->PICLevel == 0)
     GenerateArg(Args, OPT_fno_direct_access_external_data, SA);
 
+  if (std::optional<StringRef> TapirTargetStr =
+          serializeTapirTarget(Opts.getTapirTarget()))
+    GenerateArg(Args, OPT_ftapir_EQ, *TapirTargetStr, SA);
+
+  if (Opts.Kokkos)
+    GenerateArg(Args, OPT_fkokkos, SA);
+
+  if (Opts.KokkosNoInit)
+    GenerateArg(Args, OPT_fkokkos_no_init, SA);
+
   std::optional<StringRef> DebugInfoVal;
   switch (Opts.DebugInfo) {
   case codegenoptions::DebugLineTablesOnly:
@@ -1667,6 +1680,14 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
         Opts.getDebugInfo() == codegenoptions::DebugInfoConstructor)
       Opts.setDebugInfo(codegenoptions::LimitedDebugInfo);
   }
+
+  // Parse Tapir-related codegen options.
+  TapirTargetID TapirTarget = parseTapirTarget(Args);
+  if (TapirTarget == TapirTargetID::Last_TapirTargetID)
+    if (const Arg *A = Args.getLastArg(OPT_ftapir_EQ))
+      Diags.Report(diag::err_drv_invalid_value)
+          << A->getAsString(Args) << A->getValue();
+  Opts.setTapirTarget(TapirTarget);
 
   for (const auto &Arg : Args.getAllArgValues(OPT_fdebug_prefix_map_EQ)) {
     auto Split = StringRef(Arg).split('=');
@@ -3392,6 +3413,11 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
   if (Opts.IgnoreXCOFFVisibility)
     GenerateArg(Args, OPT_mignore_xcoff_visibility, SA);
 
+  if (Opts.Kokkos)
+    GenerateArg(Args, OPT_fkokkos, SA);
+  if (Opts.KokkosNoInit)
+    GenerateArg(Args, OPT_fkokkos_no_init, SA);
+
   if (Opts.SignedOverflowBehavior == LangOptions::SOB_Trapping) {
     GenerateArg(Args, OPT_ftrapv, SA);
     GenerateArg(Args, OPT_ftrapv_handler, Opts.OverflowHandler, SA);
@@ -3834,6 +3860,17 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
 
   // Check if -fopenmp is specified and set default version to 5.0.
   Opts.OpenMP = Args.hasArg(OPT_fopenmp) ? 50 : 0;
+
+  // Check if -fkitsune is specified.
+  Opts.Kitsune = Args.hasArg(options::OPT_fkitsune) ? 1 : 0;
+
+  // Check if -fkokkos is specified.
+  Opts.Kokkos = Args.hasArg(options::OPT_fkokkos) ? 1 : 0;
+  Opts.KokkosNoInit = Args.hasArg(options::OPT_fkokkos_no_init) ? 1 : 0;
+
+  // Check if -fflecsi is specified.
+  Opts.FleCSI = Args.hasArg(options::OPT_fflecsi) ? 1 : 0;
+
   // Check if -fopenmp-simd is specified.
   bool IsSimdSpecified =
       Args.hasFlag(options::OPT_fopenmp_simd, options::OPT_fno_openmp_simd,
@@ -3873,8 +3910,7 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   // Set the flag to prevent the implementation from emitting device exception
   // handling code for those requiring so.
   if ((Opts.OpenMPIsDevice && (T.isNVPTX() || T.isAMDGCN())) ||
-      Opts.OpenCLCPlusPlus) {
-
+      Opts.OpenCLCPlusPlus || Opts.Kokkos) {
     Opts.Exceptions = 0;
     Opts.CXXExceptions = 0;
   }
@@ -4513,6 +4549,42 @@ bool CompilerInvocation::CreateFromArgsImpl(
       Res.getCodeGenOpts().MisExpect = true;
     }
   }
+
+  TapirTargetID TapirTarget = parseTapirTarget(Args);
+  if (TapirTarget == TapirTargetID::Last_TapirTargetID)
+    if (const Arg *A = Args.getLastArg(OPT_ftapir_EQ))
+      Diags.Report(diag::err_drv_invalid_value)
+          << A->getAsString(Args) << A->getValue();
+  LangOpts.TapirTarget = TapirTarget;
+
+  if (LangOpts.Cilk && LangOpts.ObjC)
+    Diags.Report(diag::err_drv_cilk_objc);
+
+  // Check if -ftapir is specified
+  if (Arg *A = Args.getLastArg(OPT_ftapir_EQ)) {
+    StringRef Name = A->getValue();
+    if (Name == "none")
+      LangOpts.Tapir = TapirTargetID::None;
+    else if (Name == "serial")
+      LangOpts.Tapir = TapirTargetID::Serial;
+    else if (Name == "cuda")
+      LangOpts.Tapir = TapirTargetID::Cuda;
+    else if (Name == "hip")
+      LangOpts.Tapir = TapirTargetID::Hip;
+    else if (Name == "opencilk")
+      LangOpts.Tapir = TapirTargetID::OpenCilk;
+    else if (Name == "openmp")
+      LangOpts.Tapir = TapirTargetID::OpenMP;
+    else if (Name == "qthreads")
+      LangOpts.Tapir = TapirTargetID::Qthreads;
+    else if (Name == "realm")
+      LangOpts.Tapir = TapirTargetID::Realm;
+    else
+      Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args) << Name;
+  }
+
+  LangOpts.FunctionAlignment =
+      getLastArgIntValue(Args, OPT_function_alignment, 0, Diags);
 
   if (LangOpts.CUDA) {
     // During CUDA device-side compilation, the aux triple is the

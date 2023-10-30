@@ -247,6 +247,9 @@ set(CLANG_DEFAULT_OPENMP_RUNTIME "libomp" CACHE STRING
 
 set(CLANG_SYSTEMZ_DEFAULT_ARCH "z10" CACHE STRING "SystemZ Default Arch")
 
+set(CLANG_DEFAULT_TAPIR_RUNTIME "opencilk" CACHE STRING
+  "Default Tapir runtime used by -ftapir.")
+
 set(CLANG_VENDOR ${PACKAGE_VENDOR} CACHE STRING
   "Vendor-specific text for showing with version information.")
 
@@ -349,11 +352,18 @@ endif()
 include(CMakeParseArguments)
 include(AddClang)
 
+option(CLANG_ENABLE_KITSUNE "Enable Kitsune features in Clang." ON)
+if(CLANG_ENABLE_KITSUNE)
+  add_subdirectory(kitsune)
+endif()
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(BEFORE
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${KITSUNE_SOURCE_DIR}/include
+  ${KITSUNE_BINARY_DIR}/include
   )
 
 if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
@@ -978,3 +988,7 @@ set(CLANG_INSTALL_LIBDIR_BASENAME "lib${CLANG_LIBDIR_SUFFIX}")
 configure_file(
   ${CLANG_SOURCE_DIR}/include/clang/Config/config.h.cmake
   ${CLANG_BINARY_DIR}/include/clang/Config/config.h)
+
+configure_file(
+  ${CLANG_SOURCE_DIR}/include/clang/Config/kitsune.h.cmake
+  ${CLANG_BINARY_DIR}/include/clang/Config/kitsune.h)

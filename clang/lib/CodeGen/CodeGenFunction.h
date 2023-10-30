@@ -1977,6 +1977,9 @@ private:
   /// the function metadata.
   void EmitKernelMetadata(const FunctionDecl *FD, llvm::Function *Fn);
 
+  /// Add Kitsune metadata to the function metadata.
+  void EmitKitsuneMetadata(const FunctionDecl *FD, llvm::Function *Fn);
+
 public:
   CodeGenFunction(CodeGenModule &cgm, bool suppressNewContext=false);
   ~CodeGenFunction();
@@ -3256,6 +3259,13 @@ public:
   void EmitCaseStmtRange(const CaseStmt &S, ArrayRef<const Attr *> Attrs);
   void EmitAsmStmt(const AsmStmt &S);
 
+  void EmitKitsuneForallStmt(const KitsuneForallStmt &S,
+                             ArrayRef<const Attr *> Attrs = std::nullopt);
+  void EmitKitsuneForallRangeStmt(const KitsuneForallRangeStmt &S,
+                                  ArrayRef<const Attr *> Attrs = std::nullopt);
+  void EmitKitsuneSpawnStmt(const KitsuneSpawnStmt &S);
+  void EmitKitsuneSyncStmt(const KitsuneSyncStmt &S);
+
   void EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S);
   void EmitObjCAtTryStmt(const ObjCAtTryStmt &S);
   void EmitObjCAtThrowStmt(const ObjCAtThrowStmt &S);
@@ -3302,6 +3312,31 @@ public:
   llvm::Value *EmitSEHExceptionCode();
   llvm::Value *EmitSEHExceptionInfo();
   llvm::Value *EmitSEHAbnormalTermination();
+
+  LoopAttributes::LSStrategy GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs);
+  LoopAttributes::LTarget GetTapirTargetAttr(ArrayRef<const Attr *> Attrs);
+
+  // Kitsune support for Kokkos.
+  bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?
+  bool
+  EmitKokkosConstruct(const CallExpr *CE,
+                      ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
+  bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
+  bool EmitKokkosParallelReduce(const CallExpr *CE,
+                                ArrayRef<const Attr *> Attrs);
+  bool ParseAndValidateParallelFor(
+      const CallExpr *CE, std::string &CN,
+      SmallVector<
+          std::pair<const ParmVarDecl *, std::pair<const Expr *, const Expr *>>,
+          6> &IVinfos,
+      const LambdaExpr *&LE, DiagnosticsEngine &Diags);
+  void EmitAndInitializeKokkosIV(
+      const std::pair<const ParmVarDecl *,
+                      std::pair<const Expr *, const Expr *>> &IVInfo);
+  llvm::Value *EmitKokkosParallelForCond(
+      const std::pair<const ParmVarDecl *,
+                      std::pair<const Expr *, const Expr *>> &IVInfo);
+  void EmitKokkosIncrement(const ParmVarDecl *IV);
 
   /// Emit simple code for OpenMP directives in Simd-only mode.
   void EmitSimpleOMPExecutableDirective(const OMPExecutableDirective &D);

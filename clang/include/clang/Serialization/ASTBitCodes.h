@@ -2013,6 +2013,12 @@ enum StmtCode {
 
   // SYCLUniqueStableNameExpr
   EXPR_SYCL_UNIQUE_STABLE_NAME,
+  
+  // Kitsune
+  STMT_KITSUNE_FORALL,
+  STMT_KITSUNE_FORALL_RANGE
+  STMT_KITSUNE_SPAWN,
+  STMT_KITSUNE_SYNC,
 };
 
 /// The kinds of designators that can occur in a

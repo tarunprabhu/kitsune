@@ -267,6 +267,7 @@ struct MapRegionCounters : public RecursiveASTVisitor<MapRegionCounters> {
   DEFINE_NESTABLE_TRAVERSAL(ObjCForCollectionStmt)
   DEFINE_NESTABLE_TRAVERSAL(CXXTryStmt)
   DEFINE_NESTABLE_TRAVERSAL(CXXCatchStmt)
+  // FIXME: Kitsune: Add support for profiling Kitsune-specific constructs.
 
   /// Get version \p HashVersion of the PGO hash for \p S.
   PGOHash::HashType getHashType(PGOHashVersion HashVersion, const Stmt *S) {

@@ -32,6 +32,7 @@
 #include "clang/AST/NSAPI.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/StmtKitsune.h"
 #include "clang/AST/StmtOpenMP.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/AST/TypeOrdering.h"
@@ -5268,6 +5269,24 @@ public:
   void ActOnAbortSEHFinallyBlock();
   StmtResult ActOnFinishSEHFinallyBlock(SourceLocation Loc, Stmt *Block);
   StmtResult ActOnSEHLeaveStmt(SourceLocation Loc, Scope *CurScope);
+
+  StmtResult ActOnKitsuneForallStmt(SourceLocation ForLoc,
+                                    SourceLocation LParenLoc, Stmt *First,
+                                    ConditionResult Second, FullExprArg Third,
+                                    SourceLocation RParenLoc, Stmt *Body);
+  StmtResult ActOnKitsuneForallRangeStmt(
+      Scope *S, SourceLocation ForLoc, SourceLocation CoawaitLoc,
+      Stmt *InitStmt, Stmt *LoopVar, SourceLocation ColonLoc, Expr *Collection,
+      SourceLocation RParenLoc, BuildForRangeKind Kind);
+  StmtResult ActOnKitsuneSyncStmt(SourceLocation SyncLoc, StringRef sv);
+  StmtResult ActOnKitsuneSpawnStmt(SourceLocation SpawnLoc, StringRef sv,
+                                   Stmt *S);
+  StmtResult BuildKitsuneForallRangeStmt(
+      SourceLocation ForLoc, SourceLocation CoawaitLoc, Stmt *InitStmt,
+      SourceLocation ColonLoc, Stmt *RangeDecl, Stmt *Begin, Stmt *End,
+      Stmt *Index, Stmt *IndexEnd, Expr *Cond, Expr *Inc, Stmt *LoopVarDecl,
+      SourceLocation RParenLoc, BuildForRangeKind Kind);
+  StmtResult FinishKitsuneForallRangeStmt(Stmt *ForRange, Stmt *Body);
 
   void DiagnoseReturnInConstructorExceptionHandler(CXXTryStmt *TryBlock);
 

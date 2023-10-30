@@ -35,6 +35,9 @@
 /* Multilib basename for libdir. */
 #define CLANG_INSTALL_LIBDIR_BASENAME "${CLANG_INSTALL_LIBDIR_BASENAME}"
 
+/* Default Tapir runtime used by -ftapir. */
+#define CLANG_DEFAULT_TAPIR_RUNTIME "${CLANG_DEFAULT_TAPIR_RUNTIME}"
+
 /* Relative directory for resource files */
 #define CLANG_RESOURCE_DIR "${CLANG_RESOURCE_DIR}"
 
@@ -76,5 +79,43 @@
 
 /* Spawn a new process clang.exe for the CC1 tool invocation, when necessary */
 #cmakedefine01 CLANG_SPAWN_CC1
+
+/* ===== kitsune-centric settings  */
+#cmakedefine01 KITSUNE_ENABLE_KOKKOS
+#define KITSUNE_KOKKOS_INCLUDE_DIR         "${KOKKOS_INCLUDE_DIR}"
+#define KITSUNE_KOKKOS_LIBRARY_DIR         "${KOKKOS_LIBRARY_DIR}"
+#define KITSUNE_KOKKOS_LINK_LIBS           "${KOKKOS_LINK_LIBS}"
+
+#cmakedefine01 KITSUNE_ENABLE_CUDA
+#define KITSUNE_CUDA_LIBRARY_DIR           "${CUDA_LIBRARY_DIR}"
+#define KITSUNE_CUDA_LINK_LIBS             "${CUDA_LINK_LIBS}"
+
+#cmakedefine01 KITSUNE_ENABLE_HIP
+#define KITSUNE_HIP_LIBRARY_DIR            "${HIP_LIBRARY_DIR}"
+#define KITSUNE_HIP_LINK_LIBS              "${HIP_LINK_LIBS}"
+
+#cmakedefine01 KITSUNE_ENABLE_OPENCILK
+#define KITSUNE_OPENCILK_INCLUDE_DIR      "${OPENCILK_INCLUDE_DIR}"
+#define KITSUNE_OPENCILK_LIBRARY_DIR      "${OPENCILK_LIBRARY_DIR}"
+#define KITSUNE_OPENCILK_LINK_LIBS        "${OPENCILK_LINK_LIBS}"
+
+#cmakedefine01 KITSUNE_ENABLE_OPENMP
+#define KITSUNE_OPENMP_LIBRARY_DIR         "${OPENMP_LIBRARY_DIR}"
+#define KITSUNE_OPENMP_LINK_LIBS           "${OPENMP_LINK_LIBS}"
+
+#cmakedefine01 KITSUNE_ENABLE_QTHREADS
+#define KITSUNE_QTHREADS_INCLUDE_DIR       "${QTHREADS_INCLUDE_DIR}"
+#define KITSUNE_QTHREADS_LIBRARY_DIR       "${QTHREADS_LIBRARY_DIR}"
+#define KITSUNE_QTHREADS_LINK_LIBS         "${QTHREADS_LINK_LIBS}"
+
+#cmakedefine01 KITSUNE_ENABLE_REALM
+#define KITSUNE_REALM_LIBRARY_DIR          "${Realm_LIBRARY_DIR}"
+#define KITSUNE_REALM_WRAPPER_LIBRARY_DIR  "${Realm_WRAPPER_LIBRARY_DIR}"
+#define KITSUNE_REALM_LINK_LIBS            "${Realm_LINK_LIBS}"
+
+#cmakedefine01 CLANG_ENABLE_KITSUNE 
+#if defined(CLANG_ENABLE_KITSUNE)
+#include "kitsune.h"
+#endif
 
 #endif

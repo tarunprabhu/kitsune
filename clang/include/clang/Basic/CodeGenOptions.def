@@ -303,6 +303,7 @@ VALUE_CODEGENOPT(TimeTraceGranularity, 32, 500) ///< Minimum time granularity (i
                                                ///< traced by time profiler
 CODEGENOPT(UnrollLoops       , 1, 0) ///< Control whether loops are unrolled.
 CODEGENOPT(RerollLoops       , 1, 0) ///< Control whether loops are rerolled.
+CODEGENOPT(StripmineLoop     , 1, 0) ///< Run Tapir loop stripmining.
 CODEGENOPT(NoUseJumpTables   , 1, 0) ///< Set when -fno-jump-tables is enabled.
 VALUE_CODEGENOPT(UnwindTables, 2, 0) ///< Unwind tables (1) or asynchronous unwind tables (2)
 CODEGENOPT(VectorizeLoop     , 1, 0) ///< Run loop vectorizer.
@@ -418,6 +419,9 @@ VALUE_CODEGENOPT(InlineMaxStackSize, 32, UINT_MAX)
 // Vector functions library to use.
 ENUM_CODEGENOPT(VecLib, VectorLibrary, 3, NoLibrary)
 
+/// Tapir target runtime library to use.
+ENUM_CODEGENOPT(TapirTarget, TapirTargetID, 9, TapirTargetID::Last_TapirTargetID)
+
 /// The default TLS model to use.
 ENUM_CODEGENOPT(DefaultTLSModel, TLSModel, 2, GeneralDynamicTLSModel)
 
@@ -503,6 +507,10 @@ CODEGENOPT(OpaquePointers, 1, 0)
 /// Modify C++ ABI to returning `this` pointer from constructors and
 /// non-deleting destructors. (No effect on Microsoft ABI.)
 CODEGENOPT(CtorDtorReturnThis, 1, 0)
+
+/// Whether to do custom kokkos-specific code generation. 
+CODEGENOPT(Kokkos, 1, 0)
+CODEGENOPT(KokkosNoInit, 1, 0)
 
 #undef CODEGENOPT
 #undef ENUM_CODEGENOPT

@@ -1348,6 +1348,9 @@ void Clang::AddPreprocessingOptions(Compilation &C, const JobAction &JA,
   // arguments of related offloading toolchains or arguments that are specific
   // of an offloading programming model.
 
+  // +==== Handle special include paths for kitsune-/tapir-centric modes. 
+  getToolChain().AddKitsuneIncludeArgs(Args, CmdArgs);
+
   // Add C++ include arguments, if needed.
   if (types::isCXX(Inputs[0].getType())) {
     bool HasStdlibxxIsystem = Args.hasArg(options::OPT_stdlibxx_isystem);
@@ -6134,6 +6137,15 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_fdiagnostics_show_template_tree);
   Args.AddLastArg(CmdArgs, options::OPT_fno_elide_type);
 
+  // FIXME: Do we need this OpenCilk ABI bitcode argument? If so, handle 
+  // it properly, otherwise, get rid of it.
+  getToolChain().AddOpenCilkABIBitcode(Args, CmdArgs);
+  Args.AddLastArg(CmdArgs, options::OPT_ftapir_EQ);
+  Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
+  Args.AddLastArg(CmdArgs, options::OPT_fkitsune);
+  Args.AddLastArg(CmdArgs, options::OPT_fkokkos_no_init);  
+  Args.AddLastArg(CmdArgs, options::OPT_fflecsi);
+
   // Forward flags for OpenMP. We don't do this if the current action is an
   // device offloading action other than OpenMP.
   if (Args.hasFlag(options::OPT_fopenmp, options::OPT_fopenmp_EQ,
@@ -6863,6 +6875,15 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.hasFlag(options::OPT_fslp_vectorize, SLPVectAliasOption,
                    options::OPT_fno_slp_vectorize, EnableSLPVec))
     CmdArgs.push_back("-vectorize-slp");
+
+  // -fstripmine is enabled based on the optimization level selected.  For now,
+  // we enable stripmining when the optimization level enables vectorization.
+  bool EnableStripmine = EnableVec;
+  OptSpecifier StripmineAliasOption =
+      EnableStripmine ? options::OPT_O_Group : options::OPT_fstripmine;
+  if (Args.hasFlag(options::OPT_fstripmine, StripmineAliasOption,
+                   options::OPT_fno_stripmine, EnableStripmine))
+    CmdArgs.push_back("-stripmine-loops");
 
   ParseMPreferVectorWidth(D, Args, CmdArgs);
 

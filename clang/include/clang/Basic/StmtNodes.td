@@ -217,6 +217,12 @@ def MSDependentExistsStmt : StmtNode<Stmt>;
 // OpenCL Extensions.
 def AsTypeExpr : StmtNode<Expr>;
 
+// Kitsune Extensions.
+def KitsuneForallStmt : StmtNode<Stmt>;
+def KitsuneForallRangeStmt : StmtNode<Stmt>;
+def KitsuneSpawnStmt : StmtNode<Stmt>;
+def KitsuneSyncStmt : StmtNode<Stmt>;
+
 // OpenMP Directives.
 def OMPCanonicalLoop : StmtNode<Stmt>;
 def OMPExecutableDirective : StmtNode<Stmt, 1>;

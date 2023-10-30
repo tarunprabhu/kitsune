@@ -368,6 +368,7 @@ def BlocksSupported : LangOpt<"Blocks">;
 def ObjCAutoRefCount : LangOpt<"ObjCAutoRefCount">;
 def ObjCNonFragileRuntime
     : LangOpt<"", "LangOpts.ObjCRuntime.allowsClassStubs()">;
+def Kitsune : LangOpt<"Kitsune">;
 
 def HLSL : LangOpt<"HLSL">;
 
@@ -3687,6 +3688,7 @@ def LoopHint : Attr {
     case PipelineInitiationInterval: return "pipeline_initiation_interval";
     case Distribute: return "distribute";
     case VectorizePredicate: return "vectorize_predicate";
+    case TapirGrainsize: return "grainsize";
     }
     llvm_unreachable("Unhandled LoopHint option.");
   }
@@ -4126,4 +4128,44 @@ def ReadOnlyPlacement : InheritableAttr {
   let Spellings = [Clang<"enforce_read_only_placement">];
   let Subjects = SubjectList<[Record]>;
   let Documentation = [ReadOnlyPlacementDocs];
+}
+
+def TapirTarget : StmtAttr {
+  let Spellings = [CXX11<"tapir","target">];
+  let Subjects = SubjectList<[ForallStmt, KitsuneForallRangeStmt],
+      	       	 ErrorDiag, "'forall' statement">;
+  let Args = [
+    EnumArgument<"TapirTargetAttrType", "TapirTargetAttrTy",
+    ["none", "serial", "cuda", "hip", "opencilk", "openmp", "qthreads", "realm"],
+    ["", "SequentialRT",  "CudaRT",  "HipRT", "OpenCilkRT", "OpenMPRT", "QthreadsRT", "RealmRT"],
+    0>
+  ];
+  let Documentation = [TapirRTDocs];
+}
+
+def TapirStrategy : StmtAttr {
+  let Spellings = [CXX11<"tapir", "strategy">];
+  let Args = [
+      EnumArgument<"TapirStrategyType", "TapirStrategyTy",
+      ["dac", "seq", "gpu"],
+      ["DAC", "SEQ", "GPU"], 0>
+  ];
+  // FIXME -- how do we document this?
+  let Documentation = [TapirStrategyDocs];
+}
+
+def KitsuneMemAccess : InheritableAttr {
+    let Spellings = [Keyword<"_readonly">,
+                     Keyword<"_writeonly">,
+                     Keyword<"_readwrite">];
+
+    let Subjects = SubjectList<[Function, LocalVar, ParmVar, TypedefName],
+                                ErrorDiag>; // TODO: not sure about Loops
+    let Accessors = [
+      Accessor<"isReadOnly", [Keyword<"_readonly">]>,
+      Accessor<"isWriteOnly", [Keyword<"_writeonly">]>,
+      Accessor<"isReadWrite", [Keyword<"_readwrite">]>
+    ];
+
+    let Documentation = [KitsuneMemAccessDocs];
 }

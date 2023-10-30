@@ -107,6 +107,7 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::DefaultStmtClass:
   case Stmt::CaseStmtClass:
   case Stmt::SEHLeaveStmtClass:
+  case Stmt::KistuneSyncStmtClass:
     llvm_unreachable("should have emitted these statements as simple");
 
 #define STMT(Type, Base)
@@ -197,6 +198,18 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     break;
   case Stmt::SEHTryStmtClass:
     EmitSEHTryStmt(cast<SEHTryStmt>(*S));
+    break;
+  case Stmt::KitsuneForallStmtClass:
+    EmitKitsuneForallStmt(cast<KitsuneForallStmt>(*S), Attrs);
+    break;
+  case Stmt::KitsuneForallRangeStmtClass:
+    EmitKitsuneForallRangeStmt(cast<KitsuneForallRangeStmt>(*S), Attrs);
+    break;
+  case Stmt::KitsuneSpawnStmtClass:
+    EmitKitsuneSpawnStmt(cast<KitsuneSpawnStmt>(*S)); 
+    break;
+  case Stmt::KitsuneSyncStmtClass: 
+    EmitKitsuneSyncStmt(cast<KitsuneSyncStmt>(*S)); 
     break;
   case Stmt::OMPMetaDirectiveClass:
     EmitOMPMetaDirective(cast<OMPMetaDirective>(*S));
