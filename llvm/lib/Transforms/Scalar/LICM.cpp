@@ -2156,13 +2156,13 @@ bool llvm::promoteLoopAccessesToScalars(
         if (!Store->isUnordered())
           return false;
 
-	// We conservatively avoid promoting stores that are detached
-	// within the loop.  Technically it can be legal to move these
-	// stores -- the program already contains a determinacy race
-	// -- but to preserve the serial execution, we have to avoid
-	// moving stores that are loaded.  For now, we simply avoid
-	// moving these stores.
-	if (DetachWithinLoop &&
+        // We conservatively avoid promoting stores that are detached
+        // within the loop.  Technically it can be legal to move these
+        // stores -- the program already contains a determinacy race
+        // -- but to preserve the serial execution, we have to avoid
+        // moving stores that are loaded.  For now, we simply avoid
+        // moving these stores.
+        if (DetachWithinLoop &&
             CurLoop->contains(TI->getTaskFor(Store->getParent())->getEntry()))
           return false;
 

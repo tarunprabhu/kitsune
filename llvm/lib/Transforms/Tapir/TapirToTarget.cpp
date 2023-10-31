@@ -121,7 +121,7 @@ bool TapirToTargetImpl::unifyReturns(Function &F) {
     if (PN)
       PN->addIncoming(BB->getTerminator()->getOperand(0), BB);
 
-    BB->back().eraseFromParent();  // Remove the return insn
+    BB->back().eraseFromParent(); // Remove the return insn
     BranchInst::Create(NewRetBlock, BB);
   }
   return true;

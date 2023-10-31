@@ -571,6 +571,13 @@ def int_prefetch
                 [IntrInaccessibleMemOrArgMemOnly, IntrWillReturn,
                  ReadOnly<ArgIndex<0>>, NoCapture<ArgIndex<0>>,
                  ImmArg<ArgIndex<1>>, ImmArg<ArgIndex<2>>, ImmArg<ArgIndex<3>>]>;
+
+def int_asyncprefetch
+    : DefaultAttrsIntrinsic<[], [ llvm_anyptr_ty, llvm_i32_ty, llvm_i64_ty ],
+                [IntrInaccessibleMemOrArgMemOnly, IntrWillReturn,
+                 ReadOnly<ArgIndex<0>>, NoCapture<ArgIndex<0>>,
+                 ImmArg<ArgIndex<1>>]>;
+
 def int_pcmarker      : DefaultAttrsIntrinsic<[], [llvm_i32_ty]>;
 
 def int_readcyclecounter : DefaultAttrsIntrinsic<[llvm_i64_ty]>;
@@ -1231,6 +1238,15 @@ def int_strip_invariant_group : DefaultAttrsIntrinsic<[llvm_anyptr_ty],
                                           [LLVMMatchType<0>],
                                           [IntrSpeculatable, IntrNoMem, IntrWillReturn]>;
 
+// This intrinsic marks some memory as having been used in some way, read,
+// written, allocated or freed. This is used by Kitsune to determine when to
+// move/prefetch data between host and device memory. The intrinsics are
+// intended to be inserted after the memory in question has been accessed. 
+def int_memory_used : DefaultAttrsIntrinsic<[],
+    [llvm_anyptr_ty, llvm_i32_ty, llvm_i32_ty, llvm_i64_ty, llvm_i64_ty],
+    [IntrInaccessibleMemOrArgMemOnly, IntrWillReturn,
+     ReadOnly<ArgIndex<0>>, NoCapture<ArgIndex<0>>, ImmArg<ArgIndex<1>>]>;
+
 //===------------------------ Stackmap Intrinsics -------------------------===//
 //
 def int_experimental_stackmap : DefaultAttrsIntrinsic<[],
@@ -1412,24 +1428,6 @@ def int_tapir_loop_grainsize
 // intrinsics.
 def int_task_frameaddress
     : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty], [IntrWillReturn]>;
-
-// Ideally the types would be [llvm_anyptr_ty], [LLVMMatchType<0>]
-// but that does not work, so rely on the front end to insert bitcasts.
-def int_hyper_lookup
-    : Intrinsic<[llvm_ptr_ty],
-                [llvm_ptr_ty, llvm_anyint_ty, llvm_ptr_ty, llvm_ptr_ty], [
-                  IntrWillReturn, IntrReadMem, IntrInaccessibleMemOnly,
-                  IntrStrandPure, IntrHyperView, IntrInjective
-                ]>;
-
-// TODO: Change tablegen to allow function pointer types in intrinsics.
-def int_reducer_register
-    : Intrinsic<[], [llvm_ptr_ty, llvm_anyint_ty, llvm_ptr_ty, llvm_ptr_ty],
-     [IntrWillReturn, IntrInaccessibleMemOnly, IntrReducerRegister]>;
-
-def int_reducer_unregister
-    : Intrinsic<[], [llvm_ptr_ty], [IntrWillReturn, IntrInaccessibleMemOnly,
-     IntrReducerUnregister]>;
 
 ///===-------------------------- Other Intrinsics --------------------------===//
 //

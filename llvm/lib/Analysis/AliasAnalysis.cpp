@@ -834,7 +834,7 @@ ModRefInfo AAResults::getModRefInfo(const DetachInst *D,
 
       // Early-exit the moment we reach the top of the lattice.
       if (isModAndRefSet(Result))
-	return Result;
+        return Result;
     }
 
     // Add successors
@@ -869,7 +869,7 @@ ModRefInfo AAResults::getModRefInfo(const SyncInst *S,
 
       // Early-exit the moment we reach the top of the lattice.
       if (isModAndRefSet(Result))
-	return Result;
+        return Result;
     }
 
     // Add predecessors
@@ -878,7 +878,7 @@ ModRefInfo AAResults::getModRefInfo(const SyncInst *S,
       // Ignore reattached predecessors and predecessors that end in syncs,
       // because this sync does not wait on those predecessors.
       if (isa<ReattachInst>(PT) || isa<SyncInst>(PT) || isDetachedRethrow(PT))
-	continue;
+        continue;
       // If this block is detached, ignore the predecessor that detaches it.
       if (const DetachInst *Det = dyn_cast<DetachInst>(PT))
         if (Det->getDetached() == BB)

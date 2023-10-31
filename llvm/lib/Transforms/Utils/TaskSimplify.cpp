@@ -411,8 +411,9 @@ bool llvm::simplifyTaskFrames(TaskInfo &TI, DominatorTree &DT) {
         else
           TaskFramesToErase.push_back(
               cast<Instruction>(TF->getTaskFrameCreate()));
-      } else if (Value *TFCreate = TF->getTaskFrameCreate())
+      } else if (Value *TFCreate = TF->getTaskFrameCreate()) {
         TaskFramesToOptimize.push_back(cast<Instruction>(TFCreate));
+      }
     }
   }
 
@@ -449,6 +450,7 @@ bool llvm::simplifyTaskFrames(TaskInfo &TI, DominatorTree &DT) {
     ++NumTaskFramesConverted;
     Changed = true;
   }
+
   for (Instruction *TFCreate : TaskFramesToErase) {
     LLVM_DEBUG(dbgs() << "Removing taskframe " << *TFCreate << "\n");
     eraseTaskFrame(TFCreate, &DT);

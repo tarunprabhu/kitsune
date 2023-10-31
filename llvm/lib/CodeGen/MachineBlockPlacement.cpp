@@ -786,7 +786,6 @@ bool MachineBlockPlacement::shouldTailDuplicate(MachineBasicBlock *BB) {
     return false;
 
   BlockDesc Desc = TailDup.getBlockDesc(BB);
-
   return TailDup.shouldTailDuplicate(Desc, *BB);
 }
 

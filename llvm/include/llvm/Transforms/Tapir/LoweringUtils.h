@@ -319,6 +319,10 @@ public:
   virtual void postProcessFunction(Function &F,
                                    bool ProcessingTapirLoops = false) = 0;
 
+  // Process a host module at the end of lowering all functions within the
+  // module.
+  virtual void postProcessModule() { return; };
+
   // Process a generated helper Function F produced via outlining, at the end of
   // the lowering process.
   virtual void postProcessHelper(Function &F) = 0;
@@ -327,7 +331,7 @@ public:
 
   // Get the LoopOutlineProcessor associated with this Tapir target.
   virtual LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL) const {
+  getLoopOutlineProcessor(const TapirLoopInfo *TL) {
     return nullptr;
   }
 };
@@ -422,6 +426,13 @@ public:
                                     const ValueSet &Args) const {
     return getIVArgIndex(F, Args) + 1;
   }
+
+  /// Process the TapirLoop before it is outlined -- just prior to the
+  /// outlining occurs.  This allows the VMap and related details to be
+  /// customized prior to outlining related operations (e.g. cloning of
+  /// LLVM constructs).
+  virtual void preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap)
+  { /* no-op */ }
 
   /// Processes an outlined Function Helper for a Tapir loop, just after the
   /// function has been outlined.
@@ -552,7 +563,6 @@ TaskOutlineInfo outlineTaskFrame(
 /// Given a Tapir loop \p TL and the set of inputs to the task inside that loop,
 /// returns the set of inputs for the Tapir loop itself.
 ValueSet getTapirLoopInputs(TapirLoopInfo *TL, ValueSet &TaskInputs);
-
 
 /// Replaces the Tapir loop \p TL, with associated TaskOutlineInfo \p Out, with
 /// a call or invoke to the outlined helper function created for \p TL.

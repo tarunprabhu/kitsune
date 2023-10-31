@@ -565,6 +565,12 @@ public:
     return Name;
   }
 
+  // FIXME: need a better solution but also too difficult to re-outline
+  // everything w/ tapir for GPU targets (AMD in particular)...
+  void mutateValueType(Type *Ty) {
+    ValueType = Ty;
+  }
+
   /// Return the modified name for a global value suitable to be
   /// used as the key for a global lookup (e.g. profile or ThinLTO).
   /// The value's original name is \c Name and has linkage of type

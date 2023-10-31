@@ -73,7 +73,7 @@ det.cont:                                         ; preds = %det.achd, %if.end7
   sync within %syncreg, label %cleanup
 
 ; CHECK: det.cont:
-; CHECK-NOT: call i64* @cilk_merge(
+; CHECK-NOT: call ptr @cilk_merge(
 ; CHECK-NOT: sync
 ; CHECK: br label %[[TAILRECURSE]]
 

@@ -115,9 +115,9 @@ class LLVMContext;
 class MemoryAccess;
 class MemorySSAWalker;
 class Module;
-class TaskInfo;
 class Use;
 class Value;
+class TaskInfo;
 class raw_ostream;
 
 namespace MSSAHelpers {

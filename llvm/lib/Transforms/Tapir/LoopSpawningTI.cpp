@@ -170,8 +170,8 @@ void LoopOutlineProcessor::postProcessOutline(TapirLoopInfo &TL,
   Helper->setCallingConv(CallingConv::Fast);
   // Note that the address of the helper is unimportant.
   Helper->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
-  // The helper is internal to this module.
-  Helper->setLinkage(GlobalValue::InternalLinkage);
+  // The helper is private to this module.
+  Helper->setLinkage(GlobalValue::PrivateLinkage);
 }
 
 void LoopOutlineProcessor::addSyncToOutlineReturns(TapirLoopInfo &TL,
@@ -1528,6 +1528,10 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
     LoopArgStarts[L] = ArgStart;
 
     ValueToValueMapTy VMap;
+
+    // Run a pre-processing step before we create the helper function.
+    OutlineProcessors[TL]->preProcessTapirLoop(*TL, VMap);
+
     // Create the helper function.
     Function *Outline = createHelperForTapirLoop(
         TL, LoopArgs[L], OutlineProcessors[TL]->getIVArgIndex(F, LoopArgs[L]),
@@ -1537,8 +1541,8 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
         Outline, T->getEntry(), cast<Instruction>(VMap[T->getDetach()]),
         dyn_cast_or_null<Instruction>(VMap[T->getTaskFrameUsed()]),
         LoopInputSets[L], LoopArgStarts[L],
-        L->getLoopPreheader()->getTerminator(), TL->getExitBlock(),
-        TL->getUnwindDest());
+        L->getLoopPreheader()->getTerminator(), T->getDetach()->getSyncRegion(),
+        TL->getExitBlock(), TL->getUnwindDest());
 
     // Do ABI-dependent processing of each outlined Tapir loop.
     {
@@ -1666,8 +1670,11 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
     if (!F.empty())
       WorkList.push_back(&F);
 
+  Function *SavedF = nullptr;
   // Transform all loops into simplified, LCSSA form before we process them.
   for (Function *F : WorkList) {
+    if (SavedF == nullptr)
+      SavedF = F;
     LoopInfo &LI = GetLI(*F);
     DominatorTree &DT = GetDT(*F);
     ScalarEvolution &SE = GetSE(*F);
@@ -1681,14 +1688,17 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
       Changed |= formLCSSARecursively(*L, DT, &LI, &SE);
   }
 
+  TapirTargetID TargetID = GetTLI(*SavedF).getTapirTarget();
+  std::unique_ptr<TapirTarget> Target(getTapirTargetFromID(M, TargetID));
   // Now process each loop.
   for (Function *F : WorkList) {
-    TapirTargetID TargetID = GetTLI(*F).getTapirTarget();
-    std::unique_ptr<TapirTarget> Target(getTapirTargetFromID(M, TargetID));
     Changed |= LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
                                 GetAC(*F), GetTTI(*F), Target.get(), GetORE(*F))
                    .run();
   }
+
+  Target->postProcessModule();
+
   if (Changed)
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();

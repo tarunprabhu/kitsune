@@ -7712,6 +7712,7 @@ bool SimplifyCFGOpt::simplifyOnce(BasicBlock *BB) {
     break;
   case Instruction::Sync:
     Changed |= simplifySync(cast<SyncInst>(Terminator));
+    break;
   }
 
   return Changed;

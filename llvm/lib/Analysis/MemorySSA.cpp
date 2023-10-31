@@ -964,7 +964,7 @@ class ClobberWalker {
 
 public:
   ClobberWalker(const MemorySSA &MSSA, DominatorTree &DT, TaskInfo *TI)
-      : MSSA(MSSA), DT(DT), TI(TI) {}
+    : MSSA(MSSA), DT(DT), TI(TI) {}
 
   /// Finds the nearest clobber for the given query, optimizing phis if
   /// possible.
@@ -1032,7 +1032,7 @@ class MemorySSA::ClobberWalkerBase {
 
 public:
   ClobberWalkerBase(MemorySSA *M, DominatorTree *D, TaskInfo *TI)
-      : Walker(*M, *D, TI), MSSA(M) {}
+    : Walker(*M, *D, TI), MSSA(M) {}
 
   MemoryAccess *getClobberingMemoryAccessBase(MemoryAccess *,
                                               const MemoryLocation &,
@@ -1327,7 +1327,7 @@ class MemorySSA::OptimizeUses {
 public:
   OptimizeUses(MemorySSA *MSSA, CachingWalker *Walker, BatchAAResults *BAA,
                DominatorTree *DT, TaskInfo *TI)
-      : MSSA(MSSA), Walker(Walker), AA(BAA), DT(DT), TI(TI) {}
+    : MSSA(MSSA), Walker(Walker), AA(BAA), DT(DT), TI(TI) {}
 
   void optimizeUses();
 

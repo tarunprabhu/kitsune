@@ -233,6 +233,8 @@ namespace options {
         .Case("serial", TapirTargetID::Serial)
         .Case("cuda", TapirTargetID::Cuda)
         .Case("hip", TapirTargetID::Hip)
+        .Case("lambda", TapirTargetID::Lambda)
+        .Case("omptask", TapirTargetID::OMPTask)
         .Case("opencilk", TapirTargetID::OpenCilk)
         .Case("openmp", TapirTargetID::OpenMP)
         .Case("qthreads", TapirTargetID::Qthreads)

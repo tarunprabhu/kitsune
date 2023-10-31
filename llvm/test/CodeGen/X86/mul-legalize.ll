@@ -1,4 +1,4 @@
-; RUN: llc < %s | FileCheck %s
+; RUN: llc --tail-dup-cbz=0 < %s | FileCheck %s
 ; PR2135
 
 ; without --tail-dup-cbz nonzero calculation of 24576 is optimized out

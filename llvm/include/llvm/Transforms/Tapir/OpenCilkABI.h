@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the OpenCilk ABI to convert Tapir instructions to calls
+// This file implements the OpenCilk ABI to converts Tapir instructions to calls
 // into the OpenCilk runtime system.
 //
 //===----------------------------------------------------------------------===//
@@ -190,7 +190,7 @@ public:
   bool processOrdinaryFunction(Function &F, BasicBlock *TFEntry) override final;
 
   LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL) const override final;
+  getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
 };
 } // namespace llvm
 

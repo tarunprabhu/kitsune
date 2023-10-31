@@ -304,6 +304,11 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
   case Intrinsic::prefetch:
     break;    // Simply strip out prefetches on unsupported architectures
 
+  case Intrinsic::asyncprefetch:
+    // This should have been handled in one of Tapir's target transforms, but if
+    // it wasn't, just ignore it.
+    break;
+
   case Intrinsic::pcmarker:
     break;    // Simply strip out pcmarker on unsupported architectures
   case Intrinsic::readcyclecounter: {
@@ -443,6 +448,10 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
   case Intrinsic::invariant_end:
   case Intrinsic::lifetime_end:
     // Discard region information.
+    break;
+  case Intrinsic::memory_used:
+    // The intrinsic should have been handled by one of the Tapir target
+    // transform passes. If it hasn't, just ignore it.
     break;
   }
 

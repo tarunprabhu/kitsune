@@ -13307,6 +13307,46 @@ particular, prefetches cannot trap and do not produce a value. On
 targets that support this intrinsic, the prefetch can provide hints to
 the processor cache for better performance.
 
+'``llvm.asyncprefetch``' Intrinsic
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Syntax:
+"""""""
+
+::
+
+      declare void @llvm.asyncprefetch(i64* <address>, i32 <rw>, i64 size)
+
+Overview:
+"""""""""
+
+EXPERIMENTAL: The '``llvm.asyncprefetch``' intrinsic is a hint to the code 
+generator to insert a data prefetch of ``size`` bytes of the data pointed 
+to by ``address``.  The ``rw`` parameter is a specifier for the intended 
+use of the data once it is local to a target device (not specified by the 
+intrinsic).  It should marked as read (1), write (2), or read-write (3) as 
+the primary data access operations on the data range.  
+
+This intrinsic differs from the ``llvm.prefetch`` intrinsic above
+as it is intended for much larger data transfers between memory spaces 
+(e.g., CPU to GPU). In general, ``asyncprefetch`` has no effect on the 
+behavior of the program but can change its performance characteristics.
+
+Arguments:
+""""""""""
+
+``address`` is the starting address of the data to be prefetched, 
+``size`` is the size of the data block that should be prefetched. 
+
+Semantics:
+""""""""""
+
+This intrinsic does not modify the behavior of the program. In
+particular, prefetches cannot trap and do not produce a value. On
+targets that support this intrinsic, the prefetch can provide 
+coarse-grained hints for better performance and compute and data 
+movement overlap.
+
 '``llvm.pcmarker``' Intrinsic
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -23026,6 +23066,50 @@ Semantics:
 """"""""""
 
 This intrinsic indicates that the memory is mutable again.
+
+
+'``llvm.memory.used``' Intrinsic
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Syntax:
+"""""""
+
+::
+
+     declare void @llvm.memory.used.p0(ptr <address>, i32 <use>, i32 <where>, i64 <beg>, i64 <end>)
+
+Overview:
+"""""""""
+
+EXPERIMENTAL: The '``llvm.memory.used``' intrinsic indicates that some memory
+was used since the last call to the intrisic (or since the start of the function
+if this is the first call to the intrinsic in the function) and the current
+call. This is used by Kitsune to determine which data to move/prefetch between
+the host (CPU) and target device (typically a GPU). In principle it could also
+be used to demarcate regions in the code where some data of interest is being
+used, although this is not how it is intended to be used.
+
+Arguments:
+""""""""""
+
+The <address> of the argument is the starting address of the memory that was
+used. <use> can currently only take the values 1, 2, and 3 indicating that the
+memory was read, written, and both read and written respectively. The third
+argument <where> is used to specify whether the memory was accessed on the
+host or the device. A value of 0 indicates that the memory was accessed on the
+host. Positive values are used to identify the device on which the data was
+used. The method of mapping integer arguments to particular devices is left
+unspecified. The <beg> amd <end> arguments may be used to specify a range of
+bytes (positive offsets from <address>) that were accessed. If such a range is
+not known, -1 should be passed to both <beg> and <end>. If a known range is
+passed, <end> must be greater than or equal to <begin>.
+
+Semantics:
+""""""""""
+
+The use of this intrinsic should have no effect on the semantics of the program
+although it could affect the program's performance.
+
 
 '``llvm.launder.invariant.group``' Intrinsic
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

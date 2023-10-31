@@ -189,6 +189,24 @@ static std::tuple<ELFKind, uint16_t, uint8_t> parseEmulation(StringRef emul) {
   return std::make_tuple(ret.first, ret.second, osabi);
 }
 
+TapirTargetID parseTapirTarget(const  llvm::StringRef &Target) {
+  // Otherwise use the runtime specified by -ftapir.
+  TapirTargetID TapirTarget = llvm::StringSwitch<TapirTargetID>(Target)
+      .Case("none", TapirTargetID::None)
+      .Case("serial", TapirTargetID::Serial)
+      .Case("cuda", TapirTargetID::Cuda)
+      .Case("gpu", TapirTargetID::GPU)
+      .Case("hip", TapirTargetID::Hip)
+      .Case("lambda", TapirTargetID::Lambda)
+      .Case("omptask", TapirTargetID::OMPTask)
+      .Case("opencilk", TapirTargetID::OpenCilk)      
+      .Case("openmp", TapirTargetID::OpenMP)
+      .Case("qthreads", TapirTargetID::Qthreads)
+      .Case("realm", TapirTargetID::Realm)
+      .Default(TapirTargetID::Last_TapirTargetID);
+
+  return TapirTarget;
+}
 // Returns slices of MB by parsing MB as an archive file.
 // Each slice consists of a member file in the archive.
 std::vector<std::pair<MemoryBufferRef, uint64_t>> static getArchiveMembers(
@@ -1160,6 +1178,8 @@ static void readConfigs(opt::InputArgList &args) {
   config->omagic = args.hasFlag(OPT_omagic, OPT_no_omagic, false);
   config->opaquePointers = args.hasFlag(
       OPT_plugin_opt_opaque_pointers, OPT_plugin_opt_no_opaque_pointers, true);
+  config->opencilkABIBitcodeFile =
+      args.getLastArgValue(OPT_opencilk_abi_bitcode);
   config->optRemarksFilename = args.getLastArgValue(OPT_opt_remarks_filename);
   config->optStatsFilename = args.getLastArgValue(OPT_plugin_opt_stats_file);
 
@@ -1215,6 +1235,8 @@ static void readConfigs(opt::InputArgList &args) {
   config->splitStackAdjustSize = args::getInteger(args, OPT_split_stack_adjust_size, 16384);
   config->strip = getStrip(args);
   config->sysroot = args.getLastArgValue(OPT_sysroot);
+  config->tapirTarget =
+      args::parseTapirTarget(args.getLastArgValue(OPT_tapir_target));
   config->target1Rel = args.hasFlag(OPT_target1_rel, OPT_target1_abs, false);
   config->target2 = getTarget2(args);
   config->thinLTOCacheDir = args.getLastArgValue(OPT_thinlto_cache_dir);
@@ -1289,6 +1311,7 @@ static void readConfigs(opt::InputArgList &args) {
   config->zWxneeded = hasZOption(args, "wxneeded");
   setUnresolvedSymbolPolicy(args);
   config->power10Stubs = args.getLastArgValue(OPT_power10_stubs_eq) != "no";
+  config->tapirTarget = parseTapirTarget(args.getLastArgValue(OPT_tapir_target));
 
   if (opt::Arg *arg = args.getLastArg(OPT_eb, OPT_el)) {
     if (arg->getOption().matches(OPT_eb))

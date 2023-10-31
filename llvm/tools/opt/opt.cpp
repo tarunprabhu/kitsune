@@ -178,6 +178,11 @@ static cl::opt<unsigned> CodeGenOptLevel(
 static cl::opt<std::string>
 TargetTriple("mtriple", cl::desc("Override target triple for module"));
 
+static cl::opt<bool>
+DisableLoopStripmining("disable-loop-stripmining",
+                        cl::desc("Disable loop stripmining pass"),
+                        cl::init(false));
+
 static cl::opt<bool> EmitSummaryIndex("module-summary",
                                       cl::desc("Emit module summary index"),
                                       cl::init(false));

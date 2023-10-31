@@ -1,4 +1,4 @@
-; RUN: opt < %s -enable-new-pm=0 -loop-unswitch -S -o - | FileCheck %s
+; RUN: opt < %s -passes=simple-loop-unswitch -S -o - | FileCheck %s
 ; XFAIL: *
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"

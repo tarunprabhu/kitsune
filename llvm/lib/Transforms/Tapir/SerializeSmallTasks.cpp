@@ -26,6 +26,7 @@
 #include "llvm/Transforms/Tapir/LoopStripMine.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
+#include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
 
@@ -54,7 +55,7 @@ static bool trySerializeSmallLoop(
   TapirLoopHints Hints(L);
 
   TargetTransformInfo::StripMiningPreferences SMP =
-      gatherStripMiningPreferences(L, SE, TTI, std::nullopt);
+    gatherStripMiningPreferences(L, SE, TTI, std::nullopt);
 
   SmallPtrSet<const Value *, 32> EphValues;
   CodeMetrics::collectEphemeralValues(L, &AC, EphValues);

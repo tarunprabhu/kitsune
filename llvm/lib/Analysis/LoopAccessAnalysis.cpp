@@ -2434,7 +2434,7 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
                                SymbolicStrides, UncomputablePtr, false);
   if (!CanDoRTIfNeeded) {
     auto *I = dyn_cast_or_null<Instruction>(UncomputablePtr);
-    recordAnalysis("CantIdentifyArrayBounds", I) 
+    recordAnalysis("CantIdentifyArrayBounds", I)
         << "cannot identify array bounds";
     LLVM_DEBUG(dbgs() << "LAA: We can't vectorize because we can't find "
                       << "the array bounds.\n");
@@ -2657,9 +2657,8 @@ LoopAccessInfo::LoopAccessInfo(Loop *L, ScalarEvolution *SE,
       PtrRtChecking(nullptr),
       DepChecker(std::make_unique<MemoryDepChecker>(*PSE, L)), TheLoop(L) {
   PtrRtChecking = std::make_unique<RuntimePointerChecking>(*DepChecker, SE);
-  if (canAnalyzeLoop()) {
+  if (canAnalyzeLoop())
     analyzeLoop(AA, LI, TLI, DT, TI);
-  }
 }
 
 void LoopAccessInfo::print(raw_ostream &OS, unsigned Depth) const {
