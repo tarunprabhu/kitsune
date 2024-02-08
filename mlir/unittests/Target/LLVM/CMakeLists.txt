@@ -10,7 +10,16 @@ DEPENDS
   ${dialect_libs}
 )
 
-mlir_target_link_libraries(MLIRTargetLLVMTests
+llvm_map_components_to_libnames(llvm_libs nativecodegen)
+# This might be a bug in MLIR. If LLVM_LINK_LLVM_DYLIB is ON, we get a duplicate
+# definition error on MLIRTargetLLVMTests because some the command line options
+# are registered twice - one from the static libraries in ${llvm_libs} and again
+# from libLLVM.so. Only use ${llvm_libs} when LLVM_LINK_LLVM_DYLIB is not ON.
+if (LLVM_LINK_LLVM_DYLIB)
+  set(llvm_libs "")
+endif()
+
+target_link_libraries(MLIRTargetLLVMTests
   PRIVATE
   MLIRTargetLLVM
   MLIRNVVMTarget

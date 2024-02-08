@@ -129,7 +129,7 @@ typedef enum {
   LLVMShuffleVector  = 52,
   LLVMExtractValue   = 53,
   LLVMInsertValue    = 54,
-  LLVMFreeze         = 68,
+  LLVMFreeze         = 101,
 
   /* Atomic operators */
   LLVMFence          = 55,
@@ -143,7 +143,12 @@ typedef enum {
   LLVMCatchRet       = 62,
   LLVMCatchPad       = 63,
   LLVMCleanupPad     = 64,
-  LLVMCatchSwitch    = 65
+  LLVMCatchSwitch    = 65,
+
+  /* Parallel operators */
+  LLVMDetach         = 72,
+  LLVMReattach       = 73,
+  LLVMSync           = 74,
 } LLVMOpcode;
 
 typedef enum {
@@ -1939,6 +1944,9 @@ LLVM_C_ABI unsigned LLVMGetTargetExtTypeIntParam(LLVMTypeRef TargetExtTy,
       macro(CatchReturnInst)                \
       macro(CatchSwitchInst)                \
       macro(CallBrInst)                     \
+      macro(DetachInst)                     \
+      macro(ReattachInst)                   \
+      macro(SyncInst)                       \
       macro(FuncletPadInst)                 \
         macro(CatchPadInst)                 \
         macro(CleanupPadInst)               \
@@ -4451,6 +4459,18 @@ LLVM_C_ABI LLVMValueRef LLVMBuildCatchSwitch(LLVMBuilderRef B,
                                              LLVMBasicBlockRef UnwindBB,
                                              unsigned NumHandlers,
                                              const char *Name);
+
+/* Tapir */
+LLVMValueRef LLVMBuildDetach(LLVMBuilderRef B,
+                             LLVMBasicBlockRef DetachBB,
+                             LLVMBasicBlockRef ContinueBB,
+                             LLVMValueRef SyncRegion);
+LLVMValueRef LLVMBuildReattach(LLVMBuilderRef B,
+                               LLVMBasicBlockRef ReattachBB,
+                               LLVMValueRef SyncRegion);
+LLVMValueRef LLVMBuildSync(LLVMBuilderRef B,
+                           LLVMBasicBlockRef ContinueBB,
+                           LLVMValueRef SyncRegion);
 
 /* Add a case to the switch instruction */
 LLVM_C_ABI void LLVMAddCase(LLVMValueRef Switch, LLVMValueRef OnVal,

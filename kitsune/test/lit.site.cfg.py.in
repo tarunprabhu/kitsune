@@ -1,0 +1,48 @@
+@LIT_SITE_CFG_IN_HEADER@
+
+import sys
+
+config.llvm_src_root = path(r"@LLVM_SOURCE_DIR@")
+config.llvm_obj_root = path(r"@LLVM_BINARY_DIR@")
+config.llvm_tools_dir = lit_config.substitute(path(r"@LLVM_TOOLS_DIR@"))
+config.llvm_libs_dir = lit_config.substitute(path(r"@LLVM_LIBS_DIR@"))
+config.llvm_shlib_dir = lit_config.substitute(path(r"@SHLIBDIR@"))
+config.llvm_version_major = @LLVM_VERSION_MAJOR@
+config.llvm_version_minor = @LLVM_VERSION_MINOR@
+config.lit_tools_dir = path(r"@LLVM_LIT_TOOLS_DIR@")
+config.kitsune_lit_site_cfg = __file__
+config.kitsune_obj_root = path(r"@KITSUNE_BINARY_DIR@")
+config.kitsune_src_dir = path(r"@KITSUNE_SOURCE_DIR@")
+config.clang_lib_dir = path(r"@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
+config.host_triple = "@LLVM_HOST_TRIPLE@"
+config.target_triple = "@LLVM_TARGET_TRIPLE@"
+config.host_cc = "@CMAKE_C_COMPILER@"
+config.host_cxx = "@CMAKE_CXX_COMPILER@"
+config.host_arch = "@HOST_ARCH@"
+config.python_executable = "@Python3_EXECUTABLE@"
+config.llvm_external_lit = path(r"@LLVM_EXTERNAL_LIT@")
+config.kitsune_gcc_install_dir = r"@KITSUNE_GCC_INSTALL_DIR@"
+config.kitsune_sysroot = r"@KITSUNE_SYSROOT@"
+config.kitsune_c_enabled = @KITSUNE_C_ENABLED@
+config.kitsune_cxx_enabled = @KITSUNE_CXX_ENABLED@
+config.kitsune_fortran_enabled = @KITSUNE_Fortran_ENABLED@
+config.kitsune_kokkos_enabled = @KITSUNE_KOKKOS_ENABLED@
+config.kitsune_cuda_enabled = @KITSUNE_CUDA_ENABLED@
+config.kitsune_hip_enabled = @KITSUNE_HIP_ENABLED@
+config.kitsune_lambda_enabled = @KITSUNE_LAMBDA_ENABLED@
+config.kitsune_omptask_enabled = @KITSUNE_OMPTASK_ENABLED@
+config.kitsune_opencilk_enabled = @KITSUNE_OPENCILK_ENABLED@
+config.kitsune_openmp_enabled = @KITSUNE_OPENMP_ENABLED@
+config.kitsune_qthreads_enabled = @KITSUNE_QTHREADS_ENABLED@
+config.kitsune_realm_enabled = @KITSUNE_REALM_ENABLED@
+config.kitcc = "@KITSUNE_C_FRONTEND@"
+config.kitxx = "@KITSUNE_CXX_FRONTEND@"
+config.kitfc = "@KITSUNE_Fortran_FRONTEND@"
+config.kitconf = "kit-config"
+
+import lit.llvm
+lit.llvm.initialize(lit_config, config)
+
+# Let the main config do the real work.
+lit_config.load_config(
+    config, os.path.join(config.kitsune_src_dir, "test/lit.cfg.py"))

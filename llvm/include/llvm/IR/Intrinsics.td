@@ -619,6 +619,8 @@ def llvm_externref_ty  : LLVMType<externref>;
 def llvm_funcref_ty    : LLVMType<funcref>;
 def llvm_exnref_ty     : LLVMType<exnref>;
 
+def llvm_mobile_ptr_ty : LLVMQualPointerType<67>; // Kitsune mobile pointers
+
 //===----------------------------------------------------------------------===//
 
 class MakeIdx<list<int> Set> {
@@ -911,6 +913,13 @@ def int_prefetch
                 [IntrInaccessibleMemOrArgMemOnly,
                  ReadOnly<ArgIndex<0>>, NoCapture<ArgIndex<0>>,
                  ImmArg<ArgIndex<1>>, ImmArg<ArgIndex<2>>, ImmArg<ArgIndex<3>>]>;
+
+def int_asyncprefetch
+    : DefaultAttrsIntrinsic<[], [ llvm_anyptr_ty, llvm_i32_ty, llvm_i64_ty ],
+                [IntrInaccessibleMemOrArgMemOnly, IntrWillReturn,
+                 ReadOnly<ArgIndex<0>>, NoCapture<ArgIndex<0>>,
+                 ImmArg<ArgIndex<1>>, ImmArg<ArgIndex<2>>]>;
+
 def int_pcmarker      : DefaultAttrsIntrinsic<[], [llvm_i32_ty]>;
 
 def int_readcyclecounter : DefaultAttrsIntrinsic<[llvm_i64_ty]>;
@@ -1828,6 +1837,90 @@ def int_coro_subfn_addr : DefaultAttrsIntrinsic<
     [llvm_ptr_ty], [llvm_ptr_ty, llvm_i8_ty],
     [IntrReadMem, IntrArgMemOnly, ReadOnly<ArgIndex<0>>,
      NoCapture<ArgIndex<0>>]>;
+
+
+///===-------------------------- Tapir Intrinsics -------------------------===//
+//
+def int_syncregion_start
+    : Intrinsic<[llvm_token_ty], [], [IntrArgMemOnly, IntrWillReturn]>;
+
+def int_tapir_runtime_start
+    : Intrinsic<[llvm_token_ty], [], [IntrArgMemOnly, IntrWillReturn]>;
+
+def int_tapir_runtime_end
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn]>;
+
+// Intrinsics for taskframes.
+
+// Marker for the start of a taskframe.
+def int_taskframe_create
+    : Intrinsic<[llvm_token_ty], [], [IntrArgMemOnly, IntrWillReturn]>;
+
+// Marker placed in detached blocks (i.e., task-entry blocks) to
+// identify the taskframe used by the spawned task.
+def int_taskframe_use
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn]>;
+
+// Marker for the end of a taskframe.
+def int_taskframe_end
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn]>;
+
+// Marker for the end of a taskframe along exception-handling unwind
+// paths.
+def int_taskframe_resume : Intrinsic<[], [llvm_token_ty, llvm_any_ty],
+                                     [IntrArgMemOnly, IntrWillReturn, Throws]>;
+
+// Guard intrinsic to prevent illegal code motion of loads from memory
+// locations stored in spawned subtasks.
+def int_taskframe_load_guard
+    : Intrinsic<[], [llvm_anyptr_ty],
+                [IntrArgMemOnly, IntrWillReturn, NoCapture<ArgIndex<0>>]>;
+
+// Marker for the end of a spawned task along exception-handling
+// unwind paths.
+def int_detached_rethrow : Intrinsic<[], [llvm_token_ty, llvm_any_ty],
+                                     [IntrArgMemOnly, IntrWillReturn, Throws]>;
+
+// Invokable intrinsic to keep track of a landingpad associated with a
+// sync.
+def int_sync_unwind
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn, Throws]>;
+
+// Intrinsic to get the grainsize of a Tapir loop.
+def int_tapir_loop_grainsize
+    : Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>],
+                [IntrNoMem, IntrWillReturn, IntrSpeculatable]>;
+
+// Intrinsic to get the frame address of a spawned task.  Tapir
+// lowering transforms this intrinsic into ordinary frameaddress
+// intrinsics.
+def int_task_frameaddress
+    : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty], [IntrWillReturn]>;
+
+
+///===------------------------- Kitsune Intrinsics ------------------------===//
+
+// Mobile memory allocator. This will allocate the given number of bytes as a
+// mobile buffer. The lowering of this intrinsic will depend on
+//
+//   - The Tapir target(s) that are enabled
+//   - The uses of the buffer
+//
+// TODO: This should eventually return a pointer in a specific address space.
+// This may require the returned type to be replaced with an
+// LLVMQualPointerType.
+//
+def int_kitsune_mobile_alloc
+    : Intrinsic<[llvm_mobile_ptr_ty], [llvm_i64_ty],
+                [IntrInaccessibleMemOnly, NoAlias<RetIndex>]>;
+
+// Mobile memory deallocator. This will free memory that was previously
+// allocated by kitsune_mobile_alloc.
+def int_kitsune_mobile_free
+    : Intrinsic<[], [llvm_mobile_ptr_ty],
+                [IntrInaccessibleMemOrArgMemOnly, IntrWillReturn,
+                 NoCapture<ArgIndex<0>>, ReadNone<ArgIndex<0>>]>;
+
 
 ///===-------------------------- Other Intrinsics --------------------------===//
 //
@@ -2871,5 +2964,6 @@ include "llvm/IR/IntrinsicsSPIRV.td"
 include "llvm/IR/IntrinsicsVE.td"
 include "llvm/IR/IntrinsicsDirectX.td"
 include "llvm/IR/IntrinsicsLoongArch.td"
+include "llvm/IR/IntrinsicsKitsune.td"
 
 #endif // TEST_INTRINSICS_SUPPRESS_DEFS

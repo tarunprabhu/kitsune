@@ -37,6 +37,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
@@ -3179,6 +3180,22 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
 
     // Check for captured variables.
     if (E->refersToEnclosingVariableOrCapture()) {
+      // kitsune: if we are generating a kokkos-based lambda construct
+      // we are likely going to eventually transform it into a parallel
+      // loop construct. Thus we have to carefully consider how we handle
+      // captures within the lambda...
+      //
+      // KITSUNE FIXME: Not sure that everything we are doing here is sound ...
+      if (InKokkosConstruct) {
+        VD = VD->getCanonicalDecl();
+        auto I = LocalDeclMap.find(VD);
+        assert(I != LocalDeclMap.end());
+        if (VD->getType()->isReferenceType())
+          return EmitLoadOfReferenceLValue(I->second, VD->getType(),
+                                           AlignmentSource::Decl);
+        return MakeAddrLValue(I->second, T);
+      }
+
       VD = VD->getCanonicalDecl();
       if (auto *FD = LambdaCaptureFields.lookup(VD))
         return EmitCapturedFieldLValue(*this, FD, CXXABIThisValue);
@@ -5826,6 +5843,32 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue,
                                      llvm::CallBase **CallOrInvoke) {
+  // kitsune: handle kokkos-centric details -- specifically we are
+  // dealing with a case where we transform a lambda construct into
+  // a traditional loop construct; thus our parallel_for and
+  // parallel_reduce calls result in the removal of a lambda/call.
+  if (CGM.getKitsuneOpts().getKokkos()) {
+    const FunctionDecl *fdecl = E->getDirectCallee();
+    if (fdecl) {
+      std::string qname = fdecl->getQualifiedNameAsString();
+      if (qname == "Kokkos::parallel_for" ||
+          qname == "Kokkos::parallel_reduce") {
+	// We handle the special case of Tapir target attributes on a
+	// Kokkos "statement" elsewhere (as the attribute is not
+	// really attached to the CallExpr but instead the C++ goop
+	// around the call -- implicit and clean up stuff).  If we
+	// have seen such an attribute it was saved and we can simply
+	// pass TapirAttrs on from here for the Kokkos code
+	// transformation/generation.
+        if (EmitKokkosConstruct(E, TapirAttrs))
+          return RValue::get(nullptr);
+      } else if (CGM.getKitsuneOpts().getKokkosNoInit() &&
+                 (qname == "Kokkos::initialize" ||
+                  qname == "Kokkos::finalize"))
+        return RValue::get(nullptr);
+    }
+  }
+
   llvm::CallBase *CallOrInvokeStorage;
   if (!CallOrInvoke) {
     CallOrInvoke = &CallOrInvokeStorage;

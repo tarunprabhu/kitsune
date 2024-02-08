@@ -13,6 +13,7 @@
 #ifndef LLVM_FRONTEND_DRIVER_CODEGENOPTIONS_H
 #define LLVM_FRONTEND_DRIVER_CODEGENOPTIONS_H
 
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/Support/Compiler.h"
 #include <string>
 
@@ -49,8 +50,9 @@ enum class VectorLibrary {
   AMDLIBM             // AMD vector math library.
 };
 
-LLVM_ABI TargetLibraryInfoImpl *createTLII(const llvm::Triple &TargetTriple,
-                                           VectorLibrary Veclib);
+LLVM_ABI TargetLibraryInfoImpl *
+createTLII(const llvm::Triple &TargetTriple, VectorLibrary Veclib,
+           std::optional<TapirTargetID> TapirTarget = std::nullopt);
 
 enum ProfileInstrKind {
   ProfileNone,       // Profile instrumentation is turned off.

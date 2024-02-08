@@ -42,6 +42,7 @@ class ScalarEvolution;
 class SCEV;
 class SCEVExpander;
 class TargetLibraryInfo;
+class TaskInfo;
 class LPPassManager;
 class Instruction;
 struct RuntimeCheckingPtrGroup;
@@ -158,7 +159,8 @@ LLVM_ABI bool sinkRegion(DomTreeNode *, AAResults *, LoopInfo *,
                          DominatorTree *, TargetLibraryInfo *,
                          TargetTransformInfo *, Loop *CurLoop,
                          MemorySSAUpdater &, ICFLoopSafetyInfo *,
-                         SinkAndHoistLICMFlags &, OptimizationRemarkEmitter *,
+                         SinkAndHoistLICMFlags &, TaskInfo *,
+                         OptimizationRemarkEmitter *,
                          Loop *OutermostLoop = nullptr);
 
 /// Call sinkRegion on loops contained within the specified loop
@@ -167,7 +169,7 @@ LLVM_ABI bool sinkRegionForLoopNest(DomTreeNode *, AAResults *, LoopInfo *,
                                     DominatorTree *, TargetLibraryInfo *,
                                     TargetTransformInfo *, Loop *,
                                     MemorySSAUpdater &, ICFLoopSafetyInfo *,
-                                    SinkAndHoistLICMFlags &,
+                                    SinkAndHoistLICMFlags &, TaskInfo *,
                                     OptimizationRemarkEmitter *);
 
 /// Walk the specified region of the CFG (defined by all blocks
@@ -184,7 +186,8 @@ LLVM_ABI bool hoistRegion(DomTreeNode *, AAResults *, LoopInfo *,
                           DominatorTree *, AssumptionCache *,
                           TargetLibraryInfo *, Loop *, MemorySSAUpdater &,
                           ScalarEvolution *, ICFLoopSafetyInfo *,
-                          SinkAndHoistLICMFlags &, OptimizationRemarkEmitter *,
+                          SinkAndHoistLICMFlags &, TaskInfo *,
+                          OptimizationRemarkEmitter *,
                           bool, bool AllowSpeculation);
 
 /// Return true if the induction variable \p IV in a Loop whose latch is
@@ -199,12 +202,13 @@ LLVM_ABI bool isAlmostDeadIV(PHINode *IV, BasicBlock *LatchBlock, Value *Cond);
 ///   - The loop needs to have a Preheader
 ///   - A unique dedicated exit block must exist
 ///
-/// This also updates the relevant analysis information in \p DT, \p SE, \p LI
-/// and \p MSSA if pointers to those are provided.
+/// This also updates the relevant analysis information in \p DT, \p SE, \p LI,
+/// \p TI and \p MSSA if pointers to those are provided.
 /// It also updates the loop PM if an updater struct is provided.
 
 LLVM_ABI void deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
-                             LoopInfo *LI, MemorySSA *MSSA = nullptr);
+                             LoopInfo *LI, TaskInfo *TI = nullptr,
+                             MemorySSA *MSSA = nullptr);
 
 /// Remove the backedge of the specified loop.  Handles loop nests and general
 /// loop structures subject to the precondition that the loop has no parent
@@ -227,8 +231,9 @@ LLVM_ABI bool promoteLoopAccessesToScalars(
     SmallVectorImpl<BasicBlock::iterator> &, SmallVectorImpl<MemoryAccess *> &,
     PredIteratorCache &, LoopInfo *, DominatorTree *, AssumptionCache *AC,
     const TargetLibraryInfo *, TargetTransformInfo *, Loop *,
-    MemorySSAUpdater &, ICFLoopSafetyInfo *, OptimizationRemarkEmitter *,
-    bool AllowSpeculation, bool HasReadsOutsideSet);
+    MemorySSAUpdater &, ICFLoopSafetyInfo *, TaskInfo *,
+    OptimizationRemarkEmitter *, bool AllowSpeculation,
+    bool HasReadsOutsideSet);
 
 /// Does a BFS from a given node to all of its children inside a given loop.
 /// The returned vector of basic blocks includes the starting point.
@@ -314,6 +319,8 @@ LLVM_ABI TransformationMode hasUnrollAndJamTransformation(const Loop *L);
 LLVM_ABI TransformationMode hasVectorizeTransformation(const Loop *L);
 LLVM_ABI TransformationMode hasDistributeTransformation(const Loop *L);
 LLVM_ABI TransformationMode hasLICMVersioningTransformation(const Loop *L);
+LLVM_ABI TransformationMode hasLoopStripmineTransformation(const Loop *L);
+LLVM_ABI TransformationMode hasLoopSpawningTransformation(const Loop *L);
 /// @}
 
 /// Set input string into loop metadata by keeping other values intact.
@@ -363,7 +370,7 @@ LLVM_ABI void getLoopAnalysisUsage(AnalysisUsage &AU);
 LLVM_ABI bool canSinkOrHoistInst(Instruction &I, AAResults *AA,
                                  DominatorTree *DT, Loop *CurLoop,
                                  MemorySSAUpdater &MSSAU,
-                                 bool TargetExecutesOncePerLoop,
+                                 bool TargetExecutesOncePerLoop, TaskInfo *TI,
                                  SinkAndHoistLICMFlags &LICMFlags,
                                  OptimizationRemarkEmitter *ORE = nullptr);
 

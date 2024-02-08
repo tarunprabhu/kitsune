@@ -36,6 +36,7 @@ class ProfileSummaryInfo;
 class OptimizationRemarkEmitter;
 class ScalarEvolution;
 class StringRef;
+class TaskInfo;
 class Value;
 
 using NewLoopsMap = SmallDenseMap<const Loop *, Loop *, 4>;
@@ -88,7 +89,8 @@ LLVM_ABI LoopUnrollResult UnrollLoop(Loop *L, UnrollLoopOptions ULO,
                                      OptimizationRemarkEmitter *ORE,
                                      bool PreserveLCSSA,
                                      Loop **RemainderLoop = nullptr,
-                                     AAResults *AA = nullptr);
+                                     AAResults *AA = nullptr,
+                                     TaskInfo *TI = nullptr);
 
 LLVM_ABI bool UnrollRuntimeLoopRemainder(
     Loop *L, unsigned Count, bool AllowExpensiveTripCount,

@@ -925,6 +925,7 @@ Function *CodeExtractor::constructFunctionDeclaration(
       case Attribute::ReturnsTwice:
       case Attribute::Speculatable:
       case Attribute::StackAlignment:
+      case Attribute::Stealable:
       case Attribute::WillReturn:
       case Attribute::AllocKind:
       case Attribute::PresplitCoroutine:
@@ -962,6 +963,7 @@ Function *CodeExtractor::constructFunctionDeclaration(
       case Attribute::SafeStack:
       case Attribute::ShadowCallStack:
       case Attribute::SanitizeAddress:
+      case Attribute::SanitizeCilk:
       case Attribute::SanitizeMemory:
       case Attribute::SanitizeNumericalStability:
       case Attribute::SanitizeThread:

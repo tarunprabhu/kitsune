@@ -30,6 +30,7 @@
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/TargetInfo.h"
+#include "kitsune/Config/config.h"
 #include "llvm/ADT/APFixedPoint.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/CFG.h"
@@ -2461,7 +2462,9 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
 
     assert(
         (!SrcTy->isPtrOrPtrVectorTy() || !DstTy->isPtrOrPtrVectorTy() ||
-         SrcTy->getPointerAddressSpace() == DstTy->getPointerAddressSpace()) &&
+         SrcTy->getPointerAddressSpace() == DstTy->getPointerAddressSpace() ||
+         SrcTy->getPointerAddressSpace() == KITSUNE_ADDRSPACE ||
+         DstTy->getPointerAddressSpace() == KITSUNE_ADDRSPACE) &&
         "Address-space cast must be used to convert address spaces");
 
     if (CGF.SanOpts.has(SanitizerKind::CFIUnrelatedCast)) {
@@ -2584,7 +2587,16 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
       return EmitLoadOfLValue(DestLV, CE->getExprLoc());
     }
 
-    llvm::Value *Result = Builder.CreateBitCast(Src, DstTy);
+    // We may need to perform an address space cast here since mobile pointers
+    // are put in a special, kitsune-specific address space.
+    llvm::Value* Result = nullptr;
+    if ((SrcTy->isPointerTy() &&
+         SrcTy->getPointerAddressSpace() == KITSUNE_ADDRSPACE) ||
+        (DstTy->isPointerTy() &&
+         DstTy->getPointerAddressSpace() == KITSUNE_ADDRSPACE))
+      Result = Builder.CreateAddrSpaceCast(Src, DstTy);
+    else
+      Result = Builder.CreateBitCast(Src, DstTy);
     return CGF.authPointerToPointerCast(Result, E->getType(), DestTy);
   }
   case CK_AddressSpaceConversion: {
@@ -3092,9 +3104,9 @@ ScalarExprEmitter::EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
         llvm::Instruction::BinaryOps op =
             isInc ? llvm::Instruction::FAdd : llvm::Instruction::FSub;
         llvm::Value *amt = llvm::ConstantFP::get(Ty, 1.0);
-        llvm::AtomicRMWInst *old = Builder.CreateAtomicRMW(
-            aop, LV.getAddress(), amt,
-            llvm::AtomicOrdering::SequentiallyConsistent);
+        llvm::AtomicRMWInst *old =
+            CGF.emitAtomicRMWInst(aop, LV.getAddress(), amt,
+                                  llvm::AtomicOrdering::SequentiallyConsistent);
 
         return isPre ? Builder.CreateBinOp(op, old, amt) : old;
       }

@@ -400,4 +400,41 @@ def err_cir_to_cir_transform_failed : Error<
 def err_cir_verification_failed_pre_passes : Error<
     "CIR module verification error before running CIR-to-CIR passes">,
     DefaultFatal;
+
+// -----------------------------------------------------------------------------
+//                         Kitsune-specific diagnostics
+// -----------------------------------------------------------------------------
+
+def warn_kokkos_range_expr : Warning<
+    "kokkos - unsupported expression for range of parallel_for. "
+    "Falling back to standard C++ mode">,
+    InGroup<Kitsune>;
+def warn_kokkos_no_functor : Warning<
+    "kokkos - functors not supported in parallel_for. "
+    "Falling back to standard C++ mode">,
+    InGroup<Kitsune>;
+def warn_kokkos_no_lambda_args : Warning<
+    "kokkos - lambda in parallel_for requires arguments. "
+    "Falling back to standard C++ mode">,
+    InGroup<Kitsune>;
+def warn_kokkos_unknown_stmt_class : Warning<
+    "kokkos - unrecognized/unsupported construct in parallel_for statement. "
+    "Falling back to standard C++ mode">,
+    InGroup<Kitsune>;
+def warn_kokkos_unknown_bounds_expr : Warning<
+    "kokkos - unrecognized bounds/limit expression. "
+    "Falling back to standard C++ mode">,
+    InGroup<Kitsune>;
+def warn_kokkos_reduce_unsupported : Warning<
+    "kokkos - parallel_reduce is not supported. "
+    "Falling back to standard C++ mode">,
+    InGroup<Kitsune>;
+def warn_kokkos_reduce_bad_intermediate_vardecl : Warning<
+    "kokkos - Could not determine intermediate reduction variable. "
+    "Falling back to C++ mode for construct">,
+    InGroup<Kitsune>;
+def warn_kokkos_reduce_bad_final_vardecl : Warning<
+    "kokkos - Could not determine final reduction variable. "
+    "Falling back to C++ mode for construct">,
+    InGroup<Kitsune>;
 }

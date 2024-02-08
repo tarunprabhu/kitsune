@@ -60,6 +60,7 @@
 ; CHECK-O23SZ-NEXT: Running analysis: OuterAnalysisManagerProxy
 ; CHECK-O23SZ-NEXT: Running pass: ArgumentPromotionPass
 ; CHECK-O23SZ-NEXT: Running pass: SROAPass
+; CHECK-O23SZ-NEXT: Running analysis: TaskAnalysis on foo
 ; CHECK-O23SZ-NEXT: Running pass: IPSCCPPass
 ; CHECK-O23SZ-NEXT: Running pass: CalledValuePropagationPass
 ; CHECK-O-NEXT: Running pass: ReversePostOrderFunctionAttrsPass
@@ -141,6 +142,7 @@
 ; CHECK-O3-NEXT: Running pass: SLPVectorizerPass on foo
 ; CHECK-OS-NEXT: Running pass: SLPVectorizerPass on foo
 ; CHECK-O23SZ-NEXT: Running pass: VectorCombinePass on foo
+; CHECK-O23SZ-NEXT: Running pass: EarlyCSEPass on foo
 ; CHECK-O23SZ-NEXT: Running pass: InferAlignmentPass on foo
 ; CHECK-O23SZ-NEXT: Running pass: InstCombinePass on foo
 ; CHECK-O23SZ-NEXT: Running pass: LoopSimplifyPass
@@ -162,6 +164,9 @@
 ; CHECK-O1-NEXT: Running pass: CoroConditionalWrapper
 ; CHECK-O23SZ-NEXT: Running pass: CoroCleanupPass
 ; CHECK-EP-NEXT: Running pass: NoOpModulePass
+; CHECK-O23SZ-NEXT: Running pass: LowerMobileIntrinsicsPass
+; CHECK-O23SZ-NEXT: Running analysis: TapirTargetAnalysis
+; CHECK-O23SZ-NEXT: Running pass: StripKitsuneAddrSpacePass
 ; CHECK-O-NEXT: Running pass: AnnotationRemarksPass on foo
 ; CHECK-O-NEXT: Running pass: PrintModulePass
 

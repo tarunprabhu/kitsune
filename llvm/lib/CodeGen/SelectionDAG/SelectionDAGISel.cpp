@@ -770,6 +770,22 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
     }
   }
 
+  // Determine if there is a call to setjmp in the machine function.
+  MF->setExposesReturnsTwice(Fn.callsFunctionThatReturnsTwice());
+
+  // Determine if there is a call to a function that returns twice that is not a
+  // call to the eh.sjlj.setjmp intrinsic.
+  for (const Instruction &I : instructions(Fn))
+    if (const auto *Call = dyn_cast<CallBase>(&I))
+      if (Call->hasFnAttr(Attribute::ReturnsTwice)) {
+        if (const Function *Called = Call->getCalledFunction())
+          if (Called->getIntrinsicID() ==
+              Intrinsic::eh_sjlj_setjmp)
+            continue;
+        MF->setExposesOpaqueReturnsTwice(true);
+        break;
+      }
+
   // Release function-specific state. SDB and CurDAG are already cleared
   // at this point.
   FuncInfo->clear();

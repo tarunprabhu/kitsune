@@ -20,7 +20,8 @@ extern llvm::cl::opt<llvm::InstrProfCorrelator::ProfCorrelatorKind>
 namespace llvm::driver {
 
 TargetLibraryInfoImpl *createTLII(const llvm::Triple &TargetTriple,
-                                  driver::VectorLibrary Veclib) {
+                                  driver::VectorLibrary Veclib,
+                                  std::optional<TapirTargetID> TapirTarget) {
   TargetLibraryInfoImpl *TLII = new TargetLibraryInfoImpl(TargetTriple);
 
   using VectorLibrary = llvm::driver::VectorLibrary;
@@ -60,6 +61,10 @@ TargetLibraryInfoImpl *createTLII(const llvm::Triple &TargetTriple,
   default:
     break;
   }
+
+  if (TapirTarget)
+    TLII->addTapirTargetLibraryFunctions(*TapirTarget);
+
   return TLII;
 }
 

@@ -3459,3 +3459,9 @@ tools::renderComplexRangeOption(LangOptionsBase::ComplexRangeKind Range) {
     return "-complex-range=" + ComplexRangeStr;
   return ComplexRangeStr;
 }
+
+void tools::addKitsuneArgs(const Driver &D, const ToolChain &TC,
+                           const ArgList &Args, ArgStringList &CmdArgs) {
+  TC.AddKitsunePreprocessorArgs(Args, CmdArgs);
+  TC.AddKitsuneCompilerArgs(Args, CmdArgs);
+}

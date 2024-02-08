@@ -874,4 +874,71 @@ def warn_drv_openacc_without_cir
     : Warning<"OpenACC directives will result in no runtime behavior; use "
               "-fclangir to enable runtime effect">,
       InGroup<SourceUsesOpenACC>;
+
+// -----------------------------------------------------------------------------
+//                         Kitsune-specific diagnostics
+// -----------------------------------------------------------------------------
+
+def warn_drv_kitsune_no_gpu : Warning<
+  "%0. Using default '%1'">,
+  InGroup<Kitsune>;
+
+def warn_drv_kitsune_multi_gpu : Warning<
+  "multiple %0 GPU architectures detected: '%1'">,
+  InGroup<Kitsune>;
+
+def err_drv_unsupported_option_argument_for_frontend : Error<
+  "unsupported argument '%1' to option '%0' for frontend '%2'">;
+
+def err_drv_kitsune_missing_required : Error<
+  "missing required option '--%0'">;
+
+def err_drv_kitsune_bad_cuda_arch : Error<
+  "unsupported NVIDIA GPU architecture '%0'">;
+def err_drv_kitsune_bad_hip_arch : Error<
+  "unsupported AMD GPU architecture '%0'">;
+
+def err_drv_kitsune_fixed_threads_per_block : Error<
+  "value of '%0' not in range [1,1024]">;
+def err_drv_kitsune_max_threads_per_block : Error<
+  "value of '%0' must be at least 1">;
+
+def err_drv_kitsune_hip_code_object_version : Error<
+  "rocm code object version '%0' is not supported">;
+
+def err_drv_kitsune_lto_disallowed_arg : Error<
+  "'%0' cannot be used with -flto in Kitsune">;
+
+def err_drv_kitsune_objc : Error<
+  "kitsune does not support Objective-C">;
+def err_drv_kitsune_opencl: Error<
+  "kitsune does not support OpenCL">;
+def err_drv_kitsune_cuda: Error<
+  "kitsune does not support the Cuda language">;
+def err_drv_kitsune_hip: Error<
+  "kitsune does not support the Hip language">;
+def err_drv_kitsune_openmp_offload : Error<
+  "cannot use OpenMP offload with a tapir target">;
+
+def err_drv_opencilk_platform: Error<
+  "opencilk tapir target does not support system '%0'">;
+def err_drv_opencilk_target: Error<
+  "opencilk tapir target does not support architecture '%0'">;
+
+def err_drv_opencilk_missing_abi_bitcode: Error<
+  "cannot find OpenCilk runtime ABI bitcode file">;
+
+def err_drv_mix_tapir_cuda : Error<
+  "cuda source cannot be used with a tapir target">;
+def err_drv_mix_tapir_hip : Error<
+  "hip source cannot be used with a tapir target">;
+
+def err_drv_kitsune_kokkos_disabled : Error<
+  "kokkos support was not enabled when kitsune was built">;
+
+def err_drv_kitsune_target_not_enabled: Error<
+  "tapir target '%0' was not enabled when kitsune was built">;
+
+def err_drv_kitsune_frontend_only: Error<
+  "option '%0' must be used with a Kitsune frontend">;
 }

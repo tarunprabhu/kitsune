@@ -15,6 +15,7 @@
 #include "ToolChains/BareMetal.h"
 #include "ToolChains/CSKYToolChain.h"
 #include "ToolChains/Clang.h"
+#include "ToolChains/CommonArgs.h"
 #include "ToolChains/CrossWindows.h"
 #include "ToolChains/Cuda.h"
 #include "ToolChains/Cygwin.h"
@@ -53,6 +54,8 @@
 #include "ToolChains/WebAssembly.h"
 #include "ToolChains/XCore.h"
 #include "ToolChains/ZOS.h"
+#include "kitsune/Config/config.h"
+#include "clang/Basic/Cuda.h"
 #include "clang/Basic/DiagnosticDriver.h"
 #include "clang/Basic/TargetID.h"
 #include "clang/Basic/Version.h"
@@ -64,6 +67,7 @@
 #include "clang/Driver/Options.h"
 #include "clang/Driver/Phases.h"
 #include "clang/Driver/SanitizerArgs.h"
+#include "clang/Driver/Tapir.h"
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
 #include "clang/Driver/Types.h"
@@ -74,6 +78,7 @@
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Frontend/Tapir/CommandLine.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
@@ -109,6 +114,193 @@
 using namespace clang::driver;
 using namespace clang;
 using namespace llvm::opt;
+
+bool driver::IsKitsuneFrontend(StringRef ProgName) {
+  // Yes, the name of the compiler is actually the "ModeSuffix". Don't ask ...
+  std::string Suffix =
+      ToolChain::getTargetAndModeFromProgramName(ProgName).ModeSuffix;
+  return Suffix == KITSUNE_C_FRONTEND || Suffix == KITSUNE_CXX_FRONTEND ||
+         Suffix == KITSUNE_Fortran_FRONTEND;
+}
+
+static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
+                                DiagnosticsEngine &Diags) {
+  llvm::Triple Triple = llvm::Triple(D.getTargetTriple());
+
+  // If this is not a Kitsune frontend, Kitsune options are not allowed.
+  if (!D.IsKitsuneFrontend()) {
+    for (Arg *A : Args.filtered(options::OPT_kitsune_Group)) {
+      D.Diag(diag::err_drv_kitsune_frontend_only) << A->getSpelling();
+      return;
+    }
+  }
+
+  // If this is a Kitsune frontend, some options have a different range of
+  // allowed values.
+  if (D.IsKitsuneFrontend()) {
+    if (D.IsFlangMode()) {
+      if (Arg *A = Args.getLastArg(options::OPT_ffp_contract)) {
+        StringRef FpContract = A->getValue();
+        if (FpContract == "on" || FpContract == "fast-honor-pragmas")
+          D.Diag(diag::err_drv_unsupported_option_argument_for_frontend)
+              << A->getSpelling() << FpContract << KITSUNE_Fortran_FRONTEND;
+      }
+    }
+  }
+
+  bool IsKokkos = Args.hasArg(options::OPT_kokkos);
+  bool IsKokkosNoInit = Args.hasArg(options::OPT_kokkos_no_init);
+  if ((IsKokkos || IsKokkosNoInit) && !KITSUNE_KOKKOS_ENABLED) {
+    D.Diag(diag::err_drv_kitsune_kokkos_disabled);
+  }
+
+  // Check that the -ftapir flag has a valid value. This stops us from
+  // reporting multiple errors because the flag is examined in several places.
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_EQ)) {
+    llvm::ErrorOr<llvm::TapirTargetID> TT =
+        llvm::parseTapirTarget(A->getValue());
+    if (not TT) {
+      D.Diag(diag::err_drv_invalid_value)
+          << A->getAsString(Args) << A->getValue();
+      return;
+    }
+
+    // If the tapir target has not been enabled, fail right away.
+    switch (*TT) {
+    case llvm::TapirTargetID::None:
+      break;
+    case llvm::TapirTargetID::Cuda:
+      if (!KITSUNE_CUDA_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "cuda";
+      break;
+    case llvm::TapirTargetID::Hip:
+      if (!KITSUNE_HIP_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "hip";
+      break;
+    case llvm::TapirTargetID::Lambda:
+      if (!KITSUNE_LAMBDA_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "lambda";
+      break;
+    case llvm::TapirTargetID::OMPTask:
+      if (!KITSUNE_OMPTASK_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "omptask";
+      break;
+    case llvm::TapirTargetID::OpenCilk:
+      if (!KITSUNE_OPENCILK_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "lambda";
+      break;
+    case llvm::TapirTargetID::OpenMP:
+      if (!KITSUNE_OPENMP_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "openmp";
+      break;
+    case llvm::TapirTargetID::Qthreads:
+      if (!KITSUNE_QTHREADS_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "qthreads";
+      break;
+    case llvm::TapirTargetID::Realm:
+      if (!KITSUNE_REALM_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "realm";
+      break;
+    case llvm::TapirTargetID::Serial:
+      // The serial tapir target is always enabled
+      break;
+    default:
+      llvm_unreachable("CheckKitsuneOptions: TapirTargetID not handled");
+      break;
+    }
+
+    if (*TT == llvm::TapirTargetID::OpenCilk) {
+      if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
+        D.Diag(diag::err_drv_opencilk_platform) << Triple.getOSName();
+
+      switch (Triple.getArch()) {
+      case llvm::Triple::x86:
+      case llvm::Triple::x86_64:
+      case llvm::Triple::arm:
+      case llvm::Triple::armeb:
+      case llvm::Triple::aarch64:
+      case llvm::Triple::aarch64_be:
+        break;
+      default:
+        D.Diag(diag::err_drv_opencilk_target) << Triple.getArchName();
+        break;
+      }
+    }
+
+    if (Args.getLastArg(options::OPT_fopenmp_targets_EQ))
+      D.Diag(clang::diag::err_drv_kitsune_openmp_offload);
+
+    // Kitsune does not support ROCm ABI versions < 5. But that should only be
+    // relevant when using the Kitsune frontend.
+    unsigned CodeObjectVersion = tools::getAMDGPUCodeObjectVersion(D, Args);
+    if (CodeObjectVersion < 5) {
+      D.Diag(diag::err_drv_kitsune_hip_code_object_version)
+          << CodeObjectVersion;
+    }
+  }
+
+  // Check that the --tapir-cuda-arch option has a valid value. If an empty
+  // string is returned, the option has an invalid value.
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_cuda_arch_EQ)) {
+    OffloadArch Arch = StringToOffloadArch(A->getValue());
+    if (Arch == OffloadArch::UNKNOWN || !IsNVIDIAOffloadArch(Arch))
+      D.Diag(diag::err_drv_kitsune_bad_cuda_arch) << A->getValue();
+  }
+
+  // Check that the --tapir-cuda-arch option has a valid value. If an empty
+  // string is returned, the option has an invalid value.
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_hip_arch_EQ)) {
+    OffloadArch Arch = StringToOffloadArch(A->getValue());
+    if (Arch == OffloadArch::UNKNOWN || !IsAMDOffloadArch(Arch))
+      D.Diag(diag::err_drv_kitsune_bad_hip_arch) << A->getValue();
+  }
+
+  // Check that options accepting numeric arguments are within a valid range.
+  if (Arg *A = Args.getLastArg(options::OPT_tapir_gpu_tpb_EQ)) {
+    int N = 0;
+    StringRef Val = A->getValue();
+    if (Val.empty())
+      D.Diag(diag::err_drv_missing_argument) << A->getAsString(Args) << 1;
+    else if (Val.getAsInteger(10, N))
+      D.Diag(diag::err_drv_invalid_int_value) << A->getAsString(Args) << Val;
+    else if (N <= 0 || N > 1024)
+      D.Diag(diag::err_drv_kitsune_fixed_threads_per_block)
+          << A->getAsString(Args);
+  }
+
+  if (Arg *A = Args.getLastArg(options::OPT_tapir_gpu_max_tpb_EQ)) {
+    int N = 0;
+    StringRef Val = A->getValue();
+    if (Val.empty())
+      D.Diag(diag::err_drv_missing_argument) << A->getAsString(Args) << 1;
+    else if (Val.getAsInteger(10, N))
+      D.Diag(diag::err_drv_invalid_int_value) << A->getAsString(Args) << Val;
+    else if (N <= 0)
+      D.Diag(diag::err_drv_kitsune_max_threads_per_block)
+          << A->getAsString(Args);
+  }
+
+  for (OptSpecifier Opt :
+       {options::OPT_tapir_hip_sramecc_EQ, options::OPT_tapir_hip_xnack_EQ}) {
+    if (const Arg *A = Args.getLastArg(Opt)) {
+      StringRef Val = A->getValue();
+      llvm::ErrorOr<llvm::MaybeBool> e = llvm::parseMaybeBool(A->getValue());
+      if (Val.empty())
+        D.Diag(diag::err_drv_missing_argument) << A->getAsString(Args) << 1;
+      else if (not e)
+        D.Diag(diag::err_drv_invalid_argument_to_option)
+            << Val << A->getOption().getName();
+    }
+  }
+
+  // If LTO is enabled for use with Kitsune, the only linker that can be used is
+  // lld built with Kitsune. Using any other linker is not allowed.
+  if (D.isUsingLTO() && Args.getLastArg(options::OPT_tapir_EQ)) {
+    if (const Arg* A = Args.getLastArg(options::OPT_fuse_ld_EQ,
+                                       options::OPT_ld_path_EQ))
+      D.Diag(diag::err_drv_kitsune_lto_disallowed_arg) << A->getSpelling();
+  }
+}
 
 static std::optional<llvm::Triple> getOffloadTargetTriple(const Driver &D,
                                                           const ArgList &Args) {
@@ -300,6 +492,20 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
     UserConfigDir = static_cast<std::string>(P);
   }
 #endif
+#if defined(KITSUNE_CONFIG_FILE_DIR)
+  {
+    SmallString<128> P;
+    llvm::sys::fs::expand_tilde(KITSUNE_CONFIG_FILE_DIR, P);
+    KitsuneConfigDir = static_cast<std::string>(P);
+  }
+#else
+  {
+    llvm::StringRef PrefixDir = llvm::sys::path::parent_path(Dir);
+    KitsuneConfigDir = PrefixDir.str() + std::string("/share/kitsune");
+  }
+#endif
+
+  KitsuneFrontend = driver::IsKitsuneFrontend(ClangExecutable);
 
   // Compute the path to the resource directory.
   ResourceDir = GetResourcesPath(ClangExecutable);
@@ -309,11 +515,11 @@ void Driver::setDriverMode(StringRef Value) {
   static StringRef OptName =
       getOpts().getOption(options::OPT_driver_mode).getPrefixedName();
   if (auto M = llvm::StringSwitch<std::optional<DriverMode>>(Value)
-                   .Case("gcc", GCCMode)
-                   .Case("g++", GXXMode)
+                   .Cases("gcc", KITSUNE_C_FRONTEND, GCCMode)
+                   .Cases("g++", KITSUNE_CXX_FRONTEND, GXXMode)
                    .Case("cpp", CPPMode)
                    .Case("cl", CLMode)
-                   .Case("flang", FlangMode)
+                   .Cases("flang", KITSUNE_Fortran_FRONTEND, FlangMode)
                    .Case("dxc", DXCMode)
                    .Default(std::nullopt))
     Mode = *M;
@@ -976,6 +1182,7 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
     Diag(clang::diag::err_drv_mix_cuda_hip);
     return;
   }
+
   if (IsCuda && !UseLLVMOffload) {
     auto CudaTriple = getNVIDIAOffloadTargetTriple(
         *this, C.getInputArgs(), C.getDefaultToolChain().getTriple());
@@ -1319,10 +1526,23 @@ bool Driver::loadConfigFiles() {
       else
         UserConfigDir = static_cast<std::string>(CfgDir);
     }
+
+    if (CLOptions->hasArg(options::OPT_config_kitsune_dir_EQ)) {
+      SmallString<128> CfgDir;
+      CfgDir.append(
+          CLOptions->getLastArgValue(options::OPT_config_kitsune_dir_EQ));
+      if (!CfgDir.empty()) {
+        if (llvm::sys::fs::make_absolute(CfgDir).value() != 0)
+          KitsuneConfigDir.clear();
+        else
+          KitsuneConfigDir = std::string(CfgDir.begin(), CfgDir.end());
+      }
+    }
   }
 
   // Prepare list of directories where config file is searched for.
-  StringRef CfgFileSearchDirs[] = {UserConfigDir, SystemConfigDir, Dir};
+  StringRef CfgFileSearchDirs[] = {UserConfigDir, KitsuneConfigDir,
+                                   SystemConfigDir, Dir};
   ExpCtx.setSearchDirs(CfgFileSearchDirs);
 
   // First try to load configuration from the default files, return on error.
@@ -1332,6 +1552,32 @@ bool Driver::loadConfigFiles() {
   // Then load configuration files specified explicitly.
   SmallString<128> CfgFilePath;
   if (CLOptions) {
+    if (CLOptions->hasArg(options::OPT_kokkos)) {
+      // It is ok if the Kokkos configuration file was not found. It is
+      // intended to be optional just like the top-level clang config file.
+      if (ExpCtx.findConfigFile("kokkos.cfg", CfgFilePath)) {
+        // If an error occurs while reading the file, this will return true.
+        // The diagnostic will already have been emitted.
+        if (readConfigFile(CfgFilePath, ExpCtx))
+          return true;
+      }
+    }
+
+    // Tapir target-specific configuration files may be used to add options for
+    // specific backends that are not relevant to other backends and therefore
+    // should not be added to a clang-specific config file. It is ok if such a
+    // config file is not found. They are intended to be optional just like the
+    // "top-level" clang config file.
+    if (std::optional<llvm::StringRef> TargetCfgFile =
+            getTapirTargetConfigFileName(*CLOptions)) {
+      if (!TargetCfgFile->empty() &&
+          ExpCtx.findConfigFile(*TargetCfgFile, CfgFilePath))
+        // If an error occurs while reading the file, this will return true.
+        // The diagnostic will already have been emitted.
+        if (readConfigFile(CfgFilePath, ExpCtx))
+          return true;
+    }
+
     for (auto CfgFileName : CLOptions->getAllArgValues(options::OPT_config)) {
       // If argument contains directory separator, treat it as a path to
       // configuration file.
@@ -1727,6 +1973,10 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
         CXX20HeaderType = static_cast<ModuleHeaderMode>(Kind);
     }
   }
+
+  // This has to be done here at the latest because the line below moves Args
+  // into UArgs.
+  CheckKitsuneOptions(*this, Args, Diags);
 
   std::unique_ptr<llvm::opt::InputArgList> UArgs =
       std::make_unique<InputArgList>(std::move(Args));
@@ -2475,11 +2725,14 @@ bool Driver::HandleImmediateArgs(Compilation &C) {
 
   if (C.getArgs().hasArg(options::OPT_v)) {
     if (!SystemConfigDir.empty())
-      llvm::errs() << "System configuration file directory: "
-                   << SystemConfigDir << "\n";
+      llvm::errs() << "System configuration file directory: " << SystemConfigDir
+                   << "\n";
     if (!UserConfigDir.empty())
-      llvm::errs() << "User configuration file directory: "
-                   << UserConfigDir << "\n";
+      llvm::errs() << "User configuration file directory: " << UserConfigDir
+                   << "\n";
+    if (!KitsuneConfigDir.empty())
+      llvm::errs() << "Kitsune configuration file directory: "
+                   << KitsuneConfigDir << "\n";
   }
 
   const ToolChain &TC = C.getDefaultToolChain();

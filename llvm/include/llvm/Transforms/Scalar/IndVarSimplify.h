@@ -25,9 +25,12 @@ class LPMUpdater;
 class IndVarSimplifyPass : public PassInfoMixin<IndVarSimplifyPass> {
   /// Perform IV widening during the pass.
   bool WidenIndVars;
+  /// Only process Tapir loops.
+  bool TapirLoopsOnly;
 
 public:
-  IndVarSimplifyPass(bool WidenIndVars = true) : WidenIndVars(WidenIndVars) {}
+  IndVarSimplifyPass(bool WidenIndVars = true, bool TapirLoopsOnly = false)
+      : WidenIndVars(WidenIndVars), TapirLoopsOnly(TapirLoopsOnly) {}
   PreservedAnalyses run(Loop &L, LoopAnalysisManager &AM,
                         LoopStandardAnalysisResults &AR, LPMUpdater &U);
 };

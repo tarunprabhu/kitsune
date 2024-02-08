@@ -1,5 +1,6 @@
 set(LLVM_LINK_COMPONENTS
   BinaryFormat
+  FrontendTapir
   MC
   Object
   Option
@@ -27,6 +28,7 @@ add_clang_library(clangDriver
   OptionUtils.cpp
   Phases.cpp
   SanitizerArgs.cpp
+  Tapir.cpp
   Tool.cpp
   ToolChain.cpp
   ToolChains/Arch/AArch64.cpp

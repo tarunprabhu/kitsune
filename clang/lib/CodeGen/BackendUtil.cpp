@@ -27,6 +27,7 @@
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Frontend/Driver/CodeGenOptions.h"
+#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -143,6 +144,7 @@ class EmitAssemblyHelper {
   const CodeGenOptions &CodeGenOpts;
   const clang::TargetOptions &TargetOpts;
   const LangOptions &LangOpts;
+  const KitsuneOptions &KitsuneOpts;
   llvm::Module *TheModule;
   IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS;
 
@@ -215,7 +217,7 @@ public:
                      IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS)
       : CI(CI), Diags(CI.getDiagnostics()), CodeGenOpts(CGOpts),
         TargetOpts(CI.getTargetOpts()), LangOpts(CI.getLangOpts()),
-        TheModule(M), VFS(std::move(VFS)),
+        KitsuneOpts(CI.getKitsuneOpts()), TheModule(M), VFS(std::move(VFS)),
         TargetTriple(TheModule->getTargetTriple()) {}
 
   ~EmitAssemblyHelper() {
@@ -610,6 +612,10 @@ void EmitAssemblyHelper::CreateTargetMachine(bool MustCreateTM) {
   llvm::TargetOptions Options;
   if (!initTargetOptions(CI, Diags, Options))
     return;
+
+  // Kitsune note: This can be helpful to look for differences between
+  // Clang and Kitsune configuraiton details for GPU targets.
+  // Options.dump();
   TM.reset(TheTarget->createTargetMachine(Triple, TargetOpts.CPU, FeaturesStr,
                                           Options, RM, CM, OptLevel));
   if (TM)
@@ -621,8 +627,8 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
                                        raw_pwrite_stream &OS,
                                        raw_pwrite_stream *DwoOS) {
   // Add LibraryInfo.
-  std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
+  std::unique_ptr<TargetLibraryInfoImpl> TLII(llvm::driver::createTLII(
+      TargetTriple, CodeGenOpts.getVecLib(), KitsuneOpts.getTapirTarget()));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
   // Normal mode, emit a .s or .o file by running the code generator. Note,
@@ -908,6 +914,13 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.CallGraphProfile = !CodeGenOpts.DisableIntegratedAS;
   PTO.UnifiedLTO = CodeGenOpts.UnifiedLTO;
 
+  FPOpFusion::FPOpFusionMode FPOpFusionMode = FPOpFusion::Standard;
+  if (TM)
+    FPOpFusionMode = TM->Options.AllowFPOpFusion;
+  PTO.LoopStripmine = KitsuneOpts.getStripmineLoops();
+  PTO.TTOpts = TapirTargetOptions::create(KitsuneOpts, mapToLevel(CodeGenOpts),
+                                          FPOpFusionMode);
+
   LoopAnalysisManager LAM;
   FunctionAnalysisManager FAM;
   CGSCCAnalysisManager CGAM;
@@ -996,8 +1009,8 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
 
   // Register the target library analysis directly and give it a customized
   // preset TLI.
-  std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
+  std::unique_ptr<TargetLibraryInfoImpl> TLII(llvm::driver::createTLII(
+      TargetTriple, CodeGenOpts.getVecLib(), KitsuneOpts.getTapirTarget()));
   FAM.registerPass([&] { return TargetLibraryAnalysis(*TLII); });
 
   // Register all the basic analyses with the managers.
@@ -1125,6 +1138,11 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
     } else {
       MPM.addPass(PB.buildPerModuleDefaultPipeline(Level));
     }
+    //} else if (TLII->hasTapirTarget() && TLII->getTapirTarget() ==
+    // llvm::TapirTargetID::Hip) {
+    // MPM.addPass(PB.buildPerModuleTapirHipPipeline(Level,
+    //                                              /* LTOPreLink */ false,
+    //                                             TLII->hasTapirTarget()));
   }
 
   // Link against bitcodes supplied via the -mlink-builtin-bitcode option
@@ -1297,6 +1315,7 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   DiagnosticsEngine &Diags = CI.getDiagnostics();
   const auto &CGOpts = CI.getCodeGenOpts();
   const auto &TOpts = CI.getTargetOpts();
+  const KitsuneOptions &KOpts = CI.getKitsuneOpts();
   DenseMap<StringRef, DenseMap<GlobalValue::GUID, GlobalValueSummary *>>
       ModuleToDefinedGVSummaries;
   CombinedIndex->collectDefinedGVSummariesPerModule(ModuleToDefinedGVSummaries);
@@ -1346,6 +1365,8 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
   Conf.PTO.CallGraphProfile = !CGOpts.DisableIntegratedAS;
+  Conf.PTO.TTOpts = TapirTargetOptions::create(KOpts, mapToLevel(CGOpts),
+                                               Conf.Options.AllowFPOpFusion);
 
   // Context sensitive profile.
   if (CGOpts.hasProfileCSIRInstr()) {

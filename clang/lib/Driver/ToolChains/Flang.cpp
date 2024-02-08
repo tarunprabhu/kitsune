@@ -1019,6 +1019,12 @@ void Flang::ConstructJob(Compilation &C, const JobAction &JA,
 
   renderCommonIntegerOverflowOptions(Args, CmdArgs);
 
+  // Add the Kitsune args just before adding the source files to the generated
+  // command line. This is mainly to reduce the likelihood of the hip tapir
+  // target accidentally missing an argument since it "recreates" the command
+  // line (see clang/lib/Driver/ToolChain.cpp for details).
+  addKitsuneArgs(D, TC, Args, CmdArgs);
+
   assert((Output.isFilename() || Output.isNothing()) && "Invalid output.");
   if (Output.isFilename()) {
     CmdArgs.push_back("-o");

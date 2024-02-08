@@ -18,6 +18,7 @@
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/CodeGen/MachinePassManager.h"
 #include "llvm/CodeGen/RegAllocCommon.h"
+#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Support/Compiler.h"
@@ -57,6 +58,10 @@ public:
   /// Tuning option to enable/disable slp loop vectorization, set based on opt
   /// level.
   bool SLPVectorization;
+
+  /// Tuning option to enable/disable loop stripmining. Its default value
+  /// is that of the flag: `-stripmine-loops`.
+  bool LoopStripmine;
 
   /// Tuning option to enable/disable loop unrolling. Its default value is true.
   bool LoopUnrolling;
@@ -99,6 +104,10 @@ public:
   // analyses after various module->function or cgscc->function adaptors in the
   // default pipelines.
   bool EagerlyInvalidateAnalyses;
+
+  /// The options for the primary tapir target, if any. If this is set, the
+  /// primary tapir target id can be determined from it.
+  std::optional<TapirTargetOptions> TTOpts;
 };
 
 /// This class provides access to building LLVM's passes.
@@ -132,6 +141,10 @@ public:
       PipelineTuningOptions PTO = PipelineTuningOptions(),
       std::optional<PGOOptions> PGOOpt = std::nullopt,
       PassInstrumentationCallbacks *PIC = nullptr);
+
+  const std::optional<TapirTargetOptions> getTapirTargetOptions() const {
+    return PTO.TTOpts;
+  }
 
   /// Cross register the analysis managers through their proxies.
   ///
@@ -243,6 +256,34 @@ public:
   LLVM_ABI ModulePassManager buildModuleOptimizationPipeline(
       OptimizationLevel Level, ThinOrFullLTOPhase LTOPhase);
 
+  /// Construct the pipeline for lowering Tapir loops to a target parallel
+  /// runtime.
+  ///
+  /// This pipeline is intended to be used early within
+  /// buildTapirLoweringPipeline at Level > O0 or run on its own for debugging
+  /// purposes.
+  ModulePassManager buildTapirLoopLoweringPipeline(OptimizationLevel Level,
+                                                   ThinOrFullLTOPhase Phase);
+
+  /// Construct the pipeline for lowering Tapir constructs to a target parallel
+  /// runtime.
+  ///
+  /// This pipeline is intended to be used with the PerModuleDefault pipeline
+  /// and various LTO pipelines to lower Tapir constructs.  This pipeline is
+  /// expected to run late in the parent pipelines.
+  ModulePassManager buildTapirLoweringPipeline(OptimizationLevel Level,
+                                               ThinOrFullLTOPhase Phase);
+
+  /// Construct the pipeline for Kitsune-specific lowering.
+  ///
+  /// This pipeline is intended to be run just before the Tapir lowering
+  /// pipeline. This pipeline may also contain Kitsune-specific optimizations
+  /// that rely on Tapir constructs being present and having been optimized.
+  /// But, in all likelihood, we may need those optimizations to run earlier,
+  /// so they should not be shoe-horned in here if it is not appropriate.
+  ModulePassManager buildKitsuneLoweringPipeline(OptimizationLevel Level,
+                                                 ThinOrFullLTOPhase Phase);
+
   /// Build a per-module default optimization pipeline.
   ///
   /// This provides a good default optimization pipeline for per-module
@@ -250,6 +291,16 @@ public:
   /// typically correspond to frontend "-O[123]" options for optimization
   /// levels \c O1, \c O2 and \c O3 resp.
   LLVM_ABI ModulePassManager buildPerModuleDefaultPipeline(
+      OptimizationLevel Level,
+      ThinOrFullLTOPhase Phase = ThinOrFullLTOPhase::None);
+
+  /// Build a per-module default optimization pipeline.
+  ///
+  /// This provides a good default optimization pipeline for per-module
+  /// optimization and code generation without any link-time optimization. It
+  /// typically correspond to frontend "-O[123]" options for optimization
+  /// levels \c O1, \c O2 and \c O3 resp.
+  ModulePassManager buildPerModuleTapirHipPipeline(
       OptimizationLevel Level,
       ThinOrFullLTOPhase Phase = ThinOrFullLTOPhase::None);
 
@@ -544,6 +595,26 @@ public:
     FullLinkTimeOptimizationLastEPCallbacks.push_back(C);
   }
 
+  /// Register a callback for a default optimizer pipeline extension point.
+  ///
+  /// This extension point allows adding passes after optimizations have been
+  /// performed on the Tapir IR, but before Tapir constructs are lowered to a
+  /// target runtime.
+  void registerTapirLateEPCallback(
+      const std::function<void(ModulePassManager &, OptimizationLevel)> &C) {
+    TapirLateEPCallbacks.push_back(C);
+  }
+
+  /// Register a callback for a default optimizer pipeline extension point.
+  ///
+  /// This extension point allows adding passes after optimizations have been
+  /// performed on the Tapir IR, but before Tapir constructs are lowered to a
+  /// target runtime.
+  void registerTapirLoopEndEPCallback(
+      const std::function<void(ModulePassManager &, OptimizationLevel)> &C) {
+    TapirLoopEndEPCallbacks.push_back(C);
+  }
+
   /// Register a callback for parsing an AliasAnalysis Name to populate
   /// the given AAManager \p AA
   void registerParseAACallback(
@@ -673,6 +744,10 @@ public:
   invokePipelineEarlySimplificationEPCallbacks(ModulePassManager &MPM,
                                                OptimizationLevel Level,
                                                ThinOrFullLTOPhase Phase);
+  LLVM_ABI void invokeTapirLateEPCallbacks(ModulePassManager &MPM,
+                                           OptimizationLevel Level);
+  LLVM_ABI void invokeTapirLoopEndEPCallbacks(ModulePassManager &MPM,
+                                              OptimizationLevel Level);
 
   static bool checkParametrizedPassName(StringRef Name, StringRef PassName) {
     if (!Name.consume_front(PassName))
@@ -803,6 +878,10 @@ private:
       FullLinkTimeOptimizationEarlyEPCallbacks;
   SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
       FullLinkTimeOptimizationLastEPCallbacks;
+  SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
+      TapirLateEPCallbacks;
+  SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
+      TapirLoopEndEPCallbacks;
   SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
       PipelineStartEPCallbacks;
   SmallVector<std::function<void(ModulePassManager &, OptimizationLevel,

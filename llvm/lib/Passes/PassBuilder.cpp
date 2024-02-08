@@ -29,6 +29,7 @@
 #include "llvm/Analysis/CostModel.h"
 #include "llvm/Analysis/CtxProfAnalysis.h"
 #include "llvm/Analysis/CycleAnalysis.h"
+#include "llvm/Analysis/DataRaceFreeAliasAnalysis.h"
 #include "llvm/Analysis/DDG.h"
 #include "llvm/Analysis/DDGPrinter.h"
 #include "llvm/Analysis/DXILMetadataAnalysis.h"
@@ -73,6 +74,9 @@
 #include "llvm/Analysis/StackLifetime.h"
 #include "llvm/Analysis/StackSafetyAnalysis.h"
 #include "llvm/Analysis/StructuralHash.h"
+#include "llvm/Analysis/TapirRaceDetect.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/TypeBasedAliasAnalysis.h"
@@ -237,6 +241,8 @@
 #include "llvm/Transforms/Instrumentation/AddressSanitizer.h"
 #include "llvm/Transforms/Instrumentation/BoundsChecking.h"
 #include "llvm/Transforms/Instrumentation/CGProfile.h"
+#include "llvm/Transforms/Instrumentation/CilkSanitizer.h"
+#include "llvm/Transforms/Instrumentation/ComprehensiveStaticInstrumentation.h"
 #include "llvm/Transforms/Instrumentation/ControlHeightReduction.h"
 #include "llvm/Transforms/Instrumentation/DataFlowSanitizer.h"
 #include "llvm/Transforms/Instrumentation/GCOVProfiler.h"
@@ -257,6 +263,8 @@
 #include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
 #include "llvm/Transforms/Instrumentation/ThreadSanitizer.h"
 #include "llvm/Transforms/Instrumentation/TypeSanitizer.h"
+#include "llvm/Transforms/Kitsune/LowerMobileIntrinsics.h"
+#include "llvm/Transforms/Kitsune/StripKitsuneAddrSpace.h"
 #include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Scalar/ADCE.h"
 #include "llvm/Transforms/Scalar/AlignmentFromAssumptions.h"
@@ -335,6 +343,11 @@
 #include "llvm/Transforms/Scalar/StructurizeCFG.h"
 #include "llvm/Transforms/Scalar/TailRecursionElimination.h"
 #include "llvm/Transforms/Scalar/WarnMissedTransforms.h"
+#include "llvm/Transforms/Tapir/LoopSpawningTI.h"
+#include "llvm/Transforms/Tapir/LoopStripMinePass.h"
+#include "llvm/Transforms/Tapir/SerializeSmallTasks.h"
+#include "llvm/Transforms/Tapir/TapirToTarget.h"
+#include "llvm/Transforms/Tapir/DRFScopedNoAliasAA.h"
 #include "llvm/Transforms/Utils/AddDiscriminators.h"
 #include "llvm/Transforms/Utils/AssumeBundleBuilder.h"
 #include "llvm/Transforms/Utils/BreakCriticalEdges.h"
@@ -366,6 +379,8 @@
 #include "llvm/Transforms/Utils/StripGCRelocates.h"
 #include "llvm/Transforms/Utils/StripNonLineTableDebugInfo.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
+#include "llvm/Transforms/Utils/TaskCanonicalize.h"
+#include "llvm/Transforms/Utils/TaskSimplify.h"
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 #include "llvm/Transforms/Utils/UnifyLoopExits.h"
 #include "llvm/Transforms/Vectorize/EVLIndVarSimplify.h"
@@ -530,6 +545,14 @@ void PassBuilder::registerModuleAnalyses(ModuleAnalysisManager &MAM) {
 #define MODULE_ANALYSIS(NAME, CREATE_PASS)                                     \
   MAM.registerPass([&] { return CREATE_PASS; });
 #include "PassRegistry.def"
+
+  // Register the tapir target analysis pass manually. This has to be created
+  // with the target options in the pipeline tuning options object. There is no
+  // sane default for this anyway. This is exactly what we need wherever we
+  // create a pass pipeline, so we might as well create the pass here instead of
+  // requiring the callers to do it. It is the caller's responsibility to set up
+  // the TapirTargetOptions object correctly.
+  MAM.registerPass([&] { return TapirTargetAnalysis(PTO.TTOpts); });
 
   for (auto &C : ModuleAnalysisRegistrationCallbacks)
     C(MAM);
@@ -1485,6 +1508,12 @@ parseBoundsCheckingOptions(StringRef Params) {
   return Options;
 }
 
+/// Tests whether a pass name starts with a valid prefix for a default pipeline
+/// alias.
+static bool startsWithDefaultPipelineAliasPrefix(StringRef Name) {
+  return Name.starts_with("default") || Name.starts_with("thinlto") ||
+         Name.starts_with("lto") || Name.starts_with("tapir-lowering");
+
 Expected<RAGreedyPass::Options>
 parseRegAllocGreedyFilterFunc(PassBuilder &PB, StringRef Params) {
   if (Params.empty() || Params == "all")
@@ -1845,6 +1874,61 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
         inconvertibleErrorCode());
     ;
   }
+
+  // KITSUNE FIXME: In LLVM 21.x, this has been removed. At the time of merging,
+  // it is not clear where this has been moved to or how this functionality is
+  // now handled. Leave it here for now until we can figure it out and once we
+  // do, this can be removed.
+#if 0
+  // Manually handle aliases for pre-configured pipeline fragments.
+  if (startsWithDefaultPipelineAliasPrefix(Name)) {
+    SmallVector<StringRef, 3> Matches;
+    if (!DefaultAliasRegex.match(Name, &Matches))
+      return make_error<StringError>(
+          formatv("unknown default pipeline alias '{0}'", Name).str(),
+          inconvertibleErrorCode());
+
+    assert(Matches.size() == 3 && "Must capture two matched strings!");
+
+    OptimizationLevel L = *parseOptLevel(Matches[2]);
+
+    // This is consistent with old pass manager invoked via opt, but
+    // inconsistent with clang. Clang doesn't enable loop vectorization
+    // but does enable slp vectorization at Oz.
+    PTO.LoopVectorization =
+        L.getSpeedupLevel() > 1 && L != OptimizationLevel::Oz;
+    PTO.SLPVectorization =
+        L.getSpeedupLevel() > 1 && L != OptimizationLevel::Oz;
+
+    if (Matches[1] == "default") {
+      MPM.addPass(buildPerModuleDefaultPipeline(L));
+    } else if (Matches[1] == "thinlto-pre-link") {
+      MPM.addPass(buildThinLTOPreLinkDefaultPipeline(L));
+    } else if (Matches[1] == "thinlto") {
+      MPM.addPass(buildThinLTODefaultPipeline(L, nullptr));
+    } else if (Matches[1] == "lto-pre-link") {
+      if (PTO.UnifiedLTO)
+        // When UnifiedLTO is enabled, use the ThinLTO pre-link pipeline. This
+        // avoids compile-time performance regressions and keeps the pre-link
+        // LTO pipeline "unified" for both LTO modes.
+        MPM.addPass(buildThinLTOPreLinkDefaultPipeline(L));
+      else
+        MPM.addPass(buildLTOPreLinkDefaultPipeline(L));
+    } else if (Matches[1] == "tapir-lowering-loops") {
+      if (PTO.TTOpts)
+        PTO.TTOpts->setOptLevel(L);
+      MPM.addPass(buildTapirLoopLoweringPipeline(L, ThinOrFullLTOPhase::None));
+    } else if (Matches[1] == "tapir-lowering") {
+      if (PTO.TTOpts)
+        PTO.TTOpts->setOptLevel(L);
+      MPM.addPass(buildTapirLoweringPipeline(L, ThinOrFullLTOPhase::None));
+    } else {
+      assert(Matches[1] == "lto" && "Not one of the matched options!");
+      MPM.addPass(buildLTODefaultPipeline(L, nullptr));
+    }
+    return Error::success();
+  }
+#endif // 0
 
   // Finally expand the basic registered passes from the .inc file.
 #define MODULE_PASS(NAME, CREATE_PASS)                                         \

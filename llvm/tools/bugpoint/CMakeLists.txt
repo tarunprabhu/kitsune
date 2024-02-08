@@ -13,10 +13,12 @@ set(LLVM_LINK_COMPONENTS
   AggressiveInstCombine
   InstCombine
   Instrumentation
+  KitsuneOpts
   Linker
   ObjCARCOpts
   ScalarOpts
   Support
+  TapirOpts
   Target
   TargetParser
   TransformUtils

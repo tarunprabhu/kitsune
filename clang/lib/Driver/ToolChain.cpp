@@ -13,6 +13,7 @@
 #include "ToolChains/Clang.h"
 #include "ToolChains/Flang.h"
 #include "ToolChains/InterfaceStubs.h"
+#include "kitsune/Config/config.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Basic/Sanitizers.h"
 #include "clang/Config/config.h"
@@ -23,12 +24,15 @@
 #include "clang/Driver/Job.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
+#include "clang/Driver/Tapir.h"
 #include "clang/Driver/XRayArgs.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
+#include "llvm/Frontend/Tapir/CommandLine.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Option/Arg.h"
@@ -49,6 +53,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <sstream>
 #include <string>
 
 using namespace clang;
@@ -205,10 +210,9 @@ static void processMultilibCustomFlags(Multilib::flags_list &List,
   }
 }
 
-static void getAArch64MultilibFlags(const Driver &D,
-                                          const llvm::Triple &Triple,
-                                          const llvm::opt::ArgList &Args,
-                                          Multilib::flags_list &Result) {
+static void getAArch64MultilibFlags(const Driver &D, const llvm::Triple &Triple,
+                                    const llvm::opt::ArgList &Args,
+                                    Multilib::flags_list &Result) {
   std::vector<StringRef> Features;
   tools::aarch64::getAArch64TargetFeatures(D, Triple, Args, Features,
                                            /*ForAS=*/false,
@@ -258,10 +262,9 @@ static void getAArch64MultilibFlags(const Driver &D,
   processMultilibCustomFlags(Result, Args);
 }
 
-static void getARMMultilibFlags(const Driver &D,
-                                      const llvm::Triple &Triple,
-                                      const llvm::opt::ArgList &Args,
-                                      Multilib::flags_list &Result) {
+static void getARMMultilibFlags(const Driver &D, const llvm::Triple &Triple,
+                                const llvm::opt::ArgList &Args,
+                                Multilib::flags_list &Result) {
   std::vector<StringRef> Features;
   llvm::ARM::FPUKind FPUKind = tools::arm::getARMTargetFeatures(
       D, Triple, Args, Features, false /*ForAs*/, true /*ForMultilib*/);
@@ -425,6 +428,9 @@ static const DriverSuffix *FindDriverSuffix(StringRef ProgName, size_t &Pos) {
       // `flang-new`. This will be removed in the future.
       {"flang-new", "--driver-mode=flang"},
       {"clang-dxc", "--driver-mode=dxc"},
+      {KITSUNE_C_FRONTEND, nullptr},
+      {KITSUNE_CXX_FRONTEND, "--driver-mode=g++"},
+      {KITSUNE_Fortran_FRONTEND, "--driver-mode=flang"},
   };
 
   for (const auto &DS : DriverSuffixes) {
@@ -482,8 +488,7 @@ static const DriverSuffix *parseDriverSuffix(StringRef ProgName, size_t &Pos) {
   return DS;
 }
 
-ParsedClangName
-ToolChain::getTargetAndModeFromProgramName(StringRef PN) {
+ParsedClangName ToolChain::getTargetAndModeFromProgramName(StringRef PN) {
   std::string ProgName = normalizeProgramName(PN);
   size_t SuffixPos;
   const DriverSuffix *DS = parseDriverSuffix(ProgName, SuffixPos);
@@ -494,8 +499,8 @@ ToolChain::getTargetAndModeFromProgramName(StringRef PN) {
   size_t LastComponent = ProgName.rfind('-', SuffixPos);
   if (LastComponent == std::string::npos)
     return ParsedClangName(ProgName.substr(0, SuffixEnd), DS->ModeFlag);
-  std::string ModeSuffix = ProgName.substr(LastComponent + 1,
-                                           SuffixEnd - LastComponent - 1);
+  std::string ModeSuffix =
+      ProgName.substr(LastComponent + 1, SuffixEnd - LastComponent - 1);
 
   // Infer target from the prefix.
   StringRef Prefix(ProgName);
@@ -552,9 +557,7 @@ Tool *ToolChain::getFlang() const {
   return Flang.get();
 }
 
-Tool *ToolChain::buildAssembler() const {
-  return new tools::ClangAs(*this);
-}
+Tool *ToolChain::buildAssembler() const { return new tools::ClangAs(*this); }
 
 Tool *ToolChain::buildLinker() const {
   llvm_unreachable("Linking is not supported by this toolchain");
@@ -1059,8 +1062,10 @@ bool ToolChain::needsGCovInstrumentation(const llvm::opt::ArgList &Args) {
 }
 
 Tool *ToolChain::SelectTool(const JobAction &JA) const {
-  if (D.IsFlangMode() && getDriver().ShouldUseFlangCompiler(JA)) return getFlang();
-  if (getDriver().ShouldUseClangCompiler(JA)) return getClang();
+  if (D.IsFlangMode() && getDriver().ShouldUseFlangCompiler(JA))
+    return getFlang();
+  if (getDriver().ShouldUseClangCompiler(JA))
+    return getClang();
   Action::ActionClass AC = JA.getKind();
   if (AC == Action::AssembleJobClass && useIntegratedAs() &&
       !getTriple().isOSAIX())
@@ -1080,9 +1085,25 @@ std::string ToolChain::GetLinkerPath(bool *LinkerIsLLD) const {
   if (LinkerIsLLD)
     *LinkerIsLLD = false;
 
+  // If using LTO with a tapir target set, always use the lld that was built
+  // with Kitsune. This is the only linker that is guaranteed to support
+  // Kitsune-specific options.
+  const Driver &D = getDriver();
+  if (D.IsKitsuneFrontend() && D.isUsingLTO() &&
+      Args.getLastArg(options::OPT_tapir_EQ)) {
+    StringRef LinkerName = Triple.isOSDarwin() ? "ld64.lld" : "ld.lld";
+    std::string LinkerPath = GetProgramPath(LinkerName.data());
+    if (llvm::sys::fs::can_execute(LinkerPath)) {
+      if (LinkerIsLLD)
+        *LinkerIsLLD = true;
+      return LinkerPath;
+    }
+    llvm_unreachable("GetLinkerPath: Could not find lld for use with -flto");
+  }
+
   // Get -fuse-ld= first to prevent -Wunused-command-line-argument. -fuse-ld= is
   // considered as the linker flavor, e.g. "bfd", "gold", or "lld".
-  const Arg* A = Args.getLastArg(options::OPT_fuse_ld_EQ);
+  const Arg *A = Args.getLastArg(options::OPT_fuse_ld_EQ);
   StringRef UseLinker = A ? A->getValue() : CLANG_DEFAULT_LINKER;
 
   // --ld-path= takes precedence over -fuse-ld= and specifies the executable
@@ -1167,9 +1188,7 @@ types::ID ToolChain::LookupTypeForExtension(StringRef Ext) const {
   return id;
 }
 
-bool ToolChain::HasNativeLLVMSupport() const {
-  return false;
-}
+bool ToolChain::HasNativeLLVMSupport() const { return false; }
 
 bool ToolChain::isCrossCompiling() const {
   llvm::Triple HostTriple(LLVM_HOST_TRIPLE);
@@ -1181,7 +1200,8 @@ bool ToolChain::isCrossCompiling() const {
   case llvm::Triple::thumb:
   case llvm::Triple::thumbeb:
     return getArch() != llvm::Triple::arm && getArch() != llvm::Triple::thumb &&
-           getArch() != llvm::Triple::armeb && getArch() != llvm::Triple::thumbeb;
+           getArch() != llvm::Triple::armeb &&
+           getArch() != llvm::Triple::thumbeb;
   default:
     return HostTriple.getArch() != getArch();
   }
@@ -1270,9 +1290,7 @@ std::string ToolChain::ComputeEffectiveClangTriple(const ArgList &Args,
   return ComputeLLVMTriple(Args, InputType);
 }
 
-std::string ToolChain::computeSysRoot() const {
-  return D.SysRoot;
-}
+std::string ToolChain::computeSysRoot() const { return D.SysRoot; }
 
 void ToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
                                           ArgStringList &CC1Args) const {
@@ -1296,12 +1314,12 @@ void ToolChain::addProfileRTLibs(const llvm::opt::ArgList &Args,
   CmdArgs.push_back(getCompilerRTArgString(Args, "profile"));
 }
 
-ToolChain::RuntimeLibType ToolChain::GetRuntimeLibType(
-    const ArgList &Args) const {
+ToolChain::RuntimeLibType
+ToolChain::GetRuntimeLibType(const ArgList &Args) const {
   if (runtimeLibType)
     return *runtimeLibType;
 
-  const Arg* A = Args.getLastArg(options::OPT_rtlib_EQ);
+  const Arg *A = Args.getLastArg(options::OPT_rtlib_EQ);
   StringRef LibName = A ? A->getValue() : CLANG_DEFAULT_RTLIB;
 
   // Only use "platform" in tests to override CLANG_DEFAULT_RTLIB!
@@ -1322,8 +1340,8 @@ ToolChain::RuntimeLibType ToolChain::GetRuntimeLibType(
   return *runtimeLibType;
 }
 
-ToolChain::UnwindLibType ToolChain::GetUnwindLibType(
-    const ArgList &Args) const {
+ToolChain::UnwindLibType
+ToolChain::GetUnwindLibType(const ArgList &Args) const {
   if (unwindLibType)
     return *unwindLibType;
 
@@ -1358,7 +1376,8 @@ ToolChain::UnwindLibType ToolChain::GetUnwindLibType(
   return *unwindLibType;
 }
 
-ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
+ToolChain::CXXStdlibType
+ToolChain::GetCXXStdlibType(const ArgList &Args) const {
   if (cxxStdlibType)
     return *cxxStdlibType;
 
@@ -1530,7 +1549,7 @@ void ToolChain::AddCXXStdlibLibArgs(const ArgList &Args,
 void ToolChain::AddFilePathLibArgs(const ArgList &Args,
                                    ArgStringList &CmdArgs) const {
   for (const auto &LibPath : getFilePaths())
-    if(LibPath.length() > 0)
+    if (LibPath.length() > 0)
       CmdArgs.push_back(Args.MakeArgString(StringRef("-L") + LibPath));
 }
 
@@ -1869,4 +1888,918 @@ llvm::opt::DerivedArgList *ToolChain::TranslateXarchArgs(
 
   delete DAL;
   return nullptr;
+}
+
+void ToolChain::PushArg(ArgStringList &CmdArgs, const ArgList &Args, bool MLLVM,
+                        OptSpecifier Opt, StringRef Val) const {
+  const OptTable &OptTable = D.getOpts();
+  StringRef Name = OptTable.getOptionName(Opt);
+
+  if (MLLVM)
+    CmdArgs.push_back("-mllvm");
+  CmdArgs.push_back(Args.MakeArgString(join_items("", "--", Name, Val)));
+}
+
+void ToolChain::PushLastArg(ArgStringList &CmdArgs, const ArgList &Args,
+                            bool MLLVM, OptSpecifier Opt) const {
+  if (not Args.hasArg(Opt))
+    return;
+
+  if (MLLVM)
+    CmdArgs.push_back("-mllvm");
+  Args.AddLastArg(CmdArgs, Opt);
+}
+
+/// The string produced by CMake configuration parameters for multiple
+/// libraries (e.g. "-lkokkos -ldl -lrt") do not work well for direct use as
+/// arguments. This helper extracts them into individal arguments.
+void ToolChain::ExtractArgsFromString(const char *S, ArgStringList &CmdArgs,
+                                      const ArgList &Args,
+                                      const char Delimiter) const {
+  std::string ArgString(S);
+  std::string Token;
+  std::istringstream TokenStream(ArgString);
+  while (std::getline(TokenStream, Token, Delimiter)) {
+    CmdArgs.push_back(Args.MakeArgStringRef(Token));
+  }
+}
+
+/// Detect the unique GPU architecture on the system. If no GPU's were found, or
+/// if more than one GPU was found, the provided default will be returned.
+static std::string GetUniqueSystemGPUOrDefault(const Driver &D,
+                                               const ToolChain &TC,
+                                               const ArgList &Args,
+                                               StringRef Default) {
+  DiagnosticsEngine &Diags = D.getDiags();
+  Expected<SmallVector<std::string>> Archs = TC.getSystemGPUArchs(Args);
+  if (!Archs) {
+    Diags.Report(diag::warn_drv_kitsune_no_gpu)
+        << llvm::toString(Archs.takeError()) << Default;
+    return Default.str();
+  }
+
+  std::set<std::string> Uniq(Archs->begin(), Archs->end());
+  if (Uniq.size() != 1) {
+    D.getDiags().Report(diag::warn_drv_kitsune_multi_gpu)
+        << TC.getArchName() << llvm::join(Uniq.begin(), Uniq.end(), ",");
+    return Default.str();
+  }
+
+  return *Uniq.begin();
+}
+
+static InputArgList ParseExtendedArgs(const Driver &D,
+                                      const ArgStringList &Args,
+                                      ArrayRef<const char*> ExtraArgs) {
+  unsigned MissingArgIndex = 0, MissingArgCount = 0;
+  ArgStringList ExtendedArgs;
+
+  for (const char *Arg : Args)
+    ExtendedArgs.push_back(Arg);
+
+  for (const char *Arg : ExtraArgs)
+    ExtendedArgs.push_back(Arg);
+
+  return D.getOpts().ParseArgs(ExtendedArgs, MissingArgIndex, MissingArgCount,
+                               opt::Visibility());
+}
+
+void ToolChain::AddKitsuneGPUCommonArgs(const ArgList &Args,
+                                        ArgStringList &CmdArgs,
+                                        bool MLLVM) const {
+  PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_tpb_EQ);
+  PushLastArg(CmdArgs, Args, MLLVM,
+              options::OPT_tapir_gpu_max_tpb_EQ);
+
+  PushArg(CmdArgs, Args, MLLVM,
+          Args.hasFlag(options::OPT_tapir_gpu_prefetch,
+                       options::OPT_tapir_gpu_no_prefetch,
+                       llvm::driver::KitsuneOptions::defaultGPUPrefetch)
+              ? options::OPT_tapir_gpu_prefetch
+              : options::OPT_tapir_gpu_no_prefetch);
+}
+
+void ToolChain::AddKitsuneCudaCommonArgs(const ArgList &Args,
+                                         ArgStringList &CmdArgs,
+                                         bool MLLVM) const {
+  // We need to create a temporary NVPTX toolchain in order to determine the
+  // set of bitcode files to use among other things. This needs additional
+  // command line options to point to the correct cuda installation to use.
+  std::string CudaPath =
+      llvm::join_items("", "--cuda-path=", KITSUNE_CUDA_PREFIX);
+  InputArgList ExtendedArgs = ParseExtendedArgs(D, CmdArgs, CudaPath.c_str());
+
+  // TODO: Hardcoding the target triple is probably ok for now, but we may want
+  // to make this configurable in some way.
+  llvm::Triple NVTriple("nvptx64-nvidia-cuda");
+  toolchains::NVPTXToolChain NVTC(D, NVTriple, ExtendedArgs);
+
+  // If the --tapir-cuda-arch= argument was used, generate code for that GPU
+  // architecture. Otherwise, if a unique GPU architecture was detected on the
+  // system, generate code for that. If no GPU was found, use the default GPU
+  // architecture specified at configure-time.
+  std::string CudaArch =
+      Args.hasArg(options::OPT_tapir_cuda_arch_EQ)
+          ? Args.getLastArgValue(options::OPT_tapir_cuda_arch_EQ).str()
+          : GetUniqueSystemGPUOrDefault(
+                D, NVTC, ExtendedArgs,
+                llvm::driver::KitsuneOptions::defaultCudaArch);
+  PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_cuda_arch_EQ, CudaArch);
+
+  OffloadArch OffloadArch = StringToOffloadArch(CudaArch);
+  StringRef VirtArch = OffloadArchToVirtualArchString(OffloadArch);
+  PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_cuda_virt_arch_EQ, VirtArch);
+
+  std::vector<StringRef> Features;
+  NVPTX::getNVPTXTargetFeatures(getDriver(), NVTriple, ExtendedArgs, Features);
+  PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_cuda_features_EQ,
+          llvm::join(Features.begin(), Features.end(), ","));
+
+  PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_cuda_runtime_bc_EQ,
+          NVTC.CudaInstallation.getLibDeviceFile(CudaArch));
+
+  AddKitsuneGPUCommonArgs(Args, CmdArgs, MLLVM);
+}
+
+void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
+                                        ArgStringList &CmdArgs,
+                                        bool MLLVM) const {
+  // TODO: Hardcoding the target triple is probably ok for now, but we may want
+  // to make this configurable in some way.
+  llvm::Triple AMDTriple("amdgcn-amd-amdhsa");
+
+  // We need to create a temporary AMDGPU toolchain in order to determine the
+  // set of bitcode files to use among other things. This needs additional
+  // command line options to point to the correct ROCm installation to use,
+  // among other things.
+  ArgStringList ExtraArgs = CmdArgs;
+  InputArgList ExtendedArgs;
+
+  // The extra arguments need to have stable storage because what gets passed
+  // around are const char*'s. We don't use MakeArgString on Args because these
+  // are not intended to ever "leak" into the actual command line arguments.
+  // Instead, just make them local strings.
+  std::string ROCMPath =
+      llvm::join_items("", "--rocm-path=", KITSUNE_HIP_PREFIX);
+  ExtraArgs.push_back(ROCMPath.c_str());
+
+  std::string ROCMDeviceLibPath =
+      llvm::join_items("=", "--rocm-device-lib-path", KITSUNE_HIP_BITCODE_DIR);
+  ExtraArgs.push_back(ROCMDeviceLibPath.c_str());
+
+  // If an explicit object version has been provided, push that argument onto
+  // the extra args. This will not make it to CmdArgs at any point, so we have
+  // to add it to the ExtraArgs explicitly.
+  std::string CodeObjectVersion = "-mcode-object-version=";
+  if (Args.hasArg(options::OPT_mcode_object_version_EQ)) {
+    CodeObjectVersion +=
+        Args.getLastArgValue(options::OPT_mcode_object_version_EQ);
+    ExtraArgs.push_back(CodeObjectVersion.c_str());
+  }
+
+  // We cannot create the final "extended" command line arguments here. For
+  // that, we need the correct value of HipArch. But to determine the correct
+  // value of HipArch, we need to look up the GPU that is present on the system
+  // on which this is executing, for which we need a toolchain, which needs the
+  // extended arguments. Nice little circularity there! So we just create a
+  // temporary reparsed arguments list and pass it to the toolchain.
+  //
+  // The toolchain is also temporary (hence the unique pointer) and will be
+  // recreated after HipArch has been computed and the sramecc and xnack options
+  // are handled (that is another utterly ridiculous, and equally long, story
+  // that will be recounted in excruciating detail later in this function).
+  ExtendedArgs = ParseExtendedArgs(D, CmdArgs, ExtraArgs);
+  auto AMDTC =
+      std::make_unique<toolchains::ROCMToolChain>(D, AMDTriple, ExtendedArgs);
+
+  std::string HipArch = "";
+  if (Args.hasArg(options::OPT_tapir_hip_arch_EQ))
+    HipArch = Args.getLastArgValue(options::OPT_tapir_hip_arch_EQ).str();
+  else
+    HipArch = GetUniqueSystemGPUOrDefault(
+        D, *AMDTC, ExtendedArgs, llvm::driver::KitsuneOptions::defaultHipArch);
+  PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_hip_arch_EQ, HipArch);
+
+  // In order to correctly compute the target features for this AMDGPU, as of
+  // April 2025, the SRAMECC and XNACK "system" features (not to be confused
+  // with the corresponding target features) have to be specified explicitly.
+  // The only way to do this is to provide a -mcpu option where the value is
+  // of the form <gpu-arch-name>:([+-]sramecc)?:([+-]xnack)?. Note in this
+  // delightful regular expression that both the sramecc and xnack target
+  // features are optional.
+  //
+  // It would be nice to not have to require the users to remember some opaque
+  // architecture name such as gfx90a just so they can use xnack correctly.
+  // So we provide command line options --tapir-hip-sramecc and
+  // --tapir-hip-xnack which must now be converted into the appropriate
+  // target features appended to HipArch that has just been computed.
+  //
+  // So, what do we get after jumping through all these hoops? Well, we get the
+  // code that has already been written by AMD to translate these features into
+  // "actual" target features? Couldn't we just do it ourselves instead and not
+  // have to resort to writing such long, salty comments? In principle, yes. In
+  // practice, getting these values wrong i.e. setting xnack+ on a GPU that
+  // requires xnack- could result in incorrect code execution. Presumably,
+  // computing the features "the AMD way" will, at the very least, emit a
+  // warning so the user will know that they did something questionable.
+  std::vector<std::string> TargetID = {HipArch};
+
+  // These must be added to the TargetID in alphabetical order, so sramecc first
+  // and xnack next. If AMD decides to hack in more features in this appalling
+  // manner, those will, in all likelihood, also need to be in alphabetical
+  // order.
+  if (ErrorOr<MaybeBool> ECC = llvm::parseMaybeBool(Args.getLastArgValue(
+          options::OPT_tapir_hip_sramecc_EQ,
+          llvm::toString(llvm::driver::KitsuneOptions::defaultHipSRAMECC)))) {
+    switch (*ECC) {
+    case MaybeBool::Off:
+      TargetID.push_back("sramecc-");
+      break;
+    case MaybeBool::On:
+      TargetID.push_back("sramecc+");
+      break;
+    default:
+      break;
+    }
+    PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_hip_sramecc_EQ,
+            llvm::toString(*ECC));
+  }
+
+  if (ErrorOr<MaybeBool> Xnack = llvm::parseMaybeBool(Args.getLastArgValue(
+          options::OPT_tapir_hip_xnack_EQ,
+          llvm::toString(llvm::driver::KitsuneOptions::defaultHipXnack)))) {
+    switch (*Xnack) {
+    case MaybeBool::Off:
+      TargetID.push_back("xnack-");
+      break;
+    case MaybeBool::On:
+      TargetID.push_back("xnack+");
+      break;
+    default:
+      break;
+    }
+    PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_hip_xnack_EQ,
+            llvm::toString(*Xnack));
+  }
+
+  std::string MCPU =
+      "-mcpu=" + llvm::join(TargetID.begin(), TargetID.end(), ":");
+  ExtraArgs.push_back(MCPU.c_str());
+
+  // If -mwavefrontsize64 or -mno-wavefrontsize64 are given, use them.
+  // Otherwise, don't specify anything and let the toolchain figure out how to
+  // handle the wavefront. We need to explicitly add the option to the extra
+  // args because CmdArgs will never have these.
+  if (const Arg *A = Args.getLastArg(options::OPT_mwavefrontsize64,
+                                     options::OPT_mno_wavefrontsize64))
+    ExtraArgs.push_back(A->getSpelling().data());
+
+  // Now we can finally create the actual extended arguments list and recreate
+  // the final toolchain so we have exactly what we need for any future
+  // lookups.
+  ExtendedArgs = ParseExtendedArgs(D, CmdArgs, ExtraArgs);
+  AMDTC =
+      std::make_unique<toolchains::ROCMToolChain>(D, AMDTriple, ExtendedArgs);
+
+  // The target features. Each element is of the form [+-]FEATURE.
+  std::vector<StringRef> Features;
+
+  // This will add the xnack and sramecc features from the target ID to the
+  // features list. It also handles the wavefrontsize, but only if
+  // -mwavefrontsizet64 is provided. -mno-wavefrontsize64 is not handled. It
+  // also handles precise-memory, though I am not sure if that is relevant for
+  // us.
+  amdgpu::getAMDGPUTargetFeatures(D, AMDTriple, ExtendedArgs, Features);
+
+  if (toolchains::ROCMToolChain::isWave64(
+          ExtendedArgs, llvm::AMDGPU::parseArchAMDGCN(HipArch)))
+    Features.push_back("+wavefrontsize64");
+  else
+    Features.push_back("+wavefrontsize32");
+
+  llvm::StringMap<bool> FeatureMap;
+  llvm::AMDGPU::fillAMDGPUFeatureMap(HipArch, AMDTriple, FeatureMap);
+
+  // Now we can add features from the map to the actual features string and
+  // add the string to the command line arguments.
+  for (const llvm::StringMapEntry<bool> &E : FeatureMap)
+    Features.push_back(Args.MakeArgString(
+        llvm::join_items("", E.second ? "+" : "-", E.first())));
+
+  PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_hip_features_EQ,
+          llvm::join(Features.begin(), Features.end(), ","));
+
+  llvm::SmallVector<std::string> BCFiles = AMDTC->getCommonDeviceLibNames(
+      ExtendedArgs, HipArch, /* IsOpenMP */ false);
+  std::string BCFilesStr = llvm::join(BCFiles.begin(), BCFiles.end(), ",");
+  PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_hip_runtime_bcs_EQ,
+          BCFilesStr);
+
+  // The linker name calculation here is taken from ToolChain::GetLinkerPath.
+  // This should work for all platforms that we care about. lld is guaranteed
+  // to be built with Kitsune, so there is it is ok to fail catastrophically if
+  // something unexpected happens.
+  StringRef LinkerName = getTriple().isOSDarwin() ? "ld64.lld" : "ld.lld";
+  std::string LinkerPath = GetProgramPath(LinkerName.data());
+  if (not llvm::sys::fs::can_execute(LinkerPath))
+    llvm_unreachable("AddKitsuneHipCommonArgs: lld should be executable");
+  PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_lld_EQ, LinkerPath);
+
+  AddKitsuneGPUCommonArgs(Args, CmdArgs, MLLVM);
+}
+
+void ToolChain::AddKitsuneLambdaCommonArgs(const ArgList &Args,
+                                           ArgStringList &CmdArgs,
+                                           bool MLLVM) const {
+  // Don't hit unreachable if an error has already occurred
+  if (!getDriver().getDiags().getNumErrors())
+    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneLambdaCommonArgs");
+}
+
+void ToolChain::AddKitsuneOMPTaskCommonArgs(const ArgList &Args,
+                                            ArgStringList &CmdArgs,
+                                            bool MLLVM) const {
+  // Don't hit unreachable if an error has already occurred
+  if (!getDriver().getDiags().getNumErrors())
+    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneOMPTaskCommonArgs");
+}
+
+void ToolChain::AddKitsuneOpenCilkCommonArgs(const ArgList &Args,
+                                             ArgStringList &CmdArgs,
+                                             bool MLLVM) const {
+  if (std::optional<std::string> BC = getOpenCilkABIBitcodeFile(Args))
+    PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_opencilk_runtime_bc_EQ,
+            *BC);
+}
+
+void ToolChain::AddKitsuneOpenMPCommonArgs(const ArgList &Args,
+                                           ArgStringList &CmdArgs,
+                                           bool MLLVM) const {
+  // Don't hit unreachable if an error has already occurred
+  if (!getDriver().getDiags().getNumErrors())
+    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneOpenMPCommonArgs");
+}
+
+void ToolChain::AddKitsuneQthreadsCommonArgs(const ArgList &Args,
+                                             ArgStringList &CmdArgs,
+                                             bool MLLVM) const {
+  // Don't hit unreachable if an error has already occurred
+  if (!getDriver().getDiags().getNumErrors())
+    llvm_unreachable(
+        "NOT IMPLEMENTED: ToolChain::AddKitsuneQthreadsCommonArgs");
+}
+
+void ToolChain::AddKitsuneRealmCommonArgs(const ArgList &Args,
+                                          ArgStringList &CmdArgs,
+                                          bool MLLVM) const {
+  // Don't hit unreachable if an error has already occurred
+  if (!getDriver().getDiags().getNumErrors())
+    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneRealmCommonArgs");
+}
+
+void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
+                                           ArgStringList &CmdArgs) const {
+  std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args);
+  bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_kokkos);
+
+  if (TT) {
+    switch (*TT) {
+    case TapirTargetID::None:
+      break;
+    case TapirTargetID::Cuda:
+      ExtractArgsFromString(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case TapirTargetID::Hip:
+      ExtractArgsFromString(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case TapirTargetID::Lambda:
+      ExtractArgsFromString(KITSUNE_LAMBDA_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case TapirTargetID::OMPTask:
+      ExtractArgsFromString(KITSUNE_OMPTASK_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case TapirTargetID::OpenCilk:
+      ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case TapirTargetID::OpenMP:
+      ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case TapirTargetID::Qthreads:
+      ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case TapirTargetID::Realm:
+      ExtractArgsFromString(KITSUNE_REALM_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case TapirTargetID::Serial:
+      break;
+    default:
+      llvm_unreachable("AddKitsunePreprocessorArgs: TapirTargetID not handled");
+      break;
+    }
+  }
+
+  if (IsKokkos) {
+    std::string InclDir = concat(D.ResourceDir, "include", "kokkos");
+    CmdArgs.push_back(Args.MakeArgString(join_items("", "-I", InclDir)));
+    ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                          Args);
+  }
+
+  if (TT or IsKokkos) {
+    std::string InclDir = concat(D.ResourceDir, "include");
+    CmdArgs.push_back(Args.MakeArgString(join_items("", "-I", InclDir)));
+  }
+}
+
+void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
+                                       ArgStringList &CmdArgs) const {
+  bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_kokkos);
+  if (IsKokkos) {
+    Args.AddLastArg(CmdArgs, options::OPT_kokkos);
+    Args.AddLastArg(CmdArgs, options::OPT_kokkos_no_init);
+    ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
+  }
+
+  if (std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args)) {
+    Args.AddLastArg(CmdArgs, options::OPT_ffp_contract);
+    Args.AddLastArg(CmdArgs, options::OPT_kitrt_verbose);
+    Args.AddLastArg(CmdArgs, options::OPT_tapir_verbose);
+    Args.AddLastArg(CmdArgs, options::OPT_tapir_EQ);
+    switch (*TT) {
+    case TapirTargetID::None:
+      break;
+    case TapirTargetID::Cuda:
+      AddKitsuneCudaCommonArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_CUDA_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::Hip:
+      AddKitsuneHipCommonArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_HIP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::Lambda:
+      AddKitsuneLambdaCommonArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_LAMBDA_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::OMPTask:
+      AddKitsuneOMPTaskCommonArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_OMPTASK_EXTRA_COMPILER_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case TapirTargetID::OpenCilk:
+      AddKitsuneOpenCilkCommonArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_COMPILER_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case TapirTargetID::OpenMP:
+      AddKitsuneOpenMPCommonArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::Qthreads:
+      AddKitsuneQthreadsCommonArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_COMPILER_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case TapirTargetID::Realm:
+      AddKitsuneRealmCommonArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_REALM_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::Serial:
+      break;
+    default:
+      report_fatal_error("AddKitsuneCompiledArgs: TapirTargetID not handled");
+      break;
+    }
+
+    // If a tapir target is not given, for consistency with clang, stripmining
+    // is never enabled. If the tapir target is a CPU tapir target, stripmining
+    // is only enabled at certain optimization levels, if explicitly enabled
+    // with the -fstripmine flag and disabled if -fno-stripmine is given. For
+    // GPU tapir targets, stripmining must be enabled explicitly.
+    if (TT == TapirTargetID::Cuda || TT == TapirTargetID::Hip) {
+      if (Args.hasArg(options::OPT_fstripmine))
+        CmdArgs.push_back("-fstripmine");
+    } else {
+      if (Args.hasFlag(
+              options::OPT_fstripmine, options::OPT_fno_stripmine,
+              shouldEnableVectorizerAtOLevel(Args, /*isSlpVec=*/false)))
+        CmdArgs.push_back("-fstripmine");
+    }
+  }
+}
+
+static void addOpenCilkRuntimeRunPath(const ToolChain &TC, const ArgList &Args,
+                                      ArgStringList &CmdArgs,
+                                      const llvm::Triple &Triple) {
+  // Allow the -fno-rtlib-add-rpath flag to prevent adding this default
+  // directory to the runpath.
+  if (!Args.hasFlag(options::OPT_frtlib_add_rpath,
+                    options::OPT_fno_rtlib_add_rpath, true))
+    return;
+
+  if (std::optional<std::string> RPath = TC.getOpenCilkRuntimePath(Args)) {
+    if (TC.getVFS().exists(*RPath)) {
+      CmdArgs.push_back("-L");
+      CmdArgs.push_back(Args.MakeArgString(RPath->c_str()));
+      CmdArgs.push_back("-rpath");
+      CmdArgs.push_back(Args.MakeArgString(RPath->c_str()));
+      if (Triple.isOSBinFormatELF())
+        CmdArgs.push_back("--enable-new-dtags");
+    }
+  }
+}
+
+static StringRef getArchNameForOpenCilkRTLib(const ToolChain &TC,
+                                             const ArgList &Args) {
+  return getArchNameForCompilerRTLib(TC, Args);
+}
+
+void ToolChain::AddKitsuneCudaLinkerArgs(const ArgList &Args,
+                                         ArgStringList &CmdArgs) const {
+  // Nothing to do here for now.
+}
+
+void ToolChain::AddKitsuneHipLinkerArgs(const ArgList &Args,
+                                        ArgStringList &CmdArgs) const {
+  // Nothing to do here for now.
+}
+
+void ToolChain::AddKitsuneLambdaLinkerArgs(const ArgList &Args,
+                                           ArgStringList &CmdArgs) const {
+  // Don't hit unreachable if an error has already occurred
+  if (!getDriver().getDiags().getNumErrors())
+    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneLambdaLinkerArgs");
+}
+
+void ToolChain::AddKitsuneOMPTaskLinkerArgs(const ArgList &Args,
+                                            ArgStringList &CmdArgs) const {
+  // Don't hit unreachable if an error has already occurred
+  if (!getDriver().getDiags().getNumErrors())
+    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneOMPTaskLinkerArgs");
+}
+
+void ToolChain::AddKitsuneOpenCilkLinkerArgs(const ArgList &Args,
+                                             ArgStringList &CmdArgs) const {
+  bool IsStatic = Args.hasArg(options::OPT_static);
+  FileType FT = IsStatic ? ToolChain::FT_Static : ToolChain::FT_Shared;
+  StringRef Personality = getDriver().CCCIsCXX() ? "opencilk-personality-cpp"
+                                                 : "opencilk-personality-c";
+
+  // Link the correct Cilk personality fn
+  CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(Args, Personality, FT)));
+
+  // Link the opencilk runtime.  We do this after linking the personality
+  // function, to ensure that symbols are resolved correctly when using
+  // static linking.
+  CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(Args, "opencilk", FT)));
+
+  // Add to the executable's runpath the default directory containing the
+  // OpenCilk runtime.
+  addOpenCilkRuntimeRunPath(*this, Args, CmdArgs, Triple);
+}
+
+void ToolChain::AddKitsuneOpenMPLinkerArgs(const ArgList &Args,
+                                           ArgStringList &CmdArgs) const {
+  // Unconditionally fail so that when (if) we ever resurrect the qthreads tapir
+  // target, we know to look here and do whatever is appropriate.
+  //
+  // The flags here are for reference because they were in some cmake file in
+  // in the Kitsune repo. I have no idea if this is actually correct.
+  //
+  // -fopenmp -lomp
+  //
+  // Don't hit unreachable if an error has already occurred
+  if (!getDriver().getDiags().getNumErrors())
+    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneOpenMPLinkerArgs");
+}
+
+void ToolChain::AddKitsuneQthreadsLinkerArgs(const ArgList &Args,
+                                             ArgStringList &CmdArgs) const {
+  // TODO: Fix this when (if) the qthreads tapir target is ever resurrected.
+  //
+  // It is not clear whether the realm libraries need to be linked to the
+  // executable being built. If Kitsune's runtime does not already link them in,
+  // then we will need to link them here. What is below is what was originally
+  // in a cmake file somewhere. It's repeated here for reference but obviously,
+  // we should do the right thing. There is absolutely no need to stick to
+  // exactly these if it doesn't make sense.
+  //
+  // -L${QTHREADS_LIBRARY_DIR} -lqthreads -lhwloc
+  //
+  // Unconditionally fail so that when (if) we ever resurrect the qthreads tapir
+  // target, we know to look here and do whatever is appropriate.
+  //
+  // Don't hit unreachable if an error has already occurred
+  if (!getDriver().getDiags().getNumErrors())
+    llvm_unreachable(
+        "NOT IMPLEMENTED: ToolChain::AddKitsuneQthreadsLinkerArgs");
+}
+
+void ToolChain::AddKitsuneRealmLinkerArgs(const ArgList &Args,
+                                          ArgStringList &CmdArgs) const {
+  // TODO: Fix this when (if) the realm tapir target is ever resurrected.
+  //
+  // It is not clear whether the realm libraries need to be linked to the
+  // executable being built. If Kitsune's runtime does not already link them in,
+  // then we will need to link them here. What is below is what was originally
+  // in a cmake file somewhere. It's repeated here for reference but obviously,
+  // we should do the right thing. There is absolutely no need to stick to
+  // exactly these if it doesn't make sense.
+  //
+  // "-L${Realm_LIBRARY_DIR} -L${Realm_WRAPPER_LIBRARY_DIR}
+  // -lrealm-abi -lrealm"
+  //
+  // The unconditional failure is to ensure that we don't forget to do this
+  // when the target is resurrected.
+  //
+  // Don't hit unreachable if an error has already occurred
+  if (!getDriver().getDiags().getNumErrors())
+    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneRealmLinkerArgs");
+}
+
+void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
+                                     ArgStringList &CmdArgs) const {
+  std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args);
+  bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_kokkos);
+
+  if (TT) {
+    switch (*TT) {
+    case TapirTargetID::None:
+      break;
+    case TapirTargetID::Cuda:
+      AddKitsuneCudaLinkerArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_CUDA_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::Hip:
+      AddKitsuneHipLinkerArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_HIP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::Lambda:
+      AddKitsuneLambdaLinkerArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_LAMBDA_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::OMPTask:
+      AddKitsuneOMPTaskLinkerArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_OMPTASK_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::OpenCilk:
+      AddKitsuneOpenCilkLinkerArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::OpenMP:
+      AddKitsuneOpenMPLinkerArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::Qthreads:
+      AddKitsuneQthreadsLinkerArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::Realm:
+      AddKitsuneRealmLinkerArgs(Args, CmdArgs);
+      ExtractArgsFromString(KITSUNE_REALM_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
+    case TapirTargetID::Serial:
+      break;
+    default:
+      report_fatal_error("AddKitsuneLinkerArgs: TapirTargetID not handled");
+      break;
+    }
+  }
+
+  if (IsKokkos) {
+    const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib64"));
+    CmdArgs.push_back("-L");
+    CmdArgs.push_back(LibDir);
+    CmdArgs.push_back("-rpath");
+    CmdArgs.push_back(LibDir);
+    CmdArgs.push_back("-lkokkoscore");
+    ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+  }
+
+  // We always link in libkitrt if a tapir target or special Kokkos handling has
+  // been specified.
+  if (TT or IsKokkos) {
+    // The pthread functions are now part of libc. libpthread was removed from
+    // glibc 2.34. There is no need to explicitly link this in unless we have
+    // older versions of libc around. We should consider removing this from here
+    // at some point when we are certain we don't need this any longer.
+    //
+    // https://developers.redhat.com/articles/2021/12/17/why-glibc-234-removed-libpthread
+    //
+    CmdArgs.push_back("-lpthread");
+
+    // It is not clear if we need dl and rt here since they will have been
+    // linked in libkitrt. However, on some systems, that doesn't seem to work
+    // as expected, so link them here anyway.
+    CmdArgs.push_back("-ldl");
+    CmdArgs.push_back("-lrt");
+
+    const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
+    CmdArgs.push_back("-L");
+    CmdArgs.push_back(LibDir);
+    CmdArgs.push_back("-rpath");
+    CmdArgs.push_back(LibDir);
+
+    if (Args.hasArg(options::OPT_static)) {
+      CmdArgs.push_back("-l" KITSUNE_LIBNAME_STATIC);
+    } else if (Args.hasArg(options::OPT_static_libkitrt)) {
+      CmdArgs.push_back("-Bstatic");
+      CmdArgs.push_back("-l" KITSUNE_LIBNAME_STATIC);
+      CmdArgs.push_back("-Bdynamic");
+    } else {
+      CmdArgs.push_back("-l" KITSUNE_LIBNAME);
+    }
+
+    // libkitrt links against libcuda if the cuda target is enabled and
+    // libamdhip64 if the hip target is enabled. The libraries may not be where
+    // the dynamic linker will find them, so the paths need to be set correctly
+    // here if libkitrt.so will be linked, regardless of the Tapir target being
+    // used.
+    if (KITSUNE_HIP_ENABLED) {
+      CmdArgs.push_back("-L");
+      CmdArgs.push_back(KITSUNE_HIP_LIBRARY_DIR);
+      CmdArgs.push_back("-rpath");
+      CmdArgs.push_back(KITSUNE_HIP_LIBRARY_DIR);
+      CmdArgs.push_back("-l" KITSUNE_HIP_LIBNAME_AMDHIP);
+    }
+
+    if (KITSUNE_CUDA_ENABLED) {
+      CmdArgs.push_back("-L");
+      CmdArgs.push_back(KITSUNE_CUDA_LIBRARY_DIR);
+      CmdArgs.push_back("-rpath");
+      CmdArgs.push_back(KITSUNE_CUDA_LIBRARY_DIR);
+      CmdArgs.push_back("-l" KITSUNE_CUDA_LIBNAME_CUDART_STATIC);
+      CmdArgs.push_back("-l" KITSUNE_CUDA_LIBNAME_CUDA);
+    }
+  }
+}
+
+void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
+                                  ArgStringList &CmdArgs) const {
+  if (std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args)) {
+    CmdArgs.push_back(Args.MakeArgString(
+        join_items("", "--lto-O",
+                   std::to_string(getSpeedupLevelAsInt(Args, D.getDiags())))));
+    PushLastArg(CmdArgs, Args, true, options::OPT_tapir_EQ);
+    PushLastArg(CmdArgs, Args, true, options::OPT_tapir_verbose);
+    PushLastArg(CmdArgs, Args, true, options::OPT_kitrt_verbose);
+    switch (*TT) {
+    case TapirTargetID::None:
+      break;
+    case TapirTargetID::Cuda:
+      AddKitsuneCudaCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
+      break;
+    case TapirTargetID::Hip:
+      AddKitsuneHipCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
+      break;
+    case TapirTargetID::Lambda:
+      AddKitsuneLambdaCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
+      break;
+    case llvm::TapirTargetID::OMPTask:
+      AddKitsuneOMPTaskCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
+      break;
+    case TapirTargetID::OpenCilk:
+      AddKitsuneOpenCilkCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
+      break;
+    case TapirTargetID::OpenMP:
+      AddKitsuneOpenMPCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
+      break;
+    case TapirTargetID::Qthreads:
+      AddKitsuneQthreadsCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
+      break;
+    case TapirTargetID::Realm:
+      AddKitsuneRealmCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
+      break;
+    case TapirTargetID::Serial:
+      break;
+    default:
+      llvm_unreachable("AddKitsuneLTOArgs: TapirTargetID not handled");
+      break;
+    }
+    // Handling of the -ffp-contract option has to be done exactly the way it is
+    // done in BackendUtil.cpp. Explanations for this are in that file.
+    CmdArgs.push_back("-mllvm");
+    if (const Arg *A = Args.getLastArg(options::OPT_ffp_contract)) {
+      if (StringRef(A->getValue()) == "fast")
+        CmdArgs.push_back("--fp-contract=fast");
+      else
+        CmdArgs.push_back("--fp-contract=on");
+    } else {
+      CmdArgs.push_back("--fp-contract=on");
+    }
+
+    // TODO: Need to figure out what to do with stripmining here.
+  }
+}
+
+std::optional<std::string>
+ToolChain::getOpenCilkABIBitcodeFile(const ArgList &Args) const {
+  if (Arg *A = Args.getLastArg(options::OPT_tapir_opencilk_runtime_bc_EQ))
+    return A->getValue();
+  return getOpenCilkBC(Args, "opencilk-abi");
+}
+
+std::optional<std::string>
+ToolChain::getOpenCilkRuntimePath(const ArgList &Args) const {
+  return getRuntimePath();
+}
+
+std::string ToolChain::getOpenCilkBCBasename(const ArgList &Args,
+                                             StringRef Component,
+                                             bool AddArch) const {
+  const llvm::Triple &TT = getTriple();
+  const char *Prefix = "lib";
+  const char *Suffix = ".bc";
+  std::string ArchAndEnv;
+  if (AddArch) {
+    StringRef Arch = getArchNameForOpenCilkRTLib(*this, Args);
+    const char *Env = TT.isAndroid() ? "-android" : "";
+    ArchAndEnv = ("-" + Arch + Env).str();
+  }
+  return (Prefix + Component + ArchAndEnv + Suffix).str();
+}
+
+std::optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
+                                                    StringRef Component) const {
+  // Check for runtime files without the architecture first.
+  std::string BCBasename =
+      getOpenCilkBCBasename(Args, Component, /*AddArch=*/false);
+  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePath(Args)) {
+    SmallString<128> P(*RuntimePath);
+    llvm::sys::path::append(P, BCBasename);
+    if (getVFS().exists(P))
+      return std::optional<std::string>(std::string(P.str()));
+  }
+
+  // Fall back to the OpenCilk name with the arch if the no-arch version does
+  // not exist.
+  BCBasename = getOpenCilkBCBasename(Args, Component, /*AddArch=*/true);
+  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePath(Args)) {
+    SmallString<128> P(*RuntimePath);
+    llvm::sys::path::append(P, BCBasename);
+    if (getVFS().exists(P))
+      return std::optional<std::string>(std::string(P.str()));
+  }
+
+  return std::nullopt;
+}
+
+std::string ToolChain::getOpenCilkRTBasename(const ArgList &Args,
+                                             StringRef Component, FileType Type,
+                                             bool AddArch) const {
+  const llvm::Triple &TT = getTriple();
+  const char *Prefix = "lib";
+  const char *Suffix;
+  switch (Type) {
+  case ToolChain::FT_Object:
+    Suffix = ".o";
+    break;
+  case ToolChain::FT_Static:
+    Suffix = ".a";
+    break;
+  case ToolChain::FT_Shared:
+    Suffix = ".so";
+    break;
+  }
+  std::string ArchAndEnv;
+  if (AddArch) {
+    StringRef Arch = getArchNameForOpenCilkRTLib(*this, Args);
+    const char *Env = TT.isAndroid() ? "-android" : "";
+    ArchAndEnv = ("-" + Arch + Env).str();
+  }
+  return (Prefix + Component + ArchAndEnv + Suffix).str();
+}
+
+std::string ToolChain::getOpenCilkRT(const ArgList &Args, StringRef Component,
+                                     FileType Type) const {
+  // Check for runtime files without the architecture first.
+  std::string RTBasename =
+      getOpenCilkRTBasename(Args, Component, Type, /*AddArch=*/false);
+  for (const auto &LibPath : getLibraryPaths()) {
+    SmallString<128> P(LibPath);
+    llvm::sys::path::append(P, RTBasename);
+    if (getVFS().exists(P))
+      // If we found the library in LibraryPaths, let the linker resolve it.
+      return std::string(("-l" + Component).str());
+  }
+
+  // Fall back to the OpenCilk name with the arch if the no-arch version does
+  // not exist.
+  RTBasename = getOpenCilkRTBasename(Args, Component, Type, /*AddArch=*/true);
+  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePath(Args)) {
+    SmallString<128> P(*RuntimePath);
+    llvm::sys::path::append(P, RTBasename);
+    if (getVFS().exists(P))
+      return std::string(P.str());
+  }
+
+  // Otherwise, trust the linker to find the library on the system.
+  return std::string(("-l" + Component).str());
 }

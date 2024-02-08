@@ -194,6 +194,9 @@ public:
   /// User directory for config files.
   std::string UserConfigDir;
 
+  /// Kitsune directory for config files.
+  std::string KitsuneConfigDir;
+
   /// A prefix directory used to emulate a limited subset of GCC's '-Bprefix'
   /// functionality.
   /// FIXME: This type of customization should be removed in favor of the
@@ -252,6 +255,13 @@ public:
 
   /// Whether the driver should follow dxc.exe like behavior.
   bool IsDXCMode() const { return Mode == DXCMode; }
+
+  /// Whether the driver should follow Kitsune's behavior.
+  bool IsKitsuneFrontend() const { return KitsuneFrontend; }
+
+  /// Is this a Kitsune frontend.
+  LLVM_PREFERRED_TYPE(bool)
+  unsigned KitsuneFrontend : 1;
 
   /// Only print tool bindings, don't build any jobs.
   LLVM_PREFERRED_TYPE(bool)
@@ -863,6 +873,9 @@ llvm::StringRef getDriverMode(StringRef ProgName, ArrayRef<const char *> Args);
 
 /// Checks whether the value produced by getDriverMode is for CL mode.
 bool IsClangCL(StringRef DriverMode);
+
+/// Checks whether the given program is a Kitsune frontend.
+bool IsKitsuneFrontend(StringRef ProgName);
 
 /// Expand response files from a clang driver or cc1 invocation.
 ///

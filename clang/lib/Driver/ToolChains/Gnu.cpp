@@ -15,6 +15,7 @@
 #include "Arch/RISCV.h"
 #include "Arch/Sparc.h"
 #include "Arch/SystemZ.h"
+#include "kitsune/Config/config.h" // for KITSUNE_GCC_INSTALL_PREFIX
 #include "clang/Config/config.h" // for GCC_INSTALL_PREFIX
 #include "clang/Driver/CommonArgs.h"
 #include "clang/Driver/Compilation.h"
@@ -454,6 +455,8 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   if (D.isUsingLTO())
     addLTOOptions(ToolChain, Args, CmdArgs, Output, Inputs,
                   D.getLTOMode() == LTOK_Thin);
+    ToolChain.AddKitsuneLTOArgs(Args, CmdArgs);
+  }
 
   if (Args.hasArg(options::OPT_Z_Xlinker__no_demangle))
     CmdArgs.push_back("--no-demangle");
@@ -467,6 +470,8 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   // The profile runtime also needs access to system libraries.
   getToolChain().addProfileRTLibs(Args, CmdArgs);
+
+  ToolChain.AddKitsuneLinkerArgs(Args, CmdArgs);
 
   if (D.CCCIsCXX() &&
       !Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs,
@@ -2121,6 +2126,36 @@ void Generic_GCC::GCCInstallationDetector::init(
   CollectLibDirsAndTriples(TargetTriple, BiarchVariantTriple, CandidateLibDirs,
                            CandidateTripleAliases, CandidateBiarchLibDirs,
                            CandidateBiarchTripleAliases);
+
+  // Since clang will eventually remove GCC_INSTALL_PREFIX, we want to allow
+  // setting GCC_INSTALL_DIR at compile-time. This is mainly needed on HPC
+  // systems which have antique GCC's installed on the system path. On most of
+  // these systems, a config file is installed with clang which adds
+  // --gcc-install-dir to the command line. We still allow that, but it is
+  // sometimes more convenient for development to set this at configure time
+  // and obviate the need for a configuration file. Doing this here ensures
+  // that --gcc-install-dir passed on the command line can be used to override
+  // the configure time value.
+  //
+  // WARNING: This is not ideal because it duplicates the handling of
+  // --gcc-install-dir, but hopefully that doesn't change too often.
+  if (KITSUNE_GCC_INSTALL_DIR[0] &&
+      !Args.hasArg(options::OPT_gcc_install_dir_EQ) &&
+      !Args.hasArg(options::OPT_gcc_triple_EQ) &&
+      !Args.hasArg(options::OPT_gcc_toolchain) && D.SysRoot.empty()) {
+    StringRef InstallDir = KITSUNE_GCC_INSTALL_DIR;
+    (void)InstallDir.consume_back("/");
+    StringRef VersionText = llvm::sys::path::filename(InstallDir);
+    StringRef TripleText =
+        llvm::sys::path::filename(llvm::sys::path::parent_path(InstallDir));
+
+    Version = GCCVersion::Parse(VersionText);
+    GCCTriple.setTriple(TripleText);
+    GCCInstallPath = std::string(InstallDir);
+    GCCParentLibPath = GCCInstallPath + "/../../..";
+    IsValid = true;
+    return;
+  }
 
   // If --gcc-install-dir= is specified, skip filesystem detection.
   if (const Arg *A =

@@ -52,6 +52,7 @@
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/BinaryFormat/ELF.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/IR/AttributeMask.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/DataLayout.h"
@@ -404,7 +405,8 @@ CodeGenModule::CodeGenModule(ASTContext &C,
                              const CodeGenOptions &CGO, llvm::Module &M,
                              DiagnosticsEngine &diags,
                              CoverageSourceInfo *CoverageInfo)
-    : Context(C), LangOpts(C.getLangOpts()), FS(FS), HeaderSearchOpts(HSO),
+    : Context(C), LangOpts(C.getLangOpts()), KitsuneOpts(C.getKitsuneOpts()),
+      FS(FS), HeaderSearchOpts(HSO),
       PreprocessorOpts(PPO), CodeGenOpts(CGO), TheModule(M), Diags(diags),
       Target(C.getTargetInfo()), ABI(createCXXABI(*this)),
       VMContext(M.getContext()), VTables(*this), StackHandler(diags),
@@ -3165,6 +3167,15 @@ void CodeGenModule::SetFunctionAttributes(GlobalDecl GD, llvm::Function *F,
                                                CalleeIdx, PayloadIndices,
                                                /* VarArgsArePassed */ false)}));
   }
+
+  // Only set the kitsune-specific attributes if a tapir target has been set.
+  // In general, we try to keep the Kitsune-specific additions to clang strictly
+  // opt-in features. Since the attributes will have no effect unless lowering
+  // using tapir is enabled, we might as well only add the attributes only if a
+  // tapir target has been set.
+  if (getKitsuneOpts().hasTapirTarget()) {
+    SetKitsuneAttributes(*FD, *F);
+  }
 }
 
 void CodeGenModule::addUsedGlobal(llvm::GlobalValue *GV) {
@@ -5363,6 +5374,14 @@ CodeGenModule::GetOrCreateLLVMGlobal(StringRef MangledName, llvm::Type *Ty,
 
   if (D)
     SanitizerMD->reportGlobal(GV, *D);
+
+  // Only set the kitsune-specific attributes if a tapir target has been set.
+  // In general, we try to keep the Kitsune-specific additions to clang strictly
+  // opt-in features. Since the attributes will have no effect unless lowering
+  // using tapir is enabled, we might as well only add the attributes only if a
+  // tapir target has been set.
+  if (D && getKitsuneOpts().hasTapirTarget())
+    SetKitsuneAttributes(*D, *GV);
 
   LangAS ExpectedAS =
       D ? D->getType().getAddressSpace()
@@ -8125,4 +8144,48 @@ void CodeGenModule::moveLazyEmissionStates(CodeGenModule *NewBuilder) {
   NewBuilder->WeakRefReferences = std::move(WeakRefReferences);
 
   NewBuilder->ABI->MangleCtx = std::move(ABI->MangleCtx);
+}
+
+static StringRef GetLLVMAttrNameFor(const KitsuneMemAccessAttr &Attr) {
+  if (Attr.isWriteOnly())
+    return "kitsune.writeonly";
+  else if (Attr.isReadWrite())
+    return "kitsune.readwrite";
+  else if (Attr.isReadOnly())
+    return "kitsune.readonly";
+
+  llvm_unreachable("Unknown kitsune memory access attribute");
+}
+
+void CodeGenModule::SetKitsuneAttributes(const VarDecl &VD,
+                                         llvm::GlobalVariable &GV) {
+  if (const auto *A = VD.getAttr<KitsuneMemAccessAttr>())
+    GV.addAttribute(GetLLVMAttrNameFor(*A));
+}
+
+void CodeGenModule::SetKitsuneAttributes(const FunctionDecl &FD,
+                                         llvm::Function &Fn) {
+  if (const auto *A = FD.getAttr<KitsuneMemAccessAttr>())
+    Fn.addFnAttr(GetLLVMAttrNameFor(*A));
+
+  for (unsigned ArgNo = 0, Args = FD.getNumParams(); ArgNo != Args; ++ArgNo) {
+    const ParmVarDecl *Param = FD.getParamDecl(ArgNo);
+    QualType ParamTy = Param->getType();
+    const Decl *PDecl = Param;
+    if (const auto *TD = dyn_cast<TypedefType>(ParamTy))
+      PDecl = TD->getDecl();
+
+    if (const auto *A = PDecl->getAttr<KitsuneMemAccessAttr>()) {
+      if (ParamTy.getTypePtr()->isStructureOrClassType()) {
+        ErrorUnsupported(
+            Param,
+            "cannot handle kitsune memaccess attribute on a struct or class");
+        break;
+      }
+
+      llvm::Argument *Arg = Fn.getArg(ArgNo);
+      Arg->addAttr(
+          llvm::Attribute::get(getLLVMContext(), GetLLVMAttrNameFor(*A)));
+    }
+  }
 }

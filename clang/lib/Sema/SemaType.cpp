@@ -8654,6 +8654,36 @@ static void HandleOpenCLAccessAttr(QualType &CurType, const ParsedAttr &Attr,
   }
 }
 
+/// Handle Kitsune MemAccess Qualifier Attribute.
+static void HandleKitsuneMemAccessAttr(QualType &CurType,
+                                       const ParsedAttr &Attr, Sema &S) {
+
+  if (const TypedefType *TypedefTy = CurType->getAs<TypedefType>()) {
+    std::string PrevAccessQual;
+    if (TypedefTy->getDecl()->hasAttr<KitsuneMemAccessAttr>()) {
+      KitsuneMemAccessAttr *Attr =
+          TypedefTy->getDecl()->getAttr<KitsuneMemAccessAttr>();
+      PrevAccessQual = Attr->getSpelling();
+    } else {
+      PrevAccessQual = "readwrite";
+    }
+
+    StringRef AttrName = Attr.getAttrName()->getName();
+    if (PrevAccessQual == AttrName) {
+      // Duplicated qualifiers
+      S.Diag(Attr.getLoc(), diag::warn_duplicate_declspec)
+          << AttrName << Attr.getRange();
+    } else {
+      // Contradicting qualifiers
+      S.Diag(Attr.getLoc(), diag::err_kitsune_multiple_access_qualifiers);
+    }
+
+    S.Diag(TypedefTy->getDecl()->getBeginLoc(),
+           diag::note_kitsune_typedef_access_qualifier)
+        << PrevAccessQual;
+  }
+}
+
 /// HandleMatrixTypeAttr - "matrix_type" attribute, like ext_vector_type
 static void HandleMatrixTypeAttr(QualType &CurType, const ParsedAttr &Attr,
                                  Sema &S) {
@@ -9064,6 +9094,20 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
       if (TAL == TAL_DeclSpec &&
           state.getSema().HLSL().handleResourceTypeAttr(type, attr))
         attr.setUsedAsTypeAttr();
+      break;
+    }
+    case ParsedAttr::AT_KitsuneMemAccess:
+      HandleKitsuneMemAccessAttr(type, attr, state.getSema());
+      attr.setUsedAsTypeAttr();
+      break;
+    case ParsedAttr::AT_KitsuneMobile: {
+      Sema& sema = state.getSema();
+      if (not type->isPointerType()) {
+        sema.Diag(attr.getLoc(), diag::err_kitsune_mobile_on_non_pointer);
+        return;
+      }
+      type = sema.Context.getMobilePointerType(type->getPointeeType());
+      attr.setUsedAsTypeAttr();
       break;
     }
     }

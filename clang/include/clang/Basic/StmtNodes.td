@@ -326,3 +326,9 @@ def OpenACCAsteriskSizeExpr : StmtNode<Expr>;
 
 // HLSL Constructs.
 def HLSLOutArgExpr : StmtNode<Expr>;
+
+// Kitsune Extensions. 
+def ForallStmt : StmtNode<Stmt>;
+def CXXForallRangeStmt : StmtNode<Stmt>;
+def SyncStmt : StmtNode<Stmt>;
+def SpawnStmt : StmtNode<Stmt>;

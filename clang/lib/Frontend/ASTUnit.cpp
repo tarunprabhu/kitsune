@@ -101,6 +101,7 @@
 using namespace clang;
 
 using llvm::TimeRecord;
+using llvm::driver::KitsuneOptions;
 
 namespace {
 
@@ -802,7 +803,8 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
     WhatToLoad ToLoad, std::shared_ptr<DiagnosticOptions> DiagOpts,
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
     const FileSystemOptions &FileSystemOpts, const HeaderSearchOptions &HSOpts,
-    const LangOptions *LangOpts, bool OnlyLocalDecls,
+    const LangOptions *LangOpts, const KitsuneOptions* KitsuneOpts,
+    bool OnlyLocalDecls,
     CaptureDiagsKind CaptureDiagnostics, bool AllowASTWithCompilerErrors,
     bool UserFilesAreVolatile, IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS) {
   std::unique_ptr<ASTUnit> AST(new ASTUnit(true));
@@ -818,6 +820,9 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
 
   AST->LangOpts = LangOpts ? std::make_unique<LangOptions>(*LangOpts)
                            : std::make_unique<LangOptions>();
+  AST->KitsuneOpts = KitsuneOpts
+                         ? std::make_unique<KitsuneOptions>(*KitsuneOpts)
+                         : std::make_unique<KitsuneOptions>();
   AST->OnlyLocalDecls = OnlyLocalDecls;
   AST->CaptureDiagnostics = CaptureDiagnostics;
   AST->DiagOpts = DiagOpts;
@@ -842,7 +847,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   HeaderSearch &HeaderInfo = *AST->HeaderInfo;
 
   AST->PP = std::make_shared<Preprocessor>(
-      *AST->PPOpts, AST->getDiagnostics(), *AST->LangOpts,
+      *AST->PPOpts, AST->getDiagnostics(), *AST->LangOpts, *AST->KitsuneOpts,
       AST->getSourceManager(), HeaderInfo, AST->ModuleLoader,
       /*IILookup=*/nullptr,
       /*OwnsHeaderSearch=*/false);
@@ -851,7 +856,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   if (ToLoad >= LoadASTOnly)
     AST->Ctx = new ASTContext(*AST->LangOpts, AST->getSourceManager(),
                               PP.getIdentifierTable(), PP.getSelectorTable(),
-                              PP.getBuiltinInfo(),
+                              PP.getBuiltinInfo(), *AST->KitsuneOpts,
                               AST->getTranslationUnitKind());
 
   DisableValidationForModuleKind disableValid =

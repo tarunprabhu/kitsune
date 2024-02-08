@@ -30,6 +30,7 @@
 #include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
+#include "clang/Driver/Tapir.h"
 #include "clang/Driver/Types.h"
 #include "clang/Driver/XRayArgs.h"
 #include "llvm/ADT/ScopeExit.h"
@@ -197,10 +198,20 @@ static bool addExceptionArgs(const ArgList &Args, types::ID InputType,
     Arg *ExceptionArg = Args.getLastArg(
         options::OPT_fcxx_exceptions, options::OPT_fno_cxx_exceptions,
         options::OPT_fexceptions, options::OPT_fno_exceptions);
-    if (ExceptionArg)
+    // If either -fcxx-exceptions or -fexceptions was explicitly provided, then
+    // respect it in Kitsune (if it causes things to fail, it's not our problem)
+    // But if it has not, turn exceptions off only if Kokkos mode has been
+    // enabled or if a tapir target has been set.
+    const Driver &D = TC.getDriver();
+    std::optional<llvm::TapirTargetID> TT = parseTapirTargetIfValid(Args);
+    if (ExceptionArg) {
       CXXExceptionsEnabled =
           ExceptionArg->getOption().matches(options::OPT_fcxx_exceptions) ||
           ExceptionArg->getOption().matches(options::OPT_fexceptions);
+    } else if (D.IsKitsuneFrontend() &&
+               (TT.has_value() || Args.hasArg(options::OPT_kokkos))) {
+      CXXExceptionsEnabled = false;
+    }
 
     if (CXXExceptionsEnabled) {
       CmdArgs.push_back("-fcxx-exceptions");
@@ -7976,6 +7987,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
           << Str << TC.getTripleString();
     CmdArgs.push_back(Args.MakeArgString(Str));
   }
+
+  // Add the Kitsune args just before adding the source files to the generated
+  // command line. This is mainly to reduce the likelihood of the hip tapir
+  // target accidentally missing an argument since it "recreates" the command
+  // line (see clang/lib/Driver/ToolChain.cpp for details).
+  addKitsuneArgs(D, TC, Args, CmdArgs);
 
   // Add the "-o out -x type src.c" flags last. This is done primarily to make
   // the -cc1 command easier to edit when reproducing compiler crashes.

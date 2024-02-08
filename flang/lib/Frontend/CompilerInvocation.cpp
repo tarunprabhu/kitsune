@@ -1468,6 +1468,17 @@ static bool parseLangOptionsArgs(CompilerInvocation &invoc,
   return success;
 }
 
+static bool parseKitsuneArgs(CompilerInvocation &invoc, const char *argv0,
+                             const llvm::opt::ArgList &args,
+                             const llvm::opt::OptTable &opts,
+                             clang::DiagnosticsEngine &diags) {
+  bool success = true;
+
+  success &= invoc.getKitsuneOpts().parseArgsInto(argv0, args, opts, diags);
+
+  return success;
+}
+
 bool CompilerInvocation::createFromArgs(
     CompilerInvocation &invoc, llvm::ArrayRef<const char *> commandLineArgs,
     clang::DiagnosticsEngine &diags, const char *argv0) {
@@ -1575,6 +1586,11 @@ bool CompilerInvocation::createFromArgs(
     invoc.loweringOpts.setRepackArraysWhole(arg->getValue() ==
                                             llvm::StringRef{"whole"});
 
+  // Kitsune-specific options should be parsed as early as possible because they
+  // affect how the other options are initialized. For instance, if a kitsune
+  // frontend is being used, the default fp-contract value is different from
+  // that of clang's.
+  success &= parseKitsuneArgs(invoc, argv0, args, opts, diags);
   success &= parseFrontendArgs(invoc.getFrontendOpts(), args, diags);
   parseTargetArgs(invoc.getTargetOpts(), args);
   parsePreprocessorArgs(invoc.getPreprocessorOpts(), args);

@@ -16,6 +16,7 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Compiler.h"
@@ -70,6 +71,9 @@ struct LoopAttributes {
   /// llvm.unroll.
   unsigned UnrollAndJamCount;
 
+  /// tapir.loop.grainsize.
+  unsigned TapirGrainSize;
+
   /// Value for llvm.loop.distribute.enable metadata.
   LVEnableState DistributeEnable;
 
@@ -84,6 +88,14 @@ struct LoopAttributes {
 
   /// Value for whether the loop is required to make progress.
   bool MustProgress;
+
+  /// Value for tapir.loop.spawn.strategy metadata.
+  llvm::TapirSpawnStrategy SpawnStrategy;
+
+  /// Value for tapir.loop.target metadata.
+  std::optional<llvm::TapirTargetID> LoopTarget;
+
+  unsigned int ThreadsPerBlock = 0;
 };
 
 /// Information used when generating a structured loop.
@@ -181,6 +193,8 @@ private:
   createFullUnrollMetadata(const LoopAttributes &Attrs,
                            llvm::ArrayRef<llvm::Metadata *> LoopProperties,
                            bool &HasUserTransforms);
+  std::vector<llvm::Metadata *>
+  getTapirLoopProperties(const LoopAttributes &Attrs);
 
   /// @}
 
@@ -298,6 +312,24 @@ public:
   /// Set no progress for the next loop pushed.
   void setMustProgress(bool P) { StagedAttrs.MustProgress = P; }
 
+  /// Set the Tapir-loop spawning strategy for the next loop pushed.
+  void setSpawnStrategy(const llvm::TapirSpawnStrategy &Strategy) {
+    StagedAttrs.SpawnStrategy = Strategy;
+  }
+
+  /// Set the Tapir-loop grainsize for the next loop pushed.
+  void setTapirGrainSize(unsigned C) { StagedAttrs.TapirGrainSize = C; }
+
+  /// Set the Tapir loop target
+  void setLoopTarget(std::optional<llvm::TapirTargetID> LT) {
+    StagedAttrs.LoopTarget = LT;
+  }
+
+  void setLoopThreadsPerBlock(unsigned TPB) {
+    StagedAttrs.ThreadsPerBlock = TPB;
+  }
+
+private:
   /// Returns true if there is LoopInfo on the stack.
   bool hasInfo() const { return !Active.empty(); }
   /// Return the LoopInfo for the current loop. HasInfo should be called

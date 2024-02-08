@@ -51,6 +51,10 @@ class FixedPointSemantics;
 struct fltSemantics;
 template <typename T, unsigned N> class SmallPtrSet;
 
+namespace driver {
+class KitsuneOptions;
+}
+
 } // namespace llvm
 
 namespace clang {
@@ -687,6 +691,9 @@ private:
   ///  this ASTContext object.
   LangOptions &LangOpts;
 
+  /// The Kitsune options that have been set.
+  llvm::driver::KitsuneOptions &KitsuneOpts;
+
   /// NoSanitizeList object that is used by sanitizers to decide which
   /// entities should not be instrumented.
   std::unique_ptr<NoSanitizeList> NoSanitizeL;
@@ -884,6 +891,10 @@ public:
   bool AtomicUsesUnsupportedLibcall(const AtomicExpr *E) const;
 
   const LangOptions& getLangOpts() const { return LangOpts; }
+
+  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
+    return KitsuneOpts;
+  }
 
   // If this condition is false, typo correction must be performed eagerly
   // rather than delayed in many places, as it makes use of dependent types.
@@ -1309,6 +1320,7 @@ public:
 
   ASTContext(LangOptions &LOpts, SourceManager &SM, IdentifierTable &idents,
              SelectorTable &sels, Builtin::Context &builtins,
+             llvm::driver::KitsuneOptions &KOpts,
              TranslationUnitKind TUKind);
   ASTContext(const ASTContext &) = delete;
   ASTContext &operator=(const ASTContext &) = delete;
@@ -1510,6 +1522,13 @@ public:
   QualType getPointerType(QualType T) const;
   CanQualType getPointerType(CanQualType T) const {
     return CanQualType::CreateUnsafe(getPointerType((QualType) T));
+  }
+
+  /// Return the uniqued reference to the type for a mobile pointer to the
+  /// specified type.
+  QualType getMobilePointerType(QualType T) const;
+  CanQualType getMobilePointer(CanQualType T) const {
+    return CanQualType::CreateUnsafe(getMobilePointerType((QualType) T));
   }
 
   QualType
@@ -1983,6 +2002,13 @@ public:
                                                 QualType DeducedType,
                                                 bool IsDependent) const;
 
+private:
+  QualType getDeducedTemplateSpecializationTypeInternal(TemplateName Template,
+                                                        QualType DeducedType,
+                                                        bool IsDependent,
+                                                        QualType Canon) const;
+
+public:
   /// Return the unique reference to the type for the specified TagDecl
   /// (struct/union/class/enum) decl.
   QualType getTagDeclType(const TagDecl *Decl) const;

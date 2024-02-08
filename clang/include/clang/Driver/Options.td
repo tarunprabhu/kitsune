@@ -201,6 +201,13 @@ def hlsl_Group : OptionGroup<"<HLSL group>">, Group<f_Group>,
                    DocName<"HLSL options">,
                    Visibility<[ClangOption]>;
 
+def kitsune_Group : OptionGroup<"<Kitsune-specific option group>">,
+                    DocName<"Kitsune options">,
+                    DocBrief<[{
+Options that are specific to the Kitsune frontends (kitcc, kit++, kitfc). These
+may not be used with any other frontends.
+}]>;
+
 // Feature groups - these take command line options that correspond directly to
 // target specific features and can be translated directly from command line
 // options.
@@ -5368,7 +5375,8 @@ defm tgsplit : SimpleMFlag<"tgsplit", "Enable", "Disable",
   " threadgroup split execution mode (AMDGPU only)", m_amdgpu_Features_Group>;
 defm wavefrontsize64 : SimpleMFlag<"wavefrontsize64",
   "Specify wavefront size 64", "Specify wavefront size 32",
-  " mode (AMDGPU only)">;
+  " mode (AMDGPU only)">,
+  Visibility<[ClangOption, FlangOption]>;
 defm amdgpu_precise_memory_op
     : SimpleMFlag<"amdgpu-precise-memory-op", "Enable", "Disable",
                   " precise memory mode (AMDGPU only)">;
@@ -9447,3 +9455,242 @@ def wasm_opt : Flag<["--"], "wasm-opt">,
   Group<m_Group>,
   HelpText<"Enable the wasm-opt optimizer (default)">,
   MarshallingInfoNegativeFlag<LangOpts<"NoWasmOpt">>;
+
+// =============================================================================
+//
+//                              Kitsune options
+//
+// -----------------------------------------------------------------------------
+//
+// Some considerations to keep in mind when adding new options here:
+//
+//   - The RenderStyle for any new options that are added to this must be
+//     "Joined"
+//
+//   - A double-dash before the options should be preferred instead of a single
+//      dash. This is for consistency with other tools such as opt and lld
+//
+//   - Avoid prefixing options with -f unless the intention is to make the
+//     option available to "vanilla" clang/flang
+//
+//   - New options should be added to the kitsune_Group defined below. This will
+//     ensure that a Kitsune frontend (kitcc, kit++, kitfc etc.) is used when
+//     compiling with these options. In general, this is what we want since the
+//     Kitsune frontends have different defaults for certain options such as
+//     -ffp-contract=
+//
+// Ideally, we would like to share the option definitions with those tools, but
+// each tool uses a slightly different tablegen syntax, so everything has to be
+// kept in sync manually.
+//
+//==============================================================================
+
+let Group = kitsune_Group in {
+
+def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">,
+  Flags<[NoXarchOption, HelpHidden]>,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Directory for kitsune's configuration files">;
+
+def kokkos : Flag<["--"], "kokkos">,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"Enable custom parsing and code generation of some Kokkos "
+           "constructs">;
+
+def fkokkos : Flag<["-"], "fkokkos">, Alias<kokkos>,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"DEPRECATED: Use --kokkkos">;
+
+def kokkos_no_init : Flag<["--"], "kokkos-no-init">,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"Skip generation of Kokkos initialization (and finalize) calls.">;
+
+def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Alias<kokkos_no_init>,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"DEPRECATED: Use --kokkos-no-init">;
+
+def kitrt_verbose: Joined<["--"], "kitrt-verbose">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Enable verbose mode in kitsune's runtime">;
+
+def tapir_EQ : Joined<["--"], "tapir=">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  MetaVarName<"<target>">,
+  Values<"none,serial,cuda,hip,opencilk">,
+  HelpText<"The tapir target">;
+
+def ftapir_EQ : Joined<["-"], "ftapir=">, Alias<tapir_EQ>,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"DEPRECATED: Use --tapir=">;
+
+def tapir_verbose: Joined<["--"], "tapir-verbose">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Enable verbose mode in all tapir targets. This also enables "
+           "verbose mode in the runtime i.e. it implies --kitrt-verbose">;
+
+def tapir_gpu_tpb_EQ: Joined<["--"], "tapir-gpu-tpb=">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  MetaVarName<"<N>">,
+  HelpText<"Use a fixed number of threads per block for all GPU kernel "
+           "launches unless overridden with pragmas. If this is not provided "
+           "the threads per block will be calculated by Kitsune's runtime. "
+           "Can be at most 1024">;
+
+def tapir_gpu_max_tpb_EQ: Joined<["--"], "tapir-gpu-max-tpb=">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  MetaVarName<"<N>">,
+  HelpText<"The maximum number of threads per block to launch. If this is not "
+           "provided, Kitsune's runtime is free to launch as many threads per "
+           "block as it sees fit">;
+
+def tapir_gpu_prefetch : Flag<["--"], "tapir-gpu-prefetch">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Enable generation of prefetch calls to move managed memory between "
+           "host and GPU (default)">;
+
+def tapir_gpu_no_prefetch : Flag<["--"], "tapir-gpu-no-prefetch">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Disable generation of prefetch calls to move managed memory between "
+           "host and GPU">;
+
+def tapir_cuda_arch_EQ : Joined<["--"], "tapir-cuda-arch=">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  Default<"">, MetaVarName<"<arch>">,
+  HelpText<"The NVIDIA GPU architecture for the cuda tapir target">;
+
+// This is generated by the driver from --tapir-cuda-arch=.
+def tapir_cuda_virt_arch_EQ : Joined<["--"], "tapir-cuda-virt-arch=">,
+  Visibility<[CC1Option, FC1Option]>,
+  MetaVarName<"<arch>">,
+  HelpText<"The NVIDIA GPU virtual architecture for the current cuda "
+           "architecture">;
+
+// This is generated by the driver from --tapir-cuda-arch=. This generally only
+// contains the PTX version to be used.
+def tapir_cuda_features_EQ : Joined<["--"], "tapir-cuda-features=">,
+  Visibility<[CC1Option, FC1Option]>,
+  MetaVarName<"<features>">,
+  HelpText<"The target features for the current cuda architecture. This is of "
+           "the form '+feature1,+feature2,...'">;
+
+// This is generated by the driver.
+def tapir_cuda_runtime_bc_EQ : Joined<["--"], "tapir-cuda-runtime-bc=">,
+  Visibility<[CC1Option, FC1Option]>,
+  MetaVarName<"<file>">,
+  HelpText<"Path to the cuda runtime bitcode file">;
+
+def tapir_hip_arch_EQ : Joined<["--"], "tapir-hip-arch=">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  Default<"">, MetaVarName<"<arch>">,
+  HelpText<"The AMDGPU architecture for the hip tapir target">;
+
+// FIXME: The default value of this option is set to 'on', but it really ought
+// to be 'any'. More details follow:
+//
+// This is set to 'on' by default temporarily. Prior to LLVM 20, the only way
+// to control xnack was with the -mllvm -enable-sramecc=[[true]|false], which
+// is a commandl line argument defined in hipabi. That option has been
+// deprecated and this is the preferred method. The default sould be switched
+// to 'any' after a transition period.
+def tapir_hip_sramecc_EQ : Joined<["--"], "tapir-hip-sramecc=">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  Default<"on">, MetaVarName<"<status>">,
+  Values<"on,off,any">,
+  HelpText<"Setting this to 'on' enables xnack (equivalent to sramecc+), 'off'"
+           "disables sramecc (equivalent to sramecc-). Either of these values "
+           "will generate code that will only work on a processor with a "
+           "matching value of sramecc. The device on which the code is to be "
+           "executed must support sramecc if enabled. Setting this to 'any' "
+           "will leave the value of sramecc unspecified. This will generate "
+           "code that can be executed in a process with either setting of "
+           "sramcc enabled">;
+
+// FIXME: The value of this option is set to 'on', but it really ought to be
+// 'any'. More details follow:
+//
+// This is set to 'on' by default temporarily. Prior to LLVM 20, the only way
+// to control xnack was with the -mllvm -enable-sramecc=[[true]|false], which
+// is a commandl line argument defined in hipabi. That option has been
+// deprecated and this is the preferred method. The default sould be switched
+// to 'any' after a transition period.
+def tapir_hip_xnack_EQ : Joined<["--"], "tapir-hip-xnack=">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  Default<"on">, MetaVarName<"<status>">,
+  Values<"on,off,any">,
+  HelpText<"Setting this to 'on' enables xnack (equivalent to xnack+), 'off'"
+           "disables xnack (equivalent to xnack-). Either of these values "
+           "will generate code that will only work on a processor with a "
+           "matching value of xnack. The device on which the code is to be "
+           "executed must support xnack if enabled. Setting this to 'any' will "
+           "leave the value of xnack unspecified. This will generate code that "
+           "can be executed in a process with either setting of xnack replay "
+           "enabled">;
+
+// This is generated by the driver from --tapir-hip-arch=.
+def tapir_hip_features_EQ : Joined<["--"], "tapir-hip-features=">,
+  Visibility<[CC1Option, FC1Option]>,
+  HelpText<"The target features for the AMDGPU. This is determined from the "
+           "architecture of the GPU for which code is being generated. But it "
+           "is provided in case it needs to be overridden">;
+
+// This is generated by the driver from the value of --tapir-hip-arch= and any
+// other options that have been passed.
+def tapir_hip_runtime_bcs_EQ : Joined<["--"], "tapir-hip-runtime-bcs=">,
+  Visibility<[CC1Option, FC1Option]>,
+  MetaVarName<"<files>">,
+  HelpText<"A semicolon separated list of bitcode files needed by the hip "
+           "tapir target">;
+
+def tapir_hip_rocm_abi_EQ : Joined<["--"], "tapir-hip-abi-version=">,
+  Alias<mcode_object_version_EQ>,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  MetaVarName<"<version>">,
+  HelpText<"Alias for -mcode-object-version=">;
+
+def tapir_hip_wavefront64 : Flag<["--"], "tapir-hip-wavefront64">,
+  Alias<mwavefrontsize64>,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Alias for -mwavefrontsize64">;
+
+def tapir_hip_wavefront32 : Flag<["--"], "tapir-hip-wavefront32">,
+  Alias<mno_wavefrontsize64>,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Alias for -mno-wavefrontsize64">;
+
+// There is a fair bit of logic that looks for the correct bitcode file to use
+// depending on the current target. While that could be internalized, having
+// this option is very useful for the tests because we can point to a dummy
+// bitcode file and stop it from producing the "wrong" error (for instance
+// because we were checking that the frontend does not error out on supported
+// platforms).
+def tapir_opencilk_runtime_bc_EQ : Joined<["--"], "tapir-opencilk-runtime-bc=">,
+  Visibility<[CC1Option, FC1Option]>,
+  MetaVarName<"<file>">,
+  HelpText<"Path to OpenCilk ABI bitcode file">;
+
+def tapir_opencilk_abi_bc_EQ : Joined<["-"], "tapir-opencilk-abi-bc=">,
+  Alias<tapir_opencilk_runtime_bc_EQ>,
+  Visibility<[CC1Option, FC1Option]>,
+  HelpText<"DEPRECATED: Use --tapir-opencilk-runtime-bc=">;
+
+def tapir_lld_EQ : Joined<["--"], "tapir-lld=">,
+  Visibility<[CC1Option, FC1Option]>,
+  MetaVarName<"dir">,
+  HelpText<"Absolute path to lld that was built with Kitsune. This may be the "
+           "path to the linker in the build directory">;
+
+def static_libkitrt : Flag<["-"], "static-libkitrt">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Statically link Kitsune's runtime">;
+
+// It would be nice if we could use one of the Bool*Option classes, but they
+// expect the option to be marshalled directly. We don't have that enabled
+// right now, so we have to do it the ugly way.
+def fstripmine : Flag<["-"], "fstripmine">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Enable the loop strip-mining pass (Kitsune only)">;
+
+def fno_stripmine : Flag<["-"], "fno-stripmine">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Disable the loop strip-mining pass (Kitsune only)">;
+}

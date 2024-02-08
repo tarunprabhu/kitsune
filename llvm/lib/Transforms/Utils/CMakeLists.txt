@@ -85,6 +85,9 @@ add_llvm_component_library(LLVMTransformUtils
   SplitModule.cpp
   StripNonLineTableDebugInfo.cpp
   SymbolRewriter.cpp
+  TapirUtils.cpp
+  TaskCanonicalize.cpp
+  TaskSimplify.cpp
   UnifyFunctionExitNodes.cpp
   UnifyLoopExits.cpp
   Utils.cpp
@@ -103,4 +106,5 @@ add_llvm_component_library(LLVMTransformUtils
   Core
   Support
   TargetParser
+  FrontendTapir
   )

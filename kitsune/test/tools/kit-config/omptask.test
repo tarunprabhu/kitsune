@@ -1,0 +1,7 @@
+# REQUIRES: kitsune-omptask
+#
+# RUN: %kitconf --omptask-target | FileCheck %s -check-prefix ON
+# RUN: %kitconf --tapir-targets | FileCheck %s -check-prefix TARGETS
+#
+# ON: ON
+# TARGETS: omptask

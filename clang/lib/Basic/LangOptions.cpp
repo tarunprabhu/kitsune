@@ -186,7 +186,14 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
 
   Opts.HIP = Lang == Language::HIP;
   Opts.CUDA = Lang == Language::CUDA || Opts.HIP;
-  if (Opts.HIP) {
+  if (Opts.IsKitsune) {
+    // When using a Kitsune frontend, the default FP contract mode is always ON.
+    // This attempts to keep things consistent when compiling for CPU and GPU
+    // simultaneously. We could have considered being consistent with clang and
+    // setting the value depending on the tapir target, but we decided against
+    // it.
+    Opts.setDefaultFPContractMode(LangOptions::FPM_On);
+  } else if (Opts.HIP) {
     // HIP toolchain does not support 'Fast' FPOpFusion in backends since it
     // fuses multiplication/addition instructions without contract flag from
     // device library functions in LLVM bitcode, which causes accuracy loss in

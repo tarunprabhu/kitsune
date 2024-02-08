@@ -289,6 +289,11 @@ std::string complexRangeKindToStr(LangOptions::ComplexRangeKind Range);
 // Render a frontend option corresponding to ComplexRangeKind.
 std::string renderComplexRangeOption(LangOptions::ComplexRangeKind Range);
 
+/// Handle the Kitsune-specific options.
+void addKitsuneArgs(const Driver &D, const ToolChain &TC,
+                    const llvm::opt::ArgList &Args,
+                    llvm::opt::ArgStringList &CmdArgs);
+
 } // end namespace tools
 } // end namespace driver
 } // end namespace clang

@@ -10642,7 +10642,7 @@ def warn_dangling_reference_captured_by_unknown : Warning<
    "the full-expression">, InGroup<DanglingCapture>;
 
 def warn_experimental_lifetime_safety_dummy_warning : Warning<
-   "todo: remove this warning after we have atleast one warning based on the lifetime analysis">, 
+   "todo: remove this warning after we have atleast one warning based on the lifetime analysis">,
    InGroup<LifetimeSafety>, DefaultIgnore;
 
 // For non-floating point, expressions of the form x == x or x != x
@@ -12540,7 +12540,7 @@ def warn_zero_as_null_pointer_constant : Warning<
   InGroup<DiagGroup<"zero-as-null-pointer-constant">>, DefaultIgnore;
 
 def warn_not_eliding_copy_on_return : Warning<
-  "not eliding copy on return">, 
+  "not eliding copy on return">,
   InGroup<DiagGroup<"nrvo">>, DefaultIgnore;
 
 def err_nullability_cs_multilevel : Error<
@@ -13482,4 +13482,77 @@ def err_acc_device_type_multiple_archs
 // AMDGCN builtins diagnostics
 def err_amdgcn_load_lds_size_invalid_value : Error<"invalid size value">;
 def note_amdgcn_load_lds_size_valid_value : Note<"size must be %select{1, 2, or 4|1, 2, 4, 12 or 16}0">;
+
+// -----------------------------------------------------------------------------
+//                         Kitsune-specific diagnostics
+// -----------------------------------------------------------------------------
+
+def note_ovl_candidate_no_mobile: Note<
+    "candidate %sub{select_ovl_candidate_kind}0,1,2 not viable: "
+    "%ordinal4 argument (%3) does not accept mobile pointer. Consider using "
+    "__kitsune_unsafe_cast">;
+def note_ovl_candidate_with_mobile: Note<
+    "candidate %sub{select_ovl_candidate_kind}0,1,2 not viable: "
+    "%ordinal4 argument (%3) requires mobile pointer">;
+
+// target attribute
+def err_tapir_target_attr_unsupported_stmt: Error<
+  "tapir target attribute on unsupported statement">;
+def err_tapir_target_unknown: Error<
+  "unknown tapir target">;
+
+// execution strategy/policy
+def err_tapir_strategy_unknown: Error<
+  "statement using unknown strategy attribute">;
+
+// cuda launch parameters
+def err_kitsune_launch_non_integral_type: Error<
+  "launch attribute: threads-per-block must be a built-in integer type">;
+def err_kitsune_launch_tpb_too_large: Error<
+  "launch attribute: threads-per-block must be a 32-bit value">;
+def err_kitsune_launch_tpb_must_be_positive: Error<
+  "launch attribute: threads-per-block must be a positive integer value">;
+
+// spawn + sync
+def warn_spawn_as_loop_body: Warning<
+  "%0 loop with spawn statement body has undefined behavior">,
+  InGroup<Kitsune>;
+def err_spawn_in_forall: Error<
+  "spawn statements are not allowed in forall loops">;
+
+// forall
+def err_forall_no_init: Error<
+  "forall statement must have an initialization expression">;
+def err_forall_no_cond: Error<
+  "forall statement must have a condition expression">;
+def err_forall_no_inc: Error<
+  "forall statement must have an increment expression">;
+def err_forall_has_break: Error<
+  "forall body may not have a break statement">;
+def err_forall_init_not_decl: Error<
+  "initializer in a forall statement must be a variable declaration">;
+def err_forall_init_multiple: Error<
+  "initializer in a forall statement must declare exactly one variable">;
+
+// memory access qualifiers
+def err_kitsune_multiple_access_qualifiers : Error<
+  "multiple access qualifiers">;
+def note_kitsune_typedef_access_qualifier : Note<
+  "previously declared '%0' here">;
+
+// mobile attribute
+def err_kitsune_mobile_on_non_pointer : Error<
+  "'kitsune::mobile' can only be used on a pointer type">;
+def err_kitsune_cast_to_mobile : Error<
+  "cast to a kitsune::mobile pointer is not allowed">;
+def err_kitsune_cast_away_mobile : Error<
+  "%0 cannot be used to cast away mobile qualifier. Use c-style cast "
+  "instead">;
+
+// mobile builtins
+def err_kitsune_mobile_free_arg : Error<
+  "argument of kitsune_mobile_free must have mobile qualifier">;
+def err_kitsune_mobile_cast_arg: Error<
+  "argument of __kitsune_mobile_cast_arg must be a non-mobile pointer">;
+
 } // end of sema component.

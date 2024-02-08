@@ -1,0 +1,7 @@
+# REQUIRES: kitsune-openmp
+#
+# RUN: %kitconf --openmp-target | FileCheck %s -check-prefix ON
+# RUN: %kitconf --tapir-targets | FileCheck %s -check-prefix TARGETS
+#
+# ON: ON
+# TARGETS: openmp

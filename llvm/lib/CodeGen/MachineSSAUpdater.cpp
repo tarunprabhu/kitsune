@@ -317,6 +317,19 @@ public:
     return NewDef->getOperand(0).getReg();
   }
 
+  /// BlockReattaches - Always returns false, because machine basic blocks
+  /// should never contain Tapir instructions.
+  static bool BlockReattaches(MachineBasicBlock *BB,
+                              MachineSSAUpdater *Updater) {
+    return false;
+  }
+
+  /// BlockDetaches - Always returns false, because machine basic blocks
+  /// should never contain Tapir instructions.
+  static bool BlockDetaches(MachineBasicBlock *BB, MachineSSAUpdater *Updater) {
+    return false;
+  }
+
   /// CreateEmptyPHI - Create a PHI instruction that defines a new register.
   /// Add it into the specified block and return the register.
   static Register CreateEmptyPHI(MachineBasicBlock *BB, unsigned NumPreds,
@@ -362,6 +375,12 @@ public:
   static Register GetPHIValue(MachineInstr *PHI) {
     return PHI->getOperand(0).getReg();
   }
+
+  static void MarkDetachedDef(unsigned Val, MachineBasicBlock *BB,
+                              MachineSSAUpdater *Updater) {
+    return;
+  }
+
 };
 
 } // end namespace llvm

@@ -1,0 +1,29 @@
+//===- TapirToTarget.h - Lower Tapir to target ABI --------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This pass lowers Tapir construct to a specified runtime ABI.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_TRANSFORMS_TAPIR_TAPIRTOTARGET_H
+#define LLVM_TRANSFORMS_TAPIR_TAPIRTOTARGET_H
+
+#include "llvm/Frontend/Tapir/Tapir.h"
+#include "llvm/IR/PassManager.h"
+
+namespace llvm {
+
+/// The TapirToTarget Pass.
+struct TapirToTargetPass : public PassInfoMixin<TapirToTargetPass> {
+  /// \brief Run the pass over the module.
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+};
+
+} // end namespace llvm
+
+#endif // LLVM_TRANSFORMS_TAPIR_TAPIRTOTARGET_H

@@ -428,6 +428,7 @@ enum Qualifiers {
   QualConst = 0x1,
   QualVolatile = 0x2,
   QualRestrict = 0x4,
+  QualMobile = 0x8,
 };
 
 inline Qualifiers operator|=(Qualifiers &Q1, Qualifiers Q2) {
@@ -446,6 +447,8 @@ protected:
       OB += " volatile";
     if (Quals & QualRestrict)
       OB += " restrict";
+    if (Quals & QualMobile)
+      OB += " __mobile__";
   }
 
 public:
@@ -4204,11 +4207,13 @@ Node *AbstractManglingParser<Derived, Alloc>::parseType() {
   //             ::= <qualified-type>
   case 'r':
   case 'V':
-  case 'K': {
+  case 'K':
+  case 'Y': {
     unsigned AfterQuals = 0;
     if (look(AfterQuals) == 'r') ++AfterQuals;
     if (look(AfterQuals) == 'V') ++AfterQuals;
     if (look(AfterQuals) == 'K') ++AfterQuals;
+    if (look(AfterQuals) == 'Y') ++AfterQuals;
 
     if (look(AfterQuals) == 'F' ||
         (look(AfterQuals) == 'D' &&
@@ -4710,7 +4715,7 @@ Node *AbstractManglingParser<Derived, Alloc>::parseIntegerLiteral(
   return nullptr;
 }
 
-// <CV-Qualifiers> ::= [r] [V] [K]
+// <CV-Qualifiers> ::= [r] [V] [K] [Y]
 template <typename Alloc, typename Derived>
 Qualifiers AbstractManglingParser<Alloc, Derived>::parseCVQualifiers() {
   Qualifiers CVR = QualNone;
@@ -4720,6 +4725,8 @@ Qualifiers AbstractManglingParser<Alloc, Derived>::parseCVQualifiers() {
     CVR |= QualVolatile;
   if (consumeIf('K'))
     CVR |= QualConst;
+  if (consumeIf('Y'))
+    CVR |= QualMobile;
   return CVR;
 }
 

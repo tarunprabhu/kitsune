@@ -4074,22 +4074,68 @@ bool X86InstrInfo::analyzeBranchPredicate(MachineBasicBlock &MBB,
 
 unsigned X86InstrInfo::removeBranch(MachineBasicBlock &MBB,
                                     int *BytesRemoved) const {
+  return removeBranchImpl(MBB, BytesRemoved, false);
+}
+
+unsigned X86InstrInfo::removeBranchAndFlags(MachineBasicBlock &MBB,
+                                            int *BytesRemoved) const {
+  return removeBranchImpl(MBB, BytesRemoved, true);
+}
+
+unsigned X86InstrInfo::removeBranchImpl(MachineBasicBlock &MBB,
+                                    int *BytesRemoved,
+                                    bool DeleteFlags) const {
   assert(!BytesRemoved && "code size not handled");
 
+  const X86RegisterInfo *TRI = &getRegisterInfo();
   MachineBasicBlock::iterator I = MBB.end();
   unsigned Count = 0;
+  bool FlagsDead = false;
 
   while (I != MBB.begin()) {
     --I;
     if (I->isDebugInstr())
       continue;
-    if (I->getOpcode() != X86::JMP_1 &&
-        X86::getCondFromBranch(*I) == X86::COND_INVALID)
-      break;
-    // Remove the branch.
-    I->eraseFromParent();
-    I = MBB.end();
-    ++Count;
+    if (I->getOpcode() == X86::JMP_1) {
+      // Remove the branch.
+      I->eraseFromParent();
+      I = MBB.end();
+      ++Count;
+      continue;
+    }
+    if (X86::getCondFromBranch(*I) != X86::COND_INVALID) {
+      if (DeleteFlags && I->killsRegister(X86::EFLAGS, TRI)) {
+        FlagsDead = true;
+      }
+      // Remove the branch.
+      I->eraseFromParent();
+      I = MBB.end();
+      ++Count;
+      continue;
+    }
+    if (!FlagsDead)
+      continue;
+    if (I->hasUnmodeledSideEffects() || I->readsRegister(X86::EFLAGS, TRI)) {
+      FlagsDead = false;
+      continue;
+    }
+    if (I->modifiesRegister(X86::EFLAGS, TRI)) {
+      /* This is like allDefsAreDead but ignores EFLAGS. */
+      for (const MachineOperand &MO : I->operands()) {
+        if (MO.isReg() && MO.getReg().id() != X86::EFLAGS && !MO.isUse() &&
+            !MO.isDead()) {
+          FlagsDead = false;
+          break;
+        }
+      }
+      if (FlagsDead) {
+        FlagsDead = false;
+        I->eraseFromParent();
+        I = MBB.end();
+        ++Count;
+        continue;
+      }
+    }
   }
 
   return Count;

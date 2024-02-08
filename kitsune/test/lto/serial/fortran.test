@@ -1,0 +1,16 @@
+# REQUIRES: kitfc
+#
+# FIXME: Support to lower DO loops using tapir instructions has not been
+# implemented yet.
+# XFAIL: *
+#
+# Check a standard "end-to-end" lowering using LTO. With the serial tapir
+# target, the markers for "successful lowering using Tapir" are a bit fuzzy,
+# so just check that the tapir instructions were removed.
+#
+# RUN: %kitfc -ftapir=serial -O2 -flto -Wl,--lto-emit-llvm -o - %sysroot \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
+# RUN:     | llvm-dis \
+# RUN:     | FileCheck %s
+#
+# CHECK-NOT: reattach

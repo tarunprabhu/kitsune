@@ -263,6 +263,9 @@ public:
   virtual void getPeelingPreferences(Loop *, ScalarEvolution &,
                                      TTI::PeelingPreferences &) const {}
 
+  virtual void getStripMiningPreferences(Loop *, ScalarEvolution &,
+                                         TTI::StripMiningPreferences &) const {}
+
   virtual bool isLegalAddImmediate(int64_t Imm) const { return false; }
 
   virtual bool isLegalAddScalableImmediate(int64_t Imm) const { return false; }
@@ -918,6 +921,12 @@ public:
     case Intrinsic::threadlocal_address:
     case Intrinsic::experimental_widenable_condition:
     case Intrinsic::ssa_copy:
+    case Intrinsic::syncregion_start:
+    case Intrinsic::taskframe_create:
+    case Intrinsic::taskframe_use:
+    case Intrinsic::taskframe_end:
+    case Intrinsic::taskframe_load_guard:
+    case Intrinsic::sync_unwind:
       // These intrinsics don't actually represent code after lowering.
       return 0;
     }
@@ -1657,6 +1666,11 @@ public:
       Type *DstTy = Operands[0]->getType();
       return TargetTTI->getVectorInstrCost(*EEI, DstTy, CostKind, Idx);
     }
+    case Instruction::Detach:
+      // Ideally, we'd determine the number of arguments of the detached task.
+      // But because that computation is expensive, we settle for 30x the basic
+      // cost of a function call.
+      return 30 * TTI::TCC_Basic;
     }
 
     // By default, just classify everything remaining as 'basic'.

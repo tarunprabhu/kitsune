@@ -453,6 +453,8 @@ public:
 
   unsigned removeBranch(MachineBasicBlock &MBB,
                         int *BytesRemoved = nullptr) const override;
+  unsigned removeBranchAndFlags(MachineBasicBlock &MBB,
+                                int *BytesRemoved = nullptr) const override;
   unsigned insertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                         MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
                         const DebugLoc &DL,
@@ -698,6 +700,9 @@ protected:
                              int FI) const override;
 
 private:
+  unsigned removeBranchImpl(MachineBasicBlock &MBB, int *BytesRemoved,
+                            bool DeleteFlags) const;
+
   /// This is a helper for convertToThreeAddress for 8 and 16-bit instructions.
   /// We use 32-bit LEA to form 3-address code by promoting to a 32-bit
   /// super-register and then truncating back down to a 8/16-bit sub-register.

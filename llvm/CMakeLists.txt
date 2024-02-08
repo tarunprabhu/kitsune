@@ -25,6 +25,16 @@ if (NOT PACKAGE_VERSION)
     "${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX}")
 endif()
 
+if(NOT DEFINED TAPIR_VERSION_MAJOR)
+  set(TAPIR_VERSION_MAJOR 1)
+endif()
+if(NOT DEFINED TAPIR_VERSION_MINOR)
+  set(TAPIR_VERSION_MINOR 0)
+endif()
+if(NOT DEFINED TAPIR_VERSION_PATCH)
+  set(TAPIR_VERSION_PATCH 0)
+endif()
+
 if(NOT DEFINED LLVM_SHLIB_SYMBOL_VERSION)
   # "Symbol version prefix for libLLVM.so and libclang-cpp.so"
   set(LLVM_SHLIB_SYMBOL_VERSION "LLVM_${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}")
@@ -109,7 +119,7 @@ endif()
 # This allows an easy way of setting up a build directory for llvm and another
 # one for llvm+clang+... using the same sources.
 # These projects will be included when "all" is included in LLVM_ENABLE_PROJECTS.
-set(LLVM_ALL_PROJECTS "bolt;clang;clang-tools-extra;compiler-rt;cross-project-tests;libclc;lld;lldb;mlir;openmp;polly")
+set(LLVM_ALL_PROJECTS "bolt;clang;clang-tools-extra;compiler-rt;cross-project-tests;kitsune;libclc;lld;lldb;mlir;openmp;polly")
 if (${CMAKE_SYSTEM_NAME} MATCHES "AIX")
   # Disallow 'openmp' as a LLVM PROJECT on AIX as the supported way is to use
   # LLVM_ENABLE_RUNTIMES.
@@ -243,6 +253,281 @@ if("${LIBC_TARGET_TRIPLE}" STREQUAL "amdgcn-amd-amdhsa" OR
    "${LIBC_TARGET_TRIPLE}" STREQUAL "nvptx64-nvidia-cuda")
   set(LLVM_LIBC_GPU_BUILD ON)
 endif()
+
+# ----------------------- KITSUNE SPECIFIC CONFIGURATION -----------------------
+
+# Kitsune and the runtimes associated with some of its tapir targets are either
+# known to not support certain platforms. Kitsune itself is only tested on a
+# limited number of systems. We error out early on those that we know for
+# certain are not supported. We may want to provide a different error message
+# for systems on which Kitsune might work but that we have not tested.
+if (WIN32)
+  message(FATAL_ERROR "Kitsune is not supported on Windows")
+endif ()
+
+# For now, the kitsune version tracks the LLVM version, except that the major
+# version of Kitsune is 0 and the minor version is the same as LLVM's major
+# version. We use LLVM's version suffix which we will probably continue doing
+# even if we ever reach version 1.0 for Kitsune.
+if(NOT DEFINED KITSUNE_VERSION_MAJOR)
+  set(KITSUNE_VERSION_MAJOR 0)
+endif()
+if(NOT DEFINED KITSUNE_VERSION_MINOR)
+  set(KITSUNE_VERSION_MINOR ${LLVM_VERSION_MAJOR})
+endif()
+if(NOT DEFINED KITSUNE_VERSION_PATCH)
+  set(KITSUNE_VERSION_PATCH 0)
+endif()
+if(NOT DEFINED KITSUNE_VERSION_SUFFIX)
+  set(KITSUNE_VERSION_SUFFIX ${LLVM_VERSION_SUFFIX})
+endif()
+
+if (NOT KITSUNE_PACKAGE_VERSION)
+  set(KITSUNE_PACKAGE_VERSION
+    "${KITSUNE_VERSION_MAJOR}.${KITSUNE_VERSION_MINOR}.${KITSUNE_VERSION_PATCH}${KITSUNE_VERSION_SUFFIX}")
+endif()
+
+# Names of the kitsune frontends.
+set(KITSUNE_C_FRONTEND kitcc)
+set(KITSUNE_CXX_FRONTEND kit++)
+set(KITSUNE_Fortran_FRONTEND kitfc)
+
+# Make sure kitsune, and everything it needs is always enabled. We could just
+# set the default for LLVM_ENABLE_PROJECTS to include these projects, but we
+# want to make as few changes in this file as possible. Besides, that list is
+# intended to be overridden at build time.
+#
+# We keep kitsune as part of the projects mechanism because doing so sets some
+# other variables that are needed to for correct operation. We could probably do
+# all of that ourselves, but using the projects mechanism isn't too cumbersome,
+# so we might as well use it.
+#
+# On the other hand, the runtime mechanism does not quite do everything that we
+# would like, so we don't use it to build Kitsune's runtime. I should probably
+# have written down what it was about the runtime mechanism that was not
+# suitable, because now, I can't remember.
+if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
+    NOT "kitsune" IN_LIST LLVM_ENABLE_PROJECTS)
+  list(APPEND LLVM_ENABLE_PROJECTS "kitsune")
+  message(STATUS "enable kitsune project")
+endif ()
+
+# Enable dependencies if they were not explicitly set at configure time. clang
+# is always required because it is needed to build Kitsune's runtime.
+if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
+    NOT "clang" IN_LIST LLVM_ENABLE_PROJECTS)
+  list(PREPEND LLVM_ENABLE_PROJECTS "clang")
+  message(STATUS "enable clang project")
+endif ()
+
+# lld is required for LTO support, so always enable it.
+if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
+    NOT "lld" IN_LIST LLVM_ENABLE_PROJECTS)
+  list(APPEND LLVM_ENABLE_PROJECTS "lld")
+  message(STATUS "enable lld project")
+endif ()
+
+# Both KITSUNE_ALL_LANGS and KITSUNE_ALL_LANGS_STR must be updated when support
+# for a new language is added.
+set(KITSUNE_KNOWN_LANGS
+  "c;cxx;fortran"
+  CACHE INTERNAL
+  "All languages for which Kitsune has a frontend" FORCE)
+set(KITSUNE_KNOWN_LANGS_STR "C C++ Fortran")
+
+set(KITSUNE_DEFAULT_LANGS
+  "c;cxx"
+  CACHE INTERNAL
+  "Languages for which the frontend is built by default" FORCE)
+
+set(KITSUNE_ENABLE_LANGS "${KITSUNE_DEFAULT_LANGS}" CACHE STRING
+  "Semicolon-separated list of languages (${KITSUNE_KNOWN_LANGS}) for which frontends must be built or \"all\" to build all supported frontends")
+if (KITSUNE_ENABLE_LANGS STREQUAL "all")
+  set(KITSUNE_ENABLE_LANGS "${KITSUNE_KNOWN_LANGS}")
+elseif (NOT KITSUNE_ENABLE_LANGS)
+  message(FATAL_ERROR "At least one frontend must be built")
+endif ()
+
+set(KITSUNE_ENABLED_LANGS "${KITSUNE_ENABLE_LANGS}" CACHE INTERNAL
+  "Semicolon-separated list of languages for which a frontend should be built"
+  FORCE)
+
+# The C and C++ frontends must be enabled because clang is required to build
+# Kitsune's runtime. Working around this constraint is not recommended since
+# most of the core tests assume that these frontends are enabled.
+if (NOT "c" IN_LIST KITSUNE_ENABLED_LANGS OR
+    NOT "cxx" IN_LIST KITSUNE_ENABLED_LANGS)
+  message(FATAL_ERROR "The C and C++ frontends must be enabled")
+endif ()
+
+set(KITSUNE_C_ENABLED OFF CACHE INTERNAL
+  "Enable '${KITSUNE_C_FRONTEND}' frontend" FORCE)
+set(KITSUNE_CXX_ENABLED OFF CACHE INTERNAL
+  "Enable '${KITSUNE_CXX_FRONTEND}' frontend" FORCE)
+set(KITSUNE_Fortran_ENABLED OFF CACHE INTERNAL
+  "Enable '${KITSUNE_Fortran_FRONTEND}' frontend" FORCE)
+
+set(KITSUNE_ENABLED_LANGS_STR)
+foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
+  string(TOLOWER "${l}" lang)
+  # clang is required by the C and C++ frontends. But that is guaranteed to be
+  # built because the runtime requires it.
+  if (lang STREQUAL "c")
+    message(STATUS "'${KITSUNE_C_FRONTEND}' frontend is enabled")
+    set(KITSUNE_C_ENABLED ON CACHE INTERNAL "Enable '${KITSUNE_C_FRONTEND}' frontend" FORCE)
+    list(APPEND KITSUNE_ENABLED_LANGS_STR "C")
+  elseif (lang STREQUAL "cxx")
+    message(STATUS "'${KITSUNE_CXX_FRONTEND}' frontend is enabled")
+    set(KITSUNE_CXX_ENABLED ON CACHE INTERNAL "Enable '${KITSUNE_CXX_FRONTEND}' frontend" FORCE)
+    list(APPEND KITSUNE_ENABLED_LANGS_STR "C++")
+  elseif (lang STREQUAL "fortran")
+    message(STATUS "'${KITSUNE_Fortran_FRONTEND}' frontend is enabled")
+    set(KITSUNE_Fortran_ENABLED ON CACHE INTERNAL "Enable '${KITSUNE_Fortran_FRONTEND}' frontend" FORCE)
+
+    if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
+        NOT "flang" IN_LIST LLVM_ENABLE_PROJECTS)
+      list(APPEND LLVM_ENABLE_PROJECTS "flang")
+      message(STATUS "enable flang project")
+    endif ()
+
+    if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
+        NOT "mlir" IN_LIST LLVM_ENABLE_PROJECTS)
+      list(APPEND LLVM_ENABLE_PROJECTS "mlir")
+      message(STATUS "enable mlir project")
+    endif ()
+
+    # flang requires clang's driver. clang should have been enabled already, but
+    # just in case, do so now.
+    if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
+        NOT "clang" IN_LIST LLVM_ENABLE_PROJECTS)
+      list(APPEND LLVM_ENABLE_PROJECTS "clang")
+      message(STATUS "enable clang project")
+    endif ()
+
+    list(APPEND KITSUNE_ENABLED_LANGS_STR "Fortran")
+  else ()
+    message(FATAL_ERROR "Unknown language '${l}'")
+  endif ()
+endforeach()
+list(JOIN KITSUNE_ENABLED_LANGS_STR " " KITSUNE_ENABLED_LANGS_STR)
+
+# Ideally, this should be left in kitsune/CMakeLists.txt, but we need these to
+# conditionally compile the tapir targets that are enabled. The kitsune/
+# directory is only processed after the subdirectories of llvm/, but that is
+# too late. It would be nice to find a way to set these in kitsune/ so the
+# footprint in this file is reduced.
+#
+# The Kokkos option does not need to be moved here (for now) because that only
+# affects clang. And we have ensured that kitsune is configured before clang.
+set(KITSUNE_CUDA_ENABLED OFF CACHE INTERNAL "Enable 'cuda' tapir target" FORCE)
+set(KITSUNE_HIP_ENABLED OFF CACHE INTERNAL "Enable 'hip' tapir target" FORCE)
+set(KITSUNE_LAMBDA_ENABLED OFF CACHE INTERNAL "Enable 'lambda' tapir target" FORCE)
+set(KITSUNE_OMPTASK_ENABLED OFF CACHE INTERNAL "Enable 'omptask' tapir target" FORCE)
+set(KITSUNE_OPENCILK_ENABLED OFF CACHE INTERNAL "Enable 'opencilk' tapir target" FORCE)
+set(KITSUNE_OPENMP_ENABLED OFF CACHE INTERNAL "Enable 'openmp' tapir target" FORCE)
+set(KITSUNE_QTHREADS_ENABLED OFF CACHE INTERNAL "Enable 'qthreads' tapir target" FORCE)
+set(KITSUNE_REALM_ENABLED OFF CACHE INTERNAL "Enable 'realm' tapir target" FORCE)
+set(KITSUNE_SERIAL_ENABLED ON CACHE INTERNAL "Enable 'serial' tapir target" FORCE)
+
+set(KITSUNE_KNOWN_TAPIR_TARGETS
+  "cuda;hip;lambda;omptask;opencilk;openmp;qthreads;realm;serial"
+  CACHE INTERNAL
+  "All known Tapir targets" FORCE)
+
+set(KITSUNE_DEFAULT_TAPIR_TARGETS
+  "cuda;hip;opencilk"
+  CACHE INTERNAL
+  "The tapir targets that are built by default if a list of targets to build is
+not provided explicitly" FORCE)
+
+set(KITSUNE_ENABLE_TAPIR_TARGETS "${KITSUNE_DEFAULT_TAPIR_TARGETS}" CACHE STRING
+  "Semi-colon separated list of tapir targets to build (${KITSUNE_KNOWN_TAPIR_TARGETS}) or \"all\" to build all known tapir targets")
+if (KITSUNE_ENABLE_TAPIR_TARGETS STREQUAL "all")
+  set(KITSUNE_ENABLE_TAPIR_TARGETS "${KITSUNE_KNOWN_TAPIR_TARGETS}")
+elseif (NOT KITSUNE_ENABLE_TAPIR_TARGETS)
+  message(FATAL_ERROR "At least one tapir target must be built")
+endif ()
+
+set(KITSUNE_ENABLED_TAPIR_TARGETS
+  "${KITSUNE_ENABLE_TAPIR_TARGETS}"
+  CACHE INTERNAL
+  "Semicolon-separated list of tapir targets to build")
+
+# Always build the serial tapir target
+if (NOT "serial" IN_LIST KITSUNE_ENABLED_TAPIR_TARGETS)
+  list(APPEND KITSUNE_ENABLED_TAPIR_TARGETS "serial")
+endif ()
+
+set(KITSUNE_ENABLED_TAPIR_TARGETS_STR)
+foreach(target IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
+  if (target IN_LIST KITSUNE_KNOWN_TAPIR_TARGETS)
+    message(STATUS "'${target}' tapir target is enabled")
+    string(TOUPPER "${target}" upper)
+    set(KITSUNE_${upper}_ENABLED ON CACHE INTERNAL
+      "Enable '${target}' tapir target" FORCE)
+    list(APPEND KITSUNE_ENABLED_TAPIR_TARGETS_STR "${target}")
+  else ()
+    message(FATAL_ERROR "Unknown Tapir target '${target}'")
+  endif ()
+endforeach ()
+list(SORT KITSUNE_ENABLED_TAPIR_TARGETS_STR)
+list(JOIN KITSUNE_ENABLED_TAPIR_TARGETS_STR " " KITSUNE_ENABLED_TAPIR_TARGETS_STR)
+
+set(KITSUNE_KNOWN_TAPIR_TARGETS_STR "${KITSUNE_KNOWN_TAPIR_TARGETS}")
+list(SORT KITSUNE_KNOWN_TAPIR_TARGETS_STR)
+list(JOIN KITSUNE_KNOWN_TAPIR_TARGETS_STR " " KITSUNE_KNOWN_TAPIR_TARGETS_STR)
+
+# The GPU tapir targets require the corresponding backend to be built. This
+# examines LLVM_TARGETS_TO_BUILD which defaults to "all". However, the variable
+# is declared later in the file, so if the user does not explicitly set the
+# variable, it will be unset here. If the variable is unset, do not add anything
+# to it since it will be set to "all" later, which will have the desired effect
+# of enabling the NVPTX and/or AMDGPU targets. Otherwise, if
+# LLVM_TARGETS_TO_BUILD has been set to some list of backend targets (including
+# the special value "host"), add the appropriate GPU backend target(s) as
+# needed.
+if (KITSUNE_CUDA_ENABLED AND
+    NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
+    NOT "NVPTX" IN_LIST LLVM_TARGETS_TO_BUILD)
+  if (LLVM_TARGETS_TO_BUILD)
+    list(APPEND LLVM_TARGETS_TO_BUILD "NVPTX")
+    set(LLVM_TARGETS_TO_BUILD "${LLVM_TARGETS_TO_BUILD}" CACHE STRING
+      "Semicolon-separated list of targets to build, or \"all\"." FORCE)
+  endif ()
+  message(STATUS "enable NVPTX target")
+endif ()
+
+if (KITSUNE_HIP_ENABLED AND
+    NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
+    NOT "AMDGPU" IN_LIST LLVM_TARGETS_TO_BUILD)
+  if (LLVM_TARGETS_TO_BUILD)
+    list(APPEND LLVM_TARGETS_TO_BUILD "AMDGPU")
+    set(LLVM_TARGETS_TO_BUILD "${LLVM_TARGETS_TO_BUILD}" CACHE STRING
+      "Semicolon-separated list of targets to build, or \"all\"." FORCE)
+  endif ()
+  message(STATUS "enable AMDGPU target")
+endif ()
+
+# Kitsune's runtime, libkitrt, used to have a dependence on libLLVM, but it does
+# not any longer. However, we might re-introduce it, so for now, build libLLVM
+# anyway. However, we don't link to it unless the user asks for it explicitly.
+if (NOT LLVM_BUILD_LLVM_DYLIB)
+  set(LLVM_BUILD_LLVM_DYLIB ON)
+  message(STATUS "enable libLLVM")
+endif ()
+
+# The current organization of Kitsune's code is deeply problematic. There are a
+# host of circular dependences between the LLVM static libraries introduced by
+# libLLVMFrontendTapir. When linking against libLLVM.so or using static linking
+# for LLVM's tools (including clang, flang, lli, opt etc.), we just about get
+# away with this. But if building shared libraries, configuration will fail
+# specifically with a circular dependence error. Until we can untangle this
+# particular mess, don't allow BUILD_SHARED_LIBS=1
+if (BUILD_SHARED_LIBS)
+  message(FATAL_ERROR "Kitsune does not support BUILD_SHARED_LIBS=ON. See llvm/CMakeLists.txt for more details")
+endif ()
+
+# --------------------- END KITSUNE SPECIFIC CONFIGURATION ---------------------
 
 # LLVM_ENABLE_PROJECTS_USED is `ON` if the user has ever used the
 # `LLVM_ENABLE_PROJECTS` CMake cache variable.  This exists for
@@ -415,7 +700,7 @@ option(LLVM_TOOL_LLVM_DRIVER_BUILD "Enables building the llvm multicall tool" OF
 
 set(PACKAGE_NAME LLVM)
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
-set(PACKAGE_BUGREPORT "https://github.com/llvm/llvm-project/issues/")
+set(PACKAGE_BUGREPORT "https://github.com/lanl/kitsune/issues/")
 
 set(BUG_REPORT_URL "${PACKAGE_BUGREPORT}" CACHE STRING
   "Default URL where bug reports are to be submitted.")
@@ -423,17 +708,18 @@ set(LLDB_BUG_REPORT_URL "${BUG_REPORT_URL}" CACHE STRING
   "Default URL where lldb bug reports are to be submitted.")
 
 # Configure CPack.
+set(CPACK_PACKAGE_NAME "Kitsune")
 if(NOT DEFINED CPACK_PACKAGE_INSTALL_DIRECTORY)
   set(CPACK_PACKAGE_INSTALL_DIRECTORY "LLVM")
 endif()
 if(NOT DEFINED CPACK_PACKAGE_VENDOR)
-  set(CPACK_PACKAGE_VENDOR "LLVM")
+  set(CPACK_PACKAGE_VENDOR "Kitsune")
 endif()
-set(CPACK_PACKAGE_VERSION_MAJOR ${LLVM_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${LLVM_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${LLVM_VERSION_PATCH})
-set(CPACK_PACKAGE_VERSION ${PACKAGE_VERSION})
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.TXT")
+set(CPACK_PACKAGE_VERSION_MAJOR ${KITSUNE_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${KITSUNE_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${KITSUNE_VERSION_PATCH})
+set(CPACK_PACKAGE_VERSION ${KITSUNE_PACKAGE_VERSION})
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/../MIT_LICENSE.TXT")
 if(WIN32 AND NOT UNIX)
   set(CPACK_NSIS_COMPRESSOR "/SOLID lzma \r\n SetCompressorDictSize 32")
   if(NOT DEFINED CPACK_PACKAGE_INSTALL_REGISTRY_KEY)
@@ -662,7 +948,7 @@ if(LLVM_EXPERIMENTAL_TARGETS_TO_BUILD STREQUAL "all")
   set(LLVM_EXPERIMENTAL_TARGETS_TO_BUILD ${LLVM_ALL_EXPERIMENTAL_TARGETS})
 endif()
 
-if("flang" IN_LIST LLVM_ENABLE_PROJECTS AND 
+if("flang" IN_LIST LLVM_ENABLE_PROJECTS AND
    "AArch64" IN_LIST LLVM_TARGETS_TO_BUILD AND
    NOT ("compiler-rt" IN_LIST LLVM_ENABLE_RUNTIMES OR "compiler-rt" IN_LIST LLVM_ENABLE_PROJECTS))
   message(STATUS "Enabling compiler-rt as a dependency of Flang")

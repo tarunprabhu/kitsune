@@ -234,6 +234,10 @@ if.end:
   ret i32 %add
 }
 
+; In Kitsune, this cannot be speculated because Tapir is more conservative
+; about speculating stores than vanilla LLVM - specifically, it will only
+; speculate when the pointer is an alloca. It should be possible to fix this,
+; but it requires some changes to Tapir's API, so defering it for now
 define i64 @load_before_store_noescape_byval(ptr byval([2 x i32]) %a, i64 %i, i32 %b)  {
 ; CHECK-LABEL: @load_before_store_noescape_byval(
 ; CHECK-NEXT:  entry:
@@ -241,8 +245,11 @@ define i64 @load_before_store_noescape_byval(ptr byval([2 x i32]) %a, i64 %i, i3
 ; CHECK-NEXT:    [[ARRAYIDX:%.*]] = getelementptr inbounds [2 x i32], ptr [[A]], i64 0, i64 [[I:%.*]]
 ; CHECK-NEXT:    [[V:%.*]] = load i32, ptr [[ARRAYIDX]], align 4
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp slt i32 [[V]], [[B:%.*]]
-; CHECK-NEXT:    [[SPEC_STORE_SELECT:%.*]] = select i1 [[CMP]], i32 [[B]], i32 [[V]]
-; CHECK-NEXT:    store i32 [[SPEC_STORE_SELECT]], ptr [[ARRAYIDX]], align 4
+; CHECK-NEXT:    br i1 [[CMP]], label %if.then, label %if.end
+; CHECK:       if.then:
+; CHECK-NEXT:    store i32 [[B]], ptr [[ARRAYIDX]], align 4
+; CHECK-NEXT:    br label %if.end
+; CHECK:       if.end:
 ; CHECK-NEXT:    [[V2:%.*]] = load i64, ptr [[A]], align 8
 ; CHECK-NEXT:    ret i64 [[V2]]
 ;
@@ -264,6 +271,10 @@ if.end:
 
 declare noalias ptr @malloc(i64 %size)
 
+; In Kitsune, this cannot be speculated because Tapir is more conservative
+; about speculating stores than vanilla LLVM - specifically, it will only
+; speculate when the pointer is an alloca. It should be possible to fix this,
+; but it requires some changes to Tapir's API, so defering it for now
 define i64 @load_before_store_noescape_malloc(i64 %i, i32 %b)  {
 ; CHECK-LABEL: @load_before_store_noescape_malloc(
 ; CHECK-NEXT:  entry:
@@ -272,8 +283,11 @@ define i64 @load_before_store_noescape_malloc(i64 %i, i32 %b)  {
 ; CHECK-NEXT:    [[ARRAYIDX:%.*]] = getelementptr inbounds [2 x i32], ptr [[A]], i64 0, i64 [[I:%.*]]
 ; CHECK-NEXT:    [[V:%.*]] = load i32, ptr [[ARRAYIDX]], align 4
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp slt i32 [[V]], [[B:%.*]]
-; CHECK-NEXT:    [[SPEC_STORE_SELECT:%.*]] = select i1 [[CMP]], i32 [[B]], i32 [[V]]
-; CHECK-NEXT:    store i32 [[SPEC_STORE_SELECT]], ptr [[ARRAYIDX]], align 4
+; CHECK-NEXT:    br i1 [[CMP]], label %if.then, label %if.end
+; CHECK:       if.then:
+; CHECK-NEXT:    store i32 [[B]], ptr [[ARRAYIDX]], align 4
+; CHECK-NEXT:    br label %if.end
+; CHECK:       if.end:
 ; CHECK-NEXT:    [[V2:%.*]] = load i64, ptr [[A]], align 8
 ; CHECK-NEXT:    ret i64 [[V2]]
 ;
@@ -294,6 +308,9 @@ if.end:
   ret i64 %v2
 }
 
+; In Kitsune, this cannot be speculated because Tapir is more conservative
+; about speculating stores than vanilla LLVM. It should be possible to fix this,
+; but  it requires some changes to Tapir's API, so defering it for now
 define i64 @load_before_store_noescape_writable(ptr noalias writable dereferenceable(8) %a, i64 %i, i32 %b)  {
 ; CHECK-LABEL: @load_before_store_noescape_writable(
 ; CHECK-NEXT:  entry:
@@ -301,8 +318,11 @@ define i64 @load_before_store_noescape_writable(ptr noalias writable dereference
 ; CHECK-NEXT:    [[ARRAYIDX:%.*]] = getelementptr inbounds [2 x i32], ptr [[A]], i64 0, i64 1
 ; CHECK-NEXT:    [[V:%.*]] = load i32, ptr [[ARRAYIDX]], align 4
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp slt i32 [[V]], [[B:%.*]]
-; CHECK-NEXT:    [[SPEC_STORE_SELECT:%.*]] = select i1 [[CMP]], i32 [[B]], i32 [[V]]
-; CHECK-NEXT:    store i32 [[SPEC_STORE_SELECT]], ptr [[ARRAYIDX]], align 4
+; CHECK-NEXT:    br i1 [[CMP]], label %if.then, label %if.end
+; CHECK:       if.then:
+; CHECK-NEXT:    store i32 [[B]], ptr [[ARRAYIDX]], align 4
+; CHECK-NEXT:    br label %if.end
+; CHECK:       if.end:
 ; CHECK-NEXT:    [[V2:%.*]] = load i64, ptr [[A]], align 8
 ; CHECK-NEXT:    ret i64 [[V2]]
 ;
