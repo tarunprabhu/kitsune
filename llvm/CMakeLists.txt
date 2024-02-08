@@ -24,6 +24,34 @@ if (NOT PACKAGE_VERSION)
     "${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX}")
 endif()
 
+if(NOT DEFINED KITSUNE_VERSION_MAJOR)
+  set(KITSUNE_VERSION_MAJOR 0)
+endif()
+if(NOT DEFINED KITSUNE_VERSION_MINOR)
+  set(KITSUNE_VERSION_MINOR 19)
+endif()
+if(NOT DEFINED KITSUNE_VERSION_PATCH)
+  set(KITSUNE_VERSION_PATCH 0)
+endif()
+if(NOT DEFINED KITSUNE_VERSION_SUFFIX)
+  set(KITSUNE_VERSION_SUFFIX)
+endif()
+
+if(NOT DEFINED TAPIR_VERSION_MAJOR)
+  set(TAPIR_VERSION_MAJOR 1)
+endif()
+if(NOT DEFINED TAPIR_VERSION_MINOR)
+  set(TAPIR_VERSION_MINOR 0)
+endif()
+if(NOT DEFINED TAPIR_VERSION_PATCH)
+  set(TAPIR_VERSION_PATCH 0)
+endif()
+
+if (NOT KITSUNE_PACKAGE_VERSION)
+  set(KITSUNE_PACKAGE_VERSION
+    "${KITSUNE_VERSION_MAJOR}.${KITSUNE_VERSION_MINOR}.${KITSUNE_VERSION_PATCH}${KITSUNE_VERSION_SUFFIX}")
+endif()
+
 if(NOT DEFINED LLVM_SHLIB_SYMBOL_VERSION)
   # "Symbol version prefix for libLLVM.so"
   set(LLVM_SHLIB_SYMBOL_VERSION "LLVM_${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}")
@@ -114,7 +142,7 @@ endif()
 # LLVM_EXTERNAL_${project}_SOURCE_DIR using LLVM_ALL_PROJECTS
 # This allows an easy way of setting up a build directory for llvm and another
 # one for llvm+clang+... using the same sources.
-set(LLVM_ALL_PROJECTS "bolt;clang;clang-tools-extra;compiler-rt;cross-project-tests;libc;libclc;lld;lldb;mlir;openmp;polly;pstl")
+set(LLVM_ALL_PROJECTS "bolt;clang;clang-tools-extra;compiler-rt;cross-project-tests;kitsune;libc;libclc;lld;lldb;mlir;openmp;polly;pstl")
 # The flang project is not yet part of "all" projects (see C++ requirements)
 set(LLVM_EXTRA_PROJECTS "flang")
 # List of all known projects in the mono repo
@@ -197,6 +225,43 @@ if(NEED_LIBC_HDRGEN)
   endif()
 endif()
 unset(NEED_LIBC_HDRGEN)
+
+# Make sure kitsune, and everything it needs is always enabled. We could just
+# set the default for LLVM_ENABLE_PROJECTS to include these projects, but we
+# want to make as few changes in this file as possible. Besides, that list is
+# intended to be overridden at build time.
+#
+# We keep kitsune as part of the projects mechanism because it sets some other
+# variables that are needed to correctly enable it. We can probably get away
+# with setting it ourselves, but using the projects mechanism isn't too
+# cumbersome in this case - unlike for kitrt where the runtime mechanism doesn't
+# quite do everything we would like.
+if (NOT "kitsune" IN_LIST LLVM_ENABLE_PROJECTS)
+  message(STATUS "Automatically enabling the kitsune project.")
+  list(APPEND LLVM_ENABLE_PROJECTS "kitsune")
+
+  # Enable dependencies as well even if they were not explicitly set at
+  # configure time.
+  if (NOT "clang" IN_LIST LLVM_ENABLE_PROJECTS)
+    message(STATUS "Automatically enabling clang (for kitsune support).")
+    list(PREPEND LLVM_ENABLE_PROJECTS "clang")
+  endif ()
+
+  # We may switch to doing *everything* using LTO, so just enable lld.
+  if (NOT "lld" IN_LIST LLVM_ENABLE_PROJECTS)
+    message(STATUS "Automatically enabling lld (for kitsune support).")
+    list(APPEND LLVM_ENABLE_PROJECTS "lld")
+  endif ()
+
+  message(STATUS "New LLVM_ENABLE_PROJECTS: ${LLVM_ENABLE_PROJECTS}")
+
+  # Currently, flang is not required, but if it is, MLIR should be enabled as
+  # well.
+endif ()
+
+# We always want libLLVM to be build because we link to it in Kitsune's runtime,
+# libkitrt
+set(LLVM_BUILD_LLVM_DYLIB ON)
 
 # LLVM_ENABLE_PROJECTS_USED is `ON` if the user has ever used the
 # `LLVM_ENABLE_PROJECTS` CMake cache variable.  This exists for
@@ -362,7 +427,7 @@ option(LLVM_TOOL_LLVM_DRIVER_BUILD "Enables building the llvm multicall tool" OF
 
 set(PACKAGE_NAME LLVM)
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
-set(PACKAGE_BUGREPORT "https://github.com/llvm/llvm-project/issues/")
+set(PACKAGE_BUGREPORT "https://github.com/lanl/kitsune/issues/")
 
 set(BUG_REPORT_URL "${PACKAGE_BUGREPORT}" CACHE STRING
   "Default URL where bug reports are to be submitted.")
@@ -370,17 +435,18 @@ set(LLDB_BUG_REPORT_URL "${BUG_REPORT_URL}" CACHE STRING
   "Default URL where lldb bug reports are to be submitted.")
 
 # Configure CPack.
+set(CPACK_PACKAGE_NAME "Kitsune")
 if(NOT DEFINED CPACK_PACKAGE_INSTALL_DIRECTORY)
   set(CPACK_PACKAGE_INSTALL_DIRECTORY "LLVM")
 endif()
 if(NOT DEFINED CPACK_PACKAGE_VENDOR)
-  set(CPACK_PACKAGE_VENDOR "LLVM")
+  set(CPACK_PACKAGE_VENDOR "Kitsune")
 endif()
-set(CPACK_PACKAGE_VERSION_MAJOR ${LLVM_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${LLVM_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${LLVM_VERSION_PATCH})
-set(CPACK_PACKAGE_VERSION ${PACKAGE_VERSION})
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.TXT")
+set(CPACK_PACKAGE_VERSION_MAJOR ${KITSUNE_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${KITSUNE_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${KITSUNE_VERSION_PATCH})
+set(CPACK_PACKAGE_VERSION ${KITSUNE_PACKAGE_VERSION})
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/../MIT_LICENSE.TXT")
 if(WIN32 AND NOT UNIX)
   set(CPACK_NSIS_COMPRESSOR "/SOLID lzma \r\n SetCompressorDictSize 32")
   if(NOT DEFINED CPACK_PACKAGE_INSTALL_REGISTRY_KEY)
@@ -1238,7 +1304,7 @@ if( LLVM_INCLUDE_UTILS )
   if( LLVM_INCLUDE_TESTS )
     set(LLVM_SUBPROJECT_TITLE "Third-Party/Google Test")
     add_subdirectory(${LLVM_THIRD_PARTY_DIR}/unittest ${CMAKE_CURRENT_BINARY_DIR}/third-party/unittest)
-    set(LLVM_SUBPROJECT_TITLE) 
+    set(LLVM_SUBPROJECT_TITLE)
   endif()
 else()
   if ( LLVM_INCLUDE_TESTS )

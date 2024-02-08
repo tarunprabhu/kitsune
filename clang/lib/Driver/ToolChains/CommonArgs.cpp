@@ -337,6 +337,19 @@ static bool shouldIgnoreUnsupportedTargetFeature(const Arg &TargetFeatureArg,
   return TargetFeatureArg.getOption().matches(options::OPT_mno_cumode);
 }
 
+static void renderTapirLoweringOptions(const ArgList &Args,
+                                       ArgStringList &CmdArgs,
+                                       const ToolChain &TC) {
+  if (Args.hasArg(options::OPT_ftapir_EQ)) {
+    if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ)) {
+      CmdArgs.push_back(Args.MakeArgString(
+          Twine("--plugin-opt=tapir-target=") + A->getValue()));
+      if (std::string(A->getValue()) == std::string("opencilk"))
+        TC.AddOpenCilkABIBitcode(Args, CmdArgs, /*IsLTO=*/true);
+    }
+  }
+}
+
 void tools::addPathIfExists(const Driver &D, const Twine &Path,
                             ToolChain::path_list &Paths) {
   if (D.getVFS().exists(Path))
@@ -1119,6 +1132,8 @@ void tools::addLTOOptions(const ToolChain &ToolChain, const ArgList &Args,
 
   // Handle remarks hotness/threshold related options.
   renderRemarksHotnessOptions(Args, CmdArgs, PluginOptPrefix);
+
+  renderTapirLoweringOptions(Args, CmdArgs, ToolChain);
 
   addMachineOutlinerArgs(D, Args, CmdArgs, ToolChain.getEffectiveTriple(),
                          /*IsLTO=*/true, PluginOptPrefix);

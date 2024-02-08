@@ -6271,6 +6271,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // preprocessed inputs and configure concludes that -fPIC is not supported.
   Args.ClaimAllArgs(options::OPT_D);
 
+  TC.AddKitsunePreprocessorArgs(Args, CmdArgs);
+  TC.AddKitsuneCompilerArgs(Args, CmdArgs);
+
   // Manually translate -O4 to -O3; let clang reject others.
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
     if (A->getOption().matches(options::OPT_O4)) {
@@ -6625,6 +6628,49 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   Args.AddLastArg(CmdArgs, options::OPT_fdiagnostics_show_template_tree);
   Args.AddLastArg(CmdArgs, options::OPT_fno_elide_type);
+
+  // Forward flags for Kitsune.
+  Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
+  Args.AddLastArg(CmdArgs, options::OPT_fkokkos_no_init);
+  Args.AddLastArg(CmdArgs, options::OPT_ftapir_EQ);
+  if (Args.hasArg(options::OPT_ftapir_EQ)) {
+    auto const &Triple = getToolChain().getTriple();
+
+    // At least one runtime has been implemented for these operating systems.
+    if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
+      D.Diag(diag::err_drv_kitsune_unsupported);
+
+    /* JFC: Is it possible to confuse with with -fno-opencilk? */
+    bool OpenCilk = false;
+    bool CustomTarget = false;
+
+    if (Arg *TapirRuntime = Args.getLastArgNoClaim(options::OPT_ftapir_EQ)) {
+      if (TapirRuntime->getValue() == StringRef("opencilk")) {
+        OpenCilk = true;
+      } else {
+        CustomTarget = true;
+      }
+    }
+
+    if (OpenCilk) {
+      switch (Triple.getArch()) {
+      case llvm::Triple::x86:
+      case llvm::Triple::x86_64:
+      case llvm::Triple::arm:
+      case llvm::Triple::armeb:
+      case llvm::Triple::aarch64:
+      case llvm::Triple::aarch64_be:
+        break;
+      default:
+        D.Diag(diag::err_drv_kitsune_unsupported);
+        break;
+      }
+
+      if (!CustomTarget)
+        // Add the OpenCilk ABI bitcode file.
+        getToolChain().AddOpenCilkABIBitcode(Args, CmdArgs);
+    }
+  }
 
   // Forward flags for OpenMP. We don't do this if the current action is an
   // device offloading action other than OpenMP.
@@ -7438,6 +7484,15 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.hasFlag(options::OPT_fslp_vectorize, SLPVectAliasOption,
                    options::OPT_fno_slp_vectorize, EnableSLPVec))
     CmdArgs.push_back("-vectorize-slp");
+
+  // -fstripmine is enabled based on the optimization level selected.  For now,
+  // we enable stripmining when the optimization level enables vectorization.
+  bool EnableStripmine = EnableVec;
+  OptSpecifier StripmineAliasOption =
+      EnableStripmine ? options::OPT_O_Group : options::OPT_fstripmine;
+  if (Args.hasFlag(options::OPT_fstripmine, StripmineAliasOption,
+                   options::OPT_fno_stripmine, EnableStripmine))
+    CmdArgs.push_back("-stripmine-loops");
 
   ParseMPreferVectorWidth(D, Args, CmdArgs);
 

@@ -93,6 +93,8 @@ class JumpThreadingPass : public PassInfoMixin<JumpThreadingPass> {
 #else
   SmallSet<AssertingVH<const BasicBlock>, 16> LoopHeaders;
 #endif
+  DenseMap<AssertingVH<const BasicBlock>, SmallPtrSet<const BasicBlock *, 16>>
+      TapirTasks;
 
   unsigned BBDupThreshold;
   unsigned DefaultBBDupThreshold;
@@ -112,6 +114,7 @@ public:
 
   DomTreeUpdater *getDomTreeUpdater() const { return DTU.get(); }
   void findLoopHeaders(Function &F);
+  void findTapirTasks(Function &F, DominatorTree &DT);
   bool processBlock(BasicBlock *BB);
   bool maybeMergeBasicBlockIntoOnlyPred(BasicBlock *BB);
   void updateSSA(BasicBlock *BB, BasicBlock *NewBB,

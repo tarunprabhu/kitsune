@@ -130,6 +130,10 @@ static lto::Config createConfig() {
   c.DebugPassManager = config->ltoDebugPassManager;
   c.DwoDir = std::string(config->dwoDir);
 
+  if (args::validTapirTarget(config->tapirTarget))
+    c.TapirTarget = config->tapirTarget;
+  c.OpenCilkABIBitcodeFile = std::string(config->opencilkABIBitcodeFile);
+
   c.HasWholeProgramVisibility = config->ltoWholeProgramVisibility;
   c.ValidateAllVtablesHaveTypeInfos =
       config->ltoValidateAllVtablesHaveTypeInfos;
@@ -164,6 +168,9 @@ static lto::Config createConfig() {
     checkError(c.addSaveTemps(config->outputFile.str() + ".",
                               /*UseInputModulePath*/ true,
                               config->saveTempsArgs));
+  
+  c.TapirTarget = config->tapirTarget; 
+
   return c;
 }
 

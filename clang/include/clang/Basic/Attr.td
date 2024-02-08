@@ -4127,6 +4127,10 @@ def LoopHint : Attr {
   /// boolean: fully unrolls loop if State == Enable.
   /// expression: unrolls loop 'Value' times.
 
+  // FIXME: Probably don't need all the grainsize stuff here since it seems
+  // that it is only used in Cilk pragmas.
+  /// expression: coarsens the loop with grainsize 'Value'.
+
   let Spellings = [Pragma<"clang", "loop">, Pragma<"", "unroll">,
                    Pragma<"", "nounroll">, Pragma<"", "unroll_and_jam">,
                    Pragma<"", "nounroll_and_jam">];
@@ -4136,11 +4140,11 @@ def LoopHint : Attr {
                           ["vectorize", "vectorize_width", "interleave", "interleave_count",
                            "unroll", "unroll_count", "unroll_and_jam", "unroll_and_jam_count",
                            "pipeline", "pipeline_initiation_interval", "distribute",
-                           "vectorize_predicate"],
+                           "vectorize_predicate", "grainsize"],
                           ["Vectorize", "VectorizeWidth", "Interleave", "InterleaveCount",
                            "Unroll", "UnrollCount", "UnrollAndJam", "UnrollAndJamCount",
                            "PipelineDisabled", "PipelineInitiationInterval", "Distribute",
-                           "VectorizePredicate"]>,
+                           "VectorizePredicate", "TapirGrainSize"]>,
               EnumArgument<"State", "LoopHintState", /*is_string=*/false,
                            ["enable", "disable", "numeric", "fixed_width",
                             "scalable_width", "assume_safety", "full"],
@@ -4163,6 +4167,7 @@ def LoopHint : Attr {
     case PipelineInitiationInterval: return "pipeline_initiation_interval";
     case Distribute: return "distribute";
     case VectorizePredicate: return "vectorize_predicate";
+    case TapirGrainSize: return "grainsize";
     }
     llvm_unreachable("Unhandled LoopHint option.");
   }
@@ -4718,4 +4723,68 @@ def ClspvLibclcBuiltin: InheritableAttr {
   let Subjects = SubjectList<[Function]>;
   let Documentation = [ClspvLibclcBuiltinDoc];
   let SimpleHandler = 1;
+}
+
+def TapirTarget : StmtAttr {
+  let Spellings = [CXX11<"tapir","target">];
+
+  // FIXME KITSUNE: The target attribute is currently set to be valid on all
+  // statements because of the need to add this to Kokkos. We should either:
+  //
+  //   - Remove the Forall statement from the subject list and have it apply to
+  //     all statements and check when parsing that it is on a statement that
+  //     we actually care about.
+  //
+  //   - Or, and we should prefer this if possible, identify exactly what the
+  //     Kokkos construct is and add just that statement class to this subject
+  //     list.
+  //
+  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt, Stmt],
+                             ErrorDiag, "'parallel' statements">;
+  let Args = [
+    EnumArgument<"TapirTargetAttrType", "TapirTargetAttrTy", /*is_string=*/ true,
+                 ["none", "serial", "cuda", "hip", "opencilk", "openmp",
+                  "qthreads", "realm"],
+                 ["None", "Serial", "Cuda", "Hip", "OpenCilk", "OpenMP",
+                  "Qthreads", "Realm"],
+                 0>
+  ];
+  let Documentation = [TapirRTDocs];
+}
+
+def TapirStrategy : StmtAttr {
+  let Spellings = [CXX11<"tapir", "strategy">];
+  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
+                             ErrorDiag, "'forall' statement">;
+  let Args = [
+      EnumArgument<"TapirStrategyType", "TapirStrategyTy", /*is_string=*/ true,
+      ["seq", "dac", "gpu"],
+      ["SEQ", "DAC", "GPU"], 0>
+  ];
+  // FIXME -- how do we document this?
+  let Documentation = [TapirStrategyDocs];
+}
+
+def KitsuneMemAccess : InheritableAttr {
+    let Spellings = [CustomKeyword<"_readonly">,
+                     CustomKeyword<"_writeonly">,
+                     CustomKeyword<"_readwrite">];
+
+    let Subjects = SubjectList<[GlobalVar, ParmVar],
+                               ErrorDiag>;
+    let Accessors = [
+      Accessor<"isReadOnly", [CustomKeyword<"_readonly">]>,
+      Accessor<"isWriteOnly", [CustomKeyword<"_writeonly">]>,
+      Accessor<"isReadWrite", [CustomKeyword<"_readwrite">]>
+    ];
+
+    let Documentation = [KitsuneMemAccessDocs];
+}
+
+def KitsuneLaunch : StmtAttr {
+  let Spellings = [CXX11<"kitsune","launch">];
+  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
+                             ErrorDiag, "'forall' statement">;
+  let Args = [ExprArgument<"ThreadsPerBlock">];
+  let Documentation = [KitsuneLaunchDocs];    
 }

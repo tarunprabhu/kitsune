@@ -827,4 +827,37 @@ def err_drv_triple_version_invalid : Error<
 
 def warn_missing_include_dirs : Warning<
   "no such include directory: '%0'">, InGroup<MissingIncludeDirs>, DefaultIgnore;
+
+// +----- kitsune  FIXME: should probably use kitsune-centric naming here.
+
+def err_drv_kitsune_objc : Error<
+  "kitsune does not support Objective-C">;
+def err_drv_kitsune_unsupported: Error<
+  "kitsune not yet supported for this target">;
+
+// FIXME KITSUNE: Some of this should probably go away since we don't want to
+// give opencilk any special treatment here.
+def err_drv_opencilk_missing_abi_bitcode: Error<
+  "cannot find OpenCilk runtime ABI bitcode file: %0">;
+
+def err_drv_mix_tapir_cuda_hip : Error<
+  "mixed Tapir and Cuda/HIP compilation is currently not supported">;
+def err_drv_mix_tapir_omp_offload : Error<
+  "mixed Tapir and OpenMP offload compilation is currently not supported">;
+
+def err_drv_kitsune_kokkos_disabled : Error<
+  "kokkos support was not enabled when kitsune was built">;
+
+def err_drv_kitsune_cuda_target_disabled: Error<
+  "tapir target 'cuda' was not enabled when kitsune was built">;
+def err_drv_kitsune_hip_target_disabled: Error<
+  "tapir target 'hip' was not enabled when kitsune was built">;
+def err_drv_kitsune_opencilk_target_disabled: Error<
+  "tapir target 'opencilk' was not enabled when kitsune was built">;
+def err_drv_kitsune_openmp_target_disabled : Error<
+  "tapir target 'openmp' was not enabled when kitsune was built">;
+def err_drv_kitsune_qthreads_target_disabled: Error<
+  "tapir target 'qthreads' was not enabled when kitsune was built">;
+def err_drv_kitsune_realm_target_disabled: Error<
+  "tapir target 'realm' was not enabled when kitsune was built">;
 }

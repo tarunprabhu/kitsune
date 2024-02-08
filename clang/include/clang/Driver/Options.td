@@ -3312,6 +3312,34 @@ def fno_knr_functions : Flag<["-"], "fno-knr-functions">, Group<f_Group>,
   HelpText<"Disable support for K&R C function declarations">,
   Visibility<[ClangOption, CC1Option, CLOption]>;
 
+def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">,
+  Flags<[NoXarchOption, HelpHidden]>,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Kitsune directory for configuration files">;
+def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>,
+  Flags<[NoArgumentUnused]>,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"Enable Kokkos extensions: recognition and custom code generation">;
+def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Group<f_Group>,
+  Flags<[NoArgumentUnused]>,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"Skip code gen of Kokkos initialization (and finalize) calls.">;
+def ftapir_EQ : Joined<["-"], "ftapir=">, Group<f_Group>,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  MetaVarName<"<target>">,
+  HelpText<"Choose the backend parallel runtime for Tapir instructions">,
+  Values<"none,serial,cuda,hip,opencilk,openmp,qthreads,realm">;
+def ftapir_nvarch_EQ : Joined<["-"], "ftapir-nvarch=">, Group<f_Group>,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Choose the target nvida gpu architecture (e.g., sm_80) for gpu and cuda backend runtimes">,
+  Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80,sm_86,sm_90">;
+def fstripmine : Flag<["-"], "fstripmine">, Group<f_Group>,
+  HelpText<"Enable the Tapir loop stripmining passes">;
+def fno_stripmine : Flag<["-"], "fno-stripmine">, Group<f_Group>;
+def opencilk_abi_bitcode_EQ : Joined<["--"], "opencilk-abi-bitcode=">,
+  Visibility<[CC1Option]>, HelpText<"Path to OpenCilk ABI bitcode file">,
+  MarshallingInfoString<CodeGenOpts<"OpenCilkABIBitcodeFile">>;
+
 def fmudflapth : Flag<["-"], "fmudflapth">, Group<f_Group>;
 def fmudflap : Flag<["-"], "fmudflap">, Group<f_Group>;
 def fnested_functions : Flag<["-"], "fnested-functions">, Group<f_Group>;
@@ -7240,6 +7268,9 @@ def vectorize_loops : Flag<["-"], "vectorize-loops">,
 def vectorize_slp : Flag<["-"], "vectorize-slp">,
   HelpText<"Run the SLP vectorization passes">,
   MarshallingInfoFlag<CodeGenOpts<"VectorizeSLP">>;
+def stripmine_loops : Flag<["-"], "stripmine-loops">,
+  HelpText<"Run the Tapir Loop stripmining passes">,
+  MarshallingInfoFlag<CodeGenOpts<"StripmineLoop">>;
 def linker_option : Joined<["--"], "linker-option=">,
   HelpText<"Add linker option">,
   MarshallingInfoStringVector<CodeGenOpts<"LinkerOptions">>;

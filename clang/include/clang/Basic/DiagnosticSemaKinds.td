@@ -12535,4 +12535,52 @@ def err_acc_loop_spec_conflict
 // AMDGCN builtins diagnostics
 def err_amdgcn_global_load_lds_size_invalid_value : Error<"invalid size value">;
 def note_amdgcn_global_load_lds_size_valid_value : Note<"size must be 1, 2, or 4">;
+
+// Kitsune
+
+// target attribute
+def err_tapir_target_attr_unsupported_stmt: Error<
+  "tapir target attribute on unsupported statement">;
+def err_tapir_target_unknown: Error<
+  "unknown tapir target">;
+
+// execution strategy/policy
+def err_tapir_strategy_unknown: Error<
+  "statement using unknown strategy attribute">;
+
+// cuda launch parameters
+def err_kitsune_launch_non_integral_type: Error<
+  "launch attribute: threads-per-block must be a built-in integer type">;
+def err_kitsune_launch_tpb_too_large: Error<
+  "launch attribute: threads-per-block must be a 32-bit value">;
+def err_kitsune_launch_tpb_must_be_positive: Error<
+  "launch attribute: threads-per-block must be a positive integer value">;
+
+// spawn + sync
+def warn_spawn_as_loop_body: Warning<
+  "%0 loop with spawn statement body has undefined behavior">,
+  InGroup<Kitsune>;
+def err_spawn_in_forall: Error<
+  "spawn statements are not allowed in forall loops">;
+
+// forall
+def err_forall_no_init: Error<
+  "forall statement must have an initialization expression">;
+def err_forall_no_cond: Error<
+  "forall statement must have a condition expression">;
+def err_forall_no_inc: Error<
+  "forall statement must have an increment expression">;
+def err_forall_has_break: Error<
+  "forall body may not have a break statement">;
+def err_forall_init_not_decl: Error<
+  "initializer in a forall statement must be a variable declaration">;
+def err_forall_init_multiple: Error<
+  "initializer in a forall statement must declare exactly one variable">;
+
+// memory access qualifiers
+def err_kitsune_multiple_access_qualifiers : Error<
+  "multiple access qualifiers">;
+def note_kitsune_typedef_access_qualifier : Note<
+  "previously declared '%0' here">;
+
 } // end of sema component.

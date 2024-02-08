@@ -5917,6 +5917,8 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
     return cxstring::createRef("DoStmt");
   case CXCursor_ForStmt:
     return cxstring::createRef("ForStmt");
+  case CXCursor_ForallStmt:
+    return cxstring::createRef("ForallStmt");
   case CXCursor_GotoStmt:
     return cxstring::createRef("GotoStmt");
   case CXCursor_IndirectGotoStmt:
@@ -5951,6 +5953,8 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
     return cxstring::createRef("CXXTryStmt");
   case CXCursor_CXXForRangeStmt:
     return cxstring::createRef("CXXForRangeStmt");
+  case CXCursor_CXXForallRangeStmt:
+    return cxstring::createRef("CXXForallRangeStmt");
   case CXCursor_SEHTryStmt:
     return cxstring::createRef("SEHTryStmt");
   case CXCursor_SEHExceptStmt:
@@ -6269,6 +6273,10 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
     return cxstring::createRef("OpenACCComputeConstruct");
   case CXCursor_OpenACCLoopConstruct:
     return cxstring::createRef("OpenACCLoopConstruct");
+  case CXCursor_SpawnStmt:
+    return cxstring::createRef("SpawnStmt");
+  case CXCursor_SyncStmt:
+    return cxstring::createRef("SyncStmt");
   }
 
   llvm_unreachable("Unhandled CXCursorKind");

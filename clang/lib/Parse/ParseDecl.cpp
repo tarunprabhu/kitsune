@@ -1125,6 +1125,13 @@ void Parser::ParseHLSLQualifiers(ParsedAttributes &Attrs) {
   Attrs.addNew(AttrName, AttrNameLoc, nullptr, AttrNameLoc, nullptr, 0, Kind);
 }
 
+void Parser::ParseKitsuneMemAccessQualifiers(ParsedAttributes &Attrs) {
+  IdentifierInfo *AttrName = Tok.getIdentifierInfo();
+  SourceLocation AttrNameLoc = Tok.getLocation();
+  Attrs.addNew(AttrName, AttrNameLoc, nullptr, AttrNameLoc, nullptr, 0,
+               Tok.getKind());
+}
+
 void Parser::ParseNullabilityTypeSpecifiers(ParsedAttributes &attrs) {
   // Treat these like attributes, even though they're type specifiers.
   while (true) {
@@ -4784,6 +4791,12 @@ void Parser::ParseDeclarationSpecifiers(
     case tok::kw___read_write:
       ParseOpenCLQualifiers(DS.getAttributes());
       break;
+    // Kitsune memaccess qualifiers:
+    case tok::kw__readonly:
+    case tok::kw__writeonly:
+    case tok::kw__readwrite:
+      ParseKitsuneMemAccessQualifiers(DS.getAttributes());
+      break;
 
     case tok::kw_groupshared:
     case tok::kw_in:
@@ -6465,6 +6478,13 @@ void Parser::ParseTypeQualifierListOpt(
     case tok::kw___write_only:
     case tok::kw___read_write:
       ParseOpenCLQualifiers(DS.getAttributes());
+      break;
+
+	// Kitsune qualifiers
+    case tok::kw__readonly:
+    case tok::kw__writeonly:
+    case tok::kw__readwrite:
+      ParseKitsuneMemAccessQualifiers(DS.getAttributes());
       break;
 
     case tok::kw_groupshared:

@@ -919,6 +919,7 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
       case Attribute::ReturnsTwice:
       case Attribute::Speculatable:
       case Attribute::StackAlignment:
+      case Attribute::Stealable:
       case Attribute::WillReturn:
       case Attribute::AllocKind:
       case Attribute::PresplitCoroutine:
@@ -954,6 +955,7 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
       case Attribute::SafeStack:
       case Attribute::ShadowCallStack:
       case Attribute::SanitizeAddress:
+      case Attribute::SanitizeCilk:
       case Attribute::SanitizeMemory:
       case Attribute::SanitizeNumericalStability:
       case Attribute::SanitizeThread:

@@ -1507,6 +1507,8 @@ bool AArch64TargetInfo::validatePointerAuthKey(
   return 0 <= value && value <= 3;
 }
 
+bool AArch64TargetInfo::hasSjLjLowering() const { return true; }
+
 bool AArch64TargetInfo::hasInt128Type() const { return true; }
 
 AArch64leTargetInfo::AArch64leTargetInfo(const llvm::Triple &Triple,

@@ -816,6 +816,51 @@ public:
     }
     return TT;
   }
+
+  /// Some of our command line arguments come in via cmake as a single
+  /// string.  We use this to extract each argument from the string and
+  /// push it onto the argument list.
+  ///
+  void ExtractArgsFromString(const char *s, llvm::opt::ArgStringList &CmdArgs,
+                             const llvm::opt::ArgList &Args,
+                             const char delimiter = ' ') const;
+
+  /// Add any Kitsune-specific arguments for the preprocessor.
+  virtual void
+  AddKitsunePreprocessorArgs(const llvm::opt::ArgList &Args,
+                             llvm::opt::ArgStringList &CmdArgs) const;
+
+  /// Add Kitsune-specific compiler arguments.
+  virtual void AddKitsuneCompilerArgs(const llvm::opt::ArgList& Ags,
+                                      llvm::opt::ArgStringList& CmdArgs) const;
+
+  /// Add Kitsune-specific arguments that must be added to the linker.
+  virtual void AddKitsuneLinkerArgs(const llvm::opt::ArgList &Args,
+                                    llvm::opt::ArgStringList &CmdArgs) const;
+
+  /// Get the OpenCilk library path if it exists.
+  virtual std::optional<std::string>
+  getOpenCilkRuntimePath(const llvm::opt::ArgList &Args) const;
+
+  virtual std::string getOpenCilkBCBasename(const llvm::opt::ArgList &Args,
+                                            StringRef Component,
+                                            bool AddArch) const;
+
+  virtual std::optional<std::string>
+  getOpenCilkBC(const llvm::opt::ArgList &Args, StringRef Component) const;
+
+  virtual std::string getOpenCilkRTBasename(const llvm::opt::ArgList &Args,
+                                            StringRef Component, FileType Type,
+                                            bool AddArch) const;
+
+  virtual std::string getOpenCilkRT(const llvm::opt::ArgList &Args,
+                                    StringRef Component, FileType Type) const;
+
+  /// AddOpenCilkBitcodeABI - Add compiler arguments for linking against the
+  /// OpenCilk runtime ABI bitcode file.
+  virtual void AddOpenCilkABIBitcode(const llvm::opt::ArgList &Args,
+                                     llvm::opt::ArgStringList &CmdArgs,
+                                     bool IsLTO = false) const;
 };
 
 /// Set a ToolChain's effective triple. Reset it when the registration object

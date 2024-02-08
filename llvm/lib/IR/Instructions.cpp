@@ -1122,6 +1122,136 @@ UnreachableInst::UnreachableInst(LLVMContext &Context,
                   0, InsertBefore) {}
 
 //===----------------------------------------------------------------------===//
+//                        DetachInst Implementation
+//===----------------------------------------------------------------------===//
+
+void DetachInst::AssertOK() {
+  assert(getSyncRegion()->getType()->isTokenTy() &&
+         "Sync region must be a token!");
+}
+
+void DetachInst::init(Value *SyncRegion, BasicBlock *Detached,
+                      BasicBlock *Continue, BasicBlock *Unwind) {
+  Op<-1>() = SyncRegion;
+  Op<-2>() = Detached;
+  Op<-3>() = Continue;
+  if (Unwind) {
+    setSubclassData<UnwindDestField>(true);
+    Op<-4>() = Unwind;
+  }
+#ifndef NDEBUG
+  AssertOK();
+#endif
+}
+
+DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
+                       Value *SyncRegion, InsertPosition InsertBefore)
+    : Instruction(Type::getVoidTy(Detached->getContext()),
+                  Instruction::Detach,
+                  OperandTraits<DetachInst>::op_end(this) - 3, 3,
+                  InsertBefore) {
+  init(SyncRegion, Detached, Continue);
+}
+
+DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
+                       BasicBlock *Unwind, Value *SyncRegion,
+                       InsertPosition InsertBefore)
+    : Instruction(Type::getVoidTy(Detached->getContext()),
+                  Instruction::Detach,
+                  OperandTraits<DetachInst>::op_end(this) - 4, 4,
+                  InsertBefore) {
+  init(SyncRegion, Detached, Continue, Unwind);
+}
+
+DetachInst::DetachInst(const DetachInst &DI)
+    : Instruction(Type::getVoidTy(DI.getContext()), Instruction::Detach,
+                  OperandTraits<DetachInst>::op_end(this) -
+                  DI.getNumOperands(),
+                  DI.getNumOperands()) {
+  setSubclassData<Instruction::OpaqueField>(
+      DI.getSubclassData<Instruction::OpaqueField>());
+  Op<-1>() = DI.Op<-1>();
+  Op<-2>() = DI.Op<-2>();
+  Op<-3>() = DI.Op<-3>();
+  if (DI.hasUnwindDest()) {
+    Op<-4>() = DI.Op<-4>();
+    assert(DI.getNumOperands() == 4 && "Detach must have 4 operands!");
+  } else
+    assert(DI.getNumOperands() == 3 && "Detach must have 3 operands!");
+}
+
+LandingPadInst *DetachInst::getLandingPadInst() const {
+  if (!hasUnwindDest())
+    return nullptr;
+  return cast<LandingPadInst>(getUnwindDest()->getFirstNonPHI());
+}
+
+//===----------------------------------------------------------------------===//
+//                      ReattachInst Implementation
+//===----------------------------------------------------------------------===//
+
+void ReattachInst::AssertOK() {
+  assert(getSyncRegion()->getType()->isTokenTy() &&
+         "Sync region must be a token!");
+}
+
+ReattachInst::ReattachInst(BasicBlock *DetachContinue, Value *SyncRegion,
+                           InsertPosition InsertBefore)
+    : Instruction(Type::getVoidTy(DetachContinue->getContext()),
+                  Instruction::Reattach,
+                  OperandTraits<ReattachInst>::op_end(this) - 2, 2,
+                  InsertBefore) {
+  Op<-1>() = SyncRegion;
+  Op<-2>() = DetachContinue;
+#ifndef NDEBUG
+  AssertOK();
+#endif
+}
+
+ReattachInst::ReattachInst(const ReattachInst &RI)
+    : Instruction(Type::getVoidTy(RI.getContext()), Instruction::Reattach,
+                  OperandTraits<ReattachInst>::op_end(this) -
+                  RI.getNumOperands(),
+                  RI.getNumOperands()) {
+  Op<-1>() = RI.Op<-1>();
+  Op<-2>() = RI.Op<-2>();
+  assert(RI.getNumOperands() == 2 && "Reattach must have 2 operands!");
+  SubclassOptionalData = RI.SubclassOptionalData;
+}
+
+//===----------------------------------------------------------------------===//
+//                        SyncInst Implementation
+//===----------------------------------------------------------------------===//
+
+void SyncInst::AssertOK() {
+  assert(getSyncRegion()->getType()->isTokenTy() &&
+         "Sync region must be a token!");
+}
+
+SyncInst::SyncInst(BasicBlock *Continue, Value *SyncRegion,
+                   InsertPosition InsertBefore)
+    : Instruction(Type::getVoidTy(Continue->getContext()), Instruction::Sync,
+                  OperandTraits<SyncInst>::op_end(this) - 2, 2,
+                  InsertBefore) {
+  Op<-1>() = SyncRegion;
+  Op<-2>() = Continue;
+#ifndef NDEBUG
+  AssertOK();
+#endif
+}
+
+
+SyncInst::SyncInst(const SyncInst &SI)
+    : Instruction(Type::getVoidTy(SI.getContext()), Instruction::Sync,
+                  OperandTraits<SyncInst>::op_end(this) - SI.getNumOperands(),
+                  SI.getNumOperands()) {
+  Op<-1>() = SI.Op<-1>();
+  Op<-2>() = SI.Op<-2>();
+  assert(SI.getNumOperands() == 2 && "Sync must have 2 operands!");
+  SubclassOptionalData = SI.SubclassOptionalData;
+}
+
+//===----------------------------------------------------------------------===//
 //                        BranchInst Implementation
 //===----------------------------------------------------------------------===//
 
@@ -1230,6 +1360,41 @@ bool AllocaInst::isArrayAllocation() const {
   return true;
 }
 
+/// Check if this basic block is the entry block of the function, a spawned
+/// task, or a taskframe.
+static bool isFunctionOrTaskEntry(const BasicBlock *BB, const AllocaInst *AI) {
+  // Check if BB is the entry block of the function.
+  if (BB->isEntryBlock())
+    return true;
+
+  // Check if BB is a detached block.
+  if (const BasicBlock *Pred = BB->getSinglePredecessor())
+    if (const DetachInst *DI = dyn_cast<DetachInst>(Pred->getTerminator()))
+      if (DI->getDetached() == BB)
+        return true;
+
+  for (BasicBlock::const_iterator BBI = BB->begin(); &*BBI != AI; ++BBI) {
+    if (const CallInst *CI = dyn_cast<CallInst>(&*BBI)) {
+      if (const Function *Called = CI->getCalledFunction()) {
+        if (Intrinsic::taskframe_create == Called->getIntrinsicID()) {
+          // We found a taskframe.create in BB.  If all of its uses follow AI, then
+          // AI belongs to the entry block of this taskframe.
+          if (llvm::all_of(CI->users(), [BB, AI](const User *U) {
+                if (const Instruction *I = dyn_cast<Instruction>(U))
+                  if (I->getParent() != BB || AI->comesBefore(I))
+                    return true;
+                return false;
+              }))
+            return true;
+          // Otherwise, keep searching this block for taskframe.create's.
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 /// isStaticAlloca - Return true if this alloca is in the entry block of the
 /// function and is a constant size.  If so, the code generator will fold it
 /// into the prolog/epilog code, so it is basically free.
@@ -1239,7 +1404,7 @@ bool AllocaInst::isStaticAlloca() const {
 
   // Must be in the entry block.
   const BasicBlock *Parent = getParent();
-  return Parent->isEntryBlock() && !isUsedWithInAlloca();
+  return isFunctionOrTaskEntry(Parent, this) && !isUsedWithInAlloca();
 }
 
 //===----------------------------------------------------------------------===//
@@ -4396,4 +4561,16 @@ UnreachableInst *UnreachableInst::cloneImpl() const {
 
 FreezeInst *FreezeInst::cloneImpl() const {
   return new FreezeInst(getOperand(0));
+}
+
+DetachInst *DetachInst::cloneImpl() const {
+  return new(getNumOperands()) DetachInst(*this);
+}
+
+ReattachInst *ReattachInst::cloneImpl() const {
+  return new(getNumOperands()) ReattachInst(*this);
+}
+
+SyncInst *SyncInst::cloneImpl() const {
+  return new(getNumOperands()) SyncInst(*this);
 }

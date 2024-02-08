@@ -37,6 +37,7 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializePostDomOnlyPrinterWrapperPassPass(Registry);
   initializeAAResultsWrapperPassPass(Registry);
   initializeGlobalsAAWrapperPassPass(Registry);
+  initializeDRFAAWrapperPassPass(Registry);
   initializeIVUsersWrapperPassPass(Registry);
   initializeIRSimilarityIdentifierWrapperPassPass(Registry);
   initializeLazyBranchProbabilityInfoPassPass(Registry);
@@ -57,7 +58,9 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeScalarEvolutionWrapperPassPass(Registry);
   initializeStackSafetyGlobalInfoWrapperPassPass(Registry);
   initializeStackSafetyInfoWrapperPassPass(Registry);
+  initializeTapirRaceDetectWrapperPassPass(Registry);
   initializeTargetTransformInfoWrapperPassPass(Registry);
+  initializeTaskInfoWrapperPassPass(Registry);
   initializeTypeBasedAAWrapperPassPass(Registry);
   initializeScopedNoAliasAAWrapperPassPass(Registry);
   initializeLCSSAVerificationPassPass(Registry);

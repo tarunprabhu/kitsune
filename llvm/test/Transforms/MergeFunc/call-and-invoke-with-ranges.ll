@@ -64,8 +64,6 @@ lpad:
 }
 
 define i8 @invoke_with_same_range() personality ptr undef {
-; CHECK-LABEL: @invoke_with_same_range()
-; CHECK: tail call i8 @invoke_with_range()
   %out = invoke i8 @dummy() to label %next unwind label %lpad, !range !0
 
 next:
@@ -76,6 +74,9 @@ lpad:
   resume { ptr, i32 } zeroinitializer
 }
 
+; CHECK-LABEL: @invoke_with_same_range()
+; CHECK: tail call i8 @invoke_with_range()
+
 define i8 @call_with_same_range() {
 ; CHECK-LABEL: @call_with_same_range
 ; CHECK: tail call i8 @call_with_range
@@ -83,7 +84,6 @@ define i8 @call_with_same_range() {
   %out = call i8 @dummy(), !range !0
   ret i8 %out
 }
-
 
 declare i8 @dummy();
 declare i32 @__gxx_personality_v0(...)

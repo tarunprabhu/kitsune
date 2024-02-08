@@ -32,6 +32,7 @@
 #include "clang/AST/NSAPI.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/StmtKitsune.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/AST/TypeOrdering.h"
 #include "clang/Basic/BitmaskEnum.h"
@@ -15091,6 +15092,46 @@ public:
       bool OrNull);
 
   ///@}
+
+  //
+  //
+  // -------------------------------------------------------------------------
+  //
+  //
+
+  /// \name Kitsune statements
+  /// Implementations are in SemaKitsune.cpp and SemaStmt.cpp.
+  /// FIXME: These should all be in SemaKitsune.cpp, but we currently use
+  /// several utility functions intended for regular C/C++ for statements in
+  /// when dealing with Kitsune's forall statement. Refactoring out the common
+  /// code will be quite a bit more painful, so we haven't done that, but we
+  /// really should.
+  ///@{
+public:
+  StmtResult ActOnSyncStmt(SourceLocation SyncLoc, StringRef sv);
+  StmtResult ActOnSpawnStmt(SourceLocation SpawnLoc, StringRef sv, Stmt *S);
+  StmtResult ActOnForallStmt(SourceLocation ForLoc,
+                             SourceLocation LParenLoc,
+                             Stmt *First,
+                             ConditionResult Second,
+                             FullExprArg Third,
+                             SourceLocation RParenLoc,
+                             Stmt *Body);
+  StmtResult ActOnCXXForallRangeStmt(Scope *S, SourceLocation ForLoc,
+                                     SourceLocation CoawaitLoc,
+                                     Stmt *InitStmt,
+                                     Stmt *LoopVar,
+                                     SourceLocation ColonLoc, Expr *Collection,
+                                     SourceLocation RParenLoc,
+                                     BuildForRangeKind Kind);
+  StmtResult BuildCXXForallRangeStmt(
+      SourceLocation ForLoc, SourceLocation CoawaitLoc, Stmt *InitStmt,
+      SourceLocation ColonLoc, Stmt *RangeDecl, Stmt *Begin, Stmt *End,
+      Stmt *Index, Stmt *IndexEnd, Expr *Cond, Expr *Inc, Stmt *LoopVarDecl,
+      SourceLocation RParenLoc, BuildForRangeKind Kind);
+  StmtResult FinishCXXForallRangeStmt(Stmt *ForRange, Stmt *Body);
+
+  /// @}
 };
 
 DeductionFailureInfo

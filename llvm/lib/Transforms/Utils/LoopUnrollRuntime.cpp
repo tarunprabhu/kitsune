@@ -1025,8 +1025,11 @@ bool llvm::UnrollRuntimeLoopRemainder(
     ULO.ForgetAllSCEV = ForgetAllSCEV;
     assert(!getLoopConvergenceHeart(L) &&
            "A loop with a convergence heart does not allow runtime unrolling.");
-    UnrollResult = UnrollLoop(remainderLoop, ULO, LI, SE, DT, AC, TTI,
-                              /*ORE*/ nullptr, PreserveLCSSA);
+    UnrollResult =
+        UnrollLoop(remainderLoop, ULO, LI, SE, DT, AC, TTI,
+                   /*ORE*/ nullptr, PreserveLCSSA,
+                   /* RemainderLoop */ nullptr, /* AAResults */ nullptr,
+                   /*TI*/ nullptr);
   }
 
   if (ResultLoop && UnrollResult != LoopUnrollResult::FullyUnrolled)

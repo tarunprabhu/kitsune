@@ -43,6 +43,7 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/IR/PassManager.h"
@@ -220,6 +221,13 @@ checkFunctionMemoryAccess(Function &F, bool ThisBody, AAResults &AAR,
       ModRefInfo ArgMR = CallME.getModRef(IRMemLocation::ArgMem);
       if (ArgMR != ModRefInfo::NoModRef)
         addArgLocs(ME, Call, ArgMR, AAR);
+      continue;
+    }
+
+    if (isa<SyncInst>(I) || isa<DetachInst>(I) || isa<ReattachInst>(I)) {
+      // Tapir instructions only access memory accessed by other instructions in
+      // the function.  Hence we let the other instructions determine the
+      // attribute of this function.
       continue;
     }
 
@@ -1491,6 +1499,13 @@ static bool InstrBreaksNonThrowing(Instruction &I, const SCCNodeSet &SCCNodes) {
     return false;
   if (const auto *CI = dyn_cast<CallInst>(&I)) {
     if (Function *Callee = CI->getCalledFunction()) {
+      // Ignore sync.unwind, detached.rethrow, and taskframe.resume when
+      // checking if a function can throw, since they are simply placeholders.
+      if (Intrinsic::sync_unwind == Callee->getIntrinsicID() ||
+          Intrinsic::detached_rethrow == Callee->getIntrinsicID() ||
+          Intrinsic::taskframe_resume == Callee->getIntrinsicID())
+        return false;
+
       // I is a may-throw call to a function inside our SCC. This doesn't
       // invalidate our current working assumption that the SCC is no-throw; we
       // just have to scan that other function.

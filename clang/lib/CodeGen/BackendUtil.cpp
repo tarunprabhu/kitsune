@@ -81,10 +81,12 @@
 #include "llvm/Transforms/Instrumentation/SanitizerBinaryMetadata.h"
 #include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
 #include "llvm/Transforms/Instrumentation/ThreadSanitizer.h"
+#include "llvm/Transforms/Instrumentation/CilkSanitizer.h"
 #include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Scalar/EarlyCSE.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Scalar/JumpThreading.h"
+#include "llvm/Transforms/Tapir/TapirToTarget.h"
 #include "llvm/Transforms/Utils/Debugify.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <memory>
@@ -287,6 +289,20 @@ static bool asanUseGlobalsGC(const Triple &T, const CodeGenOptions &CGOpts) {
     break;
   }
   return false;
+}
+
+static std::unique_ptr<TargetLibraryInfoImpl>
+createTLII(llvm::Triple &TargetTriple, const CodeGenOptions &CodeGenOpts,
+           const LangOptions &LangOpts) {
+  std::unique_ptr<TargetLibraryInfoImpl> TLII(
+      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
+
+  TLII->setTapirTarget(LangOpts.KitsuneOpts.getTapirTargetOrInvalid());
+  TLII->setTapirTargetOptions(
+      std::make_unique<OpenCilkABIOptions>(CodeGenOpts.OpenCilkABIBitcodeFile));
+  TLII->addTapirTargetLibraryFunctions();
+
+  return TLII;
 }
 
 static std::optional<llvm::CodeModel::Model>
@@ -581,7 +597,7 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
                                        raw_pwrite_stream *DwoOS) {
   // Add LibraryInfo.
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
+      createTLII(TargetTriple, CodeGenOpts, LangOpts));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
   // Normal mode, emit a .s or .o file by running the code generator. Note,
@@ -852,6 +868,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.LoopInterleaving = CodeGenOpts.UnrollLoops;
   PTO.LoopVectorization = CodeGenOpts.VectorizeLoop;
   PTO.SLPVectorization = CodeGenOpts.VectorizeSLP;
+  PTO.LoopStripmine = CodeGenOpts.StripmineLoop;
   PTO.MergeFunctions = CodeGenOpts.MergeFunctions;
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
@@ -931,7 +948,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   // Register the target library analysis directly and give it a customized
   // preset TLI.
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
+      createTLII(TargetTriple, CodeGenOpts, LangOpts));
   FAM.registerPass([&] { return TargetLibraryAnalysis(*TLII); });
 
   // Register all the basic analyses with the managers.
@@ -1025,16 +1042,33 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
           });
     }
 
+// FIXME KITSUNE: Do we want to the Cilk sanitizer?
+#if 0
+    // Register the Cilksan pass.
+    if (LangOpts.Sanitize.has(SanitizerKind::Cilk))
+      PB.registerTapirLateEPCallback(
+          [&PB](ModulePassManager &MPM, OptimizationLevel Level) {
+            MPM.addPass(CSISetupPass());
+            MPM.addPass(CilkSanitizerPass());
+            MPM.addPass(PB.buildPostCilkInstrumentationPipeline(Level));
+          });
+#endif // 0
+
     if (CodeGenOpts.FatLTO) {
       MPM.addPass(PB.buildFatLTODefaultPipeline(
           Level, PrepareForThinLTO,
           PrepareForThinLTO || shouldEmitRegularLTOSummary()));
+    } else if (CodeGenOpts.OptimizationLevel == 0) {
+      MPM.addPass(PB.buildO0DefaultPipeline(
+          Level, PrepareForLTO || PrepareForThinLTO, TLII->hasTapirTarget()));
     } else if (PrepareForThinLTO) {
       MPM.addPass(PB.buildThinLTOPreLinkDefaultPipeline(Level));
     } else if (PrepareForLTO) {
       MPM.addPass(PB.buildLTOPreLinkDefaultPipeline(Level));
     } else {
-      MPM.addPass(PB.buildPerModuleDefaultPipeline(Level));
+      MPM.addPass(PB.buildPerModuleDefaultPipeline(Level,
+                                                   /* LTOPreLink */ false,
+                                                   TLII->hasTapirTarget()));
     }
   }
 
@@ -1258,6 +1292,8 @@ static void runThinLTOBackend(
   Conf.RemarksFormat = CGOpts.OptRecordFormat;
   Conf.SplitDwarfFile = CGOpts.SplitDwarfFile;
   Conf.SplitDwarfOutput = CGOpts.SplitDwarfOutput;
+  Conf.TapirTarget = LOpts.KitsuneOpts.getTapirTargetOrInvalid();
+  Conf.OpenCilkABIBitcodeFile = CGOpts.OpenCilkABIBitcodeFile;
   switch (Action) {
   case Backend_EmitNothing:
     Conf.PreCodeGenModuleHook = [](size_t Task, const llvm::Module &Mod) {

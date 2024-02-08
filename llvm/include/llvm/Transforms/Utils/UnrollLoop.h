@@ -35,6 +35,7 @@ class ProfileSummaryInfo;
 class OptimizationRemarkEmitter;
 class ScalarEvolution;
 class StringRef;
+class TaskInfo;
 class Value;
 
 using NewLoopsMap = SmallDenseMap<const Loop *, Loop *, 4>;
@@ -83,7 +84,7 @@ LoopUnrollResult UnrollLoop(Loop *L, UnrollLoopOptions ULO, LoopInfo *LI,
                             const llvm::TargetTransformInfo *TTI,
                             OptimizationRemarkEmitter *ORE, bool PreserveLCSSA,
                             Loop **RemainderLoop = nullptr,
-                            AAResults *AA = nullptr);
+                            AAResults *AA = nullptr, TaskInfo *TI = nullptr);
 
 bool UnrollRuntimeLoopRemainder(
     Loop *L, unsigned Count, bool AllowExpensiveTripCount,

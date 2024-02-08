@@ -30,6 +30,7 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
+#include "clang/Driver/Tapir.h"
 #include "clang/Frontend/CommandLineSourceLoc.h"
 #include "clang/Frontend/DependencyOutputOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -45,6 +46,7 @@
 #include "clang/Serialization/ASTBitCodes.h"
 #include "clang/Serialization/ModuleFileExtension.h"
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
+#include "kitsune/Config/config.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/CachedHashString.h"
@@ -86,6 +88,7 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -1525,6 +1528,20 @@ void CompilerInvocationBase::GenerateCodeGenArgs(const CodeGenOptions &Opts,
                                                  const llvm::Triple &T,
                                                  const std::string &OutputFile,
                                                  const LangOptions *LangOpts) {
+  const KitsuneOptions& KitsuneOpts = LangOpts->KitsuneOpts;
+  if (KitsuneOpts.isKitsuneEnabled()) {
+    std::string buf;
+    llvm::raw_string_ostream os(buf);
+    os << *KitsuneOpts.getTapirTarget();
+    GenerateArg(Consumer, OPT_ftapir_EQ, os.str());
+  }
+
+  if (KitsuneOpts.getKokkos())
+    GenerateArg(Consumer, OPT_fkokkos);
+
+  if (KitsuneOpts.getKokkosNoInit())
+    GenerateArg(Consumer, OPT_fkokkos_no_init);
+
   const CodeGenOptions &CodeGenOpts = Opts;
 
   if (Opts.OptimizationLevel == 0)
@@ -3542,6 +3559,11 @@ void CompilerInvocationBase::GenerateLangArgs(const LangOptions &Opts,
                                               ArgumentConsumer Consumer,
                                               const llvm::Triple &T,
                                               InputKind IK) {
+  if (Opts.KitsuneOpts.getKokkos())
+    GenerateArg(Consumer, OPT_fkokkos);
+  if (Opts.KitsuneOpts.getKokkosNoInit())
+    GenerateArg(Consumer, OPT_fkokkos_no_init);
+
   if (IK.getFormat() == InputKind::Precompiled ||
       IK.getLanguage() == Language::LLVM_IR ||
       IK.getLanguage() == Language::CIR) {
@@ -4457,6 +4479,64 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   return Diags.getNumErrors() == NumErrorsBefore;
 }
 
+bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts, ArgList &Args,
+                                          DiagnosticsEngine &Diags,
+                                          const LangOptions &LangOpts) {
+  unsigned NumErrorsBefore = Diags.getNumErrors();
+  if (std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args)) {
+    // Even if the tapir target is valid, it may not have been enabled when
+    // building clang.
+    switch (*TapirTarget) {
+    case llvm::TapirTargetID::Serial:
+    case llvm::TapirTargetID::None:
+      // The serial and none targets are always built.
+      break;
+    case llvm::TapirTargetID::Cuda:
+      if (!KITSUNE_CUDA_ENABLE)
+        Diags.Report(diag::err_drv_kitsune_cuda_target_disabled);
+      break;
+    case llvm::TapirTargetID::Hip:
+      if (!KITSUNE_HIP_ENABLE)
+        Diags.Report(diag::err_drv_kitsune_hip_target_disabled);
+      break;
+    case llvm::TapirTargetID::OpenCilk:
+      if (!KITSUNE_OPENCILK_ENABLE)
+        Diags.Report(diag::err_drv_kitsune_opencilk_target_disabled);
+      break;
+    case llvm::TapirTargetID::OpenMP:
+      if (!KITSUNE_OPENMP_ENABLE)
+        Diags.Report(diag::err_drv_kitsune_openmp_target_disabled);
+      break;
+    case llvm::TapirTargetID::Qthreads:
+      if (!KITSUNE_QTHREADS_ENABLE)
+        Diags.Report(diag::err_drv_kitsune_qthreads_target_disabled);
+      break;
+    case llvm::TapirTargetID::Realm:
+      if (!KITSUNE_REALM_ENABLE)
+        Diags.Report(diag::err_drv_kitsune_realm_target_disabled);
+      break;
+    default:
+      llvm_unreachable("ParseKitsuneArgs: Tapir target not handled");
+    }
+
+    if (LangOpts.ObjC)
+      Diags.Report(diag::err_drv_kitsune_objc);
+
+    Opts.setTapirTarget(*TapirTarget);
+  }
+
+  bool isKokkos = Args.hasArg(options::OPT_fkokkos);
+  bool isKokkosNoInit = Args.hasArg(options::OPT_fkokkos_no_init);
+  if ((isKokkos || isKokkosNoInit) && !KITSUNE_KOKKOS_ENABLE) {
+    Diags.Report(diag::err_drv_kitsune_kokkos_disabled);
+  } else {
+    Opts.setKokkos(isKokkos);
+    Opts.setKokkosNoInit(isKokkosNoInit);
+  }
+
+  return Diags.getNumErrors() == NumErrorsBefore;
+}
+
 static bool isStrictlyPreprocessorAction(frontend::ActionKind Action) {
   switch (Action) {
   case frontend::ASTDeclList:
@@ -4819,6 +4899,8 @@ bool CompilerInvocation::CreateFromArgsImpl(
                 Diags);
   if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)
     LangOpts.ObjCExceptions = 1;
+
+  ParseKitsuneArgs(LangOpts.KitsuneOpts, Args, Diags, LangOpts);
 
   for (auto Warning : Res.getDiagnosticOpts().Warnings) {
     if (Warning == "misexpect" &&

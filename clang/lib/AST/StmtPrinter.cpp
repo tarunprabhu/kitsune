@@ -442,6 +442,19 @@ void StmtPrinter::VisitCXXForRangeStmt(CXXForRangeStmt *Node) {
   PrintControlledStmt(Node->getBody());
 }
 
+void StmtPrinter::VisitCXXForallRangeStmt(CXXForallRangeStmt *Node) {
+  Indent() << "forall (";
+  if (Node->getInit())
+    PrintInitStmt(Node->getInit(), 5);
+  PrintingPolicy SubPolicy(Policy);
+  SubPolicy.SuppressInitializers = true;
+  Node->getLoopVariable()->print(OS, SubPolicy, IndentLevel);
+  OS << " : ";
+  PrintExpr(Node->getRangeInit());
+  OS << ")";
+  PrintControlledStmt(Node->getBody());
+}
+
 void StmtPrinter::VisitMSDependentExistsStmt(MSDependentExistsStmt *Node) {
   Indent();
   if (Node->isIfExists())
@@ -479,6 +492,14 @@ void StmtPrinter::VisitBreakStmt(BreakStmt *Node) {
   Indent() << "break;";
   if (Policy.IncludeNewlines) OS << NL;
 }
+
+void StmtPrinter::VisitSpawnStmt(SpawnStmt *Node) {
+  Indent() << "spawn " << Node->getSyncVar();
+  PrintStmt(Node->getSpawnedStmt());
+  OS << ";";
+  if (Policy.IncludeNewlines) OS << "\n";
+}
+
 
 void StmtPrinter::VisitReturnStmt(ReturnStmt *Node) {
   Indent() << "return";
@@ -2797,6 +2818,28 @@ void StmtPrinter::VisitAsTypeExpr(AsTypeExpr *Node) {
   OS << ", ";
   Node->getType().print(OS, Policy);
   OS << ")";
+}
+
+void StmtPrinter::VisitForallStmt(ForallStmt *Node) {
+  Indent() << "forall (";
+  if (Node->getInit())
+    PrintInitStmt(Node->getInit(), 5);
+  else
+    OS << (Node->getCond() ? "; " : ";");
+  if (Node->getCond())
+    PrintExpr(Node->getCond());
+  OS << ";";
+  if (Node->getInc()) {
+    OS << " ";
+    PrintExpr(Node->getInc());
+  }
+  OS << ")";
+  PrintControlledStmt(Node->getBody());
+}
+
+void StmtPrinter::VisitSyncStmt(SyncStmt *Node) {
+  Indent() << "sync " << Node->getSyncVar() << ";";
+  if (Policy.IncludeNewlines) OS << "\n";
 }
 
 //===----------------------------------------------------------------------===//

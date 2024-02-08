@@ -32,6 +32,7 @@
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
@@ -1166,7 +1167,7 @@ tryToUnrollLoop(Loop *L, DominatorTree &DT, LoopInfo *LI, ScalarEvolution &SE,
                 std::optional<bool> ProvidedAllowPeeling,
                 std::optional<bool> ProvidedAllowProfileBasedPeeling,
                 std::optional<unsigned> ProvidedFullUnrollMaxCount,
-                AAResults *AA = nullptr) {
+                TaskInfo* TI, AAResults *AA = nullptr) {
 
   LLVM_DEBUG(dbgs() << "Loop Unroll: F["
                     << L->getHeader()->getParent()->getName() << "] Loop %"
@@ -1350,8 +1351,9 @@ tryToUnrollLoop(Loop *L, DominatorTree &DT, LoopInfo *LI, ScalarEvolution &SE,
   ULO.Runtime = UP.Runtime;
   ULO.ForgetAllSCEV = ForgetAllSCEV;
   ULO.Heart = getLoopConvergenceHeart(L);
-  LoopUnrollResult UnrollResult = UnrollLoop(
-      L, ULO, LI, &SE, &DT, &AC, &TTI, &ORE, PreserveLCSSA, &RemainderLoop, AA);
+  LoopUnrollResult UnrollResult =
+      UnrollLoop(L, ULO, LI, &SE, &DT, &AC, &TTI, &ORE, PreserveLCSSA,
+                 &RemainderLoop, AA, TI);
   if (UnrollResult == LoopUnrollResult::Unmodified)
     return LoopUnrollResult::Unmodified;
 
@@ -1439,6 +1441,7 @@ public:
 
     auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
     LoopInfo *LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+    TaskInfo *TI = &getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
     ScalarEvolution &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
     const TargetTransformInfo &TTI =
         getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
@@ -1454,7 +1457,7 @@ public:
         /*OnlyFullUnroll*/ false, OnlyWhenForced, ForgetAllSCEV, ProvidedCount,
         ProvidedThreshold, ProvidedAllowPartial, ProvidedRuntime,
         ProvidedUpperBound, ProvidedAllowPeeling,
-        ProvidedAllowProfileBasedPeeling, ProvidedFullUnrollMaxCount);
+        ProvidedAllowProfileBasedPeeling, ProvidedFullUnrollMaxCount, TI);
 
     if (Result == LoopUnrollResult::FullyUnrolled)
       LPM.markLoopAsDeleted(*L);
@@ -1528,7 +1531,7 @@ PreservedAnalyses LoopFullUnrollPass::run(Loop &L, LoopAnalysisManager &AM,
                       /*Runtime*/ false, /*UpperBound*/ false,
                       /*AllowPeeling*/ true,
                       /*AllowProfileBasedPeeling*/ false,
-                      /*FullUnrollMaxCount*/ std::nullopt) !=
+                      /*FullUnrollMaxCount*/ std::nullopt, &AR.TI) !=
       LoopUnrollResult::Unmodified;
   if (!Changed)
     return PreservedAnalyses::all();
@@ -1597,6 +1600,7 @@ PreservedAnalyses LoopUnrollPass::run(Function &F,
   auto &TTI = AM.getResult<TargetIRAnalysis>(F);
   auto &DT = AM.getResult<DominatorTreeAnalysis>(F);
   auto &AC = AM.getResult<AssumptionAnalysis>(F);
+  auto &TI = AM.getResult<TaskAnalysis>(F);
   auto &ORE = AM.getResult<OptimizationRemarkEmitterAnalysis>(F);
   AAResults &AA = AM.getResult<AAManager>(F);
 
@@ -1622,6 +1626,13 @@ PreservedAnalyses LoopUnrollPass::run(Function &F,
         simplifyLoop(L, &DT, &LI, &SE, &AC, nullptr, false /* PreserveLCSSA */);
     Changed |= formLCSSARecursively(*L, DT, &LI, &SE);
   }
+
+  if (Changed)
+    // Update TaskInfo manually using the updated DT.
+    //
+    // FIXME: Recalculating TaskInfo for the whole function is wasteful.
+    // Optimize this routine in the future.
+    TI.recalculate(*DT.getRoot()->getParent(), DT);
 
   // Add the loop nests in the reverse order of LoopInfo. See method
   // declaration.
@@ -1654,7 +1665,7 @@ PreservedAnalyses LoopUnrollPass::run(Function &F,
         /*Count*/ std::nullopt,
         /*Threshold*/ std::nullopt, UnrollOpts.AllowPartial,
         UnrollOpts.AllowRuntime, UnrollOpts.AllowUpperBound, LocalAllowPeeling,
-        UnrollOpts.AllowProfileBasedPeeling, UnrollOpts.FullUnrollMaxCount,
+        UnrollOpts.AllowProfileBasedPeeling, UnrollOpts.FullUnrollMaxCount, &TI,
         &AA);
     Changed |= Result != LoopUnrollResult::Unmodified;
 
@@ -1671,6 +1682,12 @@ PreservedAnalyses LoopUnrollPass::run(Function &F,
 
   if (!Changed)
     return PreservedAnalyses::all();
+
+  // Update TaskInfo manually using the updated DT.
+  //
+  // FIXME: Recalculating TaskInfo for the whole function is wasteful.
+  // Optimize this routine in the future.
+  TI.recalculate(*DT.getRoot()->getParent(), DT);
 
   return getLoopPassPreservedAnalyses();
 }

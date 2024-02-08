@@ -19,6 +19,7 @@
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
@@ -75,9 +76,10 @@ PreservedAnalyses LoopRotatePass::run(Loop &L, LoopAnalysisManager &AM,
   std::optional<MemorySSAUpdater> MSSAU;
   if (AR.MSSA)
     MSSAU = MemorySSAUpdater(AR.MSSA);
-  bool Changed = LoopRotation(&L, &AR.LI, &AR.TTI, &AR.AC, &AR.DT, &AR.SE,
-                              MSSAU ? &*MSSAU : nullptr, SQ, false, Threshold,
-                              false, PrepareForLTO || PrepareForLTOOption);
+  bool Changed =
+      LoopRotation(&L, &AR.LI, &AR.TTI, &AR.AC, &AR.DT, &AR.SE,
+                   MSSAU ? &*MSSAU : nullptr, &AR.TI, SQ, false, Threshold,
+                   false, PrepareForLTO || PrepareForLTOOption);
 
   if (!Changed)
     return PreservedAnalyses::all();

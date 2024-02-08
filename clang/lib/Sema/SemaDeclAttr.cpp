@@ -5929,6 +5929,27 @@ static void handleNoUniqueAddressAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   D->addAttr(NoUniqueAddressAttr::Create(S.Context, AL));
 }
 
+static void handleKitsuneMemAccessAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  if (D->isInvalidDecl())
+    return;
+
+  // Check if there is only one access qualifier.
+  if (D->hasAttr<KitsuneMemAccessAttr>()) {
+    if (D->getAttr<KitsuneMemAccessAttr>()->getSemanticSpelling() ==
+        AL.getSemanticSpelling()) {
+      S.Diag(AL.getLoc(), diag::warn_duplicate_declspec)
+          << AL.getAttrName()->getName() << AL.getRange();
+    } else {
+      S.Diag(AL.getLoc(), diag::err_kitsune_multiple_access_qualifiers)
+          << D->getSourceRange();
+      D->setInvalidDecl(true);
+      return;
+    }
+  }
+
+  D->addAttr(::new (S.Context) KitsuneMemAccessAttr(S.Context, AL));
+}
+
 static void handleDestroyAttr(Sema &S, Decl *D, const ParsedAttr &A) {
   if (!cast<VarDecl>(D)->hasGlobalStorage()) {
     S.Diag(D->getLocation(), diag::err_destroy_attr_on_non_static_var)
@@ -6802,6 +6823,9 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_OpenCLAccess:
     S.OpenCL().handleAccessAttr(D, AL);
+    break;
+  case ParsedAttr::AT_KitsuneMemAccess:
+    handleKitsuneMemAccessAttr(S, D, AL);
     break;
   case ParsedAttr::AT_OpenCLNoSVM:
     S.OpenCL().handleNoSVMAttr(D, AL);

@@ -2363,6 +2363,47 @@ void CodeGenModule::GenKernelArgMetadata(llvm::Function *Fn,
                     llvm::MDNode::get(VMContext, argNames));
 }
 
+void CodeGenModule::GenKitsuneArgMetadata(llvm::Function *Fn,
+                                          const FunctionDecl *FD,
+                                          CodeGenFunction *CGF) {
+  assert(((FD && CGF) || (!FD && !CGF)) &&
+         "Incorrect use - FD and CGF should either be both null or not!");
+
+  if (FD && CGF) {
+    for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i) {
+      const ParmVarDecl *parm = FD->getParamDecl(i);
+      QualType ty = parm->getType();
+      const Decl *PDecl = parm;
+      if (auto *TD = dyn_cast<TypedefType>(ty))
+        PDecl = TD->getDecl();
+
+      llvm::LLVMContext &Context = getLLVMContext();
+      for (llvm::Argument *fnArg = Fn->arg_begin(); fnArg != Fn->arg_end();
+           ++fnArg) {
+        if (fnArg->getArgNo() == i) {
+          if (const auto *A = PDecl->getAttr<KitsuneMemAccessAttr>()) {
+            if (ty.getTypePtr()->isStructureOrClassType()) {
+              ErrorUnsupported(parm, "cannot handle kitsune memaccess "
+                                     "attribute on a struct or class");
+              break;
+            }
+
+            if (A->isWriteOnly())
+              fnArg->addAttr(
+                  llvm::Attribute::get(Context, "kitsune.writeonly"));
+            else if (A->isReadOnly())
+              fnArg->addAttr(llvm::Attribute::get(Context, "kitsune.readonly"));
+            else
+              fnArg->addAttr(
+                  llvm::Attribute::get(Context, "kitsune.readwrite"));
+          }
+          break;
+        }
+      }
+    }
+  }
+}
+
 /// Determines whether the language options require us to model
 /// unwind exceptions.  We treat -fexceptions as mandating this
 /// except under the fragile ObjC ABI with only ObjC exceptions

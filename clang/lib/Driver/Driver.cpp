@@ -61,6 +61,7 @@
 #include "clang/Driver/Options.h"
 #include "clang/Driver/Phases.h"
 #include "clang/Driver/SanitizerArgs.h"
+#include "clang/Driver/Tapir.h"
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
 #include "clang/Driver/Types.h"
@@ -235,6 +236,18 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
     SmallString<128> P;
     llvm::sys::fs::expand_tilde(CLANG_CONFIG_FILE_USER_DIR, P);
     UserConfigDir = static_cast<std::string>(P);
+  }
+#endif
+#if defined(KITSUNE_CONFIG_FILE_DIR)
+  {
+    SmallString<128> P;
+    llvm::sys::fs::expand_tilde(KITSUNE_CONFIG_FILE_DIR, P);
+    KitsuneConfigDir = static_cast<std::string>(P);
+  }
+#else
+  {
+    llvm::StringRef PrefixDir = llvm::sys::path::parent_path(Dir);
+    KitsuneConfigDir = PrefixDir.str() + std::string("/share/kitsune");
   }
 #endif
 
@@ -790,6 +803,13 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
     Diag(clang::diag::err_drv_mix_cuda_hip);
     return;
   }
+
+  bool IsTapir = C.getInputArgs().hasArg(options::OPT_ftapir_EQ);
+  if (IsTapir && (IsCuda || IsHIP)) {
+    Diag(clang::diag::err_drv_mix_tapir_cuda_hip);
+    return;
+  }
+
   if (IsCuda) {
     const ToolChain *HostTC = C.getSingleOffloadToolChain<Action::OFK_Host>();
     const llvm::Triple &HostTriple = HostTC->getTriple();
@@ -864,6 +884,12 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
             << OpenMPTargets->getAsString(C.getInputArgs());
         return;
       }
+
+      if (IsTapir) {
+        Diag(clang::diag::err_drv_mix_tapir_omp_offload);
+        return;
+      }
+
       for (StringRef T : OpenMPTargets->getValues())
         OpenMPTriples.insert(T);
     } else if (C.getInputArgs().hasArg(options::OPT_offload_arch_EQ) &&
@@ -1074,10 +1100,23 @@ bool Driver::loadConfigFiles() {
       else
         UserConfigDir = static_cast<std::string>(CfgDir);
     }
+
+    if (CLOptions->hasArg(options::OPT_config_kitsune_dir_EQ)) {
+      SmallString<128> CfgDir;
+      CfgDir.append(
+          CLOptions->getLastArgValue(options::OPT_config_kitsune_dir_EQ));
+      if (!CfgDir.empty()) {
+        if (llvm::sys::fs::make_absolute(CfgDir).value() != 0)
+          KitsuneConfigDir.clear();
+        else
+          KitsuneConfigDir = std::string(CfgDir.begin(), CfgDir.end());
+      }
+    }
   }
 
   // Prepare list of directories where config file is searched for.
-  StringRef CfgFileSearchDirs[] = {UserConfigDir, SystemConfigDir, Dir};
+  StringRef CfgFileSearchDirs[] = {UserConfigDir, KitsuneConfigDir,
+                                   SystemConfigDir, Dir};
   ExpCtx.setSearchDirs(CfgFileSearchDirs);
 
   // First try to load configuration from the default files, return on error.
@@ -1087,6 +1126,32 @@ bool Driver::loadConfigFiles() {
   // Then load configuration files specified explicitly.
   SmallString<128> CfgFilePath;
   if (CLOptions) {
+    if (CLOptions->hasArg(options::OPT_fkokkos)) {
+      // It is ok if the Kokkos configuration file was not found. It is
+      // intended to be optional just like the top-level clang config file.
+      if (ExpCtx.findConfigFile("kokkos.cfg", CfgFilePath)) {
+        // If an error occurs while reading the file, this will return true.
+        // The diagnostic will already have been emitted.
+        if (readConfigFile(CfgFilePath, ExpCtx))
+          return true;
+      }
+    }
+
+    // Tapir target-specific configuration files may be used to add options for
+    // specific backends that are not relevant to other backends and therefore
+    // should not be added to a clang-specific config file. It is ok if such a
+    // config file is not found. They are intended to be optional just like the
+    // "top-level" clang config file.
+    if (std::optional<llvm::StringRef> TargetCfgFile =
+            getTargetConfigFileName(*CLOptions)) {
+      if (!TargetCfgFile->empty() &&
+          ExpCtx.findConfigFile(*TargetCfgFile, CfgFilePath))
+        // If an error occurs while reading the file, this will return true.
+        // The diagnostic will already have been emitted.
+        if (readConfigFile(CfgFilePath, ExpCtx))
+          return true;
+    }
+
     for (auto CfgFileName : CLOptions->getAllArgValues(options::OPT_config)) {
       // If argument contains directory separator, treat it as a path to
       // configuration file.
@@ -1450,6 +1515,14 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
       } else
         CXX20HeaderType = static_cast<ModuleHeaderMode>(Kind);
     }
+  }
+
+  // Check that the -ftapir flag gets a valid value. This stops us from
+  // reporting multiple errors because the flag is examined in several places.
+  if (const Arg* A = Args.getLastArg(options::OPT_ftapir_EQ)) {
+    if (not parseTapirTarget(Args))
+      Diag(diag::err_drv_invalid_value)
+          << A->getAsString(Args) << A->getValue();
   }
 
   std::unique_ptr<llvm::opt::InputArgList> UArgs =
@@ -2177,6 +2250,9 @@ bool Driver::HandleImmediateArgs(Compilation &C) {
     if (!UserConfigDir.empty())
       llvm::errs() << "User configuration file directory: "
                    << UserConfigDir << "\n";
+    if (!KitsuneConfigDir.empty())
+      llvm::errs() << "Kitsune configuration file directory: "
+                   << KitsuneConfigDir << "\n";
   }
 
   const ToolChain &TC = C.getDefaultToolChain();
