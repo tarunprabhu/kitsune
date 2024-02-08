@@ -365,6 +365,10 @@ void StmtProfiler::VisitCXXForRangeStmt(const CXXForRangeStmt *S) {
   VisitStmt(S);
 }
 
+void StmtProfiler::VisitCXXForallRangeStmt(const CXXForallRangeStmt *S) {
+  VisitStmt(S);
+}
+
 void StmtProfiler::VisitMSDependentExistsStmt(const MSDependentExistsStmt *S) {
   VisitStmt(S);
   ID.AddBoolean(S->isIfExists());
@@ -1934,6 +1938,19 @@ void StmtProfiler::VisitCUDAKernelCallExpr(const CUDAKernelCallExpr *S) {
 
 void StmtProfiler::VisitAsTypeExpr(const AsTypeExpr *S) {
   VisitExpr(S);
+}
+
+
+void StmtProfiler::VisitSpawnStmt(const SpawnStmt *S) {
+  VisitStmt(S);
+}
+
+void StmtProfiler::VisitSyncStmt(const SyncStmt *S) {
+  VisitStmt(S);
+}
+
+void StmtProfiler::VisitForallStmt(const ForallStmt *S) {
+  VisitStmt(S);
 }
 
 void StmtProfiler::VisitCXXNamedCastExpr(const CXXNamedCastExpr *S) {

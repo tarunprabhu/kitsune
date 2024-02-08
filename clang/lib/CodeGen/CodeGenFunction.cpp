@@ -662,6 +662,20 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
   }
 }
 
+void CodeGenFunction::EmitKitsuneMetadata(const FunctionDecl *FD,
+					                      llvm::Function *Fn) {
+  CGM.GenKitsuneArgMetadata(Fn, FD, this);
+
+  if (const KitsuneMemAccessAttr *A = FD->getAttr<KitsuneMemAccessAttr>()) {
+    if (A->isWriteOnly())
+      Fn->addFnAttr("kitsune.writeonly");
+    else if (A->isReadWrite())
+      Fn->addFnAttr("kitsune.readwrite");
+    else
+      Fn->addFnAttr("kitsune.readonly");
+  }
+}
+
 /// Determine whether the function F ends with a return stmt.
 static bool endsWithReturn(const Decl* F) {
   const Stmt *Body = nullptr;
@@ -984,6 +998,9 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
              (getLangOpts().HIP && getLangOpts().CUDAIsDevice))) {
     // Add metadata for a kernel function.
     EmitKernelMetadata(FD, Fn);
+  }
+  if (FD && getLangOpts().Kitsune) {
+    EmitKitsuneMetadata(FD, Fn);
   }
 
   // If we are checking function types, emit a function type signature as
@@ -2611,6 +2628,74 @@ CodeGenFunction::SanitizerScope::SanitizerScope(CodeGenFunction *CGF)
 
 CodeGenFunction::SanitizerScope::~SanitizerScope() {
   CGF->IsSanitizerScope = false;
+}
+
+void CodeGenFunction::DetachScope::StartLabeledDetach(SyncRegion* SR) {
+  // Create the detach
+  CGF.Builder.CreateDetach(DetachedBlock, ContinueBlock,
+                           SR->getSyncRegionStart());
+
+  // Save the old EH state.
+  OldEHResumeBlock = CGF.EHResumeBlock;
+  CGF.EHResumeBlock = nullptr;
+  OldExceptionSlot = CGF.ExceptionSlot;
+  CGF.ExceptionSlot = nullptr;
+  OldEHSelectorSlot = CGF.EHSelectorSlot;
+  CGF.EHSelectorSlot = nullptr;
+
+  // Emit the detached block.
+  CGF.EmitBlock(DetachedBlock);
+
+  CGF.PushSyncRegion();
+
+  // Initialize lifetime intrinsics for the reference temporary.
+  if (RefTmp.isValid()) {
+    switch (RefTmpSD) {
+    case SD_Automatic:
+    case SD_FullExpression:
+      if (auto *Size = CGF.EmitLifetimeStart(
+              CGF.CGM.getDataLayout().getTypeAllocSize(RefTmp.getElementType()),
+              RefTmp.getPointer())) {
+        if (RefTmpSD == SD_Automatic)
+          CGF.pushCleanupAfterFullExpr<CallLifetimeEnd>(NormalEHLifetimeMarker,
+                                                        RefTmp, Size);
+        else
+          CGF.pushFullExprCleanup<CallLifetimeEnd>(NormalEHLifetimeMarker,
+                                                   RefTmp, Size);
+      }
+      break;
+    default:
+      break;
+    }
+  }
+
+  DetachStarted = true;
+}
+
+void CodeGenFunction::DetachScope::FinishLabeledDetach(SyncRegion* SR) {
+  assert(DetachStarted &&
+         "Attempted to finish a detach that was not started.");
+
+  CGF.PopSyncRegion();
+
+  // The CFG path into the spawned statement should terminate with a `reattach'.
+  CGF.Builder.CreateReattach(ContinueBlock,
+                             SR->getSyncRegionStart());
+
+  // Restore the alloca insertion point.
+  llvm::Instruction *Ptr = CGF.AllocaInsertPt;
+  CGF.AllocaInsertPt = OldAllocaInsertPt;
+  SavedDetachedAllocaInsertPt = nullptr;
+  Ptr->eraseFromParent();
+
+  // Restore the EH state.
+  EmitIfUsed(CGF, CGF.EHResumeBlock);
+  CGF.EHResumeBlock = OldEHResumeBlock;
+  CGF.ExceptionSlot = OldExceptionSlot;
+  CGF.EHSelectorSlot = OldEHSelectorSlot;
+
+  // Emit the continue block.
+  CGF.EmitBlock(ContinueBlock);
 }
 
 void CodeGenFunction::InsertHelper(llvm::Instruction *I,

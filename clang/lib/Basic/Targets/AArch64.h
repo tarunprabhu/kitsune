@@ -115,8 +115,6 @@ public:
     return false;
   }
 
-  bool hasSjLjLowering() const override { return true; }
-
   void setArchFeatures();
 
   void getTargetDefinesARMV81A(const LangOptions &Opts,
@@ -193,6 +191,8 @@ public:
                                   StringRef Expression) const override {
     return Expression;
   }
+
+  bool hasSjLjLowering() const override; 
 
   int getEHDataRegisterNumber(unsigned RegNo) const override;
 

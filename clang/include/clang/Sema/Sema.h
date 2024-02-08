@@ -33,6 +33,7 @@
 #include "clang/AST/NSAPI.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/StmtKitsune.h"
 #include "clang/AST/StmtOpenMP.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/AST/TypeOrdering.h"
@@ -5307,6 +5308,29 @@ public:
   PerformMoveOrCopyInitialization(const InitializedEntity &Entity,
                                   const NamedReturnInfo &NRInfo, Expr *Value,
                                   bool SupressSimplerImplicitMoves = false);
+
+  StmtResult ActOnSyncStmt(SourceLocation SyncLoc, StringRef sv);
+  StmtResult ActOnSpawnStmt(SourceLocation SpawnLoc, StringRef sv, Stmt *S);
+  StmtResult ActOnForallStmt(SourceLocation ForLoc,
+                             SourceLocation LParenLoc,
+                             Stmt *First,
+                             ConditionResult Second,
+                             FullExprArg Third,
+                             SourceLocation RParenLoc,
+                             Stmt *Body);
+  StmtResult ActOnCXXForallRangeStmt(Scope *S, SourceLocation ForLoc,
+                                     SourceLocation CoawaitLoc,
+                                     Stmt *InitStmt,
+                                     Stmt *LoopVar,
+                                     SourceLocation ColonLoc, Expr *Collection,
+                                     SourceLocation RParenLoc,
+                                     BuildForRangeKind Kind);
+  StmtResult BuildCXXForallRangeStmt(
+      SourceLocation ForLoc, SourceLocation CoawaitLoc, Stmt *InitStmt,
+      SourceLocation ColonLoc, Stmt *RangeDecl, Stmt *Begin, Stmt *End,
+      Stmt *Index, Stmt *IndexEnd, Expr *Cond, Expr *Inc, Stmt *LoopVarDecl,
+      SourceLocation RParenLoc, BuildForRangeKind Kind);
+  StmtResult FinishCXXForallRangeStmt(Stmt *ForRange, Stmt *Body);
 
   StmtResult ActOnReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp,
                              Scope *CurScope);

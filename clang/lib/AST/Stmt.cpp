@@ -21,9 +21,11 @@
 #include "clang/AST/ExprConcepts.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExprOpenMP.h"
+#include "clang/AST/Stmt.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/AST/StmtOpenMP.h"
+#include "clang/AST/StmtKitsune.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/LLVM.h"
@@ -1437,3 +1439,53 @@ bool CapturedStmt::capturesVariable(const VarDecl *Var) const {
 
   return false;
 }
+
+// ForallStmt
+ForallStmt::ForallStmt(const ASTContext &C, Stmt *Init, Expr *Cond, VarDecl *condVar,
+                 Expr *Inc, Stmt *Body, SourceLocation FL, SourceLocation LP,
+                 SourceLocation RP)
+  : Stmt(ForallStmtClass), LParenLoc(LP), RParenLoc(RP)
+{
+  SubExprs[INIT] = Init;
+  setConditionVariable(C, condVar);
+  SubExprs[COND] = Cond;
+  SubExprs[INC] = Inc;
+  SubExprs[BODY] = Body;
+  ForStmtBits.ForLoc = FL;
+}
+
+VarDecl *ForallStmt::getConditionVariable() const {
+  if (!SubExprs[CONDVAR])
+    return nullptr;
+
+  auto *DS = cast<DeclStmt>(SubExprs[CONDVAR]);
+  return cast<VarDecl>(DS->getSingleDecl());
+}
+
+void ForallStmt::setConditionVariable(const ASTContext &C, VarDecl *V) {
+  if (!V) {
+    SubExprs[CONDVAR] = nullptr;
+    return;
+  }
+
+  SourceRange VarRange = V->getSourceRange();
+  SubExprs[CONDVAR] = new (C) DeclStmt(DeclGroupRef(V), VarRange.getBegin(),
+                                       VarRange.getEnd());
+}
+
+const Stmt* SpawnStmt::getSpawnedStmt() const {
+  return SpawnedStmt;
+}
+
+Stmt* SpawnStmt::getSpawnedStmt() {
+  return SpawnedStmt;
+}
+
+StringRef SpawnStmt::getSyncVar() const {
+  return SyncVar;
+}
+
+StringRef SyncStmt::getSyncVar() const {
+  return SyncVar;
+}
+

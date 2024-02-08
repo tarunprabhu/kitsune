@@ -61,6 +61,7 @@ add_clang_library(clangCodeGen
   CGBlocks.cpp
   CGBuiltin.cpp
   CGCilk.cpp
+  CGKitsune.cpp
   CGCUDANV.cpp
   CGCUDARuntime.cpp
   CGCXX.cpp
@@ -81,6 +82,7 @@ add_clang_library(clangCodeGen
   CGExprScalar.cpp
   CGGPUBuiltin.cpp
   CGHLSLRuntime.cpp
+  CGKokkos.cpp   
   CGLoopInfo.cpp
   CGNonTrivialStruct.cpp
   CGObjC.cpp
@@ -93,6 +95,7 @@ add_clang_library(clangCodeGen
   CGRecordLayoutBuilder.cpp
   CGStmt.cpp
   CGStmtOpenMP.cpp
+  CGKitsune.cpp
   CGVTT.cpp
   CGVTables.cpp
   CodeGenABITypes.cpp

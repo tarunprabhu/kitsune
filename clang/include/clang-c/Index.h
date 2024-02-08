@@ -2136,7 +2136,19 @@ enum CXCursorKind {
    */
   CXCursor_OMPErrorDirective = 305,
 
-  CXCursor_LastStmt = CXCursor_OMPErrorDirective,
+  /** Kitsune range-based forall statement.
+   */
+  CXCursor_CXXForallRangeStmt       = 306,
+
+  /** Kitsune spawn statement.
+   */
+  CXCursor_SpawnStmt                 = 307,
+
+  /** Kitsune sync statement.
+   */
+  CXCursor_SyncStmt                 = 308,
+
+  CXCursor_LastStmt = CXCursor_SyncStmt,
 
   /**
    * Cursor that represents the translation unit itself.

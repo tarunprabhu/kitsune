@@ -22,8 +22,10 @@
 #include "clang/Basic/TargetCXXABI.h"
 #include "clang/Basic/Visibility.h"
 #include "llvm/ADT/FloatingPointMode.h"
+#include "clang/Basic/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include <optional>
 #include <string>
 #include <vector>
@@ -420,6 +422,9 @@ public:
   /// The used language standard.
   LangStandard::Kind LangStd;
 
+  /// Is Kitsune mode enabled.
+  bool Kitsune = false;
+
   /// Set of enabled sanitizers.
   SanitizerSet Sanitize;
   /// Is at least one coverage instrumentation type enabled.
@@ -527,10 +532,15 @@ public:
   // received as a result of a standard operator new (-fcheck-new)
   bool CheckNew = false;
 
+<<<<<<< HEAD
   // In OpenACC mode, contains a user provided override for the _OPENACC macro.
   // This exists so that we can override the macro value and test our incomplete
   // implementation on real-world examples.
   std::string OpenACCMacroOverride;
+=======
+  /// \brief Runtime target for Tapir.
+  TapirTargetID TapirTarget = TapirTargetID::Last_TapirTargetID;
+>>>>>>> 942c6f48f3ff (This is a squash of all Kitsune commits to date. All credit goes to the)
 
   LangOptions();
 

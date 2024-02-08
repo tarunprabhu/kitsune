@@ -1534,6 +1534,11 @@ Parser::isCXXDeclarationSpecifier(ImplicitTypenameContext AllowImplicitTypename,
   case tok::kw_inout:
   case tok::kw_out:
 
+    // Kitsune memaccess qualifiers
+  case tok::kw__readonly:
+  case tok::kw__writeonly:
+  case tok::kw__readwrite:
+
     // GNU
   case tok::kw_restrict:
   case tok::kw__Complex:

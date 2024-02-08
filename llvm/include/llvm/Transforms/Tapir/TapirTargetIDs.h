@@ -19,14 +19,36 @@
 namespace llvm {
 
 enum class TapirTargetID {
+  Off,      // Completely disabled (i.e., no -ftapir argument was present).
   None,     // Perform no lowering
   Serial,   // Lower to serial projection
-  Cheetah,  // Lower to the Cheetah ABI
+  Cuda,     // Lower to Cuda ABI
+  Hip,      // Lower to the Hip (AMD GPU) ABI
   Lambda,   // Lower to generic Lambda ABI
   OMPTask,  // Lower to OpenMP task ABI
   OpenCilk, // Lower to OpenCilk ABI
-  Qthreads, // Lower to Qthreads
+  OpenMP,   // Lower to OpenMP (TODO: Needs to be updated)
+  Qthreads, // Lower to Qthreads (TODO: Needs to be updated)
+  Realm,    // Lower to Realm (TODO: Needs to be updated)
   Last_TapirTargetID
+};
+
+enum class TapirNVArchTargetID {
+  Off,      // Completely disabled (i.e., -ftapir != cuda)
+  SM_50,    // TODO: Remove depcreated targets based on latest CUDA releases.
+  SM_52,
+  SM_53,
+  SM_60,    // Pascal
+  SM_61,
+  SM_62,
+  SM_70,    // Volta
+  SM_72,
+  SM_75,    // Turing
+  SM_80,    // Ampere
+  SM_86,
+  SM_90,    // Hopper
+  // TODO: Update this enum when we sync w/ upstream LLVM capabilities.
+  Last_TapirNVArchTargetID
 };
 
 // Tapir target options

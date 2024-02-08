@@ -3164,7 +3164,11 @@ def fno_knr_functions : Flag<["-"], "fno-knr-functions">, Group<f_Group>,
 
 def ftapir_EQ : Joined<["-"], "ftapir=">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Choose the backend parallel runtime for Tapir instructions">,
-  Values<"none,serial,cilkplus,cheetah,lambda,omptask,opencilk,qthreads">;
+  Values<"none,serial,cilk,cheetah,cuda,hip,lambda,omptask,opencilk,openmp,qthreads,realm,opencl">;
+def ftapir_nvarch_EQ : Joined<["-"], "ftapir-nvarch=">, Group<f_Group>, Flags<[CC1Option]>,
+  HelpText<"Choose the target nvida gpu architecture (e.g., sm_80) for gpu and cuda backend runtimes">,
+  Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80">;
+
 def opencilk_resource_dir_EQ : Joined<["--"], "opencilk-resource-dir=">,
   Flags<[NoXarchOption]>,
   HelpText<"The directory that holds OpenCilk resource files">;

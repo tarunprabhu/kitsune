@@ -4465,3 +4465,54 @@ def CountedBy : InheritableAttr {
       void setCountedByFieldLoc(SourceRange Loc) { CountedByFieldLoc = Loc; }
   }];
 }
+
+def TapirTarget : StmtAttr {
+  let Spellings = [CXX11<"tapir","target">];
+  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt, Stmt],
+                             ErrorDiag, "'parallel' statements">;
+  let Args = [
+    // TODO: Is there a difference between "serial" and "none"?
+    EnumArgument<"TapirTargetAttrType", "TapirTargetAttrTy",
+                 ["none", "serial", "cuda", "hip", "lambda", "omptask",
+                  "opencilk", "openmp", "qthreads", "realm"],
+                 ["None", "Serial", "Cuda", "Hip", "Lambda", "OMPTask",
+                  "OpenCilk", "OpenMP", "Qthreads", "Realm"],
+                 0>
+  ];
+  let Documentation = [TapirRTDocs];
+}
+
+def TapirStrategy : StmtAttr {
+  let Spellings = [CXX11<"tapir", "strategy">];
+  let Args = [
+      EnumArgument<"TapirStrategyType", "TapirStrategyTy",
+      ["dac", "seq", "gpu"],
+      ["DAC", "SEQ", "GPU"], 0>
+  ];
+  // FIXME -- how do we document this?
+  let Documentation = [TapirStrategyDocs];
+}
+
+def KitsuneMemAccess : InheritableAttr {
+    let Spellings = [Keyword<"_readonly">,
+                     Keyword<"_writeonly">,
+                     Keyword<"_readwrite">];
+
+    let Subjects = SubjectList<[Function, LocalVar, ParmVar, TypedefName],
+                                ErrorDiag>; // TODO: not sure about Loops
+    let Accessors = [
+      Accessor<"isReadOnly", [Keyword<"_readonly">]>,
+      Accessor<"isWriteOnly", [Keyword<"_writeonly">]>,
+      Accessor<"isReadWrite", [Keyword<"_readwrite">]>
+    ];
+
+    let Documentation = [KitsuneMemAccessDocs];
+}
+
+def KitsuneLaunch : StmtAttr {
+    let Spellings = [CXX11<"kitsune","launch">];
+    let Subjects = SubjectList<[ForallStmt,CXXForallRangeStmt],
+    		   ErrorDiag, "'parallel' statements">;
+    let Args = [ExprArgument<"ThreadsPerBlock">];
+   let Documentation = [KitsuneLaunchDocs];    
+}

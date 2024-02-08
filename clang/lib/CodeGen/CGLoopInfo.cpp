@@ -33,6 +33,51 @@ LoopInfo::createLoopPropertiesMetadata(ArrayRef<Metadata *> LoopProperties) {
   return LoopID;
 }
 
+MDNode *LoopInfo::createTapirLoopMetadata(const LoopAttributes &Attrs,
+                                          ArrayRef<Metadata *> LoopProperties,
+                                          bool &HasUserTransforms) {
+  LLVMContext &Ctx = Header->getContext();
+
+  Optional<bool> Enabled;
+  if (Attrs.SpawnStrategy == LoopAttributes::SEQ)
+    Enabled = false;
+  else
+    Enabled = true;
+
+  if (Enabled != true)
+    return createLoopPropertiesMetadata(LoopProperties);
+
+  SmallVector<Metadata *, 4> Args;
+  TempMDTuple TempNode = MDNode::getTemporary(Ctx, std::nullopt);
+  Args.push_back(TempNode.get());
+  Args.append(LoopProperties.begin(), LoopProperties.end());
+
+  // Setting tapir.loop.spawn.strategy
+  if (Attrs.SpawnStrategy != LoopAttributes::SEQ) {
+    Metadata *Vals[] = {
+        MDString::get(Ctx, "tapir.loop.spawn.strategy"),
+        ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
+                                                 Attrs.SpawnStrategy))};
+    Args.push_back(MDNode::get(Ctx, Vals));
+  }
+
+  // Setting tapir.loop.grainsize
+  if (Attrs.TapirGrainsize > 0) {
+    Metadata *Vals[] = {
+        MDString::get(Ctx, "tapir.loop.grainsize"),
+        ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
+                                                 Attrs.TapirGrainsize))};
+    Args.push_back(MDNode::get(Ctx, Vals));
+  }
+
+  // No follow-up: This is the last transformation.
+
+  MDNode *LoopID = MDNode::getDistinct(Ctx, Args);
+  LoopID->replaceOperandWith(0, LoopID);
+  HasUserTransforms = true;
+  return LoopID;
+}
+
 MDNode *LoopInfo::createPipeliningMetadata(const LoopAttributes &Attrs,
                                            ArrayRef<Metadata *> LoopProperties,
                                            bool &HasUserTransforms) {
@@ -463,7 +508,7 @@ LoopAttributes::LoopAttributes(bool IsParallel)
       TapirGrainsize(0),
       DistributeEnable(LoopAttributes::Unspecified), PipelineDisabled(false),
       PipelineInitiationInterval(0), CodeAlign(0), MustProgress(false),
-      SpawnStrategy(LoopAttributes::Sequential) {}
+      SpawnStrategy(LoopAttributes::SEQ) {}
 
 void LoopAttributes::clear() {
   IsParallel = false;
@@ -482,7 +527,7 @@ void LoopAttributes::clear() {
   PipelineInitiationInterval = 0;
   CodeAlign = 0;
   MustProgress = false;
-  SpawnStrategy = LoopAttributes::Sequential;
+  SpawnStrategy = LoopAttributes::SEQ;
 }
 
 LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
@@ -509,7 +554,7 @@ LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
       Attrs.UnrollAndJamEnable == LoopAttributes::Unspecified &&
       Attrs.DistributeEnable == LoopAttributes::Unspecified &&
       Attrs.CodeAlign == 0 && !StartLoc && !EndLoc && !Attrs.MustProgress &&
-      Attrs.SpawnStrategy == LoopAttributes::Sequential)
+      Attrs.SpawnStrategy == LoopAttributes::SEQ)
     return;
 
   TempLoopID = MDNode::getTemporary(Header->getContext(), std::nullopt);
@@ -519,11 +564,11 @@ void LoopInfo::getTapirLoopProperties(
     const LoopAttributes &Attrs, SmallVectorImpl<Metadata *> &LoopProperties) {
   LLVMContext &Ctx = Header->getContext();
 
-  if (Attrs.SpawnStrategy == LoopAttributes::Sequential)
+  if (Attrs.SpawnStrategy == LoopAttributes::SEQ)
     return;
 
   // Setting tapir.loop.spawn.strategy
-  if (Attrs.SpawnStrategy != LoopAttributes::Sequential) {
+  if (Attrs.SpawnStrategy != LoopAttributes::SEQ) {
     Metadata *Vals[] = {
         MDString::get(Ctx, "tapir.loop.spawn.strategy"),
         ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
@@ -539,6 +584,14 @@ void LoopInfo::getTapirLoopProperties(
                                                  Attrs.TapirGrainsize))};
     LoopProperties.push_back(MDNode::get(Ctx, Vals));
   }
+
+  // Setting tapir.loop.target
+  // All tapir loops have a loop target, it may be the default
+  Metadata *Vals[] = {
+  MDString::get(Ctx, "tapir.loop.target"),
+  ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
+                                            Attrs.LoopTarget))};
+  LoopProperties.push_back(MDNode::get(Ctx, Vals));   
 }
 
 void LoopInfo::finish() {

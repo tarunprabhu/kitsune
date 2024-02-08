@@ -368,11 +368,18 @@ endif()
 include(CMakeParseArguments)
 include(AddClang)
 
+option(CLANG_ENABLE_KITSUNE "Enable Kitsune features in Clang." ON)
+if(CLANG_ENABLE_KITSUNE)
+  add_subdirectory(kitsune)
+endif()
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(BEFORE
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${KITSUNE_SOURCE_DIR}/include
+  ${KITSUNE_BINARY_DIR}/include
   )
 
 if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)

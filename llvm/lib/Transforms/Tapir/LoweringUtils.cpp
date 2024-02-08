@@ -17,12 +17,15 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/Timer.h"
-#include "llvm/Transforms/IPO/FunctionAttrs.h"
+#include "llvm/Transforms/Tapir/CudaABI.h"
+#include "llvm/Transforms/Tapir/HipABI.h"
 #include "llvm/Transforms/Tapir/LambdaABI.h"
 #include "llvm/Transforms/Tapir/OMPTaskABI.h"
 #include "llvm/Transforms/Tapir/OpenCilkABI.h"
+#include "llvm/Transforms/Tapir/OpenMPABI.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/QthreadsABI.h"
+#include "llvm/Transforms/Tapir/RealmABI.h"
 #include "llvm/Transforms/Tapir/SerialABI.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -42,15 +45,22 @@ TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID) {
     return nullptr;
   case TapirTargetID::Serial:
     return new SerialABI(M);
-  case TapirTargetID::Cheetah:
-  case TapirTargetID::OpenCilk:
-    return new OpenCilkABI(M);
+  case TapirTargetID::Cuda:
+    return new CudaABI(M);
+  case TapirTargetID::Hip:
+    return new HipABI(M);
   case TapirTargetID::Lambda:
     return new LambdaABI(M);
   case TapirTargetID::OMPTask:
     return new OMPTaskABI(M);
+  case TapirTargetID::OpenCilk:
+    return new OpenCilkABI(M);
+  case TapirTargetID::OpenMP:
+    return new OpenMPABI(M);
   case TapirTargetID::Qthreads:
     return new QthreadsABI(M);
+  case TapirTargetID::Realm:
+    return new RealmABI(M);
   default:
     llvm_unreachable("Invalid TapirTargetID");
   }
@@ -992,7 +1002,7 @@ TaskOutlineInfo llvm::outlineTaskFrame(
                                               ReturnType, OA);
   Instruction *ClonedTF = cast<Instruction>(VMap[TF->getTaskFrameCreate()]);
   return TaskOutlineInfo(Helper, Entry, nullptr, ClonedTF, Inputs,
-                         ArgsStart, StorePt, Continue, Unwind);
+                         ArgsStart, StorePt, nullptr, Continue, Unwind);
 }
 
 /// Replaces the spawned task \p T, with associated TaskOutlineInfo \p Out, with
@@ -1099,7 +1109,8 @@ TaskOutlineInfo llvm::outlineTask(
   return TaskOutlineInfo(Helper, T->getEntry(),
                          dyn_cast_or_null<Instruction>(VMap[DI]),
                          dyn_cast_or_null<Instruction>(ClonedTFCreate), Inputs,
-                         ArgsStart, StorePt, DI->getContinue(), Unwind);
+                         ArgsStart, StorePt, T->getDetach()->getSyncRegion(),
+                         DI->getContinue(), Unwind);
 }
 
 //----------------------------------------------------------------------------//
@@ -1234,6 +1245,9 @@ bool TapirTarget::shouldProcessFunction(const Function &F) const {
   for (const Instruction &I : instructions(&F))
     if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I)) {
       switch (II->getIntrinsicID()) {
+      case Intrinsic::hyper_lookup:
+      case Intrinsic::reducer_register:
+      case Intrinsic::reducer_unregister:
       case Intrinsic::tapir_loop_grainsize:
       case Intrinsic::task_frameaddress:
       case Intrinsic::tapir_runtime_start:
@@ -1266,4 +1280,54 @@ bool TapirTarget::processOrdinaryFunction(Function &F, BasicBlock *TFEntry) {
   // By default, do no special processing for ordinary functions.  Instead, the
   // function will be processed using TapirToTargetImpl::processSimpleABI().
   return false;
+}
+
+
+/// @brief Wite the given module to a file as readable IR.
+/// @param M - the module to save.
+/// @param Filename - optional file name (empty string uses module name).
+void llvm::saveModuleToFile(const Module *M,
+                      const std::string &FileName,
+                      const std::string &Extension) {
+  std::error_code EC;
+  SmallString<256> IRFileName;
+  if (FileName.empty())
+    IRFileName = Twine(sys::path::filename(M->getName())).str() 
+                  + Extension;
+  else
+    IRFileName = Twine(FileName).str() + Extension;
+
+  std::unique_ptr<ToolOutputFile> IRFile = std::make_unique<ToolOutputFile>(
+      IRFileName, EC, sys::fs::OpenFlags::OF_None);
+  if (not EC) {
+    M->print(IRFile->os(), nullptr);
+    IRFile->keep();
+  } else
+    errs() << "warning: unable to save module '" << IRFileName.c_str() << "'\n";
+}
+
+/// @brief Write the given function to a file as readable IR.
+/// @param Fn - the function to save.
+/// @param Filename - optional file name (empty string uses function name).
+void llvm::saveFunctionToFile(const Function *Fn,
+                        const std::string &FileName,
+                        const std::string &Extension) {
+  std::error_code EC;
+  SmallString<256> IRFileName;
+  if (FileName.empty()) {
+    std::string DName = demangle(Fn->getName().str());
+    auto ParenLoc = DName.find("(");
+    std::string ShortName = DName.substr(0, ParenLoc);
+    IRFileName = ShortName + Extension;
+  } else
+    IRFileName = Twine(FileName).str() + Extension;
+
+  std::unique_ptr<ToolOutputFile> IRFile = std::make_unique<ToolOutputFile>(
+      IRFileName, EC, sys::fs::OpenFlags::OF_None);
+  if (not EC) {
+    Fn->print(IRFile->os(), nullptr);
+    IRFile->keep();
+  } else
+    errs() << "warning: unable to save function '" << IRFileName.c_str()
+           << "'\n";
 }

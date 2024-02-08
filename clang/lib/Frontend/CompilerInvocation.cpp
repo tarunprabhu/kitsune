@@ -12,6 +12,7 @@
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/CommentOptions.h"
+#include "clang/Basic/DebugInfoOptions.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticDriver.h"
 #include "clang/Basic/DiagnosticOptions.h"
@@ -1483,6 +1484,12 @@ void CompilerInvocationBase::GenerateCodeGenArgs(const CodeGenOptions &Opts,
   if (std::optional<StringRef> TapirTargetStr =
           serializeTapirTarget(Opts.getTapirTarget()))
     GenerateArg(Args, OPT_ftapir_EQ, *TapirTargetStr, SA);
+
+  if (Opts.Kokkos)
+    GenerateArg(Args, OPT_fkokkos, SA);
+
+  if (Opts.KokkosNoInit)
+    GenerateArg(Args, OPT_fkokkos_no_init, SA);
 
   std::optional<StringRef> DebugInfoVal;
   switch (Opts.DebugInfo) {
@@ -3469,6 +3476,11 @@ void CompilerInvocationBase::GenerateLangArgs(const LangOptions &Opts,
   if (Opts.IgnoreXCOFFVisibility)
     GenerateArg(Consumer, OPT_mignore_xcoff_visibility);
 
+  if (Opts.Kokkos)
+    GenerateArg(Args, OPT_fkokkos, SA);
+  if (Opts.KokkosNoInit)
+    GenerateArg(Args, OPT_fkokkos_no_init, SA);
+
   if (Opts.SignedOverflowBehavior == LangOptions::SOB_Trapping) {
     GenerateArg(Consumer, OPT_ftrapv);
     GenerateArg(Consumer, OPT_ftrapv_handler, Opts.OverflowHandler);
@@ -3859,6 +3871,9 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   if (T.isOSAIX() && (Args.hasArg(OPT_mignore_xcoff_visibility)))
     Opts.IgnoreXCOFFVisibility = 1;
 
+  if (Opts.getKitsune() == LangOptions::Kitsune && Opts.ObjC)
+    Diags.Report(diag::err_drv_kitsune_objc);
+
   if (Args.hasArg(OPT_ftrapv)) {
     Opts.setSignedOverflowBehavior(LangOptions::SOB_Trapping);
     // Set the handler, if one is specified.
@@ -3936,6 +3951,17 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
 
   // Check if -fopenmp is specified and set default version to 5.0.
   Opts.OpenMP = Args.hasArg(OPT_fopenmp) ? 51 : 0;
+
+  // Check if -fkitsune is specified.
+  Opts.Kitsune = Args.hasArg(options::OPT_fkitsune) ? 1 : 0;
+
+  // Check if -fkokkos is specified.
+  Opts.Kokkos = Args.hasArg(options::OPT_fkokkos) ? 1 : 0;
+  Opts.KokkosNoInit = Args.hasArg(options::OPT_fkokkos_no_init) ? 1: 0;
+
+  // Check if -fflecsi is specified.
+  Opts.FleCSI = Args.hasArg(options::OPT_fflecsi) ? 1 : 0;
+
   // Check if -fopenmp-simd is specified.
   bool IsSimdSpecified =
       Args.hasFlag(options::OPT_fopenmp_simd, options::OPT_fno_openmp_simd,
@@ -4635,6 +4661,52 @@ bool CompilerInvocation::CreateFromArgsImpl(
       Res.getCodeGenOpts().MisExpect = true;
     }
   }
+
+  TapirTargetID TapirTarget = parseTapirTarget(Args);
+  if (TapirTarget == TapirTargetID::Last_TapirTargetID)
+    if (const Arg *A = Args.getLastArg(OPT_ftapir_EQ))
+      Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args)
+                                                << A->getValue();
+  LangOpts.TapirTarget = TapirTarget;
+
+  if (LangOpts.Cilk && LangOpts.ObjC)
+    Diags.Report(diag::err_drv_cilk_objc);
+
+  // if (Diags.isIgnored(diag::warn_profile_data_misexpect, SourceLocation()))
+  //   Res.FrontendOpts.LLVMArgs.push_back("-pgo-warn-misexpect");
+
+  // Check if -ftapir is specified
+  if (Arg *A = Args.getLastArg(OPT_ftapir_EQ)){
+    StringRef Name = A->getValue();
+    if (Name == "none")
+      LangOpts.TapirTarget = TapirTargetID::None;
+    else if (Name == "serial")
+      LangOpts.TapirTarge = TapirTargetID::Serial;
+    else if (Name == "cuda")
+      LangOpts.TapirTarget = TapirTargetID::Cuda;
+    else if (Name == "hip")
+      LangOpts.TapirTarget = TapirTargetID::Hip;
+    else if (Name == "lambda")
+      LangOpts.TapirTarget = TapirTargetID::Lambda;
+    else if (Name == "omptask")
+      LangOpts.TapirTarget = TapirTargetID::OMPTask;
+    else if (Name == "opencilk")
+      LangOpts.TapirTarget = TapirTargetID::OpenCilk;
+    else if (Name == "openmp")
+      LangOpts.TapirTarget = TapirTargetID::OpenMP;
+    else if (Name == "qthreads")
+      LangOpts.TapirTarget = TapirTargetID::Qthreads;
+    else if (Name == "realm")
+      LangOpts.TapirTarget = TapirTargetID::Realm;
+    else
+      Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args) <<
+        Name;
+  } else {
+    LangOpts.Tapir = TapirTargetID::Off;
+  }
+
+  LangOpts.FunctionAlignment =
+      getLastArgIntValue(Args, OPT_function_alignment, 0, Diags);
 
   if (LangOpts.CUDA) {
     // During CUDA device-side compilation, the aux triple is the

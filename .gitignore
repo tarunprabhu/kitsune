@@ -29,6 +29,10 @@
 # Nested build directory
 /build*
 
+# External projects 
+/cheetah 
+/cilktools
+
 #==============================================================================#
 # Explicit files to ignore (only matches one).
 #==============================================================================#
@@ -51,6 +55,9 @@ autoconf/autom4te.cache
 /CMakeSettings.json
 # CLion project configuration
 /.idea
+
+.vscode/settings.json
+.vscode/launch.json
 
 #==============================================================================#
 # Directories to ignore (do not add trailing '/'s, they skip symlinks).

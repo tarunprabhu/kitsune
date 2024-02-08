@@ -15,17 +15,17 @@ if(NOT LLVM_NO_INSTALL_NAME_DIR_FOR_BUILD_TREE)
   set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
 endif()
 
-if(NOT DEFINED OPENCILK_VERSION_MAJOR)
-  set(OPENCILK_VERSION_MAJOR 2)
+if(NOT DEFINED KITSUNE_VERSION_MAJOR)
+  set(KITSUNE_VERSION_MAJOR 0)
 endif()
-if(NOT DEFINED OPENCILK_VERSION_MINOR)
-  set(OPENCILK_VERSION_MINOR 0)
+if(NOT DEFINED KITSUNE_VERSION_MINOR)
+  set(KITSUNE_VERSION_MINOR 16)
 endif()
-if(NOT DEFINED OPENCILK_VERSION_PATCH)
-  set(OPENCILK_VERSION_PATCH 0)
+if(NOT DEFINED KITSUNE_VERSION_PATCH)
+  set(KITSUNE_VERSION_PATCH 0)
 endif()
-if(NOT DEFINED OPENCILK_VERSION_SUFFIX)
-  set(OPENCILK_VERSION_SUFFIX)
+if(NOT DEFINED KITSUNE_VERSION_SUFFIX)
+  set(KITSUNE_VERSION_SUFFIX)
 endif()
 
 if(NOT DEFINED LLVM_VERSION_MAJOR)
@@ -56,9 +56,9 @@ if (NOT PACKAGE_VERSION)
     "${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX}")
 endif()
 
-if (NOT OPENCILK_PACKAGE_VERSION)
-  set(OPENCILK_PACKAGE_VERSION
-    "${OPENCILK_VERSION_MAJOR}.${OPENCILK_VERSION_MINOR}.${OPENCILK_VERSION_PATCH}${OPENCILK_VERSION_SUFFIX}")
+if (NOT KITSUNE_PACKAGE_VERSION)
+  set(KITSUNE_PACKAGE_VERSION
+    "${KITSUNE_VERSION_MAJOR}.${KITSUNE_VERSION_MINOR}.${KITSUNE_VERSION_PATCH}${KITSUNE_VERSION_SUFFIX}")
 endif()
 
 if(NOT DEFINED LLVM_SHLIB_SYMBOL_VERSION)
@@ -73,6 +73,7 @@ if ((CMAKE_GENERATOR MATCHES "Visual Studio") AND (MSVC_TOOLSET_VERSION LESS 142
                   "host compiler, pass -Thost=x64 on the CMake command line.")
 endif()
 
+set (LLVM_EXTERNAL_PROJECTS "kitsune")
 if (CMAKE_GENERATOR STREQUAL "Xcode" AND NOT CMAKE_OSX_ARCHITECTURES)
   # Some CMake features like object libraries get confused if you don't
   # explicitly specify an architecture setting with the Xcode generator.
@@ -147,11 +148,31 @@ else()
   endif()
 endif()
 
+############
+# For Kitsune+Tapir drop the Cheetah and OpenCilk Tools into the LLVM
+# mono-repo structure.  This allows them to be listed and processed
+# along with the rest of LLVM's components.
+include(FetchContent)
+FetchContent_Declare(cheetahrt
+  GIT_REPOSITORY    https://github.com/pmccormick/cheetah.git
+  GIT_TAG           kitsune
+  CMAKE_ARGS        -DCHEETAH_DEFAULT_TARGET_ARCH=aarch64
+  SOURCE_DIR        ${CMAKE_CURRENT_SOURCE_DIR}/../cheetah)
+
+FetchContent_GetProperties(cheetahrt)
+if (NOT cheetahrt_POPULATED)
+  message(STATUS "NOTE: <<<< fetching cheetah runtime source via git... >>>>")
+  FetchContent_Populate(cheetahrt)
+endif()
+
+#
+############
+
 # Side-by-side subprojects layout: automatically set the
 # LLVM_EXTERNAL_${project}_SOURCE_DIR using LLVM_ALL_PROJECTS
 # This allows an easy way of setting up a build directory for llvm and another
 # one for llvm+clang+... using the same sources.
-set(LLVM_ALL_PROJECTS "bolt;cheetah;cilktools;clang;clang-tools-extra;compiler-rt;cross-project-tests;libc;libclc;lld;lldb;mlir;openmp;polly;pstl")
+set(LLVM_ALL_PROJECTS "bolt;cheetah;cilktools;clang;clang-tools-extra;compiler-rt;kitsune;cross-project-tests;libc;libclc;lld;lldb;mlir;openmp;polly;pstl")
 # The flang project is not yet part of "all" projects (see C++ requirements)
 set(LLVM_EXTRA_PROJECTS "flang")
 # List of all known projects in the mono repo
@@ -183,8 +204,8 @@ endif()
 #
 # As we migrate runtimes to using the bootstrapping build, the set of default runtimes
 # should grow as we remove those runtimes from LLVM_ENABLE_PROJECTS above.
-set(LLVM_DEFAULT_RUNTIMES "libcxx;libcxxabi;libunwind")
-set(LLVM_SUPPORTED_RUNTIMES "libc;libunwind;libcxxabi;pstl;libcxx;compiler-rt;cheetah;cilktools;openmp;llvm-libgcc")
+set(LLVM_DEFAULT_RUNTIMES "cheetah;kitsune;libcxx;libcxxabi;libunwind")
+set(LLVM_SUPPORTED_RUNTIMES "cheetah;kitsune;libc;libunwind;libcxxabi;pstl;libcxx;compiler-rt;openmp;llvm-libgcc")
 set(LLVM_ENABLE_RUNTIMES "" CACHE STRING
   "Semicolon-separated list of runtimes to build, or \"all\" (${LLVM_DEFAULT_RUNTIMES}). Supported runtimes are ${LLVM_SUPPORTED_RUNTIMES}.")
 if(LLVM_ENABLE_RUNTIMES STREQUAL "all")
@@ -370,7 +391,7 @@ option(LLVM_TOOL_LLVM_DRIVER_BUILD "Enables building the llvm multicall tool" OF
 
 set(PACKAGE_NAME LLVM)
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
-set(PACKAGE_BUGREPORT "https://github.com/OpenCilk/opencilk-project/issues/")
+set(PACKAGE_BUGREPORT "https://github.com/lanl/kitsune/issues/")
 
 set(BUG_REPORT_URL "${PACKAGE_BUGREPORT}" CACHE STRING
   "Default URL where bug reports are to be submitted.")
@@ -378,19 +399,17 @@ set(LLDB_BUG_REPORT_URL "${BUG_REPORT_URL}" CACHE STRING
   "Default URL where lldb bug reports are to be submitted.")
 
 # Configure CPack.
-if(NOT DEFINED CPACK_PACKAGE_NAME)
-  set(CPACK_PACKAGE_NAME "OpenCilk")
-endif()
+set(CPACK_PACKAGE_NAME "Kitsune")
 if(NOT DEFINED CPACK_PACKAGE_INSTALL_DIRECTORY)
   set(CPACK_PACKAGE_INSTALL_DIRECTORY "LLVM")
 endif()
 if(NOT DEFINED CPACK_PACKAGE_VENDOR)
-  set(CPACK_PACKAGE_VENDOR "OpenCilk")
+  set(CPACK_PACKAGE_VENDOR "Kitsune")
 endif()
-set(CPACK_PACKAGE_VERSION_MAJOR ${OPENCILK_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${OPENCILK_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${OPENCILK_VERSION_PATCH})
-set(CPACK_PACKAGE_VERSION ${OPENCILK_PACKAGE_VERSION})
+set(CPACK_PACKAGE_VERSION_MAJOR ${KITSUNE_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${KITSUNE_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${KITSUNE_VERSION_PATCH})
+set(CPACK_PACKAGE_VERSION ${KITSUNE_PACKAGE_VERSION})
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/../MIT_LICENSE.TXT")
 if(WIN32 AND NOT UNIX)
   set(CPACK_NSIS_COMPRESSOR "/SOLID lzma \r\n SetCompressorDictSize 32")

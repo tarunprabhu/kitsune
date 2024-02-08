@@ -96,10 +96,12 @@ TapirTargetID lld::args::parseTapirTarget(StringRef tapirTarget) {
   return llvm::StringSwitch<TapirTargetID>(tapirTarget)
       .Case("none", TapirTargetID::None)
       .Case("serial", TapirTargetID::Serial)
-      .Case("cheetah", TapirTargetID::Cheetah)
+      .Case("cuda", TapirTargetID::Cuda)
+      .Case("hip", TapirTargetID::Hip)
       .Case("lambda", TapirTargetID::Lambda)
       .Case("omptask", TapirTargetID::OMPTask)
       .Case("opencilk", TapirTargetID::OpenCilk)
+      .Case("openmp", TapirTargetID::OpenMP)
       .Case("qthreads", TapirTargetID::Qthreads)
       .Default(TapirTargetID::Last_TapirTargetID);
 }

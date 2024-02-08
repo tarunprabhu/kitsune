@@ -563,6 +563,9 @@ namespace clang {
     ExpectedStmt VisitObjCAtSynchronizedStmt(ObjCAtSynchronizedStmt *S);
     ExpectedStmt VisitObjCAtThrowStmt(ObjCAtThrowStmt *S);
     ExpectedStmt VisitObjCAutoreleasePoolStmt(ObjCAutoreleasePoolStmt *S);
+    ExpectedStmt VisitForallStmt(ForallStmt *S);
+    ExpectedStmt VisitSpawnStmt(SpawnStmt *S);
+    ExpectedStmt VisitSyncStmt(SyncStmt *S);
 
     // Importing expressions
     ExpectedStmt VisitExpr(Expr *E);
@@ -7140,6 +7143,45 @@ ExpectedStmt ASTNodeImporter::VisitObjCAutoreleasePoolStmt(
     return ToSubStmtOrErr.takeError();
   return new (Importer.getToContext()) ObjCAutoreleasePoolStmt(*ToAtLocOrErr,
                                                                *ToSubStmtOrErr);
+}
+
+ExpectedStmt ASTNodeImporter::VisitSpawnStmt(SpawnStmt *S) {
+  ExpectedSLoc ToSpawnLocOrErr = import(S->getSpawnLoc());
+  if (!ToSpawnLocOrErr)
+    return ToSpawnLocOrErr.takeError();
+  ExpectedStmt ToChildOrErr = import(S->getSpawnedStmt());
+  if (!ToChildOrErr)
+    return ToChildOrErr.takeError();
+  StringRef SV = S->getSyncVar();
+  return new (Importer.getToContext()) SpawnStmt(*ToSpawnLocOrErr, SV,
+                                                     *ToChildOrErr);
+}
+
+ExpectedStmt ASTNodeImporter::VisitSyncStmt(SyncStmt *S) {
+  ExpectedSLoc ToSyncLocOrErr = import(S->getSyncLoc());
+  StringRef SV = S->getSyncVar();
+  if (!ToSyncLocOrErr)
+    return ToSyncLocOrErr.takeError();
+  return new (Importer.getToContext()) SyncStmt(*ToSyncLocOrErr, SV);
+}
+
+ExpectedStmt ASTNodeImporter::VisitForallStmt(ForallStmt *S) {
+  Error Err = Error::success();
+  auto ToInit = importChecked(Err, S->getInit());
+  auto ToCond = importChecked(Err, S->getCond());
+  auto ToConditionVariable = importChecked(Err, S->getConditionVariable());
+  auto ToInc = importChecked(Err, S->getInc());
+  auto ToBody = importChecked(Err, S->getBody());
+  auto ToForLoc = importChecked(Err, S->getForallLoc());
+  auto ToLParenLoc = importChecked(Err, S->getLParenLoc());
+  auto ToRParenLoc = importChecked(Err, S->getRParenLoc());
+  if (Err)
+    return std::move(Err);
+
+  return new (Importer.getToContext()) ForallStmt(
+      Importer.getToContext(),
+      ToInit, ToCond, ToConditionVariable, ToInc, ToBody, ToForLoc, ToLParenLoc,
+      ToRParenLoc);
 }
 
 //----------------------------------------------------------------------------

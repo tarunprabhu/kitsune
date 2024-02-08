@@ -109,6 +109,7 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::DefaultStmtClass:
   case Stmt::CaseStmtClass:
   case Stmt::SEHLeaveStmtClass:
+  case Stmt::SyncStmtClass:
     llvm_unreachable("should have emitted these statements as simple");
 
 #define STMT(Type, Base)
@@ -169,6 +170,12 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     EmitCapturedStmt(*CS, CS->getCapturedRegionKind());
     }
     break;
+  case Stmt::ForallStmtClass:
+    EmitForallStmt(cast<ForallStmt>(*S), Attrs);
+    break;
+  case Stmt::SpawnStmtClass:
+    EmitSpawnStmt(cast<SpawnStmt>(*S)); 
+    break;
   case Stmt::ObjCAtTryStmtClass:
     EmitObjCAtTryStmt(cast<ObjCAtTryStmt>(*S));
     break;
@@ -196,6 +203,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     break;
   case Stmt::CXXForRangeStmtClass:
     EmitCXXForRangeStmt(cast<CXXForRangeStmt>(*S), Attrs);
+    break;
+  case Stmt::CXXForallRangeStmtClass:
+    EmitCXXForallRangeStmt(cast<CXXForallRangeStmt>(*S), Attrs);
     break;
   case Stmt::SEHTryStmtClass:
     EmitSEHTryStmt(cast<SEHTryStmt>(*S));
@@ -475,6 +485,9 @@ bool CodeGenFunction::EmitSimpleStmt(const Stmt *S,
   case Stmt::SEHLeaveStmtClass:
     EmitSEHLeaveStmt(cast<SEHLeaveStmt>(*S));
     break;
+  case Stmt::SyncStmtClass: 
+    EmitSyncStmt(cast<SyncStmt>(*S)); 
+    break;
   }
   return true;
 }
@@ -519,6 +532,7 @@ CodeGenFunction::EmitCompoundStmtWithoutScope(const CompoundStmt &S,
         } else if (const auto *AS = dyn_cast<AttributedStmt>(ExprResult)) {
           // FIXME: Update this if we ever have attributes that affect the
           // semantics of an expression.
+          llvm::errs() << "we are here with an attributed expression...\n";
           ExprResult = AS->getSubStmt();
         } else {
           llvm_unreachable("unknown value statement");
@@ -708,6 +722,7 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
   bool noinline = false;
   bool alwaysinline = false;
   const CallExpr *musttail = nullptr;
+  ArrayRef<const Attr *> tapir_attr_set;
 
   for (const auto *A : S.getAttrs()) {
     switch (A->getKind()) {
@@ -722,10 +737,19 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
     case attr::AlwaysInline:
       alwaysinline = true;
       break;
-    case attr::MustTail:
+    case attr::MustTail: {
       const Stmt *Sub = S.getSubStmt();
       const ReturnStmt *R = cast<ReturnStmt>(Sub);
       musttail = cast<CallExpr>(R->getRetValue()->IgnoreParens());
+      break;
+    }
+    case attr::TapirTarget:
+      // In the case of a Tapir target attribute, we need to save the attribute
+      // set so we can use it when we reach code gen of the underlying
+      // CallExpr for Kokkos parallel "statements".  This is necessary given 
+      // the additional layers of details in the AST for C++ mechanisms Kokkos 
+      // uses to implement their feature set (e.g., implicit and cleanup goop). 
+      tapir_attr_set = S.getAttrs();
       break;
     }
   }
@@ -733,6 +757,7 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
   SaveAndRestore save_noinline(InNoInlineAttributedStmt, noinline);
   SaveAndRestore save_alwaysinline(InAlwaysInlineAttributedStmt, alwaysinline);
   SaveAndRestore save_musttail(MustTailCall, musttail);
+  SaveAndRestore save_tapir_addrs(TapirAttrs, tapir_attr_set);  
   EmitStmt(S.getSubStmt(), S.getAttrs());
 }
 
@@ -1323,6 +1348,13 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
 
   // Emit the result value, even if unused, to evaluate the side effects.
   const Expr *RV = S.getRetValue();
+
+  // If RV is a CilkSpawnExpr, handle the CilkSpawnExpr part here.
+  if (const CilkSpawnExpr *CS = dyn_cast_or_null<CilkSpawnExpr>(RV)) {
+    IsSpawned = true;
+    PushDetachScope();
+    RV = CS->getSpawnedExpr();
+  }
 
   // Record the result expression of the return statement. The recorded
   // expression is used to determine whether a block capture's lifetime should

@@ -328,6 +328,8 @@ def err_drv_invalid_cf_runtime_abi
           "'objc', 'standalone', 'swift', 'swift-5.0', 'swift-4.2', 'swift-4.1'">;
 def err_drv_gnustep_objc_runtime_incompatible_binary : Error<
   "GNUstep Objective-C runtime version %0 incompatible with target binary format">;
+def err_drv_cilk_objc : Error<
+  "Cilk does not support Objective-C">;
 def err_drv_cilk_unsupported: Error<
   "Cilk not yet supported for this target">;
 def err_drv_opencilk_missing_abi_bitcode: Error<
@@ -798,6 +800,7 @@ def warn_drv_missing_multilib : Warning<
 def note_drv_available_multilibs : Note<
   "available multilibs are:%0">;
 
+<<<<<<< HEAD
 def warn_android_unversioned_fallback : Warning<
   "Using unversioned Android target directory %0 for target %1. Unversioned"
   " directories will not be used in Clang 19. Provide a versioned directory"
@@ -806,4 +809,110 @@ def warn_android_unversioned_fallback : Warning<
 
 def err_drv_triple_version_invalid : Error<
   "version '%0' in target triple '%1' is invalid">;
+=======
+// +----- kitsune  FIXME: should probably use kitsune-centric naming here.
+// deprecate cilkrts (opencilk should no be default)
+//def warn_cilkrts_missing_build_params : Warning<
+//  "'-ftapir=cilk' enabled but build configuration missing details for "
+//  "automatic argument generation. Target-centric link arguments must be"
+//  "provided on command line.">, InGroup<UnknownRuntime>;
+
+def warn_opencilkrts_missing_build_params : Warning<
+  "'-ftapir=opencilk' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on command line.">, InGroup<UnknownRuntime>;
+
+def warn_qthreads_missing_build_params : Warning<
+  "'-ftapir=qthreads' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on command line.">, InGroup<UnknownRuntime>;
+
+def warn_realm_missing_build_params : Warning<
+  "'-ftapir=realm' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on command line.">, InGroup<UnknownRuntime>;
+
+def warn_cuda_missing_build_params : Warning<
+  "'-ftapir=cuda' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on command line.">, InGroup<UnknownRuntime>;
+
+def warn_opencl_missing_build_params : Warning<
+  "'-ftapir=opencl' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on command line.">, InGroup<UnknownRuntime>;
+
+def warn_hip_missing_build_params : Warning<
+  "'-ftapir=hip' enabled but build configuration missing details for "
+  "automatic argument generation. Target-centric link arguments must be"
+  "provided on command line.">, InGroup<UnknownRuntime>;
+
+// FIXME: Probably the wrong group for this...
+def warn_kokkos_missing_build_params : Warning<
+  "'-fkokkos' mode enabled but build configuration did not include support.">,
+  InGroup<UnknownRuntime>;
+
+def warn_missing_tapir_opencilk_config_opts : Warning<
+  "Unable to find configuration options file ('opencilk-opts.cfg') for "
+  "'-ftapir=opencilk' option.">, InGroup<UnknownRuntime>;
+
+def warn_missing_tapir_qthreads_config_opts : Warning<
+  "Unable to find configuration options file ('qtheads-opts.cfg') for "
+  "'-ftapir=qthreads' option.">, InGroup<UnknownRuntime>;
+
+def warn_missing_tapir_realm_config_opts : Warning<
+  "Unable to find configuration options file ('realm-opts.cfg') for "
+  "'-ftapir=realm' option.">, InGroup<UnknownRuntime>;
+
+def warn_missing_tapir_cuda_config_opts : Warning<
+  "Unable to find configuration options file ('cuda-opts.cfg') for "
+  "'-ftapir=cuda' option.">, InGroup<UnknownRuntime>;
+
+def warn_missing_tapir_hip_config_opts : Warning<
+  "Unable to find configuration options file ('hip-opts.cfg') for "
+  "'-ftapir=hip' option.">, InGroup<UnknownRuntime>;
+
+def warn_missing_tapir_opencl_config_opts : Warning<
+  "Unable to find configuration options file ('opencl-opts.cfg') for "
+  "'-ftapir=opencl' option.">, InGroup<UnknownRuntime>;
+
+def warn_missing_kitsune_kokkos_opts : Warning<
+  "'Unable to find configuration options file ('kokkos-opts.cfg') for "
+  "'-fkokkos' option.">, InGroup<UnknownRuntime>;
+// -----+
+
+def warn_drv_missing_cfg_file : Warning<
+  "cannot find clang configuration file, %0, in support of option: %1.">,
+  InGroup<Kitsune>;
+def err_drv_cannot_read_kitsune_cfg_file : Error<
+  "cannot read clang configuration file, %0, in support of option: %1.">;
+
+// catching configuration issues at build is a pain w/out a ton of #ifdef
+// litter.  we instead opt to warning users in cases where the options are
+// used but were not enabled at build time.
+def warn_drv_kitsune_kokkos_disabled : Warning<
+  "kokkos support was not enabled when clang was built.">,
+  InGroup<UnknownRuntime>;
+def warn_drv_tapir_openmp_target_disabled : Warning<
+  "the openmp runtime ABI transform target was not enabled when clang was "
+  "built.">, InGroup<UnknownRuntime>;
+def warn_drv_tapir_qthreads_target_disabled: Warning<
+  "the qthreads runtime ABI transform target was not enabled when clang was "
+  "built.">, InGroup<UnknownRuntime>;
+def warn_drv_tapir_realm_target_disabled: Warning<
+  "the realm runtime ABI transform target was not enabled when clang was "
+  "built.">, InGroup<UnknownRuntime>;
+def warn_drv_tapir_cuda_target_disabled: Warning<
+  "the cuda toolkit runtime ABI transform target was not enabled when clang "
+  "was built.">, InGroup<UnknownRuntime>;
+def warn_drv_tapir_hip_target_disabled: Warning<
+  "the hip runtime ABI transform target was not enabled when clang was "
+  "built.">, InGroup<UnknownRuntime>;
+def warn_drv_tapir_opencl_target_disabled: Warning<
+  "the opencl toolkit runtime ABI transform target was not enabled when clang "
+  "was built.">, InGroup<UnknownRuntime>;
+def warn_drv_tapir_gpu_target_disabled: Warning<
+  "the gpu runtime ABI transform target was not enabled when clang was "
+  "built.">, InGroup<UnknownRuntime>;
+>>>>>>> 942c6f48f3ff (This is a squash of all Kitsune commits to date. All credit goes to the)
 }

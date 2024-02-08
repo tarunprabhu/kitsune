@@ -22,7 +22,6 @@
 #include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Parse/Parser.h"
 #include "clang/Parse/RAIIObjectsForParser.h"
-#include "clang/Sema/EnterExpressionEvaluationContext.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/Scope.h"
@@ -4517,6 +4516,12 @@ void Parser::ParseDeclarationSpecifiers(
     case tok::kw___read_write:
       ParseOpenCLQualifiers(DS.getAttributes());
       break;
+    // Kitsune memaccess qualifiers:
+    case tok::kw__readonly:
+    case tok::kw__writeonly:
+    case tok::kw__readwrite:
+      ParseKitsuneMemAccessQualifiers(DS.getAttributes());
+      break;
 
     case tok::kw_groupshared:
     case tok::kw_in:
@@ -6069,6 +6074,13 @@ void Parser::ParseTypeQualifierListOpt(
     case tok::kw___write_only:
     case tok::kw___read_write:
       ParseOpenCLQualifiers(DS.getAttributes());
+      break;
+
+	// Kitsune qualifiers
+    case tok::kw__readonly:
+    case tok::kw__writeonly:
+    case tok::kw__readwrite:
+      ParseKitsuneMemAccessQualifiers(DS.getAttributes());
       break;
 
     case tok::kw_groupshared:
