@@ -288,6 +288,14 @@ def SanitizeMemTag : EnumAttr<"sanitize_memtag", [FnAttr]>;
 def SpeculativeLoadHardening : EnumAttr<"speculative_load_hardening",
                                         [FnAttr]>;
 
+/// CilkSanitizer is on.
+def SanitizeCilk : EnumAttr<"sanitize_cilk", [FnAttr]>;
+
+/// From the Cilk perspective, a continuation in the function can be
+/// stolen.  This attribute is used ensure correct code generation for
+/// such functions.
+def Stealable : EnumAttr<"stealable", [FnAttr]>;
+
 /// Argument is swift error.
 def SwiftError : EnumAttr<"swifterror", [ParamAttr]>;
 
@@ -394,6 +402,7 @@ def : MergeRule<"setOR<NoImplicitFloatAttr>">;
 def : MergeRule<"setOR<NoJumpTablesAttr>">;
 def : MergeRule<"setOR<ProfileSampleAccurateAttr>">;
 def : MergeRule<"setOR<SpeculativeLoadHardeningAttr>">;
+def : MergeRule<"setOR<StealableAttr>">;
 def : MergeRule<"adjustCallerSSPLevel">;
 def : MergeRule<"adjustCallerStackProbes">;
 def : MergeRule<"adjustCallerStackProbeSize">;

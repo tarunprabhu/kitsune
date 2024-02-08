@@ -418,6 +418,11 @@ static Address createReferenceTemporary(CodeGenFunction &CGF,
         // FIXME: Should we put the new global into a COMDAT?
         return Address(C, GV->getValueType(), alignment);
       }
+    if (CGF.IsSpawned) {
+      CGF.PushDetachScope();
+      return CGF.CurDetachScope->CreateDetachedMemTemp(
+          Ty, M->getStorageDuration(), "det.ref.tmp");
+    }
     return CGF.CreateMemTemp(Ty, "ref.tmp", Alloca);
   }
   case SD_Thread:
@@ -516,6 +521,7 @@ EmitMaterializeTemporaryExpr(const MaterializeTemporaryExpr *M) {
       EmitAnyExprToMem(E, Object, Qualifiers(), /*IsInit*/true);
     }
   } else {
+    if (!IsSpawned) {
     switch (M->getStorageDuration()) {
     case SD_Automatic:
       if (auto *Size = EmitLifetimeStart(
@@ -569,6 +575,7 @@ EmitMaterializeTemporaryExpr(const MaterializeTemporaryExpr *M) {
 
     default:
       break;
+    }
     }
     EmitAnyExprToMem(E, Object, Qualifiers(), /*IsInit*/true);
   }
@@ -1595,7 +1602,12 @@ LValue CodeGenFunction::EmitLValueHelper(const Expr *E,
   case Expr::ExprWithCleanupsClass: {
     const auto *cleanups = cast<ExprWithCleanups>(E);
     RunCleanupsScope Scope(*this);
+    bool CleanupsSaved = false;
+    if (IsSpawned)
+      CleanupsSaved = CurDetachScope->MaybeSaveCleanupsScope(&Scope);
     LValue LV = EmitLValue(cleanups->getSubExpr(), IsKnownNonNull);
+    if (CleanupsSaved)
+      CurDetachScope->CleanupDetach();
     if (LV.isSimple()) {
       // Defend against branches out of gnu statement expressions surrounded by
       // cleanups.
@@ -5720,6 +5732,16 @@ RValue CodeGenFunction::EmitCall(QualType CalleeType, const CGCallee &OrigCallee
   assert(CalleeType->isFunctionPointerType() &&
          "Call must have function pointer type!");
 
+  if (IsSpawned) {
+    PushDetachScope();
+    CurDetachScope->EnsureTaskFrame();
+  }
+
+  IsSpawnedScope SpawnedScp(this);
+  // RAII to finish detach scope after processing CallExpr E, if E uses a
+  // spawned value.
+  DetachScopeRAII DetScope(*this);
+
   const Decl *TargetDecl =
       OrigCallee.getAbstractInfo().getCalleeDecl().getDecl();
 
@@ -5925,6 +5947,8 @@ RValue CodeGenFunction::EmitCall(QualType CalleeType, const CGCallee &OrigCallee
         Address(Handle, Handle->getType(), CGM.getPointerAlign()));
     Callee.setFunctionPointer(Stub);
   }
+
+  SpawnedScp.RestoreOldScope();
   llvm::CallBase *CallOrInvoke = nullptr;
   RValue Call = EmitCall(FnInfo, Callee, ReturnValue, Args, &CallOrInvoke,
                          E == MustTailCall, E->getExprLoc());

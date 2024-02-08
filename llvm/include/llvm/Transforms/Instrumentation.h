@@ -155,6 +155,29 @@ struct SanitizerCoverageOptions {
   SanitizerCoverageOptions() = default;
 };
 
+// Options for comprehensive static instrumentation
+struct CSIOptions {
+  bool InstrumentFuncEntryExit = true;
+  bool InstrumentLoops = true;
+  bool InstrumentBasicBlocks = true;
+  bool InstrumentMemoryAccesses = true;
+  bool InstrumentCalls = true;
+  bool InstrumentAtomics = true;
+  bool InstrumentMemIntrinsics = true;
+  bool InstrumentTapir = true;
+  bool InstrumentAllocas = true;
+  bool InstrumentAllocFns = true;
+  bool Interpose = true;
+
+  // TODO: With recent changes LLVM's JIT technology, the jitMode flag no longer
+  // seems to be necessary.
+  bool jitMode = false;
+  bool CallsMayThrow = true;
+  bool CallsTerminateBlocks = true;
+
+  CSIOptions() = default;
+};
+
 /// Calculate what to divide by to scale counts.
 ///
 /// Given the maximum count, calculate a divisor that will scale all the

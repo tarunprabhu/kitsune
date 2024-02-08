@@ -30,6 +30,7 @@
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
@@ -45,6 +46,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
 
 using namespace llvm;
 using namespace llvm::PatternMatch;
@@ -54,10 +56,59 @@ using namespace llvm::PatternMatch;
 static const char *LLVMLoopDisableNonforced = "llvm.loop.disable_nonforced";
 static const char *LLVMLoopDisableLICM = "llvm.licm.disable";
 
+static void GetTaskExits(BasicBlock *TaskEntry, Loop *L,
+                         SmallPtrSetImpl<BasicBlock *> &TaskExits) {
+  // Traverse the CFG to find the exit blocks from SubT.
+  SmallVector<BasicBlock *, 4> Worklist;
+  SmallPtrSet<BasicBlock *, 4> Visited;
+  Worklist.push_back(TaskEntry);
+  while (!Worklist.empty()) {
+    BasicBlock *BB = Worklist.pop_back_val();
+    if (!Visited.insert(BB).second)
+      continue;
+
+    // Record any block found in the task that is not contained in the loop
+    if (!L->contains(BB))
+      TaskExits.insert(BB);
+
+    // Stop the CFG traversal at any reattach or detached.rethrow
+    if (isa<ReattachInst>(BB->getTerminator()) ||
+        isDetachedRethrow(BB->getTerminator()))
+      continue;
+
+    // If we encounter a detach, only add its continuation and unwind
+    // destination
+    if (DetachInst *DI = dyn_cast<DetachInst>(BB->getTerminator())) {
+      Worklist.push_back(DI->getContinue());
+      if (DI->hasUnwindDest())
+        Worklist.push_back(DI->getUnwindDest());
+      continue;
+    }
+
+    // For all other basic blocks, traverse all successors
+    for (BasicBlock *Succ : successors(BB))
+      Worklist.push_back(Succ);
+  }
+}
+
 bool llvm::formDedicatedExitBlocks(Loop *L, DominatorTree *DT, LoopInfo *LI,
                                    MemorySSAUpdater *MSSAU,
                                    bool PreserveLCSSA) {
   bool Changed = false;
+
+  SmallPtrSet<BasicBlock *, 4> TaskExits;
+  {
+    SmallVector<BasicBlock *, 4> TaskEntriesToCheck;
+    for (auto *BB : L->blocks())
+      if (DetachInst *DI = dyn_cast<DetachInst>(BB->getTerminator()))
+        if (DI->hasUnwindDest())
+          if (!L->contains(DI->getUnwindDest()))
+            TaskEntriesToCheck.push_back(DI->getDetached());
+
+    // For all tasks to check, get the loop exits that are in the task.
+    for (BasicBlock *TaskEntry : TaskEntriesToCheck)
+      GetTaskExits(TaskEntry, L, TaskExits);
+  }
 
   // We re-use a vector for the in-loop predecesosrs.
   SmallVector<BasicBlock *, 4> InLoopPredecessors;
@@ -71,7 +122,7 @@ bool llvm::formDedicatedExitBlocks(Loop *L, DominatorTree *DT, LoopInfo *LI,
     // keep track of the in-loop predecessors.
     bool IsDedicatedExit = true;
     for (auto *PredBB : predecessors(BB))
-      if (L->contains(PredBB)) {
+      if (L->contains(PredBB) || TaskExits.count(PredBB)) {
         if (isa<IndirectBrInst>(PredBB->getTerminator()))
           // We cannot rewrite exiting edges from an indirectbr.
           return false;
@@ -106,7 +157,23 @@ bool llvm::formDedicatedExitBlocks(Loop *L, DominatorTree *DT, LoopInfo *LI,
   for (auto *BB : L->blocks())
     for (auto *SuccBB : successors(BB)) {
       // We're looking for exit blocks so skip in-loop successors.
-      if (L->contains(SuccBB))
+      if (L->contains(SuccBB) || TaskExits.count(SuccBB) ||
+          isTapirPlaceholderSuccessor(SuccBB))
+        continue;
+
+      // Visit each exit block exactly once.
+      if (!Visited.insert(SuccBB).second)
+        continue;
+
+      Changed |= RewriteExit(SuccBB);
+    }
+
+  // Visit exits from tasks within the loop as well.
+  for (auto *BB : TaskExits)
+    for (auto *SuccBB : successors(BB)) {
+      // We're looking for exit blocks so skip in-loop successors.
+      if (L->contains(SuccBB) || TaskExits.count(SuccBB) ||
+          isTapirPlaceholderSuccessor(SuccBB))
         continue;
 
       // Visit each exit block exactly once.
@@ -174,6 +241,8 @@ void llvm::getLoopAnalysisUsage(AnalysisUsage &AU) {
   AU.addPreserved<SCEVAAWrapperPass>();
   AU.addRequired<ScalarEvolutionWrapperPass>();
   AU.addPreserved<ScalarEvolutionWrapperPass>();
+  AU.addRequired<TaskInfoWrapperPass>();
+  AU.addPreserved<TaskInfoWrapperPass>();
   // FIXME: When all loop passes preserve MemorySSA, it can be required and
   // preserved here instead of the individual handling in each pass.
 }
@@ -196,6 +265,7 @@ void llvm::initializeLoopPassPass(PassRegistry &Registry) {
   INITIALIZE_PASS_DEPENDENCY(GlobalsAAWrapperPass)
   INITIALIZE_PASS_DEPENDENCY(SCEVAAWrapperPass)
   INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
+  INITIALIZE_PASS_DEPENDENCY(TaskInfoWrapperPass)
   INITIALIZE_PASS_DEPENDENCY(MemorySSAWrapperPass)
 }
 
@@ -444,6 +514,29 @@ TransformationMode llvm::hasLICMVersioningTransformation(const Loop *L) {
   return TM_Unspecified;
 }
 
+TransformationMode llvm::hasLoopStripmineTransformation(const Loop *L) {
+  if (getBooleanLoopAttribute(L, "tapir.loop.stripmine.disable"))
+    return TM_Disable;
+
+  if (getBooleanLoopAttribute(L, "tapir.loop.stripmine.enable"))
+    return TM_ForcedByUser;
+
+  return TM_Unspecified;
+}
+
+TransformationMode llvm::hasLoopSpawningTransformation(const Loop *L) {
+  TapirLoopHints Hints(L);
+
+  switch (Hints.getStrategy()) {
+  case TapirLoopHints::ST_DAC: {
+    return TM_ForcedByUser;
+  } case TapirLoopHints::ST_SEQ:
+    return TM_Disable;
+  default:
+    return TM_Unspecified;
+  }
+}
+
 /// Does a BFS from a given node to all of its children inside a given loop.
 /// The returned vector of nodes includes the starting point.
 SmallVector<DomTreeNode *, 16>
@@ -480,7 +573,7 @@ bool llvm::isAlmostDeadIV(PHINode *PN, BasicBlock *LatchBlock, Value *Cond) {
 
 
 void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
-                          LoopInfo *LI, MemorySSA *MSSA) {
+                          LoopInfo *LI, TaskInfo *TI, MemorySSA *MSSA) {
   assert((!DT || L->isLCSSAForm(*DT)) && "Expected LCSSA!");
   auto *Preheader = L->getLoopPreheader();
   assert(Preheader && "Preheader should exist!");
@@ -718,6 +811,12 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
     }
     LI->destroy(L);
   }
+
+  if (TI && DT)
+    // Recompute task info.
+    // FIXME: Figure out a way to update task info that is less computationally
+    // wasteful.
+    TI->recalculate(*DT->getRoot()->getParent(), *DT);
 }
 
 void llvm::breakLoopBackedge(Loop *L, DominatorTree &DT, ScalarEvolution &SE,

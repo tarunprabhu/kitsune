@@ -2192,6 +2192,9 @@ void CodeGenFunction::pushDestroy(QualType::DestructionKind dtorKind,
 void CodeGenFunction::pushDestroy(CleanupKind cleanupKind, Address addr,
                                   QualType type, Destroyer *destroyer,
                                   bool useEHCleanupForArray) {
+  if (SpawnedCleanup)
+    return pushLifetimeExtendedDestroy(cleanupKind, addr, type, destroyer,
+                                       useEHCleanupForArray);
   pushFullExprCleanup<DestroyObject>(cleanupKind, addr, type,
                                      destroyer, useEHCleanupForArray);
 }

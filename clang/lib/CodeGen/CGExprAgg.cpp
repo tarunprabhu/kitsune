@@ -1229,6 +1229,12 @@ void AggExprEmitter::VisitBinAssign(const BinaryOperator *E) {
     EnsureDest(E->getRHS()->getType());
     Visit(E->getRHS());
     CGF.EmitAtomicStore(Dest.asRValue(), LHS, /*isInit*/ false);
+    if (CGF.IsSpawned) {
+      if (!(CGF.CurDetachScope && CGF.CurDetachScope->IsDetachStarted()))
+        CGF.FailedSpawnWarning(E->getRHS()->getExprLoc());
+      CGF.IsSpawned = false;
+      CGF.PopDetachScope();
+    }
     return;
   }
 
@@ -1250,6 +1256,13 @@ void AggExprEmitter::VisitBinAssign(const BinaryOperator *E) {
       E->getType().isDestructedType() == QualType::DK_nontrivial_c_struct)
     CGF.pushDestroy(QualType::DK_nontrivial_c_struct, Dest.getAddress(),
                     E->getType());
+
+  if (CGF.IsSpawned) {
+    if (!(CGF.CurDetachScope && CGF.CurDetachScope->IsDetachStarted()))
+      CGF.FailedSpawnWarning(E->getRHS()->getExprLoc());
+    CGF.IsSpawned = false;
+    CGF.PopDetachScope();
+  }
 }
 
 void AggExprEmitter::
@@ -1400,7 +1413,16 @@ AggExprEmitter::VisitLambdaExpr(LambdaExpr *E) {
 
 void AggExprEmitter::VisitExprWithCleanups(ExprWithCleanups *E) {
   CodeGenFunction::RunCleanupsScope cleanups(CGF);
+  // If this expression is spawned, associate these cleanups with the detach
+  // scope.
+  bool CleanupsSaved = false;
+  if (CGF.IsSpawned)
+    CleanupsSaved = CGF.CurDetachScope->MaybeSaveCleanupsScope(&cleanups);
   Visit(E->getSubExpr());
+  // If this expression was spawned, then we must clean up the detach before
+  // forcing the scope's cleanup.
+  if (CleanupsSaved)
+    CGF.CurDetachScope->CleanupDetach();
 }
 
 void AggExprEmitter::VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E) {

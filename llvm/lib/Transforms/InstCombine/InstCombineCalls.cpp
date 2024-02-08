@@ -68,6 +68,7 @@
 #include "llvm/Transforms/Utils/AssumeBundleBuilder.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SimplifyLibCalls.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -2794,6 +2795,127 @@ Instruction *InstCombinerImpl::visitCallInst(CallInst &CI) {
         }))
       return nullptr;
     break;
+  case Intrinsic::sync_unwind: {
+    // If the function does not throw, we don't need the sync.unwind.
+    if (II->getFunction()->doesNotThrow())
+      return eraseInstFromFunction(CI);
+
+    if (II != II->getParent()->getFirstNonPHIOrDbgOrLifetime()) {
+      // Check if the instruction at the start of II's block is a redundant
+      // sync.unwind.
+      const Value *SyncReg = CI.getArgOperand(0);
+      if (isSyncUnwind(II->getParent()->getFirstNonPHIOrDbgOrLifetime(),
+                       SyncReg))
+        return eraseInstFromFunction(CI);
+    }
+    // Check for any syncs that might use this sync.unwind.
+    int NumUsers = 0;
+    for (BasicBlock *Pred : predecessors(CI.getParent()))
+      if (isa<SyncInst>(Pred->getTerminator())) {
+        ++NumUsers;
+        break;
+      }
+    // If didn't find any syncs that use this sync.unwind, remove it.
+    if (!NumUsers)
+      return eraseInstFromFunction(CI);
+    break;
+  }
+  case Intrinsic::syncregion_start: {
+    // Check for any users of this syncregion.
+    int NumUsers = 0;
+    for (User *U : II->users()) {
+      // Check for any Tapir instructions using this syncregion.
+      if (isa<DetachInst>(U) || isa<ReattachInst>(U) || isa<SyncInst>(U)) {
+        ++NumUsers;
+        break;
+      }
+      // Check for any Tapir intrinsics using this syncregion.
+      if (CallBase *CB = dyn_cast<CallBase>(U))
+        if (isSyncUnwind(CB) || isDetachedRethrow(CB)) {
+          ++NumUsers;
+          break;
+        }
+    }
+    // If we have no users, it's safe to delete this syncregion.
+    if (!NumUsers)
+      return eraseInstFromFunction(CI);
+    break;
+  }
+  case Intrinsic::detached_rethrow: {
+    assert(isa<CallInst>(II));
+    return eraseInstFromFunction(CI);
+  }
+  case Intrinsic::taskframe_use: {
+    // Remove a taskframe.use if it is not in a detached block.
+    BasicBlock *Parent = II->getParent();
+    if (!Parent->getSinglePredecessor())
+      return eraseInstFromFunction(CI);
+
+    BasicBlock *Pred = Parent->getSinglePredecessor();
+    if (!isa<DetachInst>(Pred->getTerminator()))
+      return eraseInstFromFunction(CI);
+
+    DetachInst *DI = cast<DetachInst>(Pred->getTerminator());
+    if (DI->getDetached() != Parent)
+      return eraseInstFromFunction(CI);
+    break;
+  }
+  case Intrinsic::taskframe_create: {
+    // Remove a taskframe.create if it has no uses.
+    int NumUsers = 0;
+    for (User *U : II->users()) {
+      if (Instruction *I = dyn_cast<Instruction>(U))
+        if (isTapirIntrinsic(Intrinsic::taskframe_use, I) ||
+            isTapirIntrinsic(Intrinsic::taskframe_end, I) ||
+            isTaskFrameResume(I)) {
+          ++NumUsers;
+          break;
+        }
+    }
+    if (!NumUsers)
+      return eraseInstFromFunction(CI);
+    break;
+  }
+  case Intrinsic::taskframe_resume: {
+    assert(isa<CallInst>(II));
+    return eraseInstFromFunction(CI);
+  }
+  case Intrinsic::tapir_runtime_end: {
+    Value *PrevRTStart = CI.getArgOperand(0);
+    // If there's a tapir.runtime.start in the same block after this
+    // tapir.runtime.end with no interesting instructions in between, eliminate
+    // both.
+    BasicBlock::iterator Iter(CI);
+    while (++Iter != CI.getParent()->end()) {
+      if (isTapirIntrinsic(Intrinsic::tapir_runtime_start, &*Iter)) {
+        // Replce the uses of the tapir.runtime.start with the argument to the
+        // tapir.runtime.end.
+        replaceInstUsesWith(*Iter, PrevRTStart);
+        eraseInstFromFunction(*Iter);
+        return eraseInstFromFunction(CI);
+      }
+      if (isa<CallBase>(&*Iter) && !isa<DbgInfoIntrinsic>(&*Iter))
+        // We found a nontrivial call.  Give up.
+        break;
+    }
+    break;
+  }
+  case Intrinsic::tapir_runtime_start: {
+    // If there's tapir.runtime.end in the same block after this
+    // tapir.runtime.start with no interesting instructions in between,
+    // eliminate both.
+    BasicBlock::iterator Iter(CI);
+    while (++Iter != CI.getParent()->end()) {
+      if (isTapirIntrinsic(Intrinsic::tapir_runtime_end, &*Iter, &CI)) {
+        eraseInstFromFunction(*Iter);
+        return eraseInstFromFunction(CI);
+      }
+      if (isa<CallBase>(&*Iter) && !isa<DbgInfoIntrinsic>(&*Iter))
+        // We found a nontrivial call.  Give up.
+        break;
+    }
+    break;
+  }
   case Intrinsic::assume: {
     Value *IIOperand = II->getArgOperand(0);
     SmallVector<OperandBundleDef, 4> OpBundles;

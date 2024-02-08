@@ -47,9 +47,16 @@ class ComplexExprEmitter
   CGBuilderTy &Builder;
   bool IgnoreReal;
   bool IgnoreImag;
+  bool DoSpawnedInit = false;
+  LValue LValueToSpawnInit;
 public:
   ComplexExprEmitter(CodeGenFunction &cgf, bool ir=false, bool ii=false)
     : CGF(cgf), Builder(CGF.Builder), IgnoreReal(ir), IgnoreImag(ii) {
+  }
+  ComplexExprEmitter(CodeGenFunction &cgf, LValue LValueToSpawnInit,
+                     bool ir=false, bool ii=false)
+    : CGF(cgf), Builder(CGF.Builder), IgnoreReal(ir), IgnoreImag(ii),
+      DoSpawnedInit(true), LValueToSpawnInit(LValueToSpawnInit) {
   }
 
 
@@ -232,7 +239,16 @@ public:
   }
   ComplexPairTy VisitExprWithCleanups(ExprWithCleanups *E) {
     CodeGenFunction::RunCleanupsScope Scope(CGF);
+    // If this expression is spawned, associate these cleanups with the detach
+    // scope.
+    bool CleanupsSaved = false;
+    if (CGF.IsSpawned)
+      CleanupsSaved = CGF.CurDetachScope->MaybeSaveCleanupsScope(&Scope);
     ComplexPairTy Vals = Visit(E->getSubExpr());
+    // If this expression was spawned, then we must clean up the detach before
+    // forcing the scope's cleanup.
+    if (CleanupsSaved)
+      CGF.CurDetachScope->CleanupDetach();
     // Defend against dominance problems caused by jumps out of expression
     // evaluation through the shared cleanup block.
     Scope.ForceCleanup({&Vals.first, &Vals.second});

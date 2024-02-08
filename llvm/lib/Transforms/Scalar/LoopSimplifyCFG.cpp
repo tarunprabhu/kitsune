@@ -23,6 +23,7 @@
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/CommandLine.h"
@@ -726,6 +727,11 @@ PreservedAnalyses LoopSimplifyCFGPass::run(Loop &L, LoopAnalysisManager &AM,
 
   if (DeleteCurrentLoop)
     LPMU.markLoopAsDeleted(L, "loop-simplifycfg");
+
+  // Recompute task info.
+  // FIXME: Figure out a way to update task info that is less computationally
+  // wasteful.
+  AR.TI.recalculate(*AR.DT.getRoot()->getParent(), AR.DT);
 
   auto PA = getLoopPassPreservedAnalyses();
   if (AR.MSSA)

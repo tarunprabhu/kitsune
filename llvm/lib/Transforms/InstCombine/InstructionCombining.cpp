@@ -3612,6 +3612,7 @@ static bool isCatchAll(EHPersonality Personality, Constant *TypeInfo) {
   case EHPersonality::CoreCLR:
   case EHPersonality::Wasm_CXX:
   case EHPersonality::XL_CXX:
+  case EHPersonality::Cilk_CXX:
     return TypeInfo->isNullValue();
   }
   llvm_unreachable("invalid enum");
@@ -4277,6 +4278,11 @@ bool InstCombinerImpl::tryToSinkInstruction(Instruction *I,
     // successor block.
     if (DestBlock->getUniquePredecessor() != I->getParent())
       return false;
+    // We can't generally move an instruction that reads from memory past a
+    // detach or reattach.
+    if (isa<DetachInst>(I->getParent()->getTerminator()) ||
+        isa<ReattachInst>(I->getParent()->getTerminator()))
+      return false;
     for (BasicBlock::iterator Scan = std::next(I->getIterator()),
                               E = I->getParent()->end();
          Scan != E; ++Scan)
@@ -4441,6 +4447,10 @@ bool InstCombinerImpl::run() {
         // Make sure these checks are done only once, naturally we do the checks
         // the first time we get the userparent, this will save compile time.
         if (NumUsers == 0) {
+          // Don't sink if the successor follows through a sync instruction.
+          if (isa<SyncInst>(BB->getTerminator()))
+            return std::nullopt;
+
           // Try sinking to another block. If that block is unreachable, then do
           // not bother. SimplifyCFG should handle it.
           if (UserParent == BB || !DT.isReachableFromEntry(UserParent))

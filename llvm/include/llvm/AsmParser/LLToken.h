@@ -345,6 +345,12 @@ enum Kind {
 
   kw_freeze,
 
+  // Tapir types
+  kw_detach,
+  kw_reattach,
+  // NOTE: kw_sync is already defined for a different context.
+  // kw_tsync,
+
   // Metadata types.
   kw_distinct,
 

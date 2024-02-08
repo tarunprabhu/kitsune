@@ -76,6 +76,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -1110,6 +1111,14 @@ static void redirectValuesFromPredecessorsToPhi(BasicBlock *BB,
   replaceUndefValuesInPhi(PN, IncomingValues);
 }
 
+static bool BlockIsEntryOfTask(const BasicBlock *BB) {
+  if (const BasicBlock *PredBB = BB->getSinglePredecessor())
+    if (const DetachInst *DI = dyn_cast<DetachInst>(PredBB->getTerminator()))
+      if (DI->getDetached() == BB)
+        return true;
+  return false;
+}
+
 bool llvm::TryToSimplifyUncondBranchFromEmptyBlock(BasicBlock *BB,
                                                    DomTreeUpdater *DTU) {
   assert(BB != &BB->getParent()->getEntryBlock() &&
@@ -1153,6 +1162,10 @@ bool llvm::TryToSimplifyUncondBranchFromEmptyBlock(BasicBlock *BB,
   // something like a loop pre-header (or rarely, a part of an irreducible CFG);
   // folding the branch isn't profitable in that case anyway.
   if (!Succ->getSinglePredecessor()) {
+    // If Succ has multiple predecessors and BB is the entry of a detached task,
+    // we can't fold it BB into Succ.
+    if (BlockIsEntryOfTask(BB))
+      return false;
     BasicBlock::iterator BBI = BB->begin();
     while (isa<PHINode>(*BBI)) {
       for (Use &U : BBI->uses()) {
@@ -3124,8 +3137,24 @@ static bool markAliveBlocks(Function &F,
 Instruction *llvm::removeUnwindEdge(BasicBlock *BB, DomTreeUpdater *DTU) {
   Instruction *TI = BB->getTerminator();
 
-  if (auto *II = dyn_cast<InvokeInst>(TI))
+  if (auto *II = dyn_cast<InvokeInst>(TI)) {
+    // If we're removing the unwind destination of a detached rethrow or
+    // taskframe resume, simply remove the intrinsic.
+    if (auto *Called = II->getCalledFunction()) {
+      if (Intrinsic::detached_rethrow == Called->getIntrinsicID() ||
+          Intrinsic::taskframe_resume == Called->getIntrinsicID()) {
+        BranchInst *BI = BranchInst::Create(II->getNormalDest(), II);
+        BI->takeName(II);
+        BI->setDebugLoc(II->getDebugLoc());
+        II->getUnwindDest()->removePredecessor(BB);
+        II->eraseFromParent();
+        if (DTU)
+          DTU->applyUpdates({{DominatorTree::Delete, BB, II->getUnwindDest()}});
+        return BI;
+      }
+    }
     return changeToCall(II, DTU);
+  }
 
   Instruction *NewTI;
   BasicBlock *UnwindDest;
@@ -3142,6 +3171,10 @@ Instruction *llvm::removeUnwindEdge(BasicBlock *BB, DomTreeUpdater *DTU) {
 
     NewTI = NewCatchSwitch;
     UnwindDest = CatchSwitch->getUnwindDest();
+  } else if (auto *DI = dyn_cast<DetachInst>(TI)) {
+    NewTI = DetachInst::Create(DI->getDetached(), DI->getContinue(),
+                               DI->getSyncRegion(), DI);
+    UnwindDest = DI->getUnwindDest();
   } else {
     llvm_unreachable("Could not find unwind successor");
   }
@@ -3193,6 +3226,73 @@ bool llvm::removeUnreachableBlocks(Function &F, DomTreeUpdater *DTU,
 
   DeleteDeadBlocks(BlocksToRemove.takeVector(), DTU);
 
+  removeDeadDetachUnwinds(F, DTU, MSSAU);
+
+  return Changed;
+}
+
+// Recursively check the task starting at TaskEntry to find detached-rethrows
+// for tasks that cannot throw.
+static bool recursivelyCheckDetachedRethrows(
+    BasicBlock *TaskEntry, SmallPtrSetImpl<Instruction *> &DeadDU) {
+  SmallVector<BasicBlock*, 128> Worklist;
+  SmallPtrSet<BasicBlock*, 32> Visited;
+  BasicBlock *BB = TaskEntry;
+  Worklist.push_back(BB);
+  Visited.insert(BB);
+  do {
+    BB = Worklist.pop_back_val();
+
+    // Ignore reattach terminators
+    if (isa<ReattachInst>(BB->getTerminator()))
+      continue;
+
+    // Detached-rethrow terminators indicate that the parent detach has a live
+    // unwind.
+    if (isDetachedRethrow(BB->getTerminator()))
+      return true;
+
+    if (DetachInst *DI = dyn_cast<DetachInst>(BB->getTerminator())) {
+      if (DI->hasUnwindDest()) {
+        // Recursively check all blocks in the detached task.
+        if (!recursivelyCheckDetachedRethrows(DI->getDetached(), DeadDU))
+          DeadDU.insert(DI);
+        else if (Visited.insert(DI->getUnwindDest()).second)
+          // If the detach-unwind isn't dead, add it to the worklist.
+          Worklist.push_back(DI->getUnwindDest());
+      }
+
+      // We don't have to check the detached task for a detach with no unwind
+      // destination, because those tasks will not throw any exception.
+
+      // Add the continuation to the worklist.
+      if (Visited.insert(DI->getContinue()).second)
+        Worklist.push_back(DI->getContinue());
+    } else {
+      for (BasicBlock *Successor : successors(BB))
+        if (Visited.insert(Successor).second)
+          Worklist.push_back(Successor);
+    }
+  } while (!Worklist.empty());
+  return false;
+}
+
+bool llvm::removeDeadDetachUnwinds(Function &F, DomTreeUpdater *DTU,
+                                   MemorySSAUpdater *MSSAU) {
+  SmallPtrSet<Instruction *, 16> DeadDU;
+  // Recusirvely check all tasks for dead detach-unwinds.
+  recursivelyCheckDetachedRethrows(&F.front(), DeadDU);
+  bool Changed = false;
+  // Scan the detach instructions and remove any dead detach-unwind edges.
+  for (BasicBlock &BB : F)
+    if (DetachInst *DI = dyn_cast<DetachInst>(BB.getTerminator()))
+      if (DeadDU.count(DI)) {
+        removeUnwindEdge(&BB, DTU);
+        Changed = true;
+      }
+  // If any dead detach-unwinds were removed, remove unreachable blocks.
+  if (Changed)
+    removeUnreachableBlocks(F, DTU, MSSAU);
   return Changed;
 }
 

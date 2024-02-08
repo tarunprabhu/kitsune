@@ -445,6 +445,9 @@ CheckForIncompatibleAttributes(Sema &S,
     // The vector predication only has a state form that is exposed by
     // #pragma clang loop vectorize_predicate (enable | disable).
     VectorizePredicate,
+    // The Tapir grainsize only has a numeric form that describes the
+    // amount to coarsen the parallel loop.
+    TapirGrainsize,
     // This serves as a indicator to how many category are listed in this enum.
     NumberOfCategories
   };
@@ -488,6 +491,9 @@ CheckForIncompatibleAttributes(Sema &S,
     case LoopHintAttr::PipelineDisabled:
     case LoopHintAttr::PipelineInitiationInterval:
       Category = Pipeline;
+      break;
+    case LoopHintAttr::TapirGrainsize:
+      Category = TapirGrainsize;
       break;
     case LoopHintAttr::VectorizePredicate:
       Category = VectorizePredicate;

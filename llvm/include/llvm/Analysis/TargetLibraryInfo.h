@@ -15,6 +15,7 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include <optional>
 
 namespace llvm {
@@ -88,6 +89,8 @@ class TargetLibraryInfoImpl {
   static StringLiteral const StandardNames[NumLibFuncs];
   bool ShouldExtI32Param, ShouldExtI32Return, ShouldSignExtI32Param, ShouldSignExtI32Return;
   unsigned SizeOfInt;
+  TapirTargetID TapirTarget = TapirTargetID::Last_TapirTargetID;
+  std::unique_ptr<TapirTargetOptions> TTOptions = nullptr;
 
   enum AvailabilityState {
     StandardName = 3, // (memset to all ones)
@@ -107,6 +110,9 @@ class TargetLibraryInfoImpl {
   /// Scalarization descriptors - same content as VectorDescs but sorted based
   /// on VectorFnName rather than ScalarFnName.
   std::vector<VecDesc> ScalarDescs;
+
+  /// Tapir target standard functions
+  std::vector<StringLiteral> TapirTargetFuncs;
 
   /// Return true if the function type FTy is valid for the library function
   /// F, regardless of whether the function is available.
@@ -270,6 +276,47 @@ public:
   /// conventions.
   static bool isCallingConvCCompatible(CallBase *CI);
   static bool isCallingConvCCompatible(Function *Callee);
+
+  /// Set the target for Tapir lowering.
+  void setTapirTarget(TapirTargetID TargetID) {
+    TapirTarget = TargetID;
+  }
+
+  /// Return the ID of the target for Tapir lowering.
+  TapirTargetID getTapirTarget() const {
+    return TapirTarget;
+  }
+
+  /// Return true if we have a nontrivial target for Tapir lowering.
+  bool hasTapirTarget() const {
+    return (TapirTarget != TapirTargetID::Last_TapirTargetID) &&
+      (TapirTarget != TapirTargetID::None);
+  }
+
+  /// Set options for Tapir lowering.
+  void setTapirTargetOptions(std::unique_ptr<TapirTargetOptions> Options) {
+    std::swap(TTOptions, Options);
+  }
+
+  /// Return any options for Tapir lowering.
+  TapirTargetOptions *getTapirTargetOptions() const {
+    return TTOptions.get();
+  }
+
+  /// Records known library functions associated with the specified Tapir
+  /// target.
+  void addTapirTargetLibraryFunctions() {
+    addTapirTargetLibraryFunctions(TapirTarget);
+  }
+  void addTapirTargetLibraryFunctions(TapirTargetID TargetID);
+
+  /// Searches for a particular function name among known Tapir-target library
+  /// functions, also checking that its type is valid for the library function
+  /// matching that name.
+  ///
+  /// Return true if it is one of the known tapir-target library functions.
+  bool isTapirTargetLibFunc(StringRef funcName) const;
+  bool isTapirTargetLibFunc(const Function &FDecl) const;
 };
 
 /// Provides information about what library functions are available for
@@ -564,6 +611,29 @@ public:
   /// \copydoc TargetLibraryInfoImpl::getIntSize()
   unsigned getIntSize() const {
     return Impl->getIntSize();
+  }
+
+  /// \copydoc TargetLibraryInfoImpl::getTapirTarget()
+  TapirTargetID getTapirTarget() const {
+    return Impl->getTapirTarget();
+  }
+
+  /// \copydoc TargetLibraryInfoImpl::hasTapirTarget()
+  bool hasTapirTarget() const {
+    return Impl->hasTapirTarget();
+  }
+
+  /// \copydoc TargetLibraryInfoImpl::getTapirTarget()
+  TapirTargetOptions *getTapirTargetOptions() const {
+    return Impl->getTapirTargetOptions();
+  }
+
+  /// \copydoc TargetLibraryInfoImpl::isTapirTargetLibFunc()
+  bool isTapirTargetLibFunc(StringRef funcName) const {
+    return Impl->isTapirTargetLibFunc(funcName);
+  }
+  bool isTapirTargetLibFunc(const Function &FDecl) const {
+    return Impl->isTapirTargetLibFunc(FDecl);
   }
 
   /// Handle invalidation from the pass manager.

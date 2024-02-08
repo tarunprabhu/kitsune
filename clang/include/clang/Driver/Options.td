@@ -3162,6 +3162,16 @@ def fno_knr_functions : Flag<["-"], "fno-knr-functions">, Group<f_Group>,
   HelpText<"Disable support for K&R C function declarations">,
   Visibility<[ClangOption, CC1Option, CLOption]>;
 
+def ftapir_EQ : Joined<["-"], "ftapir=">, Group<f_Group>, Flags<[CC1Option]>,
+  HelpText<"Choose the backend parallel runtime for Tapir instructions">,
+  Values<"none,serial,cilkplus,cheetah,lambda,omptask,opencilk,qthreads">;
+def opencilk_resource_dir_EQ : Joined<["--"], "opencilk-resource-dir=">,
+  Flags<[NoXarchOption]>,
+  HelpText<"The directory that holds OpenCilk resource files">;
+def opencilk_abi_bitcode_EQ : Joined<["--"], "opencilk-abi-bitcode=">,
+  Flags<[CC1Option]>, HelpText<"Path to OpenCilk ABI bitcode file">,
+  MarshallingInfoString<CodeGenOpts<"OpenCilkABIBitcodeFile">>;
+
 def fmudflapth : Flag<["-"], "fmudflapth">, Group<f_Group>;
 def fmudflap : Flag<["-"], "fmudflap">, Group<f_Group>;
 def fnested_functions : Flag<["-"], "fnested-functions">, Group<f_Group>;
@@ -3771,6 +3781,10 @@ def Wlarge_by_value_copy_def : Flag<["-"], "Wlarge-by-value-copy">,
 def Wlarge_by_value_copy_EQ : Joined<["-"], "Wlarge-by-value-copy=">,
   Visibility<[ClangOption, CC1Option]>,
   MarshallingInfoInt<LangOpts<"NumLargeByValueCopy">>;
+
+def fstripmine : Flag<["-"], "fstripmine">, Group<f_Group>,
+  HelpText<"Enable the Tapir loop stripmining passes">;
+def fno_stripmine : Flag<["-"], "fno-stripmine">, Group<f_Group>;
 
 // These "special" warning flags are effectively processed as f_Group flags by the driver:
 // Just silence warnings about -Wlarger-than for now.
@@ -6929,6 +6943,12 @@ def vectorize_loops : Flag<["-"], "vectorize-loops">,
 def vectorize_slp : Flag<["-"], "vectorize-slp">,
   HelpText<"Run the SLP vectorization passes">,
   MarshallingInfoFlag<CodeGenOpts<"VectorizeSLP">>;
+def stripmine_loops : Flag<["-"], "stripmine-loops">,
+  HelpText<"Run the Tapir Loop stripmining passes">,
+  MarshallingInfoFlag<CodeGenOpts<"StripmineLoop">>;
+def dependent_lib : Joined<["--"], "dependent-lib=">,
+  HelpText<"Add dependent library">,
+  MarshallingInfoStringVector<CodeGenOpts<"DependentLibraries">>;
 def linker_option : Joined<["--"], "linker-option=">,
   HelpText<"Add linker option">,
   MarshallingInfoStringVector<CodeGenOpts<"LinkerOptions">>;

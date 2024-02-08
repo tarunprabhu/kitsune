@@ -802,6 +802,39 @@ public:
     }
     return TT;
   }
+
+  /// Check the specified OpenCilk resource directory is valid.
+  virtual void AddOpenCilkIncludeDir(const llvm::opt::ArgList &Args,
+                                     llvm::opt::ArgStringList &CmdArgs) const;
+
+  /// Get the OpenCilk library path if it exists.
+  virtual path_list
+  getOpenCilkRuntimePaths(const llvm::opt::ArgList &Args) const;
+
+  virtual std::string getOpenCilkBCBasename(const llvm::opt::ArgList &Args,
+                                            StringRef Component,
+                                            bool AddArch) const;
+
+  virtual std::optional<std::string>
+  getOpenCilkBC(const llvm::opt::ArgList &Args, StringRef Component) const;
+
+  virtual std::string getOpenCilkRTBasename(const llvm::opt::ArgList &Args,
+                                            StringRef Component, FileType Type,
+                                            bool AddArch) const;
+
+  virtual std::string getOpenCilkRT(const llvm::opt::ArgList &Args,
+                                    StringRef Component, FileType Type) const;
+
+  /// AddOpenCilkBitcodeABI - Add compiler arguments for linking against the
+  /// OpenCilk runtime ABI bitcode file.
+  virtual void AddOpenCilkABIBitcode(const llvm::opt::ArgList &Args,
+                                     llvm::opt::ArgStringList &CmdArgs,
+                                     bool IsLTO = false) const;
+
+  /// AddTapirRuntimeLibArgs - Add the specific linker arguments to use for the
+  /// given Tapir runtime library type.
+  virtual void AddTapirRuntimeLibArgs(const llvm::opt::ArgList &Args,
+                                      llvm::opt::ArgStringList &CmdArgs) const;
 };
 
 /// Set a ToolChain's effective triple. Reset it when the registration object

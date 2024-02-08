@@ -17,6 +17,7 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 using namespace llvm;
 
 static cl::opt<TargetLibraryInfoImpl::VectorLibrary> ClVectorLibrary(
@@ -38,6 +39,22 @@ static cl::opt<TargetLibraryInfoImpl::VectorLibrary> ClVectorLibrary(
                           "SIMD Library for Evaluating Elementary Functions"),
                clEnumValN(TargetLibraryInfoImpl::ArmPL, "ArmPL",
                           "Arm Performance Libraries")));
+
+static cl::opt<TapirTargetID> ClTapirTarget(
+    "tapir-target", cl::Hidden, cl::desc("Target runtime for Tapir"),
+    cl::init(TapirTargetID::OpenCilk),
+    cl::values(clEnumValN(TapirTargetID::None,
+                          "none", "None"),
+               clEnumValN(TapirTargetID::Serial,
+                          "serial", "Serial code"),
+               clEnumValN(TapirTargetID::Cheetah,
+                          "cheetah", "Cheetah"),
+               clEnumValN(TapirTargetID::OpenCilk,
+                          "opencilk", "OpenCilk"),
+               clEnumValN(TapirTargetID::Lambda,
+                          "lambda", "Lambda"),
+               clEnumValN(TapirTargetID::OMPTask,
+                          "omptask", "OMPTask")));
 
 StringLiteral const TargetLibraryInfoImpl::StandardNames[LibFunc::NumLibFuncs] =
     {
@@ -86,6 +103,17 @@ static const FuncProtoTy Signatures[] = {
 
 static_assert(sizeof Signatures / sizeof *Signatures == LibFunc::NumLibFuncs,
               "Missing library function signatures");
+
+TapirTargetOptions *TapirTargetOptions::clone() const {
+  TapirTargetOptions *New = nullptr;
+  switch (getKind()) {
+  default:
+    llvm_unreachable("Unhandled TapirTargetOption.");
+  case TTO_OpenCilk:
+    New = cast<OpenCilkABIOptions>(this)->cloneImpl();
+  }
+  return New;
+}
 
 static bool hasSinCosPiStret(const Triple &T) {
   // Only Darwin variants have _stret versions of combined trig functions.
@@ -873,6 +901,9 @@ static void initialize(TargetLibraryInfoImpl &TLI, const Triple &T,
   }
 
   TLI.addVectorizableFunctionsFromVecLib(ClVectorLibrary, T);
+
+  TLI.setTapirTarget(ClTapirTarget);
+  TLI.addTapirTargetLibraryFunctions(ClTapirTarget);
 }
 
 TargetLibraryInfoImpl::TargetLibraryInfoImpl() {
@@ -894,10 +925,13 @@ TargetLibraryInfoImpl::TargetLibraryInfoImpl(const TargetLibraryInfoImpl &TLI)
       ShouldExtI32Return(TLI.ShouldExtI32Return),
       ShouldSignExtI32Param(TLI.ShouldSignExtI32Param),
       ShouldSignExtI32Return(TLI.ShouldSignExtI32Return),
-      SizeOfInt(TLI.SizeOfInt) {
+      SizeOfInt(TLI.SizeOfInt), TapirTarget(TLI.TapirTarget) {
+  if (TLI.TTOptions)
+    TTOptions = std::unique_ptr<TapirTargetOptions>(TLI.TTOptions->clone());
   memcpy(AvailableArray, TLI.AvailableArray, sizeof(AvailableArray));
   VectorDescs = TLI.VectorDescs;
   ScalarDescs = TLI.ScalarDescs;
+  TapirTargetFuncs = TLI.TapirTargetFuncs;
 }
 
 TargetLibraryInfoImpl::TargetLibraryInfoImpl(TargetLibraryInfoImpl &&TLI)
@@ -906,11 +940,13 @@ TargetLibraryInfoImpl::TargetLibraryInfoImpl(TargetLibraryInfoImpl &&TLI)
       ShouldExtI32Return(TLI.ShouldExtI32Return),
       ShouldSignExtI32Param(TLI.ShouldSignExtI32Param),
       ShouldSignExtI32Return(TLI.ShouldSignExtI32Return),
-      SizeOfInt(TLI.SizeOfInt) {
+      SizeOfInt(TLI.SizeOfInt), TapirTarget(TLI.TapirTarget),
+      TTOptions(std::move(TLI.TTOptions)) {
   std::move(std::begin(TLI.AvailableArray), std::end(TLI.AvailableArray),
             AvailableArray);
   VectorDescs = TLI.VectorDescs;
   ScalarDescs = TLI.ScalarDescs;
+  TapirTargetFuncs = TLI.TapirTargetFuncs;
 }
 
 TargetLibraryInfoImpl &TargetLibraryInfoImpl::operator=(const TargetLibraryInfoImpl &TLI) {
@@ -920,6 +956,9 @@ TargetLibraryInfoImpl &TargetLibraryInfoImpl::operator=(const TargetLibraryInfoI
   ShouldSignExtI32Param = TLI.ShouldSignExtI32Param;
   ShouldSignExtI32Return = TLI.ShouldSignExtI32Return;
   SizeOfInt = TLI.SizeOfInt;
+  TapirTarget = TLI.TapirTarget;
+  if (TLI.TTOptions)
+    TTOptions = std::unique_ptr<TapirTargetOptions>(TLI.TTOptions->clone());
   memcpy(AvailableArray, TLI.AvailableArray, sizeof(AvailableArray));
   return *this;
 }
@@ -931,6 +970,8 @@ TargetLibraryInfoImpl &TargetLibraryInfoImpl::operator=(TargetLibraryInfoImpl &&
   ShouldSignExtI32Param = TLI.ShouldSignExtI32Param;
   ShouldSignExtI32Return = TLI.ShouldSignExtI32Return;
   SizeOfInt = TLI.SizeOfInt;
+  TapirTarget = TLI.TapirTarget;
+  TTOptions = std::move(TLI.TTOptions);
   std::move(std::begin(TLI.AvailableArray), std::end(TLI.AvailableArray),
             AvailableArray);
   return *this;
@@ -1276,6 +1317,58 @@ void TargetLibraryInfoImpl::addVectorizableFunctionsFromVecLib(
   case NoLibrary:
     break;
   }
+}
+
+void TargetLibraryInfoImpl::addTapirTargetLibraryFunctions(
+    TapirTargetID TargetID) {
+  switch (TargetID) {
+  case TapirTargetID::OpenCilk: {
+    const StringLiteral TTFuncs[] = {
+    #define TLI_DEFINE_CILK_LIBS
+    #include "llvm/Analysis/TapirTargetFuncs.def"
+    };
+    TapirTargetFuncs.insert(TapirTargetFuncs.end(), std::begin(TTFuncs),
+                            std::end(TTFuncs));
+    break;
+  }
+  case TapirTargetID::None:
+  case TapirTargetID::Serial:
+  case TapirTargetID::Cheetah:
+  case TapirTargetID::Lambda:
+  case TapirTargetID::OMPTask:
+  case TapirTargetID::Qthreads:
+  case TapirTargetID::Last_TapirTargetID:
+    break;
+  }
+
+  // Ensure that the collected Tapir-target functions are in sorted order.
+  llvm::sort(TapirTargetFuncs);
+}
+
+bool TargetLibraryInfoImpl::isTapirTargetLibFunc(StringRef funcName) const {
+  funcName = sanitizeFunctionName(funcName);
+  if (funcName.empty())
+    return false;
+
+  const auto Start = TapirTargetFuncs.begin();
+  const auto End = TapirTargetFuncs.end();
+  const auto I = std::lower_bound(Start, End, funcName);
+  if (I != End && *I == funcName)
+    return true;
+  return false;
+}
+
+bool TargetLibraryInfoImpl::isTapirTargetLibFunc(
+    const Function &FDecl) const {
+  // Intrinsics don't overlap w/libcalls; if our module has a large number of
+  // intrinsics, this ends up being an interesting compile time win since we
+  // avoid string normalization and comparison.
+  if (FDecl.isIntrinsic()) return false;
+
+  // TODO: Check the function prototype of the Tapir-target library function to
+  // ensure a match.  This change may require building more detailed knowledge
+  // of these functions into TargetLibraryInfo.
+  return isTapirTargetLibFunc(FDecl.getName());
 }
 
 bool TargetLibraryInfoImpl::isFunctionVectorizable(StringRef funcName) const {

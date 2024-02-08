@@ -83,6 +83,7 @@
 #include "llvm/Transforms/Scalar/EarlyCSE.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Scalar/JumpThreading.h"
+#include "llvm/Transforms/Tapir/TapirToTarget.h"
 #include "llvm/Transforms/Utils/Debugify.h"
 #include "llvm/Transforms/Utils/EntryExitInstrumenter.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
@@ -276,6 +277,51 @@ static bool asanUseGlobalsGC(const Triple &T, const CodeGenOptions &CGOpts) {
     break;
   }
   return false;
+}
+
+static TargetLibraryInfoImpl *createTLII(llvm::Triple &TargetTriple,
+                                         const CodeGenOptions &CodeGenOpts) {
+  TargetLibraryInfoImpl *TLII = new TargetLibraryInfoImpl(TargetTriple);
+
+  switch (CodeGenOpts.getVecLib()) {
+  case CodeGenOptions::Accelerate:
+    TLII->addVectorizableFunctionsFromVecLib(TargetLibraryInfoImpl::Accelerate,
+                                             TargetTriple);
+    break;
+  case CodeGenOptions::LIBMVEC:
+    TLII->addVectorizableFunctionsFromVecLib(TargetLibraryInfoImpl::LIBMVEC_X86,
+                                             TargetTriple);
+    break;
+  case CodeGenOptions::MASSV:
+    TLII->addVectorizableFunctionsFromVecLib(TargetLibraryInfoImpl::MASSV,
+                                             TargetTriple);
+    break;
+  case CodeGenOptions::SVML:
+    TLII->addVectorizableFunctionsFromVecLib(TargetLibraryInfoImpl::SVML,
+                                             TargetTriple);
+    break;
+  case CodeGenOptions::SLEEF:
+    TLII->addVectorizableFunctionsFromVecLib(TargetLibraryInfoImpl::SLEEFGNUABI,
+                                             TargetTriple);
+    break;
+  case CodeGenOptions::Darwin_libsystem_m:
+    TLII->addVectorizableFunctionsFromVecLib(
+        TargetLibraryInfoImpl::DarwinLibSystemM, TargetTriple);
+    break;
+  case CodeGenOptions::ArmPL:
+    TLII->addVectorizableFunctionsFromVecLib(TargetLibraryInfoImpl::ArmPL,
+                                             TargetTriple);
+    break;
+  default:
+    break;
+  }
+
+  TLII->setTapirTarget(CodeGenOpts.getTapirTarget());
+  TLII->setTapirTargetOptions(
+      std::make_unique<OpenCilkABIOptions>(CodeGenOpts.OpenCilkABIBitcodeFile));
+  TLII->addTapirTargetLibraryFunctions();
+
+  return TLII;
 }
 
 static std::optional<llvm::CodeModel::Model>
@@ -820,6 +866,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.LoopInterleaving = CodeGenOpts.UnrollLoops;
   PTO.LoopVectorization = CodeGenOpts.VectorizeLoop;
   PTO.SLPVectorization = CodeGenOpts.VectorizeSLP;
+  PTO.LoopStripmine = CodeGenOpts.StripmineLoop;
   PTO.MergeFunctions = CodeGenOpts.MergeFunctions;
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
@@ -1018,7 +1065,8 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
     } else if (PrepareForLTO) {
       MPM.addPass(PB.buildLTOPreLinkDefaultPipeline(Level));
     } else {
-      MPM.addPass(PB.buildPerModuleDefaultPipeline(Level));
+      MPM.addPass(PB.buildPerModuleDefaultPipeline(Level),
+                  /* LTOPreLink */ false, TLII->hasTapirTarget());
     }
   }
 
@@ -1245,6 +1293,8 @@ static void runThinLTOBackend(
   Conf.RemarksFormat = CGOpts.OptRecordFormat;
   Conf.SplitDwarfFile = CGOpts.SplitDwarfFile;
   Conf.SplitDwarfOutput = CGOpts.SplitDwarfOutput;
+  Conf.TapirTarget = CGOpts.getTapirTarget();
+  Conf.OpenCilkABIBitcodeFile = CGOpts.OpenCilkABIBitcodeFile;
   switch (Action) {
   case Backend_EmitNothing:
     Conf.PreCodeGenModuleHook = [](size_t Task, const llvm::Module &Mod) {

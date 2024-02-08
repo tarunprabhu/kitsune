@@ -2136,11 +2136,7 @@ enum CXCursorKind {
    */
   CXCursor_OMPErrorDirective = 305,
 
-  /** OpenMP scope directive.
-   */
-  CXCursor_OMPScopeDirective = 306,
-
-  CXCursor_LastStmt = CXCursor_OMPScopeDirective,
+  CXCursor_LastStmt = CXCursor_OMPErrorDirective,
 
   /**
    * Cursor that represents the translation unit itself.

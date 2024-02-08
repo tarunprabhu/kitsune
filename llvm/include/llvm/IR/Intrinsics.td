@@ -1694,6 +1694,64 @@ def int_coro_subfn_addr : DefaultAttrsIntrinsic<
     [IntrReadMem, IntrArgMemOnly, ReadOnly<ArgIndex<0>>,
      NoCapture<ArgIndex<0>>]>;
 
+///===-------------------------- Tapir Intrinsics -------------------------===//
+//
+def int_syncregion_start
+    : Intrinsic<[llvm_token_ty], [], [IntrArgMemOnly, IntrWillReturn]>;
+
+def int_tapir_runtime_start
+    : Intrinsic<[llvm_token_ty], [], [IntrArgMemOnly, IntrWillReturn]>;
+
+def int_tapir_runtime_end
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn]>;
+
+// Intrinsics for taskframes.
+
+// Marker for the start of a taskframe.
+def int_taskframe_create
+    : Intrinsic<[llvm_token_ty], [], [IntrArgMemOnly, IntrWillReturn]>;
+
+// Marker placed in detached blocks (i.e., task-entry blocks) to
+// identify the taskframe used by the spawned task.
+def int_taskframe_use
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn]>;
+
+// Marker for the end of a taskframe.
+def int_taskframe_end
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn]>;
+
+// Marker for the end of a taskframe along exception-handling unwind
+// paths.
+def int_taskframe_resume : Intrinsic<[], [llvm_token_ty, llvm_any_ty],
+                                     [IntrArgMemOnly, IntrWillReturn, Throws]>;
+
+// Guard intrinsic to prevent illegal code motion of loads from memory
+// locations stored in spawned subtasks.
+def int_taskframe_load_guard
+    : Intrinsic<[], [llvm_anyptr_ty],
+                [IntrArgMemOnly, IntrWillReturn, NoCapture<ArgIndex<0>>]>;
+
+// Marker for the end of a spawned task along exception-handling
+// unwind paths.
+def int_detached_rethrow : Intrinsic<[], [llvm_token_ty, llvm_any_ty],
+                                     [IntrArgMemOnly, IntrWillReturn, Throws]>;
+
+// Invokable intrinsic to keep track of a landingpad associated with a
+// sync.
+def int_sync_unwind
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn, Throws]>;
+
+// Intrinsic to get the grainsize of a Tapir loop.
+def int_tapir_loop_grainsize
+    : Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>],
+                [IntrNoMem, IntrWillReturn, IntrSpeculatable]>;
+
+// Intrinsic to get the frame address of a spawned task.  Tapir
+// lowering transforms this intrinsic into ordinary frameaddress
+// intrinsics.
+def int_task_frameaddress
+    : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty], [IntrWillReturn]>;
+
 ///===-------------------------- Other Intrinsics --------------------------===//
 //
 // TODO: We should introduce a new memory kind fo traps (and other side effects 

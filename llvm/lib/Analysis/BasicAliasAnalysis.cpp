@@ -1457,6 +1457,258 @@ AliasResult BasicAAResult::aliasPHI(const PHINode *PN, LocationSize PNSize,
   return Alias;
 }
 
+// Given that O1 != O2, return NoAlias if they can not alias.
+static AliasResult UnderlyingNoAlias(const Value *O1, const Value *O2,
+                                     AAQueryInfo &AAQI) {
+  assert(O1 != O2 && "identical arguments to UnderlyingNoAlias");
+
+  // If V1/V2 point to two different objects, we know that we have no alias.
+  if (AAQI.AssumeSameSpindle) {
+    if (isIdentifiedObjectIfInSameSpindle(O1) &&
+        isIdentifiedObjectIfInSameSpindle(O2))
+      return AliasResult::NoAlias;
+  } else {
+    if (isIdentifiedObject(O1) && isIdentifiedObject(O2))
+      return AliasResult::NoAlias;
+  }
+
+  // Constant pointers can't alias with non-const isIdentifiedObject objects.
+  if ((isa<Constant>(O1) && isIdentifiedObject(O2) && !isa<Constant>(O2)) ||
+      (isa<Constant>(O2) && isIdentifiedObject(O1) && !isa<Constant>(O1)))
+    return AliasResult::NoAlias;
+
+  // Function arguments can't alias with things that are known to be
+  // unambigously identified at the function level.
+  if ((isa<Argument>(O1) && isIdentifiedFunctionLocal(O2)) ||
+      (isa<Argument>(O2) && isIdentifiedFunctionLocal(O1)))
+    return AliasResult::NoAlias;
+
+  // If one pointer is the result of a call/invoke or load and the other is a
+  // non-escaping local object within the same function, then we know the
+  // object couldn't escape to a point where the call could return it.
+  //
+  // Note that if the pointers are in different functions, there are a
+  // variety of complications. A call with a nocapture argument may still
+  // temporary store the nocapture argument's value in a temporary memory
+  // location if that memory location doesn't escape. Or it may pass a
+  // nocapture value to other functions as long as they don't capture it.
+  if (isEscapeSource(O1) &&
+      AAQI.CI->isNotCapturedBeforeOrAt(O2, cast<Instruction>(O1)))
+    return AliasResult::NoAlias;
+  if (isEscapeSource(O2) &&
+      AAQI.CI->isNotCapturedBeforeOrAt(O1, cast<Instruction>(O2)))
+    return AliasResult::NoAlias;
+
+  return AliasResult::MayAlias;
+}
+
+namespace {
+// TODO: Consider moving this code to AliasAnalysis.h, to make it accessible to
+// other alias analyses.
+// TODO: TapirFnBehavior::View and TapirFnBehavior::Strand may be redundant.
+enum class TapirFnBehavior : uint8_t {
+  None = 0,
+  Injective = 1,
+  Pure = 2, // including strand pure function in same strand
+  View = 4,
+  InjectiveOrPureOrView = Injective | Pure | View,
+  Strand = 8, // excluding strand pure function in same strand
+  Any = InjectiveOrPureOrView | Strand,
+};
+
+static inline bool noTapirFnBehavior(const TapirFnBehavior TFB) {
+  return (static_cast<uint8_t>(TFB) &
+          static_cast<uint8_t>(TapirFnBehavior::Any)) ==
+         static_cast<uint8_t>(TapirFnBehavior::None);
+}
+static inline bool isInjectiveSet(const TapirFnBehavior TFB) {
+  return (static_cast<uint8_t>(TFB) &
+          static_cast<uint8_t>(TapirFnBehavior::Injective)) ==
+         static_cast<uint8_t>(TapirFnBehavior::Injective);
+}
+static inline bool isPureSet(const TapirFnBehavior TFB) {
+  return (static_cast<uint8_t>(TFB) &
+          static_cast<uint8_t>(TapirFnBehavior::Pure)) ==
+         static_cast<uint8_t>(TapirFnBehavior::Pure);
+}
+static inline bool isViewSet(const TapirFnBehavior TFB) {
+  return (static_cast<uint8_t>(TFB) &
+          static_cast<uint8_t>(TapirFnBehavior::View)) ==
+         static_cast<uint8_t>(TapirFnBehavior::View);
+}
+static inline bool isInjectiveOrPureOrViewSet(const TapirFnBehavior TFB) {
+  return static_cast<uint8_t>(TFB) &
+         static_cast<uint8_t>(TapirFnBehavior::InjectiveOrPureOrView);
+}
+static inline bool isStrandSet(const TapirFnBehavior TFB) {
+  return (static_cast<uint8_t>(TFB) &
+          static_cast<uint8_t>(TapirFnBehavior::Strand)) ==
+         static_cast<uint8_t>(TapirFnBehavior::Strand);
+}
+static inline TapirFnBehavior setPure(const TapirFnBehavior TFB) {
+  return TapirFnBehavior(static_cast<uint8_t>(TFB) |
+                         static_cast<uint8_t>(TapirFnBehavior::Pure));
+}
+static inline TapirFnBehavior clearPure(const TapirFnBehavior TFB) {
+  return TapirFnBehavior(static_cast<uint8_t>(TFB) &
+                         ~static_cast<uint8_t>(TapirFnBehavior::Pure));
+}
+static inline TapirFnBehavior clearStrand(const TapirFnBehavior TFB) {
+  return TapirFnBehavior(static_cast<uint8_t>(TFB) &
+                         ~static_cast<uint8_t>(TapirFnBehavior::Strand));
+}
+static inline TapirFnBehavior unionTapirFnBehavior(const TapirFnBehavior TFB1,
+                                                   const TapirFnBehavior TFB2) {
+  return TapirFnBehavior(static_cast<uint8_t>(TFB1) |
+                         static_cast<uint8_t>(TFB2));
+}
+static inline TapirFnBehavior
+intersectTapirFnBehavior(const TapirFnBehavior TFB1,
+                         const TapirFnBehavior TFB2) {
+  return TapirFnBehavior(static_cast<uint8_t>(TFB1) &
+                         static_cast<uint8_t>(TFB2));
+}
+} // namespace
+
+// Tapir/OpenCilk code has some simple optimization opportunities.
+// 1. Some runtime functions are injections, i.e., they return nonaliasing
+// pointers when given nonaliasing arguments.
+// 2. Some runtime functions are pure, or pure within a region of execution,
+// which means the return values MustAlias if the arguments are identical.
+// 3. View lookups return a value that does not alias anything that the
+// argument does not alias (for simplicity, this implies injective).
+// 4. Token lookups return a value that does not alias any alloca or global.
+static const Value *getRecognizedArgument(const Value *V, bool InSameSpindle,
+                                          const Value *&Fn,
+                                          TapirFnBehavior &Behavior) {
+  const CallInst *C = dyn_cast<CallInst>(V);
+  if (!C)
+    return nullptr;
+  unsigned NumOperands = C->getNumOperands();
+  if (NumOperands != 2 && NumOperands != 5)
+    return nullptr;
+
+  // Make TapirFnBehavior::Strand and TapirFnBehavior::Pure mutually exclusive.
+  if (isStrandSet(Behavior)) {
+    if (InSameSpindle)
+      Behavior = setPure(clearStrand(Behavior));
+    else
+      Behavior = clearPure(Behavior);
+  } else if (C->doesNotAccessMemory() && C->doesNotThrow() &&
+             C->hasFnAttr(Attribute::WillReturn)) {
+    Behavior = setPure(Behavior);
+  }
+
+  if (noTapirFnBehavior(Behavior))
+    return nullptr;
+  Fn = C->getCalledOperand();
+  return C->getOperand(0);
+}
+
+AliasResult
+BasicAAResult::checkInjectiveArguments(const Value *V1, const Value *O1,
+                                       const Value *V2, const Value *O2,
+                                       AAQueryInfo &AAQI) {
+  // V1 and V2 are the original pointers stripped of casts
+  // O1 and O2 are the underlying objects stripped of GEP as well
+
+  const Value *Fn1 = nullptr, *Fn2 = nullptr;
+  TapirFnBehavior Behavior1 = TapirFnBehavior::None,
+                  Behavior2 = TapirFnBehavior::None;
+  bool InSameSpindle = AAQI.AssumeSameSpindle;
+  const Value *A1 = getRecognizedArgument(V1, InSameSpindle, Fn1, Behavior1);
+  const Value *A2 = getRecognizedArgument(V2, InSameSpindle, Fn2, Behavior2);
+
+  if (!isInjectiveOrPureOrViewSet(Behavior1) &&
+      !isInjectiveOrPureOrViewSet(Behavior2))
+    return AliasResult::MayAlias;
+
+  // At least one value is a call to an understood function
+  assert(A1 || A2);
+  assert(!!A1 == !!Fn1);
+  assert(!!A2 == !!Fn2);
+
+  // Calls to two different functions can not be analyzed.
+  if (Fn1 && Fn2 && Fn1 != Fn2)
+    return AliasResult::MayAlias;
+
+  // Pure functions return equal values given equal arguments.
+  AliasResult Equal =
+      isPureSet(intersectTapirFnBehavior(Behavior1, Behavior2)) ?
+      AliasResult::MustAlias : AliasResult::MayAlias;
+
+  // This is for testing.  The intended use is with pointer arguments.
+  if (A1 && A2 && isInjectiveSet(Behavior1)) {
+    if (const ConstantInt *I1 = dyn_cast<ConstantInt>(A1)) {
+      if (const ConstantInt *I2 = dyn_cast<ConstantInt>(A2))
+        return I1->getValue() == I2->getValue() ?
+            Equal : AliasResult(AliasResult::NoAlias);
+      return AliasResult::MayAlias;
+    }
+  }
+
+  bool Known1 = false, Known2 = false;
+  const Value *U1 = nullptr, *U2 = nullptr;
+
+  if (A1) {
+    U1 = getUnderlyingObject(A1, MaxLookupSearchDepth);
+    Known1 = isIdentifiedObject(U1);
+  }
+  if (A2) {
+    U2 = getUnderlyingObject(A2, MaxLookupSearchDepth);
+    Known2 = isIdentifiedObject(U2);
+  }
+
+  // Rules, in order:
+  // 1. Potentially unequal values based on the same object may alias.
+  // 2. View lookups do not alias allocas that do not alias the argument
+  if (!A1) {
+    if (!Known2)
+      return AliasResult::MayAlias;
+    if (O1 == U2)              // 1
+      return AliasResult::MayAlias;
+    if (isViewSet(Behavior2))  // 2
+      return UnderlyingNoAlias(O1, U2, AAQI);
+    return AliasResult::MayAlias;
+  }
+  if (!A2) {
+    if (!Known1)
+      return AliasResult::MayAlias;
+    if (U1 == O2)              // 1
+      return AliasResult::MayAlias;
+    if (isViewSet(Behavior1))  // 2
+      return UnderlyingNoAlias(U1, O2, AAQI);
+    return AliasResult::MayAlias;
+  }
+
+  if (!isInjectiveSet(Behavior1))
+    return AliasResult::MayAlias;
+
+  // Two calls to the same function with the same value.
+  if (isValueEqualInPotentialCycles(A1, A2, AAQI))
+    return Equal;
+
+  // Two calls with different values based on the same object.
+  if (U1 == U2) {
+    // TODO: Currently the caller only cares whether the result is NoAlias.
+    // If the caller relied on partial overlap detection a function like
+    // void *f(void *p) { return p; }
+    // could not be declared injective.
+    BasicAAResult::DecomposedGEP DecompGEP1 =
+        DecomposeGEPExpression(A1, DL, &AC, DT);
+    BasicAAResult::DecomposedGEP DecompGEP2 =
+        DecomposeGEPExpression(A2, DL, &AC, DT);
+    if (DecompGEP1.VarIndices.empty() && DecompGEP2.VarIndices.empty() &&
+        isValueEqualInPotentialCycles(DecompGEP1.Base, DecompGEP2.Base, AAQI))
+      return DecompGEP1.Offset == DecompGEP2.Offset
+                 ? Equal
+                 : AliasResult(AliasResult::NoAlias);
+    return AliasResult::MayAlias;
+  }
+
+  return UnderlyingNoAlias(U1, U2, AAQI);
+}
+
 /// Provides a bunch of ad-hoc rules to disambiguate in common cases, such as
 /// array references.
 AliasResult BasicAAResult::aliasCheck(const Value *V1, LocationSize V1Size,
@@ -1502,10 +1754,14 @@ AliasResult BasicAAResult::aliasCheck(const Value *V1, LocationSize V1Size,
     if (!NullPointerIsDefined(&F, CPN->getType()->getAddressSpace()))
       return AliasResult::NoAlias;
 
-  if (O1 != O2) {
-    // If V1/V2 point to two different objects, we know that we have no alias.
-    if (isIdentifiedObject(O1) && isIdentifiedObject(O2))
-      return AliasResult::NoAlias;
+  // If the call is an injection (distinct argument implies
+  // distinct return) some more optimization is possible.
+  AliasResult InjectiveResult =
+      checkInjectiveArguments(V1, O1, V2, O2, AAQI);
+  if (InjectiveResult == AliasResult::NoAlias)
+    return AliasResult::NoAlias;
+  else if (InjectiveResult == AliasResult::MustAlias)
+    return AliasResult::MayAlias;
 
     // Function arguments can't alias with things that are known to be
     // unambigously identified at the function level.
@@ -1529,6 +1785,9 @@ AliasResult BasicAAResult::aliasCheck(const Value *V1, LocationSize V1Size,
                                   O1, dyn_cast<Instruction>(O2), /*OrAt*/ true))
       return AliasResult::NoAlias;
   }
+
+  if (O1 != O2 && UnderlyingNoAlias(O1, O2, AAQI) == AliasResult::NoAlias)
+    return AliasResult::NoAlias;
 
   // If the size of one access is larger than the entire object on the other
   // side, then we know such behavior is undefined and can assume no alias.

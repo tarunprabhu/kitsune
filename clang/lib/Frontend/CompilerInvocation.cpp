@@ -30,6 +30,7 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
+#include "clang/Driver/Tapir.h"
 #include "clang/Frontend/CommandLineSourceLoc.h"
 #include "clang/Frontend/DependencyOutputOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -86,6 +87,7 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -1478,6 +1480,10 @@ void CompilerInvocationBase::GenerateCodeGenArgs(const CodeGenOptions &Opts,
   else if (!Opts.DirectAccessExternalData && LangOpts->PICLevel == 0)
     GenerateArg(Consumer, OPT_fno_direct_access_external_data);
 
+  if (std::optional<StringRef> TapirTargetStr =
+          serializeTapirTarget(Opts.getTapirTarget()))
+    GenerateArg(Args, OPT_ftapir_EQ, *TapirTargetStr, SA);
+
   std::optional<StringRef> DebugInfoVal;
   switch (Opts.DebugInfo) {
   case llvm::codegenoptions::DebugLineTablesOnly:
@@ -1778,6 +1784,14 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
         Opts.getDebugInfo() == llvm::codegenoptions::DebugInfoConstructor)
       Opts.setDebugInfo(llvm::codegenoptions::LimitedDebugInfo);
   }
+
+  // Parse Tapir-related codegen options.
+  TapirTargetID TapirTarget = parseTapirTarget(Args);
+  if (TapirTarget == TapirTargetID::Last_TapirTargetID)
+    if (const Arg *A = Args.getLastArg(OPT_ftapir_EQ))
+      Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args)
+                                                << A->getValue();
+  Opts.setTapirTarget(TapirTarget);
 
   for (const auto &Arg : Args.getAllArgValues(OPT_fdebug_prefix_map_EQ)) {
     auto Split = StringRef(Arg).split('=');
@@ -3382,7 +3396,11 @@ void CompilerInvocationBase::GenerateLangArgs(const LangOptions &Opts,
     if (Opts.PIE)
       GenerateArg(Consumer, OPT_pic_is_pie);
     for (StringRef Sanitizer : serializeSanitizerKinds(Opts.Sanitize))
+<<<<<<< HEAD
       GenerateArg(Consumer, OPT_fsanitize_EQ, Sanitizer);
+=======
+      GenerateArg(Args, OPT_fsanitize_EQ, Sanitizer, SA);
+>>>>>>> 01b251155a72 ( Remove a lot of Cilk-specific code. More can probably be removed. check-clang,)
 
     return;
   }

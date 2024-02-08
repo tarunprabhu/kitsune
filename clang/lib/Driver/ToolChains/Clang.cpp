@@ -1281,6 +1281,9 @@ void Clang::AddPreprocessingOptions(Compilation &C, const JobAction &JA,
   // OBJCPLUS_INCLUDE_PATH - system includes enabled when compiling ObjC++.
   addDirectoryList(Args, CmdArgs, "-objcxx-isystem", "OBJCPLUS_INCLUDE_PATH");
 
+  // If a custom OpenCilk resource directory is specified, add its include path.
+  getToolChain().AddOpenCilkIncludeDir(Args, CmdArgs);
+
   // While adding the include arguments, we also attempt to retrieve the
   // arguments of related offloading toolchains or arguments that are specific
   // of an offloading programming model.
@@ -6411,6 +6414,70 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_fdiagnostics_show_template_tree);
   Args.AddLastArg(CmdArgs, options::OPT_fno_elide_type);
 
+  // Forward flags for Cilk.
+  Args.AddLastArg(CmdArgs, options::OPT_ftapir_EQ);
+  if (Args.hasArg(options::OPT_ftapir_EQ)) {
+    auto const &Triple = getToolChain().getTriple();
+
+    // FIXME KITSUNE: Change the unsupported cilk diagnostic to kitsune.
+    // At least one runtime has been implemented for these operating systems.
+    if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
+      D.Diag(diag::err_drv_cilk_unsupported);
+
+    /* JFC: Is it possible to confuse with with -fno-opencilk? */
+    bool OpenCilk = false;
+    bool Cheetah = false;
+    bool CustomTarget = false;
+
+    if (Arg *TapirRuntime = Args.getLastArgNoClaim(options::OPT_ftapir_EQ)) {
+      Cheetah = TapirRuntime->getValue() == StringRef("cheetah");
+      if (TapirRuntime->getValue() == StringRef("opencilk")) {
+        OpenCilk = true;
+      } else {
+        CustomTarget = true;
+      }
+    }
+
+    // FIXME KITSUNE: Change the unsupported cilk diagnostic to kitsune.
+    if (Cheetah && Triple.getArch() != llvm::Triple::x86_64) {
+      D.Diag(diag::err_drv_cilk_unsupported);
+    }
+    if (OpenCilk) {
+      switch (Triple.getArch()) {
+      case llvm::Triple::x86:
+      case llvm::Triple::x86_64:
+      case llvm::Triple::arm:
+      case llvm::Triple::armeb:
+      case llvm::Triple::aarch64:
+      case llvm::Triple::aarch64_be:
+	break;
+      default:
+    // FIXME KITSUNE: Change the unsupported cilk diagnostic to kitsune.
+	D.Diag(diag::err_drv_cilk_unsupported);
+	break;
+      }
+
+      // If an OpenCilk resource directory is specified, check that it is valid.
+      if (Args.hasArgNoClaim(options::OPT_opencilk_resource_dir_EQ)) {
+        bool ValidPathFound = false;
+        for (auto Path : getToolChain().getOpenCilkRuntimePaths(Args)) {
+          if (D.getVFS().exists(Path)) {
+            ValidPathFound = true;
+            break;
+          }
+        }
+        if (!ValidPathFound)
+          D.Diag(diag::err_drv_opencilk_resource_dir_missing_lib)
+              << Args.getLastArgNoClaim(options::OPT_opencilk_resource_dir_EQ)
+                     ->getAsString(Args);
+      }
+
+      if (!CustomTarget)
+        // Add the OpenCilk ABI bitcode file.
+        getToolChain().AddOpenCilkABIBitcode(Args, CmdArgs);
+    }
+  }
+
   // Forward flags for OpenMP. We don't do this if the current action is an
   // device offloading action other than OpenMP.
   if (Args.hasFlag(options::OPT_fopenmp, options::OPT_fopenmp_EQ,
@@ -7208,6 +7275,15 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.hasFlag(options::OPT_fslp_vectorize, SLPVectAliasOption,
                    options::OPT_fno_slp_vectorize, EnableSLPVec))
     CmdArgs.push_back("-vectorize-slp");
+
+  // -fstripmine is enabled based on the optimization level selected.  For now,
+  // we enable stripmining when the optimization level enables vectorization.
+  bool EnableStripmine = EnableVec;
+  OptSpecifier StripmineAliasOption =
+      EnableStripmine ? options::OPT_O_Group : options::OPT_fstripmine;
+  if (Args.hasFlag(options::OPT_fstripmine, StripmineAliasOption,
+                   options::OPT_fno_stripmine, EnableStripmine))
+    CmdArgs.push_back("-stripmine-loops");
 
   ParseMPreferVectorWidth(D, Args, CmdArgs);
 

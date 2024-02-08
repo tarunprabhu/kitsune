@@ -23,6 +23,7 @@
 #include "clang/Driver/Job.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
+#include "clang/Driver/Tapir.h"
 #include "clang/Driver/XRayArgs.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
@@ -1554,4 +1555,273 @@ llvm::opt::DerivedArgList *ToolChain::TranslateXarchArgs(
 
   delete DAL;
   return nullptr;
+}
+
+void ToolChain::AddOpenCilkIncludeDir(const ArgList &Args,
+                                      ArgStringList &CmdArgs) const {
+  if (!Args.hasArg(options::OPT_opencilk_resource_dir_EQ))
+    return;
+
+  const Arg *A = Args.getLastArg(options::OPT_opencilk_resource_dir_EQ);
+  SmallString<128> P;
+
+  // Check for an include directory.
+  P.assign(A->getValue());
+  llvm::sys::path::append(P, "include");
+  if (getVFS().exists(P)) {
+    addSystemInclude(Args, CmdArgs, P);
+  } else {
+    D.Diag(diag::err_drv_opencilk_resource_dir_missing_include)
+        << A->getAsString(Args);
+  }
+}
+
+ToolChain::path_list
+ToolChain::getOpenCilkRuntimePaths(const ArgList &Args) const {
+  path_list Paths;
+
+  if (!Args.hasArg(options::OPT_opencilk_resource_dir_EQ)) {
+    Paths = getRuntimePaths();
+    Paths.push_back(getCompilerRTPath());
+    return Paths;
+  }
+
+  // If -opencilk-resource-dir= is specified, try to use that directory, and
+  // raise an error if that fails.
+  const Arg *A = Args.getLastArg(options::OPT_opencilk_resource_dir_EQ);
+
+  // Try the triple passed to driver as --target=<triple>.
+  {
+    SmallString<128> P(A->getValue());
+    llvm::sys::path::append(P, "lib", getTriple().str());
+    Paths.push_back(std::string(P.str()));
+  }
+  // Try excluding the triple.
+  {
+    SmallString<128> P(A->getValue());
+    if (Triple.isOSUnknown()) {
+      llvm::sys::path::append(P, "lib");
+    } else {
+      llvm::sys::path::append(P, "lib", getOSLibName());
+    }
+    Paths.push_back(std::string(P.str()));
+  }
+
+  return Paths;
+}
+
+static void addOpenCilkRuntimeRunPath(const ToolChain &TC, const ArgList &Args,
+                                      ArgStringList &CmdArgs,
+                                      const llvm::Triple &Triple) {
+  // Allow the -fno-rtlib-add-rpath flag to prevent adding this default
+  // directory to the runpath.
+  if (!Args.hasFlag(options::OPT_frtlib_add_rpath,
+                    options::OPT_fno_rtlib_add_rpath, true))
+    return;
+
+  bool FoundCandidate = false;
+  for (auto CandidateRPath : TC.getOpenCilkRuntimePaths(Args)) {
+    if (TC.getVFS().exists(CandidateRPath)) {
+      FoundCandidate = true;
+      CmdArgs.push_back("-L");
+      CmdArgs.push_back(Args.MakeArgString(CandidateRPath.c_str()));
+      CmdArgs.push_back("-rpath");
+      CmdArgs.push_back(Args.MakeArgString(CandidateRPath.c_str()));
+    }
+  }
+  if (FoundCandidate && Triple.isOSBinFormatELF())
+    CmdArgs.push_back("--enable-new-dtags");
+}
+
+static StringRef getArchNameForOpenCilkRTLib(const ToolChain &TC,
+                                             const ArgList &Args) {
+  return getArchNameForCompilerRTLib(TC, Args);
+}
+
+std::string ToolChain::getOpenCilkBCBasename(const ArgList &Args,
+                                             StringRef Component,
+                                             bool AddArch) const {
+  const llvm::Triple &TT = getTriple();
+  const char *Prefix = "lib";
+  const char *Suffix = ".bc";
+  std::string ArchAndEnv;
+  if (AddArch) {
+    StringRef Arch = getArchNameForOpenCilkRTLib(*this, Args);
+    const char *Env = TT.isAndroid() ? "-android" : "";
+    ArchAndEnv = ("-" + Arch + Env).str();
+  }
+  return (Prefix + Component + ArchAndEnv + Suffix).str();
+}
+
+std::optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
+                                                    StringRef Component) const {
+  // Check for runtime files without the architecture first.
+  std::string BCBasename =
+      getOpenCilkBCBasename(Args, Component, /*AddArch=*/false);
+  for (auto RuntimePath : getOpenCilkRuntimePaths(Args)) {
+    SmallString<128> P(RuntimePath);
+    llvm::sys::path::append(P, BCBasename);
+    if (getVFS().exists(P))
+      return std::optional<std::string>(std::string(P.str()));
+  }
+
+  // Fall back to the OpenCilk name with the arch if the no-arch version does
+  // not exist.
+  BCBasename = getOpenCilkBCBasename(Args, Component, /*AddArch=*/true);
+  for (auto RuntimePath : getOpenCilkRuntimePaths(Args)) {
+    SmallString<128> P(RuntimePath);
+    llvm::sys::path::append(P, BCBasename);
+    if (getVFS().exists(P))
+      return std::optional<std::string>(std::string(P.str()));
+  }
+
+  return std::nullopt;
+}
+
+void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
+                                      ArgStringList &CmdArgs,
+                                      bool IsLTO) const {
+  // If --opencilk-abi-bitcode= is specified, use that specified path.
+  if (Args.hasArg(options::OPT_opencilk_abi_bitcode_EQ)) {
+    const Arg *A = Args.getLastArg(options::OPT_opencilk_abi_bitcode_EQ);
+    SmallString<128> P(A->getValue());
+    if (!getVFS().exists(P)) {
+      getDriver().Diag(diag::err_drv_opencilk_missing_abi_bitcode)
+          << A->getAsString(Args);
+    }
+    if (IsLTO)
+      CmdArgs.push_back(
+          Args.MakeArgString("--plugin-opt=opencilk-abi-bitcode=" + P));
+  }
+
+  bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
+  StringRef OpenCilkBCName = UseAsan ? "opencilk-asan-abi" : "opencilk-abi";
+  if (auto OpenCilkABIBCFilename = getOpenCilkBC(Args, OpenCilkBCName)) {
+    if (IsLTO)
+      CmdArgs.push_back(Args.MakeArgString("--plugin-opt=opencilk-abi-bitcode=" +
+                                           *OpenCilkABIBCFilename));
+    else
+      CmdArgs.push_back(Args.MakeArgString("--opencilk-abi-bitcode=" +
+                                           *OpenCilkABIBCFilename));
+    return;
+  }
+
+  // Error if we could not find a bitcode file.
+  getDriver().Diag(diag::err_drv_opencilk_missing_abi_bitcode)
+      << getOpenCilkBCBasename(Args, OpenCilkBCName, /*AddArch=*/false);
+}
+
+std::string ToolChain::getOpenCilkRTBasename(const ArgList &Args,
+                                             StringRef Component,
+                                             FileType Type,
+                                             bool AddArch) const {
+  const llvm::Triple &TT = getTriple();
+  const char *Prefix = "lib";
+  const char *Suffix;
+  switch (Type) {
+  case ToolChain::FT_Object:
+    Suffix = ".o";
+    break;
+  case ToolChain::FT_Static:
+    Suffix = ".a";
+    break;
+  case ToolChain::FT_Shared:
+    Suffix = ".so";
+    break;
+  }
+  std::string ArchAndEnv;
+  if (AddArch) {
+    StringRef Arch = getArchNameForOpenCilkRTLib(*this, Args);
+    const char *Env = TT.isAndroid() ? "-android" : "";
+    ArchAndEnv = ("-" + Arch + Env).str();
+  }
+  return (Prefix + Component + ArchAndEnv + Suffix).str();
+}
+
+std::string ToolChain::getOpenCilkRT(const ArgList &Args, StringRef Component,
+                                     FileType Type) const {
+  // Check for runtime files without the architecture first.
+  std::string RTBasename =
+      getOpenCilkRTBasename(Args, Component, Type, /*AddArch=*/false);
+  if (Args.hasArg(options::OPT_opencilk_resource_dir_EQ)) {
+    // If opencilk-resource-dir is specified, look for the library in that
+    // directory.
+    for (auto RuntimePath : getOpenCilkRuntimePaths(Args)) {
+      SmallString<128> P(RuntimePath);
+      llvm::sys::path::append(P, RTBasename);
+      if (getVFS().exists(P))
+        return std::string(P.str());
+    }
+  } else {
+    for (const auto &LibPath : getLibraryPaths()) {
+      SmallString<128> P(LibPath);
+      llvm::sys::path::append(P, RTBasename);
+      if (getVFS().exists(P))
+        // If we found the library in LibraryPaths, let the linker resolve it.
+        return std::string(("-l" + Component).str());
+    }
+  }
+
+  // Fall back to the OpenCilk name with the arch if the no-arch version does
+  // not exist.
+  RTBasename = getOpenCilkRTBasename(Args, Component, Type, /*AddArch=*/true);
+  for (auto RuntimePath : getOpenCilkRuntimePaths(Args)) {
+    SmallString<128> P(RuntimePath);
+    llvm::sys::path::append(P, RTBasename);
+    if (getVFS().exists(P))
+      return std::string(P.str());
+  }
+
+  // Otherwise, trust the linker to find the library on the system.
+  return std::string(("-l" + Component).str());
+}
+
+void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
+                                       ArgStringList &CmdArgs) const {
+  TapirTargetID TapirTarget = parseTapirTarget(Args);
+  if (TapirTarget == TapirTargetID::Last_TapirTargetID)
+    if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
+      getDriver().Diag(diag::err_drv_invalid_value) << A->getAsString(Args)
+                                                    << A->getValue();
+
+  switch (TapirTarget) {
+  case TapirTargetID::Cheetah:
+    CmdArgs.push_back("-lcheetah");
+    CmdArgs.push_back("-lpthread");
+    break;
+  case TapirTargetID::OpenCilk: {
+    bool StaticOpenCilk = Args.hasArg(options::OPT_static);
+    bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
+
+    // Link the correct Cilk personality fn
+    if (getDriver().CCCIsCXX())
+      CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(
+          Args,
+          UseAsan ? "opencilk-asan-personality-cpp"
+                  : "opencilk-personality-cpp",
+          StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
+    else
+      CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(
+          Args,
+          UseAsan ? "opencilk-asan-personality-c" : "opencilk-personality-c",
+          StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
+
+    // Link the opencilk runtime.  We do this after linking the personality
+    // function, to ensure that symbols are resolved correctly when using static
+    // linking.
+    CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(
+        Args, UseAsan ? "opencilk-asan" : "opencilk",
+        StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
+
+    // Add to the executable's runpath the default directory containing OpenCilk
+    // runtime.
+    addOpenCilkRuntimeRunPath(*this, Args, CmdArgs, Triple);
+    break;
+  }
+  case TapirTargetID::Qthreads:
+    CmdArgs.push_back("-lqthread");
+    break;
+  default:
+    break;
+  }
 }

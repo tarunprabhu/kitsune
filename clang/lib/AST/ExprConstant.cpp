@@ -11654,6 +11654,7 @@ GCCTypeClass EvaluateBuiltinClassifyType(QualType T,
     return EvaluateBuiltinClassifyType(
         CanTy->castAs<AtomicType>()->getValueType(), LangOpts);
 
+  case Type::BlockPointer:
   case Type::Vector:
   case Type::ExtVector:
     return GCCTypeClass::Vector;
@@ -15799,6 +15800,8 @@ bool Expr::EvaluateAsInitializer(APValue &Value, const ASTContext &Ctx,
       llvm_unreachable("Unhandled cleanup; missing full expression marker?");
   }
 
+  SourceLocation DeclLoc = VD->getLocation();
+  QualType DeclTy = VD->getType();
   return CheckConstantExpression(Info, DeclLoc, DeclTy, Value,
                                  ConstantExprKind::Normal) &&
          CheckMemoryLeaks(Info);

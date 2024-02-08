@@ -72,6 +72,7 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
@@ -79,6 +80,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "tailcallelim"
@@ -430,6 +432,9 @@ class TailRecursionEliminator {
   // The instruction doing the accumulating.
   Instruction *AccumulatorRecursionInstr = nullptr;
 
+  // Map from sync region to return blocks to sync for that sync region.
+  DenseMap<Value *, SmallPtrSet<BasicBlock *, 4>> ReturnBlocksToSync;
+
   TailRecursionEliminator(Function &F, const TargetTransformInfo *TTI,
                           AliasAnalysis *AA, OptimizationRemarkEmitter *ORE,
                           DomTreeUpdater &DTU)
@@ -442,6 +447,8 @@ class TailRecursionEliminator {
   void insertAccumulator(Instruction *AccRecInstr);
 
   bool eliminateCall(CallInst *CI);
+
+  void InsertSyncsIntoReturnBlocks();
 
   void cleanupAndFinalize();
 
@@ -515,10 +522,17 @@ void TailRecursionEliminator::createTailRecurseLoopHeader(CallInst *CI) {
   // Move all fixed sized allocas from HeaderBB to NewEntry.
   for (BasicBlock::iterator OEBI = HeaderBB->begin(), E = HeaderBB->end(),
                             NEBI = NewEntry->begin();
-       OEBI != E;)
-    if (AllocaInst *AI = dyn_cast<AllocaInst>(OEBI++))
+       OEBI != E;) {
+    auto I = OEBI++;
+    if (AllocaInst *AI = dyn_cast<AllocaInst>(I)) {
       if (isa<ConstantInt>(AI->getArraySize()))
         AI->moveBefore(&*NEBI);
+    } else if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I)) {
+      // Also move syncregions to NewEntry.
+      if (Intrinsic::syncregion_start == II->getIntrinsicID())
+        II->moveBefore(&*NEBI);
+    }
+  }
 
   // Now that we have created a new block, which jumps to the entry
   // block, insert a PHI node for each argument of the function.
@@ -810,6 +824,104 @@ void TailRecursionEliminator::cleanupAndFinalize() {
   }
 }
 
+static void
+getReturnBlocksToSync(BasicBlock *Entry, SyncInst *Sync,
+                      SmallPtrSetImpl<BasicBlock *> &ReturnBlocksToSync) {
+  // Walk the CFG from the entry block, stopping traversal at any sync within
+  // the same region.  Record all blocks found that are terminated by a return
+  // instruction.
+  Value *SyncRegion = Sync->getSyncRegion();
+  SmallVector<BasicBlock *, 8> WorkList;
+  SmallPtrSet<BasicBlock *, 8> Visited;
+  WorkList.push_back(Entry);
+  while (!WorkList.empty()) {
+    BasicBlock *BB = WorkList.pop_back_val();
+    if (!Visited.insert(BB).second)
+      continue;
+
+    // Skip paths that are synced within the same region.
+    if (SyncInst *SI = dyn_cast<SyncInst>(BB->getTerminator()))
+      if (SI->getSyncRegion() == SyncRegion)
+        continue;
+
+    // If we find a return, we must add a sync before it if we eliminate a
+    // recursive tail call.
+    if (isa<ReturnInst>(BB->getTerminator()))
+      ReturnBlocksToSync.insert(BB);
+
+    // Queue up successors to search.
+    for (BasicBlock *Succ : successors(BB))
+      if (Succ != Sync->getParent())
+        WorkList.push_back(Succ);
+  }
+}
+
+static bool hasPrecedingSync(SyncInst *SI) {
+  // TODO: Save the results from previous calls to hasPrecedingSync, in order to
+  // speed up multiple calls to this routine for different sync instructions.
+  SmallPtrSet<BasicBlock *, 32> Visited;
+  SmallVector<Instruction *, 32> Worklist;
+  Worklist.push_back(SI);
+  while (!Worklist.empty()) {
+    Instruction *I = Worklist.pop_back_val();
+    if (!Visited.insert(I->getParent()).second)
+      continue;
+
+    // Scan the basic block in reverse for a taskframe.end.  If found, skip the
+    // search to the corresponding taskframe.create().
+    BasicBlock::iterator Iter(I);
+    BasicBlock::const_iterator BBStart(I->getParent()->begin());
+    bool FoundPred = false;
+    while (Iter != BBStart) {
+      Instruction *I = &*Iter;
+      if (isTapirIntrinsic(Intrinsic::taskframe_end, I)) {
+        CallInst *TFEnd = cast<CallInst>(I);
+        Instruction *TaskFrame = cast<Instruction>(TFEnd->getArgOperand(0));
+        if (TaskFrame->getParent() == I->getParent()) {
+          Iter = TaskFrame->getIterator();
+          continue;
+        }
+        Worklist.push_back(TaskFrame);
+        FoundPred = true;
+        break;
+      }
+      Iter--;
+    }
+
+    // If this block contains a taskframe.end whose taskframe.create exists in
+    // another block, then we're done with this block.
+    if (FoundPred)
+      continue;
+
+    // Add predecessors of this block to the search, based on their terminators.
+    for (BasicBlock *Pred : predecessors(I->getParent())) {
+      Instruction *TI = Pred->getTerminator();
+      // If we find a sync, then the searchis done.
+      if (isa<SyncInst>(TI))
+        return true;
+
+      // Skip predecessors terminated by reattaches or detached.rethrows.  This
+      // block will also have a detach as its predecessor, where we'll continue
+      // the search.
+      if (isa<ReattachInst>(TI) || isDetachedRethrow(TI))
+        continue;
+
+      // If we find a taskframe.resume, jump the search to the corresponding
+      // taskframe.create.
+      if (isTaskFrameResume(TI)) {
+        CallBase *CB = dyn_cast<CallBase>(TI);
+        Instruction *TaskFrame = cast<Instruction>(CB->getArgOperand(0));
+        Worklist.push_back(TaskFrame);
+        continue;
+      }
+      // Otherwise, add the terminator to the worklist.
+      Worklist.push_back(TI);
+    }
+  }
+  // We finished the search and did not find a preceding sync.
+  return false;
+}
+
 bool TailRecursionEliminator::processBlock(BasicBlock &BB) {
   Instruction *TI = BB.getTerminator();
 
@@ -848,9 +960,161 @@ bool TailRecursionEliminator::processBlock(BasicBlock &BB) {
 
     if (CI)
       return eliminateCall(CI);
+  } else if (SyncInst *SI = dyn_cast<SyncInst>(TI)) {
+
+    BasicBlock *Succ = SI->getSuccessor(0);
+    // If the successor is terminated by a sync.unwind (which will necessarily
+    // be an invoke), skip TRE.
+    if (isSyncUnwind(Succ->getTerminator()))
+      return false;
+
+    // Try to find a return instruction in the block following a sync.
+    Instruction *NextI = Succ->getFirstNonPHIOrDbgOrSyncUnwind(true);
+    Instruction *TapirRuntimeToRemove = nullptr;
+    if (isTapirIntrinsic(Intrinsic::tapir_runtime_end, NextI)) {
+      TapirRuntimeToRemove =
+          cast<Instruction>(cast<CallInst>(NextI)->getArgOperand(0));
+      NextI = &*(++NextI->getIterator());
+    }
+    ReturnInst *Ret = dyn_cast<ReturnInst>(NextI);
+
+    BasicBlock *BrSucc = nullptr;
+    if (!Ret) {
+      // After the sync, there might be a block with a sync.unwind instruction
+      // and an unconditional branch to a block containing just a return.  Check
+      // for this structure.
+      if (BranchInst *BI = dyn_cast<BranchInst>(NextI)) {
+        if (BI->isConditional())
+          return false;
+
+        BrSucc = BI->getSuccessor(0);
+        Ret = dyn_cast<ReturnInst>(BrSucc->getFirstNonPHIOrDbg(true));
+      }
+    }
+    if (!Ret)
+      return false;
+
+    CallInst *CI = findTRECandidate(&BB);
+
+    if (!CI)
+      return false;
+
+    // Check that all instructions between the candidate tail call and the sync
+    // can be moved above the call.  In particular, we disallow accumulator
+    // recursion elimination for tail calls before a sync.
+    BasicBlock::iterator BBI(CI);
+    for (++BBI; &*BBI != SI; ++BBI)
+      if (!canMoveAboveCall(&*BBI, CI, AA))
+        break;
+    if (&*BBI != SI)
+      return false;
+
+    // Get the sync region for this sync.
+    Value *SyncRegion = SI->getSyncRegion();
+    BasicBlock *OldEntryBlock = &BB.getParent()->getEntryBlock();
+
+    // Check that the sync region begins in the entry block of the function.
+    if (cast<Instruction>(SyncRegion)->getParent() != OldEntryBlock) {
+      LLVM_DEBUG(dbgs() << "Cannot eliminate tail call " << *CI
+                        << ": sync region does not start in entry block.");
+      return false;
+    }
+
+    // Check for preceding syncs, since TRE would cause those syncs to
+    // synchronize any computations that this sync currently syncs.
+    if (hasPrecedingSync(SI))
+      return false;
+
+    // Get returns reachable from newly created loop.
+    getReturnBlocksToSync(OldEntryBlock, SI, ReturnBlocksToSync[SyncRegion]);
+
+    // If we found a tapir.runtime.end intrinsic between the sync and return,
+    // remove it.
+    if (TapirRuntimeToRemove) {
+      SmallVector<Instruction *, 8> ToErase;
+      for (User *U : TapirRuntimeToRemove->users()) {
+        if (Instruction *I = dyn_cast<Instruction>(U)) {
+          if (!isTapirIntrinsic(Intrinsic::tapir_runtime_end, I))
+            return false;
+          ToErase.push_back(I);
+        }
+      }
+      LLVM_DEBUG(dbgs() << "ERASING: " << *TapirRuntimeToRemove << "\n");
+      for (Instruction *I : ToErase)
+        I->eraseFromParent();
+      TapirRuntimeToRemove->eraseFromParent();
+    }
+
+    // If we found a sync.unwind and unconditional branch between the sync and
+    // return, first fold the return into this unconditional branch.
+    if (BrSucc) {
+      LLVM_DEBUG(dbgs() << "FOLDING: " << *BrSucc
+                        << "INTO UNCOND BRANCH PRED: " << *Succ);
+      FoldReturnIntoUncondBranch(Ret, BrSucc, Succ, &DTU);
+    }
+
+    // Fold the return into the sync.
+    LLVM_DEBUG(dbgs() << "FOLDING: " << *Succ << "INTO SYNC PRED: " << BB);
+    FoldReturnIntoUncondBranch(Ret, Succ, &BB, &DTU);
+    ++NumRetDuped;
+
+    // If all predecessors of Succ have been eliminated by
+    // FoldReturnIntoUncondBranch, delete it.  It is important to empty it,
+    // because the ret instruction in there is still using a value which
+    // eliminateCall will attempt to remove.  This block can only contain
+    // instructions that can't have uses, therefore it is safe to remove.
+    if (pred_empty(Succ))
+      DTU.deleteBB(Succ);
+
+    bool EliminatedCall = eliminateCall(CI);
+
+    // If a recursive tail was eliminated, fix up the syncs and sync region in
+    // the CFG.
+    if (EliminatedCall) {
+      // We defer the restoration of syncs at relevant return blocks until after
+      // all blocks are processed.  This approach simplifies the logic for
+      // eliminating multiple tail calls that are only separated from the return
+      // by a sync, since the CFG won't be perturbed unnecessarily.
+    } else {
+      // Restore the sync that was eliminated.
+      BasicBlock *RetBlock = Ret->getParent();
+      BasicBlock *NewRetBlock = SplitBlock(RetBlock, Ret, &DTU);
+      ReplaceInstWithInst(RetBlock->getTerminator(),
+                          SyncInst::Create(NewRetBlock, SyncRegion));
+      // The earlier call to FoldReturnIntoUncondBranch did not remove the
+      // sync.unwind, so there's nothing to do to restore the sync.unwind.
+    }
+
+    return EliminatedCall;
   }
 
   return false;
+}
+
+void TailRecursionEliminator::InsertSyncsIntoReturnBlocks() {
+  Function *SyncUnwindFn =
+      Intrinsic::getDeclaration(F.getParent(), Intrinsic::sync_unwind);
+  BasicBlock &NewEntry = F.getEntryBlock();
+
+  for (auto ReturnsToSync : ReturnBlocksToSync) {
+    Value *SyncRegion = ReturnsToSync.first;
+    SmallPtrSetImpl<BasicBlock *> &ReturnBlocks = ReturnsToSync.second;
+
+    // Move the sync region start to the new entry block.
+    cast<Instruction>(SyncRegion)->moveBefore(&*(NewEntry.begin()));
+
+    // Insert syncs before relevant return blocks.
+    for (BasicBlock *RetBlock : ReturnBlocks) {
+      BasicBlock *NewRetBlock =
+          SplitBlock(RetBlock, RetBlock->getTerminator(), &DTU);
+      ReplaceInstWithInst(RetBlock->getTerminator(),
+                          SyncInst::Create(NewRetBlock, SyncRegion));
+
+      if (!F.doesNotThrow())
+        CallInst::Create(SyncUnwindFn, {SyncRegion}, "",
+                         NewRetBlock->getTerminator());
+    }
+  }
 }
 
 bool TailRecursionEliminator::eliminate(Function &F,
@@ -877,6 +1141,9 @@ bool TailRecursionEliminator::eliminate(Function &F,
 
   for (BasicBlock &BB : F)
     MadeChange |= TRE.processBlock(BB);
+
+  if (!TRE.ReturnBlocksToSync.empty())
+    TRE.InsertSyncsIntoReturnBlocks();
 
   TRE.cleanupAndFinalize();
 

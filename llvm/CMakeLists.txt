@@ -15,6 +15,19 @@ if(NOT LLVM_NO_INSTALL_NAME_DIR_FOR_BUILD_TREE)
   set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
 endif()
 
+if(NOT DEFINED OPENCILK_VERSION_MAJOR)
+  set(OPENCILK_VERSION_MAJOR 2)
+endif()
+if(NOT DEFINED OPENCILK_VERSION_MINOR)
+  set(OPENCILK_VERSION_MINOR 0)
+endif()
+if(NOT DEFINED OPENCILK_VERSION_PATCH)
+  set(OPENCILK_VERSION_PATCH 0)
+endif()
+if(NOT DEFINED OPENCILK_VERSION_SUFFIX)
+  set(OPENCILK_VERSION_SUFFIX)
+endif()
+
 if(NOT DEFINED LLVM_VERSION_MAJOR)
   set(LLVM_VERSION_MAJOR 18)
 endif()
@@ -28,9 +41,24 @@ if(NOT DEFINED LLVM_VERSION_SUFFIX)
   set(LLVM_VERSION_SUFFIX)
 endif()
 
+if(NOT DEFINED TAPIR_VERSION_MAJOR)
+  set(TAPIR_VERSION_MAJOR 1)
+endif()
+if(NOT DEFINED TAPIR_VERSION_MINOR)
+  set(TAPIR_VERSION_MINOR 0)
+endif()
+if(NOT DEFINED TAPIR_VERSION_PATCH)
+  set(TAPIR_VERSION_PATCH 0)
+endif()
+
 if (NOT PACKAGE_VERSION)
   set(PACKAGE_VERSION
     "${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX}")
+endif()
+
+if (NOT OPENCILK_PACKAGE_VERSION)
+  set(OPENCILK_PACKAGE_VERSION
+    "${OPENCILK_VERSION_MAJOR}.${OPENCILK_VERSION_MINOR}.${OPENCILK_VERSION_PATCH}${OPENCILK_VERSION_SUFFIX}")
 endif()
 
 if(NOT DEFINED LLVM_SHLIB_SYMBOL_VERSION)
@@ -123,7 +151,7 @@ endif()
 # LLVM_EXTERNAL_${project}_SOURCE_DIR using LLVM_ALL_PROJECTS
 # This allows an easy way of setting up a build directory for llvm and another
 # one for llvm+clang+... using the same sources.
-set(LLVM_ALL_PROJECTS "bolt;clang;clang-tools-extra;compiler-rt;cross-project-tests;libc;libclc;lld;lldb;mlir;openmp;polly;pstl")
+set(LLVM_ALL_PROJECTS "bolt;cheetah;cilktools;clang;clang-tools-extra;compiler-rt;cross-project-tests;libc;libclc;lld;lldb;mlir;openmp;polly;pstl")
 # The flang project is not yet part of "all" projects (see C++ requirements)
 set(LLVM_EXTRA_PROJECTS "flang")
 # List of all known projects in the mono repo
@@ -156,7 +184,7 @@ endif()
 # As we migrate runtimes to using the bootstrapping build, the set of default runtimes
 # should grow as we remove those runtimes from LLVM_ENABLE_PROJECTS above.
 set(LLVM_DEFAULT_RUNTIMES "libcxx;libcxxabi;libunwind")
-set(LLVM_SUPPORTED_RUNTIMES "libc;libunwind;libcxxabi;pstl;libcxx;compiler-rt;openmp;llvm-libgcc")
+set(LLVM_SUPPORTED_RUNTIMES "libc;libunwind;libcxxabi;pstl;libcxx;compiler-rt;cheetah;cilktools;openmp;llvm-libgcc")
 set(LLVM_ENABLE_RUNTIMES "" CACHE STRING
   "Semicolon-separated list of runtimes to build, or \"all\" (${LLVM_DEFAULT_RUNTIMES}). Supported runtimes are ${LLVM_SUPPORTED_RUNTIMES}.")
 if(LLVM_ENABLE_RUNTIMES STREQUAL "all")
@@ -342,7 +370,7 @@ option(LLVM_TOOL_LLVM_DRIVER_BUILD "Enables building the llvm multicall tool" OF
 
 set(PACKAGE_NAME LLVM)
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
-set(PACKAGE_BUGREPORT "https://github.com/llvm/llvm-project/issues/")
+set(PACKAGE_BUGREPORT "https://github.com/OpenCilk/opencilk-project/issues/")
 
 set(BUG_REPORT_URL "${PACKAGE_BUGREPORT}" CACHE STRING
   "Default URL where bug reports are to be submitted.")
@@ -350,17 +378,20 @@ set(LLDB_BUG_REPORT_URL "${BUG_REPORT_URL}" CACHE STRING
   "Default URL where lldb bug reports are to be submitted.")
 
 # Configure CPack.
+if(NOT DEFINED CPACK_PACKAGE_NAME)
+  set(CPACK_PACKAGE_NAME "OpenCilk")
+endif()
 if(NOT DEFINED CPACK_PACKAGE_INSTALL_DIRECTORY)
   set(CPACK_PACKAGE_INSTALL_DIRECTORY "LLVM")
 endif()
 if(NOT DEFINED CPACK_PACKAGE_VENDOR)
-  set(CPACK_PACKAGE_VENDOR "LLVM")
+  set(CPACK_PACKAGE_VENDOR "OpenCilk")
 endif()
-set(CPACK_PACKAGE_VERSION_MAJOR ${LLVM_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${LLVM_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${LLVM_VERSION_PATCH})
-set(CPACK_PACKAGE_VERSION ${PACKAGE_VERSION})
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.TXT")
+set(CPACK_PACKAGE_VERSION_MAJOR ${OPENCILK_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${OPENCILK_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${OPENCILK_VERSION_PATCH})
+set(CPACK_PACKAGE_VERSION ${OPENCILK_PACKAGE_VERSION})
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/../MIT_LICENSE.TXT")
 if(WIN32 AND NOT UNIX)
   set(CPACK_NSIS_COMPRESSOR "/SOLID lzma \r\n SetCompressorDictSize 32")
   if(NOT DEFINED CPACK_PACKAGE_INSTALL_REGISTRY_KEY)

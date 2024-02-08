@@ -285,6 +285,9 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   unsigned Major = ToolChain.getTriple().getOSMajorVersion();
   bool Profiling = Args.hasArg(options::OPT_pg) && Major != 0 && Major < 14;
+
+  ToolChain.AddTapirRuntimeLibArgs(Args, CmdArgs);
+
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs,
                    options::OPT_r)) {
     // Use the static OpenMP runtime with -static-openmp
@@ -321,6 +324,7 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       linkSanitizerRuntimeDeps(ToolChain, Args, CmdArgs);
     if (NeedsXRayDeps)
       linkXRayRuntimeDeps(ToolChain, Args, CmdArgs);
+
     // FIXME: For some reason GCC passes -lgcc and -lgcc_s before adding
     // the default system libraries. Just mimic this for now.
     if (Profiling)

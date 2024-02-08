@@ -28,6 +28,7 @@
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/StackSafetyAnalysis.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/BinaryFormat/MachO.h"
@@ -645,7 +646,7 @@ namespace {
 
 /// AddressSanitizer: instrument the code in module to find memory bugs.
 struct AddressSanitizer {
-  AddressSanitizer(Module &M, const StackSafetyGlobalInfo *SSGI,
+  AddressSanitizer(Module &M, const StackSafetyGlobalInfo *SSGI, TaskInfo *TI,
                    int InstrumentationWithCallsThreshold,
                    uint32_t MaxInlinePoisoningSize, bool CompileKernel = false,
                    bool Recover = false, bool UseAfterScope = false,
@@ -657,7 +658,7 @@ struct AddressSanitizer {
         UseAfterScope(UseAfterScope || ClUseAfterScope),
         UseAfterReturn(ClUseAfterReturn.getNumOccurrences() ? ClUseAfterReturn
                                                             : UseAfterReturn),
-        SSGI(SSGI),
+        SSGI(SSGI), TI(TI),
         InstrumentationWithCallsThreshold(
             ClInstrumentationWithCallsThreshold.getNumOccurrences() > 0
                 ? ClInstrumentationWithCallsThreshold
@@ -727,6 +728,7 @@ struct AddressSanitizer {
   bool maybeInsertAsanInitAtFunctionEntry(Function &F);
   bool maybeInsertDynamicShadowAtFunctionEntry(Function &F);
   void markEscapedLocalAllocas(Function &F);
+  void recordInterestingParallelAllocas(const Function &F);
 
 private:
   friend struct FunctionStackPoisoner;
@@ -770,6 +772,9 @@ private:
   FunctionCallee AsanPtrCmpFunction, AsanPtrSubFunction;
   Constant *AsanShadowGlobal;
 
+  // Analyses
+  TaskInfo *TI;
+
   // These arrays is indexed by AccessIsWrite, Experiment and log2(AccessSize).
   FunctionCallee AsanErrorCallback[2][2][kNumberOfAccessSizes];
   FunctionCallee AsanMemoryAccessCallback[2][2][kNumberOfAccessSizes];
@@ -782,6 +787,7 @@ private:
   Value *LocalDynamicShadow = nullptr;
   const StackSafetyGlobalInfo *SSGI;
   DenseMap<const AllocaInst *, bool> ProcessedAllocas;
+  SmallPtrSet<const AllocaInst *, 16> InterestingParallelAllocas;
 
   FunctionCallee AMDGPUAddressShared;
   FunctionCallee AMDGPUAddressPrivate;
@@ -1182,8 +1188,11 @@ PreservedAnalyses AddressSanitizerPass::run(Module &M,
   const StackSafetyGlobalInfo *const SSGI =
       ClUseStackSafety ? &MAM.getResult<StackSafetyGlobalAnalysis>(M) : nullptr;
   for (Function &F : M) {
+    TaskInfo *TI = nullptr;
+    if (!F.empty())
+      TI = &FAM.getResult<TaskAnalysis>(F);
     AddressSanitizer FunctionSanitizer(
-        M, SSGI, Options.InstrumentationWithCallsThreshold,
+        M, SSGI, TI, Options.InstrumentationWithCallsThreshold,
         Options.MaxInlinePoisoningSize, Options.CompileKernel, Options.Recover,
         Options.UseAfterScope, Options.UseAfterReturn);
     const TargetLibraryInfo &TLI = FAM.getResult<TargetLibraryAnalysis>(F);
@@ -1281,6 +1290,8 @@ bool AddressSanitizer::isInterestingAlloca(const AllocaInst &AI) {
        // We are only interested in allocas not promotable to registers.
        // Promotable allocas are common under -O0.
        (!ClSkipPromotableAllocas || !isAllocaPromotable(&AI)) &&
+       (!ClSkipPromotableAllocas ||
+        (TI->isSerial() || InterestingParallelAllocas.contains(&AI))) &&
        // inalloca allocas are not treated as static, and we don't want
        // dynamic alloca instrumentation for them as well.
        !AI.isUsedWithInAlloca() &&
@@ -2840,6 +2851,21 @@ void AddressSanitizer::markEscapedLocalAllocas(Function &F) {
   }
 }
 
+void AddressSanitizer::recordInterestingParallelAllocas(const Function &F) {
+  if (!ClSkipPromotableAllocas || TI->isSerial())
+    return;
+
+  for (const BasicBlock &BB : F)
+    for (const Instruction &I : BB)
+      if (const AllocaInst *AI = dyn_cast<AllocaInst>(&I))
+        if (AI->getAllocatedType()->isSized() &&
+            ((!AI->isStaticAlloca()) || getAllocaSizeInBytes(*AI) > 0) &&
+            // We are only interested in allocas not promotable to registers.
+            // Promotable allocas are common under -O0.
+            !isAllocaPromotable(AI) && !TI->isAllocaParallelPromotable(AI))
+          InterestingParallelAllocas.insert(AI);
+}
+
 bool AddressSanitizer::suppressInstrumentationSiteForDebug(int &Instrumented) {
   bool ShouldInstrument =
       ClDebugMin < 0 || ClDebugMax < 0 ||
@@ -2881,6 +2907,10 @@ bool AddressSanitizer::instrumentFunction(Function &F,
   // We can't instrument allocas used with llvm.localescape. Only static allocas
   // can be passed to that intrinsic.
   markEscapedLocalAllocas(F);
+
+  // Record all interesting parallel allocas, using TaskInfo analysis before
+  // instrumentation may disrupt the validity of the analysis.
+  recordInterestingParallelAllocas(F);
 
   // We want to instrument every address only once per basic block (unless there
   // are calls between uses).

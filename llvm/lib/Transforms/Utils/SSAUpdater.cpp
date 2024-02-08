@@ -43,11 +43,18 @@ static AvailableValsTy &getAvailableVals(void *AV) {
   return *static_cast<AvailableValsTy*>(AV);
 }
 
+typedef DenseMap<BasicBlock*, bool> ValIsDetachedTy;
+static ValIsDetachedTy &getValIsDetached(void *VID) {
+  return *static_cast<ValIsDetachedTy*>(VID);
+}
+
 SSAUpdater::SSAUpdater(SmallVectorImpl<PHINode *> *NewPHI)
   : InsertedPHIs(NewPHI) {}
 
 SSAUpdater::~SSAUpdater() {
   delete static_cast<AvailableValsTy*>(AV);
+  if (VID)
+    delete static_cast<ValIsDetachedTy*>(VID);
 }
 
 void SSAUpdater::Initialize(Type *Ty, StringRef Name) {
@@ -55,6 +62,10 @@ void SSAUpdater::Initialize(Type *Ty, StringRef Name) {
     AV = new AvailableValsTy();
   else
     getAvailableVals(AV).clear();
+  if (!VID)
+    VID = new ValIsDetachedTy();
+  else
+    getValIsDetached(VID).clear();
   ProtoType = Ty;
   ProtoName = std::string(Name);
 }
@@ -105,6 +116,7 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
   // predecessor.
   SmallVector<std::pair<BasicBlock *, Value *>, 8> PredValues;
   Value *SingularValue = nullptr;
+  SmallVector<BasicBlock *, 8> DetachPreds, ReattachPreds;
 
   // We can get our predecessor info by walking the pred_iterator list, but it
   // is relatively slow.  If we already have PHI nodes in this block, walk one
@@ -113,6 +125,12 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
     for (unsigned i = 0, e = SomePhi->getNumIncomingValues(); i != e; ++i) {
       BasicBlock *PredBB = SomePhi->getIncomingBlock(i);
       Value *PredVal = GetValueAtEndOfBlock(PredBB);
+      if (isa<ReattachInst>(PredBB->getTerminator())) {
+        ReattachPreds.push_back(PredBB);
+        continue;
+      }
+      if (isa<DetachInst>(PredBB->getTerminator()))
+        DetachPreds.push_back(PredBB);
       PredValues.push_back(std::make_pair(PredBB, PredVal));
 
       // Compute SingularValue.
@@ -125,6 +143,12 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
     bool isFirstPred = true;
     for (BasicBlock *PredBB : predecessors(BB)) {
       Value *PredVal = GetValueAtEndOfBlock(PredBB);
+      if (isa<ReattachInst>(PredBB->getTerminator())) {
+        ReattachPreds.push_back(PredBB);
+        continue;
+      }
+      if (isa<DetachInst>(PredBB->getTerminator()))
+        DetachPreds.push_back(PredBB);
       PredValues.push_back(std::make_pair(PredBB, PredVal));
 
       // Compute SingularValue.
@@ -133,6 +157,33 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
         isFirstPred = false;
       } else if (PredVal != SingularValue)
         SingularValue = nullptr;
+    }
+  }
+  // Record any values we discover whose definitions occur in detached blocks.
+  if (!ReattachPreds.empty()) {
+    assert(!DetachPreds.empty() &&
+           "Block has reattach predecessor but no detached predecessor.");
+    SmallVector<std::pair<BasicBlock *, Value *>, 8> DetachPredValues;
+    for (BasicBlock *DetachPred : DetachPreds) {
+      Value *DetachVal = GetValueAtEndOfBlock(DetachPred);
+      DetachPredValues.push_back(std::make_pair(DetachPred, DetachVal));
+    }
+    for (BasicBlock *ReattachPred : ReattachPreds) {
+      Value *ReattachVal = GetValueAtEndOfBlock(ReattachPred);
+      bool FoundMatchingDetach = false;
+      for (std::pair<BasicBlock *, Value *> DetachPredVal : DetachPredValues) {
+        if (DetachPredVal.second == ReattachVal) {
+          FoundMatchingDetach = true;
+          PredValues.push_back(std::make_pair(ReattachPred, ReattachVal));
+          break;
+        }
+      }
+      if (!FoundMatchingDetach) {
+        SingularValue = nullptr;
+        getValIsDetached(VID)[BB] = true;
+        PredValues.push_back(std::make_pair(
+            ReattachPred, UndefValue::get(ReattachVal->getType())));
+      }
     }
   }
 
@@ -183,6 +234,10 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
 
   LLVM_DEBUG(dbgs() << "  Inserted PHI: " << *InsertedPHI << "\n");
   return InsertedPHI;
+}
+
+bool SSAUpdater::GetValueIsDetachedInBlock(BasicBlock *BB) {
+  return getValIsDetached(VID)[BB];
 }
 
 void SSAUpdater::RewriteUse(Use &U) {
@@ -313,6 +368,18 @@ public:
     return UndefValue::get(Updater->ProtoType);
   }
 
+  /// BlockReattaches - Return true if this block is terminated with a
+  /// reattach, false otherwise.
+  static bool BlockReattaches(BasicBlock *BB, SSAUpdater *Updater) {
+    return isa<ReattachInst>(BB->getTerminator());
+  }
+
+  /// BlockReattaches - Return true if this block is terminated with a
+  /// detach, false otherwise.
+  static bool BlockDetaches(BasicBlock *BB, SSAUpdater *Updater) {
+    return isa<DetachInst>(BB->getTerminator());
+  }
+
   /// CreateEmptyPHI - Create a new PHI instruction in the specified block.
   /// Reserve space for the operands but do not fill them in yet.
   static Value *CreateEmptyPHI(BasicBlock *BB, unsigned NumPreds,
@@ -360,7 +427,8 @@ Value *SSAUpdater::GetValueAtEndOfBlockInternal(BasicBlock *BB) {
   if (Value *V = AvailableVals[BB])
     return V;
 
-  SSAUpdaterImpl<SSAUpdater> Impl(this, &AvailableVals, InsertedPHIs);
+  SSAUpdaterImpl<SSAUpdater> Impl(this, &AvailableVals, InsertedPHIs,
+                                  &getValIsDetached(VID));
   return Impl.GetValue(BB);
 }
 
@@ -481,7 +549,14 @@ void LoadAndStorePromoter::run(const SmallVectorImpl<Instruction *> &Insts) {
   // Okay, now we rewrite all loads that use live-in values in the loop,
   // inserting PHI nodes as necessary.
   for (LoadInst *ALoad : LiveInLoads) {
-    Value *NewVal = SSA.GetValueInMiddleOfBlock(ALoad->getParent());
+    BasicBlock *BB = ALoad->getParent();
+    Value *NewVal = SSA.GetValueInMiddleOfBlock(BB);
+
+    // Skip loads whose definitions are detached.
+    if (Instruction *Def = dyn_cast<Instruction>(NewVal))
+      if (SSA.GetValueIsDetachedInBlock(Def->getParent()))
+        continue;
+
     replaceLoadWithValue(ALoad, NewVal);
 
     // Avoid assertions in unreachable code.
