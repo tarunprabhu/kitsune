@@ -2162,7 +2162,19 @@ enum CXCursorKind {
    */
   CXCursor_OpenACCLoopConstruct = 321,
 
-  CXCursor_LastStmt = CXCursor_OpenACCLoopConstruct,
+  /** Kitsune range-based forall statement.
+   */
+  CXCursor_CXXForallRangeStmt = 340,
+
+  /** Kitsune spawn statement.
+   */
+  CXCursor_SpawnStmt = 341,
+
+  /** Kitsune sync statement.
+   */
+  CXCursor_SyncStmt = 342,
+
+  CXCursor_LastStmt = CXCursor_SyncStmt,
 
   /**
    * Cursor that represents the translation unit itself.

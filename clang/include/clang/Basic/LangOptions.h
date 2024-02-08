@@ -22,8 +22,10 @@
 #include "clang/Basic/TargetCXXABI.h"
 #include "clang/Basic/Visibility.h"
 #include "llvm/ADT/FloatingPointMode.h"
+#include "clang/Basic/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include <optional>
 #include <string>
 #include <vector>
@@ -463,6 +465,9 @@ public:
   /// The used language standard.
   LangStandard::Kind LangStd;
 
+  /// Is Kitsune mode enabled.
+  bool Kitsune = false;
+
   /// Set of enabled sanitizers.
   SanitizerSet Sanitize;
   /// Is at least one coverage instrumentation type enabled.
@@ -574,6 +579,9 @@ public:
   // This exists so that we can override the macro value and test our incomplete
   // implementation on real-world examples.
   std::string OpenACCMacroOverride;
+
+  /// \brief Runtime target for Tapir.
+  TapirTargetID TapirTarget = TapirTargetID::Last_TapirTargetID;
 
   // Indicates if the wasm-opt binary must be ignored in the case of a
   // WebAssembly target.

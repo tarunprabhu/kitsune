@@ -3683,9 +3683,6 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
                                                     << A->getValue();
 
   switch (TapirTarget) {
-  case TapirTargetID::Cheetah:
-    CmdArgs.push_back("-lcheetah");
-    break;
   case TapirTargetID::OpenCilk: {
     bool StaticOpenCilk = false;
     bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
@@ -3714,9 +3711,17 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
                            !StaticOpenCilk);
     break;
   }
+  case TapirTargetID::OpenMP:
+    CmdArgs.push_back("-lomp");
+    break;
   case TapirTargetID::Qthreads:
     CmdArgs.push_back("-lqthread");
     break;
+  case TapirTargetID::Realm:
+    CmdArgs.push_back("-lrealm-abi");
+    CmdArgs.push_back("-lrealm");
+    break;
+  */
   default:
     break;
   }

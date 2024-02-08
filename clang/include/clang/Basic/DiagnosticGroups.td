@@ -826,6 +826,7 @@ def UnusedCommandLineArgument : DiagGroup<"unused-command-line-argument">;
 def IgnoredOptimizationArgument : DiagGroup<"ignored-optimization-argument">;
 def InvalidCommandLineArgument : DiagGroup<"invalid-command-line-argument",
                                            [IgnoredOptimizationArgument]>;
+def UnknownRuntime : DiagGroup<"unknown-runtime">;
 def UnusedComparison : DiagGroup<"unused-comparison">;
 def UnusedExceptionParameter : DiagGroup<"unused-exception-parameter">;
 def UnneededInternalDecl : DiagGroup<"unneeded-internal-declaration">;
@@ -1050,6 +1051,11 @@ def Move : DiagGroup<"move", [
     ReturnStdMove,
     SelfMove
   ]>;
+
+// Kitsune/Tapir warnings.
+def Kitsune : DiagGroup<"kitsune">;
+def Tapir : DiagGroup<"tapir">;
+def TapirTarget : DiagGroup<"disabled-target">;
 
 def Extra : DiagGroup<"extra", [
     DeprecatedCopy,

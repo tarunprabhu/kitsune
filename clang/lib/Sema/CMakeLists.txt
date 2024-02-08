@@ -71,6 +71,7 @@ add_clang_library(clangSema
   SemaOpenACC.cpp
   SemaOpenCL.cpp
   SemaOpenMP.cpp
+  SemaKitsune.cpp
   SemaOverload.cpp
   SemaPPC.cpp
   SemaPseudoObject.cpp

@@ -39,8 +39,6 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Timer.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/IndVarSimplify.h"
 #include "llvm/Transforms/Scalar/SimplifyCFG.h"
@@ -49,8 +47,11 @@
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include "llvm/Transforms/Utils.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
@@ -170,8 +171,8 @@ void LoopOutlineProcessor::postProcessOutline(TapirLoopInfo &TL,
   Helper->setCallingConv(CallingConv::Fast);
   // Note that the address of the helper is unimportant.
   Helper->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
-  // The helper is internal to this module.
-  Helper->setLinkage(GlobalValue::InternalLinkage);
+  // The helper is private to this module.
+  Helper->setLinkage(GlobalValue::PrivateLinkage);
 }
 
 void LoopOutlineProcessor::addSyncToOutlineReturns(TapirLoopInfo &TL,
@@ -405,12 +406,13 @@ static void emitMissedWarning(const Loop *L, const TapirLoopHints &LH,
 /// Process Tapir loops within the given function for loop spawning.
 class LoopSpawningImpl {
 public:
-  LoopSpawningImpl(Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
-                   ScalarEvolution &SE, AssumptionCache &AC,
-                   TargetTransformInfo &TTI, TapirTarget *Target,
-                   OptimizationRemarkEmitter &ORE)
+  LoopSpawningImpl(
+      Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
+      ScalarEvolution &SE, AssumptionCache &AC, TargetTransformInfo &TTI,
+      TapirTargetID Target, OptimizationRemarkEmitter &ORE,
+      std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets)
       : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), Target(Target),
-        ORE(ORE) {}
+        ORE(ORE), Targets(Targets) {}
 
   ~LoopSpawningImpl() {
     for (TapirLoopInfo *TL : TapirLoops)
@@ -524,8 +526,9 @@ private:
   ScalarEvolution &SE;
   AssumptionCache &AC;
   TargetTransformInfo &TTI;
-  TapirTarget *Target;
+  TapirTargetID Target;
   OptimizationRemarkEmitter &ORE;
+  std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets;
 
   std::vector<TapirLoopInfo *> TapirLoops;
   DenseMap<Task *, TapirLoopInfo *> TaskToTapirLoop;
@@ -907,10 +910,31 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   Module &M = *F.getParent();
   Loop *L = TL->getLoop();
   TapirLoopHints Hints(L);
+  TapirTargetID TLTID = (TapirTargetID)Hints.getLoopTarget();
+  unsigned int ThreadsPerBlock = Hints.getThreadsPerBlock();
+
+  // get the LoopTarget from set of Targets if it exists, otherwise create it
+
+  // FIXME: The order of target processing here possibly breaks a "inside-out"
+  // contract (loosely speaking) for ordering.  In nested constructs this
+  // leaves us with a partially completed code transformation when we pop
+  // up a level of code nesting.  This is important for nested loops with
+  // different targets...
+  if (Targets.find(TLTID) == Targets.end()) {
+    Targets[TLTID] = std::shared_ptr<TapirTarget>(
+        getTapirTargetFromID(M, TLTID));
+  }
+
+  // Allow the Tapir target to define a custom loop-outline processor.
+  if (LoopOutlineProcessor *TargetLOP =
+          Targets[TLTID]->getLoopOutlineProcessor(TL))
+    return TargetLOP;
 
   switch (Hints.getStrategy()) {
-  case TapirLoopHints::ST_DAC: return new DACSpawning(M);
-  default: return new DefaultLoopOutlineProcessor(M);
+  case TapirLoopHints::ST_DAC:
+    return new DACSpawning(M);
+  default:
+    return new DefaultLoopOutlineProcessor(M);
   }
 }
 
@@ -1225,6 +1249,7 @@ class ArgEndMaterializer final : public OutlineMaterializer {
 private:
   Value *TripCount;
   Value *ArgEnd;
+
 public:
   ArgEndMaterializer(const Instruction *SrcSyncRegion, Value *TripCount,
                      Value *ArgEnd)
@@ -1251,7 +1276,7 @@ public:
     return OutlineMaterializer::materialize(V);
   }
 };
-}
+} // namespace
 
 /// Outline Tapir loop \p TL into a helper function.  The \p Args set specified
 /// the arguments to that helper function.  The map \p VMap will store the
@@ -1458,8 +1483,8 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
   associateTasksToTapirLoops();
 
   for (Task *T : post_order(TI.getRootTask())) {
-    LLVM_DEBUG(dbgs() << "Examining task@" << T->getEntry()->getName() <<
-               " for outlining\n");
+    LLVM_DEBUG(dbgs() << "Examining task@" << T->getEntry()->getName()
+                      << " for outlining\n");
     // If any subtasks were outlined as Tapir loops, replace these loops with
     // calls to the outlined functions.
     {
@@ -1528,6 +1553,10 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
     LoopArgStarts[L] = ArgStart;
 
     ValueToValueMapTy VMap;
+
+    // Run a pre-processing step before we create the helper function.
+    OutlineProcessors[TL]->preProcessTapirLoop(*TL, VMap);
+
     // Create the helper function.
     Function *Outline = createHelperForTapirLoop(
         TL, LoopArgs[L], OutlineProcessors[TL]->getIVArgIndex(F, LoopArgs[L]),
@@ -1537,8 +1566,8 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
         Outline, T->getEntry(), cast<Instruction>(VMap[T->getDetach()]),
         dyn_cast_or_null<Instruction>(VMap[T->getTaskFrameUsed()]),
         LoopInputSets[L], LoopArgStarts[L],
-        L->getLoopPreheader()->getTerminator(), TL->getExitBlock(),
-        TL->getUnwindDest());
+        L->getLoopPreheader()->getTerminator(), T->getDetach()->getSyncRegion(),
+        TL->getExitBlock(), TL->getUnwindDest());
 
     // Do ABI-dependent processing of each outlined Tapir loop.
     {
@@ -1599,11 +1628,27 @@ bool LoopSpawningImpl::run() {
   if (TapirLoops.empty())
     return false;
 
-  // Perform any Target-dependent preprocessing of F.
-  Target->preProcessFunction(F, TI, true);
-
   // Outline all Tapir loops.
   TaskOutlineMapTy TapirLoopOutlines = outlineAllTapirLoops();
+
+  // DWS I reordered this after outlineAllTapirLoops
+  // I don't know if I can do this, but we don't want to preprocess the Target
+  // yet since with attributed forall's we may never need to preprocess the
+  // command line target. We also need to preprocess all the backend targets
+  // which we only know after outlining all Tapir loops
+
+  // FIXME: The order of target processing here possibly breaks a "inside-out"
+  // contract (loosely speaking) for ordering.  In nested constructs this
+  // leaves us with a partially completed code transformation when we pop
+  // up a level of code nesting.  This is important for nested loops with
+  // different targets...
+
+  // Perform any Target-dependent preprocessing of F.
+  for (const auto &[TID, ThisTarget] : Targets)
+    // NOTE: TODO: This is a no-op for GPU targets (currently).  However,
+    // we need to consider if this is a ordering issue (processing per
+    // target vs. a post-ordering).
+    ThisTarget->preProcessFunction(F, TI, true);
 
   // Perform target-specific processing of the outlined-loop calls.
   {
@@ -1613,12 +1658,23 @@ bool LoopSpawningImpl::run() {
                        TimePassesIsEnabled);
   for (Task *T : post_order(TI.getRootTask()))
     if (TapirLoopInfo *TL = getTapirLoop(T))
+      // NOTE: TODO: For GPU transforms this replaces the outlined loop
+      // function call with the necessary code to (possibly) prefetch
+      // and lauch a kernel for the outlined loop body.
       OutlineProcessors[TL]->processOutlinedLoopCall(*TL, TapirLoopOutlines[T],
                                                      DT);
   } // end timed region
 
+  // FIXME: The order of target processing here possibly breaks a "inside-out"
+  // contract (loosely speaking) for ordering.  In nested constructs this
+  // leaves us with a partially completed code transformation when we pop
+  // up a level of code nesting.  This is important for nested loops with
+  // different targets...
+  //
   // Perform any Target-dependent postprocessing of F.
-  Target->postProcessFunction(F, true);
+  //
+  for (const auto &[TID, ThisTarget] : Targets)
+    ThisTarget->postProcessFunction(F, true);
 
   LLVM_DEBUG({
     NamedRegionTimer NRT("verify", "Post-loop-spawning verification",
@@ -1666,8 +1722,11 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
     if (!F.empty())
       WorkList.push_back(&F);
 
+  Function *SavedF = nullptr;
   // Transform all loops into simplified, LCSSA form before we process them.
   for (Function *F : WorkList) {
+    if (SavedF == nullptr)
+      SavedF = F;
     LoopInfo &LI = GetLI(*F);
     DominatorTree &DT = GetDT(*F);
     ScalarEvolution &SE = GetSE(*F);
@@ -1682,13 +1741,27 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
   }
 
   // Now process each loop.
+  bool HasParallelism = false;
+  std::map<TapirTargetID, std::shared_ptr<TapirTarget>> Targets;
   for (Function *F : WorkList) {
     TapirTargetID TargetID = GetTLI(*F).getTapirTarget();
-    std::unique_ptr<TapirTarget> Target(getTapirTargetFromID(M, TargetID));
-    Changed |= LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
-                                GetAC(*F), GetTTI(*F), Target.get(), GetORE(*F))
-                   .run();
+    std::shared_ptr<TapirTarget> Target(getTapirTargetFromID(M, TargetID));
+    HasParallelism |=
+        LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
+                         GetAC(*F), GetTTI(*F), TargetID, GetORE(*F), Targets)
+            .run();
   }
+
+  if (HasParallelism)
+    // FIXME: The order of target processing here possibly breaks a
+    // "inside-out" contract (loosely speaking) for ordering.  In nested
+    // constructs this leaves us with a partially completed code
+    // transformation when we pop up a level of code nesting.  This is
+    // important for nested loops with different targets...
+    for (const auto &[TID, ThisTarget] : Targets)
+      ThisTarget->postProcessModule();
+
+  Changed |= HasParallelism;
   if (Changed)
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
@@ -1723,10 +1796,16 @@ struct LoopSpawningTI : public FunctionPass {
     auto &ORE = getAnalysis<OptimizationRemarkEmitterWrapperPass>().getORE();
 
     LLVM_DEBUG(dbgs() << "LoopSpawningTI on function " << F.getName() << "\n");
-    TapirTarget *Target = getTapirTargetFromID(M, TargetID);
+    std::shared_ptr<TapirTarget> Target(getTapirTargetFromID(M, TargetID));
+    // FIXME: The order of target processing here possibly breaks a "inside-out"
+    // contract (loosely speaking) for ordering.  In nested constructs this
+    // leaves us with a partially completed code transformation when we pop
+    // up a level of code nesting.  This is important for nested loops with
+    // different targets...
+    std::map<TapirTargetID, std::shared_ptr<TapirTarget>> Targets;
     bool Changed =
-        LoopSpawningImpl(F, DT, LI, TI, SE, AC, TTI, Target, ORE).run();
-    delete Target;
+        LoopSpawningImpl(F, DT, LI, TI, SE, AC, TTI, TargetID, ORE, Targets)
+            .run();
     return Changed;
   }
 
@@ -1743,7 +1822,7 @@ struct LoopSpawningTI : public FunctionPass {
     AU.addRequired<OptimizationRemarkEmitterWrapperPass>();
   }
 };
-}
+} // namespace
 
 char LoopSpawningTI::ID = 0;
 static const char ls_name[] = "Loop Spawning with Task Info";
@@ -1761,7 +1840,5 @@ INITIALIZE_PASS_DEPENDENCY(OptimizationRemarkEmitterWrapperPass)
 INITIALIZE_PASS_END(LoopSpawningTI, LS_NAME, ls_name, false, false)
 
 namespace llvm {
-Pass *createLoopSpawningTIPass() {
-  return new LoopSpawningTI();
-}
-}
+Pass *createLoopSpawningTIPass() { return new LoopSpawningTI(); }
+} // namespace llvm

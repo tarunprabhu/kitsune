@@ -276,11 +276,11 @@ static bool tryToStripMineLoop(
                                     TargetTransformInfo::TCK_SizeAndLatency)) <=
             LoopCost));
 
-  // Some parallel runtimes, such as Cilk, require nested parallel tasks to be
+  // Some parallel runtimes, such as OpenCilk, require nested parallel tasks to be
   // synchronized.
   bool NeedNestedSync = IncludeNestedSync;
   if (!NeedNestedSync && TLI)
-    NeedNestedSync = (TLI->getTapirTarget() == TapirTargetID::OpenCilk);
+    NeedNestedSync = TLI->getTapirTarget() == TapirTargetID::OpenCilk;
 
   // Save loop properties before it is transformed.
   MDNode *OrigLoopID = L->getLoopID();
@@ -431,8 +431,8 @@ PreservedAnalyses LoopStripMinePass::run(Function &F,
     //   AllowPeeling = false;
     std::string LoopName = std::string(L.getName());
     bool LoopChanged =
-        tryToStripMineLoop(&L, DT, &LI, SE, TTI, AC, &TI, ORE, &TLI,
-                           /*PreserveLCSSA*/ true, /*Count*/ std::nullopt);
+      tryToStripMineLoop(&L, DT, &LI, SE, TTI, AC, &TI, ORE, &TLI,
+                         /*PreserveLCSSA*/ true, /*Count*/ std::nullopt);
     Changed |= LoopChanged;
 
     // The parent must not be damaged by stripmining!
