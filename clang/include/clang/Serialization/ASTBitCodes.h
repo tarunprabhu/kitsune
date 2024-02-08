@@ -2023,6 +2023,13 @@ enum StmtCode {
 
   // SYCLUniqueStableNameExpr
   EXPR_SYCL_UNIQUE_STABLE_NAME,
+
+  // Cilk Plus
+  STMT_CILKSPAWN,
+  EXPR_CILKSPAWN,
+  STMT_CILKSYNC,
+  STMT_CILKFOR,
+  STMT_CILKSCOPE,
 };
 
 /// The kinds of designators that can occur in a

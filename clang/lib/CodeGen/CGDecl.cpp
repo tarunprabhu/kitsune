@@ -795,6 +795,10 @@ void CodeGenFunction::EmitScalarInit(const Expr *init, const ValueDecl *D,
                                      LValue lvalue, bool capturedByInit) {
   Qualifiers::ObjCLifetime lifetime = lvalue.getObjCLifetime();
   if (!lifetime) {
+    if (isa<CilkSpawnExpr>(init)) {
+      EmitScalarExprIntoLValue(init, lvalue, /*isInit*/ true);
+      return;
+    }
     llvm::Value *value = EmitScalarExpr(init);
     if (capturedByInit)
       drillIntoBlockVariable(*this, lvalue, cast<VarDecl>(D));
@@ -1858,6 +1862,58 @@ void CodeGenFunction::emitZeroOrPatternForAutoVarInit(QualType type,
   }
 }
 
+bool CodeGenFunction::getReducer(const VarDecl *D, ReducerCallbacks &CB) {
+  if (const HyperobjectType *H = D->getType()->getAs<HyperobjectType>()) {
+    if (H->hasCallbacks()) {
+      CB.Identity = H->getIdentity();
+      CB.Reduce = H->getReduce();
+      return true;
+    }
+  }
+  return false;
+}
+
+void CodeGenFunction::destroyHyperobject(CodeGenFunction &CGF, Address Addr,
+                                         QualType Type) {
+  llvm::Function *F = CGF.CGM.getIntrinsic(llvm::Intrinsic::reducer_unregister);
+  llvm::Value *Arg =
+      CGF.Builder.CreateBitCast(Addr.getPointer(), CGF.CGM.VoidPtrTy);
+  CGF.Builder.CreateCall(F, {Arg});
+  QualType Inner = Type.stripHyperobject();
+  if (const RecordType *rtype = Inner->getAs<RecordType>()) {
+    if (const CXXRecordDecl *record = dyn_cast<CXXRecordDecl>(rtype->getDecl()))
+      if (record->hasNonTrivialDestructor())
+        destroyCXXObject(CGF, Addr, Inner);
+  }
+}
+
+void CodeGenFunction::EmitReducerInit(const VarDecl *D,
+                                      const ReducerCallbacks &C,
+                                      llvm::Value *Addr) {
+  RValue Identity = EmitAnyExpr(C.Identity);
+  RValue Reduce = EmitAnyExpr(C.Reduce);
+
+  llvm::Type *SizeType = ConvertType(getContext().getSizeType());
+  llvm::Value *Size = nullptr;
+  QualType Type = D->getType();
+  if (const VariableArrayType *VLA =
+      getContext().getAsVariableArrayType(Type)) {
+    auto V = getVLASize(VLA);
+    llvm::Value *Size1 = CGM.getSize(getContext().getTypeSizeInChars(V.Type));
+    Size = Builder.CreateNUWMul(V.NumElts, Size1);
+  } else {
+    Size = CGM.getSize(getContext().getTypeSizeInChars(Type));
+  }
+  // TODO: mark this call as registering a local
+  // TODO: add better handling of attribute arguments that evaluate to null
+  SmallVector<llvm::Type *, 1> Types = {SizeType};
+  llvm::Function *F =
+    CGM.getIntrinsic(llvm::Intrinsic::reducer_register, Types);
+  llvm::Value *IdentityV = Identity.getScalarVal();
+  llvm::Value *ReduceV = Reduce.getScalarVal();
+  Builder.CreateCall(F, {Addr, Size, IdentityV, ReduceV});
+}
+
 void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
   assert(emission.Variable && "emission was not valid!");
 
@@ -1867,6 +1923,14 @@ void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
   const VarDecl &D = *emission.Variable;
   auto DL = ApplyDebugLocation::CreateDefaultArtificial(*this, D.getLocation());
   QualType type = D.getType();
+
+  ReducerCallbacks RCB = {0, 0};
+  bool Reducer = false;
+  if (const HyperobjectType *H = type->getAs<HyperobjectType>()) {
+    type = H->getElementType();
+    assert(!emission.IsEscapingByRef); // block reducers not supported
+    Reducer = getReducer(&D, RCB);
+  }
 
   // If this local has an initializer, emit it now.
   const Expr *Init = D.getInit();
@@ -1925,8 +1989,14 @@ void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
     return emitZeroOrPatternForAutoVarInit(type, D, Loc);
   };
 
-  if (isTrivialInitializer(Init))
-    return initializeWhatIsTechnicallyUninitialized(Loc);
+  if (isTrivialInitializer(Init)) {
+    initializeWhatIsTechnicallyUninitialized(Loc);
+    if (Reducer)
+      EmitReducerInit(&D, RCB,
+                      Builder.CreateBitCast(emission.Addr.getPointer(),
+                                            CGM.VoidPtrTy));
+    return;
+  }
 
   llvm::Constant *constant = nullptr;
   if (emission.IsConstantAggregate ||
@@ -1955,19 +2025,34 @@ void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
     initializeWhatIsTechnicallyUninitialized(Loc);
     LValue lv = MakeAddrLValue(Loc, type);
     lv.setNonGC(true);
-    return EmitExprAsInit(Init, &D, lv, capturedByInit);
+    EmitExprAsInit(Init, &D, lv, capturedByInit);
+    if (Reducer)
+      EmitReducerInit(&D, RCB,
+                      Builder.CreateBitCast(emission.Addr.getPointer(),
+                                            CGM.VoidPtrTy));
+    return;
   }
 
   if (!emission.IsConstantAggregate) {
     // For simple scalar/complex initialization, store the value directly.
     LValue lv = MakeAddrLValue(Loc, type);
     lv.setNonGC(true);
-    return EmitStoreThroughLValue(RValue::get(constant), lv, true);
+    EmitStoreThroughLValue(RValue::get(constant), lv, true);
+    if (Reducer)
+      EmitReducerInit(&D, RCB,
+                      Builder.CreateBitCast(emission.Addr.getPointer(),
+                                            CGM.VoidPtrTy));
+    return;
   }
 
   emitStoresForConstant(CGM, D, Loc.withElementType(CGM.Int8Ty),
                         type.isVolatileQualified(), Builder, constant,
                         /*IsAutoInit=*/false);
+
+  if (Reducer)
+    EmitReducerInit(&D, RCB,
+                    Builder.CreateBitCast(emission.Addr.getPointer(),
+                                          CGM.VoidPtrTy));
 }
 
 /// Emit an expression as an initializer for an object (variable, field, etc.)
@@ -1991,11 +2076,16 @@ void CodeGenFunction::EmitExprAsInit(const Expr *init, const ValueDecl *D,
     EmitStoreThroughLValue(rvalue, lvalue, true);
     return;
   }
+
   switch (getEvaluationKind(type)) {
   case TEK_Scalar:
     EmitScalarInit(init, D, lvalue, capturedByInit);
     return;
   case TEK_Complex: {
+    if (isa<CilkSpawnExpr>(init)) {
+      EmitComplexExprIntoLValue(init, lvalue, /*init*/ true);
+      return;
+    }
     ComplexPairTy complex = EmitComplexExpr(init);
     if (capturedByInit)
       drillIntoBlockVariable(*this, lvalue, cast<VarDecl>(D));
@@ -2038,15 +2128,23 @@ void CodeGenFunction::emitAutoVarTypeCleanup(
   CleanupKind cleanupKind = NormalAndEHCleanup;
   CodeGenFunction::Destroyer *destroyer = nullptr;
 
+  bool IsReducer = false;
+
   switch (dtorKind) {
   case QualType::DK_none:
     llvm_unreachable("no cleanup for trivially-destructible variable");
 
+  case QualType::DK_hyperobject:
+    IsReducer = true;
+    break;
+
   case QualType::DK_cxx_destructor:
+    if (const HyperobjectType *H = type->getAs<HyperobjectType>())
+      IsReducer = H->hasCallbacks();
     // If there's an NRVO flag on the emission, we need a different
     // cleanup.
     if (emission.NRVOFlag) {
-      assert(!type->isArrayType());
+      assert(!type->isArrayType() && !IsReducer);
       CXXDestructorDecl *dtor = type->getAsCXXRecordDecl()->getDestructor();
       EHStack.pushCleanup<DestroyNRVOVariableCXX>(cleanupKind, addr, type, dtor,
                                                   emission.NRVOFlag);
@@ -2140,7 +2238,10 @@ void CodeGenFunction::EmitAutoVarCleanups(const AutoVarEmission &emission) {
 CodeGenFunction::Destroyer *
 CodeGenFunction::getDestroyer(QualType::DestructionKind kind) {
   switch (kind) {
-  case QualType::DK_none: llvm_unreachable("no destroyer for trivial dtor");
+  case QualType::DK_none:
+    return nullptr;
+  case QualType::DK_hyperobject:
+    return destroyHyperobject;
   case QualType::DK_cxx_destructor:
     return destroyCXXObject;
   case QualType::DK_objc_strong_lifetime:
@@ -2177,6 +2278,9 @@ void CodeGenFunction::pushDestroy(QualType::DestructionKind dtorKind,
 void CodeGenFunction::pushDestroy(CleanupKind cleanupKind, Address addr,
                                   QualType type, Destroyer *destroyer,
                                   bool useEHCleanupForArray) {
+  if (SpawnedCleanup)
+    return pushLifetimeExtendedDestroy(cleanupKind, addr, type, destroyer,
+                                       useEHCleanupForArray);
   pushFullExprCleanup<DestroyObject>(cleanupKind, addr, type,
                                      destroyer, useEHCleanupForArray);
 }

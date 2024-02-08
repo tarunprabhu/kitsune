@@ -30,6 +30,7 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
+#include "clang/Driver/Tapir.h"
 #include "clang/Frontend/CommandLineSourceLoc.h"
 #include "clang/Frontend/DependencyOutputOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -87,6 +88,8 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "llvm/Support/ScopedPrinter.h"
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -1300,6 +1303,94 @@ static SmallVector<StringRef, 4> serializeSanitizerKinds(SanitizerSet S) {
   return Values;
 }
 
+static LangOptions::CilktoolKind
+parseCilktoolKind(StringRef FlagName, ArgList &Args, DiagnosticsEngine &Diags) {
+  if (Arg *A = Args.getLastArg(OPT_fcilktool_EQ)) {
+    StringRef Val = A->getValue();
+    LangOptions::CilktoolKind ParsedCilktool =
+        llvm::StringSwitch<LangOptions::CilktoolKind>(Val)
+            .Case("cilkscale", LangOptions::Cilktool_Cilkscale)
+            .Case("cilkscale-instructions",
+                  LangOptions::Cilktool_Cilkscale_InstructionCount)
+            .Case("cilkscale-benchmark",
+                  LangOptions::Cilktool_Cilkscale_Benchmark)
+            .Default(LangOptions::Cilktool_None);
+    if (ParsedCilktool == LangOptions::Cilktool_None)
+      Diags.Report(diag::err_drv_invalid_value) << FlagName << Val;
+    else
+      return ParsedCilktool;
+  }
+  return LangOptions::Cilktool_None;
+}
+
+static std::optional<StringRef>
+serializeCilktoolKind(LangOptions::CilktoolKind K) {
+  std::optional<StringRef> CilktoolStr;
+  switch (K) {
+  case LangOptions::Cilktool_Cilkscale:
+    CilktoolStr = "cilkscale";
+    break;
+  case LangOptions::Cilktool_Cilkscale_InstructionCount:
+    CilktoolStr = "cilkscale-instructions";
+    break;
+  case LangOptions::Cilktool_Cilkscale_Benchmark:
+    CilktoolStr = "cilkscale-benchmark";
+    break;
+  case LangOptions::Cilktool_None:
+    break;
+  }
+  return CilktoolStr;
+}
+
+static LangOptions::CSIExtensionPoint
+parseCSIExtensionPoint(StringRef FlagName, ArgList &Args,
+                       DiagnosticsEngine &Diags) {
+  if (Arg *A = Args.getLastArg(OPT_fcsi_EQ)) {
+    StringRef Val = A->getValue();
+    LangOptions::CSIExtensionPoint ParsedExt =
+        llvm::StringSwitch<LangOptions::CSIExtensionPoint>(Val)
+            .Case("first", LangOptions::CSI_EarlyAsPossible)
+            .Case("early", LangOptions::CSI_ModuleOptimizerEarly)
+            .Case("last", LangOptions::CSI_OptimizerLast)
+            .Case("tapirlate", LangOptions::CSI_TapirLate)
+            .Case("aftertapirloops", LangOptions::CSI_TapirLoopEnd)
+            .Default(LangOptions::CSI_None);
+    if (ParsedExt == LangOptions::CSI_None) {
+      Diags.Report(diag::err_drv_invalid_value) << FlagName << Val;
+      return LangOptions::CSI_None;
+    } else
+      return ParsedExt;
+  } else if (Args.hasArg(OPT_fcsi))
+    // Use TapirLate extension point by default, for backwards compatability.
+    return LangOptions::CSI_TapirLate;
+  return LangOptions::CSI_None;
+}
+
+static std::optional<StringRef>
+serializeCSIExtensionPoint(LangOptions::CSIExtensionPoint X) {
+  std::optional<StringRef> CSIExtPtStr;
+  switch (X) {
+  case LangOptions::CSI_EarlyAsPossible:
+    CSIExtPtStr = "first";
+    break;
+  case LangOptions::CSI_ModuleOptimizerEarly:
+    CSIExtPtStr = "early";
+    break;
+  case LangOptions::CSI_OptimizerLast:
+    CSIExtPtStr = "last";
+    break;
+  case LangOptions::CSI_TapirLate:
+    CSIExtPtStr = "tapirlate";
+    break;
+  case LangOptions::CSI_TapirLoopEnd:
+    CSIExtPtStr = "aftertapirloops";
+    break;
+  case LangOptions::CSI_None:
+    break;
+  }
+  return CSIExtPtStr;
+}
+
 static void parseXRayInstrumentationBundle(StringRef FlagName, StringRef Bundle,
                                            ArgList &Args, DiagnosticsEngine &D,
                                            XRayInstrSet &S) {
@@ -1385,6 +1476,10 @@ void CompilerInvocation::GenerateCodeGenArgs(
     GenerateArg(Args, OPT_fdirect_access_external_data, SA);
   else if (!Opts.DirectAccessExternalData && LangOpts->PICLevel == 0)
     GenerateArg(Args, OPT_fno_direct_access_external_data, SA);
+
+  if (std::optional<StringRef> TapirTargetStr =
+          serializeTapirTarget(Opts.getTapirTarget()))
+    GenerateArg(Args, OPT_ftapir_EQ, *TapirTargetStr, SA);
 
   std::optional<StringRef> DebugInfoVal;
   switch (Opts.DebugInfo) {
@@ -1687,6 +1782,14 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
         Opts.getDebugInfo() == llvm::codegenoptions::DebugInfoConstructor)
       Opts.setDebugInfo(llvm::codegenoptions::LimitedDebugInfo);
   }
+
+  // Parse Tapir-related codegen options.
+  TapirTargetID TapirTarget = parseTapirTarget(Args);
+  if (TapirTarget == TapirTargetID::Last_TapirTargetID)
+    if (const Arg *A = Args.getLastArg(OPT_ftapir_EQ))
+      Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args)
+                                                << A->getValue();
+  Opts.setTapirTarget(TapirTarget);
 
   for (const auto &Arg : Args.getAllArgValues(OPT_fdebug_prefix_map_EQ)) {
     auto Split = StringRef(Arg).split('=');
@@ -3278,6 +3381,12 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
       GenerateArg(Args, OPT_pic_is_pie, SA);
     for (StringRef Sanitizer : serializeSanitizerKinds(Opts.Sanitize))
       GenerateArg(Args, OPT_fsanitize_EQ, Sanitizer, SA);
+    if (std::optional<StringRef> CSIExtPt = serializeCSIExtensionPoint(
+            Opts.getComprehensiveStaticInstrumentation()))
+      GenerateArg(Args, OPT_fcsi_EQ, *CSIExtPt, SA);
+    if (std::optional<StringRef> Cilktool =
+            serializeCilktoolKind(Opts.getCilktool()))
+      GenerateArg(Args, OPT_fcilktool_EQ, *Cilktool, SA);
 
     return;
   }
@@ -3345,6 +3454,13 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
 
   if (Opts.IgnoreXCOFFVisibility)
     GenerateArg(Args, OPT_mignore_xcoff_visibility, SA);
+
+  if (Opts.getCilk() == LangOptions::Cilk_opencilk)
+    GenerateArg(Args, OPT_fopencilk, SA);
+  if (Opts.getCilk() == LangOptions::Cilk_plus)
+    GenerateArg(Args, OPT_fcilkplus, SA);
+  if (Opts.CilkOptions.has(CilkOpt_Pedigrees))
+    GenerateArg(Args, OPT_fopencilk_enable_pedigrees, SA);
 
   if (Opts.SignedOverflowBehavior == LangOptions::SOB_Trapping) {
     GenerateArg(Args, OPT_ftrapv, SA);
@@ -3466,6 +3582,13 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
   else if (Opts.DefaultFPContractMode == LangOptions::FPM_FastHonorPragmas)
     GenerateArg(Args, OPT_ffp_contract, "fast-honor-pragmas", SA);
 
+  if (std::optional<StringRef> CSIExtPt = serializeCSIExtensionPoint(
+          Opts.getComprehensiveStaticInstrumentation()))
+    GenerateArg(Args, OPT_fcsi_EQ, *CSIExtPt, SA);
+  if (std::optional<StringRef> Cilktool =
+          serializeCilktoolKind(Opts.getCilktool()))
+    GenerateArg(Args, OPT_fcilktool_EQ, *Cilktool, SA);
+
   for (StringRef Sanitizer : serializeSanitizerKinds(Opts.Sanitize))
     GenerateArg(Args, OPT_fsanitize_EQ, Sanitizer, SA);
 
@@ -3543,6 +3666,11 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
     Opts.PIE = Args.hasArg(OPT_pic_is_pie);
     parseSanitizerKinds("-fsanitize=", Args.getAllArgValues(OPT_fsanitize_EQ),
                         Diags, Opts.Sanitize);
+    if (Args.hasArg(OPT_fcsi_EQ) || Args.hasArg(OPT_fcsi))
+      Opts.setComprehensiveStaticInstrumentation(
+          parseCSIExtensionPoint("-fcsi=", Args, Diags));
+    if (Args.hasArg(OPT_fcilktool_EQ))
+      Opts.setCilktool(parseCilktoolKind("-fcilktool=", Args, Diags));
 
     return Diags.getNumErrors() == NumErrorsBefore;
   }
@@ -3711,6 +3839,22 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
 
   if (T.isOSAIX() && (Args.hasArg(OPT_mignore_xcoff_visibility)))
     Opts.IgnoreXCOFFVisibility = 1;
+
+  bool OpenCilk = Args.hasArg(OPT_fopencilk);
+  bool CilkPlus = Args.hasArg(OPT_fcilkplus);
+  if (OpenCilk) {
+    if (CilkPlus) {
+      Diags.Report(diag::err_drv_double_cilk);
+    }
+    Opts.setCilk(LangOptions::Cilk_opencilk);
+    if (Args.hasArg(OPT_fopencilk_enable_pedigrees))
+      Opts.CilkOptions.set(CilkOpt_Pedigrees, true);
+  } else if (CilkPlus) {
+    Opts.setCilk(LangOptions::Cilk_plus);
+  }
+
+  if (Opts.getCilk() != LangOptions::Cilk_none && Opts.ObjC)
+    Diags.Report(diag::err_drv_cilk_objc);
 
   if (Args.hasArg(OPT_ftrapv)) {
     Opts.setSignedOverflowBehavior(LangOptions::SOB_Trapping);
@@ -3940,6 +4084,15 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   Opts.NoSanitizeFiles.insert(Opts.NoSanitizeFiles.end(),
                               systemIgnorelists.begin(),
                               systemIgnorelists.end());
+
+  // -fcsi
+  if (Args.hasArg(OPT_fcsi_EQ) || Args.hasArg(OPT_fcsi))
+    Opts.setComprehensiveStaticInstrumentation(
+        parseCSIExtensionPoint("-fcsi=", Args, Diags));
+
+  // -fcilktool=
+  if (Args.hasArg(OPT_fcilktool_EQ))
+    Opts.setCilktool(parseCilktoolKind("-fcilktool=", Args, Diags));
 
   if (Arg *A = Args.getLastArg(OPT_fclang_abi_compat_EQ)) {
     Opts.setClangABICompat(LangOptions::ClangABI::Latest);

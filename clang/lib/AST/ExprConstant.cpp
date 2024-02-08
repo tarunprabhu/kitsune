@@ -11462,6 +11462,7 @@ EvaluateBuiltinClassifyType(QualType T, const LangOptions &LangOpts) {
     return EvaluateBuiltinClassifyType(
         CanTy->castAs<AtomicType>()->getValueType(), LangOpts);
 
+  case Type::Hyperobject:
   case Type::BlockPointer:
   case Type::Vector:
   case Type::ExtVector:
@@ -15510,7 +15511,7 @@ bool Expr::EvaluateAsInitializer(APValue &Value, const ASTContext &Ctx,
   }
 
   SourceLocation DeclLoc = VD->getLocation();
-  QualType DeclTy = VD->getType();
+  QualType DeclTy = VD->getType().stripHyperobject();
   return CheckConstantExpression(Info, DeclLoc, DeclTy, Value,
                                  ConstantExprKind::Normal) &&
          CheckMemoryLeaks(Info);
@@ -15790,6 +15791,8 @@ static ICEDiag CheckICE(const Expr* E, const ASTContext &Ctx) {
     return CheckICE(cast<ParenExpr>(E)->getSubExpr(), Ctx);
   case Expr::GenericSelectionExprClass:
     return CheckICE(cast<GenericSelectionExpr>(E)->getResultExpr(), Ctx);
+  case Expr::CilkSpawnExprClass:
+    return CheckICE(cast<CilkSpawnExpr>(E)->getSpawnedExpr(), Ctx);
   case Expr::IntegerLiteralClass:
   case Expr::FixedPointLiteralClass:
   case Expr::CharacterLiteralClass:

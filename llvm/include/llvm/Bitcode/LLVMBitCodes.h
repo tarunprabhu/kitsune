@@ -617,6 +617,9 @@ enum FunctionCodes {
                                   //             operation, align, vol,
                                   //             ordering, synchscope]
   FUNC_CODE_BLOCKADDR_USERS = 60, // BLOCKADDR_USERS: [value...]
+  FUNC_CODE_INST_DETACH = 61,     // DETACH: [bb#,bb#] or [bb#,bb#,bb#]
+  FUNC_CODE_INST_REATTACH = 62,   // REATTACH: [bb#]
+  FUNC_CODE_INST_SYNC = 63,       // SYNC: [bb#]
 };
 
 enum UseListCodes {
@@ -713,6 +716,14 @@ enum AttributeKindCodes {
   ATTR_KIND_SKIP_PROFILE = 85,
   ATTR_KIND_MEMORY = 86,
   ATTR_KIND_NOFPCLASS = 87,
+  ATTR_KIND_SANITIZE_CILK = 88,
+  ATTR_KIND_STEALABLE = 89,
+  ATTR_KIND_STRAND_PURE = 90,
+  ATTR_KIND_STRAND_NO_ALIAS = 91,
+  ATTR_KIND_INJECTIVE = 92,
+  ATTR_KIND_HYPER_VIEW = 93,
+  ATTR_KIND_REDUCER_REGISTER = 94,
+  ATTR_KIND_REDUCER_UNREGISTER = 95,
 };
 
 enum ComdatSelectionKindCodes {

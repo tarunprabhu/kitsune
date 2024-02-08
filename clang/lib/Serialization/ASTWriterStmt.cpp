@@ -2157,6 +2157,53 @@ void ASTStmtWriter::VisitAsTypeExpr(AsTypeExpr *E) {
 }
 
 //===----------------------------------------------------------------------===//
+// Cilk spawn, Cilk sync, Cilk for
+//===----------------------------------------------------------------------===//
+void ASTStmtWriter::VisitCilkSpawnStmt(CilkSpawnStmt *S) {
+  VisitStmt(S);
+  Record.AddSourceLocation(S->getSpawnLoc());
+  Record.AddStmt(S->getSpawnedStmt());
+  Code = serialization::STMT_CILKSPAWN;
+}
+
+void ASTStmtWriter::VisitCilkSpawnExpr(CilkSpawnExpr *E) {
+  VisitExpr(E);
+  Record.AddSourceLocation(E->getSpawnLoc());
+  Record.AddStmt(E->getSpawnedExpr());
+  Code = serialization::EXPR_CILKSPAWN;
+}
+
+void ASTStmtWriter::VisitCilkSyncStmt(CilkSyncStmt *S) {
+  VisitStmt(S);
+  Record.AddSourceLocation(S->getSyncLoc());
+  Code = serialization::STMT_CILKSYNC;
+}
+
+void ASTStmtWriter::VisitCilkScopeStmt(CilkScopeStmt *S) {
+  VisitStmt(S);
+  Record.AddSourceLocation(S->getScopeLoc());
+  Record.AddStmt(S->getBody());
+  Code = serialization::STMT_CILKSCOPE;
+}
+
+void ASTStmtWriter::VisitCilkForStmt(CilkForStmt *S) {
+  VisitStmt(S);
+  Record.AddStmt(S->getInit());
+  Record.AddStmt(S->getLimitStmt());
+  Record.AddStmt(S->getInitCond());
+  Record.AddStmt(S->getBeginStmt());
+  Record.AddStmt(S->getEndStmt());
+  Record.AddStmt(S->getCond());
+  Record.AddStmt(S->getInc());
+  Record.AddStmt(S->getLoopVarStmt());
+  Record.AddStmt(S->getBody());
+  Record.AddSourceLocation(S->getCilkForLoc());
+  Record.AddSourceLocation(S->getLParenLoc());
+  Record.AddSourceLocation(S->getRParenLoc());
+  Code = serialization::STMT_CILKFOR;
+}
+
+//===----------------------------------------------------------------------===//
 // Microsoft Expressions and Statements.
 //===----------------------------------------------------------------------===//
 void ASTStmtWriter::VisitMSPropertyRefExpr(MSPropertyRefExpr *E) {

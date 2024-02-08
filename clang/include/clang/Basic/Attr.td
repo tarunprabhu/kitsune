@@ -387,6 +387,7 @@ def BlocksSupported : LangOpt<"Blocks">;
 def ObjCAutoRefCount : LangOpt<"ObjCAutoRefCount">;
 def ObjCNonFragileRuntime
     : LangOpt<"", "LangOpts.ObjCRuntime.allowsClassStubs()">;
+def Cilk : LangOpt<"Cilk", "LangOpts.getCilk() != LangOptions::Cilk_none">;
 
 def HLSL : LangOpt<"HLSL">;
 
@@ -3703,20 +3704,23 @@ def LoopHint : Attr {
   /// boolean: fully unrolls loop if State == Enable.
   /// expression: unrolls loop 'Value' times.
 
+  /// #pragma cilk grainsize <argument> directive
+  /// expression: coarsens the loop with grainsize 'Value'.
+
   let Spellings = [Pragma<"clang", "loop">, Pragma<"", "unroll">,
                    Pragma<"", "nounroll">, Pragma<"", "unroll_and_jam">,
-                   Pragma<"", "nounroll_and_jam">];
+                   Pragma<"", "nounroll_and_jam">, Pragma<"", "cilk">];
 
   /// State of the loop optimization specified by the spelling.
   let Args = [EnumArgument<"Option", "OptionType",
                           ["vectorize", "vectorize_width", "interleave", "interleave_count",
                            "unroll", "unroll_count", "unroll_and_jam", "unroll_and_jam_count",
                            "pipeline", "pipeline_initiation_interval", "distribute",
-                           "vectorize_predicate"],
+                           "vectorize_predicate", "grainsize"],
                           ["Vectorize", "VectorizeWidth", "Interleave", "InterleaveCount",
                            "Unroll", "UnrollCount", "UnrollAndJam", "UnrollAndJamCount",
                            "PipelineDisabled", "PipelineInitiationInterval", "Distribute",
-                           "VectorizePredicate"]>,
+                           "VectorizePredicate", "TapirGrainsize"]>,
               EnumArgument<"State", "LoopHintState",
                            ["enable", "disable", "numeric", "fixed_width",
                             "scalable_width", "assume_safety", "full"],
@@ -3739,6 +3743,7 @@ def LoopHint : Attr {
     case PipelineInitiationInterval: return "pipeline_initiation_interval";
     case Distribute: return "distribute";
     case VectorizePredicate: return "vectorize_predicate";
+    case TapirGrainsize: return "grainsize";
     }
     llvm_unreachable("Unhandled LoopHint option.");
   }
@@ -4199,3 +4204,55 @@ def AvailableOnlyInDefaultEvalMethod : InheritableAttr {
   let Documentation = [Undocumented];
 }
 
+// Cilk attributes
+
+// TODO: Add docs to these attributes
+
+def Stealable : InheritableAttr {
+  let Spellings = [Clang<"stealable">];
+  let Subjects = SubjectList<[FunctionLike]>;
+  let Documentation = [StealableDocs];
+}
+
+def StrandPure : InheritableAttr {
+  let Spellings = [Clang<"strand_pure">];
+  let Subjects = SubjectList<[FunctionLike]>;
+  let Documentation = [StrandPureDocs];
+}
+
+def StrandMalloc : InheritableAttr {
+  let Spellings = [Clang<"strand_malloc">];
+  let Subjects = SubjectList<[Function]>;
+  let Documentation = [StrandMallocDocs];
+}
+
+def Injective : InheritableAttr {
+  // TODO: Associate this with a single argument, not the function.
+  let Spellings = [Clang<"injective">];
+  let Subjects = SubjectList<[Function]>;
+  let Documentation = [Undocumented];
+}
+
+def HyperView : InheritableAttr {
+  let Spellings = [Clang<"hyper_view">];
+  let Subjects = SubjectList<[FunctionLike]>;
+  let Documentation = [StrandMallocDocs];
+}
+
+def HyperToken : InheritableAttr {
+  let Spellings = [Clang<"hyper_token">];
+  let Subjects = SubjectList<[FunctionLike]>;
+  let Documentation = [StrandMallocDocs];
+}
+
+def ReducerRegister : InheritableAttr {
+  let Spellings = [Clang<"reducer_register">];
+  let Subjects = SubjectList<[FunctionLike]>;
+  let Documentation = [StrandMallocDocs];
+}
+
+def ReducerUnregister : InheritableAttr {
+  let Spellings = [Clang<"reducer_unregister">];
+  let Subjects = SubjectList<[FunctionLike]>;
+  let Documentation = [StrandMallocDocs];
+}

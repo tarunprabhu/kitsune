@@ -905,15 +905,20 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
       case Attribute::AllocSize:
       case Attribute::Builtin:
       case Attribute::Convergent:
+      case Attribute::HyperView:
+      case Attribute::Injective:
       case Attribute::JumpTable:
       case Attribute::Naked:
       case Attribute::NoBuiltin:
       case Attribute::NoMerge:
       case Attribute::NoReturn:
       case Attribute::NoSync:
+      case Attribute::ReducerRegister:
+      case Attribute::ReducerUnregister:
       case Attribute::ReturnsTwice:
       case Attribute::Speculatable:
       case Attribute::StackAlignment:
+      case Attribute::Stealable:
       case Attribute::WillReturn:
       case Attribute::AllocKind:
       case Attribute::PresplitCoroutine:
@@ -946,6 +951,7 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
       case Attribute::SafeStack:
       case Attribute::ShadowCallStack:
       case Attribute::SanitizeAddress:
+      case Attribute::SanitizeCilk:
       case Attribute::SanitizeMemory:
       case Attribute::SanitizeThread:
       case Attribute::SanitizeHWAddress:
@@ -954,6 +960,7 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
       case Attribute::StackProtect:
       case Attribute::StackProtectReq:
       case Attribute::StackProtectStrong:
+      case Attribute::StrandPure:
       case Attribute::StrictFP:
       case Attribute::UWTable:
       case Attribute::VScaleRange:
@@ -982,6 +989,7 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
       case Attribute::ReadOnly:
       case Attribute::Returned:
       case Attribute::SExt:
+      case Attribute::StrandNoAlias:
       case Attribute::StructRet:
       case Attribute::SwiftError:
       case Attribute::SwiftSelf:

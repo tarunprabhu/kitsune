@@ -29,6 +29,7 @@
 #include "llvm/Analysis/CallPrinter.h"
 #include "llvm/Analysis/CostModel.h"
 #include "llvm/Analysis/CycleAnalysis.h"
+#include "llvm/Analysis/DataRaceFreeAliasAnalysis.h"
 #include "llvm/Analysis/DDG.h"
 #include "llvm/Analysis/DDGPrinter.h"
 #include "llvm/Analysis/Delinearization.h"
@@ -67,6 +68,8 @@
 #include "llvm/Analysis/ScopedNoAliasAA.h"
 #include "llvm/Analysis/StackLifetime.h"
 #include "llvm/Analysis/StackSafetyAnalysis.h"
+#include "llvm/Analysis/TapirRaceDetect.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/TypeBasedAliasAnalysis.h"
@@ -134,6 +137,8 @@
 #include "llvm/Transforms/Instrumentation/AddressSanitizer.h"
 #include "llvm/Transforms/Instrumentation/BoundsChecking.h"
 #include "llvm/Transforms/Instrumentation/CGProfile.h"
+#include "llvm/Transforms/Instrumentation/CilkSanitizer.h"
+#include "llvm/Transforms/Instrumentation/ComprehensiveStaticInstrumentation.h"
 #include "llvm/Transforms/Instrumentation/ControlHeightReduction.h"
 #include "llvm/Transforms/Instrumentation/DataFlowSanitizer.h"
 #include "llvm/Transforms/Instrumentation/GCOVProfiler.h"
@@ -225,6 +230,11 @@
 #include "llvm/Transforms/Scalar/TLSVariableHoist.h"
 #include "llvm/Transforms/Scalar/TailRecursionElimination.h"
 #include "llvm/Transforms/Scalar/WarnMissedTransforms.h"
+#include "llvm/Transforms/Tapir/LoopSpawningTI.h"
+#include "llvm/Transforms/Tapir/LoopStripMinePass.h"
+#include "llvm/Transforms/Tapir/SerializeSmallTasks.h"
+#include "llvm/Transforms/Tapir/TapirToTarget.h"
+#include "llvm/Transforms/Tapir/DRFScopedNoAliasAA.h"
 #include "llvm/Transforms/Utils/AddDiscriminators.h"
 #include "llvm/Transforms/Utils/AssumeBundleBuilder.h"
 #include "llvm/Transforms/Utils/BreakCriticalEdges.h"
@@ -257,6 +267,8 @@
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 #include "llvm/Transforms/Utils/UnifyLoopExits.h"
 #include "llvm/Transforms/Vectorize/LoadStoreVectorizer.h"
+#include "llvm/Transforms/Utils/TaskCanonicalize.h"
+#include "llvm/Transforms/Utils/TaskSimplify.h"
 #include "llvm/Transforms/Vectorize/LoopVectorize.h"
 #include "llvm/Transforms/Vectorize/SLPVectorizer.h"
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
@@ -264,8 +276,9 @@
 
 using namespace llvm;
 
-static const Regex DefaultAliasRegex(
-    "^(default|thinlto-pre-link|thinlto|lto-pre-link|lto)<(O[0123sz])>$");
+static const Regex
+    DefaultAliasRegex("^(default|thinlto-pre-link|thinlto|lto-pre-link|lto|"
+                      "tapir-lowering|tapir-lowering-loops)<(O[0123sz])>$");
 
 namespace llvm {
 cl::opt<bool> PrintPipelinePasses(
@@ -1094,7 +1107,7 @@ Expected<std::string> parseMemProfUsePassOptions(StringRef Params) {
 /// alias.
 static bool startsWithDefaultPipelineAliasPrefix(StringRef Name) {
   return Name.startswith("default") || Name.startswith("thinlto") ||
-         Name.startswith("lto");
+         Name.startswith("lto") || Name.startswith("tapir-lowering");
 }
 
 /// Tests whether registered callbacks will accept a given pass name.
@@ -1408,6 +1421,10 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
         MPM.addPass(buildThinLTOPreLinkDefaultPipeline(L));
       else
         MPM.addPass(buildLTOPreLinkDefaultPipeline(L));
+    } else if (Matches[1] == "tapir-lowering-loops") {
+      MPM.addPass(buildTapirLoopLoweringPipeline(L, ThinOrFullLTOPhase::None));
+    } else if (Matches[1] == "tapir-lowering") {
+      MPM.addPass(buildTapirLoweringPipeline(L, ThinOrFullLTOPhase::None));
     } else {
       assert(Matches[1] == "lto" && "Not one of the matched options!");
       MPM.addPass(buildLTODefaultPipeline(L, nullptr));

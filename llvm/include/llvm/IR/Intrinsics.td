@@ -60,6 +60,25 @@ def Commutative : IntrinsicProperty;
 // Throws - This intrinsic can throw.
 def Throws : IntrinsicProperty;
 
+// Injective - This intrinsic returns different values given different
+// arguments.
+def IntrInjective : IntrinsicProperty;
+// Strand pure - (Tapir) This intrinsic has no visible side effects and
+// returns the same result given the same argument, but only within a
+// single strand of execution.
+def IntrStrandPure : IntrinsicProperty;
+// HyperView - (Tapir) This intrinsic lowers to a runtime call to
+// find the address of the current view of a hyperobject.  It does not
+// return the address of anything in the current frame other than its
+// argument.
+def IntrHyperView : IntrinsicProperty;
+// ReducerRegister / ReducerUnregister - (Tapir) This intrinsic registers
+// or unregisters a reducer.  These calls have no side effects on visible
+// memory but can not be moved past other reducer and hyperobject calls
+// if the arguments may alias.
+def IntrReducerRegister : IntrinsicProperty;
+def IntrReducerUnregister : IntrinsicProperty;
+
 // Attribute index needs to match `AttrIndex` defined `Attributes.h`.
 class AttrIndex<int idx> {
   int Value = idx;
@@ -1668,6 +1687,82 @@ def int_coro_subfn_addr : DefaultAttrsIntrinsic<
     [IntrReadMem, IntrArgMemOnly, ReadOnly<ArgIndex<0>>,
      NoCapture<ArgIndex<0>>]>;
 
+///===-------------------------- Tapir Intrinsics -------------------------===//
+//
+def int_syncregion_start
+    : Intrinsic<[llvm_token_ty], [], [IntrArgMemOnly, IntrWillReturn]>;
+
+def int_tapir_runtime_start
+    : Intrinsic<[llvm_token_ty], [], [IntrArgMemOnly, IntrWillReturn]>;
+
+def int_tapir_runtime_end
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn]>;
+
+// Intrinsics for taskframes.
+
+// Marker for the start of a taskframe.
+def int_taskframe_create
+    : Intrinsic<[llvm_token_ty], [], [IntrArgMemOnly, IntrWillReturn]>;
+
+// Marker placed in detached blocks (i.e., task-entry blocks) to
+// identify the taskframe used by the spawned task.
+def int_taskframe_use
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn]>;
+
+// Marker for the end of a taskframe.
+def int_taskframe_end
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn]>;
+
+// Marker for the end of a taskframe along exception-handling unwind
+// paths.
+def int_taskframe_resume : Intrinsic<[], [llvm_token_ty, llvm_any_ty],
+                                     [IntrArgMemOnly, IntrWillReturn, Throws]>;
+
+// Guard intrinsic to prevent illegal code motion of loads from memory
+// locations stored in spawned subtasks.
+def int_taskframe_load_guard
+    : Intrinsic<[], [llvm_anyptr_ty],
+                [IntrArgMemOnly, IntrWillReturn, NoCapture<ArgIndex<0>>]>;
+
+// Marker for the end of a spawned task along exception-handling
+// unwind paths.
+def int_detached_rethrow : Intrinsic<[], [llvm_token_ty, llvm_any_ty],
+                                     [IntrArgMemOnly, IntrWillReturn, Throws]>;
+
+// Invokable intrinsic to keep track of a landingpad associated with a
+// sync.
+def int_sync_unwind
+    : Intrinsic<[], [llvm_token_ty], [IntrArgMemOnly, IntrWillReturn, Throws]>;
+
+// Intrinsic to get the grainsize of a Tapir loop.
+def int_tapir_loop_grainsize
+    : Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>],
+                [IntrNoMem, IntrWillReturn, IntrSpeculatable]>;
+
+// Intrinsic to get the frame address of a spawned task.  Tapir
+// lowering transforms this intrinsic into ordinary frameaddress
+// intrinsics.
+def int_task_frameaddress
+    : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty], [IntrWillReturn]>;
+
+// Ideally the types would be [llvm_anyptr_ty], [LLVMMatchType<0>]
+// but that does not work, so rely on the front end to insert bitcasts.
+def int_hyper_lookup
+    : Intrinsic<[llvm_ptr_ty],
+                [llvm_ptr_ty, llvm_anyint_ty, llvm_ptr_ty, llvm_ptr_ty], [
+                  IntrWillReturn, IntrReadMem, IntrInaccessibleMemOnly,
+                  IntrStrandPure, IntrHyperView, IntrInjective
+                ]>;
+
+// TODO: Change tablegen to allow function pointer types in intrinsics.
+def int_reducer_register
+    : Intrinsic<[], [llvm_ptr_ty, llvm_anyint_ty, llvm_ptr_ty, llvm_ptr_ty],
+     [IntrWillReturn, IntrInaccessibleMemOnly, IntrReducerRegister]>;
+
+def int_reducer_unregister
+    : Intrinsic<[], [llvm_ptr_ty], [IntrWillReturn, IntrInaccessibleMemOnly,
+     IntrReducerUnregister]>;
+
 ///===-------------------------- Other Intrinsics --------------------------===//
 //
 def int_trap : Intrinsic<[], [], [IntrNoReturn, IntrCold]>,
@@ -1732,9 +1827,11 @@ def int_ptrmask: DefaultAttrsIntrinsic<[llvm_anyptr_ty], [LLVMMatchType<0>, llvm
                            [IntrNoMem, IntrSpeculatable, IntrWillReturn]>;
 
 // Intrinsic to wrap a thread local variable.
-def int_threadlocal_address : DefaultAttrsIntrinsic<[llvm_anyptr_ty], [LLVMMatchType<0>],
-                                                    [NonNull<RetIndex>, NonNull<ArgIndex<0>>,
-                                                     IntrNoMem, IntrSpeculatable, IntrWillReturn]>;
+def int_threadlocal_address
+    : DefaultAttrsIntrinsic<[llvm_anyptr_ty], [LLVMMatchType<0>], [
+      NonNull<RetIndex>, NonNull<ArgIndex<0>>, IntrInaccessibleMemOnly,
+      IntrReadMem, IntrSpeculatable, IntrWillReturn
+    ]>;
 
 def int_experimental_stepvector : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
                                                         [], [IntrNoMem]>;

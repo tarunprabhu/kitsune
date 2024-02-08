@@ -109,6 +109,9 @@ def FnRetThunkExtern : EnumAttr<"fn_ret_thunk_extern", [FnAttr]>;
 /// Pass structure in an alloca.
 def InAlloca : TypeAttr<"inalloca", [ParamAttr]>;
 
+/// Distinct arguments to this function yield distinct return values.
+def Injective : EnumAttr<"injective", [FnAttr]>;
+
 /// Source said inlining was desirable.
 def InlineHint : EnumAttr<"inlinehint", [FnAttr]>;
 
@@ -218,6 +221,11 @@ def ReadNone : EnumAttr<"readnone", [ParamAttr]>;
 /// Function only reads from memory.
 def ReadOnly : EnumAttr<"readonly", [ParamAttr]>;
 
+/// Tapir reducer-related attributes.
+def HyperView : EnumAttr<"hyper_view", [FnAttr]>;
+def ReducerRegister : EnumAttr<"reducer_register", [FnAttr]>;
+def ReducerUnregister : EnumAttr<"reducer_unregister", [FnAttr]>;
+
 /// Return value is always equal to this argument.
 def Returned : EnumAttr<"returned", [ParamAttr]>;
 
@@ -252,6 +260,13 @@ def StackProtectReq : EnumAttr<"sspreq", [FnAttr]>;
 /// Strong Stack protection.
 def StackProtectStrong : EnumAttr<"sspstrong", [FnAttr]>;
 
+/// Multiple calls to this function in a strand return the same result.
+def StrandPure : EnumAttr<"strand_pure", [FnAttr]>;
+
+/// This function acts like a system memory allocation function from
+/// the perspective of memory accesses within the same strand.
+def StrandNoAlias : EnumAttr<"strand_noalias", [ParamAttr, RetAttr]>;
+
 /// Function was called in a scope requiring strict floating point semantics.
 def StrictFP : EnumAttr<"strictfp", [FnAttr]>;
 
@@ -281,6 +296,14 @@ def SanitizeMemTag : EnumAttr<"sanitize_memtag", [FnAttr]>;
 /// this attribute will always be lowered with hardening enabled.
 def SpeculativeLoadHardening : EnumAttr<"speculative_load_hardening",
                                         [FnAttr]>;
+
+/// CilkSanitizer is on.
+def SanitizeCilk : EnumAttr<"sanitize_cilk", [FnAttr]>;
+
+/// From the Cilk perspective, a continuation in the function can be
+/// stolen.  This attribute is used ensure correct code generation for
+/// such functions.
+def Stealable : EnumAttr<"stealable", [FnAttr]>;
 
 /// Argument is swift error.
 def SwiftError : EnumAttr<"swifterror", [ParamAttr]>;
@@ -368,6 +391,7 @@ def : MergeRule<"setOR<NoImplicitFloatAttr>">;
 def : MergeRule<"setOR<NoJumpTablesAttr>">;
 def : MergeRule<"setOR<ProfileSampleAccurateAttr>">;
 def : MergeRule<"setOR<SpeculativeLoadHardeningAttr>">;
+def : MergeRule<"setOR<StealableAttr>">;
 def : MergeRule<"adjustCallerSSPLevel">;
 def : MergeRule<"adjustCallerStackProbes">;
 def : MergeRule<"adjustCallerStackProbeSize">;

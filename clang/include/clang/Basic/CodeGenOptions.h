@@ -18,6 +18,7 @@
 #include "llvm/ADT/FloatingPointMode.h"
 #include "llvm/Frontend/Debug/Options.h"
 #include "llvm/Support/CodeGen.h"
+#include "clang/Basic/Tapir.h"
 #include "llvm/Support/Regex.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/Instrumentation/AddressSanitizerOptions.h"
@@ -436,6 +437,9 @@ public:
   /// -fstack-usage. If empty, it can be implied that -fstack-usage is not
   /// passed on the command line.
   std::string StackUsageOutput;
+
+  // Path to OpenCilk runtime bitcode file.
+  std::string OpenCilkABIBitcodeFile;
 
   /// Executable and command-line used to create a given CompilerInvocation.
   /// Most of the time this will be the full -cc1 command.

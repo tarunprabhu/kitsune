@@ -7077,3 +7077,28 @@ the variables were declared in. It is not possible to check the return value
 (if any) of these ``cleanup`` callback functions.
 }];
 }
+
+def StrandPureDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+The ``strand_pure`` attribute denotes that the function acts like a pure function
+when called multiple times within the same strand.
+  }];
+}
+
+def StealableDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+The ``stealable`` attribute denotes that the function contains a continuation that
+can be stolen by a work-stealing scheduler.
+  }];
+}
+
+def StrandMallocDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+The ``strand_malloc`` attribute denotes that the function pointer acts
+like a system memory allocation function from the perspective of
+memory operations within the same strand.
+}];
+}

@@ -109,6 +109,7 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::DefaultStmtClass:
   case Stmt::CaseStmtClass:
   case Stmt::SEHLeaveStmtClass:
+  case Stmt::CilkSyncStmtClass:
     llvm_unreachable("should have emitted these statements as simple");
 
 #define STMT(Type, Base)
@@ -168,6 +169,15 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     const CapturedStmt *CS = cast<CapturedStmt>(S);
     EmitCapturedStmt(*CS, CS->getCapturedRegionKind());
     }
+    break;
+  case Stmt::CilkSpawnStmtClass:
+    EmitCilkSpawnStmt(cast<CilkSpawnStmt>(*S));
+    break;
+  case Stmt::CilkForStmtClass:
+    EmitCilkForStmt(cast<CilkForStmt>(*S), Attrs);
+    break;
+  case Stmt::CilkScopeStmtClass:
+    EmitCilkScopeStmt(cast<CilkScopeStmt>(*S));
     break;
   case Stmt::ObjCAtTryStmtClass:
     EmitObjCAtTryStmt(cast<ObjCAtTryStmt>(*S));
@@ -473,6 +483,9 @@ bool CodeGenFunction::EmitSimpleStmt(const Stmt *S,
   case Stmt::SEHLeaveStmtClass:
     EmitSEHLeaveStmt(cast<SEHLeaveStmt>(*S));
     break;
+  case Stmt::CilkSyncStmtClass:
+    EmitCilkSyncStmt(cast<CilkSyncStmt>(*S));
+    break;
   }
   return true;
 }
@@ -488,6 +501,7 @@ Address CodeGenFunction::EmitCompoundStmt(const CompoundStmt &S, bool GetLast,
   // Keep track of the current cleanup stack depth, including debug scopes.
   LexicalScope Scope(*this, S.getSourceRange());
 
+  SyncRegionRAII StmtSR(*this);
   return EmitCompoundStmtWithoutScope(S, GetLast, AggSlot);
 }
 
@@ -1310,6 +1324,13 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   // Emit the result value, even if unused, to evaluate the side effects.
   const Expr *RV = S.getRetValue();
 
+  // If RV is a CilkSpawnExpr, handle the CilkSpawnExpr part here.
+  if (const CilkSpawnExpr *CS = dyn_cast_or_null<CilkSpawnExpr>(RV)) {
+    IsSpawned = true;
+    PushDetachScope();
+    RV = CS->getSpawnedExpr();
+  }
+
   // Record the result expression of the return statement. The recorded
   // expression is used to determine whether a block capture's lifetime should
   // end at the end of the full expression as opposed to the end of the scope
@@ -1321,6 +1342,9 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   SaveRetExprRAII SaveRetExpr(RV, *this);
 
   RunCleanupsScope cleanupScope(*this);
+  bool CleanupsSaved = false;
+  if (IsSpawned)
+    CleanupsSaved = CurDetachScope->MaybeSaveCleanupsScope(&cleanupScope);
   if (const auto *EWC = dyn_cast_or_null<ExprWithCleanups>(RV))
     RV = EWC->getSubExpr();
   // FIXME: Clean this up by using an LValue for ReturnTemp,
@@ -1379,8 +1403,19 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   if (!RV || RV->isEvaluatable(getContext()))
     ++NumSimpleReturnExprs;
 
+  if (CleanupsSaved)
+    CurDetachScope->CleanupDetach();
   cleanupScope.ForceCleanup();
-  EmitBranchThroughCleanup(ReturnBlock);
+  if (IsSpawned) {
+    if (!(CurDetachScope && CurDetachScope->IsDetachStarted()))
+      FailedSpawnWarning(RV->getExprLoc());
+    // Pop the detach scope
+    IsSpawned = false;
+    PopDetachScope();
+  }
+
+  bool CompilingCilk = (getLangOpts().getCilk() != LangOptions::Cilk_none);
+  EmitBranchThroughCleanup(ReturnBlock, CompilingCilk);
 }
 
 void CodeGenFunction::EmitDeclStmt(const DeclStmt &S) {

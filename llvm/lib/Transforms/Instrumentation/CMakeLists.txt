@@ -3,6 +3,7 @@ add_llvm_component_library(LLVMInstrumentation
   BoundsChecking.cpp
   CGProfile.cpp
   ControlHeightReduction.cpp
+  CilkSanitizer.cpp
   DataFlowSanitizer.cpp
   GCOVProfiling.cpp
   BlockCoverageInference.cpp
@@ -21,6 +22,8 @@ add_llvm_component_library(LLVMInstrumentation
   ValueProfileCollector.cpp
   ThreadSanitizer.cpp
   HWAddressSanitizer.cpp
+  ComprehensiveStaticInstrumentation.cpp
+  SurgicalInstrumentationConfig.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms
@@ -32,6 +35,8 @@ add_llvm_component_library(LLVMInstrumentation
   Analysis
   Core
   Demangle
+  IRReader
+  Linker
   MC
   Support
   TargetParser

@@ -82,12 +82,19 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorCall(
     ReturnValueSlot ReturnValue,
     llvm::Value *This, llvm::Value *ImplicitParam, QualType ImplicitParamTy,
     const CallExpr *CE, CallArgList *RtlArgs) {
+  IsSpawnedScope SpawnedScp(this);
   const FunctionProtoType *FPT = MD->getType()->castAs<FunctionProtoType>();
   CallArgList Args;
+  if (auto *OCE = dyn_cast_or_null<CXXOperatorCallExpr>(CE))
+    if (OCE->isAssignmentOp())
+      // Restore the original spawned scope when handling an assignment
+      // operator, so that the RHS of the assignment is detached.
+      SpawnedScp.RestoreOldScope();
   MemberCallInfo CallInfo = commonEmitCXXMemberOrOperatorCall(
       *this, MD, This, ImplicitParam, ImplicitParamTy, CE, Args, RtlArgs);
   auto &FnInfo = CGM.getTypes().arrangeCXXMethodCall(
       Args, FPT, CallInfo.ReqArgs, CallInfo.PrefixSize);
+  SpawnedScp.RestoreOldScope();
   return EmitCall(FnInfo, Callee, ReturnValue, Args, nullptr,
                   CE && CE == MustTailCall,
                   CE ? CE->getExprLoc() : SourceLocation());
@@ -99,6 +106,7 @@ RValue CodeGenFunction::EmitCXXDestructorCall(
   const CXXMethodDecl *DtorDecl = cast<CXXMethodDecl>(Dtor.getDecl());
 
   assert(!ThisTy.isNull());
+  ThisTy = ThisTy.stripHyperobject();
   assert(ThisTy->getAsCXXRecordDecl() == DtorDecl->getParent() &&
          "Pointer/Object mixup");
 
@@ -174,7 +182,7 @@ static CXXRecordDecl *getCXXRecord(const Expr *E) {
   QualType T = E->getType();
   if (const PointerType *PTy = T->getAs<PointerType>())
     T = PTy->getPointeeType();
-  const RecordType *Ty = T->castAs<RecordType>();
+  const RecordType *Ty = T.stripHyperobject()->castAs<RecordType>();
   return cast<CXXRecordDecl>(Ty->getDecl());
 }
 
@@ -212,6 +220,8 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
     bool HasQualifier, NestedNameSpecifier *Qualifier, bool IsArrow,
     const Expr *Base) {
   assert(isa<CXXMemberCallExpr>(CE) || isa<CXXOperatorCallExpr>(CE));
+
+  IsSpawnedScope SpawnedScp(this);
 
   // Compute the object pointer.
   bool CanUseVirtualCall = MD->isVirtual() && !HasQualifier;
@@ -258,7 +268,7 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
   CallArgList *RtlArgs = nullptr;
   LValue TrivialAssignmentRHS;
   if (auto *OCE = dyn_cast<CXXOperatorCallExpr>(CE)) {
-    if (OCE->isAssignmentOp()) {
+    if (OCE->isAssignmentOp() && !SpawnedScp.OldScopeIsSpawned()) {
       if (TrivialAssignment) {
         TrivialAssignmentRHS = EmitLValue(CE->getArg(1));
       } else {
@@ -285,6 +295,7 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
     // constructing a new complete object of type Ctor.
     assert(!RtlArgs);
     assert(ReturnValue.isNull() && "Constructor shouldn't have return value");
+    SpawnedScp.RestoreOldScope();
     CallArgList Args;
     commonEmitCXXMemberOrOperatorCall(
         *this, {Ctor, Ctor_Complete}, This.getPointer(*this),
@@ -305,12 +316,19 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
     if (TrivialAssignment) {
       // We don't like to generate the trivial copy/move assignment operator
       // when it isn't necessary; just produce the proper effect here.
+      if (isa<CXXOperatorCallExpr>(CE) && SpawnedScp.OldScopeIsSpawned()) {
+        // Restore the original spawned scope so that the RHS of the assignment
+        // is detached.
+        SpawnedScp.RestoreOldScope();
+        TrivialAssignmentRHS = EmitLValue(CE->getArg(1));
+      }
       // It's important that we use the result of EmitLValue here rather than
       // emitting call arguments, in order to preserve TBAA information from
       // the RHS.
       LValue RHS = isa<CXXOperatorCallExpr>(CE)
                        ? TrivialAssignmentRHS
                        : EmitLValue(*CE->arg_begin());
+      SpawnedScp.RestoreOldScope();
       EmitAggregateAssign(This, RHS, CE->getType());
       return RValue::get(This.getPointer(*this));
     }
@@ -366,6 +384,7 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
            "Destructor shouldn't have explicit parameters");
     assert(ReturnValue.isNull() && "Destructor shouldn't have return value");
     if (UseVirtualCall) {
+      SpawnedScp.RestoreOldScope();
       CGM.getCXXABI().EmitVirtualDestructorCall(*this, Dtor, Dtor_Complete,
                                                 This.getAddress(*this),
                                                 cast<CXXMemberCallExpr>(CE));
@@ -383,6 +402,7 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
 
       QualType ThisTy =
           IsArrow ? Base->getType()->getPointeeType() : Base->getType();
+      SpawnedScp.RestoreOldScope();
       EmitCXXDestructorCall(GD, Callee, This.getPointer(*this), ThisTy,
                             /*ImplicitParam=*/nullptr,
                             /*ImplicitParamTy=*/QualType(), CE);
@@ -425,6 +445,7 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
     This.setAddress(NewThisAddr);
   }
 
+  SpawnedScp.RestoreOldScope();
   return EmitCXXMemberOrOperatorCall(
       CalleeDecl, Callee, ReturnValue, This.getPointer(*this),
       /*ImplicitParam=*/nullptr, QualType(), CE, RtlArgs);
@@ -433,6 +454,7 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
 RValue
 CodeGenFunction::EmitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E,
                                               ReturnValueSlot ReturnValue) {
+  IsSpawnedScope SpawnedScp(this);
   const BinaryOperator *BO =
       cast<BinaryOperator>(E->getCallee()->IgnoreParens());
   const Expr *BaseExpr = BO->getLHS();
@@ -474,6 +496,7 @@ CodeGenFunction::EmitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E,
 
   // And the rest of the call args
   EmitCallArgs(Args, FPT, E->arguments());
+  SpawnedScp.RestoreOldScope();
   return EmitCall(CGM.getTypes().arrangeCXXMethodCall(Args, FPT, required,
                                                       /*PrefixSize=*/0),
                   Callee, ReturnValue, Args, nullptr, E == MustTailCall,
@@ -486,9 +509,10 @@ CodeGenFunction::EmitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
                                                ReturnValueSlot ReturnValue) {
   assert(MD->isInstance() &&
          "Trying to emit a member call expr on a static method!");
-  return EmitCXXMemberOrOperatorMemberCallExpr(
+  RValue Result = EmitCXXMemberOrOperatorMemberCallExpr(
       E, MD, ReturnValue, /*HasQualifier=*/false, /*Qualifier=*/nullptr,
       /*IsArrow=*/false, E->getArg(0));
+  return Result;
 }
 
 RValue CodeGenFunction::EmitCUDAKernelCallExpr(const CUDAKernelCallExpr *E,
@@ -2075,7 +2099,7 @@ void CodeGenFunction::EmitCXXDeleteExpr(const CXXDeleteExpr *E) {
   EmitBlock(DeleteNotNull);
   Ptr.setKnownNonNull();
 
-  QualType DeleteTy = E->getDestroyedType();
+  QualType DeleteTy = E->getDestroyedType().stripHyperobject();
 
   // A destroying operator delete overrides the entire operation of the
   // delete expression.

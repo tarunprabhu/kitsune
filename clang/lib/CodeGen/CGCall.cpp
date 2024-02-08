@@ -2322,6 +2322,10 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       FuncAttrs.addAttribute(llvm::Attribute::NoDuplicate);
     if (TargetDecl->hasAttr<ConvergentAttr>())
       FuncAttrs.addAttribute(llvm::Attribute::Convergent);
+    if (TargetDecl->hasAttr<StealableAttr>())
+      FuncAttrs.addAttribute(llvm::Attribute::Stealable);
+    if (TargetDecl->hasAttr<InjectiveAttr>())
+      FuncAttrs.addAttribute(llvm::Attribute::Injective);
 
     if (const FunctionDecl *Fn = dyn_cast<FunctionDecl>(TargetDecl)) {
       AddAttributesFromFunctionProtoType(
@@ -2367,8 +2371,24 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       FuncAttrs.addMemoryAttr(llvm::MemoryEffects::argMemOnly());
       FuncAttrs.addAttribute(llvm::Attribute::NoUnwind);
     }
+    if (TargetDecl->hasAttr<StrandPureAttr>()) {
+      FuncAttrs.addAttribute(llvm::Attribute::StrandPure);
+      FuncAttrs.addMemoryAttr(llvm::MemoryEffects::readOnly());
+      FuncAttrs.addAttribute(llvm::Attribute::NoUnwind);
+    }
+    if (TargetDecl->hasAttr<ReducerRegisterAttr>()) {
+      FuncAttrs.addAttribute(llvm::Attribute::ReducerRegister);
+    }
+    if (TargetDecl->hasAttr<ReducerUnregisterAttr>()) {
+      FuncAttrs.addAttribute(llvm::Attribute::ReducerUnregister);
+    }
+    if (TargetDecl->hasAttr<HyperViewAttr>()) {
+      FuncAttrs.addAttribute(llvm::Attribute::HyperView);
+    }
     if (TargetDecl->hasAttr<RestrictAttr>())
       RetAttrs.addAttribute(llvm::Attribute::NoAlias);
+    else if (TargetDecl->hasAttr<StrandMallocAttr>())
+      RetAttrs.addAttribute(llvm::Attribute::StrandNoAlias);
     if (TargetDecl->hasAttr<ReturnsNonNullAttr>() &&
         !CodeGenOpts.NullPointerIsValid)
       RetAttrs.addAttribute(llvm::Attribute::NonNull);
@@ -4910,6 +4930,8 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
                                  SourceLocation Loc) {
   // FIXME: We no longer need the types from CallArgs; lift up and simplify.
 
+  IsSpawnedScope SpawnedScp(this);
+
   assert(Callee.isOrdinary() || Callee.isVirtual());
 
   // Handle struct-return functions by passing a pointer to the
@@ -5423,6 +5445,15 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
 
   // 3. Perform the actual call.
 
+  // If this call is detached, start the detach, if it hasn't yet been started.
+  if (SpawnedScp.OldScopeIsSpawned()) {
+    SpawnedScp.RestoreOldScope();
+    assert(CurDetachScope &&
+           "A call was spawned, but no detach scope was pushed.");
+    if (!CurDetachScope->IsDetachStarted())
+      CurDetachScope->StartDetach();
+  }
+
   // Deactivate any cleanups that we're supposed to do immediately before
   // the call.
   if (!CallArgs.getCleanupsToDeactivate().empty())
@@ -5539,6 +5570,12 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
 
   AllocAlignAttrEmitter AllocAlignAttrEmitter(*this, TargetDecl, CallArgs);
   Attrs = AllocAlignAttrEmitter.TryEmitAsCallSiteAttribute(Attrs);
+
+  // If this call might lead to exit() make sure the runtime can
+  // be shutdown cleanly.
+  if (CurSyncRegion && !ScopeIsSynced && !InvokeDest &&
+      Attrs.hasFnAttr(llvm::Attribute::NoReturn))
+    EmitImplicitSyncCleanup(nullptr);
 
   // Emit the actual call/invoke instruction.
   llvm::CallBase *CI;
