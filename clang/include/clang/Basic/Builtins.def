@@ -61,6 +61,7 @@
 //  I   -> Required to constant fold to an integer constant expression.
 //
 // Types may be postfixed with the following modifiers:
+// *__mobile__ -> mobile pointer
 // * -> pointer (optionally followed by an address space number, if no address
 //               space is specified than any address space will be accepted)
 // & -> reference (optionally followed by an address space number)

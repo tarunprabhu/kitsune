@@ -103,6 +103,7 @@
 using namespace clang;
 
 using llvm::TimeRecord;
+using llvm::driver::KitOptions;
 
 namespace {
 
@@ -688,7 +689,8 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
     std::shared_ptr<DiagnosticOptions> DiagOpts,
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
     const FileSystemOptions &FileSystemOpts, const HeaderSearchOptions &HSOpts,
-    const LangOptions *ProvidedLangOpts, bool OnlyLocalDecls,
+    const LangOptions *ProvidedLangOpts, const KitsuneOptions* KitOpts,
+    bool OnlyLocalDecls,
     CaptureDiagsKind CaptureDiagnostics, bool AllowASTWithCompilerErrors,
     bool UserFilesAreVolatile) {
   std::unique_ptr<ASTUnit> AST(new ASTUnit(true));
@@ -710,6 +712,8 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
     return *LocalLangOpts;
   }();
 
+  AST->KitOpts = KitOpts ? std::make_unique<KitOptions>(*KitOpts)
+                         : std::make_unique<KitOptions>();
   AST->LangOpts = std::make_unique<LangOptions>(LangOpts);
   AST->OnlyLocalDecls = OnlyLocalDecls;
   AST->CaptureDiagnostics = CaptureDiagnostics;
@@ -758,7 +762,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   AST->HeaderInfo->initializeModuleCachePath(std::move(ContextHash));
 
   AST->PP = std::make_shared<Preprocessor>(
-      *AST->PPOpts, AST->getDiagnostics(), *AST->LangOpts,
+      *AST->PPOpts, AST->getDiagnostics(), *AST->LangOpts, *AST->KitOpts,
       AST->getSourceManager(), *AST->HeaderInfo, AST->ModuleLoader,
       /*IILookup=*/nullptr,
       /*OwnsHeaderSearch=*/false);
@@ -766,7 +770,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   if (ToLoad >= LoadASTOnly)
     AST->Ctx = llvm::makeIntrusiveRefCnt<ASTContext>(
         *AST->LangOpts, AST->getSourceManager(), AST->PP->getIdentifierTable(),
-        AST->PP->getSelectorTable(), AST->PP->getBuiltinInfo(),
+        AST->PP->getSelectorTable(), AST->PP->getBuiltinInfo(), *AST->KitOpts,
         AST->getTranslationUnitKind());
 
   DisableValidationForModuleKind disableValid =

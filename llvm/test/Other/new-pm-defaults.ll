@@ -99,6 +99,7 @@
 ; CHECK-O-NEXT: Running analysis: AssumptionAnalysis
 ; CHECK-O-NEXT: Running pass: SROAPass
 ; CHECK-O-NEXT: Running analysis: DominatorTreeAnalysis
+; CHECK-O-NEXT: Running analysis: TaskAnalysis
 ; CHECK-O-NEXT: Running pass: EarlyCSEPass
 ; CHECK-O-NEXT: Running analysis: TargetLibraryAnalysis
 ; CHECK-O3-NEXT: Running pass: CallSiteSplittingPass
@@ -118,6 +119,7 @@
 ; CHECK-O-NEXT: Running analysis: OuterAnalysisManagerProxy
 ; CHECK-EP-PEEPHOLE-NEXT: Running pass: NoOpFunctionPass
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
+; CHECK-O-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-O-NEXT: Running pass: AlwaysInlinerPass
 ; CHECK-O-NEXT: Running analysis: ProfileSummaryAnalysis
 ; CHECK-O-NEXT: Running pass: ModuleInlinerWrapperPass
@@ -150,12 +152,14 @@
 ; CHECK-O23-NEXT: Invalidating analysis: LazyValueAnalysis
 ; CHECK-O23-NEXT: Running pass: JumpTableToSwitchPass
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
+; CHECK-O-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-O-NEXT: Running pass: InstCombinePass
 ; CHECK-O23-NEXT: Running pass: AggressiveInstCombinePass
 ; CHECK-O-NEXT: Running pass: LibCallsShrinkWrapPass
 ; CHECK-EP-PEEPHOLE-NEXT: Running pass: NoOpFunctionPass
 ; CHECK-O23-NEXT: Running pass: TailCallElimPass
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
+; CHECK-O-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-O-NEXT: Running pass: ReassociatePass
 ; CHECK-O23-NEXT: Running pass: ConstraintEliminationPass
 ; CHECK-O23-NEXT: Running analysis: LoopAnalysis
@@ -172,6 +176,7 @@
 ; CHECK-O-NEXT: Running pass: LICM
 ; CHECK-O-NEXT: Running pass: SimpleLoopUnswitchPass
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
+; CHECK-O-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-O-NEXT: Running pass: InstCombinePass
 ; CHECK-O-NEXT: Running pass: LoopSimplifyPass
 ; CHECK-O-NEXT: Running pass: LCSSAPass
@@ -211,6 +216,7 @@
 ; CHECK-O23-NEXT: Running pass: CoroElidePass
 ; CHECK-EP-SCALAR-LATE-NEXT: Running pass: NoOpFunctionPass
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
+; CHECK-O-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-O-NEXT: Running pass: InstCombinePass
 ; CHECK-EP-PEEPHOLE-NEXT: Running pass: NoOpFunctionPass
 ; CHECK-O-NEXT: Running pass: PostOrderFunctionAttrsPass
@@ -235,7 +241,35 @@
 ; CHECK-O-NEXT: Running pass: LowerConstantIntrinsicsPass on foo
 ; CHECK-MATRIX: Running pass: LowerMatrixIntrinsicsPass on f
 ; CHECK-MATRIX-NEXT: Running pass: EarlyCSEPass on f
+; CHECK-O2-NEXT: Running pass: LoopSimplifyPass
+; CHECK-O2-NEXT: Running pass: LCSSAPass
+; CHECK-O2-NEXT: Running pass: IndVarSimplifyPass
+; CHECK-O2-NEXT: Running pass: LoopStripMinePass
+; CHECK-O2-NEXT: Running pass: TaskSimplifyPass on foo
+; CHECK-O2-NEXT: Running pass: LoopSimplifyPass
+; CHECK-O2-NEXT: Running pass: LCSSAPass
+; CHECK-O2-NEXT: Running pass: LoopSimplifyCFGPass
+; CHECK-O2-NEXT: Running pass: LICMPass
+; CHECK-O2-NEXT: Running pass: JumpThreadingPass
+; CHECK-O2-NEXT: Running analysis: LazyValueAnalysis
+; CHECK-O2-NEXT: Running pass: CorrelatedValuePropagationPass
+; CHECK-O2-NEXT: Invalidating analysis: LazyValueAnalysis
+; CHECK-O2-NEXT: Running pass: InstCombinePass
 ; CHECK-O3-NEXT: Running pass: ControlHeightReductionPass
+; CHECK-O3-NEXT: Running pass: LoopSimplifyPass
+; CHECK-O3-NEXT: Running pass: LCSSAPass
+; CHECK-O3-NEXT: Running pass: IndVarSimplifyPass
+; CHECK-O3-NEXT: Running pass: LoopStripMinePass
+; CHECK-O3-NEXT: Running pass: TaskSimplifyPass on foo
+; CHECK-O3-NEXT: Running pass: LoopSimplifyPass
+; CHECK-O3-NEXT: Running pass: LCSSAPass
+; CHECK-O3-NEXT: Running pass: LoopSimplifyCFGPass
+; CHECK-O3-NEXT: Running pass: LICMPass
+; CHECK-O3-NEXT: Running pass: JumpThreadingPass
+; CHECK-O3-NEXT: Running analysis: LazyValueAnalysis
+; CHECK-O3-NEXT: Running pass: CorrelatedValuePropagationPass
+; CHECK-O3-NEXT: Invalidating analysis: LazyValueAnalysis
+; CHECK-O3-NEXT: Running pass: InstCombinePass
 ; CHECK-EP-VECTORIZER-START-NEXT: Running pass: NoOpFunctionPass
 ; CHECK-EXT: Running pass: {{.*}}::Bye on foo
 ; CHECK-NOEXT:  {{^}}
@@ -255,6 +289,7 @@
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
 ; CHECK-O23-NEXT: Running pass: SLPVectorizerPass
 ; CHECK-O-NEXT: Running pass: VectorCombinePass
+; CHECK-O-NEXT: Running pass: EarlyCSEPass
 ; CHECK-O-NEXT: Running pass: InstCombinePass
 ; CHECK-O-NEXT: Running pass: LoopUnrollPass
 ; CHECK-O-NEXT: Running pass: WarnMissedTransformationsPass
@@ -274,6 +309,7 @@
 ; CHECK-O-NEXT: Running pass: TailCallElimPass
 ; CHECK-O-NEXT: Running pass: SimplifyCFGPass
 ; CHECK-DEFAULT-NEXT: Running pass: AllocToken
+; CHECK-O-NEXT: Running pass: TaskSimplifyPass
 ; CHECK-EP-OPTIMIZER-LAST: Running pass: NoOpModulePass
 ; CHECK-HOT-COLD-SPLIT-NEXT: Running pass: HotColdSplittingPass
 ; CHECK-IR-OUTLINER-NEXT: Running pass: IROutlinerPass

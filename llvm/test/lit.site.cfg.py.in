@@ -2,6 +2,11 @@
 
 import sys
 
+# This is needed by the Tapir tests in llvm/test/Transforms/Tapir. Several of
+# the tests there ought to be in kitsune/test/tapir/opencilk, but we try to
+# minimize the differences between us and opencilk.
+config.kitsune_opencilk = "@KITSUNE_OPENCILK_ENABLED@"
+
 config.host_triple = "@LLVM_HOST_TRIPLE@"
 config.target_triple = "@LLVM_TARGET_TRIPLE@"
 config.llvm_src_root = path(r"@LLVM_SOURCE_DIR@")

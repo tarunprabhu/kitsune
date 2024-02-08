@@ -9,6 +9,9 @@
 #include "clang/CodeGen/BackendUtil.h"
 #include "BackendConsumer.h"
 #include "LinkInModulesPass.h"
+#include "kitsune/Core/TTOptions.h"
+#include "kitsune/Passes/PipelineUtils.h"
+#include "kitsune/Support/OptznLevelUtils.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticFrontend.h"
@@ -141,6 +144,13 @@ static std::string getProfileGenName(const CodeGenOptions &CodeGenOpts) {
   return FileName;
 }
 
+static std::optional<TTOptions>
+createTTOptions(const KitOptions &KitOpts, unsigned SpeedupLevel,
+                unsigned SizeLevel, FPOpFusion::FPOpFusionMode FPOpFusionMode) {
+  OptznLevel OptznLevel = createOptznLevelFrom(SpeedupLevel, SizeLevel);
+  return TTOptions::create(KitOpts, OptznLevel, FPOpFusionMode);
+}
+
 namespace {
 
 class EmitAssemblyHelper {
@@ -149,6 +159,7 @@ class EmitAssemblyHelper {
   const CodeGenOptions &CodeGenOpts;
   const clang::TargetOptions &TargetOpts;
   const LangOptions &LangOpts;
+  const KitOptions &KitOpts;
   llvm::Module *TheModule;
   IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS;
 
@@ -161,6 +172,14 @@ class EmitAssemblyHelper {
       return TM->getTargetIRAnalysis();
 
     return TargetIRAnalysis();
+  }
+
+  std::optional<TTOptions> getTTOptions() const {
+    FPOpFusion::FPOpFusionMode FPOpFusionMode = FPOpFusion::Standard;
+    if (TM)
+      FPOpFusionMode = TM->Options.AllowFPOpFusion;
+    return createTTOptions(KitOpts, CodeGenOpts.OptimizationLevel,
+                           CodeGenOpts.OptimizeSize, FPOpFusionMode);
   }
 
   /// Generates the TargetMachine.
@@ -224,7 +243,7 @@ public:
                      IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS)
       : CI(CI), Diags(CI.getDiagnostics()), CodeGenOpts(CGOpts),
         TargetOpts(CI.getTargetOpts()), LangOpts(CI.getLangOpts()),
-        TheModule(M), VFS(std::move(VFS)),
+        KitOpts(CI.getKitOpts()), TheModule(M), VFS(std::move(VFS)),
         TargetTriple(TheModule->getTargetTriple()) {}
 
   ~EmitAssemblyHelper() {
@@ -663,6 +682,61 @@ static OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
   }
 }
 
+bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
+                                       BackendAction Action,
+                                       raw_pwrite_stream &OS,
+                                       raw_pwrite_stream *DwoOS) {
+  // Add LibraryInfo.
+  std::unique_ptr<TargetLibraryInfoImpl> TLII(
+      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
+  CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
+
+  populateKitCodeGenPasses(CodeGenPasses, getTTOptions());
+
+  // Normal mode, emit a .s or .o file by running the code generator. Note,
+  // this also adds codegenerator level optimization passes.
+  CodeGenFileType CGFT = getCodeGenFileType(Action);
+
+  if (TM->addPassesToEmitFile(CodeGenPasses, OS, DwoOS, CGFT,
+                              /*DisableVerify=*/!CodeGenOpts.VerifyModule)) {
+    Diags.Report(diag::err_fe_unable_to_interface_with_target);
+    return false;
+  }
+
+  return true;
+}
+
+static OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
+  switch (Opts.OptimizationLevel) {
+  default:
+    llvm_unreachable("Invalid optimization level!");
+
+  case 0:
+    return OptimizationLevel::O0;
+
+  case 1:
+    return OptimizationLevel::O1;
+
+  case 2:
+    switch (Opts.OptimizeSize) {
+    default:
+      llvm_unreachable("Invalid optimization level for size!");
+
+    case 0:
+      return OptimizationLevel::O2;
+
+    case 1:
+      return OptimizationLevel::Os;
+
+    case 2:
+      return OptimizationLevel::Oz;
+    }
+
+  case 3:
+    return OptimizationLevel::O3;
+  }
+}
+
 static void addKCFIPass(const Triple &TargetTriple, const LangOptions &LangOpts,
                         PassBuilder &PB) {
   // If the back-end supports KCFI operand bundle lowering, skip KCFIPass.
@@ -918,6 +992,8 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.CallGraphProfile = !CodeGenOpts.DisableIntegratedAS;
   PTO.UnifiedLTO = CodeGenOpts.UnifiedLTO;
   PTO.DevirtualizeSpeculatively = CodeGenOpts.DevirtualizeSpeculatively;
+  PTO.LoopStripmine = KitOpts.getStripmineLoops();
+  PTO.TTOpts = getTTOptions();
 
   LoopAnalysisManager LAM;
   FunctionAnalysisManager FAM;
@@ -1267,8 +1343,8 @@ void EmitAssemblyHelper::RunCodegenPipelineLegacy(
   CodeGenPasses.add(
       createTargetTransformInfoWrapperPass(getTargetIRAnalysis()));
   // Add LibraryInfo.
-  std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
+  std::unique_ptr<TargetLibraryInfoImpl> TLII(llvm::driver::createTLII(
+      TargetTriple, CodeGenOpts.getVecLib(), KitsuneOpts.getTapirTarget()));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
   const llvm::TargetOptions &Options = TM->Options;
@@ -1378,6 +1454,7 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   DiagnosticsEngine &Diags = CI.getDiagnostics();
   const auto &CGOpts = CI.getCodeGenOpts();
   const auto &TOpts = CI.getTargetOpts();
+  const KitOptions &KitOpts = CI.getKitOpts();
   DenseMap<StringRef, DenseMap<GlobalValue::GUID, GlobalValueSummary *>>
       ModuleToDefinedGVSummaries;
   CombinedIndex->collectDefinedGVSummariesPerModule(ModuleToDefinedGVSummaries);
@@ -1428,6 +1505,9 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
   Conf.PTO.CallGraphProfile = !CGOpts.DisableIntegratedAS;
+  Conf.PTO.TTOpts =
+      createTTOptions(KitOpts, CGOpts.OptimizationLevel, CGOpts.OptimizeSize,
+                      Conf.Options.AllowFPOpFusion);
 
   // Context sensitive profile.
   if (CGOpts.hasProfileCSIRInstr()) {

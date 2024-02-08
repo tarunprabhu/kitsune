@@ -13,6 +13,7 @@
 #include "Symbols.h"
 #include "Target.h"
 
+#include "kitsune/Core/TTOptions.h"
 #include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/Filesystem.h"
 #include "lld/Common/Strings.h"
@@ -38,6 +39,10 @@ static std::string getThinLTOOutputFile(StringRef modulePath) {
 
 static lto::Config createConfig() {
   lto::Config c;
+  c.PTO.TTOpts = TTOptions::createFromCommandLine(config->ltoo);
+  if (c.PTO.TTOpts)
+    if (Error err = c.PTO.TTOpts->validate())
+      fatal(toString(std::move(err)));
   c.Options = initTargetOptionsFromCodeGenFlags();
   c.Options.EmitAddrsig = config->icfLevel == ICFLevel::safe ||
                           config->icfLevel == ICFLevel::safe_thunks;

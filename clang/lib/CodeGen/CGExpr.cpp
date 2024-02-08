@@ -25,6 +25,7 @@
 #include "CodeGenPGO.h"
 #include "ConstantEmitter.h"
 #include "TargetInfo.h"
+#include "kitsune/Core/KitOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTLambda.h"
 #include "clang/AST/Attr.h"
@@ -3664,6 +3665,22 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
 
     // Check for captured variables.
     if (E->refersToEnclosingVariableOrCapture()) {
+      // kitsune: if we are generating a kokkos-based lambda construct
+      // we are likely going to eventually transform it into a parallel
+      // loop construct. Thus we have to carefully consider how we handle
+      // captures within the lambda...
+      //
+      // KITSUNE FIXME: Not sure that everything we are doing here is sound ...
+      if (InKokkosConstruct) {
+        VD = VD->getCanonicalDecl();
+        auto I = LocalDeclMap.find(VD);
+        assert(I != LocalDeclMap.end());
+        if (VD->getType()->isReferenceType())
+          return EmitLoadOfReferenceLValue(I->second, VD->getType(),
+                                           AlignmentSource::Decl);
+        return MakeAddrLValue(I->second, T);
+      }
+
       VD = VD->getCanonicalDecl();
       if (auto *FD = LambdaCaptureFields.lookup(VD))
         return EmitCapturedFieldLValue(*this, FD, CXXABIThisValue);
@@ -6445,6 +6462,30 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue,
                                      llvm::CallBase **CallOrInvoke) {
+  const llvm::driver::KitOptions &kitOpts = CGM.getKitOpts();
+  if (kitOpts.getKokkos() || kitOpts.getKokkosNoInit()) {
+    // If this is a Kokkos construct that is handled specially by Kitsune, we
+    // may replace it with a traditional loop construct (in the case of
+    // Kokkos::parallel_for, or Kokkos::parallel_reduce), or not emit anything
+    // at all - such as when Kokkos::initialize or Kokkos::finalize are seen
+    // and `-fkokkos-no-init` was passed on the command-line. In either case,
+    // there is nothing to be "returned", and the call is effectively "removed".
+    if (const FunctionDecl *fdecl = E->getDirectCallee()) {
+      std::string qname = fdecl->getQualifiedNameAsString();
+      if (qname == "Kokkos::parallel_for" ||
+          qname == "Kokkos::parallel_reduce") {
+        // The Kitsune-specific attributes will have been seen - and saved in
+        // KitAttrs - earlier, since the actual call to a Kokkos function is
+        // wrapped in many layers of implicit and cleanup expressions.
+        if (EmitKokkosConstruct(E, KitAttrs))
+          return RValue::get(nullptr);
+      } else if (kitOpts.getKokkosNoInit() && (qname == "Kokkos::initialize" ||
+                                               qname == "Kokkos::finalize")) {
+        return RValue::get(nullptr);
+      }
+    }
+  }
+
   llvm::CallBase *CallOrInvokeStorage;
   if (!CallOrInvoke) {
     CallOrInvoke = &CallOrInvokeStorage;

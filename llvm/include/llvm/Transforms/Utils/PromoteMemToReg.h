@@ -22,6 +22,7 @@ template <typename T> class ArrayRef;
 class AllocaInst;
 class DominatorTree;
 class AssumptionCache;
+class TaskInfo;
 
 /// Return true if this alloca is legal for promotion.
 ///
@@ -39,7 +40,8 @@ LLVM_ABI bool isAllocaPromotable(const AllocaInst *AI);
 /// the same function.
 ///
 LLVM_ABI void PromoteMemToReg(ArrayRef<AllocaInst *> Allocas, DominatorTree &DT,
-                              AssumptionCache *AC = nullptr);
+                              AssumptionCache *AC = nullptr,
+                              TaskInfo *TI = nullptr);
 
 } // End llvm namespace
 

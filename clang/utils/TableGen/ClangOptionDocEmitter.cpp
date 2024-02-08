@@ -421,6 +421,11 @@ void emitDocumentation(int Depth, const Documentation &Doc,
 
 void emitGroup(int Depth, const DocumentedGroup &Group, const Record *DocInfo,
                raw_ostream &OS) {
+  if (DocInfo->getValue("IgnoreGroups"))
+    for (StringRef Ignored : DocInfo->getValueAsListOfStrings("IgnoreGroups"))
+      if (Group.Group->getName() == Ignored)
+        return;
+
   emitHeading(Depth,
               getRSTStringWithTextFallback(Group.Group, "DocName", "Name"), OS);
 
@@ -455,4 +460,23 @@ void clang::EmitClangOptDocs(const RecordKeeper &Records, raw_ostream &OS) {
   OS << ".. program:: " << DocInfo->getValueAsString("Program").lower() << "\n";
 
   emitDocumentation(0, extractDocumentation(Records, DocInfo), DocInfo, OS);
+}
+
+void clang::EmitKitsuneOptDocs(const RecordKeeper &Records, raw_ostream &OS) {
+  const Record *DocInfo = Records.getDef("GlobalDocumentation");
+  if (!DocInfo) {
+    PrintFatalError("The GlobalDocumentation top-level definition is missing, "
+                    "no documentation will be generated.");
+    return;
+  }
+  OS << DocInfo->getValueAsString("Intro") << "\n";
+  OS << ".. program:: " << DocInfo->getValueAsString("Program").lower()
+     << "\n\n";
+
+  const Documentation &Doc = extractDocumentation(Records, DocInfo);
+  for (auto &G : Doc.Groups)
+    emitGroup(0, G, DocInfo, OS);
+  emitHeading(0, "Other options", OS);
+  for (auto &O : Doc.Options)
+    emitOption(O, DocInfo, OS);
 }

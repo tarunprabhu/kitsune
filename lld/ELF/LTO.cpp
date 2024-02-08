@@ -11,6 +11,7 @@
 #include "InputFiles.h"
 #include "SymbolTable.h"
 #include "Symbols.h"
+#include "kitsune/Core/TTOptions.h"
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/Filesystem.h"
 #include "lld/Common/Strings.h"
@@ -55,6 +56,11 @@ static std::string getThinLTOOutputFile(Ctx &ctx, StringRef modulePath) {
 
 static lto::Config createConfig(Ctx &ctx) {
   lto::Config c;
+
+  c.PTO.TTOpts = TTOptions::createFromCommandLine(ctx.arg.ltoo);
+  if (c.PTO.TTOpts)
+    if (Error err = c.PTO.TTOpts->validate())
+      ErrAlways(ctx) << std::move(err);
 
   // LLD supports the new relocations and address-significance tables.
   c.Options = initTargetOptionsFromCodeGenFlags();

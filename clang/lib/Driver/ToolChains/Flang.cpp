@@ -1287,7 +1287,11 @@ void Flang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // Optimization level for CodeGen.
   if (const Arg *A = Args.getLastArg(options::OPT_O_Group)) {
-    if (A->getOption().matches(options::OPT_O4)) {
+    if (D.IsKitsuneFrontend()) {
+      // Kitsune supports fewer optimization levels than clang -in particular,
+      // it does not support -O4 or -Ofast.
+      A->render(Args, CmdArgs);
+    } else if (A->getOption().matches(options::OPT_O4)) {
       CmdArgs.push_back("-O3");
       D.Diag(diag::warn_O4_is_O3);
     } else if (A->getOption().matches(options::OPT_Ofast)) {
@@ -1300,6 +1304,12 @@ void Flang::ConstructJob(Compilation &C, const JobAction &JA,
 
   renderGlobalISelOptions(D, Args, CmdArgs, Triple);
   renderCommonIntegerOverflowOptions(Args, CmdArgs, false);
+
+  // Add the Kitsune args just before adding the source files to the generated
+  // command line. This is mainly to reduce the likelihood of the hip tapir
+  // target accidentally missing an argument since it "recreates" the command
+  // line (see clang/lib/Driver/ToolChain.cpp for details).
+  addKitsuneArgs(D, TC, Args, CmdArgs);
 
   assert((Output.isFilename() || Output.isNothing()) && "Invalid output.");
   if (Output.isFilename()) {

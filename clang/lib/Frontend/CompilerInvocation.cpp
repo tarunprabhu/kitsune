@@ -8,6 +8,9 @@
 
 #include "clang/Frontend/CompilerInvocation.h"
 #include "TestModuleFileExtension.h"
+#include "kitsune/Clang/KitDriverUtils.h"
+#include "kitsune/Core/Tapir.h"
+#include "kitsune/Support/ToString.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/CodeGenOptions.h"
@@ -27,6 +30,9 @@
 #include "clang/Basic/Version.h"
 #include "clang/Basic/XRayInstr.h"
 #include "clang/Config/config.h"
+#include "clang/Driver/Driver.h"
+#include "clang/Driver/DriverDiagnostic.h"
+#include "clang/Driver/Options.h"
 #include "clang/Frontend/CommandLineSourceLoc.h"
 #include "clang/Frontend/DependencyOutputOptions.h"
 #include "clang/Frontend/FrontendOptions.h"
@@ -89,6 +95,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -98,6 +105,7 @@
 using namespace clang;
 using namespace options;
 using namespace llvm::opt;
+using llvm::driver::KitOptions;
 
 //===----------------------------------------------------------------------===//
 // Helpers.
@@ -135,7 +143,8 @@ CompilerInvocationBase::CompilerInvocationBase()
       FrontendOpts(std::make_shared<FrontendOptions>()),
       DependencyOutputOpts(std::make_shared<DependencyOutputOptions>()),
       PreprocessorOutputOpts(std::make_shared<PreprocessorOutputOptions>()),
-      SSAFOpts(std::make_shared<ssaf::SSAFOptions>()) {}
+      SSAFOpts(std::make_shared<ssaf::SSAFOptions>()),
+      KitOpts(std::make_shared<KitsuneOptions>()) {}
 
 CompilerInvocationBase &
 CompilerInvocationBase::deep_copy_assign(const CompilerInvocationBase &X) {
@@ -154,6 +163,7 @@ CompilerInvocationBase::deep_copy_assign(const CompilerInvocationBase &X) {
     DependencyOutputOpts = make_shared_copy(X.getDependencyOutputOpts());
     PreprocessorOutputOpts = make_shared_copy(X.getPreprocessorOutputOpts());
     SSAFOpts = make_shared_copy(X.getSSAFOpts());
+    KitOpts = make_shared_copy(X.getKitOpts());
   }
   return *this;
 }
@@ -175,6 +185,7 @@ CompilerInvocationBase::shallow_copy_assign(const CompilerInvocationBase &X) {
     DependencyOutputOpts = X.DependencyOutputOpts;
     PreprocessorOutputOpts = X.PreprocessorOutputOpts;
     SSAFOpts = X.SSAFOpts;
+    KitOpts = X.KitOpts;
   }
   return *this;
 }
@@ -252,6 +263,10 @@ DependencyOutputOptions &CowCompilerInvocation::getMutDependencyOutputOpts() {
 PreprocessorOutputOptions &
 CowCompilerInvocation::getMutPreprocessorOutputOpts() {
   return ensureOwned(PreprocessorOutputOpts);
+}
+
+KitOptions& CowCompilerInvocation::getMutKitOpts() {
+  return ensureOwned(KitOpts);
 }
 
 //===----------------------------------------------------------------------===//
@@ -4018,7 +4033,8 @@ void CompilerInvocationBase::GenerateLangArgs(const LangOptions &Opts,
 bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
                                        InputKind IK, const llvm::Triple &T,
                                        std::vector<std::string> &Includes,
-                                       DiagnosticsEngine &Diags) {
+                                       DiagnosticsEngine &Diags,
+                                       const KitOptions &KitOpts) {
   unsigned NumErrorsBefore = Diags.getNumErrors();
 
   if (IK.getFormat() == InputKind::Precompiled ||
@@ -4115,6 +4131,10 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   // These need to be parsed now. They are used to set OpenCL defaults.
   Opts.IncludeDefaultHeader = Args.hasArg(OPT_finclude_default_header);
   Opts.DeclareOpenCLBuiltins = Args.hasArg(OPT_fdeclare_opencl_builtins);
+
+  // KitOpts will already have been set correctly. IsKitsune must be set before
+  // setting the defaults.
+  Opts.IsKitsune = KitOpts.isKitsuneFrontend() && KitOpts.hasTTID();
 
   LangOptions::setLangDefaults(Opts, IK.getLanguage(), T, Includes, LangStd);
 
@@ -4713,6 +4733,122 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   return Diags.getNumErrors() == NumErrorsBefore;
 }
 
+void CompilerInvocationBase::GenerateKitsuneArgs(const KitOptions &Opts,
+                                                 ArgumentConsumer Consumer) {
+  auto GenerateTTArg = [&](llvm::TTID TT, const KitOptions &Opts,
+                           ArgumentConsumer Consumer) -> void {
+    switch (TT) {
+    case llvm::TTID::Cuda:
+      GenerateArg(Consumer, OPT_tapir_cuda_arch_EQ, Opts.getCudaArch());
+      GenerateArg(Consumer, OPT_tapir_cuda_virt_arch_EQ,
+                  Opts.getCudaVirtArch());
+      GenerateArg(Consumer, OPT_tapir_cuda_features_EQ, Opts.getCudaFeatures());
+      GenerateArg(Consumer, OPT_tapir_cuda_runtime_bc_EQ,
+                  Opts.getCudaRuntimeBCFile());
+      return;
+    case llvm::TTID::Custom:
+      GenerateArg(Consumer, OPT_tapir_plugin_EQ, Opts.getTTPlugin());
+      return;
+    case llvm::TTID::Hip: {
+      const std::vector<std::string> &BCS = Opts.getHipRuntimeBCFiles();
+      GenerateArg(Consumer, OPT_tapir_hip_arch_EQ, Opts.getHipArch());
+      GenerateArg(Consumer, OPT_tapir_hip_sramecc_EQ,
+                  llvm::toString(Opts.getHipSRAMECC()));
+      GenerateArg(Consumer, OPT_tapir_hip_xnack_EQ,
+                  llvm::toString(Opts.getHipXnack()));
+      GenerateArg(Consumer, OPT_tapir_hip_features_EQ, Opts.getHipFeatures());
+      GenerateArg(Consumer, OPT_tapir_hip_runtime_bcs_EQ,
+                  llvm::join(BCS.begin(), BCS.end(), ","));
+      GenerateArg(Consumer, OPT_tapir_lld_EQ, Opts.getLLD());
+      return;
+    }
+    case llvm::TTID::OpenCilk:
+      GenerateArg(Consumer, OPT_tapir_opencilk_runtime_bc_EQ,
+                  Opts.getOpenCilkRuntimeBCFile());
+      return;
+    case llvm::TTID::Nolo:
+    case llvm::TTID::OpenMP:
+    case llvm::TTID::Pthreads:
+    case llvm::TTID::Qthreads:
+    case llvm::TTID::Serial:
+      // These do not have any target-specific options that need to be
+      // generated.
+      return;
+    case llvm::TTID::Lambda:
+    case llvm::TTID::OMPTask:
+    case llvm::TTID::Realm:
+      // These tapir targets are not fully supported. We add them here to
+      // avoid compiler warnings about enum values not being handled. By
+      // explicitly enumerating these, we ensure that we do get a warning when
+      // a new tapir target is added.
+      break;
+    }
+    llvm_unreachable("GenerateKitsuneArgs: TTID not handled");
+  };
+
+  if (std::optional<llvm::TTID> TT = Opts.getTTID()) {
+    GenerateArg(Consumer, OPT_tapir_EQ, llvm::toString(*TT));
+    GenerateTTArg(*TT, Opts, Consumer);
+
+    // Arguments that are relevant to any GPU tapir target.
+    if (*TT == llvm::TTID::Cuda || *TT == llvm::TTID::Hip) {
+      if (unsigned N = Opts.getFixedThreadsPerBlock())
+        GenerateArg(Consumer, OPT_tapir_gpu_tpb_EQ, std::to_string(N));
+
+      if (unsigned N = Opts.getMaxThreadsPerBlock())
+        GenerateArg(Consumer, OPT_tapir_gpu_max_tpb_EQ, std::to_string(N));
+
+      GenerateArg(Consumer, Opts.getGPUPrefetch() ? OPT_tapir_gpu_prefetch
+                                                  : OPT_tapir_gpu_no_prefetch);
+    }
+
+    if (Opts.getTapirVerbose())
+      GenerateArg(Consumer, OPT_tapir_verbose);
+
+    if (Opts.getKitrtVerbose())
+      GenerateArg(Consumer, OPT_kitrt_verbose);
+  }
+
+  if (Opts.getKokkos())
+    GenerateArg(Consumer, OPT_kokkos);
+
+  if (Opts.getKokkosNoInit())
+    GenerateArg(Consumer, OPT_kokkos_no_init);
+
+  if (Opts.getStripmineLoops())
+    GenerateArg(Consumer, OPT_fstripmine);
+}
+
+bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
+                                          const llvm::Triple &Triple,
+                                          const KitOptions &KitOpts,
+                                          const LangOptions &LangOpts,
+                                          DiagnosticsEngine &Diags) {
+  std::optional<llvm::TTID> TT = KitOpts.getTTID();
+  if (not TT)
+    return true;
+
+  unsigned NumErrorsBefore = Diags.getNumErrors();
+
+  // We need to check for Hip first so we get the correct error. For some
+  // inexplicable reason, LangOptions::setLangDefaults() has this:
+  //
+  //     Opts.HIP = Lang == Language::HIP;
+  //     Opts.CUDA = Lang == Language::CUDA || Opts.HIP;
+  //
+  // I have no words ...
+  if (LangOpts.HIP)
+    Diags.Report(clang::diag::err_drv_kit_hip);
+  else if (LangOpts.CUDA)
+    Diags.Report(clang::diag::err_drv_kit_cuda);
+  else if (LangOpts.ObjC)
+    Diags.Report(clang::diag::err_drv_kit_objc);
+  else if (LangOpts.OpenCL)
+    Diags.Report(clang::diag::err_drv_kit_opencl);
+
+  return Diags.getNumErrors() == NumErrorsBefore;
+}
+
 static bool isStrictlyPreprocessorAction(frontend::ActionKind Action) {
   switch (Action) {
   case frontend::ASTDeclList:
@@ -5071,6 +5207,7 @@ bool CompilerInvocation::CreateFromArgsImpl(
   InputArgList Args = Opts.ParseArgs(CommandLineArgs, MissingArgIndex,
                                      MissingArgCount, VisibilityMask);
   LangOptions &LangOpts = Res.getLangOpts();
+  KitOptions &KitOpts = Res.getKitOpts();
 
   // Check for missing argument error.
   if (MissingArgCount)
@@ -5111,8 +5248,12 @@ bool CompilerInvocation::CreateFromArgsImpl(
 
   ParsePointerAuthArgs(LangOpts, Args, Diags);
 
+  // Parse the Kitsune arguments as early as possible. These affect how the
+  // lang options are setup. For instance, the default FPContract value changes
+  // when compiling with Kitsune's frontend.
+  parseKitsuneArgs(KitOpts, Argv0, Args, Opts, Diags);
   ParseLangArgs(LangOpts, Args, DashX, T, Res.getPreprocessorOpts().Includes,
-                Diags);
+                Diags, KitOpts);
   if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)
     LangOpts.ObjCExceptions = 1;
 
@@ -5189,6 +5330,13 @@ bool CompilerInvocation::CreateFromArgsImpl(
     Diags.Report(diag::err_drv_profile_instrument_use_path_with_no_kind);
 
   FixupInvocation(Res, Diags, Args, DashX);
+
+  // Some of Kitsune's sanity checks must be performed after the language
+  // options have been set. It would be nice if we could keep all the kitsune
+  // code together, but that is not possible. It is this way because I am trying
+  // to consolidate all the Kitsune-specific code to the extent possible to
+  // make merging easier.
+  CheckKitsuneArgs(Args, T, Res.getKitOpts(), Res.getLangOpts(), Diags);
 
   return Diags.getNumErrors() == NumErrorsBefore;
 }
@@ -5468,6 +5616,7 @@ void CompilerInvocationBase::generateCC1CommandLine(
   GeneratePreprocessorOutputArgs(getPreprocessorOutputOpts(), Consumer,
                                  getFrontendOpts().ProgramAction);
   GenerateDependencyOutputArgs(getDependencyOutputOpts(), Consumer);
+  GenerateKitsuneArgs(getKitOpts(), Consumer);
 }
 
 std::vector<std::string> CompilerInvocationBase::getCC1CommandLine() const {

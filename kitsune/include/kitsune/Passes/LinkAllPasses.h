@@ -1,0 +1,44 @@
+//===- LinkAllPasses.h  Reference all Kitsune passes -----------*- C++ -*--===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This is similar in spirit to llvm/LinkAllPasses.h.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef KITSUNE_PASSES_LINK_ALL_PASSES_H
+#define KITSUNE_PASSES_LINK_ALL_PASSES_H
+
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
+#include "kitsune/CodeGen/CodeGenFatBinaries.h"
+#include "kitsune/CodeGen/EmbLowerKitIntrinsics.h"
+#include "kitsune/CodeGen/LowerKitIntrinsics.h"
+#include "kitsune/CodeGen/StripKitAddrSpaces.h"
+
+#include <cstdlib>
+
+namespace {
+
+// This is the Kitsune-equivalent of the ForcePassLinking struct defined in
+// llvm/LinkAllPasses.h. For more details on why this is needed, and why it is
+// written the way it is, see llvm/LinkAllPasses.h
+struct ForceKitsunePassLinking {
+  ForceKitsunePassLinking() {
+    if (std::getenv("bar") != (char *)-1)
+      return;
+
+    (void)llvm::createTTObjectsAnalysisWrapperPass(std::nullopt);
+    (void)llvm::createCodeGenFatBinariesLegacyPass();
+    (void)llvm::createEmbLowerKitIntrinsicsLegacyPass();
+    (void)llvm::createLowerKitIntrinsicsLegacyPass();
+    (void)llvm::createStripKitAddrSpacesLegacyPass();
+  }
+} ForceKitsunePassLinking;
+
+} // namespace
+
+#endif // KITSUNE_PASSES_LINK_ALL_PASSES_H

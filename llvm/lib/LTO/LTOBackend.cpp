@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/LTO/LTOBackend.h"
+#include "kitsune/Passes/PipelineUtils.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/ModuleSummaryAnalysis.h"
@@ -499,6 +500,7 @@ static void codegen(const Config &Conf, TargetMachine *TM,
           createImmutableModuleSummaryIndexWrapperPass(&CombinedIndex));
     if (Conf.PreCodeGenPassesHook)
       Conf.PreCodeGenPassesHook(CodeGenPasses);
+    populateKitCodeGenPasses(CodeGenPasses, Conf.PTO.TTOpts);
     if (TM->addPassesToEmitFile(CodeGenPasses, *Stream->OS,
                                 DwoOut ? &DwoOut->os() : nullptr,
                                 Conf.CGFileType))

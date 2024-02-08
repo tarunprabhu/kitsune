@@ -7,6 +7,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "CGLoopInfo.h"
+#include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/MetadataUtils.h"
+#include "kitsune/Core/TTUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"
@@ -468,6 +471,7 @@ void LoopAttributes::clear() {
   PipelineInitiationInterval = 0;
   CodeAlign = 0;
   MustProgress = false;
+  TapirLoopAttrs = std::nullopt;
 }
 
 clang::CodeGen::LoopInfo::LoopInfo(BasicBlock *Header,
@@ -494,10 +498,56 @@ clang::CodeGen::LoopInfo::LoopInfo(BasicBlock *Header,
       Attrs.UnrollEnable == LoopAttributes::Unspecified &&
       Attrs.UnrollAndJamEnable == LoopAttributes::Unspecified &&
       Attrs.DistributeEnable == LoopAttributes::Unspecified &&
-      Attrs.CodeAlign == 0 && !StartLoc && !EndLoc && !Attrs.MustProgress)
+      Attrs.CodeAlign == 0 && !StartLoc && !EndLoc && !Attrs.MustProgress &&
+      !Attrs.TapirLoopAttrs.has_value())
     return;
 
   TempLoopID = MDNode::getTemporary(Header->getContext(), {});
+}
+
+// FIXME: This is a "private" function, and the abstraction really should not
+// leak like this. But this is the easiest thing to do for now.
+namespace llvm {
+namespace detail {
+MDNode *makeRawAttr(LLVMContext &, StringRef, ArrayRef<Metadata *>);
+} // namespace detail
+} // namespace llvm
+
+template <typename T>
+static MDNode *getMDNodeForAttr(LLVMContext &Ctx, LoopAttrKind Attr,
+                                const T &Val) {
+  return detail::makeRawAttr(Ctx, getAttrName(Attr), toMetadata(Val, Ctx));
+}
+
+std::vector<Metadata *>
+LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
+  // If the --tapir option was not provided, we don't have a tapir target, nor
+  // do we (currently) have a reasonable default. In this case, don't add any
+  // tapir loop metadata.
+  if (!Attrs.TapirLoopAttrs.has_value())
+    return {};
+
+  LLVMContext &Ctx = Header->getContext();
+  const TapirLoopAttributes &TapirLoopAttrs = *Attrs.TapirLoopAttrs;
+  std::vector<Metadata *> Props;
+
+  // Even if the --tapir option was provided, the tapir target may be
+  // std::nullopt if --tapir=nolo was specified.
+  std::optional<TTID> TT = TapirLoopAttrs.TapirTarget;
+  if (TT.has_value())
+    Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::Target, *TT));
+
+  Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::SpawnStrategy,
+                                   TapirLoopAttrs.TapirSpawnStrategy));
+
+  Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::Grainsize,
+                                   TapirLoopAttrs.TapirGrainSize));
+
+  if (TT.has_value() && isGPUTT(*TT))
+    Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::ThreadsPerBlock,
+                                     TapirLoopAttrs.ThreadsPerBlock));
+
+  return Props;
 }
 
 void clang::CodeGen::LoopInfo::finish() {
@@ -582,7 +632,8 @@ void clang::CodeGen::LoopInfo::finish() {
 
   bool HasUserTransforms = false;
   SmallVector<Metadata *, 4> Properties =
-      createMetadata(CurLoopAttr, {}, HasUserTransforms);
+      createMetadata(CurLoopAttr, getTapirLoopProperties(CurLoopAttr),
+                     HasUserTransforms);
   SmallVector<Metadata *, 4> Args;
   Args.push_back(nullptr);
   Args.append(Properties.begin(), Properties.end());
@@ -590,6 +641,55 @@ void clang::CodeGen::LoopInfo::finish() {
   LoopID->replaceOperandWith(0, LoopID);
 
   TempLoopID->replaceAllUsesWith(LoopID);
+}
+
+std::vector<Metadata *>
+clang::CodeGen::LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
+  std::vector<Metadata *> LoopProperties;
+  LLVMContext &Ctx = Header->getContext();
+
+  if (Attrs.SpawnStrategy == llvm::TapirSpawnStrategy::Sequential)
+    return LoopProperties;
+
+  // Setting tapir.loop.spawn.strategy
+  if (Attrs.SpawnStrategy != llvm::TapirSpawnStrategy::Sequential) {
+    Metadata *Vals[] = {
+        MDString::get(Ctx, "tapir.loop.spawn.strategy"),
+        ConstantAsMetadata::get(ConstantInt::get(
+            llvm::Type::getInt32Ty(Ctx), unsigned(Attrs.SpawnStrategy)))};
+    LoopProperties.push_back(MDNode::get(Ctx, Vals));
+  }
+
+  // Setting tapir.loop.grainsize
+  if (Attrs.TapirGrainSize > 0) {
+    Metadata *Vals[] = {
+        MDString::get(Ctx, "tapir.loop.grainsize"),
+        ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
+                                                 Attrs.TapirGrainSize))};
+    LoopProperties.push_back(MDNode::get(Ctx, Vals));
+  }
+
+  // Setting tapir.loop.target. A target may not have been set and we do not
+  // have a reasonable "default". If we don't have a target, don't add the
+  // metadata.
+  if (Attrs.LoopTarget) {
+    Metadata *Vals[] = {
+        MDString::get(Ctx, "tapir.loop.target"),
+        ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
+                                                 unsigned(*Attrs.LoopTarget)))};
+    LoopProperties.push_back(MDNode::get(Ctx, Vals));
+  }
+
+  // Setting tapir.loop.threads.per.block
+  if (Attrs.ThreadsPerBlock) {
+    Metadata *Vals[] = {
+        MDString::get(Ctx, "tapir.loop.threads.per.block"),
+        ConstantAsMetadata::get(ConstantInt::get(
+            llvm::Type::getInt32Ty(Ctx), unsigned(Attrs.ThreadsPerBlock)))};
+    LoopProperties.push_back(MDNode::get(Ctx, Vals));
+  }
+
+  return LoopProperties;
 }
 
 void LoopInfoStack::push(BasicBlock *Header, const llvm::DebugLoc &StartLoc,

@@ -18,6 +18,7 @@
 #include "CGCall.h"
 #include "CGDebugInfo.h"
 #include "CGHLSLRuntime.h"
+#include "CGKitsune.h"
 #include "CGObjCRuntime.h"
 #include "CGOpenCLRuntime.h"
 #include "CGOpenMPRuntime.h"
@@ -494,7 +495,8 @@ CodeGenModule::CodeGenModule(ASTContext &C,
                              const CodeGenOptions &CGO, llvm::Module &M,
                              DiagnosticsEngine &diags,
                              CoverageSourceInfo *CoverageInfo)
-    : Context(C), LangOpts(C.getLangOpts()), FS(FS), HeaderSearchOpts(HSO),
+    : Context(C), LangOpts(C.getLangOpts()), KitOpts(C.getKitOpts()), FS(FS),
+      HeaderSearchOpts(HSO),
       PreprocessorOpts(PPO), CodeGenOpts(CGO), TheModule(M), Diags(diags),
       Target(C.getTargetInfo()), ABI(createCXXABI(*this)),
       VMContext(M.getContext()), VTables(*this), StackHandler(diags),
@@ -3698,6 +3700,8 @@ void CodeGenModule::SetFunctionAttributes(GlobalDecl GD, llvm::Function *F,
                                                CalleeIdx, PayloadIndices,
                                                /* VarArgsArePassed */ false)}));
   }
+
+  AddKitAttributes(*this, *FD, *F);
 }
 
 void CodeGenModule::addUsedGlobal(llvm::GlobalValue *GV) {
@@ -6068,6 +6072,9 @@ CodeGenModule::GetOrCreateLLVMGlobal(StringRef MangledName, llvm::Type *Ty,
 
   if (D)
     SanitizerMD->reportGlobal(GV, *D);
+
+  if (D)
+    AddKitAttributes(*this, *D, *GV);
 
   LangAS ExpectedAS =
       D ? D->getType().getAddressSpace()

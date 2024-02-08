@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Basic/DiagnosticFrontend.h"
+#include "kitsune/Core/KitOptions.h"
+#include "kitsune/Support/OstreamUtils.h"
 #include "clang/Basic/DiagnosticLex.h"
 #include "clang/Basic/HLSLRuntime.h"
 #include "clang/Basic/MacroBuilder.h"
@@ -850,6 +852,7 @@ void DefineFixedPointMacros(const TargetInfo &TI, MacroBuilder &Builder,
 
 static void InitializePredefinedMacros(const TargetInfo &TI,
                                        const LangOptions &LangOpts,
+                                       const KitOptions &KitOpts,
                                        const FrontendOptions &FEOpts,
                                        const PreprocessorOptions &PPOpts,
                                        const CodeGenOptions &CGOpts,
@@ -867,6 +870,24 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   Builder.defineMacro("__clang_version__",
                       "\"" CLANG_VERSION_STRING " "
                       + getClangFullRepositoryVersion() + "\"");
+
+  // NOTE:This code should not be moved to reduce the number of clang tests that
+  // need to be updated as a result of this change.
+  //
+  // Kitsune-specific predefined macros. We deliberately do not change any of
+  // the clang macros. This should just work seamlessly other compiler
+  // detection mechanisms use by, for instance, cmake. We only define the
+  // __kitsune_tt__ macro if a Tapir target is provided during compilation. We
+  // could have defaulted to an empty string, but this would not be in keeping
+  // with the principle of "absence indicating absence". The empty string would
+  // be too much like the "special sentinel indicating absence".
+  Builder.defineMacro("__kitsune__"); // Kitsune Frontend
+  if (std::optional<llvm::TTID> tt = KitOpts.getTTID()) {
+    std::string s;
+    llvm::raw_string_ostream os(s);
+    os << '"' << *tt << '"';
+    Builder.defineMacro("__kitsune_tt__", os.str());
+  }
 
   if (LangOpts.GNUCVersion != 0) {
     // Major, minor, patch, are given two decimal places each, so 4.2.1 becomes
@@ -1578,7 +1599,8 @@ void clang::InitializePreprocessor(Preprocessor &PP,
                                    const PreprocessorOptions &InitOpts,
                                    const PCHContainerReader &PCHContainerRdr,
                                    const FrontendOptions &FEOpts,
-                                   const CodeGenOptions &CodeGenOpts) {
+                                   const CodeGenOptions &CodeGenOpts,
+                                   const KitOptions &KitOpts) {
   const LangOptions &LangOpts = PP.getLangOpts();
   std::string PredefineBuffer;
   PredefineBuffer.reserve(4080);
@@ -1598,11 +1620,11 @@ void clang::InitializePreprocessor(Preprocessor &PP,
     // FIXME: This will create multiple definitions for most of the predefined
     // macros. This is not the right way to handle this.
     if ((LangOpts.CUDA || LangOpts.isTargetDevice()) && PP.getAuxTargetInfo())
-      InitializePredefinedMacros(*PP.getAuxTargetInfo(), LangOpts, FEOpts,
-                                 PP.getPreprocessorOpts(), CodeGenOpts,
+      InitializePredefinedMacros(*PP.getAuxTargetInfo(), LangOpts, KitOpts,
+                                 FEOpts, PP.getPreprocessorOpts(), CodeGenOpts,
                                  Builder);
 
-    InitializePredefinedMacros(PP.getTargetInfo(), LangOpts, FEOpts,
+    InitializePredefinedMacros(PP.getTargetInfo(), LangOpts, KitOpts, FEOpts,
                                PP.getPreprocessorOpts(), CodeGenOpts, Builder);
 
     // Install definitions to make Objective-C++ ARC work well with various

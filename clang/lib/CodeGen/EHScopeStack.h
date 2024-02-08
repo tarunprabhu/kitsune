@@ -95,6 +95,8 @@ enum CleanupKind : unsigned {
 
   SEHFinallyCleanup = 0x20,
   NormalAndEHSEHFinallyCleanup = SEHFinallyCleanup | NormalAndEHCleanup,
+
+  TaskExit = 0x40,
 };
 
 /// A stack of scopes which respond to exceptions, including cleanups

@@ -22,6 +22,7 @@
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/ProfDataUtils.h"
@@ -270,7 +271,7 @@ private:
     // predecessors are in the loop. This may not be the case, as the input loop
     // may not by in loop-simplify/canonical form.
     SmallVector<BasicBlock *, 8> ExitBlocks;
-    L.getExitBlocks(ExitBlocks);
+    L.getExitBlocks(ExitBlocks, /*IgnoreTaskExits=*/true);
     SmallPtrSet<BasicBlock *, 8> UniqueDeadExits;
     for (auto *ExitBlock : ExitBlocks)
       if (!LiveExitBlocks.count(ExitBlock) &&
@@ -755,6 +756,11 @@ PreservedAnalyses LoopSimplifyCFGPass::run(Loop &L, LoopAnalysisManager &AM,
 
   if (DeleteCurrentLoop)
     LPMU.markLoopAsDeleted(L, "loop-simplifycfg");
+
+  // Recompute task info.
+  // FIXME: Figure out a way to update task info that is less computationally
+  // wasteful.
+  AR.TI.recalculate(*AR.DT.getRoot()->getParent(), AR.DT);
 
   auto PA = getLoopPassPreservedAnalyses();
   if (AR.MSSA)

@@ -177,6 +177,8 @@ public:
 
   llvm::APInt getFMVPriority(ArrayRef<StringRef> Features) const override;
 
+  bool hasSjLjLowering() const override { return true; }
+
   void getTargetDefinesARMV81A(const LangOptions &Opts,
                                MacroBuilder &Builder) const;
   void getTargetDefinesARMV82A(const LangOptions &Opts,

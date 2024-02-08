@@ -96,9 +96,14 @@ add_llvm_component_library(LLVMCore
   analysis_gen
   intrinsics_gen
 
+  # The main LLVM verifier calls Kitsune's verifier. This results in a
+  # dependence on KitCore, which in turn depends on LLVMCore, resulting in a
+  # circular dependence. There isn't really any way around this since we have
+  # committed to keeping all of Kitsune's code in its own directory.
   LINK_COMPONENTS
   BinaryFormat
   Demangle
+  KitCore
   Remarks
   Support
   TargetParser

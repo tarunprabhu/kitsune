@@ -18,6 +18,7 @@
 #include "Hexagon.h"
 #include "PS4CPU.h"
 #include "ToolChains/Cuda.h"
+#include "kitsune/Clang/KitDriverUtils.h"
 #include "clang/Basic/CLWarnings.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/HeaderInclude.h"
@@ -30,6 +31,7 @@
 #include "clang/Driver/CommonArgs.h"
 #include "clang/Driver/Distro.h"
 #include "clang/Driver/InputInfo.h"
+#include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Driver/Types.h"
 #include "clang/Driver/XRayArgs.h"
@@ -188,10 +190,20 @@ static bool addExceptionArgs(const ArgList &Args, types::ID InputType,
     Arg *ExceptionArg = Args.getLastArg(
         options::OPT_fcxx_exceptions, options::OPT_fno_cxx_exceptions,
         options::OPT_fexceptions, options::OPT_fno_exceptions);
-    if (ExceptionArg)
+    // If either -fcxx-exceptions or -fexceptions was explicitly provided, then
+    // respect it in Kitsune (if it causes things to fail, it's not our problem)
+    // But if it has not, turn exceptions off only if Kokkos mode has been
+    // enabled or if a tapir target has been set.
+    const Driver &D = TC.getDriver();
+    std::optional<llvm::TTID> TT = parseTTIfValid(Args);
+    if (ExceptionArg) {
       CXXExceptionsEnabled =
           ExceptionArg->getOption().matches(options::OPT_fcxx_exceptions) ||
           ExceptionArg->getOption().matches(options::OPT_fexceptions);
+    } else if (D.IsKitsuneFrontend() &&
+               (TT.has_value() || Args.hasArg(options::OPT_kokkos))) {
+      CXXExceptionsEnabled = false;
+    }
 
     if (CXXExceptionsEnabled) {
       CmdArgs.push_back("-fcxx-exceptions");
@@ -5297,7 +5309,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // Optimization level for CodeGen.
   if (const Arg *A = Args.getLastArg(options::OPT_O_Group)) {
-    if (A->getOption().matches(options::OPT_O4)) {
+    if (D.IsKitsuneFrontend()) {
+      // Kitsune supports fewer optimization levels than clang -in particular,
+      // it does not support -O4.
+      A->render(Args, CmdArgs);
+    } else if (A->getOption().matches(options::OPT_O4)) {
       CmdArgs.push_back("-O3");
       D.Diag(diag::warn_O4_is_O3);
     } else {
@@ -6111,7 +6127,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                      options::OPT_fno_zero_initialized_in_bss);
 
   bool OFastEnabled = isOptimizationLevelFast(Args);
-  if (Args.hasArg(options::OPT_Ofast))
+  if (Args.hasArg(options::OPT_Ofast) && !D.IsKitsuneFrontend())
     D.Diag(diag::warn_drv_deprecated_arg_ofast);
   // If -Ofast is the optimization level, then -fstrict-aliasing should be
   // enabled.  This alias option is being used to simplify the hasFlag logic.
@@ -8521,6 +8537,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
           << Str << TC.getTripleString();
     CmdArgs.push_back(Args.MakeArgString(Str));
   }
+
+  // Add the Kitsune args just before adding the source files to the generated
+  // command line. This is mainly to reduce the likelihood of the hip tapir
+  // target accidentally missing an argument since it "recreates" the command
+  // line (see clang/lib/Driver/ToolChain.cpp for details).
+  addKitsuneArgs(D, TC, Args, CmdArgs);
 
   // Add the "-o out -x type src.c" flags last. This is done primarily to make
   // the -cc1 command easier to edit when reproducing compiler crashes.

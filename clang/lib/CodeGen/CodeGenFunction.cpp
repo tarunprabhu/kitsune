@@ -364,6 +364,8 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
          "mismatched push/pop of cleanups in EHStack!");
   assert(DeferredDeactivationCleanupStack.empty() &&
          "mismatched activate/deactivate of cleanups!");
+  assert(!CurDetachScope &&
+         "mismatched push/pop in detach-scope stack!");
 
   if (CGM.shouldEmitConvergenceTokens()) {
     ConvergenceTokenStack.pop_back();
@@ -559,6 +561,11 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
       RetAlloca->eraseFromParent();
       ReturnValue = Address::invalid();
     }
+  }
+
+  if (CurSyncRegion) {
+    PopSyncRegion();
+    assert(!CurSyncRegion && "Nested sync regions at end of function.");
   }
 }
 

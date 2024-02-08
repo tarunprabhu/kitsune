@@ -62,11 +62,14 @@ MODULE_PASS("attributor-light", AttributorLightPass())
 MODULE_PASS("called-value-propagation", CalledValuePropagationPass())
 MODULE_PASS("canonicalize-aliases", CanonicalizeAliasesPass())
 MODULE_PASS("check-debugify", NewPMCheckDebugifyPass())
+MODULE_PASS("cilksan", CilkSanitizerPass())
 MODULE_PASS("constmerge", ConstantMergePass())
 MODULE_PASS("coro-cleanup", CoroCleanupPass())
 MODULE_PASS("coro-early", CoroEarlyPass())
 MODULE_PASS("lower-comment-string", LowerCommentStringPass())
 MODULE_PASS("cross-dso-cfi", CrossDSOCFIPass())
+MODULE_PASS("csi", ComprehensiveStaticInstrumentationPass())
+MODULE_PASS("csi-setup", CSISetupPass())
 MODULE_PASS("ctx-instr-gen",
             PGOInstrumentationGen(PGOInstrumentationType::CTXPROF))
 MODULE_PASS("ctx-prof-flatten",
@@ -109,6 +112,7 @@ MODULE_PASS("invalidate<all>", InvalidateAllAnalysesPass())
 MODULE_PASS("instrumentor", InstrumentorPass())
 MODULE_PASS("iroutliner", IROutlinerPass())
 MODULE_PASS("jmc-instrumenter", JMCInstrumenterPass())
+MODULE_PASS("loop-spawning", LoopSpawningPass())
 MODULE_PASS("lower-emutls", LowerEmuTLSPass())
 MODULE_PASS("lower-global-dtors", LowerGlobalDtorsPass())
 MODULE_PASS("lower-ifunc", LowerIFuncPass())
@@ -182,6 +186,7 @@ MODULE_PASS("strip-debug-declare", StripDebugDeclarePass())
 MODULE_PASS("strip-nondebug", StripNonDebugSymbolsPass())
 MODULE_PASS("strip-nonlinetable-debuginfo", StripNonLineTableDebugInfoPass())
 MODULE_PASS("strip-dead-cg-profile", StripDeadCGProfilePass())
+MODULE_PASS("tapir2target", TapirToTargetPass())
 MODULE_PASS("trigger-crash-module", TriggerCrashModulePass())
 MODULE_PASS("trigger-verifier-error", TriggerVerifierErrorPass())
 MODULE_PASS("tsan-module", ModuleThreadSanitizerPass())
@@ -189,6 +194,24 @@ MODULE_PASS("tysan", TypeSanitizerPass())
 MODULE_PASS("verify", VerifierPass())
 MODULE_PASS("view-callgraph", CallGraphViewerPass())
 MODULE_PASS("wholeprogramdevirt", WholeProgramDevirtPass())
+
+// Kitsune-specific passes. Keep these separate from the rest because it makes
+// merges a bit easier at times.
+MODULE_PASS("emb-link-libdevice-bitcode", EmbLinkLibDeviceBitcodePass())
+MODULE_PASS("emb-lower-intrinsics", EmbLowerKitIntrinsicsPass())
+MODULE_PASS("emb-lower-intrinsics-early", EmbLowerKitIntrinsicsEarlyPass())
+MODULE_PASS("emb-optimize", EmbOptimizePass())
+MODULE_PASS("emb-prepare", EmbPreparePass())
+MODULE_PASS("emb-resolve-libdevice-calls", EmbResolveLibDeviceCallsPass())
+MODULE_PASS("kit-cgfb", CodeGenFatBinariesPass())
+MODULE_PASS("kit-ctors", GenerateCtorsPass())
+MODULE_PASS("kit-kernel-properties", RecomputeKernelPropertiesPass())
+MODULE_PASS("kit-prefetch", PrefetchForDevicePass())
+MODULE_PASS("kit-strip-addrspaces", StripKitAddrSpacesPass())
+MODULE_PASS("kit-verify-early", EarlyVerificationPass(/*exitIfError=*/true))
+MODULE_PASS("kit-verify-prelower",
+            PreLowerVerificationPass(/*exitIfError=*/true))
+
 #undef MODULE_PASS
 
 #ifndef MODULE_PASS_WITH_PARAMS
@@ -317,6 +340,30 @@ MODULE_PASS_WITH_PARAMS(
 
 #undef MODULE_PASS_WITH_PARAMS
 
+#ifndef TAPIR_PIPELINE_PASS
+#define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)
+#endif
+TAPIR_PIPELINE_PASS(
+    "tapir-lowering", "", [&](OptimizationLevel L) {
+      setupOptionsForPipelineAlias(PTO, L);
+      return buildTapirLoweringPipeline(L, ThinOrFullLTOPhase::None);
+    },
+    parseOptLevelParam, "O0;O1;O2;O3;Os")
+TAPIR_PIPELINE_PASS(
+    "tapir-lowering-loops", "", [&](OptimizationLevel L) {
+      setupOptionsForPipelineAlias(PTO, L);
+      return buildTapirLoopLoweringPipeline(L, ThinOrFullLTOPhase::None);
+    },
+    parseOptLevelParam, "O0;O1;O2;O3;Os")
+TAPIR_PIPELINE_PASS(
+    "kit-lowering", "", [&](OptimizationLevel L) {
+      setupOptionsForPipelineAlias(PTO, L);
+      return buildKitsuneLoweringPipeline(L, ThinOrFullLTOPhase::None);
+    },
+    parseOptLevelParam, "O0;O1;O2;O3;Os")
+
+#undef TAPIR_PIPELINE_PASS
+
 #ifndef CGSCC_ANALYSIS
 #define CGSCC_ANALYSIS(NAME, CREATE_PASS)
 #endif
@@ -386,6 +433,7 @@ FUNCTION_ANALYSIS("opt-remark-emit", OptimizationRemarkEmitterAnalysis())
 FUNCTION_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
 FUNCTION_ANALYSIS("phi-values", PhiValuesAnalysis())
 FUNCTION_ANALYSIS("postdomtree", PostDominatorTreeAnalysis())
+FUNCTION_ANALYSIS("race-detect", TapirRaceDetect())
 FUNCTION_ANALYSIS("regions", RegionInfoAnalysis())
 FUNCTION_ANALYSIS("scalar-evolution", ScalarEvolutionAnalysis())
 FUNCTION_ANALYSIS("should-not-run-function-passes",
@@ -397,6 +445,7 @@ FUNCTION_ANALYSIS("stack-safety-local", StackSafetyAnalysis())
 FUNCTION_ANALYSIS("target-ir",
                   TM ? TM->getTargetIRAnalysis() : TargetIRAnalysis())
 FUNCTION_ANALYSIS("target-lib-info", TargetLibraryAnalysis())
+FUNCTION_ANALYSIS("tasks", TaskAnalysis())
 FUNCTION_ANALYSIS("uniformity", UniformityInfoAnalysis())
 FUNCTION_ANALYSIS("verify", VerifierAnalysis())
 
@@ -409,6 +458,7 @@ FUNCTION_ALIAS_ANALYSIS("objc-arc-aa", objcarc::ObjCARCAA())
 FUNCTION_ALIAS_ANALYSIS("scev-aa", SCEVAA())
 FUNCTION_ALIAS_ANALYSIS("scoped-noalias-aa", ScopedNoAliasAA())
 FUNCTION_ALIAS_ANALYSIS("tbaa", TypeBasedAA())
+FUNCTION_ALIAS_ANALYSIS("drf-aa", DRFAA())
 #undef FUNCTION_ALIAS_ANALYSIS
 #undef FUNCTION_ANALYSIS
 
@@ -446,6 +496,7 @@ FUNCTION_PASS("dot-dom", DomPrinter())
 FUNCTION_PASS("dot-dom-only", DomOnlyPrinter())
 FUNCTION_PASS("dot-post-dom", PostDomPrinter())
 FUNCTION_PASS("dot-post-dom-only", PostDomOnlyPrinter())
+FUNCTION_PASS("drf-scoped-noalias", DRFScopedNoAliasPass())
 FUNCTION_PASS("dse", DSEPass())
 FUNCTION_PASS("dwarf-eh-prepare", DwarfEHPreparePass(*TM))
 FUNCTION_PASS("expand-memcmp", ExpandMemCmpPass())
@@ -485,6 +536,7 @@ FUNCTION_PASS("loop-fusion", LoopFusePass())
 FUNCTION_PASS("loop-load-elim", LoopLoadEliminationPass())
 FUNCTION_PASS("loop-simplify", LoopSimplifyPass())
 FUNCTION_PASS("loop-sink", LoopSinkPass())
+FUNCTION_PASS("loop-stripmine", LoopStripMinePass())
 FUNCTION_PASS("loop-versioning", LoopVersioningPass())
 FUNCTION_PASS("lower-atomic", LowerAtomicPass())
 FUNCTION_PASS("lower-constant-intrinsics", LowerConstantIntrinsicsPass())
@@ -534,10 +586,12 @@ FUNCTION_PASS("print<loop-cache-cost>", LoopCachePrinterPass(errs()))
 FUNCTION_PASS("print<memoryssa-walker>", MemorySSAWalkerPrinterPass(errs()))
 FUNCTION_PASS("print<phi-values>", PhiValuesPrinterPass(errs()))
 FUNCTION_PASS("print<postdomtree>", PostDominatorTreePrinterPass(errs()))
+FUNCTION_PASS("print<race-detect>", TapirRaceDetectPrinterPass(errs()))
 FUNCTION_PASS("print<regions>", RegionInfoPrinterPass(errs()))
 FUNCTION_PASS("print<scalar-evolution>", ScalarEvolutionPrinterPass(errs()))
 FUNCTION_PASS("print<scev-division>", SCEVDivisionPrinterPass(errs()))
 FUNCTION_PASS("print<stack-safety-local>", StackSafetyPrinterPass(errs()))
+FUNCTION_PASS("print<tasks>", TaskPrinterPass(errs()))
 FUNCTION_PASS("print<uniformity>", UniformityInfoPrinterPass(errs()))
 FUNCTION_PASS("prof-inject", ProfileInjectorPass())
 FUNCTION_PASS("reassociate", ReassociatePass())
@@ -551,6 +605,7 @@ FUNCTION_PASS("sccp", SCCPPass())
 FUNCTION_PASS("select-optimize", SelectOptimizePass(*TM))
 FUNCTION_PASS("separate-const-offset-from-gep",
               SeparateConstOffsetFromGEPPass())
+FUNCTION_PASS("serialize-small-tasks", SerializeSmallTasksPass())
 FUNCTION_PASS("sink", SinkingPass())
 FUNCTION_PASS("sjlj-eh-prepare", SjLjEHPreparePass(TM))
 FUNCTION_PASS("slp-vectorizer", SLPVectorizerPass())
@@ -559,6 +614,8 @@ FUNCTION_PASS("stack-protector", StackProtectorPass(*TM))
 FUNCTION_PASS("strip-convergence-intrinsics", StripConvergenceIntrinsicsPass())
 FUNCTION_PASS("strip-gc-relocates", StripGCRelocates())
 FUNCTION_PASS("tailcallelim", TailCallElimPass())
+FUNCTION_PASS("task-canonicalize", TaskCanonicalizePass())
+FUNCTION_PASS("task-simplify", TaskSimplifyPass())
 FUNCTION_PASS("transform-warning", WarnMissedTransformationsPass())
 FUNCTION_PASS("trigger-crash-function", TriggerCrashFunctionPass())
 FUNCTION_PASS("trigger-verifier-error", TriggerVerifierErrorPass())
@@ -582,6 +639,17 @@ FUNCTION_PASS("view-dom-only", DomOnlyViewer())
 FUNCTION_PASS("view-post-dom", PostDomViewer())
 FUNCTION_PASS("view-post-dom-only", PostDomOnlyViewer())
 FUNCTION_PASS("wasm-eh-prepare", WasmEHPreparePass())
+
+// Kitsune-specific function passes. Keep these separate from the rest because
+// it makes merges a bit easier at times.
+FUNCTION_PASS("kit-annotate-early", EarlyAnnotatePass())
+FUNCTION_PASS("kit-annotate-prelower", PreLowerAnnotatePass())
+FUNCTION_PASS("kit-delicm", DeLICMPass())
+FUNCTION_PASS("kit-lower-intrinsics", LowerKitIntrinsicsPass())
+FUNCTION_PASS("kit-lower-reduce-intrinsics", LowerKitReduceIntrinsicsPass())
+FUNCTION_PASS("kit-prepare", PrepareTapirLoopsPass())
+FUNCTION_PASS("kit-serialize", SerializePass())
+
 #undef FUNCTION_PASS
 
 #ifndef FUNCTION_PASS_WITH_PARAMS
@@ -806,6 +874,12 @@ LOOP_PASS("print<ddg>", DDGAnalysisPrinterPass(errs()))
 LOOP_PASS("print<hash-recognize>", HashRecognizePrinterPass(errs()))
 LOOP_PASS("print<iv-users>", IVUsersPrinterPass(errs()))
 LOOP_PASS("print<loopnest>", LoopNestPrinterPass(errs()))
+LOOP_PASS("tapir-indvars",
+          IndVarSimplifyPass(/*WidenIndVars=*/true, /*TapirLoopsOnly=*/true))
+
+LOOP_PASS("kit-loop-ctrl", NormalizeLoopControlBlocksPass())
+LOOP_PASS("kit-ive", SecondaryIVEliminationPass())
+
 #undef LOOP_PASS
 
 #ifndef LOOP_PASS_WITH_PARAMS

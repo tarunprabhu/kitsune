@@ -13,6 +13,7 @@
 #ifndef LLVM_CLANG_FRONTEND_ASTUNIT_H
 #define LLVM_CLANG_FRONTEND_ASTUNIT_H
 
+#include "kitsune/Core/KitOptions.h"
 #include "clang-c/Index.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/Diagnostic.h"
@@ -91,6 +92,7 @@ enum class CaptureDiagsKind { None, All, AllWithoutNonErrorsFromIncludes };
 
 /// Utility class for loading a ASTContext from an AST file.
 class ASTUnit {
+  std::shared_ptr<llvm::driver::KitOptions> KitOpts;
   std::unique_ptr<LangOptions> LangOpts;
   std::unique_ptr<CodeGenOptions> CodeGenOpts;
   // FIXME: The documentation on \c LoadFrom* member functions states that the
@@ -473,6 +475,11 @@ public:
     return *TheSema;
   }
 
+  const llvm::driver::KitOptions &getKitOpts() const {
+    assert(KitOpts && "ASTUnit does not have Kitsune options");
+    return *KitOpts;
+  }
+
   const LangOptions &getLangOpts() const {
     assert(LangOpts && "ASTUnit does not have language options");
     return *LangOpts;
@@ -733,6 +740,7 @@ public:
       IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
       const FileSystemOptions &FileSystemOpts,
       const HeaderSearchOptions &HSOpts, const LangOptions *LangOpts = nullptr,
+      const llvm::driver::KitOptions *KitOpts = nullptr,
       bool OnlyLocalDecls = false,
       CaptureDiagsKind CaptureDiagnostics = CaptureDiagsKind::None,
       bool AllowASTWithCompilerErrors = false,

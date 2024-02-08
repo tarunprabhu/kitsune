@@ -8,12 +8,15 @@
 
 #include "Darwin.h"
 #include "Arch/ARM.h"
+#include "kitsune/Clang/KitDriverUtils.h"
 #include "clang/Basic/AlignedAllocation.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Config/config.h"
 #include "clang/Driver/CommonArgs.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
+#include "clang/Driver/DriverDiagnostic.h"
+#include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Options/Options.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -786,6 +789,12 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
         llvm::get_threadpool_strategy(Parallelism)->compute_thread_count();
     CmdArgs.push_back(Args.MakeArgString("-threads=" + Twine(NumThreads)));
   }
+
+  // Add the Kitsune-specific options just before linking the C++ standard
+  // library (if needed).
+  if (D.isUsingLTO())
+    getToolChain().AddKitsuneLTOArgs(Args, CmdArgs);
+  getToolChain().AddKitsuneLinkerArgs(Args, CmdArgs);
 
   if (getToolChain().ShouldLinkCXXStdlib(Args))
     getToolChain().AddCXXStdlibLibArgs(Args, CmdArgs);
@@ -4084,4 +4093,39 @@ Darwin::getSupportedSanitizers(BoundArch BA,
 void AppleMachO::printVerboseInfo(raw_ostream &OS) const {
   CudaInstallation->print(OS);
   RocmInstallation->print(OS);
+}
+
+std::optional<std::string>
+DarwinClang::getOpenCilkRuntimePath(const ArgList &Args) const {
+  SmallString<128> P(getDriver().KitResourceDir);
+  llvm::sys::path::append(P, "lib",  "darwin");
+  return std::string(P);
+}
+
+std::string DarwinClang::getOpenCilkBCFileName(const ArgList &Args) const {
+  return Twine("opencilk-abi_" + getOSLibraryNameSuffix()).str();
+}
+
+std::string DarwinClang::getOpenCilkRuntimeBaseName(const ArgList &Args,
+                                                    FileType FT) const {
+  SmallString<32> Runtime("opencilk_");
+  Runtime += getOSLibraryNameSuffix();
+  if (FT == ToolChain::FT_Shared)
+    Runtime += "_dynamic";
+  return Runtime.c_str();
+}
+
+std::string DarwinClang::getOpenCilkPersonalityBaseName(const ArgList &Args,
+                                                        FileType FT) const {
+  const Driver &D = getDriver();
+  SmallString<32> Personality;
+  if (D.CCCIsCXX())
+    Personality += "opencilk-personality-cpp";
+  else
+    Personality += "opencilk-personality-c";
+  Personality += "_";
+  Personality += getOSLibraryNameSuffix();
+  if (FT == ToolChain::FT_Shared)
+    Personality += "_dynamic";
+  return Personality.c_str();
 }

@@ -29,6 +29,9 @@
 #include "flang/Support/default-kinds.h"
 #include "flang/Tools/CrossToolHelpers.h"
 
+#include "kitsune/Core/TTOptions.h"
+#include "kitsune/Passes/PipelineUtils.h"
+#include "kitsune/Support/OptznLevelUtils.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
@@ -603,6 +606,35 @@ mapToLevel(const Fortran::frontend::CodeGenOptions &opts) {
   }
 }
 
+/// Get the llvm::FPOpFusionMode for a given FPContractMode.
+static llvm::FPOpFusion::FPOpFusionMode
+getFPOpFusionMode(Fortran::common::LangOptions::FPModeKind fpContractMode) {
+  switch (fpContractMode) {
+  case Fortran::common::LangOptions::FPM_Off:
+    // Using FPOpFusion::Standard preserves any contract performed in the
+    // frontend. Setting this to strict will result in the backend splitting any
+    // muladd intrinsics.
+    return llvm::FPOpFusion::Standard;
+  case Fortran::common::LangOptions::FPM_Fast:
+    return llvm::FPOpFusion::Fast;
+  }
+  llvm_unreachable("getFPOpFusionMode: Unexpected FP contract mode");
+}
+
+static std::optional<llvm::TTOptions> getTTOptions(CompilerInstance &ci) {
+  CompilerInvocation &invoc = ci.getInvocation();
+  const llvm::driver::KitOptions &kitOpts = invoc.getKitOpts();
+  const Fortran::common::LangOptions &langOpts = invoc.getLangOpts();
+  const CodeGenOptions &opts = invoc.getCodeGenOpts();
+  llvm::OptimizationLevel level = mapToLevel(opts);
+  llvm::OptznLevel optznLevel =
+      llvm::createOptznLevelFrom(level.getSpeedupLevel(), level.getSizeLevel());
+  llvm::FPOpFusion::FPOpFusionMode fpFusion =
+      getFPOpFusionMode(langOpts.getFPContractMode());
+
+  return llvm::TTOptions::create(kitOpts, optznLevel, fpFusion);
+}
+
 // Lower using HLFIR then run the FIR to HLFIR pipeline
 void CodeGenAction::lowerHLFIRToFIR() {
   assert(mlirModule && "The MLIR module has not been generated yet.");
@@ -879,6 +911,7 @@ getOutputStream(CompilerInstance &ci, llvm::StringRef inFile,
 /// Generate target-specific machine-code or assembly file from the input LLVM
 /// module.
 ///
+/// \param [in] The compiler instance, used to compute the TapirTargetOptions
 /// \param [in] diags Diagnostics engine for reporting errors
 /// \param [in] tm Target machine to aid the code-gen pipeline set-up
 /// \param [in] act Backend act to run (assembly vs machine-code generation)
@@ -928,6 +961,7 @@ static void generateMachineCodeOrAssemblyImpl(
       return;
     }
   }
+  llvm::populateKitCodeGenPasses(codeGenPasses, getTapirTargetOptions(ci));
   if (tm.addPassesToEmitFile(codeGenPasses, os, dwoOS ? &dwoOS->os() : nullptr,
                              cgft)) {
     unsigned diagID =
@@ -949,6 +983,7 @@ static void generateMachineCodeOrAssemblyImpl(
 
 void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   CompilerInstance &ci = getInstance();
+  const llvm::driver::KitOptions &kitOpts = ci.getInvocation().getKitOpts();
   const CodeGenOptions &opts = ci.getInvocation().getCodeGenOpts();
   llvm::OptimizationLevel level = mapToLevel(opts);
 
@@ -1015,6 +1050,8 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   pto.LoopInterleaving = opts.UnrollLoops;
   pto.LoopVectorization = opts.VectorizeLoop;
   pto.SLPVectorization = opts.VectorizeSLP;
+  pto.LoopStripmine = kitOpts.getStripmineLoops();
+  pto.TTOpts = getTTOptions(ci);
 
   llvm::PassBuilder pb(targetMachine, pto, pgoOpt, &pic);
 

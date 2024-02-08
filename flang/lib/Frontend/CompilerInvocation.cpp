@@ -21,6 +21,7 @@
 #include "flang/Support/Version.h"
 #include "flang/Tools/TargetSetup.h"
 #include "flang/Version.inc"
+#include "kitsune/Clang/KitDriverUtils.h"
 #include "clang/Basic/DiagnosticDriver.h"
 #include "clang/Basic/DiagnosticFrontend.h"
 #include "clang/Basic/DiagnosticOptions.h"
@@ -28,6 +29,9 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Options/OptionUtils.h"
 #include "clang/Options/Options.h"
+#include "clang/Driver/DriverDiagnostic.h"
+#include "clang/Driver/OptionUtils.h"
+#include "clang/Driver/Options.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -1623,6 +1627,18 @@ static void addDiagnosticArgs(llvm::opt::ArgList &args,
   }
 }
 
+static bool parseKitsuneArgs(CompilerInvocation &invoc, const char *argv0,
+                             const llvm::opt::ArgList &args,
+                             const llvm::opt::OptTable &opts,
+                             clang::DiagnosticsEngine &diags) {
+  bool success = true;
+
+  llvm::driver::KitOptions &kitOpts = invoc.getKitOpts();
+  success &= clang::driver::parseKitsuneArgs(kitOpts, argv0, args, opts, diags);
+
+  return success;
+}
+
 bool CompilerInvocation::createFromArgs(
     CompilerInvocation &invoc, llvm::ArrayRef<const char *> commandLineArgs,
     clang::DiagnosticsEngine &diags, const char *argv0) {
@@ -1725,6 +1741,11 @@ bool CompilerInvocation::createFromArgs(
     invoc.loweringOpts.setFPMaxminBehavior(value);
   }
 
+  // Kitsune-specific options should be parsed as early as possible because they
+  // affect how the other options are initialized. For instance, if a kitsune
+  // frontend is being used, the default fp-contract value is different from
+  // that of clang's.
+  success &= parseKitsuneArgs(invoc, argv0, args, opts, diags);
   success &= parseFrontendArgs(invoc.getFrontendOpts(), args, diags);
   parseTargetArgs(invoc.getTargetOpts(), args);
   parsePreprocessorArgs(invoc.getPreprocessorOpts(), args);

@@ -14,6 +14,7 @@
 #include "clang/AST/ExprCXX.h"
 
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/StmtKitsune.h"
 
 using namespace clang;
 
@@ -287,4 +288,46 @@ SourceLocation CXXExpansionStmtInstantiation::getBeginLoc() const {
 
 SourceLocation CXXExpansionStmtInstantiation::getEndLoc() const {
   return Parent->getExpansionPattern()->getEndLoc();
+}
+
+CXXForallRangeStmt::CXXForallRangeStmt(Stmt *Init, DeclStmt *Range,
+                                       DeclStmt *BeginStmt, DeclStmt *EndStmt,
+                                       DeclStmt *IndexStmt,
+                                       DeclStmt *IndexEndStmt, Expr *Cond,
+                                       Expr *Inc, DeclStmt *LoopVar, Stmt *Body,
+                                       SourceLocation FL, SourceLocation CAL,
+                                       SourceLocation CL, SourceLocation RPL)
+    : Stmt(CXXForallRangeStmtClass), ForLoc(FL), CoawaitLoc(CAL), ColonLoc(CL),
+      RParenLoc(RPL) {
+  SubExprs[INIT] = Init;
+  SubExprs[RANGE] = Range;
+  SubExprs[BEGINSTMT] = BeginStmt;
+  SubExprs[ENDSTMT] = EndStmt;
+  SubExprs[INDEXSTMT] = IndexStmt;
+  SubExprs[INDEXENDSTMT] = IndexEndStmt;
+  SubExprs[COND] = Cond;
+  SubExprs[INC] = Inc;
+  SubExprs[LOOPVAR] = LoopVar;
+  SubExprs[BODY] = Body;
+}
+
+Expr *CXXForallRangeStmt::getRangeInit() {
+  DeclStmt *RangeStmt = getRangeStmt();
+  VarDecl *RangeDecl = dyn_cast_or_null<VarDecl>(RangeStmt->getSingleDecl());
+  assert(RangeDecl && "for-range should have a single var decl");
+  return RangeDecl->getInit();
+}
+
+const Expr *CXXForallRangeStmt::getRangeInit() const {
+  return const_cast<CXXForallRangeStmt *>(this)->getRangeInit();
+}
+
+VarDecl *CXXForallRangeStmt::getLoopVariable() {
+  Decl *LV = cast<DeclStmt>(getLoopVarStmt())->getSingleDecl();
+  assert(LV && "No loop variable in CXXForallRangeStmt");
+  return cast<VarDecl>(LV);
+}
+
+const VarDecl *CXXForallRangeStmt::getLoopVariable() const {
+  return const_cast<CXXForallRangeStmt *>(this)->getLoopVariable();
 }

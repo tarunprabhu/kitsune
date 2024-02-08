@@ -74,7 +74,9 @@ public:
 
   LLVM_ABI bool tailDuplicateBlocks();
   LLVM_ABI static bool isSimpleBB(MachineBasicBlock *TailBB);
-  LLVM_ABI bool shouldTailDuplicate(bool IsSimple, MachineBasicBlock &TailBB);
+  LLVM_ABI BlockDesc getBlockDesc(MachineBasicBlock *TailBB);
+  LLVM_ABI bool shouldTailDuplicate(BlockDesc const &Desc, 
+                                    MachineBasicBlock &TailBB);
 
   /// Returns true if TailBB can successfully be duplicated into PredBB
   LLVM_ABI bool canTailDuplicate(MachineBasicBlock *TailBB,
@@ -88,7 +90,7 @@ public:
   /// deleted.
   /// If \p CandidatePtr is not null, duplicate into these blocks only.
   LLVM_ABI bool tailDuplicateAndUpdate(
-      bool IsSimple, MachineBasicBlock *MBB,
+      const BlockDesc &Desc, MachineBasicBlock *MBB,
       MachineBasicBlock *ForcedLayoutPred,
       SmallVectorImpl<MachineBasicBlock *> *DuplicatedPreds = nullptr,
       function_ref<void(MachineBasicBlock *)> *RemovalCallback = nullptr,
@@ -115,7 +117,7 @@ private:
   bool duplicateSimpleBB(MachineBasicBlock *TailBB,
                          SmallVectorImpl<MachineBasicBlock *> &TDBBs,
                          const DenseSet<Register> &RegsUsedByPhi);
-  bool tailDuplicate(bool IsSimple,
+  bool tailDuplicate(const BlockDesc &Desc,
                      MachineBasicBlock *TailBB,
                      MachineBasicBlock *ForcedLayoutPred,
                      SmallVectorImpl<MachineBasicBlock *> &TDBBs,

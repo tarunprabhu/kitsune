@@ -7,6 +7,11 @@ set( LLVM_LINK_COMPONENTS
   AggressiveInstCombine
   InstCombine
   Instrumentation
+  KitAnalysis
+  KitCodeGen
+  KitCore
+  KitSupport
+  KitTransforms
   MC
   MCParser
   ObjCARCOpts

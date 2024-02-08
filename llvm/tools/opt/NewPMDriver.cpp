@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "NewPMDriver.h"
+#include "kitsune/Core/TTOptions.h"
+#include "kitsune/Support/ErrorUtils.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
@@ -347,6 +349,52 @@ static void registerEPCallbacks(PassBuilder &PB) {
         });
 }
 
+static std::optional<TTOptions>
+createTTOptions(TargetMachine *TM, StringRef PassPipeline) {
+  // If no passes were provided, then don't bother with the tapir target options
+  // because the tapir passes will not have been enabled. That only happens
+  // when 'tapir-lowering' or 'kit-lowering' is present in the pass pipeline.
+  if (PassPipeline.empty())
+    return std::nullopt;
+
+  // The command line may have been provided a --tapir option in which case, we
+  // can construct a TTOptions object. However, the constructor requires an
+  // optimization level which can only be obtained by parsing the value of the
+  // --passes command line option. Doing so requires a PassBuilder object.
+  // However, the PassBuilder constructor requires a PipelineTuningOptions
+  // object in which the TTOptions has already been set. This is a bit of a
+  // chicken-and-egg problem. To get around this, we create a TTOptions object
+  // from the command line options, but with some default optimization level.
+  // Then, we construct a PassBuilder object and parse the pipeline. During that
+  // process, if either the "tapir-lowering" or "kit-lowering" meta passes is
+  // found in the --passes option, the optimization level in the TTOptions
+  // object will be updated.
+  //
+  // However, we cannot use the main PassBuilder object - if the TTOptions are
+  // not set before constructing the PassBuilder, some immutable passes (which
+  // we do use in Kitsune) may not be initialized correctly. Therefore, create a
+  // temporary PassBuilder, just to parse the pass pipeline.
+  PipelineTuningOptions PTO;
+  PTO.TTOpts = TTOptions::createFromCommandLine(OptznLevel::O1);
+  PassBuilder PB(TM, PTO, /* PGOOptions */ std::nullopt,
+                 /* PassInstrumentationCallback*/ nullptr);
+
+  // We don't care about setting up the analysis passes and, for now at least,
+  // it doesn't cause us any problems when we parse the pass pipeline.
+  ModulePassManager MPM;
+
+  // If an error occurred while parsing the pipeline, silently return. The
+  // actual error will be shown when the main pass builder is constructed.
+  // However, we do need to pretend to handle the error here to keep LLVM happy.
+  if (Error Err = PB.parsePassPipeline(MPM, PassPipeline))
+    ignoreAllErrors(std::move(Err));
+
+  // If the pipeline was parsed successfully, the TTOptions object owned by the
+  // pass builder (if any) will have been updated with the optimization. Just
+  // return a clone of that.
+  return PB.getTTOptions();
+}
+
 #define HANDLE_EXTENSION(Ext)                                                  \
   llvm::PassPluginLibraryInfo get##Ext##PluginInfo();
 #include "llvm/Support/Extension.def"
@@ -458,6 +506,7 @@ bool llvm::runPassPipeline(
   PTO.LoopUnrolling = !DisableLoopUnrolling;
   PTO.UnifiedLTO = UnifiedLTO;
   PTO.LoopFusion = EnableLoopFusion;
+  PTO.TTOpts = createTTOptions(TM, PassPipeline);
   PassBuilder PB(TM, PTO, P, &PIC);
   registerEPCallbacks(PB);
 

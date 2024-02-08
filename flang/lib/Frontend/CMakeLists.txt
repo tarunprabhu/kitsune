@@ -60,7 +60,12 @@ add_flang_library(flangFrontend
   Extensions
   IRPrinter
   IRReader
+  KitAnalysis
+  KitCodeGen
+  KitCore
+  KitSupport
   Option
+  Passes
   Support
   Target
   TargetParser

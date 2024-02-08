@@ -29,6 +29,7 @@ add_llvm_component_library(LLVMLTO
   IPO
   InstCombine
   Instrumentation
+  KitPasses
   Linker
   MC
   ObjCARC

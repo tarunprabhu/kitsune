@@ -1,0 +1,13 @@
+; Check that the relocation model in the target machine is set correctly when
+; generating the fat binary.
+;
+; Currently, this always uses PIC as the relocation model. If that is ever made
+; configurable, or if the model in the target machine is derived from the
+; TTOptions, this should be changed.
+;
+; RUN: %kit-enc --tapir=cuda %s \
+; RUN:     | opt --tapir=cuda -passes='kit-cgfb' -disable-output \
+; RUN:           -cgfb-debug-target-machine 2>&1 \
+; RUN:     | FileCheck %s
+;
+; CHECK: Relocation model: pic

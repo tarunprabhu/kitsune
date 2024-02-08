@@ -115,6 +115,7 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::DeferStmtClass:
   case Stmt::SEHLeaveStmtClass:
   case Stmt::SYCLKernelCallStmtClass:
+  case Stmt::SyncStmtClass:
     llvm_unreachable("should have emitted these statements as simple");
 
 #define STMT(Type, Base)
@@ -207,6 +208,8 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     llvm_unreachable("unexpanded expansion statements should not be emitted");
   case Stmt::CXXExpansionStmtInstantiationClass:
     EmitCXXExpansionStmtInstantiation(cast<CXXExpansionStmtInstantiation>(*S));
+  case Stmt::CXXForallRangeStmtClass:
+    EmitCXXForallRangeStmt(cast<CXXForallRangeStmt>(*S), Attrs);
     break;
   case Stmt::SEHTryStmtClass:
     EmitSEHTryStmt(cast<SEHTryStmt>(*S));
@@ -509,6 +512,15 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::OpenACCCacheConstructClass:
     EmitOpenACCCacheConstruct(cast<OpenACCCacheConstruct>(*S));
     break;
+  case Stmt::CXXForallRangeStmtClass:
+    EmitCXXForallRangeStmt(cast<CXXForallRangeStmt>(*S), Attrs);
+    break;
+  case Stmt::ForallStmtClass:
+    EmitForallStmt(cast<ForallStmt>(*S), Attrs);
+    break;
+  case Stmt::SpawnStmtClass:
+    EmitSpawnStmt(cast<SpawnStmt>(*S));
+    break;
   }
 }
 
@@ -555,6 +567,9 @@ bool CodeGenFunction::EmitSimpleStmt(const Stmt *S,
   case Stmt::SYCLKernelCallStmtClass:
     EmitSYCLKernelCallStmt(cast<SYCLKernelCallStmt>(*S));
     break;
+  case Stmt::SyncStmtClass:
+    EmitSyncStmt(cast<SyncStmt>(*S));
+    break;
   }
   return true;
 }
@@ -570,6 +585,7 @@ Address CodeGenFunction::EmitCompoundStmt(const CompoundStmt &S, bool GetLast,
   // Keep track of the current cleanup stack depth, including debug scopes.
   LexicalScope Scope(*this, S.getSourceRange());
 
+  SyncRegionRAII StmtSR(*this);
   return EmitCompoundStmtWithoutScope(S, GetLast, AggSlot);
 }
 
@@ -787,6 +803,7 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
       HLSLControlFlowHintAttr::SpellingNotCalculated;
   const CallExpr *musttail = nullptr;
   const AtomicAttr *AA = nullptr;
+  SmallVector<const Attr *, 2> kitAttrs;
 
   for (const auto *A : S.getAttrs()) {
     switch (A->getKind()) {
@@ -823,6 +840,15 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
     case attr::HLSLControlFlowHint: {
       flattenOrBranch = cast<HLSLControlFlowHintAttr>(A)->getSemanticSpelling();
     } break;
+    case attr::TT:
+      // We need to save the Kitsune-specific attributes when we first encounter
+      // them specifically to be able to attach them to Kokkos parallel
+      // constructs that will appear later in the process. We have to do this
+      // when the attributes are first seen because the actual construct -
+      // which is typically a CallExpr - will usually be wrapped in several
+      // layers of implicit and cleanup expressions.
+      kitAttrs.push_back(A);
+      break;
     }
   }
   SaveAndRestore save_nomerge(InNoMergeAttributedStmt, nomerge);
@@ -831,6 +857,7 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
   SaveAndRestore save_noconvergent(InNoConvergentAttributedStmt, noconvergent);
   SaveAndRestore save_musttail(MustTailCall, musttail);
   SaveAndRestore save_flattenOrBranch(HLSLControlFlowAttr, flattenOrBranch);
+  SaveAndRestore save_kitAttrs(KitAttrs, kitAttrs);
   CGAtomicOptionsRAII AORAII(CGM, AA);
   EmitStmt(S.getSubStmt(), S.getAttrs());
 }

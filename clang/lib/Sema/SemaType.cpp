@@ -38,6 +38,7 @@
 #include "clang/Sema/ScopeInfo.h"
 #include "clang/Sema/SemaCUDA.h"
 #include "clang/Sema/SemaHLSL.h"
+#include "clang/Sema/SemaKitsune.h"
 #include "clang/Sema/SemaObjC.h"
 #include "clang/Sema/SemaOpenMP.h"
 #include "clang/Sema/Template.h"
@@ -9068,6 +9069,15 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
     // otherwise, add it to the FnAttrs list for rechaining.
     switch (attr.getKind()) {
     default:
+      if (Handled<QualType> H =
+              state.getSema().Kitsune().processTypeAttribute(type, attr)) {
+        QualType newType = H.value();
+        if (newType != type)
+          type = newType;
+        attr.setUsedAsTypeAttr();
+        break;
+      }
+
       // A [[]] attribute on a declarator chunk must appertain to a type.
       if ((attr.isStandardAttributeSyntax() ||
            attr.isRegularKeywordAttribute()) &&

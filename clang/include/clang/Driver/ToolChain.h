@@ -598,6 +598,9 @@ public:
   // Returns the target specific runtime path if it exists.
   std::optional<std::string> getRuntimePath() const;
 
+  // Returns the target specific runtime path for Kitsune if it exists.
+  std::optional<std::string> getKitRuntimePath() const;
+
   // Returns target specific standard library path if it exists.
   std::optional<std::string> getStdlibPath() const;
 
@@ -925,6 +928,101 @@ public:
     normalizeOffloadTriple(TT);
     return TT;
   }
+
+private:
+  /// Add the option set to the given value to the command line. If MLLVM is
+  /// true, add -mllvm to the command line before adding the option.
+  void PushArg(llvm::opt::ArgStringList &CmdArgs,
+               const llvm::opt::ArgList &Args, bool MLLVM,
+               llvm::opt::OptSpecifier Opt, StringRef Val = "") const;
+
+  /// If the given option is present in the argument list, add the last
+  /// occurrence to the command line. If MLLVM is true, add -mllvm to the
+  /// command line before the option.
+  void PushLastArg(llvm::opt::ArgStringList &CmdArgs,
+                   const llvm::opt::ArgList &Args, bool MLLVM,
+                   llvm::opt::OptSpecifier Opt) const;
+
+public:
+  /// Add compile/LTO arguments common to the GPU tapir targets.
+  virtual void AddKitsuneGPUCommonArgs(const llvm::opt::ArgList &Args,
+                                       llvm::opt::ArgStringList &CmdArgs,
+                                       bool MLLVM = false) const;
+
+  /// Add compiler/LTO options for the cuda tapir target. If MLLVM is true, all
+  /// options will be prepended with -mllvm.
+  virtual void AddKitsuneCudaCommonArgs(const llvm::opt::ArgList &Args,
+                                        llvm::opt::ArgStringList &CmdArgs,
+                                        bool MLLVM = false) const;
+
+  /// Add compiler/LTO options for the custom tapir target. If MLLVM is true,
+  /// all options will be prepended with -mllvm. These options will be obtained
+  /// by querying the loaded TTPlugin object.
+  virtual void AddKitsuneCustomCommonArgs(const llvm::opt::ArgList &Args,
+                                           llvm::opt::ArgStringList &CmdArgs,
+                                           bool MLLVM = false) const;
+
+  /// Add linker options for the custom tapir target. These options will be
+  /// obtained by querying the loaded TTPlugin object.
+  virtual void
+  AddKitsuneCustomLinkerArgs(const llvm::opt::ArgList &Args,
+                             llvm::opt::ArgStringList &CmdArgs) const;
+
+  /// Add compiler/LTO options for the hip tapir target. If MLLVM is true, all
+  /// options will be prepended with -mllvm.
+  virtual void AddKitsuneHipCommonArgs(const llvm::opt::ArgList &Args,
+                                       llvm::opt::ArgStringList &CmdArgs,
+                                       bool MLLVM = false) const;
+
+  /// Add compiler/LTO options for the opencilk tapir target. If MLLVM is true,
+  /// all options will be prepended with -mllvm.
+  virtual void AddKitsuneOpenCilkCommonArgs(const llvm::opt::ArgList &Args,
+                                            llvm::opt::ArgStringList &CmdArgs,
+                                            bool MLLVM = false) const;
+
+  /// Add linker options for the opencilk tapir target.
+  virtual void
+  AddKitsuneOpenCilkLinkerArgs(const llvm::opt::ArgList &Args,
+                               llvm::opt::ArgStringList &CmdArgs) const;
+
+  /// Add any Kitsune-specific preprocessor arguments.
+  virtual void
+  AddKitsunePreprocessorArgs(const llvm::opt::ArgList &Args,
+                             llvm::opt::ArgStringList &CmdArgs) const;
+
+  /// Add Kitsune-specific compiler arguments.
+  virtual void AddKitsuneCompilerArgs(const llvm::opt::ArgList &Ags,
+                                      llvm::opt::ArgStringList &CmdArgs) const;
+
+  /// Add Kitsune-specific arguments linker arguments.
+  virtual void AddKitsuneLinkerArgs(const llvm::opt::ArgList &Args,
+                                    llvm::opt::ArgStringList &CmdArgs) const;
+
+  /// Add Kitsune-specific arguments that will be passed to the linker when
+  /// LTO is enabled.
+  virtual void AddKitsuneLTOArgs(const llvm::opt::ArgList &Args,
+                                 llvm::opt::ArgStringList &CmdArgs) const;
+
+  /// Get the OpenCilk library path if it exists.
+  virtual std::optional<std::string>
+  getOpenCilkRuntimePath(const llvm::opt::ArgList &Args) const;
+
+  /// Get the name of the bitcode file for opencilk. This is just the name of
+  /// the file, not the full path to it.
+  virtual std::string
+  getOpenCilkBCFileName(const llvm::opt::ArgList &Args) const;
+
+  /// Get the base name of the personality library for opencilk. This is
+  /// suitable for use in a -l linker option when constructing the linker
+  /// command line.
+  virtual std::string
+  getOpenCilkPersonalityBaseName(const llvm::opt::ArgList &Args,
+                                 FileType FT) const;
+
+  /// Get the name of opencilk's runtime library. is suitable for use in a -l
+  /// linker option when constructing the linker command line.
+  virtual std::string getOpenCilkRuntimeBaseName(const llvm::opt::ArgList &Args,
+                                                 FileType FT) const;
 };
 
 /// Set a ToolChain's effective triple. Reset it when the registration object

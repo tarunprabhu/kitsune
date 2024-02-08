@@ -18,6 +18,7 @@
 #include "CGOpenCLRuntime.h"
 #include "CGRecordLayout.h"
 #include "TargetInfo.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
@@ -623,6 +624,17 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
       break;
     }
     unsigned AS = getTargetAddressSpace(ETy);
+    if (T->isMobilePointerType()) {
+      // Since pointers in LLVM are untyped, there is no way for us to determine
+      // whether one points to data that could be moved between distinct memory
+      // spaces (typically between host memory and GPU memory). This may be
+      // possible within a function, but makes any interprocedural analysis
+      // extremely difficult. Since there is no other way to "tag" such
+      // pointers, the best we can do is to set an address space on them.
+      assert(!AS &&
+             "Pointee of mobile pointer must be in default address space");
+      AS = llvm::KitAS::Mobile;
+    }
     ResultType = llvm::PointerType::get(getLLVMContext(), AS);
     break;
   }

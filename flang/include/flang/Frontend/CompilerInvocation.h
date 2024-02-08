@@ -21,6 +21,7 @@
 #include "flang/Parser/options.h"
 #include "flang/Semantics/semantics.h"
 #include "flang/Support/LangOptions.h"
+#include "kitsune/Core/KitOptions.h"
 #include "mlir/Support/Timing.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticOptions.h"
@@ -65,6 +66,9 @@ public:
 };
 
 class CompilerInvocation : public CompilerInvocationBase {
+  /// Kitsune-specific options.
+  llvm::driver::KitOptions kitOpts;
+
   /// Options for the frontend driver
   // TODO: Merge with or translate to parserOpts_. We shouldn't need two sets of
   // options.
@@ -151,6 +155,9 @@ class CompilerInvocation : public CompilerInvocationBase {
 
 public:
   CompilerInvocation() = default;
+
+  llvm::driver::KitOptions &getKitOpts() { return kitOpts; }
+  const llvm::driver::KitOptions &getKitOpts() const { return kitOpts; }
 
   FrontendOptions &getFrontendOpts() { return frontendOpts; }
   const FrontendOptions &getFrontendOpts() const { return frontendOpts; }

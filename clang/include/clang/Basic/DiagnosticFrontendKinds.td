@@ -528,4 +528,6 @@ def err_cir_to_cir_transform_failed : Error<
 def err_cir_verification_failed_pre_passes : Error<
     "CIR module verification error before running CIR-to-CIR passes">,
     DefaultFatal;
+
+include "kitsune/Clang/FrontendDiagnostics.td"
 }

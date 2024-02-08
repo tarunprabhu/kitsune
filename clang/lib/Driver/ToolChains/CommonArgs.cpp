@@ -3633,3 +3633,9 @@ void tools::constructLLVMLinkCommand(Compilation &C, const Tool &T,
                                          LlvmLink, LlvmLinkArgs, JobInputs,
                                          Output));
 }
+
+void tools::addKitsuneArgs(const Driver &D, const ToolChain &TC,
+                           const ArgList &Args, ArgStringList &CmdArgs) {
+  TC.AddKitsunePreprocessorArgs(Args, CmdArgs);
+  TC.AddKitsuneCompilerArgs(Args, CmdArgs);
+}

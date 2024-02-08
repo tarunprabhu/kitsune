@@ -5503,3 +5503,10 @@ def Personality : InheritableAttr {
   let Subjects = SubjectList<[Function]>;
   let Documentation = [PersonalityDocs];
 }
+
+// The includes are this way because some tests in clang/test include this file,
+// but without adding Kitsune's include directory to the search path. We use
+// this workaround to avoid modifying too much in upstream llvm-project. It's
+// not pretty, but it works with all uses of this file.
+include "../../kitsune/include/kitsune/Clang/AttrDocs.td"
+include "../../kitsune/include/kitsune/Clang/Attrs.td"

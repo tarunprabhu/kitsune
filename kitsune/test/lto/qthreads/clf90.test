@@ -1,0 +1,14 @@
+# REQUIRES: kitfc
+#
+# Check that the command-line options specific to the qthreads tapir target are
+# handled correctly when compiling with -flto.
+#
+# Currently, there are no command-line options specific to the qthreads tapir
+# target, so just check that the tapir target itself is passed on to lld.
+#
+# RUN: %kitfc -### --tapir=qthreads -O2 -flto \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL
+#
+# ALL: /ld{{(64)?}}.lld"
+# ALL-SAME: "-mllvm" "--tapir=qthreads"

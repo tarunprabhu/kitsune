@@ -708,6 +708,10 @@ enum FunctionCodes {
   FUNC_CODE_DEBUG_RECORD_LABEL = 65, // [DILocation, DILabel]
   FUNC_CODE_DEBUG_RECORD_DECLARE_VALUE =
       66, // [DILocation, DILocalVariable, DIExpression, ValueAsMetadata]
+
+  FUNC_CODE_INST_DETACH = 67,     // DETACH: [bb#,bb#] or [bb#,bb#,bb#]
+  FUNC_CODE_INST_REATTACH = 68,   // REATTACH: [bb#]
+  FUNC_CODE_INST_SYNC = 69,       // SYNC: [bb#]
 };
 
 enum UseListCodes {
@@ -826,6 +830,8 @@ enum AttributeKindCodes {
   ATTR_KIND_NOOUTLINE = 107,
   ATTR_KIND_FLATTEN = 108,
   ATTR_KIND_NOIPA = 109,
+  ATTR_KIND_SANITIZE_CILK = 110,
+  ATTR_KIND_STEALABLE = 111,
 };
 
 enum ComdatSelectionKindCodes {

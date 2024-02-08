@@ -21,6 +21,10 @@ set(LLVM_LINK_COMPONENTS
   IRReader
   InstCombine
   Instrumentation
+  KitAnalysis
+  KitCodeGen
+  KitCore
+  KitSupport
   LTO
   Linker
   MC
@@ -64,6 +68,7 @@ add_clang_library(clangCodeGen
   CGAtomic.cpp
   CGBlocks.cpp
   CGBuiltin.cpp
+  CGCilk.cpp
   CGCUDANV.cpp
   CGCUDARuntime.cpp
   CGCXX.cpp
@@ -85,6 +90,10 @@ add_clang_library(clangCodeGen
   CGGPUBuiltin.cpp
   CGHLSLRuntime.cpp
   CGHLSLBuiltins.cpp
+  CGKitsune.cpp
+  CGKitAttrs.cpp
+  CGKitBuiltins.cpp
+  CGKokkos.cpp
   CGLoopInfo.cpp
   CGNonTrivialStruct.cpp
   CGObjC.cpp
@@ -170,6 +179,7 @@ add_clang_library(clangCodeGen
   DEPENDS
   vt_gen
   intrinsics_gen
+  kitsune_generated
   ClangDriverOptions
   # These generated headers are included transitively.
   target_parser_gen
@@ -180,5 +190,6 @@ add_clang_library(clangCodeGen
   clangBasic
   clangFrontend
   clangLex
+  clangKitAST
   clangSerialization
   )

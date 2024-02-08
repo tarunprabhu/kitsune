@@ -30,12 +30,8 @@ endif()
 # handled correctly.
 if (MSVC)
   set_source_files_properties(ConstantFolding.cpp PROPERTIES COMPILE_OPTIONS "/fp:except")
-  # Prevent warning about mismatching compile flags.
-  set_source_files_properties(ConstantFolding.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   set_source_files_properties(ConstantFolding.cpp PROPERTIES COMPILE_OPTIONS "-ftrapping-math")
-  # Clang's -ftrapping-math may conflict with precompiled headers too, #183643.
-  set_source_files_properties(ConstantFolding.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 endif()
 
 add_llvm_component_library(LLVMAnalysis
@@ -63,6 +59,7 @@ add_llvm_component_library(LLVMAnalysis
   ConstantFolding.cpp
   CtxProfAnalysis.cpp
   CycleAnalysis.cpp
+  DataRaceFreeAliasAnalysis.cpp
   DDG.cpp
   DDGPrinter.cpp
   ConstraintSystem.cpp
@@ -151,6 +148,8 @@ add_llvm_component_library(LLVMAnalysis
   StructuralHash.cpp
   SyntheticCountsUtils.cpp
   TFLiteUtils.cpp
+  TapirRaceDetect.cpp
+  TapirTaskInfo.cpp
   TargetLibraryInfo.cpp
   TargetTransformInfo.cpp
   TensorSpec.cpp
@@ -164,6 +163,7 @@ add_llvm_component_library(LLVMAnalysis
   ValueLatticeUtils.cpp
   ValueTracking.cpp
   VectorUtils.cpp
+  WorkSpanAnalysis.cpp
   ${GeneratedMLSources}
 
   ADDITIONAL_HEADER_DIRS
@@ -180,7 +180,6 @@ add_llvm_component_library(LLVMAnalysis
   LINK_COMPONENTS
   BinaryFormat
   Core
-  FrontendHLSL
   Object
   ProfileData
   Support

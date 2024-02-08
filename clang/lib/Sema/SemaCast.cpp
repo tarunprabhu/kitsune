@@ -25,6 +25,7 @@
 #include "clang/Sema/Initialization.h"
 #include "clang/Sema/SemaAMDGPU.h"
 #include "clang/Sema/SemaHLSL.h"
+#include "clang/Sema/SemaKitsune.h"
 #include "clang/Sema/SemaObjC.h"
 #include "clang/Sema/SemaRISCV.h"
 #include "llvm/ADT/SmallVector.h"
@@ -844,6 +845,13 @@ static TryCastResult getCastAwayConstnessCastKind(CastAwayConstnessKind CACK,
 void CastOperation::CheckDynamicCast() {
   CheckNoDerefRAII NoderefCheck(*this);
 
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/false,
+                                      OpRange.getBegin(), "dynamic_cast")) {
+    SrcExpr = ExprError();
+    return;
+  }
+
   if (ValueKind == VK_PRValue)
     SrcExpr = Self.DefaultFunctionArrayLvalueConversion(SrcExpr.get());
   else if (isPlaceholder())
@@ -1018,6 +1026,13 @@ void CastOperation::CheckDynamicCast() {
 /// legacy_function(const_cast\<char*\>(str));
 void CastOperation::CheckConstCast() {
   CheckNoDerefRAII NoderefCheck(*this);
+
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/false,
+                                      OpRange.getBegin(), "const_cast")) {
+    SrcExpr = ExprError();
+    return;
+  }
 
   if (ValueKind == VK_PRValue)
     SrcExpr = Self.DefaultFunctionArrayLvalueConversion(SrcExpr.get());
@@ -1270,6 +1285,13 @@ static unsigned int checkCastFunctionType(Sema &Self, const ExprResult &SrcExpr,
 /// like this:
 /// char *bytes = reinterpret_cast\<char*\>(int_ptr);
 void CastOperation::CheckReinterpretCast() {
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/false,
+                                      OpRange.getBegin(), "reinterpret_cast")) {
+    SrcExpr = ExprError();
+    return;
+  }
+
   if (ValueKind == VK_PRValue && !isPlaceholder(BuiltinType::Overload))
     SrcExpr = Self.DefaultFunctionArrayLvalueConversion(SrcExpr.get());
   else
@@ -1317,6 +1339,13 @@ void CastOperation::CheckReinterpretCast() {
 /// implicit conversions explicit and getting rid of data loss warnings.
 void CastOperation::CheckStaticCast() {
   CheckNoDerefRAII NoderefCheck(*this);
+
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/false,
+                                      OpRange.getBegin(), "static_cast")) {
+    SrcExpr = ExprError();
+    return;
+  }
 
   if (isPlaceholder()) {
     checkNonOverloadPlaceholders();
@@ -2763,6 +2792,13 @@ void CastOperation::CheckCXXCStyleCast(bool FunctionalStyle,
                                        bool ListInitialization) {
   assert(Self.getLangOpts().CPlusPlus);
 
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/true,
+                                      OpRange.getBegin(), "c-style cast")) {
+    SrcExpr = ExprError();
+    return;
+  }
+
   // Handle placeholders.
   if (isPlaceholder()) {
     // C-style casts can resolve __unknown_any types.
@@ -3028,6 +3064,13 @@ static void DiagnoseBadFunctionCast(Sema &Self, const ExprResult &SrcExpr,
 /// Check the semantics of a C-style cast operation, in C.
 void CastOperation::CheckCStyleCast() {
   assert(!Self.getLangOpts().CPlusPlus);
+
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/true,
+                                      OpRange.getBegin(), "c-style")) {
+    SrcExpr = ExprError();
+    return;
+  }
 
   // C-style casts can resolve __unknown_any types.
   if (claimPlaceholder(BuiltinType::UnknownAny)) {
@@ -3383,6 +3426,15 @@ void CastOperation::CheckCStyleCast() {
 }
 
 void CastOperation::CheckBuiltinBitCast() {
+  // This checks std::bit_cast. I don't see how mobile attributes could ever be
+  // used there, but we might as well check.
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/false,
+                                      OpRange.getBegin(), "std::bit_cast")) {
+    SrcExpr = ExprError();
+    return;
+  }
+
   QualType SrcType = SrcExpr.get()->getType();
 
   if (Self.RequireCompleteType(OpRange.getBegin(), DestType,

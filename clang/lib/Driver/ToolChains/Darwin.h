@@ -707,6 +707,18 @@ public:
 
   /// }
 
+  std::optional<std::string>
+  getOpenCilkRuntimePath(const llvm::opt::ArgList &Args) const override;
+
+  std::string
+  getOpenCilkBCFileName(const llvm::opt::ArgList &Args) const override;
+
+  std::string getOpenCilkPersonalityBaseName(const llvm::opt::ArgList &Args,
+                                             FileType FT) const override;
+
+  std::string getOpenCilkRuntimeBaseName(const llvm::opt::ArgList &Args,
+                                         FileType) const override;
+
 private:
   void AddLinkSanitizerLibArgs(const llvm::opt::ArgList &Args,
                                llvm::opt::ArgStringList &CmdArgs,

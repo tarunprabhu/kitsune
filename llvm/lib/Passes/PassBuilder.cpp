@@ -15,6 +15,31 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Passes/PassBuilder.h"
+#include "kitsune/Analysis/EarlyVerification.h"
+#include "kitsune/Analysis/PreLowerVerification.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
+#include "kitsune/CodeGen/CodeGenFatBinaries.h"
+#include "kitsune/CodeGen/EmbLowerKitIntrinsics.h"
+#include "kitsune/CodeGen/LowerKitIntrinsics.h"
+#include "kitsune/CodeGen/StripKitAddrSpaces.h"
+#include "kitsune/Passes/PipelineUtils.h"
+#include "kitsune/Support/OptznLevelUtils.h"
+#include "kitsune/Transforms/DeLICM.h"
+#include "kitsune/Transforms/EarlyAnnotate.h"
+#include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
+#include "kitsune/Transforms/EmbLowerKitIntrinsicsEarly.h"
+#include "kitsune/Transforms/EmbOptimize.h"
+#include "kitsune/Transforms/EmbPrepare.h"
+#include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
+#include "kitsune/Transforms/GenerateCtors.h"
+#include "kitsune/Transforms/LowerKitReduceIntrinsics.h"
+#include "kitsune/Transforms/NormalizeLoopControlBlocks.h"
+#include "kitsune/Transforms/PreLowerAnnotate.h"
+#include "kitsune/Transforms/PrefetchForDevice.h"
+#include "kitsune/Transforms/PrepareTapirLoops.h"
+#include "kitsune/Transforms/RecomputeKernelProperties.h"
+#include "kitsune/Transforms/SecondaryIVElimination.h"
+#include "kitsune/Transforms/Serialize.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/StringTable.h"
 #include "llvm/Analysis/AliasAnalysisEvaluator.h"
@@ -34,6 +59,7 @@
 #include "llvm/Analysis/DDGPrinter.h"
 #include "llvm/Analysis/DXILMetadataAnalysis.h"
 #include "llvm/Analysis/DXILResource.h"
+#include "llvm/Analysis/DataRaceFreeAliasAnalysis.h"
 #include "llvm/Analysis/Delinearization.h"
 #include "llvm/Analysis/DemandedBits.h"
 #include "llvm/Analysis/DependenceAnalysis.h"
@@ -76,6 +102,8 @@
 #include "llvm/Analysis/StackSafetyAnalysis.h"
 #include "llvm/Analysis/StaticDataProfileInfo.h"
 #include "llvm/Analysis/StructuralHash.h"
+#include "llvm/Analysis/TapirRaceDetect.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/TypeBasedAliasAnalysis.h"
@@ -87,6 +115,7 @@
 #include "llvm/CodeGen/BranchRelaxation.h"
 #include "llvm/CodeGen/BreakFalseDeps.h"
 #include "llvm/CodeGen/CFIFixup.h"
+#include "llvm/CodeGen/CodeGenFatBinaries.h"
 #include "llvm/CodeGen/CodeGenPrepare.h"
 #include "llvm/CodeGen/ComplexDeinterleavingPass.h"
 #include "llvm/CodeGen/DeadMachineInstructionElim.h"
@@ -260,6 +289,8 @@
 #include "llvm/Transforms/Instrumentation/AllocToken.h"
 #include "llvm/Transforms/Instrumentation/BoundsChecking.h"
 #include "llvm/Transforms/Instrumentation/CGProfile.h"
+#include "llvm/Transforms/Instrumentation/CilkSanitizer.h"
+#include "llvm/Transforms/Instrumentation/ComprehensiveStaticInstrumentation.h"
 #include "llvm/Transforms/Instrumentation/ControlHeightReduction.h"
 #include "llvm/Transforms/Instrumentation/DataFlowSanitizer.h"
 #include "llvm/Transforms/Instrumentation/GCOVProfiler.h"
@@ -360,6 +391,11 @@
 #include "llvm/Transforms/Scalar/StructurizeCFG.h"
 #include "llvm/Transforms/Scalar/TailRecursionElimination.h"
 #include "llvm/Transforms/Scalar/WarnMissedTransforms.h"
+#include "llvm/Transforms/Tapir/DRFScopedNoAliasAA.h"
+#include "llvm/Transforms/Tapir/LoopSpawningTI.h"
+#include "llvm/Transforms/Tapir/LoopStripMinePass.h"
+#include "llvm/Transforms/Tapir/SerializeSmallTasks.h"
+#include "llvm/Transforms/Tapir/TapirToTarget.h"
 #include "llvm/Transforms/Utils/AddDiscriminators.h"
 #include "llvm/Transforms/Utils/AssignGUID.h"
 #include "llvm/Transforms/Utils/AssumeBundleBuilder.h"
@@ -395,6 +431,8 @@
 #include "llvm/Transforms/Utils/StripGCRelocates.h"
 #include "llvm/Transforms/Utils/StripNonLineTableDebugInfo.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
+#include "llvm/Transforms/Utils/TaskCanonicalize.h"
+#include "llvm/Transforms/Utils/TaskSimplify.h"
 #include "llvm/Transforms/Utils/TriggerCrashPass.h"
 #include "llvm/Transforms/Utils/UnifyLoopExits.h"
 #include "llvm/Transforms/Vectorize/LoadStoreVectorizer.h"
@@ -590,6 +628,8 @@ PassBuilder::PassBuilder(TargetMachine *TM, PipelineTuningOptions PTO,
   PIC->addClassToPassName(CLASS, NAME);
 #define MODULE_ANALYSIS(NAME, CREATE_PASS)                                     \
   PIC->addClassToPassName(decltype(CREATE_PASS)::name(), NAME);
+#define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)          \
+  PIC->addClassToPassName(CLASS, NAME);
 #define FUNCTION_PASS(NAME, CREATE_PASS)                                       \
   PIC->addClassToPassName(decltype(CREATE_PASS)::name(), NAME);
 #define FUNCTION_PASS_WITH_PARAMS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)    \
@@ -718,6 +758,14 @@ void PassBuilder::registerModuleAnalyses(ModuleAnalysisManager &MAM) {
 #define MODULE_ANALYSIS(NAME, CREATE_PASS)                                     \
   MAM.registerPass([&] { return CREATE_PASS; });
 #include "PassRegistry.def"
+
+  // Register the tapir target analysis pass manually. This has to be created
+  // with the target options in the pipeline tuning options object. There is no
+  // sane default for this anyway. This is exactly what we need wherever we
+  // create a pass pipeline, so we might as well create the pass here instead of
+  // requiring the callers to do it. It is the caller's responsibility to set up
+  // the TTOptions object correctly.
+  MAM.registerPass([&] { return TTObjectsAnalysis(PTO.TTOpts); });
 
   for (auto &C : ModuleAnalysisRegistrationCallbacks)
     C(MAM);
@@ -1885,6 +1933,9 @@ static bool isModulePassName(StringRef Name, CallbacksT &Callbacks) {
 #define MODULE_ANALYSIS(NAME, CREATE_PASS)                                     \
   if (Name == "require<" NAME ">" || Name == "invalidate<" NAME ">")           \
     return true;
+#define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)          \
+  if (PassBuilder::checkParametrizedPassName(Name, NAME))                      \
+    return true;
 #include "PassRegistry.def"
 
   return callbacksAcceptPassName<ModulePassManager>(Name, Callbacks);
@@ -2068,6 +2119,13 @@ static void setupOptionsForPipelineAlias(PipelineTuningOptions &PTO,
   PTO.SLPVectorization = L >= OptimizationLevel::O2;
 }
 
+/// Tests whether a pass name starts with a valid prefix for a default pipeline
+/// alias.
+static bool startsWithDefaultPipelineAliasPrefix(StringRef Name) {
+  return Name.starts_with("default") || Name.starts_with("thinlto") ||
+         Name.starts_with("lto") || Name.starts_with("tapir-lowering");
+}
+
 Error PassBuilder::parseModulePass(ModulePassManager &MPM,
                                    const PipelineElement &E) {
   auto &Name = E.Name;
@@ -2144,6 +2202,30 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
   if (Name == "invalidate<" NAME ">") {                                        \
     MPM.addPass(InvalidateAnalysisPass<                                        \
                 std::remove_reference_t<decltype(CREATE_PASS)>>());            \
+    return Error::success();                                                   \
+  }
+#define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)          \
+  if (checkParametrizedPassName(Name, NAME)) {                                 \
+    if (not PTO.TTOpts)                                                        \
+      return createStringError(                                                \
+          formatv("{} passes require the --tapir option", NAME).str());        \
+    else if (Error Err = PTO.TTOpts->validate())                               \
+      return createStringError(                                                \
+          formatv("error: {}", toString(std::move(Err))).str());               \
+                                                                               \
+    Expected<OptimizationLevel> Params =                                       \
+        parsePassParameters(PARSER, Name, NAME);                               \
+    if (!Params)                                                               \
+      return Params.takeError();                                               \
+                                                                               \
+    OptimizationLevel L = Params.get();                                        \
+    if (L.getSizeLevel() == 2)                                                 \
+      return createStringError(                                                \
+          formatv("error: unsupported optimization level '-Oz'"));             \
+                                                                               \
+    PTO.TTOpts->setOptznLevelFrom(L);                                          \
+                                                                               \
+    MPM.addPass(CREATE_PASS(L));                                               \
     return Error::success();                                                   \
   }
 #define CGSCC_PASS(NAME, CREATE_PASS)                                          \

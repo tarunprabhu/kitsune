@@ -8,6 +8,6 @@
 // HOST-NOT: trap;
 #pragma omp declare target
 void foo(void) {
-	throw 404;
+	throw 404; 
 }
 #pragma omp end declare target

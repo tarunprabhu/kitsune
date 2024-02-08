@@ -327,9 +327,11 @@ LLVM_ABI void initializeStripDebugMachineModulePass(PassRegistry &);
 LLVM_ABI void initializeStructurizeCFGLegacyPassPass(PassRegistry &);
 LLVM_ABI void initializeTailCallElimPass(PassRegistry &);
 LLVM_ABI void initializeTailDuplicateLegacyPass(PassRegistry &);
+LLVM_ABI void initializeTapirCleanupPass(PassRegistry &);
 LLVM_ABI void initializeTargetLibraryInfoWrapperPassPass(PassRegistry &);
 LLVM_ABI void initializeTargetPassConfigPass(PassRegistry &);
 LLVM_ABI void initializeTargetTransformInfoWrapperPassPass(PassRegistry &);
+LLVM_ABI void initializeTaskInfoWrapperPassPass(PassRegistry &);
 LLVM_ABI void initializeTwoAddressInstructionLegacyPassPass(PassRegistry &);
 LLVM_ABI void initializeTypeBasedAAWrapperPassPass(PassRegistry &);
 LLVM_ABI void initializeTypePromotionLegacyPass(PassRegistry &);
@@ -347,6 +349,13 @@ LLVM_ABI void initializeWindowsSecureHotPatchingPass(PassRegistry &);
 LLVM_ABI void initializeWinEHPreparePass(PassRegistry &);
 LLVM_ABI void initializeWriteBitcodePassPass(PassRegistry &);
 LLVM_ABI void initializeXRayInstrumentationLegacyPass(PassRegistry &);
+
+// Initialize Kitsune codegen passes
+LLVM_ABI void initializeCodeGenFatBinariesLegacyPassPass(PassRegistry &);
+LLVM_ABI void initializeEmbLowerKitIntrinsicsLegacyPassPass(PassRegistry &);
+LLVM_ABI void initializeLowerKitIntrinsicsLegacyPassPass(PassRegistry &);
+LLVM_ABI void initializeStripKitAddrSpacesLegacyPassPass(PassRegistry &);
+LLVM_ABI void initializeTTObjectsAnalysisWrapperPassPass(PassRegistry &);
 
 } // end namespace llvm
 

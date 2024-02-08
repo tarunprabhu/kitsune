@@ -16,6 +16,7 @@
 #include "clang/Sema/DelayedDiagnostic.h"
 #include "clang/Sema/ParsedAttr.h"
 #include "clang/Sema/ScopeInfo.h"
+#include "clang/Sema/SemaKitsune.h"
 #include <optional>
 
 using namespace clang;
@@ -100,7 +101,7 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
   // This could be handled automatically by adding a Subjects definition in
   // Attr.td, but that would make the diagnostic behavior worse in this case
   // because the user spells this attribute as a pragma.
-  if (!isa<DoStmt, ForStmt, CXXForRangeStmt, WhileStmt>(St)) {
+  if (!isa<DoStmt, ForStmt, CXXForRangeStmt, WhileStmt, ForallStmt>(St)) {
     std::string Pragma = "#pragma " + std::string(PragmaName);
     S.Diag(St->getBeginLoc(), diag::err_pragma_loop_precedes_nonloop) << Pragma;
     return nullptr;
@@ -757,6 +758,8 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
   case ParsedAttr::AT_Atomic:
     return handleAtomicAttr(S, St, A, Range);
   default:
+    if (Handled<Attr *> H = S.Kitsune().processStmtAttribute(St, A, Range))
+      return H.value();
     if (Attr *AT = nullptr; A.getInfo().handleStmtAttribute(S, St, A, AT) !=
                             ParsedAttrInfo::NotHandled) {
       return AT;
@@ -777,6 +780,7 @@ void Sema::ProcessStmtAttributes(Stmt *S, const ParsedAttributes &InAttrs,
       OutAttrs.push_back(A);
   }
 
+  Kitsune().checkAttributes(S, OutAttrs);
   CheckForIncompatibleAttributes(*this, OutAttrs);
   CheckForDuplicateLoopAttrs<CodeAlignAttr>(*this, OutAttrs);
 }

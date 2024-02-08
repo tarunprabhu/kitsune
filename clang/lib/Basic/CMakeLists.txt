@@ -1,4 +1,6 @@
 set(LLVM_LINK_COMPONENTS
+  KitSupport
+  Option
   Support
   TargetParser
   FrontendOpenMP

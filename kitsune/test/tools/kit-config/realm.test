@@ -1,0 +1,7 @@
+# REQUIRES: kitsune-realm
+#
+# RUN: %kit-config --realm-target | FileCheck %s -check-prefix ON
+# RUN: %kit-config --tapir-targets | FileCheck %s -check-prefix TARGETS
+#
+# ON: ON
+# TARGETS: realm

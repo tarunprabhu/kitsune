@@ -1,0 +1,132 @@
+; When more than one reduction is performed in a tapir reduction loop, check
+; that:
+;
+;   - Distinct partial reduction buffers are allocated (and freed) for each
+;
+;   - A final reduction is performed for each
+;
+;   - This final reduction is performed in the same order as in the original
+;     code (this isn't strictly necessary, but we generate code in this order,
+;     so we may as well check for it)
+;
+; NOTE: The loop here has the pthreads tapir target set on it. This is only
+; because we need to set a non-serial tapir target on the loop. We need to test
+; the GPU tapir targets separately because the transformations needed for those
+; will be different.
+;
+; RUN: opt -passes=kit-prepare -S %s | FileCheck %s
+;
+; CHECK-LABEL: @f
+; CHECK-SAME: i64 %[[N:[^)]+]]
+;
+; CHECK: %[[R1:.+]] = alloca i64
+; CHECK: %[[R2:.+]] = alloca i64
+; CHECK: %[[R3:.+]] = alloca i32
+; CHECK: %[[R4:.+]] = alloca i32
+;
+; CHECK: %[[NREDS:.+]] = call {{.+}} @llvm.kit.reduce.num.partials(i32 1024, i64 %[[N]])
+; CHECK-NEXT: %[[BYTES1:.+]] = mul {{.+}} 8, %[[NREDS]]
+; CHECK-NEXT: %[[BUF1:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES1]])
+; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
+; CHECK-SAME: i32 1024
+; CHECK-SAME: ptr {{[^%]+}} %[[BUF1]]
+; CHECK-SAME: i64 %[[NREDS]]
+; CHECK-SAME: i64 [[UNIT1:[^)]+]]
+; CHECK-NEXT: %[[BYTES2:.+]] = mul {{.+}} 8, %[[NREDS]]
+; CHECK-NEXT: %[[BUF2:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES2]])
+; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
+; CHECK-SAME: i32 1024
+; CHECK-SAME: ptr {{[^%]+}} %[[BUF2]]
+; CHECK-SAME: i64 %[[NREDS]]
+; CHECK-SAME: i64 [[UNIT2:[^)]+]]
+; CHECK-NEXT: %[[BYTES3:.+]] = mul {{.+}} 4, %[[NREDS]]
+; CHECK-NEXT: %[[BUF3:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES3]])
+; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
+; CHECK-SAME: i32 1024
+; CHECK-SAME: ptr {{[^%]+}} %[[BUF3]]
+; CHECK-SAME: i64 %[[NREDS]]
+; CHECK-SAME: i32 [[UNIT3:[^)]+]]
+; CHECK-NEXT: %[[BYTES4:.+]] = mul {{.+}} 4, %[[NREDS]]
+; CHECK-NEXT: %[[BUF4:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES4]])
+; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
+; CHECK-SAME: i32 1024
+; CHECK-SAME: ptr {{[^%]+}} %[[BUF4]]
+; CHECK-SAME: i64 %[[NREDS]]
+; CHECK-SAME: i32 [[UNIT4:[^)]+]]
+;
+; CHECK: %[[IV_O:.+]] = phi i64
+; CHECK-NEXT: detach within
+;
+; CHECK: %[[IV_I:.+]] = phi i64
+; CHECK: %[[J32:.+]] = trunc i64 %[[IV_I]] to i32
+;
+; CHECK-NEXT: %[[RADDR1:.+]] = getelementptr {{.+}} %[[BUF1]], i64 %[[IV_O]]
+; CHECK-NEXT: %[[RCST1:.+]] = addrspacecast {{.+}} %[[RADDR1]] to
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}} %[[RCST1]], i32 8, i64 %[[IV_I]], i64 0, ptr @sum.i64
+;
+; CHECK-NEXT: %[[RADDR2:.+]] = getelementptr {{.+}} %[[BUF2]], i64 %[[IV_O]]
+; CHECK-NEXT: %[[RCST2:.+]] = addrspacecast {{.+}} %[[RADDR2]] to
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}} %[[RCST2]], i32 8, i64 %[[IV_I]], i64 1, ptr @mul.i64
+;
+; CHECK-NEXT: %[[RADDR3:.+]] = getelementptr {{.+}} %[[BUF3]], i64 %[[IV_O]]
+; CHECK-NEXT: %[[RCST3:.+]] = addrspacecast {{.+}} %[[RADDR3]] to
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}} %[[RCST3]], i32 4, i32 %[[J32]], i32 1, ptr @mul.i32
+;
+; CHECK-NEXT: %[[RADDR4:.+]] = getelementptr {{.+}} %[[BUF4]], i64 %[[IV_O]]
+; CHECK-NEXT: %[[RCST4:.+]] = addrspacecast {{.+}} %[[RADDR4]] to
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}} %[[RCST4]], i32 4, i32 %[[J32]], i32 0, ptr @sum.i32
+;
+; CHECK: call {{.+}} @llvm.kit.reduce.1{{.*}} ptr %[[R1]], {{.+}} %[[BUF1]], i64 %[[NREDS]], i64 0, ptr @sum.i64
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.1{{.*}} ptr %[[R2]], {{.+}} %[[BUF2]], i64 %[[NREDS]], i64 1, ptr @mul.i64
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.1{{.*}} ptr %[[R3]], {{.+}} %[[BUF3]], i64 %[[NREDS]], i32 1, ptr @mul.i32
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.1{{.*}} ptr %[[R4]], {{.+}} %[[BUF4]], i64 %[[NREDS]], i32 0, ptr @sum.i32
+;
+; CHECK: call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %[[BUF1]])
+; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %[[BUF2]])
+; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %[[BUF3]])
+; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %[[BUF4]])
+
+declare void @sum.i64(ptr %res, i64 %v)
+
+declare void @mul.i64(ptr %res, i64 %v)
+
+declare void @sum.i32(ptr %res, i32 %v)
+
+declare void @mul.i32(ptr %res, i32 %v)
+
+define void @f(i64 %n) {
+entry:
+  %r1 = alloca i64
+  %r2 = alloca i64
+  %r3 = alloca i32
+  %r4 = alloca i32
+  %syncreg = tail call token @llvm.syncregion.start()
+  br label %for.j.header
+
+for.j.header:
+  %j = phi i64 [ 0, %entry ], [ %inc.j, %for.j.latch ]
+  detach within %syncreg, label %for.j.body, label %for.j.latch
+
+for.j.body:
+  %j32 = trunc i64 %j to i32
+  call void(i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 1024, ptr %r1, i32 8, i64 %j, i64 0, ptr @sum.i64)
+  call void(i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 1024, ptr %r2, i32 8, i64 %j, i64 1, ptr @mul.i64)
+  call void(i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 1024, ptr %r3, i32 4, i32 %j32, i32 1, ptr @mul.i32)
+  call void(i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 1024, ptr %r4, i32 4, i32 %j32, i32 0, ptr @sum.i32)
+  reattach within %syncreg, label %for.j.latch
+
+for.j.latch:
+  %inc.j = add i64 %j, 1
+  %cmp.j = icmp eq i64 %inc.j, %n
+  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !2
+
+for.j.exit:
+  sync within %syncreg, label %for.j.end
+
+for.j.end:
+  ret void
+}
+
+!0 = !{!"tapir.loop.target", i32 1024}
+!1 = !{!"tapir.loop.reduction"}
+!2 = distinct !{!2, !0, !1}

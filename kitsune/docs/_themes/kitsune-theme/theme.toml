@@ -1,0 +1,11 @@
+[theme]
+inherit = "nature"
+
+# nature.css is the style for Sphinx' 'nature' theme that this theme inherits
+# kitsune-theme.css contains customizations to nature.css
+stylesheets = [
+    "nature.css",
+    "kitsune-theme.css"
+]
+
+pygments_style = { default = "vs" }

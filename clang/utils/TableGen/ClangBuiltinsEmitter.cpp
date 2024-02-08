@@ -264,7 +264,12 @@ private:
       return Number;
     };
 
-    if (T.consume_back("*")) {
+    if (T.consume_back("*__mobile__")) {
+      // Pointers with the mobile attribute are not allowed to have an explicit
+      // address space.
+      ParseType(T);
+      Type += "*__mobile__";
+    } else if (T.consume_back("*")) {
       // Pointers may have an address space qualifier immediately before them.
       std::optional<unsigned> AS = ConsumeAddrSpace();
       // Pointers can apply to already parsed types, like vectors.

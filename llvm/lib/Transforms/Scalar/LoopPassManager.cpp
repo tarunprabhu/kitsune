@@ -10,6 +10,7 @@
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 
@@ -223,7 +224,7 @@ PreservedAnalyses FunctionToLoopPassAdaptor::run(Function &F,
                                      AM.getResult<ScalarEvolutionAnalysis>(F),
                                      AM.getResult<TargetLibraryAnalysis>(F),
                                      AM.getResult<TargetIRAnalysis>(F),
-                                     MSSA};
+                                     AM.getResult<TaskAnalysis>(F), MSSA};
 
   // Setup the loop analysis manager from its proxy. It is important that
   // this is only done when there are loops to process and we have built the
@@ -338,6 +339,7 @@ PreservedAnalyses FunctionToLoopPassAdaptor::run(Function &F,
   PA.preserve<ScalarEvolutionAnalysis>();
   if (UseMemorySSA)
     PA.preserve<MemorySSAAnalysis>();
+  PA.preserve<TaskAnalysis>();
   return PA;
 }
 

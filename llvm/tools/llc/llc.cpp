@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "NewPMDriver.h"
+#include "kitsune/Core/TTOptions.h"
+#include "kitsune/Passes/PipelineUtils.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/Statistic.h"
@@ -836,6 +838,12 @@ static int compileModule(char **argv, SmallVectorImpl<PassPlugin> &PluginList,
 
       PM.add(createFreeMachineFunctionPass());
     } else {
+      if (std::optional<TTOptions> TTOpts =
+              TTOptions::createFromCommandLine(OptLevel)) {
+        if (Error Err = TTOpts->validate())
+          reportError(toString(std::move(Err)), "");
+        populateKitCodeGenPasses(PM, *TTOpts);
+      }
       if (Target->addPassesToEmitFile(PM, *OS, DwoOut ? &DwoOut->os() : nullptr,
                                       codegen::getFileType(), NoVerify,
                                       MMIWP)) {

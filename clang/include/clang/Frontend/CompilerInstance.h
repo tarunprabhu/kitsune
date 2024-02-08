@@ -334,6 +334,13 @@ public:
     return Invocation->getAPINotesOpts();
   }
 
+  llvm::driver::KitOptions &getKitOpts() {
+    return Invocation->getKitOpts();
+  }
+  const llvm::driver::KitOptions &getKitOpts() const {
+    return Invocation->getKitOpts();
+  }
+
   LangOptions &getLangOpts() { return Invocation->getLangOpts(); }
   const LangOptions &getLangOpts() const { return Invocation->getLangOpts(); }
 

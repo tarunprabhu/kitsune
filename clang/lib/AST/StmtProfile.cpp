@@ -380,6 +380,10 @@ void StmtProfiler::VisitCXXExpansionStmtInstantiation(
   ID.AddBoolean(S->shouldApplyLifetimeExtensionToPreamble());
 }
 
+void StmtProfiler::VisitCXXForallRangeStmt(const CXXForallRangeStmt *S) {
+  VisitStmt(S);
+}
+
 void StmtProfiler::VisitMSDependentExistsStmt(const MSDependentExistsStmt *S) {
   VisitStmt(S);
   ID.AddBoolean(S->isIfExists());
@@ -2999,6 +3003,22 @@ void StmtProfiler::VisitOpenACCAtomicConstruct(
 }
 
 void StmtProfiler::VisitHLSLOutArgExpr(const HLSLOutArgExpr *S) {
+  VisitStmt(S);
+}
+
+void StmtProfiler::VisitCXXForallRangeStmt(const CXXForallRangeStmt *S) {
+  VisitStmt(S);
+}
+
+void StmtProfiler::VisitSpawnStmt(const SpawnStmt *S) {
+  VisitStmt(S);
+}
+
+void StmtProfiler::VisitSyncStmt(const SyncStmt *S) {
+  VisitStmt(S);
+}
+
+void StmtProfiler::VisitForallStmt(const ForallStmt *S) {
   VisitStmt(S);
 }
 

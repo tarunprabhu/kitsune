@@ -1,0 +1,43 @@
+# REQUIRES: kitfc
+#
+# TODO: -Os and -Oz are not supported in flang at the time of writing these
+# tests. Those will eventually be supported, at which time this test should be
+# updated to include those as well.
+#
+# Check that the command line options common to all tapir targets are handled
+# correctly when -flto is provided with Fortran. The serial tapir target is
+# always built, so use that here.
+#
+# RUN: %kitfc -### --tapir=serial -O2 -flto \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,O2
+#
+# RUN: %kitfc -### --tapir=serial -O3 -flto \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,O3
+#
+# RUN: %kitfc -### --tapir=serial -O2 -flto --tapir-verbose \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,TAPIR_VERBOSE
+#
+# RUN: %kitfc -### --tapir=serial -O2 -flto --kitrt-verbose \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,KITRT_VERBOSE
+#
+# RUN: %kitfc -### --tapir=serial -O2 -flto -ffp-contract=off  \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,FP_STANDARD
+#
+# RUN: %kitfc -### --tapir=serial -O2 -flto -ffp-contract=fast  \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,FP_FAST
+#
+# ------------------------------------------------------------------------------
+#
+# ALL: /ld{{(64)?}}.lld"
+# O2: "--lto-O2"
+# O3: "--lto-O3"
+# TAPIR_VERBOSE-SAME: "-mllvm" "--tapir-verbose"
+# KITRT_VERBOSE: "-mllvm" "--kitrt-verbose"
+# FP_STANDARD: "-mllvm" "--fp-contract=on"
+# FP_FAST: "-mllvm" "--fp-contract=fast"

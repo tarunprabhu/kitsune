@@ -68,6 +68,7 @@
 #include "clang/Sema/SemaDirectX.h"
 #include "clang/Sema/SemaHLSL.h"
 #include "clang/Sema/SemaHexagon.h"
+#include "clang/Sema/SemaKitsune.h"
 #include "clang/Sema/SemaLoongArch.h"
 #include "clang/Sema/SemaMIPS.h"
 #include "clang/Sema/SemaNVPTX.h"
@@ -4104,6 +4105,13 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
       return ExprError();
     break;
   }
+
+  // If the builtin is a Kitsune-specific builtin, the returned value will
+  // contain a boolean. If that boolean is false, an error was found during the
+  // check.
+  if (Handled<bool> H = Kitsune().checkBuiltinFunctionCall(BuiltinID, TheCall))
+    if (!H.value())
+      return ExprError();
 
   if (getLangOpts().HLSL && HLSL().CheckBuiltinFunctionCall(BuiltinID, TheCall))
     return ExprError();

@@ -51,6 +51,10 @@
 
 namespace llvm {
 
+namespace driver {
+class KitOptions;
+}
+
 class APFixedPoint;
 class FixedPointSemantics;
 struct fltSemantics;
@@ -763,6 +767,9 @@ private:
   ///  this ASTContext object.
   LangOptions &LangOpts;
 
+  /// The Kitsune options that have been set.
+  llvm::driver::KitOptions &KitOpts;
+
   /// NoSanitizeList object that is used by sanitizers to decide which
   /// entities should not be instrumented.
   std::unique_ptr<NoSanitizeList> NoSanitizeL;
@@ -963,6 +970,8 @@ public:
   bool AtomicUsesUnsupportedLibcall(const AtomicExpr *E) const;
 
   const LangOptions& getLangOpts() const { return LangOpts; }
+
+  const llvm::driver::KitOptions &getKitOpts() const { return KitOpts; }
 
   // If this condition is false, typo correction must be performed eagerly
   // rather than delayed in many places, as it makes use of dependent types.
@@ -1429,7 +1438,7 @@ public:
 
   ASTContext(LangOptions &LOpts, SourceManager &SM, IdentifierTable &idents,
              SelectorTable &sels, Builtin::Context &builtins,
-             TranslationUnitKind TUKind);
+             llvm::driver::KitOptions &KitOpts, TranslationUnitKind TUKind);
   ASTContext(const ASTContext &) = delete;
   ASTContext &operator=(const ASTContext &) = delete;
   ~ASTContext();
@@ -1634,6 +1643,13 @@ public:
   QualType getPointerType(QualType T) const;
   CanQualType getPointerType(CanQualType T) const {
     return CanQualType::CreateUnsafe(getPointerType((QualType) T));
+  }
+
+  /// Return the uniqued reference to the type for a mobile pointer to the
+  /// specified type.
+  QualType getMobilePointerType(QualType T) const;
+  CanQualType getMobilePointer(CanQualType T) const {
+    return CanQualType::CreateUnsafe(getMobilePointerType((QualType) T));
   }
 
   QualType

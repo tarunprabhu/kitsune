@@ -1,0 +1,90 @@
+# -----------------------------------------------------------------------------
+#
+# Some basic tests for the kit-config utility.
+#
+# RUN: %kit-config --known-langs | FileCheck %s -check-prefix KNOWN-LANGS
+# RUN: %kit-config --known-tapir-targets \
+# RUN:     | FileCheck %s -check-prefix KNOWN-TARGETS
+#
+# KNOWN-LANGS: {{^C C[+][+] Fortran$}}
+# KNOWN-TARGETS: {{^cuda custom hip opencilk openmp pthreads qthreads serial$}}
+#
+# -----------------------------------------------------------------------------
+#
+# We can't really do a "proper" version check, so just check that it is
+# something reasonable. This effectively only checks that the command line
+# option is handled.
+#
+# RUN: %kit-config --kitsune-version | FileCheck %s -check-prefix VERSION
+# RUN: %kit-config --llvm-version | FileCheck %s -check-prefix VERSION
+# RUN: %kit-config --version | FileCheck %s --check-prefix VERSION
+#
+# VERSION: {{[0-9]+}}.{{[0-9]+}}.{{[0-9]+}}{{.*}}
+#
+# -----------------------------------------------------------------------------
+#
+# Passing --help should return success and print something. An unknown option
+# should return failure and print the help message. At least one option is
+# required.
+#
+# RUN: %kit-config --help 2>&1 | FileCheck %s -check-prefix HELP
+# RUN: not %kit-config --bogus 2>&1 | FileCheck %s -check-prefix HELP
+# RUN: not %kit-config 2>&1 | FileCheck %s -check-prefix HELP
+#
+# HELP: usage: kit-config <OPTION>
+#
+# -----------------------------------------------------------------------------
+#
+# The C and C++ frontends are always enabled.
+#
+# RUN: %kit-config --langs | FileCheck %s -check-prefix LANGS
+# RUN: %kit-config --c | FileCheck %s -check-prefix ON
+# RUN: %kit-config --c-frontend | FileCheck %s --check-prefix KITCC
+# RUN: %kit-config --cxx | FileCheck %s --check-prefix ON
+# RUN: %kit-config --cxx-frontend | FileCheck %s --check-prefix KITXX
+#
+# LANGS: C C++
+# ON: ON
+# KITCC: {{.+}}/kitcc
+# KITXX: {{.+}}/kit++
+#
+# -----------------------------------------------------------------------------
+#
+# Check that when certain frontends and tapir targets are disabled, the correct
+# value is reported.
+#
+# RUN: %if kitsune-no-kokkos %{ \
+# RUN:   %kit-config --kokkos | FileCheck %s -check-prefix OFF \
+# RUN: %}
+#
+# RUN: %if kitsune-no-cuda %{ \
+# RUN:   %kit-config --cuda-target | FileCheck %s -check-prefix OFF \
+# RUN: %}
+#
+# RUN: %if kitsune-no-hip %{ \
+# RUN:   %kit-config --hip-target | FileCheck %s -check-prefix OFF \
+# RUN: %}
+#
+# RUN: %if kitsune-no-lambda %{ \
+# RUN:   %kit-config --lambda-target | FileCheck %s -check-prefix OFF \
+# RUN: %}
+#
+# RUN: %if kitsune-no-omptask %{ \
+# RUN:   %kit-config --omptask-target | FileCheck %s -check-prefix OFF \
+# RUN: %}
+#
+# RUN: %if kitsune-no-opencilk %{ \
+# RUN:   %kit-config --opencilk-target | FileCheck %s -check-prefix OFF \
+# RUN: %}
+#
+# RUN: %if kitsune-no-qthreads %{ \
+# RUN:   %kit-config --qthreads-target | FileCheck %s -check-prefix OFF \
+# RUN: %}
+#
+# RUN: %if kitsune-no-realm %{ \
+# RUN:   %kit-config --realm-target | FileCheck %s -check-prefix OFF \
+# RUN: %}
+#
+# OFF: OFF
+#
+# -----------------------------------------------------------------------------

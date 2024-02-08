@@ -56,6 +56,24 @@ add_tablegen(llvm-tblgen LLVM
   GlobalISelEmitter.cpp
   InstrDocsEmitter.cpp
   InstrInfoEmitter.cpp
+  KitArgAttrDocEmitter.cpp
+  KitArgAttrHeaderEmitter.cpp
+  KitAttrCommon.cpp
+  KitAttrDocEmitter.cpp
+  KitAttrHeaderEmitter.cpp
+  KitCBuiltinsDocEmitter.cpp
+  KitDiagHeaderEmitter.cpp
+  KitFuncAttrDocEmitter.cpp
+  KitFuncAttrHeaderEmitter.cpp
+  KitGVAttrDocEmitter.cpp
+  KitGVAttrHeaderEmitter.cpp
+  KitInstAttrDocEmitter.cpp
+  KitInstAttrHeaderEmitter.cpp
+  KitIntrinsicsDocEmitter.cpp
+  KitLoopAttrDocEmitter.cpp
+  KitLoopAttrHeaderEmitter.cpp
+  KitModuleAttrDocEmitter.cpp
+  KitModuleAttrHeaderEmitter.cpp
   llvm-tblgen.cpp
   MacroFusionPredicatorEmitter.cpp
   OptionParserEmitter.cpp

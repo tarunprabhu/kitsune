@@ -1,0 +1,44 @@
+; The grainsize is always set to 1. Check that this is the case in the kernel
+; immediately after spawning a loop nest of depth 1.
+;
+; RUN: opt --tapir=hip -passes='loop-spawning' %s \
+; RUN:     | %kit-mbc -S \
+; RUN:     | FileCheck %s
+;
+; CHECK-LABEL: define
+;
+; CHECK: %[[IVBEG_X:.+]] = zext i32 %{{.+}} to i64
+; CHECK: %[[IVEND_X:.+]] = add {{.*}}i64 %[[IVBEG_X]], 1
+
+define void @p(ptr %a, i64 %n) {
+entry:
+  %syncreg = tail call token @llvm.syncregion.start()
+  br label %header
+
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
+
+body:
+  %a.i = getelementptr i64, ptr %a, i64 %i
+  store i64 %i, ptr %a.i
+  reattach within %syncreg, label %latch
+
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
+
+sync:
+  sync within %syncreg, label %exit
+
+exit:
+  ret void
+}
+
+!0 = distinct !{!0, !1, !2, !3, !4, !5}
+!1 = !{!"tapir.loop.target", i32 4}
+!2 = !{!"tapir.loop.spawn.strategy", i32 3}
+!3 = !{!"tapir.loop.lowering.enabled"}
+!4 = !{!"tapir.loop.perfect.depth", i32 1}
+!5 = !{!"tapir.loop.perfect.level", i32 1}

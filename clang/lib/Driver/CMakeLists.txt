@@ -1,5 +1,6 @@
 set(LLVM_LINK_COMPONENTS
   BinaryFormat
+  KitSupport
   MC
   Object
   Option
@@ -118,5 +119,6 @@ add_clang_library(clangDriver
   clangSerialization
   clangLex
   clangOptions
+  clangKitDriver
   ${system_libs}
   )

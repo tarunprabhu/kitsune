@@ -6,7 +6,7 @@
 //
 //===--------------------------------------------------------------===//
 
-#include "clang/Lex/Preprocessor.h"
+#include "kitsune/Core/KitOptions.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/Diagnostic.h"
@@ -150,6 +150,7 @@ protected:
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
   LangOptions LangOpts;
+  llvm::driver::KitOptions KitOpts;
   std::shared_ptr<TargetOptions> TargetOpts;
   IntrusiveRefCntPtr<TargetInfo> Target;
 
@@ -309,7 +310,8 @@ protected:
     // according to LangOptions, so we init Parser to register opencl
     // pragma handlers
     ASTContext Context(OpenCLLangOpts, SourceMgr, PP.getIdentifierTable(),
-                       PP.getSelectorTable(), PP.getBuiltinInfo(), PP.TUKind);
+                       PP.getSelectorTable(), PP.getBuiltinInfo(), KitOpts,
+                       PP.TUKind);
     Context.InitBuiltinTypes(*Target);
 
     ASTConsumer Consumer;

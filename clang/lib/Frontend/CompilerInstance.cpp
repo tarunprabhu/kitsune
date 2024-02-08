@@ -486,7 +486,7 @@ void CompilerInstance::createPreprocessor(TranslationUnitKind TUKind) {
 
   // Predefine macros and configure the preprocessor.
   InitializePreprocessor(*PP, PPOpts, getPCHContainerReader(),
-                         getFrontendOpts(), getCodeGenOpts());
+                         getFrontendOpts(), getCodeGenOpts(), getKitOpts());
 
   // Initialize the header search object.  In CUDA compilations, we use the aux
   // triple (the host triple) to initialize our header search, since we need to
@@ -573,7 +573,7 @@ void CompilerInstance::createASTContext() {
   Preprocessor &PP = getPreprocessor();
   auto Context = llvm::makeIntrusiveRefCnt<ASTContext>(
       getLangOpts(), PP.getSourceManager(), PP.getIdentifierTable(),
-      PP.getSelectorTable(), PP.getBuiltinInfo(), PP.TUKind);
+      PP.getSelectorTable(), PP.getBuiltinInfo(), getKitOpts(), PP.TUKind);
   Context->InitBuiltinTypes(getTarget(), getAuxTarget());
   setASTContext(std::move(Context));
 }

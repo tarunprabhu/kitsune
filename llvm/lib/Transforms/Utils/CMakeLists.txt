@@ -92,6 +92,9 @@ add_llvm_component_library(LLVMTransformUtils
   SplitModuleByCategory.cpp
   StripNonLineTableDebugInfo.cpp
   SymbolRewriter.cpp
+  TapirUtils.cpp
+  TaskCanonicalize.cpp
+  TaskSimplify.cpp
   TriggerCrashPass.cpp
   UnifyLoopExits.cpp
   Utils.cpp
@@ -104,11 +107,13 @@ add_llvm_component_library(LLVMTransformUtils
 
   DEPENDS
   intrinsics_gen
+  kitsune_generated
 
   LINK_COMPONENTS
   Analysis
   Core
   ProfileData
+  KitCore
   Support
   TargetParser
   )

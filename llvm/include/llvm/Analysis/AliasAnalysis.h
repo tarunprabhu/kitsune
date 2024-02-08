@@ -60,8 +60,10 @@ class CatchPadInst;
 class CatchReturnInst;
 class CycleInfo;
 class DominatorTree;
+class DetachInst;
 class FenceInst;
 class LoopInfo;
+class SyncInst;
 class TargetLibraryInfo;
 
 /// The possible results of an alias query.
@@ -299,6 +301,10 @@ public:
   /// passes that lazily update the DT while performing AA queries.
   bool UseDominatorTree = true;
 
+  /// Whether the instructions corresponding with this query should be
+  /// considered as part of the same spindle.
+  bool AssumeSameSpindle = false;
+
   AAQueryInfo(AAResults &AAR, CaptureAnalysis *CA) : AAR(AAR), CA(CA) {}
 };
 
@@ -352,6 +358,11 @@ public:
   /// alias analysis implementations.
   LLVM_ABI AliasResult alias(const MemoryLocation &LocA,
                              const MemoryLocation &LocB);
+
+  /// Version of alias() method where the assumption is explicitly stated of
+  /// whether the query applies to operations within the same spindle.
+  AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
+                    bool AssumeSameSpindle);
 
   /// A convenience wrapper around the primary \c alias interface.
   AliasResult alias(const Value *V1, LocationSize V1Size, const Value *V2,
@@ -522,6 +533,8 @@ public:
   /// Return information about whether a call and an instruction may refer to
   /// the same memory locations.
   LLVM_ABI ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call);
+  LLVM_ABI ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call,
+                                    bool AssumeSameSpindle);
 
   /// Return information about whether two instructions may refer to the same
   /// memory locations.
@@ -618,6 +631,12 @@ public:
   LLVM_ABI ModRefInfo getModRefInfo(const CatchReturnInst *I,
                                     const MemoryLocation &Loc,
                                     AAQueryInfo &AAQI);
+  LLVM_ABI ModRefInfo getModRefInfo(const DetachInst *D,
+                                    const MemoryLocation &Loc,
+                                    AAQueryInfo &AAQI);
+  LLVM_ABI ModRefInfo getModRefInfo(const SyncInst *S,
+                                    const MemoryLocation &Loc,
+                                    AAQueryInfo &AAQI);
   LLVM_ABI ModRefInfo getModRefInfo(const Instruction *I,
                                     const std::optional<MemoryLocation> &OptLoc,
                                     AAQueryInfo &AAQIP);
@@ -628,6 +647,13 @@ public:
                                          DominatorTree *DT, AAQueryInfo &AAQIP);
   LLVM_ABI MemoryEffects getMemoryEffects(const CallBase *Call,
                                           AAQueryInfo &AAQI);
+
+  /// Return the behavior for the task detached from a given detach instruction.
+  LLVM_ABI MemoryEffects getMemoryEffects(const DetachInst *D,
+                                          AAQueryInfo &AAQI);
+
+  /// Return the behavior for a sync instruction.
+  LLVM_ABI MemoryEffects getMemoryEffects(const SyncInst *S, AAQueryInfo &AAQI);
 
 private:
   class Concept;
@@ -676,6 +702,14 @@ public:
                                bool IgnoreLocals = false) {
     return AA.getModRefInfoMask(Loc, AAQI, IgnoreLocals);
   }
+  ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2,
+                           bool AssumeSameSpindle) {
+    bool OldAssumeSameSpindle = AAQI.AssumeSameSpindle;
+    AAQI.AssumeSameSpindle = AssumeSameSpindle;
+    auto Result = AA.getModRefInfo(Call1, Call2, AAQI);
+    AAQI.AssumeSameSpindle = OldAssumeSameSpindle;
+    return Result;
+  }
   ModRefInfo getModRefInfo(const Instruction *I,
                            const std::optional<MemoryLocation> &OptLoc) {
     return AA.getModRefInfo(I, OptLoc, AAQI);
@@ -685,6 +719,14 @@ public:
   }
   ModRefInfo getModRefInfo(const Instruction *I, const Instruction *I2) {
     return AA.getModRefInfo(I, I2, AAQI);
+
+  ModRefInfo getModRefInfo(Instruction *I, const CallBase *Call2,
+                           bool AssumeSameSpindle) {
+    bool OldAssumeSameSpindle = AAQI.AssumeSameSpindle;
+    AAQI.AssumeSameSpindle = AssumeSameSpindle;
+    auto Result = AA.getModRefInfo(I, Call2, AAQI);
+    AAQI.AssumeSameSpindle = OldAssumeSameSpindle;
+    return Result;
   }
   ModRefInfo getArgModRefInfo(const CallBase *Call, unsigned ArgIdx) {
     return AA.getArgModRefInfo(Call, ArgIdx);
@@ -938,6 +980,11 @@ public:
 /// Return true if this pointer is returned by a noalias function.
 LLVM_ABI bool isNoAliasCall(const Value *V);
 
+/// Return true if this pointer is returned by a noalias function or, if one
+/// assumes the query pertains to operations in the same spindle, a
+/// strand_noalias function.
+bool isNoAliasCallIfInSameSpindle(const Value *V);
+
 /// Return true if this pointer refers to a distinct and identifiable object.
 /// This returns true for:
 ///    Global Variables and Functions (but not Global Aliases)
@@ -946,6 +993,14 @@ LLVM_ABI bool isNoAliasCall(const Value *V);
 ///    NoAlias returns (e.g. calls to malloc)
 ///
 LLVM_ABI bool isIdentifiedObject(const Value *V);
+
+/// Return true if this pointer refers to a distinct and identifiable object
+/// when the query occurs between operations in the same spindle.
+/// This returns true for:
+///    Every value for which isIdentifiedObject(V) returns true
+///    StrandNoAlias returns
+///
+bool isIdentifiedObjectIfInSameSpindle(const Value *V);
 
 /// Return true if V is umabigously identified at the function-level.
 /// Different IdentifiedFunctionLocals can't alias.

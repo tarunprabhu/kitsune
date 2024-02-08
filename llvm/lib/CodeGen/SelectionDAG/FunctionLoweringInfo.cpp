@@ -126,6 +126,16 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf,
     }
   }
 
+  // If the function might be stolen, then several optimizations involving SP
+  // and FP aren't generally allowed.  For example, the Cilk runtime system
+  // might change the stack a function uses after it performs a spawn, meaning
+  // that SP can't be used to index stack variables or temporary storage.  The
+  // semantics for the stack memory of such a function most closely resemble
+  // those of a function with dynamic allocas, so we simply set this flag in
+  // MachineFrameInfo.
+  if (Fn->hasFnAttribute(Attribute::Stealable))
+    MF->getFrameInfo().setHasVarSizedObjects();
+
   // Initialize the mapping of values to registers.  This is only set up for
   // instruction values that are used outside of the block that defines
   // them.
@@ -223,8 +233,12 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf,
         }
 
         // Determine if there is a call to setjmp in the machine function.
-        if (Call->hasFnAttr(Attribute::ReturnsTwice))
+        if (Call->hasFnAttr(Attribute::ReturnsTwice)) {
           MF->setExposesReturnsTwice(true);
+          if (const Function *Called = Call->getCalledFunction())
+            if (Called->getIntrinsicID() != Intrinsic::eh_sjlj_setjmp)
+              MF->setExposesOpaqueReturnsTwice(true);
+        }
       }
 
       // Mark values used outside their block as exported, by allocating

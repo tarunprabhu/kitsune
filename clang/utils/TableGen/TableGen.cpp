@@ -126,7 +126,9 @@ enum ActionType {
   GenDiagDocs,
   GenOptDocs,
   GenDataCollectors,
-  GenTestPragmaAttributeSupportedAttributes
+  GenTestPragmaAttributeSupportedAttributes,
+  GenKitsuneAttrDocs,
+  GenKitsuneOptDocs,
 };
 
 namespace {
@@ -370,7 +372,11 @@ cl::opt<ActionType> Action(
         clEnumValN(GenTestPragmaAttributeSupportedAttributes,
                    "gen-clang-test-pragma-attribute-supported-attributes",
                    "Generate a list of attributes supported by #pragma clang "
-                   "attribute for testing purposes")));
+                   "attribute for testing purposes"),
+        clEnumValN(GenKitsuneAttrDocs, "gen-kitsune-attr-docs",
+                   "Generate Kitsune attribute documentation"),
+        clEnumValN(GenKitsuneOptDocs, "gen-kitsune-opt-docs",
+                   "Generate Kitsune option documentation")));
 
 cl::opt<std::string>
 ClangComponent("clang-component",
@@ -692,6 +698,12 @@ bool ClangTableGenMain(raw_ostream &OS, const RecordKeeper &Records) {
     break;
   case GenTestPragmaAttributeSupportedAttributes:
     EmitTestPragmaAttributeSupportedAttributes(Records, OS);
+    break;
+  case GenKitsuneAttrDocs:
+    EmitKitsuneAttrDocs(Records, OS);
+    break;
+  case GenKitsuneOptDocs:
+    EmitKitsuneOptDocs(Records, OS);
     break;
   }
 

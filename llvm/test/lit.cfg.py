@@ -339,6 +339,7 @@ tools.extend(
         ToolSubst("Kaleidoscope-Ch6", unresolved="ignore"),
         ToolSubst("Kaleidoscope-Ch7", unresolved="ignore"),
         ToolSubst("Kaleidoscope-Ch8", unresolved="ignore"),
+        ToolSubst("Kaleidoscope-Tapir", unresolved="ignore"),
         ToolSubst("LLJITWithThinLTOSummaries", unresolved="ignore"),
         ToolSubst("LLJITWithRemoteDebugging", unresolved="ignore"),
         ToolSubst("OrcV2CBindingsBasicUsage", unresolved="ignore"),
@@ -955,3 +956,9 @@ if lit_config.update_tests:
     from update_any_test_checks import utc_lit_plugin
 
     lit_config.test_updaters.append(utc_lit_plugin)
+
+# This is needed by the Tapir tests in llvm/test/Transforms/Tapir. Several of
+# the tests there ought to be in kitsune/test/tapir/opencilk, but we try to
+# minimize the differences between us and opencilk.
+if config.kitsune_opencilk:
+    config.available_features.add("kitsune-opencilk")

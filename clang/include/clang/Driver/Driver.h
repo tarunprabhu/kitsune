@@ -178,6 +178,10 @@ public:
   /// The path to the compiler resource directory.
   std::string ResourceDir;
 
+  /// The path to Kitsune's resource directory. This will only be a non-empty
+  /// string if the driver is a Kitsune frontend.
+  std::string KitResourceDir;
+
   /// System directory for config files.
   std::string SystemConfigDir;
 
@@ -236,6 +240,9 @@ public:
 
   /// Whether the driver should follow dxc.exe like behavior.
   bool IsDXCMode() const { return Mode == DXCMode; }
+
+  /// Whether the driver should follow Kitsune's behavior.
+  bool IsKitsuneFrontend() const { return !KitResourceDir.empty(); }
 
   /// Only print tool bindings, don't build any jobs.
   LLVM_PREFERRED_TYPE(bool)
@@ -793,7 +800,7 @@ private:
       Action::OffloadKind TargetDeviceOffloadKind) const;
 
   /// Return the typical executable name for the specified driver \p Mode.
-  static const char *getExecutableForDriverMode(DriverMode Mode);
+  const char *getExecutableForDriverMode(DriverMode Mode);
 
 public:
   /// GetReleaseVersion - Parse (([0-9]+)(.([0-9]+)(.([0-9]+)?))?)? and

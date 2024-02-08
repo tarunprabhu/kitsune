@@ -275,6 +275,10 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   if (auto LTO = ToolChain.getLTOMode(Args); LTO != LTOK_None)
     addLTOOptions(ToolChain, Args, CmdArgs, Output, Inputs, LTO == LTOK_Thin);
 
+  if (D.isUsingLTO())
+    addLTOOptions(ToolChain, Args, CmdArgs, Output, Inputs,
+                  D.getLTOMode() == LTOK_Thin);
+
   bool NeedsSanitizerDeps = addSanitizerRuntimes(ToolChain, Args, CmdArgs);
   bool NeedsXRayDeps = addXRayRuntime(ToolChain, Args, CmdArgs);
   addLinkerCompressDebugSectionsOption(ToolChain, Args, CmdArgs);
@@ -282,6 +286,13 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   unsigned Major = ToolChain.getTriple().getOSMajorVersion();
   bool Profiling = Args.hasArg(options::OPT_pg) && Major != 0 && Major < 14;
+
+  // Add the Kitsune-specific options just before linking the C++ standard
+  // library (if needed).
+  if (D.isUsingLTO())
+    ToolChain.AddKitsuneLTOArgs(Args, CmdArgs);
+  ToolChain.AddKitsuneLinkerArgs(Args, CmdArgs);
+
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs,
                    options::OPT_r)) {
     // Use the static OpenMP runtime with -static-openmp

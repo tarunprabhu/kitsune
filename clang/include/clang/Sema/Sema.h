@@ -31,6 +31,7 @@
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/OperationKinds.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/StmtKitsune.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Analysis/Analyses/LifetimeSafety/LifetimeAnnotations.h"
@@ -111,6 +112,9 @@
 #include <vector>
 
 namespace llvm {
+namespace driver {
+class KitOptions;
+}
 struct InlineAsmIdentifierInfo;
 } // namespace llvm
 
@@ -166,6 +170,7 @@ class SemaCUDA;
 class SemaDirectX;
 class SemaHLSL;
 class SemaHexagon;
+class SemaKitsune;
 class SemaLoongArch;
 class SemaM68k;
 class SemaMIPS;
@@ -210,6 +215,8 @@ class LambdaScopeInfo;
 class SemaPPCallbacks;
 class TemplateDeductionInfo;
 } // namespace sema
+
+using llvm::driver::KitOptions;
 
 // AssignmentAction - This is used by all the assignment diagnostic functions
 // to represent what is actually causing the operation
@@ -932,6 +939,7 @@ public:
   LLVM_DECLARE_VIRTUAL_ANCHOR_FUNCTION();
 
   const LangOptions &getLangOpts() const { return LangOpts; }
+  const KitOptions &getKitOpts() const { return KitOpts; }
   OpenCLOptions &getOpenCLOptions() { return OpenCLFeatures; }
   FPOptions &getCurFPFeatures() { return CurFPFeatures; }
 
@@ -1306,6 +1314,7 @@ public:
   FPOptions CurFPFeatures;
 
   const LangOptions &LangOpts;
+  const KitOptions &KitOpts;
   Preprocessor &PP;
   ASTContext &Context;
   ASTConsumer &Consumer;
@@ -1492,6 +1501,11 @@ public:
     return *HexagonPtr;
   }
 
+  SemaKitsune &Kitsune() {
+    assert(KitsunePtr);
+    return *KitsunePtr;
+  }
+
   SemaLoongArch &LoongArch() {
     assert(LoongArchPtr);
     return *LoongArchPtr;
@@ -1623,6 +1637,7 @@ private:
   std::unique_ptr<SemaDirectX> DirectXPtr;
   std::unique_ptr<SemaHLSL> HLSLPtr;
   std::unique_ptr<SemaHexagon> HexagonPtr;
+  std::unique_ptr<SemaKitsune> KitsunePtr;
   std::unique_ptr<SemaLoongArch> LoongArchPtr;
   std::unique_ptr<SemaM68k> M68kPtr;
   std::unique_ptr<SemaMIPS> MIPSPtr;
@@ -15892,6 +15907,39 @@ public:
   std::optional<uint64_t>
   ComputeExpansionSize(CXXExpansionStmtPattern *Expansion);
   ///@}
+
+  /// \name Kitsune statements
+  /// Implementations are in SemaKitsune.cpp and SemaStmt.cpp.
+  /// FIXME: These should all be in SemaKitsune.cpp, but we currently use
+  /// several utility functions intended for regular C/C++ for statements when
+  /// checking Kitsune's forall statement. Refactoring out the common code will
+  /// rather painful, so we haven't done that, but we really should.
+  ///@{
+public:
+  StmtResult ActOnSyncStmt(SourceLocation SyncLoc, StringRef sv);
+  StmtResult ActOnSpawnStmt(SourceLocation SpawnLoc, StringRef sv, Stmt *S);
+  StmtResult ActOnForallStmt(SourceLocation ForLoc,
+                             SourceLocation LParenLoc,
+                             Stmt *First,
+                             ConditionResult Second,
+                             FullExprArg Third,
+                             SourceLocation RParenLoc,
+                             Stmt *Body);
+  StmtResult ActOnCXXForallRangeStmt(Scope *S, SourceLocation ForLoc,
+                                     SourceLocation CoawaitLoc,
+                                     Stmt *InitStmt,
+                                     Stmt *LoopVar,
+                                     SourceLocation ColonLoc, Expr *Collection,
+                                     SourceLocation RParenLoc,
+                                     BuildForRangeKind Kind);
+  StmtResult BuildCXXForallRangeStmt(
+      SourceLocation ForLoc, SourceLocation CoawaitLoc, Stmt *InitStmt,
+      SourceLocation ColonLoc, Stmt *RangeDecl, Stmt *Begin, Stmt *End,
+      Stmt *Index, Stmt *IndexEnd, Expr *Cond, Expr *Inc, Stmt *LoopVarDecl,
+      SourceLocation RParenLoc, BuildForRangeKind Kind);
+  StmtResult FinishCXXForallRangeStmt(Stmt *ForRange, Stmt *Body);
+
+  /// @}
 };
 
 DeductionFailureInfo

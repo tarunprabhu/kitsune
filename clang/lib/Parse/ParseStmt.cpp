@@ -537,6 +537,17 @@ Retry:
     ProhibitAttributes(GNUAttrs);
     HandlePragmaExport();
     return StmtEmpty();
+
+  case tok::kw__kitsune_spawn:              // spawn statement
+    return ParseSpawnStatement();
+
+  case tok::kw__kitsune_sync:               // sync statement
+    Res = ParseSyncStatement();
+    SemiError = "sync";
+    break;
+
+  case tok::kw__kitsune_forall:
+    return ParseForallStatement(TrailingElseLoc);
   }
 
   // If we reached this code, the statement must end in a semicolon.

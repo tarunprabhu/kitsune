@@ -25,6 +25,7 @@
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/IteratedDominanceFrontier.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
@@ -250,7 +251,7 @@ struct AllocaInfo {
         else
           assert(ValueType == SI->getValueOperand()->getType() &&
                  "All stores were checked to have used the same type");
-      } else {
+      } else if (LoadInst *LI = dyn_cast<LoadInst>(User)) {
         LoadInst *LI = cast<LoadInst>(User);
         // Otherwise it must be a load instruction, keep track of variable
         // reads.
@@ -260,6 +261,10 @@ struct AllocaInfo {
         else
           assert(ValueType == LI->getType() &&
                  "All loads where checked to have used the same type");
+      } else {
+        // This logic was originally in tapir. It is not clear why this is the
+        // way it is.
+        continue;
       }
 
       if (OnlyUsedInOneBlock) {
@@ -382,6 +387,8 @@ struct PromoteMem2Reg {
   /// A cache of @llvm.assume intrinsics used by SimplifyInstruction.
   AssumptionCache *AC;
 
+  TaskInfo *TI;
+
   const SimplifyQuery SQ;
 
   /// Reverse mapping of Allocas.
@@ -433,11 +440,10 @@ struct PromoteMem2Reg {
 
 public:
   PromoteMem2Reg(ArrayRef<AllocaInst *> Allocas, DominatorTree &DT,
-                 AssumptionCache *AC)
+                 AssumptionCache *AC, TaskInfo *TI)
       : Allocas(Allocas.begin(), Allocas.end()), DT(DT),
         DIB(*DT.getRoot()->getParent()->getParent(), /*AllowUnresolved*/ false),
-        AC(AC), SQ(DT.getRoot()->getDataLayout(),
-                   nullptr, &DT, AC) {}
+        AC(AC), TI(TI), SQ(DT.getRoot()->getDataLayout(), nullptr, &DT, AC) {}
 
   void run();
 
@@ -785,6 +791,8 @@ void PromoteMem2Reg::run() {
     AllocaInst *AI = Allocas[AllocaNum];
 
     assert(isAllocaPromotable(AI) && "Cannot promote non-promotable alloca!");
+    assert((!TI || TI->isAllocaParallelPromotable(AI)) &&
+           "Cannot promote non-promotable alloca in function with detach!");
     assert(AI->getParent()->getParent() == &F &&
            "All allocas should be in the same function, which is same as DF!");
 
@@ -848,18 +856,26 @@ void PromoteMem2Reg::run() {
     // to uses.
     SmallPtrSet<BasicBlock *, 32> LiveInBlocks;
     ComputeLiveInBlocks(AI, Info, DefBlocks, LiveInBlocks);
+    // Filter out live-in blocks that are not dominated by the alloca.
+    if (AI->getParent() != DT.getRoot()) {
+      SmallVector<BasicBlock *, 32> LiveInToRemove;
+      for (BasicBlock *LiveIn : LiveInBlocks)
+        if (!DT.dominates(AI->getParent(), LiveIn))
+          LiveInToRemove.push_back(LiveIn);
+      for (BasicBlock *ToRemove : LiveInToRemove)
+        LiveInBlocks.erase(ToRemove);
+    }
 
-    // At this point, we're committed to promoting the alloca using IDF's, and
-    // the standard SSA construction algorithm.  Determine which blocks need phi
-    // nodes and see if we can optimize out some work by avoiding insertion of
-    // dead phi nodes.
+    // Determine which blocks need PHI nodes and see if we can optimize out some
+    // work by avoiding insertion of dead phi nodes.
     IDF.setLiveInBlocks(LiveInBlocks);
     IDF.setDefiningBlocks(DefBlocks);
     SmallVector<BasicBlock *, 32> PHIBlocks;
     IDF.calculate(PHIBlocks);
-    llvm::sort(PHIBlocks, [](BasicBlock *A, BasicBlock *B) {
-      return A->getNumber() < B->getNumber();
-    });
+    if (PHIBlocks.size() > 1)
+      llvm::sort(PHIBlocks, [](BasicBlock *A, BasicBlock *B) {
+        return A->getNumber() < B->getNumber();
+      });
 
     unsigned CurrentVersion = 0;
     for (BasicBlock *BB : PHIBlocks)
@@ -939,6 +955,32 @@ void PromoteMem2Reg::run() {
       }
       return false;
     });
+  }
+
+  // Check if a PHI is inserted at a task-continue block.
+  {
+    bool badPhi = false;
+    for (DenseMap<std::pair<unsigned, unsigned>, PHINode *>::iterator
+           I = NewPhiNodes.begin(),
+           E = NewPhiNodes.end();
+         I != E; ++I) {
+      PHINode *PN = I->second;
+      BasicBlock *BB = PN->getParent();
+      // Only need to check once per block
+      if (&BB->front() != PN)
+        continue;
+
+      for (pred_iterator PI = pred_begin(BB), E = pred_end(BB);
+           PI != E; ++PI) {
+        BasicBlock *P = *PI;
+        if (isa<ReattachInst>(P->getTerminator())) {
+          LLVM_DEBUG(dbgs() << "Illegal PHI inserted in block " << BB->getName()
+                     << "\n");
+          badPhi = true;
+        }
+      }
+    }
+    assert(!badPhi && "PromoteMem2Reg inserted illegal phi.");
   }
 
   // At this point, the renamer has added entries to PHI nodes for all reachable
@@ -1228,10 +1270,10 @@ void PromoteMem2Reg::RenamePass(BasicBlock *BB, BasicBlock *Pred) {
 }
 
 void llvm::PromoteMemToReg(ArrayRef<AllocaInst *> Allocas, DominatorTree &DT,
-                           AssumptionCache *AC) {
+                           AssumptionCache *AC, TaskInfo *TI) {
   // If there is nothing to do, bail out...
   if (Allocas.empty())
     return;
 
-  PromoteMem2Reg(Allocas, DT, AC).run();
+  PromoteMem2Reg(Allocas, DT, AC, TI).run();
 }

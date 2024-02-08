@@ -810,6 +810,8 @@ private:
   SDValue LowerMSTORE(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFCANONICALIZE(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerAVG(SDValue Op, SelectionDAG &DAG, unsigned NewOp) const;
+  SDValue LowerSetjmp(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerLongjmp(SDValue Op, SelectionDAG &DAG) const;
 
   SDValue LowerFixedLengthVectorIntDivideToSVE(SDValue Op,
                                                SelectionDAG &DAG) const;
@@ -970,6 +972,10 @@ private:
   bool hasMultipleConditionRegisters(EVT VT) const override {
     return VT.isScalableVector();
   }
+
+  MachineBasicBlock *EmitSetjmp(MachineInstr &MI, MachineBasicBlock *MBB) const;
+  MachineBasicBlock *EmitLongjmp(MachineInstr &MI,
+                                 MachineBasicBlock *MBB) const;
 };
 
 namespace AArch64 {

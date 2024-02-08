@@ -14367,4 +14367,6 @@ def err_cuda_device_kernel_launch_not_supported
 def err_cuda_device_kernel_launch_require_rdc
     : Error<"kernel launch from __device__ or __global__ function requires "
             "relocatable device code (i.e. requires -fgpu-rdc)">;
+
+include "kitsune/Clang/SemaDiagnostics.td"
 } // end of sema component.

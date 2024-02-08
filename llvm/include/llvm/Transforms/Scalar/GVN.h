@@ -59,6 +59,7 @@ class NonLocalDepResult;
 class OptimizationRemarkEmitter;
 class PHINode;
 class TargetLibraryInfo;
+class TaskInfo;
 class Value;
 class IntrinsicInst;
 /// A private "module" namespace for types and utilities used by GVN. These
@@ -360,7 +361,8 @@ private:
   bool runImpl(Function &F, AssumptionCache &RunAC, DominatorTree &RunDT,
                const TargetLibraryInfo &RunTLI, AAResults &RunAA,
                MemoryDependenceResults *RunMD, LoopInfo &LI,
-               OptimizationRemarkEmitter *ORE, MemorySSA *MSSA = nullptr);
+               OptimizationRemarkEmitter *ORE, TaskInfo *TI = nullptr,
+               MemorySSA *MSSA = nullptr);
 
   // List of critical edges to be split between iterations.
   SmallVector<std::pair<Instruction *, unsigned>, 4> ToSplit;
