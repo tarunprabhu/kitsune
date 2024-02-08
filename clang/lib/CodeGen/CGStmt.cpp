@@ -507,6 +507,7 @@ Address CodeGenFunction::EmitCompoundStmt(const CompoundStmt &S, bool GetLast,
   // Keep track of the current cleanup stack depth, including debug scopes.
   LexicalScope Scope(*this, S.getSourceRange());
 
+  SyncRegionRAII StmtSR(*this);
   return EmitCompoundStmtWithoutScope(S, GetLast, AggSlot);
 }
 
@@ -1496,6 +1497,9 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   SaveRetExprRAII SaveRetExpr(RV, *this);
 
   RunCleanupsScope cleanupScope(*this);
+  bool CleanupsSaved = false;
+  if (IsSpawned)
+    CleanupsSaved = CurDetachScope->MaybeSaveCleanupsScope(&cleanupScope);
   if (const auto *EWC = dyn_cast_or_null<ExprWithCleanups>(RV))
     RV = EWC->getSubExpr();
 
@@ -1571,8 +1575,21 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   if (!RV || RV->isEvaluatable(getContext()))
     ++NumSimpleReturnExprs;
 
+  if (CleanupsSaved)
+    CurDetachScope->CleanupDetach();
   cleanupScope.ForceCleanup();
-  EmitBranchThroughCleanup(ReturnBlock);
+  if (IsSpawned) {
+    if (!(CurDetachScope && CurDetachScope->IsDetachStarted()))
+      FailedSpawnWarning(RV->getExprLoc());
+    // Pop the detach scope
+    IsSpawned = false;
+    PopDetachScope();
+  }
+
+  // FIXME KITSUNE: Can we clean up this API since we know that we will never be
+  // compiling Cilk?
+  bool CompilingCilk = false;
+  EmitBranchThroughCleanup(ReturnBlock, CompilingCilk);
 }
 
 void CodeGenFunction::EmitDeclStmt(const DeclStmt &S) {

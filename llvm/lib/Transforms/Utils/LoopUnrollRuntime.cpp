@@ -1026,7 +1026,7 @@ bool llvm::UnrollRuntimeLoopRemainder(
     assert(!getLoopConvergenceHeart(L) &&
            "A loop with a convergence heart does not allow runtime unrolling.");
     UnrollResult = UnrollLoop(remainderLoop, ULO, LI, SE, DT, AC, TTI,
-                              /*ORE*/ nullptr, PreserveLCSSA);
+                              /*ORE*/ nullptr, PreserveLCSSA, /*TI*/ nullptr);
   }
 
   if (ResultLoop && UnrollResult != LoopUnrollResult::FullyUnrolled)
