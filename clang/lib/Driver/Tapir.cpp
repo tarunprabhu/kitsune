@@ -25,10 +25,6 @@ using namespace llvm::opt;
 TapirTargetID clang::parseTapirTarget(const ArgList &Args) {
   // Use Cilk if -ftapir is not specified but -fcilkplus is specified.
   if (!Args.hasArg(options::OPT_ftapir_EQ)) {
-    if (Args.hasArg(options::OPT_fcilkplus))
-      return TapirTargetID::Cilk;
-    if (Args.hasArg(options::OPT_fopencilk))
-      return TapirTargetID::OpenCilk;
     return TapirTargetID::None;
   }
 
@@ -39,7 +35,6 @@ TapirTargetID clang::parseTapirTarget(const ArgList &Args) {
       .Case("none", TapirTargetID::None)
       .Case("serial", TapirTargetID::Serial)
       .Case("cheetah", TapirTargetID::Cheetah)
-      .Case("cilkplus", TapirTargetID::Cilk)
       .Case("lambda", TapirTargetID::Lambda)
       .Case("omptask", TapirTargetID::OMPTask)
       .Case("opencilk", TapirTargetID::OpenCilk)
@@ -61,9 +56,6 @@ clang::serializeTapirTarget(TapirTargetID Target) {
     break;
   case TapirTargetID::Cheetah:
     TapirTargetStr = "cheetah";
-    break;
-  case TapirTargetID::Cilk:
-    TapirTargetStr = "cilkplus";
     break;
   case TapirTargetID::Lambda:
     TapirTargetStr = "lambda";

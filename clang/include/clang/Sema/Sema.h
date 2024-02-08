@@ -2092,8 +2092,6 @@ public:
                               SourceLocation AttrLoc);
   QualType BuildMatrixType(QualType T, Expr *NumRows, Expr *NumColumns,
                            SourceLocation AttrLoc);
-  QualType BuildHyperobjectType(QualType Element, Expr *Identity, Expr *Reduce,
-                                SourceLocation Loc);
 
   QualType BuildAddressSpaceAttr(QualType &T, LangAS ASIdx, Expr *AddrSpace,
                                  SourceLocation AttrLoc);
@@ -5243,35 +5241,6 @@ public:
                                   const NamedReturnInfo &NRInfo, Expr *Value,
                                   bool SupressSimplerImplicitMoves = false);
 
-  void DiagnoseCilkSpawn(Stmt *S);
-  StmtResult ActOnCilkScopeStmt(SourceLocation ScopeLoc, Stmt *S);
-  StmtResult ActOnCilkSyncStmt(SourceLocation SyncLoc);
-  StmtResult ActOnCilkSpawnStmt(SourceLocation SpawnLoc, Stmt *S);
-  ExprResult ActOnCilkSpawnExpr(SourceLocation SpawnLoc, Expr *E);
-  StmtResult HandleSimpleCilkForStmt(SourceLocation CilkForLoc,
-                                     SourceLocation LParenLoc,
-                                     Stmt *First,
-                                     Expr *Condition,
-                                     Expr *Increment,
-                                     SourceLocation RParenLoc,
-                                     Stmt *Body);
-  StmtResult LiftCilkForLoopLimit(SourceLocation CilkForLoc,
-                                  Stmt *First, Expr **Second);
-  StmtResult ActOnCilkForStmt(SourceLocation CilkForLoc,
-                              SourceLocation LParenLoc, Stmt *Init,
-                              DeclStmt *Limit, ConditionResult InitCond,
-                              DeclStmt *Begin, DeclStmt *End,
-                              ConditionResult second, FullExprArg third,
-                              SourceLocation RParenLoc, Stmt *Body,
-                              DeclStmt *LoopVar = nullptr);
-
-  StmtResult BuildCilkForStmt(SourceLocation CilkForLoc,
-                              SourceLocation LParenLoc,
-                              Stmt *Init, Expr *Cond, Expr *Inc,
-                              SourceLocation RParenLoc, Stmt *Body,
-                              Expr *LoopCount, Expr *Stride,
-                              QualType SpanType);
-
   StmtResult ActOnReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp,
                              Scope *CurScope);
   StmtResult BuildReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp,
@@ -5681,9 +5650,6 @@ public:
                    NamedDecl *FoundD = nullptr,
                    SourceLocation TemplateKWLoc = SourceLocation(),
                    const TemplateArgumentListInfo *TemplateArgs = nullptr);
-
-  Expr *BuildHyperobjectLookup(Expr *, bool Pointer = false);
-  Expr *ValidateReducerCallback(Expr *E, unsigned NumArgs, SourceLocation Loc);
 
   ExprResult
   BuildAnonymousStructUnionMemberReference(

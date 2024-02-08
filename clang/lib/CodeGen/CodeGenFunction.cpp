@@ -268,10 +268,6 @@ TypeEvaluationKind CodeGenFunction::getEvaluationKind(QualType type) {
     case Type::Atomic:
       type = cast<AtomicType>(type)->getValueType();
       continue;
-
-    case Type::Hyperobject:
-      type = cast<HyperobjectType>(type)->getElementType();
-      continue;
     }
     llvm_unreachable("unknown type kind!");
   }
@@ -369,7 +365,10 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
       HasCleanups && EHStack.containsOnlyLifetimeMarkers(PrologueCleanupDepth);
   bool EmitRetDbgLoc = !HasCleanups || HasOnlyLifetimeMarkers;
   bool SyncEmitted = false;
-  bool CompilingCilk = (getLangOpts().getCilk() != LangOptions::Cilk_none);
+
+  // FIXME KITSUNE: Since we know that we will never be compiling Cilk, can we
+  // simplify this?
+  bool CompilingCilk = false;
 
   std::optional<ApplyDebugLocation> OAL;
   if (HasCleanups) {
@@ -820,8 +819,6 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
       Fn->addFnAttr(llvm::Attribute::SanitizeMemTag);
     if (SanOpts.has(SanitizerKind::Thread))
       Fn->addFnAttr(llvm::Attribute::SanitizeThread);
-    if (SanOpts.has(SanitizerKind::Cilk))
-      Fn->addFnAttr(llvm::Attribute::SanitizeCilk);
     if (SanOpts.hasOneOf(SanitizerKind::Memory | SanitizerKind::KernelMemory))
       Fn->addFnAttr(llvm::Attribute::SanitizeMemory);
   }
@@ -947,17 +944,6 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
       getContext().getTargetInfo().getTriple().getEnvironment() !=
           llvm::Triple::CODE16)
     Fn->addFnAttr("patchable-function", "prologue-short-redirect");
-
-  // Add Cilk attributes
-  if (D && getLangOpts().getCilk() != LangOptions::Cilk_none) {
-    if (D->getAttr<StrandPureAttr>())
-      Fn->setStrandPure();
-    if (D->getAttr<StealableAttr>())
-      Fn->addFnAttr(llvm::Attribute::Stealable);
-  }
-
-  if (D && D->getAttr<InjectiveAttr>())
-    Fn->addFnAttr(llvm::Attribute::Injective);
 
   // Add no-jump-tables value.
   if (CGM.getCodeGenOpts().NoUseJumpTables)
@@ -2345,10 +2331,6 @@ void CodeGenFunction::EmitVariablyModifiedType(QualType type) {
     case Type::IncompleteArray:
       // Losing element qualification here is fine.
       type = cast<ArrayType>(ty)->getElementType();
-      break;
-
-    case Type::Hyperobject:
-      type = cast<HyperobjectType>(ty)->getElementType();
       break;
 
     case Type::VariableArray: {

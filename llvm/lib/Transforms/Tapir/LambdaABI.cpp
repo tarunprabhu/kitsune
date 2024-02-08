@@ -504,9 +504,6 @@ void LambdaABI::lowerSync(SyncInst &SI) {
   }
   CB->setDebugLoc(SI.getDebugLoc());
   SI.eraseFromParent();
-
-  // Mark this function as stealable.
-  Fn.addFnAttr(Attribute::Stealable);
 }
 
 bool LambdaABI::preProcessFunction(Function &F, TaskInfo &TI,

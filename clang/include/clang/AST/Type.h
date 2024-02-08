@@ -1289,8 +1289,7 @@ public:
     DK_cxx_destructor,
     DK_objc_strong_lifetime,
     DK_objc_weak_lifetime,
-    DK_nontrivial_c_struct,
-    DK_hyperobject
+    DK_nontrivial_c_struct
   };
 
   /// Returns a nonzero value if objects of this type require
@@ -1376,8 +1375,6 @@ public:
 
   /// Remove all qualifiers including _Atomic.
   QualType getAtomicUnqualifiedType() const;
-
-  QualType stripHyperobject() const;
 
 private:
   // These methods are implemented in a separate translation unit;
@@ -2187,7 +2184,6 @@ public:
   bool isAnyPointerType() const;   // Any C pointer or ObjC object pointer
   bool isBlockPointerType() const;
   bool isVoidPointerType() const;
-  bool isHyperobjectType() const;
   bool isReferenceType() const;
   bool isLValueReferenceType() const;
   bool isRValueReferenceType() const;
@@ -4888,7 +4884,6 @@ public:
   /// Recursively check all fields in the record for const-ness. If any field
   /// is declared const, return true. Otherwise, return false.
   bool hasConstFields() const;
-  bool hasHyperobjectFields() const;
 
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
@@ -6625,41 +6620,6 @@ public:
   }
 };
 
-class HyperobjectType final : public Type, public llvm::FoldingSetNode {
-  friend class ASTContext;
-
-  QualType ElementType;
-  Expr *Identity, *Reduce;
-  const FunctionDecl *IdentityID, *ReduceID;
-
-  HyperobjectType(QualType Element, QualType CanonicalPtr,
-                  Expr *i, const FunctionDecl *ifn,
-                  Expr *r, const FunctionDecl *rfn);
-
-public:
-  QualType getElementType() const { return ElementType; }
-
-  static bool isNullish(Expr *);
-
-  Expr *getIdentity() const { return Identity; }
-  Expr *getReduce() const { return Reduce; }
-
-  bool hasCallbacks() const;
-
-  bool isSugared() const { return false; }
-  QualType desugar() const { return QualType(this, 0); }
-
-  void Profile(llvm::FoldingSetNodeID &ID) const;
-
-  static void Profile(llvm::FoldingSetNodeID &ID, QualType Pointee,
-                      const FunctionDecl *I,
-                      const FunctionDecl *R);
-
-  static bool classof(const Type *T) {
-    return T->getTypeClass() == Hyperobject;
-  }
-};
-
 /// A qualifier set is used to build a set of qualifiers.
 class QualifierCollector : public Qualifiers {
 public:
@@ -6983,10 +6943,6 @@ inline bool Type::isAnyPointerType() const {
 
 inline bool Type::isBlockPointerType() const {
   return isa<BlockPointerType>(CanonicalType);
-}
-
-inline bool Type::isHyperobjectType() const {
-  return isa<HyperobjectType>(CanonicalType);
 }
 
 inline bool Type::isReferenceType() const {

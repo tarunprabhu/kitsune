@@ -98,7 +98,6 @@ TapirTargetID lld::args::parseTapirTarget(StringRef tapirTarget) {
       .Case("none", TapirTargetID::None)
       .Case("serial", TapirTargetID::Serial)
       .Case("cheetah", TapirTargetID::Cheetah)
-      .Case("cilkplus", TapirTargetID::Cilk)
       .Case("lambda", TapirTargetID::Lambda)
       .Case("omptask", TapirTargetID::OMPTask)
       .Case("opencilk", TapirTargetID::OpenCilk)

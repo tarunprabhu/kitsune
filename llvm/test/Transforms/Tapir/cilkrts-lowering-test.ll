@@ -1,4 +1,4 @@
-; RUN: opt < %s -passes=tapir2target -tapir-target=cilk -S
+; RUN: opt < %s -passes=tapir2target -tapir-target=opencilk -opencilk-runtime-bc-path=%S/libopencilk-abi.bc -S
 
 ; ModuleID = '/data/compilers/tapir/cilkrts/runtime/cilk-abi-cilk-for.cpp'
 source_filename = "/data/compilers/tapir/cilkrts/runtime/cilk-abi-cilk-for.cpp"

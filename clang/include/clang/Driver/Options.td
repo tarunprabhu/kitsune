@@ -2041,21 +2041,6 @@ def fsanitize_undefined_strip_path_components_EQ : Joined<["-"], "fsanitize-unde
   HelpText<"Strip (or keep only, if negative) a given number of path components "
            "when emitting check metadata.">,
   MarshallingInfoInt<CodeGenOpts<"EmitCheckPathComponentsToStrip">, "0", "int">;
-def fcsi : Flag<["-"], "fcsi">, Group<f_clang_Group>,
-           MetaVarName<"<check>">,
-           HelpText<"Turn on Comprehensive Static Instrumentation.">;
-def fcsi_EQ : Joined<["-"], "fcsi=">, Group<f_clang_Group>,
-              MetaVarName<"<check>">,
-              HelpText<"Turn on Comprehensive Static Instrumentation at the "
-                       "specified point in the optimizer: first, early, "
-                       "tapirlate, aftertapirloops, last">;
-def fcilktool_EQ : Joined<["-"], "fcilktool=">, Group<f_clang_Group>,
-                   MetaVarName<"<check>">,
-                   HelpText<"Turn on the designated Cilk tool">;
-def shared_libcilktool : Flag<["-"], "shared-libcilktool">,
-  HelpText<"Dynamically link the cilktool runtime">;
-def static_libcilktool : Flag<["-"], "static-libcilktool">,
-  HelpText<"Statically link the cilktool runtime">;
 
 } // end -f[no-]sanitize* flags
 
@@ -2623,19 +2608,12 @@ def fno_knr_functions : Flag<["-"], "fno-knr-functions">, Group<f_Group>,
 def ftapir_EQ : Joined<["-"], "ftapir=">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Choose the backend parallel runtime for Tapir instructions">,
   Values<"none,serial,cilkplus,cheetah,lambda,omptask,opencilk,qthreads">;
-def fcilkplus : Flag<["-"], "fcilkplus">, Group<f_Group>, Flags<[CC1Option]>,
-  HelpText<"Enable Cilk Plus extensions">;
-def fopencilk : Flag<["-"], "fopencilk">, Group<f_Group>, Flags<[CC1Option]>,
-  HelpText<"Enable OpenCilk extensions">;
-def static_libopencilk : Flag<["-"], "static-libopencilk">;
 def opencilk_resource_dir_EQ : Joined<["--"], "opencilk-resource-dir=">,
   Flags<[NoXarchOption]>,
   HelpText<"The directory that holds OpenCilk resource files">;
 def opencilk_abi_bitcode_EQ : Joined<["--"], "opencilk-abi-bitcode=">,
   Flags<[CC1Option]>, HelpText<"Path to OpenCilk ABI bitcode file">,
   MarshallingInfoString<CodeGenOpts<"OpenCilkABIBitcodeFile">>;
-def fopencilk_enable_pedigrees : Flag<["-"], "fopencilk-enable-pedigrees">,
-  Group<f_Group>, Flags<[CC1Option]>, HelpText<"Enable OpenCilk pedigrees">;
 
 def fmudflapth : Flag<["-"], "fmudflapth">, Group<f_Group>;
 def fmudflap : Flag<["-"], "fmudflap">, Group<f_Group>;

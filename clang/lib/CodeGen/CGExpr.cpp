@@ -1364,8 +1364,6 @@ LValue CodeGenFunction::EmitLValueHelper(const Expr *E,
     return EmitCXXUuidofLValue(cast<CXXUuidofExpr>(E));
   case Expr::LambdaExprClass:
     return EmitAggExprToLValue(E);
-  case Expr::CilkSpawnExprClass:
-    return EmitCilkSpawnExprLValue(cast<CilkSpawnExpr>(E));
 
   case Expr::ExprWithCleanupsClass: {
     const auto *cleanups = cast<ExprWithCleanups>(E);
@@ -5175,28 +5173,6 @@ LValue CodeGenFunction::EmitBinaryOperatorLValue(const BinaryOperator *E) {
     case Qualifiers::OCL_ExplicitNone:
     case Qualifiers::OCL_Weak:
       break;
-    }
-
-    if (isa<CilkSpawnExpr>(E->getRHS()->IgnoreImplicit())) {
-      // Emit the LHS before the RHS.
-      LValue LV = EmitCheckedLValue(E->getLHS(), TCK_Store);
-
-      // Set up to perform a detach.
-      assert(!IsSpawned &&
-             "_Cilk_spawn statement found in spawning environment.");
-      IsSpawned = true;
-
-      // Emit the expression.
-      RValue RV = EmitAnyExpr(E->getRHS());
-      EmitStoreThroughLValue(RV, LV);
-
-      // Finish the detach.
-      if (!(CurDetachScope && CurDetachScope->IsDetachStarted()))
-        FailedSpawnWarning(E->getRHS()->getExprLoc());
-      PopDetachScope();
-      IsSpawned = false;
-
-      return LV;
     }
 
     RValue RV = EmitAnyExpr(E->getRHS());

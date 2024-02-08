@@ -14,7 +14,6 @@
 #ifndef LLVM_CLANG_BASIC_LANGOPTIONS_H
 #define LLVM_CLANG_BASIC_LANGOPTIONS_H
 
-#include "clang/Basic/Cilk.h"
 #include "clang/Basic/CommentOptions.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/LangStandard.h"
@@ -381,32 +380,6 @@ public:
     IncompleteOnly = 3,
   };
 
-  enum CSIExtensionPoint {
-    // Don't run CSI
-    CSI_None = 0,
-    // The following extension points should be consistent with the extension
-    // points allowed by the pass manager, except for EnabledOnOptLevel0.
-    CSI_EarlyAsPossible,
-    CSI_ModuleOptimizerEarly,
-    CSI_OptimizerLast,
-    CSI_TapirLate,
-    CSI_TapirLoopEnd
-  };
-
-  enum CilktoolKind {
-    // No Cilktool
-    Cilktool_None = 0,
-    Cilktool_Cilkscale,
-    Cilktool_Cilkscale_InstructionCount,
-    Cilktool_Cilkscale_Benchmark
-  };
-
-  enum CilkVersion {
-    Cilk_none = 0,
-    Cilk_plus = 1,
-    Cilk_opencilk = 2
-  };
-
 public:
   /// The used language standard.
   LangStandard::Kind LangStd;
@@ -517,9 +490,6 @@ public:
   // Indicates whether we should keep all nullptr checks for pointers
   // received as a result of a standard operator new (-fcheck-new)
   bool CheckNew = false;
-
-  /// Set of enabled Cilk options.
-  CilkOptionSet CilkOptions;
 
   LangOptions();
 

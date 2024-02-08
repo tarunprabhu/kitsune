@@ -280,8 +280,7 @@ static bool tryToStripMineLoop(
   // synchronized.
   bool NeedNestedSync = IncludeNestedSync;
   if (!NeedNestedSync && TLI)
-    NeedNestedSync = (TLI->getTapirTarget() == TapirTargetID::Cilk ||
-                      TLI->getTapirTarget() == TapirTargetID::OpenCilk);
+    NeedNestedSync = (TLI->getTapirTarget() == TapirTargetID::OpenCilk);
 
   // Save loop properties before it is transformed.
   MDNode *OrigLoopID = L->getLoopID();

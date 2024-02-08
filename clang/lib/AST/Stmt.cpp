@@ -18,12 +18,9 @@
 #include "clang/AST/DeclGroup.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
-#include "clang/AST/ExprCilk.h"
 #include "clang/AST/ExprConcepts.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExprOpenMP.h"
-#include "clang/AST/Stmt.h"
-#include "clang/AST/StmtCilk.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/AST/StmtOpenMP.h"
@@ -1438,22 +1435,4 @@ bool CapturedStmt::capturesVariable(const VarDecl *Var) const {
   }
 
   return false;
-}
-
-// CilkForStmt
-CilkForStmt::CilkForStmt(Stmt *Init, DeclStmt *Limit, Expr *InitCond,
-                         DeclStmt *BeginStmt, DeclStmt *EndStmt, Expr *Cond,
-                         Expr *Inc, DeclStmt *LoopVar, Stmt *Body,
-                         SourceLocation CFL, SourceLocation LP,
-                         SourceLocation RP)
-    : Stmt(CilkForStmtClass), CilkForLoc(CFL), LParenLoc(LP), RParenLoc(RP) {
-  SubExprs[INIT] = Init;
-  SubExprs[LIMIT] = Limit;
-  SubExprs[INITCOND] = InitCond;
-  SubExprs[BEGINSTMT] = BeginStmt;
-  SubExprs[ENDSTMT] = EndStmt;
-  SubExprs[COND] = Cond;
-  SubExprs[INC] = Inc;
-  SubExprs[LOOPVAR] = LoopVar;
-  SubExprs[BODY] = Body;
 }

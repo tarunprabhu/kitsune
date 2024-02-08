@@ -18,7 +18,6 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Transforms/IPO/FunctionAttrs.h"
-#include "llvm/Transforms/Tapir/CilkABI.h"
 #include "llvm/Transforms/Tapir/LambdaABI.h"
 #include "llvm/Transforms/Tapir/OMPTaskABI.h"
 #include "llvm/Transforms/Tapir/OpenCilkABI.h"
@@ -43,8 +42,6 @@ TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID) {
     return nullptr;
   case TapirTargetID::Serial:
     return new SerialABI(M);
-  case TapirTargetID::Cilk:
-    return new CilkABI(M);
   case TapirTargetID::Cheetah:
   case TapirTargetID::OpenCilk:
     return new OpenCilkABI(M);
@@ -1237,9 +1234,6 @@ bool TapirTarget::shouldProcessFunction(const Function &F) const {
   for (const Instruction &I : instructions(&F))
     if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I)) {
       switch (II->getIntrinsicID()) {
-      case Intrinsic::hyper_lookup:
-      case Intrinsic::reducer_register:
-      case Intrinsic::reducer_unregister:
       case Intrinsic::tapir_loop_grainsize:
       case Intrinsic::task_frameaddress:
       case Intrinsic::tapir_runtime_start:

@@ -72,8 +72,6 @@
 #include "llvm/Transforms/Instrumentation/SanitizerBinaryMetadata.h"
 #include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
 #include "llvm/Transforms/Instrumentation/ThreadSanitizer.h"
-#include "llvm/Transforms/Instrumentation/CilkSanitizer.h"
-#include "llvm/Transforms/Instrumentation/ComprehensiveStaticInstrumentation.h"
 #include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Scalar/EarlyCSE.h"
 #include "llvm/Transforms/Scalar/GVN.h"
@@ -256,38 +254,6 @@ static bool asanUseGlobalsGC(const Triple &T, const CodeGenOptions &CGOpts) {
     break;
   }
   return false;
-}
-
-static CSIOptions getCSIOptionsForCilkscale(bool InstrumentBasicBlocks) {
-  CSIOptions Options;
-  // Disable CSI hooks that Cilkscale doesn't need.
-  Options.InstrumentBasicBlocks = InstrumentBasicBlocks;
-  Options.InstrumentLoops = false;
-  Options.InstrumentMemoryAccesses = false;
-  Options.InstrumentCalls = false;
-  Options.InstrumentAtomics = false;
-  Options.InstrumentMemIntrinsics = false;
-  Options.InstrumentAllocas = false;
-  Options.InstrumentAllocFns = false;
-  return Options;
-}
-
-static CSIOptions getCSIOptionsForCilkscaleBenchmark() {
-  CSIOptions Options;
-  // Disable CSI hooks that Cilkscale doesn't need.
-  Options.InstrumentFuncEntryExit = false;
-  Options.InstrumentBasicBlocks = false;
-  Options.InstrumentLoops = false;
-  Options.InstrumentMemoryAccesses = false;
-  Options.InstrumentCalls = false;
-  Options.InstrumentAtomics = false;
-  Options.InstrumentMemIntrinsics = false;
-  Options.InstrumentTapir = false;
-  Options.InstrumentAllocas = false;
-  Options.InstrumentAllocFns = false;
-  Options.CallsMayThrow = false;
-  Options.CallsTerminateBlocks = false;
-  return Options;
 }
 
 static TargetLibraryInfoImpl *createTLII(llvm::Triple &TargetTriple,
@@ -1055,88 +1021,6 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
             MPM.addPass(createModuleToFunctionPassAdaptor(MemProfilerPass()));
             MPM.addPass(ModuleMemProfilerPass());
           });
-    }
-    // Register the Cilksan pass.
-    if (LangOpts.Sanitize.has(SanitizerKind::Cilk))
-      PB.registerTapirLateEPCallback(
-          [&PB](ModulePassManager &MPM, OptimizationLevel Level) {
-            MPM.addPass(CSISetupPass());
-            MPM.addPass(CilkSanitizerPass());
-            MPM.addPass(PB.buildPostCilkInstrumentationPipeline(Level));
-          });
-    // Register CSI instrumentation for Cilkscale
-    if (LangOpts.getCilktool() != LangOptions::CilktoolKind::Cilktool_None) {
-      switch (LangOpts.getCilktool()) {
-      default:
-        break;
-      case LangOptions::CilktoolKind::Cilktool_Cilkscale:
-        PB.registerTapirLoopEndEPCallback(
-            [&PB](ModulePassManager &MPM, OptimizationLevel Level) {
-              MPM.addPass(CSISetupPass(getCSIOptionsForCilkscale(false)));
-              MPM.addPass(ComprehensiveStaticInstrumentationPass(
-                  getCSIOptionsForCilkscale(false)));
-              MPM.addPass(PB.buildPostCilkInstrumentationPipeline(Level));
-            });
-        break;
-      case LangOptions::CilktoolKind::Cilktool_Cilkscale_InstructionCount:
-        PB.registerTapirLoopEndEPCallback(
-            [&PB](ModulePassManager &MPM, OptimizationLevel Level) {
-              MPM.addPass(CSISetupPass(getCSIOptionsForCilkscale(true)));
-              MPM.addPass(ComprehensiveStaticInstrumentationPass(
-                  getCSIOptionsForCilkscale(true)));
-              MPM.addPass(PB.buildPostCilkInstrumentationPipeline(Level));
-            });
-        break;
-      case LangOptions::CilktoolKind::Cilktool_Cilkscale_Benchmark:
-          PB.registerTapirLoopEndEPCallback(
-            [&PB](ModulePassManager &MPM, OptimizationLevel Level) {
-              MPM.addPass(CSISetupPass(getCSIOptionsForCilkscaleBenchmark()));
-              MPM.addPass(ComprehensiveStaticInstrumentationPass(
-                  getCSIOptionsForCilkscaleBenchmark()));
-              MPM.addPass(PB.buildPostCilkInstrumentationPipeline(Level));
-            });
-        break;
-      }
-    }
-    // Register the CSI pass.
-    if (LangOpts.getComprehensiveStaticInstrumentation()) {
-      switch (LangOpts.getComprehensiveStaticInstrumentation()) {
-      case LangOptions::CSI_EarlyAsPossible:
-      case LangOptions::CSI_ModuleOptimizerEarly:
-        PB.registerPipelineStartEPCallback(
-            [&PB](ModulePassManager &MPM, OptimizationLevel Level) {
-              MPM.addPass(CSISetupPass());
-              MPM.addPass(ComprehensiveStaticInstrumentationPass());
-              MPM.addPass(PB.buildPostCilkInstrumentationPipeline(Level));
-            });
-        break;
-      case LangOptions::CSI_TapirLate:
-        PB.registerTapirLateEPCallback(
-            [&PB](ModulePassManager &MPM, OptimizationLevel Level) {
-              MPM.addPass(CSISetupPass());
-              MPM.addPass(ComprehensiveStaticInstrumentationPass());
-              MPM.addPass(PB.buildPostCilkInstrumentationPipeline(Level));
-            });
-        break;
-      case LangOptions::CSI_TapirLoopEnd:
-        PB.registerTapirLoopEndEPCallback(
-            [&PB](ModulePassManager &MPM, OptimizationLevel Level) {
-              MPM.addPass(CSISetupPass());
-              MPM.addPass(ComprehensiveStaticInstrumentationPass());
-              MPM.addPass(PB.buildPostCilkInstrumentationPipeline(Level));
-            });
-        break;
-      case LangOptions::CSI_OptimizerLast:
-        PB.registerOptimizerLastEPCallback(
-            [&PB](ModulePassManager &MPM, OptimizationLevel Level) {
-              MPM.addPass(CSISetupPass());
-              MPM.addPass(ComprehensiveStaticInstrumentationPass());
-              MPM.addPass(PB.buildPostCilkInstrumentationPipeline(Level));
-            });
-        break;
-      case LangOptions::CSI_None:
-        break;
-      }
     }
 
     if (IsThinLTO || (IsLTO && CodeGenOpts.UnifiedLTO)) {

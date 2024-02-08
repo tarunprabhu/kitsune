@@ -614,7 +614,9 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
   {
     // If compiling Cilk code, create a nested sync region, with an implicit
     // sync, for the try-catch.
-    bool CompilingCilk = (getLangOpts().getCilk() != LangOptions::Cilk_none);
+    // FIXME KITSUNE: Since we know that we will not be compiling Cilk, can we
+    // clean this up.
+    bool CompilingCilk = false;
     SyncedScopeRAII SyncedScp(*this);
     if (CompilingCilk) {
       PushSyncRegion();

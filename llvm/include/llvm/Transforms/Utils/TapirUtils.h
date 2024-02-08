@@ -290,6 +290,8 @@ public:
       return "Use divide-and-conquer";
     case TapirLoopHints::ST_END:
       return "Unknown";
+    default:
+      llvm_unreachable("Unknown print strategy");
     }
   }
 

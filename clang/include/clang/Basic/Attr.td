@@ -387,7 +387,6 @@ def BlocksSupported : LangOpt<"Blocks">;
 def ObjCAutoRefCount : LangOpt<"ObjCAutoRefCount">;
 def ObjCNonFragileRuntime
     : LangOpt<"", "LangOpts.ObjCRuntime.allowsClassStubs()">;
-def Cilk : LangOpt<"Cilk", "LangOpts.getCilk() != LangOptions::Cilk_none">;
 
 def HLSL : LangOpt<"HLSL">;
 
@@ -3704,12 +3703,13 @@ def LoopHint : Attr {
   /// boolean: fully unrolls loop if State == Enable.
   /// expression: unrolls loop 'Value' times.
 
-  /// #pragma cilk grainsize <argument> directive
+  // FIXME: Probably don't need all the grainsize stuff here since it seems
+  // that it is only used in Cilk pragmas.
   /// expression: coarsens the loop with grainsize 'Value'.
 
   let Spellings = [Pragma<"clang", "loop">, Pragma<"", "unroll">,
                    Pragma<"", "nounroll">, Pragma<"", "unroll_and_jam">,
-                   Pragma<"", "nounroll_and_jam">, Pragma<"", "cilk">];
+                   Pragma<"", "nounroll_and_jam">];
 
   /// State of the loop optimization specified by the spelling.
   let Args = [EnumArgument<"Option", "OptionType",
@@ -4204,55 +4204,3 @@ def AvailableOnlyInDefaultEvalMethod : InheritableAttr {
   let Documentation = [Undocumented];
 }
 
-// Cilk attributes
-
-// TODO: Add docs to these attributes
-
-def Stealable : InheritableAttr {
-  let Spellings = [Clang<"stealable">];
-  let Subjects = SubjectList<[FunctionLike]>;
-  let Documentation = [StealableDocs];
-}
-
-def StrandPure : InheritableAttr {
-  let Spellings = [Clang<"strand_pure">];
-  let Subjects = SubjectList<[FunctionLike]>;
-  let Documentation = [StrandPureDocs];
-}
-
-def StrandMalloc : InheritableAttr {
-  let Spellings = [Clang<"strand_malloc">];
-  let Subjects = SubjectList<[Function]>;
-  let Documentation = [StrandMallocDocs];
-}
-
-def Injective : InheritableAttr {
-  // TODO: Associate this with a single argument, not the function.
-  let Spellings = [Clang<"injective">];
-  let Subjects = SubjectList<[Function]>;
-  let Documentation = [Undocumented];
-}
-
-def HyperView : InheritableAttr {
-  let Spellings = [Clang<"hyper_view">];
-  let Subjects = SubjectList<[FunctionLike]>;
-  let Documentation = [StrandMallocDocs];
-}
-
-def HyperToken : InheritableAttr {
-  let Spellings = [Clang<"hyper_token">];
-  let Subjects = SubjectList<[FunctionLike]>;
-  let Documentation = [StrandMallocDocs];
-}
-
-def ReducerRegister : InheritableAttr {
-  let Spellings = [Clang<"reducer_register">];
-  let Subjects = SubjectList<[FunctionLike]>;
-  let Documentation = [StrandMallocDocs];
-}
-
-def ReducerUnregister : InheritableAttr {
-  let Spellings = [Clang<"reducer_unregister">];
-  let Subjects = SubjectList<[FunctionLike]>;
-  let Documentation = [StrandMallocDocs];
-}

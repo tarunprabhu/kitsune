@@ -60,25 +60,6 @@ def Commutative : IntrinsicProperty;
 // Throws - This intrinsic can throw.
 def Throws : IntrinsicProperty;
 
-// Injective - This intrinsic returns different values given different
-// arguments.
-def IntrInjective : IntrinsicProperty;
-// Strand pure - (Tapir) This intrinsic has no visible side effects and
-// returns the same result given the same argument, but only within a
-// single strand of execution.
-def IntrStrandPure : IntrinsicProperty;
-// HyperView - (Tapir) This intrinsic lowers to a runtime call to
-// find the address of the current view of a hyperobject.  It does not
-// return the address of anything in the current frame other than its
-// argument.
-def IntrHyperView : IntrinsicProperty;
-// ReducerRegister / ReducerUnregister - (Tapir) This intrinsic registers
-// or unregisters a reducer.  These calls have no side effects on visible
-// memory but can not be moved past other reducer and hyperobject calls
-// if the arguments may alias.
-def IntrReducerRegister : IntrinsicProperty;
-def IntrReducerUnregister : IntrinsicProperty;
-
 // Attribute index needs to match `AttrIndex` defined `Attributes.h`.
 class AttrIndex<int idx> {
   int Value = idx;
@@ -1745,24 +1726,6 @@ def int_tapir_loop_grainsize
 def int_task_frameaddress
     : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty], [IntrWillReturn]>;
 
-// Ideally the types would be [llvm_anyptr_ty], [LLVMMatchType<0>]
-// but that does not work, so rely on the front end to insert bitcasts.
-def int_hyper_lookup
-    : Intrinsic<[llvm_ptr_ty],
-                [llvm_ptr_ty, llvm_anyint_ty, llvm_ptr_ty, llvm_ptr_ty], [
-                  IntrWillReturn, IntrReadMem, IntrInaccessibleMemOnly,
-                  IntrStrandPure, IntrHyperView, IntrInjective
-                ]>;
-
-// TODO: Change tablegen to allow function pointer types in intrinsics.
-def int_reducer_register
-    : Intrinsic<[], [llvm_ptr_ty, llvm_anyint_ty, llvm_ptr_ty, llvm_ptr_ty],
-     [IntrWillReturn, IntrInaccessibleMemOnly, IntrReducerRegister]>;
-
-def int_reducer_unregister
-    : Intrinsic<[], [llvm_ptr_ty], [IntrWillReturn, IntrInaccessibleMemOnly,
-     IntrReducerUnregister]>;
-
 ///===-------------------------- Other Intrinsics --------------------------===//
 //
 def int_trap : Intrinsic<[], [], [IntrNoReturn, IntrCold]>,
@@ -1827,11 +1790,9 @@ def int_ptrmask: DefaultAttrsIntrinsic<[llvm_anyptr_ty], [LLVMMatchType<0>, llvm
                            [IntrNoMem, IntrSpeculatable, IntrWillReturn]>;
 
 // Intrinsic to wrap a thread local variable.
-def int_threadlocal_address
-    : DefaultAttrsIntrinsic<[llvm_anyptr_ty], [LLVMMatchType<0>], [
-      NonNull<RetIndex>, NonNull<ArgIndex<0>>, IntrInaccessibleMemOnly,
-      IntrReadMem, IntrSpeculatable, IntrWillReturn
-    ]>;
+def int_threadlocal_address : DefaultAttrsIntrinsic<[llvm_anyptr_ty], [LLVMMatchType<0>],
+                                                    [NonNull<RetIndex>, NonNull<ArgIndex<0>>,
+                                                     IntrNoMem, IntrSpeculatable, IntrWillReturn]>;
 
 def int_experimental_stepvector : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
                                                         [], [IntrNoMem]>;

@@ -630,10 +630,6 @@ private:
                                llvm::opt::ArgStringList &CmdArgs,
                                StringRef Sanitizer,
                                bool shared = true) const;
-
-  void AddCilktoolRTLibs(const llvm::opt::ArgList &Args,
-                         llvm::opt::ArgStringList &CmdArgs) const;
-
   void AddLinkTapirRuntimeLib(const llvm::opt::ArgList &Args,
                               llvm::opt::ArgStringList &CmdArgs,
                               StringRef LibName, RuntimeLinkOptions Opts,

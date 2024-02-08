@@ -486,9 +486,6 @@ void OMPTaskABI::lowerSync(SyncInst &SI) {
   }
   CB->setDebugLoc(SI.getDebugLoc());
   SI.eraseFromParent();
-
-  // Mark this function as stealable.
-  Fn.addFnAttr(Attribute::Stealable);
 }
 
 bool OMPTaskABI::preProcessFunction(Function &F, TaskInfo &TI,

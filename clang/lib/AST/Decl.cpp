@@ -2762,20 +2762,7 @@ VarDecl::needsDestruction(const ASTContext &Ctx) const {
   if (isNoDestroy(Ctx))
     return QualType::DK_none;
 
-  QualType Type = getType();
-
-  if (const HyperobjectType *H = Type->getAs<HyperobjectType>()) {
-    // CodeGenFunction::destroyHyperobject will run the inner destructor.
-    if (H->hasCallbacks())
-      return QualType::DK_hyperobject;
-    Type = H->getElementType();
-  }
-
-  QualType::DestructionKind Kind = Type.isDestructedType();
-  if (Kind != QualType::DK_none)
-    return Kind;
-
-  return QualType::DK_none;
+  return getType().isDestructedType();
 }
 
 bool VarDecl::hasFlexibleArrayInit(const ASTContext &Ctx) const {
@@ -2856,12 +2843,6 @@ VarDecl::setInstantiationOfStaticDataMember(VarDecl *VD,
   assert(getASTContext().getTemplateOrSpecializationInfo(this).isNull() &&
          "Previous template or instantiation?");
   getASTContext().setInstantiatedFromStaticDataMember(this, VD, TSK);
-}
-
-bool VarDecl::isReducer() const {
-  if (const HyperobjectType *H = getType()->getAs<HyperobjectType>())
-    return H->hasCallbacks();
-  return false;
 }
 
 //===----------------------------------------------------------------------===//

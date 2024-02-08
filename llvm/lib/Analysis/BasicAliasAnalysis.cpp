@@ -1489,13 +1489,6 @@ enum class TapirFnBehavior : uint8_t {
   Any = InjectiveOrPureOrView | Strand,
 };
 
-static const std::pair<Attribute::AttrKind, TapirFnBehavior>
-    TapirFnAttrTable[] = {
-        {Attribute::Injective, TapirFnBehavior::Injective},
-        {Attribute::HyperView, TapirFnBehavior::View},
-        {Attribute::StrandPure, TapirFnBehavior::Strand},
-};
-
 static inline bool noTapirFnBehavior(const TapirFnBehavior TFB) {
   return (static_cast<uint8_t>(TFB) &
           static_cast<uint8_t>(TapirFnBehavior::Any)) ==
@@ -1567,10 +1560,6 @@ static const Value *getRecognizedArgument(const Value *V, bool InSameSpindle,
   unsigned NumOperands = C->getNumOperands();
   if (NumOperands != 2 && NumOperands != 5)
     return nullptr;
-  for (auto E : TapirFnAttrTable) {
-    if (C->hasFnAttr(E.first))
-      Behavior = unionTapirFnBehavior(Behavior, E.second);
-  }
 
   // Make TapirFnBehavior::Strand and TapirFnBehavior::Pure mutually exclusive.
   if (isStrandSet(Behavior)) {

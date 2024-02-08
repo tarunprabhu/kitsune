@@ -25,7 +25,6 @@
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
-#include "clang/AST/ExprCilk.h"
 #include "clang/AST/ExprConcepts.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExprOpenMP.h"
@@ -33,7 +32,6 @@
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/OpenMPClause.h"
 #include "clang/AST/Stmt.h"
-#include "clang/AST/StmtCilk.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/AST/StmtOpenMP.h"
@@ -971,14 +969,6 @@ DEF_TRAVERSE_TYPE(BuiltinType, {})
 
 DEF_TRAVERSE_TYPE(ComplexType, { TRY_TO(TraverseType(T->getElementType())); })
 
-DEF_TRAVERSE_TYPE(HyperobjectType, {
-    TRY_TO(TraverseType(T->getElementType()));
-    if (Stmt *I = T->getIdentity())
-      TRY_TO(TraverseStmt(I));
-    if (Stmt *R = T->getReduce())
-      TRY_TO(TraverseStmt(R));
-  })
-
 DEF_TRAVERSE_TYPE(PointerType, { TRY_TO(TraverseType(T->getPointeeType())); })
 
 DEF_TRAVERSE_TYPE(BlockPointerType,
@@ -1219,15 +1209,6 @@ DEF_TRAVERSE_TYPELOC(BuiltinType, {})
 // FIXME: ComplexTypeLoc is unfinished
 DEF_TRAVERSE_TYPELOC(ComplexType, {
   TRY_TO(TraverseType(TL.getTypePtr()->getElementType()));
-})
-
-DEF_TRAVERSE_TYPELOC(HyperobjectType, {
-  const HyperobjectType *H = TL.getTypePtr();
-  TRY_TO(TraverseType(H->getElementType()));
-  if (Stmt *I = H->getIdentity())
-    TRY_TO(TraverseStmt(I));
-  if (Stmt *R = H->getReduce())
-    TRY_TO(TraverseStmt(R));
 })
 
 DEF_TRAVERSE_TYPELOC(PointerType,
@@ -2863,12 +2844,6 @@ DEF_TRAVERSE_STMT(OpaqueValueExpr, {})
 DEF_TRAVERSE_STMT(TypoExpr, {})
 DEF_TRAVERSE_STMT(RecoveryExpr, {})
 DEF_TRAVERSE_STMT(CUDAKernelCallExpr, {})
-
-DEF_TRAVERSE_STMT(CilkSpawnStmt, {})
-DEF_TRAVERSE_STMT(CilkSpawnExpr, {})
-DEF_TRAVERSE_STMT(CilkSyncStmt, {})
-DEF_TRAVERSE_STMT(CilkForStmt, {})
-DEF_TRAVERSE_STMT(CilkScopeStmt, {})
 
 // These operators (all of them) do not need any action except
 // iterating over the children.

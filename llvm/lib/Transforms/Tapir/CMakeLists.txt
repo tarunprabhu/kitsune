@@ -1,6 +1,4 @@
 add_llvm_component_library(LLVMTapirOpts
-  CilkABI.cpp
-  CilkRTSCilkFor.cpp
   DRFScopedNoAliasAA.cpp
   LambdaABI.cpp
   LoopSpawningTI.cpp

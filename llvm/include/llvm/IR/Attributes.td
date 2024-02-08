@@ -109,9 +109,6 @@ def FnRetThunkExtern : EnumAttr<"fn_ret_thunk_extern", [FnAttr]>;
 /// Pass structure in an alloca.
 def InAlloca : TypeAttr<"inalloca", [ParamAttr]>;
 
-/// Distinct arguments to this function yield distinct return values.
-def Injective : EnumAttr<"injective", [FnAttr]>;
-
 /// Source said inlining was desirable.
 def InlineHint : EnumAttr<"inlinehint", [FnAttr]>;
 
@@ -221,11 +218,6 @@ def ReadNone : EnumAttr<"readnone", [ParamAttr]>;
 /// Function only reads from memory.
 def ReadOnly : EnumAttr<"readonly", [ParamAttr]>;
 
-/// Tapir reducer-related attributes.
-def HyperView : EnumAttr<"hyper_view", [FnAttr]>;
-def ReducerRegister : EnumAttr<"reducer_register", [FnAttr]>;
-def ReducerUnregister : EnumAttr<"reducer_unregister", [FnAttr]>;
-
 /// Return value is always equal to this argument.
 def Returned : EnumAttr<"returned", [ParamAttr]>;
 
@@ -259,13 +251,6 @@ def StackProtectReq : EnumAttr<"sspreq", [FnAttr]>;
 
 /// Strong Stack protection.
 def StackProtectStrong : EnumAttr<"sspstrong", [FnAttr]>;
-
-/// Multiple calls to this function in a strand return the same result.
-def StrandPure : EnumAttr<"strand_pure", [FnAttr]>;
-
-/// This function acts like a system memory allocation function from
-/// the perspective of memory accesses within the same strand.
-def StrandNoAlias : EnumAttr<"strand_noalias", [ParamAttr, RetAttr]>;
 
 /// Function was called in a scope requiring strict floating point semantics.
 def StrictFP : EnumAttr<"strictfp", [FnAttr]>;

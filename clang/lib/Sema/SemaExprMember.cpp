@@ -1228,14 +1228,10 @@ static bool isPointerToRecordType(QualType T) {
 /// Perform conversions on the LHS of a member access expression.
 ExprResult
 Sema::PerformMemberExprBaseConversion(Expr *Base, bool IsArrow) {
-  ExprResult Result;
   if (IsArrow && !Base->getType()->isFunctionType())
-    Result = DefaultFunctionArrayLvalueConversion(Base);
-  else
-    Result = CheckPlaceholderExpr(Base);
-  if (Result.isInvalid())
-    return Result;
-  return BuildHyperobjectLookup(Result.get(), IsArrow);
+    return DefaultFunctionArrayLvalueConversion(Base);
+
+  return CheckPlaceholderExpr(Base);
 }
 
 /// Look up the given member of the given non-type-dependent

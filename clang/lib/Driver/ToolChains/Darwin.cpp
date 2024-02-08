@@ -566,17 +566,10 @@ static void renderTapirLoweringOptions(const ArgList &Args,
   if (!(TC.getDriver().isUsingLTO() && LinkerIsLLD))
     return;
 
-  if (Args.hasArg(options::OPT_fcilkplus) ||
-      Args.hasArg(options::OPT_fopencilk) ||
-      Args.hasArg(options::OPT_ftapir_EQ)) {
+  if (Args.hasArg(options::OPT_ftapir_EQ)) {
     if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
       CmdArgs.push_back(
           Args.MakeArgString(Twine("--tapir-target=") + A->getValue()));
-    else if (Args.hasArg(options::OPT_fopencilk)) {
-      CmdArgs.push_back("--tapir-target=opencilk");
-      TC.AddOpenCilkABIBitcode(Args, CmdArgs, /*IsLTO=*/true);
-    } else if (Args.hasArg(options::OPT_fcilkplus))
-      CmdArgs.push_back("--tapir-target=cilkplus");
   }
 }
 
@@ -1453,21 +1446,6 @@ void DarwinClang::AddLinkSanitizerLibArgs(const ArgList &Args,
   AddLinkRuntimeLib(Args, CmdArgs, Sanitizer, RLO, Shared);
 }
 
-void DarwinClang::AddCilktoolRTLibs(const ArgList &Args,
-                                    ArgStringList &CmdArgs) const {
-  if (Arg *A = Args.getLastArg(options::OPT_fcilktool_EQ)) {
-    StringRef Val = A->getValue();
-    bool Shared = Args.hasArg(options::OPT_shared) ||
-                  Args.hasFlag(options::OPT_shared_libcilktool,
-                               options::OPT_static_libcilktool, false);
-    auto RLO =
-        RuntimeLinkOptions(RLO_AlwaysLink | (Shared ? RLO_AddRPath : 0U));
-    AddLinkRuntimeLib(Args, CmdArgs, Val, RLO, Shared);
-    // Link in the C++ standard library
-    AddCXXStdlibLibArgs(Args, CmdArgs);
-  }
-}
-
 ToolChain::RuntimeLibType DarwinClang::GetRuntimeLibType(
     const ArgList &Args) const {
   if (Arg* A = Args.getLastArg(options::OPT_rtlib_EQ)) {
@@ -1542,14 +1520,6 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
              "Static sanitizer runtimes not supported");
       AddLinkSanitizerLibArgs(Args, CmdArgs, "tsan");
     }
-    if (Sanitize.needsCilksanRt()) {
-      // Cilksan's instrumentation for standard-library routines and LLVM
-      // intrinsics currently requires Cilksan to be statically linked.
-      AddLinkSanitizerLibArgs(Args, CmdArgs, "cilksan");
-
-      // Cilksan is written in C++ and requires libcxx.
-      AddCXXStdlibLibArgs(Args, CmdArgs);
-    }
     if (Sanitize.needsFuzzer() && !Args.hasArg(options::OPT_dynamiclib)) {
       AddLinkSanitizerLibArgs(Args, CmdArgs, "fuzzer", /*shared=*/false);
 
@@ -1561,8 +1531,6 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
       AddLinkSanitizerLibArgs(Args, CmdArgs, "stats");
     }
   }
-
-  AddCilktoolRTLibs(Args, CmdArgs);
 
   const XRayArgs &XRay = getXRayArgs();
   if (XRay.needsXRayRt()) {
@@ -3367,7 +3335,6 @@ SanitizerMask Darwin::getSupportedSanitizers() const {
       (isTargetMacOSBased() || isTargetIOSSimulator() ||
        isTargetTvOSSimulator() || isTargetWatchOSSimulator())) {
     Res |= SanitizerKind::Thread;
-    Res |= SanitizerKind::Cilk;
   }
   return Res;
 }
@@ -3507,19 +3474,12 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
     CmdArgs.push_back("-lcheetah");
     break;
   case TapirTargetID::OpenCilk: {
-    bool StaticOpenCilk = Args.hasArg(options::OPT_static_libopencilk);
+    bool StaticOpenCilk = false;
     bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
 
     auto RLO = RLO_AlwaysLink;
     if (!StaticOpenCilk)
       RLO = RuntimeLinkOptions(RLO | RLO_AddRPath);
-
-    // If pedigrees are enabled, link the OpenCilk pedigree library.
-    if (Args.hasArg(options::OPT_fopencilk_enable_pedigrees))
-      AddLinkTapirRuntimeLib(Args, CmdArgs,
-                             UseAsan ? "opencilk-pedigrees-asan"
-                                     : "opencilk-pedigrees",
-                             RLO, !StaticOpenCilk);
 
     // Link the correct Cilk personality fn
     if (getDriver().CCCIsCXX())
@@ -3541,9 +3501,6 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
                            !StaticOpenCilk);
     break;
   }
-  case TapirTargetID::Cilk:
-    CmdArgs.push_back("-lcilkrts");
-    break;
   case TapirTargetID::Qthreads:
     CmdArgs.push_back("-lqthread");
     break;

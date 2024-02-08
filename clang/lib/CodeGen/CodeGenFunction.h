@@ -23,7 +23,6 @@
 #include "VarBypassDetector.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/CurrentSourceLocExprScope.h"
-#include "clang/AST/ExprCilk.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExprOpenMP.h"
@@ -2651,7 +2650,6 @@ public:
     switch (kind) {
     case QualType::DK_none:
       return false;
-    case QualType::DK_hyperobject:
     case QualType::DK_cxx_destructor:
     case QualType::DK_objc_weak_lifetime:
     case QualType::DK_nontrivial_c_struct:
@@ -3487,7 +3485,6 @@ public:
                                   bool ZeroInitialization = false);
 
   static Destroyer destroyCXXObject;
-  static Destroyer destroyHyperobject;
 
   void EmitCXXDestructorCall(const CXXDestructorDecl *D, CXXDtorType Type,
                              bool ForVirtualBase, bool Delegating, Address This,
@@ -3702,14 +3699,6 @@ public:
   void EmitAutoVarCleanups(const AutoVarEmission &emission);
   void emitAutoVarTypeCleanup(const AutoVarEmission &emission,
                               QualType::DestructionKind dtorKind);
-  struct ReducerCallbacks {
-    Expr *Identity;
-    Expr *Reduce;
-  };
-
-  bool getReducer(const VarDecl *D, ReducerCallbacks &CB);
-  void EmitReducerInit(const VarDecl *D, const ReducerCallbacks &CB,
-                       llvm::Value *Addr);
 
   /// Emits the alloca and debug information for the size expressions for each
   /// dimension of an array. It registers the association of its (1-dimensional)
@@ -3841,13 +3830,6 @@ public:
   void EmitCaseStmt(const CaseStmt &S, ArrayRef<const Attr *> Attrs);
   void EmitCaseStmtRange(const CaseStmt &S, ArrayRef<const Attr *> Attrs);
   void EmitAsmStmt(const AsmStmt &S);
-
-  void EmitCilkScopeStmt(const CilkScopeStmt &S);
-  void EmitCilkSpawnStmt(const CilkSpawnStmt &S);
-  void EmitCilkSyncStmt(const CilkSyncStmt &S);
-  void EmitCilkForStmt(const CilkForStmt &S,
-                       ArrayRef<const Attr *> Attrs = std::nullopt);
-  LValue EmitCilkSpawnExprLValue(const CilkSpawnExpr *E);
 
   void EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S);
   void EmitObjCAtTryStmt(const ObjCAtTryStmt &S);

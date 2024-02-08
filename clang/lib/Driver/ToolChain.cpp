@@ -1740,19 +1740,8 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
     CmdArgs.push_back("-lpthread");
     break;
   case TapirTargetID::OpenCilk: {
-    bool StaticOpenCilk = Args.hasArg(options::OPT_static_libopencilk) ||
-                              Args.hasArg(options::OPT_static);
-    bool OnlyStaticOpenCilk = Args.hasArg(options::OPT_static_libopencilk) &&
-                                  !Args.hasArg(options::OPT_static);
+    bool StaticOpenCilk = Args.hasArg(options::OPT_static);
     bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
-    if (OnlyStaticOpenCilk)
-      CmdArgs.push_back("-Bstatic");
-
-    // If pedigrees are enabled, link the OpenCilk pedigree library.
-    if (Args.hasArg(options::OPT_fopencilk_enable_pedigrees))
-      CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(
-          Args, UseAsan ? "opencilk-pedigrees-asan" : "opencilk-pedigrees",
-          StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
 
     // Link the correct Cilk personality fn
     if (getDriver().CCCIsCXX())
@@ -1777,15 +1766,8 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
     // Add to the executable's runpath the default directory containing OpenCilk
     // runtime.
     addOpenCilkRuntimeRunPath(*this, Args, CmdArgs, Triple);
-    if (OnlyStaticOpenCilk) {
-      CmdArgs.push_back("-Bdynamic");
-      CmdArgs.push_back("-lpthread");
-    }
     break;
   }
-  case TapirTargetID::Cilk:
-    CmdArgs.push_back("-lcilkrts");
-    break;
   case TapirTargetID::Qthreads:
     CmdArgs.push_back("-lqthread");
     break;

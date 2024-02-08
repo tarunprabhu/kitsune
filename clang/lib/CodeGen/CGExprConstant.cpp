@@ -1653,7 +1653,7 @@ llvm::Constant *ConstantEmitter::tryEmitPrivateForVarInit(const VarDecl &D) {
   }
   InConstantContext = D.hasConstantInitialization();
 
-  QualType destType = D.getType().stripHyperobject();
+  QualType destType = D.getType();
   const Expr *E = D.getInit();
   assert(E && "No initializer to emit");
 

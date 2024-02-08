@@ -106,7 +106,6 @@ RValue CodeGenFunction::EmitCXXDestructorCall(
   const CXXMethodDecl *DtorDecl = cast<CXXMethodDecl>(Dtor.getDecl());
 
   assert(!ThisTy.isNull());
-  ThisTy = ThisTy.stripHyperobject();
   assert(ThisTy->getAsCXXRecordDecl() == DtorDecl->getParent() &&
          "Pointer/Object mixup");
 
@@ -182,7 +181,7 @@ static CXXRecordDecl *getCXXRecord(const Expr *E) {
   QualType T = E->getType();
   if (const PointerType *PTy = T->getAs<PointerType>())
     T = PTy->getPointeeType();
-  const RecordType *Ty = T.stripHyperobject()->castAs<RecordType>();
+  const RecordType *Ty = T->castAs<RecordType>();
   return cast<CXXRecordDecl>(Ty->getDecl());
 }
 
@@ -509,10 +508,9 @@ CodeGenFunction::EmitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
                                                ReturnValueSlot ReturnValue) {
   assert(MD->isInstance() &&
          "Trying to emit a member call expr on a static method!");
-  RValue Result = EmitCXXMemberOrOperatorMemberCallExpr(
+  return EmitCXXMemberOrOperatorMemberCallExpr(
       E, MD, ReturnValue, /*HasQualifier=*/false, /*Qualifier=*/nullptr,
       /*IsArrow=*/false, E->getArg(0));
-  return Result;
 }
 
 RValue CodeGenFunction::EmitCUDAKernelCallExpr(const CUDAKernelCallExpr *E,
@@ -2099,7 +2097,7 @@ void CodeGenFunction::EmitCXXDeleteExpr(const CXXDeleteExpr *E) {
   EmitBlock(DeleteNotNull);
   Ptr.setKnownNonNull();
 
-  QualType DeleteTy = E->getDestroyedType().stripHyperobject();
+  QualType DeleteTy = E->getDestroyedType();
 
   // A destroying operator delete overrides the entire operation of the
   // delete expression.

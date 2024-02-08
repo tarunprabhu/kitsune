@@ -293,26 +293,6 @@ CXCursor cxcursor::MakeCXCursor(const Stmt *S, const Decl *Parent,
     K = CXCursor_UnexposedStmt;
     break;
 
-  case Stmt::CilkSpawnStmtClass:
-    K = CXCursor_CilkSpawnStmt;
-    break;
-
-  case Stmt::CilkSpawnExprClass:
-    K = CXCursor_CilkSpawnExpr;
-    break;
-
-  case Stmt::CilkSyncStmtClass:
-    K = CXCursor_CilkSyncStmt;
-    break;
-
-  case Stmt::CilkForStmtClass:
-    K = CXCursor_CilkForStmt;
-    break;
-
-  case Stmt::CilkScopeStmtClass:
-    K = CXCursor_CilkScopeStmt;
-    break;
-
   case Stmt::ArrayTypeTraitExprClass:
   case Stmt::AsTypeExprClass:
   case Stmt::AtomicExprClass:

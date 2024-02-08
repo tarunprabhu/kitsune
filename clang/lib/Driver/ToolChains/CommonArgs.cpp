@@ -149,17 +149,10 @@ static bool shouldIgnoreUnsupportedTargetFeature(const Arg &TargetFeatureArg,
 static void renderTapirLoweringOptions(const ArgList &Args,
                                        ArgStringList &CmdArgs,
                                        const ToolChain &TC) {
-  if (Args.hasArg(options::OPT_fcilkplus) ||
-      Args.hasArg(options::OPT_fopencilk) ||
-      Args.hasArg(options::OPT_ftapir_EQ)) {
+  if (Args.hasArg(options::OPT_ftapir_EQ)) {
     if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
       CmdArgs.push_back(Args.MakeArgString(
           Twine("--plugin-opt=tapir-target=") + A->getValue()));
-    else if (Args.hasArg(options::OPT_fopencilk)) {
-      CmdArgs.push_back("--plugin-opt=tapir-target=opencilk");
-      TC.AddOpenCilkABIBitcode(Args, CmdArgs, /*IsLTO=*/true);
-    } else if (Args.hasArg(options::OPT_fcilkplus))
-      CmdArgs.push_back("--plugin-opt=tapir-target=cilkplus");
   }
 }
 
@@ -1057,29 +1050,6 @@ void tools::linkSanitizerRuntimeDeps(const ToolChain &TC,
     CmdArgs.push_back("-lresolv");
 }
 
-// CilkSanitizer has different runtime requirements than typical sanitizers.
-bool tools::needsCilkSanitizerDeps(const ToolChain &TC, const ArgList &Args) {
-  const SanitizerArgs &SanArgs = TC.getSanitizerArgs(Args);
-  if (Args.hasArg(options::OPT_shared) || SanArgs.needsSharedRt()) {
-    // Don't link static runtimes into DSOs or if -shared-libasan.
-    return false;
-  }
-  if (Args.hasArg(options::OPT_nostdlibxx)) {
-    return false;
-  }
-  return SanArgs.needsCilksanRt();
-}
-
-void tools::linkCilkSanitizerRuntimeDeps(const ArgList &Args,
-                                         const ToolChain &TC,
-                                         ArgStringList &CmdArgs) {
-  // Force linking against the system libraries sanitizers depends on
-  // (see PR15823 why this is necessary).
-  CmdArgs.push_back("--no-as-needed");
-  // Link in the C++ standard library
-  TC.AddCXXStdlibLibArgs(Args, CmdArgs);
-}
-
 static void
 collectSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
                          SmallVectorImpl<StringRef> &SharedRuntimes,
@@ -1119,8 +1089,6 @@ collectSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
       if (!Args.hasArg(options::OPT_shared))
         HelperStaticRuntimes.push_back("hwasan-preinit");
     }
-    if (SanArgs.needsCilksanRt())
-      SharedRuntimes.push_back("cilksan");
   }
 
   // The stats_client library is also statically linked into DSOs.
@@ -1145,8 +1113,6 @@ collectSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
     if (SanArgs.linkCXXRuntimes())
       StaticRuntimes.push_back("asan_cxx");
   }
-  if (!SanArgs.needsSharedRt() && SanArgs.needsCilksanRt())
-    StaticRuntimes.push_back("cilksan");
 
   if (!SanArgs.needsSharedRt() && SanArgs.needsMemProfRt() &&
       SanArgs.linkRuntimes()) {
@@ -1282,15 +1248,6 @@ bool tools::addSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
       CmdArgs.push_back("--android-memtag-stack");
   }
 
-  if (SanArgs.needsCilksanRt()) {
-    // Interpose the __cilkrts_internal_merge_two_rmaps, __cilkrts_hyper_alloc,
-    // and __cilkrts_hyper_dealloc functions in the OpenCilk runtime, to properly
-    // suppress races involving reducer hyperobjects.
-    CmdArgs.push_back("--wrap=__cilkrts_internal_merge_two_rmaps");
-    CmdArgs.push_back("--wrap=__cilkrts_hyper_alloc");
-    CmdArgs.push_back("--wrap=__cilkrts_hyper_dealloc");
-  }
-
   return !StaticRuntimes.empty() || !NonWholeStaticRuntimes.empty();
 }
 
@@ -1321,32 +1278,6 @@ void tools::linkXRayRuntimeDeps(const ToolChain &TC, ArgStringList &CmdArgs) {
       !TC.getTriple().isOSNetBSD() &&
       !TC.getTriple().isOSOpenBSD())
     CmdArgs.push_back("-ldl");
-}
-
-bool tools::addCSIRuntime(const ToolChain &TC, const ArgList &Args,
-                          ArgStringList &CmdArgs) {
-  // Only add the CSI runtime library if -fcsi is specified.
-  if (!Args.hasArg(options::OPT_fcsi_EQ) && !Args.hasArg(options::OPT_fcsi))
-    return false;
-
-  CmdArgs.push_back(TC.getCompilerRTArgString(Args, "csi"));
-  return true;
-}
-
-bool tools::addCilktoolRuntime(const ToolChain &TC, const ArgList &Args,
-                               ArgStringList &CmdArgs) {
-  if (Arg *A = Args.getLastArg(options::OPT_fcilktool_EQ)) {
-    StringRef Val = A->getValue();
-    bool Shared = Args.hasArg(options::OPT_shared) ||
-                  Args.hasFlag(options::OPT_shared_libcilktool,
-                               options::OPT_static_libcilktool, false);
-    CmdArgs.push_back(TC.getCompilerRTArgString(
-        Args, Val, Shared ? ToolChain::FT_Shared : ToolChain::FT_Static));
-    // Link in the C++ standard library
-    TC.AddCXXStdlibLibArgs(Args, CmdArgs);
-    return true;
-  }
-  return false;
 }
 
 bool tools::areOptimizationsEnabled(const ArgList &Args) {

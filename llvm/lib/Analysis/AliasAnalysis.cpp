@@ -292,10 +292,6 @@ ModRefInfo AAResults::getModRefInfo(const Instruction *I, const CallBase *Call2,
   return ModRefInfo::NoModRef;
 }
 
-static bool effectivelyArgMemOnly(const CallBase *Call, AAQueryInfo &AAQI) {
-  return Call->isStrandPure() && AAQI.AssumeSameSpindle;
-}
-
 ModRefInfo AAResults::getModRefInfo(const CallBase *Call,
                                     const MemoryLocation &Loc,
                                     AAQueryInfo &AAQI) {
@@ -468,10 +464,6 @@ MemoryEffects AAResults::getMemoryEffects(const CallBase *Call,
     if (Result.doesNotAccessMemory())
       return Result;
   }
-
-  if (effectivelyArgMemOnly(Call, AAQI))
-    return MemoryEffects(MemoryEffects::Location::ArgMem,
-                         Result.getModRef(MemoryEffects::Location::ArgMem));
 
   return Result;
 }
@@ -1101,8 +1093,8 @@ bool llvm::isNoAliasCall(const Value *V) {
 }
 
 bool llvm::isNoAliasCallIfInSameSpindle(const Value *V) {
-  if (const auto *Call = dyn_cast<CallBase>(V))
-    return Call->hasRetAttr(Attribute::StrandNoAlias);
+  if (isa<CallBase>(V))
+    return false;
   return isNoAliasCall(V);
 }
 

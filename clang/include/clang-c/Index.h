@@ -2136,27 +2136,7 @@ enum CXCursorKind {
    */
   CXCursor_OMPErrorDirective = 305,
 
-  /** A _Cilk_spawn statement.
-   */
-  CXCursor_CilkSpawnStmt = 306,
-
-  /** Wrapper for an expression preceded by _Cilk_spawn.
-   */
-  CXCursor_CilkSpawnExpr = 307,
-
-  /** A _Cilk_sync statement.
-   */
-  CXCursor_CilkSyncStmt = 308,
-
-  /** A _Cilk_for statement.
-   */
-  CXCursor_CilkForStmt = 309,
-
-  /** A _Cilk_scope statement.
-   */
-  CXCursor_CilkScopeStmt = 310,
-
-  CXCursor_LastStmt = CXCursor_CilkScopeStmt,
+  CXCursor_LastStmt = CXCursor_OMPErrorDirective,
 
   /**
    * Cursor that represents the translation unit itself.
@@ -2968,9 +2948,7 @@ enum CXTypeKind {
 
   CXType_ExtVector = 176,
   CXType_Atomic = 177,
-  CXType_BTFTagAttributed = 178,
-
-  CXType_Hyperobject = 179
+  CXType_BTFTagAttributed = 178
 };
 
 /**

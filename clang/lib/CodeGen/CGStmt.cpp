@@ -109,7 +109,6 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::DefaultStmtClass:
   case Stmt::CaseStmtClass:
   case Stmt::SEHLeaveStmtClass:
-  case Stmt::CilkSyncStmtClass:
     llvm_unreachable("should have emitted these statements as simple");
 
 #define STMT(Type, Base)
@@ -169,15 +168,6 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     const CapturedStmt *CS = cast<CapturedStmt>(S);
     EmitCapturedStmt(*CS, CS->getCapturedRegionKind());
     }
-    break;
-  case Stmt::CilkSpawnStmtClass:
-    EmitCilkSpawnStmt(cast<CilkSpawnStmt>(*S));
-    break;
-  case Stmt::CilkForStmtClass:
-    EmitCilkForStmt(cast<CilkForStmt>(*S), Attrs);
-    break;
-  case Stmt::CilkScopeStmtClass:
-    EmitCilkScopeStmt(cast<CilkScopeStmt>(*S));
     break;
   case Stmt::ObjCAtTryStmtClass:
     EmitObjCAtTryStmt(cast<ObjCAtTryStmt>(*S));
@@ -482,9 +472,6 @@ bool CodeGenFunction::EmitSimpleStmt(const Stmt *S,
     break;
   case Stmt::SEHLeaveStmtClass:
     EmitSEHLeaveStmt(cast<SEHLeaveStmt>(*S));
-    break;
-  case Stmt::CilkSyncStmtClass:
-    EmitCilkSyncStmt(cast<CilkSyncStmt>(*S));
     break;
   }
   return true;
@@ -1324,13 +1311,6 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   // Emit the result value, even if unused, to evaluate the side effects.
   const Expr *RV = S.getRetValue();
 
-  // If RV is a CilkSpawnExpr, handle the CilkSpawnExpr part here.
-  if (const CilkSpawnExpr *CS = dyn_cast_or_null<CilkSpawnExpr>(RV)) {
-    IsSpawned = true;
-    PushDetachScope();
-    RV = CS->getSpawnedExpr();
-  }
-
   // Record the result expression of the return statement. The recorded
   // expression is used to determine whether a block capture's lifetime should
   // end at the end of the full expression as opposed to the end of the scope
@@ -1414,7 +1394,9 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
     PopDetachScope();
   }
 
-  bool CompilingCilk = (getLangOpts().getCilk() != LangOptions::Cilk_none);
+  // FIXME KITSUNE: Can we clean up this API since we know that we will never be
+  // compiling Cilk?
+  bool CompilingCilk = false;
   EmitBranchThroughCleanup(ReturnBlock, CompilingCilk);
 }
 

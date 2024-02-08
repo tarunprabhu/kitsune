@@ -2726,49 +2726,6 @@ void ASTStmtReader::VisitOMPTargetParallelGenericLoopDirective(
 }
 
 //===----------------------------------------------------------------------===//
-// Cilk spawn, Cilk sync, Cilk for, Cilk scope
-//===----------------------------------------------------------------------===//
-
-void ASTStmtReader::VisitCilkSpawnStmt(CilkSpawnStmt *S) {
-  VisitStmt(S);
-  S->setSpawnLoc(readSourceLocation());
-  S->setSpawnedStmt(Record.readSubStmt());
-}
-
-void ASTStmtReader::VisitCilkSpawnExpr(CilkSpawnExpr *E) {
-  VisitExpr(E);
-  E->setSpawnLoc(readSourceLocation());
-  E->setSpawnedExpr(Record.readSubExpr());
-}
-
-void ASTStmtReader::VisitCilkSyncStmt(CilkSyncStmt *S) {
-  VisitStmt(S);
-  S->setSyncLoc(readSourceLocation());
-}
-
-void ASTStmtReader::VisitCilkScopeStmt(CilkScopeStmt *S) {
-  VisitStmt(S);
-  S->setScopeLoc(readSourceLocation());
-  S->setBody(Record.readSubStmt());
-}
-
-void ASTStmtReader::VisitCilkForStmt(CilkForStmt *S) {
-  VisitStmt(S);
-  S->setInit(Record.readSubStmt());
-  S->setLimitStmt(Record.readSubStmt());
-  S->setInitCond(Record.readSubExpr());
-  S->setBeginStmt(Record.readSubStmt());
-  S->setEndStmt(Record.readSubStmt());
-  S->setCond(Record.readSubExpr());
-  S->setInc(Record.readSubExpr());
-  S->setLoopVarStmt(Record.readSubStmt());
-  S->setBody(Record.readSubStmt());
-  S->setCilkForLoc(readSourceLocation());
-  S->setLParenLoc(readSourceLocation());
-  S->setRParenLoc(readSourceLocation());
-}
-
-//===----------------------------------------------------------------------===//
 // ASTReader Implementation
 //===----------------------------------------------------------------------===//
 
@@ -2968,26 +2925,6 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
 
     case EXPR_SYCL_UNIQUE_STABLE_NAME:
       S = SYCLUniqueStableNameExpr::CreateEmpty(Context);
-      break;
-
-    case STMT_CILKSPAWN:
-      S = new (Context) CilkSpawnStmt(Empty);
-      break;
-
-    case EXPR_CILKSPAWN:
-      S = new (Context) CilkSpawnExpr(Empty);
-      break;
-
-    case STMT_CILKSYNC:
-      S = new (Context) CilkSyncStmt(Empty);
-      break;
-
-    case STMT_CILKFOR:
-      S = new (Context) CilkForStmt(Empty);
-      break;
-
-    case STMT_CILKSCOPE:
-      S = new (Context) CilkScopeStmt(Empty);
       break;
 
     case EXPR_PREDEFINED:

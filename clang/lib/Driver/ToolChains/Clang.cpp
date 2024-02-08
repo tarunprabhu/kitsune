@@ -6261,20 +6261,17 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_fno_elide_type);
 
   // Forward flags for Cilk.
-  Args.AddLastArg(CmdArgs, options::OPT_fcilkplus);
-  Args.AddLastArg(CmdArgs, options::OPT_fopencilk);
   Args.AddLastArg(CmdArgs, options::OPT_ftapir_EQ);
-  if (Args.hasArg(options::OPT_fcilkplus) ||
-      Args.hasArg(options::OPT_fopencilk) ||
-      Args.hasArg(options::OPT_ftapir_EQ)) {
+  if (Args.hasArg(options::OPT_ftapir_EQ)) {
     auto const &Triple = getToolChain().getTriple();
 
+    // FIXME KITSUNE: Change the unsupported cilk diagnostic to kitsune.
     // At least one runtime has been implemented for these operating systems.
     if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
       D.Diag(diag::err_drv_cilk_unsupported);
 
     /* JFC: Is it possible to confuse with with -fno-opencilk? */
-    bool OpenCilk = Args.hasArgNoClaim(options::OPT_fopencilk);
+    bool OpenCilk = false;
     bool Cheetah = false;
     bool CustomTarget = false;
 
@@ -6287,6 +6284,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       }
     }
 
+    // FIXME KITSUNE: Change the unsupported cilk diagnostic to kitsune.
     if (Cheetah && Triple.getArch() != llvm::Triple::x86_64) {
       D.Diag(diag::err_drv_cilk_unsupported);
     }
@@ -6300,6 +6298,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       case llvm::Triple::aarch64_be:
 	break;
       default:
+    // FIXME KITSUNE: Change the unsupported cilk diagnostic to kitsune.
 	D.Diag(diag::err_drv_cilk_unsupported);
 	break;
       }
@@ -6318,9 +6317,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
               << Args.getLastArgNoClaim(options::OPT_opencilk_resource_dir_EQ)
                      ->getAsString(Args);
       }
-
-      // Forward flags for enabling pedigrees.
-      Args.AddLastArg(CmdArgs, options::OPT_fopencilk_enable_pedigrees);
 
       if (!CustomTarget)
         // Add the OpenCilk ABI bitcode file.
@@ -6414,14 +6410,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("--offload-new-driver");
 
   SanitizeArgs.addArgs(TC, Args, CmdArgs, InputType);
-
-  if (Args.hasArg(options::OPT_fcsi_EQ))
-    Args.AddLastArg(CmdArgs, options::OPT_fcsi_EQ);
-  else if (Args.hasArg(options::OPT_fcsi))
-    Args.AddLastArg(CmdArgs, options::OPT_fcsi);
-
-  if (Args.hasArg(options::OPT_fcilktool_EQ))
-    Args.AddLastArg(CmdArgs, options::OPT_fcilktool_EQ);
 
   const XRayArgs &XRay = TC.getXRayArgs();
   XRay.addArgs(TC, Args, CmdArgs, InputType);

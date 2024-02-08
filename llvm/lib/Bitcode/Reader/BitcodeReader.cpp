@@ -2016,10 +2016,6 @@ static Attribute::AttrKind getAttrFromCode(uint64_t Code) {
     return Attribute::ShadowCallStack;
   case bitc::ATTR_KIND_STEALABLE:
     return Attribute::Stealable;
-  case bitc::ATTR_KIND_STRAND_NO_ALIAS:
-    return Attribute::StrandNoAlias;
-  case bitc::ATTR_KIND_STRAND_PURE:
-    return Attribute::StrandPure;
   case bitc::ATTR_KIND_STRICT_FP:
     return Attribute::StrictFP;
   case bitc::ATTR_KIND_STRUCT_RET:
@@ -2068,14 +2064,6 @@ static Attribute::AttrKind getAttrFromCode(uint64_t Code) {
     return Attribute::Hot;
   case bitc::ATTR_KIND_PRESPLIT_COROUTINE:
     return Attribute::PresplitCoroutine;
-  case bitc::ATTR_KIND_INJECTIVE:
-    return Attribute::Injective;
-  case bitc::ATTR_KIND_HYPER_VIEW:
-    return Attribute::HyperView;
-  case bitc::ATTR_KIND_REDUCER_REGISTER:
-    return Attribute::ReducerRegister;
-  case bitc::ATTR_KIND_REDUCER_UNREGISTER:
-    return Attribute::ReducerUnregister;
   }
 }
 

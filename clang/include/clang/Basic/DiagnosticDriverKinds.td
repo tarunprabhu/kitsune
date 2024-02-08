@@ -316,10 +316,6 @@ def err_drv_invalid_cf_runtime_abi
           "'objc', 'standalone', 'swift', 'swift-5.0', 'swift-4.2', 'swift-4.1'">;
 def err_drv_gnustep_objc_runtime_incompatible_binary : Error<
   "GNUstep Objective-C runtime version %0 incompatible with target binary format">;
-def err_drv_double_cilk : Error<
-  "Conflicting Cilk versions">;
-def err_drv_cilk_objc : Error<
-  "Cilk does not support Objective-C">;
 def err_drv_cilk_unsupported: Error<
   "Cilk not yet supported for this target">;
 def err_drv_opencilk_missing_abi_bitcode: Error<
