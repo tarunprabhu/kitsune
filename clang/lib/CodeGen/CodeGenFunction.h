@@ -1312,6 +1312,19 @@ public:
     void addImplicitSync() {
       if (!InnerSyncScope)
         InnerSyncScope = new ImplicitSyncScope(CGF);
+      }
+    };
+
+  llvm::DenseMap<StringRef, SyncRegion*> SyncRegions;
+  SyncRegion *getOrCreateLabeledSyncRegion(const StringRef SV){
+    auto it = SyncRegions.find(SV);
+    if (it != SyncRegions.end()) {
+      return it->second;
+    } else {
+      SyncRegion* SR = new SyncRegion(*this);
+      SR->setSyncRegionStart(EmitLabeledSyncRegionStart(SV));
+      SyncRegions.insert({SV, SR});
+      return SR;
     }
   };
 
@@ -1324,6 +1337,7 @@ public:
   }
 
   llvm::Instruction *EmitSyncRegionStart();
+  llvm::Instruction *EmitLabeledSyncRegionStart(StringRef SV);
 
   void PopSyncRegion() {
     delete CurSyncRegion; // ~SyncRegion updates CurSyncRegion
@@ -1566,6 +1580,9 @@ public:
     void EmitTaskEnd();
     // Finish the spawned task.
     void FinishDetach();
+
+    void StartLabeledDetach(SyncRegion* SR);
+    void FinishLabeledDetach(SyncRegion* SR);
 
     // Create a temporary for the spawned task, specifically, before the spawned
     // task has started.
@@ -2545,6 +2562,9 @@ private:
   /// Add OpenCL kernel arg metadata and the kernel attribute metadata to
   /// the function metadata.
   void EmitKernelMetadata(const FunctionDecl *FD, llvm::Function *Fn);
+
+  /// Add Kitsune metadata to the function metadata.
+  void EmitKitsuneMetadata(const FunctionDecl *FD, llvm::Function *Fn);
 
 public:
   CodeGenFunction(CodeGenModule &cgm, bool suppressNewContext=false);
@@ -3831,6 +3851,24 @@ public:
   void EmitCaseStmtRange(const CaseStmt &S, ArrayRef<const Attr *> Attrs);
   void EmitAsmStmt(const AsmStmt &S);
 
+  void EmitDetachBlock(const DeclStmt *DS, llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
+  void ReplaceAllUsesInCurrentBlock(llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
+  void SetAllocaInsertPoint(llvm::Value* v, llvm::BasicBlock* bb);
+
+  typedef llvm::DenseMap<const VarDecl *,
+                         std::pair<Address,llvm::SmallVector<llvm::Value*,4>>> DeclMapByValueTy;
+  void EmitIVLoad(const VarDecl* LoopVar,
+                          DeclMapByValueTy & IVDeclMap);
+  void EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,4>& Values);
+  void RestoreDeclMap(const VarDecl* IV, const Address);
+
+  void EmitSpawnStmt(const SpawnStmt &S);
+  void EmitSyncStmt(const SyncStmt &S);
+  void EmitForallStmt(const ForallStmt &S,
+                      ArrayRef<const Attr *> Attrs = std::nullopt);
+  void EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
+                              ArrayRef<const Attr *> Attrs = std::nullopt);
+
   void EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S);
   void EmitObjCAtTryStmt(const ObjCAtTryStmt &S);
   void EmitObjCAtThrowStmt(const ObjCAtThrowStmt &S);
@@ -3877,6 +3915,23 @@ public:
   llvm::Value *EmitSEHExceptionCode();
   llvm::Value *EmitSEHExceptionInfo();
   llvm::Value *EmitSEHAbnormalTermination();
+
+  LoopAttributes::LSStrategy GetTapirStrategyAttr(ArrayRef<const Attr*> Attrs);
+  LoopAttributes::LTarget GetTapirTargetAttr(ArrayRef<const Attr*> Attrs);
+
+  // Kitsune support for Kokkos.
+  bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?
+  bool EmitKokkosConstruct(const CallExpr *CE, ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
+  bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
+  bool EmitKokkosParallelReduce(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
+  bool ParseAndValidateParallelFor(const CallExpr* CE,
+             std::string &CN,
+             SmallVector<std::pair<const ParmVarDecl*,std::pair<const Expr*, const Expr*>>,6> &IVinfos,
+             const LambdaExpr *& LE,
+             DiagnosticsEngine &Diags);
+  void EmitAndInitializeKokkosIV(const std::pair<const ParmVarDecl*,std::pair<const Expr*, const Expr*>> &IVInfo);
+  llvm::Value * EmitKokkosParallelForCond(const std::pair<const ParmVarDecl*,std::pair<const Expr*, const Expr*>> &IVInfo);
+  void EmitKokkosIncrement(const ParmVarDecl *IV);
 
   /// Emit simple code for OpenMP directives in Simd-only mode.
   void EmitSimpleOMPExecutableDirective(const OMPExecutableDirective &D);

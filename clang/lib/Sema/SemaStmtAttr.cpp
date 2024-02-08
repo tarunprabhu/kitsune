@@ -85,7 +85,7 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
   // This could be handled automatically by adding a Subjects definition in
   // Attr.td, but that would make the diagnostic behavior worse in this case
   // because the user spells this attribute as a pragma.
-  if (!isa<DoStmt, ForStmt, CXXForRangeStmt, WhileStmt>(St)) {
+  if (!isa<DoStmt, ForStmt, CXXForRangeStmt, WhileStmt, ForallStmt>(St)) {
     std::string Pragma = "#pragma " + std::string(PragmaName);
     S.Diag(St->getBeginLoc(), diag::err_pragma_loop_precedes_nonloop) << Pragma;
     return nullptr;
@@ -362,8 +362,15 @@ CheckForIncompatibleAttributes(Sema &S,
     // This serves as a indicator to how many category are listed in this enum.
     NumberOfCategories
   };
-  // The following array accumulates the hints encountered while iterating
-  // through the attributes to check for compatibility.
+  // There are 8 categories of loop hints attributes: vectorize, interleave,
+  // unroll, unroll_and_jam, pipeline, distribute, vectorize_predicate, and
+  // (Tapir) grainsize. Except for distribute they come in two variants: a state
+  // form and a numeric form. The state form selectively
+  // defaults/enables/disables the transformation for the loop (for unroll,
+  // default indicates full unrolling rather than enabling the transformation).
+  // The numeric form form provides an integer hint (for example, unroll count)
+  // to the transformer. The following array accumulates the hints encountered
+  // while iterating through the attributes to check for compatibility.
   struct {
     const LoopHintAttr *StateAttr;
     const LoopHintAttr *NumericAttr;
@@ -483,6 +490,83 @@ static Attr *handleOpenCLUnrollHint(Sema &S, Stmt *St, const ParsedAttr &A,
   return ::new (S.Context) OpenCLUnrollHintAttr(S.Context, A, UnrollFactor);
 }
 
+static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const ParsedAttr &A,
+				   SourceRange Range)
+{
+  // We only support a limited range of statement classes.
+  // TODO: Add support for spawn and sync statements. 
+  if (St->getStmtClass() == Stmt::ForallStmtClass || 
+      St->getStmtClass() == Stmt::CXXForallRangeStmtClass) {
+
+    if (A.getNumArgs() != 1) {
+      S.Diag(A.getLoc(), diag::err_tapir_target_attr_wrong_nargs);
+      return nullptr;
+    }
+
+    StringRef      targetStr;
+    SourceLocation argLoc;
+    if (!S.checkStringLiteralArgumentAttr(A, 0, targetStr, &argLoc)) {
+      S.Diag(A.getLoc(), diag::err_tapir_target_unknown);
+      return nullptr;
+    } 
+
+    TapirTargetAttr::TapirTargetAttrTy  tapirTK;
+    if (!TapirTargetAttr::ConvertStrToTapirTargetAttrTy(targetStr, tapirTK)) {
+       S.Diag(A.getLoc(), diag::err_tapir_target_unknown)
+	 << targetStr << argLoc;
+       return nullptr;
+    }
+
+    return ::new(S.Context)TapirTargetAttr(S.Context, A, tapirTK);
+  } else {
+    // Unsupported statement class encountered... 
+    S.Diag(A.getLoc(), diag::warn_tapir_target_attr_bad_stmt_class);
+    return nullptr;
+  }
+}
+
+static Attr *handleTapirStrategyAttr(Sema &S, Stmt *St, const ParsedAttr &A,
+				                      SourceRange Range) 
+{
+  bool errState = false;
+
+  // We only support a limited range of statement classes. 
+  // TODO: Add support for spawn and sync statements. 
+  if (St->getStmtClass() != Stmt::ForallStmtClass &&
+      St->getStmtClass() != Stmt::CXXForallRangeStmtClass) {
+    S.Diag(A.getLoc(), diag::warn_tapir_target_attr_bad_stmt_class);    
+    errState = true;
+  }
+  
+  if (A.getNumArgs() != 1) {
+    S.Diag(A.getLoc(), diag::err_tapir_strategy_attr_wrong_nargs);
+    errState = true;
+  }
+
+  StringRef      strategyStr;
+  SourceLocation argLoc;
+  if (!S.checkStringLiteralArgumentAttr(A, 0, strategyStr, &argLoc)) {
+    S.Diag(A.getLoc(), diag::err_tapir_strategy_unknown);
+    errState = true;
+  }
+
+  TapirStrategyAttr::TapirStrategyTy strategyKind;
+  if (!TapirStrategyAttr::ConvertStrToTapirStrategyTy(strategyStr, strategyKind)) {
+    // TODO: Is this redundant w/ CheckString call above???
+    S.Diag(A.getLoc(), diag::err_tapir_strategy_unknown)
+      << strategyStr << argLoc;
+    errState = true;
+  }
+
+  if (errState) 
+    return nullptr;
+  else  
+    return ::new (S.Context) TapirStrategyAttr(S.Context, A, strategyKind);
+}
+
+// =====+
+
+
 static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
                                   SourceRange Range) {
   if (A.isInvalid() || A.getKind() == ParsedAttr::IgnoredAttribute)
@@ -529,6 +613,8 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
     return handleLikely(S, St, A, Range);
   case ParsedAttr::AT_Unlikely:
     return handleUnlikely(S, St, A, Range);
+  case ParsedAttr::AT_TapirTarget:
+    return handleTapirTargetAttr(S, St, A, Range);    
   default:
     // N.B., ClangAttrEmitter.cpp emits a diagnostic helper that ensures a
     // declaration attribute is not written on a statement, but this code is

@@ -72,6 +72,7 @@
 #include "llvm/Transforms/Instrumentation/SanitizerBinaryMetadata.h"
 #include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
 #include "llvm/Transforms/Instrumentation/ThreadSanitizer.h"
+#include "llvm/Transforms/Instrumentation/CilkSanitizer.h"
 #include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Scalar/EarlyCSE.h"
 #include "llvm/Transforms/Scalar/GVN.h"
@@ -1013,6 +1014,15 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
             MPM.addPass(InstrProfiling(*Options, false));
           });
 
+    // Register the Cilksan pass.
+    if (LangOpts.Sanitize.has(SanitizerKind::Cilk))
+      PB.registerTapirLateEPCallback(
+          [&](ModulePassManager &MPM, OptimizationLevel Level) {
+            MPM.addPass(CSISetupPass());
+            MPM.addPass(CilkSanitizerPass());
+            PB.addPostCilkInstrumentationPipeline(MPM, Level);
+          });
+
     // TODO: Consider passing the MemoryProfileOutput to the pass builder via
     // the PGOOptions, and set this up there.
     if (!CodeGenOpts.MemoryProfileOutput.empty()) {
@@ -1023,7 +1033,10 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
           });
     }
 
-    if (IsThinLTO || (IsLTO && CodeGenOpts.UnifiedLTO)) {
+    if (CodeGenOpts.OptimizationLevel == 0) {
+      MPM = PB.buildO0DefaultPipeline(Level, IsLTO || IsThinLTO,
+                                      TLII->hasTapirTarget());
+    } else if (IsThinLTO || (IsLTO && CodeGenOpts.UnifiedLTO)) {
       MPM = PB.buildThinLTOPreLinkDefaultPipeline(Level);
     } else if (IsLTO) {
       MPM = PB.buildLTOPreLinkDefaultPipeline(Level);

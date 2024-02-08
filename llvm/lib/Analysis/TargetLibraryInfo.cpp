@@ -45,6 +45,14 @@ static cl::opt<TapirTargetID> ClTapirTarget(
                           "none", "None"),
                clEnumValN(TapirTargetID::Serial,
                           "serial", "Serial code"),
+               clEnumValN(TapirTargetID::OpenMP,
+                          "openmp", "OpenMP"),
+               clEnumValN(TapirTargetID::Qthreads,
+                          "qthreads", "Qthreads"),
+               clEnumValN(TapirTargetID::Realm,
+                          "realm", "Realm"),
+               clEnumValN(TapirTargetID::GPU,
+                          "gpu", "GPU"),
                clEnumValN(TapirTargetID::Cheetah,
                           "cheetah", "Cheetah"),
                clEnumValN(TapirTargetID::OpenCilk,
@@ -1295,8 +1303,8 @@ void TargetLibraryInfoImpl::addTapirTargetLibraryFunctions(
   case TapirTargetID::None:
   case TapirTargetID::Serial:
   case TapirTargetID::Cheetah:
-  case TapirTargetID::Lambda:
-  case TapirTargetID::OMPTask:
+  case TapirTargetID::Cuda:
+  case TapirTargetID::OpenMP:
   case TapirTargetID::Qthreads:
   case TapirTargetID::Last_TapirTargetID:
     break;
@@ -1342,16 +1350,16 @@ bool TargetLibraryInfoImpl::isFunctionVectorizable(StringRef funcName) const {
   return I != VectorDescs.end() && StringRef(I->ScalarFnName) == funcName;
 }
 
-StringRef TargetLibraryInfoImpl::getVectorizedFunction(StringRef F,
-                                                       const ElementCount &VF,
-                                                       bool Masked) const {
+StringRef
+TargetLibraryInfoImpl::getVectorizedFunction(StringRef F,
+                                             const ElementCount &VF) const {
   F = sanitizeFunctionName(F);
   if (F.empty())
     return F;
   std::vector<VecDesc>::const_iterator I =
       llvm::lower_bound(VectorDescs, F, compareWithScalarFnName);
   while (I != VectorDescs.end() && StringRef(I->ScalarFnName) == F) {
-    if ((I->VectorizationFactor == VF) && (I->Masked == Masked))
+    if (I->VectorizationFactor == VF)
       return I->VectorFnName;
     ++I;
   }

@@ -1519,6 +1519,11 @@ Parser::isCXXDeclarationSpecifier(ImplicitTypenameContext AllowImplicitTypename,
     // HLSL address space qualifiers
   case tok::kw_groupshared:
 
+    // Kitsune memaccess qualifiers
+  case tok::kw__readonly:
+  case tok::kw__writeonly:
+  case tok::kw__readwrite:
+
     // GNU
   case tok::kw_restrict:
   case tok::kw__Complex:

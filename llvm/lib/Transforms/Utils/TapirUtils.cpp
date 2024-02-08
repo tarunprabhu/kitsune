@@ -2461,6 +2461,8 @@ void llvm::TapirLoopHints::clearHintsMetadata() {
 bool llvm::hintsDemandOutlining(const TapirLoopHints &Hints) {
   switch (Hints.getStrategy()) {
   case TapirLoopHints::ST_DAC:
+  case TapirLoopHints::ST_SEQ:
+  case TapirLoopHints::ST_GPU;
     return true;
   default:
     return false;

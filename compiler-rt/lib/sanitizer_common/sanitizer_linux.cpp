@@ -1455,7 +1455,7 @@ uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
       : "memory");
   return res;
 }
-#elif defined(__aarch64__) && defined(__linux__)
+#elif defined(__aarch64__)
 uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
                     int *parent_tidptr, void *newtls, int *child_tidptr) {
   register long long res __asm__("x0");

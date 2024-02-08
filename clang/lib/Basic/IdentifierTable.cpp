@@ -27,6 +27,8 @@
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "clang/Basic/Tapir.h"
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -110,7 +112,9 @@ namespace {
     KEYSYCL       = 0x800000,
     KEYCUDA       = 0x1000000,
     KEYHLSL       = 0x2000000,
-    KEYMAX        = KEYHLSL, // The maximum key
+    KEYTAPIR      = 0x4000000,
+    KEYKITSUNE    = 0x8000000,
+    KEYMAX        = KEYKITSUNE, // The maximum key
     KEYALLCXX = KEYCXX | KEYCXX11 | KEYCXX20,
     KEYALL = (KEYMAX | (KEYMAX-1)) & ~KEYNOMS18 &
              ~KEYNOOPENCL // KEYNOMS18 and KEYNOOPENCL are used to exclude.
@@ -202,6 +206,10 @@ static KeywordStatus getKeywordStatusHelper(const LangOptions &LangOpts,
     return LangOpts.CUDA ? KS_Enabled : KS_Unknown;
   case KEYHLSL:
     return LangOpts.HLSL ? KS_Enabled : KS_Unknown;
+  case KEYTAPIR:
+    return LangOpts.Tapir != llvm::TapirTargetID::Last_TapirTargetID ? KS_Enabled : KS_Unknown;
+  case KEYKITSUNE:
+    return (LangOpts.Kitsune || (LangOpts.Tapir != TapirTargetID::Last_TapirTargetID)) ? KS_Enabled : KS_Unknown;
   case KEYNOCXX:
     // This is enabled in all non-C++ modes, but might be enabled for other
     // reasons as well.

@@ -4204,3 +4204,48 @@ def AvailableOnlyInDefaultEvalMethod : InheritableAttr {
   let Documentation = [Undocumented];
 }
 
+def TapirTarget : StmtAttr {
+  let Spellings = [CXX11<"tapir","target">];
+  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
+                 ErrorDiag, "'forall' statement">;
+  let Args = [
+    EnumArgument<"TapirTargetAttrType", "TapirTargetAttrTy",
+    // TODO: Is there a difference between "serial" and "none"?
+    ["cheetah",    "cilk",   "cuda",
+     "hip",        "libomp", "none",
+     "qthreads",   "realm",  "rocm",
+     "serial",     "zero",   "opencl"],
+    ["CheetahRT",  "CilkRT",  "CudaRT",
+     "HipRT",      "OmpRT",   "QthreadsRT",
+     "RealmRT",    "RocmRT",  "SequentialRT",
+     "ZeroRT",     "OpenCLRT"], 0>
+  ];
+  let Documentation = [TapirRTDocs];
+}
+
+def TapirStrategy : StmtAttr {
+  let Spellings = [CXX11<"tapir", "strategy">];
+  let Args = [
+      EnumArgument<"TapirStrategyType", "TapirStrategyTy",
+      ["dac", "seq", "gpu"],
+      ["DAC", "SEQ", "GPU"], 0>
+  ];
+  // FIXME -- how do we document this?
+  let Documentation = [TapirStrategyDocs];
+}
+
+def KitsuneMemAccess : InheritableAttr {
+    let Spellings = [Keyword<"_readonly">,
+                     Keyword<"_writeonly">,
+                     Keyword<"_readwrite">];
+
+    let Subjects = SubjectList<[Function, LocalVar, ParmVar, TypedefName],
+                                ErrorDiag>; // TODO: not sure about Loops
+    let Accessors = [
+      Accessor<"isReadOnly", [Keyword<"_readonly">]>,
+      Accessor<"isWriteOnly", [Keyword<"_writeonly">]>,
+      Accessor<"isReadWrite", [Keyword<"_readwrite">]>
+    ];
+
+    let Documentation = [KitsuneMemAccessDocs];
+}

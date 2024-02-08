@@ -17,12 +17,16 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/Timer.h"
-#include "llvm/Transforms/IPO/FunctionAttrs.h"
+#include "llvm/Transforms/Tapir/CudaABI.h"
+#include "llvm/Transforms/Tapir/HipABI.h"
 #include "llvm/Transforms/Tapir/LambdaABI.h"
 #include "llvm/Transforms/Tapir/OMPTaskABI.h"
 #include "llvm/Transforms/Tapir/OpenCilkABI.h"
+#include "llvm/Transforms/Tapir/OpenMPABI.h"
+#include "llvm/Transforms/Tapir/GPUABI.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/QthreadsABI.h"
+#include "llvm/Transforms/Tapir/RealmABI.h"
 #include "llvm/Transforms/Tapir/SerialABI.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -42,15 +46,25 @@ TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID) {
     return nullptr;
   case TapirTargetID::Serial:
     return new SerialABI(M);
-  case TapirTargetID::Cheetah:
-  case TapirTargetID::OpenCilk:
-    return new OpenCilkABI(M);
+  case TapirTargetID::Cuda:
+    return new CudaABI(M);
+  case TapirTargetID::Hip:
+    return new HipABI(M);
   case TapirTargetID::Lambda:
     return new LambdaABI(M);
   case TapirTargetID::OMPTask:
     return new OMPTaskABI(M);
+  case TapirTargetID::Cheetah:
+  case TapirTargetID::OpenCilk:
+    return new OpenCilkABI(M);
+  case TapirTargetID::OpenMP:
+    return new OpenMPABI(M);
+  case TapirTargetID::GPU:
+    return new GPUABI(M);
   case TapirTargetID::Qthreads:
     return new QthreadsABI(M);
+  case TapirTargetID::Realm:
+    return new RealmABI(M);
   default:
     llvm_unreachable("Invalid TapirTargetID");
   }
@@ -1234,6 +1248,9 @@ bool TapirTarget::shouldProcessFunction(const Function &F) const {
   for (const Instruction &I : instructions(&F))
     if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I)) {
       switch (II->getIntrinsicID()) {
+      case Intrinsic::hyper_lookup:
+      case Intrinsic::reducer_register:
+      case Intrinsic::reducer_unregister:
       case Intrinsic::tapir_loop_grainsize:
       case Intrinsic::task_frameaddress:
       case Intrinsic::tapir_runtime_start:

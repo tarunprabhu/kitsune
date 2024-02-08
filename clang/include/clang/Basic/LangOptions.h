@@ -22,8 +22,10 @@
 #include "clang/Basic/TargetCXXABI.h"
 #include "clang/Basic/Visibility.h"
 #include "llvm/ADT/FloatingPointMode.h"
+#include "clang/Basic/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include <optional>
 #include <string>
 #include <vector>
@@ -384,6 +386,9 @@ public:
   /// The used language standard.
   LangStandard::Kind LangStd;
 
+  /// Is Kitsune mode enabled.
+  bool Kitsune = false;
+
   /// Set of enabled sanitizers.
   SanitizerSet Sanitize;
   /// Is at least one coverage instrumentation type enabled.
@@ -490,6 +495,9 @@ public:
   // Indicates whether we should keep all nullptr checks for pointers
   // received as a result of a standard operator new (-fcheck-new)
   bool CheckNew = false;
+
+  /// \brief Runtime target for Tapir.
+  TapirTargetID TapirTarget = TapirTargetID::Last_TapirTargetID;
 
   LangOptions();
 

@@ -109,6 +109,7 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::DefaultStmtClass:
   case Stmt::CaseStmtClass:
   case Stmt::SEHLeaveStmtClass:
+  case Stmt::SyncStmtClass:
     llvm_unreachable("should have emitted these statements as simple");
 
 #define STMT(Type, Base)
@@ -169,6 +170,12 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     EmitCapturedStmt(*CS, CS->getCapturedRegionKind());
     }
     break;
+  case Stmt::ForallStmtClass:
+    EmitForallStmt(cast<ForallStmt>(*S), Attrs);
+    break;
+  case Stmt::SpawnStmtClass:
+    EmitSpawnStmt(cast<SpawnStmt>(*S)); 
+    break;
   case Stmt::ObjCAtTryStmtClass:
     EmitObjCAtTryStmt(cast<ObjCAtTryStmt>(*S));
     break;
@@ -196,6 +203,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     break;
   case Stmt::CXXForRangeStmtClass:
     EmitCXXForRangeStmt(cast<CXXForRangeStmt>(*S), Attrs);
+    break;
+  case Stmt::CXXForallRangeStmtClass:
+    EmitCXXForallRangeStmt(cast<CXXForallRangeStmt>(*S), Attrs);
     break;
   case Stmt::SEHTryStmtClass:
     EmitSEHTryStmt(cast<SEHTryStmt>(*S));
@@ -472,6 +482,9 @@ bool CodeGenFunction::EmitSimpleStmt(const Stmt *S,
     break;
   case Stmt::SEHLeaveStmtClass:
     EmitSEHLeaveStmt(cast<SEHLeaveStmt>(*S));
+    break;
+  case Stmt::SyncStmtClass: 
+    EmitSyncStmt(cast<SyncStmt>(*S)); 
     break;
   }
   return true;
@@ -1310,6 +1323,13 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
 
   // Emit the result value, even if unused, to evaluate the side effects.
   const Expr *RV = S.getRetValue();
+
+  // If RV is a CilkSpawnExpr, handle the CilkSpawnExpr part here.
+  if (const CilkSpawnExpr *CS = dyn_cast_or_null<CilkSpawnExpr>(RV)) {
+    IsSpawned = true;
+    PushDetachScope();
+    RV = CS->getSpawnedExpr();
+  }
 
   // Record the result expression of the return statement. The recorded
   // expression is used to determine whether a block capture's lifetime should

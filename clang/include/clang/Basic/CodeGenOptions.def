@@ -428,7 +428,7 @@ VALUE_CODEGENOPT(InlineMaxStackSize, 32, UINT_MAX)
 ENUM_CODEGENOPT(VecLib, VectorLibrary, 3, NoLibrary)
 
 /// Tapir target runtime library to use.
-ENUM_CODEGENOPT(TapirTarget, TapirTargetID, 8, TapirTargetID::Last_TapirTargetID)
+ENUM_CODEGENOPT(TapirTarget, TapirTargetID, 9, TapirTargetID::Last_TapirTargetID)
 
 /// The default TLS model to use.
 ENUM_CODEGENOPT(DefaultTLSModel, TLSModel, 2, GeneralDynamicTLSModel)
@@ -516,6 +516,10 @@ ENUM_CODEGENOPT(ZeroCallUsedRegs, llvm::ZeroCallUsedRegs::ZeroCallUsedRegsKind,
 /// Modify C++ ABI to returning `this` pointer from constructors and
 /// non-deleting destructors. (No effect on Microsoft ABI.)
 CODEGENOPT(CtorDtorReturnThis, 1, 0)
+
+/// Whether to do custom kokkos-specific code generation. 
+CODEGENOPT(Kokkos, 1, 0)
+CODEGENOPT(KokkosNoInit, 1, 0)
 
 #undef CODEGENOPT
 #undef ENUM_CODEGENOPT
