@@ -1,0 +1,9 @@
+# Compiler and/or linker options can be added here to add to (or override) those
+# added automatically by Kitsune for the 'hip' target. 
+#
+# Other options can be added here as well, but any options not exclusively
+# intended for the 'hip' target should be added to ${KITSUNE_C_FRONTEND}.cfg or ${KITSUNE_CXX_FRONTEND}.cfg.
+
+-mllvm -stripmine-count=1
+-mllvm -stripmine-coarsen-factor=1
+

@@ -412,6 +412,21 @@ Instruction *removeUnwindEdge(BasicBlock *BB, DomTreeUpdater *DTU = nullptr);
 bool removeUnreachableBlocks(Function &F, DomTreeUpdater *DTU = nullptr,
                              MemorySSAUpdater *MSSAU = nullptr);
 
+/// Remove all detach-unwind blocks that do not catch exceptions from detached
+/// tasks.
+///
+/// Returns true if any basic block was removed.
+bool removeDeadDetachUnwinds(Function &F, DomTreeUpdater *DTU = nullptr,
+                             MemorySSAUpdater *MSSAU = nullptr);
+
+/// Combine the metadata of two instructions so that K can replace J. Some
+/// metadata kinds can only be kept if K does not move, meaning it dominated
+/// J in the original IR.
+///
+/// Metadata not listed as known via KnownIDs is removed
+void combineMetadata(Instruction *K, const Instruction *J,
+                     ArrayRef<unsigned> KnownIDs, bool DoesKMove);
+
 /// Combine the metadata of two instructions so that K can replace J. This
 /// specifically handles the case of CSE-like transformations. Some
 /// metadata can only be kept if K dominates J. For this to be correct,

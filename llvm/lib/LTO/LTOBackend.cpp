@@ -233,6 +233,11 @@ createTargetMachine(const Config &Conf, const Target *TheTarget, Module &M) {
   return TM;
 }
 
+static bool hasTapirTarget(const Config &Conf) {
+  return (Conf.TapirTarget != TapirTargetID::Last_TapirTargetID) &&
+         (Conf.TapirTarget != TapirTargetID::None);
+}
+
 static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
                            unsigned OptLevel, bool IsThinLTO,
                            ModuleSummaryIndex *ExportSummary,
@@ -277,6 +282,10 @@ static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
 
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
       new TargetLibraryInfoImpl(Triple(TM->getTargetTriple())));
+  TLII->setTapirTarget(Conf.TapirTarget);
+  TLII->setTapirTargetOptions(
+      std::make_unique<OpenCilkABIOptions>(Conf.OpenCilkABIBitcodeFile));
+  TLII->addTapirTargetLibraryFunctions();
   if (Conf.Freestanding)
     TLII->disableAllFunctions();
   FAM.registerPass([&] { return TargetLibraryAnalysis(*TLII); });
@@ -330,9 +339,11 @@ static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
                          Conf.OptPipeline + "': " + toString(std::move(Err)));
     }
   } else if (IsThinLTO) {
-    MPM.addPass(PB.buildThinLTODefaultPipeline(OL, ImportSummary));
+    MPM.addPass(PB.buildThinLTODefaultPipeline(OL, ImportSummary,
+                                               hasTapirTarget(Conf)));
   } else {
-    MPM.addPass(PB.buildLTODefaultPipeline(OL, ExportSummary));
+    MPM.addPass(PB.buildLTODefaultPipeline(OL, ExportSummary,
+                                           hasTapirTarget(Conf)));
   }
 
   if (!Conf.DisableVerify)
@@ -436,6 +447,10 @@ static void codegen(const Config &Conf, TargetMachine *TM,
 
   legacy::PassManager CodeGenPasses;
   TargetLibraryInfoImpl TLII(Triple(Mod.getTargetTriple()));
+  TLII.setTapirTarget(Conf.TapirTarget);
+  TLII.setTapirTargetOptions(
+      std::make_unique<OpenCilkABIOptions>(Conf.OpenCilkABIBitcodeFile));
+  TLII.addTapirTargetLibraryFunctions();
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(TLII));
   // No need to make index available if the module is empty.
   // In theory these passes should not use the index for an empty

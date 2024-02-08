@@ -114,6 +114,9 @@ class LLVMContext;
 class MemoryAccess;
 class MemorySSAWalker;
 class Module;
+class TaskInfo;
+class Use;
+class Value;
 class raw_ostream;
 
 namespace MSSAHelpers {
@@ -700,8 +703,8 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(MemoryPhi, MemoryAccess)
 /// accesses.
 class MemorySSA {
 public:
-  MemorySSA(Function &, AliasAnalysis *, DominatorTree *);
-  MemorySSA(Loop &, AliasAnalysis *, DominatorTree *);
+  MemorySSA(Function &, AliasAnalysis *, DominatorTree *, TaskInfo * = nullptr);
+  MemorySSA(Loop &, AliasAnalysis *, DominatorTree *, TaskInfo * = nullptr);
 
   // MemorySSA must remain where it's constructed; Walkers it creates store
   // pointers to it.
@@ -877,6 +880,7 @@ private:
   DominatorTree *DT;
   Function *F = nullptr;
   Loop *L = nullptr;
+  TaskInfo *TI = nullptr;
 
   // Memory SSA mappings
   DenseMap<const Value *, MemoryAccess *> ValueToMemoryAccess;
@@ -920,7 +924,7 @@ protected:
 
   // This function should not be used by new passes.
   static bool defClobbersUseOrDef(MemoryDef *MD, const MemoryUseOrDef *MU,
-                                  AliasAnalysis &AA);
+                                  AliasAnalysis &AA, TaskInfo *TI = nullptr);
 };
 
 /// An analysis that produces \c MemorySSA for a function.

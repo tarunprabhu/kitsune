@@ -2048,6 +2048,11 @@ enum StmtCode {
   // HLSL Constructs
   EXPR_HLSL_OUT_ARG,
 
+  // Kitsune
+  STMT_SPAWN,
+  STMT_SYNC,
+  STMT_FORALL,
+  STMT_CXX_FORALL_RANGE
 };
 
 /// The kinds of designators that can occur in a

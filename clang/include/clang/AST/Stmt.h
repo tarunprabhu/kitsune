@@ -257,6 +257,7 @@ protected:
 
   class ForStmtBitfields {
     friend class ForStmt;
+    friend class ForallStmt;
 
     LLVM_PREFERRED_TYPE(StmtBitfields)
     unsigned : NumStmtBits;

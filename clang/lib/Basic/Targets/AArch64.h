@@ -224,6 +224,8 @@ public:
     return Expression;
   }
 
+  bool hasSjLjLowering() const override; 
+
   int getEHDataRegisterNumber(unsigned RegNo) const override;
 
   bool validatePointerAuthKey(const llvm::APSInt &value) const override;

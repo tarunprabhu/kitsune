@@ -48,6 +48,7 @@ add_llvm_component_library(LLVMAnalysis
   ConstantFolding.cpp
   CtxProfAnalysis.cpp
   CycleAnalysis.cpp
+  DataRaceFreeAliasAnalysis.cpp
   DDG.cpp
   DDGPrinter.cpp
   ConstraintSystem.cpp
@@ -130,6 +131,8 @@ add_llvm_component_library(LLVMAnalysis
   StructuralHash.cpp
   SyntheticCountsUtils.cpp
   TFLiteUtils.cpp
+  TapirRaceDetect.cpp
+  TapirTaskInfo.cpp
   TargetLibraryInfo.cpp
   TargetTransformInfo.cpp
   TensorSpec.cpp
@@ -143,6 +146,7 @@ add_llvm_component_library(LLVMAnalysis
   ValueLatticeUtils.cpp
   ValueTracking.cpp
   VectorUtils.cpp
+  WorkSpanAnalysis.cpp
   ${GeneratedMLSources}
 
   ADDITIONAL_HEADER_DIRS

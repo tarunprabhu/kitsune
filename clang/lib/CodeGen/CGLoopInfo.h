@@ -19,6 +19,7 @@
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
 namespace llvm {
 class BasicBlock;
@@ -70,6 +71,9 @@ struct LoopAttributes {
   /// llvm.unroll.
   unsigned UnrollAndJamCount;
 
+  /// tapir.loop.grainsize.
+  unsigned TapirGrainSize;
+
   /// Value for llvm.loop.distribute.enable metadata.
   LVEnableState DistributeEnable;
 
@@ -84,6 +88,15 @@ struct LoopAttributes {
 
   /// Value for whether the loop is required to make progress.
   bool MustProgress;
+
+  /// Tapir-loop spawning strategy.
+  enum LSStrategy { SEQ, DAC, GPU };
+
+  /// Value for tapir.loop.spawn.strategy metadata.
+  LSStrategy SpawnStrategy;
+
+  /// Value for tapir.loop.target metadata.
+  std::optional<llvm::TapirTargetID> LoopTarget;
 };
 
 /// Information used when generating a structured loop.
@@ -179,6 +192,13 @@ private:
   createFullUnrollMetadata(const LoopAttributes &Attrs,
                            llvm::ArrayRef<llvm::Metadata *> LoopProperties,
                            bool &HasUserTransforms);
+  llvm::MDNode *
+  createTapirLoopMetadata(const LoopAttributes &Attrs,
+                          llvm::ArrayRef<llvm::Metadata *> LoopProperties,
+                          bool &HasUserTransforms);
+  void getTapirLoopProperties(
+      const LoopAttributes &Attrs,
+      llvm::SmallVectorImpl<llvm::Metadata *> &LoopProperties);
   /// @}
 
   /// Create a LoopID for this loop, including transformation-unspecific
@@ -295,6 +315,20 @@ public:
   /// Set no progress for the next loop pushed.
   void setMustProgress(bool P) { StagedAttrs.MustProgress = P; }
 
+  /// Set the Tapir-loop spawning strategy for the next loop pushed.
+  void setSpawnStrategy(const LoopAttributes::LSStrategy &Strat) {
+    StagedAttrs.SpawnStrategy = Strat;
+  }
+
+  /// Set the Tapir-loop grainsize for the next loop pushed.
+  void setTapirGrainSize(unsigned C) { StagedAttrs.TapirGrainSize = C; }
+
+  /// Set the Tapir loop target
+  void setLoopTarget(std::optional<llvm::TapirTargetID> LT) {
+    StagedAttrs.LoopTarget = LT;
+  }
+
+private:
   /// Returns true if there is LoopInfo on the stack.
   bool hasInfo() const { return !Active.empty(); }
   /// Return the LoopInfo for the current loop. HasInfo should be called

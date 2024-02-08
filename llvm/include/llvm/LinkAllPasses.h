@@ -19,6 +19,7 @@
 #include "llvm/Analysis/AliasSetTracker.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/CallPrinter.h"
+#include "llvm/Analysis/DataRaceFreeAliasAnalysis.h"
 #include "llvm/Analysis/DXILResource.h"
 #include "llvm/Analysis/DomPrinter.h"
 #include "llvm/Analysis/GlobalsModRef.h"
@@ -43,6 +44,7 @@
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Scalar/Scalarizer.h"
 #include "llvm/Transforms/Utils.h"
+#include "llvm/Transforms/Tapir.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
 #include "llvm/Transforms/Vectorize/LoadStoreVectorizer.h"
 #include <cstdlib>
@@ -91,12 +93,15 @@ struct ForcePassLinking {
     (void)llvm::createLazyValueInfoPass();
     (void)llvm::createLoopExtractorPass();
     (void)llvm::createLoopSimplifyPass();
+    (void)llvm::createLoopSpawningTIPass();
     (void)llvm::createLoopStrengthReducePass();
+    (void)llvm::createLoopStripMinePass();
     (void)llvm::createLoopTermFoldPass();
     (void)llvm::createLoopUnrollPass();
     (void)llvm::createLowerGlobalDtorsLegacyPass();
     (void)llvm::createLowerInvokePass();
     (void)llvm::createLowerSwitchPass();
+    (void)llvm::createLowerTapirToTargetPass();
     (void)llvm::createNaryReassociatePass();
     (void)llvm::createObjCARCContractPass();
     (void)llvm::createPromoteMemoryToRegisterPass();
@@ -142,6 +147,8 @@ struct ForcePassLinking {
     (void)llvm::createUnifyLoopExitsPass();
     (void)llvm::createFixIrreduciblePass();
     (void)llvm::createSelectOptimizePass();
+    (void) llvm::createTaskCanonicalizePass();
+    (void) llvm::createTaskSimplifyPass();
 
     (void)new llvm::ScalarEvolutionWrapperPass();
     llvm::Function::Create(nullptr, llvm::GlobalValue::ExternalLinkage)

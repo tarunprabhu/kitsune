@@ -1,0 +1,8 @@
+# Compiler/linker options for Kokkos mode (-fkokkos). The options added by
+# default are below:
+#
+# The driver will add the kokkos libraries to the argument list automatically
+# but you may need to tweak the search paths depending upon your use case.
+# 
+# Other options can be added here as well, but any options not exclusively
+# intended for Kokkos mode should be added to ${KITSUNE_C_FRONTEND}.cfg or ${KITSUNE_CXX_FRONTEND}.cfg.

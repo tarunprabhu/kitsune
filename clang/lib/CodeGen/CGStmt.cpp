@@ -115,6 +115,7 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::CaseStmtClass:
   case Stmt::SEHLeaveStmtClass:
   case Stmt::SYCLKernelCallStmtClass:
+  case Stmt::SyncStmtClass:
     llvm_unreachable("should have emitted these statements as simple");
 
 #define STMT(Type, Base)
@@ -175,6 +176,12 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     EmitCapturedStmt(*CS, CS->getCapturedRegionKind());
     }
     break;
+  case Stmt::ForallStmtClass:
+    EmitForallStmt(cast<ForallStmt>(*S), Attrs);
+    break;
+  case Stmt::SpawnStmtClass:
+    EmitSpawnStmt(cast<SpawnStmt>(*S));
+    break;
   case Stmt::ObjCAtTryStmtClass:
     EmitObjCAtTryStmt(cast<ObjCAtTryStmt>(*S));
     break;
@@ -202,6 +209,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     break;
   case Stmt::CXXForRangeStmtClass:
     EmitCXXForRangeStmt(cast<CXXForRangeStmt>(*S), Attrs);
+    break;
+  case Stmt::CXXForallRangeStmtClass:
+    EmitCXXForallRangeStmt(cast<CXXForallRangeStmt>(*S), Attrs);
     break;
   case Stmt::SEHTryStmtClass:
     EmitSEHTryStmt(cast<SEHTryStmt>(*S));
@@ -546,6 +556,9 @@ bool CodeGenFunction::EmitSimpleStmt(const Stmt *S,
     // kernel call statement is thus handled as a null statement for the
     // purpose of code generation.
     break;
+  case Stmt::SyncStmtClass:
+    EmitSyncStmt(cast<SyncStmt>(*S));
+    break;
   }
   return true;
 }
@@ -561,6 +574,7 @@ Address CodeGenFunction::EmitCompoundStmt(const CompoundStmt &S, bool GetLast,
   // Keep track of the current cleanup stack depth, including debug scopes.
   LexicalScope Scope(*this, S.getSourceRange());
 
+  SyncRegionRAII StmtSR(*this);
   return EmitCompoundStmtWithoutScope(S, GetLast, AggSlot);
 }
 
@@ -781,6 +795,7 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
   HLSLControlFlowHintAttr::Spelling flattenOrBranch =
       HLSLControlFlowHintAttr::SpellingNotCalculated;
   const CallExpr *musttail = nullptr;
+  ArrayRef<const Attr *> tapir_attr_set;
 
   for (const auto *A : S.getAttrs()) {
     switch (A->getKind()) {
@@ -814,6 +829,14 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
     case attr::HLSLControlFlowHint: {
       flattenOrBranch = cast<HLSLControlFlowHintAttr>(A)->getSemanticSpelling();
     } break;
+    case attr::TapirTarget:
+      // In the case of a Tapir target attribute, we need to save the attribute
+      // set so we can use it when we reach code gen of the underlying
+      // CallExpr for Kokkos parallel "statements".  This is necessary given
+      // the additional layers of details in the AST for C++ mechanisms Kokkos
+      // uses to implement their feature set (e.g., implicit and cleanup goop).
+      tapir_attr_set = S.getAttrs();
+      break;
     }
   }
   SaveAndRestore save_nomerge(InNoMergeAttributedStmt, nomerge);
@@ -822,6 +845,7 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
   SaveAndRestore save_noconvergent(InNoConvergentAttributedStmt, noconvergent);
   SaveAndRestore save_musttail(MustTailCall, musttail);
   SaveAndRestore save_flattenOrBranch(HLSLControlFlowAttr, flattenOrBranch);
+  SaveAndRestore save_tapir_addrs(TapirAttrs, tapir_attr_set);
   EmitStmt(S.getSubStmt(), S.getAttrs());
 }
 
@@ -1562,6 +1586,9 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   SaveRetExprRAII SaveRetExpr(RV, *this);
 
   RunCleanupsScope cleanupScope(*this);
+  bool CleanupsSaved = false;
+  if (IsSpawned)
+    CleanupsSaved = CurDetachScope->MaybeSaveCleanupsScope(&cleanupScope);
   if (const auto *EWC = dyn_cast_or_null<ExprWithCleanups>(RV))
     RV = EWC->getSubExpr();
 
@@ -1637,7 +1664,17 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   if (!RV || RV->isEvaluatable(getContext()))
     ++NumSimpleReturnExprs;
 
+  if (CleanupsSaved)
+    CurDetachScope->CleanupDetach();
   cleanupScope.ForceCleanup();
+  if (IsSpawned) {
+    if (!(CurDetachScope && CurDetachScope->IsDetachStarted()))
+      FailedSpawnWarning(RV->getExprLoc());
+    // Pop the detach scope
+    IsSpawned = false;
+    PopDetachScope();
+  }
+
   EmitBranchThroughCleanup(ReturnBlock);
 }
 

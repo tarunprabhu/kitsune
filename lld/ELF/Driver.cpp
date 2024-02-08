@@ -194,6 +194,23 @@ static std::tuple<ELFKind, uint16_t, uint8_t> parseEmulation(Ctx &ctx,
   return std::make_tuple(ret.first, ret.second, osabi);
 }
 
+TapirTargetID parseTapirTarget(const  llvm::StringRef &Target) {
+  // Otherwise use the runtime specified by -ftapir.
+  TapirTargetID TapirTarget = llvm::StringSwitch<TapirTargetID>(Target)
+      .Case("none", TapirTargetID::None)
+      .Case("serial", TapirTargetID::Serial)
+      .Case("cuda", TapirTargetID::Cuda)
+      .Case("hip", TapirTargetID::Hip)
+      .Case("lambda", TapirTargetID::Lambda)
+      .Case("omptask", TapirTargetID::OMPTask)
+      .Case("opencilk", TapirTargetID::OpenCilk)
+      .Case("openmp", TapirTargetID::OpenMP)
+      .Case("qthreads", TapirTargetID::Qthreads)
+      .Case("realm", TapirTargetID::Realm)
+      .Default(TapirTargetID::Last_TapirTargetID);
+
+  return TapirTarget;
+}
 // Returns slices of MB by parsing MB as an archive file.
 // Each slice consists of a member file in the archive.
 std::vector<std::pair<MemoryBufferRef, uint64_t>> static getArchiveMembers(
@@ -1382,6 +1399,8 @@ static void readConfigs(Ctx &ctx, opt::InputArgList &args) {
   ctx.arg.omagic = args.hasFlag(OPT_omagic, OPT_no_omagic, false);
   ctx.arg.optRemarksFilename = args.getLastArgValue(OPT_opt_remarks_filename);
   ctx.arg.optStatsFilename = args.getLastArgValue(OPT_plugin_opt_stats_file);
+  ctx.arg.opencilkABIBitcodeFile =
+      args.getLastArgValue(OPT_opencilk_abi_bitcode);
 
   // Parse remarks hotness threshold. Valid value is either integer or 'auto'.
   if (auto *arg = args.getLastArg(OPT_opt_remarks_hotness_threshold)) {
@@ -1453,6 +1472,8 @@ static void readConfigs(Ctx &ctx, opt::InputArgList &args) {
   ctx.arg.thinLTOCachePolicy = CHECK(
       parseCachePruningPolicy(args.getLastArgValue(OPT_thinlto_cache_policy)),
       "--thinlto-cache-policy: invalid cache policy");
+  ctx.arg.tapirTarget =
+      args::parseTapirTarget(args.getLastArgValue(OPT_tapir_target));
   ctx.arg.thinLTOEmitImportsFiles = args.hasArg(OPT_thinlto_emit_imports_files);
   ctx.arg.thinLTOEmitIndexFiles = args.hasArg(OPT_thinlto_emit_index_files) ||
                                   args.hasArg(OPT_thinlto_index_only) ||
@@ -1533,6 +1554,7 @@ static void readConfigs(Ctx &ctx, opt::InputArgList &args) {
   ctx.arg.zWxneeded = hasZOption(args, "wxneeded");
   setUnresolvedSymbolPolicy(ctx, args);
   ctx.arg.power10Stubs = args.getLastArgValue(OPT_power10_stubs_eq) != "no";
+  ctx.arg.tapirTarget = parseTapirTarget(args.getLastArgValue(OPT_tapir_target));
 
   if (opt::Arg *arg = args.getLastArg(OPT_eb, OPT_el)) {
     if (arg->getOption().matches(OPT_eb))
