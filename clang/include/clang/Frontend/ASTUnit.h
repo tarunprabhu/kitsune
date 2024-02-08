@@ -39,6 +39,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Bitstream/BitstreamWriter.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -473,6 +474,11 @@ public:
     return *TheSema;
   }
 
+  const KitsuneOptions &getKitsuneOpts() const {
+    assert(KitsuneOpts && "ASTUnit does not have Kitsune options");
+    return *KitsuneOpts;
+  }
+
   const LangOptions &getLangOpts() const {
     assert(LangOpts && "ASTUnit does not have language options");
     return *LangOpts;
@@ -733,6 +739,7 @@ public:
       IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
       const FileSystemOptions &FileSystemOpts,
       const HeaderSearchOptions &HSOpts, const LangOptions *LangOpts = nullptr,
+      const KitsuneOpts *KitsuneOpts = nullptr,
       bool OnlyLocalDecls = false,
       CaptureDiagsKind CaptureDiagnostics = CaptureDiagsKind::None,
       bool AllowASTWithCompilerErrors = false,

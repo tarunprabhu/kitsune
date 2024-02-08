@@ -103,6 +103,7 @@
 using namespace clang;
 
 using llvm::TimeRecord;
+using llvm::driver::KitsuneOptions;
 
 namespace {
 
@@ -688,7 +689,8 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
     std::shared_ptr<DiagnosticOptions> DiagOpts,
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
     const FileSystemOptions &FileSystemOpts, const HeaderSearchOptions &HSOpts,
-    const LangOptions *ProvidedLangOpts, bool OnlyLocalDecls,
+    const LangOptions *ProvidedLangOpts, const KitsuneOptions* KitsuneOpts,
+    bool OnlyLocalDecls,
     CaptureDiagsKind CaptureDiagnostics, bool AllowASTWithCompilerErrors,
     bool UserFilesAreVolatile) {
   std::unique_ptr<ASTUnit> AST(new ASTUnit(true));
@@ -711,6 +713,9 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   }();
 
   AST->LangOpts = std::make_unique<LangOptions>(LangOpts);
+  AST->KitsuneOpts = KitsuneOpts
+                         ? std::make_unique<KitsuneOptions>(*KitsuneOpts)
+                         : std::make_unique<KitsuneOptions>();
   AST->OnlyLocalDecls = OnlyLocalDecls;
   AST->CaptureDiagnostics = CaptureDiagnostics;
   AST->DiagOpts = DiagOpts;
@@ -758,7 +763,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   AST->HeaderInfo->initializeModuleCachePath(std::move(ContextHash));
 
   AST->PP = std::make_shared<Preprocessor>(
-      *AST->PPOpts, AST->getDiagnostics(), *AST->LangOpts,
+      *AST->PPOpts, AST->getDiagnostics(), *AST->LangOpts, *AST->KitsuneOpts,
       AST->getSourceManager(), *AST->HeaderInfo, AST->ModuleLoader,
       /*IILookup=*/nullptr,
       /*OwnsHeaderSearch=*/false);
@@ -767,7 +772,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
     AST->Ctx = llvm::makeIntrusiveRefCnt<ASTContext>(
         *AST->LangOpts, AST->getSourceManager(), AST->PP->getIdentifierTable(),
         AST->PP->getSelectorTable(), AST->PP->getBuiltinInfo(),
-        AST->getTranslationUnitKind());
+        *AST->KitsuneOpts, AST->getTranslationUnitKind());
 
   DisableValidationForModuleKind disableValid =
       DisableValidationForModuleKind::None;

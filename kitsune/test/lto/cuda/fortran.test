@@ -1,0 +1,15 @@
+# REQUIRES: kitfc
+#
+# FIXME: Support to lower DO loops using tapir instructions has not been
+# implemented yet.
+# XFAIL: *
+#
+# Check a standard "end-to-end" lowering using LTO.
+#
+# RUN: %kitfc -O2 -flto -Wl,--lto-emit-llvm -o - %sysroot \
+# RUN:     --tapir=cuda --tapir-cuda-arch=sm_72 \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
+# RUN:     | llvm-dis \
+# RUN:     | FileCheck
+#
+# CHECK: call {{.+}} @__kitcuda_launch_kernel

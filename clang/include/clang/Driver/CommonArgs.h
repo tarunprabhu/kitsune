@@ -345,6 +345,11 @@ void constructLLVMLinkCommand(Compilation &C, const Tool &T,
                               const llvm::opt::ArgList &Args,
                               const char *OutputFilename = nullptr);
 
+/// Handle the Kitsune-specific options.
+void addKitsuneArgs(const Driver &D, const ToolChain &TC,
+                    const llvm::opt::ArgList &Args,
+                    llvm::opt::ArgStringList &CmdArgs);
+
 } // end namespace tools
 } // end namespace driver
 } // end namespace clang

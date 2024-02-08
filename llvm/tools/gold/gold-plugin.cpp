@@ -986,6 +986,7 @@ static std::unique_ptr<LTO> createLTO(IndexWriteCallback OnIndexWrite,
   if (options::unifiedlto)
     ltoKind =
         options::thinlto ? LTO::LTOK_UnifiedThin : LTO::LTOK_UnifiedRegular;
+
   return std::make_unique<LTO>(std::move(Conf), Backend,
                                options::ParallelCodeGenParallelismLevel,
                                ltoKind);

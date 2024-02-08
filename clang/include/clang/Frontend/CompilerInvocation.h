@@ -24,6 +24,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/ScopeExit.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 
 #include <memory>
 #include <string>
@@ -125,6 +126,9 @@ protected:
   /// Options controlling the Scalable Static Analysis Framework (SSAF).
   std::shared_ptr<ssaf::SSAFOptions> SSAFOpts;
 
+  /// Kitsune-specific options.
+  std::shared_ptr<llvm::driver::KitsuneOptions> KitsuneOpts;
+
   /// Dummy tag type whose instance can be passed into the constructor to
   /// prevent creation of the reference-counted option objects.
   struct EmptyConstructor {};
@@ -163,6 +167,9 @@ public:
     return *PreprocessorOutputOpts;
   }
   const ssaf::SSAFOptions &getSSAFOpts() const { return *SSAFOpts; }
+  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
+    return *KitsuneOpts;
+  }
   /// @}
 
   /// Command line generation.
@@ -216,6 +223,10 @@ private:
                                   const llvm::Triple &T,
                                   const std::string &OutputFile,
                                   const LangOptions *LangOpts);
+
+  // Generate command line options from KitsuneOptions.
+  static void GenerateKitsuneArgs(const llvm::driver::KitsuneOptions& Opts,
+                                  ArgumentConsumer Consumer);
   /// @}
 };
 
@@ -270,6 +281,7 @@ public:
   using CompilerInvocationBase::getPreprocessorOutputOpts;
   using CompilerInvocationBase::getSSAFOpts;
   using CompilerInvocationBase::getTargetOpts;
+  using CompilerInvocationBase::getKitsuneOpts;
   /// @}
 
   /// Mutable getters.
@@ -292,6 +304,7 @@ public:
     return *PreprocessorOutputOpts;
   }
   ssaf::SSAFOptions &getSSAFOpts() { return *SSAFOpts; }
+  llvm::driver::KitsuneOptions &getKitsuneOpts() { return *KitsuneOpts; }
   /// @}
 
   /// Invokes the \a Fn with CowCompilerInvocation representing \c this.
@@ -361,7 +374,8 @@ private:
   static bool ParseLangArgs(LangOptions &Opts, llvm::opt::ArgList &Args,
                             InputKind IK, const llvm::Triple &T,
                             std::vector<std::string> &Includes,
-                            DiagnosticsEngine &Diags);
+                            DiagnosticsEngine &Diags,
+                            const llvm::driver::KitsuneOptions &KitsuneOpts);
 
   /// Parse command line options that map to CodeGenOptions.
   static bool ParseCodeGenArgs(CodeGenOptions &Opts, llvm::opt::ArgList &Args,
@@ -369,6 +383,18 @@ private:
                                const llvm::Triple &T,
                                const std::string &OutputFile,
                                const LangOptions &LangOptsRef);
+
+  // Sanity check Kitsune arguments. We can't sanity-check everything when
+  // parsing the arguments. Parsing has to be done as early as possible because
+  // certain Kitsune arguments will affect others. For instance, if a Tapir
+  // target has been enabled, the default value of fp-contract is different.
+  // However, that means that checks that depend on the language and/or target
+  // options cannot be done when parsing the arguments.
+  static bool CheckKitsuneArgs(const llvm::opt::ArgList &Args,
+                               const llvm::Triple &T,
+                               const llvm::driver::KitsuneOptions &KitsuneOpts,
+                               const LangOptions &LangOpts,
+                               DiagnosticsEngine &Diags);
 };
 
 /// Same as \c CompilerInvocation, but with copy-on-write optimization.
@@ -422,6 +448,7 @@ public:
   DependencyOutputOptions &getMutDependencyOutputOpts();
   PreprocessorOutputOptions &getMutPreprocessorOutputOpts();
   ssaf::SSAFOptions &getMutSSAFOpts();
+  llvm::driver::KitsuneOptions &getMutKitsuneOpts();
   /// @}
 
   /// The result of mutable visitation.

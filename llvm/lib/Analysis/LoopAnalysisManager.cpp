@@ -11,6 +11,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/PassManagerImpl.h"
 #include "llvm/Support/Compiler.h"
@@ -57,6 +58,7 @@ bool LoopAnalysisManagerFunctionProxy::Result::invalidate(
       Inv.invalidate<DominatorTreeAnalysis>(F, PA) ||
       Inv.invalidate<LoopAnalysis>(F, PA) ||
       Inv.invalidate<ScalarEvolutionAnalysis>(F, PA) ||
+      Inv.invalidate<TaskAnalysis>(F, PA) ||
       invalidateMemorySSAAnalysis) {
     // Note that the LoopInfo may be stale at this point, however the loop
     // objects themselves remain the only viable keys that could be in the
@@ -144,5 +146,6 @@ PreservedAnalyses llvm::getLoopPassPreservedAnalyses() {
   PA.preserve<LoopAnalysis>();
   PA.preserve<LoopAnalysisManagerFunctionProxy>();
   PA.preserve<ScalarEvolutionAnalysis>();
+  PA.preserve<TaskAnalysis>();
   return PA;
 }

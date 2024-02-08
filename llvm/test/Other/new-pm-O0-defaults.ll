@@ -43,6 +43,9 @@
 ; CHECK-CORO-NEXT: Running pass: CoroConditionalWrapper
 ; CHECK-ALLOCTOKEN-NEXT: Running pass: AllocTokenPass
 ; CHECK-CORO-NEXT: Running pass: LowerCommentStringPass
+; CHECK-CORO-NEXT: Running pass: LowerMobileIntrinsicsPass
+; CHECK-CORO-NEXT: Running analysis: TapirTargetAnalysis
+; CHECK-CORO-NEXT: Running pass: StripKitsuneAddrSpacePass
 ; CHECK-PRE-LINK: Running pass: CanonicalizeAliasesPass
 ; CHECK-PRE-LINK-NEXT: Running pass: NameAnonGlobalPass
 ; CHECK-PRE-LINK-NEXT: Running pass: AssignGUIDPass

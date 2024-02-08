@@ -17,12 +17,14 @@ set(LLVM_LINK_COMPONENTS
   IRPrinter
   InstCombine
   Instrumentation
+  KitsuneOpts
   MC
   ObjCARCOpts
   Plugins
   Remarks
   ScalarOpts
   Support
+  TapirOpts
   Target
   TargetParser
   TransformUtils

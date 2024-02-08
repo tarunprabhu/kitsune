@@ -1809,6 +1809,22 @@ void ASTStmtReader::VisitCXXExpansionSelectExpr(CXXExpansionSelectExpr *E) {
   E->setIndexExpr(Record.readSubExpr());
 }
 
+void ASTStmtReader::VisitCXXForallRangeStmt(CXXForallRangeStmt *S) {
+  VisitStmt(S);
+  S->ForLoc = readSourceLocation();
+  S->CoawaitLoc = readSourceLocation();
+  S->ColonLoc = readSourceLocation();
+  S->RParenLoc = readSourceLocation();
+  S->setInit(Record.readSubStmt());
+  S->setRangeStmt(Record.readSubStmt());
+  S->setBeginStmt(Record.readSubStmt());
+  S->setEndStmt(Record.readSubStmt());
+  S->setCond(Record.readSubExpr());
+  S->setInc(Record.readSubExpr());
+  S->setLoopVarStmt(Record.readSubStmt());
+  S->setBody(Record.readSubStmt());
+}
+
 void ASTStmtReader::VisitMSDependentExistsStmt(MSDependentExistsStmt *S) {
   VisitStmt(S);
   S->KeywordLoc = readSourceLocation();
@@ -3059,6 +3075,32 @@ void ASTStmtReader::VisitHLSLOutArgExpr(HLSLOutArgExpr *S) {
 }
 
 //===----------------------------------------------------------------------===//
+// Kitsune constructs
+//===----------------------------------------------------------------------===//
+void ASTStmtReader::VisitSpawnStmt(SpawnStmt *S) {
+  VisitStmt(S);
+  S->setSpawnLoc(readSourceLocation());
+  S->setSpawnedStmt(Record.readSubStmt());
+}
+
+void ASTStmtReader::VisitSyncStmt(SyncStmt *S) {
+  VisitStmt(S);
+  S->setSyncLoc(readSourceLocation());
+}
+
+void ASTStmtReader::VisitForallStmt(ForallStmt *S) {
+  VisitStmt(S);
+  S->setInit(Record.readSubStmt());
+  S->setCond(Record.readSubExpr());
+  S->setConditionVariable(Record.getContext(), readDeclAs<VarDecl>());
+  S->setInc(Record.readSubExpr());
+  S->setBody(Record.readSubStmt());
+  S->setForallLoc(readSourceLocation());
+  S->setLParenLoc(readSourceLocation());
+  S->setRParenLoc(readSourceLocation());
+}
+
+//===----------------------------------------------------------------------===//
 // ASTReader Implementation
 //===----------------------------------------------------------------------===//
 
@@ -3276,6 +3318,18 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
 
     case EXPR_OPENACC_ASTERISK_SIZE:
       S = OpenACCAsteriskSizeExpr::CreateEmpty(Context);
+      break;
+
+    case STMT_SPAWN:
+      S = new (Context) SpawnStmt(Empty);
+      break;
+
+    case STMT_SYNC:
+      S = new (Context) SyncStmt(Empty);
+      break;
+
+    case STMT_FORALL:
+      S = new (Context) ForallStmt(Empty);
       break;
 
     case EXPR_PREDEFINED:
@@ -3677,6 +3731,10 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
 
     case STMT_CXX_FOR_RANGE:
       S = new (Context) CXXForRangeStmt(Empty);
+      break;
+
+    case STMT_CXX_FORALL_RANGE:
+      S = new (Context) CXXForallRangeStmt(Empty);
       break;
 
     case STMT_MS_DEPENDENT_EXISTS:

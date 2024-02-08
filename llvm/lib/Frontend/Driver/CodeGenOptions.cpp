@@ -45,9 +45,15 @@ convertDriverVectorLibraryToVectorLibrary(llvm::driver::VectorLibrary VecLib) {
 }
 
 TargetLibraryInfoImpl *createTLII(const llvm::Triple &TargetTriple,
-                                  driver::VectorLibrary Veclib) {
-  return new TargetLibraryInfoImpl(
+                                  driver::VectorLibrary Veclib,
+                                  std::optional<TapirTargetID> TapirTarget) {
+  TargetLibraryInfoImpl *TLII = new TargetLibraryInfoImpl(
       TargetTriple, convertDriverVectorLibraryToVectorLibrary(Veclib));
+
+  if (TapirTarget)
+    TLII->addTapirTargetLibraryFunctions(*TapirTarget);
+
+  return TLII;
 }
 
 std::string getDefaultProfileGenName() {

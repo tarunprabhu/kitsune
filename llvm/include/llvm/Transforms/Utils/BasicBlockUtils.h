@@ -166,6 +166,7 @@ struct CriticalEdgeSplittingOptions {
   /// provided. If it cannot be preserved, no splitting will take place. If it
   /// is not set, preserve loop-simplify form if possible.
   bool PreserveLoopSimplify = true;
+  bool SplitDetachContinue = false;
 
   CriticalEdgeSplittingOptions(DominatorTree *DT = nullptr,
                                LoopInfo *LI = nullptr,
@@ -195,6 +196,11 @@ struct CriticalEdgeSplittingOptions {
 
   CriticalEdgeSplittingOptions &unsetPreserveLoopSimplify() {
     PreserveLoopSimplify = false;
+    return *this;
+  }
+
+  CriticalEdgeSplittingOptions &setSplitDetachContinue() {
+    SplitDetachContinue = true;
     return *this;
   }
 };

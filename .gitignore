@@ -31,6 +31,10 @@
 # Nested build directory
 /build*
 
+# External projects 
+/cheetah 
+/cilktools
+
 #==============================================================================#
 # Explicit files to ignore (only matches one).
 #==============================================================================#
@@ -68,6 +72,9 @@ AGENTS.md
 .cursor
 .cursorignore
 .cursorindexingignore
+
+.vscode/settings.json
+.vscode/launch.json
 
 #==============================================================================#
 # Directories to ignore (do not add trailing '/'s, they skip symlinks).

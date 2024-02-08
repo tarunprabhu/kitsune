@@ -19,6 +19,7 @@
 #include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorOptions.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "gtest/gtest.h"
 
 using namespace clang;
@@ -42,6 +43,7 @@ protected:
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
   LangOptions LangOpts;
+  llvm::driver::KitsuneOptions KitsuneOpts;
   std::shared_ptr<TargetOptions> TargetOpts;
   IntrusiveRefCntPtr<TargetInfo> Target;
 };
@@ -74,7 +76,8 @@ TEST_F(PPConditionalDirectiveRecordTest, PPRecAPI) {
   TrivialModuleLoader ModLoader;
   HeaderSearch HeaderInfo(HSOpts, SourceMgr, Diags, LangOpts, Target.get());
   PreprocessorOptions PPOpts;
-  Preprocessor PP(PPOpts, Diags, LangOpts, SourceMgr, HeaderInfo, ModLoader,
+  Preprocessor PP(PPOpts, Diags, LangOpts, KitsuneOpts, SourceMgr, HeaderInfo,
+                  ModLoader,
                   /*IILookup =*/nullptr,
                   /*OwnsHeaderSearch =*/false);
   PP.Initialize(*Target);
@@ -88,7 +91,7 @@ TEST_F(PPConditionalDirectiveRecordTest, PPRecAPI) {
 
   // Make sure we got the tokens that we expected.
   ASSERT_EQ(10U, toks.size());
-  
+
   EXPECT_FALSE(PPRec->rangeIntersectsConditionalDirective(
                     SourceRange(toks[0].getLocation(), toks[1].getLocation())));
   EXPECT_TRUE(PPRec->rangeIntersectsConditionalDirective(

@@ -43,6 +43,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/RuntimeLibcallInfo.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Bitcode/BitcodeWriterPass.h"
@@ -947,8 +948,27 @@ static void generateMachineCodeOrAssemblyImpl(
   delete tlii;
 }
 
+/// Get the llvm::FPOpFusionMode for a given FPContractMode.
+static llvm::FPOpFusion::FPOpFusionMode
+getFPOpFusionMode(Fortran::common::LangOptions::FPModeKind fpContractMode) {
+  switch (fpContractMode) {
+  case Fortran::common::LangOptions::FPM_Off:
+    // Using FPOpFusion::Standard preserves any contract performed in the
+    // frontend. Setting this to strict will result in the backend splitting any
+    // muladd intrinsics.
+    return llvm::FPOpFusion::Standard;
+  case Fortran::common::LangOptions::FPM_Fast:
+    return llvm::FPOpFusion::Fast;
+  default:
+    llvm_unreachable("getFPOpFusionMode: Unexpected FP contract mode");
+  }
+}
+
 void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   CompilerInstance &ci = getInstance();
+  CompilerInvocation &invoc = ci.getInvocation();
+  const llvm::driver::KitsuneOptions &kitsuneOpts = invoc.getKitsuneOpts();
+  const Fortran::common::LangOptions &langOpts = invoc.getLangOpts();
   const CodeGenOptions &opts = ci.getInvocation().getCodeGenOpts();
   llvm::OptimizationLevel level = mapToLevel(opts);
 
@@ -1015,6 +1035,9 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   pto.LoopInterleaving = opts.UnrollLoops;
   pto.LoopVectorization = opts.VectorizeLoop;
   pto.SLPVectorization = opts.VectorizeSLP;
+  pto.LoopStripmine = kitsuneOpts.getStripmineLoops();
+  pto.TTOpts = llvm::TapirTargetOptions::create(
+      kitsuneOpts, level, getFPOpFusionMode(langOpts.getFPContractMode()));
 
   llvm::PassBuilder pb(targetMachine, pto, pgoOpt, &pic);
 
@@ -1029,8 +1052,8 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   // Register the target library analysis directly and give it a customized
   // preset TLI depending on -fveclib
   llvm::Triple triple(llvmModule->getTargetTriple());
-  llvm::TargetLibraryInfoImpl *tlii =
-      llvm::driver::createTLII(triple, opts.getVecLib());
+  llvm::TargetLibraryInfoImpl *tlii = llvm::driver::createTLII(
+      triple, opts.getVecLib(), kitsuneOpts.getTapirTarget());
   fam.registerPass([&] { return llvm::TargetLibraryAnalysis(*tlii); });
   mam.registerPass([&] {
     return llvm::RuntimeLibraryAnalysis(
@@ -1039,6 +1062,11 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
         targetMachine->Options.MCOptions.ABIName,
         targetMachine->Options.VecLib);
   });
+
+  // Register the tapir target analysis directly with the tapir target options
+  // registered with the pass builder.
+  mam.registerPass(
+      [&] { return llvm::TapirTargetAnalysis(pb.getTapirTargetOptions()); });
 
   // Register all the basic analyses with the managers.
   pb.registerModuleAnalyses(mam);

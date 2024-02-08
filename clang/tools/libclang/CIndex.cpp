@@ -4236,7 +4236,8 @@ enum CXErrorCode clang_createTranslationUnit2(CXIndex CIdx,
   std::unique_ptr<ASTUnit> AU = ASTUnit::LoadFromASTFile(
       ast_filename, CXXIdx->getPCHContainerOperations()->getRawReader(),
       ASTUnit::LoadEverything, VFS, DiagOpts, Diags, FileSystemOpts, HSOpts,
-      /*LangOpts=*/nullptr, CXXIdx->getOnlyLocalDecls(), CaptureDiagsKind::All,
+      /*LangOpts=*/nullptr, /*KitsuneOpts=*/nullptr,
+      CXXIdx->getOnlyLocalDecls(), CaptureDiagsKind::All,
       /*AllowASTWithCompilerErrors=*/true,
       /*UserFilesAreVolatile=*/true);
   *out_TU = MakeCXTranslationUnit(CXXIdx, std::move(AU));
@@ -6130,6 +6131,8 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
     return cxstring::createRef("DoStmt");
   case CXCursor_ForStmt:
     return cxstring::createRef("ForStmt");
+  case CXCursor_ForallStmt:
+    return cxstring::createRef("ForallStmt");
   case CXCursor_GotoStmt:
     return cxstring::createRef("GotoStmt");
   case CXCursor_IndirectGotoStmt:
@@ -6164,6 +6167,8 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
     return cxstring::createRef("CXXTryStmt");
   case CXCursor_CXXForRangeStmt:
     return cxstring::createRef("CXXForRangeStmt");
+  case CXCursor_CXXForallRangeStmt:
+    return cxstring::createRef("CXXForallRangeStmt");
   case CXCursor_SEHTryStmt:
     return cxstring::createRef("SEHTryStmt");
   case CXCursor_SEHExceptStmt:
@@ -6514,6 +6519,10 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind) {
     return cxstring::createRef("OpenACCUpdateConstruct");
   case CXCursor_OpenACCAtomicConstruct:
     return cxstring::createRef("OpenACCAtomicConstruct");
+  case CXCursor_SpawnStmt:
+    return cxstring::createRef("SpawnStmt");
+  case CXCursor_SyncStmt:
+    return cxstring::createRef("SyncStmt");
   }
 
   llvm_unreachable("Unhandled CXCursorKind");

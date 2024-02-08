@@ -424,6 +424,9 @@ public:
     case Instruction::Invoke:
     case Instruction::Resume:
     case Instruction::CallBr:
+    case Instruction::Detach:
+    case Instruction::Reattach:
+    case Instruction::Sync:
       return true;
     default:
       return false;
@@ -892,6 +895,7 @@ public:
     // This list should be kept in sync with the list in mayWriteToMemory for
     // all opcodes which don't have a memory location.
     case Instruction::Fence:
+    case Instruction::Sync: // Like Instruction::Fence
     case Instruction::CatchPad:
     case Instruction::CatchRet:
     case Instruction::Call:
@@ -948,6 +952,9 @@ public:
 
   /// Return true if the instruction is a DbgInfoIntrinsic or PseudoProbeInst.
   LLVM_ABI bool isDebugOrPseudoInst() const LLVM_READONLY;
+
+  /// Return true if the instruction is a llvm.taskframe marker.
+  bool isTaskFrameMarker() const;
 
   /// Create a copy of 'this' instruction that is identical in all ways except
   /// the following:

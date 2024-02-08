@@ -156,6 +156,7 @@ void llvm::initializeCodeGen(PassRegistry &Registry) {
   initializeStaticDataAnnotatorLegacyPass(Registry);
   initializeStripDebugMachineModulePass(Registry);
   initializeTailDuplicateLegacyPass(Registry);
+  initializeTapirCleanupPass(Registry);
   initializeTargetPassConfigPass(Registry);
   initializeTwoAddressInstructionLegacyPassPass(Registry);
   initializeTypePromotionLegacyPass(Registry);

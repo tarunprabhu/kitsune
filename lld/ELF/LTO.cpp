@@ -20,6 +20,7 @@
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/DTLTO/DTLTO.h"
+#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/LTO/Config.h"
 #include "llvm/LTO/LTO.h"
 #include "llvm/Support/Caching.h"
@@ -55,6 +56,8 @@ static std::string getThinLTOOutputFile(Ctx &ctx, StringRef modulePath) {
 
 static lto::Config createConfig(Ctx &ctx) {
   lto::Config c;
+
+  c.PTO.TTOpts = TapirTargetOptions::createFromCommandLineOptions(ctx.arg.ltoo);
 
   // LLD supports the new relocations and address-significance tables.
   c.Options = initTargetOptionsFromCodeGenFlags();

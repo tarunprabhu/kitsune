@@ -21,6 +21,7 @@
 #include "CodeGenModule.h"
 #include "CodeGenPGO.h"
 #include "TargetInfo.h"
+#include "kitsune/Config/config.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTLambda.h"
 #include "clang/AST/Attr.h"
@@ -38,6 +39,7 @@
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/ScopeExit.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/Frontend/OpenMP/OMPIRBuilder.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
@@ -364,6 +366,8 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
          "mismatched push/pop of cleanups in EHStack!");
   assert(DeferredDeactivationCleanupStack.empty() &&
          "mismatched activate/deactivate of cleanups!");
+  assert(!CurDetachScope &&
+         "mismatched push/pop in detach-scope stack!");
 
   if (CGM.shouldEmitConvergenceTokens()) {
     ConvergenceTokenStack.pop_back();
@@ -559,6 +563,11 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
       RetAlloca->eraseFromParent();
       ReturnValue = Address::invalid();
     }
+  }
+
+  if (CurSyncRegion) {
+    PopSyncRegion();
+    assert(!CurSyncRegion && "Nested sync regions at end of function.");
   }
 }
 

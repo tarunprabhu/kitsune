@@ -273,6 +273,9 @@ private:
       Type += "*";
       if (AS)
         Type += std::to_string(*AS);
+    } else if (T.consume_back("!")) {
+      ParseType(T);
+      Type += "!";
     } else if (T.consume_back("const")) {
       if (!T.empty())
         ParseType(T);

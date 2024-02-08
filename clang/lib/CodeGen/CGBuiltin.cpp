@@ -6302,6 +6302,29 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     auto Str = CGM.GetAddrOfConstantCString(Name, "");
     return RValue::get(Str.getPointer());
   }
+
+  // Kitsune builtins
+  case Builtin::BIkitsune_mobile_alloc: {
+    Function *F = CGM.getIntrinsic(Intrinsic::kitsune_mobile_alloc);
+    llvm::FunctionType *FTy = F->getFunctionType();
+    Value *Size = EmitScalarExpr(E->getArg(0));
+    if (Size->getType() != FTy->getParamType(0))
+      Size = Builder.CreateTruncOrBitCast(Size, FTy->getParamType(0));
+    return RValue::get(Builder.CreateCall(F, {Size}));
+  }
+
+  case Builtin::BIkitsune_mobile_free: {
+    Function *F = CGM.getIntrinsic(Intrinsic::kitsune_mobile_free);
+    Value *Ptr = EmitScalarExpr(E->getArg(0));
+    return RValue::get(Builder.CreateCall(F, {Ptr}));
+  }
+
+  case Builtin::BI__kitsune_mobile_cast_unsafe: {
+    Value *Ptr = EmitScalarExpr(E->getArg(0));
+    LLVMContext& Ctxt = getLLVMContext();
+    llvm::Type *DestTy = llvm::PointerType::get(Ctxt, KITSUNE_ADDRSPACE);
+    return RValue::get(Builder.CreateAddrSpaceCast(Ptr, DestTy));
+  }
   }
 
   // If this is an alias for a lib function (e.g. __builtin_sin), emit

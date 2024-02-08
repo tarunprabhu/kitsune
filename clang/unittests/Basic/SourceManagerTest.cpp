@@ -20,6 +20,7 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/VirtualFileSystem.h"
@@ -68,6 +69,7 @@ protected:
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
   LangOptions LangOpts;
+  llvm::driver::KitsuneOptions KitsuneOpts;
   std::shared_ptr<TargetOptions> TargetOpts;
   IntrusiveRefCntPtr<TargetInfo> Target;
 };
@@ -152,7 +154,8 @@ TEST_F(SourceManagerTest, isBeforeInTranslationUnit) {
   PreprocessorOptions PPOpts;
   TrivialModuleLoader ModLoader;
   HeaderSearch HeaderInfo(HSOpts, SourceMgr, Diags, LangOpts, &*Target);
-  Preprocessor PP(PPOpts, Diags, LangOpts, SourceMgr, HeaderInfo, ModLoader,
+  Preprocessor PP(PPOpts, Diags, LangOpts, KitsuneOpts, SourceMgr, HeaderInfo,
+                  ModLoader,
                   /*IILookup =*/nullptr, /*OwnsHeaderSearch =*/false);
   PP.Initialize(*Target);
   PP.EnterMainSourceFile();
@@ -165,11 +168,11 @@ TEST_F(SourceManagerTest, isBeforeInTranslationUnit) {
   ASSERT_EQ(tok::l_square, toks[0].getKind());
   ASSERT_EQ(tok::identifier, toks[1].getKind());
   ASSERT_EQ(tok::r_square, toks[2].getKind());
-  
+
   SourceLocation lsqrLoc = toks[0].getLocation();
   SourceLocation idLoc = toks[1].getLocation();
   SourceLocation rsqrLoc = toks[2].getLocation();
-  
+
   SourceLocation macroExpStartLoc = SourceMgr.translateLineCol(mainFileID, 2, 1);
   SourceLocation macroExpEndLoc = SourceMgr.translateLineCol(mainFileID, 2, 6);
   ASSERT_TRUE(macroExpStartLoc.isFileID());
@@ -201,7 +204,8 @@ TEST_F(SourceManagerTest, isBeforeInTranslationUnitWithTokenSplit) {
   PreprocessorOptions PPOpts;
   TrivialModuleLoader ModLoader;
   HeaderSearch HeaderInfo(HSOpts, SourceMgr, Diags, LangOpts, &*Target);
-  Preprocessor PP(PPOpts, Diags, LangOpts, SourceMgr, HeaderInfo, ModLoader,
+  Preprocessor PP(PPOpts, Diags, LangOpts, KitsuneOpts, SourceMgr, HeaderInfo,
+                  ModLoader,
                   /*IILookup=*/nullptr, /*OwnsHeaderSearch=*/false);
   PP.Initialize(*Target);
   PP.EnterMainSourceFile();
@@ -601,7 +605,8 @@ TEST_F(SourceManagerTest, ResetsIncludeLocMap) {
     HeaderSearchOptions HSOpts;
     PreprocessorOptions PPOpts;
     HeaderSearch HeaderInfo(HSOpts, SourceMgr, Diags, LangOpts, &*Target);
-    Preprocessor PP(PPOpts, Diags, LangOpts, SourceMgr, HeaderInfo, ModLoader,
+    Preprocessor PP(PPOpts, Diags, LangOpts, KitsuneOpts, SourceMgr, HeaderInfo,
+                    ModLoader,
                     /*IILookup=*/nullptr, /*OwnsHeaderSearch=*/false);
     PP.Initialize(*Target);
     PP.EnterMainSourceFile();
@@ -678,7 +683,8 @@ TEST_F(SourceManagerTest, getMacroArgExpandedLocation) {
   TrivialModuleLoader ModLoader;
   HeaderSearch HeaderInfo(HSOpts, SourceMgr, Diags, LangOpts, &*Target);
 
-  Preprocessor PP(PPOpts, Diags, LangOpts, SourceMgr, HeaderInfo, ModLoader,
+  Preprocessor PP(PPOpts, Diags, LangOpts, KitsuneOpts, SourceMgr, HeaderInfo,
+                  ModLoader,
                   /*IILookup=*/nullptr, /*OwnsHeaderSearch=*/false);
   // Ensure we can get expanded locations in presence of implicit includes.
   // These are different than normal includes since predefines buffer doesn't
@@ -795,7 +801,8 @@ TEST_F(SourceManagerTest, isBeforeInTranslationUnitWithMacroInInclude) {
   PreprocessorOptions PPOpts;
   TrivialModuleLoader ModLoader;
   HeaderSearch HeaderInfo(HSOpts, SourceMgr, Diags, LangOpts, &*Target);
-  Preprocessor PP(PPOpts, Diags, LangOpts, SourceMgr, HeaderInfo, ModLoader,
+  Preprocessor PP(PPOpts, Diags, LangOpts, KitsuneOpts, SourceMgr, HeaderInfo,
+                  ModLoader,
                   /*IILookup=*/nullptr, /*OwnsHeaderSearch=*/false);
   PP.Initialize(*Target);
 

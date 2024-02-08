@@ -41,6 +41,7 @@
 #include "llvm/Analysis/MemorySSAUpdater.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/PHITransAddr.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Attributes.h"
@@ -73,6 +74,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
 #include "llvm/Transforms/Utils/VNCoercion.h"
 #include <algorithm>
 #include <cassert>
@@ -886,6 +888,7 @@ PreservedAnalyses GVNPass::run(Function &F, FunctionAnalysisManager &AM) {
   auto *MemDep =
       isMemDepEnabled() ? &AM.getResult<MemoryDependenceAnalysis>(F) : nullptr;
   auto &LI = AM.getResult<LoopAnalysis>(F);
+  auto *TI = AM.getCachedResult<TaskAnalysis>(F);
   auto *MSSA = AM.getCachedResult<MemorySSAAnalysis>(F);
   if (isMemorySSAEnabled() && !MSSA) {
     assert(!MemDep &&
@@ -893,7 +896,7 @@ PreservedAnalyses GVNPass::run(Function &F, FunctionAnalysisManager &AM) {
     MSSA = &AM.getResult<MemorySSAAnalysis>(F);
   }
   auto &ORE = AM.getResult<OptimizationRemarkEmitterAnalysis>(F);
-  bool Changed = runImpl(F, AC, DT, TLI, AA, MemDep, LI, &ORE,
+  bool Changed = runImpl(F, AC, DT, TLI, AA, MemDep, LI, &ORE, TI,
                          MSSA ? &MSSA->getMSSA() : nullptr);
   if (!Changed)
     return PreservedAnalyses::all();
@@ -903,6 +906,8 @@ PreservedAnalyses GVNPass::run(Function &F, FunctionAnalysisManager &AM) {
   if (MSSA)
     PA.preserve<MemorySSAAnalysis>();
   PA.preserve<LoopAnalysis>();
+  if (TI)
+    PA.preserve<TaskAnalysis>();
   return PA;
 }
 
@@ -1794,8 +1799,12 @@ bool GVNPass::PerformLoadPRE(LoadInst *Load, AvailValInBlkVect &ValuesPerBlock,
     if (IsValueFullyAvailableInBlock(Pred, FullyAvailableBlocks)) {
       continue;
     }
+    if (isa<ReattachInst>(Pred->getTerminator())) {
+      continue;
+    }
 
-    if (Pred->getTerminator()->getNumSuccessors() != 1) {
+    if (Pred->getTerminator()->getNumSuccessors() != 1 &&
+        !isa<DetachInst>(Pred->getTerminator())) {
       if (isa<IndirectBrInst>(Pred->getTerminator())) {
         LLVM_DEBUG(
             dbgs() << "COULD NOT PRE LOAD BECAUSE OF INDBR CRITICAL EDGE '"
@@ -3460,7 +3469,8 @@ bool GVNPass::processInstruction(Instruction *I) {
 bool GVNPass::runImpl(Function &F, AssumptionCache &RunAC, DominatorTree &RunDT,
                       const TargetLibraryInfo &RunTLI, AAResults &RunAA,
                       MemoryDependenceResults *RunMD, LoopInfo &LI,
-                      OptimizationRemarkEmitter *RunORE, MemorySSA *MSSA) {
+                      OptimizationRemarkEmitter *RunORE, TaskInfo *TI,
+                      MemorySSA *MSSA) {
   AC = &RunAC;
   DT = &RunDT;
   VN.setDomTree(DT);
@@ -3525,6 +3535,12 @@ bool GVNPass::runImpl(Function &F, AssumptionCache &RunAC, DominatorTree &RunDT,
   // Do not cleanup DeadBlocks in cleanupGlobalSets() as it's called for each
   // iteration.
   DeadBlocks.clear();
+
+  if (TI && Changed)
+    // Recompute task info.
+    // FIXME: Figure out a way to update task info that is less computationally
+    // wasteful.
+    TI->recalculate(F, *DT);
 
   if (MSSA && VerifyMemorySSA)
     MSSA->verifyMemorySSA();
@@ -3649,6 +3665,8 @@ bool GVNPass::performScalarPRE(Instruction *CurInst) {
   if (InvalidBlockRPONumbers)
     assignBlockRPONumber(*CurrentBlock->getParent());
 
+  SmallVector<std::pair<Value *, ReattachInst *>, 8> Reattaches;
+  SmallVector<std::pair<Value *, DetachInst *>, 8> Detaches;
   SmallVector<std::pair<Value *, BasicBlock *>, 8> PredMap;
   for (BasicBlock *P : predecessors(CurrentBlock)) {
     // We're not interested in PRE where blocks with predecessors that are
@@ -3668,15 +3686,27 @@ bool GVNPass::performScalarPRE(Instruction *CurInst) {
     uint32_t TValNo = VN.phiTranslate(P, CurrentBlock, ValNo, *this);
     Value *PredV = findLeader(P, TValNo);
     if (!PredV) {
-      PredMap.push_back(std::make_pair(static_cast<Value *>(nullptr), P));
-      PREPred = P;
-      ++NumWithout;
+      if (!isa<ReattachInst>(P->getTerminator())) {
+        PredMap.push_back(std::make_pair(static_cast<Value *>(nullptr), P));
+        PREPred = P;
+        ++NumWithout;
+      }
+      // Record any detach and reattach predecessors.
+      if (DetachInst *DI = dyn_cast<DetachInst>(P->getTerminator()))
+        Detaches.push_back(std::make_pair(static_cast<Value *>(nullptr), DI));
+      if (ReattachInst *RI = dyn_cast<ReattachInst>(P->getTerminator()))
+        Reattaches.push_back(std::make_pair(static_cast<Value *>(nullptr), RI));
     } else if (PredV == CurInst) {
       // CurInst dominates this predecessor.
       NumWithout = 2;
       break;
     } else {
       PredMap.push_back(std::make_pair(PredV, P));
+      // Record any detach and reattach predecessors.
+      if (DetachInst *DI = dyn_cast<DetachInst>(P->getTerminator()))
+        Detaches.push_back(std::make_pair(predV, DI));
+      if (ReattachInst *RI = dyn_cast<ReattachInst>(P->getTerminator()))
+        Reattaches.push_back(std::make_pair(predV, RI));
       ++NumWith;
     }
   }
@@ -3685,6 +3715,23 @@ bool GVNPass::performScalarPRE(Instruction *CurInst) {
   // we would need to insert instructions in more than one pred.
   if (NumWithout > 1 || NumWith == 0)
     return false;
+
+  for (auto RV : Reattaches) {
+    ReattachInst *RI = RV.second;
+    bool DetachFound = false;
+    for (auto DV : Detaches) {
+      DetachInst *DI = DV.second;
+      // Get the detach edge from DI.
+      BasicBlockEdge DetachEdge(DI->getParent(), DI->getDetached());
+      if (DT->dominates(DetachEdge, RI->getParent())) {
+        DetachFound = true;
+        if (RV.first && (RV.first != DV.first))
+          return false;
+      }
+    }
+    assert(DetachFound &&
+           "Reattach predecessor found with no detach predecessor");
+  }
 
   // We may have a case where all predecessors have the instruction,
   // and we just need to insert a phi node. Otherwise, perform
@@ -3709,7 +3756,8 @@ bool GVNPass::performScalarPRE(Instruction *CurInst) {
     // the edge to be split and perform the PRE the next time we iterate
     // on the function.
     unsigned SuccNum = GetSuccessorNumber(PREPred, CurrentBlock);
-    if (isCriticalEdge(PREPred->getTerminator(), SuccNum)) {
+    if (isCriticalEdge(PREPred->getTerminator(), SuccNum) &&
+        !isa<DetachInst>(PREPred->getTerminator())) {
       ToSplit.push_back(std::make_pair(PREPred->getTerminator(), SuccNum));
       return false;
     }
@@ -3722,6 +3770,22 @@ bool GVNPass::performScalarPRE(Instruction *CurInst) {
 #endif
       PREInstr->deleteValue();
       return false;
+    } else if (isa<DetachInst>(PREPred->getTerminator())) {
+      for (auto RV : Reattaches) {
+        ReattachInst *RI = RV.second;
+        for (auto DV : Detaches) {
+          DetachInst *DI = DV.second;
+          // Get the detach edge from DI.
+          BasicBlockEdge DetachEdge(DI->getParent(), DI->getDetached());
+          if (DT->dominates(DetachEdge, RI->getParent())) {
+            if (DI->getParent() == PREPred) {
+              assert(nullptr == DV.first &&
+                     "Detach predecessor already had a value.");
+              predMap.push_back(std::make_pair(PREInstr, RI->getParent()));
+            }
+          }
+        }
+      }
     }
   }
 
@@ -3931,6 +3995,12 @@ void GVNPass::addDeadBlock(BasicBlock *BB) {
 
       if (is_contained(successors(P), B) &&
           isCriticalEdge(P->getTerminator(), B)) {
+
+        // Don't bother splitting critical edges to a detach-continue block,
+        // since both the detach and reattach predecessors must be dead.
+        if (isDetachContinueEdge(P->getTerminator(), B))
+          continue;
+
         if (BasicBlock *S = splitCriticalEdges(P, B))
           DeadBlocks.insert(P = S);
       }
@@ -4014,6 +4084,7 @@ public:
     if (skipFunction(F))
       return false;
 
+    auto *TIWP = getAnalysisIfAvailable<TaskInfoWrapperPass>();
     auto *MSSAWP = getAnalysisIfAvailable<MemorySSAWrapperPass>();
     if (Impl.isMemorySSAEnabled() && !MSSAWP)
       MSSAWP = &getAnalysis<MemorySSAWrapperPass>();
@@ -4028,6 +4099,7 @@ public:
             : nullptr,
         getAnalysis<LoopInfoWrapperPass>().getLoopInfo(),
         &getAnalysis<OptimizationRemarkEmitterWrapperPass>().getORE(),
+        TIWP ? &TIWP->getTaskInfo() : nullptr,
         MSSAWP ? &MSSAWP->getMSSA() : nullptr);
   }
 
@@ -4044,6 +4116,7 @@ public:
     AU.addPreserved<TargetLibraryInfoWrapperPass>();
     AU.addPreserved<LoopInfoWrapperPass>();
     AU.addRequired<OptimizationRemarkEmitterWrapperPass>();
+    AU.addPreserved<TaskInfoWrapperPass>();
     AU.addPreserved<MemorySSAWrapperPass>();
     if (Impl.isMemorySSAEnabled())
       AU.addRequired<MemorySSAWrapperPass>();
@@ -4061,6 +4134,7 @@ INITIALIZE_PASS_DEPENDENCY(MemoryDependenceWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(MemorySSAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(TaskInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(GlobalsAAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(OptimizationRemarkEmitterWrapperPass)

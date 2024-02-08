@@ -31,6 +31,7 @@
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/OperationKinds.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/StmtKitsune.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Analysis/Analyses/LifetimeSafety/LifetimeAnnotations.h"
@@ -111,6 +112,9 @@
 #include <vector>
 
 namespace llvm {
+namespace driver {
+class KitsuneOptions;
+}
 struct InlineAsmIdentifierInfo;
 } // namespace llvm
 
@@ -210,6 +214,8 @@ class LambdaScopeInfo;
 class SemaPPCallbacks;
 class TemplateDeductionInfo;
 } // namespace sema
+
+using llvm::driver::KitsuneOptions;
 
 // AssignmentAction - This is used by all the assignment diagnostic functions
 // to represent what is actually causing the operation
@@ -932,6 +938,7 @@ public:
   LLVM_DECLARE_VIRTUAL_ANCHOR_FUNCTION();
 
   const LangOptions &getLangOpts() const { return LangOpts; }
+  const KitsuneOptions &getKitsuneOpts() const { return KitsuneOpts; }
   OpenCLOptions &getOpenCLOptions() { return OpenCLFeatures; }
   FPOptions &getCurFPFeatures() { return CurFPFeatures; }
 
@@ -1306,6 +1313,7 @@ public:
   FPOptions CurFPFeatures;
 
   const LangOptions &LangOpts;
+  const KitsuneOptions &KitsuneOpts;
   Preprocessor &PP;
   ASTContext &Context;
   ASTConsumer &Consumer;
@@ -11073,10 +11081,6 @@ public:
                            SourceLocation EndLoc);
   void ActOnForEachDeclStmt(DeclGroupPtrTy Decl);
 
-
-  // Unused, kept in Clang 20 for ABI stability.
-  void DiagnoseDiscardedExprMarkedNodiscard(const Expr *E);
-
   /// DiagnoseUnusedExprResult - If the statement passed in is an expression
   /// whose result is unused, warn.
   void DiagnoseUnusedExprResult(const Stmt *S, unsigned DiagID);
@@ -15896,6 +15900,39 @@ public:
   std::optional<uint64_t>
   ComputeExpansionSize(CXXExpansionStmtPattern *Expansion);
   ///@}
+
+  /// \name Kitsune statements
+  /// Implementations are in SemaKitsune.cpp and SemaStmt.cpp.
+  /// FIXME: These should all be in SemaKitsune.cpp, but we currently use
+  /// several utility functions intended for regular C/C++ for statements when
+  /// checking Kitsune's forall statement. Refactoring out the common code will
+  /// rather painful, so we haven't done that, but we really should.
+  ///@{
+public:
+  StmtResult ActOnSyncStmt(SourceLocation SyncLoc, StringRef sv);
+  StmtResult ActOnSpawnStmt(SourceLocation SpawnLoc, StringRef sv, Stmt *S);
+  StmtResult ActOnForallStmt(SourceLocation ForLoc,
+                             SourceLocation LParenLoc,
+                             Stmt *First,
+                             ConditionResult Second,
+                             FullExprArg Third,
+                             SourceLocation RParenLoc,
+                             Stmt *Body);
+  StmtResult ActOnCXXForallRangeStmt(Scope *S, SourceLocation ForLoc,
+                                     SourceLocation CoawaitLoc,
+                                     Stmt *InitStmt,
+                                     Stmt *LoopVar,
+                                     SourceLocation ColonLoc, Expr *Collection,
+                                     SourceLocation RParenLoc,
+                                     BuildForRangeKind Kind);
+  StmtResult BuildCXXForallRangeStmt(
+      SourceLocation ForLoc, SourceLocation CoawaitLoc, Stmt *InitStmt,
+      SourceLocation ColonLoc, Stmt *RangeDecl, Stmt *Begin, Stmt *End,
+      Stmt *Index, Stmt *IndexEnd, Expr *Cond, Expr *Inc, Stmt *LoopVarDecl,
+      SourceLocation RParenLoc, BuildForRangeKind Kind);
+  StmtResult FinishCXXForallRangeStmt(Stmt *ForRange, Stmt *Body);
+
+  /// @}
 };
 
 DeductionFailureInfo

@@ -932,7 +932,9 @@ static bool isAddrSpaceMapManglingEnabled(const TargetInfo &TI,
 
 ASTContext::ASTContext(LangOptions &LOpts, SourceManager &SM,
                        IdentifierTable &idents, SelectorTable &sels,
-                       Builtin::Context &builtins, TranslationUnitKind TUKind)
+                       Builtin::Context &builtins,
+                       llvm::driver::KitsuneOptions &KOpts,
+                       TranslationUnitKind TUKind)
     : ConstantArrayTypes(this_(), ConstantArrayTypesLog2InitSize),
       DependentSizedArrayTypes(this_()), DependentSizedExtVectorTypes(this_()),
       DependentAddressSpaceTypes(this_()), DependentVectorTypes(this_()),
@@ -944,6 +946,7 @@ ASTContext::ASTContext(LangOptions &LOpts, SourceManager &SM,
       DependentBitIntTypes(this_()), SubstTemplateTemplateParmPacks(this_()),
       DeducedTemplates(this_()), ArrayParameterTypes(this_()),
       CanonTemplateTemplateParms(this_()), SourceMgr(SM), LangOpts(LOpts),
+      KitsuneOpts(KOpts),
       NoSanitizeL(new NoSanitizeList(LangOpts.NoSanitizeFiles, SM)),
       XRayFilter(new XRayFunctionFilter(LangOpts.XRayAlwaysInstrumentFiles,
                                         LangOpts.XRayNeverInstrumentFiles,
@@ -3944,6 +3947,41 @@ QualType ASTContext::getPointerType(QualType T) const {
     assert(!NewIP && "Shouldn't be in the map!"); (void)NewIP;
   }
   auto *New = new (*this, alignof(PointerType)) PointerType(T, Canonical);
+  Types.push_back(New);
+  PointerTypes.InsertNode(New, InsertPos);
+  return QualType(New, 0);
+}
+
+QualType ASTContext::getMobilePointerType(QualType T) const {
+  // Merge the qualifiers into one ExtQuals node.
+  QualifierCollector Quals;
+  const Type *TypeNode = Quals.strip(T);
+  Quals.addMobile();
+  QualType PointeeType = getExtQualType(TypeNode, Quals);
+  assert(!PointeeType.hasAddressSpace() &&
+         "Pointee of mobile pointer must be in the default address space");
+
+  llvm::FoldingSetNodeID ID;
+  PointerType::Profile(ID, PointeeType);
+
+  void *InsertPos = nullptr;
+  if (PointerType *PT = PointerTypes.FindNodeOrInsertPos(ID, InsertPos))
+    return QualType(PT, 0);
+
+  // If the pointee type isn't canonical, this won't be a canonical type either,
+  // so fill in the canonical type field.
+  QualType Canonical;
+  if (!PointeeType.isCanonical()) {
+    Canonical = getMobilePointerType(getCanonicalType(T));
+
+    // Get the new insert position for the node we care about.
+    PointerType *NewIP = PointerTypes.FindNodeOrInsertPos(ID, InsertPos);
+    assert(!NewIP && "Shouldn't be in the map!");
+    (void)NewIP;
+  }
+
+  PointerType *New =
+      new (*this, alignof(PointerType)) PointerType(PointeeType, Canonical);
   Types.push_back(New);
   PointerTypes.InsertNode(New, InsertPos);
   return QualType(New, 0);
@@ -12609,6 +12647,12 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Context,
         Type = Context.getPointerType(Type);
       else
         Type = Context.getLValueReferenceType(Type);
+      break;
+    }
+    case '!': {
+      Qualifiers Quals;
+      Quals.addMobile();
+      Type = Context.getPointerType(Context.getQualifiedType(Type, Quals));
       break;
     }
     // FIXME: There's no way to have a built-in with an rvalue ref arg.

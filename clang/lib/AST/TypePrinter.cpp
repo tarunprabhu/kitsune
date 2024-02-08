@@ -2134,6 +2134,8 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
     break;
   case attr::ExtVectorType:
     OS << "ext_vector_type";
+  case attr::KitsuneMobile:
+    OS << "kitsune::mobile";
     break;
   case attr::CFISalt:
     OS << "cfi_salt(\"" << cast<CFISaltAttr>(T->getAttr())->getSalt() << "\")";
@@ -2769,6 +2771,12 @@ void Qualifiers::print(raw_ostream &OS, const PrintingPolicy& Policy,
     if (addSpace)
       OS << ' ';
     OS << "__unaligned";
+    addSpace = true;
+  }
+  if (hasMobile()) {
+    if (addSpace)
+      OS << ' ';
+    OS << "__attribute__((kitsune_mobile))";
     addSpace = true;
   }
   auto ASStr = getAddrSpaceAsString(getAddressSpace());

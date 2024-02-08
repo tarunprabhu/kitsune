@@ -2007,3 +2007,6 @@ def ExperimentalOption : DiagGroup<"experimental-option">;
 
 // Warnings about unguarded usages of AMDGPU target specific constructs
 def UnguardedBuiltinUsageAMDGPU : DiagGroup<"amdgpu-unguarded-builtin-usage">;
+
+// Kitsune-specific warnings and errors.
+def Kitsune : DiagGroup<"kitsune">;

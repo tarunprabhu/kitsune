@@ -712,6 +712,91 @@ private:
   /// checkDstSubscript to avoid duplicate code
   bool checkSubscript(const SCEV *Expr, const Loop *LoopNest,
                       SmallBitVector &Loops, bool IsSrc);
+
+  struct GeneralAccess {
+    Instruction *I = nullptr;
+    std::optional<MemoryLocation> Loc;
+    unsigned OperandNum = unsigned(-1);
+    ModRefInfo ModRef = ModRefInfo::NoModRef;
+
+    GeneralAccess() = default;
+    GeneralAccess(Instruction *I, std::optional<MemoryLocation> Loc,
+                  unsigned OperandNum, ModRefInfo MRI)
+        : I(I), Loc(Loc), OperandNum(OperandNum), ModRef(MRI) {}
+    GeneralAccess(Instruction *I, std::optional<MemoryLocation> Loc,
+                  ModRefInfo MRI)
+        : I(I), Loc(Loc), ModRef(MRI) {}
+
+    bool isValid() const {
+      return (I && Loc);
+    }
+    const Value *getPtr() const {
+      if (!Loc)
+        return nullptr;
+      return Loc->Ptr;
+    }
+    bool isRef() const {
+      return isRefSet(ModRef);
+    }
+    bool isMod() const {
+      return isModSet(ModRef);
+    }
+
+    inline bool operator==(const GeneralAccess &RHS) {
+      if (!isValid() && !RHS.isValid())
+        return true;
+      if (!isValid() || !RHS.isValid())
+        return false;
+      return (I == RHS.I) && (Loc == RHS.Loc) &&
+          (OperandNum == RHS.OperandNum) && (ModRef == RHS.ModRef);
+    }
+  };
+
+  raw_ostream &operator<<(raw_ostream &OS, const GeneralAccess &GA);
+
+  /// Tries to delinearize \p Src and \p Dst access functions for a fixed size
+  /// multi-dimensional array. Calls tryDelinearizeFixedSizeImpl() to
+  /// delinearize \p Src and \p Dst separately,
+  bool tryDelinearizeFixedSize(Instruction *Src, Instruction *Dst,
+                               const SCEV *SrcAccessFn,
+                               const SCEV *DstAccessFn,
+                               SmallVectorImpl<const SCEV *> &SrcSubscripts,
+                               SmallVectorImpl<const SCEV *> &DstSubscripts);
+
+  /// Tries to delinearize access function for a multi-dimensional array with
+  /// symbolic runtime sizes.
+  /// Returns true upon success and false otherwise.
+  bool tryDelinearizeParametricSize(
+      Instruction *Src, Instruction *Dst, const SCEV *SrcAccessFn,
+      const SCEV *DstAccessFn, SmallVectorImpl<const SCEV *> &SrcSubscripts,
+      SmallVectorImpl<const SCEV *> &DstSubscripts);
+
+  /// Given a linear access function, tries to recover subscripts
+  /// for each dimension of the array element access.
+  bool tryDelinearize(GeneralAccess *SrcA, GeneralAccess *DstA,
+                      SmallVectorImpl<Subscript> &Pair);
+
+  /// Tries to delinearize access function for a fixed size multi-dimensional
+  /// array, by deriving subscripts from GEP instructions. Returns true upon
+  /// success and false otherwise.
+  bool tryDelinearizeFixedSize(GeneralAccess *SrcA, GeneralAccess *DstA,
+                               const SCEV *SrcAccessFn,
+                               const SCEV *DstAccessFn,
+                               SmallVectorImpl<const SCEV *> &SrcSubscripts,
+                               SmallVectorImpl<const SCEV *> &DstSubscripts);
+
+  /// Tries to delinearize access function for a multi-dimensional array with
+  /// symbolic runtime sizes.
+  /// Returns true upon success and false otherwise.
+  bool tryDelinearizeParametricSize(
+      GeneralAccess *SrcA, GeneralAccess *DstA, const SCEV *SrcAccessFn,
+      const SCEV *DstAccessFn, SmallVectorImpl<const SCEV *> &SrcSubscripts,
+      SmallVectorImpl<const SCEV *> &DstSubscripts);
+
+  /// checkSubscript - Helper function for checkSrcSubscript and
+  /// checkDstSubscript to avoid duplicate code
+  bool checkSubscript(const SCEV *Expr, const Loop *LoopNest,
+                      SmallBitVector &Loops, bool IsSrc);
 }; // class DependenceInfo
 
 /// AnalysisPass to compute dependence information in a function

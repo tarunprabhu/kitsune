@@ -2112,6 +2112,7 @@
 // WEBASSEMBLY-NEXT:#define __clang_patchlevel__ {{.*}}
 // WEBASSEMBLY-NEXT:#define __clang_version__ "{{.*}}"
 // WEBASSEMBLY-NEXT:#define __clang_wide_literal_encoding__ {{.*}}
+// WEBASSEMBLY-NEXT:#define __kitsune__ 1
 // WEBASSEMBLY-NEXT:#define __llvm__ 1
 // WASI-NOT:#define __unix
 // WASI-NOT:#define __unix__

@@ -71,11 +71,13 @@ add_llvm_component_library(LLVMipo
   InstCombine
   IRReader
   Demangle
+  KitsuneOpts
   Linker
   Object
   ProfileData
   Scalar
   Support
+  TapirOpts
   TargetParser
   TransformUtils
   Vectorize

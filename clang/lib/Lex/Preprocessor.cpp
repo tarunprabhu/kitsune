@@ -80,11 +80,12 @@ ExternalPreprocessorSource::~ExternalPreprocessorSource() = default;
 
 Preprocessor::Preprocessor(const PreprocessorOptions &PPOpts,
                            DiagnosticsEngine &diags, const LangOptions &opts,
+                           const KitsuneOptions &KitsuneOpts,
                            SourceManager &SM, HeaderSearch &Headers,
                            ModuleLoader &TheModuleLoader,
                            IdentifierInfoLookup *IILookup, bool OwnsHeaders,
                            TranslationUnitKind TUKind)
-    : PPOpts(PPOpts), Diags(&diags), LangOpts(opts),
+    : PPOpts(PPOpts), Diags(&diags), LangOpts(opts), KitsuneOpts(KitsuneOpts),
       FileMgr(Headers.getFileMgr()), SourceMgr(SM),
       ScratchBuf(new ScratchBuffer(SourceMgr)), HeaderInfo(Headers),
       TheModuleLoader(TheModuleLoader), ExternalSource(nullptr),

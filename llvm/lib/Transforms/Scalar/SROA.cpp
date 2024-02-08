@@ -43,6 +43,7 @@
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/PtrUseVisitor.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/IR/BasicBlock.h"
@@ -116,6 +117,8 @@ STATISTIC(
     "Number of stores rewritten into predicated loads to allow promotion");
 STATISTIC(NumDeleted, "Number of instructions deleted");
 STATISTIC(NumVectorized, "Number of vectorized aggregates");
+STATISTIC(NumNotParallelPromotable, "Number of alloca's not promotable due to "
+          "Tapir instructions");
 
 namespace llvm {
 /// Disable running mem2reg during SROA in order to test or debug SROA.
@@ -176,6 +179,7 @@ class SROA {
   LLVMContext *const C;
   DomTreeUpdater *const DTU;
   AssumptionCache *const AC;
+  TaskInfo *TI;
   const bool PreserveCFG;
   const bool AggregateToVector;
 
@@ -239,9 +243,9 @@ class SROA {
   isSafeSelectToSpeculate(SelectInst &SI, bool PreserveCFG);
 
 public:
-  SROA(LLVMContext *C, DomTreeUpdater *DTU, AssumptionCache *AC,
+  SROA(LLVMContext *C, DomTreeUpdater *DTU, AssumptionCache *AC, TaskInfo *TI,
        SROAOptions Options)
-      : C(C), DTU(DTU), AC(AC),
+      : C(C), DTU(DTU), AC(AC), TI(TI),
         PreserveCFG(Options.CFG == SROAOptions::PreserveCFG),
         AggregateToVector(Options.AggregateToVector) {}
 
@@ -3331,8 +3335,11 @@ private:
   Value *rewriteIntegerLoad(LoadInst &LI) {
     assert(IntTy && "We cannot insert an integer to the alloca");
     assert(!LI.isVolatile());
-    Value *V =
+    LoadInst *NewLI =
         IRB.CreateAlignedLoad(NewAllocaTy, &NewAI, NewAI.getAlign(), "load");
+    if (LI.isAtomic())
+      NewLI->setAtomic(LI.getOrdering(), LI.getSyncScopeID());
+    Value *V = NewLI;
     V = IRB.CreateBitPreservingCastChain(DL, V, IntTy);
     assert(NewBeginOffset >= NewAllocaBeginOffset && "Out of bounds offset");
     uint64_t Offset = NewBeginOffset - NewAllocaBeginOffset;
@@ -3522,6 +3529,9 @@ private:
     if (AATags)
       Store->setAAMetadata(AATags.adjustForAccess(NewBeginOffset - BeginOffset,
                                                   V->getType(), DL));
+
+    if (SI.isAtomic())
+      Store->setAtomic(SI.getOrdering(), SI.getSyncScopeID());
 
     migrateDebugInfo(&OldAI, IsSplit, NewBeginOffset * 8, SliceSize * 8, &SI,
                      Store, Store->getPointerOperand(),
@@ -5133,6 +5143,8 @@ bool SROA::presplitLoadsAndStores(AllocaInst &AI, AllocaSlices &AS) {
       // a direct store) as needing to be resplit because it is no longer
       // promotable.
       if (AllocaInst *OtherAI = dyn_cast<AllocaInst>(StoreBasePtr)) {
+        assert(TI->isAllocaParallelPromotable(OtherAI) &&
+               "Alloca must be promotable");
         ResplitPromotableAllocas.insert(OtherAI);
         Worklist.insert(OtherAI);
       } else if (AllocaInst *OtherAI = dyn_cast<AllocaInst>(
@@ -5256,6 +5268,8 @@ bool SROA::presplitLoadsAndStores(AllocaInst &AI, AllocaSlices &AS) {
     if (!SplitLoads) {
       if (AllocaInst *OtherAI = dyn_cast<AllocaInst>(LoadBasePtr)) {
         assert(OtherAI != &AI && "We can't re-split our own alloca!");
+        assert(TI->isAllocaParallelPromotable(OtherAI) &&
+               "Alloca must be promotable");
         ResplitPromotableAllocas.insert(OtherAI);
         Worklist.insert(OtherAI);
       } else if (AllocaInst *OtherAI = dyn_cast<AllocaInst>(
@@ -5625,6 +5639,11 @@ SROA::rewritePartition(AllocaInst &AI, AllocaSlices &AS, Partition &P) {
     NewSelectsToRewrite.emplace_back(std::make_pair(Sel, *Ops));
   }
 
+  // Check if any detaches block promotion.
+  if (!TI->isAllocaParallelPromotable(NewAI))
+    ++NumNotParallelPromotable;
+  Promotable &= TI->isAllocaParallelPromotable(NewAI);
+
   if (Promotable) {
     for (Use *U : AS.getDeadUsesIfPromotable()) {
       auto *OldInst = dyn_cast<Instruction>(U->get());
@@ -5635,6 +5654,8 @@ SROA::rewritePartition(AllocaInst &AI, AllocaSlices &AS, Partition &P) {
     }
     if (PHIUsers.empty() && SelectUsers.empty()) {
       // Promote the alloca.
+      assert(TI->isAllocaParallelPromotable(NewAI) &&
+             "Alloca must be promotable");
       PromotableAllocas.insert(NewAI);
     } else {
       // If we have either PHIs or Selects to speculate, add them to those
@@ -6272,7 +6293,7 @@ bool SROA::promoteAllocas() {
   } else {
     LLVM_DEBUG(dbgs() << "Promoting allocas with mem2reg...\n");
     NumPromoted += PromotableAllocas.size();
-    PromoteMemToReg(PromotableAllocas.getArrayRef(), DTU->getDomTree(), AC);
+    PromoteMemToReg(PromotableAllocas.getArrayRef(), DTU->getDomTree(), AC, TI);
   }
 
   PromotableAllocas.clear();
@@ -6282,13 +6303,24 @@ bool SROA::promoteAllocas() {
 std::pair<bool /*Changed*/, bool /*CFGChanged*/> SROA::runSROA(Function &F) {
   LLVM_DEBUG(dbgs() << "SROA function: " << F.getName() << "\n");
 
+  // Scan the function to get its entry block and all entry blocks of detached
+  // CFG's.  We can perform this scan for entry blocks once for the function,
+  // because this pass preserves the CFG.
+  SmallVector<BasicBlock *, 4> EntryBlocks;
+  for (Task *T : depth_first(TI->getRootTask())) {
+    EntryBlocks.push_back(T->getEntry());
+    if (Value *TaskFrame = T->getTaskFrameUsed())
+      EntryBlocks.push_back(cast<Instruction>(TaskFrame)->getParent());
+  }
+
   const DataLayout &DL = F.getDataLayout();
   BasicBlock &EntryBB = F.getEntryBlock();
   for (BasicBlock::iterator I = EntryBB.begin(), E = std::prev(EntryBB.end());
        I != E; ++I) {
     if (AllocaInst *AI = dyn_cast<AllocaInst>(I)) {
       std::optional<TypeSize> Size = AI->getAllocationSize(DL);
-      if (Size && Size->isScalable() && isAllocaPromotable(AI))
+      if (Size && Size->isScalable() && isAllocaPromotable(AI) &&
+          TI->isAllocaParallelPromotable(AI))
         PromotableAllocas.insert(AI);
       else
         Worklist.insert(AI);
@@ -6318,6 +6350,13 @@ std::pair<bool /*Changed*/, bool /*CFGChanged*/> SROA::runSROA(Function &F) {
         PromotableAllocas.set_subtract(DeletedAllocas);
         DeletedAllocas.clear();
       }
+
+      // Preserve TaskInfo by manually updating it based on the updated DT.
+      if (IterationCFGChanged && TI) {
+        // FIXME: Recalculating TaskInfo for the whole function is wasteful.
+        // Optimize this routine in the future.
+        TI->recalculate(F, DTU->getDomTree());
+      }
     }
 
     Changed |= promoteAllocas();
@@ -6342,15 +6381,17 @@ std::pair<bool /*Changed*/, bool /*CFGChanged*/> SROA::runSROA(Function &F) {
 PreservedAnalyses SROAPass::run(Function &F, FunctionAnalysisManager &AM) {
   DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
   AssumptionCache &AC = AM.getResult<AssumptionAnalysis>(F);
+  TaskInfo& TI = AM.getResult<TaskAnalysis>(F);
   DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
   auto [Changed, CFGChanged] =
-      SROA(&F.getContext(), &DTU, &AC, Options).runSROA(F);
+      SROA(&F.getContext(), &DTU, &AC, &TI, Options).runSROA(F);
   if (!Changed)
     return PreservedAnalyses::all();
   PreservedAnalyses PA;
   if (!CFGChanged)
     PA.preserveSet<CFGAnalyses>();
   PA.preserve<DominatorTreeAnalysis>();
+  PA.preserve<TaskAnalysis>();
   return PA;
 }
 
@@ -6390,15 +6431,19 @@ public:
     AssumptionCache &AC =
         getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
     DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
-    auto [Changed, _] = SROA(&F.getContext(), &DTU, &AC, Options).runSROA(F);
+    TaskInfo& TI = getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
+    auto [Changed, _] = 
+        SROA(&F.getContext(), &DTU, &AC, &TI, Options).runSROA(F);
     return Changed;
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<AssumptionCacheTracker>();
     AU.addRequired<DominatorTreeWrapperPass>();
+    AU.addRequired<TaskInfoWrapperPass>();
     AU.addPreserved<GlobalsAAWrapperPass>();
     AU.addPreserved<DominatorTreeWrapperPass>();
+    AU.addPreserved<TaskInfoWrapperPass>();
   }
 
   StringRef getPassName() const override { return "SROA"; }
@@ -6418,5 +6463,6 @@ INITIALIZE_PASS_BEGIN(SROALegacyPass, "sroa",
                       "Scalar Replacement Of Aggregates", false, false)
 INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(TaskInfoWrapperPass)
 INITIALIZE_PASS_END(SROALegacyPass, "sroa", "Scalar Replacement Of Aggregates",
                     false, false)

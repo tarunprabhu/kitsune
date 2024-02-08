@@ -4,6 +4,7 @@ add_clang_unittest(ClangDriverTests
   EscapedCommandLineTest.cpp
   GCCVersionTest.cpp
   ToolChainTest.cpp
+  KitsuneFrontendTest.cpp
   ModuleCacheTest.cpp
   MultilibBuilderTest.cpp
   MultilibTest.cpp
