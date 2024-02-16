@@ -19,6 +19,7 @@
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
 namespace llvm {
 class BasicBlock;
@@ -91,15 +92,8 @@ struct LoopAttributes {
   /// Value for tapir.loop.spawn.strategy metadata.
   LSStrategy SpawnStrategy;
 
-  // /// Kitsune/Tapir loop target strategy.
-  // /// WILL DELETE AFTER PORTING KOKKOS ATTRIBUTES
-  // enum LTarget { CheetahRT,  CilkRT,  CudaRT,     HipRT,
-  //                OmpRT,      QthreadsRT, RealmRT,
-  //                RocmRT,     SequentialRT, ZeroRT, OpenCLRT
-  //              };
-
   /// Value for tapir.loop.target metadata.
-  unsigned LoopTarget;
+  std::optional<llvm::TapirTargetID> LoopTarget;
 };
 
 /// Information used when generating a structured loop.
@@ -320,10 +314,10 @@ public:
   void setTapirGrainsize(unsigned C) { StagedAttrs.TapirGrainsize = C; }
 
   /// Set the Tapir loop target
-  void setLoopTarget(int LT) {
-    StagedAttrs.LoopTarget=LT;
+  void setLoopTarget(std::optional<llvm::TapirTargetID> LT) {
+    StagedAttrs.LoopTarget = LT;
   }
-  
+
 private:
   /// Returns true if there is LoopInfo on the stack.
   bool hasInfo() const { return !Active.empty(); }

@@ -2227,8 +2227,8 @@ void CodeGenModule::GenKitsuneArgMetadata(llvm::Function *Fn,
       llvm::LLVMContext &Context = getLLVMContext();
       for (llvm::Argument *fnArg = Fn->arg_begin(); fnArg != Fn->arg_end();
            ++fnArg) {
-        if (fnArg->getArgNo() ==
-            i) { // Note: this will break for structs passed by value
+        if (fnArg->getArgNo() == i) {
+          // Note: this will break for structs passed by value
           if (const KitsuneMemAccessAttr *A =
                   PDecl->getAttr<KitsuneMemAccessAttr>()) {
             if (A->isWriteOnly())

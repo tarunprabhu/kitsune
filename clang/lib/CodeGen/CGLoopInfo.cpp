@@ -38,7 +38,7 @@ MDNode *LoopInfo::createTapirLoopMetadata(const LoopAttributes &Attrs,
                                           bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
-  Optional<bool> Enabled;
+  std::optional<bool> Enabled;
   if (Attrs.SpawnStrategy == LoopAttributes::SEQ)
     Enabled = false;
   else
@@ -560,10 +560,9 @@ void LoopInfo::getTapirLoopProperties(
 
   // Setting tapir.loop.spawn.strategy
   if (Attrs.SpawnStrategy != LoopAttributes::SEQ) {
-    Metadata *Vals[] = {
-        MDString::get(Ctx, "tapir.loop.spawn.strategy"),
-        ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
-                                                 Attrs.SpawnStrategy))};
+    Metadata *Vals[] = {MDString::get(Ctx, "tapir.loop.spawn.strategy"),
+                        ConstantAsMetadata::get(ConstantInt::get(
+                            llvm::Type::getInt32Ty(Ctx), Attrs.SpawnStrategy))};
     LoopProperties.push_back(MDNode::get(Ctx, Vals));
   }
 
@@ -576,13 +575,16 @@ void LoopInfo::getTapirLoopProperties(
     LoopProperties.push_back(MDNode::get(Ctx, Vals));
   }
 
-  // Setting tapir.loop.target
-  // All tapir loops have a loop target, it may be the default
-  Metadata *Vals[] = {
-  MDString::get(Ctx, "tapir.loop.target"),
-  ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
-                                            Attrs.LoopTarget))};
-  LoopProperties.push_back(MDNode::get(Ctx, Vals));   
+  // Setting tapir.loop.target. A target may not have been set and we do not
+  // have a reasonable "default". If we don't have a target, don't add the
+  // metadata.
+  if (Attrs.LoopTarget) {
+    Metadata *Vals[] = {
+        MDString::get(Ctx, "tapir.loop.target"),
+        ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
+                                                 unsigned(*Attrs.LoopTarget)))};
+    LoopProperties.push_back(MDNode::get(Ctx, Vals));
+  }
 }
 
 void LoopInfo::finish() {

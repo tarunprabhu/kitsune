@@ -2605,13 +2605,30 @@ def fno_knr_functions : Flag<["-"], "fno-knr-functions">, Group<f_Group>,
   HelpText<"Disable support for K&R C function declarations">,
   Flags<[CC1Option, CoreOption]>;
 
-def ftapir_EQ : Joined<["-"], "ftapir=">, Group<f_Group>, Flags<[CC1Option]>,
+def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">,
+  Flags<[NoXarchOption, CoreOption, HelpHidden]>,
+  HelpText<"Kitsune directory for configuration files">;
+def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>,
+  Flags<[CC1Option, NoArgumentUnused]>,
+  HelpText<"Enable Kokkos extensions: recognition and custom code generation">;
+def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Group<f_Group>,
+  Flags<[CC1Option, NoArgumentUnused]>,
+  HelpText<"Skip code gen of Kokkos initialization (and finalize) calls.">;
+def ftapir_EQ : Joined<["-"], "ftapir=">, Group<f_Group>,
+  Flags<[CC1Option]>,
+  MetaVarName<"<target>">,
   HelpText<"Choose the backend parallel runtime for Tapir instructions">,
-  Values<"none,serial,cilk,cheetah,cuda,hip,lambda,omptask,opencilk,openmp,qthreads,realm,opencl">;
-def ftapir_nvarch_EQ : Joined<["-"], "ftapir-nvarch=">, Group<f_Group>, Flags<[CC1Option]>,
+  Values<"none,serial,cuda,hip,opencilk,openmp,qthreads,realm">;
+def ftapir_nvarch_EQ : Joined<["-"], "ftapir-nvarch=">, Group<f_Group>,
+  Flags<[CC1Option]>,
   HelpText<"Choose the target nvida gpu architecture (e.g., sm_80) for gpu and cuda backend runtimes">,
-  Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80">;
+  Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80,sm_86,sm_90">;
+def fstripmine : Flag<["-"], "fstripmine">, Group<f_Group>,
+  HelpText<"Enable the Tapir loop stripmining passes">;
+def fno_stripmine : Flag<["-"], "fno-stripmine">, Group<f_Group>;
 
+// KITSUNE FIXME: Should remove this because we don't want to support
+// customizing the OpenCilk paths.
 def opencilk_resource_dir_EQ : Joined<["--"], "opencilk-resource-dir=">,
   Flags<[NoXarchOption]>,
   HelpText<"The directory that holds OpenCilk resource files">;
@@ -3119,10 +3136,6 @@ def Wlarge_by_value_copy_def : Flag<["-"], "Wlarge-by-value-copy">,
            "in bytes than a given value">, Flags<[HelpHidden]>;
 def Wlarge_by_value_copy_EQ : Joined<["-"], "Wlarge-by-value-copy=">, Flags<[CC1Option]>,
   MarshallingInfoInt<LangOpts<"NumLargeByValueCopy">>;
-
-def fstripmine : Flag<["-"], "fstripmine">, Group<f_Group>,
-  HelpText<"Enable the Tapir loop stripmining passes">;
-def fno_stripmine : Flag<["-"], "fno-stripmine">, Group<f_Group>;
 
 // These "special" warning flags are effectively processed as f_Group flags by the driver:
 // Just silence warnings about -Wlarger-than for now.

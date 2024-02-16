@@ -403,7 +403,7 @@ def : DiagGroup<"c++1z-compat", [CXX17Compat]>;
 def CXX20Compat : DiagGroup<"c++20-compat", [CXXPre23Compat]>;
 def CXX20CompatPedantic : DiagGroup<"c++20-compat-pedantic",
                                     [CXX20Compat,
-                                     CXXPre2bCompatPedantic]>;
+                                     CXXPre23CompatPedantic]>;
 def : DiagGroup<"c++2a-compat", [CXX20Compat]>;
 def : DiagGroup<"c++2a-compat-pedantic", [CXX20CompatPedantic]>;
 
@@ -772,7 +772,6 @@ def UnusedCommandLineArgument : DiagGroup<"unused-command-line-argument">;
 def IgnoredOptimizationArgument : DiagGroup<"ignored-optimization-argument">;
 def InvalidCommandLineArgument : DiagGroup<"invalid-command-line-argument",
                                            [IgnoredOptimizationArgument]>;
-def UnknownRuntime : DiagGroup<"unknown-runtime">;
 def UnusedComparison : DiagGroup<"unused-comparison">;
 def UnusedExceptionParameter : DiagGroup<"unused-exception-parameter">;
 def UnneededInternalDecl : DiagGroup<"unneeded-internal-declaration">;
@@ -988,11 +987,6 @@ def Move : DiagGroup<"move", [
     ReturnStdMove,
     SelfMove
   ]>;
-
-// Kitsune/Tapir warnings.
-def Kitsune : DiagGroup<"kitsune">;
-def Tapir : DiagGroup<"tapir">;
-def TapirTarget : DiagGroup<"disabled-target">;
 
 def Extra : DiagGroup<"extra", [
     DeprecatedCopy,
@@ -1452,3 +1446,6 @@ def ReadOnlyPlacementChecks : DiagGroup<"read-only-types">;
 
 // Warnings and fixes to support the "safe buffers" programming model.
 def UnsafeBufferUsage : DiagGroup<"unsafe-buffer-usage">;
+
+// Kitsune-specific warnings and errors.
+def Kitsune : DiagGroup<"kitsune">;

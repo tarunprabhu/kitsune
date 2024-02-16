@@ -90,7 +90,6 @@
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
 #include "llvm/Transforms/IPO/Inliner.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Tapir/Outline.h"
@@ -752,7 +751,7 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   AV.push_back(MDString::get(Ctx, "kernel"));
   AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 1)));
   // AV.push_back(MDString::get(Ctx, "maxntidx"));
-  // AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 160))); 
+  // AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 160)));
   //AV.push_back(MDString::get(Ctx, "maxnreg"));
   //AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 63)));
   Annotations->addOperand(MDNode::get(Ctx, AV));
@@ -1196,6 +1195,10 @@ std::unique_ptr<Module> &CudaABI::getLibDeviceModule() {
   if (not LibDeviceModule) {
     LLVMContext &Ctx = KernelModule.getContext();
     llvm::SMDiagnostic SMD;
+    // FIXME: Do not require CUDA_HOME to be set in the environment. The Cuda
+    // installation that was used to build Kitsune should be used instead
+    // because there is no guarantee that the cuda versions will match. If they
+    // don't, there is a chance of subtle problems.
     std::optional<std::string> CudaPath = sys::Process::FindInEnvPath(
         "CUDA_HOME", "nvvm/libdevice/libdevice.10.bc");
     if (!CudaPath) {
@@ -1237,8 +1240,9 @@ void CudaABI::lowerSync(SyncInst &SI) {
 void CudaABI::addHelperAttributes(Function &F) { /* no-op */
 }
 
-void CudaABI::preProcessFunction(Function &F, TaskInfo &TI,
-                                 bool OutliningTapirLoops) { /* no-op */
+bool CudaABI::preProcessFunction(Function &F, TaskInfo &TI,
+                                 bool OutliningTapirLoops) {
+  return false;
 }
 
 void CudaABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
@@ -1292,6 +1296,8 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
                     << "'.\n");
 
   std::error_code EC;
+  // FIXME: Do not require ptxas to be in $PATH. Use the ptxas that is part of
+  // cuda installation against which Kitsune was built.
   auto PTXASExe = sys::findProgramByName("ptxas");
   if ((EC = PTXASExe.getError()))
     report_fatal_error("'ptxas' not found. "

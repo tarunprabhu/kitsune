@@ -3463,14 +3463,20 @@ void DarwinClang::AddLinkTapirRuntimeLib(const ArgList &Args,
 
 void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
                                       ArgStringList &CmdArgs) const {
-  TapirTargetID TapirTarget = parseTapirTarget(Args);
-  if (TapirTarget == TapirTargetID::Last_TapirTargetID)
-    if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
-      getDriver().Diag(diag::err_drv_invalid_value) << A->getAsString(Args)
-                                                    << A->getValue();
+  std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
+  if (not TapirTarget) {
+    return;
+  } else if (*TapirTarget == llvm::TapirTargetID::Last_TapirTargetID) {
+    const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ);
+    getDriver().Diag(diag::err_drv_invalid_value)
+      << A->getAsString(Args) << A->getValue();
+    return;
+  }
 
-  switch (TapirTarget) {
-  case TapirTargetID::OpenCilk: {
+  llvm_unreachable("AddLinkTapirRuntime has to be fixed for Darwin");
+  // FIXME KITSUNE: Shouldn't this be like the code in ToolChain.cpp?
+  switch (*TapirTarget) {
+  case llvm::TapirTargetID::OpenCilk: {
     bool StaticOpenCilk = false;
     bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
 
@@ -3498,17 +3504,16 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
                            !StaticOpenCilk);
     break;
   }
-  case TapirTargetID::OpenMP:
+  case llvm::TapirTargetID::OpenMP:
     CmdArgs.push_back("-lomp");
     break;
-  case TapirTargetID::Qthreads:
+  case llvm::TapirTargetID::Qthreads:
     CmdArgs.push_back("-lqthread");
     break;
-  case TapirTargetID::Realm:
+  case llvm::TapirTargetID::Realm:
     CmdArgs.push_back("-lrealm-abi");
     CmdArgs.push_back("-lrealm");
     break;
-  */
   default:
     break;
   }

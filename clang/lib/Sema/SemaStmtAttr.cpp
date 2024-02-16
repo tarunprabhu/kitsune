@@ -492,12 +492,6 @@ static Attr *handleOpenCLUnrollHint(Sema &S, Stmt *St, const ParsedAttr &A,
 
 static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                                    SourceRange Range) {
-  // Check the details of the attribute syntax...
-  if (A.getNumArgs() != 1) {
-    S.Diag(A.getLoc(), diag::err_tapir_target_attr_wrong_nargs);
-    return nullptr;
-  }
-
   StringRef targetStr;
   SourceLocation argLoc;
   if (!S.checkStringLiteralArgumentAttr(A, 0, targetStr, &argLoc)) {
@@ -514,7 +508,7 @@ static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const ParsedAttr &A,
   // We only support a limited range of statements.  Make sure we are dealing
   // with one of them -- if not return an error.
   //
-  // TODO: Should spawn and sync statements have special cases here?
+  // The attribute is not currently supported on spawn and sync statements.
   //
   if (St->getStmtClass() == Stmt::ForallStmtClass ||
       St->getStmtClass() == Stmt::CXXForallRangeStmtClass) {
@@ -522,7 +516,7 @@ static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const ParsedAttr &A,
 
   } else if (Expr *E = dyn_cast<Expr>(St)) {
 
-    if (S.getLangOpts().Kokkos) {
+    if (S.getLangOpts().KitsuneOpts.getKokkos()) {
       // See if this is an attributed Kokkos parallel statement (if
       // so, there is a CallExpr lurking further down in the AST).
       // To find this CallExpr we need to work past implicit details
@@ -556,27 +550,13 @@ static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const ParsedAttr &A,
     }
   }
 
-  // Unsupported statement class encountered...
-  S.Diag(A.getLoc(), diag::warn_tapir_target_attr_bad_stmt_class);
+  S.Diag(A.getLoc(), diag::err_tapir_target_attr_unsupported_stmt);
   return nullptr;
 }
 
 static Attr *handleTapirStrategyAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                                      SourceRange Range) {
   bool errState = false;
-
-  // We only support a limited range of statement classes.
-  // TODO: Add support for spawn and sync statements.
-  if (St->getStmtClass() != Stmt::ForallStmtClass &&
-      St->getStmtClass() != Stmt::CXXForallRangeStmtClass) {
-    S.Diag(A.getLoc(), diag::warn_tapir_target_attr_bad_stmt_class);
-    errState = true;
-  }
-
-  if (A.getNumArgs() != 1) {
-    S.Diag(A.getLoc(), diag::err_tapir_strategy_attr_wrong_nargs);
-    errState = true;
-  }
 
   StringRef strategyStr;
   SourceLocation argLoc;
@@ -588,7 +568,6 @@ static Attr *handleTapirStrategyAttr(Sema &S, Stmt *St, const ParsedAttr &A,
   TapirStrategyAttr::TapirStrategyTy strategyKind;
   if (!TapirStrategyAttr::ConvertStrToTapirStrategyTy(strategyStr,
                                                       strategyKind)) {
-    // TODO: Is this redundant w/ CheckString call above???
     S.Diag(A.getLoc(), diag::err_tapir_strategy_unknown)
            << strategyStr << argLoc;
     errState = true;
@@ -602,33 +581,29 @@ static Attr *handleTapirStrategyAttr(Sema &S, Stmt *St, const ParsedAttr &A,
 
 static Attr *handleKitsuneLaunchAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                                      SourceRange Range) {
-  unsigned ThreadsPerBlock = 0;
+  Expr *TPBExpr = A.getArgAsExpr(0);
+  QualType QTy = TPBExpr->getType();
 
-  if (A.getNumArgs() == 1) {
-    Expr *TPBExpr = A.getArgAsExpr(0);
-    QualType QTy = TPBExpr->getType();
-    const Type *Ty = QTy.getTypePtr();
-
-    if (not Ty->isBuiltinType() || not Ty->isIntegerType()) {
-      S.Diag(TPBExpr->getExprLoc(), diag::err_kitsune_launch_non_integral_type);
-      return nullptr;
-    }
-
-    if (QTy.isConstant(S.Context)) {
-      llvm::APSInt ValueAPS;
-      ExprResult R = S.VerifyIntegerConstantExpression(TPBExpr, &ValueAPS);
-      if (R.isInvalid()) 
-        return nullptr;
-
-      if (not ValueAPS.isStrictlyPositive()) {
-        S.Diag(TPBExpr->getExprLoc(), diag::err_kitsune_launch_tpb_must_be_positive);
-        return nullptr;
-      }
-    }
-    return ::new (S.Context)
-        KitsuneLaunchAttr(S.Context, A, TPBExpr);
-  } else
+  if (not QTy->isBuiltinType() || not QTy->isIntegerType()) {
+    S.Diag(TPBExpr->getExprLoc(), diag::err_kitsune_launch_non_integral_type);
     return nullptr;
+  }
+
+  llvm::APSInt ValueAPS;
+  ExprResult R = S.VerifyIntegerConstantExpression(TPBExpr, &ValueAPS);
+  if (R.isInvalid()) {
+    // We don't need to issue a diagnostic here because
+    // VerifyIntegerConstantExpression will already have done so.
+    return nullptr;
+  }
+
+  if (not ValueAPS.isStrictlyPositive()) {
+    S.Diag(TPBExpr->getExprLoc(),
+           diag::err_kitsune_launch_tpb_must_be_positive);
+    return nullptr;
+  }
+
+  return ::new (S.Context) KitsuneLaunchAttr(S.Context, A, TPBExpr);
 }
 
 static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
@@ -675,6 +650,8 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
     return handleLikely(S, St, A, Range);
   case ParsedAttr::AT_Unlikely:
     return handleUnlikely(S, St, A, Range);
+  case ParsedAttr::AT_TapirStrategy:
+    return handleTapirStrategyAttr(S, St, A, Range);
   case ParsedAttr::AT_TapirTarget:
     return handleTapirTargetAttr(S, St, A, Range);
   case ParsedAttr::AT_KitsuneLaunch:

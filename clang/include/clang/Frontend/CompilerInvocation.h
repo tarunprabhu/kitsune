@@ -295,6 +295,11 @@ private:
                                   StringAllocator SA, const llvm::Triple &T,
                                   const std::string &OutputFile,
                                   const LangOptions *LangOpts);
+
+  // Parse command line options that are specific to Kitsune.
+  static bool ParseKitsuneArgs(KitsuneOptions &Opts, llvm::opt::ArgList &Args,
+                               DiagnosticsEngine &Diags,
+                               const LangOptions &LangOpts);
 };
 
 IntrusiveRefCntPtr<llvm::vfs::FileSystem>

@@ -4206,15 +4206,26 @@ def AvailableOnlyInDefaultEvalMethod : InheritableAttr {
 
 def TapirTarget : StmtAttr {
   let Spellings = [CXX11<"tapir","target">];
+
+  // FIXME KITSUNE: The target attribute is currently set to be valid on all
+  // statements because of the need to add this to Kokkos. We should either:
+  //
+  //   - Remove the Forall statement from the subject list and have it apply to
+  //     all statements and check when parsing that it is on a statement that
+  //     we actually care about.
+  //
+  //   - Or, and we should prefer this if possible, identify exactly what the
+  //     Kokkos construct is and add just that statement class to this subject
+  //     list.
+  //
   let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt, Stmt],
                              ErrorDiag, "'parallel' statements">;
   let Args = [
-    // TODO: Is there a difference between "serial" and "none"?
     EnumArgument<"TapirTargetAttrType", "TapirTargetAttrTy",
-                 ["none", "serial", "cuda", "hip", "lambda", "omptask",
-                  "opencilk", "openmp", "qthreads", "realm"],
-                 ["None", "Serial", "Cuda", "Hip", "Lambda", "OMPTask",
-                  "OpenCilk", "OpenMP", "Qthreads", "Realm"],
+                 ["none", "serial", "cuda", "hip", "opencilk", "openmp",
+                  "qthreads", "realm"],
+                 ["None", "Serial", "Cuda", "Hip", "OpenCilk", "OpenMP",
+                  "Qthreads", "Realm"],
                  0>
   ];
   let Documentation = [TapirRTDocs];
@@ -4222,35 +4233,37 @@ def TapirTarget : StmtAttr {
 
 def TapirStrategy : StmtAttr {
   let Spellings = [CXX11<"tapir", "strategy">];
+  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
+                             ErrorDiag, "'forall' statement">;
   let Args = [
       EnumArgument<"TapirStrategyType", "TapirStrategyTy",
-      ["dac", "seq", "gpu"],
-      ["DAC", "SEQ", "GPU"], 0>
+      ["seq", "dac", "gpu"],
+      ["SEQ", "DAC", "GPU"], 0>
   ];
   // FIXME -- how do we document this?
   let Documentation = [TapirStrategyDocs];
 }
 
 def KitsuneMemAccess : InheritableAttr {
-    let Spellings = [Keyword<"_readonly">,
-                     Keyword<"_writeonly">,
-                     Keyword<"_readwrite">];
+    let Spellings = [CustomKeyword<"_readonly">,
+                     CustomKeyword<"_writeonly">,
+                     CustomKeyword<"_readwrite">];
 
-    let Subjects = SubjectList<[Function, LocalVar, ParmVar, TypedefName],
-                                ErrorDiag>; // TODO: not sure about Loops
+    let Subjects = SubjectList<[GlobalVar, ParmVar],
+                               ErrorDiag>;
     let Accessors = [
-      Accessor<"isReadOnly", [Keyword<"_readonly">]>,
-      Accessor<"isWriteOnly", [Keyword<"_writeonly">]>,
-      Accessor<"isReadWrite", [Keyword<"_readwrite">]>
+      Accessor<"isReadOnly", [CustomKeyword<"_readonly">]>,
+      Accessor<"isWriteOnly", [CustomKeyword<"_writeonly">]>,
+      Accessor<"isReadWrite", [CustomKeyword<"_readwrite">]>
     ];
 
     let Documentation = [KitsuneMemAccessDocs];
 }
 
 def KitsuneLaunch : StmtAttr {
-    let Spellings = [CXX11<"kitsune","launch">];
-    let Subjects = SubjectList<[ForallStmt,CXXForallRangeStmt],
-    		   ErrorDiag, "'parallel' statements">;
-    let Args = [ExprArgument<"ThreadsPerBlock">];
-   let Documentation = [KitsuneLaunchDocs];    
+  let Spellings = [CXX11<"kitsune","launch">];
+  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
+                             ErrorDiag, "'forall' statement">;
+  let Args = [ExprArgument<"ThreadsPerBlock">];
+  let Documentation = [KitsuneLaunchDocs];    
 }

@@ -15,6 +15,7 @@
 #define LLVM_CLANG_BASIC_LANGOPTIONS_H
 
 #include "clang/Basic/CommentOptions.h"
+#include "clang/Basic/KitsuneOptions.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/LangStandard.h"
 #include "clang/Basic/ObjCRuntime.h"
@@ -22,7 +23,6 @@
 #include "clang/Basic/TargetCXXABI.h"
 #include "clang/Basic/Visibility.h"
 #include "llvm/ADT/FloatingPointMode.h"
-#include "clang/Basic/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Tapir/TapirTargetIDs.h"
@@ -386,9 +386,6 @@ public:
   /// The used language standard.
   LangStandard::Kind LangStd;
 
-  /// Is Kitsune mode enabled.
-  bool Kitsune = false;
-
   /// Set of enabled sanitizers.
   SanitizerSet Sanitize;
   /// Is at least one coverage instrumentation type enabled.
@@ -496,8 +493,14 @@ public:
   // received as a result of a standard operator new (-fcheck-new)
   bool CheckNew = false;
 
-  /// \brief Runtime target for Tapir.
-  TapirTargetID TapirTarget = TapirTargetID::Last_TapirTargetID;
+  /// Kitsune-specific options. This is a separate object because some of these
+  /// affect both LangOptions and CodeGenOptions. This is not really a good
+  /// place to keep this because it really ought to be its own object. But that
+  /// changes too many API's which we would like to avoid. Plus, keeping all
+  /// the Kitsune-specific options bundled together reduces the footprint in
+  /// the code base which makes it marginally less painful when we have to
+  /// merge with upstream.
+  KitsuneOptions KitsuneOpts;
 
   LangOptions();
 

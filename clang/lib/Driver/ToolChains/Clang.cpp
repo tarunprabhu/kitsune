@@ -1362,15 +1362,9 @@ void Clang::AddPreprocessingOptions(Compilation &C, const JobAction &JA,
   // OBJCPLUS_INCLUDE_PATH - system includes enabled when compiling ObjC++.
   addDirectoryList(Args, CmdArgs, "-objcxx-isystem", "OBJCPLUS_INCLUDE_PATH");
 
-  // If a custom OpenCilk resource directory is specified, add its include path.
-  getToolChain().AddOpenCilkIncludeDir(Args, CmdArgs);
-
   // While adding the include arguments, we also attempt to retrieve the
   // arguments of related offloading toolchains or arguments that are specific
   // of an offloading programming model.
-
-  // +==== Handle special include paths for kitsune-/tapir-centric modes. 
-  getToolChain().AddKitsuneIncludeArgs(Args, CmdArgs);
 
   // Add C++ include arguments, if needed.
   if (types::isCXX(Inputs[0].getType())) {
@@ -1404,6 +1398,11 @@ void Clang::AddPreprocessingOptions(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-source-date-epoch");
     CmdArgs.push_back(Args.MakeArgString(Epoch));
   }
+
+  // KITSUNE FIXME: We probably don't support custom resource directories and
+  // include paths for OpenCilk, so this should be removed.
+  // If a custom OpenCilk resource directory is specified, add its include path.
+  getToolChain().AddOpenCilkIncludeDir(Args, CmdArgs);
 }
 
 // FIXME: Move to target hook.
@@ -5930,6 +5929,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // preprocessed inputs and configure concludes that -fPIC is not supported.
   Args.ClaimAllArgs(options::OPT_D);
 
+  TC.AddKitsunePreprocessorArgs(Args, CmdArgs);
+  TC.AddKitsuneCompilerArgs(Args, CmdArgs);
+
   // Manually translate -O4 to -O3; let clang reject others.
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
     if (A->getOption().matches(options::OPT_O4)) {
@@ -6263,23 +6265,22 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_fdiagnostics_show_template_tree);
   Args.AddLastArg(CmdArgs, options::OPT_fno_elide_type);
 
-  // Forward flags for Cilk.
+  // Forward flags for Kitsune.
+  Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
+  Args.AddLastArg(CmdArgs, options::OPT_fkokkos_no_init);
   Args.AddLastArg(CmdArgs, options::OPT_ftapir_EQ);
   if (Args.hasArg(options::OPT_ftapir_EQ)) {
     auto const &Triple = getToolChain().getTriple();
 
-    // FIXME KITSUNE: Change the unsupported cilk diagnostic to kitsune.
     // At least one runtime has been implemented for these operating systems.
     if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
-      D.Diag(diag::err_drv_cilk_unsupported);
+      D.Diag(diag::err_drv_kitsune_unsupported);
 
     /* JFC: Is it possible to confuse with with -fno-opencilk? */
     bool OpenCilk = false;
-    bool Cheetah = false;
     bool CustomTarget = false;
 
     if (Arg *TapirRuntime = Args.getLastArgNoClaim(options::OPT_ftapir_EQ)) {
-      Cheetah = TapirRuntime->getValue() == StringRef("cheetah");
       if (TapirRuntime->getValue() == StringRef("opencilk")) {
         OpenCilk = true;
       } else {
@@ -6287,10 +6288,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       }
     }
 
-    // FIXME KITSUNE: Change the unsupported cilk diagnostic to kitsune.
-    if (Cheetah && Triple.getArch() != llvm::Triple::x86_64) {
-      D.Diag(diag::err_drv_cilk_unsupported);
-    }
     if (OpenCilk) {
       switch (Triple.getArch()) {
       case llvm::Triple::x86:
@@ -6299,11 +6296,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       case llvm::Triple::armeb:
       case llvm::Triple::aarch64:
       case llvm::Triple::aarch64_be:
-	break;
+        break;
       default:
-    // FIXME KITSUNE: Change the unsupported cilk diagnostic to kitsune.
-	D.Diag(diag::err_drv_cilk_unsupported);
-	break;
+        D.Diag(diag::err_drv_kitsune_unsupported);
+        break;
       }
 
       // If an OpenCilk resource directory is specified, check that it is valid.
@@ -6326,11 +6322,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
         getToolChain().AddOpenCilkABIBitcode(Args, CmdArgs);
     }
   }
-  Args.AddLastArg(CmdArgs, options::OPT_ftapir_EQ);
-  Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
-  Args.AddLastArg(CmdArgs, options::OPT_fkitsune);
-  Args.AddLastArg(CmdArgs, options::OPT_fkokkos_no_init);  
-  Args.AddLastArg(CmdArgs, options::OPT_fflecsi);
 
   // Forward flags for OpenMP. We don't do this if the current action is an
   // device offloading action other than OpenMP.

@@ -2804,8 +2804,7 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
       // loop construct. Thus we have to carefully consider how we handle
       // captures within the lambda...
       //
-      // kitsune FIXME: Not sure that everything we are doing here is
-      // sound...
+      // KITSUNE FIXME: Not sure that everything we are doing here is sound ...
       if (InKokkosConstruct) {
         VD = VD->getCanonicalDecl();
         auto I = LocalDeclMap.find(VD);
@@ -5013,7 +5012,7 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
   // dealing with a case where we transform a lambda construct into
   // a traditional loop construct; thus our parallel_for and
   // parallel_reduce calls result in the removal of a lambda/call.
-  if (getLangOpts().Kokkos) {
+  if (getLangOpts().KitsuneOpts.getKokkos()) {
     const FunctionDecl *fdecl = E->getDirectCallee();
     if (fdecl) {
       std::string qname = fdecl->getQualifiedNameAsString();
@@ -5028,7 +5027,7 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
 	// transformation/generation.
         if (EmitKokkosConstruct(E, TapirAttrs))
           return RValue::get(nullptr);
-      } else if (getLangOpts().KokkosNoInit &&
+      } else if (getLangOpts().KitsuneOpts.getKokkosNoInit() &&
                  (qname == "Kokkos::initialize" ||
                   qname == "Kokkos::finalize"))
         return RValue::get(nullptr);

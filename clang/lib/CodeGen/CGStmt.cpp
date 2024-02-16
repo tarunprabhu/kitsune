@@ -174,7 +174,7 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     EmitForallStmt(cast<ForallStmt>(*S), Attrs);
     break;
   case Stmt::SpawnStmtClass:
-    EmitSpawnStmt(cast<SpawnStmt>(*S)); 
+    EmitSpawnStmt(cast<SpawnStmt>(*S));
     break;
   case Stmt::ObjCAtTryStmtClass:
     EmitObjCAtTryStmt(cast<ObjCAtTryStmt>(*S));
@@ -483,8 +483,8 @@ bool CodeGenFunction::EmitSimpleStmt(const Stmt *S,
   case Stmt::SEHLeaveStmtClass:
     EmitSEHLeaveStmt(cast<SEHLeaveStmt>(*S));
     break;
-  case Stmt::SyncStmtClass: 
-    EmitSyncStmt(cast<SyncStmt>(*S)); 
+  case Stmt::SyncStmtClass:
+    EmitSyncStmt(cast<SyncStmt>(*S));
     break;
   }
   return true;
@@ -744,9 +744,9 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
     case attr::TapirTarget:
       // In the case of a Tapir target attribute, we need to save the attribute
       // set so we can use it when we reach code gen of the underlying
-      // CallExpr for Kokkos parallel "statements".  This is necessary given 
-      // the additional layers of details in the AST for C++ mechanisms Kokkos 
-      // uses to implement their feature set (e.g., implicit and cleanup goop). 
+      // CallExpr for Kokkos parallel "statements".  This is necessary given
+      // the additional layers of details in the AST for C++ mechanisms Kokkos
+      // uses to implement their feature set (e.g., implicit and cleanup goop).
       tapir_attr_set = S.getAttrs();
       break;
     }
@@ -755,7 +755,7 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
   SaveAndRestore save_noinline(InNoInlineAttributedStmt, noinline);
   SaveAndRestore save_alwaysinline(InAlwaysInlineAttributedStmt, alwaysinline);
   SaveAndRestore save_musttail(MustTailCall, musttail);
-  SaveAndRestore save_tapir_addrs(TapirAttrs, tapir_attr_set);  
+  SaveAndRestore save_tapir_addrs(TapirAttrs, tapir_attr_set);
   EmitStmt(S.getSubStmt(), S.getAttrs());
 }
 
@@ -1335,13 +1335,6 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
 
   // Emit the result value, even if unused, to evaluate the side effects.
   const Expr *RV = S.getRetValue();
-
-  // If RV is a CilkSpawnExpr, handle the CilkSpawnExpr part here.
-  if (const CilkSpawnExpr *CS = dyn_cast_or_null<CilkSpawnExpr>(RV)) {
-    IsSpawned = true;
-    PushDetachScope();
-    RV = CS->getSpawnedExpr();
-  }
 
   // Record the result expression of the return statement. The recorded
   // expression is used to determine whether a block capture's lifetime should

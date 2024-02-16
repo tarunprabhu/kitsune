@@ -19,7 +19,7 @@ list(INSERT CMAKE_MODULE_PATH 0
 
 # We order libraries to mirror roughly how they are layered, except that compiler-rt can depend
 # on libc++, so we put it after.
-set(LLVM_DEFAULT_RUNTIMES "cheetah;kitsune;libc;libunwind;libcxxabi;pstl;libcxx;compiler-rt;openmp")
+set(LLVM_DEFAULT_RUNTIMES "libc;libunwind;libcxxabi;pstl;libcxx;compiler-rt;openmp")
 set(LLVM_SUPPORTED_RUNTIMES "${LLVM_DEFAULT_RUNTIMES};llvm-libgcc")
 set(LLVM_ENABLE_RUNTIMES "" CACHE STRING
   "Semicolon-separated list of runtimes to build, or \"all\" (${LLVM_DEFAULT_RUNTIMES}). Supported runtimes are ${LLVM_SUPPORTED_RUNTIMES}.")
@@ -50,28 +50,31 @@ find_package(Clang PATHS "${LLVM_BINARY_DIR}" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT
 
 set(LLVM_THIRD_PARTY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../third-party")
 
-function(get_cheetah_path path)
-  foreach(entry ${runtimes})
-    get_filename_component(projName ${entry} NAME)
-    if("${projName}" MATCHES "cheetah")
-      set(${path} ${entry} PARENT_SCOPE)
-      return()
-    endif()
-  endforeach()
-endfunction()
+# function(get_cheetah_path path)
+#   foreach(entry ${runtimes})
+#     get_filename_component(projName ${entry} NAME)
+#     if("${projName}" MATCHES "cheetah")
+#       set(${path} ${entry} PARENT_SCOPE)
+#       return()
+#     endif()
+#   endforeach()
+# endfunction()
 
-# Some of the runtimes will conditionally use cheetah.  To make this
-# work smoothly we ensure that cheetah is added early in the list of
-# sub-projects. This allows other sub-projects to have checks like
-# `if(TARGET cheetah)`.
-get_cheetah_path(cheetah_path)
-if(cheetah_path)
-  list(REMOVE_ITEM runtimes ${cheetah_path})
-  if(NOT DEFINED LLVM_BUILD_CHEETAH OR LLVM_BUILD_CHEETAH)
-    list(INSERT runtimes 0 ${cheetah_path})
-  endif()
-endif()
+# # Some of the runtimes will conditionally use cheetah.  To make this
+# # work smoothly we ensure that cheetah is added early in the list of
+# # sub-projects. This allows other sub-projects to have checks like
+# # `if(TARGET cheetah)`.
+# get_cheetah_path(cheetah_path)
+# message(FATAL_ERROR "cheetah_path: ${cheetah_path}")
+# if(cheetah_path)
+#   list(REMOVE_ITEM runtimes ${cheetah_path})
+#   if(NOT DEFINED LLVM_BUILD_CHEETAH OR LLVM_BUILD_CHEETAH)
+#     list(INSERT runtimes 0 ${cheetah_path})
+#   endif()
+# endif()
 
+# KITSUNE FIXME: Do we care about compiler-rt? If it is only used by cilktools,
+# we probably don't.
 function(get_compiler_rt_path path)
   foreach(entry ${runtimes})
     get_filename_component(projName ${entry} NAME)

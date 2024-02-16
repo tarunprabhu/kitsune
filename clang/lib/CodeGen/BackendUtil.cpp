@@ -258,7 +258,8 @@ static bool asanUseGlobalsGC(const Triple &T, const CodeGenOptions &CGOpts) {
 }
 
 static TargetLibraryInfoImpl *createTLII(llvm::Triple &TargetTriple,
-                                         const CodeGenOptions &CodeGenOpts) {
+                                         const CodeGenOptions &CodeGenOpts,
+                                         const LangOptions &LangOpts) {
   TargetLibraryInfoImpl *TLII = new TargetLibraryInfoImpl(TargetTriple);
 
   switch (CodeGenOpts.getVecLib()) {
@@ -294,7 +295,7 @@ static TargetLibraryInfoImpl *createTLII(llvm::Triple &TargetTriple,
     break;
   }
 
-  TLII->setTapirTarget(CodeGenOpts.getTapirTarget());
+  TLII->setTapirTarget(LangOpts.KitsuneOpts.getTapirTargetOrInvalid());
   TLII->setTapirTargetOptions(
       std::make_unique<OpenCilkABIOptions>(CodeGenOpts.OpenCilkABIBitcodeFile));
   TLII->addTapirTargetLibraryFunctions();
@@ -586,7 +587,7 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
                                        raw_pwrite_stream *DwoOS) {
   // Add LibraryInfo.
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      createTLII(TargetTriple, CodeGenOpts));
+      createTLII(TargetTriple, CodeGenOpts, LangOpts));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
   // Normal mode, emit a .s or .o file by running the code generator. Note,
@@ -917,7 +918,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   // Register the target library analysis directly and give it a customized
   // preset TLI.
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      createTLII(TargetTriple, CodeGenOpts));
+      createTLII(TargetTriple, CodeGenOpts, LangOpts));
   FAM.registerPass([&] { return TargetLibraryAnalysis(*TLII); });
 
   // Register all the basic analyses with the managers.
@@ -1014,15 +1015,6 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
             MPM.addPass(InstrProfiling(*Options, false));
           });
 
-    // Register the Cilksan pass.
-    if (LangOpts.Sanitize.has(SanitizerKind::Cilk))
-      PB.registerTapirLateEPCallback(
-          [&](ModulePassManager &MPM, OptimizationLevel Level) {
-            MPM.addPass(CSISetupPass());
-            MPM.addPass(CilkSanitizerPass());
-            PB.addPostCilkInstrumentationPipeline(MPM, Level);
-          });
-
     // TODO: Consider passing the MemoryProfileOutput to the pass builder via
     // the PGOOptions, and set this up there.
     if (!CodeGenOpts.MemoryProfileOutput.empty()) {
@@ -1032,6 +1024,18 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
             MPM.addPass(ModuleMemProfilerPass());
           });
     }
+
+// FIXME KITSUNE: Do we want to the Cilk sanitizer?
+#if 0
+    // Register the Cilksan pass.
+    if (LangOpts.Sanitize.has(SanitizerKind::Cilk))
+      PB.registerTapirLateEPCallback(
+          [&PB](ModulePassManager &MPM, OptimizationLevel Level) {
+            MPM.addPass(CSISetupPass());
+            MPM.addPass(CilkSanitizerPass());
+            MPM.addPass(PB.buildPostCilkInstrumentationPipeline(Level));
+          });
+#endif // 0
 
     if (CodeGenOpts.OptimizationLevel == 0) {
       MPM = PB.buildO0DefaultPipeline(Level, IsLTO || IsThinLTO,
@@ -1236,7 +1240,7 @@ static void runThinLTOBackend(
   Conf.RemarksFormat = CGOpts.OptRecordFormat;
   Conf.SplitDwarfFile = CGOpts.SplitDwarfFile;
   Conf.SplitDwarfOutput = CGOpts.SplitDwarfOutput;
-  Conf.TapirTarget = CGOpts.getTapirTarget();
+  Conf.TapirTarget = LOpts.KitsuneOpts.getTapirTargetOrInvalid();
   Conf.OpenCilkABIBitcodeFile = CGOpts.OpenCilkABIBitcodeFile;
   switch (Action) {
   case Backend_EmitNothing:

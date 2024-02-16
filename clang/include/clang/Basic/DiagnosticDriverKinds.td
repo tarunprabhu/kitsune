@@ -316,16 +316,6 @@ def err_drv_invalid_cf_runtime_abi
           "'objc', 'standalone', 'swift', 'swift-5.0', 'swift-4.2', 'swift-4.1'">;
 def err_drv_gnustep_objc_runtime_incompatible_binary : Error<
   "GNUstep Objective-C runtime version %0 incompatible with target binary format">;
-def err_drv_cilk_objc : Error<
-  "Cilk does not support Objective-C">;
-def err_drv_cilk_unsupported: Error<
-  "Cilk not yet supported for this target">;
-def err_drv_opencilk_missing_abi_bitcode: Error<
-  "Cannot find OpenCilk runtime ABI bitcode file: %0">;
-def err_drv_opencilk_resource_dir_missing_include: Error<
-  "No include directory in OpenCilk resource directory: %0">;
-def err_drv_opencilk_resource_dir_missing_lib: Error<
-  "No lib directory in OpenCilk resource directory: %0">;
 def err_drv_emit_llvm_link : Error<
    "-emit-llvm cannot be used when linking">;
 def err_drv_optimization_remark_pattern : Error<
@@ -752,108 +742,38 @@ def warn_drv_missing_multilib : Warning<
 def note_drv_available_multilibs : Note<
   "available multilibs are:%0">;
 
-// +----- kitsune  FIXME: should probably use kitsune-centric naming here.
-// deprecate cilkrts (opencilk should no be default)
-//def warn_cilkrts_missing_build_params : Warning<
-//  "'-ftapir=cilk' enabled but build configuration missing details for "
-//  "automatic argument generation. Target-centric link arguments must be"
-//  "provided on command line.">, InGroup<UnknownRuntime>;
+def err_drv_kitsune_objc : Error<
+  "Kitsune does not support Objective-C">;
+def err_drv_kitsune_unsupported: Error<
+  "Kitsune not yet supported for this target">;
 
-def warn_opencilkrts_missing_build_params : Warning<
-  "'-ftapir=opencilk' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>;
+// FIXME KITSUNE: Some of this should probably go away since we don't want to
+// give opencilk any special treatment here. 
+def err_drv_opencilk_missing_abi_bitcode: Error<
+  "Cannot find OpenCilk runtime ABI bitcode file: %0">;
+def err_drv_opencilk_resource_dir_missing_include: Error<
+  "No include directory in OpenCilk resource directory: %0">;
+def err_drv_opencilk_resource_dir_missing_lib: Error<
+  "No lib directory in OpenCilk resource directory: %0">;
 
-def warn_qthreads_missing_build_params : Warning<
-  "'-ftapir=qthreads' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>;
+def err_drv_mix_tapir_cuda_hip : Error<
+  "Mixed Tapir and Cuda/HIP compilation is currently not supported.">;
+def err_drv_mix_tapir_omp_offload : Error<
+  "Mixed Tapir and OpenMP offload compilation is currently not supported.">;
 
-def warn_realm_missing_build_params : Warning<
-  "'-ftapir=realm' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>;
+def err_drv_kitsune_kokkos_disabled : Error<
+  "Kokkos support was not enabled when kitsune was built.">;
 
-def warn_cuda_missing_build_params : Warning<
-  "'-ftapir=cuda' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>;
-
-def warn_opencl_missing_build_params : Warning<
-  "'-ftapir=opencl' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>;
-
-def warn_hip_missing_build_params : Warning<
-  "'-ftapir=hip' enabled but build configuration missing details for "
-  "automatic argument generation. Target-centric link arguments must be"
-  "provided on command line.">, InGroup<UnknownRuntime>;
-
-// FIXME: Probably the wrong group for this...
-def warn_kokkos_missing_build_params : Warning<
-  "'-fkokkos' mode enabled but build configuration did not include support.">,
-  InGroup<UnknownRuntime>;
-
-def warn_missing_tapir_opencilk_config_opts : Warning<
-  "Unable to find configuration options file ('opencilk-opts.cfg') for "
-  "'-ftapir=opencilk' option.">, InGroup<UnknownRuntime>;
-
-def warn_missing_tapir_qthreads_config_opts : Warning<
-  "Unable to find configuration options file ('qtheads-opts.cfg') for "
-  "'-ftapir=qthreads' option.">, InGroup<UnknownRuntime>;
-
-def warn_missing_tapir_realm_config_opts : Warning<
-  "Unable to find configuration options file ('realm-opts.cfg') for "
-  "'-ftapir=realm' option.">, InGroup<UnknownRuntime>;
-
-def warn_missing_tapir_cuda_config_opts : Warning<
-  "Unable to find configuration options file ('cuda-opts.cfg') for "
-  "'-ftapir=cuda' option.">, InGroup<UnknownRuntime>;
-
-def warn_missing_tapir_hip_config_opts : Warning<
-  "Unable to find configuration options file ('hip-opts.cfg') for "
-  "'-ftapir=hip' option.">, InGroup<UnknownRuntime>;
-
-def warn_missing_tapir_opencl_config_opts : Warning<
-  "Unable to find configuration options file ('opencl-opts.cfg') for "
-  "'-ftapir=opencl' option.">, InGroup<UnknownRuntime>;
-
-def warn_missing_kitsune_kokkos_opts : Warning<
-  "'Unable to find configuration options file ('kokkos-opts.cfg') for "
-  "'-fkokkos' option.">, InGroup<UnknownRuntime>;
-// -----+
-
-def warn_drv_missing_cfg_file : Warning<
-  "cannot find clang configuration file, %0, in support of option: %1.">,
-  InGroup<Kitsune>;
-def err_drv_cannot_read_kitsune_cfg_file : Error<
-  "cannot read clang configuration file, %0, in support of option: %1.">;
-
-// catching configuration issues at build is a pain w/out a ton of #ifdef
-// litter.  we instead opt to warning users in cases where the options are
-// used but were not enabled at build time.
-def warn_drv_kitsune_kokkos_disabled : Warning<
-  "kokkos support was not enabled when clang was built.">,
-  InGroup<UnknownRuntime>;
-def warn_drv_tapir_openmp_target_disabled : Warning<
-  "the openmp runtime ABI transform target was not enabled when clang was "
-  "built.">, InGroup<UnknownRuntime>;
-def warn_drv_tapir_qthreads_target_disabled: Warning<
-  "the qthreads runtime ABI transform target was not enabled when clang was "
-  "built.">, InGroup<UnknownRuntime>;
-def warn_drv_tapir_realm_target_disabled: Warning<
-  "the realm runtime ABI transform target was not enabled when clang was "
-  "built.">, InGroup<UnknownRuntime>;
-def warn_drv_tapir_cuda_target_disabled: Warning<
-  "the cuda toolkit runtime ABI transform target was not enabled when clang "
-  "was built.">, InGroup<UnknownRuntime>;
-def warn_drv_tapir_hip_target_disabled: Warning<
-  "the hip runtime ABI transform target was not enabled when clang was "
-  "built.">, InGroup<UnknownRuntime>;
-def warn_drv_tapir_opencl_target_disabled: Warning<
-  "the opencl toolkit runtime ABI transform target was not enabled when clang "
-  "was built.">, InGroup<UnknownRuntime>;
-def warn_drv_tapir_gpu_target_disabled: Warning<
-  "the gpu runtime ABI transform target was not enabled when clang was "
-  "built.">, InGroup<UnknownRuntime>;
+def err_drv_kitsune_cuda_target_disabled: Error<
+  "Tapir target 'cuda' was not enabled when kitsune was built">;
+def err_drv_kitsune_hip_target_disabled: Error<
+  "Tapir target 'hip' was not enabled when kitsune was built">;
+def err_drv_kitsune_opencilk_target_disabled: Error<
+  "Tapir target 'opencilk' was not enabled when kitsune was built">;
+def err_drv_kitsune_openmp_target_disabled : Error<
+  "Tapir target 'openmp' was not enabled when kitsune was built">;
+def err_drv_kitsune_qthreads_target_disabled: Error<
+  "Tapir target 'qthreads' was not enabled when kitsune was built">;
+def err_drv_kitsune_realm_target_disabled: Error<
+  "Tapir target 'realm' was not enabled when kitsune was built">;
 }

@@ -2136,17 +2136,21 @@ enum CXCursorKind {
    */
   CXCursor_OMPErrorDirective = 305,
 
+  /** Kitsune forall statement.
+   */
+  CXCursor_ForallStmt               = 306,
+
   /** Kitsune range-based forall statement.
    */
-  CXCursor_CXXForallRangeStmt       = 306,
+  CXCursor_CXXForallRangeStmt       = 307,
 
   /** Kitsune spawn statement.
    */
-  CXCursor_SpawnStmt                 = 307,
+  CXCursor_SpawnStmt                 = 308,
 
   /** Kitsune sync statement.
    */
-  CXCursor_SyncStmt                 = 308,
+  CXCursor_SyncStmt                 = 309,
 
   CXCursor_LastStmt = CXCursor_SyncStmt,
 

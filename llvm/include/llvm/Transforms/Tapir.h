@@ -62,6 +62,6 @@ Pass *createLoopStripMinePass(int Count = -1);
 //
 FunctionPass *createSerializeSmallTasksPass();
 
-} // End llvm namespace
+} // namespace llvm
 
 #endif

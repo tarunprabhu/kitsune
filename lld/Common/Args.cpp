@@ -104,6 +104,7 @@ TapirTargetID lld::args::parseTapirTarget(StringRef tapirTarget) {
       .Case("opencilk", TapirTargetID::OpenCilk)
       .Case("openmp", TapirTargetID::OpenMP)
       .Case("qthreads", TapirTargetID::Qthreads)
+      .Case("realm", TapirTargetID::Realm)
       .Default(TapirTargetID::Last_TapirTargetID);
 }
 

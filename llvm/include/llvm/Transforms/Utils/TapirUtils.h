@@ -253,10 +253,10 @@ public:
 
 private:
   enum HintKind { HK_STRATEGY,
-		  HK_GRAINSIZE,
-		  HK_LOOPTARGET,
-		  HK_THREADS_PER_BLOCK,
-		  HK_AUTO_TUNE };
+                  HK_GRAINSIZE,
+                  HK_LOOPTARGET,
+                  HK_THREADS_PER_BLOCK,
+                  HK_AUTO_TUNE };
 
   /// Hint - associates name and validation with the hint value.
   struct Hint {
@@ -306,8 +306,6 @@ public:
       return "Use divide-and-conquer";
     case TapirLoopHints::ST_END:
       return "Unknown";
-    default:
-      llvm_unreachable("Unknown print strategy");
     }
   }
 
@@ -320,7 +318,7 @@ public:
 		   HK_LOOPTARGET),
 	ThreadsPerBlock("kitsune.launch.threads.per.block", 0,
 			HK_THREADS_PER_BLOCK),
-	AutoTune("kitsune.launch.auto.tune", 0, HK_AUTO_TUNE), 
+	AutoTune("kitsune.launch.auto.tune", 0, HK_AUTO_TUNE),
         TheLoop(L) {
     // Populate values with existing loop metadata.
     getHintsFromMetadata();
@@ -355,7 +353,7 @@ public:
   unsigned getAutoTune() const {
     return AutoTune.Value;
   }
-  
+
   /// Clear Tapir Hints metadata.
   void clearHintsMetadata();
 
