@@ -185,7 +185,7 @@ void LambdaABI::prepareModule() {
 
   PointerType *StackFramePtrTy = PointerType::getUnqual(StackFrameTy);
   Type *VoidTy = Type::getVoidTy(C);
-  Type *VoidPtrTy = Type::getInt8PtrTy(C);
+  Type *VoidPtrTy = PointerType::getUnqual(C);
 
   // Define the types of the RTS functions.
   FunctionType *RTSFnTy = FunctionType::get(VoidTy, {StackFramePtrTy}, false);

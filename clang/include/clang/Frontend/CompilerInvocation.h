@@ -339,6 +339,11 @@ private:
                                const llvm::Triple &T,
                                const std::string &OutputFile,
                                const LangOptions &LangOptsRef);
+
+  // Parse command line options that are specific to Kitsune.
+  static bool ParseKitsuneArgs(KitsuneOptions &Opts, llvm::opt::ArgList &Args,
+                               DiagnosticsEngine &Diags,
+                               const LangOptions &LangOpts);
 };
 
 /// Same as \c CompilerInvocation, but with copy-on-write optimization.

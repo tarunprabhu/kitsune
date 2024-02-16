@@ -1582,27 +1582,12 @@ bool SimplifyCFGOpt::hoistCommonCodeFromSuccessors(BasicBlock *BB,
   SmallVector<SuccIterPair, 8> SuccIterPairs;
   for (auto *Succ : successors(BB)) {
     BasicBlock::iterator SuccItr = Succ->begin();
+    while (isTaskFrameCreate(&*SuccItr))
+      ++SuccItr;
     if (isa<PHINode>(*SuccItr))
       return false;
     SuccIterPairs.push_back(SuccIterPair(SuccItr, 0));
   }
-
-  // Skip taskframe.create calls.
-  while (isTaskFrameCreate(I1))
-    I1 = &*BB1_Itr++;
-  while (isTaskFrameCreate(I2))
-    I2 = &*BB2_Itr++;
-  if (isa<PHINode>(I1))
-    return false;
-
-  BasicBlock *BIParent = BI->getParent();
-
-  bool Changed = false;
-
-  auto _ = make_scope_exit([&]() {
-    if (Changed)
-      ++NumHoistCommonCode;
-  });
 
   // Check if only hoisting terminators is allowed. This does not add new
   // instructions to the hoist location.
@@ -1650,9 +1635,13 @@ bool SimplifyCFGOpt::hoistCommonCodeFromSuccessors(BasicBlock *BB,
     if (!AllDbgInstsAreIdentical) {
       while (isa<DbgInfoIntrinsic>(I1))
         I1 = &*++BB1ItrPair.first;
+      while (isTaskFrameCreate(I1))
+        I1 = &*++BB1ItrPair.first;
       for (auto &SuccIter : OtherSuccIterRange) {
         Instruction *I2 = &*SuccIter;
         while (isa<DbgInfoIntrinsic>(I2))
+          I2 = &*++SuccIter;
+        while (isTaskFrameCreate(I2))
           I2 = &*++SuccIter;
       }
     }
@@ -1743,24 +1732,6 @@ bool SimplifyCFGOpt::hoistCommonCodeFromSuccessors(BasicBlock *BB,
       }
       ++NumSkipped;
     }
-
-    // KITSUNE FIXME: I have no idea if this is correct.
-    I1 = &*BB1_Itr++;
-    I2 = &*BB2_Itr++;
-    // Skip debug info if it is not identical.
-    DbgInfoIntrinsic *DBI1 = dyn_cast<DbgInfoIntrinsic>(I1);
-    DbgInfoIntrinsic *DBI2 = dyn_cast<DbgInfoIntrinsic>(I2);
-    if (!DBI1 || !DBI2 || !DBI1->isIdenticalToWhenDefined(DBI2)) {
-      while (isa<DbgInfoIntrinsic>(I1))
-        I1 = &*BB1_Itr++;
-      while (isa<DbgInfoIntrinsic>(I2))
-        I2 = &*BB2_Itr++;
-    }
-    // Skip taskframe.create calls.
-    while (isTaskFrameCreate(I1))
-      I1 = &*BB1_Itr++;
-    while (isTaskFrameCreate(I2))
-      I2 = &*BB2_Itr++;
   }
 }
 

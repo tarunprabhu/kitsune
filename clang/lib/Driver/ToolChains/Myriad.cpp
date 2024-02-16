@@ -170,7 +170,7 @@ void tools::Myriad::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   bool NeedsSanitizerDeps = addSanitizerRuntimes(TC, Args, CmdArgs);
   AddLinkerInputs(getToolChain(), Inputs, Args, CmdArgs, JA);
 
-  TC.AddTapirRuntimeLibArgs(Args, CmdArgs);
+  TC.AddKitsuneLinkerArgs(Args, CmdArgs);
 
   if (UseDefaultLibs) {
     if (NeedsSanitizerDeps)

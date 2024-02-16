@@ -1,5 +1,0 @@
-# Flags for the OpenCilk runtime ABI target.
--D_tapir_opencilk_target
--L${CMAKE_INSTALL_PREFIX}/lib
-${KITSUNE_OPENCILK_TARGET_EXTRA_LINK_FLAGS} 
--lkitrt

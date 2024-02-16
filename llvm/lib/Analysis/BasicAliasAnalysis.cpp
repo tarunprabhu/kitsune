@@ -1459,7 +1459,7 @@ AliasResult BasicAAResult::aliasPHI(const PHINode *PN, LocationSize PNSize,
 
 // Given that O1 != O2, return NoAlias if they can not alias.
 static AliasResult UnderlyingNoAlias(const Value *O1, const Value *O2,
-                                     AAQueryInfo &AAQI) {
+                                     AAQueryInfo &AAQI, DominatorTree *DT) {
   assert(O1 != O2 && "identical arguments to UnderlyingNoAlias");
 
   // If V1/V2 point to two different objects, we know that we have no alias.
@@ -1493,10 +1493,10 @@ static AliasResult UnderlyingNoAlias(const Value *O1, const Value *O2,
   // location if that memory location doesn't escape. Or it may pass a
   // nocapture value to other functions as long as they don't capture it.
   if (isEscapeSource(O1) &&
-      AAQI.CI->isNotCapturedBeforeOrAt(O2, cast<Instruction>(O1)))
+      AAQI.CI->isNotCapturedBefore(O2, cast<Instruction>(O1), /*OrAt*/false))
     return AliasResult::NoAlias;
   if (isEscapeSource(O2) &&
-      AAQI.CI->isNotCapturedBeforeOrAt(O1, cast<Instruction>(O2)))
+      AAQI.CI->isNotCapturedBefore(O1, cast<Instruction>(O2), /*OrAt*/false))
     return AliasResult::NoAlias;
 
   return AliasResult::MayAlias;
@@ -1556,11 +1556,6 @@ static inline TapirFnBehavior clearPure(const TapirFnBehavior TFB) {
 static inline TapirFnBehavior clearStrand(const TapirFnBehavior TFB) {
   return TapirFnBehavior(static_cast<uint8_t>(TFB) &
                          ~static_cast<uint8_t>(TapirFnBehavior::Strand));
-}
-static inline TapirFnBehavior unionTapirFnBehavior(const TapirFnBehavior TFB1,
-                                                   const TapirFnBehavior TFB2) {
-  return TapirFnBehavior(static_cast<uint8_t>(TFB1) |
-                         static_cast<uint8_t>(TFB2));
 }
 static inline TapirFnBehavior
 intersectTapirFnBehavior(const TapirFnBehavior TFB1,
@@ -1668,7 +1663,7 @@ BasicAAResult::checkInjectiveArguments(const Value *V1, const Value *O1,
     if (O1 == U2)              // 1
       return AliasResult::MayAlias;
     if (isViewSet(Behavior2))  // 2
-      return UnderlyingNoAlias(O1, U2, AAQI);
+      return UnderlyingNoAlias(O1, U2, AAQI, getDT(AAQI));
     return AliasResult::MayAlias;
   }
   if (!A2) {
@@ -1677,7 +1672,7 @@ BasicAAResult::checkInjectiveArguments(const Value *V1, const Value *O1,
     if (U1 == O2)              // 1
       return AliasResult::MayAlias;
     if (isViewSet(Behavior1))  // 2
-      return UnderlyingNoAlias(U1, O2, AAQI);
+      return UnderlyingNoAlias(U1, O2, AAQI, getDT(AAQI));
     return AliasResult::MayAlias;
   }
 
@@ -1695,9 +1690,9 @@ BasicAAResult::checkInjectiveArguments(const Value *V1, const Value *O1,
     // void *f(void *p) { return p; }
     // could not be declared injective.
     BasicAAResult::DecomposedGEP DecompGEP1 =
-        DecomposeGEPExpression(A1, DL, &AC, DT);
+        DecomposeGEPExpression(A1, DL, &AC, getDT(AAQI));
     BasicAAResult::DecomposedGEP DecompGEP2 =
-        DecomposeGEPExpression(A2, DL, &AC, DT);
+        DecomposeGEPExpression(A2, DL, &AC, getDT(AAQI));
     if (DecompGEP1.VarIndices.empty() && DecompGEP2.VarIndices.empty() &&
         isValueEqualInPotentialCycles(DecompGEP1.Base, DecompGEP2.Base, AAQI))
       return DecompGEP1.Offset == DecompGEP2.Offset
@@ -1706,7 +1701,7 @@ BasicAAResult::checkInjectiveArguments(const Value *V1, const Value *O1,
     return AliasResult::MayAlias;
   }
 
-  return UnderlyingNoAlias(U1, U2, AAQI);
+  return UnderlyingNoAlias(U1, U2, AAQI, getDT(AAQI));
 }
 
 /// Provides a bunch of ad-hoc rules to disambiguate in common cases, such as
@@ -1763,6 +1758,11 @@ AliasResult BasicAAResult::aliasCheck(const Value *V1, LocationSize V1Size,
   else if (InjectiveResult == AliasResult::MustAlias)
     return AliasResult::MayAlias;
 
+  if (O1 != O2) {
+    // If V1/V2 point to two different objects, we know that we have no alias.
+    if (isIdentifiedObject(O1) && isIdentifiedObject(O2))
+      return AliasResult::NoAlias;
+
     // Function arguments can't alias with things that are known to be
     // unambigously identified at the function level.
     if ((isa<Argument>(O1) && isIdentifiedFunctionLocal(O2)) ||
@@ -1785,9 +1785,6 @@ AliasResult BasicAAResult::aliasCheck(const Value *V1, LocationSize V1Size,
                                   O1, dyn_cast<Instruction>(O2), /*OrAt*/ true))
       return AliasResult::NoAlias;
   }
-
-  if (O1 != O2 && UnderlyingNoAlias(O1, O2, AAQI) == AliasResult::NoAlias)
-    return AliasResult::NoAlias;
 
   // If the size of one access is larger than the entire object on the other
   // side, then we know such behavior is undefined and can assume no alias.

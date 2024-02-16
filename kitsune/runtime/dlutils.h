@@ -56,11 +56,11 @@
 
 #include <dlfcn.h>
 
-#ifdef __KITRT_DISABLE_EXTERN_DECLS__ 
-#define DECLARE_DLSYM(fName) decltype(fName)* fName##_p = NULL;
+#ifdef __KITRT_DISABLE_EXTERN_DECLS__
+#define DECLARE_DLSYM(fName) decltype(fName)* fName##_p = NULL
 #else
-#define DECLARE_DLSYM(fName) extern decltype(fName)* fName##_p;
-#endif 
+#define DECLARE_DLSYM(fName) extern decltype(fName)* fName##_p
+#endif
 
 #define DLSYM_LOAD(fName)                                                  \
   if (!(fName##_p = (decltype(fName) *)dlsym(kitrt_dl_handle, #fName))) {  \

@@ -54,13 +54,9 @@ if (CUDAToolkit_FOUND)
     CUDATOOLKIT_VERSION_MAJOR=${CUDAToolkit_VERSION_MAJOR}
     CUDATOOLKIT_VERSION_MINOR=${CUDAToolkit_VERSION_MINOR}
   )
-  set(TAPIR_CUDAABI_DEFAULT_TARGET "sm_80" CACHE STRING 
+  set(TAPIR_CUDAABI_DEFAULT_TARGET "sm_80" CACHE STRING
 	 "The default CUDA device target for Tapir-transformed code")
   add_compile_definitions(
     _CUDAABI_DEFAULT_TARGET_ARCH="${TAPIR_CUDAABI_DEFAULT_TARGET}"
   )
-endif()
-
-if(KITSUNE_ENABLE_OPENCL_TARGET)
-  target_link_libraries(LLVMTapirOpts LLVMSPIRVLib)
 endif()

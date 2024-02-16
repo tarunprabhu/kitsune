@@ -217,7 +217,7 @@ void tools::PScpu::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   AddLinkerInputs(TC, Inputs, Args, CmdArgs, JA);
 
-  TC.AddTapirRuntimeLibArgs(Args, CmdArgs);
+  TC.AddKitsuneLinkerArgs(Args, CmdArgs);
 
   if (Args.hasArg(options::OPT_pthread)) {
     CmdArgs.push_back("-lpthread");

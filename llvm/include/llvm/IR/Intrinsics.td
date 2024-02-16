@@ -1757,11 +1757,11 @@ def int_tapir_loop_grainsize
 // lowering transforms this intrinsic into ordinary frameaddress
 // intrinsics.
 def int_task_frameaddress
-    : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty], [IntrWillReturn]>;
+    : Intrinsic<[llvm_anyptr_ty], [llvm_i32_ty], [IntrWillReturn]>;
 
 ///===-------------------------- Other Intrinsics --------------------------===//
 //
-// TODO: We should introduce a new memory kind fo traps (and other side effects 
+// TODO: We should introduce a new memory kind fo traps (and other side effects
 //       we only model to keep things alive).
 def int_trap : Intrinsic<[], [], [IntrNoReturn, IntrCold, IntrInaccessibleMemOnly,
                IntrWriteMem]>, ClangBuiltin<"__builtin_trap">;

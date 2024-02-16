@@ -6232,6 +6232,8 @@ void Verifier::visitIntrinsicCall(Intrinsic::ID ID, CallBase &Call) {
           "llvm.ptrmask intrinsic second argument bitwidth must match "
           "pointer index type size of first argument",
           &Call);
+    break;
+  }
   case Intrinsic::syncregion_start: {
     SmallVector<const DetachInst *, 4> DetachUsers;
     for (const User *U : Call.users())

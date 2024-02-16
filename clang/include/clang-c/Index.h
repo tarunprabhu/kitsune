@@ -2136,17 +2136,25 @@ enum CXCursorKind {
    */
   CXCursor_OMPErrorDirective = 305,
 
+  /** OpenMP scope directive.
+   */
+  CXCursor_OMPScopeDirective = 306,
+
+  /** Kitsune forall statement.
+   */
+  CXCursor_ForallStmt = 307,
+
   /** Kitsune range-based forall statement.
    */
-  CXCursor_CXXForallRangeStmt       = 306,
+  CXCursor_CXXForallRangeStmt = 308,
 
   /** Kitsune spawn statement.
    */
-  CXCursor_SpawnStmt                 = 307,
+  CXCursor_SpawnStmt = 309,
 
   /** Kitsune sync statement.
    */
-  CXCursor_SyncStmt                 = 308,
+  CXCursor_SyncStmt = 310,
 
   CXCursor_LastStmt = CXCursor_SyncStmt,
 

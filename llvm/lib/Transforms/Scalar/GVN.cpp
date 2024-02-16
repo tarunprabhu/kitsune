@@ -766,7 +766,7 @@ PreservedAnalyses GVNPass::run(Function &F, FunctionAnalysisManager &AM) {
   auto &TI = AM.getResult<TaskAnalysis>(F);
   auto *MSSA = AM.getCachedResult<MemorySSAAnalysis>(F);
   auto &ORE = AM.getResult<OptimizationRemarkEmitterAnalysis>(F);
-  bool Changed = runImpl(F, AC, DT, TLI, AA, MemDep, LI, &ORE, TI,
+  bool Changed = runImpl(F, AC, DT, TLI, AA, MemDep, LI, &ORE, &TI,
                          MSSA ? &MSSA->getMSSA() : nullptr);
   if (!Changed)
     return PreservedAnalyses::all();
@@ -3369,8 +3369,6 @@ public:
   bool runOnFunction(Function &F) override {
     if (skipFunction(F))
       return false;
-
-    auto *LIWP = getAnalysisIfAvailable<LoopInfoWrapperPass>();
 
     auto *TIWP = getAnalysisIfAvailable<TaskInfoWrapperPass>();
     auto *MSSAWP = getAnalysisIfAvailable<MemorySSAWrapperPass>();

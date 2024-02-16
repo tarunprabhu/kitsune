@@ -1,3 +1,0 @@
-# Flags for the serial 'none' ABI target.
-${KITSUNE_OPENCILK_TARGET_EXTRA_LINK_FLAGS} 
-

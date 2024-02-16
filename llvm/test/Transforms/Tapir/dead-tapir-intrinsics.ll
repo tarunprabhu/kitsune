@@ -36,9 +36,9 @@ define dso_local void @_Z6parentl(i64 %x) #1 personality i8* bitcast (i32 (...)*
 ; CHECK-NOTFSIMPLIFY: call token @llvm.taskframe.create()
 ; CHECK-NOTFSIMPLIFY: call token @llvm.taskframe.create()
 ; CHECK-NOTFSIMPLIFY: call token @llvm.taskframe.create()
-; CHECK-TFSIMPLIFY: call ptr @llvm.stacksave()
-; CHECK-TFSIMPLIFY: call ptr @llvm.stacksave()
-; CHECK-TFSIMPLIFY: call ptr @llvm.stacksave()
+; CHECK-TFSIMPLIFY: call ptr @llvm.stacksave
+; CHECK-TFSIMPLIFY: call ptr @llvm.stacksave
+; CHECK-TFSIMPLIFY: call ptr @llvm.stacksave
 ; CHECK-TFSIMPLIFY-NOT: call token @llvm.taskframe.create()
 ; CHECK: call token @llvm.taskframe.create()
 ; CHECK detach within %[[SYNCREG]]

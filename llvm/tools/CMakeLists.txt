@@ -67,3 +67,15 @@ if (LLVM_TOOL_LLVM_DRIVER_BUILD)
   # llvm-driver was not created in that directory.
   generate_driver_tool_targets()
 endif()
+
+# This doesn't really need to be done last, but it needs to be done after at
+# least clang and the call to add_llvm_implicit_projects (which will set up
+# targets for tools such as llvm-link). This is because there are external
+# projects that are declared in kitsune/CMakeLists that are dependent on clang
+# and some of the LLVM tools, so the targets for those tools should have be
+# available.
+#
+# There is a "dependence" on kitsune for clang, but that is for a header file
+# that is generated at configure-time and only used at build time, so it
+# shouldn't matter that the kitsune/ directory is configured after clang/.
+add_llvm_external_project(kitsune)

@@ -331,8 +331,7 @@ static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
 void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
   assert(BreakContinueStack.empty() &&
          "mismatched push/pop in break/continue stack!");
-  assert(!CurDetachScope &&
-         "mismatched push/pop in detach-scope stack!");
+  assert(!CurDetachScope && "mismatched push/pop in detach-scope stack!");
 
   bool OnlySimpleReturnStmts = NumSimpleReturnExprs > 0
     && NumSimpleReturnExprs == NumReturnExprs
@@ -364,11 +363,6 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
   bool HasOnlyLifetimeMarkers =
       HasCleanups && EHStack.containsOnlyLifetimeMarkers(PrologueCleanupDepth);
   bool EmitRetDbgLoc = !HasCleanups || HasOnlyLifetimeMarkers;
-  bool SyncEmitted = false;
-
-  // FIXME KITSUNE: Since we know that we will never be compiling Cilk, can we
-  // simplify this?
-  bool CompilingCilk = false;
 
   std::optional<ApplyDebugLocation> OAL;
   if (HasCleanups) {
@@ -383,28 +377,11 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
         OAL = ApplyDebugLocation::CreateDefaultArtificial(*this, EndLoc);
     }
 
-    // If we're compiling Cilk, PopCleanupBlocks should emit a _Cilk_sync before
-    // any cleanups.
-    PopCleanupBlocks(PrologueCleanupDepth, {}, CompilingCilk);
-    SyncEmitted = true;
-  } else if (CompilingCilk && Builder.GetInsertBlock() &&
-             ReturnBlock.getBlock()->use_empty()) {
-    // If we're compiling Cilk, emit an implicit sync for the function.  In this
-    // case, EmitReturnBlock will recycle Builder.GetInsertBlock() for the
-    // function's return block, so we insert the implicit _Cilk_sync before
-    // calling EmitReturnBlock.
-    EmitImplicitSyncCleanup();
-    SyncEmitted = true;
+    PopCleanupBlocks(PrologueCleanupDepth);
   }
 
   // Emit function epilog (to return).
   llvm::DebugLoc Loc = EmitReturnBlock();
-
-  if (CompilingCilk && !SyncEmitted) {
-    // If we're compiling Cilk, emit an implicit sync for the function.
-    EmitImplicitSyncCleanup();
-    SyncEmitted = true;
-  }
 
   if (ShouldInstrumentFunction()) {
     if (CGM.getCodeGenOpts().InstrumentFunctions)
@@ -553,6 +530,12 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
 
   if (CurSyncRegion) {
     PopSyncRegion();
+    // FIXME KITSUNE: This currently causes an assertion failure because we
+    // apparently do end up with nested sync regions at the end of the function.
+    // This check was added in OpenCilk during the 17.x rebase. We are probably
+    // doing something wrong, but this is disabled for now since there are more
+    // pressing issues that need to be addressed in during the de-cilkifying of
+    // Kitsune.
     assert(!CurSyncRegion && "Nested sync regions at end of function.");
   }
 }
@@ -663,7 +646,7 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
 }
 
 void CodeGenFunction::EmitKitsuneMetadata(const FunctionDecl *FD,
-					                      llvm::Function *Fn) {
+                                          llvm::Function *Fn) {
   CGM.GenKitsuneArgMetadata(Fn, FD, this);
 
   if (const KitsuneMemAccessAttr *A = FD->getAttr<KitsuneMemAccessAttr>()) {
@@ -999,7 +982,8 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     // Add metadata for a kernel function.
     EmitKernelMetadata(FD, Fn);
   }
-  if (FD && getLangOpts().Kitsune) {
+
+  if (FD && getLangOpts().KitsuneOpts.isKitsuneEnabled()) {
     EmitKitsuneMetadata(FD, Fn);
   }
 
@@ -2630,7 +2614,7 @@ CodeGenFunction::SanitizerScope::~SanitizerScope() {
   CGF->IsSanitizerScope = false;
 }
 
-void CodeGenFunction::DetachScope::StartLabeledDetach(SyncRegion* SR) {
+void CodeGenFunction::DetachScope::StartLabeledDetach(SyncRegion *SR) {
   // Create the detach
   CGF.Builder.CreateDetach(DetachedBlock, ContinueBlock,
                            SR->getSyncRegionStart());
@@ -2672,15 +2656,13 @@ void CodeGenFunction::DetachScope::StartLabeledDetach(SyncRegion* SR) {
   DetachStarted = true;
 }
 
-void CodeGenFunction::DetachScope::FinishLabeledDetach(SyncRegion* SR) {
-  assert(DetachStarted &&
-         "Attempted to finish a detach that was not started.");
+void CodeGenFunction::DetachScope::FinishLabeledDetach(SyncRegion *SR) {
+  assert(DetachStarted && "Attempted to finish a detach that was not started.");
 
   CGF.PopSyncRegion();
 
   // The CFG path into the spawned statement should terminate with a `reattach'.
-  CGF.Builder.CreateReattach(ContinueBlock,
-                             SR->getSyncRegionStart());
+  CGF.Builder.CreateReattach(ContinueBlock, SR->getSyncRegionStart());
 
   // Restore the alloca insertion point.
   llvm::Instruction *Ptr = CGF.AllocaInsertPt;

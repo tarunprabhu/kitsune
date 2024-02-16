@@ -2328,13 +2328,6 @@ void CodeGenModule::GenKitsuneArgMetadata(llvm::Function *Fn,
     for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i) {
       const ParmVarDecl *parm = FD->getParamDecl(i);
       QualType ty = parm->getType();
-      if (ty.getTypePtr()->isStructureOrClassType()) {
-        ErrorUnsupported(
-            parm,
-            "cannot handle kitsune memaccess attribute on a struct or class");
-        break;
-      }
-
       const Decl *PDecl = parm;
       if (auto *TD = dyn_cast<TypedefType>(ty))
         PDecl = TD->getDecl();
@@ -2342,10 +2335,14 @@ void CodeGenModule::GenKitsuneArgMetadata(llvm::Function *Fn,
       llvm::LLVMContext &Context = getLLVMContext();
       for (llvm::Argument *fnArg = Fn->arg_begin(); fnArg != Fn->arg_end();
            ++fnArg) {
-        if (fnArg->getArgNo() ==
-            i) { // Note: this will break for structs passed by value
-          if (const KitsuneMemAccessAttr *A =
-                  PDecl->getAttr<KitsuneMemAccessAttr>()) {
+        if (fnArg->getArgNo() == i) {
+          if (const auto *A = PDecl->getAttr<KitsuneMemAccessAttr>()) {
+            if (ty.getTypePtr()->isStructureOrClassType()) {
+              ErrorUnsupported(parm, "cannot handle kitsune memaccess "
+                                     "attribute on a struct or class");
+              break;
+            }
+
             if (A->isWriteOnly())
               fnArg->addAttr(
                   llvm::Attribute::get(Context, "kitsune.writeonly"));

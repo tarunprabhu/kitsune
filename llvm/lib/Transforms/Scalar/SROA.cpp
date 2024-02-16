@@ -178,6 +178,7 @@ class SROA {
   LLVMContext *const C;
   DomTreeUpdater *const DTU;
   AssumptionCache *const AC;
+  TaskInfo *TI;
   const bool PreserveCFG;
 
   /// Worklist of alloca instructions to simplify.
@@ -238,9 +239,9 @@ class SROA {
   isSafeSelectToSpeculate(SelectInst &SI, bool PreserveCFG);
 
 public:
-  SROA(LLVMContext *C, DomTreeUpdater *DTU, AssumptionCache *AC,
+  SROA(LLVMContext *C, DomTreeUpdater *DTU, AssumptionCache *AC, TaskInfo *TI,
        SROAOptions PreserveCFG_)
-      : C(C), DTU(DTU), AC(AC),
+      : C(C), DTU(DTU), AC(AC), TI(TI),
         PreserveCFG(PreserveCFG_ == SROAOptions::PreserveCFG) {}
 
   /// Main run method used by both the SROAPass and by the legacy pass.

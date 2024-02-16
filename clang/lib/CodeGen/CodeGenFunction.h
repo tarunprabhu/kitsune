@@ -1752,7 +1752,7 @@ public:
   /// EmitBranchThroughCleanup - Emit a branch from the current insert
   /// block through the normal cleanup handling code (if any) and then
   /// on to \arg Dest.
-  void EmitBranchThroughCleanup(JumpDest Dest, bool AfterSync = false);
+  void EmitBranchThroughCleanup(JumpDest Dest);
 
   /// isObviouslyBranchWithoutCleanups - Return true if a branch to the
   /// specified destination obviously has no cleanups to run.  'false' is always
@@ -3989,22 +3989,31 @@ public:
   llvm::Value *EmitSEHExceptionInfo();
   llvm::Value *EmitSEHAbnormalTermination();
 
-  LoopAttributes::LSStrategy GetTapirStrategyAttr(ArrayRef<const Attr*> Attrs);
-  unsigned GetTapirTargetAttr(ArrayRef<const Attr*> Attrs);
-  llvm::Value* GetKitsuneLaunchAttr(ArrayRef<const Attr*> Attrs);
+  LoopAttributes::LSStrategy GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs);
+  std::optional<llvm::TapirTargetID>
+  GetTapirTargetAttr(ArrayRef<const Attr *> Attrs);
+  llvm::Value *GetKitsuneLaunchAttr(ArrayRef<const Attr *> Attrs);
 
   // Kitsune support for Kokkos.
   bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?
-  bool EmitKokkosConstruct(const CallExpr *CE, ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
+  bool
+  EmitKokkosConstruct(const CallExpr *CE,
+                      ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
   bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
-  bool EmitKokkosParallelReduce(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
-  bool ParseAndValidateParallelFor(const CallExpr* CE,
-             std::string &CN,
-             SmallVector<std::pair<const ParmVarDecl*,std::pair<const Expr*, const Expr*>>,6> &IVinfos,
-             const LambdaExpr *& LE,
-             DiagnosticsEngine &Diags);
-  void EmitAndInitializeKokkosIV(const std::pair<const ParmVarDecl*,std::pair<const Expr*, const Expr*>> &IVInfo);
-  llvm::Value * EmitKokkosParallelForCond(const std::pair<const ParmVarDecl*,std::pair<const Expr*, const Expr*>> &IVInfo);
+  bool EmitKokkosParallelReduce(const CallExpr *CE,
+                                ArrayRef<const Attr *> Attrs);
+  bool ParseAndValidateParallelFor(
+      const CallExpr *CE, std::string &CN,
+      SmallVector<
+          std::pair<const ParmVarDecl *, std::pair<const Expr *, const Expr *>>,
+          6> &IVinfos,
+      const LambdaExpr *&LE, DiagnosticsEngine &Diags);
+  void EmitAndInitializeKokkosIV(
+      const std::pair<const ParmVarDecl *,
+                      std::pair<const Expr *, const Expr *>> &IVInfo);
+  llvm::Value *EmitKokkosParallelForCond(
+      const std::pair<const ParmVarDecl *,
+                      std::pair<const Expr *, const Expr *>> &IVInfo);
   void EmitKokkosIncrement(const ParmVarDecl *IV);
 
   /// Emit simple code for OpenMP directives in Simd-only mode.
@@ -5130,7 +5139,7 @@ public:
 
   /// EmitScalarExpr - Emit the computation of the specified expression of LLVM
   /// scalar type, returning the result.
-  llvm::Value *EmitScalarExpr(const Expr *E, bool IgnoreResultAssign = false);
+  llvm::Value *EmitScalarExpr(const Expr *E , bool IgnoreResultAssign = false);
   void EmitScalarExprIntoLValue(const Expr *E, LValue dest, bool isInit);
 
   /// Emit a conversion from the specified type to the specified destination

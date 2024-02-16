@@ -1347,7 +1347,7 @@ void TargetLibraryInfoImpl::addTapirTargetLibraryFunctions(
   case TapirTargetID::OMPTask:
   case TapirTargetID::OpenMP:
   case TapirTargetID::Qthreads:
-  case TapirTargetID::Realm:    
+  case TapirTargetID::Realm:
   case TapirTargetID::Last_TapirTargetID:
     break;
   }

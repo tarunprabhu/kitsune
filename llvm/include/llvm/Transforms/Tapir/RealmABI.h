@@ -16,7 +16,7 @@
 
 #define REALM_ENABLE_C_BINDINGS TRUE
 
-//#include "llvm/Transforms/Tapir/LoopSpawning.h"
+// #include "llvm/Transforms/Tapir/LoopSpawning.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
 namespace llvm {
@@ -28,16 +28,16 @@ class RealmABI : public TapirTarget {
   Type *RealmFTy = nullptr;
   Type *TaskFuncPtrTy = nullptr;
 
-  //Opaque Realm RTS functions
+  // Opaque Realm RTS functions
   FunctionCallee RealmGetNumProcs = nullptr;
   FunctionCallee RealmSpawn = nullptr;
   FunctionCallee RealmSync = nullptr;
   FunctionCallee RealmInitRuntime = nullptr;
   FunctionCallee RealmFinalize = nullptr;
   FunctionCallee CreateBar = nullptr;
-  FunctionCallee DestroyBar = nullptr; 
+  FunctionCallee DestroyBar = nullptr;
 
-  //Accessors for opaque Realm RTS functions
+  // Accessors for opaque Realm RTS functions
   FunctionCallee get_realmGetNumProcs();
   FunctionCallee get_realmSpawn();
   FunctionCallee get_realmSync();
@@ -50,30 +50,30 @@ public:
   RealmABI(Module &M);
   ~RealmABI();
 
-  Value * lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
-  Value *getOrCreateBarrier(Value *SyncRegion, Function *F); 
+  Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
+  Value *getOrCreateBarrier(Value *SyncRegion, Function *F);
   void lowerSync(SyncInst &inst) override final;
-  void processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT)
-    override final;
+  void processSubTaskCall(TaskOutlineInfo &TOI,
+                          DominatorTree &DT) override final;
 
-  void preProcessFunction(Function &F, TaskInfo &TI,
-			  bool OutliningTapirLoops) override final;
-  void postProcessFunction(Function &F, bool OutliningTapirLoops) 
-    override final;
+  bool preProcessFunction(Function &F, TaskInfo &TI,
+                          bool OutliningTapirLoops) override final;
+  void postProcessFunction(Function &F,
+                           bool OutliningTapirLoops) override final;
   void postProcessHelper(Function &F) override final;
-  Function* formatFunctionToRealmF(Function* extracted, Instruction* ical);
+  Function *formatFunctionToRealmF(Function *extracted, Instruction *ical);
 
   // not used
-  //void processOutlinedTask(Function &F) override final {}
-  //void processSpawner(Function &F) override final {}
-  
-  //void lowerTaskFrameAddrCall(CallInst *TaskFrameAddrCall) override final;
-  //bool shouldProcessFunction(const Function &F) const override final;
-  
+  // void processOutlinedTask(Function &F) override final {}
+  // void processSpawner(Function &F) override final {}
+
+  // void lowerTaskFrameAddrCall(CallInst *TaskFrameAddrCall) override final;
+  // bool shouldProcessFunction(const Function &F) const override final;
+
   ArgStructMode getArgStructMode() const override final {
     return ArgStructMode::Static;
   }
-  
+
   Type *getReturnType() const override final {
     return Type::getInt32Ty(M.getContext());
   }
@@ -85,9 +85,7 @@ public:
                                BasicBlock *TFEntry) override final;
   void preProcessRootSpawner(Function &F, BasicBlock *TFEntry) override final;
   void postProcessRootSpawner(Function &F, BasicBlock *TFEntry) override final;
-
-
 };
-}  // end of llvm namespace
+} // namespace llvm
 
 #endif
