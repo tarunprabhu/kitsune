@@ -1,0 +1,5 @@
+# Compiler and/or linker options can be added here to add to (or override) those
+# added automatically by Kitsune for the 'realm' target. 
+#
+# Other options can be added here as well, but any options not exclusively
+# intended for the 'realm' target should be added to ${KITSUNE_C_FRONTEND}.cfg or ${KITSUNE_CXX_FRONTEND}.cfg.

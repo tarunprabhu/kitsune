@@ -1,9 +1,9 @@
 //--- Config file search directories
 //
-// RUN: %clang --config-system-dir=%S/Inputs/config --config-user-dir=%S/Inputs/config2 -o /dev/null -v 2>&1 | FileCheck %s -check-prefix CHECK-DIRS
+// RUN: %clang --config-system-dir=%S/Inputs/config --config-user-dir=%S/Inputs/config2 --config-kitsune-dir=%S/Inputs/config3 -o /dev/null -v 2>&1 | FileCheck %s -check-prefix CHECK-DIRS
 // CHECK-DIRS: System configuration file directory: {{.*}}/Inputs/config
 // CHECK-DIRS: User configuration file directory: {{.*}}/Inputs/config2
-
+// CHECK-DIRS: Kitsune configuration file directory: {{.*}}/Inputs/config3
 
 //--- Config file (full path) in output of -###
 //

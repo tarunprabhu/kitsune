@@ -428,9 +428,11 @@ bool llvm::simplifyTaskFrames(TaskInfo &TI, DominatorTree &DT) {
   for (Instruction *TFCreate : TaskFramesToConvert) {
     LLVM_DEBUG(dbgs() << "Converting taskframe " << *TFCreate << "\n");
     Module *M = TFCreate->getModule();
-    Function *StackSave = Intrinsic::getDeclaration(M, Intrinsic::stacksave);
+    Type* PtrType = PointerType::getUnqual(M->getContext());
+    Function *StackSave =
+        Intrinsic::getDeclaration(M, Intrinsic::stacksave, {PtrType});
     Function *StackRestore =
-        Intrinsic::getDeclaration(M, Intrinsic::stackrestore);
+        Intrinsic::getDeclaration(M, Intrinsic::stackrestore, {PtrType});
 
     // Save the stack at the point of the taskframe.create.
     CallInst *SavedPtr =

@@ -1820,7 +1820,7 @@ def int_tapir_loop_grainsize
 // lowering transforms this intrinsic into ordinary frameaddress
 // intrinsics.
 def int_task_frameaddress
-    : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty], [IntrWillReturn]>;
+    : Intrinsic<[llvm_anyptr_ty], [llvm_i32_ty], [IntrWillReturn]>;
 
 ///===-------------------------- Other Intrinsics --------------------------===//
 //

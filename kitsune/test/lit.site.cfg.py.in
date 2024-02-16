@@ -1,0 +1,37 @@
+@LIT_SITE_CFG_IN_HEADER@
+
+import sys
+
+config.llvm_src_root = path(r"@LLVM_SOURCE_DIR@")
+config.llvm_obj_root = path(r"@LLVM_BINARY_DIR@")
+config.llvm_tools_dir = lit_config.substitute(path(r"@LLVM_TOOLS_DIR@"))
+config.llvm_libs_dir = lit_config.substitute(path(r"@LLVM_LIBS_DIR@"))
+config.llvm_shlib_dir = lit_config.substitute(path(r"@SHLIBDIR@"))
+config.lit_tools_dir = path(r"@LLVM_LIT_TOOLS_DIR@")
+config.kitsune_lit_site_cfg = __file__
+config.kitsune_obj_root = path(r"@KITSUNE_BINARY_DIR@")
+config.kitsune_src_dir = path(r"@KITSUNE_SOURCE_DIR@")
+config.clang_lib_dir = path(r"@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
+config.host_triple = "@LLVM_HOST_TRIPLE@"
+config.target_triple = "@LLVM_TARGET_TRIPLE@"
+config.host_cc = "@CMAKE_C_COMPILER@"
+config.host_cxx = "@CMAKE_CXX_COMPILER@"
+config.host_arch = "@HOST_ARCH@"
+config.python_executable = "@Python3_EXECUTABLE@"
+config.llvm_external_lit = path(r"@LLVM_EXTERNAL_LIT@")
+config.kitsune_kokkos_enable = @KITSUNE_KOKKOS_ENABLE@
+config.kitsune_cuda_enable = @KITSUNE_CUDA_ENABLE@
+config.kitsune_hip_enable = @KITSUNE_HIP_ENABLE@
+config.kitsune_opencilk_enable = @KITSUNE_OPENCILK_ENABLE@
+config.kitsune_openmp_enable = @KITSUNE_OPENMP_ENABLE@
+config.kitsune_qthreads_enable = @KITSUNE_QTHREADS_ENABLE@
+config.kitsune_realm_enable = @KITSUNE_REALM_ENABLE@
+config.kitcc = "@KITSUNE_C_FRONTEND@"
+config.kitxx = "@KITSUNE_CXX_FRONTEND@"
+
+import lit.llvm
+lit.llvm.initialize(lit_config, config)
+
+# Let the main config do the real work.
+lit_config.load_config(
+    config, os.path.join(config.kitsune_src_dir, "test/lit.cfg.py"))

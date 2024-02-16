@@ -17,6 +17,7 @@
 // changes here as well.
 //
 //===----------------------------------------------------------------------===//
+#include "llvm/Transforms/Tapir/TapirGPUUtils.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
@@ -26,7 +27,7 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/SmallVectorMemoryBuffer.h"
-#include "llvm/Transforms/Tapir/TapirGPUUtils.h"
+#include <set>
 
 using namespace llvm;
 
@@ -75,7 +76,7 @@ void appendToGlobalCtors(Module &M, Constant *C, int Priority, Constant *Data) {
   // the new ctor to the list.
   SmallVector<Constant *, 16> CurrentCtors;
   StructType *EltTy = StructType::get(
-      IRB.getInt32Ty(), PointerType::getUnqual(FnTy), IRB.getInt8PtrTy());
+      IRB.getInt32Ty(), PointerType::getUnqual(FnTy), IRB.getPtrTy());
   if (GlobalVariable *GVCtor = M.getNamedGlobal("llvm.global_ctors")) {
     if (Constant *Init = GVCtor->getInitializer()) {
       unsigned N = Init->getNumOperands();
@@ -91,10 +92,10 @@ void appendToGlobalCtors(Module &M, Constant *C, int Priority, Constant *Data) {
   Constant *CSVals[3];
   CSVals[0] = IRB.getInt32(Priority);
   CSVals[1] = C;
-  CSVals[2] = Data ? ConstantExpr::getPointerCast(Data, IRB.getInt8PtrTy())
-                   : Constant::getNullValue(IRB.getInt8PtrTy());
-  Constant *RuntimeCtorInit =
-      ConstantStruct::get(EltTy, makeArrayRef(CSVals, EltTy->getNumElements()));
+  CSVals[2] = Data ? ConstantExpr::getPointerCast(Data, IRB.getPtrTy())
+                   : Constant::getNullValue(IRB.getPtrTy());
+  Constant *RuntimeCtorInit = ConstantStruct::get(
+      EltTy, ArrayRef<Constant *>(CSVals, EltTy->getNumElements()));
 
   CurrentCtors.push_back(RuntimeCtorInit);
 

@@ -284,7 +284,6 @@ set(files
   ${webassembly_files}
   ${windows_only_files}
   ${utility_files}
-  kitsune_rt.h
   )
 
 set(cuda_wrapper_files
@@ -515,10 +514,6 @@ set_property(GLOBAL APPEND PROPERTY CLANG_EXPORTS clang-resource-headers)
 
 #############################################################
 # Install rules for the catch-all clang-resource-headers target
-configure_file(kitsune.h.cmake
-  ${LLVM_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION_MAJOR}/include/kitsune.h)
-list(APPEND generated_files ${LLVM_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION_MAJOR}/include/kitsune.h)
-
 install(
   FILES ${files} ${generated_files}
   DESTINATION ${header_install_dir}

@@ -371,11 +371,11 @@ declare dso_local i32 @foo(double*, i32) local_unnamed_addr #5
 ; CHECK: br label %[[EPILBODY:.+]], !dbg !51
 
 ; CHECK: [[EPILBODY]]:
-; CHECK-NEXT: call ptr @llvm.stacksave()
+; CHECK-NEXT: call ptr @llvm.stacksave
 ; CHECK: alloca double
 ; CHECK: call void @llvm.lifetime.start
 ; CHECK: call void @llvm.lifetime.end
-; CHECK: call void @llvm.stackrestore(
+; CHECK: call void @llvm.stackrestore{{.*}}(
 
 ; CHECK: [[STRPLOOPDETACHENTRY]]:
 ; CHECK: %[[NEWSYNCREG:.+]] = call token @llvm.syncregion.start()
@@ -392,11 +392,11 @@ declare dso_local i32 @foo(double*, i32) local_unnamed_addr #5
 ; CHECK: br label %[[STRPLOOPINNERBODY:.+]], !dbg !51
 
 ; CHECK: [[STRPLOOPINNERBODY]]:
-; CHECK: call ptr @llvm.stacksave()
+; CHECK: call ptr @llvm.stacksave
 ; CHECK: alloca double
 ; CHECK: call void @llvm.lifetime.start
 ; CHECK: call void @llvm.lifetime.end
-; CHECK: call void @llvm.stackrestore(
+; CHECK: call void @llvm.stackrestore{{.*}}(
 
 attributes #0 = { argmemonly nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { argmemonly nounwind }

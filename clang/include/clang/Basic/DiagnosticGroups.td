@@ -826,7 +826,6 @@ def UnusedCommandLineArgument : DiagGroup<"unused-command-line-argument">;
 def IgnoredOptimizationArgument : DiagGroup<"ignored-optimization-argument">;
 def InvalidCommandLineArgument : DiagGroup<"invalid-command-line-argument",
                                            [IgnoredOptimizationArgument]>;
-def UnknownRuntime : DiagGroup<"unknown-runtime">;
 def UnusedComparison : DiagGroup<"unused-comparison">;
 def UnusedExceptionParameter : DiagGroup<"unused-exception-parameter">;
 def UnneededInternalDecl : DiagGroup<"unneeded-internal-declaration">;
@@ -1051,11 +1050,6 @@ def Move : DiagGroup<"move", [
     ReturnStdMove,
     SelfMove
   ]>;
-
-// Kitsune/Tapir warnings.
-def Kitsune : DiagGroup<"kitsune">;
-def Tapir : DiagGroup<"tapir">;
-def TapirTarget : DiagGroup<"disabled-target">;
 
 def Extra : DiagGroup<"extra", [
     DeprecatedCopy,
@@ -1576,3 +1570,6 @@ def ExtractAPIMisuse : DiagGroup<"extractapi-misuse">;
 // Warnings about using the non-standard extension having an explicit specialization
 // with a storage class specifier.
 def ExplicitSpecializationStorageClass : DiagGroup<"explicit-specialization-storage-class">;
+
+// Kitsune-specific warnings and errors.
+def Kitsune : DiagGroup<"kitsune">;

@@ -620,27 +620,16 @@ void CodeGenFunction::EmitEndEHSpec(const Decl *D) {
 }
 
 void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
-  TaskFrameScope TFScope(*this);
-  EnterCXXTryStmt(S);
-  {
-    // If compiling Cilk code, create a nested sync region, with an implicit
-    // sync, for the try-catch.
-    // FIXME KITSUNE: Since we know that we will not be compiling Cilk, can we
-    // clean this up.
-    bool CompilingCilk = false;
-    SyncedScopeRAII SyncedScp(*this);
-    if (CompilingCilk) {
-      PushSyncRegion();
-      if (isa<CompoundStmt>(S.getTryBlock()))
-        ScopeIsSynced = true;
-    }
-    EmitStmt(S.getTryBlock());
-
-    // Pop the nested sync region after the try block.
-    if (CompilingCilk)
-      PopSyncRegion();
-  }
-  ExitCXXTryStmt(S);
+  const llvm::Triple &T = Target.getTriple();
+  // If we encounter a try statement on in an OpenMP target region offloaded to
+  // a GPU, we treat it as a basic block.
+  const bool IsTargetDevice =
+      (CGM.getLangOpts().OpenMPIsTargetDevice && (T.isNVPTX() || T.isAMDGCN()));
+  if (!IsTargetDevice)
+    EnterCXXTryStmt(S);
+  EmitStmt(S.getTryBlock());
+  if (!IsTargetDevice)
+    ExitCXXTryStmt(S);
 }
 
 void CodeGenFunction::EnterCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {

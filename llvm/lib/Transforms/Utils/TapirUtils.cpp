@@ -236,7 +236,7 @@ static bool isUsedByLifetimeMarker(Value *V) {
 static bool hasLifetimeMarkers(AllocaInst *AI) {
   Type *Ty = AI->getType();
   Type *Int8PtrTy =
-      Type::getInt8PtrTy(Ty->getContext(), Ty->getPointerAddressSpace());
+      PointerType::get(Ty->getContext(), Ty->getPointerAddressSpace());
   if (Ty == Int8PtrTy)
     return isUsedByLifetimeMarker(AI);
 
@@ -861,6 +861,7 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
   BasicBlock *Unwind = DI->getUnwindDest();
   Value *SyncRegion = DI->getSyncRegion();
   Module *M = Spawner->getModule();
+  LLVMContext& Ctx = M->getContext();
 
   // If the spawned task has a taskframe, serialize the taskframe.
   SmallVector<Instruction *, 8> ToErase;
@@ -892,9 +893,10 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
   // code with llvm.stacksave/llvm.stackrestore intrinsics.
   if (ContainsDynamicAllocas) {
     // Get the two intrinsics we care about.
-    Function *StackSave = Intrinsic::getDeclaration(M, Intrinsic::stacksave);
-    Function *StackRestore =
-        Intrinsic::getDeclaration(M, Intrinsic::stackrestore);
+    Function *StackSave = Intrinsic::getDeclaration(
+        M, Intrinsic::stacksave, {PointerType::getUnqual(Ctx)});
+    Function *StackRestore = Intrinsic::getDeclaration(
+        M, Intrinsic::stackrestore, {PointerType::getUnqual(Ctx)});
 
     // Insert the llvm.stacksave.
     CallInst *SavedPtr = IRBuilder<>(TaskEntry, TaskEntry->begin())
@@ -2203,7 +2205,7 @@ void llvm::promoteCallsInTasksToInvokes(Function &F, const Twine Name) {
   // Create a cleanup block.
   LLVMContext &C = F.getContext();
   BasicBlock *CleanupBB = BasicBlock::Create(C, Name, &F);
-  Type *ExnTy = StructType::get(Type::getInt8PtrTy(C), Type::getInt32Ty(C));
+  Type *ExnTy = StructType::get(PointerType::getUnqual(C), Type::getInt32Ty(C));
 
   LandingPadInst *LPad =
       LandingPadInst::Create(ExnTy, 1, Name + ".lpad", CleanupBB);
@@ -2305,7 +2307,7 @@ void llvm::TapirLoopHints::getHintsFromMetadata() {
 
 /// Checks string hint with one operand and set value if valid.
 void llvm::TapirLoopHints::setHint(StringRef Name, Metadata *Arg) {
-  if (!Name.startswith(Prefix()))
+  if (!Name.starts_with(Prefix()))
     return;
   Name = Name.substr(Prefix().size(), StringRef::npos);
 
@@ -2345,7 +2347,7 @@ bool llvm::TapirLoopHints::matchesHintMetadataName(
     return false;
 
   for (auto H : HintTypes)
-    if (Name->getString().endswith(H.Name))
+    if (Name->getString().ends_with(H.Name))
       return true;
   return false;
 }
@@ -2432,7 +2434,8 @@ void llvm::TapirLoopHints::writeHintsToClonedMetadata(ArrayRef<Hint> HintTypes,
 void llvm::TapirLoopHints::clearHintsMetadata() {
   Hint Hints[] = {Hint("spawn.strategy", ST_SEQ, HK_STRATEGY),
                   Hint("grainsize", 0, HK_GRAINSIZE),
-                  Hint("target", TapirTargetID::Serial, HK_LOOPTARGET),
+                  Hint("target", static_cast<unsigned>(TapirTargetID::Serial),
+                       HK_LOOPTARGET),
                   Hint("threads.per.block", 0, HK_THREADS_PER_BLOCK),
                   Hint("launch.auto.tune", false, HK_AUTO_TUNE)};
   LLVMContext &Context = TheLoop->getHeader()->getContext();
@@ -2466,7 +2469,6 @@ bool llvm::hintsDemandOutlining(const TapirLoopHints &Hints) {
   switch (Hints.getStrategy()) {
   case TapirLoopHints::ST_DAC:
   case TapirLoopHints::ST_SEQ:
-  case TapirLoopHints::ST_GPU;
     return true;
   default:
     return false;
@@ -2494,7 +2496,7 @@ MDNode *llvm::CopyNonTapirLoopMetadata(MDNode *LoopID, MDNode *OrigLoopID) {
       return nullptr;
     StringRef AttrName = cast<MDString>(NameMD)->getString();
     // Skip tapir.loop metadata
-    if (!AttrName.startswith("tapir.loop"))
+    if (!AttrName.starts_with("tapir.loop"))
       MDs.push_back(Op);
   }
 

@@ -15,11 +15,11 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
 
 enum class TapirTargetID {
-  Off,      // Completely disabled (i.e., no -ftapir argument was present).
   None,     // Perform no lowering
   Serial,   // Lower to serial projection
   Cuda,     // Lower to Cuda ABI
@@ -33,23 +33,32 @@ enum class TapirTargetID {
   Last_TapirTargetID
 };
 
+// Serialize the Tapir target into the given output stream. This will write a
+// string representation that is compatible with the -ftapir argument used in
+// clang.
+raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &Target);
+
 enum class TapirNVArchTargetID {
-  Off,      // Completely disabled (i.e., -ftapir != cuda)
-  SM_50,    // TODO: Remove depcreated targets based on latest CUDA releases.
+  SM_50, // TODO: Remove depcreated targets based on latest CUDA releases.
   SM_52,
   SM_53,
-  SM_60,    // Pascal
+  SM_60, // Pascal
   SM_61,
   SM_62,
-  SM_70,    // Volta
+  SM_70, // Volta
   SM_72,
-  SM_75,    // Turing
-  SM_80,    // Ampere
+  SM_75, // Turing
+  SM_80, // Ampere
   SM_86,
-  SM_90,    // Hopper
+  SM_90, // Hopper
   // TODO: Update this enum when we sync w/ upstream LLVM capabilities.
   Last_TapirNVArchTargetID
 };
+
+// Serialize the Tapir target into the given output stream. This will write a
+// string representation that is compatible with the -ftapir argument used in
+// clang.
+raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &Target);
 
 // Tapir target options
 
@@ -84,9 +93,7 @@ public:
   OpenCilkABIOptions(StringRef Path)
       : TapirTargetOptions(TTO_OpenCilk), RuntimeBCPath(Path) {}
 
-  StringRef getRuntimeBCPath() const {
-    return RuntimeBCPath;
-  }
+  StringRef getRuntimeBCPath() const { return RuntimeBCPath; }
 
   static bool classof(const TapirTargetOptions *TTO) {
     return TTO->getKind() == TTO_OpenCilk;

@@ -83,7 +83,7 @@ public:
 
   /// Process Function F before any function outlining is performed.  This
   /// routine should not modify the CFG structure.
-  virtual void preProcessFunction(Function &F, TaskInfo &TI,
+  virtual bool preProcessFunction(Function &F, TaskInfo &TI,
                                   bool ProcessingTapirLoops) override;
 
   // Add attributes to the Function Helper produced from outlining a task.
@@ -365,7 +365,7 @@ private:
   FunctionCallee   KitHipModuleLaunchFn = nullptr;
 
   // Runtime prefetch support entry points.
-  FunctionCallee   KitHipStreamSetMemPrefetchFn =  nullptr;  
+  FunctionCallee   KitHipStreamSetMemPrefetchFn =  nullptr;
   FunctionCallee   KitHipMemPrefetchFn =  nullptr;
   FunctionCallee   KitHipMemPrefetchOnStreamFn = nullptr;
   FunctionCallee   KitHipStreamMemPrefetchFn = nullptr;

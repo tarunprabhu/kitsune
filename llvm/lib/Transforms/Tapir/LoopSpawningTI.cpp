@@ -171,8 +171,8 @@ void LoopOutlineProcessor::postProcessOutline(TapirLoopInfo &TL,
   Helper->setCallingConv(CallingConv::Fast);
   // Note that the address of the helper is unimportant.
   Helper->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
-  // The helper is private to this module.
-  Helper->setLinkage(GlobalValue::PrivateLinkage);
+  // The helper is internal to this module.
+  Helper->setLinkage(GlobalValue::InternalLinkage);
 }
 
 void LoopOutlineProcessor::addSyncToOutlineReturns(TapirLoopInfo &TL,
@@ -411,8 +411,8 @@ public:
       ScalarEvolution &SE, AssumptionCache &AC, TargetTransformInfo &TTI,
       TapirTargetID Target, OptimizationRemarkEmitter &ORE,
       std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets)
-      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), Target(Target),
-        ORE(ORE), Targets(Targets) {}
+      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), ORE(ORE),
+        Targets(Targets) {}
 
   ~LoopSpawningImpl() {
     for (TapirLoopInfo *TL : TapirLoops)
@@ -526,7 +526,6 @@ private:
   ScalarEvolution &SE;
   AssumptionCache &AC;
   TargetTransformInfo &TTI;
-  TapirTargetID Target;
   OptimizationRemarkEmitter &ORE;
   std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets;
 
@@ -903,15 +902,10 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
                        TimerGroupName, TimerGroupDescription,
                        TimePassesIsEnabled);
 
-  // Allow the Tapir target to define a custom loop-outline processor.
-  if (LoopOutlineProcessor *TargetLOP = Target->getLoopOutlineProcessor(TL))
-    return TargetLOP;
-
   Module &M = *F.getParent();
   Loop *L = TL->getLoop();
   TapirLoopHints Hints(L);
   TapirTargetID TLTID = (TapirTargetID)Hints.getLoopTarget();
-  unsigned int ThreadsPerBlock = Hints.getThreadsPerBlock();
 
   // get the LoopTarget from set of Targets if it exists, otherwise create it
 
@@ -1409,10 +1403,12 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
     // loop with llvm.stacksave/llvm.stackrestore intrinsics.
     if (ContainsDynamicAllocas) {
       Module *M = Helper->getParent();
+      LLVMContext& Ctx = M->getContext();
       // Get the two intrinsics we care about.
-      Function *StackSave = Intrinsic::getDeclaration(M, Intrinsic::stacksave);
-      Function *StackRestore =
-          Intrinsic::getDeclaration(M, Intrinsic::stackrestore);
+      Function *StackSave = Intrinsic::getDeclaration(
+          M, Intrinsic::stacksave, {PointerType::getUnqual(Ctx)});
+      Function *StackRestore = Intrinsic::getDeclaration(
+          M, Intrinsic::stackrestore, {PointerType::getUnqual(Ctx)});
 
       // Insert the llvm.stacksave.
       CallInst *SavedPtr =

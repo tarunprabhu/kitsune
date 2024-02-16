@@ -97,7 +97,7 @@ extern "C" {
 bool __kitcuda_initialize() {
   KIT_NVTX_PUSH("kitcuda: initialize", KIT_NVTX_INIT);
   if (_kitcuda_initialized) {
-    if (__kitrt_verbose_mode()) 
+    if (__kitrt_verbose_mode())
       fprintf(stderr, "kitcuda: warning, multiple initialization calls!\n");
     return true;
   }

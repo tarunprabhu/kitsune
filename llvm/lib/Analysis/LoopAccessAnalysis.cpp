@@ -1913,7 +1913,7 @@ std::variant<MemoryDepChecker::Dependence::DepType,
              MemoryDepChecker::DepDistanceStrideAndSizeInfo>
 MemoryDepChecker::getDependenceDistanceStrideAndSize(
     const AccessAnalysis::MemAccessInfo &A, Instruction *AInst,
-    const AccessAnalysis::MemAccessInfo &B, Instruction *BInst) {
+    const AccessAnalysis::MemAccessInfo &B, Instruction *BInst, TaskInfo &TI) {
   const auto &DL = InnermostLoop->getHeader()->getDataLayout();
   auto &SE = *PSE.getSE();
   auto [APtr, AIsWrite] = A;
@@ -1928,8 +1928,8 @@ MemoryDepChecker::getDependenceDistanceStrideAndSize(
 
   // Under certain assumptions, Tapir can guarantee that there are no
   // loop-carried dependencies.
-  if (EnableDRFAA && isLogicallyParallelViaTapir(InnermostLoop, TI))
-    return Dependence::NoDep;
+  if (EnableDRFAA && isLogicallyParallelViaTapir(InnermostLoop, &TI))
+    return MemoryDepChecker::Dependence::NoDep;
 
   // We cannot check pointers in different address spaces.
   if (APtr->getType()->getPointerAddressSpace() !=
@@ -2023,13 +2023,14 @@ MemoryDepChecker::getDependenceDistanceStrideAndSize(
 
 MemoryDepChecker::Dependence::DepType
 MemoryDepChecker::isDependent(const MemAccessInfo &A, unsigned AIdx,
-                              const MemAccessInfo &B, unsigned BIdx) {
+                              const MemAccessInfo &B, unsigned BIdx,
+                              TaskInfo* TI) {
   assert(AIdx < BIdx && "Must pass arguments in program order");
 
   // Get the dependence distance, stride, type size and what access writes for
   // the dependence between A and B.
-  auto Res =
-      getDependenceDistanceStrideAndSize(A, InstMap[AIdx], B, InstMap[BIdx]);
+  auto Res = getDependenceDistanceStrideAndSize(A, InstMap[AIdx], B,
+                                                InstMap[BIdx], *TI);
   if (std::holds_alternative<Dependence::DepType>(Res))
     return std::get<Dependence::DepType>(Res);
 

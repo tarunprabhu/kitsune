@@ -101,13 +101,12 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/SmallVectorMemoryBuffer.h"
-#include "llvm/Support/TargetParser.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/TargetParser/TargetParser.h"
 #include "llvm/Transforms/AggressiveInstCombine/AggressiveInstCombine.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
 #include "llvm/Transforms/IPO/Inliner.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Tapir/Outline.h"
@@ -115,7 +114,6 @@
 #include "llvm/Transforms/Utils/AMDGPUEmitPrintf.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Mem2Reg.h"
-#include "llvm/Transforms/Vectorize.h"
 
 using namespace llvm;
 
@@ -632,7 +630,7 @@ void HipABI::transformConstants(Function *Fn) {
             new AddrSpaceCastInst(NewGEP, OldGEP->getType(), "", Call);
         Call->setArgOperand(argNo, asCast);
       } else
-        assert(nullptr && "unexpected use of gep");
+        assert(false && "unexpected use of gep");
     }
     OldGEP->eraseFromParent();
   }
@@ -645,9 +643,9 @@ void HipABI::transformArguments(Function *Fn) {
     FnArgTypes[A.getArgNo()] = A.getType();
     if (isa<PointerType>(A.getType())) {
       LLVM_DEBUG(dbgs() << "\t\ttransforming argument: " << A << "\n");
-      PointerType *OldPtrTy = dyn_cast<PointerType>(A.getType());
-      PointerType *NewPtrTy = PointerType::getWithSamePointeeType(
-          OldPtrTy, HIPABI_GLOBAL_ADDR_SPACE);
+      PointerType *OldPtrTy = cast<PointerType>(A.getType());
+      PointerType *NewPtrTy =
+          PointerType::get(OldPtrTy->getContext(), HIPABI_GLOBAL_ADDR_SPACE);
       // TODO: Better path here than mutate?
       A.mutateType(NewPtrTy);
       FnArgTypes[A.getArgNo()] = NewPtrTy;
@@ -677,7 +675,7 @@ Value *HipLoop::emitWorkItemId(IRBuilder<> &Builder, int ItemIndex, int Low,
   LLVMContext &Ctx = KernelModule.getContext();
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   llvm::MDBuilder MDHelper(Ctx);
-  Constant *IndexVal = ConstantInt::get(Int32Ty, ItemIndex, ".x");
+  Constant *IndexVal = ConstantInt::get(Int32Ty, ItemIndex);
 
   std::string WIName = "threadIdx.";
   switch (ItemIndex) {
@@ -774,7 +772,7 @@ HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
 
   // We use ROCm/HSA/HIP entry points for various runtime calls.  These calls
   // are often at a lower level vs. user-facing entry points.  This follows
@@ -1265,7 +1263,7 @@ std::unique_ptr<Module> HipABI::loadBCFile(const std::string &BCFile) {
   std::unique_ptr<Module> BCM = parseIRFile(BCFile, SMD, Ctx);
   if (not BCM)
     report_fatal_error("Failed to parse bitcode file!");
-  return std::move(BCM);
+  return BCM;
 }
 
 bool HipABI::linkInModule(std::unique_ptr<Module> &Mod) {
@@ -1336,7 +1334,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   LLVM_DEBUG(dbgs() << "\t*- code gen packing of " << OrderedInputs.size()
                     << " kernel args.\n");
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   ArrayType *ArrayTy = ArrayType::get(VoidPtrTy, OrderedInputs.size());
   Value *ArgArray = EntryBuilder.CreateAlloca(ArrayTy);
   unsigned int i = 0;
@@ -1423,8 +1421,8 @@ HipABI::HipABI(Module &InputModule)
 
   LLVMContext &Ctx = InputModule.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
-  PointerType *CharPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   KitHipGetGlobalSymbolFn =
@@ -1457,19 +1455,19 @@ HipABI::HipABI(Module &InputModule)
   SmallString<255> NewModuleName(ArchString + KernelModule.getName().str());
   sys::path::replace_extension(NewModuleName, ".amdgcn");
   KernelModule.setSourceFileName(NewModuleName.c_str());
-  llvm::CodeGenOpt::Level TMOptLevel;
+  llvm::CodeGenOptLevel TMOptLevel = CodeGenOptLevel::None;
   llvm::CodeModel::Model TMCodeModel = CodeModel::Model::Large;
 
   if (OptLevel == 0)
-    TMOptLevel = CodeGenOpt::Level::None;
+    TMOptLevel = CodeGenOptLevel::None;
   else if (OptLevel == 1)
-    TMOptLevel = CodeGenOpt::Level::Less;
+    TMOptLevel = CodeGenOptLevel::Less;
   else if (OptLevel == 2)
-    TMOptLevel = CodeGenOpt::Level::Default;
+    TMOptLevel = CodeGenOptLevel::Default;
   else if (OptLevel >= 3)
-    TMOptLevel = CodeGenOpt::Level::Aggressive;
-  std::string Features = "";
+    TMOptLevel = CodeGenOptLevel::Aggressive;
 
+  std::string Features = "";
   // TODO: feature is arch specific. need to cross-check.
   // NOTE: If the HSA_XNACK enviornment variable is not set this feature
   // can result in a crash that would appear to be an incorrect/corrupt
@@ -1622,9 +1620,9 @@ void HipABI::addHelperAttributes(Function &F) {
   // no-op
 }
 
-void HipABI::preProcessFunction(Function &F, TaskInfo &TI,
+bool HipABI::preProcessFunction(Function &F, TaskInfo &TI,
                                 bool OutliningTapirLoops) {
-  // no-op
+  return false;
 }
 
 void HipABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
@@ -1652,7 +1650,7 @@ void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
 
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   auto &FnList = M.getFunctionList();
 
@@ -1662,7 +1660,7 @@ void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
         if (CallInst *CI = dyn_cast<CallInst>(&I)) {
           if (Function *CFn = CI->getCalledFunction()) {
 
-            if (CFn->getName().startswith("__kithip_launch_kernel")) {
+            if (CFn->getName().starts_with("__kithip_launch_kernel")) {
               LLVM_DEBUG(dbgs() << "\t\t\t* patching launch: " << *CI << "\n");
               Value *HipFatbin;
               HipFatbin = CastInst::CreateBitOrPointerCast(
@@ -1757,7 +1755,7 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
-    AMDTargetMachine->registerPassBuilderCallbacks(pb);
+    AMDTargetMachine->registerPassBuilderCallbacks(pb, false);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
     OptimizationLevel optLevels[] = {
         OptimizationLevel::O0,
@@ -1779,14 +1777,14 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
 
   legacy::PassManager PassMgr;
   if (AMDTargetMachine->addPassesToEmitFile(PassMgr, ObjFile->os(), nullptr,
-                                            CodeGenFileType::CGFT_ObjectFile,
+                                            CodeGenFileType::ObjectFile,
                                             false))
     report_fatal_error("hipabi: AMDGPU target failed!");
 
   PassMgr.run(KernelModule);
   LLVM_DEBUG(dbgs() << "\tkernel optimizations and code gen complete.\n\n");
   LLVM_DEBUG(dbgs() << "\t\tobject file: " << ObjFile->getFilename() << "\n");
-  return std::move(ObjFile);
+  return ObjFile;
 }
 
 HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
@@ -1851,7 +1849,7 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   if (ExecStat != 0)
     report_fatal_error("hipabi: 'ldd' failure - " + StringRef(ErrMsg));
 
-  return std::move(LinkedObjFile);
+  return LinkedObjFile;
 }
 
 HipABIOutputFile HipABI::createBundleFile() {
@@ -1931,9 +1929,9 @@ GlobalVariable *HipABI::embedBundle(HipABIOutputFile &BundleFile) {
 void HipABI::registerKernels(Value *HandlePtr, IRBuilder<> &B) {
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
-  PointerType *CharPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   llvm::Constant *NullPtr = llvm::ConstantPointerNull::get(VoidPtrTy);
 
@@ -1979,10 +1977,10 @@ void HipABI::bindGlobalVariables(Value *Handle, IRBuilder<> &B) {
   const DataLayout &DL = M.getDataLayout();
   Type *IntTy = Type::getInt32Ty(Ctx);
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
   Type *VarSizeTy = IntTy;
-  PointerType *CharPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
 
   FunctionCallee RegisterVarFn = M.getOrInsertFunction(
       "__hipRegisterManagedVar",
@@ -2018,7 +2016,7 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
 
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
   Type *IntTy = Type::getInt32Ty(Ctx);
 
@@ -2103,7 +2101,7 @@ Function *HipABI::createDtor(GlobalVariable *BundleHandle) {
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  Type *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
 
   FunctionCallee UnregisterFatbinFn =
@@ -2139,7 +2137,7 @@ void HipABI::registerBundle(GlobalVariable *Bundle) {
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *IntTy = Type::getInt32Ty(Ctx);
 
   StructType *WrapperTy = StructType::get(IntTy,      // magic #
@@ -2189,7 +2187,7 @@ void HipABI::postProcessModule() {
     Value *printf = KernelModule.getFunction("printf");
     if (not printf) {
       LLVMContext &context = KernelModule.getContext();
-      Type *paramTys[] = {Type::getInt8PtrTy(context)};
+      Type *paramTys[] = {PointerType::getUnqual(context)};
       Type *retTy = Type::getInt32Ty(context);
       FunctionType *funcTy = FunctionType::get(retTy, paramTys, false);
       FunctionCallee fce = KernelModule.getOrInsertFunction("printf", funcTy);
@@ -2271,7 +2269,7 @@ void HipABI::postProcessModule() {
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
-    AMDTargetMachine->registerPassBuilderCallbacks(pb);
+    AMDTargetMachine->registerPassBuilderCallbacks(pb, false);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
 
     OptimizationLevel optLevels[] = {

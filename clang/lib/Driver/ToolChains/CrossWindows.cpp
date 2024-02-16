@@ -178,7 +178,7 @@ void tools::CrossWindows::Linker::ConstructJob(
       CmdArgs.push_back("-Bdynamic");
   }
 
-  TC.AddTapirRuntimeLibArgs(Args, CmdArgs);
+  TC.AddKitsuneLinkerArgs(Args, CmdArgs);
 
   if (!Args.hasArg(options::OPT_nostdlib)) {
     if (!Args.hasArg(options::OPT_nodefaultlibs)) {

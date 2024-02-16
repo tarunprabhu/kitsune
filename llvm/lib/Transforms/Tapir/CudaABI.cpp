@@ -59,6 +59,7 @@
 //
 
 #include "llvm/Transforms/Tapir/CudaABI.h"
+#include "kitsune/Config/config.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/Constants.h"
@@ -90,7 +91,6 @@
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
 #include "llvm/Transforms/IPO/Inliner.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Tapir/Outline.h"
@@ -98,7 +98,6 @@
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
-#include "llvm/Transforms/Vectorize.h"
 
 using namespace llvm;
 
@@ -311,10 +310,12 @@ std::string PTXVersionFromCudaVersion() {
           .Case("11.6", "+ptx76")
           .Case("11.7", "+ptx77")
           .Case("11.8", "+ptx78")
-          .Case("12.0", "+ptx78")
-          .Case("12.1", "+ptx78")
-          .Case("12.2", "+ptx78")
-          .Case("12.3", "+ptx78")
+          .Case("12.0", "+ptx83")
+          .Case("12.1", "+ptx83")
+          .Case("12.2", "+ptx83")
+          .Case("12.3", "+ptx83")
+          .Case("12.4", "+ptx83")
+          .Case("12.5", "+ptx83")    
           .Default("");
 
   if (PTXVersionStr == "") {
@@ -355,9 +356,9 @@ CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
-  PointerType *CharPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
 
   // Thread index values -- equivalent to Cuda's builtins:  threadIdx.[x,y,z].
   CUThreadIdxX = Intrinsic::getDeclaration(&KernelModule,
@@ -752,7 +753,7 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   AV.push_back(MDString::get(Ctx, "kernel"));
   AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 1)));
   // AV.push_back(MDString::get(Ctx, "maxntidx"));
-  // AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 160))); 
+  // AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 160)));
   //AV.push_back(MDString::get(Ctx, "maxnreg"));
   //AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 63)));
   Annotations->addOperand(MDNode::get(Ctx, AV));
@@ -926,10 +927,7 @@ void CudaLoop::transformForPTX(Function &F) {
   for (auto I = inst_begin(&F); I != inst_end(&F); I++) {
     if (auto CI = dyn_cast<CallInst>(&*I)) {
       if (FPMathOperator *FPO = dyn_cast<FPMathOperator>(CI)) {
-        // LLVM_DEBUG(dbgs() << "\tCall is for a FP math operation: " << *FPO);
-        if (FPO->isFast()) {
-          // LLVM_DEBUG(dbgs() << " [fast]\n");
-          FastMathFlags FMF = FPO->getFastMathFlags();
+         if (FPO->isFast()) {
           enableFast = true;
         } else {
           // LLVM_DEBUG(dbgs() << " [std/full precision]\n");
@@ -1017,7 +1015,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   LLVM_DEBUG(dbgs() << "\t*- code gen packing of " << OrderedInputs.size()
                     << " kernel args.\n");
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   ArrayType *ArrayTy = ArrayType::get(VoidPtrTy, OrderedInputs.size());
   Value *ArgArray = EntryBuilder.CreateAlloca(ArrayTy);
   unsigned int i = 0;
@@ -1112,7 +1110,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
       ConstantInt::get(Int64Ty, InstMix.num_iops));
 
   AllocaInst *AI = NewBuilder.CreateAlloca(KernelInstMixTy);
-  StoreInst *SI = NewBuilder.CreateStore(InstructionMix, AI);
+  NewBuilder.CreateStore(InstructionMix, AI);
 
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
   NewBuilder.CreateCall(KitCudaLaunchFn, {DummyFBPtr, KNameParam, argsPtr,
@@ -1174,7 +1172,7 @@ CudaABI::CudaABI(Module &M)
 
   PTXTargetMachine = PTXTarget->createTargetMachine(
       TT.getTriple(), GPUArch, PTXVersionStr.c_str(), TargetOptions(),
-      Reloc::PIC_, CodeModel::Large, CodeGenOpt::Aggressive);
+      Reloc::PIC_, CodeModel::Large, CodeGenOptLevel::Aggressive);
 
   KernelModule.setTargetTriple(TT.str());
   KernelModule.setDataLayout(PTXTargetMachine->createDataLayout());
@@ -1196,18 +1194,24 @@ std::unique_ptr<Module> &CudaABI::getLibDeviceModule() {
   if (not LibDeviceModule) {
     LLVMContext &Ctx = KernelModule.getContext();
     llvm::SMDiagnostic SMD;
-    std::optional<std::string> CudaPath = sys::Process::FindInEnvPath(
-        "CUDA_HOME", "nvvm/libdevice/libdevice.10.bc");
-    if (!CudaPath) {
-      CudaPath = sys::Process::FindInEnvPath("CUDA_PATH",
-                                             "nvvm/libdevice/libdevice.10.bc");
-      if (!CudaPath)
-        report_fatal_error("Unable to load cuda libdevice.10.bc!");
-    }
+    llvm::errs() << "libdevice: " << KITSUNE_CUDA_LIBDEVICE_BC << "\n";
+    // KITSUNE FIXME: It might be useful during development to override the
+    // libdevice.10.bc function. We could do this with a command-line argument
+    // that gets passed to this transform.
+    // std::optional<std::string> CudaPath = sys::Process::FindInEnvPath(
+    //     "CUDA_HOME", "nvvm/libdevice/libdevice.10.bc");
+    // if (!CudaPath) {
+    //   CudaPath = sys::Process::FindInEnvPath("CUDA_PATH",
+    //                                          "nvvm/libdevice/libdevice.10.bc");
+    //   if (!CudaPath)
+    //     report_fatal_error("Unable to load cuda libdevice.10.bc!");
+    // }
 
-    LibDeviceModule = parseIRFile(*CudaPath, SMD, Ctx);
+    llvm::StringRef LibDeviceBCFile = KITSUNE_CUDA_LIBDEVICE_BC;
+    LibDeviceModule = parseIRFile(LibDeviceBCFile, SMD, Ctx);
     if (not LibDeviceModule)
-      report_fatal_error("Failed to parse cuda libdevice.10.bc!");
+      report_fatal_error(llvm::StringRef("Failed to parse: ") +
+                         LibDeviceBCFile);
   }
 
   return LibDeviceModule;
@@ -1237,8 +1241,9 @@ void CudaABI::lowerSync(SyncInst &SI) {
 void CudaABI::addHelperAttributes(Function &F) { /* no-op */
 }
 
-void CudaABI::preProcessFunction(Function &F, TaskInfo &TI,
-                                 bool OutliningTapirLoops) { /* no-op */
+bool CudaABI::preProcessFunction(Function &F, TaskInfo &TI,
+                                 bool OutliningTapirLoops) {
+  return false;
 }
 
 void CudaABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
@@ -1292,10 +1297,14 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
                     << "'.\n");
 
   std::error_code EC;
-  auto PTXASExe = sys::findProgramByName("ptxas");
-  if ((EC = PTXASExe.getError()))
-    report_fatal_error("'ptxas' not found. "
-                       "Is a CUDA installation in your path?");
+  // FIXME: Do not require ptxas to be in $PATH. Use the ptxas that is part of
+  // cuda installation against which Kitsune was built.
+  // auto PTXASExe = sys::findProgramByName("ptxas");
+  // if ((EC = PTXASExe.getError()))
+  //   report_fatal_error("'ptxas' not found. "
+  //                      "Is a CUDA installation in your path?");
+
+  llvm::StringRef PTXASExe = KITSUNE_CUDA_PTXAS;
 
   SmallString<255> AsmFileName(PTXFile->getFilename());
   sys::path::replace_extension(AsmFileName, ".s");
@@ -1308,7 +1317,7 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
   // near the top of this file.
   // These can be passed to the transform via '-mllvm <cuabi-option>'.
   opt::ArgStringList PTXASArgList;
-  PTXASArgList.push_back(PTXASExe->c_str());
+  PTXASArgList.push_back(PTXASExe.data());
 
   // TODO: Do we need/want to add support for generating relocatable code?
 
@@ -1369,7 +1378,7 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
   // Finally we are ready to execute ptxas...
   std::string ErrMsg;
   bool ExecFailed;
-  int ExecStat = sys::ExecuteAndWait(*PTXASExe, PTXASArgs, std::nullopt, {},
+  int ExecStat = sys::ExecuteAndWait(PTXASExe, PTXASArgs, std::nullopt, {},
                                      0, /* secs to wait -- 0 --> unlimited */
                                      0, /* memory limit -- 0 --> unlimited */
                                      &ErrMsg, &ExecFailed);
@@ -1402,8 +1411,8 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
-  PointerType *CharPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
 
   // Look up a global (device-side) symbol via a module
@@ -1450,12 +1459,12 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
         if (CallInst *CI = dyn_cast<CallInst>(&I)) {
           if (Function *CFn = CI->getCalledFunction()) {
 
-            if (CFn->getName().startswith("__kitrt_dummy_threads_per_blk")) {
+            if (CFn->getName().starts_with("__kitrt_dummy_threads_per_blk")) {
               LLVM_DEBUG(dbgs() << "\t\t\t* discovered a threads-per-block "
                                    "placeholder call.\n");
               assert(ThreadsPerBlockCI == nullptr && "expected null pointer!");
               ThreadsPerBlockCI = CI;
-            } else if (CFn->getName().startswith("__kitcuda_launch_kernel")) {
+            } else if (CFn->getName().starts_with("__kitcuda_launch_kernel")) {
               LLVM_DEBUG(dbgs() << "\t\t\t* patching launch: " << *CI << "\n");
               Value *CFatbin;
               CFatbin = CastInst::CreateBitOrPointerCast(Fatbin, VoidPtrTy,
@@ -1541,14 +1550,15 @@ CudaABIOutputFile CudaABI::createFatbinaryFile(CudaABIOutputFile &AsmFile) {
   LLVM_DEBUG(dbgs() << "\t- generatng fatbinary image file '"
                     << FatbinFile->getFilename() << "'.\n");
 
-  // TODO: LLVM docs suggest we shouldn't be using findProgramByName()...
-  auto FatbinaryExe = sys::findProgramByName("fatbinary");
-  if ((EC = FatbinaryExe.getError()))
-    report_fatal_error("'fatbinary' not found. "
-                       "Is a CUDA installation in your path?");
+  // // TODO: LLVM docs suggest we shouldn't be using findProgramByName()...
+  // auto FatbinaryExe = sys::findProgramByName("fatbinary");
+  // if ((EC = FatbinaryExe.getError()))
+  //   report_fatal_error("'fatbinary' not found. "
+  //                      "Is a CUDA installation in your path?");
 
+  llvm::StringRef FatbinaryExe = KITSUNE_CUDA_FATBINARY;
   opt::ArgStringList FatbinaryArgList;
-  FatbinaryArgList.push_back(FatbinaryExe->c_str());
+  FatbinaryArgList.push_back(FatbinaryExe.data());
   FatbinaryArgList.push_back("--64");
   FatbinaryArgList.push_back("--create");
   FatbinaryArgList.push_back(FatbinFilename.c_str());
@@ -1589,7 +1599,7 @@ CudaABIOutputFile CudaABI::createFatbinaryFile(CudaABIOutputFile &AsmFile) {
   std::string ErrMsg;
   bool ExecFailed;
   int ExecStat =
-      sys::ExecuteAndWait(*FatbinaryExe, FatbinaryArgs, std::nullopt, {},
+      sys::ExecuteAndWait(FatbinaryExe, FatbinaryArgs, std::nullopt, {},
                           0, /* secs to wait -- 0 --> unlimited */
                           0, /* memory limit -- 0 --> unlimited */
                           &ErrMsg, &ExecFailed);
@@ -1654,10 +1664,10 @@ void CudaABI::bindGlobalVariables(Value *Handle, IRBuilder<> &B) {
   Type *IntTy = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
   Type *VarSizeTy = Int64Ty;
-  PointerType *CharPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
 
   FunctionCallee RegisterVarFn = M.getOrInsertFunction(
       "__cudaRegisterVar", VoidTy, VoidPtrPtrTy, CharPtrTy, CharPtrTy,
@@ -1687,7 +1697,7 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary,
                               GlobalVariable *Wrapper) {
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
   Type *IntTy = Type::getInt32Ty(Ctx);
   Type *BoolTy = Type::getInt8Ty(Ctx);
@@ -1792,7 +1802,7 @@ Function *CudaABI::createDtor(GlobalVariable *FBHandle) {
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  Type *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
 
   FunctionCallee UnregisterFatbinFn =
@@ -1856,7 +1866,7 @@ void CudaABI::registerFatbinary(GlobalVariable *Fatbinary) {
 
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *IntTy = Type::getInt32Ty(Ctx);
 
   const DataLayout &DL = M.getDataLayout();
@@ -1950,7 +1960,7 @@ CudaABIOutputFile CudaABI::generatePTX() {
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
-    PTXTargetMachine->registerPassBuilderCallbacks(pb);
+    PTXTargetMachine->registerPassBuilderCallbacks(pb, false);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
     mpm.addPass(VerifierPass());
@@ -1966,13 +1976,13 @@ CudaABIOutputFile CudaABI::generatePTX() {
   LLVM_DEBUG(dbgs() << "\t- PTX file: '" << PTXFileName << "'.\n");
   legacy::PassManager PassMgr;
   if (PTXTargetMachine->addPassesToEmitFile(PassMgr, PTXFile->os(), nullptr,
-                                            CodeGenFileType::CGFT_AssemblyFile,
+                                            CodeGenFileType::AssemblyFile,
                                             false))
     report_fatal_error("Cuda ABI transform -- PTX generation failed!");
   PassMgr.run(KernelModule);
   LLVM_DEBUG(dbgs() << "\tkernel optimizations and code gen complete.\n\n");
   LLVM_DEBUG(dbgs() << "\t\tPTX file: " << PTXFile->getFilename() << "\n");
-  return std::move(PTXFile);
+  return PTXFile;
 }
 
 void CudaABI::postProcessModule() {
@@ -2033,7 +2043,7 @@ void CudaABI::postProcessModule() {
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
-    PTXTargetMachine->registerPassBuilderCallbacks(pb);
+    PTXTargetMachine->registerPassBuilderCallbacks(pb, false);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
 
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
