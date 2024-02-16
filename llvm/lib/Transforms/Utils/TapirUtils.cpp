@@ -2432,7 +2432,8 @@ void llvm::TapirLoopHints::writeHintsToClonedMetadata(ArrayRef<Hint> HintTypes,
 void llvm::TapirLoopHints::clearHintsMetadata() {
   Hint Hints[] = {Hint("spawn.strategy", ST_SEQ, HK_STRATEGY),
                   Hint("grainsize", 0, HK_GRAINSIZE),
-                  Hint("target", TapirTargetID::Serial, HK_LOOPTARGET),
+                  Hint("target", static_cast<unsigned>(TapirTargetID::Serial),
+                       HK_LOOPTARGET),
                   Hint("threads.per.block", 0, HK_THREADS_PER_BLOCK),
                   Hint("launch.auto.tune", false, HK_AUTO_TUNE)};
   LLVMContext &Context = TheLoop->getHeader()->getContext();
@@ -2466,7 +2467,6 @@ bool llvm::hintsDemandOutlining(const TapirLoopHints &Hints) {
   switch (Hints.getStrategy()) {
   case TapirLoopHints::ST_DAC:
   case TapirLoopHints::ST_SEQ:
-  case TapirLoopHints::ST_GPU;
     return true;
   default:
     return false;

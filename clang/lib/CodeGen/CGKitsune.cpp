@@ -95,45 +95,39 @@ CodeGenFunction::GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs) {
   return Strategy;
 }
 
-unsigned CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
-  llvm::TapirTargetID TTID = llvm::TapirTargetID::Last_TapirTargetID;
+// If a tapir target attribute exists, it will override the tapir target
+// specified on the command line - if any. If a tapir target attribute does not
+// exist and one was specified on the command line, that will be returned.
+std::optional<llvm::TapirTargetID>
+CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
+  // FIXME KITSUNE: This will check for the first occurrence of the tapir target
+  // attribute and break immediately if it finds it. Is this what we actually
+  // want?
   for (auto curAttr : Attrs) {
     if (curAttr->getKind() == attr::TapirTarget) {
-      const TapirTargetAttr::TapirTargetAttrTy TTA =
-	cast<const TapirTargetAttr>(curAttr)->getTapirTargetAttrType();
-      switch(TTA) {
+      switch (cast<const TapirTargetAttr>(curAttr)->getTapirTargetAttrType()) {
       case TapirTargetAttr::None:
-	TTID = llvm::TapirTargetID::None;
-	break;
+        return llvm::TapirTargetID::None;
       case TapirTargetAttr::Serial:
-	TTID = llvm::TapirTargetID::Serial;
-	break;
+        return llvm::TapirTargetID::Serial;
       case TapirTargetAttr::Cuda:
-	TTID = llvm::TapirTargetID::Cuda;
-	break;	
+        return llvm::TapirTargetID::Cuda;
       case TapirTargetAttr::Hip:
-	TTID = llvm::TapirTargetID::Hip;
-	break;	
+        return llvm::TapirTargetID::Hip;
+      case TapirTargetAttr::OpenCilk:
+        return llvm::TapirTargetID::OpenCilk;
       case TapirTargetAttr::OpenMP:
-	TTID = llvm::TapirTargetID::OpenMP;
-	break;	
+        return llvm::TapirTargetID::OpenMP;
       case TapirTargetAttr::Qthreads:
-	TTID = llvm::TapirTargetID::Qthreads;
-	break;
+        return llvm::TapirTargetID::Qthreads;
       case TapirTargetAttr::Realm:
-	TTID = llvm::TapirTargetID::Realm;
-	break;	
+        return llvm::TapirTargetID::Realm;
       default:
         llvm_unreachable("unhandled tapir target attribute!");
       }
-      break;
     }
   }
-
-  if (TTID == llvm::TapirTargetID::Last_TapirTargetID)
-    TTID = CGM.getCodeGenOpts().getTapirTarget();
-  
-  return unsigned(TTID);
+  return CGM.getLangOpts().KitsuneOpts.getTapirTarget();
 }
 
 llvm::Value *
@@ -149,17 +143,6 @@ CodeGenFunction::GetKitsuneLaunchAttr(ArrayRef<const Attr *> Attrs) {
   // missing attribute -- zero threads per block using runtime settings.
   return nullptr;
 }
-
-/*
-// Stolen from CodeGenFunction.cpp
-static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
-  if (!BB)
-    return;
-  if (!BB->use_empty())
-    return BB->insertInto(CGF.CurFn);
-  delete BB;
-}
-*/
 
 llvm::Instruction *CodeGenFunction::EmitLabeledSyncRegionStart(StringRef SV) {
   // Start the sync region.  To ensure the syncregion.start call dominates all
@@ -188,9 +171,7 @@ void CodeGenFunction::EmitSyncStmt(const SyncStmt &S) {
 
 void CodeGenFunction::EmitSpawnStmt(const SpawnStmt &S) {
   // Set up to perform a detach.
-  // PushDetachScope();
   SyncRegion *SR = getOrCreateLabeledSyncRegion(S.getSyncVar());
-  // StartLabeledDetach(SR);
 
   llvm::BasicBlock *DetachedBlock = createBasicBlock("det.achd");
   llvm::BasicBlock *ContinueBlock = createBasicBlock("det.cont");
@@ -338,11 +319,10 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 
   // A forall may have attributes but no tapir target so we can't simply
   // check if the attributes are empty.
-  int TT = GetTapirTargetAttr(ForallAttr);
-  // set the loop target attribute
+  std::optional<llvm::TapirTargetID> TT = GetTapirTargetAttr(ForallAttr);
   LoopStack.setLoopTarget(TT);
 
-  if (TT == TapirTargetAttr::Cuda) {
+  if (TT == llvm::TapirTargetID::Cuda) {
     llvm::Value *ThreadsPerBlock = GetKitsuneLaunchAttr(ForallAttr);
     if (ThreadsPerBlock) {
       // If we have a threads-per-block launch attribute, it is an expression
@@ -358,10 +338,6 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
       Builder.CreateCall(TPBRTCall, {ThreadsPerBlock});
     }
   }
-
-  /////////////////////////////////////////////////////////////////////////////
-  // Code Modifications necessary for implementing parallel loops not required
-  // by serial loops.
 
   // New basic blocks and jump destinations with Tapir terminators
   llvm::BasicBlock *Detach = createBasicBlock("forall.detach");
@@ -379,9 +355,6 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   llvm::Instruction *SRStart = EmitSyncRegionStart();
   CurSyncRegion->setSyncRegionStart(SRStart);
   LoopStack.setSpawnStrategy(LoopAttributes::DAC);
-
-  // End of parallel modification code block
-  /////////////////////////////////////////////////////////////////////////////
 
   JumpDest LoopExit = getJumpDestInCurrentScope("forall.end");
 
@@ -439,14 +412,13 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
     EmitBranchThroughCleanup(Sync);
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-  // The following block of code emits the detach block for parallel execution
-  // along with its Tapir terminator. This is where we capture the induction
-  // variable by value and store it on the stack of the calling thread.
+  // Emits the detach block for parallel execution along with its Tapir
+  // terminator. This is where we capture the induction variable by value and
+  // store it on the stack of the calling thread.
 
   EmitBlock(Detach);
 
-  // Extract the DeclStmt from the statement init
+  // Extract the DeclStmt from the statement init. This is guaranteed to exist.
   const DeclStmt *DS = cast<DeclStmt>(S.getInit());
 
   // Create threadsafe induction variables before the detach and put them in
@@ -457,9 +429,6 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   // create the detach terminator
   Builder.CreateDetach(ForBody, Increment.getBlock(), SRStart);
 
-  // End of parallel modification code block
-  /////////////////////////////////////////////////////////////////////////////
-
   EmitBlock(ForBody);
 
   incrementProfileCounter(&S);
@@ -469,7 +438,6 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
     // a compound statement.
     RunCleanupsScope BodyScope(*this);
 
-    ///////////////////////////////////////////////////////////////////////////
     // In this block of code, we change the alloca insert point so that the
     // alloca's happen after the detach and within the body block. This makes
     // sure each thread has its own local copy of the induction variable. We
@@ -485,17 +453,12 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
     for (const auto &ivp : IVDeclMap)
       EmitThreadSafeIV(ivp.first, ivp.second.second);
 
-    // End of parallel modification code block
-    ///////////////////////////////////////////////////////////////////////////
-
     EmitStmt(S.getBody());
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-  // In this block of code, we need to unwind the codegen of the induction
-  // variable from the current local thread safe copy back to the original
-  // induction variable. We also need to emit the reattach block and reset the
-  // alloca insertion point.
+  // Unwind the codegen of the induction variable from the current local thread
+  // safe copy back to the original induction variable. We also need to emit the
+  // reattach block and reset the alloca insertion point.
 
   // Restore induction variable mappings after emitting body, and before
   // the increment
@@ -509,9 +472,6 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   // reset the alloca insertion point
   AllocaInsertPt->removeFromParent();
   AllocaInsertPt = OldAllocaInsertPt;
-
-  // End of parallel modification code block
-  /////////////////////////////////////////////////////////////////////////////
 
   // Emit the increment.
   EmitBlock(Increment.getBlock());
@@ -531,6 +491,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   // Emit the Sync block and terminator
   EmitBlock(Sync.getBlock());
   Builder.CreateSync(LoopExit.getBlock(), SRStart);
+  PopSyncRegion();
 
   // Emit the fall-through block.
   EmitBlock(LoopExit.getBlock(), true);
@@ -539,10 +500,10 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 void CodeGenFunction::EmitCXXForallRangeStmt(
     const CXXForallRangeStmt &S, ArrayRef<const Attr *> ForallAttr) {
 
-  unsigned TT = GetTapirTargetAttr(ForallAttr);
+  std::optional<llvm::TapirTargetID> TT = GetTapirTargetAttr(ForallAttr);
   LoopStack.setLoopTarget(TT);
 
-  if (TT == TapirTargetAttr::Cuda) {
+  if (TT == llvm::TapirTargetID::Cuda) {
     llvm::Value *ThreadsPerBlock = GetKitsuneLaunchAttr(ForallAttr);
     if (ThreadsPerBlock) {
       // If we have a threads-per-block launch attribute, it is an expression
@@ -559,7 +520,6 @@ void CodeGenFunction::EmitCXXForallRangeStmt(
     }
   }
 
-  /////////////////////////////////////////////////////////////////////////////
   // Code modifications necessary for implementing parallel loops not required
   // by serial loops.
 
@@ -579,9 +539,6 @@ void CodeGenFunction::EmitCXXForallRangeStmt(
   llvm::Instruction *SRStart = EmitSyncRegionStart();
   CurSyncRegion->setSyncRegionStart(SRStart);
   LoopStack.setSpawnStrategy(LoopAttributes::DAC);
-
-  // End of parallel modification code block
-  /////////////////////////////////////////////////////////////////////////////
 
   llvm::BasicBlock *End = createBasicBlock("forall.end");
 
@@ -627,10 +584,9 @@ void CodeGenFunction::EmitCXXForallRangeStmt(
     EmitBranchThroughCleanup(LoopExit);
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-  // The following block of code emits the detach block for parallel execution
-  // along with its Tapir terminator. This is where we capture the induction
-  // variable by value and store it on the stack of the calling thread.
+  // Emits the detach block for parallel execution along with its Tapir
+  // terminator. This is where we capture the induction variable by value and
+  // store it on the stack of the calling thread.
 
   // Emit the (currently empty) detach block
   EmitBlock(Detach);
@@ -649,9 +605,6 @@ void CodeGenFunction::EmitCXXForallRangeStmt(
   // create the detach terminator
   Builder.CreateDetach(ForBody, Increment, SRStart);
 
-  // End of parallel modification code block
-  /////////////////////////////////////////////////////////////////////////////
-
   EmitBlock(ForBody);
   incrementProfileCounter(&S);
 
@@ -662,14 +615,13 @@ void CodeGenFunction::EmitCXXForallRangeStmt(
     // Create a separate cleanup scope for the loop variable and body.
     LexicalScope BodyScope(*this, S.getSourceRange());
 
-    ///////////////////////////////////////////////////////////////////////////
-    // In this block of code, we change the alloca insert point so that the
-    // alloca's happen after the detach and within the body block. This makes
-    // sure each thread has its own local copy of the induction variable. We
-    // also need to store the thread safe value from the calling thread into
-    // this local copy. In EmitThreadSafeIV, we use AutoVarAlloca so any codegen
-    // in the body automatically and correctly mapped to the local thread
-    // safe copy of the induction variable.
+    // Change the alloca insert point so that the alloca's happen after the
+    // detach and within the body block. This makes sure each thread has its own
+    // local copy of the induction variable. We also need to store the thread
+    // safe value from the calling thread into this local copy. In
+    // EmitThreadSafeIV, we use AutoVarAlloca so any codegen in the body
+    // automatically and correctly mapped to the local thread safe copy of the
+    // induction variable.
 
     // change the alloca insert point to the body block
     SetAllocaInsertPoint(Undef, ForBody);
@@ -678,18 +630,13 @@ void CodeGenFunction::EmitCXXForallRangeStmt(
     for (const auto &ivp : IVDeclMap)
       EmitThreadSafeIV(ivp.first, ivp.second.second);
 
-    // End of parallel modification code block
-    ///////////////////////////////////////////////////////////////////////////
-
     EmitStmt(S.getLoopVarStmt());
     EmitStmt(S.getBody());
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-  // In this block of code, we need to unwind the codegen of the induction
-  // variable from the current local thread safe copy back to the original
-  // induction variable. We also need to emit the reattach block and reset the
-  // alloca insertion point.
+  // Unwind the codegen of the induction variable from the current local thread
+  // safe copy back to the original induction variable. We also need to emit the
+  // reattach block and reset the alloca insertion point.
 
   // Restore induction variable mappings after emitting body, and before
   // the increment
@@ -702,9 +649,6 @@ void CodeGenFunction::EmitCXXForallRangeStmt(
   // reset the alloca insertion point
   AllocaInsertPt->removeFromParent();
   AllocaInsertPt = OldAllocaInsertPt;
-
-  // End of parallel modification code block
-  /////////////////////////////////////////////////////////////////////////////
 
   EmitStopPoint(&S);
   // If there is an increment, emit it next.
@@ -722,6 +666,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(
   // Emit the Sync block and terminator
   EmitBlock(LoopExit.getBlock());
   Builder.CreateSync(End, SRStart);
+  PopSyncRegion();
 
   EmitBlock(End, true);
 }

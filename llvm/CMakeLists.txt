@@ -15,19 +15,6 @@ if(NOT LLVM_NO_INSTALL_NAME_DIR_FOR_BUILD_TREE)
   set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
 endif()
 
-if(NOT DEFINED KITSUNE_VERSION_MAJOR)
-  set(KITSUNE_VERSION_MAJOR 0)
-endif()
-if(NOT DEFINED KITSUNE_VERSION_MINOR)
-  set(KITSUNE_VERSION_MINOR 16)
-endif()
-if(NOT DEFINED KITSUNE_VERSION_PATCH)
-  set(KITSUNE_VERSION_PATCH 0)
-endif()
-if(NOT DEFINED KITSUNE_VERSION_SUFFIX)
-  set(KITSUNE_VERSION_SUFFIX)
-endif()
-
 if(NOT DEFINED LLVM_VERSION_MAJOR)
   set(LLVM_VERSION_MAJOR 18)
 endif()
@@ -41,6 +28,24 @@ if(NOT DEFINED LLVM_VERSION_SUFFIX)
   set(LLVM_VERSION_SUFFIX)
 endif()
 
+if (NOT PACKAGE_VERSION)
+  set(PACKAGE_VERSION
+    "${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX}")
+endif()
+
+if(NOT DEFINED KITSUNE_VERSION_MAJOR)
+  set(KITSUNE_VERSION_MAJOR 0)
+endif()
+if(NOT DEFINED KITSUNE_VERSION_MINOR)
+  set(KITSUNE_VERSION_MINOR 17)
+endif()
+if(NOT DEFINED KITSUNE_VERSION_PATCH)
+  set(KITSUNE_VERSION_PATCH 0)
+endif()
+if(NOT DEFINED KITSUNE_VERSION_SUFFIX)
+  set(KITSUNE_VERSION_SUFFIX)
+endif()
+
 if(NOT DEFINED TAPIR_VERSION_MAJOR)
   set(TAPIR_VERSION_MAJOR 1)
 endif()
@@ -49,11 +54,6 @@ if(NOT DEFINED TAPIR_VERSION_MINOR)
 endif()
 if(NOT DEFINED TAPIR_VERSION_PATCH)
   set(TAPIR_VERSION_PATCH 0)
-endif()
-
-if (NOT PACKAGE_VERSION)
-  set(PACKAGE_VERSION
-    "${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX}")
 endif()
 
 if (NOT KITSUNE_PACKAGE_VERSION)
@@ -73,7 +73,6 @@ if ((CMAKE_GENERATOR MATCHES "Visual Studio") AND (MSVC_TOOLSET_VERSION LESS 142
                   "host compiler, pass -Thost=x64 on the CMake command line.")
 endif()
 
-set (LLVM_EXTERNAL_PROJECTS "kitsune")
 if (CMAKE_GENERATOR STREQUAL "Xcode" AND NOT CMAKE_OSX_ARCHITECTURES)
   # Some CMake features like object libraries get confused if you don't
   # explicitly specify an architecture setting with the Xcode generator.
@@ -148,31 +147,11 @@ else()
   endif()
 endif()
 
-############
-# For Kitsune+Tapir drop the Cheetah and OpenCilk Tools into the LLVM
-# mono-repo structure.  This allows them to be listed and processed
-# along with the rest of LLVM's components.
-include(FetchContent)
-FetchContent_Declare(cheetahrt
-  GIT_REPOSITORY    https://github.com/pmccormick/cheetah.git
-  GIT_TAG           kitsune
-  CMAKE_ARGS        -DCHEETAH_DEFAULT_TARGET_ARCH=aarch64
-  SOURCE_DIR        ${CMAKE_CURRENT_SOURCE_DIR}/../cheetah)
-
-FetchContent_GetProperties(cheetahrt)
-if (NOT cheetahrt_POPULATED)
-  message(STATUS "NOTE: <<<< fetching cheetah runtime source via git... >>>>")
-  FetchContent_Populate(cheetahrt)
-endif()
-
-#
-############
-
 # Side-by-side subprojects layout: automatically set the
 # LLVM_EXTERNAL_${project}_SOURCE_DIR using LLVM_ALL_PROJECTS
 # This allows an easy way of setting up a build directory for llvm and another
 # one for llvm+clang+... using the same sources.
-set(LLVM_ALL_PROJECTS "bolt;cheetah;cilktools;clang;clang-tools-extra;compiler-rt;kitsune;cross-project-tests;libc;libclc;lld;lldb;mlir;openmp;polly;pstl")
+set(LLVM_ALL_PROJECTS "bolt;clang;clang-tools-extra;compiler-rt;cross-project-tests;kitsune;libc;libclc;lld;lldb;mlir;openmp;polly;pstl")
 # The flang project is not yet part of "all" projects (see C++ requirements)
 set(LLVM_EXTRA_PROJECTS "flang")
 # List of all known projects in the mono repo
@@ -204,8 +183,8 @@ endif()
 #
 # As we migrate runtimes to using the bootstrapping build, the set of default runtimes
 # should grow as we remove those runtimes from LLVM_ENABLE_PROJECTS above.
-set(LLVM_DEFAULT_RUNTIMES "cheetah;kitsune;libcxx;libcxxabi;libunwind")
-set(LLVM_SUPPORTED_RUNTIMES "cheetah;kitsune;libc;libunwind;libcxxabi;pstl;libcxx;compiler-rt;openmp;llvm-libgcc")
+set(LLVM_DEFAULT_RUNTIMES "libcxx;libcxxabi;libunwind")
+set(LLVM_SUPPORTED_RUNTIMES "libc;libunwind;libcxxabi;pstl;libcxx;compiler-rt;openmp;llvm-libgcc")
 set(LLVM_ENABLE_RUNTIMES "" CACHE STRING
   "Semicolon-separated list of runtimes to build, or \"all\" (${LLVM_DEFAULT_RUNTIMES}). Supported runtimes are ${LLVM_SUPPORTED_RUNTIMES}.")
 if(LLVM_ENABLE_RUNTIMES STREQUAL "all")
@@ -226,6 +205,41 @@ if ("libc" IN_LIST LLVM_ENABLE_RUNTIMES)
     list(APPEND LLVM_ENABLE_PROJECTS "libc")
   endif()
 endif()
+
+# Make sure kitsune, and everything it needs is always enabled. We could just
+# set the default for LLVM_ENABLE_PROJECTS to include these projects, but we
+# want to make as few changes in this file as possible. Besides, that list is
+# intended to be overridden at build time.
+#
+# We keep kitsune as part of the projects mechanism because it sets some other
+# variables that are needed to correctly enable it. We can probably get away
+# with setting it ourselves, but using the projects mechanism isn't too
+# cumbersome in this case - unlike for kitrt where the runtime mechanism doesn't
+# quite do everything we would like.
+if (NOT "kitsune" IN_LIST LLVM_ENABLE_PROJECTS)
+  message(STATUS "Enabling kitsune")
+  list(PREPEND LLVM_ENABLE_PROJECTS "kitsune")
+
+  # Enable dependencies as well even if they were not explicitly set at
+  # configure time.
+  if (NOT "clang" IN_LIST LLVM_ENABLE_PROJECTS)
+    message(STATUS "Enabling clang")
+    list(APPEND LLVM_ENABLE_PROJECTS "clang")
+  endif ()
+
+  # We may switch to doing *everything* using LTO, so just enable lld.
+  if (NOT "lld" IN_LIST LLVM_ENABLE_PROJECTS)
+    message(STATUS "Enabling lld")
+    list(APPEND LLVM_ENABLE_PROJECTS "lld")
+  endif ()
+
+  # Currently, flang is not required, but if it is, MLIR should be enabled as
+  # well.
+endif ()
+
+# We always want libLLVM to be build because we link to it in Kitsune's runtime,
+# libkitrt
+set(LLVM_BUILD_LLVM_DYLIB ON)
 
 # LLVM_ENABLE_PROJECTS_USED is `ON` if the user has ever used the
 # `LLVM_ENABLE_PROJECTS` CMake cache variable.  This exists for

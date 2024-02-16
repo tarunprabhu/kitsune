@@ -31,7 +31,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <sstream>
 #include <utility>
 
 namespace llvm {
@@ -93,7 +92,6 @@ struct ParsedClangName {
 class ToolChain {
 public:
   using path_list = SmallVector<std::string, 16>;
-  using link_library_list = SmallVector<std::string, 16>;
 
   enum CXXStdlibType {
     CST_Libcxx,
@@ -151,11 +149,6 @@ private:
 
   /// The list of toolchain specific path prefixes to search for programs.
   path_list ProgramPaths;
-
-  /// Kitsune-centric list of link library arguments for cases where
-  /// strings need to be extracted from CMake settings and need to 
-  /// persist... 
-  // link_library_list  KitsuneLibArgs;
 
   mutable std::unique_ptr<Tool> Clang;
   mutable std::unique_ptr<Tool> Flang;
@@ -716,28 +709,6 @@ public:
   virtual void AddCXXStdlibLibArgs(const llvm::opt::ArgList &Args,
                                    llvm::opt::ArgStringList &CmdArgs) const;
 
-
-  /// Some of our command line arguments come in via cmake as a single 
-  /// string.  We use this to extract each argument from the string and
-  /// push it onto the argument list. 
-  ///
-  void ExtractArgsFromString(const char *s, 
-			     llvm::opt::ArgStringList &CmdArgs,
-			     const llvm::opt::ArgList &Args,
-			     const char delimiter = ' ') const;
-
-
-  /// AddKitsuneIncludeArgs - Add some kitsune-centric arguments to expand 
-  /// the default include file search path. 
-  virtual void AddKitsuneIncludeArgs(const llvm::opt::ArgList &Args, 
-				     llvm::opt::ArgStringList &CmdArgs) const;
-
-  /// AddKitsuneLibArgs - Add some kitsune-centric linker arguments to use 
-  /// given the special modes of operation (kitsune, kokkos, backend runtime 
-  /// arguments, etc.). 
-  //virtual void AddKitsuneLibArgs(const llvm::opt::ArgList &Args, 
-  //			 llvm::opt::ArgStringList &CmdArgs) const;
-  
   /// AddFilePathLibArgs - Add each thing in getFilePaths() as a "-L" option.
   void AddFilePathLibArgs(const llvm::opt::ArgList &Args,
                           llvm::opt::ArgStringList &CmdArgs) const;
@@ -831,6 +802,27 @@ public:
     }
     return TT;
   }
+
+  /// Some of our command line arguments come in via cmake as a single
+  /// string.  We use this to extract each argument from the string and
+  /// push it onto the argument list.
+  ///
+  void ExtractArgsFromString(const char *s, llvm::opt::ArgStringList &CmdArgs,
+                             const llvm::opt::ArgList &Args,
+                             const char delimiter = ' ') const;
+
+  /// Add any Kitsune-specific arguments for the preprocessor.
+  virtual void
+  AddKitsunePreprocessorArgs(const llvm::opt::ArgList &Args,
+                             llvm::opt::ArgStringList &CmdArgs) const;
+
+  /// Add Kitsune-specific compiler arguments.
+  virtual void AddKitsuneCompilerArgs(const llvm::opt::ArgList& Ags,
+                                      llvm::opt::ArgStringList& CmdArgs) const;
+
+  /// Add Kitsune-specific arguments that must be added to the linker.
+  virtual void AddKitsuneLinkerArgs(const llvm::opt::ArgList &Args,
+                                    llvm::opt::ArgStringList &CmdArgs) const;
 
   /// Check the specified OpenCilk resource directory is valid.
   virtual void AddOpenCilkIncludeDir(const llvm::opt::ArgList &Args,

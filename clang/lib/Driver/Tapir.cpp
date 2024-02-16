@@ -19,90 +19,65 @@
 #include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
 using namespace clang::driver;
-using namespace clang;
-using namespace llvm::opt;
+using namespace llvm;
 
-TapirTargetID clang::parseTapirTarget(const ArgList &Args) {
-  if (!Args.hasArg(options::OPT_ftapir_EQ)) {
-    return TapirTargetID::None;
-  }
-
-  // Otherwise use the runtime specified by -ftapir.
-  TapirTargetID TapirTarget = TapirTargetID::None;
-  if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
-    TapirTarget = llvm::StringSwitch<TapirTargetID>(A->getValue())
-      .Case("none", TapirTargetID::None)
-      .Case("serial", TapirTargetID::Serial)
-      .Case("cuda", TapirTargetID::Cuda)
-      .Case("hip", TapirTargetID::Hip)
-      .Case("lambda", TapirTargetID::Lambda)
-      .Case("omptask", TapirTargetID::OMPTask)
-      .Case("opencilk", TapirTargetID::OpenCilk)
-      .Case("openmp", TapirTargetID::OpenMP)
-      .Case("qthreads", TapirTargetID::Qthreads)
-      .Case("realm", TapirTargetID::Realm)
-      .Default(TapirTargetID::Last_TapirTargetID);
-
-  return TapirTarget;
+std::optional<TapirTargetID> clang::parseTapirTarget(const opt::ArgList &Args) {
+  if (const opt::Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
+    return llvm::StringSwitch<std::optional<TapirTargetID>>(A->getValue())
+        .Case("none", TapirTargetID::None)
+        .Case("serial", TapirTargetID::Serial)
+        .Case("cuda", TapirTargetID::Cuda)
+        .Case("hip", TapirTargetID::Hip)
+        .Case("opencilk", TapirTargetID::OpenCilk)
+        .Case("openmp", TapirTargetID::OpenMP)
+        .Case("qthreads", TapirTargetID::Qthreads)
+        .Case("realm", TapirTargetID::Realm)
+        .Default(std::nullopt);
+  return std::nullopt;
 }
 
-TapirNVArchTargetID clang::parseTapirNVArchTarget(const ArgList &Args) {
-  TapirNVArchTargetID NVArch = TapirNVArchTargetID::Off;
-  if (const Arg *A = Args.getLastArg(options::OPT_ftapir_nvarch_EQ))
-    NVArch = llvm::StringSwitch<TapirNVArchTargetID>(A->getValue())
-      .Case("sm_50", TapirNVArchTargetID::SM_50)
-      .Case("sm_52", TapirNVArchTargetID::SM_52)
-      .Case("sm_53", TapirNVArchTargetID::SM_53)
-      .Case("sm_60", TapirNVArchTargetID::SM_60)
-      .Case("sm_62", TapirNVArchTargetID::SM_62)
-      .Case("sm_70", TapirNVArchTargetID::SM_70)
-      .Case("sm_75", TapirNVArchTargetID::SM_75)
-      .Case("sm_80", TapirNVArchTargetID::SM_80)
-      .Case("sm_86", TapirNVArchTargetID::SM_86)
-      .Case("sm_90", TapirNVArchTargetID::SM_90)
-      .Default(TapirNVArchTargetID::Last_TapirNVArchTargetID);
+std::optional<TapirNVArchTargetID>
+clang::parseTapirNVArchTarget(const opt::ArgList &Args) {
+  if (const opt::Arg *A = Args.getLastArg(options::OPT_ftapir_nvarch_EQ))
+    return llvm::StringSwitch<TapirNVArchTargetID>(A->getValue())
+        .Case("sm_50", TapirNVArchTargetID::SM_50)
+        .Case("sm_52", TapirNVArchTargetID::SM_52)
+        .Case("sm_53", TapirNVArchTargetID::SM_53)
+        .Case("sm_60", TapirNVArchTargetID::SM_60)
+        .Case("sm_62", TapirNVArchTargetID::SM_62)
+        .Case("sm_70", TapirNVArchTargetID::SM_70)
+        .Case("sm_75", TapirNVArchTargetID::SM_75)
+        .Case("sm_80", TapirNVArchTargetID::SM_80)
+        .Case("sm_86", TapirNVArchTargetID::SM_86)
+        .Case("sm_90", TapirNVArchTargetID::SM_90)
+        .Default(TapirNVArchTargetID::Last_TapirNVArchTargetID);
 
-  return NVArch;
+  return std::nullopt;
 }
 
 std::optional<llvm::StringRef>
-clang::serializeTapirTarget(TapirTargetID Target) {
-  std::optional<llvm::StringRef> TapirTargetStr;
-  switch (Target) {
-  case TapirTargetID::None:
-    TapirTargetStr = "none";
-    break;
-  case TapirTargetID::Serial:
-    TapirTargetStr = "serial";
-    break;
-  case TapirTargetID::Cuda:
-    TapirTargetStr = "cuda";
-    break;
-  case TapirTargetID::Hip:
-    TapirTargetStr = "hip";
-    break;
-  case TapirTargetID::Lambda:
-    TapirTargetStr = "lambda";
-    break;
-  case TapirTargetID::OMPTask:
-    TapirTargetStr = "omptask";
-    break;
-  case TapirTargetID::OpenCilk:
-    TapirTargetStr = "opencilk";
-    break;
-  case TapirTargetID::OpenMP:
-    TapirTargetStr = "openmp";
-    break;
-  case TapirTargetID::Qthreads:
-    TapirTargetStr = "qthreads";
-    break;
-  case TapirTargetID::Realm:
-    TapirTargetStr = "realm";
-    break;
-  case TapirTargetID::Off:
-    break;
-  case TapirTargetID::Last_TapirTargetID:
-    break;
+clang::getTargetConfigFileName(const opt::ArgList &Args) {
+  if (std::optional<TapirTargetID> tt = parseTapirTarget(Args)) {
+    switch (*tt) {
+    case TapirTargetID::None:
+      return "none.cfg";
+    case TapirTargetID::Serial:
+      return "serial.cfg";
+    case TapirTargetID::Cuda:
+      return "cuda.cfg";
+    case TapirTargetID::Hip:
+      return "hip.cfg";
+    case TapirTargetID::OpenCilk:
+      return "opencilk.cfg";
+    case TapirTargetID::OpenMP:
+      return "openmp.cfg";
+    case TapirTargetID::Qthreads:
+      return "qthreads.cfg";
+    case TapirTargetID::Realm:
+      return "realm.cfg";
+    default:
+      return std::nullopt;
+    }
   }
-  return TapirTargetStr;
+  return std::nullopt;
 }

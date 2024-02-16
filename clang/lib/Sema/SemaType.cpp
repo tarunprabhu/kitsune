@@ -5224,17 +5224,6 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
           D.setInvalidType(true);
         }
       }
-      const AutoType *AT = T->getContainedAutoType();
-      // Allow arrays of auto if we are a generic lambda parameter.
-      // i.e. [](auto (&array)[5]) { return array[0]; }; OK
-      if (AT && D.getContext() != DeclaratorContext::LambdaExprParameter) {
-        // We've already diagnosed this for decltype(auto).
-        if (!AT->isDecltypeAuto())
-          S.Diag(DeclType.Loc, diag::err_illegal_decl_array_of_auto)
-              << getPrintableNameForEntity(Name) << T;
-        T = QualType();
-        break;
-      }
 
       // Array parameters can be marked nullable as well, although it's not
       // necessary if they're marked 'static'.
@@ -8740,31 +8729,32 @@ static void HandleOpenCLAccessAttr(QualType &CurType, const ParsedAttr &Attr,
 }
 
 /// Handle Kitsune MemAccess Qualifier Attribute.
-static void HandleKitsuneMemAccessAttr(QualType &CurType, const ParsedAttr &Attr,
-                                   Sema &S) {
+static void HandleKitsuneMemAccessAttr(QualType &CurType,
+                                       const ParsedAttr &Attr, Sema &S) {
 
-  if (const TypedefType* TypedefTy = CurType->getAs<TypedefType>()) {
+  if (const TypedefType *TypedefTy = CurType->getAs<TypedefType>()) {
     std::string PrevAccessQual;
     if (TypedefTy->getDecl()->hasAttr<KitsuneMemAccessAttr>()) {
       KitsuneMemAccessAttr *Attr =
-	TypedefTy->getDecl()->getAttr<KitsuneMemAccessAttr>();
+          TypedefTy->getDecl()->getAttr<KitsuneMemAccessAttr>();
       PrevAccessQual = Attr->getSpelling();
     } else {
-      PrevAccessQual = "readonly"; //or should it be readwrite?
+      PrevAccessQual = "readwrite";
     }
 
     StringRef AttrName = Attr.getAttrName()->getName();
     if (PrevAccessQual == AttrName) {
       // Duplicated qualifiers
       S.Diag(Attr.getLoc(), diag::warn_duplicate_declspec)
-         << AttrName << Attr.getRange();
+          << AttrName << Attr.getRange();
     } else {
       // Contradicting qualifiers
       S.Diag(Attr.getLoc(), diag::err_kitsune_multiple_access_qualifiers);
     }
 
     S.Diag(TypedefTy->getDecl()->getBeginLoc(),
-	   diag::note_kitsune_typedef_access_qualifier) << PrevAccessQual;
+           diag::note_kitsune_typedef_access_qualifier)
+        << PrevAccessQual;
   }
 }
 

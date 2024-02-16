@@ -37,7 +37,6 @@ FunctionCallee RealmABI::get_realmGetNumProcs() {
     return RealmGetNumProcs;
 
   LLVMContext &C = M.getContext();
-  const DataLayout &DL = M.getDataLayout();
   AttributeList AL;
   std::vector<Type*> TypeArray;
 
@@ -155,7 +154,6 @@ FunctionCallee RealmABI::get_realmFinalize() {
 
 RealmABI::RealmABI(Module &M) : TapirTarget(M) {
   LLVMContext &C = M.getContext();
-  const DataLayout &DL = M.getDataLayout();
   // Initialize any types we need for lowering.
   // NOTE: RealmFTy is NOT the same as a Realm::Processor::TaskFuncPtr
   RealmFTy = PointerType::getUnqual(
@@ -213,7 +211,6 @@ Value *RealmABI::getOrCreateBarrier(Value *SyncRegion, Function *F) {
 void RealmABI::lowerSync(SyncInst &SI) {
   IRBuilder<> builder(&SI);
   auto F = SI.getParent()->getParent();
-  auto& C = M.getContext();
   Value* SR = SI.getSyncRegion();
   auto barrier = getOrCreateBarrier(SR, F);
   std::vector<Value *> args = {barrier};
@@ -271,8 +268,9 @@ void RealmABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
   // function to manage the allocation of the argument structure.
 }
 
-void RealmABI::preProcessFunction(Function &F, TaskInfo &TI,
-				  bool OutliningTapirLoops) {
+bool RealmABI::preProcessFunction(Function &F, TaskInfo &TI,
+                                  bool OutliningTapirLoops) {
+  return false;
 }
 
 void RealmABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {

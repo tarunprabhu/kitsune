@@ -171,8 +171,8 @@ void LoopOutlineProcessor::postProcessOutline(TapirLoopInfo &TL,
   Helper->setCallingConv(CallingConv::Fast);
   // Note that the address of the helper is unimportant.
   Helper->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
-  // The helper is private to this module.
-  Helper->setLinkage(GlobalValue::PrivateLinkage);
+  // The helper is internal to this module.
+  Helper->setLinkage(GlobalValue::InternalLinkage);
 }
 
 void LoopOutlineProcessor::addSyncToOutlineReturns(TapirLoopInfo &TL,
@@ -902,10 +902,6 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
                        "Get a loop-outline processor for a Tapir loop",
                        TimerGroupName, TimerGroupDescription,
                        TimePassesIsEnabled);
-
-  // Allow the Tapir target to define a custom loop-outline processor.
-  if (LoopOutlineProcessor *TargetLOP = Target->getLoopOutlineProcessor(TL))
-    return TargetLOP;
 
   Module &M = *F.getParent();
   Loop *L = TL->getLoop();

@@ -1,4 +1,5 @@
-//===--- SemaKitsune.cpp - Semantic analysis for Kitsune extensions -------------===//
+//===--- SemaKitsune.cpp - Semantic analysis for Kitsune extensions
+//-------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,11 +14,12 @@
 
 #include "clang/AST/StmtKitsune.h"
 #include "clang/Sema/SemaInternal.h"
+
 using namespace clang;
 using namespace sema;
 
-StmtResult
-Sema::ActOnSpawnStmt(SourceLocation SpawnLoc, StringRef sv, Stmt *SubStmt) {
+StmtResult Sema::ActOnSpawnStmt(SourceLocation SpawnLoc, StringRef sv,
+                                Stmt *SubStmt) {
   DiagnoseUnusedExprResult(SubStmt, diag::warn_unused_expr);
 
   PushFunctionScope();
@@ -35,8 +37,6 @@ Sema::ActOnSpawnStmt(SourceLocation SpawnLoc, StringRef sv, Stmt *SubStmt) {
   return Result;
 }
 
-StmtResult
-Sema::ActOnSyncStmt(SourceLocation SyncLoc, StringRef sv) {
+StmtResult Sema::ActOnSyncStmt(SourceLocation SyncLoc, StringRef sv) {
   return new (Context) SyncStmt(SyncLoc, sv);
 }
-

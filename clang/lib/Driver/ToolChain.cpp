@@ -25,6 +25,7 @@
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Driver/Tapir.h"
 #include "clang/Driver/XRayArgs.h"
+#include "kitsune/Config/config.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -50,6 +51,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <sstream>
 #include <string>
 
 using namespace clang;
@@ -1259,26 +1261,6 @@ void ToolChain::AddCXXStdlibLibArgs(const ArgList &Args,
   }
 }
 
-
-/// The string produced by CMake configuration parameters for multiple
-/// libraries (e.g. "-lkokkos -ldl -lrt") do not work well for direct
-/// use as arguments.  This helper extracts them into individal
-/// arguments.
-void ToolChain::ExtractArgsFromString(const char *s,
-				      ArgStringList &CmdArgs,
-				      const ArgList &Args,
-				      const char delimiter) const {
-  std::string ArgString(s);
-  std::string token;
-  std::istringstream TokenStream(ArgString);
-  while(std::getline(TokenStream, token, delimiter)) {
-    CmdArgs.push_back(Args.MakeArgStringRef(token));
-  }
-}
-
-void ToolChain::AddKitsuneIncludeArgs(const ArgList &Args,
-				      ArgStringList &CmdArgs) const {}
-
 void ToolChain::AddFilePathLibArgs(const ArgList &Args,
                                    ArgStringList &CmdArgs) const {
   for (const auto &LibPath : getFilePaths())
@@ -1578,6 +1560,109 @@ llvm::opt::DerivedArgList *ToolChain::TranslateXarchArgs(
   return nullptr;
 }
 
+/// The string produced by CMake configuration parameters for multiple
+/// libraries (e.g. "-lkokkos -ldl -lrt") do not work well for direct
+/// use as arguments.  This helper extracts them into individal
+/// arguments.
+void ToolChain::ExtractArgsFromString(const char *s, ArgStringList &CmdArgs,
+                                      const ArgList &Args,
+                                      const char delimiter) const {
+  std::string ArgString(s);
+  std::string token;
+  std::istringstream TokenStream(ArgString);
+  while (std::getline(TokenStream, token, delimiter)) {
+    CmdArgs.push_back(Args.MakeArgStringRef(token));
+  }
+}
+
+void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
+                                           ArgStringList &CmdArgs) const {
+  std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
+
+  // No need to report an error here. That will have been done already.
+  if (not TapirTarget)
+    return;
+
+  switch (*TapirTarget) {
+  case TapirTargetID::Serial:
+  case TapirTargetID::None:
+    break;
+  case llvm::TapirTargetID::Cuda:
+    ExtractArgsFromString(KITSUNE_CUDA_PREPROCESSOR_FLAGS, CmdArgs, Args);
+    break;
+  case llvm::TapirTargetID::Hip:
+    ExtractArgsFromString(KITSUNE_HIP_PREPROCESSOR_FLAGS, CmdArgs, Args);
+    break;
+  case llvm::TapirTargetID::OpenCilk:
+    ExtractArgsFromString(KITSUNE_OPENCILK_PREPROCESSOR_FLAGS, CmdArgs, Args);
+    break;
+  case llvm::TapirTargetID::OpenMP:
+    ExtractArgsFromString(KITSUNE_OPENMP_PREPROCESSOR_FLAGS, CmdArgs, Args);
+    break;
+  case llvm::TapirTargetID::Qthreads:
+    ExtractArgsFromString(KITSUNE_QTHREADS_PREPROCESSOR_FLAGS, CmdArgs, Args);
+    break;
+  case llvm::TapirTargetID::Realm:
+    ExtractArgsFromString(KITSUNE_REALM_PREPROCESSOR_FLAGS, CmdArgs, Args);
+    break;
+  default:
+    llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
+    break;
+  }
+
+  if (D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos)) {
+    ExtractArgsFromString(KITSUNE_KOKKOS_LINKER_FLAGS, CmdArgs, Args);
+  }
+}
+
+void ToolChain::AddKitsuneCompilerArgs(const ArgList& Args,
+                                       ArgStringList& CmdArgs) const {
+  std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
+
+  // No need to report an error here. That will have been done already.
+  if (not TapirTarget)
+    return;
+
+  switch (*TapirTarget) {
+  case TapirTargetID::Serial:
+  case TapirTargetID::None:
+    break;
+  case llvm::TapirTargetID::Cuda:
+    ExtractArgsFromString(KITSUNE_CUDA_COMPILER_FLAGS, CmdArgs, Args);
+    break;
+  case llvm::TapirTargetID::Hip:
+    ExtractArgsFromString(KITSUNE_HIP_COMPILER_FLAGS, CmdArgs, Args);
+    break;
+  case llvm::TapirTargetID::OpenCilk:
+    ExtractArgsFromString(KITSUNE_OPENCILK_COMPILER_FLAGS, CmdArgs, Args);
+    break;
+  case llvm::TapirTargetID::OpenMP:
+    ExtractArgsFromString(KITSUNE_OPENMP_COMPILER_FLAGS, CmdArgs, Args);
+    break;
+  case llvm::TapirTargetID::Qthreads:
+    ExtractArgsFromString(KITSUNE_QTHREADS_COMPILER_FLAGS, CmdArgs, Args);
+    break;
+  case llvm::TapirTargetID::Realm:
+    ExtractArgsFromString(KITSUNE_REALM_COMPILER_FLAGS, CmdArgs, Args);
+    break;
+  default:
+    llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
+    break;
+  }
+
+  if (D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos)) {
+    ExtractArgsFromString(KITSUNE_KOKKOS_COMPILER_FLAGS, CmdArgs, Args);
+  }
+}
+
+void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
+                                     ArgStringList &CmdArgs) const {
+  // For now, this is just added for completeness. All of the functionality is
+  // in addTapirRuntimeLibArgs. At some point, the calls to that function will
+  // be replaced with calls to this.
+  llvm::errs() << "AddKitsuneLinkerArgs\n";
+}
+
 void ToolChain::AddOpenCilkIncludeDir(const ArgList &Args,
                                       ArgStringList &CmdArgs) const {
   if (!Args.hasArg(options::OPT_opencilk_resource_dir_EQ))
@@ -1723,8 +1808,8 @@ void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
   StringRef OpenCilkBCName = UseAsan ? "opencilk-asan-abi" : "opencilk-abi";
   if (auto OpenCilkABIBCFilename = getOpenCilkBC(Args, OpenCilkBCName)) {
     if (IsLTO)
-      CmdArgs.push_back(Args.MakeArgString("--plugin-opt=opencilk-abi-bitcode=" +
-                                           *OpenCilkABIBCFilename));
+      CmdArgs.push_back(Args.MakeArgString(
+          "--plugin-opt=opencilk-abi-bitcode=" + *OpenCilkABIBCFilename));
     else
       CmdArgs.push_back(Args.MakeArgString("--opencilk-abi-bitcode=" +
                                            *OpenCilkABIBCFilename));
@@ -1743,8 +1828,7 @@ void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
 }
 
 std::string ToolChain::getOpenCilkRTBasename(const ArgList &Args,
-                                             StringRef Component,
-                                             FileType Type,
+                                             StringRef Component, FileType Type,
                                              bool AddArch) const {
   const llvm::Triple &TT = getTriple();
   const char *Prefix = "lib";
@@ -1809,15 +1893,26 @@ std::string ToolChain::getOpenCilkRT(const ArgList &Args, StringRef Component,
 
 void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
                                        ArgStringList &CmdArgs) const {
-  TapirTargetID TapirTarget = parseTapirTarget(Args);
-  if (TapirTarget == TapirTargetID::Last_TapirTargetID)
-    if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
-      getDriver().Diag(diag::err_drv_invalid_value) << A->getAsString(Args)
-                                                    << A->getValue();
+  std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
 
-  switch (TapirTarget) {
+  // No need to report an error here. That will have been done already.
+  if (not TapirTarget)
+    return;
 
-  case TapirTargetID::OpenCilk: {
+  switch (*TapirTarget) {
+  case TapirTargetID::Serial:
+  case TapirTargetID::None:
+    break;
+
+  case llvm::TapirTargetID::Cuda:
+    ExtractArgsFromString(KITSUNE_CUDA_LINKER_FLAGS, CmdArgs, Args);
+    break;
+
+  case llvm::TapirTargetID::Hip:
+    ExtractArgsFromString(KITSUNE_HIP_LINKER_FLAGS, CmdArgs, Args);
+    break;
+
+  case llvm::TapirTargetID::OpenCilk: {
     bool StaticOpenCilk = Args.hasArg(options::OPT_static);
     bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
 
@@ -1834,7 +1929,9 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
           UseAsan ? "opencilk-asan-personality-c" : "opencilk-personality-c",
           StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
 
-
+      // FIXME KITSUNE: Do we need these? What about exceptions when using the
+      // OpenCilk backend
+#if 0
     // Link the correct Cilk personality fn if running in opencilk mode.
     if (Args.hasArg(options::OPT_fopencilk)) {
       if (getDriver().CCCIsCXX())
@@ -1842,6 +1939,7 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
       else
         CmdArgs.push_back("-lopencilk-personality-c");
     }
+#endif // 0
 
     // Link the opencilk runtime.  We do this after linking the personality
     // function, to ensure that symbols are resolved correctly when using static
@@ -1853,83 +1951,29 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
     // Add to the executable's runpath the default directory containing OpenCilk
     // runtime.
     addOpenCilkRuntimeRunPath(*this, Args, CmdArgs, Triple);
+
+    ExtractArgsFromString(KITSUNE_OPENCILK_LINKER_FLAGS, CmdArgs, Args);
     break;
   }
-  case TapirTargetID::OpenMP:
-    if (! KITSUNE_ENABLE_OPENMP_ABI_TARGET)
-      getDriver().Diag(diag::warn_drv_tapir_openmp_target_disabled);
+
+  case llvm::TapirTargetID::OpenMP:
+    ExtractArgsFromString(KITSUNE_OPENMP_LINKER_FLAGS, CmdArgs, Args);
     break;
 
-  case TapirTargetID::Qthreads:
-    if (! KITSUNE_ENABLE_QTHREADS_ABI_TARGET)
-      getDriver().Diag(diag::warn_drv_tapir_qthreads_target_disabled);
+  case llvm::TapirTargetID::Qthreads:
+    ExtractArgsFromString(KITSUNE_QTHREADS_LINKER_FLAGS, CmdArgs, Args);
     break;
 
-  case TapirTargetID::Realm:
-    if (! KITSUNE_ENABLE_REALM_ABI_TARGET)
-      getDriver().Diag(diag::warn_drv_tapir_realm_target_disabled);
-    else {
-      CmdArgs.push_back("-lrealm-abi");
-      CmdArgs.push_back("-lrealm");
-      CmdArgs.push_back("-lpthread");
-      CmdArgs.push_back("-ldl");
-      CmdArgs.push_back("-lrt");
-      #if defined(KITSUNE_REALM_EXTRA_LINK_LIBS)
-      ExtractArgsFromString(KITSUNE_REALM_EXTRA_LINK_LIBS, CmdArgs, Args);
-      #endif
-    }
-    break;
-
-  case TapirTargetID::Cuda:
-    if (! KITSUNE_ENABLE_CUDA_ABI_TARGET)
-      getDriver().Diag(diag::warn_drv_tapir_cuda_target_disabled);
-    else {
-      CmdArgs.push_back("-lkitrt");
-      #if defined(KITSUNE_CUDA_EXTRA_LINK_LIBS)
-      ExtractArgsFromString(KITSUNE_CUDA_EXTRA_LINK_LIBS, CmdArgs, Args);
-      #endif
-    }
-    break;
-
-  case TapirTargetID::Hip:
-    if (!KITSUNE_ENABLE_CUDA_ABI_TARGET)
-      getDriver().Diag(diag::warn_drv_tapir_hip_target_disabled);
-    else {
-      CmdArgs.push_back("-lkitrt");
-      #if defined(KITSUNE_HIP_EXTRA_LINK_LIBS)
-      ExtractArgsFromString(KITSUNE_HIP_EXTRA_LINK_LIBS, CmdArgs, Args);
-      #endif
-    }
-    break;
-
-  // FIXME KITSUNE: Support lambda and omptask ABI's.
-  case TapirTargetID::Serial:
-  case TapirTargetID::None:
+  case llvm::TapirTargetID::Realm:
+    ExtractArgsFromString(KITSUNE_REALM_LINKER_FLAGS, CmdArgs, Args);
     break;
 
   default:
-    llvm::report_fatal_error("enternal error -- unhandled tapir target ID!");
+    llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
     break;
   }
 
-  // NOTE: Due to ordering issues introduced by the .cfg files it
-  // doesn't work to add the link libraries (e.g., -lkokkoscore)
-  // as they end up in the wrong order and the symbols will show as
-  // undefined when compiling/linking kokkos code.  As such we add
-  // the bare minimum kokkos libraries here so they can be left out
-  // of the .cfg files.
   if (D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos)) {
-    if (! KITSUNE_ENABLE_KOKKOS_SUPPORT)
-      getDriver().Diag(diag::warn_drv_kitsune_kokkos_disabled);
-    else {
-      #if defined(KITSUNE_KOKKOS_EXTRA_LINK_FLAGS)
-      ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_LINK_FLAGS, CmdArgs, Args);
-      #endif
-      CmdArgs.push_back("-lkokkoscore");
-      CmdArgs.push_back("-ldl");
-      #if defined(KITSUNE_KOKKOS_EXTRA_LINK_LIBS)
-      ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_LINK_LIBS, CmdArgs, Args);
-      #endif
-    }
+    ExtractArgsFromString(KITSUNE_KOKKOS_LINKER_FLAGS, CmdArgs, Args);
   }
 }

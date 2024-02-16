@@ -281,7 +281,8 @@ static bool asanUseGlobalsGC(const Triple &T, const CodeGenOptions &CGOpts) {
 }
 
 static TargetLibraryInfoImpl *createTLII(llvm::Triple &TargetTriple,
-                                         const CodeGenOptions &CodeGenOpts) {
+                                         const CodeGenOptions &CodeGenOpts,
+                                         const LangOptions &LangOpts) {
   TargetLibraryInfoImpl *TLII = new TargetLibraryInfoImpl(TargetTriple);
 
   switch (CodeGenOpts.getVecLib()) {
@@ -317,7 +318,7 @@ static TargetLibraryInfoImpl *createTLII(llvm::Triple &TargetTriple,
     break;
   }
 
-  TLII->setTapirTarget(CodeGenOpts.getTapirTarget());
+  TLII->setTapirTarget(LangOpts.KitsuneOpts.getTapirTargetOrInvalid());
   TLII->setTapirTargetOptions(
       std::make_unique<OpenCilkABIOptions>(CodeGenOpts.OpenCilkABIBitcodeFile));
   TLII->addTapirTargetLibraryFunctions();
@@ -1047,15 +1048,6 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
             MPM.addPass(InstrProfilingLoweringPass(*Options, false));
           });
 
-    // Register the Cilksan pass.
-    if (LangOpts.Sanitize.has(SanitizerKind::Cilk))
-      PB.registerTapirLateEPCallback(
-          [&](ModulePassManager &MPM, OptimizationLevel Level) {
-            MPM.addPass(CSISetupPass());
-            MPM.addPass(CilkSanitizerPass());
-            PB.addPostCilkInstrumentationPipeline(MPM, Level);
-          });
-
     // TODO: Consider passing the MemoryProfileOutput to the pass builder via
     // the PGOOptions, and set this up there.
     if (!CodeGenOpts.MemoryProfileOutput.empty()) {
@@ -1065,6 +1057,18 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
             MPM.addPass(ModuleMemProfilerPass());
           });
     }
+
+// FIXME KITSUNE: Do we want to the Cilk sanitizer?
+#if 0
+    // Register the Cilksan pass.
+    if (LangOpts.Sanitize.has(SanitizerKind::Cilk))
+      PB.registerTapirLateEPCallback(
+          [&PB](ModulePassManager &MPM, OptimizationLevel Level) {
+            MPM.addPass(CSISetupPass());
+            MPM.addPass(CilkSanitizerPass());
+            MPM.addPass(PB.buildPostCilkInstrumentationPipeline(Level));
+          });
+#endif // 0
 
     if (CodeGenOpts.OptimizationLevel == 0) {
       MPM.addPass(PB.buildO0DefaultPipeline(Level, IsLTO || IsThinLTO,
@@ -1306,7 +1310,7 @@ static void runThinLTOBackend(
   Conf.RemarksFormat = CGOpts.OptRecordFormat;
   Conf.SplitDwarfFile = CGOpts.SplitDwarfFile;
   Conf.SplitDwarfOutput = CGOpts.SplitDwarfOutput;
-  Conf.TapirTarget = CGOpts.getTapirTarget();
+  Conf.TapirTarget = LOpts.KitsuneOpts.getTapirTargetOrInvalid();
   Conf.OpenCilkABIBitcodeFile = CGOpts.OpenCilkABIBitcodeFile;
   switch (Action) {
   case Backend_EmitNothing:

@@ -210,7 +210,6 @@ struct PragmaSupportHandler : public PragmaHandler {
                     Token &FirstToken) override;
 };
 
-<<<<<<< HEAD
 struct PragmaOpenMPHandler
     : public PragmaSupportHandler<tok::annot_pragma_openmp,
                                   tok::annot_pragma_openmp_end,
@@ -225,8 +224,6 @@ struct PragmaOpenACCHandler
   PragmaOpenACCHandler() : PragmaSupportHandler("acc") {}
 };
 
-=======
->>>>>>> 01b251155a72 ( Remove a lot of Cilk-specific code. More can probably be removed. check-clang,)
 /// PragmaCommentHandler - "\#pragma comment ...".
 struct PragmaCommentHandler : public PragmaHandler {
   PragmaCommentHandler(Sema &Actions)

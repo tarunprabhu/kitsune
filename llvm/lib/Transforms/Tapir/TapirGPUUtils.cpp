@@ -27,6 +27,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/SmallVectorMemoryBuffer.h"
 #include "llvm/Transforms/Tapir/TapirGPUUtils.h"
+#include <set>
 
 using namespace llvm;
 
@@ -88,13 +89,13 @@ void appendToGlobalCtors(Module &M, Constant *C, int Priority, Constant *Data) {
 
   // Build a 3 field global_ctor entry.
   // We don't take a comdat key.
-  Constant *CSVals[3];
+  Constant* CSVals[3];
   CSVals[0] = IRB.getInt32(Priority);
   CSVals[1] = C;
   CSVals[2] = Data ? ConstantExpr::getPointerCast(Data, IRB.getInt8PtrTy())
                    : Constant::getNullValue(IRB.getInt8PtrTy());
-  Constant *RuntimeCtorInit =
-      ConstantStruct::get(EltTy, makeArrayRef(CSVals, EltTy->getNumElements()));
+  Constant *RuntimeCtorInit = ConstantStruct::get(
+      EltTy, ArrayRef<Constant*>(CSVals, EltTy->getNumElements()));
 
   CurrentCtors.push_back(RuntimeCtorInit);
 

@@ -11,12 +11,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/TapirTaskInfo.h"
+#include "llvm/Demangle/Demangle.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/Timer.h"
+#include "llvm/Transforms/IPO/FunctionAttrs.h"
 #include "llvm/Transforms/Tapir/CudaABI.h"
 #include "llvm/Transforms/Tapir/HipABI.h"
 #include "llvm/Transforms/Tapir/LambdaABI.h"
@@ -56,7 +60,7 @@ TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID) {
   case TapirTargetID::OpenCilk:
     return new OpenCilkABI(M);
   case TapirTargetID::OpenMP:
-    return new OpenMPABI(M);
+    llvm_unreachable("OpenMP ABI is out of date");
   case TapirTargetID::Qthreads:
     return new QthreadsABI(M);
   case TapirTargetID::Realm:
@@ -1245,9 +1249,6 @@ bool TapirTarget::shouldProcessFunction(const Function &F) const {
   for (const Instruction &I : instructions(&F))
     if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I)) {
       switch (II->getIntrinsicID()) {
-      case Intrinsic::hyper_lookup:
-      case Intrinsic::reducer_register:
-      case Intrinsic::reducer_unregister:
       case Intrinsic::tapir_loop_grainsize:
       case Intrinsic::task_frameaddress:
       case Intrinsic::tapir_runtime_start:
@@ -1292,7 +1293,7 @@ void llvm::saveModuleToFile(const Module *M,
   std::error_code EC;
   SmallString<256> IRFileName;
   if (FileName.empty())
-    IRFileName = Twine(sys::path::filename(M->getName())).str() 
+    IRFileName = Twine(sys::path::filename(M->getName())).str()
                   + Extension;
   else
     IRFileName = Twine(FileName).str() + Extension;

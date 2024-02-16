@@ -552,3 +552,15 @@ if(runtimes)
     set_property(GLOBAL APPEND PROPERTY LLVM_ALL_ADDITIONAL_TEST_TARGETS runtimes ${RUNTIMES_TEST_DEPENDS})
   endif()
 endif()
+
+# KITSUNE FIXME: Clean this up once all the tapir targets are built and run
+# correctly.
+# get_cmake_property(vars VARIABLES)
+# list(FILTER vars INCLUDE REGEX "^KIT")
+# list(SORT vars)
+# foreach (var ${vars})
+#   message(STATUS "${var}=${${var}}")
+# endforeach()
+# message(STATUS "bindir: ${LLVM_RUNTIME_OUTPUT_INTDIR}")
+# message(FATAL_ERROR "Done")
+# add_subdirectory(${CMAKE_SOURCE_DIR}/../kitrt kitrt)

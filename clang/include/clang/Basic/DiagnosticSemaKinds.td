@@ -4429,58 +4429,6 @@ def note_called_once_gets_called_twice : Note<
   "previous call is here%select{; set to nil to indicate "
   "it cannot be called afterwards|}0">;
 
-
-// +===== kitsune/tapir: errors related to custom codegen attributes. 
-def warn_tapir_attr_not_enabled: Warning<
-    "tapir attribute found but tapir is not enabled.  "
-    "Attribute ignored.">,
-    InGroup<Tapir>;
-
-def warn_tapir_target_attr_bad_stmt_class: Warning<
-    "tapir target attribute on unsupported statement.  "
-    "Attribute ignored.">,
-    InGroup<Tapir>;
-
-// rutnime target-centric errors/warnings. 
-def err_tapir_target_attr_unsupported_stmt: Error<
-    "tapir target attribute on unsupported statement.">;
-def err_tapir_target_attr_wrong_nargs: Error<
-    "tapir target attribute takes a single argument.">;
-def err_tapir_target_unknown: Error<
-    "unknonwn tapir target.">;
-
-// execution strategy/policy errors/warnings. 
-def err_tapir_strategy_attr_unsupported_stmt: Error<
-    "strategy attribute applied to unsupported statement kind.">;
-def err_tapir_strategy_attr_wrong_nargs: Error<
-    "strategy attribute takes a single argument.">;
-def err_tapir_strategy_unknown: Error<
-    "statement using unknown strategy attribute.">;
-
-def err_kitsune_launch_non_integral_type: Error<
-    "launch attribute: threads-per-block must be a built-in integer type.">;
-def err_kitsune_launch_tpb_too_large: Error<
-    "launch attribute: threads-per-block must be a 32-bit value.">;
-def err_kitsune_launch_tpb_must_be_positive: Error<
-    "launch attribute: threads-per-block must be a positive integer value.">;    
-
-// spawn+sync errors/warnings.
-// 
-def warn_spawn_as_loop_body: Warning<
-    "%0 loop with spawn statement body has undefined behavior.">,
-    InGroup<Kitsune>;
-
-// Forall errors/warnings
-def err_forall_no_init: Error<
-    "A forall statement must have an initialization expression.">;
-def err_forall_no_cond: Error<
-    "A forall statement must have a condition.">;
-def err_forall_no_inc: Error<
-    "A forall statement must have an increment expression.">;
-def err_forall_has_break: Error<
-    "A forall body may not have a break statement.">;
-// =====+
-
 // objc_designated_initializer attribute diagnostics.
 def warn_objc_designated_init_missing_super_call : Warning<
   "designated initializer missing a 'super' call to a designated initializer of the super class">,
@@ -10743,13 +10691,6 @@ def err_opencl_multiple_access_qualifiers : Error<
 def note_opencl_typedef_access_qualifier : Note<
   "previously declared '%0' here">;
 
-// Kitsune memaccess qualifier
-def err_kitsune_multiple_access_qualifiers : Error<
-  "multiple access qualifiers">;
-def note_kitsune_typedef_access_qualifier : Note<
-  "previously declared '%0' here">;
-
-
 // OpenCL v2.0 s6.12.5 Blocks restrictions
 def err_opencl_block_storage_type : Error<
   "the __block storage type is not permitted">;
@@ -12223,4 +12164,52 @@ def err_wasm_builtin_arg_must_match_table_element_type : Error <
   "%ordinal0 argument must match the element type of the WebAssembly table in the %ordinal1 argument">;
 def err_wasm_builtin_arg_must_be_integer_type : Error <
   "%ordinal0 argument must be an integer">;
+
+// Kitsune
+
+// target attribute
+def err_tapir_target_attr_unsupported_stmt: Error<
+  "tapir target attribute on unsupported statement">;
+def err_tapir_target_unknown: Error<
+  "unknown tapir target.">;
+
+// execution strategy/policy
+def err_tapir_strategy_unknown: Error<
+  "statement using unknown strategy attribute">;
+
+// cuda launch parameters
+def err_kitsune_launch_non_integral_type: Error<
+  "launch attribute: threads-per-block must be a built-in integer type">;
+def err_kitsune_launch_tpb_too_large: Error<
+  "launch attribute: threads-per-block must be a 32-bit value">;
+def err_kitsune_launch_tpb_must_be_positive: Error<
+  "launch attribute: threads-per-block must be a positive integer value">;
+
+// spawn + sync
+def warn_spawn_as_loop_body: Warning<
+  "%0 loop with spawn statement body has undefined behavior">,
+  InGroup<Kitsune>;
+def err_spawn_in_forall: Error<
+  "spawn statements are not allowed in forall loops">;
+
+// forall
+def err_forall_no_init: Error<
+  "forall statement must have an initialization expression">;
+def err_forall_no_cond: Error<
+  "forall statement must have a condition expression">;
+def err_forall_no_inc: Error<
+  "forall statement must have an increment expression">;
+def err_forall_has_break: Error<
+  "forall body may not have a break statement">;
+def err_forall_init_not_decl: Error<
+  "Initializer in a forall statement must be a variable declaration">;
+def err_forall_init_multiple: Error<
+  "Initializer in a forall statement must declare exactly one variable">;
+
+// memory access qualifiers
+def err_kitsune_multiple_access_qualifiers : Error<
+  "multiple access qualifiers">;
+def note_kitsune_typedef_access_qualifier : Note<
+  "previously declared '%0' here">;
+  
 } // end of sema component.

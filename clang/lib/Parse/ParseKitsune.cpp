@@ -22,8 +22,13 @@ using namespace clang;
 StmtResult Parser::ParseSyncStatement() {
   assert(Tok.is(tok::kw__kitsune_sync) && "Not a sync stmt!");
   SourceLocation SyncLoc = ConsumeToken(); // eat the '_kitsune_sync'
-  assert(Tok.is(tok::identifier) && Tok.getIdentifierInfo() &&
-         "Not an identifier!");
+
+  if (Tok.isNot(tok::identifier)) {
+    Diag(Tok, diag::err_expected_unqualified_id) << 0;
+    SkipUntil(tok::semi);
+    return StmtError();
+  }
+
   Token IdentTok = Tok;
   ConsumeToken();
   return Actions.ActOnSyncStmt(SyncLoc,
@@ -37,8 +42,11 @@ StmtResult Parser::ParseSpawnStatement() {
   assert(Tok.is(tok::kw__kitsune_spawn) && "Not a spawn stmt!");
   SourceLocation SpawnLoc = ConsumeToken(); // eat the '_kitsune_spawn'.
 
-  assert(Tok.is(tok::identifier) && Tok.getIdentifierInfo() &&
-         "Not an identifier!");
+  if (Tok.isNot(tok::identifier)) {
+    Diag(Tok, diag::err_expected_unqualified_id) << 0;
+    return StmtError();
+  }
+
   Token IdentTok = Tok;
   ConsumeToken();
 
