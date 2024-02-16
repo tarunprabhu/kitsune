@@ -49,20 +49,18 @@
  *  SUCH DAMAGE.
  *
  ***************************************************************************/
-#include "clang/AST/Attr.h"
-#include "clang/Basic/Attributes.h"
-#include "clang/Basic/AttrKinds.h"
-#include "clang/Frontend/FrontendDiagnostic.h"
-#include "clang/CodeGen/CGFunctionInfo.h"
-#include "CodeGenFunction.h"
 #include "CGCleanup.h"
+#include "CodeGenFunction.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/StmtKitsune.h"
+#include "clang/Basic/AttrKinds.h"
+#include "clang/Basic/Attributes.h"
+#include "clang/CodeGen/CGFunctionInfo.h"
+#include "clang/Frontend/FrontendDiagnostic.h"
 #include "llvm/IR/ValueMap.h"
-
 
 using namespace clang;
 using namespace CodeGen;
-
 
 LoopAttributes::LSStrategy
 CodeGenFunction::GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs) {
@@ -71,96 +69,97 @@ CodeGenFunction::GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs) {
 
   auto curAttr = Attrs.begin();
 
-  while(curAttr != Attrs.end()) {
+  while (curAttr != Attrs.end()) {
 
     const attr::Kind AttrKind = (*curAttr)->getKind();
 
     if (AttrKind == attr::TapirStrategy) {
       const auto *SAttr = cast<const TapirStrategyAttr>(*curAttr);
 
-      switch(SAttr->getTapirStrategyType()) {
-        case TapirStrategyAttr::SEQ:
-          Strategy = LoopAttributes::SEQ;
-          break;
-        case TapirStrategyAttr::DAC:
-          Strategy = LoopAttributes::DAC;
-          break;
-        case TapirStrategyAttr::GPU:
-          Strategy = LoopAttributes::GPU;
-          break;
-        default:
-          llvm_unreachable("all strategies should be handled before this!");
-          break;
+      switch (SAttr->getTapirStrategyType()) {
+      case TapirStrategyAttr::SEQ:
+        Strategy = LoopAttributes::SEQ;
+        break;
+      case TapirStrategyAttr::DAC:
+        Strategy = LoopAttributes::DAC;
+        break;
+      case TapirStrategyAttr::GPU:
+        Strategy = LoopAttributes::GPU;
+        break;
+      default:
+        llvm_unreachable("all strategies should be handled before this!");
+        break;
       }
     }
   }
   return Strategy;
 }
 
-LoopAttributes::LTarget
-CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
-
-  auto curAttr = Attrs.begin();
-
-  // TODO: Need to make sure the default matches build parameters!
-  LoopAttributes::LTarget Target = LoopAttributes::CilkRT;
-
-  while(curAttr != Attrs.end()) {
-
-    const attr::Kind AttrKind = (*curAttr)->getKind();
-
-    if (AttrKind == attr::TapirTarget) {
-      const auto *TAttr = cast<const TapirTargetAttr>(*curAttr);
-
-      switch(TAttr->getTapirTargetAttrType()) {
-        case TapirTargetAttr::CheetahRT:
-          Target = LoopAttributes::CheetahRT;
-          break;
-        case TapirTargetAttr::CilkRT:
-          Target = LoopAttributes::CilkRT;
-          break;
-        case TapirTargetAttr::CudaRT:
-          Target = LoopAttributes::CudaRT;
-          break;
-        case TapirTargetAttr::HipRT:
-          Target = LoopAttributes::HipRT;
-          break;
-        case TapirTargetAttr::OmpRT:
-          Target = LoopAttributes::OmpRT;
-          break;
-        case TapirTargetAttr::QthreadsRT:
-         Target = LoopAttributes::QthreadsRT;
-         break;
-        case TapirTargetAttr::RealmRT:
-          Target = LoopAttributes::RealmRT;
-          break;
-        case TapirTargetAttr::RocmRT:
-          Target = LoopAttributes::RocmRT;
-          break;
-        case TapirTargetAttr::SequentialRT:
-          Target = LoopAttributes::SequentialRT;
-          break;
-        case TapirTargetAttr::ZeroRT:
-          Target = LoopAttributes::ZeroRT;
-          break;
-        default:
-          llvm_unreachable("All target attributes should be handled here!");
-          break;
+unsigned CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
+  llvm::TapirTargetID TTID = llvm::TapirTargetID::Last_TapirTargetID;
+  for (auto curAttr : Attrs) {
+    if (curAttr->getKind() == attr::TapirTarget) {
+      const TapirTargetAttr::TapirTargetAttrTy TTA =
+	cast<const TapirTargetAttr>(curAttr)->getTapirTargetAttrType();
+      switch(TTA) {
+      case TapirTargetAttr::None:
+	TTID = llvm::TapirTargetID::None;
+	break;
+      case TapirTargetAttr::Serial:
+	TTID = llvm::TapirTargetID::Serial;
+	break;
+      case TapirTargetAttr::Cuda:
+	TTID = llvm::TapirTargetID::Cuda;
+	break;	
+      case TapirTargetAttr::Hip:
+	TTID = llvm::TapirTargetID::Hip;
+	break;	
+      case TapirTargetAttr::OpenMP:
+	TTID = llvm::TapirTargetID::OpenMP;
+	break;	
+      case TapirTargetAttr::Qthreads:
+	TTID = llvm::TapirTargetID::Qthreads;
+	break;
+      case TapirTargetAttr::Realm:
+	TTID = llvm::TapirTargetID::Realm;
+	break;	
+      default:
+        llvm_unreachable("unhandled tapir target attribute!");
       }
+      break;
     }
-    curAttr++;
   }
-  return Target;
+
+  if (TTID == llvm::TapirTargetID::Last_TapirTargetID)
+    TTID = CGM.getCodeGenOpts().getTapirTarget();
+  
+  return unsigned(TTID);
 }
 
+llvm::Value *
+CodeGenFunction::GetKitsuneLaunchAttr(ArrayRef<const Attr *> Attrs) {
 
+  for (const auto *curAttr : Attrs) {
+    if (curAttr->getKind() == attr::KitsuneLaunch) {
+      const Expr *TPBAttr =
+          cast<const KitsuneLaunchAttr>(curAttr)->getThreadsPerBlock();
+      return EmitScalarExpr(TPBAttr, false);
+    }
+  }
+  // missing attribute -- zero threads per block using runtime settings.
+  return nullptr;
+}
+
+/*
 // Stolen from CodeGenFunction.cpp
 static void EmitIfUsed(CodeGenFunction &CGF, llvm::BasicBlock *BB) {
-  if (!BB) return;
+  if (!BB)
+    return;
   if (!BB->use_empty())
     return BB->insertInto(CGF.CurFn);
   delete BB;
 }
+*/
 
 llvm::Instruction *CodeGenFunction::EmitLabeledSyncRegionStart(StringRef SV) {
   // Start the sync region.  To ensure the syncregion.start call dominates all
@@ -181,43 +180,41 @@ void CodeGenFunction::EmitSyncStmt(const SyncStmt &S) {
   if (HaveInsertPoint())
     EmitStopPoint(&S);
 
-  Builder.CreateSync(ContinueBlock,
-    getOrCreateLabeledSyncRegion(S.getSyncVar())->getSyncRegionStart());
+  Builder.CreateSync(
+      ContinueBlock,
+      getOrCreateLabeledSyncRegion(S.getSyncVar())->getSyncRegionStart());
   EmitBlock(ContinueBlock);
 }
 
 void CodeGenFunction::EmitSpawnStmt(const SpawnStmt &S) {
   // Set up to perform a detach.
   // PushDetachScope();
-  SyncRegion* SR = getOrCreateLabeledSyncRegion(S.getSyncVar());
-  //StartLabeledDetach(SR);
+  SyncRegion *SR = getOrCreateLabeledSyncRegion(S.getSyncVar());
+  // StartLabeledDetach(SR);
 
-  llvm::BasicBlock* DetachedBlock = createBasicBlock("det.achd");
-  llvm::BasicBlock* ContinueBlock = createBasicBlock("det.cont");
+  llvm::BasicBlock *DetachedBlock = createBasicBlock("det.achd");
+  llvm::BasicBlock *ContinueBlock = createBasicBlock("det.cont");
 
   auto OldAllocaInsertPt = AllocaInsertPt;
   llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
-  AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, "",
-                                             DetachedBlock);
+  AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, "", DetachedBlock);
 
-  Builder.CreateDetach(DetachedBlock, ContinueBlock,
-                           SR->getSyncRegionStart());
-
+  Builder.CreateDetach(DetachedBlock, ContinueBlock, SR->getSyncRegionStart());
 
   EmitBlock(DetachedBlock);
   EmitStmt(S.getSpawnedStmt());
 
-  Builder.CreateReattach(ContinueBlock,
-                             SR->getSyncRegionStart());
+  Builder.CreateReattach(ContinueBlock, SR->getSyncRegionStart());
 
-  llvm::Instruction* ptr = AllocaInsertPt;
+  llvm::Instruction *ptr = AllocaInsertPt;
   AllocaInsertPt = OldAllocaInsertPt;
   ptr->eraseFromParent();
 
   EmitBlock(ContinueBlock);
 }
 
-void CodeGenFunction::SetAllocaInsertPoint(llvm::Value* v, llvm::BasicBlock* bb){
+void CodeGenFunction::SetAllocaInsertPoint(llvm::Value *v,
+                                           llvm::BasicBlock *bb) {
   AllocaInsertPt = new llvm::BitCastInst(v, Int32Ty, "", bb);
 }
 
@@ -226,8 +223,8 @@ void CodeGenFunction::SetAllocaInsertPoint(llvm::Value* v, llvm::BasicBlock* bb)
 // LocalDeclMap but keeping track of the original mapping
 // as well as the new RValue after the load. This is all
 // a precursor to capturing the IV by value in the body emission.
-void CodeGenFunction::EmitIVLoad(const VarDecl* LoopVar,
-                                DeclMapByValueTy& IVDeclMap) {
+void CodeGenFunction::EmitIVLoad(const VarDecl *LoopVar,
+                                 DeclMapByValueTy &IVDeclMap) {
 
   // The address corresponding to the IV
   Address IVAddress = LocalDeclMap.find(LoopVar)->second;
@@ -244,44 +241,46 @@ void CodeGenFunction::EmitIVLoad(const VarDecl* LoopVar,
 
   // Emit all the shallow copy loads and update
   switch (getEvaluationKind(type)) {
-    case TEK_Scalar: {
+  case TEK_Scalar: {
+    LValue IVLV = MakeAddrLValue(IVAddress, type);
+    RValue IVRV = EmitLoadOfLValue(IVLV, LoopVar->getBeginLoc());
+    ValueVec.push_back(IVRV.getScalarVal());
+    break;
+  }
+  case TEK_Complex: {
+    ComplexPairTy Val = EmitLoadOfComplex(MakeAddrLValue(IVAddress, type),
+                                          LoopVar->getBeginLoc());
+    ValueVec.push_back(Val.first);
+    ValueVec.push_back(Val.second);
+    break;
+  }
+  case TEK_Aggregate: {
+    if (const llvm::StructType *STy =
+            dyn_cast<llvm::StructType>(IVAddress.getElementType())) {
+      for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
+        Address EltPtr = Builder.CreateStructGEP(IVAddress, i);
+        llvm::Value *Elt = Builder.CreateLoad(EltPtr);
+        ValueVec.push_back(Elt);
+      }
+    } else {
       LValue IVLV = MakeAddrLValue(IVAddress, type);
       RValue IVRV = EmitLoadOfLValue(IVLV, LoopVar->getBeginLoc());
       ValueVec.push_back(IVRV.getScalarVal());
-      break;
     }
-    case TEK_Complex: {
-      ComplexPairTy Val =
-        EmitLoadOfComplex(MakeAddrLValue(IVAddress, type),
-                          LoopVar->getBeginLoc());
-      ValueVec.push_back(Val.first);
-      ValueVec.push_back(Val.second);
-      break;
-    }
-    case TEK_Aggregate: {
-      if (const llvm::StructType *STy = dyn_cast<llvm::StructType>(IVAddress.getElementType())) {
-        for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
-          Address EltPtr = Builder.CreateStructGEP(IVAddress, i);
-          llvm::Value *Elt = Builder.CreateLoad(EltPtr);
-          ValueVec.push_back(Elt);
-        }
-      } else {
-        LValue IVLV = MakeAddrLValue(IVAddress, type);
-        RValue IVRV = EmitLoadOfLValue(IVLV, LoopVar->getBeginLoc());
-        ValueVec.push_back(IVRV.getScalarVal());
-      }
-      break;
-    }
+    break;
+  }
   }
 
-  // Capture the mapping from LoopVar to the old address and new vector of Value*'s
+  // Capture the mapping from LoopVar to the old address and new vector of
+  // Value*'s
   IVDeclMap.insert({LoopVar, {IVAddress, ValueVec}});
 }
 
 // Emit a thread safe copy of the induction variable and set it's value
 // to the current value of the induction variable
 
-void CodeGenFunction::EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,4>& Values){
+void CodeGenFunction::EmitThreadSafeIV(
+    const VarDecl *IV, const llvm::SmallVector<llvm::Value *, 4> &Values) {
 
   // emit the thread safe induction variable and cleanups
   AutoVarEmission LVEmission = EmitAutoVarAlloca(*IV);
@@ -298,33 +297,34 @@ void CodeGenFunction::EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVecto
   LV.setNonGC(true);
 
   switch (getEvaluationKind(type)) {
-    case TEK_Scalar: {
-      EmitStoreOfScalar(Values[0], LV, true);
-      break;
-    }
-    case TEK_Complex: {
-      ComplexPairTy Val = {Values[0], Values[1]};
-      EmitStoreOfComplex(Val, LV, true);
-      break;
-    }
-    case TEK_Aggregate: {
-      if (const llvm::StructType *STy =dyn_cast<llvm::StructType>(Loc.getElementType())) {
-        for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
-          Address EltPtr = Builder.CreateStructGEP(Loc, i);
-          llvm::Value *Elt = Values[i];
-          Builder.CreateStore(Elt, EltPtr);
-        }
-      } else {
-        EmitStoreOfScalar(Values[0], LV, /*isInit*/ true);
-      }
-      break;
-    }
+  case TEK_Scalar: {
+    EmitStoreOfScalar(Values[0], LV, true);
+    break;
   }
-
+  case TEK_Complex: {
+    ComplexPairTy Val = {Values[0], Values[1]};
+    EmitStoreOfComplex(Val, LV, true);
+    break;
+  }
+  case TEK_Aggregate: {
+    if (const llvm::StructType *STy =
+            dyn_cast<llvm::StructType>(Loc.getElementType())) {
+      for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
+        Address EltPtr = Builder.CreateStructGEP(Loc, i);
+        llvm::Value *Elt = Values[i];
+        Builder.CreateStore(Elt, EltPtr);
+      }
+    } else {
+      EmitStoreOfScalar(Values[0], LV, /*isInit*/ true);
+    }
+    break;
+  }
+  }
 }
 
 // Restore the original mapping between the Vardecl and its address
-void CodeGenFunction::RestoreDeclMap(const VarDecl* IV, const Address IVAddress){
+void CodeGenFunction::RestoreDeclMap(const VarDecl *IV,
+                                     const Address IVAddress) {
 
   // remove the mapping to the thread safe induction variable
   LocalDeclMap.erase(IV);
@@ -334,11 +334,29 @@ void CodeGenFunction::RestoreDeclMap(const VarDecl* IV, const Address IVAddress)
 }
 
 void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
-                                  ArrayRef<const Attr *> ForallAttr) {
+                                     ArrayRef<const Attr *> ForallAttr) {
 
-  LoopAttributes::LTarget TT = GetTapirTargetAttr(ForallAttr);
-  if (TT == LoopAttributes::CudaRT) {
-    fprintf(stderr, "Found a cuda attributed forall statement.\n");
+  // A forall may have attributes but no tapir target so we can't simply
+  // check if the attributes are empty.
+  int TT = GetTapirTargetAttr(ForallAttr);
+  // set the loop target attribute
+  LoopStack.setLoopTarget(TT);
+
+  if (TT == TapirTargetAttr::Cuda) {
+    llvm::Value *ThreadsPerBlock = GetKitsuneLaunchAttr(ForallAttr);
+    if (ThreadsPerBlock) {
+      // If we have a threads-per-block launch attribute, it is an expression
+      // that we need to insert code gen for.  While it can simple (contsant)
+      // more complex (a runtime computation) we need to worry about aspects
+      // like DCE removal before we get to the Tapir transformation stage.
+      llvm::Module &Mod = CGM.getModule();
+      llvm::LLVMContext &Ctx = Mod.getContext();
+      llvm::Type *VoidTy = llvm::Type::getVoidTy(Ctx);
+      llvm::Type *IntTy = llvm::Type::getInt32Ty(Ctx);
+      llvm::FunctionCallee TPBRTCall = Mod.getOrInsertFunction(
+          "__kitrt_dummy_threads_per_blk", VoidTy, IntTy);
+      Builder.CreateCall(TPBRTCall, {ThreadsPerBlock});
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -346,7 +364,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   // by serial loops.
 
   // New basic blocks and jump destinations with Tapir terminators
-  llvm::BasicBlock* Detach = createBasicBlock("forall.detach");
+  llvm::BasicBlock *Detach = createBasicBlock("forall.detach");
   JumpDest Reattach = getJumpDestInCurrentScope("forall.reattach");
   JumpDest Sync = getJumpDestInCurrentScope("forall.sync");
 
@@ -379,8 +397,8 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   EmitBlock(CondBlock);
 
   const SourceRange &R = S.getSourceRange();
-  LoopStack.push(CondBlock, CGM.getContext(), CGM.getCodeGenOpts(),
-                 ForallAttr, SourceLocToDebugLoc(R.getBegin()),
+  LoopStack.push(CondBlock, CGM.getContext(), CGM.getCodeGenOpts(), ForallAttr,
+                 SourceLocToDebugLoc(R.getBegin()),
                  SourceLocToDebugLoc(R.getEnd()));
 
   // In a parallel loop, there will always be an increment block
@@ -431,7 +449,8 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   // Extract the DeclStmt from the statement init
   const DeclStmt *DS = cast<DeclStmt>(S.getInit());
 
-  // Create threadsafe induction variables before the detach and put them in IVDeclMap
+  // Create threadsafe induction variables before the detach and put them in
+  // IVDeclMap
   for (auto *DI : DS->decls())
     EmitIVLoad(dyn_cast<VarDecl>(DI), IVDeclMap);
 
@@ -517,16 +536,35 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   EmitBlock(LoopExit.getBlock(), true);
 }
 
-void
-CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
-                                        ArrayRef<const Attr *> ForallAttr) {
+void CodeGenFunction::EmitCXXForallRangeStmt(
+    const CXXForallRangeStmt &S, ArrayRef<const Attr *> ForallAttr) {
+
+  unsigned TT = GetTapirTargetAttr(ForallAttr);
+  LoopStack.setLoopTarget(TT);
+
+  if (TT == TapirTargetAttr::Cuda) {
+    llvm::Value *ThreadsPerBlock = GetKitsuneLaunchAttr(ForallAttr);
+    if (ThreadsPerBlock) {
+      // If we have a threads-per-block launch attribute, it is an expression
+      // that we need to insert code gen for.  While it can simple (constant)
+      // more complex (a runtime computation) we need to worry about aspects
+      // like DCE removal before we get to the Tapir transformation stage.
+      llvm::Module &Mod = CGM.getModule();
+      llvm::LLVMContext &Ctx = Mod.getContext();
+      llvm::Type *VoidTy = llvm::Type::getVoidTy(Ctx);
+      llvm::Type *IntTy = llvm::Type::getInt32Ty(Ctx);
+      llvm::FunctionCallee TPBRTCall = Mod.getOrInsertFunction(
+          "__kitrt_dummy_threads_per_blk", VoidTy, IntTy);
+      Builder.CreateCall(TPBRTCall, {ThreadsPerBlock});
+    }
+  }
 
   /////////////////////////////////////////////////////////////////////////////
   // Code modifications necessary for implementing parallel loops not required
   // by serial loops.
 
   // new basic blocks and jump destinations with Tapir terminators
-  llvm::BasicBlock* Detach = createBasicBlock("forall.detach");
+  llvm::BasicBlock *Detach = createBasicBlock("forall.detach");
   JumpDest Reattach = getJumpDestInCurrentScope("forall.reattach");
   JumpDest LoopExit = getJumpDestInCurrentScope("forall.sync");
 
@@ -564,8 +602,8 @@ CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   EmitBlock(CondBlock);
 
   const SourceRange &R = S.getSourceRange();
-  LoopStack.push(CondBlock, CGM.getContext(), CGM.getCodeGenOpts(),
-                 ForallAttr, SourceLocToDebugLoc(R.getBegin()),
+  LoopStack.push(CondBlock, CGM.getContext(), CGM.getCodeGenOpts(), ForallAttr,
+                 SourceLocToDebugLoc(R.getBegin()),
                  SourceLocToDebugLoc(R.getEnd()));
 
   // If there are any cleanups between here and the loop-exit scope,
@@ -580,8 +618,8 @@ CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   // The body is executed if the expression, contextually converted
   // to bool, is true.
   llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
-  llvm::MDNode *Weights = createProfileWeightsForLoop(
-      S.getCond(), getProfileCount(S.getBody()));
+  llvm::MDNode *Weights =
+      createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody()));
   Builder.CreateCondBr(BoolCondVal, Detach, ExitBlock, Weights);
 
   if (ExitBlock != LoopExit.getBlock()) {
@@ -600,7 +638,8 @@ CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   // Extract the DeclStmt from the statement init
   const DeclStmt *DS = cast<DeclStmt>(S.getIndexStmt());
 
-  // Create threadsafe induction variables before the detach and put them in IVDeclMap
+  // Create threadsafe induction variables before the detach and put them in
+  // IVDeclMap
   for (auto *DI : DS->decls())
     EmitIVLoad(dyn_cast<VarDecl>(DI), IVDeclMap);
 
@@ -686,4 +725,3 @@ CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
 
   EmitBlock(End, true);
 }
-

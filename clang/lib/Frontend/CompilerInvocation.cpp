@@ -3744,6 +3744,9 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   if (T.isOSAIX() && (Args.hasArg(OPT_mignore_xcoff_visibility)))
     Opts.IgnoreXCOFFVisibility = 1;
 
+  if (Opts.getKitsune() == LangOptions::Kitsune && Opts.ObjC)
+    Diags.Report(diag::err_drv_kitsune_objc);
+
   if (Args.hasArg(OPT_ftrapv)) {
     Opts.setSignedOverflowBehavior(LangOptions::SOB_Trapping);
     // Set the handler, if one is specified.
@@ -4488,25 +4491,25 @@ bool CompilerInvocation::CreateFromArgsImpl(
   if (Arg *A = Args.getLastArg(OPT_ftapir_EQ)){
     StringRef Name = A->getValue();
     if (Name == "none")
-      LangOpts.Tapir = TapirTargetID::None;
-    else if (Name == "opencilk")
-      LangOpts.Tapir = TapirTargetID::OpenCilk;
-    else if (Name == "openmp")
-      LangOpts.Tapir = TapirTargetID::OpenMP;
-    else if (Name == "qthreads")
-      LangOpts.Tapir = TapirTargetID::Qthreads;
-    else if (Name == "realm")
-      LangOpts.Tapir = TapirTargetID::Realm;
-    else if (Name == "cuda")
-      LangOpts.Tapir = TapirTargetID::Cuda;
-    else if (Name == "hip")
-      LangOpts.Tapir = TapirTargetID::Hip;
-    else if (Name == "opencl")
-      LangOpts.Tapir = TapirTargetID::OpenCL;
-    else if (Name == "gpu")
-      LangOpts.Tapir = TapirTargetID::GPU;
+      LangOpts.TapirTarget = TapirTargetID::None;
     else if (Name == "serial")
-      LangOpts.Tapir = TapirTargetID::Serial;
+      LangOpts.TapirTarge = TapirTargetID::Serial;
+    else if (Name == "cuda")
+      LangOpts.TapirTarget = TapirTargetID::Cuda;
+    else if (Name == "hip")
+      LangOpts.TapirTarget = TapirTargetID::Hip;
+    else if (Name == "lambda")
+      LangOpts.TapirTarget = TapirTargetID::Lambda;
+    else if (Name == "omptask")
+      LangOpts.TapirTarget = TapirTargetID::OMPTask;
+    else if (Name == "opencilk")
+      LangOpts.TapirTarget = TapirTargetID::OpenCilk;
+    else if (Name == "openmp")
+      LangOpts.TapirTarget = TapirTargetID::OpenMP;
+    else if (Name == "qthreads")
+      LangOpts.TapirTarget = TapirTargetID::Qthreads;
+    else if (Name == "realm")
+      LangOpts.TapirTarget = TapirTargetID::Realm;
     else
       Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args) <<
         Name;

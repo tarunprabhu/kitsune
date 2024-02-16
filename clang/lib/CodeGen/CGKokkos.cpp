@@ -204,7 +204,7 @@ bool CodeGenFunction::ParseAndValidateParallelFor(const CallExpr* CE,
     return false; 
   }
 
-  // DO WAY MORE ERROR CHECKING...
+  // TODO: DO WAY MORE ERROR CHECKING...
 
   // Pack everything up
   for (unsigned i=0; i<Params.size(); ++i)
@@ -290,6 +290,9 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   /////////////////////////////////////////////////////////////////////////////
   // Code Modifications necessary for implementing parallel loops not required
   // by serial loops.
+
+  int TT = GetTapirTargetAttr(KokkosAttrs);
+  LoopStack.setLoopTarget(TT);
 
   // New basic blocks and jump destinations with Tapir terminators
   // Note that we only need one of each of these regardless of the number of

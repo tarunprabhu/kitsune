@@ -4316,26 +4316,22 @@ def note_called_once_gets_called_twice : Note<
 
 // +===== kitsune/tapir: errors related to custom codegen attributes. 
 def warn_tapir_attr_not_enabled: Warning<
-    "tapir attribute encountered but tapir is not enabled (via -ftapir).  "
+    "tapir attribute found but tapir is not enabled.  "
     "Attribute ignored.">,
     InGroup<Tapir>;
 
 def warn_tapir_target_attr_bad_stmt_class: Warning<
-    "tapir target runtime attribute applied to an unsupported statement.  "
+    "tapir target attribute on unsupported statement.  "
     "Attribute ignored.">,
     InGroup<Tapir>;
 
-def warn_kitsune_not_enabled: Warning<
-    "kitsune not enabled (-fkitsune) tapir attribute will be ignored.">,
-    InGroup<Kitsune>;
-
 // rutnime target-centric errors/warnings. 
 def err_tapir_target_attr_unsupported_stmt: Error<
-    "tapir target runtime attribute applied to unsupported statement kind.">;
+    "tapir target attribute on unsupported statement.">;
 def err_tapir_target_attr_wrong_nargs: Error<
-    "tapir target runtime attribute takes a single argument.">;
+    "tapir target attribute takes a single argument.">;
 def err_tapir_target_unknown: Error<
-    "statement using unknonwn tapir target runtime attribute.">;
+    "unknonwn tapir target.">;
 
 // execution strategy/policy errors/warnings. 
 def err_tapir_strategy_attr_unsupported_stmt: Error<
@@ -4344,6 +4340,13 @@ def err_tapir_strategy_attr_wrong_nargs: Error<
     "strategy attribute takes a single argument.">;
 def err_tapir_strategy_unknown: Error<
     "statement using unknown strategy attribute.">;
+
+def err_kitsune_launch_non_integral_type: Error<
+    "launch attribute: threads-per-block must be a built-in integer type.">;
+def err_kitsune_launch_tpb_too_large: Error<
+    "launch attribute: threads-per-block must be a 32-bit value.">;
+def err_kitsune_launch_tpb_must_be_positive: Error<
+    "launch attribute: threads-per-block must be a positive integer value.">;    
 
 // spawn+sync errors/warnings.
 // 

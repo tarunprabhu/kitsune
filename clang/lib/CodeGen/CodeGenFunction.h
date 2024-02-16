@@ -568,6 +568,8 @@ public:
   // applies to.  nullptr if there is no 'musttail' on the current statement.
   const CallExpr *MustTailCall = nullptr;
 
+  // The set of attributes associated with a tapir-based statement attribute.
+  ArrayRef<const Attr *> TapirAttrs;
   /// Returns true if a function must make progress, which means the
   /// mustprogress attribute can be added.
   bool checkIfFunctionMustProgress() {
@@ -3917,7 +3919,8 @@ public:
   llvm::Value *EmitSEHAbnormalTermination();
 
   LoopAttributes::LSStrategy GetTapirStrategyAttr(ArrayRef<const Attr*> Attrs);
-  LoopAttributes::LTarget GetTapirTargetAttr(ArrayRef<const Attr*> Attrs);
+  unsigned GetTapirTargetAttr(ArrayRef<const Attr*> Attrs);
+  llvm::Value* GetKitsuneLaunchAttr(ArrayRef<const Attr*> Attrs);
 
   // Kitsune support for Kokkos.
   bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?

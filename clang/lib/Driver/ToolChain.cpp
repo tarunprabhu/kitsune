@@ -41,6 +41,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Support/VersionTuple.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/TargetParser/AArch64TargetParser.h"
@@ -1765,10 +1766,6 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
                                                     << A->getValue();
 
   switch (TapirTarget) {
-  case TapirTargetID::Cheetah:
-    CmdArgs.push_back("-lcheetah");
-    CmdArgs.push_back("-lpthread");
-    break;
 
   case TapirTargetID::OpenCilk: {
     bool StaticOpenCilk = Args.hasArg(options::OPT_static);
@@ -1806,10 +1803,6 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
     // Add to the executable's runpath the default directory containing OpenCilk
     // runtime.
     addOpenCilkRuntimeRunPath(*this, Args, CmdArgs, Triple);
-    if (OnlyStaticOpenCilk) {
-      CmdArgs.push_back("-Bdynamic");
-      CmdArgs.push_back("-lpthread");
-    }
     break;
   }
   case TapirTargetID::OpenMP:
@@ -1859,18 +1852,7 @@ void ToolChain::AddTapirRuntimeLibArgs(const ArgList &Args,
     }
     break;
 
-  case TapirTargetID::GPU:
-    if (! KITSUNE_ENABLE_GPU_ABI_TARGET)
-      getDriver().Diag(diag::warn_drv_tapir_gpu_target_disabled);
-    else {
-      CmdArgs.push_back("-lkitrt");
-      CmdArgs.push_back("-ldl");
-      #if defined(KITSUNE_GPU_ABI_EXTRA_LINK_LIBS)
-      ExtractArgsFromString(KITSUNE_GPU_ABI_EXTRA_LINK_LIBS, CmdArgs, Args);
-      #endif
-    }
-    break;
-
+  // FIXME KITSUNE: Support lambda and omptask ABI's.
   case TapirTargetID::Serial:
   case TapirTargetID::None:
     break;

@@ -7,7 +7,8 @@ subdirs := \
   saxpy \
   srad \
   raytracer \
-  euler3d 
+  euler3d \
+  multi-target
 
 .PHONY: all clean run $(subdirs)
 
@@ -20,5 +21,6 @@ $(subdirs):
 run: $(subdirs)
 	$(MAKE) -C $< $(MAKECMDGOALS)
 	
-
+launch_bench: $(subdirs)
+	$(MAKE) -C $< $(MAKECMDGOALS)
 

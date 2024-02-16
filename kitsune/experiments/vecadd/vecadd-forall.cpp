@@ -5,8 +5,9 @@
 
 template<typename T>
 void random_fill(T *data, size_t N) {
-  for(size_t i = 0; i < N; ++i)
-    data[i] = rand() / (T)RAND_MAX;
+  T base_value = rand() / (T)RAND_MAX;
+  forall(size_t i = 0; i < N; ++i)
+    data[i] = base_value + i;
 }
 
 int main (int argc, char* argv[]) {
@@ -69,6 +70,6 @@ int main (int argc, char* argv[]) {
   dealloc(A);
   dealloc(B);
   dealloc(C);
-  return 0;
+  return error_count;
 }
 

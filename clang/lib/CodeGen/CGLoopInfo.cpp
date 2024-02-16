@@ -48,7 +48,7 @@ MDNode *LoopInfo::createTapirLoopMetadata(const LoopAttributes &Attrs,
     return createLoopPropertiesMetadata(LoopProperties);
 
   SmallVector<Metadata *, 4> Args;
-  TempMDTuple TempNode = MDNode::getTemporary(Ctx, None);
+  TempMDTuple TempNode = MDNode::getTemporary(Ctx, std::nullopt);
   Args.push_back(TempNode.get());
   Args.append(LoopProperties.begin(), LoopProperties.end());
 
@@ -575,6 +575,14 @@ void LoopInfo::getTapirLoopProperties(
                                                  Attrs.TapirGrainsize))};
     LoopProperties.push_back(MDNode::get(Ctx, Vals));
   }
+
+  // Setting tapir.loop.target
+  // All tapir loops have a loop target, it may be the default
+  Metadata *Vals[] = {
+  MDString::get(Ctx, "tapir.loop.target"),
+  ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
+                                            Attrs.LoopTarget))};
+  LoopProperties.push_back(MDNode::get(Ctx, Vals));   
 }
 
 void LoopInfo::finish() {

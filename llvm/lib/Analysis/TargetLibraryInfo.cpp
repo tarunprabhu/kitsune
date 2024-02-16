@@ -45,22 +45,22 @@ static cl::opt<TapirTargetID> ClTapirTarget(
                           "none", "None"),
                clEnumValN(TapirTargetID::Serial,
                           "serial", "Serial code"),
+               clEnumValN(TapirTargetID::Cuda,
+                          "cuda", "Cuda (NVPTX)"),
+               clEnumValN(TapirTargetID::Hip,
+                          "hip", "Hip (AMDGPU)"),
+               clEnumValN(TapirTargetID::Lambda,
+                          "lambda", "Lambda"),
+               clEnumValN(TapirTargetID::OMPTask,
+                          "omptask", "OMPTask"),
+               clEnumValN(TapirTargetID::OpenCilk,
+                          "opencilk", "OpenCilk"),
                clEnumValN(TapirTargetID::OpenMP,
                           "openmp", "OpenMP"),
                clEnumValN(TapirTargetID::Qthreads,
                           "qthreads", "Qthreads"),
                clEnumValN(TapirTargetID::Realm,
-                          "realm", "Realm"),
-               clEnumValN(TapirTargetID::GPU,
-                          "gpu", "GPU"),
-               clEnumValN(TapirTargetID::Cheetah,
-                          "cheetah", "Cheetah"),
-               clEnumValN(TapirTargetID::OpenCilk,
-                          "opencilk", "OpenCilk"),
-               clEnumValN(TapirTargetID::Lambda,
-                          "lambda", "Lambda"),
-               clEnumValN(TapirTargetID::OMPTask,
-                          "omptask", "OMPTask")));
+                          "realm", "Realm")));
 
 StringLiteral const TargetLibraryInfoImpl::StandardNames[LibFunc::NumLibFuncs] =
     {
@@ -1302,10 +1302,13 @@ void TargetLibraryInfoImpl::addTapirTargetLibraryFunctions(
   }
   case TapirTargetID::None:
   case TapirTargetID::Serial:
-  case TapirTargetID::Cheetah:
   case TapirTargetID::Cuda:
+  case TapirTargetID::Hip:
+  case TapirTargetID::Lambda:
+  case TapirTargetID::OMPTask:
   case TapirTargetID::OpenMP:
   case TapirTargetID::Qthreads:
+  case TapirTargetID::Realm:    
   case TapirTargetID::Last_TapirTargetID:
     break;
   }

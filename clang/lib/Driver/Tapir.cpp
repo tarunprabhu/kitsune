@@ -33,7 +33,6 @@ TapirTargetID clang::parseTapirTarget(const ArgList &Args) {
     TapirTarget = llvm::StringSwitch<TapirTargetID>(A->getValue())
       .Case("none", TapirTargetID::None)
       .Case("serial", TapirTargetID::Serial)
-      .Case("cheetah", TapirTargetID::Cheetah)
       .Case("cuda", TapirTargetID::Cuda)
       .Case("hip", TapirTargetID::Hip)
       .Case("lambda", TapirTargetID::Lambda)
@@ -42,7 +41,6 @@ TapirTargetID clang::parseTapirTarget(const ArgList &Args) {
       .Case("openmp", TapirTargetID::OpenMP)
       .Case("qthreads", TapirTargetID::Qthreads)
       .Case("realm", TapirTargetID::Realm)
-      .Case("gpu", TapirTargetID::GPU)
       .Default(TapirTargetID::Last_TapirTargetID);
 
   return TapirTarget;
@@ -60,6 +58,8 @@ TapirNVArchTargetID clang::parseTapirNVArchTarget(const ArgList &Args) {
       .Case("sm_70", TapirNVArchTargetID::SM_70)
       .Case("sm_75", TapirNVArchTargetID::SM_75)
       .Case("sm_80", TapirNVArchTargetID::SM_80)
+      .Case("sm_86", TapirNVArchTargetID::SM_86)
+      .Case("sm_90", TapirNVArchTargetID::SM_90)
       .Default(TapirNVArchTargetID::Last_TapirNVArchTargetID);
 
   return NVArch;
@@ -75,17 +75,17 @@ clang::serializeTapirTarget(TapirTargetID Target) {
   case TapirTargetID::Serial:
     TapirTargetStr = "serial";
     break;
-  case TapirTargetID::Cheetah:
-    TapirTargetStr = "cheetah";
-    break;
   case TapirTargetID::Cuda:
     TapirTargetStr = "cuda";
     break;
-  case TapirTargetID::GPU:
-    TapirTargetStr = "gpu";
-    break;
   case TapirTargetID::Hip:
     TapirTargetStr = "hip";
+    break;
+  case TapirTargetID::Lambda:
+    TapirTargetStr = "lambda";
+    break;
+  case TapirTargetID::OMPTask:
+    TapirTargetStr = "omptask";
     break;
   case TapirTargetID::OpenCilk:
     TapirTargetStr = "opencilk";
