@@ -8,7 +8,9 @@ subdirs := \
   srad \
   raytracer \
   euler3d \
-  multi-target
+  multi-target \
+  intersect \
+  lto-tests
 
 .PHONY: all clean run $(subdirs)
 

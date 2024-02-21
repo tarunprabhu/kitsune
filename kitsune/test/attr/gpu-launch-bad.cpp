@@ -1,3 +1,6 @@
+// FIXME: This requires the cuda tapir target to be enabled. This test should
+// have a guard that will check for that
+
 // RUN: %kitxx -Xclang -verify -fsyntax-only -ftapir=cuda %s
 
 #include <kitsune.h>

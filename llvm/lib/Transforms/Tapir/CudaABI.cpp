@@ -122,14 +122,14 @@ using namespace llvm;
 /// ## CudaABI Transformation Command Line Options ##
 ///
 /// All of the transformation's command line options must be
-/// passed using the the `-mllvm` as the leading flag.  All
-/// transform options should have `-hipabi-` as the leading
-/// string.  A summary of these options is provided below.
+/// passed using `-mllvm` as the leading flag.  All
+/// transform options have `-cuabi-` as the leading
+/// string.  A summary of the options is provided below.
 ///
 ///   * `-cuabi-arch=target`: The target CUDA architecture
 ///     to generate code for.  This directly matches the
-///     [NVPTX backend
-///     targets](https://llvm.org/docs/NVPTXUsage.html).
+///     [NVPTX backend targets]
+///     (https://llvm.org/docs/NVPTXUsage.html).
 ///
 ///   * `-cuabi-opt-level=[0,1,2,3]`: Set the optimization
 ///     level for transformation.  This corresponds directly
@@ -278,6 +278,10 @@ std::string virtualArchForCudaArch(StringRef Arch) {
                              .Case("sm_90", "compute_90") // Hopper
                              .Default("unknown");
   LLVM_DEBUG(dbgs() << "cuabi: compute architecture '" << VirtArch << "'.\n");
+  if (VirtArch == "unknown") {
+    errs() << "cuabi: unsupported cuda architecture target '" << Arch << "'.\n";
+    report_fatal_error("cuabi: fatal error -- unsupported target.");
+  }
   return VirtArch;
 }
 
@@ -315,7 +319,7 @@ std::string PTXVersionFromCudaVersion() {
           .Case("12.2", "+ptx83")
           .Case("12.3", "+ptx83")
           .Case("12.4", "+ptx83")
-          .Case("12.5", "+ptx83")    
+          .Case("12.5", "+ptx83")
           .Default("");
 
   if (PTXVersionStr == "") {
@@ -402,17 +406,19 @@ CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
                                     Int64Ty); // number of integer ops.
   KitCudaLaunchFn = M.getOrInsertFunction(
       "__kitcuda_launch_kernel",
-      VoidTy,                           // no return
-      VoidPtrTy,                        // fat-binary
-      VoidPtrTy,                        // kernel name
-      VoidPtrPtrTy,                     // arguments
-      Int64Ty,                          // trip count
-      Int32Ty,                          // threads-per-block
-      KernelInstMixTy->getPointerTo()); // instruction mix info
+      VoidPtrTy,                       // return an opaque stream
+      VoidPtrTy,                       // fat-binary
+      VoidPtrTy,                       // kernel name
+      VoidPtrPtrTy,                    // arguments
+      Int64Ty,                         // trip count
+      Int32Ty,                         // threads-per-block
+      KernelInstMixTy->getPointerTo(), // instruction mix info
+      VoidPtrTy);                      // opaque cuda stream
   KitCudaMemPrefetchFn =
       M.getOrInsertFunction("__kitcuda_mem_gpu_prefetch",
-                            VoidTy,     // no return.
-                            VoidPtrTy); // pointer to prefetch
+                            VoidPtrTy,  // return an opaque stream
+                            VoidPtrTy,  // pointer to prefetch
+                            VoidPtrTy); // opaque stream
   KitCudaGetGlobalSymbolFn =
       M.getOrInsertFunction("__kitcuda_get_global_symbol",
                             Int64Ty,    // return the device pointer for symbol.
@@ -711,7 +717,6 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
 
 void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
                                   ValueToValueMapTy &VMap) {
-
   // addSyncToOutlineReturns(TLI, Out, VMap);
 
   LLVMContext &Ctx = M.getContext();
@@ -751,11 +756,14 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   SmallVector<Metadata *, 6> AV;
   AV.push_back(ValueAsMetadata::get(KernelF));
   AV.push_back(MDString::get(Ctx, "kernel"));
-  AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 1)));
+  AV.push_back(
+      ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 1)));
   // AV.push_back(MDString::get(Ctx, "maxntidx"));
-  // AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 160)));
-  //AV.push_back(MDString::get(Ctx, "maxnreg"));
-  //AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 63)));
+  // AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx),
+  // 160)));
+  // AV.push_back(MDString::get(Ctx, "maxnreg"));
+  // AV.push_back(ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx),
+  // 63)));
   Annotations->addOperand(MDNode::get(Ctx, AV));
 
   // Verify that the Thread ID corresponds to a valid iteration.  Because
@@ -927,7 +935,7 @@ void CudaLoop::transformForPTX(Function &F) {
   for (auto I = inst_begin(&F); I != inst_end(&F); I++) {
     if (auto CI = dyn_cast<CallInst>(&*I)) {
       if (FPMathOperator *FPO = dyn_cast<FPMathOperator>(CI)) {
-         if (FPO->isFast()) {
+        if (FPO->isFast()) {
           enableFast = true;
         } else {
           // LLVM_DEBUG(dbgs() << " [std/full precision]\n");
@@ -1018,6 +1026,9 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   ArrayType *ArrayTy = ArrayType::get(VoidPtrTy, OrderedInputs.size());
   Value *ArgArray = EntryBuilder.CreateAlloca(ArrayTy);
+  AllocaInst *CudaStream = EntryBuilder.CreateAlloca(VoidPtrTy);
+  EntryBuilder.CreateStore(ConstantPointerNull::get(VoidPtrTy), CudaStream);
+  bool StreamAssigned = false;
   unsigned int i = 0;
   for (Value *V : OrderedInputs) {
     Value *VP = EntryBuilder.CreateAlloca(V->getType());
@@ -1031,7 +1042,15 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     if (CodeGenPrefetch && V->getType()->isPointerTy()) {
       LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for arg " << i << "\n");
       Value *VoidPP = NewBuilder.CreateBitCast(V, VoidPtrTy);
-      NewBuilder.CreateCall(KitCudaMemPrefetchFn, {VoidPP});
+      LLVM_DEBUG(dbgs() << "\t\t\t+ prefetch stream is: " << *CudaStream
+                        << "\n");
+      Value *SPtr = NewBuilder.CreateLoad(VoidPtrTy, CudaStream);
+      Value *NewSPtr =
+          NewBuilder.CreateCall(KitCudaMemPrefetchFn, {VoidPP, SPtr});
+      if (not StreamAssigned) {
+        NewBuilder.CreateStore(NewSPtr, CudaStream);
+        StreamAssigned = true;
+      }
     }
   }
 
@@ -1113,8 +1132,19 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   NewBuilder.CreateStore(InstructionMix, AI);
 
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
-  NewBuilder.CreateCall(KitCudaLaunchFn, {DummyFBPtr, KNameParam, argsPtr,
-                                          CastTripCount, TPBlockValue, AI});
+  Value *KSPtr = NewBuilder.CreateLoad(VoidPtrTy, CudaStream);
+  CallInst *LaunchStream = NewBuilder.CreateCall(
+      KitCudaLaunchFn, {DummyFBPtr, KNameParam, argsPtr, CastTripCount,
+                        TPBlockValue, AI, KSPtr});
+  // if (not StreamAssigned)
+  NewBuilder.CreateStore(LaunchStream, CudaStream);
+
+  LLVM_DEBUG(dbgs() << "\t\t+- registering launch stream:\n"
+                    << "\t\t\tcall: " << *LaunchStream << "\n"
+                    << "\t\t\tstream: " << *CudaStream << "\n");
+
+  TTarget->registerLaunchStream(LaunchStream, CudaStream);
+
   TOI.ReplCall->eraseFromParent();
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
 }
@@ -1238,8 +1268,7 @@ void CudaABI::lowerSync(SyncInst &SI) {
   // side modules.
 }
 
-void CudaABI::addHelperAttributes(Function &F) { /* no-op */
-}
+void CudaABI::addHelperAttributes(Function &F) { /* no-op */ }
 
 bool CudaABI::preProcessFunction(Function &F, TaskInfo &TI,
                                  bool OutliningTapirLoops) {
@@ -1250,14 +1279,15 @@ void CudaABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
   if (OutliningTapirLoops) {
     LLVMContext &Ctx = M.getContext();
     Type *VoidTy = Type::getVoidTy(Ctx);
-    FunctionCallee KitCudaSyncFn =
-        M.getOrInsertFunction("__kitcuda_sync_thread_stream",
-                              VoidTy); // no return & no parameters
+    PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
+    Value *CudaStream = ConstantPointerNull::get(VoidPtrTy);
+    FunctionCallee KitCudaSyncFn = M.getOrInsertFunction(
+        "__kitcuda_sync_thread_stream", VoidTy, VoidPtrTy);
 
     for (Value *SR : SyncRegList) {
       for (Use &U : SR->uses()) {
         if (auto *SyncI = dyn_cast<SyncInst>(U.getUser()))
-          CallInst::Create(KitCudaSyncFn, "",
+          CallInst::Create(KitCudaSyncFn, {CudaStream}, "",
                            &*SyncI->getSuccessor(0)->begin());
       }
     }
@@ -1265,8 +1295,7 @@ void CudaABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
   }
 }
 
-void CudaABI::postProcessHelper(Function &F) { /* no-op */
-}
+void CudaABI::postProcessHelper(Function &F) { /* no-op */ }
 
 void CudaABI::preProcessOutlinedTask(llvm::Function &, llvm::Instruction *,
                                      llvm::Instruction *, bool, BasicBlock *) {
@@ -1452,6 +1481,7 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
   // launch finalization.
   CallInst *ThreadsPerBlockCI = nullptr;
   std::list<CallInst *> DummyCIList;
+  CallInst *SavedLaunchCI = nullptr;
 
   for (auto &Fn : FnList) {
     for (auto &BB : Fn) {
@@ -1464,8 +1494,30 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
                                    "placeholder call.\n");
               assert(ThreadsPerBlockCI == nullptr && "expected null pointer!");
               ThreadsPerBlockCI = CI;
+            } else if (CFn->getName().starts_with(
+                           "__kitcuda_sync_thread_stream")) {
+              LLVM_DEBUG(dbgs()
+                         << "\t\t\t* patching sync call: " << *CI << "\n");
+              if (SavedLaunchCI != nullptr) {
+                AllocaInst *StreamAI = getLaunchStream(SavedLaunchCI);
+                assert(StreamAI != nullptr && "unexpected null launch stream!");
+                LLVM_DEBUG(dbgs()
+                           << "\t\t\t\t* stream alloca: " << *StreamAI << "\n");
+                IRBuilder<> SyncBuilder(CI);
+                Value *CudaStream =
+                    SyncBuilder.CreateLoad(VoidPtrTy, StreamAI, "custreamh");
+                LLVM_DEBUG(dbgs()
+                           << "\t\t\t\t* cuda stream: " << *CudaStream << "\n");
+                CI->setArgOperand(0, CudaStream);
+                SavedLaunchCI = nullptr;
+                LLVM_DEBUG(dbgs() << "\t\t\t* patched call: " << *CI << "\n");
+              } else {
+                LLVM_DEBUG(dbgs()
+                           << "\t\t\t- note, matching launch not found!\n");
+              }
             } else if (CFn->getName().starts_with("__kitcuda_launch_kernel")) {
               LLVM_DEBUG(dbgs() << "\t\t\t* patching launch: " << *CI << "\n");
+              SavedLaunchCI = CI;
               Value *CFatbin;
               CFatbin = CastInst::CreateBitOrPointerCast(Fatbin, VoidPtrTy,
                                                          "_cubin.fatbin", CI);
@@ -1968,7 +2020,7 @@ CudaABIOutputFile CudaABI::generatePTX() {
     mpm.run(KernelModule, mam);
     LLVM_DEBUG(dbgs() << "\t\tpasses complete.\n");
     LLVM_DEBUG(saveModuleToFile(&KernelModule, KernelModule.getName().str() +
-                                                 ".postopt.LTO.ll"));
+                                                   ".postopt.LTO.ll"));
   }
 
   // Setup the passes and request that the output goes to the
