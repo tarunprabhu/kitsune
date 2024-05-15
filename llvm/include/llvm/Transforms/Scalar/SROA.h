@@ -127,7 +127,6 @@ class SROAPass : public PassInfoMixin<SROAPass> {
   /// allow the promotion.
   static std::optional<sroa::RewriteableMemOps>
   isSafeSelectToSpeculate(SelectInst &SI, bool PreserveCFG);
->>>>>>> 05e7e8a2c040 (This is a squash of the OpenCilk repo onto LLVM 17's release branch. All credit)
 
 public:
   /// If \p PreserveCFG is set, then the pass is not allowed to modify CFG

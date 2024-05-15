@@ -236,7 +236,7 @@ static bool isUsedByLifetimeMarker(Value *V) {
 static bool hasLifetimeMarkers(AllocaInst *AI) {
   Type *Ty = AI->getType();
   Type *Int8PtrTy =
-      Type::getInt8PtrTy(Ty->getContext(), Ty->getPointerAddressSpace());
+      PointerType::get(Ty->getContext(), Ty->getPointerAddressSpace());
   if (Ty == Int8PtrTy)
     return isUsedByLifetimeMarker(AI);
 
@@ -2203,7 +2203,7 @@ void llvm::promoteCallsInTasksToInvokes(Function &F, const Twine Name) {
   // Create a cleanup block.
   LLVMContext &C = F.getContext();
   BasicBlock *CleanupBB = BasicBlock::Create(C, Name, &F);
-  Type *ExnTy = StructType::get(Type::getInt8PtrTy(C), Type::getInt32Ty(C));
+  Type *ExnTy = StructType::get(PointerType::getUnqual(C), Type::getInt32Ty(C));
 
   LandingPadInst *LPad =
       LandingPadInst::Create(ExnTy, 1, Name + ".lpad", CleanupBB);
@@ -2305,7 +2305,7 @@ void llvm::TapirLoopHints::getHintsFromMetadata() {
 
 /// Checks string hint with one operand and set value if valid.
 void llvm::TapirLoopHints::setHint(StringRef Name, Metadata *Arg) {
-  if (!Name.startswith(Prefix()))
+  if (!Name.starts_with(Prefix()))
     return;
   Name = Name.substr(Prefix().size(), StringRef::npos);
 
@@ -2345,7 +2345,7 @@ bool llvm::TapirLoopHints::matchesHintMetadataName(
     return false;
 
   for (auto H : HintTypes)
-    if (Name->getString().endswith(H.Name))
+    if (Name->getString().ends_with(H.Name))
       return true;
   return false;
 }
@@ -2494,7 +2494,7 @@ MDNode *llvm::CopyNonTapirLoopMetadata(MDNode *LoopID, MDNode *OrigLoopID) {
       return nullptr;
     StringRef AttrName = cast<MDString>(NameMD)->getString();
     // Skip tapir.loop metadata
-    if (!AttrName.startswith("tapir.loop"))
+    if (!AttrName.starts_with("tapir.loop"))
       MDs.push_back(Op);
   }
 
