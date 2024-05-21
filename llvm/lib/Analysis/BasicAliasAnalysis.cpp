@@ -1557,11 +1557,6 @@ static inline TapirFnBehavior clearStrand(const TapirFnBehavior TFB) {
   return TapirFnBehavior(static_cast<uint8_t>(TFB) &
                          ~static_cast<uint8_t>(TapirFnBehavior::Strand));
 }
-static inline TapirFnBehavior unionTapirFnBehavior(const TapirFnBehavior TFB1,
-                                                   const TapirFnBehavior TFB2) {
-  return TapirFnBehavior(static_cast<uint8_t>(TFB1) |
-                         static_cast<uint8_t>(TFB2));
-}
 static inline TapirFnBehavior
 intersectTapirFnBehavior(const TapirFnBehavior TFB1,
                          const TapirFnBehavior TFB2) {

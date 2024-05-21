@@ -1682,41 +1682,52 @@ void ToolChain::AddOpenCilkIncludeDir(const ArgList &Args,
   }
 }
 
-ToolChain::path_list
+// KITSUNE FIXME: We probably don't need this because
+//
+//   - We build cheetah ourselves, so we can control where the library goes and
+//     what it is named.
+//
+//   - We will remove the option to specify an alternate resource directory.
+//
+// This will be part of the broader simplification of Kitsune and removing
+// anything that is not strictly necessary.
+std::optional<std::string>
 ToolChain::getOpenCilkRuntimePaths(const ArgList &Args) const {
-  if (!Args.hasArg(options::OPT_opencilk_resource_dir_EQ))
-    return getRuntimePaths();
+  // if (!Args.hasArg(options::OPT_opencilk_resource_dir_EQ))
+  return getRuntimePath();
 
-  path_list Paths;
+  // if (!Args.hasArg(options::OPT_opencilk_resource_dir_EQ)) {
+  //   // KITSUNE FIXME: We probably don't need the compiler-rt path because
+  //   that
+  //   // is only used by cilktools which we don't build.
+  //   // Paths = getRuntimePaths();
+  //   // Paths.push_back(getCompilerRTPath());
+  //   // return Paths;
+  //   return getRuntimePath();
+  // }
 
-  if (!Args.hasArg(options::OPT_opencilk_resource_dir_EQ)) {
-    Paths = getRuntimePaths();
-    Paths.push_back(getCompilerRTPath());
-    return Paths;
-  }
+  // // If -opencilk-resource-dir= is specified, try to use that directory, and
+  // // raise an error if that fails.
+  // const Arg *A = Args.getLastArg(options::OPT_opencilk_resource_dir_EQ);
 
-  // If -opencilk-resource-dir= is specified, try to use that directory, and
-  // raise an error if that fails.
-  const Arg *A = Args.getLastArg(options::OPT_opencilk_resource_dir_EQ);
+  // // Try the triple passed to driver as --target=<triple>.
+  // {
+  //   SmallString<128> P(A->getValue());
+  //   llvm::sys::path::append(P, "lib", getTriple().str());
+  //   return P.str();
+  // }
+  // // Try excluding the triple.
+  // {
+  //   SmallString<128> P(A->getValue());
+  //   if (Triple.isOSUnknown()) {
+  //     llvm::sys::path::append(P, "lib");
+  //   } else {
+  //     llvm::sys::path::append(P, "lib", getOSLibName());
+  //   }
+  //   return P.str();
+  // }
 
-  // Try the triple passed to driver as --target=<triple>.
-  {
-    SmallString<128> P(A->getValue());
-    llvm::sys::path::append(P, "lib", getTriple().str());
-    Paths.push_back(std::string(P.str()));
-  }
-  // Try excluding the triple.
-  {
-    SmallString<128> P(A->getValue());
-    if (Triple.isOSUnknown()) {
-      llvm::sys::path::append(P, "lib");
-    } else {
-      llvm::sys::path::append(P, "lib", getOSLibName());
-    }
-    Paths.push_back(std::string(P.str()));
-  }
-
-  return Paths;
+  // return Paths;
 }
 
 static void addOpenCilkRuntimeRunPath(const ToolChain &TC, const ArgList &Args,
@@ -1729,13 +1740,14 @@ static void addOpenCilkRuntimeRunPath(const ToolChain &TC, const ArgList &Args,
     return;
 
   bool FoundCandidate = false;
-  for (auto CandidateRPath : TC.getOpenCilkRuntimePaths(Args)) {
-    if (TC.getVFS().exists(CandidateRPath)) {
+  if (std::optional<std::string> CandidateRPath =
+          TC.getOpenCilkRuntimePaths(Args)) {
+    if (TC.getVFS().exists(*CandidateRPath)) {
       FoundCandidate = true;
       CmdArgs.push_back("-L");
-      CmdArgs.push_back(Args.MakeArgString(CandidateRPath.c_str()));
+      CmdArgs.push_back(Args.MakeArgString(CandidateRPath->c_str()));
       CmdArgs.push_back("-rpath");
-      CmdArgs.push_back(Args.MakeArgString(CandidateRPath.c_str()));
+      CmdArgs.push_back(Args.MakeArgString(CandidateRPath->c_str()));
     }
   }
   if (FoundCandidate && Triple.isOSBinFormatELF())
@@ -1767,8 +1779,8 @@ std::optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
   // Check for runtime files without the architecture first.
   std::string BCBasename =
       getOpenCilkBCBasename(Args, Component, /*AddArch=*/false);
-  for (auto RuntimePath : getOpenCilkRuntimePaths(Args)) {
-    SmallString<128> P(RuntimePath);
+  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePaths(Args)) {
+    SmallString<128> P(*RuntimePath);
     llvm::sys::path::append(P, BCBasename);
     if (getVFS().exists(P))
       return std::optional<std::string>(std::string(P.str()));
@@ -1777,8 +1789,8 @@ std::optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
   // Fall back to the OpenCilk name with the arch if the no-arch version does
   // not exist.
   BCBasename = getOpenCilkBCBasename(Args, Component, /*AddArch=*/true);
-  for (auto RuntimePath : getOpenCilkRuntimePaths(Args)) {
-    SmallString<128> P(RuntimePath);
+  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePaths(Args)) {
+    SmallString<128> P(*RuntimePath);
     llvm::sys::path::append(P, BCBasename);
     if (getVFS().exists(P))
       return std::optional<std::string>(std::string(P.str()));
@@ -1861,8 +1873,9 @@ std::string ToolChain::getOpenCilkRT(const ArgList &Args, StringRef Component,
   if (Args.hasArg(options::OPT_opencilk_resource_dir_EQ)) {
     // If opencilk-resource-dir is specified, look for the library in that
     // directory.
-    for (auto RuntimePath : getOpenCilkRuntimePaths(Args)) {
-      SmallString<128> P(RuntimePath);
+    if (std::optional<std::string> RuntimePath =
+            getOpenCilkRuntimePaths(Args)) {
+      SmallString<128> P(*RuntimePath);
       llvm::sys::path::append(P, RTBasename);
       if (getVFS().exists(P))
         return std::string(P.str());
@@ -1880,8 +1893,8 @@ std::string ToolChain::getOpenCilkRT(const ArgList &Args, StringRef Component,
   // Fall back to the OpenCilk name with the arch if the no-arch version does
   // not exist.
   RTBasename = getOpenCilkRTBasename(Args, Component, Type, /*AddArch=*/true);
-  for (auto RuntimePath : getOpenCilkRuntimePaths(Args)) {
-    SmallString<128> P(RuntimePath);
+  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePaths(Args)) {
+    SmallString<128> P(*RuntimePath);
     llvm::sys::path::append(P, RTBasename);
     if (getVFS().exists(P))
       return std::string(P.str());

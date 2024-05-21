@@ -3458,33 +3458,11 @@ void Darwin::printVerboseInfo(raw_ostream &OS) const {
   RocmInstallation->print(OS);
 }
 
-ToolChain::path_list
+std::optional<std::string>
 DarwinClang::getOpenCilkRuntimePaths(const ArgList &Args) const {
-  path_list Paths;
-  if (!Args.hasArg(options::OPT_opencilk_resource_dir_EQ)) {
-    SmallString<128> P(getDriver().ResourceDir);
-    llvm::sys::path::append(P, "lib",  "darwin");
-    Paths.push_back(std::string(P.str()));
-    return Paths;
-  }
-
-  // If -opencilk-resource-dir= is specified, try to use that directory, and
-  // raise an error if that fails.
-  const Arg *A = Args.getLastArg(options::OPT_opencilk_resource_dir_EQ);
-
-  // Try the lib/darwin subdirectory
-  {
-    SmallString<128> P(A->getValue());
-    llvm::sys::path::append(P, "lib", "darwin");
-    Paths.push_back(std::string(P.str()));
-  }
-  // Try the lib subdirectory
-  {
-    SmallString<128> P(A->getValue());
-    llvm::sys::path::append(P, "lib");
-    Paths.push_back(std::string(P.str()));
-  }
-  return Paths;
+  SmallString<128> P(getDriver().ResourceDir);
+  llvm::sys::path::append(P, "lib",  "darwin");
+  return std::string(P);
 }
 
 void DarwinClang::AddOpenCilkABIBitcode(const ArgList &Args,
@@ -3509,8 +3487,8 @@ void DarwinClang::AddOpenCilkABIBitcode(const ArgList &Args,
   BitcodeFilename += getOSLibraryNameSuffix();
   BitcodeFilename += ".bc";
 
-  for (auto RuntimePath : getOpenCilkRuntimePaths(Args)) {
-    SmallString<128> P(RuntimePath);
+  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePaths(Args)) {
+    SmallString<128> P(*RuntimePath);
     llvm::sys::path::append(P, BitcodeFilename);
     if (getVFS().exists(P)) {
       // The same argument works regardless of IsLTO.
@@ -3534,10 +3512,10 @@ void DarwinClang::AddLinkTapirRuntimeLib(const ArgList &Args,
   DarwinLibName += IsShared ? "_dynamic.dylib" : ".a";
   SmallString<128> Dir(getDriver().ResourceDir);
   if (Args.hasArg(options::OPT_opencilk_resource_dir_EQ)) {
-    for (auto OpenCilkRuntimeDir : getOpenCilkRuntimePaths(Args)) {
-      if (getVFS().exists(OpenCilkRuntimeDir)) {
-        Dir.assign(OpenCilkRuntimeDir);
-        break;
+    if (std::optional<std::string> OpenCilkRuntimeDir =
+            getOpenCilkRuntimePaths(Args)) {
+      if (getVFS().exists(*OpenCilkRuntimeDir)) {
+        Dir.assign(*OpenCilkRuntimeDir);
       }
     }
   } else {
@@ -3561,7 +3539,7 @@ void DarwinClang::AddLinkTapirRuntimeLib(const ArgList &Args,
   // rpaths. This is currently true from this place, but we need to be
   // careful if this function is ever called before user's rpaths are emitted.
   if (Opts & RLO_AddRPath) {
-    assert(DarwinLibName.endswith(".dylib") && "must be a dynamic library");
+    assert(DarwinLibName.ends_with(".dylib") && "must be a dynamic library");
 
     // Add @executable_path to rpath to support having the dylib copied with
     // the executable.

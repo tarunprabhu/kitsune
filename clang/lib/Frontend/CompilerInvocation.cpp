@@ -1460,14 +1460,14 @@ void CompilerInvocationBase::GenerateCodeGenArgs(const CodeGenOptions &Opts,
     std::string buf;
     llvm::raw_string_ostream os(buf);
     os << *KitsuneOpts.getTapirTarget();
-    GenerateArg(Args, OPT_ftapir_EQ, os.str(), SA);
+    GenerateArg(Consumer, OPT_ftapir_EQ, os.str());
   }
 
   if (KitsuneOpts.getKokkos())
-    GenerateArg(Args, OPT_fkokkos, SA);
+    GenerateArg(Consumer, OPT_fkokkos);
 
   if (KitsuneOpts.getKokkosNoInit())
-    GenerateArg(Args, OPT_fkokkos_no_init, SA);
+    GenerateArg(Consumer, OPT_fkokkos_no_init);
 
   const CodeGenOptions &CodeGenOpts = Opts;
 
@@ -3391,9 +3391,9 @@ void CompilerInvocationBase::GenerateLangArgs(const LangOptions &Opts,
                                               const llvm::Triple &T,
                                               InputKind IK) {
   if (Opts.KitsuneOpts.getKokkos())
-    GenerateArg(Args, OPT_fkokkos, SA);
+    GenerateArg(Consumer, OPT_fkokkos);
   if (Opts.KitsuneOpts.getKokkosNoInit())
-    GenerateArg(Args, OPT_fkokkos_no_init, SA);
+    GenerateArg(Consumer, OPT_fkokkos_no_init);
 
   if (IK.getFormat() == InputKind::Precompiled ||
       IK.getLanguage() == Language::LLVM_IR) {

@@ -210,7 +210,7 @@ void OpenCilkABI::prepareModule() {
 
   PointerType *StackFramePtrTy = PointerType::getUnqual(StackFrameTy);
   Type *VoidTy = Type::getVoidTy(C);
-  Type *VoidPtrTy = Type::getInt8PtrTy(C);
+  Type *VoidPtrTy = PointerType::getUnqual(C);
 
   // Define the types of the CilkRTS functions.
   FunctionType *CilkRTSFnTy =
@@ -220,7 +220,7 @@ void OpenCilkABI::prepareModule() {
   FunctionType *CilkRTSEnterLandingpadFnTy =
       FunctionType::get(VoidTy, {StackFramePtrTy, Int32Ty}, false);
   FunctionType *CilkRTSPauseFrameFnTy = FunctionType::get(
-      VoidTy, {StackFramePtrTy, PointerType::getInt8PtrTy(C)}, false);
+      VoidTy, {StackFramePtrTy, PointerType::getUnqual(C)}, false);
   FunctionType *Grainsize8FnTy = FunctionType::get(Int8Ty, {Int8Ty}, false);
   FunctionType *Grainsize16FnTy = FunctionType::get(Int16Ty, {Int16Ty}, false);
   FunctionType *Grainsize32FnTy = FunctionType::get(Int32Ty, {Int32Ty}, false);
@@ -647,7 +647,7 @@ BasicBlock *OpenCilkABI::GetDefaultSyncLandingpad(Function &F, Value *SF,
   LLVMContext &C = F.getContext();
   const Twine Name = "default_sync_lpad";
   BasicBlock *CleanupBB = BasicBlock::Create(C, Name, &F);
-  Type *ExnTy = StructType::get(Type::getInt8PtrTy(C), Type::getInt32Ty(C));
+  Type *ExnTy = StructType::get(PointerType::getUnqual(C), Type::getInt32Ty(C));
 
   IRBuilder<> Builder(CleanupBB);
   Builder.SetCurrentDebugLocation(Loc);

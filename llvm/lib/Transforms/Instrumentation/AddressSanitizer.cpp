@@ -658,7 +658,7 @@ struct AddressSanitizer {
         UseAfterScope(UseAfterScope || ClUseAfterScope),
         UseAfterReturn(ClUseAfterReturn.getNumOccurrences() ? ClUseAfterReturn
                                                             : UseAfterReturn),
-        SSGI(SSGI), TI(TI),
+        TI(TI), SSGI(SSGI),
         InstrumentationWithCallsThreshold(
             ClInstrumentationWithCallsThreshold.getNumOccurrences() > 0
                 ? ClInstrumentationWithCallsThreshold

@@ -618,7 +618,7 @@ public:
   void AddLinkARCArgs(const llvm::opt::ArgList &Args,
                       llvm::opt::ArgStringList &CmdArgs) const override;
 
-  path_list
+  std::optional<std::string>
   getOpenCilkRuntimePaths(const llvm::opt::ArgList &Args) const override;
 
   void AddOpenCilkABIBitcode(const llvm::opt::ArgList &Args,

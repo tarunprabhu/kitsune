@@ -411,8 +411,8 @@ public:
       ScalarEvolution &SE, AssumptionCache &AC, TargetTransformInfo &TTI,
       TapirTargetID Target, OptimizationRemarkEmitter &ORE,
       std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets)
-      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), Target(Target),
-        ORE(ORE), Targets(Targets) {}
+      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), ORE(ORE),
+        Targets(Targets) {}
 
   ~LoopSpawningImpl() {
     for (TapirLoopInfo *TL : TapirLoops)
@@ -526,7 +526,6 @@ private:
   ScalarEvolution &SE;
   AssumptionCache &AC;
   TargetTransformInfo &TTI;
-  TapirTargetID Target;
   OptimizationRemarkEmitter &ORE;
   std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets;
 
@@ -907,7 +906,6 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   Loop *L = TL->getLoop();
   TapirLoopHints Hints(L);
   TapirTargetID TLTID = (TapirTargetID)Hints.getLoopTarget();
-  unsigned int ThreadsPerBlock = Hints.getThreadsPerBlock();
 
   // get the LoopTarget from set of Targets if it exists, otherwise create it
 

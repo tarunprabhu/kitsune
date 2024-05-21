@@ -1153,8 +1153,8 @@ Expected<GlobalMergeOptions> parseGlobalMergeOptions(StringRef Params) {
 /// Tests whether a pass name starts with a valid prefix for a default pipeline
 /// alias.
 static bool startsWithDefaultPipelineAliasPrefix(StringRef Name) {
-  return Name.startswith("default") || Name.startswith("thinlto") ||
-         Name.startswith("lto") || Name.startswith("tapir-lowering");
+  return Name.starts_with("default") || Name.starts_with("thinlto") ||
+         Name.starts_with("lto") || Name.starts_with("tapir-lowering");
 }
 
 /// Tests whether registered callbacks will accept a given pass name.

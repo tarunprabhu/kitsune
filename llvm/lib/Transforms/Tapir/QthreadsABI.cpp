@@ -1,4 +1,4 @@
-//===- QthreadsABI.cpp - Lower Tapir into Qthreads runtime system calls -----------===//
+//===- QthreadsABI.cpp - Lower Tapir into Qthreads runtime system calls ---===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -20,15 +20,14 @@
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
-#include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
 
 #define DEBUG_TYPE "qthreadsabi"
 
-static cl::opt<bool> UseCopyargs(
-    "qthreads-use-fork-copyargs", cl::init(false), cl::Hidden,
-    cl::desc("Use copyargs variant of fork"));
+static cl::opt<bool> UseCopyargs("qthreads-use-fork-copyargs", cl::init(false),
+                                 cl::Hidden,
+                                 cl::desc("Use copyargs variant of fork"));
 
 // Accessors for opaque Qthreads RTS functions
 FunctionCallee QthreadsABI::get_qthread_num_workers() {
@@ -51,13 +50,15 @@ FunctionCallee QthreadsABI::get_qthread_fork_copyargs() {
   const DataLayout &DL = M.getDataLayout();
   AttributeList AL;
   // TODO: Set appropriate function attributes.
-  FunctionType *FTy = FunctionType::get(
-      Type::getInt32Ty(C),
-      { QthreadFTy,            // qthread_f f
-        Type::getInt8PtrTy(C), // const void *arg
-        DL.getIntPtrType(C),   // size_t arg_size
-        Type::getInt64PtrTy(C) // aligned_t *ret
-      }, false);
+  FunctionType *FTy =
+      FunctionType::get(Type::getInt32Ty(C),
+                        {
+                            QthreadFTy,                // qthread_f f
+                            PointerType::getUnqual(C), // const void *arg
+                            DL.getIntPtrType(C),       // size_t arg_size
+                            PointerType::getUnqual(C)  // aligned_t *ret
+                        },
+                        false);
 
   QthreadForkCopyargs = M.getOrInsertFunction("qthread_fork_copyargs", FTy, AL);
   return QthreadForkCopyargs;
@@ -70,8 +71,7 @@ FunctionCallee QthreadsABI::get_qthread_initialize() {
   LLVMContext &C = M.getContext();
   AttributeList AL;
   // TODO: Set appropriate function attributes.
-  FunctionType *FTy = FunctionType::get(
-      Type::getInt32Ty(C), {}, false);
+  FunctionType *FTy = FunctionType::get(Type::getInt32Ty(C), {}, false);
 
   QthreadInitialize = M.getOrInsertFunction("qthread_initialize", FTy, AL);
   return QthreadInitialize;
@@ -85,14 +85,15 @@ FunctionCallee QthreadsABI::get_qt_sinc_create() {
   const DataLayout &DL = M.getDataLayout();
   AttributeList AL;
   // TODO: Set appropriate function attributes.
-  FunctionType *FTy = FunctionType::get(
-      Type::getInt8PtrTy(C),
-      { DL.getIntPtrType(C),   // size_t size
-        Type::getInt8PtrTy(C), // void *initval
-        Type::getInt8PtrTy(C), // void *op
-        DL.getIntPtrType(C)    // size_t expect
-      },
-      false);
+  FunctionType *FTy =
+      FunctionType::get(PointerType::getUnqual(C),
+                        {
+                            DL.getIntPtrType(C),       // size_t size
+                            PointerType::getUnqual(C), // void *initval
+                            PointerType::getUnqual(C), // void *op
+                            DL.getIntPtrType(C)        // size_t expect
+                        },
+                        false);
 
   QtSincCreate = M.getOrInsertFunction("qt_sinc_create", FTy, AL);
   return QtSincCreate;
@@ -106,12 +107,13 @@ FunctionCallee QthreadsABI::get_qt_sinc_expect() {
   const DataLayout &DL = M.getDataLayout();
   AttributeList AL;
   // TODO: Set appropriate function attributes.
-  FunctionType *FTy = FunctionType::get(
-      Type::getVoidTy(C),
-      { Type::getInt8PtrTy(C), // sync_t *s
-        DL.getIntPtrType(C)    // size_t incr
-      },
-      false);
+  FunctionType *FTy =
+      FunctionType::get(Type::getVoidTy(C),
+                        {
+                            PointerType::getUnqual(C), // sync_t *s
+                            DL.getIntPtrType(C)        // size_t incr
+                        },
+                        false);
 
   QtSincExpect = M.getOrInsertFunction("qt_sinc_expect", FTy, AL);
   return QtSincExpect;
@@ -124,12 +126,13 @@ FunctionCallee QthreadsABI::get_qt_sinc_submit() {
   LLVMContext &C = M.getContext();
   AttributeList AL;
   // TODO: Set appropriate function attributes.
-  FunctionType *FTy = FunctionType::get(
-      Type::getVoidTy(C),
-      { Type::getInt8PtrTy(C), // sync_t *s
-        Type::getInt8PtrTy(C)  // void *val
-      },
-      false);
+  FunctionType *FTy =
+      FunctionType::get(Type::getVoidTy(C),
+                        {
+                            PointerType::getUnqual(C), // sync_t *s
+                            PointerType::getUnqual(C)  // void *val
+                        },
+                        false);
 
   QtSincSubmit = M.getOrInsertFunction("qt_sinc_submit", FTy, AL);
   return QtSincSubmit;
@@ -142,12 +145,13 @@ FunctionCallee QthreadsABI::get_qt_sinc_wait() {
   LLVMContext &C = M.getContext();
   AttributeList AL;
   // TODO: Set appropriate function attributes.
-  FunctionType *FTy = FunctionType::get(
-      Type::getVoidTy(C),
-      { Type::getInt8PtrTy(C), // sync_t *s
-        Type::getInt8PtrTy(C)  // void *target
-      },
-      false);
+  FunctionType *FTy =
+      FunctionType::get(Type::getVoidTy(C),
+                        {
+                            PointerType::getUnqual(C), // sync_t *s
+                            PointerType::getUnqual(C)  // void *target
+                        },
+                        false);
 
   QtSincWait = M.getOrInsertFunction("qt_sinc_wait", FTy, AL);
   return QtSincWait;
@@ -160,11 +164,12 @@ FunctionCallee QthreadsABI::get_qt_sinc_destroy() {
   LLVMContext &C = M.getContext();
   AttributeList AL;
   // TODO: Set appropriate function attributes.
-  FunctionType *FTy = FunctionType::get(
-      Type::getVoidTy(C),
-      { Type::getInt8PtrTy(C), // sync_t *s
-      },
-      false);
+  FunctionType *FTy =
+      FunctionType::get(Type::getVoidTy(C),
+                        {
+                            PointerType::getUnqual(C), // sync_t *s
+                        },
+                        false);
 
   QtSincDestroy = M.getOrInsertFunction("qt_sinc_destroy", FTy, AL);
   return QtSincDestroy;
@@ -173,8 +178,8 @@ FunctionCallee QthreadsABI::get_qt_sinc_destroy() {
 QthreadsABI::QthreadsABI(Module &M) : TapirTarget(M) {
   LLVMContext &C = M.getContext();
   // Initialize any types we need for lowering.
-  QthreadFTy = PointerType::getUnqual(
-      FunctionType::get(Type::getInt64Ty(C), { Type::getInt8PtrTy(C) }, false));
+  QthreadFTy = PointerType::getUnqual(FunctionType::get(
+      Type::getInt64Ty(C), {PointerType::getUnqual(C)}, false));
 }
 
 /// Lower a call to get the grainsize of this Tapir loop.
@@ -195,10 +200,10 @@ Value *QthreadsABI::lowerGrainsizeCall(CallInst *GrainsizeCall) {
       Limit->getType(), false);
   // Compute ceil(limit / 8 * workers) =
   //           (limit + 8 * workers - 1) / (8 * workers)
-  Value *SmallLoopVal =
-    Builder.CreateUDiv(Builder.CreateSub(Builder.CreateAdd(Limit, WorkersX8),
-                                         ConstantInt::get(Limit->getType(), 1)),
-                       WorkersX8);
+  Value *SmallLoopVal = Builder.CreateUDiv(
+      Builder.CreateSub(Builder.CreateAdd(Limit, WorkersX8),
+                        ConstantInt::get(Limit->getType(), 1)),
+      WorkersX8);
   // Compute min
   Value *LargeLoopVal = ConstantInt::get(Limit->getType(), 2048);
   Value *Cmp = Builder.CreateICmpULT(LargeLoopVal, SmallLoopVal);
@@ -211,22 +216,21 @@ Value *QthreadsABI::lowerGrainsizeCall(CallInst *GrainsizeCall) {
 
 Value *QthreadsABI::getOrCreateSinc(Value *SyncRegion, Function *F) {
   LLVMContext &C = M.getContext();
-  Value* sinc;
-  if((sinc = SyncRegionToSinc[SyncRegion]))
+  Value *sinc;
+  if ((sinc = SyncRegionToSinc[SyncRegion]))
     return sinc;
   else {
-    Value* zero = ConstantInt::get(Type::getInt64Ty(C), 0);
-    Value* null = Constant::getNullValue(Type::getInt8PtrTy(C));
-    std::vector<Value*> createArgs = {zero, null, null, zero};
+    Value *zero = ConstantInt::get(Type::getInt64Ty(C), 0);
+    Value *null = Constant::getNullValue(PointerType::getUnqual(C));
+    std::vector<Value *> createArgs = {zero, null, null, zero};
     sinc = CallInst::Create(get_qt_sinc_create(), createArgs, "",
                             F->getEntryBlock().getTerminator());
     SyncRegionToSinc[SyncRegion] = sinc;
 
     // Make sure we destroy the sinc at all exit points to prevent memory leaks
-    for(BasicBlock &BB : *F) {
-      if(isa<ReturnInst>(BB.getTerminator())){
-        CallInst::Create(get_qt_sinc_destroy(), {sinc}, "",
-                         BB.getTerminator());
+    for (BasicBlock &BB : *F) {
+      if (isa<ReturnInst>(BB.getTerminator())) {
+        CallInst::Create(get_qt_sinc_destroy(), {sinc}, "", BB.getTerminator());
       }
     }
 
@@ -237,9 +241,9 @@ Value *QthreadsABI::getOrCreateSinc(Value *SyncRegion, Function *F) {
 void QthreadsABI::lowerSync(SyncInst &SI) {
   IRBuilder<> builder(&SI);
   auto F = SI.getParent()->getParent();
-  auto& C = M.getContext();
-  auto null = Constant::getNullValue(Type::getInt8PtrTy(C));
-  Value* SR = SI.getSyncRegion();
+  auto &C = M.getContext();
+  auto null = Constant::getNullValue(PointerType::getUnqual(C));
+  Value *SR = SI.getSyncRegion();
   auto sinc = getOrCreateSinc(SR, F);
   std::vector<Value *> args = {sinc, null};
   auto sincwait = get_qt_sinc_wait();
@@ -265,18 +269,18 @@ void QthreadsABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
   // To match the Qthreads ABI, we replace the existing call with a call to
   // qthreads_fork_copyargs.
   IRBuilder<> CallerIRBuilder(ReplCall);
-  Value *OutlinedFnPtr = CallerIRBuilder.CreatePointerBitCastOrAddrSpaceCast(
-      Outlined, QthreadFTy);
+  Value *OutlinedFnPtr =
+      CallerIRBuilder.CreatePointerBitCastOrAddrSpaceCast(Outlined, QthreadFTy);
   AllocaInst *CallerArgStruct = cast<AllocaInst>(ReplCall->getArgOperand(0));
   Type *ArgsTy = CallerArgStruct->getAllocatedType();
-  Value *ArgStructPtr = CallerIRBuilder.CreateBitCast(CallerArgStruct,
-                                                      Type::getInt8PtrTy(C));
-  Constant *Null = Constant::getNullValue(Type::getInt64PtrTy(C));
-  ConstantInt *ArgSize = ConstantInt::get(DL.getIntPtrType(C),
-                                          DL.getTypeAllocSize(ArgsTy));
-  CallInst *Call = CallerIRBuilder.CreateCall(
-      get_qthread_fork_copyargs(), { OutlinedFnPtr, ArgStructPtr,
-                                             ArgSize, Null });
+  Value *ArgStructPtr =
+      CallerIRBuilder.CreateBitCast(CallerArgStruct, PointerType::getUnqual(C));
+  Constant *Null = Constant::getNullValue(PointerType::getUnqual(C));
+  ConstantInt *ArgSize =
+      ConstantInt::get(DL.getIntPtrType(C), DL.getTypeAllocSize(ArgsTy));
+  CallInst *Call =
+      CallerIRBuilder.CreateCall(get_qthread_fork_copyargs(),
+                                 {OutlinedFnPtr, ArgStructPtr, ArgSize, Null});
   Call->setDebugLoc(ReplCall->getDebugLoc());
   TOI.replaceReplCall(Call);
   ReplCall->eraseFromParent();
@@ -316,18 +320,18 @@ bool QthreadsABI::preProcessFunction(Function &F, TaskInfo &TI,
 
     // Add an expect increment before spawning
     IRBuilder<> preSpawnB(detB);
-    Value* one = ConstantInt::get(Type::getInt64Ty(C), 1);
-    std::vector<Value*> expectArgs = {sinc, one};
+    Value *one = ConstantInt::get(Type::getInt64Ty(C), 1);
+    std::vector<Value *> expectArgs = {sinc, one};
     CallInst::Create(get_qt_sinc_expect(), expectArgs, "", Detach);
 
     // Add a submit to end of task body
-    for(Spindle *S : T->spindles()){
-      for(BasicBlock *B : S->blocks()){
-        if(T->isTaskExiting(B)){
+    for (Spindle *S : T->spindles()) {
+      for (BasicBlock *B : S->blocks()) {
+        if (T->isTaskExiting(B)) {
           IRBuilder<> footerB(B->getTerminator());
-          Value* SR = T->getDetach()->getSyncRegion();
+          Value *SR = T->getDetach()->getSyncRegion();
           auto sinc = getOrCreateSinc(SR, &F);
-          auto null = Constant::getNullValue(Type::getInt8PtrTy(C));
+          auto null = Constant::getNullValue(PointerType::getUnqual(C));
           footerB.CreateCall(get_qt_sinc_submit(), {sinc, null});
         }
       }

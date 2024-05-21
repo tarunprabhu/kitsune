@@ -829,7 +829,7 @@ public:
                                      llvm::opt::ArgStringList &CmdArgs) const;
 
   /// Get the OpenCilk library path if it exists.
-  virtual path_list
+  virtual std::optional<std::string>
   getOpenCilkRuntimePaths(const llvm::opt::ArgList &Args) const;
 
   virtual std::string getOpenCilkBCBasename(const llvm::opt::ArgList &Args,

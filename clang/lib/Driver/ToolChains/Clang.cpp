@@ -6459,10 +6459,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       // If an OpenCilk resource directory is specified, check that it is valid.
       if (Args.hasArgNoClaim(options::OPT_opencilk_resource_dir_EQ)) {
         bool ValidPathFound = false;
-        for (auto Path : getToolChain().getOpenCilkRuntimePaths(Args)) {
-          if (D.getVFS().exists(Path)) {
+        if (std::optional<std::string> Path =
+                 getToolChain().getOpenCilkRuntimePaths(Args)) {
+          if (D.getVFS().exists(*Path)) {
             ValidPathFound = true;
-            break;
           }
         }
         if (!ValidPathFound)

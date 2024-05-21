@@ -18,6 +18,7 @@
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/CaptureTracking.h"
+#include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -637,7 +638,7 @@ void CSIImpl::initializeAllocaHooks() {
   LLVMContext &C = M.getContext();
   IRBuilder<> IRB(C);
   Type *IDType = IRB.getInt64Ty();
-  Type *AddrType = IRB.getInt8PtrTy();
+  Type *AddrType = IRB.getPtrTy();
   Type *PropType = CsiAllocaProperty::getType(C);
 
   CsiAfterAlloca = M.getOrInsertFunction("__csi_after_alloca", IRB.getVoidTy(),
@@ -650,7 +651,7 @@ void CSIImpl::initializeAllocFnHooks() {
   IRBuilder<> IRB(C);
   Type *RetType = IRB.getVoidTy();
   Type *IDType = IRB.getInt64Ty();
-  Type *AddrType = IRB.getInt8PtrTy();
+  Type *AddrType = IRB.getPtrTy();
   Type *LargeNumBytesType = IntptrTy;
   Type *AllocFnPropType = CsiAllocFnProperty::getType(C);
   Type *FreePropType = CsiFreeProperty::getType(C);
@@ -680,7 +681,7 @@ void CSIImpl::initializeLoadStoreHooks() {
   Type *LoadPropertyTy = CsiLoadStoreProperty::getType(C);
   Type *StorePropertyTy = CsiLoadStoreProperty::getType(C);
   Type *RetType = IRB.getVoidTy();
-  Type *AddrType = IRB.getInt8PtrTy();
+  Type *AddrType = IRB.getPtrTy();
   Type *NumBytesType = IRB.getInt32Ty();
 
   CsiBeforeRead = M.getOrInsertFunction("__csi_before_load", RetType,
@@ -703,14 +704,14 @@ void CSIImpl::initializeMemIntrinsicsHooks() {
   LLVMContext &C = M.getContext();
   IRBuilder<> IRB(C);
 
-  MemmoveFn = M.getOrInsertFunction("memmove", IRB.getInt8PtrTy(),
-                                    IRB.getInt8PtrTy(), IRB.getInt8PtrTy(),
+  MemmoveFn = M.getOrInsertFunction("memmove", IRB.getPtrTy(),
+                                    IRB.getPtrTy(), IRB.getPtrTy(),
                                     IntptrTy);
-  MemcpyFn = M.getOrInsertFunction("memcpy", IRB.getInt8PtrTy(),
-                                   IRB.getInt8PtrTy(), IRB.getInt8PtrTy(),
+  MemcpyFn = M.getOrInsertFunction("memcpy", IRB.getPtrTy(),
+                                   IRB.getPtrTy(), IRB.getPtrTy(),
                                    IntptrTy);
-  MemsetFn = M.getOrInsertFunction("memset", IRB.getInt8PtrTy(),
-                                   IRB.getInt8PtrTy(), IRB.getInt32Ty(),
+  MemsetFn = M.getOrInsertFunction("memset", IRB.getPtrTy(),
+                                   IRB.getPtrTy(), IRB.getInt32Ty(),
                                    IntptrTy);
 }
 
@@ -764,9 +765,10 @@ static BasicBlock *SplitOffPreds(BasicBlock *BB,
                                  SmallVectorImpl<BasicBlock *> &Preds,
                                  DominatorTree *DT, LoopInfo *LI) {
   if (BB->isLandingPad()) {
+    DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
     SmallVector<BasicBlock *, 2> NewBBs;
     SplitLandingPadPredecessors(BB, Preds, ".csi-split-lp", ".csi-split",
-                                NewBBs, DT, LI);
+                                NewBBs, &DTU, LI);
     return NewBBs[1];
   }
 
@@ -1077,7 +1079,7 @@ void CSIImpl::instrumentLoadOrStore(Instruction *I,
   Type *Ty =
       IsWrite ? cast<StoreInst>(I)->getValueOperand()->getType() : I->getType();
   int NumBytes = getNumBytesAccessed(Ty, DL);
-  Type *AddrType = IRB.getInt8PtrTy();
+  Type *AddrType = IRB.getPtrTy();
 
   if (NumBytes == -1)
     return; // size that we don't recognize
@@ -1119,7 +1121,7 @@ bool CSIImpl::instrumentMemIntrinsic(Instruction *I) {
   if (MemSetInst *M = dyn_cast<MemSetInst>(I)) {
     Instruction *Call = IRB.CreateCall(
         MemsetFn,
-        {IRB.CreatePointerCast(M->getArgOperand(0), IRB.getInt8PtrTy()),
+        {IRB.CreatePointerCast(M->getArgOperand(0), IRB.getPtrTy()),
          IRB.CreateIntCast(M->getArgOperand(1), IRB.getInt32Ty(), false),
          IRB.CreateIntCast(M->getArgOperand(2), IntptrTy, false)});
     setInstrumentationDebugLoc(I, Call);
@@ -1128,8 +1130,8 @@ bool CSIImpl::instrumentMemIntrinsic(Instruction *I) {
   } else if (MemTransferInst *M = dyn_cast<MemTransferInst>(I)) {
     Instruction *Call = IRB.CreateCall(
         isa<MemCpyInst>(M) ? MemcpyFn : MemmoveFn,
-        {IRB.CreatePointerCast(M->getArgOperand(0), IRB.getInt8PtrTy()),
-         IRB.CreatePointerCast(M->getArgOperand(1), IRB.getInt8PtrTy()),
+        {IRB.CreatePointerCast(M->getArgOperand(0), IRB.getPtrTy()),
+         IRB.CreatePointerCast(M->getArgOperand(1), IRB.getPtrTy()),
          IRB.CreateIntCast(M->getArgOperand(2), IntptrTy, false)});
     setInstrumentationDebugLoc(I, Call);
     I->eraseFromParent();
@@ -1603,7 +1605,7 @@ void CSIImpl::instrumentAlloca(Instruction *I, TaskInfo &TI) {
     Iter = IRB.GetInsertPoint();
   }
 
-  Type *AddrType = IRB.getInt8PtrTy();
+  Type *AddrType = IRB.getPtrTy();
   Value *Addr = IRB.CreatePointerCast(I, AddrType);
   insertHookCall(&*Iter, CsiAfterAlloca, {CsiId, Addr, SizeVal, PropVal});
 }
@@ -1665,12 +1667,12 @@ void CSIImpl::instrumentAllocFn(Instruction *I, DominatorTree *DT,
   Value *AllocFnId = AllocFnFED.localToGlobalId(LocalId, IRB);
 
   SmallVector<Value *, 4> AllocFnArgs;
-  getAllocFnArgs(I, AllocFnArgs, IntptrTy, IRB.getInt8PtrTy(), *TLI);
+  getAllocFnArgs(I, AllocFnArgs, IntptrTy, IRB.getPtrTy(), *TLI);
   SmallVector<Value *, 4> DefaultAllocFnArgs({
       /* Allocated size */ Constant::getNullValue(IntptrTy),
       /* Number of elements */ Constant::getNullValue(IntptrTy),
       /* Alignment */ Constant::getNullValue(IntptrTy),
-      /* Old pointer */ Constant::getNullValue(IRB.getInt8PtrTy()),
+      /* Old pointer */ Constant::getNullValue(IRB.getPtrTy()),
   });
 
   CsiAllocFnProperty Prop;
@@ -1697,7 +1699,7 @@ void CSIImpl::instrumentAllocFn(Instruction *I, DominatorTree *DT,
       IRB.SetInsertPoint(&*NormalBB->getFirstInsertionPt());
       SmallVector<Value *, 4> AfterAllocFnArgs;
       AfterAllocFnArgs.push_back(AllocFnId);
-      AfterAllocFnArgs.push_back(IRB.CreatePointerCast(I, IRB.getInt8PtrTy()));
+      AfterAllocFnArgs.push_back(IRB.CreatePointerCast(I, IRB.getPtrTy()));
       AfterAllocFnArgs.append(AllocFnArgs.begin(), AllocFnArgs.end());
       insertHookCall(&*IRB.GetInsertPoint(), CsiAfterAllocFn, AfterAllocFnArgs);
     }
@@ -1707,11 +1709,11 @@ void CSIImpl::instrumentAllocFn(Instruction *I, DominatorTree *DT,
       // destination.
       SmallVector<Value *, 4> AfterAllocFnArgs, DefaultAfterAllocFnArgs;
       AfterAllocFnArgs.push_back(AllocFnId);
-      AfterAllocFnArgs.push_back(Constant::getNullValue(IRB.getInt8PtrTy()));
+      AfterAllocFnArgs.push_back(Constant::getNullValue(IRB.getPtrTy()));
       AfterAllocFnArgs.append(AllocFnArgs.begin(), AllocFnArgs.end());
       DefaultAfterAllocFnArgs.push_back(DefaultID);
       DefaultAfterAllocFnArgs.push_back(
-          Constant::getNullValue(IRB.getInt8PtrTy()));
+          Constant::getNullValue(IRB.getPtrTy()));
       DefaultAfterAllocFnArgs.append(DefaultAllocFnArgs.begin(),
                                      DefaultAllocFnArgs.end());
       insertHookCallInSuccessorBB(II->getUnwindDest(), II->getParent(),
@@ -1724,7 +1726,7 @@ void CSIImpl::instrumentAllocFn(Instruction *I, DominatorTree *DT,
     IRB.SetInsertPoint(&*Iter);
     SmallVector<Value *, 4> AfterAllocFnArgs;
     AfterAllocFnArgs.push_back(AllocFnId);
-    AfterAllocFnArgs.push_back(IRB.CreatePointerCast(I, IRB.getInt8PtrTy()));
+    AfterAllocFnArgs.push_back(IRB.CreatePointerCast(I, IRB.getPtrTy()));
     AfterAllocFnArgs.append(AllocFnArgs.begin(), AllocFnArgs.end());
     insertHookCall(&*Iter, CsiAfterAllocFn, AfterAllocFnArgs);
   }
@@ -2017,7 +2019,7 @@ void CSIImpl::initializeCsi() {
 // Create a struct type to match the unit_fed_entry_t type in csirt.c.
 StructType *CSIImpl::getUnitFedTableType(LLVMContext &C,
                                          PointerType *EntryPointerType) {
-  return StructType::get(IntegerType::get(C, 64), Type::getInt8PtrTy(C, 0),
+  return StructType::get(IntegerType::get(C, 64), PointerType::get(C, 0),
                          EntryPointerType);
 }
 
@@ -2027,7 +2029,7 @@ Constant *CSIImpl::fedTableToUnitFedTable(Module &M,
   Constant *NumEntries =
       ConstantInt::get(IntegerType::get(M.getContext(), 64), FedTable.size());
   Constant *BaseIdPtr = ConstantExpr::getPointerCast(
-      FedTable.baseId(), Type::getInt8PtrTy(M.getContext(), 0));
+      FedTable.baseId(), PointerType::get(M.getContext(), 0));
   Constant *InsertedTable = FedTable.insertIntoModule(M);
   return ConstantStruct::get(UnitFedTableType, NumEntries, BaseIdPtr,
                              InsertedTable);
@@ -2083,7 +2085,7 @@ Constant *CSIImpl::sizeTableToUnitSizeTable(Module &M,
       ConstantInt::get(IntegerType::get(M.getContext(), 64), SzTable.size());
   // Constant *BaseIdPtr =
   //   ConstantExpr::getPointerCast(FedTable.baseId(),
-  //                                Type::getInt8PtrTy(M.getContext(), 0));
+  //                                PointerType::get(M.getContext(), 0));
   Constant *InsertedTable = SzTable.insertIntoModule(M);
   return ConstantStruct::get(UnitSizeTableType, NumEntries, InsertedTable);
 }
@@ -2106,7 +2108,7 @@ CallInst *CSIImpl::createRTUnitInitCall(IRBuilder<> &IRB) {
       getUnitSizeTableType(C, SizeTable::getPointerType(C));
 
   // Lookup __csirt_unit_init
-  SmallVector<Type *, 4> InitArgTypes({IRB.getInt8PtrTy(),
+  SmallVector<Type *, 4> InitArgTypes({IRB.getPtrTy(),
                                        PointerType::get(UnitFedTableType, 0),
                                        PointerType::get(UnitSizeTableType, 0),
                                        InitCallsiteToFunction->getType()});

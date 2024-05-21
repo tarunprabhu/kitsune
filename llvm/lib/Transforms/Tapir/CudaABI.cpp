@@ -97,7 +97,6 @@
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
-#include "llvm/Transforms/Vectorize.h"
 
 using namespace llvm;
 
@@ -354,9 +353,9 @@ CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
-  PointerType *CharPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
 
   // Thread index values -- equivalent to Cuda's builtins:  threadIdx.[x,y,z].
   CUThreadIdxX = Intrinsic::getDeclaration(&KernelModule,
@@ -925,10 +924,7 @@ void CudaLoop::transformForPTX(Function &F) {
   for (auto I = inst_begin(&F); I != inst_end(&F); I++) {
     if (auto CI = dyn_cast<CallInst>(&*I)) {
       if (FPMathOperator *FPO = dyn_cast<FPMathOperator>(CI)) {
-        // LLVM_DEBUG(dbgs() << "\tCall is for a FP math operation: " << *FPO);
-        if (FPO->isFast()) {
-          // LLVM_DEBUG(dbgs() << " [fast]\n");
-          FastMathFlags FMF = FPO->getFastMathFlags();
+         if (FPO->isFast()) {
           enableFast = true;
         } else {
           // LLVM_DEBUG(dbgs() << " [std/full precision]\n");
@@ -1016,7 +1012,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   LLVM_DEBUG(dbgs() << "\t*- code gen packing of " << OrderedInputs.size()
                     << " kernel args.\n");
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   ArrayType *ArrayTy = ArrayType::get(VoidPtrTy, OrderedInputs.size());
   Value *ArgArray = EntryBuilder.CreateAlloca(ArrayTy);
   unsigned int i = 0;
@@ -1111,7 +1107,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
       ConstantInt::get(Int64Ty, InstMix.num_iops));
 
   AllocaInst *AI = NewBuilder.CreateAlloca(KernelInstMixTy);
-  StoreInst *SI = NewBuilder.CreateStore(InstructionMix, AI);
+  NewBuilder.CreateStore(InstructionMix, AI);
 
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
   NewBuilder.CreateCall(KitCudaLaunchFn, {DummyFBPtr, KNameParam, argsPtr,
@@ -1173,7 +1169,7 @@ CudaABI::CudaABI(Module &M)
 
   PTXTargetMachine = PTXTarget->createTargetMachine(
       TT.getTriple(), GPUArch, PTXVersionStr.c_str(), TargetOptions(),
-      Reloc::PIC_, CodeModel::Large, CodeGenOpt::Aggressive);
+      Reloc::PIC_, CodeModel::Large, CodeGenOptLevel::Aggressive);
 
   KernelModule.setTargetTriple(TT.str());
   KernelModule.setDataLayout(PTXTargetMachine->createDataLayout());
@@ -1408,8 +1404,8 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
-  PointerType *CharPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
 
   // Look up a global (device-side) symbol via a module
@@ -1456,12 +1452,12 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
         if (CallInst *CI = dyn_cast<CallInst>(&I)) {
           if (Function *CFn = CI->getCalledFunction()) {
 
-            if (CFn->getName().startswith("__kitrt_dummy_threads_per_blk")) {
+            if (CFn->getName().starts_with("__kitrt_dummy_threads_per_blk")) {
               LLVM_DEBUG(dbgs() << "\t\t\t* discovered a threads-per-block "
                                    "placeholder call.\n");
               assert(ThreadsPerBlockCI == nullptr && "expected null pointer!");
               ThreadsPerBlockCI = CI;
-            } else if (CFn->getName().startswith("__kitcuda_launch_kernel")) {
+            } else if (CFn->getName().starts_with("__kitcuda_launch_kernel")) {
               LLVM_DEBUG(dbgs() << "\t\t\t* patching launch: " << *CI << "\n");
               Value *CFatbin;
               CFatbin = CastInst::CreateBitOrPointerCast(Fatbin, VoidPtrTy,
@@ -1660,10 +1656,10 @@ void CudaABI::bindGlobalVariables(Value *Handle, IRBuilder<> &B) {
   Type *IntTy = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
   Type *VarSizeTy = Int64Ty;
-  PointerType *CharPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
 
   FunctionCallee RegisterVarFn = M.getOrInsertFunction(
       "__cudaRegisterVar", VoidTy, VoidPtrPtrTy, CharPtrTy, CharPtrTy,
@@ -1693,7 +1689,7 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary,
                               GlobalVariable *Wrapper) {
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
   Type *IntTy = Type::getInt32Ty(Ctx);
   Type *BoolTy = Type::getInt8Ty(Ctx);
@@ -1798,7 +1794,7 @@ Function *CudaABI::createDtor(GlobalVariable *FBHandle) {
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  Type *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
 
   FunctionCallee UnregisterFatbinFn =
@@ -1862,7 +1858,7 @@ void CudaABI::registerFatbinary(GlobalVariable *Fatbinary) {
 
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = Type::getInt8PtrTy(Ctx);
+  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *IntTy = Type::getInt32Ty(Ctx);
 
   const DataLayout &DL = M.getDataLayout();
@@ -1956,7 +1952,7 @@ CudaABIOutputFile CudaABI::generatePTX() {
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
-    PTXTargetMachine->registerPassBuilderCallbacks(pb);
+    PTXTargetMachine->registerPassBuilderCallbacks(pb, false);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
     mpm.addPass(VerifierPass());
@@ -1972,13 +1968,13 @@ CudaABIOutputFile CudaABI::generatePTX() {
   LLVM_DEBUG(dbgs() << "\t- PTX file: '" << PTXFileName << "'.\n");
   legacy::PassManager PassMgr;
   if (PTXTargetMachine->addPassesToEmitFile(PassMgr, PTXFile->os(), nullptr,
-                                            CodeGenFileType::CGFT_AssemblyFile,
+                                            CodeGenFileType::AssemblyFile,
                                             false))
     report_fatal_error("Cuda ABI transform -- PTX generation failed!");
   PassMgr.run(KernelModule);
   LLVM_DEBUG(dbgs() << "\tkernel optimizations and code gen complete.\n\n");
   LLVM_DEBUG(dbgs() << "\t\tPTX file: " << PTXFile->getFilename() << "\n");
-  return std::move(PTXFile);
+  return PTXFile;
 }
 
 void CudaABI::postProcessModule() {
@@ -2039,7 +2035,7 @@ void CudaABI::postProcessModule() {
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
-    PTXTargetMachine->registerPassBuilderCallbacks(pb);
+    PTXTargetMachine->registerPassBuilderCallbacks(pb, false);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
 
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
