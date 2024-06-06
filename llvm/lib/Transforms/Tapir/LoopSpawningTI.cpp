@@ -1403,10 +1403,12 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
     // loop with llvm.stacksave/llvm.stackrestore intrinsics.
     if (ContainsDynamicAllocas) {
       Module *M = Helper->getParent();
+      LLVMContext& Ctx = M->getContext();
       // Get the two intrinsics we care about.
-      Function *StackSave = Intrinsic::getDeclaration(M, Intrinsic::stacksave);
-      Function *StackRestore =
-          Intrinsic::getDeclaration(M, Intrinsic::stackrestore);
+      Function *StackSave = Intrinsic::getDeclaration(
+          M, Intrinsic::stacksave, {PointerType::getUnqual(Ctx)});
+      Function *StackRestore = Intrinsic::getDeclaration(
+          M, Intrinsic::stackrestore, {PointerType::getUnqual(Ctx)});
 
       // Insert the llvm.stacksave.
       CallInst *SavedPtr =

@@ -532,7 +532,6 @@ CodeGenFunction::EmitCompoundStmtWithoutScope(const CompoundStmt &S,
         } else if (const auto *AS = dyn_cast<AttributedStmt>(ExprResult)) {
           // FIXME: Update this if we ever have attributes that affect the
           // semantics of an expression.
-          llvm::errs() << "we are here with an attributed expression...\n";
           ExprResult = AS->getSubStmt();
         } else {
           llvm_unreachable("unknown value statement");

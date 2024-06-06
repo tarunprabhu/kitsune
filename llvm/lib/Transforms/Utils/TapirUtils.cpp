@@ -861,6 +861,7 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
   BasicBlock *Unwind = DI->getUnwindDest();
   Value *SyncRegion = DI->getSyncRegion();
   Module *M = Spawner->getModule();
+  LLVMContext& Ctx = M->getContext();
 
   // If the spawned task has a taskframe, serialize the taskframe.
   SmallVector<Instruction *, 8> ToErase;
@@ -892,9 +893,10 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
   // code with llvm.stacksave/llvm.stackrestore intrinsics.
   if (ContainsDynamicAllocas) {
     // Get the two intrinsics we care about.
-    Function *StackSave = Intrinsic::getDeclaration(M, Intrinsic::stacksave);
-    Function *StackRestore =
-        Intrinsic::getDeclaration(M, Intrinsic::stackrestore);
+    Function *StackSave = Intrinsic::getDeclaration(
+        M, Intrinsic::stacksave, {PointerType::getUnqual(Ctx)});
+    Function *StackRestore = Intrinsic::getDeclaration(
+        M, Intrinsic::stackrestore, {PointerType::getUnqual(Ctx)});
 
     // Insert the llvm.stacksave.
     CallInst *SavedPtr = IRBuilder<>(TaskEntry, TaskEntry->begin())

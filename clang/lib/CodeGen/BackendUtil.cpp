@@ -1038,13 +1038,13 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
           });
 #endif // 0
 
-    if (CodeGenOpts.OptimizationLevel == 0) {
-      MPM.addPass(PB.buildO0DefaultPipeline(
-          Level, PrepareForLTO || PrepareForThinLTO, TLII->hasTapirTarget()));
-    } else if (CodeGenOpts.FatLTO) {
+    if (CodeGenOpts.FatLTO) {
       MPM.addPass(PB.buildFatLTODefaultPipeline(
           Level, PrepareForThinLTO,
           PrepareForThinLTO || shouldEmitRegularLTOSummary()));
+    } else if (CodeGenOpts.OptimizationLevel == 0) {
+      MPM.addPass(PB.buildO0DefaultPipeline(
+          Level, PrepareForLTO || PrepareForThinLTO, TLII->hasTapirTarget()));
     } else if (PrepareForThinLTO) {
       MPM.addPass(PB.buildThinLTOPreLinkDefaultPipeline(Level));
     } else if (PrepareForLTO) {

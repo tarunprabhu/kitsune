@@ -1786,9 +1786,6 @@ AliasResult BasicAAResult::aliasCheck(const Value *V1, LocationSize V1Size,
       return AliasResult::NoAlias;
   }
 
-  if (O1 != O2 && UnderlyingNoAlias(O1, O2, AAQI, getDT(AAQI)) == AliasResult::NoAlias)
-    return AliasResult::NoAlias;
-
   // If the size of one access is larger than the entire object on the other
   // side, then we know such behavior is undefined and can assume no alias.
   bool NullIsValidLocation = NullPointerIsDefined(&F);
