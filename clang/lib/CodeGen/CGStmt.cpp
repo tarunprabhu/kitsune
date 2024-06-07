@@ -1431,10 +1431,7 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
     PopDetachScope();
   }
 
-  // FIXME KITSUNE: Can we clean up this API since we know that we will never be
-  // compiling Cilk?
-  bool CompilingCilk = false;
-  EmitBranchThroughCleanup(ReturnBlock, CompilingCilk);
+  EmitBranchThroughCleanup(ReturnBlock);
 }
 
 void CodeGenFunction::EmitDeclStmt(const DeclStmt &S) {

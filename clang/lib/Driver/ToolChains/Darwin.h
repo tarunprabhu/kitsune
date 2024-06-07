@@ -619,7 +619,7 @@ public:
                       llvm::opt::ArgStringList &CmdArgs) const override;
 
   std::optional<std::string>
-  getOpenCilkRuntimePaths(const llvm::opt::ArgList &Args) const override;
+  getOpenCilkRuntimePath(const llvm::opt::ArgList &Args) const override;
 
   void AddOpenCilkABIBitcode(const llvm::opt::ArgList &Args,
                              llvm::opt::ArgStringList &CmdArgs,

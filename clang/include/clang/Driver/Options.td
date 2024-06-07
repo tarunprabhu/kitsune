@@ -3186,12 +3186,6 @@ def ftapir_nvarch_EQ : Joined<["-"], "ftapir-nvarch=">, Group<f_Group>,
 def fstripmine : Flag<["-"], "fstripmine">, Group<f_Group>,
   HelpText<"Enable the Tapir loop stripmining passes">;
 def fno_stripmine : Flag<["-"], "fno-stripmine">, Group<f_Group>;
-
-// KITSUNE FIXME: Should remove this because we don't want to support
-// customizing the OpenCilk paths.
-def opencilk_resource_dir_EQ : Joined<["--"], "opencilk-resource-dir=">,
-  Flags<[NoXarchOption]>,
-  HelpText<"The directory that holds OpenCilk resource files">;
 def opencilk_abi_bitcode_EQ : Joined<["--"], "opencilk-abi-bitcode=">,
   Visibility<[CC1Option]>, HelpText<"Path to OpenCilk ABI bitcode file">,
   MarshallingInfoString<CodeGenOpts<"OpenCilkABIBitcodeFile">>;

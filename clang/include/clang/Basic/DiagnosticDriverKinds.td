@@ -808,10 +808,6 @@ def err_drv_kitsune_unsupported: Error<
 // give opencilk any special treatment here.
 def err_drv_opencilk_missing_abi_bitcode: Error<
   "Cannot find OpenCilk runtime ABI bitcode file: %0">;
-def err_drv_opencilk_resource_dir_missing_include: Error<
-  "No include directory in OpenCilk resource directory: %0">;
-def err_drv_opencilk_resource_dir_missing_lib: Error<
-  "No lib directory in OpenCilk resource directory: %0">;
 
 def err_drv_mix_tapir_cuda_hip : Error<
   "Mixed Tapir and Cuda/HIP compilation is currently not supported.">;

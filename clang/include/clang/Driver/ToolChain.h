@@ -824,13 +824,9 @@ public:
   virtual void AddKitsuneLinkerArgs(const llvm::opt::ArgList &Args,
                                     llvm::opt::ArgStringList &CmdArgs) const;
 
-  /// Check the specified OpenCilk resource directory is valid.
-  virtual void AddOpenCilkIncludeDir(const llvm::opt::ArgList &Args,
-                                     llvm::opt::ArgStringList &CmdArgs) const;
-
   /// Get the OpenCilk library path if it exists.
   virtual std::optional<std::string>
-  getOpenCilkRuntimePaths(const llvm::opt::ArgList &Args) const;
+  getOpenCilkRuntimePath(const llvm::opt::ArgList &Args) const;
 
   virtual std::string getOpenCilkBCBasename(const llvm::opt::ArgList &Args,
                                             StringRef Component,
@@ -851,11 +847,6 @@ public:
   virtual void AddOpenCilkABIBitcode(const llvm::opt::ArgList &Args,
                                      llvm::opt::ArgStringList &CmdArgs,
                                      bool IsLTO = false) const;
-
-  /// AddTapirRuntimeLibArgs - Add the specific linker arguments to use for the
-  /// given Tapir runtime library type.
-  virtual void AddTapirRuntimeLibArgs(const llvm::opt::ArgList &Args,
-                                      llvm::opt::ArgStringList &CmdArgs) const;
 };
 
 /// Set a ToolChain's effective triple. Reset it when the registration object

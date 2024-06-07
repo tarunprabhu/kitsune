@@ -363,11 +363,6 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
   bool HasOnlyLifetimeMarkers =
       HasCleanups && EHStack.containsOnlyLifetimeMarkers(PrologueCleanupDepth);
   bool EmitRetDbgLoc = !HasCleanups || HasOnlyLifetimeMarkers;
-  bool SyncEmitted = false;
-
-  // FIXME KITSUNE: Since we know that we will never be compiling Cilk, can we
-  // simplify this?
-  bool CompilingCilk = false;
 
   std::optional<ApplyDebugLocation> OAL;
   if (HasCleanups) {
@@ -382,28 +377,11 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
         OAL = ApplyDebugLocation::CreateDefaultArtificial(*this, EndLoc);
     }
 
-    // If we're compiling Cilk, PopCleanupBlocks should emit a _Cilk_sync before
-    // any cleanups.
-    PopCleanupBlocks(PrologueCleanupDepth, {}, CompilingCilk);
-    SyncEmitted = true;
-  } else if (CompilingCilk && Builder.GetInsertBlock() &&
-             ReturnBlock.getBlock()->use_empty()) {
-    // If we're compiling Cilk, emit an implicit sync for the function.  In this
-    // case, EmitReturnBlock will recycle Builder.GetInsertBlock() for the
-    // function's return block, so we insert the implicit _Cilk_sync before
-    // calling EmitReturnBlock.
-    EmitImplicitSyncCleanup();
-    SyncEmitted = true;
+    PopCleanupBlocks(PrologueCleanupDepth);
   }
 
   // Emit function epilog (to return).
   llvm::DebugLoc Loc = EmitReturnBlock();
-
-  if (CompilingCilk && !SyncEmitted) {
-    // If we're compiling Cilk, emit an implicit sync for the function.
-    EmitImplicitSyncCleanup();
-    SyncEmitted = true;
-  }
 
   if (ShouldInstrumentFunction()) {
     if (CGM.getCodeGenOpts().InstrumentFunctions)

@@ -252,7 +252,7 @@ void tools::MinGW::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     addFortranRuntimeLibs(TC, Args, CmdArgs);
   }
 
-  TC.AddTapirRuntimeLibArgs(Args, CmdArgs);
+  TC.AddKitsuneLinkerArgs(Args, CmdArgs);
 
   // TODO: Add profile stuff here
 

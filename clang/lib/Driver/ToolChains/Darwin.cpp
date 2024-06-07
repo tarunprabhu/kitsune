@@ -3459,7 +3459,7 @@ void Darwin::printVerboseInfo(raw_ostream &OS) const {
 }
 
 std::optional<std::string>
-DarwinClang::getOpenCilkRuntimePaths(const ArgList &Args) const {
+DarwinClang::getOpenCilkRuntimePath(const ArgList &Args) const {
   SmallString<128> P(getDriver().ResourceDir);
   llvm::sys::path::append(P, "lib",  "darwin");
   return std::string(P);
@@ -3468,18 +3468,6 @@ DarwinClang::getOpenCilkRuntimePaths(const ArgList &Args) const {
 void DarwinClang::AddOpenCilkABIBitcode(const ArgList &Args,
                                         ArgStringList &CmdArgs,
                                         bool IsLTO) const {
-  // If --opencilk-abi-bitcode= is specified, use that specified path.
-  if (Args.hasArg(options::OPT_opencilk_abi_bitcode_EQ)) {
-    const Arg *A = Args.getLastArg(options::OPT_opencilk_abi_bitcode_EQ);
-    SmallString<128> P(A->getValue());
-    if (!getVFS().exists(P))
-      getDriver().Diag(diag::err_drv_opencilk_missing_abi_bitcode)
-          << A->getAsString(Args);
-    if (IsLTO)
-      CmdArgs.push_back(
-          Args.MakeArgString("--opencilk-abi-bitcode=" + P));
-  }
-
   bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
   SmallString<128> BitcodeFilename(UseAsan ? "libopencilk-asan-abi"
                                            : "libopencilk-abi");
@@ -3487,7 +3475,7 @@ void DarwinClang::AddOpenCilkABIBitcode(const ArgList &Args,
   BitcodeFilename += getOSLibraryNameSuffix();
   BitcodeFilename += ".bc";
 
-  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePaths(Args)) {
+  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePath(Args)) {
     SmallString<128> P(*RuntimePath);
     llvm::sys::path::append(P, BitcodeFilename);
     if (getVFS().exists(P)) {
@@ -3511,17 +3499,8 @@ void DarwinClang::AddLinkTapirRuntimeLib(const ArgList &Args,
   DarwinLibName += getOSLibraryNameSuffix();
   DarwinLibName += IsShared ? "_dynamic.dylib" : ".a";
   SmallString<128> Dir(getDriver().ResourceDir);
-  if (Args.hasArg(options::OPT_opencilk_resource_dir_EQ)) {
-    if (std::optional<std::string> OpenCilkRuntimeDir =
-            getOpenCilkRuntimePaths(Args)) {
-      if (getVFS().exists(*OpenCilkRuntimeDir)) {
-        Dir.assign(*OpenCilkRuntimeDir);
-      }
-    }
-  } else {
-    llvm::sys::path::append(
-        Dir, "lib", (Opts & RLO_IsEmbedded) ? "macho_embedded" : "darwin");
-  }
+  llvm::sys::path::append(
+      Dir, "lib", (Opts & RLO_IsEmbedded) ? "macho_embedded" : "darwin");
 
   SmallString<128> P(Dir);
   llvm::sys::path::append(P, DarwinLibName);
@@ -3556,16 +3535,12 @@ void DarwinClang::AddLinkTapirRuntimeLib(const ArgList &Args,
 void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
                                       ArgStringList &CmdArgs) const {
   std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
-  if (not TapirTarget) {
+  if (not TapirTarget)
     return;
-  } else if (*TapirTarget == llvm::TapirTargetID::Last_TapirTargetID) {
-    const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ);
-    getDriver().Diag(diag::err_drv_invalid_value)
-      << A->getAsString(Args) << A->getValue();
-    return;
-  }
 
-  llvm_unreachable("AddLinkTapirRuntime has to be fixed for Darwin");
+  llvm_unreachable(
+      "NOT IMPLEMENTED: AddLinkTapirRuntime has to be fixed for Darwin");
+
   // FIXME KITSUNE: Shouldn't this be like the code in ToolChain.cpp?
   switch (*TapirTarget) {
   case llvm::TapirTargetID::OpenCilk: {

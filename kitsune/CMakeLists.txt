@@ -155,7 +155,7 @@ if (KITSUNE_CUDA_ENABLE)
     "")
 
   set(KITSUNE_CUDA_DEFAULT_LINKER_FLAGS
-    "-L${CUDAToolkit_LIBRARY_DIR} -L${CUDAToolkit_LIBRARY_DIR}/stubs -lcudart -lcuda -lkitrt")
+    "-L${CUDAToolkit_LIBRARY_DIR} -L${CUDAToolkit_LIBRARY_DIR}/stubs -lcudart -lcuda")
 
   set(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -201,7 +201,7 @@ if (KITSUNE_HIP_ENABLE)
     "")
 
   set(KITSUNE_HIP_DEFAULT_LINKER_FLAGS
-    "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64 -lpthread -lm -lrt -lkitrt")
+    "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64 -lm")
 
   set(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -265,7 +265,7 @@ if (KITSUNE_OPENCILK_ENABLE)
 
   # FIXME: We need to specify where libopencilk is installed with a -L flag?
   set(KITSUNE_OPENCILK_DEFAULT_LINKER_FLAGS
-    "-lopencilk -lkitrt")
+    "-lopencilk")
 
   set(KITSUNE_OPENCILK_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -303,7 +303,7 @@ if (KITSUNE_OPENMP_ENABLE)
   set(KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS
     ""
     CACHE STRING
-    "Additional preprocessor flags needed for the OpenMP target_")
+    "Additional preprocessor flags needed for the OpenMP target")
 
   set(KITSUNE_OPENMP_EXTRA_COMPILER_FLAGS
     ""
@@ -330,7 +330,7 @@ if (KITSUNE_QTHREADS_ENABLE)
     "")
 
   set(KITSUNE_QTHREADS_DEFAULT_LINKER_FLAGS
-    "-L${QTHREADS_LIBRARY_DIR} -lqthread -lkitrt -lpthread -lhwloc")
+    "-L${QTHREADS_LIBRARY_DIR} -lqthread -lhwloc")
 
   set(KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -360,7 +360,7 @@ if (KITSUNE_REALM_ENABLE)
     "")
 
   set(KITSUNE_REALM_DEFAULT_LINKER_FLAGS
-    "-L${Realm_LIBRARY_DIR} -L${Realm_WRAPPER_LIBRARY_DIR} -lrealm-abi -lrealm -lpthread -ldl -lrt -lkitrt")
+    "-L${Realm_LIBRARY_DIR} -L${Realm_WRAPPER_LIBRARY_DIR} -lrealm-abi -lrealm")
 
   set(KITSUNE_REALM_EXTRA_PREPROCESSOR_FLAGS
     ""

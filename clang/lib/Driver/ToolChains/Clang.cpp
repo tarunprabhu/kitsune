@@ -1320,11 +1320,6 @@ void Clang::AddPreprocessingOptions(Compilation &C, const JobAction &JA,
 
   Args.addOptInFlag(CmdArgs, options::OPT_fdefine_target_os_macros,
                     options::OPT_fno_define_target_os_macros);
-
-  // KITSUNE FIXME: We probably don't support custom resource directories and
-  // include paths for OpenCilk, so this should be removed.
-  // If a custom OpenCilk resource directory is specified, add its include path.
-  getToolChain().AddOpenCilkIncludeDir(Args, CmdArgs);
 }
 
 // FIXME: Move to target hook.
@@ -6454,21 +6449,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       default:
         D.Diag(diag::err_drv_kitsune_unsupported);
         break;
-      }
-
-      // If an OpenCilk resource directory is specified, check that it is valid.
-      if (Args.hasArgNoClaim(options::OPT_opencilk_resource_dir_EQ)) {
-        bool ValidPathFound = false;
-        if (std::optional<std::string> Path =
-                 getToolChain().getOpenCilkRuntimePaths(Args)) {
-          if (D.getVFS().exists(*Path)) {
-            ValidPathFound = true;
-          }
-        }
-        if (!ValidPathFound)
-          D.Diag(diag::err_drv_opencilk_resource_dir_missing_lib)
-              << Args.getLastArgNoClaim(options::OPT_opencilk_resource_dir_EQ)
-                     ->getAsString(Args);
       }
 
       if (!CustomTarget)
