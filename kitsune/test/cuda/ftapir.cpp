@@ -9,6 +9,6 @@
 
 // The option value is case sensitive.
 // RUN: not %kitxx -fsyntax-only -ftapir=Cuda %s 2>&1 | FileCheck %s -check-prefix=CHECK-BAD-TARGET
-// RUN: %kitxx -### -ftapir=Cuda %s 2>&1 | FileCheck %s -check-prefix=CHECK-BAD-TARGET
+// RUN: not %kitxx -### -ftapir=Cuda %s 2>&1 | FileCheck %s -check-prefix=CHECK-BAD-TARGET
 
 // CHECK-BAD-TARGET: invalid value '{{.+}}' in '-ftapir={{.+}}'

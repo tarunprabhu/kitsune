@@ -3168,11 +3168,11 @@ def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">,
   HelpText<"Kitsune directory for configuration files">;
 def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>,
   Flags<[NoArgumentUnused]>,
-  Visibility<[CC1Option]>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"Enable Kokkos extensions: recognition and custom code generation">;
 def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Group<f_Group>,
   Flags<[NoArgumentUnused]>,
-  Visibility<[CC1Option]>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"Skip code gen of Kokkos initialization (and finalize) calls.">;
 def ftapir_EQ : Joined<["-"], "ftapir=">, Group<f_Group>,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,

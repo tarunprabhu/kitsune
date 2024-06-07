@@ -225,6 +225,9 @@ if (KITSUNE_OPENCILK_ENABLE)
   # vanilla clang build of the same version, but it's probably not worth all the
   # error checking hassles that would be needed to detect if the versions were
   # mismatched.
+  #
+  # We pass some LLVM_* variables to make Cheetah behave as if it were an
+  # in-tree build.
   set(KITSUNE_CHEETAH_SOURCE_DIR ${KITSUNE_TARGETS_BINARY_DIR}/cheetah/cheetah)
   set(KITSUNE_CHEETAH_BINARY_DIR ${KITSUNE_TARGETS_BINARY_DIR}/cheetah/build)
   set(KITSUNE_CHEETAH_BUILD_ARGS
@@ -238,6 +241,9 @@ if (KITSUNE_OPENCILK_ENABLE)
     -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}/lib/clang/${LLVM_VERSION_MAJOR}
     -DCHEETAH_DEFAULT_TARGET_TRIPLE=${LLVM_DEFAULT_TARGET_TRIPLE}
     -DCHEETAH_DIRECTORY_PER_TARGET=ON
+    -DLLVM_LIBRARY_OUTPUT_INTDIR=${LLVM_LIBRARY_OUTPUT_INTDIR}
+    -DLLVM_RUNTIME_OUTPUT_INTDIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
+    -DPACKAGE_VERSION=${PACKAGE_VERSION}
   )
 
   ExternalProject_Add(cheetah ${KITSUNE_CHEETAH_SRC_DIR}
@@ -432,7 +438,7 @@ ExternalProject_Add(kitsune-runtimes
              -DKITSUNE_QTHREADS_ENABLE=${KITSUNE_QTHREADS_ENABLE}
              -DKITSUNE_REALM_ENABLE=${KITSUNE_REALM_ENABLE}
              -DKITSUNE_CUDA_VERSION_MIN=${KITSUNE_CUDA_VERSION_MIN}
-             -DKITSUNE_ROMC_VERSION_MIN=${KITSUNE_ROCM_VERSION_MIN}
+             -DKITSUNE_ROCM_VERSION_MIN=${KITSUNE_ROCM_VERSION_MIN}
              -DKITRT_ENABLE_DEBUG=${KITRT_ENABLE_DEBUG}
              -DKITRT_ENABLE_VERBOSE=${KITRT_ENABLE_VERBOSE}
              -DKITCUDA_ENABLE_NVTX=${KITCUDA_ENABLE_NVTX}
