@@ -59,6 +59,7 @@
 //
 
 #include "llvm/Transforms/Tapir/CudaABI.h"
+#include "kitsune/Config/config.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/Constants.h"
@@ -1191,22 +1192,24 @@ std::unique_ptr<Module> &CudaABI::getLibDeviceModule() {
   if (not LibDeviceModule) {
     LLVMContext &Ctx = KernelModule.getContext();
     llvm::SMDiagnostic SMD;
-    // FIXME: Do not require CUDA_HOME to be set in the environment. The Cuda
-    // installation that was used to build Kitsune should be used instead
-    // because there is no guarantee that the cuda versions will match. If they
-    // don't, there is a chance of subtle problems.
-    std::optional<std::string> CudaPath = sys::Process::FindInEnvPath(
-        "CUDA_HOME", "nvvm/libdevice/libdevice.10.bc");
-    if (!CudaPath) {
-      CudaPath = sys::Process::FindInEnvPath("CUDA_PATH",
-                                             "nvvm/libdevice/libdevice.10.bc");
-      if (!CudaPath)
-        report_fatal_error("Unable to load cuda libdevice.10.bc!");
-    }
+    llvm::errs() << "libdevice: " << KITSUNE_CUDA_LIBDEVICE_BC << "\n";
+    // KITSUNE FIXME: It might be useful during development to override the
+    // libdevice.10.bc function. We could do this with a command-line argument
+    // that gets passed to this transform.
+    // std::optional<std::string> CudaPath = sys::Process::FindInEnvPath(
+    //     "CUDA_HOME", "nvvm/libdevice/libdevice.10.bc");
+    // if (!CudaPath) {
+    //   CudaPath = sys::Process::FindInEnvPath("CUDA_PATH",
+    //                                          "nvvm/libdevice/libdevice.10.bc");
+    //   if (!CudaPath)
+    //     report_fatal_error("Unable to load cuda libdevice.10.bc!");
+    // }
 
-    LibDeviceModule = parseIRFile(*CudaPath, SMD, Ctx);
+    llvm::StringRef LibDeviceBCFile = KITSUNE_CUDA_LIBDEVICE_BC;
+    LibDeviceModule = parseIRFile(LibDeviceBCFile, SMD, Ctx);
     if (not LibDeviceModule)
-      report_fatal_error("Failed to parse cuda libdevice.10.bc!");
+      report_fatal_error(llvm::StringRef("Failed to parse: ") +
+                         LibDeviceBCFile);
   }
 
   return LibDeviceModule;
@@ -1294,10 +1297,12 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
   std::error_code EC;
   // FIXME: Do not require ptxas to be in $PATH. Use the ptxas that is part of
   // cuda installation against which Kitsune was built.
-  auto PTXASExe = sys::findProgramByName("ptxas");
-  if ((EC = PTXASExe.getError()))
-    report_fatal_error("'ptxas' not found. "
-                       "Is a CUDA installation in your path?");
+  // auto PTXASExe = sys::findProgramByName("ptxas");
+  // if ((EC = PTXASExe.getError()))
+  //   report_fatal_error("'ptxas' not found. "
+  //                      "Is a CUDA installation in your path?");
+
+  llvm::StringRef PTXASExe = KITSUNE_CUDA_PTXAS;
 
   SmallString<255> AsmFileName(PTXFile->getFilename());
   sys::path::replace_extension(AsmFileName, ".s");
@@ -1310,7 +1315,7 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
   // near the top of this file.
   // These can be passed to the transform via '-mllvm <cuabi-option>'.
   opt::ArgStringList PTXASArgList;
-  PTXASArgList.push_back(PTXASExe->c_str());
+  PTXASArgList.push_back(PTXASExe.data());
 
   // TODO: Do we need/want to add support for generating relocatable code?
 
@@ -1371,7 +1376,7 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
   // Finally we are ready to execute ptxas...
   std::string ErrMsg;
   bool ExecFailed;
-  int ExecStat = sys::ExecuteAndWait(*PTXASExe, PTXASArgs, std::nullopt, {},
+  int ExecStat = sys::ExecuteAndWait(PTXASExe, PTXASArgs, std::nullopt, {},
                                      0, /* secs to wait -- 0 --> unlimited */
                                      0, /* memory limit -- 0 --> unlimited */
                                      &ErrMsg, &ExecFailed);
@@ -1543,14 +1548,15 @@ CudaABIOutputFile CudaABI::createFatbinaryFile(CudaABIOutputFile &AsmFile) {
   LLVM_DEBUG(dbgs() << "\t- generatng fatbinary image file '"
                     << FatbinFile->getFilename() << "'.\n");
 
-  // TODO: LLVM docs suggest we shouldn't be using findProgramByName()...
-  auto FatbinaryExe = sys::findProgramByName("fatbinary");
-  if ((EC = FatbinaryExe.getError()))
-    report_fatal_error("'fatbinary' not found. "
-                       "Is a CUDA installation in your path?");
+  // // TODO: LLVM docs suggest we shouldn't be using findProgramByName()...
+  // auto FatbinaryExe = sys::findProgramByName("fatbinary");
+  // if ((EC = FatbinaryExe.getError()))
+  //   report_fatal_error("'fatbinary' not found. "
+  //                      "Is a CUDA installation in your path?");
 
+  llvm::StringRef FatbinaryExe = KITSUNE_CUDA_FATBINARY;
   opt::ArgStringList FatbinaryArgList;
-  FatbinaryArgList.push_back(FatbinaryExe->c_str());
+  FatbinaryArgList.push_back(FatbinaryExe.data());
   FatbinaryArgList.push_back("--64");
   FatbinaryArgList.push_back("--create");
   FatbinaryArgList.push_back(FatbinFilename.c_str());
@@ -1591,7 +1597,7 @@ CudaABIOutputFile CudaABI::createFatbinaryFile(CudaABIOutputFile &AsmFile) {
   std::string ErrMsg;
   bool ExecFailed;
   int ExecStat =
-      sys::ExecuteAndWait(*FatbinaryExe, FatbinaryArgs, std::nullopt, {},
+      sys::ExecuteAndWait(FatbinaryExe, FatbinaryArgs, std::nullopt, {},
                           0, /* secs to wait -- 0 --> unlimited */
                           0, /* memory limit -- 0 --> unlimited */
                           &ErrMsg, &ExecFailed);

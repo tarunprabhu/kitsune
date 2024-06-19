@@ -53,6 +53,8 @@ if (KITRT_ENABLE_VERBOSE)
 endif()
 
 target_include_directories(${KITRT} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+set_target_properties(${KITRT} PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${CLANG_RESOURCE_INTDIR}/lib)
 
 target_include_directories(${KITRT}
   BEFORE PRIVATE
@@ -61,23 +63,26 @@ target_include_directories(${KITRT}
   ${KITSUNE_SOURCE_DIR}/include
   ${KITSUNE_RUNTIME_INCLUDE_DIR})
 
-set_property(TARGET ${KITRT} APPEND PROPERTY
-  INSTALL_RPATH "$ORIGIN/../lib${LLVM_LIBDIR_SUFFIX}")
+#
+# KITSUNE FIXME: Do we need the RPATH's that are set below?
+#
+# set_property(TARGET ${KITRT} APPEND PROPERTY
+#   INSTALL_RPATH "$ORIGIN/../lib${LLVM_LIBDIR_SUFFIX}")
 
-set_property(TARGET ${KITRT} APPEND PROPERTY
-  BUILD_RPATH "$ORIGIN/../lib${LLVM_LIBDIR_SUFFIX}:${PROJECT_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}")
+# set_property(TARGET ${KITRT} APPEND PROPERTY
+#   BUILD_RPATH "$ORIGIN/../lib${LLVM_LIBDIR_SUFFIX}:${PROJECT_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}")
 
 find_library(LIB_LLVM
   NAMES LLVM
   LLVM-${LLVM_VERSION_MAJOR}
   LLVM-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}
   REQUIRED
-  PATHS ${LLVM_LIBRARY_DIR}
+  PATHS ${LLVM_LIBRARY_OUTPUT_INTDIR}
   NO_DEFAULT_PATH)
 
-# FIXME: We probably don't need to explicitly link pthread, rt, and dl.
-# libLLVM is guaranteed to be built because we have explicitly set
-# LLVM_BUILD_LLVM_DYLIB to ON.
+# FIXME: We probably don't need to explicitly link pthread and rt. These are
+# only necessary for older versions of glibc, but we might get some antique
+# software stacks on HPC machines.
 target_link_libraries(${KITRT}
   PUBLIC
   ${LIB_LLVM}
@@ -85,25 +90,10 @@ target_link_libraries(${KITRT}
   rt
   dl)
 
+# The KITSUNE_CUDA_* variables are defined in ../CMakeLists.txt (i.e. in
+# kitsune/CMakeLists.txt). They are passed in via CMake because the Kitsune
+# runtime is treated as an "ExternalProject".
 if (KITSUNE_CUDA_ENABLE)
-  # FIXME: Instead of looking for CudaToolkit again here, the necessary
-  # variables should be passed when this is configured. This ensures that there
-  # is only a single call to find_package(CudaToolkit)
-  # message(STATUS "Kitsune runtime adding CUDA components to build...")
-  # find_package(CUDAToolkit ${KITSUNE_CUDA_VERSION_MIN} REQUIRED)
-
-  find_library(LIB_NVPTX_STATIC nvptxcompiler_static REQUIRED
-    PATHS ${CUDAToolkit_LIBRARY_DIR}
-    NO_DEFAULT_PATH)
-
-  find_library(LIB_CUDART cudart REQUIRED
-    PATHS ${CUDAToolkit_LIBRARY_DIR}
-    NO_DEFAULT_PATH)
-
-  find_library(LIB_CUDA cuda REQUIRED
-    PATHS ${CUDAToolkit_LIBRARY_DIR}/stubs
-    NO_DEFAULT_PATH)
-
   list(APPEND KITRT_HDRS
     cuda/kitcuda.h
     cuda/kitcuda_dylib.h)
@@ -116,41 +106,44 @@ if (KITSUNE_CUDA_ENABLE)
     cuda/streams.cpp)
 
   target_compile_definitions(${KITRT} PUBLIC KITRT_CUDA_ENABLED)
-  target_include_directories(${KITRT} SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
+  target_include_directories(${KITRT} SYSTEM PUBLIC ${KITSUNE_CUDA_INCLUDE_DIR})
   target_include_directories(${KITRT} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cuda)
 
   target_link_directories(${KITRT} PUBLIC
-    ${CUDAToolkit_LIBRARY_DIR}
-    ${CUDAToolkit_LIBRARY_DIR}/stubs)
+    ${KITSUNE_CUDA_LIBRARY_DIR}
+    ${KITSUNE_CUDA_STUBS_DIR})
 
   target_link_libraries(${KITRT} PUBLIC
-    ${LIB_NVPTX_STATIC}
-    ${LIB_CUDART}
-    ${LIB_CUDA})
+    ${KITSUNE_CUDA_LIB_NVPTX_STATIC}
+    ${KITSUNE_CUDA_LIB_CUDART}
+    ${KITSUNE_CUDA_LIB_CUDA})
 
   set_property(TARGET ${KITRT} APPEND PROPERTY
-    INSTALL_RPATH ${CUDAToolkit_LIBRARY_DIR})
+    INSTALL_RPATH ${KITSUNE_CUDA_LIBRARY_DIR})
 
   set_property(TARGET ${KITRT} APPEND PROPERTY
-    BUILD_RPATH ${CUDAToolkit_LIBRARY_DIR})
+    BUILD_RPATH ${KITSUNE_CUDA_LIBRARY_DIR})
 
   if (KITCUDA_ENABLE_NVTX)
     target_compile_definitions(${KITRT} PUBLIC KITCUDA_ENABLE_NVTX)
 
     find_library(LIB_NVTOOLS_EXT nvToolsExt REQUIRED
-      PATHS ${CUDAToolkit_LIBRARY_DIR}
+      PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
       NO_DEFAULT_PATH)
 
     target_link_libraries(${KITRT} PUBLIC ${LIB_NVTOOLS_EXT})
   endif()
 endif()
 
+# The KITSUNE_HIP_* variables are defined in ../CMakeLists.txt (i.e. in
+# kitsune/CMakeLists.txt). They are passed in via CMake because the Kitsune
+# runtime is treated as an "ExternalProject".
+#
 # FIXME: hip::host depends on clangrt_builtin, but that is not caught by the
 # build system currently and the library which causes a build failure if the
 # library is not built. Not sure how this is to be fixed, but adding the note
 # here as a reminder that it needs to be done.
 if (KITSUNE_HIP_ENABLE)
-  message(STATUS "Kitsune runtime adding HIP components to build...")
   # FIXME: It may be necessary to hardcode these paths to rocm, but there ought
   # to be better ways of doing this.
   find_package(hip REQUIRED
@@ -183,19 +176,18 @@ if (KITSUNE_HIP_ENABLE)
   add_subdirectory(hip)
 endif()
 
-# FIXME: Do we need to add the Cuda and Hip directories to the rpath as well?
-list(APPEND CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
+set_target_properties(${KITRT} PROPERTIES
+  INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 
 install(TARGETS kitrt
-  LIBRARY DESTINATION lib COMPONENT kitrt
-  ARCHIVE DESTINATION lib COMPONENT kitrt)
+  DESTINATION ${CLANG_RESOURCE_DIR}/lib)
 
 # KITSUNE FIXME: Do we really need to install the runtime headers? Do we intend
 # this to be used by third-parties?
 install(FILES ${KITRT_HDRS}
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kitrt)
+  DESTINATION ${CLANG_RESOURCE_DIR}/include/kitrt)
 
 # KITSUNE FIXME: Do we really need to install the headers for the targets?
 install(DIRECTORY cuda hip realm
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kitrt/
+  DESTINATION ${CLANG_RESOURCE_DIR}/include/kitrt
   FILES_MATCHING PATTERN "*.h")

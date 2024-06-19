@@ -1,6 +1,8 @@
-// TODO: Include an actual run line and add proper checks.
 // REQUIRES: kitsune-kokkos
-// RUN: false
+// RUN: %kitxx -fkokkos -fkokkos-no-init -ftapir=opencilk -S -emit-llvm -o - | FileCheck %s
+// XFAIL: *
+// There is currently a bug in Kitsune which causes it to crash.
+// KITSUNE FIXME: Fix this bug so the compiler does not crash.
 
 // Very simple test of kokkos that uses a functor.  In a nutshell,
 // given the potential for different compilation units, kitsune does

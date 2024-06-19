@@ -13,6 +13,7 @@
 #include "ToolChains/CommonArgs.h"
 #include "ToolChains/Flang.h"
 #include "ToolChains/InterfaceStubs.h"
+#include "kitsune/Config/config.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Basic/Sanitizers.h"
 #include "clang/Config/config.h"
@@ -25,7 +26,6 @@
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Driver/Tapir.h"
 #include "clang/Driver/XRayArgs.h"
-#include "kitsune/Config/config.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -1578,80 +1578,92 @@ void ToolChain::ExtractArgsFromString(const char *s, ArgStringList &CmdArgs,
 void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
                                            ArgStringList &CmdArgs) const {
   std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
+  bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos);
 
-  // No need to report an error here. That will have been done already.
-  if (not TapirTarget)
-    return;
-
-  switch (*TapirTarget) {
-  case TapirTargetID::Serial:
-  case TapirTargetID::None:
-    break;
-  case llvm::TapirTargetID::Cuda:
-    ExtractArgsFromString(KITSUNE_CUDA_PREPROCESSOR_FLAGS, CmdArgs, Args);
-    break;
-  case llvm::TapirTargetID::Hip:
-    ExtractArgsFromString(KITSUNE_HIP_PREPROCESSOR_FLAGS, CmdArgs, Args);
-    break;
-  case llvm::TapirTargetID::OpenCilk:
-    ExtractArgsFromString(KITSUNE_OPENCILK_PREPROCESSOR_FLAGS, CmdArgs, Args);
-    break;
-  case llvm::TapirTargetID::OpenMP:
-    ExtractArgsFromString(KITSUNE_OPENMP_PREPROCESSOR_FLAGS, CmdArgs, Args);
-    break;
-  case llvm::TapirTargetID::Qthreads:
-    ExtractArgsFromString(KITSUNE_QTHREADS_PREPROCESSOR_FLAGS, CmdArgs, Args);
-    break;
-  case llvm::TapirTargetID::Realm:
-    ExtractArgsFromString(KITSUNE_REALM_PREPROCESSOR_FLAGS, CmdArgs, Args);
-    break;
-  default:
-    llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
-    break;
+  if (TapirTarget) {
+    switch (*TapirTarget) {
+    case TapirTargetID::Serial:
+    case TapirTargetID::None:
+      break;
+    case llvm::TapirTargetID::Cuda:
+      CmdArgs.push_back("-D_tapir_cuda_target");
+      ExtractArgsFromString(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case llvm::TapirTargetID::Hip:
+      CmdArgs.push_back("-D_tapir_hip_target");
+      ExtractArgsFromString(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case llvm::TapirTargetID::OpenCilk:
+      ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case llvm::TapirTargetID::OpenMP:
+      ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS, CmdArgs, Args);
+      break;
+    case llvm::TapirTargetID::Qthreads:
+      ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS, CmdArgs, Args);
+      break;
+    case llvm::TapirTargetID::Realm:
+      ExtractArgsFromString(KITSUNE_REALM_EXTRA_PREPROCESSOR_FLAGS, CmdArgs, Args);
+      break;
+    default:
+      llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
+      break;
+    }
   }
 
-  if (D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos)) {
-    ExtractArgsFromString(KITSUNE_KOKKOS_PREPROCESSOR_FLAGS, CmdArgs, Args);
+  if (IsKokkos) {
+    std::string InclDir = concat(D.ResourceDir, "include", "kokkos");
+    CmdArgs.push_back(Args.MakeArgString(StringRef("-I") + InclDir));
+    ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                          Args);
+  }
+
+  if (TapirTarget or IsKokkos) {
+    std::string InclDir = concat(D.ResourceDir, "include");
+    CmdArgs.push_back(Args.MakeArgString(StringRef("-I") + InclDir));
   }
 }
 
 void ToolChain::AddKitsuneCompilerArgs(const ArgList& Args,
                                        ArgStringList& CmdArgs) const {
   std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
+  bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos);
 
-  // No need to report an error here. That will have been done already.
-  if (not TapirTarget)
-    return;
-
-  switch (*TapirTarget) {
-  case TapirTargetID::Serial:
-  case TapirTargetID::None:
-    break;
-  case llvm::TapirTargetID::Cuda:
-    ExtractArgsFromString(KITSUNE_CUDA_COMPILER_FLAGS, CmdArgs, Args);
-    break;
-  case llvm::TapirTargetID::Hip:
-    ExtractArgsFromString(KITSUNE_HIP_COMPILER_FLAGS, CmdArgs, Args);
-    break;
-  case llvm::TapirTargetID::OpenCilk:
-    ExtractArgsFromString(KITSUNE_OPENCILK_COMPILER_FLAGS, CmdArgs, Args);
-    break;
-  case llvm::TapirTargetID::OpenMP:
-    ExtractArgsFromString(KITSUNE_OPENMP_COMPILER_FLAGS, CmdArgs, Args);
-    break;
-  case llvm::TapirTargetID::Qthreads:
-    ExtractArgsFromString(KITSUNE_QTHREADS_COMPILER_FLAGS, CmdArgs, Args);
-    break;
-  case llvm::TapirTargetID::Realm:
-    ExtractArgsFromString(KITSUNE_REALM_COMPILER_FLAGS, CmdArgs, Args);
-    break;
-  default:
-    llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
-    break;
+  if (TapirTarget) {
+    switch (*TapirTarget) {
+    case TapirTargetID::Serial:
+    case TapirTargetID::None:
+      break;
+    case llvm::TapirTargetID::Cuda:
+      ExtractArgsFromString(KITSUNE_CUDA_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
+      break;
+    case llvm::TapirTargetID::Hip:
+      ExtractArgsFromString(KITSUNE_HIP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
+      break;
+    case llvm::TapirTargetID::OpenCilk:
+      ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_COMPILER_FLAGS, CmdArgs,
+                            Args);
+      break;
+    case llvm::TapirTargetID::OpenMP:
+      ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
+      break;
+    case llvm::TapirTargetID::Qthreads:
+      ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
+      break;
+    case llvm::TapirTargetID::Realm:
+      ExtractArgsFromString(KITSUNE_REALM_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
+      break;
+    default:
+      llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
+      break;
+    }
   }
 
-  if (D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos)) {
-    ExtractArgsFromString(KITSUNE_KOKKOS_COMPILER_FLAGS, CmdArgs, Args);
+  if (IsKokkos) {
+    ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
   }
 }
 
@@ -1684,78 +1696,97 @@ static StringRef getArchNameForOpenCilkRTLib(const ToolChain &TC,
 void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
                                      ArgStringList &CmdArgs) const {
   std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
-  if (not TapirTarget)
-    return;
+  bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos);
 
-  switch (*TapirTarget) {
-  case TapirTargetID::Serial:
-  case TapirTargetID::None:
-    break;
+  if (TapirTarget) {
+    switch (*TapirTarget) {
+    case TapirTargetID::Serial:
+    case TapirTargetID::None:
+      break;
 
-  case llvm::TapirTargetID::Cuda:
-    ExtractArgsFromString(KITSUNE_CUDA_LINKER_FLAGS, CmdArgs, Args);
-    break;
+    case llvm::TapirTargetID::Cuda:
+      CmdArgs.push_back(
+          Args.MakeArgString(StringRef("-L") + KITSUNE_CUDA_LIBRARY_DIR));
+      CmdArgs.push_back(
+          Args.MakeArgString(StringRef("-L") + KITSUNE_CUDA_STUBS_DIR));
+      ExtractArgsFromString("-lcudart -lcuda", CmdArgs, Args);
+      ExtractArgsFromString(KITSUNE_CUDA_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
 
-  case llvm::TapirTargetID::Hip:
-    ExtractArgsFromString(KITSUNE_HIP_LINKER_FLAGS, CmdArgs, Args);
-    break;
+    case llvm::TapirTargetID::Hip:
+      llvm_unreachable("Add default libraries for the Hip backend");
+      ExtractArgsFromString(KITSUNE_HIP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
 
-  case llvm::TapirTargetID::OpenCilk: {
-    bool StaticOpenCilk = Args.hasArg(options::OPT_static);
-    bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
+    case llvm::TapirTargetID::OpenCilk: {
+      bool StaticOpenCilk = Args.hasArg(options::OPT_static);
+      bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
 
-    // Link the correct Cilk personality fn
-    if (getDriver().CCCIsCXX())
+      // Link the correct Cilk personality fn
+      if (getDriver().CCCIsCXX())
+        CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(
+            Args,
+            UseAsan ? "opencilk-asan-personality-cpp"
+                    : "opencilk-personality-cpp",
+            StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
+      else
+        CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(
+            Args,
+            UseAsan ? "opencilk-asan-personality-c" : "opencilk-personality-c",
+            StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
+
+      // Link the opencilk runtime.  We do this after linking the personality
+      // function, to ensure that symbols are resolved correctly when using
+      // static linking.
       CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(
-          Args,
-          UseAsan ? "opencilk-asan-personality-cpp"
-                  : "opencilk-personality-cpp",
-          StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
-    else
-      CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(
-          Args,
-          UseAsan ? "opencilk-asan-personality-c" : "opencilk-personality-c",
+          Args, UseAsan ? "opencilk-asan" : "opencilk",
           StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
 
-    // Link the opencilk runtime.  We do this after linking the personality
-    // function, to ensure that symbols are resolved correctly when using static
-    // linking.
-    CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(
-        Args, UseAsan ? "opencilk-asan" : "opencilk",
-        StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
+      // Add to the executable's runpath the default directory containing
+      // OpenCilk runtime.
+      addOpenCilkRuntimeRunPath(*this, Args, CmdArgs, Triple);
 
-    // Add to the executable's runpath the default directory containing OpenCilk
-    // runtime.
-    addOpenCilkRuntimeRunPath(*this, Args, CmdArgs, Triple);
+      ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
+    }
 
-    ExtractArgsFromString(KITSUNE_OPENCILK_LINKER_FLAGS, CmdArgs, Args);
-    break;
+    case llvm::TapirTargetID::OpenMP:
+      ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
+
+    case llvm::TapirTargetID::Qthreads:
+      ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
+
+    case llvm::TapirTargetID::Realm:
+      ExtractArgsFromString(KITSUNE_REALM_EXTRA_LINKER_FLAGS, CmdArgs, Args);
+      break;
+
+    default:
+      llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
+      break;
+    }
   }
 
-  case llvm::TapirTargetID::OpenMP:
-    ExtractArgsFromString(KITSUNE_OPENMP_LINKER_FLAGS, CmdArgs, Args);
-    break;
-
-  case llvm::TapirTargetID::Qthreads:
-    ExtractArgsFromString(KITSUNE_QTHREADS_LINKER_FLAGS, CmdArgs, Args);
-    break;
-
-  case llvm::TapirTargetID::Realm:
-    ExtractArgsFromString(KITSUNE_REALM_LINKER_FLAGS, CmdArgs, Args);
-    break;
-
-  default:
-    llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
-    break;
+  if (IsKokkos) {
+    std::string LibDir = concat(D.ResourceDir, "lib64");
+    CmdArgs.push_back(Args.MakeArgString(StringRef("-L") + LibDir));
+    CmdArgs.push_back(Args.MakeArgString("-rpath"));
+    CmdArgs.push_back(Args.MakeArgString(LibDir));
+    CmdArgs.push_back(Args.MakeArgString("-lkokkoscore"));
+    ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_LINKER_FLAGS, CmdArgs, Args);
   }
 
   // The pthread functions are now part of libc and was removed from glibc 2.34.
   // There is no need to explicitly link this in unless we have older versions
   // of libc around. We should consider removing this from here at some point
   // when we are certain we don't need this any longer.
-  ExtractArgsFromString("-lkitrt -lpthread", CmdArgs, Args);
-  if (D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos)) {
-    ExtractArgsFromString(KITSUNE_KOKKOS_LINKER_FLAGS, CmdArgs, Args);
+  if (TapirTarget or IsKokkos) {
+    std::string LibDir = concat(D.ResourceDir, "lib");
+    CmdArgs.push_back(Args.MakeArgString(StringRef("-L") + LibDir));
+    CmdArgs.push_back(Args.MakeArgString("-rpath"));
+    CmdArgs.push_back(Args.MakeArgString(LibDir));
+    ExtractArgsFromString("-lkitrt -lpthread -ldl", CmdArgs, Args);
   }
 }
 

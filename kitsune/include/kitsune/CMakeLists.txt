@@ -10,7 +10,8 @@ include(GetClangResourceDir)
 
 get_clang_resource_dir(CLANG_RESOURCE_INCDIR
   PREFIX ${LLVM_LIBRARY_OUTPUT_INTDIR}/..
-  SUBDIR include)
+  SUBDIR include
+)
 
 set(out_files)
 function(copy_header_to_resource_dir file)
@@ -33,8 +34,13 @@ add_custom_target("kitsune-resource-headers" ALL DEPENDS ${out_files})
 # will pick it up.
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/Config/config.h.cmake
-  ${KITSUNE_BINARY_DIR}/../clang/include/kitsune/Config/config.h)
+  ${CMAKE_BINARY_DIR}/include/kitsune/Config/config.h)
+
+install(DIRECTORY
+  ${CMAKE_BINARY_DIR}/include/
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/include
+)
 
 install(FILES kitsune.h
-  DESTINATION ${CLANG_RESOURCE_INCDIR}
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/clang/${LLVM_VERSION_MAJOR}/include
   COMPONENT "kitsune-resource-headers")

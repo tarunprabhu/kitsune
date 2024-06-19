@@ -10,6 +10,7 @@ project(kitsune C CXX)
 
 include(ExternalProject)
 include(FetchContent)
+include(GetClangResourceDir)
 
 if (WIN32)
   message(FATAL_ERROR "Kitsune is not supported on Windows")
@@ -80,6 +81,12 @@ foreach(target IN LISTS KITSUNE_ENABLE_TAPIR_TARGETS)
   endif()
 endforeach()
 
+get_clang_resource_dir(CLANG_RESOURCE_INTDIR
+  PREFIX ${CMAKE_BINARY_DIR})
+
+get_clang_resource_dir(CLANG_RESOURCE_INSTALL_DIR
+  PREFIX ${CMAKE_INSTALL_PREFIX})
+
 if (KITSUNE_KOKKOS_ENABLE)
   # We currently don't support using a pre-built Kokkos - even if it has been
   # patched the way we need it to be. This could possibly be moved to
@@ -88,38 +95,97 @@ if (KITSUNE_KOKKOS_ENABLE)
 
   set(KITSUNE_KOKKOS_SRC_DIR  ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/kokkos)
   set(KITSUNE_KOKKOS_BUILD_DIR ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/build)
+  set(KITSUNE_KOKKOS_STAMP_DIR ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/stamp)
   set(KITSUNE_KOKKOS_BUILD_ARGS
-    -DKokkos_ENABLE_SERIAL=ON -DBUILD_TESTING=OFF
-    -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release)
+    -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
+    -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
+    -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
+    -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    -DCMAKE_INSTALL_PREFIX=${CLANG_RESOURCE_INSTALL_DIR}
+    -DCMAKE_BUILD_TYPE=Release
+    -DKokkos_ENABLE_SERIAL=ON
+    -DBUILD_TESTING=OFF
+    -DBUILD_SHARED_LIBS=ON)
 
   # We have to patch kokkos to disable some sections of code that are using
   # exceptions.
   set(KITSUNE_KOKKOS_PATCH_EXCS ${KITSUNE_SOURCE_DIR}/patches/Kokkos_Exceptions.patch)
 
   #
+  # WARNING   This absolutely sucks!
+  #
+  # As I understand it, ExternalProject_Add will always check for updates and
+  # download any updates. Obviously, since we have a fixed git tag, there will
+  # never be any. However, the PATCH_COMMAND is always executed, which means
+  # that it will attempt to patch code that has already been patched. Naturally,
+  # this fails. The workaround here is to disable checking for updates by
+  # setting UPDATE_COMMAND to "".
+  #
+  # HORRORS! It is possible that this means any update to GIT_TAG below will
+  # also not have any effect since the updates will never be retrieved. In this
+  # case, the entire build directory may need to be deleted for everything to
+  # work correctly. I cannot think of a way to automatically warn when this
+  # happens (never mind making sure that this doesn't happen).
+  #
   # TODO: Look for newer Kokkos updates.
   #
-  message(STATUS "Checkout Kokkos into ${KITSUNE_KOKKOS_SRC_DIR}")
-  FetchContent_Declare(
-    kokkos
+  ExternalProject_Add(kokkos
+    DEPENDS             clang lld llvm-config llvm-link
     GIT_REPOSITORY      https://github.com/kokkos/kokkos.git
     GIT_TAG             606866d # 4.0.00
     SOURCE_DIR          ${KITSUNE_KOKKOS_SRC_DIR}
     BINARY_DIR          ${KITSUNE_KOKKOS_BUILD_DIR}
+    STAMP_DIR           ${KITSUNE_KOKKOS_STAMP_DIR}
     CMAKE_ARGS          ${KITSUNE_KOKKOS_BUILD_ARGS}
-    PATCH_COMMAND       patch -p0 --verbose --input=${KITSUNE_KOKKOS_PATCH_EXCS}
-    UPDATE_DISCONNECTED FALSE)
+    PATCH_COMMAND       patch -p0 --input=${KITSUNE_KOKKOS_PATCH_EXCS}
+    UPDATE_COMMAND      ""
+    UPDATE_DISCONNECTED FALSE
+    STEP_TARGETS        build)
 
-  FetchContent_MakeAvailable(kokkos)
+  # Copy the Kokkos files into a "staging" area. This is only needed to run
+  # the Kitsune + Kokkos tests.
+  add_custom_target(kokkos-copy-headers-to-build-dir ALL
+    # Copy all the headers directly from the source. These are installed as is
+    # anyway.
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${KITSUNE_KOKKOS_SRC_DIR}/core/src
+    ${KITSUNE_KOKKOS_SRC_DIR}/tpls/desul/include
+    ${CLANG_RESOURCE_INTDIR}/include
 
-  set(KITSUNE_KOKKOS_DEFAULT_PREPROCESSOR_FLAGS
-    "-I${CMAKE_INSTALL_PREFIX}/include -I${CMAKE_INSTALL_PREFIX}/include/kokkos")
+    # We don't copy the entire build directory because we only want specific
+    # headers.
+    COMMAND ${CMAKE_COMMAND} -E copy
+    ${KITSUNE_KOKKOS_BUILD_DIR}/KokkosCore_config.h
+    ${KITSUNE_KOKKOS_BUILD_DIR}/KokkosCore_Config_DeclareBackend.hpp
+    ${KITSUNE_KOKKOS_BUILD_DIR}/KokkosCore_Config_FwdBackend.hpp
+    ${KITSUNE_KOKKOS_BUILD_DIR}/KokkosCore_Config_PostInclude.hpp
+    ${KITSUNE_KOKKOS_BUILD_DIR}/KokkosCore_Config_SetupBackend.hpp
+    ${CLANG_RESOURCE_INTDIR}/include
 
-  set(KITSUNE_KOKKOS_DEFAULT_COMPILER_FLAGS
-    "")
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${KITSUNE_KOKKOS_BUILD_DIR}/core/src/desul
+    ${CLANG_RESOURCE_INTDIR}/include/desul
 
-  set(KITSUNE_KOKKOS_DEFAULT_LINKER_FLAGS
-    "-L${CMAKE_INSTALL_PREFIX}/lib -lkokkoscore -ldl")
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+    ${CLANG_RESOURCE_INTDIR}/lib64
+
+    # Copy the core libraries that are built. There are others that are also
+    # built, but these are the only ones that we care about.
+    #
+    # NOTE: These should be updated when the GIT_TAG is changed because the
+    # trailing version suffix may also change. There might be an automatic way
+    # to do this that does not involve copying the entire directory, and we
+    # probably should implement that at some point.
+    COMMAND ${CMAKE_COMMAND} -E copy
+    ${KITSUNE_KOKKOS_BUILD_DIR}/core/src/libkokkoscore.so
+    ${KITSUNE_KOKKOS_BUILD_DIR}/core/src/libkokkoscore.so.4.0
+    ${KITSUNE_KOKKOS_BUILD_DIR}/core/src/libkokkoscore.so.4.0.0
+    ${CLANG_RESOURCE_INTDIR}/lib64
+
+    COMMENT "Copying Kokkos files to the 'top-level' build directory"
+    VERBATIM USES_TERMINAL
+  )
+  add_dependencies(kokkos-copy-headers-to-build-dir kokkos)
 
   set(KITSUNE_KOKKOS_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -140,22 +206,36 @@ endif()
 if (KITSUNE_CUDA_ENABLE)
   find_package(CUDAToolkit ${KITSUNE_CUDA_VERSION_MIN} REQUIRED)
 
-  find_library(LIB_CUDART cudart REQUIRED
-    PATHS ${CUDAToolkit_LIBRARY_DIR}
+  set(KITSUNE_CUDA_PREFIX ${CUDAToolkit_LIBRARY_ROOT})
+  set(KITSUNE_CUDA_INCLUDE_DIR ${CUDAToolkit_INCLUDE_DIRS})
+  set(KITSUNE_CUDA_BINARY_DIR ${CUDAToolkit_BIN_DIR})
+  set(KITSUNE_CUDA_LIBRARY_DIR ${CUDAToolkit_LIBRARY_DIR})
+  set(KITSUNE_CUDA_STUBS_DIR "${KITSUNE_CUDA_LIBRARY_DIR}/stubs")
+  set(KITSUNE_CUDA_LIBDEVICE_DIR "${KITSUNE_CUDA_PREFIX}/nvvm/libdevice")
+
+  find_library(KITSUNE_CUDA_LIB_CUDART cudart REQUIRED
+    PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
     NO_DEFAULT_PATH)
 
-  find_library(LIB_CUDA cuda REQUIRED
-    PATHS ${CUDAToolkit_LIBRARY_DIR}/stubs
+  find_library(KITSUNE_CUDA_LIB_CUDA cuda REQUIRED
+    PATHS ${KITSUNE_CUDA_STUBS_DIR}
     NO_DEFAULT_PATH)
 
-  set(KITSUNE_CUDA_DEFAULT_PREPROCESSOR_FLAGS
-    "-D_tapir_cuda_target")
+  find_library(KITSUNE_CUDA_LIB_NVPTX_STATIC nvptxcompiler_static REQUIRED
+    PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
+    NO_DEFAULT_PATH)
 
-  set(KITSUNE_CUDA_DEFAULT_COMPILER_FLAGS
-    "")
+  find_file(KITSUNE_CUDA_LIBDEVICE_BC libdevice.10.bc REQUIRED
+    PATHS ${KITSUNE_CUDA_LIBDEVICE_DIR}
+    NO_DEFAULT_PATH)
 
-  set(KITSUNE_CUDA_DEFAULT_LINKER_FLAGS
-    "-L${CUDAToolkit_LIBRARY_DIR} -L${CUDAToolkit_LIBRARY_DIR}/stubs -lcudart -lcuda")
+  find_program(KITSUNE_CUDA_PTXAS ptxas REQUIRED
+    PATHS ${KITSUNE_CUDA_BINARY_DIR}
+    NO_DEFAULT_PATH)
+
+  find_program(KITSUNE_CUDA_FATBINARY fatbinary REQUIRED
+    PATHS ${KITSUNE_CUDA_BINARY_DIR}
+    NO_DEFAULT_PATH)
 
   set(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -171,10 +251,6 @@ if (KITSUNE_CUDA_ENABLE)
     ""
     CACHE STRING
     "Additional linker flags needed for the Cuda target")
-
-  # KITSUNE FIXME: Find libdevice.bc
-  set(KITSUNE_CUDA_LIBDEVICE_BC
-    "")
 endif()
 
 if (KITSUNE_HIP_ENABLE)
@@ -189,6 +265,9 @@ if (KITSUNE_HIP_ENABLE)
   find_package(hip REQUIRED
     PATHS $ENV{ROCM_PATH}/hip $ENV{ROCM_PATH}
     /opt/rocm/hip /opt/rocm)
+
+  message(FATAL_ERROR "hip: ${HIP_LIBRARY_DIR} ${hip_LIBRARY_DIR} ${hip_LIBRARY_DIRS} ${HIP_LIBRARY_DIRS}")
+  set(KITSUNE_HIP_PREFIX)
 
   find_library(LIB_AMDHIP64 amdhip64 REQUIRED
     PATHS ${hip_LIBRARY_DIR}
@@ -238,7 +317,7 @@ if (KITSUNE_OPENCILK_ENABLE)
     -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
     -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
-    -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}/lib/clang/${LLVM_VERSION_MAJOR}
+    -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
     -DCHEETAH_DEFAULT_TARGET_TRIPLE=${LLVM_DEFAULT_TARGET_TRIPLE}
     -DCHEETAH_DIRECTORY_PER_TARGET=ON
     -DLLVM_LIBRARY_OUTPUT_INTDIR=${LLVM_LIBRARY_OUTPUT_INTDIR}
@@ -246,7 +325,7 @@ if (KITSUNE_OPENCILK_ENABLE)
     -DPACKAGE_VERSION=${PACKAGE_VERSION}
   )
 
-  ExternalProject_Add(cheetah ${KITSUNE_CHEETAH_SRC_DIR}
+  ExternalProject_Add(cheetah
     DEPENDS        clang lld llvm-config llvm-link
     GIT_REPOSITORY https://github.com/OpenCilk/cheetah.git
     GIT_TAG        opencilk/v2.1
@@ -263,9 +342,10 @@ if (KITSUNE_OPENCILK_ENABLE)
   set(KITSUNE_OPENCILK_DEFAULT_COMPILER_FLAGS
     "")
 
-  # FIXME: We need to specify where libopencilk is installed with a -L flag?
+  # All the defaults are handled in the source code because finding the
+  # OpenCilk runtime library is not straightforward on all platforms.
   set(KITSUNE_OPENCILK_DEFAULT_LINKER_FLAGS
-    "-lopencilk")
+    "")
 
   set(KITSUNE_OPENCILK_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -281,10 +361,6 @@ if (KITSUNE_OPENCILK_ENABLE)
     ""
     CACHE STRING
     "Additional linker flags needed for the OpenCilk target")
-
-  # Path to libopencilk-abi.bc. This will be generated when cheetah is built.
-  set(KITSUNE_OPENCILK_LIBOPENCILKABI_BC
-    "")
 
 endif()
 
@@ -418,7 +494,15 @@ endif()
 #
 # FIXME: Instead of passing all the Kitsune variables here by hand, look for
 # for every variable starting with KITSUNE_, KITRT_ and LLVM_ and pass those
-# in.
+# in. Perhaps something like what is below.
+#
+#     get_cmake_property(vars VARIABLES)
+#     list(FILTER vars INCLUDE REGEX "^KIT")
+#     list(SORT vars)
+#     foreach (var ${vars})
+#       message(STATUS "${var}=${${var}}")
+#     endforeach()
+#
 ExternalProject_Add(kitsune-runtimes
   DEPENDS llvm-config clang LLVM
   SOURCE_DIR ${KITSUNE_SOURCE_DIR}/runtime
@@ -432,6 +516,13 @@ ExternalProject_Add(kitsune-runtimes
              -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
              -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
              -DKITSUNE_CUDA_ENABLE=${KITSUNE_CUDA_ENABLE}
+             -DKITSUNE_CUDA_INCLUDE_DIR=${KITSUNE_CUDA_INCLUDE_DIR}
+             -DKITSUNE_CUDA_BINARY_DIR=${KITSUNE_CUDA_BINARY_DIR}
+             -DKITSUNE_CUDA_LIBRARY_DIR=${KITSUNE_CUDA_LIBRARY_DIR}
+             -DKITSUNE_CUDA_STUBS_DIR=${KITSUNE_CUDA_STUBS_DIR}
+             -DKITSUNE_CUDA_LIB_CUDA=${KITSUNE_CUDA_LIB_CUDA}
+             -DKITSUNE_CUDA_LIB_CUDART=${KITSUNE_CUDA_LIB_CUDART}
+             -DKITSUNE_CUDA_LIB_NVPTX_STATIC=${KITSUNE_CUDA_LIB_NVPTX_STATIC}
              -DKITSUNE_HIP_ENABLE=${KITSUNE_HIP_ENABLE}
              -DKITSUNE_OPENCILK_ENABLE=${KITSUNE_OPENCILK_ENABLE}
              -DKITSUNE_OPENMP_ENABLE=${KITSUNE_OPENMP_ENABLE}
@@ -442,21 +533,24 @@ ExternalProject_Add(kitsune-runtimes
              -DKITRT_ENABLE_DEBUG=${KITRT_ENABLE_DEBUG}
              -DKITRT_ENABLE_VERBOSE=${KITRT_ENABLE_VERBOSE}
              -DKITCUDA_ENABLE_NVTX=${KITCUDA_ENABLE_NVTX}
+             -DCLANG_RESOURCE_INTDIR=${CLANG_RESOURCE_INTDIR}
+             -DCLANG_RESOURCE_DIR=${CLANG_RESOURCE_INSTALL_DIR}
              -DLLVM_CONFIG_PATH=${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-config
              -DLLVM_VERSION_MAJOR=${LLVM_VERSION_MAJOR}
              -DLLVM_VERSION_MINOR=${LLVM_VERSION_MINOR}
              -DLLVM_VERSION_PATCH=${LLVM_VERSION_PATCH}
+             -DLLVM_BINARY_DIR=${LLVM_BINARY_DIR}
              -DLLVM_INCLUDE_DIR=${LLVM_INCLUDE_DIR}
-             -DLLVM_LIBRARY_DIR=${LLVM_LIBRARY_OUTPUT_INTDIR}
-             -DLLVM_BINARY_DIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
+             -DLLVM_LIBRARY_DIR=${LLVM_LIBRARY_DIR}
+             -DLLVM_LIBRARY_OUTPUT_INTDIR=${LLVM_LIBRARY_OUTPUT_INTDIR}
+             -DLLVM_RUNTIME_OUTPUT_INTDIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
              -DLLVM_LIT_ARGS=${LLVM_LIT_ARGS}
              -DLLVM_LIBDIR_SUFFIX=${LLVM_LIBDIR_SUFFIX}
              -DLLVM_MAIN_INCLUDE_DIR=${LLVM_MAIN_INCLUDE_DIR}
              -DLLVM_RUNTIME_OUTPUT_INTDIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
              -DCUDAToolkit_INCLUDE_DIRS=${CUDAToolkit_INCLUDE_DIRS}
              -DCUDAToolkit_LIBRARY_DIR=${CUDAToolkit_LIBRARY_DIR}
-  INSTALL_COMMAND ""
-  # STEP_TARGETS configure build
   USES_TERMINAL_CONFIGURE 1
   USES_TERMINAL_BUILD 1
   USES_TERMINAL_INSTALL 1)
+

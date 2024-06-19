@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
       A[i] = i;
     });
 
-    [[tapir::target("cuda")]] // expected-warning {{tapir target attribute on unsupported statement}}
+    [[tapir::target("cuda")]] // expected-error {{tapir target attribute on unsupported statement}}
     if (argc == 1) {
       forall(int i = 0; i < 1024; ++i)
 	Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
