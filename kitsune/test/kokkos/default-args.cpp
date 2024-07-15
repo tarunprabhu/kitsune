@@ -3,6 +3,6 @@
 // CHECK: "-cc1"
 // CHECK-SAME: -I{{[^ ]*}}/include/kokkos
 
-// CHECK: /{{[^ ]*}}ld
+// CHECK: /{{[^ ]*}}ld{{[^ ]*}}"
 // CHECK-SAME: -lkokkoscore
 // CHECK-SAME: -lkitrt

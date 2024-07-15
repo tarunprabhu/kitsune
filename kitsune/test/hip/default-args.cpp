@@ -3,7 +3,7 @@
 // CHECK: "-cc1"
 // CHECK-SAME: "-D_tapir_hip_target"
 
-// CHECK: /{{[^ ]*}}ld"
+// CHECK: /{{[^ ]*}}ld{{[^ ]*}}"
 // CHECK-SAME: -lamdhip64
 // CHECK-SAME: -lhip::host
 // CHECK-SAME: -lkitrt

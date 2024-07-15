@@ -229,12 +229,12 @@ namespace options {
     return StringSwitch<TapirTargetID>(tapirTarget)
         .Case("none", TapirTargetID::None)
         .Case("serial", TapirTargetID::Serial)
-        .Case("cheetah", TapirTargetID::Cheetah)
-        .Case("cilkplus", TapirTargetID::Cilk)
         .Case("cuda", TapirTargetID::Cuda)
+        .Case("hip", TapirTargetID::Hip)
         .Case("opencilk", TapirTargetID::OpenCilk)
         .Case("openmp", TapirTargetID::OpenMP)
         .Case("qthreads", TapirTargetID::Qthreads)
+        .Case("realm", TapirTargetID::Realm)
         .Default(TapirTargetID::Last_TapirTargetID);
   }
 

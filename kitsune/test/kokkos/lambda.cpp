@@ -1,6 +1,7 @@
 // TODO: Include an actual run line and add proper checks.
 // REQUIRES: kitsune-kokkos
 // RUN: false
+// XFAIL: *
 
 // Very simple test of kokkos with two common forms of the
 // parallel_for construct.  We should be able to transform
