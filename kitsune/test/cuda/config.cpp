@@ -17,7 +17,7 @@
 // CHECK-CUSTOM-SAME: "-D" "some_preprocessor_flag"
 // CHECK-CUSTOM-SAME: "-D_tapir_cuda_target"
 // CHECK-CUSTOM-SAME: "-Wsome_compiler_flag"
-// CHECK-CUSTOM: /{{[^ ]*}}ld
+// CHECK-CUSTOM: {{^[ ]*"[^"]+/[l]?}}ld{{[.]?[^ ]*}}"
 // CHECK-CUSTOM-SAME: "-some_linker_flag"
 // CHECK-CUSTOM-SAME: -lcudart
 // CHECK-CUSTOM-SAME: -lcuda

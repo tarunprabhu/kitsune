@@ -16,5 +16,5 @@
 // CHECK-CUSTOM-SAME: "-D" "_tapir_hip_target"
 // CHECK-CUSTOM-SAME: "-D" "some_preprocessor_flag"
 // CHECK-CUSTOM-SAME: "-Wsome_compiler_flag"
-// CHECK-CUSTOM: /{{[^ ]*}}ld
+// CHECK-CUSTOM: {{^[ ]*"[^"]+/[l]?}}ld{{[.]?[^ ]*}}"
 // CHECK-CUSTOM-SAME: "-some_linker_flag"

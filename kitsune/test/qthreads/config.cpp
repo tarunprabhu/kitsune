@@ -15,5 +15,5 @@
 // CHECK-CUSTOM: "-cc1"
 // CHECK-CUSTOM-SAME: "-D" "some_preprocessor_flag"
 // CHECK-CUSTOM-SAME: "-Wsome_compiler_flag"
-// CHECK-CUSTOM: /{{[^ ]*}}ld
+// CHECK-CUSTOM: {{^[ ]*"[^"]+/[l]?}}ld{{[.]?[^ ]*}}"
 // CHECK-CUSTOM-SAME: "-some_linker_flag"
