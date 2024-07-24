@@ -17,7 +17,15 @@ void random_matrix(float *I, unsigned int rows, unsigned int cols) {
   
   auto end_time = chrono::steady_clock::now();
   double elapsed_time = chrono::duration<double>(end_time-start_time).count();
-  cout << "random matrix creation time " << elapsed_time << "\n";
+  cout << "  random matrix creation time " << elapsed_time << "\n";
+  cout << "  initial input data:\n";  
+  for(unsigned int i = 0; i < 10; i++) {
+    cout << "   ";        
+    for(unsigned int j = 0; j < 10; j++)
+      cout << I[i * cols + j] << " ";
+    cout << "...\n";
+  }
+  cout << "   ...\n";  
 }
 
 void usage(int argc, char **argv)
@@ -40,7 +48,7 @@ int main(int argc, char* argv[])
 {
   using namespace std;
   int rows, cols, size_I, size_R, niter;
-  float *I, *J, q0sqr, sum, sum2, tmp, meanROI,varROI ;
+  float *I, *J, q0sqr, tmp, meanROI,varROI ;
   float Jc, G2, L, num, den, qsqr;
   int *iN,*iS,*jE,*jW;
   float *dN,*dS,*dW,*dE;
@@ -67,7 +75,7 @@ int main(int argc, char* argv[])
     c1 = 0;
     c2 = 127;
     lambda = 0.5;
-    niter = 100;
+    niter = 2000;
   } else {
     usage(argc, argv);
   }
@@ -104,7 +112,8 @@ int main(int argc, char* argv[])
 
   random_matrix(I, rows, cols);
     
-  cout << "  Starting benchmark...\n" << std::flush;  
+  
+  cout << "  Starting benchmark...\n" << std::flush;    
   auto start_time = chrono::steady_clock::now();
   forall(int i = 0; i < rows; i++) {
     iN[i] = i-1;
@@ -130,7 +139,7 @@ int main(int argc, char* argv[])
   double loop2_max_time = 0.0, loop2_min_time = 1000.0;
   
   for (int iter=0; iter < niter; iter++) {
-    sum=0; sum2=0;
+    float sum=0, sum2=0;
 
     for(int i=r1; i <= r2; i++) {
       for(int j = c1; j<=c2; j++) {
@@ -176,9 +185,10 @@ int main(int argc, char* argv[])
       }
     }
     auto loop1_end_time = chrono::steady_clock::now();
-    double etime = chrono::duration<double>(loop1_end_time - loop1_start_time).count(); 
-    //cout << "\t- loop 1 time: " << etime << "\n";
+    double etime = chrono::duration<double>
+      (loop1_end_time - loop1_start_time).count(); 
     loop1_total_time += etime;
+    
     if (etime > loop1_max_time)
       loop1_max_time = etime;
     else if (etime < loop1_min_time)
@@ -201,8 +211,8 @@ int main(int argc, char* argv[])
       }
     }
     auto loop2_end_time = chrono::steady_clock::now();
-    etime = chrono::duration<double>(loop2_end_time - loop2_start_time).count(); 
-    //cout << "\t- loop 2 time: " << etime << "\n";
+    etime = chrono::duration<double>
+      (loop2_end_time - loop2_start_time).count(); 
     loop2_total_time += etime;
     if (etime > loop2_max_time)
       loop2_max_time = etime;
@@ -210,7 +220,8 @@ int main(int argc, char* argv[])
       loop2_min_time = etime;
   }
   auto end_time = chrono::steady_clock::now();
-  double elapsed_time = chrono::duration<double>(end_time - start_time).count();
+  double elapsed_time = chrono::duration<double>
+    (end_time - start_time).count();
   cout << "  Avg. loop 1 time: " << loop1_total_time / niter << "\n"
        << "       loop 1 min : " << loop1_min_time << "\n"
        << "       loop 1 max : " << loop1_max_time << "\n"
@@ -221,7 +232,7 @@ int main(int argc, char* argv[])
        << "*** " << elapsed_time << ", " << elapsed_time << "\n"
        << "----\n\n";
 
-  FILE *fp = fopen("srad-forall.dat", "wb");
+  FILE *fp = fopen("srad-forall-output.dat", "wb");
   if (fp != NULL) {
     fwrite((void*)J, sizeof(float), size_I, fp);
     fclose(fp);

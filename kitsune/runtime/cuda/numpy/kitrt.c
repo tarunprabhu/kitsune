@@ -61,7 +61,7 @@
 //
 #define NPY_TARGET_VERSION NPY_1_22_API_VERSION
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include "../cuda.h"
+#include "../kitcuda.h"
 #include <numpy/arrayobject.h>
 
 typedef struct {
@@ -121,10 +121,10 @@ static KitRTAllocatorFuncs __kitrt_sys_allocators_ctx = {
 };
 
 static KitRTAllocatorFuncs __kitrt_cuda_allocators_ctx = {
-  __kitrt_cuMemAllocManaged,
-  __kitrt_cuMemCallocManaged,
-  __kitrt_cuMemReallocManaged,
-  __kitrt_cuMemFree
+  __kitcuda_mem_alloc_managed,
+  __kitcuda_mem_calloc_managed,
+  __kitcuda_mem_realloc_managed,
+  __kitcuda_mem_free
 };
 
 static PyDataMem_Handler __kitrt_data_handler = {
@@ -152,23 +152,29 @@ static PyDataMem_Handler __sys_data_handler = {
 };
 
 static PyObject *kitrt_InfoMethod() {
-  __kitrt_printMemoryMap();
+  extern void __kitrt_print_memory_map();
+  __kitrt_print_memory_map();
   Py_RETURN_NONE;
 }
 
-static PyObject *kitrt_DisableMemHandler() {
+static PyObject *kitrt_EnableMemHandler() {
   PyObject *kitrt_handler = PyCapsule_New(&__kitrt_data_handler, "mem_handler", NULL);
   if (kitrt_handler != NULL) {
     (void)PyDataMem_SetHandler(kitrt_handler);
     Py_DECREF(kitrt_handler);
   }
+  return kitrt_handler;
 }
 
+static PyObject *kitrt_DisableMemHandler() {
+  (void)PyDataMem_SetHandler(NULL);
+  return NULL;
+}
 
 static PyMethodDef m_methods[] = {
   {"info", kitrt_InfoMethod, METH_NOARGS, "Python interface for kitsune runtime memory map information."},
-  {"disable", kirt_DisableMemHandler, METH_NOARGS, "Disable the Kitsune runtime memory handler."},
-  {"enable", kitrt_EnableMemHandler, METH_NO_ARGS, "Enable the Kitsune runtime memory handler."},
+  {"disable", kitrt_DisableMemHandler, METH_NOARGS, "Disable the Kitsune runtime memory handler."},
+  {"enable", kitrt_EnableMemHandler, METH_NOARGS, "Enable the Kitsune runtime memory handler."},
   {NULL, NULL, 0, NULL},
 };
 

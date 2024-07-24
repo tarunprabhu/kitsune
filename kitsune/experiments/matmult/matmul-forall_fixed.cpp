@@ -1,0 +1,90 @@
+#include <chrono>
+#include <cmath>
+#include <iomanip>
+#include <iostream>
+#include <kitsune.h>
+#include <vector>
+
+#define ITERATIONS 10
+
+void matrix_multiplication(double *A, double *B, double *C, int M, int N, int K){
+  forall(int tid = 0; tid < M * N; tid++){
+    int m = tid / N;
+    int n = tid % N;
+    double sum = 0.0;
+    for(int k = 0; k < K; k++){
+      sum += A[m * K + k] * B[n * K + k];
+    }
+    C[tid] = sum;
+  }
+}
+
+// void matrix_multiplication(const double *A, const double *B, double *C,
+//                            unsigned int M, unsigned int N, unsigned int K) {
+//   forall(unsigned int i = 0; i < M; i++) {
+//     for (unsigned int j = 0; j < N; j++) {
+//       double sum = 0.0;
+//       for (unsigned int k = 0; k < K; k++) {
+//         sum += A[i * K + k] * B[j * K + k]; // B is treated as transposed
+//       }
+//       C[i * N + j] = sum;
+//     }
+//   }
+// }
+
+int main(int argc, char *argv[]) {
+  using namespace std;
+
+  int m, n, k;
+  int iterations = ITERATIONS;
+
+  if (argc <= 3){
+    std::cerr << "Usage: " << argv[0] << " M N K [iteration]\n\n";
+    return 1;
+  }
+  m = atoi(argv[1]);
+  n = atoi(argv[2]);
+  k = atoi(argv[3]);
+  if (argc >= 5)
+    iterations = atoi(argv[4]);
+
+  cout << setprecision(5);
+  cout << "\n";
+  cout << "---- Matrix multiplication with transposed B benchmark (forall) "
+          "----\n"
+       << "  Matrix size: " << m << " x " << n << " x " << k << ".\n\n";
+  cout << "  Allocating matrices..." << std::flush;
+
+  double *A = alloc<double>(m * k);
+  double *B = alloc<double>(n * k);
+  double *C = alloc<double>(m * n);
+  
+  // Assuming A, B, and C are already initialized and B is already transposed
+  cout << "  done.\n\n";
+
+  double elapsed_time;
+  double avg_time = 0.0;
+  double min_time = 100000.0;
+  double max_time = 0.0;
+
+  for (unsigned t = 0; t < iterations; t++) {
+    auto start_time = chrono::steady_clock::now();
+    // matrix_multiplication(A, B, C, m); // Use transposed B for multiplication
+    matrix_multiplication(A, B, C, m, n, k); // Use transposed B for multiplication
+    auto end_time = chrono::steady_clock::now();
+    elapsed_time = chrono::duration<double>(end_time - start_time).count();
+    if (elapsed_time < min_time)
+      min_time = elapsed_time;
+    if (elapsed_time > max_time)
+      max_time = elapsed_time;
+    cout << "\t" << t << ". iteration time: " << elapsed_time << " seconds.\n";
+    if (t)
+      avg_time += elapsed_time;
+  }
+  avg_time = avg_time / (iterations - 1);
+  cout << "  Total time: " << avg_time << " seconds.\n\n";
+  dealloc(A);
+  dealloc(B);
+  dealloc(C);
+  return 0;
+}

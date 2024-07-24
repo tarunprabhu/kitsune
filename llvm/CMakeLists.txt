@@ -232,21 +232,23 @@ unset(NEED_LIBC_HDRGEN)
 # cumbersome in this case - unlike for kitrt where the runtime mechanism doesn't
 # quite do everything we would like.
 if (NOT "kitsune" IN_LIST LLVM_ENABLE_PROJECTS)
-  message(STATUS "Enabling kitsune")
-  list(PREPEND LLVM_ENABLE_PROJECTS "kitsune")
+  message(STATUS "Automatically enabling the kitsune project.")
+  list(APPEND LLVM_ENABLE_PROJECTS "kitsune")
 
   # Enable dependencies as well even if they were not explicitly set at
   # configure time.
   if (NOT "clang" IN_LIST LLVM_ENABLE_PROJECTS)
-    message(STATUS "Enabling clang")
-    list(APPEND LLVM_ENABLE_PROJECTS "clang")
+    message(STATUS "Automatically enabling clang (for kitsune support).")
+    list(PREPEND LLVM_ENABLE_PROJECTS "clang")
   endif ()
 
   # We may switch to doing *everything* using LTO, so just enable lld.
   if (NOT "lld" IN_LIST LLVM_ENABLE_PROJECTS)
-    message(STATUS "Enabling lld")
+    message(STATUS "Automatically enabling lld (for kitsune support).")
     list(APPEND LLVM_ENABLE_PROJECTS "lld")
   endif ()
+
+  message(STATUS "New LLVM_ENABLE_PROJECTS: ${LLVM_ENABLE_PROJECTS}")
 
   # Currently, flang is not required, but if it is, MLIR should be enabled as
   # well.

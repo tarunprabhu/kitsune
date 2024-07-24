@@ -1,5 +1,6 @@
-ifneq ($(CUDA_PATH),)
+ifneq ($(KITSUNE_CUDA_ENABLE),)
   CUDA_ARCH?=sm_86
+  $(info   cuda: target arch: $(CUDA_ARCH))
   NVCC=$(CUDA_PATH)/bin/nvcc
   NVCC_C_FLAGS?=-arch=$(CUDA_ARCH)
   NVCC_CXX_FLAGS?=-arch=$(CUDA_ARCH) \
@@ -14,7 +15,5 @@ ifneq ($(CUDA_PATH),)
 
   BUILD_CUDA_EXPERIMENTS=true
   $(info note: cuda experiments enabled)
-else 
-  BUILD_CUDA_EXPERIMENTS=false
 endif 
 

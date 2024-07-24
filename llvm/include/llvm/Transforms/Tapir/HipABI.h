@@ -137,6 +137,19 @@ public:
 
   void pushSR(Value *SR) { SyncRegList.insert(SR); }
 
+  void registerLaunchStream(CallInst *CI, AllocaInst *AI) {
+    KernelLaunchToStreamMap.insert(std::pair<CallInst*,AllocaInst*>(CI,AI));
+  }
+
+  AllocaInst* getLaunchStream(CallInst *CI) {
+    LaunchToStreamMapTy::iterator it;
+    it = KernelLaunchToStreamMap.find(CI);
+    if (it != KernelLaunchToStreamMap.end())
+      return it->second;
+    else 
+      return nullptr;
+  }
+
   /// @brief Save a kernel for post-processing.
   /// @param KF - the kernel function to save.
   /// @return void
@@ -231,10 +244,16 @@ public:
 
   typedef std::list<GlobalVariable*> GlobalVarListTy;
   GlobalVarListTy GlobalVars;
+
   typedef std::set<Value *> SyncRegionListTy;
   SyncRegionListTy SyncRegList;
+
   typedef std::list<Function*> KernelListTy;
   KernelListTy KernelFunctions;
+
+  typedef llvm::DenseMap<CallInst*,AllocaInst*>  LaunchToStreamMapTy;
+  LaunchToStreamMapTy   KernelLaunchToStreamMap;
+  
 
   Module KernelModule;
   bool ROCmModulesLoaded;
@@ -359,6 +378,8 @@ private:
                    KitHipWorkGroupIdZFn;
   FunctionCallee   KitHipBlockDimFn;
 
+  StructType *KernelInstMixTy;
+  
   // Kitsune runtime entry points.
   FunctionCallee   KitHipLaunchFn = nullptr;
   FunctionCallee   KitHipModuleLoadDataFn = nullptr;

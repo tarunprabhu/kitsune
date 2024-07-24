@@ -261,7 +261,7 @@ bool __kithip_initialize() {
             _kithip_concurrent_kernels ? "yes" : "no");
   }
 
-  int threads_per_block = 1024;
+  int threads_per_block = 256;
   if (__kitrt_get_env_value("KITHIP_THREADS_PER_BLOCK", threads_per_block)) {
     if (threads_per_block > _kithip_max_threads_per_blk)
       threads_per_block = _kithip_max_threads_per_blk;

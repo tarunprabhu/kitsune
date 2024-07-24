@@ -71,7 +71,6 @@ DECLARE_DLSYM(hipGetDeviceProperties);
 DECLARE_DLSYM(hipDeviceReset);
 DECLARE_DLSYM(hipDeviceSynchronize);
 
-
 /* Context management */
 
 /* Stream management */

@@ -127,6 +127,24 @@ extern "C" {
   extern bool __kitrt_prefetchStreamsEnabled();
   extern void __kitrt_enablePrefetchStreams();
 
+
+  /**
+   * *** EXPERIMENTAL: This is a new interface between the compiler and
+   * the runtime.  It is a quick set of details regarding the particular
+   * instruction mix of a kernel and any device-side functions it calls.
+   * It is gathered from the LLVM form of the code (not ptx/s-code) and
+   * at this point is limited.  In general we are using to explore
+   * impacts on launch parameters.
+   * NOTE: Changing this structure has implications on code generation
+   * inside the CudaABI component of the compiler -- both must be kept
+   * up-to-date. 
+   */  
+  typedef struct _kitrt_inst_mix_info {
+    uint64_t     num_memory_ops;
+    uint64_t     num_flops;
+    uint64_t     num_iops;
+  } KitRTInstMix;
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

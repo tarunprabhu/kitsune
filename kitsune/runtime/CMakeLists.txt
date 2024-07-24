@@ -72,6 +72,7 @@ target_include_directories(${KITRT}
 # set_property(TARGET ${KITRT} APPEND PROPERTY
 #   BUILD_RPATH "$ORIGIN/../lib${LLVM_LIBDIR_SUFFIX}:${PROJECT_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}")
 
+
 find_library(LIB_LLVM
   NAMES LLVM
   LLVM-${LLVM_VERSION_MAJOR}
@@ -139,19 +140,29 @@ endif()
 # kitsune/CMakeLists.txt). They are passed in via CMake because the Kitsune
 # runtime is treated as an "ExternalProject".
 #
-# FIXME: hip::host depends on clangrt_builtin, but that is not caught by the
-# build system currently and the library which causes a build failure if the
-# library is not built. Not sure how this is to be fixed, but adding the note
-# here as a reminder that it needs to be done.
+# Note on AMD HIP CMake details...  When is HIP not HIP?  When it is HIP... 
+# It is easy to confuse requirements for HIP as the HIP "language" vs. the
+# HIP runtime.   The language has tangled dependencies within a LLVM context
+# as they build around LLVM and Clang too.  Using some of the 'hip::host' 
+# targets are actually intended for the language and not runtime libraries.
+# Unfortunately, these details seem to be a moving target with ecah release 
+# of rocm/hip... 
 if (KITSUNE_HIP_ENABLE)
-  # FIXME: It may be necessary to hardcode these paths to rocm, but there ought
-  # to be better ways of doing this.
-  find_package(hip REQUIRED
-    PATHS $ENV{ROCM_PATH}/hip $ENV{ROCM_PATH} /opt/rocm/hip /opt/rocm)
 
-  find_library(LIB_HIP_HOST hip::host REQUIRED
-    PATHS ${hip_LIBRARY_DIR}
-    NO_DEFAULT_PATH)
+  if (NOT DEFINED ROCM_PATH)
+    message(STATUS "Kitsune HIP support enabled but ROCM_PATH not set.")
+    if (DEFINED $ENV{ROCM_PATH})
+      message(STATUS "  using ROCM_PATH environment variable.")
+      set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH "AMD ROCM/HIP installation directory.")
+    else() 
+      message(STATUS "  selecting a common default install location.")
+      set(ROCM_PATH "/opt/rocm" CACHE PATH "AMD ROCM/HIP installation directory.")
+    endif()
+  endif()
+  list(APPEND CMAKE_MODULE_PATH "${ROCM_PATH}/lib/cmake/hip")
+
+  find_package(HIP REQUIRED)
+  include("${ROCM_PATH}/lib/cmake/hip/hip-config.cmake")
 
   list(APPEND KITRT_HDRS
     hip/kithip.h
@@ -164,16 +175,19 @@ if (KITSUNE_HIP_ENABLE)
     hip/memory.cpp
     hip/streams.cpp)
 
+  message(STATUS "hip include dir: ${hip_INCLUDE_DIR}")
+  message(STATUS "hip library dir: ${hip_LIB_INSTALL_DIR}")
+  
   target_compile_definitions(${KITRT} PUBLIC KITRT_HIP_ENABLED)
-  target_link_directories(${KITRT} PUBLIC ${hip_LIBRARY_DIR})
-  target_link_libraries(${KITRT} PUBLIC hip::host)
+  target_compile_definitions(${KITRT} PUBLIC __HIP_PLATFORM_AMD__)
+  target_include_directories(${KITRT} PUBLIC ${hip_INCLUDE_DIR})
+  target_link_directories(${KITRT} PUBLIC ${HIP_LIB_INSTALL_DIR})
+  target_link_libraries(${KITRT} PUBLIC hip::amdhip64)
 
   set_property(TARGET ${KITRT} APPEND PROPERTY
-    INSTALL_RPATH ${hip_LIBRARY_DIR})
+    INSTALL_RPATH ${HIP_LIB_INSTALL_DIR})
   set_property(TARGET ${KITRT} APPEND PROPERTY
-    BUILD_RPATH ${hip_LIBRARY_DIR})
-
-  add_subdirectory(hip)
+    BUILD_RPATH ${HIP_LIB_INSTALL_DIR})
 endif()
 
 set_target_properties(${KITRT} PROPERTIES

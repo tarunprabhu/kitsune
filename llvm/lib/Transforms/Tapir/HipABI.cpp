@@ -70,6 +70,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "llvm/Transforms/Tapir/HipABI.h"
+#include "kitsune/Config/config.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Demangle/Demangle.h"
@@ -111,6 +112,9 @@
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/TapirGPUUtils.h"
+#include "llvm/Transforms/Tapir/TapirLoopInfo.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
 #include "llvm/Transforms/Utils/AMDGPUEmitPrintf.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Mem2Reg.h"
@@ -237,8 +241,8 @@ cl::opt<unsigned int> MaxThreadsPerBlock(
              "can support at execution.\n"));
 
 enum ROCmABIVersion {
-  ROCm_ABI_V4, // DEFAULT
-  ROCm_ABI_V5, // EXPERIMENTAL in the AMDGPU stack?
+  ROCm_ABI_V4, // default
+  ROCm_ABI_V5, // new
 };
 
 cl::opt<ROCmABIVersion> ROCmABITarget(
@@ -246,7 +250,7 @@ cl::opt<ROCmABIVersion> ROCmABITarget(
     cl::desc("Select the targeted ROCm ABI version."),
     cl::values(clEnumValN(ROCm_ABI_V4, "v4", "Target ROCm version 4 ABI."),
                clEnumValN(ROCm_ABI_V5, "v5",
-                          "Target ROCm v. 5 ABI. (experimental)")));
+                          "Target ROCm v. 5 ABI.")));
 
 cl::opt<bool> Use64ElementWavefront(
     "hipabi-wavefront64", cl::init(true), cl::Hidden,
@@ -256,7 +260,7 @@ cl::opt<bool> EnableXnack("hipabi-xnack", cl::init(false), cl::NotHidden,
                           cl::desc("Enable/disable xnack. (default: false)"));
 
 cl::opt<bool>
-    EnableSRAMECC("hipabi-sramecc", cl::init(false), cl::NotHidden,
+    EnableSRAMECC("hipabi-sramecc", cl::init(true), cl::NotHidden,
                   cl::desc("Enable/disable sramecc.(default: false)"));
 
 cl::opt<unsigned> DefaultGrainSize(
@@ -585,15 +589,10 @@ void HipABI::transformConstants(Function *Fn) {
           auto AddrSpace = GEP->getAddressSpace();
           auto PtrAddrSpace = PTy->getAddressSpace();
           if (AddrSpace != PtrAddrSpace) {
-            LLVM_DEBUG(dbgs() << "\t\trepairing GEP addr space.\n"
-                              << "\t\t\t[mismatched addrspaces: " << AddrSpace
-                              << ", ptr " << PtrAddrSpace << "]\n");
-
             std::vector<Value *> opt_vec;
             for (Use &idx : GEP->indices())
               opt_vec.push_back(idx.get());
             ArrayRef<Value *> IdxList(opt_vec);
-
             Type *DestTy = GetElementPtrInst::getIndexedType(
                 GEP->getSourceElementType(), IdxList);
             assert(DestTy && "GEP indices invalid!");
@@ -624,13 +623,24 @@ void HipABI::transformConstants(Function *Fn) {
         LLVM_DEBUG(dbgs() << "\t\t\t\tnew store: " << *SI << "\n");
       } else if (auto *Call = dyn_cast<CallBase>(U->getUser())) {
         unsigned argNo = Call->getArgOperandNo(U);
+        LLVM_DEBUG(dbgs() << "\t\tpatching callable instruction: " << *Call << "\n");
         // FIXME: This is not correct! The function operand should be
         // checked to see what address space it expects.
         Instruction *asCast =
             new AddrSpaceCastInst(NewGEP, OldGEP->getType(), "", Call);
         Call->setArgOperand(argNo, asCast);
-      } else
-        assert(false && "unexpected use of gep");
+        LLVM_DEBUG(dbgs() << "\t\t\t\tnew call: " << *Call << "\n");
+      } else if (auto *GEP = dyn_cast<GetElementPtrInst>(U->getUser())) {
+        LLVM_DEBUG(dbgs() << "\t\tpatching gep instruction:\n\t\t\t" << *GEP << "\n");
+        Instruction *asCast =
+            new AddrSpaceCastInst(NewGEP, OldGEP->getType(), "", GEP);
+        GEP->setOperand(GEP->getPointerOperandIndex(), asCast);
+        LLVM_DEBUG(dbgs() << "\t\t\t\tnew gep:\n\t\t\t\t  " << *GEP << "\n");
+      } else {
+        U->get()->dump();
+        U->getUser()->dump();
+        assert(false && "unexpected use/user of gep.");
+      }
     }
     OldGEP->eraseFromParent();
   }
@@ -771,7 +781,6 @@ HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
   LLVMContext &Ctx = KernelModule.getContext();
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
-  Type *VoidTy = Type::getVoidTy(Ctx);
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
 
   // We use ROCm/HSA/HIP entry points for various runtime calls.  These calls
@@ -817,16 +826,24 @@ HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
       &KernelModule, Intrinsic::amdgcn_workgroup_id_z);
 
   // Get entry points into the Hip-centric portion of the Kitsune runtime.
+  KernelInstMixTy = StructType::get(Int64Ty,  // number of memory ops.
+                                    Int64Ty,  // number of floating point ops.
+                                    Int64Ty); // number of integer ops.
 
   KitHipLaunchFn = M.getOrInsertFunction("__kithip_launch_kernel",
-                                         VoidTy,    // no return
-                                         VoidPtrTy, // fat-binary
-                                         VoidPtrTy, // kernel name
-                                         VoidPtrTy, // arguments
-                                         Int64Ty);  // trip count
+      VoidPtrTy,   // return an opaque stream
+      VoidPtrTy,   // fat-binary
+      VoidPtrTy,   // kernel name
+      VoidPtrTy,   // arguments
+      Int64Ty,     // trip count
+      Int32Ty,     // threads-per-block
+      KernelInstMixTy->getPointerTo(), // instruction mix info
+      VoidPtrTy);  // opaque cuda stream
+
   KitHipMemPrefetchFn = M.getOrInsertFunction("__kithip_mem_gpu_prefetch",
-                                              VoidTy,     // no return
-                                              VoidPtrTy); // pointer to prefetch
+                                              VoidPtrTy,  // return an opaque stream
+                                              VoidPtrTy,  // pointer to prefetch
+                                              VoidPtrTy); // use opaque stream. 
 }
 
 HipLoop::~HipLoop() { /* no-op */
@@ -1298,9 +1315,15 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // supported) we can end up with multiple calls to the outlined
   // loop (which has been setup for dead code elimination) but can
   // cause invalid IR that trips us up when handling the GPU module
-  // code generation. So, we need to do a bit more clean up to keep
-  // the verifier happy (the dead code elimination happens too late
-  // for us).
+  // code generation. This is a challenge in the Tapir design that 
+  // was not geared to handle some of the nuances of GPU target 
+  // transformations (and code gen).  To address this, we need to 
+  // do some clean up to keep the IR correct (or the verifier will
+  // fail on us...).  Specifically, we can no longer depend upon 
+  // DCE as it runs too late in the GPU transformation process...
+  //
+  // TODO: This code can be shared between the cuda and hip targets... 
+  //
   Function *TargetKF = KernelModule.getFunction(KernelName);
   std::list<Instruction *> RemoveList;
   if (TargetKF) {
@@ -1313,6 +1336,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
       }
     }
   }
+
   for (auto I : RemoveList)
     I->eraseFromParent();
 
@@ -1332,11 +1356,16 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   BasicBlock *NewBB = RCBB->splitBasicBlock(TOI.ReplCall);
   IRBuilder<> NewBuilder(&NewBB->front());
 
+  // TODO: There is some potential here to share this code across both
+  // the hip and cuda transforms... 
   LLVM_DEBUG(dbgs() << "\t*- code gen packing of " << OrderedInputs.size()
                     << " kernel args.\n");
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   ArrayType *ArrayTy = ArrayType::get(VoidPtrTy, OrderedInputs.size());
   Value *ArgArray = EntryBuilder.CreateAlloca(ArrayTy);
+  AllocaInst *HipStream = EntryBuilder.CreateAlloca(VoidPtrTy);
+  EntryBuilder.CreateStore(ConstantPointerNull::get(VoidPtrTy), HipStream);
+  bool StreamAssigned = false;
   unsigned int i = 0;
   for (Value *V : OrderedInputs) {
     Value *VP = EntryBuilder.CreateAlloca(V->getType());
@@ -1348,9 +1377,16 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     i++;
 
     if (CodeGenPrefetch && V->getType()->isPointerTy()) {
-      LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for arg " << i << "\n");
+      LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for kernel arg #" 
+                        << i << "\n");
       Value *VoidPP = NewBuilder.CreateBitCast(V, VoidPtrTy);
-      NewBuilder.CreateCall(KitHipMemPrefetchFn, {VoidPP});
+      Value *SPtr = NewBuilder.CreateLoad(VoidPtrTy, HipStream);
+      Value *NewSPtr = 
+        NewBuilder.CreateCall(KitHipMemPrefetchFn, {VoidPP, SPtr});
+      if (not StreamAssigned) {
+        NewBuilder.CreateStore(NewSPtr, HipStream);
+        StreamAssigned = true;
+      }
     }
   }
 
@@ -1395,9 +1431,51 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   else
     CastTripCount = TripCount; // Simplify cases in launch code gen below...
 
-  LLVM_DEBUG(dbgs() << "\t*- code gen fat-binary based launch call.\n");
-  NewBuilder.CreateCall(KitHipLaunchFn,
-                        {DummyFBPtr, KNameParam, argsPtr, CastTripCount});
+  // At this point we need a threads-per-block value for the launch
+  // call.  The runtime will determine this value if ThreadsPerBlock
+  // is zero but it can also be overridden via kitsune's forall launch
+  // attribute.  The catch here is the launch attribute's value for
+  // this is flexible and be a computed expression vs. a compile-time
+  // constant.  For this first step of creating the kernel launch, we
+  // take the path of a runtime configuration vs. an attributed
+  // launch.  This will get patched up as needed when we post-process
+  // the module and replace the DummyFBPtr (as we will also need to
+  // replace the kernel launch call parameter for threads-per-block if
+  // an attributed expression is present).  See postProcessModule()'s
+  // stage of finalizing the launch calls for details.
+  TapirLoopHints Hints(TL.getLoop());
+  unsigned ThreadsPerBlock = 0;
+  Constant *TPBlockValue =
+      ConstantInt::get(Type::getInt32Ty(Ctx), ThreadsPerBlock);
+
+  LLVM_DEBUG(dbgs() << "\tgathering kernel instruction mix....\n");
+  tapir::KernelInstMixData InstMix;
+  tapir::getKernelInstructionMix(&F, InstMix);
+  LLVM_DEBUG(
+      dbgs() << "\tinstruction mix:\n"
+             << "      memory ops      : " << InstMix.num_memory_ops << "\n"
+             << "      flop count      : " << InstMix.num_flops << "\n"
+             << "      integer op count: " << InstMix.num_iops << "\n\n");
+
+  Constant *InstructionMix = ConstantStruct::get(
+      KernelInstMixTy, ConstantInt::get(Int64Ty, InstMix.num_memory_ops),
+      ConstantInt::get(Int64Ty, InstMix.num_flops),
+      ConstantInt::get(Int64Ty, InstMix.num_iops));
+
+  AllocaInst *AI = NewBuilder.CreateAlloca(KernelInstMixTy);
+  NewBuilder.CreateStore(InstructionMix, AI);      
+
+  LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch...\n");
+  Value *KSPtr = NewBuilder.CreateLoad(VoidPtrTy, HipStream);
+  CallInst *LaunchStream = NewBuilder.CreateCall(KitHipLaunchFn,
+                        {DummyFBPtr, KNameParam, argsPtr, CastTripCount,
+                        TPBlockValue, AI, KSPtr});
+  NewBuilder.CreateStore(LaunchStream, HipStream);
+  LLVM_DEBUG(dbgs() << "\t\t+- registering launch stream:\n"
+                    << "\t\t\tcall: " << *LaunchStream << "\n"
+                    << "\t\t\tstream: " << *HipStream << "\n");
+  TTarget->registerLaunchStream(LaunchStream, HipStream);
+
   TOI.ReplCall->eraseFromParent();
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
 }
@@ -1437,7 +1515,8 @@ HipABI::HipABI(Module &InputModule)
                                       Int64Ty,  // device pointer
                                       Int64Ty); // number of bytes to copy
   KitHipSyncFn = M.getOrInsertFunction("__kithip_sync_thread_stream",
-                                       VoidTy); // no return, nor parameters
+                                       VoidTy, 
+                                       VoidPtrTy); // no return, nor parameters
   // Build the details we need for the AMDGPU/HIP target.
   std::string ArchString = "amdgcn";
   Triple TargetTriple(ArchString, "amd", "amdhsa");
@@ -1474,20 +1553,16 @@ HipABI::HipABI(Module &InputModule)
   // fatbinary.   Calling the runtime _kitrt_hipEnableXnack() will
   // auto-set the environment variable (now done via the global ctor).
   if (EnableXnack)
-    Features += "+xnack,+xnack-support";
-  // else
-  //   Features += "-xnack,-xnack-support";
+    Features += "+xnack,+xnack-support,";
 
   if (EnableSRAMECC) // TODO: feature is arch specific. need to cross-check.
-    Features += ",+sramecc";
-  else
-    Features += ",-sramecc";
+    Features += ",+sramecc,";
 
   if (Use64ElementWavefront) // TODO: feature is arch specific. need to cross
                              // check.
-    Features += ",-wavefrontsize16,-wavefrontsize32,+wavefrontsize64";
+    Features += "-wavefrontsize16,-wavefrontsize32,+wavefrontsize64";
   else
-    Features += ",-wavefrontsize16,+wavefrontsize32,-wavefrontsize64";
+    Features += "-wavefrontsize16,+wavefrontsize32,-wavefrontsize64";
 
   AMDTargetMachine = AMDGPUTarget->createTargetMachine(
       TargetTriple.getTriple(), GPUArch, Features.c_str(), TargetOptions(),
@@ -1562,24 +1637,19 @@ std::unique_ptr<Module> &HipABI::getLibDeviceModule() {
 
     LLVM_DEBUG(dbgs() << "\tpre-loading AMDGCN device bitcode files.\n");
     for (std::string BCFile : ROCmBCFiles) {
-      const std::string GCNFile = "amdgcn/bitcode/" + BCFile;
+      const std::string GCNFile = std::string(KITSUNE_HIP_BITCODE_DIR) + BCFile;
       LLVM_DEBUG(dbgs() << "\t\t* " << GCNFile << "\n");
-      std::optional<std::string> BCFPath =
-          sys::Process::FindInEnvPath("ROCM_PATH", GCNFile);
-      if (not BCFPath)
-        report_fatal_error("Unable to find rocm bitcode file! "
-                           "Is ROCM_PATH set in your enviornment?");
       if (LibDeviceModule == nullptr) {
-        LibDeviceModule = parseIRFile(*BCFPath, SMD, Ctx);
+        LibDeviceModule = parseIRFile(GCNFile, SMD, Ctx);
         if (LibDeviceModule == nullptr) {
-          SMD.print(BCFPath->c_str(), llvm::errs());
+          SMD.print(GCNFile.c_str(), llvm::errs());
           report_fatal_error("Failed to parse bitcode file!");
         }
       } else {
         std::unique_ptr<Module> BCModule;
-        BCModule = parseIRFile(*BCFPath, SMD, Ctx);
+        BCModule = parseIRFile(GCNFile, SMD, Ctx);
         if (BCModule == nullptr) {
-          SMD.print(BCFPath->c_str(), llvm::errs());
+          SMD.print(GCNFile.c_str(), llvm::errs());
           report_fatal_error("Failed to parse bitcode file!");
         }
         LLVM_DEBUG(dbgs() << "\t\t\tlinking into device module...\n");
@@ -1627,10 +1697,15 @@ bool HipABI::preProcessFunction(Function &F, TaskInfo &TI,
 
 void HipABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
   if (OutliningTapirLoops) {
+    LLVMContext &Ctx = M.getContext();
+    Type *VoidTy = Type::getVoidTy(Ctx);
+    PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
+    Value *HipStream = ConstantPointerNull::get(VoidPtrTy);
     for (Value *SR : SyncRegList) {
       for (Use &U : SR->uses()) {
         if (auto *SyncI = dyn_cast<SyncInst>(U.getUser()))
-          CallInst::Create(KitHipSyncFn, "", &*SyncI->getSuccessor(0)->begin());
+          CallInst::Create(KitHipSyncFn, {HipStream}, "", 
+                           &*SyncI->getSuccessor(0)->begin());
       }
     }
     SyncRegList.clear();
@@ -1653,15 +1728,26 @@ void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   auto &FnList = M.getFunctionList();
+  CallInst *SavedLaunchCI = nullptr;
 
   for (auto &Fn : FnList) {
     for (auto &BB : Fn) {
       for (auto &I : BB) {
         if (CallInst *CI = dyn_cast<CallInst>(&I)) {
           if (Function *CFn = CI->getCalledFunction()) {
-
-            if (CFn->getName().starts_with("__kithip_launch_kernel")) {
+            if (CFn->getName().starts_with("__kithip_sync_thread_stream")) {
+              if (SavedLaunchCI != nullptr) {
+                AllocaInst *StreamAI = getLaunchStream(SavedLaunchCI);
+                assert(StreamAI != nullptr && "unexpected null launch stream!");
+                IRBuilder<> SyncBuilder(CI);
+                Value *HipStream = 
+                    SyncBuilder.CreateLoad(VoidPtrTy, StreamAI, "hipstreamh");
+                CI->setArgOperand(0, HipStream);
+                SavedLaunchCI = nullptr;
+              }
+            } else if (CFn->getName().starts_with("__kithip_launch_kernel")) {
               LLVM_DEBUG(dbgs() << "\t\t\t* patching launch: " << *CI << "\n");
+              SavedLaunchCI = CI;
               Value *HipFatbin;
               HipFatbin = CastInst::CreateBitOrPointerCast(
                   BundleBin, VoidPtrTy, "_hipbin.fatbin", CI);
@@ -1729,10 +1815,9 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
   ObjFile->keep();
 
   if (OptLevel > 0) {
-
-    if (OptLevel > 3) // This (I think) is consistent w/ Clang behavior...
+    if (OptLevel > 3) 
       OptLevel = 3;
-
+    LLVM_DEBUG(dbgs() << "\t- running kernel module optimization passes...\n");
     PipelineTuningOptions pto;
     pto.LoopVectorization = OptLevel > 2;
     pto.SLPVectorization = OptLevel > 2;
@@ -1740,6 +1825,13 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
     pto.LoopInterleaving = OptLevel > 2;
     pto.LoopStripmine = OptLevel > 2;
     pto.ForgetAllSCEVInLoopUnroll = OptLevel > 2;
+    OptimizationLevel optLevels[] = {
+        OptimizationLevel::O0,
+        OptimizationLevel::O1,
+        OptimizationLevel::O2,
+        OptimizationLevel::O3,
+    };
+    OptimizationLevel optLevel = optLevels[OptLevel];    
 
     // From the LLVM docs: Create the analysis managers.
     // These must be declared in this order so that they are destroyed in the
@@ -1750,28 +1842,19 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
     CGSCCAnalysisManager cgam;
     ModuleAnalysisManager mam;
 
-    PassBuilder pb(AMDTargetMachine); //, pto);
+    PassBuilder pb(AMDTargetMachine, pto);
     pb.registerModuleAnalyses(mam);
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
     AMDTargetMachine->registerPassBuilderCallbacks(pb, false);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
-    OptimizationLevel optLevels[] = {
-        OptimizationLevel::O0,
-        OptimizationLevel::O1,
-        OptimizationLevel::O2,
-        OptimizationLevel::O3,
-    };
-    ModulePassManager mpm0 = pb.buildModuleSimplificationPipeline(
-        optLevels[3], ThinOrFullLTOPhase::None);
-    ModulePassManager mpm1 = pb.buildPerModuleDefaultPipeline(optLevels[2]);
-    mpm0.addPass(VerifierPass());
-    mpm1.addPass(VerifierPass());
+
+    ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
+    mpm.addPass(VerifierPass());
     LLVM_DEBUG(dbgs() << "\t\t* optimize module: " << KernelModule.getName()
                       << "\n");
-    mpm0.run(KernelModule, mam);
-    mpm1.run(KernelModule, mam);
+    mpm.run(KernelModule, mam);
     LLVM_DEBUG(dbgs() << "\t\tpasses complete.\n");
   }
 
@@ -1803,7 +1886,7 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   LinkedObjFile->keep();
 
   // TODO: The lld invocation below is unix-specific...
-  auto LLD = sys::findProgramByName("lld");
+  auto LLD = sys::findProgramByName("/projects/kitsune/x86_64/18.x/bin/lld");
   if ((EC = LLD.getError()))
     report_fatal_error("executable 'lld' not found! "
                        "check your path?");
@@ -1917,7 +2000,9 @@ GlobalVariable *HipABI::embedBundle(HipABIOutputFile &BundleFile) {
   GlobalVariable *BundleGV;
   BundleGV = new GlobalVariable(M, BundleArray->getType(), true,
                                 GlobalValue::PrivateLinkage, BundleArray,
-                                "__hip_fatbin");
+                                "__hip_fatbin",
+				nullptr, GlobalVariable::NotThreadLocal);
+  
   const char *BundleSectionName = ".hip_fatbin";
   BundleGV->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
   BundleGV->setSection(BundleSectionName);

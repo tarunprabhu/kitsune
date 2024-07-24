@@ -212,14 +212,17 @@ if (KITSUNE_KOKKOS_ENABLE)
 endif()
 
 if (KITSUNE_CUDA_ENABLE)
+  message(STATUS "kitsune: CUDA enabled.")
   find_package(CUDAToolkit ${KITSUNE_CUDA_VERSION_MIN} REQUIRED)
 
-  set(KITSUNE_CUDA_PREFIX ${CUDAToolkit_LIBRARY_ROOT})
+  set(KITSUNE_CUDA_PREFIX $ENV{CUDA_HOME})
   set(KITSUNE_CUDA_INCLUDE_DIR ${CUDAToolkit_INCLUDE_DIRS})
   set(KITSUNE_CUDA_BINARY_DIR ${CUDAToolkit_BIN_DIR})
   set(KITSUNE_CUDA_LIBRARY_DIR ${CUDAToolkit_LIBRARY_DIR})
   set(KITSUNE_CUDA_STUBS_DIR "${KITSUNE_CUDA_LIBRARY_DIR}/stubs")
   set(KITSUNE_CUDA_LIBDEVICE_DIR "${KITSUNE_CUDA_PREFIX}/nvvm/libdevice")
+
+  message(STATUS "CUDA prefix: ${KITSUNE_CUDA_PREFIX}")
 
   find_library(KITSUNE_CUDA_LIB_CUDART cudart REQUIRED
     PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
@@ -265,24 +268,43 @@ if (KITSUNE_CUDA_ENABLE)
 endif()
 
 if (KITSUNE_HIP_ENABLE)
-  set(ROCM_PATH
-    $ENV{ROCM_PATH}
-    CACHE PATH
-    "Path to hip install directory")
-
-  # Probably should not be hard-coding /opt/rocm/* here, but it seems to be
-  # where it goes in several distributions and we cannot reliably find rocm
-  # otherwise
-  find_package(hip REQUIRED
-    PATHS $ENV{ROCM_PATH}/hip $ENV{ROCM_PATH}
-    /opt/rocm/hip /opt/rocm)
-
-  message(FATAL_ERROR "hip: ${HIP_LIBRARY_DIR} ${hip_LIBRARY_DIR} ${hip_LIBRARY_DIRS} ${HIP_LIBRARY_DIRS}")
-  set(KITSUNE_HIP_PREFIX)
+  message(STATUS "kitsune: HIP enabled.")
+  if (NOT DEFINED ROCM_PATH)
+    message(STATUS "Kitsune HIP support enabled but ROCM_PATH not set.")
+    if (DEFINED $ENV{ROCM_PATH})
+      message(STATUS "  using ROCM_PATH environment variable.")
+      set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH "AMD ROCM/HIP installation directory.")
+    else()
+      message(STATUS "  selecting a common default install location.")
+      set(ROCM_PATH "/opt/rocm" CACHE PATH "AMD ROCM/HIP installation directory.")
+    endif()
+  endif()
+  message(STATUS "ROCm/HIP path: ${ROCM_PATH}")
+  list(APPEND CMAKE_MODULE_PATH "${ROCM_PATH}/lib/cmake/hip")
+  message(STATUS "   updated cmake module search path: ${CMAKE_MODULE_PATH}")
+  find_package(HIP MODULE REQUIRED)
+  include(${ROCM_PATH}/lib/cmake/hip/hip-config.cmake)
 
   find_library(LIB_AMDHIP64 amdhip64 REQUIRED
-    PATHS ${hip_LIBRARY_DIR}
-    NO_DEFAULT_PATH)
+    PATHS ${HIP_LIBRARY_INSTALL_DIR}
+    ${ROCM_PATH}/lib)
+
+  message(STATUS "ROCm/HIP path: ${ROCM_PATH}")
+  list(APPEND CMAKE_MODULE_PATH "${ROCM_PATH}/lib/cmake/hip")
+  message(STATUS "   updated cmake module search path: ${CMAKE_MODULE_PATH}")
+  find_package(HIP MODULE REQUIRED)
+  include(${ROCM_PATH}/lib/cmake/hip/hip-config.cmake)
+
+  find_library(LIB_AMDHIP64 amdhip64 REQUIRED
+    PATHS ${HIP_LIB_INSTALL_DIR}
+    ${ROCM_PATH}/lib)
+
+  set(KITSUNE_HIP_PREFIX ${HIP_LIBRARY_INSTALL_DIR})
+  set(KITSUNE_HIP_INCLUDE_DIR ${HIP_INCLUDE_DIR})
+  set(KITSUNE_HIP_LIBRARY_DIR ${HIP_LIB_INSTALL_DIR})
+
+  message(STATUS "hip include dir: ${HIP_INCLUDE_DIR}")
+  message(STATUS "hip library dir: ${HIP_LIB_INSTALL_DIR}")
 
   set(KITSUNE_HIP_DEFAULT_PREPROCESSOR_FLAGS
     "-D_tapir_hip_target")
@@ -307,6 +329,12 @@ if (KITSUNE_HIP_ENABLE)
     ""
     CACHE STRING
     "Additional linker flags needed for the HIP target")
+
+  set(KITSUNE_HIP_BITCODE_DIR "${ROCM_PATH}/amdgcn/bitcode/")
+  find_file(KITSUNE_HIP_BITCODE_LOC hip.bc REQUIRED
+    PATHS ${KITSUNE_HIP_BITCODE_DIR}
+    NO_DEFAULT_PATH)
+  message(STATUS "hip bitcode file location: ${KITSUNE_HIP_BITCODE_DIR}")
 endif()
 
 if (KITSUNE_OPENCILK_ENABLE)
@@ -315,7 +343,6 @@ if (KITSUNE_OPENCILK_ENABLE)
   # vanilla clang build of the same version, but it's probably not worth all the
   # error checking hassles that would be needed to detect if the versions were
   # mismatched.
-
   set(KITSUNE_OPENCILK_BUILD_CONFIGURE_FLAGS ""
     CACHE STRING
   "Additional options to be passed to be CMake when configuring Kokkos. These are only used when building Kitsune")
@@ -335,7 +362,7 @@ if (KITSUNE_OPENCILK_ENABLE)
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
-    -DCMAKE_INSTALL_PREFIX=${CLANG_RESOURCE_INSTALL_DIR}
+    -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_CXX_FLAGS=${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}
     -DCHEETAH_DEFAULT_TARGET_TRIPLE=${LLVM_DEFAULT_TARGET_TRIPLE}
     -DCHEETAH_DIRECTORY_PER_TARGET=ON
@@ -346,6 +373,8 @@ if (KITSUNE_OPENCILK_ENABLE)
     -DPACKAGE_VERSION=${PACKAGE_VERSION}
     ${KITSUNE_OPENCILK_BUILD_CONFIGURE_FLAGS}
   )
+
+  message(STATUS "opencilk install prefix: ${CLANG_RESOURCE_INSTALL_DIR}")
 
   ExternalProject_Add(cheetah
     DEPENDS        clang lld llvm-config llvm-link
@@ -505,6 +534,7 @@ endforeach()
 
 add_subdirectory(configs)
 add_subdirectory(include/kitsune)
+add_subdirectory(experiments)
 
 if(KITSUNE_INCLUDE_TESTS)
   add_subdirectory(test)

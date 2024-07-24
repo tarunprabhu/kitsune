@@ -1,16 +1,33 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <math.h>
+#include <iostream>
+#include <iomanip>
 #include <chrono>
+#include <cmath>
+#include <stdlib.h>
+#include <string.h>
+
+using namespace std;
 
 void random_matrix(float *I, int rows, int cols) {
   srand(7);
+
+  auto start_time = chrono::steady_clock::now();
   for(int i = 0 ; i < rows ; i++) {
     for ( int j = 0 ; j < cols ; j++){
       I[i * cols + j] = rand()/(float)RAND_MAX ;
     }
   }
+
+  auto end_time = chrono::steady_clock::now();
+  double elapsed_time = chrono::duration<double>(end_time-start_time).count();
+  cout << "  random matrix creation time " << elapsed_time << "\n";
+  cout << "  initial input data:\n";
+  for(unsigned int i = 0; i < 10; i++) {
+    cout << "   ";    
+    for(unsigned int j = 0; j < 10; j++)
+      cout << I[i * cols + j] << " ";
+    cout << "...\n";
+  }
+  cout << "   ...\n";    
 }
 
 void usage(int argc, char **argv)
@@ -71,6 +88,15 @@ int main(int argc, char* argv[])
   size_I = cols * rows;
   size_R = (r2-r1+1)*(c2-c1+1);
 
+  cout << setprecision(5);
+  cout << "\n";
+  cout << "---- srad benchmark (forall) ----\n"
+       << "  Row size    : " << rows << ".\n"
+       << "  Column size : " << cols << ".\n" 
+       << "  Iterations  : " << niter << ".\n\n";
+       
+  cout << "  Allocating arrays and building random matrix...\n";
+
   I = (float *)malloc(sizeof(float) * size_I);
   J = (float *)malloc(sizeof(float) * size_I);
   c = (float *)malloc(sizeof(float) * size_I);
@@ -85,6 +111,10 @@ int main(int argc, char* argv[])
   dW = (float *)malloc(sizeof(float)* size_I) ;
   dE = (float *)malloc(sizeof(float)* size_I) ;
 
+  random_matrix(I, rows, cols);
+  
+  cout << "  Starting benchmark...\n" << std::flush;
+  auto start_time = chrono::steady_clock::now();  
   for(int i=0; i < rows; i++) {
     iN[i] = i-1;
     iS[i] = i+1;
@@ -100,15 +130,15 @@ int main(int argc, char* argv[])
   jW[0] = 0;
   jE[cols-1] = cols-1;
 
-  printf("Randomizing the input matrix\n");
-  random_matrix(I, rows, cols);
-
+  
   for(int k = 0;  k < size_I; k++ ) {
     J[k] = (float)exp(I[k]) ;
   }
 
-  printf("Start the SRAD main loop\n");
-  auto start = std::chrono::steady_clock::now();
+  double loop1_total_time = 0.0;
+  double loop2_total_time = 0.0;  
+  double loop1_max_time = 0.0, loop1_min_time = 1000.0;
+  double loop2_max_time = 0.0, loop2_min_time = 1000.0;
 
   for (iter=0; iter< niter; iter++){
     float sum, sum2;
@@ -125,6 +155,7 @@ int main(int argc, char* argv[])
     varROI  = (sum2 / size_R) - meanROI*meanROI;
     q0sqr   = varROI / (meanROI*meanROI);
 
+    auto loop1_start_time = chrono::steady_clock::now();
     for(int i = 0 ; i < rows ; i++) {
       for (int j = 0; j < cols; j++) {
 	int k = i * cols + j;
@@ -153,7 +184,17 @@ int main(int argc, char* argv[])
 	else if (c[k] > 1) {c[k] = 1;}
       }
     }
+    auto loop1_end_time = chrono::steady_clock::now();
+    double etime = chrono::duration<double>
+      (loop1_end_time - loop1_start_time).count();       
+    loop1_total_time += etime;
 
+    if (etime > loop1_max_time)
+      loop1_max_time = etime;
+    else if (etime < loop1_min_time)
+      loop1_min_time = etime;    
+
+    auto loop2_start_time = chrono::steady_clock::now();    
     for(int i = 0; i < rows; i++) {
       for (int j = 0; j < cols; j++) {
 	// current index
@@ -171,13 +212,30 @@ int main(int argc, char* argv[])
 	J[k] = J[k] + 0.25*lambda*D;
       }
     }
+    auto loop2_end_time = chrono::steady_clock::now();
+    etime = chrono::duration<double>
+      (loop2_end_time - loop2_start_time).count(); 
+    loop2_total_time += etime;
+    if (etime > loop2_max_time)
+      loop2_max_time = etime;
+    else if (etime < loop2_min_time)
+      loop2_min_time = etime;    
   }
 
-  auto end = std::chrono::steady_clock::now();
-  printf("Computation Done: %.12f s\n",
-	 std::chrono::duration<double>(end-start).count());
+  auto end_time = chrono::steady_clock::now();
+  double elapsed_time = chrono::duration<double>
+    (end_time - start_time).count();
+  cout << "  Avg. loop 1 time: " << loop1_total_time / niter << "\n"
+       << "       loop 1 min : " << loop1_min_time << "\n"
+       << "       loop 1 max : " << loop1_max_time << "\n"
+       << "  Avg. loop 2 time: " << loop2_total_time / niter << "\n"
+       << "       loop 2 min : " << loop2_min_time << "\n"
+       << "       loop 2 max : " << loop2_max_time << "\n";
+  cout << "  Running time: " << elapsed_time << " seconds.\n"
+       << "*** " << elapsed_time << ", " << elapsed_time << "\n"
+       << "----\n\n";
 
-  FILE *fp = fopen("srad-serial.dat", "wb");
+  FILE *fp = fopen("srad-output.dat", "wb");
   if (fp != NULL) {
     fwrite((void*)J, sizeof(float), size_I, fp);
     fclose(fp);
