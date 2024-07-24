@@ -868,6 +868,8 @@ Improvements to Clang's diagnostics
 
 - Clang now diagnoses the use of attribute names reserved by the C++ standard (#GH92196).
 
+- Clang now diagnoses undefined behavior in constant expressions more consistently. This includes invalid shifts, and signed overflow in arithmetic.
+
 Improvements to Clang's time-trace
 ----------------------------------
 
