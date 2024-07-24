@@ -104,18 +104,6 @@ if (KITSUNE_KOKKOS_ENABLE)
   set(KITSUNE_KOKKOS_SRC_DIR  ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/kokkos)
   set(KITSUNE_KOKKOS_BUILD_DIR ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/build)
   set(KITSUNE_KOKKOS_STAMP_DIR ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/stamp)
-<<<<<<< HEAD
-  set(KITSUNE_KOKKOS_BUILD_ARGS
-    -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
-    -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
-    -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
-    -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
-    -DCMAKE_INSTALL_PREFIX=${CLANG_RESOURCE_INSTALL_DIR}
-    -DCMAKE_BUILD_TYPE=Release
-    -DKokkos_ENABLE_SERIAL=ON
-    -DBUILD_TESTING=OFF
-    -DBUILD_SHARED_LIBS=ON)
-=======
   set(KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS
     -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
@@ -126,7 +114,6 @@ if (KITSUNE_KOKKOS_ENABLE)
     -DBUILD_TESTING=OFF
     -DBUILD_SHARED_LIBS=ON
     ${KITSUNE_KOKKOS_BUILD_CONFIGURE_FLAGS})
->>>>>>> 640c85d92115 (WIP: Merge with LLVM 18.x)
 
   # We have to patch kokkos to disable some sections of code that are using
   # exceptions.
@@ -157,11 +144,7 @@ if (KITSUNE_KOKKOS_ENABLE)
     SOURCE_DIR          ${KITSUNE_KOKKOS_SRC_DIR}
     BINARY_DIR          ${KITSUNE_KOKKOS_BUILD_DIR}
     STAMP_DIR           ${KITSUNE_KOKKOS_STAMP_DIR}
-<<<<<<< HEAD
-    CMAKE_ARGS          ${KITSUNE_KOKKOS_BUILD_ARGS}
-=======
     CMAKE_ARGS          ${KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS}
->>>>>>> 640c85d92115 (WIP: Merge with LLVM 18.x)
     PATCH_COMMAND       patch -p0 --input=${KITSUNE_KOKKOS_PATCH_EXCS}
     UPDATE_COMMAND      ""
     UPDATE_DISCONNECTED FALSE
@@ -229,37 +212,22 @@ if (KITSUNE_KOKKOS_ENABLE)
 endif()
 
 if (KITSUNE_CUDA_ENABLE)
+  message(STATUS "kitsune: CUDA enabled.")
   find_package(CUDAToolkit ${KITSUNE_CUDA_VERSION_MIN} REQUIRED)
 
-  set(KITSUNE_CUDA_PREFIX ${CUDAToolkit_LIBRARY_ROOT})
+  set(KITSUNE_CUDA_PREFIX $ENV{CUDA_HOME})
   set(KITSUNE_CUDA_INCLUDE_DIR ${CUDAToolkit_INCLUDE_DIRS})
   set(KITSUNE_CUDA_BINARY_DIR ${CUDAToolkit_BIN_DIR})
   set(KITSUNE_CUDA_LIBRARY_DIR ${CUDAToolkit_LIBRARY_DIR})
   set(KITSUNE_CUDA_STUBS_DIR "${KITSUNE_CUDA_LIBRARY_DIR}/stubs")
   set(KITSUNE_CUDA_LIBDEVICE_DIR "${KITSUNE_CUDA_PREFIX}/nvvm/libdevice")
 
+  message(STATUS "CUDA prefix: ${KITSUNE_CUDA_PREFIX}")
+
   find_library(KITSUNE_CUDA_LIB_CUDART cudart REQUIRED
     PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
     NO_DEFAULT_PATH)
 
-<<<<<<< HEAD
-  find_library(KITSUNE_CUDA_LIB_CUDA cuda REQUIRED
-    PATHS ${KITSUNE_CUDA_STUBS_DIR}
-    NO_DEFAULT_PATH)
-
-  find_library(KITSUNE_CUDA_LIB_NVPTX_STATIC nvptxcompiler_static REQUIRED
-    PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
-    NO_DEFAULT_PATH)
-
-  find_file(KITSUNE_CUDA_LIBDEVICE_BC libdevice.10.bc REQUIRED
-    PATHS ${KITSUNE_CUDA_LIBDEVICE_DIR}
-    NO_DEFAULT_PATH)
-
-  find_program(KITSUNE_CUDA_PTXAS ptxas REQUIRED
-    PATHS ${KITSUNE_CUDA_BINARY_DIR}
-    NO_DEFAULT_PATH)
-
-=======
   # This should almost always be the libcuda that is installed on the system,
   # so look for it in the "usual" places. In some cases, both /usr/lib and
   # /usr/lib64 are present with libcuda in the latter. But cmake does not seem
@@ -279,7 +247,6 @@ if (KITSUNE_CUDA_ENABLE)
     PATHS ${KITSUNE_CUDA_BINARY_DIR}
     NO_DEFAULT_PATH)
 
->>>>>>> 640c85d92115 (WIP: Merge with LLVM 18.x)
   find_program(KITSUNE_CUDA_FATBINARY fatbinary REQUIRED
     PATHS ${KITSUNE_CUDA_BINARY_DIR}
     NO_DEFAULT_PATH)
@@ -301,24 +268,43 @@ if (KITSUNE_CUDA_ENABLE)
 endif()
 
 if (KITSUNE_HIP_ENABLE)
-  set(ROCM_PATH
-    $ENV{ROCM_PATH}
-    CACHE PATH
-    "Path to hip install directory")
-
-  # Probably should not be hard-coding /opt/rocm/* here, but it seems to be
-  # where it goes in several distributions and we cannot reliably find rocm
-  # otherwise
-  find_package(hip REQUIRED
-    PATHS $ENV{ROCM_PATH}/hip $ENV{ROCM_PATH}
-    /opt/rocm/hip /opt/rocm)
-
-  message(FATAL_ERROR "hip: ${HIP_LIBRARY_DIR} ${hip_LIBRARY_DIR} ${hip_LIBRARY_DIRS} ${HIP_LIBRARY_DIRS}")
-  set(KITSUNE_HIP_PREFIX)
+  message(STATUS "kitsune: HIP enabled.")
+  if (NOT DEFINED ROCM_PATH)
+    message(STATUS "Kitsune HIP support enabled but ROCM_PATH not set.")
+    if (DEFINED $ENV{ROCM_PATH})
+      message(STATUS "  using ROCM_PATH environment variable.")
+      set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH "AMD ROCM/HIP installation directory.")
+    else() 
+      message(STATUS "  selecting a common default install location.")
+      set(ROCM_PATH "/opt/rocm" CACHE PATH "AMD ROCM/HIP installation directory.")
+    endif()
+  endif()
+  message(STATUS "ROCm/HIP path: ${ROCM_PATH}")
+  list(APPEND CMAKE_MODULE_PATH "${ROCM_PATH}/lib/cmake/hip")
+  message(STATUS "   updated cmake module search path: ${CMAKE_MODULE_PATH}")
+  find_package(HIP MODULE REQUIRED)
+  include(${ROCM_PATH}/lib/cmake/hip/hip-config.cmake)
 
   find_library(LIB_AMDHIP64 amdhip64 REQUIRED
-    PATHS ${hip_LIBRARY_DIR}
-    NO_DEFAULT_PATH)
+    PATHS ${HIP_LIBRARY_INSTALL_DIR}
+    ${ROCM_PATH}/lib)
+
+  message(STATUS "ROCm/HIP path: ${ROCM_PATH}")
+  list(APPEND CMAKE_MODULE_PATH "${ROCM_PATH}/lib/cmake/hip")
+  message(STATUS "   updated cmake module search path: ${CMAKE_MODULE_PATH}")
+  find_package(HIP MODULE REQUIRED)
+  include(${ROCM_PATH}/lib/cmake/hip/hip-config.cmake)
+
+  find_library(LIB_AMDHIP64 amdhip64 REQUIRED
+    PATHS ${HIP_LIB_INSTALL_DIR}
+    ${ROCM_PATH}/lib)
+
+  set(KITSUNE_HIP_PREFIX ${HIP_LIBRARY_INSTALL_DIR})
+  set(KITSUNE_HIP_INCLUDE_DIR ${HIP_INCLUDE_DIR})
+  set(KITSUNE_HIP_LIBRARY_DIR ${HIP_LIB_INSTALL_DIR})
+
+  message(STATUS "hip include dir: ${HIP_INCLUDE_DIR}")
+  message(STATUS "hip library dir: ${HIP_LIB_INSTALL_DIR}")
 
   set(KITSUNE_HIP_DEFAULT_PREPROCESSOR_FLAGS
     "-D_tapir_hip_target")
@@ -343,6 +329,12 @@ if (KITSUNE_HIP_ENABLE)
     ""
     CACHE STRING
     "Additional linker flags needed for the HIP target")
+
+  set(KITSUNE_HIP_BITCODE_DIR "${ROCM_PATH}/amdgcn/bitcode/")
+  find_file(KITSUNE_HIP_BITCODE_LOC hip.bc REQUIRED
+    PATHS ${KITSUNE_HIP_BITCODE_DIR}
+    NO_DEFAULT_PATH)
+  message(STATUS "hip bitcode file location: ${KITSUNE_HIP_BITCODE_DIR}")
 endif()
 
 if (KITSUNE_OPENCILK_ENABLE)
@@ -351,10 +343,6 @@ if (KITSUNE_OPENCILK_ENABLE)
   # vanilla clang build of the same version, but it's probably not worth all the
   # error checking hassles that would be needed to detect if the versions were
   # mismatched.
-<<<<<<< HEAD
-  #
-=======
-
   set(KITSUNE_OPENCILK_BUILD_CONFIGURE_FLAGS ""
     CACHE STRING
   "Additional options to be passed to be CMake when configuring Kokkos. These are only used when building Kitsune")
@@ -363,7 +351,7 @@ if (KITSUNE_OPENCILK_ENABLE)
     CACHE STRING
     "Additional C++ compiler flags needed to build Kokkos. These are only used when building Kitsune")
 
->>>>>>> 640c85d92115 (WIP: Merge with LLVM 18.x)
+
   # We pass some LLVM_* variables to make Cheetah behave as if it were an
   # in-tree build.
   set(KITSUNE_CHEETAH_SOURCE_DIR ${KITSUNE_TARGETS_BINARY_DIR}/cheetah/cheetah)
@@ -373,17 +361,9 @@ if (KITSUNE_OPENCILK_ENABLE)
     -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
     -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
-<<<<<<< HEAD
-    -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
-    -DCHEETAH_DEFAULT_TARGET_TRIPLE=${LLVM_DEFAULT_TARGET_TRIPLE}
-    -DCHEETAH_DIRECTORY_PER_TARGET=ON
-    -DLLVM_LIBRARY_OUTPUT_INTDIR=${LLVM_LIBRARY_OUTPUT_INTDIR}
-    -DLLVM_RUNTIME_OUTPUT_INTDIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
-    -DPACKAGE_VERSION=${PACKAGE_VERSION}
-=======
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
-    -DCMAKE_INSTALL_PREFIX=${CLANG_RESOURCE_INSTALL_DIR}
+    -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
     -DCMAKE_CXX_FLAGS=${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}
     -DCHEETAH_DEFAULT_TARGET_TRIPLE=${LLVM_DEFAULT_TARGET_TRIPLE}
     -DCHEETAH_DIRECTORY_PER_TARGET=ON
@@ -393,8 +373,9 @@ if (KITSUNE_OPENCILK_ENABLE)
     -DLLVM_RUNTIME_OUTPUT_INTDIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
     -DPACKAGE_VERSION=${PACKAGE_VERSION}
     ${KITSUNE_OPENCILK_BUILD_CONFIGURE_FLAGS}
->>>>>>> 640c85d92115 (WIP: Merge with LLVM 18.x)
   )
+
+  message(STATUS "opencilk install prefix: ${CLANG_RESOURCE_INSTALL_DIR}")
 
   ExternalProject_Add(cheetah
     DEPENDS        clang lld llvm-config llvm-link
@@ -554,6 +535,7 @@ endforeach()
 
 add_subdirectory(configs)
 add_subdirectory(include/kitsune)
+add_subdirectory(experiments)
 
 if(KITSUNE_INCLUDE_TESTS)
   add_subdirectory(test)
@@ -622,15 +604,9 @@ ExternalProject_Add(kitsune-runtimes
              -DLLVM_RUNTIME_OUTPUT_INTDIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
              -DCUDAToolkit_INCLUDE_DIRS=${CUDAToolkit_INCLUDE_DIRS}
              -DCUDAToolkit_LIBRARY_DIR=${CUDAToolkit_LIBRARY_DIR}
-<<<<<<< HEAD
-  USES_TERMINAL_CONFIGURE 1
-  USES_TERMINAL_BUILD 1
-  USES_TERMINAL_INSTALL 1)
-=======
   USES_TERMINAL_CONFIGURE TRUE
   USES_TERMINAL_BUILD TRUE
   USES_TERMINAL_INSTALL TRUE
   BUILD_ALWAYS TRUE
   CONFIGURE_HANDLED_BY_BUILD TRUE)
->>>>>>> 640c85d92115 (WIP: Merge with LLVM 18.x)
 

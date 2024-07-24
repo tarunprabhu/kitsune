@@ -2,7 +2,7 @@
 # Kitsune+Tapir specific flags used by all the experiments.
 #
 # 
-KITSUNE_PREFIX?=/projects/kitsune/${host_arch}/16.x
+KITSUNE_PREFIX?=/projects/kitsune/${host_arch}/18.x
 KITSUNE_OPTLEVEL?=3
 KITSUNE_ABI_OPTLEVEL?=3
 KITSUNE_OPTFLAGS?=-O$(KITSUNE_OPTLEVEL)
@@ -40,7 +40,6 @@ endif
 TAPIR_HIP_TARGET=-ftapir=hip 
 TAPIR_HIP_TARGET_FLAGS?= -O$(KITSUNE_OPTLEVEL) \
   -mllvm -hipabi-opt-level=$(KITSUNE_ABI_OPTLEVEL) \
-  -mllvm -hipabi-host-opt-level=0 \
   -mllvm -hipabi-arch=$(AMDGPU_ARCH) \
   $(TAPIR_HIP_EXTRA_FLAGS) \
   $(GPU_STRIPMINE_FLAGS)

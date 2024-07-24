@@ -59,7 +59,10 @@
 
 #define __HIP_DISABLE_CPP_FUNCTIONS__
 #define __HIP_PLATFORM_HCC__ 1
+#define __HIP_PLATFORM_AMD__ 1
 #include <hip/hip_runtime.h>
+
+#include "kithip_dylib.h" // IWYU pragma: keep (clang-tidy misreports. ???)
 
 #ifdef __cplusplus
 extern "C" {
@@ -246,7 +249,7 @@ extern void __kithip_mem_destroy(void *ptr);
  * **NOTE**: See `__kithip_mem_host_prefetch()` for host-side
  * prefetch requests.
  */
-extern void __kithip_mem_gpu_prefetch(void *ptr);
+extern void* __kithip_mem_gpu_prefetch(void *ptr, void *opaque_stream);
 
 /**
  * Request that the memory allocation associated with the given
@@ -299,9 +302,16 @@ extern void __kithip_memcpy_sym_to_device(void *host_sym, void *dev_sym,
  * @param kern_name - The name of the kernel to launch.
  * @param kern_args - The argument buffer for the kernel.
  * @param trip_count - Total size of the work to execution (aka trip count).
+ * @param threads_per_blk - Use given thread count for launch (== 0 to compute).
+ * @param inst_mix - external static code analysis details.
+ * @param opaque_stream - externally created stream for execution. 
  */
-extern void __kithip_launch_kernel(const void *fat_bin, const char *kern_name,
-                                   void **kern_args, size_t trip_count);
+extern void* __kithip_launch_kernel(const void *fat_bin,
+                                    const char *kern_name,
+                                    void **kern_args, size_t trip_count,
+                                    int threads_per_blk,
+                                    const KitRTInstMix *inst_mix,
+                                    void *opaque_stream);
 
 /**
  * Enable/Disable the use of occupancy calculations for the
@@ -364,12 +374,12 @@ extern void __kithip_set_custom_launch_params(unsigned blks_per_grid,
  * If a stream has not yet been created and associated with the
  * calling thread it will be created and returned.
  */
-extern hipStream_t __kithip_get_thread_stream();
+extern void *__kithip_get_thread_stream();
 
 /**
  * Synchronize the calling thread with its assocaited stream.
  */
-extern void __kithip_sync_thread_stream();
+extern void __kithip_sync_thread_stream(void *opaque_stream);
 
 /**
  * Synchronize the host-side with **all** underlying streams in the
@@ -386,7 +396,7 @@ extern void __kithip_sync_context();
  * If a stream has not been assigned to the thread this call will
  * simply return and function as a no-op.
  */
-extern void __kithip_delete_thread_stream();
+extern void __kithip_delete_thread_stream(void *opaque_stream);
 
 /**
  * Destroy all the thread-associated streams that are being managed
