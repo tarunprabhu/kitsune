@@ -725,6 +725,8 @@ Improvements to Clang's diagnostics
   pointer, provided it can be proven that the pointer only points to
   ``[[noreturn]]`` functions.
 
+- Clang now diagnoses undefined behavior in constant expressions more consistently. This includes invalid shifts, and signed overflow in arithmetic.
+
 Improvements to Clang's time-trace
 ----------------------------------
 
