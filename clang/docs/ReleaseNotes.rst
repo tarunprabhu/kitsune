@@ -900,6 +900,9 @@ Bug Fixes in This Version
 - Clang now outputs correct values when #embed data contains bytes with negative
   signed char values (#GH102798).
 
+- Fixed the definition of ``ATOMIC_FLAG_INIT`` in ``<stdatomic.h>`` so it can
+  be used in C++.
+
 Bug Fixes to Compiler Builtins
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
