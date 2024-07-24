@@ -55,8 +55,11 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <assert.h>
 
+#ifndef NPY_TARGET_VERSION
 #include "kitrt.h"
+#endif
 
 #include <cuda.h>
 

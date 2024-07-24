@@ -857,6 +857,8 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
 
   TapirLoopHints Hints(L);
 
+  L->dumpVerbose();
+
   // Loop must have a preheader.  LoopSimplify should guarantee that the loop
   // preheader is not terminated by a sync.
   const BasicBlock *Preheader = L->getLoopPreheader();
@@ -882,13 +884,10 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
   // Get the task for this loop if it is a Tapir loop.
   Task *T = llvm::getTaskIfTapirLoop(L, &TI);
   if (!T) {
-    LLVM_DEBUG(dbgs() << "Loop does not match structure of Tapir loop.\n");
-    if (hintsDemandOutlining(Hints)) {
-      ORE.emit(TapirLoopInfo::createMissedAnalysis(LS_NAME, "NonCanonicalLoop",
-                                                   L)
-               << "loop does not have the canonical structure of a Tapir loop");
-      emitMissedWarning(L, Hints, &ORE);
-    }
+    LLVM_DEBUG(
+      dbgs() << "Loop does not match structure of Tapir loop:\n";
+      if (hintsDemandOutlining(Hints)) 
+        emitMissedWarning(L, Hints, &ORE));
     return nullptr;
   }
 
@@ -1618,8 +1617,10 @@ bool LoopSpawningImpl::run() {
   // Discover all Tapir loops and record them.
   for (Loop *TopLevelLoop : LI)
     for (Loop *L : post_order(TopLevelLoop))
-      if (Task *T = getTaskIfTapirLoop(L))
+      if (Task *T = getTaskIfTapirLoop(L)) {
+        errs() << "\tcreating a tapir loop...n";
         createTapirLoop(L, T);
+      }
 
   if (TapirLoops.empty())
     return false;
@@ -1662,7 +1663,7 @@ bool LoopSpawningImpl::run() {
   } // end timed region
 
   // FIXME: The order of target processing here possibly breaks a "inside-out"
-  // contract (loosely speaking) for ordering.  In nested constructs this
+  // contr act (loosely speaking) for ordering.  In nested constructs this
   // leaves us with a partially completed code transformation when we pop
   // up a level of code nesting.  This is important for nested loops with
   // different targets...

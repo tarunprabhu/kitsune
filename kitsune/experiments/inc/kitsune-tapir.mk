@@ -2,7 +2,7 @@
 # Kitsune+Tapir specific flags used by all the experiments.
 #
 # 
-KITSUNE_PREFIX?=/projects/kitsune/${host_arch}/16.x
+KITSUNE_PREFIX?=/projects/kitsune/${host_arch}/18.x
 KITSUNE_OPTLEVEL?=3
 KITSUNE_ABI_OPTLEVEL?=3
 KITSUNE_OPTFLAGS?=-O$(KITSUNE_OPTLEVEL)
