@@ -709,7 +709,7 @@ public:
     DepChecker.clearDependences();
   }
 
-  const MemAccessInfoList &getDependenciesToCheck() const { return CheckDeps; }
+  MemAccessInfoList &getDependenciesToCheck() { return CheckDeps; }
 
 private:
   typedef MapVector<MemAccessInfo, SmallSetVector<Type *, 1>> PtrAccessMap;
@@ -1368,7 +1368,7 @@ void AccessAnalysis::processMemAccesses() {
 
             unsigned AccessAS = cast<PointerType>(Ptr->getType())->getAddressSpace();
             UnderlyingObjToAccessMap::iterator Prev =
-                ObjToLastAccess.find({UnderlyingObj,AccessAS 
+                ObjToLastAccess.find({UnderlyingObj,AccessAS
                  });
             if (Prev != ObjToLastAccess.end())
               DepCands.unionSets(Access, Prev->second);
@@ -1442,7 +1442,7 @@ llvm::getPtrStride(PredicatedScalarEvolution &PSE, Type *AccessTy, Value *Ptr,
                    bool Assume, bool ShouldCheckWrap) {
   const SCEV *PtrScev = replaceSymbolicStrideSCEV(PSE, StridesMap, Ptr);
   if (PSE.getSE()->isLoopInvariant(PtrScev, Lp))
-    return 0;
+    return {0};
 
   Type *Ty = Ptr->getType();
   assert(Ty->isPointerTy() && "Unexpected non-ptr");
@@ -1974,12 +1974,13 @@ MemoryDepChecker::getDependenceDistanceStrideAndSize(
                     << " Sink induction step: " << StrideBPtrInt << "\n");
   // At least Src or Sink are loop invariant and the other is strided or
   // invariant. We can generate a runtime check to disambiguate the accesses.
-  if (!StrideAPtrInt || !StrideBPtrInt)
+  if (StrideAPtrInt == 0 || StrideBPtrInt == 0)
     return MemoryDepChecker::Dependence::Unknown;
 
   // Both Src and Sink have a constant stride, check if they are in the same
   // direction.
-  if ((StrideAPtrInt > 0) != (StrideBPtrInt > 0)) {
+  if ((StrideAPtrInt > 0 && StrideBPtrInt < 0) ||
+      (StrideAPtrInt < 0 && StrideBPtrInt > 0)) {
     LLVM_DEBUG(
         dbgs() << "Pointer access with strides in different directions\n");
     return MemoryDepChecker::Dependence::Unknown;
@@ -1990,23 +1991,8 @@ MemoryDepChecker::getDependenceDistanceStrideAndSize(
       DL.getTypeStoreSizeInBits(ATy) == DL.getTypeStoreSizeInBits(BTy);
   if (!HasSameSize)
     TypeByteSize = 0;
-
-  StrideAPtrInt = std::abs(StrideAPtrInt);
-  StrideBPtrInt = std::abs(StrideBPtrInt);
-
-  uint64_t MaxStride = std::max(StrideAPtrInt, StrideBPtrInt);
-
-  std::optional<uint64_t> CommonStride;
-  if (StrideAPtrInt == StrideBPtrInt)
-    CommonStride = StrideAPtrInt;
-
-  // TODO: Historically, we don't retry with runtime checks unless the
-  // (unscaled) strides are the same. Fix this once the condition for runtime
-  // checks in isDependent is fixed.
-  bool ShouldRetryWithRuntimeCheck = CommonStride.has_value();
-
-  return DepDistanceStrideAndSizeInfo(Dist, MaxStride, CommonStride,
-                                      ShouldRetryWithRuntimeCheck, TypeByteSize,
+  return DepDistanceStrideAndSizeInfo(Dist, std::abs(StrideAPtrInt),
+                                      std::abs(StrideBPtrInt), TypeByteSize,
                                       AIsWrite, BIsWrite);
 }
 
