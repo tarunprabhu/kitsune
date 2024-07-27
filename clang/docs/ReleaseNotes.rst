@@ -491,6 +491,9 @@ related warnings within the method body.
 - Clang will print the "reason" string argument passed on to
   ``[[clang::warn_unused_result("reason")]]`` as part of the warning diagnostic.
 
+- The ``hybrid_patchable`` attribute is now supported on ARM64EC targets. It can be used to specify
+  that a function requires an additional x86-64 thunk, which may be patched at runtime.
+
 Improvements to Clang's diagnostics
 -----------------------------------
 
