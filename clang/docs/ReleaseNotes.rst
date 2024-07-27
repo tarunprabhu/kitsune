@@ -663,6 +663,9 @@ Attribute Changes in Clang
 
 - Clang now disallows the use of attributes after the namespace name. (#GH121407)
 
+- The ``hybrid_patchable`` attribute is now supported on ARM64EC targets. It can be used to specify
+  that a function requires an additional x86-64 thunk, which may be patched at runtime.
+
 Improvements to Clang's diagnostics
 -----------------------------------
 
