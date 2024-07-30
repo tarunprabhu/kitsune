@@ -663,9 +663,6 @@ Attribute Changes in Clang
 
 - Clang now disallows the use of attributes after the namespace name. (#GH121407)
 
-- The ``hybrid_patchable`` attribute is now supported on ARM64EC targets. It can be used to specify
-  that a function requires an additional x86-64 thunk, which may be patched at runtime.
-
 Improvements to Clang's diagnostics
 -----------------------------------
 
@@ -871,11 +868,6 @@ Improvements to Clang's diagnostics
 
 - Clang now diagnoses the use of attribute names reserved by the C++ standard (#GH92196).
 
-- Clang now diagnoses undefined behavior in constant expressions more consistently. This includes invalid shifts, and signed overflow in arithmetic.
-
-- Clang now diagnoses dangling references to fields of temporary objects. Fixes #GH81589.
-
-
 Improvements to Clang's time-trace
 ----------------------------------
 
@@ -907,9 +899,6 @@ Bug Fixes in This Version
   being deleted has a potentially throwing destructor (#GH118660).
 - Clang now outputs correct values when #embed data contains bytes with negative
   signed char values (#GH102798).
-
-- Fixed the definition of ``ATOMIC_FLAG_INIT`` in ``<stdatomic.h>`` so it can
-  be used in C++.
 
 Bug Fixes to Compiler Builtins
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
