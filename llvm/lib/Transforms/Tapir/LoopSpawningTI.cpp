@@ -857,8 +857,6 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
 
   TapirLoopHints Hints(L);
 
-  L->dumpVerbose();
-
   // Loop must have a preheader.  LoopSimplify should guarantee that the loop
   // preheader is not terminated by a sync.
   const BasicBlock *Preheader = L->getLoopPreheader();
@@ -1617,10 +1615,8 @@ bool LoopSpawningImpl::run() {
   // Discover all Tapir loops and record them.
   for (Loop *TopLevelLoop : LI)
     for (Loop *L : post_order(TopLevelLoop))
-      if (Task *T = getTaskIfTapirLoop(L)) {
-        errs() << "\tcreating a tapir loop...n";
+      if (Task *T = getTaskIfTapirLoop(L))
         createTapirLoop(L, T);
-      }
 
   if (TapirLoops.empty())
     return false;

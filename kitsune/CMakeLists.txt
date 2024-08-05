@@ -229,6 +229,7 @@ if (KITSUNE_KOKKOS_ENABLE)
 endif()
 
 if (KITSUNE_CUDA_ENABLE)
+  message(STATUS "kitsune: CUDA enabled.")
   find_package(CUDAToolkit ${KITSUNE_CUDA_VERSION_MIN} REQUIRED)
 
   set(KITSUNE_CUDA_PREFIX ${CUDAToolkit_LIBRARY_ROOT})
@@ -315,10 +316,32 @@ if (KITSUNE_HIP_ENABLE)
 
   message(FATAL_ERROR "hip: ${HIP_LIBRARY_DIR} ${hip_LIBRARY_DIR} ${hip_LIBRARY_DIRS} ${HIP_LIBRARY_DIRS}")
   set(KITSUNE_HIP_PREFIX)
+  message(STATUS "kitsune: HIP enabled.")
+  if (NOT DEFINED ROCM_PATH)
+    message(STATUS "Kitsune HIP support enabled but ROCM_PATH not set.")
+    if (DEFINED $ENV{ROCM_PATH})
+      message(STATUS "  using ROCM_PATH environment variable.")
+      set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH "AMD ROCM/HIP installation directory.")
+    else() 
+      message(STATUS "  selecting a common default install location.")
+      set(ROCM_PATH "/opt/rocm" CACHE PATH "AMD ROCM/HIP installation directory.")
+    endif()
+  endif()
+  message(STATUS "ROCm/HIP path: ${ROCM_PATH}")
+  list(APPEND CMAKE_MODULE_PATH "${ROCM_PATH}/lib/cmake/hip")
+  message(STATUS "   updated cmake module search path: ${CMAKE_MODULE_PATH}")
+  find_package(HIP MODULE REQUIRED)
+  include(${ROCM_PATH}/lib/cmake/hip/hip-config.cmake)
 
   find_library(LIB_AMDHIP64 amdhip64 REQUIRED
-    PATHS ${hip_LIBRARY_DIR}
-    NO_DEFAULT_PATH)
+    PATHS ${HIP_LIBRARY_INSTALL_DIR}
+    ${ROCM_PATH}/lib)
+
+  set(KITSUNE_HIP_PREFIX ${HIP_LIBRARY_INSTALL_DIR})
+  set(KITSUNE_HIP_INCLUDE_DIR ${HIP_INCLUDE_DIR})
+  set(KITSUNE_HIP_LIBRARY_DIR ${HIP_LIBRARY_INSTALL_DIR})
+
+  message(status "kitsune: HIP include directory - ${HIP_INCLUDE_DIR}")
 
   set(KITSUNE_HIP_DEFAULT_PREPROCESSOR_FLAGS
     "-D_tapir_hip_target")

@@ -1714,7 +1714,9 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       break;
 
     case llvm::TapirTargetID::Hip:
-      llvm_unreachable("Add default libraries for the Hip backend");
+      CmdArgs.push_back(
+          Args.MakeArgString(StringRef("-L") + KITSUNE_HIP_LIBRARY_DIR));
+      ExtractArgsFromString("-lamdhip64", CmdArgs, Args);      
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
 
