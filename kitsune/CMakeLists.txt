@@ -104,16 +104,16 @@ if (KITSUNE_KOKKOS_ENABLE)
   set(KITSUNE_KOKKOS_SRC_DIR  ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/kokkos)
   set(KITSUNE_KOKKOS_BUILD_DIR ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/build)
   set(KITSUNE_KOKKOS_STAMP_DIR ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/stamp)
-  set(KITSUNE_KOKKOS_BUILD_ARGS
-    -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
+  set(KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS
     -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
-    -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_INSTALL_PREFIX=${CLANG_RESOURCE_INSTALL_DIR}
-    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_CXX_FLAGS=${KITSUNE_KOKKOS_BUILD_COMPILE_FLAGS}
     -DKokkos_ENABLE_SERIAL=ON
     -DBUILD_TESTING=OFF
-    -DBUILD_SHARED_LIBS=ON)
+    -DBUILD_SHARED_LIBS=ON
+    ${KITSUNE_KOKKOS_BUILD_CONFIGURE_FLAGS})
 
   # We have to patch kokkos to disable some sections of code that are using
   # exceptions.
@@ -144,7 +144,7 @@ if (KITSUNE_KOKKOS_ENABLE)
     SOURCE_DIR          ${KITSUNE_KOKKOS_SRC_DIR}
     BINARY_DIR          ${KITSUNE_KOKKOS_BUILD_DIR}
     STAMP_DIR           ${KITSUNE_KOKKOS_STAMP_DIR}
-    CMAKE_ARGS          ${KITSUNE_KOKKOS_BUILD_ARGS}
+    CMAKE_ARGS          ${KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS}
     PATCH_COMMAND       patch -p0 --input=${KITSUNE_KOKKOS_PATCH_EXCS}
     UPDATE_COMMAND      ""
     UPDATE_DISCONNECTED FALSE
@@ -226,7 +226,7 @@ if (KITSUNE_CUDA_ENABLE)
     PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
     NO_DEFAULT_PATH)
 
-  # This should almost always be the libcuda that is installed on the system,
+    # This should almost always be the libcuda that is installed on the system,
   # so look for it in the "usual" places. In some cases, both /usr/lib and
   # /usr/lib64 are present with libcuda in the latter. But cmake does not seem
   # to look there, so force it to.
@@ -266,19 +266,6 @@ if (KITSUNE_CUDA_ENABLE)
 endif()
 
 if (KITSUNE_HIP_ENABLE)
-  set(ROCM_PATH
-    $ENV{ROCM_PATH}
-    CACHE PATH
-    "Path to hip install directory")
-
-  # Probably should not be hard-coding /opt/rocm/* here, but it seems to be
-  # where it goes in several distributions and we cannot reliably find rocm
-  # otherwise
-  find_package(hip REQUIRED
-    PATHS $ENV{ROCM_PATH}/hip $ENV{ROCM_PATH}
-    /opt/rocm/hip /opt/rocm)
-
-  set(KITSUNE_HIP_PREFIX)
   message(STATUS "kitsune: HIP enabled.")
   if (NOT DEFINED ROCM_PATH)
     message(STATUS "Kitsune HIP support enabled but ROCM_PATH not set.")
@@ -300,12 +287,35 @@ if (KITSUNE_HIP_ENABLE)
     PATHS ${HIP_LIBRARY_INSTALL_DIR}
     ${ROCM_PATH}/lib)
 
-  set(KITSUNE_HIP_PREFIX ${HIP_LIB_INSTALL_DIR})
+  set(KITSUNE_HIP_PREFIX)
+  message(STATUS "kitsune: HIP enabled.")
+  if (NOT DEFINED ROCM_PATH)
+    message(STATUS "Kitsune HIP support enabled but ROCM_PATH not set.")
+    if (DEFINED $ENV{ROCM_PATH})
+      message(STATUS "  using ROCM_PATH environment variable.")
+      set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH "AMD ROCM/HIP installation directory.")
+    else() 
+      message(STATUS "  selecting a common default install location.")
+      set(ROCM_PATH "/opt/rocm" CACHE PATH "AMD ROCM/HIP installation directory.")
+    endif()
+  endif()
+  message(STATUS "ROCm/HIP path: ${ROCM_PATH}")
+  list(APPEND CMAKE_MODULE_PATH "${ROCM_PATH}/lib/cmake/hip")
+  message(STATUS "   updated cmake module search path: ${CMAKE_MODULE_PATH}")
+  find_package(HIP MODULE REQUIRED)
+  include(${ROCM_PATH}/lib/cmake/hip/hip-config.cmake)
+
+  find_library(LIB_AMDHIP64 amdhip64 REQUIRED
+    PATHS ${HIP_LIB_INSTALL_DIR}
+    ${ROCM_PATH}/lib)
+
+  set(KITSUNE_HIP_PREFIX ${HIP_LIBRARY_INSTALL_DIR})
   set(KITSUNE_HIP_INCLUDE_DIR ${HIP_INCLUDE_DIR})
   set(KITSUNE_HIP_LIBRARY_DIR ${HIP_LIB_INSTALL_DIR})
 
   message(status "kitsune: HIP include directory - ${HIP_INCLUDE_DIR}")
-  message(status "kitsune: HIP library directory - ${HIP_LIB_INSTALL_DIR}")
+  message(STATUS "hip include dir: ${hip_INCLUDE_DIR}")
+  message(STATUS "hip library dir: ${hip_LIB_INSTALL_DIR}")
 
   set(KITSUNE_HIP_DEFAULT_PREPROCESSOR_FLAGS
     "-D_tapir_hip_target")
@@ -314,7 +324,7 @@ if (KITSUNE_HIP_ENABLE)
     "")
 
   set(KITSUNE_HIP_DEFAULT_LINKER_FLAGS
-    "-L${ROCM_PATH}/lib -lamdhip64 -lm")
+    "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64 -lm")
 
   set(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -338,7 +348,6 @@ if (KITSUNE_OPENCILK_ENABLE)
   # vanilla clang build of the same version, but it's probably not worth all the
   # error checking hassles that would be needed to detect if the versions were
   # mismatched.
-
   set(KITSUNE_OPENCILK_BUILD_CONFIGURE_FLAGS ""
     CACHE STRING
   "Additional options to be passed to be CMake when configuring Kokkos. These are only used when building Kitsune")
@@ -346,6 +355,7 @@ if (KITSUNE_OPENCILK_ENABLE)
   set(KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS ""
     CACHE STRING
     "Additional C++ compiler flags needed to build Kokkos. These are only used when building Kitsune")
+
 
   # We pass some LLVM_* variables to make Cheetah behave as if it were an
   # in-tree build.
@@ -601,5 +611,4 @@ ExternalProject_Add(kitsune-runtimes
   USES_TERMINAL_INSTALL TRUE
   BUILD_ALWAYS TRUE
   CONFIGURE_HANDLED_BY_BUILD TRUE)
-
 
