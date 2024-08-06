@@ -340,6 +340,12 @@ if (KITSUNE_HIP_ENABLE)
     ""
     CACHE STRING
     "Additional linker flags needed for the HIP target")
+
+  set(KITSUNE_HIP_BITCODE_DIR "${ROCM_PATH}/amdgcn/bitcode/")
+  find_file(KITSUNE_HIP_BITCODE_LOC hip.bc REQUIRED
+    PATHS ${KITSUNE_HIP_BITCODE_DIR}
+    NO_DEFAULT_PATH)
+  message(STATUS "hip bitcode file location: ${KITSUNE_HIP_BITCODE_DIR}")
 endif()
 
 if (KITSUNE_OPENCILK_ENABLE)

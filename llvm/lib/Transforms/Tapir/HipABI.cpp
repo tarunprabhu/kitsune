@@ -70,6 +70,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "llvm/Transforms/Tapir/HipABI.h"
+#include "kitsune/Config/config.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Demangle/Demangle.h"
@@ -1562,24 +1563,19 @@ std::unique_ptr<Module> &HipABI::getLibDeviceModule() {
 
     LLVM_DEBUG(dbgs() << "\tpre-loading AMDGCN device bitcode files.\n");
     for (std::string BCFile : ROCmBCFiles) {
-      const std::string GCNFile = "amdgcn/bitcode/" + BCFile;
+      const std::string GCNFile = std::string(KITSUNE_HIP_BITCODE_DIR) + BCFile;
       LLVM_DEBUG(dbgs() << "\t\t* " << GCNFile << "\n");
-      std::optional<std::string> BCFPath =
-          sys::Process::FindInEnvPath("ROCM_PATH", GCNFile);
-      if (not BCFPath)
-        report_fatal_error("Unable to find rocm bitcode file! "
-                           "Is ROCM_PATH set in your enviornment?");
       if (LibDeviceModule == nullptr) {
-        LibDeviceModule = parseIRFile(*BCFPath, SMD, Ctx);
+        LibDeviceModule = parseIRFile(GCNFile, SMD, Ctx);
         if (LibDeviceModule == nullptr) {
-          SMD.print(BCFPath->c_str(), llvm::errs());
+          SMD.print(GCNFile.c_str(), llvm::errs());
           report_fatal_error("Failed to parse bitcode file!");
         }
       } else {
         std::unique_ptr<Module> BCModule;
-        BCModule = parseIRFile(*BCFPath, SMD, Ctx);
+        BCModule = parseIRFile(GCNFile, SMD, Ctx);
         if (BCModule == nullptr) {
-          SMD.print(BCFPath->c_str(), llvm::errs());
+          SMD.print(GCNFile.c_str(), llvm::errs());
           report_fatal_error("Failed to parse bitcode file!");
         }
         LLVM_DEBUG(dbgs() << "\t\t\tlinking into device module...\n");
