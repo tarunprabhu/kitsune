@@ -314,7 +314,6 @@ if (KITSUNE_HIP_ENABLE)
     PATHS $ENV{ROCM_PATH}/hip $ENV{ROCM_PATH}
     /opt/rocm/hip /opt/rocm)
 
-  message(FATAL_ERROR "hip: ${HIP_LIBRARY_DIR} ${hip_LIBRARY_DIR} ${hip_LIBRARY_DIRS} ${HIP_LIBRARY_DIRS}")
   set(KITSUNE_HIP_PREFIX)
   message(STATUS "kitsune: HIP enabled.")
   if (NOT DEFINED ROCM_PATH)
@@ -337,11 +336,12 @@ if (KITSUNE_HIP_ENABLE)
     PATHS ${HIP_LIBRARY_INSTALL_DIR}
     ${ROCM_PATH}/lib)
 
-  set(KITSUNE_HIP_PREFIX ${HIP_LIBRARY_INSTALL_DIR})
+  set(KITSUNE_HIP_PREFIX ${HIP_LIB_INSTALL_DIR})
   set(KITSUNE_HIP_INCLUDE_DIR ${HIP_INCLUDE_DIR})
-  set(KITSUNE_HIP_LIBRARY_DIR ${HIP_LIBRARY_INSTALL_DIR})
+  set(KITSUNE_HIP_LIBRARY_DIR ${HIP_LIB_INSTALL_DIR})
 
   message(status "kitsune: HIP include directory - ${HIP_INCLUDE_DIR}")
+  message(status "kitsune: HIP library directory - ${HIP_LIB_INSTALL_DIR}")
 
   set(KITSUNE_HIP_DEFAULT_PREPROCESSOR_FLAGS
     "-D_tapir_hip_target")
@@ -350,7 +350,7 @@ if (KITSUNE_HIP_ENABLE)
     "")
 
   set(KITSUNE_HIP_DEFAULT_LINKER_FLAGS
-    "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64 -lm")
+    "-L${ROCM_PATH}/lib -lamdhip64 -lm")
 
   set(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS
     ""
