@@ -226,7 +226,7 @@ if (KITSUNE_CUDA_ENABLE)
     PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
     NO_DEFAULT_PATH)
 
-    # This should almost always be the libcuda that is installed on the system,
+  # This should almost always be the libcuda that is installed on the system,
   # so look for it in the "usual" places. In some cases, both /usr/lib and
   # /usr/lib64 are present with libcuda in the latter. But cmake does not seem
   # to look there, so force it to.
@@ -287,18 +287,6 @@ if (KITSUNE_HIP_ENABLE)
     PATHS ${HIP_LIBRARY_INSTALL_DIR}
     ${ROCM_PATH}/lib)
 
-  set(KITSUNE_HIP_PREFIX)
-  message(STATUS "kitsune: HIP enabled.")
-  if (NOT DEFINED ROCM_PATH)
-    message(STATUS "Kitsune HIP support enabled but ROCM_PATH not set.")
-    if (DEFINED $ENV{ROCM_PATH})
-      message(STATUS "  using ROCM_PATH environment variable.")
-      set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH "AMD ROCM/HIP installation directory.")
-    else() 
-      message(STATUS "  selecting a common default install location.")
-      set(ROCM_PATH "/opt/rocm" CACHE PATH "AMD ROCM/HIP installation directory.")
-    endif()
-  endif()
   message(STATUS "ROCm/HIP path: ${ROCM_PATH}")
   list(APPEND CMAKE_MODULE_PATH "${ROCM_PATH}/lib/cmake/hip")
   message(STATUS "   updated cmake module search path: ${CMAKE_MODULE_PATH}")
@@ -313,9 +301,8 @@ if (KITSUNE_HIP_ENABLE)
   set(KITSUNE_HIP_INCLUDE_DIR ${HIP_INCLUDE_DIR})
   set(KITSUNE_HIP_LIBRARY_DIR ${HIP_LIB_INSTALL_DIR})
 
-  message(status "kitsune: HIP include directory - ${HIP_INCLUDE_DIR}")
-  message(STATUS "hip include dir: ${hip_INCLUDE_DIR}")
-  message(STATUS "hip library dir: ${hip_LIB_INSTALL_DIR}")
+  message(STATUS "hip include dir: ${HIP_INCLUDE_DIR}")
+  message(STATUS "hip library dir: ${HIP_LIB_INSTALL_DIR}")
 
   set(KITSUNE_HIP_DEFAULT_PREPROCESSOR_FLAGS
     "-D_tapir_hip_target")
@@ -361,7 +348,6 @@ if (KITSUNE_OPENCILK_ENABLE)
   set(KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS ""
     CACHE STRING
     "Additional C++ compiler flags needed to build Kokkos. These are only used when building Kitsune")
-
 
   # We pass some LLVM_* variables to make Cheetah behave as if it were an
   # in-tree build.
