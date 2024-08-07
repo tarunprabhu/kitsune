@@ -1,5 +1,4 @@
 AMDGPU_ARCH?=gfx90a
-
 ifneq ($(ROCM_PATH),)
   HIPCC=$(ROCM_PATH)/bin/hipcc
   HIPCC_CXX_FLAGS?=--offload-arch=$(AMDGPU_ARCH) \

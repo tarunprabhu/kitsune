@@ -226,26 +226,6 @@ if (KITSUNE_CUDA_ENABLE)
     PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
     NO_DEFAULT_PATH)
 
-    # This should almost always be the libcuda that is installed on the system,
-  # so look for it in the "usual" places. In some cases, both /usr/lib and
-  # /usr/lib64 are present with libcuda in the latter. But cmake does not seem
-  # to look there, so force it to.
-  find_library(KITSUNE_CUDA_LIB_CUDA cuda REQUIRED
-    HINTS /usr/lib64 /usr/local/lib64)
-
-  find_library(KITSUNE_CUDA_LIB_NVPTX_STATIC nvptxcompiler_static REQUIRED
-    PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
-    NO_DEFAULT_PATH)
-
-  find_file(KITSUNE_CUDA_LIBDEVICE_BC libdevice.10.bc REQUIRED
-    PATHS ${KITSUNE_CUDA_LIBDEVICE_DIR}
-    NO_DEFAULT_PATH)
-
-  find_program(KITSUNE_CUDA_PTXAS ptxas REQUIRED
-    PATHS ${KITSUNE_CUDA_BINARY_DIR}
-    NO_DEFAULT_PATH)
-
-=======
   # This should almost always be the libcuda that is installed on the system,
   # so look for it in the "usual" places. In some cases, both /usr/lib and
   # /usr/lib64 are present with libcuda in the latter. But cmake does not seem
