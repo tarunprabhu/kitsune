@@ -586,15 +586,10 @@ void HipABI::transformConstants(Function *Fn) {
           auto AddrSpace = GEP->getAddressSpace();
           auto PtrAddrSpace = PTy->getAddressSpace();
           if (AddrSpace != PtrAddrSpace) {
-            LLVM_DEBUG(dbgs() << "\t\trepairing GEP addr space.\n"
-                              << "\t\t\t[mismatched addrspaces: " << AddrSpace
-                              << ", ptr " << PtrAddrSpace << "]\n");
-
             std::vector<Value *> opt_vec;
             for (Use &idx : GEP->indices())
               opt_vec.push_back(idx.get());
             ArrayRef<Value *> IdxList(opt_vec);
-
             Type *DestTy = GetElementPtrInst::getIndexedType(
                 GEP->getSourceElementType(), IdxList);
             assert(DestTy && "GEP indices invalid!");
@@ -625,13 +620,24 @@ void HipABI::transformConstants(Function *Fn) {
         LLVM_DEBUG(dbgs() << "\t\t\t\tnew store: " << *SI << "\n");
       } else if (auto *Call = dyn_cast<CallBase>(U->getUser())) {
         unsigned argNo = Call->getArgOperandNo(U);
+        LLVM_DEBUG(dbgs() << "\t\tpatching callable instruction: " << *Call << "\n");
         // FIXME: This is not correct! The function operand should be
         // checked to see what address space it expects.
         Instruction *asCast =
             new AddrSpaceCastInst(NewGEP, OldGEP->getType(), "", Call);
         Call->setArgOperand(argNo, asCast);
-      } else
-        assert(false && "unexpected use of gep");
+        LLVM_DEBUG(dbgs() << "\t\t\t\tnew call: " << *Call << "\n");
+      } else if (auto *GEP = dyn_cast<GetElementPtrInst>(U->getUser())) {
+        LLVM_DEBUG(dbgs() << "\t\tpatching gep instruction:\n\t\t\t" << *GEP << "\n");
+        Instruction *asCast =
+            new AddrSpaceCastInst(NewGEP, OldGEP->getType(), "", GEP);
+        GEP->setOperand(GEP->getPointerOperandIndex(), asCast);
+        LLVM_DEBUG(dbgs() << "\t\t\t\tnew gep:\n\t\t\t\t  " << *GEP << "\n");
+      } else {
+        U->get()->dump();
+        U->getUser()->dump();
+        assert(false && "unexpected use/user of gep.");
+      }
     }
     OldGEP->eraseFromParent();
   }

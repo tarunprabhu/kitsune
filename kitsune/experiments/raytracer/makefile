@@ -4,12 +4,12 @@ targets = raytracer-forall.opencilk.${host_arch}
 
 ifeq ($(BUILD_CUDA_EXPERIMENTS),true)
   targets += raytracer-forall.cuda.${host_arch}
-  targets += raytracer-cuda.${host_arch}
+#  targets += raytracer-cuda.${host_arch}
 endif
 
 ifeq ($(BUILD_HIP_EXPERIMENTS),true)
   targets += raytracer-forall.hip.${host_arch}
-  targets += raytracer-hip.${host_arch}
+#  targets += raytracer-hip.${host_arch}
 endif
 
 all: ${targets}
@@ -17,16 +17,16 @@ all: ${targets}
 # forall-based tests
 raytracer-forall.opencilk.${host_arch}: raytracer-forall.cpp 
 	@echo $@
-	@$(TIME_CMD) $(KIT_CXX) $(TAPIR_OPENCILK_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
+	@$(TIME_CMD) $(KIT_CXX) $(TAPIR_OPENCILK_FLAGS) -o $@ $<
 	@$(FILE_SIZE)
 raytracer-forall.cuda.${host_arch}: raytracer-forall.cpp 
 	@echo $@
-	@$(TIME_CMD) $(KIT_CXX) $(KITSUNE_FAST_MATH) $(TAPIR_CUDA_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
+	@$(TIME_CMD) $(KIT_CXX) $(KITSUNE_FAST_MATH) $(TAPIR_CUDA_FLAGS) -o $@ $<
 	@$(FILE_SIZE)
 
 raytracer-forall.hip.${host_arch}: raytracer-forall.cpp 
 	@echo $@
-	@$(TIME_CMD) $(KIT_CXX) -v $(TAPIR_HIP_FLAGS) -o $@ $< -Xlinker -rpath=$(KITSUNE_PREFIX)/lib
+	@$(TIME_CMD) $(KIT_CXX) $(TAPIR_HIP_FLAGS) -o $@ $<
 	@$(FILE_SIZE)
 
 # kokkos-based tests (w/out views)
