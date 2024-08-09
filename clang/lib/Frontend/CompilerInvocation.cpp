@@ -1563,16 +1563,15 @@ void CompilerInvocation::setDefaultPointerAuthOptions(
   Opts.ReturnAddresses = LangOpts.PointerAuthReturns;
   Opts.AuthTraps = LangOpts.PointerAuthAuthTraps;
   Opts.IndirectGotos = LangOpts.PointerAuthIndirectGotos;
-  Opts.AArch64JumpTableHardening = LangOpts.AArch64JumpTableHardening;
+  Opts.ReturnAddresses = LangOpts.PointerAuthReturns;
 }
 
 static void parsePointerAuthOptions(PointerAuthOptions &Opts,
                                     const LangOptions &LangOpts,
                                     const llvm::Triple &Triple,
                                     DiagnosticsEngine &Diags) {
-  if (!LangOpts.PointerAuthCalls && !LangOpts.PointerAuthReturns &&
-      !LangOpts.PointerAuthAuthTraps && !LangOpts.PointerAuthIndirectGotos &&
-      !LangOpts.AArch64JumpTableHardening)
+  if (!LangOpts.PointerAuthCalls && !LangOpts.PointerAuthIndirectGotos &&
+      !LangOpts.PointerAuthReturns)
     return;
 
   CompilerInvocation::setDefaultPointerAuthOptions(Opts, LangOpts, Triple);
