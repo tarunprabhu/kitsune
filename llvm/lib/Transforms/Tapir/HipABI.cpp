@@ -238,8 +238,8 @@ cl::opt<unsigned int> MaxThreadsPerBlock(
              "can support at execution.\n"));
 
 enum ROCmABIVersion {
-  ROCm_ABI_V4, // DEFAULT
-  ROCm_ABI_V5, // EXPERIMENTAL in the AMDGPU stack?
+  ROCm_ABI_V4, // default
+  ROCm_ABI_V5, // new
 };
 
 cl::opt<ROCmABIVersion> ROCmABITarget(
@@ -247,7 +247,7 @@ cl::opt<ROCmABIVersion> ROCmABITarget(
     cl::desc("Select the targeted ROCm ABI version."),
     cl::values(clEnumValN(ROCm_ABI_V4, "v4", "Target ROCm version 4 ABI."),
                clEnumValN(ROCm_ABI_V5, "v5",
-                          "Target ROCm v. 5 ABI. (experimental)")));
+                          "Target ROCm v. 5 ABI.")));
 
 cl::opt<bool> Use64ElementWavefront(
     "hipabi-wavefront64", cl::init(true), cl::Hidden,
@@ -257,7 +257,7 @@ cl::opt<bool> EnableXnack("hipabi-xnack", cl::init(false), cl::NotHidden,
                           cl::desc("Enable/disable xnack. (default: false)"));
 
 cl::opt<bool>
-    EnableSRAMECC("hipabi-sramecc", cl::init(false), cl::NotHidden,
+    EnableSRAMECC("hipabi-sramecc", cl::init(true), cl::NotHidden,
                   cl::desc("Enable/disable sramecc.(default: false)"));
 
 cl::opt<unsigned> DefaultGrainSize(
@@ -1482,8 +1482,8 @@ HipABI::HipABI(Module &InputModule)
   // auto-set the environment variable (now done via the global ctor).
   if (EnableXnack)
     Features += "+xnack,+xnack-support";
-  // else
-  //   Features += "-xnack,-xnack-support";
+  else
+    Features += "-xnack,-xnack-support";
 
   if (EnableSRAMECC) // TODO: feature is arch specific. need to cross-check.
     Features += ",+sramecc";
@@ -1731,10 +1731,9 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
   ObjFile->keep();
 
   if (OptLevel > 0) {
-
-    if (OptLevel > 3) // This (I think) is consistent w/ Clang behavior...
+    if (OptLevel > 3) 
       OptLevel = 3;
-
+    LLVM_DEBUG(dbgs() << "\t- running kernel module optimization passes...\n");
     PipelineTuningOptions pto;
     pto.LoopVectorization = OptLevel > 2;
     pto.SLPVectorization = OptLevel > 2;
@@ -1742,6 +1741,13 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
     pto.LoopInterleaving = OptLevel > 2;
     pto.LoopStripmine = OptLevel > 2;
     pto.ForgetAllSCEVInLoopUnroll = OptLevel > 2;
+    OptimizationLevel optLevels[] = {
+        OptimizationLevel::O0,
+        OptimizationLevel::O1,
+        OptimizationLevel::O2,
+        OptimizationLevel::O3,
+    };
+    OptimizationLevel optLevel = optLevels[OptLevel];    
 
     // From the LLVM docs: Create the analysis managers.
     // These must be declared in this order so that they are destroyed in the
@@ -1752,28 +1758,19 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
     CGSCCAnalysisManager cgam;
     ModuleAnalysisManager mam;
 
-    PassBuilder pb(AMDTargetMachine); //, pto);
+    PassBuilder pb(AMDTargetMachine, pto);
     pb.registerModuleAnalyses(mam);
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
     AMDTargetMachine->registerPassBuilderCallbacks(pb, false);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
-    OptimizationLevel optLevels[] = {
-        OptimizationLevel::O0,
-        OptimizationLevel::O1,
-        OptimizationLevel::O2,
-        OptimizationLevel::O3,
-    };
-    ModulePassManager mpm0 = pb.buildModuleSimplificationPipeline(
-        optLevels[3], ThinOrFullLTOPhase::None);
-    ModulePassManager mpm1 = pb.buildPerModuleDefaultPipeline(optLevels[2]);
-    mpm0.addPass(VerifierPass());
-    mpm1.addPass(VerifierPass());
+
+    ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
+    mpm.addPass(VerifierPass());
     LLVM_DEBUG(dbgs() << "\t\t* optimize module: " << KernelModule.getName()
                       << "\n");
-    mpm0.run(KernelModule, mam);
-    mpm1.run(KernelModule, mam);
+    mpm.run(KernelModule, mam);
     LLVM_DEBUG(dbgs() << "\t\tpasses complete.\n");
   }
 
@@ -1805,7 +1802,7 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   LinkedObjFile->keep();
 
   // TODO: The lld invocation below is unix-specific...
-  auto LLD = sys::findProgramByName("lld");
+  auto LLD = sys::findProgramByName("/projects/kitsune/x86_64/18.x/bin/lld");
   if ((EC = LLD.getError()))
     report_fatal_error("executable 'lld' not found! "
                        "check your path?");
@@ -1919,7 +1916,9 @@ GlobalVariable *HipABI::embedBundle(HipABIOutputFile &BundleFile) {
   GlobalVariable *BundleGV;
   BundleGV = new GlobalVariable(M, BundleArray->getType(), true,
                                 GlobalValue::PrivateLinkage, BundleArray,
-                                "__hip_fatbin");
+                                "__hip_fatbin",
+				nullptr, GlobalVariable::NotThreadLocal);
+  
   const char *BundleSectionName = ".hip_fatbin";
   BundleGV->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
   BundleGV->setSection(BundleSectionName);

@@ -72,6 +72,7 @@ target_include_directories(${KITRT}
 # set_property(TARGET ${KITRT} APPEND PROPERTY
 #   BUILD_RPATH "$ORIGIN/../lib${LLVM_LIBDIR_SUFFIX}:${PROJECT_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}")
 
+
 find_library(LIB_LLVM
   NAMES LLVM
   LLVM-${LLVM_VERSION_MAJOR}
@@ -85,7 +86,7 @@ find_library(LIB_LLVM
 # software stacks on HPC machines.
 target_link_libraries(${KITRT}
   PUBLIC
-  LLVM
+  ${LIB_LLVM}
   pthread
   rt
   dl)

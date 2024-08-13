@@ -59,6 +59,7 @@
 
 #define __HIP_DISABLE_CPP_FUNCTIONS__
 #define __HIP_PLATFORM_HCC__ 1
+#define __HIP_PLATFORM_AMD__ 1
 #include <hip/hip_runtime.h>
 
 #ifdef __cplusplus

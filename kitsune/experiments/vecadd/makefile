@@ -15,7 +15,7 @@ all: ${targets}
 # forall-based tests
 vecadd-forall.opencilk.${host_arch}: vecadd-forall.cpp
 	@echo $@
-	@$(TIME_CMD) $(KIT_CXX) $(TAPIR_OPENCILK_FLAGS) -o $@ $<
+	$(TIME_CMD) $(KIT_CXX) $(TAPIR_OPENCILK_FLAGS) -o $@ $<
 	@$(FILE_SIZE)
 vecadd-forall.cuda.${host_arch}: vecadd-forall.cpp
 	@echo $@
@@ -23,7 +23,7 @@ vecadd-forall.cuda.${host_arch}: vecadd-forall.cpp
 	@$(FILE_SIZE)
 vecadd-forall.hip.${host_arch}: vecadd-forall.cpp 
 	@echo $@
-	@$(TIME_CMD) $(KIT_CXX) $(TAPIR_HIP_FLAGS) -o $@ $<
+	$(TIME_CMD) $(KIT_CXX) $(TAPIR_HIP_FLAGS) -mllvm -debug-only=hipabi -o $@ $<
 	@$(FILE_SIZE)
 
 # kokkos-based tests (w/out views)
