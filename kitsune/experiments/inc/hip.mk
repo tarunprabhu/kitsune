@@ -2,7 +2,7 @@ ifneq ($(KITSUNE_HIP_ENABLE),)
   AMDGPU_ARCH?=gfx90a
   $(info   hip: amdgpu arch: $(AMDGPU_ARCH))
 
-  HIPCC=$(rocm_path)/bin/hipcc
+  HIPCC=$(ROCM_PATH)/bin/hipcc
   HIPCC_CXX_FLAGS?=--offload-arch=$(AMDGPU_ARCH) \
     -fno-exceptions \
     -O$(KITSUNE_OPTLEVEL)

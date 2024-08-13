@@ -62,7 +62,7 @@ raytracer-cuda.${host_arch}: raytracer.cu
 # hip version 
 raytracer-hip.${host_arch}: raytracer-hip.cpp
 	@echo $@
-	@$(TIME_CMD) $(HIPCC) $(HIPCC_CXX_FLAGS) -o $@ $<
+	$(TIME_CMD) $(HIPCC) $(HIPCC_CXX_FLAGS) -o $@ $<
 	@$(FILE_SIZE)
 
 raytracer-hip.clang.${host_arch}: raytracer-hip.cpp
