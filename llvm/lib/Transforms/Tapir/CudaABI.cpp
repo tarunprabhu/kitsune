@@ -1880,7 +1880,7 @@ Function *CudaABI::createDtor(GlobalVariable *FBHandle) {
   return DtorFn;
 }
 
-void CudaABI::registerFatbinary(GlobalVariable *Fatbinary) {
+void CudaABI::(GlobalVariable *Fatbinary) {
 
   LLVM_DEBUG(dbgs() << "\t- registering fat binary...\n");
 
