@@ -1468,9 +1468,15 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch...\n");
   Value *KSPtr = NewBuilder.CreateLoad(VoidPtrTy, HipStream);
-  NewBuilder.CreateCall(KitHipLaunchFn,
+  CallInst *LaunchStream = NewBuilder.CreateCall(KitHipLaunchFn,
                         {DummyFBPtr, KNameParam, argsPtr, CastTripCount,
                         TPBlockValue, AI, KSPtr});
+  NewBuilder.CreateStore(LaunchStream, HipStream);
+  LLVM_DEBUG(dbgs() << "\t\t+- registering launch stream:\n"
+                    << "\t\t\tcall: " << *LaunchStream << "\n"
+                    << "\t\t\tstream: " << *HipStream << "\n");
+  TTarget->registerLaunchStream(LaunchStream, HipStream);
+
   TOI.ReplCall->eraseFromParent();
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
 }
@@ -1510,7 +1516,8 @@ HipABI::HipABI(Module &InputModule)
                                       Int64Ty,  // device pointer
                                       Int64Ty); // number of bytes to copy
   KitHipSyncFn = M.getOrInsertFunction("__kithip_sync_thread_stream",
-                                       VoidTy); // no return, nor parameters
+                                       VoidTy, 
+                                       VoidPtrTy); // no return, nor parameters
   // Build the details we need for the AMDGPU/HIP target.
   std::string ArchString = "amdgcn";
   Triple TargetTriple(ArchString, "amd", "amdhsa");
@@ -1695,10 +1702,15 @@ bool HipABI::preProcessFunction(Function &F, TaskInfo &TI,
 
 void HipABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
   if (OutliningTapirLoops) {
+    LLVMContext &Ctx = M.getContext();
+    Type *VoidTy = Type::getVoidTy(Ctx);
+    PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
+    Value *HipStream = ConstantPointerNull::get(VoidPtrTy);
     for (Value *SR : SyncRegList) {
       for (Use &U : SR->uses()) {
         if (auto *SyncI = dyn_cast<SyncInst>(U.getUser()))
-          CallInst::Create(KitHipSyncFn, "", &*SyncI->getSuccessor(0)->begin());
+          CallInst::Create(KitHipSyncFn, {HipStream}, "", 
+                           &*SyncI->getSuccessor(0)->begin());
       }
     }
     SyncRegList.clear();
@@ -1721,15 +1733,26 @@ void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   auto &FnList = M.getFunctionList();
+  CallInst *SavedLaunchCI = nullptr;
 
   for (auto &Fn : FnList) {
     for (auto &BB : Fn) {
       for (auto &I : BB) {
         if (CallInst *CI = dyn_cast<CallInst>(&I)) {
           if (Function *CFn = CI->getCalledFunction()) {
-
-            if (CFn->getName().starts_with("__kithip_launch_kernel")) {
+            if (CFn->getName().starts_with("__kithip_sync_thread_stream")) {
+              if (SavedLaunchCI != nullptr) {
+                AllocaInst *StreamAI = getLaunchStream(SavedLaunchCI);
+                assert(StreamAI != nullptr && "unexpected null launch stream!");
+                IRBuilder<> SyncBuilder(CI);
+                Value *HipStream = 
+                    SyncBuilder.CreateLoad(VoidPtrTy, StreamAI, "hipstreamh");
+                CI->setArgOperand(0, HipStream);
+                SavedLaunchCI = nullptr;
+              }
+            } else if (CFn->getName().starts_with("__kithip_launch_kernel")) {
               LLVM_DEBUG(dbgs() << "\t\t\t* patching launch: " << *CI << "\n");
+              SavedLaunchCI = CI;
               Value *HipFatbin;
               HipFatbin = CastInst::CreateBitOrPointerCast(
                   BundleBin, VoidPtrTy, "_hipbin.fatbin", CI);

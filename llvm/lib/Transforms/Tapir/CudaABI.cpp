@@ -1147,11 +1147,9 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
                         TPBlockValue, AI, KSPtr});
   // if (not StreamAssigned)
   NewBuilder.CreateStore(LaunchStream, CudaStream);
-
   LLVM_DEBUG(dbgs() << "\t\t+- registering launch stream:\n"
                     << "\t\t\tcall: " << *LaunchStream << "\n"
                     << "\t\t\tstream: " << *CudaStream << "\n");
-
   TTarget->registerLaunchStream(LaunchStream, CudaStream);
 
   TOI.ReplCall->eraseFromParent();
