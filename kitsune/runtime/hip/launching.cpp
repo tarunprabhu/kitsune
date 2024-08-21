@@ -134,6 +134,10 @@ void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
     threads_per_blk = _kithip_default_threads_per_blk;
   }
 
+  if (__kitrt_verbose_mode())
+    fprintf(stderr, "kithip: launch parameters threads-per-block = %d\n",
+	    threads_per_blk);
+
   // Need to round-up based on array size/trip count.
   blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
 }

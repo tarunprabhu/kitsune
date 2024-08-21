@@ -121,6 +121,7 @@ void *__kithip_get_thread_stream() {
 
  void __kithip_sync_thread_stream(void *opaque_stream) {
    assert(opaque_stream != nullptr && "unexpected null stream pointer!");
+
    HIP_SAFE_CALL(hipSetDevice_p(__kithip_get_device_id()));               
    hipStream_t hip_stream = (hipStream_t)opaque_stream;
    HIP_SAFE_CALL(hipStreamSynchronize_p(hip_stream));
