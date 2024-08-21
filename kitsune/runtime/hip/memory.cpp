@@ -156,7 +156,7 @@ bool __kithip_is_mem_managed(void *vp) {
 
 // NOTE: See within the code below for notes about the prefetching
 // semantics.
-void __kithip_mem_gpu_prefetch(void *vp) {
+void* __kithip_mem_gpu_prefetch(void *vp, void *opaque_stream) {
   assert(vp && "unexpected null pointer!");
   size_t size = 0;
 
@@ -180,11 +180,21 @@ void __kithip_mem_gpu_prefetch(void *vp) {
                                    __kithip_get_device_id()));
       HIP_SAFE_CALL(hipMemAdvise_p(vp, size, hipMemAdviseSetCoarseGrain,
                                    __kithip_get_device_id()));
+
+      hipStream_t hip_stream;
+      if (opaque_stream) 
+        hip_stream = (hipStream_t)opaque_stream;
+      else 
+        hip_stream = (hipStream_t)__kithip_get_thread_stream();      
+      
       HIP_SAFE_CALL(hipMemPrefetchAsync_p(vp, size, __kithip_get_device_id(),
-                                          __kithip_get_thread_stream()));
+                                          hip_stream));
       __kitrt_mark_mem_prefetched(vp);
+      return (void*)hip_stream;
     }
   }
+
+  return nullptr;
 }
 
 void __kithip_mem_host_prefetch(void *vp) {

@@ -359,6 +359,8 @@ private:
                    KitHipWorkGroupIdZFn;
   FunctionCallee   KitHipBlockDimFn;
 
+  StructType *KernelInstMixTy;
+  
   // Kitsune runtime entry points.
   FunctionCallee   KitHipLaunchFn = nullptr;
   FunctionCallee   KitHipModuleLoadDataFn = nullptr;

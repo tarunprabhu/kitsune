@@ -985,9 +985,15 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // supported) we can end up with multiple calls to the outlined
   // loop (which has been setup for dead code elimination) but can
   // cause invalid IR that trips us up when handling the GPU module
-  // code generation. So, we need to do a bit more clean up to keep
-  // the verifier happy (the dead code elimination happens too late
-  // for us).
+  // code generation. This is a challenge in the Tapir design that 
+  // was not geared to handle some of the nuances of GPU target 
+  // transformations (and code gen).  To address this, we need to 
+  // do some clean up to keep the IR correct (or the verifier will
+  // fail on us...).  Specifically, we can no longer depend upon 
+  // DCE as it runs too late in the GPU transformation process...
+  //
+  // TODO: This code can be shared between the cuda and hip targets... 
+  //
   Function *TargetKF = KernelModule.getFunction(KernelName);
   std::list<Instruction *> RemoveList;
   if (TargetKF) {
@@ -1021,6 +1027,8 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   BasicBlock *NewBB = RCBB->splitBasicBlock(TOI.ReplCall);
   IRBuilder<> NewBuilder(&NewBB->front());
 
+  // TODO: There is some potential here to share this code across both
+  // the hip and cuda transforms... 
   LLVM_DEBUG(dbgs() << "\t*- code gen packing of " << OrderedInputs.size()
                     << " kernel args.\n");
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
@@ -1326,15 +1334,7 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
                     << "'.\n");
 
   std::error_code EC;
-  // FIXME: Do not require ptxas to be in $PATH. Use the ptxas that is part of
-  // cuda installation against which Kitsune was built.
-  // auto PTXASExe = sys::findProgramByName("ptxas");
-  // if ((EC = PTXASExe.getError()))
-  //   report_fatal_error("'ptxas' not found. "
-  //                      "Is a CUDA installation in your path?");
-
   llvm::StringRef PTXASExe = KITSUNE_CUDA_PTXAS;
-
   SmallString<255> AsmFileName(PTXFile->getFilename());
   sys::path::replace_extension(AsmFileName, ".s");
   std::unique_ptr<ToolOutputFile> AsmFile;
@@ -1404,7 +1404,7 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
                c++;
              } dbgs() << "\n\n";);
 
-  // Finally we are ready to execute ptxas...
+  // Finally we are ready to run ptxas...
   std::string ErrMsg;
   bool ExecFailed;
   int ExecStat = sys::ExecuteAndWait(PTXASExe, PTXASArgs, std::nullopt, {},
@@ -1880,7 +1880,7 @@ Function *CudaABI::createDtor(GlobalVariable *FBHandle) {
   return DtorFn;
 }
 
-void CudaABI::(GlobalVariable *Fatbinary) {
+void CudaABI::registerFatbinary(GlobalVariable *Fatbinary) {
 
   LLVM_DEBUG(dbgs() << "\t- registering fat binary...\n");
 

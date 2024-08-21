@@ -138,8 +138,11 @@ void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
   blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
 }
 
-void __kithip_launch_kernel(const void *fat_bin, const char *kernel_name,
-                            void **kern_args, uint64_t trip_count) {
+void* __kithip_launch_kernel(const void *fat_bin, const char *kernel_name,
+                             void **kern_args, uint64_t trip_count,
+                             int threads_per_blk,
+                             const KitRTInstMix *inst_mix,
+                             void *opaque_stream) {
 
   assert(fat_bin && "kithip: launch with null fat binary!");
   assert(kernel_name && "kithip: launch with null name!");
@@ -175,25 +178,42 @@ void __kithip_launch_kernel(const void *fat_bin, const char *kernel_name,
 
   _kithip_module_map_mutex.unlock();
 
-  int threads_per_blk, blks_per_grid;
-  __kithip_get_launch_params(trip_count, kern_func, threads_per_blk,
-                             blks_per_grid);
+  int blks_per_grid;
+  if (threads_per_blk == 0) 
+    __kithip_get_launch_params(trip_count, kern_func, threads_per_blk,
+			       blks_per_grid);
+  else
+    blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
 
   if (__kitrt_verbose_mode()) {
     fprintf(stderr, "kithip: kernel '%s' launch parameters:\n", kernel_name);
     fprintf(stderr, "  blocks: %d, 1, 1\n", blks_per_grid);
     fprintf(stderr, "  threads: %d, 1, 1\n", threads_per_blk);
     fprintf(stderr, "  trip count: %ld\n", trip_count);
-    fprintf(stderr, "  args address: %p\n", kern_args);
   }
 
-  hipStream_t hip_stream = __kithip_get_thread_stream();
+  hipStream_t hip_stream = nullptr;
+  if (opaque_stream == nullptr) {
+    // create a stream for this launch...
+    hip_stream = __kithip_get_thread_stream();
+    if (__kitrt_verbose_mode())
+      fprintf(stderr,
+              "kithip: launch stream is null, creating a new stream.\n");
+  } else {
+    hip_stream = (hipStream_t)opaque_stream;    
+    if (__kitrt_verbose_mode())
+      fprintf(stderr,
+              "kithip: launch stream is non-null.\n");
+  }
+
   HIP_SAFE_CALL(hipModuleLaunchKernel_p(kern_func, blks_per_grid, 1, 1,
                                         threads_per_blk, 1, 1,
                                         0, // shared mem size
                                         hip_stream, kern_args, NULL));
+  return (void *)hip_stream;
 }
 
+  
 void *__kithip_get_global_symbol(void *fat_bin, const char *sym_name) {
   assert(fat_bin && "null fat binary!");
   assert(sym_name && "null symbol name!");

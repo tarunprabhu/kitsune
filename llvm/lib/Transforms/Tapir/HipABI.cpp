@@ -112,6 +112,9 @@
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/TapirGPUUtils.h"
+#include "llvm/Transforms/Tapir/TapirLoopInfo.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
 #include "llvm/Transforms/Utils/AMDGPUEmitPrintf.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Mem2Reg.h"
@@ -824,13 +827,20 @@ HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
       &KernelModule, Intrinsic::amdgcn_workgroup_id_z);
 
   // Get entry points into the Hip-centric portion of the Kitsune runtime.
+  KernelInstMixTy = StructType::get(Int64Ty,  // number of memory ops.
+                                    Int64Ty,  // number of floating point ops.
+                                    Int64Ty); // number of integer ops.
 
   KitHipLaunchFn = M.getOrInsertFunction("__kithip_launch_kernel",
-                                         VoidTy,    // no return
-                                         VoidPtrTy, // fat-binary
-                                         VoidPtrTy, // kernel name
-                                         VoidPtrTy, // arguments
-                                         Int64Ty);  // trip count
+      VoidPtrTy,   // return an opaque stream
+      VoidPtrTy,   // fat-binary
+      VoidPtrTy,   // kernel name
+      VoidPtrTy,   // arguments
+      Int64Ty,     // trip count
+      Int32Ty,     // threads-per-block
+      KernelInstMixTy->getPointerTo(), // instruction mix info
+      VoidPtrTy);  // opaque cuda stream
+
   KitHipMemPrefetchFn = M.getOrInsertFunction("__kithip_mem_gpu_prefetch",
                                               VoidTy,     // no return
                                               VoidPtrTy); // pointer to prefetch
@@ -1305,9 +1315,15 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // supported) we can end up with multiple calls to the outlined
   // loop (which has been setup for dead code elimination) but can
   // cause invalid IR that trips us up when handling the GPU module
-  // code generation. So, we need to do a bit more clean up to keep
-  // the verifier happy (the dead code elimination happens too late
-  // for us).
+  // code generation. This is a challenge in the Tapir design that 
+  // was not geared to handle some of the nuances of GPU target 
+  // transformations (and code gen).  To address this, we need to 
+  // do some clean up to keep the IR correct (or the verifier will
+  // fail on us...).  Specifically, we can no longer depend upon 
+  // DCE as it runs too late in the GPU transformation process...
+  //
+  // TODO: This code can be shared between the cuda and hip targets... 
+  //
   Function *TargetKF = KernelModule.getFunction(KernelName);
   std::list<Instruction *> RemoveList;
   if (TargetKF) {
@@ -1320,6 +1336,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
       }
     }
   }
+
   for (auto I : RemoveList)
     I->eraseFromParent();
 
@@ -1339,11 +1356,16 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   BasicBlock *NewBB = RCBB->splitBasicBlock(TOI.ReplCall);
   IRBuilder<> NewBuilder(&NewBB->front());
 
+  // TODO: There is some potential here to share this code across both
+  // the hip and cuda transforms... 
   LLVM_DEBUG(dbgs() << "\t*- code gen packing of " << OrderedInputs.size()
                     << " kernel args.\n");
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   ArrayType *ArrayTy = ArrayType::get(VoidPtrTy, OrderedInputs.size());
   Value *ArgArray = EntryBuilder.CreateAlloca(ArrayTy);
+  AllocaInst *HipStream = EntryBuilder.CreateAlloca(VoidPtrTy);
+  EntryBuilder.CreateStore(ConstantPointerNull::get(VoidPtrTy), HipStream);
+  bool StreamAssigned = false;
   unsigned int i = 0;
   for (Value *V : OrderedInputs) {
     Value *VP = EntryBuilder.CreateAlloca(V->getType());
@@ -1357,7 +1379,15 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     if (CodeGenPrefetch && V->getType()->isPointerTy()) {
       LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for arg " << i << "\n");
       Value *VoidPP = NewBuilder.CreateBitCast(V, VoidPtrTy);
-      NewBuilder.CreateCall(KitHipMemPrefetchFn, {VoidPP});
+      LLVM_DEBUG(dbgs() << "\t\t\t+ prefetch stream is: " << *HipStream
+                        << "\n");
+      Value *SPtr = NewBuilder.CreateLoad(VoidPtrTy, HipStream);
+      Value *NewSPtr = 
+        NewBuilder.CreateCall(KitHipMemPrefetchFn, {VoidPP, SPtr});
+      if (not StreamAssigned) {
+        NewBuilder.CreateStore(NewSPtr, HipStream);
+        StreamAssigned = true;
+      }
     }
   }
 
@@ -1402,9 +1432,45 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   else
     CastTripCount = TripCount; // Simplify cases in launch code gen below...
 
-  LLVM_DEBUG(dbgs() << "\t*- code gen fat-binary based launch call.\n");
+  // At this point we need a threads-per-block value for the launch
+  // call.  The runtime will determine this value if ThreadsPerBlock
+  // is zero but it can also be overridden via kitsune's forall launch
+  // attribute.  The catch here is the launch attribute's value for
+  // this is flexible and be a computed expression vs. a compile-time
+  // constant.  For this first step of creating the kernel launch, we
+  // take the path of a runtime configuration vs. an attributed
+  // launch.  This will get patched up as needed when we post-process
+  // the module and replace the DummyFBPtr (as we will also need to
+  // replace the kernel launch call parameter for threads-per-block if
+  // an attributed expression is present).  See postProcessModule()'s
+  // stage of finalizing the launch calls for details.
+  TapirLoopHints Hints(TL.getLoop());
+  unsigned ThreadsPerBlock = 0;
+  Constant *TPBlockValue =
+      ConstantInt::get(Type::getInt32Ty(Ctx), ThreadsPerBlock);
+
+  LLVM_DEBUG(dbgs() << "\tgathering kernel instruction mix....\n");
+  tapir::KernelInstMixData InstMix;
+  tapir::getKernelInstructionMix(&F, InstMix);
+  LLVM_DEBUG(
+      dbgs() << "\tinstruction mix:\n"
+             << "      memory ops      : " << InstMix.num_memory_ops << "\n"
+             << "      flop count      : " << InstMix.num_flops << "\n"
+             << "      integer op count: " << InstMix.num_iops << "\n\n");
+
+  Constant *InstructionMix = ConstantStruct::get(
+      KernelInstMixTy, ConstantInt::get(Int64Ty, InstMix.num_memory_ops),
+      ConstantInt::get(Int64Ty, InstMix.num_flops),
+      ConstantInt::get(Int64Ty, InstMix.num_iops));
+
+  AllocaInst *AI = NewBuilder.CreateAlloca(KernelInstMixTy);
+  NewBuilder.CreateStore(InstructionMix, AI);      
+
+  LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch...\n");
+  Value *KSPtr = NewBuilder.CreateLoad(VoidPtrTy, HipStream);
   NewBuilder.CreateCall(KitHipLaunchFn,
-                        {DummyFBPtr, KNameParam, argsPtr, CastTripCount});
+                        {DummyFBPtr, KNameParam, argsPtr, CastTripCount,
+                        TPBlockValue, AI, KSPtr});
   TOI.ReplCall->eraseFromParent();
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
 }

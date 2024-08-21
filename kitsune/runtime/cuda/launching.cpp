@@ -183,7 +183,7 @@ int next_lowest_factor(int n, int m) {
  */
 void __kitcuda_get_occ_launch_params(size_t trip_count, CUfunction cu_func,
                                      int &threads_per_blk, int &blks_per_grid,
-                                     const KitCudaInstMix *inst_mix) {
+                                     const KitRTInstMix *inst_mix) {
   assert(_kitcuda_use_occupancy_calc && "called when occupancy mode is false!");
   KIT_NVTX_PUSH("kitcuda:get_occupancy_launch_params", KIT_NVTX_LAUNCH);
 
@@ -275,7 +275,7 @@ void __kitcuda_get_occ_launch_params(size_t trip_count, CUfunction cu_func,
  */
 void __kitcuda_get_launch_params(size_t trip_count, CUfunction cu_func,
                                  int &threads_per_blk, int &blks_per_grid,
-                                 const KitCudaInstMix *inst_mix) {
+                                 const KitRTInstMix *inst_mix) {
   KIT_NVTX_PUSH("kitcuda:get_launch_params", KIT_NVTX_LAUNCH);
 
   // EXPERIMENTAL: Our 'forall' kernels have zero shared memory usage so
@@ -315,11 +315,12 @@ void __kitcuda_get_launch_params(size_t trip_count, CUfunction cu_func,
 void *__kitcuda_launch_kernel(const void *fat_bin, const char *kernel_name,
                               void **kern_args, uint64_t trip_count,
                               int threads_per_blk,
-                              const KitCudaInstMix *inst_mix,
+                              const KitRTInstMix *inst_mix,
                               void *opaque_stream) {
-  assert(fat_bin && "kitrt: CUDA launch with null fat binary!");
-  assert(kernel_name && "kitrt: CUDA launch with null name!");
-  assert(kern_args && "kitrt: CUDA launch with null args!");
+  assert(fat_bin && "kitcuda: launch with null fat binary!");
+  assert(kernel_name && "kitcuda: launch with null name!");
+  assert(kern_args && "kitcuda: launch with null args!");
+  assert(trip_count != 0 && "kitcuda: launch with zero trips!");
 
   KIT_NVTX_PUSH("kitcuda:launch_kernel", KIT_NVTX_LAUNCH);
 
@@ -384,8 +385,8 @@ void *__kitcuda_launch_kernel(const void *fat_bin, const char *kernel_name,
       fprintf(stderr, "kitcuda: launch stream is non-null.\n");
   }
 
-  CU_SAFE_CALL(cuLaunchKernel_p(cu_func, blks_per_grid, 1, 1, threads_per_blk,
-                                1, 1,
+  CU_SAFE_CALL(cuLaunchKernel_p(cu_func, blks_per_grid, 1, 1,
+				threads_per_blk, 1, 1,
                                 0, // shared mem size
                                 cu_stream, kern_args, NULL));
   KIT_NVTX_POP();
