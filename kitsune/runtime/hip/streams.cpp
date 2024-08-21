@@ -121,11 +121,18 @@ void *__kithip_get_thread_stream() {
 
  void __kithip_sync_thread_stream(void *opaque_stream) {
    assert(opaque_stream != nullptr && "unexpected null stream pointer!");
+   HIP_SAFE_CALL(hipSetDevice_p(__kithip_get_device_id()));               
    hipStream_t hip_stream = (hipStream_t)opaque_stream;
    HIP_SAFE_CALL(hipStreamSynchronize_p(hip_stream));
+   // In our current model a synchronized stream is done doing useful
+   // work.  Recycle it for later use.
+  _kithip_stream_mutex.lock();
+  _kithip_streams.push_back(hip_stream);
+  _kithip_stream_mutex.unlock();   
  }
 
 void __kithip_sync_context() {
+  HIP_SAFE_CALL(hipSetDevice_p(__kithip_get_device_id()));            
   HIP_SAFE_CALL(hipDeviceSynchronize_p());
 }
 
