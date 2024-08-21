@@ -13,7 +13,7 @@ kitsune_hip_enable:="${KITSUNE_HIP_ENABLE}"
 ifeq ($(kitsune_hip_enable),"ON")
   $(info config: hip target enabled.)
   KITSUNE_HIP_ENABLE:=true
-  ROCM_PATH:=${ROCM_PATH}  
+  ROCM_PATH:=${ROCM_PATH}
 endif  
 
 # Kokkos support 
