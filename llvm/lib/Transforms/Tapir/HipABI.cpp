@@ -842,8 +842,9 @@ HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
       VoidPtrTy);  // opaque cuda stream
 
   KitHipMemPrefetchFn = M.getOrInsertFunction("__kithip_mem_gpu_prefetch",
-                                              VoidTy,     // no return
-                                              VoidPtrTy); // pointer to prefetch
+                                              VoidPtrTy,  // return an opaque stream
+                                              VoidPtrTy,  // pointer to prefetch
+                                              VoidPtrTy); // use opaque stream. 
 }
 
 HipLoop::~HipLoop() { /* no-op */

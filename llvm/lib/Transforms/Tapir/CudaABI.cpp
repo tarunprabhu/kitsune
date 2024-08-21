@@ -414,6 +414,7 @@ CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
       Int32Ty,                         // threads-per-block
       KernelInstMixTy->getPointerTo(), // instruction mix info
       VoidPtrTy);                      // opaque cuda stream
+      
   KitCudaMemPrefetchFn =
       M.getOrInsertFunction("__kitcuda_mem_gpu_prefetch",
                             VoidPtrTy,  // return an opaque stream
