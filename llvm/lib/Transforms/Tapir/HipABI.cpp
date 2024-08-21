@@ -781,7 +781,6 @@ HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
   LLVMContext &Ctx = KernelModule.getContext();
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
-  Type *VoidTy = Type::getVoidTy(Ctx);
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
 
   // We use ROCm/HSA/HIP entry points for various runtime calls.  These calls
