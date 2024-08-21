@@ -195,7 +195,7 @@ void* __kithip_launch_kernel(const void *fat_bin, const char *kernel_name,
   hipStream_t hip_stream = nullptr;
   if (opaque_stream == nullptr) {
     // create a stream for this launch...
-    hip_stream = __kithip_get_thread_stream();
+    hip_stream = (hipStream_t)__kithip_get_thread_stream();
     if (__kitrt_verbose_mode())
       fprintf(stderr,
               "kithip: launch stream is null, creating a new stream.\n");

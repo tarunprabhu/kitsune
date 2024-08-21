@@ -1,4 +1,5 @@
 //===- streams.cpp - Kitsune runtime CUDA streams support    --------------===//
+// Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 //
 // All rights reserved.
 //
@@ -97,7 +98,7 @@ void *__kitcuda_get_thread_stream() {
 }
 
 void __kitcuda_sync_thread_stream(void *opaque_stream) {
-  assert(opaque_stream != nullptr && "unexpected null pointer!");
+  assert(opaque_stream != nullptr && "unexpected null stream pointer!");
   KIT_NVTX_PUSH("kitcuda:sync_thread_stream", KIT_NVTX_STREAM);
   CUstream stream = (CUstream)opaque_stream;
   CU_SAFE_CALL(cuStreamSynchronize_p(stream));

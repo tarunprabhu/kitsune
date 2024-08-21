@@ -72,8 +72,8 @@ __attribute__((malloc)) void *__kithip_mem_alloc_managed(size_t size) {
   // Cheat a tad and just go ahead and issue a prefetch at allocation
   // time.  Could bite us but what the heck...
   HIP_SAFE_CALL(hipMemPrefetchAsync_p(alloced_ptr, size,
-                                      __kithip_get_device_id(),
-                                      __kithip_get_thread_stream()));
+                     __kithip_get_device_id(),
+                     (hipStream_t)__kithip_get_thread_stream()));
   return alloced_ptr;
 }
 
@@ -87,7 +87,8 @@ __attribute__((malloc)) void *__kithip_mem_calloc_managed(size_t count,
 
   // TODO: Is there a risk of a race here?
   HIP_SAFE_CALL(
-      hipMemsetD8Async_p(memp, 0, nbytes, __kithip_get_thread_stream()));
+      hipMemsetD8Async_p(memp, 0, nbytes,
+		 (hipStream_t)__kithip_get_thread_stream()));
   return (void *)memp;
 }
 
@@ -230,7 +231,7 @@ void __kithip_mem_host_prefetch(void *vp) {
       // not guarantee prefetching is complete it simply flags that
       // the "instruction" has been issued by the runtime.
       HIP_SAFE_CALL(hipMemPrefetchAsync_p(vp, size, __kithip_get_device_id(),
-                                          __kithip_get_thread_stream()));
+                                 (hipStream_t)__kithip_get_thread_stream()));
       __kitrt_set_mem_prefetch(vp, false);
     }
   }

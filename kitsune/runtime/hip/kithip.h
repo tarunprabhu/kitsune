@@ -372,12 +372,12 @@ extern void __kithip_set_custom_launch_params(unsigned blks_per_grid,
  * If a stream has not yet been created and associated with the
  * calling thread it will be created and returned.
  */
-extern hipStream_t __kithip_get_thread_stream();
+extern void *__kithip_get_thread_stream();
 
 /**
  * Synchronize the calling thread with its assocaited stream.
  */
-extern void __kithip_sync_thread_stream();
+extern void __kithip_sync_thread_stream(void *opaque_stream);
 
 /**
  * Synchronize the host-side with **all** underlying streams in the
@@ -394,7 +394,7 @@ extern void __kithip_sync_context();
  * If a stream has not been assigned to the thread this call will
  * simply return and function as a no-op.
  */
-extern void __kithip_delete_thread_stream();
+extern void __kithip_delete_thread_stream(void *opaque_stream);
 
 /**
  * Destroy all the thread-associated streams that are being managed
