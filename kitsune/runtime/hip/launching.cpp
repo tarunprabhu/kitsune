@@ -99,8 +99,8 @@ extern "C" {
 // Without any tweaks from the environment or other runtime calls,
 // this is the default number of threads we'll launch per block (in
 // CUDA speak).
-static bool _kithip_use_occupancy_calc = true;
-static int _kithip_default_max_threads_per_blk = 1024;
+static bool _kithip_use_occupancy_calc = false;
+static int _kithip_default_max_threads_per_blk = 256;
 static int _kithip_default_threads_per_blk = _kithip_default_max_threads_per_blk;
 
 void __kithip_use_occupancy_launch(bool enable) {
