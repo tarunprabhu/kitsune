@@ -1554,20 +1554,16 @@ HipABI::HipABI(Module &InputModule)
   // fatbinary.   Calling the runtime _kitrt_hipEnableXnack() will
   // auto-set the environment variable (now done via the global ctor).
   if (EnableXnack)
-    Features += "+xnack,+xnack-support";
-  else
-    Features += "-xnack,-xnack-support";
+    Features += "+xnack,+xnack-support,";
 
   if (EnableSRAMECC) // TODO: feature is arch specific. need to cross-check.
-    Features += ",+sramecc";
-  else
-    Features += ",-sramecc";
+    Features += ",+sramecc,";
 
   if (Use64ElementWavefront) // TODO: feature is arch specific. need to cross
                              // check.
-    Features += ",-wavefrontsize16,-wavefrontsize32,+wavefrontsize64";
+    Features += "-wavefrontsize16,-wavefrontsize32,+wavefrontsize64";
   else
-    Features += ",-wavefrontsize16,+wavefrontsize32,-wavefrontsize64";
+    Features += "-wavefrontsize16,+wavefrontsize32,-wavefrontsize64";
 
   AMDTargetMachine = AMDGPUTarget->createTargetMachine(
       TargetTriple.getTriple(), GPUArch, Features.c_str(), TargetOptions(),
