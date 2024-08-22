@@ -1218,6 +1218,9 @@ Arm and AArch64 Support
   GCC's implementation. The previous behaviour of ignoring the argument can be
   restored using the -fclang-abi-compat=19 (or earlier) option.
 
+ - The C23 ``_BitInt`` implementation has been brought into compliance
+   with AAPCS32 and AAPCS64.
+
 Android Support
 ^^^^^^^^^^^^^^^
 
