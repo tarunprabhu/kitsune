@@ -183,21 +183,29 @@ void* __kithip_mem_gpu_prefetch(void *vp, void *opaque_stream) {
                                    __kithip_get_device_id()));
 
       hipStream_t hip_stream;
-      if (opaque_stream != nullptr) {
-	if (__kitrt_verbose_mode())
-	  fprintf(stderr, "kithip: issue prefetch on existing stream.\n");
+      if (opaque_stream) {
+        if (__kitrt_verbose_mode())
         hip_stream = (hipStream_t)opaque_stream;
       } else {
-	if (__kitrt_verbose_mode())
-	  fprintf(stderr, "kithip: prefetch creating execution stream.\n");	
         hip_stream = (hipStream_t)__kithip_get_thread_stream();
+        if (__kitrt_verbose_mode())
+          fprintf(stderr, "kithip: executing prefetch-driven execution stream [stream=%p].\n",
+                  (void*)hip_stream);	
       }
-      
+
+      if (__kitrt_verbose_mode()) 
+        fprintf(stderr, "\tkithip: issue prefetch [address=%p, size=%ld, stream=%p].\n", 
+                vp, size, (void*)hip_stream);	
       HIP_SAFE_CALL(hipMemPrefetchAsync_p(vp, size, __kithip_get_device_id(),
                                           hip_stream));
       __kitrt_mark_mem_prefetched(vp);
       return (void*)hip_stream;
     }
+  } else {
+    if (__kitrt_verbose_mode()) 
+      fprintf(stderr, 
+              "\tkithip: skipping previously prefetched data [address=%p, size=%ld].\n", 
+              vp, size);
   }
 
   return nullptr;

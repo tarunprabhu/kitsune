@@ -1049,10 +1049,9 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     i++;
 
     if (CodeGenPrefetch && V->getType()->isPointerTy()) {
-      LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for arg " << i << "\n");
+      LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for kernel arg #" 
+                        << i << "\n");
       Value *VoidPP = NewBuilder.CreateBitCast(V, VoidPtrTy);
-      LLVM_DEBUG(dbgs() << "\t\t\t+ prefetch stream is: " << *CudaStream
-                        << "\n");
       Value *SPtr = NewBuilder.CreateLoad(VoidPtrTy, CudaStream);
       Value *NewSPtr =
           NewBuilder.CreateCall(KitCudaMemPrefetchFn, {VoidPP, SPtr});

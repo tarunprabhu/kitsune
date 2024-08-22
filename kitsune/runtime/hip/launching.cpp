@@ -190,15 +190,14 @@ void* __kithip_launch_kernel(const void *fat_bin, const char *kernel_name,
     blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
 
   if (__kitrt_verbose_mode()) {
-    fprintf(stderr, "kithip: kernel '%s' launch parameters:\n", kernel_name);
-    fprintf(stderr, "  blocks: %d, 1, 1\n", blks_per_grid);
-    fprintf(stderr, "  threads: %d, 1, 1\n", threads_per_blk);
+    fprintf(stderr, "kithip: '%s' launch parameters:\n", kernel_name);
+    fprintf(stderr, "  blocks:     %d, 1, 1\n", blks_per_grid);
+    fprintf(stderr, "  threads:    %d, 1, 1\n", threads_per_blk);
     fprintf(stderr, "  trip count: %ld\n", trip_count);
   }
 
   hipStream_t hip_stream = nullptr;
   if (opaque_stream == nullptr) {
-    // create a stream for this launch...
     hip_stream = (hipStream_t)__kithip_get_thread_stream();
     if (__kitrt_verbose_mode())
       fprintf(stderr,
