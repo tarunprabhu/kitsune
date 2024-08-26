@@ -53,6 +53,7 @@
 #include "kithip_dylib.h"
 #include <mutex>
 #include <unordered_map>
+#include <string>
 
 // TODO: There is some inclination to want to share some code here
 // with the CUDA runtime implementation.  However, the benefits are
@@ -216,8 +217,7 @@ void __kithip_get_occ_launch_params(size_t trip_count, hipFunction_t kfunc,
   blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
 }
 
-
-}
+} // namespace... 
 
 void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
 				const char *kfunc_name, 
