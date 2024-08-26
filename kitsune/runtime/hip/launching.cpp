@@ -50,22 +50,20 @@
  *===----------------------------------------------------------------------===
  */
 #include "kithip.h"
-#include "kithip_dylib.h"
 #include <mutex>
-#include <unordered_map>
+#include <stdint.h>
+#include <stdio.h>
 #include <string>
+#include <unordered_map> // IWYU pragma: keep (clang-tidy+tempaltes == bad???)
 
 // TODO: The hip runtime shares common implementation details 
 // with cuda.  At present we have decided to keep them separated
-// given some potential differences in the underlying runtimes 
-// and some stability issues w/ hip; further down the road, it 
-// might be possible to share some code between the two...
+// given the potential differences in the underlying runtimes 
+// and stability issues w/ hip; further down the road, it might be 
+// possible to share common code between the two.
 
-// TODO: All the experimental features in the implementation below
-// have not yet been validated to actually reduce overheads.  The
-// rule of thumb (based on some behaviors in cuda) is that they can
-// help.  The jury is still out on if the extra code here is worth 
-// the potential savings... 
+//   TODO: The experimental features below have not yet been 
+//   validated to actually reduce overheads.  
 
 // *** EXPERIMENTAL: The runtime maintains a map from fatbinary images
 // to a supporting HIP module.  The primary reason for this is
@@ -220,7 +218,7 @@ void __kithip_get_occ_launch_params(size_t trip_count, hipFunction_t kfunc,
   blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
 }
 
-} // namespace... 
+} // namespace
 
 void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
 				const char *kfunc_name, 
@@ -340,4 +338,5 @@ void *__kithip_get_global_symbol(void *fat_bin, const char *sym_name) {
   HIP_SAFE_CALL(hipModuleGetGlobal_p(&sym_ptr, &bytes, hip_module, sym_name));
   return sym_ptr;
 }
-}
+
+} // extern C
