@@ -110,7 +110,7 @@ void *__kithip_get_thread_stream() {
     _kithip_streams.pop_front();
     _kithip_stream_mutex.unlock();
     if (__kitrt_verbose_mode())
-      fprintf(stderr, "kithip: using recycled stream [stream=%p, poolsize=%d].\n",
+      fprintf(stderr, "kithip: using recycled stream [stream=%p, poolsize=%zu].\n",
             (void*)hip_stream, _kithip_streams.size());
   } else {
     HIP_SAFE_CALL(hipSetDevice_p(__kithip_get_device_id()));          
@@ -132,7 +132,7 @@ void *__kithip_get_thread_stream() {
   _kithip_streams.push_back(hip_stream);
   _kithip_stream_mutex.unlock();   
   if (__kitrt_verbose_mode()) 
-    fprintf(stderr, "kithip: recycling execution stream at sync point [stream=%p, poolsize=%d].\n",
+    fprintf(stderr, "kithip: recycling execution stream at sync point [stream=%p, poolsize=%zu].\n",
             opaque_stream, _kithip_streams.size());
  }
 

@@ -99,7 +99,8 @@ extern "C" {
 // Without any tweaks from the environment or other runtime calls,
 // this is the default number of threads we'll launch per block (in
 // CUDA speak).
-static bool _kithip_use_occupancy_calc = false;
+static bool _kithip_use_occupancy_calc = true;
+static bool _kithip_refine_occupancy_calc = true;
 static int _kithip_default_max_threads_per_blk = 1024;
 static int _kithip_default_threads_per_blk = 256;
 
@@ -117,28 +118,126 @@ void __kithip_set_default_threads_per_blk(int threads_per_blk) {
   _kithip_default_threads_per_blk = threads_per_blk;
 }
 
-void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
-                                int &threads_per_blk, int &blks_per_grid) {
+typedef std::unordered_map<std::string, int> KitHipLaunchParamMap;
+static KitHipLaunchParamMap _kithip_launch_param_map;
 
-  if (_kithip_use_occupancy_calc) {
-    // Frustratingly there are a bunch of inlined type templated calls lurking
-    // behind HIP's occupancy calls.  This makes it difficult here with the
-    // dynamic loading and other details where we are a bit more accustomed to a
-    // C-style approach in the runtime...  It turns out all calls eventually
-    // make it to the "ModuleOccupancy" call used below and we can find a valid
-    // dylib entry point for it.
-    int min_grid_size; // currently ignored...
-    HIP_SAFE_CALL(hipModuleOccupancyMaxPotentialBlockSize_p(
-        &min_grid_size, &threads_per_blk, kfunc, 0, 0));
-  } else {
-    threads_per_blk = _kithip_default_threads_per_blk;
+namespace {
+
+extern int next_lowest_factor(int n, int m);
+
+/**
+ * Get the launch parameters for a given kernel and trip count based
+ * an occupancy-based heuristic.  The behavior of this call will depend
+ * on various runtime configuration details.
+ *
+ * This call is used when the `use_occupancy_launch` flag is set.  The
+ * behavior of the call can be further refined if `tune_occupancy` is
+ * also set.  Details of how this tuning is accomplished is described
+ * within the implementation (and is far from an exact science...).
+ *
+ * @param trip_count - how many elements to process
+ * @param kfunc - the actual CUDA function / kernel.
+ * @param threads_per_blk - computed threads per block for launch
+ * @param blks_per_grid - computed blocks per grid for launch
+ */
+void __kithip_get_occ_launch_params(size_t trip_count, hipFunction_t kfunc,
+                                    int &threads_per_blk, int &blks_per_grid,
+                                    const KitRTInstMix *inst_mix) {
+  assert(_kithip_use_occupancy_calc && "called when occupancy mode is false!");
+
+  // As a default starting point, the hip occupancy heuristic to get
+  // an initial occupancy.
+  int min_grid_size;
+  HIP_SAFE_CALL(hipModuleOccupancyMaxPotentialBlockSize_p(
+      &min_grid_size, &threads_per_blk, kfunc, 0, 0));
+
+  if (_kithip_refine_occupancy_calc) {
+    extern int _kithip_device_id;
+
+    int num_multiprocs = 0;
+    HIP_SAFE_CALL(hipDeviceGetAttribute_p(
+        &num_multiprocs, hipDeviceAttributeMultiprocessorCount,
+        _kithip_device_id));
+
+    // The occupancy measure isn't the only aspect of launch performance
+    // to consider.  Specifically, the heuristic ignores trip counts that
+    // that can lead to an under-subscription of GPU resources.  In these
+    // cases performance can significantly suffer.
+    //
+    // To address trip count impacts we start by looking at an estimate of
+    // the number of SM's that can be kept busy by the provided
+    // threads-per-block value.  We do this by getting a block count and looking
+    // at that number in comparison to the number of SMs.
+    int block_count = (trip_count + threads_per_blk - 1) / threads_per_blk;
+    float sm_load = ((float)block_count / num_multiprocs) * 100.0;
+
+    if (__kitrt_verbose_mode()) {
+      fprintf(stderr,
+              "kithip: kernel workload details --------------\n");
+      fprintf(stderr, "  Number of SMs:        %d\n", num_multiprocs);
+      fprintf(stderr, "  Kernel trip count:    %ld\n", trip_count);
+      fprintf(stderr, "  Occupancy-driven TPB: %d\n", threads_per_blk);
+      fprintf(stderr, "  SM utilization:  %3.2f%%\n", sm_load);
+    }
+    // If we are under-utilizing the available SMs on the GPU we reduce the
+    // threads-per-block count until we hit a decent utilization (i.e., we
+    // increase the block count). The determination of when to make this
+    // adjustment is based on the percentage of SMs used (`sm_usage`) and
+    // must be adjusted such that the resulting block count does not exceed
+    // the number of SMs available.
+    //
+    // As a starting point we will adjust launch parameters if we are utilizing
+    // less than 75% of the GPU's SMs.  TODO: Make this a tweak-able parameter?
+    if (sm_load < 75) {
+      if (__kitrt_verbose_mode())
+        fprintf(stderr,
+                "  ***-GPU is underutilized -- adjusting thread block size...\n");
+
+      int warp_size = 0;
+      HIP_SAFE_CALL(hipDeviceGetAttribute_p(
+                    &warp_size, hipDeviceAttributeWarpSize, 
+                    _kithip_device_id));
+      while (block_count < num_multiprocs && threads_per_blk > warp_size) {
+        threads_per_blk = next_lowest_factor(threads_per_blk, warp_size);
+        block_count = (trip_count + threads_per_blk - 1) / threads_per_blk;
+        sm_load = ((float)block_count / num_multiprocs) * 100.0;
+      }
+      if (__kitrt_verbose_mode()) {
+        fprintf(stderr, "  ***-new launch parameters:");
+        fprintf(stderr, "\tthreads-per-block: %d\n", threads_per_blk);
+        fprintf(stderr, "\tnumer of blocks:   %d\n", block_count);
+        fprintf(stderr, "\tSM utilization:    %3.2f%%\n", sm_load);
+        fprintf(stderr,
+                "-----------------------------------------------------\n\n");
+      }
+    }
   }
 
-  if (__kitrt_verbose_mode())
-    fprintf(stderr, "kithip: launch parameters threads-per-block = %d\n",
-	    threads_per_blk);
+  blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
+}
 
-  // Need to round-up based on array size/trip count.
+
+}
+
+void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
+				const char *kfunc_name, 
+                                int &threads_per_blk, int &blks_per_grid,
+				const KitRTInstMix *inst_mix) {
+  std::string map_entry_name(kfunc_name);
+  map_entry_name += std::to_string(trip_count);
+
+  KitHipLaunchParamMap::iterator lpit = _kithip_launch_param_map.find(map_entry_name);
+  if (lpit != _kithip_launch_param_map.end())
+    // use previously determined parameters.
+    threads_per_blk = lpit->second;
+  else {
+    if (_kithip_use_occupancy_calc)
+      __kithip_get_occ_launch_params(trip_count, kfunc, threads_per_blk,
+                                     blks_per_grid, inst_mix);
+    else 
+      threads_per_blk = _kithip_default_threads_per_blk;
+    _kithip_launch_param_map[map_entry_name] = threads_per_blk;
+  }
   blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
 }
 
@@ -184,8 +283,8 @@ void* __kithip_launch_kernel(const void *fat_bin, const char *kernel_name,
 
   int blks_per_grid;
   if (threads_per_blk == 0) 
-    __kithip_get_launch_params(trip_count, kern_func, threads_per_blk,
-			       blks_per_grid);
+    __kithip_get_launch_params(trip_count, kern_func, kernel_name,
+			       threads_per_blk, blks_per_grid, inst_mix);
   else
     blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
 
