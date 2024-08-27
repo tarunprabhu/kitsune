@@ -11,6 +11,7 @@ clang_target_link_libraries(InterpTests
   clangFrontend
   clangSerialization
   clangTooling
+  LLVMTapirOpts
   )
 
   target_link_libraries(InterpTests
