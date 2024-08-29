@@ -42,7 +42,6 @@ clang_target_link_libraries(ClangAnalysisFlowSensitiveTests
   clangLex
   clangSerialization
   clangTooling
-  LLVMTapirOpts
   )
 
 target_link_libraries(ClangAnalysisFlowSensitiveTests
