@@ -1087,9 +1087,6 @@ Arm and AArch64 Support
 - Added ``-msve-streaming-vector-bits=`` flag, which allows specifying the
   SVE vector width in streaming mode.
 
- - The C23 ``_BitInt`` implementation has been brought into compliance
-   with AAPCS32 and AAPCS64.
-
 Android Support
 ^^^^^^^^^^^^^^^
 
