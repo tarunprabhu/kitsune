@@ -6697,11 +6697,9 @@ QualType ASTContext::getUnconstrainedType(QualType T) const {
   return T;
 }
 
-/// Return the uniqued reference to the deduced template specialization type
-/// which has been deduced to the given type, or to the canonical undeduced
-/// such type, or the canonical deduced-but-dependent such type.
-QualType ASTContext::getDeducedTemplateSpecializationType(
-    TemplateName Template, QualType DeducedType, bool IsDependent) const {
+QualType ASTContext::getDeducedTemplateSpecializationTypeInternal(
+    TemplateName Template, QualType DeducedType, bool IsDependent,
+    QualType Canon) const {
   // Look in the folding set for an existing type.
   void *InsertPos = nullptr;
   llvm::FoldingSetNodeID ID;
@@ -6723,6 +6721,20 @@ QualType ASTContext::getDeducedTemplateSpecializationType(
   Types.push_back(DTST);
   DeducedTemplateSpecializationTypes.InsertNode(DTST, InsertPos);
   return QualType(DTST, 0);
+}
+
+/// Return the uniqued reference to the deduced template specialization type
+/// which has been deduced to the given type, or to the canonical undeduced
+/// such type, or the canonical deduced-but-dependent such type.
+QualType ASTContext::getDeducedTemplateSpecializationType(
+    TemplateName Template, QualType DeducedType, bool IsDependent) const {
+  QualType Canon = DeducedType.isNull()
+                       ? getDeducedTemplateSpecializationTypeInternal(
+                             getCanonicalTemplateName(Template), QualType(),
+                             IsDependent, QualType())
+                       : DeducedType.getCanonicalType();
+  return getDeducedTemplateSpecializationTypeInternal(Template, DeducedType,
+                                                      IsDependent, Canon);
 }
 
 /// getAtomicType - Return the uniqued reference to the atomic type for
