@@ -306,6 +306,8 @@ public:
       return "Use divide-and-conquer";
     case TapirLoopHints::ST_END:
       return "Unknown";
+    default:
+      llvm_unreachable("TapirLoopHints value not handled");
     }
   }
 

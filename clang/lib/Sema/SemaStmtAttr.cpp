@@ -466,7 +466,7 @@ CheckForIncompatibleAttributes(Sema &S,
     VectorizePredicate,
     // The Tapir grainsize only has a numeric form that describes the
     // amount to coarsen the parallel loop.
-    TapirGrainsize,
+    TapirGrainSize,
     // This serves as a indicator to how many category are listed in this enum.
     NumberOfCategories
   };
@@ -518,8 +518,8 @@ CheckForIncompatibleAttributes(Sema &S,
     case LoopHintAttr::PipelineInitiationInterval:
       Category = Pipeline;
       break;
-    case LoopHintAttr::TapirGrainsize:
-      Category = TapirGrainsize;
+    case LoopHintAttr::TapirGrainSize:
+      Category = TapirGrainSize;
       break;
     case LoopHintAttr::VectorizePredicate:
       Category = VectorizePredicate;

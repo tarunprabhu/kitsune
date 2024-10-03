@@ -2722,7 +2722,7 @@ void CodeGenFunction::DetachScope::StartLabeledDetach(SyncRegion *SR) {
     case SD_FullExpression:
       if (auto *Size = CGF.EmitLifetimeStart(
               CGF.CGM.getDataLayout().getTypeAllocSize(RefTmp.getElementType()),
-              RefTmp.getPointer())) {
+              RefTmp.getBasePointer())) {
         if (RefTmpSD == SD_Automatic)
           CGF.pushCleanupAfterFullExpr<CallLifetimeEnd>(NormalEHLifetimeMarker,
                                                         RefTmp, Size);

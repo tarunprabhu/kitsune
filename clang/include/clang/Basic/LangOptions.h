@@ -582,7 +582,7 @@ public:
   bool NoWasmOpt = false;
 
   /// \brief Runtime target for Tapir.
-  TapirTargetID TapirTarget = TapirTargetID::Last_TapirTargetID;
+  llvm::TapirTargetID TapirTarget = llvm::TapirTargetID::Last_TapirTargetID;
 
   /// Kitsune-specific options. This is a separate object because some of these
   /// affect both LangOptions and CodeGenOptions. This is not really a good

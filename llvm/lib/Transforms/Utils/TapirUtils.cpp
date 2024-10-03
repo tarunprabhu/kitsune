@@ -21,6 +21,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -323,7 +324,7 @@ bool llvm::MoveStaticAllocasInBlock(
       ConstantInt *AllocaSize = nullptr;
       if (ConstantInt *AIArraySize =
               dyn_cast<ConstantInt>(AI->getArraySize())) {
-        auto &DL = F->getParent()->getDataLayout();
+        auto &DL = F->getDataLayout();
         Type *AllocaType = AI->getAllocatedType();
         uint64_t AllocaTypeSize = DL.getTypeAllocSize(AllocaType);
         uint64_t AllocaArraySize = AIArraySize->getLimitedValue();

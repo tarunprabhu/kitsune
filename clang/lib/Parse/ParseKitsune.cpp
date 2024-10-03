@@ -116,9 +116,9 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
   FullExprArg ThirdPart(Actions);
 
   if (Tok.is(tok::code_completion)) {
-    Actions.CodeCompleteOrdinaryName(getCurScope(), C99orCXXorObjC
-                                                        ? Sema::PCC_ForInit
-                                                        : Sema::PCC_Expression);
+    Actions.CodeCompletion().CodeCompleteOrdinaryName(
+        getCurScope(), C99orCXXorObjC ? SemaCodeCompletion::PCC_ForInit
+                                      : SemaCodeCompletion::PCC_Expression);
     cutOffParsing();
     return StmtError();
   }
@@ -193,7 +193,8 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
         ConsumeToken(); // consume 'in'
 
         if (Tok.is(tok::code_completion)) {
-          Actions.CodeCompleteObjCForCollection(getCurScope(), DG);
+          Actions.CodeCompletion().CodeCompleteObjCForCollection(getCurScope(),
+                                                                 DG);
           cutOffParsing();
           return StmtError();
         }
@@ -230,7 +231,8 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
       ConsumeToken(); // consume 'in'
 
       if (Tok.is(tok::code_completion)) {
-        Actions.CodeCompleteObjCForCollection(getCurScope(), nullptr);
+        Actions.CodeCompletion().CodeCompleteObjCForCollection(getCurScope(),
+                                                               nullptr);
         cutOffParsing();
         return StmtError();
       }
@@ -360,13 +362,13 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
     // Similarly, we need to do the semantic analysis for a for-range
     // statement immediately in order to close over temporaries correctly.
   } else if (ForEach) {
-    ForEachStmt = Actions.ActOnObjCForCollectionStmt(
+    ForEachStmt = Actions.ObjC().ActOnObjCForCollectionStmt(
         ForLoc, FirstPart.get(), Collection.get(), T.getCloseLocation());
   } else {
     // In OpenMP loop region loop control variable must be captured and be
     // private. Perform analysis of first part (if any).
     if (getLangOpts().OpenMP && FirstPart.isUsable()) {
-      Actions.ActOnOpenMPLoopInitialization(ForLoc, FirstPart.get());
+      Actions.OpenMP().ActOnOpenMPLoopInitialization(ForLoc, FirstPart.get());
     }
   }
 
@@ -404,7 +406,8 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
     return StmtError();
 
   if (ForEach)
-    return Actions.FinishObjCForCollectionStmt(ForEachStmt.get(), Body.get());
+    return Actions.ObjC().FinishObjCForCollectionStmt(ForEachStmt.get(),
+                                                      Body.get());
 
   if (ForRangeInfo.ParsedForRangeDecl())
     return Actions.FinishCXXForallRangeStmt(ForallRangeStmt.get(), Body.get());

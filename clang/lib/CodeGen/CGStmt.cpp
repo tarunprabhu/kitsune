@@ -766,7 +766,6 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
         Builder.CreateAssumption(AssumptionVal);
       }
     } break;
-    }
     case attr::TapirTarget:
       // In the case of a Tapir target attribute, we need to save the attribute
       // set so we can use it when we reach code gen of the underlying

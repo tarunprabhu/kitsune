@@ -49,6 +49,8 @@ raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &Target) {
     return os << "realm";
   case TapirTargetID::Last_TapirTargetID:
     return os << "<invalid>";
+  default:
+    llvm_unreachable("Tapir target not handled");
   }
 }
 

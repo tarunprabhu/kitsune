@@ -57,6 +57,7 @@
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
+#include <map>
 #include <utility>
 
 using namespace llvm;
@@ -884,7 +885,7 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
   if (!T) {
     LLVM_DEBUG(
       dbgs() << "Loop does not match structure of Tapir loop:\n";
-      if (hintsDemandOutlining(Hints)) 
+      if (hintsDemandOutlining(Hints))
         emitMissedWarning(L, Hints, &ORE));
     return nullptr;
   }

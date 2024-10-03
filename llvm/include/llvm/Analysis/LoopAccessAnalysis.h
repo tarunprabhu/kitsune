@@ -184,7 +184,7 @@ public:
 
   MemoryDepChecker(PredicatedScalarEvolution &PSE, const Loop *L,
                    const DenseMap<Value *, const SCEV *> &SymbolicStrides,
-                   unsigned MaxTargetVectorWidthInBits, TaskInfo *TI = nullptr)
+                   unsigned MaxTargetVectorWidthInBits, TaskInfo *TI)
       : PSE(PSE), InnermostLoop(L), SymbolicStrides(SymbolicStrides),
         MaxTargetVectorWidthInBits(MaxTargetVectorWidthInBits), TI(TI) {}
 
@@ -339,7 +339,7 @@ private:
       PointerBounds;
 
   /// Optional TaskInfo
-  TaskInfo *TI;
+  TaskInfo *TI = nullptr;
 
   /// Check whether there is a plausible dependence between the two
   /// accesses.

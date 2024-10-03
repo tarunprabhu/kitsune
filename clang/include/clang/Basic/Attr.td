@@ -4167,7 +4167,7 @@ def LoopHint : Attr {
     case PipelineInitiationInterval: return "pipeline_initiation_interval";
     case Distribute: return "distribute";
     case VectorizePredicate: return "vectorize_predicate";
-    case TapirGrainsize: return "grainsize";
+    case TapirGrainSize: return "grainsize";
     }
     llvm_unreachable("Unhandled LoopHint option.");
   }
@@ -4742,7 +4742,7 @@ def TapirTarget : StmtAttr {
   let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt, Stmt],
                              ErrorDiag, "'parallel' statements">;
   let Args = [
-    EnumArgument<"TapirTargetAttrType", "TapirTargetAttrTy",
+    EnumArgument<"TapirTargetAttrType", "TapirTargetAttrTy", /*is_string=*/ true,
                  ["none", "serial", "cuda", "hip", "opencilk", "openmp",
                   "qthreads", "realm"],
                  ["None", "Serial", "Cuda", "Hip", "OpenCilk", "OpenMP",
@@ -4757,7 +4757,7 @@ def TapirStrategy : StmtAttr {
   let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
                              ErrorDiag, "'forall' statement">;
   let Args = [
-      EnumArgument<"TapirStrategyType", "TapirStrategyTy",
+      EnumArgument<"TapirStrategyType", "TapirStrategyTy", /*is_string=*/ true,
       ["seq", "dac", "gpu"],
       ["SEQ", "DAC", "GPU"], 0>
   ];

@@ -72,7 +72,7 @@ struct LoopAttributes {
   unsigned UnrollAndJamCount;
 
   /// tapir.loop.grainsize.
-  unsigned TapirGrainsize;
+  unsigned TapirGrainSize;
 
   /// Value for llvm.loop.distribute.enable metadata.
   LVEnableState DistributeEnable;
@@ -321,7 +321,7 @@ public:
   }
 
   /// Set the Tapir-loop grainsize for the next loop pushed.
-  void setTapirGrainsize(unsigned C) { StagedAttrs.TapirGrainsize = C; }
+  void setTapirGrainSize(unsigned C) { StagedAttrs.TapirGrainSize = C; }
 
   /// Set the Tapir loop target
   void setLoopTarget(std::optional<llvm::TapirTargetID> LT) {

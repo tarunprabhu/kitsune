@@ -12542,7 +12542,7 @@ def note_amdgcn_global_load_lds_size_valid_value : Note<"size must be 1, 2, or 4
 def err_tapir_target_attr_unsupported_stmt: Error<
   "tapir target attribute on unsupported statement">;
 def err_tapir_target_unknown: Error<
-  "unknown tapir target.">;
+  "unknown tapir target">;
 
 // execution strategy/policy
 def err_tapir_strategy_unknown: Error<
@@ -12573,9 +12573,9 @@ def err_forall_no_inc: Error<
 def err_forall_has_break: Error<
   "forall body may not have a break statement">;
 def err_forall_init_not_decl: Error<
-  "Initializer in a forall statement must be a variable declaration">;
+  "initializer in a forall statement must be a variable declaration">;
 def err_forall_init_multiple: Error<
-  "Initializer in a forall statement must declare exactly one variable">;
+  "initializer in a forall statement must declare exactly one variable">;
 
 // memory access qualifiers
 def err_kitsune_multiple_access_qualifiers : Error<

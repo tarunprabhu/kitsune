@@ -615,6 +615,7 @@ Value *emitBuiltinWithOneOverloadedType(CodeGenFunction &CGF, const CallExpr *E,
                                         unsigned IntrinsicID,
                                         llvm::StringRef Name = "") {
   static_assert(N, "expect non-empty argument");
+  CodeGenFunction::IsSpawnedScope SpawnedScp(&CGF);
   SmallVector<Value *, N> Args;
   for (unsigned I = 0; I < N; ++I)
     Args.push_back(CGF.EmitScalarExpr(E->getArg(I)));
@@ -3661,6 +3662,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     MaybeDetach(this, SpawnedScp);
     EmitTrapCall(Intrinsic::trap);
     return RValue::get(nullptr);
+  }
   case Builtin::BI__builtin_verbose_trap: {
     IsSpawnedScope SpawnedScp(this);
     MaybeDetach(this, SpawnedScp);

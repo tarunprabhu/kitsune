@@ -148,8 +148,9 @@ llvm::Instruction *CodeGenFunction::EmitLabeledSyncRegionStart(StringRef SV) {
   // Start the sync region.  To ensure the syncregion.start call dominates all
   // uses of the generated token, we insert this call at the alloca insertion
   // point.
+  llvm::Function* Func = CGM.getIntrinsic(llvm::Intrinsic::syncregion_start);
   llvm::Instruction *SRStart = llvm::CallInst::Create(
-      CGM.getIntrinsic(llvm::Intrinsic::syncregion_start), SV, AllocaInsertPt);
+      Func->getFunctionType(), Func, SV, &*AllocaInsertPt);
   return SRStart;
 }
 
