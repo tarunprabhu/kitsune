@@ -172,7 +172,7 @@ void CodeGenFunction::DetachScope::StartDetach() {
     case SD_FullExpression:
       if (auto *Size = CGF.EmitLifetimeStart(
               CGF.CGM.getDataLayout().getTypeAllocSize(RefTmp.getElementType()),
-              RefTmp.getPointer())) {
+              RefTmp.getBasePointer())) {
         if (RefTmpSD == SD_Automatic)
           CGF.pushCleanupAfterFullExpr<CallLifetimeEnd>(NormalEHLifetimeMarker,
                                                         RefTmp, Size);
@@ -415,8 +415,8 @@ llvm::Instruction *CodeGenFunction::EmitSyncRegionStart() {
   // Start the sync region.  To ensure the syncregion.start call dominates all
   // uses of the generated token, we insert this call at the alloca insertion
   // point.
+  llvm::Function* Func = CGM.getIntrinsic(llvm::Intrinsic::syncregion_start);
   llvm::Instruction *SRStart = llvm::CallInst::Create(
-      CGM.getIntrinsic(llvm::Intrinsic::syncregion_start),
-      "syncreg", AllocaInsertPt);
+      Func->getFunctionType(), Func, "syncreg", &*AllocaInsertPt);
   return SRStart;
 }

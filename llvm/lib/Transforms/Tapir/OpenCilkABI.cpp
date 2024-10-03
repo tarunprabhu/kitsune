@@ -12,26 +12,32 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/OpenCilkABI.h"
-#include "llvm/IRReader/IRReader.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/InstIterator.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker/Linker.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ModRef.h"
 #include "llvm/Transforms/Tapir/Outline.h"
+#include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
@@ -211,16 +217,23 @@ void OpenCilkABI::prepareModule() {
   PointerType *StackFramePtrTy = PointerType::getUnqual(StackFrameTy);
   Type *VoidTy = Type::getVoidTy(C);
   Type *VoidPtrTy = PointerType::getUnqual(C);
+  Type *BoolTy = Type::getInt1Ty(C);
 
   // Define the types of the CilkRTS functions.
   FunctionType *CilkRTSFnTy =
       FunctionType::get(VoidTy, {StackFramePtrTy}, false);
+  FunctionType *CilkRTSHelperFnTy = FunctionType::get(
+      VoidTy, {StackFramePtrTy, StackFramePtrTy, BoolTy}, false);
   FunctionType *CilkPrepareSpawnFnTy =
       FunctionType::get(Int32Ty, {StackFramePtrTy}, false);
+  FunctionType *CilkRTSDetachFnTy =
+      FunctionType::get(VoidTy, {StackFramePtrTy, StackFramePtrTy}, false);
   FunctionType *CilkRTSEnterLandingpadFnTy =
       FunctionType::get(VoidTy, {StackFramePtrTy, Int32Ty}, false);
   FunctionType *CilkRTSPauseFrameFnTy = FunctionType::get(
-      VoidTy, {StackFramePtrTy, PointerType::getUnqual(C)}, false);
+      VoidTy,
+      {StackFramePtrTy, StackFramePtrTy, PointerType::getUnqual(C), BoolTy},
+      false);
   FunctionType *Grainsize8FnTy = FunctionType::get(Int8Ty, {Int8Ty}, false);
   FunctionType *Grainsize16FnTy = FunctionType::get(Int16Ty, {Int16Ty}, false);
   FunctionType *Grainsize32FnTy = FunctionType::get(Int32Ty, {Int32Ty}, false);
@@ -239,15 +252,17 @@ void OpenCilkABI::prepareModule() {
   // FunctionCallee member variables in the OpenCilkABI class.
   CilkRTSFnDesc CilkRTSFunctions[] = {
       {"__cilkrts_enter_frame", CilkRTSFnTy, CilkRTSEnterFrame},
-      {"__cilkrts_enter_frame_helper", CilkRTSFnTy, CilkRTSEnterFrameHelper},
-      {"__cilkrts_detach", CilkRTSFnTy, CilkRTSDetach},
+      {"__cilkrts_enter_frame_helper", CilkRTSHelperFnTy,
+       CilkRTSEnterFrameHelper},
+      {"__cilkrts_detach", CilkRTSDetachFnTy, CilkRTSDetach},
       {"__cilkrts_leave_frame", CilkRTSFnTy, CilkRTSLeaveFrame},
-      {"__cilkrts_leave_frame_helper", CilkRTSFnTy, CilkRTSLeaveFrameHelper},
+      {"__cilkrts_leave_frame_helper", CilkRTSHelperFnTy,
+       CilkRTSLeaveFrameHelper},
       {"__cilk_prepare_spawn", CilkPrepareSpawnFnTy, CilkPrepareSpawn},
       {"__cilk_sync", CilkRTSFnTy, CilkSync},
       {"__cilk_sync_nothrow", CilkRTSFnTy, CilkSyncNoThrow},
       {"__cilk_parent_epilogue", CilkRTSFnTy, CilkParentEpilogue},
-      {"__cilk_helper_epilogue", CilkRTSFnTy, CilkHelperEpilogue},
+      {"__cilk_helper_epilogue", CilkRTSHelperFnTy, CilkHelperEpilogue},
       {"__cilkrts_enter_landingpad", CilkRTSEnterLandingpadFnTy,
        CilkRTSEnterLandingpad},
       {"__cilkrts_pause_frame", CilkRTSPauseFrameFnTy, CilkRTSPauseFrame},
@@ -294,6 +309,7 @@ void OpenCilkABI::prepareModule() {
     }
     if (GlobalVariable *AlignVar =
         M.getGlobalVariable("__cilkrts_stack_frame_align", true)) {
+      // StackFrameAlign is undefined here.
       StackFrameAlign = AlignVar->getAlign();
       // Mark this variable with private linkage, to avoid linker failures when
       // compiling with no optimizations.
@@ -313,6 +329,12 @@ void OpenCilkABI::prepareModule() {
   if (StackFrameTy->isOpaque()) {
     // Create a dummy __cilkrts_stack_frame structure
     StackFrameTy->setBody(Int64Ty);
+  } else {
+    // Promote the stack frame structure alignment to the largest convenient
+    // value given the ABI.
+    Align ABIStackAlign = M.getDataLayout().getStackAlignment();
+    if (ABIStackAlign > StackFrameAlign.valueOrOne())
+      StackFrameAlign = ABIStackAlign;
   }
   // Create declarations of all CilkRTS functions, and add basic attributes to
   // those declarations.
@@ -332,6 +354,20 @@ void OpenCilkABI::prepareModule() {
   }
 }
 
+void OpenCilkABI::setupTaskOutlineArgs(Function &F, ValueSet &HelperArgs,
+                                       SmallVectorImpl<Value *> &HelperInputs,
+                                       const ValueSet &TaskHelperArgs) {
+  TapirTarget::setupTaskOutlineArgs(F, HelperArgs, HelperInputs,
+                                    TaskHelperArgs);
+
+  // Add a pointer for the parent stack frame.  This pointer will be replaced
+  // later in the call to the helper.
+  PointerType *SFPtrTy = PointerType::getUnqual(F.getContext());
+  Value *ParentSFArg = ConstantPointerNull::get(SFPtrTy);
+  HelperArgs.insert(ParentSFArg);
+  HelperInputs.push_back(ParentSFArg);
+}
+
 void OpenCilkABI::addHelperAttributes(Function &Helper) {
   // Use a fast calling convention for the helper.
   Helper.setCallingConv(CallingConv::Fast);
@@ -343,9 +379,10 @@ void OpenCilkABI::addHelperAttributes(Function &Helper) {
   if (getArgStructMode() != ArgStructMode::None) {
     Helper.removeFnAttr(Attribute::WriteOnly);
     Helper.setMemoryEffects(
+        Helper.getMemoryEffects() |
         MemoryEffects(MemoryEffects::Location::Other, ModRefInfo::ModRef));
   }
-  // Note that the address of the helper is unimportant.
+  // Mark that the address of the helper is unimportant.
   Helper.setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
 
   // The helper is internal to this module.  We use internal linkage, rather
@@ -449,12 +486,24 @@ Value* OpenCilkABI::GetOrCreateCilkStackFrame(Function &F) {
   return SF;
 }
 
+static unsigned getParentSFArgNum(Function &H) {
+  return H.arg_size() - 1;
+}
+
+// Helper function to add a debug location to an IRBuilder if it otherwise lacks
+// a debug location.
+static void ensureDebugLocation(IRBuilder<> &B, Function &F) {
+  if (!B.getCurrentDebugLocation())
+    if (auto *SP = F.getSubprogram())
+      B.SetCurrentDebugLocation(
+          DILocation::get(SP->getContext(), SP->getScopeLine(), 0, SP));
+}
+
 // Insert a call in Function F to __cilkrts_detach at DetachPt, which must be
 // after the allocation of the __cilkrts_stack_frame in F.
 void OpenCilkABI::InsertDetach(Function &F, Instruction *DetachPt) {
   Instruction *SF = cast<Instruction>(GetOrCreateCilkStackFrame(F));
   assert(SF && "No Cilk stack frame for Cilk function.");
-  Value *Args[1] = {SF};
 
   // Scan function to see if it detaches.
   LLVM_DEBUG({
@@ -465,7 +514,8 @@ void OpenCilkABI::InsertDetach(Function &F, Instruction *DetachPt) {
 
   // Call __cilkrts_detach
   IRBuilder<> IRB(DetachPt);
-  IRB.CreateCall(CILKRTS_FUNC(detach), Args);
+  ensureDebugLocation(IRB, F);
+  IRB.CreateCall(CILKRTS_FUNC(detach), {SF, F.getArg(getParentSFArgNum(F))});
 }
 
 // Insert a call in Function F to __cilkrts_enter_frame{_helper} to initialize
@@ -473,44 +523,32 @@ void OpenCilkABI::InsertDetach(Function &F, Instruction *DetachPt) {
 // __cilkrts_enter_frame{_helper} is inserted at TaskFramecreate.
 CallInst *OpenCilkABI::InsertStackFramePush(Function &F,
                                             Instruction *TaskFrameCreate,
-                                            bool Helper) {
+                                            bool Helper, bool Spawner) {
   Instruction *SF = cast<Instruction>(GetOrCreateCilkStackFrame(F));
 
   BasicBlock::iterator InsertPt = ++SF->getIterator();
   IRBuilder<> B(&(F.getEntryBlock()), InsertPt);
   if (TaskFrameCreate)
     B.SetInsertPoint(TaskFrameCreate);
-  if (!B.getCurrentDebugLocation()) {
-    // Try to find debug information later in this block for the ABI call.
-    BasicBlock::iterator BI = B.GetInsertPoint();
-    BasicBlock::const_iterator BE(B.GetInsertBlock()->end());
-    while (BI != BE) {
-      if (DebugLoc Loc = BI->getDebugLoc()) {
-        B.SetCurrentDebugLocation(Loc);
-        break;
-      }
-      ++BI;
-    }
+  ensureDebugLocation(B, F);
 
-    // Next, try to find debug information earlier in this block.
-    if (!B.getCurrentDebugLocation()) {
-      BI = B.GetInsertPoint();
-      BasicBlock::const_iterator BB(B.GetInsertBlock()->begin());
-      while (BI != BB) {
-        --BI;
-        if (DebugLoc Loc = BI->getDebugLoc()) {
-          B.SetCurrentDebugLocation(Loc);
-          break;
-        }
-      }
-    }
+  if (Helper)
+    return B.CreateCall(
+        CILKRTS_FUNC(enter_frame_helper),
+        {SF, F.getArg(getParentSFArgNum(F)),
+         ConstantInt::getBool(Type::getInt1Ty(F.getContext()), Spawner)});
+  return B.CreateCall(CILKRTS_FUNC(enter_frame), {SF});
   }
 
-  Value *Args[1] = {SF};
-  if (Helper)
-    return B.CreateCall(CILKRTS_FUNC(enter_frame_helper), Args);
-  else
-    return B.CreateCall(CILKRTS_FUNC(enter_frame), Args);
+// Helper method to copy the debug location from RI to CI or add an empty debug
+// location to CI.
+static void copyDebugLocation(Instruction *CI, const Instruction *RI,
+                              Function &F) {
+  CI->setDebugLoc(RI->getDebugLoc());
+  if (!CI->getDebugLoc())
+    if (auto *SP = F.getSubprogram())
+      CI->setDebugLoc(
+          DILocation::get(SP->getContext(), SP->getScopeLine(), 0, SP));
 }
 
 // Insert a call in Function F to the appropriate epilogue function.
@@ -528,7 +566,8 @@ CallInst *OpenCilkABI::InsertStackFramePush(Function &F,
 // promoted to invoke instructions prior to inserting the epilogue-function
 // calls.
 void OpenCilkABI::InsertStackFramePop(Function &F, bool PromoteCallsToInvokes,
-                                      bool InsertPauseFrame, bool Helper) {
+                                      bool InsertPauseFrame, bool Helper,
+                                      bool Spawner) {
   Value *SF = GetOrCreateCilkStackFrame(F);
   SmallPtrSet<ReturnInst *, 8> Returns;
   SmallPtrSet<ResumeInst *, 8> Resumes;
@@ -537,13 +576,13 @@ void OpenCilkABI::InsertStackFramePop(Function &F, bool PromoteCallsToInvokes,
   EscapeEnumerator EE(F, "cilkrts_cleanup", PromoteCallsToInvokes);
   while (IRBuilder<> *Builder = EE.Next()) {
     if (ResumeInst *RI = dyn_cast<ResumeInst>(Builder->GetInsertPoint())) {
-      if (!RI->getDebugLoc())
+      if (!RI->getDebugLoc()) {
         // Attempt to set the debug location of this resume to match one of the
         // preceeding terminators.
+        SmallVector<DILocation *, 4> Locs;
         for (const BasicBlock *Pred : predecessors(RI->getParent()))
-          if (const DebugLoc &Loc = Pred->getTerminator()->getDebugLoc()) {
-            RI->setDebugLoc(Loc);
-            break;
+          Locs.push_back(Pred->getTerminator()->getDebugLoc());
+        RI->setDebugLoc(DILocation::getMergedLocations(Locs));
           }
       Resumes.insert(RI);
     }
@@ -552,21 +591,29 @@ void OpenCilkABI::InsertStackFramePop(Function &F, bool PromoteCallsToInvokes,
   }
 
   for (ReturnInst *RI : Returns) {
+    CallInst *CI;
     if (Helper) {
-      CallInst::Create(GetCilkHelperEpilogueFn(), {SF}, "", RI)
-          ->setDebugLoc(RI->getDebugLoc());
+      CI = CallInst::Create(
+          GetCilkHelperEpilogueFn(),
+          {SF, F.getArg(getParentSFArgNum(F)),
+           ConstantInt::getBool(Type::getInt1Ty(F.getContext()), Spawner)},
+          "", RI);
     } else {
-      CallInst::Create(GetCilkParentEpilogueFn(), {SF}, "", RI)
-          ->setDebugLoc(RI->getDebugLoc());
+      CI = CallInst::Create(GetCilkParentEpilogueFn(), {SF}, "", RI);
     }
+    copyDebugLocation(CI, RI, F);
   }
   for (ResumeInst *RI : Resumes) {
     if (InsertPauseFrame) {
       Value *Exn = ExtractValueInst::Create(RI->getValue(), {0}, "", RI);
       // If throwing an exception, pass the exception object to the epilogue
       // function.
-      CallInst::Create(GetCilkHelperEpilogueExnFn(), {SF, Exn}, "", RI)
-          ->setDebugLoc(RI->getDebugLoc());
+      CallInst *CI = CallInst::Create(
+          GetCilkHelperEpilogueExnFn(),
+          {SF, F.getArg(getParentSFArgNum(F)), Exn,
+           ConstantInt::getBool(Type::getInt1Ty(F.getContext()), Spawner)},
+          "", RI);
+      copyDebugLocation(CI, RI, F);
     }
   }
 }
@@ -609,6 +656,7 @@ void OpenCilkABI::MarkSpawner(Function &F) {
   // Mark this function as stealable.
   F.addFnAttr(Attribute::Stealable);
   F.setMemoryEffects(
+      F.getMemoryEffects() |
       MemoryEffects(MemoryEffects::Location::Other, ModRefInfo::ModRef));
 }
 
@@ -750,8 +798,8 @@ void OpenCilkABI::preProcessOutlinedTask(Function &F, Instruction *DetachPt,
     MarkSpawner(F);
 
   CallInst *EnterFrame =
-      InsertStackFramePush(F, TaskFrameCreate, /*Helper*/ true);
-  InsertDetach(F, (DetachPt ? DetachPt : &*(++EnterFrame->getIterator())));
+      InsertStackFramePush(F, TaskFrameCreate, /*Helper*/ true, IsSpawner);
+  InsertDetach(F, (DetachPt ? DetachPt : EnterFrame->getNextNode()));
 }
 
 void OpenCilkABI::postProcessOutlinedTask(Function &F, Instruction *DetachPt,
@@ -763,7 +811,7 @@ void OpenCilkABI::postProcessOutlinedTask(Function &F, Instruction *DetachPt,
   // the parent was stolen, in which case we want to save the exception for
   // later reduction.
   InsertStackFramePop(F, /*PromoteCallsToInvokes*/ true,
-                      /*InsertPauseFrame*/ true, /*Helper*/ true);
+                      /*InsertPauseFrame*/ true, /*Helper*/ true, IsSpawner);
 
   // TODO: If F is itself a spawner, see if we need to ensure that the Cilk
   // personality function does not pop an already-popped frame.  We might be
@@ -774,7 +822,7 @@ void OpenCilkABI::postProcessOutlinedTask(Function &F, Instruction *DetachPt,
 void OpenCilkABI::preProcessRootSpawner(Function &F, BasicBlock *TFEntry) {
   MarkSpawner(F);
   if (TapirRTCalls[TFEntry].empty()) {
-    InsertStackFramePush(F);
+    InsertStackFramePush(F, nullptr, false, true);
   } else {
     LowerTapirRTCalls(F, TFEntry);
   }
@@ -800,6 +848,7 @@ void OpenCilkABI::preProcessRootSpawner(Function &F, BasicBlock *TFEntry) {
           ++BI;
         }
       }
+      ensureDebugLocation(Builder, F);
 
       Value *Sel = Builder.CreateExtractValue(LPad, 1, "sel");
       Builder.CreateCall(CILKRTS_FUNC(enter_landingpad), {SF, Sel});
@@ -813,7 +862,8 @@ void OpenCilkABI::postProcessRootSpawner(Function &F, BasicBlock *TFEntry) {
   // popping the frame if no landingpad exists for a given call.
   if (TapirRTCalls[TFEntry].empty())
     InsertStackFramePop(F, /*PromoteCallsToInvokes*/ false,
-                        /*InsertPauseFrame*/ false, /*Helper*/ false);
+                        /*InsertPauseFrame*/ false, /*Helper*/ false,
+                        /*Spawner*/ true);
 }
 
 void OpenCilkABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
@@ -821,9 +871,20 @@ void OpenCilkABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
   Instruction *ReplCall = TOI.ReplCall;
 
   Function &F = *ReplCall->getFunction();
+  LLVMContext &C = F.getContext();
   Value *SF = DetachCtxToStackFrame[&F];
   assert(SF && "No frame found for spawning task");
 
+  // Find the helper argument for the parent __cilkrts_stack_frame and update
+  // the corresponding operand in the call.
+  const unsigned ParentSFArgNum = getParentSFArgNum(*TOI.Outline);
+  assert(ReplCall->getOperand(ParentSFArgNum) ==
+         ConstantPointerNull::get(PointerType::getUnqual(C)));
+  ReplCall->setOperand(ParentSFArgNum, SF);
+  Argument *ParentSFArg = TOI.Outline->getArg(ParentSFArgNum);
+  if (StackFrameAlign)
+    ParentSFArg->addAttr(
+      Attribute::getWithAlignment(C, StackFrameAlign.value()));
   // Split the basic block containing the detach replacement just before the
   // start of the detach-replacement instructions.
   BasicBlock *DetBlock = ReplStart->getParent();
@@ -901,13 +962,13 @@ static bool findOutermostTapirRTCallsForTaskFrame(
             FoundTapirRTEnd = true;
             BasicBlock *EndBB = UI->getParent();
             assert(TFBlocks.count(EndBB) && "tapir_runtime_end not in same "
-                                            "taskframe as tapir_runtime_begin");
+                                            "taskframe as tapir_runtime_start");
             EndIters.push_back(++UI->getIterator());
           }
         }
 
         if (FoundTapirRTEnd)
-          // We found a tapir_runtime_begin in this block, so stop searching.
+          // We found a tapir_runtime_start in this block, so stop searching.
           break;
       }
     }
@@ -1016,11 +1077,6 @@ void OpenCilkABI::GetTapirRTCalls(Spindle *TaskFrame, bool IsRootTask,
 
   // Process subtaskframes recursively.
   for (Spindle *SubTF : SubTFs) {
-    // Skip any subtaskframes that are already enclosed in
-    // tapir.runtime.{start,end} intrinsics.
-    if (!SuccessorTFs.count(SubTF))
-      continue;
-
     // Skip any taskframes that are associated with subtasks.
     assert(!SubTF->getTaskFromTaskFrame() &&
            "Should not be processing spawned taskframes.");
@@ -1031,6 +1087,9 @@ void OpenCilkABI::GetTapirRTCalls(Spindle *TaskFrame, bool IsRootTask,
 
 bool OpenCilkABI::preProcessFunction(Function &F, TaskInfo &TI,
                                      bool ProcessingTapirLoops) {
+  if (Processed.contains(&F))
+    return false;
+
   if (ProcessingTapirLoops)
     // Don't do any preprocessing when outlining Tapir loops.
     return false;
@@ -1054,6 +1113,8 @@ void OpenCilkABI::postProcessFunction(Function &F, bool ProcessingTapirLoops) {
 
   if (!DebugABICalls)
     inlineCilkFunctions(F, CallsToInline);
+
+  Processed.insert(&F);
 }
 
 /// Process the Tapir instructions in an ordinary (non-spawning and not spawned)
@@ -1108,10 +1169,10 @@ bool OpenCilkABI::processOrdinaryFunction(Function &F, BasicBlock *TFEntry) {
   return Changed;
 }
 
-void OpenCilkABI::postProcessHelper(Function &F) {}
+void OpenCilkABI::postProcessHelper(Function &F) { Processed.insert(&F); }
 
-LoopOutlineProcessor *OpenCilkABI::getLoopOutlineProcessor(
-    const TapirLoopInfo *TL) {
+LoopOutlineProcessor *
+OpenCilkABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
   return nullptr;
 }
 

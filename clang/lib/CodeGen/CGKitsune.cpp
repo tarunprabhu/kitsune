@@ -62,20 +62,17 @@
 using namespace clang;
 using namespace CodeGen;
 
+// KITSUNE FIXME: This seems to be unused. Is this actually the case? Also, is
+// there is a bug in the attribute handling loop since curAttr is never
+// incremented? Or is there some mysterious C++ black magic at work again?
 LoopAttributes::LSStrategy
 CodeGenFunction::GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs) {
-
   LoopAttributes::LSStrategy Strategy = LoopAttributes::SEQ;
-
   auto curAttr = Attrs.begin();
-
   while (curAttr != Attrs.end()) {
-
     const attr::Kind AttrKind = (*curAttr)->getKind();
-
     if (AttrKind == attr::TapirStrategy) {
       const auto *SAttr = cast<const TapirStrategyAttr>(*curAttr);
-
       switch (SAttr->getTapirStrategyType()) {
       case TapirStrategyAttr::SEQ:
         Strategy = LoopAttributes::SEQ;
@@ -122,9 +119,12 @@ CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
         return llvm::TapirTargetID::Qthreads;
       case TapirTargetAttr::Realm:
         return llvm::TapirTargetID::Realm;
-      default:
-        llvm_unreachable("unhandled tapir target attribute!");
       }
+      // We don't put this in a default block in the switch above because it
+      // results in compiler warnings about default blocks in a switch where all
+      // enumeration values are handled. But we want this error in case a new
+      // tapir target is added, but this code is not updated.
+      llvm_unreachable("Tapir target not handled");
     }
   }
   return CGM.getLangOpts().KitsuneOpts.getTapirTarget();
@@ -132,7 +132,6 @@ CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
 
 llvm::Value *
 CodeGenFunction::GetKitsuneLaunchAttr(ArrayRef<const Attr *> Attrs) {
-
   for (const auto *curAttr : Attrs) {
     if (curAttr->getKind() == attr::KitsuneLaunch) {
       const Expr *TPBAttr =
@@ -148,8 +147,9 @@ llvm::Instruction *CodeGenFunction::EmitLabeledSyncRegionStart(StringRef SV) {
   // Start the sync region.  To ensure the syncregion.start call dominates all
   // uses of the generated token, we insert this call at the alloca insertion
   // point.
+  llvm::Function* Func = CGM.getIntrinsic(llvm::Intrinsic::syncregion_start);
   llvm::Instruction *SRStart = llvm::CallInst::Create(
-      CGM.getIntrinsic(llvm::Intrinsic::syncregion_start), SV, AllocaInsertPt);
+      Func->getFunctionType(), Func, SV, &*AllocaInsertPt);
   return SRStart;
 }
 
@@ -206,18 +206,10 @@ void CodeGenFunction::SetAllocaInsertPoint(llvm::Value *v,
 // a precursor to capturing the IV by value in the body emission.
 void CodeGenFunction::EmitIVLoad(const VarDecl *LoopVar,
                                  DeclMapByValueTy &IVDeclMap) {
-
   // The address corresponding to the IV
   Address IVAddress = LocalDeclMap.find(LoopVar)->second;
-
-  // Remove the IV mapping from the LocalDeclMap
   LocalDeclMap.erase(LoopVar);
-
-  // Get the type
   QualType type = LoopVar->getType();
-
-  // Create the vector of values
-
   llvm::SmallVector<llvm::Value *, 4> ValueVec;
 
   // Emit all the shallow copy loads and update
@@ -259,19 +251,13 @@ void CodeGenFunction::EmitIVLoad(const VarDecl *LoopVar,
 
 // Emit a thread safe copy of the induction variable and set it's value
 // to the current value of the induction variable
-
 void CodeGenFunction::EmitThreadSafeIV(
     const VarDecl *IV, const llvm::SmallVector<llvm::Value *, 4> &Values) {
-
   // emit the thread safe induction variable and cleanups
   AutoVarEmission LVEmission = EmitAutoVarAlloca(*IV);
   EmitAutoVarCleanups(LVEmission);
   QualType type = IV->getType();
-
-  // get the address of the emission
   Address Loc = LVEmission.getObjectAddress(*this);
-
-  // turn the address into an LValue
   LValue LV = MakeAddrLValue(Loc, type);
 
   // Make sure the LValue isn't garbage collected
@@ -303,20 +289,16 @@ void CodeGenFunction::EmitThreadSafeIV(
   }
 }
 
-// Restore the original mapping between the Vardecl and its address
+// Restore the original mapping between the thread safe induction variable and
+// its address, then restore the original mapping.
 void CodeGenFunction::RestoreDeclMap(const VarDecl *IV,
                                      const Address IVAddress) {
-
-  // remove the mapping to the thread safe induction variable
   LocalDeclMap.erase(IV);
-
-  // restore the original mapping
   LocalDeclMap.insert({IV, IVAddress});
 }
 
 void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
                                      ArrayRef<const Attr *> ForallAttr) {
-
   // A forall may have attributes but no tapir target so we can't simply
   // check if the attributes are empty.
   std::optional<llvm::TapirTargetID> TT = GetTapirTargetAttr(ForallAttr);
@@ -415,7 +397,6 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   // Emits the detach block for parallel execution along with its Tapir
   // terminator. This is where we capture the induction variable by value and
   // store it on the stack of the calling thread.
-
   EmitBlock(Detach);
 
   // Extract the DeclStmt from the statement init. This is guaranteed to exist.

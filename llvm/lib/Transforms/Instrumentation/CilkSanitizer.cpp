@@ -4191,15 +4191,13 @@ bool CilkSanitizerImpl::instrumentDetach(DetachInst *DI, unsigned SyncRegNum,
     Prop.setIsTapirLoopBody(TapirLoopBody);
     Prop.setNumSyncReg(NumSyncRegs);
     // Get the frame and stack pointers.
-    Value *FrameAddr =
-        IRB.CreateCall(Intrinsic::getDeclaration(
-                           &M, Intrinsic::task_frameaddress, {IRB.getPtrTy()}),
+    Value *FrameAddr = IRB.CreateCall(
+        Intrinsic::getDeclaration(&M, Intrinsic::task_frameaddress),
                        {IRB.getInt32(0)});
-    Value *StackSave = IRB.CreateCall(
-        Intrinsic::getDeclaration(&M, Intrinsic::stacksave, {IRB.getPtrTy()}));
-    Instruction *Call =
-        IRB.CreateCall(CsanTaskEntry, {TaskID, DetachID, FrameAddr, StackSave,
-                                       Prop.getValue(IRB)});
+    Value *StackSave = IRB.CreateStackSave();
+    Instruction *Call = IRB.CreateCall(CsanTaskEntry,
+                                       {TaskID, DetachID, FrameAddr,
+                                        StackSave, Prop.getValue(IRB)});
     IRB.SetInstDebugLocation(Call);
 
     // Instrument the exit points of the detached tasks.

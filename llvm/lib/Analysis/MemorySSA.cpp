@@ -1284,8 +1284,9 @@ MemorySSA::MemorySSA(Function &Func, AliasAnalysis *AA, DominatorTree *DT,
   getWalker();
 }
 
-MemorySSA::MemorySSA(Loop &L, AliasAnalysis *AA, DominatorTree *DT)
-    : DT(DT), L(&L), LiveOnEntryDef(nullptr), Walker(nullptr),
+MemorySSA::MemorySSA(Loop &L, AliasAnalysis *AA, DominatorTree *DT,
+                     TaskInfo *TI)
+  : DT(DT), L(&L), TI(TI), LiveOnEntryDef(nullptr), Walker(nullptr),
       SkipWalker(nullptr) {
   // Build MemorySSA using a batch alias analysis. This reuses the internal
   // state that AA collects during an alias()/getModRefInfo() call. This is

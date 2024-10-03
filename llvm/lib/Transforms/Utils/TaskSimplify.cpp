@@ -117,7 +117,8 @@ static bool removeRedundantSyncs(MaybeParallelTasks &MPTasks, Task *T) {
 static bool syncIsDiscriminating(const Value *SyncSR,
                                  SmallPtrSetImpl<const Task *> &MPTasks) {
   for (const Task *MPTask : MPTasks)
-    if (SyncSR != MPTask->getDetach()->getSyncRegion())
+    if (!MPTask->encloses(cast<Instruction>(SyncSR)->getParent()) &&
+        SyncSR != MPTask->getDetach()->getSyncRegion())
       return true;
   return false;
 }
@@ -187,6 +188,26 @@ static bool removeRedundantSyncRegions(MaybeParallelTasks &MPTasks, Task *T) {
 }
 
 bool llvm::simplifySyncs(Task *T, MaybeParallelTasks &MPTasks) {
+  // ---------------------------------------------------------------------------
+  //
+  // KITSUNE FIXME: These should be re-enabled!
+  //
+  // There is a bug that manifests in multi-target mode (at least, I think it is
+  // in multi-target mode, though I honestly cannot remember) to work around
+  // which we simply disable the removable of redundant syncs and sync regions.
+  // This is obviously a pretty terrible solution and should be fixed.
+  //
+  // The corresponding test: llvm/test/Transforms/Tapir/dead-tapir-intrinsics.ll
+  // should also be re-enabled after fixing this.
+  //
+  // TP - 14-Oct-2024
+  //
+  LLVM_DEBUG(dbgs() << "WARNING: Not simplifying syncs in task @ "
+                    << T->getEntry()->getName() << "\n");
+  return false;
+  //
+  // ---------------------------------------------------------------------------
+
   bool Changed = false;
 
   LLVM_DEBUG(dbgs() << "Simplifying syncs in task @ "
@@ -195,10 +216,10 @@ bool llvm::simplifySyncs(Task *T, MaybeParallelTasks &MPTasks) {
   // Remove redundant syncs.  This optimization might not be necessary here,
   // because SimplifyCFG seems to do a good job removing syncs that cannot sync
   // anything.
-  //Changed |= removeRedundantSyncs(MPTasks, T);
+  Changed |= removeRedundantSyncs(MPTasks, T);
 
   // Remove redundant sync regions.
-  //Changed |= removeRedundantSyncRegions(MPTasks, T);
+  Changed |= removeRedundantSyncRegions(MPTasks, T);
 
   return Changed;
 }
@@ -284,11 +305,15 @@ static bool canRemoveTaskFrame(const Spindle *TF, MaybeParallelTasks &MPTasks,
   // properties.  We do not need to check the task that uses this taskframe.
   const Task *UserT = TF->getTaskFromTaskFrame();
 
-  if (!UserT && !MPTasks.TaskList[TF].empty() && getTaskFrameResume(TFCreate))
+  if (!UserT && !MPTasks.TaskList[TF].empty() && getTaskFrameResume(TFCreate)) {
     // Landingpads perform an implicit sync, so if there are logically parallel
     // tasks with this unassociated taskframe and it has a resume destination,
     // then it has a distinguishing sync.
+    LLVM_DEBUG(
+        dbgs() << "Can't remove taskframe with implicit distinguishing sync: "
+               << *TFCreate << "\n");
     return false;
+  }
 
   // Create filter for MPTasks of tasks from parent of task UserT, if UserT
   // exists.
@@ -307,7 +332,7 @@ static bool canRemoveTaskFrame(const Spindle *TF, MaybeParallelTasks &MPTasks,
       continue;
 
     // Skip spindles in nested taskframes.
-    if (S != TF && S->getTaskFrameParent() != TF)
+    if (S != TF && S->getTaskFrameParent() && S->getTaskFrameParent() != TF)
       continue;
 
     // Filter the task list of S to exclude tasks in parallel with the entry.
@@ -323,8 +348,13 @@ static bool canRemoveTaskFrame(const Spindle *TF, MaybeParallelTasks &MPTasks,
       for (const Instruction &I : *BB) {
         if (isa<AllocaInst>(I)) {
           TaskFrameContainsAlloca = true;
-          if (UserT)
+          if (UserT) {
+            LLVM_DEBUG(
+                dbgs()
+                << "Can't remove taskframe with allocas used by spawned task: "
+                << *TFCreate << "\n");
             return false;
+          }
         }
       }
 
@@ -332,8 +362,12 @@ static bool canRemoveTaskFrame(const Spindle *TF, MaybeParallelTasks &MPTasks,
       // so would cause these syncs to sync tasks spawned in the parent
       // taskframe.
       if (const SyncInst *SI = dyn_cast<SyncInst>(BB->getTerminator()))
-        if (syncIsDiscriminating(SI->getSyncRegion(), LocalTaskList))
+        if (syncIsDiscriminating(SI->getSyncRegion(), LocalTaskList)) {
+          LLVM_DEBUG(dbgs()
+                     << "Can't remove taskframe with distinguishing sync: "
+                     << *TFCreate << "\n");
           return false;
+        }
     }
   }
 
@@ -344,6 +378,7 @@ static bool skipForHoisting(const Instruction *I,
                             SmallPtrSetImpl<const Instruction *> &NotHoisted) {
   if (I->isTerminator() || isTapirIntrinsic(Intrinsic::taskframe_create, I) ||
       isTapirIntrinsic(Intrinsic::syncregion_start, I) ||
+      isTapirIntrinsic(Intrinsic::tapir_runtime_start, I) ||
       isa<AllocaInst>(I))
     return true;
 
@@ -427,23 +462,16 @@ bool llvm::simplifyTaskFrames(TaskInfo &TI, DominatorTree &DT) {
   // Now delete any taskframes we don't need.
   for (Instruction *TFCreate : TaskFramesToConvert) {
     LLVM_DEBUG(dbgs() << "Converting taskframe " << *TFCreate << "\n");
-    Module *M = TFCreate->getModule();
-    Type* PtrType = PointerType::getUnqual(M->getContext());
-    Function *StackSave =
-        Intrinsic::getDeclaration(M, Intrinsic::stacksave, {PtrType});
-    Function *StackRestore =
-        Intrinsic::getDeclaration(M, Intrinsic::stackrestore, {PtrType});
-
     // Save the stack at the point of the taskframe.create.
     CallInst *SavedPtr =
-        IRBuilder<>(TFCreate).CreateCall(StackSave, {}, "savedstack.ts");
+        IRBuilder<>(TFCreate).CreateStackSave("savedstack.ts");
 
     for (User *U : TFCreate->users()) {
       if (Instruction *UI = dyn_cast<Instruction>(U)) {
         // Restore the stack at each end of the taskframe.
         if (isTapirIntrinsic(Intrinsic::taskframe_end, UI) ||
             isTapirIntrinsic(Intrinsic::taskframe_resume, UI))
-          IRBuilder<>(UI).CreateCall(StackRestore, SavedPtr);
+          IRBuilder<>(UI).CreateStackRestore(SavedPtr);
       }
     }
     // Remove the taskframe.

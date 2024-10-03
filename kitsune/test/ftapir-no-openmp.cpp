@@ -5,4 +5,4 @@
 //
 // RUN: not %kitxx -fsyntax-only -ftapir=openmp %s 2>&1 | FileCheck %s
 //
-// CHECK: Tapir target 'openmp' was not enabled when kitsune was built
+// CHECK: tapir target 'openmp' was not enabled when kitsune was built

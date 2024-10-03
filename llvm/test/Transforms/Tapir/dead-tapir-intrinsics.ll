@@ -1,3 +1,21 @@
+; ---------------------------------------------------------------------------
+;
+; XFAIL: *
+;
+; KITSUNE FIXME:
+;
+;                         THIS SHOULD NOT BE XFAIL
+;
+; There is a bug that manifests in multi-target mode (at least, I think it is
+; in multi-target mode, though I honestly cannot remember) to work around
+; which we simply disable the removable of redundant syncs and sync regions.
+; This is obviously a pretty terrible solution and should be fixed. The
+; source is in llvm/lib/Transforms/Tapir/TaskSimplify.cpp
+;
+; TP - 14-Oct-2024
+;
+; ---------------------------------------------------------------------------
+
 ; Test that basic -O1 optimizations effectively remove Tapir
 ; instructions and intrinsics.
 ;

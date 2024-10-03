@@ -222,7 +222,9 @@ checkFunctionMemoryAccess(Function &F, bool ThisBody, AAResults &AAR,
       if (ArgMR != ModRefInfo::NoModRef)
         addArgLocs(ME, Call, ArgMR, AAR);
       continue;
-    } else if (isa<SyncInst>(I) || isa<DetachInst>(I) || isa<ReattachInst>(I)) {
+    }
+
+    if (isa<SyncInst>(I) || isa<DetachInst>(I) || isa<ReattachInst>(I)) {
       // Tapir instructions only access memory accessed by other instructions in
       // the function.  Hence we let the other instructions determine the
       // attribute of this function.
@@ -1704,60 +1706,17 @@ static void addNoRecurseAttrs(const SCCNodeSet &SCCNodes,
   // If all of the calls in F are identifiable and are to norecurse functions, F
   // is norecurse. This check also detects self-recursion as F is not currently
   // marked norecurse, so any called from F to F will not be marked norecurse.
-  for (auto &BB : *F) {
-    for (auto &I : BB.instructionsWithoutDebug()) {
+  for (auto &BB : *F)
+    for (auto &I : BB.instructionsWithoutDebug())
       if (auto *CB = dyn_cast<CallBase>(&I)) {
         Function *Callee = CB->getCalledFunction();
         if (!Callee || Callee == F ||
             (!Callee->doesNotRecurse() &&
              !(Callee->isDeclaration() &&
-               Callee->hasFnAttribute(Attribute::NoCallback)))) {
-          if (Callee && Callee != F) {
-            // Ignore certain intrinsics when inferring norecurse.
-            switch (Callee->getIntrinsicID()) {
-            case Intrinsic::annotation:
-            case Intrinsic::assume:
-            case Intrinsic::sideeffect:
-            case Intrinsic::invariant_start:
-            case Intrinsic::invariant_end:
-            case Intrinsic::launder_invariant_group:
-            case Intrinsic::strip_invariant_group:
-            case Intrinsic::is_constant:
-            case Intrinsic::lifetime_start:
-            case Intrinsic::lifetime_end:
-            case Intrinsic::objectsize:
-            case Intrinsic::ptr_annotation:
-            case Intrinsic::var_annotation:
-            case Intrinsic::experimental_gc_result:
-            case Intrinsic::experimental_gc_relocate:
-            case Intrinsic::coro_alloc:
-            case Intrinsic::coro_begin:
-            case Intrinsic::coro_free:
-            case Intrinsic::coro_end:
-            case Intrinsic::coro_frame:
-            case Intrinsic::coro_size:
-            case Intrinsic::coro_suspend:
-            case Intrinsic::coro_subfn_addr:
-            case Intrinsic::syncregion_start:
-            case Intrinsic::detached_rethrow:
-            case Intrinsic::taskframe_create:
-            case Intrinsic::taskframe_use:
-            case Intrinsic::taskframe_end:
-            case Intrinsic::taskframe_resume:
-            case Intrinsic::taskframe_load_guard:
-            case Intrinsic::sync_unwind:
-              continue;
-            default:
-              return;
-            }
-          } else {
-            // Function calls a potentially recursive function.
-            return;
-          }
-        }
+               Callee->hasFnAttribute(Attribute::NoCallback))))
+          // Function calls a potentially recursive function.
+          return;
       }
-    }
-  }
 
   // Every call was to a non-recursive function other than this function, and
   // we have no indirect recursion as the SCC size is one. This function cannot

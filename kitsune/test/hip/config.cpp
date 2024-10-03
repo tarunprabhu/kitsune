@@ -13,8 +13,10 @@
 // CHECK-CUSTOM-NOEXIST-NOT: Configuration file: {{.*}}/hip.cfg
 // CHECK-CUSTOM: Configuration file: {{.*}}/hip/hip.cfg
 // CHECK-CUSTOM: "-cc1"
-// CHECK-CUSTOM-SAME: "-D" "_tapir_hip_target"
 // CHECK-CUSTOM-SAME: "-D" "some_preprocessor_flag"
+// CHECK-CUSTOM-SAME: "-D_tapir_hip_target"
 // CHECK-CUSTOM-SAME: "-Wsome_compiler_flag"
 // CHECK-CUSTOM: {{^[ ]*"[^"]+/[l]?}}ld{{[.]?[^ ]*}}"
 // CHECK-CUSTOM-SAME: "-some_linker_flag"
+// CHECK-CUSTOM-SAME: "-lamdhip64"
+// CHECK-CUSTOM-SAME: -lkitrt

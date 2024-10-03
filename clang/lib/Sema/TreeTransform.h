@@ -2652,8 +2652,8 @@ public:
                                   diag::err_objc_for_range_init_stmt)
                          << Init->getSourceRange();
             }
-            return getSema().ActOnObjCForCollectionStmt(ForLoc, LoopVar,
-                                                        RangeExpr, RParenLoc);
+            return getSema().ObjC().ActOnObjCForCollectionStmt(
+                ForLoc, LoopVar, RangeExpr, RParenLoc);
           }
         }
       }
@@ -16664,7 +16664,7 @@ template<typename Derived>
 StmtResult
 TreeTransform<Derived>::TransformForallStmt(ForallStmt *S) {
   if (getSema().getLangOpts().OpenMP)
-    getSema().startOpenMPLoop();
+    getSema().OpenMP().startOpenMPLoop();
 
   // Transform the initialization statement
   StmtResult Init = getDerived().TransformStmt(S->getInit());
@@ -16674,7 +16674,8 @@ TreeTransform<Derived>::TransformForallStmt(ForallStmt *S) {
   // In OpenMP loop region loop control variable must be captured and be
   // private. Perform analysis of first part (if any).
   if (getSema().getLangOpts().OpenMP && Init.isUsable())
-    getSema().ActOnOpenMPLoopInitialization(S->getForallLoc(), Init.get());
+    getSema().OpenMP().ActOnOpenMPLoopInitialization(S->getForallLoc(),
+                                                     Init.get());
 
   // Transform the condition
   Sema::ConditionResult Cond = getDerived().TransformCondition(
@@ -16726,7 +16727,7 @@ TreeTransform<Derived>::TransformSpawnStmt(SpawnStmt *S) {
 template<typename Derived>
 StmtResult
 TreeTransform<Derived>::TransformSyncStmt(SyncStmt *S) {
-  return S; 
+  return S;
 }
 
 } // end namespace clang

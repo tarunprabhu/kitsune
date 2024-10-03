@@ -47,6 +47,9 @@ bool isDetachedRethrow(const Instruction *I, const Value *SyncRegion = nullptr);
 /// taskframe.resume uses \p TaskFrame.
 bool isTaskFrameResume(const Instruction *I, const Value *TaskFrame = nullptr);
 
+/// Check if the given instruction is a Tapir intrinsic that can be skipped.
+bool isSkippableTapirIntrinsic(const Instruction *I);
+
 /// Returns true if the given basic block \p B is a placeholder successor of a
 /// taskframe.resume or detached.rethrow.
 bool isTapirPlaceholderSuccessor(const BasicBlock *B);
@@ -274,12 +277,14 @@ private:
       case HK_GRAINSIZE:
         return true;
       case HK_LOOPTARGET:
-        // DWS don't like the conversion from scoped enum to unsigned, better way?
-        return (Val < static_cast<unsigned int>(TapirTargetID::Last_TapirTargetID));
+        // DWS: don't like the conversion from scoped enum to unsigned, better
+        // way?
+        return (Val <
+                static_cast<unsigned int>(TapirTargetID::Last_TapirTargetID));
       case HK_THREADS_PER_BLOCK:
-	return Val;
+        return Val;
       case HK_AUTO_TUNE:
-	return Val;
+        return Val;
       }
       return false;
     }
@@ -307,6 +312,11 @@ public:
     case TapirLoopHints::ST_END:
       return "Unknown";
     }
+    // This could have been put in a default block in the switch statement above
+    // but that leads to incessant compiler warnings about a default in a switch
+    // that covers all enumerations. We want this in case a new loop hint is
+    // added since the language itself will not help in this case.
+    llvm_unreachable("TapirLoopHints value not handled");
   }
 
   TapirLoopHints(const Loop *L)

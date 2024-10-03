@@ -18,6 +18,7 @@
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/InstructionCost.h"
 
@@ -191,7 +192,11 @@ void CodeMetrics::analyzeBasicBlock(
                         << "\n  Cannot duplicate a token value used outside "
                            "the current block (except convergence control).\n");
       if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I)) {
-        if (Intrinsic::syncregion_start != II->getIntrinsicID())
+        if (Intrinsic::syncregion_start != II->getIntrinsicID() &&
+            Intrinsic::taskframe_create != II->getIntrinsicID() &&
+            Intrinsic::taskframe_use != II->getIntrinsicID() &&
+            Intrinsic::taskframe_resume != II->getIntrinsicID() &&
+            Intrinsic::taskframe_end != II->getIntrinsicID())
           notDuplicatable = true;
       } else {
         notDuplicatable = true;

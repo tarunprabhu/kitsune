@@ -3008,8 +3008,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       // Transfer all of the allocas over in a block.  Using splice means
       // that the instructions aren't removed from the symbol table, then
       // reinserted.
-      // KITSUNE FIXME: Is it safe to uncomment this?
-      // I.setTailBit(true);
+      I.setTailBit(true);
       DetachedCtxEntryBlock->splice(InsertPoint, &*FirstNewBlock,
                                     AI->getIterator(), I);
     }
@@ -3030,6 +3029,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
                cast<IntrinsicInst>(I)->getIntrinsicID())
           ++I;
 
+        I.setTailBit(true);
         DetachedCtxEntryBlock->splice(InsertPoint, &*FirstNewBlock,
                                       II->getIterator(), I);
       }
@@ -3192,7 +3192,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   if (InlinedFunctionInfo.ContainsDetach &&
       (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall)) {
     Module *M = Caller->getParent();
-    // Get the two intrinsics we care about.
+    // Get the taskframe.create intrinsic.
     Function *TFCreateFn =
         Intrinsic::getDeclaration(M, Intrinsic::taskframe_create);
 
@@ -3227,8 +3227,6 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       II->setUnwindDest(TaskFrameUnwindEdge);
     }
   } else if (InlinedFunctionInfo.ContainsDynamicAllocas) {
-    Module *M = Caller->getParent();
-
     // Insert the llvm.stacksave.
     CallInst *SavedPtr = IRBuilder<>(&*FirstNewBlock, FirstNewBlock->begin())
                              .CreateStackSave("savedstack");

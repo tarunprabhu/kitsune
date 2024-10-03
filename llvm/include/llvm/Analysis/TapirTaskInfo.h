@@ -15,7 +15,6 @@
 #define LLVM_ANALYSIS_TAPIRTASKINFO_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SetVector.h"
@@ -29,7 +28,6 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Allocator.h"
-#include <algorithm>
 #include <utility>
 
 namespace llvm {
@@ -859,7 +857,11 @@ public:
   /// Returns true if this task encloses basic block BB simply, that is, without
   /// checking any shared EH exits of this task.
   bool simplyEncloses(const BasicBlock *BB) const {
-    return DomTree.dominates(getEntry(), BB);
+    // DomTree.dominates(getEntry(), BB) will return true if BB is not reachable
+    // and getEntry() is reachable.  This method should return that BB is not
+    // simply enclosed in that case.
+    return DomTree.isReachableFromEntry(BB) &&
+           DomTree.dominates(getEntry(), BB);
   }
 
   /// Return true if specified task encloses basic block BB.

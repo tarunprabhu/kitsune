@@ -5,4 +5,4 @@
 //
 // RUN: not %kitxx -fsyntax-only -ftapir=realm %s 2>&1 | FileCheck %s
 //
-// CHECK: Tapir target 'realm' was not enabled when kitsune was built
+// CHECK: tapir target 'realm' was not enabled when kitsune was built

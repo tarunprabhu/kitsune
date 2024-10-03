@@ -2011,7 +2011,7 @@ CudaABIOutputFile CudaABI::generatePTX() {
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
-    PTXTargetMachine->registerPassBuilderCallbacks(pb, false);
+    PTXTargetMachine->registerPassBuilderCallbacks(pb);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
 
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
@@ -2095,7 +2095,7 @@ void CudaABI::postProcessModule() {
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
-    PTXTargetMachine->registerPassBuilderCallbacks(pb, false);
+    PTXTargetMachine->registerPassBuilderCallbacks(pb);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
 
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);

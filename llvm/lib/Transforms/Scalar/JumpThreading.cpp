@@ -1971,7 +1971,7 @@ bool JumpThreadingPass::maybeMergeBasicBlockIntoOnlyPred(BasicBlock *BB) {
 
   const Instruction *TI = SinglePred->getTerminator();
   if (TI->isSpecialTerminator() || TI->getNumSuccessors() != 1 ||
-      isa<SyncInst>(TI) || SinglePred == BB || hasAddressTakenAndUsed(BB))
+      SinglePred == BB || hasAddressTakenAndUsed(BB))
     return false;
 
   // If SinglePred was a loop header, BB becomes one.

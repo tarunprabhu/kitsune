@@ -2162,17 +2162,21 @@ enum CXCursorKind {
    */
   CXCursor_OpenACCLoopConstruct = 321,
 
+  /** Kitsune forall statement.
+   */
+  CXCursor_ForallStmt = 340,
+
   /** Kitsune range-based forall statement.
    */
-  CXCursor_CXXForallRangeStmt = 340,
+  CXCursor_CXXForallRangeStmt = 341,
 
   /** Kitsune spawn statement.
    */
-  CXCursor_SpawnStmt = 341,
+  CXCursor_SpawnStmt = 342,
 
   /** Kitsune sync statement.
    */
-  CXCursor_SyncStmt = 342,
+  CXCursor_SyncStmt = 343,
 
   CXCursor_LastStmt = CXCursor_SyncStmt,
 

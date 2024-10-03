@@ -5,4 +5,4 @@
 //
 // RUN: not %kitxx -fsyntax-only -ftapir=hip %s 2>&1 | FileCheck %s
 //
-// CHECK: Tapir target 'hip' was not enabled when kitsune was built
+// CHECK: tapir target 'hip' was not enabled when kitsune was built

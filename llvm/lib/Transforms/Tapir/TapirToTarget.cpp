@@ -23,9 +23,9 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Timer.h"
-#include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Tapir.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
 #define DEBUG_TYPE "tapir2target"
@@ -62,7 +62,6 @@ public:
   bool run();
 
 private:
-  bool unifyReturns(Function &F);
   bool processFunction(Function &F, SmallVectorImpl<Function *> &NewHelpers);
   TFOutlineMapTy outlineAllTasks(Function &F,
                                  SmallVectorImpl<Spindle *> &AllTaskFrames,
@@ -87,46 +86,6 @@ private:
   function_ref<TargetLibraryInfo &(Function &)> GetTLI;
 };
 
-bool TapirToTargetImpl::unifyReturns(Function &F) {
-  NamedRegionTimer NRT("unifyReturns", "Unify returns", TimerGroupName,
-                       TimerGroupDescription, TimePassesIsEnabled);
-  SmallVector<BasicBlock *, 4> ReturningBlocks;
-  for (BasicBlock &BB : F)
-    if (isa<ReturnInst>(BB.getTerminator()))
-      ReturningBlocks.push_back(&BB);
-
-  // If this function already has no returns or a single return, then terminate
-  // early.
-  if (ReturningBlocks.size() <= 1)
-    return false;
-
-  BasicBlock *NewRetBlock = BasicBlock::Create(F.getContext(),
-                                               "UnifiedReturnBlock", &F);
-  PHINode *PN = nullptr;
-  if (F.getReturnType()->isVoidTy()) {
-    ReturnInst::Create(F.getContext(), nullptr, NewRetBlock);
-  } else {
-    // If the function doesn't return void... add a PHI node to the block...
-    PN = PHINode::Create(F.getReturnType(), ReturningBlocks.size(),
-                         "UnifiedRetVal", NewRetBlock);
-    ReturnInst::Create(F.getContext(), PN, NewRetBlock);
-  }
-
-  // Loop over all of the blocks, replacing the return instruction with an
-  // unconditional branch.
-  //
-  for (BasicBlock *BB : ReturningBlocks) {
-    // Add an incoming element to the PHI node for every return instruction that
-    // is merging into this new block...
-    if (PN)
-      PN->addIncoming(BB->getTerminator()->getOperand(0), BB);
-
-    BB->back().eraseFromParent();  // Remove the return insn
-    BranchInst::Create(NewRetBlock, BB);
-  }
-  return true;
-}
-
 /// Outline all tasks in this function in post order.
 TFOutlineMapTy
 TapirToTargetImpl::outlineAllTasks(Function &F,
@@ -143,19 +102,16 @@ TapirToTargetImpl::outlineAllTasks(Function &F,
   DenseMap<Spindle *, SmallVector<Value *, 8>> HelperInputs;
 
   for (Spindle *TF : AllTaskFrames) {
-    // At this point, all subtaskframess of TF must have been processed.
+    // At this point, all subtaskframes of TF must have been processed.
     // Replace the tasks with calls to their outlined helper functions.
     for (Spindle *SubTF : TF->subtaskframes())
       TFToOutline[SubTF].replaceReplCall(
           replaceTaskFrameWithCallToOutline(SubTF, TFToOutline[SubTF],
                                             HelperInputs[SubTF]));
 
-    // TODO: Add support for outlining taskframes with no associated task.  Such
-    // a facility would allow the frontend to create nested sync regions that
-    // are properly outlined.
-
     Task *T = TF->getTaskFromTaskFrame();
     if (!T) {
+      // Outline taskframe with no associated task.
       ValueToValueMapTy VMap;
       ValueToValueMapTy InputMap;
       TFToOutline[TF] = outlineTaskFrame(TF, TFInputs[TF], HelperInputs[TF],
@@ -187,10 +143,10 @@ TapirToTargetImpl::outlineAllTasks(Function &F,
 
     ValueToValueMapTy VMap;
     ValueToValueMapTy InputMap;
-    TFToOutline[TF] = outlineTask(T, TFInputs[TF], HelperInputs[TF],
-                                  &Target->getDestinationModule(), VMap,
-                                  Target->getArgStructMode(),
-                                  Target->getReturnType(), InputMap, OA);
+    TFToOutline[TF] = outlineTask(
+        T, TFInputs[TF], HelperInputs[TF], &Target->getDestinationModule(),
+        VMap, Target->getArgStructMode(), Target->getReturnType(), InputMap, OA,
+        Target);
     // If the detach for task T does not catch an exception from the task, then
     // the outlined function cannot throw.
     if (F.doesNotThrow() && !T->getDetach()->hasUnwindDest())
@@ -279,14 +235,6 @@ bool TapirToTargetImpl::processSimpleABI(Function &F, BasicBlock *TFEntry) {
     Target->lowerSync(*SI);
     Changed = true;
   }
-
-  /*
-  while (!ReducerOperations.empty()) {
-    CallBase *CI = ReducerOperations.pop_back_val();
-    Target->lowerReducerOperation(CI);
-    Changed = true;
-  }
-  */
 
   return Changed;
 }

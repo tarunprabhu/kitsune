@@ -1166,19 +1166,6 @@ void SCCPInstVisitor::getFeasibleSuccessors(Instruction &TI,
     return;
   }
 
-  // In case of callbr, we pessimistically assume that all successors are
-  // feasible.
-  if (isa<CallBrInst>(&TI)) {
-    Succs.assign(TI.getNumSuccessors(), true);
-    return;
-  }
-
-  // All destinations of a Tapir instruction are assumed to be feasible.
-  if (isa<DetachInst>(&TI) || isa<ReattachInst>(&TI) || isa<SyncInst>(&TI)) {
-    Succs.assign(TI.getNumSuccessors(), true);
-    return;
-  }
-
   LLVM_DEBUG(dbgs() << "Unknown terminator instruction: " << TI << '\n');
   llvm_unreachable("SCCP: Don't know how to handle this terminator!");
 }

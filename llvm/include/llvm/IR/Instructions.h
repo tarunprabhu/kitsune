@@ -4406,18 +4406,14 @@ class DetachInst : public Instruction {
   // DetachInst(BB *D, BB *C, Value *SR, BB *I)
   //                                     - 'detach SR, D, C', insert at end
   DetachInst(BasicBlock *Detached, BasicBlock *Continue, Value *SyncRegion,
-             Instruction *InsertBefore = nullptr);
-  DetachInst(BasicBlock *Detached, BasicBlock *Continue, Value *SyncRegion,
-             BasicBlock *InsertAtEnd);
+             InsertPosition InsertBefore = nullptr);
   // DetachInst(BB *D, BB *C, BB *U, Value *SR) - 'detach SR, D, C, U'
   // DetachInst(BB *D, BB *C, BB *U, Value *SR, Inst *I)
   //                                     - 'detach SR, D, C, U', insert before I
   // DetachInst(BB *D, BB *C, BB *U, Value *SR, BB *I)
   //                                     - 'detach SR, D, C, U', insert at end
   DetachInst(BasicBlock *Detached, BasicBlock *Continue, BasicBlock *Unwind,
-             Value *SyncRegion, Instruction *InsertBefore = nullptr);
-  DetachInst(BasicBlock *Detached, BasicBlock *Continue, BasicBlock *Unwind,
-             Value *SyncRegion, BasicBlock *InsertAtEnd);
+             Value *SyncRegion, InsertPosition InsertBefore = nullptr);
 
 protected:
   // Note: Instruction needs to be a friend here to call cloneImpl.
@@ -4427,24 +4423,14 @@ protected:
 public:
   static DetachInst *Create(BasicBlock *Detached, BasicBlock *Continue,
                             Value *SyncRegion,
-                            Instruction *InsertBefore = nullptr) {
+                            InsertPosition InsertBefore = nullptr) {
     return new(3) DetachInst(Detached, Continue, SyncRegion, InsertBefore);
   }
   static DetachInst *Create(BasicBlock *Detached, BasicBlock *Continue,
-                            Value *SyncRegion, BasicBlock *InsertAtEnd) {
-    return new(3) DetachInst(Detached, Continue, SyncRegion, InsertAtEnd);
-  }
-  static DetachInst *Create(BasicBlock *Detached, BasicBlock *Continue,
                             BasicBlock *Unwind, Value *SyncRegion,
-                            Instruction *InsertBefore = nullptr) {
+                            InsertPosition InsertBefore = nullptr) {
     return new(4) DetachInst(Detached, Continue, Unwind, SyncRegion,
                              InsertBefore);
-  }
-  static DetachInst *Create(BasicBlock *Detached, BasicBlock *Continue,
-                            BasicBlock *Unwind, Value *SyncRegion,
-                            BasicBlock *InsertAtEnd) {
-    return new(4) DetachInst(Detached, Continue, Unwind, SyncRegion,
-                             InsertAtEnd);
   }
 
   /// Provide fast operand accessors
@@ -4525,9 +4511,7 @@ class ReattachInst : public Instruction {
   // ReattachInst(BB *C, Value *SR, Inst *I) - 'reattach SR, C', insert before I
   // ReattachInst(BB *C, Value *SR, BB *I)   - 'reattach SR, C', insert at end
   explicit ReattachInst(BasicBlock *DetachContinue, Value *SyncRegion,
-                        Instruction *InsertBefore = nullptr);
-  ReattachInst(BasicBlock *DetachContinue, Value *SyncRegion,
-               BasicBlock *InsertAtEnd);
+                        InsertPosition InsertBefore = nullptr);
 protected:
   // Note: Instruction needs to be a friend here to call cloneImpl.
   friend class Instruction;
@@ -4535,13 +4519,8 @@ protected:
 
 public:
   static ReattachInst *Create(BasicBlock *DetachContinue, Value *SyncRegion,
-                              Instruction *InsertBefore = nullptr) {
+                              InsertPosition InsertBefore = nullptr) {
     return new(2) ReattachInst(DetachContinue, SyncRegion, InsertBefore);
-  }
-
-  static ReattachInst *Create(BasicBlock *DetachContinue, Value *SyncRegion,
-                              BasicBlock *InsertAtEnd) {
-    return new(2) ReattachInst(DetachContinue, SyncRegion, InsertAtEnd);
   }
 
   /// Transparently provide more efficient getOperand methods.
@@ -4601,9 +4580,7 @@ class SyncInst : public Instruction {
   // SyncInst(BB *C, Value *SR, Inst *I) - 'sync SR, C'        insert before I
   // SyncInst(BB *C, Value *SR, BB *I)   - 'sync SR, C'        insert at end
   explicit SyncInst(BasicBlock *Continue, Value *SyncRegion,
-                    Instruction *InsertBefore = nullptr);
-  SyncInst(BasicBlock *Continue, Value *SyncRegion,
-           BasicBlock *InsertAtEnd);
+                    InsertPosition InsertBefore = nullptr);
 protected:
   // Note: Instruction needs to be a friend here to call cloneImpl.
   friend class Instruction;
@@ -4611,12 +4588,8 @@ protected:
 
 public:
   static SyncInst *Create(BasicBlock *Continue, Value *SyncRegion,
-                          Instruction *InsertBefore = nullptr) {
+                          InsertPosition InsertBefore = nullptr) {
     return new(2) SyncInst(Continue, SyncRegion, InsertBefore);
-  }
-  static SyncInst *Create(BasicBlock *Continue, Value *SyncRegion,
-                          BasicBlock *InsertAtEnd) {
-    return new(2) SyncInst(Continue, SyncRegion, InsertAtEnd);
   }
 
   /// Transparently provide more efficient getOperand methods.

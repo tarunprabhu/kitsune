@@ -93,7 +93,9 @@ public:
   OpenCilkABIOptions(StringRef Path)
       : TapirTargetOptions(TTO_OpenCilk), RuntimeBCPath(Path) {}
 
-  StringRef getRuntimeBCPath() const { return RuntimeBCPath; }
+  StringRef getRuntimeBCPath() const {
+    return RuntimeBCPath;
+  }
 
   static bool classof(const TapirTargetOptions *TTO) {
     return TTO->getKind() == TTO_OpenCilk;

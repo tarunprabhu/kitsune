@@ -5,4 +5,4 @@
 //
 // RUN: not %kitxx -fsyntax-only -ftapir=qthreads %s 2>&1 | FileCheck %s
 //
-// CHECK: Tapir target 'qthreads' was not enabled when kitsune was built
+// CHECK: tapir target 'qthreads' was not enabled when kitsune was built

@@ -638,7 +638,7 @@ void HipABI::transformConstants(Function *Fn) {
         LLVM_DEBUG(dbgs() << "\t\t\t\tnew gep:\n\t\t\t\t  " << *GEP << "\n");
       } else {
         LLVM_DEBUG(dbgs() << U->get());
-        LLVM_DEBUG(dbgs() << U->getUser()); 
+        LLVM_DEBUG(dbgs() << U->getUser());
         assert(false && "unexpected use/user of gep.");
       }
     }
@@ -1697,7 +1697,6 @@ bool HipABI::preProcessFunction(Function &F, TaskInfo &TI,
 void HipABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
   if (OutliningTapirLoops) {
     LLVMContext &Ctx = M.getContext();
-    Type *VoidTy = Type::getVoidTy(Ctx);
     PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
     Value *HipStream = ConstantPointerNull::get(VoidPtrTy);
     for (Value *SR : SyncRegList) {
@@ -1846,7 +1845,7 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
-    AMDTargetMachine->registerPassBuilderCallbacks(pb, false);
+    AMDTargetMachine->registerPassBuilderCallbacks(pb);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
 
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
@@ -2351,7 +2350,7 @@ void HipABI::postProcessModule() {
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
     pb.registerLoopAnalyses(lam);
-    AMDTargetMachine->registerPassBuilderCallbacks(pb, false);
+    AMDTargetMachine->registerPassBuilderCallbacks(pb);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
 
     OptimizationLevel optLevels[] = {

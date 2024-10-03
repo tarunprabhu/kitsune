@@ -181,7 +181,7 @@ if (KITSUNE_HIP_ENABLE)
   target_compile_definitions(${KITRT} PUBLIC __HIP_PLATFORM_AMD__)
   target_include_directories(${KITRT} PUBLIC ${hip_INCLUDE_DIR})
   target_link_directories(${KITRT} PUBLIC ${HIP_LIB_INSTALL_DIR})
-  target_link_libraries(${KITRT} PUBLIC hip::amdhip64)
+  target_link_libraries(${KITRT} PUBLIC amdhip64)
 
   set_property(TARGET ${KITRT} APPEND PROPERTY
     INSTALL_RPATH ${HIP_LIB_INSTALL_DIR})

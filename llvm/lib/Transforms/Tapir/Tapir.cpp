@@ -50,6 +50,11 @@ raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &Target) {
   case TapirTargetID::Last_TapirTargetID:
     return os << "<invalid>";
   }
+  // We don't put this in a default block in the switch above because it results
+  // in compiler warnings about default blocks in a switch where all enumeration
+  // values are handled. But we want this error in case a new tapir target is
+  // added, but this code is not updated.
+  llvm_unreachable("Tapir target not handled");
 }
 
 } // namespace llvm

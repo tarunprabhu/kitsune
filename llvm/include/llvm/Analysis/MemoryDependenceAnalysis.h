@@ -370,7 +370,7 @@ public:
   MemoryDependenceResults(AAResults &AA, AssumptionCache &AC,
                           const TargetLibraryInfo &TLI, DominatorTree &DT,
                           unsigned DefaultBlockScanLimit,
-                          TaskInfo* TI = nullptr)
+                          TaskInfo *TI = nullptr)
       : AA(AA), AC(AC), TLI(TLI), DT(DT), EII(DT), TI(TI),
         DefaultBlockScanLimit(DefaultBlockScanLimit) {}
 

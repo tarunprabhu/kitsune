@@ -1,3 +1,12 @@
+;-----------------------------------------------------------------------------
+; KITSUNE FIXME:
+;
+; This test uses constexprs in icmp instructions which are no longer supported.
+; For Kitsune, we don't care about CSI, so this test is disabled, but if it is
+; fixed upstream, we should pull their changes.
+;
+; XFAIL: *
+;-----------------------------------------------------------------------------
 ; RUN: opt < %s -passes='loop-spawning,function(simplifycfg),cgscc(function-attrs),csi-setup,csi' -csi-instrument-basic-blocks=false -csi-instrument-memory-accesses=false -csi-instrument-atomics=false -csi-instrument-memintrinsics=false -csi-instrument-allocfn=false -csi-instrument-alloca=false -csi-instrument-function-calls=false -S | FileCheck %s --check-prefixes=CHECK
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"

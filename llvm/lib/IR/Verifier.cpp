@@ -1103,6 +1103,8 @@ void Verifier::visitValueAsMetadata(const ValueAsMetadata &MD, Function *F) {
     ActualF = A->getParent();
   assert(ActualF && "Unimplemented function local metadata case!");
 
+  if (ActualF != F)
+    llvm::errs() << "VERIFIER: " << ActualF << " " << F << "\n  " << ActualF->getName() << " " << F->getName() << "\n";
   Check(ActualF == F, "function-local metadata used in wrong function", L);
 }
 

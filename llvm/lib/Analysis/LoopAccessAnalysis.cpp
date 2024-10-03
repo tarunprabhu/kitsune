@@ -1913,7 +1913,7 @@ std::variant<MemoryDepChecker::Dependence::DepType,
              MemoryDepChecker::DepDistanceStrideAndSizeInfo>
 MemoryDepChecker::getDependenceDistanceStrideAndSize(
     const AccessAnalysis::MemAccessInfo &A, Instruction *AInst,
-    const AccessAnalysis::MemAccessInfo &B, Instruction *BInst, TaskInfo &TI) {
+    const AccessAnalysis::MemAccessInfo &B, Instruction *BInst) {
   const auto &DL = InnermostLoop->getHeader()->getDataLayout();
   auto &SE = *PSE.getSE();
   auto [APtr, AIsWrite] = A;
@@ -1928,7 +1928,7 @@ MemoryDepChecker::getDependenceDistanceStrideAndSize(
 
   // Under certain assumptions, Tapir can guarantee that there are no
   // loop-carried dependencies.
-  if (EnableDRFAA && isLogicallyParallelViaTapir(InnermostLoop, &TI))
+  if (EnableDRFAA && isLogicallyParallelViaTapir(InnermostLoop, TI))
     return MemoryDepChecker::Dependence::NoDep;
 
   // We cannot check pointers in different address spaces.
@@ -2023,14 +2023,13 @@ MemoryDepChecker::getDependenceDistanceStrideAndSize(
 
 MemoryDepChecker::Dependence::DepType
 MemoryDepChecker::isDependent(const MemAccessInfo &A, unsigned AIdx,
-                              const MemAccessInfo &B, unsigned BIdx,
-                              TaskInfo* TI) {
+                              const MemAccessInfo &B, unsigned BIdx) {
   assert(AIdx < BIdx && "Must pass arguments in program order");
 
   // Get the dependence distance, stride, type size and what access writes for
   // the dependence between A and B.
-  auto Res = getDependenceDistanceStrideAndSize(A, InstMap[AIdx], B,
-                                                InstMap[BIdx], *TI);
+  auto Res =
+      getDependenceDistanceStrideAndSize(A, InstMap[AIdx], B, InstMap[BIdx]);
   if (std::holds_alternative<Dependence::DepType>(Res))
     return std::get<Dependence::DepType>(Res);
 
@@ -3048,8 +3047,8 @@ LoopAccessInfo::LoopAccessInfo(Loop *L, ScalarEvolution *SE,
     if (ScalableWidth.isNonZero())
       MaxTargetVectorWidthInBits = std::numeric_limits<unsigned>::max();
   }
-  DepChecker = std::make_unique<MemoryDepChecker>(*PSE, L, SymbolicStrides,
-                                                  MaxTargetVectorWidthInBits);
+  DepChecker = std::make_unique<MemoryDepChecker>(
+      *PSE, L, SymbolicStrides, MaxTargetVectorWidthInBits, TI);
   PtrRtChecking = std::make_unique<RuntimePointerChecking>(*DepChecker, SE);
   if (canAnalyzeLoop())
     CanVecMem = analyzeLoop(AA, LI, TLI, DT, TI);
@@ -3108,7 +3107,7 @@ const LoopAccessInfo &LoopAccessInfoManager::getInfo(Loop &L) {
 
   if (Inserted)
     It->second =
-      std::make_unique<LoopAccessInfo>(&L, &SE, TTI, TLI, &AA, &DT, &LI, &TI);
+      std::make_unique<LoopAccessInfo>(&L, &SE, TTI, TLI, &AA, &DT, &LI, TI);
 
   return *It->second;
 }

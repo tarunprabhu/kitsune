@@ -18,11 +18,11 @@ void loop() {
   }
 
   forall(i = 0; i < 10; i++) {
-    // expected-error@20 {{Initializer in a forall statement must be a variable declaration}}
+    // expected-error@20 {{initializer in a forall statement must be a variable declaration}}
   }
 
   forall(int i = 0, j = 0; i < 10; i++, j++) {
-    // expected-error@24 {{Initializer in a forall statement must declare exactly one variable}}
+    // expected-error@24 {{initializer in a forall statement must declare exactly one variable}}
   }
 
   forall(int i = 0; i < 10; i++) {

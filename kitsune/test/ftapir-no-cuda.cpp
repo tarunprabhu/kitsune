@@ -5,4 +5,4 @@
 //
 // RUN: not %kitxx -fsyntax-only -ftapir=cuda %s 2>&1 | FileCheck %s
 //
-// CHECK: Tapir target 'cuda' was not enabled when kitsune was built
+// CHECK: tapir target 'cuda' was not enabled when kitsune was built

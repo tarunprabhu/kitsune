@@ -312,16 +312,16 @@ static cl::opt<bool> UseLoopVersioningLICM(
     "enable-loop-versioning-licm", cl::init(false), cl::Hidden,
     cl::desc("Enable the experimental Loop Versioning LICM pass"));
 
+static cl::opt<bool>
+    VerifyTapirLowering("verify-tapir-lowering-npm", cl::init(false),
+                        cl::Hidden,
+                        cl::desc("Verify IR after Tapir lowering steps"));
+
 namespace llvm {
 extern cl::opt<bool> EnableMemProfContextDisambiguation;
 
 extern cl::opt<bool> EnableInferAlignmentPass;
 } // namespace llvm
-
-static cl::opt<bool>
-    VerifyTapirLowering("verify-tapir-lowering-npm", cl::init(false),
-                        cl::Hidden,
-                        cl::desc("Verify IR after Tapir lowering steps"));
 
 PipelineTuningOptions::PipelineTuningOptions() {
   LoopInterleaving = true;

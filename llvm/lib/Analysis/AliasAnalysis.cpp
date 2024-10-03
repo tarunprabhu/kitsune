@@ -294,6 +294,13 @@ ModRefInfo AAResults::getModRefInfo(const Instruction *I, const CallBase *Call2,
   return ModRefInfo::NoModRef;
 }
 
+static bool effectivelyArgMemOnly(const CallBase *Call, AAQueryInfo &AAQI) {
+  // The code in upstream Tapir uses call->isStrandPure() which we have removed
+  // since we don't need it anywhere else. We can therefore assume that it is
+  // false.
+  return false;
+}
+
 ModRefInfo AAResults::getModRefInfo(const CallBase *Call,
                                     const MemoryLocation &Loc,
                                     AAQueryInfo &AAQI) {
@@ -466,6 +473,10 @@ MemoryEffects AAResults::getMemoryEffects(const CallBase *Call,
     if (Result.doesNotAccessMemory())
       return Result;
   }
+
+  if (effectivelyArgMemOnly(Call, AAQI))
+    return MemoryEffects(MemoryEffects::Location::ArgMem,
+                         Result.getModRef(MemoryEffects::Location::ArgMem));
 
   return Result;
 }

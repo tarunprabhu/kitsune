@@ -4,7 +4,7 @@
 ; Credit to Tim Kaler for producing the source code that inspired this test
 ; case.
 ;
-; RUN: opt < %s -passes='lcssa,loop-simplify' -S | opt -passes='function(require<targetir>,require<scalar-evolution>,require<domtree>,require<tasks>,loop(indvars)),loop-spawning,function(simplifycfg)' -S | FileCheck %s --check-prefix=LS
+; RUN: opt < %s -passes='lcssa,loop-simplify' -S | opt -passes='function(require<target-ir>,require<scalar-evolution>,require<domtree>,require<tasks>,loop(indvars)),loop-spawning,function(simplifycfg)' -S | FileCheck %s --check-prefix=LS
 ; RUN: opt < %s -passes='tapir2target,function(simplifycfg)' -tapir-target=opencilk -opencilk-runtime-bc-path=%S/libopencilk-abi.bc -S | FileCheck %s --check-prefix=TT
 
 ; ModuleID = 'sret-test.cpp'
@@ -800,7 +800,7 @@ declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i32, i1) #1
 
 ; LS-LABEL: define internal fastcc void @_Z14func_with_sretidRSt6vectorI6paramsSaIS0_EE.outline_pfor.detach.ls1(ptr noalias sret(%"class.std::vector.0") align 8 %agg.result.ls1,
 ; LS: [[IVTYPE]] {{.+}}, [[IVTYPE]] {{.+}}, [[IVTYPE]] {{.*}}%[[GRAINSIZE:.+]],
-; LS: {{^.split:}}
+; LS: {{^pfor.detach.lr.ph.ls1.dac.detach:}}
 ; LS-NEXT: call fastcc void @_Z14func_with_sretidRSt6vectorI6paramsSaIS0_EE.outline_pfor.detach.ls1(ptr %agg.result.ls1, [[IVTYPE]] {{.+}}, [[IVTYPE]] {{.+}}, [[IVTYPE]] {{.*}}[[GRAINSIZE]],
 
 ; TT-LABEL: define internal fastcc void @_Z14func_with_sretidRSt6vectorI6paramsSaIS0_EE.outline_pfor.body.otd1(ptr {{.*}}sret(%"class.std::vector.0") {{.*}}%agg.result.otd1,

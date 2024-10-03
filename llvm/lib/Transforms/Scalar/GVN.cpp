@@ -827,10 +827,10 @@ PreservedAnalyses GVNPass::run(Function &F, FunctionAnalysisManager &AM) {
   auto *MemDep =
       isMemDepEnabled() ? &AM.getResult<MemoryDependenceAnalysis>(F) : nullptr;
   auto &LI = AM.getResult<LoopAnalysis>(F);
-  auto &TI = AM.getResult<TaskAnalysis>(F);
+  auto *TI = AM.getCachedResult<TaskAnalysis>(F);
   auto *MSSA = AM.getCachedResult<MemorySSAAnalysis>(F);
   auto &ORE = AM.getResult<OptimizationRemarkEmitterAnalysis>(F);
-  bool Changed = runImpl(F, AC, DT, TLI, AA, MemDep, LI, &ORE, &TI,
+  bool Changed = runImpl(F, AC, DT, TLI, AA, MemDep, LI, &ORE, TI,
                          MSSA ? &MSSA->getMSSA() : nullptr);
   if (!Changed)
     return PreservedAnalyses::all();
@@ -840,7 +840,8 @@ PreservedAnalyses GVNPass::run(Function &F, FunctionAnalysisManager &AM) {
   if (MSSA)
     PA.preserve<MemorySSAAnalysis>();
   PA.preserve<LoopAnalysis>();
-  PA.preserve<TaskAnalysis>();
+  if (TI)
+    PA.preserve<TaskAnalysis>();
   return PA;
 }
 

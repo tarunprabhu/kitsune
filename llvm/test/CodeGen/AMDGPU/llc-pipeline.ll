@@ -204,6 +204,8 @@
 ; GCN-O1-NEXT:      AMDGPU atomic optimizations
 ; GCN-O1-NEXT:      Expand Atomic instructions
 ; GCN-O1-NEXT:      Dominator Tree Construction
+; GCN-O1-NEXT:      Natural Loop Information
+; GCN-O1-NEXT:      AMDGPU Promote Alloca
 ; GCN-O1-NEXT:      Cycle Info Analysis
 ; GCN-O1-NEXT:      Uniformity Analysis
 ; GCN-O1-NEXT:      AMDGPU IR optimizations

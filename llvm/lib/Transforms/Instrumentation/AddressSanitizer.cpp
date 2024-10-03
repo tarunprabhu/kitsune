@@ -1265,9 +1265,7 @@ PreservedAnalyses AddressSanitizerPass::run(Module &M,
   const StackSafetyGlobalInfo *const SSGI =
       ClUseStackSafety ? &MAM.getResult<StackSafetyGlobalAnalysis>(M) : nullptr;
   for (Function &F : M) {
-    TaskInfo *TI = nullptr;
-    if (!F.empty())
-      TI = &FAM.getResult<TaskAnalysis>(F);
+    TaskInfo *TI = !F.empty() ? &FAM.getResult<TaskAnalysis>(F) : nullptr;
     AddressSanitizer FunctionSanitizer(
         M, SSGI, TI, Options.InstrumentationWithCallsThreshold,
         Options.MaxInlinePoisoningSize, Options.CompileKernel, Options.Recover,

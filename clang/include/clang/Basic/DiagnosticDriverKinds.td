@@ -831,33 +831,33 @@ def warn_missing_include_dirs : Warning<
 // +----- kitsune  FIXME: should probably use kitsune-centric naming here.
 
 def err_drv_kitsune_objc : Error<
-  "Kitsune does not support Objective-C">;
+  "kitsune does not support Objective-C">;
 def err_drv_kitsune_unsupported: Error<
-  "Kitsune not yet supported for this target">;
+  "kitsune not yet supported for this target">;
 
 // FIXME KITSUNE: Some of this should probably go away since we don't want to
 // give opencilk any special treatment here.
 def err_drv_opencilk_missing_abi_bitcode: Error<
-  "Cannot find OpenCilk runtime ABI bitcode file: %0">;
+  "cannot find OpenCilk runtime ABI bitcode file: %0">;
 
 def err_drv_mix_tapir_cuda_hip : Error<
-  "Mixed Tapir and Cuda/HIP compilation is currently not supported.">;
+  "mixed Tapir and Cuda/HIP compilation is currently not supported">;
 def err_drv_mix_tapir_omp_offload : Error<
-  "Mixed Tapir and OpenMP offload compilation is currently not supported.">;
+  "mixed Tapir and OpenMP offload compilation is currently not supported">;
 
 def err_drv_kitsune_kokkos_disabled : Error<
-  "Kokkos support was not enabled when kitsune was built.">;
+  "kokkos support was not enabled when kitsune was built">;
 
 def err_drv_kitsune_cuda_target_disabled: Error<
-  "Tapir target 'cuda' was not enabled when kitsune was built">;
+  "tapir target 'cuda' was not enabled when kitsune was built">;
 def err_drv_kitsune_hip_target_disabled: Error<
-  "Tapir target 'hip' was not enabled when kitsune was built">;
+  "tapir target 'hip' was not enabled when kitsune was built">;
 def err_drv_kitsune_opencilk_target_disabled: Error<
-  "Tapir target 'opencilk' was not enabled when kitsune was built">;
+  "tapir target 'opencilk' was not enabled when kitsune was built">;
 def err_drv_kitsune_openmp_target_disabled : Error<
-  "Tapir target 'openmp' was not enabled when kitsune was built">;
+  "tapir target 'openmp' was not enabled when kitsune was built">;
 def err_drv_kitsune_qthreads_target_disabled: Error<
-  "Tapir target 'qthreads' was not enabled when kitsune was built">;
+  "tapir target 'qthreads' was not enabled when kitsune was built">;
 def err_drv_kitsune_realm_target_disabled: Error<
-  "Tapir target 'realm' was not enabled when kitsune was built">;
+  "tapir target 'realm' was not enabled when kitsune was built">;
 }

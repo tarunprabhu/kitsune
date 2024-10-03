@@ -8,5 +8,4 @@
 // be lld, but we also allow matches to ld.gold, ld.bfd etc.
 // CHECK: {{^[ ]*"[^"]+/[l]?}}ld{{[.]?[^ ]*}}"
 // CHECK-SAME: -lamdhip64
-// CHECK-SAME: -lhip::host
 // CHECK-SAME: -lkitrt
