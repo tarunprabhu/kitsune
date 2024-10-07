@@ -5,4 +5,4 @@
 //
 // RUN: not %kitxx -fsyntax-only -ftapir=opencilk %s 2>&1 | FileCheck %s
 //
-// CHECK: Tapir target 'opencilk' was not enabled when kitsune was built
+// CHECK: tapir target 'opencilk' was not enabled when kitsune was built

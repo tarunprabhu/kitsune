@@ -1991,8 +1991,7 @@ static Value *HandleByValArgument(Type *ByValType, Value *Arg,
   BasicBlock *NewCtx = GetDetachedCtx(TheCall->getParent());
   AllocaInst *NewAlloca =
       new AllocaInst(ByValType, Arg->getType()->getPointerAddressSpace(),
-                     nullptr, Alignment, Arg->getName());
-  NewAlloca->insertBefore(&*NewCtx->begin());
+                     nullptr, Alignment, Arg->getName(), &*NewCtx->begin());
   IFI.StaticAllocas.push_back(NewAlloca);
 
   // Uses of the argument in the function should use our new alloca
