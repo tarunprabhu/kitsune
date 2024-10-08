@@ -143,19 +143,16 @@ TapirToTargetImpl::outlineAllTasks(Function &F,
   DenseMap<Spindle *, SmallVector<Value *, 8>> HelperInputs;
 
   for (Spindle *TF : AllTaskFrames) {
-    // At this point, all subtaskframess of TF must have been processed.
+    // At this point, all subtaskframes of TF must have been processed.
     // Replace the tasks with calls to their outlined helper functions.
     for (Spindle *SubTF : TF->subtaskframes())
       TFToOutline[SubTF].replaceReplCall(
           replaceTaskFrameWithCallToOutline(SubTF, TFToOutline[SubTF],
                                             HelperInputs[SubTF]));
 
-    // TODO: Add support for outlining taskframes with no associated task.  Such
-    // a facility would allow the frontend to create nested sync regions that
-    // are properly outlined.
-
     Task *T = TF->getTaskFromTaskFrame();
     if (!T) {
+      // Outline taskframe with no associated task.
       ValueToValueMapTy VMap;
       ValueToValueMapTy InputMap;
       TFToOutline[TF] = outlineTaskFrame(TF, TFInputs[TF], HelperInputs[TF],
@@ -190,7 +187,8 @@ TapirToTargetImpl::outlineAllTasks(Function &F,
     TFToOutline[TF] = outlineTask(T, TFInputs[TF], HelperInputs[TF],
                                   &Target->getDestinationModule(), VMap,
                                   Target->getArgStructMode(),
-                                  Target->getReturnType(), InputMap, OA);
+                                  Target->getReturnType(), InputMap, OA,
+                                  Target);
     // If the detach for task T does not catch an exception from the task, then
     // the outlined function cannot throw.
     if (F.doesNotThrow() && !T->getDetach()->hasUnwindDest())
@@ -279,14 +277,6 @@ bool TapirToTargetImpl::processSimpleABI(Function &F, BasicBlock *TFEntry) {
     Target->lowerSync(*SI);
     Changed = true;
   }
-
-  /*
-  while (!ReducerOperations.empty()) {
-    CallBase *CI = ReducerOperations.pop_back_val();
-    Target->lowerReducerOperation(CI);
-    Changed = true;
-  }
-  */
 
   return Changed;
 }

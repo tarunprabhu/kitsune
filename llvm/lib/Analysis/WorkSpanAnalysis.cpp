@@ -74,7 +74,7 @@ static void estimateLoopCostHelper(const Loop *L, CodeMetrics &Metrics,
     }
 
     // Check if the total size of this subloop is huge.
-    if (InstructionCost::getMax() / ConstTripCount > SubLoopCost.Work)
+    if (InstructionCost::getMax() / ConstTripCount < SubLoopCost.Work)
       LoopCost.Work = InstructionCost::getMax();
 
     // Check if this subloop suffices to make loop L huge.

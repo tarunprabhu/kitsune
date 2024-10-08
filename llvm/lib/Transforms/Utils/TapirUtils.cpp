@@ -61,6 +61,25 @@ bool llvm::isTaskFrameResume(const Instruction *I, const Value *TaskFrame) {
          isTapirIntrinsic(Intrinsic::taskframe_resume, I, TaskFrame);
 }
 
+// Check if the given instruction is a Tapir intrinsic that can be skipped.
+bool llvm::isSkippableTapirIntrinsic(const Instruction *I) {
+  if (const CallBase *CB = dyn_cast<CallBase>(I))
+    if (const Function *Called = CB->getCalledFunction())
+      switch (Called->getIntrinsicID()) {
+      default:
+        break;
+      case Intrinsic::syncregion_start:
+      case Intrinsic::sync_unwind:
+      case Intrinsic::taskframe_create:
+      case Intrinsic::taskframe_end:
+      case Intrinsic::taskframe_use:
+      case Intrinsic::tapir_runtime_start:
+      case Intrinsic::tapir_runtime_end:
+        return true;
+      }
+  return false;
+}
+
 /// Returns true if the given basic block \p B is a placeholder successor of a
 /// taskframe.resume or detached.rethrow.
 bool llvm::isTapirPlaceholderSuccessor(const BasicBlock *B) {
@@ -862,7 +881,6 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
   BasicBlock *Unwind = DI->getUnwindDest();
   Value *SyncRegion = DI->getSyncRegion();
   Module *M = Spawner->getModule();
-  LLVMContext& Ctx = M->getContext();
 
   // If the spawned task has a taskframe, serialize the taskframe.
   SmallVector<Instruction *, 8> ToErase;
@@ -893,20 +911,14 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
   // If the cloned loop contained dynamic alloca instructions, wrap the inlined
   // code with llvm.stacksave/llvm.stackrestore intrinsics.
   if (ContainsDynamicAllocas) {
-    // Get the two intrinsics we care about.
-    Function *StackSave = Intrinsic::getDeclaration(
-        M, Intrinsic::stacksave, {PointerType::getUnqual(Ctx)});
-    Function *StackRestore = Intrinsic::getDeclaration(
-        M, Intrinsic::stackrestore, {PointerType::getUnqual(Ctx)});
-
     // Insert the llvm.stacksave.
     CallInst *SavedPtr = IRBuilder<>(TaskEntry, TaskEntry->begin())
-                             .CreateCall(StackSave, {}, "savedstack");
+                             .CreateStackSave("savedstack");
 
     // Insert a call to llvm.stackrestore before the reattaches in the original
     // Tapir loop.
     for (Instruction *Exit : ExitPoints)
-      IRBuilder<>(Exit).CreateCall(StackRestore, SavedPtr);
+      IRBuilder<>(Exit).CreateStackRestore(SavedPtr);
   }
 
   // If we're replacing the detach with a taskframe and we don't have a

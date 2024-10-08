@@ -196,17 +196,6 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
   Instruction *PTI = PredBB->getTerminator();
   if (PTI->isSpecialTerminator() || PTI->mayHaveSideEffects())
     return false;
-  // Don't break syncs.
-  if (isa<SyncInst>(PredBB->getTerminator())) return false;
-  // Don't break entry blocks of detached CFG's.
-  for (pred_iterator PI = pred_begin(PredBB), PE = pred_end(PredBB);
-       PI != PE; ++PI) {
-    BasicBlock *PredPredBB = *PI;
-    if (const DetachInst *DI =
-        dyn_cast<DetachInst>(PredPredBB->getTerminator()))
-      if (DI->getDetached() == PredBB)
-        return false;
-  }
 
   // Can't merge if there are multiple distinct successors.
   if (!PredecessorWithTwoSuccessors && PredBB->getUniqueSuccessor() != BB)

@@ -349,6 +349,9 @@ public:
     case Instruction::Invoke:
     case Instruction::Resume:
     case Instruction::CallBr:
+    case Instruction::Detach:
+    case Instruction::Reattach:
+    case Instruction::Sync:
       return true;
     default:
       return false;

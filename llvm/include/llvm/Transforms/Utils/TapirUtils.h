@@ -47,6 +47,9 @@ bool isDetachedRethrow(const Instruction *I, const Value *SyncRegion = nullptr);
 /// taskframe.resume uses \p TaskFrame.
 bool isTaskFrameResume(const Instruction *I, const Value *TaskFrame = nullptr);
 
+/// Check if the given instruction is a Tapir intrinsic that can be skipped.
+bool isSkippableTapirIntrinsic(const Instruction *I);
+
 /// Returns true if the given basic block \p B is a placeholder successor of a
 /// taskframe.resume or detached.rethrow.
 bool isTapirPlaceholderSuccessor(const BasicBlock *B);

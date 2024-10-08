@@ -215,11 +215,9 @@ bool Spindle::succInSameTask(const Spindle *Succ) const {
   // properly contained in ParentTask, return true.
   if (getParentTask()->contains(Succ))
     return true;
-  else {
-    // Otherwise, check if Succ is a shared EH spindle tracked by the parent of
-    // ParentTask.
-    return getParentTask()->isSharedEHExit(Succ);
-  }
+  // Otherwise, check if Succ is a shared EH spindle tracked by the parent of
+  // ParentTask.
+  return getParentTask()->isSharedEHExit(Succ);
 }
 
 /// Return true if the successor spindle Succ is in a subtask of the task
@@ -377,7 +375,7 @@ bool Task::isSharedEHExit(const Spindle *SharedEH) const {
 // Add the unassociated spindles to the task T in order of a DFS CFG traversal
 // starting at the entry block of T.
 static void
-AssociateWithTask(TaskInfo *TI, Task *T,
+associateWithTask(TaskInfo *TI, Task *T,
                   SmallPtrSetImpl<Spindle *> &UnassocSpindles) {
   SmallVector<Spindle *, 8> WorkList;
   SmallPtrSet<Spindle *, 8> Visited;
@@ -425,7 +423,7 @@ AssociateWithTask(TaskInfo *TI, Task *T,
 // Add the unassociated blocks to the spindle S in order of a DFS CFG traversal
 // starting at the entry block of S.
 static void
-AssociateWithSpindle(TaskInfo *TI, Spindle *S,
+associateWithSpindle(TaskInfo *TI, Spindle *S,
                      SmallPtrSetImpl<BasicBlock *> &UnassocBlocks) {
   SmallVector<BasicBlock *, 32> WorkList;
   SmallPtrSet<BasicBlock *, 32> Visited;
@@ -483,7 +481,7 @@ static void computeSpindleEdges(TaskInfo *TI) {
 
 // Search the PHI nodes in BB for a user of Val.  Return Val if no PHI node in
 // BB uses Val.
-static Value *FindUserAmongPHIs(Value *Val, BasicBlock *BB) {
+static Value *findUserAmongPHIs(Value *Val, BasicBlock *BB) {
   for (PHINode &PN : BB->phis()) {
     if (Val->getType() != PN.getType())
       continue;
@@ -527,7 +525,7 @@ static void recordContinuationSpindles(TaskInfo *TI) {
                "Unwind destination of detach has many successors, but belongs to "
                "the same spindle as the detach.");
         Unwind = Unwind->getUniqueSuccessor();
-        LPadVal = FindUserAmongPHIs(LPadVal, Unwind);
+        LPadVal = findUserAmongPHIs(LPadVal, Unwind);
       }
       // Set the exceptional continuation spindle for this task.
       Spindle *UnwindSpindle = TI->getSpindleFor(Unwind);
@@ -778,7 +776,7 @@ void TaskInfo::analyze(Function &F, DominatorTree &DomTree) {
   SmallVector<Spindle *, 8> FoundSpindles;
   SmallVector<Spindle *, 8> FoundTFCreates;
   SmallVector<Task *, 4> UnassocTasks;
-  for (auto DomNode : post_order(DomTree.getRootNode())) {
+  for (auto *DomNode : post_order(DomTree.getRootNode())) {
     BasicBlock *BB = DomNode->getBlock();
     // If a basic block is not a spindle entry, mark it found and continue.
     if (!getSpindleFor(BB)) {
@@ -811,7 +809,7 @@ void TaskInfo::analyze(Function &F, DominatorTree &DomTree) {
 
       // Associate the unassociated blocks with spindle S.
       if (!UnassocBlocks.empty())
-        AssociateWithSpindle(this, S, UnassocBlocks);
+        associateWithSpindle(this, S, UnassocBlocks);
     }
 
     // Mark taskframe.create spindles found.
@@ -852,7 +850,7 @@ void TaskInfo::analyze(Function &F, DominatorTree &DomTree) {
       }
       // Associate the unassociated spindles with task T.
       if (!UnassocSpindles.empty())
-        AssociateWithTask(this, T, UnassocSpindles);
+        associateWithTask(this, T, UnassocSpindles);
     }
 
     // If the last task is dominated by this task, add the unassociated tasks as
@@ -893,11 +891,10 @@ void TaskInfo::findTaskFrameTreeHelper(
     SmallPtrSetImpl<Spindle *> &SubTFVisited) {
   const Value *TFCreate = TFSpindle->getTaskFrameCreate();
   const Task *UserT = TFSpindle->getTaskFromTaskFrame();
-  const Spindle *Continuation = nullptr;
-  const Spindle *EHContinuation = nullptr;
+  SmallPtrSet<const Spindle *, 1> Continuations, EHContinuations;
   if (UserT) {
-    Continuation = UserT->getContinuationSpindle();
-    EHContinuation = UserT->getEHContinuationSpindle();
+    Continuations.insert(UserT->getContinuationSpindle());
+    EHContinuations.insert(UserT->getEHContinuationSpindle());
   } else {
     // This taskframe is not associated with a task.  Examine the uses of the
     // taskframe to determine its continuation and exceptional-continuation
@@ -905,11 +902,12 @@ void TaskInfo::findTaskFrameTreeHelper(
     for (const User *U : TFCreate->users()) {
       if (const Instruction *I = dyn_cast<Instruction>(U)) {
         if (isTapirIntrinsic(Intrinsic::taskframe_end, I) &&
-            isCanonicalTaskFrameEnd(I))
-          Continuation = getSpindleFor(I->getParent()->getSingleSuccessor());
-        else if (isTaskFrameResume(I)) {
+            isCanonicalTaskFrameEnd(I)) {
+          Continuations.insert(
+              getSpindleFor(I->getParent()->getSingleSuccessor()));
+        } else if (isTaskFrameResume(I)) {
           const InvokeInst *II = dyn_cast<InvokeInst>(I);
-          EHContinuation = getSpindleFor(II->getUnwindDest());
+          EHContinuations.insert(getSpindleFor(II->getUnwindDest()));
         }
       }
     }
@@ -965,24 +963,23 @@ void TaskInfo::findTaskFrameTreeHelper(
               // Recur into the new taskframe.
               findTaskFrameTreeHelper(SubTF, WorkList, SubTFVisited);
               continue;
-            } else {
+            }
               LLVM_DEBUG({
                   if (!TFSpindle->SubTaskFrames.count(SuccEdge.first))
                     dbgs() << "Search encountered subtask@"
                            << SubT->getEntry()->getName() << " with taskframe "
                            << "before that subtask's taskframe.create.";
                 });
-            }
           }
         }
 
       // Add the normal continuation to parent worklist.
-      if (SuccEdge.first == Continuation) {
+      if (Continuations.contains(SuccEdge.first)) {
         ParentWorkList.push_back(SuccEdge.first);
         continue;
       }
       // Add the exception-handling continuation to the appropriate worklist.
-      if (SuccEdge.first == EHContinuation) {
+      if (EHContinuations.contains(SuccEdge.first)) {
         // If TFSpindle corresponds to a taskframe.create associated with a
         // task, push the successor onto our worklist.  Otherwise push it onto
         // the parent's worklist.
@@ -1091,7 +1088,7 @@ void TaskInfo::findTaskFrameTree() {
 /// These are blocks which lead to uses.  Knowing this allows us to avoid
 /// inserting PHI nodes into blocks which don't lead to uses (thus, the inserted
 /// phi nodes would be dead).
-static void ComputeLiveInBlocks(
+static void computeLiveInBlocks(
     const AllocaInst *AI,
     const SmallVectorImpl<BasicBlock *> &UsingBlocks,
     const SmallPtrSetImpl<BasicBlock *> &DefBlocks,
@@ -1224,7 +1221,7 @@ bool TaskInfo::isAllocaParallelPromotable(const AllocaInst *AIP) const {
   // Determine which blocks the value is live in.  These are blocks which lead
   // to uses.
   SmallPtrSet<BasicBlock *, 32> LiveInBlocks;
-  ComputeLiveInBlocks(AI, UsingBlocks, DefBlocks, LiveInBlocks);
+  computeLiveInBlocks(AI, UsingBlocks, DefBlocks, LiveInBlocks);
   // Filter out live-in blocks that are not dominated by the alloca.
   if (AI->getParent() != DomTree.getRoot()) {
     SmallVector<BasicBlock *, 32> LiveInToRemove;
@@ -1290,9 +1287,9 @@ bool IsSyncedState::evaluate(const Spindle *S, unsigned EvalNum) {
     if (!EvalNum && !SyncedState.count(Pred)) {
       SyncedState[S] = setIncomplete(SyncedState[S]);
       continue;
-    } else
-      assert(SyncedState.count(Pred) &&
-             "All predecessors should have synced states after first eval.");
+    }
+    assert(SyncedState.count(Pred) &&
+           "All predecessors should have synced states after first eval.");
 
     // If we find an unsynced predecessor that is not terminated by a sync
     // instruction, then we must be unsynced.

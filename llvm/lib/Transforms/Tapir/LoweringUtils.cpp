@@ -449,8 +449,8 @@ std::pair<AllocaInst *, Instruction *> llvm::createTaskArgsStruct(
   // values.
   IRBuilder<> B2(LoadPt);
   for (unsigned i = 0; i < StructInputs.size(); ++i) {
-    auto STGEP = cast<Instruction>(B2.CreateConstGEP2_32(ST, Closure, 0, i));
-    auto STLoad = B2.CreateLoad(StructIT[i], STGEP);
+    auto *STGEP = cast<Instruction>(B2.CreateConstGEP2_32(ST, Closure, 0, i));
+    auto *STLoad = B2.CreateLoad(StructIT[i], STGEP);
     InputsMap[StructInputs[i]] = STLoad;
 
     // Update all uses of the struct inputs in the loop body.
@@ -476,7 +476,7 @@ std::pair<AllocaInst *, Instruction *> llvm::createTaskArgsStruct(
 /// Organize the set \p Inputs of values in \p F into a set \p Fixed of values
 /// that can be used as inputs to a helper function.
 void llvm::fixupInputSet(Function &F, const ValueSet &Inputs, ValueSet &Fixed) {
-  // Scan for any sret parameters in TaskInputs and add them first.  These
+  // Scan for any sret parameters in Inputs and add them first.  These
   // parameters must appear first or second in the prototype of the Helper
   // function.
   Value *SRetInput = nullptr;
@@ -502,16 +502,18 @@ void llvm::fixupInputSet(Function &F, const ValueSet &Inputs, ValueSet &Fixed) {
   for (Value *V : Inputs)
     if (V != SRetInput)
       InputsToSort.push_back(V);
-  LLVM_DEBUG({
-    dbgs() << "After sorting:\n";
-    for (Value *V : InputsToSort)
-      dbgs() << "\t" << *V << "\n";
-  });
+
   const DataLayout &DL = F.getParent()->getDataLayout();
   std::sort(InputsToSort.begin(), InputsToSort.end(),
             [&DL](const Value *A, const Value *B) {
               return DL.getTypeSizeInBits(A->getType()) >
                      DL.getTypeSizeInBits(B->getType());
+            });
+
+  LLVM_DEBUG({
+    dbgs() << "inputs after fixup:\n";
+    for (Value *V : InputsToSort)
+      dbgs() << "\t" << *V << "\n";
             });
 
   // Add the remaining inputs.
@@ -561,6 +563,7 @@ void llvm::getTaskBlocks(Task *T, std::vector<BasicBlock *> &TaskBlocks,
                          SmallPtrSetImpl<BasicBlock *> &ReattachBlocks,
                          SmallPtrSetImpl<BasicBlock *> &TaskResumeBlocks,
                          SmallPtrSetImpl<BasicBlock *> &SharedEHEntries,
+                         SmallPtrSetImpl<BasicBlock *> &UnreachableExits,
                          const DominatorTree *DT) {
   NamedRegionTimer NRT("getTaskBlocks", "Get task blocks", TimerGroupName,
                        TimerGroupDescription, TimePassesIsEnabled);
@@ -646,8 +649,12 @@ void llvm::getTaskBlocks(Task *T, std::vector<BasicBlock *> &TaskBlocks,
       // Record the blocks terminated by reattaches and detached rethrows.
       if (isa<ReattachInst>(B->getTerminator()))
         ReattachBlocks.insert(B);
-      if (isDetachedRethrow(B->getTerminator()))
+      else if (isDetachedRethrow(B->getTerminator()))
         TaskResumeBlocks.insert(B);
+      else if (S->isSpindleExiting(B))
+        for (BasicBlock *Succ : successors(B))
+          if (isa<UnreachableInst>(Succ->getFirstNonPHIOrDbg()))
+            UnreachableExits.insert(Succ);
     }
   }
 }
@@ -665,11 +672,12 @@ Function *llvm::createHelperForTask(Function &F, Task *T, ValueSet &Args,
   // handling.
   SmallPtrSet<BasicBlock *, 4> ReattachBlocks;
   SmallPtrSet<BasicBlock *, 4> TaskResumeBlocks;
+  SmallPtrSet<BasicBlock *, 4> UnreachableExits;
   // Entry blocks of shared-EH spindles may contain PHI nodes that need to be
   // rewritten in the cloned helper.
   SmallPtrSet<BasicBlock *, 4> SharedEHEntries;
   getTaskBlocks(T, TaskBlocks, ReattachBlocks, TaskResumeBlocks,
-                SharedEHEntries, &OA.DT);
+                SharedEHEntries, UnreachableExits, &OA.DT);
 
   SmallVector<ReturnInst *, 4> Returns; // Ignore returns cloned.
   ValueSet Outputs;
@@ -694,8 +702,8 @@ Function *llvm::createHelperForTask(Function &F, Task *T, ValueSet &Args,
     Helper = CreateHelper(
         Args, Outputs, TaskBlocks, Header, Entry, DI->getContinue(), VMap,
         DestM, F.getSubprogram() != nullptr, Returns, NameSuffix.str(),
-        &ReattachBlocks, &TaskResumeBlocks, &SharedEHEntries, nullptr, nullptr,
-        ReturnType, nullptr, nullptr, Mat.get());
+        &ReattachBlocks, &TaskResumeBlocks, &SharedEHEntries, nullptr,
+        &UnreachableExits, ReturnType, nullptr, nullptr, Mat.get());
   }
   assert(Returns.empty() && "Returns cloned when cloning detached CFG.");
 
@@ -767,7 +775,7 @@ static void unlinkTaskEHFromParent(Task *T) {
   getDetachUnwindPHIUses(DI, UnwindPHIs);
 
   SmallVector<Instruction *, 8> ToRemove;
-  // Look through PHI's that use the landing pad of the detach's unwind, and
+  // Look through PHI's that use the landingpad of the detach's unwind, and
   // update those PHI's to not refer to task T.
   for (BasicBlock *BB : UnwindPHIs) {
     for (BasicBlock *Pred : predecessors(BB)) {
@@ -978,9 +986,8 @@ TaskOutlineInfo llvm::outlineTaskFrame(Spindle *TF, ValueSet &Inputs,
                                        Type *ReturnType,
                                        ValueToValueMapTy &InputMap,
                                        OutlineAnalysis &OA) {
-  if (Task *T = TF->getTaskFromTaskFrame())
-    return outlineTask(T, Inputs, HelperInputs, DestM, VMap, useArgStruct,
-                       ReturnType, InputMap, OA);
+  assert(!TF->getTaskFromTaskFrame() &&
+         "outlineTaskFrame called to outline task.");
 
   Function &F = *TF->getEntry()->getParent();
   BasicBlock *Entry = TF->getEntry();
@@ -1076,7 +1083,7 @@ TaskOutlineInfo llvm::outlineTask(Task *T, ValueSet &Inputs,
                                   Module *DestM, ValueToValueMapTy &VMap,
                                   TapirTarget::ArgStructMode useArgStruct,
                                   Type *ReturnType, ValueToValueMapTy &InputMap,
-                                  OutlineAnalysis &OA) {
+                                  OutlineAnalysis &OA, TapirTarget *Target) {
   assert(!T->isRootTask() && "Cannot outline the root task.");
   Function &F = *T->getEntry()->getParent();
   DetachInst *DI = T->getDetach();
@@ -1100,11 +1107,11 @@ TaskOutlineInfo llvm::outlineTask(Task *T, ValueSet &Inputs,
   }
 
   // Convert the inputs of the task to inputs to the helper.
+  ValueSet TaskHelperArgs;
+  Instruction *ArgsStart = fixupHelperInputs(
+      F, T, Inputs, TaskHelperArgs, StorePt, LoadPt, useArgStruct, InputMap);
   ValueSet HelperArgs;
-  Instruction *ArgsStart = fixupHelperInputs(F, T, Inputs, HelperArgs, StorePt,
-                                             LoadPt, useArgStruct, InputMap);
-  for (Value *V : HelperArgs)
-    HelperInputs.push_back(V);
+  Target->setupTaskOutlineArgs(F, HelperArgs, HelperInputs, TaskHelperArgs);
 
   // Clone the blocks into a helper function.
   Function *Helper =
@@ -1267,7 +1274,7 @@ void TapirTarget::lowerTaskFrameAddrCall(CallInst *TaskFrameAddrCall) {
   // By default, replace calls to task_frameaddress with ordinary calls to the
   // frameaddress intrinsic.
   TaskFrameAddrCall->setCalledFunction(Intrinsic::getDeclaration(
-      &M, Intrinsic::frameaddress, PointerType::get(M.getContext(), 0)));
+      &M, Intrinsic::frameaddress, PointerType::getUnqual(M.getContext())));
 }
 
 void TapirTarget::lowerTapirRTCalls(SmallVectorImpl<CallInst *> &TapirRTCalls,

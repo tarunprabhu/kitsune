@@ -1531,8 +1531,8 @@ AliasResult BasicAAResult::aliasPHI(const PHINode *PN, LocationSize PNSize,
 }
 
 // Given that O1 != O2, return NoAlias if they can not alias.
-static AliasResult UnderlyingNoAlias(const Value *O1, const Value *O2,
-                                     AAQueryInfo &AAQI, DominatorTree *DT) {
+static AliasResult underlyingNoAlias(const Value *O1, const Value *O2,
+                                     AAQueryInfo &AAQI) {
   assert(O1 != O2 && "identical arguments to UnderlyingNoAlias");
 
   // If V1/V2 point to two different objects, we know that we have no alias.
@@ -1544,11 +1544,6 @@ static AliasResult UnderlyingNoAlias(const Value *O1, const Value *O2,
     if (isIdentifiedObject(O1) && isIdentifiedObject(O2))
       return AliasResult::NoAlias;
   }
-
-  // Constant pointers can't alias with non-const isIdentifiedObject objects.
-  if ((isa<Constant>(O1) && isIdentifiedObject(O2) && !isa<Constant>(O2)) ||
-      (isa<Constant>(O2) && isIdentifiedObject(O1) && !isa<Constant>(O1)))
-    return AliasResult::NoAlias;
 
   // Function arguments can't alias with things that are known to be
   // unambigously identified at the function level.
@@ -1566,10 +1561,10 @@ static AliasResult UnderlyingNoAlias(const Value *O1, const Value *O2,
   // location if that memory location doesn't escape. Or it may pass a
   // nocapture value to other functions as long as they don't capture it.
   if (isEscapeSource(O1) &&
-      AAQI.CI->isNotCapturedBefore(O2, cast<Instruction>(O1), /*OrAt*/false))
+      AAQI.CI->isNotCapturedBefore(O2, cast<Instruction>(O1), /*OrAt*/true))
     return AliasResult::NoAlias;
   if (isEscapeSource(O2) &&
-      AAQI.CI->isNotCapturedBefore(O1, cast<Instruction>(O2), /*OrAt*/false))
+      AAQI.CI->isNotCapturedBefore(O1, cast<Instruction>(O2), /*OrAt*/true))
     return AliasResult::NoAlias;
 
   return AliasResult::MayAlias;
@@ -1736,7 +1731,7 @@ BasicAAResult::checkInjectiveArguments(const Value *V1, const Value *O1,
     if (O1 == U2)              // 1
       return AliasResult::MayAlias;
     if (isViewSet(Behavior2))  // 2
-      return UnderlyingNoAlias(O1, U2, AAQI, getDT(AAQI));
+      return underlyingNoAlias(O1, U2, AAQI);
     return AliasResult::MayAlias;
   }
   if (!A2) {
@@ -1745,7 +1740,7 @@ BasicAAResult::checkInjectiveArguments(const Value *V1, const Value *O1,
     if (U1 == O2)              // 1
       return AliasResult::MayAlias;
     if (isViewSet(Behavior1))  // 2
-      return UnderlyingNoAlias(U1, O2, AAQI, getDT(AAQI));
+      return underlyingNoAlias(U1, O2, AAQI);
     return AliasResult::MayAlias;
   }
 
@@ -1762,10 +1757,11 @@ BasicAAResult::checkInjectiveArguments(const Value *V1, const Value *O1,
     // If the caller relied on partial overlap detection a function like
     // void *f(void *p) { return p; }
     // could not be declared injective.
+    DominatorTree *DT = getDT(AAQI);
     BasicAAResult::DecomposedGEP DecompGEP1 =
-        DecomposeGEPExpression(A1, DL, &AC, getDT(AAQI));
+        DecomposeGEPExpression(A1, DL, &AC, DT);
     BasicAAResult::DecomposedGEP DecompGEP2 =
-        DecomposeGEPExpression(A2, DL, &AC, getDT(AAQI));
+        DecomposeGEPExpression(A2, DL, &AC, DT);
     if (DecompGEP1.VarIndices.empty() && DecompGEP2.VarIndices.empty() &&
         isValueEqualInPotentialCycles(DecompGEP1.Base, DecompGEP2.Base, AAQI))
       return DecompGEP1.Offset == DecompGEP2.Offset
@@ -1774,7 +1770,7 @@ BasicAAResult::checkInjectiveArguments(const Value *V1, const Value *O1,
     return AliasResult::MayAlias;
   }
 
-  return UnderlyingNoAlias(U1, U2, AAQI, getDT(AAQI));
+  return underlyingNoAlias(U1, U2, AAQI);
 }
 
 /// Provides a bunch of ad-hoc rules to disambiguate in common cases, such as
@@ -1831,33 +1827,8 @@ AliasResult BasicAAResult::aliasCheck(const Value *V1, LocationSize V1Size,
   else if (InjectiveResult == AliasResult::MustAlias)
     return AliasResult::MayAlias;
 
-  if (O1 != O2) {
-    // If V1/V2 point to two different objects, we know that we have no alias.
-    if (isIdentifiedObject(O1) && isIdentifiedObject(O2))
+  if (O1 != O2 && underlyingNoAlias(O1, O2, AAQI) == AliasResult::NoAlias)
       return AliasResult::NoAlias;
-
-    // Function arguments can't alias with things that are known to be
-    // unambigously identified at the function level.
-    if ((isa<Argument>(O1) && isIdentifiedFunctionLocal(O2)) ||
-        (isa<Argument>(O2) && isIdentifiedFunctionLocal(O1)))
-      return AliasResult::NoAlias;
-
-    // If one pointer is the result of a call/invoke or load and the other is a
-    // non-escaping local object within the same function, then we know the
-    // object couldn't escape to a point where the call could return it.
-    //
-    // Note that if the pointers are in different functions, there are a
-    // variety of complications. A call with a nocapture argument may still
-    // temporary store the nocapture argument's value in a temporary memory
-    // location if that memory location doesn't escape. Or it may pass a
-    // nocapture value to other functions as long as they don't capture it.
-    if (isEscapeSource(O1) && AAQI.CI->isNotCapturedBefore(
-                                  O2, dyn_cast<Instruction>(O1), /*OrAt*/ true))
-      return AliasResult::NoAlias;
-    if (isEscapeSource(O2) && AAQI.CI->isNotCapturedBefore(
-                                  O1, dyn_cast<Instruction>(O2), /*OrAt*/ true))
-      return AliasResult::NoAlias;
-  }
 
   // If the size of one access is larger than the entire object on the other
   // side, then we know such behavior is undefined and can assume no alias.

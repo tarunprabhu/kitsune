@@ -89,7 +89,7 @@ createMissedAnalysis(StringRef RemarkName, const Loop *TheLoop,
 
 /// Approximate the work of the body of the loop L.  Returns several relevant
 /// properties of loop L via by-reference arguments.
-static InstructionCost ApproximateLoopCost(
+static InstructionCost approximateLoopCost(
     const Loop *L, unsigned &NumCalls, bool &NotDuplicatable,
     bool &Convergent, bool &IsRecursive, bool &UnknownSize,
     const TargetTransformInfo &TTI, LoopInfo *LI, ScalarEvolution &SE,
@@ -148,7 +148,7 @@ static bool tryToStripMineLoop(
   CodeMetrics::collectEphemeralValues(L, &AC, EphValues);
 
   InstructionCost LoopCost =
-      ApproximateLoopCost(L, NumCalls, NotDuplicatable, Convergent, IsRecursive,
+      approximateLoopCost(L, NumCalls, NotDuplicatable, Convergent, IsRecursive,
                           UnknownSize, TTI, LI, SE, EphValues, TLI);
   // Determine the iteration count of the eventual stripmined the loop.
   bool explicitCount = computeStripMineCount(L, TTI, LoopCost, SMP);
