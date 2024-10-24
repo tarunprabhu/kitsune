@@ -488,9 +488,10 @@ public:
       ScalarEvolution &SE, AssumptionCache &AC, TargetTransformInfo &TTI,
       TargetLibraryInfo &TLI, TapirTargetID Target,
       OptimizationRemarkEmitter &ORE,
-      std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets)
+      std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets,
+      OptimizationLevel OptLevel)
       : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TLI(TLI),
-        ORE(ORE), Targets(Targets) {}
+        ORE(ORE), Targets(Targets), Level(OptLevel) {}
 
   ~LoopSpawningImpl() {
     for (TapirLoopInfo *TL : TapirLoops)
@@ -607,6 +608,9 @@ private:
   TargetLibraryInfo &TLI;
   OptimizationRemarkEmitter &ORE;
   std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets;
+  // FIXME: This should be removed. The optimization level is passed in via the
+  // TapirTargetOptions object.
+  OptimizationLevel Level;
 
   std::vector<TapirLoopInfo *> TapirLoops;
   DenseMap<Task *, TapirLoopInfo *> TaskToTapirLoop;
@@ -1012,7 +1016,7 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
 
   // Allow the Tapir target to define a custom loop-outline processor.
   if (LoopOutlineProcessor *TargetLOP =
-          Targets[TLTID]->getLoopOutlineProcessor(TL))
+      Targets[TLTID]->getLoopOutlineProcessor(TL, Level))
     return TargetLOP;
 
   switch (Hints.getStrategy()) {
@@ -1754,11 +1758,11 @@ bool LoopSpawningImpl::run() {
                                                      DT);
   } // end timed region
 
-  // FIXME: The order of target processing here possibly breaks a "inside-out"
-  // contr act (loosely speaking) for ordering.  In nested constructs this
-  // leaves us with a partially completed code transformation when we pop
-  // up a level of code nesting.  This is important for nested loops with
-  // different targets...
+  // FIXME/TODO: The order of target processing here possibly breaks an
+  // "inside-out" contract (loosely speaking) for ordering.  In nested
+  // constructs this leaves us with a partially completed code transformation
+  // when we pop up a level of code nesting.  This is important for nested loops
+  // with different targets...
   //
   // Perform any Target-dependent postprocessing of F.
   //
@@ -1841,7 +1845,7 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
     HasParallelism |=
         LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
                          GetAC(*F), GetTTI(*F), GetTLI(*F), TargetID,
-                         GetORE(*F), Targets)
+                         GetORE(*F), Targets, Level)
             .run();
   }
 

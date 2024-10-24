@@ -57,12 +57,11 @@
 
 #include "kitrt.h"
 
-#define __HIP_DISABLE_CPP_FUNCTIONS__
-#define __HIP_PLATFORM_HCC__ 1
+#define __HIP_DISABLE_CPP_FUNCTIONS__ // skip extra c++ cruft
+// we're only interested in AMD GPUs and HIP (no CUDA).
 #define __HIP_PLATFORM_AMD__ 1
+#define __HIP_PLATFORM_HCC__ 1
 #include <hip/hip_runtime.h>
-
-#include "kithip_dylib.h" // IWYU pragma: keep (clang-tidy misreports. ???)
 
 #ifdef __cplusplus
 extern "C" {
@@ -100,6 +99,9 @@ extern "C" {
  *
  **/
 extern bool __kithip_initialize();
+
+extern void __kithip_initialze_launch_limits(const hipDeviceProp_t &);
+extern void __kithip_initialze_memory_limits(const hipDeviceProp_t &);
 
 /**
  * Enable the use of XNACK for an executing program.  This call should
@@ -313,34 +315,13 @@ extern void *__kithip_launch_kernel(const void *fat_bin, const char *kern_name,
                                     void *opaque_stream);
 
 /**
- * Enable/Disable the use of occupancy calculations for the
- * determination of kernel launch parameters.  If the `enable`
- * parameter is set to `true` occupancy-based launches will be
- * used for *all* kernel launches.  `false` will disable and
- * the runtime will fall-back to either custom or default
- * launch parameters.
- *
- * @param enable - enable/disable occupancy-based launches
- */
-extern void __kithip_use_occupancy_launch(bool enable);
-
-/**
- * Set the runtime's value for the number of threads-per-block used
- * in simple launch parameter calculations.
- *
- * @param nthreads - number of threads per block
- * @todo The parameter value needs to be asserted or clamped!
- */
-extern void __kithip_set_default_threads_per_blk(int nthreads);
-
-/**
  * Set the runtime's value for the maximum number of threads allowed
  * per block (typically a hardware limit).  For HIP there is a
  * dependency between the runtime and the compiler-generated code
  * (kernel) attributes.  The compiler will insert a call to this to
  * match any specific code generation details that were used.
  */
-extern void __kithip_set_default_max_threads_per_blk(int nthreads);
+extern void __kithip_set_max_threads_per_blk(int nthreads);
 
 /**
  * Provide a set of set of launch parameters to use for subsequent
@@ -417,21 +398,7 @@ extern void __kithip_destroy_thread_streams();
  * Has the HIP portion of the Kitsune runtime been successfully
  * initialized?
  */
-inline bool __kithip_is_initialized() {
-  extern bool _kithip_initialized;
-  return _kithip_initialized;
-}
-
-/**
- * Get the current HIP device ID associated with the currently
- * initialized runtime.  Note this call will assert if the runtime
- * is not initialized.
- */
-inline int __kithip_get_device_id() {
-  extern int _kithip_device_id;
-  assert(__kithip_is_initialized() && "kitrt: runtime not initialized!");
-  return _kithip_device_id;
-}
+extern bool __kithip_is_initialized();
 
 #ifdef __cplusplus
 } // extern "C"
@@ -443,9 +410,9 @@ inline int __kithip_get_device_id() {
     if (hip_result != hipSuccess) {                                            \
       fprintf(stderr, "kitrt: %s:%d:\n", __FILE__, __LINE__);                  \
       const char *msg;                                                         \
-      msg = hipGetErrorName_p(hip_result);                                     \
+      msg = hipGetErrorName(hip_result);                                       \
       fprintf(stderr, "  %s failed ('%s')\n", #x, msg);                        \
-      msg = hipGetErrorString_p(hip_result);                                   \
+      msg = hipGetErrorString(hip_result);                                     \
       fprintf(stderr, "  error: '%s'\n", msg);                                 \
       abort();                                                                 \
     }                                                                          \

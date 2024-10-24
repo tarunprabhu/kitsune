@@ -102,7 +102,7 @@ void initialize_variables(int nelr, mobile_ptr<float> variables_p,
       variables[i + j * nelr] = ff_variable[j];
   });
   // clang-format on
-  Kokkos::fence();
+  // Kokkos::fence();
 }
 
 KOKKOS_FORCEINLINE_FUNCTION
@@ -193,7 +193,7 @@ void compute_step_factor(int nelr, const mobile_ptr<float> variables_p,
     }
   });
   // clang-format on
-  Kokkos::fence();
+  // Kokkos::fence();
 }
 
 void compute_flux(int nelr,
@@ -399,7 +399,7 @@ void compute_flux(int nelr,
     }
   });
   // clang-format on
-  Kokkos::fence();
+  // Kokkos::fence();
 }
 
 void time_step(int j, int nelr, mobile_ptr<float> old_variables_p,
@@ -440,7 +440,7 @@ void time_step(int j, int nelr, mobile_ptr<float> old_variables_p,
     }
   });
   // clang-format on
-  Kokkos::fence();
+  // Kokkos::fence();
 }
 
 /*
@@ -454,7 +454,7 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  int iterations = 2000;
+  int iterations = 4000;
   if (argc > 2)
     iterations = atoi(argv[2]);
 
@@ -465,7 +465,6 @@ int main(int argc, char **argv) {
   cout << "---- euler3d benchmark (forall) ----\n\n"
        << "  Input file : " << data_file_name << "\n"
        << "  Iterations : " << iterations << ".\n\n";
-
   cout << "  Reading input data, allocating arrays, initializing data, etc..."
        << std::flush;
   auto total_start_time = chrono::steady_clock::now();
@@ -567,7 +566,6 @@ int main(int argc, char **argv) {
   mobile_ptr<float> fluxes(nelr * NVAR);
   mobile_ptr<float> step_factors(nelr);
 
-  auto start = chrono::steady_clock::now();
   double copy_total = 0.0;
   double sf_total = 0.0;
   double rk_total = 0.0;
@@ -597,10 +595,12 @@ int main(int argc, char **argv) {
     auto rk_end = chrono::steady_clock::now();
     rk_total += chrono::duration<double>(rk_end - rk_start).count();
   }
-  dump(variables, nel, nelr);
-
   auto end_time = chrono::steady_clock::now();
   double elapsed_time = chrono::duration<double>(end_time - start_time).count();
+
+  dump(variables, nel, nelr);
+
+  end_time = chrono::steady_clock::now();
   double total_time =
       chrono::duration<double>(end_time - total_start_time).count();
 
@@ -610,7 +610,7 @@ int main(int argc, char **argv) {
        << "            copy : " << copy_total << " seconds.\n"
        << "              sf : " << sf_total << " seconds.\n"
        << "              rk : " << rk_total << " seconds.\n"
-       << "*** " << total_time << ", " << total_time << "\n"
+       << "*** " << elapsed_time << ", " << elapsed_time << "\n"
        << "----\n\n";
 
   return 0;

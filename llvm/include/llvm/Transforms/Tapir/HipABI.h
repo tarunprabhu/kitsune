@@ -169,11 +169,6 @@ public:
       return nullptr;
   }
 
-  /// @brief Save a kernel for post-processing.
-  /// @param KF - the kernel function to save.
-  /// @return void
-  void saveKernel(Function *KF) { KernelFunctions.push_back(KF); }
-
   void transformConstants(Function *M);
 
   void transformArguments(Function *Fn);
@@ -187,8 +182,13 @@ public:
   void postProcessHelper(Function &F) override { /* no-op */ }
 
   // Return the HIP outline processor associated with this target.
-  LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
+  LoopOutlineProcessor *getLoopOutlineProcessor(
+      const TapirLoopInfo *TL,
+      OptimizationLevel OptLevel = OptimizationLevel::O2) override final;
+
+  OptimizationLevel getOptimizationLevel() const {
+    return Level;
+  }
 
 private:
   /// Get the GPU architecture. This will first look at the LLVM commmand line
@@ -240,13 +240,6 @@ private:
   /// @return  True on success, false otherwise.
   bool linkInModule(std::unique_ptr<Module> &M);
 
-  /// @brief Register all the create kernels (device entry points) with HIP
-  /// runtime.
-  /// @param Handle - HIP handle for fat binary.
-  /// @param B - the IR builder to use for code gen.
-  /// @return void
-  void registerKernels(Value *HandlePtr, IRBuilder<> &B);
-
   /// @brief Establish a host-to-device registration of the global vars.
   /// @param Handle: The GPU-side module (not llvm) that contains the kernels.
   /// @param B: The builder to use for codegen.
@@ -281,26 +274,28 @@ private:
   typedef std::set<Value *> SyncRegionListTy;
   SyncRegionListTy SyncRegList;
 
-  typedef std::list<Function *> KernelListTy;
-  KernelListTy KernelFunctions;
+  typedef llvm::DenseMap<CallInst*,AllocaInst*>  LaunchToStreamMapTy;
+  LaunchToStreamMapTy   KernelLaunchToStreamMap;
 
-  typedef llvm::DenseMap<CallInst *, AllocaInst *> LaunchToStreamMapTy;
-  LaunchToStreamMapTy KernelLaunchToStreamMap;
+  FunctionCallee   KitHipGetGlobalSymbolFn = nullptr;
+  FunctionCallee   KitHipMemcpySymbolToDevFn = nullptr;
+  FunctionCallee   KitHipSyncFn = nullptr;
 
   Module KernelModule;
   bool ROCmModulesLoaded;
   TargetMachine *AMDTargetMachine;
+
+  /// FIXME: This should be removed. The optimization level can be obtained
+  /// from the HipABIOptions object.
+  OptimizationLevel  Level;
 
   /// Options for this tapir target. This is a pointer but should always be set
   /// with a call to setOptions(). We could make upstream changes so this is
   /// passed to the constructor, but that becomes a somewhat invasive change
   /// that affects many parts of the code, so we avoid it for now.
   const HipABIOptions *HipABIOpts = nullptr;
-
-  FunctionCallee KitHipGetGlobalSymbolFn = nullptr;
-  FunctionCallee KitHipMemcpySymbolToDevFn = nullptr;
-  FunctionCallee KitHipSyncFn = nullptr;
 };
+
 
 /// The loop outline process for transforming a Tapir parallel loop
 /// representing into a Hip runtime and PTX --> fat binary kernel
@@ -367,13 +362,13 @@ public:
   void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
                                DominatorTree &DT) override;
 
+  void remapData(ValueToValueMapTy &VMap) override final;
+
   std::string getKernelName() const { return KernelName; }
   unsigned getKernelID() const { return KernelID; }
 
 private:
-  // ----- Hip-centric loop code generation support.
-
-  Value *emitWorkItemId(IRBuilder<> &Builder, int ItemIndex, int Low, int High);
+  Value *emitWorkItemId(IRBuilder<> &Builder, int ItemIndex);
   Value *emitWorkGroupId(IRBuilder<> &Builder, int ItemIndex);
   Value *emitWorkGroupSize(IRBuilder<> &Builder, int ItemIndex);
 
@@ -390,11 +385,11 @@ private:
   /// @brief Resolve a call on the device side.
   /// @param Fn: The function to resolve on the device side.
   /// @return  The new Function for the device side call.
-  // Function *resolveDeviceFunction(Function *Fn);
+  Function *resolveDeviceFunction(Function *F, bool enableFast = false);
 
   /// @brief Transform the given Function so it is ready for GCN generation.
   /// @param F The function to transform.
-  // void transformForGCN(Function &F);
+  void transformForGCN(Function &F);
 
   HipABI *TT = nullptr;
   static unsigned NextKernelID; // Give the generated kernel a unique ID.

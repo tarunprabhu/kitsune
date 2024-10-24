@@ -92,6 +92,15 @@ get_clang_resource_dir(CLANG_RESOURCE_INTDIR
 get_clang_resource_dir(CLANG_RESOURCE_INSTALL_DIR
   PREFIX ${CMAKE_INSTALL_PREFIX})
 
+# FIXME: This is WRONG! This forces lld to be picked up from the install
+# directory which can break tests if the behavior of the installed LLD and that
+# in the build directory differ. This is most likely to occur if the command
+# line options to pass Kitsune-specific options to the linker change. In the
+# tapir targets, we need to find a way to pick lld depending on the location of
+# the "driver" executable (which could be any of clang, flang, opt, or even lld
+# itself).
+set(KITSUNE_LLD ${CMAKE_INSTALL_PREFIX}/bin/ld.lld)
+
 if (KITSUNE_KOKKOS_ENABLED)
   # We currently don't support using a pre-built Kokkos - even if it has been
   # patched the way we need it to be. This could possibly be moved to
@@ -209,13 +218,22 @@ if (KITSUNE_CUDA_ENABLED)
   # is not set either, even if the CUDAToolkit is found. The prefix relies on
   # environment variables, so prefer those. Otherwise, make a best guess at
   # figuring out what it is from the vriables that are set.
-  if (DEFINED ENV{CUDA_HOME})
-    set(KITSUNE_CUDA_PREFIX $ENV{CUDA_HOME})
-  elseif (DEFINED $ENV{CUDA_PATH})
+  #
+  # Alternatively, we could require setting CUDA_PATH in the environment. That
+  # is probably not necessary. On HPC machines (which generally give us the most
+  # grief), CUDA_PATH is often set,so checking for it first should be ok. We
+  # probably want to test this across a range of systems though.
+  if (DEFINED ENV{CUDA_PATH})
+    message(STATUS "  Setting cuda prefix from CUDA_PATH environment variable"
     set(KISTUNE_CUDA_PREFIX $ENV{CUDA_PATH})
+  elseif (DEFINED ENV{CUDA_HOME})
+    message(STATUS "  Setting cuda prefix from CUDA_HOME environment variable")
+    set(KITSUNE_CUDA_PREFIX $ENV{CUDA_HOME})
   elseif (CUDAToolkit_ROOT)
+    message(STATUS "  Setting cuda prefix from CUDAToolkit_ROOT")
     set(KITSUNE_CUDA_PREFIX ${CUDAToolkit_ROOT})
   else ()
+    message(STATUS "  Setting cuda prefix to parent of CUDAToolkit_BIN_DIR")
     get_filename_component(KITSUNE_CUDA_PREFIX ${CUDAToolkit_BIN_DIR} DIRECTORY)
   endif ()
   if (NOT KITSUNE_CUDA_PREFIX)
@@ -226,6 +244,7 @@ if (KITSUNE_CUDA_ENABLED)
   set(KITSUNE_CUDA_VERSION_MINOR ${CUDAToolkit_VERSION_MINOR})
   set(KITSUNE_CUDA_VERSION_PATCH ${CUDAToolkit_VERSION_PATCH})
   set(KITSUNE_CUDA_VERSION_STRING "${CUDAToolkit_VERSION_MAJOR}.${CUDAToolkit_VERSION_MINOR}.${CUDAToolkit_VERSION_PATCH}")
+
   set(KITSUNE_CUDA_INCLUDE_DIR ${CUDAToolkit_INCLUDE_DIRS})
   set(KITSUNE_CUDA_BINARY_DIR ${CUDAToolkit_BIN_DIR})
   set(KITSUNE_CUDA_LIBRARY_DIR ${CUDAToolkit_LIBRARY_DIR})
@@ -425,7 +444,7 @@ if (KITSUNE_OPENCILK_ENABLED)
   #
   ExternalProject_Add(cheetah
     DEPENDS             clang lld llvm-config llvm-link
-    GIT_REPOSITORY      https://github.com/tarunprabhu/cheetah.git
+    GIT_REPOSITORY      https://github.com/OpenCilk/cheetah.git
     GIT_TAG             dev
     SOURCE_DIR          ${KITSUNE_CHEETAH_SOURCE_DIR}
     BINARY_DIR          ${KITSUNE_CHEETAH_BINARY_DIR}

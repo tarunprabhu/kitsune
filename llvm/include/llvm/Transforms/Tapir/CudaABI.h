@@ -122,8 +122,11 @@ public:
 
   void postProcessModule() override final;
 
-  LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
+  // FIXME: The optimization level should be obtained from the CudaABIOptions
+  // object.
+  LoopOutlineProcessor *getLoopOutlineProcessor(
+      const TapirLoopInfo *TL,
+      OptimizationLevel OptLevel = OptimizationLevel::O2) override final;
 
   void pushPTXFilename(const std::string &PTXFilename);
 
@@ -159,6 +162,11 @@ private:
   Function *createCtor(GlobalVariable *Fatbinary, GlobalVariable *Wrapper);
   Function *createDtor(GlobalVariable *FBHandle);
 
+  // FIXME: This should go away
+  OptimizationLevel getOptimizationLevel() const {
+    return Level;
+  }
+
   std::unique_ptr<Module> LibDeviceModule;
 
   typedef std::list<std::string> StringListTy;
@@ -174,6 +182,7 @@ private:
 
   Module KernelModule;
   TargetMachine *PTXTargetMachine;
+  OptimizationLevel  Level;
 
   /// Options for this tapir target. This is a pointer but should always be set
   /// with a call to setOptions(). We could make upstream changes so this is
@@ -266,6 +275,7 @@ public:
   void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
                                DominatorTree &DT) override final;
   void transformForPTX(Function &F);
+  void remapData(ValueToValueMapTy &VMap) override final;
 
   Function *resolveLibDeviceFunction(Function *F, bool enableFastMode);
 };

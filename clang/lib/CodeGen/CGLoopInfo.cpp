@@ -551,6 +551,15 @@ LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
     LoopProperties.push_back(MDNode::get(Ctx, Vals));
   }
 
+  // Setting tapir.loop.threads.per.block
+  if (Attrs.ThreadsPerBlock) {
+    Metadata *Vals[] = {
+        MDString::get(Ctx, "tapir.loop.threads.per.block"),
+        ConstantAsMetadata::get(ConstantInt::get(
+            llvm::Type::getInt32Ty(Ctx), unsigned(Attrs.ThreadsPerBlock)))};
+    LoopProperties.push_back(MDNode::get(Ctx, Vals));
+  }
+
   return LoopProperties;
 }
 

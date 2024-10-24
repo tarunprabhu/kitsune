@@ -100,7 +100,6 @@ struct ForcePassLinking {
     (void)llvm::createLoopStripMinePass();
     (void)llvm::createLoopTermFoldPass();
     (void)llvm::createLoopUnrollPass();
-    (void)llvm::createLowerConstantIntrinsicsPass();
     (void)llvm::createLowerGlobalDtorsLegacyPass();
     (void)llvm::createLowerInvokePass();
     (void)llvm::createLowerSwitchPass();

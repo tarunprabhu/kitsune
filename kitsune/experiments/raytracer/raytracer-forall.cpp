@@ -35,7 +35,7 @@ struct Vec {
   }
 };
 
-inline __attribute__((always_inline)) float randomVal(unsigned int &x) {
+__attribute__((always_inline)) float randomVal(unsigned int &x) {
   x = (214013 * x + 2531011);
   return ((x >> 16) & 0x7FFF) / 66635.0f;
 }
@@ -43,8 +43,8 @@ inline __attribute__((always_inline)) float randomVal(unsigned int &x) {
 // Rectangle CSG equation. Returns minimum signed distance from
 // space carved bylowerLeft vertex and opposite rectangle vertex
 // upperRight.
-inline __attribute__((always_inline)) float
-BoxTest(const Vec &position, Vec lowerLeft, Vec upperRight) {
+// __attribute__((always_inline))
+float BoxTest(const Vec &position, Vec lowerLeft, Vec upperRight) {
   lowerLeft = position + lowerLeft * -1.0f;
   upperRight = upperRight + position * -1.0f;
   return -fminf(
@@ -58,8 +58,8 @@ BoxTest(const Vec &position, Vec lowerLeft, Vec upperRight) {
 #define HIT_SUN 3
 
 // Sample the world using Signed Distance Fields.
-inline __attribute__((always_inline)) float QueryDatabase(const Vec &position,
-                                                          int &hitType) {
+// __attribute__((always_inline))
+float QueryDatabase(const Vec &position, int &hitType) {
   float distance = 1e9; // FLT_MAX;
   Vec f = position;     // Flattened position (z=0)
   f.z = 0;
@@ -105,7 +105,7 @@ inline __attribute__((always_inline)) float QueryDatabase(const Vec &position,
 
 // Perform signed sphere marching
 // Returns hitType 0, 1, 2, or 3 and update hit position/normal
-inline __attribute__((always_inline)) int RayMarching(const Vec &origin,
+__attribute__((always_inline)) int RayMarching(const Vec &origin,
                                                       const Vec &direction,
                                                       Vec &hitPos,
                                                       Vec &hitNorm) {
@@ -127,8 +127,8 @@ inline __attribute__((always_inline)) int RayMarching(const Vec &origin,
   return HIT_NONE;
 }
 
-inline __attribute__((always_inline)) Vec Trace(Vec origin, Vec direction,
-                                                unsigned int &rn) {
+// __attribute__((always_inline))
+Vec Trace(Vec origin, Vec direction, unsigned int &rn) {
   Vec sampledPosition;
   Vec normal;
   Vec color(0.0f, 0.0f, 0.0f);

@@ -14,16 +14,22 @@
 #define LLVM_TRANSFORMS_TAPIR_TAPIRTOTARGET_H
 
 #include "llvm/IR/PassManager.h"
+#include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
 namespace llvm {
 
 /// The TapirToTarget Pass.
 struct TapirToTargetPass : public PassInfoMixin<TapirToTargetPass> {
-  TapirToTargetPass() = default;
+  TapirToTargetPass(OptimizationLevel OptLevel = OptimizationLevel::O2) =
+      default;
 
   /// \brief Run the pass over the module.
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+
+  /// FIXME: This should be removed. The optimization level can be passed via
+  /// the GPUABIOptions (since those are the only tapir targets that use it).
+  OptimizationLevel Level;
 };
 
 } // end namespace llvm
