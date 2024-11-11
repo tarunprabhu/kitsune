@@ -2685,6 +2685,17 @@ def SetJmpEx : MSLibBuiltin<"setjmpex.h"> {
   let Prototype = "int(jmp_buf)";
 }
 
+// Kitsune library functions
+def KitsuneMobileAlloc : LibBuiltin<"kitsune.h"> {
+  let Spellings = ["__kitrt_mobile_alloc", "kitsune_mobile_alloc"];
+  let Prototype = "void*(size_t)";
+}
+
+def KitsuneMobileDealloc : LibBuiltin<"kitsune.h"> {
+  let Spellings = ["__kitrt_mobile_free", "kitsune_mobile_free"];
+  let Prototype = "void(void*)";
+}
+
 // C99 library functions
 // C99 stdarg.h
 def VaStart : LibBuiltin<"stdarg.h"> {

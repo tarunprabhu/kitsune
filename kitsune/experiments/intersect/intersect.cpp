@@ -9,6 +9,13 @@
 // access patterns.
 //
 
+// FIXME: This is now totally broken. _tapir_cuda_target will never be passed
+// by Kitsune's frontend. In order to have a similar effect, one would need to
+// rely on Kitsune's middle end passes correctly dealing with memory allocations
+// (or we need to provide some hooks to do it manually). In either case, this
+// test needs some significant reworking. But there are more serious issues
+// with supporting multi-targets *cleanly* in the compiler, so it would all need
+// to be handled with some more care.
 #ifdef _tapir_cuda_target
 constexpr bool HAVE_KITSUNE = true;
 #else
@@ -40,12 +47,12 @@ int main(int argc, char *argv[]) {
     // __kitrt_cuInit();
   } else
     printf ("At runtime we do not HAVE_KITSUNE!\n");
-  
+
 
   // for profiling, do all the cuda overhead now
   nvtxRangePushA("Kitsune/Cuda Initialization");
-  int *dum = alloc<int>(16);
-  dealloc(dum); // doesn't work ATM
+  kitsune::mobile<int> dum(16);
+  dum.free(); // doesn't work ATM
   nvtxRangePop();
 
   ///////////////////////////////
@@ -97,7 +104,7 @@ int main(int argc, char *argv[]) {
 
 
   nvtxRangePushA("Serial Work");
-  
+
   ///////////////////////////////
   // create the mesh
   ///////////////////////////////
@@ -113,7 +120,7 @@ int main(int argc, char *argv[]) {
   create_meshes(HOST, nx, ny, x_max, y_max, shift_x, shift_y,
                 source_coordinates, source_cell_nodes, source_node_offsets,
                 target_coordinates, target_cell_nodes, target_node_offsets,
-                candidates, candidate_offsets, shuffle, shuffle_source_nodes, 
+                candidates, candidate_offsets, shuffle, shuffle_source_nodes,
                 shuffle_source_cells, shuffle_target_nodes);
   nvtxRangePop();
 
@@ -151,9 +158,9 @@ int main(int argc, char *argv[]) {
 
   // declare the various arrays that we will reuse in the different execution graphs
   double *source_coordinates_kit;
-  size_t *source_cell_nodes_kit; 
+  size_t *source_cell_nodes_kit;
   size_t *source_node_offsets_kit;
-  
+
   double *target_coordinates_kit;
   size_t *target_cell_nodes_kit;
   size_t *target_node_offsets_kit;
@@ -181,14 +188,14 @@ int main(int argc, char *argv[]) {
 
   nvtxRangeId_t NVTX_PR11 = nvtxRangeStartA("Parallel Region 1");
 
-  spawn source_coordinates 
+  spawn source_coordinates
   {
   nvtxRangeId_t NVTX_SC1 = nvtxRangeStartA("Source Coords");
   create_coordinates_gpu(source_coordinates_kit, nx, ny, x_max, y_max, 0., 0.,
                      "source_coordinates gpu",
                      shuffle ? &shuffle_source_nodes : nullptr,
                      2 * nx * ny);
-  nvtxRangeEnd(NVTX_SC1);                 
+  nvtxRangeEnd(NVTX_SC1);
   }
 
   spawn target_coordinates
@@ -198,16 +205,16 @@ int main(int argc, char *argv[]) {
                      shift_y, "target_coordinates gpu",
                      shuffle ? &shuffle_target_nodes : nullptr,
                      2 * nx * ny);
-  nvtxRangeEnd(NVTX_TC1);                 
+  nvtxRangeEnd(NVTX_TC1);
   }
-  
-  spawn source_cell_nodes 
+
+  spawn source_cell_nodes
   {
   nvtxRangeId_t NVTX_SC2N1 = nvtxRangeStartA("Source C2N");
   create_cell_nodes_gpu(source_cell_nodes_kit, nx, ny, "source_cell_nodes",
                     shuffle ? &shuffle_source_nodes : nullptr,
                     shuffle ? &shuffle_source_cells : nullptr);
-  nvtxRangeEnd(NVTX_SC2N1);                 
+  nvtxRangeEnd(NVTX_SC2N1);
   }
 
   spawn target_cell_nodes
@@ -216,32 +223,32 @@ int main(int argc, char *argv[]) {
   // no need to shuffle the target cells
   create_cell_nodes_gpu(target_cell_nodes_kit, nx, ny, "target_cell_nodes",
                     shuffle ? &shuffle_target_nodes : nullptr, nullptr);
-  nvtxRangeEnd(NVTX_TC2N1);                 
+  nvtxRangeEnd(NVTX_TC2N1);
   }
 
   source_node_offsets_kit = allocate<size_t>(KITSUNE, nx * ny + 1, "source_node_offsets");
-  spawn source_node_offsets 
+  spawn source_node_offsets
   {
   nvtxRangeId_t NVTX_SNO1 = nvtxRangeStartA("Source Node Offsets");
   forall (size_t i = 0; i < nx * ny + 1; ++i)
     source_node_offsets_kit[i] = 4 * i;
-  nvtxRangeEnd(NVTX_SNO1);                 
+  nvtxRangeEnd(NVTX_SNO1);
   }
 
   target_node_offsets_kit = allocate<size_t>(KITSUNE, nx * ny + 1, "target node offsets");
-  spawn target_node_offsets 
+  spawn target_node_offsets
   {
   nvtxRangeId_t NVTX_TNO1 = nvtxRangeStartA("Target Node Offsets");
   forall (size_t i = 0; i < nx * ny + 1; ++i)
     target_node_offsets_kit[i] = 4 * i;
-  nvtxRangeEnd(NVTX_TNO1);                 
+  nvtxRangeEnd(NVTX_TNO1);
   }
 
-  spawn create_candidate_offsets 
+  spawn create_candidate_offsets
   {
   nvtxRangeId_t NVTX_SCO1 = nvtxRangeStartA("Source Candidate Offsets");
   create_candidate_offsets(candidate_offsets_kit, nx, ny);
-  nvtxRangeEnd(NVTX_SCO1);                 
+  nvtxRangeEnd(NVTX_SCO1);
   }
 
   sync source_coordinates;
@@ -251,15 +258,15 @@ int main(int argc, char *argv[]) {
   sync source_node_offsets;
   sync target_node_offsets;
   sync create_candidate_offsets;
-  
+
   nvtxRangeEnd(NVTX_PR11);//Parallel Region 1
-  
+
   // At this point we know the number of candidates so we can allocate. All the syncs
   // needed to complete in create_meshes_gpu in order for us to do the allocation here.
   // This isn't really what we want, but is the best we can do at the moment.
   nvtxRangeId_t NVTX_PR21 = nvtxRangeStartA("Parallel Region 2");
-  
-  spawn allocate_and_compute_candidates {    
+
+  spawn allocate_and_compute_candidates {
   nvtxRangeId_t NVTX_CAN1 = nvtxRangeStartA("Computing candidates");
   create_candidates_gpu(candidates_kit, candidate_offsets_kit[n_cells], nx, ny, candidate_offsets_kit,
                     "create candidates ",
@@ -278,7 +285,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
   double *results = &source_coordinates_kit[2 * n_nodes];
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     &source_coordinates_kit[2 * n_nodes]);
@@ -309,7 +316,7 @@ int main(int argc, char *argv[]) {
   dealloc(source_coordinates_kit);
   dealloc(source_cell_nodes_kit);
   dealloc(source_node_offsets_kit);
-  
+
   dealloc(target_coordinates_kit);
   dealloc(target_cell_nodes_kit);
   dealloc(target_node_offsets_kit);
@@ -329,7 +336,7 @@ int main(int argc, char *argv[]) {
 
   nvtxRangeId_t NVTX_PR12 = nvtxRangeStartA("Parallel Region 1");
 
-  spawn source_coordinates 
+  spawn source_coordinates
   {
   nvtxRangeId_t NVTX_SC2 = nvtxRangeStartA("Source Coords");
   create_coordinates_gpu(source_coordinates_kit, nx, ny, x_max, y_max, 0., 0.,
@@ -348,8 +355,8 @@ int main(int argc, char *argv[]) {
                      2 * nx * ny);
   nvtxRangeEnd(NVTX_TC2);
   }
-  
-  spawn source_cell_nodes 
+
+  spawn source_cell_nodes
   {
   nvtxRangeId_t NVTX_SC2N2 = nvtxRangeStartA("Source C2N");
   create_cell_nodes_gpu(source_cell_nodes_kit, nx, ny, "source_cell_nodes",
@@ -368,7 +375,7 @@ int main(int argc, char *argv[]) {
   }
 
   source_node_offsets_kit = allocate<size_t>(KITSUNE, nx * ny + 1, "source_node_offsets");
-  spawn source_node_offsets 
+  spawn source_node_offsets
   {
   nvtxRangeId_t NVTX_SNO2 = nvtxRangeStartA("Source Node Offsets");
   forall (size_t i = 0; i < nx * ny + 1; ++i)
@@ -377,7 +384,7 @@ int main(int argc, char *argv[]) {
   }
 
   target_node_offsets_kit = allocate<size_t>(KITSUNE, nx * ny + 1, "target_node_offsets");
-  spawn target_node_offsets 
+  spawn target_node_offsets
   {
   nvtxRangeId_t NVTX_TNO2 = nvtxRangeStartA("Target Node Offsets");
   forall (size_t i = 0; i < nx * ny + 1; ++i)
@@ -385,7 +392,7 @@ int main(int argc, char *argv[]) {
   nvtxRangeEnd(NVTX_TNO2);
   }
 
-  spawn create_candidate_offsets 
+  spawn create_candidate_offsets
   {
   nvtxRangeId_t NVTX_CANDO2 = nvtxRangeStartA("Candidates and Offsets");
   nvtxRangeId_t NVTX_CO2 = nvtxRangeStartA("Candidate Offsets");
@@ -408,7 +415,7 @@ int main(int argc, char *argv[]) {
   sync create_candidate_offsets;
 
   nvtxRangeEnd(NVTX_PR12); // Parallel Region 1
-  
+
   // At this point we know the number of candidates so we can allocate. All the syncs
   // needed to complete in create_meshes_gpu in order for us to do the allocation here.
   // This isn't really what we want, but is the best we can do at the moment.
@@ -424,7 +431,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
   double *results = &source_coordinates_kit[2 * n_nodes];
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     &source_coordinates_kit[2 * n_nodes]);
@@ -452,7 +459,7 @@ int main(int argc, char *argv[]) {
   dealloc(source_coordinates_kit);
   dealloc(source_cell_nodes_kit);
   dealloc(source_node_offsets_kit);
-  
+
   dealloc(target_coordinates_kit);
   dealloc(target_cell_nodes_kit);
   dealloc(target_node_offsets_kit);
@@ -472,7 +479,7 @@ int main(int argc, char *argv[]) {
 
   nvtxRangeId_t NVTX_PR13 = nvtxRangeStartA("Parallel Region 1");
 
-  spawn source_coordinates 
+  spawn source_coordinates
   {
   nvtxRangeId_t NVTX_SC3 = nvtxRangeStartA("Source Coords");
   create_coordinates_gpu(source_coordinates_kit, nx, ny, x_max, y_max, 0., 0.,
@@ -482,7 +489,7 @@ int main(int argc, char *argv[]) {
   nvtxRangeEnd(NVTX_SC3);
   }
 
-  spawn source_cell_nodes 
+  spawn source_cell_nodes
   {
   nvtxRangeId_t NVTX_SC2N3 = nvtxRangeStartA("Source C2N");
   create_cell_nodes_gpu(source_cell_nodes_kit, nx, ny, "source_cell_nodes",
@@ -492,7 +499,7 @@ int main(int argc, char *argv[]) {
   }
 
   source_node_offsets_kit = allocate<size_t>(KITSUNE, nx * ny + 1, "source_node_offsets");
-  spawn source_node_offsets 
+  spawn source_node_offsets
   {
   nvtxRangeId_t NVTX_SNO3 = nvtxRangeStartA("Source Node Offsets");
   forall (size_t i = 0; i < nx * ny + 1; ++i)
@@ -509,7 +516,7 @@ int main(int argc, char *argv[]) {
                      2 * nx * ny);
   nvtxRangeEnd(NVTX_TC3);
   }
-  
+
   spawn target_cell_nodes
   {
   nvtxRangeId_t NVTX_TC2N3 = nvtxRangeStartA("Target C2N");
@@ -520,7 +527,7 @@ int main(int argc, char *argv[]) {
   }
 
   target_node_offsets_kit = allocate<size_t>(KITSUNE, nx * ny + 1, "target_node_offsets");
-  spawn target_node_offsets 
+  spawn target_node_offsets
   {
   nvtxRangeId_t NVTX_TNO3 = nvtxRangeStartA("Target Node Offsets");
   forall (size_t i = 0; i < nx * ny + 1; ++i)
@@ -528,7 +535,7 @@ int main(int argc, char *argv[]) {
   nvtxRangeEnd(NVTX_TNO3);
   }
 
-  spawn create_candidate_offsets 
+  spawn create_candidate_offsets
   {
   nvtxRangeId_t NVTX_CANDO3 = nvtxRangeStartA("Candidates and Offsets");
   nvtxRangeId_t NVTX_CO3 = nvtxRangeStartA("Candidate Offsets");
@@ -555,7 +562,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
   double *results = &source_coordinates_kit[2 * n_nodes];
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     &source_coordinates_kit[2 * n_nodes]);
@@ -573,16 +580,16 @@ int main(int argc, char *argv[]) {
   }
 
   sync create_candidate_offsets;
-  
+
   sync target_coordinates;
   sync target_cell_nodes;
   sync target_node_offsets;
-  
+
   sync cuda_centroids;
 
 
   nvtxRangeEnd(NVTX_PR13); // Parallel Region 1
-  
+
   ///////////////////////////////
   // free application heap memory
   ///////////////////////////////
@@ -591,7 +598,7 @@ int main(int argc, char *argv[]) {
   dealloc(source_coordinates_kit);
   dealloc(source_cell_nodes_kit);
   dealloc(source_node_offsets_kit);
-  
+
   dealloc(target_coordinates_kit);
   dealloc(target_cell_nodes_kit);
   dealloc(target_node_offsets_kit);
@@ -611,7 +618,7 @@ int main(int argc, char *argv[]) {
 
   nvtxRangeId_t NVTX_PR14 = nvtxRangeStartA("Parallel Region 1");
 
-  spawn source_coordinates1 
+  spawn source_coordinates1
   {
   nvtxRangeId_t NVTX_SC4 = nvtxRangeStartA("Source Coords");
   create_coordinates_gpu(source_coordinates_kit, nx, ny, x_max, y_max, 0., 0.,
@@ -631,10 +638,10 @@ int main(int argc, char *argv[]) {
   }
 
   source_node_offsets_kit = allocate<size_t>(KITSUNE, nx * ny + 1, "source_node_offsets");
-  spawn source_node_offsets1 
+  spawn source_node_offsets1
   {
   nvtxRangeId_t NVTX_SNO4 = nvtxRangeStartA("Source Node Offsets");
-  // [[tapir::target("cuda")]] 
+  // [[tapir::target("cuda")]]
   forall (size_t i = 0; i < nx * ny + 1; ++i)
     source_node_offsets_kit[i] = 4 * i;
   nvtxRangeEnd(NVTX_SNO4);
@@ -642,7 +649,7 @@ int main(int argc, char *argv[]) {
   sync source_coordinates1;
   sync source_cell_nodes1;
   sync source_node_offsets1;
- 
+
   // compute centroids
   spawn cuda_centroids41
   {
@@ -653,7 +660,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
   double *results = &source_coordinates_kit[2 * n_nodes];
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     &source_coordinates_kit[2 * n_nodes]);
@@ -680,7 +687,7 @@ int main(int argc, char *argv[]) {
                      2 * nx * ny);
   nvtxRangeEnd(NVTX_TC4);
   }
-  
+
   spawn target_cell_nodes
   {
   nvtxRangeId_t NVTX_TC2N4 = nvtxRangeStartA("Target C2N");
@@ -691,7 +698,7 @@ int main(int argc, char *argv[]) {
   }
 
   target_node_offsets_kit = allocate<size_t>(KITSUNE, nx * ny + 1, "target_node_offsets");
-  spawn target_node_offsets 
+  spawn target_node_offsets
   {
   nvtxRangeId_t NVTX_TNO4 = nvtxRangeStartA("Target Node Offsets");
   forall (size_t i = 0; i < nx * ny + 1; ++i)
@@ -699,7 +706,7 @@ int main(int argc, char *argv[]) {
   nvtxRangeEnd(NVTX_TNO4);
   }
 
-  spawn create_candidate_offsets 
+  spawn create_candidate_offsets
   {
   nvtxRangeId_t NVTX_CANDO4 = nvtxRangeStartA("Candidates and Offsets");
   nvtxRangeId_t NVTX_CO4 = nvtxRangeStartA("Candidate Offsets");
@@ -723,7 +730,7 @@ int main(int argc, char *argv[]) {
   // final argument
   centroids_kit1 = allocate<double>(KITSUNE, 2 * n_cells, "explicit centroids");
 
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     centroids_kit1);
@@ -740,7 +747,7 @@ int main(int argc, char *argv[]) {
   nvtxRangeEnd(NVTX_CEN24);
   }
 
-  
+
   sync target_coordinates;
   sync target_cell_nodes;
   sync target_node_offsets;
@@ -749,7 +756,7 @@ int main(int argc, char *argv[]) {
 
 
   nvtxRangeEnd(NVTX_PR14); // Parallel Region 1
-  
+
   ///////////////////////////////
   // free application heap memory
   ///////////////////////////////
@@ -758,7 +765,7 @@ int main(int argc, char *argv[]) {
   dealloc(source_coordinates_kit);
   dealloc(source_cell_nodes_kit);
   dealloc(source_node_offsets_kit);
-  
+
   dealloc(target_coordinates_kit);
   dealloc(target_cell_nodes_kit);
   dealloc(target_node_offsets_kit);
@@ -781,7 +788,7 @@ int main(int argc, char *argv[]) {
 
   nvtxRangeId_t NVTX_SS5 = nvtxRangeStartA("Source Stuff");
 
-  spawn source_coordinates5 
+  spawn source_coordinates5
   {
   nvtxRangeId_t NVTX_SC5 = nvtxRangeStartA("Source Coords");
   create_coordinates_gpu(source_coordinates_kit, nx, ny, x_max, y_max, 0., 0.,
@@ -791,7 +798,7 @@ int main(int argc, char *argv[]) {
   nvtxRangeEnd(NVTX_SC5);
   }
 
-  spawn source_cell_nodes5 
+  spawn source_cell_nodes5
   {
   nvtxRangeId_t NVTX_SC2N5= nvtxRangeStartA("Source C2N");
   create_cell_nodes_gpu(source_cell_nodes_kit, nx, ny, "source_cell_nodes",
@@ -801,7 +808,7 @@ int main(int argc, char *argv[]) {
   }
 
   source_node_offsets_kit = allocate<size_t>(KITSUNE, nx * ny + 1, "source_node_offsets");
-  spawn source_node_offsets5 
+  spawn source_node_offsets5
   {
   nvtxRangeId_t NVTX_SNO5 = nvtxRangeStartA("Source Node Offsets");
   forall (size_t i = 0; i < nx * ny + 1; ++i)
@@ -823,7 +830,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
   double *results = &source_coordinates_kit[2 * n_nodes];
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     &source_coordinates_kit[2 * n_nodes]);
@@ -850,7 +857,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
 
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     centroids_kit1);
@@ -872,7 +879,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
 
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     centroids_kit2);
@@ -894,7 +901,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
 
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     centroids_kit3);
@@ -916,7 +923,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
 
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     centroids_kit4);
@@ -938,7 +945,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
 
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     centroids_kit5);
@@ -960,7 +967,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
 
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     centroids_kit6);
@@ -982,7 +989,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
 
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     centroids_kit7);
@@ -1004,7 +1011,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
 
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     centroids_kit8);
@@ -1026,7 +1033,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
 
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     centroids_kit9);
@@ -1048,7 +1055,7 @@ int main(int argc, char *argv[]) {
   // raises a runtime KITSUNE WARNING if we use in the centroid kernel as the
   // final argument
 
-  [[tapir::target("cuda")]] 
+  [[tapir::target("cuda")]]
   forall(size_t i = 0; i < n_cells; ++i) serial::centroid(
     i, source_node_offsets_kit, source_cell_nodes_kit, source_coordinates_kit,
     centroids_kit10);
@@ -1085,7 +1092,7 @@ int main(int argc, char *argv[]) {
                      2 * nx * ny);
   nvtxRangeEnd(NVTX_TC5);
   }
-  
+
   spawn target_cell_nodes
   {
   nvtxRangeId_t NVTX_TC2N5 = nvtxRangeStartA("Target C2N");
@@ -1096,7 +1103,7 @@ int main(int argc, char *argv[]) {
   }
 
   target_node_offsets_kit = allocate<size_t>(KITSUNE, nx * ny + 1, "target_node_offsets");
-  spawn target_node_offsets 
+  spawn target_node_offsets
   {
   nvtxRangeId_t NVTX_TNO5 = nvtxRangeStartA("Target Node Offsets");
   forall (size_t i = 0; i < nx * ny + 1; ++i)
@@ -1104,7 +1111,7 @@ int main(int argc, char *argv[]) {
   nvtxRangeEnd(NVTX_TNO5);
   }
 
-  spawn create_candidate_offsets 
+  spawn create_candidate_offsets
   {
   nvtxRangeId_t NVTX_CANDO5 = nvtxRangeStartA("Candidates and Offsets");
   nvtxRangeId_t NVTX_CO5 = nvtxRangeStartA("Candidate Offsets");
@@ -1119,19 +1126,19 @@ int main(int argc, char *argv[]) {
   }
 
   sync create_candidate_offsets;
-  
+
   sync target_coordinates;
   sync target_cell_nodes;
   sync target_node_offsets;
-  
+
 
 
   nvtxRangeEnd(NVTX_PR15); // Parallel Region 1
-  
+
   // At this point we know the number of candidates so we can allocate. All the syncs
   // needed to complete in create_meshes_gpu in order for us to do the allocation here.
   // This isn't really what we want, but is the best we can do at the moment.
-  nvtxRangeId_t NVTX_PR23 = nvtxRangeStartA("Parallel Region 2"); 
+  nvtxRangeId_t NVTX_PR23 = nvtxRangeStartA("Parallel Region 2");
   nvtxRangeEnd(NVTX_PR23); // Parallel Region 2
 
   /////////////////////////////
@@ -1142,7 +1149,7 @@ int main(int argc, char *argv[]) {
   dealloc(source_coordinates_kit);
   dealloc(source_cell_nodes_kit);
   dealloc(source_node_offsets_kit);
-  
+
   dealloc(target_coordinates_kit);
   dealloc(target_cell_nodes_kit);
   dealloc(target_node_offsets_kit);

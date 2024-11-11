@@ -1,8 +1,10 @@
 // REQUIRES: kitsune-kokkos
-// RUN: %kitxx -fkokkos -fkokkos-no-init -ftapir=opencilk -S -emit-llvm -o - | FileCheck %s
 // XFAIL: *
 // There is currently a bug in Kitsune which causes it to crash.
 // KITSUNE FIXME: Fix this bug so the compiler does not crash.
+
+// The serial target is always built, so this is safe to run.
+// RUN: %kitxx -fkokkos -fkokkos-no-init -ftapir=serial -O2 -S -emit-llvm -o - %s | FileCheck %s
 
 // Very simple test of kokkos that uses a functor.  In a nutshell,
 // given the potential for different compilation units, kitsune does
@@ -21,13 +23,11 @@ struct Hello {
 };
 
 int main (int argc, char* argv[]) {
-
   Kokkos::initialize (argc, argv);
-
   {
     Kokkos::parallel_for(NTIMES, Hello());
   }
-
   Kokkos::finalize ();
+
   return 0;
 }

@@ -14,7 +14,6 @@
 // CHECK-CUSTOM: Configuration file: {{.*}}/hip/hip.cfg
 // CHECK-CUSTOM: "-cc1"
 // CHECK-CUSTOM-SAME: "-D" "some_preprocessor_flag"
-// CHECK-CUSTOM-SAME: "-D_tapir_hip_target"
 // CHECK-CUSTOM-SAME: "-Wsome_compiler_flag"
 
 // It is a pain to check for the actual linker executable. There are far too

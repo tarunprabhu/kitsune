@@ -15,7 +15,6 @@
 // CHECK-CUSTOM: Configuration file: {{.*}}/cuda/cuda.cfg
 // CHECK-CUSTOM: "-cc1"
 // CHECK-CUSTOM-SAME: "-D" "some_preprocessor_flag"
-// CHECK-CUSTOM-SAME: "-D_tapir_cuda_target"
 // CHECK-CUSTOM-SAME: "-Wsome_compiler_flag"
 // CHECK-CUSTOM: {{^[ ]*"[^"]+/[l]?}}ld{{[.]?[^ ]*}}"
 

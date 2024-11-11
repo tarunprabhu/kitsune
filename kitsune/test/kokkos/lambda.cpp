@@ -1,7 +1,10 @@
-// TODO: Include an actual run line and add proper checks.
 // REQUIRES: kitsune-kokkos
-// RUN: false
 // XFAIL: *
+// FIXME: This currently crashes with a "nested sync regions at end of function"
+// error. Really should figure out why this is happening.
+
+// The serial target is always built, so this is safe to run.
+// RUN: %kitxx -fkokkos -fkokkos-no-init -O2 -fno-exceptions -ftapir=serial -S -emit-llvm -o - %s | FileCheck %s
 
 // Very simple test of kokkos with two common forms of the
 // parallel_for construct.  We should be able to transform
@@ -12,21 +15,21 @@
 const unsigned int NTIMES = 10;
 
 int main (int argc, char* argv[]) {
-
-  Kokkos::initialize (argc, argv);
-
+  Kokkos::initialize(argc, argv);
   {
+    // clang-format off
     Kokkos::parallel_for(NTIMES, KOKKOS_LAMBDA(const int i) {
-	printf("hello from %i\n", i);
-      });
+      printf("hello from %i\n", i);
+    });
 
     printf("\n");
 
     Kokkos::parallel_for("hello1", NTIMES, KOKKOS_LAMBDA(const int i) {
-	printf("hello from %i\n", i);
-      });
+      printf("hello from %i\n", i);
+    });
+    // clang-format on
   }
+  Kokkos::finalize();
 
-  Kokkos::finalize ();
   return 0;
 }

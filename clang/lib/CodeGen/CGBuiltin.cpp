@@ -6697,6 +6697,24 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     auto Str = CGM.GetAddrOfConstantCString(Name, "");
     return RValue::get(Str.getPointer());
   }
+
+  // Kitsune builtins
+  case Builtin::BI__kitrt_mobile_alloc:
+  case Builtin::BIkitsune_mobile_alloc: {
+    Function *F = CGM.getIntrinsic(Intrinsic::kitsune_mobile_alloc);
+    llvm::FunctionType *FTy = F->getFunctionType();
+    Value *Size = EmitScalarExpr(E->getArg(0));
+    if (Size->getType() != FTy->getParamType(0))
+      Size = Builder.CreateTruncOrBitCast(Size, FTy->getParamType(0));
+    return RValue::get(Builder.CreateCall(F, {Size}));
+  }
+
+  case Builtin::BI__kitrt_mobile_free:
+  case Builtin::BIkitsune_mobile_free: {
+    Function *F = CGM.getIntrinsic(Intrinsic::kitsune_mobile_free);
+    Value *Ptr = EmitScalarExpr(E->getArg(0));
+    return RValue::get(Builder.CreateCall(F, {Ptr}));
+  }
   }
   IsSpawnedScope SpawnedScp(this);
 

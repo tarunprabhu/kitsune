@@ -1,26 +1,31 @@
-// RUN: %kitxx -Xclang -verify -fsyntax-only -fkokkos -fkokkos-no-init -ftapir=serial %s
+// RUN: %kitxx -Xclang -verify -fsyntax-only -fkokkos -fkokkos-no-init \
+// RUN:   -ftapir=serial %s
 
 #include "Kokkos_Core.hpp"
 #include <kitsune.h>
+
+using namespace kitsune;
+
 int main(int argc, char *argv[]) {
-  float *A = alloc<float>(1024);
+  mobile_ptr<float> Am(1024);
+  float* A = Am.get();
 
-  Kokkos::initialize(argc, argv); {
-
+  Kokkos::initialize(argc, argv);
+  {
+    // clang-format off
     [[tapir::target("i860")]] // expected-error {{unknown tapir target}}
     Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
-	A[i] = i;
+      A[i] = i;
     });
 
     [[tapir::target(serial)]] // expected-error {{'target' attribute requires a string}}
     Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
-	A[i] = i;
+      A[i] = i;
     });
-
 
     [[tapir::target()]] // expected-error {{'target' attribute takes one argument}}
     Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
-	A[i] = i;
+      A[i] = i;
     });
 
     [[tapir::target("serial","-03")]] // expected-error {{'target' attribute takes one argument}}
@@ -30,13 +35,13 @@ int main(int argc, char *argv[]) {
 
     [[tapir::target("serial")]] // expected-error {{tapir target attribute on unsupported statement}}
     if (argc == 1) {
-      forall(int i = 0; i < 1024; ++i)
-	Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
-	  A[i] = i;
-        });
+      Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
+        A[i] = i;
+      });
     }
+    // clang-format on
+  }
+  Kokkos::finalize();
 
-  } Kokkos::finalize();
   return 0;
 }
-

@@ -4,11 +4,13 @@
 #include <iostream>
 #include <kitsune.h>
 
+using namespace kitsune;
+
 const float DEFAULT_X_VALUE = rand() % 1000000;
 const float DEFAULT_Y_VALUE = rand() % 1000000;
 const float DEFAULT_A_VALUE = rand() % 1000000;
 
-bool check_saxpy(const float *v, size_t N) {
+bool check_saxpy(const mobile_ptr<float> v, size_t N) {
   float err = 0.0f;
   for (size_t i = 0; i < N; i++) {
     err = err +
@@ -37,18 +39,17 @@ int main(int argc, char *argv[]) {
   cout << "---- saxpy benchmark (forall) ----\n"
        << "  Problem size: " << size << " elements.\n\n";
   cout << "  Allocating arrays..." << std::flush;
-  float *x = alloc<float>(size);
-  float *y = alloc<float>(size);
+  mobile_ptr<float> x(size);
+  mobile_ptr<float> y(size);
   cout << "  done.\n\n";
 
   cout << "  Starting benchmark...\n" << std::flush;
 
   double iteration_total_time = 0;
-  
+
   auto start_total_time = chrono::steady_clock::now();
   double min_time = 100000.0;
-  double max_time = 0.0;  
-
+  double max_time = 0.0;
 
   for (unsigned int t = 0; t < iterations; t++) {
 
@@ -59,8 +60,7 @@ int main(int argc, char *argv[]) {
       y[i] = DEFAULT_Y_VALUE;
     }
 
-    forall(size_t i = 0; i < size; i++) 
-      y[i] = DEFAULT_A_VALUE * x[i] + y[i];
+    forall(size_t i = 0; i < size; i++) y[i] = DEFAULT_A_VALUE * x[i] + y[i];
 
     auto end_time = chrono::steady_clock::now();
 
@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
     if (elapsed_time < min_time)
       min_time = elapsed_time;
     if (elapsed_time > max_time)
-      max_time = elapsed_time;    
+      max_time = elapsed_time;
     cout << "\t" << t << ". iteration time: " << elapsed_time << " seconds.\n";
     iteration_total_time += elapsed_time;
   }
@@ -86,10 +86,12 @@ int main(int argc, char *argv[]) {
          << "  Total time: " << elapsed_total_time << " seconds.\n"
          << "  Average iteration time: " << iteration_total_time / iterations
          << " seconds.\n"
-         << "*** " << min_time << ", " << max_time << "\n"      
+         << "*** " << min_time << ", " << max_time << "\n"
          << "----\n\n";
   }
-  dealloc(x);
-  dealloc(y);
+
+  x.free();
+  y.free();
+
   return 0;
 }

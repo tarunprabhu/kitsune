@@ -65,7 +65,7 @@ void create_meshes(MemoryType memory_type, int nx, int ny, double x_max,
                    size_t *&source_node_offsets, double *&target_coordinates,
                    size_t *&target_cell_nodes, size_t *&target_node_offsets,
                    size_t *&candidates, size_t *&candidate_offsets,
-                   bool shuffle, std::vector<size_t> &shuffle_source_nodes, 
+                   bool shuffle, std::vector<size_t> &shuffle_source_nodes,
                    std::vector<size_t> &shuffle_source_cells, std::vector<size_t> &shuffle_target_nodes, size_t extra_bytes = 0);
 
 
@@ -98,7 +98,7 @@ void create_meshes_gpu(int nx, int ny, double x_max,
                    size_t *source_node_offsets, double *&target_coordinates,
                    size_t *target_cell_nodes, size_t *target_node_offsets,
                    /*size_t *&candidates,*/ size_t *candidate_offsets,
-                   bool shuffle, std::vector<size_t> &shuffle_source_nodes, 
+                   bool shuffle, std::vector<size_t> &shuffle_source_nodes,
                    std::vector<size_t> &shuffle_source_cells, std::vector<size_t> &shuffle_target_nodes);
 
 
@@ -125,6 +125,11 @@ template <class T> int check_equal(T *v1, T *v2, size_t n) {
   return n_unequal > 0 ? 1 : 0;
 }
 
+// FIXME: As we move towards mobile pointers, this will not work since the
+// returned pointer must either be annotated with __mobile__, or it must not.
+// When that occurs, the programmer must correctly allocate memory "in the
+// right place". It is not possible to do so with this function.
+//   - Tarun
 template <class T>
 T *allocate(MemoryType memory_type, size_t n, const char *label) {
 
@@ -140,7 +145,7 @@ T *allocate(MemoryType memory_type, size_t n, const char *label) {
     message = std::string("__kitrt_cuMemAllocManaged ") + label;
     nvtxMark(message.c_str());
     // fprintf(stderr, "Allocating %s\n", message.c_str());
-    return (T *) alloc<T>(n);
+    return (T *) kitsune::mobile<T>(n).get();
     // return (T *)__kitrt_cuMemAllocManaged(sizeof(T) * n);
   }
   return nullptr;

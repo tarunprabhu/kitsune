@@ -7,12 +7,15 @@
 
 #define ITERATIONS 10
 
-void matrix_multiplication(double *A, double *B, double *C, int M, int N, int K){
-  forall(int tid = 0; tid < M * N; tid++){
+using namespace kitsune;
+
+void matrix_multiplication(mobile_ptr<double> A, mobile_ptr<double> B,
+                           mobile_ptr<double> C, int M, int N, int K) {
+  forall(int tid = 0; tid < M * N; tid++) {
     int m = tid / N;
     int n = tid % N;
     double sum = 0.0;
-    for(int k = 0; k < K; k++){
+    for (int k = 0; k < K; k++) {
       sum += A[m * K + k] * B[n * K + k];
     }
     C[tid] = sum;
@@ -38,7 +41,7 @@ int main(int argc, char *argv[]) {
   int m, n, k;
   int iterations = ITERATIONS;
 
-  if (argc <= 3){
+  if (argc <= 3) {
     std::cerr << "Usage: " << argv[0] << " M N K [iteration]\n\n";
     return 1;
   }
@@ -55,10 +58,10 @@ int main(int argc, char *argv[]) {
        << "  Matrix size: " << m << " x " << n << " x " << k << ".\n\n";
   cout << "  Allocating matrices..." << std::flush;
 
-  double *A = alloc<double>(m * k);
-  double *B = alloc<double>(n * k);
-  double *C = alloc<double>(m * n);
-  
+  mobile_ptr<double> A(m * k);
+  mobile_ptr<double> B(n * k);
+  mobile_ptr<double> C(m * n);
+
   // Assuming A, B, and C are already initialized and B is already transposed
   cout << "  done.\n\n";
 
@@ -69,8 +72,11 @@ int main(int argc, char *argv[]) {
 
   for (unsigned t = 0; t < iterations; t++) {
     auto start_time = chrono::steady_clock::now();
-    // matrix_multiplication(A, B, C, m); // Use transposed B for multiplication
-    matrix_multiplication(A, B, C, m, n, k); // Use transposed B for multiplication
+    // Use transposed B for multiplication
+    // matrix_multiplication(A, B, C, m);
+
+    // Use transposed B for multiplication
+    matrix_multiplication(A, B, C, m, n, k);
     auto end_time = chrono::steady_clock::now();
     elapsed_time = chrono::duration<double>(end_time - start_time).count();
     if (elapsed_time < min_time)
@@ -83,8 +89,10 @@ int main(int argc, char *argv[]) {
   }
   avg_time = avg_time / (iterations - 1);
   cout << "  Total time: " << avg_time << " seconds.\n\n";
-  dealloc(A);
-  dealloc(B);
-  dealloc(C);
+
+  A.free();
+  B.free();
+  C.free();
+
   return 0;
 }

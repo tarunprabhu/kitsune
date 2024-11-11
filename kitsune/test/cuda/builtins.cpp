@@ -1,0 +1,21 @@
+// RUN: %kitxx -ftapir=cuda -O2 -S -emit-llvm -o - %s | FileCheck %s --check-prefixes=CHECK,DECLARES
+
+#include <kitsune.h>
+
+using namespace kitsune;
+
+void allocate(mobile_ptr<int>& buf, size_t n) {
+  buf.alloc(n);
+}
+
+// CHECK-LABEL: _Z8allocate
+// CHECK: call {{.+}} @__kitcuda_mem_alloc_managed({{.+}})
+
+void deallocate(mobile_ptr<int>& buf) {
+  buf.free();
+}
+
+// CHECK-LABEL: _Z10deallocate
+// CHECK: call {{.+}} @__kitcuda_mem_free({{.+}})
+
+// DECLARES-DAG: declare noalias ptr @__kitcuda_mem_alloc_managed

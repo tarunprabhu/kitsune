@@ -4,7 +4,7 @@
 #include <kitsune.h>
 
 template<typename T>
-void random_fill(T *data, size_t N) {
+void random_fill(kitsune::mobile<T> data, size_t N) {
   T base_value = rand() / (T)RAND_MAX;
   forall(size_t i = 0; i < N; ++i)
     data[i] = base_value + i;
@@ -17,17 +17,18 @@ int main (int argc, char* argv[]) {
   if (argc >= 2)
     size = atol(argv[1]);
   if (argc == 3)
-    iterations = atoi(argv[2]);  
+    iterations = atoi(argv[2]);
 
   cout << setprecision(5);
   cout << "\n";
     cout << "---- vector addition benchmark (forall) ----\n"
          << "  Vector size: " << size << " elements.\n\n";
-  cout << "  Allocating arrays and filling with random values..." 
+  cout << "  Allocating arrays and filling with random values..."
        << std::flush;
-  float *A = alloc<float>(size);
-  float *B = alloc<float>(size);
-  float *C = alloc<float>(size);
+
+  kitsune::mobile<float> A(size);
+  kitsune::mobile<float> B(size);
+  kitsune::mobile<float> C(size);
   random_fill(A, size);
   random_fill(B, size);
   cout << "  done.\n\n";
@@ -56,20 +57,20 @@ int main (int argc, char* argv[]) {
       error_count++;
   }
   if (error_count) {
-    cout << "  incorrect result found! (" 
+    cout << "  incorrect result found! ("
          << error_count << " errors found)\n\n";
     return 1;
   } else {
     cout << "  pass (answers match).\n\n"
          << "  Total time: " << elapsed_time
          << " seconds. (" << size / elapsed_time << " elements/sec.)\n"
-         << "*** " << min_time << ", " << max_time << "\n"      
+         << "*** " << min_time << ", " << max_time << "\n"
          << "----\n\n";
   }
 
-  dealloc(A);
-  dealloc(B);
-  dealloc(C);
+  A.free();
+  B.free();
+  C.free();
   return error_count;
 }
 

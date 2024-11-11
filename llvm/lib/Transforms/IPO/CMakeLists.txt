@@ -64,6 +64,7 @@ add_llvm_component_library(LLVMipo
   FrontendOpenMP
   InstCombine
   IRReader
+  KitsuneOpts
   Linker
   Object
   ProfileData

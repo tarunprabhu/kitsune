@@ -26,6 +26,7 @@ add_llvm_component_library(LLVMPasses
   IPO
   InstCombine
   IRPrinter
+  KitsuneOpts
   ObjCARC
   Scalar
   Support

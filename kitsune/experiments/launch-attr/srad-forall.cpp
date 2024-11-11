@@ -1,30 +1,33 @@
-#include <iostream>
-#include <iomanip>
 #include <chrono>
 #include <cmath>
-#include <stdlib.h>
+#include <iomanip>
+#include <iostream>
 #include <kitsune.h>
+#include <stdlib.h>
 
-void random_matrix(float *I, unsigned int rows, unsigned int cols) {
+using namespace kitsune;
+using namespace std;
+
+void random_matrix(mobile_ptr<float> I, unsigned int rows, unsigned int cols) {
   srand(7);
-  using namespace std;
   auto start_time = chrono::steady_clock::now();
-  for(unsigned int i = 0 ; i < rows ; i++) {
-   for (unsigned int j = 0 ; j < cols ; j++) {
-      I[i*cols+j] = rand()/(float)RAND_MAX;
+  for (unsigned int i = 0; i < rows; i++) {
+    for (unsigned int j = 0; j < cols; j++) {
+      I[i * cols + j] = rand() / (float)RAND_MAX;
     }
   }
-  
+
   auto end_time = chrono::steady_clock::now();
-  double elapsed_time = chrono::duration<double>(end_time-start_time).count();
+  double elapsed_time = chrono::duration<double>(end_time - start_time).count();
   cout << "random matrix creation time " << elapsed_time << "\n";
 }
 
-void usage(int argc, char **argv)
-{
-  fprintf(stderr,
-        "Usage: %s <rows> <cols> <y1> <y2> <x1> <x2> <lambda> <no. of iter>\n",
-        argv[0]);
+[[noreturn]]
+void usage(int argc, char **argv) {
+  fprintf(
+      stderr,
+      "Usage: %s <rows> <cols> <y1> <y2> <x1> <x2> <lambda> <no. of iter>\n",
+      argv[0]);
   fprintf(stderr, "\t<rows>        - number of rows\n");
   fprintf(stderr, "\t<cols>        - number of cols\n");
   fprintf(stderr, "\t<y1> 	       - y1 value of the speckle\n");
@@ -36,28 +39,28 @@ void usage(int argc, char **argv)
   exit(1);
 }
 
-int main(int argc, char* argv[])
-{
-  using namespace std;
+int main(int argc, char *argv[]) {
   int rows, cols, size_I, size_R, niter;
-  float *I, *J, q0sqr, sum, sum2, tmp, meanROI,varROI ;
+  mobile_ptr<float> I, J;
+  float q0sqr, sum, sum2, tmp, meanROI, varROI;
   float Jc, G2, L, num, den, qsqr;
-  int *iN,*iS,*jE,*jW;
-  float *dN,*dS,*dW,*dE;
+  mobile_ptr<float> iN, iS, jE, jW;
+  mobile_ptr<float> dN, dS, dW, dE;
   int r1, r2, c1, c2;
-  float cN,cS,cW,cE;
-  float *c, D;
+  float cN, cS, cW, cE;
+  mobile_ptr<float> c;
+  float D;
   float lambda;
 
   if (argc == 9) {
-    rows = atoi(argv[1]); //number of rows in the domain
-    cols = atoi(argv[2]); //number of cols in the domain
-    r1   = atoi(argv[3]); //y1 position of the speckle
-    r2   = atoi(argv[4]); //y2 position of the speckle
-    c1   = atoi(argv[5]); //x1 position of the speckle
-    c2   = atoi(argv[6]); //x2 position of the speckle
-    lambda = atof(argv[7]); //Lambda value
-    niter = atoi(argv[8]); //number of iterations
+    rows = atoi(argv[1]);   // number of rows in the domain
+    cols = atoi(argv[2]);   // number of cols in the domain
+    r1 = atoi(argv[3]);     // y1 position of the speckle
+    r2 = atoi(argv[4]);     // y2 position of the speckle
+    c1 = atoi(argv[5]);     // x1 position of the speckle
+    c2 = atoi(argv[6]);     // x2 position of the speckle
+    lambda = atof(argv[7]); // Lambda value
+    niter = atoi(argv[8]);  // number of iterations
   } else if (argc == 1) {
     // run with a default configuration.
     rows = 6400;
@@ -72,7 +75,7 @@ int main(int argc, char* argv[])
     usage(argc, argv);
   }
 
-  if ((rows%16!=0) || (cols%16!=0)){
+  if ((rows % 16 != 0) || (cols % 16 != 0)) {
     fprintf(stderr, "rows and cols must be multiples of 16\n");
     exit(1);
   }
@@ -81,81 +84,79 @@ int main(int argc, char* argv[])
   cout << "\n";
   cout << "---- srad benchmark (forall) ----\n"
        << "  Row size    : " << rows << ".\n"
-       << "  Column size : " << cols << ".\n" 
+       << "  Column size : " << cols << ".\n"
        << "  Iterations  : " << niter << ".\n\n";
-       
-  cout << "  Allocating arrays and building random matrix..." 
-       << std::flush;
+
+  cout << "  Allocating arrays and building random matrix..." << std::flush;
 
   size_I = cols * rows;
-  size_R = (r2-r1+1)*(c2-c1+1);
+  size_R = (r2 - r1 + 1) * (c2 - c1 + 1);
 
-  I = alloc<float>(size_I);
-  J = alloc<float>(size_I);
-  c = alloc<float>(size_I);
-  iN = alloc<int>(rows);
-  iS = alloc<int>(rows);
-  jW = alloc<int>(cols);
-  jE = alloc<int>(cols);
-  dN = alloc<float>(size_I);
-  dS = alloc<float>(size_I);
-  dW = alloc<float>(size_I);
-  dE = alloc<float>(size_I);
+  I.alloc(size_I);
+  J.alloc(size_I);
+  c.alloc(size_I);
+  iN.alloc(rows);
+  iS.alloc(rows);
+  jW.alloc(cols);
+  jE.alloc(cols);
+  dN.alloc(size_I);
+  dS.alloc(size_I);
+  dW.alloc(size_I);
+  dE.alloc(size_I);
 
-
-  // Right now this initialization hides a lot of other details 
+  // Right now this initialization hides a lot of other details
   // (due to the slow performance of rand() on certain systems).
   // So we do this before we start the timer...
   random_matrix(I, rows, cols);
-  cout << "  done.\n\n";  
-    
-  cout << "  Starting benchmark...\n" << std::flush;  
+  cout << "  done.\n\n";
+
+  cout << "  Starting benchmark...\n" << std::flush;
   auto start_time = chrono::steady_clock::now();
   [[kitsune::launch(8)]]
   forall(int i = 0; i < rows; i++) {
-    iN[i] = i-1;
-    iS[i] = i+1;
+    iN[i] = i - 1;
+    iS[i] = i + 1;
   }
 
   [[kitsune::launch(8)]]
-  forall(int j=0; j < cols; j++) {
-    jW[j] = j-1;
-    jE[j] = j+1;
+  forall(int j = 0; j < cols; j++) {
+    jW[j] = j - 1;
+    jE[j] = j + 1;
   }
 
   iN[0] = 0;
-  iS[rows-1] = rows-1;
+  iS[rows - 1] = rows - 1;
   jW[0] = 0;
-  jE[cols-1] = cols-1;
+  jE[cols - 1] = cols - 1;
 
   [[kitsune::launch(64)]]
-  forall(int k = 0;  k < size_I; k++)
-    J[k] = (float)exp(I[k]) ;
+  forall(int k = 0; k < size_I; k++) J[k] = (float)exp(I[k]);
 
   double loop1_total_time = 0.0;
-  double loop2_total_time = 0.0;  
+  double loop2_total_time = 0.0;
   double loop1_max_time = 0.0, loop1_min_time = 1000.0;
   double loop2_max_time = 0.0, loop2_min_time = 1000.0;
-  
-  for (int iter=0; iter < niter; iter++) {
-    sum=0; sum2=0;
 
-    for(int i=r1; i <= r2; i++) {
-      for(int j = c1; j<=c2; j++) {
-        tmp   = J[i * cols + j];
-        sum  += tmp ;
-        sum2 += tmp*tmp;
+  for (int iter = 0; iter < niter; iter++) {
+    sum = 0;
+    sum2 = 0;
+
+    for (int i = r1; i <= r2; i++) {
+      for (int j = c1; j <= c2; j++) {
+        tmp = J[i * cols + j];
+        sum += tmp;
+        sum2 += tmp * tmp;
       }
     }
     meanROI = sum / size_R;
-    varROI  = (sum2 / size_R) - meanROI*meanROI;
-    q0sqr   = varROI / (meanROI*meanROI);
+    varROI = (sum2 / size_R) - meanROI * meanROI;
+    q0sqr = varROI / (meanROI * meanROI);
 
     auto loop1_start_time = chrono::steady_clock::now();
     [[kitsune::launch(16)]]
-    forall(int i = 0 ; i < rows; i++) {
-      
-      for(int j = 0; j < cols; j++) {
+    forall(int i = 0; i < rows; i++) {
+
+      for (int j = 0; j < cols; j++) {
         int k = i * cols + j;
         float Jc = J[k];
         // directional derivatives
@@ -164,18 +165,19 @@ int main(int argc, char* argv[])
         dE[k] = J[i * cols + jE[j]] - Jc;
         dW[k] = J[i * cols + jW[j]] - Jc;
 
-        float G2 = (dN[k]*dN[k] + dS[k]*dS[k] +
-                    dW[k]*dW[k] + dE[k]*dE[k]) / (Jc*Jc);
+        float G2 =
+            (dN[k] * dN[k] + dS[k] * dS[k] + dW[k] * dW[k] + dE[k] * dE[k]) /
+            (Jc * Jc);
 
         float L = (dN[k] + dS[k] + dW[k] + dE[k]) / Jc;
 
-        float num  = (0.5f*G2) - ((1.0f/16.0f)*(L*L)) ;
-        float den  = 1 + (.25f*L);
-        float qsqr = num/(den*den);
+        float num = (0.5f * G2) - ((1.0f / 16.0f) * (L * L));
+        float den = 1 + (.25f * L);
+        float qsqr = num / (den * den);
 
         // diffusion coefficient (equ 33)
-        den = (qsqr-q0sqr) / (q0sqr * (1+q0sqr)) ;
-        c[k] = 1.0f / (1.0f+den) ;
+        den = (qsqr - q0sqr) / (q0sqr * (1 + q0sqr));
+        c[k] = 1.0f / (1.0f + den);
 
         // saturate diffusion coefficient
         if (c[k] < 0)
@@ -185,8 +187,9 @@ int main(int argc, char* argv[])
       }
     }
     auto loop1_end_time = chrono::steady_clock::now();
-    double etime = chrono::duration<double>(loop1_end_time - loop1_start_time).count(); 
-    //cout << "\t- loop 1 time: " << etime << "\n";
+    double etime =
+        chrono::duration<double>(loop1_end_time - loop1_start_time).count();
+    // cout << "\t- loop 1 time: " << etime << "\n";
     loop1_total_time += etime;
     if (etime > loop1_max_time)
       loop1_max_time = etime;
@@ -196,7 +199,7 @@ int main(int argc, char* argv[])
     auto loop2_start_time = chrono::steady_clock::now();
     [[kitsune::launch(8)]]
     forall(int i = 0; i < rows; i++) {
-      for(int j = 0; j < cols; j++) {
+      for (int j = 0; j < cols; j++) {
         // current index
         int k = i * cols + j;
         // diffusion coefficient
@@ -207,12 +210,12 @@ int main(int argc, char* argv[])
         // divergence (equ 58)
         float D = cN * dN[k] + cS * dS[k] + cW * dW[k] + cE * dE[k];
         // image update (equ 61)
-        J[k] = J[k] + 0.25*lambda*D;
+        J[k] = J[k] + 0.25 * lambda * D;
       }
     }
     auto loop2_end_time = chrono::steady_clock::now();
-    etime = chrono::duration<double>(loop2_end_time - loop2_start_time).count(); 
-    //cout << "\t- loop 2 time: " << etime << "\n";
+    etime = chrono::duration<double>(loop2_end_time - loop2_start_time).count();
+    // cout << "\t- loop 2 time: " << etime << "\n";
     loop2_total_time += etime;
     if (etime > loop2_max_time)
       loop2_max_time = etime;
@@ -221,7 +224,7 @@ int main(int argc, char* argv[])
   }
   auto end_time = chrono::steady_clock::now();
   double elapsed_time = chrono::duration<double>(end_time - start_time).count();
-  
+
   cout << "  Avg. loop 1 time: " << loop1_total_time / niter << "\n"
        << "       loop 1 min : " << loop1_min_time << "\n"
        << "       loop 1 max : " << loop1_max_time << "\n"
@@ -234,7 +237,7 @@ int main(int argc, char* argv[])
 
   FILE *fp = fopen("srad-forall.dat", "wb");
   if (fp != NULL) {
-    fwrite((void*)J, sizeof(float), size_I, fp);
+    fwrite((void *)J.get(), sizeof(float), size_I, fp);
     fclose(fp);
   }
   return 0;

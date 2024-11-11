@@ -1751,12 +1751,10 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
     case TapirTargetID::None:
       break;
     case llvm::TapirTargetID::Cuda:
-      CmdArgs.push_back("-D_tapir_cuda_target");
       ExtractArgsFromString(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
                             Args);
       break;
     case llvm::TapirTargetID::Hip:
-      CmdArgs.push_back("-D_tapir_hip_target");
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
                             Args);
       break;

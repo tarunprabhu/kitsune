@@ -41,6 +41,9 @@
 ; CHECK-MATRIX: Running pass: LowerMatrixIntrinsicsPass
 ; CHECK-MATRIX-NEXT: Running analysis: TargetIRAnalysis
 ; CHECK-CORO-NEXT: Running pass: CoroConditionalWrapper
+; CHECK-CORO-NEXT: Running pass: LowerMobileIntrinsicsPass
+; CHECK-CORO-NEXT: Running analysis: TargetLibraryAnalysis
+; CHECK-CORO-NEXT: Running analysis: TargetLibraryAnalysis
 ; CHECK-PRE-LINK: Running pass: CanonicalizeAliasesPass
 ; CHECK-PRE-LINK-NEXT: Running pass: NameAnonGlobalPass
 ; CHECK-THINLTO: Running pass: LowerTypeTestsPass
@@ -52,7 +55,6 @@
 ; CHECK-LTO-NEXT: Running pass: LowerTypeTestsPass
 ; CHECK-LTO-NEXT: Running pass: LowerTypeTestsPass
 ; CHECK-CORO-NEXT: Running pass: AnnotationRemarksPass
-; CHECK-CORO-NEXT: Running analysis: TargetLibraryAnalysis
 ; CHECK-LTO-NEXT: Running pass: AnnotationRemarksPass
 ; CHECK-LTO-NEXT: Running analysis: TargetLibraryAnalysis
 ; CHECK-NEXT: Running pass: PrintModulePass

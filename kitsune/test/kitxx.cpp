@@ -1,5 +1,6 @@
 // Check that the Kitsune C++ frontend behaves like a C++ frontend and links
-// a C++ library.
+// a C++ library. It should not link any Kitsune-related library, particularly
+// not the runtime.
 //
 // For now, this should not add any -ftapir target but that might change in the
 // future. -fkokkos and related flags will never be the default.
@@ -8,5 +9,5 @@
 // CHECK-NOT: -ftapir
 // CHECK-NOT: -fkokkos
 // CHECK: "-x" "c++"
-// CHECK: {{[^ ]*}}/ld
-// CHECK-SAME: "-l{{.*}}c++"
+// CHECK-NOT: -lkitrt
+// CHECK: "-l{{.*}}c++"

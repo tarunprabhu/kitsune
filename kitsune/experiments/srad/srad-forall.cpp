@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include <kitsune.h>
 
-void random_matrix(float *I, unsigned int rows, unsigned int cols) {
+using namespace kitsune;
+
+void random_matrix(mobile_ptr<float> I, unsigned int rows, unsigned int cols) {
   srand(7);
   using namespace std;
   auto start_time = chrono::steady_clock::now();
@@ -14,20 +16,21 @@ void random_matrix(float *I, unsigned int rows, unsigned int cols) {
       I[i*cols+j] = rand()/(float)RAND_MAX;
     }
   }
-  
+
   auto end_time = chrono::steady_clock::now();
   double elapsed_time = chrono::duration<double>(end_time-start_time).count();
   cout << "  random matrix creation time " << elapsed_time << "\n";
-  cout << "  initial input data:\n";  
+  cout << "  initial input data:\n";
   for(unsigned int i = 0; i < 10; i++) {
-    cout << "   ";        
+    cout << "   ";
     for(unsigned int j = 0; j < 10; j++)
       cout << I[i * cols + j] << " ";
     cout << "...\n";
   }
-  cout << "   ...\n";  
+  cout << "   ...\n";
 }
 
+[[noreturn]]
 void usage(int argc, char **argv)
 {
   fprintf(stderr,
@@ -48,13 +51,15 @@ int main(int argc, char* argv[])
 {
   using namespace std;
   int rows, cols, size_I, size_R, niter;
-  float *I, *J, q0sqr, tmp, meanROI,varROI ;
+  mobile_ptr<float> I, J;
+  float q0sqr, tmp, meanROI,varROI ;
   float Jc, G2, L, num, den, qsqr;
-  int *iN,*iS,*jE,*jW;
-  float *dN,*dS,*dW,*dE;
+  mobile_ptr<int> iN,iS,jE,jW;
+  mobile_ptr<float> dN,dS,dW,dE;
   int r1, r2, c1, c2;
   float cN,cS,cW,cE;
-  float *c, D;
+  float D;
+  mobile_ptr<float> c;
   float lambda;
 
   if (argc == 9) {
@@ -89,31 +94,30 @@ int main(int argc, char* argv[])
   cout << "\n";
   cout << "---- srad benchmark (forall) ----\n"
        << "  Row size    : " << rows << ".\n"
-       << "  Column size : " << cols << ".\n" 
+       << "  Column size : " << cols << ".\n"
        << "  Iterations  : " << niter << ".\n\n";
-       
-  cout << "  Allocating arrays and building random matrix..." 
+
+  cout << "  Allocating arrays and building random matrix..."
        << std::flush;
 
   size_I = cols * rows;
   size_R = (r2-r1+1)*(c2-c1+1);
 
-  I = alloc<float>(size_I);
-  J = alloc<float>(size_I);
-  c = alloc<float>(size_I);
-  iN = alloc<int>(rows);
-  iS = alloc<int>(rows);
-  jW = alloc<int>(cols);
-  jE = alloc<int>(cols);
-  dN = alloc<float>(size_I);
-  dS = alloc<float>(size_I);
-  dW = alloc<float>(size_I);
-  dE = alloc<float>(size_I);
+  I.alloc(size_I);
+  J.alloc(size_I);
+  c.alloc(size_I);
+  iN.alloc(rows);
+  iS.alloc(rows);
+  jW.alloc(cols);
+  jE.alloc(cols);
+  dN.alloc(size_I);
+  dS.alloc(size_I);
+  dW.alloc(size_I);
+  dE.alloc(size_I);
 
   random_matrix(I, rows, cols);
-    
-  
-  cout << "  Starting benchmark...\n" << std::flush;    
+
+  cout << "  Starting benchmark...\n" << std::flush;
   auto start_time = chrono::steady_clock::now();
   forall(int i = 0; i < rows; i++) {
     iN[i] = i-1;
@@ -134,10 +138,10 @@ int main(int argc, char* argv[])
     J[k] = (float)exp(I[k]) ;
 
   double loop1_total_time = 0.0;
-  double loop2_total_time = 0.0;  
+  double loop2_total_time = 0.0;
   double loop1_max_time = 0.0, loop1_min_time = 1000.0;
   double loop2_max_time = 0.0, loop2_min_time = 1000.0;
-  
+
   for (int iter=0; iter < niter; iter++) {
     float sum=0, sum2=0;
 
@@ -154,7 +158,7 @@ int main(int argc, char* argv[])
 
     auto loop1_start_time = chrono::steady_clock::now();
     forall(int i = 0 ; i < rows; i++) {
-      
+
       for(int j = 0; j < cols; j++) {
         int k = i * cols + j;
         float Jc = J[k];
@@ -186,9 +190,9 @@ int main(int argc, char* argv[])
     }
     auto loop1_end_time = chrono::steady_clock::now();
     double etime = chrono::duration<double>
-      (loop1_end_time - loop1_start_time).count(); 
+      (loop1_end_time - loop1_start_time).count();
     loop1_total_time += etime;
-    
+
     if (etime > loop1_max_time)
       loop1_max_time = etime;
     else if (etime < loop1_min_time)
@@ -212,7 +216,7 @@ int main(int argc, char* argv[])
     }
     auto loop2_end_time = chrono::steady_clock::now();
     etime = chrono::duration<double>
-      (loop2_end_time - loop2_start_time).count(); 
+      (loop2_end_time - loop2_start_time).count();
     loop2_total_time += etime;
     if (etime > loop2_max_time)
       loop2_max_time = etime;
@@ -234,7 +238,7 @@ int main(int argc, char* argv[])
 
   FILE *fp = fopen("srad-forall-output.dat", "wb");
   if (fp != NULL) {
-    fwrite((void*)J, sizeof(float), size_I, fp);
+    fwrite((void*)J.get(), sizeof(float), size_I, fp);
     fclose(fp);
   }
   return 0;

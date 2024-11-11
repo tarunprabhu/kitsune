@@ -84,6 +84,7 @@
 #include "llvm/Transforms/Instrumentation/PGOCtxProfLowering.h"
 #include "llvm/Transforms/Instrumentation/PGOForceFunctionAttrs.h"
 #include "llvm/Transforms/Instrumentation/PGOInstrumentation.h"
+#include "llvm/Transforms/Kitsune/LowerMobileIntrinsics.h"
 #include "llvm/Transforms/Scalar/ADCE.h"
 #include "llvm/Transforms/Scalar/AlignmentFromAssumptions.h"
 #include "llvm/Transforms/Scalar/AnnotationRemarks.h"
@@ -1843,6 +1844,16 @@ PassBuilder::buildTapirLoweringPipeline(OptimizationLevel Level,
 }
 
 ModulePassManager
+PassBuilder::buildKitsuneLoweringPipeline(OptimizationLevel Level,
+                                          ThinOrFullLTOPhase Phase) {
+  ModulePassManager MPM;
+
+  MPM.addPass(LowerMobileIntrinsicsPass());
+
+  return MPM;
+}
+
+ModulePassManager
 PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
                                            ThinOrFullLTOPhase Phase,
                                            bool LowerTapir) {
@@ -1882,13 +1893,22 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
   // Add passes to run just before Tapir lowering.
   invokeTapirLateEPCallbacks(MPM, Level);
 
+  // We should always run the kitsune lowering pipeline because the Kitsune
+  // memory (de)allocators could have been used in code that is not compiled
+  // with Tapir, but the intrinsics need to be handled correctly in those
+  // cases too.
+  MPM.addPass(buildKitsuneLoweringPipeline(
+      Level, LTOPreLink ? ThinOrFullLTOPhase::FullLTOPreLink
+                        : ThinOrFullLTOPhase::None));
+
   // Lower Tapir if necessary
-  if (LowerTapir)
+  if (LowerTapir) {
     MPM.addPass(buildTapirLoweringPipeline(
         Level, LTOPreLink ? ThinOrFullLTOPhase::FullLTOPreLink
                           : ThinOrFullLTOPhase::None));
-  else
+  } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
+  }
 
   return MPM;
 }
@@ -2043,12 +2063,20 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
   // Add passes to run just before Tapir lowering.
   invokeTapirLateEPCallbacks(MPM, Level);
 
+  // We should always run the kitsune lowering pipeline because the Kitsune
+  // memory (de)allocators could have been used in code that is not compiled
+  // with Tapir, but the intrinsics need to be handled correctly in those
+  // cases too.
+  MPM.addPass(
+      buildKitsuneLoweringPipeline(Level, ThinOrFullLTOPhase::ThinLTOPostLink));
+
   // Lower Tapir if necessary
-  if (LowerTapir)
+  if (LowerTapir) {
     MPM.addPass(
         buildTapirLoweringPipeline(Level, ThinOrFullLTOPhase::ThinLTOPostLink));
-  else
+  } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
+  }
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -2395,12 +2423,20 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   // Add passes to run just before Tapir lowering.
   invokeTapirLateEPCallbacks(MPM, Level);
 
+  // We should always run the kitsune lowering pipeline because the Kitsune
+  // memory (de)allocators could have been used in code that is not compiled
+  // with Tapir, but the intrinsics need to be handled correctly in those
+  // cases too.
+  MPM.addPass(
+      buildKitsuneLoweringPipeline(Level, ThinOrFullLTOPhase::FullLTOPostLink));
+
   // Lower Tapir if necessary
-  if (LowerTapir)
+  if (LowerTapir) {
     MPM.addPass(
         buildTapirLoweringPipeline(Level, ThinOrFullLTOPhase::FullLTOPostLink));
-  else
+  } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
+  }
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -2522,12 +2558,21 @@ PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
   // Add passes to run just before Tapir lowering.
   invokeTapirLateEPCallbacks(MPM, Level);
 
-  if (LowerTapir)
+  // We should always run the kitsune lowering pipeline because the Kitsune
+  // memory (de)allocators could have been used in code that is not compiled
+  // with Tapir, but the intrinsics need to be handled correctly in those
+  // cases too.
+  MPM.addPass(buildKitsuneLoweringPipeline(
+      Level, LTOPreLink ? ThinOrFullLTOPhase::FullLTOPreLink
+                        : ThinOrFullLTOPhase::None));
+
+  if (LowerTapir) {
     MPM.addPass(buildTapirLoweringPipeline(
         Level, LTOPreLink ? ThinOrFullLTOPhase::FullLTOPreLink
                           : ThinOrFullLTOPhase::None));
-  else
+  } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
+  }
 
   if (isLTOPreLink(Phase))
     addRequiredLTOPreLinkPasses(MPM);
