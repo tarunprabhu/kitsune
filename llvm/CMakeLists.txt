@@ -338,6 +338,14 @@ foreach(target IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
 endforeach()
 string(STRIP "${KITSUNE_TAPIR_TARGETS_STR}" KITSUNE_ENABLED_TAPIR_TARGETS_STR)
 
+# The serial target is never exposed because it is always built. This is
+# intentional. The kit-config utility needs to report it in the list of all
+# tapir targets, so only add it to the list that will eventually be stringified
+# for use in that utility.
+list(APPEND KITSUNE_ALL_TAPIR_TARGETS "serial")
+list(SORT KITSUNE_ALL_TAPIR_TARGETS)
+string(REPLACE ";" " " KITSUNE_ALL_TAPIR_TARGETS_STR "${KITSUNE_ALL_TAPIR_TARGETS}")
+
 # We always want libLLVM to be build because we link to it in Kitsune's runtime,
 # libkitrt
 set(LLVM_BUILD_LLVM_DYLIB ON)

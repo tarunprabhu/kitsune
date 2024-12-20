@@ -27,22 +27,27 @@ usage: kit-config <OPTION>... \n\
 Get configuration information about Kitsune\n\
 \n\
 Options:\n\
-  --c-frontend       Path to Kitsune's C frontend if it has been enabled\n\
-  --c++-frontend     Path to Kitsune's C++ frontend if it has been enabled\n\
-  --cuda-prefix      The cuda prefix (only relevant if the Cuda tapir target was bbuilt)\n\
-  --cuda-target      Has the Cuda Tapir target been built (ON or OFF)\n\
-  --fortran-frontend Path to Kitsune's Fortran frontend if it has been enabled\n\
-  --frontends        The frontends that have been enabled\n\
-  --help             Print a summary of kit-config arguments\n\
-  --hip-prefix       The rocm prefix (only relevant if the Hip tapir target was built)\n\
-  --hip-target       Has the Hip Tapir target been built (ON or OFF)\n\
-  --kokkos-mode      Is Kokkos mode enabled (ON or OFF)\n\
-  --opencilk-target  Has the OpenCilk Tapir target been built (ON or OFF)\n\
-  --openmp-target    Has the OpenMP Tapir target been built (ON or OFF)\n\
-  --qthreads-target  Has the Qthreads Tapir target been built (ON or OFF)\n\
-  --realm-target     Has the Realm Tapir target been built (ON or OFF)\n\
-  --tapir-targets    List all tapir targets that have been built\n\
-  --version          Print LLVM version\n";
+  --all-frontends      The names of all known frontends\n\
+  --all-tapir-targets  The names of all known tapir targets\n\
+  --c-frontend         Path to Kitsune's C frontend\n\
+  --c++-frontend       Path to Kitsune's C++ frontend\n\
+  --cuda-prefix        The cuda install prefix used by the Cuda Tapir target\n\
+  --cuda-target        Has the Cuda Tapir target been built (ON or OFF)\n\
+  --fortran-frontend   Path to Kitsune's Fortran frontend\n\
+  --frontends          The frontends that have been enabled\n\
+  --help               Print a summary of kit-config arguments\n\
+  --hip-prefix         The rocm install prefix used by the Hip Tapir target\n\
+  --hip-target         Has the Hip Tapir target been built (ON or OFF)\n\
+  --kokkos-mode        Is Kokkos mode enabled (ON or OFF)\n\
+  --opencilk-target    Has the OpenCilk Tapir target been built (ON or OFF)\n\
+  --openmp-target      Has the OpenMP Tapir target been built (ON or OFF)\n\
+  --qthreads-target    Has the Qthreads Tapir target been built (ON or OFF)\n\
+  --realm-target       Has the Realm Tapir target been built (ON or OFF)\n\
+  --tapir-targets      List all tapir targets that have been built\n\
+  --version            Print LLVM version\n\
+\n\
+When querying paths to frontends and prefixes, no output will be printed if\n\
+if the corresponding frontend or related tapir target has not been built\n";
   if (exitWithFailure)
     exit(1);
 }
@@ -76,6 +81,12 @@ int main(int argc, char **argv) {
         os << PACKAGE_VERSION << "\n";
       } else if (arg == "--help") {
         usage(false);
+      } else if (arg == "--all-frontends") {
+        os << KITSUNE_C_FRONTEND << " "
+           << KITSUNE_CXX_FRONTEND << " "
+           << KITSUNE_Fortran_FRONTEND << "\n";
+      } else if (arg == "--all-tapir-targets") {
+        os << KITSUNE_ALL_TAPIR_TARGETS << "\n";
       } else if (arg == "--c-frontend") {
         if (KITSUNE_C_ENABLED)
           os << frontendPath(getExe(argv[0]), KITSUNE_C_FRONTEND) << "\n";
