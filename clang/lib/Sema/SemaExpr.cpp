@@ -16956,6 +16956,11 @@ bool Sema::DiagnoseAssignmentResult(AssignConvertType ConvTy,
     if (getLangOpts().CPlusPlus) {
       DiagKind =  diag::err_typecheck_convert_discards_qualifiers;
       isInvalid = true;
+    } else if (SrcType->isMobilePointerType() !=
+               DstType->isMobilePointerType()) {
+      // In the case of C, discarding qualifiers is done silently in all cases.
+      // We retain that behavior for everything except the mobile qualifier.
+      DiagKind = diag::err_typecheck_convert_discards_qualifiers;
     } else {
       DiagKind =  diag::ext_typecheck_convert_discards_qualifiers;
     }

@@ -77,3 +77,26 @@ void f10(int* [[kitsune::mobile]] ptr) {
   // expected-error-re@+1 {{assigning to {{.+}} discards qualifiers}}
   g10 = ptr;
 }
+
+float* f11(float* [[kitsune::mobile]] ptr, int idx) {
+  // expected-error@+1 {{cannot initialize return object}}
+  return &ptr[idx];
+}
+
+void f12(float* [[kitsune::mobile]] ptr, int i) {
+  // expected-error-re@+1 {{cannot initialize a variable {{.+}} with an rvalue {{.+}}}}
+  float* local = &ptr[i];
+}
+
+void f13(float* [[kitsune::mobile]] ptr, int i) {
+  float* local = nullptr;
+  // expected-error-re@+1 {{assigning to {{.+}} from {{.+}} discards qualifiers}}
+  local = &ptr[i];
+}
+
+// Comparing mobile and non-mobile pointers is not allowed in C++, but it is
+// allowed in C.
+void f14(float* [[kitsune::mobile]] ptr1, float* ptr2) {
+  // expected-error@+1 {{comparison of distinct pointer types}}
+  return ptr1 == ptr2;
+}
