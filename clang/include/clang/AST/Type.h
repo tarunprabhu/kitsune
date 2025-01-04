@@ -321,6 +321,7 @@ public:
 /// * MS: __unaligned
 /// * Embedded C (TR18037): address spaces
 /// * Objective C: the GC attributes (none, weak, or strong)
+/// * Kitsune: __kitsune_mobile__
 class Qualifiers {
 public:
   Qualifiers() = default;
@@ -362,8 +363,11 @@ public:
 
   enum : uint64_t {
     /// The maximum supported address space number.
-    /// 23 bits should be enough for anyone.
-    MaxAddressSpace = 0x7fffffu,
+    /// 22* bits should be enough for anyone.
+    ///
+    /// * This is 23 bits in vanilla clang, but we stole a bit for Kitsune's
+    ///   mobile attribute.
+    MaxAddressSpace = 0x3fffffu,
 
     /// The width of the "fast" qualifier mask.
     FastWidth = 3,
@@ -560,6 +564,11 @@ public:
     return (lifetime == OCL_Strong || lifetime == OCL_Weak);
   }
 
+  bool hasMobile() const { return Mask & MMask; }
+  void setMobile(bool flag) { Mask = (Mask & ~MMask) | (flag ? MMask : 0); }
+  void removeMobile() { Mask &= ~MMask; }
+  void addMobile() { Mask |= MMask; }
+
   bool hasAddressSpace() const { return Mask & AddressSpaceMask; }
   LangAS getAddressSpace() const {
     return static_cast<LangAS>(Mask >> AddressSpaceShift);
@@ -680,6 +689,8 @@ public:
   /// Add the qualifiers from the given set to this set, given that
   /// they don't conflict.
   void addConsistentQualifiers(Qualifiers qs) {
+    assert(hasMobile() == qs.hasMobile() ||
+           !hasMobile() || !qs.hasMobile());
     assert(getAddressSpace() == qs.getAddressSpace() ||
            !hasAddressSpace() || !qs.hasAddressSpace());
     assert(getObjCGCAttr() == qs.getObjCGCAttr() ||
@@ -719,6 +730,8 @@ public:
   /// qualifiers can be safely used as an object with these qualifiers.
   bool compatiblyIncludes(Qualifiers other, const ASTContext &Ctx) const {
     return isAddressSpaceSupersetOf(other, Ctx) &&
+           // Mobile attribute must match exactly.
+           (hasMobile() == other.hasMobile()) &&
            // ObjC GC qualifiers can match, be added, or be removed, but can't
            // be changed.
            (getObjCGCAttr() == other.getObjCGCAttr() || !hasObjCGCAttr() ||
@@ -797,8 +810,8 @@ public:
   void Profile(llvm::FoldingSetNodeID &ID) const { ID.AddInteger(Mask); }
 
 private:
-  // bits:     |0 1 2|3|4 .. 5|6  ..  8|9   ...   31|32 ... 63|
-  //           |C R V|U|GCAttr|Lifetime|AddressSpace| PtrAuth |
+  // bits:     |0 1 2|3|4 .. 5|6  ..  8|9|10  ...   31|32 ... 63|
+  //           |C R V|U|GCAttr|Lifetime|M|AddressSpace| PtrAuth |
   uint64_t Mask = 0;
   static_assert(sizeof(PointerAuthQualifier) == sizeof(uint32_t),
                 "PointerAuthQualifier must be 32 bits");
@@ -809,9 +822,11 @@ private:
   static constexpr uint64_t GCAttrShift = 4;
   static constexpr uint64_t LifetimeMask = 0x1C0;
   static constexpr uint64_t LifetimeShift = 6;
+  static constexpr uint64_t MMask = 0x200;
+  static constexpr uint64_t MShift = 9;
   static constexpr uint64_t AddressSpaceMask =
-      ~(CVRMask | UMask | GCAttrMask | LifetimeMask);
-  static constexpr uint64_t AddressSpaceShift = 9;
+      ~(CVRMask | UMask | GCAttrMask | LifetimeMask | MMask);
+  static constexpr uint64_t AddressSpaceShift = 10;
   static constexpr uint64_t PtrAuthShift = 32;
   static constexpr uint64_t PtrAuthMask = uint64_t(0xffffffff) << PtrAuthShift;
 };
@@ -1393,6 +1408,9 @@ public:
   void Profile(llvm::FoldingSetNodeID &ID) const {
     ID.AddPointer(getAsOpaquePtr());
   }
+
+  /// Determine whether this type has the mobile qualifier.
+  inline bool hasMobile() const;
 
   /// Check if this type has any address space qualifier.
   inline bool hasAddressSpace() const;
@@ -2536,6 +2554,7 @@ public:
   bool isFunctionProtoType() const { return getAs<FunctionProtoType>(); }
   bool isPointerType() const;
   bool isPointerOrReferenceType() const;
+  bool isMobilePointerType() const; // A pointer with the mobile qualifier set.
   bool isSignableType() const;
   bool isAnyPointerType() const;   // Any C pointer or ObjC object pointer
   bool isCountAttributedType() const;
@@ -8057,6 +8076,10 @@ inline void QualType::removeLocalVolatile() {
   removeLocalFastQualifiers(Qualifiers::Volatile);
 }
 
+inline bool QualType::hasMobile() const {
+  return getQualifiers().hasMobile();
+}
+
 /// Check if this type has any address space qualifier.
 inline bool QualType::hasAddressSpace() const {
   return getQualifiers().hasAddressSpace();
@@ -8198,6 +8221,12 @@ inline bool Type::isPointerType() const {
 
 inline bool Type::isPointerOrReferenceType() const {
   return isPointerType() || isReferenceType();
+}
+
+inline bool Type::isMobilePointerType() const {
+  if (const auto *pty = getAs<PointerType>())
+    return pty->getPointeeType().hasMobile();
+  return false;
 }
 
 inline bool Type::isAnyPointerType() const {

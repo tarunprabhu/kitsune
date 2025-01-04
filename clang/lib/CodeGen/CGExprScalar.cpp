@@ -20,6 +20,7 @@
 #include "CodeGenModule.h"
 #include "ConstantEmitter.h"
 #include "TargetInfo.h"
+#include "kitsune/Config/config.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/DeclObjC.h"
@@ -2325,7 +2326,8 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     llvm::Type *DstTy = ConvertType(DestTy);
     assert(
         (!SrcTy->isPtrOrPtrVectorTy() || !DstTy->isPtrOrPtrVectorTy() ||
-         SrcTy->getPointerAddressSpace() == DstTy->getPointerAddressSpace()) &&
+         SrcTy->getPointerAddressSpace() == DstTy->getPointerAddressSpace() ||
+         SrcTy->getPointerAddressSpace() == KITSUNE_ADDRSPACE) &&
         "Address-space cast must be used to convert address spaces");
 
     if (CGF.SanOpts.has(SanitizerKind::CFIUnrelatedCast)) {
@@ -2437,7 +2439,14 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
       return EmitLoadOfLValue(DestLV, CE->getExprLoc());
     }
 
-    llvm::Value *Result = Builder.CreateBitCast(Src, DstTy);
+    // We may need to perform an address space cast here since mobile pointers
+    // are put in a special, kitsune-specific address space.
+    llvm::Value* Result = nullptr;
+    if (SrcTy->isPointerTy() &&
+        SrcTy->getPointerAddressSpace() == KITSUNE_ADDRSPACE)
+      Result = Builder.CreateAddrSpaceCast(Src, DstTy);
+    else
+      Result = Builder.CreateBitCast(Src, DstTy);
     return CGF.authPointerToPointerCast(Result, E->getType(), DestTy);
   }
   case CK_AddressSpaceConversion: {

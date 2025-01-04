@@ -23,6 +23,7 @@
 #include "ConstantEmitter.h"
 #include "PatternInit.h"
 #include "TargetInfo.h"
+#include "kitsune/Config/config.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
@@ -6699,7 +6700,6 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   }
 
   // Kitsune builtins
-  case Builtin::BI__kitrt_mobile_alloc:
   case Builtin::BIkitsune_mobile_alloc: {
     Function *F = CGM.getIntrinsic(Intrinsic::kitsune_mobile_alloc);
     llvm::FunctionType *FTy = F->getFunctionType();
@@ -6709,11 +6709,19 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     return RValue::get(Builder.CreateCall(F, {Size}));
   }
 
-  case Builtin::BI__kitrt_mobile_free:
   case Builtin::BIkitsune_mobile_free: {
     Function *F = CGM.getIntrinsic(Intrinsic::kitsune_mobile_free);
     Value *Ptr = EmitScalarExpr(E->getArg(0));
+    llvm::Type *PtrType = Ptr->getType();
+    llvm::Type *ArgType = F->getArg(0)->getType();
     return RValue::get(Builder.CreateCall(F, {Ptr}));
+  }
+
+  case Builtin::BI__kitsune_mobile_cast_unsafe: {
+    Value *Ptr = EmitScalarExpr(E->getArg(0));
+    LLVMContext& Ctxt = getLLVMContext();
+    llvm::Type *DestTy = llvm::PointerType::get(Ctxt, KITSUNE_ADDRSPACE);
+    return RValue::get(Builder.CreateAddrSpaceCast(Ptr, DestTy));
   }
   }
   IsSpawnedScope SpawnedScp(this);

@@ -5035,9 +5035,15 @@ def KitsuneMemAccess : InheritableAttr {
 }
 
 def KitsuneLaunch : StmtAttr {
-  let Spellings = [CXX11<"kitsune","launch">];
+  let Spellings = [CXX11<"kitsune", "launch">];
   let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
                              ErrorDiag, "'forall' statement">;
   let Args = [ExprArgument<"ThreadsPerBlock">];
   let Documentation = [KitsuneLaunchDocs];    
+}
+
+def KitsuneMobile : TypeAttr {
+  let Spellings = [GNU<"kitsune_mobile">, CXX11<"kitsune", "mobile">,
+                   C23<"kitsune", "mobile">];
+  let Documentation = [KitsuneMobileDocs];
 }

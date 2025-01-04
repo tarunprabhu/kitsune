@@ -10,7 +10,7 @@
 
 #include <kitsune.h>
 
-void* allocate_c(size_t n) {
+void *__attribute__((kitsune_mobile)) allocate_c(size_t n) {
   return kitsune_mobile_alloc(n * sizeof(int));
 }
 
@@ -18,13 +18,10 @@ void* allocate_c(size_t n) {
 // TAPIR: call {{.+}} @__kitrt_default_mem_alloc({{.+}})
 // NOTAPIR: call {{.+}} @malloc({{.+}})
 
-void deallocate_c(void* ptr) {
-  kitsune_mobile_free(ptr);
-}
+void deallocate_c(void *[[kitsune::mobile]] ptr) { kitsune_mobile_free(ptr); }
 
 // TAPIR-LABEL: deallocate_c
 // TAPIR: call {{.+}} @__kitrt_default_mem_free({{.+}})
 // NOTAPIR: call {{.+}} @free({{.+}})
 
-// DECLARES-DAG: declare noalias ptr @__kitrt_default_mem_alloc
-
+// DECLARES-DAG: declare noalias ptr addrspace(67) @__kitrt_default_mem_alloc

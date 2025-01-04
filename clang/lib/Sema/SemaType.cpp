@@ -8880,10 +8880,6 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
       HandleOpenCLAccessAttr(type, attr, state.getSema());
       attr.setUsedAsTypeAttr();
       break;
-    case ParsedAttr::AT_KitsuneMemAccess:
-      HandleKitsuneMemAccessAttr(type, attr, state.getSema());
-      attr.setUsedAsTypeAttr();
-      break;
     case ParsedAttr::AT_LifetimeBound:
       if (TAL == TAL_DeclChunk)
         HandleLifetimeBoundAttr(state, type, attr);
@@ -9050,6 +9046,20 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
       if (TAL == TAL_DeclSpec &&
           state.getSema().HLSL().handleResourceTypeAttr(type, attr))
         attr.setUsedAsTypeAttr();
+      break;
+    }
+    case ParsedAttr::AT_KitsuneMemAccess:
+      HandleKitsuneMemAccessAttr(type, attr, state.getSema());
+      attr.setUsedAsTypeAttr();
+      break;
+    case ParsedAttr::AT_KitsuneMobile: {
+      Sema& sema = state.getSema();
+      if (not type->isPointerType()) {
+        sema.Diag(attr.getLoc(), diag::err_kitsune_mobile_on_non_pointer);
+        return;
+      }
+      type = sema.Context.getMobilePointerType(type->getPointeeType());
+      attr.setUsedAsTypeAttr();
       break;
     }
     }

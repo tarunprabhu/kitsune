@@ -16,6 +16,17 @@
 // General configuration
 #define KITSUNE_LLD "${KITSUNE_LLD}"
 
+// The address space for Kitsune's mobile pointers. This is a lousy workaround
+// because there is no way to have attributed types in LLVM, but we want to be
+// able to identify pointers to data that may be moved between host and device
+// memory when GPU tapir targets are enabled. LLVM has a maximum of 24-bits for
+// the address space, clang has 22 (23 usually, but we stole a bit in Kitsune -
+// ironically, for the mobile attribute). Just in case, don't use more than
+// 16 bits for this.
+static constexpr unsigned KITSUNE_ADDRSPACE = 67;
+static_assert(KITSUNE_ADDRSPACE <= 0xFFFF &&
+              "Kitsune's address space must occupy no more than 16 bits");
+
 // Kitsune language support that has been enabled
 #cmakedefine01 KITSUNE_C_ENABLED
 #cmakedefine01 KITSUNE_CXX_ENABLED
@@ -109,4 +120,4 @@
 // The Tapir targets that have been enabled in this build
 #define KITSUNE_ENABLED_TAPIR_TARGETS "${KITSUNE_ENABLED_TAPIR_TARGETS_STR}"
 
-#endif
+#endif // KITSUNE_CONFIG_H

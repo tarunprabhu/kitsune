@@ -14,23 +14,19 @@
 
 using namespace kitsune;
 
-void allocate(mobile_ptr<int>& buf, size_t n) {
-  buf.alloc(n);
-}
+void allocate(mobile_ptr<int> &buf, size_t n) { buf.alloc(n); }
 
 // TAPIR-LABEL: _Z8allocate
 // TAPIR: call {{.+}} @__kitrt_default_mem_alloc({{.+}})
 // NOTAPIR: call {{.+}} @malloc({{.+}})
 
-void deallocate(mobile_ptr<int>& buf) {
-  buf.free();
-}
+void deallocate(mobile_ptr<int> &buf) { buf.free(); }
 
 // TAPIR-LABEL: _Z10deallocate
 // TAPIR: call {{.+}} @__kitrt_default_mem_free({{.+}})
 // NOTAPIR: call {{.+}} @free({{.+}})
 
-void* allocate_c(size_t n) {
+void *[[kitsune::mobile]] allocate_c(size_t n) {
   return kitsune_mobile_alloc(n * sizeof(int));
 }
 
@@ -38,13 +34,10 @@ void* allocate_c(size_t n) {
 // TAPIR: call {{.+}} @__kitrt_default_mem_alloc({{.+}})
 // NOTAPIR: call {{.+}} @malloc({{.+}})
 
-void deallocate_c(void* ptr) {
-  kitsune_mobile_free(ptr);
-}
+void deallocate_c(void *[[kitsune::mobile]] ptr) { kitsune_mobile_free(ptr); }
 
 // TAPIR-LABEL: deallocate_c
 // TAPIR: call {{.+}} @__kitrt_default_mem_free({{.+}})
 // NOTAPIR: call {{.+}} @free({{.+}})
 
-// DECLARES-DAG: declare noalias ptr @__kitrt_default_mem_alloc
-
+// DECLARES-DAG: declare noalias ptr addrspace(67) @__kitrt_default_mem_alloc

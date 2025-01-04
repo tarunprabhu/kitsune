@@ -11405,6 +11405,20 @@ static void DiagnoseBadConversion(Sema &S, OverloadCandidate *Cand,
       return;
     }
 
+    if (FromQs.hasMobile() && !ToQs.hasMobile()) {
+      S.Diag(Fn->getLocation(), diag::note_ovl_candidate_no_mobile)
+          << (unsigned)FnKindPair.first << (unsigned)FnKindPair.second << FnDesc
+          << ToParamRange << FromTy << I + 1;
+      MaybeEmitInheritedConstructorNote(S, Cand->FoundDecl);
+      return;
+    } else if (!FromQs.hasMobile() && ToQs.hasMobile()) {
+      S.Diag(Fn->getLocation(), diag::note_ovl_candidate_with_mobile)
+          << (unsigned)FnKindPair.first << (unsigned)FnKindPair.second << FnDesc
+          << ToParamRange << FromTy << I + 1;
+      MaybeEmitInheritedConstructorNote(S, Cand->FoundDecl);
+      return;
+    }
+
     unsigned CVR = FromQs.getCVRQualifiers() & ~ToQs.getCVRQualifiers();
     assert(CVR && "expected qualifiers mismatch");
 

@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2020 Triad National Security, LLC
  *                         All rights reserved.
@@ -39,46 +38,37 @@
 #define EXTERN_C
 #endif // __cplusplus
 
-/// Allocate n bytes in a mobile buffer. This is unlikely to ever have a
-/// definition. Instead, the compiler will replace calls to this with a call to
-/// a suitable kitrt allocation function.
-/// @param n The number of bytes to allocate.
-/// @return A mobile pointer to the allocated buffer.
-EXTERN_C void *__attribute__((malloc)) __kitrt_mobile_alloc(size_t n);
+// TODO: This should be replaced with #ifndef __compile_is_kitsune__ which is
+// only defined when the code is compiled with Kitsune, but not otherwise. This
+// is allow code containing kitsune builtins and library functions to be
+// compiled with another compiler and maintain "reasonable" behavior.
+// #ifndef __compiler_is_kitsune
+#if 0
 
-/// Deallocate a mobile buffer that was previously allocated. This is unlikely
-/// to ever have a definition. Instead, the compiler will replace calls to this
-/// with a call to a suitable kitrt deallocation function.
-/// @param ptr The pointer to the buffer to be deallocated
-EXTERN_C void __kitrt_mobile_free(void *ptr);
-
-/// Allocate a mobile buffer with the given size in bytes.
+/// Allocate n bytes in a mobile buffer. In Kitsune, this is a builtin that is
+/// replaced with a suitable memory allocation function depending on the tapir
+/// target(s) used. This is here if the code is not compiled with Kitsune, and
+/// simply calls the system's default memory allocator (malloc).
+/// \param  n The number of bytes to allocate.
+/// \return The pointer ointer to the allocated buffer.
 EXTERN_C inline void *__attribute__((malloc))
 kitsune_mobile_alloc(size_t bytes) {
-  return __kitrt_mobile_alloc(bytes);
+  return malloc(bytes);
 }
 
 /// Deallocate (free) a mobile buffer that was previously allocated with
-/// kitsune_mobile_alloc
+/// kitsune_mobile_alloc. In Kitsune, this is an intrinsic that is replaced with
+/// a call to an appropriate runtime function. This is here if the code is not
+/// compiled with Kitsune and simply calls the system's default deallocator.
 EXTERN_C inline void kitsune_mobile_free(void *ptr) {
-  return __kitrt_mobile_free(ptr);
+  return free(ptr);
 }
+
+#endif // __compiler_is_kitsune
 
 #ifdef __cplusplus
 
 namespace kitsune {
-// TODO: This should not return a plain T*, but a __mobile__ T*.
-/// Allocate a mobile buffer with n elements of the given type.
-template <typename T>
-inline T *__attribute__((malloc)) mobile_alloc(size_t n = 1) {
-  return (T *)__kitrt_mobile_alloc(sizeof(T) * n);
-}
-
-// TODO: This should not return a plain T*, but a __mobile__ T*.
-/// Deallocate a mobile buffer.
-template <typename T> inline void mobile_free(T *ptr) {
-  __kitrt_mobile_free(ptr);
-}
 
 /// A mobile pointer.
 ///
@@ -100,14 +90,11 @@ template <typename T> inline void mobile_free(T *ptr) {
 ///
 /// If the mobile type attribute is eventually added, users should prefer to
 /// use that, but there is no guarantee that that attribute will be portable.
-/// This, on the other hand, is guaranteed to be portable across C++
-/// compilers.
+/// This, on the other hand, is guaranteed to be portable across C++ compilers.
 ///
 template <typename T> class mobile_ptr {
 public:
   using element_type = T;
-  using pointer = element_type *;
-  using reference_type = element_type &;
 
 public:
   mobile_ptr() = default;
@@ -123,27 +110,26 @@ public:
   /// contained type.
   mobile_ptr(size_t n) { alloc(n); }
 
-  // TODO: This should not return a plain T*, but a __mobile__ T*.
   /// Get a pointer to the raw data.
-  inline T *get() noexcept { return ptr; }
+  inline T *[[kitsune::mobile]] get() noexcept { return ptr; }
 
   // TODO: This should not return a plain T*, but a __mobile__ T*.
   /// Get a pointer to the raw data.
-  inline const T *get() const noexcept { return ptr; }
+  inline const T *[[kitsune::mobile]] get() const noexcept { return ptr; }
 
   /// Allocate space for n elements. If an explicit number of elements is not
   /// provided, space for a single element will be allocated.
   void alloc(size_t n = 1) {
     if (ptr)
       this->free();
-    ptr = mobile_alloc<T>(n);
+    ptr = (T* [[kitsune::mobile]])kitsune_mobile_alloc(n * sizeof(T));
   }
 
   /// Free the allocated mobile_ptr buffer. If the buffer has not already been
   /// allocated, this will have no effect. In either case, the contained
   /// pointer will be set to nullptr.
   void free() {
-    mobile_free(ptr);
+    kitsune_mobile_free(ptr);
     ptr = nullptr;
   }
 
@@ -156,7 +142,7 @@ public:
 
   /// Access the object pointed to by the contained raw pointer. The pointer
   /// must have been allocated.
-  inline pointer operator->() const { return get(); }
+  inline T *operator->() const { return get(); }
 
   /// Access the i'th element in the allocated array. This is only intended
   /// to be used when an actual array is allocated.
@@ -167,10 +153,10 @@ public:
   inline const T &operator[](size_t i) const { return ptr[i]; }
 
 private:
-  // TODO: This should not be a plain T*, but a __mobile__ T*.
   /// The raw pointer.
-  pointer ptr = nullptr;
+  T *[[kitsune::mobile]] ptr = nullptr;
 };
+
 } // namespace kitsune
 
 #endif // ! __cplusplus

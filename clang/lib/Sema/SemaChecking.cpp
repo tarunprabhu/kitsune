@@ -2974,6 +2974,24 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
     if (BuiltinCountedByRef(TheCall))
       return ExprError();
     break;
+
+  case Builtin::BIkitsune_mobile_free: {
+    QualType ArgType = TheCall->getArg(0)->getType();
+    if (!ArgType->isMobilePointerType()) {
+      Diag(TheCall->getBeginLoc(), diag::err_kitsune_mobile_free_arg);
+      return ExprError();
+    }
+    break;
+  }
+
+  case Builtin::BI__kitsune_mobile_cast_unsafe: {
+    QualType ArgType = TheCall->getArg(0)->getType();
+    if (ArgType->isMobilePointerType() || !ArgType->isPointerType()) {
+      Diag(TheCall->getBeginLoc(), diag::err_kitsune_mobile_cast_arg);
+      return ExprError();
+    }
+    break;
+  }
   }
 
   if (getLangOpts().HLSL && HLSL().CheckBuiltinFunctionCall(BuiltinID, TheCall))

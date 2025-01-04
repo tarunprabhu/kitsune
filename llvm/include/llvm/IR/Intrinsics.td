@@ -592,6 +592,8 @@ def llvm_externref_ty  : LLVMType<externref>;
 def llvm_funcref_ty    : LLVMType<funcref>;
 def llvm_exnref_ty     : LLVMType<exnref>;
 
+def llvm_mobile_ptr_ty : LLVMQualPointerType<67>; // Kitsune mobile pointers
+
 //===----------------------------------------------------------------------===//
 
 class MakeIdx<list<int> Set> {
@@ -1873,13 +1875,13 @@ def int_task_frameaddress
 // LLVMQualPointerType.
 //
 def int_kitsune_mobile_alloc
-    : Intrinsic<[llvm_ptr_ty], [llvm_i64_ty],
+    : Intrinsic<[llvm_mobile_ptr_ty], [llvm_i64_ty],
                 [IntrInaccessibleMemOnly, NoAlias<RetIndex>]>;
 
 // Mobile memory deallocator. This will free memory that was previously
 // allocated by kitsune_mobile_alloc.
 def int_kitsune_mobile_free
-    : Intrinsic<[], [llvm_ptr_ty],
+    : Intrinsic<[], [llvm_mobile_ptr_ty],
                 [IntrInaccessibleMemOrArgMemOnly, IntrWillReturn,
                  NoCapture<ArgIndex<0>>, ReadNone<ArgIndex<0>>]>;
 

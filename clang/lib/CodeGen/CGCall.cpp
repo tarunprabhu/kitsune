@@ -21,6 +21,7 @@
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
 #include "TargetInfo.h"
+#include "kitsune/Config/config.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
@@ -5399,11 +5400,14 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
             V->getType()->isIntegerTy())
           V = Builder.CreateZExt(V, ArgInfo.getCoerceToType());
 
-        // If the argument doesn't match, perform a bitcast to coerce it.  This
+        // If the argument doesn't match, perform a bitcast to coerce it. This
         // can happen due to trivial type mismatches.
+        // There could also be an address space mismatch here since the mobile
+        // pointers are put in a special, kitsune-specific address space.
         if (FirstIRArg < IRFuncTy->getNumParams() &&
             V->getType() != IRFuncTy->getParamType(FirstIRArg))
-          V = Builder.CreateBitCast(V, IRFuncTy->getParamType(FirstIRArg));
+          V = Builder.CreatePointerBitCastOrAddrSpaceCast(
+              V, IRFuncTy->getParamType(FirstIRArg));
 
         if (ArgHasMaybeUndefAttr)
           V = Builder.CreateFreeze(V);

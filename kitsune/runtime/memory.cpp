@@ -51,21 +51,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <cstdlib>
 #include "memory_map.h"
 
-extern "C" __attribute__((malloc))
-void *__kitrt_default_mem_alloc(size_t bytes) {
-  void *ptr = malloc(bytes); 
+#include <cstdlib>
+
+extern "C" {
+
+void *__attribute__((malloc, kitsune_mobile))
+__kitrt_default_mem_alloc(size_t bytes) {
+  void *ptr = malloc(bytes);
   __kitrt_register_mem_alloc(ptr, bytes);
-  return ptr;
+  return __kitsune_mobile_cast_unsafe(ptr);
 }
 
-extern "C"
 void __kitrt_default_mem_free(void *ptr) {
   bool ro, wo;
   if (__kitrt_get_mem_alloc_size(ptr, &ro, &wo) > 0)
-    __kitrt_unregister_mem_alloc(ptr); 
-  free(ptr);  
+    __kitrt_unregister_mem_alloc(ptr);
+  free(ptr);
 }
 
+} // extern "C"

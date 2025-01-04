@@ -27,15 +27,9 @@ option(KITSUNE_INCLUDE_TESTS
   "Generate build targets for the Kitsune tests"
   ${LLVM_INCLUDE_TESTS})
 
-# FIXME: Ideally, this should be KITSUNE_KOKKOS_ENABLED (with a D at the end) to
-# be consistent with all the other uses, but leaving it as it is for now because
-# there may be folks who are still building it with this. Once we know that no
-# one is still using this, it will be removed in favor of ENABLED.
-option(KITSUNE_KOKKOS_ENABLE
+option(KITSUNE_KOKKOS_ENABLED
   "Enable custom recognition and compilation of Kokkos"
   ON)
-
-set(KITSUNE_KOKKOS_ENABLED ${KITSUNE_KOKKOS_ENABLE} "Enable Kokkos recognition" FORCE)
 
 # TODO: The _MAX variables are not currently used but it would be good to
 # require a range instead of just a minimum. In practice, we may want to
@@ -122,7 +116,7 @@ if (KITSUNE_KOKKOS_ENABLED)
     CMAKE_ARGS          ${KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS}
     PATCH_COMMAND       patch -p0 --input=${KITSUNE_KOKKOS_PATCH_EXCS}
     UPDATE_COMMAND      ""
-    UPDATE_DISCONNECTED FALSE)
+    UPDATE_DISCONNECTED ON)
 
   # Copy the Kokkos files into a "staging" area. This is needed to run the
   # kitsune tests and also to allow kitsune to be run from the build directory
@@ -331,12 +325,13 @@ if (KITSUNE_OPENCILK_ENABLED)
   # fixes the issue, this should be changed to point to the official cheetah
   # repository.
   ExternalProject_Add(cheetah
-    DEPENDS        clang lld llvm-config llvm-link
-    GIT_REPOSITORY https://github.com/tarunprabhu/cheetah.git
-    GIT_TAG        dev
-    SOURCE_DIR     ${KITSUNE_CHEETAH_SOURCE_DIR}
-    BINARY_DIR     ${KITSUNE_CHEETAH_BINARY_DIR}
-    CMAKE_ARGS     ${KITSUNE_CHEETAH_BUILD_CMAKE_FLAGS})
+    DEPENDS             clang lld llvm-config llvm-link
+    GIT_REPOSITORY      https://github.com/tarunprabhu/cheetah.git
+    GIT_TAG             dev
+    SOURCE_DIR          ${KITSUNE_CHEETAH_SOURCE_DIR}
+    BINARY_DIR          ${KITSUNE_CHEETAH_BINARY_DIR}
+    CMAKE_ARGS          ${KITSUNE_CHEETAH_BUILD_CMAKE_FLAGS}
+    UPDATE_DISCONNECTED ON)
 
   # Copy the cheetah files into a "staging" area. This allows kitsune to be
   # run from the build directory. The destination directory is set to

@@ -1460,6 +1460,13 @@ public:
     return CanQualType::CreateUnsafe(getPointerType((QualType) T));
   }
 
+  /// Return the uniqued reference to the type for a mobile pointer to the
+  /// specified type.
+  QualType getMobilePointerType(QualType T) const;
+  CanQualType getMobilePointer(CanQualType T) const {
+    return CanQualType::CreateUnsafe(getMobilePointerType((QualType) T));
+  }
+
   QualType
   getCountAttributedType(QualType T, Expr *CountExpr, bool CountInBytes,
                          bool OrNull,

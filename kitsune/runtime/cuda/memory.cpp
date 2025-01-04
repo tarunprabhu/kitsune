@@ -57,8 +57,9 @@ static std::mutex _kitcuda_mem_alloc_mutex;
 
 extern "C" {
 
-__attribute__((malloc)) void *__kitcuda_mem_alloc_managed(size_t size) {
-  KIT_NVTX_PUSH("kitcuda:mem_alloc_managed",KIT_NVTX_MEM);
+void *__attribute__((malloc, kitsune_mobile))
+__kitcuda_mem_alloc_managed(size_t size) {
+  KIT_NVTX_PUSH("kitcuda:mem_alloc_managed", KIT_NVTX_MEM);
 
   extern bool _kitcuda_initialized;
   if (not _kitcuda_initialized)
@@ -92,14 +93,14 @@ __attribute__((malloc)) void *__kitcuda_mem_alloc_managed(size_t size) {
   __kitrt_register_mem_alloc((void *)devp, size);
   _kitcuda_mem_alloc_mutex.unlock();
 
-  // NOTE: We can no longer do this in a thread-safe manner... 
-  //CU_SAFE_CALL(cuMemPrefetchAsync_p(devp, size, _kitcuda_device,
+  // NOTE: We can no longer do this in a thread-safe manner...
+  // CU_SAFE_CALL(cuMemPrefetchAsync_p(devp, size, _kitcuda_device,
   //                                  __kitcuda_get_thread_stream()));
   KIT_NVTX_POP();
-  return (void *)devp;
+  return __kitsune_mobile_cast_unsafe(devp);
 }
 
-__attribute__((malloc)) void *
+void *__attribute__((malloc, kitsune_mobile))
 __kitcuda_mem_calloc_managed(size_t count, size_t element_size) {
   assert(count != 0 && "zero-valued item count!");
   assert(element_size != 0 && "zero-valued element size!");
@@ -121,11 +122,11 @@ __kitcuda_mem_calloc_managed(size_t count, size_t element_size) {
   // TODO: We're not set to run on anything but the default stream...
   CU_SAFE_CALL(cuMemsetD8Async_p(memp, 0, nbytes, NULL));
   KIT_NVTX_POP();
-  return (void *)memp;
+  return __kitsune_mobile_cast_unsafe(memp);
 }
 
-__attribute__((malloc)) void *__kitcuda_mem_realloc_managed(void *ptr,
-                                                             size_t size) {
+void *__attribute__((malloc, kitsune_mobile))
+__kitcuda_mem_realloc_managed(void *ptr, size_t size) {
   assert(size != 0 && "zero-valued size!");
 
   KIT_NVTX_PUSH("kitcuda:realloc_managed", KIT_NVTX_MEM);
@@ -161,7 +162,7 @@ __attribute__((malloc)) void *__kitcuda_mem_realloc_managed(void *ptr,
       memptr = ptr; // same size, just return it...
   }
   KIT_NVTX_POP();
-  return memptr;
+  return __kitsune_mobile_cast_unsafe(memptr);
 }
 
 void __kitcuda_mem_free(void *vp) {
@@ -207,7 +208,7 @@ bool __kitcuda_is_mem_managed(void *vp) {
 
 // NOTE: See within the code below for notes about the prefetching
 // semantics.
-void* __kitcuda_mem_gpu_prefetch(void *vp, void *opaque_stream) {
+void *__kitcuda_mem_gpu_prefetch(void *vp, void *opaque_stream) {
   assert(vp && "unexpected null pointer!");
 
   KIT_NVTX_PUSH("kitcuda:mem_gpu_prefetch", KIT_NVTX_MEM);
@@ -266,31 +267,29 @@ void* __kitcuda_mem_gpu_prefetch(void *vp, void *opaque_stream) {
                                  CU_MEM_ADVISE_SET_PREFERRED_LOCATION,
                                  _kitcuda_device));
 
-
-
-      // Issue a prefetch request on the provided stream.  If the given 
-      // stream is null, create a new stream and return it. Once issued 
-      // go ahead and mark the memory as having been prefetched.  This 
-      // "mark" does not guarantee prefetching is complete it simply 
+      // Issue a prefetch request on the provided stream.  If the given
+      // stream is null, create a new stream and return it. Once issued
+      // go ahead and mark the memory as having been prefetched.  This
+      // "mark" does not guarantee prefetching is complete it simply
       // flags that the "instruction" has been issued by the runtime.
       CUstream cu_stream;
-      if (opaque_stream) 
+      if (opaque_stream)
         cu_stream = (CUstream)opaque_stream;
-      else 
+      else
         cu_stream = (CUstream)__kitcuda_get_thread_stream();
 
       CU_SAFE_CALL(cuMemPrefetchAsync_p((CUdeviceptr)vp, size, _kitcuda_device,
                                         cu_stream));
       __kitrt_mark_mem_prefetched(vp);
-      return (void*)cu_stream;
+      return (void *)cu_stream;
     }
   }
   KIT_NVTX_POP();
-  // no prefetch, no bound stream to bound it to... 
+  // no prefetch, no bound stream to bound it to...
   return nullptr;
 }
 
-void* __kitcuda_mem_host_prefetch(void *vp, void *opaque_stream) {
+void *__kitcuda_mem_host_prefetch(void *vp, void *opaque_stream) {
   assert(vp && "unexpected null pointer!");
 
   KIT_NVTX_PUSH("kitcuda:mem_host_prefetch", KIT_NVTX_MEM);
@@ -327,9 +326,9 @@ void* __kitcuda_mem_host_prefetch(void *vp, void *opaque_stream) {
       // not guarantee prefetching is complete it simply flags that
       // the "instruction" has been issued by the runtime.
       CUstream cu_stream;
-      if (opaque_stream) 
+      if (opaque_stream)
         cu_stream = (CUstream)opaque_stream;
-      else 
+      else
         cu_stream = (CUstream)__kitcuda_get_thread_stream();
 
       CU_SAFE_CALL(cuMemPrefetchAsync_p((CUdeviceptr)vp, size, CU_DEVICE_CPU,

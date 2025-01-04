@@ -5048,6 +5048,13 @@ def note_implicit_member_target_infer_collision : Note<
     "implicit %sub{select_special_member_kind}0 inferred target collision: call to both "
     "%select{__device__|__global__|__host__|__host__ __device__}1 and "
     "%select{__device__|__global__|__host__|__host__ __device__}2 members">;
+def note_ovl_candidate_no_mobile: Note<
+    "candidate %sub{select_ovl_candidate_kind}0,1,2 not viable: "
+    "%ordinal4 argument (%3) does not accept mobile pointer. Consider using "
+    "__kitsune_unsafe_cast">;
+def note_ovl_candidate_with_mobile: Note<
+    "candidate %sub{select_ovl_candidate_kind}0,1,2 not viable: "
+    "%ordinal4 argument (%3) requires mobile pointer">;
 
 def note_ambiguous_type_conversion: Note<
     "because of ambiguity in conversion %diff{of $ to $|between types}0,1">;
@@ -12951,5 +12958,20 @@ def err_kitsune_multiple_access_qualifiers : Error<
   "multiple access qualifiers">;
 def note_kitsune_typedef_access_qualifier : Note<
   "previously declared '%0' here">;
+
+// mobile attribute
+def err_kitsune_mobile_on_non_pointer : Error<
+  "'kitsune::mobile' can only be used on a pointer type">;
+def err_kitsune_cast_to_mobile : Error<
+  "cast to a kitsune::mobile pointer is not allowed">;
+def err_kitsune_cast_away_mobile : Error<
+  "%0 cannot be used to cast away mobile qualifier. Use c-style cast "
+  "instead">;
+
+// mobile builtins
+def err_kitsune_mobile_free_arg : Error<
+  "argument of kitsune_mobile_free must have mobile qualifier">;
+def err_kitsune_mobile_cast_arg: Error<
+  "argument of __kitsune_mobile_cast_arg must be a non-mobile pointer">;
 
 } // end of sema component.

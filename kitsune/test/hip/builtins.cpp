@@ -1,4 +1,5 @@
-// RUN: %kitxx -ftapir=hip -O2 -S -emit-llvm -o - %s | FileCheck %s --check-prefixes=CHECK,DECLARES
+// RUN: %kitxx -ftapir=hip -O2 -S -emit-llvm -o - %s \
+// RUN:     | FileCheck %s --check-prefixes=CHECK,DECLARES
 
 #include <kitsune.h>
 
@@ -18,4 +19,4 @@ void deallocate(mobile_ptr<int>& buf) {
 // CHECK-LABEL: _Z10deallocate
 // CHECK: call {{.+}} @__kithip_mem_free({{.+}})
 
-// DECLARES-DAG: declare noalias ptr @__kithip_mem_alloc_managed
+// DECLARES-DAG: declare noalias ptr addrspace(67) @__kithip_mem_alloc_managed

@@ -22,4 +22,4 @@ void deallocate(mobile_ptr<int>& buf) {
 // CHECK-LABEL: _Z10deallocate
 // CHECK: call {{.+}} @llvm.kitsune.mobile.free({{.+}})
 
-// DECLARES-DAG: declare noalias ptr @llvm.kitsune.mobile.alloc
+// DECLARES-DAG: declare noalias ptr addrspace(67) @llvm.kitsune.mobile.alloc

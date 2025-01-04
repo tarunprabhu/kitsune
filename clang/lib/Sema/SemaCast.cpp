@@ -156,6 +156,31 @@ namespace {
       Self.CheckCastAlign(SrcExpr.get(), DestType, OpRange);
     }
 
+    /// Check if the cast is from/to a mobile pointer type. If it is an invalid
+    /// cast, return false, otherwise, return true.
+    /// \param castKind         The string representing the cast in the text.
+    ///                         Must be one of "const_cast", "static_cast",
+    ///                         "dynamic_cast", or "C-style cast"
+    /// \param allowStripMobile If true, casts that strip the mobile attribute
+    ///                         are allowed. If true, castKind must also be
+    ///                         provided
+    bool checkMobileCast(StringRef castKind, bool allowStripMobile) {
+      QualType fromType = SrcExpr.get()->getType();
+      QualType toType = DestType;
+      if (!fromType->isMobilePointerType() && toType->isMobilePointerType()) {
+        Self.Diag(OpRange.getBegin(), diag::err_kitsune_cast_to_mobile);
+        return false;
+      }
+      if (!allowStripMobile) {
+        if (fromType->isMobilePointerType() && !toType->isMobilePointerType()) {
+          Self.Diag(OpRange.getBegin(), diag::err_kitsune_cast_away_mobile)
+              << castKind;
+          return false;
+        }
+      }
+      return true;
+    }
+
     void checkObjCConversion(CheckedConversionKind CCK) {
       assert(Self.getLangOpts().allowsNonTrivialObjCLifetimeQualifiers());
 
@@ -793,6 +818,11 @@ static TryCastResult getCastAwayConstnessCastKind(CastAwayConstnessKind CACK,
 void CastOperation::CheckDynamicCast() {
   CheckNoDerefRAII NoderefCheck(*this);
 
+  if (!checkMobileCast("dynamic_cast", false)) {
+    SrcExpr = ExprError();
+    return;
+  }
+
   if (ValueKind == VK_PRValue)
     SrcExpr = Self.DefaultFunctionArrayLvalueConversion(SrcExpr.get());
   else if (isPlaceholder())
@@ -967,6 +997,11 @@ void CastOperation::CheckDynamicCast() {
 /// legacy_function(const_cast\<char*\>(str));
 void CastOperation::CheckConstCast() {
   CheckNoDerefRAII NoderefCheck(*this);
+
+  if (!checkMobileCast("const_cast", false)) {
+    SrcExpr = ExprError();
+    return;
+  }
 
   if (ValueKind == VK_PRValue)
     SrcExpr = Self.DefaultFunctionArrayLvalueConversion(SrcExpr.get());
@@ -1196,6 +1231,11 @@ static unsigned int checkCastFunctionType(Sema &Self, const ExprResult &SrcExpr,
 /// like this:
 /// char *bytes = reinterpret_cast\<char*\>(int_ptr);
 void CastOperation::CheckReinterpretCast() {
+  if (!checkMobileCast("reinterpret_cast", false)) {
+    SrcExpr = ExprError();
+    return;
+  }
+
   if (ValueKind == VK_PRValue && !isPlaceholder(BuiltinType::Overload))
     SrcExpr = Self.DefaultFunctionArrayLvalueConversion(SrcExpr.get());
   else
@@ -1242,6 +1282,11 @@ void CastOperation::CheckReinterpretCast() {
 /// implicit conversions explicit and getting rid of data loss warnings.
 void CastOperation::CheckStaticCast() {
   CheckNoDerefRAII NoderefCheck(*this);
+
+  if (!checkMobileCast("static_cast", false)) {
+    SrcExpr = ExprError();
+    return;
+  }
 
   if (isPlaceholder()) {
     checkNonOverloadPlaceholders();
@@ -2731,6 +2776,11 @@ void CastOperation::CheckCXXCStyleCast(bool FunctionalStyle,
                                        bool ListInitialization) {
   assert(Self.getLangOpts().CPlusPlus);
 
+  if (!checkMobileCast("c-style cast", true)) {
+    SrcExpr = ExprError();
+    return;
+  }
+
   // Handle placeholders.
   if (isPlaceholder()) {
     // C-style casts can resolve __unknown_any types.
@@ -2932,6 +2982,11 @@ static void DiagnoseBadFunctionCast(Sema &Self, const ExprResult &SrcExpr,
 /// Check the semantics of a C-style cast operation, in C.
 void CastOperation::CheckCStyleCast() {
   assert(!Self.getLangOpts().CPlusPlus);
+
+  if (!checkMobileCast("c-style", true)) {
+    SrcExpr = ExprError();
+    return;
+  }
 
   // C-style casts can resolve __unknown_any types.
   if (claimPlaceholder(BuiltinType::UnknownAny)) {
@@ -3273,6 +3328,13 @@ void CastOperation::CheckCStyleCast() {
 }
 
 void CastOperation::CheckBuiltinBitCast() {
+  // This checks std::bit_cast. I don't see how mobile attributes could ever be
+  // used there, but we might as well check.
+  if (!checkMobileCast("std::bit_cast", false)) {
+    SrcExpr = ExprError();
+    return;
+  }
+
   QualType SrcType = SrcExpr.get()->getType();
 
   if (Self.RequireCompleteType(OpRange.getBegin(), DestType,

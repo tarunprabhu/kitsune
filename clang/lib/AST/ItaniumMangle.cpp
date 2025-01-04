@@ -2885,6 +2885,8 @@ void CXXNameMangler::mangleQualifiers(Qualifiers Quals, const DependentAddressSp
     Out << 'V';
   if (Quals.hasConst())
     Out << 'K';
+  if (Quals.hasMobile())
+    Out << 'Y';
 }
 
 void CXXNameMangler::mangleVendorQualifier(StringRef name) {

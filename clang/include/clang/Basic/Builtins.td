@@ -2686,14 +2686,32 @@ def SetJmpEx : MSLibBuiltin<"setjmpex.h"> {
 }
 
 // Kitsune library functions
-def KitsuneMobileAlloc : LibBuiltin<"kitsune.h"> {
-  let Spellings = ["__kitrt_mobile_alloc", "kitsune_mobile_alloc"];
-  let Prototype = "void*(size_t)";
+
+// Allocate a mobile buffer. This takes a single arguments which is the number
+// of bytes to allocate. ALL_LANGUAGES here includes C, C++ and Objective-C.
+def KitsuneMobileAlloc : LangBuiltin<"ALL_LANGUAGES"> {
+  let Spellings = ["kitsune_mobile_alloc"];
+  let Attributes = [CustomTypeChecking];
+  let Prototype = "void!(size_t)"; // ! here means `*[[kitsune::mobile]]`
 }
 
-def KitsuneMobileDealloc : LibBuiltin<"kitsune.h"> {
-  let Spellings = ["__kitrt_mobile_free", "kitsune_mobile_free"];
-  let Prototype = "void(void*)";
+// Deallocate a mobile buffer which was previously allocated with
+// kitsune_mobile_alloc. ALL_LANGUAGES here includes C, C++ and Objective-C.
+def KitsuneMobileDealloc : LangBuiltin<"ALL_LANGUAGES"> {
+  let Spellings = ["kitsune_mobile_free"];
+  let Attributes = [CustomTypeChecking];
+  let Prototype = "void(void!)"; // ! here means `*[[kitsune::mobile]]`
+}
+
+// Casts from bare pointers to mobile pointers are not allowed. But we do need
+// to perform these casts Kitsune's runtime which actually allocates memory.
+// Since Kitsune's runtime is only expected to be built with Kitsune, we can
+// provide a builtin to perform the cast here. ALL_LANGUAGES where includes C,
+// C++ and Objective-C.
+def KitsuneMobileCastUnsafe : LangBuiltin<"ALL_LANGUAGES"> {
+  let Spellings = ["__kitsune_mobile_cast_unsafe"];
+  let Attributes = [CustomTypeChecking];
+  let Prototype = "void!(void*)"; // ! here means `[[kitsune::mobile]]
 }
 
 // C99 library functions

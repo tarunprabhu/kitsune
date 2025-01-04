@@ -58,11 +58,12 @@ static std::mutex _kithip_mem_alloc_mutex;
 
 extern "C" {
 
-__attribute__((malloc)) void *__kithip_mem_alloc_managed(size_t size) {
+void *__attribute__((malloc, kitsune_mobile))
+__kithip_mem_alloc_managed(size_t size) {
   extern bool _kithip_initialized;
   if (not _kithip_initialized)
     __kithip_initialize();
-  
+
   void *alloced_ptr;
   HIP_SAFE_CALL(hipSetDevice(__kithip_get_device_id()));
   HIP_SAFE_CALL(hipMallocManaged_p(&alloced_ptr, size, hipMemAttachGlobal));
@@ -71,14 +72,14 @@ __attribute__((malloc)) void *__kithip_mem_alloc_managed(size_t size) {
   _kithip_mem_alloc_mutex.unlock();
   // Cheat a tad and just go ahead and issue a prefetch at allocation
   // time.  Could bite us but what the heck...
-  HIP_SAFE_CALL(hipMemPrefetchAsync_p(alloced_ptr, size,
-                     __kithip_get_device_id(),
-                     (hipStream_t)__kithip_get_thread_stream()));
-  return alloced_ptr;
+  HIP_SAFE_CALL(
+      hipMemPrefetchAsync_p(alloced_ptr, size, __kithip_get_device_id(),
+                            (hipStream_t)__kithip_get_thread_stream()));
+  return __kitsune_mobile_cast_unsafe(alloced_ptr);
 }
 
-__attribute__((malloc)) void *__kithip_mem_calloc_managed(size_t count,
-                                                          size_t element_size) {
+void *__attribute__((malloc, kitsune_mobile))
+__kithip_mem_calloc_managed(size_t count, size_t element_size) {
   assert(count != 0 && "zero-valued item count!");
   assert(element_size != 0 && "zero-valued element size!");
 
@@ -86,14 +87,13 @@ __attribute__((malloc)) void *__kithip_mem_calloc_managed(size_t count,
   void *memp = __kithip_mem_alloc_managed(nbytes);
 
   // TODO: Is there a risk of a race here?
-  HIP_SAFE_CALL(
-      hipMemsetD8Async_p(memp, 0, nbytes,
-		 (hipStream_t)__kithip_get_thread_stream()));
-  return (void *)memp;
+  HIP_SAFE_CALL(hipMemsetD8Async_p(memp, 0, nbytes,
+                                   (hipStream_t)__kithip_get_thread_stream()));
+  return __kitsune_mobile_cast_unsafe(memp);
 }
 
-__attribute__((malloc)) void *__kithip_mem_realloc_managed(void *ptr,
-                                                            size_t size) {
+void *__attribute__((malloc, kitsune_mobile))
+__kithip_mem_realloc_managed(void *ptr, size_t size) {
   assert(size != 0 && "zero-valued size!");
   void *memptr = nullptr;
   size_t alloced_nbytes = 0;
@@ -110,22 +110,20 @@ __attribute__((malloc)) void *__kithip_mem_realloc_managed(void *ptr,
 
   if (size > alloced_nbytes) {
     memptr = __kithip_mem_alloc_managed(size);
-    HIP_SAFE_CALL(
-        hipMemcpy_p(memptr /* dest */, ptr /* source */, 
-                    alloced_nbytes, hipMemcpyDefault));
+    HIP_SAFE_CALL(hipMemcpy_p(memptr /* dest */, ptr /* source */,
+                              alloced_nbytes, hipMemcpyDefault));
     // TODO: Race?  Do we need to lock the free here?
     __kithip_mem_free(ptr);
   } else if (size < alloced_nbytes) {
     memptr = __kithip_mem_alloc_managed(size);
-    HIP_SAFE_CALL(
-        hipMemcpy_p(memptr /* dest */, ptr /* source */, 
-                    alloced_nbytes, hipMemcpyDefault));
+    HIP_SAFE_CALL(hipMemcpy_p(memptr /* dest */, ptr /* source */,
+                              alloced_nbytes, hipMemcpyDefault));
     // TODO: Race?  Do we need to lock the free here?
     __kithip_mem_free(ptr);
   } else
     memptr = ptr; // TODO: does this match realloc() behavior?
 
-  return memptr;
+  return __kitsune_mobile_cast_unsafe(memptr);
 }
 
 void __kithip_mem_free(void *vp) {
@@ -157,7 +155,7 @@ bool __kithip_is_mem_managed(void *vp) {
 
 // NOTE: See within the code below for notes about the prefetching
 // semantics.
-void* __kithip_mem_gpu_prefetch(void *vp, void *opaque_stream) {
+void *__kithip_mem_gpu_prefetch(void *vp, void *opaque_stream) {
   assert(vp && "unexpected null pointer!");
   size_t size = 0;
 
@@ -185,26 +183,30 @@ void* __kithip_mem_gpu_prefetch(void *vp, void *opaque_stream) {
       hipStream_t hip_stream;
       if (opaque_stream) {
         if (__kitrt_verbose_mode())
-        hip_stream = (hipStream_t)opaque_stream;
+          hip_stream = (hipStream_t)opaque_stream;
       } else {
         hip_stream = (hipStream_t)__kithip_get_thread_stream();
         if (__kitrt_verbose_mode())
-          fprintf(stderr, "kithip: executing prefetch-driven execution stream [stream=%p].\n",
-                  (void*)hip_stream);	
+          fprintf(stderr,
+                  "kithip: executing prefetch-driven execution stream "
+                  "[stream=%p].\n",
+                  (void *)hip_stream);
       }
 
-      if (__kitrt_verbose_mode()) 
-        fprintf(stderr, "\tkithip: issue prefetch [address=%p, size=%ld, stream=%p].\n", 
-                vp, size, (void*)hip_stream);	
+      if (__kitrt_verbose_mode())
+        fprintf(stderr,
+                "\tkithip: issue prefetch [address=%p, size=%ld, stream=%p].\n",
+                vp, size, (void *)hip_stream);
       HIP_SAFE_CALL(hipMemPrefetchAsync_p(vp, size, __kithip_get_device_id(),
                                           hip_stream));
       __kitrt_mark_mem_prefetched(vp);
-      return (void*)hip_stream;
+      return (void *)hip_stream;
     }
   } else {
-    if (__kitrt_verbose_mode()) 
-      fprintf(stderr, 
-              "\tkithip: skipping previously prefetched data [address=%p, size=%ld].\n", 
+    if (__kitrt_verbose_mode())
+      fprintf(stderr,
+              "\tkithip: skipping previously prefetched data [address=%p, "
+              "size=%ld].\n",
               vp, size);
   }
 
@@ -243,15 +245,15 @@ void __kithip_mem_host_prefetch(void *vp) {
       // no long being prefetched to the device/GPU.  This "mark" does
       // not guarantee prefetching is complete it simply flags that
       // the "instruction" has been issued by the runtime.
-      HIP_SAFE_CALL(hipMemPrefetchAsync_p(vp, size, __kithip_get_device_id(),
-                                 (hipStream_t)__kithip_get_thread_stream()));
+      HIP_SAFE_CALL(
+          hipMemPrefetchAsync_p(vp, size, __kithip_get_device_id(),
+                                (hipStream_t)__kithip_get_thread_stream()));
       __kitrt_set_mem_prefetch(vp, false);
     }
   }
 }
 
-void __kithip_memcpy_sym_to_device(void *hostPtr, void *devPtr,
-                                   size_t size) {
+void __kithip_memcpy_sym_to_device(void *hostPtr, void *devPtr, size_t size) {
   assert(devPtr != 0 && "unexpected null device pointer!");
   assert(hostPtr != nullptr && "unexpected null host pointer!");
   assert(size != 0 && "requested a 0 byte copy!");

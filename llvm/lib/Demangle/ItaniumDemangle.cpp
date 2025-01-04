@@ -138,6 +138,7 @@ struct DumpVisitor {
       {QualConst, "QualConst"},
       {QualVolatile, "QualVolatile"},
       {QualRestrict, "QualRestrict"},
+      {QualMobile, "QualMobile"},
     };
     for (QualName Name : Names) {
       if (Qs & Name.Q) {

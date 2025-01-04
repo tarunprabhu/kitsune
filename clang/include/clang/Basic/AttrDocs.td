@@ -9135,3 +9135,21 @@ and testing vs. an end-user feature.
 ...
   }];
 }
+
+def KitsuneMobileDocs : Documentation {
+  let Category = KitsuneDocs;
+  let Content = [{
+
+The mobile attribute should be attached to pointers that may be allocated using
+UVM, or that would otherwise point to data that may be moved to a GPU. This is
+required when using the GPU tapir targets, but is optional in other cases.
+This attribute is incompatible with other "bare" pointers i.e. those that do
+not have this attribute. Casting from a bare pointer to a pointer with this
+type is not permitted. Casting away this attribute is allowed, for now, but it
+must be explicit.
+
+TODO: Add more text here once the semantics of this attribute have been agreed
+upon.
+
+  }];
+}

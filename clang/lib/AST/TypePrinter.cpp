@@ -2073,6 +2073,9 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
   case attr::ArmMveStrictPolymorphism:
     OS << "__clang_arm_mve_strict_polymorphism";
     break;
+  case attr::KitsuneMobile:
+    OS << "kitsune::mobile";
+    break;
   }
   OS << "))";
 }
@@ -2579,6 +2582,12 @@ void Qualifiers::print(raw_ostream &OS, const PrintingPolicy& Policy,
     if (addSpace)
       OS << ' ';
     OS << "__unaligned";
+    addSpace = true;
+  }
+  if (hasMobile()) {
+    if (addSpace)
+      OS << ' ';
+    OS << "__attribute__((kitsune_mobile))";
     addSpace = true;
   }
   auto ASStr = getAddrSpaceAsString(getAddressSpace());
