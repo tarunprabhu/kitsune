@@ -1975,6 +1975,10 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       CmdArgs.push_back(KITSUNE_CUDA_LIBRARY_DIR);
       CmdArgs.push_back("-rpath");
       CmdArgs.push_back(KITSUNE_CUDA_LIBRARY_DIR);
+      CmdArgs.push_back("-L");
+      CmdArgs.push_back(KITSUNE_CUDA_LIBCUDA_DIR);
+      CmdArgs.push_back("-rpath");
+      CmdArgs.push_back(KITSUNE_CUDA_LIBCUDA_DIR);
 
       CmdArgs.push_back("-lcudart");
       CmdArgs.push_back("-lcuda");
