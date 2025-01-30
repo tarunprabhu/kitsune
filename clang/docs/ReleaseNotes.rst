@@ -848,6 +848,8 @@ Bug Fixes to Compiler Builtins
   to prvalue instead of xvalue now if the second operand is an object type, per
   `LWG3819 <https://cplusplus.github.io/LWG/issue3819>`_.
 
+- The behvaiour of ``__add_pointer`` and ``__remove_pointer`` for Objective-C++'s ``id`` and interfaces has been fixed.
+
 Bug Fixes to Attribute Support
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  - Fixed crash when a parameter to the ``clang::annotate`` attribute evaluates to ``void``. See #GH119125
