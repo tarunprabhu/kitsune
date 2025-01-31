@@ -1087,6 +1087,11 @@ Arm and AArch64 Support
 - Added ``-msve-streaming-vector-bits=`` flag, which allows specifying the
   SVE vector width in streaming mode.
 
+- The ARM calling convention for empty structs in C++ mode was changed to pass
+  them as if they have a size of 1 byte, matching the AAPCS32 specification and
+  GCC's implementation. The previous behaviour of ignoring the argument can be
+  restored using the -fclang-abi-compat=19 (or earlier) option.
+
 Android Support
 ^^^^^^^^^^^^^^^
 
