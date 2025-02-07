@@ -363,6 +363,8 @@ Changes to LLDB
 * Breakpoints can now be set for specific columns within a line.
 * Function return value is now displayed on step-out.
 
+* Support was added for handling the GDB Remote Protocol `x` packet in the format introduced by GDB 16.2. LLDB currently uses a different format for `x` and LLDB is now able to handle both formats. At some point in the future support for LLDB's format of `x` will be removed.
+
 Changes to BOLT
 ---------------------------------
 
