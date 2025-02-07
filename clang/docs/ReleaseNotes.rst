@@ -667,7 +667,7 @@ Improvements to Clang's diagnostics
       switch (e) {
       case Red:   // stuff...
       case Green: // stuff...
-      }
+    }
     }
 
   will result in a warning about ``Blue`` not being handled in the switch.
