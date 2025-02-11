@@ -312,6 +312,8 @@ Changes to the LLVM tools
 * llvm-addr2line now supports a `+` prefix when specifying an address.
 * Support for `SHT_LLVM_BB_ADDR_MAP` versions 0 and 1 has been dropped.
 
+* llvm-objcopy now prints the correct file path in the error message when the output file specified by `--dump-section` cannot be opened.
+
 Changes to LLDB
 ---------------------------------
 
