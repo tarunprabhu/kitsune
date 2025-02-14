@@ -111,6 +111,9 @@ Changes to the AArch64 Backend
   [#132196](https://github.com/llvm/llvm-project/pull/132196),
   [#133084](https://github.com/llvm/llvm-project/pull/133084))
 
+* Updated feature dependency in Armv9.6 for FEAT_FAMINMAX, FEAT_LUT and
+  FEAT_FP8, now they depend only on FEAT_NEON.
+
 Changes to the AMDGPU Backend
 -----------------------------
 
