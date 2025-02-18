@@ -667,7 +667,7 @@ Improvements to Clang's diagnostics
       switch (e) {
       case Red:   // stuff...
       case Green: // stuff...
-    }
+      }
     }
 
   will result in a warning about ``Blue`` not being handled in the switch.
@@ -847,8 +847,6 @@ Bug Fixes to Compiler Builtins
   ``__reference_converts_from_temporary`` intrinsics detect reference binding
   to prvalue instead of xvalue now if the second operand is an object type, per
   `LWG3819 <https://cplusplus.github.io/LWG/issue3819>`_.
-
-- The behvaiour of ``__add_pointer`` and ``__remove_pointer`` for Objective-C++'s ``id`` and interfaces has been fixed.
 
 Bug Fixes to Attribute Support
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1088,11 +1086,6 @@ Arm and AArch64 Support
   ``-mexecute-only`` or ``-mpure-code`` compiler flags. (#GH125688)
 - Added ``-msve-streaming-vector-bits=`` flag, which allows specifying the
   SVE vector width in streaming mode.
-
-- The ARM calling convention for empty structs in C++ mode was changed to pass
-  them as if they have a size of 1 byte, matching the AAPCS32 specification and
-  GCC's implementation. The previous behaviour of ignoring the argument can be
-  restored using the -fclang-abi-compat=19 (or earlier) option.
 
 Android Support
 ^^^^^^^^^^^^^^^
