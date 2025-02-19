@@ -275,9 +275,9 @@ void AMDGPUTargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts,
                               const TargetInfo *Aux) {
   TargetInfo::adjust(Diags, Opts, Aux);
   // ToDo: There are still a few places using default address space as private
-  // address space in OpenCL, which needs to be cleaned up, then the references
-  // to OpenCL can be removed from the following line.
-  setAddressSpaceMap((Opts.OpenCL && !Opts.OpenCLGenericAddressSpace) ||
+  // address space in OpenCL, which needs to be cleaned up, then Opts.OpenCL
+  // can be removed from the following line.
+  setAddressSpaceMap(/*DefaultIsPrivate=*/Opts.OpenCL ||
                      !isAMDGCN(getTriple()));
 
   AtomicOpts = AtomicOptions(Opts);
