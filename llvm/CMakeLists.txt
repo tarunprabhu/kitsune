@@ -264,6 +264,21 @@ if (NOT "kitsune" IN_LIST LLVM_ENABLE_PROJECTS)
     list(APPEND LLVM_ENABLE_PROJECTS "lld")
   endif ()
 
+  # LTO requires that the gold plugin is built. This needs LLVM_BINUTILS_INCDIR
+  # to be set to the path to the directory containing plugin-api.h. We could try
+  # setting it ourselves to /usr/include which is usually good enough, but there
+  # is a chance that there is a truly antique version of binutils on the system
+  # in some HPC machines. In this case, pointing to it could result in a
+  # non-obvious build failure. Just force users to set it explicitly themselves.
+  if (LLVM_BINUTILS_INCDIR STREQUAL "")
+    message(FATAL_ERROR
+      "LLVM_BINUTILS_INCDIR must be set for the LLVM gold plugin. This is "
+      "the path to the directory containing plugin-api.h. Setting this to "
+      "/usr/include usually works, but HPC clusters may have a truly antique "
+      "version of binutils on the system, in which case, it may have to be set "
+      "to a path within GCC's resource directory")
+  endif ()
+
   # Currently, flang is not required, but if it is, MLIR should be enabled as
   # well.
 
