@@ -9,6 +9,7 @@
 #ifndef LLVM_CLANG_DRIVER_DRIVER_H
 #define LLVM_CLANG_DRIVER_DRIVER_H
 
+#include "kitsune/Config/config.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/HeaderInclude.h"
 #include "clang/Basic/LLVM.h"
@@ -255,6 +256,13 @@ public:
 
   /// Whether the driver should follow dxc.exe like behavior.
   bool IsDXCMode() const { return Mode == DXCMode; }
+
+  /// Whether the driver should follow Kitsune's behavior.
+  bool IsKitsuneFrontend() const { return KitsuneFrontend; }
+
+  /// Is this a Kitsune frontend.
+  LLVM_PREFERRED_TYPE(bool)
+  unsigned KitsuneFrontend : 1;
 
   /// Only print tool bindings, don't build any jobs.
   LLVM_PREFERRED_TYPE(bool)
@@ -875,6 +883,9 @@ llvm::StringRef getDriverMode(StringRef ProgName, ArrayRef<const char *> Args);
 
 /// Checks whether the value produced by getDriverMode is for CL mode.
 bool IsClangCL(StringRef DriverMode);
+
+/// Checks whether the given program is a Kitsune frontend.
+bool IsKitsuneFrontend(StringRef ProgName);
 
 /// Expand response files from a clang driver or cc1 invocation.
 ///

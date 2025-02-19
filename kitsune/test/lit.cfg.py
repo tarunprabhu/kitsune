@@ -25,9 +25,12 @@ config.test_format = lit.formats.ShTest(not llvm_config.use_lit_shell)
 config.suffixes = [
     ".c",
     ".cpp",
+    ".cl",
     ".cu",
     ".hip",
     ".ll",
+    ".m",
+    ".objc",
     ".s",
     ".S",
     ".test",
@@ -82,6 +85,7 @@ config.substitutions.append(("%host_cc", config.host_cc))
 config.substitutions.append(("%host_cxx", config.host_cxx))
 config.substitutions.append(("%kitcc", config.kitcc))
 config.substitutions.append(("%kitxx", config.kitxx))
+config.substitutions.append(("%kitfc", config.kitfc))
 
 # Features
 def calculate_arch_features(arch_string):
@@ -98,37 +102,49 @@ llvm_config.feature_config([
     }), ("--targets-built", calculate_arch_features),
 ])
 
-if config.kitsune_kokkos_enable:
+if config.kitsune_c_enabled:
+    config.available_features.add("kitcc")
+
+if config.kitsune_cxx_enabled:
+    config.available_features.add("kitxx")
+
+if config.kitsune_fortran_enabled:
+    config.available_features.add("kitfc")
+
+# If these features are not enabled, create a corresponding no-<FEATURE>. This
+# is needed to run tests that check the frontends handle the case where
+# -ftapir=<TARGET> is given but TARGET has not been enabled in the build.
+if config.kitsune_kokkos_enabled:
     config.available_features.add("kitsune-kokkos")
 else:
     config.available_features.add("kitsune-no-kokkos")
 
-if config.kitsune_cuda_enable:
+if config.kitsune_cuda_enabled:
     config.available_features.add("kitsune-cuda")
 else:
     config.available_features.add("kitsune-no-cuda")
 
-if config.kitsune_hip_enable:
+if config.kitsune_hip_enabled:
     config.available_features.add("kitsune-hip")
 else:
     config.available_features.add("kitsune-no-hip")
 
-if config.kitsune_opencilk_enable:
+if config.kitsune_opencilk_enabled:
     config.available_features.add("kitsune-opencilk")
 else:
     config.available_features.add("kitsune-no-opencilk")
 
-if config.kitsune_openmp_enable:
+if config.kitsune_openmp_enabled:
     config.available_features.add("kitsune-openmp")
 else:
     config.available_features.add("kitsune-no-openmp")
 
-if config.kitsune_qthreads_enable:
+if config.kitsune_qthreads_enabled:
     config.available_features.add("kitsune-qthreads")
 else:
     config.available_features.add("kitsune-no-qthreads")
 
-if config.kitsune_realm_enable:
+if config.kitsune_realm_enabled:
     config.available_features.add("kitsune-realm")
 else:
     config.available_features.add("kitsune-no-realm")

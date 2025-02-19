@@ -3684,8 +3684,8 @@ void DarwinClang::AddOpenCilkABIBitcode(const ArgList &Args,
       return;
     }
   }
-  getDriver().Diag(diag::err_drv_opencilk_missing_abi_bitcode)
-      << BitcodeFilename;
+  // Don't error out if the bitcode file could not be found. That will be
+  // handled later.
 }
 
 void DarwinClang::AddLinkTapirRuntimeLib(const ArgList &Args,

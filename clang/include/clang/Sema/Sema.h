@@ -15217,19 +15217,12 @@ public:
 
   ///@}
 
-  //
-  //
-  // -------------------------------------------------------------------------
-  //
-  //
-
   /// \name Kitsune statements
   /// Implementations are in SemaKitsune.cpp and SemaStmt.cpp.
   /// FIXME: These should all be in SemaKitsune.cpp, but we currently use
-  /// several utility functions intended for regular C/C++ for statements in
-  /// when dealing with Kitsune's forall statement. Refactoring out the common
-  /// code will be quite a bit more painful, so we haven't done that, but we
-  /// really should.
+  /// several utility functions intended for regular C/C++ for statements when
+  /// checking Kitsune's forall statement. Refactoring out the common code will
+  /// rather painful, so we haven't done that, but we really should.
   ///@{
 public:
   StmtResult ActOnSyncStmt(SourceLocation SyncLoc, StringRef sv);

@@ -214,8 +214,9 @@ static const std::string HIPABI_KERNEL_NAME_PREFIX = HIPABI_PREFIX + ".kern.";
 namespace {
 
 cl::opt<std::string> GPUArch(
-    "hipabi-arch", cl::init(HIPABI_DEFAULT_ARCH), cl::NotHidden,
-    cl::desc("Target AMD GPU architecture. (default: #HIPABI_DEFAULT_ARCH)"));
+    "hipabi-arch", cl::init(KITSUNE_HIP_ARCH_DEFAULT), cl::NotHidden,
+    cl::desc("Target AMD GPU architecture (default = " KITSUNE_HIP_ARCH_DEFAULT
+             ")"));
 
 cl::opt<unsigned>
     OptLevel("hipabi-opt-level", cl::init(2), cl::NotHidden,

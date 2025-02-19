@@ -289,13 +289,20 @@ static bool asanUseGlobalsGC(const Triple &T, const CodeGenOptions &CGOpts) {
 
 static std::unique_ptr<TargetLibraryInfoImpl>
 createTLII(llvm::Triple &TargetTriple, const CodeGenOptions &CodeGenOpts,
-           const LangOptions &LangOpts) {
+           const KitsuneOptions &KitsuneOpts) {
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
       llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
 
-  TLII->setTapirTarget(LangOpts.KitsuneOpts.getTapirTargetOrInvalid());
-  TLII->setTapirTargetOptions(
-      std::make_unique<OpenCilkABIOptions>(CodeGenOpts.OpenCilkABIBitcodeFile));
+  llvm::TapirTargetID TT = KitsuneOpts.getTapirTargetOrInvalid();
+  TLII->setTapirTarget(TT);
+  switch (TT) {
+  case llvm::TapirTargetID::OpenCilk:
+    TLII->setTapirTargetOptions(std::make_unique<OpenCilkABIOptions>(
+        *KitsuneOpts.getOpenCilkABIBitcodeFile()));
+    break;
+  default:
+    break;
+  }
   TLII->addTapirTargetLibraryFunctions();
 
   return TLII;
@@ -629,7 +636,7 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
                                        raw_pwrite_stream *DwoOS) {
   // Add LibraryInfo.
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      createTLII(TargetTriple, CodeGenOpts, LangOpts));
+      createTLII(TargetTriple, CodeGenOpts, LangOpts.KitsuneOpts));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
   // Normal mode, emit a .s or .o file by running the code generator. Note,
@@ -901,7 +908,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.LoopInterleaving = CodeGenOpts.UnrollLoops;
   PTO.LoopVectorization = CodeGenOpts.VectorizeLoop;
   PTO.SLPVectorization = CodeGenOpts.VectorizeSLP;
-  PTO.LoopStripmine = CodeGenOpts.StripmineLoop;
+  PTO.LoopStripmine = LangOpts.KitsuneOpts.getStripmineLoops();
   PTO.MergeFunctions = CodeGenOpts.MergeFunctions;
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
@@ -981,7 +988,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   // Register the target library analysis directly and give it a customized
   // preset TLI.
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      createTLII(TargetTriple, CodeGenOpts, LangOpts));
+      createTLII(TargetTriple, CodeGenOpts, LangOpts.KitsuneOpts));
   FAM.registerPass([&] { return TargetLibraryAnalysis(*TLII); });
 
   // Register all the basic analyses with the managers.
@@ -1298,6 +1305,8 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   DiagnosticsEngine &Diags = CI.getDiagnostics();
   const auto &CGOpts = CI.getCodeGenOpts();
   const auto &TOpts = CI.getTargetOpts();
+  const LangOptions &LOpts = CI.getLangOpts();
+  const KitsuneOptions &KOpts = LOpts.KitsuneOpts;
   DenseMap<StringRef, DenseMap<GlobalValue::GUID, GlobalValueSummary *>>
       ModuleToDefinedGVSummaries;
   CombinedIndex->collectDefinedGVSummariesPerModule(ModuleToDefinedGVSummaries);
@@ -1365,8 +1374,9 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   Conf.RemarksFormat = CGOpts.OptRecordFormat;
   Conf.SplitDwarfFile = CGOpts.SplitDwarfFile;
   Conf.SplitDwarfOutput = CGOpts.SplitDwarfOutput;
-  Conf.TapirTarget = LOpts.KitsuneOpts.getTapirTargetOrInvalid();
-  Conf.OpenCilkABIBitcodeFile = CGOpts.OpenCilkABIBitcodeFile;
+  Conf.TapirTarget = KOpts.getTapirTargetOrInvalid();
+  if (std::optional<StringRef> file = KOpts.getOpenCilkABIBitcodeFile())
+    Conf.OpenCilkABIBitcodeFile = *file;
   switch (Action) {
   case Backend_EmitNothing:
     Conf.PreCodeGenModuleHook = [](size_t Task, const llvm::Module &Mod) {

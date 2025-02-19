@@ -493,9 +493,9 @@ KEYWORD(_kitsune_sync               , KEYKITSUNE)
 KEYWORD(_kitsune_forall             , KEYKITSUNE)
 
 // Kitsune memaccess qualifiers
-KEYWORD(_readonly                    , KEYKITSUNE)
-KEYWORD(_writeonly                   , KEYKITSUNE)
-KEYWORD(_readwrite                   , KEYKITSUNE)
+KEYWORD(_readonly                   , KEYKITSUNE)
+KEYWORD(_writeonly                  , KEYKITSUNE)
+KEYWORD(_readwrite                  , KEYKITSUNE)
 
 // MSVC12.0 / VS2013 Type Traits
 TYPE_TRAIT_1(__is_destructible, IsDestructible, KEYALL)

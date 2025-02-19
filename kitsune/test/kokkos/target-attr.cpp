@@ -8,7 +8,7 @@ using namespace kitsune;
 
 int main(int argc, char *argv[]) {
   mobile_ptr<float> Am(1024);
-  float* A = Am.get();
+  float* [[kitsune::mobile]] A = Am.get();
 
   Kokkos::initialize(argc, argv);
   {

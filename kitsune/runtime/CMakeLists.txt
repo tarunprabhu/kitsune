@@ -9,48 +9,31 @@ cmake_minimum_required(VERSION 3.20.0)
 
 project(kitrt C CXX)
 
-include(FetchContent)
-
-set(KITRT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set(KITRT_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
-set(KITRT_INCLUDE_DIR ${KITSUNE_RUNTIME_DIR})
-
-# There is support for two different levels of debugging.  The general
-# debug mode (KITRT_ENABLE_DEBUG) will enable runtime assertion checks
-# that will cause the runtime to both check and abort on any error
-# conditions from the underlying runtimes (e.g., CUDA, HIP, etc.).  The
-# second option (KITRT_ENABLE_VERBOSE) will report runtime details and
-# give a general feel for what is going on (memory allocations, kernel
-# launches, etc.).
-option(KITRT_ENABLE_DEBUG "Enable debug mode features for the runtime." OFF)
-option(KITRT_ENABLE_VERBOSE "Enable verbose execution mode for debugging." OFF)
-
+# FIXME: Should this be named KITRT_* since we don't have a separate kitcuda
+# library any longer?
 option(KITCUDA_ENABLE_NVTX "Enable NVTX profiling within the runtime" OFF)
 
-# Common headers and source files.
-set(KITRT_HDRS
-  kitrt.h
-  debug.h
-  memory.h
-  memory_map.h)
+# Since this is built as an external project, we have to explicitly find
+# libLLVM. This is guaranteed to have been built, but we need to be careful that
+# we don't pick up anything from the system. ${LLVM_LIBRARY_OUTPUT_INTDIR} will
+# have been passed in by cmake.
+find_library(LIB_LLVM
+  NAMES LLVM
+  LLVM-${LLVM_VERSION_MAJOR}
+  LLVM-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}
+  REQUIRED
+  PATHS ${LLVM_LIBRARY_OUTPUT_INTDIR}
+  NO_DEFAULT_PATH)
 
-set(KITRT_SRCS
+# ${KITSUNE_RUNTIME_LIBNAME} is passed in by cmake when the runtime is
+# configured.
+set(KITRT ${KITSUNE_RUNTIME_LIBNAME})
+
+add_library(${KITRT} SHARED
   kitrt.cpp
   debug.cpp
   memory.cpp
   memory_map.cpp)
-
-set(KITRT kitrt)
-
-add_library(${KITRT} SHARED ${KITRT_SRCS})
-
-if (KITRT_ENABLE_DEBUG)
-  target_compile_definitions(${KITRT} -D_KITRT_DEBUG_)
-endif()
-
-if (KITRT_ENABLE_VERBOSE)
-  target_compile_definitions(${KITRT} -D_KITRT_VERBOSE_)
-endif()
 
 target_include_directories(${KITRT} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(${KITRT} PROPERTIES
@@ -63,14 +46,6 @@ target_include_directories(${KITRT}
   ${KITSUNE_SOURCE_DIR}/include
   ${KITSUNE_RUNTIME_INCLUDE_DIR})
 
-find_library(LIB_LLVM
-  NAMES LLVM
-  LLVM-${LLVM_VERSION_MAJOR}
-  LLVM-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}
-  REQUIRED
-  PATHS ${LLVM_LIBRARY_OUTPUT_INTDIR}
-  NO_DEFAULT_PATH)
-
 # FIXME: We probably don't need to explicitly link pthread and rt. These are
 # only necessary for older versions of glibc, but we might get some antique
 # software stacks on HPC machines.
@@ -81,14 +56,10 @@ target_link_libraries(${KITRT}
   rt
   dl)
 
-# The KITSUNE_CUDA_* variables are defined in ../CMakeLists.txt (i.e. in
-# kitsune/CMakeLists.txt). They are passed in via CMake because the Kitsune
-# runtime is treated as an "ExternalProject".
+# The KITSUNE_CUDA_* variables are defined in kitsune/CMakeLists.txt. They are
+# passed in via CMake because the Kitsune runtime is treated as an external
+# project.
 if (KITSUNE_CUDA_ENABLED)
-  list(APPEND KITRT_HDRS
-    cuda/kitcuda.h
-    cuda/kitcuda_dylib.h)
-
   target_sources(${KITRT} PUBLIC
     cuda/kitcuda.cpp
     cuda/dylib_support.cpp
@@ -119,9 +90,9 @@ if (KITSUNE_CUDA_ENABLED)
   endif()
 endif()
 
-# The KITSUNE_HIP_* variables are defined in ../CMakeLists.txt (i.e. in
-# kitsune/CMakeLists.txt). They are passed in via CMake because the Kitsune
-# runtime is treated as an "ExternalProject".
+# The KITSUNE_HIP_* variables are defined in kitsune/CMakeLists.txt. They are
+# passed in via CMake because the Kitsune runtime is treated as an external
+# project.
 #
 # Note on AMD HIP CMake details...  When is HIP not HIP?  When it is HIP...
 # It is easy to confuse requirements for HIP as the HIP "language" vs. the
@@ -131,10 +102,6 @@ endif()
 # Unfortunately, these details seem to be a moving target with ecah release
 # of rocm/hip...
 if (KITSUNE_HIP_ENABLED)
-  list(APPEND KITRT_HDRS
-    hip/kithip.h
-    hip/kithip_dylib.h)
-
   target_sources(${KITRT} PUBLIC
     hip/kithip.cpp
     hip/dylib_support.cpp
@@ -149,12 +116,13 @@ if (KITSUNE_HIP_ENABLED)
   target_link_libraries(${KITRT} PUBLIC ${KITSUNE_HIP_LIB_AMDHIP64})
 endif()
 
-# ${KITRT_INSTALL_PREFIX} will be set to ${CMAKE_INSTALL_PREFIX} for the broader
-# LLVM project that is being built. On the other hand, ${CMAKE_INSTALL_PREFIX}
-# will be set to some directory within the build directory into which this is
-# "installed" at build time (this is because libkitrt is treated as an
-# "external project". There is probably a better way of handling all this).
-# This
+# $ORIGIN here is the location of libkitrt.so. This will be installed to clang's
+# resource directory. Since libkitrt links against libLLVM.so, we have to add an
+# rpath to the "top-level" lib directory where libLLVM can be found. $ORIGIN is
+# a subdirectory of this top-level directory. It is usually:
+#
+#    <top-level-lib-dir>/clang/19/lib
+#
 set_property(TARGET ${KITRT} APPEND PROPERTY
   INSTALL_RPATH "$ORIGIN/../../../")
 set_property(TARGET ${KITRT} APPEND PROPERTY
@@ -162,13 +130,3 @@ set_property(TARGET ${KITRT} APPEND PROPERTY
 
 install(TARGETS ${KITRT}
   DESTINATION ${CLANG_RESOURCE_SUBDIR}/lib)
-
-# KITSUNE FIXME: Do we really need to install the runtime headers? Do we intend
-# this to be used by third-parties?
-install(FILES ${KITRT_HDRS}
-  DESTINATION ${CLANG_RESOURCE_SUBDIR}/include/kitrt)
-
-# KITSUNE FIXME: Do we really need to install the headers for the targets?
-install(DIRECTORY cuda hip realm
-  DESTINATION ${CLANG_RESOURCE_SUBDIR}/include/kitrt
-  FILES_MATCHING PATTERN "*.h")

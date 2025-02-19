@@ -38,20 +38,20 @@ std::optional<TapirTargetID> clang::parseTapirTarget(const opt::ArgList &Args) {
 
 std::optional<TapirNVArchTargetID>
 clang::parseTapirNVArchTarget(const opt::ArgList &Args) {
-  if (const opt::Arg *A = Args.getLastArg(options::OPT_ftapir_nvarch_EQ))
-    return llvm::StringSwitch<TapirNVArchTargetID>(A->getValue())
+  if (const opt::Arg *A = Args.getLastArg(options::OPT_ftapir_cuda_arch_EQ))
+    return llvm::StringSwitch<std::optional<TapirNVArchTargetID>>(A->getValue())
         .Case("sm_50", TapirNVArchTargetID::SM_50)
         .Case("sm_52", TapirNVArchTargetID::SM_52)
         .Case("sm_53", TapirNVArchTargetID::SM_53)
         .Case("sm_60", TapirNVArchTargetID::SM_60)
         .Case("sm_62", TapirNVArchTargetID::SM_62)
         .Case("sm_70", TapirNVArchTargetID::SM_70)
+        .Case("sm_72", TapirNVArchTargetID::SM_72)
         .Case("sm_75", TapirNVArchTargetID::SM_75)
         .Case("sm_80", TapirNVArchTargetID::SM_80)
         .Case("sm_86", TapirNVArchTargetID::SM_86)
         .Case("sm_90", TapirNVArchTargetID::SM_90)
-        .Default(TapirNVArchTargetID::Last_TapirNVArchTargetID);
-
+        .Default(std::nullopt);
   return std::nullopt;
 }
 

@@ -103,8 +103,8 @@ extern bool __kithip_initialize();
 
 /**
  * Enable the use of XNACK for an executing program.  This call should
- * be made prior to runtime initialization.  It has a side effect of 
- * setting the XNACK environment variable that is specific to the 
+ * be made prior to runtime initialization.  It has a side effect of
+ * setting the XNACK environment variable that is specific to the
  * HIP/ROCm feature set.
  *
  * TODO: document more about this as it is opaque.
@@ -156,7 +156,7 @@ extern bool __kithip_is_mem_managed(void *vp);
  * This call will return NULL on failure or a pointer to the allocated
  * managed memory pointer on success.
  */
-extern __attribute__((malloc)) void *
+[[gnu::malloc]] extern void *[[kitsune::mobile]]
 __kithip_mem_alloc_managed(size_t num_bytes);
 
 /**
@@ -176,7 +176,7 @@ __kithip_mem_alloc_managed(size_t num_bytes);
  *
  * @todo Make a path for device-side initialization.
  */
-extern __attribute__((malloc)) void *
+[[gnu::malloc]] extern void *[[kitsune::mobile]]
 __kithip_mem_calloc_managed(size_t count, size_t elemsize);
 
 /**
@@ -203,8 +203,8 @@ __kithip_mem_calloc_managed(size_t count, size_t elemsize);
  *
  * @todo Look at thread safe implementation.
  */
-extern __attribute__((malloc)) void *__kithip_mem_realloc_managed(void *ptr,
-                                                                  size_t size);
+[[gnu::malloc]] extern void *[[kitsune::mobile]] __kithip_mem_realloc_managed(
+    void *[[kitsune::mobile]] ptr, size_t size);
 
 /**
  * Free the given managed memory allocation.  The allocation
@@ -221,7 +221,7 @@ extern __attribute__((malloc)) void *__kithip_mem_realloc_managed(void *ptr,
  *
  * @todo Look at thread safe implementation.
  */
-extern void __kithip_mem_free(void *ptr);
+extern void __kithip_mem_free(void *[[kitsune::mobile]] ptr);
 
 /**
  * Free only the HIP portion of the given managed memory allocation.
@@ -249,7 +249,7 @@ extern void __kithip_mem_destroy(void *ptr);
  * **NOTE**: See `__kithip_mem_host_prefetch()` for host-side
  * prefetch requests.
  */
-extern void* __kithip_mem_gpu_prefetch(void *ptr, void *opaque_stream);
+extern void *__kithip_mem_gpu_prefetch(void *ptr, void *opaque_stream);
 
 /**
  * Request that the memory allocation associated with the given
@@ -304,10 +304,9 @@ extern void __kithip_memcpy_sym_to_device(void *host_sym, void *dev_sym,
  * @param trip_count - Total size of the work to execution (aka trip count).
  * @param threads_per_blk - Use given thread count for launch (== 0 to compute).
  * @param inst_mix - external static code analysis details.
- * @param opaque_stream - externally created stream for execution. 
+ * @param opaque_stream - externally created stream for execution.
  */
-extern void* __kithip_launch_kernel(const void *fat_bin,
-                                    const char *kern_name,
+extern void *__kithip_launch_kernel(const void *fat_bin, const char *kern_name,
                                     void **kern_args, size_t trip_count,
                                     int threads_per_blk,
                                     const KitRTInstMix *inst_mix,
@@ -336,8 +335,8 @@ extern void __kithip_set_default_threads_per_blk(int nthreads);
 
 /**
  * Set the runtime's value for the maximum number of threads allowed
- * per block (typically a hardware limit).  For HIP there is a 
- * dependency between the runtime and the compiler-generated code 
+ * per block (typically a hardware limit).  For HIP there is a
+ * dependency between the runtime and the compiler-generated code
  * (kernel) attributes.  The compiler will insert a call to this to
  * match any specific code generation details that were used.
  */

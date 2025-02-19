@@ -849,18 +849,29 @@ def err_drv_malformed_warning_suppression_mapping : Error<
 
 def err_drv_kitsune_objc : Error<
   "kitsune does not support Objective-C">;
-def err_drv_kitsune_unsupported: Error<
-  "kitsune not yet supported for this target">;
+def err_drv_kitsune_opencl: Error<
+  "kitsune does not support OpenCL">;
+def err_drv_kitsune_cuda: Error<
+  "kitsune does not support the Cuda language">;
+def err_drv_kitsune_hip: Error<
+  "kitsune does not support the Hip language">;
+def err_drv_kitsune_openmp_offload : Error<
+  "cannot use OpenMP offload with a tapir target">;
+
+def err_drv_opencilk_platform: Error<
+  "opencilk tapir target does not support system '%0'">;
+def err_drv_opencilk_target: Error<
+  "opencilk tapir target does not support architecture '%0'">;
 
 // FIXME KITSUNE: Some of this should probably go away since we don't want to
 // give opencilk any special treatment here.
 def err_drv_opencilk_missing_abi_bitcode: Error<
-  "cannot find OpenCilk runtime ABI bitcode file: %0">;
+  "cannot find OpenCilk runtime ABI bitcode file">;
 
-def err_drv_mix_tapir_cuda_hip : Error<
-  "mixed Tapir and Cuda/HIP compilation is currently not supported">;
-def err_drv_mix_tapir_omp_offload : Error<
-  "mixed Tapir and OpenMP offload compilation is currently not supported">;
+def err_drv_mix_tapir_cuda : Error<
+  "cuda source cannot be used with a tapir target">;
+def err_drv_mix_tapir_hip : Error<
+  "hip source cannot be used with a tapir target">;
 
 def err_drv_kitsune_kokkos_disabled : Error<
   "kokkos support was not enabled when kitsune was built">;
@@ -877,4 +888,7 @@ def err_drv_kitsune_qthreads_target_disabled: Error<
   "tapir target 'qthreads' was not enabled when kitsune was built">;
 def err_drv_kitsune_realm_target_disabled: Error<
   "tapir target 'realm' was not enabled when kitsune was built">;
+
+def err_drv_kitsune_frontend_only: Error<
+  "option '%0' must be used with a Kitsune frontend">;
 }

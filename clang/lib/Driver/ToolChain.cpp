@@ -14,7 +14,6 @@
 #include "ToolChains/CommonArgs.h"
 #include "ToolChains/Flang.h"
 #include "ToolChains/InterfaceStubs.h"
-#include "kitsune/Config/config.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Basic/Sanitizers.h"
 #include "clang/Config/config.h"
@@ -433,6 +432,9 @@ static const DriverSuffix *FindDriverSuffix(StringRef ProgName, size_t &Pos) {
       // `flang-new`. This will be removed in the future.
       {"flang-new", "--driver-mode=flang"},
       {"clang-dxc", "--driver-mode=dxc"},
+      {KITSUNE_C_FRONTEND, nullptr},
+      {KITSUNE_CXX_FRONTEND, "--driver-mode=g++"},
+      {KITSUNE_Fortran_FRONTEND, "--driver-mode=flang"},
   };
 
   for (const auto &DS : DriverSuffixes) {
@@ -1763,13 +1765,31 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
                             Args);
       break;
     case llvm::TapirTargetID::OpenMP:
-      ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS, CmdArgs, Args);
+      // Unconditionally fail so that when (if) we ever resurrect the openmp
+      // tapir target, we know to look here and do whatever is appropriate.
+      if (KITSUNE_OPENMP_ENABLED)
+        report_fatal_error("TODO: Determine whether the openmp tapir target "
+                           "needs default preprocessor flags");
+      ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
       break;
     case llvm::TapirTargetID::Qthreads:
-      ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS, CmdArgs, Args);
+      // Unconditionally fail so that when (if) we ever resurrect the qthreads
+      // tapir target, we know to look here and do whatever is appropriate.
+      if (KITSUNE_QTHREADS_ENABLED)
+        report_fatal_error("TODO: Determine whether the qthreads tapir target "
+                           "needs default preprocessor flags");
+      ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
       break;
     case llvm::TapirTargetID::Realm:
-      ExtractArgsFromString(KITSUNE_REALM_EXTRA_PREPROCESSOR_FLAGS, CmdArgs, Args);
+      // Unconditionally fail so that when (if) we ever resurrect the realm
+      // tapir target, we know to look here and do whatever is appropriate.
+      if (KITSUNE_REALM_ENABLED)
+        report_fatal_error("TODO: Determine whether the realm tapir target "
+                           "needs default preprocessor flags");
+      ExtractArgsFromString(KITSUNE_REALM_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
+                            Args);
       break;
     default:
       llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
@@ -1790,12 +1810,13 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
   }
 }
 
-void ToolChain::AddKitsuneCompilerArgs(const ArgList& Args,
-                                       ArgStringList& CmdArgs) const {
+void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
+                                       ArgStringList &CmdArgs) const {
   std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
   bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos);
 
   if (TapirTarget) {
+    Args.AddLastArg(CmdArgs, options::OPT_ftapir_EQ);
     switch (*TapirTarget) {
     case TapirTargetID::Serial:
     case TapirTargetID::None:
@@ -1807,16 +1828,33 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList& Args,
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
     case llvm::TapirTargetID::OpenCilk:
+      AddOpenCilkABIBitcode(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_COMPILER_FLAGS, CmdArgs,
                             Args);
       break;
     case llvm::TapirTargetID::OpenMP:
+      // Unconditionally fail so that when (if) we ever resurrect the openmp
+      // tapir target, we know to look here and do whatever is appropriate.
+      if (KITSUNE_OPENMP_ENABLED)
+        report_fatal_error("TODO: Determine whether the openmp tapir target "
+                           "needs default compiler flags");
       ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
     case llvm::TapirTargetID::Qthreads:
-      ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
+      // Unconditionally fail so that when (if) we ever resurrect the qthreads
+      // tapir target, we know to look here and do whatever is appropriate.
+      if (KITSUNE_QTHREADS_ENABLED)
+        report_fatal_error("TODO: Determine whether the qthreads tapir target "
+                           "needs default compiler flags");
+      ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_COMPILER_FLAGS, CmdArgs,
+                            Args);
       break;
     case llvm::TapirTargetID::Realm:
+      // Unconditionally fail so that when (if) we ever resurrect the realm
+      // tapir target, we know to look here and do whatever is appropriate.
+      if (KITSUNE_REALM_ENABLED)
+        report_fatal_error("TODO: Determine whether the realm tapir target "
+                           "needs default compiler flags");
       ExtractArgsFromString(KITSUNE_REALM_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
     default:
@@ -1826,6 +1864,8 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList& Args,
   }
 
   if (IsKokkos) {
+    Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
+    Args.AddLastArg(CmdArgs, options::OPT_fkokkos_no_init);
     ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
   }
 }
@@ -1908,14 +1948,60 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     }
 
     case llvm::TapirTargetID::OpenMP:
+      // Unconditionally fail so that when (if) we ever resurrect the qthreads
+      // tapir target, we know to look here and do whatever is appropriate.
+      //
+      // The flags here are for reference because they were in some cmake file
+      // in the Kitsune repo. I have no idea if this is actually correct.
+      //
+      // -fopenmp -lomp
+      //
+      if (KITSUNE_OPENMP_ENABLED)
+        report_fatal_error("TODO: Determine whether the openmp tapir target "
+                           "needs default linker flags");
       ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
 
     case llvm::TapirTargetID::Qthreads:
+      // TODO: Fix this when (if) the qthreads tapir target is ever resurrected.
+      //
+      // It is not clear whether the realm libraries need to be linked to the
+      // executable being built. If Kitsune's runtime does not already link
+      // them in, then we will need to link them here. What is below is what was
+      // originally in a cmake file somewhere. It's repeated here for reference
+      // but obviously, we should do the right thing. There is absolutely no
+      // need to stick to exactly these if it doesn't make sense.
+      //
+      // -L${QTHREADS_LIBRARY_DIR} -lqthreads -lhwloc
+      //
+      // Unconditionally fail so that when (if) we ever resurrect the qthreads
+      // tapir target, we know to look here and do whatever is appropriate.
+      //
+      if (KITSUNE_QTHREADS_ENABLED)
+        report_fatal_error("TODO: Determine whether the qthreads tapir target "
+                           "needs default linker flags");
       ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
 
     case llvm::TapirTargetID::Realm:
+      // TODO: Fix this when (if) the realm tapir target is ever resurrected.
+      //
+      // It is not clear whether the realm libraries need to be linked to the
+      // executable being built. If Kitsune's runtime does not already link
+      // them in, then we will need to link them here. What is below is what was
+      // originally in a cmake file somewhere. It's repeated here for reference
+      // but obviously, we should do the right thing. There is absolutely no
+      // need to stick to exactly these if it doesn't make sense.
+      //
+      // "-L${Realm_LIBRARY_DIR} -L${Realm_WRAPPER_LIBRARY_DIR}
+      // -lrealm-abi -lrealm"
+      //
+      // The unconditional failure is to ensure that we don't forget to do this
+      // when the target is resurrected.
+      //
+      if (KITSUNE_REALM_ENABLED)
+        report_fatal_error("TODO: Determine whether the realm tapir target "
+                           "needs default linker flags");
       ExtractArgsFromString(KITSUNE_REALM_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
 
@@ -1938,10 +2024,11 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
   // We always link in libkitrt if a TapirTarget or special Kokkos handling has
   // been specified.
   if (TapirTarget or IsKokkos) {
-    // The pthread functions are now part of libc and was removed from glibc
-    // 2.34. There is no need to explicitly link this in unless we have older
-    // versions of libc around. We should consider removing this from here at
-    // some point when we are certain we don't need this any longer.
+    // The pthread functions are now part of libc. libpthread was removed from
+    // glibc 2.34. There is no need to explicitly link this in unless we have
+    // older versions of libc around. We should consider removing this from here
+    // at some point when we are certain we don't need this any longer.
+    // https://developers.redhat.com/articles/2021/12/17/why-glibc-234-removed-libpthread
     CmdArgs.push_back("-lpthread");
 
     // It is not clear if we need dl here since that will already have been
@@ -1956,6 +2043,11 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
 
     CmdArgs.push_back("-lkitrt");
 
+    // libkitrt links against libcuda if the cuda target is enabled and
+    // libamdhip64 if the hip target is enabled. The libraries may not be where
+    // the dynamic linker will find them, so the paths need to be set correctly
+    // here if libkitrt.so will be linked, regardless of the Tapir target being
+    // used.
     if (KITSUNE_HIP_ENABLED) {
       CmdArgs.push_back("-L");
       CmdArgs.push_back(KITSUNE_HIP_LIBRARY_DIR);
@@ -1965,11 +2057,6 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       CmdArgs.push_back("-lamdhip64");
     }
 
-    // libkitrt links against libcuda if the cuda target is enabled and
-    // libamdhip64 if the hip target is enabled. The libraries may not be where
-    // the dynamic linker will find them, so the paths need to be set correctly
-    // here if libkitrt.so will be linked, regardless of the Tapir target being
-    // used.
     if (KITSUNE_CUDA_ENABLED) {
       CmdArgs.push_back("-L");
       CmdArgs.push_back(KITSUNE_CUDA_LIBRARY_DIR);
@@ -2034,21 +2121,24 @@ std::optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
 void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
                                       ArgStringList &CmdArgs,
                                       bool IsLTO) const {
-  bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
-  StringRef OpenCilkBCName = UseAsan ? "opencilk-asan-abi" : "opencilk-abi";
-  if (auto OpenCilkABIBCFilename = getOpenCilkBC(Args, OpenCilkBCName)) {
+  std::string buf;
+  llvm::raw_string_ostream ss(buf);
+
+  if (Arg *A = Args.getLastArg(options::OPT_opencilk_abi_bitcode_EQ)) {
+    ss << "-opencilk-abi-bitcode=" << A->getValue();
+  } else if (std::optional<std::string> file =
+                 getOpenCilkBC(Args, "opencilk-abi")) {
     if (IsLTO)
-      CmdArgs.push_back(Args.MakeArgString(
-          "--plugin-opt=opencilk-abi-bitcode=" + *OpenCilkABIBCFilename));
+      ss << "--plugin-opt=opencilk-abi-bitcode=";
     else
-      CmdArgs.push_back(Args.MakeArgString("--opencilk-abi-bitcode=" +
-                                           *OpenCilkABIBCFilename));
-    return;
+      ss << "-opencilk-abi-bitcode=";
+    ss << *file;
   }
 
-  // Error if we could not find a bitcode file.
-  getDriver().Diag(diag::err_drv_opencilk_missing_abi_bitcode)
-      << getOpenCilkBCBasename(Args, OpenCilkBCName, /*AddArch=*/false);
+  // Don't error out if the bitcode file could not be found. That will be
+  // handled later.
+  if (buf.size())
+    CmdArgs.push_back(Args.MakeArgString(ss.str()));
 }
 
 std::string ToolChain::getOpenCilkRTBasename(const ArgList &Args,

@@ -57,7 +57,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cuda.h>
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <iostream>
@@ -275,7 +274,7 @@ bool __kithip_initialize() {
 			      enable_occupancy_calc))
       __kithip_use_occupancy_launch(true);
     if (__kitrt_verbose_mode())
-      fprintf(stderr, "  kithip: occupancy-based launches enabled.\n");  
+      fprintf(stderr, "  kithip: occupancy-based launches enabled.\n");
 
   return _kithip_initialized;
 }

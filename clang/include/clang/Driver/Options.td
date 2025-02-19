@@ -201,6 +201,13 @@ def hlsl_Group : OptionGroup<"<HLSL group>">, Group<f_Group>,
                    DocName<"HLSL options">,
                    Visibility<[ClangOption]>;
 
+def kitsune_Group : OptionGroup<"<Kitsune-specific option group>">,
+                    DocName<"Kitsune options">,
+                    DocBrief<[{
+Options that are specific to the Kitsune frontends (kitcc, kit++, kitfc). These
+may not be used with any other frontends.
+}]>;
+
 // Feature groups - these take command line options that correspond directly to
 // target specific features and can be translated directly from command line
 // options.
@@ -3419,34 +3426,6 @@ def fno_knr_functions : Flag<["-"], "fno-knr-functions">, Group<f_Group>,
   MarshallingInfoFlag<LangOpts<"DisableKNRFunctions">>,
   HelpText<"Disable support for K&R C function declarations">,
   Visibility<[ClangOption, CC1Option, CLOption]>;
-
-def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">,
-  Flags<[NoXarchOption, HelpHidden]>,
-  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  HelpText<"Kitsune directory for configuration files">;
-def fkokkos : Flag<["-"], "fkokkos">, Group<f_Group>,
-  Flags<[NoArgumentUnused]>,
-  Visibility<[ClangOption, CC1Option]>,
-  HelpText<"Enable Kokkos extensions: recognition and custom code generation">;
-def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Group<f_Group>,
-  Flags<[NoArgumentUnused]>,
-  Visibility<[ClangOption, CC1Option]>,
-  HelpText<"Skip code gen of Kokkos initialization (and finalize) calls.">;
-def ftapir_EQ : Joined<["-"], "ftapir=">, Group<f_Group>,
-  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  MetaVarName<"<target>">,
-  HelpText<"Choose the backend parallel runtime for Tapir instructions">,
-  Values<"none,serial,cuda,hip,opencilk,openmp,qthreads,realm">;
-def ftapir_nvarch_EQ : Joined<["-"], "ftapir-nvarch=">, Group<f_Group>,
-  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  HelpText<"Choose the target nvida gpu architecture (e.g., sm_80) for gpu and cuda backend runtimes">,
-  Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80,sm_86,sm_90">;
-def fstripmine : Flag<["-"], "fstripmine">, Group<f_Group>,
-  HelpText<"Enable the Tapir loop stripmining passes">;
-def fno_stripmine : Flag<["-"], "fno-stripmine">, Group<f_Group>;
-def opencilk_abi_bitcode_EQ : Joined<["--"], "opencilk-abi-bitcode=">,
-  Visibility<[CC1Option]>, HelpText<"Path to OpenCilk ABI bitcode file">,
-  MarshallingInfoString<CodeGenOpts<"OpenCilkABIBitcodeFile">>;
 
 def fmudflapth : Flag<["-"], "fmudflapth">, Group<f_Group>;
 def fmudflap : Flag<["-"], "fmudflap">, Group<f_Group>;
@@ -7552,9 +7531,6 @@ def vectorize_loops : Flag<["-"], "vectorize-loops">,
 def vectorize_slp : Flag<["-"], "vectorize-slp">,
   HelpText<"Run the SLP vectorization passes">,
   MarshallingInfoFlag<CodeGenOpts<"VectorizeSLP">>;
-def stripmine_loops : Flag<["-"], "stripmine-loops">,
-  HelpText<"Run the Tapir Loop stripmining passes">,
-  MarshallingInfoFlag<CodeGenOpts<"StripmineLoop">>;
 def linker_option : Joined<["--"], "linker-option=">,
   HelpText<"Add linker option">,
   MarshallingInfoStringVector<CodeGenOpts<"LinkerOptions">>;
@@ -9167,3 +9143,62 @@ def wasm_opt : Flag<["--"], "wasm-opt">,
   Group<m_Group>,
   HelpText<"Enable the wasm-opt optimizer (default)">,
   MarshallingInfoNegativeFlag<LangOpts<"NoWasmOpt">>;
+
+// Kitsune options
+let Group = kitsune_Group in {
+def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">,
+  Flags<[NoXarchOption, HelpHidden]>,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Directory for kitsune's configuration files">;
+
+def fkokkos : Flag<["-"], "fkokkos">, 
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"Enable custom parsing and code generation of some Kokkos constructs">;
+def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, 
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"Skip generation of Kokkos initialization (and finalize) calls.">;
+
+def ftapir_EQ : Joined<["-"], "ftapir=">, 
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  MetaVarName<"<target>">,
+  HelpText<"The tapir target to use">,
+  Values<"none,serial,cuda,hip,opencilk,openmp,qthreads,realm">;
+
+// NOTE: The default must be kept in sync with the KITSUNE_CUDA_ARCH_DEFAULT
+// cmake variable set in kitsune/CMakeLists.txt.
+def ftapir_cuda_arch_EQ : Joined<["-"], "ftapir-cuda-arch=">, 
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"The NVIDIA GPU architecture for the cuda tapir target">,
+  Default<"sm_80">,
+  Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80,sm_86,sm_90">;
+
+// FIXME: Compile a list of supported architectures for Hip.
+// NOTE: The default must be kept in sync iwth the KITSUNE_HIP_ARCH_DEFAULT
+// cmake variable set in kitsune/CMakeLists.txt.
+def ftapir_hip_arch_EQ : Joined<["-"], "ftapir-hip-arch=">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"The AMDGPU architecture for the hip tapir target">,
+  Default<"gfx90a">,
+  Values<"gfx90a">;
+
+// There is a fair bit of logic that looks for the correct bitcode file to use
+// depending on the current target. While that could be internalized, having
+// this option is very useful for the tests because we can point to a dummy
+// bitcode file and stop it from producing the "wrong" error (for instance
+// because we were checking that the frontend does not error out on supported
+// platforms).
+def opencilk_abi_bitcode_EQ : Joined<["-"], "opencilk-abi-bitcode=">,
+  Visibility<[CC1Option]>,
+  HelpText<"Path to OpenCilk ABI bitcode file">;
+
+// It would be nice if we could use one of the Bool*Option classes, but they
+// expect the option to be marshalled directly. We don't have that enabled
+// right now, so we have to do it the ugly way.
+def fstripmine : Flag<["-"], "fstripmine">, 
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Enable the loop strip-mining pass (Kitsune only)">;
+  
+def fno_stripmine : Flag<["-"], "fno-stripmine">, 
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Disable the loop strip-mining pass (Kitsune only)">;
+}

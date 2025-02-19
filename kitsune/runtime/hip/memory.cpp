@@ -58,44 +58,45 @@ static std::mutex _kithip_mem_alloc_mutex;
 
 extern "C" {
 
-void *__attribute__((malloc, kitsune_mobile))
+[[gnu::malloc]] void *[[kitsune::mobile]]
 __kithip_mem_alloc_managed(size_t size) {
   extern bool _kithip_initialized;
   if (not _kithip_initialized)
     __kithip_initialize();
 
-  void *alloced_ptr;
+  void *[[kitsune::mobile]] alloced_ptr = nullptr;
   HIP_SAFE_CALL(hipSetDevice(__kithip_get_device_id()));
-  HIP_SAFE_CALL(hipMallocManaged_p(&alloced_ptr, size, hipMemAttachGlobal));
+  HIP_SAFE_CALL(
+      hipMallocManaged_p((void **)&alloced_ptr, size, hipMemAttachGlobal));
   _kithip_mem_alloc_mutex.lock();
   __kitrt_register_mem_alloc(alloced_ptr, size);
   _kithip_mem_alloc_mutex.unlock();
   // Cheat a tad and just go ahead and issue a prefetch at allocation
   // time.  Could bite us but what the heck...
   HIP_SAFE_CALL(
-      hipMemPrefetchAsync_p(alloced_ptr, size, __kithip_get_device_id(),
+      hipMemPrefetchAsync_p((void *)alloced_ptr, size, __kithip_get_device_id(),
                             (hipStream_t)__kithip_get_thread_stream()));
-  return __kitsune_mobile_cast_unsafe(alloced_ptr);
+  return alloced_ptr;
 }
 
-void *__attribute__((malloc, kitsune_mobile))
+[[gnu::malloc]] void *[[kitsune::mobile]]
 __kithip_mem_calloc_managed(size_t count, size_t element_size) {
   assert(count != 0 && "zero-valued item count!");
   assert(element_size != 0 && "zero-valued element size!");
 
   size_t nbytes = count * element_size;
-  void *memp = __kithip_mem_alloc_managed(nbytes);
+  void *[[kitsune::mobile]] memp = __kithip_mem_alloc_managed(nbytes);
 
   // TODO: Is there a risk of a race here?
-  HIP_SAFE_CALL(hipMemsetD8Async_p(memp, 0, nbytes,
+  HIP_SAFE_CALL(hipMemsetD8Async_p((void *)memp, 0, nbytes,
                                    (hipStream_t)__kithip_get_thread_stream()));
-  return __kitsune_mobile_cast_unsafe(memp);
+  return memp;
 }
 
-void *__attribute__((malloc, kitsune_mobile))
-__kithip_mem_realloc_managed(void *ptr, size_t size) {
+[[gnu::malloc]] void *[[kitsune::mobile]] __kithip_mem_realloc_managed(
+    void *[[kitsune::mobile]] ptr, size_t size) {
   assert(size != 0 && "zero-valued size!");
-  void *memptr = nullptr;
+  void *[[kitsune::mobile]] memptr = nullptr;
   size_t alloced_nbytes = 0;
 
   if (ptr == nullptr) {
@@ -104,34 +105,39 @@ __kithip_mem_realloc_managed(void *ptr, size_t size) {
   } else {
     // Check to make sure this is a pointer we're actually managing.
     bool read_only, write_only;
-    alloced_nbytes = __kitrt_get_mem_alloc_size(ptr, &read_only, &write_only);
+    alloced_nbytes =
+        __kitrt_get_mem_alloc_size((void *)ptr, &read_only, &write_only);
     assert(alloced_nbytes != 0 && "kithip: realloc() on untracked allocation!");
   }
 
   if (size > alloced_nbytes) {
     memptr = __kithip_mem_alloc_managed(size);
-    HIP_SAFE_CALL(hipMemcpy_p(memptr /* dest */, ptr /* source */,
-                              alloced_nbytes, hipMemcpyDefault));
+    HIP_SAFE_CALL(hipMemcpy_p((void *)memptr /* dest */,
+                              (void *)ptr /* source */, alloced_nbytes,
+                              hipMemcpyDefault));
     // TODO: Race?  Do we need to lock the free here?
     __kithip_mem_free(ptr);
   } else if (size < alloced_nbytes) {
     memptr = __kithip_mem_alloc_managed(size);
-    HIP_SAFE_CALL(hipMemcpy_p(memptr /* dest */, ptr /* source */,
-                              alloced_nbytes, hipMemcpyDefault));
+    HIP_SAFE_CALL(hipMemcpy_p((void *)memptr /* dest */,
+                              (void *)ptr /* source */, alloced_nbytes,
+                              hipMemcpyDefault));
     // TODO: Race?  Do we need to lock the free here?
     __kithip_mem_free(ptr);
-  } else
-    memptr = ptr; // TODO: does this match realloc() behavior?
+  } else {
+    // TODO: does this match realloc() behavior?
+    memptr = ptr;
+  }
 
-  return __kitsune_mobile_cast_unsafe(memptr);
+  return memptr;
 }
 
-void __kithip_mem_free(void *vp) {
+void __kithip_mem_free(void *[[kitsune::mobile]] vp) {
   assert(vp && "unexpected null pointer!");
   _kithip_mem_alloc_mutex.lock();
   __kitrt_unregister_mem_alloc(vp);
   _kithip_mem_alloc_mutex.unlock();
-  HIP_SAFE_CALL(hipFree_p(vp));
+  HIP_SAFE_CALL(hipFree_p((void *)vp));
 }
 
 void __kithip_mem_destroy(void *vp) {

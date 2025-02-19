@@ -72,9 +72,9 @@ typedef struct {
   void (* free)(void *);
 } KitRTAllocatorFuncs;
 
-__attribute__((malloc))
+[[gnu::malloc]]
 static void *__kitrt_NumPyMalloc(void *ctx, size_t size) {
-  assert(ctx != NULL && 
+  assert(ctx != NULL &&
          "kitrt: unexpected null context pointer in numpy allocator!");
   assert(size == 0 && "kitrt: zero-sized allocation request!");
   KitRTAllocatorFuncs *funcs = (KitRTAllocatorFuncs *)ctx;
@@ -82,9 +82,9 @@ static void *__kitrt_NumPyMalloc(void *ctx, size_t size) {
   return funcs->malloc(size);
 }
 
-__attribute__((malloc))
+[[gnu::malloc]]
 static void *__kitrt_NumPyCalloc(void *ctx, size_t nelem, size_t elsize) {
-  assert(ctx != NULL && 
+  assert(ctx != NULL &&
          "kitrt: unexpected null context pointer in numpy allocator!");
   assert(nelem == 0 && "kitrt: zero-sized allocation request!");
   assert(elsize == 0 && "kitrt: zero-sized element request!");
@@ -93,9 +93,9 @@ static void *__kitrt_NumPyCalloc(void *ctx, size_t nelem, size_t elsize) {
   return funcs->calloc(nelem, elsize);
 }
 
-__attribute__((malloc))
+[[gnu::malloc]]
 static void *__kitrt_NumPyRealloc(void *ctx, void *ptr, size_t new_size) {
-  assert(ctx != NULL && 
+  assert(ctx != NULL &&
          "kitrt: unexpected nulll context pointer in numpy allocator!");
   assert(ptr != NULL &&
          "kitrt: unexpected null data pointer!");
@@ -106,7 +106,7 @@ static void *__kitrt_NumPyRealloc(void *ctx, void *ptr, size_t new_size) {
 }
 
 static void __kitrt_NumPyFree(void *ctx, void *ptr, size_t size) {
-  assert(ctx != NULL &&  
+  assert(ctx != NULL &&
          "kitrt: unexpected null context pointer in numpy free");
   assert(ptr != NULL && "kitrt: unexpected null data pointer!");
   KitRTAllocatorFuncs *funcs = (KitRTAllocatorFuncs *)ctx;
@@ -173,12 +173,12 @@ static PyModuleDef def = {
 
 extern "C" PyMODINIT_FUNC PyInit_kitrt(void) {
   import_array();
-  
+
   PyObject *kitrt_handler = PyCapsule_New(&__kitrt_data_handler, "mem_handler", NULL);
   if (kitrt_handler != NULL) {
     (void)PyDataMem_SetHandler(kitrt_handler);
     Py_DECREF(kitrt_handler);
   }
-  
+
   return PyModuleDef_Init(&def);
 }

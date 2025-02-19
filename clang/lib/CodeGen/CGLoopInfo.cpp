@@ -33,51 +33,6 @@ LoopInfo::createLoopPropertiesMetadata(ArrayRef<Metadata *> LoopProperties) {
   return LoopID;
 }
 
-MDNode *LoopInfo::createTapirLoopMetadata(const LoopAttributes &Attrs,
-                                          ArrayRef<Metadata *> LoopProperties,
-                                          bool &HasUserTransforms) {
-  LLVMContext &Ctx = Header->getContext();
-
-  std::optional<bool> Enabled;
-  if (Attrs.SpawnStrategy == LoopAttributes::SEQ)
-    Enabled = false;
-  else
-    Enabled = true;
-
-  if (Enabled != true)
-    return createLoopPropertiesMetadata(LoopProperties);
-
-  SmallVector<Metadata *, 4> Args;
-  TempMDTuple TempNode = MDNode::getTemporary(Ctx, std::nullopt);
-  Args.push_back(TempNode.get());
-  Args.append(LoopProperties.begin(), LoopProperties.end());
-
-  // Setting tapir.loop.spawn.strategy
-  if (Attrs.SpawnStrategy != LoopAttributes::SEQ) {
-    Metadata *Vals[] = {
-        MDString::get(Ctx, "tapir.loop.spawn.strategy"),
-        ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
-                                                 Attrs.SpawnStrategy))};
-    Args.push_back(MDNode::get(Ctx, Vals));
-  }
-
-  // Setting tapir.loop.grainsize
-  if (Attrs.TapirGrainSize > 0) {
-    Metadata *Vals[] = {
-        MDString::get(Ctx, "tapir.loop.grainsize"),
-        ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
-                                                 Attrs.TapirGrainSize))};
-    Args.push_back(MDNode::get(Ctx, Vals));
-  }
-
-  // No follow-up: This is the last transformation.
-
-  MDNode *LoopID = MDNode::getDistinct(Ctx, Args);
-  LoopID->replaceOperandWith(0, LoopID);
-  HasUserTransforms = true;
-  return LoopID;
-}
-
 MDNode *LoopInfo::createPipeliningMetadata(const LoopAttributes &Attrs,
                                            ArrayRef<Metadata *> LoopProperties,
                                            bool &HasUserTransforms) {
@@ -560,12 +515,13 @@ LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
   TempLoopID = MDNode::getTemporary(Header->getContext(), {});
 }
 
-void LoopInfo::getTapirLoopProperties(
-    const LoopAttributes &Attrs, SmallVectorImpl<Metadata *> &LoopProperties) {
+std::vector<Metadata *>
+LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
+  std::vector<Metadata*> LoopProperties;
   LLVMContext &Ctx = Header->getContext();
 
   if (Attrs.SpawnStrategy == LoopAttributes::SEQ)
-    return;
+    return LoopProperties;
 
   // Setting tapir.loop.spawn.strategy
   if (Attrs.SpawnStrategy != LoopAttributes::SEQ) {
@@ -594,6 +550,8 @@ void LoopInfo::getTapirLoopProperties(
                                                  unsigned(*Attrs.LoopTarget)))};
     LoopProperties.push_back(MDNode::get(Ctx, Vals));
   }
+
+  return LoopProperties;
 }
 
 void LoopInfo::finish() {
@@ -675,11 +633,9 @@ void LoopInfo::finish() {
     CurLoopAttr = BeforeJam;
   }
 
-  SmallVector<Metadata *, 1> TapirLoopProperties;
-  getTapirLoopProperties(CurLoopAttr, TapirLoopProperties);
-
   bool HasUserTransforms = false;
-  LoopID = createMetadata(CurLoopAttr, TapirLoopProperties, HasUserTransforms);
+  LoopID = createMetadata(CurLoopAttr, getTapirLoopProperties(CurLoopAttr),
+                          HasUserTransforms);
   TempLoopID->replaceAllUsesWith(LoopID);
 }
 

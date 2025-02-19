@@ -198,6 +198,10 @@ private:
                                   const llvm::Triple &T,
                                   const std::string &OutputFile,
                                   const LangOptions *LangOpts);
+
+  // Generate command line options from KitsuneOptions.
+  static void GenerateKitsuneArgs(const KitsuneOptions& Opts,
+                                  ArgumentConsumer Consumer);
   /// @}
 };
 
@@ -356,9 +360,22 @@ private:
                                const LangOptions &LangOptsRef);
 
   // Parse command line options that are specific to Kitsune.
-  static bool ParseKitsuneArgs(KitsuneOptions &Opts, llvm::opt::ArgList &Args,
+  static bool ParseKitsuneArgs(KitsuneOptions &Opts, const char *Argv0,
+                               const llvm::opt::ArgList &Args,
                                DiagnosticsEngine &Diags,
                                const LangOptions &LangOpts);
+
+  // Sanity check Kitsune arguments. We can't sanity-check everything when
+  // parsing the arguments. Parsing has to be done as early as possible because
+  // certain Kitsune arguments will affect others. For instance, if a Tapir
+  // target has been enabled, the default value of fp-contract is different.
+  // However, that means that checks that depend on the language and/or target
+  // options cannot be done when parsing the arguments.
+  static bool CheckKitsuneArgs(const llvm::opt::ArgList &Args,
+                               const llvm::Triple &T,
+                               const KitsuneOptions &KitsuneOpts,
+                               const LangOptions &LangOpts,
+                               DiagnosticsEngine &Diags);
 };
 
 /// Same as \c CompilerInvocation, but with copy-on-write optimization.

@@ -19,15 +19,19 @@ config.host_cxx = "@CMAKE_CXX_COMPILER@"
 config.host_arch = "@HOST_ARCH@"
 config.python_executable = "@Python3_EXECUTABLE@"
 config.llvm_external_lit = path(r"@LLVM_EXTERNAL_LIT@")
-config.kitsune_kokkos_enable = @KITSUNE_KOKKOS_ENABLED@
-config.kitsune_cuda_enable = @KITSUNE_CUDA_ENABLED@
-config.kitsune_hip_enable = @KITSUNE_HIP_ENABLED@
-config.kitsune_opencilk_enable = @KITSUNE_OPENCILK_ENABLED@
-config.kitsune_openmp_enable = @KITSUNE_OPENMP_ENABLED@
-config.kitsune_qthreads_enable = @KITSUNE_QTHREADS_ENABLED@
-config.kitsune_realm_enable = @KITSUNE_REALM_ENABLED@
+config.kitsune_c_enabled = @KITSUNE_C_ENABLED@
+config.kitsune_cxx_enabled = @KITSUNE_CXX_ENABLED@
+config.kitsune_fortran_enabled = @KITSUNE_Fortran_ENABLED@
+config.kitsune_kokkos_enabled = @KITSUNE_KOKKOS_ENABLED@
+config.kitsune_cuda_enabled = @KITSUNE_CUDA_ENABLED@
+config.kitsune_hip_enabled = @KITSUNE_HIP_ENABLED@
+config.kitsune_opencilk_enabled = @KITSUNE_OPENCILK_ENABLED@
+config.kitsune_openmp_enabled = @KITSUNE_OPENMP_ENABLED@
+config.kitsune_qthreads_enabled = @KITSUNE_QTHREADS_ENABLED@
+config.kitsune_realm_enabled = @KITSUNE_REALM_ENABLED@
 config.kitcc = "@KITSUNE_C_FRONTEND@"
 config.kitxx = "@KITSUNE_CXX_FRONTEND@"
+config.kitfc = "@KITSUNE_Fortran_FRONTEND@"
 
 import lit.llvm
 lit.llvm.initialize(lit_config, config)

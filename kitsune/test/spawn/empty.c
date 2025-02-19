@@ -1,4 +1,4 @@
-// RUN: %clang -ftapir=none -S -emit-llvm -o - %s | FileCheck %s
+// RUN: %kitcc -ftapir=none -S -emit-llvm -o - %s | FileCheck %s
 
 #include <kitsune.h>
 

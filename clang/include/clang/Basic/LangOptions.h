@@ -627,9 +627,6 @@ public:
   // WebAssembly target.
   bool NoWasmOpt = false;
 
-  /// \brief Runtime target for Tapir.
-  llvm::TapirTargetID TapirTarget = llvm::TapirTargetID::Last_TapirTargetID;
-
   /// Kitsune-specific options. This is a separate object because some of these
   /// affect both LangOptions and CodeGenOptions. This is not really a good
   /// place to keep this because it really ought to be its own object. But that

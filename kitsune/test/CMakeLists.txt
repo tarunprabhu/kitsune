@@ -2,6 +2,9 @@
 # for use by Lit, and delegates to LLVM's lit test handlers.
 
 llvm_canonicalize_cmake_booleans(
+  KITSUNE_C_ENABLED
+  KITSUNE_CXX_ENABLED
+  KITSUNE_Fortran_ENABLED
   KITSUNE_KOKKOS_ENABLED
   KITSUNE_CUDA_ENABLED
   KITSUNE_HIP_ENABLED
@@ -35,13 +38,34 @@ set(KITSUNE_TEST_PARAMS
 )
 
 list(APPEND KITSUNE_TEST_DEPS
-  ${KITSUNE_C_FRONTEND}
-  ${KITSUNE_CXX_FRONTEND}
+  ${KITSUNE_RUNTIME_LIBNAME}
+  kitsune-resource-headers
   clang
   llvm-config
   FileCheck count not
   opt
 )
+if (KITSUNE_C_ENABLED)
+  list(APPEND KITSUNE_TEST_DEPS ${KITSUNE_C_FRONTEND})
+endif()
+if (KITSUNE_CXX_ENABLED)
+  list(APPEND KITSUNE_TEST_DEPS ${KITSUNE_CXX_FRONTEND})
+endif()
+if (KITSUNE_Fortran_ENABLED)
+  list(APPEND KITSUNE_TEST_DEPS ${KITSUNE_Fortran_FRONTEND})
+endif()
+if (KITSUNE_KOKKOS_ENABLED)
+  list(APPEND KITSUNE_TEST_DEPS kokkos-copy-to-build-dir)
+endif()
+if (KITSUNE_OPENCILK_ENABLED)
+  list(APPEND KITSUNE_TEST_DEPS cheetah-copy-to-build-dir)
+endif()
+if (KITSUNE_QTHREADS_ENABLED)
+  list(APPEND KITSUNE_TEST_DEPS qthreads-copy-to-build-dir)
+endif()
+if (KITSUNE_REALM_ENABLED)
+  list(APPEND KITSUNE_TEST_DEPS realm-copy-to-build-dir)
+endif()
 
 if(TARGET llvm-lto)
   list(APPEND KITSUNE_TEST_DEPS llvm-lto)

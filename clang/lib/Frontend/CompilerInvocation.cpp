@@ -46,7 +46,6 @@
 #include "clang/Serialization/ASTBitCodes.h"
 #include "clang/Serialization/ModuleFileExtension.h"
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
-#include "kitsune/Config/config.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/CachedHashString.h"
@@ -1586,20 +1585,6 @@ void CompilerInvocationBase::GenerateCodeGenArgs(const CodeGenOptions &Opts,
                                                  const llvm::Triple &T,
                                                  const std::string &OutputFile,
                                                  const LangOptions *LangOpts) {
-  const KitsuneOptions& KitsuneOpts = LangOpts->KitsuneOpts;
-  if (KitsuneOpts.isKitsuneEnabled()) {
-    std::string buf;
-    llvm::raw_string_ostream os(buf);
-    os << *KitsuneOpts.getTapirTarget();
-    GenerateArg(Consumer, OPT_ftapir_EQ, os.str());
-  }
-
-  if (KitsuneOpts.getKokkos())
-    GenerateArg(Consumer, OPT_fkokkos);
-
-  if (KitsuneOpts.getKokkosNoInit())
-    GenerateArg(Consumer, OPT_fkokkos_no_init);
-
   const CodeGenOptions &CodeGenOpts = Opts;
 
   if (Opts.OptimizationLevel == 0)
@@ -3653,11 +3638,6 @@ void CompilerInvocationBase::GenerateLangArgs(const LangOptions &Opts,
                                               ArgumentConsumer Consumer,
                                               const llvm::Triple &T,
                                               InputKind IK) {
-  if (Opts.KitsuneOpts.getKokkos())
-    GenerateArg(Consumer, OPT_fkokkos);
-  if (Opts.KitsuneOpts.getKokkosNoInit())
-    GenerateArg(Consumer, OPT_fkokkos_no_init);
-
   if (IK.getFormat() == InputKind::Precompiled ||
       IK.getLanguage() == Language::LLVM_IR ||
       IK.getLanguage() == Language::CIR) {
@@ -4631,10 +4611,40 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   return Diags.getNumErrors() == NumErrorsBefore;
 }
 
-bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts, ArgList &Args,
+void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
+                                                 ArgumentConsumer Consumer) {
+  if (std::optional<llvm::TapirTargetID> tt = Opts.getTapirTarget()) {
+    std::string buf;
+    llvm::raw_string_ostream os(buf);
+    os << *tt;
+    GenerateArg(Consumer, OPT_ftapir_EQ, os.str());
+  }
+
+  if (Opts.getKokkos())
+    GenerateArg(Consumer, OPT_fkokkos);
+
+  if (Opts.getKokkosNoInit())
+    GenerateArg(Consumer, OPT_fkokkos_no_init);
+
+  if (Opts.getStripmineLoops())
+    GenerateArg(Consumer, OPT_fstripmine);
+
+  if (std::optional<StringRef> bc = Opts.getOpenCilkABIBitcodeFile())
+    GenerateArg(Consumer, OPT_opencilk_abi_bitcode_EQ, *bc);
+}
+
+bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts,
+                                          const char *Argv0,
+                                          const ArgList &Args,
                                           DiagnosticsEngine &Diags,
                                           const LangOptions &LangOpts) {
   unsigned NumErrorsBefore = Diags.getNumErrors();
+
+  Opts.setKitsuneFrontend(driver::IsKitsuneFrontend(Argv0));
+  Opts.setStripmineLoops(Args.hasArg(options::OPT_fstripmine));
+  if (Arg* A = Args.getLastArg(options::OPT_opencilk_abi_bitcode_EQ))
+    Opts.setOpenCilkABIBitcodeFile(A->getValue());
+
   if (std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args)) {
     // Even if the tapir target is valid, it may not have been enabled when
     // building clang.
@@ -4670,10 +4680,6 @@ bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts, ArgList &Args,
     default:
       llvm_unreachable("ParseKitsuneArgs: Tapir target not handled");
     }
-
-    if (LangOpts.ObjC)
-      Diags.Report(diag::err_drv_kitsune_objc);
-
     Opts.setTapirTarget(*TapirTarget);
   }
 
@@ -4684,6 +4690,60 @@ bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts, ArgList &Args,
   } else {
     Opts.setKokkos(isKokkos);
     Opts.setKokkosNoInit(isKokkosNoInit);
+  }
+
+  return Diags.getNumErrors() == NumErrorsBefore;
+}
+
+bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
+                                          const llvm::Triple &Triple,
+                                          const KitsuneOptions &KitsuneOpts,
+                                          const LangOptions &LangOpts,
+                                          DiagnosticsEngine &Diags) {
+  std::optional<llvm::TapirTargetID> tt = KitsuneOpts.getTapirTarget();
+  if (not tt)
+    return true;
+
+  unsigned NumErrorsBefore = Diags.getNumErrors();
+
+  // We need to check for Hip first so we get the correct error. For some
+  // inexplicable reason, LangOptions::setLangDefaults() has this:
+  //
+  //     Opts.HIP = Lang == Language::HIP;
+  //     Opts.CUDA = Lang == Language::CUDA || Opts.HIP;
+  //
+  // I have no words ...
+  if (LangOpts.HIP)
+    Diags.Report(clang::diag::err_drv_kitsune_hip);
+  else if (LangOpts.CUDA)
+    Diags.Report(clang::diag::err_drv_kitsune_cuda);
+  else if (LangOpts.ObjC)
+    Diags.Report(clang::diag::err_drv_kitsune_objc);
+  else if (LangOpts.OpenCL)
+    Diags.Report(clang::diag::err_drv_kitsune_opencl);
+
+  if (Args.getLastArg(options::OPT_fopenmp_targets_EQ))
+    Diags.Report(clang::diag::err_drv_kitsune_openmp_offload);
+
+  if (*tt == llvm::TapirTargetID::OpenCilk) {
+    if (!KitsuneOpts.getOpenCilkABIBitcodeFile())
+      Diags.Report(diag::err_drv_opencilk_missing_abi_bitcode);
+
+    if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
+      Diags.Report(diag::err_drv_opencilk_platform) << Triple.getOSName();
+
+    switch (Triple.getArch()) {
+    case llvm::Triple::x86:
+    case llvm::Triple::x86_64:
+    case llvm::Triple::arm:
+    case llvm::Triple::armeb:
+    case llvm::Triple::aarch64:
+    case llvm::Triple::aarch64_be:
+      break;
+    default:
+      Diags.Report(diag::err_drv_opencilk_target) << Triple.getArchName();
+      break;
+    }
   }
 
   return Diags.getNumErrors() == NumErrorsBefore;
@@ -5047,12 +5107,14 @@ bool CompilerInvocation::CreateFromArgsImpl(
 
   ParsePointerAuthArgs(LangOpts, Args, Diags);
 
+  // Parse the Kitsune arguments as early as possible. These affect how the
+  // lang options are setup. For instance, the default FPContract value changes
+  // when compiling with Kitsune's frontend.
+  ParseKitsuneArgs(LangOpts.KitsuneOpts, Argv0, Args, Diags, LangOpts);
   ParseLangArgs(LangOpts, Args, DashX, T, Res.getPreprocessorOpts().Includes,
                 Diags);
   if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)
     LangOpts.ObjCExceptions = 1;
-
-  ParseKitsuneArgs(LangOpts.KitsuneOpts, Args, Diags, LangOpts);
 
   for (auto Warning : Res.getDiagnosticOpts().Warnings) {
     if (Warning == "misexpect" &&
@@ -5122,6 +5184,15 @@ bool CompilerInvocation::CreateFromArgsImpl(
   }
 
   FixupInvocation(Res, Diags, Args, DashX);
+
+  // Some of Kitsune's sanity checks must be performed after the language
+  // options have been set. It would be nice if we could keep all the kitsune
+  // code together, but that is not possible. It is this way because I am trying
+  // to consolidate all the Kitsune-specific code to the extent possible to
+  // make merging easier. Some of the checks could be done in the driver
+  // instead which might actually be better, but merging is a serious headache
+  // that I would prefer to make easier.
+  CheckKitsuneArgs(Args, T, LangOpts.KitsuneOpts, Res.getLangOpts(), Diags);
 
   return Diags.getNumErrors() == NumErrorsBefore;
 }
@@ -5288,6 +5359,7 @@ void CompilerInvocationBase::generateCC1CommandLine(
   GeneratePreprocessorOutputArgs(getPreprocessorOutputOpts(), Consumer,
                                  getFrontendOpts().ProgramAction);
   GenerateDependencyOutputArgs(getDependencyOutputOpts(), Consumer);
+  GenerateKitsuneArgs(getLangOpts().KitsuneOpts, Consumer);
 }
 
 std::vector<std::string> CompilerInvocationBase::getCC1CommandLine() const {

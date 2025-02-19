@@ -870,6 +870,25 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
                       "\"" CLANG_VERSION_STRING " "
                       + getClangFullRepositoryVersion() + "\"");
 
+  // NOTE:This code should not be moved to reduce the number of clang tests that
+  // need to be updated as a result of this change.
+  //
+  // Kitsune-specific predefined macros. We deliberately do not change any of
+  // the clang macros. This should just work seamlessly other compiler
+  // detection mechanisms use by, for instance, cmake. We only define the
+  // __kitsune_tapir_target__ macro if a Tapir target is provided during
+  // compilation. We could have defaulted to an empty string, but this would not
+  // be in keeping with the principle of "absence indicating absence". The empty
+  // string would be too much like the "special sentinel indicating absence".
+  const KitsuneOptions& KitOpts = LangOpts.KitsuneOpts;
+  Builder.defineMacro("__kitsune__"); // Kitsune Frontend
+  if (std::optional<llvm::TapirTargetID> tt = KitOpts.getTapirTarget()) {
+    std::string s;
+    llvm::raw_string_ostream os(s);
+    os << '"' << *tt << '"';
+    Builder.defineMacro("__kitsune_tt__", os.str());
+  }
+
   if (LangOpts.GNUCVersion != 0) {
     // Major, minor, patch, are given two decimal places each, so 4.2.1 becomes
     // 40201.
@@ -1334,13 +1353,6 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   if (!LangOpts.MathErrno)
     Builder.defineMacro("__NO_MATH_ERRNO__");
 
-  // TODO: For Kitsune we need to decide how to best handle
-  // this case -- this macro definition will actually end up
-  // using different functions across targets and that could
-  // require us to deal with an inconsistent set of math
-  // operators (function calls) to transform in the Tapir ABI
-  // code...  It is error prone on a good day...
-  //
   if (LangOpts.FastMath || (LangOpts.NoHonorInfs && LangOpts.NoHonorNaNs))
     Builder.defineMacro("__FINITE_MATH_ONLY__", "1");
   else

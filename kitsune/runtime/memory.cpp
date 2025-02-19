@@ -57,18 +57,18 @@
 
 extern "C" {
 
-void *__attribute__((malloc, kitsune_mobile))
+[[gnu::malloc]] void *[[kitsune::mobile]]
 __kitrt_default_mem_alloc(size_t bytes) {
-  void *ptr = malloc(bytes);
+  void *[[kitsune::mobile]]ptr = __kitsune_mobile_cast_unsafe(malloc(bytes));
   __kitrt_register_mem_alloc(ptr, bytes);
-  return __kitsune_mobile_cast_unsafe(ptr);
+  return ptr;
 }
 
-void __kitrt_default_mem_free(void *ptr) {
+void __kitrt_default_mem_free(void *[[kitsune::mobile]] ptr) {
   bool ro, wo;
-  if (__kitrt_get_mem_alloc_size(ptr, &ro, &wo) > 0)
+  if (__kitrt_get_mem_alloc_size((void*)ptr, &ro, &wo) > 0)
     __kitrt_unregister_mem_alloc(ptr);
-  free(ptr);
+  free((void*)ptr);
 }
 
 } // extern "C"

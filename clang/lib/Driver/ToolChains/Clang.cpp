@@ -40,6 +40,7 @@
 #include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
+#include "clang/Driver/Tapir.h"
 #include "clang/Driver/Types.h"
 #include "clang/Driver/XRayArgs.h"
 #include "llvm/ADT/ScopeExit.h"
@@ -316,9 +317,9 @@ shouldUseExceptionTablesForObjCExceptions(const ObjCRuntime &runtime,
 /// main flag, -fexceptions and also language specific flags to enable/disable
 /// C++ and Objective-C exceptions. This makes it possible to for example
 /// disable C++ exceptions but enable Objective-C exceptions.
-static bool addExceptionArgs(const ArgList &Args, types::ID InputType,
-                             const ToolChain &TC, bool KernelOrKext,
-                             const ObjCRuntime &objcRuntime,
+static bool addExceptionArgs(const Driver &D, const ArgList &Args,
+                             types::ID InputType, const ToolChain &TC,
+                             bool KernelOrKext, const ObjCRuntime &objcRuntime,
                              ArgStringList &CmdArgs) {
   const llvm::Triple &Triple = TC.getTriple();
 
@@ -367,10 +368,18 @@ static bool addExceptionArgs(const ArgList &Args, types::ID InputType,
     Arg *ExceptionArg = Args.getLastArg(
         options::OPT_fcxx_exceptions, options::OPT_fno_cxx_exceptions,
         options::OPT_fexceptions, options::OPT_fno_exceptions);
-    if (ExceptionArg)
+    // If either -fcxx-exceptions or -fexceptions was explicitly provided, then
+    // respect it in Kitsune (if it causes things to fail, it's not our problem)
+    // But if it has not, turn exceptions off only if Kokkos mode has been
+    // enabled or if a tapir target has been set.
+    if (ExceptionArg) {
       CXXExceptionsEnabled =
           ExceptionArg->getOption().matches(options::OPT_fcxx_exceptions) ||
           ExceptionArg->getOption().matches(options::OPT_fexceptions);
+    } else if (D.IsKitsuneFrontend() &&
+               (parseTapirTarget(Args) || Args.hasArg(options::OPT_fkokkos))) {
+      CXXExceptionsEnabled = false;
+    }
 
     if (CXXExceptionsEnabled) {
       CmdArgs.push_back("-fcxx-exceptions");
@@ -3530,6 +3539,27 @@ static void RenderFloatingPointOptions(const ToolChain &TC, const Driver &D,
     CmdArgs.push_back("-fno-cx-fortran-rules");
 }
 
+static void RenderKitsuneOptions(const Driver &D, const ToolChain &TC,
+                                 const ArgList &Args, ArgStringList &CmdArgs) {
+  // If this is not a Kitsune frontend, Kitsune options are not allowed.
+  if (!D.IsKitsuneFrontend()) {
+    for (Arg *A : Args.filtered(options::OPT_kitsune_Group)) {
+      D.Diag(diag::err_drv_kitsune_frontend_only) << A->getSpelling();
+      return;
+    }
+  }
+
+  // -fstripmine is enabled based on the optimization level selected. For now,
+  // we enable stripmining when the optimization level enables vectorization.
+  bool stripmine = shouldEnableVectorizerAtOLevel(Args, /*isSlpVec=*/false);
+  if (Args.hasFlag(options::OPT_fstripmine, options::OPT_fno_stripmine,
+                   stripmine))
+    CmdArgs.push_back("-fstripmine");
+
+  TC.AddKitsunePreprocessorArgs(Args, CmdArgs);
+  TC.AddKitsuneCompilerArgs(Args, CmdArgs);
+}
+
 static void RenderAnalyzerOptions(const ArgList &Args, ArgStringList &CmdArgs,
                                   const llvm::Triple &Triple,
                                   const InputInfo &Input) {
@@ -6463,9 +6493,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // preprocessed inputs and configure concludes that -fPIC is not supported.
   Args.ClaimAllArgs(options::OPT_D);
 
-  TC.AddKitsunePreprocessorArgs(Args, CmdArgs);
-  TC.AddKitsuneCompilerArgs(Args, CmdArgs);
-
   // Manually translate -O4 to -O3; let clang reject others.
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
     if (A->getOption().matches(options::OPT_O4)) {
@@ -6820,49 +6847,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   Args.AddLastArg(CmdArgs, options::OPT_fdiagnostics_show_template_tree);
   Args.AddLastArg(CmdArgs, options::OPT_fno_elide_type);
-
-  // Forward flags for Kitsune.
-  Args.AddLastArg(CmdArgs, options::OPT_fkokkos);
-  Args.AddLastArg(CmdArgs, options::OPT_fkokkos_no_init);
-  Args.AddLastArg(CmdArgs, options::OPT_ftapir_EQ);
-  if (Args.hasArg(options::OPT_ftapir_EQ)) {
-    auto const &Triple = getToolChain().getTriple();
-
-    // At least one runtime has been implemented for these operating systems.
-    if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
-      D.Diag(diag::err_drv_kitsune_unsupported);
-
-    /* JFC: Is it possible to confuse with with -fno-opencilk? */
-    bool OpenCilk = false;
-    bool CustomTarget = false;
-
-    if (Arg *TapirRuntime = Args.getLastArgNoClaim(options::OPT_ftapir_EQ)) {
-      if (TapirRuntime->getValue() == StringRef("opencilk")) {
-        OpenCilk = true;
-      } else {
-        CustomTarget = true;
-      }
-    }
-
-    if (OpenCilk) {
-      switch (Triple.getArch()) {
-      case llvm::Triple::x86:
-      case llvm::Triple::x86_64:
-      case llvm::Triple::arm:
-      case llvm::Triple::armeb:
-      case llvm::Triple::aarch64:
-      case llvm::Triple::aarch64_be:
-        break;
-      default:
-        D.Diag(diag::err_drv_kitsune_unsupported);
-        break;
-      }
-
-      if (!CustomTarget)
-        // Add the OpenCilk ABI bitcode file.
-        getToolChain().AddOpenCilkABIBitcode(Args, CmdArgs);
-    }
-  }
 
   // Forward flags for OpenMP. We don't do this if the current action is an
   // device offloading action other than OpenMP.
@@ -7511,7 +7495,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // Handle GCC-style exception args.
   bool EH = false;
   if (!C.getDriver().IsCLMode())
-    EH = addExceptionArgs(Args, InputType, TC, KernelOrKext, Runtime, CmdArgs);
+    EH = addExceptionArgs(D, Args, InputType, TC, KernelOrKext, Runtime,
+                          CmdArgs);
 
   // Handle exception personalities
   Arg *A = Args.getLastArg(
@@ -7685,16 +7670,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                    options::OPT_fno_slp_vectorize, EnableSLPVec))
     CmdArgs.push_back("-vectorize-slp");
 
-  // -fstripmine is enabled based on the optimization level selected.  For now,
-  // we enable stripmining when the optimization level enables vectorization.
-  bool EnableStripmine = EnableVec;
-  OptSpecifier StripmineAliasOption =
-      EnableStripmine ? options::OPT_O_Group : options::OPT_fstripmine;
-  if (Args.hasFlag(options::OPT_fstripmine, StripmineAliasOption,
-                   options::OPT_fno_stripmine, EnableStripmine))
-    CmdArgs.push_back("-stripmine-loops");
-
   ParseMPreferVectorWidth(D, Args, CmdArgs);
+
+  RenderKitsuneOptions(D, TC, Args, CmdArgs);
 
   Args.AddLastArg(CmdArgs, options::OPT_fshow_overloads_EQ);
   Args.AddLastArg(CmdArgs,

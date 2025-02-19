@@ -61,6 +61,21 @@ namespace clang {
 /// i.e. forall, spawn, sync etc. and the backend code-generation via Tapir.
 class KitsuneOptions {
 private:
+  /// Is a Kitsune frontend being used. The frontend could be used without a
+  /// tapir target, so we can't use the @ref TapirTarget field to determine
+  /// whether we are using Kitsune.
+  unsigned kitsuneFrontend : 1;
+
+  /// Is "Kokkos mode" enabled.
+  unsigned kokkos : 1;
+
+  /// If "Kokkos mode" is enabled, should the initialization of libkokkoscore
+  /// be overrident.
+  unsigned kokkosNoInit : 1;
+
+  /// Should loop strip-mining be enabled.
+  unsigned stripmineLoops : 1;
+
   /// The TapirTarget to enable for code generation.
   ///
   /// For now, this is optional because we do not have a default tapir target
@@ -71,43 +86,60 @@ private:
   ///
   /// This may have to be changed in order to handle the "inline" Tapir
   /// attributes including those needed for multi-target support.
-  ////
-  std::optional<llvm::TapirTargetID> TapirTarget = std::nullopt;
+  ///
+  std::optional<llvm::TapirTargetID> tapirTarget = std::nullopt;
 
-  /// Is "Kokkos mode" enabled.
-  bool Kokkos = false;
-
-  /// If "Kokkos mode" is enabled, should the initialization of libkokkoscore
-  /// be overrident.
-  bool KokkosNoInit = false;
+  /// Path to the OpenCilk ABI bitcode file. This will only be non-empty if the
+  /// OpenCilk tapir target is enabled.
+  std::optional<std::string> opencilkABIBitcodeFile = std::nullopt;
 
 public:
-  void setTapirTarget(llvm::TapirTargetID TapirTarget) {
-    this->TapirTarget = TapirTarget;
+  void setKitsuneFrontend(bool kitsuneFrontend = true) {
+    this->kitsuneFrontend = kitsuneFrontend;
   }
 
-  void setKokkos(bool Kokkos = true) { this->Kokkos = Kokkos; }
+  void setKokkos(bool kokkos = true) { this->kokkos = kokkos; }
 
-  void setKokkosNoInit(bool KokkosNoInit = true) {
-    this->KokkosNoInit = KokkosNoInit;
+  void setKokkosNoInit(bool kokkosNoInit = true) {
+    this->kokkosNoInit = kokkosNoInit;
   }
 
-  bool isKitsuneEnabled() const { return TapirTarget.has_value(); }
+  void setStripmineLoops(bool stripmineLoops = true) {
+    this->stripmineLoops = stripmineLoops;
+  }
 
-  bool getKokkos() const { return Kokkos; }
+  void setTapirTarget(llvm::TapirTargetID tapirTarget) {
+    this->tapirTarget = tapirTarget;
+  }
 
-  bool getKokkosNoInit() const { return KokkosNoInit; }
+  void setOpenCilkABIBitcodeFile(llvm::StringRef file) {
+    this->opencilkABIBitcodeFile = file;
+  }
+
+  bool isKitsuneFrontend() const { return kitsuneFrontend; }
+
+  bool hasTapirTarget() const { return tapirTarget.has_value(); }
+
+  bool getKokkos() const { return kokkos; }
+
+  bool getKokkosNoInit() const { return kokkosNoInit; }
+
+  bool getStripmineLoops() const { return stripmineLoops; }
 
   /// This should only be called when a TapirTarget is known to exist.
   std::optional<llvm::TapirTargetID> getTapirTarget() const {
-    return TapirTarget;
+    return tapirTarget;
   }
 
   llvm::TapirTargetID getTapirTargetOrInvalid() const {
-    if (TapirTarget)
-      return *TapirTarget;
+    if (tapirTarget)
+      return *tapirTarget;
     else
       return llvm::TapirTargetID::Last_TapirTargetID;
+  }
+
+  std::optional<llvm::StringRef> getOpenCilkABIBitcodeFile() const {
+    return opencilkABIBitcodeFile;
   }
 };
 

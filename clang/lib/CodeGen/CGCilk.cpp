@@ -17,26 +17,6 @@
 using namespace clang;
 using namespace CodeGen;
 
-CodeGenFunction::IsSpawnedScope::IsSpawnedScope(CodeGenFunction *CGF)
-    : CGF(CGF), OldIsSpawned(CGF->IsSpawned),
-      OldSpawnedCleanup(CGF->SpawnedCleanup) {
-  CGF->IsSpawned = false;
-  CGF->SpawnedCleanup = OldIsSpawned;
-}
-
-CodeGenFunction::IsSpawnedScope::~IsSpawnedScope() {
-  RestoreOldScope();
-}
-
-bool CodeGenFunction::IsSpawnedScope::OldScopeIsSpawned() const {
-  return OldIsSpawned;
-}
-
-void CodeGenFunction::IsSpawnedScope::RestoreOldScope() {
-  CGF->IsSpawned = OldIsSpawned;
-  CGF->SpawnedCleanup = OldSpawnedCleanup;
-}
-
 void CodeGenFunction::EmitImplicitSyncCleanup(llvm::Instruction *SyncRegion) {
   llvm::Instruction *SR = SyncRegion;
   // If a sync region wasn't specified with this cleanup initially, try to grab
@@ -123,7 +103,7 @@ void CodeGenFunction::DetachScope::InitDetachScope() {
 }
 
 void CodeGenFunction::DetachScope::PushSpawnedTaskTerminate() {
-  CGF.pushFullExprCleanupImpl<CallDetRethrow>(
+  CGF.pushFullExprCleanup<CallDetRethrow>(
       // This cleanup should not be a TaskExit, because we've pushed a TaskExit
       // cleanup onto EHStack already, corresponding with the taskframe.
       static_cast<CleanupKind>(EHCleanup | LifetimeMarker),

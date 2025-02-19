@@ -110,6 +110,18 @@ using namespace clang::driver;
 using namespace clang;
 using namespace llvm::opt;
 
+static void CheckKitsuneOptions(const Driver& D,
+                                const ArgList& Args,
+                                DiagnosticsEngine& Diags) {
+  // Check that the -ftapir flag gets a valid value. This stops us from
+  // reporting multiple errors because the flag is examined in several places.
+  if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ)) {
+    if (not parseTapirTarget(Args))
+      Diags.Report(diag::err_drv_invalid_value)
+          << A->getAsString(Args) << A->getValue();
+  }
+}
+
 static std::optional<llvm::Triple> getOffloadTargetTriple(const Driver &D,
                                                           const ArgList &Args) {
   auto OffloadTargets = Args.getAllArgValues(options::OPT_offload_EQ);
@@ -300,6 +312,8 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
   }
 #endif
 
+  KitsuneFrontend = driver::IsKitsuneFrontend(ClangExecutable);
+
   // Compute the path to the resource directory.
   ResourceDir = GetResourcesPath(ClangExecutable);
 }
@@ -308,11 +322,11 @@ void Driver::setDriverMode(StringRef Value) {
   static StringRef OptName =
       getOpts().getOption(options::OPT_driver_mode).getPrefixedName();
   if (auto M = llvm::StringSwitch<std::optional<DriverMode>>(Value)
-                   .Case("gcc", GCCMode)
-                   .Case("g++", GXXMode)
+                   .Cases("gcc", KITSUNE_C_FRONTEND, GCCMode)
+                   .Cases("g++", KITSUNE_CXX_FRONTEND, GXXMode)
                    .Case("cpp", CPPMode)
                    .Case("cl", CLMode)
-                   .Case("flang", FlangMode)
+                   .Cases("flang", KITSUNE_Fortran_FRONTEND, FlangMode)
                    .Case("dxc", DXCMode)
                    .Default(std::nullopt))
     Mode = *M;
@@ -895,12 +909,6 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
     return;
   }
 
-  bool IsTapir = C.getInputArgs().hasArg(options::OPT_ftapir_EQ);
-  if (IsTapir && (IsCuda || IsHIP)) {
-    Diag(clang::diag::err_drv_mix_tapir_cuda_hip);
-    return;
-  }
-
   if (IsCuda && !UseLLVMOffload) {
     const ToolChain *HostTC = C.getSingleOffloadToolChain<Action::OFK_Host>();
     const llvm::Triple &HostTriple = HostTC->getTriple();
@@ -978,12 +986,6 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
             << OpenMPTargets->getAsString(C.getInputArgs());
         return;
       }
-
-      if (IsTapir) {
-        Diag(clang::diag::err_drv_mix_tapir_omp_offload);
-        return;
-      }
-
       for (StringRef T : OpenMPTargets->getValues())
         OpenMPTriples.insert(T);
     } else if (C.getInputArgs().hasArg(options::OPT_offload_arch_EQ) &&
@@ -1737,14 +1739,6 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
     }
   }
 
-  // Check that the -ftapir flag gets a valid value. This stops us from
-  // reporting multiple errors because the flag is examined in several places.
-  if (const Arg* A = Args.getLastArg(options::OPT_ftapir_EQ)) {
-    if (not parseTapirTarget(Args))
-      Diag(diag::err_drv_invalid_value)
-          << A->getAsString(Args) << A->getValue();
-  }
-
   std::unique_ptr<llvm::opt::InputArgList> UArgs =
       std::make_unique<InputArgList>(std::move(Args));
 
@@ -1824,6 +1818,8 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
       break;
     }
   }
+
+  CheckKitsuneOptions(*this, Args, Diags);
 
   // The compilation takes ownership of Args.
   Compilation *C = new Compilation(*this, TC, UArgs.release(), TranslatedArgs,
@@ -7083,6 +7079,14 @@ llvm::StringRef clang::driver::getDriverMode(StringRef ProgName,
 }
 
 bool driver::IsClangCL(StringRef DriverMode) { return DriverMode == "cl"; }
+
+bool driver::IsKitsuneFrontend(StringRef ProgName) {
+  // Yes, the name of the compiler is actually the "ModeSuffix". Don't ask ...
+  std::string Suffix =
+      ToolChain::getTargetAndModeFromProgramName(ProgName).ModeSuffix;
+  return Suffix == KITSUNE_C_FRONTEND || Suffix == KITSUNE_CXX_FRONTEND ||
+         Suffix == KITSUNE_Fortran_FRONTEND;
+}
 
 llvm::Error driver::expandResponseFiles(SmallVectorImpl<const char *> &Args,
                                         bool ClangCLMode,

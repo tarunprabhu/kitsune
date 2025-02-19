@@ -8,9 +8,6 @@
 #ifndef __KITSUNE_KITSUNE_H__
 #define __KITSUNE_KITSUNE_H__
 
-#include <stddef.h>
-#include <stdint.h>
-
 #if defined(spawn)
 // FIXME KITSUNE: Should this be an error instead of a warning?
 #warning encountered multiple definitions of spawn!
@@ -34,16 +31,16 @@
 
 #ifdef __cplusplus
 #define EXTERN_C extern "C"
-#else
+#else // ! __cplusplus
 #define EXTERN_C
 #endif // __cplusplus
 
-// TODO: This should be replaced with #ifndef __compile_is_kitsune__ which is
-// only defined when the code is compiled with Kitsune, but not otherwise. This
-// is allow code containing kitsune builtins and library functions to be
-// compiled with another compiler and maintain "reasonable" behavior.
-// #ifndef __compiler_is_kitsune
-#if 0
+#include <stdint.h>
+#include <stdlib.h>
+
+// The definitions allow code containing kitsune builtins and library functions
+// to be compiled with another compiler and maintain "reasonable" behavior.
+#ifndef __kitsune__
 
 /// Allocate n bytes in a mobile buffer. In Kitsune, this is a builtin that is
 /// replaced with a suitable memory allocation function depending on the tapir
@@ -60,11 +57,9 @@ kitsune_mobile_alloc(size_t bytes) {
 /// kitsune_mobile_alloc. In Kitsune, this is an intrinsic that is replaced with
 /// a call to an appropriate runtime function. This is here if the code is not
 /// compiled with Kitsune and simply calls the system's default deallocator.
-EXTERN_C inline void kitsune_mobile_free(void *ptr) {
-  return free(ptr);
-}
+EXTERN_C inline void kitsune_mobile_free(void *ptr) { return free(ptr); }
 
-#endif // __compiler_is_kitsune
+#endif // __kitsune__
 
 #ifdef __cplusplus
 
@@ -113,7 +108,6 @@ public:
   /// Get a pointer to the raw data.
   inline T *[[kitsune::mobile]] get() noexcept { return ptr; }
 
-  // TODO: This should not return a plain T*, but a __mobile__ T*.
   /// Get a pointer to the raw data.
   inline const T *[[kitsune::mobile]] get() const noexcept { return ptr; }
 
@@ -122,7 +116,7 @@ public:
   void alloc(size_t n = 1) {
     if (ptr)
       this->free();
-    ptr = (T* [[kitsune::mobile]])kitsune_mobile_alloc(n * sizeof(T));
+    ptr = (T *[[kitsune::mobile]])kitsune_mobile_alloc(n * sizeof(T));
   }
 
   /// Free the allocated mobile_ptr buffer. If the buffer has not already been
@@ -138,19 +132,22 @@ public:
 
   /// Dereference the contained raw pointer. The raw pointer must have been
   /// allocated.
-  inline element_type &operator*() const { return *this->get(); }
+  /// FIXME: Should the result have a kitsune::mobile attribute?
+  inline element_type &operator*() const { return *(T *)this->get(); }
 
   /// Access the object pointed to by the contained raw pointer. The pointer
   /// must have been allocated.
-  inline T *operator->() const { return get(); }
+  inline T *[[kitsune::mobile]] operator->() const { return get(); }
 
   /// Access the i'th element in the allocated array. This is only intended
   /// to be used when an actual array is allocated.
-  inline T &operator[](size_t i) { return ptr[i]; }
+  /// FIXME: Should the result have a kitsune::mobile attribute?
+  inline T &operator[](size_t i) { return (T &)ptr[i]; }
 
   /// Access the i'th element in the allocated array. This is only intended
   /// to be used when an actual array is allocated.
-  inline const T &operator[](size_t i) const { return ptr[i]; }
+  /// FIXME: Should the result have a kitsune::mobile attribute?
+  inline const T &operator[](size_t i) const { return (T &)ptr[i]; }
 
 private:
   /// The raw pointer.

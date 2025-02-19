@@ -8,20 +8,38 @@
 cmake_minimum_required(VERSION 3.20)
 project(kitsune C CXX)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
+# Setup a Kitsune frontend symlink (kitcc, kit++ etc.).
+#
+# NAME         The name of the frontend (also the name of the symlink that will
+#              be created)
+#
+# DEST         The name of the target of the symlink (it *MUST NOT* be the full
+#              path to the destination since it is assumed to be in
+#              ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} which is where the symlink will
+#              also be created)
+#
+# CMAKE_TARGET The name of the cmake target that created DEST. This is used to
+#              setup dependencies
+#
+function(setup_frontend_symlink name dest cmake_target)
+  set(symlink "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${name}")
+  add_custom_target(${name} ALL
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${dest} ${symlink}
+    COMMENT "Creating symlink ${name} to ${dest}"
+    VERBATIM USES_TERMINAL)
+  add_dependencies(${name} ${cmake_target})
+  install(FILES
+    ${symlink}
+    DESTINATION ${CMAKE_INSTALL_BINDIR})
+endfunction()
 
 include(ExternalProject)
 include(FetchContent)
 include(GetClangResourceDir)
-include(KitsuneUtils)
 
 if (WIN32)
   message(FATAL_ERROR "Kitsune is not supported on Windows")
 endif ()
-
-set(KITSUNE_C_FRONTEND kitcc)
-set(KITSUNE_CXX_FRONTEND kit++)
-set(KITSUNE_Fortran_FRONTEND kitfc)
 
 option(KITSUNE_INCLUDE_TESTS
   "Generate build targets for the Kitsune tests"
@@ -31,13 +49,22 @@ option(KITSUNE_KOKKOS_ENABLED
   "Enable custom recognition and compilation of Kokkos"
   ON)
 
+set(KITSUNE_C_FRONTEND kitcc)
+set(KITSUNE_CXX_FRONTEND kit++)
+set(KITSUNE_Fortran_FRONTEND kitfc)
+
+# The name of Kitsune's main runtime library. This is created here because it is
+# also used by the tests to ensure that check-kitsune does not run before the
+# runtime has been built.
+set(KITSUNE_RUNTIME_LIBNAME kitrt)
+
 # TODO: The _MAX variables are not currently used but it would be good to
 # require a range instead of just a minimum. In practice, we may want to
 # restrict it to just a single version because maintaining even a small range
 # is likely to be a pain.
 set(KITSUNE_CUDA_VERSION_MIN 12.3 CACHE INTERNAL "Minimum Cuda version required")
 set(KITSUNE_CUDA_VERSION_MAX 12.3 CACHE INTERNAL "Maxmimum Cuda version supported")
-set(KITSUNE_ROCM_VERSION_MIN 7.0 CACHE INTERNAL "Minimum ROCM version required")
+set(KITSUNE_ROCM_VERSION_MIN 6.0 CACHE INTERNAL "Minimum ROCM version required")
 set(KITSUNE_ROCM_VERSION_MAX 7.0 CACHE INTERNAL "Maximum ROCM version supported")
 
 set(KITSUNE_SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR})
@@ -45,13 +72,23 @@ set(KITSUNE_INCLUDE_DIR ${KITSUNE_SOURCE_DIR}/include)
 set(KITSUNE_BINARY_DIR  ${PROJECT_BINARY_DIR})
 set(KITSUNE_TARGETS_BINARY_DIR ${KITSUNE_BINARY_DIR}/targets)
 
+# Just in case, check for utilities that are needed to build some of the
+# dependencies. These are not needed for everything, but they are basic enough
+# that we might as well check for them unconditionally and "globally".
+find_program(GIT git REQUIRED)
+find_program(GREP grep REQUIRED)
+find_program(PATCH patch REQUIRED)
+find_program(WC wc REQUIRED)
+
 # This is just the subpath to the internal directory. It will be interpreted
-# relative to some base path, typically the ${CMAKE_INSTALL_PREFIX}
+# relative to some base path, typically ${CMAKE_INSTALL_PREFIX}
 get_clang_resource_dir(CLANG_RESOURCE_SUBDIR)
 
+# This is the clang resource directory within in the build directory.
 get_clang_resource_dir(CLANG_RESOURCE_INTDIR
   PREFIX ${CMAKE_BINARY_DIR})
 
+# This is the clang resource directory after installation.
 get_clang_resource_dir(CLANG_RESOURCE_INSTALL_DIR
   PREFIX ${CMAKE_INSTALL_PREFIX})
 
@@ -63,11 +100,13 @@ if (KITSUNE_KOKKOS_ENABLED)
 
   set(KITSUNE_KOKKOS_BUILD_CONFIGURE_FLAGS ""
     CACHE STRING
-    "Additional options to be passed to be CMake when configuring Kokkos. These are only used when building Kitsune")
+    "Additional options to be passed to be CMake when configuring Kokkos.
+    These are only used when building Kitsune")
 
   set(KITSUNE_KOKKOS_BUILD_COMPILE_FLAGS ""
     CACHE STRING
-    "Additional C++ compiler flags needed to build Kokkos. These are only used when building Kitsune")
+    "Additional C++ compiler flags needed to build Kokkos. These are only
+     used when building Kitsune")
 
   set(KITSUNE_KOKKOS_SRC_DIR  ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/kokkos)
   set(KITSUNE_KOKKOS_BUILD_DIR ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/build)
@@ -88,24 +127,26 @@ if (KITSUNE_KOKKOS_ENABLED)
   # exceptions.
   set(KITSUNE_KOKKOS_PATCH_EXCS ${KITSUNE_SOURCE_DIR}/patches/Kokkos_Exceptions.patch)
 
+  # ----------------------------------------------------------------------------
+  #                               WARNING
   #
-  # WARNING   This absolutely sucks!
+  #   The PATCH_COMMAND below will succeed even if the patch fails to apply.
+  #   Extra care must be taken when updating the GIT_TAG that the patch still
+  #   applies cleanly.
+  # ---------------------------------------------------------------------------
   #
-  # As I understand it, ExternalProject_Add will always check for updates and
-  # download any updates. Obviously, since we have a fixed git tag, there will
-  # never be any. However, the PATCH_COMMAND is always executed, which means
-  # that it will attempt to patch code that has already been patched. Naturally,
-  # this fails. The workaround here is to disable checking for updates by
-  # setting UPDATE_COMMAND to "".
+  # The PATCH_COMMAND will only apply the patch if none of the files in the
+  # checkout have been changed. This should be the case
   #
-  # HORRORS! It is possible that this means any update to GIT_TAG below will
-  # also not have any effect since the updates will never be retrieved. In this
-  # case, the entire build directory may need to be deleted for everything to
-  # work correctly. I cannot think of a way to automatically warn when this
-  # happens (never mind making sure that this doesn't happen).
+  #   - If this is the first time that Kokkos is being checked out
+  #   - If the git tag was changed since the last time this was checked out
   #
-  # TODO: Look for newer Kokkos updates.
+  # The subcommands only use short options because the utilities on some systems
+  # (such as the BSD's) do not support long options.
   #
+  # TODO: Update Kokkos.
+  #
+  set(patch_warning "-- SKIPPING patch: Patch may have been applied already")
   ExternalProject_Add(kokkos
     DEPENDS             clang lld llvm-config llvm-link
     GIT_REPOSITORY      https://github.com/kokkos/kokkos.git
@@ -114,8 +155,12 @@ if (KITSUNE_KOKKOS_ENABLED)
     BINARY_DIR          ${KITSUNE_KOKKOS_BUILD_DIR}
     STAMP_DIR           ${KITSUNE_KOKKOS_STAMP_DIR}
     CMAKE_ARGS          ${KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS}
-    PATCH_COMMAND       patch -p0 --input=${KITSUNE_KOKKOS_PATCH_EXCS}
-    UPDATE_COMMAND      ""
+    PATCH_COMMAND       ${GIT} status --porcelain --untracked-files=no
+                        | ${WC} -l
+                        | ${GREP} -q 0
+                        && ${PATCH} -p0 --input=${KITSUNE_KOKKOS_PATCH_EXCS}
+                        || ${CMAKE_COMMAND} -E echo "${patch_warning}"
+    USES_TERMINAL_PATCH ON
     UPDATE_DISCONNECTED ON)
 
   # Copy the Kokkos files into a "staging" area. This is needed to run the
@@ -160,16 +205,36 @@ if (KITSUNE_CUDA_ENABLED)
 
   find_package(CUDAToolkit ${KITSUNE_CUDA_VERSION_MIN} REQUIRED)
 
-  # FIXME: There is no guarantee that CUDA_HOME is set in the environment.
-  # Perhaps we should require it? Or does find_package end up adding it to the
-  # environment?
-  set(KITSUNE_CUDA_PREFIX $ENV{CUDA_HOME})
+  # CUDAToolkit does not provide a CUDAToolkit_PREFIX variable. CUDAToolkit_ROOT
+  # is not set either, even if the CUDAToolkit is found. The prefix relies on
+  # environment variables, so prefer those. Otherwise, make a best guess at
+  # figuring out what it is from the vriables that are set.
+  if (DEFINED ENV{CUDA_HOME})
+    set(KITSUNE_CUDA_PREFIX ENV{CUDA_HOME})
+  elseif (DEFINED $ENV{CUDA_PATH})
+    set(KISTUNE_CUDA_PREFIX ENV{CUDA_PATH})
+  elseif (CUDAToolkit_ROOT)
+    set(KITSUNE_CUDA_PREFIX ${CUDAToolkit_ROOT})
+  else ()
+    get_filename_component(KITSUNE_CUDA_PREFIX ${CUDAToolkit_BIN_DIR} DIRECTORY)
+  endif ()
+  if (NOT KITSUNE_CUDA_PREFIX)
+    message(FATAL_ERROR "Could not determine cuda prefix")
+  endif()
+
+  set(KITSUNE_CUDA_VERSION_MAJOR ${CUDAToolkit_VERSION_MAJOR})
+  set(KITSUNE_CUDA_VERSION_MINOR ${CUDAToolkit_VERSION_MINOR})
+  set(KITSUNE_CUDA_VERSION_PATCH ${CUDAToolkit_VERSION_PATCH})
+  set(KITSUNE_CUDA_VERSION_STRING "${CUDAToolkit_VERSION_MAJOR}.${CUDAToolkit_VERSION_MINOR}.${CUDAToolkit_VERSION_PATCH}")
   set(KITSUNE_CUDA_INCLUDE_DIR ${CUDAToolkit_INCLUDE_DIRS})
   set(KITSUNE_CUDA_BINARY_DIR ${CUDAToolkit_BIN_DIR})
   set(KITSUNE_CUDA_LIBRARY_DIR ${CUDAToolkit_LIBRARY_DIR})
   set(KITSUNE_CUDA_LIBDEVICE_DIR "${KITSUNE_CUDA_PREFIX}/nvvm/libdevice")
 
-  message(STATUS "  CUDA prefix: ${KITSUNE_CUDA_PREFIX}")
+  message(STATUS "  Cuda prefix: ${KITSUNE_CUDA_PREFIX}")
+  message(STATUS "  Cuda binary dir: ${KITSUNE_CUDA_BINARY_DIR}")
+  message(STATUS "  Cuda include dir: ${KITSUNE_CUDA_INCLUDE_DIR}")
+  message(STATUS "  Cuda library dir: ${KITSUNE_CUDA_LIBRARY_DIR}")
 
   find_library(KITSUNE_CUDA_LIB_CUDART cudart REQUIRED
     PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
@@ -177,6 +242,11 @@ if (KITSUNE_CUDA_ENABLED)
 
   # This should almost always be the libcuda that is installed on the system,
   # so look for it in the "usual" places.
+  #
+  # FIX THE FIXME BELOW: I am not sure that what is said there is actually
+  # correct, so double check that we really need to add */lib64 explicitly to
+  # the search path.
+  #
   # FIXME: For some reason, on some systems, cmake does not look in the *lib64
   # directories. I can't seem to find anything definitive regarding this
   # behavior and whether it is expected or if it is a consequence of something
@@ -203,6 +273,10 @@ if (KITSUNE_CUDA_ENABLED)
   find_program(KITSUNE_CUDA_FATBINARY fatbinary REQUIRED
     PATHS ${KITSUNE_CUDA_BINARY_DIR}
     NO_DEFAULT_PATH)
+
+  set(KITSUNE_CUDA_ARCH_DEFAULT "sm_80"
+    CACHE STRING
+    "The NVIDIA GPU architecture used by the cuda tapir target")
 
   set(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -231,10 +305,12 @@ if (KITSUNE_HIP_ENABLED)
     message(STATUS "  Kitsune HIP support enabled but ROCM_PATH not set.")
     if (DEFINED $ENV{ROCM_PATH})
       message(STATUS "  Using ROCM_PATH environment variable.")
-      set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH "AMD ROCM/HIP installation directory.")
+      set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH
+        "AMD ROCM/HIP installation directory.")
     else()
       message(STATUS "  Using the default install location [/opt/rocm].")
-      set(ROCM_PATH "/opt/rocm" CACHE PATH "AMD ROCM/HIP installation directory.")
+      set(ROCM_PATH "/opt/rocm" CACHE PATH
+        "AMD ROCM/HIP installation directory.")
     endif()
   endif()
   message(STATUS "ROCm/HIP path: ${ROCM_PATH}")
@@ -256,6 +332,10 @@ if (KITSUNE_HIP_ENABLED)
   # There ought to be a better way to set the HIP_PREFIX rather than simply
   # relying on ROCM_PATH, but if wishes were horses ...
   set(KITSUNE_HIP_PREFIX ${ROCM_PATH})
+  set(KITSUNE_HIP_VERSION_MAJOR ${HIP_VERSION_MAJOR})
+  set(KITSUNE_HIP_VERSION_MINOR ${HIP_VERSION_MINOR})
+  set(KITSUNE_HIP_VERSION_PATCH ${HIP_VERSION_PATCH})
+  set(KITSUNE_HIP_VERSION_STRING "${HIP_VERSION_MAJOR}.${HIP_VERSION_MINOR}.${HIP_VERSION_PATCH}")
   set(KITSUNE_HIP_INCLUDE_DIR ${HIP_INCLUDE_DIR})
   set(KITSUNE_HIP_LIBRARY_DIR ${HIP_LIB_INSTALL_DIR})
 
@@ -266,6 +346,10 @@ if (KITSUNE_HIP_ENABLED)
   find_library(KITSUNE_HIP_LIB_AMDHIP64 amdhip64 REQUIRED
     PATHS ${KITSUNE_HIP_LIBRARY_DIR} ${ROCM_PATH}/lib
     NO_DEFAULT_PATH)
+
+  set(KITSUNE_HIP_ARCH_DEFAULT "gfx90a"
+    CACHE STRING
+    "The AMD GPU architecture used by the hip tapir target")
 
   set(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -299,11 +383,13 @@ if (KITSUNE_OPENCILK_ENABLED)
   # mismatched.
   set(KITSUNE_OPENCILK_BUILD_CONFIGURE_FLAGS ""
     CACHE STRING
-    "Additional options to be passed to be CMake when configuring Cheetah (the OpenCilk runtime). These are only used when building Kitsune")
+    "Additional options to be passed to be CMake when configuring Cheetah
+    (the OpenCilk runtime). These are only used when building Kitsune")
 
   set(KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS ""
     CACHE STRING
-    "Additional C++ compiler flags needed to build Cheetah (the OpenCilk runtime). These are only used when building Kitsune")
+    "Additional C++ compiler flags needed to build Cheetah (the OpenCilk
+    runtime). These are only used when building Kitsune")
 
   # We pass some LLVM_* variables to make Cheetah behave as if it were an
   # in-tree build.
@@ -333,6 +419,10 @@ if (KITSUNE_OPENCILK_ENABLED)
   # certain Cilk types are not emitted to libopencilk-abi.bc. When upstream
   # fixes the issue, this should be changed to point to the official cheetah
   # repository.
+  #
+  # TODO: This might have been fixed by upstream already, so we should check and
+  # switch to using it.
+  #
   ExternalProject_Add(cheetah
     DEPENDS             clang lld llvm-config llvm-link
     GIT_REPOSITORY      https://github.com/tarunprabhu/cheetah.git
@@ -349,12 +439,9 @@ if (KITSUNE_OPENCILK_ENABLED)
   # be copied correctly, we have to copy it to the "top-level" of the build
   # directory.
   add_custom_target(cheetah-copy-to-build-dir ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${KITSUNE_CHEETAH_INSTALL_DIR}
-    ${CMAKE_BINARY_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${KITSUNE_CHEETAH_INSTALL_DIR} ${CMAKE_BINARY_DIR}
     COMMENT "Copying OpenCilk to the 'top-level' build directory"
-    VERBATIM USES_TERMINAL
-  )
+    VERBATIM USES_TERMINAL)
   add_dependencies(cheetah-copy-to-build-dir cheetah)
 
   # Add a custom target to install opencilk to the final install directory with
@@ -367,20 +454,6 @@ if (KITSUNE_OPENCILK_ENABLED)
   install(DIRECTORY ${KITSUNE_CHEETAH_INSTALL_DIR}/
     DESTINATION ${CMAKE_INSTALL_PREFIX}
     USE_SOURCE_PERMISSIONS)
-
-  # The values here are populated given that we know where Cheetah will be
-  # installed. The code to actual fetch, configure, build etc. is in
-  # kitsune/runtime.
-  set(KITSUNE_OPENCILK_DEFAULT_PREPROCESSOR_FLAGS
-    "")
-
-  set(KITSUNE_OPENCILK_DEFAULT_COMPILER_FLAGS
-    "")
-
-  # All the defaults are handled in the source code because finding the
-  # OpenCilk runtime library is not straightforward on all platforms.
-  set(KITSUNE_OPENCILK_DEFAULT_LINKER_FLAGS
-    "")
 
   set(KITSUNE_OPENCILK_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -402,16 +475,9 @@ endif()
 if (KITSUNE_OPENMP_ENABLED)
   message(STATUS "Kitsune: OpenMP target enabled")
 
-  # TODO: Do we need to check for libomp?
-
-  set(KITSUNE_OPENMP_DEFAULT_PREPROCESSOR_FLAGS
-    "")
-
-  set(KITSUNE_OPENMP_DEFAULT_COMPILER_FLAGS
-    "")
-
-  set(KITSUNE_OPENMP_DEFAULT_LINKER_FLAGS
-    "-fopenmp -lomp")
+  # FIXME: Unconditionally fail so that when (if) the openmp tapir target is
+  # ever resurrected, we know to look here and do whatever is appropriate.
+  message(FATAL_ERROR "TODO: Do we need to check for libomp?")
 
   set(KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -432,23 +498,11 @@ endif()
 if (KITSUNE_QTHREADS_ENABLED)
   message(STATUS "Kitsune: Qthreads target enabled")
 
-  # FIXME: Do find_package or something here for qthreads. That will set
-  # QTHREADS_INCLUDE_DIR and QTHREADS_LIBRARY_DIR below.
-  message(FATAL_ERROR "Finding package for QThreads has not been implemented")
-
-  # FIXME: Remove the KITSUNE_QTHREADS_DEFAULT_* flags. Those should be moved
-  # to clang/lib/Driver/ToolChain.cpp when we resurrect the qthreads target.
-
-  # TODO: Do we really need the qthreads include directory to be in the search
-  # path?
-  set(KITSUNE_QTHREADS_DEFAULT_PREPROCESSOR_FLAGS
-    "-I${QTHREADS_INCLUDE_DIR}")
-
-  set(KITSUNE_QTHREADS_DEFAULT_COMPILER_FLAGS
-    "")
-
-  set(KITSUNE_QTHREADS_DEFAULT_LINKER_FLAGS
-    "-L${QTHREADS_LIBRARY_DIR} -lqthread -lhwloc")
+  # FIXME: Do find_package or ExternalProject_add or something else here for
+  # qthreads. Odds are that we will end up building realm like we build Cheetah.
+  # In any case, this message is here to ensure that when (if) we ever resurrect
+  # the qthreads tapir target, we don't forget to do the right thing here.
+  message(FATAL_ERROR "Finding/building QThreads has not been implemented")
 
   set(KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -469,21 +523,11 @@ endif()
 if (KITSUNE_REALM_ENABLED)
   message(STATUS "Kitsune: Realm target enabled")
 
-  # FIXME: Do find_package or something here for realm. That will set
-  # Realm_LIBRARY_DIR and other such variables which are used below.
-  message(FATAL_ERROR "Finding package for Realm has not been implemented")
-
-  # FIXME: Remove the KITSUNE_REALM_DEFAULT_* flags. Those should be moved
-  # to clang/lib/Driver/ToolChain.cpp when we resurrect the Realm target.
-
-  set(KITSUNE_REALM_DEFAULT_PREPROCESSOR_FLAGS
-    "")
-
-  set(KITSUNE_REALM_DEFAULT_COMPILER_FLAGS
-    "")
-
-  set(KITSUNE_REALM_DEFAULT_LINKER_FLAGS
-    "-L${Realm_LIBRARY_DIR} -L${Realm_WRAPPER_LIBRARY_DIR} -lrealm-abi -lrealm")
+  # FIXME: Do find_package or ExternalProject_add or something else here for
+  # realm. Odds are that we will end up building realm like we build Cheetah.
+  # In any case, this message is here to ensure that when (if) we ever resurrect
+  # the realm tapir target, we don't forget to do the right thing here.
+  message(FATAL_ERROR "Finding/building Realm has not been implemented")
 
   set(KITSUNE_REALM_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -512,90 +556,54 @@ set(KITSUNE_DEFAULT_TAPIR_RUNTIME "opencilk" CACHE STRING
 # If any more languages are enabled, a corresponding variable should be added
 # here. For instance, we may want to run Cuda code through Kitsune, in which
 # case, a Cuda frontend will need to be created similar to the C and C++ ones.
+#
+# The C and C++ frontends will always be enabled because clang will be enabled
+# in order to build the runtime. It is unlikely that the runtime will ever be
+# truly independent of the compiler. Nevertheless, for consistency, we have
+# checks for the C and C++ frontends as we do for Fortran. These should be used
+# when appropriate.
 set(KITSUNE_C_ENABLED OFF)
 set(KITSUNE_CXX_ENABLED OFF)
 set(KITSUNE_Fortran_ENABLED OFF)
 
 if ("clang" IN_LIST LLVM_ENABLE_PROJECTS)
   set(KITSUNE_C_ENABLED ON)
-  setup_frontend_symlink(${KITSUNE_C_FRONTEND} clang)
-
   set(KITSUNE_CXX_ENABLED ON)
-  setup_frontend_symlink(${KITSUNE_CXX_FRONTEND} clang++)
 endif ()
 
 if ("flang" IN_LIST LLVM_ENABLE_PROJECTS)
   set(KITSUNE_Fortran_ENABLED ON)
-  setup_frontend_symlink(${KITSUNE_Fortran_FRONTEND} flang)
 endif ()
-
-add_subdirectory(configs)
-add_subdirectory(include/kitsune)
-add_subdirectory(tools)
-add_subdirectory(experiments)
-
-if(KITSUNE_INCLUDE_TESTS)
-  add_subdirectory(test)
-endif()
 
 # Because we treat kitsune's runtime as an external project, we handle it the
 # same way we do the tapir targets i.e., we create an "install" directory
 # within the build directory into which all the files will be "installed" at
 # build time with a separate install command to copy these out to the actual
 # install directory for kitsune as specified by ${CMAKE_INSTALL_PREFIX}.
-set(KITSUNE_KITRT_INSTALL_DIR ${KITSUNE_BINARY_DIR}/kitrt)
+set(KITSUNE_RUNTIME_INSTALL_DIR ${KITSUNE_BINARY_DIR}/${KITSUNE_RUNTIME_LIBNAME})
 
-# We don't descend into the runtime subdirectory because that should only be
-# configured when the runtimes are built. All the cmake environment variables
-# that the runtime might need have to be passed through here.
-#
 # FIXME: Instead of passing all the Kitsune variables here by hand, look for
-# for every variable starting with KITSUNE_, KITRT_ and LLVM_ and pass those
+# for every variable starting with KITSUNE_, CLANG_ and LLVM_ and pass those
 # in. Perhaps something like what is below.
 #
 #     get_cmake_property(vars VARIABLES)
 #     list(FILTER vars INCLUDE REGEX "^KIT")
 #     list(SORT vars)
-#     foreach (var ${vars})
-#       message(STATUS "${var}=${${var}}")
-#     endforeach()
 #
-ExternalProject_Add(kitrt
-  DEPENDS llvm-config clang LLVM
-  SOURCE_DIR ${KITSUNE_SOURCE_DIR}/runtime
-  STAMP_DIR ${KITSUNE_BINARY_DIR}/stamp
-  BINARY_DIR ${KITSUNE_BINARY_DIR}/runtime
-  CMAKE_ARGS -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
+# However, this may result in a number of "unused variable" warnings (though we
+# get a number of those with those approach already). For now, we can live with
+# it.
+#
+set(KITSUNE_RUNTIME_CONFIGURE_ARGS
+  -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
   -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
   -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
   -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
   -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
   -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
-  -DCMAKE_INSTALL_PREFIX=${KITSUNE_KITRT_INSTALL_DIR}
+  -DCMAKE_INSTALL_PREFIX=${KITSUNE_RUNTIME_INSTALL_DIR}
   -DCMAKE_COLOR_DIAGNOSTICS=${CMAKE_COLOR_DIAGNOSTICS}
   -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
-  -DKITSUNE_CUDA_VERSION_MIN=${KITSUNE_CUDA_VERSION_MIN}
-  -DKITSUNE_ROCM_VERSION_MIN=${KITSUNE_ROCM_VERSION_MIN}
-  -DKITSUNE_CUDA_ENABLED=${KITSUNE_CUDA_ENABLED}
-  -DKITSUNE_CUDA_INCLUDE_DIR=${KITSUNE_CUDA_INCLUDE_DIR}
-  -DKITSUNE_CUDA_BINARY_DIR=${KITSUNE_CUDA_BINARY_DIR}
-  -DKITSUNE_CUDA_LIBRARY_DIR=${KITSUNE_CUDA_LIBRARY_DIR}
-  -DKITSUNE_CUDA_LIB_CUDA=${KITSUNE_CUDA_LIB_CUDA}
-  -DKITSUNE_CUDA_LIB_CUDART=${KITSUNE_CUDA_LIB_CUDART}
-  -DKITSUNE_CUDA_LIB_NVPTX_STATIC=${KITSUNE_CUDA_LIB_NVPTX_STATIC}
-  -DKITSUNE_HIP_ENABLED=${KITSUNE_HIP_ENABLED}
-  -DKITSUNE_HIP_PREFIX=${KITSUNE_HIP_PREFIX}
-  -DKITSUNE_HIP_INCLUDE_DIR=${KITSUNE_HIP_INCLUDE_DIR}
-  -DKITSUNE_HIP_LIBRARY_DIR=${KITSUNE_HIP_LIBRARY_DIR}
-  -DKITSUNE_HIP_LIB_AMDHIP64=${KITSUNE_HIP_LIB_AMDHIP64}
-  -DKITSUNE_OPENCILK_ENABLED=${KITSUNE_OPENCILK_ENABLED}
-  -DKITSUNE_OPENMP_ENABLED=${KITSUNE_OPENMP_ENABLED}
-  -DKITSUNE_QTHREADS_ENABLED=${KITSUNE_QTHREADS_ENABLED}
-  -DKITSUNE_REALM_ENABLED=${KITSUNE_REALM_ENABLED}
-  -DKITRT_ENABLE_DEBUG=${KITRT_ENABLE_DEBUG}
-  -DKITRT_ENABLE_VERBOSE=${KITRT_ENABLE_VERBOSE}
-  -DKITRT_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
-  -DKITCUDA_ENABLE_NVTX=${KITCUDA_ENABLE_NVTX}
   -DCLANG_RESOURCE_INTDIR=${CLANG_RESOURCE_INTDIR}
   -DCLANG_RESOURCE_DIR=${CLANG_RESOURCE_INSTALL_DIR}
   -DCLANG_RESOURCE_SUBDIR=${CLANG_RESOURCE_SUBDIR}
@@ -612,30 +620,100 @@ ExternalProject_Add(kitrt
   -DLLVM_LIBDIR_SUFFIX=${LLVM_LIBDIR_SUFFIX}
   -DLLVM_MAIN_INCLUDE_DIR=${LLVM_MAIN_INCLUDE_DIR}
   -DLLVM_RUNTIME_OUTPUT_INTDIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
-  -DCUDAToolkit_INCLUDE_DIRS=${CUDAToolkit_INCLUDE_DIRS}
-  -DCUDAToolkit_LIBRARY_DIR=${CUDAToolkit_LIBRARY_DIR}
+  -DKITSUNE_RUNTIME_LIBNAME=${KITSUNE_RUNTIME_LIBNAME}
+  -DKITSUNE_CUDA_ENABLED=${KITSUNE_CUDA_ENABLED}
+  -DKITSUNE_HIP_ENABLED=${KITSUNE_HIP_ENABLED}
+  -DKITSUNE_OPENCILK_ENABLED=${KITSUNE_OPENCILK_ENABLED}
+  -DKITSUNE_OPENMP_ENABLED=${KITSUNE_OPENMP_ENABLED}
+  -DKITSUNE_QTHREADS_ENABLED=${KITSUNE_QTHREADS_ENABLED}
+  -DKITSUNE_REALM_ENABLED=${KITSUNE_REALM_ENABLED})
+if (KITSUNE_CUDA_ENABLED)
+  list(APPEND KITSUNE_RUNTIME_CONFIGURE_ARGS
+    -DKITSUNE_CUDA_INCLUDE_DIR=${KITSUNE_CUDA_INCLUDE_DIR}
+    -DKITSUNE_CUDA_LIBRARY_DIR=${KITSUNE_CUDA_LIBRARY_DIR}
+    -DKITSUNE_CUDA_LIB_CUDA=${KITSUNE_CUDA_LIB_CUDA}
+    -DKITSUNE_CUDA_LIB_CUDART=${KITSUNE_CUDA_LIB_CUDART}
+    -DKITSUNE_CUDA_LIB_NVPTX_STATIC=${KITSUNE_CUDA_LIB_NVPTX_STATIC}
+    -DKITCUDA_ENABLE_NVTX=${KITCUDA_ENABLE_NVTX})
+endif()
+if (KITSUNE_HIP_ENABLED)
+  list(APPEND KITSUNE_RUNTIME_CONFIGURE_ARGS
+    -DKITSUNE_HIP_INCLUDE_DIR=${KITSUNE_HIP_INCLUDE_DIR}
+    -DKITSUNE_HIP_LIBRARY_DIR=${KITSUNE_HIP_LIBRARY_DIR}
+    -DKITSUNE_HIP_LIB_AMDHIP64=${KITSUNE_HIP_LIB_AMDHIP64})
+endif ()
+
+# We don't descend into the runtime subdirectory because that should only be
+# configured when the runtimes are built. All the cmake environment variables
+# that the runtime might need have to be passed through here.
+#
+ExternalProject_Add(${KITSUNE_RUNTIME_LIBNAME}
+  DEPENDS llvm-config clang LLVM
+  SOURCE_DIR ${KITSUNE_SOURCE_DIR}/runtime
+  STAMP_DIR ${KITSUNE_BINARY_DIR}/stamp
+  BINARY_DIR ${KITSUNE_BINARY_DIR}/runtime
+  CMAKE_ARGS ${KITSUNE_RUNTIME_CONFIGURE_ARGS}
   USES_TERMINAL_CONFIGURE TRUE
   USES_TERMINAL_BUILD TRUE
   USES_TERMINAL_INSTALL TRUE
   BUILD_ALWAYS TRUE
   CONFIGURE_HANDLED_BY_BUILD TRUE)
 
+add_subdirectory(configs)
+add_subdirectory(include/kitsune)
+add_subdirectory(tools)
+add_subdirectory(experiments)
+
+if(KITSUNE_INCLUDE_TESTS)
+  add_subdirectory(test)
+endif()
+
+# Create the rules to create a "base" Kitsune executable. This is simply a copy
+# of the base clang (or flang) executable. We have to create a copy because a
+# symlink will not work as we want. Very early in the process, the symlinks are
+# stripped away and the underlying executable is exposed to the driver. We need
+# this to not be named clang in order to determine whether we should be
+# compiling in "kitsune mode" (this changes the default behavior for certain
+# things such as disabling exceptions, setting the fp-contract option to a
+# different value etc. so we have to get this right). To be consistent with
+# clang, we do not create a separate frontend for C++.
+set(kitcc_main_file "${KITSUNE_C_FRONTEND}-${LLVM_VERSION_MAJOR}")
+set(kitcc_main "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${kitcc_main_file}")
+add_custom_target(kitcc-main ALL
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:clang> ${kitcc_main}
+  COMMENT "Creating main kitcc executable"
+  VERBATIM USES_TERMINAL)
+add_dependencies(kitcc-main clang)
+install(PROGRAMS
+  "${kitcc_main}"
+  DESTINATION ${CMAKE_INSTALL_BINDIR})
+setup_frontend_symlink(${KITSUNE_C_FRONTEND} ${kitcc_main_file} kitcc-main)
+setup_frontend_symlink(${KITSUNE_CXX_FRONTEND} ${kitcc_main_file} kitcc-main)
+
+if (KITSUNE_Fortran_ENABLED)
+  set(kitfc_main_file "${KITSUNE_Fortran_FRONTEND}-${LLVM_VERSION_MAJOR}")
+  set(kitfc_main "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${kitfc_main_file}")
+  add_custom_target(kitfc-main ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:flang> "${kitfc_main}"
+    COMMENT "Creating main kitfc executable"
+    VERBATIM USES_TERMINAL)
+  add_dependencies(kitfc-main flang)
+  install(PROGRAMS
+    "${kitfc}"
+    DESTINATION ${CMAKE_INSTALL_BINDIR})
+  setup_frontend_symlink(${KITSUNE_Fortran_FRONTEND} ${kitfc_main_file} kitfc-main)
+endif()
+
 # Copy the kitsune runtime files into a "staging" area. This allows kitsune to
 # be run from the build directory.
 add_custom_target(kitrt-copy-to-build-dir ALL
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${KITSUNE_KITRT_INSTALL_DIR}
-  ${CMAKE_BINARY_DIR}
+  COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${KITSUNE_RUNTIME_INSTALL_DIR} ${CMAKE_BINARY_DIR}
   COMMENT "Copying kitrt to the 'top-level' build directory"
   VERBATIM USES_TERMINAL
 )
-add_dependencies(kitrt-copy-to-build-dir kitrt)
+add_dependencies(kitrt-copy-to-build-dir ${KITSUNE_RUNTIME_LIBNAME})
 
-# Add a custom target to install opencilk to the final install directory with
-# the rest of kitsune.
-#
 # NOTE: The trailing slash after the directory to copy is required.
-#
-install(DIRECTORY ${KITSUNE_KITRT_INSTALL_DIR}/
+install(DIRECTORY ${KITSUNE_RUNTIME_INSTALL_DIR}/
   DESTINATION ${CMAKE_INSTALL_PREFIX}
   USE_SOURCE_PERMISSIONS)

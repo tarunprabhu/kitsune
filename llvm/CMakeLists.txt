@@ -346,6 +346,24 @@ list(APPEND KITSUNE_ALL_TAPIR_TARGETS "serial")
 list(SORT KITSUNE_ALL_TAPIR_TARGETS)
 string(REPLACE ";" " " KITSUNE_ALL_TAPIR_TARGETS_STR "${KITSUNE_ALL_TAPIR_TARGETS}")
 
+# The GPU tapir targets require the corresponding GPU back to be built. We could
+# silently add the target to the list to build, but the user probably chose to
+# build only a subset of the targets for a reason, so respect that and force the
+# user to add the appropariate target themselves.
+string(TOLOWER "${LLVM_TARGETS_TO_BUILD}" TARGETS_TO_BUILD)
+if (KITSUNE_CUDA_ENABLED)
+  if (NOT all IN_LIST TARGETS_TO_BUILD AND
+      NOT nvptx IN_LIST TARGETS_TO_BUILD)
+    message(FATAL_ERROR "Cuda tapir target requires NVPTX. Add NVPTX to LLVM_TARGETS_TO_BUILD")
+  endif()
+endif ()
+if (KITSUNE_HIP_ENABLED)
+  if (NOT all IN_LIST TARGETS_TO_BUILD AND
+      NOT amdgpu IN_LIST TARGETS_TO_BUILD)
+    message(FATAL_ERROR "Hip tapir target requires AMDGPU. Add AMDGPU to LLVM_TARGETS_TO_BUILD")
+  endif()
+endif ()
+
 # We always want libLLVM to be build because we link to it in Kitsune's runtime,
 # libkitrt
 set(LLVM_BUILD_LLVM_DYLIB ON)

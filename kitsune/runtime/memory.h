@@ -62,12 +62,12 @@ extern "C" {
 
 /// @brief Allocate memory and return a pointer to it.
 /// @param bytes The number of bytes to allocate.
-__attribute__((malloc)) void *__kitrt_defaultMemAlloc(size_t bytes);
+[[gnu::malloc]] void *__kitrt_defaultMemAlloc(size_t bytes);
 
 /// @brief Free memory that was previously allocated with
 /// @ref __kitrt_defaultMemAlloc.
 /// @param ptr The pointer to the memory to be freed.
-__attribute__((malloc)) void __kitrt_defaultFree(void *ptr);
+void __kitrt_defaultFree(void *[[kitsune::mobile]] ptr);
 
 #ifdef __cplusplus
 } // extern "C"

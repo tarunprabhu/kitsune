@@ -1586,9 +1586,6 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   SaveRetExprRAII SaveRetExpr(RV, *this);
 
   RunCleanupsScope cleanupScope(*this);
-  bool CleanupsSaved = false;
-  if (IsSpawned)
-    CleanupsSaved = CurDetachScope->MaybeSaveCleanupsScope(&cleanupScope);
   if (const auto *EWC = dyn_cast_or_null<ExprWithCleanups>(RV))
     RV = EWC->getSubExpr();
 
@@ -1664,17 +1661,7 @@ void CodeGenFunction::EmitReturnStmt(const ReturnStmt &S) {
   if (!RV || RV->isEvaluatable(getContext()))
     ++NumSimpleReturnExprs;
 
-  if (CleanupsSaved)
-    CurDetachScope->CleanupDetach();
   cleanupScope.ForceCleanup();
-  if (IsSpawned) {
-    if (!(CurDetachScope && CurDetachScope->IsDetachStarted()))
-      FailedSpawnWarning(RV->getExprLoc());
-    // Pop the detach scope
-    IsSpawned = false;
-    PopDetachScope();
-  }
-
   EmitBranchThroughCleanup(ReturnBlock);
 }
 

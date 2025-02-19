@@ -184,17 +184,10 @@ namespace {
 const std::string CUABI_PREFIX = "_cuabi";
 const std::string CUABI_KERNEL_NAME_PREFIX = CUABI_PREFIX + "_kern_";
 
-// NOTE: At this point in time we do not provide support for the older range
-// of GPU architectures. We favor 64-bit and SM_60 or newer, which
-// follows the trends of longer term CUDA support.  Although exposed here, we
-// have not tested 32-bit host support.
-#ifndef _CUDAABI_DEFAULT_TARGET_ARCH
-#define _CUDAABI_DEFAULT_TARGET_ARCH "sm_80"
-#endif
-cl::opt<std::string>
-    GPUArch("cuabi-arch", cl::init(_CUDAABI_DEFAULT_TARGET_ARCH), cl::NotHidden,
-            cl::desc("Target GPU architecture for CUDA ABI transformation."
-                     "(default: " _CUDAABI_DEFAULT_TARGET_ARCH));
+cl::opt<std::string> GPUArch("cuabi-arch", cl::init(KITSUNE_CUDA_ARCH_DEFAULT),
+                             cl::NotHidden,
+                             cl::desc("Target NVIDIA GPU architecture (default "
+                                      "= " KITSUNE_CUDA_ARCH_DEFAULT ")"));
 
 cl::opt<unsigned>
     OptLevel("cuabi-opt-level", cl::init(3), cl::NotHidden,
@@ -286,13 +279,9 @@ std::string virtualArchForCudaArch(StringRef Arch) {
 }
 
 std::string PTXVersionFromCudaVersion() {
-#ifdef CUDATOOLKIT_VERSION
   std::string CudaVersion;
   raw_string_ostream ss(CudaVersion);
-  ss << CUDATOOLKIT_VERSION_MAJOR << "." << CUDATOOLKIT_VERSION_MINOR;
-#else
-#pragma error("cuabi: CUDA Toolkit version info required for transform!")
-#endif
+  ss << KITSUNE_CUDA_VERSION_MAJOR << "." << KITSUNE_CUDA_VERSION_MINOR;
   LLVM_DEBUG(dbgs() << "cuabi: cuda toolkit version: " << CudaVersion << "\n");
 
   std::string PTXVersionStr =

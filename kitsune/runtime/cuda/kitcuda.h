@@ -53,9 +53,9 @@
 #ifndef __KITCUDA_H__
 #define __KITCUDA_H__
 
+#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <assert.h>
 
 #include "kitrt.h"
 
@@ -143,7 +143,7 @@ extern bool __kitcuda_is_mem_managed(void *vp);
  * This call will return NULL on failure or a pointer to the allocated
  * managed memory pointer on success.
  */
-extern __attribute__((malloc)) void *
+[[gnu::malloc]] extern void *[[kitsune::mobile]]
 __kitcuda_mem_alloc_managed(size_t num_bytes);
 
 /**
@@ -163,7 +163,7 @@ __kitcuda_mem_alloc_managed(size_t num_bytes);
  *
  * @todo Make a path for device-side initialization.
  */
-extern __attribute__((malloc)) void *
+[[gnu::malloc]] extern void *[[kitsune::mobile]]
 __kitcuda_mem_calloc_managed(size_t count, size_t elemsize);
 
 /**
@@ -190,8 +190,8 @@ __kitcuda_mem_calloc_managed(size_t count, size_t elemsize);
  *
  * @todo Look at thread safe implementation.
  */
-extern __attribute__((malloc)) void *__kitcuda_mem_realloc_managed(void *ptr,
-                                                                   size_t size);
+[[gnu::malloc]] extern void *[[kitsune::mobile]] __kitcuda_mem_realloc_managed(
+    void *[[kitsune::mobile]] ptr, size_t size);
 
 /**
  * Free the given managed memory allocation.  The allocation
@@ -208,7 +208,7 @@ extern __attribute__((malloc)) void *__kitcuda_mem_realloc_managed(void *ptr,
  *
  * @todo Look at thread safe implementation.
  */
-extern void __kitcuda_mem_free(void *ptr);
+extern void __kitcuda_mem_free(void *[[kitsune::mobile]] ptr);
 
 /**
  * Free only the CUDA portion of the given managed memory allocation.
@@ -236,7 +236,7 @@ extern void __kitcuda_mem_destroy(void *ptr);
  * **NOTE**: See `__kitcuda_mem_host_prefetch()` for host-side
  * prefetch requests.
  */
-extern void* __kitcuda_mem_gpu_prefetch(void *ptr, void *opaque_stream);
+extern void *__kitcuda_mem_gpu_prefetch(void *ptr, void *opaque_stream);
 
 /**
  * Request that the memory allocation associated with the given
@@ -251,7 +251,7 @@ extern void* __kitcuda_mem_gpu_prefetch(void *ptr, void *opaque_stream);
  * **NOTE**: See `__kitcuda_mem_gpu_prefetch()` for GPU prefetch
  * requests.
  */
-extern void* __kitcuda_mem_host_prefetch(void *ptr, void *opaque_stream);
+extern void *__kitcuda_mem_host_prefetch(void *ptr, void *opaque_stream);
 
 /**
  * Find the named symbol in the given CUDA module represented by
@@ -289,9 +289,10 @@ extern void __kitcuda_memcpy_sym_to_device(void *host_sym, uint64_t dev_sym,
  * @param kern_name - The name of the kernel to launch.
  * @param kern_args - The argument buffer for the kernel.
  * @param trip_count - Total size of the work to execution (aka trip count).
- * @param threads_per_blk - threads per block (set to zero for auto determination).
+ * @param threads_per_blk - threads per block (set to zero for auto
+ * determination).
  */
-extern void* __kitcuda_launch_kernel(const void *fat_bin, const char *kern_name,
+extern void *__kitcuda_launch_kernel(const void *fat_bin, const char *kern_name,
                                      void **kern_args, uint64_t trip_count,
                                      int threads_per_blk,
                                      const KitRTInstMix *inst_mix,
@@ -318,7 +319,7 @@ extern void __kitcuda_use_occupancy_launch(bool enable);
  *
  * @param enable - enable/disable tuned occupancy launches.
  */
- extern void __kitcuda_refine_occupancy_launches(bool enable);
+extern void __kitcuda_refine_occupancy_launches(bool enable);
 
 /**
  * Set the runtime's value for the number of threads-per-block used
@@ -368,7 +369,7 @@ extern void __kitcuda_set_custom_launch_params(unsigned blks_per_grid,
 /**
  * Return a thread-aware stream.
  */
-extern void* __kitcuda_get_thread_stream();
+extern void *__kitcuda_get_thread_stream();
 
 /**
  * Synchronize the associated stream.

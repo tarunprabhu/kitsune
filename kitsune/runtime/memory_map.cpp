@@ -1,4 +1,4 @@
-//===- memory_map.cpp - Kitsune runtime high-level memory map ---------------===//
+//===- memory_map.cpp - Kitsune runtime high-level memory map -----------===//
 //
 // Copyright (c) 2021, Los Alamos National Security, LLC.
 // All rights reserved.
@@ -48,17 +48,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <cstdio>
-#include <cassert>
-#include <unordered_map>
-#include <map>
-#include "kitrt.h"
 #include "memory_map.h"
+#include "kitrt.h"
+#include <cassert>
+#include <cstdio>
+#include <map>
+#include <unordered_map>
 
 typedef std::unordered_map<void *, KitRTAllocMapEntry> KitRTAllocMap;
 static KitRTAllocMap _kitrt_alloc_map;
 
-void __kitrt_register_mem_alloc(void *addr, size_t size) {
+void __kitrt_register_mem_alloc(void *[[kitsune::mobile]] mptr, size_t size) {
+  void* addr = (void*)mptr;
   assert(addr != nullptr && "unexpected null pointer!");
   KitRTAllocMapEntry entry;
   entry.size = size;
@@ -67,8 +68,10 @@ void __kitrt_register_mem_alloc(void *addr, size_t size) {
   entry.write_only = false;
   _kitrt_alloc_map[addr] = entry;
   if (__kitrt_verbose_mode())
-    fprintf(stderr, "kitrt: registered memory allocation (%p) "
-	    "of %ld bytes.\n", addr, size);
+    fprintf(stderr,
+            "kitrt: registered memory allocation (%p) "
+            "of %ld bytes.\n",
+            addr, size);
 }
 
 void __kitrt_set_mem_prefetch(void *addr, bool prefetched) {
@@ -77,9 +80,8 @@ void __kitrt_set_mem_prefetch(void *addr, bool prefetched) {
   if (ait != _kitrt_alloc_map.end()) {
     ait->second.prefetched = prefetched;
     if (__kitrt_verbose_mode())
-      fprintf(stderr, "kitrt: marked memory at %p, size %ld, as '%s'.\n",
-	      addr, ait->second.size,
-	      prefetched ? "prefetched" : "not prefetched");
+      fprintf(stderr, "kitrt: marked memory at %p, size %ld, as '%s'.\n", addr,
+              ait->second.size, prefetched ? "prefetched" : "not prefetched");
   }
   // We could consider a diagnostic here reporting use of an unregistered
   // pointer.  However, this is tricky with the compiler generating calls
@@ -103,12 +105,12 @@ bool __kitrt_is_mem_read_only(void *addr) {
   KitRTAllocMap::iterator ait = _kitrt_alloc_map.find(addr);
   if (ait != _kitrt_alloc_map.end())
     return ait->second.read_only;
-  else 
+  else
     return false;
 }
 
 /// @brief Flag the given memory allocation as write only.
-/// @param addr: the pointer to the managed memory allocation. 
+/// @param addr: the pointer to the managed memory allocation.
 extern void __kitrt_mark_mem_write_only(void *addr) {
   assert(addr != nullptr && "unexpected null pointer!");
   KitRTAllocMap::iterator ait = _kitrt_alloc_map.find(addr);
@@ -117,13 +119,12 @@ extern void __kitrt_mark_mem_write_only(void *addr) {
   }
 }
 
-
 bool __kitrt_is_mem_write_only(void *addr) {
   assert(addr != nullptr && "unexpected null pointer!");
   KitRTAllocMap::iterator ait = _kitrt_alloc_map.find(addr);
   if (ait != _kitrt_alloc_map.end())
     return ait->second.write_only;
-  else 
+  else
     return false;
 }
 
@@ -156,9 +157,8 @@ bool __kitrt_is_mem_prefetched(void *addr, size_t *size) {
   }
 }
 
-size_t __kitrt_get_mem_alloc_size(void *addr,
-				  bool *read_only,
-				  bool *write_only) {
+size_t __kitrt_get_mem_alloc_size(void *addr, bool *read_only,
+                                  bool *write_only) {
   assert(addr != nullptr && "unexpected null addr pointer!");
   assert(read_only != nullptr && "unexpected null read_only pointer!");
   assert(write_only != nullptr && "unexpected null write_only pointer!");
@@ -180,12 +180,13 @@ size_t __kitrt_get_mem_alloc_size(void *addr,
     *read_only = false;
     *write_only = false;
   }
-  
+
   return size;
 }
 
-void __kitrt_unregister_mem_alloc(void *addr) {
-  assert(addr != nullptr && "unexpected null pointer!");
+void __kitrt_unregister_mem_alloc(void *[[kitsune::mobile]] mptr) {
+  assert(mptr != nullptr && "unexpected null pointer!");
+  void* addr = (void*)mptr;
   KitRTAllocMap::iterator ait = _kitrt_alloc_map.find(addr);
   if (ait != _kitrt_alloc_map.end())
     _kitrt_alloc_map.erase(ait);
@@ -207,30 +208,30 @@ void __kitrt_mem_needs_prefetch(void *addr) {
 
 extern "C" void __kitrt_print_memory_map() {
   fprintf(stdout, "kitsune runtime memory allocation map:\n");
-  if (_kitrt_alloc_map.empty()) 
+  if (_kitrt_alloc_map.empty())
     fprintf(stdout, "\t[... empty ...]\n");
   else {
     const size_t MBYTE = 1024 * 1024;
     size_t total_allocated = 0;
     unsigned int num_allocations = 0;
-    for(auto &entry : _kitrt_alloc_map) {
+    for (auto &entry : _kitrt_alloc_map) {
       void *addr = entry.first;
       const KitRTAllocMapEntry *alloc_entry = &entry.second;
       total_allocated += alloc_entry->size;
       num_allocations++;
-      fprintf(stderr, "\tAddress: %p --> [size: %6.2f Mbytes, prefetched: %8s, "
+      fprintf(stderr,
+              "\tAddress: %p --> [size: %6.2f Mbytes, prefetched: %8s, "
               "read-only: %8s, write-only: %8s]\n",
-              addr,
-	      alloc_entry->size / (double)MBYTE,
-	      alloc_entry->prefetched ? "true" : "false", 
-              alloc_entry->read_only ? "true" : "false", 
-              alloc_entry->write_only ? "true": "false");
+              addr, alloc_entry->size / (double)MBYTE,
+              alloc_entry->prefetched ? "true" : "false",
+              alloc_entry->read_only ? "true" : "false",
+              alloc_entry->write_only ? "true" : "false");
     }
     fprintf(stderr, "\n");
     fprintf(stdout, "\ttotal memory allocation: %6.2f Mbytes\n",
-	    total_allocated / (double)MBYTE);
-    fprintf(stderr, "\taverage size per allocation: %6.2f Mbytes\n", 
-            (total_allocated / (double)MBYTE)/ num_allocations);
+            total_allocated / (double)MBYTE);
+    fprintf(stderr, "\taverage size per allocation: %6.2f Mbytes\n",
+            (total_allocated / (double)MBYTE) / num_allocations);
   }
 }
 
@@ -240,4 +241,3 @@ extern "C" void __kitrt_destroy_memory_map(void (*free_mem_call)(void *)) {
     free_mem_call(entry.first);
   _kitrt_alloc_map.clear();
 }
-

@@ -872,18 +872,6 @@ public:
   /// we're currently inside a conditionally-evaluated expression.
   template <class T, class... As>
   void pushFullExprCleanup(CleanupKind kind, As... A) {
-    if (SpawnedCleanup) {
-      if (kind & EHCleanup)
-        pushFullExprCleanupImpl<T>(
-            static_cast<CleanupKind>(kind & ~NormalCleanup), A...);
-      pushCleanupAfterFullExpr<T>(kind, A...);
-      return;
-    }
-    pushFullExprCleanupImpl<T>(kind, A...);
-  }
-
-  template <class T, class... As>
-  void pushFullExprCleanupImpl(CleanupKind kind, As... A) {
     // If we're not in a conditional branch, or if none of the
     // arguments requires saving, then use the unconditional cleanup.
     if (!isInConditionalBranch())
@@ -1104,7 +1092,6 @@ public:
     }
 
     void DoDetach(std::initializer_list<llvm::Value**> ValuesToReload = {}) {
-      IsSpawnedScope SpawnedScp(&CGF);
       CGF.DidCallStackSave = OldDidCallStackSave;
 
       PopCleanupBlocksAndDetach(ValuesToReload);
@@ -1314,22 +1301,6 @@ public:
     OMPLocalDeclMapRAII(CodeGenFunction &CGF)
         : CGF(CGF), SavedMap(CGF.LocalDeclMap) {}
     ~OMPLocalDeclMapRAII() { SavedMap.swap(CGF.LocalDeclMap); }
-  };
-
-  /// In Cilk, flag indicating whether the current call/invoke is spawned.
-  bool IsSpawned = false;
-  bool SpawnedCleanup = false;
-
-  /// RAII object to set/unset CodeGenFunction::IsSpawned.
-  class IsSpawnedScope {
-    CodeGenFunction *CGF;
-    bool OldIsSpawned;
-    bool OldSpawnedCleanup;
-  public:
-    IsSpawnedScope(CodeGenFunction *CGF);
-    ~IsSpawnedScope();
-    bool OldScopeIsSpawned() const;
-    void RestoreOldScope();
   };
 
   /// Cleanup to ensure a sync is inserted.  If no SyncRegion is specified, then
@@ -1737,7 +1708,6 @@ public:
       CGF.PopDetachScope();
       assert(CGF.CurDetachScope == StartingDetachScope &&
              "Unexpected detach scope");
-      CGF.IsSpawned = false;
     }
   };
 
@@ -5573,7 +5543,6 @@ public:
   /// EmitScalarExpr - Emit the computation of the specified expression of LLVM
   /// scalar type, returning the result.
   llvm::Value *EmitScalarExpr(const Expr *E , bool IgnoreResultAssign = false);
-  void EmitScalarExprIntoLValue(const Expr *E, LValue dest, bool isInit);
 
   /// Emit a conversion from the specified type to the specified destination
   /// type, both of which are LLVM scalar types.

@@ -2920,6 +2920,8 @@ void CXXNameMangler::mangleObjCMethodName(const ObjCMethodDecl *MD) {
 
 static bool isTypeSubstitutable(Qualifiers Quals, const Type *Ty,
                                 ASTContext &Ctx) {
+  if (Quals.hasMobile())
+    return false;
   if (Quals)
     return true;
   if (Ty->isSpecificBuiltinType(BuiltinType::ObjCSel))

@@ -569,12 +569,6 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
 
   if (CurSyncRegion) {
     PopSyncRegion();
-    // FIXME KITSUNE: This currently causes an assertion failure because we
-    // apparently do end up with nested sync regions at the end of the function.
-    // This check was added in OpenCilk during the 17.x rebase. We are probably
-    // doing something wrong, but this is disabled for now since there are more
-    // pressing issues that need to be addressed in during the de-cilkifying of
-    // Kitsune.
     assert(!CurSyncRegion && "Nested sync regions at end of function.");
   }
 }
@@ -1056,7 +1050,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     EmitKernelMetadata(FD, Fn);
   }
 
-  if (FD && getLangOpts().KitsuneOpts.isKitsuneEnabled()) {
+  if (FD && getLangOpts().KitsuneOpts.hasTapirTarget()) {
     EmitKitsuneMetadata(FD, Fn);
   }
 

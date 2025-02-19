@@ -11,6 +11,7 @@ add_clang_unittest(ClangDriverTests
   DXCModeTest.cpp
   GCCVersionTest.cpp
   ToolChainTest.cpp
+  KitsuneFrontendTest.cpp
   ModuleCacheTest.cpp
   MultilibBuilderTest.cpp
   MultilibTest.cpp

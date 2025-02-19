@@ -57,7 +57,7 @@ static std::mutex _kitcuda_mem_alloc_mutex;
 
 extern "C" {
 
-void *__attribute__((malloc, kitsune_mobile))
+[[gnu::malloc]] void *[[kitsune::mobile]]
 __kitcuda_mem_alloc_managed(size_t size) {
   KIT_NVTX_PUSH("kitcuda:mem_alloc_managed", KIT_NVTX_MEM);
 
@@ -90,17 +90,17 @@ __kitcuda_mem_alloc_managed(size_t size) {
   // Register this allocation so the runtime can help track the
   // locality (and affinity) of data.
   _kitcuda_mem_alloc_mutex.lock();
-  __kitrt_register_mem_alloc((void *)devp, size);
+  __kitrt_register_mem_alloc(__kitsune_mobile_cast_unsafe((void*)devp), size);
   _kitcuda_mem_alloc_mutex.unlock();
 
   // NOTE: We can no longer do this in a thread-safe manner...
   // CU_SAFE_CALL(cuMemPrefetchAsync_p(devp, size, _kitcuda_device,
   //                                  __kitcuda_get_thread_stream()));
   KIT_NVTX_POP();
-  return __kitsune_mobile_cast_unsafe(devp);
+  return __kitsune_mobile_cast_unsafe((void *)devp);
 }
 
-void *__attribute__((malloc, kitsune_mobile))
+[[gnu::malloc]] void *[[kitsune::mobile]]
 __kitcuda_mem_calloc_managed(size_t count, size_t element_size) {
   assert(count != 0 && "zero-valued item count!");
   assert(element_size != 0 && "zero-valued element size!");
@@ -122,21 +122,22 @@ __kitcuda_mem_calloc_managed(size_t count, size_t element_size) {
   // TODO: We're not set to run on anything but the default stream...
   CU_SAFE_CALL(cuMemsetD8Async_p(memp, 0, nbytes, NULL));
   KIT_NVTX_POP();
-  return __kitsune_mobile_cast_unsafe(memp);
+  return __kitsune_mobile_cast_unsafe((void *)memp);
 }
 
-void *__attribute__((malloc, kitsune_mobile))
-__kitcuda_mem_realloc_managed(void *ptr, size_t size) {
+[[gnu::malloc]] void *[[kitsune::mobile]] __kitcuda_mem_realloc_managed(
+    void *[[kitsune::mobile]] ptr, size_t size) {
   assert(size != 0 && "zero-valued size!");
 
   KIT_NVTX_PUSH("kitcuda:realloc_managed", KIT_NVTX_MEM);
-  void *memptr = nullptr;
+  void *[[kitsune::mobile]] memptr = nullptr;
   if (ptr == nullptr)
     memptr = __kitcuda_mem_alloc_managed(size);
   else {
     // Check to make sure this is a pointer we're actually managing.
     bool read_only, write_only;
-    size_t nbytes = __kitrt_get_mem_alloc_size(ptr, &read_only, &write_only);
+    size_t nbytes =
+        __kitrt_get_mem_alloc_size((void *)ptr, &read_only, &write_only);
     if (nbytes == 0) {
       fprintf(stderr, "kitcuda: warning, realloc() on untracked allocation!\n");
       KIT_NVTX_POP();
@@ -158,14 +159,15 @@ __kitcuda_mem_realloc_managed(void *ptr, size_t size) {
       cuMemcpy_p(/* dest */ (CUdeviceptr)memptr,
                  /* source */ (CUdeviceptr)ptr, size);
       __kitcuda_mem_free(ptr);
-    } else
+    } else {
       memptr = ptr; // same size, just return it...
+    }
   }
   KIT_NVTX_POP();
-  return __kitsune_mobile_cast_unsafe(memptr);
+  return memptr;
 }
 
-void __kitcuda_mem_free(void *vp) {
+void __kitcuda_mem_free(void *[[kitsune::mobile]] vp) {
   assert(vp && "unexpected null pointer!");
 
   KIT_NVTX_PUSH("kitcuda:mem_free", KIT_NVTX_MEM);
