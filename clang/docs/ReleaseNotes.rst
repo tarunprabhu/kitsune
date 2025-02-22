@@ -1159,8 +1159,6 @@ PowerPC Support
 
 AIX Support
 ^^^^^^^^^^^
-- Fixed the ``-print-runtime-dir`` option.
-- Enable continuous profile syncing feature on AIX.
 
 * Fixed `-print-runtime-dir` to fallback to the target subdirectory (rather than OS subdirectory) if the runtime path is not found.
 * Fixed `-print-runtime-dir` to find the correct runtime path if the triple has "unknown" as the environment component.
