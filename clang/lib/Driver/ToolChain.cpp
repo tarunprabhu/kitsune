@@ -1822,9 +1822,13 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     case TapirTargetID::None:
       break;
     case llvm::TapirTargetID::Cuda:
+      // Strip-mining is disabled by default on GPU tapir targets and must be
+      // enabled explicitly.
+      Args.AddLastArg(CmdArgs, options::OPT_ftapir_cuda_arch_EQ);
       ExtractArgsFromString(KITSUNE_CUDA_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
     case llvm::TapirTargetID::Hip:
+      Args.AddLastArg(CmdArgs, options::OPT_ftapir_hip_arch_EQ);
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
     case llvm::TapirTargetID::OpenCilk:
@@ -1860,6 +1864,22 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     default:
       llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
       break;
+    }
+
+    // If a tapir target is not given, for consistency with clang, strip-mining
+    // is never enabled. If the tapir target is a CPU tapir target, strip-mining
+    // is only enabled at certain optimization levels, if explicitly enabled
+    // with the -fstripmine flag and disabled if -fno-stripmine is given. For
+    // GPU tapir targets, strip-mining must be enabled explicitly.
+    if (TapirTarget == TapirTargetID::Cuda ||
+        TapirTarget == TapirTargetID::Hip) {
+      if (Args.hasArg(options::OPT_fstripmine))
+        CmdArgs.push_back("-fstripmine");
+    } else {
+      if (Args.hasFlag(
+              options::OPT_fstripmine, options::OPT_fno_stripmine,
+              shouldEnableVectorizerAtOLevel(Args, /*isSlpVec=*/false)))
+        CmdArgs.push_back("-fstripmine");
     }
   }
 

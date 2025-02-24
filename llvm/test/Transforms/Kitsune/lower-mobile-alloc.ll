@@ -19,9 +19,9 @@ attributes #0 = { nounwind memory(inaccessiblemem: readwrite) uwtable "min-legal
 attributes #1 = { nounwind memory(inaccessiblemem: readwrite) }
 
 ; SERIAL-LABEL: @allocate
-; SERIAL: call noalias ptr addrspace(67) @__kitrt_default_mem_alloc(i64 %mul)
+; SERIAL: call noalias ptr addrspace(67) @malloc(i64 %mul)
 ; SERIAL-NOT: call .+ llvm.kitsune.mobile.alloc
-; SERIAL-DAG: declare noalias ptr addrspace(67) @__kitrt_default_mem_alloc(i64)
+; SERIAL-DAG: declare noalias ptr addrspace(67) @malloc(i64)
 
 ; NONE-LABEL: @allocate
 ; NONE: call noalias ptr addrspace(67) @llvm.kitsune.mobile.alloc

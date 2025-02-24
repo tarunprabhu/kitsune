@@ -520,39 +520,6 @@ static void addCoveragePrefixMapArg(const Driver &D, const ArgList &Args,
   }
 }
 
-/// Vectorize at all optimization levels greater than 1 except for -Oz.
-/// For -Oz the loop vectorizer is disabled, while the slp vectorizer is
-/// enabled.
-static bool shouldEnableVectorizerAtOLevel(const ArgList &Args, bool isSlpVec) {
-  if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
-    if (A->getOption().matches(options::OPT_O4) ||
-        A->getOption().matches(options::OPT_Ofast))
-      return true;
-
-    if (A->getOption().matches(options::OPT_O0))
-      return false;
-
-    assert(A->getOption().matches(options::OPT_O) && "Must have a -O flag");
-
-    // Vectorize -Os.
-    StringRef S(A->getValue());
-    if (S == "s")
-      return true;
-
-    // Don't vectorize -Oz, unless it's the slp vectorizer.
-    if (S == "z")
-      return isSlpVec;
-
-    unsigned OptLevel = 0;
-    if (S.getAsInteger(10, OptLevel))
-      return false;
-
-    return OptLevel > 1;
-  }
-
-  return false;
-}
-
 /// Add -x lang to \p CmdArgs for \p Input.
 static void addDashXForInput(const ArgList &Args, const InputInfo &Input,
                              ArgStringList &CmdArgs) {
@@ -3537,27 +3504,6 @@ static void RenderFloatingPointOptions(const ToolChain &TC, const Driver &D,
     CmdArgs.push_back("-fno-cx-limited-range");
   if (Args.hasArg(options::OPT_fno_cx_fortran_rules))
     CmdArgs.push_back("-fno-cx-fortran-rules");
-}
-
-static void RenderKitsuneOptions(const Driver &D, const ToolChain &TC,
-                                 const ArgList &Args, ArgStringList &CmdArgs) {
-  // If this is not a Kitsune frontend, Kitsune options are not allowed.
-  if (!D.IsKitsuneFrontend()) {
-    for (Arg *A : Args.filtered(options::OPT_kitsune_Group)) {
-      D.Diag(diag::err_drv_kitsune_frontend_only) << A->getSpelling();
-      return;
-    }
-  }
-
-  // -fstripmine is enabled based on the optimization level selected. For now,
-  // we enable stripmining when the optimization level enables vectorization.
-  bool stripmine = shouldEnableVectorizerAtOLevel(Args, /*isSlpVec=*/false);
-  if (Args.hasFlag(options::OPT_fstripmine, options::OPT_fno_stripmine,
-                   stripmine))
-    CmdArgs.push_back("-fstripmine");
-
-  TC.AddKitsunePreprocessorArgs(Args, CmdArgs);
-  TC.AddKitsuneCompilerArgs(Args, CmdArgs);
 }
 
 static void RenderAnalyzerOptions(const ArgList &Args, ArgStringList &CmdArgs,
@@ -7672,7 +7618,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   ParseMPreferVectorWidth(D, Args, CmdArgs);
 
-  RenderKitsuneOptions(D, TC, Args, CmdArgs);
+  addKitsuneArgs(D, TC, Args, CmdArgs);
 
   Args.AddLastArg(CmdArgs, options::OPT_fshow_overloads_EQ);
   Args.AddLastArg(CmdArgs,

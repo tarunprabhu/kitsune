@@ -13,7 +13,7 @@ set( LLVM_LINK_COMPONENTS
   Option
   ScalarOpts
   Support
-  TapirOpts
+  TapirCommon
   TargetParser
   TransformUtils
   Vectorize

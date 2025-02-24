@@ -4,7 +4,8 @@
 // Check that the defaults have not changed when running without a Kitsune
 // frontend
 //
-// RUN: %clang -### -x cuda %s 2>&1 | FileCheck %s -check-prefix DEFAULT-CUDA
+// RUN: %clang -### -x cuda -nocudalib -nocudainc %s 2>&1 \
+// RUN:     | FileCheck %s -check-prefix DEFAULT-CUDA
 
 // When running with a Kitsune frontend, this value should be ON. Also check
 // that the value can be overridden if required.

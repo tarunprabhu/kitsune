@@ -118,71 +118,17 @@ using namespace llvm;
 //  5. Run NVVMReflect pass.
 //  6. Run standard optimization pipeline.
 //
-
-/// ## CudaABI Transformation Command Line Options ##
-///
-/// All of the transformation's command line options must be
-/// passed using `-mllvm` as the leading flag.  All
-/// transform options have `-cuabi-` as the leading
-/// string.  A summary of the options is provided below.
-///
-///   * `-cuabi-arch=target`: The target CUDA architecture
-///     to generate code for.  This directly matches the
-///     [NVPTX backend targets]
-///     (https://llvm.org/docs/NVPTXUsage.html).
-///
-///   * `-cuabi-opt-level=[0,1,2,3]`: Set the optimization
-///     level for transformation.  This corresponds directly
-///     to standard optimization levels but will be applied
-///     to the CUDA device-side code created by the
-///     transformation.  Note that this optimization pass
-///     occurs *after* an existing (in progress) optimization
-///     pipeline has occurred on the original input code
-///     module.  This currently defaults to level 3.  This
-///     optimization level is also shared with the PTX
-///     assembler (ptxas) that comes as part of the CUDA
-///     distribution.
-///
-///   * `-cuabi-host-opt-level=[0,1,2,3]`: Set the optimization
-///     level to use for the final host-side module after the CUDA
-///     transformation has completed.  Even though the host code
-///     has already been through a series of optimizations this
-///     option enables a second series of passes over the code
-///     after the transformation has completed.  At present there
-///     are unlikely to be significant gains from this.  As a
-///     result this defaults to level 0, which disables the
-///     extra pass entirely.
-///
-///   * `-cuabi-prefetch`: Enable/Disable the generation of
-///     data prefetch calls prior to the kernel launch. This
-///     is enabled by default and typically will enable better
-///     performance given the current use of managed memory
-///     allocations.
-///
-///   * `-cuabi-max-threads-per-blk`: Set the maximum number
-///     of threads that can run within a block.  This limit
-///     is coordinated with the runtime's default settings
-///     and will place an artificial limit on the thread count.
-///     The default behavior is to match the hardware limits
-///     within CUDA.
-///
-///   * `-cuabi-default-grainsize`: EXPERIMENTAL -- control the
-///     transform's grain size.  By default this is set to 1 and
-///     it is not recommended to change this unless you are
-///     extremely familiar with the code generation details and
-///     the implications for GPU code execution.
-///
-///   * `cuabi-keep-files`: The transform has the ability to
-///     save the various stages of the IR during execution.
-///     In addition, some files are created and removed during
-///     execution.  This option will enable all these files to
-///     remain (or be created) during execution.  This is
-///     obviously helpful if you are debugging the transform.
-///
 namespace {
 
 const std::string CUABI_PREFIX = "_cuabi";
 const std::string CUABI_KERNEL_NAME_PREFIX = CUABI_PREFIX + "_kern_";
+
+// FIXME: Can these command line options be made static?
+
+cl::opt<bool>
+    ClPrintCommands("cuabi-###", cl::init(false), cl::Hidden,
+                    cl::desc("Print the command lines for any subcommands "
+                             "executed by the cuda tapir target"));
 
 cl::opt<std::string> GPUArch("cuabi-arch", cl::init(KITSUNE_CUDA_ARCH_DEFAULT),
                              cl::NotHidden,
@@ -198,6 +144,11 @@ cl::opt<unsigned> HostOptLevel(
     cl::desc(
         "The optimization level for an experimental pass over the transformed "
         "host-side code."));
+
+cl::opt<std::string> ClLibDeviceBCPath(
+    "cuabi-libdevice-bc-path", cl::init(""),
+    cl::desc("Path to the libdevice bitcode file for the cuda tapir target"),
+    cl::Hidden);
 
 cl::opt<bool> CodeGenPrefetch("cuabi-prefetch", cl::init(true), cl::NotHidden,
                               cl::desc("Enable generation of calls to do data "
@@ -258,7 +209,7 @@ std::string virtualArchForCudaArch(StringRef Arch) {
   // as we are going in assuming we will support only CUDA 11 or greater.
   // We should probably raise an error for sm_2x and sm_3x targets.
   LLVM_DEBUG(dbgs() << "cuabi: target architecture '" << Arch << "'.\n");
-  std::string VirtArch = llvm::StringSwitch<std::string>(Arch)
+  std::string VirtArch = StringSwitch<std::string>(Arch)
                              .Case("sm_60", "compute_60") // Pascal
                              .Case("sm_61", "compute_61") //
                              .Case("sm_62", "compute_62") //
@@ -285,7 +236,7 @@ std::string PTXVersionFromCudaVersion() {
   LLVM_DEBUG(dbgs() << "cuabi: cuda toolkit version: " << CudaVersion << "\n");
 
   std::string PTXVersionStr =
-      llvm::StringSwitch<std::string>(CudaVersion)
+      StringSwitch<std::string>(CudaVersion)
           // TODO: These CUDA to PTX version translations will have
           // to be watched between CUDA and LLVM resources.  It is
           // not uncommon for LLVM to lag well behind CUDA PTX versions.
@@ -307,8 +258,12 @@ std::string PTXVersionFromCudaVersion() {
           .Case("12.1", "+ptx83")
           .Case("12.2", "+ptx83")
           .Case("12.3", "+ptx83")
-          .Case("12.4", "+ptx83")
-          .Case("12.5", "+ptx83")
+          .Case("12.4", "+ptx84")
+          .Case("12.5", "+ptx85")
+          .Case("12.6", "+ptx85")
+          .Case("12.7", "+ptx85")
+          .Case("12.8", "+ptx85")
+          .Case("12.9", "+ptx85")
           .Default("");
 
   if (PTXVersionStr == "") {
@@ -903,7 +858,6 @@ Function *CudaLoop::resolveLibDeviceFunction(Function *Fn, bool enableFast) {
 }
 
 void CudaLoop::transformForPTX(Function &F) {
-
   // LLVM_DEBUG(dbgs() << "Transforming function '" << F.getName() << "' "
   //                   << "in preparation for PTX generation.\n");
 
@@ -1031,7 +985,8 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   for (Value *V : OrderedInputs) {
     Value *VP = EntryBuilder.CreateAlloca(V->getType());
     NewBuilder.CreateStore(V, VP);
-    Value *VoidVPtr = NewBuilder.CreateBitCast(VP, VoidPtrTy);
+    Value *VoidVPtr =
+        NewBuilder.CreatePointerBitCastOrAddrSpaceCast(VP, VoidPtrTy);
     Value *ArgPtr =
         NewBuilder.CreateConstInBoundsGEP2_32(ArrayTy, ArgArray, 0, i);
     NewBuilder.CreateStore(VoidVPtr, ArgPtr);
@@ -1040,7 +995,8 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     if (CodeGenPrefetch && V->getType()->isPointerTy()) {
       LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for kernel arg #" << i
                         << "\n");
-      Value *VoidPP = NewBuilder.CreateBitCast(V, VoidPtrTy);
+      Value *VoidPP =
+          NewBuilder.CreatePointerBitCastOrAddrSpaceCast(V, VoidPtrTy);
       Value *SPtr = NewBuilder.CreateLoad(VoidPtrTy, CudaStream);
       Value *NewSPtr =
           NewBuilder.CreateCall(KitCudaMemPrefetchFn, {VoidPP, SPtr});
@@ -1148,15 +1104,7 @@ CudaABI::CudaABI(Module &M)
     : TapirTarget(M),
       KernelModule(Twine(CUABI_PREFIX + sys::path::filename(M.getName())).str(),
                    M.getContext()) {
-
-  // A helping hand for invocation of the transform from a JIT-driven
-  // environment where it can be a bit painful to get to
-  std::optional<std::string> envTarget = sys::Process::GetEnv("CUDAABI_TARGET");
-  if (envTarget) {
-    LLVM_DEBUG(dbgs() << "cuabi: target set via environment '"
-                      << envTarget.value() << "'.\n");
-    GPUArch.setInitialValue(envTarget.value());
-  }
+  LLVM_DEBUG(dbgs() << "cuabi: CudaABI::CudaABI()\n");
 
   std::optional<std::string> ThreadsPBVar =
       sys::Process::GetEnv("CUDABI_DEFAULT_THREADS_PER_BLOCK");
@@ -1205,7 +1153,18 @@ CudaABI::CudaABI(Module &M)
   LLVM_DEBUG(dbgs() << "\ttarget triple: " << TT.getTriple() << "\n");
 }
 
-CudaABI::~CudaABI() { LLVM_DEBUG(dbgs() << "cuabi: destroy tapir target.\n"); }
+CudaABI::~CudaABI() { LLVM_DEBUG(dbgs() << "cuabi: ~CudaABI::CudaABI().\n"); }
+
+void CudaABI::setOptions(const TapirTargetOptions &Options) {
+  assert(isa<CudaABIOptions>(Options) &&
+         "Must set CudaABIOptions on CudaABI tapir target");
+
+  // The options object is owned by the TargetLibraryInfo object which is
+  // guaranteed to live at least as long as this TapirTarget.
+  CudaABIOpts = cast<CudaABIOptions>(&Options);
+}
+
+StringRef CudaABI::getGPUArch() const { return GPUArch; }
 
 void CudaABI::pushPTXFilename(const std::string &FN) {
   ModulePTXFileList.push_back(FN);
@@ -1218,25 +1177,15 @@ void CudaABI::pushGlobalVariable(GlobalVariable *GV) {
 std::unique_ptr<Module> &CudaABI::getLibDeviceModule() {
   if (not LibDeviceModule) {
     LLVMContext &Ctx = KernelModule.getContext();
-    llvm::SMDiagnostic SMD;
-    llvm::errs() << "libdevice: " << KITSUNE_CUDA_LIBDEVICE_BC << "\n";
-    // KITSUNE FIXME: It might be useful during development to override the
-    // libdevice.10.bc function. We could do this with a command-line argument
-    // that gets passed to this transform.
-    // std::optional<std::string> CudaPath = sys::Process::FindInEnvPath(
-    //     "CUDA_HOME", "nvvm/libdevice/libdevice.10.bc");
-    // if (!CudaPath) {
-    //   CudaPath = sys::Process::FindInEnvPath("CUDA_PATH",
-    //                                          "nvvm/libdevice/libdevice.10.bc");
-    //   if (!CudaPath)
-    //     report_fatal_error("Unable to load cuda libdevice.10.bc!");
-    // }
-
-    llvm::StringRef LibDeviceBCFile = KITSUNE_CUDA_LIBDEVICE_BC;
+    SMDiagnostic SMD;
+    StringRef LibDeviceBCFile = KITSUNE_CUDA_LIBDEVICE_BC;
+    if (ClLibDeviceBCPath.size())
+      LibDeviceBCFile = ClLibDeviceBCPath;
+    LLVM_DEBUG(dbgs() << "cuabi: using libdevice file '" << LibDeviceBCFile
+                      << "'\n");
     LibDeviceModule = parseIRFile(LibDeviceBCFile, SMD, Ctx);
     if (not LibDeviceModule)
-      report_fatal_error(llvm::StringRef("Failed to parse: ") +
-                         LibDeviceBCFile);
+      report_fatal_error(StringRef("Failed to parse: ") + LibDeviceBCFile);
   }
 
   return LibDeviceModule;
@@ -1292,8 +1241,8 @@ void CudaABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
 
 void CudaABI::postProcessHelper(Function &F) { /* no-op */ }
 
-void CudaABI::preProcessOutlinedTask(llvm::Function &, llvm::Instruction *,
-                                     llvm::Instruction *, bool, BasicBlock *) {
+void CudaABI::preProcessOutlinedTask(Function &, Instruction *, Instruction *,
+                                     bool, BasicBlock *) {
   /* no-op */
 }
 
@@ -1311,17 +1260,16 @@ void CudaABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
   /* no-op */
 }
 
-void CudaABI::preProcessRootSpawner(llvm::Function &, BasicBlock *TFEntry) {
+void CudaABI::preProcessRootSpawner(Function &, BasicBlock *TFEntry) {
   /* no-op */
 }
 
 CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
-
   LLVM_DEBUG(dbgs() << "\t- assembling PTX file '" << PTXFile->getFilename()
                     << "'.\n");
 
   std::error_code EC;
-  llvm::StringRef PTXASExe = KITSUNE_CUDA_PTXAS;
+  StringRef PTXASExe = KITSUNE_CUDA_PTXAS;
   SmallString<255> AsmFileName(PTXFile->getFilename());
   sys::path::replace_extension(AsmFileName, ".s");
   std::unique_ptr<ToolOutputFile> AsmFile;
@@ -1383,10 +1331,11 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
   PTXASArgv.append(PTXASArgList.begin(), PTXASArgList.end());
   PTXASArgv.push_back(nullptr);
 
-  auto PTXASArgs = toStringRefArray(PTXASArgv.data());
+  std::vector<StringRef> PTXASArgs = toStringRefArray(PTXASArgv.data());
+  if (ClPrintCommands)
+    tapir::printCommandLine(PTXASArgs);
   LLVM_DEBUG(dbgs() << "\t- ptxas command line:\n";
-             unsigned c = 0; for (auto dbg_arg
-                                  : PTXASArgs) {
+             unsigned c = 0; for (auto dbg_arg : PTXASArgs) {
                dbgs() << "\t\t" << c << ": " << dbg_arg << "\n";
                c++;
              } dbgs() << "\n\n";);
@@ -1589,13 +1538,7 @@ CudaABIOutputFile CudaABI::createFatbinaryFile(CudaABIOutputFile &AsmFile) {
   LLVM_DEBUG(dbgs() << "\t- generatng fatbinary image file '"
                     << FatbinFile->getFilename() << "'.\n");
 
-  // // TODO: LLVM docs suggest we shouldn't be using findProgramByName()...
-  // auto FatbinaryExe = sys::findProgramByName("fatbinary");
-  // if ((EC = FatbinaryExe.getError()))
-  //   report_fatal_error("'fatbinary' not found. "
-  //                      "Is a CUDA installation in your path?");
-
-  llvm::StringRef FatbinaryExe = KITSUNE_CUDA_FATBINARY;
+  StringRef FatbinaryExe = KITSUNE_CUDA_FATBINARY;
   opt::ArgStringList FatbinaryArgList;
   FatbinaryArgList.push_back(FatbinaryExe.data());
   FatbinaryArgList.push_back("--64");
@@ -1626,11 +1569,12 @@ CudaABIOutputFile CudaABI::createFatbinaryFile(CudaABIOutputFile &AsmFile) {
 
   SmallVector<const char *, 128> FatbinaryArgv;
   FatbinaryArgv.append(FatbinaryArgList.begin(), FatbinaryArgList.end());
-  auto FatbinaryArgs = toStringRefArray(FatbinaryArgv.data());
+  std::vector<StringRef> FatbinaryArgs = toStringRefArray(FatbinaryArgv.data());
 
+  if (ClPrintCommands)
+    tapir::printCommandLine(FatbinaryArgs);
   LLVM_DEBUG(dbgs() << "\tfatbinary command line:\n";
-             unsigned c = 0; for (auto dbg_arg
-                                  : FatbinaryArgs) {
+             unsigned c = 0; for (auto dbg_arg : FatbinaryArgs) {
                dbgs() << "\t\t" << c << ": " << dbg_arg << "\n";
                c++;
              } dbgs() << "\n\n";);
@@ -1670,7 +1614,7 @@ GlobalVariable *CudaABI::embedFatbinary(CudaABIOutputFile &FatbinaryFile) {
 
   // Allocate a buffer to store the fat binary image in.  We
   // will then codegen it into the host-side module.
-  std::unique_ptr<llvm::MemoryBuffer> Fatbinary = nullptr;
+  std::unique_ptr<MemoryBuffer> Fatbinary = nullptr;
   ErrorOr<std::unique_ptr<MemoryBuffer>> FBBufferOrErr =
       MemoryBuffer::getFile(FatbinaryFile->getFilename());
   if (std::error_code EC = FBBufferOrErr.getError()) {
@@ -1716,7 +1660,7 @@ void CudaABI::bindGlobalVariables(Value *Handle, IRBuilder<> &B) {
     Value *VarName = tapir::createConstantStr(HostGV->getName().str(), M);
     std::string DevVarName = HostGV->getName().str() + "_devvar";
     Value *DevName = tapir::createConstantStr(DevVarName, M, DevVarName);
-    llvm::Value *Args[] = {
+    Value *Args[] = {
         Handle,
         B.CreateBitCast(HostGV, VoidPtrTy),
         VarName,
@@ -1970,7 +1914,7 @@ CudaABIOutputFile CudaABI::generatePTX() {
                                              sys::fs::OpenFlags::OF_None);
   PTXFile->keep();
 
-  KernelModule.addModuleFlag(llvm::Module::Override, "nvvm-reflect-ftz", true);
+  KernelModule.addModuleFlag(Module::Override, "nvvm-reflect-ftz", true);
 
   if (OptLevel > 0) {
     if (OptLevel > 3)

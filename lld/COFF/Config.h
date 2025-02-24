@@ -236,10 +236,6 @@ struct Configuration {
   // Used for /mapinfo.
   bool mapInfo = false;
 
-  // Used for Tapir target.
-  llvm::StringRef opencilkABIBitcodeFile;
-  llvm::TapirTargetID tapirTarget = llvm::TapirTargetID::None;
-
   // Used for /thinlto-index-only:
   llvm::StringRef thinLTOIndexOnlyArg;
 
@@ -334,6 +330,20 @@ struct Configuration {
   EmitKind emit = EmitKind::Obj;
   bool allowDuplicateWeak = false;
   BuildIDHash buildIDHash = BuildIDHash::None;
+
+  /// Some tapir targets don't have a corresponding TapirTargetOptions object,
+  /// so we can't just use the absence of @ref tapirTargetOpts to imply that a
+  /// tapir target has not been set.
+  std::optional<llvm::TapirTargetID> tapirTarget = std::nullopt;
+
+  /// FIXME: This should be subsumed into @ref tapirTargetOpts which should be
+  /// created from the command line options.
+  std::string opencilkABIBitcodeFile;
+
+  /// The options for the tapir target that has been set. This is a pointer to
+  /// the base class, but it must be an instance of the options object
+  /// corresponding to the tapir target.
+  std::unique_ptr<llvm::TapirTargetOptions> tapirTargetOpts = nullptr;
 };
 
 struct COFFSyncStream : SyncStream {

@@ -329,6 +329,7 @@ void *__kithip_get_global_symbol(void *fat_bin, const char *sym_name) {
     _kithip_module_map[fat_bin] = hip_module;
   } else
     hip_module = modit->second;
+  _kithip_module_map_mutex.unlock();
 
   // NOTE: The device pointer and size ('bytes') parameters for the
   // call to cuModuleGetGlobal are optional.  To simplify the compiler's

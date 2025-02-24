@@ -2,7 +2,7 @@
 ;
 ; RUN: opt %s -passes='indvars' -S | FileCheck %s -check-prefix=IV
 ; RUN: opt %s -passes='loop(indvars),instcombine' -S | FileCheck %s -check-prefix=IC
-; RUN: opt %s -passes='function(loop(indvars),instcombine),loop-spawning' -S | FileCheck %s -check-prefix=LS
+; RUN: opt %s -passes='function(loop(indvars),instcombine),loop-spawning' -tapir-target=opencilk -S | FileCheck %s -check-prefix=LS
 
 ; ModuleID = 'simple.ll'
 source_filename = "mynorm"

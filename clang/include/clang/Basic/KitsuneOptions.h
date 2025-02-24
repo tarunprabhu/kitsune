@@ -53,7 +53,8 @@
 #ifndef LLVM_CLANG_BASIC_KITSUNE_OPTIONS_H
 #define LLVM_CLANG_BASIC_KITSUNE_OPTIONS_H
 
-#include <llvm/Transforms/Tapir/TapirTargetIDs.h>
+#include "kitsune/Config/config.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
 namespace clang {
 
@@ -76,6 +77,19 @@ private:
   /// Should loop strip-mining be enabled.
   unsigned stripmineLoops : 1;
 
+  /// Enable verbose mode for the tapir target LLVM passes. This is different
+  /// from -mllvm -debug-only=<tapir-target-llvm-pass-name>. When the verbose
+  /// flag is set, the passes may print some subset of the information that is
+  /// printed in full debug mode. However, there is no guarantee that any given
+  /// tapir target LLVM pass will print anything at all.
+  unsigned tapirTargetVerbose : 1;
+
+  /// If true, code will be generated to enable verbose mode in the Kitsune
+  /// runtime. This obviates the need to set an environment variable to turn on
+  /// verbose mode when the compiled code is run. The effect of this will only
+  /// be visible in certain tapir targets because not all use Kitsune's runtime.
+  unsigned kitsuneRuntimeVerbose : 1;
+
   /// The TapirTarget to enable for code generation.
   ///
   /// For now, this is optional because we do not have a default tapir target
@@ -93,6 +107,26 @@ private:
   /// OpenCilk tapir target is enabled.
   std::optional<std::string> opencilkABIBitcodeFile = std::nullopt;
 
+  /// The NVIDIA GPU architecture for which to generate code. This is only
+  /// relevant for the cuda tapir target, although the default is always set.
+  /// This is a string and not an enum because it is not clear if anything is to
+  /// be gained by making it an enum. So far, all uses of this are as a string.
+  std::string cudaArch = KITSUNE_CUDA_ARCH_DEFAULT;
+
+  /// The AMD GPU architecture for which to generate code. This is only relevant
+  /// for the hip tapir target, although the default is always set.
+  /// This is a string and not an enum because it is not clear if anything is to
+  /// be gained by making it an enum. So far, all uses of this are as a string.
+  std::string hipArch = KITSUNE_HIP_ARCH_DEFAULT;
+
+  /// If this is non-zero, the number of threads per block to use.
+  unsigned fixedThreadsPerBlock = 0;
+
+  /// If this is non-zero, the maximum number of threads per block to use. This
+  /// may be used in conjunction with @ref threadsPerBlock, in which case this
+  /// value must be greater than or equal to @ref threadsPerBlock.
+  unsigned maxThreadsPerBlock = 0;
+
 public:
   void setKitsuneFrontend(bool kitsuneFrontend = true) {
     this->kitsuneFrontend = kitsuneFrontend;
@@ -108,12 +142,36 @@ public:
     this->stripmineLoops = stripmineLoops;
   }
 
+  void setKitsuneRuntimeVerbose(bool verbose = true) {
+    this->kitsuneRuntimeVerbose = verbose;
+  }
+
+  void setTapirTargetVerbose(bool verbose = true) {
+    this->tapirTargetVerbose = verbose;
+  }
+
   void setTapirTarget(llvm::TapirTargetID tapirTarget) {
     this->tapirTarget = tapirTarget;
   }
 
   void setOpenCilkABIBitcodeFile(llvm::StringRef file) {
     this->opencilkABIBitcodeFile = file;
+  }
+
+  void setCudaArch(llvm::StringRef arch) {
+    this->cudaArch = arch;
+  }
+
+  void setHipArch(llvm::StringRef arch) {
+    this->hipArch = arch;
+  }
+
+  void setFixedThreadsPerBlock(unsigned threadsPerBlock) {
+    this->fixedThreadsPerBlock = threadsPerBlock;
+  }
+
+  void setMaxThreadsPerBlock(unsigned threadsPerBlock) {
+    this->maxThreadsPerBlock = threadsPerBlock;
   }
 
   bool isKitsuneFrontend() const { return kitsuneFrontend; }
@@ -126,20 +184,33 @@ public:
 
   bool getStripmineLoops() const { return stripmineLoops; }
 
+  bool getTapirTargetVerbose() const { return tapirTargetVerbose; }
+
+  bool getKitsuneRuntimeVerbose() const { return kitsuneRuntimeVerbose; }
+
   /// This should only be called when a TapirTarget is known to exist.
   std::optional<llvm::TapirTargetID> getTapirTarget() const {
     return tapirTarget;
   }
 
-  llvm::TapirTargetID getTapirTargetOrInvalid() const {
-    if (tapirTarget)
-      return *tapirTarget;
-    else
-      return llvm::TapirTargetID::Last_TapirTargetID;
-  }
-
   std::optional<llvm::StringRef> getOpenCilkABIBitcodeFile() const {
     return opencilkABIBitcodeFile;
+  }
+
+  llvm::StringRef getCudaArch() const {
+    return cudaArch;
+  }
+
+  llvm::StringRef getHipArch() const {
+    return hipArch;
+  }
+
+  unsigned getFixedThreadsPerBlock() const {
+    return fixedThreadsPerBlock;
+  }
+
+  unsigned getMaxThreadsPerBlock() const {
+    return maxThreadsPerBlock;
   }
 };
 

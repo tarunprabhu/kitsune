@@ -210,9 +210,9 @@ if (KITSUNE_CUDA_ENABLED)
   # environment variables, so prefer those. Otherwise, make a best guess at
   # figuring out what it is from the vriables that are set.
   if (DEFINED ENV{CUDA_HOME})
-    set(KITSUNE_CUDA_PREFIX ENV{CUDA_HOME})
+    set(KITSUNE_CUDA_PREFIX $ENV{CUDA_HOME})
   elseif (DEFINED $ENV{CUDA_PATH})
-    set(KISTUNE_CUDA_PREFIX ENV{CUDA_PATH})
+    set(KISTUNE_CUDA_PREFIX $ENV{CUDA_PATH})
   elseif (CUDAToolkit_ROOT)
     set(KITSUNE_CUDA_PREFIX ${CUDAToolkit_ROOT})
   else ()
@@ -694,12 +694,12 @@ if (KITSUNE_Fortran_ENABLED)
   set(kitfc_main_file "${KITSUNE_Fortran_FRONTEND}-${LLVM_VERSION_MAJOR}")
   set(kitfc_main "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${kitfc_main_file}")
   add_custom_target(kitfc-main ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:flang> "${kitfc_main}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:flang-new> "${kitfc_main}"
     COMMENT "Creating main kitfc executable"
     VERBATIM USES_TERMINAL)
-  add_dependencies(kitfc-main flang)
+  add_dependencies(kitfc-main flang-new)
   install(PROGRAMS
-    "${kitfc}"
+    "${kitfc_main}"
     DESTINATION ${CMAKE_INSTALL_BINDIR})
   setup_frontend_symlink(${KITSUNE_Fortran_FRONTEND} ${kitfc_main_file} kitfc-main)
 endif()

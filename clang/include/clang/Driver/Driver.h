@@ -9,7 +9,6 @@
 #ifndef LLVM_CLANG_DRIVER_DRIVER_H
 #define LLVM_CLANG_DRIVER_DRIVER_H
 
-#include "kitsune/Config/config.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/HeaderInclude.h"
 #include "clang/Basic/LLVM.h"

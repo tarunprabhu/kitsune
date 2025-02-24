@@ -98,14 +98,14 @@ TEST(KitsuneFrontendTest, KitsuneLangOptions) {
   EXPECT_FALSE(invoc.getLangOpts().KitsuneOpts.isKitsuneFrontend());
 
 #if KITSUNE_Fortran_ENABLED
-  ArrayRef<const char *> fc1Args = {"-fc1", "foo.f90"};
+  const char* fc1Args[] = {"-fc1", "foo.f90"};
 
   CompilerInvocation::CreateFromArgs(invoc, fc1Args, diags,
                                      KITSUNE_Fortran_FRONTEND);
-  EXPECT_TRUE(fc.getLangOpts().KitsuneOpts.isKitsuneFrontend());
+  EXPECT_TRUE(invoc.getLangOpts().KitsuneOpts.isKitsuneFrontend());
 
   CompilerInvocation::CreateFromArgs(invoc, fc1Args, diags, "/bin/flang");
-  EXPECT_FALSE(fc.getLangOpts().KitsuneOpts.isKitsuneFrontend());
+  EXPECT_FALSE(invoc.getLangOpts().KitsuneOpts.isKitsuneFrontend());
 #endif // KITSUNE_Fortran_ENABLED
 }
 

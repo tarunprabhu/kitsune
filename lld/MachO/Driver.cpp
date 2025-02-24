@@ -1618,6 +1618,18 @@ bool link(ArrayRef<const char *> argsArr, llvm::raw_ostream &stdoutOS,
   if (errorCount())
     return false;
 
+  // Parse Kitsune-specific arguments that are passed here.
+  if (opt::Arg* arg = args.getLastArg(OPT_tapir_target)) {
+    config->tapirTarget = parseTapirTarget(arg->getValue());
+    if (config->tapirTarget.has_value()) {
+      config->opencilkABIBitcodeFile =
+          args.getLastArgValue(OPT_opencilk_abi_bitcode);
+    } else {
+      error(Twine("invalid value '") + arg->getValue() + "' in '" +
+            arg->getSpelling() + "'");
+    }
+  }
+
   if (args.hasArg(OPT_pagezero_size)) {
     uint64_t pagezeroSize = args::getHex(args, OPT_pagezero_size, 0);
 
@@ -1832,10 +1844,6 @@ bool link(ArrayRef<const char *> argsArr, llvm::raw_ostream &stdoutOS,
       args.hasFlag(OPT_warn_thin_archive_missing_members,
                    OPT_no_warn_thin_archive_missing_members, true);
   config->generateUuid = !args.hasArg(OPT_no_uuid);
-  config->tapirTarget =
-      args::parseTapirTarget(args.getLastArgValue(OPT_tapir_target));
-  config->opencilkABIBitcodeFile =
-      args.getLastArgValue(OPT_opencilk_abi_bitcode);
 
   auto IncompatWithCGSort = [&](StringRef firstArgStr) {
     // Throw an error only if --call-graph-profile-sort is explicitly specified

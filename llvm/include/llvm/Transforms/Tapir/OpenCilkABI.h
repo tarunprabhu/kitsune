@@ -22,6 +22,29 @@ namespace llvm {
 class Value;
 class TapirLoopInfo;
 
+/// Options for the opencilk tapir target.
+class OpenCilkABIOptions : public TapirTargetOptions {
+  std::string RuntimeBCPath;
+
+public:
+  OpenCilkABIOptions() : TapirTargetOptions(TTO_OpenCilk) {}
+  virtual ~OpenCilkABIOptions() = default;
+
+  void setRuntimeBCPath(StringRef Path) { this->RuntimeBCPath = Path; }
+
+  StringRef getRuntimeBCPath() const { return RuntimeBCPath; }
+
+  virtual OpenCilkABIOptions *clone() const override {
+    OpenCilkABIOptions* clone = new OpenCilkABIOptions();
+    clone->RuntimeBCPath = this->RuntimeBCPath;
+    return clone;
+  }
+
+  static bool classof(const TapirTargetOptions *TTO) {
+    return TTO->getKind() == TTO_OpenCilk;
+  }
+};
+
 class OpenCilkABI final : public TapirTarget {
   ValueToValueMapTy DetachCtxToStackFrame;
   SmallPtrSet<Function *, 8> Processed;

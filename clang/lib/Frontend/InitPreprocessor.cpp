@@ -876,10 +876,10 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   // Kitsune-specific predefined macros. We deliberately do not change any of
   // the clang macros. This should just work seamlessly other compiler
   // detection mechanisms use by, for instance, cmake. We only define the
-  // __kitsune_tapir_target__ macro if a Tapir target is provided during
-  // compilation. We could have defaulted to an empty string, but this would not
-  // be in keeping with the principle of "absence indicating absence". The empty
-  // string would be too much like the "special sentinel indicating absence".
+  // __kitsune_tt__ macro if a Tapir target is provided during compilation. We
+  // could have defaulted to an empty string, but this would not be in keeping
+  // with the principle of "absence indicating absence". The empty string would
+  // be too much like the "special sentinel indicating absence".
   const KitsuneOptions& KitOpts = LangOpts.KitsuneOpts;
   Builder.defineMacro("__kitsune__"); // Kitsune Frontend
   if (std::optional<llvm::TapirTargetID> tt = KitOpts.getTapirTarget()) {

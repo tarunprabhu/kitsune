@@ -1,7 +1,12 @@
-// RUN: %kitxx -### -ftapir=opencilk %s 2>&1 | FileCheck %s
+// RUN: %kitxx -### -ftapir=opencilk -O2 %s 2>&1 | FileCheck %s
+
+// CHECK: -cc1
+// CHECK-SAME: -ftapir=opencilk
+// CHECK-SAME: -opencilk-abi-bitcode
+// CHECK-SAME: -fstripmine
 
 // It is a pain to check for the actual linker executable. There are far too
 // many options depending on the platform, so just check the next line for the
 // expected linker flags.
-// CHECK: -lopencilk
+// CHECK-NEXT: -lopencilk
 // CHECK-SAME: -lkitrt

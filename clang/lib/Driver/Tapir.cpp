@@ -21,41 +21,46 @@
 using namespace clang::driver;
 using namespace llvm;
 
+std::optional<TapirTargetID> clang::parseTapirTarget(const opt::Arg &A) {
+  return llvm::parseTapirTarget(A.getValue());
+}
+
 std::optional<TapirTargetID> clang::parseTapirTarget(const opt::ArgList &Args) {
   if (const opt::Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
-    return llvm::StringSwitch<std::optional<TapirTargetID>>(A->getValue())
-        .Case("none", TapirTargetID::None)
-        .Case("serial", TapirTargetID::Serial)
-        .Case("cuda", TapirTargetID::Cuda)
-        .Case("hip", TapirTargetID::Hip)
-        .Case("opencilk", TapirTargetID::OpenCilk)
-        .Case("openmp", TapirTargetID::OpenMP)
-        .Case("qthreads", TapirTargetID::Qthreads)
-        .Case("realm", TapirTargetID::Realm)
-        .Default(std::nullopt);
+    return parseTapirTarget(*A);
   return std::nullopt;
 }
 
-std::optional<TapirNVArchTargetID>
-clang::parseTapirNVArchTarget(const opt::ArgList &Args) {
+StringRef clang::parseTapirCudaArch(const opt::Arg &A) {
+  StringRef sm = A.getValue();
+  if (sm == "sm_50" || sm == "sm_52" || sm == "sm_53" || sm == "sm_60" ||
+      sm == "sm_62" || sm == "sm_70" || sm == "sm_72" || sm == "sm_75" ||
+      sm == "sm_80" || sm == "sm_86" || sm == "sm_90")
+    return A.getValue();
+  return "";
+}
+
+std::optional<std::string> clang::parseTapirCudaArch(const opt::ArgList &Args) {
   if (const opt::Arg *A = Args.getLastArg(options::OPT_ftapir_cuda_arch_EQ))
-    return llvm::StringSwitch<std::optional<TapirNVArchTargetID>>(A->getValue())
-        .Case("sm_50", TapirNVArchTargetID::SM_50)
-        .Case("sm_52", TapirNVArchTargetID::SM_52)
-        .Case("sm_53", TapirNVArchTargetID::SM_53)
-        .Case("sm_60", TapirNVArchTargetID::SM_60)
-        .Case("sm_62", TapirNVArchTargetID::SM_62)
-        .Case("sm_70", TapirNVArchTargetID::SM_70)
-        .Case("sm_72", TapirNVArchTargetID::SM_72)
-        .Case("sm_75", TapirNVArchTargetID::SM_75)
-        .Case("sm_80", TapirNVArchTargetID::SM_80)
-        .Case("sm_86", TapirNVArchTargetID::SM_86)
-        .Case("sm_90", TapirNVArchTargetID::SM_90)
-        .Default(std::nullopt);
+    return parseTapirCudaArch(*A).str();
   return std::nullopt;
 }
 
-std::optional<llvm::StringRef>
+StringRef clang::parseTapirHipArch(const opt::Arg &A) {
+  StringRef v = A.getValue();
+  if (v == "gfx906" || v == "gfx908" || v == "gfx90a" || v == "gfx90c" ||
+      v == "gfx942")
+    return A.getValue();
+  return "";
+}
+
+std::optional<std::string> clang::parseTapirHipArch(const opt::ArgList &Args) {
+  if (const opt::Arg *A = Args.getLastArg(options::OPT_ftapir_hip_arch_EQ))
+    return parseTapirHipArch(*A).str();
+  return std::nullopt;
+}
+
+std::optional<StringRef>
 clang::getTargetConfigFileName(const opt::ArgList &Args) {
   if (std::optional<TapirTargetID> tt = parseTapirTarget(Args)) {
     switch (*tt) {

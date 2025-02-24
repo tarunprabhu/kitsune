@@ -19,4 +19,4 @@
 // It is a pain to check for the actual linker executable. There are far too
 // many options depending on the platform, so just check the next line for the
 // expected linker flag.
-// CHECK-CUSTOM-SAME: "-some_linker_flag"
+// CHECK-CUSTOM-NEXT: "-some_linker_flag"

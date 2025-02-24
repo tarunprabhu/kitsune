@@ -15,13 +15,13 @@ void *__attribute__((kitsune_mobile)) allocate_c(size_t n) {
 }
 
 // TAPIR-LABEL: allocate_c
-// TAPIR: call {{.+}} @__kitrt_default_mem_alloc({{.+}})
+// TAPIR: call {{.+}} @malloc({{.+}})
 // NOTAPIR: call {{.+}} @malloc({{.+}})
 
 void deallocate_c(void *[[kitsune::mobile]] ptr) { kitsune_mobile_free(ptr); }
 
 // TAPIR-LABEL: deallocate_c
-// TAPIR: call {{.+}} @__kitrt_default_mem_free({{.+}})
+// TAPIR: call {{.+}} @free({{.+}})
 // NOTAPIR: call {{.+}} @free({{.+}})
 
-// DECLARES-DAG: declare noalias ptr addrspace(67) @__kitrt_default_mem_alloc
+// DECLARES-DAG: declare noalias ptr addrspace(67) @malloc

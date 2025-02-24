@@ -1,4 +1,4 @@
-; RUN: opt < %s -passes=loop-spawning -S | FileCheck %s --check-prefixes=CHECK,CHECK-NOLCSSA
+; RUN: opt < %s -passes=loop-spawning -S -tapir-target=opencilk | FileCheck %s --check-prefixes=CHECK,CHECK-NOLCSSA
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"

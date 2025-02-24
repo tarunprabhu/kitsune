@@ -1,5 +1,5 @@
-; RUN: opt < %s -passes=tapir2target -tapir-target=opencilk -opencilk-runtime-bc-path=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s --check-prefix=TT
-; RUN: opt < %s -passes=loop-spawning -S | FileCheck %s --check-prefix=LS
+; RUN: opt < %s -tapir-target=opencilk -passes=tapir2target -opencilk-runtime-bc-path=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s --check-prefix=TT
+; RUN: opt < %s -tapir-target=opencilk -passes=loop-spawning -S | FileCheck %s --check-prefix=LS
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"

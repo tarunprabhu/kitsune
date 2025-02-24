@@ -4618,6 +4618,17 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
     llvm::raw_string_ostream os(buf);
     os << *tt;
     GenerateArg(Consumer, OPT_ftapir_EQ, os.str());
+
+    switch (*tt) {
+    case llvm::TapirTargetID::Cuda:
+      GenerateArg(Consumer, OPT_ftapir_cuda_arch_EQ, Opts.getCudaArch());
+      break;
+    case llvm::TapirTargetID::Hip:
+      GenerateArg(Consumer, OPT_ftapir_hip_arch_EQ, Opts.getHipArch());
+      break;
+    default:
+      break;
+    }
   }
 
   if (Opts.getKokkos())
@@ -4644,6 +4655,10 @@ bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts,
   Opts.setStripmineLoops(Args.hasArg(options::OPT_fstripmine));
   if (Arg* A = Args.getLastArg(options::OPT_opencilk_abi_bitcode_EQ))
     Opts.setOpenCilkABIBitcodeFile(A->getValue());
+  if (Arg* A = Args.getLastArg(options::OPT_ftapir_cuda_arch_EQ))
+    Opts.setCudaArch(A->getValue());
+  if (Arg* A = Args.getLastArg(options::OPT_ftapir_hip_arch_EQ))
+    Opts.setHipArch(A->getValue());
 
   if (std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args)) {
     // Even if the tapir target is valid, it may not have been enabled when
@@ -4721,9 +4736,6 @@ bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
     Diags.Report(clang::diag::err_drv_kitsune_objc);
   else if (LangOpts.OpenCL)
     Diags.Report(clang::diag::err_drv_kitsune_opencl);
-
-  if (Args.getLastArg(options::OPT_fopenmp_targets_EQ))
-    Diags.Report(clang::diag::err_drv_kitsune_openmp_offload);
 
   if (*tt == llvm::TapirTargetID::OpenCilk) {
     if (!KitsuneOpts.getOpenCilkABIBitcodeFile())

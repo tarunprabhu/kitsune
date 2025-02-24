@@ -84,6 +84,7 @@
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Scalar/JumpThreading.h"
 #include "llvm/Transforms/Tapir/TapirToTarget.h"
+#include "llvm/Transforms/Tapir/TapirTargets.h"
 #include "llvm/Transforms/Utils/Debugify.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <limits>
@@ -228,6 +229,73 @@ public:
 };
 } // namespace
 
+static OptimizationLevel mapToLevel(const CodeGenOptions &Opts);
+
+static void populateGPUABIOptions(const CodeGenOptions &CodeGenOpts,
+                                  const KitsuneOptions &KitsuneOpts,
+                                  GPUABIOptionsBase &Opts) {
+  Opts.setVerbose(KitsuneOpts.getTapirTargetVerbose());
+  Opts.setRuntimeVerbose(KitsuneOpts.getKitsuneRuntimeVerbose());
+  Opts.setArch(KitsuneOpts.getCudaArch());
+  Opts.setOptLevel(mapToLevel(CodeGenOpts));
+  Opts.setFixedThreadsPerBlock(KitsuneOpts.getFixedThreadsPerBlock());
+  Opts.setMaxThreadsPerBlock(KitsuneOpts.getMaxThreadsPerBlock());
+}
+
+static std::unique_ptr<TapirTargetOptions>
+createTapirTargetOptions(const CodeGenOptions &CodeGenOpts,
+                         const KitsuneOptions &KitsuneOpts) {
+  std::unique_ptr<TapirTargetOptions> Opts;
+  if (std::optional<TapirTargetID> TT = KitsuneOpts.getTapirTarget()) {
+    switch (*TT) {
+    case TapirTargetID::Cuda: {
+      CudaABIOptions *CudaOpts = new CudaABIOptions();
+      populateGPUABIOptions(CodeGenOpts, KitsuneOpts, *CudaOpts);
+      Opts.reset(CudaOpts);
+      break;
+    }
+    case TapirTargetID::Hip: {
+      HipABIOptions *HipOpts = new HipABIOptions();
+      populateGPUABIOptions(CodeGenOpts, KitsuneOpts, *HipOpts);
+      Opts.reset(HipOpts);
+      break;
+    }
+    case TapirTargetID::None:
+      // NoneABI does not have options because generally, it is not actually
+      // treated like other ABI's. We really need to figure out what to do with
+      // this.
+      break;
+    case TapirTargetID::OpenCilk: {
+      OpenCilkABIOptions *OpenCilkOpts = new OpenCilkABIOptions();
+      OpenCilkOpts->setRuntimeBCPath(*KitsuneOpts.getOpenCilkABIBitcodeFile());
+      Opts.reset(OpenCilkOpts);
+      break;
+    }
+    case TapirTargetID::Serial:
+      Opts.reset(new SerialABIOptions());
+      break;
+    default:
+      llvm_unreachable("createTapirTargetOptions: Tapir target not handled");
+      break;
+    }
+  }
+  return std::move(Opts);
+}
+
+static std::unique_ptr<TargetLibraryInfoImpl>
+createTLII(llvm::Triple &TargetTriple, const CodeGenOptions &CodeGenOpts,
+           const KitsuneOptions &KitsuneOpts) {
+  std::unique_ptr<TargetLibraryInfoImpl> TLII(
+      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
+  if (std::optional<TapirTargetID> TT = KitsuneOpts.getTapirTarget()) {
+    TLII->setTapirTarget(*TT);
+    TLII->setTapirTargetOptions(
+        createTapirTargetOptions(CodeGenOpts, KitsuneOpts));
+    TLII->addTapirTargetLibraryFunctions(*TT);
+  }
+  return TLII;
+}
+
 static SanitizerCoverageOptions
 getSancovOptsFromCGOpts(const CodeGenOptions &CGOpts) {
   SanitizerCoverageOptions Opts;
@@ -285,27 +353,6 @@ static bool asanUseGlobalsGC(const Triple &T, const CodeGenOptions &CGOpts) {
     break;
   }
   return false;
-}
-
-static std::unique_ptr<TargetLibraryInfoImpl>
-createTLII(llvm::Triple &TargetTriple, const CodeGenOptions &CodeGenOpts,
-           const KitsuneOptions &KitsuneOpts) {
-  std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
-
-  llvm::TapirTargetID TT = KitsuneOpts.getTapirTargetOrInvalid();
-  TLII->setTapirTarget(TT);
-  switch (TT) {
-  case llvm::TapirTargetID::OpenCilk:
-    TLII->setTapirTargetOptions(std::make_unique<OpenCilkABIOptions>(
-        *KitsuneOpts.getOpenCilkABIBitcodeFile()));
-    break;
-  default:
-    break;
-  }
-  TLII->addTapirTargetLibraryFunctions();
-
-  return TLII;
 }
 
 static std::optional<llvm::CodeModel::Model>
@@ -1105,18 +1152,6 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
       });
     }
 
-// FIXME KITSUNE: Do we want to the Cilk sanitizer?
-#if 0
-    // Register the Cilksan pass.
-    if (LangOpts.Sanitize.has(SanitizerKind::Cilk))
-      PB.registerTapirLateEPCallback(
-          [&PB](ModulePassManager &MPM, OptimizationLevel Level) {
-            MPM.addPass(CSISetupPass());
-            MPM.addPass(CilkSanitizerPass());
-            MPM.addPass(PB.buildPostCilkInstrumentationPipeline(Level));
-          });
-#endif // 0
-
     if (CodeGenOpts.FatLTO) {
       MPM.addPass(PB.buildFatLTODefaultPipeline(
           Level, PrepareForThinLTO,
@@ -1374,7 +1409,7 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   Conf.RemarksFormat = CGOpts.OptRecordFormat;
   Conf.SplitDwarfFile = CGOpts.SplitDwarfFile;
   Conf.SplitDwarfOutput = CGOpts.SplitDwarfOutput;
-  Conf.TapirTarget = KOpts.getTapirTargetOrInvalid();
+  Conf.TapirTarget = KOpts.getTapirTarget();
   if (std::optional<StringRef> file = KOpts.getOpenCilkABIBitcodeFile())
     Conf.OpenCilkABIBitcodeFile = *file;
   switch (Action) {

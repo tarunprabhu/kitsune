@@ -8,11 +8,11 @@ void *[[kitsune::mobile]] allocate(size_t n) {
 }
 
 // CHECK-LABEL: allocate
-// CHECK: call {{.+}} @__kitrt_default_mem_alloc({{.+}})
+// CHECK: call {{.+}} @malloc({{.+}})
 
 void deallocate(void *[[kitsune::mobile]] ptr) { kitsune_mobile_free(ptr); }
 
 // CHECK-LABEL: deallocate
-// CHECK: call {{.+}} @__kitrt_default_mem_free({{.+}})
+// CHECK: call {{.+}} @free({{.+}})
 
 // DECLARES-DAG: declare noalias ptr addrspace(67) @__kitrt_default_mem_alloc

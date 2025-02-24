@@ -253,8 +253,19 @@ struct Configuration {
 
   std::vector<llvm::StringRef> dyldEnvs;
 
-  llvm::TapirTargetID tapirTarget = llvm::TapirTargetID::None;
-  llvm::StringRef opencilkABIBitcodeFile;
+  /// Some tapir targets don't have a corresponding TapirTargetOptions object,
+  /// so we can't just use the absence of @ref tapirTargetOpts to imply that a
+  /// tapir target has not been set.
+  std::optional<llvm::TapirTargetID> tapirTarget = std::nullopt;
+
+  /// FIXME: This should be subsumed into @ref tapirTargetOpts which should be
+  /// created from the command line options.
+  std::string opencilkABIBitcodeFile;
+
+  /// The options for the tapir target that has been set. This is a pointer to
+  /// the base class, but it must be an instance of the options object
+  /// corresponding to the tapir target.
+  std::unique_ptr<llvm::TapirTargetOptions> tapirTargetOpts = nullptr;
 
   llvm::MachO::Architecture arch() const { return platformInfo.target.Arch; }
 

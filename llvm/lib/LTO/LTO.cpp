@@ -159,7 +159,10 @@ std::string llvm::computeLTOCacheKey(
   AddUnsigned(static_cast<int>(Conf.CGFileType));
   AddUnsigned(Conf.OptLevel);
   AddUnsigned(Conf.Freestanding);
-  AddUnsigned(static_cast<unsigned>(Conf.TapirTarget));
+  if (Conf.TapirTarget)
+    AddUnsigned(static_cast<unsigned>(*Conf.TapirTarget));
+  else
+    AddUnsigned(static_cast<unsigned>(0));
   AddString(Conf.OptPipeline);
   AddString(Conf.AAPipeline);
   AddString(Conf.OverrideTriple);

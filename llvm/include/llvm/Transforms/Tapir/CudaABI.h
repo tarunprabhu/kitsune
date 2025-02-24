@@ -3,10 +3,10 @@
 //                     The LLVM Compiler Infrastructure
 //
 //
-// Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
+//  Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 //  All rights reserved.
 //
-// Copyright 2021, 2023. Los Alamos National Security, LLC. This
+//  Copyright 2021, 2023. Los Alamos National Security, LLC. This
 //  software was produced under U.S. Government contract
 //  DE-AC52-06NA25396 for Los Alamos National Laboratory (LANL), which
 //  is operated by Los Alamos National Security, LLC for the
@@ -52,13 +52,14 @@
 //
 //===---------------------------------------------------------------------===//
 //
-#ifndef TapirCuda_ABI_H_
-#define TapirCuda_ABI_H_
+#ifndef LLVM_TAPIR_CUDA_ABI_H
+#define LLVM_TAPIR_CUDA_ABI_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/Transforms/Tapir/LoweringUtils.h"
-#include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Transforms/Tapir/LoweringUtils.h"
+#include "llvm/Transforms/Tapir/GPUABIOptions.h"
+#include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 
 namespace llvm {
 
@@ -68,11 +69,32 @@ class CudaLoop;
 
 typedef std::unique_ptr<ToolOutputFile> CudaABIOutputFile;
 
-class CudaABI : public TapirTarget {
+/// Options for the cuda tapir target.
+class CudaABIOptions : public GPUABIOptionsBase {
+public:
+  CudaABIOptions() : GPUABIOptionsBase(TTO_Cuda) {}
+  virtual ~CudaABIOptions() = default;
 
+  CudaABIOptions(const CudaABIOptions&) = delete;
+  CudaABIOptions& operator=(const CudaABIOptions&) = delete;
+
+  virtual CudaABIOptions *clone() const override {
+    CudaABIOptions *clone = new CudaABIOptions();
+    clone->copyFrom(*this);
+    return clone;
+  }
+
+  static bool classof(const TapirTargetOptions *TTO) {
+    return TTO->getKind() == TTO_Cuda;
+  }
+};
+
+class CudaABI : public TapirTarget {
 public:
   CudaABI(Module &M);
   ~CudaABI();
+
+  void setOptions(const TapirTargetOptions &Options) override final;
 
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
   void lowerSync(SyncInst &SI) override final;
@@ -80,89 +102,84 @@ public:
   void addHelperAttributes(Function &F) override final;
   bool preProcessFunction(Function &F, TaskInfo &TI,
                           bool OutliningTapirLoops) override final;
-  void postProcessFunction(Function &F, bool OutliningTapirLoops) override final;
+  void postProcessFunction(Function &F,
+                           bool OutliningTapirLoops) override final;
   void postProcessHelper(Function &F) override final;
 
-  void preProcessOutlinedTask(Function &F,
-                              Instruction *DetachPt,
-                              Instruction *TaskFrameCreate,
-                              bool IsSpawner,
+  void preProcessOutlinedTask(Function &F, Instruction *DetachPt,
+                              Instruction *TaskFrameCreate, bool IsSpawner,
                               BasicBlock *TFEntry) override final;
 
-  void postProcessOutlinedTask(Function &F,
-                               Instruction *DetachPt,
-                               Instruction *TaskFrameCreate,
-                               bool IsSpawner,
+  void postProcessOutlinedTask(Function &F, Instruction *DetachPt,
+                               Instruction *TaskFrameCreate, bool IsSpawner,
                                BasicBlock *TFEntry) override final;
 
-  void preProcessRootSpawner(Function &F,
-                             BasicBlock *TFEntry) override final;
-  void postProcessRootSpawner(Function &F,
-                              BasicBlock *TFEntry) override final;
+  void preProcessRootSpawner(Function &F, BasicBlock *TFEntry) override final;
+  void postProcessRootSpawner(Function &F, BasicBlock *TFEntry) override final;
 
   void processSubTaskCall(TaskOutlineInfo &TOI,
                           DominatorTree &DT) override final;
 
   void postProcessModule() override final;
 
-  LoopOutlineProcessor *getLoopOutlineProcessor(const TapirLoopInfo *TL)
-                          override final;
+  LoopOutlineProcessor *
+  getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
 
   void pushPTXFilename(const std::string &PTXFilename);
 
-  std::unique_ptr<Module>& getLibDeviceModule();
+  llvm::StringRef getGPUArch() const;
+  std::unique_ptr<Module> &getLibDeviceModule();
 
   void pushGlobalVariable(GlobalVariable *GV);
-  bool hasGlobalVariables() const {
-    return !GlobalVars.empty();
-  }
-  int globalVarCount() const {
-    return GlobalVars.size();
-  }
-  void pushSR(Value *SR) {
-    SyncRegList.insert(SR);
-  }
+  bool hasGlobalVariables() const { return !GlobalVars.empty(); }
+  int globalVarCount() const { return GlobalVars.size(); }
+  void pushSR(Value *SR) { SyncRegList.insert(SR); }
 
   void registerLaunchStream(CallInst *CI, AllocaInst *AI) {
-    KernelLaunchToStreamMap.insert(std::pair<CallInst*,AllocaInst*>(CI,AI));
+    KernelLaunchToStreamMap.insert(std::pair<CallInst *, AllocaInst *>(CI, AI));
   }
 
-  AllocaInst* getLaunchStream(CallInst *CI) {
+  AllocaInst *getLaunchStream(CallInst *CI) {
     LaunchToStreamMapTy::iterator it;
     it = KernelLaunchToStreamMap.find(CI);
     if (it != KernelLaunchToStreamMap.end())
       return it->second;
-    else 
+    else
       return nullptr;
   }
 
+private:
+  CudaABIOutputFile generatePTX();
+  CudaABIOutputFile assemblePTXFile(CudaABIOutputFile &PTXFile);
+  CudaABIOutputFile createFatbinaryFile(CudaABIOutputFile &AsmFile);
+  GlobalVariable *embedFatbinary(CudaABIOutputFile &FatbinaryFile);
+  void registerFatbinary(GlobalVariable *RawFatbinary);
+  void finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin);
+  void bindGlobalVariables(Value *CM, IRBuilder<> &B);
+  Function *createCtor(GlobalVariable *Fatbinary, GlobalVariable *Wrapper);
+  Function *createDtor(GlobalVariable *FBHandle);
 
-  private:
-    CudaABIOutputFile generatePTX();
-    CudaABIOutputFile assemblePTXFile(CudaABIOutputFile &PTXFile);
-    CudaABIOutputFile createFatbinaryFile(CudaABIOutputFile &AsmFile);
-    GlobalVariable *embedFatbinary(CudaABIOutputFile &FatbinaryFile);
-    void registerFatbinary(GlobalVariable *RawFatbinary);
-    void finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin);
-    void bindGlobalVariables(Value *CM, IRBuilder<> &B);
-    Function *createCtor(GlobalVariable *Fatbinary, GlobalVariable *Wrapper);
-    Function *createDtor(GlobalVariable *FBHandle);
+  std::unique_ptr<Module> LibDeviceModule;
 
-    std::unique_ptr<Module> LibDeviceModule;
+  typedef std::list<std::string> StringListTy;
+  StringListTy ModulePTXFileList;
+  typedef std::list<GlobalVariable *> GlobalVarListTy;
+  GlobalVarListTy GlobalVars;
 
-    typedef std::list<std::string> StringListTy;
-    StringListTy ModulePTXFileList;
-    typedef std::list<GlobalVariable *> GlobalVarListTy;
-    GlobalVarListTy GlobalVars;
+  typedef std::set<Value *> SyncRegionListTy;
+  SyncRegionListTy SyncRegList;
 
-    typedef std::set<Value*> SyncRegionListTy;
-    SyncRegionListTy SyncRegList;
+  typedef llvm::DenseMap<CallInst *, AllocaInst *> LaunchToStreamMapTy;
+  LaunchToStreamMapTy KernelLaunchToStreamMap;
 
-    typedef llvm::DenseMap<CallInst*,AllocaInst*>  LaunchToStreamMapTy;
-    LaunchToStreamMapTy   KernelLaunchToStreamMap;
+  Module KernelModule;
+  TargetMachine *PTXTargetMachine;
 
-    Module   KernelModule;
-    TargetMachine *PTXTargetMachine;
+  /// Options for this tapir target. This is a pointer but should always be set
+  /// with a call to setOptions(). We could make upstream changes so this is
+  /// passed to the constructor, but that becomes a somewhat invasive change
+  /// that affects many parts of the code, so we avoid it for now.
+  const CudaABIOptions *CudaABIOpts = nullptr;
 };
 
 /// The loop outline process for transforming a Tapir parallel loop
@@ -183,26 +200,21 @@ class CudaLoop : public LoopOutlineProcessor {
 
 private:
   CudaABI *TTarget = nullptr;
-  static unsigned NextKernelID;    // Give the generated kernel a unique ID.
-  unsigned KernelID;               // Unique ID for this transformed loop.
-  std::string KernelName;          // A unique name for the kernel.
-  Module  &KernelModule;           // PTX module holds the generated kernel(s).
+  static unsigned NextKernelID; // Give the generated kernel a unique ID.
+  unsigned KernelID;            // Unique ID for this transformed loop.
+  std::string KernelName;       // A unique name for the kernel.
+  Module &KernelModule;         // PTX module holds the generated kernel(s).
 
   // Cuda/PTX thread index access.
-  Function *CUThreadIdxX  = nullptr,
-           *CUThreadIdxY  = nullptr,
-           *CUThreadIdxZ  = nullptr;
+  Function *CUThreadIdxX = nullptr, *CUThreadIdxY = nullptr,
+           *CUThreadIdxZ = nullptr;
   // Cuda/PTX block index and dimensions access.
-  Function *CUBlockIdxX   = nullptr,
-           *CUBlockIdxY   = nullptr,
-           *CUBlockIdxZ   = nullptr;
-  Function *CUBlockDimX   = nullptr,
-           *CUBlockDimY   = nullptr,
-           *CUBlockDimZ   = nullptr;
+  Function *CUBlockIdxX = nullptr, *CUBlockIdxY = nullptr,
+           *CUBlockIdxZ = nullptr;
+  Function *CUBlockDimX = nullptr, *CUBlockDimY = nullptr,
+           *CUBlockDimZ = nullptr;
   // Cuda/PTX grid dimensions access.
-  Function *CUGridDimX    = nullptr,
-           *CUGridDimY    = nullptr,
-           *CUGridDimZ    = nullptr;
+  Function *CUGridDimX = nullptr, *CUGridDimY = nullptr, *CUGridDimZ = nullptr;
 
   // Cuda thread synchronize
   Function *CUSyncThreads = nullptr;
@@ -224,10 +236,10 @@ private:
   SmallVector<Value *, 5> OrderedInputs;
 
 public:
-  CudaLoop(Module &M,   // Input module (host side)
-           Module &KM,  // Target module for CUDA code
+  CudaLoop(Module &M,                     // Input module (host side)
+           Module &KM,                    // Target module for CUDA code
            const std::string &KernelName, // CUDA kernel name
-           CudaABI *TT, // Target
+           CudaABI *TT,                   // Target
            bool MakeUniqueName = true);
   ~CudaLoop();
 
@@ -238,29 +250,26 @@ public:
                             const SmallVectorImpl<Value *> &LCInputs,
                             const ValueSet &TLInputsFixed) override final;
 
-  unsigned getIVArgIndex(const Function &F, const ValueSet &Args)
-                         const override final;
+  unsigned getIVArgIndex(const Function &F,
+                         const ValueSet &Args) const override final;
 
-  unsigned getLimitArgIndex(const Function &F, const ValueSet &Args)
-                            const override final;
+  unsigned getLimitArgIndex(const Function &F,
+                            const ValueSet &Args) const override final;
 
   std::string getKernelName() const { return KernelName; }
 
-  unsigned getKernelID() const {
-    return KernelID;
-  }
+  unsigned getKernelID() const { return KernelID; }
 
-  void preProcessTapirLoop(TapirLoopInfo &TL,
-                           ValueToValueMapTy &VMap) override;
-  void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo & Out,
+  void preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) override;
+  void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
                           ValueToValueMapTy &VMap) override final;
-  void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo & TOI,
+  void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
                                DominatorTree &DT) override final;
   void transformForPTX(Function &F);
 
   Function *resolveLibDeviceFunction(Function *F, bool enableFastMode);
 };
 
-}
+} // namespace llvm
 
-#endif
+#endif // LLVM_TAPIR_CUDA_ABI_H

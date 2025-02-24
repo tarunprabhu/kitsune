@@ -43,29 +43,26 @@ static cl::opt<TargetLibraryInfoImpl::VectorLibrary> ClVectorLibrary(
                clEnumValN(TargetLibraryInfoImpl::AMDLIBM, "AMDLIBM",
                           "AMD vector math library")));
 
-static cl::opt<TapirTargetID> ClTapirTarget(
-    "tapir-target", cl::Hidden, cl::desc("Target runtime for Tapir"),
-    cl::init(TapirTargetID::OpenCilk),
-    cl::values(clEnumValN(TapirTargetID::None,
-                          "none", "None"),
-               clEnumValN(TapirTargetID::Serial,
-                          "serial", "Serial code"),
-               clEnumValN(TapirTargetID::Cuda,
-                          "cuda", "Cuda (NVPTX)"),
-               clEnumValN(TapirTargetID::Hip,
-                          "hip", "Hip (AMDGPU)"),
-               clEnumValN(TapirTargetID::Lambda,
-                          "lambda", "Lambda"),
-               clEnumValN(TapirTargetID::OMPTask,
-                          "omptask", "OMPTask"),
-               clEnumValN(TapirTargetID::OpenCilk,
-                          "opencilk", "OpenCilk"),
-               clEnumValN(TapirTargetID::OpenMP,
-                          "openmp", "OpenMP"),
-               clEnumValN(TapirTargetID::Qthreads,
-                          "qthreads", "Qthreads"),
-               clEnumValN(TapirTargetID::Realm,
-                          "realm", "Realm")));
+/// Parser for the -tapir-target option to create an optional TapirTargetID.
+struct TapirTargetIDParser : public cl::parser<std::optional<TapirTargetID>> {
+  TapirTargetIDParser(llvm::cl::opt<std::optional<llvm::TapirTargetID>,
+                      false, TapirTargetIDParser> &O) : parser(O) {}
+  bool parse(cl::Option &O, StringRef ArgName, StringRef ArgValue,
+             std::optional<TapirTargetID> &Val) {
+    if (std::optional<TapirTargetID> TT = parseTapirTarget(ArgValue)) {
+      Val = TT;
+      return false;
+    } else {
+      Val = std::nullopt;
+      O.error("invalid value '" + ArgValue + "' in '" + ArgName + "'");
+      return true;
+    }
+  }
+};
+
+static cl::opt<std::optional<TapirTargetID>, false, TapirTargetIDParser>
+    ClTapirTarget("tapir-target", cl::desc("Target runtime for Tapir"),
+                  cl::init(std::optional<TapirTargetID>()));
 
 StringLiteral const TargetLibraryInfoImpl::StandardNames[LibFunc::NumLibFuncs] =
     {
@@ -114,17 +111,6 @@ static const FuncProtoTy Signatures[] = {
 
 static_assert(sizeof Signatures / sizeof *Signatures == LibFunc::NumLibFuncs,
               "Missing library function signatures");
-
-TapirTargetOptions *TapirTargetOptions::clone() const {
-  TapirTargetOptions *New = nullptr;
-  switch (getKind()) {
-  default:
-    llvm_unreachable("Unhandled TapirTargetOption.");
-  case TTO_OpenCilk:
-    New = cast<OpenCilkABIOptions>(this)->cloneImpl();
-  }
-  return New;
-}
 
 static bool hasSinCosPiStret(const Triple &T) {
   // Only Darwin variants have _stret versions of combined trig functions.
@@ -946,8 +932,10 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
 
   TLI.addVectorizableFunctionsFromVecLib(ClVectorLibrary, T);
 
-  TLI.setTapirTarget(ClTapirTarget);
-  TLI.addTapirTargetLibraryFunctions(ClTapirTarget);
+  if (ClTapirTarget) {
+    TLI.setTapirTarget(*ClTapirTarget);
+    TLI.addTapirTargetLibraryFunctions(*ClTapirTarget);
+  }
 }
 
 /// Initialize the set of available library functions based on the specified

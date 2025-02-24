@@ -1,8 +1,8 @@
-# Compiler/linker options for Kokkos mode (-fkokkos). The options added by
-# default are below:
+# Compiler and/or linker options can be added here to add to (or override) those
+# added automatically by Kitsune for 'kokkos mode'. 
 #
-# The driver will add the kokkos libraries to the argument list automatically
-# but you may need to tweak the search paths depending upon your use case.
-# 
 # Other options can be added here as well, but any options not exclusively
-# intended for Kokkos mode should be added to ${KITSUNE_C_FRONTEND}.cfg or ${KITSUNE_CXX_FRONTEND}.cfg.
+# intended for the 'kokkos mode' should be added to the frontend config files
+# (${KITSUNE_C_FRONTEND}.cfg, ${KITSUNE_CXX_FRONTEND}.cfg, ${KITSUNE_Fortran_FRONTEND}.cfg).
+#
+# See clang's documentation for details on the config files.

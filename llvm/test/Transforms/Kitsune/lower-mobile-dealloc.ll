@@ -18,7 +18,7 @@ attributes #0 = { mustprogress nounwind willreturn memory(argmem: readwrite, ina
 attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite, inaccessiblemem: readwrite) }
 
 ; SERIAL-LABEL: @deallocate
-; SERIAL: call void @__kitrt_default_mem_free(ptr {{.+}})
+; SERIAL: call void @free(ptr {{.+}})
 ; SERIAL-NOT: call .+ llvm.kitsune.mobile.free
 
 ; NONE-LABEL: @deallocate

@@ -33,10 +33,21 @@ using namespace llvm;
 
 namespace tapir {
 
+void printCommandLine(ArrayRef<StringRef> Args) {
+  if (Args.size()) {
+    errs() << Args.front();
+    for (size_t i = 1; i < Args.size(); ++i)
+      errs() << " " << Args[i];
+    errs() << "\n";
+  }
+}
+
 Constant *getOrInsertFBGlobal(Module &M, StringRef Name, Type *Ty) {
   return M.getOrInsertGlobal(Name, Ty, [&] {
+    LLVMContext &Ctxt = M.getContext();
+    PointerType *PtrTy = PointerType::getUnqual(Ctxt);
     return new GlobalVariable(M, Ty, true, GlobalValue::InternalLinkage,
-                              nullptr, Name, nullptr);
+                              ConstantPointerNull::get(PtrTy), Name, nullptr);
   });
 }
 
@@ -57,11 +68,11 @@ Constant *createConstantStr(const std::string &Str, Module &M,
     GV->setSection(SectionName);
     // Mark the address as used which make sure that this section isn't
     // merged and we will really have it in the object file.
-    GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::None);
+    GV->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
   }
 
   if (Alignment)
-    GV->setAlignment(llvm::Align(Alignment));
+    GV->setAlignment(Align(Alignment));
 
   Constant *CS = ConstantExpr::getGetElementPtr(GV->getValueType(), GV, Zeros);
   return CS;

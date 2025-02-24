@@ -194,23 +194,6 @@ static std::tuple<ELFKind, uint16_t, uint8_t> parseEmulation(Ctx &ctx,
   return std::make_tuple(ret.first, ret.second, osabi);
 }
 
-TapirTargetID parseTapirTarget(const  llvm::StringRef &Target) {
-  // Otherwise use the runtime specified by -ftapir.
-  TapirTargetID TapirTarget = llvm::StringSwitch<TapirTargetID>(Target)
-      .Case("none", TapirTargetID::None)
-      .Case("serial", TapirTargetID::Serial)
-      .Case("cuda", TapirTargetID::Cuda)
-      .Case("hip", TapirTargetID::Hip)
-      .Case("lambda", TapirTargetID::Lambda)
-      .Case("omptask", TapirTargetID::OMPTask)
-      .Case("opencilk", TapirTargetID::OpenCilk)
-      .Case("openmp", TapirTargetID::OpenMP)
-      .Case("qthreads", TapirTargetID::Qthreads)
-      .Case("realm", TapirTargetID::Realm)
-      .Default(TapirTargetID::Last_TapirTargetID);
-
-  return TapirTarget;
-}
 // Returns slices of MB by parsing MB as an archive file.
 // Each slice consists of a member file in the archive.
 std::vector<std::pair<MemoryBufferRef, uint64_t>> static getArchiveMembers(
@@ -1269,6 +1252,18 @@ static void readConfigs(Ctx &ctx, opt::InputArgList &args) {
   ctx.e.verbose = args.hasArg(OPT_verbose);
   ctx.e.vsDiagnostics =
       args.hasArg(OPT_visual_studio_diagnostics_format, false);
+
+  // Parse Kitsune-specific arguments that are passed here.
+  if (opt::Arg* arg = args.getLastArg(OPT_tapir_target)) {
+    config->tapirTarget = parseTapirTarget(arg->getValue());
+    if (config->tapirTarget.has_value()) {
+      config->opencilkABIBitcodeFile =
+          args.getLastArgValue(OPT_opencilk_abi_bitcode);
+    } else {
+      error(Twine("invalid value '") + arg->getValue() + "' in '" +
+            arg->getSpelling() + "'");
+    }
+  }
 
   ctx.arg.allowMultipleDefinition =
       hasZOption(args, "muldefs") ||

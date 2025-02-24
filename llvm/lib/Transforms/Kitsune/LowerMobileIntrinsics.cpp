@@ -23,62 +23,69 @@ using namespace llvm;
 
 #define DEBUG_TYPE "lower-mobile-intrinsics"
 
+/// The various memory (de)allocator classes.
+enum class AllocatorKind {
+  None,    /// Don't replace the intrinsic
+  Cuda,    /// Use Kitsune's cuda (de)allocator
+  Default, /// Use Kitsune's default (de)allocator
+  Hip,     /// Use Kitsune's hip (de)allocator
+  System,  /// Use the system memory allocator. Don't use Kitsune's
+};
+
+/// TODO: Currently, this is very naive and simply looks at the tapir target
+/// set in the TargetLibraryInfo. This will not work correctly in multi-target
+/// mode. But that requires a more sophisticated analysis which should be
+/// implemented eventually.
+static AllocatorKind determineAllocatorKind(TargetLibraryInfo &tli,
+                                            CallInst &) {
+  // FIXME: At some point, getTapirTarget should return nullptr. If it does,
+  // we should use the system allocator because libkitrt will not be linked.
+  // Otherwise, we can use the default memory allocator from Kitsune's
+  // runtime.
+  switch (tli.getTapirTarget()) {
+  case TapirTargetID::None:
+    return AllocatorKind::None;
+  case TapirTargetID::Cuda:
+    return AllocatorKind::Cuda;
+  case TapirTargetID::Hip:
+    return AllocatorKind::Hip;
+  case TapirTargetID::OpenCilk:
+    return AllocatorKind::Default;
+  case TapirTargetID::Serial:
+    return AllocatorKind::System;
+  case TapirTargetID::Last_TapirTargetID:
+    return AllocatorKind::System;
+  default:
+    llvm_unreachable("determineAllocator: TapirTarget not handled");
+  }
+}
+
 class LowerMobileAllocations {
 private:
   TargetLibraryInfo &tli;
 
 private:
-  /// The allocator to use when lowering.
-  enum class KitrtAllocator {
-    None,    /// Don't use replace the intrinsic
-    Cuda,    /// Use Kitsune's cuda allocator
-    Default, /// Use Kitsune's default allocator
-    Hip,     /// Use Kitsune's hip allocator
-    System,  /// Use the system memory allocator. Don't use Kitsune's.
-  };
-
-private:
-  /// TODO: Currently, this is very naive and simply looks at the tapir target
-  /// set in the TargetLibraryInfo. This will not work correctly in multi-target
-  /// mode. But that requires a more sophisticated analysis which should be
-  /// implemented eventually.
-  KitrtAllocator determineAllocatorKind(CallInst &) {
-    switch (tli.getTapirTarget()) {
-    case TapirTargetID::Cuda:
-      return KitrtAllocator::Cuda;
-    case TapirTargetID::Hip:
-      return KitrtAllocator::Hip;
-    case TapirTargetID::None:
-      return KitrtAllocator::None;
-    case TapirTargetID::Last_TapirTargetID:
-      return KitrtAllocator::System;
-    default:
-      return KitrtAllocator::Default;
-    }
-  }
-
   /// Replace the call to a kitsune mobile allocation instruction with a call to
   /// an appropriate kitrt allocator. Returns true if the call was replaced,
   /// false otherwise.
   bool replace(CallInst &call) {
     // Do some (potentially not cheap) analysis to decide what would be a good
     // allocator to use here.
-    KitrtAllocator kind = determineAllocatorKind(call);
     StringRef fname = "";
-    switch (kind) {
-    case KitrtAllocator::Cuda:
+    switch (determineAllocatorKind(tli, call)) {
+    case AllocatorKind::Cuda:
       fname = "__kitcuda_mem_alloc_managed";
       break;
-    case KitrtAllocator::Hip:
+    case AllocatorKind::Hip:
       fname = "__kithip_mem_alloc_managed";
       break;
-    case KitrtAllocator::Default:
+    case AllocatorKind::Default:
       fname = "__kitrt_default_mem_alloc";
       break;
-    case KitrtAllocator::System:
+    case AllocatorKind::System:
       fname = "malloc";
       break;
-    case KitrtAllocator::None:
+    case AllocatorKind::None:
       return false;
     }
 
@@ -86,6 +93,8 @@ private:
     LLVMContext &ctxt = mod.getContext();
     Type *i64 = Type::getInt64Ty(ctxt);
     Type *ptr = call.getType();
+
+    // FIXME: For malloc, maybe we should use LLVM's malloc intrinsic instead.
     FunctionType *fty = FunctionType::get(ptr, {i64}, false);
     auto *fn = cast<Function>(mod.getOrInsertFunction(fname, fty).getCallee());
 
@@ -127,57 +136,27 @@ private:
   TargetLibraryInfo &tli;
 
 private:
-  /// The deallocator to use when lowering.
-  enum class KitrtDeallocator {
-    None,    /// Don't replace the intrinsic
-    Cuda,    /// Use Kitsune's cuda deallocator
-    Default, /// Use the Kitsune's default deallocator
-    Hip,     /// Use Kitsune's hip deallocator
-    System,  /// Use the system's deallocator. Don't use Kitsune's
-  };
-
-private:
-  /// TODO: Currently, this is very naive and simply looks at the tapir target
-  /// set in the TargetLibraryInfo. This will not work correctly in multi-target
-  /// mode. But that requires a more sophisticated analysis which should be
-  /// implemented eventually.
-  KitrtDeallocator determineDeallocatorKind(CallInst &) {
-    switch (tli.getTapirTarget()) {
-    case TapirTargetID::Cuda:
-      return KitrtDeallocator::Cuda;
-    case TapirTargetID::Hip:
-      return KitrtDeallocator::Hip;
-    case TapirTargetID::None:
-      return KitrtDeallocator::None;
-    case TapirTargetID::Last_TapirTargetID:
-      return KitrtDeallocator::System;
-    default:
-      return KitrtDeallocator::Default;
-    }
-  }
-
   /// Replace the call to a kitsune mobile deallocation instruction with a call
   /// to an appropriate kitrt deallocator. Returns true if the call was
   /// replaced, false otherwise.
   bool replace(CallInst &call) {
     // Do some (potentially not cheap) analysis to decide what would be a good
     // allocator to use here.
-    KitrtDeallocator kind = determineDeallocatorKind(call);
     StringRef fname = "";
-    switch (kind) {
-    case KitrtDeallocator::Cuda:
+    switch (determineAllocatorKind(tli, call)) {
+    case AllocatorKind::Cuda:
       fname = "__kitcuda_mem_free";
       break;
-    case KitrtDeallocator::Hip:
+    case AllocatorKind::Hip:
       fname = "__kithip_mem_free";
       break;
-    case KitrtDeallocator::Default:
+    case AllocatorKind::Default:
       fname = "__kitrt_default_mem_free";
       break;
-    case KitrtDeallocator::System:
+    case AllocatorKind::System:
       fname = "free";
       break;
-    case KitrtDeallocator::None:
+    case AllocatorKind::None:
       return false;
     }
 

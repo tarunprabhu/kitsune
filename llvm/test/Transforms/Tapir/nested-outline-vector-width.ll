@@ -1,5 +1,5 @@
-; RUN: opt < %s -passes="loop-spawning,function(simplifycfg),cgscc(function-attrs),tapir2target" -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s
-; RUN: opt < %s -passes="loop-spawning,function(simplifycfg),cgscc(function-attrs),tapir2target,always-inline" -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s
+; RUN: opt < %s -tapir-target=opencilk -passes="loop-spawning,function(simplifycfg),cgscc(function-attrs),tapir2target" -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s
+; RUN: opt < %s -passes="loop-spawning,function(simplifycfg),cgscc(function-attrs),tapir2target,always-inline" -tapir-target=opencilk -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s
 
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"

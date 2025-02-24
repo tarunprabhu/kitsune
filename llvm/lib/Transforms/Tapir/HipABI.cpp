@@ -125,93 +125,12 @@ using namespace llvm;
 static const std::string HIPABI_PREFIX = "__hipabi";
 static const std::string HIPABI_KERNEL_NAME_PREFIX = HIPABI_PREFIX + ".kern.";
 
-// Transformation-specific command line arguments.
-//
-//  Usage: -mllvm -hipabi-[option...]
-//
-#ifndef HIPABI_DEFAULT_ARCH
-#define HIPABI_DEFAULT_ARCH "gfx90a"
-#endif
-
-/// ## HIPABI Transformation Command Line Options ##
-///
-/// All of the transformation's command line options must be
-/// passed using the the `-mllvm` as the leading flag.  All
-/// transform options should have `-hipabi-` as the leading
-/// string.  A summary of these options is provided below.
-///
-///   * `-hipabi-arch=target`: The target AMDGPU architecture
-///     to generate code for.  This directly matches the
-///     [AMDGPU processor
-///     targets](https://llvm.org/docs/AMDGPUUsage.html#id112).
-///
-///   * `-hipabi-opt-level=[0,1,2,3]`: Set the optimization
-///     level for transformation.  This corresponds directly
-///     to standard optimization levels but will be applied
-///     to the HIP-/GPU-centric code created by the
-///     transformation.  Note that this transformation
-///     occurs *after* an existing (in progress) optimization
-///     pipeline has occurred on the original input code
-///     module.  This currently defaults to level 2.
-///
-///   * `-hipabi-host-opt-level=[0,1,2,3]`: Set the optimization
-///     level to use for the final host-side module after the HIP
-///     transformation has completed.  Even though the host code
-///     has already been through a series of optimizations this
-///     option enables a second series of passes over the code
-///     after the transformation has completed.  At present there
-///     are unlikely to be significant gains from this.  As a
-///     result this defaults to level 0, which disables the
-///     extra pass entirely.
-///
-///   * `-hipabi-prefetch`: Enable/Disable the generation of
-///     data prefetch calls prior to the kernel launch. This
-///     is enabled by default and typically will enable better
-///     performance given the current use of managed memory
-///     allocations (although HIP currently has some poor
-///     performance with managed memory in general).
-///
-///   * `-hipabi-max-threads-per-blk`: Set the maximum number
-///     of threads that can run within a block (a la CUDA).
-///     Note that this value has to be coordinated with the
-///     runtime's default settings as a mismatch can result
-///     in a kernel that fails to launch (currently a very
-///     opaque error message will be reported by HIP if this
-///     occurs).  This is just the maximum allowed value, not
-///
-///   * `-hipabi-xnack`: Enable XNACK code generation. This
-///     is off by default.  XNACK is tricky and unclear in
-///     terms of advantages it can (might?) provide without
-///     digging into low-level system configuration details.
-///     At present we've found little advantage to enabling
-///     it (but that might change as things mature w/ HIP and
-///     ROCm). Default value is disabled/false.
-///
-///   * `-hipabi-use-sramecc`: Enable SRAMECC support in the
-///     generated code.  Default value is disabled/false.
-///
-///   * `-hipabi-wavefront64`: Enable/Disable the use of 64
-///     wavefronts.  Default is enabled.
-///
-///   * `-hipabi-default-grainsize`: EXPERIMENTAL -- control the
-///     transform's grainsize.  By default this is set to 1 and
-///     it is not recommended to change this unless you are
-///     extremely familiar with the code generation details and
-///     the implications for GPU code execution.
-///
-///   * `-hipabi-rocm-abi`: The ROCm ABI version to target.  This
-///     defaults to version 4 and it not suggested that it be
-///     changed unless you are experimenting with details of
-///     ROCm and HIP.
-///
-///   * `hipabi-keep-files`: The transform has the ability to
-///     save the various stages of the IR during execution.
-///     In addition, some files are created and removed during
-///     execution.  This option will enable all these files to
-///     remain (or be created) during execution.  This is
-///     obviously helpful if you are debugging the transform.
-///
 namespace {
+
+cl::opt<bool>
+    ClPrintCommands("hipabi-###", cl::init(false), cl::NotHidden,
+                    cl::desc("Print the command lines for any external "
+                             "commands called by the hip tapir target"));
 
 cl::opt<std::string> GPUArch(
     "hipabi-arch", cl::init(KITSUNE_HIP_ARCH_DEFAULT), cl::NotHidden,
@@ -766,7 +685,7 @@ unsigned HipLoop::NextKernelID = 0;
 
 HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
                  HipABI *LoopTarget)
-    : LoopOutlineProcessor(M, KModule), TTarget(LoopTarget), KernelName(Name),
+    : LoopOutlineProcessor(M, KModule), TT(LoopTarget), KernelName(Name),
       KernelModule(KModule) {
 
   std::string UN = KernelName + "." + Twine(NextKernelID).str();
@@ -986,7 +905,7 @@ void HipLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
         NewGV->setExternallyInitialized(true);
         NewGV->setVisibility(GlobalValue::ProtectedVisibility);
         // Flag the GV for post-processing (e.g., insert copy calls).
-        TTarget->pushGlobalVariable(GV);
+        TT->pushGlobalVariable(GV);
       }
 
       // HIP (appears) to require protected visibility!  Without
@@ -1004,7 +923,7 @@ void HipLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
   LLVM_DEBUG(dbgs() << "\t*- resolving functions for kernel module...\n");
   for (GlobalValue *G : UsedGlobalValues) {
     if (Function *F = dyn_cast<Function>(G)) {
-      Function *DF = resolveDeviceFunction(F, *TTarget->getLibDeviceModule(),
+      Function *DF = resolveDeviceFunction(F, *TT->getLibDeviceModule(),
                                            KernelModule);
       if (not DF) {
         LLVM_DEBUG(dbgs() << "\t\t\t* adding declaration for function: '"
@@ -1102,7 +1021,7 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   PHINode *PrimaryIV = cast<PHINode>(VMap[TLI.getPrimaryInduction().first]);
   Value *PrimaryIVInput = PrimaryIV->getIncomingValueForBlock(Entry);
 
-  TTarget->pushSR(T->getDetach()->getSyncRegion());
+  TT->pushSR(T->getDetach()->getSyncRegion());
 
   // We no longer need the cloned sync region.
   Instruction *ClonedSyncReg =
@@ -1272,7 +1191,7 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   assert(ClonedCond->getOperand(TripCountIdx) == End &&
          "End argument not used in condition!");
   ClonedCond->setOperand(TripCountIdx, ThreadEnd);
-  TTarget->saveKernel(KernelF);
+  TT->saveKernel(KernelF);
 }
 
 std::unique_ptr<Module> HipABI::loadBCFile(const std::string &BCFile) {
@@ -1345,7 +1264,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // Make a pass to prep for GCN code generation...
   LLVM_DEBUG(dbgs() << "\t*- transform kernel for GCN code gen.\n");
   Function &F = *KernelModule.getFunction(KernelName.c_str());
-  transformForGCN(F, *TTarget->getLibDeviceModule(), KernelModule);
+  transformForGCN(F, *TT->getLibDeviceModule(), KernelModule);
 
   // Create two builders -- one inserts code into the entry block
   // (e.g., new "up-front" allocas) and the other is for generating
@@ -1476,7 +1395,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   LLVM_DEBUG(dbgs() << "\t\t+- registering launch stream:\n"
                     << "\t\t\tcall: " << *LaunchStream << "\n"
                     << "\t\t\tstream: " << *HipStream << "\n");
-  TTarget->registerLaunchStream(LaunchStream, HipStream);
+  TT->registerLaunchStream(LaunchStream, HipStream);
 
   TOI.ReplCall->eraseFromParent();
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
@@ -1577,6 +1496,14 @@ HipABI::HipABI(Module &InputModule)
 }
 
 HipABI::~HipABI() { /* no-op */ }
+
+void HipABI::setOptions(const TapirTargetOptions &Options) {
+  assert(isa<HipABIOptions>(Options) &&
+         "Must set HipABIOptions on HipABI tapir target");
+  // The options object is owned by the TargetLibraryInfo object which is
+  // guaranteed to live at least as long as this TapirTarget.
+  HipABIOpts = cast<HipABIOptions>(&Options);
+}
 
 std::unique_ptr<Module> &HipABI::getLibDeviceModule() {
 
@@ -1890,41 +1817,41 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   // TODO: The lld invocation below is unix-specific...
   auto LLD = sys::findProgramByName("lld");
   if ((EC = LLD.getError()))
-    report_fatal_error("executable 'lld' not found! "
-                       "check your path?");
-  opt::ArgStringList LDDArgList;
-  LDDArgList.push_back(LLD->c_str());
-  LDDArgList.push_back("-flavor");
-  LDDArgList.push_back("gnu");
-  LDDArgList.push_back("-m");
-  LDDArgList.push_back("elf64_amdgpu");
-  LDDArgList.push_back("--no-undefined");
-  LDDArgList.push_back("-shared");
-  // LDDArgList.push_back("--eh-frame-hdr");
-  LDDArgList.push_back("--plugin-opt=-amdgpu-internalize-symbols");
-  LDDArgList.push_back("--plugin-opt=-amdgpu-early-inline-all=true");
-  LDDArgList.push_back("--plugin-opt=-amdgpu-function-calls=false");
+    report_fatal_error("executable 'lld' not found! check your path?");
+  opt::ArgStringList LLDArgList;
+  LLDArgList.push_back(LLD->c_str());
+  LLDArgList.push_back("-flavor");
+  LLDArgList.push_back("gnu");
+  LLDArgList.push_back("-m");
+  LLDArgList.push_back("elf64_amdgpu");
+  LLDArgList.push_back("--no-undefined");
+  LLDArgList.push_back("-shared");
+  // LLDArgList.push_back("--eh-frame-hdr");
+  LLDArgList.push_back("--plugin-opt=-amdgpu-internalize-symbols");
+  LLDArgList.push_back("--plugin-opt=-amdgpu-early-inline-all=true");
+  LLDArgList.push_back("--plugin-opt=-amdgpu-function-calls=false");
   std::string mcpu_arg = "-plugin-opt=mcpu=" + GPUArch;
-  LDDArgList.push_back(mcpu_arg.c_str());
+  LLDArgList.push_back(mcpu_arg.c_str());
   std::string optlevel_arg = "--plugin-opt=O" + std::to_string(OptLevel);
-  LDDArgList.push_back(optlevel_arg.c_str());
-  LDDArgList.push_back("-o");
+  LLDArgList.push_back(optlevel_arg.c_str());
+  LLDArgList.push_back("-o");
   std::string outfile = LinkedObjFile->getFilename().str();
-  LDDArgList.push_back(outfile.c_str());
+  LLDArgList.push_back(outfile.c_str());
   std::string infile = ObjFile->getFilename().str();
-  LDDArgList.push_back(infile.c_str());
-  LDDArgList.push_back(nullptr);
+  LLDArgList.push_back(infile.c_str());
+  LLDArgList.push_back(nullptr);
 
-  auto LDDArgs = toStringRefArray(LDDArgList.data());
+  std::vector<StringRef> LLDArgs = toStringRefArray(LLDArgList.data());
+  if (ClPrintCommands)
+    tapir::printCommandLine(LLDArgs);
   LLVM_DEBUG(dbgs() << "hipabi: ld.lld command line:\n";
-             unsigned c = 0; for (auto dbg_arg
-                                  : LDDArgs) {
+             unsigned c = 0; for (auto dbg_arg : LLDArgs) {
                dbgs() << "\t" << c << ". " << dbg_arg << "\n";
                c++;
              } dbgs() << "\n";);
   std::string ErrMsg;
   bool ExecFailed;
-  int ExecStat = sys::ExecuteAndWait(*LLD, LDDArgs, std::nullopt, {},
+  int ExecStat = sys::ExecuteAndWait(*LLD, LLDArgs, std::nullopt, {},
                                      0, // secs to wait -- 0 --> unlimited.
                                      0, // memory limit -- 0 --> unlimited.
                                      &ErrMsg, &ExecFailed);

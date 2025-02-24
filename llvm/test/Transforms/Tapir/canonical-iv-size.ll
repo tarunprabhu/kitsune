@@ -1,7 +1,7 @@
 ; Check that LoopSpawning transforms Tapir loops where the canonical
 ; induction variable does not necessarily have the widest type.
 ;
-; RUN: opt < %s -passes='loop-spawning' -S | FileCheck %s
+; RUN: opt < %s -passes='loop-spawning' -tapir-target=opencilk -S | FileCheck %s
 
 %struct.sphere = type { %struct.vector, %struct.vector, %struct.vector, float, float, %struct.material }
 %struct.vector = type { float, float, float }

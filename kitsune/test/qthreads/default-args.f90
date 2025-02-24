@@ -1,0 +1,18 @@
+! REQUIRES: kitfc
+
+! This has not been checked, so force it to fail if we ever resurrect this
+! tapir target just so we are forced to take a look at this.
+!
+! RUN: false
+
+! RUN: %kitfc -### -ftapir=realm %s 2>&1 | FileCheck %s
+
+! CHECK: -fc1
+! CHECK-SAME: -ftapir=realm
+
+! It is a pain to check for the actual linker executable. There are far too
+! many options depending on the platform, so just check the next line for the
+! expected linker flags.
+! CHECK-NEXT: -lrealm
+! CHECK-SAME: -lrealm-abi
+! CHECK-SAME: -lkitrt

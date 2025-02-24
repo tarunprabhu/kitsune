@@ -23,7 +23,6 @@
 #include "ConstantEmitter.h"
 #include "PatternInit.h"
 #include "TargetInfo.h"
-#include "kitsune/Config/config.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"

@@ -9172,14 +9172,13 @@ def ftapir_cuda_arch_EQ : Joined<["-"], "ftapir-cuda-arch=">,
   Default<"sm_80">,
   Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80,sm_86,sm_90">;
 
-// FIXME: Compile a list of supported architectures for Hip.
 // NOTE: The default must be kept in sync iwth the KITSUNE_HIP_ARCH_DEFAULT
 // cmake variable set in kitsune/CMakeLists.txt.
 def ftapir_hip_arch_EQ : Joined<["-"], "ftapir-hip-arch=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   HelpText<"The AMDGPU architecture for the hip tapir target">,
   Default<"gfx90a">,
-  Values<"gfx90a">;
+  Values<"gfx906,gfx908,gfx90a,gfx90c,gfx942">;
 
 // There is a fair bit of logic that looks for the correct bitcode file to use
 // depending on the current target. While that could be internalized, having

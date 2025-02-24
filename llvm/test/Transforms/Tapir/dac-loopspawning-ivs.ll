@@ -3,7 +3,7 @@
 ; Credit to Guy Blelloch for providing the original source code for
 ; this test.
 
-; RUN: opt < %s -passes='loop-spawning' -S | FileCheck %s
+; RUN: opt < %s -passes='loop-spawning' -tapir-target=opencilk -S | FileCheck %s
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 

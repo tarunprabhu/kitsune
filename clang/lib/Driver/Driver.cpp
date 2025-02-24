@@ -110,16 +110,48 @@ using namespace clang::driver;
 using namespace clang;
 using namespace llvm::opt;
 
-static void CheckKitsuneOptions(const Driver& D,
-                                const ArgList& Args,
-                                DiagnosticsEngine& Diags) {
-  // Check that the -ftapir flag gets a valid value. This stops us from
+bool driver::IsKitsuneFrontend(StringRef ProgName) {
+  // Yes, the name of the compiler is actually the "ModeSuffix". Don't ask ...
+  std::string Suffix =
+      ToolChain::getTargetAndModeFromProgramName(ProgName).ModeSuffix;
+  return Suffix == KITSUNE_C_FRONTEND || Suffix == KITSUNE_CXX_FRONTEND ||
+         Suffix == KITSUNE_Fortran_FRONTEND;
+}
+
+static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
+                                DiagnosticsEngine &Diags) {
+  // If this is not a Kitsune frontend, Kitsune options are not allowed.
+  if (!D.IsKitsuneFrontend()) {
+    for (Arg *A : Args.filtered(options::OPT_kitsune_Group)) {
+      D.Diag(diag::err_drv_kitsune_frontend_only) << A->getSpelling();
+      return;
+    }
+  }
+
+  // Check that the -ftapir flag has a valid value. This stops us from
   // reporting multiple errors because the flag is examined in several places.
   if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ)) {
-    if (not parseTapirTarget(Args))
+    if (!parseTapirTarget(*A))
       Diags.Report(diag::err_drv_invalid_value)
           << A->getAsString(Args) << A->getValue();
+
+    if (Args.getLastArg(options::OPT_fopenmp_targets_EQ))
+      Diags.Report(clang::diag::err_drv_kitsune_openmp_offload);
   }
+
+  // Check that the -ftapir-cuda-arch option has a valid value. If an empty
+  // string is returned, the option has an invalid value.
+  if (const Arg *A = Args.getLastArg(options::OPT_ftapir_cuda_arch_EQ))
+    if (!parseTapirCudaArch(*A).size())
+      Diags.Report(diag::err_drv_invalid_value)
+          << A->getAsString(Args) << A->getValue();
+
+  // Check that the -ftapir-cuda-arch option has a valid value. If an empty
+  // string is returned, the option has an invalid value.
+  if (const Arg *A = Args.getLastArg(options::OPT_ftapir_hip_arch_EQ))
+    if (!parseTapirHipArch(*A).size())
+      Diags.Report(diag::err_drv_invalid_value)
+          << A->getAsString(Args) << A->getValue();
 }
 
 static std::optional<llvm::Triple> getOffloadTargetTriple(const Driver &D,
@@ -1739,6 +1771,10 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
     }
   }
 
+  // This has to be done here at the latest because the line below moves Args
+  // into UArgs. C++ is (*#$(*&$!))
+  CheckKitsuneOptions(*this, Args, Diags);
+
   std::unique_ptr<llvm::opt::InputArgList> UArgs =
       std::make_unique<InputArgList>(std::move(Args));
 
@@ -1818,8 +1854,6 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
       break;
     }
   }
-
-  CheckKitsuneOptions(*this, Args, Diags);
 
   // The compilation takes ownership of Args.
   Compilation *C = new Compilation(*this, TC, UArgs.release(), TranslatedArgs,
@@ -7079,14 +7113,6 @@ llvm::StringRef clang::driver::getDriverMode(StringRef ProgName,
 }
 
 bool driver::IsClangCL(StringRef DriverMode) { return DriverMode == "cl"; }
-
-bool driver::IsKitsuneFrontend(StringRef ProgName) {
-  // Yes, the name of the compiler is actually the "ModeSuffix". Don't ask ...
-  std::string Suffix =
-      ToolChain::getTargetAndModeFromProgramName(ProgName).ModeSuffix;
-  return Suffix == KITSUNE_C_FRONTEND || Suffix == KITSUNE_CXX_FRONTEND ||
-         Suffix == KITSUNE_Fortran_FRONTEND;
-}
 
 llvm::Error driver::expandResponseFiles(SmallVectorImpl<const char *> &Args,
                                         bool ClangCLMode,

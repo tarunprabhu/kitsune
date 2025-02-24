@@ -233,21 +233,10 @@ namespace options {
   static unsigned time_trace_granularity = 500;
 
   // Tapir lowering options.
-  static TapirTargetID tapir_target = TapirTargetID::Last_TapirTargetID;
+  // FIXME: Instead of just the OpenCilkABIBitcode file, we may should either
+  // have an options object for the various tapir targets.
+  static std::optional<TapirTargetID> tapir_target = std::nullopt;
   static std::string opencilk_abi_bitcode_file;
-
-  static TapirTargetID parseTapirTarget(StringRef tapirTarget) {
-    return StringSwitch<TapirTargetID>(tapirTarget)
-        .Case("none", TapirTargetID::None)
-        .Case("serial", TapirTargetID::Serial)
-        .Case("cuda", TapirTargetID::Cuda)
-        .Case("hip", TapirTargetID::Hip)
-        .Case("opencilk", TapirTargetID::OpenCilk)
-        .Case("openmp", TapirTargetID::OpenMP)
-        .Case("qthreads", TapirTargetID::Qthreads)
-        .Case("realm", TapirTargetID::Realm)
-        .Default(TapirTargetID::Last_TapirTargetID);
-  }
 
   static void process_plugin_option(const char *opt_)
   {
@@ -1010,8 +999,8 @@ static std::unique_ptr<LTO> createLTO(IndexWriteCallback OnIndexWrite,
     ltoKind =
         options::thinlto ? LTO::LTOK_UnifiedThin : LTO::LTOK_UnifiedRegular;
 
-  if (options::tapir_target != TapirTargetID::Last_TapirTargetID) {
-    Conf.TapirTarget = options::tapir_target;
+  if (options::tapir_target)
+    Conf.TapirTarget = *options::tapir_target;
     Conf.OpenCilkABIBitcodeFile = options::opencilk_abi_bitcode_file;
   }
 

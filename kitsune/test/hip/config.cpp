@@ -19,6 +19,6 @@
 // It is a pain to check for the actual linker executable. There are far too
 // many options depending on the platform, so just check the next line for the
 // expected linker flags.
-// CHECK-CUSTOM: "-some_linker_flag"
+// CHECK-CUSTOM-NEXT: "-some_linker_flag"
 // CHECK-CUSTOM-SAME: -lkitrt
 // CHECK-CUSTOM-SAME: "-lamdhip64"

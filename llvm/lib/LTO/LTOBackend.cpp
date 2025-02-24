@@ -44,6 +44,7 @@
 #include "llvm/TargetParser/SubtargetFeature.h"
 #include "llvm/Transforms/IPO/WholeProgramDevirt.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
+#include "llvm/Transforms/Tapir/TapirTargets.h"
 #include "llvm/Transforms/Utils/FunctionImportUtils.h"
 #include "llvm/Transforms/Utils/SplitModule.h"
 #include <optional>
@@ -77,6 +78,32 @@ static cl::opt<bool> ThinLTOAssumeMerged(
 
 namespace llvm {
 extern cl::opt<bool> NoPGOWarnMismatch;
+}
+
+static void setupTapirProperties(TargetLibraryInfoImpl &TLII,
+                                 const Config &Conf) {
+  if (std::optional<TapirTargetID> TT = Conf.TapirTarget) {
+    TLII.setTapirTarget(*TT);
+    switch (*TT) {
+    case TapirTargetID::Cuda:
+    case TapirTargetID::Hip:
+      // FIXME: Support adding options for the cuda and hip tapir targets for
+      // other targets, we don't have anything to do.
+      report_fatal_error(
+          "NOT IMPLEMENTED: Options for cuda and hip ABI in LTO");
+      break;
+    case TapirTargetID::OpenCilk: {
+      std::unique_ptr<OpenCilkABIOptions> Opts(new OpenCilkABIOptions());
+      Opts->setRuntimeBCPath(Conf.OpenCilkABIBitcodeFile);
+      TLII.setTapirTargetOptions(std::move(Opts));
+      break;
+    }
+    default:
+      llvm_unreachable("codegen: Tapir target not handled");
+      break;
+    }
+    TLII.addTapirTargetLibraryFunctions();
+  }
 }
 
 [[noreturn]] static void reportOpenError(StringRef Path, Twine Msg) {
@@ -233,11 +260,6 @@ createTargetMachine(const Config &Conf, const Target *TheTarget, Module &M) {
   return TM;
 }
 
-static bool hasTapirTarget(const Config &Conf) {
-  return (Conf.TapirTarget != TapirTargetID::Last_TapirTargetID) &&
-         (Conf.TapirTarget != TapirTargetID::None);
-}
-
 static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
                            unsigned OptLevel, bool IsThinLTO,
                            ModuleSummaryIndex *ExportSummary,
@@ -282,10 +304,7 @@ static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
 
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
       new TargetLibraryInfoImpl(Triple(TM->getTargetTriple())));
-  TLII->setTapirTarget(Conf.TapirTarget);
-  TLII->setTapirTargetOptions(
-      std::make_unique<OpenCilkABIOptions>(Conf.OpenCilkABIBitcodeFile));
-  TLII->addTapirTargetLibraryFunctions();
+  setupTapirProperties(*TLII, Conf);
   if (Conf.Freestanding)
     TLII->disableAllFunctions();
   FAM.registerPass([&] { return TargetLibraryAnalysis(*TLII); });
@@ -340,10 +359,10 @@ static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
     }
   } else if (IsThinLTO) {
     MPM.addPass(PB.buildThinLTODefaultPipeline(OL, ImportSummary,
-                                               hasTapirTarget(Conf)));
+                                               Conf.TapirTarget.has_value()));
   } else {
     MPM.addPass(PB.buildLTODefaultPipeline(OL, ExportSummary,
-                                           hasTapirTarget(Conf)));
+                                           Conf.TapirTarget.has_value()));
   }
 
   if (!Conf.DisableVerify)
@@ -447,10 +466,7 @@ static void codegen(const Config &Conf, TargetMachine *TM,
 
   legacy::PassManager CodeGenPasses;
   TargetLibraryInfoImpl TLII(Triple(Mod.getTargetTriple()));
-  TLII.setTapirTarget(Conf.TapirTarget);
-  TLII.setTapirTargetOptions(
-      std::make_unique<OpenCilkABIOptions>(Conf.OpenCilkABIBitcodeFile));
-  TLII.addTapirTargetLibraryFunctions();
+  setupTapirProperties(TLII, Conf);
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(TLII));
   // No need to make index available if the module is empty.
   // In theory these passes should not use the index for an empty

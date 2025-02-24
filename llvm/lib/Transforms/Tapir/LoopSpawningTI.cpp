@@ -487,10 +487,11 @@ public:
   LoopSpawningImpl(
       Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
       ScalarEvolution &SE, AssumptionCache &AC, TargetTransformInfo &TTI,
-      TapirTargetID Target, OptimizationRemarkEmitter &ORE,
+      TargetLibraryInfo &TLI, TapirTargetID Target,
+      OptimizationRemarkEmitter &ORE,
       std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets)
-      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), ORE(ORE),
-        Targets(Targets) {}
+      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TLI(TLI),
+        ORE(ORE), Targets(Targets) {}
 
   ~LoopSpawningImpl() {
     for (TapirLoopInfo *TL : TapirLoops)
@@ -604,6 +605,7 @@ private:
   ScalarEvolution &SE;
   AssumptionCache &AC;
   TargetTransformInfo &TTI;
+  TargetLibraryInfo &TLI;
   OptimizationRemarkEmitter &ORE;
   std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets;
 
@@ -955,7 +957,7 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
     }
     return nullptr;
   }
- 
+
   if (!isa<BranchInst>(Preheader->getTerminator())) {
     LLVM_DEBUG(dbgs() << "Loop preheader is not terminated by a branch.\n");
     if (hintsDemandOutlining(Hints)) {
@@ -1005,6 +1007,8 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   if (Targets.find(TLTID) == Targets.end()) {
     Targets[TLTID] = std::shared_ptr<TapirTarget>(
         getTapirTargetFromID(M, TLTID));
+    if (TapirTargetOptions *Options = TLI.getTapirTargetOptions())
+      Targets[TLTID]->setOptions(*Options);
   }
 
   // Allow the Tapir target to define a custom loop-outline processor.
@@ -1830,11 +1834,15 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
   bool HasParallelism = false;
   std::map<TapirTargetID, std::shared_ptr<TapirTarget>> Targets;
   for (Function *F : WorkList) {
-    TapirTargetID TargetID = GetTLI(*F).getTapirTarget();
+    TargetLibraryInfo& TLI = GetTLI(*F);
+    TapirTargetID TargetID = TLI.getTapirTarget();
     std::shared_ptr<TapirTarget> Target(getTapirTargetFromID(M, TargetID));
+    if (TapirTargetOptions *Options = TLI.getTapirTargetOptions())
+      Target->setOptions(*Options);
     HasParallelism |=
         LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
-                         GetAC(*F), GetTTI(*F), TargetID, GetORE(*F), Targets)
+                         GetAC(*F), GetTTI(*F), GetTLI(*F), TargetID,
+                         GetORE(*F), Targets)
             .run();
   }
 
@@ -1889,9 +1897,9 @@ struct LoopSpawningTI : public FunctionPass {
     // up a level of code nesting.  This is important for nested loops with
     // different targets...
     std::map<TapirTargetID, std::shared_ptr<TapirTarget>> Targets;
-    bool Changed =
-        LoopSpawningImpl(F, DT, LI, TI, SE, AC, TTI, TargetID, ORE, Targets)
-            .run();
+    bool Changed = LoopSpawningImpl(F, DT, LI, TI, SE, AC, TTI, TLI, TargetID,
+                                    ORE, Targets)
+                       .run();
     return Changed;
   }
 

@@ -4,8 +4,8 @@
 ; Credit to Tim Kaler for producing the source code that inspired this test
 ; case.
 ;
-; RUN: opt < %s -passes='lcssa,loop-simplify' -S | opt -passes='function(require<target-ir>,require<scalar-evolution>,require<domtree>,require<tasks>,loop(indvars)),loop-spawning,function(simplifycfg)' -S | FileCheck %s --check-prefix=LS
-; RUN: opt < %s -passes='tapir2target,function(simplifycfg)' -tapir-target=opencilk -opencilk-runtime-bc-path=%S/libopencilk-abi.bc -S | FileCheck %s --check-prefix=TT
+; RUN: opt < %s -passes='lcssa,loop-simplify' -S | opt -tapir-target=opencilk -passes='function(require<target-ir>,require<scalar-evolution>,require<domtree>,require<tasks>,loop(indvars)),loop-spawning,function(simplifycfg)' -S | FileCheck %s --check-prefix=LS
+; RUN: opt < %s -tapir-target=opencilk -passes='tapir2target,function(simplifycfg)' -tapir-target=opencilk -opencilk-runtime-bc-path=%S/libopencilk-abi.bc -S | FileCheck %s --check-prefix=TT
 
 ; ModuleID = 'sret-test.cpp'
 source_filename = "sret-test.cpp"

@@ -1,5 +1,5 @@
-; RUN: opt < %s -passes='loop-stripmine' -disable-output -pass-remarks-analysis=loop-stripmine 2>&1 | FileCheck %s
-; RUN: opt < %s -passes='loop-spawning' -disable-output -pass-remarks-analysis=loop-spawning 2>&1 | FileCheck %s --check-prefixes=CHECK,CHECK-LS
+; RUN: opt < %s -tapir-target=opencilk -passes='loop-stripmine' -disable-output -pass-remarks-analysis=loop-stripmine 2>&1 | FileCheck %s
+; RUN: opt < %s -tapir-target=opencilk -passes='loop-spawning' -disable-output -pass-remarks-analysis=loop-spawning 2>&1 | FileCheck %s --check-prefixes=CHECK,CHECK-LS
 
 ; ModuleID = 'loop-analysis.c'
 source_filename = "loop-analysis.c"

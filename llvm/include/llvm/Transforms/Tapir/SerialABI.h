@@ -11,12 +11,31 @@
 // instructions into their serial projection.
 //
 //===----------------------------------------------------------------------===//
-#ifndef SERIAL_ABI_H_
-#define SERIAL_ABI_H_
+#ifndef LLVM_TAPIR_SERIAL_ABI_H
+#define LLVM_TAPIR_SERIAL_ABI_H
 
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
 namespace llvm {
+
+/// Options for the serial tapir target. Currently, there are none.
+class SerialABIOptions : public TapirTargetOptions {
+public:
+  SerialABIOptions() : TapirTargetOptions(TTO_Serial) {}
+  virtual ~SerialABIOptions() = default;
+
+  SerialABIOptions(const SerialABIOptions &) = delete;
+  SerialABIOptions &operator=(const SerialABIOptions &) = delete;
+
+  virtual SerialABIOptions *clone() const override {
+    return new SerialABIOptions();
+  }
+
+  static bool classof(const TapirTargetOptions *TTO) {
+    return TTO->getKind() == TTO_Serial;
+  }
+};
 
 class SerialABI : public TapirTarget {
 public:
@@ -48,6 +67,6 @@ public:
                           DominatorTree &DT) override final {}
 };
 
-}  // end of llvm namespace
+} // namespace llvm
 
-#endif
+#endif // LLVM_TAPIR_SERIAL_ABI_H

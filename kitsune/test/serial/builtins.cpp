@@ -10,13 +10,14 @@ void allocate(mobile_ptr<int>& buf, size_t n) {
 }
 
 // CHECK-LABEL: _Z8allocate
-// CHECK: call {{.+}} @__kitrt_default_mem_alloc({{.+}})
+// CHECK: call {{.+}} @malloc({{.+}})
 
 void deallocate(mobile_ptr<int>& buf) {
   buf.free();
 }
 
 // CHECK-LABEL: _Z10deallocate
-// CHECK: call {{.+}} @__kitrt_default_mem_free({{.+}})
+// CHECK: call {{.+}} @free({{.+}})
 
-// DECLARES-DAG: declare noalias ptr addrspace(67) @__kitrt_default_mem_alloc
+// DECLARES-DAG: declare noalias ptr addrspace(67) @malloc
+// DECLARES-DAG: declare void @free

@@ -10,17 +10,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TAPIR_TARGET_IDS_H_
-#define TAPIR_TARGET_IDS_H_
+#ifndef LLVM_TAPIR_TARGET_IDS_H
+#define LLVM_TAPIR_TARGET_IDS_H
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetOptions.h"
 
 namespace llvm {
 
 enum class TapirTargetID {
-  None,     // Perform no lowering
+  None = 1, // Perform no lowering
   Serial,   // Lower to serial projection
   Cuda,     // Lower to Cuda ABI
   Hip,      // Lower to the Hip (AMD GPU) ABI
@@ -33,82 +35,49 @@ enum class TapirTargetID {
   Last_TapirTargetID
 };
 
-// Serialize the Tapir target into the given output stream. This will write a
-// string representation that is compatible with the -ftapir argument used in
-// clang.
-raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &Target);
-
-enum class TapirNVArchTargetID {
-  SM_50, // TODO: Remove depcreated targets based on latest CUDA releases.
-  SM_52,
-  SM_53,
-  SM_60, // Pascal
-  SM_61,
-  SM_62,
-  SM_70, // Volta
-  SM_72,
-  SM_75, // Turing
-  SM_80, // Ampere
-  SM_86,
-  SM_90, // Hopper
-  // TODO: Update this enum when we sync w/ upstream LLVM capabilities.
-  Last_TapirNVArchTargetID
-};
+/// Parse the Tapir target from a string. If the string is not a valid tapir
+/// target, return std::nullopt.
+std::optional<TapirTargetID> parseTapirTarget(StringRef s);
 
 // Serialize the Tapir target into the given output stream. This will write a
 // string representation that is compatible with the -ftapir argument used in
 // clang.
 raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &Target);
 
-// Tapir target options
-
-// Virtual base class for Target-specific options.
+/// Virtual base class for Target-specific options.
 class TapirTargetOptions {
 public:
-  enum TapirTargetOptionKind { TTO_OpenCilk, Last_TTO };
+  enum TapirTargetOptionsKind {
+    TTO_None,
+    TTO_Serial,
+    TTO_Cuda,
+    TTO_Hip,
+    TTO_Lambda,
+    TTO_OMPTask,
+    TTO_OpenCilk,
+    TTO_OpenMP,
+    TTO_Qthreads,
+    TTO_Realm
+  };
 
 private:
-  const TapirTargetOptionKind Kind;
-
-public:
-  TapirTargetOptionKind getKind() const { return Kind; }
-
-  TapirTargetOptions(TapirTargetOptionKind K) : Kind(K) {}
-  TapirTargetOptions(const TapirTargetOptions &) = delete;
-  TapirTargetOptions &operator=(const TapirTargetOptions &) = delete;
-  virtual ~TapirTargetOptions() {}
-
-  // Top-level method for cloning TapirTargetOptions.  Defined in
-  // TargetLibraryInfo.
-  TapirTargetOptions *clone() const;
-};
-
-// Options for OpenCilkABI Tapir target.
-class OpenCilkABIOptions : public TapirTargetOptions {
-  std::string RuntimeBCPath;
-
-  OpenCilkABIOptions() = delete;
-
-public:
-  OpenCilkABIOptions(StringRef Path)
-      : TapirTargetOptions(TTO_OpenCilk), RuntimeBCPath(Path) {}
-
-  StringRef getRuntimeBCPath() const {
-    return RuntimeBCPath;
-  }
-
-  static bool classof(const TapirTargetOptions *TTO) {
-    return TTO->getKind() == TTO_OpenCilk;
-  }
+  const TapirTargetOptionsKind Kind;
 
 protected:
-  friend TapirTargetOptions;
+  TapirTargetOptions(TapirTargetOptionsKind K) : Kind(K) {}
 
-  OpenCilkABIOptions *cloneImpl() const {
-    return new OpenCilkABIOptions(RuntimeBCPath);
-  }
+public:
+  TapirTargetOptions(const TapirTargetOptions &) = delete;
+  TapirTargetOptions &operator=(const TapirTargetOptions &) = delete;
+  virtual ~TapirTargetOptions() = default;
+
+  TapirTargetOptionsKind getKind() const { return Kind; }
+
+  /// Top-level method for cloning TapirTargetOptions.  Defined in
+  /// TargetLibraryInfo.
+  virtual TapirTargetOptions *clone() const = 0;
 };
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_TAPIR_TARGET_IDS_H

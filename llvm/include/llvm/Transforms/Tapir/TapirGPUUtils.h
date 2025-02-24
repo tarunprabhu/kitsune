@@ -17,17 +17,24 @@
 #include "llvm/IR/Module.h"
 
 namespace tapir {
-using namespace llvm;
 
-extern Constant *getOrInsertFBGlobal(Module &M, StringRef Name, Type *Ty);
+/// Render a command line to stderr.
+void printCommandLine(llvm::ArrayRef<llvm::StringRef> Args);
 
-Constant *createConstantStr(const std::string &Str, Module &M,
-                            const std::string &Name = "",
-                            const std::string &SectionName = "",
-                            unsigned Alignment = 0);
+/// Create a global variable that is intended to eventually become the fat
+/// binary. This will create a variable with internal linkage and an inital
+/// value
+llvm::Constant *getOrInsertFBGlobal(llvm::Module &M, llvm::StringRef Name,
+                                    llvm::Type *Ty);
 
-extern void appendToGlobalCtors(llvm::Module &M, llvm::Constant *C,
-                                int Priority, llvm::Constant *Data);
+/// Create a string literal.
+llvm::Constant *createConstantStr(const std::string &Str, llvm::Module &M,
+                                  const std::string &Name = "",
+                                  const std::string &SectionName = "",
+                                  unsigned Alignment = 0);
+
+void appendToGlobalCtors(llvm::Module &M, llvm::Constant *C, int Priority,
+                         llvm::Constant *Data);
 
 struct KernelInstMixData {
   uint64_t num_memory_ops;
@@ -35,8 +42,8 @@ struct KernelInstMixData {
   uint64_t num_iops;
 };
 
-extern void getKernelInstructionMix(const llvm::Function *F,
-                                    KernelInstMixData &InstMix);
+void getKernelInstructionMix(const llvm::Function *F,
+                             KernelInstMixData &InstMix);
 } // namespace tapir
 
 #endif

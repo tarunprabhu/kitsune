@@ -6,24 +6,27 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements common infrastructure for libLLVMTapirOpts.a, which
-// implements several transformations over the Tapir/LLVM intermediate
-// representation, including the C bindings for that library.
+// This file implements common functionality for libLLVMTapirCommon.a which is
+// shared with clang, flang and lld.
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm-c/Transforms/Tapir.h"
-#include "llvm/Analysis/Passes.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/InitializePasses.h"
-#include "llvm/Pass.h"
-#include "llvm/PassRegistry.h"
-#include "llvm/Transforms/Tapir.h"
 #include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
-using namespace llvm;
-
 namespace llvm {
+
+std::optional<TapirTargetID> parseTapirTarget(StringRef s) {
+  return StringSwitch<std::optional<TapirTargetID>>(s)
+      .Case("none", TapirTargetID::None)
+      .Case("serial", TapirTargetID::Serial)
+      .Case("cuda", TapirTargetID::Cuda)
+      .Case("hip", TapirTargetID::Hip)
+      .Case("opencilk", TapirTargetID::OpenCilk)
+      .Case("openmp", TapirTargetID::OpenMP)
+      .Case("qthreads", TapirTargetID::Qthreads)
+      .Case("realm", TapirTargetID::Realm)
+      .Default(std::nullopt);
+}
 
 raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &Target) {
   switch (Target) {
@@ -58,15 +61,3 @@ raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &Target) {
 }
 
 } // namespace llvm
-
-/// initializeTapirOpts - Initialize all passes linked into the
-/// TapirOpts library.
-void llvm::initializeTapirOpts(PassRegistry &Registry) {
-  initializeLoopSpawningTIPass(Registry);
-  initializeLowerTapirToTargetPass(Registry);
-  initializeTaskCanonicalizePass(Registry);
-  initializeTaskSimplifyPass(Registry);
-  initializeDRFScopedNoAliasWrapperPassPass(Registry);
-  initializeLoopStripMinePass(Registry);
-  initializeSerializeSmallTasksPass(Registry);
-}

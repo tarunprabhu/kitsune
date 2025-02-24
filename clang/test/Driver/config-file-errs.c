@@ -43,13 +43,6 @@
 // CHECK-NOTFOUND3-NEXT: was searched for in the directory:
 // CHECK-NOTFOUND3-NEXT: was searched for in the directory: {{.*}}/Inputs/config
 // CHECK-NOTFOUND3-NEXT: was searched for in the directory:
-//
-// RUN: not %clang --config-system-dir=%S/Inputs/config --config-user-dir=%S/Inputs/config2 --config-kitsune-dir=%S/Inputs/config3 --config nonexistent-config-file.cfg 2>&1 | FileCheck %s -check-prefix CHECK-NOTFOUND4
-// CHECK-NOTFOUND4: configuration file 'nonexistent-config-file.cfg' cannot be found
-// CHECK-NOTFOUND4-NEXT: was searched for in the directory: {{.*}}/Inputs/config2
-// CHECK-NOTFOUND4-NEXT: was searched for in the directory: {{.*}}/Inputs/config3
-// CHECK-NOTFOUND4-NEXT: was searched for in the directory: {{.*}}/Inputs/config
-// CHECK-NOTFOUND4-NEXT: was searched for in the directory:
 
 
 //--- Argument in config file cannot cross the file boundary

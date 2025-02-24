@@ -1,5 +1,23 @@
 find_package(CUDAToolkit)
 
+add_llvm_component_library(LLVMTapirCommon
+  Tapir.cpp
+
+  # LLVM discourages the use of this, but it is used in some parts of LLVM for
+  # good reason. Most of the Tapir code is in llvm/lib/Transforms, but a lot of
+  # it should probably be moved elsewhere, including the code that is shared
+  # with clang, flang and lld. For now, just do what we have to here.
+  PARTIAL_SOURCES_INTENDED
+
+  COMPONENT_NAME
+  TapirCommon
+
+  LINK_COMPONENTS
+  Core
+  Support
+)
+
+
 set(SOURCES
   DRFScopedNoAliasAA.cpp
   LambdaABI.cpp
@@ -11,7 +29,7 @@ set(SOURCES
   Outline.cpp
   GPUABI.cpp
   SerializeSmallTasks.cpp
-  Tapir.cpp
+  TapirPasses.cpp
   TapirGPUUtils.cpp
   TapirToTarget.cpp
   TapirLoopInfo.cpp
@@ -76,6 +94,7 @@ add_llvm_component_library(LLVMTapirOpts
   MC
   Scalar
   Support
+  TapirCommon
   TransformUtils
   Vectorize
   Passes

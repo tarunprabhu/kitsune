@@ -100,12 +100,6 @@ struct Config {
   /// 'ELF' scheme.
   VisScheme VisibilityScheme = FromPrevailing;
 
-  /// Target for lowering Tapir constructs
-  TapirTargetID TapirTarget = TapirTargetID::None;
-
-  // Path to OpenCilk runtime bitcode file.
-  std::string OpenCilkABIBitcodeFile;
-
   /// If this field is set, the set of passes run in the middle-end optimizer
   /// will be the one specified by the string. Only works with the new pass
   /// manager as the old one doesn't have this ability.
@@ -265,6 +259,15 @@ struct Config {
       const ModuleSummaryIndex &Index,
       const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols)>;
   CombinedIndexHookFn CombinedIndexHook;
+
+  /// Target for lowering Tapir constructs.
+  std::optional<TapirTargetID> TapirTarget;
+
+  /// Path to the OpenCilk runtime bitcode file. This will only be non-empty
+  /// if @ref TapirTarget is set to TapirTargetID::OpenCilk.
+  /// FIXME: Instead of just OpenCilkABIBitcodeFile, we need either
+  /// TapirTargetOption objects or something else.
+  std::string OpenCilkABIBitcodeFile;
 
   /// This is a convenience function that configures this Config object to write
   /// temporary files named after the given OutputFileName for each of the LTO

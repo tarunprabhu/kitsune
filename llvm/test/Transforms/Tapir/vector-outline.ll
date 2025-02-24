@@ -1,4 +1,4 @@
-; RUN: opt < %s -passes='loop-spawning' -S | FileCheck %s
+; RUN: opt < %s -tapir-target=opencilk -passes='loop-spawning' -S | FileCheck %s
 
 ; ModuleID = 'vectoroutline.cpp'
 source_filename = "vectoroutline.cpp"

@@ -1527,6 +1527,18 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
     return;
   }
 
+  // Parse Kitsune-specific arguments that are passed here.
+  if (opt::Arg* arg = args.getLastArg(OPT_tapir_target)) {
+    config->tapirTarget = parseTapirTarget(arg->getValue());
+    if (config->tapirTarget.has_value()) {
+      config->opencilkABIBitcodeFile =
+          args.getLastArgValue(OPT_opencilk_abi_bitcode);
+    } else {
+      error(Twine("invalid value '") + arg->getValue() + "' in '" +
+            arg->getSpelling() + "'");
+    }
+  }
+
   // /threads: takes a positive integer and provides the default value for
   // /opt:lldltojobs=.
   if (auto *arg = args.getLastArg(OPT_threads)) {
@@ -2117,11 +2129,6 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
 
   if (args.hasFlag(OPT_inferasanlibs, OPT_inferasanlibs_no, false))
     Warn(ctx) << "ignoring '/inferasanlibs', this flag is not supported";
-
-  config->opencilkABIBitcodeFile =
-      args.getLastArgValue(OPT_opencilk_abi_bitcode);
-  config->tapirTarget =
-      args::parseTapirTarget(args.getLastArgValue(OPT_tapir_target));
 
   if (config->incremental && args.hasArg(OPT_profile)) {
     Warn(ctx) << "ignoring '/incremental' due to '/profile' specification";
