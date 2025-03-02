@@ -67,11 +67,13 @@ struct ForcePassLinking {
     (void)llvm::createSCEVAAWrapperPass();
     (void)llvm::createTypeBasedAAWrapperPass();
     (void)llvm::createScopedNoAliasAAWrapperPass();
+    (void)llvm::createDRFAAWrapperPass();
     (void)llvm::createBreakCriticalEdgesPass();
     (void)llvm::createCallGraphDOTPrinterPass();
     (void)llvm::createCallGraphViewerPass();
     (void)llvm::createCFGSimplificationPass();
     (void)llvm::createStructurizeCFGPass();
+    (void)llvm::createDRFScopedNoAliasWrapperPass();
     (void)llvm::createDXILResourceBindingWrapperPassPass();
     (void)llvm::createDXILResourceTypeWrapperPassPass();
     (void)llvm::createDeadArgEliminationPass();
@@ -98,6 +100,7 @@ struct ForcePassLinking {
     (void)llvm::createLoopStripMinePass();
     (void)llvm::createLoopTermFoldPass();
     (void)llvm::createLoopUnrollPass();
+    (void)llvm::createLowerConstantIntrinsicsPass();
     (void)llvm::createLowerGlobalDtorsLegacyPass();
     (void)llvm::createLowerInvokePass();
     (void)llvm::createLowerSwitchPass();
@@ -147,8 +150,8 @@ struct ForcePassLinking {
     (void)llvm::createUnifyLoopExitsPass();
     (void)llvm::createFixIrreduciblePass();
     (void)llvm::createSelectOptimizePass();
-    (void) llvm::createTaskCanonicalizePass();
-    (void) llvm::createTaskSimplifyPass();
+    (void)llvm::createTaskCanonicalizePass();
+    (void)llvm::createTaskSimplifyPass();
 
     (void)new llvm::ScalarEvolutionWrapperPass();
     llvm::Function::Create(nullptr, llvm::GlobalValue::ExternalLinkage)

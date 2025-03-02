@@ -79,57 +79,6 @@ TapirRaceDetect::run(Function &F, FunctionAnalysisManager &FAM) {
 
 AnalysisKey TapirRaceDetect::Key;
 
-INITIALIZE_PASS_BEGIN(TapirRaceDetectWrapperPass, "tapir-race-detect",
-                      "Tapir Race Detection", true, true)
-INITIALIZE_PASS_DEPENDENCY(DependenceAnalysisWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(TaskInfoWrapperPass)
-INITIALIZE_PASS_END(TapirRaceDetectWrapperPass, "tapir-race-detect",
-                    "Tapir Race Detection", true, true)
-
-char TapirRaceDetectWrapperPass::ID = 0;
-
-TapirRaceDetectWrapperPass::TapirRaceDetectWrapperPass() : FunctionPass(ID) {
-  initializeTapirRaceDetectWrapperPassPass(*PassRegistry::getPassRegistry());
-}
-
-bool TapirRaceDetectWrapperPass::runOnFunction(Function &F) {
-  auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  auto &TI = getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
-  auto &DI = getAnalysis<DependenceAnalysisWrapperPass>().getDI();
-  auto &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
-  auto *TLI = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
-  Info.reset(new RaceInfo(&F, DT, LI, TI, DI, SE, TLI));
-  return false;
-}
-
-RaceInfo &TapirRaceDetectWrapperPass::getRaceInfo() const { return *Info; }
-
-void TapirRaceDetectWrapperPass::releaseMemory() { Info.reset(); }
-
-void TapirRaceDetectWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
-  AU.setPreservesAll();
-  AU.addRequiredTransitive<DependenceAnalysisWrapperPass>();
-  AU.addRequiredTransitive<DominatorTreeWrapperPass>();
-  AU.addRequiredTransitive<LoopInfoWrapperPass>();
-  AU.addRequiredTransitive<ScalarEvolutionWrapperPass>();
-  AU.addRequired<TargetLibraryInfoWrapperPass>();
-  AU.addRequiredTransitive<TaskInfoWrapperPass>();
-}
-
-FunctionPass *llvm::createTapirRaceDetectWrapperPass() {
-  return new TapirRaceDetectWrapperPass();
-}
-
-void TapirRaceDetectWrapperPass::print(raw_ostream &OS,
-                                       const Module *) const {
-  Info->print(OS);
-}
-
 PreservedAnalyses
 TapirRaceDetectPrinterPass::run(Function &F, FunctionAnalysisManager &FAM) {
   OS << "'Tapir race detection' for function '" << F.getName() << "':\n";

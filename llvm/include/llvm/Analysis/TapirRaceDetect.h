@@ -339,27 +339,6 @@ private:
   raw_ostream &OS;
 }; // class TapirRaceDetectPrinterPass
 
-// Legacy pass manager pass
-class TapirRaceDetectWrapperPass : public FunctionPass {
-public:
-  static char ID;
-
-  TapirRaceDetectWrapperPass();
-
-  bool runOnFunction(Function &F) override;
-  void releaseMemory() override;
-  void getAnalysisUsage(AnalysisUsage &) const override;
-  void print(raw_ostream &, const Module * = nullptr) const override;
-  RaceInfo &getRaceInfo() const;
-
-private:
-  std::unique_ptr<RaceInfo> Info;
-}; // class TapirRaceDetectWrapperPass
-
-// createTapirRaceDetectWrapperPass - This creates an instance of the
-// TapirRaceDetect wrapper pass.
-FunctionPass *createTapirRaceDetectWrapperPass();
-
 } // namespace llvm
 
 #endif

@@ -32,7 +32,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/InstructionCost.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/Tapir.h"
 #include "llvm/Transforms/Tapir/LoopStripMine.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
@@ -308,74 +307,6 @@ static bool tryToStripMineLoop(
   NewHints.setAlreadyStripMined();
 
   return true;
-}
-
-namespace {
-
-class LoopStripMine : public LoopPass {
-public:
-  static char ID; // Pass ID, replacement for typeid
-
-  std::optional<unsigned> ProvidedCount;
-
-  LoopStripMine(std::optional<unsigned> Count = std::nullopt)
-      : LoopPass(ID), ProvidedCount(Count) {
-    initializeLoopStripMinePass(*PassRegistry::getPassRegistry());
-  }
-
-  bool runOnLoop(Loop *L, LPPassManager &LPM) override {
-    if (skipLoop(L))
-      return false;
-
-    Function &F = *L->getHeader()->getParent();
-
-    auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
-    auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-    LoopInfo *LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-    TaskInfo *TI = &getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
-    ScalarEvolution &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
-    const TargetTransformInfo &TTI =
-        getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
-    auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
-    // For the old PM, we can't use OptimizationRemarkEmitter as an analysis
-    // pass.  Function analyses need to be preserved across loop transformations
-    // but ORE cannot be preserved (see comment before the pass definition).
-    OptimizationRemarkEmitter ORE(&F);
-    bool PreserveLCSSA = mustPreserveAnalysisID(LCSSAID);
-
-    return tryToStripMineLoop(L, DT, LI, SE, TTI, AC, TI, ORE, &TLI,
-                              PreserveLCSSA, ProvidedCount);
-  }
-
-  /// This transformation requires natural loop information & requires that
-  /// loop preheaders be inserted into the CFG...
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<AssumptionCacheTracker>();
-    AU.addRequired<TargetTransformInfoWrapperPass>();
-    AU.addRequired<TargetLibraryInfoWrapperPass>();
-    getLoopAnalysisUsage(AU);
-  }
-};
-
-} // end anonymous namespace
-
-char LoopStripMine::ID = 0;
-
-INITIALIZE_PASS_BEGIN(LoopStripMine, "loop-stripmine", "Stripmine Tapir loops",
-                      false, false)
-INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
-INITIALIZE_PASS_DEPENDENCY(LoopPass)
-INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
-INITIALIZE_PASS_END(LoopStripMine, "loop-stripmine", "Stripmine Tapir loops",
-                    false, false)
-
-Pass *llvm::createLoopStripMinePass(int Count) {
-  // TODO: It would make more sense for this function to take the optionals
-  // directly, but that's dangerous since it would silently break out of tree
-  // callers.
-  return new LoopStripMine(Count == -1 ? std::nullopt
-                                       : std::optional<unsigned>(Count));
 }
 
 PreservedAnalyses LoopStripMinePass::run(Function &F,

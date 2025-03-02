@@ -1,5 +1,3 @@
-find_package(CUDAToolkit)
-
 add_llvm_component_library(LLVMTapirCommon
   Tapir.cpp
 
@@ -17,7 +15,6 @@ add_llvm_component_library(LLVMTapirCommon
   Support
 )
 
-
 set(SOURCES
   DRFScopedNoAliasAA.cpp
   LambdaABI.cpp
@@ -29,7 +26,6 @@ set(SOURCES
   Outline.cpp
   GPUABI.cpp
   SerializeSmallTasks.cpp
-  TapirPasses.cpp
   TapirGPUUtils.cpp
   TapirToTarget.cpp
   TapirLoopInfo.cpp

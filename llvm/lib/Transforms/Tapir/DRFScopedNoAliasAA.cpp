@@ -30,7 +30,6 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Transforms/Tapir.h"
 
 #define DEBUG_TYPE "drf-scoped-noalias"
 
@@ -66,42 +65,6 @@ private:
 
   MaybeParallelTasks MPTasks;
 };
-
-namespace {
-struct DRFScopedNoAliasWrapperPass : public FunctionPass {
-  static char ID; // Pass identification, replacement for typeid
-  explicit DRFScopedNoAliasWrapperPass() : FunctionPass(ID) {
-    initializeDRFScopedNoAliasWrapperPassPass(*PassRegistry::getPassRegistry());
-  }
-
-  StringRef getPassName() const override {
-    return "Assume DRF to Add Scoped-No-Alias Metadata";
-  }
-
-  bool runOnFunction(Function &F) override;
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<LoopInfoWrapperPass>();
-    AU.addPreserved<LoopInfoWrapperPass>();
-    AU.addRequired<TaskInfoWrapperPass>();
-    AU.addPreserved<TaskInfoWrapperPass>();
-    AU.addRequired<AAResultsWrapperPass>();
-    AU.addPreserved<BasicAAWrapperPass>();
-    AU.addPreserved<GlobalsAAWrapperPass>();
-  }
-};
-}  // End of anonymous namespace
-
-char DRFScopedNoAliasWrapperPass::ID = 0;
-INITIALIZE_PASS_BEGIN(DRFScopedNoAliasWrapperPass, "drf-scoped-noalias",
-                      "Add DRF-based scoped-noalias metadata",
-                      false, false)
-INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(TaskInfoWrapperPass)
-INITIALIZE_PASS_END(DRFScopedNoAliasWrapperPass, "drf-scoped-noalias",
-                    "Add DRF-based scoped-noalias metadata",
-                    false, false)
 
 bool DRFScopedNoAliasImpl::populateTaskScopeNoAliasInBlock(
     const Task *T, BasicBlock *BB, MDBuilder &MDB,
@@ -297,24 +260,6 @@ bool DRFScopedNoAliasImpl::populateTaskScopeNoAlias() {
 bool DRFScopedNoAliasImpl::run() {
   return populateTaskScopeNoAlias();
 }
-
-bool DRFScopedNoAliasWrapperPass::runOnFunction(Function &F) {
-  if (skipFunction(F))
-    return false;
-
-  TaskInfo &TI = getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
-  AliasAnalysis &AA = getAnalysis<AAResultsWrapperPass>().getAAResults();
-  LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  return DRFScopedNoAliasImpl(F, TI, AA, &LI).run();
-}
-
-// createDRFScopedNoAliasPass - Provide an entry point to create this pass.
-//
-namespace llvm {
-FunctionPass *createDRFScopedNoAliasWrapperPass() {
-  return new DRFScopedNoAliasWrapperPass();
-}
-} // end namespace llvm
 
 PreservedAnalyses DRFScopedNoAliasPass::run(Function &F,
                                             FunctionAnalysisManager &AM) {

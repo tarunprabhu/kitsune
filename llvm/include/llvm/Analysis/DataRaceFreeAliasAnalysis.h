@@ -61,25 +61,6 @@ public:
   DRFAAResult run(Function &F, FunctionAnalysisManager &AM);
 };
 
-/// Legacy wrapper pass to provide the DRFAAResult object.
-class DRFAAWrapperPass : public FunctionPass {
-  std::unique_ptr<DRFAAResult> Result;
-
-public:
-  static char ID;
-
-  DRFAAWrapperPass();
-
-  DRFAAResult &getResult() { return *Result; }
-  const DRFAAResult &getResult() const { return *Result; }
-
-  bool runOnFunction(Function &F) override;
-  void getAnalysisUsage(AnalysisUsage &AU) const override;
-};
-
-/// Creates an instance of \c DRFAAWrapperPass.
-FunctionPass *createDRFAAWrapperPass();
-
 } // end namespace llvm
 
 #endif // LLVM_ANALYSIS_DATARACEFREEALIASANALYSIS_H

@@ -48,13 +48,6 @@ void initializeGlobalISel(PassRegistry &);
 /// Initialize all passes linked into the CodeGen library.
 void initializeTarget(PassRegistry &);
 
-void initializeAAResultsWrapperPassPass(PassRegistry &);
-void initializeAlwaysInlinerLegacyPassPass(PassRegistry &);
-
-  /// Initialize all passes linked into the TapirOpts library.
-void initializeTapirOpts(PassRegistry&);
-
-void initializeAAEvalLegacyPassPass(PassRegistry&);
 void initializeAAResultsWrapperPassPass(PassRegistry&);
 void initializeAlwaysInlinerLegacyPassPass(PassRegistry&);
 void initializeAssignmentTrackingAnalysisPass(PassRegistry &);
@@ -179,11 +172,7 @@ void initializeLoopExtractorLegacyPassPass(PassRegistry &);
 void initializeLoopInfoWrapperPassPass(PassRegistry &);
 void initializeLoopPassPass(PassRegistry &);
 void initializeLoopSimplifyPass(PassRegistry &);
-void initializeLoopSpawningPass(PassRegistry&);
-void initializeLoopSpawningTIPass(PassRegistry&);
 void initializeLoopStrengthReducePass(PassRegistry &);
-void initializeLoopStripMinePass(PassRegistry&);
-void initializeLoopTermFoldPass(PassRegistry &);
 void initializeLoopUnrollPass(PassRegistry &);
 void initializeLowerAtomicLegacyPassPass(PassRegistry &);
 void initializeLowerConstantIntrinsicsPass(PassRegistry &);
@@ -192,7 +181,6 @@ void initializeLowerGlobalDtorsLegacyPassPass(PassRegistry &);
 void initializeLowerIntrinsicsPass(PassRegistry &);
 void initializeLowerInvokeLegacyPassPass(PassRegistry &);
 void initializeLowerSwitchLegacyPassPass(PassRegistry &);
-void initializeLowerTapirToTargetPass(PassRegistry&);
 void initializeKCFIPass(PassRegistry &);
 void initializeMIRAddFSDiscriminatorsPass(PassRegistry &);
 void initializeMIRCanonicalizerPass(PassRegistry &);
@@ -322,10 +310,7 @@ void initializeTargetLibraryInfoWrapperPassPass(PassRegistry &);
 void initializeTargetPassConfigPass(PassRegistry &);
 void initializeTargetTransformInfoWrapperPassPass(PassRegistry &);
 void initializeTapirCleanupPass(PassRegistry&);
-void initializeTapirRaceDetectWrapperPassPass(PassRegistry&);
 void initializeTaskInfoWrapperPassPass(PassRegistry&);
-void initializeTaskCanonicalizePass(PassRegistry&);
-void initializeTaskSimplifyPass(PassRegistry&);
 void initializeTwoAddressInstructionLegacyPassPass(PassRegistry &);
 void initializeTypeBasedAAWrapperPassPass(PassRegistry &);
 void initializeTypePromotionLegacyPass(PassRegistry &);

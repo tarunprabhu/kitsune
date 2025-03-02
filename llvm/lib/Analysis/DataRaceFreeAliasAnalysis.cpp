@@ -117,29 +117,3 @@ AnalysisKey DRFAA::Key;
 DRFAAResult DRFAA::run(Function &F, FunctionAnalysisManager &AM) {
   return DRFAAResult(AM.getResult<TaskAnalysis>(F));
 }
-
-char DRFAAWrapperPass::ID = 0;
-INITIALIZE_PASS_BEGIN(DRFAAWrapperPass, "drf-aa",
-                      "DRF-based Alias Analysis", false, true)
-INITIALIZE_PASS_DEPENDENCY(TaskInfoWrapperPass)
-INITIALIZE_PASS_END(DRFAAWrapperPass, "drf-aa",
-                    "DRF-based Alias Analysis", false, true)
-
-FunctionPass *llvm::createDRFAAWrapperPass() {
-  return new DRFAAWrapperPass();
-}
-
-DRFAAWrapperPass::DRFAAWrapperPass() : FunctionPass(ID) {
-  initializeDRFAAWrapperPassPass(*PassRegistry::getPassRegistry());
-}
-
-bool DRFAAWrapperPass::runOnFunction(Function &F) {
-  Result.reset(
-      new DRFAAResult(getAnalysis<TaskInfoWrapperPass>().getTaskInfo()));
-  return false;
-}
-
-void DRFAAWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
-  AU.setPreservesAll();
-  AU.addRequired<TaskInfoWrapperPass>();
-}
