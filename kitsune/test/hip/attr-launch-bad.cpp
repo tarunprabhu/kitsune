@@ -3,7 +3,7 @@
 #include <kitsune.h>
 
 int main(int argc, char *argv[]) {
-  // expected-error@+1 {{launch attribute: threads-per-block must be a positive integer value}}
+  // expected-error@+1 {{'launch' attribute requires a positive integral compile time constant expression}}
   [[kitsune::launch(-1)]]
   forall(int i = 0; i < 1024; ++i) { }
 

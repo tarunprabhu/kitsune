@@ -89,11 +89,8 @@ struct LoopAttributes {
   /// Value for whether the loop is required to make progress.
   bool MustProgress;
 
-  /// Tapir-loop spawning strategy.
-  enum LSStrategy { SEQ, DAC, GPU };
-
   /// Value for tapir.loop.spawn.strategy metadata.
-  LSStrategy SpawnStrategy;
+  llvm::TapirSpawnStrategy SpawnStrategy;
 
   /// Value for tapir.loop.target metadata.
   std::optional<llvm::TapirTargetID> LoopTarget;
@@ -313,8 +310,8 @@ public:
   void setMustProgress(bool P) { StagedAttrs.MustProgress = P; }
 
   /// Set the Tapir-loop spawning strategy for the next loop pushed.
-  void setSpawnStrategy(const LoopAttributes::LSStrategy &Strat) {
-    StagedAttrs.SpawnStrategy = Strat;
+  void setSpawnStrategy(const llvm::TapirSpawnStrategy &Strategy) {
+    StagedAttrs.SpawnStrategy = Strategy;
   }
 
   /// Set the Tapir-loop grainsize for the next loop pushed.

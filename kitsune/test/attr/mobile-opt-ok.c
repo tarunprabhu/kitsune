@@ -1,4 +1,7 @@
-// RUN: %kitcc -std=c23 -ftapir=serial -S -emit-llvm -O1 -o - %s | FileCheck %s
+// RUN: %kitcc -std=c23 -ftapir=serial -S -emit-llvm -O1 -o - %s \
+// RUN:     -mllvm -disable-strip-kitsune-addrspaces \
+// RUN:     | FileCheck %s
+
 
 double f1(double* [[kitsune::mobile]] ptr) { return *ptr; }
 

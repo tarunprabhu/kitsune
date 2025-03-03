@@ -533,6 +533,7 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
     addLTOOptions(ToolChain, Args, CmdArgs, Output, *Input,
                   D.getLTOMode() == LTOK_Thin);
+    ToolChain.AddKitsuneLTOArgs(Args, CmdArgs);
   }
 
   if (Args.hasArg(options::OPT_Z_Xlinker__no_demangle))

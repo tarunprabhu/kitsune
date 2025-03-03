@@ -1,5 +1,7 @@
 add_llvm_component_library(LLVMTapirCommon
   Tapir.cpp
+  TapirDebugUtils.cpp
+  TapirTargetOptions.cpp
 
   # LLVM discourages the use of this, but it is used in some parts of LLVM for
   # good reason. Most of the Tapir code is in llvm/lib/Transforms, but a lot of
@@ -12,23 +14,23 @@ add_llvm_component_library(LLVMTapirCommon
 
   LINK_COMPONENTS
   Core
+  Passes
   Support
 )
 
 set(SOURCES
   DRFScopedNoAliasAA.cpp
-  LambdaABI.cpp
+  GPUABIOptions.cpp
   LoopSpawningTI.cpp
   LoopStripMine.cpp
   LoopStripMinePass.cpp
   LoweringUtils.cpp
-  OMPTaskABI.cpp
   Outline.cpp
   GPUABI.cpp
   SerializeSmallTasks.cpp
   TapirGPUUtils.cpp
-  TapirToTarget.cpp
   TapirLoopInfo.cpp
+  TapirToTarget.cpp
 )
 
 if (KITSUNE_CUDA_ENABLED)
@@ -37,6 +39,14 @@ endif ()
 
 if (KITSUNE_HIP_ENABLED)
   list(APPEND SOURCES HipABI.cpp)
+endif ()
+
+if (KITSUNE_LAMBDA_ENABLED)
+  list(APPEND SOURCES LambdaABI.cpp)
+endif ()
+
+if (KITSUNE_OMPTASK_ENABLED)
+  list(APPEND SOURCES OMPTaskABI.cpp)
 endif ()
 
 if (KITSUNE_OPENCILK_ENABLED)
@@ -57,8 +67,6 @@ endif ()
 
 # Some ABI targets are always enabled.
 list(APPEND SOURCES SerialABI.cpp)
-
-# TODO: Perhaps we need to do the same with LambdaABI and OMPTaskABI.
 
 add_llvm_component_library(LLVMTapirOpts
   ${SOURCES}

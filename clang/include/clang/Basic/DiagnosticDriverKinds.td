@@ -845,7 +845,22 @@ def warn_missing_include_dirs : Warning<
 def err_drv_malformed_warning_suppression_mapping : Error<
   "failed to process suppression mapping file '%0': %1">;
 
-// +----- kitsune  FIXME: should probably use kitsune-centric naming here.
+// -----------------------------------------------------------------------------
+// Kitsune-specific driver options
+// -----------------------------------------------------------------------------
+
+def err_drv_kitsune_bad_cuda_arch : Error<
+  "unsupported NVIDIA GPU architecture '%0'">;
+def err_drv_kitsune_bad_hip_arch : Error<
+  "unsupported AMD GPU architecture '%0'">;
+
+def err_drv_kitsune_fixed_threads_per_block : Error<
+  "value of '%0' not in range [1,1024]">;
+def err_drv_kitsune_max_threads_per_block : Error<
+  "value of '%0' must be at least 1">;
+
+def err_drv_kitsune_lto_disallowed_arg : Error<
+  "'%0' cannot be used with -flto in Kitsune">;
 
 def err_drv_kitsune_objc : Error<
   "kitsune does not support Objective-C">;
@@ -863,8 +878,6 @@ def err_drv_opencilk_platform: Error<
 def err_drv_opencilk_target: Error<
   "opencilk tapir target does not support architecture '%0'">;
 
-// FIXME KITSUNE: Some of this should probably go away since we don't want to
-// give opencilk any special treatment here.
 def err_drv_opencilk_missing_abi_bitcode: Error<
   "cannot find OpenCilk runtime ABI bitcode file">;
 

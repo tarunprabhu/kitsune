@@ -19,7 +19,7 @@
 ! expected linker flags.
 !
 ! CHECK-NEXT: -lkitrt
-! CHECK-SAME: -lcudart
+! CHECK-SAME: -lcudart_static
 ! CHECK-SAME: -lcuda
 !
 ! ------------------------------------------------------------------------------

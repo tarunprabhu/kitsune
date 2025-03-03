@@ -72,17 +72,14 @@ typedef std::unique_ptr<ToolOutputFile> CudaABIOutputFile;
 /// Options for the cuda tapir target.
 class CudaABIOptions : public GPUABIOptionsBase {
 public:
-  CudaABIOptions() : GPUABIOptionsBase(TTO_Cuda) {}
+  explicit CudaABIOptions();
+  explicit CudaABIOptions(const CudaABIOptions&) = default;
   virtual ~CudaABIOptions() = default;
 
-  CudaABIOptions(const CudaABIOptions&) = delete;
   CudaABIOptions& operator=(const CudaABIOptions&) = delete;
 
-  virtual CudaABIOptions *clone() const override {
-    CudaABIOptions *clone = new CudaABIOptions();
-    clone->copyFrom(*this);
-    return clone;
-  }
+  virtual void readClOptions() override;
+  virtual CudaABIOptions *clone() const override;
 
   static bool classof(const TapirTargetOptions *TTO) {
     return TTO->getKind() == TTO_Cuda;
@@ -91,10 +88,10 @@ public:
 
 class CudaABI : public TapirTarget {
 public:
-  CudaABI(Module &M);
+  CudaABI(Module &M, const CudaABIOptions& opts);
   ~CudaABI();
 
-  void setOptions(const TapirTargetOptions &Options) override final;
+  const CudaABIOptions& getOptions() const override final;
 
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
   void lowerSync(SyncInst &SI) override final;
@@ -130,7 +127,6 @@ public:
 
   void pushPTXFilename(const std::string &PTXFilename);
 
-  llvm::StringRef getGPUArch() const;
   std::unique_ptr<Module> &getLibDeviceModule();
 
   void pushGlobalVariable(GlobalVariable *GV);
@@ -169,26 +165,16 @@ private:
 
   std::unique_ptr<Module> LibDeviceModule;
 
-  typedef std::list<std::string> StringListTy;
-  StringListTy ModulePTXFileList;
-  typedef std::list<GlobalVariable *> GlobalVarListTy;
-  GlobalVarListTy GlobalVars;
-
-  typedef std::set<Value *> SyncRegionListTy;
-  SyncRegionListTy SyncRegList;
+  std::list<std::string> ModulePTXFileList;
+  std::list<GlobalVariable *> GlobalVars;
+  std::set<Value *> SyncRegList;
 
   typedef llvm::DenseMap<CallInst *, AllocaInst *> LaunchToStreamMapTy;
   LaunchToStreamMapTy KernelLaunchToStreamMap;
 
   Module KernelModule;
   TargetMachine *PTXTargetMachine;
-  OptimizationLevel  Level;
-
-  /// Options for this tapir target. This is a pointer but should always be set
-  /// with a call to setOptions(). We could make upstream changes so this is
-  /// passed to the constructor, but that becomes a somewhat invasive change
-  /// that affects many parts of the code, so we avoid it for now.
-  const CudaABIOptions *CudaABIOpts = nullptr;
+  OptimizationLevel Level;
 };
 
 /// The loop outline process for transforming a Tapir parallel loop
@@ -208,7 +194,7 @@ class CudaLoop : public LoopOutlineProcessor {
   friend class CudaABI;
 
 private:
-  CudaABI *TTarget = nullptr;
+  CudaABI *TT = nullptr;
   static unsigned NextKernelID; // Give the generated kernel a unique ID.
   unsigned KernelID;            // Unique ID for this transformed loop.
   std::string KernelName;       // A unique name for the kernel.

@@ -19,5 +19,5 @@ void deallocate(mobile_ptr<int>& buf) {
 // CHECK-LABEL: _Z10deallocate
 // CHECK: call {{.+}} @free({{.+}})
 
-// DECLARES-DAG: declare noalias ptr addrspace(67) @malloc
+// DECLARES-DAG: declare noalias ptr @malloc
 // DECLARES-DAG: declare void @free

@@ -231,55 +231,75 @@ public:
 
 static OptimizationLevel mapToLevel(const CodeGenOptions &Opts);
 
-static void populateGPUABIOptions(const CodeGenOptions &CodeGenOpts,
+static void populateCommonTTOptions(TapirTargetOptions &TTOpts,
+                                    const KitsuneOptions &KitsuneOpts) {
+  TTOpts.setVerbose(KitsuneOpts.getTapirTargetVerbose());
+  TTOpts.setRuntimeVerbose(KitsuneOpts.getKitsuneRuntimeVerbose());
+}
+
+static void populateGPUABIOptions(GPUABIOptionsBase &TTOpts,
                                   const KitsuneOptions &KitsuneOpts,
-                                  GPUABIOptionsBase &Opts) {
-  Opts.setVerbose(KitsuneOpts.getTapirTargetVerbose());
-  Opts.setRuntimeVerbose(KitsuneOpts.getKitsuneRuntimeVerbose());
-  Opts.setArch(KitsuneOpts.getCudaArch());
-  Opts.setOptLevel(mapToLevel(CodeGenOpts));
-  Opts.setFixedThreadsPerBlock(KitsuneOpts.getFixedThreadsPerBlock());
-  Opts.setMaxThreadsPerBlock(KitsuneOpts.getMaxThreadsPerBlock());
+                                  const CodeGenOptions &CodeGenOpts) {
+  populateCommonTTOptions(TTOpts, KitsuneOpts);
+  TTOpts.setOptLevel(mapToLevel(CodeGenOpts));
+  TTOpts.setFixedThreadsPerBlock(KitsuneOpts.getFixedThreadsPerBlock());
+  TTOpts.setMaxThreadsPerBlock(KitsuneOpts.getMaxThreadsPerBlock());
 }
 
 static std::unique_ptr<TapirTargetOptions>
-createTapirTargetOptions(const CodeGenOptions &CodeGenOpts,
-                         const KitsuneOptions &KitsuneOpts) {
-  std::unique_ptr<TapirTargetOptions> Opts;
+populateTTOptions(CudaABIOptions &TTOpts, const KitsuneOptions &KitsuneOpts,
+                  const CodeGenOptions &CodeGenOpts) {
+  populateGPUABIOptions(TTOpts, KitsuneOpts, CodeGenOpts);
+  TTOpts.setArch(KitsuneOpts.getCudaArch());
+  return std::unique_ptr<TapirTargetOptions>(&TTOpts);
+}
+
+static std::unique_ptr<TapirTargetOptions>
+populateTTOptions(HipABIOptions &TTOpts, const KitsuneOptions &KitsuneOpts,
+                  const CodeGenOptions &CodeGenOpts) {
+  populateGPUABIOptions(TTOpts, KitsuneOpts, CodeGenOpts);
+  TTOpts.setArch(KitsuneOpts.getHipArch());
+  return std::unique_ptr<TapirTargetOptions>(&TTOpts);
+}
+
+static std::unique_ptr<TapirTargetOptions>
+populateTTOptions(OpenCilkABIOptions &TTOpts,
+                  const KitsuneOptions &KitsuneOpts) {
+  populateCommonTTOptions(TTOpts, KitsuneOpts);
+  TTOpts.setRuntimeBCPath(*KitsuneOpts.getOpenCilkABIBitcodeFile());
+  return std::unique_ptr<TapirTargetOptions>(&TTOpts);
+}
+
+static std::unique_ptr<TapirTargetOptions>
+populateTTOptions(SerialABIOptions &TTOpts, const KitsuneOptions &KitsuneOpts) {
+  populateCommonTTOptions(TTOpts, KitsuneOpts);
+  return std::unique_ptr<TapirTargetOptions>(&TTOpts);
+}
+
+static std::unique_ptr<TapirTargetOptions>
+createTapirTargetOptions(const KitsuneOptions &KitsuneOpts,
+                         const CodeGenOptions &CodeGenOpts) {
   if (std::optional<TapirTargetID> TT = KitsuneOpts.getTapirTarget()) {
     switch (*TT) {
-    case TapirTargetID::Cuda: {
-      CudaABIOptions *CudaOpts = new CudaABIOptions();
-      populateGPUABIOptions(CodeGenOpts, KitsuneOpts, *CudaOpts);
-      Opts.reset(CudaOpts);
-      break;
-    }
-    case TapirTargetID::Hip: {
-      HipABIOptions *HipOpts = new HipABIOptions();
-      populateGPUABIOptions(CodeGenOpts, KitsuneOpts, *HipOpts);
-      Opts.reset(HipOpts);
-      break;
-    }
     case TapirTargetID::None:
       // NoneABI does not have options because generally, it is not actually
       // treated like other ABI's. We really need to figure out what to do with
       // this.
-      break;
-    case TapirTargetID::OpenCilk: {
-      OpenCilkABIOptions *OpenCilkOpts = new OpenCilkABIOptions();
-      OpenCilkOpts->setRuntimeBCPath(*KitsuneOpts.getOpenCilkABIBitcodeFile());
-      Opts.reset(OpenCilkOpts);
-      break;
-    }
+      return nullptr;
     case TapirTargetID::Serial:
-      Opts.reset(new SerialABIOptions());
-      break;
+      return populateTTOptions(*new SerialABIOptions(), KitsuneOpts);
+    case TapirTargetID::Cuda:
+      return populateTTOptions(*new CudaABIOptions(), KitsuneOpts, CodeGenOpts);
+    case TapirTargetID::Hip:
+      return populateTTOptions(*new HipABIOptions(), KitsuneOpts, CodeGenOpts);
+    case TapirTargetID::OpenCilk:
+      return populateTTOptions(*new OpenCilkABIOptions(), KitsuneOpts);
     default:
       llvm_unreachable("createTapirTargetOptions: Tapir target not handled");
       break;
     }
   }
-  return std::move(Opts);
+  return nullptr;
 }
 
 static std::unique_ptr<TargetLibraryInfoImpl>
@@ -290,7 +310,7 @@ createTLII(llvm::Triple &TargetTriple, const CodeGenOptions &CodeGenOpts,
   if (std::optional<TapirTargetID> TT = KitsuneOpts.getTapirTarget()) {
     TLII->setTapirTarget(*TT);
     TLII->setTapirTargetOptions(
-        createTapirTargetOptions(CodeGenOpts, KitsuneOpts));
+        createTapirTargetOptions(KitsuneOpts, CodeGenOpts));
     TLII->addTapirTargetLibraryFunctions(*TT);
   }
   return TLII;
@@ -674,7 +694,7 @@ void EmitAssemblyHelper::CreateTargetMachine(bool MustCreateTM) {
     return;
 
   // Kitsune note: This can be helpful to look for differences between
-  // Clang and Kitsune configuraiton details for GPU targets. 
+  // Clang and Kitsune configuraiton details for GPU targets.
   // Options.dump();
   TM.reset(TheTarget->createTargetMachine(Triple, TargetOpts.CPU, FeaturesStr,
                                           Options, RM, CM, OptLevel));
@@ -1418,8 +1438,8 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   Conf.SplitDwarfFile = CGOpts.SplitDwarfFile;
   Conf.SplitDwarfOutput = CGOpts.SplitDwarfOutput;
   Conf.TapirTarget = KOpts.getTapirTarget();
-  if (std::optional<StringRef> file = KOpts.getOpenCilkABIBitcodeFile())
-    Conf.OpenCilkABIBitcodeFile = *file;
+  if (Conf.TapirTarget)
+    Conf.TapirTargetOpts = createTapirTargetOptions(KOpts, CGOpts);
   switch (Action) {
   case Backend_EmitNothing:
     Conf.PreCodeGenModuleHook = [](size_t Task, const llvm::Module &Mod) {

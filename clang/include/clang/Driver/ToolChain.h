@@ -835,7 +835,7 @@ public:
                              const llvm::opt::ArgList &Args,
                              const char delimiter = ' ') const;
 
-  /// Add any Kitsune-specific arguments for the preprocessor.
+  /// Add any Kitsune-specific preprocessor arguments.
   virtual void
   AddKitsunePreprocessorArgs(const llvm::opt::ArgList &Args,
                              llvm::opt::ArgStringList &CmdArgs) const;
@@ -844,9 +844,14 @@ public:
   virtual void AddKitsuneCompilerArgs(const llvm::opt::ArgList& Ags,
                                       llvm::opt::ArgStringList& CmdArgs) const;
 
-  /// Add Kitsune-specific arguments that must be added to the linker.
+  /// Add Kitsune-specific arguments linker arguments.
   virtual void AddKitsuneLinkerArgs(const llvm::opt::ArgList &Args,
                                     llvm::opt::ArgStringList &CmdArgs) const;
+
+  /// Add Kitsune-specific arguments that will be passed to the linker when
+  /// LTO is enabled.
+  virtual void AddKitsuneLTOArgs(const llvm::opt::ArgList &Args,
+                                 llvm::opt::ArgStringList &CmdArgs) const;
 
   /// Get the OpenCilk library path if it exists.
   virtual std::optional<std::string>
@@ -856,9 +861,6 @@ public:
                                             StringRef Component,
                                             bool AddArch) const;
 
-  virtual std::optional<std::string>
-  getOpenCilkBC(const llvm::opt::ArgList &Args, StringRef Component) const;
-
   virtual std::string getOpenCilkRTBasename(const llvm::opt::ArgList &Args,
                                             StringRef Component, FileType Type,
                                             bool AddArch) const;
@@ -866,11 +868,17 @@ public:
   virtual std::string getOpenCilkRT(const llvm::opt::ArgList &Args,
                                     StringRef Component, FileType Type) const;
 
-  /// AddOpenCilkBitcodeABI - Add compiler arguments for linking against the
-  /// OpenCilk runtime ABI bitcode file.
-  virtual void AddOpenCilkABIBitcode(const llvm::opt::ArgList &Args,
-                                     llvm::opt::ArgStringList &CmdArgs,
-                                     bool IsLTO = false) const;
+  /// Get the path to the OpenCilk runtime bitcode file, if it exists.
+  virtual std::optional<std::string>
+  getOpenCilkBC(const llvm::opt::ArgList &Args, StringRef Component) const;
+
+  /// Get the path to the OpenCilk runtime bitcode file, if it exists. This will
+  /// first check if the path to the file has been provided using a
+  /// --tapir-opencilk-abi-bc command line argument. If it has, that will be
+  /// returned, otherwise, it will search for a suitable bitcode file in the
+  /// standard locations.
+  virtual std::optional<std::string>
+  getOpenCilkABIBitcodeFile(const llvm::opt::ArgList& Args) const;
 };
 
 /// Set a ToolChain's effective triple. Reset it when the registration object

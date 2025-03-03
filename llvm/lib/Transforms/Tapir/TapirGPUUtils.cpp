@@ -29,7 +29,7 @@
 #include "llvm/Support/SmallVectorMemoryBuffer.h"
 #include <set>
 
-using namespace llvm;
+namespace llvm {
 
 namespace tapir {
 
@@ -163,3 +163,5 @@ void getKernelInstructionMix(const Function *F, KernelInstMixData &InstMix) {
 }
 
 } // namespace tapir
+
+} // namespace llvm

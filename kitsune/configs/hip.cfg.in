@@ -6,11 +6,3 @@
 # files (${KITSUNE_C_FRONTEND}.cfg, ${KITSUNE_CXX_FRONTEND}.cfg, ${KITSUNE_Fortran_FRONTEND}.cfg).
 #
 # See clang's documentation for details on the config files.
-#
-# FIXME: We probably don't want these set by default. We should check if Kitsune
-# relies on this. If it does, this should probably be passed on to the backend
-# in some other way.
-#
--mllvm -stripmine-count=1
--mllvm -stripmine-coarsen-factor=1
-

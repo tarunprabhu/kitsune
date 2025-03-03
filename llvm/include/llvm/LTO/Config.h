@@ -261,13 +261,12 @@ struct Config {
   CombinedIndexHookFn CombinedIndexHook;
 
   /// Target for lowering Tapir constructs.
-  std::optional<TapirTargetID> TapirTarget;
+  std::optional<TapirTargetID> TapirTarget = std::nullopt;
 
-  /// Path to the OpenCilk runtime bitcode file. This will only be non-empty
-  /// if @ref TapirTarget is set to TapirTargetID::OpenCilk.
-  /// FIXME: Instead of just OpenCilkABIBitcodeFile, we need either
-  /// TapirTargetOption objects or something else.
-  std::string OpenCilkABIBitcodeFile;
+  /// The options object for the tapir target. Not all tapir target will have an
+  /// associated options object - for instance, the None tapir target does not.
+  /// So this has to be kept separate.
+  std::unique_ptr<TapirTargetOptions> TapirTargetOpts = nullptr;
 
   /// This is a convenience function that configures this Config object to write
   /// temporary files named after the given OutputFileName for each of the LTO

@@ -58,7 +58,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "llvm/Transforms/Tapir/TapirTargetOptions.h"
 
 namespace llvm {
 
@@ -67,84 +67,74 @@ namespace llvm {
 /// effectively the same. In such cases, we use NVIDIA's terminology.
 class GPUABIOptionsBase : public TapirTargetOptions {
 protected:
-  /// If true, enable verbose mode in this tapir target.
-  unsigned Verbose : 1;
-
-  /// If true, set the Kitsune runtime in verbose mode.
-  unsigned RuntimeVerbose : 1;
-
   /// The optimization level set on the command line. This level will be used
   /// for both the middle-end optimizations on the kernel functions and the
   /// backend GPU code generators (including external assemblers as needed).
-  llvm::OptimizationLevel OptLevel = llvm::OptimizationLevel::O0;
+  OptimizationLevel optLevel = OptimizationLevel::O0;
 
-  /// The machine architecture for which to generate code.
-  std::string Arch;
+  /// The GPU architecture for which to generate code.
+  std::string arch;
 
   /// How to use fuse floating-point operations.
-  llvm::FPOpFusion::FPOpFusionMode FPOpFusionMode = llvm::FPOpFusion::Strict;
+  FPOpFusion::FPOpFusionMode fpOpFusionMode = FPOpFusion::Strict;
 
   /// If this is non-zero, this value will be used when launching all kernels
   /// which do not already have a custom FixedThreadsPerBlock value. If this is
   /// not set, the number of threads per block to use will be determined by the
   /// runtime.
-  unsigned FixedThreadsPerBlock = 0;
+  unsigned fixedThreadsPerBlock = 0;
 
   /// If this is non-zero, the threads per block will not be allowed to exceed
   /// this value.
-  unsigned MaxThreadsPerBlock = 0;
+  unsigned maxThreadsPerBlock = 0;
 
 protected:
-  GPUABIOptionsBase(TapirTargetOptionsKind kind) : TapirTargetOptions(kind) {}
-
-  void copyFrom(const GPUABIOptionsBase &src) {
-    this->Verbose = src.Verbose;
-    this->RuntimeVerbose = src.RuntimeVerbose;
-    this->OptLevel = src.OptLevel;
-    this->Arch = src.Arch;
-    this->FPOpFusionMode = src.FPOpFusionMode;
-    this->FixedThreadsPerBlock = src.FixedThreadsPerBlock;
-    this->MaxThreadsPerBlock = src.MaxThreadsPerBlock;
-  }
+  explicit GPUABIOptionsBase(TapirTargetOptionsKind kind)
+      : TapirTargetOptions(kind) {}
+  explicit GPUABIOptionsBase(const GPUABIOptionsBase &) = default;
 
 public:
-  GPUABIOptionsBase(const GPUABIOptionsBase &) = delete;
-  GPUABIOptionsBase &operator=(const GPUABIOptionsBase &) = delete;
   virtual ~GPUABIOptionsBase() = default;
+  GPUABIOptionsBase &operator=(const GPUABIOptionsBase &) = delete;
+
+  virtual void readClOptions() override;
   virtual GPUABIOptionsBase *clone() const override = 0;
 
-  void setVerbose(bool verbose = true) { this->Verbose = verbose; }
-  void setRuntimeVerbose(bool verbose = true) {
-    this->RuntimeVerbose = verbose;
+  void setOptLevel(OptimizationLevel optLevel) { this->optLevel = optLevel; }
+  void setOptLevel(unsigned optLevel);
+  void setArch(StringRef arch) { this->arch = arch; }
+  void setFPOpFusionMode(FPOpFusion::FPOpFusionMode fpPOpFusionMode) {
+    this->fpOpFusionMode = fpOpFusionMode;
   }
-  void setOptLevel(llvm::OptimizationLevel OptLevel) {
-    this->OptLevel = OptLevel;
+  void setFixedThreadsPerBlock(unsigned threadsPerBlock) {
+    this->fixedThreadsPerBlock = threadsPerBlock;
   }
-  void setArch(llvm::StringRef Arch) { this->Arch = Arch; }
-  void setFPOpFusionMode(llvm::FPOpFusion::FPOpFusionMode FPOpFusionMode) {
-    this->FPOpFusionMode = FPOpFusionMode;
-  }
-  void setFixedThreadsPerBlock(unsigned ThreadsPerBlock) {
-    this->FixedThreadsPerBlock = ThreadsPerBlock;
-  }
-  void setMaxThreadsPerBlock(unsigned ThreadsPerBlock) {
-    this->MaxThreadsPerBlock = ThreadsPerBlock;
+  void setMaxThreadsPerBlock(unsigned threadsPerBlock) {
+    this->maxThreadsPerBlock = threadsPerBlock;
   }
 
-  bool getVerbose() const { return Verbose; }
-  bool getRuntimeVerbose() const { return RuntimeVerbose; }
-  llvm::OptimizationLevel getOptLevel() const { return OptLevel; }
-  llvm::StringRef getArch() const { return Arch; }
-  llvm::FPOpFusion::FPOpFusionMode getFPOpFusionMode() const {
-    return FPOpFusionMode;
+  OptimizationLevel getOptLevel() const { return optLevel; }
+  StringRef getArch() const { return arch; }
+  FPOpFusion::FPOpFusionMode getFPOpFusionMode() const {
+    return fpOpFusionMode;
   }
-  unsigned getFixedThreadsPerBlock() const { return FixedThreadsPerBlock; }
-  unsigned getMaxThreadsPerBlock() const { return MaxThreadsPerBlock; }
+  unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
+  unsigned getMaxThreadsPerBlock() const { return maxThreadsPerBlock; }
 
   static bool classof(const TapirTargetOptions *TTO) {
-    return TTO->getKind() == TTO_Cuda || TTO->getKind() == TTO_Hip;
+    switch (TTO->getKind()) {
+    case TTO_Cuda:
+    case TTO_Hip:
+      return true;
+    default:
+      return false;
+    }
   }
 };
+
+/// Serialization functions to help in debugging/verbose mode.
+raw_ostream &operator<<(raw_ostream &os, const OptimizationLevel &);
+raw_ostream &operator<<(raw_ostream &os, const FPOpFusion::FPOpFusionMode &);
 
 } // namespace llvm
 

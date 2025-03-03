@@ -52,6 +52,7 @@
 #include "ToolChains/WebAssembly.h"
 #include "ToolChains/XCore.h"
 #include "ToolChains/ZOS.h"
+#include "clang/Basic/Cuda.h"
 #include "clang/Basic/DiagnosticDriver.h"
 #include "clang/Basic/TargetID.h"
 #include "clang/Basic/Version.h"
@@ -120,6 +121,8 @@ bool driver::IsKitsuneFrontend(StringRef ProgName) {
 
 static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
                                 DiagnosticsEngine &Diags) {
+  llvm::Triple Triple = llvm::Triple(D.getTargetTriple());
+
   // If this is not a Kitsune frontend, Kitsune options are not allowed.
   if (!D.IsKitsuneFrontend()) {
     for (Arg *A : Args.filtered(options::OPT_kitsune_Group)) {
@@ -136,7 +139,6 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       Diags.Report(diag::err_drv_invalid_value)
           << A->getAsString(Args) << A->getValue();
     } else if (*TT == llvm::TapirTargetID::OpenCilk) {
-      llvm::Triple Triple = llvm::Triple(D.getTargetTriple());
       if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
         Diags.Report(diag::err_drv_opencilk_platform) << Triple.getOSName();
 
@@ -158,19 +160,54 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       Diags.Report(clang::diag::err_drv_kitsune_openmp_offload);
   }
 
-  // Check that the -ftapir-cuda-arch option has a valid value. If an empty
+  // Check that the --tapir-cuda-arch option has a valid value. If an empty
   // string is returned, the option has an invalid value.
-  if (const Arg *A = Args.getLastArg(options::OPT_tapir_cuda_arch_EQ))
-    if (!parseTapirCudaArch(*A).size())
-      Diags.Report(diag::err_drv_invalid_value)
-          << A->getAsString(Args) << A->getValue();
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_cuda_arch_EQ)) {
+    OffloadArch Arch = StringToOffloadArch(A->getValue());
+    if (Arch == OffloadArch::UNKNOWN || !IsNVIDIAOffloadArch(Arch))
+      D.Diag(diag::err_drv_kitsune_bad_cuda_arch) << A->getValue();
+  }
 
-  // Check that the -ftapir-cuda-arch option has a valid value. If an empty
+  // Check that the --tapir-cuda-arch option has a valid value. If an empty
   // string is returned, the option has an invalid value.
-  if (const Arg *A = Args.getLastArg(options::OPT_tapir_hip_arch_EQ))
-    if (!parseTapirHipArch(*A).size())
-      Diags.Report(diag::err_drv_invalid_value)
-          << A->getAsString(Args) << A->getValue();
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_hip_arch_EQ)) {
+    OffloadArch Arch = StringToOffloadArch(A->getValue());
+    if (Arch == OffloadArch::UNKNOWN || !IsAMDOffloadArch(Arch))
+      D.Diag(diag::err_drv_kitsune_bad_hip_arch) << A->getValue();
+  }
+
+  // Check that options accepting numeric arguments are within a valid range.
+  if (Arg *A = Args.getLastArg(options::OPT_tapir_threads_per_block_EQ)) {
+    int N = 0;
+    StringRef Val = A->getValue();
+    if (Val.empty())
+      D.Diag(diag::err_drv_missing_argument) << A->getAsString(Args) << 1;
+    else if (Val.getAsInteger(10, N))
+      D.Diag(diag::err_drv_invalid_int_value) << A->getAsString(Args) << Val;
+    else if (N <= 0 || N > 1024)
+      D.Diag(diag::err_drv_kitsune_fixed_threads_per_block)
+          << A->getAsString(Args);
+  }
+
+  if (Arg *A = Args.getLastArg(options::OPT_tapir_max_threads_per_block_EQ)) {
+    int N = 0;
+    StringRef Val = A->getValue();
+    if (Val.empty())
+      D.Diag(diag::err_drv_missing_argument) << A->getAsString(Args) << 1;
+    else if (Val.getAsInteger(10, N))
+      D.Diag(diag::err_drv_invalid_int_value) << A->getAsString(Args) << Val;
+    else if (N <= 0)
+      D.Diag(diag::err_drv_kitsune_max_threads_per_block)
+          << A->getAsString(Args);
+  }
+
+  // If LTO is enabled for use with Kitsune, the only linker that can be used is
+  // lld built with Kitsune. Using any other linker is not allowed.
+  if (D.isUsingLTO() && Args.getLastArg(options::OPT_tapir_EQ)) {
+    if (const Arg* A = Args.getLastArg(options::OPT_fuse_ld_EQ,
+                                       options::OPT_ld_path_EQ))
+      D.Diag(diag::err_drv_kitsune_lto_disallowed_arg) << A->getSpelling();
+  }
 }
 
 static std::optional<llvm::Triple> getOffloadTargetTriple(const Driver &D,
@@ -2541,11 +2578,11 @@ bool Driver::HandleImmediateArgs(Compilation &C) {
 
   if (C.getArgs().hasArg(options::OPT_v)) {
     if (!SystemConfigDir.empty())
-      llvm::errs() << "System configuration file directory: "
-                   << SystemConfigDir << "\n";
+      llvm::errs() << "System configuration file directory: " << SystemConfigDir
+                   << "\n";
     if (!UserConfigDir.empty())
-      llvm::errs() << "User configuration file directory: "
-                   << UserConfigDir << "\n";
+      llvm::errs() << "User configuration file directory: " << UserConfigDir
+                   << "\n";
     if (!KitsuneConfigDir.empty())
       llvm::errs() << "Kitsune configuration file directory: "
                    << KitsuneConfigDir << "\n";

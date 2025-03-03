@@ -29,8 +29,10 @@
 // -----------------------------------------------------------------------------
 //
 // Make sure that the architecture makes it to cuabi.
+//
 // RUN: %kitxx --tapir=cuda --tapir-cuda-arch=sm_86 -mllvm -cuabi-### \
-// RUN:     -S -emit-llvm -O2  %s 2>&1 | FileCheck %s -check-prefix LOWERED
+// RUN:     -S -emit-llvm -O2 -o /dev/null %s 2>&1 \
+// RUN:     | FileCheck %s -check-prefix LOWERED
 //
 // LOWERED: ptxas
 // LOWERED-SAME: --gpu-name
@@ -41,7 +43,7 @@
 // RUN: not %kitxx -### --tapir=cuda --tapir-cuda-arch=gfx90a %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix INVALID
 //
-// INVALID: error: invalid value 'gfx90a' in '--tapir-cuda-arch=gfx90a'
+// INVALID: error: unsupported NVIDIA GPU architecture 'gfx90a'
 //
 // -----------------------------------------------------------------------------
 

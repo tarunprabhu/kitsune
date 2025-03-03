@@ -29,7 +29,18 @@ find_library(LIB_LLVM
 # configured.
 set(KITRT ${KITSUNE_RUNTIME_LIBNAME})
 
-add_library(${KITRT} SHARED
+# FIXME: There is a lousy bug somewhere. On Arch, and probably other systems,
+# the cuda installation requires an older version of GCC which is somehow
+# "leaking" into our runtime resulting in a link time error:
+#
+#     undefined reference to `std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@LLVM_19.1
+#
+# It is not at all clear what is wrong, so just resort to static linking for now
+# which does not suffer from the same issue. Dynamic linking is useful because
+# it doesn't require rebuilds of applications which could be very helpful when
+# we start working with larger codes, so we really should try to understand
+# what is going on.
+add_library(${KITRT} STATIC
   kitrt.cpp
   debug.cpp
   memory.cpp
@@ -67,6 +78,9 @@ if (KITSUNE_CUDA_ENABLED)
     cuda/memory.cpp
     cuda/streams.cpp)
 
+  # FIXME: The only use of KITRT_CUDA_ENABLED seem to be some runtime
+  # initialization code that is probably obsolete. The runtime is probably due
+  # for some drastic cleanup.
   target_compile_definitions(${KITRT} PUBLIC KITRT_CUDA_ENABLED)
   target_include_directories(${KITRT} SYSTEM PUBLIC ${KITSUNE_CUDA_INCLUDE_DIR})
   target_include_directories(${KITRT} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cuda)
@@ -76,7 +90,7 @@ if (KITSUNE_CUDA_ENABLED)
 
   target_link_libraries(${KITRT} PUBLIC
     ${KITSUNE_CUDA_LIB_NVPTX_STATIC}
-    ${KITSUNE_CUDA_LIB_CUDART}
+    ${KITSUNE_CUDA_LIB_CUDART_STATIC}
     ${KITSUNE_CUDA_LIB_CUDA})
 
   if (KITCUDA_ENABLE_NVTX)
@@ -109,7 +123,13 @@ if (KITSUNE_HIP_ENABLED)
     hip/memory.cpp
     hip/streams.cpp)
 
+  # FIXME: The only use of KITRT_CUDA_ENABLED seem to be some runtime
+  # initialization code that is probably obsolete. The runtime is probably due
+  # for some drastic cleanup.
   target_compile_definitions(${KITRT} PUBLIC KITRT_HIP_ENABLED)
+
+  # FIXME: It looks like __HIP_PLATFORM_AMD__ is defined in the kitsune runtime
+  # headers for hip. This is probably unnecessary.
   target_compile_definitions(${KITRT} PUBLIC __HIP_PLATFORM_AMD__)
   target_include_directories(${KITRT} PUBLIC ${KITSUNE_HIP_INCLUDE_DIR})
   target_link_directories(${KITRT} PUBLIC ${KITSUNE_HIP_LIBRARY_DIR})
@@ -121,7 +141,7 @@ endif()
 # rpath to the "top-level" lib directory where libLLVM can be found. $ORIGIN is
 # a subdirectory of this top-level directory. It is usually:
 #
-#    <top-level-lib-dir>/clang/19/lib
+#    <top-level-lib-dir>/clang/${LLVM_VERSION_MAJOR}/lib
 #
 set_property(TARGET ${KITRT} APPEND PROPERTY
   INSTALL_RPATH "$ORIGIN/../../../")

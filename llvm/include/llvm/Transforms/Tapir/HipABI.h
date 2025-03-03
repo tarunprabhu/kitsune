@@ -68,18 +68,26 @@ typedef std::unique_ptr<ToolOutputFile> HipABIOutputFile;
 
 /// Options for the hip tapir target.
 class HipABIOptions : public GPUABIOptionsBase {
+private:
+  /// The target features string. These are in the suitable to be passed as is
+  /// to the corresponding LLVM attribute
+  std::string targetFeatures;
+
 public:
-  HipABIOptions() : GPUABIOptionsBase(TTO_Hip) {}
+  explicit HipABIOptions();
+  explicit HipABIOptions(const HipABIOptions &) = default;
   virtual ~HipABIOptions() = default;
 
-  HipABIOptions(const HipABIOptions&) = delete;
-  HipABIOptions& operator=(const HipABIOptions&) = delete;
+  HipABIOptions &operator=(const HipABIOptions &) = delete;
 
-  virtual HipABIOptions *clone() const override {
-    HipABIOptions *clone = new HipABIOptions();
-    clone->copyFrom(*this);
-    return clone;
+  virtual void readClOptions() override;
+  virtual HipABIOptions *clone() const override;
+
+  void setTargetFeatures(StringRef features) {
+    this->targetFeatures = features;
   }
+
+  StringRef getTargetFeatures() const { return targetFeatures; }
 
   static bool classof(const TapirTargetOptions *TTO) {
     return TTO->getKind() == TTO_Hip;
@@ -89,12 +97,10 @@ public:
 class HipABI : public TapirTarget {
 
 public:
-  HipABI(Module &InputModule);
+  HipABI(Module &InputModule, const HipABIOptions& opts);
   ~HipABI();
 
-  void setOptions(const TapirTargetOptions &Options) override final;
-
-  // ----- Core Tapir code transform callbacks.
+  const HipABIOptions& getOptions() const override final;
 
   /// Lower a call to the tapir.loop.grainsize intrinsic into a grain size
   /// (coarsening) value.  For GPU codes we currently limit this to a
@@ -169,9 +175,9 @@ public:
       return nullptr;
   }
 
-  void transformConstants(Function *M);
+  void transformConstants(Function &Fn);
 
-  void transformArguments(Function *Fn);
+  void transformArguments(Function &Fn);
 
   // Process the host-side module at the end of lowering all functions //
   // within the module.
@@ -186,30 +192,9 @@ public:
       const TapirLoopInfo *TL,
       OptimizationLevel OptLevel = OptimizationLevel::O2) override final;
 
-  OptimizationLevel getOptimizationLevel() const {
-    return Level;
-  }
+  OptimizationLevel getOptimizationLevel() const { return Level; }
 
 private:
-  /// Get the GPU architecture. This will first look at the LLVM commmand line
-  /// option in the hipabi pass. If that has been set, it will be returned.
-  /// Otherwise, the value in the HipABIOpts will be returned.
-  llvm::StringRef getGPUArch() const;
-
-  /// Get the number of threads per block to use. This will first look at the
-  /// LLVM command line option in the hipabi pass. If that has been set to a
-  /// non-zero value, that value will be returned. Otherwise, the value from the
-  /// HipABIOpts will be returned. If this returns 0, the value of threads per
-  /// block will be computed by the runtime. Otherwise, the value will be
-  /// hardcoded into the compiled executable.
-  unsigned getThreadsPerBlock() const;
-
-  /// Get the maximum number of threads per block to use. This will first look
-  /// at the LLVM command line option in the hipabi pass. If that has been set
-  /// to a non-zero value, that value will be returned. Otherwise, the value
-  /// from the HipABIOpts will be returned.
-  unsigned getMaxThreadsPerBlock() const;
-
   /// @brief Generate a AMDGPU (GCN) object file for the kernel module.
   /// @return The created object file.
   HipABIOutputFile createTargetObj(const StringRef &ObjFileName);
@@ -274,12 +259,12 @@ private:
   typedef std::set<Value *> SyncRegionListTy;
   SyncRegionListTy SyncRegList;
 
-  typedef llvm::DenseMap<CallInst*,AllocaInst*>  LaunchToStreamMapTy;
-  LaunchToStreamMapTy   KernelLaunchToStreamMap;
+  typedef llvm::DenseMap<CallInst *, AllocaInst *> LaunchToStreamMapTy;
+  LaunchToStreamMapTy KernelLaunchToStreamMap;
 
-  FunctionCallee   KitHipGetGlobalSymbolFn = nullptr;
-  FunctionCallee   KitHipMemcpySymbolToDevFn = nullptr;
-  FunctionCallee   KitHipSyncFn = nullptr;
+  FunctionCallee KitHipGetGlobalSymbolFn = nullptr;
+  FunctionCallee KitHipMemcpySymbolToDevFn = nullptr;
+  FunctionCallee KitHipSyncFn = nullptr;
 
   Module KernelModule;
   bool ROCmModulesLoaded;
@@ -287,15 +272,8 @@ private:
 
   /// FIXME: This should be removed. The optimization level can be obtained
   /// from the HipABIOptions object.
-  OptimizationLevel  Level;
-
-  /// Options for this tapir target. This is a pointer but should always be set
-  /// with a call to setOptions(). We could make upstream changes so this is
-  /// passed to the constructor, but that becomes a somewhat invasive change
-  /// that affects many parts of the code, so we avoid it for now.
-  const HipABIOptions *HipABIOpts = nullptr;
+  OptimizationLevel Level;
 };
-
 
 /// The loop outline process for transforming a Tapir parallel loop
 /// representing into a Hip runtime and PTX --> fat binary kernel

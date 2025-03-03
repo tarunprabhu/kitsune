@@ -1,3 +1,4 @@
+! REQUIRES: kitfc
 ! REQUIRES: kitsune-opencilk
 
 ! RUN: %kitfc -### -ftapir=opencilk -O2 -flto %s 2>&1 | FileCheck %s

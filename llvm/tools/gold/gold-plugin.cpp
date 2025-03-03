@@ -35,7 +35,6 @@
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Host.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include <list>
 #include <map>
 #include <plugin-api.h>
@@ -232,12 +231,6 @@ namespace options {
   static std::string time_trace_file;
   static unsigned time_trace_granularity = 500;
 
-  // Tapir lowering options.
-  // FIXME: Instead of just the OpenCilkABIBitcode file, we may should either
-  // have an options object for the various tapir targets.
-  static std::optional<TapirTargetID> tapir_target = std::nullopt;
-  static std::string opencilk_abi_bitcode_file;
-
   static void process_plugin_option(const char *opt_)
   {
     if (opt_ == nullptr)
@@ -339,10 +332,6 @@ namespace options {
         message(LDPL_FATAL, "Invalid time trace granularity: %s", opt.data());
       else
         time_trace_granularity = Granularity;
-    } else if (opt.consume_front("tapir-target=")) {
-      tapir_target = parseTapirTarget(std::string(opt));
-    } else if (opt.consume_front("opencilk-abi-bitcode=")) {
-      opencilk_abi_bitcode_file = std::string(opt);
     } else {
       // Save this option to pass to the code generator.
       // ParseCommandLineOptions() expects argv[0] to be program name. Lazily
@@ -998,11 +987,6 @@ static std::unique_ptr<LTO> createLTO(IndexWriteCallback OnIndexWrite,
   if (options::unifiedlto)
     ltoKind =
         options::thinlto ? LTO::LTOK_UnifiedThin : LTO::LTOK_UnifiedRegular;
-
-  if (options::tapir_target)
-    Conf.TapirTarget = *options::tapir_target;
-    Conf.OpenCilkABIBitcodeFile = options::opencilk_abi_bitcode_file;
-  }
 
   return std::make_unique<LTO>(std::move(Conf), Backend,
                                options::ParallelCodeGenParallelismLevel,

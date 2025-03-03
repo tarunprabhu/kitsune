@@ -1481,14 +1481,3 @@ def no_warn_duplicate_libraries : Flag<["-"], "no_warn_duplicate_libraries">,
 def no_deduplicate_symbol_strings : Flag<["-"], "no-deduplicate-symbol-strings">,
     HelpText<"Do not deduplicate strings in the symbol string table. Might result in larger binaries but slightly faster link times.">,
     Group<grp_rare>;
-
-// =============================================================================
-// Options set by kitsune when using LTO.
-// =============================================================================
-
-def tapir: Joined<["--"], "tapir=">,
-    HelpText<"The tapir target">,
-    Group<grp_lld>;
-def tapir_opencilk_abi_bc: Joined<["--"], "tapir-opencilk-abi-bc=">,
-    HelpText<"Path to the OpenCilk ABI bitcode file">,
-    Group<grp_lld>;

@@ -20,6 +20,24 @@ using namespace llvm;
 
 #define DEBUG_TYPE "serialabi"
 
+void SerialABIOptions::readClOptions() { TapirTargetOptions::readClOptions(); }
+
+SerialABIOptions *SerialABIOptions::clone() const {
+  return new SerialABIOptions(*this);
+}
+
+SerialABI::SerialABI(Module &m, const SerialABIOptions &opts)
+    : TapirTarget(M, opts) {
+  if (opts.getVerbose()) {
+    dbgs() << "'serial' tapir target options:\n";
+    dbgs() << "  Runtime verbose: " << opts.getRuntimeVerbose() << "\n";
+  }
+}
+
+const SerialABIOptions &SerialABI::getOptions() const {
+  return cast<SerialABIOptions>(opts);
+}
+
 Value *SerialABI::lowerGrainsizeCall(CallInst *GrainsizeCall) {
   Value *Grainsize = ConstantInt::get(GrainsizeCall->getType(), 1);
 
@@ -48,5 +66,3 @@ bool SerialABI::preProcessFunction(Function &F, TaskInfo &TI,
   }
   return Changed;
 }
-
-

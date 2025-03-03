@@ -1,4 +1,6 @@
-// RUN: %kitxx -ftapir=serial -S -emit-llvm -O1 -o - %s | FileCheck %s
+// RUN: %kitxx -ftapir=serial -S -emit-llvm -O1 -o - %s \
+// RUN:     -mllvm -disable-strip-kitsune-addrspaces \
+// RUN:     | FileCheck %s
 
 extern "C" {
 

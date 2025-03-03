@@ -3666,12 +3666,8 @@ DarwinClang::getOpenCilkRuntimePath(const ArgList &Args) const {
   return std::string(P);
 }
 
-void DarwinClang::AddOpenCilkABIBitcode(const ArgList &Args,
-                                        ArgStringList &CmdArgs,
-                                        bool IsLTO) const {
-  bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
-  SmallString<128> BitcodeFilename(UseAsan ? "libopencilk-asan-abi"
-                                           : "libopencilk-abi");
+std::optional<std::string> DarwinClang::getOpenCilkABIBitcodeFile(const ArgList& Args) const {
+  SmallString<128> BitcodeFilename("libopencilk-abi");
   BitcodeFilename += "_";
   BitcodeFilename += getOSLibraryNameSuffix();
   BitcodeFilename += ".bc";
@@ -3679,14 +3675,10 @@ void DarwinClang::AddOpenCilkABIBitcode(const ArgList &Args,
   if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePath(Args)) {
     SmallString<128> P(*RuntimePath);
     llvm::sys::path::append(P, BitcodeFilename);
-    if (getVFS().exists(P)) {
-      // The same argument works regardless of IsLTO.
-      CmdArgs.push_back(Args.MakeArgString("--opencilk-abi-bitcode=" + P));
-      return;
-    }
+    if (getVFS().exists(P))
+      return P.c_str();
   }
-  // Don't error out if the bitcode file could not be found. That will be
-  // handled later.
+  return std::nullopt;
 }
 
 void DarwinClang::AddLinkTapirRuntimeLib(const ArgList &Args,

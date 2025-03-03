@@ -288,7 +288,6 @@ void CodeGenFunction::EmitKokkosIncrement(const ParmVarDecl *IV) {
   Builder.CreateStore(IncVal, GetAddrOfLocalVar(IV));
 }
 
-
 bool CodeGenFunction::EmitKokkosParallelFor(
     const CallExpr *CE, ArrayRef<const Attr *> KokkosAttrs) {
   std::optional<llvm::TapirTargetID> TT = GetTapirTargetAttr(KokkosAttrs);
@@ -311,7 +310,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(
   PushSyncRegion();
   llvm::Instruction *SRStart = EmitSyncRegionStart();
   CurSyncRegion->setSyncRegionStart(SRStart);
-  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+  LoopStack.setSpawnStrategy(llvm::TapirSpawnStrategy::DivideAndConquer);
 
   // Parse and validate the parallel for
   std::string PFName; // construct name (for kokkos profiling)

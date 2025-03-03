@@ -40,7 +40,6 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/Process.h"
 #include "llvm/Support/VersionTuple.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/TargetParser/AArch64TargetParser.h"
@@ -975,6 +974,22 @@ std::string ToolChain::GetLinkerPath(bool *LinkerIsLLD) const {
   if (LinkerIsLLD)
     *LinkerIsLLD = false;
 
+  // If using LTO with a tapir target set, always use the lld that was built
+  // with Kitsune. This is the only linker that is guaranteed to support
+  // Kitsune-specific options.
+  const Driver& D = getDriver();
+  if (D.IsKitsuneFrontend() && D.isUsingLTO() &&
+      Args.getLastArg(options::OPT_tapir_EQ)) {
+    StringRef LinkerName = Triple.isOSDarwin() ? "ld64.lld" : "ld.lld";
+    std::string LinkerPath = GetProgramPath(LinkerName.data());
+    if (llvm::sys::fs::can_execute(LinkerPath)) {
+      if (LinkerIsLLD)
+        *LinkerIsLLD = true;
+      return LinkerPath;
+    }
+    llvm_unreachable("GetLinkerPath: Could not find lld for use with -flto");
+  }
+
   // Get -fuse-ld= first to prevent -Wunused-command-line-argument. -fuse-ld= is
   // considered as the linker flavor, e.g. "bfd", "gold", or "lld".
   const Arg* A = Args.getLastArg(options::OPT_fuse_ld_EQ);
@@ -1744,11 +1759,11 @@ void ToolChain::ExtractArgsFromString(const char *s, ArgStringList &CmdArgs,
 
 void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
                                            ArgStringList &CmdArgs) const {
-  std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
+  std::optional<llvm::TapirTargetID> TT = parseTapirTarget(Args);
   bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos);
 
-  if (TapirTarget) {
-    switch (*TapirTarget) {
+  if (TT) {
+    switch (*TT) {
     case TapirTargetID::Serial:
     case TapirTargetID::None:
       break;
@@ -1792,7 +1807,8 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
                             Args);
       break;
     default:
-      llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
+      report_fatal_error(
+          "AddKitsunePreprocessorArgs: TapirTargetID not handled");
       break;
     }
   }
@@ -1804,7 +1820,7 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
                           Args);
   }
 
-  if (TapirTarget or IsKokkos) {
+  if (TT or IsKokkos) {
     std::string InclDir = concat(D.ResourceDir, "include");
     CmdArgs.push_back(Args.MakeArgString(StringRef("-I") + InclDir));
   }
@@ -1812,27 +1828,33 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
 
 void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
                                        ArgStringList &CmdArgs) const {
-  std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
+  std::optional<llvm::TapirTargetID> TT = parseTapirTarget(Args);
   bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos);
 
-  if (TapirTarget) {
+  if (TT) {
     Args.AddLastArg(CmdArgs, options::OPT_tapir_EQ);
-    switch (*TapirTarget) {
+    Args.AddLastArg(CmdArgs, options::OPT_tapir_verbose);
+    Args.AddLastArg(CmdArgs, options::OPT_kitrt_verbose);
+    switch (*TT) {
     case TapirTargetID::Serial:
     case TapirTargetID::None:
       break;
     case llvm::TapirTargetID::Cuda:
-      // Strip-mining is disabled by default on GPU tapir targets and must be
-      // enabled explicitly.
       Args.AddLastArg(CmdArgs, options::OPT_tapir_cuda_arch_EQ);
+      Args.AddLastArg(CmdArgs, options::OPT_tapir_threads_per_block_EQ);
+      Args.AddLastArg(CmdArgs, options::OPT_tapir_max_threads_per_block_EQ);
       ExtractArgsFromString(KITSUNE_CUDA_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
     case llvm::TapirTargetID::Hip:
       Args.AddLastArg(CmdArgs, options::OPT_tapir_hip_arch_EQ);
+      Args.AddLastArg(CmdArgs, options::OPT_tapir_threads_per_block_EQ);
+      Args.AddLastArg(CmdArgs, options::OPT_tapir_max_threads_per_block_EQ);
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
     case llvm::TapirTargetID::OpenCilk:
-      AddOpenCilkABIBitcode(Args, CmdArgs);
+      if (std::optional<std::string> BC = getOpenCilkABIBitcodeFile(Args))
+        CmdArgs.push_back(
+            Args.MakeArgString(Twine("--tapir-opencilk-abi-bc=") + *BC));
       ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_COMPILER_FLAGS, CmdArgs,
                             Args);
       break;
@@ -1862,17 +1884,16 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
       ExtractArgsFromString(KITSUNE_REALM_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
     default:
-      llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
+      report_fatal_error("AddKitsuneCompiledArgs: TapirTargetID not handled");
       break;
     }
 
-    // If a tapir target is not given, for consistency with clang, strip-mining
-    // is never enabled. If the tapir target is a CPU tapir target, strip-mining
+    // If a tapir target is not given, for consistency with clang, stripmining
+    // is never enabled. If the tapir target is a CPU tapir target, stripmining
     // is only enabled at certain optimization levels, if explicitly enabled
     // with the -fstripmine flag and disabled if -fno-stripmine is given. For
-    // GPU tapir targets, strip-mining must be enabled explicitly.
-    if (TapirTarget == TapirTargetID::Cuda ||
-        TapirTarget == TapirTargetID::Hip) {
+    // GPU tapir targets, stripmining must be enabled explicitly.
+    if (TT == TapirTargetID::Cuda || TT == TapirTargetID::Hip) {
       if (Args.hasArg(options::OPT_fstripmine))
         CmdArgs.push_back("-fstripmine");
     } else {
@@ -1918,55 +1939,44 @@ static StringRef getArchNameForOpenCilkRTLib(const ToolChain &TC,
 
 void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
                                      ArgStringList &CmdArgs) const {
-  std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
+  std::optional<llvm::TapirTargetID> TT = parseTapirTarget(Args);
   bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos);
 
-  if (TapirTarget) {
-    switch (*TapirTarget) {
+  if (TT) {
+    switch (*TT) {
     case TapirTargetID::Serial:
     case TapirTargetID::None:
       break;
-
     case llvm::TapirTargetID::Cuda:
       ExtractArgsFromString(KITSUNE_CUDA_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-
     case llvm::TapirTargetID::Hip:
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-
     case llvm::TapirTargetID::OpenCilk: {
-      bool StaticOpenCilk = Args.hasArg(options::OPT_static);
-      bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
+      FileType FT = Args.hasArg(options::OPT_static) ? ToolChain::FT_Static
+                                                     : ToolChain::FT_Shared;
+      StringRef Personality = getDriver().CCCIsCXX()
+                                  ? "opencilk-personality-cpp"
+                                  : "opencilk-personality-c";
 
       // Link the correct Cilk personality fn
-      if (getDriver().CCCIsCXX())
-        CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(
-            Args,
-            UseAsan ? "opencilk-asan-personality-cpp"
-                    : "opencilk-personality-cpp",
-            StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
-      else
-        CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(
-            Args,
-            UseAsan ? "opencilk-asan-personality-c" : "opencilk-personality-c",
-            StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
+      CmdArgs.push_back(
+          Args.MakeArgString(getOpenCilkRT(Args, Personality, FT)));
 
       // Link the opencilk runtime.  We do this after linking the personality
       // function, to ensure that symbols are resolved correctly when using
       // static linking.
-      CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(
-          Args, UseAsan ? "opencilk-asan" : "opencilk",
-          StaticOpenCilk ? ToolChain::FT_Static : ToolChain::FT_Shared)));
+      CmdArgs.push_back(
+          Args.MakeArgString(getOpenCilkRT(Args, "opencilk", FT)));
 
-      // Add to the executable's runpath the default directory containing
+      // Add to the executable's runpath the default directory containing the
       // OpenCilk runtime.
       addOpenCilkRuntimeRunPath(*this, Args, CmdArgs, Triple);
 
       ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
     }
-
     case llvm::TapirTargetID::OpenMP:
       // Unconditionally fail so that when (if) we ever resurrect the qthreads
       // tapir target, we know to look here and do whatever is appropriate.
@@ -1981,7 +1991,6 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
                            "needs default linker flags");
       ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-
     case llvm::TapirTargetID::Qthreads:
       // TODO: Fix this when (if) the qthreads tapir target is ever resurrected.
       //
@@ -2002,7 +2011,6 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
                            "needs default linker flags");
       ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-
     case llvm::TapirTargetID::Realm:
       // TODO: Fix this when (if) the realm tapir target is ever resurrected.
       //
@@ -2024,15 +2032,14 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
                            "needs default linker flags");
       ExtractArgsFromString(KITSUNE_REALM_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-
     default:
-      llvm::report_fatal_error("internal error -- unhandled tapir target ID!");
+      report_fatal_error("AddKitsuneLinkerArgs: TapirTargetID not handled");
       break;
     }
   }
 
   if (IsKokkos) {
-    const char* LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib64"));
+    const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib64"));
     CmdArgs.push_back("-L");
     CmdArgs.push_back(LibDir);
     CmdArgs.push_back("-rpath");
@@ -2043,7 +2050,7 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
 
   // We always link in libkitrt if a TapirTarget or special Kokkos handling has
   // been specified.
-  if (TapirTarget or IsKokkos) {
+  if (TT or IsKokkos) {
     // The pthread functions are now part of libc. libpthread was removed from
     // glibc 2.34. There is no need to explicitly link this in unless we have
     // older versions of libc around. We should consider removing this from here
@@ -2055,12 +2062,11 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     // linked in libkitrt.
     CmdArgs.push_back("-ldl");
 
-    const char* LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
+    const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
     CmdArgs.push_back("-L");
     CmdArgs.push_back(LibDir);
     CmdArgs.push_back("-rpath");
     CmdArgs.push_back(LibDir);
-
     CmdArgs.push_back("-lkitrt");
 
     // libkitrt links against libcuda if the cuda target is enabled and
@@ -2073,7 +2079,6 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       CmdArgs.push_back(KITSUNE_HIP_LIBRARY_DIR);
       CmdArgs.push_back("-rpath");
       CmdArgs.push_back(KITSUNE_HIP_LIBRARY_DIR);
-
       CmdArgs.push_back("-lamdhip64");
     }
 
@@ -2086,11 +2091,50 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       CmdArgs.push_back(KITSUNE_CUDA_LIBCUDA_DIR);
       CmdArgs.push_back("-rpath");
       CmdArgs.push_back(KITSUNE_CUDA_LIBCUDA_DIR);
-
-      CmdArgs.push_back("-lcudart");
+      CmdArgs.push_back("-lcudart_static");
       CmdArgs.push_back("-lcuda");
     }
   }
+}
+
+void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
+                                  ArgStringList &CmdArgs) const {
+  if (std::optional<llvm::TapirTargetID> TT = parseTapirTarget(Args)) {
+    Args.AddLastArg(CmdArgs, options::OPT_tapir_EQ);
+    Args.AddLastArg(CmdArgs, options::OPT_tapir_verbose);
+    Args.AddLastArg(CmdArgs, options::OPT_kitrt_verbose);
+    switch (*TT) {
+    case TapirTargetID::Serial:
+    case TapirTargetID::None:
+      break;
+    case llvm::TapirTargetID::Cuda:
+      Args.AddLastArg(CmdArgs, options::OPT_tapir_cuda_arch_EQ);
+      Args.AddLastArg(CmdArgs, options::OPT_tapir_threads_per_block_EQ);
+      Args.AddLastArg(CmdArgs, options::OPT_tapir_max_threads_per_block_EQ);
+      break;
+    case llvm::TapirTargetID::Hip:
+      Args.AddLastArg(CmdArgs, options::OPT_tapir_hip_arch_EQ);
+      Args.AddLastArg(CmdArgs, options::OPT_tapir_threads_per_block_EQ);
+      Args.AddLastArg(CmdArgs, options::OPT_tapir_max_threads_per_block_EQ);
+      break;
+    case llvm::TapirTargetID::OpenCilk:
+      if (std::optional<std::string> BC = getOpenCilkABIBitcodeFile(Args))
+        CmdArgs.push_back(
+            Args.MakeArgString(Twine("--tapir-opencilk-abi-bc=") + *BC));
+      break;
+    default:
+      report_fatal_error("AddKitsuneLTOArgs: TapirTargetID not handled");
+      break;
+    }
+    // TODO: Need to figure out what to do with stripmining here.
+  }
+}
+
+std::optional<std::string>
+ToolChain::getOpenCilkABIBitcodeFile(const ArgList &Args) const {
+  if (Arg *A = Args.getLastArg(options::OPT_tapir_opencilk_abi_bc_EQ))
+    return A->getValue();
+  return getOpenCilkBC(Args, "opencilk-abi");
 }
 
 std::optional<std::string>
@@ -2136,29 +2180,6 @@ std::optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
   }
 
   return std::nullopt;
-}
-
-void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
-                                      ArgStringList &CmdArgs,
-                                      bool IsLTO) const {
-  std::string buf;
-  llvm::raw_string_ostream ss(buf);
-
-  if (Arg *A = Args.getLastArg(options::OPT_tapir_opencilk_abi_bc_EQ)) {
-    ss << "--tapir-opencilk-abi-bc=" << A->getValue();
-  } else if (std::optional<std::string> file =
-                 getOpenCilkBC(Args, "opencilk-abi")) {
-    if (IsLTO)
-      ss << "--plugin-opt=tapir-opencilk-abi-bc=";
-    else
-      ss << "--tapir-opencilk-abi-bc=";
-    ss << *file;
-  }
-
-  // Don't error out if the bitcode file could not be found. That will be
-  // handled later.
-  if (buf.size())
-    CmdArgs.push_back(Args.MakeArgString(ss.str()));
 }
 
 std::string ToolChain::getOpenCilkRTBasename(const ArgList &Args,

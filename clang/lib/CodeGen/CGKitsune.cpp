@@ -65,31 +65,27 @@ using namespace CodeGen;
 // KITSUNE FIXME: This seems to be unused. Is this actually the case? Also, is
 // there is a bug in the attribute handling loop since curAttr is never
 // incremented? Or is there some mysterious C++ black magic at work again?
-LoopAttributes::LSStrategy
+llvm::TapirSpawnStrategy
 CodeGenFunction::GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs) {
-  LoopAttributes::LSStrategy Strategy = LoopAttributes::SEQ;
   auto curAttr = Attrs.begin();
   while (curAttr != Attrs.end()) {
     const attr::Kind AttrKind = (*curAttr)->getKind();
     if (AttrKind == attr::TapirStrategy) {
-      const auto *SAttr = cast<const TapirStrategyAttr>(*curAttr);
+      const auto *SAttr = cast<TapirStrategyAttr>(*curAttr);
       switch (SAttr->getTapirStrategyType()) {
       case TapirStrategyAttr::SEQ:
-        Strategy = LoopAttributes::SEQ;
-        break;
+        return llvm::TapirSpawnStrategy::Sequential;
       case TapirStrategyAttr::DAC:
-        Strategy = LoopAttributes::DAC;
-        break;
+        return llvm::TapirSpawnStrategy::DivideAndConquer;
       case TapirStrategyAttr::GPU:
-        Strategy = LoopAttributes::GPU;
+        return llvm::TapirSpawnStrategy::GPU;
         break;
       default:
         llvm_unreachable("all strategies should be handled before this!");
-        break;
       }
     }
   }
-  return Strategy;
+  return llvm::TapirSpawnStrategy::Sequential;
 }
 
 // If a tapir target attribute exists, it will override the tapir target
@@ -319,7 +315,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   PushSyncRegion();
   llvm::Instruction *SRStart = EmitSyncRegionStart();
   CurSyncRegion->setSyncRegionStart(SRStart);
-  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+  LoopStack.setSpawnStrategy(llvm::TapirSpawnStrategy::DivideAndConquer);
   // See if we have any launch attributes to handle before we start loop body.
   if (TT == llvm::TapirTargetID::Cuda || TT == llvm::TapirTargetID::Hip) {
     unsigned ThreadsPerBlock = GetKitsuneLaunchAttr(ForallAttr);
@@ -494,7 +490,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(
   PushSyncRegion();
   llvm::Instruction *SRStart = EmitSyncRegionStart();
   CurSyncRegion->setSyncRegionStart(SRStart);
-  LoopStack.setSpawnStrategy(LoopAttributes::DAC);
+  LoopStack.setSpawnStrategy(llvm::TapirSpawnStrategy::DivideAndConquer);
 
   llvm::BasicBlock *End = createBasicBlock("forall.end");
 

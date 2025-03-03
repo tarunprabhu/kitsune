@@ -6,11 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements common functionality for libLLVMTapirCommon.a which is
-// shared with clang, flang and lld.
+// Some common implementation for types that are shared between the front and
+// middle ends.
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/StringSwitch.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
 namespace llvm {
@@ -21,6 +23,8 @@ std::optional<TapirTargetID> parseTapirTarget(StringRef s) {
       .Case("serial", TapirTargetID::Serial)
       .Case("cuda", TapirTargetID::Cuda)
       .Case("hip", TapirTargetID::Hip)
+      .Case("lambda", TapirTargetID::Lambda)
+      .Case("omptask", TapirTargetID::OMPTask)
       .Case("opencilk", TapirTargetID::OpenCilk)
       .Case("openmp", TapirTargetID::OpenMP)
       .Case("qthreads", TapirTargetID::Qthreads)
@@ -58,6 +62,19 @@ raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &Target) {
   // values are handled. But we want this error in case a new tapir target is
   // added, but this code is not updated.
   llvm_unreachable("Tapir target not handled");
+}
+
+raw_ostream &operator<<(raw_ostream &os, const TapirSpawnStrategy &strategy) {
+  switch (strategy) {
+  case TapirSpawnStrategy::Sequential:
+    return os << "Sequential";
+  case TapirSpawnStrategy::DivideAndConquer:
+    return os << "Divide and conquer";
+  case TapirSpawnStrategy::GPU:
+    return os << "GPU";
+  default:
+    llvm_unreachable("operator<<: TapirSpawnStrategy not handled");
+  }
 }
 
 } // namespace llvm

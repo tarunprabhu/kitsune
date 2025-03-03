@@ -248,19 +248,19 @@ endif()
 # cumbersome in this case - unlike for kitrt where the runtime mechanism doesn't
 # quite do everything we would like.
 if (NOT "kitsune" IN_LIST LLVM_ENABLE_PROJECTS)
-  message(STATUS "Automatically enabling the kitsune project.")
+  message(STATUS "Enable kitsune")
   list(APPEND LLVM_ENABLE_PROJECTS "kitsune")
 
   # Enable dependencies as well even if they were not explicitly set at
   # configure time.
   if (NOT "clang" IN_LIST LLVM_ENABLE_PROJECTS)
-    message(STATUS "Automatically enabling clang (for kitsune support).")
+    message(STATUS "Enable clang (for kitsune support)")
     list(PREPEND LLVM_ENABLE_PROJECTS "clang")
   endif ()
 
   # We may switch to doing *everything* using LTO, so just enable lld.
   if (NOT "lld" IN_LIST LLVM_ENABLE_PROJECTS)
-    message(STATUS "Automatically enabling lld (for kitsune support).")
+    message(STATUS "Enable lld (for kitsune support)")
     list(APPEND LLVM_ENABLE_PROJECTS "lld")
   endif ()
 
@@ -279,9 +279,6 @@ if (NOT "kitsune" IN_LIST LLVM_ENABLE_PROJECTS)
       "to a path within GCC's resource directory")
   endif ()
 
-  # Currently, flang is not required, but if it is, MLIR should be enabled as
-  # well.
-
   message(STATUS "Updated LLVM_ENABLE_PROJECTS: ${LLVM_ENABLE_PROJECTS}")
 endif ()
 
@@ -294,12 +291,58 @@ endif ()
 # The Kokkos option does not need to be moved here (for now) because that only
 # affects clang. And we have ensured that kitsune is configured before clang.
 #
-set(KITSUNE_CUDA_ENABLED OFF CACHE INTERNAL "Enable the cuda tapir target" FORCE)
-set(KITSUNE_HIP_ENABLED OFF CACHE INTERNAL "Enable the hip tapir target" FORCE)
-set(KITSUNE_OPENCILK_ENABLED OFF CACHE INTERNAL "Enable the opencilk tapir target" FORCE)
-set(KITSUNE_OPENMP_ENABLED OFF CACHE INTERNAL "Enable the openmp tapir target" FORCE)
-set(KITSUNE_QTHREADS_ENABLED OFF CACHE INTERNAL "Enable the qthreads tapir target" FORCE)
-set(KITSUNE_REALM_ENABLED OFF CACHE INTERNAL "Enable the realm tapir target" FORCE)
+set(KITSUNE_CUDA_ENABLED OFF CACHE INTERNAL "Enable 'cuda' tapir target" FORCE)
+set(KITSUNE_HIP_ENABLED OFF CACHE INTERNAL "Enable 'hip' tapir target" FORCE)
+set(KITSUNE_LAMBDA_ENABLED OFF CACHE INTERNAL "Enable 'lambda' tapir target" FORCE)
+set(KITSUNE_OMPTASK_ENABLED OFF CACHE INTERNAL "Enable 'omptask' tapir target" FORCE)
+set(KITSUNE_OPENCILK_ENABLED OFF CACHE INTERNAL "Enable 'opencilk' tapir target" FORCE)
+set(KITSUNE_OPENMP_ENABLED OFF CACHE INTERNAL "Enable 'openmp' tapir target" FORCE)
+set(KITSUNE_QTHREADS_ENABLED OFF CACHE INTERNAL "Enable 'qthreads' tapir target" FORCE)
+set(KITSUNE_REALM_ENABLED OFF CACHE INTERNAL "Enable 'realm' tapir target" FORCE)
+
+set(KITSUNE_C_ENABLED OFF CACHE INTERNAL "Enable 'kitcc' frontend" FORCE)
+set(KITSUNE_CXX_ENABLED OFF CACHE INTERNAL "Enable 'kit++' frontend" FORCE)
+set(KITSUNE_Fortran_ENABLED OFF CACHE INTERNAL "Enable 'kitfc' frontend" FORCE)
+
+set(KITSUNE_ALL_LANGS "c;cxx;fortran" CACHE STRING
+  "All languages for which Kitsune has a frontend")
+
+set(KITSUNE_DEFAULT_LANGS "c;cxx" CACHE STRING
+  "Languages for which the frontend is built by default")
+
+set(KITSUNE_ENABLED_LANGS "${KITSUNE_DEFAULT_LANGS}" CACHE STRING
+  "Semicolon-separated list of languages for which a frontend should be built")
+
+if (NOT KITSUNE_ENABLED_LANGS)
+  message(FATAL_ERROR "Frontend for at least one language must be built")
+endif ()
+
+foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
+  string(TOLOWER "${l}" lang)
+  # clang is required by the C and C++ frontends. But that is guaranteed to be
+  # built because the runtime requires it.
+  if (lang STREQUAL "c")
+    message(STATUS "'kitcc' frontend is enabled")
+    set(KITSUNE_C_ENABLED ON CACHE INTERNAL "Enable frontend 'kitcc'" FORCE)
+  elseif (lang STREQUAL "cxx")
+    message(STATUS "'kit++' frontend is enabled")
+    set(KITSUNE_CXX_ENABLED ON CACHE INTERNAL "Enable frontend 'kit++'" FORCE)
+  elseif (lang STREQUAL "fortran")
+    message(STATUS "'kitfc' frontend is enabled")
+    set(KITSUNE_Fortran_ENABLED ON CACHE INTERNAL "Enable frontend 'kitfc'" FORCE)
+    if (NOT "flang" IN_LIST LLVM_ENABLE_PROJECTS)
+      message(STATUS "Enable flang (for Fortran frontend support)")
+      list(APPEND LLVM_ENABLE_PROJECTS "flang")
+    endif()
+    if (NOT "mlir" IN_LIST LLVM_ENABLE_PROJECTS)
+      message(STATUS "Enable mlir (for flang support)")
+      list(APPEND LLVM_ENABLE_PROJECTS "mlir")
+    endif()
+    message(STATUS "Updated LLVM_ENABLE_PROJECTS: ${LLVM_ENABLE_PROJECTS}")
+  else ()
+    message(FATAL_ERROR "Unknown language '${l}'")
+  endif()
+endforeach()
 
 # TODO: Need to update the openmp, qthreads and realm targets and add them
 # back into this list. These targets have not been tested in a while and have
@@ -327,9 +370,9 @@ endif ()
 set(KITSUNE_TAPIR_TARGETS_STR "serial")
 foreach(target IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
   if (target IN_LIST KITSUNE_ALL_TAPIR_TARGETS)
-    message(STATUS "${target} tapir target enabled")
+    message(STATUS "'${target}' tapir target is enabled")
     string(TOUPPER "${target}" upper)
-    set(KITSUNE_${upper}_ENABLED ON CACHE INTERNAL "Enable the ${target} tapir target" FORCE)
+    set(KITSUNE_${upper}_ENABLED ON CACHE INTERNAL "Enable tapir target '${target}'" FORCE)
     string(TOLOWER "${target}" lower)
     set(KITSUNE_TAPIR_TARGETS_STR "${KITSUNE_TAPIR_TARGETS_STR} ${lower}")
   else ()

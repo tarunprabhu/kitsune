@@ -14,13 +14,37 @@
 #ifndef LLVM_TAPIR_TARGETS_H
 #define LLVM_TAPIR_TARGETS_H
 
+#include "kitsune/Config/config.h"
+#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+
+#if KITSUNE_CUDA_ENABLED
 #include "llvm/Transforms/Tapir/CudaABI.h"
+#endif // KITSUNE_CUDA_ENABLED
+
+#if KITSUNE_HIP_ENABLED
 #include "llvm/Transforms/Tapir/HipABI.h"
+#endif // KITSUNE_HIP_ENABLED
+
+#if KITSUNE_LAMBDA_ENABLED
 #include "llvm/Transforms/Tapir/LambdaABI.h"
+#endif // KITSUNE_LAMBDA_ENABLED
+
+#if KITSUNE_OMPTASK_ENABLED
 #include "llvm/Transforms/Tapir/OMPTaskABI.h"
+#endif // KITSUNE_OMPTASK_ENABLED
+
+#if KITSUNE_OPENCILK_ENABLED
 #include "llvm/Transforms/Tapir/OpenCilkABI.h"
+#endif // KITSUNE_OPENCILK_ENABLED
+
+#if KITSUNE_QTHREADS_ENABLED
 #include "llvm/Transforms/Tapir/QthreadsABI.h"
+#endif // KITSUNE_QTHREADS_ENABLED
+
+#if KITSNUE_REALM_ENABLED
 #include "llvm/Transforms/Tapir/RealmABI.h"
+#endif // KITSUNE_REALM_ENABLED
+
 #include "llvm/Transforms/Tapir/SerialABI.h"
 
 #endif // LLVM_TAPIR_TARGETS_H

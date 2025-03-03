@@ -10,13 +10,14 @@
 // into the OpenCilk runtime system.
 //
 //===----------------------------------------------------------------------===//
-#ifndef OPEN_CILK_ABI_H_
-#define OPEN_CILK_ABI_H_
+#ifndef LLVM_TAPIR_OPEN_CILK_ABI_H
+#define LLVM_TAPIR_OPEN_CILK_ABI_H
 
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
+#include "llvm/Transforms/Tapir/TapirTargetOptions.h"
 
 namespace llvm {
 class Value;
@@ -24,21 +25,23 @@ class TapirLoopInfo;
 
 /// Options for the opencilk tapir target.
 class OpenCilkABIOptions : public TapirTargetOptions {
-  std::string RuntimeBCPath;
+private:
+  bool useRuntimeBC = true;
+  std::string runtimeBCPath;
 
 public:
-  OpenCilkABIOptions() : TapirTargetOptions(TTO_OpenCilk) {}
+  explicit OpenCilkABIOptions() : TapirTargetOptions(TTO_OpenCilk) {}
+  explicit OpenCilkABIOptions(const OpenCilkABIOptions&) = default;
   virtual ~OpenCilkABIOptions() = default;
 
-  void setRuntimeBCPath(StringRef Path) { this->RuntimeBCPath = Path; }
+  void setUseRuntimeBC(bool use = true) { this->useRuntimeBC = use; }
+  void setRuntimeBCPath(StringRef path) { this->runtimeBCPath = path; }
 
-  StringRef getRuntimeBCPath() const { return RuntimeBCPath; }
+  bool getUseRuntimeBC() const { return useRuntimeBC; }
+  StringRef getRuntimeBCPath() const { return runtimeBCPath; }
 
-  virtual OpenCilkABIOptions *clone() const override {
-    OpenCilkABIOptions* clone = new OpenCilkABIOptions();
-    clone->RuntimeBCPath = this->RuntimeBCPath;
-    return clone;
-  }
+  virtual void readClOptions() override;
+  virtual OpenCilkABIOptions *clone() const override;
 
   static bool classof(const TapirTargetOptions *TTO) {
     return TTO->getKind() == TTO_OpenCilk;
@@ -51,8 +54,6 @@ class OpenCilkABI final : public TapirTarget {
   SmallPtrSet<CallBase *, 8> CallsToInline;
   DenseMap<BasicBlock *, SmallVector<IntrinsicInst *, 4>> TapirRTCalls;
   ValueToValueMapTy DefaultSyncLandingpad;
-
-  StringRef RuntimeBCPath = "";
 
   // Cilk RTS data types
   StructType *StackFrameTy = nullptr;
@@ -96,24 +97,16 @@ class OpenCilkABI final : public TapirTarget {
   // Otherwise, these functions will return FunctionCallees for placeholder
   // declarations of these functions.  The latter case is intended for debugging
   // ABI-call insertion.
-  FunctionCallee Get__cilkrts_enter_frame() {
-    return CilkRTSEnterFrame;
-  }
+  FunctionCallee Get__cilkrts_enter_frame() { return CilkRTSEnterFrame; }
   FunctionCallee Get__cilkrts_enter_frame_helper() {
     return CilkRTSEnterFrameHelper;
   }
-  FunctionCallee Get__cilkrts_detach() {
-    return CilkRTSDetach;
-  }
-  FunctionCallee Get__cilkrts_leave_frame() {
-    return CilkRTSLeaveFrame;
-  }
+  FunctionCallee Get__cilkrts_detach() { return CilkRTSDetach; }
+  FunctionCallee Get__cilkrts_leave_frame() { return CilkRTSLeaveFrame; }
   FunctionCallee Get__cilkrts_leave_frame_helper() {
     return CilkRTSLeaveFrameHelper;
   }
-  FunctionCallee Get__cilkrts_pause_frame() {
-    return CilkRTSPauseFrame;
-  }
+  FunctionCallee Get__cilkrts_pause_frame() { return CilkRTSPauseFrame; }
   FunctionCallee Get__cilkrts_enter_landingpad() {
     return CilkRTSEnterLandingpad;
   }
@@ -139,29 +132,15 @@ class OpenCilkABI final : public TapirTarget {
   FunctionCallee Get__cilkrts_reducer_unregister() {
     return CilkRTSReducerUnregister;
   }
-  FunctionCallee Get__cilkrts_reducer_lookup() {
-    return CilkRTSReducerLookup;
-  }
+  FunctionCallee Get__cilkrts_reducer_lookup() { return CilkRTSReducerLookup; }
 
   // Helper functions for implementing the Cilk ABI protocol
-  FunctionCallee GetCilkPrepareSpawnFn() {
-    return CilkPrepareSpawn;
-  }
-  FunctionCallee GetCilkSyncFn() {
-    return CilkSync;
-  }
-  FunctionCallee GetCilkSyncNoThrowFn() {
-    return CilkSyncNoThrow;
-  }
-  FunctionCallee GetCilkParentEpilogueFn() {
-    return CilkParentEpilogue;
-  }
-  FunctionCallee GetCilkHelperEpilogueFn() {
-    return CilkHelperEpilogue;
-  }
-  FunctionCallee GetCilkHelperEpilogueExnFn() {
-    return CilkHelperEpilogueExn;
-  }
+  FunctionCallee GetCilkPrepareSpawnFn() { return CilkPrepareSpawn; }
+  FunctionCallee GetCilkSyncFn() { return CilkSync; }
+  FunctionCallee GetCilkSyncNoThrowFn() { return CilkSyncNoThrow; }
+  FunctionCallee GetCilkParentEpilogueFn() { return CilkParentEpilogue; }
+  FunctionCallee GetCilkHelperEpilogueFn() { return CilkHelperEpilogue; }
+  FunctionCallee GetCilkHelperEpilogueExnFn() { return CilkHelperEpilogueExn; }
 
   void GetTapirRTCalls(Spindle *TaskFrame, bool IsRootTask, TaskInfo &TI);
   void LowerTapirRTCalls(Function &F, BasicBlock *TFEntry);
@@ -181,10 +160,10 @@ class OpenCilkABI final : public TapirTarget {
   BasicBlock *GetDefaultSyncLandingpad(Function &F, Value *SF, DebugLoc Loc);
 
 public:
-  OpenCilkABI(Module &M);
+  OpenCilkABI(Module &M, const OpenCilkABIOptions& opts);
   ~OpenCilkABI() { DetachCtxToStackFrame.clear(); }
 
-  void setOptions(const TapirTargetOptions &Options) override final;
+  const OpenCilkABIOptions& getOptions() const override final;
 
   void prepareModule() override final;
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
@@ -220,11 +199,10 @@ public:
                           DominatorTree &DT) override final;
   bool processOrdinaryFunction(Function &F, BasicBlock *TFEntry) override final;
 
-  LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL,
-                  OptimizationLevel OptLevel = OptimizationLevel::O2)
-		  override final;
+  LoopOutlineProcessor *getLoopOutlineProcessor(
+      const TapirLoopInfo *TL,
+      OptimizationLevel OptLevel = OptimizationLevel::O2) override final;
 };
 } // namespace llvm
 
-#endif
+#endif // LLVM_TAPIR_OPEN_CILK_ABI_H

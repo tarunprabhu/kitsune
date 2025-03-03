@@ -31,35 +31,6 @@ std::optional<TapirTargetID> clang::parseTapirTarget(const opt::ArgList &Args) {
   return std::nullopt;
 }
 
-StringRef clang::parseTapirCudaArch(const opt::Arg &A) {
-  StringRef sm = A.getValue();
-  if (sm == "sm_50" || sm == "sm_52" || sm == "sm_53" || sm == "sm_60" ||
-      sm == "sm_62" || sm == "sm_70" || sm == "sm_72" || sm == "sm_75" ||
-      sm == "sm_80" || sm == "sm_86" || sm == "sm_90")
-    return A.getValue();
-  return "";
-}
-
-std::optional<std::string> clang::parseTapirCudaArch(const opt::ArgList &Args) {
-  if (const opt::Arg *A = Args.getLastArg(options::OPT_tapir_cuda_arch_EQ))
-    return parseTapirCudaArch(*A).str();
-  return std::nullopt;
-}
-
-StringRef clang::parseTapirHipArch(const opt::Arg &A) {
-  StringRef v = A.getValue();
-  if (v == "gfx906" || v == "gfx908" || v == "gfx90a" || v == "gfx90c" ||
-      v == "gfx942")
-    return A.getValue();
-  return "";
-}
-
-std::optional<std::string> clang::parseTapirHipArch(const opt::ArgList &Args) {
-  if (const opt::Arg *A = Args.getLastArg(options::OPT_tapir_hip_arch_EQ))
-    return parseTapirHipArch(*A).str();
-  return std::nullopt;
-}
-
 std::optional<StringRef>
 clang::getTargetConfigFileName(const opt::ArgList &Args) {
   if (std::optional<TapirTargetID> tt = parseTapirTarget(Args)) {

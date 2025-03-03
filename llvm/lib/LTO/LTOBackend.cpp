@@ -84,24 +84,9 @@ static void setupTapirProperties(TargetLibraryInfoImpl &TLII,
                                  const Config &Conf) {
   if (std::optional<TapirTargetID> TT = Conf.TapirTarget) {
     TLII.setTapirTarget(*TT);
-    switch (*TT) {
-    case TapirTargetID::Cuda:
-    case TapirTargetID::Hip:
-      // FIXME: Support adding options for the cuda and hip tapir targets for
-      // other targets, we don't have anything to do.
-      report_fatal_error(
-          "NOT IMPLEMENTED: Options for cuda and hip ABI in LTO");
-      break;
-    case TapirTargetID::OpenCilk: {
-      std::unique_ptr<OpenCilkABIOptions> Opts(new OpenCilkABIOptions());
-      Opts->setRuntimeBCPath(Conf.OpenCilkABIBitcodeFile);
-      TLII.setTapirTargetOptions(std::move(Opts));
-      break;
-    }
-    default:
-      llvm_unreachable("codegen: Tapir target not handled");
-      break;
-    }
+    if (TapirTargetOptions *Opts = Conf.TapirTargetOpts.get())
+      TLII.setTapirTargetOptions(
+          std::unique_ptr<TapirTargetOptions>(Opts->clone()));
     TLII.addTapirTargetLibraryFunctions();
   }
 }

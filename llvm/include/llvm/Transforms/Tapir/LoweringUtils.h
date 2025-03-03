@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LOWERING_UTILS_H_
-#define LOWERING_UTILS_H_
+#ifndef LLVM_TAPIR_LOWERING_UTILS_H
+#define LLVM_TAPIR_LOWERING_UTILS_H
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/MapVector.h"
@@ -34,6 +34,7 @@ class Loop;
 class LoopOutlineProcessor;
 class Spindle;
 class TapirLoopInfo;
+class TapirTargetOptions;
 class Task;
 class TaskInfo;
 class Value;
@@ -45,7 +46,7 @@ using TFValueSetMap = DenseMap<const Spindle *, ValueSet>;
 
 struct OutlineAnalysis {
   OutlineAnalysis(AAResults &AA, AssumptionCache &AC, DominatorTree &DT)
-    : AA(AA), AC(AC), DT(DT) { }
+      : AA(AA), AC(AC), DT(DT) {}
   AAResults &AA;
   AssumptionCache &AC;
   DominatorTree &DT;
@@ -90,7 +91,7 @@ struct TaskOutlineInfo {
   BasicBlock *ReplRet = nullptr;
 
   // Task that corresponds to the task outline
-  Value* SR = nullptr;
+  Value *SR = nullptr;
 
   // Basic block denoting the unwind destination of an invocation of the
   // outlined helper function.  This block corresponds to the unwind block of
@@ -108,7 +109,7 @@ struct TaskOutlineInfo {
   TaskOutlineInfo(Function *Outline, BasicBlock *OriginalTFEntry,
                   Instruction *DetachPt, Instruction *TaskFrameCreate,
                   ValueSet &InputSet, Instruction *ReplStart,
-                  Instruction *ReplCall, Value* SR, BasicBlock *ReplRet,
+                  Instruction *ReplCall, Value *SR, BasicBlock *ReplRet,
                   BasicBlock *ReplUnwind = nullptr)
       : Outline(Outline), DetachPt(DetachPt), TaskFrameCreate(TaskFrameCreate),
         InputSet(InputSet), ReplStart(ReplStart), ReplCall(ReplCall),
@@ -220,7 +221,17 @@ protected:
   /// The Module into which the outlined Helper functions will be placed.
   Module &DestM;
 
-  TapirTarget(Module &M, Module &DestM) : M(M), DestM(DestM) {}
+  /// Options for this tapir target. This object is owned by TargetLibraryInfo
+  /// which is guaranteed to outlive this this TapirTarget. This will be an
+  /// instance of a subclass of TapirTargetOptions. Subclasses will typically
+  /// call getOptions() to retrieve the correct subclass of TapirTargetOptions.
+  const TapirTargetOptions &opts;
+
+  /// Create a tapir target with separate host and destination modules. This is
+  /// typically only used by the GPU tapir targets since they need to create two
+  /// different modules - one each for the host and the device.
+  TapirTarget(Module &M, Module &DestM, const TapirTargetOptions &opts)
+      : M(M), DestM(DestM), opts(opts) {}
 
 public:
   // Enumeration of ways arguments can be passed to outlined functions.
@@ -230,10 +241,16 @@ public:
     Dynamic // Dynamically allocate a structure to store arguments.
   };
 
-  TapirTarget(Module &M) : M(M), DestM(M) {}
+  /// Create a tapir target for the given module. All outlining will be done
+  /// within the same module, so the host and destination are the same in this
+  /// case. This is the default behavior for all CPU-centric tapir targets.
+  TapirTarget(Module &M, const TapirTargetOptions &opts)
+      : TapirTarget(M, M, opts) {}
   virtual ~TapirTarget() {}
 
-  virtual void setOptions(const TapirTargetOptions &Options) {}
+  /// Get the options associated with this tapir target. The overriding classes
+  /// will override the return type and return a more concrete object.
+  virtual const TapirTargetOptions &getOptions() const = 0;
 
   // Prepare the module for final Tapir lowering.
   virtual void prepareModule() {}
@@ -348,7 +365,7 @@ public:
   /// Get the LoopOutlineProcessor associated with this Tapir target.
   virtual LoopOutlineProcessor *
   getLoopOutlineProcessor(const TapirLoopInfo *TL,
-			  OptimizationLevel OptLevel = OptimizationLevel::O2) {
+                          OptimizationLevel OptLevel = OptimizationLevel::O2) {
     return nullptr;
   }
 };
@@ -403,6 +420,7 @@ protected:
   Module &DestM;
 
   LoopOutlineProcessor(Module &M, Module &DestM) : M(M), DestM(DestM) {}
+
 public:
   using ArgStructMode = TapirTarget::ArgStructMode;
 
@@ -413,9 +431,7 @@ public:
   /// underlying task of a Tapir loop should be passed to the task, e.g.,
   /// directly as arguments to the outlined function, or marshalled in a
   /// structure.
-  virtual ArgStructMode getArgStructMode() const {
-    return ArgStructMode::None;
-  }
+  virtual ArgStructMode getArgStructMode() const { return ArgStructMode::None; }
 
   /// Prepares the set \p HelperArgs of function arguments for the outlined
   /// helper function Helper for a Tapir loop.  Also prepares the list \p
@@ -423,10 +439,12 @@ public:
   /// and \p HelperInputs are derived from the loop-control arguments \p LCArgs
   /// and loop-control inputs \p LCInputs for the Tapir loop, as well the set
   /// \p TLInputsFixed of arguments to the task underlying the Tapir loop.
-  virtual void setupLoopOutlineArgs(
-      Function &F, ValueSet &HelperArgs, SmallVectorImpl<Value *> &HelperInputs,
-      ValueSet &InputSet, const SmallVectorImpl<Value *> &LCArgs,
-      const SmallVectorImpl<Value *> &LCInputs, const ValueSet &TLInputsFixed);
+  virtual void setupLoopOutlineArgs(Function &F, ValueSet &HelperArgs,
+                                    SmallVectorImpl<Value *> &HelperInputs,
+                                    ValueSet &InputSet,
+                                    const SmallVectorImpl<Value *> &LCArgs,
+                                    const SmallVectorImpl<Value *> &LCInputs,
+                                    const ValueSet &TLInputsFixed);
 
   /// Get the Module where outlined Helper will be placed.
   Module &getDestinationModule() const { return DestM; }
@@ -448,8 +466,8 @@ public:
   /// outlining occurs.  This allows the VMap and related details to be
   /// customized prior to outlining related operations (e.g. cloning of
   /// LLVM constructs).
-  virtual void preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap)
-  { /* no-op */ }
+  virtual void preProcessTapirLoop(TapirLoopInfo &TL,
+                                   ValueToValueMapTy &VMap) { /* no-op */ }
 
   /// Processes an outlined Function Helper for a Tapir loop, just after the
   /// function has been outlined.
@@ -478,19 +496,19 @@ public:
 };
 
 /// Generate a TapirTarget object for the specified TapirTargetID.
-TapirTarget *getTapirTargetFromID(Module &M, TapirTargetID TargetID);
+TapirTarget *getTapirTargetFromID(Module &M, TapirTargetID TargetID,
+                                  const TapirTargetOptions &Opts);
 
 /// Find all inputs to tasks within a function \p F, including nested tasks.
 TaskValueSetMap findAllTaskInputs(Function &F, const DominatorTree &DT,
                                   const TaskInfo &TI);
 
 void getTaskFrameInputsOutputs(TFValueSetMap &TFInputs,
-                               TFValueSetMap &TFOutputs,
-                               const Spindle &TF, const ValueSet *TaskInputs,
-                               const TaskInfo &TI, const DominatorTree &DT);
+                               TFValueSetMap &TFOutputs, const Spindle &TF,
+                               const ValueSet *TaskInputs, const TaskInfo &TI,
+                               const DominatorTree &DT);
 
-void findAllTaskFrameInputs(TFValueSetMap &TFInputs,
-                            TFValueSetMap &TFOutputs,
+void findAllTaskFrameInputs(TFValueSetMap &TFInputs, TFValueSetMap &TFOutputs,
                             const SmallVectorImpl<Spindle *> &AllTaskFrames,
                             Function &F, const DominatorTree &DT, TaskInfo &TI);
 
@@ -502,8 +520,7 @@ void findAllTaskFrameInputs(TFValueSetMap &TFInputs,
 std::pair<AllocaInst *, Instruction *>
 createTaskArgsStruct(const ValueSet &Inputs, Task *T, Instruction *StorePt,
                      Instruction *LoadPt, bool StaticStruct,
-                     ValueToValueMapTy &InputsMap,
-                     Loop *TapirL = nullptr);
+                     ValueToValueMapTy &InputsMap, Loop *TapirL = nullptr);
 
 /// Organize the set \p Inputs of values in \p F into a set \p Fixed of values
 /// that can be used as inputs to a helper function.
@@ -541,22 +558,23 @@ void getTaskBlocks(Task *T, std::vector<BasicBlock *> &TaskBlocks,
 /// function.  The parameter \p Inputs specified the inputs to the helper
 /// function.  The map \p VMap is updated with the mapping of instructions in
 /// \p T to instructions in the new helper function.
-Function *createHelperForTask(
-    Function &F, Task *T, ValueSet &Inputs, Module *DestM,
-    ValueToValueMapTy &VMap, Type *ReturnType, OutlineAnalysis &OA);
+Function *createHelperForTask(Function &F, Task *T, ValueSet &Inputs,
+                              Module *DestM, ValueToValueMapTy &VMap,
+                              Type *ReturnType, OutlineAnalysis &OA);
 
 /// Outlines the content of taskframe \p TF in function \p F into a new helper
 /// function.  The parameter \p Inputs specified the inputs to the helper
 /// function.  The map \p VMap is updated with the mapping of instructions in \p
 /// TF to instructions in the new helper function.
-Function *createHelperForTaskFrame(
-    Function &F, Spindle *TF, ValueSet &Args, Module *DestM,
-    ValueToValueMapTy &VMap, Type *ReturnType, OutlineAnalysis &OA);
+Function *createHelperForTaskFrame(Function &F, Spindle *TF, ValueSet &Args,
+                                   Module *DestM, ValueToValueMapTy &VMap,
+                                   Type *ReturnType, OutlineAnalysis &OA);
 
 /// Replaces the taskframe \p TF, with associated TaskOutlineInfo \p Out, with a
 /// call or invoke to the outlined helper function created for \p TF.
-Instruction *replaceTaskFrameWithCallToOutline(
-    Spindle *TF, TaskOutlineInfo &Out, SmallVectorImpl<Value *> &OutlineInputs);
+Instruction *
+replaceTaskFrameWithCallToOutline(Spindle *TF, TaskOutlineInfo &Out,
+                                  SmallVectorImpl<Value *> &OutlineInputs);
 
 /// Outlines a task \p T into a helper function that accepts the inputs
 /// \p Inputs.  The map \p VMap is updated with the mapping of instructions in
@@ -564,7 +582,7 @@ Instruction *replaceTaskFrameWithCallToOutline(
 /// helper function is returned as a TaskOutlineInfo structure.
 TaskOutlineInfo outlineTask(Task *T, ValueSet &Inputs,
                             SmallVectorImpl<Value *> &HelperInputs,
-    Module *DestM, ValueToValueMapTy &VMap,
+                            Module *DestM, ValueToValueMapTy &VMap,
                             TapirTarget::ArgStructMode UseArgStruct,
                             Type *ReturnType, ValueToValueMapTy &InputMap,
                             OutlineAnalysis &OA, TapirTarget *Target);
@@ -575,7 +593,7 @@ TaskOutlineInfo outlineTask(Task *T, ValueSet &Inputs,
 /// helper function is returned as a TaskOutlineInfo structure.
 TaskOutlineInfo outlineTaskFrame(Spindle *TF, ValueSet &Inputs,
                                  SmallVectorImpl<Value *> &HelperInputs,
-    Module *DestM, ValueToValueMapTy &VMap,
+                                 Module *DestM, ValueToValueMapTy &VMap,
                                  TapirTarget::ArgStructMode UseArgStruct,
                                  Type *ReturnType, ValueToValueMapTy &InputMap,
                                  OutlineAnalysis &OA);
@@ -589,17 +607,15 @@ ValueSet getTapirLoopInputs(TapirLoopInfo *TL, ValueSet &TaskInputs);
 
 /// Replaces the Tapir loop \p TL, with associated TaskOutlineInfo \p Out, with
 /// a call or invoke to the outlined helper function created for \p TL.
-Instruction *replaceLoopWithCallToOutline(
-    TapirLoopInfo *TL, TaskOutlineInfo &Out,
-    SmallVectorImpl<Value *> &OutlineInputs);
+Instruction *
+replaceLoopWithCallToOutline(TapirLoopInfo *TL, TaskOutlineInfo &Out,
+                             SmallVectorImpl<Value *> &OutlineInputs);
 
-void saveModuleToFile(const Module *M,
-                      const std::string &FileName,
+void saveModuleToFile(const Module *M, const std::string &FileName,
                       const std::string &Extension = ".ll");
 
-void saveFunctionToFile(const Function *Fn,
-                        const std::string &FileName,
+void saveFunctionToFile(const Function *Fn, const std::string &FileName,
                         const std::string &Extension = ".ll");
-} // namepsace llvm
+} // namespace llvm
 
-#endif
+#endif // LLVM_TAPIR_LOWERING_UTILS_H

@@ -15,22 +15,22 @@
 #define LLVM_TAPIR_SERIAL_ABI_H
 
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "llvm/Transforms/Tapir/TapirTargetOptions.h"
 
 namespace llvm {
 
-/// Options for the serial tapir target. Currently, there are none.
+/// Options for the serial tapir target. Currently, there are none specific to
+/// this tapir target, but it will inherit some common options from the parent.
 class SerialABIOptions : public TapirTargetOptions {
 public:
-  SerialABIOptions() : TapirTargetOptions(TTO_Serial) {}
+  explicit SerialABIOptions() : TapirTargetOptions(TTO_Serial) {}
+  explicit SerialABIOptions(const SerialABIOptions &) = default;
   virtual ~SerialABIOptions() = default;
 
-  SerialABIOptions(const SerialABIOptions &) = delete;
   SerialABIOptions &operator=(const SerialABIOptions &) = delete;
 
-  virtual SerialABIOptions *clone() const override {
-    return new SerialABIOptions();
-  }
+  virtual void readClOptions() override;
+  virtual SerialABIOptions *clone() const override;
 
   static bool classof(const TapirTargetOptions *TTO) {
     return TTO->getKind() == TTO_Serial;
@@ -39,8 +39,10 @@ public:
 
 class SerialABI : public TapirTarget {
 public:
-  SerialABI(Module &M) : TapirTarget(M) {}
-  ~SerialABI() {}
+  SerialABI(Module &M, const SerialABIOptions &opts);
+  virtual ~SerialABI() = default;
+
+  const SerialABIOptions &getOptions() const override final;
 
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
   void lowerSync(SyncInst &inst) override final;

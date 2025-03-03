@@ -9144,8 +9144,37 @@ def wasm_opt : Flag<["--"], "wasm-opt">,
   HelpText<"Enable the wasm-opt optimizer (default)">,
   MarshallingInfoNegativeFlag<LangOpts<"NoWasmOpt">>;
 
-// Kitsune options
+// =============================================================================
+//
+//                              Kitsune Options
+//
+// -----------------------------------------------------------------------------
+//
+// Some considerations to keep in mind when adding new options here:
+//
+//   - The RenderStyle for any new options that are added to this must be
+//     "Joined"
+//
+//   - A double-dash before the options should be preferred insteasd of a single
+//      dash. This is for consistency with other tools such as opt and lld
+//
+//   - Avoid prefixing options with -f unless the intention is to make the
+//     option available to "vanilla" clang/flang
+//
+//   - New options should be added to the kitsune_Group defined below. This will
+//     ensure that a Kitsune frontend (kitcc, kit++, kitfc etc.) is used when
+//     compiling with these options. In general, this is what we want since the
+//     Kitsune frontends have different defaults for certain options such as 
+//     -ffp-contract=
+//
+// Ideally, we would like to share the option definitions with those tools, but
+// each tool uses a slightly different tablegen syntax, so everything has to be
+// kept in sync manually.
+//
+//==============================================================================
+
 let Group = kitsune_Group in {
+
 def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">,
   Flags<[NoXarchOption, HelpHidden]>,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
@@ -9158,9 +9187,13 @@ def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">,
   Visibility<[ClangOption, CC1Option]>,
   HelpText<"Skip generation of Kokkos initialization (and finalize) calls.">;
 
+def kitrt_verbose: Joined<["--"], "kitrt-verbose">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Enable verbose mode in kitsune's runtime">;
+
 def tapir_EQ : Joined<["--"], "tapir=">, 
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  MetaVarName<"<target>">, Flags<[RenderJoined]>,
+  MetaVarName<"<target>">, 
   Values<"none,serial,cuda,hip,opencilk">,
   HelpText<"The tapir target">;
 
@@ -9168,20 +9201,38 @@ def ftapir_EQ : Joined<["-"], "ftapir=">, Alias<tapir_EQ>,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   HelpText<"DEPRECATED: Use --tapir=">;
 
+def tapir_verbose: Joined<["--"], "tapir-verbose">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Enable verbose mode in all tapir targets">;
+
+def tapir_threads_per_block_EQ: Joined<["--"], "tapir-threads-per-block=">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  MetaVarName<"<N>">,
+  HelpText<"Use a fixed number of threads per block for all GPU kernel "
+           "launches unless overridden with pragmas. If this is not provided "
+           "the threads per block will be calculated by Kitsune's runtime. "
+           "Can be at most 1024">;
+
+def tapir_max_threads_per_block_EQ:
+  Joined<["--"], "tapir-max-threads-per-block=">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  MetaVarName<"<N>">,
+  HelpText<"The maximum number of threads per block to launch. If this is not "
+           "provided, Kitsune's runtime is free to launch as many threads per "
+           "block as it sees fit">;
+
 // NOTE: The default must be kept in sync with the KITSUNE_CUDA_ARCH_DEFAULT
 // cmake variable set in kitsune/CMakeLists.txt.
 def tapir_cuda_arch_EQ : Joined<["--"], "tapir-cuda-arch=">, 
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  Default<"sm_80">, MetaVarName<"<arch>">, Flags<[RenderJoined]>,
-  Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80,sm_86,sm_90">,
+  Default<"sm_80">, MetaVarName<"<arch>">, 
   HelpText<"The NVIDIA GPU architecture for the cuda tapir target">;
 
-// NOTE: The default must be kept in sync iwth the KITSUNE_HIP_ARCH_DEFAULT
+// NOTE: The default must be kept in sync with the KITSUNE_HIP_ARCH_DEFAULT
 // cmake variable set in kitsune/CMakeLists.txt.
 def tapir_hip_arch_EQ : Joined<["--"], "tapir-hip-arch=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  Default<"gfx90a">, MetaVarName<"<arch>">, Flags<[RenderJoined]>,
-  Values<"gfx906,gfx908,gfx90a,gfx90c,gfx942">,
+  Default<"gfx90a">, MetaVarName<"<arch>">, 
   HelpText<"The AMDGPU architecture for the hip tapir target">;
 
 // There is a fair bit of logic that looks for the correct bitcode file to use
@@ -9192,7 +9243,7 @@ def tapir_hip_arch_EQ : Joined<["--"], "tapir-hip-arch=">,
 // platforms).
 def tapir_opencilk_abi_bc_EQ : Joined<["--"], "tapir-opencilk-abi-bc=">,
   Visibility<[CC1Option, FC1Option]>,
-  MetaVarName<"<file>">, Flags<[RenderJoined]>,
+  MetaVarName<"<file>">, 
   HelpText<"Path to OpenCilk ABI bitcode file">;
 
 // It would be nice if we could use one of the Bool*Option classes, but they

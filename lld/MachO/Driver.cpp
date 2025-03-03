@@ -1618,18 +1618,6 @@ bool link(ArrayRef<const char *> argsArr, llvm::raw_ostream &stdoutOS,
   if (errorCount())
     return false;
 
-  // Parse Kitsune-specific arguments that are passed here.
-  if (opt::Arg* arg = args.getLastArg(OPT_tapir)) {
-    config->tapirTarget = parseTapirTarget(arg->getValue());
-    if (config->tapirTarget.has_value()) {
-      config->opencilkABIBitcodeFile =
-          args.getLastArgValue(OPT_tapir_opencilk_abi_bc);
-    } else {
-      error(Twine("invalid value '") + arg->getValue() + "' in '" +
-            arg->getSpelling() + "'");
-    }
-  }
-
   if (args.hasArg(OPT_pagezero_size)) {
     uint64_t pagezeroSize = args::getHex(args, OPT_pagezero_size, 0);
 

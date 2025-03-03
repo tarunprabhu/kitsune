@@ -18,7 +18,7 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/TargetParser/Triple.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "llvm/Transforms/Tapir/TapirTargets.h"
 using namespace llvm;
 
 static cl::opt<TargetLibraryInfoImpl::VectorLibrary> ClVectorLibrary(
@@ -45,8 +45,9 @@ static cl::opt<TargetLibraryInfoImpl::VectorLibrary> ClVectorLibrary(
 
 /// Parser for the -tapir-target option to create an optional TapirTargetID.
 struct TapirTargetIDParser : public cl::parser<std::optional<TapirTargetID>> {
-  TapirTargetIDParser(llvm::cl::opt<std::optional<llvm::TapirTargetID>,
-                      false, TapirTargetIDParser> &O) : parser(O) {}
+  TapirTargetIDParser(llvm::cl::opt<std::optional<llvm::TapirTargetID>, false,
+                                    TapirTargetIDParser> &O)
+      : parser(O) {}
   bool parse(cl::Option &O, StringRef ArgName, StringRef ArgValue,
              std::optional<TapirTargetID> &Val) {
     if (std::optional<TapirTargetID> TT = parseTapirTarget(ArgValue)) {
@@ -937,6 +938,7 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
 
   if (ClTapirTarget) {
     TLI.setTapirTarget(*ClTapirTarget);
+    TLI.addTapirTargetOptions(*ClTapirTarget);
     TLI.addTapirTargetLibraryFunctions(*ClTapirTarget);
   }
 }
@@ -1445,6 +1447,32 @@ void TargetLibraryInfoImpl::addVectorizableFunctionsFromVecLib(
   }
   case NoLibrary:
     break;
+  }
+}
+
+static std::unique_ptr<TapirTargetOptions>
+createTapirTargetOptions(TapirTargetID TargetID) {
+  switch (TargetID) {
+  case TapirTargetID::None:
+    return nullptr;
+  case TapirTargetID::Cuda:
+    return std::make_unique<CudaABIOptions>();
+  case TapirTargetID::Hip:
+    return std::make_unique<HipABIOptions>();
+  case TapirTargetID::OpenCilk:
+    return std::make_unique<OpenCilkABIOptions>();
+  case TapirTargetID::Serial:
+    return std::make_unique<SerialABIOptions>();
+  default:
+    llvm_unreachable("createTapirTargetOptions: unhandled tapir target");
+  }
+}
+
+void TargetLibraryInfoImpl::addTapirTargetOptions(TapirTargetID TargetID) {
+  std::unique_ptr<TapirTargetOptions> opts = createTapirTargetOptions(TargetID);
+  if (opts) {
+    opts->readClOptions();
+    setTapirTargetOptions(std::move(opts));
   }
 }
 

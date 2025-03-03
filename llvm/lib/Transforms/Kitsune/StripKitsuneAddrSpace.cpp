@@ -17,11 +17,17 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/CommandLine.h"
 
 #include <map>
 #include <set>
 
 using namespace llvm;
+
+// This is only really useful for testing.
+static cl::opt<bool> clDisableStripKitsuneAddrspace(
+    "disable-strip-kitsune-addrspaces", cl::init(false), cl::Hidden,
+    cl::desc("Do not strip kitsune address spaces"));
 
 #define DEBUG_TYPE "strip-kitsune-addrspace"
 
@@ -39,6 +45,133 @@ private:
   std::set<Constant *> seen;
 
 private:
+  /// The kitsune memory allocation instrinsics and kitrt runtime alloction
+  /// function declarations must retain the Kitsune address space. Since these
+  /// have been removed, put them back. The returned value must be cast to strip
+  /// away the address space.
+  bool fixKitsuneAllocFuncs(Module &m) {
+    LLVMContext &ctxt = m.getContext();
+    Type *defPtr = PointerType::getUnqual(ctxt);
+    Type *asPtr = PointerType::get(ctxt, KITSUNE_ADDRSPACE);
+    std::map<CallBase *, Function *> calls;
+
+    for (Function &f : m) {
+      if (not f.size()) {
+        // TODO: At some point we will have registered the function names with
+        // TLI, so we should look up them there.
+        if (f.getIntrinsicID() == Intrinsic::kitsune_mobile_alloc or
+            f.getName() == "__kitrt_default_mem_alloc" or
+            f.getName() == "__kitcuda_mem_alloc_managed" or
+            f.getName() == "__kithip_mem_alloc_managed") {
+          // Find all the uses before mutating the type. If we change the order,
+          // getCalledFunction() will always return nullptr since the type of
+          // the callee and that of the call will not match.
+          for (Use &u : f.uses()) {
+            if (auto *call = dyn_cast<CallBase>(u.getUser())) {
+              if (call->getCalledFunction() == &f)
+                calls[call] = &f;
+              else
+                llvm_unreachable(
+                    "fixKitsuneAlloc: Unexpected use of function in call");
+            } else {
+              llvm_unreachable("fixKitsuneAlloc: Unexpected use of function");
+            }
+          }
+          ArrayRef<Type *> params = f.getFunctionType()->params();
+          FunctionType *fty = FunctionType::get(asPtr, params, f.isVarArg());
+          f.mutateValueType(fty);
+          f.mutateType(fty->getPointerTo());
+        }
+      }
+    }
+
+    for (auto &[call, f] : calls) {
+      call->mutateFunctionType(f->getFunctionType());
+      call->mutateType(asPtr);
+
+      // Collect the uses of the call before creating the cast instruction so
+      // the latter does not get included in the use list.
+      std::vector<Use *> uses;
+      for (Use &u : call->uses())
+        uses.push_back(&u);
+
+      // Cast the result of the call to the right address space, but don't add
+      // the cast instruction into the function just yet. It is probably fine to
+      // do this now, but let's hold off anyway.
+      auto *cst = CastInst::CreatePointerBitCastOrAddrSpaceCast(call, defPtr);
+      for (Use *u : uses)
+        u->getUser()->setOperand(u->getOperandNo(), cst);
+
+      // All the uses have been replaced. Now add the cast immediately after the
+      // call and fix the types of the call.
+      cst->insertAfter(call);
+    }
+    return calls.size();
+  }
+
+  /// The kitsune memory free instrinsics and kitrt runtime memory free
+  /// function declarations must retain the Kitsune address space. Since these
+  /// have been removed, put them back. These functions take a single pointer
+  /// argument which must be cast to the correct address space after the
+  /// declarations have been fixed.
+  bool fixKitsuneFreeFuncs(Module &m) {
+    LLVMContext &ctxt = m.getContext();
+    Type *asPtr = PointerType::get(ctxt, KITSUNE_ADDRSPACE);
+    std::map<CallBase *, Function *> calls;
+    for (Function &f : m) {
+      if (not f.size()) {
+        // TODO: At some point we will have registered the function names with
+        // TLI, so we should look up them there.
+        if (f.getIntrinsicID() == Intrinsic::kitsune_mobile_free or
+            f.getName() == "__kitrt_default_mem_free" or
+            f.getName() == "__kitcuda_mem_free" or
+            f.getName() == "__kithip_mem_free") {
+          // Find all the uses before mutating the type. If we change the order,
+          // getCalledFunction() will always return nullptr since the type of
+          // the callee and that of the call will not match.
+          for (Use &u : f.uses()) {
+            if (auto *call = dyn_cast<CallBase>(u.getUser())) {
+              if (call->getCalledFunction() == &f)
+                calls[call] = &f;
+              else
+                llvm_unreachable(
+                    "fixKitsuneFree: Unexpected use of function in call");
+            } else {
+              llvm_unreachable("fixKitsuneFree: Unexpected use of function");
+            }
+          }
+
+          // Now we can mutate the function type and those of its arguments.
+          Type *params[] = {asPtr};
+          Type *ret = f.getReturnType();
+          FunctionType *fty = FunctionType::get(ret, params, f.isVarArg());
+          f.mutateValueType(fty);
+          f.mutateType(fty->getPointerTo());
+          f.getArg(0)->mutateType(asPtr);
+        }
+      }
+    }
+
+    for (auto &[call, f] : calls) {
+      Value *arg = call->getArgOperand(0);
+      CastInst *cst =
+          CastInst::CreatePointerBitCastOrAddrSpaceCast(arg, asPtr, "", call);
+      call->setArgOperand(0, cst);
+      call->mutateFunctionType(f->getFunctionType());
+    }
+
+    return calls.size();
+  }
+
+  /// Put the address spaces back in the Kitsune memory allocation/free
+  /// functions and adjust the call sites.
+  bool fixKitsuneFuncs(Module &m) {
+    bool changed = false;
+    changed |= fixKitsuneAllocFuncs(m);
+    changed |= fixKitsuneFreeFuncs(m);
+    return changed;
+  }
+
   /// Replace overloaded intrinsic functions. We only need to replace intrinsics
   /// which may be overloaded with different pointer types. Currently, this
   /// only replaces the intrinsics corresponding to libc's memcpy, memmove and
@@ -200,11 +333,9 @@ private:
       return mutatedType(structTy);
     else if (auto *vectorTy = dyn_cast<VectorType>(type))
       return mutatedType(vectorTy);
-    else{
-      type->print(llvm::errs(), true);
-      llvm::errs() << "type: " << type->getTypeID() << "\n";
+    else
       llvm_unreachable(
-          "NOT IMPLEMENTED: StripKitsuneAddressSpaces::mutatedType for type");}
+          "NOT IMPLEMENTED: StripKitsuneAddressSpaces::mutatedType for type");
     return nullptr;
   }
 
@@ -324,6 +455,12 @@ private:
     // changed, the functions need to be fixed.
     changed |= fixIntrinsics(m);
 
+    // This will have removed the address spaces from the Kitsune memory
+    // allocation and free functions/intrinsics which is very wrong. It is
+    // probably easier to put them back than to stop them from being removed in
+    // the first place, so do that now.
+    changed |= fixKitsuneFuncs(m);
+
     return changed;
   }
 
@@ -344,6 +481,9 @@ public:
 
 PreservedAnalyses StripKitsuneAddrSpacePass::run(Module &m,
                                                  ModuleAnalysisManager &mam) {
+  if (clDisableStripKitsuneAddrspace)
+    return PreservedAnalyses::all();
+
   if (StripKitsuneAddrSpaceImpl().run(m))
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();

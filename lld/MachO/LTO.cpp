@@ -62,10 +62,6 @@ static lto::Config createConfig() {
   c.PGOWarnMismatch = config->pgoWarnMismatch;
   c.OptLevel = config->ltoo;
   c.CGOptLevel = config->ltoCgo;
-  if (config->tapirTarget.has_value()) {
-    c.TapirTarget = config->tapirTarget;
-    c.OpenCilkABIBitcodeFile = std::string(config->opencilkABIBitcodeFile);
-  }
   if (config->saveTemps)
     checkError(c.addSaveTemps(config->outputFile.str() + ".",
                               /*UseInputModulePath=*/true));

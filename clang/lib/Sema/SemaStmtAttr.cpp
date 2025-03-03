@@ -726,29 +726,29 @@ static Attr *handleTapirStrategyAttr(Sema &S, Stmt *St, const ParsedAttr &A,
   return ::new (S.Context) TapirStrategyAttr(S.Context, A, strategyKind);
 }
 
+// FIXME: Should we change this attribute name? If we don't expect anything
+// other than threads per block to be passed here, should we just call it that
+// instead.
 static Attr *handleKitsuneLaunchAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                                      SourceRange Range) {
-  unsigned ThreadsPerBlock = 0; 
-  if (A.getNumArgs() == 1) {
-    Expr *E = A.getArgAsExpr(0);
-    std::optional<llvm::APSInt> ArgVal;
+  // We don't need to check the number of arguments because that will already
+  // have been handled.
+  Expr *E = A.getArgAsExpr(0);
+  std::optional<llvm::APSInt> ArgVal = E->getIntegerConstantExpr(S.Context);
 
-    if (!(ArgVal = E->getIntegerConstantExpr(S.Context))) { 
-      S.Diag(A.getLoc(), diag::err_kitsune_launch_non_integral_type);
-      return nullptr;
-    }
-
-    int Val = ArgVal->getSExtValue();
-    if (Val <= 0) {
-      S.Diag(A.getRange().getBegin(), 
-        diag::err_attribute_requires_positive_integer)
-        << A;
-        return nullptr;
-    }
-
-    ThreadsPerBlock = static_cast<unsigned>(Val);
+  if (!ArgVal.has_value()) {
+    S.Diag(A.getLoc(), diag::err_kitsune_launch_non_integral_type);
+    return nullptr;
   }
 
+  int Val = ArgVal->getSExtValue();
+  if (Val <= 0) {
+    S.Diag(A.getLoc(), diag::err_attribute_requires_positive_integer)
+        << A << /* positive (1 == non-negative) */ 0;
+    return nullptr;
+  }
+
+  unsigned ThreadsPerBlock = static_cast<unsigned>(Val);
   return ::new (S.Context) KitsuneLaunchAttr(S.Context, A, ThreadsPerBlock);
 }
 

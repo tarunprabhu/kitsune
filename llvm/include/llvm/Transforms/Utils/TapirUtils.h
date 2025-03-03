@@ -16,8 +16,11 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
+
+#include <map>
+#include <variant>
 
 namespace llvm {
 
@@ -247,149 +250,105 @@ void eraseTaskFrame(Value *TaskFrame, DominatorTree *DT = nullptr);
 /// initially scan the loop for existing metadata, and will update the local
 /// values based on information in the loop.
 class TapirLoopHints {
-public:
-  enum SpawningStrategy {
-    ST_SEQ,
-    ST_DAC,
-    ST_END,
-  };
-
 private:
-  enum HintKind { HK_STRATEGY,
-                  HK_GRAINSIZE,
-                  HK_LOOPTARGET,
-                  HK_THREADS_PER_BLOCK,
-                  HK_AUTO_TUNE };
+  /// Alternative with the possible types that a hint can assume.
+  using ValueType = std::variant<bool, unsigned, TapirSpawnStrategy,
+                                 std::optional<TapirTargetID>>;
+  using Hints = std::map<StringRef, ValueType>;
 
-  /// Hint - associates name and validation with the hint value.
-  struct Hint {
-    const char *Name;
-    unsigned Value; // This may have to change for non-numeric values.
-    HintKind Kind;
+  /// The required prefix on all tapir loop metadata.
+  static constexpr StringRef namePrefix = "tapir.loop.";
 
-    Hint(const char *Name, unsigned Value, HintKind Kind)
-        : Name(Name), Value(Value), Kind(Kind) {}
+  // The names of the various hints. These are exactly they appear in the IR.
+  // They *MUST* start with the prefix, tapir.loop.
+  static constexpr StringRef nameStrategy = "tapir.loop.spawn.strategy";
+  static constexpr StringRef nameGrainSize = "tapir.loop.grainsize";
+  static constexpr StringRef nameLoopTarget = "tapir.loop.target";
+  static constexpr StringRef nameThreadsPerBlock =
+      "tapir.loop.threads.per.block";
+  static constexpr StringRef nameAutotuneLaunch = "tapir.loop.autotune.launch";
 
-    bool validate(unsigned Val) const {
-      switch (Kind) {
-      case HK_STRATEGY:
-        return (Val < ST_END);
-      case HK_GRAINSIZE:
-        return true;
-      case HK_LOOPTARGET:
-        // DWS: don't like the conversion from scoped enum to unsigned, better
-        // way?
-        return (Val <
-                static_cast<unsigned int>(TapirTargetID::Last_TapirTargetID));
-      case HK_THREADS_PER_BLOCK:
-        return Val;
-      case HK_AUTO_TUNE:
-        return Val;
-      }
-      return false;
-    }
-  };
+  /// All tapir loop hints. Every known loop hint must contain an entry in this
+  /// map, even if a hint is not found in the metadata. When adding support for
+  /// a new hint, a default value *MUST* be added to this map.
+  Hints hints = {{nameStrategy, TapirSpawnStrategy::Sequential},
+                 {nameGrainSize, 0U},
+                 {nameLoopTarget, std::nullopt},
+                 {nameThreadsPerBlock, 0U},
+                 {nameAutotuneLaunch, false}};
 
-  /// Spawning strategy
-  Hint Strategy;
-  /// Grainsize
-  Hint Grainsize;
-  /// LoopTarget
-  Hint LoopTarget;
-  Hint ThreadsPerBlock;
-  Hint AutoTune;
+  /// Check if the value can be serialized to metadata. Some hints cannot
+  /// currently be serialized - for instance, those with optional values when
+  /// the value is std::nullopt. The name is passed in case we the ability to
+  /// serialize depends on the specific hint.
+  bool canCreateMetadata(StringRef Name, const ValueType &V) const;
 
-  /// Return the loop metadata prefix.
-  static StringRef Prefix() { return "tapir.loop."; }
+  /// Convert the value to one that can be serialized to LLVM's metadata.
+  /// Currently, all hints are serialized as unsigned integers, but we may
+  /// want to serialize differently depending on the hint. The name is passed
+  /// in case certain hints are to be serialized differently even if their
+  /// value types are identical.
+  ///
+  /// This should only be called if the hint can be serialized to LLVM
+  /// metadata.
+  unsigned toMetadataValue(StringRef Name, const ValueType &V) const;
+
+  /// Validate the given value associated with a name in LLVM metadata.
+  /// Currently, all hints are serialized as unsigned integers in LLVM metadata,
+  /// but this should be changed.
+  static bool validate(StringRef Name, unsigned V);
 
 public:
-  static std::string printStrategy(enum SpawningStrategy Strat) {
-    switch(Strat) {
-    case TapirLoopHints::ST_SEQ:
-      return "Spawn iterations sequentially";
-    case TapirLoopHints::ST_DAC:
-      return "Use divide-and-conquer";
-    case TapirLoopHints::ST_END:
-      return "Unknown";
-    }
-    // This could have been put in a default block in the switch statement above
-    // but that leads to incessant compiler warnings about a default in a switch
-    // that covers all enumerations. We want this in case a new loop hint is
-    // added since the language itself will not help in this case.
-    llvm_unreachable("TapirLoopHints value not handled");
-  }
-
-  TapirLoopHints(const Loop *L)
-      : Strategy("spawn.strategy", ST_SEQ, HK_STRATEGY),
-        Grainsize("grainsize", 0, HK_GRAINSIZE),
-        // DWS don't like the conversion from scoped enum to unsigned, better way?
-        // Is Serial the right default, here and and in clearHintsMetadata
-        LoopTarget("target", static_cast<unsigned int>(TapirTargetID::Serial),
-		   HK_LOOPTARGET),
-	ThreadsPerBlock("threads.per.block", 0,
-			HK_THREADS_PER_BLOCK),
-	AutoTune("kitsune.launch.auto.tune", 0, HK_AUTO_TUNE),
-        TheLoop(L) {
+  TapirLoopHints(const Loop *L) : TheLoop(L) {
     // Populate values with existing loop metadata.
     getHintsFromMetadata();
   }
 
-  // /// Dumps all the hint information.
-  // std::string emitRemark() const {
-  //   TapirLoopReport R;
-  //   R << "Strategy = " << printStrategy(getStrategy());
-
-  //   return R.str();
-  // }
-
-  enum SpawningStrategy getStrategy() const {
-    return (SpawningStrategy)Strategy.Value;
+  TapirSpawnStrategy getStrategy() const {
+    return std::get<TapirSpawnStrategy>(hints.at(nameStrategy));
   }
 
   unsigned getGrainsize() const {
-    return Grainsize.Value;
+    return std::get<unsigned>(hints.at(nameGrainSize));
   }
 
-  // DWS emulate printStrategy
-  // also change to casted version like SpawingStrategy
-  unsigned getLoopTarget() const {
-    return LoopTarget.Value;
+  std::optional<TapirTargetID> getLoopTarget() const {
+    return std::get<std::optional<TapirTargetID>>(hints.at(nameLoopTarget));
   }
 
   unsigned getThreadsPerBlock() const {
-    return ThreadsPerBlock.Value;
+    return std::get<unsigned>(hints.at(nameThreadsPerBlock));
   }
 
-  unsigned getAutoTune() const {
-    return AutoTune.Value;
+  bool getAutotuneLaunch() const {
+    return std::get<bool>(hints.at(nameAutotuneLaunch));
   }
 
-  /// Clear Tapir Hints metadata.
+  /// Clear Tapir hints from the loop's metadata.
   void clearHintsMetadata();
 
-  /// Mark the loop L as having no spawning strategy.
+  /// Mark the loop as having no spawning strategy.
   void clearStrategy() {
-    Strategy.Value = ST_SEQ;
-    Hint Hints[] = {Strategy};
-    writeHintsToMetadata(Hints);
+    hints[nameStrategy] = TapirSpawnStrategy::Sequential;
+    writeHintsToMetadata({{nameStrategy, TapirSpawnStrategy::Sequential}});
   }
 
   void clearClonedLoopMetadata(ValueToValueMapTy &VMap) {
-    Hint ClearStrategy = Strategy;
-    ClearStrategy.Value = ST_SEQ;
-    Hint Hints[] = {ClearStrategy};
-    writeHintsToClonedMetadata(Hints, VMap);
+    writeHintsToClonedMetadata({{nameStrategy, TapirSpawnStrategy::Sequential}},
+                               VMap);
   }
 
   void setAlreadyStripMined() {
-    Grainsize.Value = 1;
-    Hint Hints[] = {Grainsize};
-    writeHintsToMetadata(Hints);
+    hints[nameGrainSize] = 1U;
+    writeHintsToMetadata({{nameGrainSize, 1U}});
   }
 
 private:
   /// Find hints specified in the loop metadata and update local values.
   void getHintsFromMetadata();
+
+  /// Set the value of the hint with the given name.
+  void setHint(StringRef Name, ValueType Val);
 
   /// Checks string hint with one operand and set value if valid.
   void setHint(StringRef Name, Metadata *Arg);
@@ -398,14 +357,13 @@ private:
   MDNode *createHintMetadata(StringRef Name, unsigned V) const;
 
   /// Matches metadata with hint name.
-  bool matchesHintMetadataName(MDNode *Node, ArrayRef<Hint> HintTypes) const;
+  bool matchesHintMetadataName(MDNode *Node, const Hints &Hints) const;
 
   /// Sets current hints into loop metadata, keeping other values intact.
-  void writeHintsToMetadata(ArrayRef<Hint> HintTypes);
+  void writeHintsToMetadata(const Hints &Hints);
 
   /// Sets hints into cloned loop metadata, keeping other values intact.
-  void writeHintsToClonedMetadata(ArrayRef<Hint> HintTypes,
-                                  ValueToValueMapTy &VMap);
+  void writeHintsToClonedMetadata(const Hints &Hints, ValueToValueMapTy &VMap);
 
   /// The loop these hints belong to.
   const Loop *TheLoop;
@@ -417,11 +375,11 @@ bool hintsDemandOutlining(const TapirLoopHints &Hints);
 /// Create a new Loop MDNode by copying non-Tapir metadata from OrigLoopID.
 MDNode *CopyNonTapirLoopMetadata(MDNode *LoopID, MDNode *OrigLoopID);
 
-/// Examine a given loop to determine if it is a Tapir loop that can and should
-/// be processed.  Returns the Task that encodes the loop body if so, or nullptr
-/// if not.
+/// Examine a given loop to determine if it is a Tapir loop that can and
+/// should be processed.  Returns the Task that encodes the loop body if so,
+/// or nullptr if not.
 Task *getTaskIfTapirLoop(const Loop *L, TaskInfo *TI);
 
-} // End llvm namespace
+} // namespace llvm
 
 #endif

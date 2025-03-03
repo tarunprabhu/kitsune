@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/TapirUtils.h"
+#include "kitsune/Config/config.h"
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -1397,7 +1398,7 @@ void llvm::GetDetachedCFG(const DetachInst &DI, const DominatorTree &DT,
       continue;
     }
     if (isa<BranchInst>(Term) || isa<SwitchInst>(Term) ||
-               isa<InvokeInst>(Term)) {
+        isa<InvokeInst>(Term)) {
       if (isDetachedRethrow(Term, SyncRegion)) {
         // A detached rethrow terminates this task and is included in the set of
         // exception-handling blocks that might not be unique to this task.
@@ -1428,8 +1429,7 @@ void llvm::GetDetachedCFG(const DetachInst &DI, const DominatorTree &DT,
       // the function.
       continue;
     }
-    llvm_unreachable(
-        "Detached task does not absolutely terminate in reattach");
+    llvm_unreachable("Detached task does not absolutely terminate in reattach");
   }
 
   // Find the exception-handling exit blocks.
@@ -1896,9 +1896,9 @@ void llvm::fixupTaskFrameExternalUses(Spindle *TF, const TaskInfo &TI,
 
     // Load the result of the instruction at the continuation.
     Builder.SetInsertPoint(&*Continuation->getFirstInsertionPt());
-    Builder.CreateCall(
-        Intrinsic::getDeclaration(M, Intrinsic::taskframe_load_guard,
-                                  { AI->getType() }), { AI });
+    Builder.CreateCall(Intrinsic::getDeclaration(
+                           M, Intrinsic::taskframe_load_guard, {AI->getType()}),
+                       {AI});
     LoadInst *ContinVal = Builder.CreateLoad(TFInstrTy, AI);
     LoadInst *EHContinVal = nullptr;
 
@@ -1917,7 +1917,8 @@ void llvm::fixupTaskFrameExternalUses(Spindle *TF, const TaskInfo &TI,
           Builder.SetInsertPoint(&*(TFResumeContin->getFirstInsertionPt()));
           Builder.CreateCall(
               Intrinsic::getDeclaration(M, Intrinsic::taskframe_load_guard,
-                                        { AI->getType() }), { AI });
+                                        {AI->getType()}),
+              {AI});
           EHContinVal = Builder.CreateLoad(TFInstrTy, AI);
         }
 
@@ -1966,22 +1967,22 @@ BasicBlock *llvm::CreateSubTaskUnwindEdge(Intrinsic::ID TermFunc, Value *Token,
   LandingPadInst *OldLPad = UnwindEdge->getLandingPadInst();
 
   // Create a new unwind edge for the detached rethrow.
-  BasicBlock *NewUnwindEdge = BasicBlock::Create(
-      Caller->getContext(), UnwindEdge->getName(), Caller);
+  BasicBlock *NewUnwindEdge =
+      BasicBlock::Create(Caller->getContext(), UnwindEdge->getName(), Caller);
   IRBuilder<> Builder(NewUnwindEdge);
   // Get a debug location from ParentI.
   if (const DebugLoc &Loc = ParentI->getDebugLoc())
     Builder.SetCurrentDebugLocation(Loc);
 
   // Add a landingpad to the new unwind edge.
-  LandingPadInst *LPad = Builder.CreateLandingPad(OldLPad->getType(), 0,
-                                                  OldLPad->getName());
+  LandingPadInst *LPad =
+      Builder.CreateLandingPad(OldLPad->getType(), 0, OldLPad->getName());
   LPad->setCleanup(true);
 
   // Add the terminator-function invocation.
-  Builder.CreateInvoke(Intrinsic::getDeclaration(M, TermFunc,
-                                                 { LPad->getType() }),
-                       Unreachable, UnwindEdge, { Token, LPad });
+  Builder.CreateInvoke(
+      Intrinsic::getDeclaration(M, TermFunc, {LPad->getType()}), Unreachable,
+      UnwindEdge, {Token, LPad});
 
   return NewUnwindEdge;
 }
@@ -2053,8 +2054,8 @@ static Instruction *getTaskFrameInstructionInBlock(BasicBlock *BB,
 }
 
 // Recursively handle inlined tasks.
-static void promoteCallsInTasksHelper(
-    BasicBlock *EntryBlock, BasicBlock *UnwindEdge,
+static void
+promoteCallsInTasksHelper(BasicBlock *EntryBlock, BasicBlock *UnwindEdge,
                           BasicBlock *Unreachable, Value *CurrentTaskFrame,
                           SmallVectorImpl<BasicBlock *> *ParentWorklist,
                           SmallPtrSetImpl<BasicBlock *> &Processed) {
@@ -2072,7 +2073,7 @@ static void promoteCallsInTasksHelper(
 
     // Promote any calls in the block to invokes.
     while (BasicBlock *NewBB =
-           maybePromoteCallInBlock(BB, UnwindEdge, CurrentTaskFrame))
+               maybePromoteCallInBlock(BB, UnwindEdge, CurrentTaskFrame))
       BB = cast<InvokeInst>(NewBB->getTerminator())->getNormalDest();
 
     Instruction *TFI = getTaskFrameInstructionInBlock(BB, CurrentTaskFrame);
@@ -2088,9 +2089,9 @@ static void promoteCallsInTasksHelper(
           NewBB = BB;
 
         // Create an unwind edge for the taskframe.
-        BasicBlock *TaskFrameUnwindEdge = CreateSubTaskUnwindEdge(
-            Intrinsic::taskframe_resume, TFCreate, UnwindEdge,
-            Unreachable, TFCreate);
+        BasicBlock *TaskFrameUnwindEdge =
+            CreateSubTaskUnwindEdge(Intrinsic::taskframe_resume, TFCreate,
+                                    UnwindEdge, Unreachable, TFCreate);
 
         // Recursively check all blocks
         promoteCallsInTasksHelper(NewBB, TaskFrameUnwindEdge, Unreachable,
@@ -2105,8 +2106,7 @@ static void promoteCallsInTasksHelper(
                                        CurrentTaskFrame)) {
       // If we find a taskframe.end in this block that ends the current
       // taskframe, add this block to the parent search.
-      assert(ParentWorklist &&
-             "Unexpected taskframe.end: no parent worklist");
+      assert(ParentWorklist && "Unexpected taskframe.end: no parent worklist");
       if (BB->getTerminator()->getPrevNode() != TFI ||
           !isa<BranchInst>(BB->getTerminator())) {
         // This taskframe.end does not terminate the basic block.  To make sure
@@ -2190,9 +2190,9 @@ static void promoteCallsInTasksHelper(
   // Replace detaches that now require unwind destinations.
   while (!DetachesToReplace.empty()) {
     DetachInst *DI = DetachesToReplace.pop_back_val();
-    ReplaceInstWithInst(DI, DetachInst::Create(
-                            DI->getDetached(), DI->getContinue(), UnwindEdge,
-                            DI->getSyncRegion()));
+    ReplaceInstWithInst(DI,
+                        DetachInst::Create(DI->getDetached(), DI->getContinue(),
+                                           UnwindEdge, DI->getSyncRegion()));
   }
 }
 
@@ -2320,28 +2320,87 @@ void llvm::TapirLoopHints::getHintsFromMetadata() {
   }
 }
 
-/// Checks string hint with one operand and set value if valid.
-void llvm::TapirLoopHints::setHint(StringRef Name, Metadata *Arg) {
-  if (!Name.starts_with(Prefix()))
-    return;
-  Name = Name.substr(Prefix().size(), StringRef::npos);
+bool llvm::TapirLoopHints::validate(StringRef Name, unsigned V) {
+  if (Name == nameStrategy) {
+    switch (TapirSpawnStrategy(V)) {
+    case TapirSpawnStrategy::Sequential:
+    case TapirSpawnStrategy::DivideAndConquer:
+    case TapirSpawnStrategy::GPU:
+      return true;
+    default:
+      return false;
+    }
+  } else if (Name == nameGrainSize) {
+    return true;
+  } else if (Name == nameLoopTarget) {
+    switch (TapirTargetID(V)) {
+    case TapirTargetID::None:
+    case TapirTargetID::Serial:
+    case TapirTargetID::Cuda:
+    case TapirTargetID::Hip:
+    case TapirTargetID::OpenCilk:
+    case TapirTargetID::OpenMP:
+    case TapirTargetID::Qthreads:
+    case TapirTargetID::Realm:
+      return true;
+    default:
+      return false;
+    }
+  } else if (Name == nameThreadsPerBlock) {
+    // KITSUNE FIXME: The maximum allowed value of 1024 must be read from
+    // kitsune/Config/config.h
+    return V <= KITSUNE_MAX_FIXED_THREADS_PER_BLOCK;
+  } else if (Name == nameAutotuneLaunch) {
+    return true;
+  } else {
+    llvm_unreachable("TapirLoopHints::validate: Name not handled");
+  }
+}
 
+bool llvm::TapirLoopHints::canCreateMetadata(StringRef Name,
+                                             const ValueType &V) const {
+  if (Name == nameLoopTarget)
+    return getLoopTarget().has_value();
+  return true;
+}
+
+unsigned llvm::TapirLoopHints::toMetadataValue(
+    StringRef Name, const llvm::TapirLoopHints::ValueType &V) const {
+  assert(canCreateMetadata(Name, V) && "Cannot get metadata value for hint");
+  if (std::holds_alternative<bool>(V))
+    return std::get<bool>(V);
+  else if (std::holds_alternative<unsigned>(V))
+    return std::get<unsigned>(V);
+  else if (std::holds_alternative<TapirSpawnStrategy>(V))
+    return unsigned(std::get<TapirSpawnStrategy>(V));
+  else if (std::holds_alternative<std::optional<TapirTargetID>>(V))
+    return unsigned(*std::get<std::optional<TapirTargetID>>(V));
+  else
+    llvm_unreachable("toMetadataValue: type not handled");
+}
+
+void llvm::TapirLoopHints::setHint(StringRef Name, Metadata *Arg) {
+  if (!Name.starts_with(namePrefix))
+    return;
   const ConstantInt *C = mdconst::dyn_extract<ConstantInt>(Arg);
   if (!C)
     return;
-  unsigned Val = C->getZExtValue();
 
-  Hint *Hints[] = {&Strategy, &Grainsize, &LoopTarget,
-                   &ThreadsPerBlock, &AutoTune};
-  for (auto H : Hints) {
-    if (Name == H->Name) {
-      if (H->validate(Val))
-        H->Value = Val;
-      else
-        LLVM_DEBUG(dbgs() << "Tapir: ignoring invalid hint '" << Name << "'\n");
-      break;
-    }
-  }
+  unsigned Val = C->getZExtValue();
+  if (not TapirLoopHints::validate(Name, Val))
+    report_fatal_error(Twine("Invalid loop hint value: '") + Name + "'");
+  else if (Name == nameStrategy)
+    hints[Name] = TapirSpawnStrategy(Val);
+  else if (Name == nameGrainSize)
+    hints[Name] = Val;
+  else if (Name == nameLoopTarget)
+    hints[Name] = TapirTargetID(Val);
+  else if (Name == nameThreadsPerBlock)
+    hints[Name] = Val;
+  else if (Name == nameAutotuneLaunch)
+    hints[Name] = bool(Val);
+  else
+    llvm_unreachable("TapirLoopHints::setHint: Hint name not handled");
 }
 
 /// Create a new hint from name / value pair.
@@ -2355,21 +2414,22 @@ MDNode *llvm::TapirLoopHints::createHintMetadata(StringRef Name,
 }
 
 /// Matches metadata with hint name.
-bool llvm::TapirLoopHints::matchesHintMetadataName(
-    MDNode *Node, ArrayRef<Hint> HintTypes) const {
+bool llvm::TapirLoopHints::matchesHintMetadataName(MDNode *Node,
+                                                   const Hints &Hints) const {
   MDString *Name = dyn_cast<MDString>(Node->getOperand(0));
   if (!Name)
     return false;
 
-  for (auto H : HintTypes)
-    if (Name->getString().ends_with(H.Name))
+  // KITSUNE FIXME: Search for the full name.
+  for (const auto &i : Hints)
+    if (Name->getString().ends_with(i.first))
       return true;
   return false;
 }
 
 /// Sets current hints into loop metadata, keeping other values intact.
-void llvm::TapirLoopHints::writeHintsToMetadata(ArrayRef<Hint> HintTypes) {
-  if (HintTypes.size() == 0)
+void llvm::TapirLoopHints::writeHintsToMetadata(const Hints &Hints) {
+  if (Hints.size() == 0)
     return;
 
   LLVMContext &Context = TheLoop->getHeader()->getContext();
@@ -2385,14 +2445,18 @@ void llvm::TapirLoopHints::writeHintsToMetadata(ArrayRef<Hint> HintTypes) {
     for (unsigned i = 1, ie = LoopID->getNumOperands(); i < ie; ++i) {
       MDNode *Node = cast<MDNode>(LoopID->getOperand(i));
       // If node in update list, ignore old value.
-      if (!matchesHintMetadataName(Node, HintTypes))
+      if (!matchesHintMetadataName(Node, Hints))
         MDs.push_back(Node);
     }
   }
 
   // Now, add the missing hints.
-  for (auto H : HintTypes)
-    MDs.push_back(createHintMetadata(Twine(Prefix(), H.Name).str(), H.Value));
+  for (const auto &i : Hints) {
+    StringRef Name = i.first;
+    const ValueType &V = i.second;
+    if (canCreateMetadata(Name, V))
+      MDs.push_back(createHintMetadata(Name, toMetadataValue(Name, V)));
+  }
 
   // Replace current metadata node with new one.
   MDNode *NewLoopID = MDNode::get(Context, MDs);
@@ -2403,9 +2467,9 @@ void llvm::TapirLoopHints::writeHintsToMetadata(ArrayRef<Hint> HintTypes) {
 }
 
 /// Sets current hints into loop metadata, keeping other values intact.
-void llvm::TapirLoopHints::writeHintsToClonedMetadata(ArrayRef<Hint> HintTypes,
+void llvm::TapirLoopHints::writeHintsToClonedMetadata(const Hints &Hints,
                                                       ValueToValueMapTy &VMap) {
-  if (HintTypes.size() == 0)
+  if (Hints.size() == 0)
     return;
 
   LLVMContext &Context =
@@ -2425,14 +2489,18 @@ void llvm::TapirLoopHints::writeHintsToClonedMetadata(ArrayRef<Hint> HintTypes,
     for (unsigned i = 1, ie = LoopID->getNumOperands(); i < ie; ++i) {
       MDNode *Node = cast<MDNode>(LoopID->getOperand(i));
       // If node in update list, ignore old value.
-      if (!matchesHintMetadataName(Node, HintTypes))
+      if (!matchesHintMetadataName(Node, Hints))
         MDs.push_back(Node);
     }
   }
 
   // Now, add the missing hints.
-  for (auto H : HintTypes)
-    MDs.push_back(createHintMetadata(Twine(Prefix(), H.Name).str(), H.Value));
+  for (const auto &i : Hints) {
+    StringRef Name = i.first;
+    const ValueType &V = i.second;
+    if (canCreateMetadata(Name, V))
+      MDs.push_back(createHintMetadata(Name, toMetadataValue(Name, V)));
+  }
 
   // Replace current metadata node with new one.
   MDNode *NewLoopID = MDNode::get(Context, MDs);
@@ -2445,14 +2513,7 @@ void llvm::TapirLoopHints::writeHintsToClonedMetadata(ArrayRef<Hint> HintTypes,
   ClonedLatch->getTerminator()->setMetadata(LLVMContext::MD_loop, NewLoopID);
 }
 
-/// Sets current hints into loop metadata, keeping other values intact.
 void llvm::TapirLoopHints::clearHintsMetadata() {
-  Hint Hints[] = {Hint("spawn.strategy", ST_SEQ, HK_STRATEGY),
-                  Hint("grainsize", 0, HK_GRAINSIZE),
-                  Hint("target", static_cast<unsigned>(TapirTargetID::Serial),
-                       HK_LOOPTARGET),
-                  Hint("threads.per.block", 0, HK_THREADS_PER_BLOCK),
-                  Hint("launch.auto.tune", false, HK_AUTO_TUNE)};
   LLVMContext &Context = TheLoop->getHeader()->getContext();
   SmallVector<Metadata *, 4> MDs;
 
@@ -2466,7 +2527,7 @@ void llvm::TapirLoopHints::clearHintsMetadata() {
     for (unsigned i = 1, ie = LoopID->getNumOperands(); i < ie; ++i) {
       MDNode *Node = cast<MDNode>(LoopID->getOperand(i));
       // If node in update list, ignore old value.
-      if (!matchesHintMetadataName(Node, Hints))
+      if (!matchesHintMetadataName(Node, hints))
         MDs.push_back(Node);
     }
   }
@@ -2482,11 +2543,13 @@ void llvm::TapirLoopHints::clearHintsMetadata() {
 /// Returns true if Tapir-loop hints require loop outlining during lowering.
 bool llvm::hintsDemandOutlining(const TapirLoopHints &Hints) {
   switch (Hints.getStrategy()) {
-  case TapirLoopHints::ST_DAC:
+  case TapirSpawnStrategy::DivideAndConquer:
+  case TapirSpawnStrategy::GPU:
     return true;
-  case TapirLoopHints::ST_SEQ:
-  default:
+  case TapirSpawnStrategy::Sequential:
     return false;
+  default:
+    llvm_unreachable("hintsDemandOutlining: SpawningStrategy not handled");
   }
 }
 
@@ -2529,13 +2592,13 @@ Task *llvm::getTaskIfTapirLoop(const Loop *L, TaskInfo *TI) {
 
   TapirLoopHints Hints(L);
 
-  LLVM_DEBUG(dbgs() << "Loop hints:"
-             << " strategy = " << Hints.printStrategy(Hints.getStrategy())
-             << " grainsize = " << Hints.getGrainsize()
-             << " loop target = " << Hints.getLoopTarget()
-             << " threads per block = " << Hints.getThreadsPerBlock()
-             << " auto tune = " << Hints.getAutoTune()
-             << "\n");
+  LLVM_DEBUG(
+      dbgs() << "Loop hints:\n"
+             << "  strategy          = " << Hints.getStrategy() << "\n"
+             << "  grainsize         = " << Hints.getGrainsize() << "\n"
+             << "  loop target       = " << Hints.getLoopTarget() << "\n"
+             << "  threads per block = " << Hints.getThreadsPerBlock() << "\n"
+             << "  auto tune launch  = " << Hints.getAutotuneLaunch() << "\n");
 
   // Check that this loop has the structure of a Tapir loop.
   Task *T = getTaskIfTapirLoopStructure(L, TI);

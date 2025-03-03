@@ -6,7 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file enumerates the available Tapir lowering targets.
+// This file enumerates the available Tapir lowering targets and other types
+// that are shared between the frontend and middle-ends.
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,15 +15,13 @@
 #define LLVM_TAPIR_TARGET_IDS_H
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Passes/OptimizationLevel.h"
-#include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetOptions.h"
 
 namespace llvm {
 
+/// The identifiers for the known tapir targets.
 enum class TapirTargetID {
-  None = 1, // Perform no lowering
+  None = 0, // Perform no lowering
   Serial,   // Lower to serial projection
   Cuda,     // Lower to Cuda ABI
   Hip,      // Lower to the Hip (AMD GPU) ABI
@@ -35,6 +34,13 @@ enum class TapirTargetID {
   Last_TapirTargetID
 };
 
+/// The loop spawning strategy.
+enum class TapirSpawnStrategy {
+  Sequential,       /// Sequenial (no spawning)
+  DivideAndConquer, /// Divide and conquer
+  GPU               /// GPU-centric spawning strategy. Currently unused.
+};
+
 /// Parse the Tapir target from a string. If the string is not a valid tapir
 /// target, return std::nullopt.
 std::optional<TapirTargetID> parseTapirTarget(StringRef s);
@@ -44,40 +50,10 @@ std::optional<TapirTargetID> parseTapirTarget(StringRef s);
 // clang.
 raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &Target);
 
-/// Virtual base class for Target-specific options.
-class TapirTargetOptions {
-public:
-  enum TapirTargetOptionsKind {
-    TTO_None,
-    TTO_Serial,
-    TTO_Cuda,
-    TTO_Hip,
-    TTO_Lambda,
-    TTO_OMPTask,
-    TTO_OpenCilk,
-    TTO_OpenMP,
-    TTO_Qthreads,
-    TTO_Realm
-  };
+/// Serialization functions to help with debugging and more useful verbose mode
+/// output.
+raw_ostream &operator<<(raw_ostream &os, const TapirSpawnStrategy &strategy);
 
-private:
-  const TapirTargetOptionsKind Kind;
-
-protected:
-  TapirTargetOptions(TapirTargetOptionsKind K) : Kind(K) {}
-
-public:
-  TapirTargetOptions(const TapirTargetOptions &) = delete;
-  TapirTargetOptions &operator=(const TapirTargetOptions &) = delete;
-  virtual ~TapirTargetOptions() = default;
-
-  TapirTargetOptionsKind getKind() const { return Kind; }
-
-  /// Top-level method for cloning TapirTargetOptions.  Defined in
-  /// TargetLibraryInfo.
-  virtual TapirTargetOptions *clone() const = 0;
-};
-
-} // end namespace llvm
+} // namespace llvm
 
 #endif // LLVM_TAPIR_TARGET_IDS_H

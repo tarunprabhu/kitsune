@@ -355,11 +355,3 @@ def tlbid : P_priv<"tlbid">;
 def tlbout : P_priv<"tlbout">;
 def verbose_all : P_priv<"verbose">;
 def guardsym : P_priv<"guardsym">;
-
-// =============================================================================
-// Options set by kitsune when using LTO.
-// =============================================================================
-
-def tapir: P<"tapir", "The tapir target">;
-def tapir_opencilk_abi_bc: P<"tapir-opencilk-abi-bc",
-    "Path to OpenCilk ABI bitcode file">;

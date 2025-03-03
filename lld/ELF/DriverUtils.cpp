@@ -197,13 +197,13 @@ std::string elf::createResponseFile(const opt::InputArgList &args) {
     case OPT_export_dynamic_symbol_list:
     case OPT_just_symbols:
     case OPT_library_path:
-    case OPT_tapir_opencilk_abi_bc:
     case OPT_remap_inputs_file:
     case OPT_retain_symbols_file:
     case OPT_rpath:
     case OPT_script:
     case OPT_symbol_ordering_file:
     case OPT_sysroot:
+    case OPT_tapir_opencilk_abi_bc:
     case OPT_version_script:
       os << arg->getSpelling() << " " << quote(rewritePath(arg->getValue()))
          << "\n";

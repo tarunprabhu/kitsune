@@ -132,13 +132,16 @@ using namespace llvm;
 
 namespace {
 
+const std::string HIPABI_PREFIX = "kithip";
+const std::string HIPABI_KERNEL_NAME_PREFIX = "kithip_loop_";
+
 cl::opt<bool>
-    ClPrintCommands("hipabi-###", cl::init(false), cl::NotHidden,
+    clPrintCommands("hipabi-###", cl::init(false), cl::Hidden,
                     cl::desc("Print the command lines for any external "
                              "commands called by the hip tapir target"));
 
-cl::opt<std::string> GPUArch(
-    "hipabi-arch", cl::init(KITSUNE_HIP_ARCH_DEFAULT), cl::NotHidden,
+cl::opt<std::string> clGPUArch(
+    "tapir-hip-arch", cl::init(KITSUNE_HIP_ARCH_DEFAULT), cl::NotHidden,
     cl::desc("Target AMD GPU architecture (default = " KITSUNE_HIP_ARCH_DEFAULT
              ")"));
 
@@ -231,15 +234,21 @@ namespace {
 /// @brief Is the given function an AMD GPU kernel.
 /// @param F -- the Function to inspect.
 /// @return true if the function is a kernel, false otherwise.
-bool isAMDKernelFunction(Function *Fn) {
+static bool isAMDKernelFunction(Function *Fn) {
   return Fn->getCallingConv() == llvm::CallingConv::AMDGPU_KERNEL;
 }
 
-std::string buildTargetFeatureString(std::string &ArchIdStr) {
+std::string buildTargetFeatureString(StringRef ArchIdStr) {
   std::string FeaturesStr;
 
   using namespace llvm::AMDGPU;
   switch (parseArchAMDGCN(ArchIdStr)) {
+  case GK_GFX1103:
+    FeaturesStr +=
+        "+16-bit-insts,+atomic-fadd-rtn-insts,+ci-insts,+dl-insts,+dot10-insts,"
+        "+dot5-insts,+dot7-insts,+dot8-insts,+dot9-insts,+dpp,+gfx10-3-insts,+"
+        "gfx10-insts,+gfx11-insts,+gfx8-insts,+gfx9-insts,";
+    break;
   case GK_GFX90A:
     FeaturesStr += "+gfx90a-insts,+atomic-buffer-global-pk-add-f16-insts,"
                    "+atomic-fadd-rtn-insts,";
@@ -397,11 +406,21 @@ std::set<GlobalValue *> &collect(Constant &c, std::set<GlobalValue *> &seen) {
 
 } // namespace
 
-void HipABI::transformConstants(Function *Fn) {
+HipABIOptions::HipABIOptions() : GPUABIOptionsBase(TTO_Hip) {
+  setArch(KITSUNE_HIP_ARCH_DEFAULT);
+}
 
+HipABIOptions *HipABIOptions::clone() const { return new HipABIOptions(*this); }
+
+void HipABIOptions::readClOptions() {
+  GPUABIOptionsBase::readClOptions();
+  setArch(clGPUArch);
+}
+
+void HipABI::transformConstants(Function &Fn) {
   std::map<GetElementPtrInst *, GetElementPtrInst *> GEPMap;
 
-  for (BasicBlock &BB : *Fn) {
+  for (BasicBlock &BB : Fn) {
     for (Instruction &I : BB) {
       if (auto GEP = dyn_cast<GetElementPtrInst>(&I)) {
         if (auto PTy = dyn_cast<PointerType>(GEP->getType())) {
@@ -432,15 +451,16 @@ void HipABI::transformConstants(Function *Fn) {
     for (Use &U : OldGEP->uses())
       uses.push_back(&U);
     for (Use *U : uses) {
-      if (auto LI = dyn_cast<LoadInst>(U->getUser())) {
+      User *User = U->getUser();
+      if (auto LI = dyn_cast<LoadInst>(User)) {
         LLVM_DEBUG(dbgs() << "\t\tpatching load instruction: " << *LI << "\n");
         LI->setOperand(LI->getPointerOperandIndex(), NewGEP);
         LLVM_DEBUG(dbgs() << "\t\t\t\tnew load: " << *LI << "\n");
-      } else if (auto SI = dyn_cast<StoreInst>(U->getUser())) {
+      } else if (auto SI = dyn_cast<StoreInst>(User)) {
         LLVM_DEBUG(dbgs() << "\t\tpatching store instruction: " << *SI << "\n");
         SI->setOperand(SI->getPointerOperandIndex(), NewGEP);
         LLVM_DEBUG(dbgs() << "\t\t\t\tnew store: " << *SI << "\n");
-      } else if (auto *Call = dyn_cast<CallBase>(U->getUser())) {
+      } else if (auto *Call = dyn_cast<CallBase>(User)) {
         unsigned argNo = Call->getArgOperandNo(U);
         LLVM_DEBUG(dbgs() << "\t\tpatching callable instruction: " << *Call
                           << "\n");
@@ -450,16 +470,24 @@ void HipABI::transformConstants(Function *Fn) {
             new AddrSpaceCastInst(NewGEP, OldGEP->getType(), "", Call);
         Call->setArgOperand(argNo, asCast);
         LLVM_DEBUG(dbgs() << "\t\t\t\tnew call: " << *Call << "\n");
-      } else if (auto *GEP = dyn_cast<GetElementPtrInst>(U->getUser())) {
+      } else if (auto *GEP = dyn_cast<GetElementPtrInst>(User)) {
         LLVM_DEBUG(dbgs() << "\t\tpatching gep instruction:\n\t\t\t" << *GEP
                           << "\n");
         Instruction *asCast =
             new AddrSpaceCastInst(NewGEP, OldGEP->getType(), "", GEP);
         GEP->setOperand(GEP->getPointerOperandIndex(), asCast);
         LLVM_DEBUG(dbgs() << "\t\t\t\tnew gep:\n\t\t\t\t  " << *GEP << "\n");
+      } else if (auto *PToI = dyn_cast<PtrToIntInst>(User)) {
+        LLVM_DEBUG(dbgs() << "\t\tpatching ptrtoint instruction:\n\t\t\t"
+                          << *PToI << "\n");
+        Instruction *asCast =
+            new AddrSpaceCastInst(NewGEP, OldGEP->getType(), "", PToI);
+        PToI->setOperand(0, asCast);
+        LLVM_DEBUG(dbgs() << "\t\t\t\tnew ptrtoint:\n\t\t\t\t  " << *PToI
+                          << "\n");
       } else {
-        LLVM_DEBUG(dbgs() << U->get());
-        LLVM_DEBUG(dbgs() << U->getUser());
+        LLVM_DEBUG(dbgs() << "Unexpected use: " << *U->get() << "\n");
+        LLVM_DEBUG(dbgs() << "Unexpected user: " << *User << "\n");
         assert(false && "unexpected use/user of gep.");
       }
     }
@@ -467,31 +495,28 @@ void HipABI::transformConstants(Function *Fn) {
   }
 }
 
-void HipABI::transformArguments(Function *Fn) {
-  std::list<Value *> TransformedArgs;
-  std::vector<Type *> FnArgTypes(Fn->arg_size());
-  for (auto &A : Fn->args()) {
+void HipABI::transformArguments(Function &Fn) {
+  LLVMContext &Ctxt = Fn.getContext();
+  std::vector<Type *> FnArgTypes(Fn.arg_size());
+  for (auto &A : Fn.args()) {
     FnArgTypes[A.getArgNo()] = A.getType();
     if (isa<PointerType>(A.getType())) {
       LLVM_DEBUG(dbgs() << "\t\ttransforming argument: " << A << "\n");
-      PointerType *OldPtrTy = cast<PointerType>(A.getType());
-      PointerType *NewPtrTy =
-          PointerType::get(OldPtrTy->getContext(), HIPABI_GLOBAL_ADDR_SPACE);
+      PointerType *NewPtrTy = PointerType::get(Ctxt, HIPABI_GLOBAL_ADDR_SPACE);
       // TODO: Better path here than mutate?
       A.mutateType(NewPtrTy);
       FnArgTypes[A.getArgNo()] = NewPtrTy;
       LLVM_DEBUG(dbgs() << "\t\t\tto: " << A << "\n");
-      TransformedArgs.push_back(&A);
     }
   }
 
-  FunctionType *NewFTy = FunctionType::get(Fn->getReturnType(),
+  FunctionType *NewFTy = FunctionType::get(Fn.getReturnType(),
                                            ArrayRef<Type *>(FnArgTypes), false);
-  Fn->mutateType(NewFTy->getPointerTo());
+  Fn.mutateType(NewFTy->getPointerTo());
   // TODO: Need a better path here than mutate... We added this call to LLVM
   // to serve our testing and prototyping purposes.  Not sure there is a clean
   // (and easy to implement) way to accompish the same functionality...
-  Fn->mutateValueType(NewFTy);
+  Fn.mutateValueType(NewFTy);
 }
 
 // --- Loop Outliner
@@ -680,8 +705,8 @@ void HipLoop::setupLoopOutlineArgs(Function &F, ValueSet &HelperArgs,
                     << "hipabi: SETTING UP LOOP OUTLINE ARGUMENTS FOR '"
                     << F.getName() << "()'.\n");
 
-  // Add the loop control inputs -- the first parameter defines
-  // the extent of the index space.
+  // Add the loop control inputs -- the first parameter defines the extent of
+  // the index space.
   {
     Argument *EndArg = cast<Argument>(LCArgs[1]);
     EndArg->setName(".kern.input_size"); // nice for debugging...
@@ -693,8 +718,7 @@ void HipLoop::setupLoopOutlineArgs(Function &F, ValueSet &HelperArgs,
     InputSet.insert(InputVal);
   }
 
-  // The second parameter defines the start of the
-  // index space.
+  // The second parameter defines the start of the index space.
   {
     Argument *StartArg = cast<Argument>(LCArgs[0]);
     StartArg->setName(".kern.start_idx");
@@ -706,8 +730,7 @@ void HipLoop::setupLoopOutlineArgs(Function &F, ValueSet &HelperArgs,
     InputSet.insert(InputVal);
   }
 
-  // The third parameter defines the grain size, if it is
-  // not constant.
+  // The third parameter defines the grain size, if it is not constant.
   if (!isa<ConstantInt>(LCInputs[2])) {
     Argument *GrainsizeArg = cast<Argument>(LCArgs[2]);
     GrainsizeArg->setName(".kern.grain_size");
@@ -864,7 +887,7 @@ Function *HipLoop::resolveDeviceFunction(Function *Fn, bool enableFast) {
       return nullptr;
   }
 
-  std::unique_ptr<Module> &DevMod = TTarget->getLibDeviceModule();
+  std::unique_ptr<Module> &DevMod = TT->getLibDeviceModule();
   if (Function *DevFn = DevMod->getFunction(FnName)) {
     LLVM_DEBUG(dbgs() << "\t\t\tresolved mapped function '" << FnName
                       << "' in device library module.\n");
@@ -1019,14 +1042,14 @@ void HipLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
         TT->pushGlobalVariable(GV);
       }
 
-      // HIP (appears) to require protected visibility!  Without
-      // this the runtime won't be able to find GV for
-      // host <-> device transfers.
+      // HIP (appears) to require protected visibility!  Without this the
+      // runtime won't be able to find GV for host <-> device transfers.
       NewGV->setDSOLocal(GV->isDSOLocal());
       NewGV->setAlignment(GV->getAlign());
       VMap[GV] = NewGV;
-    } else if (dyn_cast<GlobalAlias>(V))
+    } else if (dyn_cast<GlobalAlias>(V)) {
       llvm_unreachable("hipabi: GlobalAlias support not implemented!");
+    }
   }
 
   // Create declarations for all functions first. These may be needed in the
@@ -1057,7 +1080,7 @@ void HipLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
   // FIXME: Support GlobalIFunc at some point. This is a GNU extension, so we
   // may not want to support it at all, but just in case, this is here.
   for (GlobalValue *V : UsedGlobalValues) {
-    if (dyn_cast<GlobalIFunc>(V)) {
+    if (isa<GlobalIFunc>(V)) {
       llvm_unreachable("hipabi: GlobalIFunc not yet supported.");
     }
   }
@@ -1067,7 +1090,6 @@ void HipLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
   // global values that need to be remapped.
   LLVM_DEBUG(dbgs() << "\t*- cloning/creating device-side functions...\n");
   for (GlobalValue *v : UsedGlobalValues) {
-
     if (Function *F = dyn_cast<Function>(v)) {
       if (F->size() && not F->isIntrinsic()) {
         SmallVector<ReturnInst *, 8> Returns;
@@ -1110,13 +1132,13 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
       cast<Instruction>(VMap[T->getDetach()->getSyncRegion()]);
   ClonedSyncReg->eraseFromParent();
 
-  // Get the kernel function for this loop and clean up
-  // any stray (target related) attributes that were
-  // attached as part of the host-side target that
-  // occurred before outlining.
+  // Get the kernel function for this loop and clean up any stray (target
+  // related) attributes. Because of the way we compile the code, those
+  // attributes will only be relevant for the host.
   Function *KernelF = Out.Outline;
   KernelF->setName(KernelName);
 
+  // Remove any attributes that are only relevant for the host.
   KernelF->removeFnAttr("target-cpu");
   KernelF->removeFnAttr("target-features");
   KernelF->removeFnAttr("tune-cpu");
@@ -1132,9 +1154,8 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
     DefaultThreadsPerBlock = std::stoi(ThreadsPBVar.value());
   }
 
-  // Specify the minimum and maximum flat work group
-  // sizes that will be used when the kernel is
-  // dispatched. The default value is 1,1024.
+  // Specify the minimum and maximum flat work group sizes that will be used
+  // when the kernel is dispatched.
   std::string AttrVal;
   AttrVal = std::string("128,1024");
   KernelF->addFnAttr("amdgpu-flat-work-group-size", AttrVal);
@@ -1197,18 +1218,23 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   }
 #endif
 
-  using namespace llvm::AMDGPU;
-  KernelF->addFnAttr("target-cpu", GPUArch);
+  // AMD requires that the kernel function have protected visiblity otherwise
+  // AMD's runtime is unable to find the kernel function at runtime. This, in
+  // turn requires the function to have external linkage. In case the function
+  // gets here with a different linkage type, just override it.
+  KernelF->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
   KernelF->setVisibility(GlobalValue::VisibilityTypes::ProtectedVisibility);
   KernelF->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
   KernelF->addFnAttr("no-trapping-math", "true");
+  KernelF->addFnAttr("target-cpu", TT->getOptions().getArch());
   KernelF->addFnAttr(Attribute::MustProgress);
-  std::string target_feature_str = buildTargetFeatureString(GPUArch);
+  std::string target_feature_str =
+      buildTargetFeatureString(TT->getOptions().getArch());
   KernelF->addFnAttr("target-features", target_feature_str);
 
-  // Verify that the Thread ID corresponds to a valid iteration.  Because
+  // Verify that the Thread ID corresponds to a valid iteration. Because
   // Tapir loops use canonical induction variables, valid iterations range
-  // from 0 to the loop limit with stride 1.  The End argument encodes the
+  // from 0 to the loop limit with stride 1. The End argument encodes the
   // loop limit. Get end and grain size arguments
   Argument *End;
   Value *Grainsize;
@@ -1294,17 +1320,15 @@ std::unique_ptr<Module> HipABI::loadBCFile(const std::string &BCFile) {
 bool HipABI::linkInModule(std::unique_ptr<Module> &Mod) {
 
   assert(Mod != nullptr && "unexpected null module ptr!");
-  // At this point we are ready to link in the device-side module
-  // for the final steps of the target transformation.  This
-  // basically completes resolution for device-side calls that
-  // typically come from the GPU software stack (e.g., the GPU
-  // math calls).
+  // At this point we are ready to link in the device-side module for the final
+  // steps of the target transformation. This basically completes resolution
+  // for device-side calls that typically come from the GPU software stack
+  // (e.g., the GPU math calls).
   auto L = Linker(KernelModule);
 
   if (L.linkInModule(std::move(Mod), Linker::LinkOnlyNeeded))
-    // TODO: Is there a way to get details here about why the
-    // link failed?  For now just use a fatal error until more
-    // details can be provided.
+    // TODO: Is there a way to get details here about why the link failed? For
+    // now, just use a fatal error until more details can be provided.
     report_fatal_error("Failed to link in HipABI module!");
   else
     return true;
@@ -1320,7 +1344,6 @@ void HipLoop::remapData(ValueToValueMapTy &VMap) {
 
 void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
                                       DominatorTree &DT) {
-
   LLVM_DEBUG(dbgs() << "hiploop: processing outlined loop call...\n"
                     << "\tkernel name: " << KernelName << "\n");
 
@@ -1396,7 +1419,8 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     if (CodeGenPrefetch && V->getType()->isPointerTy()) {
       LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for kernel arg #" << i - 1
                         << "\n");
-      HipStream = NewBuilder.CreateCall(KitHipMemPrefetchFn, {V, HipStream});
+      Value *VAS = NewBuilder.CreatePointerBitCastOrAddrSpaceCast(V, VoidPtrTy);
+      HipStream = NewBuilder.CreateCall(KitHipMemPrefetchFn, {VAS, HipStream});
     }
   }
 
@@ -1496,35 +1520,43 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
 }
 
-// ----- Hip Target
-
 // As is the pattern with the GPU targets, the HipABI is setup to process
-// all Tapir constructs within a given input Module (M).  It then creates
+// all Tapir constructs within a given input Module (M). It then creates
 // a corresponding module that contains the transformed device-side code.
-// This is the KernelModule that is created below in the target
-// constructor.
-HipABI::HipABI(Module &InputModule)
-    : TapirTarget(InputModule),
-      KernelModule(HIPABI_KERNEL_NAME_PREFIX + InputModule.getName().str(),
-                   InputModule.getContext()) {
+// This is the KernelModule that is created below in the target constructor.
+HipABI::HipABI(Module &M, const HipABIOptions &opts)
+    : TapirTarget(M, opts),
+      KernelModule(
+          Twine(HIPABI_PREFIX + sys::path::filename(M.getName())).str(),
+          M.getContext()) {
+  if (opts.getVerbose()) {
+    dbgs() << "'hip' tapir target options:\n";
+    dbgs() << "  Runtime verbose:     " << opts.getRuntimeVerbose() << "\n";
+    dbgs() << "  GPU arch:            " << opts.getArch() << "\n";
+    dbgs() << "  Optimization level:  " << opts.getOptLevel() << "\n";
+    dbgs() << "  FP Fusion:           " << opts.getFPOpFusionMode() << "\n";
+    dbgs() << "  Fixed threads/block: " << opts.getFixedThreadsPerBlock()
+           << "\n";
+    dbgs() << "  Max threads/block:   " << opts.getMaxThreadsPerBlock() << "\n";
+    dbgs() << "  Target features:     " << opts.getTargetFeatures() << "\n";
+  }
 
-  LLVMContext &Ctx = InputModule.getContext();
+  LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
-  Type *Int32Ty = Type::getInt32Ty(Ctx);
   KitHipGetGlobalSymbolFn =
-      InputModule.getOrInsertFunction("__kithip_get_global_symbol",
-                                      VoidPtrTy,  // return the device pointer
-                                      VoidPtrTy,  // fat binary
-                                      CharPtrTy); // symbol name
+      M.getOrInsertFunction("__kithip_get_global_symbol",
+                            VoidPtrTy,  // return the device pointer
+                            VoidPtrTy,  // fat binary
+                            CharPtrTy); // symbol name
   KitHipMemcpySymbolToDevFn =
-      InputModule.getOrInsertFunction("__kithip_memcpy_symbol_to_device",
-                                      VoidTy,   // no return
-                                      Int32Ty,  // host pointer
-                                      Int64Ty,  // device pointer
-                                      Int64Ty); // number of bytes to copy
+      M.getOrInsertFunction("__kithip_memcpy_sym_to_device",
+                            VoidTy,    // no return
+                            VoidPtrTy, // host pointer
+                            VoidPtrTy, // device pointer
+                            Int64Ty);  // number of bytes to copy
   KitHipSyncFn = M.getOrInsertFunction("__kithip_sync_thread_stream", VoidTy,
                                        VoidPtrTy); // no return, nor parameters
   // Build the details we need for the AMDGPU/HIP target.
@@ -1545,7 +1577,7 @@ HipABI::HipABI(Module &InputModule)
   if (VerboseMode && not ShownOnce) {
     errs() << "kitsune[hipabi]: create hip/amdgpu abi 'transformer'.\n";
     errs() << "  - target triple: " << TargetTriple.str() << "\n";
-    errs() << "  - target gpu architecture: " << GPUArch << "\n";
+    errs() << "  - target gpu architecture: " << getOptions().getArch() << "\n";
     ShownOnce = true;
   }
 
@@ -1574,14 +1606,13 @@ HipABI::HipABI(Module &InputModule)
     break;
   }
 
-  std::string Features = buildTargetFeatureString(GPUArch);
+  std::string Features = buildTargetFeatureString(getOptions().getArch());
   TargetOptions Options;
   Options.UseInitArray = true;
   Options.EmitAddrsig = true;
-  // Options.dump();
   AMDTargetMachine = AMDGPUTarget->createTargetMachine(
-      TargetTriple.getTriple(), GPUArch, Features, Options, Reloc::Static,
-      TargetCodeModel, TargetOptLevel);
+      TargetTriple.getTriple(), getOptions().getArch(), Features, Options,
+      Reloc::Static, TargetCodeModel, TargetOptLevel);
 
   LLVM_DEBUG(dbgs() << "\ttarget feature string:\n\t\t"
                     << AMDTargetMachine->getTargetFeatureString() << "\n\n");
@@ -1592,16 +1623,11 @@ HipABI::HipABI(Module &InputModule)
 
 HipABI::~HipABI() { /* no-op */ }
 
-void HipABI::setOptions(const TapirTargetOptions &Options) {
-  assert(isa<HipABIOptions>(Options) &&
-         "Must set HipABIOptions on HipABI tapir target");
-  // The options object is owned by the TargetLibraryInfo object which is
-  // guaranteed to live at least as long as this TapirTarget.
-  HipABIOpts = cast<HipABIOptions>(&Options);
+const HipABIOptions &HipABI::getOptions() const {
+  return cast<HipABIOptions>(opts);
 }
 
 std::unique_ptr<Module> &HipABI::getLibDeviceModule() {
-
   if (not LibDeviceModule) {
     LLVMContext &Ctx = KernelModule.getContext();
     llvm::SMDiagnostic SMD;
@@ -1628,27 +1654,27 @@ std::unique_ptr<Module> &HipABI::getLibDeviceModule() {
     else
       ROCmBCFiles.push_back("oclc_wavefrontsize64_off.bc");
 
-    // Pick the corresponding bitcode file for the
-    // target architecture.
-    //
-    // TODO: Add support for multiple architectures
-    // in a single transform.
-    if (GPUArch == "gfx900")
+    // Pick the corresponding bitcode file for the target architecture.
+    // TODO: Add support for multiple architectures in a single transform.
+    StringRef gpuArch = getOptions().getArch();
+    if (gpuArch == "gfx900")
       ROCmBCFiles.push_back("oclc_isa_version_900.bc");
-    else if (GPUArch == "gfx902")
+    else if (gpuArch == "gfx902")
       ROCmBCFiles.push_back("oclc_isa_version_902.bc");
-    else if (GPUArch == "gfx904")
+    else if (gpuArch == "gfx904")
       ROCmBCFiles.push_back("oclc_isa_version_904.bc");
-    else if (GPUArch == "gfx906")
+    else if (gpuArch == "gfx906")
       ROCmBCFiles.push_back("oclc_isa_version_906.bc");
-    else if (GPUArch == "gfx908")
+    else if (gpuArch == "gfx908")
       ROCmBCFiles.push_back("oclc_isa_version_908.bc");
-    else if (GPUArch == "gfx90a")
+    else if (gpuArch == "gfx90a")
       ROCmBCFiles.push_back("oclc_isa_version_90a.bc");
-    else if (GPUArch == "gfx90c")
+    else if (gpuArch == "gfx90c")
       ROCmBCFiles.push_back("oclc_isa_version_90c.bc");
+    else if (gpuArch == "gfx1103")
+      ROCmBCFiles.push_back("oclc_isa_version_1103.bc");
     else {
-      errs() << "unsupported amdgpu archicture target: " << GPUArch << ".\n";
+      errs() << "unsupported amdgpu archicture target: " << gpuArch << ".\n";
       report_fatal_error("fatal error!");
     }
 
@@ -1723,65 +1749,49 @@ void HipABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
   // no-op
 }
 
-// We can't create a correct launch sequence until all the kernels
-// within a (LLVM) module are generated.  When post-processing the
-// module we create the fatbinary and then to revisit the kernel
-// launch calls we created at the loop level and replace the fat
-// binary pointer/handle with the completed version.
+// We can't create a correct launch sequence until all the kernels within a
+// (LLVM) module are generated.  When post-processing the module we create the
+// fatbinary and then to revisit the kernel launch calls we created at the loop
+// level and replace the fat binary pointer/handle with the completed version.
 //
-// In addition, we must copy data for global variables from the
-// host to the device prior to kernel launches.  This requires
-// digging some additional details out of the fat binary.
+// In addition, we must copy data for global variables from the host to the
+// device prior to kernel launches.  This requires digging some additional
+// details out of the fat binary.
 void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
-
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
-  auto &FnList = M.getFunctionList();
 
-  for (auto &Fn : FnList) {
-    for (auto &BB : Fn) {
-      for (auto &I : BB) {
-        if (CallInst *CI = dyn_cast<CallInst>(&I)) {
-          if (Function *CFn = CI->getCalledFunction()) {
-            if (CFn->getName().starts_with("__kithip_launch_kernel")) {
-              Value *HipFatbin;
-              HipFatbin = CastInst::CreateBitOrPointerCast(
-                  BundleBin, VoidPtrTy, "_hipbin.fatbin", CI);
-              CI->setArgOperand(0, HipFatbin);
-              Instruction *NI = CI->getNextNonDebugInstruction();
-              // Unless someting else has monkeyed with our generated code
-              // NI should be the launch call.  We need the following code
-              // to go between the call instruction and the launch.
-              assert(NI && "unexpected null instruction!");
+  std::vector<CallInst *> LaunchCalls;
+  for (Function &Fn : M)
+    for (inst_iterator I = inst_begin(Fn); I != inst_end(Fn); ++I)
+      if (auto *Call = dyn_cast<CallInst>(&*I))
+        if (Function *Callee = Call->getCalledFunction())
+          if (Callee->getName().starts_with("__kithip_launch_kernel"))
+            LaunchCalls.push_back(Call);
 
-              // TODO: Do we want to sync naming conventions up between the
-              // CUDA and HIP ABIs?  Might make the world a better place???
-              for (auto &HostGV : GlobalVars) {
-                std::string DevVarName = HostGV->getName().str() + ".dev_gv";
-                LLVM_DEBUG(dbgs() << "\t\t* processing global: "
-                                  << HostGV->getName() << "\n");
-                // Get the global's name, look it up on the device side,
-                // and then issue the copy-to-device call (with appropriate
-                // casts).
-                Value *SymName =
-                    tapir::createConstantStr(DevVarName, M, DevVarName);
-                Value *DevPtr =
-                    CallInst::Create(KitHipGetGlobalSymbolFn, {SymName, CI},
-                                     ".hipabi_devptr", NI);
-                Value *VGVPtr =
-                    CastInst::CreatePointerCast(HostGV, VoidPtrTy, "", NI);
-                uint64_t NumBytes = DL.getTypeAllocSize(HostGV->getValueType());
-                CallInst::Create(
-                    KitHipMemcpySymbolToDevFn,
-                    {VGVPtr, DevPtr, ConstantInt::get(Int64Ty, NumBytes)}, "",
-                    CI);
-              }
-            }
-          }
-        }
-      }
+  for (CallInst *Call : LaunchCalls) {
+    Value *FatBin = CastInst::CreateBitOrPointerCast(BundleBin, VoidPtrTy,
+                                                     "_hipbin.fatbin", Call);
+    Call->setArgOperand(0, FatBin);
+
+    // TODO: Do we want to sync naming conventions up between the CUDA and HIP
+    // ABIs?  Might make the world a better place???
+    for (GlobalVariable *HostGV : GlobalVars) {
+      LLVM_DEBUG(dbgs() << "\t\t* processing global: " << HostGV->getName()
+                        << "\n");
+      // Get the global's name, look it up on the device side, and then issue
+      // the copy-to-device call (with appropriate casts).
+      std::string DevVarName = HostGV->getName().str() + ".dev_gv";
+      Value *SymName = tapir::createConstantStr(DevVarName, M, DevVarName);
+      Value *DevPtr = CallInst::Create(
+          KitHipGetGlobalSymbolFn, {FatBin, SymName}, ".hipabi_devptr", Call);
+      Value *VGVPtr = CastInst::CreatePointerCast(HostGV, VoidPtrTy, "", Call);
+      uint64_t NumBytes = DL.getTypeAllocSize(HostGV->getValueType());
+      CallInst::Create(KitHipMemcpySymbolToDevFn,
+                       {VGVPtr, DevPtr, ConstantInt::get(Int64Ty, NumBytes)},
+                       "", Call);
     }
   }
 
@@ -1792,13 +1802,13 @@ void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
     LLVM_DEBUG(dbgs() << "\t\treplacing and removing proxy fatbin ptr.\n");
     ProxyFB->replaceAllUsesWith(CFB);
     ProxyFB->eraseFromParent();
-  } else
-    report_fatal_error("unable to find the proxy fatbin pointer! "
-                       "something has gone horribly wrong!");
+  } else {
+    report_fatal_error("unable to find the proxy fatbin pointer! something has "
+                       "gone horribly wrong!");
+  }
 }
 
 HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
-
   LLVM_DEBUG(dbgs() << "\tgenerating amdgpu object file.\n");
 
   std::error_code EC;
@@ -1863,10 +1873,9 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
       errs() << "      - slp vectorization: "
              << (PTO.SLPVectorization ? "yes\n" : "no\n");
     }
-    // !!!! NOTE !!!!  From the LLVM docs: Create the analysis
-    // managers.  These must be declared in this order so that they
-    // are destroyed in the correct order due to
-    // inter-analysis-manager references.
+
+    // The analysis managers must be declared in this order so that they are
+    // destroyed in the correct order due to inter-analysis-manager references.
     LoopAnalysisManager LAM;
     FunctionAnalysisManager FAM;
     CGSCCAnalysisManager CGAM;
@@ -1889,7 +1898,8 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
   }
 
   if (VerboseMode) {
-    errs() << "  - emit AMDGPU (target: " << GPUArch << ") object file.\n";
+    errs() << "  - emit AMDGPU (target: " << getOptions().getArch()
+           << ") object file.\n";
     errs() << "    - file name: " << ObjFile->getFilename() << "\n";
   }
   legacy::PassManager EmitPM;
@@ -1931,7 +1941,7 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   LLDArgList.push_back("-shared");
   LLDArgList.push_back("--eh-frame-hdr");
   LLDArgList.push_back("--plugin-opt=-amdgpu-internalize-symbols");
-  std::string mcpu_arg = "--plugin-opt=-mcpu=" + GPUArch;
+  std::string mcpu_arg = "--plugin-opt=-mcpu=" + getOptions().getArch().str();
   if (EnableXnack)
     mcpu_arg += ":xnack+";
   if (EnableSRAMECC)
@@ -1948,17 +1958,16 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   LLDArgList.push_back(infile.c_str());
   LLDArgList.push_back(nullptr);
 
+  std::vector<StringRef> LLDArgs = toStringRefArray(LLDArgList.data());
+  if (clPrintCommands)
+    tapir::printCommandLine(LLDArgs);
   if (VerboseMode) {
     errs() << "    - running link stage...\n      $ ";
-    for (auto lld_arg : LLDArgList) {
-      if (lld_arg != nullptr) {
+    for (StringRef lld_arg : LLDArgList)
         errs() << lld_arg << "\n        ";
-      }
-    }
     errs() << "** done.\n";
   }
 
-  auto LLDArgs = toStringRefArray(LLDArgList.data());
   std::string ErrMsg;
   bool ExecFailed;
   int ExecStat = sys::ExecuteAndWait(*LLD, LLDArgs, std::nullopt, {},
@@ -2051,7 +2060,6 @@ GlobalVariable *HipABI::embedBundle(HipABIOutputFile &BundleFile) {
   return BundleGV;
 }
 
-
 void HipABI::bindGlobalVariables(Value *Handle, IRBuilder<> &B) {
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
@@ -2091,7 +2099,6 @@ void HipABI::bindGlobalVariables(Value *Handle, IRBuilder<> &B) {
 }
 
 Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
-
   LLVM_DEBUG(dbgs() << "\tcreating global ctor entries...\n");
 
   LLVMContext &Ctx = M.getContext();
@@ -2179,6 +2186,7 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
         FunctionType::get(IntTy, CleanupFn->getType(), false);
     FunctionCallee AtExitFn =
         M.getOrInsertFunction("atexit", AtExitFnTy, AttributeList());
+
     CtorBuilder.CreateCall(AtExitFn, CleanupFn);
   }
 
@@ -2208,9 +2216,9 @@ Function *HipABI::createDtor(GlobalVariable *BundleHandle) {
       VoidPtrPtrTy, BundleHandle, DL.getPointerABIAlignment(0));
   DtorBuilder.CreateCall(UnregisterFatbinFn, HandleValue);
 
-  FunctionCallee KitRTDestroyFn =
-      M.getOrInsertFunction("__kithip_destroy", VoidTy);
-  DtorBuilder.CreateCall(KitRTDestroyFn, {});
+  // FunctionCallee KitRTDestroyFn =
+  //     M.getOrInsertFunction("__kithip_destroy", VoidTy);
+  // DtorBuilder.CreateCall(KitRTDestroyFn, {});
   DtorBuilder.CreateRetVoid();
   return DtorFn;
 }
@@ -2289,11 +2297,9 @@ void HipABI::postProcessModule() {
     puts->replaceAllUsesWith(printf);
   }
 
-  // Do the final transformation step for the *device* functions
-  // in the kernel module.  Note that we have already completed
-  // the transformations for the outlined loops (the kernel functions)
-  // so we skip them here...
-  // Function *KFunc;
+  // Do the final transformation step for the *device* functions in the kernel
+  // module. Note that we have already completed the transformations for the
+  // outlined loops (the kernel functions) so we skip them here.
   for (Function &F : KernelModule) {
     if (VerboseMode)
       errs() << "    - function: " << F.getName() << "() ";
@@ -2304,15 +2310,15 @@ void HipABI::postProcessModule() {
       if (VerboseMode)
         errs() << "[transform kernel]\n";
       transformCallingConv(F);
-      transformArguments(&F);
-      transformConstants(&F);
+      transformArguments(F);
+      transformConstants(F);
       // KFunc = &F;
     } else {
       if (VerboseMode)
         errs() << "[transform dev-side function]\n";
       // transformForGCN(F); // TODO: deprecated?
       transformCallingConv(F);
-      transformConstants(&F);
+      transformConstants(F);
     }
   }
 
@@ -2340,11 +2346,11 @@ void HipABI::postProcessModule() {
   LLVM_DEBUG(saveModuleToFile(&KernelModule, KernelModule.getName().str(),
                               ".hipabi.final.ll"));
 
-  // EXPERIMENTAL: We have removed code from the host side and
-  // inserted some additional code.  Re-run a series of optimization
-  // passes -- in general the return on investment here is probably
-  // pretty low but we have yet to dig into any details.  For now
-  // we will only run this at the highest optimization levels.
+  // EXPERIMENTAL: We have removed code from the host side and inserted some
+  // additional code. Re-run a series of optimization passes -- in general the
+  // return on investment here is probably pretty low but we have yet to dig
+  // into any details. For now we will only run this at the highest optimization
+  // levels.
   if (HostOptLevel > 0) {
     LLVM_DEBUG(dbgs() << "hipabi: Running experimental post-transform "
                       << "host-side (re)optimization passes.\n");

@@ -99,15 +99,14 @@ struct RTSFnDesc {
 };
 } // namespace
 
-// void LambdaABI::setOptions(const TapirTargetOptions &Options) {
-//   if (!isa<LambdaABIOptions>(Options))
-//     return;
+LambdaABI::LambdaABI(Module &m, const TapirTargetOptions &opts)
+    : TapirTarget(m, opts) {
+  llvm_unreachable("LambdaABI::LambdaABI: NOT IMPLEMENTED")
+}
 
-//   const LambdaABIOptions &OptionsCast = cast<LambdaABIOptions>(Options);
-
-//   // Get the path to the runtime bitcode file.
-//   RuntimeBCPath = OptionsCast.getRuntimeBCPath();
-// }
+const TapirTargetOptions &LambdaABI::getOptions() const {
+  llvm_unreachable("LambdaABI::getOptions: NOT IMPLEMENTED");
+}
 
 void LambdaABI::prepareModule() {
   LLVMContext &C = M.getContext();

@@ -33,24 +33,6 @@ std::optional<llvm::TapirTargetID> parseTapirTarget(const llvm::opt::Arg &A);
 std::optional<llvm::TapirTargetID>
 parseTapirTarget(const llvm::opt::ArgList &Args);
 
-/// Parse the -ftapir-cuda-arch flag from the given argument. If the value is
-/// not a known cuda architecture name, return an empty string.
-llvm::StringRef parseTapirCudaArch(const llvm::opt::Arg &A);
-
-/// Parse the -ftapir-cuda-arch flag if it is present in the arguments. If the
-/// flag is not present, return std::nullopt. If the flag is present and its
-/// value is not valid, return "".
-std::optional<std::string> parseTapirCudaArch(const llvm::opt::ArgList &Args);
-
-/// Parse the -ftapir-hip-arch flag from the given argument. If the value is
-/// not a known hip architecture name, return an empty string.
-llvm::StringRef parseTapirHipArch(const llvm::opt::Arg &A);
-
-/// Parse the -ftapir-hip-arch flag if it is present in the arguments. If the
-/// flag is not present, return std::nullopt. If the flag is present and its
-/// value is not valid, return "".
-std::optional<std::string> parseTapirHipArch(const llvm::opt::ArgList &Args);
-
 /// Parse the -ftapir flag if it is present and get the name of the config file
 /// of the Tapir target that was specified. If the argument of the -ftapir flag
 /// is invalid, this will return std::nullopt.

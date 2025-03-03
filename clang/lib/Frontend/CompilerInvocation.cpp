@@ -4632,6 +4632,23 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
     default:
       break;
     }
+
+    // Arguments that are relevant to any GPU tapir target.
+    if (*tt == llvm::TapirTargetID::Cuda || *tt == llvm::TapirTargetID::Hip) {
+      if (unsigned n = Opts.getFixedThreadsPerBlock())
+        GenerateArg(Consumer, OPT_tapir_threads_per_block_EQ,
+                    std::to_string(n));
+
+      if (unsigned n = Opts.getMaxThreadsPerBlock())
+        GenerateArg(Consumer, OPT_tapir_max_threads_per_block_EQ,
+                    std::to_string(n));
+    }
+
+    if (Opts.getTapirTargetVerbose())
+      GenerateArg(Consumer, OPT_tapir_verbose);
+
+    if (Opts.getKitsuneRuntimeVerbose())
+      GenerateArg(Consumer, OPT_kitrt_verbose);
   }
 
   if (Opts.getKokkos())
@@ -4653,12 +4670,30 @@ bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts,
 
   Opts.setKitsuneFrontend(driver::IsKitsuneFrontend(Argv0));
   Opts.setStripmineLoops(Args.hasArg(options::OPT_fstripmine));
+
   if (Arg* A = Args.getLastArg(options::OPT_tapir_opencilk_abi_bc_EQ))
     Opts.setOpenCilkABIBitcodeFile(A->getValue());
   if (Arg* A = Args.getLastArg(options::OPT_tapir_cuda_arch_EQ))
     Opts.setCudaArch(A->getValue());
   if (Arg* A = Args.getLastArg(options::OPT_tapir_hip_arch_EQ))
     Opts.setHipArch(A->getValue());
+
+  if (Arg *A = Args.getLastArg(options::OPT_tapir_threads_per_block_EQ)) {
+    unsigned N;
+    StringRef Val = A->getValue();
+    Val.getAsInteger(10, N);
+    Opts.setFixedThreadsPerBlock(N);
+  }
+
+  if (Arg* A = Args.getLastArg(options::OPT_tapir_max_threads_per_block_EQ)) {
+    unsigned N;
+    StringRef Val = A->getValue();
+    Val.getAsInteger(10, N);
+    Opts.setMaxThreadsPerBlock(N);
+  }
+
+  Opts.setTapirTargetVerbose(Args.hasArg(options::OPT_tapir_verbose));
+  Opts.setKitsuneRuntimeVerbose(Args.hasArg(options::OPT_kitrt_verbose));
 
   if (std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args)) {
     // Even if the tapir target is valid, it may not have been enabled when
@@ -4737,6 +4772,7 @@ bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
   else if (LangOpts.OpenCL)
     Diags.Report(clang::diag::err_drv_kitsune_opencl);
 
+  // The OpenCilk tapir target requires a bitcode file.
   if (*tt == llvm::TapirTargetID::OpenCilk) {
     if (!KitsuneOpts.getOpenCilkABIBitcodeFile())
       Diags.Report(diag::err_drv_opencilk_missing_abi_bitcode);

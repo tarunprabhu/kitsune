@@ -23,7 +23,7 @@
 // RUN: %kitxx -### --tapir-hip-arch=gfx906 --tapir=hip %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix USED
 //
-// USED: -ftapir-hip-arch=gfx906
+// USED: --tapir-hip-arch=gfx906
 //
 // -----------------------------------------------------------------------------
 //
@@ -32,14 +32,14 @@
 // RUN:     -S -emit-llvm -O2  %s 2>&1 | FileCheck %s -check-prefix LOWERED
 //
 // LOWERED: lld
-// LOWERED: -plugin-opt=mcpu=gfx90c
+// LOWERED-SAME: -plugin-opt=-mcpu=gfx90c
 //
 // -----------------------------------------------------------------------------
 //
 // RUN: not %kitxx -### --tapir=hip --tapir-hip-arch=sm_80 %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix INVALID
 //
-// INVALID: error: invalid value 'sm_80' in '--tapir-hip-arch=sm_80'
+// INVALID: error: unsupported AMD GPU architecture 'sm_80'
 //
 // -----------------------------------------------------------------------------
 

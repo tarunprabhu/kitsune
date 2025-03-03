@@ -4213,7 +4213,7 @@ public:
   llvm::Value *EmitSEHExceptionInfo();
   llvm::Value *EmitSEHAbnormalTermination();
 
-  LoopAttributes::LSStrategy GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs);
+  llvm::TapirSpawnStrategy GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs);
   std::optional<llvm::TapirTargetID>
   GetTapirTargetAttr(ArrayRef<const Attr *> Attrs);
   unsigned GetKitsuneLaunchAttr(ArrayRef<const Attr *> Attrs);

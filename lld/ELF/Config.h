@@ -30,6 +30,7 @@
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/TarWriter.h"
 #include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "llvm/Transforms/Tapir/TapirTargetOptions.h"
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -496,10 +497,6 @@ struct Config {
   /// so we can't just use the absence of @ref tapirTargetOpts to imply that a
   /// tapir target has not been set.
   std::optional<llvm::TapirTargetID> tapirTarget = std::nullopt;
-
-  /// FIXME: This should be subsumed into @ref tapirTargetOpts which should be
-  /// created from the command line options.
-  std::string opencilkABIBitcodeFile;
 
   /// The options for the tapir target that has been set. This is a pointer to
   /// the base class, but it must be an instance of the options object

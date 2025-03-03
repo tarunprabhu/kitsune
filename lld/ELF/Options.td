@@ -813,18 +813,35 @@ defm android_memtag_heap: BB<"android-memtag-heap",
 defm android_memtag_mode: EEq<"android-memtag-mode",
     "Instruct the dynamic loader to start under MTE mode {async, sync, none}">;
 
-// =============================================================================
+//------------------------------------------------------------------------------
 // Options set by kitsune when using LTO.
-// =============================================================================
+//
+// Most, if not all, of the options below will have a corresponding option in
+// the clang/flang frontend. The constraints on the values of those options
+// apply to the ones here as well. The frontend options will generally have more
+// complete documentation, so please refer to those in case of uncertainty.
+// 
+//------------------------------------------------------------------------------
+
+def kitrt_verbose: F<"kitrt-verbose">,
+    HelpText<"Enable verbose mode in kitsune's runtime">;
 
 defm tapir: Eq<"tapir", "The tapir target">;
+
+def tapir_verbose: F<"tapir-verbose">,
+    HelpText<"Enable verbose mode in all tapir targets">;
+
+defm tapir_threads_per_block: EEq<"tapir-threads-per-block",
+    "The number of threads per block to use for all kernels">;
+
+defm tapir_max_threads_per_block: EEq<"tapir-max-threads-per-block",
+    "The maximum number of threads per block to use">;
+
+defm tapir_cuda_arch: EEq<"tapir-cuda-arch",
+    "The NVIDIA GPU architecture for which to generate code">;
+    
+defm tapir_hip_arch: EEq<"tapir-hip-arch",
+    "The AMD GPU architecture for which to generate code">;
+
 defm tapir_opencilk_abi_bc: EEq<"tapir-opencilk-abi-bc",
-     "Path to OpenCilk ABI bitcode file">;
-
-def: J<"plugin-opt=tapir-opencilk-abi-bc=">,
-  Alias<tapir_opencilk_abi_bc>,
-  HelpText<"Alias for --tapir-opencilk-abi-bc">;
-
-def: J<"plugin-opt=tapir=">,
-  Alias<tapir>,
-  HelpText<"Alias for --tapir=">;
+    "Path to OpenCilk's ABI bitcode file">;

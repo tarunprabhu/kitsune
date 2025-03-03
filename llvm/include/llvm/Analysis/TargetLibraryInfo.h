@@ -17,6 +17,7 @@
 #include "llvm/Pass.h"
 #include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "llvm/Transforms/Tapir/TapirTargetOptions.h"
 #include <bitset>
 #include <optional>
 
@@ -304,8 +305,9 @@ public:
   }
 
   /// Return any options for Tapir lowering.
-  TapirTargetOptions *getTapirTargetOptions() const {
-    return TTOptions.get();
+  const TapirTargetOptions& getTapirTargetOptions() const {
+    assert(TTOptions.get() && "Tapir target options have not been set");
+    return *TTOptions;
   }
 
   /// Records known library functions associated with the specified Tapir
@@ -314,6 +316,10 @@ public:
     addTapirTargetLibraryFunctions(TapirTarget);
   }
   void addTapirTargetLibraryFunctions(TapirTargetID TargetID);
+
+  /// Creates a new options object for the tapir target and initializes it from
+  /// the LLVM command line options.
+  void addTapirTargetOptions(TapirTargetID TargetID);
 
   /// Searches for a particular function name among known Tapir-target library
   /// functions, also checking that its type is valid for the library function
@@ -645,7 +651,7 @@ public:
   }
 
   /// \copydoc TargetLibraryInfoImpl::getTapirTarget()
-  TapirTargetOptions *getTapirTargetOptions() const {
+  const TapirTargetOptions &getTapirTargetOptions() const {
     return Impl->getTapirTargetOptions();
   }
 

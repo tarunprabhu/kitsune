@@ -61,10 +61,15 @@ class OMPTaskABI final : public TapirTarget {
                            bool InsertPauseFrame, bool Helper);
 
 public:
-  OMPTaskABI(Module &M) : TapirTarget(M) {}
+  OMPTaskABI(Module &M, const TapirTargetOptions& opts)
   ~OMPTaskABI() { DetachCtxToStackFrame.clear(); }
 
-  // void setOptions(const TapirTargetOptions &Options) override final;
+  /// FIXME: Option support for this tapir target is currently limited.
+  /// Eventually, a specific options class must be created for this target and
+  /// that must be returned. For now, calling either of these methods will
+  /// result in a catastrophic failure.
+  const TapirTargetOptions &getOptions() const override final;
+  void setOptions(const TapirTargetOptions &Options) override final;
 
   void prepareModule() override final;
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;

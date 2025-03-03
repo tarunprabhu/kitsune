@@ -172,6 +172,11 @@ static lto::Config createConfig(Ctx &ctx) {
                                      /*UseInputModulePath*/ true,
                                      ctx.arg.saveTempsArgs));
 
+  if (ctx.args.tapirTarget.has_value()) {
+    c.TapirTarget = ctx.args.tapirTarget;
+    c.TapirTargetOpts.reset(ctx.args.tapirTargetOpts->clone());
+  }
+
   return c;
 }
 

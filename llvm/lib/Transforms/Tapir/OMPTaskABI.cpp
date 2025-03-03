@@ -1,4 +1,5 @@
-//===- OMPTaskABI.cpp - Generic interface to various runtime systems--------===//
+//===- OMPTaskABI.cpp - Generic interface to various runtime
+// systems--------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -12,25 +13,25 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/OMPTaskABI.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/Intrinsics.h"
-#include "llvm/IRReader/IRReader.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/InstIterator.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker/Linker.h"
 #include "llvm/Support/Alignment.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -47,10 +48,10 @@ using namespace llvm;
 
 extern cl::opt<bool> DebugABICalls;
 
-static cl::opt<std::string> ClRuntimeBCPath(
-    "omp-bc-path", cl::init(""),
-    cl::desc("Path to the bitcode file for the runtime ABI"),
-    cl::Hidden);
+static cl::opt<std::string>
+    ClRuntimeBCPath("omp-bc-path", cl::init(""),
+                    cl::desc("Path to the bitcode file for the runtime ABI"),
+                    cl::Hidden);
 
 static const StringRef StackFrameName = "__rts_sf";
 
@@ -63,7 +64,7 @@ class OMPTaskABILinkDiagnosticInfo : public DiagnosticInfo {
 
 public:
   OMPTaskABILinkDiagnosticInfo(DiagnosticSeverity Severity, const Module *SrcM,
-                                const Twine &Msg)
+                               const Twine &Msg)
       : DiagnosticInfo(DK_Lowering, Severity), SrcM(SrcM), Msg(Msg) {}
   void print(DiagnosticPrinter &DP) const override {
     DP << "linking module '" << SrcM->getModuleIdentifier() << "': " << Msg;
@@ -78,7 +79,7 @@ class OMPTaskABIDiagnosticHandler final : public DiagnosticHandler {
 
 public:
   OMPTaskABIDiagnosticHandler(const Module *SrcM,
-                               DiagnosticHandler *OrigHandler)
+                              DiagnosticHandler *OrigHandler)
       : SrcM(SrcM), OrigHandler(OrigHandler) {}
 
   bool handleDiagnostics(const DiagnosticInfo &DI) override {
@@ -104,15 +105,14 @@ struct RTSFnDesc {
 };
 } // namespace
 
-// void OMPTaskABI::setOptions(const TapirTargetOptions &Options) {
-//   if (!isa<OMPTaskABIOptions>(Options))
-//     return;
+OMPTaskABI::OMPTaskABI(Module &m, const TapirTargetOptions &opts)
+    : TapirTarget(m, opts) {
+  llvm_unreachable("OMPTaskABI::OMPTaskABI: NOT IMPLEMENTED")
+}
 
-//   const OMPTaskABIOptions &OptionsCast = cast<OMPTaskABIOptions>(Options);
-
-//   // Get the path to the runtime bitcode file.
-//   RuntimeBCPath = OptionsCast.getRuntimeBCPath();
-// }
+const TapirTargetOptions &OMPTaskABI::getOptions() const {
+  llvm_unreachable("OmpTaskABI::getOptions: NOT IMPLEMENTED");
+}
 
 void OMPTaskABI::prepareModule() {
   LLVMContext &C = M.getContext();
@@ -307,7 +307,7 @@ static bool skipInstruction(const Instruction &I) {
 
   if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I)) {
     // Skip simple intrinsics
-    switch(II->getIntrinsicID()) {
+    switch (II->getIntrinsicID()) {
     case Intrinsic::annotation:
     case Intrinsic::assume:
     case Intrinsic::sideeffect:
@@ -368,7 +368,7 @@ Value *OMPTaskABI::CreateStackFrame(Function &F) {
   return SF;
 }
 
-Value* OMPTaskABI::GetOrCreateStackFrame(Function &F) {
+Value *OMPTaskABI::GetOrCreateStackFrame(Function &F) {
   if (DetachCtxToStackFrame.count(&F))
     return DetachCtxToStackFrame[&F];
 
@@ -382,8 +382,8 @@ Value* OMPTaskABI::GetOrCreateStackFrame(Function &F) {
 // __rts_stack_frame in F.  If TaskFrameCreate is nonnull, the call to
 // __rts_enter_frame is inserted at TaskFramecreate.
 CallInst *OMPTaskABI::InsertStackFramePush(Function &F,
-                                            Instruction *TaskFrameCreate,
-                                            bool Helper) {
+                                           Instruction *TaskFrameCreate,
+                                           bool Helper) {
   Instruction *SF = cast<Instruction>(GetOrCreateStackFrame(F));
 
   BasicBlock::iterator InsertPt = ++SF->getIterator();
@@ -449,7 +449,7 @@ void OMPTaskABI::lowerSync(SyncInst &SI) {
     return;
 
   Value *SF = GetOrCreateStackFrame(Fn);
-  Value *Args[] = { SF };
+  Value *Args[] = {SF};
   assert(Args[0] && "sync used in function without frame!");
 
   Instruction *SyncUnwind = nullptr;
@@ -489,22 +489,22 @@ void OMPTaskABI::lowerSync(SyncInst &SI) {
 }
 
 bool OMPTaskABI::preProcessFunction(Function &F, TaskInfo &TI,
-                                   bool ProcessingTapirLoops) {
+                                    bool ProcessingTapirLoops) {
   return false;
 }
 void OMPTaskABI::postProcessFunction(Function &F, bool ProcessingTapirLoops) {}
 void OMPTaskABI::postProcessHelper(Function &F) {}
 
 void OMPTaskABI::preProcessOutlinedTask(Function &F, Instruction *DetachPt,
-                                       Instruction *TaskFrameCreate,
-                                       bool IsSpawner, BasicBlock *TFEntry) {
+                                        Instruction *TaskFrameCreate,
+                                        bool IsSpawner, BasicBlock *TFEntry) {
   if (IsSpawner)
     InsertStackFramePush(F, TaskFrameCreate, /*Helper*/ true);
 }
 
 void OMPTaskABI::postProcessOutlinedTask(Function &F, Instruction *DetachPt,
-                                        Instruction *TaskFrameCreate,
-                                        bool IsSpawner, BasicBlock *TFEntry) {
+                                         Instruction *TaskFrameCreate,
+                                         bool IsSpawner, BasicBlock *TFEntry) {
   if (IsSpawner)
     InsertStackFramePop(F, /*PromoteCallsToInvokes*/ true,
                         /*InsertPauseFrame*/ true, /*Helper*/ true);
@@ -567,8 +567,8 @@ void OMPTaskABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
     // Get the helper arguments from the task structure.
     Value *ArgsFromTask = IRB.CreateCall(
         RTSGetArgsFromTask, {OMPTask->getArg(1), IRB.getInt64(Alignment)});
-    Value *ArgsCast = IRB.CreateBitOrPointerCast(
-        ArgsFromTask, ArgAlloca->getType());
+    Value *ArgsCast =
+        IRB.CreateBitOrPointerCast(ArgsFromTask, ArgAlloca->getType());
     // Insert call to helper in OMP function helper.
     CallInst *Call = IRB.CreateCall(ReplCall->getCalledFunction(), {ArgsCast});
     Call->setCallingConv(ReplCall->getCallingConv());

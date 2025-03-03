@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Config/config.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/IR/Dominators.h"
@@ -22,17 +21,9 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Transforms/IPO/FunctionAttrs.h"
-#include "llvm/Transforms/Tapir/CudaABI.h"
-#include "llvm/Transforms/Tapir/HipABI.h"
-#include "llvm/Transforms/Tapir/LambdaABI.h"
-#include "llvm/Transforms/Tapir/OMPTaskABI.h"
-#include "llvm/Transforms/Tapir/OpenCilkABI.h"
-#include "llvm/Transforms/Tapir/OpenMPABI.h"
 #include "llvm/Transforms/Tapir/Outline.h"
-#include "llvm/Transforms/Tapir/QthreadsABI.h"
-#include "llvm/Transforms/Tapir/RealmABI.h"
-#include "llvm/Transforms/Tapir/SerialABI.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
+#include "llvm/Transforms/Tapir/TapirTargets.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
@@ -44,34 +35,48 @@ using namespace llvm;
 static const char TimerGroupName[] = DEBUG_TYPE;
 static const char TimerGroupDescription[] = "Tapir lowering";
 
-TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID) {
+TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID,
+                                        const TapirTargetOptions &opts) {
   // Yes, this is absolutely hideous. We should try to find a nicer way than
   // this horrendous conditionally compiled mess!
   switch (ID) {
   case TapirTargetID::None:
     return nullptr;
+
   case TapirTargetID::Serial:
-    return new SerialABI(M);
+    assert(isa<SerialABIOptions>(opts) &&
+           "Require SerialABIOptions when creating 'serial' tapir target");
+    return new SerialABI(M, cast<SerialABIOptions>(opts));
 
 #if KITSUNE_CUDA_ENABLED
   case TapirTargetID::Cuda:
-    return new CudaABI(M);
+    assert(isa<CudaABIOptions>(opts) &&
+           "Require CudaABIOptions when creating 'cuda' tapir target");
+    return new CudaABI(M, cast<CudaABIOptions>(opts));
 #endif // KITSUNE_CUDA_ENABLED
 
 #if KITSUNE_HIP_ENABLED
   case TapirTargetID::Hip:
-    return new HipABI(M);
+    assert(isa<HipABIOptions>(opts) &&
+           "Require HipABIOptions when creating 'hip' tapir target");
+    return new HipABI(M, cast<HipABIOptions>(opts));
 #endif // KITSUNE_HIP_ENABLED
 
-    // For now, these targets are always built, but that might change.
+#if KITSUNE_LAMBDA_ENABLED
   case TapirTargetID::Lambda:
     return new LambdaABI(M);
+#endif // KITSUNE_LAMBDA_ENABLED
+
+#if KITSUNE_OMPTASK_ENABLED
   case TapirTargetID::OMPTask:
     return new OMPTaskABI(M);
+#endif // KITSUNE_OMPTASK_ENABLED
 
 #if KITSUNE_OPENCILK_ENABLED
   case TapirTargetID::OpenCilk:
-    return new OpenCilkABI(M);
+    assert(isa<OpenCilkABIOptions>(opts) &&
+           "Require OpenCilkABIOptions when creating 'opencilk' tapir target");
+    return new OpenCilkABI(M, cast<OpenCilkABIOptions>(opts));
 #endif // KITSUNE_OPENCILK_ENABLED
 
 #if KITSUNE_OPENMP_ENABLED

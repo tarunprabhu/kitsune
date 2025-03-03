@@ -528,9 +528,10 @@ TransformationMode llvm::hasLoopSpawningTransformation(const Loop *L) {
   TapirLoopHints Hints(L);
 
   switch (Hints.getStrategy()) {
-  case TapirLoopHints::ST_DAC: {
+  case TapirSpawnStrategy::DivideAndConquer:
     return TM_ForcedByUser;
-  } case TapirLoopHints::ST_SEQ:
+  case TapirSpawnStrategy::Sequential:
+  case TapirSpawnStrategy::GPU:
     return TM_Disable;
   default:
     return TM_Unspecified;

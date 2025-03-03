@@ -463,7 +463,7 @@ LoopAttributes::LoopAttributes(bool IsParallel)
       TapirGrainSize(0),
       DistributeEnable(LoopAttributes::Unspecified), PipelineDisabled(false),
       PipelineInitiationInterval(0), CodeAlign(0), MustProgress(false),
-      SpawnStrategy(LoopAttributes::SEQ) {}
+      SpawnStrategy(llvm::TapirSpawnStrategy::Sequential) {}
 
 void LoopAttributes::clear() {
   IsParallel = false;
@@ -482,7 +482,7 @@ void LoopAttributes::clear() {
   PipelineInitiationInterval = 0;
   CodeAlign = 0;
   MustProgress = false;
-  SpawnStrategy = LoopAttributes::SEQ;
+  SpawnStrategy = llvm::TapirSpawnStrategy::Sequential;
 }
 
 LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
@@ -509,7 +509,7 @@ LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
       Attrs.UnrollAndJamEnable == LoopAttributes::Unspecified &&
       Attrs.DistributeEnable == LoopAttributes::Unspecified &&
       Attrs.CodeAlign == 0 && !StartLoc && !EndLoc && !Attrs.MustProgress &&
-      Attrs.SpawnStrategy == LoopAttributes::SEQ)
+      Attrs.SpawnStrategy == llvm::TapirSpawnStrategy::Sequential)
     return;
 
   TempLoopID = MDNode::getTemporary(Header->getContext(), {});
@@ -517,17 +517,18 @@ LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
 
 std::vector<Metadata *>
 LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
-  std::vector<Metadata*> LoopProperties;
+  std::vector<Metadata *> LoopProperties;
   LLVMContext &Ctx = Header->getContext();
 
-  if (Attrs.SpawnStrategy == LoopAttributes::SEQ)
+  if (Attrs.SpawnStrategy == llvm::TapirSpawnStrategy::Sequential)
     return LoopProperties;
 
   // Setting tapir.loop.spawn.strategy
-  if (Attrs.SpawnStrategy != LoopAttributes::SEQ) {
-    Metadata *Vals[] = {MDString::get(Ctx, "tapir.loop.spawn.strategy"),
-                        ConstantAsMetadata::get(ConstantInt::get(
-                            llvm::Type::getInt32Ty(Ctx), Attrs.SpawnStrategy))};
+  if (Attrs.SpawnStrategy != llvm::TapirSpawnStrategy::Sequential) {
+    Metadata *Vals[] = {
+        MDString::get(Ctx, "tapir.loop.spawn.strategy"),
+        ConstantAsMetadata::get(ConstantInt::get(
+            llvm::Type::getInt32Ty(Ctx), unsigned(Attrs.SpawnStrategy)))};
     LoopProperties.push_back(MDNode::get(Ctx, Vals));
   }
 

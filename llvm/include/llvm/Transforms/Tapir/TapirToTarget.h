@@ -21,8 +21,8 @@ namespace llvm {
 
 /// The TapirToTarget Pass.
 struct TapirToTargetPass : public PassInfoMixin<TapirToTargetPass> {
-  TapirToTargetPass(OptimizationLevel OptLevel = OptimizationLevel::O2) =
-      default;
+  TapirToTargetPass(OptimizationLevel OptLevel = OptimizationLevel::O2)
+      : Level(OptLevel) {}
 
   /// \brief Run the pass over the module.
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);

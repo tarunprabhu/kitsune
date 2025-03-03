@@ -24,4 +24,4 @@ void deallocate_c(void *[[kitsune::mobile]] ptr) { kitsune_mobile_free(ptr); }
 // TAPIR: call {{.+}} @free({{.+}})
 // NOTAPIR: call {{.+}} @free({{.+}})
 
-// DECLARES-DAG: declare noalias ptr addrspace(67) @malloc
+// DECLARES-DAG: declare noalias ptr @malloc

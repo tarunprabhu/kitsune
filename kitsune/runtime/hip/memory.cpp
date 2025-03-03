@@ -195,7 +195,8 @@ __kithip_mem_alloc_managed(size_t size) {
 
   void *[[kitsune::mobile]] alloced_ptr = nullptr;
   HIP_SAFE_CALL(hipSetDevice(deviceID()));
-  HIP_SAFE_CALL(hipMallocManaged(&alloced_ptr, size, hipMemAttachGlobal));
+  HIP_SAFE_CALL(
+      hipMallocManaged((void **)&alloced_ptr, size, hipMemAttachGlobal));
 
   // LOCK
   _kithip_mem_alloc_mutex.lock();
@@ -215,12 +216,12 @@ __kithip_mem_alloc_managed(size_t size) {
   // about the block of memory that might help improve performance.
   HIP_SAFE_CALL(hipMemAdvise((void *)alloced_ptr, size,
                              hipMemAdviseSetPreferredLocation, deviceID()));
-  HIP_SAFE_CALL(
-      hipMemAdvise(alloced_ptr, size, hipMemAdviseSetAccessedBy, deviceID()));
+  HIP_SAFE_CALL(hipMemAdvise((void *)alloced_ptr, size,
+                             hipMemAdviseSetAccessedBy, deviceID()));
   // This call currently seems to be the most signifcant in terms of improving
   // performance -- others appear to be mostly ignored...
-  HIP_SAFE_CALL(
-      hipMemAdvise(alloced_ptr, size, hipMemAdviseSetCoarseGrain, deviceID()));
+  HIP_SAFE_CALL(hipMemAdvise((void *)alloced_ptr, size,
+                             hipMemAdviseSetCoarseGrain, deviceID()));
   return alloced_ptr;
 }
 
@@ -263,16 +264,16 @@ __kithip_mem_calloc_managed(size_t count, size_t element_size) {
 
   if (size > alloced_nbytes) {
     memptr = __kithip_mem_alloc_managed(size);
-    HIP_SAFE_CALL(hipMemcpy_p((void *)memptr /* dest */,
-                              (void *)ptr /* source */, alloced_nbytes,
-                              hipMemcpyDefault));
+    HIP_SAFE_CALL(hipMemcpy((void *)memptr /* dest */,
+                            (void *)ptr /* source */, alloced_nbytes,
+                            hipMemcpyDefault));
     // TODO: Race?  Do we need to lock the free here?
     __kithip_mem_free(ptr);
   } else if (size < alloced_nbytes) {
     memptr = __kithip_mem_alloc_managed(size);
-    HIP_SAFE_CALL(hipMemcpy_p((void *)memptr /* dest */,
-                              (void *)ptr /* source */, alloced_nbytes,
-                              hipMemcpyDefault));
+    HIP_SAFE_CALL(hipMemcpy((void *)memptr /* dest */,
+                            (void *)ptr /* source */, alloced_nbytes,
+                            hipMemcpyDefault));
     // TODO: Race?  Do we need to lock the free here?
     __kithip_mem_free(ptr);
   } else {
@@ -359,8 +360,7 @@ void *__kithip_mem_gpu_prefetch(void *vp, void *opaque_stream) {
               "kitrt[hip]: issue prefetch(address=%p, size=%ld, stream=%p)\n",
               vp, size, (void *)hip_stream);
 
-    HIP_SAFE_CALL(
-        hipMemPrefetchAsync(vp, size, deviceID(), (void *)hip_stream));
+    HIP_SAFE_CALL(hipMemPrefetchAsync(vp, size, deviceID(), hip_stream));
 
     // LOCK
     _kithip_mem_alloc_mutex.lock();

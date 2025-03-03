@@ -223,10 +223,10 @@ if (KITSUNE_CUDA_ENABLED)
   # is probably not necessary. On HPC machines (which generally give us the most
   # grief), CUDA_PATH is often set,so checking for it first should be ok. We
   # probably want to test this across a range of systems though.
-  if (DEFINED ENV{CUDA_PATH})
-    message(STATUS "  Setting cuda prefix from CUDA_PATH environment variable"
+  if (DEFINED $ENV{CUDA_PATH})
+    message(STATUS "  Setting cuda prefix from CUDA_PATH environment variable")
     set(KISTUNE_CUDA_PREFIX $ENV{CUDA_PATH})
-  elseif (DEFINED ENV{CUDA_HOME})
+  elseif (DEFINED $ENV{CUDA_HOME})
     message(STATUS "  Setting cuda prefix from CUDA_HOME environment variable")
     set(KITSUNE_CUDA_PREFIX $ENV{CUDA_HOME})
   elseif (CUDAToolkit_ROOT)
@@ -255,10 +255,6 @@ if (KITSUNE_CUDA_ENABLED)
   message(STATUS "  Cuda include dir: ${KITSUNE_CUDA_INCLUDE_DIR}")
   message(STATUS "  Cuda library dir: ${KITSUNE_CUDA_LIBRARY_DIR}")
 
-  find_library(KITSUNE_CUDA_LIB_CUDART cudart REQUIRED
-    PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
-    NO_DEFAULT_PATH)
-
   # This should almost always be the libcuda that is installed on the system,
   # so look for it in the "usual" places.
   #
@@ -276,6 +272,14 @@ if (KITSUNE_CUDA_ENABLED)
 
   get_filename_component(
     KITSUNE_CUDA_LIBCUDA_DIR "${KITSUNE_CUDA_LIB_CUDA}" DIRECTORY)
+
+  find_library(KITSUNE_CUDA_LIB_CUDART cudart REQUIRED
+    PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
+    NO_DEFAULT_PATH)
+
+  find_library(KITSUNE_CUDA_LIB_CUDART cudart_static REQUIRED
+    PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
+    NO_DEFAULT_PATH)
 
   find_library(KITSUNE_CUDA_LIB_NVPTX_STATIC nvptxcompiler_static REQUIRED
     PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
@@ -391,6 +395,50 @@ if (KITSUNE_HIP_ENABLED)
     NO_DEFAULT_PATH)
   message(STATUS "hip bitcode file location: ${KITSUNE_HIP_BITCODE_DIR}")
 endif()
+
+if (KITSUNE_LAMBDA_ENABLED)
+  message(STATUS "Kitsune: Lambda target enabled")
+
+  message(WARNING "Lambda tapir target is experimental. Expect build failures
+and other problems")
+
+  set(KITSUNE_LAMBDA_EXTRA_PREPROCESSOR_FLAGS
+    ""
+    CACHE STRING
+    "Additional preprocessor flags needed for the Lambda target")
+
+  set(KITSUNE_LAMBDA_EXTRA_COMPILER_FLAGS
+    ""
+    CACHE STRING
+    "Additional compiler flags needed for the Lambda target")
+
+  set(KITSUNE_LAMBDA_EXTRA_LINKER_FLAGS
+    ""
+    CACHE STRING
+    "Additional linker flags needed for the Lambda target")
+endif ()
+
+if (KITSUNE_OMPTASK_ENABLED)
+  message(STATUS "Kitsune: OMPTask target enabled")
+
+  message(WARNING "OMPTask tapir target is experimental. Expect build failures
+and other problems")
+
+  set(KITSUNE_OMPTASK_EXTRA_PREPROCESSOR_FLAGS
+    ""
+    CACHE STRING
+    "Additional preprocessor flags needed for the OMPTask target")
+
+  set(KITSUNE_OMPTASK_EXTRA_COMPILER_FLAGS
+    ""
+    CACHE STRING
+    "Additional compiler flags needed for the OMPTask target")
+
+  set(KITSUNE_OMPTASK_EXTRA_LINKER_FLAGS
+    ""
+    CACHE STRING
+    "Additional linker flags needed for the OMPTask target")
+endif ()
 
 if (KITSUNE_OPENCILK_ENABLED)
   message(STATUS "Kitsune: OpenCilk target enabled")
@@ -564,36 +612,6 @@ if (KITSUNE_REALM_ENABLED)
     "Additional linker flags needed for the Realm target")
 endif()
 
-# FIXME KITSUNE: We probably don't need this. The -ftapir flag requires a
-# backend and not providing it disables Tapir lowering altogether. This may be
-# useful if we ever change that and stop requiring -ftapir. There is a
-# reasonable argument to be made for why we should always lower using Tapir, but
-# then this will have to be set to some runtime that is actually built.
-set(KITSUNE_DEFAULT_TAPIR_RUNTIME "opencilk" CACHE STRING
-  "Default Tapir runtime used by -ftapir.")
-
-# If any more languages are enabled, a corresponding variable should be added
-# here. For instance, we may want to run Cuda code through Kitsune, in which
-# case, a Cuda frontend will need to be created similar to the C and C++ ones.
-#
-# The C and C++ frontends will always be enabled because clang will be enabled
-# in order to build the runtime. It is unlikely that the runtime will ever be
-# truly independent of the compiler. Nevertheless, for consistency, we have
-# checks for the C and C++ frontends as we do for Fortran. These should be used
-# when appropriate.
-set(KITSUNE_C_ENABLED OFF)
-set(KITSUNE_CXX_ENABLED OFF)
-set(KITSUNE_Fortran_ENABLED OFF)
-
-if ("clang" IN_LIST LLVM_ENABLE_PROJECTS)
-  set(KITSUNE_C_ENABLED ON)
-  set(KITSUNE_CXX_ENABLED ON)
-endif ()
-
-if ("flang" IN_LIST LLVM_ENABLE_PROJECTS)
-  set(KITSUNE_Fortran_ENABLED ON)
-endif ()
-
 # Because we treat kitsune's runtime as an external project, we handle it the
 # same way we do the tapir targets i.e., we create an "install" directory
 # within the build directory into which all the files will be "installed" at
@@ -614,6 +632,7 @@ set(KITSUNE_RUNTIME_INSTALL_DIR ${KITSUNE_BINARY_DIR}/${KITSUNE_RUNTIME_LIBNAME}
 # it.
 #
 set(KITSUNE_RUNTIME_CONFIGURE_ARGS
+  -DCMAKE_VERBOSE_BUILD=ON
   -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
   -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
   -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
@@ -652,6 +671,7 @@ if (KITSUNE_CUDA_ENABLED)
     -DKITSUNE_CUDA_LIBRARY_DIR=${KITSUNE_CUDA_LIBRARY_DIR}
     -DKITSUNE_CUDA_LIB_CUDA=${KITSUNE_CUDA_LIB_CUDA}
     -DKITSUNE_CUDA_LIB_CUDART=${KITSUNE_CUDA_LIB_CUDART}
+    -DKITSUNE_CUDA_LIB_CUDART_STATIC=${KITSUNE_CUDA_LIB_CUDART_STATIC}
     -DKITSUNE_CUDA_LIB_NVPTX_STATIC=${KITSUNE_CUDA_LIB_NVPTX_STATIC}
     -DKITCUDA_ENABLE_NVTX=${KITCUDA_ENABLE_NVTX})
 endif()

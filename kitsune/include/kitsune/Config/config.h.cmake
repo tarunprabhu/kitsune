@@ -8,9 +8,7 @@
 
 /* This generated file is for internal use. Do not include it from headers. */
 
-#ifdef KITSUNE_CONFIG_H
-#error kitsune/Config/config.h should only be included once.
-#else
+#ifndef KITSUNE_CONFIG_H
 #define KITSUNE_CONFIG_H
 
 // General configuration
@@ -26,6 +24,10 @@
 static constexpr unsigned KITSUNE_ADDRSPACE = 67;
 static_assert(KITSUNE_ADDRSPACE <= 0xFFFF &&
               "Kitsune's address space must occupy no more than 16 bits");
+
+// When using a fixed number of threads per block, the maximum value that can be
+// specified.
+static constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // Kitsune language support that has been enabled
 #cmakedefine01 KITSUNE_C_ENABLED
@@ -86,6 +88,25 @@ static_assert(KITSUNE_ADDRSPACE <= 0xFFFF &&
 #define KITSUNE_HIP_LIBRARY_DIR "${KITSUNE_HIP_LIBRARY_DIR}"
 #define KITSUNE_HIP_BITCODE_DIR "${KITSUNE_HIP_BITCODE_DIR}"
 #define KITSUNE_HIP_ARCH_DEFAULT "${KITSUNE_HIP_ARCH_DEFAULT}"
+
+// Lambda configuration
+#cmakedefine01 KITSUNE_LAMBDA_ENABLED
+
+#define KITSUNE_LAMBDA_EXTRA_PREPROCESSOR_FLAGS                                \
+  "${KITSUNE_LAMBDA_EXTRA_PREPROCESSOR_FLAGS}"
+#define KITSUNE_LAMBDA_EXTRA_COMPILER_FLAGS                                    \
+  "${KITSUNE_LAMBDA_EXTRA_COMPILER_FLAGS}"
+#define KITSUNE_LAMBDA_EXTRA_LINKER_FLAGS "${KITSUNE_LAMBDA_EXTRA_LINKER_FLAGS}"
+
+// OMPTask configuration
+#cmakedefine01 KITSUNE_OMPTASK_ENABLED
+
+#define KITSUNE_OMPTASK_EXTRA_PREPROCESSOR_FLAGS                               \
+  "${KITSUNE_OMPTASK_EXTRA_PREPROCESSOR_FLAGS}"
+#define KITSUNE_OMPTASK_EXTRA_COMPILER_FLAGS                                   \
+  "${KITSUNE_OMPTASK_EXTRA_COMPILER_FLAGS}"
+#define KITSUNE_OMPTASK_EXTRA_LINKER_FLAGS                                     \
+  "${KITSUNE_OMPTASK_EXTRA_LINKER_FLAGS}"
 
 // OpenCilk configuration
 #cmakedefine01 KITSUNE_OPENCILK_ENABLED
