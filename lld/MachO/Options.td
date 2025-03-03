@@ -203,12 +203,6 @@ defm pgo_warn_mismatch: BB<"pgo-warn-mismatch",
 defm warn_thin_archive_missing_members : BB<"warn-thin-archive-missing-members",
   "Warn on missing object files referenced by thin archives (default)",
   "Do not warn on missing object files referenced by thin archives">, Group<grp_lld>;
-def tapir_target: Joined<["--"], "tapir-target=">,
-    HelpText<"Specify the target for Tapir lowering">,
-    Group<grp_lld>;
-def opencilk_abi_bitcode: Joined<["--"], "opencilk-abi-bitcode=">,
-    HelpText<"Path to the OpenCilk ABI bitcode file">,
-    Group<grp_lld>;
 
 // This is a complete Options.td compiled from Apple's ld(1) manpage
 // dated 2018-03-07 and cross checked with ld64 source code in repo
@@ -1487,3 +1481,14 @@ def no_warn_duplicate_libraries : Flag<["-"], "no_warn_duplicate_libraries">,
 def no_deduplicate_symbol_strings : Flag<["-"], "no-deduplicate-symbol-strings">,
     HelpText<"Do not deduplicate strings in the symbol string table. Might result in larger binaries but slightly faster link times.">,
     Group<grp_rare>;
+
+// =============================================================================
+// Options set by kitsune when using LTO.
+// =============================================================================
+
+def tapir: Joined<["--"], "tapir=">,
+    HelpText<"The tapir target">,
+    Group<grp_lld>;
+def tapir_opencilk_abi_bc: Joined<["--"], "tapir-opencilk-abi-bc=">,
+    HelpText<"Path to the OpenCilk ABI bitcode file">,
+    Group<grp_lld>;

@@ -4617,15 +4617,18 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
     std::string buf;
     llvm::raw_string_ostream os(buf);
     os << *tt;
-    GenerateArg(Consumer, OPT_ftapir_EQ, os.str());
+    GenerateArg(Consumer, OPT_tapir_EQ, os.str());
 
     switch (*tt) {
     case llvm::TapirTargetID::Cuda:
-      GenerateArg(Consumer, OPT_ftapir_cuda_arch_EQ, Opts.getCudaArch());
+      GenerateArg(Consumer, OPT_tapir_cuda_arch_EQ, Opts.getCudaArch());
       break;
     case llvm::TapirTargetID::Hip:
-      GenerateArg(Consumer, OPT_ftapir_hip_arch_EQ, Opts.getHipArch());
+      GenerateArg(Consumer, OPT_tapir_hip_arch_EQ, Opts.getHipArch());
       break;
+    case llvm::TapirTargetID::OpenCilk:
+      if (std::optional<StringRef> bc = Opts.getOpenCilkABIBitcodeFile())
+        GenerateArg(Consumer, OPT_tapir_opencilk_abi_bc_EQ, *bc);
     default:
       break;
     }
@@ -4639,9 +4642,6 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
 
   if (Opts.getStripmineLoops())
     GenerateArg(Consumer, OPT_fstripmine);
-
-  if (std::optional<StringRef> bc = Opts.getOpenCilkABIBitcodeFile())
-    GenerateArg(Consumer, OPT_opencilk_abi_bitcode_EQ, *bc);
 }
 
 bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts,
@@ -4653,11 +4653,11 @@ bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts,
 
   Opts.setKitsuneFrontend(driver::IsKitsuneFrontend(Argv0));
   Opts.setStripmineLoops(Args.hasArg(options::OPT_fstripmine));
-  if (Arg* A = Args.getLastArg(options::OPT_opencilk_abi_bitcode_EQ))
+  if (Arg* A = Args.getLastArg(options::OPT_tapir_opencilk_abi_bc_EQ))
     Opts.setOpenCilkABIBitcodeFile(A->getValue());
-  if (Arg* A = Args.getLastArg(options::OPT_ftapir_cuda_arch_EQ))
+  if (Arg* A = Args.getLastArg(options::OPT_tapir_cuda_arch_EQ))
     Opts.setCudaArch(A->getValue());
-  if (Arg* A = Args.getLastArg(options::OPT_ftapir_hip_arch_EQ))
+  if (Arg* A = Args.getLastArg(options::OPT_tapir_hip_arch_EQ))
     Opts.setHipArch(A->getValue());
 
   if (std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args)) {
@@ -4740,22 +4740,6 @@ bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
   if (*tt == llvm::TapirTargetID::OpenCilk) {
     if (!KitsuneOpts.getOpenCilkABIBitcodeFile())
       Diags.Report(diag::err_drv_opencilk_missing_abi_bitcode);
-
-    if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
-      Diags.Report(diag::err_drv_opencilk_platform) << Triple.getOSName();
-
-    switch (Triple.getArch()) {
-    case llvm::Triple::x86:
-    case llvm::Triple::x86_64:
-    case llvm::Triple::arm:
-    case llvm::Triple::armeb:
-    case llvm::Triple::aarch64:
-    case llvm::Triple::aarch64_be:
-      break;
-    default:
-      Diags.Report(diag::err_drv_opencilk_target) << Triple.getArchName();
-      break;
-    }
   }
 
   return Diags.getNumErrors() == NumErrorsBefore;

@@ -345,13 +345,11 @@ static bool shouldIgnoreUnsupportedTargetFeature(const Arg &TargetFeatureArg,
 static void renderTapirLoweringOptions(const ArgList &Args,
                                        ArgStringList &CmdArgs,
                                        const ToolChain &TC) {
-  if (Args.hasArg(options::OPT_ftapir_EQ)) {
-    if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ)) {
-      CmdArgs.push_back(Args.MakeArgString(
-          Twine("--plugin-opt=tapir-target=") + A->getValue()));
-      if (std::string(A->getValue()) == std::string("opencilk"))
-        TC.AddOpenCilkABIBitcode(Args, CmdArgs, /*IsLTO=*/true);
-    }
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_EQ)) {
+    CmdArgs.push_back(Args.MakeArgString(Twine("--plugin-opt=tapir=") +
+                                         A->getValue()));
+    if (std::string(A->getValue()) == std::string("opencilk"))
+      TC.AddOpenCilkABIBitcode(Args, CmdArgs, /*IsLTO=*/true);
   }
 }
 

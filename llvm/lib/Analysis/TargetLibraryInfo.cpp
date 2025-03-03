@@ -64,6 +64,9 @@ static cl::opt<std::optional<TapirTargetID>, false, TapirTargetIDParser>
     ClTapirTarget("tapir-target", cl::desc("Target runtime for Tapir"),
                   cl::init(std::optional<TapirTargetID>()));
 
+static cl::alias ClTapir("tapir", cl::desc("Alias for --tapir-target"),
+                         cl::aliasopt(ClTapirTarget));
+
 StringLiteral const TargetLibraryInfoImpl::StandardNames[LibFunc::NumLibFuncs] =
     {
 #define TLI_DEFINE_STRING

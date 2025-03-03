@@ -569,16 +569,17 @@ static void renderRemarksOptions(const ArgList &Args, ArgStringList &CmdArgs,
   }
 }
 
+// FIXME: We may want to consider removing this since we have do not test that
+// this works.
 static void renderTapirLoweringOptions(const ArgList &Args,
                                        ArgStringList &CmdArgs,
                                        const ToolChain &TC, bool LinkerIsLLD) {
   if (!(TC.getDriver().isUsingLTO() && LinkerIsLLD))
     return;
 
-  if (Args.hasArg(options::OPT_ftapir_EQ)) {
-    if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
-      CmdArgs.push_back(
-          Args.MakeArgString(Twine("--tapir-target=") + A->getValue()));
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_EQ)) {
+    CmdArgs.push_back(
+        Args.MakeArgString(Twine("--tapir-target=") + A->getValue()));
   }
 }
 

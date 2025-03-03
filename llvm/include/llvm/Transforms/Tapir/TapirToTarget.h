@@ -20,13 +20,10 @@ namespace llvm {
 
 /// The TapirToTarget Pass.
 struct TapirToTargetPass : public PassInfoMixin<TapirToTargetPass> {
-  TapirToTargetPass(TapirTargetID TargetID = TapirTargetID::Last_TapirTargetID)
-      : TargetID(TargetID) {}
+  TapirToTargetPass() = default;
 
   /// \brief Run the pass over the module.
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
-
-  TapirTargetID TargetID;
 };
 
 } // end namespace llvm

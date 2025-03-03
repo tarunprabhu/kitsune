@@ -2,15 +2,18 @@
 // tapir target just so we are forced to take a look at this.
 //
 // RUN: false
-
+//
+// -----------------------------------------------------------------------------
 // RUN: %kitxx -### -ftapir=realm %s 2>&1 | FileCheck %s
-
+// RUN: %kitxx -### --tapir=realm %s 2>&1 | FileCheck %s
+//
 // CHECK: -cc1
-// CHECK-SAME: -ftapir=realm
-
+// CHECK-SAME: --tapir=realm
+//
 // It is a pain to check for the actual linker executable. There are far too
 // many options depending on the platform, so just check the next line for the
 // expected linker flags.
+//
 // CHECK-NEXT: -lrealm
 // CHECK-SAME: -lrealm-abi
 // CHECK-SAME: -lkitrt

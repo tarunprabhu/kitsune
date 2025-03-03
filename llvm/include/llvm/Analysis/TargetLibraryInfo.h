@@ -291,6 +291,11 @@ public:
   bool hasTapirTarget() const {
     return (TapirTarget != TapirTargetID::Last_TapirTargetID) &&
       (TapirTarget != TapirTargetID::None);
+/*
+    if (TapirTarget.has_value())
+      return *TapirTarget != TapirTargetID::None;
+    return false;
+*/
   }
 
   /// Set options for Tapir lowering.

@@ -9158,27 +9158,31 @@ def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">,
   Visibility<[ClangOption, CC1Option]>,
   HelpText<"Skip generation of Kokkos initialization (and finalize) calls.">;
 
-def ftapir_EQ : Joined<["-"], "ftapir=">, 
+def tapir_EQ : Joined<["--"], "tapir=">, 
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  MetaVarName<"<target>">,
-  HelpText<"The tapir target to use">,
-  Values<"none,serial,cuda,hip,opencilk,openmp,qthreads,realm">;
+  MetaVarName<"<target>">, Flags<[RenderJoined]>,
+  Values<"none,serial,cuda,hip,opencilk">,
+  HelpText<"The tapir target">;
+
+def ftapir_EQ : Joined<["-"], "ftapir=">, Alias<tapir_EQ>,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"DEPRECATED: Use --tapir=">;
 
 // NOTE: The default must be kept in sync with the KITSUNE_CUDA_ARCH_DEFAULT
 // cmake variable set in kitsune/CMakeLists.txt.
-def ftapir_cuda_arch_EQ : Joined<["-"], "ftapir-cuda-arch=">, 
+def tapir_cuda_arch_EQ : Joined<["--"], "tapir-cuda-arch=">, 
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  HelpText<"The NVIDIA GPU architecture for the cuda tapir target">,
-  Default<"sm_80">,
-  Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80,sm_86,sm_90">;
+  Default<"sm_80">, MetaVarName<"<arch>">, Flags<[RenderJoined]>,
+  Values<"sm_50,sm_52,sm_53,sm_60,sm_61,sm_62,sm_70,sm_72,sm_75,sm_80,sm_86,sm_90">,
+  HelpText<"The NVIDIA GPU architecture for the cuda tapir target">;
 
 // NOTE: The default must be kept in sync iwth the KITSUNE_HIP_ARCH_DEFAULT
 // cmake variable set in kitsune/CMakeLists.txt.
-def ftapir_hip_arch_EQ : Joined<["-"], "ftapir-hip-arch=">,
+def tapir_hip_arch_EQ : Joined<["--"], "tapir-hip-arch=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  HelpText<"The AMDGPU architecture for the hip tapir target">,
-  Default<"gfx90a">,
-  Values<"gfx906,gfx908,gfx90a,gfx90c,gfx942">;
+  Default<"gfx90a">, MetaVarName<"<arch>">, Flags<[RenderJoined]>,
+  Values<"gfx906,gfx908,gfx90a,gfx90c,gfx942">,
+  HelpText<"The AMDGPU architecture for the hip tapir target">;
 
 // There is a fair bit of logic that looks for the correct bitcode file to use
 // depending on the current target. While that could be internalized, having
@@ -9186,8 +9190,9 @@ def ftapir_hip_arch_EQ : Joined<["-"], "ftapir-hip-arch=">,
 // bitcode file and stop it from producing the "wrong" error (for instance
 // because we were checking that the frontend does not error out on supported
 // platforms).
-def opencilk_abi_bitcode_EQ : Joined<["-"], "opencilk-abi-bitcode=">,
-  Visibility<[CC1Option]>,
+def tapir_opencilk_abi_bc_EQ : Joined<["--"], "tapir-opencilk-abi-bc=">,
+  Visibility<[CC1Option, FC1Option]>,
+  MetaVarName<"<file>">, Flags<[RenderJoined]>,
   HelpText<"Path to OpenCilk ABI bitcode file">;
 
 // It would be nice if we could use one of the Bool*Option classes, but they

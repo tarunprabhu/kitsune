@@ -130,10 +130,29 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
 
   // Check that the -ftapir flag has a valid value. This stops us from
   // reporting multiple errors because the flag is examined in several places.
-  if (const Arg *A = Args.getLastArg(options::OPT_ftapir_EQ)) {
-    if (!parseTapirTarget(*A))
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_EQ)) {
+    std::optional<llvm::TapirTargetID> TT = parseTapirTarget(*A);
+    if (not TT) {
       Diags.Report(diag::err_drv_invalid_value)
           << A->getAsString(Args) << A->getValue();
+    } else if (*TT == llvm::TapirTargetID::OpenCilk) {
+      llvm::Triple Triple = llvm::Triple(D.getTargetTriple());
+      if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
+        Diags.Report(diag::err_drv_opencilk_platform) << Triple.getOSName();
+
+      switch (Triple.getArch()) {
+      case llvm::Triple::x86:
+      case llvm::Triple::x86_64:
+      case llvm::Triple::arm:
+      case llvm::Triple::armeb:
+      case llvm::Triple::aarch64:
+      case llvm::Triple::aarch64_be:
+        break;
+      default:
+        Diags.Report(diag::err_drv_opencilk_target) << Triple.getArchName();
+        break;
+      }
+    }
 
     if (Args.getLastArg(options::OPT_fopenmp_targets_EQ))
       Diags.Report(clang::diag::err_drv_kitsune_openmp_offload);
@@ -141,14 +160,14 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
 
   // Check that the -ftapir-cuda-arch option has a valid value. If an empty
   // string is returned, the option has an invalid value.
-  if (const Arg *A = Args.getLastArg(options::OPT_ftapir_cuda_arch_EQ))
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_cuda_arch_EQ))
     if (!parseTapirCudaArch(*A).size())
       Diags.Report(diag::err_drv_invalid_value)
           << A->getAsString(Args) << A->getValue();
 
   // Check that the -ftapir-cuda-arch option has a valid value. If an empty
   // string is returned, the option has an invalid value.
-  if (const Arg *A = Args.getLastArg(options::OPT_ftapir_hip_arch_EQ))
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_hip_arch_EQ))
     if (!parseTapirHipArch(*A).size())
       Diags.Report(diag::err_drv_invalid_value)
           << A->getAsString(Args) << A->getValue();

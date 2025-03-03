@@ -837,7 +837,7 @@ static std::string createResponseFile(const opt::InputArgList &args,
     case OPT_deffile:
     case OPT_manifestinput:
     case OPT_natvis:
-    case OPT_opencilk_abi_bitcode:
+    case OPT_tapir_opencilk_abi_bc:
       os << arg->getSpelling() << quote(rewritePath(arg->getValue())) << '\n';
       break;
     case OPT_order: {
@@ -1528,11 +1528,11 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   }
 
   // Parse Kitsune-specific arguments that are passed here.
-  if (opt::Arg* arg = args.getLastArg(OPT_tapir_target)) {
+  if (opt::Arg* arg = args.getLastArg(OPT_tapir)) {
     config->tapirTarget = parseTapirTarget(arg->getValue());
     if (config->tapirTarget.has_value()) {
       config->opencilkABIBitcodeFile =
-          args.getLastArgValue(OPT_opencilk_abi_bitcode);
+          args.getLastArgValue(OPT_tapir_opencilk_abi_bc);
     } else {
       error(Twine("invalid value '") + arg->getValue() + "' in '" +
             arg->getSpelling() + "'");

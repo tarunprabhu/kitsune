@@ -26,7 +26,7 @@ std::optional<TapirTargetID> clang::parseTapirTarget(const opt::Arg &A) {
 }
 
 std::optional<TapirTargetID> clang::parseTapirTarget(const opt::ArgList &Args) {
-  if (const opt::Arg *A = Args.getLastArg(options::OPT_ftapir_EQ))
+  if (const opt::Arg *A = Args.getLastArg(options::OPT_tapir_EQ))
     return parseTapirTarget(*A);
   return std::nullopt;
 }
@@ -41,7 +41,7 @@ StringRef clang::parseTapirCudaArch(const opt::Arg &A) {
 }
 
 std::optional<std::string> clang::parseTapirCudaArch(const opt::ArgList &Args) {
-  if (const opt::Arg *A = Args.getLastArg(options::OPT_ftapir_cuda_arch_EQ))
+  if (const opt::Arg *A = Args.getLastArg(options::OPT_tapir_cuda_arch_EQ))
     return parseTapirCudaArch(*A).str();
   return std::nullopt;
 }
@@ -55,7 +55,7 @@ StringRef clang::parseTapirHipArch(const opt::Arg &A) {
 }
 
 std::optional<std::string> clang::parseTapirHipArch(const opt::ArgList &Args) {
-  if (const opt::Arg *A = Args.getLastArg(options::OPT_ftapir_hip_arch_EQ))
+  if (const opt::Arg *A = Args.getLastArg(options::OPT_tapir_hip_arch_EQ))
     return parseTapirHipArch(*A).str();
   return std::nullopt;
 }
@@ -81,7 +81,7 @@ clang::getTargetConfigFileName(const opt::ArgList &Args) {
     case TapirTargetID::Realm:
       return "realm.cfg";
     default:
-      return std::nullopt;
+      llvm_unreachable("getTargetConfigFile: TapirTargetID not handled");
     }
   }
   return std::nullopt;

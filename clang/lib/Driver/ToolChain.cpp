@@ -1816,7 +1816,7 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
   bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos);
 
   if (TapirTarget) {
-    Args.AddLastArg(CmdArgs, options::OPT_ftapir_EQ);
+    Args.AddLastArg(CmdArgs, options::OPT_tapir_EQ);
     switch (*TapirTarget) {
     case TapirTargetID::Serial:
     case TapirTargetID::None:
@@ -1824,11 +1824,11 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     case llvm::TapirTargetID::Cuda:
       // Strip-mining is disabled by default on GPU tapir targets and must be
       // enabled explicitly.
-      Args.AddLastArg(CmdArgs, options::OPT_ftapir_cuda_arch_EQ);
+      Args.AddLastArg(CmdArgs, options::OPT_tapir_cuda_arch_EQ);
       ExtractArgsFromString(KITSUNE_CUDA_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
     case llvm::TapirTargetID::Hip:
-      Args.AddLastArg(CmdArgs, options::OPT_ftapir_hip_arch_EQ);
+      Args.AddLastArg(CmdArgs, options::OPT_tapir_hip_arch_EQ);
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
     case llvm::TapirTargetID::OpenCilk:
@@ -2144,14 +2144,14 @@ void ToolChain::AddOpenCilkABIBitcode(const ArgList &Args,
   std::string buf;
   llvm::raw_string_ostream ss(buf);
 
-  if (Arg *A = Args.getLastArg(options::OPT_opencilk_abi_bitcode_EQ)) {
-    ss << "-opencilk-abi-bitcode=" << A->getValue();
+  if (Arg *A = Args.getLastArg(options::OPT_tapir_opencilk_abi_bc_EQ)) {
+    ss << "--tapir-opencilk-abi-bc=" << A->getValue();
   } else if (std::optional<std::string> file =
                  getOpenCilkBC(Args, "opencilk-abi")) {
     if (IsLTO)
-      ss << "--plugin-opt=opencilk-abi-bitcode=";
+      ss << "--plugin-opt=tapir-opencilk-abi-bc=";
     else
-      ss << "-opencilk-abi-bitcode=";
+      ss << "--tapir-opencilk-abi-bc=";
     ss << *file;
   }
 
