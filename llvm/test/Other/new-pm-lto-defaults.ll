@@ -152,6 +152,7 @@
 ; CHECK-O23SZ-NEXT: Running pass: CGProfilePass
 ; CHECK-EP-NEXT: Running pass: NoOpModulePass
 ; CHECK-O23SZ-NEXT: Running pass: LowerMobileIntrinsicsPass
+; CHECK-O23SZ-NEXT: Running pass: StripKitsuneAddrSpacePass
 ; CHECK-O-NEXT: Running pass: AnnotationRemarksPass on foo
 ; CHECK-O-NEXT: Running pass: PrintModulePass
 

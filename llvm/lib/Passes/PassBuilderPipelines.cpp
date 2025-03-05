@@ -85,6 +85,7 @@
 #include "llvm/Transforms/Instrumentation/PGOForceFunctionAttrs.h"
 #include "llvm/Transforms/Instrumentation/PGOInstrumentation.h"
 #include "llvm/Transforms/Kitsune/LowerMobileIntrinsics.h"
+#include "llvm/Transforms/Kitsune/StripKitsuneAddrSpace.h"
 #include "llvm/Transforms/Scalar/ADCE.h"
 #include "llvm/Transforms/Scalar/AlignmentFromAssumptions.h"
 #include "llvm/Transforms/Scalar/AnnotationRemarks.h"
@@ -1846,6 +1847,7 @@ PassBuilder::buildKitsuneLoweringPipeline(OptimizationLevel Level,
   ModulePassManager MPM;
 
   MPM.addPass(LowerMobileIntrinsicsPass());
+  MPM.addPass(StripKitsuneAddrSpacePass());
 
   return MPM;
 }
@@ -1893,7 +1895,7 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
   // We should always run the kitsune lowering pipeline because the Kitsune
   // memory (de)allocators could have been used in code that is not compiled
   // with Tapir, but the intrinsics need to be handled correctly in those
-  // cases too.
+  // cases too. This should be done before running the tapir lowering passes.
   MPM.addPass(buildKitsuneLoweringPipeline(
       Level, LTOPreLink ? ThinOrFullLTOPhase::FullLTOPreLink
                         : ThinOrFullLTOPhase::None));
@@ -2113,7 +2115,7 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
   // We should always run the kitsune lowering pipeline because the Kitsune
   // memory (de)allocators could have been used in code that is not compiled
   // with Tapir, but the intrinsics need to be handled correctly in those
-  // cases too.
+  // cases too. This should be done before running the tapir lowering passes.
   MPM.addPass(
       buildKitsuneLoweringPipeline(Level, ThinOrFullLTOPhase::ThinLTOPostLink));
 
@@ -2473,7 +2475,7 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   // We should always run the kitsune lowering pipeline because the Kitsune
   // memory (de)allocators could have been used in code that is not compiled
   // with Tapir, but the intrinsics need to be handled correctly in those
-  // cases too.
+  // cases too. This should be done before running the tapir lowering passes.
   MPM.addPass(
       buildKitsuneLoweringPipeline(Level, ThinOrFullLTOPhase::FullLTOPostLink));
 
@@ -2608,7 +2610,7 @@ PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
   // We should always run the kitsune lowering pipeline because the Kitsune
   // memory (de)allocators could have been used in code that is not compiled
   // with Tapir, but the intrinsics need to be handled correctly in those
-  // cases too.
+  // cases too. This should be done before running the tapir lowering passes.
   MPM.addPass(buildKitsuneLoweringPipeline(
       Level, LTOPreLink ? ThinOrFullLTOPhase::FullLTOPreLink
                         : ThinOrFullLTOPhase::None));

@@ -44,6 +44,7 @@
 ; CHECK-CORO-NEXT: Running pass: LowerMobileIntrinsicsPass
 ; CHECK-CORO-NEXT: Running analysis: TargetLibraryAnalysis
 ; CHECK-CORO-NEXT: Running analysis: TargetLibraryAnalysis
+; CHECK-CORO-NEXT: Running pass: StripKitsuneAddrSpacePass
 ; CHECK-PRE-LINK: Running pass: CanonicalizeAliasesPass
 ; CHECK-PRE-LINK-NEXT: Running pass: NameAnonGlobalPass
 ; CHECK-THINLTO: Running pass: LowerTypeTestsPass
