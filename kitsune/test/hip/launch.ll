@@ -1,30 +1,14 @@
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose 2>&1 \
-; RUN:      | FileCheck %s -check-prefixes ALL,DEFAULT
+; Check that a launch call and a fat binary are present in the host.
 ;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --kitrt-verbose 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,RUNTIME
+; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
+; RUN:     | FileCheck %s
 ;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-cuda-arch=sm_72 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,ARCH
-;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-threads-per-block=64 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,TPB
-;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-max-threads-per-block=128 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,MTPB
-;
-; ALL: 'cuda' tapir target options
-; DEFAULT:   Runtime verbose: true
-; RUNTIME:   Runtime verbose: true
-; OPTLEVEL:  Optimization level: O2
-; ARCH:      GPU arch: sm_72
-; TPB:       Fixed threads/block: 64
-; MTPB:      Max threads/block: 128
+; CHECK: @_kitsune_fatbin_hip = {{.+}} constant [{{[0-9]+}} x i8] c"
+; CHECK: define {{.+}} @f
+; CHECK: %[[TS:.+]] = call {{.+}} @__kithip_launch_kernel(
+; CHECK: call {{.+}} @__kithip_sync_thread_stream(ptr %[[TS]])
+; CHECK: ret void
+; CHECK-NEXT: }
 
 ; ModuleID = 'clopts.c'
 source_filename = "clopts.c"

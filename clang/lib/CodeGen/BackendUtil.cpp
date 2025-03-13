@@ -234,7 +234,8 @@ static OptimizationLevel mapToLevel(const CodeGenOptions &Opts);
 static void populateCommonTTOptions(TapirTargetOptions &TTOpts,
                                     const KitsuneOptions &KitsuneOpts) {
   TTOpts.setVerbose(KitsuneOpts.getTapirTargetVerbose());
-  TTOpts.setRuntimeVerbose(KitsuneOpts.getKitsuneRuntimeVerbose());
+  TTOpts.setRuntimeVerbose(KitsuneOpts.getTapirTargetVerbose() or
+                           KitsuneOpts.getKitsuneRuntimeVerbose());
 }
 
 static void populateGPUABIOptions(GPUABIOptionsBase &TTOpts,

@@ -43,6 +43,10 @@ clang::getTargetConfigFileName(const opt::ArgList &Args) {
       return "cuda.cfg";
     case TapirTargetID::Hip:
       return "hip.cfg";
+    case TapirTargetID::Lambda:
+      return "lambda.cfg";
+    case TapirTargetID::OMPTask:
+      return "omptask.cfg";
     case TapirTargetID::OpenCilk:
       return "opencilk.cfg";
     case TapirTargetID::OpenMP:

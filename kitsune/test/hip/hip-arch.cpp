@@ -28,10 +28,10 @@
 // -----------------------------------------------------------------------------
 //
 // Make sure that the architecture makes it to hipabi.
-// RUN: %kitxx --tapir=hip --tapir-hip-arch=gfx90c -mllvm -hipabi-### \
+// RUN: %kitxx --tapir-verbose --tapir=hip --tapir-hip-arch=gfx90c \
 // RUN:     -S -emit-llvm -O2  %s 2>&1 | FileCheck %s -check-prefix LOWERED
 //
-// LOWERED: lld
+// LOWERED: /ld{{(64)?}}.lld
 // LOWERED-SAME: -plugin-opt=-mcpu=gfx90c
 //
 // -----------------------------------------------------------------------------

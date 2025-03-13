@@ -57,8 +57,8 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/ToolOutputFile.h"
-#include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Tapir/GPUABIOptions.h"
+#include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 
 namespace llvm {
@@ -73,10 +73,10 @@ typedef std::unique_ptr<ToolOutputFile> CudaABIOutputFile;
 class CudaABIOptions : public GPUABIOptionsBase {
 public:
   explicit CudaABIOptions();
-  explicit CudaABIOptions(const CudaABIOptions&) = default;
+  explicit CudaABIOptions(const CudaABIOptions &) = default;
   virtual ~CudaABIOptions() = default;
 
-  CudaABIOptions& operator=(const CudaABIOptions&) = delete;
+  CudaABIOptions &operator=(const CudaABIOptions &) = delete;
 
   virtual void readClOptions() override;
   virtual CudaABIOptions *clone() const override;
@@ -88,10 +88,10 @@ public:
 
 class CudaABI : public TapirTarget {
 public:
-  CudaABI(Module &M, const CudaABIOptions& opts);
+  CudaABI(Module &M, const CudaABIOptions &opts);
   ~CudaABI();
 
-  const CudaABIOptions& getOptions() const override final;
+  const CudaABIOptions &getOptions() const override final;
 
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
   void lowerSync(SyncInst &SI) override final;
@@ -159,9 +159,7 @@ private:
   Function *createDtor(GlobalVariable *FBHandle);
 
   // FIXME: This should go away
-  OptimizationLevel getOptimizationLevel() const {
-    return Level;
-  }
+  OptimizationLevel getOptimizationLevel() const { return Level; }
 
   std::unique_ptr<Module> LibDeviceModule;
 
@@ -178,8 +176,7 @@ private:
 };
 
 /// The loop outline process for transforming a Tapir parallel loop
-/// representation into a Cuda runtime and PTX --> fat binary kernel
-/// execution.
+/// representation into a Cuda runtime and PTX --> fat binary kernel execution.
 ///
 ///  * The loop processor requires a CUDA install and that the 'ptxas'
 ///    and 'fatbinary' executables are in the user's path.  While it
@@ -194,20 +191,44 @@ class CudaLoop : public LoopOutlineProcessor {
   friend class CudaABI;
 
 private:
+  /// The "parent" tapir target.
   CudaABI *TT = nullptr;
-  static unsigned NextKernelID; // Give the generated kernel a unique ID.
-  unsigned KernelID;            // Unique ID for this transformed loop.
-  std::string KernelName;       // A unique name for the kernel.
-  Module &KernelModule;         // PTX module holds the generated kernel(s).
+
+  /// Unique ID for this transformed loop.
+  unsigned KernelID;
+
+  /// The name of the kernel into which the loop is outliend. This incorporates
+  /// the unique @ref KernelID to ensure that there are no collisions.
+  ///
+  /// TODO: It would help if this name incorporated some source information such
+  /// as the source file and line number from which this loop was extracted. It
+  /// would make debugging easier.
+  std::string KernelName;
+
+  /// For GPU targets, we outline the loop into a separate module. This is that
+  /// module.
+  Module &KernelModule;
+
+  // We need to give every kernel a unique ID. This keeps track of the ID's
+  // that are used across all instances of this loop outline processor that are
+  // in use.
+  //
+  // TODO: This is not really what we want to be doing. Ideally, we want to a
+  // more "useful" ID, such as something that incorporates the source file and
+  // line, but until we do that this is something that will work.
+  static unsigned NextKernelID;
 
   // Cuda/PTX thread index access.
   Function *CUThreadIdxX = nullptr, *CUThreadIdxY = nullptr,
            *CUThreadIdxZ = nullptr;
+
   // Cuda/PTX block index and dimensions access.
   Function *CUBlockIdxX = nullptr, *CUBlockIdxY = nullptr,
            *CUBlockIdxZ = nullptr;
+
   Function *CUBlockDimX = nullptr, *CUBlockDimY = nullptr,
            *CUBlockDimZ = nullptr;
+
   // Cuda/PTX grid dimensions access.
   Function *CUGridDimX = nullptr, *CUGridDimY = nullptr, *CUGridDimZ = nullptr;
 
@@ -231,11 +252,16 @@ private:
   SmallVector<Value *, 5> OrderedInputs;
 
 public:
-  CudaLoop(Module &M,                     // Input module (host side)
-           Module &KM,                    // Target module for CUDA code
-           const std::string &KernelName, // CUDA kernel name
-           CudaABI *TT,                   // Target
-           bool MakeUniqueName = true);
+  /// Create a loop outline processor for the cuda tapir target.
+  /// @param M            The host module
+  /// @param KernelModule The module into which the device code will be
+  ///                     outlined
+  /// @param KernelName   The name of the function in the @ref KernelModule into
+  ///                     which the loop is outlined
+  /// @param TT           The "parent" tapir target object
+  /// @param MakeUniqueName Add a unique identifier to the name of the kernel
+  CudaLoop(Module &M, Module &KernelModule, const std::string &KernelName,
+           CudaABI *TT, bool MakeUniqueName = true);
   ~CudaLoop();
 
   void setupLoopOutlineArgs(Function &F, ValueSet &HelperArgs,

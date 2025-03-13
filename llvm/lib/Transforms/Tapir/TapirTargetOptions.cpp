@@ -26,7 +26,7 @@ static cl::opt<bool>
 
 void TapirTargetOptions::readClOptions() {
   this->verbose = clTapirVerbose;
-  this->runtimeVerbose = clKitrtVerbose;
+  this->runtimeVerbose = clTapirVerbose or clKitrtVerbose;
 }
 
 raw_ostream &operator<<(raw_ostream &os, const bool &v) {

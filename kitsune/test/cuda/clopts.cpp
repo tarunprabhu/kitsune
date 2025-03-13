@@ -19,7 +19,7 @@
 // RUN:     | FileCheck %s -check-prefix MTPB
 //
 // ALL: 'cuda' tapir target options
-// COMPILE:   Runtime verbose: false
+// COMPILE:   Runtime verbose: true
 // RUNTIME:   Runtime verbose: true
 // ARCH:      GPU arch: sm_72
 // TPB:       Fixed threads/block: 64

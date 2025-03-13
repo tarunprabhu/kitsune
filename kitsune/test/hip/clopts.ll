@@ -19,8 +19,8 @@
 ; RUN:      | FileCheck %s -check-prefixes ALL,MTPB
 ;
 ; ALL: 'hip' tapir target options
-; DEFAULT:   Runtime verbose:{{[ ]*}} false
-; RUNTIME:   Runtime verbose:{{[ ]*}} true
+; DEFAULT:   Runtime verbose: true
+; RUNTIME:   Runtime verbose: true
 ; ARCH:      GPU arch: gfx906
 ; TPB:       Fixed threads/block: 64
 ; MTPB:      Max threads/block: 128

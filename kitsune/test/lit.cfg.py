@@ -135,6 +135,16 @@ if config.kitsune_hip_enabled:
 else:
     config.available_features.add("kitsune-no-hip")
 
+if config.kitsune_lambda_enabled:
+    config.available_features.add("kitsune-lambda")
+else:
+    config.available_features.add("kitsune-no-lambda")
+
+if config.kitsune_omptask_enabled:
+    config.available_features.add("kitsune-omptask")
+else:
+    config.available_features.add("kitsune-no-omptask")
+
 if config.kitsune_opencilk_enabled:
     config.available_features.add("kitsune-opencilk")
 else:

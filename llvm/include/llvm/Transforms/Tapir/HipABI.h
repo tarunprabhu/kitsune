@@ -95,7 +95,6 @@ public:
 };
 
 class HipABI : public TapirTarget {
-
 public:
   HipABI(Module &InputModule, const HipABIOptions& opts);
   ~HipABI();
@@ -369,14 +368,35 @@ private:
   /// @param F The function to transform.
   void transformForGCN(Function &F);
 
+  /// The "parent" tapir target.
   HipABI *TT = nullptr;
-  static unsigned NextKernelID; // Give the generated kernel a unique ID.
-  unsigned KernelID;            // Unique ID for this transformed loop.
-  std::string KernelName;       // A unique name for the kernel.
-  Module &KernelModule;         // PTX module holds the generated kernel(s).
 
-  // AMDGCN intrinsics.  TODO: These should probably not be
-  // prefixed with the kitsune runtime...
+  /// Unique ID for this transformed loop.
+  unsigned KernelID;
+
+  /// The name of the kernel into which the loop is outliend. This incorporates
+  /// the unique @ref KernelID to ensure that there are no collisions.
+  ///
+  /// TODO: It would help if this name incorporated some source information such
+  /// as the source file and line number from which this loop was extracted. It
+  /// would make debugging easier.
+  std::string KernelName;
+
+  /// For GPU targets, we outline the loop into a separate module. This is that
+  /// module.
+  Module &KernelModule;
+
+  // We need to give every kernel a unique ID. This keeps track of the ID's
+  // that are used across all instances of this loop outline processor that are
+  // in use.
+  //
+  // TODO: This is not really what we want to be doing. Ideally, we want to a
+  // more "useful" ID, such as something that incorporates the source file and
+  // line, but until we do that this is something that will work.
+  static unsigned NextKernelID;
+
+  // AMDGCN intrinsics.  TODO: These should probably not be prefixed with the
+  // kitsune runtime...
   FunctionCallee KitHipWorkItemIdFn;
   FunctionCallee KitHipWorkItemIdXFn, KitHipWorkItemIdYFn, KitHipWorkItemIdZFn;
   FunctionCallee KitHipWorkGroupIdFn;

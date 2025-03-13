@@ -1,30 +1,18 @@
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
+; RUN: opt --tapir=opencilk -passes="tapir-lowering<O2>" -o /dev/null %s \
+; RUN:      --tapir-opencilk-abi-bc=%S/input/libopencilk-abi.bc \
 ; RUN:      --tapir-verbose 2>&1 \
-; RUN:      | FileCheck %s -check-prefixes ALL,DEFAULT
+; RUN:      | FileCheck %s -check-prefixes ALL,COMPILE
 ;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --kitrt-verbose 2>&1\
+; RUN: opt --tapir=opencilk -passes="tapir-lowering<O2>" -o /dev/null %s \
+; RUN:      --tapir-opencilk-abi-bc=%S/input/libopencilk-abi.bc \
+; RUN:      --tapir-verbose --kitrt-verbose 2>&1 \
 ; RUN:      | FileCheck %s -check-prefixes ALL,RUNTIME
 ;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-cuda-arch=sm_72 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,ARCH
-;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-threads-per-block=64 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,TPB
-;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-max-threads-per-block=128 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,MTPB
-;
-; ALL: 'cuda' tapir target options
-; DEFAULT:   Runtime verbose: true
+; ALL: 'opencilk' tapir target options
+; COMPILE:   Runtime verbose: true
 ; RUNTIME:   Runtime verbose: true
-; OPTLEVEL:  Optimization level: O2
-; ARCH:      GPU arch: sm_72
-; TPB:       Fixed threads/block: 64
-; MTPB:      Max threads/block: 128
+; ALL:       Use bitcode: true
+; ALL:       Bitcode path: {{.+}}/libopencilk-abi.bc
 
 ; ModuleID = 'clopts.c'
 source_filename = "clopts.c"

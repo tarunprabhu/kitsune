@@ -1,30 +1,25 @@
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose 2>&1 \
-; RUN:      | FileCheck %s -check-prefixes ALL,DEFAULT
+; Check that prefetch function calls are inserted, or not as appropriate
 ;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --kitrt-verbose 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,RUNTIME
+; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
+; RUN:     | FileCheck %s -check-prefix PREFETCH
 ;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-cuda-arch=sm_72 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,ARCH
+; PREFETCH: define {{.+}} @f
+; PREFETCH: call {{.+}} @__kithip_mem_gpu_prefetch
+; PREFETCH: call {{.+}} @__kithip_launch_kernel
+; PREFETCH: ret void
+; PREFETCH-NEXT: }
 ;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-threads-per-block=64 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,TPB
+; -----------------------------------------------------------------------------
+; 
+; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
+; RUN:     -hipabi-prefetch=false \
+; RUN:     | FileCheck %s -check-prefix NO-PREFETCH
 ;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-max-threads-per-block=128 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,MTPB
-;
-; ALL: 'cuda' tapir target options
-; DEFAULT:   Runtime verbose: true
-; RUNTIME:   Runtime verbose: true
-; OPTLEVEL:  Optimization level: O2
-; ARCH:      GPU arch: sm_72
-; TPB:       Fixed threads/block: 64
-; MTPB:      Max threads/block: 128
+; NO-PREFETCH: define {{.+}} @f
+; NO-PREFETCH-NOT: call {{.+}} @__kithip_mem_gpu_prefetch
+; NO-PREFETCH: call {{.+}} @__kithip_launch_kernel
+; NO-PREFETCH: ret void
+; NO-PREFETCH-NEXT: }
 
 ; ModuleID = 'clopts.c'
 source_filename = "clopts.c"

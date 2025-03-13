@@ -7,7 +7,7 @@
 ; RUN:      | FileCheck %s -check-prefixes ALL,RUNTIME
 ;
 ; ALL: 'serial' tapir target options
-; COMPILE:   Runtime verbose:{{[ ]*}} false
+; COMPILE:   Runtime verbose:{{[ ]*}} true
 ; RUNTIME:   Runtime verbose:{{[ ]*}} true
 
 ; ModuleID = 'clopts.c'

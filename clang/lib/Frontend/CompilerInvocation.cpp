@@ -4635,13 +4635,13 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
 
     // Arguments that are relevant to any GPU tapir target.
     if (*tt == llvm::TapirTargetID::Cuda || *tt == llvm::TapirTargetID::Hip) {
-      if (unsigned n = Opts.getFixedThreadsPerBlock())
+      if (std::optional<unsigned> n = Opts.getFixedThreadsPerBlock())
         GenerateArg(Consumer, OPT_tapir_threads_per_block_EQ,
-                    std::to_string(n));
+                    std::to_string(*n));
 
-      if (unsigned n = Opts.getMaxThreadsPerBlock())
+      if (std::optional<unsigned> n = Opts.getMaxThreadsPerBlock())
         GenerateArg(Consumer, OPT_tapir_max_threads_per_block_EQ,
-                    std::to_string(n));
+                    std::to_string(*n));
     }
 
     if (Opts.getTapirTargetVerbose())
@@ -4705,27 +4705,35 @@ bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts,
       break;
     case llvm::TapirTargetID::Cuda:
       if (!KITSUNE_CUDA_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_cuda_target_disabled);
+        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "cuda";
       break;
     case llvm::TapirTargetID::Hip:
       if (!KITSUNE_HIP_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_hip_target_disabled);
+        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "hip";
+      break;
+    case llvm::TapirTargetID::Lambda:
+      if (!KITSUNE_LAMBDA_ENABLED)
+        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "lambda";
+      break;
+    case llvm::TapirTargetID::OMPTask:
+      if (!KITSUNE_OMPTASK_ENABLED)
+        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "omptask";
       break;
     case llvm::TapirTargetID::OpenCilk:
       if (!KITSUNE_OPENCILK_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_opencilk_target_disabled);
+        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "opencilk";
       break;
     case llvm::TapirTargetID::OpenMP:
       if (!KITSUNE_OPENMP_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_openmp_target_disabled);
+        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "openmp";
       break;
     case llvm::TapirTargetID::Qthreads:
       if (!KITSUNE_QTHREADS_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_qthreads_target_disabled);
+        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "qthreads";
       break;
     case llvm::TapirTargetID::Realm:
       if (!KITSUNE_REALM_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_realm_target_disabled);
+        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "realm";
       break;
     default:
       llvm_unreachable("ParseKitsuneArgs: Tapir target not handled");

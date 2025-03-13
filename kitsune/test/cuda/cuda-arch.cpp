@@ -30,11 +30,11 @@
 //
 // Make sure that the architecture makes it to cuabi.
 //
-// RUN: %kitxx --tapir=cuda --tapir-cuda-arch=sm_86 -mllvm -cuabi-### \
+// RUN: %kitxx --tapir-verbose --tapir=cuda --tapir-cuda-arch=sm_86 \
 // RUN:     -S -emit-llvm -O2 -o /dev/null %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix LOWERED
 //
-// LOWERED: ptxas
+// LOWERED: /ptxas
 // LOWERED-SAME: --gpu-name
 // LOWERED-SAME: sm_86
 //

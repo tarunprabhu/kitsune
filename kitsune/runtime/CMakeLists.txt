@@ -123,7 +123,7 @@ if (KITSUNE_HIP_ENABLED)
     hip/memory.cpp
     hip/streams.cpp)
 
-  # FIXME: The only use of KITRT_CUDA_ENABLED seem to be some runtime
+  # FIXME: The only use of KITRT_HIP_ENABLED seem to be some runtime
   # initialization code that is probably obsolete. The runtime is probably due
   # for some drastic cleanup.
   target_compile_definitions(${KITRT} PUBLIC KITRT_HIP_ENABLED)

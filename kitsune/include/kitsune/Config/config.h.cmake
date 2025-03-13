@@ -11,6 +11,8 @@
 #ifndef KITSUNE_CONFIG_H
 #define KITSUNE_CONFIG_H
 
+#include <llvm/ADT/StringRef.h>
+
 // General configuration
 #define KITSUNE_LLD "${KITSUNE_LLD}"
 
@@ -72,6 +74,10 @@ static constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 #define KITSUNE_CUDA_FATBINARY "${KITSUNE_CUDA_FATBINARY}"
 #define KITSUNE_CUDA_ARCH_DEFAULT "${KITSUNE_CUDA_ARCH_DEFAULT}"
 
+// The name of the symbol containing the cuda device code (the fat binary)
+static constexpr llvm::StringRef KITSUNE_CUDA_FATBIN_NAME =
+    "_kitsune_fatbin_cuda";
+
 // Hip configuration
 #cmakedefine01 KITSUNE_HIP_ENABLED
 
@@ -88,6 +94,10 @@ static constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 #define KITSUNE_HIP_LIBRARY_DIR "${KITSUNE_HIP_LIBRARY_DIR}"
 #define KITSUNE_HIP_BITCODE_DIR "${KITSUNE_HIP_BITCODE_DIR}"
 #define KITSUNE_HIP_ARCH_DEFAULT "${KITSUNE_HIP_ARCH_DEFAULT}"
+
+// The name of the symbol containing the hip device code (the fat binary)
+static constexpr llvm::StringRef KITSUNE_HIP_FATBIN_NAME =
+    "_kitsune_fatbin_hip";
 
 // Lambda configuration
 #cmakedefine01 KITSUNE_LAMBDA_ENABLED

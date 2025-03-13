@@ -1,10 +1,21 @@
 ! REQUIRES: kitfc
 ! REQUIRES: kitsune-opencilk
+!
+! RUN: %kitfc -### -ftapir=opencilk -O2 -flto %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefixes=ALL
+!
+! RUN: %kitfc -### -ftapir=opencilk -O2 -flto %s \
+! RUN:     --tapir-verbose 2>&1 \
+! RUN:     | FileCheck %s -check-prefixes=ALL,TAPIR-VERBOSE
+!
+! RUN: %kitfc -### -ftapir=opencilk -O2 -flto %s \
+! RUN:     --kitrt-verbose 2>&1 \
+! RUN:     | FileCheck %s -check-prefixes=ALL,KITRT-VERBOSE
 
-! RUN: %kitfc -### -ftapir=opencilk -O2 -flto %s 2>&1 | FileCheck %s
+! ALL: /ld{{(64)?}}.lld"
+! KITRT-VERBOSE: --kitrt-verbose
+! TAPIR-VERBOSE: --tapir-verbose
+! ALL-SAME: --tapir=opencilk
+! ALL-SAME: --tapir-opencilk-abi-bc={{.+}}/libopencilk-abi.bc
 
-! CHECK: -dynamic-linker
-! CHECK-SAME: -plugin
-! CHECK-SAME: LLVMgold.so
-! CHECK-SAME: --plugin-opt=tapir=opencilk
-! CHECK-SAME: --plugin-opt=tapir-opencilk-abi-bc={{.+}}/libopencilk-abi.bc
+end program

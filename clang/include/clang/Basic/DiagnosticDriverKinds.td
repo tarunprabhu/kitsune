@@ -889,18 +889,8 @@ def err_drv_mix_tapir_hip : Error<
 def err_drv_kitsune_kokkos_disabled : Error<
   "kokkos support was not enabled when kitsune was built">;
 
-def err_drv_kitsune_cuda_target_disabled: Error<
-  "tapir target 'cuda' was not enabled when kitsune was built">;
-def err_drv_kitsune_hip_target_disabled: Error<
-  "tapir target 'hip' was not enabled when kitsune was built">;
-def err_drv_kitsune_opencilk_target_disabled: Error<
-  "tapir target 'opencilk' was not enabled when kitsune was built">;
-def err_drv_kitsune_openmp_target_disabled : Error<
-  "tapir target 'openmp' was not enabled when kitsune was built">;
-def err_drv_kitsune_qthreads_target_disabled: Error<
-  "tapir target 'qthreads' was not enabled when kitsune was built">;
-def err_drv_kitsune_realm_target_disabled: Error<
-  "tapir target 'realm' was not enabled when kitsune was built">;
+def err_drv_kitsune_target_not_enabled: Error<
+  "tapir target '%0' was not enabled when kitsune was built">;
 
 def err_drv_kitsune_frontend_only: Error<
   "option '%0' must be used with a Kitsune frontend">;

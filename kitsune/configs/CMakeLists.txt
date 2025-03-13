@@ -28,6 +28,16 @@ if (KITSUNE_HIP_ENABLED)
     ${LLVM_BINARY_DIR}/share/kitsune/hip.cfg)
 endif()
 
+if (KITSUNE_LAMBDA_ENABLED)
+  configure_file(lambda.cfg.in
+    ${LLVM_BINARY_DIR}/share/kitsune/lambda.cfg)
+endif()
+
+if (KITSUNE_OMPTASK_ENABLED)
+  configure_file(omptask.cfg.in
+    ${LLVM_BINARY_DIR}/share/kitsune/omptask.cfg)
+endif()
+
 if (KITSUNE_OPENCILK_ENABLED)
   configure_file(opencilk.cfg.in
     ${LLVM_BINARY_DIR}/share/kitsune/opencilk.cfg)

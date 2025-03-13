@@ -17,6 +17,7 @@
 // changes here as well.
 //
 //===----------------------------------------------------------------------===//
+
 #include "llvm/Transforms/Tapir/TapirGPUUtils.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Constant.h"
@@ -25,29 +26,93 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/SmallVectorMemoryBuffer.h"
+
 #include <set>
 
 namespace llvm {
 
 namespace tapir {
 
-void printCommandLine(ArrayRef<StringRef> Args) {
-  if (Args.size()) {
-    errs() << Args.front();
-    for (size_t i = 1; i < Args.size(); ++i)
-      errs() << " " << Args[i];
-    errs() << "\n";
-  }
+static void collectGlobalValues(Constant &c, std::set<GlobalValue *> &seen);
+
+static void collectGlobalValues(GlobalVariable &g,
+                                std::set<GlobalValue *> &seen) {
+  seen.insert(&g);
+  if (g.hasInitializer())
+    collectGlobalValues(*g.getInitializer(), seen);
 }
 
-Constant *getOrInsertFBGlobal(Module &M, StringRef Name, Type *Ty) {
-  return M.getOrInsertGlobal(Name, Ty, [&] {
-    LLVMContext &Ctxt = M.getContext();
-    PointerType *PtrTy = PointerType::getUnqual(Ctxt);
-    return new GlobalVariable(M, Ty, true, GlobalValue::InternalLinkage,
-                              ConstantPointerNull::get(PtrTy), Name, nullptr);
+static void collectGlobalValues(GlobalIFunc &g, std::set<GlobalValue *> &seen) {
+  seen.insert(&g);
+  llvm_unreachable("kitsune: GNU IFUNC not yet supported");
+}
+
+static void collectGlobalValues(GlobalAlias &g, std::set<GlobalValue *> &seen) {
+  seen.insert(&g);
+  llvm_unreachable("kitsune: GlobalAlias not yet supported");
+}
+
+static void collectGlobalValues(BlockAddress &blkaddr,
+                                std::set<GlobalValue *> &seen) {
+  if (Function *f = blkaddr.getFunction())
+    collectGlobalValues(*f, seen);
+  if (BasicBlock *bb = blkaddr.getBasicBlock())
+    collectGlobalValues(*bb, seen);
+}
+
+static void collectGlobalValues(Constant &c, std::set<GlobalValue *> &seen) {
+  if (GlobalValue *g = dyn_cast<GlobalValue>(&c))
+    if (seen.find(g) != seen.end())
+      return;
+
+  if (auto *f = dyn_cast<Function>(&c))
+    return collectGlobalValues(*f, seen);
+  else if (auto *g = dyn_cast<GlobalVariable>(&c))
+    return collectGlobalValues(*g, seen);
+  else if (auto *g = dyn_cast<GlobalAlias>(&c))
+    return collectGlobalValues(*g, seen);
+  else if (auto *g = dyn_cast<GlobalIFunc>(&c))
+    return collectGlobalValues(*g, seen);
+  else if (auto *blkaddr = dyn_cast<BlockAddress>(&c))
+    return collectGlobalValues(*blkaddr, seen);
+  else
+    for (Use &op : c.operands())
+      if (auto *cop = dyn_cast<Constant>(op))
+        collectGlobalValues(*cop, seen);
+}
+
+void collectGlobalValues(BasicBlock &bb, std::set<GlobalValue *> &seen) {
+  for (Instruction &inst : bb)
+    for (Use &op : inst.operands())
+      if (auto *c = dyn_cast<Constant>(&op))
+        collectGlobalValues(*c, seen);
+}
+
+void collectGlobalValues(Function &f, std::set<GlobalValue *> &seen) {
+  seen.insert(&f);
+  for (BasicBlock &bb : f)
+    collectGlobalValues(bb, seen);
+}
+
+raw_ostream &renderCommandLine(ArrayRef<StringRef> args, raw_ostream &os) {
+  if (args.size()) {
+    os << args.front();
+    for (size_t i = 1; i < args.size(); ++i)
+      os << " " << args[i];
+    os << "\n";
+  }
+  return os;
+}
+
+Constant *getOrInsertFBGlobal(Module &m, StringRef name, Type *ty) {
+  return m.getOrInsertGlobal(name, ty, [&] {
+    LLVMContext &ctxt = m.getContext();
+    PointerType *ptrTy = PointerType::getUnqual(ctxt);
+    return new GlobalVariable(m, ty, true, GlobalValue::InternalLinkage,
+                              ConstantPointerNull::get(ptrTy), name, nullptr);
   });
 }
 
@@ -121,45 +186,34 @@ void appendToGlobalCtors(Module &M, Constant *C, int Priority, Constant *Data) {
                            "llvm.global_ctors");
 }
 
-void getKernelInstructionMix(const Function *F, KernelInstMixData &InstMix) {
-  InstMix.numMemoryOps = 0;
-  InstMix.numFlops = 0;
-  InstMix.numIntOps = 0;
-  InstMix.numOtherOps = 0;
+KernelInstMixData getKernelInstructionMix(const Function &f) {
+  KernelInstMixData instMix;
 
-  std::set<const Function *> CalledFuncs;
-  for (auto I = inst_begin(F); I != inst_end(F); I++) {
-    if (I->mayReadOrWriteMemory()) {
-      InstMix.numMemoryOps++;
-    } else if (I->isBinaryOp()) {
-      if (I->getType()->isFPOrFPVectorTy())
-        InstMix.numFlops++;
-      else if (I->getType()->isIntegerTy())
-        InstMix.numIntOps++;
+  std::set<const Function *> calledFuncs;
+  for (const_inst_iterator i = inst_begin(f); i != inst_end(f); ++i) {
+    if (i->mayReadOrWriteMemory()) {
+      instMix.numMemoryOps++;
+    } else if (i->isUnaryOp() or i->isBinaryOp()) {
+      if (i->getType()->isFPOrFPVectorTy())
+        instMix.numFlops++;
+      else if (i->getType()->isIntegerTy())
+        instMix.numIntOps++;
       else
-        InstMix.numOtherOps++;
-    } else if (I->isUnaryOp()) {
-      if (I->getType()->isFPOrFPVectorTy())
-        InstMix.numFlops++;
-      else if (I->getType()->isIntegerTy())
-        InstMix.numIntOps++;
-      else
-        InstMix.numOtherOps++;
-    } else {
-      if (auto CI = dyn_cast<CallInst>(&*I)) {
-        CalledFuncs.insert(CI->getCalledFunction());
-      }
+        instMix.numOtherOps++;
+    } else if (auto *call = dyn_cast<CallInst>(&*i)) {
+      calledFuncs.insert(call->getCalledFunction());
     }
   }
 
-  for (auto F : CalledFuncs) {
-    KernelInstMixData localInstMix;
-    getKernelInstructionMix(F, localInstMix);
-    InstMix.numMemoryOps += localInstMix.numMemoryOps;
-    InstMix.numFlops += localInstMix.numFlops;
-    InstMix.numIntOps += localInstMix.numIntOps;
-    InstMix.numOtherOps += localInstMix.numOtherOps;
+  for (const Function *called : calledFuncs) {
+    KernelInstMixData localInstMix = getKernelInstructionMix(*called);
+    instMix.numMemoryOps += localInstMix.numMemoryOps;
+    instMix.numFlops += localInstMix.numFlops;
+    instMix.numIntOps += localInstMix.numIntOps;
+    instMix.numOtherOps += localInstMix.numOtherOps;
   }
+
+  return instMix;
 }
 
 } // namespace tapir

@@ -9203,7 +9203,8 @@ def ftapir_EQ : Joined<["-"], "ftapir=">, Alias<tapir_EQ>,
 
 def tapir_verbose: Joined<["--"], "tapir-verbose">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  HelpText<"Enable verbose mode in all tapir targets">;
+  HelpText<"Enable verbose mode in all tapir targets. This also enables "
+           "verbose mode in the runtime i.e. it implies --kitrt-verbose">;
 
 def tapir_threads_per_block_EQ: Joined<["--"], "tapir-threads-per-block=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
@@ -9234,6 +9235,12 @@ def tapir_hip_arch_EQ : Joined<["--"], "tapir-hip-arch=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   Default<"gfx90a">, MetaVarName<"<arch>">, 
   HelpText<"The AMDGPU architecture for the hip tapir target">;
+
+def tapir_hip_features_EQ : Joined<["--"], "tapir-hip-features=">,
+  Visibility<[CC1Option, FC1Option]>,
+  HelpText<"The target features for the AMDGPU. This is determined from the "
+           "architecture of the GPU for which code is being generated. But it "
+           "is provided in case it needs to be overridden">;
 
 // There is a fair bit of logic that looks for the correct bitcode file to use
 // depending on the current target. While that could be internalized, having
