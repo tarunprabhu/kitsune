@@ -240,8 +240,10 @@ static void populateCommonTTOptions(TapirTargetOptions &TTOpts,
 
 static void populateGPUABIOptions(GPUABIOptionsBase &TTOpts,
                                   const KitsuneOptions &KitsuneOpts,
-                                  const CodeGenOptions &CodeGenOpts) {
+                                  const CodeGenOptions &CodeGenOpts,
+                                  const llvm::TargetOptions &TargetOpts) {
   populateCommonTTOptions(TTOpts, KitsuneOpts);
+  TTOpts.setFPOpFusionMode(TargetOpts.AllowFPOpFusion);
   TTOpts.setOptLevel(mapToLevel(CodeGenOpts));
   TTOpts.setFixedThreadsPerBlock(KitsuneOpts.getFixedThreadsPerBlock());
   TTOpts.setMaxThreadsPerBlock(KitsuneOpts.getMaxThreadsPerBlock());
@@ -249,16 +251,18 @@ static void populateGPUABIOptions(GPUABIOptionsBase &TTOpts,
 
 static std::unique_ptr<TapirTargetOptions>
 populateTTOptions(CudaABIOptions &TTOpts, const KitsuneOptions &KitsuneOpts,
-                  const CodeGenOptions &CodeGenOpts) {
-  populateGPUABIOptions(TTOpts, KitsuneOpts, CodeGenOpts);
+                  const CodeGenOptions &CodeGenOpts,
+                  const llvm::TargetOptions &TargetOpts) {
+  populateGPUABIOptions(TTOpts, KitsuneOpts, CodeGenOpts, TargetOpts);
   TTOpts.setArch(KitsuneOpts.getCudaArch());
   return std::unique_ptr<TapirTargetOptions>(&TTOpts);
 }
 
 static std::unique_ptr<TapirTargetOptions>
 populateTTOptions(HipABIOptions &TTOpts, const KitsuneOptions &KitsuneOpts,
-                  const CodeGenOptions &CodeGenOpts) {
-  populateGPUABIOptions(TTOpts, KitsuneOpts, CodeGenOpts);
+                  const CodeGenOptions &CodeGenOpts,
+                  const llvm::TargetOptions &TargetOpts) {
+  populateGPUABIOptions(TTOpts, KitsuneOpts, CodeGenOpts, TargetOpts);
   TTOpts.setArch(KitsuneOpts.getHipArch());
   return std::unique_ptr<TapirTargetOptions>(&TTOpts);
 }
@@ -279,7 +283,8 @@ populateTTOptions(SerialABIOptions &TTOpts, const KitsuneOptions &KitsuneOpts) {
 
 static std::unique_ptr<TapirTargetOptions>
 createTapirTargetOptions(const KitsuneOptions &KitsuneOpts,
-                         const CodeGenOptions &CodeGenOpts) {
+                         const CodeGenOptions &CodeGenOpts,
+                         const llvm::TargetOptions &TargetOpts) {
   if (std::optional<TapirTargetID> TT = KitsuneOpts.getTapirTarget()) {
     switch (*TT) {
     case TapirTargetID::None:
@@ -290,9 +295,11 @@ createTapirTargetOptions(const KitsuneOptions &KitsuneOpts,
     case TapirTargetID::Serial:
       return populateTTOptions(*new SerialABIOptions(), KitsuneOpts);
     case TapirTargetID::Cuda:
-      return populateTTOptions(*new CudaABIOptions(), KitsuneOpts, CodeGenOpts);
+      return populateTTOptions(*new CudaABIOptions(), KitsuneOpts, CodeGenOpts,
+                               TargetOpts);
     case TapirTargetID::Hip:
-      return populateTTOptions(*new HipABIOptions(), KitsuneOpts, CodeGenOpts);
+      return populateTTOptions(*new HipABIOptions(), KitsuneOpts, CodeGenOpts,
+                               TargetOpts);
     case TapirTargetID::OpenCilk:
       return populateTTOptions(*new OpenCilkABIOptions(), KitsuneOpts);
     default:
@@ -305,13 +312,14 @@ createTapirTargetOptions(const KitsuneOptions &KitsuneOpts,
 
 static std::unique_ptr<TargetLibraryInfoImpl>
 createTLII(llvm::Triple &TargetTriple, const CodeGenOptions &CodeGenOpts,
-           const KitsuneOptions &KitsuneOpts) {
+           const KitsuneOptions &KitsuneOpts,
+           const llvm::TargetOptions &TargetOpts) {
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
       llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
   if (std::optional<TapirTargetID> TT = KitsuneOpts.getTapirTarget()) {
     TLII->setTapirTarget(*TT);
     TLII->setTapirTargetOptions(
-        createTapirTargetOptions(KitsuneOpts, CodeGenOpts));
+        createTapirTargetOptions(KitsuneOpts, CodeGenOpts, TargetOpts));
     TLII->addTapirTargetLibraryFunctions(*TT);
   }
   return TLII;
@@ -708,7 +716,7 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
                                        raw_pwrite_stream *DwoOS) {
   // Add LibraryInfo.
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      createTLII(TargetTriple, CodeGenOpts, LangOpts.KitsuneOpts));
+      createTLII(TargetTriple, CodeGenOpts, LangOpts.KitsuneOpts, TM->Options));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
   // Normal mode, emit a .s or .o file by running the code generator. Note,
@@ -1060,7 +1068,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   // Register the target library analysis directly and give it a customized
   // preset TLI.
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      createTLII(TargetTriple, CodeGenOpts, LangOpts.KitsuneOpts));
+      createTLII(TargetTriple, CodeGenOpts, LangOpts.KitsuneOpts, TM->Options));
   FAM.registerPass([&] { return TargetLibraryAnalysis(*TLII); });
 
   // Register all the basic analyses with the managers.
@@ -1440,7 +1448,8 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   Conf.SplitDwarfOutput = CGOpts.SplitDwarfOutput;
   Conf.TapirTarget = KOpts.getTapirTarget();
   if (Conf.TapirTarget)
-    Conf.TapirTargetOpts = createTapirTargetOptions(KOpts, CGOpts);
+    Conf.TapirTargetOpts =
+        createTapirTargetOptions(KOpts, CGOpts, Conf.Options);
   switch (Action) {
   case Backend_EmitNothing:
     Conf.PreCodeGenModuleHook = [](size_t Task, const llvm::Module &Mod) {

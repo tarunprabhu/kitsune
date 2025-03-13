@@ -14,6 +14,7 @@
 
 #include "llvm/Transforms/Tapir/GPUABIOptions.h"
 #include "kitsune/Config/config.h"
+#include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
@@ -46,6 +47,8 @@ void GPUABIOptionsBase::readClOptions() {
 
   if (clMaxThreadsPerBlock)
     setMaxThreadsPerBlock(clMaxThreadsPerBlock);
+
+  setFPOpFusionMode(codegen::getFuseFPOps());
 }
 
 void GPUABIOptionsBase::setOptLevel(unsigned optLevel) {

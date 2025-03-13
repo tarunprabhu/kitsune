@@ -103,8 +103,8 @@ public:
   void setOptLevel(OptimizationLevel optLevel) { this->optLevel = optLevel; }
   void setOptLevel(unsigned optLevel);
   void setArch(StringRef arch) { this->arch = arch; }
-  void setFPOpFusionMode(FPOpFusion::FPOpFusionMode fpPOpFusionMode) {
-    this->fpOpFusionMode = fpOpFusionMode;
+  void setFPOpFusionMode(FPOpFusion::FPOpFusionMode mode) {
+    this->fpOpFusionMode = mode;
   }
   void setFixedThreadsPerBlock(unsigned threadsPerBlock) {
     this->fixedThreadsPerBlock = threadsPerBlock;

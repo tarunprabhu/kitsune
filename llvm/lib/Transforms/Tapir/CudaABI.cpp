@@ -1162,9 +1162,11 @@ CudaABI::CudaABI(Module &M, const CudaABIOptions &opts)
     break;
   }
 
+  TargetOptions Options;
+  Options.AllowFPOpFusion = getOptions().getFPOpFusionMode();
   PTXTargetMachine = PTXTarget->createTargetMachine(
       TT.getTriple(), getOptions().getArch(), PTXVersionStr.data(),
-      TargetOptions(), Reloc::PIC_, TargetCodeModel, TargetOptLevel);
+      Options, Reloc::PIC_, TargetCodeModel, TargetOptLevel);
 
   KernelModule.setTargetTriple(TT.str());
   KernelModule.setDataLayout(PTXTargetMachine->createDataLayout());

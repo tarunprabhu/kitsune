@@ -37,3 +37,37 @@
 // DEFAULT-CUDA-NOT: -ffp-contract
 // DEFAULT-CUDA: "-aux-triple" "nvptx{{.*}}-nvidia-cuda"
 // DEFAULT-CUDA-SAME: "-ffp-contract=on"
+//
+// ----------------------------------------------------------------------------
+//
+// Check that the correct fp contact value is propagated to the runtime
+//
+// RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
+// RUN:      --tapir-verbose 2>&1 \
+// RUN:      | FileCheck %s -check-prefix FUSION-STANDARD
+//
+// RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
+// RUN:      --tapir-verbose -ffp-contract=off 2>&1 \
+// RUN:      | FileCheck %s -check-prefix FUSION-STANDARD
+//
+// RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
+// RUN:      --tapir-verbose -ffp-contract=on 2>&1 \
+// RUN:      | FileCheck %s -check-prefix FUSION-STANDARD
+//
+// RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
+// RUN:      --tapir-verbose -ffp-contract=fast 2>&1 \
+// RUN:      | FileCheck %s -check-prefix FUSION-FAST
+//
+// RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
+// RUN:      --tapir-verbose -ffp-contract=fast-honor-pragmas 2>&1 \
+// RUN:      | FileCheck %s -check-prefix FUSION-STANDARD
+//
+// FUSION-STANDARD: FP Fusion: standard
+// FUSION-FAST: FP Fusion: fast
+
+#include <kitsune.h>
+
+void f(int* c, size_t n) {
+  forall(size_t i = 0; i < n; ++i)
+    c[i] = n;
+}

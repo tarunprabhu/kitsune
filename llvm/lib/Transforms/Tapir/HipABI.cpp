@@ -1498,6 +1498,7 @@ HipABI::HipABI(Module &M, const HipABIOptions &opts)
   TargetOptions Options;
   Options.UseInitArray = true;
   Options.EmitAddrsig = true;
+  Options.AllowFPOpFusion = getOptions().getFPOpFusionMode();
   AMDTargetMachine = AMDGPUTarget->createTargetMachine(
       TargetTriple.getTriple(), getOptions().getArch(), Features, Options,
       Reloc::Static, TargetCodeModel, TargetOptLevel);

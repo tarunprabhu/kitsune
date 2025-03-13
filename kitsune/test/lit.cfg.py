@@ -44,11 +44,8 @@ config.suffixes = [
 ]
 
 # Exclude some files and directories.
-# TODO: tests and tests.old are old names for some tests that are still in the
-# repo for the moment, but should be removed eventually - both from the repo
-# and this list.
 config.excludes = [
-    "CMakeLists.txt", "tests", "tests.old"
+    "CMakeLists.txt"
 ]
 
 # test_source_root: The root path where tests are located.
@@ -82,8 +79,10 @@ tools = [
     "opt",
     "llvm-lto",
     "llvm-lto2",
-    ToolSubst("%flang", command=FindTool("flang-new"), unresolved="fatal")
 ]
+if config.kitsune_fortran_enabled:
+    t = ToolSubst("%flang", command=FindTool("flang-new"), unresolved="fatal")
+    tools.append(t)
 
 llvm_config.add_tool_substitutions(tools, tool_dirs)
 
