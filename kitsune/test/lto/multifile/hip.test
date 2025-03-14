@@ -1,0 +1,28 @@
+# REQUIRES: kitsune-hip
+#
+# RUN: %kitxx -v -flto --tapir=hip -O2 %S/main.cpp %S/add.cpp -o /dev/null \
+# RUN:     --tapir-verbose 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,STANDARD
+#
+# RUN: %kitxx -v -flto --tapir=hip -O2 %S/main.cpp %S/add.cpp -o /dev/null \
+# RUN:     --tapir-verbose -ffp-contract=off 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,STANDARD
+#
+# RUN: %kitxx -v -flto --tapir=hip -O2 %S/main.cpp %S/add.cpp -o /dev/null \
+# RUN:     --tapir-verbose -ffp-contract=on 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,STANDARD
+#
+# RUN: %kitxx -v -flto --tapir=hip -O2 %S/main.cpp %S/add.cpp -o /dev/null \
+# RUN:     --tapir-verbose -ffp-contract=fast 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,FAST
+#
+# RUN: %kitxx -v -flto --tapir=hip -O2 %S/main.cpp %S/add.cpp -o /dev/null \
+# RUN:     --tapir-verbose -ffp-contract=fast-honor-pragmas 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,STANDARD
+#
+# ALL: /ld{{(64)?}}.lld
+# ALL-SAME: --fp-contract=
+# ALL: 'hip' tapir target options
+# STRICT: FP Fusion: strict
+# STANDARD: FP Fusion: standard
+# FAST: FP Fusion: fast

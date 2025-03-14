@@ -1271,6 +1271,21 @@ static void populateGPUABIOptions(opt::InputArgList &args,
       ttOpts.setOptLevel(optLevel);
   }
 
+  if (opt::Arg *arg = args.getLastArg(OPT_fp_contract)) {
+    StringRef v = arg->getValue();
+    auto fuse = StringSwitch<std::optional<llvm::FPOpFusion::FPOpFusionMode>>(v)
+                    .Case("off", llvm::FPOpFusion::Strict)
+                    .Case("on", llvm::FPOpFusion::Standard)
+                    .Case("fast", llvm::FPOpFusion::Fast)
+                    .Default(std::nullopt);
+    if (not fuse and v.empty())
+      error(arg->getSpelling() + ": missing argument");
+    else if (not fuse)
+      error(Twine("invalid value '") + v + "' in " + arg->getSpelling());
+    else
+      ttOpts.setFPOpFusionMode(*fuse);
+  }
+
   if (opt::Arg *arg = args.getLastArg(OPT_tapir_threads_per_block)) {
     int tpb;
     StringRef v = arg->getValue();

@@ -1846,6 +1846,7 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
   }
 
   if (std::optional<llvm::TapirTargetID> TT = parseTapirTarget(Args)) {
+    Args.AddLastArg(CmdArgs, options::OPT_ffp_contract);
     Args.AddLastArg(CmdArgs, options::OPT_kitrt_verbose);
     Args.AddLastArg(CmdArgs, options::OPT_tapir_verbose);
     Args.AddLastArg(CmdArgs, options::OPT_tapir_EQ);
@@ -2130,6 +2131,17 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
 void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
                                   ArgStringList &CmdArgs) const {
   if (std::optional<llvm::TapirTargetID> TT = parseTapirTarget(Args)) {
+    // Handling of the -ffp-contract option has to be done exactly the way it is
+    // done in BackendUtil.cpp. Explanations for this are in that file.
+    if (const Arg *A = Args.getLastArg(options::OPT_ffp_contract)) {
+      if (StringRef(A->getValue()) == "fast")
+        CmdArgs.push_back(Args.MakeArgString("--fp-contract=fast"));
+      else
+        CmdArgs.push_back(Args.MakeArgString("--fp-contract=on"));
+    } else {
+      CmdArgs.push_back(Args.MakeArgString("--fp-contract=on"));
+    }
+
     Args.AddLastArg(CmdArgs, options::OPT_kitrt_verbose);
     Args.AddLastArg(CmdArgs, options::OPT_tapir_verbose);
     Args.AddLastArg(CmdArgs, options::OPT_tapir_EQ);

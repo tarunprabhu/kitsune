@@ -11,7 +11,8 @@
 // that the value can be overridden if required.
 //
 // RUN: %kitxx -### %s 2>&1 | FileCheck %s -check-prefix CONTRACT-ON
-// RUN: %kitxx -### -ftapir=cuda %s 2>&1 | FileCheck %s -check-prefix CONTRACT-ON
+// RUN: %kitxx -### -ftapir=cuda %s 2>&1 \
+// RUN:     | FileCheck %s -check-prefix CONTRACT-ON
 //
 // RUN: %kitxx -### -ffp-contract=off %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix CONTRACT-OFF

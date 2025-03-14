@@ -823,6 +823,10 @@ defm android_memtag_mode: EEq<"android-memtag-mode",
 // 
 //------------------------------------------------------------------------------
 
+defm fp_contract: EEq<"fp-contract",
+    "Enable aggressive formation of fused FP ops. This accepts the same "
+    "value as the fp-contract flag in opt">;
+
 def kitrt_verbose: F<"kitrt-verbose">,
     HelpText<"Enable verbose mode in kitsune's runtime">;
 
