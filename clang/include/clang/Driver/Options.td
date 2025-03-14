@@ -9253,6 +9253,10 @@ def tapir_opencilk_abi_bc_EQ : Joined<["--"], "tapir-opencilk-abi-bc=">,
   MetaVarName<"<file>">, 
   HelpText<"Path to OpenCilk ABI bitcode file">;
 
+def static_libkitrt : Flag<["-"], "static-libkitrt">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  HelpText<"Statically link Kitsune's runtime">;
+
 // It would be nice if we could use one of the Bool*Option classes, but they
 // expect the option to be marshalled directly. We don't have that enabled
 // right now, so we have to do it the ugly way.

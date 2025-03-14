@@ -237,50 +237,97 @@ if (NOT "libc" IN_LIST LLVM_ENABLE_PROJECTS AND LLVM_LIBC_GPU_BUILD)
   list(APPEND LLVM_ENABLE_PROJECTS "libc")
 endif()
 
+# ----------------------- KITSUNE SPECIFIC CONFIGURATION -----------------------
+#
 # Make sure kitsune, and everything it needs is always enabled. We could just
 # set the default for LLVM_ENABLE_PROJECTS to include these projects, but we
 # want to make as few changes in this file as possible. Besides, that list is
 # intended to be overridden at build time.
 #
-# We keep kitsune as part of the projects mechanism because it sets some other
-# variables that are needed to correctly enable it. We can probably get away
-# with setting it ourselves, but using the projects mechanism isn't too
-# cumbersome in this case - unlike for kitrt where the runtime mechanism doesn't
-# quite do everything we would like.
-if (NOT "kitsune" IN_LIST LLVM_ENABLE_PROJECTS)
-  message(STATUS "Enable kitsune")
+# We keep kitsune as part of the projects mechanism because doing so sets some
+# other variables that are needed to for correct operation. We could probably do
+# all of that ourselves, but using the projects mechanism isn't too cumbersome,
+# so we might as well use it.
+#
+# On the other hand, the runtime mechanism does not quite do everything that we
+# would like, so we don't use it to build Kitsune's runtime. I should probably
+# have written down what it was about the runtime mechanism that was not
+# suitable, because now, I can't remember.
+#
+if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
+    NOT "kitsune" IN_LIST LLVM_ENABLE_PROJECTS)
   list(APPEND LLVM_ENABLE_PROJECTS "kitsune")
-
-  # Enable dependencies as well even if they were not explicitly set at
-  # configure time.
-  if (NOT "clang" IN_LIST LLVM_ENABLE_PROJECTS)
-    message(STATUS "Enable clang (for kitsune support)")
-    list(PREPEND LLVM_ENABLE_PROJECTS "clang")
-  endif ()
-
-  # We may switch to doing *everything* using LTO, so just enable lld.
-  if (NOT "lld" IN_LIST LLVM_ENABLE_PROJECTS)
-    message(STATUS "Enable lld (for kitsune support)")
-    list(APPEND LLVM_ENABLE_PROJECTS "lld")
-  endif ()
-
-  # LTO requires that the gold plugin is built. This needs LLVM_BINUTILS_INCDIR
-  # to be set to the path to the directory containing plugin-api.h. We could try
-  # setting it ourselves to /usr/include which is usually good enough, but there
-  # is a chance that there is a truly antique version of binutils on the system
-  # in some HPC machines. In this case, pointing to it could result in a
-  # non-obvious build failure. Just force users to set it explicitly themselves.
-  if (LLVM_BINUTILS_INCDIR STREQUAL "")
-    message(FATAL_ERROR
-      "LLVM_BINUTILS_INCDIR must be set for the LLVM gold plugin. This is "
-      "the path to the directory containing plugin-api.h. Setting this to "
-      "/usr/include usually works, but HPC clusters may have a truly antique "
-      "version of binutils on the system, in which case, it may have to be set "
-      "to a path within GCC's resource directory")
-  endif ()
-
-  message(STATUS "Updated LLVM_ENABLE_PROJECTS: ${LLVM_ENABLE_PROJECTS}")
+  message(STATUS "enable kitsune project")
 endif ()
+
+# Enable dependencies if they were not explicitly set at configure time. clang
+# is always required because it is needed to build Kitsune's runtime.
+if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
+    NOT "clang" IN_LIST LLVM_ENABLE_PROJECTS)
+  list(PREPEND LLVM_ENABLE_PROJECTS "clang")
+  message(STATUS "enable clang project")
+endif ()
+
+# lld is required for LTO support, so always enable it.
+if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
+    NOT "lld" IN_LIST LLVM_ENABLE_PROJECTS)
+  list(APPEND LLVM_ENABLE_PROJECTS "lld")
+  message(STATUS "enable lld project")
+endif ()
+
+# The C and C++ frontends are enabled by default because clang is required to
+# build Kitsune's runtime. Disabling them is not allowed and will result in a
+# fatal error. Working around this constraint is not recommended since most of
+# the core tests assume that these frontends are enabled.
+set(KITSUNE_C_ENABLED ON CACHE INTERNAL "Enable 'kitcc' frontend" FORCE)
+set(KITSUNE_CXX_ENABLED ON CACHE INTERNAL "Enable 'kit++' frontend" FORCE)
+set(KITSUNE_Fortran_ENABLED OFF CACHE INTERNAL "Enable 'kitfc' frontend" FORCE)
+
+set(KITSUNE_ALL_LANGS
+  "c;cxx;fortran"
+  CACHE INTERNAL
+  "All languages for which Kitsune has a frontend" FORCE)
+
+set(KITSUNE_DEFAULT_LANGS
+  "c;cxx"
+  CACHE INTERNAL
+  "Languages for which the frontend is built by default" FORCE)
+
+set(KITSUNE_ENABLED_LANGS "${KITSUNE_DEFAULT_LANGS}" CACHE STRING
+  "Semicolon-separated list of languages for which a frontend should be built")
+
+if (NOT "c" IN_LIST KITSUNE_ENABLED_LANGS OR
+    NOT "cxx" IN_LIST KITSUNE_ENABLED_LANGS)
+  message(FATAL_ERROR "The C and C++ frontends must be enabled")
+endif ()
+
+foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
+  string(TOLOWER "${l}" lang)
+  # clang is required by the C and C++ frontends. But that is guaranteed to be
+  # built because the runtime requires it.
+  if (lang STREQUAL "c")
+    message(STATUS "'kitcc' frontend is enabled")
+    set(KITSUNE_C_ENABLED ON CACHE INTERNAL "Enable 'kitcc' frontend" FORCE)
+  elseif (lang STREQUAL "cxx")
+    message(STATUS "'kit++' frontend is enabled")
+    set(KITSUNE_CXX_ENABLED ON CACHE INTERNAL "Enable 'kit++' frontend" FORCE)
+  elseif (lang STREQUAL "fortran")
+    message(STATUS "'kitfc' frontend is enabled")
+    set(KITSUNE_Fortran_ENABLED ON CACHE INTERNAL "Enable 'kitfc' frontend" FORCE)
+    if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
+        NOT "flang" IN_LIST LLVM_ENABLE_PROJECTS)
+      list(APPEND LLVM_ENABLE_PROJECTS "flang")
+      message(STATUS "enable flang project")
+    endif ()
+    if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
+        NOT "mlir" IN_LIST LLVM_ENABLE_PROJECTS)
+      list(APPEND LLVM_ENABLE_PROJECTS "mlir")
+      message(STATUS "enable mlir project")
+    endif ()
+  else ()
+    message(FATAL_ERROR "Unknown language '${l}'")
+  endif ()
+endforeach()
 
 # Ideally, this should be left in kitsune/CMakeLists.txt, but we need these to
 # conditionally compile the tapir targets that are enabled. The kitsune/
@@ -300,85 +347,46 @@ set(KITSUNE_OPENMP_ENABLED OFF CACHE INTERNAL "Enable 'openmp' tapir target" FOR
 set(KITSUNE_QTHREADS_ENABLED OFF CACHE INTERNAL "Enable 'qthreads' tapir target" FORCE)
 set(KITSUNE_REALM_ENABLED OFF CACHE INTERNAL "Enable 'realm' tapir target" FORCE)
 
-set(KITSUNE_C_ENABLED OFF CACHE INTERNAL "Enable 'kitcc' frontend" FORCE)
-set(KITSUNE_CXX_ENABLED OFF CACHE INTERNAL "Enable 'kit++' frontend" FORCE)
-set(KITSUNE_Fortran_ENABLED OFF CACHE INTERNAL "Enable 'kitfc' frontend" FORCE)
-
-set(KITSUNE_ALL_LANGS "c;cxx;fortran" CACHE STRING
-  "All languages for which Kitsune has a frontend")
-
-set(KITSUNE_DEFAULT_LANGS "c;cxx" CACHE STRING
-  "Languages for which the frontend is built by default")
-
-set(KITSUNE_ENABLED_LANGS "${KITSUNE_DEFAULT_LANGS}" CACHE STRING
-  "Semicolon-separated list of languages for which a frontend should be built")
-
-if (NOT KITSUNE_ENABLED_LANGS)
-  message(FATAL_ERROR "Frontend for at least one language must be built")
-endif ()
-
-foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
-  string(TOLOWER "${l}" lang)
-  # clang is required by the C and C++ frontends. But that is guaranteed to be
-  # built because the runtime requires it.
-  if (lang STREQUAL "c")
-    message(STATUS "'kitcc' frontend is enabled")
-    set(KITSUNE_C_ENABLED ON CACHE INTERNAL "Enable frontend 'kitcc'" FORCE)
-  elseif (lang STREQUAL "cxx")
-    message(STATUS "'kit++' frontend is enabled")
-    set(KITSUNE_CXX_ENABLED ON CACHE INTERNAL "Enable frontend 'kit++'" FORCE)
-  elseif (lang STREQUAL "fortran")
-    message(STATUS "'kitfc' frontend is enabled")
-    set(KITSUNE_Fortran_ENABLED ON CACHE INTERNAL "Enable frontend 'kitfc'" FORCE)
-    if (NOT "flang" IN_LIST LLVM_ENABLE_PROJECTS)
-      message(STATUS "Enable flang (for Fortran frontend support)")
-      list(APPEND LLVM_ENABLE_PROJECTS "flang")
-    endif()
-    if (NOT "mlir" IN_LIST LLVM_ENABLE_PROJECTS)
-      message(STATUS "Enable mlir (for flang support)")
-      list(APPEND LLVM_ENABLE_PROJECTS "mlir")
-    endif()
-    message(STATUS "Updated LLVM_ENABLE_PROJECTS: ${LLVM_ENABLE_PROJECTS}")
-  else ()
-    message(FATAL_ERROR "Unknown language '${l}'")
-  endif()
-endforeach()
-
 # TODO: Need to update the openmp, qthreads and realm targets and add them
 # back into this list. These targets have not been tested in a while and have
 # probably bit-rotted. Enabling them will raise a configure-time error.
+#
+# The lambda and omptask tapir targets were added in LLVM, but don't have any
+# frontend support yet, so don't include those either.
+#
 set(KITSUNE_ALL_TAPIR_TARGETS
   "cuda;hip;opencilk"
-  CACHE STRING
-  "All known Tapir targets.")
+  CACHE INTERNAL
+  "All known Tapir targets" FORCE)
 
 set(KITSUNE_DEFAULT_TAPIR_TARGETS
   "cuda;hip;opencilk"
-  CACHE STRING
-  "The Tapir targets that are built by default if targets are not explicitly specified.")
+  CACHE INTERNAL
+  "The tapir targets that are built by default if a list of targets to build is
+not provided explicitly" FORCE)
 
 set(KITSUNE_ENABLED_TAPIR_TARGETS
   "${KITSUNE_DEFAULT_TAPIR_TARGETS}"
   CACHE STRING
-  "Semicolon-separated list of runtime targets to build (or \"all\".)")
+  "Semicolon-separated list of runtime targets to build")
 
 if (NOT KITSUNE_ENABLED_TAPIR_TARGETS)
-  message(FATAL_ERROR "At least one runtime target must be built")
+  message(FATAL_ERROR "At least one tapir target must be built")
 endif ()
 
-# The serial Tapir target is always enabled
+# The serial Tapir target is always enabled.
 set(KITSUNE_TAPIR_TARGETS_STR "serial")
 foreach(target IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
   if (target IN_LIST KITSUNE_ALL_TAPIR_TARGETS)
     message(STATUS "'${target}' tapir target is enabled")
     string(TOUPPER "${target}" upper)
-    set(KITSUNE_${upper}_ENABLED ON CACHE INTERNAL "Enable tapir target '${target}'" FORCE)
+    set(KITSUNE_${upper}_ENABLED ON CACHE INTERNAL "Enable '${target}' tapir target" FORCE)
     string(TOLOWER "${target}" lower)
     set(KITSUNE_TAPIR_TARGETS_STR "${KITSUNE_TAPIR_TARGETS_STR} ${lower}")
   else ()
     message(FATAL_ERROR "Unknown Tapir target: ${target}")
-  endif()
-endforeach()
+  endif ()
+endforeach ()
 string(STRIP "${KITSUNE_TAPIR_TARGETS_STR}" KITSUNE_ENABLED_TAPIR_TARGETS_STR)
 
 # The serial target is never exposed because it is always built. This is
@@ -389,27 +397,29 @@ list(APPEND KITSUNE_ALL_TAPIR_TARGETS "serial")
 list(SORT KITSUNE_ALL_TAPIR_TARGETS)
 string(REPLACE ";" " " KITSUNE_ALL_TAPIR_TARGETS_STR "${KITSUNE_ALL_TAPIR_TARGETS}")
 
-# The GPU tapir targets require the corresponding GPU back to be built. We could
-# silently add the target to the list to build, but the user probably chose to
-# build only a subset of the targets for a reason, so respect that and force the
-# user to add the appropariate target themselves.
-string(TOLOWER "${LLVM_TARGETS_TO_BUILD}" TARGETS_TO_BUILD)
-if (KITSUNE_CUDA_ENABLED)
-  if (NOT all IN_LIST TARGETS_TO_BUILD AND
-      NOT nvptx IN_LIST TARGETS_TO_BUILD)
-    message(FATAL_ERROR "Cuda tapir target requires NVPTX. Add NVPTX to LLVM_TARGETS_TO_BUILD")
-  endif()
+# The GPU tapir targets require the corresponding backend to be built.
+if (KITSUNE_CUDA_ENABLED AND
+    NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
+    NOT "NVPTX" IN_LIST LLVM_TARGETS_TO_BUILD)
+  list(APPEND LLVM_TARGETS_TO_BUILD "NVPTX")
+  message(STATUS "enable NVPTX target")
 endif ()
-if (KITSUNE_HIP_ENABLED)
-  if (NOT all IN_LIST TARGETS_TO_BUILD AND
-      NOT amdgpu IN_LIST TARGETS_TO_BUILD)
-    message(FATAL_ERROR "Hip tapir target requires AMDGPU. Add AMDGPU to LLVM_TARGETS_TO_BUILD")
-  endif()
+if (KITSUNE_HIP_ENABLED AND
+    NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
+    NOT "AMDGPU" IN_LIST LLVM_TARGETS_TO_BUILD)
+  list(APPEND LLVM_TARGETS_TO_BUILD "AMDGPU")
+  message(STATUS "enable AMDGPU target")
 endif ()
 
-# We always want libLLVM to be build because we link to it in Kitsune's runtime,
-# libkitrt
-set(LLVM_BUILD_LLVM_DYLIB ON)
+# Kitsune's runtime, libkitrt, used to have a dependence on libLLVM, but it does
+# not any longer. However, we might re-introduce it, so for now, build libLLVM
+# anyway. However, we don't link to it unless the user asks for it explicitly.
+if (NOT LLVM_BUILD_LLVM_DYLIB)
+  set(LLVM_BUILD_LLVM_DYLIB ON)
+  message(STATUS "enable libLLVM")
+endif ()
+
+# --------------------- END KITSUNE SPECIFIC CONFIGURATION ---------------------
 
 # LLVM_ENABLE_PROJECTS_USED is `ON` if the user has ever used the
 # `LLVM_ENABLE_PROJECTS` CMake cache variable.  This exists for

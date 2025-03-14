@@ -3,7 +3,7 @@
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: @_kitsune_fatbin_hip = {{.+}} constant [{{[0-9]+}} x i8] c"
+; CHECK: @__kitsune_fatbin_hip = {{.+}} constant [{{[0-9]+}} x i8] c"
 ; CHECK: define {{.+}} @f
 ; CHECK: %[[TS:.+]] = call {{.+}} @__kithip_launch_kernel(
 ; CHECK: call {{.+}} @__kithip_sync_thread_stream(ptr %[[TS]])

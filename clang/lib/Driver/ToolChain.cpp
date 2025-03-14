@@ -2098,7 +2098,16 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     CmdArgs.push_back(LibDir);
     CmdArgs.push_back("-rpath");
     CmdArgs.push_back(LibDir);
-    CmdArgs.push_back("-lkitrt");
+
+    if (Args.hasArg(options::OPT_static)) {
+      CmdArgs.push_back("-l" KITSUNE_LIBNAME_STATIC);
+    } else if (Args.hasArg(options::OPT_static_libkitrt)) {
+      CmdArgs.push_back("-Bstatic");
+      CmdArgs.push_back("-l" KITSUNE_LIBNAME_STATIC);
+      CmdArgs.push_back("-Bdynamic");
+    } else {
+      CmdArgs.push_back("-l" KITSUNE_LIBNAME);
+    }
 
     // libkitrt links against libcuda if the cuda target is enabled and
     // libamdhip64 if the hip target is enabled. The libraries may not be where
@@ -2110,7 +2119,7 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       CmdArgs.push_back(KITSUNE_HIP_LIBRARY_DIR);
       CmdArgs.push_back("-rpath");
       CmdArgs.push_back(KITSUNE_HIP_LIBRARY_DIR);
-      CmdArgs.push_back("-lamdhip64");
+      CmdArgs.push_back("-l" KITSUNE_HIP_LIBNAME_AMDHIP);
     }
 
     if (KITSUNE_CUDA_ENABLED) {
@@ -2122,8 +2131,8 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       CmdArgs.push_back(KITSUNE_CUDA_LIBCUDA_DIR);
       CmdArgs.push_back("-rpath");
       CmdArgs.push_back(KITSUNE_CUDA_LIBCUDA_DIR);
-      CmdArgs.push_back("-lcudart_static");
-      CmdArgs.push_back("-lcuda");
+      CmdArgs.push_back("-l" KITSUNE_CUDA_LIBNAME_CUDART_STATIC);
+      CmdArgs.push_back("-l" KITSUNE_CUDA_LIBNAME_CUDA);
     }
   }
 }
@@ -2135,11 +2144,11 @@ void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
     // done in BackendUtil.cpp. Explanations for this are in that file.
     if (const Arg *A = Args.getLastArg(options::OPT_ffp_contract)) {
       if (StringRef(A->getValue()) == "fast")
-        CmdArgs.push_back(Args.MakeArgString("--fp-contract=fast"));
+        CmdArgs.push_back("--fp-contract=fast");
       else
-        CmdArgs.push_back(Args.MakeArgString("--fp-contract=on"));
+        CmdArgs.push_back("--fp-contract=on");
     } else {
-      CmdArgs.push_back(Args.MakeArgString("--fp-contract=on"));
+      CmdArgs.push_back("--fp-contract=on");
     }
 
     Args.AddLastArg(CmdArgs, options::OPT_kitrt_verbose);

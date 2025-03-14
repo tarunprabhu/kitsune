@@ -56,7 +56,8 @@ set(KITSUNE_Fortran_FRONTEND kitfc)
 # The name of Kitsune's main runtime library. This is created here because it is
 # also used by the tests to ensure that check-kitsune does not run before the
 # runtime has been built.
-set(KITSUNE_RUNTIME_LIBNAME kitrt)
+set(KITSUNE_LIBNAME kitrt)
+set(KITSUNE_LIBNAME_STATIC "${KITSUNE_LIBNAME}_static")
 
 # TODO: The _MAX variables are not currently used but it would be good to
 # require a range instead of just a minimum. In practice, we may want to
@@ -255,29 +256,22 @@ if (KITSUNE_CUDA_ENABLED)
   message(STATUS "  Cuda include dir: ${KITSUNE_CUDA_INCLUDE_DIR}")
   message(STATUS "  Cuda library dir: ${KITSUNE_CUDA_LIBRARY_DIR}")
 
+  set(KITSUNE_CUDA_LIBNAME_CUDART_STATIC cudart_static)
+  set(KITSUNE_CUDA_LIBNAME_CUDART cudart)
+  set(KITSUNE_CUDA_LIBNAME_CUDA cuda)
+
   # This should almost always be the libcuda that is installed on the system,
   # so look for it in the "usual" places.
-  #
-  # FIX THE FIXME BELOW: I am not sure that what is said there is actually
-  # correct, so double check that we really need to add */lib64 explicitly to
-  # the search path.
-  #
-  # FIXME: For some reason, on some systems, cmake does not look in the *lib64
-  # directories. I can't seem to find anything definitive regarding this
-  # behavior and whether it is expected or if it is a consequence of something
-  # weird on those systems. In any case, these are hard-coded for now, but we
-  # really need to find a better way of dealing with this.
-  find_library(KITSUNE_CUDA_LIB_CUDA cuda REQUIRED
-    PATHS /usr/lib64 /usr/local/lib64)
+  find_library(KITSUNE_CUDA_LIB_CUDA "${KITSUNE_CUDA_LIBNAME_CUDA}"  REQUIRED)
 
   get_filename_component(
     KITSUNE_CUDA_LIBCUDA_DIR "${KITSUNE_CUDA_LIB_CUDA}" DIRECTORY)
 
-  find_library(KITSUNE_CUDA_LIB_CUDART cudart REQUIRED
+  find_library(KITSUNE_CUDA_LIB_CUDART "${KITSUNE_CUDA_LIBNAME_CUDART}" REQUIRED
     PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
     NO_DEFAULT_PATH)
 
-  find_library(KITSUNE_CUDA_LIB_CUDART cudart_static REQUIRED
+  find_library(KITSUNE_CUDA_LIB_CUDART_STATIC "${KITSUNE_CUDA_LIBNAME_CUDART_STATIC}" REQUIRED
     PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
     NO_DEFAULT_PATH)
 
@@ -299,7 +293,7 @@ if (KITSUNE_CUDA_ENABLED)
 
   set(KITSUNE_CUDA_ARCH_DEFAULT "sm_80"
     CACHE STRING
-    "The NVIDIA GPU architecture used by the cuda tapir target")
+    "The default NVIDIA GPU architecture used by the cuda tapir target")
 
   set(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -366,13 +360,15 @@ if (KITSUNE_HIP_ENABLED)
   message(STATUS "  Hip include dir: ${KITSUNE_HIP_INCLUDE_DIR}")
   message(STATUS "  Hip library dir: ${KITSUNE_HIP_LIBRARY_DIR}")
 
-  find_library(KITSUNE_HIP_LIB_AMDHIP64 amdhip64 REQUIRED
+  set(KITSUNE_HIP_LIBNAME_AMDHIP "amdhip64")
+
+  find_library(KITSUNE_HIP_LIB_AMDHIP64 ${KITSUNE_HIP_LIBNAME_AMDHIP} REQUIRED
     PATHS ${KITSUNE_HIP_LIBRARY_DIR} ${ROCM_PATH}/lib
     NO_DEFAULT_PATH)
 
   set(KITSUNE_HIP_ARCH_DEFAULT "gfx90a"
     CACHE STRING
-    "The AMD GPU architecture used by the hip tapir target")
+    "The default AMD GPU architecture used by the hip tapir target")
 
   set(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -482,14 +478,6 @@ if (KITSUNE_OPENCILK_ENABLED)
     ${KITSUNE_OPENCILK_BUILD_CONFIGURE_FLAGS}
   )
 
-  # This temporarily uses a patched version of Cheetah to workaround a bug where
-  # certain Cilk types are not emitted to libopencilk-abi.bc. When upstream
-  # fixes the issue, this should be changed to point to the official cheetah
-  # repository.
-  #
-  # TODO: This might have been fixed by upstream already, so we should check and
-  # switch to using it.
-  #
   ExternalProject_Add(cheetah
     DEPENDS             clang lld llvm-config llvm-link
     GIT_REPOSITORY      https://github.com/OpenCilk/cheetah.git
@@ -617,7 +605,7 @@ endif()
 # within the build directory into which all the files will be "installed" at
 # build time with a separate install command to copy these out to the actual
 # install directory for kitsune as specified by ${CMAKE_INSTALL_PREFIX}.
-set(KITSUNE_RUNTIME_INSTALL_DIR ${KITSUNE_BINARY_DIR}/${KITSUNE_RUNTIME_LIBNAME})
+set(KITSUNE_RUNTIME_INSTALL_DIR ${KITSUNE_BINARY_DIR}/${KITSUNE_LIBNAME})
 
 # FIXME: Instead of passing all the Kitsune variables here by hand, look for
 # for every variable starting with KITSUNE_, CLANG_ and LLVM_ and pass those
@@ -630,7 +618,6 @@ set(KITSUNE_RUNTIME_INSTALL_DIR ${KITSUNE_BINARY_DIR}/${KITSUNE_RUNTIME_LIBNAME}
 # However, this may result in a number of "unused variable" warnings (though we
 # get a number of those with those approach already). For now, we can live with
 # it.
-#
 set(KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DCMAKE_VERBOSE_BUILD=ON
   -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
@@ -658,7 +645,8 @@ set(KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DLLVM_LIBDIR_SUFFIX=${LLVM_LIBDIR_SUFFIX}
   -DLLVM_MAIN_INCLUDE_DIR=${LLVM_MAIN_INCLUDE_DIR}
   -DLLVM_RUNTIME_OUTPUT_INTDIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
-  -DKITSUNE_RUNTIME_LIBNAME=${KITSUNE_RUNTIME_LIBNAME}
+  -DKITSUNE_LIBNAME=${KITSUNE_LIBNAME}
+  -DKITSUNE_LIBNAME_STATIC=${KITSUNE_LIBNAME_STATIC}
   -DKITSUNE_CUDA_ENABLED=${KITSUNE_CUDA_ENABLED}
   -DKITSUNE_HIP_ENABLED=${KITSUNE_HIP_ENABLED}
   -DKITSUNE_OPENCILK_ENABLED=${KITSUNE_OPENCILK_ENABLED}
@@ -685,17 +673,16 @@ endif ()
 # We don't descend into the runtime subdirectory because that should only be
 # configured when the runtimes are built. All the cmake environment variables
 # that the runtime might need have to be passed through here.
-#
-ExternalProject_Add(${KITSUNE_RUNTIME_LIBNAME}
-  DEPENDS llvm-config clang LLVM
-  SOURCE_DIR ${KITSUNE_SOURCE_DIR}/runtime
-  STAMP_DIR ${KITSUNE_BINARY_DIR}/stamp
-  BINARY_DIR ${KITSUNE_BINARY_DIR}/runtime
-  CMAKE_ARGS ${KITSUNE_RUNTIME_CONFIGURE_ARGS}
-  USES_TERMINAL_CONFIGURE TRUE
-  USES_TERMINAL_BUILD TRUE
-  USES_TERMINAL_INSTALL TRUE
-  BUILD_ALWAYS TRUE
+ExternalProject_Add(${KITSUNE_LIBNAME}
+  DEPENDS                    llvm-config clang LLVM
+  SOURCE_DIR                 ${KITSUNE_SOURCE_DIR}/runtime
+  STAMP_DIR                  ${KITSUNE_BINARY_DIR}/stamp
+  BINARY_DIR                 ${KITSUNE_BINARY_DIR}/runtime
+  CMAKE_ARGS                 ${KITSUNE_RUNTIME_CONFIGURE_ARGS}
+  USES_TERMINAL_CONFIGURE    TRUE
+  USES_TERMINAL_BUILD        TRUE
+  USES_TERMINAL_INSTALL      TRUE
+  BUILD_ALWAYS               TRUE
   CONFIGURE_HANDLED_BY_BUILD TRUE)
 
 add_subdirectory(configs)
@@ -711,7 +698,7 @@ endif()
 # of the base clang (or flang) executable. We have to create a copy because a
 # symlink will not work as we want. Very early in the process, the symlinks are
 # stripped away and the underlying executable is exposed to the driver. We need
-# this to not be named clang in order to determine whether we should be
+# this to *not* be named clang in order to determine whether we should be
 # compiling in "kitsune mode" (this changes the default behavior for certain
 # things such as disabling exceptions, setting the fp-contract option to a
 # different value etc. so we have to get this right). To be consistent with
@@ -750,7 +737,7 @@ add_custom_target(kitrt-copy-to-build-dir ALL
   COMMENT "Copying kitrt to the 'top-level' build directory"
   VERBATIM USES_TERMINAL
 )
-add_dependencies(kitrt-copy-to-build-dir ${KITSUNE_RUNTIME_LIBNAME})
+add_dependencies(kitrt-copy-to-build-dir ${KITSUNE_LIBNAME})
 
 # NOTE: The trailing slash after the directory to copy is required.
 install(DIRECTORY ${KITSUNE_RUNTIME_INSTALL_DIR}/

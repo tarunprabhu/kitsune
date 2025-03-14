@@ -11,10 +11,9 @@
 #ifndef KITSUNE_CONFIG_H
 #define KITSUNE_CONFIG_H
 
-#include <llvm/ADT/StringRef.h>
-
 // General configuration
-#define KITSUNE_LLD "${KITSUNE_LLD}"
+#define KITSUNE_LIBNAME "${KITSUNE_LIBNAME}"
+#define KITSUNE_LIBNAME_STATIC "${KITSUNE_LIBNAME_STATIC}"
 
 // The address space for Kitsune's mobile pointers. This is a lousy workaround
 // because there is no way to have attributed types in LLVM, but we want to be
@@ -23,13 +22,13 @@
 // the address space, clang has 22 (23 usually, but we stole a bit in Kitsune -
 // ironically, for the mobile attribute). Just in case, don't use more than
 // 16 bits for this.
-static constexpr unsigned KITSUNE_ADDRSPACE = 67;
+constexpr unsigned KITSUNE_ADDRSPACE = 67;
 static_assert(KITSUNE_ADDRSPACE <= 0xFFFF &&
               "Kitsune's address space must occupy no more than 16 bits");
 
 // When using a fixed number of threads per block, the maximum value that can be
 // specified.
-static constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
+constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // Kitsune language support that has been enabled
 #cmakedefine01 KITSUNE_C_ENABLED
@@ -74,9 +73,16 @@ static constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 #define KITSUNE_CUDA_FATBINARY "${KITSUNE_CUDA_FATBINARY}"
 #define KITSUNE_CUDA_ARCH_DEFAULT "${KITSUNE_CUDA_ARCH_DEFAULT}"
 
+#define KITSUNE_CUDA_LIBNAME_CUDA "${KITSUNE_CUDA_LIBNAME_CUDA}"
+#define KITSUNE_CUDA_LIBNAME_CUDART "${KITSUNE_CUDA_LIBNAME_CUDART}"
+#define KITSUNE_CUDA_LIBNAME_CUDART_STATIC "${KITSUNE_CUDA_LIBNAME_CUDART_STATIC}"
+
 // The name of the symbol containing the cuda device code (the fat binary)
-static constexpr llvm::StringRef KITSUNE_CUDA_FATBIN_NAME =
-    "_kitsune_fatbin_cuda";
+#define KITSUNE_CUDA_FATBIN_NAME "__kitsune_fatbin_cuda"
+
+// The name of the symbol containing the cuda device bitcode. This is what is
+// compiled to form the fat binary.
+#define KITSUNE_CUDA_FATBC_NAME "__kitsune_fatbc_cuda"
 
 // Hip configuration
 #cmakedefine01 KITSUNE_HIP_ENABLED
@@ -95,9 +101,14 @@ static constexpr llvm::StringRef KITSUNE_CUDA_FATBIN_NAME =
 #define KITSUNE_HIP_BITCODE_DIR "${KITSUNE_HIP_BITCODE_DIR}"
 #define KITSUNE_HIP_ARCH_DEFAULT "${KITSUNE_HIP_ARCH_DEFAULT}"
 
+#define KITSUNE_HIP_LIBNAME_AMDHIP "${KITSUNE_HIP_LIBNAME_AMDHIP}"
+
 // The name of the symbol containing the hip device code (the fat binary)
-static constexpr llvm::StringRef KITSUNE_HIP_FATBIN_NAME =
-    "_kitsune_fatbin_hip";
+#define KITSUNE_HIP_FATBIN_NAME "__kitsune_fatbin_hip"
+
+// The name of the symbol containing the hip device bitcode. This is what is
+// compiled to form the fat binary.
+#define KITSUNE_HIP_FATBC_NAME  "__kitsune_fatbc_hip"
 
 // Lambda configuration
 #cmakedefine01 KITSUNE_LAMBDA_ENABLED
