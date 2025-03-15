@@ -8,38 +8,12 @@
 cmake_minimum_required(VERSION 3.20)
 project(kitsune C CXX)
 
-# Setup a Kitsune frontend symlink (kitcc, kit++ etc.).
-#
-# NAME         The name of the frontend (also the name of the symlink that will
-#              be created)
-#
-# DEST         The name of the target of the symlink (it *MUST NOT* be the full
-#              path to the destination since it is assumed to be in
-#              ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} which is where the symlink will
-#              also be created)
-#
-# CMAKE_TARGET The name of the cmake target that created DEST. This is used to
-#              setup dependencies
-#
-function(setup_frontend_symlink name dest cmake_target)
-  set(symlink "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${name}")
-  add_custom_target(${name} ALL
-    COMMAND ${CMAKE_COMMAND} -E create_symlink ${dest} ${symlink}
-    COMMENT "Creating symlink ${name} to ${dest}"
-    VERBATIM USES_TERMINAL)
-  add_dependencies(${name} ${cmake_target})
-  install(FILES
-    ${symlink}
-    DESTINATION ${CMAKE_INSTALL_BINDIR})
-endfunction()
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 
 include(ExternalProject)
 include(FetchContent)
 include(GetClangResourceDir)
-
-if (WIN32)
-  message(FATAL_ERROR "Kitsune is not supported on Windows")
-endif ()
+include(KitsuneUtils)
 
 option(KITSUNE_INCLUDE_TESTS
   "Generate build targets for the Kitsune tests"
@@ -48,6 +22,30 @@ option(KITSUNE_INCLUDE_TESTS
 option(KITSUNE_KOKKOS_ENABLED
   "Enable custom recognition and compilation of Kokkos"
   ON)
+
+# FIXME: Should this be named KITRT_* since we don't have a separate kitcuda
+# library any longer?
+option(KITCUDA_ENABLE_NVTX
+  "Enable NVTX profiling within the runtime"
+  OFF)
+
+# clang has deprecated GCC_INSTALL_PREFIX and --gcc-toolchain is also likely to
+# be removed. The only way to use clang on systems where GCC is installed to a
+# non-standard directory is to pass --gcc-install-dir on the command line. On
+# HPC systems, spack packages install a config file that sets this argument so
+# the user does not have to pass this explicitly on the command line. Gentoo
+# does the same. Sometimes, we may not want to install a config file, in which
+# case, the GCC_INSTALL_DIR can be provided at configure time. This is *NOT* a
+# direct equivalent to clang's old GCC_INSTALL_DIR configure-time option. The
+# argument passed here must be exactly that which would be passed to
+# --gcc-install-dir. At runtime, if --gcc-install-dir is passed, that value will
+# override this one.
+set(KITSUNE_GCC_INSTALL_DIR "" CACHE STRING
+  "The GCC installation directory to use. This should be the path to a
+directory containing libgcc.a. This will nearly always be in the lib/
+subdirectory in GCC's install directory. For instance, if GCC was installed to
+/gcc_install, this is usually /gcc_install/lib/gcc/<triple>/<version> where
+<triple> is the target triple for the system and <version> is the GCC version")
 
 set(KITSUNE_C_FRONTEND kitcc)
 set(KITSUNE_CXX_FRONTEND kit++)
@@ -81,6 +79,19 @@ find_program(GREP grep REQUIRED)
 find_program(PATCH patch REQUIRED)
 find_program(WC wc REQUIRED)
 
+# Sanity check the value of KITSUNE_GCC_INSTALL_DIR if it was set
+if (KITSUNE_GCC_INSTALL_DIR)
+  find_library(LIBGCC gcc
+    PATHS "${KITSUNE_GCC_INSTALL_DIR}"
+    NO_DEFAULT_PATH)
+
+  if (NOT LIBGCC)
+    message(FATAL_ERROR "Could not find libgcc.a in "
+      "'${KITSUNE_GCC_INSTALL_DIR}'. Check the value of "
+      "KITSUNE_GCC_INSTALL_DIR")
+  endif ()
+endif ()
+
 # This is just the subpath to the internal directory. It will be interpreted
 # relative to some base path, typically ${CMAKE_INSTALL_PREFIX}
 get_clang_resource_dir(CLANG_RESOURCE_SUBDIR)
@@ -92,15 +103,6 @@ get_clang_resource_dir(CLANG_RESOURCE_INTDIR
 # This is the clang resource directory after installation.
 get_clang_resource_dir(CLANG_RESOURCE_INSTALL_DIR
   PREFIX ${CMAKE_INSTALL_PREFIX})
-
-# FIXME: This is WRONG! This forces lld to be picked up from the install
-# directory which can break tests if the behavior of the installed LLD and that
-# in the build directory differ. This is most likely to occur if the command
-# line options to pass Kitsune-specific options to the linker change. In the
-# tapir targets, we need to find a way to pick lld depending on the location of
-# the "driver" executable (which could be any of clang, flang, opt, or even lld
-# itself).
-set(KITSUNE_LLD ${CMAKE_INSTALL_PREFIX}/bin/ld.lld)
 
 if (KITSUNE_KOKKOS_ENABLED)
   # We currently don't support using a pre-built Kokkos - even if it has been
@@ -158,20 +160,23 @@ if (KITSUNE_KOKKOS_ENABLED)
   #
   set(patch_warning "-- SKIPPING patch: Patch may have been applied already")
   ExternalProject_Add(kokkos
-    DEPENDS             clang lld llvm-config llvm-link
-    GIT_REPOSITORY      https://github.com/kokkos/kokkos.git
-    GIT_TAG             606866d # 4.0.00
-    SOURCE_DIR          ${KITSUNE_KOKKOS_SRC_DIR}
-    BINARY_DIR          ${KITSUNE_KOKKOS_BUILD_DIR}
-    STAMP_DIR           ${KITSUNE_KOKKOS_STAMP_DIR}
-    CMAKE_ARGS          ${KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS}
-    PATCH_COMMAND       ${GIT} status --porcelain --untracked-files=no
-                        | ${WC} -l
-                        | ${GREP} -q 0
-                        && ${PATCH} -p0 --input=${KITSUNE_KOKKOS_PATCH_EXCS}
-                        || ${CMAKE_COMMAND} -E echo "${patch_warning}"
-    USES_TERMINAL_PATCH ON
-    UPDATE_DISCONNECTED ON)
+    DEPENDS                 clang lld llvm-config llvm-link
+    GIT_REPOSITORY          https://github.com/kokkos/kokkos.git
+    GIT_TAG                 606866d # 4.0.00
+    SOURCE_DIR              ${KITSUNE_KOKKOS_SRC_DIR}
+    BINARY_DIR              ${KITSUNE_KOKKOS_BUILD_DIR}
+    STAMP_DIR               ${KITSUNE_KOKKOS_STAMP_DIR}
+    CMAKE_ARGS              ${KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS}
+    PATCH_COMMAND           ${GIT} status --porcelain --untracked-files=no
+                            | ${WC} -l
+                            | ${GREP} -q 0
+                            && ${PATCH} -p0 --input=${KITSUNE_KOKKOS_PATCH_EXCS}
+                            || ${CMAKE_COMMAND} -E echo "${patch_warning}"
+    USES_TERMINAL_PATCH     TRUE
+    USES_TERMINAL_CONFIGURE TRUE
+    USES_TERMINAL_BUILD     TRUE
+    USES_TERMINAL_INSTALL   TRUE
+    UPDATE_DISCONNECTED     TRUE)
 
   # Copy the Kokkos files into a "staging" area. This is needed to run the
   # kitsune tests and also to allow kitsune to be run from the build directory
@@ -475,8 +480,7 @@ if (KITSUNE_OPENCILK_ENABLED)
     -DLLVM_LIBRARY_OUTPUT_INTDIR=${LLVM_LIBRARY_OUTPUT_INTDIR}
     -DLLVM_RUNTIME_OUTPUT_INTDIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
     -DPACKAGE_VERSION=${PACKAGE_VERSION}
-    ${KITSUNE_OPENCILK_BUILD_CONFIGURE_FLAGS}
-  )
+    ${KITSUNE_OPENCILK_BUILD_CONFIGURE_FLAGS})
 
   ExternalProject_Add(cheetah
     DEPENDS             clang lld llvm-config llvm-link
@@ -485,7 +489,7 @@ if (KITSUNE_OPENCILK_ENABLED)
     SOURCE_DIR          ${KITSUNE_CHEETAH_SOURCE_DIR}
     BINARY_DIR          ${KITSUNE_CHEETAH_BINARY_DIR}
     CMAKE_ARGS          ${KITSUNE_CHEETAH_BUILD_CMAKE_FLAGS}
-    UPDATE_DISCONNECTED ON)
+    UPDATE_DISCONNECTED TRUE)
 
   # Copy the cheetah files into a "staging" area. This allows kitsune to be
   # run from the build directory. The destination directory is set to
@@ -524,7 +528,6 @@ if (KITSUNE_OPENCILK_ENABLED)
     ""
     CACHE STRING
     "Additional linker flags needed for the OpenCilk target")
-
 endif()
 
 if (KITSUNE_OPENMP_ENABLED)
@@ -607,17 +610,21 @@ endif()
 # install directory for kitsune as specified by ${CMAKE_INSTALL_PREFIX}.
 set(KITSUNE_RUNTIME_INSTALL_DIR ${KITSUNE_BINARY_DIR}/${KITSUNE_LIBNAME})
 
-# FIXME: Instead of passing all the Kitsune variables here by hand, look for
-# for every variable starting with KITSUNE_, CLANG_ and LLVM_ and pass those
-# in. Perhaps something like what is below.
+# -----------------------------------------------------------------------------
+#
+# The CLANG_, KITSUNE_ and LLVM_ variables that are passed in when configuring
+# the runtime must be updated if any variables not already being passed are
+# used within the runtime.
+#
+# NOTE: Instead of passing all the Kitsune variables here by hand, we could look
+# for every variable starting with KITSUNE_, CLANG_ and LLVM_ and pass those in.
+# Perhaps something like what is below.
 #
 #     get_cmake_property(vars VARIABLES)
 #     list(FILTER vars INCLUDE REGEX "^KIT")
 #     list(SORT vars)
 #
-# However, this may result in a number of "unused variable" warnings (though we
-# get a number of those with those approach already). For now, we can live with
-# it.
+# However, this may result in a number of "unused variable" warnings.
 set(KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DCMAKE_VERBOSE_BUILD=ON
   -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
@@ -648,11 +655,7 @@ set(KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DKITSUNE_LIBNAME=${KITSUNE_LIBNAME}
   -DKITSUNE_LIBNAME_STATIC=${KITSUNE_LIBNAME_STATIC}
   -DKITSUNE_CUDA_ENABLED=${KITSUNE_CUDA_ENABLED}
-  -DKITSUNE_HIP_ENABLED=${KITSUNE_HIP_ENABLED}
-  -DKITSUNE_OPENCILK_ENABLED=${KITSUNE_OPENCILK_ENABLED}
-  -DKITSUNE_OPENMP_ENABLED=${KITSUNE_OPENMP_ENABLED}
-  -DKITSUNE_QTHREADS_ENABLED=${KITSUNE_QTHREADS_ENABLED}
-  -DKITSUNE_REALM_ENABLED=${KITSUNE_REALM_ENABLED})
+  -DKITSUNE_HIP_ENABLED=${KITSUNE_HIP_ENABLED})
 if (KITSUNE_CUDA_ENABLED)
   list(APPEND KITSUNE_RUNTIME_CONFIGURE_ARGS
     -DKITSUNE_CUDA_INCLUDE_DIR=${KITSUNE_CUDA_INCLUDE_DIR}
@@ -672,7 +675,9 @@ endif ()
 
 # We don't descend into the runtime subdirectory because that should only be
 # configured when the runtimes are built. All the cmake environment variables
-# that the runtime might need have to be passed through here.
+# that the runtime might need have to be passed through here. BUILD_ALWAYS must
+# be set to TRUE here, otherwise runtime/ will not be checked for changes, which
+# is not terribly helpful for Kitsune developers.
 ExternalProject_Add(${KITSUNE_LIBNAME}
   DEPENDS                    llvm-config clang LLVM
   SOURCE_DIR                 ${KITSUNE_SOURCE_DIR}/runtime
@@ -707,7 +712,7 @@ set(kitcc_main_file "${KITSUNE_C_FRONTEND}-${LLVM_VERSION_MAJOR}")
 set(kitcc_main "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${kitcc_main_file}")
 add_custom_target(kitcc-main ALL
   COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:clang> ${kitcc_main}
-  COMMENT "Creating main kitcc executable"
+  COMMENT "Creating kitcc executable"
   VERBATIM USES_TERMINAL)
 add_dependencies(kitcc-main clang)
 install(PROGRAMS
@@ -721,7 +726,7 @@ if (KITSUNE_Fortran_ENABLED)
   set(kitfc_main "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${kitfc_main_file}")
   add_custom_target(kitfc-main ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:flang-new> "${kitfc_main}"
-    COMMENT "Creating main kitfc executable"
+    COMMENT "Creating kitfc executable"
     VERBATIM USES_TERMINAL)
   add_dependencies(kitfc-main flang-new)
   install(PROGRAMS
@@ -740,6 +745,6 @@ add_custom_target(kitrt-copy-to-build-dir ALL
 add_dependencies(kitrt-copy-to-build-dir ${KITSUNE_LIBNAME})
 
 # NOTE: The trailing slash after the directory to copy is required.
-install(DIRECTORY ${KITSUNE_RUNTIME_INSTALL_DIR}/
+install(DIRECTORY ${KITSUNE_RUNTIME_INSTALL_DIR}
   DESTINATION ${CMAKE_INSTALL_PREFIX}
   USE_SOURCE_PERMISSIONS)

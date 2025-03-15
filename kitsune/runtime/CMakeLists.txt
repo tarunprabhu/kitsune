@@ -9,20 +9,24 @@ cmake_minimum_required(VERSION 3.20.0)
 
 project(kitrt C CXX)
 
-# FIXME: Should this be named KITRT_* since we don't have a separate kitcuda
-# library any longer?
-option(KITCUDA_ENABLE_NVTX "Enable NVTX profiling within the runtime" OFF)
+# -----------------------------------------------------------------------------
+#
+# This file cannot use any LLVM_* or CLANG_* or KITSUNE_* variables because this
+# project is built as an external project and does not have any access to
+# variables set in the main LLVM project. Everything needed here, including any
+# configure time options must be passed explicitly to the ExternalProject_Add
+# command in the top-level kitsune/CMakeLists.txt file in ../CMakeLists.txt.
+#
+# -----------------------------------------------------------------------------
 
 # Since this is built as an external project, we have to explicitly find
 # libLLVM. This is guaranteed to have been built, but we need to be careful that
-# we don't pick up anything from the system. ${LLVM_LIBRARY_OUTPUT_INTDIR} will
-# have been passed in by cmake.
+# we don't pick up anything from the system.
 #
 # NOTE: We have removed the dependence on libLLVM for now, but we keep this
 # here for now. There is a lot of unused code in the runtime, most of which
 # should probably be deleted but is still kept around in case we decide to
 # resurrect something. If we do, some of it might require libLLVM.
-#
 find_library(LIB_LLVM
   NAMES LLVM
   LLVM-${LLVM_VERSION_MAJOR}
@@ -70,8 +74,7 @@ if (KITSUNE_CUDA_ENABLED)
     cuda/streams.cpp)
 
   # FIXME: The only use of KITRT_CUDA_ENABLED seem to be some runtime
-  # initialization code that is probably obsolete. The runtime is probably due
-  # for some drastic cleanup.
+  # initialization code that is probably obsolete.
   target_compile_definitions(${KITSUNE_OBJLIB} PUBLIC
     KITRT_CUDA_ENABLED)
 
@@ -120,12 +123,13 @@ if (KITSUNE_HIP_ENABLED)
 
   target_compile_definitions(${KITSUNE_OBJLIB} PUBLIC
     # FIXME: The only use of KITRT_HIP_ENABLED seem to be some runtime
-    # initialization code that is probably obsolete. The runtime is due for some
-    # drastic cleanup.
+    # initialization code that is probably obsolete.
     KITRT_HIP_ENABLED
 
     # FIXME: It looks like __HIP_PLATFORM_AMD__ is defined in the kitsune
-    # runtime headers for hip. This is probably unnecessary.
+    # runtime headers for hip. This is probably unnecessary. Alternatively, we
+    # could remove it from those headers and only include it here if is required
+    # to be defined before any hip headers are included.
     __HIP_PLATFORM_AMD__)
 
   target_include_directories(${KITSUNE_OBJLIB} PUBLIC
@@ -138,7 +142,7 @@ if (KITSUNE_HIP_ENABLED)
     ${KITSUNE_HIP_LIB_AMDHIP64})
 endif()
 
-# Create the static library, libkitrt_static.a
+# Create the static library
 add_library(${KITSUNE_LIBNAME_STATIC} STATIC
   $<TARGET_OBJECTS:${KITSUNE_OBJLIB}>)
 
@@ -146,7 +150,7 @@ set_target_properties(${KITSUNE_LIBNAME_STATIC} PROPERTIES
   ARCHIVE_OUTPUT_DIRECTORY ${CLANG_RESOURCE_INTDIR}/lib
   LINK_LIBRARIES $<LINK_LIBRARY:${KITSUNE_OBJLIB}>)
 
-# Create the shared library libkitrt.so
+# Create the shared library
 add_library(${KITSUNE_LIBNAME} SHARED
   $<TARGET_OBJECTS:${KITSUNE_OBJLIB}>)
 
@@ -159,12 +163,19 @@ set_target_properties(${KITSUNE_LIBNAME} PROPERTIES
 #     <prefix>/lib/clang/${LLVM_VERSION_MAJOR}/lib
 #
 # where <prefix> is either the build or the install prefix. Right now, there is
-# no dependence on libLLVM.so, but in case we have to add an rpath to the
-# top-level lib directory, i.e. <prefix>/lib.
-#
+# no dependence on libLLVM.so, but in case that is needed in the future, add an
+# rpath to the top-level lib directory, i.e. <prefix>/lib. This should be safe
+# in all cases.
 set_property(TARGET ${KITSUNE_LIBNAME} APPEND
   PROPERTY BUILD_RPATH "$ORIGIN/../../../"
   PROPERTY INSTALL_RPATH "$ORIGIN/../../../")
 
+# Install the libraries into a subdirectory of CMAKE_INSTALL_PREFIX. This
+# subdirectory reflects the subdirectory of the top-level LLVM's install prefix
+# into which the libraries will eventually be installed. This makes it easy to
+# copy these into the corresponding build directory root which allows us to
+# run everything from the build directory. The top-level CMakeLists.txt for
+# Kitsune will ensure that everything is installed to the correct subdirectory
+# of LLVM's install prefix.
 install(TARGETS ${KITSUNE_LIBNAME} ${KITSUNE_LIBNAME_STATIC}
   DESTINATION ${CLANG_RESOURCE_SUBDIR}/lib)

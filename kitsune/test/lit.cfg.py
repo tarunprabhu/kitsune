@@ -91,6 +91,7 @@ config.substitutions.append(("%host_cxx", config.host_cxx))
 config.substitutions.append(("%kitcc", config.kitcc))
 config.substitutions.append(("%kitxx", config.kitxx))
 config.substitutions.append(("%kitfc", config.kitfc))
+config.substitutions.append(("%kitsune_gcc_install_dir", config.kitsune_gcc_install_dir))
 
 # Features
 def calculate_arch_features(arch_string):
@@ -115,6 +116,9 @@ if config.kitsune_cxx_enabled:
 
 if config.kitsune_fortran_enabled:
     config.available_features.add("kitfc")
+
+if config.kitsune_gcc_install_dir:
+    config.available_features.add("kitsune-gcc-install-dir")
 
 # If these features are not enabled, create a corresponding no-<FEATURE>. This
 # is needed to run tests that check the frontends handle the case where

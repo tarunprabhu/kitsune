@@ -15,6 +15,11 @@
 #define KITSUNE_LIBNAME "${KITSUNE_LIBNAME}"
 #define KITSUNE_LIBNAME_STATIC "${KITSUNE_LIBNAME_STATIC}"
 
+// The default GCC installation directory to use. If this is non-null, Kitsune
+// will not scan for a GCC installation. This value can be overridden by passing
+// --gcc-install-dir on the command line
+#define KITSUNE_GCC_INSTALL_DIR "${KITSUNE_GCC_INSTALL_DIR}"
+
 // The address space for Kitsune's mobile pointers. This is a lousy workaround
 // because there is no way to have attributed types in LLVM, but we want to be
 // able to identify pointers to data that may be moved between host and device

@@ -19,6 +19,7 @@ config.host_cxx = "@CMAKE_CXX_COMPILER@"
 config.host_arch = "@HOST_ARCH@"
 config.python_executable = "@Python3_EXECUTABLE@"
 config.llvm_external_lit = path(r"@LLVM_EXTERNAL_LIT@")
+config.kitsune_gcc_install_dir = path(r"@KITSUNE_GCC_INSTALL_DIR@")
 config.kitsune_c_enabled = @KITSUNE_C_ENABLED@
 config.kitsune_cxx_enabled = @KITSUNE_CXX_ENABLED@
 config.kitsune_fortran_enabled = @KITSUNE_Fortran_ENABLED@

@@ -17,6 +17,7 @@
 #include "Arch/SystemZ.h"
 #include "CommonArgs.h"
 #include "Linux.h"
+#include "kitsune/Config/config.h" // for KITSUNE_GCC_INSTALL_PREFIX
 #include "clang/Config/config.h" // for GCC_INSTALL_PREFIX
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
@@ -2208,6 +2209,37 @@ void Generic_GCC::GCCInstallationDetector::init(
           Args.getLastArg(clang::driver::options::OPT_gcc_install_dir_EQ);
       A && A->getValue()[0]) {
     StringRef InstallDir = A->getValue();
+    if (!ScanGCCForMultilibs(TargetTriple, Args, InstallDir, false)) {
+      D.Diag(diag::err_drv_invalid_gcc_install_dir) << InstallDir;
+    } else {
+      (void)InstallDir.consume_back("/");
+      StringRef VersionText = llvm::sys::path::filename(InstallDir);
+      StringRef TripleText =
+          llvm::sys::path::filename(llvm::sys::path::parent_path(InstallDir));
+
+      Version = GCCVersion::Parse(VersionText);
+      GCCTriple.setTriple(TripleText);
+      GCCInstallPath = std::string(InstallDir);
+      GCCParentLibPath = GCCInstallPath + "/../../..";
+      IsValid = true;
+    }
+    return;
+  }
+
+  // Since clang will eventually remove GCC_INSTALL_PREFIX, we want to allow
+  // setting GCC_INSTALL_DIR at compile-time. This is mainly needed on HPC
+  // systems which have antique GCC's installed on the system path. On most of
+  // these systems, a config file is installed with clang which adds
+  // --gcc-install-dir to the command line. We still allow that, but it is
+  // sometimes more convenient for development to set this at configure time
+  // and obviate the need for a configuration file. Doing this here ensures that
+  // --gcc-install-dir passed on the command line can be used to override the
+  // configure time value.
+  //
+  // WARNING: This is not ideal because it duplicates the handling of
+  // --gcc-install-dir, but hopefully that doesn't change too often.
+  if (KITSUNE_GCC_INSTALL_DIR[0]) {
+    StringRef InstallDir = KITSUNE_GCC_INSTALL_DIR;
     if (!ScanGCCForMultilibs(TargetTriple, Args, InstallDir, false)) {
       D.Diag(diag::err_drv_invalid_gcc_install_dir) << InstallDir;
     } else {

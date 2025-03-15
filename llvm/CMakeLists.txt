@@ -238,7 +238,16 @@ if (NOT "libc" IN_LIST LLVM_ENABLE_PROJECTS AND LLVM_LIBC_GPU_BUILD)
 endif()
 
 # ----------------------- KITSUNE SPECIFIC CONFIGURATION -----------------------
-#
+
+# Kitsune and the runtimes associated with some of its tapir targets are either
+# known to not support certain platforms. Kitsune itself is only tested on a
+# limited number of systems. We error out early on those that we know for
+# certain are not supported. We may want to provide a different error message
+# for systems on which Kitsune might work but that we have not tested.
+if (WIN32)
+  message(FATAL_ERROR "Kitsune is not supported on Windows")
+endif ()
+
 # Make sure kitsune, and everything it needs is always enabled. We could just
 # set the default for LLVM_ENABLE_PROJECTS to include these projects, but we
 # want to make as few changes in this file as possible. Besides, that list is
@@ -253,7 +262,6 @@ endif()
 # would like, so we don't use it to build Kitsune's runtime. I should probably
 # have written down what it was about the runtime mechanism that was not
 # suitable, because now, I can't remember.
-#
 if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
     NOT "kitsune" IN_LIST LLVM_ENABLE_PROJECTS)
   list(APPEND LLVM_ENABLE_PROJECTS "kitsune")
@@ -337,7 +345,6 @@ endforeach()
 #
 # The Kokkos option does not need to be moved here (for now) because that only
 # affects clang. And we have ensured that kitsune is configured before clang.
-#
 set(KITSUNE_CUDA_ENABLED OFF CACHE INTERNAL "Enable 'cuda' tapir target" FORCE)
 set(KITSUNE_HIP_ENABLED OFF CACHE INTERNAL "Enable 'hip' tapir target" FORCE)
 set(KITSUNE_LAMBDA_ENABLED OFF CACHE INTERNAL "Enable 'lambda' tapir target" FORCE)
@@ -353,7 +360,6 @@ set(KITSUNE_REALM_ENABLED OFF CACHE INTERNAL "Enable 'realm' tapir target" FORCE
 #
 # The lambda and omptask tapir targets were added in LLVM, but don't have any
 # frontend support yet, so don't include those either.
-#
 set(KITSUNE_ALL_TAPIR_TARGETS
   "cuda;hip;opencilk"
   CACHE INTERNAL

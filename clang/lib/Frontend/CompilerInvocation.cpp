@@ -4758,8 +4758,8 @@ bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
                                           const KitsuneOptions &KitsuneOpts,
                                           const LangOptions &LangOpts,
                                           DiagnosticsEngine &Diags) {
-  std::optional<llvm::TapirTargetID> tt = KitsuneOpts.getTapirTarget();
-  if (not tt)
+  std::optional<llvm::TapirTargetID> TT = KitsuneOpts.getTapirTarget();
+  if (not TT)
     return true;
 
   unsigned NumErrorsBefore = Diags.getNumErrors();
@@ -4781,7 +4781,7 @@ bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
     Diags.Report(clang::diag::err_drv_kitsune_opencl);
 
   // The OpenCilk tapir target requires a bitcode file.
-  if (*tt == llvm::TapirTargetID::OpenCilk) {
+  if (*TT == llvm::TapirTargetID::OpenCilk) {
     if (!KitsuneOpts.getOpenCilkABIBitcodeFile())
       Diags.Report(diag::err_drv_opencilk_missing_abi_bitcode);
   }
@@ -5155,23 +5155,6 @@ bool CompilerInvocation::CreateFromArgsImpl(
                 Diags);
   if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)
     LangOpts.ObjCExceptions = 1;
-
-  // --------------------------- POST MERGE MESS ------------------------------
-  // KITSUNE FIXME:
-  // This is from Pat's code that created a merge conflict. We do the same thing
-  // in a different way, but I believe that has not been tested yet, Keep this
-  // this code here to get past the merge conflict, but we almost certainly want
-  // to remove this and do the same thing but differently.
-#if 0
-  if (LangOpts.KitsuneOpts.isKitsuneEnabled()) {
-    std::optional<llvm::TapirTargetID> TT = LangOpts.KitsuneOpts.getTapirTarget();
-    if (TT == llvm::TapirTargetID::Hip) {
-      llvm::errs() << "set fast honor pragmas for fp contract.\n";
-      LangOpts.setDefaultFPContractMode(LangOptions::FPM_FastHonorPragmas);
-    }
-  }
-#endif // KITSUNE FIXME
-  // --------------------------- POST MERGE MESS ------------------------------
 
   for (auto Warning : Res.getDiagnosticOpts().Warnings) {
     if (Warning == "misexpect" &&
