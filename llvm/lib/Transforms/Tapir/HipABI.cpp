@@ -2015,6 +2015,10 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
   IRBuilder<> CtorBuilder(CtorEntryBB);
   const DataLayout &DL = M.getDataLayout();
 
+  FunctionCallee KitRTInitFn =
+      M.getOrInsertFunction("__kithip_initialize", VoidTy);
+  CtorBuilder.CreateCall(KitRTInitFn, {});
+
   if (EnableXnack) {
     LLVM_DEBUG(dbgs() << "\t\tenable xnack via ctor runtime call.\n");
     FunctionCallee KitRTEnableXnackFn =
@@ -2059,10 +2063,6 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
         M.getOrInsertFunction("__kitrt_enable_verbose_mode", VoidTy);
     CtorBuilder.CreateCall(KitRTVerboseModefn, {});
   }
-
-  FunctionCallee KitRTInitFn =
-      M.getOrInsertFunction("__kithip_initialize", VoidTy);
-  CtorBuilder.CreateCall(KitRTInitFn, {});
 
   // TODO: It is still somewhat unclear if we actually need to register fat
   // binaries given we take a different path with codegen here than the more

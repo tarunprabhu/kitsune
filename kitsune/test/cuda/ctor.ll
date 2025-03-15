@@ -9,10 +9,10 @@
 ;
 ; DEFAULT: @llvm.global_ctors = appending {{.+}}, ptr @kitcu.ctor{{[^ ]+}},
 ; DEFAULT: define {{.+}} @kitcu.ctor{{.*}}
+; DEFAULT: call {{.+}}__kitcuda_initialize()
 ; DEFAULT-NOT: call {{.+}}__kitcuda_set_default_threads_per_blk
 ; DEFAULT: call {{.+}}__kitcuda_set_max_threads_per_blk(i32 1024)
 ; DEFAULT-NOT: call {{.+}}__kitrt_enable_verbose_mode()
-; DEFAULT-DAG: call {{.+}}__kitcuda_initialize()
 ; DEFAULT-DAG: call {{.+}}__kitcuda_enable_launch_refinement(i8 1)
 ; DEFAULT-DAG: call {{.+}}__cudaRegisterFatBinary
 ; DEFAULT: call {{.+}}__cudaRegisterFatBinaryEnd

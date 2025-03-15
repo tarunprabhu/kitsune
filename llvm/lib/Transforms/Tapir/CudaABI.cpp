@@ -1600,6 +1600,10 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary,
   unsigned DefaultThreadsPerBlock = getOptions().getFixedThreadsPerBlock();
   unsigned MaxThreadsPerBlock = getOptions().getMaxThreadsPerBlock();
 
+  FunctionCallee KitCudaInitFn =
+      M.getOrInsertFunction("__kitcuda_initialize", VoidTy);
+  CtorBuilder.CreateCall(KitCudaInitFn, {});
+
   if (DefaultThreadsPerBlock) {
     FunctionCallee KitRTSetDefaultThreadsPerBlockFn = M.getOrInsertFunction(
         "__kitcuda_set_default_threads_per_blk", VoidTy, IntTy);
@@ -1626,10 +1630,6 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary,
         M.getOrInsertFunction("__kitrt_enable_verbose_mode", VoidTy);
     CtorBuilder.CreateCall(KitRTVerboseModefn, {});
   }
-
-  FunctionCallee KitCudaInitFn =
-      M.getOrInsertFunction("__kitcuda_initialize", VoidTy);
-  CtorBuilder.CreateCall(KitCudaInitFn, {});
 
   FunctionCallee KitCudaLaunchRefinementFn = M.getOrInsertFunction(
       "__kitcuda_enable_launch_refinement", VoidTy, BoolTy);

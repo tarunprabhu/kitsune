@@ -9,10 +9,10 @@
 ;
 ; DEFAULT: @llvm.global_ctors = appending {{.+}}, ptr @kithip.ctor{{[^ ]+}},
 ; DEFAULT: define {{.+}} @kithip.ctor{{.*}}
+; DEFAULT: call {{.+}}__kithip_initialize()
 ; DEFAULT-NOT: call {{.+}}__kithip_set_threads_per_blk
 ; DEFAULT: call {{.+}}__kithip_set_max_threads_per_blk(i32 1024)
 ; DEFAULT-NOT: call {{.+}}__kitrt_enable_verbose_mode()
-; DEFAULT-DAG: call {{.+}}__kithip_initialize()
 ; DEFAULT-DAG: call {{.+}}__hipRegisterFatBinary
 ; DEFAULT: call {{.+}}atexit(ptr nonnull @kithip.dtor{{[^ ]*}})
 ; DEFAULT: }
