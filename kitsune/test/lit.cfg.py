@@ -1,5 +1,3 @@
-# -*- Python -*-
-
 import os
 import platform
 import re
@@ -12,18 +10,19 @@ from lit.llvm import llvm_config
 from lit.llvm.subst import ToolSubst
 from lit.llvm.subst import FindTool
 
-# Configuration file for the 'lit' test runner.
-
 # name: The name of this test suite.
 config.name = "Kitsune"
 
-# testFormat: The test format to use to interpret tests.
+# The test format to use to interpret tests. The comment below was copied
+# verbatim from clang's configuration. I have no idea what it means.
 #
 # For now we require '&&' between commands, until they get globally killed and
 # the test runner updated.
 config.test_format = lit.formats.ShTest(not llvm_config.use_lit_shell)
 
-# suffixes: A list of file extensions to treat as test files.
+# A list of file extensions to treat as test files. We could probably reduce
+# this list somewhat and spread it out among the lit.local files since some of
+# these are only used in certain subdirectories.
 config.suffixes = [
     ".c",
     ".cpp",
@@ -43,7 +42,9 @@ config.suffixes = [
     ".rc",
 ]
 
-# Exclude some files and directories.
+# Exclude some files and directories. The top-level test/ directory has a
+# CMakeLists.txt file which is needed. It looks like the README.md files are
+# automatically ignored.
 config.excludes = [
     "CMakeLists.txt"
 ]
@@ -91,15 +92,21 @@ config.substitutions.append(("%host_cxx", config.host_cxx))
 config.substitutions.append(("%kitcc", config.kitcc))
 config.substitutions.append(("%kitxx", config.kitxx))
 config.substitutions.append(("%kitfc", config.kitfc))
-config.substitutions.append(("%kitsune_gcc_install_dir", config.kitsune_gcc_install_dir))
+config.substitutions.append(("%kitconf", config.kitconf))
+config.substitutions.append(("%kitsune_gcc_install_dir",
+                             config.kitsune_gcc_install_dir))
 
-# Features
+# Features. We need the registered target features because some runtimes used by
+# the tapir targets will only run on certain architectures, so we need to
+# conditionally enable those tests.
 def calculate_arch_features(arch_string):
     features = []
     for arch in arch_string.split():
         features.append(arch.lower() + "-registered-target")
     return features
 
+# This was copied from clang's lit.cfg.py, I think. I have no idea what this is
+# doing.
 llvm_config.feature_config([
     ("--assertion-mode", {
         "ON": "asserts"
@@ -108,21 +115,17 @@ llvm_config.feature_config([
     }), ("--targets-built", calculate_arch_features),
 ])
 
-if config.kitsune_c_enabled:
-    config.available_features.add("kitcc")
-
-if config.kitsune_cxx_enabled:
-    config.available_features.add("kitxx")
-
-if config.kitsune_fortran_enabled:
-    config.available_features.add("kitfc")
-
 if config.kitsune_gcc_install_dir:
     config.available_features.add("kitsune-gcc-install-dir")
 
+if config.kitsune_fortran_enabled:
+    config.available_features.add("kitfc")
+else:
+    config.available_features.add("kitsune-no-kitfc")
+
 # If these features are not enabled, create a corresponding no-<FEATURE>. This
 # is needed to run tests that check the frontends handle the case where
-# -ftapir=<TARGET> is given but TARGET has not been enabled in the build.
+# --tapir=<TARGET> is given but TARGET has not been enabled in the build.
 if config.kitsune_kokkos_enabled:
     config.available_features.add("kitsune-kokkos")
 else:

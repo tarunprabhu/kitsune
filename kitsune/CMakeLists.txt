@@ -47,10 +47,6 @@ subdirectory in GCC's install directory. For instance, if GCC was installed to
 /gcc_install, this is usually /gcc_install/lib/gcc/<triple>/<version> where
 <triple> is the target triple for the system and <version> is the GCC version")
 
-set(KITSUNE_C_FRONTEND kitcc)
-set(KITSUNE_CXX_FRONTEND kit++)
-set(KITSUNE_Fortran_FRONTEND kitfc)
-
 # The name of Kitsune's main runtime library. This is created here because it is
 # also used by the tests to ensure that check-kitsune does not run before the
 # runtime has been built.
@@ -398,6 +394,7 @@ if (KITSUNE_HIP_ENABLED)
 endif()
 
 if (KITSUNE_LAMBDA_ENABLED)
+  message(FATAL_ERROR "NOT YET IMPLEMENTED: 'lambda' tapir target")
   message(STATUS "Kitsune: Lambda target enabled")
 
   message(WARNING "Lambda tapir target is experimental. Expect build failures
@@ -420,6 +417,7 @@ and other problems")
 endif ()
 
 if (KITSUNE_OMPTASK_ENABLED)
+  message(FATAL_ERROR "NOT YET IMPLEMENTED: 'omptask' tapir target")
   message(STATUS "Kitsune: OMPTask target enabled")
 
   message(WARNING "OMPTask tapir target is experimental. Expect build failures
@@ -451,13 +449,13 @@ if (KITSUNE_OPENCILK_ENABLED)
   # mismatched.
   set(KITSUNE_OPENCILK_BUILD_CONFIGURE_FLAGS ""
     CACHE STRING
-    "Additional options to be passed to be CMake when configuring Cheetah
-    (the OpenCilk runtime). These are only used when building Kitsune")
+    "Additional options to be passed to CMake when configuring Cheetah (the
+    OpenCilk runtime). These are only used when building Kitsune")
 
   set(KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS ""
     CACHE STRING
-    "Additional C++ compiler flags needed to build Cheetah (the OpenCilk
-    runtime). These are only used when building Kitsune")
+    "Additional compiler flags needed to build Cheetah (the OpenCilk runtime).
+    These are only used when building Kitsune")
 
   # We pass some LLVM_* variables to make Cheetah behave as if it were an
   # in-tree build.
@@ -531,6 +529,7 @@ if (KITSUNE_OPENCILK_ENABLED)
 endif()
 
 if (KITSUNE_OPENMP_ENABLED)
+  message(FATAL_ERROR "NOT YET IMPLEMENTED: 'openmp' tapir target")
   message(STATUS "Kitsune: OpenMP target enabled")
 
   # FIXME: Unconditionally fail so that when (if) the openmp tapir target is
@@ -554,6 +553,7 @@ if (KITSUNE_OPENMP_ENABLED)
 endif()
 
 if (KITSUNE_QTHREADS_ENABLED)
+  message(FATAL_ERROR "NOT YET IMPLEMENTED: 'qthreads' tapir target")
   message(STATUS "Kitsune: Qthreads target enabled")
 
   # FIXME: Do find_package or ExternalProject_add or something else here for
@@ -579,6 +579,7 @@ if (KITSUNE_QTHREADS_ENABLED)
 endif()
 
 if (KITSUNE_REALM_ENABLED)
+  message(FATAL_ERROR "NOT YET IMPLEMENTED: 'realm' tapir target")
   message(STATUS "Kitsune: Realm target enabled")
 
   # FIXME: Do find_package or ExternalProject_add or something else here for

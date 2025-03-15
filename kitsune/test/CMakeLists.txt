@@ -40,7 +40,8 @@ set(KITSUNE_TEST_PARAMS
 )
 
 list(APPEND KITSUNE_TEST_DEPS
-  ${KITSUNE_RUNTIME_LIBNAME}
+  ${KITSUNE_LIBNAME}
+  kit-config
   kitsune-resource-headers
   clang
   llvm-config

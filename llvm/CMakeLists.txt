@@ -26,19 +26,6 @@ if (NOT PACKAGE_VERSION)
     "${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX}")
 endif()
 
-if(NOT DEFINED KITSUNE_VERSION_MAJOR)
-  set(KITSUNE_VERSION_MAJOR 0)
-endif()
-if(NOT DEFINED KITSUNE_VERSION_MINOR)
-  set(KITSUNE_VERSION_MINOR 19)
-endif()
-if(NOT DEFINED KITSUNE_VERSION_PATCH)
-  set(KITSUNE_VERSION_PATCH 0)
-endif()
-if(NOT DEFINED KITSUNE_VERSION_SUFFIX)
-  set(KITSUNE_VERSION_SUFFIX)
-endif()
-
 if(NOT DEFINED TAPIR_VERSION_MAJOR)
   set(TAPIR_VERSION_MAJOR 1)
 endif()
@@ -47,11 +34,6 @@ if(NOT DEFINED TAPIR_VERSION_MINOR)
 endif()
 if(NOT DEFINED TAPIR_VERSION_PATCH)
   set(TAPIR_VERSION_PATCH 0)
-endif()
-
-if (NOT KITSUNE_PACKAGE_VERSION)
-  set(KITSUNE_PACKAGE_VERSION
-    "${KITSUNE_VERSION_MAJOR}.${KITSUNE_VERSION_MINOR}.${KITSUNE_VERSION_PATCH}${KITSUNE_VERSION_SUFFIX}")
 endif()
 
 if(NOT DEFINED LLVM_SHLIB_SYMBOL_VERSION)
@@ -248,6 +230,33 @@ if (WIN32)
   message(FATAL_ERROR "Kitsune is not supported on Windows")
 endif ()
 
+# For now, the kitsune version tracks the LLVM version, except that the major
+# version of Kitsune is 0 and the minor version is the same as LLVM's major
+# version. We use LLVM's version suffix which we will probably continue doing
+# even if we ever reach version 1.0 for Kitsune.
+if(NOT DEFINED KITSUNE_VERSION_MAJOR)
+  set(KITSUNE_VERSION_MAJOR 0)
+endif()
+if(NOT DEFINED KITSUNE_VERSION_MINOR)
+  set(KITSUNE_VERSION_MINOR ${LLVM_VERSION_MAJOR})
+endif()
+if(NOT DEFINED KITSUNE_VERSION_PATCH)
+  set(KITSUNE_VERSION_PATCH 0)
+endif()
+if(NOT DEFINED KITSUNE_VERSION_SUFFIX)
+  set(KITSUNE_VERSION_SUFFIX ${LLVM_VERSION_SUFFIX})
+endif()
+
+if (NOT KITSUNE_PACKAGE_VERSION)
+  set(KITSUNE_PACKAGE_VERSION
+    "${KITSUNE_VERSION_MAJOR}.${KITSUNE_VERSION_MINOR}.${KITSUNE_VERSION_PATCH}${KITSUNE_VERSION_SUFFIX}")
+endif()
+
+# Names of the kitsune frontends.
+set(KITSUNE_C_FRONTEND kitcc)
+set(KITSUNE_CXX_FRONTEND kit++)
+set(KITSUNE_Fortran_FRONTEND kitfc)
+
 # Make sure kitsune, and everything it needs is always enabled. We could just
 # set the default for LLVM_ENABLE_PROJECTS to include these projects, but we
 # want to make as few changes in this file as possible. Besides, that list is
@@ -287,14 +296,21 @@ endif ()
 # build Kitsune's runtime. Disabling them is not allowed and will result in a
 # fatal error. Working around this constraint is not recommended since most of
 # the core tests assume that these frontends are enabled.
-set(KITSUNE_C_ENABLED ON CACHE INTERNAL "Enable 'kitcc' frontend" FORCE)
-set(KITSUNE_CXX_ENABLED ON CACHE INTERNAL "Enable 'kit++' frontend" FORCE)
-set(KITSUNE_Fortran_ENABLED OFF CACHE INTERNAL "Enable 'kitfc' frontend" FORCE)
+set(KITSUNE_C_ENABLED ON CACHE INTERNAL
+  "Enable '${KITSUNE_C_FRONTEND}' frontend" FORCE)
+set(KITSUNE_CXX_ENABLED ON CACHE INTERNAL
+  "Enable '${KITSUNE_CXX_FRONTEND}' frontend" FORCE)
+set(KITSUNE_Fortran_ENABLED OFF CACHE INTERNAL
+  "Enable '${KITSUNE_Fortran_FRONTEND}' frontend" FORCE)
 
 set(KITSUNE_ALL_LANGS
   "c;cxx;fortran"
   CACHE INTERNAL
   "All languages for which Kitsune has a frontend" FORCE)
+
+# This will be used by the kit-config utility primarily. It must be updated when
+# support for a new language is added.
+set(KITSUNE_ALL_LANGS_STR "C C++ Fortran")
 
 set(KITSUNE_DEFAULT_LANGS
   "c;cxx"
@@ -309,16 +325,20 @@ if (NOT "c" IN_LIST KITSUNE_ENABLED_LANGS OR
   message(FATAL_ERROR "The C and C++ frontends must be enabled")
 endif ()
 
+set(KITSUNE_ENABLED_LANGS_STR)
 foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
   string(TOLOWER "${l}" lang)
+  message(STATUS "lang: ${lang}")
   # clang is required by the C and C++ frontends. But that is guaranteed to be
   # built because the runtime requires it.
   if (lang STREQUAL "c")
     message(STATUS "'kitcc' frontend is enabled")
     set(KITSUNE_C_ENABLED ON CACHE INTERNAL "Enable 'kitcc' frontend" FORCE)
+    list(APPEND KITSUNE_ENABLED_LANGS_STR "C")
   elseif (lang STREQUAL "cxx")
     message(STATUS "'kit++' frontend is enabled")
     set(KITSUNE_CXX_ENABLED ON CACHE INTERNAL "Enable 'kit++' frontend" FORCE)
+    list(APPEND KITSUNE_ENABLED_LANGS_STR "C++")
   elseif (lang STREQUAL "fortran")
     message(STATUS "'kitfc' frontend is enabled")
     set(KITSUNE_Fortran_ENABLED ON CACHE INTERNAL "Enable 'kitfc' frontend" FORCE)
@@ -332,10 +352,12 @@ foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
       list(APPEND LLVM_ENABLE_PROJECTS "mlir")
       message(STATUS "enable mlir project")
     endif ()
+    list(APPEND KITSUNE_ENABLED_LANGS_STR "Fortran")
   else ()
     message(FATAL_ERROR "Unknown language '${l}'")
   endif ()
 endforeach()
+list(JOIN KITSUNE_ENABLED_LANGS_STR " " KITSUNE_ENABLED_LANGS_STR)
 
 # Ideally, this should be left in kitsune/CMakeLists.txt, but we need these to
 # conditionally compile the tapir targets that are enabled. The kitsune/
@@ -353,15 +375,10 @@ set(KITSUNE_OPENCILK_ENABLED OFF CACHE INTERNAL "Enable 'opencilk' tapir target"
 set(KITSUNE_OPENMP_ENABLED OFF CACHE INTERNAL "Enable 'openmp' tapir target" FORCE)
 set(KITSUNE_QTHREADS_ENABLED OFF CACHE INTERNAL "Enable 'qthreads' tapir target" FORCE)
 set(KITSUNE_REALM_ENABLED OFF CACHE INTERNAL "Enable 'realm' tapir target" FORCE)
+set(KITSUNE_SERIAL_ENABLED ON CACHE INTERNAL "Enable 'serial' tapir target" FORCE)
 
-# TODO: Need to update the openmp, qthreads and realm targets and add them
-# back into this list. These targets have not been tested in a while and have
-# probably bit-rotted. Enabling them will raise a configure-time error.
-#
-# The lambda and omptask tapir targets were added in LLVM, but don't have any
-# frontend support yet, so don't include those either.
 set(KITSUNE_ALL_TAPIR_TARGETS
-  "cuda;hip;opencilk"
+  "cuda;hip;lambda;omptask;opencilk;openmp;qthreads;realm;serial"
   CACHE INTERNAL
   "All known Tapir targets" FORCE)
 
@@ -380,28 +397,29 @@ if (NOT KITSUNE_ENABLED_TAPIR_TARGETS)
   message(FATAL_ERROR "At least one tapir target must be built")
 endif ()
 
-# The serial Tapir target is always enabled.
-set(KITSUNE_TAPIR_TARGETS_STR "serial")
+# Always build the serial tapir target
+if (NOT "serial" IN_LIST KITSUNE_ENABLED_TAPIR_TARGETS)
+  list(APPEND KITSUNE_ENABLED_TAPIR_TARGETS "serial")
+endif ()
+
+set(KITSUNE_ENABLED_TAPIR_TARGETS_STR)
 foreach(target IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
   if (target IN_LIST KITSUNE_ALL_TAPIR_TARGETS)
     message(STATUS "'${target}' tapir target is enabled")
     string(TOUPPER "${target}" upper)
-    set(KITSUNE_${upper}_ENABLED ON CACHE INTERNAL "Enable '${target}' tapir target" FORCE)
-    string(TOLOWER "${target}" lower)
-    set(KITSUNE_TAPIR_TARGETS_STR "${KITSUNE_TAPIR_TARGETS_STR} ${lower}")
+    set(KITSUNE_${upper}_ENABLED ON CACHE INTERNAL
+      "Enable '${target}' tapir target" FORCE)
+    list(APPEND KITSUNE_ENABLED_TAPIR_TARGETS_STR "${target}")
   else ()
     message(FATAL_ERROR "Unknown Tapir target: ${target}")
   endif ()
 endforeach ()
-string(STRIP "${KITSUNE_TAPIR_TARGETS_STR}" KITSUNE_ENABLED_TAPIR_TARGETS_STR)
+list(SORT KITSUNE_ENABLED_TAPIR_TARGETS_STR)
+list(JOIN KITSUNE_ENABLED_TAPIR_TARGETS_STR " " KITSUNE_ENABLED_TAPIR_TARGETS_STR)
 
-# The serial target is never exposed because it is always built. This is
-# intentional. The kit-config utility needs to report it in the list of all
-# tapir targets, so only add it to the list that will eventually be stringified
-# for use in that utility.
-list(APPEND KITSUNE_ALL_TAPIR_TARGETS "serial")
-list(SORT KITSUNE_ALL_TAPIR_TARGETS)
-string(REPLACE ";" " " KITSUNE_ALL_TAPIR_TARGETS_STR "${KITSUNE_ALL_TAPIR_TARGETS}")
+set(KITSUNE_ALL_TAPIR_TARGETS_STR "${KITSUNE_ALL_TAPIR_TARGETS}")
+list(SORT KITSUNE_ALL_TAPIR_TARGETS_STR)
+list(JOIN KITSUNE_ALL_TAPIR_TARGETS_STR " " KITSUNE_ALL_TAPIR_TARGETS_STR)
 
 # The GPU tapir targets require the corresponding backend to be built.
 if (KITSUNE_CUDA_ENABLED AND
@@ -410,6 +428,7 @@ if (KITSUNE_CUDA_ENABLED AND
   list(APPEND LLVM_TARGETS_TO_BUILD "NVPTX")
   message(STATUS "enable NVPTX target")
 endif ()
+
 if (KITSUNE_HIP_ENABLED AND
     NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
     NOT "AMDGPU" IN_LIST LLVM_TARGETS_TO_BUILD)

@@ -34,7 +34,8 @@ add_custom_target("kitsune-resource-headers" ALL DEPENDS ${out_files})
 # will pick it up.
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/Config/config.h.cmake
-  ${CMAKE_BINARY_DIR}/include/kitsune/Config/config.h)
+  ${CMAKE_BINARY_DIR}/include/kitsune/Config/config.h
+  @ONLY)
 
 install(DIRECTORY
   ${CMAKE_BINARY_DIR}/include/

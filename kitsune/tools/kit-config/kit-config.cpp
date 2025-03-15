@@ -27,24 +27,31 @@ usage: kit-config <OPTION>... \n\
 Get configuration information about Kitsune\n\
 \n\
 Options:\n\
-  --all-frontends      The names of all known frontends\n\
+  --all-langs          All languages that have a frontend\n\
   --all-tapir-targets  The names of all known tapir targets\n\
+  --c                  Has the C frontend been built (ON or OFF)\n\
   --c-frontend         Path to Kitsune's C frontend\n\
-  --c++-frontend       Path to Kitsune's C++ frontend\n\
+  --cxx                Has the C++ frontend been built (ON or OFF)\n\
+  --cxx-frontend       Path to Kitsune's C++ frontend\n\
   --cuda-prefix        The cuda install prefix used by the Cuda Tapir target\n\
   --cuda-target        Has the Cuda Tapir target been built (ON or OFF)\n\
+  --fortran            Has the Fortran frontend been built (ON or OFF)\n\
   --fortran-frontend   Path to Kitsune's Fortran frontend\n\
-  --frontends          The frontends that have been enabled\n\
   --help               Print a summary of kit-config arguments\n\
   --hip-prefix         The rocm install prefix used by the Hip Tapir target\n\
   --hip-target         Has the Hip Tapir target been built (ON or OFF)\n\
+  --kitsune-version    Print Kitsune version\n\
   --kokkos-mode        Is Kokkos mode enabled (ON or OFF)\n\
-  --opencilk-target    Has the OpenCilk Tapir target been built (ON or OFF)\n\
-  --openmp-target      Has the OpenMP Tapir target been built (ON or OFF)\n\
-  --qthreads-target    Has the Qthreads Tapir target been built (ON or OFF)\n\
-  --realm-target       Has the Realm Tapir target been built (ON or OFF)\n\
+  --lambda-target      Has the Lambda tapir target been built (ON or OFF)\n\
+  --langs              List all languages for which a frontend has been built\n\
+  --llvm-version       Print LLVM version on which this is based\n\
+  --omptask-target     Has the OMPTask tapir target been built (ON or OFF)\n\
+  --opencilk-target    Has the OpenCilk tapir target been built (ON or OFF)\n\
+  --openmp-target      Has the OpenMP tapir target been built (ON or OFF)\n\
+  --qthreads-target    Has the Qthreads tapir target been built (ON or OFF)\n\
+  --realm-target       Has the Realm tapir target been built (ON or OFF)\n\
   --tapir-targets      List all tapir targets that have been built\n\
-  --version            Print LLVM version\n\
+  --version            Prints both LLVM and Kitsune versions\n\
 \n\
 When querying paths to frontends and prefixes, no output will be printed if\n\
 if the corresponding frontend or related tapir target has not been built\n";
@@ -56,86 +63,91 @@ if the corresponding frontend or related tapir target has not been built\n";
 // this kitConfig executable. The frontend is assumed to be in the same
 // directory as kitConfig.
 static std::string frontendPath(StringRef kitConfig, StringRef frontend) {
-  StringRef bin = sys::path::parent_path(kitConfig);
-  SmallString<256> path(bin);
-
+  SmallString<256> path(sys::path::parent_path(kitConfig));
   sys::path::append(path, frontend);
-  return path.c_str();
+
+  return std::string(path);
 }
 
-// Get the full path to this executable.
-static std::string getExe(const char *argv0) {
-  return sys::fs::getMainExecutable(argv0, (void *)(intptr_t)getExe);
+static void render(bool b) { outs() << (b ? "ON" : "OFF") << "\n"; }
+
+static void render(const char *s) { outs() << s << "\n"; }
+
+static void renderIf(bool cond, StringRef s) {
+  if (cond)
+    outs() << s << "\n";
+}
+
+static void renderVersions() {
+  outs() << "LLVM version: " << PACKAGE_VERSION << "\n";
+  outs() << "Kitsune version: " << KITSUNE_PACKAGE_VERSION << "\n";
+}
+
+static void renderPathIf(bool cond, const char *argv0, StringRef base) {
+  if (cond) {
+    std::string exe = sys::fs::getMainExecutable(argv0, (void *)usage);
+    outs() << frontendPath(exe, base) << "\n";
+  }
 }
 
 int main(int argc, char **argv) {
-  bool hasAnyOption = false;
-
-  raw_ostream &os = outs();
-  for (int i = 1; i != argc; ++i) {
-    StringRef arg = argv[i];
-
-    if (arg.starts_with("-")) {
-      hasAnyOption = true;
-      if (arg == "--version") {
-        os << PACKAGE_VERSION << "\n";
-      } else if (arg == "--help") {
-        usage(false);
-      } else if (arg == "--all-frontends") {
-        os << KITSUNE_C_FRONTEND << " "
-           << KITSUNE_CXX_FRONTEND << " "
-           << KITSUNE_Fortran_FRONTEND << "\n";
-      } else if (arg == "--all-tapir-targets") {
-        os << KITSUNE_ALL_TAPIR_TARGETS << "\n";
-      } else if (arg == "--c-frontend") {
-        if (KITSUNE_C_ENABLED)
-          os << frontendPath(getExe(argv[0]), KITSUNE_C_FRONTEND) << "\n";
-      } else if (arg == "--c++-frontend") {
-        if (KITSUNE_CXX_ENABLED)
-          os << frontendPath(getExe(argv[0]), KITSUNE_CXX_FRONTEND) << "\n";
-      } else if (arg == "--cuda-prefix") {
-        if (KITSUNE_CUDA_ENABLED)
-          os << KITSUNE_CUDA_PREFIX << "\n";
-      } else if (arg == "--cuda-target") {
-        os << (KITSUNE_CUDA_ENABLED ? "ON" : "OFF") << "\n";
-      } else if (arg == "--fortran-frontend") {
-        if (KITSUNE_Fortran_ENABLED)
-          os << frontendPath(getExe(argv[0]), KITSUNE_Fortran_FRONTEND) << "\n";
-      } else if (arg == "--frontends") {
-        if (KITSUNE_C_ENABLED)
-          os << "C ";
-        if (KITSUNE_CXX_ENABLED)
-          os << "C++ ";
-        if (KITSUNE_Fortran_ENABLED)
-          os << "Fortran ";
-        os << "\n";
-      } else if (arg == "--hip-prefix") {
-        if (KITSUNE_HIP_ENABLED)
-          os << KITSUNE_HIP_PREFIX << "\n";
-      } else if (arg == "--hip-target") {
-        os << (KITSUNE_HIP_ENABLED ? "ON" : "OFF") << "\n";
-      } else if (arg == "--kokkos-mode") {
-        os << (KITSUNE_KOKKOS_ENABLED ? "ON" : "OFF") << "\n";
-      } else if (arg == "--opencilk-target") {
-        os << (KITSUNE_OPENCILK_ENABLED ? "ON" : "OFF") << "\n";
-      } else if (arg == "--openmp-target") {
-        os << (KITSUNE_OPENMP_ENABLED ? "ON" : "OFF") << "\n";
-      } else if (arg == "--qthreads-target") {
-        os << (KITSUNE_QTHREADS_ENABLED ? "ON" : "OFF") << "\n";
-      } else if (arg == "--realm-target") {
-        os << (KITSUNE_REALM_ENABLED ? "ON" : "OFF") << "\n";
-      } else if (arg == "--tapir-targets") {
-        os << KITSUNE_ENABLED_TAPIR_TARGETS << "\n";
-      } else {
-        usage();
-      }
-    } else {
-      usage();
-    }
-  }
-
-  if (!hasAnyOption)
+  if (argc == 1)
     usage();
 
+  for (int i = 1; i < argc; ++i) {
+    StringRef arg = argv[i];
+    if (arg == "--help")
+      usage(false);
+    else if (arg == "--all-langs")
+      render(KITSUNE_ALL_LANGS);
+    else if (arg == "--all-tapir-targets")
+      render(KITSUNE_ALL_TAPIR_TARGETS);
+    else if (arg == "--c")
+      render((bool)KITSUNE_C_ENABLED);
+    else if (arg == "--c-frontend")
+      renderPathIf(KITSUNE_C_ENABLED, argv[0], KITSUNE_C_FRONTEND);
+    else if (arg == "--cxx")
+      render((bool)KITSUNE_CXX_ENABLED);
+    else if (arg == "--cxx-frontend")
+      renderPathIf(KITSUNE_CXX_ENABLED, argv[0], KITSUNE_CXX_FRONTEND);
+    else if (arg == "--cuda-prefix")
+      renderIf(KITSUNE_CUDA_ENABLED, KITSUNE_CUDA_PREFIX);
+    else if (arg == "--cuda-target")
+      render((bool)KITSUNE_CUDA_ENABLED);
+    else if (arg == "--fortran")
+      render((bool)KITSUNE_Fortran_ENABLED);
+    else if (arg == "--fortran-frontend")
+      renderPathIf(KITSUNE_Fortran_ENABLED, argv[0], KITSUNE_Fortran_FRONTEND);
+    else if (arg == "--hip-prefix")
+      renderIf(KITSUNE_HIP_ENABLED, KITSUNE_HIP_PREFIX);
+    else if (arg == "--hip-target")
+      render((bool)KITSUNE_HIP_ENABLED);
+    else if (arg == "--kitsune-version")
+      render(KITSUNE_PACKAGE_VERSION);
+    else if (arg == "--kokkos")
+      render((bool)KITSUNE_KOKKOS_ENABLED);
+    else if (arg == "--lambda-target")
+      render((bool)KITSUNE_LAMBDA_ENABLED);
+    else if (arg == "--langs")
+      render(KITSUNE_ENABLED_LANGS);
+    else if (arg == "--llvm-version")
+      render(PACKAGE_VERSION);
+    else if (arg == "--omptask-target")
+      render((bool)KITSUNE_OMPTASK_ENABLED);
+    else if (arg == "--opencilk-target")
+      render((bool)KITSUNE_OPENCILK_ENABLED);
+    else if (arg == "--openmp-target")
+      render((bool)KITSUNE_OPENMP_ENABLED);
+    else if (arg == "--qthreads-target")
+      render((bool)KITSUNE_REALM_ENABLED);
+    else if (arg == "--realm-target")
+      render((bool)KITSUNE_REALM_ENABLED);
+    else if (arg == "--tapir-targets")
+      render(KITSUNE_ENABLED_TAPIR_TARGETS);
+    else if (arg == "--version")
+      renderVersions();
+    else
+      usage();
+  }
   return 0;
 }

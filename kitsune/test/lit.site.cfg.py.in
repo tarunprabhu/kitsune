@@ -35,6 +35,7 @@ config.kitsune_realm_enabled = @KITSUNE_REALM_ENABLED@
 config.kitcc = "@KITSUNE_C_FRONTEND@"
 config.kitxx = "@KITSUNE_CXX_FRONTEND@"
 config.kitfc = "@KITSUNE_Fortran_FRONTEND@"
+config.kitconf = "kit-config"
 
 import lit.llvm
 lit.llvm.initialize(lit_config, config)
