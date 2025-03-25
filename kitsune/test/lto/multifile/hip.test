@@ -1,23 +1,27 @@
 # REQUIRES: kitsune-hip
 #
+# We choose to emit LLVM in these tests because actually linking the object
+# files could cause failures on systems with non-standard sysroots
+#
 # RUN: %kitxx -v -flto --tapir=hip -O2 %S/main.cpp %S/add.cpp -o /dev/null \
-# RUN:     --tapir-verbose 2>&1 \
+# RUN:     --tapir-verbose -Wl,--lto-emit-llvm 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,STANDARD
 #
 # RUN: %kitxx -v -flto --tapir=hip -O2 %S/main.cpp %S/add.cpp -o /dev/null \
-# RUN:     --tapir-verbose -ffp-contract=off 2>&1 \
+# RUN:     --tapir-verbose -ffp-contract=off -Wl,--lto-emit-llvm 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,STANDARD
 #
 # RUN: %kitxx -v -flto --tapir=hip -O2 %S/main.cpp %S/add.cpp -o /dev/null \
-# RUN:     --tapir-verbose -ffp-contract=on 2>&1 \
+# RUN:     --tapir-verbose -ffp-contract=on -Wl,--lto-emit-llvm 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,STANDARD
 #
 # RUN: %kitxx -v -flto --tapir=hip -O2 %S/main.cpp %S/add.cpp -o /dev/null \
-# RUN:     --tapir-verbose -ffp-contract=fast 2>&1 \
+# RUN:     --tapir-verbose -ffp-contract=fast 2>&1 -Wl,--lto-emit-llvm 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,FAST
 #
 # RUN: %kitxx -v -flto --tapir=hip -O2 %S/main.cpp %S/add.cpp -o /dev/null \
 # RUN:     --tapir-verbose -ffp-contract=fast-honor-pragmas 2>&1 \
+# RUN:     -Wl,--lto-emit-llvm 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,STANDARD
 #
 # ALL: /ld{{(64)?}}.lld

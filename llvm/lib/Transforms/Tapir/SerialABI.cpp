@@ -26,7 +26,7 @@ SerialABIOptions *SerialABIOptions::clone() const {
   return new SerialABIOptions(*this);
 }
 
-SerialABI::SerialABI(Module &m, const SerialABIOptions &opts)
+SerialABI::SerialABI(Module &M, const SerialABIOptions &opts)
     : TapirTarget(M, opts) {
   if (opts.getVerbose()) {
     dbgs() << "'serial' tapir target options:\n";

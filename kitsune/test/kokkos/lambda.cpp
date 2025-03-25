@@ -1,35 +1,60 @@
-// REQUIRES: kitsune-kokkos
-// XFAIL: *
-// FIXME: This currently crashes with a "nested sync regions at end of function"
-// error. Really should figure out why this is happening.
+// -----------------------------------------------------------------------------
+// Check that both "anonymous" and "named" parallel_for constructs, given a
+// lambda, are lowered correctly
+//
+// RUN: %kitxx -fkokkos -fkokkos-no-init -O1 --tapir=none -S -emit-llvm \
+// RUN:     -o - %sysroot %s \
+// RUN:     | FileCheck %s
 
-// The serial target is always built, so this is safe to run.
-// RUN: %kitxx -fkokkos -fkokkos-no-init -O2 -fno-exceptions -ftapir=serial -S -emit-llvm -o - %s | FileCheck %s
-
-// Very simple test of kokkos with two common forms of the
-// parallel_for construct.  We should be able to transform
-// all constructs from lambda into simple loops...
 #include <cstdio>
 #include <Kokkos_Core.hpp>
 
-const unsigned int NTIMES = 10;
-
-int main (int argc, char* argv[]) {
-  Kokkos::initialize(argc, argv);
-  {
-    // clang-format off
-    Kokkos::parallel_for(NTIMES, KOKKOS_LAMBDA(const int i) {
-      printf("hello from %i\n", i);
-    });
-
-    printf("\n");
-
-    Kokkos::parallel_for("hello1", NTIMES, KOKKOS_LAMBDA(const int i) {
-      printf("hello from %i\n", i);
-    });
-    // clang-format on
-  }
-  Kokkos::finalize();
-
-  return 0;
+extern "C" void anon(int n) {
+  // clang-format off
+  Kokkos::parallel_for(n, KOKKOS_LAMBDA(int i) {
+    printf("hello from %i\n", i);
+  });
+  // clang-format on
 }
+
+// CHECK-LABEL: void @anon
+// CHECK-SAME: i32{{.*}} %[[N:[^)]+]]
+// CHECK-NEXT: [[ENTRY:.+]]:
+// CHECK-NEXT: %[[SYNCREG:.+]] = {{.+}}call token @llvm.syncregion.start
+// CHECK: [[DETACH:^.+]]:
+// CHECK-NEXT: %[[IV:.+]] = phi i32 [ %[[NEXT:.+]], %[[LATCH:.+]] ], [ 0, %[[ENTRY]] ]
+// CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
+// CHECK: [[BODY]]:
+// CHECK-NEXT: call{{.+}} @printf
+// CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
+// CHECK: [[LATCH]]:
+// CHECK-NEXT: %[[NEXT]] = add {{.+}} %[[IV]], 1
+// CHECK-NEXT: %[[COND:.+]] = icmp eq i32 %[[NEXT]], %[[N]]
+// CHECK-NEXT: br i1 %[[COND]], label %[[SYNC:.+]], label %[[DETACH]]
+// CHECK: [[SYNC]]:
+// CHECK-NEXT: sync within %[[SYNCREG]]
+
+extern "C" void named(int n) {
+  // clang-format off
+  Kokkos::parallel_for("name", n, KOKKOS_LAMBDA(int i) {
+    printf("hello from %i\n", i);
+  });
+  // clang-format on
+}
+
+// CHECK-LABEL: void @named
+// CHECK-SAME: i32{{.*}} %[[N:[^)]+]]
+// CHECK-NEXT: [[ENTRY:.+]]:
+// CHECK-NEXT: %[[SYNCREG:.+]] = {{.+}}call token @llvm.syncregion.start
+// CHECK: [[DETACH:^.+]]:
+// CHECK-NEXT: %[[IV:.+]] = phi i32 [ %[[NEXT:.+]], %[[LATCH:.+]] ], [ 0, %[[ENTRY]] ]
+// CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
+// CHECK: [[BODY]]:
+// CHECK-NEXT: call{{.+}} @printf
+// CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
+// CHECK: [[LATCH]]:
+// CHECK-NEXT: %[[NEXT]] = add {{.+}} %[[IV]], 1
+// CHECK-NEXT: %[[COND:.+]] = icmp eq i32 %[[NEXT]], %[[N]]
+// CHECK-NEXT: br i1 %[[COND]], label %[[SYNC:.+]], label %[[DETACH]]
+// CHECK: [[SYNC]]:
+// CHECK-NEXT: sync within %[[SYNCREG]]

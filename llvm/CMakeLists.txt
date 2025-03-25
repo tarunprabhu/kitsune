@@ -292,38 +292,47 @@ if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
   message(STATUS "enable lld project")
 endif ()
 
-# The C and C++ frontends are enabled by default because clang is required to
-# build Kitsune's runtime. Disabling them is not allowed and will result in a
-# fatal error. Working around this constraint is not recommended since most of
-# the core tests assume that these frontends are enabled.
-set(KITSUNE_C_ENABLED ON CACHE INTERNAL
-  "Enable '${KITSUNE_C_FRONTEND}' frontend" FORCE)
-set(KITSUNE_CXX_ENABLED ON CACHE INTERNAL
-  "Enable '${KITSUNE_CXX_FRONTEND}' frontend" FORCE)
-set(KITSUNE_Fortran_ENABLED OFF CACHE INTERNAL
-  "Enable '${KITSUNE_Fortran_FRONTEND}' frontend" FORCE)
-
-set(KITSUNE_ALL_LANGS
+# Both KITSUNE_ALL_LANGS and KITSUNE_ALL_LANGS_STR must be updated when support
+# for a new language is added.
+set(KITSUNE_KNOWN_LANGS
   "c;cxx;fortran"
   CACHE INTERNAL
   "All languages for which Kitsune has a frontend" FORCE)
-
-# This will be used by the kit-config utility primarily. It must be updated when
-# support for a new language is added.
-set(KITSUNE_ALL_LANGS_STR "C C++ Fortran")
+set(KITSUNE_KNOWN_LANGS_STR "C C++ Fortran")
 
 set(KITSUNE_DEFAULT_LANGS
   "c;cxx"
   CACHE INTERNAL
   "Languages for which the frontend is built by default" FORCE)
 
-set(KITSUNE_ENABLED_LANGS "${KITSUNE_DEFAULT_LANGS}" CACHE STRING
-  "Semicolon-separated list of languages for which a frontend should be built")
+set(KITSUNE_ENABLE_LANGS "${KITSUNE_DEFAULT_LANGS}" CACHE STRING
+  "Semicolon-separated list of languages (${KITSUNE_KNOWN_LANGS}) for which frontends must be built or \"all\" to build all supported frontends")
+if (KITSUNE_ENABLE_LANGS STREQUAL "all")
+  set(KITSUNE_ENABLED_LANGS "${KITSUNE_KNOWN_LANGS}")
+elseif (NOT KITSUNE_ENABLE_LANGS)
+  message(FATAL_ERROR "At least one frontend must be built")
+endif ()
 
+set(KITSUNE_ENABLED_LANGS "${KITSUNE_ENABLE_LANGS}" CACHE INTERNAL
+  "Semicolon-separated list of languages for which a frontend should be built"
+  FORCE)
+message(STATUS "KITSUNE_ENABLE_LANGS: ${KITSUNE_ENABLE_LANGS}")
+message(STATUS "KITSUNE_ENABLED_LANGS: ${KITSUNE_ENABLED_LANGS}")
+
+# The C and C++ frontends must be enabled because clang is required to build
+# Kitsune's runtime. Working around this constraint is not recommended since
+# most of the core tests assume that these frontends are enabled.
 if (NOT "c" IN_LIST KITSUNE_ENABLED_LANGS OR
     NOT "cxx" IN_LIST KITSUNE_ENABLED_LANGS)
   message(FATAL_ERROR "The C and C++ frontends must be enabled")
 endif ()
+
+set(KITSUNE_C_ENABLED OFF CACHE INTERNAL
+  "Enable '${KITSUNE_C_FRONTEND}' frontend" FORCE)
+set(KITSUNE_CXX_ENABLED OFF CACHE INTERNAL
+  "Enable '${KITSUNE_CXX_FRONTEND}' frontend" FORCE)
+set(KITSUNE_Fortran_ENABLED OFF CACHE INTERNAL
+  "Enable '${KITSUNE_Fortran_FRONTEND}' frontend" FORCE)
 
 set(KITSUNE_ENABLED_LANGS_STR)
 foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
@@ -342,16 +351,27 @@ foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
   elseif (lang STREQUAL "fortran")
     message(STATUS "'kitfc' frontend is enabled")
     set(KITSUNE_Fortran_ENABLED ON CACHE INTERNAL "Enable 'kitfc' frontend" FORCE)
+
     if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
         NOT "flang" IN_LIST LLVM_ENABLE_PROJECTS)
       list(APPEND LLVM_ENABLE_PROJECTS "flang")
       message(STATUS "enable flang project")
     endif ()
+
     if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
         NOT "mlir" IN_LIST LLVM_ENABLE_PROJECTS)
       list(APPEND LLVM_ENABLE_PROJECTS "mlir")
       message(STATUS "enable mlir project")
     endif ()
+
+    # flang requires clang's driver. clang should have been enabled already, but
+    # just in case, do so now.
+    if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
+        NOT "clang" IN_LIST LLVM_ENABLE_PROJECTS)
+      list(APPEND LLVM_ENABLE_PROJECTS "clang")
+      message(STATUS "enable clang project")
+    endif ()
+
     list(APPEND KITSUNE_ENABLED_LANGS_STR "Fortran")
   else ()
     message(FATAL_ERROR "Unknown language '${l}'")
@@ -377,7 +397,7 @@ set(KITSUNE_QTHREADS_ENABLED OFF CACHE INTERNAL "Enable 'qthreads' tapir target"
 set(KITSUNE_REALM_ENABLED OFF CACHE INTERNAL "Enable 'realm' tapir target" FORCE)
 set(KITSUNE_SERIAL_ENABLED ON CACHE INTERNAL "Enable 'serial' tapir target" FORCE)
 
-set(KITSUNE_ALL_TAPIR_TARGETS
+set(KITSUNE_KNOWN_TAPIR_TARGETS
   "cuda;hip;lambda;omptask;opencilk;openmp;qthreads;realm;serial"
   CACHE INTERNAL
   "All known Tapir targets" FORCE)
@@ -388,14 +408,18 @@ set(KITSUNE_DEFAULT_TAPIR_TARGETS
   "The tapir targets that are built by default if a list of targets to build is
 not provided explicitly" FORCE)
 
-set(KITSUNE_ENABLED_TAPIR_TARGETS
-  "${KITSUNE_DEFAULT_TAPIR_TARGETS}"
-  CACHE STRING
-  "Semicolon-separated list of runtime targets to build")
-
-if (NOT KITSUNE_ENABLED_TAPIR_TARGETS)
+set(KITSUNE_ENABLE_TAPIR_TARGETS "${KITSUNE_DEFAULT_TAPIR_TARGETS}" CACHE STRING
+  "Semi-colon separated list of tapir targets to build (${KITSUNE_KNOWN_TAPIR_TARGETS}) or \"all\" to build all known tapir targets")
+if (KITSUNE_ENABLE_TAPIR_TARGETS STREQUAL "all")
+  set(KITSUNE_ENABLE_TAPIR_TARGETS "${KITSUNE_KNOWN_TAPIR_TARGETS}")
+elseif (NOT KITSUNE_ENABLE_TAPIR_TARGETS)
   message(FATAL_ERROR "At least one tapir target must be built")
 endif ()
+
+set(KITSUNE_ENABLED_TAPIR_TARGETS
+  "${KITSUNE_ENABLE_TAPIR_TARGETS}"
+  CACHE INTERNAL
+  "Semicolon-separated list of tapir targets to build")
 
 # Always build the serial tapir target
 if (NOT "serial" IN_LIST KITSUNE_ENABLED_TAPIR_TARGETS)
@@ -404,22 +428,22 @@ endif ()
 
 set(KITSUNE_ENABLED_TAPIR_TARGETS_STR)
 foreach(target IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
-  if (target IN_LIST KITSUNE_ALL_TAPIR_TARGETS)
+  if (target IN_LIST KITSUNE_KNOWN_TAPIR_TARGETS)
     message(STATUS "'${target}' tapir target is enabled")
     string(TOUPPER "${target}" upper)
     set(KITSUNE_${upper}_ENABLED ON CACHE INTERNAL
       "Enable '${target}' tapir target" FORCE)
     list(APPEND KITSUNE_ENABLED_TAPIR_TARGETS_STR "${target}")
   else ()
-    message(FATAL_ERROR "Unknown Tapir target: ${target}")
+    message(FATAL_ERROR "Unknown Tapir target '${target}'")
   endif ()
 endforeach ()
 list(SORT KITSUNE_ENABLED_TAPIR_TARGETS_STR)
 list(JOIN KITSUNE_ENABLED_TAPIR_TARGETS_STR " " KITSUNE_ENABLED_TAPIR_TARGETS_STR)
 
-set(KITSUNE_ALL_TAPIR_TARGETS_STR "${KITSUNE_ALL_TAPIR_TARGETS}")
-list(SORT KITSUNE_ALL_TAPIR_TARGETS_STR)
-list(JOIN KITSUNE_ALL_TAPIR_TARGETS_STR " " KITSUNE_ALL_TAPIR_TARGETS_STR)
+set(KITSUNE_KNOWN_TAPIR_TARGETS_STR "${KITSUNE_KNOWN_TAPIR_TARGETS}")
+list(SORT KITSUNE_KNOWN_TAPIR_TARGETS_STR)
+list(JOIN KITSUNE_KNOWN_TAPIR_TARGETS_STR " " KITSUNE_KNOWN_TAPIR_TARGETS_STR)
 
 # The GPU tapir targets require the corresponding backend to be built.
 if (KITSUNE_CUDA_ENABLED AND

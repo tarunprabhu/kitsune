@@ -1,5 +1,12 @@
 ! REQUIRES: kitfc
 !
+! Check that the default options added to the internal command lines (for -fc1
+! and the linker) are as expected.
+!
+! -print-pipeline-passes currently does not work with flang, but has been
+! implemented upstream. This should pass once we merge with upstream.
+! XFAIL: *
+!
 ! ------------------------------------------------------------------------------
 ! RUN: %kitfc -### -ftapir=serial -O2 %s 2>&1 | FileCheck %s
 ! RUN: %kitfc -### --tapir=serial -O2 %s 2>&1 | FileCheck %s
@@ -13,5 +20,15 @@
 ! expected linker flags.
 !
 ! CHECK-NEXT: -lkitrt
+!
+! ------------------------------------------------------------------------------
+! Check that the stripmine pass is enabled by default. This checks that the
+! the pipeline tuning options object value is set correctly by default.
+!
+! RUN: %kitfc -mllvm -print-pipeline-passes -O2 -ftapir=serial \
+! RUN:     -S -emit-llvm %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
+!
+! STRIPMINE-PASS: loop-stripmine
 
 end program

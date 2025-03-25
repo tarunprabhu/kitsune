@@ -40,12 +40,40 @@ option(KITCUDA_ENABLE_NVTX
 # argument passed here must be exactly that which would be passed to
 # --gcc-install-dir. At runtime, if --gcc-install-dir is passed, that value will
 # override this one.
+#
+# FIXME: We should allow the user to provide a symlink, but then that symlink
+# should be resolved before setting this.
 set(KITSUNE_GCC_INSTALL_DIR "" CACHE STRING
   "The GCC installation directory to use. This should be the path to a
 directory containing libgcc.a. This will nearly always be in the lib/
 subdirectory in GCC's install directory. For instance, if GCC was installed to
 /gcc_install, this is usually /gcc_install/lib/gcc/<triple>/<version> where
 <triple> is the target triple for the system and <version> is the GCC version")
+
+# On some systems, clang only works with a configuration file containing a
+# --sysroot=/path/to/sysroot entry. This is typically the case when the
+# utilities such as the loader are in non-standard places - typically because
+# the system linkers and standard libraries are very old. In such cases, some of
+# Kitsune's tests need a --sysroot option to be provided in order to work
+# correctly. These are typically the Kokkos tests because the Kokkos headers
+# include system headers for things like pthreads. There is no precedent for
+# this in LLVM because LLVM does not generally build "third-party" projects as
+# part of its build like we do - let alone contain tests that use such
+# "external" projects. Those are consigned to the LLVM test suite. However, in
+# our case, since we handle Kokkos' constructs as special cases, we do need the
+# more fine-grained tests to be part of the core tests and these must be able
+# to include the Kokkos headers.
+#
+# There is a -DDEFAULT_SYSROOT configuration option in LLVM, though it has been
+# deprecated. Unlike KITSUNE_GCC_INSTALL_DIR however, we do not provide an
+# equivalent for it because it causes too many test failures and is fiendishly
+# difficult to get right. Besides, the --sysroot issue does not affect nearly as
+# many users as the --gcc-install-dir one does. For those for whom this is a
+# concern, the only option is to provide a configuration file with --sysroot,
+# though if KITSUNE_GCC_INSTALL_DIR is provided at configure time, that need not
+# be included in the configuration file.
+set(KITSUNE_SYSROOT "" CACHE STRING
+  "The sysroot to use in Kitsune's tests. Currently, this has no other use")
 
 # The name of Kitsune's main runtime library. This is created here because it is
 # also used by the tests to ensure that check-kitsune does not run before the
@@ -123,9 +151,10 @@ if (KITSUNE_KOKKOS_ENABLED)
   set(KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS
     -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
+    -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_INSTALL_PREFIX=${KITSUNE_KOKKOS_INSTALL_DIR}
-    -DCMAKE_CXX_FLAGS=${KITSUNE_KOKKOS_BUILD_COMPILE_FLAGS}
     -DKokkos_ENABLE_SERIAL=ON
     -DBUILD_TESTING=OFF
     -DBUILD_SHARED_LIBS=ON
@@ -397,9 +426,6 @@ if (KITSUNE_LAMBDA_ENABLED)
   message(FATAL_ERROR "NOT YET IMPLEMENTED: 'lambda' tapir target")
   message(STATUS "Kitsune: Lambda target enabled")
 
-  message(WARNING "Lambda tapir target is experimental. Expect build failures
-and other problems")
-
   set(KITSUNE_LAMBDA_EXTRA_PREPROCESSOR_FLAGS
     ""
     CACHE STRING
@@ -419,9 +445,6 @@ endif ()
 if (KITSUNE_OMPTASK_ENABLED)
   message(FATAL_ERROR "NOT YET IMPLEMENTED: 'omptask' tapir target")
   message(STATUS "Kitsune: OMPTask target enabled")
-
-  message(WARNING "OMPTask tapir target is experimental. Expect build failures
-and other problems")
 
   set(KITSUNE_OMPTASK_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -466,11 +489,12 @@ if (KITSUNE_OPENCILK_ENABLED)
     -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
     -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
     -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
+    -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
+    -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
     -DCMAKE_INSTALL_PREFIX=${KITSUNE_CHEETAH_INSTALL_DIR}
-    -DCMAKE_CXX_FLAGS=${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}
     -DCHEETAH_DEFAULT_TARGET_TRIPLE=${LLVM_DEFAULT_TARGET_TRIPLE}
     -DCHEETAH_DIRECTORY_PER_TARGET=ON
     -DLLVM_CMAKE_DIR=${CMAKE_BINARY_DIR}
@@ -634,6 +658,8 @@ set(KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
   -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
   -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+  -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
+  -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
   -DCMAKE_INSTALL_PREFIX=${KITSUNE_RUNTIME_INSTALL_DIR}
   -DCMAKE_COLOR_DIAGNOSTICS=${CMAKE_COLOR_DIAGNOSTICS}
   -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
@@ -746,6 +772,6 @@ add_custom_target(kitrt-copy-to-build-dir ALL
 add_dependencies(kitrt-copy-to-build-dir ${KITSUNE_LIBNAME})
 
 # NOTE: The trailing slash after the directory to copy is required.
-install(DIRECTORY ${KITSUNE_RUNTIME_INSTALL_DIR}
+install(DIRECTORY ${KITSUNE_RUNTIME_INSTALL_DIR}/
   DESTINATION ${CMAKE_INSTALL_PREFIX}
   USE_SOURCE_PERMISSIONS)

@@ -27,31 +27,31 @@ usage: kit-config <OPTION>... \n\
 Get configuration information about Kitsune\n\
 \n\
 Options:\n\
-  --all-langs          All languages that have a frontend\n\
-  --all-tapir-targets  The names of all known tapir targets\n\
-  --c                  Has the C frontend been built (ON or OFF)\n\
-  --c-frontend         Path to Kitsune's C frontend\n\
-  --cxx                Has the C++ frontend been built (ON or OFF)\n\
-  --cxx-frontend       Path to Kitsune's C++ frontend\n\
-  --cuda-prefix        The cuda install prefix used by the Cuda Tapir target\n\
-  --cuda-target        Has the Cuda Tapir target been built (ON or OFF)\n\
-  --fortran            Has the Fortran frontend been built (ON or OFF)\n\
-  --fortran-frontend   Path to Kitsune's Fortran frontend\n\
-  --help               Print a summary of kit-config arguments\n\
-  --hip-prefix         The rocm install prefix used by the Hip Tapir target\n\
-  --hip-target         Has the Hip Tapir target been built (ON or OFF)\n\
-  --kitsune-version    Print Kitsune version\n\
-  --kokkos-mode        Is Kokkos mode enabled (ON or OFF)\n\
-  --lambda-target      Has the Lambda tapir target been built (ON or OFF)\n\
-  --langs              List all languages for which a frontend has been built\n\
-  --llvm-version       Print LLVM version on which this is based\n\
-  --omptask-target     Has the OMPTask tapir target been built (ON or OFF)\n\
-  --opencilk-target    Has the OpenCilk tapir target been built (ON or OFF)\n\
-  --openmp-target      Has the OpenMP tapir target been built (ON or OFF)\n\
-  --qthreads-target    Has the Qthreads tapir target been built (ON or OFF)\n\
-  --realm-target       Has the Realm tapir target been built (ON or OFF)\n\
-  --tapir-targets      List all tapir targets that have been built\n\
-  --version            Prints both LLVM and Kitsune versions\n\
+  --c                   Has the C frontend been built (ON or OFF)\n\
+  --c-frontend          Path to the C frontend\n\
+  --cxx                 Has the C++ frontend been built (ON or OFF)\n\
+  --cxx-frontend        Path to the C++ frontend\n\
+  --cuda-prefix         The cuda installation used by the cuda tapir target\n\
+  --cuda-target         Has the cuda tapir target been built (ON or OFF)\n\
+  --fortran             Has the Fortran frontend been built (ON or OFF)\n\
+  --fortran-frontend    Path to the Fortran frontend\n\
+  --help                Print this help message\n\
+  --hip-prefix          The rocm installation used by the hip tapir target\n\
+  --hip-target          Has the hip tapir target been built (ON or OFF)\n\
+  --kitsune-version     The Kitsune version\n\
+  --known-langs         All languages supported by Kitsune\n\
+  --known-tapir-targets The names of all known tapir targets\n\
+  --kokkos-mode         Has Kokkos mode been enabled (ON or OFF)\n\
+  --lambda-target       Has the lambda tapir target been built (ON or OFF)\n\
+  --langs               The languages for which a frontend has been built\n\
+  --llvm-version        The LLVM version on which this is based\n\
+  --omptask-target      Has the omptask tapir target been built (ON or OFF)\n\
+  --opencilk-target     Has the opencilk tapir target been built (ON or OFF)\n\
+  --openmp-target       Has the openmp tapir target been built (ON or OFF)\n\
+  --qthreads-target     Has the qthreads tapir target been built (ON or OFF)\n\
+  --realm-target        Has the realm tapir target been built (ON or OFF)\n\
+  --tapir-targets       The tapir targets that have been built\n\
+  --version             Prints both LLVM and Kitsune versions\n\
 \n\
 When querying paths to frontends and prefixes, no output will be printed if\n\
 if the corresponding frontend or related tapir target has not been built\n";
@@ -98,10 +98,6 @@ int main(int argc, char **argv) {
     StringRef arg = argv[i];
     if (arg == "--help")
       usage(false);
-    else if (arg == "--all-langs")
-      render(KITSUNE_ALL_LANGS);
-    else if (arg == "--all-tapir-targets")
-      render(KITSUNE_ALL_TAPIR_TARGETS);
     else if (arg == "--c")
       render((bool)KITSUNE_C_ENABLED);
     else if (arg == "--c-frontend")
@@ -126,6 +122,10 @@ int main(int argc, char **argv) {
       render(KITSUNE_PACKAGE_VERSION);
     else if (arg == "--kokkos")
       render((bool)KITSUNE_KOKKOS_ENABLED);
+    else if (arg == "--known-langs")
+      render(KITSUNE_KNOWN_LANGS);
+    else if (arg == "--known-tapir-targets")
+      render(KITSUNE_KNOWN_TAPIR_TARGETS);
     else if (arg == "--lambda-target")
       render((bool)KITSUNE_LAMBDA_ENABLED);
     else if (arg == "--langs")

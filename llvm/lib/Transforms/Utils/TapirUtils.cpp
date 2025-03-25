@@ -2338,6 +2338,8 @@ bool llvm::TapirLoopHints::validate(StringRef Name, unsigned V) {
     case TapirTargetID::Serial:
     case TapirTargetID::Cuda:
     case TapirTargetID::Hip:
+    case TapirTargetID::Lambda:
+    case TapirTargetID::OMPTask:
     case TapirTargetID::OpenCilk:
     case TapirTargetID::OpenMP:
     case TapirTargetID::Qthreads:
@@ -2347,8 +2349,6 @@ bool llvm::TapirLoopHints::validate(StringRef Name, unsigned V) {
       return false;
     }
   } else if (Name == nameThreadsPerBlock) {
-    // KITSUNE FIXME: The maximum allowed value of 1024 must be read from
-    // kitsune/Config/config.h
     return V <= KITSUNE_MAX_FIXED_THREADS_PER_BLOCK;
   } else if (Name == nameAutotuneLaunch) {
     return true;

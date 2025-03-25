@@ -2,12 +2,11 @@
 #
 # Some basic tests for the kit-config utility.
 #
-# RUN: %kitconf --all-langs | FileCheck %s -check-prefix ALL-LANGS
-# RUN: %kitconf --all-tapir-targets | FileCheck %s -check-prefix ALL-TARGETS
+# RUN: %kitconf --known-langs | FileCheck %s -check-prefix KNOWN-LANGS
+# RUN: %kitconf --known-tapir-targets | FileCheck %s -check-prefix KNOWN-TARGETS
 #
-# ALL-FRONTENDS: kitcc kit++ kitfc
-# ALL-LANGS: C C++ Fortran
-# ALL-TARGETS: cuda hip lambda omptask opencilk openmp qthreads realm serial
+# KNOWN-LANGS: C C++ Fortran
+# KNOWN-TARGETS: cuda hip lambda omptask opencilk openmp qthreads realm serial
 #
 # -----------------------------------------------------------------------------
 #

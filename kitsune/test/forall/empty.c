@@ -1,9 +1,11 @@
+// Check that empty forall's are lowered correctly. It is ok for them to be
+// empty, though, with optimizations enabled, they are likely to be DCE'ed
+//
 // RUN: %kitcc -ftapir=none -S -emit-llvm -o - %s | FileCheck %s
 
 #include <kitsune.h>
 
-void loop(int* a) {
-  // Empty forall's are ok.
+void loop() {
   forall(int i = 0; i < 10; i++) {
   }
 }

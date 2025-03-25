@@ -1,33 +1,26 @@
-// REQUIRES: kitsune-kokkos
-// XFAIL: *
-// There is currently a bug in Kitsune which causes it to crash.
-// KITSUNE FIXME: Fix this bug so the compiler does not crash.
+// Check that we correctly emit a warning and fall back to standard C++ lowering
+// upon encountering a Kokkos::parallel_for with a functor instead of a lambda.
+//
+// RUN: %kitxx -fkokkos -fkokkos-no-init --tapir=none -O1 -S -emit-llvm \
+// RUN:     -o - -Xclang -verify %sysroot %s \
+// RUN:     | FileCheck -vv %s
 
-// The serial target is always built, so this is safe to run.
-// RUN: %kitxx -fkokkos -fkokkos-no-init -ftapir=serial -O2 -S -emit-llvm -o - %s | FileCheck %s
-
-// Very simple test of kokkos that uses a functor.  In a nutshell,
-// given the potential for different compilation units, kitsune does
-// not support this construct and it should fall back to the standard
-// C++ code gen paths.
 #include <cstdio>
 #include <Kokkos_Core.hpp>
-
-const unsigned int NTIMES = 10;
 
 struct Hello {
   KOKKOS_INLINE_FUNCTION
   void operator() (const int i) const {
-    printf("hello from %i\n", i);
+    printf("Hello %d\n", i);
   }
 };
 
-int main (int argc, char* argv[]) {
-  Kokkos::initialize (argc, argv);
-  {
-    Kokkos::parallel_for(NTIMES, Hello());
-  }
-  Kokkos::finalize ();
-
-  return 0;
+extern "C" void f(size_t n) {
+  // expected-warning-re@+1 {{kokkos - functors not supported in parallel_for{{.*}}}}
+  Kokkos::parallel_for(n, Hello());
 }
+
+// CHECK-LABEL: void @f
+// CHECK-SAME: i64{{.+}} %[[N:[^)]+]]
+// CHECK: %[[HELLO:.+]] = alloca %struct.Hello
+// CHECK: call void @_ZN6Kokkos12parallel_for{{.+}}(i64{{.+}} %[[N]], ptr{{.+}} %[[HELLO]])

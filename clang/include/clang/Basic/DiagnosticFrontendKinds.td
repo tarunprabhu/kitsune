@@ -388,31 +388,40 @@ def warn_hlsl_langstd_minimal :
   InGroup<HLSLDXCCompat>;
 }
 
-// Kistune-specific warnings
+// =============================================================================
+//                          Kitsune-specific warnings
+// -----------------------------------------------------------------------------
 
+def warn_kokkos_range_expr : Warning<
+    "kokkos - unsupported expression for range of parallel_for. "
+    "Falling back to standard C++ mode">,
+    InGroup<Kitsune>;
 def warn_kokkos_no_functor : Warning<
-    "kokkos - parallel_for functors unsupported.\n"
-    "Falling back to standard C++ mode but executable could be unstable">,
-    InGroup<BackendOptimizationFailure>;
-def warn_kokkos_no_functor_args : Warning<
-    "kokkos - parallel_for lambda requires arguments.\n"
-    "Falling back to standard C++ mode but executable could be unstable">,
-    InGroup<BackendOptimizationFailure>;
+    "kokkos - functors not supported in parallel_for. "
+    "Falling back to standard C++ mode">,
+    InGroup<Kitsune>;
+def warn_kokkos_no_lambda_args : Warning<
+    "kokkos - lambda in parallel_for requires arguments. "
+    "Falling back to standard C++ mode">,
+    InGroup<Kitsune>;
 def warn_kokkos_unknown_stmt_class : Warning<
-    "kokkos - unrecognized/unsupported construct in parallel_for statement.\n"
-    "Failling back to standard C++ mode but executable could be unstable">,
-    InGroup<BackendOptimizationFailure>;
+    "kokkos - unrecognized/unsupported construct in parallel_for statement. "
+    "Falling back to standard C++ mode">,
+    InGroup<Kitsune>;
 def warn_kokkos_unknown_bounds_expr : Warning<
-    "kokkos - unrecognized bounds/limit expression.\n"
-    "Falling back to standard C++ mode but executable could be unstable">,
-    InGroup<BackendOptimizationFailure>;
+    "kokkos - unrecognized bounds/limit expression. "
+    "Falling back to standard C++ mode">,
+    InGroup<Kitsune>;
 def warn_kokkos_reduce_unsupported : Warning<
-    "kokkos - reduction constructs are currently unsupported">,
-    InGroup<BackendOptimizationFailure>;
+    "kokkos - parallel_reduce is not supported. "
+    "Falling back to standard C++ mode">,
+    InGroup<Kitsune>;
 def warn_kokkos_reduce_bad_intermediate_vardecl : Warning<
-    "kokkos - failure determining intermediate reduction variable (reverting to C++ mode for construct)">,
-    InGroup<BackendOptimizationFailure>;
+    "kokkos - Could not determine intermediate reduction variable. "
+    "Falling back to C++ mode for construct">,
+    InGroup<Kitsune>;
 def warn_kokkos_reduce_bad_final_vardecl : Warning<
-    "kokkos - failure determining final reduction variable (reverting to C++ mode for construct)">,
-    InGroup<BackendOptimizationFailure>;
+    "kokkos - Could not determine final reduction variable. "
+    "Falling back to C++ mode for construct">,
+    InGroup<Kitsune>;
 }

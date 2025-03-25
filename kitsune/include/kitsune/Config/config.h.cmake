@@ -43,7 +43,7 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // A space-separated string of all known Tapir targets, including those that
 // have not been enabled
-#define KITSUNE_ALL_TAPIR_TARGETS "@KITSUNE_ALL_TAPIR_TARGETS_STR@"
+#define KITSUNE_KNOWN_TAPIR_TARGETS "@KITSUNE_KNOWN_TAPIR_TARGETS_STR@"
 
 // A space-separated string with the Tapir targets that have been enabled in
 // this build
@@ -62,7 +62,7 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 // -----------------------------------------------------------------------------
 
 // A space-separated string of all languages for which Kitsune frontends exist
-#define KITSUNE_ALL_LANGS "@KITSUNE_ALL_LANGS_STR@"
+#define KITSUNE_KNOWN_LANGS "@KITSUNE_KNOWN_LANGS_STR@"
 
 // A space-separate dstring of all enabled languages
 #define KITSUNE_ENABLED_LANGS "@KITSUNE_ENABLED_LANGS_STR@"

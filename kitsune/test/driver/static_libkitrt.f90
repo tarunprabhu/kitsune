@@ -28,7 +28,7 @@
 ! RUN: %kitfc -### -ftapir=opencilk -O2 -static %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STATIC
 !
-! STATIC: -cc1
+! STATIC: -fc1
 ! STATIC-NEXT: "-static"
 ! STATIC-SAME: -lopencilk
 ! STATIC-SAME: -lkitrt_static

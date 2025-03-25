@@ -95,6 +95,9 @@ config.substitutions.append(("%kitfc", config.kitfc))
 config.substitutions.append(("%kitconf", config.kitconf))
 config.substitutions.append(("%kitsune_gcc_install_dir",
                              config.kitsune_gcc_install_dir))
+if config.kitsune_sysroot:
+    config.substitutions.append(("%sysroot",
+                                 "--sysroot=" + config.kitsune_sysroot))
 
 # Features. We need the registered target features because some runtimes used by
 # the tapir targets will only run on certain architectures, so we need to
