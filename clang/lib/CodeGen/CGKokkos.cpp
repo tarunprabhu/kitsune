@@ -128,6 +128,10 @@ bool CodeGenFunction::ParseAndValidateParallelFor(
   unsigned int curArgIndex = 0;
   const Expr *SE = SimplifyExpr(CE->getArg(curArgIndex));
 
+  // FIXME: If we don't do anything with the name anyway, would it be better
+  // to just check the number of arguments to the call instruction and decide
+  // what to do that way?
+  //
   // Parse a 'named' construct. We will capture the name, but don't do
   // anything with it. NOTE: we assume this only comes in the form of a string
   // literal. This is ridiculously fragile. Only parses string literals as the
@@ -141,25 +145,35 @@ bool CodeGenFunction::ParseAndValidateParallelFor(
     }
   }
 
-  // Parse a vector of IV bounds, can be either an *Expr or an MDRangePolicy
+  // Parse a vector of IV bounds. We support RangePolicy, MDRangePolicy and
+  // a scalar.
   SmallVector<std::pair<const Expr *, const Expr *>, 6> BoundsList;
   const CXXTemporaryObjectExpr *CXXTO = dyn_cast<CXXTemporaryObjectExpr>(SE);
   const CXXRecordDecl *CXXClass =
       CXXTO ? CXXTO->getBestDynamicClassType() : nullptr;
   if (CXXClass && CXXClass->getNameAsString() == "MDRangePolicy") {
     // The first non-name argument is an MDRangePolicy, extract both lower and
-    // upper bounds for multiple induction variables
+    // upper bounds for multiple induction variables.
+    //
+    // FIXME: We currently only handle the case where the first two arguments
+    // of the policy are bounds. However, the first argument could be an
+    // iteration space. We should try to handle that other case as well, but
+    // this is already getting pretty ugly.
     const auto *LowerBounds =
         dyn_cast<InitListExpr>(CXXTO->getArg(0)->IgnoreImplicit());
     const auto *UpperBounds =
         dyn_cast<InitListExpr>(CXXTO->getArg(1)->IgnoreImplicit());
-
-    for (size_t i = 0; i < LowerBounds->getNumInits(); i++)
-      BoundsList.emplace_back(LowerBounds->getInit(i)->IgnoreImplicit(),
-                              UpperBounds->getInit(i)->IgnoreImplicit());
+    if (LowerBounds && UpperBounds) {
+      for (size_t i = 0; i < LowerBounds->getNumInits(); i++)
+        BoundsList.emplace_back(LowerBounds->getInit(i)->IgnoreImplicit(),
+                                UpperBounds->getInit(i)->IgnoreImplicit());
+    } else {
+      Diags.Report(CE->getExprLoc(), diag::warn_kokkos_unknown_stmt_class);
+      return false;
+    }
   } else if (CXXClass && CXXClass->getNameAsString() == "RangePolicy") {
     // A RangePolicy is 1D, so there should only be a start and an end and both
-    // can be assumed to have Scalar type.
+    // can be assumed to have a scalar type.
     const Expr *LowerBound = CXXTO->getArg(0)->IgnoreImplicit();
     const Expr *UpperBound = CXXTO->getArg(1)->IgnoreImplicit();
     BoundsList.emplace_back(LowerBound, UpperBound);
