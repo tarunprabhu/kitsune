@@ -15,6 +15,25 @@ include(FetchContent)
 include(GetClangResourceDir)
 include(KitsuneUtils)
 
+# ----------------------------------- NOTES -----------------------------------
+#
+# When building some of the third-party runtimes such as Kokkos and Cheetah, and
+# also Kitsune's pwn runtime, kitrt, we suppress CMake's checks that the
+# compiler works by setting -DCMAKE_CXX_COMPILER_WORKS=1.
+#
+# These are built with the clang that was just built. On systems where clang
+# requires a --sysroot argument, this will fail the compiler checks since it
+# will not use the --sysroot= option. A quick workaround for now is to just
+# suppress those checks - if clang itself should work, and if it doesn't, then
+# we obviously have bigger problems (in cases where it doesn't work, it should
+# nearly always be because the person building this is a Kitsune developer and
+# they left some sort of bug in the code which they will fix immediately). The
+# build itself will work because in such cases, --sysroot=${KITSUNE_SYSROOT}
+# will have been added to the compile flags.
+#
+# TODO: A better fix might be to generate a configuration file in this case just
+# for the purpose of building the tool/runtime with clang with --sysroot set.
+
 option(KITSUNE_INCLUDE_TESTS
   "Generate build targets for the Kitsune tests"
   ${LLVM_INCLUDE_TESTS})
@@ -36,10 +55,11 @@ option(KITCUDA_ENABLE_NVTX
 # the user does not have to pass this explicitly on the command line. Gentoo
 # does the same. Sometimes, we may not want to install a config file, in which
 # case, the GCC_INSTALL_DIR can be provided at configure time. This is *NOT* a
-# direct equivalent to clang's old GCC_INSTALL_DIR configure-time option. The
+# direct equivalent to clang's old GCC_INSTALL_PREFIX configure-time option. The
 # argument passed here must be exactly that which would be passed to
-# --gcc-install-dir. At runtime, if --gcc-install-dir is passed, that value will
-# override this one.
+# --gcc-install-dir. At "use time", if --gcc-install-dir is passed, either
+# explicitly on the command line or via a config file, that value will override
+# this one. Other options such as --gcc-toolchain will also override this value.
 #
 # FIXME: We should allow the user to provide a symlink, but then that symlink
 # should be resolved before setting this.
@@ -51,8 +71,8 @@ subdirectory in GCC's install directory. For instance, if GCC was installed to
 <triple> is the target triple for the system and <version> is the GCC version")
 
 # On some systems, clang only works with a configuration file containing a
-# --sysroot=/path/to/sysroot entry. This is typically the case when the
-# utilities such as the loader are in non-standard places - typically because
+# --sysroot=/path/to/sysroot entry. This is usually needed when system tools
+# such as the dynamic linker are in non-standard locations - typically because
 # the system linkers and standard libraries are very old. In such cases, some of
 # Kitsune's tests need a --sysroot option to be provided in order to work
 # correctly. These are typically the Kokkos tests because the Kokkos headers
@@ -69,11 +89,11 @@ subdirectory in GCC's install directory. For instance, if GCC was installed to
 # equivalent for it because it causes too many test failures and is fiendishly
 # difficult to get right. Besides, the --sysroot issue does not affect nearly as
 # many users as the --gcc-install-dir one does. For those for whom this is a
-# concern, the only option is to provide a configuration file with --sysroot,
-# though if KITSUNE_GCC_INSTALL_DIR is provided at configure time, that need not
-# be included in the configuration file.
+# concern, the only option is to provide a configuration file with --sysroot.
 set(KITSUNE_SYSROOT "" CACHE STRING
-  "The sysroot to use in Kitsune's tests. Currently, this has no other use")
+  "The sysroot to use. This is used in some of Kitsune's tests, when building
+third-party runtimes and libraries such as Kokkos and Cheetah as well as when
+building kitrt")
 
 # The name of Kitsune's main runtime library. This is created here because it is
 # also used by the tests to ensure that check-kitsune does not run before the
@@ -144,6 +164,11 @@ if (KITSUNE_KOKKOS_ENABLED)
     "Additional C++ compiler flags needed to build Kokkos. These are only
      used when building Kitsune")
 
+  set(KITSUNE_KOKKOS_BUILD_CXX_FLAGS "${KITSUNE_KOKKOS_BUILD_COMPILE_FLAGS}")
+  if (KITSUNE_SYSROOT)
+    string(APPEND KITSUNE_KOKKOS_BUILD_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+  endif ()
+
   set(KITSUNE_KOKKOS_SRC_DIR  ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/kokkos)
   set(KITSUNE_KOKKOS_BUILD_DIR ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/build)
   set(KITSUNE_KOKKOS_STAMP_DIR ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/stamp)
@@ -151,8 +176,10 @@ if (KITSUNE_KOKKOS_ENABLED)
   set(KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS
     -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
-    -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
-    -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+    "-DCMAKE_CXX_FLAGS='${KITSUNE_KOKKOS_BUILD_CXX_FLAGS}'"
+    -DCMAKE_CXX_COMPILER_WORKS=1
+    -DCMAKE_SIZEOF_VOID_P=${CMAKE_SIZEOF_VOID_P}
+    -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_INSTALL_PREFIX=${KITSUNE_KOKKOS_INSTALL_DIR}
     -DKokkos_ENABLE_SERIAL=ON
@@ -219,7 +246,6 @@ if (KITSUNE_KOKKOS_ENABLED)
   # the rest of kitsune.
   #
   # NOTE: The trailing slash after the directory to copy is required
-  #
   install(DIRECTORY ${KITSUNE_KOKKOS_INSTALL_DIR}/
     DESTINATION ${CLANG_RESOURCE_INSTALL_DIR}
     USE_SOURCE_PERMISSIONS)
@@ -480,6 +506,16 @@ if (KITSUNE_OPENCILK_ENABLED)
     "Additional compiler flags needed to build Cheetah (the OpenCilk runtime).
     These are only used when building Kitsune")
 
+  set(KITSUNE_OPENCILK_BUILD_C_FLAGS "${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}")
+  if (KITSUNE_SYSROOT)
+    string(APPEND KITSUNE_OPENCILK_BUILD_C_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+  endif ()
+
+  set(KITSUNE_OPENCILK_BUILD_CXX_FLAGS "${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}")
+  if (KITSUNE_SYSROOT)
+    string(APPEND KITSUNE_OPENCILK_BUILD_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+  endif ()
+
   # We pass some LLVM_* variables to make Cheetah behave as if it were an
   # in-tree build.
   set(KITSUNE_CHEETAH_SOURCE_DIR ${KITSUNE_TARGETS_BINARY_DIR}/cheetah/cheetah)
@@ -487,11 +523,16 @@ if (KITSUNE_OPENCILK_ENABLED)
   set(KITSUNE_CHEETAH_INSTALL_DIR ${KITSUNE_TARGETS_BINARY_DIR}/cheetah/install)
   set(KITSUNE_CHEETAH_BUILD_CMAKE_FLAGS
     -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
+    -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
+    -DCMAKE_C_FLAGS=${KITSUNE_OPENCILK_BUILD_CXX_FLAGS}
+    -DCMAKE_C_COMPILER_WORKS=1
     -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
     -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
     -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
     -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    -DCMAKE_CXX_FLAGS=${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}
+    -DCMAKE_CXX_COMPILER_WORKS=1
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
     -DCMAKE_INSTALL_PREFIX=${KITSUNE_CHEETAH_INSTALL_DIR}
@@ -505,13 +546,17 @@ if (KITSUNE_OPENCILK_ENABLED)
     ${KITSUNE_OPENCILK_BUILD_CONFIGURE_FLAGS})
 
   ExternalProject_Add(cheetah
-    DEPENDS             clang lld llvm-config llvm-link
-    GIT_REPOSITORY      https://github.com/OpenCilk/cheetah.git
-    GIT_TAG             dev
-    SOURCE_DIR          ${KITSUNE_CHEETAH_SOURCE_DIR}
-    BINARY_DIR          ${KITSUNE_CHEETAH_BINARY_DIR}
-    CMAKE_ARGS          ${KITSUNE_CHEETAH_BUILD_CMAKE_FLAGS}
-    UPDATE_DISCONNECTED TRUE)
+    DEPENDS                 clang lld llvm-config llvm-link
+    GIT_REPOSITORY          https://github.com/OpenCilk/cheetah.git
+    GIT_TAG                 dev
+    SOURCE_DIR              ${KITSUNE_CHEETAH_SOURCE_DIR}
+    BINARY_DIR              ${KITSUNE_CHEETAH_BINARY_DIR}
+    CMAKE_ARGS              ${KITSUNE_CHEETAH_BUILD_CMAKE_FLAGS}
+    USES_TERMINAL_PATCH     TRUE
+    USES_TERMINAL_CONFIGURE TRUE
+    USES_TERMINAL_BUILD     TRUE
+    USES_TERMINAL_INSTALL   TRUE
+    UPDATE_DISCONNECTED     TRUE)
 
   # Copy the cheetah files into a "staging" area. This allows kitsune to be
   # run from the build directory. The destination directory is set to
@@ -635,6 +680,16 @@ endif()
 # install directory for kitsune as specified by ${CMAKE_INSTALL_PREFIX}.
 set(KITSUNE_RUNTIME_INSTALL_DIR ${KITSUNE_BINARY_DIR}/${KITSUNE_LIBNAME})
 
+set(KITSUNE_RUNTIME_BUILD_C_FLAGS "")
+if (KITSUNE_SYSROOT)
+  string(APPEND KITSUNE_RUNTIME_BUILD_C_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+endif ()
+
+set(KITSUNE_RUNTIME_BUILD_CXX_FLAGS "")
+if (KITSUNE_SYSROOT)
+  string(APPEND KITSUNE_RUNTIME_BUILD_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+endif ()
+
 # -----------------------------------------------------------------------------
 #
 # The CLANG_, KITSUNE_ and LLVM_ variables that are passed in when configuring
@@ -653,13 +708,15 @@ set(KITSUNE_RUNTIME_INSTALL_DIR ${KITSUNE_BINARY_DIR}/${KITSUNE_LIBNAME})
 set(KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DCMAKE_VERBOSE_BUILD=ON
   -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
+  -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
+  -DCMAKE_C_COMPILER_WORKS=1
+  "-DCMAKE_C_FLAGS=${KITSUNE_RUNTIME_BUILD_C_FLAGS}"
   -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
+  -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+  -DCMAKE_CXX_COMPILER_WORKS=1
+  "-DCMAKE_CXX_FLAGS=${KITSUNE_RUNTIME_BUILD_CXX_FLAGS}"
   -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
   -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
-  -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
-  -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
-  -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
-  -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
   -DCMAKE_INSTALL_PREFIX=${KITSUNE_RUNTIME_INSTALL_DIR}
   -DCMAKE_COLOR_DIAGNOSTICS=${CMAKE_COLOR_DIAGNOSTICS}
   -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
