@@ -15,7 +15,7 @@ entry:
 }
 
 ;; Confirm we ran memprof and decided not to instrument
-; CHECK: MEMPROF done instrumenting: false define void @_Z3foov
+; CHECK: MEMPROF done instrumenting: 0 define void @_Z3foov
 
 ;; We should not add any instrumentation related code
 ; CHECK: define void @_Z3foov

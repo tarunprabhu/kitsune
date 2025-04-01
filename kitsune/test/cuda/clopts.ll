@@ -1,3 +1,5 @@
+; Check that the command line options make it to the options objects
+;
 ; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
 ; RUN:      --tapir-verbose 2>&1 \
 ; RUN:      | FileCheck %s -check-prefixes ALL,DEFAULT

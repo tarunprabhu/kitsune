@@ -308,7 +308,7 @@ set(KITSUNE_DEFAULT_LANGS
 set(KITSUNE_ENABLE_LANGS "${KITSUNE_DEFAULT_LANGS}" CACHE STRING
   "Semicolon-separated list of languages (${KITSUNE_KNOWN_LANGS}) for which frontends must be built or \"all\" to build all supported frontends")
 if (KITSUNE_ENABLE_LANGS STREQUAL "all")
-  set(KITSUNE_ENABLED_LANGS "${KITSUNE_KNOWN_LANGS}")
+  set(KITSUNE_ENABLE_LANGS "${KITSUNE_KNOWN_LANGS}")
 elseif (NOT KITSUNE_ENABLE_LANGS)
   message(FATAL_ERROR "At least one frontend must be built")
 endif ()
@@ -316,8 +316,6 @@ endif ()
 set(KITSUNE_ENABLED_LANGS "${KITSUNE_ENABLE_LANGS}" CACHE INTERNAL
   "Semicolon-separated list of languages for which a frontend should be built"
   FORCE)
-message(STATUS "KITSUNE_ENABLE_LANGS: ${KITSUNE_ENABLE_LANGS}")
-message(STATUS "KITSUNE_ENABLED_LANGS: ${KITSUNE_ENABLED_LANGS}")
 
 # The C and C++ frontends must be enabled because clang is required to build
 # Kitsune's runtime. Working around this constraint is not recommended since
@@ -337,20 +335,19 @@ set(KITSUNE_Fortran_ENABLED OFF CACHE INTERNAL
 set(KITSUNE_ENABLED_LANGS_STR)
 foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
   string(TOLOWER "${l}" lang)
-  message(STATUS "lang: ${lang}")
   # clang is required by the C and C++ frontends. But that is guaranteed to be
   # built because the runtime requires it.
   if (lang STREQUAL "c")
-    message(STATUS "'kitcc' frontend is enabled")
-    set(KITSUNE_C_ENABLED ON CACHE INTERNAL "Enable 'kitcc' frontend" FORCE)
+    message(STATUS "'${KITSUNE_C_FRONTEND}' frontend is enabled")
+    set(KITSUNE_C_ENABLED ON CACHE INTERNAL "Enable '${KITSUNE_C_FRONTEND}' frontend" FORCE)
     list(APPEND KITSUNE_ENABLED_LANGS_STR "C")
   elseif (lang STREQUAL "cxx")
-    message(STATUS "'kit++' frontend is enabled")
-    set(KITSUNE_CXX_ENABLED ON CACHE INTERNAL "Enable 'kit++' frontend" FORCE)
+    message(STATUS "'${KITSUNE_CXX_FRONTEND}' frontend is enabled")
+    set(KITSUNE_CXX_ENABLED ON CACHE INTERNAL "Enable '${KITSUNE_CXX_FRONTEND}' frontend" FORCE)
     list(APPEND KITSUNE_ENABLED_LANGS_STR "C++")
   elseif (lang STREQUAL "fortran")
-    message(STATUS "'kitfc' frontend is enabled")
-    set(KITSUNE_Fortran_ENABLED ON CACHE INTERNAL "Enable 'kitfc' frontend" FORCE)
+    message(STATUS "'${KITSUNE_Fortran_FRONTEND}' frontend is enabled")
+    set(KITSUNE_Fortran_ENABLED ON CACHE INTERNAL "Enable '${KITSUNE_Fortran_FRONTEND}' frontend" FORCE)
 
     if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
         NOT "flang" IN_LIST LLVM_ENABLE_PROJECTS)
@@ -450,6 +447,7 @@ if (KITSUNE_CUDA_ENABLED AND
     NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
     NOT "NVPTX" IN_LIST LLVM_TARGETS_TO_BUILD)
   list(APPEND LLVM_TARGETS_TO_BUILD "NVPTX")
+  set(LLVM_TARGETS_TO_BUILD "${LLVM_TARGETS_TO_BUILD}" CACHE STRING "Semicolon-separated list of targets to build, or \"all\"." FORCE)
   message(STATUS "enable NVPTX target")
 endif ()
 
@@ -457,6 +455,7 @@ if (KITSUNE_HIP_ENABLED AND
     NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
     NOT "AMDGPU" IN_LIST LLVM_TARGETS_TO_BUILD)
   list(APPEND LLVM_TARGETS_TO_BUILD "AMDGPU")
+  set(LLVM_TARGETS_TO_BUILD "${LLVM_TARGETS_TO_BUILD}" CACHE STRING "Semicolon-separated list of targets to build, or \"all\"." FORCE)
   message(STATUS "enable AMDGPU target")
 endif ()
 

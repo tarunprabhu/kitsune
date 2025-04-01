@@ -1,4 +1,4 @@
-//===--- Tapir.h - C Language Family Language Options -----------*- C++ -*-===//
+//===--- Tapir.h - Parse kitsune-specific command line options --*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 ///
-/// Defines helper functions for processing flags related to Tapir.
+/// Helper functions to parse Kitsune-specific command line options
 ///
 //===----------------------------------------------------------------------===//
 

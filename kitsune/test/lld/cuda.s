@@ -11,25 +11,25 @@
 ;;;
 ;;; ---------------------------------------------------------------------------
 ;;;
-;;; RUN: not ld.lld --tapir=cuda --fp-contract= 2>&1 \
+;;; RUN: not ld.lld --tapir=cuda --ffp-contract= 2>&1 \
 ;;; RUN:     | FileCheck %s -check-prefix=MISSING
-;;; RUN: not ld.lld --tapir=cuda --fp-contract=Off 2>&1 \
+;;; RUN: not ld.lld --tapir=cuda --ffp-contract=Off 2>&1 \
 ;;; RUN:     | FileCheck %s -check-prefix=RANGE
-;;; RUN: not ld.lld --tapir=cuda --fp-contract=On 2>&1 \
+;;; RUN: not ld.lld --tapir=cuda --ffp-contract=On 2>&1 \
 ;;; RUN:     | FileCheck %s -check-prefix=RANGE
-;;; RUN: not ld.lld --tapir=cuda --fp-contract=FAST 2>&1 \
+;;; RUN: not ld.lld --tapir=cuda --ffp-contract=FAST 2>&1 \
 ;;; RUN:     | FileCheck %s -check-prefix=RANGE
-;;; RUN: not ld.lld --tapir=cuda --fp-contract=fast-honor-pragmas 2>&1 \
+;;; RUN: not ld.lld --tapir=cuda --ffp-contract=fast-honor-pragmas 2>&1 \
 ;;; RUN:     | FileCheck %s -check-prefix=RANGE
 ;;;
 ;;; For valid values of --fp-contract, lld should complain about the lack of
 ;;; inputs
 ;;;
-;;; RUN: not ld.lld --tapir=hip --fp-contract=off 2>&1 \
+;;; RUN: not ld.lld --tapir=hip --ffp-contract=off 2>&1 \
 ;;; RUN:     | FileCheck %s -check-prefix=INPUTS
-;;; RUN: not ld.lld --tapir=hip --fp-contract=on 2>&1 \
+;;; RUN: not ld.lld --tapir=hip --ffp-contract=on 2>&1 \
 ;;; RUN:     | FileCheck %s -check-prefix=INPUTS
-;;; RUN: not ld.lld --tapir=hip --fp-contract=fast 2>&1 \
+;;; RUN: not ld.lld --tapir=hip --ffp-contract=fast 2>&1 \
 ;;; RUN:     | FileCheck %s -check-prefix=INPUTS
 ;;;
 ;;; ---------------------------------------------------------------------------

@@ -81,9 +81,6 @@ public:
   virtual TapirTargetOptions *clone() const = 0;
 };
 
-/// Serialization functions to help in debugging/verbose mode.
-raw_ostream &operator<<(raw_ostream &os, const bool &);
-
 } // namespace llvm
 
 #endif // LLVM_TAPIR_TARGET_OPTIONS_H

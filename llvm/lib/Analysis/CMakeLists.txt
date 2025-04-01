@@ -167,6 +167,9 @@ add_llvm_component_library(LLVMAnalysis
   Support
   TapirCommon
   TargetParser
+  # FIXME: This causes a circular dependence but that needs another refactor,
+  # and there is a lot more to do first.
+  TapirOpts
   )
 
 include(CheckCXXSymbolExists)

@@ -6,15 +6,54 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utility functions to render enums and types to make debugging easier and
-// verbose mode for the tapir targets more helpful.
+// Utility functions to render enums and types to string
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/Tapir/TapirDebugUtils.h"
-#include "llvm/Transforms/Utils/TapirUtils.h"
+#include "llvm/Transforms/Tapir/TapirStringUtils.h"
 
 namespace llvm {
+
+raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &tt) {
+  switch (tt) {
+  case TapirTargetID::None:
+    return os << "none";
+  case TapirTargetID::Serial:
+    return os << "serial";
+  case TapirTargetID::Cuda:
+    return os << "cuda";
+  case TapirTargetID::Hip:
+    return os << "hip";
+  case TapirTargetID::Lambda:
+    return os << "lambda";
+  case TapirTargetID::OMPTask:
+    return os << "omptask";
+  case TapirTargetID::OpenCilk:
+    return os << "opencilk";
+  case TapirTargetID::OpenMP:
+    return os << "openmp";
+  case TapirTargetID::Qthreads:
+    return os << "qthreads";
+  case TapirTargetID::Realm:
+    return os << "realm";
+  default:
+    llvm_unreachable("Tapir target not handled");
+  }
+  return os;
+}
+
+raw_ostream &operator<<(raw_ostream &os, const TapirSpawnStrategy &strategy) {
+  switch (strategy) {
+  case TapirSpawnStrategy::Sequential:
+    return os << "Sequential";
+  case TapirSpawnStrategy::DivideAndConquer:
+    return os << "Divide and conquer";
+  case TapirSpawnStrategy::GPU:
+    return os << "GPU";
+  default:
+    llvm_unreachable("operator<<: TapirSpawnStrategy not handled");
+  }
+}
 
 raw_ostream &operator<<(raw_ostream &os,
                         const FPOpFusion::FPOpFusionMode &mode) {
@@ -49,11 +88,22 @@ raw_ostream &operator<<(raw_ostream &os, const OptimizationLevel &optLevel) {
 
 raw_ostream &operator<<(raw_ostream &os,
                         const std::optional<TapirTargetID> &tt) {
-  llvm::errs() << "trying (" << tt.has_value() << ")\n";
   if (tt.has_value())
     return os << *tt;
   else
     return os << "<<<std::nullopt>>>";
+}
+
+raw_ostream &operator<<(raw_ostream &os, const std::optional<bool> &v) {
+  // This prints 'on' and 'off' instead of true and false because 'on' and 'off'
+  // are used in the command line options from which these are typically
+  // obtained.
+  if (not v.has_value())
+    return os << "any";
+  else if (*v)
+    return os << "on";
+  else
+    return os << "off";
 }
 
 } // namespace llvm

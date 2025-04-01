@@ -13,6 +13,7 @@
 
 #include "llvm/Transforms/Tapir/SerialABI.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
+#include "llvm/Transforms/Tapir/TapirStringUtils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 

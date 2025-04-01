@@ -303,7 +303,7 @@ createTapirTargetOptions(const KitsuneOptions &KitsuneOpts,
     case TapirTargetID::OpenCilk:
       return populateTTOptions(*new OpenCilkABIOptions(), KitsuneOpts);
     default:
-      llvm_unreachable("createTapirTargetOptions: Tapir target not handled");
+      llvm_unreachable("createTapirTargetOptions: TapirTargetID not handled");
       break;
     }
   }
@@ -317,9 +317,13 @@ createTLII(llvm::Triple &TargetTriple, const CodeGenOptions &CodeGenOpts,
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
       llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
   if (std::optional<TapirTargetID> TT = KitsuneOpts.getTapirTarget()) {
+    std::unique_ptr<TapirTargetOptions> TTOpts =
+        createTapirTargetOptions(KitsuneOpts, CodeGenOpts, TargetOpts);
+    // If there are -mllvm arguments, they should override anything that have
+    // been set some other way.
+    // TTOpts->readClOptions();
     TLII->setTapirTarget(*TT);
-    TLII->setTapirTargetOptions(
-        createTapirTargetOptions(KitsuneOpts, CodeGenOpts, TargetOpts));
+    TLII->setTapirTargetOptions(std::move(TTOpts));
     TLII->addTapirTargetLibraryFunctions(*TT);
   }
   return TLII;

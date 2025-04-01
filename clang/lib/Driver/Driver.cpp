@@ -95,6 +95,7 @@
 #include "llvm/Support/StringSaver.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Tapir/TapirCommandLineUtils.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/RISCVISAInfo.h"
 #include <cstdlib> // ::getenv
@@ -134,13 +135,61 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
   // Check that the -ftapir flag has a valid value. This stops us from
   // reporting multiple errors because the flag is examined in several places.
   if (const Arg *A = Args.getLastArg(options::OPT_tapir_EQ)) {
-    std::optional<llvm::TapirTargetID> TT = parseTapirTarget(*A);
+    std::optional<llvm::TapirTargetID> TT =
+        llvm::parseTapirTarget(A->getValue());
     if (not TT) {
-      Diags.Report(diag::err_drv_invalid_value)
+      D.Diag(diag::err_drv_invalid_value)
           << A->getAsString(Args) << A->getValue();
-    } else if (*TT == llvm::TapirTargetID::OpenCilk) {
+      return;
+    }
+
+    // If the tapir target has not been enabled, fail right away.
+    switch (*TT) {
+    case llvm::TapirTargetID::None:
+      break;
+    case llvm::TapirTargetID::Cuda:
+      if (!KITSUNE_CUDA_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "cuda";
+      break;
+    case llvm::TapirTargetID::Hip:
+      if (!KITSUNE_HIP_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "hip";
+      break;
+    case llvm::TapirTargetID::Lambda:
+      if (!KITSUNE_LAMBDA_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "lambda";
+      break;
+    case llvm::TapirTargetID::OMPTask:
+      if (!KITSUNE_OMPTASK_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "omptask";
+      break;
+    case llvm::TapirTargetID::OpenCilk:
+      if (!KITSUNE_OPENCILK_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "lambda";
+      break;
+    case llvm::TapirTargetID::OpenMP:
+      if (!KITSUNE_OPENMP_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "openmp";
+      break;
+    case llvm::TapirTargetID::Qthreads:
+      if (!KITSUNE_QTHREADS_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "qthreads";
+      break;
+    case llvm::TapirTargetID::Realm:
+      if (!KITSUNE_REALM_ENABLED)
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "realm";
+      break;
+    case llvm::TapirTargetID::Serial:
+      // The serial tapir target is always enabled
+      break;
+    default:
+      llvm_unreachable("CheckKitsuneOptions: TapirTargetID not handled");
+      break;
+    }
+
+    if (*TT == llvm::TapirTargetID::OpenCilk) {
       if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
-        Diags.Report(diag::err_drv_opencilk_platform) << Triple.getOSName();
+        D.Diag(diag::err_drv_opencilk_platform) << Triple.getOSName();
 
       switch (Triple.getArch()) {
       case llvm::Triple::x86:
@@ -151,13 +200,13 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       case llvm::Triple::aarch64_be:
         break;
       default:
-        Diags.Report(diag::err_drv_opencilk_target) << Triple.getArchName();
+        D.Diag(diag::err_drv_opencilk_target) << Triple.getArchName();
         break;
       }
     }
 
     if (Args.getLastArg(options::OPT_fopenmp_targets_EQ))
-      Diags.Report(clang::diag::err_drv_kitsune_openmp_offload);
+      D.Diag(clang::diag::err_drv_kitsune_openmp_offload);
   }
 
   // Check that the --tapir-cuda-arch option has a valid value. If an empty

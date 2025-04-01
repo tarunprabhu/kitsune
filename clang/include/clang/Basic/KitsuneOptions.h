@@ -54,7 +54,20 @@
 #define LLVM_CLANG_BASIC_KITSUNE_OPTIONS_H
 
 #include "kitsune/Config/config.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+
+#include <vector>
+
+// FIXME: We should find some other place to put this file.
+//
+// The KitsuneOptions object has to be shared between clang and flang. flang is
+// actively attempting to remove all dependences on clang except the driver, so
+// leaving this in clang/Basic (where it is currently) is not desirable.
+// Currently, there is no other reasonable place to put it, so we keep this file
+// "self-contained" by implementing everything right here. This way, it can be
+// used by both clang and flang and doesn't complicate the build system by
+// introducing new dependencies. But we should find a better way of doing this.
 
 namespace clang {
 
@@ -107,6 +120,14 @@ private:
   /// OpenCilk tapir target is enabled.
   std::optional<std::string> opencilkABIBitcodeFile = std::nullopt;
 
+  /// If this is non-zero, the number of threads per block to use.
+  unsigned fixedThreadsPerBlock = 0;
+
+  /// If this is non-zero, the maximum number of threads per block to use. This
+  /// may be used in conjunction with @ref threadsPerBlock, in which case this
+  /// value must be greater than or equal to @ref threadsPerBlock.
+  unsigned maxThreadsPerBlock = 0;
+
   /// The NVIDIA GPU architecture for which to generate code. This is only
   /// relevant for the cuda tapir target, although the default is always set.
   /// This is a string and not an enum because it is not clear if anything is to
@@ -118,14 +139,6 @@ private:
   /// This is a string and not an enum because it is not clear if anything is to
   /// be gained by making it an enum. So far, all uses of this are as a string.
   std::string hipArch = KITSUNE_HIP_ARCH_DEFAULT;
-
-  /// If this is non-zero, the number of threads per block to use.
-  unsigned fixedThreadsPerBlock = 0;
-
-  /// If this is non-zero, the maximum number of threads per block to use. This
-  /// may be used in conjunction with @ref threadsPerBlock, in which case this
-  /// value must be greater than or equal to @ref threadsPerBlock.
-  unsigned maxThreadsPerBlock = 0;
 
 public:
   void setKitsuneFrontend(bool kitsuneFrontend = true) {
@@ -197,21 +210,13 @@ public:
     return opencilkABIBitcodeFile;
   }
 
-  llvm::StringRef getCudaArch() const {
-    return cudaArch;
-  }
+  unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
 
-  llvm::StringRef getHipArch() const {
-    return hipArch;
-  }
+  unsigned getMaxThreadsPerBlock() const { return maxThreadsPerBlock; }
 
-  unsigned getFixedThreadsPerBlock() const {
-    return fixedThreadsPerBlock;
-  }
+  llvm::StringRef getCudaArch() const { return cudaArch; }
 
-  unsigned getMaxThreadsPerBlock() const {
-    return maxThreadsPerBlock;
-  }
+  llvm::StringRef getHipArch() const { return hipArch; }
 };
 
 } // namespace clang

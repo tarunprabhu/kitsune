@@ -1,6 +1,6 @@
 add_llvm_component_library(LLVMTapirCommon
-  Tapir.cpp
-  TapirDebugUtils.cpp
+  TapirCommandLineUtils.cpp
+  TapirStringUtils.cpp
   TapirTargetOptions.cpp
 
   # LLVM discourages the use of this, but it is used in some parts of LLVM for
@@ -14,7 +14,6 @@ add_llvm_component_library(LLVMTapirCommon
 
   LINK_COMPONENTS
   Core
-  Passes
   Support
 )
 
@@ -27,6 +26,7 @@ set(SOURCES
   LoweringUtils.cpp
   Outline.cpp
   GPUABI.cpp
+  SerialABI.cpp
   SerializeSmallTasks.cpp
   TapirGPUUtils.cpp
   TapirLoopInfo.cpp
@@ -65,9 +65,6 @@ if (KITSUNE_REALM_ENABLED)
   list(APPEND SOURCES RealmABI.cpp)
 endif ()
 
-# Some ABI targets are always enabled.
-list(APPEND SOURCES SerialABI.cpp)
-
 add_llvm_component_library(LLVMTapirOpts
   ${SOURCES}
 
@@ -93,6 +90,7 @@ add_llvm_component_library(LLVMTapirOpts
   LINK_COMPONENTS
   Analysis
   Core
+  IPO
   IRReader
   Linker
   MC

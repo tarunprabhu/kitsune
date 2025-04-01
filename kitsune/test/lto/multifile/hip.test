@@ -25,7 +25,7 @@
 # RUN:     | FileCheck %s -check-prefixes=ALL,STANDARD
 #
 # ALL: /ld{{(64)?}}.lld
-# ALL-SAME: --fp-contract=
+# ALL-SAME: -ffp-contract=
 # ALL: 'hip' tapir target options
 # STRICT: FP Fusion: strict
 # STANDARD: FP Fusion: standard

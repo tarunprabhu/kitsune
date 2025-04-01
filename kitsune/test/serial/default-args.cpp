@@ -1,3 +1,6 @@
+// Check that the default options added to the internal command lines (for -fc1
+// and the linker) are as expected.
+//
 // -----------------------------------------------------------------------------
 // RUN: %kitxx -### -ftapir=serial -O2 %s 2>&1 | FileCheck %s
 // RUN: %kitxx -### --tapir=serial -O2 %s 2>&1 | FileCheck %s
@@ -11,3 +14,12 @@
 // expected linker flags.
 //
 // CHECK-NEXT: -lkitrt
+//
+// -----------------------------------------------------------------------------
+// Check that the stripmine pass is enabled by default. This checks that the
+// the pipeline tuning options object value is set correctly by default.
+//
+// RUN: %kitxx -mllvm -print-pipeline-passes -O2 -ftapir=serial \
+// RUN:      -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
+//
+// STRIPMINE-PASS: loop-stripmine

@@ -18,6 +18,7 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Transforms/Tapir/TapirCommandLineUtils.h"
 #include "llvm/Transforms/Tapir/TapirTargets.h"
 using namespace llvm;
 
@@ -1464,7 +1465,7 @@ createTapirTargetOptions(TapirTargetID TargetID) {
   case TapirTargetID::Serial:
     return std::make_unique<SerialABIOptions>();
   default:
-    llvm_unreachable("createTapirTargetOptions: unhandled tapir target");
+    llvm_unreachable("createTapirTargetOptions: TapirTargetID not handled");
   }
 }
 

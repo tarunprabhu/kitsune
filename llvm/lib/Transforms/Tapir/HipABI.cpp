@@ -116,6 +116,7 @@
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/TapirGPUUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
+#include "llvm/Transforms/Tapir/TapirStringUtils.h"
 #include "llvm/Transforms/Utils/AMDGPUEmitPrintf.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Mem2Reg.h"
@@ -1808,7 +1809,6 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   assert(ObjFile != nullptr && "null object file!");
 
   std::error_code EC;
-
   HipABIOutputFile LinkedObjFile = std::make_unique<ToolOutputFile>(
       LinkedObjFileName, EC, sys::fs::OpenFlags::OF_None);
   if (EC) {
@@ -1853,12 +1853,19 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   LLDArgList.push_back(nullptr);
 
   std::vector<StringRef> LLDArgs = toStringRefArray(LLDArgList.data());
-  if (getOptions().getVerbose())
-    tapir::renderCommandLine(LLDArgs, errs());
   if (getOptions().getVerbose()) {
-    errs() << "    - running link stage...\n      $ ";
-    for (StringRef lld_arg : LLDArgList)
-      errs() << lld_arg << "\n        ";
+    // Render the command line in a single line because some tests expect this.
+    // We could consider using a different argument to print just the command
+    // lines, but that seems unnecessary.
+    //
+    // Then render each argument on a separate line because that is easier to
+    // parse visually. This comes in handy when debugging.
+    errs() << "    - running link stage...\n";
+    errs() << "        ";
+    tapir::renderCommandLine(LLDArgs, errs());
+    errs() << "        $ ";
+    for (StringRef Arg : LLDArgList)
+      errs() << Arg << "\n          ";
     errs() << "** done.\n";
   }
 
@@ -1991,7 +1998,7 @@ void HipABI::bindGlobalVariables(Value *FatBinHandle, IRBuilder<> &B) {
                      VarName,
                      ConstantInt::get(Int64Ty, VarSize),
                      ConstantInt::get(Int32Ty, HostGV->getAlignment())};
-    // FIXME: Global variable support on hip is currently completely broken.
+    // FIXME: Global variable support on hip is currently broken.
     // This should be fixed, but we have to switch to other things for now.
     // B.CreateCall(RegisterVarFn, Args);
   }
@@ -2129,8 +2136,13 @@ Function *HipABI::createDtor(GlobalVariable *BundleHandle) {
       VoidPtrPtrTy, BundleHandle, DL.getPointerABIAlignment(0));
   DtorBuilder.CreateCall(UnregisterFatbinFn, HandleValue);
 
-  // FunctionCallee KitRTDestroyFn =
-  //     M.getOrInsertFunction("__kithip_destroy", VoidTy);
+  // FIXME: There is a bug here which seems to cause use-after-free errors in
+  // Kitsune's runtime. It is not entirely clear where exactly the problem is.
+  // This causes the kitsune-test-suite to consistently fail. In the interest
+  // of having the test suite actually be useful, don't generate the call to
+  // __kithip_destroy until we can figure out exactly what is going on there.
+  FunctionCallee KitRTDestroyFn =
+      M.getOrInsertFunction("__kithip_destroy", VoidTy);
   // DtorBuilder.CreateCall(KitRTDestroyFn, {});
   DtorBuilder.CreateRetVoid();
   return DtorFn;

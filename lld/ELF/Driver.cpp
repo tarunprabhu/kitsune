@@ -68,6 +68,7 @@
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Tapir/TapirTargets.h"
+#include "llvm/Transforms/Tapir/TapirCommandLineUtils.h"
 #include <cstdlib>
 #include <tuple>
 #include <utility>
@@ -1271,7 +1272,7 @@ static void populateGPUABIOptions(opt::InputArgList &args,
       ttOpts.setOptLevel(optLevel);
   }
 
-  if (opt::Arg *arg = args.getLastArg(OPT_fp_contract)) {
+  if (opt::Arg *arg = args.getLastArg(OPT_ffp_contract)) {
     StringRef v = arg->getValue();
     auto fuse = StringSwitch<std::optional<llvm::FPOpFusion::FPOpFusionMode>>(v)
                     .Case("off", llvm::FPOpFusion::Strict)
@@ -1317,15 +1318,17 @@ static std::unique_ptr<TapirTargetOptions>
 populateTTOptions(opt::InputArgList &args, CudaABIOptions &ttOpts) {
   populateGPUABIOptions(args, ttOpts);
 
+  // For many of the arguments here, we really should sanity-check the argument
+  // values. In practice, that will be difficult to do because it needs a lot of
+  // code from clang to be made visible here (or duplicated). In practice, lld
+  // will never be called directly, but will be invoked by clang which will be
+  // responsible for generating valid command lines.
+
   if (opt::Arg* arg = args.getLastArg(OPT_tapir_cuda_arch)) {
     StringRef arch = arg->getValue();
     if (arch.empty()) {
       error(arg->getSpelling() + ": missing argument");
     } else {
-      // Ideally, we should sanity check the architecture as well, but that
-      // would involve exposing code from clang here which is probably not what
-      // we want. In practice, for our purposes, this option will be set by
-      // clang which will have already validated the architecture.
       ttOpts.setArch(arch);
     }
   }
@@ -1336,15 +1339,17 @@ static std::unique_ptr<TapirTargetOptions>
 populateTTOptions(opt::InputArgList &args, HipABIOptions &ttOpts) {
   populateGPUABIOptions(args, ttOpts);
 
+  // For many of the arguments here, we really should sanity-check the argument
+  // values. In practice, that will be difficult to do because it needs a lot of
+  // code from clang to be made visible here (or duplicated). In practice, lld
+  // will never be called directly, but will be invoked by clang which will be
+  // responsible for generating valid command lines.
+
   if (opt::Arg* arg = args.getLastArg(OPT_tapir_hip_arch)) {
     StringRef arch = arg->getValue();
     if (arch.empty()) {
       error(arg->getSpelling() + ": missing argument");
     } else {
-      // Ideally, we should sanity check the architecture as well, but that
-      // would involve exposing code from clang here which is probably not what
-      // we want. In practice, for our purposes, this option will be set by
-      // clang which will have already validated the architecture.
       ttOpts.setArch(arch);
     }
   }
@@ -1389,7 +1394,7 @@ createTapirTargetOptions(opt::InputArgList &args, TapirTargetID tt) {
   case TapirTargetID::OpenCilk:
     return populateTTOptions(args, *new OpenCilkABIOptions());
   default:
-    llvm_unreachable("createTapirTargetOptions: Tapir target not handled");
+    llvm_unreachable("createTapirTargetOptions: TapirTargetID not handled");
     break;
   }
 }

@@ -1,5 +1,8 @@
 ! REQUIRES: kitfc
 !
+! Check that the default options added to the internal command lines (for -fc1
+! and the linker) are as expected.
+!
 ! -print-pipeline-passes currently does not work with flang, but has been
 ! implemented upstream. This should pass once we merge with upstream.
 ! XFAIL: *
@@ -11,7 +14,8 @@
 ! CHECK: -fc1
 ! CHECK-SAME: --tapir=cuda
 !
-! Strip-mining is disabled by default on GPU tapir targets.
+! Stripmining is disabled by default on GPU tapir targets.
+!
 ! CHECK-NOT: -fstripmine
 !
 ! It is a pain to check for the actual linker executable. There are far too
@@ -23,11 +27,12 @@
 ! CHECK-SAME: -lcuda
 !
 ! ------------------------------------------------------------------------------
-! Check that the stripmine pass is enabled/disabled correctly.
+! Check that the stripmine pass is disabled by default. This checks that the
+! the pipeline tuning options object value is set correctly by default.
 !
-! RUN: %kitfc -mllvm -print-pipeline-passes -O2 -fstripmine -ftapir=cuda \
+! RUN: %kitfc -mllvm -print-pipeline-passes -O2 -ftapir=cuda \
 ! RUN:     -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
 !
-! STRIPMINE-PASS: loop-stripmine
+! STRIPMINE-PASS-NOT: loop-stripmine
 
 end program

@@ -41,10 +41,6 @@ enum class TapirSpawnStrategy {
   GPU               /// GPU-centric spawning strategy. Currently unused.
 };
 
-/// Parse the Tapir target from a string. If the string is not a valid tapir
-/// target, return std::nullopt.
-std::optional<TapirTargetID> parseTapirTarget(StringRef s);
-
 // Serialize the Tapir target into the given output stream. This will write a
 // string representation that is compatible with the -ftapir argument used in
 // clang.

@@ -88,6 +88,8 @@
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "llvm/Transforms/Tapir/TapirCommandLineUtils.h"
+#include "llvm/Transforms/Tapir/TapirStringUtils.h"
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -98,6 +100,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -4614,22 +4617,31 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
 void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
                                                  ArgumentConsumer Consumer) {
   if (std::optional<llvm::TapirTargetID> tt = Opts.getTapirTarget()) {
-    std::string buf;
-    llvm::raw_string_ostream os(buf);
-    os << *tt;
-    GenerateArg(Consumer, OPT_tapir_EQ, os.str());
+    GenerateArg(Consumer, OPT_tapir_EQ, llvm::tapir::toString(tt));
 
     switch (*tt) {
+    case llvm::TapirTargetID::None:
+      break;
     case llvm::TapirTargetID::Cuda:
       GenerateArg(Consumer, OPT_tapir_cuda_arch_EQ, Opts.getCudaArch());
       break;
     case llvm::TapirTargetID::Hip:
       GenerateArg(Consumer, OPT_tapir_hip_arch_EQ, Opts.getHipArch());
       break;
+    case llvm::TapirTargetID::Lambda:
+    case llvm::TapirTargetID::OMPTask:
+      break;
     case llvm::TapirTargetID::OpenCilk:
-      if (std::optional<StringRef> bc = Opts.getOpenCilkABIBitcodeFile())
-        GenerateArg(Consumer, OPT_tapir_opencilk_abi_bc_EQ, *bc);
+      GenerateArg(Consumer, OPT_tapir_opencilk_abi_bc_EQ,
+                  *Opts.getOpenCilkABIBitcodeFile());
+      break;
+    case llvm::TapirTargetID::OpenMP:
+    case llvm::TapirTargetID::Qthreads:
+    case llvm::TapirTargetID::Realm:
+    case llvm::TapirTargetID::Serial:
+      break;
     default:
+      llvm_unreachable("GenerateKitsuneArg: TapirTargetID not handled");
       break;
     }
 
@@ -4661,6 +4673,151 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
     GenerateArg(Consumer, OPT_fstripmine);
 }
 
+static std::vector<std::string>
+ParseCommaSeparatedList(StringRef S, DiagnosticsEngine &Diags) {
+  std::vector<std::string> List;
+  std::string Token;
+  std::istringstream ISS(S.str());
+  while (std::getline(ISS, Token, ','))
+    List.push_back(Token);
+  return List;
+}
+
+static void ParseKitsuneCommonGPUArgs(KitsuneOptions &Opts, const ArgList &Args,
+                                      DiagnosticsEngine &Diags) {
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_threads_per_block_EQ)) {
+    unsigned N;
+    StringRef Val = A->getValue();
+    Val.getAsInteger(10, N);
+    Opts.setFixedThreadsPerBlock(N);
+  }
+
+  if (const Arg *A =
+          Args.getLastArg(options::OPT_tapir_max_threads_per_block_EQ)) {
+    unsigned N;
+    StringRef Val = A->getValue();
+    Val.getAsInteger(10, N);
+    Opts.setMaxThreadsPerBlock(N);
+  }
+}
+
+static bool ParseKitsuneCudaArgs(KitsuneOptions &Opts, const ArgList &Args,
+                                 DiagnosticsEngine &Diags) {
+  unsigned NumErrorsBefore = Diags.getNumErrors();
+
+  const OptTable &OptTable = getDriverOptTable();
+  const OptSpecifier RequiredOpts[] = {
+      options::OPT_tapir_cuda_arch_EQ};
+  for (OptSpecifier Opt : RequiredOpts)
+    if (!Args.hasArg(Opt))
+      Diags.Report(diag::err_drv_kitsune_missing_required)
+          << OptTable.getOptionName(Opt);
+
+  if (Diags.getNumErrors() > NumErrorsBefore)
+    return false;
+
+  Opts.setCudaArch(Args.getLastArgValue(options::OPT_tapir_cuda_arch_EQ));
+
+  ParseKitsuneCommonGPUArgs(Opts, Args, Diags);
+  return Diags.getNumErrors() == NumErrorsBefore;
+}
+
+static bool ParseKitsuneHipArgs(KitsuneOptions& Opts, const ArgList& Args,
+                                DiagnosticsEngine& Diags) {
+  unsigned NumErrorsBefore = Diags.getNumErrors();
+
+  const OptTable &OptTable = getDriverOptTable();
+  const OptSpecifier RequiredOpts[] = {
+      options::OPT_tapir_hip_arch_EQ};
+  for (OptSpecifier Opt : RequiredOpts)
+    if (!Args.hasArg(Opt))
+      Diags.Report(diag::err_drv_kitsune_missing_required)
+          << OptTable.getOptionName(Opt);
+
+  if (Diags.getNumErrors() > NumErrorsBefore)
+    return false;
+
+  Opts.setHipArch(Args.getLastArgValue(options::OPT_tapir_hip_arch_EQ));
+
+  ParseKitsuneCommonGPUArgs(Opts, Args, Diags);
+  return Diags.getNumErrors() == NumErrorsBefore;
+}
+
+static bool ParseKitsuneLambdaArgs(KitsuneOptions &Opts, const ArgList &Args,
+                                   DiagnosticsEngine& Diags) {
+  unsigned NumErrorsBefore = Diags.getNumErrors();
+
+  // Don't hit unreachable if an error has already occurred
+  if (!NumErrorsBefore)
+    llvm_unreachable("NOT IMPLEMENTED: ParseKitsuneLambdaArgs");
+
+  return Diags.getNumErrors() == NumErrorsBefore;
+}
+
+static bool ParseKitsuneOMPTaskArgs(KitsuneOptions &Opts, const ArgList &Args,
+                                    DiagnosticsEngine& Diags) {
+  unsigned NumErrorsBefore = Diags.getNumErrors();
+
+  // Don't hit unreachable if an error has already occurred
+  if (!NumErrorsBefore)
+    llvm_unreachable("NOT IMPLEMENTED: ParseKitsuneOMPTaskArgs");
+
+  return Diags.getNumErrors() == NumErrorsBefore;
+}
+
+static bool ParseKitsuneOpenCilkArgs(KitsuneOptions &Opts, const ArgList &Args,
+                                     DiagnosticsEngine& Diags) {
+  unsigned NumErrorsBefore = Diags.getNumErrors();
+
+
+  const OptTable &OptTable = getDriverOptTable();
+  for (OptSpecifier Opt : {options::OPT_tapir_opencilk_abi_bc_EQ})
+    if (!Args.hasArg(Opt))
+      Diags.Report(diag::err_drv_kitsune_missing_required)
+          << OptTable.getOptionName(Opt);
+
+  if (Diags.getNumErrors() > NumErrorsBefore)
+    return false;
+
+  Opts.setOpenCilkABIBitcodeFile(
+      Args.getLastArgValue(options::OPT_tapir_opencilk_abi_bc_EQ));
+
+  return Diags.getNumErrors() == NumErrorsBefore;
+}
+
+static bool ParseKitsuneOpenMPArgs(KitsuneOptions &Opts, const ArgList &Args,
+                                   DiagnosticsEngine& Diags) {
+  unsigned NumErrorsBefore = Diags.getNumErrors();
+
+  // Don't hit unreachable if an error has already occurred
+  if (!NumErrorsBefore)
+    llvm_unreachable("NOT IMPLEMENTED: ParseKitsuneOpenMPArgs");
+
+  return Diags.getNumErrors() == NumErrorsBefore;
+}
+
+static bool ParseKitsuneQthreadsArgs(KitsuneOptions &Opts, const ArgList &Args,
+                                     DiagnosticsEngine& Diags) {
+  unsigned NumErrorsBefore = Diags.getNumErrors();
+
+  // Don't hit unreachable if an error has already occurred
+  if (!NumErrorsBefore)
+    llvm_unreachable("NOT IMPLEMENTED: ParseKitsuneQthreadsArgs");
+
+  return Diags.getNumErrors() == NumErrorsBefore;
+}
+
+static bool ParseKitsuneRealmArgs(KitsuneOptions &Opts, const ArgList &Args,
+                                  DiagnosticsEngine& Diags) {
+  unsigned NumErrorsBefore = Diags.getNumErrors();
+
+  // Don't hit unreachable if an error has already occurred
+  if (!NumErrorsBefore)
+    llvm_unreachable("NOT IMPLEMENTED: ParseKitsuneRealmArgs");
+
+  return Diags.getNumErrors() == NumErrorsBefore;
+}
+
 bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts,
                                           const char *Argv0,
                                           const ArgList &Args,
@@ -4671,72 +4828,41 @@ bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts,
   Opts.setKitsuneFrontend(driver::IsKitsuneFrontend(Argv0));
   Opts.setStripmineLoops(Args.hasArg(options::OPT_fstripmine));
 
-  if (Arg* A = Args.getLastArg(options::OPT_tapir_opencilk_abi_bc_EQ))
-    Opts.setOpenCilkABIBitcodeFile(A->getValue());
-  if (Arg* A = Args.getLastArg(options::OPT_tapir_cuda_arch_EQ))
-    Opts.setCudaArch(A->getValue());
-  if (Arg* A = Args.getLastArg(options::OPT_tapir_hip_arch_EQ))
-    Opts.setHipArch(A->getValue());
-
-  if (Arg *A = Args.getLastArg(options::OPT_tapir_threads_per_block_EQ)) {
-    unsigned N;
-    StringRef Val = A->getValue();
-    Val.getAsInteger(10, N);
-    Opts.setFixedThreadsPerBlock(N);
-  }
-
-  if (Arg* A = Args.getLastArg(options::OPT_tapir_max_threads_per_block_EQ)) {
-    unsigned N;
-    StringRef Val = A->getValue();
-    Val.getAsInteger(10, N);
-    Opts.setMaxThreadsPerBlock(N);
-  }
-
   Opts.setTapirTargetVerbose(Args.hasArg(options::OPT_tapir_verbose));
   Opts.setKitsuneRuntimeVerbose(Args.hasArg(options::OPT_kitrt_verbose));
 
   if (std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args)) {
-    // Even if the tapir target is valid, it may not have been enabled when
-    // building clang.
     switch (*TapirTarget) {
-    case llvm::TapirTargetID::Serial:
     case llvm::TapirTargetID::None:
-      // The serial and none targets are always built.
       break;
     case llvm::TapirTargetID::Cuda:
-      if (!KITSUNE_CUDA_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "cuda";
+      ParseKitsuneCudaArgs(Opts, Args, Diags);
       break;
     case llvm::TapirTargetID::Hip:
-      if (!KITSUNE_HIP_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "hip";
+      ParseKitsuneHipArgs(Opts, Args, Diags);
       break;
     case llvm::TapirTargetID::Lambda:
-      if (!KITSUNE_LAMBDA_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "lambda";
+      ParseKitsuneLambdaArgs(Opts, Args, Diags);
       break;
     case llvm::TapirTargetID::OMPTask:
-      if (!KITSUNE_OMPTASK_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "omptask";
+      ParseKitsuneOMPTaskArgs(Opts, Args, Diags);
       break;
     case llvm::TapirTargetID::OpenCilk:
-      if (!KITSUNE_OPENCILK_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "opencilk";
+      ParseKitsuneOpenCilkArgs(Opts, Args, Diags);
       break;
     case llvm::TapirTargetID::OpenMP:
-      if (!KITSUNE_OPENMP_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "openmp";
+      ParseKitsuneOpenMPArgs(Opts, Args, Diags);
       break;
     case llvm::TapirTargetID::Qthreads:
-      if (!KITSUNE_QTHREADS_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "qthreads";
+      ParseKitsuneQthreadsArgs(Opts, Args, Diags);
       break;
     case llvm::TapirTargetID::Realm:
-      if (!KITSUNE_REALM_ENABLED)
-        Diags.Report(diag::err_drv_kitsune_target_not_enabled) << "realm";
+      ParseKitsuneRealmArgs(Opts, Args, Diags);
+      break;
+    case llvm::TapirTargetID::Serial:
       break;
     default:
-      llvm_unreachable("ParseKitsuneArgs: Tapir target not handled");
+      llvm_unreachable("ParseKitsuneArgs: TapirTargetID not handled");
     }
     Opts.setTapirTarget(*TapirTarget);
   }
@@ -4779,12 +4905,6 @@ bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
     Diags.Report(clang::diag::err_drv_kitsune_objc);
   else if (LangOpts.OpenCL)
     Diags.Report(clang::diag::err_drv_kitsune_opencl);
-
-  // The OpenCilk tapir target requires a bitcode file.
-  if (*TT == llvm::TapirTargetID::OpenCilk) {
-    if (!KitsuneOpts.getOpenCilkABIBitcodeFile())
-      Diags.Report(diag::err_drv_opencilk_missing_abi_bitcode);
-  }
 
   return Diags.getNumErrors() == NumErrorsBefore;
 }
@@ -5229,9 +5349,7 @@ bool CompilerInvocation::CreateFromArgsImpl(
   // options have been set. It would be nice if we could keep all the kitsune
   // code together, but that is not possible. It is this way because I am trying
   // to consolidate all the Kitsune-specific code to the extent possible to
-  // make merging easier. Some of the checks could be done in the driver
-  // instead which might actually be better, but merging is a serious headache
-  // that I would prefer to make easier.
+  // make merging easier.
   CheckKitsuneArgs(Args, T, LangOpts.KitsuneOpts, Res.getLangOpts(), Diags);
 
   return Diags.getNumErrors() == NumErrorsBefore;

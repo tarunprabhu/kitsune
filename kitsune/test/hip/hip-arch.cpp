@@ -20,6 +20,7 @@
 // -----------------------------------------------------------------------------
 //
 // If the tapir target is hip, the architecture should be passed on to cc1
+//
 // RUN: %kitxx -### --tapir-hip-arch=gfx906 --tapir=hip %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix USED
 //
@@ -27,11 +28,13 @@
 //
 // -----------------------------------------------------------------------------
 //
-// Make sure that the architecture makes it to hipabi.
+// Make sure that the architecture makes it to hipabi. This checks that the
+// architecture is used in the LLD link line for the bitcode files.
+//
 // RUN: %kitxx --tapir-verbose --tapir=hip --tapir-hip-arch=gfx90c \
 // RUN:     -S -emit-llvm -O2  %s 2>&1 | FileCheck %s -check-prefix LOWERED
 //
-// LOWERED: /ld{{(64)?}}.lld
+// LOWERED: /ld{{(64)?}}.lld {{.*}}--no-undefined
 // LOWERED-SAME: -plugin-opt=-mcpu=gfx90c
 //
 // -----------------------------------------------------------------------------

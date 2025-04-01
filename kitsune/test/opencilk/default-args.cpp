@@ -1,3 +1,6 @@
+// Check that the default options added to the internal command lines (for -cc1
+// and the linker) are as expected.
+//
 // -----------------------------------------------------------------------------
 // RUN: %kitxx -### -ftapir=opencilk -O2 %s 2>&1 | FileCheck %s
 // RUN: %kitxx -### --tapir=opencilk -O2 %s 2>&1 | FileCheck %s
@@ -5,6 +8,9 @@
 // CHECK: -cc1
 // CHECK-SAME: --tapir=opencilk
 // CHECK-SAME: --tapir-opencilk-abi-bc
+//
+// For OpenCilk, stripmining is enabled by default.
+//
 // CHECK-SAME: -fstripmine
 //
 // It is a pain to check for the actual linker executable. There are far too
@@ -13,3 +19,12 @@
 //
 // CHECK-NEXT: -lopencilk
 // CHECK-SAME: -lkitrt
+//
+// -----------------------------------------------------------------------------
+// Check that the stripmine pass is enabled by default. This checks that the
+// the pipeline tuning options object value is set correctly by default.
+//
+// RUN: %kitxx -mllvm -print-pipeline-passes -O2 -ftapir=opencilk \
+// RUN:      -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
+//
+// STRIPMINE-PASS: loop-stripmine

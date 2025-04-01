@@ -17,6 +17,7 @@
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "llvm/Transforms/Tapir/TapirCommandLineUtils.h"
 
 using namespace clang::driver;
 using namespace llvm;

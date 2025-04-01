@@ -274,7 +274,7 @@ if (KITSUNE_CUDA_ENABLED)
   # CUDAToolkit does not provide a CUDAToolkit_PREFIX variable. CUDAToolkit_ROOT
   # is not set either, even if the CUDAToolkit is found. The prefix relies on
   # environment variables, so prefer those. Otherwise, make a best guess at
-  # figuring out what it is from the vriables that are set.
+  # figuring out what it is from the variables that are set.
   #
   # Alternatively, we could require setting CUDA_PATH in the environment. That
   # is probably not necessary. On HPC machines (which generally give us the most
@@ -518,26 +518,30 @@ if (KITSUNE_OPENCILK_ENABLED)
 
   # We pass some LLVM_* variables to make Cheetah behave as if it were an
   # in-tree build.
+  #
+  # FIXME: Cheetah complains about not finding LLVMTestingSupport in
+  # LLVM_AVAILABLE_LIBS. This variable is only set *after* LLVM has been built.
+  # Since the cmake args are computed at configure time, it is empty and there
+  # is nothing we can do about it. Need to find a way to set this at Kitsune
+  # build time instead of configure time.
   set(KITSUNE_CHEETAH_SOURCE_DIR ${KITSUNE_TARGETS_BINARY_DIR}/cheetah/cheetah)
   set(KITSUNE_CHEETAH_BINARY_DIR ${KITSUNE_TARGETS_BINARY_DIR}/cheetah/build)
   set(KITSUNE_CHEETAH_INSTALL_DIR ${KITSUNE_TARGETS_BINARY_DIR}/cheetah/install)
   set(KITSUNE_CHEETAH_BUILD_CMAKE_FLAGS
     -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
     -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
-    -DCMAKE_C_FLAGS=${KITSUNE_OPENCILK_BUILD_CXX_FLAGS}
+    "-DCMAKE_C_FLAGS='${KITSUNE_OPENCILK_BUILD_C_FLAGS}'"
     -DCMAKE_C_COMPILER_WORKS=1
     -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
-    -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
-    -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
-    -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
-    -DCMAKE_CXX_FLAGS=${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}
+    "-DCMAKE_CXX_FLAGS='${KITSUNE_OPENCILK_BUILD_CXX_FLAGS}'"
     -DCMAKE_CXX_COMPILER_WORKS=1
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
     -DCMAKE_INSTALL_PREFIX=${KITSUNE_CHEETAH_INSTALL_DIR}
     -DCHEETAH_DEFAULT_TARGET_TRIPLE=${LLVM_DEFAULT_TARGET_TRIPLE}
     -DCHEETAH_DIRECTORY_PER_TARGET=ON
+    -DLLVM_AVAILABLE_LIBS=${LLVM_AVAILABLE_LIBS}
     -DLLVM_CMAKE_DIR=${CMAKE_BINARY_DIR}
     -DLLVM_COMMON_CMAKE_UTILS=${CMAKE_SOURCE_DIR}/llvm/cmake
     -DLLVM_LIBRARY_OUTPUT_INTDIR=${LLVM_LIBRARY_OUTPUT_INTDIR}
@@ -556,7 +560,8 @@ if (KITSUNE_OPENCILK_ENABLED)
     USES_TERMINAL_CONFIGURE TRUE
     USES_TERMINAL_BUILD     TRUE
     USES_TERMINAL_INSTALL   TRUE
-    UPDATE_DISCONNECTED     TRUE)
+    UPDATE_DISCONNECTED     TRUE
+    ALWAYS_BUILD            TRUE)
 
   # Copy the cheetah files into a "staging" area. This allows kitsune to be
   # run from the build directory. The destination directory is set to
@@ -706,7 +711,6 @@ endif ()
 #
 # However, this may result in a number of "unused variable" warnings.
 set(KITSUNE_RUNTIME_CONFIGURE_ARGS
-  -DCMAKE_VERBOSE_BUILD=ON
   -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
   -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
   -DCMAKE_C_COMPILER_WORKS=1

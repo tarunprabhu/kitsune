@@ -823,7 +823,8 @@ defm android_memtag_mode: EEq<"android-memtag-mode",
 // 
 //------------------------------------------------------------------------------
 
-defm fp_contract: EEq<"fp-contract",
+// Most of these should go away.
+defm ffp_contract: EEq<"ffp-contract",
     "Enable aggressive formation of fused FP ops. This accepts the same "
     "value as the fp-contract flag in opt">;
 
