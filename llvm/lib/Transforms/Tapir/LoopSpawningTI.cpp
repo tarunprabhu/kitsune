@@ -47,6 +47,7 @@
 #include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
@@ -582,6 +583,7 @@ private:
   Function *createHelperForTapirLoop(TapirLoopInfo *TL, ValueSet &Args,
                                      unsigned IVArgIndex,
                                      unsigned LimitArgIndex, Module *DestM,
+                                     CloneFunctionChangeType Changes,
                                      ValueToValueMapTy &VMap,
                                      ValueToValueMapTy &InputMap);
 
@@ -692,23 +694,10 @@ void DACSpawning::implementDACIterSpawnOnHelper(TapirLoopInfo &TL,
         SplitBlock(Preheader, &Preheader->front(), (DomTreeUpdater *)nullptr,
                    nullptr, nullptr, Preheader->getName() + ".dac.head");
 
-    // Move any syncregion_start's in DACHead into Preheader.
-    BasicBlock::iterator InsertPoint = Preheader->begin();
-    for (BasicBlock::iterator I = DACHead->begin(), E = DACHead->end();
-         I != E;) {
-      IntrinsicInst *II = dyn_cast<IntrinsicInst>(I++);
-      if (!II)
-        continue;
-      if (Intrinsic::syncregion_start != II->getIntrinsicID())
-        continue;
-
-      while (isa<IntrinsicInst>(I) &&
-             Intrinsic::syncregion_start ==
-                 cast<IntrinsicInst>(I)->getIntrinsicID())
-        ++I;
-
-      Preheader->splice(InsertPoint, &*DACHead, II->getIterator(), I);
-    }
+    // Move the syncregion corresponding with the original loop into Preheader,
+    // so the new detach can use it.
+    if (Instruction *SyncRegionI = dyn_cast<Instruction>(SyncRegion))
+      SyncRegionI->moveBefore(&*Preheader->getFirstInsertionPt());
 
     if (!Preheader->getTerminator()->getDebugLoc())
       Preheader->getTerminator()->setDebugLoc(
@@ -956,6 +945,20 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
       ORE.emit(
           TapirLoopInfo::createMissedAnalysis(LS_NAME, "ComplexPreheader", L)
           << "loop preheader not terminated by a branch");
+      emitMissedWarning(L, Hints, &ORE);
+    }
+    return nullptr;
+  }
+
+  if (!isa<BranchInst>(L->getLoopLatch()->getTerminator()) ||
+      dyn_cast<BranchInst>(L->getLoopLatch()->getTerminator())
+          ->isUnconditional()) {
+    LLVM_DEBUG(
+        dbgs() << "Loop latch is not terminated by a conditional branch.\n");
+    if (hintsDemandOutlining(Hints)) {
+      ORE.emit(
+          TapirLoopInfo::createMissedAnalysis(LS_NAME, "UnexpectedLatch", L)
+          << "loop latch not terminated by a conditional branch");
       emitMissedWarning(L, Hints, &ORE);
     }
     return nullptr;
@@ -1358,8 +1361,8 @@ public:
 /// mapping of values in the original function to values in the outlined helper.
 Function *LoopSpawningImpl::createHelperForTapirLoop(
     TapirLoopInfo *TL, ValueSet &Args, unsigned IVArgIndex,
-    unsigned LimitArgIndex, Module *DestM, ValueToValueMapTy &VMap,
-    ValueToValueMapTy &InputMap) {
+    unsigned LimitArgIndex, Module *DestM, CloneFunctionChangeType Changes,
+    ValueToValueMapTy &VMap, ValueToValueMapTy &InputMap) {
   Task *T = TL->getTask();
   Loop *L = TL->getLoop();
   BasicBlock *Header = L->getHeader();
@@ -1400,10 +1403,6 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
     NamedRegionTimer NRT("CreateHelper", "Create helper for Tapir loop",
                          TimerGroupName, TimerGroupDescription,
                          TimePassesIsEnabled);
-    Module *M = F.getParent();
-    CloneFunctionChangeType Changes =
-        M == DestM ? CloneFunctionChangeType::GlobalChanges
-                   : CloneFunctionChangeType::DifferentModule;
     Helper = CreateHelper(Args, Outputs, TLBlocks, Header, Preheader,
                           TL->getExitBlock(), VMap, DestM, Changes, Returns,
                           NameSuffix.str(), nullptr, &DetachedRethrowBlocks,
@@ -1637,7 +1636,8 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
     Function *Outline = createHelperForTapirLoop(
         TL, LoopArgs[L], OutlineProcessors[TL]->getIVArgIndex(F, LoopArgs[L]),
         OutlineProcessors[TL]->getLimitArgIndex(F, LoopArgs[L]),
-        &OutlineProcessors[TL]->getDestinationModule(), VMap, InputMap);
+        &OutlineProcessors[TL]->getDestinationModule(),
+        OutlineProcessors[TL]->getCloneFunctionChangeType(), VMap, InputMap);
     TaskToOutline[T] = TaskOutlineInfo(
         Outline, T->getEntry(), cast<Instruction>(VMap[T->getDetach()]),
         dyn_cast_or_null<Instruction>(VMap[T->getTaskFrameUsed()]),

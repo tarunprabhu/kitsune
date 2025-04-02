@@ -50,6 +50,7 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/MemoryModelRelaxationAnnotations.h"
@@ -8721,8 +8722,9 @@ static bool serializeDetachToImmediateSync(BasicBlock *BB,
 
       // Move static alloca instructions in the detached block to the
       // appropriate entry block.
-      MoveStaticAllocasInBlock(cast<Instruction>(SyncRegion)->getParent(),
-                               Detached, ReattachPreds);
+      if (isa<Instruction>(SyncRegion))
+        MoveStaticAllocasInBlock(cast<Instruction>(SyncRegion)->getParent(),
+                                 Detached, ReattachPreds);
 
       // Erase any instructions marked to be erased.
       for (Instruction *I : ToErase)

@@ -20,6 +20,7 @@
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instruction.h"
@@ -28,6 +29,7 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/Casting.h"
 #include <utility>
 
 namespace llvm {
@@ -99,6 +101,12 @@ public:
          CurTF = CurTF->TaskFrameParent)
       ++D;
     return D;
+  }
+  BasicBlock::iterator getTaskFrameFirstInsertionPt() {
+    if (Instruction *TFCreate =
+            dyn_cast_or_null<Instruction>(getTaskFrameCreate()))
+      return TFCreate->getNextNode()->getIterator();
+    return getEntry()->getFirstInsertionPt();
   }
 
   Task *getTaskFromTaskFrame() const;
@@ -302,6 +310,17 @@ public:
   void addBlock(BasicBlock &B) {
     Blocks.push_back(&B);
     DenseBlockSet.insert(&B);
+  }
+
+  /// Raw method to remove block B from this spindle.
+  void removeBlock(BasicBlock &B) {
+    DenseBlockSet.erase(&B);
+    for (auto Iter = Blocks.begin(); Iter != Blocks.end(); ++Iter) {
+      if (*Iter == &B) {
+        Blocks.erase(Iter);
+        break;
+      }
+    }
   }
 
   // Returns true if the basic block B predeces this spindle.
@@ -676,7 +695,7 @@ public:
     return Continuation;
   }
 
-  /// Get the spindle for the exceptional continuation o fthis task.  Returns
+  /// Get the spindle for the exceptional continuation of this task.  Returns
   /// nullptr if this task is a root task or the detach for this task does not
   /// have an unwind destination.
   Spindle *getEHContinuationSpindle() const {
@@ -689,7 +708,7 @@ public:
     return EHContinuation;
   }
 
-  /// Get the spindle for the exceptional continuation o fthis task.  Returns
+  /// Get the landingpad for the exceptional continuation of this task.  Returns
   /// nullptr if this task is a root task or the detach for this task does not
   /// have an unwind destination.
   Value *getLPadValueInEHContinuationSpindle() const {
@@ -716,7 +735,7 @@ public:
   /// Return true if basic block B is in a shared EH spindle dominated by this
   /// task.
   bool containsSharedEH(const BasicBlock *B) const {
-    for (const Spindle *S : SharedSubTaskEH)
+    for (const Spindle *S : DenseEHSpindleSet)
       if (S->contains(B))
         return true;
     return false;
@@ -807,11 +826,11 @@ public:
 
   /// Returns true if this task tracks any shared EH spindles for its subtasks.
   bool tracksSharedEHSpindles() const {
-    return !SharedSubTaskEH.empty();
+    return !DenseEHSpindleSet.empty();
   }
   /// Get the number of shared EH spindles in this task in constant time.
   unsigned getNumSharedEHSpindles() const {
-    return SharedSubTaskEH.size();
+    return DenseEHSpindleSet.size();
   }
 
   /// Return the shared EH spindles contained within this task.
@@ -823,13 +842,7 @@ public:
   }
   /// Get the shared EH spindle containing basic block B, if it exists.
   const Spindle *getSharedEHContaining(const BasicBlock *B) const {
-    for (const Spindle *S : SharedSubTaskEH)
-      if (S->contains(B))
-        return S;
-    return nullptr;
-  }
-  Spindle *getSharedEHContaining(BasicBlock *B) const {
-    for (Spindle *S : SharedSubTaskEH)
+    for (const Spindle *S : DenseEHSpindleSet)
       if (S->contains(B))
         return S;
     return nullptr;
@@ -937,9 +950,14 @@ public:
   }
 
   /// Raw method to add a shared exception-handling spindle S to this task.
+  void markEHSpindle(Spindle &S) {
+    DenseEHSpindleSet.insert(&S);
+  }
+
+  /// Raw method to add a shared exception-handling spindle S to this task.
   void addEHSpindle(Spindle &S) {
     SharedSubTaskEH.push_back(&S);
-    DenseEHSpindleSet.insert(&S);
+    markEHSpindle(S);
   }
 
   // Add task ST as a subtask of this task.
@@ -1456,6 +1474,27 @@ public:
     SpindleMap[S] = T;
   }
 
+  // Move spindle S from its task to that task's parent.
+  //
+  // NOTE: The resulting TaskInfo may not exactly match the state of a freshly
+  // computed TaskInfo.
+  void moveSpindlesToParent(Task *T) {
+    // Currently this method simply adds T's spindles to T's parent task
+    // and removes those spindles from T.
+    // TODO: Update Spindle types and edges.
+    Task *Parent = T->getParentTask();
+    // Add all spindles to parent task.
+    for (Spindle *S : T->Spindles) {
+      Parent->addSpindle(*S);
+      S->setParentTask(Parent);
+      SpindleMap[S] = Parent;
+    }
+
+    // Remove all spindles from this task.
+    while (!T->Spindles.empty())
+      T->Spindles.pop_back();
+  }
+
   // Add spindle S to task T, where S is a shared exception-handling spindle
   // among subtasks of T.
   void addEHSpindleToTask(Spindle *S, Task *T) {
@@ -1470,6 +1509,15 @@ public:
     assert(!BBMap.count(&B) && "Block already mapped to a spindle.");
     S->addBlock(B);
     BBMap[&B] = S;
+  }
+
+  // Remove basic block B from its spindle.
+  void removeBlock(BasicBlock &B) {
+    if (!BBMap.count(&B))
+      return;
+    Spindle *S = BBMap[&B];
+    S->removeBlock(B);
+    BBMap.erase(&B);
   }
 
   // Associate a task T with the spindle TFSpindle that creates its taskframe.

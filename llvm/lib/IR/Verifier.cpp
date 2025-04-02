@@ -621,6 +621,8 @@ private:
   void verifyTask(const DetachInst *DI);
   void visitDetachInst(DetachInst &DI);
   void visitReattachInst(ReattachInst &RI);
+  void visitSyncInst(SyncInst &SI);
+  void verifyTaskFrame(const CallBase *TF);
 
   void verifySwiftErrorCall(CallBase &Call, const Value *SwiftErrorVal);
   void verifySwiftErrorValue(const Value *SwiftErrorVal);
@@ -1113,8 +1115,6 @@ void Verifier::visitValueAsMetadata(const ValueAsMetadata &MD, Function *F) {
     ActualF = A->getParent();
   assert(ActualF && "Unimplemented function local metadata case!");
 
-  if (ActualF != F)
-    llvm::errs() << "VERIFIER: " << ActualF << " " << F << "\n  " << ActualF->getName() << " " << F->getName() << "\n";
   Check(ActualF == F, "function-local metadata used in wrong function", L);
 }
 
@@ -3334,6 +3334,8 @@ void Verifier::verifyTask(const DetachInst *DI) {
 }
 
 void Verifier::visitReattachInst(ReattachInst &RI) {
+  Check(isa<Instruction>(RI.getSyncRegion()),
+        "reattach has an invalid syncregion", RI);
   if (DT.isReachableFromEntry(RI.getParent())) {
     // Check that the continuation of the reattach has a detach predecessor.
     const BasicBlock *Continue = RI.getDetachContinue();
@@ -3351,7 +3353,78 @@ void Verifier::visitReattachInst(ReattachInst &RI) {
   visitTerminator(RI);
 }
 
+void Verifier::visitSyncInst(SyncInst &SI) {
+  Check(isa<Instruction>(SI.getSyncRegion()), "sync has an invalid syncregion",
+        SI);
+  visitTerminator(SI);
+}
+
+void Verifier::verifyTaskFrame(const CallBase *TF) {
+  // Gather endpoints of the taskframe.
+  SmallPtrSet<const BasicBlock *, 4> TFEnds;
+  bool IsDead = true;
+  for (const User *U : TF->users()) {
+    if (const CallBase *CB = dyn_cast<CallBase>(U)) {
+      if (const Function *Called = CB->getCalledFunction()) {
+        // All taskframe.end and taskframe.resume users directly indicate
+        // taskframe ends.  All taskframe.use users identify spawned tasks.
+        if (Intrinsic::taskframe_end == Called->getIntrinsicID() ||
+            Intrinsic::taskframe_resume == Called->getIntrinsicID()) {
+          TFEnds.insert(CB->getParent());
+          IsDead = false;
+        } else if (Intrinsic::taskframe_use == Called->getIntrinsicID()) {
+          // Use the continuation block of the spawned task as the taskframe
+          // end.
+          if (const BasicBlock *Detacher = CB->getParent()->getUniquePredecessor()) {
+            if (const DetachInst *Detach = dyn_cast<DetachInst>(Detacher->getTerminator())) {
+              TFEnds.insert(Detach->getContinue());
+              IsDead = false;
+            }
+          }
+          // Also include the block containing the taskframe.use.  If this
+          // taskframe is really used in a spawned task, and is not just dead
+          // code, then verifyTask() will check the spawned task itself.
+          TFEnds.insert(CB->getParent());
+        }
+      }
+    }
+  }
+  SmallVector<const BasicBlock *, 32> Worklist;
+  SmallPtrSet<const BasicBlock *, 32> Visited;
+  Worklist.push_back(TF->getParent());
+  do {
+    const BasicBlock *BB = Worklist.pop_back_val();
+    if (!Visited.insert(BB).second)
+      continue;
+
+    // If this block is a taskframe end, stop the traversal.
+    if (TFEnds.contains(BB))
+      continue;
+
+    // Check that do not encounter a return or resume in the middle of the
+    // task.
+    Check(IsDead || (!isa<ReturnInst>(BB->getTerminator()) &&
+                     !isa<ResumeInst>(BB->getTerminator())),
+          "Unexpected return or resume in taskframe", TF, BB->getTerminator());
+
+    // Ignore the placeholder continuation of a taskframe.resume or
+    // detached.rethrow.
+    const BasicBlock *SuccToIgnore = nullptr;
+    if (const InvokeInst *II = dyn_cast<InvokeInst>(BB->getTerminator()))
+      if (isTapirIntrinsic(Intrinsic::taskframe_resume, II, TF) ||
+          isDetachedRethrow(II))
+        SuccToIgnore = II->getNormalDest();
+
+    // Add the successors of this basic block.
+    for (const BasicBlock *Successor : successors(BB))
+      if (Successor != SuccToIgnore)
+        Worklist.push_back(Successor);
+  } while (!Worklist.empty());
+}
+
 void Verifier::visitDetachInst(DetachInst &DI) {
+  Check(isa<Instruction>(DI.getSyncRegion()),
+        "detach has an invalid syncregion", DI);
   if (DetachesVisited.insert(&DI).second)
     verifyTask(&DI);
 
@@ -6652,6 +6725,37 @@ void Verifier::visitIntrinsicCall(Intrinsic::ID ID, CallBase &Call) {
   case Intrinsic::nvvm_fence_proxy_tensormap_generic_acquire_sys: {
     unsigned size = cast<ConstantInt>(Call.getArgOperand(1))->getZExtValue();
     Check(size == 128, " The only supported value for size operand is 128");
+    break;
+  case Intrinsic::tapir_runtime_start: {
+    Check(llvm::any_of(
+              Call.users(),
+              [](const User *U) {
+                if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(U))
+                  return Intrinsic::tapir_runtime_end == II->getIntrinsicID();
+                return false;
+              }),
+          "tapir.runtime.start has no associated tapir.runtime.end", &Call);
+    break;
+  }
+  case Intrinsic::taskframe_create: {
+    if (DT.isReachableFromEntry(Call.getParent()))
+      verifyTaskFrame(&Call);
+    break;
+  }
+  case Intrinsic::taskframe_resume: {
+    Check(isa<InvokeInst>(Call), "taskframe.resume is not invoked", &Call);
+    if (InvokeInst *I = dyn_cast<InvokeInst>(&Call)) {
+      Check(isa<UnreachableInst>(I->getNormalDest()->getTerminator()),
+            "taskframe.resume normal destination is not unreachable", &Call);
+    }
+    break;
+  }
+  case Intrinsic::detached_rethrow: {
+    Check(isa<InvokeInst>(Call), "detached.rethrow is not invoked", &Call);
+    if (InvokeInst *I = dyn_cast<InvokeInst>(&Call)) {
+      Check(isa<UnreachableInst>(I->getNormalDest()->getTerminator()),
+            "detached.rethrow normal destination is not unreachable", &Call);
+    }
     break;
   }
   };

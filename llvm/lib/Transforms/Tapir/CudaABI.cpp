@@ -310,8 +310,9 @@ unsigned CudaLoop::NextKernelID = 0;
 
 CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
                    CudaABI *TT, bool MakeUniqueName)
-    : LoopOutlineProcessor(M, KernelModule), TT(TT), KernelName(KN),
-      KernelModule(KernelModule) {
+    : LoopOutlineProcessor(M, KernelModule,
+                           CloneFunctionChangeType::DifferentModule),
+      TT(TT), KernelName(KN), KernelModule(KernelModule) {
   nonMicrosoftDemangle(KN, KernelName);
   KernelName = tapir::concat(KernelName, "_", NextKernelID);
   NextKernelID++;
@@ -1166,8 +1167,8 @@ CudaABI::CudaABI(Module &M, const CudaABIOptions &opts)
   TargetOptions Options;
   Options.AllowFPOpFusion = getOptions().getFPOpFusionMode();
   PTXTargetMachine = PTXTarget->createTargetMachine(
-      TT.getTriple(), getOptions().getArch(), PTXVersionStr.data(),
-      Options, Reloc::PIC_, TargetCodeModel, TargetOptLevel);
+      TT.getTriple(), getOptions().getArch(), PTXVersionStr.data(), Options,
+      Reloc::PIC_, TargetCodeModel, TargetOptLevel);
 
   KernelModule.setTargetTriple(TT.str());
   KernelModule.setDataLayout(PTXTargetMachine->createDataLayout());

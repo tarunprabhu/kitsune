@@ -20,9 +20,11 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/EHPersonalities.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -391,11 +393,15 @@ class LandingPadInliningInfo {
   /// Dominator tree to update.
   DominatorTree *DT = nullptr;
 
+  /// TaskInfo to update.
+  TaskInfo *TI = nullptr;
+
 public:
   LandingPadInliningInfo(DetachInst *DI, BasicBlock *EHContinue,
                          Value *LPadValInEHContinue,
-                         DominatorTree *DT = nullptr)
-      : OuterResumeDest(EHContinue), SpawnerLPad(LPadValInEHContinue), DT(DT) {
+                         DominatorTree *DT = nullptr, TaskInfo *TI = nullptr)
+      : OuterResumeDest(EHContinue), SpawnerLPad(LPadValInEHContinue), DT(DT),
+        TI(TI) {
     // Find the predecessor block of OuterResumeDest.
     BasicBlock *DetachBB = DI->getParent();
     BasicBlock *DetachUnwind = DI->getUnwindDest();
@@ -418,9 +424,9 @@ public:
   }
 
   LandingPadInliningInfo(InvokeInst *TaskFrameResume,
-                         DominatorTree *DT = nullptr)
+                         DominatorTree *DT = nullptr, TaskInfo *TI = nullptr)
       : OuterResumeDest(TaskFrameResume->getUnwindDest()),
-        SpawnerLPad(TaskFrameResume->getLandingPadInst()), DT(DT) {
+        SpawnerLPad(TaskFrameResume->getLandingPadInst()), DT(DT), TI(TI) {
     // If there are PHI nodes in the unwind destination block, we need to keep
     // track of which values came into them from the detach before removing the
     // edge from this block.
@@ -486,6 +492,8 @@ BasicBlock *LandingPadInliningInfo::getInnerResumeDest() {
       for (DomTreeNode *I : Children)
         DT->changeImmediateDominator(I, NewNode);
     }
+  if (TI)
+    TI->addBlockToSpindle(*InnerResumeDest, TI->getSpindleFor(OuterResumeDest));
 
   // The number of incoming edges we expect to the inner landing pad.
   const unsigned PHICapacity = 2;
@@ -573,11 +581,15 @@ void LandingPadInliningInfo::forwardTaskResume(InvokeInst *TR) {
   if (NormalDest) {
     for (BasicBlock *Succ : successors(NormalDest))
       maybeRemovePredecessor(Succ, NormalDest);
+    if (TI)
+      TI->removeBlock(*NormalDest);
     NormalDest->eraseFromParent();
   }
   if (UnwindDest) {
     for (BasicBlock *Succ : successors(UnwindDest))
       maybeRemovePredecessor(Succ, UnwindDest);
+    if (TI)
+      TI->removeBlock(*UnwindDest);
     UnwindDest->eraseFromParent();
   }
 }
@@ -587,8 +599,8 @@ handleDetachedLandingPads(DetachInst *DI, BasicBlock *EHContinue,
                           Value *LPadValInEHContinue,
                           SmallPtrSetImpl<LandingPadInst *> &InlinedLPads,
                           SmallVectorImpl<Instruction *> &DetachedRethrows,
-                          DominatorTree *DT = nullptr) {
-  LandingPadInliningInfo DetUnwind(DI, EHContinue, LPadValInEHContinue, DT);
+                          DominatorTree *DT = nullptr, TaskInfo *TI = nullptr) {
+  LandingPadInliningInfo DetUnwind(DI, EHContinue, LPadValInEHContinue, DT, TI);
 
   // Append the clauses from the outer landing pad instruction into the inlined
   // landing pad instructions.
@@ -817,13 +829,14 @@ getTaskFrameLandingPads(Value *TaskFrame, Instruction *TaskFrameResume,
 // Helper method to handle a given taskframe.resume.
 static void handleTaskFrameResume(Value *TaskFrame,
                                   Instruction *TaskFrameResume,
-                                  DominatorTree *DT = nullptr) {
+                                  DominatorTree *DT = nullptr,
+                                  TaskInfo *TI = nullptr) {
   // Get landingpads to inline.
   SmallPtrSet<LandingPadInst *, 1> InlinedLPads;
   getTaskFrameLandingPads(TaskFrame, TaskFrameResume, InlinedLPads);
 
   InvokeInst *TFR = cast<InvokeInst>(TaskFrameResume);
-  LandingPadInliningInfo TFResumeDest(TFR, DT);
+  LandingPadInliningInfo TFResumeDest(TFR, DT, TI);
 
   // Append the clauses from the outer landing pad instruction into the inlined
   // landing pad instructions.
@@ -841,7 +854,8 @@ static void handleTaskFrameResume(Value *TaskFrame,
   TFResumeDest.forwardTaskResume(TFR);
 }
 
-void llvm::InlineTaskFrameResumes(Value *TaskFrame, DominatorTree *DT) {
+void llvm::InlineTaskFrameResumes(Value *TaskFrame, DominatorTree *DT,
+                                  TaskInfo *TI) {
   SmallVector<Instruction *, 1> TaskFrameResumes;
   // Record all taskframe.resume markers that use TaskFrame.
   for (User *U : TaskFrame->users())
@@ -851,12 +865,12 @@ void llvm::InlineTaskFrameResumes(Value *TaskFrame, DominatorTree *DT) {
 
   // Handle all taskframe.resume markers.
   for (Instruction *TFR : TaskFrameResumes)
-    handleTaskFrameResume(TaskFrame, TFR, DT);
+    handleTaskFrameResume(TaskFrame, TFR, DT, TI);
 }
 
 static void startSerializingTaskFrame(Value *TaskFrame,
                                       SmallVectorImpl<Instruction *> &ToErase,
-                                      DominatorTree *DT,
+                                      DominatorTree *DT, TaskInfo *TI,
                                       bool PreserveTaskFrame) {
   for (User *U : TaskFrame->users())
     if (Instruction *UI = dyn_cast<Instruction>(U))
@@ -864,7 +878,7 @@ static void startSerializingTaskFrame(Value *TaskFrame,
         ToErase.push_back(UI);
 
   if (!PreserveTaskFrame)
-    InlineTaskFrameResumes(TaskFrame, DT);
+    InlineTaskFrameResumes(TaskFrame, DT, TI);
 }
 
 void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
@@ -875,7 +889,9 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
                            SmallPtrSetImpl<LandingPadInst *> *InlinedLPads,
                            SmallVectorImpl<Instruction *> *DetachedRethrows,
                            bool ReplaceWithTaskFrame, DominatorTree *DT,
-                           LoopInfo *LI) {
+                           TaskInfo *TI, LoopInfo *LI) {
+  LLVM_DEBUG(dbgs() << "Serializing detach " << *DI << "\n");
+
   BasicBlock *Spawner = DI->getParent();
   BasicBlock *TaskEntry = DI->getDetached();
   BasicBlock *Continue = DI->getContinue();
@@ -887,7 +903,7 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
   SmallVector<Instruction *, 8> ToErase;
   Value *TaskFrame = getTaskFrameUsed(TaskEntry);
   if (TaskFrame)
-    startSerializingTaskFrame(TaskFrame, ToErase, DT, ReplaceWithTaskFrame);
+    startSerializingTaskFrame(TaskFrame, ToErase, DT, TI, ReplaceWithTaskFrame);
 
   // Clone any EH blocks that need cloning.
   if (EHBlocksToClone) {
@@ -954,7 +970,7 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
     } else {
       // Otherwise, "inline" the detached landingpads.
       handleDetachedLandingPads(DI, EHContinue, LPadValInEHContinue,
-                                *InlinedLPads, *DetachedRethrows, DT);
+                                *InlinedLPads, *DetachedRethrows, DT, TI);
     }
   }
 
@@ -990,6 +1006,10 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
   // Erase instructions marked to be erased.
   for (Instruction *I : ToErase)
     I->eraseFromParent();
+  if (ReplaceWithTaskFrame && TaskFrame && TaskFrame->use_empty())
+    cast<Instruction>(TaskFrame)->eraseFromParent();
+  if (isa_and_nonnull<Instruction>(SyncRegion) && SyncRegion->use_empty())
+    cast<Instruction>(SyncRegion)->eraseFromParent();
 
   // Update dominator tree.
   if (DT) {
@@ -1061,7 +1081,7 @@ void llvm::AnalyzeTaskForSerialization(
 /// Serialize the detach DI that spawns task T.  If provided, the dominator tree
 /// DT will be updated to reflect the serialization.
 void llvm::SerializeDetach(DetachInst *DI, Task *T, bool ReplaceWithTaskFrame,
-                           DominatorTree *DT) {
+                           DominatorTree *DT, TaskInfo *TI) {
   assert(DI && "SerializeDetach given nullptr for detach.");
   assert(DI == T->getDetach() && "Task and detach arguments do not match.");
   SmallVector<BasicBlock *, 4> EHBlocksToClone;
@@ -1080,7 +1100,9 @@ void llvm::SerializeDetach(DetachInst *DI, Task *T, bool ReplaceWithTaskFrame,
   }
   SerializeDetach(DI, T->getParentTask()->getEntry(), EHContinue, LPadVal,
                   Reattaches, &EHBlocksToClone, &EHBlockPreds, &InlinedLPads,
-                  &DetachedRethrows, ReplaceWithTaskFrame, DT);
+                  &DetachedRethrows, ReplaceWithTaskFrame, DT, TI);
+  if (TI)
+    TI->moveSpindlesToParent(T);
 }
 
 static bool isCanonicalTaskFrameEnd(const Instruction *TFEnd) {
@@ -1759,9 +1781,9 @@ void llvm::fixupTaskFrameExternalUses(Spindle *TF, const TaskInfo &TI,
     return;
   Task *T = TF->getTaskFrameUser();
 
-  LLVM_DEBUG(dbgs() << "fixupTaskFrameExternalUses: spindle@"
-                    << TF->getEntry()->getName() << "\n");
   LLVM_DEBUG({
+    dbgs() << "fixupTaskFrameExternalUses: spindle@"
+           << TF->getEntry()->getName() << "\n";
     if (T)
       dbgs() << "  used by task@" << T->getEntry()->getName() << "\n";
   });
@@ -1803,6 +1825,8 @@ void llvm::fixupTaskFrameExternalUses(Spindle *TF, const TaskInfo &TI,
 
       // Examine all users of this instruction.
       for (Use &U : I.uses()) {
+        if (!DT.isReachableFromEntry(U))
+          continue;
         // If we find a live use outside of the task, it's an output.
         if (Instruction *UI = dyn_cast<Instruction>(U.getUser())) {
           if (!taskFrameEncloses(TF, UI->getParent(), TI)) {
@@ -1876,12 +1900,11 @@ void llvm::fixupTaskFrameExternalUses(Spindle *TF, const TaskInfo &TI,
   for (auto &TFInstr : ToRewrite) {
     LLVM_DEBUG(dbgs() << "Fixing taskframe output " << *TFInstr.first << "\n");
     // Create an allocation to store the result of the instruction.
-    BasicBlock *ParentEntry;
-    if (Spindle *ParentTF = TF->getTaskFrameParent())
-      ParentEntry = ParentTF->getEntry();
-    else
-      ParentEntry = TF->getParentTask()->getEntry();
-    IRBuilder<> Builder(&*ParentEntry->getFirstInsertionPt());
+    Spindle *ParentS = TF->getTaskFrameParent()
+                           ? TF->getTaskFrameParent()
+                           : TF->getParentTask()->getEntrySpindle();
+    BasicBlock::iterator ParentInsertionPt = ParentS->getTaskFrameFirstInsertionPt();
+    IRBuilder<> Builder(&*ParentInsertionPt);
     Type *TFInstrTy = TFInstr.first->getType();
     AllocaInst *AI = Builder.CreateAlloca(TFInstrTy);
     AI->setName(TFInstr.first->getName());
@@ -1894,13 +1917,18 @@ void llvm::fixupTaskFrameExternalUses(Spindle *TF, const TaskInfo &TI,
       Builder.SetInsertPoint(&*(++TFInstr.first->getIterator()));
     Builder.CreateStore(TFInstr.first, AI);
 
-    // Load the result of the instruction at the continuation.
-    Builder.SetInsertPoint(&*Continuation->getFirstInsertionPt());
-    Builder.CreateCall(Intrinsic::getDeclaration(
-                           M, Intrinsic::taskframe_load_guard, {AI->getType()}),
-                       {AI});
-    LoadInst *ContinVal = Builder.CreateLoad(TFInstrTy, AI);
+    LoadInst *ContinVal = nullptr;
     LoadInst *EHContinVal = nullptr;
+    // Load the result of the instruction at the continuation.
+    if (Continuation) {
+      Builder.SetInsertPoint(&*Continuation->getFirstInsertionPt());
+      if (T)
+        Builder.CreateCall(
+            Intrinsic::getDeclaration(M, Intrinsic::taskframe_load_guard,
+                                      {AI->getType()}),
+            {AI});
+      ContinVal = Builder.CreateLoad(TFInstrTy, AI);
+    }
 
     // For each external use, replace the use with a load from the alloca.
     for (Use *UseToRewrite : TFInstr.second) {
@@ -1915,10 +1943,11 @@ void llvm::fixupTaskFrameExternalUses(Spindle *TF, const TaskInfo &TI,
         // If necessary, load the value at the taskframe.resume continuation.
         if (!EHContinVal) {
           Builder.SetInsertPoint(&*(TFResumeContin->getFirstInsertionPt()));
-          Builder.CreateCall(
-              Intrinsic::getDeclaration(M, Intrinsic::taskframe_load_guard,
-                                        {AI->getType()}),
-              {AI});
+          if (T)
+            Builder.CreateCall(
+                Intrinsic::getDeclaration(M, Intrinsic::taskframe_load_guard,
+                                          {AI->getType()}),
+                {AI});
           EHContinVal = Builder.CreateLoad(TFInstrTy, AI);
         }
 
@@ -1930,9 +1959,11 @@ void llvm::fixupTaskFrameExternalUses(Spindle *TF, const TaskInfo &TI,
       }
 
       // Rewrite to use the value loaded at the continuation.
-      if (UseToRewrite->get()->hasValueHandle())
-        ValueHandleBase::ValueIsRAUWd(*UseToRewrite, ContinVal);
-      UseToRewrite->set(ContinVal);
+      if (ContinVal) {
+        if (UseToRewrite->get()->hasValueHandle())
+          ValueHandleBase::ValueIsRAUWd(*UseToRewrite, ContinVal);
+        UseToRewrite->set(ContinVal);
+      }
     }
   }
 }
@@ -2273,7 +2304,8 @@ void llvm::eraseTaskFrame(Value *TaskFrame, DominatorTree *DT) {
   for (User *U : TaskFrame->users()) {
     if (Instruction *UI = dyn_cast<Instruction>(U))
       if (isTapirIntrinsic(Intrinsic::taskframe_use, UI) ||
-          isTapirIntrinsic(Intrinsic::taskframe_end, UI))
+          isTapirIntrinsic(Intrinsic::taskframe_end, UI) ||
+          isTapirIntrinsic(Intrinsic::taskframe_resume, UI))
         ToErase.push_back(UI);
   }
 

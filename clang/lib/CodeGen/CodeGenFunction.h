@@ -1584,12 +1584,9 @@ public:
     llvm::AllocaInst *TFEHSelectorSlot = nullptr;
     Address TFNormalCleanupDest = Address::invalid();
 
-    // Saved state in an initialized detach scope.
-    llvm::AssertingVH<llvm::Instruction> SavedDetachedAllocaInsertPt = nullptr;
-
     // Information about a reference temporary created early in the detached
     // block.
-    Address RefTmp = Address::invalid();
+    RawAddress RefTmp = RawAddress::invalid();
     StorageDuration RefTmpSD;
 
     // Optional taskframe created separately from detach.
@@ -1612,6 +1609,8 @@ public:
     ~DetachScope() {
       if (TempInvokeDest && TempInvokeDest->use_empty())
         delete TempInvokeDest;
+      if (TaskFrame && TaskFrame->use_empty())
+        cast<llvm::Instruction>(TaskFrame)->eraseFromParent();
       CGF.CurDetachScope = ParentScope;
     }
 
@@ -1660,13 +1659,10 @@ public:
     // Finish the spawned task.
     void FinishDetach();
 
-    void StartLabeledDetach(SyncRegion* SR);
-    void FinishLabeledDetach(SyncRegion* SR);
-
     // Create a temporary for the spawned task, specifically, before the spawned
     // task has started.
-    Address CreateDetachedMemTemp(QualType Ty, StorageDuration SD,
-                                  const Twine &Name = "det.tmp");
+    RawAddress CreateDetachedMemTemp(QualType Ty, StorageDuration SD,
+                                     const Twine &Name = "det.tmp");
   };
 
   /// The current detach scope.
@@ -1729,7 +1725,6 @@ public:
     llvm::BasicBlock *OldEHResumeBlock = nullptr;
     llvm::Value *OldExceptionSlot = nullptr;
     llvm::AllocaInst *OldEHSelectorSlot = nullptr;
-    Address OldNormalCleanupDest = Address::invalid();
 
     // Taskframe created separately from detach.
     llvm::Value *TaskFrame = nullptr;

@@ -498,8 +498,9 @@ unsigned HipLoop::NextKernelID = 0;
 
 HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
                  HipABI *LoopTarget)
-    : LoopOutlineProcessor(M, KModule), TT(LoopTarget), KernelName(Name),
-      KernelModule(KModule) {
+    : LoopOutlineProcessor(M, KModule,
+                           CloneFunctionChangeType::DifferentModule),
+      TT(LoopTarget), KernelName(Name), KernelModule(KModule) {
   std::string UN = KernelName + "." + Twine(NextKernelID).str();
   NextKernelID++;
   KernelName = UN;
@@ -1673,7 +1674,7 @@ void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
       // Get the global's name, look it up on the device side, and then issue
       // the copy-to-device call (with appropriate casts).
       std::string DevVarName = HostGV->getName().str() + "_devvar";
-      Value* SymName = M.getGlobalVariable(DevVarName);
+      Value *SymName = M.getGlobalVariable(DevVarName);
       if (!SymName)
         SymName = tapir::createConstantStr(DevVarName, M, DevVarName);
       Value *DevPtr = CallInst::Create(
@@ -1984,7 +1985,7 @@ void HipABI::bindGlobalVariables(Value *FatBinHandle, IRBuilder<> &B) {
     uint64_t VarSize = DL.getTypeAllocSize(HostGV->getValueType());
     std::string DevPtrName = HostGVName.str() + ".devptr";
     std::string DevVarName = HostGVName.str() + "_devvar";
-    Value* VarName = M.getGlobalVariable(DevVarName);
+    Value *VarName = M.getGlobalVariable(DevVarName);
     if (!VarName)
       VarName = tapir::createConstantStr(DevVarName, M, DevVarName);
     GlobalVariable *DevPtrGV = M.getGlobalVariable(DevPtrName);

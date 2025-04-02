@@ -696,8 +696,8 @@ static void HandleInlinedTasksHelper(
     }
 
     // Promote any calls in the block to invokes.
-    if (BasicBlock *NewBB = HandleCallsInBlockInlinedThroughInvoke(
-            BB, UnwindEdge)) {
+    if (BasicBlock *NewBB =
+            HandleCallsInBlockInlinedThroughInvoke(BB, UnwindEdge)) {
       // If this is the topmost invocation of HandleInlinedTasksHelper, update
       // any PHI nodes in the exceptional block to indicate that there is now a
       // new entry in them.
@@ -766,7 +766,7 @@ static void HandleInlinedTasksHelper(
           Invoke.addIncomingPHIValuesFor(SubTaskUnwindEdge);
         }
 
-      } else if (Visited.insert(DI->getUnwindDest()).second) {
+      } else if (!Visited.contains(DI->getUnwindDest())) {
         // If the detach-unwind isn't dead, add it to the worklist.
         Worklist.push_back(DI->getUnwindDest());
       }
@@ -2023,6 +2023,12 @@ static void HandleByValArgumentInit(Type *ByValType, Value *Dst, Value *Src,
       CI->setDebugLoc(DILocation::get(SP->getContext(), 0, 0, SP));
 }
 
+static bool isTaskFrameCreate(const Instruction &I) {
+  if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I))
+    return Intrinsic::taskframe_create == II->getIntrinsicID();
+  return false;
+}
+
 /// When inlining a call site that has a byval argument,
 /// we have to make the implicit memcpy explicit by adding it.
 static Value *HandleByValArgument(Type *ByValType, Value *Arg,
@@ -2069,7 +2075,10 @@ static Value *HandleByValArgument(Type *ByValType, Value *Arg,
   AllocaInst *NewAlloca =
       new AllocaInst(ByValType, Arg->getType()->getPointerAddressSpace(),
                      nullptr, Alignment, Arg->getName());
-  NewAlloca->insertBefore(&*NewCtx->begin());
+  BasicBlock::iterator InsertPoint = NewCtx->begin();
+  if (isTaskFrameCreate(*InsertPoint))
+    InsertPoint++;
+  NewAlloca->insertBefore(InsertPoint);
   IFI.StaticAllocas.push_back(NewAlloca);
 
   // Uses of the argument in the function should use our new alloca
@@ -2871,6 +2880,16 @@ static void HandleInlinedResumeInTask(BasicBlock *EntryBlock, BasicBlock *Ctx,
   }
 }
 
+// Simple RAII object for managing creation of taskframe for inlined function.
+struct TaskFrameScope {
+  CallInst *TFCreate = nullptr;
+  TaskFrameScope() = default;
+  ~TaskFrameScope() {
+    if (TFCreate && TFCreate->use_empty())
+      TFCreate->eraseFromParent();
+  }
+};
+
 /// This function inlines the called function into the basic block of the
 /// caller. This returns false if it is not possible to inline this call.
 /// The program is still in a well defined state if this occurs though.
@@ -3500,7 +3519,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
 
   // If the inlined code contained dynamic alloca instructions, wrap the inlined
   // code with llvm.stacksave/llvm.stackrestore intrinsics.
-  CallInst *TFCreate = nullptr;
+  TaskFrameScope TFI;
   BasicBlock *TFEntryBlock = DetachedCtxEntryBlock;
   if (InlinedFunctionInfo.ContainsDetach &&
       (InlinedFunctionInfo.ContainsDynamicAllocas || MayBeUnsyncedAtCall)) {
@@ -3510,9 +3529,9 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
         Intrinsic::getDeclaration(M, Intrinsic::taskframe_create);
 
     // Insert the llvm.taskframe.create.
-    TFCreate = IRBuilder<>(&*FirstNewBlock, FirstNewBlock->begin())
-                   .CreateCall(TFCreateFn, {}, "tf.i");
-    TFCreate->setDebugLoc(CB.getDebugLoc());
+    TFI.TFCreate = IRBuilder<>(&*FirstNewBlock, FirstNewBlock->begin())
+                       .CreateCall(TFCreateFn, {}, "tf.i");
+    TFI.TFCreate->setDebugLoc(CB.getDebugLoc());
     TFEntryBlock = &*FirstNewBlock;
 
     // If we're inlining an invoke, insert a taskframe.resume at the unwind
@@ -3528,9 +3547,9 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
       }
 
       // Create an unwind edge for the taskframe.
-      BasicBlock *TaskFrameUnwindEdge = CreateSubTaskUnwindEdge(
-          Intrinsic::taskframe_resume, TFCreate, UnwindEdge,
-          UnreachableBlk, II);
+      BasicBlock *TaskFrameUnwindEdge =
+          CreateSubTaskUnwindEdge(Intrinsic::taskframe_resume, TFI.TFCreate,
+                                  UnwindEdge, UnreachableBlk, II);
 
       for (PHINode &PN : UnwindEdge->phis())
         PN.replaceIncomingBlockWith(II->getParent(), TaskFrameUnwindEdge);
@@ -3565,7 +3584,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
     BasicBlock *UnwindDest = II->getUnwindDest();
     BasicBlock::iterator FirstNonPHI = UnwindDest->getFirstNonPHIIt();
     if (isa<LandingPadInst>(FirstNonPHI)) {
-      HandleInlinedLandingPad(II, &*FirstNewBlock, TFCreate,
+      HandleInlinedLandingPad(II, &*FirstNewBlock, TFI.TFCreate,
                               InlinedFunctionInfo);
     } else {
       HandleInlinedEHPad(II, &*FirstNewBlock, InlinedFunctionInfo);
@@ -3835,10 +3854,10 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
 
   // If we inserted a taskframe.create, insert a taskframe.end at the start of
   // AfterCallBB.
-  if (TFCreate) {
+  if (TFI.TFCreate) {
     Function *TFEndFn = Intrinsic::getDeclaration(Caller->getParent(),
                                                   Intrinsic::taskframe_end);
-    IRBuilder<>(&AfterCallBB->front()).CreateCall(TFEndFn, TFCreate);
+    IRBuilder<>(&AfterCallBB->front()).CreateCall(TFEndFn, TFI.TFCreate);
   }
 
   // Change the branch that used to go to AfterCallBB to branch to the first

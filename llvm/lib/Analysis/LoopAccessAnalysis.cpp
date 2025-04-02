@@ -3120,7 +3120,7 @@ const LoopAccessInfo &LoopAccessInfoManager::getInfo(Loop &L) {
 
   if (Inserted)
     It->second =
-      std::make_unique<LoopAccessInfo>(&L, &SE, TTI, TLI, &AA, &DT, &LI, TI);
+        std::make_unique<LoopAccessInfo>(&L, &SE, TTI, TLI, &AA, &DT, &LI, &TI);
 
   return *It->second;
 }
@@ -3166,10 +3166,10 @@ LoopAccessInfoManager LoopAccessAnalysis::run(Function &F,
   auto &AA = FAM.getResult<AAManager>(F);
   auto &DT = FAM.getResult<DominatorTreeAnalysis>(F);
   auto &LI = FAM.getResult<LoopAnalysis>(F);
+  auto &TI = FAM.getResult<TaskAnalysis>(F);
   auto &TTI = FAM.getResult<TargetIRAnalysis>(F);
   auto &TLI = FAM.getResult<TargetLibraryAnalysis>(F);
-  auto &TI = FAM.getResult<TaskAnalysis>(F);
-  return LoopAccessInfoManager(SE, AA, DT, LI, &TTI, &TLI, &TI);
+  return LoopAccessInfoManager(SE, AA, DT, LI, TI, &TTI, &TLI);
 }
 
 AnalysisKey LoopAccessAnalysis::Key;

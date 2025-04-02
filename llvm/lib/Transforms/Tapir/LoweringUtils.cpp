@@ -25,6 +25,7 @@
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Tapir/TapirTargets.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
@@ -611,6 +612,11 @@ void llvm::getTaskBlocks(Task *T, std::vector<BasicBlock *> &TaskBlocks,
       if (isPlaceholderSuccessor(S->getEntry()))
         continue;
 
+      // Skip shared-EH spindles, which will be handled when processing the
+      // task's blocks.
+      if (S->isSharedEH())
+        continue;
+
       LLVM_DEBUG(dbgs() << "Adding blocks in taskframe spindle " << *S << "\n");
       assert(!SpindlesToExclude.count(S) &&
              "Taskframe spindle marked for exclusion.");
@@ -693,8 +699,10 @@ void llvm::getTaskBlocks(Task *T, std::vector<BasicBlock *> &TaskBlocks,
 /// function.  The map \p VMap is updated with the mapping of instructions in
 /// \p T to instructions in the new helper function.
 Function *llvm::createHelperForTask(Function &F, Task *T, ValueSet &Args,
-                                    Module *DestM, ValueToValueMapTy &VMap,
-                                    Type *ReturnType, OutlineAnalysis &OA) {
+                                    Module *DestM,
+                                    CloneFunctionChangeType Changes,
+                                    ValueToValueMapTy &VMap, Type *ReturnType,
+                                    OutlineAnalysis &OA) {
   // Collect all basic blocks in this task.
   std::vector<BasicBlock *> TaskBlocks;
   // Reattach instructions and detached rethrows in this task might need special
@@ -725,10 +733,6 @@ Function *llvm::createHelperForTask(Function &F, Task *T, ValueSet &Args,
     NamedRegionTimer NRT("CreateHelper", "Create helper function",
                          TimerGroupName, TimerGroupDescription,
                          TimePassesIsEnabled);
-    Module *M = F.getParent();
-    CloneFunctionChangeType Changes =
-        M == DestM ? CloneFunctionChangeType::GlobalChanges
-                   : CloneFunctionChangeType::DifferentModule;
     std::unique_ptr<OutlineMaterializer> Mat =
         std::make_unique<OutlineMaterializer>(
             dyn_cast<Instruction>(DI->getSyncRegion()));
@@ -851,6 +855,7 @@ static BasicBlock *getTaskFrameContinue(Spindle *TF) {
 /// TF to instructions in the new helper function.
 Function *llvm::createHelperForTaskFrame(Function &F, Spindle *TF,
                                          ValueSet &Args, Module *DestM,
+                                         CloneFunctionChangeType Changes,
                                          ValueToValueMapTy &VMap,
                                          Type *ReturnType,
                                          OutlineAnalysis &OA) {
@@ -950,10 +955,6 @@ Function *llvm::createHelperForTaskFrame(Function &F, Spindle *TF,
     NamedRegionTimer NRT("CreateHelper", "Create helper function",
                          TimerGroupName, TimerGroupDescription,
                          TimePassesIsEnabled);
-    Module *M = F.getParent();
-    CloneFunctionChangeType Changes =
-        M == DestM ? CloneFunctionChangeType::GlobalChanges
-                   : CloneFunctionChangeType::DifferentModule;
     std::unique_ptr<OutlineMaterializer> Mat =
         std::make_unique<OutlineMaterializer>();
     Helper =
@@ -968,6 +969,7 @@ Function *llvm::createHelperForTaskFrame(Function &F, Spindle *TF,
   // values in old function.
   AddAlignmentAssumptions(&F, Args, VMap, &Header->front(), &OA.AC, &OA.DT);
 
+  SmallVector<Instruction *, 4> TaskEnds;
   // Move allocas in the newly cloned detached CFG to the entry block of the
   // helper.
   {
@@ -975,9 +977,9 @@ Function *llvm::createHelperForTaskFrame(Function &F, Spindle *TF,
                          TimerGroupName, TimerGroupDescription,
                          TimePassesIsEnabled);
     // Collect the end instructions of the task.
-    SmallVector<Instruction *, 4> TaskEnds;
     for (BasicBlock *EndBlock : TFEndBlocks)
-      TaskEnds.push_back(cast<BasicBlock>(VMap[EndBlock])->getTerminator());
+      TaskEnds.push_back(
+          cast<BasicBlock>(VMap[EndBlock])->getTerminator()->getPrevNode());
     for (BasicBlock *EndBlock : TFResumeBlocks)
       TaskEnds.push_back(cast<BasicBlock>(VMap[EndBlock])->getTerminator());
 
@@ -997,14 +999,12 @@ Function *llvm::createHelperForTaskFrame(Function &F, Spindle *TF,
                          TimerGroupName, TimerGroupDescription,
                          TimePassesIsEnabled);
     SmallVector<Instruction *, 1> TFEndsToRemove;
-    for (BasicBlock *EndBlock : TFEndBlocks) {
-      BasicBlock *ClonedEndBlock = cast<BasicBlock>(VMap[EndBlock]);
-      if (Instruction *Prev = ClonedEndBlock->getTerminator()->getPrevNode())
-        if (isTapirIntrinsic(Intrinsic::taskframe_end, Prev))
-          TFEndsToRemove.push_back(Prev);
-    }
-    for (Instruction *ClonedTFEnd : TFEndsToRemove)
-      ClonedTFEnd->eraseFromParent();
+    for (Instruction *TFEnd : TaskEnds)
+      if (isTapirIntrinsic(Intrinsic::taskframe_end, TFEnd))
+        TFEndsToRemove.push_back(TFEnd);
+
+    for (Instruction *TFEnd : TFEndsToRemove)
+      TFEnd->eraseFromParent();
   }
 
   Helper->setMemoryEffects(computeFunctionBodyMemoryAccess(*Helper, OA.AA));
@@ -1018,7 +1018,9 @@ Function *llvm::createHelperForTaskFrame(Function &F, Spindle *TF,
 /// function is returned as a TaskOutlineInfo structure.
 TaskOutlineInfo llvm::outlineTaskFrame(Spindle *TF, ValueSet &Inputs,
                                        SmallVectorImpl<Value *> &HelperInputs,
-                                       Module *DestM, ValueToValueMapTy &VMap,
+                                       Module *DestM,
+                                       CloneFunctionChangeType Changes,
+                                       ValueToValueMapTy &VMap,
                                        TapirTarget::ArgStructMode UseArgStruct,
                                        Type *ReturnType,
                                        ValueToValueMapTy &InputMap,
@@ -1045,7 +1047,7 @@ TaskOutlineInfo llvm::outlineTaskFrame(Spindle *TF, ValueSet &Inputs,
 
   // Clone the blocks into a helper function.
   Function *Helper =
-      createHelperForTaskFrame(F, TF, HelperArgs, DestM, VMap, ReturnType, OA);
+      createHelperForTaskFrame(F, TF, HelperArgs, DestM, Changes, VMap, ReturnType, OA);
   Instruction *ClonedTF = cast<Instruction>(VMap[TF->getTaskFrameCreate()]);
   return TaskOutlineInfo(Helper, Entry, nullptr, ClonedTF, Inputs, ArgsStart,
                          StorePt, nullptr, Continue, Unwind);
@@ -1114,12 +1116,11 @@ Instruction *llvm::replaceTaskFrameWithCallToOutline(
 /// \p Inputs.  The map \p VMap is updated with the mapping of instructions in
 /// \p T to instructions in the new helper function.  Information about the
 /// helper function is returned as a TaskOutlineInfo structure.
-TaskOutlineInfo llvm::outlineTask(Task *T, ValueSet &Inputs,
-                                  SmallVectorImpl<Value *> &HelperInputs,
-                                  Module *DestM, ValueToValueMapTy &VMap,
-                                  TapirTarget::ArgStructMode UseArgStruct,
-                                  Type *ReturnType, ValueToValueMapTy &InputMap,
-                                  OutlineAnalysis &OA, TapirTarget *Target) {
+TaskOutlineInfo llvm::outlineTask(
+    Task *T, ValueSet &Inputs, SmallVectorImpl<Value *> &HelperInputs,
+    Module *DestM, CloneFunctionChangeType Changes, ValueToValueMapTy &VMap,
+    TapirTarget::ArgStructMode UseArgStruct, Type *ReturnType,
+    ValueToValueMapTy &InputMap, OutlineAnalysis &OA, TapirTarget *Target) {
   assert(!T->isRootTask() && "Cannot outline the root task.");
   Function &F = *T->getEntry()->getParent();
   DetachInst *DI = T->getDetach();
@@ -1144,14 +1145,14 @@ TaskOutlineInfo llvm::outlineTask(Task *T, ValueSet &Inputs,
 
   // Convert the inputs of the task to inputs to the helper.
   ValueSet TaskHelperArgs;
-  Instruction *ArgsStart = fixupHelperInputs(
-      F, T, Inputs, TaskHelperArgs, StorePt, LoadPt, UseArgStruct, InputMap);
+  Instruction *ArgsStart = fixupHelperInputs(F, T, Inputs, TaskHelperArgs, StorePt,
+                                             LoadPt, UseArgStruct, InputMap);
   ValueSet HelperArgs;
   Target->setupTaskOutlineArgs(F, HelperArgs, HelperInputs, TaskHelperArgs);
 
   // Clone the blocks into a helper function.
-  Function *Helper =
-      createHelperForTask(F, T, HelperArgs, DestM, VMap, ReturnType, OA);
+  Function *Helper = createHelperForTask(F, T, HelperArgs, DestM, Changes, VMap,
+                                         ReturnType, OA);
   Value *ClonedTFCreate = TFCreate ? VMap[TFCreate] : nullptr;
   return TaskOutlineInfo(
       Helper, T->getEntry(), dyn_cast_or_null<Instruction>(VMap[DI]),

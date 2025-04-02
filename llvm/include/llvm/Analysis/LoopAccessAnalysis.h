@@ -180,7 +180,7 @@ public:
 
   MemoryDepChecker(PredicatedScalarEvolution &PSE, const Loop *L,
                    const DenseMap<Value *, const SCEV *> &SymbolicStrides,
-                   unsigned MaxTargetVectorWidthInBits, TaskInfo *TI)
+                   unsigned MaxTargetVectorWidthInBits, TaskInfo *TI = nullptr)
       : PSE(PSE), InnermostLoop(L), SymbolicStrides(SymbolicStrides),
         MaxTargetVectorWidthInBits(MaxTargetVectorWidthInBits), TI(TI) {}
 
@@ -885,15 +885,15 @@ class LoopAccessInfoManager {
   AAResults &AA;
   DominatorTree &DT;
   LoopInfo &LI;
+  TaskInfo &TI;
   TargetTransformInfo *TTI;
   const TargetLibraryInfo *TLI = nullptr;
-  TaskInfo *TI = nullptr;
 
 public:
   LoopAccessInfoManager(ScalarEvolution &SE, AAResults &AA, DominatorTree &DT,
-                        LoopInfo &LI, TargetTransformInfo *TTI,
-                        const TargetLibraryInfo *TLI, TaskInfo *TI)
-      : SE(SE), AA(AA), DT(DT), LI(LI), TTI(TTI), TLI(TLI), TI(TI) {}
+                        LoopInfo &LI, TaskInfo &TI, TargetTransformInfo *TTI,
+                        const TargetLibraryInfo *TLI)
+      : SE(SE), AA(AA), DT(DT), LI(LI), TI(TI), TTI(TTI), TLI(TLI) {}
 
   const LoopAccessInfo &getInfo(Loop &L);
 

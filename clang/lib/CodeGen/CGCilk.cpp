@@ -86,7 +86,6 @@ void CodeGenFunction::DetachScope::EnsureTaskFrame() {
     llvm::Value *Undef = llvm::UndefValue::get(CGF.Int32Ty);
     CGF.AllocaInsertPt = new llvm::BitCastInst(Undef, CGF.Int32Ty, "",
                                                CGF.Builder.GetInsertBlock());
-    // SavedDetachedAllocaInsertPt = CGF.AllocaInsertPt;
 
     CreateTaskFrameEHState();
 
@@ -152,7 +151,7 @@ void CodeGenFunction::DetachScope::StartDetach() {
     case SD_FullExpression:
       if (auto *Size = CGF.EmitLifetimeStart(
               CGF.CGM.getDataLayout().getTypeAllocSize(RefTmp.getElementType()),
-              RefTmp.getBasePointer())) {
+              RefTmp.getPointer())) {
         if (RefTmpSD == SD_Automatic)
           CGF.pushCleanupAfterFullExpr<CallLifetimeEnd>(NormalEHLifetimeMarker,
                                                         RefTmp, Size);
@@ -226,7 +225,6 @@ void CodeGenFunction::DetachScope::FinishDetach() {
   {
     llvm::Instruction *Ptr = CGF.AllocaInsertPt;
     CGF.AllocaInsertPt = TFAllocaInsertPt;
-    SavedDetachedAllocaInsertPt = nullptr;
     Ptr->eraseFromParent();
   }
 
@@ -301,7 +299,7 @@ void CodeGenFunction::DetachScope::FinishDetach() {
   }
 }
 
-Address CodeGenFunction::DetachScope::CreateDetachedMemTemp(
+RawAddress CodeGenFunction::DetachScope::CreateDetachedMemTemp(
     QualType Ty, StorageDuration SD, const Twine &Name) {
   // There shouldn't be multiple reference temporaries needed.
   assert(!RefTmp.isValid() &&
@@ -323,6 +321,10 @@ CodeGenFunction::TaskFrameScope::TaskFrameScope(CodeGenFunction &CGF)
       CGF.CGM.getIntrinsic(llvm::Intrinsic::taskframe_create);
   TaskFrame = CGF.Builder.CreateCall(TaskFrameCreate);
 
+  // Make sure the normal cleanup dest slot is allocated before changing the
+  // alloca insertion point.
+  CGF.getNormalCleanupDestSlot();
+
   // Create a new alloca insertion point within the task frame.
   OldAllocaInsertPt = CGF.AllocaInsertPt;
   llvm::Value *Undef = llvm::UndefValue::get(CGF.Int32Ty);
@@ -336,8 +338,6 @@ CodeGenFunction::TaskFrameScope::TaskFrameScope(CodeGenFunction &CGF)
   CGF.ExceptionSlot = nullptr;
   OldEHSelectorSlot = CGF.EHSelectorSlot;
   CGF.EHSelectorSlot = nullptr;
-  OldNormalCleanupDest = CGF.NormalCleanupDest;
-  CGF.NormalCleanupDest = Address::invalid();
 
   CGF.pushFullExprCleanup<EndUnassocTaskFrame>(
       static_cast<CleanupKind>(NormalAndEHCleanup | LifetimeMarker | TaskExit),
@@ -345,11 +345,11 @@ CodeGenFunction::TaskFrameScope::TaskFrameScope(CodeGenFunction &CGF)
 }
 
 CodeGenFunction::TaskFrameScope::~TaskFrameScope() {
-  if (!CGF.CurSyncRegion)
+  if (!TaskFrame)
     return;
 
   // Pop the taskframe.
-  CGF.PopCleanupBlock();
+  CGF.PopCleanupBlock(true);
 
   // Restore the alloca insertion point.
   {
@@ -363,7 +363,6 @@ CodeGenFunction::TaskFrameScope::~TaskFrameScope() {
   CGF.EHResumeBlock = OldEHResumeBlock;
   CGF.ExceptionSlot = OldExceptionSlot;
   CGF.EHSelectorSlot = OldEHSelectorSlot;
-  CGF.NormalCleanupDest = OldNormalCleanupDest;
 
   if (TempInvokeDest) {
     if (llvm::BasicBlock *InvokeDest = CGF.getInvokeDest()) {
@@ -395,8 +394,10 @@ llvm::Instruction *CodeGenFunction::EmitSyncRegionStart() {
   // Start the sync region.  To ensure the syncregion.start call dominates all
   // uses of the generated token, we insert this call at the alloca insertion
   // point.
-  llvm::Function* Func = CGM.getIntrinsic(llvm::Intrinsic::syncregion_start);
+  auto NL = ApplyDebugLocation::CreateArtificial(*this);
   llvm::Instruction *SRStart = llvm::CallInst::Create(
-      Func->getFunctionType(), Func, "syncreg", &*AllocaInsertPt);
+      CGM.getIntrinsic(llvm::Intrinsic::syncregion_start),
+      "syncreg", &*AllocaInsertPt);
+  SRStart->setDebugLoc(Builder.getCurrentDebugLocation());
   return SRStart;
 }

@@ -5039,7 +5039,7 @@ def KitsuneLaunch : StmtAttr {
   let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
                              ErrorDiag, "'forall' statement">;
   let Args = [IntArgument<"ThreadsPerBlock">];
-  let Documentation = [KitsuneLaunchDocs];    
+  let Documentation = [KitsuneLaunchDocs];
 }
 
 def KitsuneMobile : TypeAttr {

@@ -12,8 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Instrumentation/ComprehensiveStaticInstrumentation.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/CallGraph.h"
@@ -137,12 +135,12 @@ static cl::opt<bool>
         "csi-split-blocks-at-calls", cl::init(true), cl::Hidden,
         cl::desc("Split basic blocks at function calls."));
 
-static size_t numPassRuns = 0;
-bool IsFirstRun() { return numPassRuns == 0; }
+static size_t NumPassRuns = 0;
+bool isFirstRun() { return NumPassRuns == 0; }
 
 namespace {
 
-static CSIOptions OverrideFromCL(CSIOptions Options) {
+static CSIOptions overrideFromCL(CSIOptions Options) {
   Options.InstrumentFuncEntryExit = ClInstrumentFuncEntryExit;
   Options.InstrumentLoops = ClInstrumentLoops;
   Options.InstrumentBasicBlocks = ClInstrumentBasicBlocks;
@@ -293,7 +291,7 @@ bool CSIImpl::run() {
 
   finalizeCsi();
 
-  if (IsFirstRun() && Options.jitMode) {
+  if (isFirstRun() && Options.jitMode) {
     llvm::sys::DynamicLibrary::LoadLibraryPermanently(ClToolLibrary.c_str());
   }
   // Link the tool bitcode a second time, for definitions of used functions.
@@ -653,19 +651,19 @@ void CSIImpl::initializeLoadStoreHooks() {
   Type *AddrType = IRB.getPtrTy();
   Type *NumBytesType = IRB.getInt32Ty();
 
-  CsiBeforeRead = M.getOrInsertFunction("__csi_before_load", RetType,
-                                        IRB.getInt64Ty(), AddrType,
-                                        NumBytesType, LoadPropertyTy);
-  CsiAfterRead = M.getOrInsertFunction("__csi_after_load", RetType,
-                                       IRB.getInt64Ty(), AddrType, NumBytesType,
-                                       LoadPropertyTy);
+  CsiBeforeRead =
+      M.getOrInsertFunction("__csi_before_load", RetType, IRB.getInt64Ty(),
+                            AddrType, NumBytesType, LoadPropertyTy);
+  CsiAfterRead =
+      M.getOrInsertFunction("__csi_after_load", RetType, IRB.getInt64Ty(),
+                            AddrType, NumBytesType, LoadPropertyTy);
 
-  CsiBeforeWrite = M.getOrInsertFunction("__csi_before_store", RetType,
-                                         IRB.getInt64Ty(), AddrType,
-                                         NumBytesType, StorePropertyTy);
-  CsiAfterWrite = M.getOrInsertFunction("__csi_after_store", RetType,
-                                        IRB.getInt64Ty(), AddrType,
-                                        NumBytesType, StorePropertyTy);
+  CsiBeforeWrite =
+      M.getOrInsertFunction("__csi_before_store", RetType, IRB.getInt64Ty(),
+                            AddrType, NumBytesType, StorePropertyTy);
+  CsiAfterWrite =
+      M.getOrInsertFunction("__csi_after_store", RetType, IRB.getInt64Ty(),
+                            AddrType, NumBytesType, StorePropertyTy);
 }
 
 // Initialization of hooks for LLVM memory intrinsics
@@ -730,7 +728,7 @@ void CSIImpl::setupCalls(Function &F) {
   promoteCallsInTasksToInvokes(F, "csi.cleanup");
 }
 
-static BasicBlock *SplitOffPreds(BasicBlock *BB,
+static BasicBlock *splitOffPreds(BasicBlock *BB,
                                  SmallVectorImpl<BasicBlock *> &Preds,
                                  DominatorTree *DT, LoopInfo *LI) {
   if (BB->isLandingPad()) {
@@ -814,34 +812,34 @@ static void setupBlock(BasicBlock *BB, const TargetLibraryInfo *TLI,
   BasicBlock *BBToSplit = BB;
   // Split off the predecessors of each type.
   if (!SyncPreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = SplitOffPreds(BBToSplit, SyncPreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, SyncPreds, DT, LI);
     NumPredTypes--;
   }
   if (!SyncUnwindPreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = SplitOffPreds(BBToSplit, SyncUnwindPreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, SyncUnwindPreds, DT, LI);
     NumPredTypes--;
   }
   if (!AllocFnPreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = SplitOffPreds(BBToSplit, AllocFnPreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, AllocFnPreds, DT, LI);
     NumPredTypes--;
   }
   if (!FreeFnPreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = SplitOffPreds(BBToSplit, FreeFnPreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, FreeFnPreds, DT, LI);
     NumPredTypes--;
   }
   if (!InvokePreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = SplitOffPreds(BBToSplit, InvokePreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, InvokePreds, DT, LI);
     NumPredTypes--;
   }
   if (!TFResumePreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = SplitOffPreds(BBToSplit, TFResumePreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, TFResumePreds, DT, LI);
     NumPredTypes--;
   }
   // We handle detach and detached.rethrow predecessors at the end to preserve
   // invariants on the CFG structure about the deadness of basic blocks after
   // detached-rethrows.
   if (!DetachPreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = SplitOffPreds(BBToSplit, DetachPreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, DetachPreds, DT, LI);
     NumPredTypes--;
   }
 }
@@ -1096,7 +1094,8 @@ bool CSIImpl::instrumentMemIntrinsic(Instruction *I) {
     setInstrumentationDebugLoc(I, Call);
     I->eraseFromParent();
     return true;
-  } else if (MemTransferInst *M = dyn_cast<MemTransferInst>(I)) {
+  }
+  if (MemTransferInst *M = dyn_cast<MemTransferInst>(I)) {
     Instruction *Call = IRB.CreateCall(
         isa<MemCpyInst>(M) ? MemcpyFn : MemmoveFn,
         {IRB.CreatePointerCast(M->getArgOperand(0), IRB.getPtrTy()),
@@ -1111,8 +1110,8 @@ bool CSIImpl::instrumentMemIntrinsic(Instruction *I) {
 
 void CSIImpl::instrumentBasicBlock(BasicBlock &BB, const TaskInfo &TI) {
   IRBuilder<> IRB(&*BB.getFirstInsertionPt());
-  bool isEntry = isEntryBlock(BB, TI);
-  if (isEntry)
+  bool IsEntry = isEntryBlock(BB, TI);
+  if (IsEntry)
     IRB.SetInsertPoint(getEntryBBInsertPt(BB));
   uint64_t LocalId = BasicBlockFED.add(BB);
   uint64_t BBSizeId = BBSize.add(BB, GetTTI ?
@@ -1130,7 +1129,7 @@ void CSIImpl::instrumentBasicBlock(BasicBlock &BB, const TaskInfo &TI) {
   CallInst *Call = insertHookCall(TermI, CsiBBExit, {CsiId, PropVal});
   // If this is an entry block and the insert point is the terminator, make the
   // BBExit hook be the insert point instead.
-  if (isEntry && getEntryBBInsertPt(BB) == TermI)
+  if (IsEntry && getEntryBBInsertPt(BB) == TermI)
     EntryBBInsertPt[&BB] = Call;
 }
 
@@ -1241,18 +1240,18 @@ void CSIImpl::instrumentCallsite(Instruction *I, DominatorTree *DT) {
   else if (InvokeInst *II = dyn_cast<InvokeInst>(I))
     Called = II->getCalledFunction();
 
-  bool shouldInstrumentBefore = true;
-  bool shouldInstrumentAfter = true;
+  bool ShouldInstrumentBefore = true;
+  bool ShouldInstrumentAfter = true;
 
   // Does this call require instrumentation before or after?
   if (Called) {
-    shouldInstrumentBefore = Config->DoesFunctionRequireInstrumentationForPoint(
+    ShouldInstrumentBefore = Config->DoesFunctionRequireInstrumentationForPoint(
         Called->getName(), InstrumentationPoint::INSTR_BEFORE_CALL);
-    shouldInstrumentAfter = Config->DoesFunctionRequireInstrumentationForPoint(
+    ShouldInstrumentAfter = Config->DoesFunctionRequireInstrumentationForPoint(
         Called->getName(), InstrumentationPoint::INSTR_AFTER_CALL);
   }
 
-  if (!shouldInstrumentAfter && !shouldInstrumentBefore)
+  if (!ShouldInstrumentAfter && !ShouldInstrumentBefore)
     return;
 
   IRBuilder<> IRB(I);
@@ -1283,11 +1282,11 @@ void CSIImpl::instrumentCallsite(Instruction *I, DominatorTree *DT) {
   Value *DefaultPropVal = Prop.getValue(IRB);
   Prop.setIsIndirect(!Called);
   Value *PropVal = Prop.getValue(IRB);
-  if (shouldInstrumentBefore)
+  if (ShouldInstrumentBefore)
     insertHookCall(I, CsiBeforeCallsite, {CallsiteId, FuncId, PropVal});
 
   BasicBlock::iterator Iter(I);
-  if (shouldInstrumentAfter) {
+  if (ShouldInstrumentAfter) {
     if (IsInvoke) {
       // There are two "after" positions for invokes: the normal block and the
       // exception block.
@@ -1319,13 +1318,13 @@ void CSIImpl::interposeCall(Instruction *I) {
 
   // Should we interpose this call?
   if (Called && Called->getName().size() > 0) {
-    bool shouldInterpose =
+    bool ShouldInterpose =
         Config->DoesFunctionRequireInterposition(Called->getName());
 
-    if (shouldInterpose) {
-      Function *interpositionFunction = getInterpositionFunction(Called);
-      assert(interpositionFunction != nullptr);
-      CB->setCalledFunction(interpositionFunction);
+    if (ShouldInterpose) {
+      Function *InterpositionFunction = getInterpositionFunction(Called);
+      assert(InterpositionFunction != nullptr);
+      CB->setCalledFunction(InterpositionFunction);
     }
   }
 }
@@ -1927,8 +1926,8 @@ void CSIImpl::generateInitCallsiteToFunction() {
   // Traverse the map of function name -> function local id. Generate
   // a store of each function's global ID to the corresponding weak
   // global variable.
-  for (const auto &it : FuncOffsetMap) {
-    std::string GVName = CsiFuncIdVariablePrefix + it.first.str();
+  for (const auto &It : FuncOffsetMap) {
+    std::string GVName = CsiFuncIdVariablePrefix + It.first.str();
     GlobalVariable *GV = nullptr;
     if ((GV = M.getGlobalVariable(GVName)) == nullptr) {
       GV = new GlobalVariable(M, IRB.getInt64Ty(), false,
@@ -1937,7 +1936,7 @@ void CSIImpl::generateInitCallsiteToFunction() {
                               IRB.getInt64(CsiCallsiteUnknownTargetId), GVName);
     }
     assert(GV);
-    IRB.CreateStore(IRB.CreateAdd(LI, IRB.getInt64(it.second)), GV);
+    IRB.CreateStore(IRB.CreateAdd(LI, IRB.getInt64(It.second)), GV);
   }
 }
 
@@ -2292,7 +2291,8 @@ void CSIImpl::linkInToolFromBitcode(const std::string &BitcodePath) {
             if (GVName == "llvm.global_ctors") {
               BitcodeAddsCtors = true;
               continue;
-            } else if (GVName == "llvm.global_dtors") {
+            }
+            if (GVName == "llvm.global_dtors") {
               BitcodeAddsDtors = true;
               continue;
             }
@@ -2537,6 +2537,7 @@ static bool skipInstructionInEntryBB(const Instruction &I) {
     case Intrinsic::launder_invariant_group:
     case Intrinsic::strip_invariant_group:
     case Intrinsic::is_constant:
+    case Intrinsic::localescape:
     case Intrinsic::lifetime_start:
     case Intrinsic::lifetime_end:
     case Intrinsic::objectsize:
@@ -2741,9 +2742,9 @@ void CSIImpl::instrumentFunction(Function &F) {
   // Do this work in a separate loop after copying the iterators so that we
   // aren't modifying the list as we're iterating.
   if (Options.InstrumentMemoryAccesses)
-    for (std::pair<Instruction *, CsiLoadStoreProperty> p :
+    for (std::pair<Instruction *, CsiLoadStoreProperty> P :
          LoadAndStoreProperties)
-      instrumentLoadOrStore(p.first, p.second);
+      instrumentLoadOrStore(P.first, P.second);
 
   // Instrument atomic memory accesses in any case (they can be used to
   // implement synchronization).
@@ -2816,7 +2817,7 @@ Function *CSIImpl::getInterpositionFunction(Function *F) {
   return InterpositionFunction;
 }
 
-CSISetupPass::CSISetupPass() : Options(OverrideFromCL(CSIOptions())) {}
+CSISetupPass::CSISetupPass() : Options(overrideFromCL(CSIOptions())) {}
 
 CSISetupPass::CSISetupPass(const CSIOptions &Options) : Options(Options) {}
 
@@ -2828,7 +2829,7 @@ PreservedAnalyses CSISetupPass::run(Module &M, ModuleAnalysisManager &AM) {
 }
 
 ComprehensiveStaticInstrumentationPass::ComprehensiveStaticInstrumentationPass()
-    : Options(OverrideFromCL(CSIOptions())) {}
+    : Options(overrideFromCL(CSIOptions())) {}
 
 ComprehensiveStaticInstrumentationPass::ComprehensiveStaticInstrumentationPass(
     const CSIOptions &Options)

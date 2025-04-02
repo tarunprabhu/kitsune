@@ -68,7 +68,6 @@ det.cont.i:                                       ; preds = %entry
 ; CHECK: !6893 = !DILocalVariable(name: "t", arg: 1, scope: !6852,
 ; CHECK: !6894 = !DILocalVariable(name: "run_seq", arg: 2, scope: !6852,
 ; CHECK: !6923 = !DILocalVariable(name: "this", arg: 1, scope: !6924,
-; CHECK: ![[VALUE_DBG_1]] = !DILocation(line: 0, scope: !6924,
 ; CHECK: ![[VALUE_DBG_2]] = !DILocation(line: 0, scope: !6852,
 
 ; Function Attrs: nofree nosync nounwind readnone speculatable willreturn

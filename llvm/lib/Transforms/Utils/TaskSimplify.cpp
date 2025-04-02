@@ -12,6 +12,7 @@
 
 #include "llvm/Transforms/Utils/TaskSimplify.h"
 #include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CFG.h"
@@ -23,7 +24,9 @@
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -114,10 +117,11 @@ static bool removeRedundantSyncs(MaybeParallelTasks &MPTasks, Task *T) {
   return Changed;
 }
 
-static bool syncIsDiscriminating(const Value *SyncSR,
+static bool syncIsDiscriminating(const SyncInst *Sync,
                                  SmallPtrSetImpl<const Task *> &MPTasks) {
+  const Value *SyncSR = Sync->getSyncRegion();
   for (const Task *MPTask : MPTasks)
-    if (!MPTask->encloses(cast<Instruction>(SyncSR)->getParent()) &&
+    if (!MPTask->encloses(Sync->getParent()) &&
         SyncSR != MPTask->getDetach()->getSyncRegion())
       return true;
   return false;
@@ -134,12 +138,13 @@ static bool removeRedundantSyncRegions(MaybeParallelTasks &MPTasks, Task *T) {
 
   // Find the unique sync regions in this task.
   SmallPtrSet<Value *, 1> UniqueSyncRegs;
-  Instruction *FirstSyncRegion = nullptr;
+  // It's possible for a sync region to not be an instruction only when
+  // debugging reduced test cases.
+  Value *FirstSyncRegion = nullptr;
   for (Task *SubT : T->subtasks()) {
     UniqueSyncRegs.insert(SubT->getDetach()->getSyncRegion());
     if (!FirstSyncRegion)
-      FirstSyncRegion = cast<Instruction>(
-          SubT->getDetach()->getSyncRegion());
+      FirstSyncRegion = SubT->getDetach()->getSyncRegion();
   }
   NumUniqueSyncRegs += UniqueSyncRegs.size();
   // Skip this task if there's only one unique sync region.
@@ -162,7 +167,7 @@ static bool removeRedundantSyncRegions(MaybeParallelTasks &MPTasks, Task *T) {
     // Iterate over outgoing edges of S to find discriminating syncs.
     for (Spindle::SpindleEdge &Edge : S->out_edges())
       if (const SyncInst *Y = dyn_cast<SyncInst>(Edge.second->getTerminator()))
-        if (syncIsDiscriminating(Y->getSyncRegion(), LocalTaskList)) {
+        if (syncIsDiscriminating(Y, LocalTaskList)) {
           ++NumDiscriminatingSyncs;
           LLVM_DEBUG(dbgs() << "Found discriminating sync " << *Y << "\n");
           NonRedundantSyncRegs.insert(Y->getSyncRegion());
@@ -179,8 +184,9 @@ static bool removeRedundantSyncRegions(MaybeParallelTasks &MPTasks, Task *T) {
       Changed = true;
       SR->replaceAllUsesWith(FirstSyncRegion);
       // Ensure that the first sync region is in the entry block of T.
-      if (FirstSyncRegion->getParent() != T->getEntry())
-        FirstSyncRegion->moveAfter(&*T->getEntry()->getFirstInsertionPt());
+      if (Instruction *SyncRegI = dyn_cast<Instruction>(FirstSyncRegion))
+        if (SyncRegI->getParent() != T->getEntry())
+          SyncRegI->moveAfter(&*T->getEntry()->getFirstInsertionPt());
     }
   }
 
@@ -188,26 +194,6 @@ static bool removeRedundantSyncRegions(MaybeParallelTasks &MPTasks, Task *T) {
 }
 
 bool llvm::simplifySyncs(Task *T, MaybeParallelTasks &MPTasks) {
-  // ---------------------------------------------------------------------------
-  //
-  // KITSUNE FIXME: These should be re-enabled!
-  //
-  // There is a bug that manifests in multi-target mode (at least, I think it is
-  // in multi-target mode, though I honestly cannot remember) to work around
-  // which we simply disable the removable of redundant syncs and sync regions.
-  // This is obviously a pretty terrible solution and should be fixed.
-  //
-  // The corresponding test: llvm/test/Transforms/Tapir/dead-tapir-intrinsics.ll
-  // should also be re-enabled after fixing this.
-  //
-  // TP - 14-Oct-2024
-  //
-  LLVM_DEBUG(dbgs() << "WARNING: Not simplifying syncs in task @ "
-                    << T->getEntry()->getName() << "\n");
-  return false;
-  //
-  // ---------------------------------------------------------------------------
-
   bool Changed = false;
 
   LLVM_DEBUG(dbgs() << "Simplifying syncs in task @ "
@@ -252,10 +238,11 @@ static bool detachImmediatelySyncs(DetachInst *DI) {
   return isa<SyncInst>(I);
 }
 
-bool llvm::simplifyTask(Task *T) {
+bool llvm::simplifyTask(Task *T, TaskInfo &TI, DominatorTree &DT) {
   if (T->isRootTask())
     return false;
 
+  DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Eager);
   LLVM_DEBUG(dbgs() << "Simplifying task @ " << T->getEntry()->getName()
                     << "\n");
 
@@ -268,7 +255,8 @@ bool llvm::simplifyTask(Task *T) {
   // destination from T's detach.
   if (DI->hasUnwindDest()) {
     if (!taskCanThrow(T)) {
-      removeUnwindEdge(DI->getParent());
+      LLVM_DEBUG(dbgs() << "Removing unwind edge of " << *DI << "\n");
+      removeUnwindEdge(DI->getParent(), &DTU);
       // removeUnwindEdge will invalidate the DI pointer.  Get the new DI
       // pointer.
       DI = T->getDetach();
@@ -277,13 +265,17 @@ bool llvm::simplifyTask(Task *T) {
   }
 
   if (!taskCanReachContinuation(T)) {
+    LLVM_DEBUG(dbgs() << "Task cannot reach continuation.  Serializing " << *DI
+                      << "\n");
     // This optimization assumes that if a task cannot reach its continuation
     // then we shouldn't bother spawning it.  The task might perform code that
     // can reach the unwind destination, however.
-    SerializeDetach(DI, T, NestedSync);
+    SerializeDetach(DI, T, NestedSync, &DT, &TI);
     Changed = true;
   } else if (!PreserveAllSpawns && detachImmediatelySyncs(DI)) {
-    SerializeDetach(DI, T, NestedSync);
+    LLVM_DEBUG(dbgs() << "Detach immediately syncs.  Serializing " << *DI
+                      << "\n");
+    SerializeDetach(DI, T, NestedSync, &DT, &TI);
     Changed = true;
   }
 
@@ -362,7 +354,7 @@ static bool canRemoveTaskFrame(const Spindle *TF, MaybeParallelTasks &MPTasks,
       // so would cause these syncs to sync tasks spawned in the parent
       // taskframe.
       if (const SyncInst *SI = dyn_cast<SyncInst>(BB->getTerminator()))
-        if (syncIsDiscriminating(SI->getSyncRegion(), LocalTaskList)) {
+        if (syncIsDiscriminating(SI, LocalTaskList)) {
           LLVM_DEBUG(dbgs()
                      << "Can't remove taskframe with distinguishing sync: "
                      << *TFCreate << "\n");
@@ -532,6 +524,30 @@ static bool iterativelySimplifyCFG(Function &F, const TargetTransformInfo &TTI,
   return Changed;
 }
 
+static bool removeDeadTapirIntrinsics(Function &F) {
+  SmallVector<Instruction *, 4> ToErase;
+  for (BasicBlock &B : F) {
+    for (Instruction &I : B) {
+      // Look for any now-unused tapir.runtime.start intrinsics
+      if (isTapirIntrinsic(Intrinsic::tapir_runtime_start, &I)) {
+        if (!llvm::any_of(I.users(), [&](const User *U) {
+              return isa<Instruction>(U) &&
+                     isTapirIntrinsic(Intrinsic::tapir_runtime_end,
+                                      cast<Instruction>(U));
+            }))
+          ToErase.push_back(&I);
+      }
+    }
+  }
+
+  if (ToErase.empty())
+    return false;
+
+  for (Instruction *I : ToErase)
+    I->eraseFromParent();
+  return true;
+}
+
 static bool simplifyFunctionCFG(Function &F, const TargetTransformInfo &TTI,
                                 DominatorTree *DT,
                                 const SimplifyCFGOptions &Options) {
@@ -539,6 +555,7 @@ static bool simplifyFunctionCFG(Function &F, const TargetTransformInfo &TTI,
 
   bool EverChanged = removeUnreachableBlocks(F, DT ? &DTU : nullptr);
   EverChanged |= iterativelySimplifyCFG(F, TTI, DT ? &DTU : nullptr, Options);
+  EverChanged |= removeDeadTapirIntrinsics(F);
 
   // If neither pass changed anything, we're done.
   if (!EverChanged) return false;
@@ -554,6 +571,7 @@ static bool simplifyFunctionCFG(Function &F, const TargetTransformInfo &TTI,
   do {
     EverChanged = iterativelySimplifyCFG(F, TTI, DT ? &DTU : nullptr, Options);
     EverChanged |= removeUnreachableBlocks(F, DT ? &DTU : nullptr);
+    EverChanged |= removeDeadTapirIntrinsics(F);
   } while (EverChanged);
 
   return true;
@@ -629,7 +647,7 @@ PreservedAnalyses TaskSimplifyPass::run(Function &F,
 
   // Simplify each task in the function.
   for (Task *T : post_order(TI.getRootTask()))
-    Changed |= simplifyTask(T);
+    Changed |= simplifyTask(T, TI, DT);
 
   if (PostCleanupCFG && (Changed | SplitBlocks))
     Changed |= simplifyFunctionCFG(F, TTI, nullptr, Options);

@@ -17,6 +17,7 @@
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
@@ -51,10 +52,11 @@ void CloneIntoFunction(
     Function *NewFunc, const Function *OldFunc,
     std::vector<BasicBlock *> Blocks, ValueToValueMapTy &VMap,
     CloneFunctionChangeType Changes, SmallVectorImpl<ReturnInst *> &Returns,
-    const StringRef NameSuffix,
+    const StringRef NameSuffix, std::optional<DebugInfoFinder> &DIFinder,
     SmallPtrSetImpl<BasicBlock *> *ReattachBlocks = nullptr,
     SmallPtrSetImpl<BasicBlock *> *DetachedRethrowBlocks = nullptr,
     SmallPtrSetImpl<BasicBlock *> *SharedEHEntries = nullptr,
+    DISubprogram *SPClonedWithinModule = nullptr,
     ClonedCodeInfo *CodeInfo = nullptr,
     ValueMapTypeRemapper *TypeMapper = nullptr,
     OutlineMaterializer *Materializer = nullptr);

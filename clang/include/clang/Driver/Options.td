@@ -9164,7 +9164,7 @@ def wasm_opt : Flag<["--"], "wasm-opt">,
 //   - New options should be added to the kitsune_Group defined below. This will
 //     ensure that a Kitsune frontend (kitcc, kit++, kitfc etc.) is used when
 //     compiling with these options. In general, this is what we want since the
-//     Kitsune frontends have different defaults for certain options such as 
+//     Kitsune frontends have different defaults for certain options such as
 //     -ffp-contract=
 //
 // Ideally, we would like to share the option definitions with those tools, but
@@ -9180,10 +9180,10 @@ def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   HelpText<"Directory for kitsune's configuration files">;
 
-def fkokkos : Flag<["-"], "fkokkos">, 
+def fkokkos : Flag<["-"], "fkokkos">,
   Visibility<[ClangOption, CC1Option]>,
   HelpText<"Enable custom parsing and code generation of some Kokkos constructs">;
-def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, 
+def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">,
   Visibility<[ClangOption, CC1Option]>,
   HelpText<"Skip generation of Kokkos initialization (and finalize) calls.">;
 
@@ -9191,9 +9191,9 @@ def kitrt_verbose: Joined<["--"], "kitrt-verbose">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   HelpText<"Enable verbose mode in kitsune's runtime">;
 
-def tapir_EQ : Joined<["--"], "tapir=">, 
+def tapir_EQ : Joined<["--"], "tapir=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  MetaVarName<"<target>">, 
+  MetaVarName<"<target>">,
   Values<"none,serial,cuda,hip,opencilk">,
   HelpText<"The tapir target">;
 
@@ -9224,16 +9224,16 @@ def tapir_max_threads_per_block_EQ:
 
 // NOTE: The default must be kept in sync with the KITSUNE_CUDA_ARCH_DEFAULT
 // cmake variable set in kitsune/CMakeLists.txt.
-def tapir_cuda_arch_EQ : Joined<["--"], "tapir-cuda-arch=">, 
+def tapir_cuda_arch_EQ : Joined<["--"], "tapir-cuda-arch=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  Default<"sm_80">, MetaVarName<"<arch>">, 
+  Default<"sm_80">, MetaVarName<"<arch>">,
   HelpText<"The NVIDIA GPU architecture for the cuda tapir target">;
 
 // NOTE: The default must be kept in sync with the KITSUNE_HIP_ARCH_DEFAULT
 // cmake variable set in kitsune/CMakeLists.txt.
 def tapir_hip_arch_EQ : Joined<["--"], "tapir-hip-arch=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  Default<"gfx90a">, MetaVarName<"<arch>">, 
+  Default<"gfx90a">, MetaVarName<"<arch>">,
   HelpText<"The AMDGPU architecture for the hip tapir target">;
 
 def tapir_hip_features_EQ : Joined<["--"], "tapir-hip-features=">,
@@ -9250,7 +9250,7 @@ def tapir_hip_features_EQ : Joined<["--"], "tapir-hip-features=">,
 // platforms).
 def tapir_opencilk_abi_bc_EQ : Joined<["--"], "tapir-opencilk-abi-bc=">,
   Visibility<[CC1Option, FC1Option]>,
-  MetaVarName<"<file>">, 
+  MetaVarName<"<file>">,
   HelpText<"Path to OpenCilk ABI bitcode file">;
 
 def static_libkitrt : Flag<["-"], "static-libkitrt">,
@@ -9260,11 +9260,11 @@ def static_libkitrt : Flag<["-"], "static-libkitrt">,
 // It would be nice if we could use one of the Bool*Option classes, but they
 // expect the option to be marshalled directly. We don't have that enabled
 // right now, so we have to do it the ugly way.
-def fstripmine : Flag<["-"], "fstripmine">, 
+def fstripmine : Flag<["-"], "fstripmine">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   HelpText<"Enable the loop strip-mining pass (Kitsune only)">;
-  
-def fno_stripmine : Flag<["-"], "fno-stripmine">, 
+
+def fno_stripmine : Flag<["-"], "fno-stripmine">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   HelpText<"Disable the loop strip-mining pass (Kitsune only)">;
 }

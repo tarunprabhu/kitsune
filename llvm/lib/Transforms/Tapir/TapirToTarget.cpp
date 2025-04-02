@@ -115,10 +115,10 @@ TapirToTargetImpl::outlineAllTasks(Function &F,
       // Outline taskframe with no associated task.
       ValueToValueMapTy VMap;
       ValueToValueMapTy InputMap;
-      TFToOutline[TF] = outlineTaskFrame(TF, TFInputs[TF], HelperInputs[TF],
-                                         &Target->getDestinationModule(), VMap,
-                                         Target->getArgStructMode(),
-                                         Target->getReturnType(), InputMap, OA);
+      TFToOutline[TF] = outlineTaskFrame(
+          TF, TFInputs[TF], HelperInputs[TF], &Target->getDestinationModule(),
+          Target->getCloneFunctionChangeType(), VMap,
+          Target->getArgStructMode(), Target->getReturnType(), InputMap, OA);
       // If the taskframe TF does not catch an exception from the taskframe,
       // then the outlined function cannot throw.
       if (F.doesNotThrow() && !getTaskFrameResume(TF->getTaskFrameCreate()))
@@ -136,6 +136,10 @@ TapirToTargetImpl::outlineAllTasks(Function &F,
       for (Spindle *SubTF : TF->subtaskframes())
         TFToOutline[SubTF].remapOutlineInfo(VMap, InputMap);
 
+      if (Instruction *ClonedTFCreate =
+              dyn_cast<Instruction>(VMap[TF->getTaskFrameCreate()]))
+        ClonedTFCreate->eraseFromParent();
+
       continue;
     }
 
@@ -146,8 +150,8 @@ TapirToTargetImpl::outlineAllTasks(Function &F,
     ValueToValueMapTy InputMap;
     TFToOutline[TF] = outlineTask(
         T, TFInputs[TF], HelperInputs[TF], &Target->getDestinationModule(),
-        VMap, Target->getArgStructMode(), Target->getReturnType(), InputMap, OA,
-        Target);
+        Target->getCloneFunctionChangeType(), VMap, Target->getArgStructMode(),
+        Target->getReturnType(), InputMap, OA, Target);
     // If the detach for task T does not catch an exception from the task, then
     // the outlined function cannot throw.
     if (F.doesNotThrow() && !T->getDetach()->hasUnwindDest())
