@@ -2933,9 +2933,9 @@ ScalarExprEmitter::EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
         llvm::Instruction::BinaryOps op =
             isInc ? llvm::Instruction::FAdd : llvm::Instruction::FSub;
         llvm::Value *amt = llvm::ConstantFP::get(Ty, 1.0);
-        llvm::AtomicRMWInst *old = Builder.CreateAtomicRMW(
-            aop, LV.getAddress(), amt,
-            llvm::AtomicOrdering::SequentiallyConsistent);
+        llvm::AtomicRMWInst *old =
+            CGF.emitAtomicRMWInst(aop, LV.getAddress(), amt,
+                                  llvm::AtomicOrdering::SequentiallyConsistent);
 
         return isPre ? Builder.CreateBinOp(op, old, amt) : old;
       }

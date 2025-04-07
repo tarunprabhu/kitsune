@@ -1569,10 +1569,10 @@ static AliasResult underlyingNoAlias(const Value *O1, const Value *O2,
   // temporary store the nocapture argument's value in a temporary memory
   // location if that memory location doesn't escape. Or it may pass a
   // nocapture value to other functions as long as they don't capture it.
-  if (isEscapeSource(O1) && AAQI.CI->isNotCapturedBefore(
+  if (isEscapeSource(O1) && AAQI.CA->isNotCapturedBefore(
                                 O2, dyn_cast<Instruction>(O1), /*OrAt*/ true))
    return AliasResult::NoAlias;
-  if (isEscapeSource(O2) && AAQI.CI->isNotCapturedBefore(
+  if (isEscapeSource(O2) && AAQI.CA->isNotCapturedBefore(
                                 O1, dyn_cast<Instruction>(O2), /*OrAt*/ true))
     return AliasResult::NoAlias;
 

@@ -341,7 +341,7 @@ void HipABI::transformConstants(Function &Fn) {
             assert(DestTy && "GEP indices invalid!");
             GetElementPtrInst *NewGEP = GetElementPtrInst::Create(
                 GEP->getSourceElementType(), GEP->getPointerOperand(), IdxList,
-                GEP->getName() + ".asp", GEP);
+                GEP->getName() + ".asp", GEP->getIterator());
             GEPMap[GEP] = NewGEP;
           }
         }
@@ -371,22 +371,22 @@ void HipABI::transformConstants(Function &Fn) {
                           << "\n");
         // FIXME: This is not correct! The function operand should be
         // checked to see what address space it expects.
-        Instruction *asCast =
-            new AddrSpaceCastInst(NewGEP, OldGEP->getType(), "", Call);
+        Instruction *asCast = new AddrSpaceCastInst(NewGEP, OldGEP->getType(),
+                                                    "", Call->getIterator());
         Call->setArgOperand(argNo, asCast);
         LLVM_DEBUG(dbgs() << "\t\t\t\tnew call: " << *Call << "\n");
       } else if (auto *GEP = dyn_cast<GetElementPtrInst>(User)) {
         LLVM_DEBUG(dbgs() << "\t\tpatching gep instruction:\n\t\t\t" << *GEP
                           << "\n");
-        Instruction *asCast =
-            new AddrSpaceCastInst(NewGEP, OldGEP->getType(), "", GEP);
+        Instruction *asCast = new AddrSpaceCastInst(NewGEP, OldGEP->getType(),
+                                                    "", GEP->getIterator());
         GEP->setOperand(GEP->getPointerOperandIndex(), asCast);
         LLVM_DEBUG(dbgs() << "\t\t\t\tnew gep:\n\t\t\t\t  " << *GEP << "\n");
       } else if (auto *PToI = dyn_cast<PtrToIntInst>(User)) {
         LLVM_DEBUG(dbgs() << "\t\tpatching ptrtoint instruction:\n\t\t\t"
                           << *PToI << "\n");
-        Instruction *asCast =
-            new AddrSpaceCastInst(NewGEP, OldGEP->getType(), "", PToI);
+        Instruction *asCast = new AddrSpaceCastInst(NewGEP, OldGEP->getType(),
+                                                    "", PToI->getIterator());
         PToI->setOperand(0, asCast);
         LLVM_DEBUG(dbgs() << "\t\t\t\tnew ptrtoint:\n\t\t\t\t  " << *PToI
                           << "\n");
@@ -417,7 +417,7 @@ void HipABI::transformArguments(Function &Fn) {
 
   FunctionType *NewFTy = FunctionType::get(Fn.getReturnType(),
                                            ArrayRef<Type *>(FnArgTypes), false);
-  Fn.mutateType(NewFTy->getPointerTo());
+  Fn.mutateType(PointerType::getUnqual(Ctxt));
   // TODO: Need a better path here than mutate... We added this call to LLVM
   // to serve our testing and prototyping purposes.  Not sure there is a clean
   // (and easy to implement) way to accompish the same functionality...
@@ -549,21 +549,24 @@ HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
       Int32Ty); // axis/index select (x=0, y=1, z=2).
 
   KitHipWorkItemIdXFn = /* threadIdx.x */
-      Intrinsic::getDeclaration(&KernelModule, Intrinsic::amdgcn_workitem_id_x);
+      Intrinsic::getOrInsertDeclaration(&KernelModule,
+                                        Intrinsic::amdgcn_workitem_id_x);
   KitHipWorkItemIdYFn = /* threadIdx.y */
-      Intrinsic::getDeclaration(&KernelModule, Intrinsic::amdgcn_workitem_id_y);
+      Intrinsic::getOrInsertDeclaration(&KernelModule,
+                                        Intrinsic::amdgcn_workitem_id_y);
   KitHipWorkItemIdZFn = /* threadIdx. z */
-      Intrinsic::getDeclaration(&KernelModule, Intrinsic::amdgcn_workitem_id_z);
+      Intrinsic::getOrInsertDeclaration(&KernelModule,
+                                        Intrinsic::amdgcn_workitem_id_z);
 
   KitHipWorkGroupIdXFn = /* blockIdx.x */
-      Intrinsic::getDeclaration(&KernelModule,
-                                Intrinsic::amdgcn_workgroup_id_x);
+      Intrinsic::getOrInsertDeclaration(&KernelModule,
+                                        Intrinsic::amdgcn_workgroup_id_x);
   KitHipWorkGroupIdYFn = /* blockIdx.y */
-      Intrinsic::getDeclaration(&KernelModule,
-                                Intrinsic::amdgcn_workgroup_id_y);
+      Intrinsic::getOrInsertDeclaration(&KernelModule,
+                                        Intrinsic::amdgcn_workgroup_id_y);
   KitHipWorkGroupIdZFn = /* blockIdx.z */
-      Intrinsic::getDeclaration(&KernelModule,
-                                Intrinsic::amdgcn_workgroup_id_z);
+      Intrinsic::getOrInsertDeclaration(&KernelModule,
+                                        Intrinsic::amdgcn_workgroup_id_z);
 
   // Get entry points into the Hip-centric portion of the Kitsune runtime.
   // NOTE: This needs to be sync'ed up with the tapir gpu utils on the
@@ -575,16 +578,16 @@ HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
                                     Int64Ty,  // number of integer ops.
                                     Int64Ty); // number of other ops.
 
-  KitHipLaunchFn = M.getOrInsertFunction(
-      "__kithip_launch_kernel",
-      VoidPtrTy,                       // return an opaque stream
-      VoidPtrTy,                       // fat-binary
-      VoidPtrTy,                       // kernel name
-      VoidPtrTy,                       // arguments
-      Int64Ty,                         // trip count
-      Int32Ty,                         // threads-per-block
-      KernelInstMixTy->getPointerTo(), // instruction mix info
-      VoidPtrTy);                      // opaque hip stream
+  KitHipLaunchFn =
+      M.getOrInsertFunction("__kithip_launch_kernel",
+                            VoidPtrTy, // return an opaque stream
+                            VoidPtrTy, // fat-binary
+                            VoidPtrTy, // kernel name
+                            VoidPtrTy, // arguments
+                            Int64Ty,   // trip count
+                            Int32Ty,   // threads-per-block
+                            PointerType::getUnqual(Ctx), // instruction mix info
+                            VoidPtrTy);                  // opaque hip stream
 
   KitHipMemPrefetchFn =
       M.getOrInsertFunction("__kithip_mem_gpu_prefetch",
@@ -842,7 +845,7 @@ void HipLoop::transformForGCN(Function &F) {
         AllocaInst *NewAI =
             new AllocaInst(AI->getType(), AllocaAS, AI->getArraySize(),
                            AI->getAlign(), AI->getName());
-        NewAI->insertBefore(AI);
+        NewAI->insertBefore(AI->getIterator());
         AddrSpaceCastInst *CastAI = new AddrSpaceCastInst(NewAI, AI->getType());
         AllocaReplaced[AI] = CastAI;
       }
@@ -1662,8 +1665,8 @@ void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
             LaunchCalls.push_back(Call);
 
   for (CallInst *Call : LaunchCalls) {
-    Value *FatBin = CastInst::CreateBitOrPointerCast(BundleBin, VoidPtrTy,
-                                                     "_hipbin.fatbin", Call);
+    Value *FatBin = CastInst::CreateBitOrPointerCast(
+        BundleBin, VoidPtrTy, "_hipbin.fatbin", Call->getIterator());
     Call->setArgOperand(0, FatBin);
 
     // TODO: Do we want to sync naming conventions up between the CUDA and HIP
@@ -1677,20 +1680,22 @@ void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
       Value *SymName = M.getGlobalVariable(DevVarName);
       if (!SymName)
         SymName = tapir::createConstantStr(DevVarName, M, DevVarName);
-      Value *DevPtr = CallInst::Create(
-          KitHipGetGlobalSymbolFn, {FatBin, SymName}, ".hipabi_devptr", Call);
-      Value *VGVPtr = CastInst::CreatePointerCast(HostGV, VoidPtrTy, "", Call);
+      Value *DevPtr =
+          CallInst::Create(KitHipGetGlobalSymbolFn, {FatBin, SymName},
+                           ".hipabi_devptr", Call->getIterator());
+      Value *VGVPtr = CastInst::CreatePointerCast(HostGV, VoidPtrTy, "",
+                                                  Call->getIterator());
       uint64_t NumBytes = DL.getTypeAllocSize(HostGV->getValueType());
       CallInst::Create(KitHipMemcpySymbolToDevFn,
                        {VGVPtr, DevPtr, ConstantInt::get(Int64Ty, NumBytes)},
-                       "", Call);
+                       "", Call->getIterator());
     }
   }
 
   GlobalVariable *ProxyFB = M.getGlobalVariable(HIPABI_DUMMY_FATBIN_NAME, true);
   if (ProxyFB) {
     Constant *CFB =
-        ConstantExpr::getPointerCast(BundleBin, VoidPtrTy->getPointerTo());
+        ConstantExpr::getPointerCast(BundleBin, PointerType::getUnqual(Ctx));
     LLVM_DEBUG(dbgs() << "\t\treplacing and removing proxy fatbin ptr.\n");
     ProxyFB->replaceAllUsesWith(CFB);
     ProxyFB->eraseFromParent();
@@ -1782,8 +1787,8 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
     AMDTargetMachine->registerPassBuilderCallbacks(PB);
     PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-    ModulePassManager MPM =
-        PB.buildPerModuleDefaultPipeline(KModOptLevel, false, false);
+    ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
+        KModOptLevel, ThinOrFullLTOPhase::None, false);
     MPM.addPass(VerifierPass());
     if (VerboseMode)
       errs() << "    - running kernel/device-side pipeline...\n";
@@ -2011,7 +2016,7 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
-  PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
+  PointerType *VoidPtrPtrTy = PointerType::getUnqual(Ctx);
   Type *IntTy = Type::getInt32Ty(Ctx);
 
   Function *CtorFn = Function::Create(
@@ -2120,7 +2125,7 @@ Function *HipABI::createDtor(GlobalVariable *BundleHandle) {
   const DataLayout &DL = M.getDataLayout();
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
-  Type *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
+  Type *VoidPtrPtrTy = PointerType::getUnqual(Ctx);
 
   FunctionCallee UnregisterFatbinFn =
       M.getOrInsertFunction("__hipUnregisterFatBinary",

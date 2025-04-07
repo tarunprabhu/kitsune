@@ -91,10 +91,6 @@ formLCSSAForInstructionsImpl(SmallVectorImpl<Instruction *> &Worklist,
   PredIteratorCache PredCache;
   bool Changed = false;
 
-  // Cache the Loop ExitBlocks across this loop.  We expect to get a lot of
-  // instructions within the same loops, computing the exit blocks is
-  // expensive, and we're not mutating the loop structure.
-  SmallDenseMap<Loop*, SmallVector<BasicBlock *,1>> LoopExitBlocks;
   // Similarly, cache the Loop TaskExits across this loop.
   SmallDenseMap<Loop*, SmallPtrSet<BasicBlock *,1>> LoopTaskExits;
 

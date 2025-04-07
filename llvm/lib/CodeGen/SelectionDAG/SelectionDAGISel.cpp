@@ -797,9 +797,6 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
         break;
       }
 
-  // Determine if floating point is used for msvc
-  computeUsesMSVCFloatingPoint(TM.getTargetTriple(), Fn, MF->getMMI());
-
   // Release function-specific state. SDB and CurDAG are already cleared
   // at this point.
   FuncInfo->clear();

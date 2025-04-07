@@ -1144,29 +1144,24 @@ void DetachInst::init(Value *SyncRegion, BasicBlock *Detached,
 }
 
 DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
-                       Value *SyncRegion, InsertPosition InsertBefore)
-    : Instruction(Type::getVoidTy(Detached->getContext()),
-                  Instruction::Detach,
-                  OperandTraits<DetachInst>::op_end(this) - 3, 3,
-                  InsertBefore) {
+                       Value *SyncRegion, AllocInfo AllocInfo,
+                       InsertPosition InsertBefore)
+    : Instruction(Type::getVoidTy(Detached->getContext()), Instruction::Detach,
+                  AllocInfo, InsertBefore) {
   init(SyncRegion, Detached, Continue);
 }
 
 DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
                        BasicBlock *Unwind, Value *SyncRegion,
-                       InsertPosition InsertBefore)
-    : Instruction(Type::getVoidTy(Detached->getContext()),
-                  Instruction::Detach,
-                  OperandTraits<DetachInst>::op_end(this) - 4, 4,
-                  InsertBefore) {
+                       AllocInfo AllocInfo, InsertPosition InsertBefore)
+    : Instruction(Type::getVoidTy(Detached->getContext()), Instruction::Detach,
+                  AllocInfo, InsertBefore) {
   init(SyncRegion, Detached, Continue, Unwind);
 }
 
-DetachInst::DetachInst(const DetachInst &DI)
+DetachInst::DetachInst(const DetachInst &DI, AllocInfo AllocInfo)
     : Instruction(Type::getVoidTy(DI.getContext()), Instruction::Detach,
-                  OperandTraits<DetachInst>::op_end(this) -
-                  DI.getNumOperands(),
-                  DI.getNumOperands()) {
+                  AllocInfo) {
   setSubclassData<Instruction::OpaqueField>(
       DI.getSubclassData<Instruction::OpaqueField>());
   Op<-1>() = DI.Op<-1>();
@@ -1182,7 +1177,7 @@ DetachInst::DetachInst(const DetachInst &DI)
 LandingPadInst *DetachInst::getLandingPadInst() const {
   if (!hasUnwindDest())
     return nullptr;
-  return cast<LandingPadInst>(getUnwindDest()->getFirstNonPHI());
+  return cast<LandingPadInst>(getUnwindDest()->getFirstNonPHIIt());
 }
 
 //===----------------------------------------------------------------------===//
@@ -1197,9 +1192,7 @@ void ReattachInst::AssertOK() {
 ReattachInst::ReattachInst(BasicBlock *DetachContinue, Value *SyncRegion,
                            InsertPosition InsertBefore)
     : Instruction(Type::getVoidTy(DetachContinue->getContext()),
-                  Instruction::Reattach,
-                  OperandTraits<ReattachInst>::op_end(this) - 2, 2,
-                  InsertBefore) {
+                  Instruction::Reattach, AllocMarker, InsertBefore) {
   Op<-1>() = SyncRegion;
   Op<-2>() = DetachContinue;
 #ifndef NDEBUG
@@ -1209,9 +1202,7 @@ ReattachInst::ReattachInst(BasicBlock *DetachContinue, Value *SyncRegion,
 
 ReattachInst::ReattachInst(const ReattachInst &RI)
     : Instruction(Type::getVoidTy(RI.getContext()), Instruction::Reattach,
-                  OperandTraits<ReattachInst>::op_end(this) -
-                  RI.getNumOperands(),
-                  RI.getNumOperands()) {
+                  AllocMarker) {
   Op<-1>() = RI.Op<-1>();
   Op<-2>() = RI.Op<-2>();
   assert(RI.getNumOperands() == 2 && "Reattach must have 2 operands!");
@@ -1230,8 +1221,7 @@ void SyncInst::AssertOK() {
 SyncInst::SyncInst(BasicBlock *Continue, Value *SyncRegion,
                    InsertPosition InsertBefore)
     : Instruction(Type::getVoidTy(Continue->getContext()), Instruction::Sync,
-                  OperandTraits<SyncInst>::op_end(this) - 2, 2,
-                  InsertBefore) {
+                  AllocMarker, InsertBefore) {
   Op<-1>() = SyncRegion;
   Op<-2>() = Continue;
 #ifndef NDEBUG
@@ -1239,11 +1229,9 @@ SyncInst::SyncInst(BasicBlock *Continue, Value *SyncRegion,
 #endif
 }
 
-
 SyncInst::SyncInst(const SyncInst &SI)
     : Instruction(Type::getVoidTy(SI.getContext()), Instruction::Sync,
-                  OperandTraits<SyncInst>::op_end(this) - SI.getNumOperands(),
-                  SI.getNumOperands()) {
+                  AllocMarker) {
   Op<-1>() = SI.Op<-1>();
   Op<-2>() = SI.Op<-2>();
   assert(SI.getNumOperands() == 2 && "Sync must have 2 operands!");
@@ -4649,13 +4637,14 @@ FreezeInst *FreezeInst::cloneImpl() const {
 }
 
 DetachInst *DetachInst::cloneImpl() const {
-  return new(getNumOperands()) DetachInst(*this);
+  IntrusiveOperandsAllocMarker AllocMarker{getNumOperands()};
+  return new (AllocMarker) DetachInst(*this, AllocMarker);
 }
 
 ReattachInst *ReattachInst::cloneImpl() const {
-  return new(getNumOperands()) ReattachInst(*this);
+  return new (AllocMarker) ReattachInst(*this);
 }
 
 SyncInst *SyncInst::cloneImpl() const {
-  return new(getNumOperands()) SyncInst(*this);
+  return new (AllocMarker) SyncInst(*this);
 }

@@ -1407,10 +1407,10 @@ static void readConfigs(Ctx &ctx, opt::InputArgList &args) {
 
   // Parse Kitsune-specific arguments that are passed here.
   if (opt::Arg *arg = args.getLastArg(OPT_tapir)) {
-    config->tapirTarget = parseTapirTarget(arg->getValue());
-    if (config->tapirTarget.has_value())
-      config->tapirTargetOpts =
-          createTapirTargetOptions(args, *config->tapirTarget);
+    ctx.arg.tapirTarget = parseTapirTarget(arg->getValue());
+    if (ctx.arg.tapirTarget.has_value())
+      ctx.arg.tapirTargetOpts =
+          createTapirTargetOptions(args, *ctx.arg.tapirTarget);
     else
       error(Twine("invalid value '") + arg->getValue() + "' in '" +
             arg->getSpelling() + "'");
@@ -1545,8 +1545,6 @@ static void readConfigs(Ctx &ctx, opt::InputArgList &args) {
   ctx.arg.omagic = args.hasFlag(OPT_omagic, OPT_no_omagic, false);
   ctx.arg.optRemarksFilename = args.getLastArgValue(OPT_opt_remarks_filename);
   ctx.arg.optStatsFilename = args.getLastArgValue(OPT_plugin_opt_stats_file);
-  ctx.arg.opencilkABIBitcodeFile =
-      args.getLastArgValue(OPT_opencilk_abi_bitcode);
 
   // Parse remarks hotness threshold. Valid value is either integer or 'auto'.
   if (auto *arg = args.getLastArg(OPT_opt_remarks_hotness_threshold)) {
@@ -1618,8 +1616,6 @@ static void readConfigs(Ctx &ctx, opt::InputArgList &args) {
   ctx.arg.thinLTOCachePolicy = CHECK(
       parseCachePruningPolicy(args.getLastArgValue(OPT_thinlto_cache_policy)),
       "--thinlto-cache-policy: invalid cache policy");
-  ctx.arg.tapirTarget =
-      args::parseTapirTarget(args.getLastArgValue(OPT_tapir_target));
   ctx.arg.thinLTOEmitImportsFiles = args.hasArg(OPT_thinlto_emit_imports_files);
   ctx.arg.thinLTOEmitIndexFiles = args.hasArg(OPT_thinlto_emit_index_files) ||
                                   args.hasArg(OPT_thinlto_index_only) ||
@@ -1700,7 +1696,6 @@ static void readConfigs(Ctx &ctx, opt::InputArgList &args) {
   ctx.arg.zWxneeded = hasZOption(args, "wxneeded");
   setUnresolvedSymbolPolicy(ctx, args);
   ctx.arg.power10Stubs = args.getLastArgValue(OPT_power10_stubs_eq) != "no";
-  ctx.arg.tapirTarget = parseTapirTarget(args.getLastArgValue(OPT_tapir_target));
 
   if (opt::Arg *arg = args.getLastArg(OPT_eb, OPT_el)) {
     if (arg->getOption().matches(OPT_eb))

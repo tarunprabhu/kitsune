@@ -325,60 +325,60 @@ CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   Type *VoidTy = Type::getVoidTy(Ctx);
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
-  PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
+  PointerType *VoidPtrPtrTy = PointerType::getUnqual(Ctx);
   PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
 
   // Thread index values -- equivalent to Cuda's builtins:  threadIdx.[x,y,z].
-  CUThreadIdxX = Intrinsic::getDeclaration(&KernelModule,
-                                           Intrinsic::nvvm_read_ptx_sreg_tid_x);
-  CUThreadIdxY = Intrinsic::getDeclaration(&KernelModule,
-                                           Intrinsic::nvvm_read_ptx_sreg_tid_y);
-  CUThreadIdxZ = Intrinsic::getDeclaration(&KernelModule,
-                                           Intrinsic::nvvm_read_ptx_sreg_tid_z);
+  CUThreadIdxX = Intrinsic::getOrInsertDeclaration(
+      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_tid_x);
+  CUThreadIdxY = Intrinsic::getOrInsertDeclaration(
+      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_tid_y);
+  CUThreadIdxZ = Intrinsic::getOrInsertDeclaration(
+      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_tid_z);
 
   // Block index values -- equivalent to Cuda's builtins: blockIndx.[x,y,z].
-  CUBlockIdxX = Intrinsic::getDeclaration(
+  CUBlockIdxX = Intrinsic::getOrInsertDeclaration(
       &KernelModule, Intrinsic::nvvm_read_ptx_sreg_ctaid_x);
-  CUBlockIdxY = Intrinsic::getDeclaration(
+  CUBlockIdxY = Intrinsic::getOrInsertDeclaration(
       &KernelModule, Intrinsic::nvvm_read_ptx_sreg_ctaid_y);
-  CUBlockIdxZ = Intrinsic::getDeclaration(
+  CUBlockIdxZ = Intrinsic::getOrInsertDeclaration(
       &KernelModule, Intrinsic::nvvm_read_ptx_sreg_ctaid_z);
 
   // Block dimensions -- equivalent to Cuda's builtins: blockDim.[x,y,z].
-  CUBlockDimX = Intrinsic::getDeclaration(&KernelModule,
-                                          Intrinsic::nvvm_read_ptx_sreg_ntid_x);
-  CUBlockDimY = Intrinsic::getDeclaration(&KernelModule,
-                                          Intrinsic::nvvm_read_ptx_sreg_ntid_y);
-  CUBlockDimZ = Intrinsic::getDeclaration(&KernelModule,
-                                          Intrinsic::nvvm_read_ptx_sreg_ntid_x);
+  CUBlockDimX = Intrinsic::getOrInsertDeclaration(
+      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_ntid_x);
+  CUBlockDimY = Intrinsic::getOrInsertDeclaration(
+      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_ntid_y);
+  CUBlockDimZ = Intrinsic::getOrInsertDeclaration(
+      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_ntid_x);
 
   // Grid dimensions -- equivalent to Cuda's builtins: gridDim.[x,y,z].
-  CUGridDimX = Intrinsic::getDeclaration(
+  CUGridDimX = Intrinsic::getOrInsertDeclaration(
       &KernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_x);
-  CUGridDimY = Intrinsic::getDeclaration(
+  CUGridDimY = Intrinsic::getOrInsertDeclaration(
       &KernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_y);
-  CUGridDimZ = Intrinsic::getDeclaration(
+  CUGridDimZ = Intrinsic::getOrInsertDeclaration(
       &KernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_z);
 
   // NVVM-centric barrier -- equivalent to Cuda's __sync_threads().
-  CUSyncThreads =
-      Intrinsic::getDeclaration(&KernelModule, Intrinsic::nvvm_barrier0);
+  CUSyncThreads = Intrinsic::getOrInsertDeclaration(&KernelModule,
+                                                    Intrinsic::nvvm_barrier0);
 
   // Get entry points into the Cuda-centric portion of the Kitsune GPU runtime.
   KernelInstMixTy = StructType::get(Int64Ty,  // number of memory ops.
                                     Int64Ty,  // number of floating point ops.
                                     Int64Ty,  // number of integer ops.
                                     Int64Ty); // number of other ops.
-  KitCudaLaunchFn = M.getOrInsertFunction(
-      "__kitcuda_launch_kernel",
-      VoidPtrTy,                       // return an opaque stream
-      VoidPtrTy,                       // fat-binary
-      VoidPtrTy,                       // kernel name
-      VoidPtrPtrTy,                    // arguments
-      Int64Ty,                         // trip count
-      Int32Ty,                         // threads-per-block
-      KernelInstMixTy->getPointerTo(), // instruction mix info
-      VoidPtrTy);                      // opaque cuda stream
+  KitCudaLaunchFn =
+      M.getOrInsertFunction("__kitcuda_launch_kernel",
+                            VoidPtrTy,    // return an opaque stream
+                            VoidPtrTy,    // fat-binary
+                            VoidPtrTy,    // kernel name
+                            VoidPtrPtrTy, // arguments
+                            Int64Ty,      // trip count
+                            Int32Ty,      // threads-per-block
+                            PointerType::getUnqual(Ctx), // instruction mix info
+                            VoidPtrTy);                  // opaque cuda stream
 
   KitCudaMemPrefetchFn =
       M.getOrInsertFunction("__kitcuda_mem_gpu_prefetch",
@@ -905,7 +905,7 @@ void CudaLoop::transformForPTX(Function &F) {
   for (auto I : Replaced) {
     CallInst *CI = I.first;
     CallInst *NCI = I.second;
-    NCI->insertBefore(CI);
+    NCI->insertBefore(CI->getIterator());
     CI->replaceAllUsesWith(NCI);
     CI->eraseFromParent();
   }
@@ -1389,8 +1389,8 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
 
   for (CallInst *Call : LaunchCalls) {
     LLVM_DEBUG(dbgs() << "\t\t  patching launch call\n");
-    Value *CFatbin = CastInst::CreateBitOrPointerCast(Fatbin, VoidPtrTy,
-                                                      "_cubin.fatbin", Call);
+    Value *CFatbin = CastInst::CreateBitOrPointerCast(
+        Fatbin, VoidPtrTy, "_cubin.fatbin", Call->getIterator());
     Call->setArgOperand(0, CFatbin);
 
     // We need to explicitly add code to sync up host-side and device-side
@@ -1404,20 +1404,21 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
                         << "'\n");
       std::string DevVarName = HostGV->getName().str() + "_devvar";
       Value *SymName = tapir::createConstantStr(DevVarName, M, DevVarName);
-      Value *DevPtr = CallInst::Create(
-          KitCudaGetGlobalSymbolFn, {CFatbin, SymName}, ".cuabi_devptr", Call);
-      Value *VGVPtr = CastInst::CreatePointerCast(HostGV, VoidPtrTy, "", Call);
+      Value *DevPtr =
+          CallInst::Create(KitCudaGetGlobalSymbolFn, {CFatbin, SymName},
+                           ".cuabi_devptr", Call->getIterator());
+      Value *VGVPtr = CastInst::CreatePointerCast(HostGV, VoidPtrTy, "",
+                                                  Call->getIterator());
       uint64_t NumBytes = DL.getTypeAllocSize(HostGV->getValueType());
       CallInst::Create(KitCudaMemcpyToDeviceFn,
                        {VGVPtr, DevPtr, ConstantInt::get(Int64Ty, NumBytes)},
-                       "", Call);
+                       "", Call->getIterator());
     }
   }
 
   GlobalVariable *ProxyFB = M.getGlobalVariable(CUABI_DUMMY_FATBIN_NAME, true);
   if (ProxyFB) {
-    Constant *CFB =
-        ConstantExpr::getPointerCast(Fatbin, VoidPtrTy->getPointerTo());
+    Constant *CFB = ConstantExpr::getPointerCast(Fatbin, VoidPtrTy);
     LLVM_DEBUG(dbgs() << "\tcleaning up dummy fatbin global.\n");
     ProxyFB->replaceAllUsesWith(CFB);
     ProxyFB->eraseFromParent();
@@ -1554,7 +1555,7 @@ void CudaABI::bindGlobalVariables(Value *Handle, IRBuilder<> &B) {
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   Type *VoidTy = Type::getVoidTy(Ctx);
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
-  PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
+  PointerType *VoidPtrPtrTy = PointerType::getUnqual(Ctx);
   Type *VarSizeTy = Int64Ty;
   PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
 
@@ -1587,7 +1588,7 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary,
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
   PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
-  PointerType *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
+  PointerType *VoidPtrPtrTy = PointerType::getUnqual(Ctx);
   Type *IntTy = Type::getInt32Ty(Ctx);
   Type *BoolTy = Type::getInt8Ty(Ctx);
 
@@ -1717,7 +1718,7 @@ Function *CudaABI::createDtor(GlobalVariable *FBHandle) {
   const DataLayout &DL = M.getDataLayout();
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
-  Type *VoidPtrPtrTy = VoidPtrTy->getPointerTo();
+  Type *VoidPtrPtrTy = PointerType::getUnqual(Ctx);
 
   FunctionCallee UnregisterFatbinFn =
       M.getOrInsertFunction("__cudaUnregisterFatBinary",

@@ -51,7 +51,6 @@
 ; GCN-O0-NEXT:      Lazy Block Frequency Analysis
 ; GCN-O0-NEXT:      Optimization Remark Emitter
 ; GCN-O0-NEXT:      Tapir last-minute cleanup for CodeGen
-; GCN-O0-NEXT:      Expand vector predication intrinsics
 ; GCN-O0-NEXT:      Instrument function entry/exit with calls to e.g. mcount() (post inlining)
 ; GCN-O0-NEXT:      Scalarize Masked Memory Intrinsics
 ; GCN-O0-NEXT:      Expand reduction intrinsics

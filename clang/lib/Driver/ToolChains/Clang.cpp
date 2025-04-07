@@ -317,9 +317,9 @@ shouldUseExceptionTablesForObjCExceptions(const ObjCRuntime &runtime,
 /// main flag, -fexceptions and also language specific flags to enable/disable
 /// C++ and Objective-C exceptions. This makes it possible to for example
 /// disable C++ exceptions but enable Objective-C exceptions.
-static bool addExceptionArgs(const Driver &D, const ArgList &Args,
-                             types::ID InputType, const ToolChain &TC,
-                             bool KernelOrKext, const ObjCRuntime &objcRuntime,
+static bool addExceptionArgs(const ArgList &Args, types::ID InputType,
+                             const ToolChain &TC, bool KernelOrKext,
+                             const ObjCRuntime &objcRuntime,
                              ArgStringList &CmdArgs) {
   const llvm::Triple &Triple = TC.getTriple();
 
@@ -376,7 +376,7 @@ static bool addExceptionArgs(const Driver &D, const ArgList &Args,
       CXXExceptionsEnabled =
           ExceptionArg->getOption().matches(options::OPT_fcxx_exceptions) ||
           ExceptionArg->getOption().matches(options::OPT_fexceptions);
-    } else if (D.IsKitsuneFrontend() &&
+    } else if (TC.getDriver().IsKitsuneFrontend() &&
                (parseTapirTarget(Args) || Args.hasArg(options::OPT_fkokkos))) {
       CXXExceptionsEnabled = false;
     }
@@ -7441,8 +7441,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // Handle GCC-style exception args.
   bool EH = false;
   if (!C.getDriver().IsCLMode())
-    EH = addExceptionArgs(D, Args, InputType, TC, KernelOrKext, Runtime,
-                          CmdArgs);
+    EH = addExceptionArgs(Args, InputType, TC, KernelOrKext, Runtime, CmdArgs);
 
   // Handle exception personalities
   Arg *A = Args.getLastArg(

@@ -1,5 +1,4 @@
-//===- OpenCilkABI.cpp - Interface to the OpenCilk runtime
-// system------------===//
+//===- OpenCilkABI.cpp - Interface to the OpenCilk runtime system --------===//S
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -86,8 +85,7 @@ OpenCilkABI::OpenCilkABI(Module &M, const OpenCilkABIOptions &opts)
 static void fixCilkSyncFn(Module &M, Function *Fn) {
   Fn->removeFnAttr(Attribute::NoUnwind);
   Function *ExceptionRaiseFn = M.getFunction("__cilkrts_check_exception_raise");
-  Function *ExceptionResumeFn =
-      M.getFunction("__cilkrts_check_exception_resume");
+  Function *ExceptionResumeFn = M.getFunction("__cilkrts_check_exception_resume");
   for (Instruction &I : instructions(Fn))
     if (CallBase *CB = dyn_cast<CallBase>(&I))
       if (CB->getCalledFunction() == ExceptionRaiseFn ||
@@ -96,6 +94,7 @@ static void fixCilkSyncFn(Module &M, Function *Fn) {
 }
 
 namespace {
+
 // Custom DiagnosticInfo for linking the OpenCilk ABI bitcode file.
 class OpenCilkABILinkDiagnosticInfo : public DiagnosticInfo {
   const Module *SrcM;
@@ -258,10 +257,12 @@ void OpenCilkABI::prepareModule() {
   FunctionType *LookupTy = FunctionType::get(
       VoidPtrTy, {VoidPtrTy, Int64Ty, VoidPtrTy, VoidPtrTy}, false);
   FunctionType *UnregTy = FunctionType::get(VoidTy, {VoidPtrTy}, false);
-  FunctionType *Reg32Ty = FunctionType::get(
-      VoidTy, {VoidPtrTy, Int32Ty, VoidPtrTy, VoidPtrTy}, false);
-  FunctionType *Reg64Ty = FunctionType::get(
-      VoidTy, {VoidPtrTy, Int64Ty, VoidPtrTy, VoidPtrTy}, false);
+  FunctionType *Reg32Ty =
+      FunctionType::get(VoidTy, {VoidPtrTy, Int32Ty, VoidPtrTy,
+              VoidPtrTy}, false);
+  FunctionType *Reg64Ty =
+      FunctionType::get(VoidTy, {VoidPtrTy, Int64Ty, VoidPtrTy,
+              VoidPtrTy}, false);
 
   // Create an array of CilkRTS functions, with their associated types and
   // FunctionCallee member variables in the OpenCilkABI class.
@@ -323,7 +324,7 @@ void OpenCilkABI::prepareModule() {
         Fn->removeFnAttr(Attribute::AlwaysInline);
     }
     if (GlobalVariable *AlignVar =
-            M.getGlobalVariable("__cilkrts_stack_frame_align", true)) {
+        M.getGlobalVariable("__cilkrts_stack_frame_align", true)) {
       // StackFrameAlign is undefined here.
       StackFrameAlign = AlignVar->getAlign();
       // Mark this variable with private linkage, to avoid linker failures when
@@ -347,8 +348,8 @@ void OpenCilkABI::prepareModule() {
   } else {
     // Promote the stack frame structure alignment to the largest convenient
     // value given the ABI.
-    Align ABIStackAlign = M.getDataLayout().getStackAlignment();
-    if (ABIStackAlign > StackFrameAlign.valueOrOne())
+    MaybeAlign ABIStackAlign = M.getDataLayout().getStackAlignment();
+    if (ABIStackAlign.valueOrOne() > StackFrameAlign.valueOrOne())
       StackFrameAlign = ABIStackAlign;
   }
   // Create declarations of all CilkRTS functions, and add basic attributes to
@@ -431,7 +432,7 @@ static bool skipInstruction(const Instruction &I) {
 
   if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I)) {
     // Skip simple intrinsics
-    switch (II->getIntrinsicID()) {
+    switch(II->getIntrinsicID()) {
     case Intrinsic::annotation:
     case Intrinsic::assume:
     case Intrinsic::sideeffect:
@@ -492,7 +493,7 @@ Value *OpenCilkABI::CreateStackFrame(Function &F) {
   return SF;
 }
 
-Value *OpenCilkABI::GetOrCreateCilkStackFrame(Function &F) {
+Value* OpenCilkABI::GetOrCreateCilkStackFrame(Function &F) {
   Value *SF = DetachCtxToStackFrame.lookup(&F);
   if (SF)
     return SF;
@@ -502,7 +503,9 @@ Value *OpenCilkABI::GetOrCreateCilkStackFrame(Function &F) {
   return SF;
 }
 
-static unsigned getParentSFArgNum(Function &H) { return H.arg_size() - 1; }
+static unsigned getParentSFArgNum(Function &H) {
+  return H.arg_size() - 1;
+}
 
 // Helper function to add a debug location to an IRBuilder if it otherwise lacks
 // a debug location.
@@ -599,7 +602,8 @@ void OpenCilkABI::InsertStackFramePop(Function &F, bool PromoteCallsToInvokes,
         RI->setDebugLoc(DILocation::getMergedLocations(Locs));
       }
       Resumes.insert(RI);
-    } else if (ReturnInst *RI = dyn_cast<ReturnInst>(Builder->GetInsertPoint()))
+    }
+    else if (ReturnInst *RI = dyn_cast<ReturnInst>(Builder->GetInsertPoint()))
       Returns.insert(RI);
   }
 
@@ -610,22 +614,24 @@ void OpenCilkABI::InsertStackFramePop(Function &F, bool PromoteCallsToInvokes,
           GetCilkHelperEpilogueFn(),
           {SF, F.getArg(getParentSFArgNum(F)),
            ConstantInt::getBool(Type::getInt1Ty(F.getContext()), Spawner)},
-          "", RI);
+          "", RI->getIterator());
     } else {
-      CI = CallInst::Create(GetCilkParentEpilogueFn(), {SF}, "", RI);
+      CI = CallInst::Create(GetCilkParentEpilogueFn(), {SF}, "",
+                            RI->getIterator());
     }
     copyDebugLocation(CI, RI, F);
   }
   for (ResumeInst *RI : Resumes) {
     if (InsertPauseFrame) {
-      Value *Exn = ExtractValueInst::Create(RI->getValue(), {0}, "", RI);
+      Value *Exn =
+          ExtractValueInst::Create(RI->getValue(), {0}, "", RI->getIterator());
       // If throwing an exception, pass the exception object to the epilogue
       // function.
       CallInst *CI = CallInst::Create(
           GetCilkHelperEpilogueExnFn(),
           {SF, F.getArg(getParentSFArgNum(F)), Exn,
            ConstantInt::getBool(Type::getInt1Ty(F.getContext()), Spawner)},
-          "", RI);
+          "", RI->getIterator());
       copyDebugLocation(CI, RI, F);
     }
   }
@@ -735,7 +741,7 @@ void OpenCilkABI::lowerSync(SyncInst &SI) {
     return;
 
   Value *SF = GetOrCreateCilkStackFrame(Fn);
-  Value *Args[] = {SF};
+  Value *Args[] = { SF };
   assert(Args[0] && "sync used in function without frame!");
 
   Instruction *SyncUnwind = nullptr;
@@ -761,7 +767,7 @@ void OpenCilkABI::lowerSync(SyncInst &SI) {
       // This function doesn't throw any exceptions, so use the no-throw version
       // of cilk_sync.
       CB = CallInst::Create(GetCilkSyncNoThrowFn(), Args, "",
-                            /*insert before*/ &SI);
+                            /*insert before*/ SI.getIterator());
       BranchInst::Create(SyncCont, CB->getParent());
     } else if (SyncUnwind) {
       // The presence of the sync.unwind indicates that the sync might rethrow
@@ -776,15 +782,16 @@ void OpenCilkABI::lowerSync(SyncInst &SI) {
       // destination.
       CB = InvokeInst::Create(GetCilkSyncFn(), SyncCont, DefaultSyncLandingpad,
                               Args, "",
-                              /*insert before*/ &SI);
+                              /*insert before*/ SI.getIterator());
     } else {
       // TODO: This case shouldn't be reachable.  Check whether it is reachable.
-      CB = CallInst::Create(GetCilkSyncFn(), Args, "", /*insert before*/ &SI);
+      CB = CallInst::Create(GetCilkSyncFn(), Args, "",
+                            /*insert before*/ SI.getIterator());
       BranchInst::Create(SyncCont, CB->getParent());
     }
   } else {
     CB = InvokeInst::Create(GetCilkSyncFn(), SyncCont, SyncUnwindDest, Args, "",
-                            /*insert before*/ &SI);
+                            /*insert before*/ SI.getIterator());
     for (PHINode &PN : SyncCont->phis())
       PN.addIncoming(PN.getIncomingValueForBlock(SyncUnwind->getParent()),
                      SI.getParent());
@@ -889,6 +896,12 @@ void OpenCilkABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
   Value *SF = DetachCtxToStackFrame.lookup(&F);
   assert(SF && "No frame found for spawning task");
 
+  // KITSUNE FIXME: There is a bug somewhere else. The DominatorTree here is
+  // out of date and needs to be recalculated. But it is likely that one of
+  // the passes earlier in the pipeline is returning the wrong result. This is
+  // likely the result of a bad merge with LLVM 20.x.
+  DT.recalculate(F);
+
   // Find the helper argument for the parent __cilkrts_stack_frame and update
   // the corresponding operand in the call.
   const unsigned ParentSFArgNum = getParentSFArgNum(*TOI.Outline);
@@ -898,7 +911,7 @@ void OpenCilkABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
   Argument *ParentSFArg = TOI.Outline->getArg(ParentSFArgNum);
   if (StackFrameAlign)
     ParentSFArg->addAttr(
-        Attribute::getWithAlignment(C, StackFrameAlign.value()));
+      Attribute::getWithAlignment(C, StackFrameAlign.value()));
   // Split the basic block containing the detach replacement just before the
   // start of the detach-replacement instructions.
   BasicBlock *DetBlock = ReplStart->getParent();
@@ -934,8 +947,8 @@ void OpenCilkABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
 // Helper function to inline calls to compiler-generated Cilk runtime functions
 // when possible.  This inlining is necessary to properly implement some Cilk
 // runtime "calls," such as __cilk_sync().
-static inline void
-inlineCilkFunctions(Function &F, SmallPtrSetImpl<CallBase *> &CallsToInline) {
+static inline void inlineCilkFunctions(
+    Function &F, SmallPtrSetImpl<CallBase *> &CallsToInline) {
   for (CallBase *CB : CallsToInline) {
     InlineFunctionInfo IFI;
     InlineFunction(*CB, IFI);

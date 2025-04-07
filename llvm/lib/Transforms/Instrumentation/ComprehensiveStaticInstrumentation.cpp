@@ -41,10 +41,10 @@
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/ModRef.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Transforms/Instrumentation.h"
 #include "llvm/Transforms/Instrumentation/CSI.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/EscapeEnumerator.h"
+#include "llvm/Transforms/Utils/Instrumentation.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
@@ -2106,7 +2106,7 @@ CallInst *CSIImpl::createRTUnitInitCall(IRBuilder<> &IRB) {
   // Insert call to __csirt_unit_init
   return IRB.CreateCall(
       RTUnitInit,
-      {IRB.CreateGlobalStringPtr(M.getName(), "__csi_module_name"),
+      {IRB.CreateGlobalString(M.getName(), "__csi_module_name"),
        ConstantExpr::getGetElementPtr(FEDGV->getValueType(), FEDGV, GepArgs),
        ConstantExpr::getGetElementPtr(SizeGV->getValueType(), SizeGV, GepArgs),
        InitCallsiteToFunction});
@@ -2658,7 +2658,7 @@ void CSIImpl::instrumentFunction(Function &F) {
         Detaches.push_back(DI);
       } else if (SyncInst *SI = dyn_cast<SyncInst>(&I)) {
         Syncs.push_back(SI);
-        if (isSyncUnwind(SI->getSuccessor(0)->getFirstNonPHIOrDbgOrLifetime(),
+        if (isSyncUnwind(&*SI->getSuccessor(0)->getFirstNonPHIOrDbgOrLifetime(),
                          /*SyncRegion=*/nullptr, /*CheckForInvoke=*/true)) {
           SyncsWithUnwinds.insert(SI);
           BBsToIgnore.insert(SI->getSuccessor(0));

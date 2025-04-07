@@ -386,7 +386,6 @@ def warn_hlsl_langstd_minimal :
   Warning<"support for HLSL language version %0 is incomplete, "
           "recommend using %1 instead">,
   InGroup<HLSLDXCCompat>;
-}
 
 // =============================================================================
 //                          Kitsune-specific warnings

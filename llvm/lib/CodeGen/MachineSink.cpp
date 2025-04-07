@@ -228,6 +228,8 @@ private:
 
   bool hasStoreBetween(MachineBasicBlock *From, MachineBasicBlock *To,
                        MachineInstr &MI);
+  bool possiblyHasSetjmpBetween(MachineBasicBlock *From,
+                                MachineBasicBlock *To, MachineInstr &MI);
 
   /// Postpone the splitting of the given critical
   /// edge (\p From, \p To).

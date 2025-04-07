@@ -4507,7 +4507,7 @@ class DetachInst : public Instruction {
 
   /// Ops list - The operands are ordered:
   ///  SyncRegion, Detached, Continue[, Unwind]
-  DetachInst(const DetachInst &DI);
+  DetachInst(const DetachInst &DI, AllocInfo AllocInfo);
   void AssertOK();
   // DetachInst constructors (where {D, C, U} are blocks and SR is a token):
   // DetachInst(BB *D, BB *C, Value *SR) - 'detach SR, D, C'
@@ -4516,14 +4516,15 @@ class DetachInst : public Instruction {
   // DetachInst(BB *D, BB *C, Value *SR, BB *I)
   //                                     - 'detach SR, D, C', insert at end
   DetachInst(BasicBlock *Detached, BasicBlock *Continue, Value *SyncRegion,
-             InsertPosition InsertBefore = nullptr);
+             AllocInfo AllocInfo, InsertPosition InsertBefore = nullptr);
   // DetachInst(BB *D, BB *C, BB *U, Value *SR) - 'detach SR, D, C, U'
   // DetachInst(BB *D, BB *C, BB *U, Value *SR, Inst *I)
   //                                     - 'detach SR, D, C, U', insert before I
   // DetachInst(BB *D, BB *C, BB *U, Value *SR, BB *I)
   //                                     - 'detach SR, D, C, U', insert at end
   DetachInst(BasicBlock *Detached, BasicBlock *Continue, BasicBlock *Unwind,
-             Value *SyncRegion, InsertPosition InsertBefore = nullptr);
+             Value *SyncRegion, AllocInfo AllocInfo,
+             InsertPosition InsertBefore = nullptr);
 
 protected:
   // Note: Instruction needs to be a friend here to call cloneImpl.
@@ -4534,13 +4535,16 @@ public:
   static DetachInst *Create(BasicBlock *Detached, BasicBlock *Continue,
                             Value *SyncRegion,
                             InsertPosition InsertBefore = nullptr) {
-    return new(3) DetachInst(Detached, Continue, SyncRegion, InsertBefore);
+    IntrusiveOperandsAllocMarker AllocMarker{3};
+    return new (AllocMarker)
+        DetachInst(Detached, Continue, SyncRegion, AllocMarker, InsertBefore);
   }
   static DetachInst *Create(BasicBlock *Detached, BasicBlock *Continue,
                             BasicBlock *Unwind, Value *SyncRegion,
                             InsertPosition InsertBefore = nullptr) {
-    return new(4) DetachInst(Detached, Continue, Unwind, SyncRegion,
-                             InsertBefore);
+    IntrusiveOperandsAllocMarker AllocMarker{4};
+    return new (AllocMarker) DetachInst(Detached, Continue, Unwind, SyncRegion,
+                                        AllocMarker, InsertBefore);
   }
 
   /// Provide fast operand accessors
@@ -4598,7 +4602,7 @@ private:
 };
 
 template <>
-struct OperandTraits<DetachInst> : public VariadicOperandTraits<DetachInst, 1> {
+struct OperandTraits<DetachInst> : public VariadicOperandTraits<DetachInst> {
 };
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(DetachInst, Value)
@@ -4614,6 +4618,8 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(DetachInst, Value)
 /// corresponding to this reattach.
 ///
 class ReattachInst : public Instruction {
+  constexpr static IntrusiveOperandsAllocMarker AllocMarker{2};
+
   ReattachInst(const ReattachInst &RI);
   void AssertOK();
   // ReattachInst constructors (where C is a block and SR is a token):
@@ -4630,7 +4636,8 @@ protected:
 public:
   static ReattachInst *Create(BasicBlock *DetachContinue, Value *SyncRegion,
                               InsertPosition InsertBefore = nullptr) {
-    return new(2) ReattachInst(DetachContinue, SyncRegion, InsertBefore);
+    return new (AllocMarker)
+        ReattachInst(DetachContinue, SyncRegion, InsertBefore);
   }
 
   /// Transparently provide more efficient getOperand methods.
@@ -4669,7 +4676,7 @@ public:
 };
 
 template <>
-struct OperandTraits<ReattachInst> : public VariadicOperandTraits<ReattachInst, 1> {
+struct OperandTraits<ReattachInst> : public VariadicOperandTraits<ReattachInst> {
 };
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ReattachInst, Value)
@@ -4682,6 +4689,8 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ReattachInst, Value)
 /// SyncInst - Sync instruction.
 ///
 class SyncInst : public Instruction {
+  constexpr static IntrusiveOperandsAllocMarker AllocMarker{2};
+
   /// Ops list - A sync looks like an unconditional branch to its continuation.
   SyncInst(const SyncInst &SI);
   void AssertOK();
@@ -4699,7 +4708,7 @@ protected:
 public:
   static SyncInst *Create(BasicBlock *Continue, Value *SyncRegion,
                           InsertPosition InsertBefore = nullptr) {
-    return new(2) SyncInst(Continue, SyncRegion, InsertBefore);
+    return new(AllocMarker) SyncInst(Continue, SyncRegion, InsertBefore);
   }
 
   /// Transparently provide more efficient getOperand methods.
@@ -4734,7 +4743,7 @@ public:
 };
 
 template <>
-struct OperandTraits<SyncInst> : public VariadicOperandTraits<SyncInst, 1> {
+struct OperandTraits<SyncInst> : public VariadicOperandTraits<SyncInst> {
 };
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(SyncInst, Value)

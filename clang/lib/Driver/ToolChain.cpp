@@ -40,6 +40,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Support/VersionTuple.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/TargetParser/AArch64TargetParser.h"
@@ -2208,10 +2209,6 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       CmdArgs.push_back(KITSUNE_CUDA_LIBRARY_DIR);
       CmdArgs.push_back("-rpath");
       CmdArgs.push_back(KITSUNE_CUDA_LIBRARY_DIR);
-      CmdArgs.push_back("-L");
-      CmdArgs.push_back(KITSUNE_CUDA_LIBCUDA_DIR);
-      CmdArgs.push_back("-rpath");
-      CmdArgs.push_back(KITSUNE_CUDA_LIBCUDA_DIR);
       CmdArgs.push_back("-l" KITSUNE_CUDA_LIBNAME_CUDART_STATIC);
       CmdArgs.push_back("-l" KITSUNE_CUDA_LIBNAME_CUDA);
     }

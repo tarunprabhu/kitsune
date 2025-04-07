@@ -59,7 +59,6 @@ det.cont.i:                                       ; preds = %entry
 
 ; CHECK-LABEL: define {{.*}}void @_ZN5utilsL14fork_no_resultIZN2gcIN20weight_balanced_tree7balanceI8aug_nodeINS2_4dataE18aug_map_full_entryIN9tree_plus10edge_entryEEEEEE19decrement_recursiveEPN10basic_nodeIS5_St4pairISE_IjPjEjEE4nodeEbEUlvE_ZNSC_19decrement_recursiveESK_bEUlvE0_EEvbT_T0_.outline_det.achd.i.otd1(
 
-; CHECK: #dbg_value(ptr undef, !6923, !DIExpression(), ![[VALUE_DBG_1:[0-9]+]])
 ; CHECK: det.achd.i.otd1:
 ; CHECK: #dbg_value(ptr %{{.+}}, !6893, !DIExpression(), ![[VALUE_DBG_2:[0-9]+]])
 ; CHECK: #dbg_value(i1 false, !6894, !DIExpression(DW_OP_LLVM_convert, 1, DW_ATE_unsigned, DW_OP_LLVM_convert, 8, DW_ATE_unsigned, DW_OP_stack_value), ![[VALUE_DBG_2]])

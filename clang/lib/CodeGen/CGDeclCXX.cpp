@@ -1203,8 +1203,7 @@ llvm::Function *CodeGenFunction::generateDestroyHelper(
   // Emit an artificial location for this function.
   auto AL = ApplyDebugLocation::CreateArtificial(*this);
 
-  if (destroyer)
-    emitDestroy(addr, type, destroyer, useEHCleanupForArray);
+  emitDestroy(addr, type, destroyer, useEHCleanupForArray);
 
   FinishFunction();
 

@@ -144,7 +144,7 @@ llvm::Instruction *CodeGenFunction::EmitLabeledSyncRegionStart(StringRef SV) {
   // point.
   llvm::Function *Func = CGM.getIntrinsic(llvm::Intrinsic::syncregion_start);
   llvm::Instruction *SRStart = llvm::CallInst::Create(
-      Func->getFunctionType(), Func, SV, &*AllocaInsertPt);
+      Func->getFunctionType(), Func, SV, AllocaInsertPt->getIterator());
   return SRStart;
 }
 

@@ -80,7 +80,7 @@ private:
           ArrayRef<Type *> params = f.getFunctionType()->params();
           FunctionType *fty = FunctionType::get(asPtr, params, f.isVarArg());
           f.mutateValueType(fty);
-          f.mutateType(fty->getPointerTo());
+          f.mutateType(PointerType::getUnqual(ctxt));
         }
       }
     }
@@ -146,7 +146,7 @@ private:
           Type *ret = f.getReturnType();
           FunctionType *fty = FunctionType::get(ret, params, f.isVarArg());
           f.mutateValueType(fty);
-          f.mutateType(fty->getPointerTo());
+          f.mutateType(PointerType::getUnqual(ctxt));
           f.getArg(0)->mutateType(asPtr);
         }
       }
@@ -155,7 +155,8 @@ private:
     for (auto &[call, f] : calls) {
       Value *arg = call->getArgOperand(0);
       CastInst *cst =
-          CastInst::CreatePointerBitCastOrAddrSpaceCast(arg, asPtr, "", call);
+          CastInst::CreatePointerBitCastOrAddrSpaceCast(arg, asPtr, "");
+      cst->insertBefore(call->getIterator());
       call->setArgOperand(0, cst);
       call->mutateFunctionType(f->getFunctionType());
     }
@@ -206,7 +207,7 @@ private:
           std::string name = Intrinsic::getName(id, params, &m, type);
           if (f.getName() != name)
             // FIXME: This is deprecated. Use getOrInsertDeclaration instead.
-            replace[&f] = Intrinsic::getDeclaration(&m, id, params);
+            replace[&f] = Intrinsic::getOrInsertDeclaration(&m, id, params);
         }
       }
     }
@@ -321,7 +322,7 @@ private:
   Type *mutatedType(Type *type) {
     if (type->isIntegerTy() or type->isFloatingPointTy() or type->isVoidTy() or
         type->isTokenTy() or type->isLabelTy() or type->isMetadataTy() or
-        type->isTargetExtTy() or type->isX86_MMXTy() or type->isX86_AMXTy())
+        type->isTargetExtTy() or type->isX86_AMXTy())
       return nullptr;
     else if (auto *ptrTy = dyn_cast<PointerType>(type))
       return mutatedType(ptrTy);
@@ -356,7 +357,7 @@ private:
   bool mutate(Function &f) {
     if (Type *newTy = mutatedType(f.getFunctionType())) {
       f.mutateValueType(newTy);
-      f.mutateType(newTy->getPointerTo());
+      f.mutateType(PointerType::getUnqual(f.getContext()));
       return true;
     }
     return false;
@@ -370,7 +371,7 @@ private:
       // so we take this shortcut. Eventually, we should fix both globals and
       // functions to do things the right way.
       g.mutateValueType(newType);
-      g.mutateType(newType->getPointerTo());
+      g.mutateType(PointerType::getUnqual(g.getContext()));
 
       if (g.hasInitializer())
         mutate(*g.getInitializer());

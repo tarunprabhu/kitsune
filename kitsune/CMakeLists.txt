@@ -813,10 +813,10 @@ if (KITSUNE_Fortran_ENABLED)
   set(kitfc_main_file "${KITSUNE_Fortran_FRONTEND}-${LLVM_VERSION_MAJOR}")
   set(kitfc_main "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${kitfc_main_file}")
   add_custom_target(kitfc-main ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:flang-new> "${kitfc_main}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:flang> "${kitfc_main}"
     COMMENT "Creating kitfc executable"
     VERBATIM USES_TERMINAL)
-  add_dependencies(kitfc-main flang-new)
+  add_dependencies(kitfc-main flang)
   install(PROGRAMS
     "${kitfc_main}"
     DESTINATION ${CMAKE_INSTALL_BINDIR})

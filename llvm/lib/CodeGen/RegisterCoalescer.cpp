@@ -230,6 +230,11 @@ class RegisterCoalescer : public MachineFunctionPass,
   void setUndefOnPrunedSubRegUses(LiveInterval &LI, Register Reg,
                                   LaneBitmask PrunedLanes);
 
+   /// Return true if the live interval from coalescing SrcLI and DstLI crosses
+  /// a basic-block edge that may be produced by a setjmp.
+  bool coalescedLiveIntervalMayCrossSetjmp(LiveInterval &SrcLI,
+                                           LiveInterval &DstLI);
+
   /// Attempt to join intervals corresponding to SrcReg/DstReg, which are the
   /// src/dst of the copy instruction CopyMI.  This returns true if the copy
   /// was successfully coalesced away. If it is not currently possible to

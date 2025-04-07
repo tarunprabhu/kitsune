@@ -9,9 +9,6 @@
 ; CHECK-DAG: @int_ptr_arg_same
 ; CHECK-DAG: tail call void @float_ptr_arg_same(ptr %0)
 
-; CHECK-LABEL: @int_ptr_null
-; CHECK-NEXT: tail call void @float_ptr_null()
-
 ; Used to satisfy minimum size limit
 declare void @stuff()
 

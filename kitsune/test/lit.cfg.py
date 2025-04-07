@@ -82,7 +82,7 @@ tools = [
     "llvm-lto2",
 ]
 if config.kitsune_fortran_enabled:
-    t = ToolSubst("%flang", command=FindTool("flang-new"), unresolved="fatal")
+    t = ToolSubst("%flang", command=FindTool("flang"), unresolved="fatal")
     tools.append(t)
 
 llvm_config.add_tool_substitutions(tools, tool_dirs)

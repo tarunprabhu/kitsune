@@ -3,10 +3,6 @@
 ! Check that the default options added to the internal command lines (for -fc1
 ! and the linker) are as expected.
 !
-! -print-pipeline-passes currently does not work with flang, but has been
-! implemented upstream. This should pass once we merge with upstream.
-! XFAIL: *
-!
 ! ------------------------------------------------------------------------------
 ! RUN: %kitfc -### -ftapir=serial -O2 %s 2>&1 | FileCheck %s
 ! RUN: %kitfc -### --tapir=serial -O2 %s 2>&1 | FileCheck %s

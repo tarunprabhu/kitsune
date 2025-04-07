@@ -100,7 +100,7 @@ private:
 
     fn->addRetAttr(Attribute::NoAlias);
     CallInst *newCall = CallInst::Create(fty, fn, {call.getArgOperand(0)},
-                                         call.getName(), &call);
+                                         call.getName(), call.getIterator());
     newCall->addRetAttr(Attribute::NoAlias);
     call.replaceAllUsesWith(newCall);
 
@@ -168,7 +168,7 @@ private:
     auto *fn = cast<Function>(mod.getOrInsertFunction(fname, fty).getCallee());
 
     CallInst *newCall = CallInst::Create(fty, fn, {call.getArgOperand(0)},
-                                         call.getName(), &call);
+                                         call.getName(), call.getIterator());
     call.replaceAllUsesWith(newCall);
 
     return true;

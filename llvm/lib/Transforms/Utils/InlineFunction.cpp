@@ -2761,12 +2761,6 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   return Ret;
 }
 
-static bool isTaskFrameCreate(const Instruction &I) {
-  if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I))
-    return Intrinsic::taskframe_create == II->getIntrinsicID();
-  return false;
-}
-
 static BasicBlock *SplitResume(ResumeInst *RI, Intrinsic::ID TermFunc,
                                Value *Token, BasicBlock *Unreachable) {
   Value *RIValue = RI->getValue();
@@ -2778,7 +2772,7 @@ static BasicBlock *SplitResume(ResumeInst *RI, Intrinsic::ID TermFunc,
 
   // Invoke the specified terminator function at the end of the old block.
   InvokeInst *TermFuncInvoke = InvokeInst::Create(
-      Intrinsic::getDeclaration(M, TermFunc, { RIValue->getType() }),
+      Intrinsic::getOrInsertDeclaration(M, TermFunc, { RIValue->getType() }),
       Unreachable, NewBB, { Token, RIValue });
   ReplaceInstWithInst(OldBB->getTerminator(), TermFuncInvoke);
 
@@ -2812,8 +2806,8 @@ static void HandleInlinedResumeInTask(BasicBlock *EntryBlock, BasicBlock *Ctx,
       // Replace the resume with a taskframe.resume, whose unwind destination
       // matches the unwind destination of the taskframe.
       InvokeInst *NewTFResume = InvokeInst::Create(
-          Intrinsic::getDeclaration(M, Intrinsic::taskframe_resume,
-                                    {Resume->getValue()->getType()}),
+          Intrinsic::getOrInsertDeclaration(M, Intrinsic::taskframe_resume,
+                                            {Resume->getValue()->getType()}),
           Unreachable, ResumeDest, {TaskFrame, Resume->getValue()});
       ReplaceInstWithInst(Resume, NewTFResume);
 
@@ -2851,8 +2845,8 @@ static void HandleInlinedResumeInTask(BasicBlock *EntryBlock, BasicBlock *Ctx,
       // matches the unwind destination of the detach.
       BasicBlock *DetUnwind = DI->getUnwindDest();
       InvokeInst *NewDetRethrow = InvokeInst::Create(
-          Intrinsic::getDeclaration(M, Intrinsic::detached_rethrow,
-                                    {Resume->getValue()->getType()}),
+          Intrinsic::getOrInsertDeclaration(M, Intrinsic::detached_rethrow,
+                                            {Resume->getValue()->getType()}),
           Unreachable, DetUnwind, {SyncRegion, Resume->getValue()});
       ReplaceInstWithInst(Resume, NewDetRethrow);
 
@@ -3526,7 +3520,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
     Module *M = Caller->getParent();
     // Get the taskframe.create intrinsic.
     Function *TFCreateFn =
-        Intrinsic::getDeclaration(M, Intrinsic::taskframe_create);
+        Intrinsic::getOrInsertDeclaration(M, Intrinsic::taskframe_create);
 
     // Insert the llvm.taskframe.create.
     TFI.TFCreate = IRBuilder<>(&*FirstNewBlock, FirstNewBlock->begin())
@@ -3855,8 +3849,8 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   // If we inserted a taskframe.create, insert a taskframe.end at the start of
   // AfterCallBB.
   if (TFI.TFCreate) {
-    Function *TFEndFn = Intrinsic::getDeclaration(Caller->getParent(),
-                                                  Intrinsic::taskframe_end);
+    Function *TFEndFn = Intrinsic::getOrInsertDeclaration(
+        Caller->getParent(), Intrinsic::taskframe_end);
     IRBuilder<>(&AfterCallBB->front()).CreateCall(TFEndFn, TFI.TFCreate);
   }
 

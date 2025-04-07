@@ -96,7 +96,7 @@ static bool removeRedundantSyncs(MaybeParallelTasks &MPTasks, Task *T) {
   for (SyncInst *Y : RedundantSyncs) {
     // Check for any sync.unwinds that might now be dead.
     Instruction *MaybeSyncUnwind =
-        Y->getSuccessor(0)->getFirstNonPHIOrDbgOrLifetime();
+        &*Y->getSuccessor(0)->getFirstNonPHIOrDbgOrLifetime();
     if (isSyncUnwind(MaybeSyncUnwind, Y->getSyncRegion()))
       MaybeDeadSyncUnwinds.insert(cast<CallBase>(MaybeSyncUnwind));
 
@@ -234,7 +234,7 @@ static bool taskCanReachContinuation(Task *T) {
 }
 
 static bool detachImmediatelySyncs(DetachInst *DI) {
-  Instruction *I = DI->getContinue()->getFirstNonPHIOrDbgOrLifetime();
+  Instruction *I = &*DI->getContinue()->getFirstNonPHIOrDbgOrLifetime();
   return isa<SyncInst>(I);
 }
 

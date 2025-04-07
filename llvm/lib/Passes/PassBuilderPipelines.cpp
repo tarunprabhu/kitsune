@@ -1672,6 +1672,7 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
   return MPM;
 }
 
+ModulePassManager
 PassBuilder::buildTapirLoopLoweringPipeline(OptimizationLevel Level,
                                             ThinOrFullLTOPhase Phase) {
   ModulePassManager MPM;
@@ -1792,10 +1793,6 @@ PassBuilder::buildTapirLoweringPipeline(OptimizationLevel Level,
       SimplifyCFGPass(SimplifyCFGOptions().convertSwitchRangeToICmp(true)));
   MPM.addPass(createModuleToFunctionPassAdaptor(std::move(GlobalCleanupPM)));
 
-  // Synthesize function entry counts for non-PGO compilation.
-  if (EnableSyntheticCounts)
-    MPM.addPass(SyntheticCountsPropagation());
-
   MPM.addPass(AlwaysInlinerPass(
       /*InsertLifetimeIntrinsics=*/false));
 
@@ -1858,7 +1855,7 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
                                            ThinOrFullLTOPhase Phase,
                                            bool LowerTapir) {
   if (Level == OptimizationLevel::O0)
-    return buildO0DefaultPipeline(Level, Phase);
+    return buildO0DefaultPipeline(Level, Phase, LowerTapir);
 
   ModulePassManager MPM;
 
@@ -1897,15 +1894,11 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
   // memory (de)allocators could have been used in code that is not compiled
   // with Tapir, but the intrinsics need to be handled correctly in those
   // cases too. This should be done before running the tapir lowering passes.
-  MPM.addPass(buildKitsuneLoweringPipeline(
-      Level, LTOPreLink ? ThinOrFullLTOPhase::FullLTOPreLink
-                        : ThinOrFullLTOPhase::None));
+  MPM.addPass(buildKitsuneLoweringPipeline(Level, Phase));
 
   // Lower Tapir if necessary
   if (LowerTapir) {
-    MPM.addPass(buildTapirLoweringPipeline(
-        Level, LTOPreLink ? ThinOrFullLTOPhase::FullLTOPreLink
-                          : ThinOrFullLTOPhase::None));
+    MPM.addPass(buildTapirLoweringPipeline(Level, Phase));
   } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
   }
@@ -1934,14 +1927,11 @@ PassBuilder::buildPerModuleTapirHipPipeline(OptimizationLevel Level,
   // Apply module pipeline start EP callback.
   invokePipelineStartEPCallbacks(MPM, Level);
 
-  const ThinOrFullLTOPhase LTOPhase = LTOPreLink
-                                          ? ThinOrFullLTOPhase::FullLTOPreLink
-                                          : ThinOrFullLTOPhase::None;
   // Add the core simplification pipeline.
-  MPM.addPass(buildModuleSimplificationPipeline(Level, LTOPhase));
+  MPM.addPass(buildModuleSimplificationPipeline(Level, Phase));
 
   // Now add the optimization pipeline.
-  MPM.addPass(buildModuleOptimizationPipeline(Level, LTOPhase));
+  MPM.addPass(buildModuleOptimizationPipeline(Level, Phase));
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -1954,9 +1944,7 @@ PassBuilder::buildPerModuleTapirHipPipeline(OptimizationLevel Level,
 
   // Lower Tapir if necessary
   if (LowerTapir)
-    MPM.addPass(buildTapirLoweringPipeline(
-        Level, LTOPreLink ? ThinOrFullLTOPhase::FullLTOPreLink
-                          : ThinOrFullLTOPhase::None));
+    MPM.addPass(buildTapirLoweringPipeline(Level, Phase));
   else
     invokeTapirLoopEndEPCallbacks(MPM, Level);
 
@@ -2612,14 +2600,10 @@ PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
   // memory (de)allocators could have been used in code that is not compiled
   // with Tapir, but the intrinsics need to be handled correctly in those
   // cases too. This should be done before running the tapir lowering passes.
-  MPM.addPass(buildKitsuneLoweringPipeline(
-      Level, LTOPreLink ? ThinOrFullLTOPhase::FullLTOPreLink
-                        : ThinOrFullLTOPhase::None));
+  MPM.addPass(buildKitsuneLoweringPipeline(Level, Phase));
 
   if (LowerTapir) {
-    MPM.addPass(buildTapirLoweringPipeline(
-        Level, LTOPreLink ? ThinOrFullLTOPhase::FullLTOPreLink
-                          : ThinOrFullLTOPhase::None));
+    MPM.addPass(buildTapirLoweringPipeline(Level, Phase));
   } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
   }

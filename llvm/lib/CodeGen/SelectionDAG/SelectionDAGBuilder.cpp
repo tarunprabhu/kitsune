@@ -3576,7 +3576,7 @@ void SelectionDAGBuilder::visitDetach(const DetachInst &I) {
   MachineBasicBlock *DetachMBB = FuncInfo.MBB;
 
   // Update machine-CFG edges.
-  MachineBasicBlock *Detached = FuncInfo.MBBMap[I.getSuccessor(0)];
+  MachineBasicBlock *Detached = FuncInfo.MBBMap[I.getSuccessor(0)->getNumber()];
   // MachineBasicBlock *Continue = FuncInfo.MBBMap[I.getSuccessor(1)];
 
   // Update machine-CFG edges.
@@ -3596,7 +3596,7 @@ void SelectionDAGBuilder::visitReattach(const ReattachInst &I) {
   MachineBasicBlock *ReattachMBB = FuncInfo.MBB;
 
   // Update machine-CFG edges.
-  MachineBasicBlock *Continue = FuncInfo.MBBMap[I.getSuccessor(0)];
+  MachineBasicBlock *Continue = FuncInfo.MBBMap[I.getSuccessor(0)->getNumber()];
 
   // Update machine-CFG edges.
   ReattachMBB->addSuccessor(Continue);
@@ -3615,7 +3615,7 @@ void SelectionDAGBuilder::visitSync(const SyncInst &I) {
   MachineBasicBlock *SyncMBB = FuncInfo.MBB;
 
   // Update machine-CFG edges.
-  MachineBasicBlock *Continue = FuncInfo.MBBMap[I.getSuccessor(0)];
+  MachineBasicBlock *Continue = FuncInfo.MBBMap[I.getSuccessor(0)->getNumber()];
 
   // Update machine-CFG edges.
   SyncMBB->addSuccessor(Continue);

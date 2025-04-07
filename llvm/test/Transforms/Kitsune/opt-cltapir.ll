@@ -7,7 +7,7 @@
 ; CHECK: [[ENTRY:.+]]:
 ; CHECK: [[BODY:.+]]:
 ; CHECK-NEXT:  %[[IV:.+]] = phi i64 [ %[[INC:.+]], %[[BODY]] ], [ 0, %[[ENTRY]] ]
-; CHECK-NEXT:  %[[IDX:.+]] = getelementptr inbounds i64, ptr %{{.}}, i64 %[[IV]]
+; CHECK-NEXT:  %[[IDX:.+]] = getelementptr inbounds nuw i64, ptr %{{.}}, i64 %[[IV]]
 ; CHECK-NEXT:  store i64 %{{.+}}, ptr %[[IDX]]
 ; CHECK-NEXT:  %[[INC]] = add nuw nsw i64 %[[IV]], 1
 ; CHECK-NEXT:  %[[COND:.+]] = icmp eq i64 %[[INC]], %{{.+}}

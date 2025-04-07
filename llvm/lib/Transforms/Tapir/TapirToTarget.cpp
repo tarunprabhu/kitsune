@@ -475,7 +475,6 @@ bool TapirToTargetImpl::run() {
 }
 
 PreservedAnalyses TapirToTargetPass::run(Module &M, ModuleAnalysisManager &AM) {
-
   auto &FAM = AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
 
   auto GetAA = [&FAM](Function &F) -> AAResults & {

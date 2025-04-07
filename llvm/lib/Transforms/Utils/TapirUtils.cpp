@@ -479,7 +479,7 @@ BasicBlock *LandingPadInliningInfo::getInnerResumeDest() {
   if (isa<LandingPadInst>(SpawnerLPad))
     SplitPoint = ++cast<Instruction>(SpawnerLPad)->getIterator();
   else
-    SplitPoint = OuterResumeDest->getFirstNonPHI()->getIterator();
+    SplitPoint = OuterResumeDest->getFirstNonPHIIt();
   InnerResumeDest = OuterResumeDest->splitBasicBlock(
       SplitPoint, OuterResumeDest->getName() + ".body");
   if (DT)
@@ -503,16 +503,17 @@ BasicBlock *LandingPadInliningInfo::getInnerResumeDest() {
   BasicBlock::iterator I = OuterResumeDest->begin();
   for (unsigned i = 0, e = UnwindDestPHIValues.size(); i != e; ++i, ++I) {
     PHINode *OuterPHI = cast<PHINode>(I);
-    PHINode *InnerPHI =
-        PHINode::Create(OuterPHI->getType(), PHICapacity,
-                        OuterPHI->getName() + ".lpad-body", InsertPoint);
+    PHINode *InnerPHI = PHINode::Create(OuterPHI->getType(), PHICapacity,
+                                        OuterPHI->getName() + ".lpad-body",
+                                        InsertPoint->getIterator());
     OuterPHI->replaceAllUsesWith(InnerPHI);
     InnerPHI->addIncoming(OuterPHI, OuterResumeDest);
   }
 
   // Create a PHI for the exception values.
-  InnerEHValuesPHI = PHINode::Create(SpawnerLPad->getType(), PHICapacity,
-                                     "eh.lpad-body", InsertPoint);
+  InnerEHValuesPHI =
+      PHINode::Create(SpawnerLPad->getType(), PHICapacity, "eh.lpad-body",
+                      InsertPoint->getIterator());
   SpawnerLPad->replaceAllUsesWith(InnerEHValuesPHI);
   InnerEHValuesPHI->addIncoming(SpawnerLPad, OuterResumeDest);
 
@@ -944,7 +945,7 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
     if (!TaskFrame) {
       // Create a new task frame.
       Function *TFCreate =
-          Intrinsic::getDeclaration(M, Intrinsic::taskframe_create);
+          Intrinsic::getOrInsertDeclaration(M, Intrinsic::taskframe_create);
       TaskFrame = IRBuilder<>(TaskEntry, TaskEntry->begin())
                       .CreateCall(TFCreate, {}, "repltf");
     }
@@ -961,7 +962,7 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
       for (Instruction *I : *DetachedRethrows) {
         InvokeInst *II = cast<InvokeInst>(I);
         Value *LPad = II->getArgOperand(1);
-        Function *TFResume = Intrinsic::getDeclaration(
+        Function *TFResume = Intrinsic::getOrInsertDeclaration(
             M, Intrinsic::taskframe_resume, {LPad->getType()});
         IRBuilder<>(II).CreateInvoke(TFResume, II->getNormalDest(),
                                      II->getUnwindDest(), {TaskFrame, LPad});
@@ -991,7 +992,8 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
     // If we're replacing the detach with a taskframe, insert a taskframe.end
     // immediately before the reattach.
     if (ReplaceWithTaskFrame) {
-      Function *TFEnd = Intrinsic::getDeclaration(M, Intrinsic::taskframe_end);
+      Function *TFEnd =
+          Intrinsic::getOrInsertDeclaration(M, Intrinsic::taskframe_end);
       IRBuilder<>(I).CreateCall(TFEnd, {TaskFrame});
     }
     ReplaceInstWithInst(I, BranchInst::Create(Continue));
@@ -1866,15 +1868,16 @@ void llvm::fixupTaskFrameExternalUses(Spindle *TF, const TaskInfo &TI,
   // Localize any syncregions used in this taskframe.
   for (auto &SRUsed : SyncRegionsToLocalize) {
     Value *ReplSR = CallInst::Create(
-        Intrinsic::getDeclaration(M, Intrinsic::syncregion_start),
-        SRUsed.first->getName(), cast<Instruction>(TaskFrame)->getNextNode());
+        Intrinsic::getOrInsertDeclaration(M, Intrinsic::syncregion_start),
+        SRUsed.first->getName(),
+        cast<Instruction>(TaskFrame)->getNextNode()->getIterator());
     for (Instruction *UseToRewrite : SRUsed.second) {
       // Replace the syncregion of each sync.
       if (SyncInst *SI = dyn_cast<SyncInst>(UseToRewrite)) {
         SI->setSyncRegion(ReplSR);
         // Replace the syncregion of each sync.unwind.
         if (CallBase *CB = dyn_cast<CallBase>(
-                SI->getSuccessor(0)->getFirstNonPHIOrDbgOrLifetime()))
+                &*SI->getSuccessor(0)->getFirstNonPHIOrDbgOrLifetime()))
           if (isSyncUnwind(CB, SRUsed.first))
             CB->setArgOperand(0, ReplSR);
       } else if (DetachInst *DI = dyn_cast<DetachInst>(UseToRewrite)) {
@@ -1924,8 +1927,8 @@ void llvm::fixupTaskFrameExternalUses(Spindle *TF, const TaskInfo &TI,
       Builder.SetInsertPoint(&*Continuation->getFirstInsertionPt());
       if (T)
         Builder.CreateCall(
-            Intrinsic::getDeclaration(M, Intrinsic::taskframe_load_guard,
-                                      {AI->getType()}),
+            Intrinsic::getOrInsertDeclaration(
+                M, Intrinsic::taskframe_load_guard, {AI->getType()}),
             {AI});
       ContinVal = Builder.CreateLoad(TFInstrTy, AI);
     }
@@ -1942,11 +1945,11 @@ void llvm::fixupTaskFrameExternalUses(Spindle *TF, const TaskInfo &TI,
                "Use not dominated by continuation or taskframe.resume");
         // If necessary, load the value at the taskframe.resume continuation.
         if (!EHContinVal) {
-          Builder.SetInsertPoint(&*(TFResumeContin->getFirstInsertionPt()));
+          Builder.SetInsertPoint(TFResumeContin->getFirstInsertionPt());
           if (T)
             Builder.CreateCall(
-                Intrinsic::getDeclaration(M, Intrinsic::taskframe_load_guard,
-                                          {AI->getType()}),
+                Intrinsic::getOrInsertDeclaration(
+                    M, Intrinsic::taskframe_load_guard, {AI->getType()}),
                 {AI});
           EHContinVal = Builder.CreateLoad(TFInstrTy, AI);
         }
@@ -2012,8 +2015,8 @@ BasicBlock *llvm::CreateSubTaskUnwindEdge(Intrinsic::ID TermFunc, Value *Token,
 
   // Add the terminator-function invocation.
   Builder.CreateInvoke(
-      Intrinsic::getDeclaration(M, TermFunc, {LPad->getType()}), Unreachable,
-      UnwindEdge, {Token, LPad});
+      Intrinsic::getOrInsertDeclaration(M, TermFunc, {LPad->getType()}),
+      Unreachable, UnwindEdge, {Token, LPad});
 
   return NewUnwindEdge;
 }

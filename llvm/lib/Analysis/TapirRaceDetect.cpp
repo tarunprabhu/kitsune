@@ -239,7 +239,7 @@ public:
                     DependenceInfo &DI, ScalarEvolution &SE,
                     const TargetLibraryInfo *TLI,
                     AccessToUnderlyingObjMap &AccessToObjs)
-      : DT(DT), TI(TI), LI(LI), DI(DI), AA(DI.getAA()), SE(SE), TLI(TLI),
+      : DT(DT), TI(TI), LI(LI), DI(DI), AA(DI.getAA()), TLI(TLI),
         AccessToObjs(AccessToObjs), MPTasksInLoop(LI) {
     TI.evaluateParallelState<MaybeParallelTasks>(MPTasks);
 
@@ -283,7 +283,6 @@ private:
   LoopInfo &LI;
   DependenceInfo &DI;
   AliasAnalysis *AA;
-  ScalarEvolution &SE;
 
   const TargetLibraryInfo *TLI;
   SmallPtrSet<Value *, 4> ArgumentPtrs;

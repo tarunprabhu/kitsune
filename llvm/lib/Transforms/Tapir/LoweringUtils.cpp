@@ -1126,7 +1126,7 @@ TaskOutlineInfo llvm::outlineTask(
   DetachInst *DI = T->getDetach();
   Value *TFCreate = T->getTaskFrameUsed();
 
-  Instruction *LoadPt = T->getEntry()->getFirstNonPHIOrDbgOrLifetime();
+  Instruction *LoadPt = &*T->getEntry()->getFirstNonPHIOrDbgOrLifetime();
   Instruction *StorePt = DI;
   BasicBlock *Unwind = DI->getUnwindDest();
   if (Spindle *TaskFrameCreate = T->getTaskFrameCreateSpindle()) {
@@ -1309,7 +1309,7 @@ bool TapirTarget::shouldProcessFunction(const Function &F) const {
 void TapirTarget::lowerTaskFrameAddrCall(CallInst *TaskFrameAddrCall) {
   // By default, replace calls to task_frameaddress with ordinary calls to the
   // frameaddress intrinsic.
-  TaskFrameAddrCall->setCalledFunction(Intrinsic::getDeclaration(
+  TaskFrameAddrCall->setCalledFunction(Intrinsic::getOrInsertDeclaration(
       &M, Intrinsic::frameaddress, PointerType::getUnqual(M.getContext())));
 }
 

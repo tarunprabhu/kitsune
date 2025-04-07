@@ -6726,6 +6726,7 @@ void Verifier::visitIntrinsicCall(Intrinsic::ID ID, CallBase &Call) {
     unsigned size = cast<ConstantInt>(Call.getArgOperand(1))->getZExtValue();
     Check(size == 128, " The only supported value for size operand is 128");
     break;
+  }
   case Intrinsic::tapir_runtime_start: {
     Check(llvm::any_of(
               Call.users(),

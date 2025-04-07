@@ -570,9 +570,23 @@ public:
     return Name;
   }
 
-  // FIXME: need a better solution but also too difficult to re-outline 
-  // everything w/ tapir for GPU targets (AMD in particular)... 
-  //#warning "FIXME: need better solution than mutateType()."
+  /// Mutate the value of the underlying GlobalValue.
+  /// Simply calling mutateType on a GlobalValue will only mutate the
+  /// "top-level" type which is always a pointer. But we do sometimes need to
+  /// mutate the actual type of the underlying global value as well.
+  ///
+  /// FIXME: Ideally, we should not be using this at all. But the AMD tapir
+  /// target is very sensitive to address spaces and this is the most reasonable
+  /// way to add address spaces to pointer types (we need to do this because
+  /// the way the lowering works, there is no way for clang to know that certain
+  /// types must be in particular address space even if clang knows that the
+  /// hip tapir target has been enabled). The "recommended" approach would
+  /// entail a very careful clone of the entire module.
+  ///
+  /// The lowering of mobile attributes now uses this as well since those
+  /// attributes are represented as address spaces. If we ever manage to
+  /// refactor the way the GPU tapir targets work, especially AMD, or if the
+  /// requirement on address spaces is relaxed, we should revisit this.
   void mutateValueType(Type *Ty) {
     ValueType = Ty;
   }

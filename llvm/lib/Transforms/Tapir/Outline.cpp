@@ -89,8 +89,7 @@ void llvm::CloneIntoFunction(
       ClonedEHEntryPreds.insert(BB);
 
     // Create a new basic block and copy instructions into it!
-    BasicBlock *CBB = CloneBasicBlock(BB, VMap, NameSuffix, NewFunc, CodeInfo,
-                                      DIFinder ? &*DIFinder : nullptr);
+    BasicBlock *CBB = CloneBasicBlock(BB, VMap, NameSuffix, NewFunc, CodeInfo);
 
     // Add basic block mapping.
     VMap[BB] = CBB;
@@ -457,8 +456,9 @@ Function *llvm::CreateHelper(
     NewFunc->setPrologueData(nullptr);
 
   // Remove old return attributes.
-  NewFunc->removeRetAttrs(
-      AttributeFuncs::typeIncompatible(NewFunc->getReturnType()));
+  AttributeList Attrs = NewFunc->getAttributes();
+  NewFunc->removeRetAttrs(AttributeFuncs::typeIncompatible(
+      NewFunc->getReturnType(), Attrs.getRetAttrs()));
 
   // Update vector-related attributes in the caller and new function
   if (VectorArg && OldFunc->hasFnAttribute("min-legal-vector-width")) {

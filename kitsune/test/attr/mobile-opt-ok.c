@@ -2,7 +2,6 @@
 // RUN:     -mllvm -disable-strip-kitsune-addrspaces \
 // RUN:     | FileCheck %s
 
-
 double f1(double* [[kitsune::mobile]] ptr) { return *ptr; }
 
 // CHECK-LABEL: @f1
@@ -30,6 +29,8 @@ int f9(float* [[kitsune::mobile]] ptr1, float* ptr2) {
   return ptr1 == ptr2;
 }
 
-// CHECK-LABEL: @f9
+// CHECK: @f9(ptr addrspace(67) {{.+}}%[[PTR1:.+]]
 // CHECK: %[[cst:.+]] = addrspacecast ptr {{.+}} to ptr addrspace(67)
-// CHECK: icmp eq ptr addrspace(67) %[[cst]], {{.+}}
+// CHECK: icmp eq ptr addrspace(67)
+// CHECK-SAME-DAG: %[[cst]]
+// CHECK-SAME-DAG: %[[PTR1]]

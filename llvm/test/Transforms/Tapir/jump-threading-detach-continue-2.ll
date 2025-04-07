@@ -19,9 +19,9 @@ entry:
 ; Function Attrs: nounwind willreturn memory(argmem: readwrite)
 declare token @llvm.syncregion.start() #0
 
-define linkonce_odr void @_ZN21delta_compressed_leafIjE14parallel_splitILb1ELb0ELb0EZZN4CPMAI10PMA_traitsIS0_L8HeadForm0ELm0ELb0ELb0ELb0ELm4096ELb1E19overwrite_on_insertISt5tupleIJRjEES6_IJjEEEEE9grow_listEmENKUlvE0_clEvEUlmE_10empty_typeSF_EEvmmmPjmT2_T3_T4_m(i64 %num_leaves) personality ptr null {
+define linkonce_odr void @_ZN21delta_compressed_leafIjE14parallel_splitILb1ELb0ELb0EZZN4CPMAI10PMA_traitsIS0_L8HeadForm0ELm0ELb0ELb0ELb0ELm4096ELb1E19overwrite_on_insertISt5tupleIJRjEES6_IJjEEEEE9grow_listEmENKUlvE0_clEvEUlmE_10empty_typeSF_EEvmmmPjmT2_T3_T4_m(ptr byval(%class.anon.1003) %this, i64 %num_leaves) personality ptr null {
 entry:
-  call void @_ZN13ParallelTools12parallel_forIZN21delta_compressed_leafIjE14parallel_splitILb1ELb0ELb0EZZN4CPMAI10PMA_traitsIS2_L8HeadForm0ELm0ELb0ELb0ELb0ELm4096ELb1E19overwrite_on_insertISt5tupleIJRjEES8_IJjEEEEE9grow_listEmENKUlvE0_clEvEUlmE_10empty_typeSH_EEvmmmPjmT2_T3_T4_mEUlmE_EEvmmT_(i64 1, i64 %num_leaves, ptr byval(%class.anon.1003) null)
+  call void @_ZN13ParallelTools12parallel_forIZN21delta_compressed_leafIjE14parallel_splitILb1ELb0ELb0EZZN4CPMAI10PMA_traitsIS2_L8HeadForm0ELm0ELb0ELb0ELb0ELm4096ELb1E19overwrite_on_insertISt5tupleIJRjEES8_IJjEEEEE9grow_listEmENKUlvE0_clEvEUlmE_10empty_typeSH_EEvmmmPjmT2_T3_T4_mEUlmE_EEvmmT_(i64 1, i64 %num_leaves, ptr byval(%class.anon.1003) %this)
   ret void
 }
 
@@ -67,7 +67,7 @@ entry:
 
 if.then:                                          ; preds = %entry
   store i1 false, ptr null, align 4294967296
-  store ptr null, ptr null, align 4294967296
+  store ptr null, ptr %this, align 4294967296
   br label %for.cond
 
 for.cond:                                         ; preds = %for.inc, %if.then, %entry
@@ -103,6 +103,6 @@ cleanup:                                          ; preds = %if.then10, %for.con
 
 
 ; uselistorder directives
-uselistorder ptr null, { 0, 1, 2, 3, 4, 6, 7, 8, 5 }
+uselistorder ptr null, { 0, 1, 2, 3, 4, 6, 5 }
 
 attributes #0 = { nounwind willreturn memory(argmem: readwrite) }

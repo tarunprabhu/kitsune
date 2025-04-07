@@ -1194,20 +1194,25 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
           Level, PrepareForThinLTO,
           PrepareForThinLTO || shouldEmitRegularLTOSummary()));
     } else if (CodeGenOpts.OptimizationLevel == 0) {
-      MPM.addPass(PB.buildO0DefaultPipeline(
-          Level, PrepareForLTO || PrepareForThinLTO, TLII->hasTapirTarget()));
+      ThinOrFullLTOPhase Phase = ThinOrFullLTOPhase::None;
+      if (PrepareForThinLTO)
+        Phase = ThinOrFullLTOPhase::ThinLTOPreLink;
+      else if (PrepareForLTO)
+        Phase = ThinOrFullLTOPhase::FullLTOPreLink;
+      MPM.addPass(
+          PB.buildO0DefaultPipeline(Level, Phase, TLII->hasTapirTarget()));
     } else if (PrepareForThinLTO) {
       MPM.addPass(PB.buildThinLTOPreLinkDefaultPipeline(Level));
     } else if (PrepareForLTO) {
       MPM.addPass(PB.buildLTOPreLinkDefaultPipeline(Level));
-      //} else if (TLII->hasTapirTarget() && TLII->getTapirTarget() == llvm::TapirTargetID::Hip) {
-      //MPM.addPass(PB.buildPerModuleTapirHipPipeline(Level,
+      //} else if (TLII->hasTapirTarget() && TLII->getTapirTarget() ==
+      // llvm::TapirTargetID::Hip) {
+      // MPM.addPass(PB.buildPerModuleTapirHipPipeline(Level,
       //                                              /* LTOPreLink */ false,
       //                                             TLII->hasTapirTarget()));
     } else {
-      MPM.addPass(PB.buildPerModuleDefaultPipeline(Level,
-                                                   /* LTOPreLink */ false,
-                                                   TLII->hasTapirTarget()));
+      MPM.addPass(PB.buildPerModuleDefaultPipeline(
+          Level, ThinOrFullLTOPhase::None, TLII->hasTapirTarget()));
     }
   }
 
