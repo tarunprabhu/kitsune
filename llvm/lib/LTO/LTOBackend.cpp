@@ -44,7 +44,6 @@
 #include "llvm/TargetParser/SubtargetFeature.h"
 #include "llvm/Transforms/IPO/WholeProgramDevirt.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
-#include "llvm/Transforms/Tapir/TapirTargets.h"
 #include "llvm/Transforms/Utils/FunctionImportUtils.h"
 #include "llvm/Transforms/Utils/SplitModule.h"
 #include <optional>
@@ -80,15 +79,11 @@ namespace llvm {
 extern cl::opt<bool> NoPGOWarnMismatch;
 }
 
-static void setupTapirProperties(TargetLibraryInfoImpl &TLII,
-                                 const Config &Conf) {
-  if (std::optional<TapirTargetID> TT = Conf.TapirTarget) {
-    TLII.setTapirTarget(*TT);
-    if (TapirTargetOptions *Opts = Conf.TapirTargetOpts.get())
-      TLII.setTapirTargetOptions(
-          std::unique_ptr<TapirTargetOptions>(Opts->clone()));
-    TLII.addTapirTargetLibraryFunctions();
-  }
+static bool hasTapirTarget(const Config& Conf) {
+  for (StringRef Arg : Conf.MllvmArgs)
+    if (Arg.starts_with("--tapir-target=") or Arg.starts_with("--tapir="))
+      return true;
+  return false;
 }
 
 [[noreturn]] static void reportOpenError(StringRef Path, Twine Msg) {
@@ -289,7 +284,6 @@ static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
 
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
       new TargetLibraryInfoImpl(Triple(TM->getTargetTriple())));
-  setupTapirProperties(*TLII, Conf);
   if (Conf.Freestanding)
     TLII->disableAllFunctions();
   FAM.registerPass([&] { return TargetLibraryAnalysis(*TLII); });
@@ -337,17 +331,16 @@ static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
   }
 
   // Parse a custom pipeline if asked to.
+  bool LowerTapir = hasTapirTarget(Conf);
   if (!Conf.OptPipeline.empty()) {
     if (auto Err = PB.parsePassPipeline(MPM, Conf.OptPipeline)) {
       report_fatal_error(Twine("unable to parse pass pipeline description '") +
                          Conf.OptPipeline + "': " + toString(std::move(Err)));
     }
   } else if (IsThinLTO) {
-    MPM.addPass(PB.buildThinLTODefaultPipeline(OL, ImportSummary,
-                                               Conf.TapirTarget.has_value()));
+    MPM.addPass(PB.buildThinLTODefaultPipeline(OL, ImportSummary, LowerTapir));
   } else {
-    MPM.addPass(PB.buildLTODefaultPipeline(OL, ExportSummary,
-                                           Conf.TapirTarget.has_value()));
+    MPM.addPass(PB.buildLTODefaultPipeline(OL, ExportSummary, LowerTapir));
   }
 
   if (!Conf.DisableVerify)
@@ -451,7 +444,6 @@ static void codegen(const Config &Conf, TargetMachine *TM,
 
   legacy::PassManager CodeGenPasses;
   TargetLibraryInfoImpl TLII(Triple(Mod.getTargetTriple()));
-  setupTapirProperties(TLII, Conf);
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(TLII));
   // No need to make index available if the module is empty.
   // In theory these passes should not use the index for an empty

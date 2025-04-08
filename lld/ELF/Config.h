@@ -27,10 +27,7 @@
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/GlobPattern.h"
-#include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/TarWriter.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
-#include "llvm/Transforms/Tapir/TapirTargetOptions.h"
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -492,16 +489,6 @@ struct Config {
   // If an input file matches a wildcard pattern, remap it to the value.
   llvm::SmallVector<std::pair<llvm::GlobPattern, llvm::StringRef>, 0>
       remapInputsWildcards;
-
-  /// Some tapir targets don't have a corresponding TapirTargetOptions object,
-  /// so we can't just use the absence of @ref tapirTargetOpts to imply that a
-  /// tapir target has not been set.
-  std::optional<llvm::TapirTargetID> tapirTarget = std::nullopt;
-
-  /// The options for the tapir target that has been set. This is a pointer to
-  /// the base class, but it must be an instance of the options object
-  /// corresponding to the tapir target.
-  std::unique_ptr<llvm::TapirTargetOptions> tapirTargetOpts = nullptr;
 };
 
 // Some index properties of a symbol are stored separately in this auxiliary

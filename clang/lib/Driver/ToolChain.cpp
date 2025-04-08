@@ -1744,13 +1744,25 @@ llvm::opt::DerivedArgList *ToolChain::TranslateXarchArgs(
   return nullptr;
 }
 
-void ToolChain::PushArg(ArgStringList &CmdArgs, const ArgList &Args,
+void ToolChain::PushArg(ArgStringList &CmdArgs, const ArgList &Args, bool MLLVM,
                         OptSpecifier Opt, StringRef Val) const {
   const Driver &D = getDriver();
   const OptTable &OptTable = D.getOpts();
   StringRef Name = OptTable.getOptionName(Opt);
 
+  if (MLLVM)
+    CmdArgs.push_back("-mllvm");
   CmdArgs.push_back(Args.MakeArgString(join_items("", "--", Name, Val)));
+}
+
+void ToolChain::PushLastArg(ArgStringList &CmdArgs, const ArgList &Args,
+                            bool MLLVM, OptSpecifier Opt) const {
+  if (not Args.hasArg(Opt))
+    return;
+
+  if (MLLVM)
+    CmdArgs.push_back("-mllvm");
+  Args.AddLastArg(CmdArgs, Opt);
 }
 
 /// The string produced by CMake configuration parameters for multiple
@@ -1768,58 +1780,67 @@ void ToolChain::ExtractArgsFromString(const char *S, ArgStringList &CmdArgs,
 }
 
 void ToolChain::AddKitsuneGPUCommonArgs(const ArgList &Args,
-                                        ArgStringList &CmdArgs) const {
-  Args.AddLastArg(CmdArgs, options::OPT_tapir_threads_per_block_EQ);
-  Args.AddLastArg(CmdArgs, options::OPT_tapir_max_threads_per_block_EQ);
+                                        ArgStringList &CmdArgs,
+                                        bool MLLVM) const {
+  PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_threads_per_block_EQ);
+  PushLastArg(CmdArgs, Args, MLLVM,
+              options::OPT_tapir_max_threads_per_block_EQ);
 }
 
 void ToolChain::AddKitsuneCudaCommonArgs(const ArgList &Args,
-                                         ArgStringList &CmdArgs) const {
+                                         ArgStringList &CmdArgs,
+                                         bool MLLVM) const {
   StringRef CudaArch = Args.getLastArgValue(options::OPT_tapir_cuda_arch_EQ,
                                             KITSUNE_CUDA_ARCH_DEFAULT);
-  PushArg(CmdArgs, Args, options::OPT_tapir_cuda_arch_EQ, CudaArch);
+  PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_cuda_arch_EQ, CudaArch);
 
   AddKitsuneGPUCommonArgs(Args, CmdArgs);
 }
 
 void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
-                                        ArgStringList &CmdArgs) const {
+                                        ArgStringList &CmdArgs,
+                                        bool MLLVM) const {
   StringRef HipArch = Args.getLastArgValue(options::OPT_tapir_hip_arch_EQ,
                                            KITSUNE_HIP_ARCH_DEFAULT);
-  PushArg(CmdArgs, Args, options::OPT_tapir_hip_arch_EQ, HipArch);
+  PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_hip_arch_EQ, HipArch);
 
   AddKitsuneGPUCommonArgs(Args, CmdArgs);
 }
 
 void ToolChain::AddKitsuneLambdaCommonArgs(const ArgList &Args,
-                                           ArgStringList &CmdArgs) const {
+                                           ArgStringList &CmdArgs,
+                                           bool MLLVM) const {
   // Don't hit unreachable if an error has already occurred
   if (!getDriver().getDiags().getNumErrors())
     llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneLambdaCommonArgs");
 }
 
 void ToolChain::AddKitsuneOMPTaskCommonArgs(const ArgList &Args,
-                                            ArgStringList &CmdArgs) const {
+                                            ArgStringList &CmdArgs,
+                                            bool MLLVM) const {
   // Don't hit unreachable if an error has already occurred
   if (!getDriver().getDiags().getNumErrors())
     llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneOMPTaskCommonArgs");
 }
 
 void ToolChain::AddKitsuneOpenCilkCommonArgs(const ArgList &Args,
-                                             ArgStringList &CmdArgs) const {
+                                             ArgStringList &CmdArgs,
+                                             bool MLLVM) const {
   if (std::optional<std::string> BC = getOpenCilkABIBitcodeFile(Args))
-    PushArg(CmdArgs, Args, options::OPT_tapir_opencilk_abi_bc_EQ, *BC);
+    PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_opencilk_abi_bc_EQ, *BC);
 }
 
 void ToolChain::AddKitsuneOpenMPCommonArgs(const ArgList &Args,
-                                           ArgStringList &CmdArgs) const {
+                                           ArgStringList &CmdArgs,
+                                           bool MLLVM) const {
   // Don't hit unreachable if an error has already occurred
   if (!getDriver().getDiags().getNumErrors())
     llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneOpenMPCommonArgs");
 }
 
 void ToolChain::AddKitsuneQthreadsCommonArgs(const ArgList &Args,
-                                             ArgStringList &CmdArgs) const {
+                                             ArgStringList &CmdArgs,
+                                             bool MLLVM) const {
   // Don't hit unreachable if an error has already occurred
   if (!getDriver().getDiags().getNumErrors())
     llvm_unreachable(
@@ -1827,7 +1848,8 @@ void ToolChain::AddKitsuneQthreadsCommonArgs(const ArgList &Args,
 }
 
 void ToolChain::AddKitsuneRealmCommonArgs(const ArgList &Args,
-                                          ArgStringList &CmdArgs) const {
+                                          ArgStringList &CmdArgs,
+                                          bool MLLVM) const {
   // Don't hit unreachable if an error has already occurred
   if (!getDriver().getDiags().getNumErrors())
     llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneRealmCommonArgs");
@@ -2220,44 +2242,48 @@ void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
   if (std::optional<TapirTargetID> TT = parseTapirTarget(Args)) {
     // Handling of the -ffp-contract option has to be done exactly the way it is
     // done in BackendUtil.cpp. Explanations for this are in that file.
+    CmdArgs.push_back("-mllvm");
     if (const Arg *A = Args.getLastArg(options::OPT_ffp_contract)) {
       if (StringRef(A->getValue()) == "fast")
-        PushArg(CmdArgs, Args, options::OPT_ffp_contract, "fast");
+        CmdArgs.push_back("--fp-contract=fast");
+        // PushArg(CmdArgs, Args, true, options::OPT_ffp_contract, "fast");
       else
-        PushArg(CmdArgs, Args, options::OPT_ffp_contract, "on");
+        CmdArgs.push_back("--fp-contract=on");
+        // PushArg(CmdArgs, Args, true, options::OPT_ffp_contract, "on");
     } else {
-      PushArg(CmdArgs, Args, options::OPT_ffp_contract, "on");
+      CmdArgs.push_back("--fp-contract=on");
+      // PushArg(CmdArgs, Args, true, options::OPT_ffp_contract, "on");
     }
 
-    Args.AddLastArg(CmdArgs, options::OPT_kitrt_verbose);
-    Args.AddLastArg(CmdArgs, options::OPT_tapir_verbose);
-    Args.AddLastArg(CmdArgs, options::OPT_tapir_EQ);
+    PushLastArg(CmdArgs, Args, true, options::OPT_kitrt_verbose);
+    PushLastArg(CmdArgs, Args, true, options::OPT_tapir_verbose);
+    PushLastArg(CmdArgs, Args, true, options::OPT_tapir_EQ);
     switch (*TT) {
     case TapirTargetID::None:
       break;
     case TapirTargetID::Cuda:
-      AddKitsuneCudaCommonArgs(Args, CmdArgs);
+      AddKitsuneCudaCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
     case TapirTargetID::Hip:
-      AddKitsuneHipCommonArgs(Args, CmdArgs);
+      AddKitsuneHipCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
     case TapirTargetID::Lambda:
-      AddKitsuneLambdaCommonArgs(Args, CmdArgs);
+      AddKitsuneLambdaCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
     case llvm::TapirTargetID::OMPTask:
-      AddKitsuneOMPTaskCommonArgs(Args, CmdArgs);
+      AddKitsuneOMPTaskCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
     case TapirTargetID::OpenCilk:
-      AddKitsuneOpenCilkCommonArgs(Args, CmdArgs);
+      AddKitsuneOpenCilkCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
     case TapirTargetID::OpenMP:
-      AddKitsuneOpenMPCommonArgs(Args, CmdArgs);
+      AddKitsuneOpenMPCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
     case TapirTargetID::Qthreads:
-      AddKitsuneQthreadsCommonArgs(Args, CmdArgs);
+      AddKitsuneQthreadsCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
     case TapirTargetID::Realm:
-      AddKitsuneRealmCommonArgs(Args, CmdArgs);
+      AddKitsuneRealmCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
     case TapirTargetID::Serial:
       break;

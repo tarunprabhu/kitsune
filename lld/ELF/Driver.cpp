@@ -67,8 +67,6 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/Tapir/TapirTargets.h"
-#include "llvm/Transforms/Tapir/TapirCommandLineUtils.h"
 #include <cstdlib>
 #include <tuple>
 #include <utility>
@@ -1249,172 +1247,11 @@ static bool remapInputs(Ctx &ctx, StringRef line, const Twine &location) {
   return false;
 }
 
-static void populateCommonTTOptions(opt::InputArgList &args,
-                                    TapirTargetOptions &ttOpts) {
-  ttOpts.setVerbose(args.hasArg(OPT_tapir_verbose));
-  ttOpts.setRuntimeVerbose(args.hasArg(OPT_kitrt_verbose));
-}
-
-static void populateGPUABIOptions(opt::InputArgList &args,
-                                  GPUABIOptionsBase &ttOpts) {
-  populateCommonTTOptions(args, ttOpts);
-
-  if (opt::Arg *arg = args.getLastArg(OPT_O)) {
-    int optLevel;
-    StringRef v = arg->getValue();
-    if (v.empty())
-      error(arg->getSpelling() + ": missing argument");
-    else if (v.getAsInteger(10, optLevel))
-      error(arg->getSpelling() + ": number expected");
-    else if (optLevel < 0 || optLevel > 3)
-      error("invalid value '" + v + "' in " + arg->getSpelling());
-    else
-      ttOpts.setOptLevel(optLevel);
-  }
-
-  if (opt::Arg *arg = args.getLastArg(OPT_ffp_contract)) {
-    StringRef v = arg->getValue();
-    auto fuse = StringSwitch<std::optional<llvm::FPOpFusion::FPOpFusionMode>>(v)
-                    .Case("off", llvm::FPOpFusion::Strict)
-                    .Case("on", llvm::FPOpFusion::Standard)
-                    .Case("fast", llvm::FPOpFusion::Fast)
-                    .Default(std::nullopt);
-    if (not fuse and v.empty())
-      error(arg->getSpelling() + ": missing argument");
-    else if (not fuse)
-      error(Twine("invalid value '") + v + "' in " + arg->getSpelling());
-    else
-      ttOpts.setFPOpFusionMode(*fuse);
-  }
-
-  if (opt::Arg *arg = args.getLastArg(OPT_tapir_threads_per_block)) {
-    int tpb;
-    StringRef v = arg->getValue();
-    if (v.empty())
-      error(arg->getSpelling() + ": missing argument");
-    else if (v.getAsInteger(10, tpb))
-      error(arg->getSpelling() + ": number expected");
-    else if (tpb <= 0 || tpb > int(KITSUNE_MAX_FIXED_THREADS_PER_BLOCK))
-      error(Twine("invalid value '") + v + "' in " + arg->getSpelling());
-    else
-      ttOpts.setFixedThreadsPerBlock(tpb);
-  }
-
-  if (opt::Arg *arg = args.getLastArg(OPT_tapir_max_threads_per_block)) {
-    int mtpb;
-    StringRef v = arg->getValue();
-    if (v.empty())
-      error(arg->getSpelling() + ": missing argument");
-    else if (v.getAsInteger(10, mtpb))
-      error(arg->getSpelling() + ": number expected");
-    else if (mtpb <= 0)
-      error(Twine("invalid value '") + v + "' in " + arg->getSpelling());
-    else
-      ttOpts.setMaxThreadsPerBlock(mtpb);
-  }
-}
-
-static std::unique_ptr<TapirTargetOptions>
-populateTTOptions(opt::InputArgList &args, CudaABIOptions &ttOpts) {
-  populateGPUABIOptions(args, ttOpts);
-
-  // For many of the arguments here, we really should sanity-check the argument
-  // values. In practice, that will be difficult to do because it needs a lot of
-  // code from clang to be made visible here (or duplicated). In practice, lld
-  // will never be called directly, but will be invoked by clang which will be
-  // responsible for generating valid command lines.
-
-  if (opt::Arg* arg = args.getLastArg(OPT_tapir_cuda_arch)) {
-    StringRef arch = arg->getValue();
-    if (arch.empty()) {
-      error(arg->getSpelling() + ": missing argument");
-    } else {
-      ttOpts.setArch(arch);
-    }
-  }
-  return std::unique_ptr<TapirTargetOptions>(&ttOpts);
-}
-
-static std::unique_ptr<TapirTargetOptions>
-populateTTOptions(opt::InputArgList &args, HipABIOptions &ttOpts) {
-  populateGPUABIOptions(args, ttOpts);
-
-  // For many of the arguments here, we really should sanity-check the argument
-  // values. In practice, that will be difficult to do because it needs a lot of
-  // code from clang to be made visible here (or duplicated). In practice, lld
-  // will never be called directly, but will be invoked by clang which will be
-  // responsible for generating valid command lines.
-
-  if (opt::Arg* arg = args.getLastArg(OPT_tapir_hip_arch)) {
-    StringRef arch = arg->getValue();
-    if (arch.empty()) {
-      error(arg->getSpelling() + ": missing argument");
-    } else {
-      ttOpts.setArch(arch);
-    }
-  }
-  return std::unique_ptr<TapirTargetOptions>(&ttOpts);
-}
-
-static std::unique_ptr<TapirTargetOptions>
-populateTTOptions(opt::InputArgList &args, OpenCilkABIOptions &ttOpts) {
-  populateCommonTTOptions(args, ttOpts);
-
-  if (opt::Arg* arg = args.getLastArg(OPT_tapir_opencilk_abi_bc)) {
-    StringRef path = arg->getValue();
-    if (path.empty())
-      error(arg->getSpelling() + ": missing argument");
-    else
-      ttOpts.setRuntimeBCPath(path);
-  }
-  return std::unique_ptr<TapirTargetOptions>(&ttOpts);
-}
-
-static std::unique_ptr<TapirTargetOptions>
-populateTTOptions(opt::InputArgList &args, SerialABIOptions &ttOpts) {
-  populateCommonTTOptions(args, ttOpts);
-
-  return std::unique_ptr<TapirTargetOptions>(&ttOpts);
-}
-
-static std::unique_ptr<TapirTargetOptions>
-createTapirTargetOptions(opt::InputArgList &args, TapirTargetID tt) {
-  switch (tt) {
-  case TapirTargetID::None:
-    // NoneABI does not have options because generally, it is not actually
-    // treated like other ABI's. We really need to figure out what to do with
-    // this.
-    return nullptr;
-  case TapirTargetID::Serial:
-    return populateTTOptions(args, *new SerialABIOptions());
-  case TapirTargetID::Cuda:
-    return populateTTOptions(args, *new CudaABIOptions());
-  case TapirTargetID::Hip:
-    return populateTTOptions(args, *new HipABIOptions());
-  case TapirTargetID::OpenCilk:
-    return populateTTOptions(args, *new OpenCilkABIOptions());
-  default:
-    llvm_unreachable("createTapirTargetOptions: TapirTargetID not handled");
-    break;
-  }
-}
-
 // Initializes Config members by the command line options.
 static void readConfigs(Ctx &ctx, opt::InputArgList &args) {
   ctx.e.verbose = args.hasArg(OPT_verbose);
   ctx.e.vsDiagnostics =
       args.hasArg(OPT_visual_studio_diagnostics_format, false);
-
-  // Parse Kitsune-specific arguments that are passed here.
-  if (opt::Arg *arg = args.getLastArg(OPT_tapir)) {
-    ctx.arg.tapirTarget = parseTapirTarget(arg->getValue());
-    if (ctx.arg.tapirTarget.has_value())
-      ctx.arg.tapirTargetOpts =
-          createTapirTargetOptions(args, *ctx.arg.tapirTarget);
-    else
-      error(Twine("invalid value '") + arg->getValue() + "' in '" +
-            arg->getSpelling() + "'");
-  }
 
   ctx.arg.allowMultipleDefinition =
       hasZOption(args, "muldefs") ||

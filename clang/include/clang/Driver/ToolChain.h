@@ -835,90 +835,115 @@ private:
                              const llvm::opt::ArgList &Args,
                              const char delimiter = ' ') const;
 
-  /// Add the option set to the given value to the command line.
+  /// Add the option set to the given value to the command line. If MLLVM is
+  /// true, add -mllvm to the command line before adding the option.
   void PushArg(llvm::opt::ArgStringList &CmdArgs,
-               const llvm::opt::ArgList &Args, llvm::opt::OptSpecifier Opt,
-               StringRef Val = "") const;
+               const llvm::opt::ArgList &Args, bool MLLVM,
+               llvm::opt::OptSpecifier Opt, StringRef Val = "") const;
+
+  /// If the given option is present in the argument list, add the last
+  /// occurrence to the command line. If MLLVM is true, add -mllvm to the
+  /// command line before the option.
+  void PushLastArg(llvm::opt::ArgStringList &CmdArgs,
+                   const llvm::opt::ArgList &Args, bool MLLVM,
+                   llvm::opt::OptSpecifier Opt) const;
 
 public:
   /// Add compile/LTO arguments common to the GPU tapir targets.
   virtual void AddKitsuneGPUCommonArgs(const llvm::opt::ArgList &Args,
-                                       llvm::opt::ArgStringList &CmdArgs) const;
+                                       llvm::opt::ArgStringList &CmdArgs,
+                                       bool MLLVM = false) const;
 
-  /// Add compiler/LTO arguments for the cuda tapir target.
+  /// Add compiler/LTO options for the cuda tapir target. If MLLVM is true, all
+  /// options will be prepended with -mllvm.
   virtual void
   AddKitsuneCudaCommonArgs(const llvm::opt::ArgList &Args,
-                           llvm::opt::ArgStringList &CmdArgs) const;
+                           llvm::opt::ArgStringList &CmdArgs,
+                           bool MLLVM = false) const;
 
-  /// Add linker arguments for the cuda tapir target.
+  /// Add linker options for the cuda tapir target.
   virtual void
   AddKitsuneCudaLinkerArgs(const llvm::opt::ArgList &Args,
                            llvm::opt::ArgStringList &CmdArgs) const;
 
-  /// Add compiler/LTO arguments for the hip tapir target.
+  /// Add compiler/LTO options for the hip tapir target. If MLLVM is true, all
+  /// options will be prepended with -mllvm.
   virtual void AddKitsuneHipCommonArgs(const llvm::opt::ArgList &Args,
-                                       llvm::opt::ArgStringList &CmdArgs) const;
+                                       llvm::opt::ArgStringList &CmdArgs,
+                                       bool MLLVM = false) const;
 
-  /// Add linker arguments for the cuda tapir target.
+  /// Add linker options for the hip tapir target.
   virtual void AddKitsuneHipLinkerArgs(const llvm::opt::ArgList &Args,
                                        llvm::opt::ArgStringList &CmdArgs) const;
 
-  /// Add compiler/LTO arguments for Kitusne's opencilk tapir target.
+  /// Add compiler/LTO options for the lambda tapir target. If MLLVM is true,
+  // all options will be prepended with -mllvm.
   virtual void
   AddKitsuneLambdaCommonArgs(const llvm::opt::ArgList &Args,
-                             llvm::opt::ArgStringList &CmdArgs) const;
+                             llvm::opt::ArgStringList &CmdArgs,
+                             bool MLLVM = false) const;
 
-  /// Add linker arguments for the cuda tapir target.
+  /// Add linker options for the lambda tapir target.
   virtual void
   AddKitsuneLambdaLinkerArgs(const llvm::opt::ArgList &Args,
                              llvm::opt::ArgStringList &CmdArgs) const;
 
-  /// Add compiler/LTO arguments for the omptask tapir target.
+  /// Add compiler/LTO options for the omptask tapir target. If MLLVM is true,
+  /// all options will be prepended with -mllvm.
   virtual void
   AddKitsuneOMPTaskCommonArgs(const llvm::opt::ArgList &Args,
-                              llvm::opt::ArgStringList &CmdArgs) const;
+                              llvm::opt::ArgStringList &CmdArgs,
+                              bool MLLVM = false) const;
 
-  /// Add linker arguments for the cuda tapir target.
+  /// Add linker options for the omptask tapir target.
   virtual void
   AddKitsuneOMPTaskLinkerArgs(const llvm::opt::ArgList &Args,
                               llvm::opt::ArgStringList &CmdArgs) const;
 
-  /// Add compiler/LTO arguments for the opencilk tapir target.
+  /// Add compiler/LTO options for the opencilk tapir target. If MLLVM is true,
+  /// all options will be prepended with -mllvm.
   virtual void
   AddKitsuneOpenCilkCommonArgs(const llvm::opt::ArgList &Args,
-                               llvm::opt::ArgStringList &CmdArgs) const;
+                               llvm::opt::ArgStringList &CmdArgs,
+                               bool MLLVM = false) const;
 
-  /// Add linker arguments for the cuda tapir target.
+  /// Add linker options for the opencilk tapir target.
   virtual void
   AddKitsuneOpenCilkLinkerArgs(const llvm::opt::ArgList &Args,
                                llvm::opt::ArgStringList &CmdArgs) const;
 
-  /// Add compiler/LTO arguments for the openmp tapir target.
+  /// Add compiler/LTO arguments for the openmp tapir target. If MLLVM is true,
+  /// all options will be prepended with -mllvm.
   virtual void
   AddKitsuneOpenMPCommonArgs(const llvm::opt::ArgList &Args,
-                             llvm::opt::ArgStringList &CmdArgs) const;
+                             llvm::opt::ArgStringList &CmdArgs,
+                             bool MLLVM = false) const;
 
-  /// Add linker arguments for the openmp tapir target.
+  /// Add linker options for the openmp tapir target.
   virtual void
   AddKitsuneOpenMPLinkerArgs(const llvm::opt::ArgList &Args,
                              llvm::opt::ArgStringList &CmdArgs) const;
 
-  /// Add compiler/LTO arguments for the qthreads tapir target.
+  /// Add compiler/LTO options for the qthreads tapir target. If MLLVM is true,
+  /// all options will be prepended with -mllvm.
   virtual void
   AddKitsuneQthreadsCommonArgs(const llvm::opt::ArgList &Args,
-                               llvm::opt::ArgStringList &CmdArgs) const;
+                               llvm::opt::ArgStringList &CmdArgs,
+                               bool MLLVM = false) const;
 
-  /// Add linker arguments for the qthreads tapir target.
+  /// Add linker options for the qthreads tapir target.
   virtual void
   AddKitsuneQthreadsLinkerArgs(const llvm::opt::ArgList &Args,
                                llvm::opt::ArgStringList &CmdArgs) const;
 
-  /// Add compiler/LTO arguments for the realm tapir target.
+  /// Add compiler/LTO options for the realm tapir target. If MLLVM is true, all
+  /// options will be prepended with -mllvm.
   virtual void
   AddKitsuneRealmCommonArgs(const llvm::opt::ArgList &Args,
-                            llvm::opt::ArgStringList &CmdArgs) const;
+                            llvm::opt::ArgStringList &CmdArgs,
+                            bool MLLVM = false) const;
 
-  /// Add linker arguments for the realm tapir target.
+  /// Add linker options for the realm tapir target.
   virtual void
   AddKitsuneRealmLinkerArgs(const llvm::opt::ArgList &Args,
                             llvm::opt::ArgStringList &CmdArgs) const;

@@ -203,7 +203,6 @@ std::string elf::createResponseFile(const opt::InputArgList &args) {
     case OPT_script:
     case OPT_symbol_ordering_file:
     case OPT_sysroot:
-    case OPT_tapir_opencilk_abi_bc:
     case OPT_version_script:
       os << arg->getSpelling() << " " << quote(rewritePath(arg->getValue()))
          << "\n";

@@ -15,6 +15,7 @@
 
 namespace llvm {
 
+// FIXME: Have this return ErrorOr
 std::optional<TapirTargetID> parseTapirTarget(StringRef s) {
   return StringSwitch<std::optional<TapirTargetID>>(s)
       .Case("none", TapirTargetID::None)
