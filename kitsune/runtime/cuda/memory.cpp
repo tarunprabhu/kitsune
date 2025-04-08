@@ -352,8 +352,14 @@ void __kitcuda_memcpy_sym_to_device(void *hostPtr, uint64_t devPtr,
   assert(hostPtr != nullptr && "unexpected null host pointer!");
   assert(size != 0 && "requested a 0 byte copy!");
 
+  // FIXME: This is a temporary workaround because cuMemcpyHtoD was causing an
+  // "invalid device context" runtime error. Just using the original seems to
+  // work. The underlying issue may be somewhere else. But given that the entire
+  // runtime is due for a major overhaul, just stick with this for now so the
+  // test suite is green (without this change, saxpy - the only test that, as of
+  // the time of writing, uses this - fails).
   KIT_NVTX_PUSH("kitcuda:memcpy_sym_to_device", KIT_NVTX_MEM);
-  CU_SAFE_CALL(cuMemcpyHtoD_p(devPtr, hostPtr, size));
+  CU_SAFE_CALL(cuMemcpyHtoD(devPtr, hostPtr, size));
   KIT_NVTX_POP();
 }
 }
