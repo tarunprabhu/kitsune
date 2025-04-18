@@ -1,0 +1,44 @@
+# REQUIRES: kitfc
+#
+# FIXME: The Fortran source does not exist yet. When full Fortran support is
+# enabled in Kitsune, write those files and remove the xfail here.
+# XFAIL: *
+#
+# Check that the command line options common to all tapir targets are handled
+# correctly when -flto is provided with Fortran. The serial tapir target is
+# always built and handles all the common options.
+#
+# RUN: %kitfc -### -ftapir=serial -O2 -flto \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL
+#
+# RUN: %kitfc -### -ftapir=serial -O2 -flto --tapir-verbose \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,TAPIR_VERBOSE
+#
+# RUN: %kitfc -### -ftapir=serial -O2 -flto --kitrt-verbose \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,KITRT_VERBOSE
+#
+# RUN: %kitfc -### -ftapir=serial -O2 -flto -ffp-contract=off  \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,FP_STANDARD
+#
+# RUN: %kitfc -### -ftapir=serial -O2 -flto -ffp-contract=on  \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,FP_STANDARD
+#
+# RUN: %kitfc -### -ftapir=serial -O2 -flto -ffp-contract=fast  \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,FP_FAST
+#
+# RUN: %kitfc -### -ftapir=serial -O2 -flto -ffp-contract=fast-honor-pragmas \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,FP_STANDARD
+#
+# ALL: /ld{{(64)?}}.lld"
+# ALL-SAME: "-mllvm" "--tapir=serial"
+# TAPIR_VERBOSE-SAME: "-mllvm" "--tapir-verbose"
+# KITRT_VERBOSE: "-mllvm" "--kitrt-verbose"
+# FP_STANDARD: "-mllvm" "--fp-contract=on"
+# FP_FAST: "-mllvm" "--fp-contract=fast"

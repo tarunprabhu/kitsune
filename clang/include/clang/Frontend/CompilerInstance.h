@@ -331,6 +331,13 @@ public:
     return Invocation->getAPINotesOpts();
   }
 
+  llvm::driver::KitsuneOptions &getKitsuneOpts() {
+    return Invocation->getKitsuneOpts();
+  }
+  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
+    return Invocation->getKitsuneOpts();
+  }
+
   LangOptions &getLangOpts() { return Invocation->getLangOpts(); }
   const LangOptions &getLangOpts() const { return Invocation->getLangOpts(); }
   std::shared_ptr<LangOptions> getLangOptsPtr() const {

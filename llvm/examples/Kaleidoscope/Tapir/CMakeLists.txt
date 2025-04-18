@@ -8,7 +8,7 @@ set(LLVM_LINK_COMPONENTS
   RuntimeDyld
   ScalarOpts
   Support
-  TapirCommon
+  FrontendTapir
   TapirOpts
   TransformUtils
   native

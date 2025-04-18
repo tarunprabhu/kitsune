@@ -8,7 +8,7 @@ void vecadd(kitsune::mobile_ptr<double> c,
             const kitsune::mobile_ptr<double> b, size_t n);
 
 int main(int argc, char *argv[]) {
-  size_t n = 128;
+  size_t n = atoi(argv[1]);
   unsigned iterations;
   kitsune::mobile_ptr<double> a(n);
   kitsune::mobile_ptr<double> b(n);
@@ -16,5 +16,5 @@ int main(int argc, char *argv[]) {
 
   vecadd(c, a, b, n);
 
-  return 0;
+  return c[argc];
 }

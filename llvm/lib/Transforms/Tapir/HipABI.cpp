@@ -72,9 +72,12 @@
 #include "llvm/Transforms/Tapir/HipABI.h"
 #include "kitsune/Config/config.h"
 #include "llvm-c/Core.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Demangle/Demangle.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
+#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -116,7 +119,6 @@
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/TapirGPUUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
-#include "llvm/Transforms/Tapir/TapirStringUtils.h"
 #include "llvm/Transforms/Utils/AMDGPUEmitPrintf.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Mem2Reg.h"
@@ -131,11 +133,6 @@ using namespace llvm;
 //
 // This transformation is carrying out the prep to convert Tapir to a
 // kernel module suitable for codegen using the AMDGPU target.
-
-static cl::opt<std::string> clGPUArch(
-    "tapir-hip-arch", cl::init(KITSUNE_HIP_ARCH_DEFAULT), cl::NotHidden,
-    cl::desc("Target AMD GPU architecture (default = " KITSUNE_HIP_ARCH_DEFAULT
-             ")"));
 
 static cl::opt<int>
     OptLevel("hipabi-opt-level", cl::init(-1), cl::NotHidden,
@@ -300,27 +297,6 @@ void transformCallingConv(Function &F) {
 }
 
 } // namespace
-
-HipABIOptions::HipABIOptions() : GPUABIOptionsBase(TTO_Hip) {
-  setArch(KITSUNE_HIP_ARCH_DEFAULT);
-
-  // FIXME: This is here purely for debugging. Once we sort out how to best deal
-  // with the threads per block value, this should go away.
-  if (std::optional<std::string> ThreadsPBVar =
-          sys::Process::GetEnv("KITHIP_THREADS_PER_BLOCK")) {
-    if (getFixedThreadsPerBlock())
-      errs() << "kitsune[hipabi]: Note that KITHIP_THREADS_PER_BLOCK is "
-             << "overriding command line args.\n";
-    setFixedThreadsPerBlock(std::stoi(ThreadsPBVar.value()));
-  }
-}
-
-HipABIOptions *HipABIOptions::clone() const { return new HipABIOptions(*this); }
-
-void HipABIOptions::readClOptions() {
-  GPUABIOptionsBase::readClOptions();
-  setArch(clGPUArch);
-}
 
 void HipABI::transformConstants(Function &Fn) {
   std::map<GetElementPtrInst *, GetElementPtrInst *> GEPMap;
@@ -875,7 +851,7 @@ void HipLoop::transformForGCN(Function &F) {
 }
 
 void HipLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
-  bool VerboseMode = TT->getOptions().getVerbose();
+  bool VerboseMode = TT->getOptions().getTapirVerbose();
   if (VerboseMode) {
     errs() << "kitsune[hipabi]: pre-processing tapir loop.\n";
     errs() << "  - collecting global values from loop...\n";
@@ -1122,10 +1098,10 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   KernelF->setVisibility(GlobalValue::VisibilityTypes::ProtectedVisibility);
   KernelF->setCallingConv(CallingConv::AMDGPU_KERNEL);
   KernelF->addFnAttr("no-trapping-math", "true");
-  KernelF->addFnAttr("target-cpu", TT->getOptions().getArch());
+  KernelF->addFnAttr("target-cpu", TT->getOptions().getHipArch());
   KernelF->addFnAttr(Attribute::MustProgress);
   std::string targetFeaturesStr =
-      buildTargetFeatureString(TT->getOptions().getArch());
+      buildTargetFeatureString(TT->getOptions().getHipArch());
   KernelF->addFnAttr("target-features", targetFeaturesStr);
 
   // Verify that the Thread ID corresponds to a valid iteration. Because
@@ -1416,22 +1392,22 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 // Tapir constructs within a given input Module (M). It then creates a
 // corresponding module that contains the transformed device-side code. This is
 // the KernelModule that is created below in the target constructor.
-HipABI::HipABI(Module &M, const HipABIOptions &opts)
-    : TapirTarget(M, opts),
+HipABI::HipABI(Module &M, const TapirTargetOptions &Opts)
+    : TapirTarget(M, Opts),
       KernelModule(
-          tapir::concat(HIPABI_PREFIX + sys::path::filename(M.getName())),
+          join_items("", HIPABI_PREFIX, sys::path::filename(M.getName())),
           M.getContext()) {
-  bool VerboseMode = opts.getVerbose();
+  bool VerboseMode = Opts.getTapirVerbose();
   if (VerboseMode) {
     dbgs() << "'hip' tapir target options:\n";
-    dbgs() << "  Runtime verbose:     " << opts.getRuntimeVerbose() << "\n";
-    dbgs() << "  GPU arch:            " << opts.getArch() << "\n";
-    dbgs() << "  Optimization level:  " << opts.getOptLevel() << "\n";
-    dbgs() << "  FP Fusion:           " << opts.getFPOpFusionMode() << "\n";
-    dbgs() << "  Fixed threads/block: " << opts.getFixedThreadsPerBlock()
+    dbgs() << "  Runtime verbose:     " << Opts.getKitrtVerbose() << "\n";
+    dbgs() << "  GPU arch:            " << Opts.getHipArch() << "\n";
+    dbgs() << "  Optimization level:  " << Opts.getOptLevel() << "\n";
+    dbgs() << "  FP Fusion:           " << Opts.getFPOpFusionMode() << "\n";
+    dbgs() << "  Fixed threads/block: " << Opts.getFixedThreadsPerBlock()
            << "\n";
-    dbgs() << "  Max threads/block:   " << opts.getMaxThreadsPerBlock() << "\n";
-    dbgs() << "  Target features:     " << opts.getTargetFeatures() << "\n";
+    dbgs() << "  Max threads/block:   " << Opts.getMaxThreadsPerBlock() << "\n";
+    dbgs() << "  Target features:     " << Opts.getHipFeatures() << "\n";
   }
 
   LLVMContext &Ctx = M.getContext();
@@ -1470,7 +1446,7 @@ HipABI::HipABI(Module &M, const HipABIOptions &opts)
   if (VerboseMode && not ShownOnce) {
     errs() << "kitsune[hipabi]: create hip/amdgpu abi 'transformer'.\n";
     errs() << "  - target triple: " << TargetTriple.str() << "\n";
-    errs() << "  - target gpu architecture: " << getOptions().getArch() << "\n";
+    errs() << "  - target gpu architecture: " << TTO.getHipArch() << "\n";
     ShownOnce = true;
   }
 
@@ -1499,13 +1475,13 @@ HipABI::HipABI(Module &M, const HipABIOptions &opts)
     break;
   }
 
-  std::string Features = buildTargetFeatureString(getOptions().getArch());
+  std::string Features = buildTargetFeatureString(TTO.getHipArch());
   TargetOptions Options;
   Options.UseInitArray = true;
   Options.EmitAddrsig = true;
-  Options.AllowFPOpFusion = getOptions().getFPOpFusionMode();
+  Options.AllowFPOpFusion = TTO.getFPOpFusionMode();
   AMDTargetMachine = AMDGPUTarget->createTargetMachine(
-      TargetTriple.getTriple(), getOptions().getArch(), Features, Options,
+      TargetTriple.getTriple(), TTO.getHipArch(), Features, Options,
       Reloc::Static, TargetCodeModel, TargetOptLevel);
 
   LLVM_DEBUG(dbgs() << "\ttarget feature string:\n\t\t"
@@ -1516,10 +1492,6 @@ HipABI::HipABI(Module &M, const HipABIOptions &opts)
 }
 
 HipABI::~HipABI() { /* no-op */ }
-
-const HipABIOptions &HipABI::getOptions() const {
-  return cast<HipABIOptions>(opts);
-}
 
 std::unique_ptr<Module> &HipABI::getLibDeviceModule() {
   if (not LibDeviceModule) {
@@ -1550,7 +1522,7 @@ std::unique_ptr<Module> &HipABI::getLibDeviceModule() {
 
     // Pick the corresponding bitcode file for the target architecture.
     // TODO: Add support for multiple architectures in a single transform.
-    StringRef gpuArch = getOptions().getArch();
+    StringRef gpuArch = TTO.getHipArch();
     if (gpuArch == "gfx900")
       ROCmBCFiles.push_back("oclc_isa_version_900.bc");
     else if (gpuArch == "gfx902")
@@ -1708,7 +1680,7 @@ void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
 HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
   LLVM_DEBUG(dbgs() << "\tgenerating amdgpu object file.\n");
 
-  bool VerboseMode = getOptions().getVerbose();
+  bool VerboseMode = TTO.getTapirVerbose();
   std::error_code EC;
   HipABIOutputFile ObjFile = std::make_unique<ToolOutputFile>(
       ObjFileName, EC, sys::fs::OpenFlags::OF_None);
@@ -1788,7 +1760,7 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
     PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
     ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
-        KModOptLevel, ThinOrFullLTOPhase::None, false);
+        KModOptLevel, ThinOrFullLTOPhase::None);
     MPM.addPass(VerifierPass());
     if (VerboseMode)
       errs() << "    - running kernel/device-side pipeline...\n";
@@ -1796,7 +1768,7 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
   }
 
   if (VerboseMode) {
-    errs() << "  - emit AMDGPU (target: " << getOptions().getArch()
+    errs() << "  - emit AMDGPU (target: " << TTO.getHipArch()
            << ") object file.\n";
     errs() << "    - file name: " << ObjFile->getFilename() << "\n";
   }
@@ -1840,7 +1812,7 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   LLDArgList.push_back("-shared");
   LLDArgList.push_back("--eh-frame-hdr");
   LLDArgList.push_back("--plugin-opt=-amdgpu-internalize-symbols");
-  std::string mcpu = "--plugin-opt=-mcpu=" + getOptions().getArch().str();
+  std::string mcpu = "--plugin-opt=-mcpu=" + TTO.getHipArch().str();
   if (EnableXnack)
     mcpu += ":xnack+";
   if (EnableSRAMECC)
@@ -1859,7 +1831,7 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   LLDArgList.push_back(nullptr);
 
   std::vector<StringRef> LLDArgs = toStringRefArray(LLDArgList.data());
-  if (getOptions().getVerbose()) {
+  if (TTO.getTapirVerbose()) {
     // Render the command line in a single line because some tests expect this.
     // We could consider using a different argument to print just the command
     // lines, but that seems unnecessary.
@@ -1902,7 +1874,7 @@ HipABIOutputFile HipABI::createBundleFile() {
   // TODO: At present this produces working code but the vast majority of tools
   // (e.g., rocm-obj) don't appear to work correctly.
 
-  bool VerboseMode = getOptions().getVerbose();
+  bool VerboseMode = TTO.getTapirVerbose();
   std::error_code EC;
 
   // Run the AMDGPU target to create the associated object file for the
@@ -1944,7 +1916,7 @@ GlobalVariable *HipABI::embedBundle(HipABIOutputFile &BundleFile) {
 
   Bundle = std::move(BufferOrErr.get());
 
-  if (getOptions().getVerbose()) {
+  if (TTO.getTapirVerbose()) {
     errs() << "    - read binary bundle and embed in code.\n";
     errs() << "      - size: " << Bundle->getBufferSize() << " bytes\n";
   }
@@ -2021,7 +1993,7 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
 
   Function *CtorFn = Function::Create(
       FunctionType::get(VoidTy, VoidPtrTy, false), GlobalValue::InternalLinkage,
-      tapir::concat(HIPABI_PREFIX, ".ctor.", sys::path::filename(M.getName())),
+      join_items("", HIPABI_PREFIX, ".ctor.", sys::path::filename(M.getName())),
       &M);
 
   BasicBlock *CtorEntryBB = BasicBlock::Create(Ctx, "entry", CtorFn);
@@ -2047,8 +2019,8 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
     CtorBuilder.CreateCall(KitRTEnableYLaunchFn, {});
   }
 
-  unsigned DefaultThreadsPerBlock = getOptions().getFixedThreadsPerBlock();
-  unsigned MaxThreadsPerBlock = getOptions().getMaxThreadsPerBlock();
+  unsigned DefaultThreadsPerBlock = TTO.getFixedThreadsPerBlock();
+  unsigned MaxThreadsPerBlock = TTO.getMaxThreadsPerBlock();
 
   if (DefaultThreadsPerBlock) {
     FunctionCallee KitRTSetDefaultThreadsPerBlockFn =
@@ -2071,7 +2043,7 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
                            {ConstantInt::get(IntTy, 1024)});
   }
 
-  if (getOptions().getRuntimeVerbose()) {
+  if (TTO.getKitrtVerbose()) {
     FunctionCallee KitRTVerboseModefn =
         M.getOrInsertFunction("__kitrt_enable_verbose_mode", VoidTy);
     CtorBuilder.CreateCall(KitRTVerboseModefn, {});
@@ -2097,7 +2069,7 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
                                  DL.getPointerPrefAlignment());
 
   LoadInst *HandlePtr = CtorBuilder.CreateLoad(
-      VoidPtrPtrTy, Handle, tapir::concat(HIPABI_PREFIX, "__hip_fatbin"));
+      VoidPtrPtrTy, Handle, join_items("", HIPABI_PREFIX, "__hip_fatbin"));
   HandlePtr->setAlignment(DL.getPointerPrefAlignment());
 
   if (!GlobalVars.empty()) {
@@ -2133,7 +2105,7 @@ Function *HipABI::createDtor(GlobalVariable *BundleHandle) {
 
   Function *DtorFn = Function::Create(
       FunctionType::get(VoidTy, VoidPtrTy, false), GlobalValue::InternalLinkage,
-      tapir::concat(HIPABI_PREFIX, ".dtor"), &M);
+      join_items("", HIPABI_PREFIX, ".dtor"), &M);
 
   // TODO: Do we call into this too many times???
   BasicBlock *DtorEntryBB = BasicBlock::Create(Ctx, "entry", DtorFn);
@@ -2199,7 +2171,7 @@ void HipABI::registerBundle(GlobalVariable *Bundle) {
 }
 
 void HipABI::postProcessModule() {
-  bool VerboseMode = getOptions().getVerbose();
+  bool VerboseMode = TTO.getTapirVerbose();
 
   // At this point, all tapir constructs in the input module (M) have been
   // transformed (i.e., outlined) into the kernel module. We can now wrap up
@@ -2347,12 +2319,12 @@ HipABI::getLoopOutlineProcessor(const TapirLoopInfo *TL,
     // If we have debug info in the module use a line number-based
     // naming scheme for kernels.
     unsigned LineNumber = TL->getLoop()->getStartLoc()->getLine();
-    KernelName =
-        tapir::concat(HIPABI_KERNEL_NAME_PREFIX, ModuleName, "_", LineNumber);
+    KernelName = join_items("", HIPABI_KERNEL_NAME_PREFIX, ModuleName, "_",
+                            std::to_string(LineNumber));
   } else {
     SmallString<255> ModName(Twine(ModuleName).str());
     sys::path::replace_extension(ModName, "");
-    KernelName = tapir::concat(HIPABI_KERNEL_NAME_PREFIX, ModName);
+    KernelName = join_items("", HIPABI_KERNEL_NAME_PREFIX, ModName);
   }
 
   Level = OptLevel;

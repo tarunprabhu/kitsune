@@ -13,11 +13,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Kitsune/LowerMobileIntrinsics.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
 using namespace llvm;
 
@@ -36,33 +36,31 @@ enum class AllocatorKind {
 /// set in the TargetLibraryInfo. This will not work correctly in multi-target
 /// mode. But that requires a more sophisticated analysis which should be
 /// implemented eventually.
-static AllocatorKind determineAllocatorKind(TargetLibraryInfo &tli,
+static AllocatorKind determineAllocatorKind(const TapirTargetInfo &tti,
                                             CallInst &) {
-  // FIXME: At some point, getTapirTarget should return nullptr. If it does,
-  // we should use the system allocator because libkitrt will not be linked.
-  // Otherwise, we can use the default memory allocator from Kitsune's
-  // runtime.
-  switch (tli.getTapirTarget()) {
-  case TapirTargetID::None:
-    return AllocatorKind::None;
-  case TapirTargetID::Cuda:
-    return AllocatorKind::Cuda;
-  case TapirTargetID::Hip:
-    return AllocatorKind::Hip;
-  case TapirTargetID::OpenCilk:
-    return AllocatorKind::Default;
-  case TapirTargetID::Serial:
+  if (std::optional<TapirTargetID> tt = tti.getIDIfAvailable()) {
+    switch (*tt) {
+    case TapirTargetID::None:
+      return AllocatorKind::None;
+    case TapirTargetID::Cuda:
+      return AllocatorKind::Cuda;
+    case TapirTargetID::Hip:
+      return AllocatorKind::Hip;
+    case TapirTargetID::OpenCilk:
+      return AllocatorKind::Default;
+    case TapirTargetID::Serial:
+      return AllocatorKind::System;
+    default:
+      llvm_unreachable("determineAllocator: TapirTarget not handled");
+    }
+  } else {
     return AllocatorKind::System;
-  case TapirTargetID::Last_TapirTargetID:
-    return AllocatorKind::System;
-  default:
-    llvm_unreachable("determineAllocator: TapirTarget not handled");
   }
 }
 
 class LowerMobileAllocations {
 private:
-  TargetLibraryInfo &tli;
+  const TapirTargetInfo &tti;
 
 private:
   /// Replace the call to a kitsune mobile allocation instruction with a call to
@@ -72,7 +70,7 @@ private:
     // Do some (potentially not cheap) analysis to decide what would be a good
     // allocator to use here.
     StringRef fname = "";
-    switch (determineAllocatorKind(tli, call)) {
+    switch (determineAllocatorKind(tti, call)) {
     case AllocatorKind::Cuda:
       fname = "__kitcuda_mem_alloc_managed";
       break;
@@ -108,7 +106,7 @@ private:
   }
 
 public:
-  LowerMobileAllocations(TargetLibraryInfo &tli) : tli(tli) {}
+  LowerMobileAllocations(const TapirTargetInfo &tti) : tti(tti) {}
 
   /// Lower the mobile allocations in the given function. Return true if any
   /// mobile allocations were found and lowered, false otherwise.
@@ -133,7 +131,7 @@ public:
 
 class LowerMobileDeallocations {
 private:
-  TargetLibraryInfo &tli;
+  const TapirTargetInfo &tti;
 
 private:
   /// Replace the call to a kitsune mobile deallocation instruction with a call
@@ -143,7 +141,7 @@ private:
     // Do some (potentially not cheap) analysis to decide what would be a good
     // allocator to use here.
     StringRef fname = "";
-    switch (determineAllocatorKind(tli, call)) {
+    switch (determineAllocatorKind(tti, call)) {
     case AllocatorKind::Cuda:
       fname = "__kitcuda_mem_free";
       break;
@@ -175,7 +173,7 @@ private:
   }
 
 public:
-  LowerMobileDeallocations(TargetLibraryInfo &tli) : tli(tli) {}
+  LowerMobileDeallocations(const TapirTargetInfo &tti) : tti(tti) {}
 
   /// Lower the mobile allocations in the given function. Return true if any
   /// mobile allocations were found and lowered, false otherwise.
@@ -202,13 +200,10 @@ PreservedAnalyses LowerMobileIntrinsicsPass::run(Module &m,
                                                  ModuleAnalysisManager &mam) {
   // We may need to do some analysis here, or call an analysis pass before we
   // start modifying the functions.
+  TapirTargetInfo tti = mam.getResult<TapirTargetAnalysis>(m);
   for (Function &f : m) {
-    FunctionAnalysisManager &fam =
-        mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
-    TargetLibraryInfo &tli = fam.getResult<TargetLibraryAnalysis>(f);
-
-    LowerMobileAllocations(tli).run(f);
-    LowerMobileDeallocations(tli).run(f);
+    LowerMobileAllocations(tti).run(f);
+    LowerMobileDeallocations(tti).run(f);
   }
 
   // For the allocations and deallocations, we simply replace function calls

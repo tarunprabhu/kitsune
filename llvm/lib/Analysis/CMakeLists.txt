@@ -132,6 +132,7 @@ add_llvm_component_library(LLVMAnalysis
   SyntheticCountsUtils.cpp
   TFLiteUtils.cpp
   TapirRaceDetect.cpp
+  TapirTargetAnalysis.cpp
   TapirTaskInfo.cpp
   TargetLibraryInfo.cpp
   TargetTransformInfo.cpp
@@ -165,11 +166,8 @@ add_llvm_component_library(LLVMAnalysis
   Object
   ProfileData
   Support
-  TapirCommon
+  FrontendTapir
   TargetParser
-  # FIXME: This causes a circular dependence but that needs another refactor,
-  # and there is a lot more to do first.
-  TapirOpts
   )
 
 include(CheckCXXSymbolExists)

@@ -18,9 +18,10 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
@@ -44,7 +45,6 @@
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
@@ -479,11 +479,11 @@ public:
   LoopSpawningImpl(
       Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
       ScalarEvolution &SE, AssumptionCache &AC, TargetTransformInfo &TTI,
-      TargetLibraryInfo &TLI, TapirTargetID Target,
+      const TapirTargetInfo &TGI, TapirTargetID Target,
       OptimizationRemarkEmitter &ORE,
       std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets,
       OptimizationLevel OptLevel)
-      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TLI(TLI),
+      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TGI(TGI),
         ORE(ORE), Targets(Targets), Level(OptLevel) {}
 
   ~LoopSpawningImpl() {
@@ -600,7 +600,7 @@ private:
   ScalarEvolution &SE;
   AssumptionCache &AC;
   TargetTransformInfo &TTI;
-  TargetLibraryInfo &TLI;
+  const TapirTargetInfo &TGI;
   OptimizationRemarkEmitter &ORE;
   std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets;
   // FIXME: This should be removed. The optimization level is passed in via the
@@ -990,8 +990,7 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   Module &M = *F.getParent();
   Loop *L = TL->getLoop();
   TapirLoopHints Hints(L);
-  // TapirTargetID TLTID = (TapirTargetID)Hints.getLoopTarget();
-  TapirTargetID TLTID = TLI.getTapirTarget();
+  TapirTargetID TLTID = TGI.getID();
   if (std::optional<TapirTargetID> HintTT = Hints.getLoopTarget())
     TLTID = *HintTT;
 
@@ -1003,7 +1002,7 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   // up a level of code nesting.  This is important for nested loops with
   // different targets...
   if (Targets.find(TLTID) == Targets.end()) {
-    const TapirTargetOptions &TTOpts = TLI.getTapirTargetOptions();
+    const TapirTargetOptions &TTOpts = TGI.getOptions();
     Targets[TLTID] =
         std::shared_ptr<TapirTarget>(getTapirTargetFromID(M, TLTID, TTOpts));
   }
@@ -1785,12 +1784,13 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
   auto GetTTI = [&FAM](Function &F) -> TargetTransformInfo & {
     return FAM.getResult<TargetIRAnalysis>(F);
   };
-  auto GetTLI = [&FAM](Function &F) -> TargetLibraryInfo & {
-    return FAM.getResult<TargetLibraryAnalysis>(F);
-  };
   auto GetORE = [&FAM](Function &F) -> OptimizationRemarkEmitter & {
     return FAM.getResult<OptimizationRemarkEmitterAnalysis>(F);
   };
+
+  const TapirTargetInfo &TGI = AM.getResult<TapirTargetAnalysis>(M);
+  TapirTargetID TargetID = TGI.getID();
+  const TapirTargetOptions &TTOpts = TGI.getOptions();
 
   SmallVector<Function *, 8> WorkList;
   bool Changed = false;
@@ -1820,14 +1820,11 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
   bool HasParallelism = false;
   std::map<TapirTargetID, std::shared_ptr<TapirTarget>> Targets;
   for (Function *F : WorkList) {
-    TargetLibraryInfo &TLI = GetTLI(*F);
-    TapirTargetID TargetID = TLI.getTapirTarget();
-    const TapirTargetOptions &TTOpts = TLI.getTapirTargetOptions();
     std::shared_ptr<TapirTarget> Target(
         getTapirTargetFromID(M, TargetID, TTOpts));
     HasParallelism |=
         LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
-                         GetAC(*F), GetTTI(*F), GetTLI(*F), TargetID,
+                         GetAC(*F), GetTTI(*F), TGI, TargetID,
                          GetORE(*F), Targets, Level)
             .run();
   }

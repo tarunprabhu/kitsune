@@ -55,51 +55,22 @@
 #define LLVM_TAPIR_HIP_ABI_H
 
 #include "llvm/Support/ToolOutputFile.h"
-#include "llvm/Transforms/Tapir/GPUABIOptions.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 
 namespace llvm {
 
-class TargetMachine;
 class HipLoop;
+class HipTTOptions;
+class TapirTargetOptions;
+class TargetMachine;
 
 typedef std::unique_ptr<ToolOutputFile> HipABIOutputFile;
 
-/// Options for the hip tapir target.
-class HipABIOptions : public GPUABIOptionsBase {
-private:
-  /// The target features string. These are in the suitable to be passed as is
-  /// to the corresponding LLVM attribute
-  std::string targetFeatures;
-
-public:
-  explicit HipABIOptions();
-  explicit HipABIOptions(const HipABIOptions &) = default;
-  virtual ~HipABIOptions() = default;
-
-  HipABIOptions &operator=(const HipABIOptions &) = delete;
-
-  virtual void readClOptions() override;
-  virtual HipABIOptions *clone() const override;
-
-  void setTargetFeatures(StringRef features) {
-    this->targetFeatures = features;
-  }
-
-  StringRef getTargetFeatures() const { return targetFeatures; }
-
-  static bool classof(const TapirTargetOptions *TTO) {
-    return TTO->getKind() == TTO_Hip;
-  }
-};
-
 class HipABI : public TapirTarget {
 public:
-  HipABI(Module &InputModule, const HipABIOptions& opts);
+  HipABI(Module &InputModule, const TapirTargetOptions &opts);
   ~HipABI();
-
-  const HipABIOptions& getOptions() const override final;
 
   /// Lower a call to the tapir.loop.grainsize intrinsic into a grain size
   /// (coarsening) value.  For GPU codes we currently limit this to a
@@ -274,6 +245,8 @@ private:
   OptimizationLevel Level;
 };
 
+/// FIXME: Fix this documentation. This does not need cuda.
+///
 /// The loop outline process for transforming a Tapir parallel loop
 /// representing into a Hip runtime and PTX --> fat binary kernel
 /// execution.

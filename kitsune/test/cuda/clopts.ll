@@ -21,8 +21,8 @@
 ; RUN:      | FileCheck %s -check-prefixes ALL,MTPB
 ;
 ; ALL: 'cuda' tapir target options
-; DEFAULT:   Runtime verbose: true
-; RUNTIME:   Runtime verbose: true
+; DEFAULT:   Runtime verbose: 1
+; RUNTIME:   Runtime verbose: 1
 ; OPTLEVEL:  Optimization level: O2
 ; ARCH:      GPU arch: sm_72
 ; TPB:       Fixed threads/block: 64

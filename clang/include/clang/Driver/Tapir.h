@@ -13,7 +13,7 @@
 #ifndef LLVM_CLANG_DRIVER_TAPIR_H
 #define LLVM_CLANG_DRIVER_TAPIR_H
 
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
 
 namespace llvm {
 namespace opt {
@@ -24,20 +24,16 @@ class ArgList;
 
 namespace clang {
 
-/// Parse the -ftapir flag from the given argument. If the value is not a known
-/// tapir target name, return std::nullopt.
-std::optional<llvm::TapirTargetID> parseTapirTarget(const llvm::opt::Arg &A);
-
-/// Parse the -ftapir flag if it is present in the arguments. If the flag is
-/// not present, or if it is not a known tapir target name, return std::nullopt.
+/// Parse the --tapir flag if it is present and return the tapir target ID. This
+/// should only be called when the value of the tapir --tapir flag is valid.
 std::optional<llvm::TapirTargetID>
-parseTapirTarget(const llvm::opt::ArgList &Args);
+parseTapirTargetIfValid(const llvm::opt::ArgList &Args);
 
 /// Parse the -ftapir flag if it is present and get the name of the config file
 /// of the Tapir target that was specified. If the argument of the -ftapir flag
 /// is invalid, this will return std::nullopt.
 std::optional<llvm::StringRef>
-getTargetConfigFileName(const llvm::opt::ArgList &Args);
+getTapirTargetConfigFileName(const llvm::opt::ArgList &Args);
 
 } // namespace clang
 

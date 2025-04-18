@@ -74,6 +74,7 @@
 #include "llvm/Analysis/StackSafetyAnalysis.h"
 #include "llvm/Analysis/StructuralHash.h"
 #include "llvm/Analysis/TapirRaceDetect.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -519,6 +520,14 @@ void PassBuilder::registerModuleAnalyses(ModuleAnalysisManager &MAM) {
 #define MODULE_ANALYSIS(NAME, CREATE_PASS)                                     \
   MAM.registerPass([&] { return CREATE_PASS; });
 #include "PassRegistry.def"
+
+  // Register the tapir target analysis pass manually. This has to be created
+  // with the target options in the pipeline tuning options object. There is no
+  // sane default for this anyway. This is exactly what we need wherever we
+  // create a pass pipeline, so we might as well create the pass here instead of
+  // requiring the callers to do it. It is the caller's responsibility to set
+  // setup the TapirTargetOptions object correctly.
+  MAM.registerPass([&] { return TapirTargetAnalysis(PTO.TTOpts); });
 
   for (auto &C : ModuleAnalysisRegistrationCallbacks)
     C(MAM);

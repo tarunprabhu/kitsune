@@ -3727,7 +3727,8 @@ void DarwinClang::AddLinkTapirRuntimeLib(const ArgList &Args,
 
 void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
                                       ArgStringList &CmdArgs) const {
-  std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args);
+  std::optional<llvm::TapirTargetID> TapirTarget =
+      parseTapirTargetIfValid(Args);
   if (not TapirTarget)
     return;
 

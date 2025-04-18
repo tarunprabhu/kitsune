@@ -46,7 +46,8 @@ config.suffixes = [
 # CMakeLists.txt file which is needed. It looks like the README.md files are
 # automatically ignored.
 config.excludes = [
-    "CMakeLists.txt"
+    "CMakeLists.txt",
+    "input"
 ]
 
 # test_source_root: The root path where tests are located.
@@ -123,10 +124,14 @@ llvm_config.feature_config([
 if config.kitsune_gcc_install_dir:
     config.available_features.add("kitsune-gcc-install-dir")
 
+if config.kitsune_c_enabled:
+    config.available_features.add("kitcc")
+
+if config.kitsune_cxx_enabled:
+    config.available_features.add("kitxx")
+
 if config.kitsune_fortran_enabled:
     config.available_features.add("kitfc")
-else:
-    config.available_features.add("kitsune-no-kitfc")
 
 # If these features are not enabled, create a corresponding no-<FEATURE>. This
 # is needed to run tests that check the frontends handle the case where

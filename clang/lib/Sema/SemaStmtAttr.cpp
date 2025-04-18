@@ -16,6 +16,7 @@
 #include "clang/Sema/DelayedDiagnostic.h"
 #include "clang/Sema/ParsedAttr.h"
 #include "clang/Sema/ScopeInfo.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include <optional>
 
 using namespace clang;
@@ -663,7 +664,7 @@ static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const ParsedAttr &A,
     return ::new (S.Context) TapirTargetAttr(S.Context, A, tapirTK);
 
   } else if (Expr *E = dyn_cast<Expr>(St)) {
-    if (S.getLangOpts().KitsuneOpts.getKokkos()) {
+    if (S.getKitsuneOpts().getKokkos()) {
       // See if this is an attributed Kokkos parallel statement (if
       // so, there is a CallExpr lurking further down in the AST).
       // To find this CallExpr we need to work past implicit details

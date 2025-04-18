@@ -3238,7 +3238,7 @@ def modules_reduced_bmi : Flag<["-"], "fmodules-reduced-bmi">,
   HelpText<"Generate the reduced BMI">,
   MarshallingInfoFlag<FrontendOpts<"GenReducedBMI">>;
 
-def experimental_modules_reduced_bmi : Flag<["-"], "fexperimental-modules-reduced-bmi">, 
+def experimental_modules_reduced_bmi : Flag<["-"], "fexperimental-modules-reduced-bmi">,
   Group<f_Group>, Visibility<[ClangOption, CC1Option]>, Alias<modules_reduced_bmi>;
 
 def fmodules_embed_all_files : Joined<["-"], "fmodules-embed-all-files">,
@@ -7474,7 +7474,7 @@ def fuse_register_sized_bitfield_access: Flag<["-"], "fuse-register-sized-bitfie
 def relaxed_aliasing : Flag<["-"], "relaxed-aliasing">,
   HelpText<"Turn off Type Based Alias Analysis">,
   MarshallingInfoFlag<CodeGenOpts<"RelaxedAliasing">>;
-defm pointer_tbaa: BoolOption<"", "pointer-tbaa", CodeGenOpts<"PointerTBAA">, 
+defm pointer_tbaa: BoolOption<"", "pointer-tbaa", CodeGenOpts<"PointerTBAA">,
 DefaultTrue,
   PosFlag<SetTrue, [], [ClangOption], "Enable">,
   NegFlag<SetFalse, [], [ClangOption], "Disable">,
@@ -9248,10 +9248,15 @@ def tapir_hip_features_EQ : Joined<["--"], "tapir-hip-features=">,
 // bitcode file and stop it from producing the "wrong" error (for instance
 // because we were checking that the frontend does not error out on supported
 // platforms).
-def tapir_opencilk_abi_bc_EQ : Joined<["--"], "tapir-opencilk-abi-bc=">,
+def tapir_opencilk_runtime_bc_EQ : Joined<["--"], "tapir-opencilk-runtime-bc=">,
   Visibility<[CC1Option, FC1Option]>,
   MetaVarName<"<file>">,
   HelpText<"Path to OpenCilk ABI bitcode file">;
+
+def tapir_opencilk_abi_bc_EQ : Joined<["-"], "tapir-opencilk-abi-bc=">,
+  Alias<tapir_opencilk_runtime_bc_EQ>,
+  Visibility<[CC1Option, FC1Option]>,
+  HelpText<"DEPRECATED: Use --tapir-opencilk-runtime-bc=">;
 
 def static_libkitrt : Flag<["-"], "static-libkitrt">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,

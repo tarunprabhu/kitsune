@@ -19,6 +19,7 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -111,7 +112,8 @@ static InstructionCost approximateLoopCost(
 static bool tryToStripMineLoop(
     Loop *L, DominatorTree &DT, LoopInfo *LI, ScalarEvolution &SE,
     const TargetTransformInfo &TTI, AssumptionCache &AC, TaskInfo *TI,
-    OptimizationRemarkEmitter &ORE, TargetLibraryInfo *TLI, bool PreserveLCSSA,
+    OptimizationRemarkEmitter &ORE, TargetLibraryInfo *TLI,
+    const TapirTargetInfo &TGI, bool PreserveLCSSA,
     std::optional<unsigned> ProvidedCount) {
   Task *T = getTaskIfTapirLoopStructure(L, TI);
   if (!T)
@@ -277,8 +279,8 @@ static bool tryToStripMineLoop(
   // Some parallel runtimes, such as OpenCilk, require nested parallel tasks to be
   // synchronized.
   bool NeedNestedSync = IncludeNestedSync;
-  if (!NeedNestedSync && TLI)
-    NeedNestedSync = TLI->getTapirTarget() == TapirTargetID::OpenCilk;
+  if (!NeedNestedSync && TGI.hasID())
+    NeedNestedSync = TGI.getID() == TapirTargetID::OpenCilk;
 
   // Save loop properties before it is transformed.
   MDNode *OrigLoopID = L->getLoopID();
@@ -310,6 +312,11 @@ static bool tryToStripMineLoop(
 
 PreservedAnalyses LoopStripMinePass::run(Function &F,
                                          FunctionAnalysisManager &AM) {
+  Module& M  = *F.getParent();
+
+  auto &MAM = AM.getResult<ModuleAnalysisManagerFunctionProxy>(F);
+  const TapirTargetInfo &TGI = *MAM.getCachedResult<TapirTargetAnalysis>(M);
+
   auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
   auto &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
   auto &LI = AM.getResult<LoopAnalysis>(F);
@@ -361,7 +368,7 @@ PreservedAnalyses LoopStripMinePass::run(Function &F,
     //   AllowPeeling = false;
     std::string LoopName = std::string(L.getName());
     bool LoopChanged =
-      tryToStripMineLoop(&L, DT, &LI, SE, TTI, AC, &TI, ORE, &TLI,
+      tryToStripMineLoop(&L, DT, &LI, SE, TTI, AC, &TI, ORE, &TLI, TGI,
                          /*PreserveLCSSA*/ true, /*Count*/ std::nullopt);
     Changed |= LoopChanged;
 

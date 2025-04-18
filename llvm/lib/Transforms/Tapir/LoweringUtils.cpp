@@ -10,8 +10,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "kitsune/Config/config.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Demangle/Demangle.h"
+#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
@@ -20,6 +22,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Timer.h"
+#include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Transforms/IPO/FunctionAttrs.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
@@ -37,30 +40,21 @@ static const char TimerGroupName[] = DEBUG_TYPE;
 static const char TimerGroupDescription[] = "Tapir lowering";
 
 TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID,
-                                        const TapirTargetOptions &opts) {
+                                        const TapirTargetOptions &TTOpts) {
   // Yes, this is absolutely hideous. We should try to find a nicer way than
   // this horrendous conditionally compiled mess!
   switch (ID) {
   case TapirTargetID::None:
     return nullptr;
 
-  case TapirTargetID::Serial:
-    assert(isa<SerialABIOptions>(opts) &&
-           "Require SerialABIOptions when creating 'serial' tapir target");
-    return new SerialABI(M, cast<SerialABIOptions>(opts));
-
 #if KITSUNE_CUDA_ENABLED
   case TapirTargetID::Cuda:
-    assert(isa<CudaABIOptions>(opts) &&
-           "Require CudaABIOptions when creating 'cuda' tapir target");
-    return new CudaABI(M, cast<CudaABIOptions>(opts));
+    return new CudaABI(M, TTOpts);
 #endif // KITSUNE_CUDA_ENABLED
 
 #if KITSUNE_HIP_ENABLED
   case TapirTargetID::Hip:
-    assert(isa<HipABIOptions>(opts) &&
-           "Require HipABIOptions when creating 'hip' tapir target");
-    return new HipABI(M, cast<HipABIOptions>(opts));
+    return new HipABI(M, TTOpts);
 #endif // KITSUNE_HIP_ENABLED
 
 #if KITSUNE_LAMBDA_ENABLED
@@ -75,9 +69,7 @@ TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID,
 
 #if KITSUNE_OPENCILK_ENABLED
   case TapirTargetID::OpenCilk:
-    assert(isa<OpenCilkABIOptions>(opts) &&
-           "Require OpenCilkABIOptions when creating 'opencilk' tapir target");
-    return new OpenCilkABI(M, cast<OpenCilkABIOptions>(opts));
+    return new OpenCilkABI(M, TTOpts);
 #endif // KITSUNE_OPENCILK_ENABLED
 
 #if KITSUNE_OPENMP_ENABLED
@@ -95,8 +87,11 @@ TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID,
     return new RealmABI(M);
 #endif // KITSUNE_REALM_ENABLED
 
+  case TapirTargetID::Serial:
+    return new SerialABI(M, TTOpts);
+
   default:
-    llvm_unreachable("Invalid TapirTargetID");
+    llvm_unreachable("getTapirTargetFromID: TapirTargetID not handled");
   }
 }
 
@@ -1016,15 +1011,11 @@ Function *llvm::createHelperForTaskFrame(Function &F, Spindle *TF,
 /// Inputs.  The map \p VMap is updated with the mapping of instructions in \p
 /// TF to instructions in the new helper function.  Information about the helper
 /// function is returned as a TaskOutlineInfo structure.
-TaskOutlineInfo llvm::outlineTaskFrame(Spindle *TF, ValueSet &Inputs,
-                                       SmallVectorImpl<Value *> &HelperInputs,
-                                       Module *DestM,
-                                       CloneFunctionChangeType Changes,
-                                       ValueToValueMapTy &VMap,
-                                       TapirTarget::ArgStructMode UseArgStruct,
-                                       Type *ReturnType,
-                                       ValueToValueMapTy &InputMap,
-                                       OutlineAnalysis &OA) {
+TaskOutlineInfo llvm::outlineTaskFrame(
+    Spindle *TF, ValueSet &Inputs, SmallVectorImpl<Value *> &HelperInputs,
+    Module *DestM, CloneFunctionChangeType Changes, ValueToValueMapTy &VMap,
+    TapirTarget::ArgStructMode UseArgStruct, Type *ReturnType,
+    ValueToValueMapTy &InputMap, OutlineAnalysis &OA) {
   assert(!TF->getTaskFromTaskFrame() &&
          "outlineTaskFrame called to outline task.");
 
@@ -1046,8 +1037,8 @@ TaskOutlineInfo llvm::outlineTaskFrame(Spindle *TF, ValueSet &Inputs,
     HelperInputs.push_back(V);
 
   // Clone the blocks into a helper function.
-  Function *Helper =
-      createHelperForTaskFrame(F, TF, HelperArgs, DestM, Changes, VMap, ReturnType, OA);
+  Function *Helper = createHelperForTaskFrame(F, TF, HelperArgs, DestM, Changes,
+                                              VMap, ReturnType, OA);
   Instruction *ClonedTF = cast<Instruction>(VMap[TF->getTaskFrameCreate()]);
   return TaskOutlineInfo(Helper, Entry, nullptr, ClonedTF, Inputs, ArgsStart,
                          StorePt, nullptr, Continue, Unwind);
@@ -1145,8 +1136,8 @@ TaskOutlineInfo llvm::outlineTask(
 
   // Convert the inputs of the task to inputs to the helper.
   ValueSet TaskHelperArgs;
-  Instruction *ArgsStart = fixupHelperInputs(F, T, Inputs, TaskHelperArgs, StorePt,
-                                             LoadPt, UseArgStruct, InputMap);
+  Instruction *ArgsStart = fixupHelperInputs(
+      F, T, Inputs, TaskHelperArgs, StorePt, LoadPt, UseArgStruct, InputMap);
   ValueSet HelperArgs;
   Target->setupTaskOutlineArgs(F, HelperArgs, HelperInputs, TaskHelperArgs);
 

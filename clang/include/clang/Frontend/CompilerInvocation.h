@@ -23,6 +23,7 @@
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include <memory>
 #include <string>
 
@@ -111,6 +112,9 @@ protected:
   /// Options controlling preprocessed output.
   std::shared_ptr<PreprocessorOutputOptions> PreprocessorOutputOpts;
 
+  /// Kitsune-specific options.
+  std::shared_ptr<llvm::driver::KitsuneOptions> KitsuneOpts;
+
   /// Dummy tag type whose instance can be passed into the constructor to
   /// prevent creation of the reference-counted option objects.
   struct EmptyConstructor {};
@@ -144,6 +148,9 @@ public:
   }
   const PreprocessorOutputOptions &getPreprocessorOutputOpts() const {
     return *PreprocessorOutputOpts;
+  }
+  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
+    return *KitsuneOpts;
   }
   /// @}
 
@@ -200,7 +207,7 @@ private:
                                   const LangOptions *LangOpts);
 
   // Generate command line options from KitsuneOptions.
-  static void GenerateKitsuneArgs(const KitsuneOptions& Opts,
+  static void GenerateKitsuneArgs(const llvm::driver::KitsuneOptions& Opts,
                                   ArgumentConsumer Consumer);
   /// @}
 };
@@ -246,6 +253,7 @@ public:
   using CompilerInvocationBase::getFrontendOpts;
   using CompilerInvocationBase::getDependencyOutputOpts;
   using CompilerInvocationBase::getPreprocessorOutputOpts;
+  using CompilerInvocationBase::getKitsuneOpts;
   /// @}
 
   /// Mutable getters.
@@ -266,6 +274,9 @@ public:
   }
   PreprocessorOutputOptions &getPreprocessorOutputOpts() {
     return *PreprocessorOutputOpts;
+  }
+  llvm::driver::KitsuneOptions &getKitsuneOpts() {
+    return *KitsuneOpts;
   }
   /// @}
 
@@ -350,7 +361,8 @@ private:
   static bool ParseLangArgs(LangOptions &Opts, llvm::opt::ArgList &Args,
                             InputKind IK, const llvm::Triple &T,
                             std::vector<std::string> &Includes,
-                            DiagnosticsEngine &Diags);
+                            DiagnosticsEngine &Diags,
+                            const llvm::driver::KitsuneOptions &KitsuneOpts);
 
   /// Parse command line options that map to CodeGenOptions.
   static bool ParseCodeGenArgs(CodeGenOptions &Opts, llvm::opt::ArgList &Args,
@@ -360,7 +372,8 @@ private:
                                const LangOptions &LangOptsRef);
 
   // Parse command line options that are specific to Kitsune.
-  static bool ParseKitsuneArgs(KitsuneOptions &Opts, const char *Argv0,
+  static bool ParseKitsuneArgs(llvm::driver::KitsuneOptions &Opts,
+                               const char *Argv0,
                                const llvm::opt::ArgList &Args,
                                DiagnosticsEngine &Diags,
                                const LangOptions &LangOpts);
@@ -373,7 +386,7 @@ private:
   // options cannot be done when parsing the arguments.
   static bool CheckKitsuneArgs(const llvm::opt::ArgList &Args,
                                const llvm::Triple &T,
-                               const KitsuneOptions &KitsuneOpts,
+                               const llvm::driver::KitsuneOptions &KitsuneOpts,
                                const LangOptions &LangOpts,
                                DiagnosticsEngine &Diags);
 };
@@ -418,6 +431,7 @@ public:
   FrontendOptions &getMutFrontendOpts();
   DependencyOutputOptions &getMutDependencyOutputOpts();
   PreprocessorOutputOptions &getMutPreprocessorOutputOpts();
+  llvm::driver::KitsuneOptions &getMutKitsuneOpts();
   /// @}
 };
 

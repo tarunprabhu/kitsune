@@ -79,13 +79,6 @@ namespace llvm {
 extern cl::opt<bool> NoPGOWarnMismatch;
 }
 
-static bool hasTapirTarget(const Config& Conf) {
-  for (StringRef Arg : Conf.MllvmArgs)
-    if (Arg.starts_with("--tapir-target=") or Arg.starts_with("--tapir="))
-      return true;
-  return false;
-}
-
 [[noreturn]] static void reportOpenError(StringRef Path, Twine Msg) {
   errs() << "failed to open " << Path << ": " << Msg << '\n';
   errs().flush();
@@ -331,16 +324,15 @@ static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
   }
 
   // Parse a custom pipeline if asked to.
-  bool LowerTapir = hasTapirTarget(Conf);
   if (!Conf.OptPipeline.empty()) {
     if (auto Err = PB.parsePassPipeline(MPM, Conf.OptPipeline)) {
       report_fatal_error(Twine("unable to parse pass pipeline description '") +
                          Conf.OptPipeline + "': " + toString(std::move(Err)));
     }
   } else if (IsThinLTO) {
-    MPM.addPass(PB.buildThinLTODefaultPipeline(OL, ImportSummary, LowerTapir));
+    MPM.addPass(PB.buildThinLTODefaultPipeline(OL, ImportSummary));
   } else {
-    MPM.addPass(PB.buildLTODefaultPipeline(OL, ExportSummary, LowerTapir));
+    MPM.addPass(PB.buildLTODefaultPipeline(OL, ExportSummary));
   }
 
   if (!Conf.DisableVerify)

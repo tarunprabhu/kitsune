@@ -89,8 +89,7 @@ protected:
   unsigned maxThreadsPerBlock = 0;
 
 protected:
-  explicit GPUABIOptionsBase(TapirTargetOptionsKind kind)
-      : TapirTargetOptions(kind) {}
+  explicit GPUABIOptionsBase(TapirTargetID id) : TapirTargetOptions(id) {}
   explicit GPUABIOptionsBase(const GPUABIOptionsBase &) = default;
 
 public:
@@ -99,27 +98,6 @@ public:
 
   virtual void readClOptions() override;
   virtual GPUABIOptionsBase *clone() const override = 0;
-
-  void setOptLevel(OptimizationLevel optLevel) { this->optLevel = optLevel; }
-  void setOptLevel(unsigned optLevel);
-  void setArch(StringRef arch) { this->arch = arch; }
-  void setFPOpFusionMode(FPOpFusion::FPOpFusionMode mode) {
-    this->fpOpFusionMode = mode;
-  }
-  void setFixedThreadsPerBlock(unsigned threadsPerBlock) {
-    this->fixedThreadsPerBlock = threadsPerBlock;
-  }
-  void setMaxThreadsPerBlock(unsigned threadsPerBlock) {
-    this->maxThreadsPerBlock = threadsPerBlock;
-  }
-
-  OptimizationLevel getOptLevel() const { return optLevel; }
-  StringRef getArch() const { return arch; }
-  FPOpFusion::FPOpFusionMode getFPOpFusionMode() const {
-    return fpOpFusionMode;
-  }
-  unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
-  unsigned getMaxThreadsPerBlock() const { return maxThreadsPerBlock; }
 
   static bool classof(const TapirTargetOptions *TTO) {
     switch (TTO->getKind()) {

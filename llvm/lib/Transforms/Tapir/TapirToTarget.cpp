@@ -14,8 +14,8 @@
 #include "llvm/Transforms/Tapir/TapirToTarget.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/PassManager.h"
@@ -49,10 +49,10 @@ public:
                     function_ref<DominatorTree &(Function &)> GetDT,
                     function_ref<TaskInfo &(Function &)> GetTI,
                     function_ref<AssumptionCache &(Function &)> GetAC,
-                    function_ref<TargetLibraryInfo &(Function &)> GetTLI,
+                    const TapirTargetInfo& TGI,
                     OptimizationLevel OptLevel = OptimizationLevel::O2)
       : M(M), Level(OptLevel), GetAA(GetAA), GetDT(GetDT), GetTI(GetTI),
-        GetAC(GetAC), GetTLI(GetTLI) {}
+        GetAC(GetAC), TGI(TGI) {}
   ~TapirToTargetImpl() {
     if (Target)
       delete Target;
@@ -84,7 +84,7 @@ private:
   function_ref<DominatorTree &(Function &)> GetDT;
   function_ref<TaskInfo &(Function &)> GetTI;
   function_ref<AssumptionCache &(Function &)> GetAC;
-  function_ref<TargetLibraryInfo &(Function &)> GetTLI;
+  const TapirTargetInfo &TGI;
 };
 
 /// Outline all tasks in this function in post order.
@@ -434,9 +434,8 @@ bool TapirToTargetImpl::run() {
       continue;
     // TODO: Use per-function Tapir targets?
     if (!Target) {
-      TargetLibraryInfo &TLI = GetTLI(F);
-      const TapirTargetOptions &TTOpts = TLI.getTapirTargetOptions();
-      Target = getTapirTargetFromID(M, TLI.getTapirTarget(), TTOpts);
+      const TapirTargetOptions &TTOpts = TGI.getOptions();
+      Target = getTapirTargetFromID(M, TTOpts.getTapirTargetID(), TTOpts);
     }
     assert(Target && "Missing Tapir target");
     if (Target->shouldProcessFunction(F))
@@ -489,13 +488,10 @@ PreservedAnalyses TapirToTargetPass::run(Module &M, ModuleAnalysisManager &AM) {
   auto GetAC = [&FAM](Function &F) -> AssumptionCache & {
     return FAM.getResult<AssumptionAnalysis>(F);
   };
-  auto GetTLI = [&FAM](Function &F) -> TargetLibraryInfo & {
-    return FAM.getResult<TargetLibraryAnalysis>(F);
-  };
+  const TapirTargetInfo &TGI = AM.getResult<TapirTargetAnalysis>(M);
 
   bool Changed =
-      TapirToTargetImpl(M, GetAA, GetDT, GetTI, GetAC, GetTLI, this->Level)
-          .run();
+      TapirToTargetImpl(M, GetAA, GetDT, GetTI, GetAC, TGI, this->Level).run();
 
   if (Changed)
     return PreservedAnalyses::none();

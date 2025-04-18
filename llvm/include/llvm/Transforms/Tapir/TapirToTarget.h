@@ -13,9 +13,9 @@
 #ifndef LLVM_TRANSFORMS_TAPIR_TAPIRTOTARGET_H
 #define LLVM_TRANSFORMS_TAPIR_TAPIRTOTARGET_H
 
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/OptimizationLevel.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
 namespace llvm {
 

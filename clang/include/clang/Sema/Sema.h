@@ -109,6 +109,9 @@
 #include <vector>
 
 namespace llvm {
+namespace driver {
+class KitsuneOptions;
+}
 struct InlineAsmIdentifierInfo;
 } // namespace llvm
 
@@ -207,6 +210,8 @@ class LambdaScopeInfo;
 class SemaPPCallbacks;
 class TemplateDeductionInfo;
 } // namespace sema
+
+using llvm::driver::KitsuneOptions;
 
 // AssignmentAction - This is used by all the assignment diagnostic functions
 // to represent what is actually causing the operation
@@ -525,6 +530,7 @@ public:
   virtual void anchor();
 
   const LangOptions &getLangOpts() const { return LangOpts; }
+  const KitsuneOptions &getKitsuneOpts() const { return KitsuneOpts; }
   OpenCLOptions &getOpenCLOptions() { return OpenCLFeatures; }
   FPOptions &getCurFPFeatures() { return CurFPFeatures; }
 
@@ -907,6 +913,7 @@ public:
   FPOptions CurFPFeatures;
 
   const LangOptions &LangOpts;
+  const KitsuneOptions &KitsuneOpts;
   Preprocessor &PP;
   ASTContext &Context;
   ASTConsumer &Consumer;

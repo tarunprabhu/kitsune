@@ -10,30 +10,23 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TAPIR_COMMAND_LINE_UTILS_H
-#define LLVM_TAPIR_COMMAND_LINE_UTILS_H
+#ifndef LLVM_TAPIR_COMMAND_LINE_H
+#define LLVM_TAPIR_COMMAND_LINE_H
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/Support/ErrorOr.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
 namespace llvm {
 
 /// Parse the tapir target from a string. If the string is not a valid tapir
 /// target, return std::nullopt.
-std::optional<TapirTargetID> parseTapirTarget(StringRef s);
+ErrorOr<TapirTargetID> parseTapirTarget(StringRef s);
 
-/// Parse an optional boolean from a string. The value returned is according to
-/// the table below.
-///
-///     off  false
-///     on   true
-///     any  std::nullopt
-///
-/// If the value was not any of the values above, an invalid argument error is
-/// returned.
-llvm::ErrorOr<std::optional<bool>> parseOptionalBool(StringRef s);
+/// Parse a @ref MaybeBool enum from a string. If the string is not a valid
+/// string for this enum, an invalid argument error is returned.
+ErrorOr<MaybeBool> parseOptionalBool(StringRef s);
 
 } // namespace llvm
 
-#endif // LLVM_TAPIR_COMMAND_LINE_UTILS_H
+#endif // LLVM_TAPIR_COMMAND_LINE_H

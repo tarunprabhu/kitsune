@@ -14,9 +14,9 @@
 #define LLVM_TRANSFORMS_UTILS_TAPIRUTILS_H
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 
 #include <map>

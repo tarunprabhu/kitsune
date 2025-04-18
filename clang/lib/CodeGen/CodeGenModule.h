@@ -51,6 +51,10 @@ class FunctionType;
 class LLVMContext;
 class IndexedInstrProfReader;
 
+namespace driver {
+class KitsuneOptions;
+}
+
 namespace vfs {
 class FileSystem;
 }
@@ -346,6 +350,7 @@ public:
 private:
   ASTContext &Context;
   const LangOptions &LangOpts;
+  const llvm::driver::KitsuneOptions &KitsuneOpts;
   IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS; // Only used for debug info.
   const HeaderSearchOptions &HeaderSearchOpts; // Only used for debug info.
   const PreprocessorOptions &PreprocessorOpts; // Only used for debug info.
@@ -806,6 +811,9 @@ public:
 
   ASTContext &getContext() const { return Context; }
   const LangOptions &getLangOpts() const { return LangOpts; }
+  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
+    return KitsuneOpts;
+  }
   const IntrusiveRefCntPtr<llvm::vfs::FileSystem> &getFileSystem() const {
     return FS;
   }

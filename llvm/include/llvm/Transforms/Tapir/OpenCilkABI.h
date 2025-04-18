@@ -17,36 +17,13 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
-#include "llvm/Transforms/Tapir/TapirTargetOptions.h"
 
 namespace llvm {
-class Value;
+
+class OpenCilkTTOptions;
 class TapirLoopInfo;
-
-/// Options for the opencilk tapir target.
-class OpenCilkABIOptions : public TapirTargetOptions {
-private:
-  bool useRuntimeBC = true;
-  std::string runtimeBCPath;
-
-public:
-  explicit OpenCilkABIOptions() : TapirTargetOptions(TTO_OpenCilk) {}
-  explicit OpenCilkABIOptions(const OpenCilkABIOptions&) = default;
-  virtual ~OpenCilkABIOptions() = default;
-
-  void setUseRuntimeBC(bool use = true) { this->useRuntimeBC = use; }
-  void setRuntimeBCPath(StringRef path) { this->runtimeBCPath = path; }
-
-  bool getUseRuntimeBC() const { return useRuntimeBC; }
-  StringRef getRuntimeBCPath() const { return runtimeBCPath; }
-
-  virtual void readClOptions() override;
-  virtual OpenCilkABIOptions *clone() const override;
-
-  static bool classof(const TapirTargetOptions *TTO) {
-    return TTO->getKind() == TTO_OpenCilk;
-  }
-};
+class TapirTargetOptions;
+class Value;
 
 class OpenCilkABI final : public TapirTarget {
   ValueToValueMapTy DetachCtxToStackFrame;
@@ -161,10 +138,8 @@ class OpenCilkABI final : public TapirTarget {
   BasicBlock *GetDefaultSyncLandingpad(Function &F, Value *SF, DebugLoc Loc);
 
 public:
-  OpenCilkABI(Module &M, const OpenCilkABIOptions& opts);
+  OpenCilkABI(Module &M, const TapirTargetOptions &opts);
   ~OpenCilkABI() { DetachCtxToStackFrame.clear(); }
-
-  const OpenCilkABIOptions& getOptions() const override final;
 
   void prepareModule() override final;
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;

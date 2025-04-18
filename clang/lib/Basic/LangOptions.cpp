@@ -184,8 +184,7 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
 
   Opts.HIP = Lang == Language::HIP;
   Opts.CUDA = Lang == Language::CUDA || Opts.HIP;
-  const KitsuneOptions& KitsuneOpts = Opts.KitsuneOpts;
-  if (KitsuneOpts.isKitsuneFrontend() && KitsuneOpts.hasTapirTarget()) {
+  if (Opts.IsKitsune) {
     // When using a Kitsune frontend, the default FP contract mode is always ON.
     // This attempts to keep things consistent when compiling for CPU and GPU
     // simultaneously. We could have considered being consistent with clang and

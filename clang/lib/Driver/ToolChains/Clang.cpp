@@ -372,12 +372,14 @@ static bool addExceptionArgs(const ArgList &Args, types::ID InputType,
     // respect it in Kitsune (if it causes things to fail, it's not our problem)
     // But if it has not, turn exceptions off only if Kokkos mode has been
     // enabled or if a tapir target has been set.
+    const Driver &D = TC.getDriver();
+    std::optional<llvm::TapirTargetID> TT = parseTapirTargetIfValid(Args);
     if (ExceptionArg) {
       CXXExceptionsEnabled =
           ExceptionArg->getOption().matches(options::OPT_fcxx_exceptions) ||
           ExceptionArg->getOption().matches(options::OPT_fexceptions);
-    } else if (TC.getDriver().IsKitsuneFrontend() &&
-               (parseTapirTarget(Args) || Args.hasArg(options::OPT_fkokkos))) {
+    } else if (D.IsKitsuneFrontend() &&
+               (TT.has_value() || Args.hasArg(options::OPT_fkokkos))) {
       CXXExceptionsEnabled = false;
     }
 

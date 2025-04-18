@@ -7,7 +7,7 @@ set(LLVM_LINK_COMPONENTS
   ProfileData
   Support
   TargetParser
-  TapirCommon
+  FrontendTapir
   )
 
 add_clang_library(clangFrontend

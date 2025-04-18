@@ -280,6 +280,7 @@ static bool printSourceSymbolsFromModule(StringRef modulePath,
   std::unique_ptr<ASTUnit> AU =
       ASTUnit::LoadFromASTFile(modulePath, *pchRdr, ASTUnit::LoadASTOnly, Diags,
                                FileSystemOpts, HSOpts, /*LangOpts=*/nullptr,
+                               /*KitsuneOpts=*/nullptr,
                                /*OnlyLocalDecls=*/true, CaptureDiagsKind::None,
                                /*AllowASTWithCompilerErrors=*/true,
                                /*UserFilesAreVolatile=*/false);

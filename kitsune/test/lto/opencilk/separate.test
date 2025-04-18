@@ -1,0 +1,27 @@
+# Check that the tapir lowering passes are not run when compiling to an "object
+# file" (the prelink phase). When performing the actual link, the lowering
+# passes should be run.
+#
+# We emit LLVM instead of doing an actual link because the latter can fail on
+# systems with non-standard sysroots.
+#
+# RUN: mkdir -p %t
+#
+# RUN: %kitxx -c -flto --tapir=opencilk --tapir-verbose %S/../input/add.cpp \
+# RUN:     -O2 -o %t/add.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefixes=NO-LOWER --allow-empty
+#
+# RUN: %kitxx -c -flto --tapir=opencilk --tapir-verbose %S/../input/main.cpp \
+# RUN:     -O2 -o %t/main.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefixes=NO-LOWER --allow-empty
+#
+# RUN: %kitxx -flto --tapir=opencilk -O2 %t/main.o %t/add.o -o %t/a.bc \
+# RUN:     --tapir-verbose -Wl,--lto-emit-llvm 2>&1 \
+# RUN:     | FileCheck %s --check-prefixes=LOWER
+#
+# RUN: opt -S %t/a.bc | FileCheck %s --check-prefix=LAUNCH
+#
+# NO-LOWER-NOT: 'opencilk' tapir target options
+# NO-LOWER-NOT: cilkrts
+# LOWER: 'opencilk' tapir target options
+# LAUNCH: call {{.+}} @__cilkrts_sync

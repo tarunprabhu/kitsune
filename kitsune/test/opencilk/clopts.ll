@@ -1,17 +1,16 @@
 ; RUN: opt --tapir=opencilk -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-opencilk-abi-bc=%S/input/libopencilk-abi.bc \
+; RUN:      --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
 ; RUN:      --tapir-verbose 2>&1 \
 ; RUN:      | FileCheck %s -check-prefixes ALL,COMPILE
 ;
 ; RUN: opt --tapir=opencilk -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-opencilk-abi-bc=%S/input/libopencilk-abi.bc \
+; RUN:      --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
 ; RUN:      --tapir-verbose --kitrt-verbose 2>&1 \
 ; RUN:      | FileCheck %s -check-prefixes ALL,RUNTIME
 ;
 ; ALL: 'opencilk' tapir target options
-; COMPILE:   Runtime verbose: true
-; RUNTIME:   Runtime verbose: true
-; ALL:       Use bitcode: true
+; COMPILE:   Runtime verbose: 1
+; RUNTIME:   Runtime verbose: 1
 ; ALL:       Bitcode path: {{.+}}/libopencilk-abi.bc
 
 ; ModuleID = 'clopts.c'

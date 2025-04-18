@@ -94,10 +94,7 @@ raw_ostream &operator<<(raw_ostream &os,
     return os << "<<<std::nullopt>>>";
 }
 
-raw_ostream &operator<<(raw_ostream &os, const std::optional<bool> &v) {
-  // This prints 'on' and 'off' instead of true and false because 'on' and 'off'
-  // are used in the command line options from which these are typically
-  // obtained.
+raw_ostream &operator<<(raw_ostream &os, const MaybeBool &v) {
   if (not v.has_value())
     return os << "any";
   else if (*v)

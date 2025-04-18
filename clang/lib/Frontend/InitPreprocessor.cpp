@@ -25,6 +25,7 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Serialization/ASTReader.h"
 #include "llvm/ADT/APFloat.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
 using namespace clang;
@@ -853,6 +854,7 @@ void DefineFixedPointMacros(const TargetInfo &TI, MacroBuilder &Builder,
 
 static void InitializePredefinedMacros(const TargetInfo &TI,
                                        const LangOptions &LangOpts,
+                                       const KitsuneOptions &KitsuneOpts,
                                        const FrontendOptions &FEOpts,
                                        const PreprocessorOptions &PPOpts,
                                        MacroBuilder &Builder) {
@@ -880,9 +882,8 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   // could have defaulted to an empty string, but this would not be in keeping
   // with the principle of "absence indicating absence". The empty string would
   // be too much like the "special sentinel indicating absence".
-  const KitsuneOptions& KitOpts = LangOpts.KitsuneOpts;
   Builder.defineMacro("__kitsune__"); // Kitsune Frontend
-  if (std::optional<llvm::TapirTargetID> tt = KitOpts.getTapirTarget()) {
+  if (std::optional<llvm::TapirTargetID> tt = KitsuneOpts.getTapirTarget()) {
     std::string s;
     llvm::raw_string_ostream os(s);
     os << '"' << *tt << '"';
@@ -1563,6 +1564,7 @@ void clang::InitializePreprocessor(Preprocessor &PP,
                                    const FrontendOptions &FEOpts,
                                    const CodeGenOptions &CodeGenOpts) {
   const LangOptions &LangOpts = PP.getLangOpts();
+  const KitsuneOptions &KitsuneOpts = PP.getKitsuneOpts();
   std::string PredefineBuffer;
   PredefineBuffer.reserve(4080);
   llvm::raw_string_ostream Predefines(PredefineBuffer);
@@ -1580,11 +1582,11 @@ void clang::InitializePreprocessor(Preprocessor &PP,
     if ((LangOpts.CUDA || LangOpts.OpenMPIsTargetDevice ||
          LangOpts.SYCLIsDevice) &&
         PP.getAuxTargetInfo())
-      InitializePredefinedMacros(*PP.getAuxTargetInfo(), LangOpts, FEOpts,
-                                 PP.getPreprocessorOpts(), Builder);
+      InitializePredefinedMacros(*PP.getAuxTargetInfo(), LangOpts, KitsuneOpts,
+                                 FEOpts, PP.getPreprocessorOpts(), Builder);
 
-    InitializePredefinedMacros(PP.getTargetInfo(), LangOpts, FEOpts,
-                               PP.getPreprocessorOpts(), Builder);
+    InitializePredefinedMacros(PP.getTargetInfo(), LangOpts, KitsuneOpts,
+                               FEOpts, PP.getPreprocessorOpts(), Builder);
 
     // Install definitions to make Objective-C++ ARC work well with various
     // C++ Standard Library implementations.

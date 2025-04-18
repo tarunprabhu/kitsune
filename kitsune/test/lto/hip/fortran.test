@@ -1,0 +1,16 @@
+# REQUIRES: kitfc
+#
+# FIXME: The Fortran source does not exist yet. When full Fortran support is
+# enabled in Kitsune, write those files and remove the xfail here.
+# XFAIL: *
+#
+# Check a standard "end-to-end" lowering using LTO. We emit LLVM from LLD
+# because running the linker may not work on systems with non-standard
+# sysroots.
+#
+# RUN: %kitfc -ftapir=hip -O2 -flto -Wl,--lto-emit-llvm -o - \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | opt -S
+# RUN:     | FileCheck %s
+#
+# CHECK: call {{.+}} @__kithip_launch_kernel

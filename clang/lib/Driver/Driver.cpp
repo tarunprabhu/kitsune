@@ -68,6 +68,7 @@
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
 #include "clang/Driver/Types.h"
+#include "kitsune/Config/config.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
@@ -75,6 +76,7 @@
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Frontend/Tapir/CommandLine.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
@@ -95,7 +97,6 @@
 #include "llvm/Support/StringSaver.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/Tapir/TapirCommandLineUtils.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/RISCVISAInfo.h"
 #include <cstdlib> // ::getenv
@@ -135,7 +136,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
   // Check that the -ftapir flag has a valid value. This stops us from
   // reporting multiple errors because the flag is examined in several places.
   if (const Arg *A = Args.getLastArg(options::OPT_tapir_EQ)) {
-    std::optional<llvm::TapirTargetID> TT =
+    llvm::ErrorOr<llvm::TapirTargetID> TT =
         llvm::parseTapirTarget(A->getValue());
     if (not TT) {
       D.Diag(diag::err_drv_invalid_value)
@@ -1470,7 +1471,7 @@ bool Driver::loadConfigFiles() {
     // config file is not found. They are intended to be optional just like the
     // "top-level" clang config file.
     if (std::optional<llvm::StringRef> TargetCfgFile =
-            getTargetConfigFileName(*CLOptions)) {
+            getTapirTargetConfigFileName(*CLOptions)) {
       if (!TargetCfgFile->empty() &&
           ExpCtx.findConfigFile(*TargetCfgFile, CfgFilePath))
         // If an error occurs while reading the file, this will return true.

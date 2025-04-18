@@ -1,0 +1,16 @@
+# REQUIRES: kitfc
+#
+# FIXME: The Fortran source does not exist yet. When full Fortran support is
+# enabled in Kitsune, write those files and remove the xfail here.
+# XFAIL: *
+#
+# Ensure that the command line options specific to the opencilk tapir target are
+# correctly handled when compiling Fortran with -flto.
+#
+# RUN: %kitfc -### -ftapir=opencilk -O2 -flto \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL
+#
+# ALL: /ld{{(64)?}}.lld"
+# ALL-SAME: "-mllvm" "--tapir=opencilk"
+# ALL-SAME: "-mllvm" "--tapir-opencilk-runtime-bc={{.+}}.bc"

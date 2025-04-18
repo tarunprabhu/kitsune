@@ -36,6 +36,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -106,6 +107,7 @@ public:
   };
 
 private:
+  std::shared_ptr<llvm::driver::KitsuneOptions> KitsuneOpts;
   std::shared_ptr<LangOptions>            LangOpts;
   IntrusiveRefCntPtr<DiagnosticsEngine>   Diagnostics;
   IntrusiveRefCntPtr<FileManager>         FileMgr;
@@ -461,6 +463,11 @@ public:
     return *TheSema;
   }
 
+  const KitsuneOptions &getKitsuneOpts() const {
+    assert(KitsuneOpts && "ASTUnit does not have Kitsune options");
+    return *KitsuneOpts;
+  }
+
   const LangOptions &getLangOpts() const {
     assert(LangOpts && "ASTUnit does not have language options");
     return *LangOpts;
@@ -698,6 +705,8 @@ public:
                   const FileSystemOptions &FileSystemOpts,
                   std::shared_ptr<HeaderSearchOptions> HSOpts,
                   std::shared_ptr<LangOptions> LangOpts = nullptr,
+                  std::shared_ptr<llvm::driver::KitsuneOptions> KitsuneOpts =
+                      nullptr,
                   bool OnlyLocalDecls = false,
                   CaptureDiagsKind CaptureDiagnostics = CaptureDiagsKind::None,
                   bool AllowASTWithCompilerErrors = false,

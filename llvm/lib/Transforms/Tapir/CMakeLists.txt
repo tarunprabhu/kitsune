@@ -1,25 +1,5 @@
-add_llvm_component_library(LLVMTapirCommon
-  TapirCommandLineUtils.cpp
-  TapirStringUtils.cpp
-  TapirTargetOptions.cpp
-
-  # LLVM discourages the use of this, but it is used in some parts of LLVM for
-  # good reason. Most of the Tapir code is in llvm/lib/Transforms, but a lot of
-  # it should probably be moved elsewhere, including the code that is shared
-  # with clang, flang and lld. For now, just do what we have to here.
-  PARTIAL_SOURCES_INTENDED
-
-  COMPONENT_NAME
-  TapirCommon
-
-  LINK_COMPONENTS
-  Core
-  Support
-)
-
 set(SOURCES
   DRFScopedNoAliasAA.cpp
-  GPUABIOptions.cpp
   LoopSpawningTI.cpp
   LoopStripMine.cpp
   LoopStripMinePass.cpp
@@ -90,13 +70,14 @@ add_llvm_component_library(LLVMTapirOpts
   LINK_COMPONENTS
   Analysis
   Core
+  FrontendTapir
   IPO
   IRReader
   Linker
   MC
   Scalar
   Support
-  TapirCommon
+  FrontendTapir
   TransformUtils
   Vectorize
   Passes

@@ -1,4 +1,4 @@
-! REQUIRES: kitsune-kitfc
+! REQUIRES: kitfc
 !
 ! This has not been implemented yet.
 ! XFAIL: *

@@ -57,6 +57,7 @@
 #include "clang/Basic/Attributes.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/IR/ValueMap.h"
 
 using namespace clang;
@@ -123,7 +124,7 @@ CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
       llvm_unreachable("Tapir target not handled");
     }
   }
-  return CGM.getLangOpts().KitsuneOpts.getTapirTarget();
+  return CGM.getKitsuneOpts().getTapirTarget();
 }
 
 unsigned CodeGenFunction::GetKitsuneLaunchAttr(ArrayRef<const Attr *> Attrs) {

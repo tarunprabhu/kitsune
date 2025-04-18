@@ -54,7 +54,11 @@ class SwitchInst;
 class Twine;
 class Value;
 class CanonicalLoopInfo;
+
+namespace driver {
+class KitsuneOptions;
 }
+} // namespace llvm
 
 namespace clang {
 class ASTContext;
@@ -2718,6 +2722,9 @@ public:
   }
 
   const LangOptions &getLangOpts() const { return CGM.getLangOpts(); }
+  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
+    return CGM.getKitsuneOpts();
+  }
 
   /// Returns a pointer to the function's exception object and selector slot,
   /// which is assigned in every landing pad.

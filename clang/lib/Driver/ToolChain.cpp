@@ -25,6 +25,7 @@
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Driver/Tapir.h"
 #include "clang/Driver/XRayArgs.h"
+#include "kitsune/Config/config.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
@@ -47,7 +48,6 @@
 #include "llvm/TargetParser/RISCVISAInfo.h"
 #include "llvm/TargetParser/TargetParser.h"
 #include "llvm/TargetParser/Triple.h"
-#include "llvm/Transforms/Tapir/TapirStringUtils.h"
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -1794,7 +1794,7 @@ void ToolChain::AddKitsuneCudaCommonArgs(const ArgList &Args,
                                             KITSUNE_CUDA_ARCH_DEFAULT);
   PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_cuda_arch_EQ, CudaArch);
 
-  AddKitsuneGPUCommonArgs(Args, CmdArgs);
+  AddKitsuneGPUCommonArgs(Args, CmdArgs, MLLVM);
 }
 
 void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
@@ -1804,7 +1804,7 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
                                            KITSUNE_HIP_ARCH_DEFAULT);
   PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_hip_arch_EQ, HipArch);
 
-  AddKitsuneGPUCommonArgs(Args, CmdArgs);
+  AddKitsuneGPUCommonArgs(Args, CmdArgs, MLLVM);
 }
 
 void ToolChain::AddKitsuneLambdaCommonArgs(const ArgList &Args,
@@ -1827,7 +1827,8 @@ void ToolChain::AddKitsuneOpenCilkCommonArgs(const ArgList &Args,
                                              ArgStringList &CmdArgs,
                                              bool MLLVM) const {
   if (std::optional<std::string> BC = getOpenCilkABIBitcodeFile(Args))
-    PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_opencilk_abi_bc_EQ, *BC);
+    PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_opencilk_runtime_bc_EQ,
+            *BC);
 }
 
 void ToolChain::AddKitsuneOpenMPCommonArgs(const ArgList &Args,
@@ -1857,7 +1858,7 @@ void ToolChain::AddKitsuneRealmCommonArgs(const ArgList &Args,
 
 void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
                                            ArgStringList &CmdArgs) const {
-  std::optional<TapirTargetID> TT = parseTapirTarget(Args);
+  std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args);
   bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos);
 
   if (TT) {
@@ -1926,7 +1927,7 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
   }
 
-  if (std::optional<TapirTargetID> TT = parseTapirTarget(Args)) {
+  if (std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args)) {
     Args.AddLastArg(CmdArgs, options::OPT_ffp_contract);
     Args.AddLastArg(CmdArgs, options::OPT_kitrt_verbose);
     Args.AddLastArg(CmdArgs, options::OPT_tapir_verbose);
@@ -2124,7 +2125,7 @@ void ToolChain::AddKitsuneRealmLinkerArgs(const ArgList &Args,
 
 void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
                                      ArgStringList &CmdArgs) const {
-  std::optional<TapirTargetID> TT = parseTapirTarget(Args);
+  std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args);
   bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_fkokkos);
 
   if (TT) {
@@ -2239,25 +2240,11 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
 
 void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
                                   ArgStringList &CmdArgs) const {
-  if (std::optional<TapirTargetID> TT = parseTapirTarget(Args)) {
-    // Handling of the -ffp-contract option has to be done exactly the way it is
-    // done in BackendUtil.cpp. Explanations for this are in that file.
-    CmdArgs.push_back("-mllvm");
-    if (const Arg *A = Args.getLastArg(options::OPT_ffp_contract)) {
-      if (StringRef(A->getValue()) == "fast")
-        CmdArgs.push_back("--fp-contract=fast");
-        // PushArg(CmdArgs, Args, true, options::OPT_ffp_contract, "fast");
-      else
-        CmdArgs.push_back("--fp-contract=on");
-        // PushArg(CmdArgs, Args, true, options::OPT_ffp_contract, "on");
-    } else {
-      CmdArgs.push_back("--fp-contract=on");
-      // PushArg(CmdArgs, Args, true, options::OPT_ffp_contract, "on");
-    }
-
-    PushLastArg(CmdArgs, Args, true, options::OPT_kitrt_verbose);
-    PushLastArg(CmdArgs, Args, true, options::OPT_tapir_verbose);
+  if (std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args)) {
     PushLastArg(CmdArgs, Args, true, options::OPT_tapir_EQ);
+
+    PushLastArg(CmdArgs, Args, true, options::OPT_tapir_verbose);
+    PushLastArg(CmdArgs, Args, true, options::OPT_kitrt_verbose);
     switch (*TT) {
     case TapirTargetID::None:
       break;
@@ -2291,13 +2278,28 @@ void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
       llvm_unreachable("AddKitsuneLTOArgs: TapirTargetID not handled");
       break;
     }
+    // Handling of the -ffp-contract option has to be done exactly the way it is
+    // done in BackendUtil.cpp. Explanations for this are in that file.
+    CmdArgs.push_back("-mllvm");
+    if (const Arg *A = Args.getLastArg(options::OPT_ffp_contract)) {
+      if (StringRef(A->getValue()) == "fast")
+        CmdArgs.push_back("--fp-contract=fast");
+        // PushArg(CmdArgs, Args, true, options::OPT_ffp_contract, "fast");
+      else
+        CmdArgs.push_back("--fp-contract=on");
+        // PushArg(CmdArgs, Args, true, options::OPT_ffp_contract, "on");
+    } else {
+      CmdArgs.push_back("--fp-contract=on");
+      // PushArg(CmdArgs, Args, true, options::OPT_ffp_contract, "on");
+    }
+
     // TODO: Need to figure out what to do with stripmining here.
   }
 }
 
 std::optional<std::string>
 ToolChain::getOpenCilkABIBitcodeFile(const ArgList &Args) const {
-  if (Arg *A = Args.getLastArg(options::OPT_tapir_opencilk_abi_bc_EQ))
+  if (Arg *A = Args.getLastArg(options::OPT_tapir_opencilk_runtime_bc_EQ))
     return A->getValue();
   return getOpenCilkBC(Args, "opencilk-abi");
 }

@@ -9,8 +9,8 @@
 // RUN:     | FileCheck %s -check-prefixes ALL,RUNTIME
 //
 // ALL: 'serial' tapir target options
-// COMPILE:   Runtime verbose: true
-// RUNTIME:   Runtime verbose: true
+// COMPILE:   Runtime verbose: 1
+// RUNTIME:   Runtime verbose: 1
 
 #include <kitsune.h>
 

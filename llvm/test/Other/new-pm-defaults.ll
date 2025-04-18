@@ -329,6 +329,7 @@
 ; CHECK-LTO-NEXT: Running pass: CanonicalizeAliasesPass
 ; CHECK-LTO-NEXT: Running pass: NameAnonGlobalPass
 ; CHECK-O-NEXT: Running pass: LowerMobileIntrinsicsPass
+; CHECK-O-NEXT: Running analysis: TapirTargetAnalysis
 ; CHECK-O-NEXT: Running pass: StripKitsuneAddrSpacePass
 ; CHECK-O-NEXT: Running pass: PrintModulePass
 ;

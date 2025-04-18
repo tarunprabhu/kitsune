@@ -7,17 +7,26 @@
 //===----------------------------------------------------------------------===//
 //
 // This file enumerates the available Tapir lowering targets and other types
-// that are shared between the frontend and middle-ends.
+// that are shared between the front and middle-ends.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TAPIR_TARGET_IDS_H
-#define LLVM_TAPIR_TARGET_IDS_H
+#ifndef LLVM_FRONTEND_TAPIR_TAPIR_H
+#define LLVM_FRONTEND_TAPIR_TAPIR_H
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetOptions.h"
 
 namespace llvm {
+
+/// An enumeration that may be set to a boolean value or unset.
+enum class MaybeBool {
+  Off, /// The value is set to false
+  On,  /// The value is set to true
+  Any  /// The value is unset
+};
 
 /// The identifiers for the known tapir targets.
 enum class TapirTargetID {
@@ -41,15 +50,17 @@ enum class TapirSpawnStrategy {
   GPU               /// GPU-centric spawning strategy. Currently unused.
 };
 
-// Serialize the Tapir target into the given output stream. This will write a
-// string representation that is compatible with the -ftapir argument used in
-// clang.
-raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &Target);
-
-/// Serialization functions to help with debugging and more useful verbose mode
-/// output.
-raw_ostream &operator<<(raw_ostream &os, const TapirSpawnStrategy &strategy);
+/// @{
+/// Serialization functions for various types. These will serialize the types
+/// into an llvm::ostream.
+raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &);
+raw_ostream &operator<<(raw_ostream &os, const std::optional<TapirTargetID> &);
+raw_ostream &operator<<(raw_ostream &os, const TapirSpawnStrategy &);
+raw_ostream &operator<<(raw_ostream &os, const OptimizationLevel &);
+raw_ostream &operator<<(raw_ostream &os, const FPOpFusion::FPOpFusionMode &);
+raw_ostream &operator<<(raw_ostream &os, const MaybeBool &);
+/// @}
 
 } // namespace llvm
 
-#endif // LLVM_TAPIR_TARGET_IDS_H
+#endif // LLVM_FRONTEND_TAPIR_TAPIR_H

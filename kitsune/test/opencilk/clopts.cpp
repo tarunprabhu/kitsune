@@ -9,9 +9,8 @@
 // RUN:     | FileCheck %s -check-prefixes ALL,RUNTIME
 //
 // ALL: 'opencilk' tapir target options
-// COMPILE:   Runtime verbose: true
-// RUNTIME:   Runtime verbose: true
-// ALL:       Use bitcode: true
+// COMPILE:   Runtime verbose: 1
+// RUNTIME:   Runtime verbose: 1
 // ALL:       Bitcode path: {{.+}}/libopencilk-abi.bc
 
 #include <kitsune.h>

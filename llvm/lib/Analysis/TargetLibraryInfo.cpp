@@ -18,8 +18,6 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/TargetParser/Triple.h"
-#include "llvm/Transforms/Tapir/TapirCommandLineUtils.h"
-#include "llvm/Transforms/Tapir/TapirTargets.h"
 using namespace llvm;
 
 static cl::opt<TargetLibraryInfoImpl::VectorLibrary> ClVectorLibrary(
@@ -43,31 +41,6 @@ static cl::opt<TargetLibraryInfoImpl::VectorLibrary> ClVectorLibrary(
                           "Arm Performance Libraries"),
                clEnumValN(TargetLibraryInfoImpl::AMDLIBM, "AMDLIBM",
                           "AMD vector math library")));
-
-/// Parser for the -tapir-target option to create an optional TapirTargetID.
-struct TapirTargetIDParser : public cl::parser<std::optional<TapirTargetID>> {
-  TapirTargetIDParser(llvm::cl::opt<std::optional<llvm::TapirTargetID>, false,
-                                    TapirTargetIDParser> &O)
-      : parser(O) {}
-  bool parse(cl::Option &O, StringRef ArgName, StringRef ArgValue,
-             std::optional<TapirTargetID> &Val) {
-    if (std::optional<TapirTargetID> TT = parseTapirTarget(ArgValue)) {
-      Val = TT;
-      return false;
-    } else {
-      Val = std::nullopt;
-      O.error("invalid value '" + ArgValue + "' in '" + ArgName + "'");
-      return true;
-    }
-  }
-};
-
-static cl::opt<std::optional<TapirTargetID>, false, TapirTargetIDParser>
-    ClTapirTarget("tapir-target", cl::desc("Target runtime for Tapir"),
-                  cl::init(std::optional<TapirTargetID>()));
-
-static cl::alias ClTapir("tapir", cl::desc("Alias for --tapir-target"),
-                         cl::aliasopt(ClTapirTarget));
 
 StringLiteral const TargetLibraryInfoImpl::StandardNames[LibFunc::NumLibFuncs] =
     {
@@ -936,12 +909,6 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_memrchr);
 
   TLI.addVectorizableFunctionsFromVecLib(ClVectorLibrary, T);
-
-  if (ClTapirTarget) {
-    TLI.setTapirTarget(*ClTapirTarget);
-    TLI.addTapirTargetOptions(*ClTapirTarget);
-    TLI.addTapirTargetLibraryFunctions(*ClTapirTarget);
-  }
 }
 
 /// Initialize the set of available library functions based on the specified
@@ -971,9 +938,7 @@ TargetLibraryInfoImpl::TargetLibraryInfoImpl(const TargetLibraryInfoImpl &TLI)
       ShouldExtI32Return(TLI.ShouldExtI32Return),
       ShouldSignExtI32Param(TLI.ShouldSignExtI32Param),
       ShouldSignExtI32Return(TLI.ShouldSignExtI32Return),
-      SizeOfInt(TLI.SizeOfInt), TapirTarget(TLI.TapirTarget) {
-  if (TLI.TTOptions)
-    TTOptions = std::unique_ptr<TapirTargetOptions>(TLI.TTOptions->clone());
+      SizeOfInt(TLI.SizeOfInt) {
   memcpy(AvailableArray, TLI.AvailableArray, sizeof(AvailableArray));
   VectorDescs = TLI.VectorDescs;
   ScalarDescs = TLI.ScalarDescs;
@@ -986,8 +951,7 @@ TargetLibraryInfoImpl::TargetLibraryInfoImpl(TargetLibraryInfoImpl &&TLI)
       ShouldExtI32Return(TLI.ShouldExtI32Return),
       ShouldSignExtI32Param(TLI.ShouldSignExtI32Param),
       ShouldSignExtI32Return(TLI.ShouldSignExtI32Return),
-      SizeOfInt(TLI.SizeOfInt), TapirTarget(TLI.TapirTarget),
-      TTOptions(std::move(TLI.TTOptions)) {
+      SizeOfInt(TLI.SizeOfInt) {
   std::move(std::begin(TLI.AvailableArray), std::end(TLI.AvailableArray),
             AvailableArray);
   VectorDescs = TLI.VectorDescs;
@@ -1002,9 +966,6 @@ TargetLibraryInfoImpl &TargetLibraryInfoImpl::operator=(const TargetLibraryInfoI
   ShouldSignExtI32Param = TLI.ShouldSignExtI32Param;
   ShouldSignExtI32Return = TLI.ShouldSignExtI32Return;
   SizeOfInt = TLI.SizeOfInt;
-  TapirTarget = TLI.TapirTarget;
-  if (TLI.TTOptions)
-    TTOptions = std::unique_ptr<TapirTargetOptions>(TLI.TTOptions->clone());
   memcpy(AvailableArray, TLI.AvailableArray, sizeof(AvailableArray));
   return *this;
 }
@@ -1016,8 +977,6 @@ TargetLibraryInfoImpl &TargetLibraryInfoImpl::operator=(TargetLibraryInfoImpl &&
   ShouldSignExtI32Param = TLI.ShouldSignExtI32Param;
   ShouldSignExtI32Return = TLI.ShouldSignExtI32Return;
   SizeOfInt = TLI.SizeOfInt;
-  TapirTarget = TLI.TapirTarget;
-  TTOptions = std::move(TLI.TTOptions);
   std::move(std::begin(TLI.AvailableArray), std::end(TLI.AvailableArray),
             AvailableArray);
   return *this;
@@ -1448,32 +1407,6 @@ void TargetLibraryInfoImpl::addVectorizableFunctionsFromVecLib(
   }
   case NoLibrary:
     break;
-  }
-}
-
-static std::unique_ptr<TapirTargetOptions>
-createTapirTargetOptions(TapirTargetID TargetID) {
-  switch (TargetID) {
-  case TapirTargetID::None:
-    return nullptr;
-  case TapirTargetID::Cuda:
-    return std::make_unique<CudaABIOptions>();
-  case TapirTargetID::Hip:
-    return std::make_unique<HipABIOptions>();
-  case TapirTargetID::OpenCilk:
-    return std::make_unique<OpenCilkABIOptions>();
-  case TapirTargetID::Serial:
-    return std::make_unique<SerialABIOptions>();
-  default:
-    llvm_unreachable("createTapirTargetOptions: TapirTargetID not handled");
-  }
-}
-
-void TargetLibraryInfoImpl::addTapirTargetOptions(TapirTargetID TargetID) {
-  std::unique_ptr<TapirTargetOptions> opts = createTapirTargetOptions(TargetID);
-  if (opts) {
-    opts->readClOptions();
-    setTapirTargetOptions(std::move(opts));
   }
 }
 

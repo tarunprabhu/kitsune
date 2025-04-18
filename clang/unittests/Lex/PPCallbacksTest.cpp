@@ -23,6 +23,7 @@
 #include "clang/Parse/Parser.h"
 #include "clang/Sema/Sema.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/Support/Path.h"
 #include "gtest/gtest.h"
 
@@ -149,6 +150,7 @@ protected:
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
   LangOptions LangOpts;
+  llvm::driver::KitsuneOptions KitsuneOpts;
   std::shared_ptr<TargetOptions> TargetOpts;
   IntrusiveRefCntPtr<TargetInfo> Target;
 
@@ -200,7 +202,7 @@ protected:
     AddFakeHeader(HeaderInfo, HeaderPath, SystemHeader);
 
     Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                    SourceMgr, HeaderInfo, ModLoader,
+                    KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
                     /*IILookup =*/nullptr,
                     /*OwnsHeaderSearch =*/false);
     return InclusionDirectiveCallback(PP)->FilenameRange;
@@ -219,7 +221,7 @@ protected:
     AddFakeHeader(HeaderInfo, HeaderPath, SystemHeader);
 
     Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                    SourceMgr, HeaderInfo, ModLoader,
+                    KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
                     /*IILookup =*/nullptr,
                     /*OwnsHeaderSearch =*/false);
     return InclusionDirectiveCallback(PP)->FileType;
@@ -247,7 +249,7 @@ protected:
     HeaderSearch HeaderInfo(std::make_shared<HeaderSearchOptions>(), SourceMgr,
                             Diags, LangOpts, Target.get());
     Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                    SourceMgr, HeaderInfo, ModLoader,
+                    KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
                     /*IILookup =*/nullptr,
                     /*OwnsHeaderSearch =*/false);
     PP.Initialize(*Target);
@@ -272,7 +274,8 @@ protected:
     TrivialModuleLoader ModLoader;
 
     Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                    SourceMgr, HeaderInfo, ModLoader, /*IILookup=*/nullptr,
+                    KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
+                    /*IILookup=*/nullptr,
                     /*OwnsHeaderSearch=*/false);
     PP.Initialize(*Target);
 
@@ -300,7 +303,8 @@ protected:
                             Diags, OpenCLLangOpts, Target.get());
 
     Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags,
-                    OpenCLLangOpts, SourceMgr, HeaderInfo, ModLoader,
+                    OpenCLLangOpts, KitsuneOpts, SourceMgr, HeaderInfo,
+                    ModLoader,
                     /*IILookup =*/nullptr,
                     /*OwnsHeaderSearch =*/false);
     PP.Initialize(*Target);
@@ -309,7 +313,8 @@ protected:
     // according to LangOptions, so we init Parser to register opencl
     // pragma handlers
     ASTContext Context(OpenCLLangOpts, SourceMgr, PP.getIdentifierTable(),
-                       PP.getSelectorTable(), PP.getBuiltinInfo(), PP.TUKind);
+                       PP.getSelectorTable(), PP.getBuiltinInfo(),
+                       KitsuneOpts, PP.TUKind);
     Context.InitBuiltinTypes(*Target);
 
     ASTConsumer Consumer;
@@ -439,7 +444,7 @@ TEST_F(PPCallbacksTest, FileNotFoundSkipped) {
   DiagnosticConsumer *DiagConsumer = new DiagnosticConsumer;
   DiagnosticsEngine FileNotFoundDiags(DiagID, DiagOpts.get(), DiagConsumer);
   Preprocessor PP(std::make_shared<PreprocessorOptions>(), FileNotFoundDiags,
-                  LangOpts, SourceMgr, HeaderInfo, ModLoader,
+                  LangOpts, KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
                   /*IILookup=*/nullptr,
                   /*OwnsHeaderSearch=*/false);
   PP.Initialize(*Target);

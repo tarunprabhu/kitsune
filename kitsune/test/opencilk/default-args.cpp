@@ -7,7 +7,7 @@
 //
 // CHECK: -cc1
 // CHECK-SAME: --tapir=opencilk
-// CHECK-SAME: --tapir-opencilk-abi-bc
+// CHECK-SAME: --tapir-opencilk-runtime-bc
 //
 // For OpenCilk, stripmining is enabled by default.
 //

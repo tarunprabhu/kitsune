@@ -223,7 +223,7 @@ BuildASTContext(CompilerInstance &CI, SelectorTable &ST, Builtin::Context &BC) {
   auto &PP = CI.getPreprocessor();
   auto AST = std::make_unique<ASTContext>(
       CI.getLangOpts(), CI.getSourceManager(),
-      PP.getIdentifierTable(), ST, BC, PP.TUKind);
+      PP.getIdentifierTable(), ST, BC, CI.getKitsuneOpts(), PP.TUKind);
   AST->InitBuiltinTypes(CI.getTarget());
   return AST;
 }

@@ -51,6 +51,10 @@ class FixedPointSemantics;
 struct fltSemantics;
 template <typename T, unsigned N> class SmallPtrSet;
 
+namespace driver {
+class KitsuneOptions;
+}
+
 } // namespace llvm
 
 namespace clang {
@@ -635,6 +639,9 @@ private:
   ///  this ASTContext object.
   LangOptions &LangOpts;
 
+  /// The Kitsune options that have been set.
+  llvm::driver::KitsuneOptions &KitsuneOpts;
+
   /// NoSanitizeList object that is used by sanitizers to decide which
   /// entities should not be instrumented.
   std::unique_ptr<NoSanitizeList> NoSanitizeL;
@@ -832,6 +839,10 @@ public:
   bool AtomicUsesUnsupportedLibcall(const AtomicExpr *E) const;
 
   const LangOptions& getLangOpts() const { return LangOpts; }
+
+  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
+    return KitsuneOpts;
+  }
 
   // If this condition is false, typo correction must be performed eagerly
   // rather than delayed in many places, as it makes use of dependent types.
@@ -1257,6 +1268,7 @@ public:
 
   ASTContext(LangOptions &LOpts, SourceManager &SM, IdentifierTable &idents,
              SelectorTable &sels, Builtin::Context &builtins,
+             llvm::driver::KitsuneOptions &KOpts,
              TranslationUnitKind TUKind);
   ASTContext(const ASTContext &) = delete;
   ASTContext &operator=(const ASTContext &) = delete;

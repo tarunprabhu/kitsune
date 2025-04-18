@@ -10,14 +10,13 @@
 #define LLVM_ANALYSIS_TARGETLIBRARYINFO_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/TargetParser/Triple.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
-#include "llvm/Transforms/Tapir/TapirTargetOptions.h"
 #include <bitset>
 #include <optional>
 
@@ -89,8 +88,6 @@ class TargetLibraryInfoImpl {
   static StringLiteral const StandardNames[NumLibFuncs];
   bool ShouldExtI32Param, ShouldExtI32Return, ShouldSignExtI32Param, ShouldSignExtI32Return;
   unsigned SizeOfInt;
-  TapirTargetID TapirTarget = TapirTargetID::Last_TapirTargetID;
-  std::unique_ptr<TapirTargetOptions> TTOptions = nullptr;
 
   enum AvailabilityState {
     StandardName = 3, // (memset to all ones)
@@ -278,48 +275,9 @@ public:
   static bool isCallingConvCCompatible(CallBase *CI);
   static bool isCallingConvCCompatible(Function *Callee);
 
-  /// Set the target for Tapir lowering.
-  void setTapirTarget(TapirTargetID TargetID) {
-    TapirTarget = TargetID;
-  }
-
-  /// Return the ID of the target for Tapir lowering.
-  TapirTargetID getTapirTarget() const {
-    return TapirTarget;
-  }
-
-  /// Return true if we have a nontrivial target for Tapir lowering.
-  bool hasTapirTarget() const {
-    return (TapirTarget != TapirTargetID::Last_TapirTargetID) &&
-      (TapirTarget != TapirTargetID::None);
-/*
-    if (TapirTarget.has_value())
-      return *TapirTarget != TapirTargetID::None;
-    return false;
-*/
-  }
-
-  /// Set options for Tapir lowering.
-  void setTapirTargetOptions(std::unique_ptr<TapirTargetOptions> Options) {
-    std::swap(TTOptions, Options);
-  }
-
-  /// Return any options for Tapir lowering.
-  const TapirTargetOptions& getTapirTargetOptions() const {
-    assert(TTOptions.get() && "Tapir target options have not been set");
-    return *TTOptions;
-  }
-
   /// Records known library functions associated with the specified Tapir
   /// target.
-  void addTapirTargetLibraryFunctions() {
-    addTapirTargetLibraryFunctions(TapirTarget);
-  }
   void addTapirTargetLibraryFunctions(TapirTargetID TargetID);
-
-  /// Creates a new options object for the tapir target and initializes it from
-  /// the LLVM command line options.
-  void addTapirTargetOptions(TapirTargetID TargetID);
 
   /// Searches for a particular function name among known Tapir-target library
   /// functions, also checking that its type is valid for the library function
@@ -638,21 +596,6 @@ public:
   /// \copydoc TargetLibraryInfoImpl::getIntSize()
   unsigned getIntSize() const {
     return Impl->getIntSize();
-  }
-
-  /// \copydoc TargetLibraryInfoImpl::getTapirTarget()
-  TapirTargetID getTapirTarget() const {
-    return Impl->getTapirTarget();
-  }
-
-  /// \copydoc TargetLibraryInfoImpl::hasTapirTarget()
-  bool hasTapirTarget() const {
-    return Impl->hasTapirTarget();
-  }
-
-  /// \copydoc TargetLibraryInfoImpl::getTapirTarget()
-  const TapirTargetOptions &getTapirTargetOptions() const {
-    return Impl->getTapirTargetOptions();
   }
 
   /// \copydoc TargetLibraryInfoImpl::isTapirTargetLibFunc()

@@ -16,10 +16,10 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
 namespace llvm {
 class BasicBlock;

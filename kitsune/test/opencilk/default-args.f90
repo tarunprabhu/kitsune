@@ -9,7 +9,7 @@
 !
 ! CHECK: -fc1
 ! CHECK-SAME: --tapir=opencilk
-! CHECK-SAME: --tapir-opencilk-abi-bc
+! CHECK-SAME: --tapir-opencilk-runtime-bc
 ! CHECK-SAME: -fstripmine
 !
 ! It is a pain to check for the actual linker executable. There are far too

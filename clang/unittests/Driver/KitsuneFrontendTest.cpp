@@ -86,26 +86,26 @@ TEST(KitsuneFrontendTest, KitsuneLangOptions) {
   const char * args[] = {"-cc1", "foo.c"};
 
   CompilerInvocation::CreateFromArgs(invoc, args, diags, KITSUNE_C_FRONTEND);
-  EXPECT_TRUE(invoc.getLangOpts().KitsuneOpts.isKitsuneFrontend());
+  EXPECT_TRUE(invoc.getKitsuneOpts().isKitsuneFrontend());
 
   CompilerInvocation::CreateFromArgs(invoc, args, diags, KITSUNE_CXX_FRONTEND);
-  EXPECT_TRUE(invoc.getLangOpts().KitsuneOpts.isKitsuneFrontend());
+  EXPECT_TRUE(invoc.getKitsuneOpts().isKitsuneFrontend());
 
   CompilerInvocation::CreateFromArgs(invoc, args, diags, "/bin/clang");
-  EXPECT_FALSE(invoc.getLangOpts().KitsuneOpts.isKitsuneFrontend());
+  EXPECT_FALSE(invoc.getKitsuneOpts().isKitsuneFrontend());
 
   CompilerInvocation::CreateFromArgs(invoc, args, diags, "/bin/clang++");
-  EXPECT_FALSE(invoc.getLangOpts().KitsuneOpts.isKitsuneFrontend());
+  EXPECT_FALSE(invoc.getKitsuneOpts().isKitsuneFrontend());
 
 #if KITSUNE_Fortran_ENABLED
   const char* fc1Args[] = {"-fc1", "foo.f90"};
 
   CompilerInvocation::CreateFromArgs(invoc, fc1Args, diags,
                                      KITSUNE_Fortran_FRONTEND);
-  EXPECT_TRUE(invoc.getLangOpts().KitsuneOpts.isKitsuneFrontend());
+  EXPECT_TRUE(invoc.getKitsuneOpts().isKitsuneFrontend());
 
   CompilerInvocation::CreateFromArgs(invoc, fc1Args, diags, "/bin/flang");
-  EXPECT_FALSE(invoc.getLangOpts().KitsuneOpts.isKitsuneFrontend());
+  EXPECT_FALSE(invoc.getKitsuneOpts().isKitsuneFrontend());
 #endif // KITSUNE_Fortran_ENABLED
 }
 

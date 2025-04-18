@@ -18,6 +18,8 @@
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/CodeGen/MachinePassManager.h"
 #include "llvm/CodeGen/RegAllocCommon.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
+#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Support/Error.h"
@@ -98,6 +100,10 @@ public:
   // analyses after various module->function or cgscc->function adaptors in the
   // default pipelines.
   bool EagerlyInvalidateAnalyses;
+
+  /// The options for the primary tapir target, if any. If this is set, the
+  /// primary tapir target id can be determined from it.
+  std::optional<TapirTargetOptions> TTOpts;
 };
 
 /// This class provides access to building LLVM's passes.
@@ -279,8 +285,7 @@ public:
   /// levels \c O1, \c O2 and \c O3 resp.
   ModulePassManager buildPerModuleDefaultPipeline(
       OptimizationLevel Level,
-      ThinOrFullLTOPhase Phase = ThinOrFullLTOPhase::None,
-      bool LowerTapir = false);
+      ThinOrFullLTOPhase Phase = ThinOrFullLTOPhase::None);
 
   /// Build a per-module default optimization pipeline.
   ///
@@ -290,8 +295,7 @@ public:
   /// levels \c O1, \c O2 and \c O3 resp.
   ModulePassManager buildPerModuleTapirHipPipeline(
       OptimizationLevel Level,
-      ThinOrFullLTOPhase Phase = ThinOrFullLTOPhase::None,
-      bool LowerTapir = false);
+      ThinOrFullLTOPhase Phase = ThinOrFullLTOPhase::None);
 
   /// Build a fat object default optimization pipeline.
   ///
@@ -318,8 +322,7 @@ public:
   /// buildThinLTOPreLinkDefaultPipeline, and the two coordinate closely.
   ModulePassManager
   buildThinLTODefaultPipeline(OptimizationLevel Level,
-                              const ModuleSummaryIndex *ImportSummary,
-                              bool LowerTapir = false);
+                              const ModuleSummaryIndex *ImportSummary);
 
   /// Build a pre-link, LTO-targeting default optimization pipeline to a pass
   /// manager.
@@ -337,16 +340,14 @@ public:
   /// when IR coming into the LTO phase was first run through \c
   /// buildLTOPreLinkDefaultPipeline, and the two coordinate closely.
   ModulePassManager buildLTODefaultPipeline(OptimizationLevel Level,
-                                            ModuleSummaryIndex *ExportSummary,
-                                            bool LowerTapir = false);
+                                            ModuleSummaryIndex *ExportSummary);
 
   /// Build an O0 pipeline with the minimal semantically required passes.
   ///
   /// This should only be used for non-LTO and LTO pre-link pipelines.
   ModulePassManager
   buildO0DefaultPipeline(OptimizationLevel Level,
-                         ThinOrFullLTOPhase Phase = ThinOrFullLTOPhase::None,
-                         bool LowerTapir = false);
+                         ThinOrFullLTOPhase Phase = ThinOrFullLTOPhase::None);
 
   /// Build the default `AAManager` with the default alias analysis pipeline
   /// registered.
@@ -444,11 +445,6 @@ public:
 
   /// Print pass names.
   void printPassNames(raw_ostream &OS);
-
-  /// Add optimizations to run immediately after an
-  /// instrumentation pass, such as CilkSanitizer or CSI.
-  ModulePassManager
-  buildPostCilkInstrumentationPipeline(OptimizationLevel Level);
 
   /// Register a callback for a default optimizer pipeline extension
   /// point

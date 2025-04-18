@@ -1,0 +1,27 @@
+# Ensure that the command line options specific to the hip tapir target are
+# correctly handled when compiling with -flto.
+#
+# RUN: %kitxx -### -ftapir=hip -O2 -flto 2>&1 \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     | FileCheck %s -check-prefixes=ALL
+#
+# RUN: %kitxx -### -ftapir=hip -O2 -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     --tapir-hip-arch=gfx906 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,HIP_ARCH
+#
+# RUN: %kitxx -### -ftapir=hip -O2 -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     --tapir-threads-per-block=64 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,TPB
+#
+# RUN: %kitxx -### -ftapir=hip -O2 -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     --tapir-max-threads-per-block=128 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,MTPB
+#
+# ALL: /ld{{(64)?}}.lld"
+# ALL-SAME: "-mllvm" "--tapir=hip"
+# HIP_ARCH: "-mllvm" "--tapir-hip-arch=gfx906"
+# TPB: "-mllvm" "--tapir-threads-per-block=64"
+# MTPB: "-mllvm" "--tapir-max-threads-per-block=128"

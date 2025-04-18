@@ -105,6 +105,7 @@
 using namespace clang;
 
 using llvm::TimeRecord;
+using llvm::driver::KitsuneOptions;
 
 namespace {
 
@@ -806,7 +807,8 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
     WhatToLoad ToLoad, IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
     const FileSystemOptions &FileSystemOpts,
     std::shared_ptr<HeaderSearchOptions> HSOpts,
-    std::shared_ptr<LangOptions> LangOpts, bool OnlyLocalDecls,
+    std::shared_ptr<LangOptions> LangOpts,
+    std::shared_ptr<KitsuneOptions> KitsuneOpts, bool OnlyLocalDecls,
     CaptureDiagsKind CaptureDiagnostics, bool AllowASTWithCompilerErrors,
     bool UserFilesAreVolatile, IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS) {
   std::unique_ptr<ASTUnit> AST(new ASTUnit(true));
@@ -821,6 +823,8 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   ConfigureDiags(Diags, *AST, CaptureDiagnostics);
 
   AST->LangOpts = LangOpts ? LangOpts : std::make_shared<LangOptions>();
+  AST->KitsuneOpts =
+      KitsuneOpts ? KitsuneOpts : std::make_shared<KitsuneOptions>();
   AST->OnlyLocalDecls = OnlyLocalDecls;
   AST->CaptureDiagnostics = CaptureDiagnostics;
   AST->Diagnostics = Diags;
@@ -844,7 +848,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   HeaderSearch &HeaderInfo = *AST->HeaderInfo;
 
   AST->PP = std::make_shared<Preprocessor>(
-      AST->PPOpts, AST->getDiagnostics(), *AST->LangOpts,
+      AST->PPOpts, AST->getDiagnostics(), *AST->LangOpts, *AST->KitsuneOpts,
       AST->getSourceManager(), HeaderInfo, AST->ModuleLoader,
       /*IILookup=*/nullptr,
       /*OwnsHeaderSearch=*/false);
@@ -853,7 +857,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   if (ToLoad >= LoadASTOnly)
     AST->Ctx = new ASTContext(*AST->LangOpts, AST->getSourceManager(),
                               PP.getIdentifierTable(), PP.getSelectorTable(),
-                              PP.getBuiltinInfo(),
+                              PP.getBuiltinInfo(), *AST->KitsuneOpts,
                               AST->getTranslationUnitKind());
 
   DisableValidationForModuleKind disableValid =

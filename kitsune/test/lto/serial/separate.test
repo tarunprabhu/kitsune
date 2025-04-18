@@ -1,0 +1,26 @@
+# Check that the tapir lowering passes are not run when compiling to an "object
+# file" (the prelink phase). When performing the actual link, the lowering
+# passes should be run.
+#
+# We emit LLVM instead of doing an actual link because the latter can fail on
+# systems with non-standard sysroots.
+#
+# RUN: mkdir -p %t
+#
+# RUN: %kitxx -c -flto --tapir=serial -O2 --tapir-verbose %S/../input/add.cpp \
+# RUN:     -o %t/add.o -fno-stripmine 2>&1 \
+# RUN:     | FileCheck %s --check-prefixes=NO-LOWER --allow-empty
+#
+# RUN: %kitxx -c -flto --tapir=serial -O2 --tapir-verbose %S/../input/main.cpp \
+# RUN:     -o %t/main.o -fno-stripmine 2>&1 \
+# RUN:     | FileCheck %s --check-prefixes=NO-LOWER --allow-empty
+#
+# We emit LLVM instead of doing an actual link because the latter can fail on
+# systems with non-standard sysroots.
+#
+# RUN: %kitxx -flto --tapir=serial -O2 %t/main.o %t/add.o -o /dev/null \
+# RUN:     --tapir-verbose -fno-stripmine -Wl,--lto-emit-llvm 2>&1 \
+# RUN:     | FileCheck %s --check-prefixes=LOWER
+#
+# NO-LOWER-NOT: 'serial' tapir target options
+# LOWER: 'serial' tapir target options

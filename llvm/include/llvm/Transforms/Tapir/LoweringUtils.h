@@ -16,10 +16,10 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Passes/OptimizationLevel.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 
@@ -223,18 +223,18 @@ protected:
   /// The type of clone-function change that outlining will make.
   CloneFunctionChangeType Changes = CloneFunctionChangeType::LocalChangesOnly;
 
-  /// Options for this tapir target. This object is owned by TargetLibraryInfo
-  /// which is guaranteed to outlive this this TapirTarget. This will be an
-  /// instance of a subclass of TapirTargetOptions. Subclasses will typically
-  /// call getOptions() to retrieve the correct subclass of TapirTargetOptions.
-  const TapirTargetOptions &opts;
+  /// Options for this tapir target. This is a wrapper object. Subclasses must
+  /// call getOptions() to retrieve the actual options object. This object is
+  /// owned by TargetLibraryAnalysis which is guaranteed to outlive this
+  /// TapirTarget.
+  const TapirTargetOptions &TTO;
 
   /// Create a tapir target with separate host and destination modules. This is
   /// typically only used by the GPU tapir targets since they need to create two
   /// different modules - one each for the host and the device.
   TapirTarget(Module &M, Module &DestM, CloneFunctionChangeType Changes,
-              const TapirTargetOptions &opts)
-      : M(M), DestM(DestM), Changes(Changes), opts(opts) {}
+              const TapirTargetOptions &TTO)
+      : M(M), DestM(DestM), Changes(Changes), TTO(TTO) {}
 
 public:
   // Enumeration of ways arguments can be passed to outlined functions.
@@ -250,10 +250,6 @@ public:
   TapirTarget(Module &M, const TapirTargetOptions &opts)
       : TapirTarget(M, M, CloneFunctionChangeType::LocalChangesOnly, opts) {}
   virtual ~TapirTarget() {}
-
-  /// Get the options associated with this tapir target. The overriding classes
-  /// will override the return type and return a more concrete object.
-  virtual const TapirTargetOptions &getOptions() const = 0;
 
   // Prepare the module for final Tapir lowering.
   virtual void prepareModule() {}
@@ -316,8 +312,12 @@ public:
     return Type::getVoidTy(DestM.getContext());
   }
 
+  /// Get the tapir target options
+  const TapirTargetOptions& getOptions() { return TTO; }
+
   /// Get the Module where outlined Helper will be placed.
   Module &getDestinationModule() const { return DestM; }
+
   /// Get the type of clone-function change that outlining will make.
   CloneFunctionChangeType getCloneFunctionChangeType() const { return Changes; }
 

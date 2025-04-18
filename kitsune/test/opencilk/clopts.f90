@@ -1,9 +1,9 @@
-! REQUIRES: kitsune-kitfc
+! REQUIRES: kitfc
 !
-! This has not beeen implemented yet.
+! This has not been implemented yet.
 ! XFAIL: *
 !
-! Check that the frontend options make it to the tapir target
+! Check that the frontend options make it to the tapir target.
 !
 ! RUN: %kitfc --tapir=opencilk --tapir-verbose \
 ! RUN:     -O2 -S -emit-llvm -o /dev/null %s 2>&1 \

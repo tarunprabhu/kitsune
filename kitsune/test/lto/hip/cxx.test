@@ -1,0 +1,10 @@
+# Check a standard "end-to-end" lowering using LTO. We emit LLVM from LLD
+# because running the linker may not work on systems with non-standard
+# sysroots.
+#
+# RUN: %kitxx -ftapir=hip -O2 -flto -Wl,--lto-emit-llvm -o - \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | opt -S \
+# RUN:     | FileCheck %s
+#
+# CHECK: call {{.+}} @__kithip_launch_kernel

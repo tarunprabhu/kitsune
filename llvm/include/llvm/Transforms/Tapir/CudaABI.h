@@ -57,41 +57,23 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/ToolOutputFile.h"
-#include "llvm/Transforms/Tapir/GPUABIOptions.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 
 namespace llvm {
 
-class DataLayout;
-class TargetMachine;
 class CudaLoop;
+class CudaTTOptions;
+class DataLayout;
+class TapirTargetOptions;
+class TargetMachine;
 
 typedef std::unique_ptr<ToolOutputFile> CudaABIOutputFile;
 
-/// Options for the cuda tapir target.
-class CudaABIOptions : public GPUABIOptionsBase {
-public:
-  explicit CudaABIOptions();
-  explicit CudaABIOptions(const CudaABIOptions &) = default;
-  virtual ~CudaABIOptions() = default;
-
-  CudaABIOptions &operator=(const CudaABIOptions &) = delete;
-
-  virtual void readClOptions() override;
-  virtual CudaABIOptions *clone() const override;
-
-  static bool classof(const TapirTargetOptions *TTO) {
-    return TTO->getKind() == TTO_Cuda;
-  }
-};
-
 class CudaABI : public TapirTarget {
 public:
-  CudaABI(Module &M, const CudaABIOptions &opts);
+  CudaABI(Module &M, const TapirTargetOptions &opts);
   ~CudaABI();
-
-  const CudaABIOptions &getOptions() const override final;
 
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
   void lowerSync(SyncInst &SI) override final;

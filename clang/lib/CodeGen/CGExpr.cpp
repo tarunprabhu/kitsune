@@ -35,6 +35,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
@@ -5596,7 +5597,7 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
   // dealing with a case where we transform a lambda construct into
   // a traditional loop construct; thus our parallel_for and
   // parallel_reduce calls result in the removal of a lambda/call.
-  if (getLangOpts().KitsuneOpts.getKokkos()) {
+  if (CGM.getKitsuneOpts().getKokkos()) {
     const FunctionDecl *fdecl = E->getDirectCallee();
     if (fdecl) {
       std::string qname = fdecl->getQualifiedNameAsString();
@@ -5611,7 +5612,7 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
 	// transformation/generation.
         if (EmitKokkosConstruct(E, TapirAttrs))
           return RValue::get(nullptr);
-      } else if (getLangOpts().KitsuneOpts.getKokkosNoInit() &&
+      } else if (CGM.getKitsuneOpts().getKokkosNoInit() &&
                  (qname == "Kokkos::initialize" ||
                   qname == "Kokkos::finalize"))
         return RValue::get(nullptr);

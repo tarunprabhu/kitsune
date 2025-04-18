@@ -10,14 +10,13 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/Tapir/TapirCommandLineUtils.h"
+#include "llvm/Frontend/Tapir/CommandLine.h"
 #include "llvm/ADT/StringSwitch.h"
 
 namespace llvm {
 
-// FIXME: Have this return ErrorOr
-std::optional<TapirTargetID> parseTapirTarget(StringRef s) {
-  return StringSwitch<std::optional<TapirTargetID>>(s)
+ErrorOr<TapirTargetID> parseTapirTarget(StringRef s) {
+  return StringSwitch<ErrorOr<TapirTargetID>>(s)
       .Case("none", TapirTargetID::None)
       .Case("cuda", TapirTargetID::Cuda)
       .Case("hip", TapirTargetID::Hip)
@@ -28,14 +27,14 @@ std::optional<TapirTargetID> parseTapirTarget(StringRef s) {
       .Case("qthreads", TapirTargetID::Qthreads)
       .Case("realm", TapirTargetID::Realm)
       .Case("serial", TapirTargetID::Serial)
-      .Default(std::nullopt);
+      .Default(std::make_error_code(std::errc::invalid_argument));
 }
 
-ErrorOr<std::optional<bool>> parseOptionalBool(StringRef s) {
-  return StringSwitch<ErrorOr<std::optional<bool>>>(s)
-      .Case("off", false)
-      .Case("on", true)
-      .Case("any", std::nullopt)
+ErrorOr<MaybeBool> parseOptionalBool(StringRef s) {
+  return StringSwitch<ErrorOr<MaybeBool>>(s)
+      .Case("off", MaybeBool::Off)
+      .Case("on", MaybeBool::On)
+      .Case("any", MaybeBool::Any)
       .Default(std::make_error_code(std::errc::invalid_argument));
 }
 

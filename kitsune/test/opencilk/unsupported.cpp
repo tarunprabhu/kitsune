@@ -4,39 +4,39 @@
 // check that it does not fail on targets that are known to be supported.
 
 // RUN: %if x86-registered-target %{ \
-// RUN:   %kitxx -ftapir=opencilk --target=x86_64-unknown-linux-gnu -c -O2 %s \
-// RUN:       -Xclang --tapir-opencilk-abi-bc=%S/input/libopencilk-abi.bc 2>&1 \
-// RUN:       | FileCheck --allow-empty -check-prefix SUPPORTED %s \
+// RUN:   %kitxx --tapir=opencilk --target=x86_64-unknown-linux-gnu -c -O2 %s \
+// RUN:       -Xclang --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
+// RUN:        2>&1 | FileCheck --allow-empty -check-prefix SUPPORTED %s \
 // RUN: %}
 
 // RUN: %if x86-registered-target %{ \
-// RUN:   %kitxx -ftapir=opencilk --target=x86_64-pc-freebsd -c -O2 %s \
-// RUN:       -Xclang --tapir-opencilk-abi-bc=%S/input/libopencilk-abi.bc 2>&1 \
-// RUN:       | FileCheck --allow-empty -check-prefix SUPPORTED %s \
+// RUN:   %kitxx --tapir=opencilk --target=x86_64-pc-freebsd -c -O2 %s \
+// RUN:       -Xclang --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
+// RUN:        2>&1 | FileCheck --allow-empty -check-prefix SUPPORTED %s \
 // RUN: %}
 
 // RUN: %if x86-registered-target %{ \
-// RUN:   %kitxx -ftapir=opencilk --target=x86_64-apple-macosx -c -O2 %s \
-// RUN:       -Xclang --tapir-opencilk-abi-bc=%S/input/libopencilk-abi.bc 2>&1 \
-// RUN:       | FileCheck --allow-empty -check-prefix SUPPORTED %s \
+// RUN:   %kitxx --tapir=opencilk --target=x86_64-apple-macosx -c -O2 %s \
+// RUN:       -Xclang --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
+// RUN:        2>&1 | FileCheck --allow-empty -check-prefix SUPPORTED %s \
 // RUN: %}
 
 // RUN: %if x86-registered-target %{ \
-// RUN:   not %kitxx -ftapir=opencilk --target=x86_64-pc-openbsd -c -O2 %s \
-// RUN:       -Xclang --tapir-opencilk-abi-bc=%S/input/libopencilk-abi.bc 2>&1 \
-// RUN:       | FileCheck --allow-empty -check-prefix PLATFORM %s \
+// RUN:   not %kitxx --tapir=opencilk --target=x86_64-pc-openbsd -c -O2 %s \
+// RUN:       -Xclang --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
+// RUN:        2>&1 | FileCheck --allow-empty -check-prefix PLATFORM %s \
 // RUN: %}
 
 // RUN: %if aarch64-registered-target %{ \
-// RUN:   %kitxx -ftapir=opencilk --target=aarch64-unknown-linux-gnu -c -O2 %s \
-// RUN:       -Xclang --tapir-opencilk-abi-bc=%S/input/libopencilk-abi.bc 2>&1 \
-// RUN:       | FileCheck --allow-empty -check-prefix SUPPORTED %s \
+// RUN:   %kitxx --tapir=opencilk --target=aarch64-unknown-linux-gnu -c -O2 %s \
+// RUN:       -Xclang --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
+// RUN:        2>&1 | FileCheck --allow-empty -check-prefix SUPPORTED %s \
 // RUN: %}
 
 // RUN: %if sparc-registered-target %{\
-// RUN:   not %kitxx -ftapir=opencilk --target=sparc-pc-linux-gnu -c -O2 %s \
-// RUN:       -Xclang --tapir-opencilk-abi-bc=%S/input/libopencilk-abi.bc 2>&1 \
-// RUN:       | FileCheck --allow-empty -check-prefix ARCH %s \
+// RUN:   not %kitxx --tapir=opencilk --target=sparc-pc-linux-gnu -c -O2 %s \
+// RUN:       -Xclang --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
+// RUN:        2>&1 | FileCheck --allow-empty -check-prefix ARCH %s \
 // RUN: %}
 
 // ARCH: opencilk tapir target does not support architecture

@@ -59,6 +59,8 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Frontend/Debug/Options.h"
+#include "llvm/Frontend/Tapir/CommandLine.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/Linker/Linker.h"
 #include "llvm/MC/MCTargetOptions.h"
@@ -87,9 +89,6 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
-#include "llvm/Transforms/Tapir/TapirCommandLineUtils.h"
-#include "llvm/Transforms/Tapir/TapirStringUtils.h"
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -154,7 +153,8 @@ CompilerInvocationBase::CompilerInvocationBase()
       FSOpts(std::make_shared<FileSystemOptions>()),
       FrontendOpts(std::make_shared<FrontendOptions>()),
       DependencyOutputOpts(std::make_shared<DependencyOutputOptions>()),
-      PreprocessorOutputOpts(std::make_shared<PreprocessorOutputOptions>()) {}
+      PreprocessorOutputOpts(std::make_shared<PreprocessorOutputOptions>()),
+      KitsuneOpts(std::make_shared<KitsuneOptions>()) {}
 
 CompilerInvocationBase &
 CompilerInvocationBase::deep_copy_assign(const CompilerInvocationBase &X) {
@@ -172,6 +172,7 @@ CompilerInvocationBase::deep_copy_assign(const CompilerInvocationBase &X) {
     FrontendOpts = make_shared_copy(X.getFrontendOpts());
     DependencyOutputOpts = make_shared_copy(X.getDependencyOutputOpts());
     PreprocessorOutputOpts = make_shared_copy(X.getPreprocessorOutputOpts());
+    KitsuneOpts = make_shared_copy(X.getKitsuneOpts());
   }
   return *this;
 }
@@ -192,6 +193,7 @@ CompilerInvocationBase::shallow_copy_assign(const CompilerInvocationBase &X) {
     FrontendOpts = X.FrontendOpts;
     DependencyOutputOpts = X.DependencyOutputOpts;
     PreprocessorOutputOpts = X.PreprocessorOutputOpts;
+    KitsuneOpts = X.KitsuneOpts;
   }
   return *this;
 }
@@ -274,6 +276,10 @@ DependencyOutputOptions &CowCompilerInvocation::getMutDependencyOutputOpts() {
 PreprocessorOutputOptions &
 CowCompilerInvocation::getMutPreprocessorOutputOpts() {
   return ensureOwned(PreprocessorOutputOpts);
+}
+
+KitsuneOptions& CowCompilerInvocation::getMutKitsuneOpts() {
+  return ensureOwned(KitsuneOpts);
 }
 
 //===----------------------------------------------------------------------===//
@@ -3939,7 +3945,8 @@ void CompilerInvocationBase::GenerateLangArgs(const LangOptions &Opts,
 bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
                                        InputKind IK, const llvm::Triple &T,
                                        std::vector<std::string> &Includes,
-                                       DiagnosticsEngine &Diags) {
+                                       DiagnosticsEngine &Diags,
+                                       const KitsuneOptions &KitsuneOpts) {
   unsigned NumErrorsBefore = Diags.getNumErrors();
 
   if (IK.getFormat() == InputKind::Precompiled ||
@@ -4031,6 +4038,11 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   // These need to be parsed now. They are used to set OpenCL defaults.
   Opts.IncludeDefaultHeader = Args.hasArg(OPT_finclude_default_header);
   Opts.DeclareOpenCLBuiltins = Args.hasArg(OPT_fdeclare_opencl_builtins);
+
+  // KitsuneOpts will already have been set correctly. IsKitsune must be set
+  // before setting the defaults.
+  Opts.IsKitsune =
+      KitsuneOpts.isKitsuneFrontend() && KitsuneOpts.hasTapirTarget();
 
   LangOptions::setLangDefaults(Opts, IK.getLanguage(), T, Includes, LangStd);
 
@@ -4616,8 +4628,12 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
 
 void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
                                                  ArgumentConsumer Consumer) {
+  // FIXME: Find another way to do this.
   if (std::optional<llvm::TapirTargetID> tt = Opts.getTapirTarget()) {
-    GenerateArg(Consumer, OPT_tapir_EQ, llvm::tapir::toString(tt));
+    std::string Buf;
+    llvm::raw_string_ostream Os(Buf);
+    Os << tt;
+    GenerateArg(Consumer, OPT_tapir_EQ, Os.str());
 
     switch (*tt) {
     case llvm::TapirTargetID::None:
@@ -4632,8 +4648,8 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
     case llvm::TapirTargetID::OMPTask:
       break;
     case llvm::TapirTargetID::OpenCilk:
-      GenerateArg(Consumer, OPT_tapir_opencilk_abi_bc_EQ,
-                  *Opts.getOpenCilkABIBitcodeFile());
+      GenerateArg(Consumer, OPT_tapir_opencilk_runtime_bc_EQ,
+                  Opts.getOpenCilkRuntimeBCFile());
       break;
     case llvm::TapirTargetID::OpenMP:
     case llvm::TapirTargetID::Qthreads:
@@ -4656,10 +4672,10 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
                     std::to_string(*n));
     }
 
-    if (Opts.getTapirTargetVerbose())
+    if (Opts.getTapirVerbose())
       GenerateArg(Consumer, OPT_tapir_verbose);
 
-    if (Opts.getKitsuneRuntimeVerbose())
+    if (Opts.getKitrtVerbose())
       GenerateArg(Consumer, OPT_kitrt_verbose);
   }
 
@@ -4771,7 +4787,7 @@ static bool ParseKitsuneOpenCilkArgs(KitsuneOptions &Opts, const ArgList &Args,
 
 
   const OptTable &OptTable = getDriverOptTable();
-  for (OptSpecifier Opt : {options::OPT_tapir_opencilk_abi_bc_EQ})
+  for (OptSpecifier Opt : {options::OPT_tapir_opencilk_runtime_bc_EQ})
     if (!Args.hasArg(Opt))
       Diags.Report(diag::err_drv_kitsune_missing_required)
           << OptTable.getOptionName(Opt);
@@ -4779,8 +4795,8 @@ static bool ParseKitsuneOpenCilkArgs(KitsuneOptions &Opts, const ArgList &Args,
   if (Diags.getNumErrors() > NumErrorsBefore)
     return false;
 
-  Opts.setOpenCilkABIBitcodeFile(
-      Args.getLastArgValue(options::OPT_tapir_opencilk_abi_bc_EQ));
+  Opts.setOpenCilkRuntimeBCFile(
+      Args.getLastArgValue(options::OPT_tapir_opencilk_runtime_bc_EQ));
 
   return Diags.getNumErrors() == NumErrorsBefore;
 }
@@ -4828,10 +4844,11 @@ bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts,
   Opts.setKitsuneFrontend(driver::IsKitsuneFrontend(Argv0));
   Opts.setStripmineLoops(Args.hasArg(options::OPT_fstripmine));
 
-  Opts.setTapirTargetVerbose(Args.hasArg(options::OPT_tapir_verbose));
-  Opts.setKitsuneRuntimeVerbose(Args.hasArg(options::OPT_kitrt_verbose));
+  Opts.setTapirVerbose(Args.hasArg(options::OPT_tapir_verbose));
+  Opts.setKitrtVerbose(Args.hasArg(options::OPT_kitrt_verbose));
 
-  if (std::optional<llvm::TapirTargetID> TapirTarget = parseTapirTarget(Args)) {
+  if (std::optional<llvm::TapirTargetID> TapirTarget =
+          parseTapirTargetIfValid(Args)) {
     switch (*TapirTarget) {
     case llvm::TapirTargetID::None:
       break;
@@ -5234,6 +5251,7 @@ bool CompilerInvocation::CreateFromArgsImpl(
   InputArgList Args = Opts.ParseArgs(CommandLineArgs, MissingArgIndex,
                                      MissingArgCount, VisibilityMask);
   LangOptions &LangOpts = Res.getLangOpts();
+  llvm::driver::KitsuneOptions &KitsuneOpts = Res.getKitsuneOpts();
 
   // Check for missing argument error.
   if (MissingArgCount)
@@ -5270,9 +5288,9 @@ bool CompilerInvocation::CreateFromArgsImpl(
   // Parse the Kitsune arguments as early as possible. These affect how the
   // lang options are setup. For instance, the default FPContract value changes
   // when compiling with Kitsune's frontend.
-  ParseKitsuneArgs(LangOpts.KitsuneOpts, Argv0, Args, Diags, LangOpts);
+  ParseKitsuneArgs(KitsuneOpts, Argv0, Args, Diags, LangOpts);
   ParseLangArgs(LangOpts, Args, DashX, T, Res.getPreprocessorOpts().Includes,
-                Diags);
+                Diags, KitsuneOpts);
   if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)
     LangOpts.ObjCExceptions = 1;
 
@@ -5350,7 +5368,7 @@ bool CompilerInvocation::CreateFromArgsImpl(
   // code together, but that is not possible. It is this way because I am trying
   // to consolidate all the Kitsune-specific code to the extent possible to
   // make merging easier.
-  CheckKitsuneArgs(Args, T, LangOpts.KitsuneOpts, Res.getLangOpts(), Diags);
+  CheckKitsuneArgs(Args, T, Res.getKitsuneOpts(), Res.getLangOpts(), Diags);
 
   return Diags.getNumErrors() == NumErrorsBefore;
 }
@@ -5517,7 +5535,7 @@ void CompilerInvocationBase::generateCC1CommandLine(
   GeneratePreprocessorOutputArgs(getPreprocessorOutputOpts(), Consumer,
                                  getFrontendOpts().ProgramAction);
   GenerateDependencyOutputArgs(getDependencyOutputOpts(), Consumer);
-  GenerateKitsuneArgs(getLangOpts().KitsuneOpts, Consumer);
+  GenerateKitsuneArgs(getKitsuneOpts(), Consumer);
 }
 
 std::vector<std::string> CompilerInvocationBase::getCC1CommandLine() const {

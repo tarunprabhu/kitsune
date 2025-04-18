@@ -15,6 +15,7 @@
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "gtest/gtest.h"
 
 using namespace clang;
@@ -29,7 +30,8 @@ protected:
       : FileMgr(FileMgrOpts), DiagID(new DiagnosticIDs()),
         Diags(DiagID, new DiagnosticOptions, new IgnoringDiagConsumer()),
         SourceMgr(Diags, FileMgr), Idents(LangOpts, nullptr),
-        Ctxt(LangOpts, SourceMgr, Idents, Sels, Builtins, TU_Complete) {}
+        Ctxt(LangOpts, SourceMgr, Idents, Sels, Builtins, KitsuneOpts,
+             TU_Complete) {}
 
   FileSystemOptions FileMgrOpts;
   FileManager FileMgr;
@@ -37,6 +39,7 @@ protected:
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
   LangOptions LangOpts;
+  llvm::driver::KitsuneOptions KitsuneOpts;
   IdentifierTable Idents;
   SelectorTable Sels;
   Builtin::Context Builtins;

@@ -55,9 +55,12 @@
 
 #include "llvm/Transforms/Tapir/CudaABI.h"
 #include "kitsune/Config/config.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Demangle/Demangle.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
+#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -93,7 +96,6 @@
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/TapirGPUUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
-#include "llvm/Transforms/Tapir/TapirStringUtils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
@@ -110,12 +112,6 @@ using namespace llvm;
 // NOTE: We currently do not support the full range of GPU
 // architectures supported by the NVPTX backend -- this is primarily
 // due to a lack of systems for testing of these GPUs.
-
-static cl::opt<std::string>
-    clGPUArch("tapir-cuda-arch", cl::init(KITSUNE_CUDA_ARCH_DEFAULT),
-              cl::NotHidden,
-              cl::desc("Target NVIDIA GPU architecture (default"
-                       " = " KITSUNE_CUDA_ARCH_DEFAULT ")"));
 
 // Set a specific optimization level for the transformation's pass over the
 // created "kernel-module".  By default this level will mirror that of the
@@ -289,20 +285,6 @@ StringRef PTXVersionFromCudaVersion() {
 
 } // namespace
 
-CudaABIOptions::CudaABIOptions() : GPUABIOptionsBase(TTO_Cuda) {
-  setArch(KITSUNE_CUDA_ARCH_DEFAULT);
-}
-
-CudaABIOptions *CudaABIOptions::clone() const {
-  return new CudaABIOptions(*this);
-}
-
-void CudaABIOptions::readClOptions() {
-  GPUABIOptionsBase::readClOptions();
-
-  this->setArch(clGPUArch);
-}
-
 /// Static ID for kernel naming -- each encountered kernel (loop)
 /// during compilation will receive a unique ID.  TODO: This is
 /// a not so great naming mechanism and certainly not thread safe...
@@ -314,7 +296,7 @@ CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
                            CloneFunctionChangeType::DifferentModule),
       TT(TT), KernelName(KN), KernelModule(KernelModule) {
   nonMicrosoftDemangle(KN, KernelName);
-  KernelName = tapir::concat(KernelName, "_", NextKernelID);
+  KernelName = join_items("", KernelName, "_", std::to_string(NextKernelID));
   NextKernelID++;
 
   LLVM_DEBUG(dbgs() << "debug[cuabi]: creating a cuda loop outliner.\n"
@@ -637,9 +619,9 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   KernelF->removeFnAttr("personality");
   KernelF->removeFnAttr("tune-cpu");
 
-  StringRef gpuArch = TT->getOptions().getArch();
+  StringRef gpuArch = TT->getOptions().getCudaArch();
   StringRef PTXVersion = PTXVersionFromCudaVersion();
-  if (TT->getOptions().getVerbose()) {
+  if (TT->getOptions().getTapirVerbose()) {
     errs() << "kitsune[cuabi]: CUDA version " << KITSUNE_CUDA_VERSION_MAJOR
            << "." << KITSUNE_CUDA_VERSION_MINOR << "\n";
     errs() << "kitsune[cuabi]: PTX version " << PTXVersion << "\n";
@@ -1101,22 +1083,22 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
 }
 
-CudaABI::CudaABI(Module &M, const CudaABIOptions &opts)
-    : TapirTarget(M, opts),
+CudaABI::CudaABI(Module &M, const TapirTargetOptions &Opts)
+    : TapirTarget(M, Opts),
       KernelModule(
-          tapir::concat(CUABI_PREFIX, sys::path::filename(M.getName())),
+          join_items("", CUABI_PREFIX, sys::path::filename(M.getName())),
           M.getContext()) {
   LLVM_DEBUG(dbgs() << "cuabi: CudaABI::CudaABI()\n");
 
-  if (opts.getVerbose()) {
+  if (Opts.getTapirVerbose()) {
     dbgs() << "'cuda' tapir target options:\n";
-    dbgs() << "  Runtime verbose:     " << opts.getRuntimeVerbose() << "\n";
-    dbgs() << "  GPU arch:            " << opts.getArch() << "\n";
-    dbgs() << "  Optimization level:  " << opts.getOptLevel() << "\n";
-    dbgs() << "  FP Fusion:           " << opts.getFPOpFusionMode() << "\n";
-    dbgs() << "  Fixed threads/block: " << opts.getFixedThreadsPerBlock()
+    dbgs() << "  Runtime verbose:     " << Opts.getKitrtVerbose() << "\n";
+    dbgs() << "  GPU arch:            " << Opts.getCudaArch() << "\n";
+    dbgs() << "  Optimization level:  " << Opts.getOptLevel() << "\n";
+    dbgs() << "  FP Fusion:           " << Opts.getFPOpFusionMode() << "\n";
+    dbgs() << "  Fixed threads/block: " << Opts.getFixedThreadsPerBlock()
            << "\n";
-    dbgs() << "  Max threads/block:   " << opts.getMaxThreadsPerBlock() << "\n";
+    dbgs() << "  Max threads/block:   " << Opts.getMaxThreadsPerBlock() << "\n";
   }
 
   // Create a module (KernelModule) to hold all device side functions for all
@@ -1165,9 +1147,9 @@ CudaABI::CudaABI(Module &M, const CudaABIOptions &opts)
   }
 
   TargetOptions Options;
-  Options.AllowFPOpFusion = getOptions().getFPOpFusionMode();
+  Options.AllowFPOpFusion = TTO.getFPOpFusionMode();
   PTXTargetMachine = PTXTarget->createTargetMachine(
-      TT.getTriple(), getOptions().getArch(), PTXVersionStr.data(), Options,
+      TT.getTriple(), TTO.getCudaArch(), PTXVersionStr.data(), Options,
       Reloc::PIC_, TargetCodeModel, TargetOptLevel);
 
   KernelModule.setTargetTriple(TT.str());
@@ -1177,10 +1159,6 @@ CudaABI::CudaABI(Module &M, const CudaABIOptions &opts)
 }
 
 CudaABI::~CudaABI() { LLVM_DEBUG(dbgs() << "cuabi: destroy tapir target.\n"); }
-
-const CudaABIOptions &CudaABI::getOptions() const {
-  return cast<CudaABIOptions>(opts);
-}
 
 void CudaABI::pushPTXFilename(const std::string &FN) {
   ModulePTXFileList.push_back(FN);
@@ -1284,10 +1262,10 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
   // TODO: Do we need/want to add support for generating relocatable code?
 
   PTXASArgList.push_back("--gpu-name"); // target gpu architecture (e.g., sm_86)
-  PTXASArgList.push_back(getOptions().getArch().data());
+  PTXASArgList.push_back(TTO.getCudaArch().data());
   // Warn if we spill registers and provide feedback on kernel stats.
   PTXASArgList.push_back("--warn-on-spills");
-  if (getOptions().getVerbose())
+  if (TTO.getTapirVerbose())
     PTXASArgList.push_back("--verbose");
 
   if (PTXasOptLevel == -1)
@@ -1309,7 +1287,7 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
   PTXASArgv.push_back(nullptr);
 
   std::vector<StringRef> PTXASArgs = toStringRefArray(PTXASArgv.data());
-  if (getOptions().getVerbose())
+  if (TTO.getTapirVerbose())
     tapir::renderCommandLine(PTXASArgs, errs());
   LLVM_DEBUG({
     dbgs() << "\t- ptxas command line:\n";
@@ -1449,17 +1427,17 @@ CudaABIOutputFile CudaABI::createFatbinaryFile(CudaABIOutputFile &AsmFile) {
   FatbinaryArgList.push_back(FatbinFilename.c_str());
 
   std::string FatbinaryImgArgs =
-      (Twine("--image=profile=") + getOptions().getArch() +
+      (Twine("--image=profile=") + TTO.getCudaArch() +
        ",file=" + AsmFile->getFilename())
           .str();
   FatbinaryArgList.push_back(FatbinaryImgArgs.c_str());
 
   std::list<std::string> PTXFilesArgList;
   if (EmbedPTXInFatbinaries) {
-    StringRef VArchStr = virtualArchForCudaArch(getOptions().getArch());
+    StringRef VArchStr = virtualArchForCudaArch(TTO.getCudaArch());
     if (VArchStr == "unknown")
       report_fatal_error("cuabi: no virtual target for given gpuarch '" +
-                         StringRef(getOptions().getArch()) + "'!");
+                         StringRef(TTO.getCudaArch()) + "'!");
 
     std::string PTXFixedArgStr =
         ("--image=profile=" + VArchStr + ",file=").str();
@@ -1477,7 +1455,7 @@ CudaABIOutputFile CudaABI::createFatbinaryFile(CudaABIOutputFile &AsmFile) {
   FatbinaryArgv.append(FatbinaryArgList.begin(), FatbinaryArgList.end());
   std::vector<StringRef> FatbinaryArgs = toStringRefArray(FatbinaryArgv.data());
 
-  if (getOptions().getVerbose())
+  if (TTO.getTapirVerbose())
     tapir::renderCommandLine(FatbinaryArgs, errs());
   LLVM_DEBUG({
     dbgs() << "\tfatbinary command line:\n";
@@ -1600,8 +1578,8 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary,
   IRBuilder<> CtorBuilder(CtorEntryBB);
   const DataLayout &DL = M.getDataLayout();
 
-  unsigned DefaultThreadsPerBlock = getOptions().getFixedThreadsPerBlock();
-  unsigned MaxThreadsPerBlock = getOptions().getMaxThreadsPerBlock();
+  unsigned DefaultThreadsPerBlock = TTO.getFixedThreadsPerBlock();
+  unsigned MaxThreadsPerBlock = TTO.getMaxThreadsPerBlock();
 
   FunctionCallee KitCudaInitFn =
       M.getOrInsertFunction("__kitcuda_initialize", VoidTy);
@@ -1628,7 +1606,7 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary,
                            {ConstantInt::get(IntTy, 1024)});
   }
 
-  if (getOptions().getRuntimeVerbose()) {
+  if (TTO.getKitrtVerbose()) {
     FunctionCallee KitRTVerboseModefn =
         M.getOrInsertFunction("__kitrt_enable_verbose_mode", VoidTy);
     CtorBuilder.CreateCall(KitRTVerboseModefn, {});

@@ -83,8 +83,6 @@
 #include "llvm/Transforms/Scalar/EarlyCSE.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Scalar/JumpThreading.h"
-#include "llvm/Transforms/Tapir/TapirToTarget.h"
-#include "llvm/Transforms/Tapir/TapirTargets.h"
 #include "llvm/Transforms/Utils/Debugify.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <limits>
@@ -141,6 +139,7 @@ class EmitAssemblyHelper {
   const CodeGenOptions &CodeGenOpts;
   const clang::TargetOptions &TargetOpts;
   const LangOptions &LangOpts;
+  const KitsuneOptions &KitsuneOpts;
   llvm::Module *TheModule;
   IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS;
 
@@ -213,7 +212,7 @@ public:
                      IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS)
       : CI(CI), Diags(CI.getDiagnostics()), CodeGenOpts(CGOpts),
         TargetOpts(CI.getTargetOpts()), LangOpts(CI.getLangOpts()),
-        TheModule(M), VFS(std::move(VFS)),
+        KitsuneOpts(CI.getKitsuneOpts()), TheModule(M), VFS(std::move(VFS)),
         TargetTriple(TheModule->getTargetTriple()) {}
 
   ~EmitAssemblyHelper() {
@@ -228,106 +227,6 @@ public:
                     BackendConsumer *BC);
 };
 } // namespace
-
-static OptimizationLevel mapToLevel(const CodeGenOptions &Opts);
-
-static void populateCommonTTOptions(TapirTargetOptions &TTOpts,
-                                    const KitsuneOptions &KitsuneOpts) {
-  TTOpts.setVerbose(KitsuneOpts.getTapirTargetVerbose());
-  TTOpts.setRuntimeVerbose(KitsuneOpts.getTapirTargetVerbose() or
-                           KitsuneOpts.getKitsuneRuntimeVerbose());
-}
-
-static void populateGPUABIOptions(GPUABIOptionsBase &TTOpts,
-                                  const KitsuneOptions &KitsuneOpts,
-                                  const CodeGenOptions &CodeGenOpts,
-                                  const llvm::TargetOptions &TargetOpts) {
-  populateCommonTTOptions(TTOpts, KitsuneOpts);
-  TTOpts.setFPOpFusionMode(TargetOpts.AllowFPOpFusion);
-  TTOpts.setOptLevel(mapToLevel(CodeGenOpts));
-  TTOpts.setFixedThreadsPerBlock(KitsuneOpts.getFixedThreadsPerBlock());
-  TTOpts.setMaxThreadsPerBlock(KitsuneOpts.getMaxThreadsPerBlock());
-}
-
-static std::unique_ptr<TapirTargetOptions>
-populateTTOptions(CudaABIOptions &TTOpts, const KitsuneOptions &KitsuneOpts,
-                  const CodeGenOptions &CodeGenOpts,
-                  const llvm::TargetOptions &TargetOpts) {
-  populateGPUABIOptions(TTOpts, KitsuneOpts, CodeGenOpts, TargetOpts);
-  TTOpts.setArch(KitsuneOpts.getCudaArch());
-  return std::unique_ptr<TapirTargetOptions>(&TTOpts);
-}
-
-static std::unique_ptr<TapirTargetOptions>
-populateTTOptions(HipABIOptions &TTOpts, const KitsuneOptions &KitsuneOpts,
-                  const CodeGenOptions &CodeGenOpts,
-                  const llvm::TargetOptions &TargetOpts) {
-  populateGPUABIOptions(TTOpts, KitsuneOpts, CodeGenOpts, TargetOpts);
-  TTOpts.setArch(KitsuneOpts.getHipArch());
-  return std::unique_ptr<TapirTargetOptions>(&TTOpts);
-}
-
-static std::unique_ptr<TapirTargetOptions>
-populateTTOptions(OpenCilkABIOptions &TTOpts,
-                  const KitsuneOptions &KitsuneOpts) {
-  populateCommonTTOptions(TTOpts, KitsuneOpts);
-  TTOpts.setRuntimeBCPath(*KitsuneOpts.getOpenCilkABIBitcodeFile());
-  return std::unique_ptr<TapirTargetOptions>(&TTOpts);
-}
-
-static std::unique_ptr<TapirTargetOptions>
-populateTTOptions(SerialABIOptions &TTOpts, const KitsuneOptions &KitsuneOpts) {
-  populateCommonTTOptions(TTOpts, KitsuneOpts);
-  return std::unique_ptr<TapirTargetOptions>(&TTOpts);
-}
-
-static std::unique_ptr<TapirTargetOptions>
-createTapirTargetOptions(const KitsuneOptions &KitsuneOpts,
-                         const CodeGenOptions &CodeGenOpts,
-                         const llvm::TargetOptions &TargetOpts) {
-  if (std::optional<TapirTargetID> TT = KitsuneOpts.getTapirTarget()) {
-    switch (*TT) {
-    case TapirTargetID::None:
-      // NoneABI does not have options because generally, it is not actually
-      // treated like other ABI's. We really need to figure out what to do with
-      // this.
-      return nullptr;
-    case TapirTargetID::Serial:
-      return populateTTOptions(*new SerialABIOptions(), KitsuneOpts);
-    case TapirTargetID::Cuda:
-      return populateTTOptions(*new CudaABIOptions(), KitsuneOpts, CodeGenOpts,
-                               TargetOpts);
-    case TapirTargetID::Hip:
-      return populateTTOptions(*new HipABIOptions(), KitsuneOpts, CodeGenOpts,
-                               TargetOpts);
-    case TapirTargetID::OpenCilk:
-      return populateTTOptions(*new OpenCilkABIOptions(), KitsuneOpts);
-    default:
-      llvm_unreachable("createTapirTargetOptions: TapirTargetID not handled");
-      break;
-    }
-  }
-  return nullptr;
-}
-
-static std::unique_ptr<TargetLibraryInfoImpl>
-createTLII(llvm::Triple &TargetTriple, const CodeGenOptions &CodeGenOpts,
-           const KitsuneOptions &KitsuneOpts,
-           const llvm::TargetOptions &TargetOpts) {
-  std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
-  if (std::optional<TapirTargetID> TT = KitsuneOpts.getTapirTarget()) {
-    std::unique_ptr<TapirTargetOptions> TTOpts =
-        createTapirTargetOptions(KitsuneOpts, CodeGenOpts, TargetOpts);
-    // If there are -mllvm arguments, they should override anything that have
-    // been set some other way.
-    // TTOpts->readClOptions();
-    TLII->setTapirTarget(*TT);
-    TLII->setTapirTargetOptions(std::move(TTOpts));
-    TLII->addTapirTargetLibraryFunctions(*TT);
-  }
-  return TLII;
-}
 
 static SanitizerCoverageOptions
 getSancovOptsFromCGOpts(const CodeGenOptions &CGOpts) {
@@ -719,8 +618,8 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
                                        raw_pwrite_stream &OS,
                                        raw_pwrite_stream *DwoOS) {
   // Add LibraryInfo.
-  std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      createTLII(TargetTriple, CodeGenOpts, LangOpts.KitsuneOpts, TM->Options));
+  std::unique_ptr<TargetLibraryInfoImpl> TLII(llvm::driver::createTLII(
+      TargetTriple, CodeGenOpts.getVecLib(), KitsuneOpts.getTapirTarget()));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
   // Normal mode, emit a .s or .o file by running the code generator. Note,
@@ -992,12 +891,18 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.LoopInterleaving = CodeGenOpts.UnrollLoops;
   PTO.LoopVectorization = CodeGenOpts.VectorizeLoop;
   PTO.SLPVectorization = CodeGenOpts.VectorizeSLP;
-  PTO.LoopStripmine = LangOpts.KitsuneOpts.getStripmineLoops();
   PTO.MergeFunctions = CodeGenOpts.MergeFunctions;
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
   PTO.CallGraphProfile = !CodeGenOpts.DisableIntegratedAS;
   PTO.UnifiedLTO = CodeGenOpts.UnifiedLTO;
+
+  FPOpFusion::FPOpFusionMode FPOpFusionMode = FPOpFusion::Standard;
+  if (TM)
+    FPOpFusionMode = TM->Options.AllowFPOpFusion;
+  PTO.LoopStripmine = KitsuneOpts.getStripmineLoops();
+  PTO.TTOpts = TapirTargetOptions::create(KitsuneOpts, mapToLevel(CodeGenOpts),
+                                          FPOpFusionMode);
 
   LoopAnalysisManager LAM;
   FunctionAnalysisManager FAM;
@@ -1071,8 +976,8 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
 
   // Register the target library analysis directly and give it a customized
   // preset TLI.
-  std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      createTLII(TargetTriple, CodeGenOpts, LangOpts.KitsuneOpts, TM->Options));
+  std::unique_ptr<TargetLibraryInfoImpl> TLII(llvm::driver::createTLII(
+      TargetTriple, CodeGenOpts.getVecLib(), KitsuneOpts.getTapirTarget()));
   FAM.registerPass([&] { return TargetLibraryAnalysis(*TLII); });
 
   // Register all the basic analyses with the managers.
@@ -1193,27 +1098,18 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
       MPM.addPass(PB.buildFatLTODefaultPipeline(
           Level, PrepareForThinLTO,
           PrepareForThinLTO || shouldEmitRegularLTOSummary()));
-    } else if (CodeGenOpts.OptimizationLevel == 0) {
-      ThinOrFullLTOPhase Phase = ThinOrFullLTOPhase::None;
-      if (PrepareForThinLTO)
-        Phase = ThinOrFullLTOPhase::ThinLTOPreLink;
-      else if (PrepareForLTO)
-        Phase = ThinOrFullLTOPhase::FullLTOPreLink;
-      MPM.addPass(
-          PB.buildO0DefaultPipeline(Level, Phase, TLII->hasTapirTarget()));
     } else if (PrepareForThinLTO) {
       MPM.addPass(PB.buildThinLTOPreLinkDefaultPipeline(Level));
     } else if (PrepareForLTO) {
       MPM.addPass(PB.buildLTOPreLinkDefaultPipeline(Level));
-      //} else if (TLII->hasTapirTarget() && TLII->getTapirTarget() ==
-      // llvm::TapirTargetID::Hip) {
-      // MPM.addPass(PB.buildPerModuleTapirHipPipeline(Level,
-      //                                              /* LTOPreLink */ false,
-      //                                             TLII->hasTapirTarget()));
     } else {
-      MPM.addPass(PB.buildPerModuleDefaultPipeline(
-          Level, ThinOrFullLTOPhase::None, TLII->hasTapirTarget()));
+      MPM.addPass(PB.buildPerModuleDefaultPipeline(Level));
     }
+    //} else if (TLII->hasTapirTarget() && TLII->getTapirTarget() ==
+    // llvm::TapirTargetID::Hip) {
+    // MPM.addPass(PB.buildPerModuleTapirHipPipeline(Level,
+    //                                              /* LTOPreLink */ false,
+    //                                             TLII->hasTapirTarget()));
   }
 
   // Link against bitcodes supplied via the -mlink-builtin-bitcode option
@@ -1386,8 +1282,7 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   DiagnosticsEngine &Diags = CI.getDiagnostics();
   const auto &CGOpts = CI.getCodeGenOpts();
   const auto &TOpts = CI.getTargetOpts();
-  const LangOptions &LOpts = CI.getLangOpts();
-  const KitsuneOptions &KOpts = LOpts.KitsuneOpts;
+  const KitsuneOptions &KOpts = CI.getKitsuneOpts();
   DenseMap<StringRef, DenseMap<GlobalValue::GUID, GlobalValueSummary *>>
       ModuleToDefinedGVSummaries;
   CombinedIndex->collectDefinedGVSummariesPerModule(ModuleToDefinedGVSummaries);
@@ -1436,6 +1331,8 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
   Conf.PTO.CallGraphProfile = !CGOpts.DisableIntegratedAS;
+  Conf.PTO.TTOpts = TapirTargetOptions::create(KOpts, mapToLevel(CGOpts),
+                                               Conf.Options.AllowFPOpFusion);
 
   // Context sensitive profile.
   if (CGOpts.hasProfileCSIRInstr()) {
@@ -1455,10 +1352,6 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   Conf.RemarksFormat = CGOpts.OptRecordFormat;
   Conf.SplitDwarfFile = CGOpts.SplitDwarfFile;
   Conf.SplitDwarfOutput = CGOpts.SplitDwarfOutput;
-  Conf.TapirTarget = KOpts.getTapirTarget();
-  if (Conf.TapirTarget)
-    Conf.TapirTargetOpts =
-        createTapirTargetOptions(KOpts, CGOpts, Conf.Options);
   switch (Action) {
   case Backend_EmitNothing:
     Conf.PreCodeGenModuleHook = [](size_t Task, const llvm::Module &Mod) {

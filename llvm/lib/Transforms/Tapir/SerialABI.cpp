@@ -13,7 +13,8 @@
 
 #include "llvm/Transforms/Tapir/SerialABI.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
-#include "llvm/Transforms/Tapir/TapirStringUtils.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
+#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
@@ -21,22 +22,12 @@ using namespace llvm;
 
 #define DEBUG_TYPE "serialabi"
 
-void SerialABIOptions::readClOptions() { TapirTargetOptions::readClOptions(); }
-
-SerialABIOptions *SerialABIOptions::clone() const {
-  return new SerialABIOptions(*this);
-}
-
-SerialABI::SerialABI(Module &M, const SerialABIOptions &opts)
-    : TapirTarget(M, opts) {
-  if (opts.getVerbose()) {
+SerialABI::SerialABI(Module &M, const TapirTargetOptions &Opts)
+    : TapirTarget(M, Opts) {
+  if (Opts.getTapirVerbose()) {
     dbgs() << "'serial' tapir target options:\n";
-    dbgs() << "  Runtime verbose: " << opts.getRuntimeVerbose() << "\n";
+    dbgs() << "  Runtime verbose: " << Opts.getKitrtVerbose() << "\n";
   }
-}
-
-const SerialABIOptions &SerialABI::getOptions() const {
-  return cast<SerialABIOptions>(opts);
 }
 
 Value *SerialABI::lowerGrainsizeCall(CallInst *GrainsizeCall) {

@@ -23,7 +23,6 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Transforms/Tapir/TapirTargetIDs.h"
 
 #include <functional>
 #include <optional>
@@ -259,14 +258,6 @@ struct Config {
       const ModuleSummaryIndex &Index,
       const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols)>;
   CombinedIndexHookFn CombinedIndexHook;
-
-  /// Target for lowering Tapir constructs.
-  std::optional<TapirTargetID> TapirTarget = std::nullopt;
-
-  /// The options object for the tapir target. Not all tapir target will have an
-  /// associated options object - for instance, the None tapir target does not.
-  /// So this has to be kept separate.
-  std::unique_ptr<TapirTargetOptions> TapirTargetOpts = nullptr;
 
   /// This is a convenience function that configures this Config object to write
   /// temporary files named after the given OutputFileName for each of the LTO

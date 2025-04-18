@@ -912,7 +912,9 @@ static bool isAddrSpaceMapManglingEnabled(const TargetInfo &TI,
 
 ASTContext::ASTContext(LangOptions &LOpts, SourceManager &SM,
                        IdentifierTable &idents, SelectorTable &sels,
-                       Builtin::Context &builtins, TranslationUnitKind TUKind)
+                       Builtin::Context &builtins,
+                       llvm::driver::KitsuneOptions &KOpts,
+                       TranslationUnitKind TUKind)
     : ConstantArrayTypes(this_(), ConstantArrayTypesLog2InitSize),
       DependentSizedArrayTypes(this_()), DependentSizedExtVectorTypes(this_()),
       DependentAddressSpaceTypes(this_()), DependentVectorTypes(this_()),
@@ -924,6 +926,7 @@ ASTContext::ASTContext(LangOptions &LOpts, SourceManager &SM,
       DependentBitIntTypes(this_()), SubstTemplateTemplateParmPacks(this_()),
       DeducedTemplates(this_()), ArrayParameterTypes(this_()),
       CanonTemplateTemplateParms(this_()), SourceMgr(SM), LangOpts(LOpts),
+      KitsuneOpts(KOpts),
       NoSanitizeL(new NoSanitizeList(LangOpts.NoSanitizeFiles, SM)),
       XRayFilter(new XRayFunctionFilter(LangOpts.XRayAlwaysInstrumentFiles,
                                         LangOpts.XRayNeverInstrumentFiles,
