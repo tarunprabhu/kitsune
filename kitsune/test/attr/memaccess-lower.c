@@ -1,21 +1,39 @@
-// Lowering is not correctly implemented for local variables. There is no
-// guarantee that we will end up using metadata to do so, but we might as well
-// assume that in the absence of any better alternative.
+// Check that the memory access attributes on the source-level entities are
+// correctly lowered to LLVM attributes in all supported cases.
 //
-// XFAIL: *
+// TODO: We would like to support lowering on function-local variables as well
+// but this has not currently been implemented. When that changes, these tests
+// should be updated.
+//
 // RUN: %kitcc -ftapir=serial -S -emit-llvm -o - %s | FileCheck %s
 
-int _readonly g;
+#include <stdlib.h>
 
-int f4(int _readwrite *ptr);
+extern int _writeonly gdecl;
 
-void f3(int _writeonly *out) {
-  int _readwrite in = g;
+int _readwrite gext;
+
+static int _readonly gint;
+
+int fdecl(int _readwrite *a1, int _readonly *a2, int _writeonly *a3);
+
+void fdef(int _writeonly *out) {
+  int in = gint + gdecl;
   *out = in;
-  f4(&in);
+  gext += fdecl(&in, NULL, NULL);
 }
 
-// CHECK-DAG: declare {{.*}} f4({{.*}}"kitsune.readwrite"{{.*}})
-// CHECK-DAG: @g = {{.*}} "kitsune.readonly" i32
-// CHECK-DAG: define {{.*}} @f3(ptr {{.*}}"kitsune.writeonly"{{.*}} %out) {
-// CHECK: %in = alloca i32, {{.*}} !"kitsune.readwrite"
+// CHECK-DAG: @gdecl = {{.*}} #[[GDECL_ATTRS:[0-9]+]]
+// CHECK-DAG: @gext = {{.*}} #[[GEXT_ATTRS:[0-9]+]]
+// CHECK-DAG: @gint = {{.*}} #[[GINT_ATTRS:[0-9]+]]
+
+// CHECK-DAG: declare {{.*}} @fdecl(
+// CHECK-DAG-SAME: ptr {{.*}}"kitsune.readwrite"{{.*}},
+// CHECK-DAG-SAME: ptr {{.*}}"kitsune.readonly"{{.*}},
+// CHECK-DAG-SAME: ptr {{.*}}"kitsune.writeonly"{{.*}})
+
+// CHECK-DAG: define {{.*}} @fdef(ptr {{.*}}"kitsune.writeonly"{{.*}} %out)
+
+// CHECK-DAG: attributes #[[GDECL_ATTRS]] = { {{.*}}"kitsune.writeonly"{{.*}} }
+// CHECK-DAG: attributes #[[GEXT_ATTRS]] = { {{.*}}"kitsune.readwrite"{{.*}} }
+// CHECK-DAG: attributes #[[GINT_ATTRS]] = { {{.*}}"kitsune.readonly"{{.*}} }

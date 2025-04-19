@@ -1678,10 +1678,6 @@ public:
                             const FunctionDecl *FD = nullptr,
                             CodeGenFunction *CGF = nullptr);
 
-  void GenKitsuneArgMetadata(llvm::Function *FN,
-                             const FunctionDecl *FD = nullptr,
-                             CodeGenFunction *CGF = nullptr);
-
   /// Get target specific null pointer.
   /// \param T is the LLVM type of the null pointer.
   /// \param QT is the clang QualType of the null pointer.
@@ -1999,6 +1995,14 @@ private:
 
   llvm::Metadata *CreateMetadataIdentifierImpl(QualType T, MetadataTypeMap &Map,
                                                StringRef Suffix);
+
+  /// Set kitsune-specific attributes on an LLVM global variable. This applies
+  /// to both declarations and definitions.
+  void SetKitsuneAttributes(const VarDecl &VD, llvm::GlobalVariable &GV);
+
+  /// Set kitsune-specific attributes on an LLVM function and/or its arguments.
+  /// This applies to both declarations and definitions.
+  void SetKitsuneAttributes(const FunctionDecl &FD, llvm::Function &FN);
 };
 
 }  // end namespace CodeGen

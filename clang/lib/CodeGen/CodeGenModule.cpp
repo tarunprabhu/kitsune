@@ -52,6 +52,7 @@
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/BinaryFormat/ELF.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/IR/AttributeMask.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/DataLayout.h"
@@ -2426,47 +2427,6 @@ void CodeGenModule::GenKernelArgMetadata(llvm::Function *Fn,
                     llvm::MDNode::get(VMContext, argNames));
 }
 
-void CodeGenModule::GenKitsuneArgMetadata(llvm::Function *Fn,
-                                          const FunctionDecl *FD,
-                                          CodeGenFunction *CGF) {
-  assert(((FD && CGF) || (!FD && !CGF)) &&
-         "Incorrect use - FD and CGF should either be both null or not!");
-
-  if (FD && CGF) {
-    for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i) {
-      const ParmVarDecl *parm = FD->getParamDecl(i);
-      QualType ty = parm->getType();
-      const Decl *PDecl = parm;
-      if (auto *TD = dyn_cast<TypedefType>(ty))
-        PDecl = TD->getDecl();
-
-      llvm::LLVMContext &Context = getLLVMContext();
-      for (llvm::Argument *fnArg = Fn->arg_begin(); fnArg != Fn->arg_end();
-           ++fnArg) {
-        if (fnArg->getArgNo() == i) {
-          if (const auto *A = PDecl->getAttr<KitsuneMemAccessAttr>()) {
-            if (ty.getTypePtr()->isStructureOrClassType()) {
-              ErrorUnsupported(parm, "cannot handle kitsune memaccess "
-                                     "attribute on a struct or class");
-              break;
-            }
-
-            if (A->isWriteOnly())
-              fnArg->addAttr(
-                  llvm::Attribute::get(Context, "kitsune.writeonly"));
-            else if (A->isReadOnly())
-              fnArg->addAttr(llvm::Attribute::get(Context, "kitsune.readonly"));
-            else
-              fnArg->addAttr(
-                  llvm::Attribute::get(Context, "kitsune.readwrite"));
-          }
-          break;
-        }
-      }
-    }
-  }
-}
-
 /// Determines whether the language options require us to model
 /// unwind exceptions.  We treat -fexceptions as mandating this
 /// except under the fragile ObjC ABI with only ObjC exceptions
@@ -3068,6 +3028,15 @@ void CodeGenModule::SetFunctionAttributes(GlobalDecl GD, llvm::Function *F,
                    *llvm::MDNode::get(Ctx, {MDB.createCallbackEncoding(
                                                CalleeIdx, PayloadIndices,
                                                /* VarArgsArePassed */ false)}));
+  }
+
+  // Only set the kitsune-specific attributes if a tapir target has been set.
+  // In general, we try to keep the Kitsune-specific additions to clang strictly
+  // opt-in features. Since the attributes will have no effect unless lowering
+  // using tapir is enabled, we might as well only add the attributes only if a
+  // tapir target has been set.
+  if (getKitsuneOpts().hasTapirTarget()) {
+    SetKitsuneAttributes(*FD, *F);
   }
 }
 
@@ -5235,6 +5204,14 @@ CodeGenModule::GetOrCreateLLVMGlobal(StringRef MangledName, llvm::Type *Ty,
 
   if (D)
     SanitizerMD->reportGlobal(GV, *D);
+
+  // Only set the kitsune-specific attributes if a tapir target has been set.
+  // In general, we try to keep the Kitsune-specific additions to clang strictly
+  // opt-in features. Since the attributes will have no effect unless lowering
+  // using tapir is enabled, we might as well only add the attributes only if a
+  // tapir target has been set.
+  if (D && getKitsuneOpts().hasTapirTarget())
+    SetKitsuneAttributes(*D, *GV);
 
   LangAS ExpectedAS =
       D ? D->getType().getAddressSpace()
@@ -7951,4 +7928,48 @@ void CodeGenModule::moveLazyEmissionStates(CodeGenModule *NewBuilder) {
   NewBuilder->WeakRefReferences = std::move(WeakRefReferences);
 
   NewBuilder->ABI->MangleCtx = std::move(ABI->MangleCtx);
+}
+
+static StringRef GetLLVMAttrNameFor(const KitsuneMemAccessAttr &Attr) {
+  if (Attr.isWriteOnly())
+    return "kitsune.writeonly";
+  else if (Attr.isReadWrite())
+    return "kitsune.readwrite";
+  else if (Attr.isReadOnly())
+    return "kitsune.readonly";
+
+  llvm_unreachable("Unknown kitsune memory access attribute");
+}
+
+void CodeGenModule::SetKitsuneAttributes(const VarDecl &VD,
+                                         llvm::GlobalVariable &GV) {
+  if (const auto *A = VD.getAttr<KitsuneMemAccessAttr>())
+    GV.addAttribute(GetLLVMAttrNameFor(*A));
+}
+
+void CodeGenModule::SetKitsuneAttributes(const FunctionDecl &FD,
+                                         llvm::Function &Fn) {
+  if (const auto *A = FD.getAttr<KitsuneMemAccessAttr>())
+    Fn.addFnAttr(GetLLVMAttrNameFor(*A));
+
+  for (unsigned ArgNo = 0, Args = FD.getNumParams(); ArgNo != Args; ++ArgNo) {
+    const ParmVarDecl *Param = FD.getParamDecl(ArgNo);
+    QualType ParamTy = Param->getType();
+    const Decl *PDecl = Param;
+    if (const auto *TD = dyn_cast<TypedefType>(ParamTy))
+      PDecl = TD->getDecl();
+
+    if (const auto *A = PDecl->getAttr<KitsuneMemAccessAttr>()) {
+      if (ParamTy.getTypePtr()->isStructureOrClassType()) {
+        ErrorUnsupported(
+            Param,
+            "cannot handle kitsune memaccess attribute on a struct or class");
+        break;
+      }
+
+      llvm::Argument *Arg = Fn.getArg(ArgNo);
+      Arg->addAttr(
+          llvm::Attribute::get(getLLVMContext(), GetLLVMAttrNameFor(*A)));
+    }
+  }
 }
