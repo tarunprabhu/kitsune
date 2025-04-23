@@ -11,17 +11,20 @@
 // that the value can be overridden if required.
 //
 // RUN: %kitxx -### %s 2>&1 | FileCheck %s -check-prefix CONTRACT-ON
-// RUN: %kitxx -### -ftapir=cuda %s 2>&1 \
+// RUN: %kitxx -### --tapir=cuda --tapir-cuda-arch=sm_80 \
+// RUN:      %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix CONTRACT-ON
 //
 // RUN: %kitxx -### -ffp-contract=off %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix CONTRACT-OFF
-// RUN: %kitxx -### -ffp-contract=off -ftapir=cuda %s 2>&1 \
+// RUN: %kitxx -### -ffp-contract=off --tapir=cuda --tapir-cuda-arch=sm_72 \
+// RUN:     %s 2>&1 \
 // RUN:     | FileCheck %s --check-prefix CONTRACT-OFF
 //
 // RUN: %kitxx -### -ffp-contract=fast %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix CONTRACT-FAST
-// RUN: %kitxx -### -ffp-contract=fast -ftapir=cuda %s 2>&1 \
+// RUN: %kitxx -### -ffp-contract=fast -ftapir=cuda --tapir-cuda-arch=sm_80 \
+// RUN:     %s 2>&1 \
 // RUN:     | FileCheck %s --check-prefix CONTRACT-FAST
 
 // CONTRACT-OFF: "-ffp-contract=off"
@@ -41,27 +44,31 @@
 //
 // ----------------------------------------------------------------------------
 //
-// Check that the correct fp contact value is propagated to the runtime
+// Check that the correct fp contact value is propagated to the tapir target
 //
 // RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
-// RUN:      --tapir-verbose 2>&1 \
-// RUN:      | FileCheck %s -check-prefix FUSION-STANDARD
+// RUN:     --tapir-verbose --tapir-cuda-arch=sm_80 2>&1 \
+// RUN:     | FileCheck %s -check-prefix FUSION-STANDARD
 //
 // RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
-// RUN:      --tapir-verbose -ffp-contract=off 2>&1 \
-// RUN:      | FileCheck %s -check-prefix FUSION-STANDARD
+// RUN:     --tapir-verbose --tapir-cuda-arch=sm_80 \
+// RUN:     -ffp-contract=off 2>&1 \
+// RUN:     | FileCheck %s -check-prefix FUSION-STANDARD
 //
 // RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
-// RUN:      --tapir-verbose -ffp-contract=on 2>&1 \
-// RUN:      | FileCheck %s -check-prefix FUSION-STANDARD
+// RUN:     --tapir-verbose --tapir-cuda-arch=sm_80 \
+// RUN:     -ffp-contract=on 2>&1 \
+// RUN:     | FileCheck %s -check-prefix FUSION-STANDARD
 //
 // RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
-// RUN:      --tapir-verbose -ffp-contract=fast 2>&1 \
-// RUN:      | FileCheck %s -check-prefix FUSION-FAST
+// RUN:     --tapir-verbose --tapir-cuda-arch=sm_80 \
+// RUN:     -ffp-contract=fast 2>&1 \
+// RUN:     | FileCheck %s -check-prefix FUSION-FAST
 //
 // RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
-// RUN:      --tapir-verbose -ffp-contract=fast-honor-pragmas 2>&1 \
-// RUN:      | FileCheck %s -check-prefix FUSION-STANDARD
+// RUN:     --tapir-verbose --tapir-cuda-arch=sm_80 \
+// RUN:     -ffp-contract=fast-honor-pragmas 2>&1 \
+// RUN:     | FileCheck %s -check-prefix FUSION-STANDARD
 //
 // FUSION-STANDARD: FP Fusion: standard
 // FUSION-FAST: FP Fusion: fast

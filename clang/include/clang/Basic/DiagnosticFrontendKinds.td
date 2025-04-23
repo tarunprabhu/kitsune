@@ -387,8 +387,8 @@ def warn_hlsl_langstd_minimal :
           "recommend using %1 instead">,
   InGroup<HLSLDXCCompat>;
 
-// =============================================================================
-//                          Kitsune-specific warnings
+// -----------------------------------------------------------------------------
+//                         Kitsune-specific diagnostics
 // -----------------------------------------------------------------------------
 
 def warn_kokkos_range_expr : Warning<

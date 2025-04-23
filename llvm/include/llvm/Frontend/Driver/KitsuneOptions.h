@@ -86,11 +86,6 @@ private:
   /// or from the --tapir-cuda-arch option if it was provided.
   std::string cudaVirtArch = "";
 
-  /// The PTX version for the @ref cudaArch. This will be computed by the driver
-  /// from either the default value of @ref cudaArch or from
-  /// the --tapir-cuda-arch option if it was provided.
-  std::string cudaPTXVersion = "";
-
   /// NVIDIA GPU target features, computed by the driver, for @ref cudaArch.
   /// This is a string that can be used by the NVPTX module that is generated
   /// when lowering with the cuda tapir target.
@@ -122,20 +117,22 @@ private:
   /// sramecc+, false implies sramecc-. Leaving this at std::nullopt implies
   /// that the sramecc feature is unspecified.
   ///
-  /// FIXME: This should default to Maybe::Any. This was initially
-  /// implemented in LLVM 20 as a replacement for the --hipabi-xnack LLVM
-  /// option which defaulted to true. This is intended to be set to 'on'
-  /// during a transition period.
+  /// FIXME: This should probably default to MaybeBool::Any. This was initially
+  /// implemented in LLVM 20 as a replacement for the --hipabi-sramecc LLVM
+  /// option which defaulted to true. The default is set to on for a transition
+  /// period while we determine which of the two - On and Any - is better for
+  /// our use case.
   MaybeBool hipSRAMECC = MaybeBool::On;
 
   /// The value of the xnack feature. Setting this to true implies xnack+, false
   /// implies xnack-. Leaving this at std::nullopt implies that the xnack
   /// feature is unspecified.
   ///
-  /// FIXME: This should default to std::nullopt. This was initially implemented
-  /// in LLVM 20 as a replacement for the --hipabi-xnack LLVM option which
-  /// defaulted to true. This is intended to be set to 'on' during a transition
-  /// period.
+  /// FIXME: This should default to MaybeBool::Any. This was initially
+  /// implemented in LLVM 20 as a replacement for the --hipabi-xnack LLVM option
+  /// which defaulted to true. The default is set to on for a transition
+  /// period while we determine which of the two - On and Any - is better for
+  /// our use case.
   MaybeBool hipXnack = MaybeBool::On;
 
   /// The hip bitcode files needed by the hip tapir target. This will be
@@ -148,6 +145,8 @@ private:
   std::string openCilkRuntimeBCFile = "";
 
 public:
+  /// @{
+  /// Setters for options not directly connected to a specific tapir target.
   void setKitsuneFrontend(bool kitsuneFrontend = true) {
     this->kitsuneFrontend = kitsuneFrontend;
   }
@@ -158,26 +157,24 @@ public:
     this->kokkosNoInit = kokkosNoInit;
   }
 
-  void setStripmineLoops(bool stripmineLoops = true) {
-    this->stripmineLoops = stripmineLoops;
-  }
-
-  void setKitrtVerbose(bool verbose = true) {
-    this->kitrtVerbose = verbose;
-  }
-
-  void setTapirVerbose(bool verbose = true) {
-    this->tapirVerbose = verbose;
-  }
-
   void setTapirTarget(llvm::TapirTargetID tapirTarget) {
     this->tapirTarget = tapirTarget;
   }
 
-  void setOpenCilkRuntimeBCFile(llvm::StringRef path) {
-    this->openCilkRuntimeBCFile = path;
+  void setStripmineLoops(bool stripmineLoops = true) {
+    this->stripmineLoops = stripmineLoops;
   }
+  /// @}
 
+  /// @{
+  /// Setters for options relevant to all tapir targets
+  void setKitrtVerbose(bool verbose = true) { this->kitrtVerbose = verbose; }
+
+  void setTapirVerbose(bool verbose = true) { this->tapirVerbose = verbose; }
+  /// @}
+
+  /// @{
+  /// Setters common to the GPU-specific tapir targets.
   void setFixedThreadsPerBlock(unsigned threadsPerBlock) {
     this->fixedThreadsPerBlock = threadsPerBlock;
   }
@@ -186,16 +183,26 @@ public:
     this->maxThreadsPerBlock = threadsPerBlock;
   }
 
+  void setLLD(llvm::StringRef lld) { this->lld = lld; }
+  /// @}
+
+  /// @{
+  /// Setters for options related to the cuda tapir target.
   void setCudaArch(llvm::StringRef arch) { this->cudaArch = arch; }
 
   void setCudaVirtArch(llvm::StringRef arch) { this->cudaVirtArch = arch; }
-
-  void setCudaPTXVersion(llvm::StringRef ptx) { this->cudaPTXVersion = ptx; }
 
   void setCudaFeatures(llvm::StringRef features) {
     this->cudaFeatures = features;
   }
 
+  void setCudaRuntimeBCFile(llvm::StringRef file) {
+    this->cudaRuntimeBCFile = file;
+  }
+  /// @}
+
+  /// @{
+  /// Setters for options related to the hip tapir target.
   void setHipArch(llvm::StringRef arch) { this->hipArch = arch; }
 
   void setHipFeatures(llvm::StringRef features) {
@@ -209,8 +216,14 @@ public:
   void addHipRuntimeBCFile(llvm::StringRef file) {
     this->hipRuntimeBCFiles.push_back(file.str());
   }
+  /// @}
 
-  void setLLD(llvm::StringRef lld) { this->lld = lld; }
+  /// @{
+  /// Setters for options related to the opencilk tapir target.
+  void setOpenCilkRuntimeBCFile(llvm::StringRef path) {
+    this->openCilkRuntimeBCFile = path;
+  }
+  /// @}
 
   bool isKitsuneFrontend() const { return kitsuneFrontend; }
 
@@ -240,19 +253,17 @@ public:
 
   llvm::StringRef getCudaVirtArch() const { return cudaVirtArch; }
 
-  llvm::StringRef getCudaPTXVersion() const { return cudaPTXVersion; }
-
   llvm::StringRef getCudaFeatures() const { return cudaFeatures; }
 
   llvm::StringRef getCudaRuntimeBCFile() const { return cudaRuntimeBCFile; }
 
   llvm::StringRef getHipArch() const { return hipArch; }
 
-  llvm::StringRef getHipFeatures() const { return hipFeatures; }
-
   MaybeBool getHipSRAMECC() const { return hipSRAMECC; }
 
   MaybeBool getHipXnack() const { return hipXnack; }
+
+  llvm::StringRef getHipFeatures() const { return hipFeatures; }
 
   const std::vector<std::string> &getHipRuntimeBCFiles() const {
     return hipRuntimeBCFiles;

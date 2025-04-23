@@ -25,7 +25,7 @@ ErrorOr<TapirTargetID> parseTapirTarget(StringRef s);
 
 /// Parse a @ref MaybeBool enum from a string. If the string is not a valid
 /// string for this enum, an invalid argument error is returned.
-ErrorOr<MaybeBool> parseOptionalBool(StringRef s);
+ErrorOr<MaybeBool> parseMaybeBool(StringRef s);
 
 } // namespace llvm
 

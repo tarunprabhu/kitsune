@@ -1,6 +1,6 @@
 // Check that a launch call and a fat binary are present in the host.
 //
-// RUN: %kitxx --tapir=cuda -S -emit-llvm -O2 -o - %s \
+// RUN: %kitxx --tapir=cuda --tapir-cuda-arch=sm_72 -S -emit-llvm -O2 -o - %s \
 // RUN:     | FileCheck %s
 //
 // CHECK: @__kitsune_fatbin_cuda = {{.+}} constant [{{[0-9]+}} x i8] c"

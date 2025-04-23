@@ -30,7 +30,7 @@ ErrorOr<TapirTargetID> parseTapirTarget(StringRef s) {
       .Default(std::make_error_code(std::errc::invalid_argument));
 }
 
-ErrorOr<MaybeBool> parseOptionalBool(StringRef s) {
+ErrorOr<MaybeBool> parseMaybeBool(StringRef s) {
   return StringSwitch<ErrorOr<MaybeBool>>(s)
       .Case("off", MaybeBool::Off)
       .Case("on", MaybeBool::On)

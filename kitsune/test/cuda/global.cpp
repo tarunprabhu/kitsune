@@ -1,6 +1,6 @@
 // Check that non-constant globals are handled correctly.
 //
-// RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o - %s 2>&1 \
+// RUN: %kitxx --tapir=cuda --tapir-cuda-arch=sm_72 -O2 -S -emit-llvm -o - %s \
 // RUN:     | FileCheck %s
 //
 // CHECK-DAG: @[[HOSTVAR:.+]] = external {{.+}} i32

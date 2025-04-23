@@ -1,7 +1,13 @@
 ; Check that the global ctor calls the appropriate functions in Kitsune's
 ; runtime depending on the command line arguments passed.
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s 2>&1 \
+; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
+; RUN:     --tapir-hip-arch=gfx906 \
+; RUN:     --tapir-hip-sramecc=off \
+; RUN:     --tapir-hip-xnack=on \
+; RUN:     --tapir-hip-features="-sramecc,+xnack" \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
 ; Currently, if a max-threads-per-block option is not used, the HipABI
@@ -30,6 +36,8 @@
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     --tapir-threads-per-block=77 \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: kithip.ctor{{.*}}
@@ -39,6 +47,8 @@
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     --tapir-max-threads-per-block=29 \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: kithip.ctor{{.*}}
@@ -48,10 +58,14 @@
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     --tapir-verbose \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     --kitrt-verbose \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: kithip.ctor{{.*}}
@@ -60,7 +74,9 @@
 ; ----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
-; RUN:     -hipabi-xnack=false \
+; RUN:     --tapir-hip-xnack=off \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
 ; NOXNACK-LABEL: kithip.ctor{{.*}}
@@ -70,6 +86,8 @@
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     -hipabi-y-launch \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix YLAUNCH
 ;
 ; YLAUNCH-LABEL: kithip.ctor{{.*}}

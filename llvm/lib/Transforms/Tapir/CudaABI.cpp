@@ -132,11 +132,6 @@ static cl::opt<int>
     PTXasOptLevel("cuabi-ptxas-opt-level", cl::init(-1), cl::Hidden,
                   cl::desc("Specify the optimization level for ptxas."));
 
-static cl::opt<std::string> clLibDeviceBCPath(
-    "cuabi-libdevice-bc-path", cl::init(""),
-    cl::desc("Path to the libdevice bitcode file for the cuda tapir target"),
-    cl::Hidden);
-
 // Enabled/disable compiler generated code for issuing data prefetch calls
 // prior to the launch of each kernel.  The associated prefetch calls are
 // directly to the kitsune runtime that will determine if the prefetch is
@@ -1093,12 +1088,15 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &Opts)
   if (Opts.getTapirVerbose()) {
     dbgs() << "'cuda' tapir target options:\n";
     dbgs() << "  Runtime verbose:     " << Opts.getKitrtVerbose() << "\n";
-    dbgs() << "  GPU arch:            " << Opts.getCudaArch() << "\n";
     dbgs() << "  Optimization level:  " << Opts.getOptLevel() << "\n";
     dbgs() << "  FP Fusion:           " << Opts.getFPOpFusionMode() << "\n";
     dbgs() << "  Fixed threads/block: " << Opts.getFixedThreadsPerBlock()
            << "\n";
     dbgs() << "  Max threads/block:   " << Opts.getMaxThreadsPerBlock() << "\n";
+    dbgs() << "  GPU arch:            " << Opts.getCudaArch() << "\n";
+    dbgs() << "  GPU virtual arch:    " << Opts.getCudaVirtArch() << "\n";
+    dbgs() << "  Target features:     " << Opts.getCudaFeatures() << "\n";
+    dbgs() << "  Bitcode file:        " << Opts.getCudaRuntimeBCFile() << "\n";
   }
 
   // Create a module (KernelModule) to hold all device side functions for all
@@ -1172,9 +1170,7 @@ std::unique_ptr<Module> &CudaABI::getLibDeviceModule() {
   if (not LibDeviceModule) {
     LLVMContext &Ctx = KernelModule.getContext();
     SMDiagnostic SMD;
-    StringRef LibDeviceBCFile = KITSUNE_CUDA_LIBDEVICE_BC;
-    if (clLibDeviceBCPath.size())
-      LibDeviceBCFile = clLibDeviceBCPath;
+    StringRef LibDeviceBCFile = TTO.getCudaRuntimeBCFile();
     LLVM_DEBUG(dbgs() << "cuabi: using libdevice file '" << LibDeviceBCFile
                       << "'\n");
     LibDeviceModule = parseIRFile(LibDeviceBCFile, SMD, Ctx);

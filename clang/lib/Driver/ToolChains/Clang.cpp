@@ -379,7 +379,7 @@ static bool addExceptionArgs(const ArgList &Args, types::ID InputType,
           ExceptionArg->getOption().matches(options::OPT_fcxx_exceptions) ||
           ExceptionArg->getOption().matches(options::OPT_fexceptions);
     } else if (D.IsKitsuneFrontend() &&
-               (TT.has_value() || Args.hasArg(options::OPT_fkokkos))) {
+               (TT.has_value() || Args.hasArg(options::OPT_kokkos))) {
       CXXExceptionsEnabled = false;
     }
 
@@ -7619,8 +7619,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   ParseMPreferVectorWidth(D, Args, CmdArgs);
 
-  addKitsuneArgs(D, TC, Args, CmdArgs);
-
   Args.AddLastArg(CmdArgs, options::OPT_fshow_overloads_EQ);
   Args.AddLastArg(CmdArgs,
                   options::OPT_fsanitize_undefined_strip_path_components_EQ);
@@ -8106,6 +8104,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
           << Str << TC.getTripleString();
     CmdArgs.push_back(Args.MakeArgString(Str));
   }
+
+  // Add the Kitsune args just before adding the source files to the generated
+  // command line. This is mainly to reduce the likelihood of the hip tapir
+  // target accidentally missing an argument since it "recreates" the command
+  // line (see clang/lib/Driver/ToolChain.cpp for details).
+  addKitsuneArgs(D, TC, Args, CmdArgs);
 
   // Add the "-o out -x type src.c" flags last. This is done primarily to make
   // the -cc1 command easier to edit when reproducing compiler crashes.

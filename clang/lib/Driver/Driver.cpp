@@ -15,6 +15,7 @@
 #include "ToolChains/BareMetal.h"
 #include "ToolChains/CSKYToolChain.h"
 #include "ToolChains/Clang.h"
+#include "ToolChains/CommonArgs.h"
 #include "ToolChains/CrossWindows.h"
 #include "ToolChains/Cuda.h"
 #include "ToolChains/Darwin.h"
@@ -52,6 +53,7 @@
 #include "ToolChains/WebAssembly.h"
 #include "ToolChains/XCore.h"
 #include "ToolChains/ZOS.h"
+#include "kitsune/Config/config.h"
 #include "clang/Basic/Cuda.h"
 #include "clang/Basic/DiagnosticDriver.h"
 #include "clang/Basic/TargetID.h"
@@ -68,7 +70,6 @@
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
 #include "clang/Driver/Types.h"
-#include "kitsune/Config/config.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
@@ -208,6 +209,14 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
 
     if (Args.getLastArg(options::OPT_fopenmp_targets_EQ))
       D.Diag(clang::diag::err_drv_kitsune_openmp_offload);
+
+    // Kitsune does not support ROCm ABI versions < 5. But that should only be
+    // relevant when using the Kitsune frontend.
+    unsigned CodeObjectVersion = tools::getAMDGPUCodeObjectVersion(D, Args);
+    if (CodeObjectVersion < 5) {
+      D.Diag(diag::err_drv_kitsune_hip_code_object_version)
+          << CodeObjectVersion;
+    }
   }
 
   // Check that the --tapir-cuda-arch option has a valid value. If an empty
@@ -249,6 +258,19 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
     else if (N <= 0)
       D.Diag(diag::err_drv_kitsune_max_threads_per_block)
           << A->getAsString(Args);
+  }
+
+  for (OptSpecifier Opt :
+       {options::OPT_tapir_hip_sramecc_EQ, options::OPT_tapir_hip_xnack_EQ}) {
+    if (const Arg *A = Args.getLastArg(Opt)) {
+      StringRef Val = A->getValue();
+      llvm::ErrorOr<llvm::MaybeBool> e = llvm::parseMaybeBool(A->getValue());
+      if (Val.empty())
+        D.Diag(diag::err_drv_missing_argument) << A->getAsString(Args) << 1;
+      else if (not e)
+        D.Diag(diag::err_drv_invalid_argument_to_option)
+            << Val << A->getOption().getName();
+    }
   }
 
   // If LTO is enabled for use with Kitsune, the only linker that can be used is
@@ -1454,7 +1476,7 @@ bool Driver::loadConfigFiles() {
   // Then load configuration files specified explicitly.
   SmallString<128> CfgFilePath;
   if (CLOptions) {
-    if (CLOptions->hasArg(options::OPT_fkokkos)) {
+    if (CLOptions->hasArg(options::OPT_kokkos)) {
       // It is ok if the Kokkos configuration file was not found. It is
       // intended to be optional just like the top-level clang config file.
       if (ExpCtx.findConfigFile("kokkos.cfg", CfgFilePath)) {
@@ -1878,7 +1900,7 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
   }
 
   // This has to be done here at the latest because the line below moves Args
-  // into UArgs. C++ is (*#$(*&$!))
+  // into UArgs.
   CheckKitsuneOptions(*this, Args, Diags);
 
   std::unique_ptr<llvm::opt::InputArgList> UArgs =

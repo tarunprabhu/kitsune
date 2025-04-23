@@ -11,7 +11,7 @@
 // ALL: 'opencilk' tapir target options
 // COMPILE:   Runtime verbose: 1
 // RUNTIME:   Runtime verbose: 1
-// ALL:       Bitcode path: {{.+}}/libopencilk-abi.bc
+// ALL:       Bitcode file: {{.+}}/libopencilk-abi.bc
 
 #include <kitsune.h>
 

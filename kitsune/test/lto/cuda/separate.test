@@ -8,14 +8,17 @@
 # RUN: mkdir -p %t
 #
 # RUN: %kitxx -c -flto --tapir=cuda -O2 --tapir-verbose %S/../input/add.cpp \
+# RUN:     --tapir-cuda-arch=sm_72 \
 # RUN:     -o %t/add.o 2>&1 \
 # RUN:     | FileCheck %s --check-prefixes=NO-LOWER --allow-empty
 #
 # RUN: %kitxx -c -flto --tapir=cuda -O2 --tapir-verbose %S/../input/main.cpp \
+# RUN:     --tapir-cuda-arch=sm_72 \
 # RUN:     -o %t/main.o 2>&1 \
 # RUN:     | FileCheck %s --check-prefixes=NO-LOWER --allow-empty
 #
 # RUN: %kitxx -flto --tapir=cuda -O2 %t/main.o %t/add.o -o %t/a.bc \
+# RUN:     --tapir-cuda-arch=sm_72 \
 # RUN:     --tapir-verbose -Wl,--lto-emit-llvm 2>&1 \
 # RUN:     | FileCheck %s --check-prefixes=LOWER
 #

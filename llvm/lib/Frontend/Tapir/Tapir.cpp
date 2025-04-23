@@ -14,31 +14,48 @@
 
 namespace llvm {
 
-raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &tt) {
+std::string toString(const TapirTargetID &tt) {
   switch (tt) {
   case TapirTargetID::None:
-    return os << "none";
+    return "none";
   case TapirTargetID::Serial:
-    return os << "serial";
+    return "serial";
   case TapirTargetID::Cuda:
-    return os << "cuda";
+    return "cuda";
   case TapirTargetID::Hip:
-    return os << "hip";
+    return "hip";
   case TapirTargetID::Lambda:
-    return os << "lambda";
+    return "lambda";
   case TapirTargetID::OMPTask:
-    return os << "omptask";
+    return "omptask";
   case TapirTargetID::OpenCilk:
-    return os << "opencilk";
+    return "opencilk";
   case TapirTargetID::OpenMP:
-    return os << "openmp";
+    return "openmp";
   case TapirTargetID::Qthreads:
-    return os << "qthreads";
+    return "qthreads";
   case TapirTargetID::Realm:
-    return os << "realm";
+    return "realm";
   default:
-    llvm_unreachable("Tapir target not handled");
+    llvm_unreachable("toString: TapirTargetID not handled");
   }
+}
+
+std::string toString(const MaybeBool &v) {
+  switch (v) {
+  case MaybeBool::Off:
+    return "off";
+  case MaybeBool::On:
+    return "on";
+  case MaybeBool::Any:
+    return "any";
+  default:
+    llvm_unreachable("toString: MaybeBool value not handled");
+  }
+}
+
+raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &tt) {
+  os << toString(tt);
   return os;
 }
 
@@ -64,14 +81,8 @@ raw_ostream &operator<<(raw_ostream &os, const TapirSpawnStrategy &strategy) {
 }
 
 raw_ostream &operator<<(raw_ostream &os, const MaybeBool &v) {
-  switch (v) {
-  case MaybeBool::Off:
-    return os << "off";
-  case MaybeBool::On:
-    return os << "on";
-  case MaybeBool::Any:
-    return os << "any";
-  }
+  os << toString(v);
+  return os;
 }
 
 raw_ostream &operator<<(raw_ostream &os,

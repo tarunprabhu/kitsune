@@ -4628,22 +4628,34 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
 
 void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
                                                  ArgumentConsumer Consumer) {
-  // FIXME: Find another way to do this.
-  if (std::optional<llvm::TapirTargetID> tt = Opts.getTapirTarget()) {
-    std::string Buf;
-    llvm::raw_string_ostream Os(Buf);
-    Os << tt;
-    GenerateArg(Consumer, OPT_tapir_EQ, Os.str());
+  if (std::optional<llvm::TapirTargetID> TT = Opts.getTapirTarget()) {
+    // FIXME: Find another way to do this.
+    GenerateArg(Consumer, OPT_tapir_EQ, llvm::toString(*TT));
 
-    switch (*tt) {
+    switch (*TT) {
     case llvm::TapirTargetID::None:
       break;
     case llvm::TapirTargetID::Cuda:
       GenerateArg(Consumer, OPT_tapir_cuda_arch_EQ, Opts.getCudaArch());
+      GenerateArg(Consumer, OPT_tapir_cuda_virt_arch_EQ,
+                  Opts.getCudaVirtArch());
+      GenerateArg(Consumer, OPT_tapir_cuda_features_EQ, Opts.getCudaFeatures());
+      GenerateArg(Consumer, OPT_tapir_cuda_runtime_bc_EQ,
+                  Opts.getCudaRuntimeBCFile());
       break;
-    case llvm::TapirTargetID::Hip:
+    case llvm::TapirTargetID::Hip: {
+      const std::vector<std::string> &BCS = Opts.getHipRuntimeBCFiles();
       GenerateArg(Consumer, OPT_tapir_hip_arch_EQ, Opts.getHipArch());
+      GenerateArg(Consumer, OPT_tapir_hip_sramecc_EQ,
+                  llvm::toString(Opts.getHipSRAMECC()));
+      GenerateArg(Consumer, OPT_tapir_hip_xnack_EQ,
+                  llvm::toString(Opts.getHipXnack()));
+      GenerateArg(Consumer, OPT_tapir_hip_features_EQ, Opts.getHipFeatures());
+      GenerateArg(Consumer, OPT_tapir_hip_runtime_bcs_EQ,
+                  llvm::join(BCS.begin(), BCS.end(), ","));
+      GenerateArg(Consumer, OPT_tapir_lld_EQ, Opts.getLLD());
       break;
+    }
     case llvm::TapirTargetID::Lambda:
     case llvm::TapirTargetID::OMPTask:
       break;
@@ -4662,14 +4674,14 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
     }
 
     // Arguments that are relevant to any GPU tapir target.
-    if (*tt == llvm::TapirTargetID::Cuda || *tt == llvm::TapirTargetID::Hip) {
-      if (std::optional<unsigned> n = Opts.getFixedThreadsPerBlock())
+    if (*TT == llvm::TapirTargetID::Cuda || *TT == llvm::TapirTargetID::Hip) {
+      if (std::optional<unsigned> N = Opts.getFixedThreadsPerBlock())
         GenerateArg(Consumer, OPT_tapir_threads_per_block_EQ,
-                    std::to_string(*n));
+                    std::to_string(*N));
 
-      if (std::optional<unsigned> n = Opts.getMaxThreadsPerBlock())
+      if (std::optional<unsigned> N = Opts.getMaxThreadsPerBlock())
         GenerateArg(Consumer, OPT_tapir_max_threads_per_block_EQ,
-                    std::to_string(*n));
+                    std::to_string(*N));
     }
 
     if (Opts.getTapirVerbose())
@@ -4680,10 +4692,10 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
   }
 
   if (Opts.getKokkos())
-    GenerateArg(Consumer, OPT_fkokkos);
+    GenerateArg(Consumer, OPT_kokkos);
 
   if (Opts.getKokkosNoInit())
-    GenerateArg(Consumer, OPT_fkokkos_no_init);
+    GenerateArg(Consumer, OPT_kokkos_no_init);
 
   if (Opts.getStripmineLoops())
     GenerateArg(Consumer, OPT_fstripmine);
@@ -4722,8 +4734,10 @@ static bool ParseKitsuneCudaArgs(KitsuneOptions &Opts, const ArgList &Args,
   unsigned NumErrorsBefore = Diags.getNumErrors();
 
   const OptTable &OptTable = getDriverOptTable();
-  const OptSpecifier RequiredOpts[] = {
-      options::OPT_tapir_cuda_arch_EQ};
+  const OptSpecifier RequiredOpts[] = {options::OPT_tapir_cuda_arch_EQ,
+                                       options::OPT_tapir_cuda_virt_arch_EQ,
+                                       options::OPT_tapir_cuda_features_EQ,
+                                       options::OPT_tapir_cuda_runtime_bc_EQ};
   for (OptSpecifier Opt : RequiredOpts)
     if (!Args.hasArg(Opt))
       Diags.Report(diag::err_drv_kitsune_missing_required)
@@ -4733,6 +4747,12 @@ static bool ParseKitsuneCudaArgs(KitsuneOptions &Opts, const ArgList &Args,
     return false;
 
   Opts.setCudaArch(Args.getLastArgValue(options::OPT_tapir_cuda_arch_EQ));
+  Opts.setCudaVirtArch(
+      Args.getLastArgValue(options::OPT_tapir_cuda_virt_arch_EQ));
+  Opts.setCudaFeatures(
+      Args.getLastArgValue(options::OPT_tapir_cuda_features_EQ));
+  Opts.setCudaRuntimeBCFile(
+      Args.getLastArgValue(options::OPT_tapir_cuda_runtime_bc_EQ));
 
   ParseKitsuneCommonGPUArgs(Opts, Args, Diags);
   return Diags.getNumErrors() == NumErrorsBefore;
@@ -4744,7 +4764,9 @@ static bool ParseKitsuneHipArgs(KitsuneOptions& Opts, const ArgList& Args,
 
   const OptTable &OptTable = getDriverOptTable();
   const OptSpecifier RequiredOpts[] = {
-      options::OPT_tapir_hip_arch_EQ};
+      options::OPT_tapir_hip_arch_EQ, options::OPT_tapir_hip_features_EQ,
+      options::OPT_tapir_hip_runtime_bcs_EQ, options::OPT_tapir_lld_EQ,
+      options::OPT_tapir_hip_sramecc_EQ, options::OPT_tapir_hip_xnack_EQ};
   for (OptSpecifier Opt : RequiredOpts)
     if (!Args.hasArg(Opt))
       Diags.Report(diag::err_drv_kitsune_missing_required)
@@ -4754,6 +4776,31 @@ static bool ParseKitsuneHipArgs(KitsuneOptions& Opts, const ArgList& Args,
     return false;
 
   Opts.setHipArch(Args.getLastArgValue(options::OPT_tapir_hip_arch_EQ));
+  Opts.setHipFeatures(
+      Args.getLastArgValue(options::OPT_tapir_hip_features_EQ));
+  for (StringRef F : ParseCommaSeparatedList(
+           Args.getLastArgValue(options::OPT_tapir_hip_runtime_bcs_EQ),
+           Diags))
+    Opts.addHipRuntimeBCFile(F);
+  Opts.setLLD(Args.getLastArgValue(options::OPT_tapir_lld_EQ));
+
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_hip_sramecc_EQ)) {
+    StringRef Val = A->getValue();
+    if (llvm::ErrorOr<llvm::MaybeBool> Parsed = llvm::parseMaybeBool(Val))
+      Opts.setHipSramECC(Parsed.get());
+    else
+      Diags.Report(diag::err_drv_invalid_argument_to_option)
+          << Val << A->getOption().getName();
+  }
+
+  if (const Arg *A = Args.getLastArg(options::OPT_tapir_hip_xnack_EQ)) {
+    StringRef Val = A->getValue();
+    if (llvm::ErrorOr<llvm::MaybeBool> Parsed = llvm::parseMaybeBool(Val))
+      Opts.setHipXnack(Parsed.get());
+    else
+      Diags.Report(diag::err_drv_invalid_argument_to_option)
+          << Val << A->getOption().getName();
+  }
 
   ParseKitsuneCommonGPUArgs(Opts, Args, Diags);
   return Diags.getNumErrors() == NumErrorsBefore;
@@ -4884,8 +4931,8 @@ bool CompilerInvocation::ParseKitsuneArgs(KitsuneOptions &Opts,
     Opts.setTapirTarget(*TapirTarget);
   }
 
-  bool isKokkos = Args.hasArg(options::OPT_fkokkos);
-  bool isKokkosNoInit = Args.hasArg(options::OPT_fkokkos_no_init);
+  bool isKokkos = Args.hasArg(options::OPT_kokkos);
+  bool isKokkosNoInit = Args.hasArg(options::OPT_kokkos_no_init);
   if ((isKokkos || isKokkosNoInit) && !KITSUNE_KOKKOS_ENABLED) {
     Diags.Report(diag::err_drv_kitsune_kokkos_disabled);
   } else {

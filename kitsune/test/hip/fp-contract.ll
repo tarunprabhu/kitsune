@@ -1,16 +1,22 @@
 ; Check that the command line argument is read by the tapir target.
 ;
 ; RUN: opt --tapir=hip --tapir-verbose -passes='tapir-lowering<O2>' %s \
-; RUN:      -o /dev/null  --fp-contract=off 2>&1 \
-; RUN:      | FileCheck %s -check-prefixes=ALL,STRICT
+; RUN:     -o /dev/null  --fp-contract=off 2>&1 \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld=ld.lld 2>&1 \
+; RUN:     | FileCheck %s -check-prefixes=ALL,STRICT
 ;
 ; RUN: opt --tapir=hip --tapir-verbose -passes='tapir-lowering<O2>' %s \
-; RUN:      -o /dev/null --fp-contract=on 2>&1 \
-; RUN:      | FileCheck %s -check-prefixes=ALL,STANDARD
+; RUN:     -o /dev/null --fp-contract=on 2>&1 \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld=ld.lld 2>&1 \
+; RUN:     | FileCheck %s -check-prefixes=ALL,STANDARD
 ;
 ; RUN: opt --tapir=hip --tapir-verbose -passes='tapir-lowering<O2>' %s \
-; RUN:      -o /dev/null --fp-contract=fast 2>&1 \
-; RUN:      | FileCheck %s -check-prefixes=ALL,FAST
+; RUN:     -o /dev/null --fp-contract=fast 2>&1 \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld=ld.lld 2>&1 \
+; RUN:     | FileCheck %s -check-prefixes=ALL,FAST
 ;
 ; ALL: 'hip' tapir target options
 ; STRICT: FP Fusion: strict

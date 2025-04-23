@@ -1,4 +1,5 @@
-// RUN: %kitcc -ftapir=cuda -std=c23 -O2 -S -emit-llvm -o - %s \
+// RUN: %kitcc -ftapir=cuda --tapir-cuda-arch=sm_80 -O2 -S -emit-llvm -o - %s  \
+// RUN:     -std=c23 \
 // RUN:     | FileCheck %s --check-prefixes=CHECK,DECLARES
 
 #include <kitsune.h>

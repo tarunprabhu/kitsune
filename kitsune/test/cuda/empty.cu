@@ -16,7 +16,8 @@
 // -----------------------------------------------------------------------------
 // We cannot compile cuda code with a tapir target
 //
-// RUN: not %kitxx -fsyntax-only -ftapir=cuda -nocudalib -nocudainc %s 2>&1 \
+// RUN: not %kitxx -fsyntax-only --tapir=cuda -nocudalib -nocudainc %s 2>&1 \
+// RUN:     --tapir-cuda-arch=sm_80 \
 // RUN:     | FileCheck --check-prefix=BAD %s
 //
 // -----------------------------------------------------------------------------

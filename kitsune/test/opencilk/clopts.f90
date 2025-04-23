@@ -16,7 +16,6 @@
 ! ALL: 'opencilk' tapir target options
 ! COMPILE:   Runtime verbose: true
 ! RUNTIME:   Runtime verbose: true
-! ALL:       Use bitcode: true
-! ALL:       Bitcode path: {{.+}}/libopencilk-abi.bc
+! ALL:       Bitcode file: {{.+}}/libopencilk-abi.bc
 
 ! FIXME: We need a DO CONCURRENT loop to ensure OpenCilkABI is entered

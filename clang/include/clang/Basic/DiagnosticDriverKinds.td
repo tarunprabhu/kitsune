@@ -846,8 +846,16 @@ def err_drv_malformed_warning_suppression_mapping : Error<
   "failed to process suppression mapping file '%0': %1">;
 
 // -----------------------------------------------------------------------------
-// Kitsune-specific driver options
+//                         Kitsune-specific diagnostics
 // -----------------------------------------------------------------------------
+
+def warn_drv_kitsune_no_gpu : Warning<
+  "%0. Using default '%1'">,
+  InGroup<Kitsune>;
+
+def warn_drv_kitsune_multi_gpu : Warning<
+  "multiple %0 GPU architectures detected: '%1'">,
+  InGroup<Kitsune>;
 
 def err_drv_kitsune_missing_required : Error<
   "missing required option '--%0'">;
@@ -861,6 +869,9 @@ def err_drv_kitsune_fixed_threads_per_block : Error<
   "value of '%0' not in range [1,1024]">;
 def err_drv_kitsune_max_threads_per_block : Error<
   "value of '%0' must be at least 1">;
+
+def err_drv_kitsune_hip_code_object_version : Error<
+  "rocm code object version '%0' is not supported">;
 
 def err_drv_kitsune_lto_disallowed_arg : Error<
   "'%0' cannot be used with -flto in Kitsune">;

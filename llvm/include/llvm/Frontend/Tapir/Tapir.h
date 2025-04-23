@@ -51,10 +51,12 @@ enum class TapirSpawnStrategy {
 };
 
 /// @{
-/// Serialization functions for various types. These will serialize the types
-/// into an llvm::ostream.
+/// Serialization functions for various types.
+
+std::string toString(const TapirTargetID &);
+std::string toString(const MaybeBool &);
+
 raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &);
-raw_ostream &operator<<(raw_ostream &os, const std::optional<TapirTargetID> &);
 raw_ostream &operator<<(raw_ostream &os, const TapirSpawnStrategy &);
 raw_ostream &operator<<(raw_ostream &os, const OptimizationLevel &);
 raw_ostream &operator<<(raw_ostream &os, const FPOpFusion::FPOpFusionMode &);

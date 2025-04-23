@@ -1,5 +1,8 @@
 ! REQUIRES: kitfc
-
+!
+! Check that invalid values passed to the --tapir-threads-per-block option
+! emit an appropriate error.
+!
 ! RUN: not %kitfc -### --tapir=hip --tapir-threads-per-block= %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix MISSING
 !

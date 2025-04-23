@@ -2,9 +2,10 @@
 # because running the linker may not work on systems with non-standard
 # sysroots.
 #
-# RUN: %kitxx -ftapir=hip -O2 -flto -Wl,--lto-emit-llvm -o - \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
-# RUN:     | opt -S \
-# RUN:     | FileCheck %s
+# RUN: mkdir -p %t
+# 
+# RUN: %kitxx -ftapir=hip -O2 -flto -Wl,--lto-emit-llvm -o %t/a.bc \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp
+# RUN: opt -S %t/a.bc | FileCheck %s
 #
 # CHECK: call {{.+}} @__kithip_launch_kernel

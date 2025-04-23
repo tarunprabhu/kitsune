@@ -148,29 +148,6 @@ static cl::opt<bool>
                     cl::desc("Enable generation of calls to do data "
                              "prefetching for managed memory."));
 
-enum ROCmABIVersion {
-  ROCm_ABI_V4, // old
-  ROCm_ABI_V5, // default
-};
-
-static cl::opt<ROCmABIVersion> ROCmABITarget(
-    "hipabi-rocm-abi", cl::init(ROCm_ABI_V5), cl::Hidden,
-    cl::desc("Select the targeted ROCm ABI version."),
-    cl::values(clEnumValN(ROCm_ABI_V4, "v4", "Target ROCm v. 4 ABI.")),
-    cl::values(clEnumValN(ROCm_ABI_V5, "v5", "Target ROCm v. 5 ABI.")));
-
-static cl::opt<bool> Use64ElementWavefront(
-    "hipabi-wavefront64", cl::init(true), cl::Hidden,
-    cl::desc("Use 64 element wavefronts. (default: enabled)"));
-
-static cl::opt<bool>
-    EnableXnack("hipabi-xnack", cl::init(true), cl::NotHidden,
-                cl::desc("Enable/disable xnack. (default: true)"));
-
-static cl::opt<bool>
-    EnableSRAMECC("hipabi-sramecc", cl::init(true), cl::NotHidden,
-                  cl::desc("Enable/disable sramecc.(default: false)"));
-
 static cl::opt<unsigned> DefaultGrainSize(
     "hipabi-default-grainsize", cl::init(1), cl::Hidden,
     cl::desc("The default grain size used by the transform "
@@ -204,80 +181,6 @@ namespace {
 /// @return true if the function is a kernel, false otherwise.
 bool isAMDKernelFunction(const Function &Fn) {
   return Fn.getCallingConv() == CallingConv::AMDGPU_KERNEL;
-}
-
-std::string buildTargetFeatureString(StringRef ArchIdStr) {
-  std::string FeaturesStr;
-
-  using namespace AMDGPU;
-  switch (parseArchAMDGCN(ArchIdStr)) {
-  case GK_GFX1103:
-    FeaturesStr +=
-        "+16-bit-insts,+atomic-fadd-rtn-insts,+ci-insts,+dl-insts,+dot10-insts,"
-        "+dot5-insts,+dot7-insts,+dot8-insts,+dot9-insts,+dpp,+gfx10-3-insts,+"
-        "gfx10-insts,+gfx11-insts,+gfx8-insts,+gfx9-insts,";
-    break;
-  case GK_GFX90A:
-    FeaturesStr += "+gfx90a-insts,+atomic-buffer-global-pk-add-f16-insts,"
-                   "+atomic-fadd-rtn-insts,";
-    [[fallthrough]];
-  case GK_GFX908:
-    FeaturesStr += "+dot3-insts,+dot4-insts,+dot5-insts,"
-                   "+dot6-insts,+mai-insts,";
-    [[fallthrough]];
-  case GK_GFX906:
-    FeaturesStr += "+dl-insts,+dot1-insts,+dot2-insts,+dot7-insts,";
-    [[fallthrough]];
-  case GK_GFX90C:
-  case GK_GFX909:
-  case GK_GFX904:
-  case GK_GFX902:
-  case GK_GFX900:
-    FeaturesStr += "+gfx9-insts,";
-    [[fallthrough]];
-  case GK_GFX810:
-  case GK_GFX805:
-  case GK_GFX803:
-  case GK_GFX802:
-  case GK_GFX801:
-    FeaturesStr += "+gfx8-insts,+16-bit-insts,+dpp,+s-memrealtime,";
-    [[fallthrough]];
-  case GK_GFX705:
-  case GK_GFX704:
-  case GK_GFX703:
-  case GK_GFX702:
-  case GK_GFX701:
-  case GK_GFX700:
-    FeaturesStr += "+ci-insts,";
-    [[fallthrough]];
-  case GK_GFX602:
-  case GK_GFX601:
-  case GK_GFX600:
-    FeaturesStr += "+s-memtime-inst,";
-    break;
-  case GK_NONE:
-    break;
-  default:
-    llvm_unreachable("Unhandled GPU!");
-  }
-
-  // TODO: feature is arch specific.  need to cross check.
-  if (EnableXnack)
-    FeaturesStr += "+xnack,";
-
-  // TODO: feature is arch specific. need to cross-check.
-  if (EnableSRAMECC)
-    FeaturesStr += "+sramecc,";
-  else
-    FeaturesStr += "-sramecc,";
-
-  // TODO: feature is arch specific. Meed to cross check.
-  if (Use64ElementWavefront)
-    FeaturesStr += "+wavefrontsize64";
-  else
-    FeaturesStr += "+wavefrontsize32";
-
-  return FeaturesStr;
 }
 
 /// @brief Make calls within a function match the function's calling conv.
@@ -1087,8 +990,10 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
 #endif
 
   KernelF->addFnAttr(Attribute::NoUnwind);
-  if (ROCmABITarget == ROCm_ABI_V5)
-    KernelF->addFnAttr("uniform-work-group-size", "true");
+
+  // This only works when the code object version >= 5, but we have ensured that
+  // that is the case in the frontend.
+  KernelF->addFnAttr("uniform-work-group-size", "true");
 
   // AMD requires that the kernel function have protected visiblity otherwise
   // AMD's runtime is unable to find the kernel function at runtime. This, in
@@ -1100,9 +1005,7 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   KernelF->addFnAttr("no-trapping-math", "true");
   KernelF->addFnAttr("target-cpu", TT->getOptions().getHipArch());
   KernelF->addFnAttr(Attribute::MustProgress);
-  std::string targetFeaturesStr =
-      buildTargetFeatureString(TT->getOptions().getHipArch());
-  KernelF->addFnAttr("target-features", targetFeaturesStr);
+  KernelF->addFnAttr("target-features", TT->getOptions().getHipFeatures());
 
   // Verify that the Thread ID corresponds to a valid iteration. Because
   // Tapir loops use canonical induction variables, valid iterations range
@@ -1401,13 +1304,20 @@ HipABI::HipABI(Module &M, const TapirTargetOptions &Opts)
   if (VerboseMode) {
     dbgs() << "'hip' tapir target options:\n";
     dbgs() << "  Runtime verbose:     " << Opts.getKitrtVerbose() << "\n";
-    dbgs() << "  GPU arch:            " << Opts.getHipArch() << "\n";
     dbgs() << "  Optimization level:  " << Opts.getOptLevel() << "\n";
     dbgs() << "  FP Fusion:           " << Opts.getFPOpFusionMode() << "\n";
     dbgs() << "  Fixed threads/block: " << Opts.getFixedThreadsPerBlock()
            << "\n";
     dbgs() << "  Max threads/block:   " << Opts.getMaxThreadsPerBlock() << "\n";
+    dbgs() << "  GPU arch:            " << Opts.getHipArch() << "\n";
+    dbgs() << "  SRAMECC:             " << Opts.getHipSRAMECC() << "\n";
+    dbgs() << "  Xnack:               " << Opts.getHipXnack() << "\n";
     dbgs() << "  Target features:     " << Opts.getHipFeatures() << "\n";
+    dbgs() << "  Bitcode files: [" << "\n";
+    for (StringRef file : Opts.getHipRuntimeBCFiles())
+      dbgs() << "    " << file << "\n";
+    dbgs() << "  ]\n";
+    dbgs() << "  LLD:                 " << Opts.getLLD() << "\n";
   }
 
   LLVMContext &Ctx = M.getContext();
@@ -1475,7 +1385,7 @@ HipABI::HipABI(Module &M, const TapirTargetOptions &Opts)
     break;
   }
 
-  std::string Features = buildTargetFeatureString(TTO.getHipArch());
+  StringRef Features = TTO.getHipFeatures();
   TargetOptions Options;
   Options.UseInitArray = true;
   Options.EmitAddrsig = true;
@@ -1498,74 +1408,20 @@ std::unique_ptr<Module> &HipABI::getLibDeviceModule() {
     LLVMContext &Ctx = KernelModule.getContext();
     SMDiagnostic SMD;
 
-    // TODO: should we add flags to control some of these "on"/"off"
-    // bitcode options exposed via command line args?
-    std::initializer_list<std::string> BaseBCFiles = {
-        "hip.bc",
-        "ocml.bc",
-        "ockl.bc",
-        "oclc_daz_opt_off.bc",
-        "oclc_unsafe_math_off.bc",
-        "oclc_finite_only_off.bc",
-        "oclc_correctly_rounded_sqrt_on.bc",
-        //"opencl.bc", // printf lives here...
-    };
-
-    std::list<std::string> ROCmBCFiles;
-    for (std::string BCFile : BaseBCFiles)
-      ROCmBCFiles.push_back(BCFile);
-
-    if (Use64ElementWavefront)
-      ROCmBCFiles.push_back("oclc_wavefrontsize64_on.bc");
-    else
-      ROCmBCFiles.push_back("oclc_wavefrontsize64_off.bc");
-
-    // Pick the corresponding bitcode file for the target architecture.
-    // TODO: Add support for multiple architectures in a single transform.
-    StringRef gpuArch = TTO.getHipArch();
-    if (gpuArch == "gfx900")
-      ROCmBCFiles.push_back("oclc_isa_version_900.bc");
-    else if (gpuArch == "gfx902")
-      ROCmBCFiles.push_back("oclc_isa_version_902.bc");
-    else if (gpuArch == "gfx904")
-      ROCmBCFiles.push_back("oclc_isa_version_904.bc");
-    else if (gpuArch == "gfx906")
-      ROCmBCFiles.push_back("oclc_isa_version_906.bc");
-    else if (gpuArch == "gfx908")
-      ROCmBCFiles.push_back("oclc_isa_version_908.bc");
-    else if (gpuArch == "gfx90a")
-      ROCmBCFiles.push_back("oclc_isa_version_90a.bc");
-    else if (gpuArch == "gfx90c")
-      ROCmBCFiles.push_back("oclc_isa_version_90c.bc");
-    else if (gpuArch == "gfx1103")
-      ROCmBCFiles.push_back("oclc_isa_version_1103.bc");
-    else {
-      errs() << "unsupported amdgpu archicture target: " << gpuArch << ".\n";
-      report_fatal_error("fatal error!");
-    }
-
-    if (ROCmABITarget == ROCm_ABI_V4)
-      ROCmBCFiles.push_back("oclc_abi_version_400.bc");
-    else if (ROCmABITarget == ROCm_ABI_V5)
-      ROCmBCFiles.push_back("oclc_abi_version_500.bc");
-    else
-      llvm_unreachable("unhandled ROCm ABI version!");
-
     LLVM_DEBUG(dbgs() << "\tpre-loading AMDGCN device bitcode files.\n");
-    for (std::string BCFile : ROCmBCFiles) {
-      const std::string GCNFile = std::string(KITSUNE_HIP_BITCODE_DIR) + BCFile;
-      LLVM_DEBUG(dbgs() << "\t\t* " << GCNFile << "\n");
+    for (std::string BCFile : TTO.getHipRuntimeBCFiles()) {
+      LLVM_DEBUG(dbgs() << "\t\t* " << BCFile << "\n");
       if (LibDeviceModule == nullptr) {
-        LibDeviceModule = parseIRFile(GCNFile, SMD, Ctx);
+        LibDeviceModule = parseIRFile(BCFile, SMD, Ctx);
         if (LibDeviceModule == nullptr) {
-          SMD.print(GCNFile.c_str(), errs());
+          SMD.print(BCFile.c_str(), errs());
           report_fatal_error("Failed to parse bitcode file!");
         }
       } else {
         std::unique_ptr<Module> BCModule;
-        BCModule = parseIRFile(GCNFile, SMD, Ctx);
+        BCModule = parseIRFile(BCFile, SMD, Ctx);
         if (BCModule == nullptr) {
-          SMD.print(GCNFile.c_str(), errs());
+          SMD.print(BCFile.c_str(), errs());
           report_fatal_error("Failed to parse bitcode file!");
         }
         LLVM_DEBUG(dbgs() << "\t\t\tlinking into device module...\n");
@@ -1796,14 +1652,17 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   }
   LinkedObjFile->keep();
 
-  // TODO: Pass the path to LLD from the frontend.
-  // TODO: The lld invocation below is install prefix and unix-specific...
-  ErrorOr<std::string> LLD = sys::findProgramByName("ld.lld");
-  if ((EC = LLD.getError()))
-    report_fatal_error("executable 'lld' not found! check your path?");
-
+  // FIXME: This only works on ELF-based systems.
+  //
+  // We currently send the bindir down from clang. Instead, we might as well
+  // use the driver to compute the right lld variant and send that down instead.
+  // That should obviate the need for the flavor argument since the name with
+  // which lld is invoked will allow it to internally determine the object file
+  // format.
+  //
+  // Once we do that, would we even need "-m elf64_amdgpu"? What does that do?
   opt::ArgStringList LLDArgList;
-  LLDArgList.push_back(LLD->c_str());
+  LLDArgList.push_back(TTO.getLLD().data());
   LLDArgList.push_back("-flavor");
   LLDArgList.push_back("gnu");
   LLDArgList.push_back("-m");
@@ -1813,10 +1672,10 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
   LLDArgList.push_back("--eh-frame-hdr");
   LLDArgList.push_back("--plugin-opt=-amdgpu-internalize-symbols");
   std::string mcpu = "--plugin-opt=-mcpu=" + TTO.getHipArch().str();
-  if (EnableXnack)
-    mcpu += ":xnack+";
-  if (EnableSRAMECC)
+  if (TTO.getHipSRAMECC() == MaybeBool::On)
     mcpu += ":sramecc+";
+  if (TTO.getHipXnack() == MaybeBool::On)
+    mcpu += ":xnack+";
   LLDArgList.push_back(mcpu.c_str());
 
   // TODO: Do we always want this to be -O3, or should this match the "main"
@@ -1849,7 +1708,7 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
 
   std::string ErrMsg;
   bool ExecFailed;
-  int ExecStat = sys::ExecuteAndWait(*LLD, LLDArgs, std::nullopt, {},
+  int ExecStat = sys::ExecuteAndWait(TTO.getLLD(), LLDArgs, std::nullopt, {},
                                      0, // unlimited wait.
                                      0, // unlimited memory.
                                      &ErrMsg, &ExecFailed);
@@ -2004,7 +1863,7 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
       M.getOrInsertFunction("__kithip_initialize", VoidTy);
   CtorBuilder.CreateCall(KitRTInitFn, {});
 
-  if (EnableXnack) {
+  if (TTO.getHipXnack() == MaybeBool::On) {
     LLVM_DEBUG(dbgs() << "\t\tenable xnack via ctor runtime call.\n");
     FunctionCallee KitRTEnableXnackFn =
         M.getOrInsertFunction("__kithip_enable_xnack", VoidTy);
@@ -2053,7 +1912,7 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
   // binaries given we take a different path with codegen here than the more
   // commmon approach done via the frontend (e.g., we have no stub functions).
   // We should dig more into the details to find out if this is actually
-  // needed/helpful/etc.  This might mean digging into the ROCm source...
+  // needed/helpful/etc. This might mean digging into the ROCm source...
   FunctionCallee RegisterFatbinaryFn =
       M.getOrInsertFunction("__hipRegisterFatBinary",
                             FunctionType::get(VoidPtrPtrTy, VoidPtrTy, false));

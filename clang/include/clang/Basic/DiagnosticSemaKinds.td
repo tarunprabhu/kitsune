@@ -12905,7 +12905,9 @@ def err_acc_update_as_body
 def err_amdgcn_global_load_lds_size_invalid_value : Error<"invalid size value">;
 def note_amdgcn_global_load_lds_size_valid_value : Note<"size must be %select{1, 2, or 4|1, 2, 4, 12 or 16}0">;
 
-// Kitsune
+// -----------------------------------------------------------------------------
+//                         Kitsune-specific diagnostics
+// -----------------------------------------------------------------------------
 
 def note_ovl_candidate_no_mobile: Note<
     "candidate %sub{select_ovl_candidate_kind}0,1,2 not viable: "

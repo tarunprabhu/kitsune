@@ -1,32 +1,34 @@
 ; Check that the command line options make it to the options objects
 ;
 ; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose 2>&1 \
-; RUN:      | FileCheck %s -check-prefixes ALL,DEFAULT
+; RUN:     --tapir-verbose 2>&1 \
+; RUN:     | FileCheck %s -check-prefixes ALL
 ;
 ; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --kitrt-verbose 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,RUNTIME
+; RUN:     --tapir-verbose --kitrt-verbose 2>&1 \
+; RUN:     | FileCheck %s -check-prefixes ALL,RUNTIME
 ;
 ; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-cuda-arch=sm_72 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,ARCH
-;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-threads-per-block=64 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,TPB
-;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-max-threads-per-block=128 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,MTPB
+; RUN:     --tapir-verbose \
+; RUN:     --kitrt-verbose \
+; RUN:     --tapir-threads-per-block=64 \
+; RUN:     --tapir-max-threads-per-block=128 \
+; RUN:     --tapir-cuda-arch=sm_72 \
+; RUN:     --tapir-cuda-virt-arch=compute_72 \
+; RUN:     --tapir-cuda-features="+ptx72" \
+; RUN:     --tapir-cuda-runtime-bc="%S/input/nvptx.bc" 2>&1\
+; RUN:     | FileCheck %s -check-prefixes ALL,CHECK
 ;
 ; ALL: 'cuda' tapir target options
-; DEFAULT:   Runtime verbose: 1
-; RUNTIME:   Runtime verbose: 1
-; OPTLEVEL:  Optimization level: O2
-; ARCH:      GPU arch: sm_72
-; TPB:       Fixed threads/block: 64
-; MTPB:      Max threads/block: 128
+; RUNTIME:  Runtime verbose: 1
+; CHECK:    Runtime verbose: 1
+; CHECK:    Optimization level: O2
+; CHECK:    Fixed threads/block: 64
+; CHECK:    Max threads/block: 128
+; CHECK:    GPU arch: sm_72
+; CHECK:    GPU virtual arch: compute_72
+; CHECK:    Target features: +ptx72
+; CHECK:    Bitcode file: {{.+}}/input/nvptx.bc
 
 ; ModuleID = 'clopts.c'
 source_filename = "clopts.c"

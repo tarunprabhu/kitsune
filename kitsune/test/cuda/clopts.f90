@@ -5,9 +5,13 @@
 !
 ! Check that the frontend options make it to the tapir target
 !
-! RUN: %kitfc --tapir=cuda --tapir-verbose         \
+! RUN: %kitfc --tapir=cuda --tapir-verbose \
 ! RUN:     -O2 -S -emit-llvm -o /dev/null %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes ALL,COMPILE
+!
+! RUN: %kitfc --tapir=cuda --tapir-verbose -O3 \
+! RUN:     -O2 -S -emit-llvm -o /dev/null %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefixes ALL,OPTLEVEL
 !
 ! RUN: %kitfc --tapir=cuda --tapir-verbose --kitrt-verbose \
 ! RUN:     -O2 -S -emit-llvm -o /dev/null %s 2>&1 \
@@ -27,6 +31,7 @@
 !
 ! ALL: 'cuda' tapir target options
 ! COMPILE:   Runtime verbose: true
+! OPTLEVEL:  Optimization level: O3
 ! RUNTIME:   Runtime verbose: true
 ! ARCH:      GPU arch: sm_72
 ! TPB:       Fixed threads/block: 64

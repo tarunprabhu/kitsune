@@ -1,4 +1,7 @@
-// RUN: not %kitxx -### --tapir=hip --tapir-threads-per-block= %s 2>&1 \
+// Check that invalid values passed to the --tapir-threads-per-block option
+// emit an appropriate error.
+//
+// RUN: not %kitxx -### --tapir=hip --tapir-threads-per-block= %s 2>&1  \
 // RUN:     | FileCheck %s -check-prefix MISSING
 //
 // RUN: not %kitxx -### --tapir=hip --tapir-threads-per-block=-1 %s 2>&1 \

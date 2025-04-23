@@ -2,6 +2,7 @@
 // runtime depending on the command line arguments passed.
 //
 // RUN: %kitxx --tapir=cuda -S -emit-llvm -O2 -o - %s 2>&1 \
+// RUN:     --tapir-cuda-arch=sm_80 \
 // RUN:     | FileCheck %s -check-prefix DEFAULT
 //
 // Currently, if a max-threads-per-block option is not used, the CudaABI
@@ -26,7 +27,7 @@
 // ----------------------------------------------------------------------------
 //
 // RUN: %kitxx --tapir=cuda -S -emit-llvm -O2 -o - %s \
-// RUN:     --tapir-threads-per-block=77 \
+// RUN:     --tapir-cuda-arch=sm_80 --tapir-threads-per-block=77 \
 // RUN:     | FileCheck %s -check-prefix TPB
 //
 // TPB-LABEL: kitcu.ctor{{.*}}
@@ -35,7 +36,7 @@
 // ----------------------------------------------------------------------------
 //
 // RUN: %kitxx --tapir=cuda -S -emit-llvm -O2 -o - %s \
-// RUN:     --tapir-max-threads-per-block=29 \
+// RUN:     --tapir-cuda-arch=sm_80 --tapir-max-threads-per-block=29 \
 // RUN:     | FileCheck %s -check-prefix MTPB
 //
 // MTPB-LABEL: kitcu.ctor{{.*}}
@@ -44,11 +45,11 @@
 // ----------------------------------------------------------------------------
 //
 // RUN: %kitxx --tapir=cuda -S -emit-llvm -O2 -o - %s \
-// RUN:     --tapir-verbose \
+// RUN:     --tapir-cuda-arch=sm_80 --tapir-verbose \
 // RUN:     | FileCheck %s -check-prefix VERBOSE
 //
 // RUN: %kitxx --tapir=cuda -S -emit-llvm -O2 -o - %s \
-// RUN:     --kitrt-verbose \
+// RUN:     --tapir-cuda-arch=sm_80 --kitrt-verbose \
 // RUN:     | FileCheck %s -check-prefix VERBOSE
 //
 // VERBOSE-LABEL: kitcu.ctor{{.*}}
@@ -57,7 +58,7 @@
 // ----------------------------------------------------------------------------
 //
 // RUN: %kitxx --tapir=cuda -S -emit-llvm -O2 -o - %s \
-// RUN:     -mllvm -cuabi-refine-launches=false \
+// RUN:     --tapir-cuda-arch=sm_80 -mllvm -cuabi-refine-launches=false \
 // RUN:     | FileCheck %s -check-prefix NOREFINE
 //
 // NOREFINE-LABEL: kitcu.ctor{{.*}}

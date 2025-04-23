@@ -5,7 +5,7 @@
 // RUN: %kitxx -### -ftapir=none %s
 // RUN: %kitxx -### --tapir=none %s
 // RUN: %kitxx -### -ftapir=serial %s
-// RUN: %kitxx -### -ftapir=serial %s
+// RUN: %kitxx -### --tapir=serial %s
 
 // -----------------------------------------------------------------------------
 // The -ftapir flag is case sensitive.
@@ -26,8 +26,8 @@
 
 // off used to be a valid value for the -ftapir flag, but it is not any longer.
 //
-// RUN: not %kitxx -### -ftapir=off %s 2>&1 | FileCheck %s -check-prefix BAD
-// RUN: not %kitxx -### -ftapir=Off %s 2>&1 | FileCheck %s -check-prefix BAD
+// RUN: not %kitxx -### --tapir=off %s 2>&1 | FileCheck %s -check-prefix BAD
+// RUN: not %kitxx -### --tapir=Off %s 2>&1 | FileCheck %s -check-prefix BAD
 
 // BAD: invalid value '{{.+}}' in '-{{.}}tapir={{.+}}'
 

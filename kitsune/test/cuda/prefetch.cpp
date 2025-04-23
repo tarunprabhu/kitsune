@@ -1,6 +1,7 @@
 // Check that prefetch function calls are inserted, or not as appropriate
 //
 // RUN: %kitxx --tapir=cuda -S -emit-llvm -O2 -o - %s \
+// RUN:     --tapir-cuda-arch=sm_72 \
 // RUN:     | FileCheck %s -check-prefix PREFETCH
 //
 // PREFETCH: define {{.+}} @f
@@ -12,6 +13,7 @@
 // -----------------------------------------------------------------------------
 //
 // RUN: %kitxx --tapir=cuda -S -emit-llvm -O2 -o - %s \
+// RUN:     --tapir-cuda-arch=sm_72 \
 // RUN:     -mllvm -cuabi-prefetch=false \
 // RUN:     | FileCheck %s -check-prefix NO-PREFETCH
 //

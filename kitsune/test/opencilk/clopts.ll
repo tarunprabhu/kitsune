@@ -1,17 +1,24 @@
-; RUN: opt --tapir=opencilk -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
-; RUN:      --tapir-verbose 2>&1 \
-; RUN:      | FileCheck %s -check-prefixes ALL,COMPILE
+; Check that the command line options make it to the options objects
 ;
 ; RUN: opt --tapir=opencilk -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
-; RUN:      --tapir-verbose --kitrt-verbose 2>&1 \
-; RUN:      | FileCheck %s -check-prefixes ALL,RUNTIME
+; RUN:     --tapir-verbose 2>&1 \
+; RUN:     --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc 2>&1 \
+; RUN:     | FileCheck %s -check-prefixes ALL
+;
+; RUN: opt --tapir=opencilk -passes="tapir-lowering<O2>" -o /dev/null %s \
+; RUN:     --tapir-verbose --kitrt-verbose 2>&1 \
+; RUN:     --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc 2>&1 \
+; RUN:     | FileCheck %s -check-prefixes ALL,RUNTIME
+;
+; RUN: opt --tapir=opencilk -passes="tapir-lowering<O2>" -o /dev/null %s \
+; RUN:     --tapir-verbose \
+; RUN:     --kitrt-verbose \
+; RUN:     --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc 2>&1 \
+; RUN:     | FileCheck %s -check-prefixes ALL,CHECK
 ;
 ; ALL: 'opencilk' tapir target options
-; COMPILE:   Runtime verbose: 1
 ; RUNTIME:   Runtime verbose: 1
-; ALL:       Bitcode path: {{.+}}/libopencilk-abi.bc
+; CHECK:     Bitcode file: {{.+}}/libopencilk-abi.bc
 
 ; ModuleID = 'clopts.c'
 source_filename = "clopts.c"

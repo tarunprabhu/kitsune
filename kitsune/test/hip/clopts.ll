@@ -1,29 +1,31 @@
-; RUN: opt --tapir=hip -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose 2>&1 \
-; RUN:      | FileCheck %s -check-prefixes ALL,DEFAULT
+; Check that the command line options make it to the options objects. 
 ;
 ; RUN: opt --tapir=hip -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --kitrt-verbose 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,RUNTIME
+; RUN:     --tapir-verbose \
+; RUN:     --kitrt-verbose \
+; RUN:     --tapir-threads-per-block=64 \
+; RUN:     --tapir-max-threads-per-block=128 \
+; RUN:     --tapir-hip-arch=gfx906 \
+; RUN:     --tapir-hip-sramecc=off \
+; RUN:     --tapir-hip-xnack=on \
+; RUN:     --tapir-hip-features="-sramecc,+xnack" \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld="%S/input/ld.lld" 2>&1 \
+; RUN:     | FileCheck %s -check-prefixes CHECK
 ;
-; RUN: opt --tapir=hip -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-hip-arch=gfx906 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,ARCH
-;
-; RUN: opt --tapir=hip -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-threads-per-block=64 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,TPB
-;
-; RUN: opt --tapir=hip -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:      --tapir-verbose --tapir-max-threads-per-block=128 2>&1\
-; RUN:      | FileCheck %s -check-prefixes ALL,MTPB
-;
-; ALL: 'hip' tapir target options
-; DEFAULT:   Runtime verbose: 1
-; RUNTIME:   Runtime verbose: 1
-; ARCH:      GPU arch: gfx906
-; TPB:       Fixed threads/block: 64
-; MTPB:      Max threads/block: 128
+; CHECK: 'hip' tapir target options
+; CHECK:    Runtime verbose: 1
+; CHECK:    Runtime verbose: 1
+; CHECK:    Optimization level: O2
+; CHECK:    Fixed threads/block: 64
+; CHECK:    Max threads/block: 128
+; CHECK:    GPU arch: gfx906
+; CHECK:    SRAMECC: off
+; CHECK:    Xnack: on
+; CHECK:    Target features: -sramecc,+xnack
+; CHECK:    Bitcode files: [
+; CHECK:      {{.+}}/input/amd.bc
+; CHECK:    ]
 
 ; ModuleID = 'clopts.c'
 source_filename = "clopts.c"
@@ -32,33 +34,6 @@ target triple = "x86_64-unknown-linux-gnu"
 
 ; Function Attrs: nounwind memory(argmem: write) uwtable
 define dso_local void @f(ptr nocapture noundef writeonly %c, i32 noundef %n) local_unnamed_addr #0 {
-entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i32 %n, 0
-  br i1 %cmp5, label %forall.detach.preheader, label %forall.sync
-
-forall.detach.preheader:                          ; preds = %entry
-  %wide.trip.count = zext nneg i32 %n to i64
-  br label %forall.detach
-
-forall.detach:                                    ; preds = %forall.detach.preheader, %forall.inc
-  %indvars.iv = phi i64 [ 0, %forall.detach.preheader ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
-
-forall.body:                                      ; preds = %forall.detach
-  %arrayidx = getelementptr inbounds i32, ptr %c, i64 %indvars.iv
-  store i32 %n, ptr %arrayidx, align 4, !tbaa !5
-  reattach within %syncreg, label %forall.inc
-
-forall.inc:                                       ; preds = %forall.body, %forall.detach
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %wide.trip.count
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !9
-
-forall.sync:                                      ; preds = %forall.inc, %entry
-  sync within %syncreg, label %forall.end
-
-forall.end:                                       ; preds = %forall.sync
   ret void
 }
 

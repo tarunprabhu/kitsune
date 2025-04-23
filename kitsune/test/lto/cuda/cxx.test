@@ -2,9 +2,11 @@
 # because running the linker may not work on systems with non-standard
 # sysroots.
 #
-# RUN: %kitxx -ftapir=cuda -O2 -flto -o - -Wl,--lto-emit-llvm \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
-# RUN:     | opt -S \
-# RUN:     | FileCheck %s
+# RUN: mkdir -p %t
+#
+# RUN: %kitxx -ftapir=cuda -O2 -flto -o %t/a.bc -Wl,--lto-emit-llvm \
+# RUN:     --tapir-cuda-arch=sm_72 \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp
+# RUN: opt -S %t/a.bc | FileCheck %s
 #
 # CHECK: call {{.+}} @__kitcuda_launch_kernel

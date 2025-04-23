@@ -62,7 +62,7 @@
 // ----------------------------------------------------------------------------
 //
 // RUN: %kitxx --tapir=hip -S -emit-llvm -O2 -o - %s \
-// RUN:     -mllvm -hipabi-xnack=false \
+// RUN:     --tapir-hip-xnack=off \
 // RUN:     | FileCheck %s -check-prefix NOXNACK
 //
 // NOXNACK-LABEL: kithip.ctor{{.*}}

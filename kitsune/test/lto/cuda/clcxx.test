@@ -2,26 +2,24 @@
 # correctly handled when compiling with -flto.
 #
 # RUN: %kitxx -### -ftapir=cuda -O2 -flto \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
-# RUN:     | FileCheck %s -check-prefixes=ALL
-#
-# RUN: %kitxx -### -ftapir=cuda -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp \
-# RUN:     --tapir-cuda-arch=sm_72 2>&1 \
+# RUN:     --tapir-cuda-arch=sm_70 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,CUDA_ARCH
 #
 # RUN: %kitxx -### -ftapir=cuda -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     --tapir-cuda-arch=sm_72 \
 # RUN:     --tapir-threads-per-block=64 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,TPB
 #
 # RUN: %kitxx -### -ftapir=cuda -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     --tapir-cuda-arch=sm_72 \
 # RUN:     --tapir-max-threads-per-block=128 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,MTPB
 #
 # ALL: /ld{{(64)?}}.lld"
 # ALL-SAME: "-mllvm" "--tapir=cuda"
-# CUDA_ARCH: "-mllvm" "--tapir-cuda-arch=sm_72"
+# CUDA_ARCH: "-mllvm" "--tapir-cuda-arch=sm_70"
 # TPB: "-mllvm" "--tapir-threads-per-block=64"
 # MTPB: "-mllvm" "--tapir-max-threads-per-block=128"

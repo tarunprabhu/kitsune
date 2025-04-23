@@ -27,7 +27,7 @@
 // CONTRACT-ON: "-ffp-contract=on"
 // CONTRACT-FAST: "-ffp-contract=fast"
 
-// When compiling for cuda, the host and device code are compiled separately
+// When compiling for hip, the host and device code are compiled separately
 // The device code compilation (with a "primary" triple indicating nvptx) does
 // not contain an ffp-contract entry - presumably because it is set to "fast"
 // internally. On the host (with an "auxiliary" triple indicating nvptx), the
@@ -43,23 +43,23 @@
 //
 // Check that the correct fp contact value is propagated to the runtime
 //
-// RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
+// RUN: %kitxx --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
 // RUN:      --tapir-verbose 2>&1 \
 // RUN:      | FileCheck %s -check-prefix FUSION-STANDARD
 //
-// RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
+// RUN: %kitxx --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
 // RUN:      --tapir-verbose -ffp-contract=off 2>&1 \
 // RUN:      | FileCheck %s -check-prefix FUSION-STANDARD
 //
-// RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
+// RUN: %kitxx --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
 // RUN:      --tapir-verbose -ffp-contract=on 2>&1 \
 // RUN:      | FileCheck %s -check-prefix FUSION-STANDARD
 //
-// RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
+// RUN: %kitxx --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
 // RUN:      --tapir-verbose -ffp-contract=fast 2>&1 \
 // RUN:      | FileCheck %s -check-prefix FUSION-FAST
 //
-// RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
+// RUN: %kitxx --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
 // RUN:      --tapir-verbose -ffp-contract=fast-honor-pragmas 2>&1 \
 // RUN:      | FileCheck %s -check-prefix FUSION-STANDARD
 //

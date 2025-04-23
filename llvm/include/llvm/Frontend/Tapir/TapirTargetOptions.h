@@ -94,9 +94,6 @@ private:
   /// The virtual architecture (compute_*), for the @ref cudaArch.
   std::string cudaVirtArch;
 
-  /// The PTX version for the @ref cudaArch.
-  std::string cudaPTXVersion;
-
   /// Cuda target features for the current @ref cudaArch. This is a string with
   /// the format: +feature1,+feature2,-feature3...
   std::string cudaFeatures;
@@ -155,28 +152,49 @@ public:
 
   TapirTargetID getTapirTargetID() const { return tt; }
 
+  /// @{
+  /// Options common to all tapir targets.
   bool getTapirVerbose() const { return tapirVerbose; }
   bool getKitrtVerbose() const { return kitrtVerbose; }
   OptimizationLevel getOptLevel() const { return optLevel; }
   FPOpFusion::FPOpFusionMode getFPOpFusionMode() const {
     return fpOpFusionMode;
   }
+  /// @}
+
+  /// @{
+  /// Options common to the GPU tapir targets. In practice, some of these are
+  /// only used by some tapir targets. They are here because they are not tied,
+  /// in principle, to any one. For example, the path to LLD is only used by
+  /// the hip tapir target.
   unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
   unsigned getMaxThreadsPerBlock() const { return maxThreadsPerBlock; }
+  StringRef getLLD() const { return lld; }
+  /// @}
+
+  /// @{
+  /// Options for the cuda tapir target.
   StringRef getCudaArch() const { return cudaArch; }
   StringRef getCudaVirtArch() const { return cudaVirtArch; }
-  StringRef getCudaPTXVersion() const { return cudaPTXVersion; }
   StringRef getCudaFeatures() const { return cudaFeatures; }
   StringRef getCudaRuntimeBCFile() const { return cudaRuntimeBCFile; }
+  /// @}
+
+  /// @{
+  /// Options for the hip tapir target.
   StringRef getHipArch() const { return hipArch; }
-  MaybeBool getHipSramECC() const { return hipSRAMECC; }
+  MaybeBool getHipSRAMECC() const { return hipSRAMECC; }
   MaybeBool getHipXnack() const { return hipXnack; }
   StringRef getHipFeatures() const { return hipFeatures; }
   const std::vector<std::string> &getHipRuntimeBCFiles() const {
     return hipRuntimeBCFiles;
   }
-  StringRef getLLD() const { return lld; }
+  /// @}
+
+  /// @{
+  /// Options for the opencilk tapir target
   StringRef getOpenCilkRuntimeBCFile() const { return openCilkRuntimeBCFile; }
+  /// @}
 
   /// Construct an options object from the given frontend options. If a tapir
   /// target ID is not set in the kitsune options, std::nullopt is returned.

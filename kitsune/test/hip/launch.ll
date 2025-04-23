@@ -1,6 +1,8 @@
 ; Check that a launch call and a fat binary are present in the host.
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @__kitsune_fatbin_hip = {{.+}} constant [{{[0-9]+}} x i8] c"

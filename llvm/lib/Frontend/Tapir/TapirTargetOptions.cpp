@@ -50,7 +50,7 @@ namespace llvm {
 // object *only*. Most tapir targets have additional command line options that
 // can be used to tweak its behavior.
 
-// ---------------- options common to all tapir target options ----------------
+// -------------------- options common to all tapir targets --------------------
 
 static cl::opt<std::optional<TapirTargetID>, false, TapirTargetIDParser>
     clTapirTarget("tapir-target", cl::desc("Target runtime for Tapir"),
@@ -69,6 +69,8 @@ static cl::opt<bool>
 
 static cl::opt<std::string> clLLD("tapir-lld", cl::init(""), cl::NotHidden,
                                   cl::desc("Path to LLD"));
+
+// ------------------ options common to the GPU tapir targets ------------------
 
 static cl::opt<unsigned> clFixedThreadsPerBlock(
     "tapir-threads-per-block",
@@ -96,10 +98,6 @@ static cl::opt<std::string> clCudaArch(
 static cl::opt<std::string>
     clCudaVirtArch("tapir-cuda-virt-arch", cl::init(""), cl::NotHidden,
                    cl::desc("NVIDIA GPU virtual architecture"));
-
-static cl::opt<std::string>
-    clCudaPTXVersion("tapir-cuda-ptx-version", cl::init(""), cl::NotHidden,
-                     cl::desc("NVIDIA GPU PTX version"));
 
 static cl::opt<std::string> clCudaFeatures(
     "tapir-cuda-features", cl::init(""), cl::NotHidden,
@@ -141,17 +139,22 @@ static cl::opt<std::string> clHipFeatures(
     "tapir-hip-features", cl::init(""), cl::NotHidden,
     cl::desc("The target features to use in the hip tapir target"));
 
+static cl::list<std::string> clHipRuntimeBCFiles(
+    "tapir-hip-runtime-bcs",
+    cl::desc("The bitcode files to use in the hip tapir target"),
+    cl::CommaSeparated);
+
 // ----------------------- opencilk tapir target options -----------------------
 
-static cl::opt<std::string> clOpenCilkRuntimeBCFile(
+static cl::opt<std::string> clOpenCilkRuntimeBCPath(
     "opencilk-runtime-bc-path", cl::init(""),
-    cl::desc("Path to the bitcode file for the OpenCilk runtime ABI"),
-    cl::Hidden);
+    cl::desc("Path to the bitcode file for the OpenCilk runtime bitcode file"),
+    cl::NotHidden);
 
 static cl::alias
-    clOpenCilkABIBC("tapir-opencilk-runtime-bc",
-                    cl::desc("Alias for --opencilk-runtime-bc-path"),
-                    cl::aliasopt(clOpenCilkRuntimeBCFile));
+    clOpenCilkRuntimeBCFile("tapir-opencilk-runtime-bc",
+                            cl::desc("Alias for --opencilk-runtime-bc-path"),
+                            cl::aliasopt(clOpenCilkRuntimeBCPath));
 
 // -----------------------------------------------------------------------------
 
@@ -168,30 +171,34 @@ TapirTargetOptions::createFromCommandLineOptions() {
     tto.fpOpFusionMode = codegen::getFuseFPOps();
     tto.lld = clLLD;
 
+    // FIXME: This should be refactored since all frontends will perform this
+    // sanity check.
     if (clFixedThreadsPerBlock > KITSUNE_MAX_FIXED_THREADS_PER_BLOCK)
       clFixedThreadsPerBlock.error(
           "-tapir-threads-per-block exceeds maximum value");
     else if (clFixedThreadsPerBlock)
       tto.fixedThreadsPerBlock = clFixedThreadsPerBlock;
 
+    // FIXME: This should check that the value is not greater than
+    // KITSUNE_MAX_FIXED_THREADS_PER_BLOCK.
     if (clMaxThreadsPerBlock)
       tto.maxThreadsPerBlock = clMaxThreadsPerBlock;
 
     // Set cuda tapir target options
     tto.cudaArch = clCudaArch;
     tto.cudaVirtArch = clCudaVirtArch;
-    tto.cudaPTXVersion = clCudaPTXVersion;
     tto.cudaFeatures = clCudaFeatures;
     tto.cudaRuntimeBCFile = clCudaRuntimeBCFile;
 
     // Set hip tapir target options
     tto.hipArch = clHipArch;
-    tto.hipFeatures = clHipFeatures;
     tto.hipSRAMECC = clHipSRAMECC;
     tto.hipXnack = clHipXnack;
+    tto.hipFeatures = clHipFeatures;
+    tto.hipRuntimeBCFiles = clHipRuntimeBCFiles;
 
     // Set opencilk tapir target options
-    tto.openCilkRuntimeBCFile = clOpenCilkRuntimeBCFile;
+    tto.openCilkRuntimeBCFile = clOpenCilkRuntimeBCPath;
 
     // FIXME: This is here purely for debugging because it was in HipABI.cpp
     // originally. It really should go away.
@@ -226,7 +233,6 @@ TapirTargetOptions::create(const KitsuneOptions &opts,
     // Set cuda tapir target options
     tto.cudaArch = opts.getCudaArch();
     tto.cudaVirtArch = opts.getCudaVirtArch();
-    tto.cudaPTXVersion = opts.getCudaPTXVersion();
     tto.cudaFeatures = opts.getCudaFeatures();
     tto.cudaRuntimeBCFile = opts.getCudaRuntimeBCFile();
 

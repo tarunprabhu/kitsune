@@ -63,7 +63,7 @@ OpenCilkABI::OpenCilkABI(Module &M, const TapirTargetOptions &Opts)
   if (Opts.getTapirVerbose()) {
     dbgs() << "'opencilk' tapir target options:\n";
     dbgs() << "  Runtime verbose: " << Opts.getKitrtVerbose() << "\n";
-    dbgs() << "  Bitcode path:    " << Opts.getOpenCilkRuntimeBCFile() << "\n";
+    dbgs() << "  Bitcode file:    " << Opts.getOpenCilkRuntimeBCFile() << "\n";
   }
 }
 
