@@ -6,7 +6,7 @@
 //
 // At the time of writing, only code object version 4 and 5 are available. It
 // would be good if this could be updated to track all possible supported
-// values.
+// (and unsupported) values.
 //
 // -----------------------------------------------------------------------------
 // Ensure that the -mcode-object-version option is not actually required.

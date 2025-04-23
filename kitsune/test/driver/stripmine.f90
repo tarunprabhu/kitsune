@@ -1,9 +1,5 @@
 ! REQUIRES: kitfc
 !
-! Flang does not currently handle -print-pipeline-passes. This has been
-! implemented upstream, so this test should pass once we upgrade.
-! XFAIL: *
-!
 !-------------------------------------------------------------------------------
 !
 ! The -fstripmine option is only enabled when the kitsune frontend is used
@@ -23,8 +19,8 @@
 !
 !-------------------------------------------------------------------------------
 !
-! Check that the strip mining is enabled correctly depending on the
-! optimization level.
+! Check that stripmining is enabled correctly depending on the optimization
+! level.
 !
 ! RUN: %kitfc -### -O0 -ftapir=serial %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
@@ -42,6 +38,7 @@
 ! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
 !
 ! Check that the -fstripmine and -fno-stripmine flags override the defaults
+!
 ! RUN: %kitfc -### -O0 -ftapir=serial -fstripmine %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STRIPMINE
 ! RUN: %kitfc -### -O1 -ftapir=serial -fstripmine %s 2>&1 \

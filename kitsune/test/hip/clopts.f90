@@ -1,17 +1,7 @@
 ! REQUIRES: kitfc
 !
-! This has not been implemented yet.
-! XFAIL: *
-!
-! Check that the frontend options make it to the tapir target.
-!
-! RUN: %kitfc --tapir=hip --tapir-verbose          \
-! RUN:     -O2 -S -emit-llvm -o /dev/null %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefixes ALL,COMPILE
-!
-! RUN: %kitfc --tapir=hip --tapir-verbose --kitrt-verbose \
-! RUN:     -O2 -S -emit-llvm -o /dev/null %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefixes ALL,RUNTIME
+! Check that the flang command line options specific to the hip tapir target
+! make it to HipABI.
 !
 ! RUN: %kitfc --tapir=hip --tapir-verbose --tapir-hip-arch=gfx906 \
 ! RUN:     -O2 -S -emit-llvm -o /dev/null %s 2>&1 \
@@ -62,8 +52,8 @@
 ! RUN:     | FileCheck %s -check-prefix ABI_VER_5
 !
 ! ALL: 'hip'   tapir target options
-! COMPILE:     Runtime verbose: true
-! RUNTIME:     Runtime verbose: true
+! COMPILE:     Runtime verbose: 1
+! RUNTIME:     Runtime verbose: 1
 ! ARCH:        GPU arch: gfx906
 ! TPB:         Fixed threads/block: 64
 ! MTPB:        Max threads/block: 64
@@ -80,4 +70,4 @@
 ! ABI_VER_5:   Bitcode files: [
 ! ABI_VER_5:     {{.+}}/oclc_abi_version_500.bc
 
-! FIXME: We need a DO CONCURRENT loop so HipABI is entered
+end program

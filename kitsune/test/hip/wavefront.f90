@@ -1,8 +1,5 @@
 ! REQUIRES: kitfc
 !
-! FIXME: This has not been implemented
-! XFAIL: *
-!
 ! Check that the -mwavefrontsize64 and -mno-wavefrontsize64 options are
 ! correctly reflected in the target features that are sent to HipABI.
 !
@@ -10,27 +7,27 @@
 ! wavefront sizes of 32 and 64. Otherwise, if the GPU does not support a
 ! wavefront of 32, the -mno-wavefrontsize64 option will be ignored.
 !
-! RUN: %kitxx -### --tapir=hip --tapir-verbose -O2 -S -emit-llvm -o /dev/null \
+! RUN: %kitfc -### --tapir=hip --tapir-verbose -O2 -S -emit-llvm -o /dev/null \
 ! RUN:     --tapir-hip-arch=gfx1103 -mwavefrontsize64 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes W_64
 !
-! RUN: %kitxx -### --tapir=hip --tapir-verbose -O2 -S -emit-llvm -o /dev/null \
+! RUN: %kitfc -### --tapir=hip --tapir-verbose -O2 -S -emit-llvm -o /dev/null \
 ! RUN:     --tapir-hip-arch=gfx1103 --tapir-hip-wavefront64 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes W_64
 !
-! RUN: %kitxx -### --tapir=hip --tapir-verbose -O2 -S -emit-llvm -o /dev/null \
+! RUN: %kitfc -### --tapir=hip --tapir-verbose -O2 -S -emit-llvm -o /dev/null \
 ! RUN:     --tapir-hip-arch=gfx1103 -mno-wavefrontsize64 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes W_32
 !
-! RUN: %kitxx -### --tapir=hip --tapir-verbose -O2 -S -emit-llvm -o /dev/null \
+! RUN: %kitfc -### --tapir=hip --tapir-verbose -O2 -S -emit-llvm -o /dev/null \
 ! RUN:     --tapir-hip-arch=gfx1103 --tapir-hip-wavefront32 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes W_32
 !
-! RUN: %kitxx -### --tapir=hip --tapir-verbose -O2 -S -emit-llvm -o /dev/null \
+! RUN: %kitfc -### --tapir=hip --tapir-verbose -O2 -S -emit-llvm -o /dev/null \
 ! RUN:     --tapir-hip-arch=gfx906 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes DEFAULT_64
 !
-! RUN: %kitxx -### --tapir=hip --tapir-verbose -O2 -S -emit-llvm -o /dev/null \
+! RUN: %kitfc -### --tapir=hip --tapir-verbose -O2 -S -emit-llvm -o /dev/null \
 ! RUN:     --tapir-hip-arch=gfx1103 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes DEFAULT_32
 !

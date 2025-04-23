@@ -1,8 +1,5 @@
 ! REQUIRES: kitfc
 !
-! This has not been implemented yet.
-! XFAIL: *
-!
 ! Check that the frontend options make it to the tapir target.
 !
 ! RUN: %kitfc --tapir=opencilk --tapir-verbose \
@@ -14,8 +11,10 @@
 ! RUN:     | FileCheck %s -check-prefixes ALL,RUNTIME
 !
 ! ALL: 'opencilk' tapir target options
-! COMPILE:   Runtime verbose: true
-! RUNTIME:   Runtime verbose: true
+! COMPILE:   Runtime verbose: 1
+! RUNTIME:   Runtime verbose: 1
+! ALL:       Optimization level: O2
+! ALL:       FP Fusion: fast
 ! ALL:       Bitcode file: {{.+}}/libopencilk-abi.bc
 
-! FIXME: We need a DO CONCURRENT loop to ensure OpenCilkABI is entered
+end program

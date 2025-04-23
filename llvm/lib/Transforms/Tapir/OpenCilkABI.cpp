@@ -62,8 +62,11 @@ OpenCilkABI::OpenCilkABI(Module &M, const TapirTargetOptions &Opts)
     : TapirTarget(M, Opts) {
   if (Opts.getTapirVerbose()) {
     dbgs() << "'opencilk' tapir target options:\n";
-    dbgs() << "  Runtime verbose: " << Opts.getKitrtVerbose() << "\n";
-    dbgs() << "  Bitcode file:    " << Opts.getOpenCilkRuntimeBCFile() << "\n";
+    dbgs() << "  Runtime verbose:    " << Opts.getKitrtVerbose() << "\n";
+    dbgs() << "  Optimization level: " << Opts.getOptLevel() << "\n";
+    dbgs() << "  FP Fusion:          " << Opts.getFPOpFusionMode() << "\n";
+    dbgs() << "  Bitcode file:       " << Opts.getOpenCilkRuntimeBCFile()
+           << "\n";
   }
 }
 

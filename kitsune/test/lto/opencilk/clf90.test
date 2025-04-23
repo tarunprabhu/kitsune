@@ -1,9 +1,5 @@
 # REQUIRES: kitfc
 #
-# FIXME: The Fortran source does not exist yet. When full Fortran support is
-# enabled in Kitsune, write those files and remove the xfail here.
-# XFAIL: *
-#
 # Ensure that the command line options specific to the opencilk tapir target are
 # correctly handled when compiling Fortran with -flto.
 #

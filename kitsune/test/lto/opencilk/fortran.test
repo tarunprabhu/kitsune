@@ -1,7 +1,7 @@
 # REQUIRES: kitfc
 #
-# FIXME: The Fortran source does not exist yet. When full Fortran support is
-# enabled in Kitsune, write those files and remove the xfail here.
+# FIXME: Support to lower DO loops using tapir instructions has not been
+# implemented yet.
 # XFAIL: *
 #
 # Check a standard "end-to-end" lowering using LTO. We emit LLVM from LLD

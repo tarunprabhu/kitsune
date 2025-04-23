@@ -1,9 +1,5 @@
 # REQUIRES: kitfc
 #
-# FIXME: The Fortran source does not exist yet. When full Fortran support is
-# enabled in Kitsune, write those files and remove the xfail here.
-# XFAIL: *
-#
 # Ensure that the command line options specific to the hip tapir target are
 # correctly handled when compiling Fortran with -flto.
 #
@@ -26,40 +22,55 @@
 # RUN:     --tapir-max-threads-per-block=128 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,MTPB
 #
-# RUN: %kitxx -### --tapir=hip -O2 -flto \
+# RUN: %kitfc -### --tapir=hip -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp \
 # RUN:     --tapir-hip-sramecc=off 2>&1 \
 # RUN:     | FileCheck %s -check-prefix SRAMECC_OFF
 #
-# RUN: %kitxx -### --tapir=hip -O2 -flto \
+# RUN: %kitfc -### --tapir=hip -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp \
 # RUN:     --tapir-hip-sramecc=on 2>&1 \
 # RUN:     | FileCheck %s -check-prefix SRAMECC_ON
 #
-# RUN: %kitxx -### --tapir=hip -O2 -flto \
+# RUN: %kitfc -### --tapir=hip -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp \
 # RUN:     --tapir-hip-sramecc=any 2>&1 \
 # RUN:     | FileCheck %s -check-prefix SRAMECC_ANY
 #
-# RUN: %kitxx -### --tapir=hip -O2 -flto \
+# RUN: %kitfc -### --tapir=hip -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp \
 # RUN:     --tapir-hip-xnack=off 2>&1 \
 # RUN:     | FileCheck %s -check-prefix XNACK_OFF
 #
-# RUN: %kitxx -### --tapir=hip -O2 -flto \
+# RUN: %kitfc -### --tapir=hip -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp \
 # RUN:     --tapir-hip-xnack=on 2>&1 \
 # RUN:     | FileCheck %s -check-prefix XNACK_ON
 #
-# RUN: %kitxx -### --tapir=hip -O2 -flto \
+# RUN: %kitfc -### --tapir=hip -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp \
 # RUN:     --tapir-hip-xnack=any 2>&1 \
 # RUN:     | FileCheck %s -check-prefix XNACK_ANY
 #
+# RUN: %kitfc -### --tapir=hip -O2 -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     --tapir-hip-arch=gfx1103 --tapir-hip-wavefront64 2>&1 \
+# RUN:     | FileCheck %s -check-prefix W_64
+#
+# RUN: %kitfc -### --tapir=hip -O2 -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     --tapir-hip-arch=gfx1103 --tapir-hip-wavefront32 2>&1 \
+# RUN:     | FileCheck %s -check-prefix W_32
+#
+# RUN: %kitfc -### --tapir=hip -O2 -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     --tapir-hip-abi-version=5 2>&1 \
+# RUN:     | FileCheck %s -check-prefix ABI_V5
+#
 # The path to LLD is passed to the tapir target, so "ld(64)?.lld" will match
-# that. To enusure that this only matches the actual link line, check that 
+# that. To ensure that this only matches the actual link line, check that
 # "--dynamic-linker" is on the same line.
-# 
+#
 # ALL: /ld{{(64)?}}.lld"{{.+}}"-dynamic-linker"
 # ALL-SAME: "-mllvm" "--tapir=hip"
 # HIP_ARCH: "-mllvm" "--tapir-hip-arch=gfx906"
@@ -71,3 +82,6 @@
 # XNACK_OFF: "-mllvm" "--tapir-hip-xnack=off"
 # XNACK_ON: "-mllvm" "--tapir-hip-xnack=on"
 # XNACK_ANY: "-mllvm" "--tapir-hip-xnack=any"
+# W_64: "-mllvm" "--tapir-hip-runtime-bcs={{.*}}/oclc_wavefrontsize64_on.bc{{.*}}"
+# W_32: "-mllvm" "--tapir-hip-runtime-bcs={{.*}}/oclc_wavefrontsize64_off.bc{{.*}}"
+# ABI_V5: "-mllvm" "--tapir-hip-runtime-bcs={{.*}}/oclc_abi_version_500.bc{{.*}}"

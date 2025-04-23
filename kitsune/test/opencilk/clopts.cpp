@@ -11,11 +11,9 @@
 // ALL: 'opencilk' tapir target options
 // COMPILE:   Runtime verbose: 1
 // RUNTIME:   Runtime verbose: 1
+// ALL:       Optimization level: O2
+// ALL:       FP Fusion: standard
 // ALL:       Bitcode file: {{.+}}/libopencilk-abi.bc
 
-#include <kitsune.h>
-
-// We need a forall loop so the OpencilkABI is entered.
-void f(int *c, int n) {
-  forall(int i = 0; i < n; ++i) { c[i] = n; }
-}
+// We just need some function to ensure that a tapir target object is created.
+void f() {}

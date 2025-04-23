@@ -371,13 +371,6 @@ private:
                                const std::string &OutputFile,
                                const LangOptions &LangOptsRef);
 
-  // Parse command line options that are specific to Kitsune.
-  static bool ParseKitsuneArgs(llvm::driver::KitsuneOptions &Opts,
-                               const char *Argv0,
-                               const llvm::opt::ArgList &Args,
-                               DiagnosticsEngine &Diags,
-                               const LangOptions &LangOpts);
-
   // Sanity check Kitsune arguments. We can't sanity-check everything when
   // parsing the arguments. Parsing has to be done as early as possible because
   // certain Kitsune arguments will affect others. For instance, if a Tapir

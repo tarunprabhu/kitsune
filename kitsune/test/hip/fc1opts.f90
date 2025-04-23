@@ -1,15 +1,9 @@
 ! REQUIRES: kitfc
 !
-! XFAIL: *
-! FIXME: This has not been implemented
-!
 ! Check that the options required by -fc1 make it to the tapir targets.
 !
-! NOTE: This will fail to compile because the hip runtime bitcode files are
-! empty. But we only care that the tapir target options are printed correctly.
-!
-! RUN: not %kitfc -fc1 --tapir=hip --tapir-verbose -O2 %s -o /dev/null \
-! RUN:     -disable-free -emit-llvm \
+! RUN: %kitfc -fc1 --tapir=hip --tapir-verbose -O2 %s -o /dev/null \
+! RUN:     -emit-llvm \
 ! RUN:     --tapir-hip-arch=gfx906 \
 ! RUN:     --tapir-hip-sramecc=off \
 ! RUN:     --tapir-hip-xnack=on \
@@ -27,5 +21,5 @@
 ! CHECK:   {{.+}}/amd.bc
 ! CHECK: ]
 ! CHECK: LLD: {{.+}}/input/ld.lld
-!
-! FIXME: We need a DO CONCURRENT loop so HipABI is entered.
+
+end program

@@ -24,6 +24,7 @@
 #include "mlir/Support/Timing.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticOptions.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/Option/ArgList.h"
 #include <memory>
 
@@ -65,6 +66,9 @@ public:
 };
 
 class CompilerInvocation : public CompilerInvocationBase {
+  /// Kitsune-specific options.
+  llvm::driver::KitsuneOptions kitsuneOpts;
+
   /// Options for the frontend driver
   // TODO: Merge with or translate to parserOpts_. We shouldn't need two sets of
   // options.
@@ -150,6 +154,11 @@ class CompilerInvocation : public CompilerInvocationBase {
 
 public:
   CompilerInvocation() = default;
+
+  llvm::driver::KitsuneOptions &getKitsuneOpts() { return kitsuneOpts; }
+  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
+    return kitsuneOpts;
+  }
 
   FrontendOptions &getFrontendOpts() { return frontendOpts; }
   const FrontendOptions &getFrontendOpts() const { return frontendOpts; }

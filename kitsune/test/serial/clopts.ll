@@ -1,3 +1,7 @@
+; Check that the opt command line options are correctly read by the tapir
+; targets. Any options that are common to all tapir targets should be tested
+; here since the serial tapir target is guaranteed to be built.
+;
 ; RUN: opt --tapir=serial -passes="tapir-lowering<O2>" -o /dev/null %s \
 ; RUN:      --tapir-verbose 2>&1 \
 ; RUN:      | FileCheck %s -check-prefixes ALL,COMPILE
@@ -6,9 +10,26 @@
 ; RUN:      --tapir-verbose --kitrt-verbose 2>&1\
 ; RUN:      | FileCheck %s -check-prefixes ALL,RUNTIME
 ;
+; RUN: opt --tapir=serial --tapir-verbose -passes='tapir-lowering<O2>' %s \
+; RUN:      -o /dev/null --fp-contract=off 2>&1 \
+; RUN:      | FileCheck %s -check-prefixes=ALL,STRICT
+;
+; RUN: opt --tapir=serial --tapir-verbose -passes='tapir-lowering<O2>' %s \
+; RUN:      -o /dev/null --fp-contract=on 2>&1 \
+; RUN:      | FileCheck %s -check-prefixes=ALL,STANDARD
+;
+; RUN: opt --tapir=serial --tapir-verbose -passes='tapir-lowering<O2>' %s \
+; RUN:      -o /dev/null --fp-contract=fast 2>&1 \
+; RUN:      | FileCheck %s -check-prefixes=ALL,FAST
+;
 ; ALL: 'serial' tapir target options
-; COMPILE:   Runtime verbose:{{[ ]*}} 1
-; RUNTIME:   Runtime verbose:{{[ ]*}} 1
+; COMPILE:   Runtime verbose: 1
+; RUNTIME:   Runtime verbose: 1
+; STRICT:    FP Fusion: strict
+; STANDARD:  FP Fusion: standard
+; FAST:      FP Fusion: fast
+;
+; TODO: Check that the optimization level is handled correctly.
 
 ; ModuleID = 'clopts.c'
 source_filename = "clopts.c"

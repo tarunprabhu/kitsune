@@ -19,26 +19,6 @@
 //
 // -----------------------------------------------------------------------------
 //
-// If the tapir target is hip, the architecture should be passed on to cc1
-//
-// RUN: %kitxx -### --tapir-hip-arch=gfx906 --tapir=hip %s 2>&1 \
-// RUN:     | FileCheck %s -check-prefix USED
-//
-// USED: --tapir-hip-arch=gfx906
-//
-// -----------------------------------------------------------------------------
-//
-// Make sure that the architecture makes it to hipabi. This checks that the
-// architecture is used in the LLD link line for the bitcode files.
-//
-// RUN: %kitxx --tapir-verbose --tapir=hip --tapir-hip-arch=gfx90c \
-// RUN:     -S -emit-llvm -O2  %s 2>&1 | FileCheck %s -check-prefix LOWERED
-//
-// LOWERED: /ld{{(64)?}}.lld {{.*}}--no-undefined
-// LOWERED-SAME: -plugin-opt=-mcpu=gfx90c
-//
-// -----------------------------------------------------------------------------
-//
 // RUN: not %kitxx -### --tapir=hip --tapir-hip-arch=sm_80 %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix INVALID
 //
@@ -46,14 +26,5 @@
 //
 // -----------------------------------------------------------------------------
 
-// We need some code there that contains a forall that will force HipABI to
-// run.
-#include <kitsune.h>
-
-void f(unsigned *buf, unsigned n) {
-  // clang-format off
-  forall(int i = 0; i < n; ++i) {
-    buf[i] = i;
-  }
-  // clang-format on
-}
+// We just need some function to ensure that a tapir target object is created.
+void f() {}

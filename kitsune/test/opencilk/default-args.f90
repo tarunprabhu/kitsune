@@ -1,8 +1,5 @@
 ! REQUIRES: kitfc
 !
-! FIXME: The checks for required arguments have not been enabled in flang yet
-! XFAIL: *
-!
 ! Check that the default options added to the internal command lines (for -fc1
 ! and the linker) are as expected.
 !
@@ -14,7 +11,7 @@
 ! CHECK-SAME: --tapir=opencilk
 ! CHECK-SAME: --tapir-opencilk-runtime-bc
 !
-! For OpenCilk, stripmining is enabled by default.
+! For opencilk, stripmining is enabled by default.
 !
 ! CHECK-SAME: -fstripmine
 !

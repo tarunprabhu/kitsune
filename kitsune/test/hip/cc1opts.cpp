@@ -1,9 +1,6 @@
 // Check that the options required by cc1 make it to the tapir targets.
 //
-// NOTE: This will fail to compile because the hip runtime bitcode files are
-// empty. But we only care that the tapir target options are printed correctly.
-//
-// RUN: not %kitxx -cc1 --tapir=hip --tapir-verbose -O2 %s -o /dev/null \
+// RUN: %kitxx -cc1 --tapir=hip --tapir-verbose -O2 %s -o /dev/null \
 // RUN:     -disable-free -emit-llvm \
 // RUN:     --tapir-hip-arch=gfx906 \
 // RUN:     --tapir-hip-sramecc=off \
@@ -23,12 +20,5 @@
 // CHECK: ]
 // CHECK: LLD: {{.+}}/input/ld.lld
 
-// -cc1 needs the correct -I option to the kitsune.h header file. Instead, just
-// inline the relevant contents. At some point, we really should handle forall
-// differently
-#define forall _kitsune_forall
-
-// We need a forall loop so HipABI is entered.
-void f(int *c, int n) {
-  forall(int i = 0; i < n; ++i) { c[i] = n; }
-}
+// We just need some function to ensure that a tapir target object is created.
+void f() {}

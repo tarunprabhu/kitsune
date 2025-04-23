@@ -1,10 +1,5 @@
 ! REQUIRES: kitfc
 !
-! XFAIL: *
-! FIXME:  This currently does not correctly disable strip-mining by default on
-! GPU targets because we do not setup the pass manager correctly. This should
-! be fixed and the XFAIL removed.
-!
 ! Check that the default options added to the internal command lines (for -fc1
 ! and the linker) are as expected.
 !

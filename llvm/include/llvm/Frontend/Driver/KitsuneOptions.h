@@ -22,6 +22,17 @@
 
 #include <vector>
 
+namespace clang {
+class DiagnosticsEngine;
+} // namespace clang
+
+namespace llvm {
+namespace opt {
+class ArgList;
+class OptTable;
+} // namespace opt
+} // namespace llvm
+
 namespace llvm::driver {
 
 /// Options that are Kitsune-specific. These affect both the Kitsune "language"
@@ -145,6 +156,12 @@ private:
   std::string openCilkRuntimeBCFile = "";
 
 public:
+  /// Initialize this object from the command line arguments. Return true if
+  /// no errors occurred when parsing, false otherwise.
+  bool parseArgsInto(const char *argv0, const llvm::opt::ArgList &args,
+                     const llvm::opt::OptTable &optTable,
+                     clang::DiagnosticsEngine &diags);
+
   /// @{
   /// Setters for options not directly connected to a specific tapir target.
   void setKitsuneFrontend(bool kitsuneFrontend = true) {

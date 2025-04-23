@@ -857,6 +857,9 @@ def warn_drv_kitsune_multi_gpu : Warning<
   "multiple %0 GPU architectures detected: '%1'">,
   InGroup<Kitsune>;
 
+def err_drv_unsupported_option_argument_for_frontend : Error<
+  "unsupported argument '%1' to option '%0' for frontend '%2'">;
+
 def err_drv_kitsune_missing_required : Error<
   "missing required option '--%0'">;
 

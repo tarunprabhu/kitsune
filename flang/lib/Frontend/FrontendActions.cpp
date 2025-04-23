@@ -1006,8 +1006,25 @@ static void generateMachineCodeOrAssemblyImpl(clang::DiagnosticsEngine &diags,
   delete tlii;
 }
 
+/// Get the llvm::FPOpFusionMode for a given FPContractMode.
+static llvm::FPOpFusion::FPOpFusionMode
+getFPOpFusionMode(Fortran::common::LangOptions::FPModeKind fpContractMode) {
+  switch (fpContractMode) {
+  case Fortran::common::LangOptions::FPM_Off:
+    // Using FPOpFusion::Standard preserves any contract performed in the
+    // frontend. Setting this to strict will result in the backend splitting any
+    // muladd intrinsics.
+    return llvm::FPOpFusion::Standard;
+  case Fortran::common::LangOptions::FPM_Fast:
+    return llvm::FPOpFusion::Fast;
+  }
+}
+
 void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   CompilerInstance &ci = getInstance();
+  CompilerInvocation &invoc = ci.getInvocation();
+  const llvm::driver::KitsuneOptions &kitsuneOpts = invoc.getKitsuneOpts();
+  const Fortran::common::LangOptions &langOpts = invoc.getLangOpts();
   const CodeGenOptions &opts = ci.getInvocation().getCodeGenOpts();
   clang::DiagnosticsEngine &diags = ci.getDiagnostics();
   llvm::OptimizationLevel level = mapToLevel(opts);
@@ -1030,6 +1047,9 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
     si.getTimePasses().setOutStream(ci.getTimingStreamLLVM());
   pto.LoopUnrolling = opts.UnrollLoops;
   pto.LoopInterleaving = opts.UnrollLoops;
+  pto.LoopStripmine = kitsuneOpts.getStripmineLoops();
+  pto.TTOpts = llvm::TapirTargetOptions::create(
+      kitsuneOpts, level, getFPOpFusionMode(langOpts.getFPContractMode()));
   llvm::PassBuilder pb(targetMachine, pto, pgoOpt, &pic);
 
   // Attempt to load pass plugins and register their callbacks with PB.
@@ -1050,8 +1070,8 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   // Register the target library analysis directly and give it a customized
   // preset TLI depending on -fveclib
   llvm::Triple triple(llvmModule->getTargetTriple());
-  llvm::TargetLibraryInfoImpl *tlii =
-      llvm::driver::createTLII(triple, opts.getVecLib());
+  llvm::TargetLibraryInfoImpl *tlii = llvm::driver::createTLII(
+      triple, opts.getVecLib(), kitsuneOpts.getTapirTarget());
   fam.registerPass([&] { return llvm::TargetLibraryAnalysis(*tlii); });
 
   // Register all the basic analyses with the managers.

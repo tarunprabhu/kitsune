@@ -134,6 +134,25 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
     }
   }
 
+  // If this is a Kitsune frontend, some options have a different range of
+  // allowed values.
+  if (D.IsKitsuneFrontend()) {
+    if (D.IsFlangMode()) {
+      if (Arg *A = Args.getLastArg(options::OPT_ffp_contract)) {
+        StringRef FpContract = A->getValue();
+        if (FpContract == "on" || FpContract == "fast-honor-pragmas")
+          D.Diag(diag::err_drv_unsupported_option_argument_for_frontend)
+              << A->getSpelling() << FpContract << KITSUNE_Fortran_FRONTEND;
+      }
+    }
+  }
+
+  bool IsKokkos = Args.hasArg(options::OPT_kokkos);
+  bool IsKokkosNoInit = Args.hasArg(options::OPT_kokkos_no_init);
+  if ((IsKokkos || IsKokkosNoInit) && !KITSUNE_KOKKOS_ENABLED) {
+    D.Diag(diag::err_drv_kitsune_kokkos_disabled);
+  }
+
   // Check that the -ftapir flag has a valid value. This stops us from
   // reporting multiple errors because the flag is examined in several places.
   if (const Arg *A = Args.getLastArg(options::OPT_tapir_EQ)) {

@@ -27,6 +27,7 @@
 #include "llvm/Bitcode/BitcodeWriterPass.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/Frontend/Driver/CodeGenOptions.h"
+#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/LegacyPassManager.h"

@@ -14,12 +14,5 @@
 // CHECK: Target features: +ptx72
 // CHECK: Bitcode file: {{.+}}.bc
 
-// -cc1 needs the correct -I option to the kitsune.h header file. Instead, just
-// inline the relevant contents. At some point, we really should handle forall
-// differently
-#define forall _kitsune_forall
-
-// We need a forall loop so CudaABI is entered.
-void f(int *c, int n) {
-  forall(int i = 0; i < n; ++i) { c[i] = n; }
-}
+// We just need some function to ensure that a tapir target object is created.
+void f() {}

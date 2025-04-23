@@ -1,14 +1,6 @@
 // Check that clang command line options specific to the hip tapir target make
 // their way to HipABI.
 //
-// RUN: %kitxx --tapir=hip --tapir-verbose          \
-// RUN:     -O2 -S -emit-llvm -o /dev/null %s 2>&1 \
-// RUN:     | FileCheck %s -check-prefixes ALL,COMPILE
-//
-// RUN: %kitxx --tapir=hip --tapir-verbose --kitrt-verbose \
-// RUN:     -O2 -S -emit-llvm -o /dev/null %s 2>&1 \
-// RUN:     | FileCheck %s -check-prefixes ALL,RUNTIME
-//
 // RUN: %kitxx --tapir=hip --tapir-verbose --tapir-hip-arch=gfx906 \
 // RUN:     -O2 -S -emit-llvm -o /dev/null %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefixes ALL,ARCH
@@ -76,9 +68,5 @@
 // ABI_VER_5:   Bitcode files: [
 // ABI_VER_5:     {{.+}}/oclc_abi_version_500.bc
 
-#include <kitsune.h>
-
-// We need a forall loop so the HipABI is entered.
-void f(int *c, int n) {
-  forall(int i = 0; i < n; ++i) { c[i] = n; }
-}
+// We just need some function to ensure that a tapir target object is created.
+void f() {}
