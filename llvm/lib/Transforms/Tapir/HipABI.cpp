@@ -143,11 +143,6 @@ static cl::opt<unsigned> HostOptLevel( // EXPERIMENTAL
     cl::desc("The optimization level for a final pass over the transformed "
              "host-side code."));
 
-static cl::opt<bool>
-    CodeGenPrefetch("hipabi-prefetch", cl::init(true), cl::Hidden,
-                    cl::desc("Enable generation of calls to do data "
-                             "prefetching for managed memory."));
-
 static cl::opt<unsigned> DefaultGrainSize(
     "hipabi-default-grainsize", cl::init(1), cl::Hidden,
     cl::desc("The default grain size used by the transform "
@@ -376,10 +371,10 @@ Value *HipLoop::emitWorkGroupSize(IRBuilder<> &Builder, int ItemIndex) {
 unsigned HipLoop::NextKernelID = 0;
 
 HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
-                 HipABI *LoopTarget)
-    : LoopOutlineProcessor(M, KModule,
+                 HipABI *TT)
+    : LoopOutlineProcessor(M, KModule, TT->getOptions(),
                            CloneFunctionChangeType::DifferentModule),
-      TT(LoopTarget), KernelName(Name), KernelModule(KModule) {
+      TT(TT), KernelName(Name), KernelModule(KModule) {
   std::string UN = KernelName + "." + Twine(NextKernelID).str();
   NextKernelID++;
   KernelName = UN;
@@ -754,7 +749,7 @@ void HipLoop::transformForGCN(Function &F) {
 }
 
 void HipLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
-  bool VerboseMode = TT->getOptions().getTapirVerbose();
+  bool VerboseMode = getOptions().getTapirVerbose();
   if (VerboseMode) {
     errs() << "kitsune[hipabi]: pre-processing tapir loop.\n";
     errs() << "  - collecting global values from loop...\n";
@@ -951,8 +946,8 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   KernelF->addFnAttr("amdgpu-flat-work-group-size", AttrVal);
 
 #if 0 // DISABLED FOR TESTING
-  unsigned MaxThreadsPerBlock = TT->getOptions().getMaxThreadsPerBlock();
-  unsigned DefaultThreadsPerBlock = TT->getOptions().getFixedThreadsPerBlock();
+  unsigned MaxThreadsPerBlock = getOptions().getMaxThreadsPerBlock();
+  unsigned DefaultThreadsPerBlock = getOptions().getFixedThreadsPerBlock();
 
   // Check for programmer-provided launch attribute...
   if (TPB > 0 && TPB <= MaxThreadsPerBlock) {
@@ -1003,9 +998,9 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   KernelF->setVisibility(GlobalValue::VisibilityTypes::ProtectedVisibility);
   KernelF->setCallingConv(CallingConv::AMDGPU_KERNEL);
   KernelF->addFnAttr("no-trapping-math", "true");
-  KernelF->addFnAttr("target-cpu", TT->getOptions().getHipArch());
+  KernelF->addFnAttr("target-cpu", getOptions().getHipArch());
   KernelF->addFnAttr(Attribute::MustProgress);
-  KernelF->addFnAttr("target-features", TT->getOptions().getHipFeatures());
+  KernelF->addFnAttr("target-features", getOptions().getHipTargetFeatures());
 
   // Verify that the Thread ID corresponds to a valid iteration. Because
   // Tapir loops use canonical induction variables, valid iterations range
@@ -1188,7 +1183,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     NewBuilder.CreateStore(VoidVPtr, ArgPtr);
     i++;
 
-    if (CodeGenPrefetch && V->getType()->isPointerTy()) {
+    if (getOptions().getGPUPrefetch() && V->getType()->isPointerTy()) {
       LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for kernel arg #" << i - 1
                         << "\n");
       Value *VAS = NewBuilder.CreatePointerBitCastOrAddrSpaceCast(V, VoidPtrTy);
@@ -1250,7 +1245,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // launch calls for details.
   TapirLoopHints Hints(TL.getLoop());
   unsigned TPBHint = Hints.getThreadsPerBlock();
-  unsigned DefaultThreadsPerBlock = TT->getOptions().getFixedThreadsPerBlock();
+  unsigned DefaultThreadsPerBlock = getOptions().getFixedThreadsPerBlock();
   Value *TPBValue;
 
   if (TPBHint != 0)
@@ -1301,24 +1296,8 @@ HipABI::HipABI(Module &M, const TapirTargetOptions &Opts)
           join_items("", HIPABI_PREFIX, sys::path::filename(M.getName())),
           M.getContext()) {
   bool VerboseMode = Opts.getTapirVerbose();
-  if (VerboseMode) {
-    dbgs() << "'hip' tapir target options:\n";
-    dbgs() << "  Runtime verbose:     " << Opts.getKitrtVerbose() << "\n";
-    dbgs() << "  Optimization level:  " << Opts.getOptLevel() << "\n";
-    dbgs() << "  FP Fusion:           " << Opts.getFPOpFusionMode() << "\n";
-    dbgs() << "  Fixed threads/block: " << Opts.getFixedThreadsPerBlock()
-           << "\n";
-    dbgs() << "  Max threads/block:   " << Opts.getMaxThreadsPerBlock() << "\n";
-    dbgs() << "  GPU arch:            " << Opts.getHipArch() << "\n";
-    dbgs() << "  SRAMECC:             " << Opts.getHipSRAMECC() << "\n";
-    dbgs() << "  Xnack:               " << Opts.getHipXnack() << "\n";
-    dbgs() << "  Target features:     " << Opts.getHipFeatures() << "\n";
-    dbgs() << "  Bitcode files: [" << "\n";
-    for (StringRef file : Opts.getHipRuntimeBCFiles())
-      dbgs() << "    " << file << "\n";
-    dbgs() << "  ]\n";
-    dbgs() << "  LLD:                 " << Opts.getLLD() << "\n";
-  }
+  if (VerboseMode)
+    Opts.print(dbgs());
 
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
@@ -1385,7 +1364,7 @@ HipABI::HipABI(Module &M, const TapirTargetOptions &Opts)
     break;
   }
 
-  StringRef Features = TTO.getHipFeatures();
+  StringRef Features = TTO.getHipTargetFeatures();
   TargetOptions Options;
   Options.UseInitArray = true;
   Options.EmitAddrsig = true;

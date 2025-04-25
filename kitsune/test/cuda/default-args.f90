@@ -1,10 +1,9 @@
 ! REQUIRES: kitfc
 !
+! ------------------------------------------------------------------------------
 ! Check that the default options added to the internal command lines (for -fc1
 ! and the linker) are as expected.
 !
-! ------------------------------------------------------------------------------
-! RUN: %kitfc -### -ftapir=cuda -O2 %s 2>&1 | FileCheck %s
 ! RUN: %kitfc -### --tapir=cuda -O2 %s 2>&1 | FileCheck %s
 !
 ! -fc1 must always get the GPU architecture, virtual architecture and PTX
@@ -16,6 +15,8 @@
 ! CHECK-SAME: --tapir-cuda-virt-arch=compute_{{[0-9]+}}
 ! CHECK-SAME: --tapir-cuda-features={{[^"]+}}"
 ! CHECK-SAME: --tapir-cuda-runtime-bc={{[^"]+}}.bc"
+!
+! CHECK-SAME: --tapir-gpu-prefetch
 !
 ! Stripmining is disabled by default on GPU tapir targets.
 !

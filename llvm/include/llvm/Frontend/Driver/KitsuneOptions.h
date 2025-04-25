@@ -38,6 +38,41 @@ namespace llvm::driver {
 /// Options that are Kitsune-specific. These affect both the Kitsune "language"
 /// i.e. forall, spawn, sync etc. and the backend code-generation via Tapir.
 class KitsuneOptions {
+public:
+  /// Should the loop stripmining pass be enabled by default.
+  static constexpr bool defaultStripmineLoops = false;
+
+  /// Is prefetching of managed memory between host and GPU enabled by default.
+  static constexpr bool defaultGPUPrefetch = true;
+
+  /// The default NVIDIA GPU architecture for which to generate code. This is
+  /// only used if a NVIDIA GPU was not found on the system when using the cuda
+  /// tapir target.
+  static constexpr StringRef defaultCudaArch = KITSUNE_CUDA_ARCH_DEFAULT;
+
+  /// The default AMD GPU architecture for which to generate code. This is
+  /// only used if an AMD GPU was not found on the system when using the hip
+  /// tapir target.
+  static constexpr StringRef defaultHipArch = KITSUNE_HIP_ARCH_DEFAULT;
+
+  /// The default value of SRAMECC for hip tapir targets.
+  ///
+  /// FIXME: This should probably default to MaybeBool::Any. This was initially
+  /// implemented in LLVM 20 as a replacement for the --hipabi-sramecc LLVM
+  /// option which defaulted to true. The default is set to on for a transition
+  /// period while we determine which of the two - On and Any - is better for
+  /// our use case.
+  static constexpr MaybeBool defaultHipSRAMECC = MaybeBool::On;
+
+  /// The default value of Xnack for hip tapir targets.
+  ///
+  /// FIXME: This should default to MaybeBool::Any. This was initially
+  /// implemented in LLVM 20 as a replacement for the --hipabi-xnack LLVM option
+  /// which defaulted to true. The default is set to on for a transition
+  /// period while we determine which of the two - On and Any - is better for
+  /// our use case.
+  static constexpr MaybeBool defaultHipXnack = MaybeBool::On;
+
 private:
   /// Is a Kitsune frontend being used. The frontend could be used without a
   /// tapir target, so we can't use the @ref TapirTarget field to determine
@@ -67,6 +102,12 @@ private:
   /// be visible in certain tapir targets because not all use Kitsune's runtime.
   unsigned kitrtVerbose : 1;
 
+  /// Enable prefetching managed memory with GPU tapir targets. If this is set
+  /// to true, prefetch calls between host and device may be inserted. There is
+  /// no guarantee because a profitability analysis may determine that there is
+  /// no benefit to doing so.
+  unsigned gpuPrefetch : 1;
+
   /// The "primary" tapir target for code generation. The "inline" tapir
   /// targets that are attached to specific constructs are separate from this.
   /// This is set to the value of the the --tapir option passed on the command
@@ -84,39 +125,39 @@ private:
 
   /// The path to LLD that was built with Kitsune. If clang is invoked from the
   /// build directory, this will be the lld that is in the build directory.
-  std::string lld = "";
+  std::string lld;
 
   /// The NVIDIA GPU architecture for which to generate code. This is only
   /// relevant for the cuda tapir target, although the default is always set.
   /// This is a string and not an enum because it is not clear if anything is to
   /// be gained by making it an enum. So far, all uses of this are as a string.
-  std::string cudaArch = KITSUNE_CUDA_ARCH_DEFAULT;
+  std::string cudaArch = defaultCudaArch.str();
 
   /// The virtual architecture (compute_*), for the @ref cudaArch. This will
   /// be computed by the driver from either the default value of @ref cudaArch,
   /// or from the --tapir-cuda-arch option if it was provided.
-  std::string cudaVirtArch = "";
+  std::string cudaVirtArch;
 
   /// NVIDIA GPU target features, computed by the driver, for @ref cudaArch.
   /// This is a string that can be used by the NVPTX module that is generated
   /// when lowering with the cuda tapir target.
-  std::string cudaFeatures = "";
+  std::string cudaFeatures;
 
   /// Absolute path to the cuda runtime bitcode file. This will only be
   /// non-empty when the cuda tapir target is enabled.
-  std::string cudaRuntimeBCFile = "";
+  std::string cudaRuntimeBCFile;
 
   /// The AMD GPU architecture for which to generate code. This is only
   /// relevant for the hip tapir target, although the default is always set.
   /// This is a string and not an enum because it is not clear if anything
   /// is to be gained by making it an enum. So far, all uses of this are as
   /// a string.
-  std::string hipArch = KITSUNE_HIP_ARCH_DEFAULT;
+  std::string hipArch = defaultHipArch.str();
 
   /// AMD GPU target features, computed by the driver, for @ref hipArch. This is
   /// a string that can be used by the NVPTX module that is generated when
   /// lowering with the hip tapir target.
-  std::string hipFeatures = "";
+  std::string hipFeatures;
 
   /// Absolute paths to the bitcode files that are to be provided to the AMDGPU
   /// backend when the hip tapir target is enabled. The contents of the list are
@@ -124,27 +165,23 @@ private:
   /// options that were provided.
   std::vector<std::string> hipRuntimeBCFiles;
 
-  /// The value of the sramecc feature. Setting this to true implies
-  /// sramecc+, false implies sramecc-. Leaving this at std::nullopt implies
-  /// that the sramecc feature is unspecified.
+  /// The value of the sramecc feature. The map of values to target features is
+  /// as follows:
   ///
-  /// FIXME: This should probably default to MaybeBool::Any. This was initially
-  /// implemented in LLVM 20 as a replacement for the --hipabi-sramecc LLVM
-  /// option which defaulted to true. The default is set to on for a transition
-  /// period while we determine which of the two - On and Any - is better for
-  /// our use case.
-  MaybeBool hipSRAMECC = MaybeBool::On;
+  ///     MaybeBool::Off  sramecc-
+  ///     MaybeBool::On   sramecc+
+  ///     MaybeBool::Any  Value of sramecc is unspecified.
+  ///
+  MaybeBool hipSRAMECC = defaultHipSRAMECC;
 
-  /// The value of the xnack feature. Setting this to true implies xnack+, false
-  /// implies xnack-. Leaving this at std::nullopt implies that the xnack
-  /// feature is unspecified.
+  /// The value of the xnack feature. The map of values to target features is
+  /// as follows:
   ///
-  /// FIXME: This should default to MaybeBool::Any. This was initially
-  /// implemented in LLVM 20 as a replacement for the --hipabi-xnack LLVM option
-  /// which defaulted to true. The default is set to on for a transition
-  /// period while we determine which of the two - On and Any - is better for
-  /// our use case.
-  MaybeBool hipXnack = MaybeBool::On;
+  ///     MaybeBool::Off  sramecc-
+  ///     MaybeBool::On   sramecc+
+  ///     MaybeBool::Any  Value of sramecc is unspecified.
+  ///
+  MaybeBool hipXnack = defaultHipXnack;
 
   /// The hip bitcode files needed by the hip tapir target. This will be
   /// computed by the driver from either the default value of @ref cudaArch, or
@@ -153,9 +190,14 @@ private:
 
   /// Path to the OpenCilk ABI bitcode file. This will only be non-empty if the
   /// OpenCilk tapir target is enabled.
-  std::string openCilkRuntimeBCFile = "";
+  std::string openCilkRuntimeBCFile;
 
 public:
+  KitsuneOptions()
+      : kitsuneFrontend(false), kokkos(false), kokkosNoInit(false),
+        stripmineLoops(defaultStripmineLoops), tapirVerbose(false),
+        kitrtVerbose(false), gpuPrefetch(defaultGPUPrefetch) {}
+
   /// Initialize this object from the command line arguments. Return true if
   /// no errors occurred when parsing, false otherwise.
   bool parseArgsInto(const char *argv0, const llvm::opt::ArgList &args,
@@ -199,6 +241,8 @@ public:
   void setMaxThreadsPerBlock(unsigned threadsPerBlock) {
     this->maxThreadsPerBlock = threadsPerBlock;
   }
+
+  void setGPUPrefetch(bool prefetch) { this->gpuPrefetch = prefetch; }
 
   void setLLD(llvm::StringRef lld) { this->lld = lld; }
   /// @}
@@ -263,6 +307,8 @@ public:
   unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
 
   unsigned getMaxThreadsPerBlock() const { return maxThreadsPerBlock; }
+
+  bool getGPUPrefetch() const { return gpuPrefetch; }
 
   llvm::StringRef getLLD() const { return lld; }
 

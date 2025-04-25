@@ -88,12 +88,19 @@ static cl::opt<unsigned> clMaxThreadsPerBlock(
         "block as it sees fit"),
     cl::init(0));
 
+static cl::opt<bool>
+    clGPUPrefetch("tapir-gpu-prefetch",
+                  cl::desc("Enable generation of calls to prefetch managed "
+                           "memory between host and device"),
+                  cl::init(KitsuneOptions::defaultGPUPrefetch));
+
 // ------------------------- cuda tapir target options -------------------------
 
 static cl::opt<std::string> clCudaArch(
-    "tapir-cuda-arch", cl::init(KITSUNE_CUDA_ARCH_DEFAULT), cl::NotHidden,
+    "tapir-cuda-arch", cl::init(KitsuneOptions::defaultCudaArch.str()),
+    cl::NotHidden,
     cl::desc(llvm::join_items("", "NVIDIA GPU architecture (default = ",
-                              KITSUNE_CUDA_ARCH_DEFAULT, ")")));
+                              KitsuneOptions::defaultCudaArch, ")")));
 
 static cl::opt<std::string>
     clCudaVirtArch("tapir-cuda-virt-arch", cl::init(""), cl::NotHidden,
@@ -110,16 +117,16 @@ static cl::opt<std::string>
 // ------------------------- hip tapir target options -------------------------
 
 static cl::opt<std::string>
-    clHipArch("tapir-hip-arch", cl::init(KITSUNE_HIP_ARCH_DEFAULT),
+    clHipArch("tapir-hip-arch", cl::init(KitsuneOptions::defaultHipArch.str()),
               cl::NotHidden,
               cl::desc(llvm::join_items("", "AMD GPU architecture (default = ",
-                                        KITSUNE_HIP_ARCH_DEFAULT, ")")));
+                                        KitsuneOptions::defaultHipArch, ")")));
 
 // FIXME: The default here should be 'any', not on. See the documentation of the
 // corresponding frontend option in clang for more details.
 static cl::opt<MaybeBool> clHipSRAMECC(
-    "tapir-hip-sramecc", cl::init(MaybeBool::On), cl::NotHidden,
-    cl::desc("Whether to enable the sramecc target feature"),
+    "tapir-hip-sramecc", cl::init(KitsuneOptions::defaultHipSRAMECC),
+    cl::NotHidden, cl::desc("Whether to enable the sramecc target feature"),
     cl::values(
         clEnumValN(MaybeBool::Off, "off", "Set the sramecc- target feature"),
         clEnumValN(MaybeBool::On, "on", "Set the sramecc+ target feature"),
@@ -128,7 +135,7 @@ static cl::opt<MaybeBool> clHipSRAMECC(
 // FIXME: The default here should be 'any', not on. See the documentation of the
 // corresponding frontend option in clang for more details.
 static cl::opt<MaybeBool> clHipXnack(
-    "tapir-hip-xnack", cl::init(MaybeBool::On), cl::NotHidden,
+    "tapir-hip-xnack", cl::init(KitsuneOptions::defaultHipXnack), cl::NotHidden,
     cl::desc("Whether to enable the xnack target feature"),
     cl::values(
         clEnumValN(MaybeBool::Off, "off", "Set the xnack- target feature"),
@@ -165,36 +172,33 @@ TapirTargetOptions::createFromCommandLineOptions() {
   if (clTapirTarget) {
     TapirTargetOptions tto(*clTapirTarget);
 
+    // No validation of inputs is done here. This is intentional since these
+    // command line options are primarily for internal use. Obviously, tools
+    // such as opt use these too, but it is probably safe to assume that anyone
+    // using opt directly is sufficiently expert. If they are not, well ...
+
     // Set common tapir target options
     tto.tapirVerbose = clTapirVerbose;
     tto.kitrtVerbose = clTapirVerbose || clKitrtVerbose;
     tto.fpOpFusionMode = codegen::getFuseFPOps();
     tto.lld = clLLD;
-
-    // FIXME: This should be refactored since all frontends will perform this
-    // sanity check.
-    if (clFixedThreadsPerBlock > KITSUNE_MAX_FIXED_THREADS_PER_BLOCK)
-      clFixedThreadsPerBlock.error(
-          "-tapir-threads-per-block exceeds maximum value");
-    else if (clFixedThreadsPerBlock)
+    if (clFixedThreadsPerBlock)
       tto.fixedThreadsPerBlock = clFixedThreadsPerBlock;
-
-    // FIXME: This should check that the value is not greater than
-    // KITSUNE_MAX_FIXED_THREADS_PER_BLOCK.
     if (clMaxThreadsPerBlock)
       tto.maxThreadsPerBlock = clMaxThreadsPerBlock;
+    tto.gpuPrefetch = clGPUPrefetch;
 
     // Set cuda tapir target options
     tto.cudaArch = clCudaArch;
     tto.cudaVirtArch = clCudaVirtArch;
-    tto.cudaFeatures = clCudaFeatures;
+    tto.cudaTargetFeatures = clCudaFeatures;
     tto.cudaRuntimeBCFile = clCudaRuntimeBCFile;
 
     // Set hip tapir target options
     tto.hipArch = clHipArch;
     tto.hipSRAMECC = clHipSRAMECC;
     tto.hipXnack = clHipXnack;
-    tto.hipFeatures = clHipFeatures;
+    tto.hipTargetFeatures = clHipFeatures;
     tto.hipRuntimeBCFiles = clHipRuntimeBCFiles;
 
     // Set opencilk tapir target options
@@ -229,18 +233,19 @@ TapirTargetOptions::create(const KitsuneOptions &opts,
     tto.lld = opts.getLLD();
     tto.fixedThreadsPerBlock = opts.getFixedThreadsPerBlock();
     tto.maxThreadsPerBlock = opts.getMaxThreadsPerBlock();
+    tto.gpuPrefetch = opts.getGPUPrefetch();
 
     // Set cuda tapir target options
     tto.cudaArch = opts.getCudaArch();
     tto.cudaVirtArch = opts.getCudaVirtArch();
-    tto.cudaFeatures = opts.getCudaFeatures();
+    tto.cudaTargetFeatures = opts.getCudaFeatures();
     tto.cudaRuntimeBCFile = opts.getCudaRuntimeBCFile();
 
     // Set hip tapir target options
     tto.hipArch = opts.getHipArch();
     tto.hipSRAMECC = opts.getHipSRAMECC();
     tto.hipXnack = opts.getHipXnack();
-    tto.hipFeatures = opts.getHipFeatures();
+    tto.hipTargetFeatures = opts.getHipFeatures();
     tto.hipRuntimeBCFiles = opts.getHipRuntimeBCFiles();
 
     // Set opencilk tapir target options
@@ -268,5 +273,38 @@ std::unique_ptr<TapirTargetOptions> TapirTargetOptions::clone() const {
 }
 
 bool TapirTargetOptions::lower() const { return tt != TapirTargetID::None; }
+
+void TapirTargetOptions::print(raw_ostream &os, bool all) const {
+  os << "'" << tt << "' tapir target options:\n";
+  os << "  Compiler verbose:          " << getTapirVerbose() << "\n";
+  os << "  Runtime verbose:           " << getKitrtVerbose() << "\n";
+  os << "  Optimization level:        " << getOptLevel() << "\n";
+  os << "  FP fusion: " << getFPOpFusionMode() << "\n";
+  if (all || tt == TapirTargetID::Cuda || tt == TapirTargetID::Hip) {
+    os << "  GPU fixed threads/block: " << getFixedThreadsPerBlock() << "\n";
+    os << "  GPU max threads/block:   " << getMaxThreadsPerBlock() << "\n";
+    os << "  GPU prefetch:            " << getGPUPrefetch() << "\n";
+  }
+  if (all || tt == TapirTargetID::Cuda) {
+    os << "  Cuda arch:               " << getCudaArch() << "\n";
+    os << "  Cuda virtual arch:       " << getCudaVirtArch() << "\n";
+    os << "  Cuda target features:    " << getCudaTargetFeatures() << "\n";
+    os << "  Cuda bitcode file:       " << getCudaRuntimeBCFile() << "\n";
+  }
+  if (all || tt == TapirTargetID::Hip) {
+    os << "  Hip arch:                " << getHipArch() << "\n";
+    os << "  Hip sramecc:             " << getHipSRAMECC() << "\n";
+    os << "  Hip xnack:               " << getHipXnack() << "\n";
+    os << "  Hip target features:     " << getHipTargetFeatures() << "\n";
+    os << "  Hip bitcode files: [\n";
+    for (StringRef file : getHipRuntimeBCFiles())
+      os << "    " << file << "\n";
+    os << "  ]";
+    os << "  LLD:                     " << getLLD() << "\n";
+  }
+  if (all || tt == TapirTargetID::OpenCilk) {
+    os << "  Opencilk bitcode file:   " << getOpenCilkRuntimeBCFile() << "\n";
+  }
+}
 
 } // namespace llvm

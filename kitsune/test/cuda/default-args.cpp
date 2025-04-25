@@ -2,7 +2,6 @@
 // Check that the default options added to the internal command lines (for -cc1
 // and the linker) are as expected.
 //
-// RUN: %kitxx -### -ftapir=cuda -O2 %s 2>&1 | FileCheck %s
 // RUN: %kitxx -### --tapir=cuda -O2 %s 2>&1 | FileCheck %s
 //
 // CHECK: -cc1
@@ -11,6 +10,7 @@
 // CHECK-SAME: --tapir-cuda-virt-arch=compute_{{[0-9]+}}
 // CHECK-SAME: --tapir-cuda-features={{[^"]+}}"
 // CHECK-SAME: --tapir-cuda-runtime-bc={{[^"]+}}.bc"
+// CHECK-SAME: --tapir-gpu-prefetch
 //
 // Stripmining is disabled by default on GPU tapir targets.
 //
@@ -28,7 +28,7 @@
 // Check that the stripmine pass is disabled by default.
 //
 // RUN: %kitxx -mllvm -print-pipeline-passes -O2 -ftapir=cuda \
-// RUN:     --tapir-cuda-arch=sm_80 -S -emit-llvm %s \
+// RUN:     --tapir-cuda-arch=sm_72 -S -emit-llvm %s \
 // RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
 //
 // STRIPMINE-PASS-NOT: loop-stripmine

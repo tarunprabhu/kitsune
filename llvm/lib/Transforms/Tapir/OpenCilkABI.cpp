@@ -60,14 +60,8 @@ static const StringRef StackFrameName = "__cilkrts_sf";
 
 OpenCilkABI::OpenCilkABI(Module &M, const TapirTargetOptions &Opts)
     : TapirTarget(M, Opts) {
-  if (Opts.getTapirVerbose()) {
-    dbgs() << "'opencilk' tapir target options:\n";
-    dbgs() << "  Runtime verbose:    " << Opts.getKitrtVerbose() << "\n";
-    dbgs() << "  Optimization level: " << Opts.getOptLevel() << "\n";
-    dbgs() << "  FP Fusion:          " << Opts.getFPOpFusionMode() << "\n";
-    dbgs() << "  Bitcode file:       " << Opts.getOpenCilkRuntimeBCFile()
-           << "\n";
-  }
+  if (Opts.getTapirVerbose())
+    Opts.print(dbgs());
 }
 
 // Helper function to fix the implementation of __cilk_sync.  In particular,

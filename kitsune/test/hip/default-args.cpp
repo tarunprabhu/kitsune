@@ -1,8 +1,7 @@
+// -----------------------------------------------------------------------------
 // Check that the default options added to the internal command lines (for -cc1
 // and the linker) are as expected.
 //
-// -----------------------------------------------------------------------------
-// RUN: %kitxx -### -ftapir=hip -O2 %s 2>&1 | FileCheck %s
 // RUN: %kitxx -### --tapir=hip -O2 %s 2>&1 | FileCheck %s
 //
 // -cc1 must always get the GPU architecture, bitcode files, features, the full
@@ -17,6 +16,7 @@
 // CHECK-SAME: --tapir-hip-runtime-bcs={{[^"]+}}"
 //
 // CHECK-SAME: --tapir-lld={{[^"]+}}"
+// CHECK-SAME: --tapir-gpu-prefetch
 //
 // Strip-mining is disabled by default on GPU tapir targets.
 //

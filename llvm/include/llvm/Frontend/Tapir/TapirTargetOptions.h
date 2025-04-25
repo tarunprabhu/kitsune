@@ -39,14 +39,8 @@ private:
   /// must always be at least one tapir target.
   TapirTargetID tt;
 
-  /// When multiple tapir targets are supported, these are the secondary tapir
-  /// targets. This set will *not* include the primary tapir target.
-  ///
-  /// As of April 2025, there is preliminary support for multiple tapir targets.
-  /// In this scheme, the primary tapir target is the one specified with the
-  /// --tapir= option on the frontend. The secondary tapir targets are those
-  /// specified on individual syntactic constructs (such as forall loops and
-  /// spawn statements).
+  /// When multiple tapir targets are fully supported, these are the secondary
+  /// tapir targets. This set will *not* include the primary tapir target.
   std::set<TapirTargetID> tts;
 
   /// Options common to all tapir targets
@@ -59,6 +53,10 @@ private:
   /// If true, set the Kitsune runtime in verbose mode. Not all tapir targets
   /// use Kitsune's runtime. In such cases, setting this to true will no effect.
   unsigned kitrtVerbose : 1;
+
+  /// If true, enable generation of calls to prefetch managed memory between
+  /// host and GPU.
+  unsigned gpuPrefetch : 1;
   /// @}
 
   /// The optimization level set on the command line. This level will be used
@@ -96,7 +94,7 @@ private:
 
   /// Cuda target features for the current @ref cudaArch. This is a string with
   /// the format: +feature1,+feature2,-feature3...
-  std::string cudaFeatures;
+  std::string cudaTargetFeatures;
 
   /// The absolute path to the cuda runtime bitcode file.
   std::string cudaRuntimeBCFile;
@@ -115,7 +113,7 @@ private:
 
   /// The target features for the current hip GPU architecture. This is a string
   /// with the format: '+feature1,+feature2,-feature3...'.
-  std::string hipFeatures;
+  std::string hipTargetFeatures;
 
   /// The hip bitcode files needed by the hip tapir target. This will be
   /// computed by the driver from either the default value of @ref cudaArch, or
@@ -139,12 +137,9 @@ private:
   TapirTargetOptions(TapirTargetID tt, const std::vector<TapirTargetID> tts);
 
 public:
-
-  /// If a tapir target is set, does the tapir target support lowering.
-  ///
-  /// The "none" "pseudo tapir target" is useful to check that the frontend
-  /// correctly generates tapir instructions and that these make their way
-  /// through the middle-end optimizations. But they are never lowered.
+  /// If a tapir target is set, does the tapir target support lowering. The
+  /// "none" "pseudo tapir target" is the only tapir target that is never
+  /// lowered.
   bool lower() const;
 
   /// Create a clone of this options object.
@@ -169,6 +164,7 @@ public:
   /// the hip tapir target.
   unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
   unsigned getMaxThreadsPerBlock() const { return maxThreadsPerBlock; }
+  bool getGPUPrefetch() const { return gpuPrefetch; }
   StringRef getLLD() const { return lld; }
   /// @}
 
@@ -176,7 +172,7 @@ public:
   /// Options for the cuda tapir target.
   StringRef getCudaArch() const { return cudaArch; }
   StringRef getCudaVirtArch() const { return cudaVirtArch; }
-  StringRef getCudaFeatures() const { return cudaFeatures; }
+  StringRef getCudaTargetFeatures() const { return cudaTargetFeatures; }
   StringRef getCudaRuntimeBCFile() const { return cudaRuntimeBCFile; }
   /// @}
 
@@ -185,7 +181,7 @@ public:
   StringRef getHipArch() const { return hipArch; }
   MaybeBool getHipSRAMECC() const { return hipSRAMECC; }
   MaybeBool getHipXnack() const { return hipXnack; }
-  StringRef getHipFeatures() const { return hipFeatures; }
+  StringRef getHipTargetFeatures() const { return hipTargetFeatures; }
   const std::vector<std::string> &getHipRuntimeBCFiles() const {
     return hipRuntimeBCFiles;
   }
@@ -195,6 +191,11 @@ public:
   /// Options for the opencilk tapir target
   StringRef getOpenCilkRuntimeBCFile() const { return openCilkRuntimeBCFile; }
   /// @}
+
+  /// Print the options object to the given output stream. If \ref all is true,
+  /// all the options will be printed, otherwise only those options relevant to
+  /// the primary tapir target will be printed.
+  void print(llvm::raw_ostream &os, bool all = false) const;
 
   /// Construct an options object from the given frontend options. If a tapir
   /// target ID is not set in the kitsune options, std::nullopt is returned.

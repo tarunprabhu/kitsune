@@ -419,23 +419,32 @@ public:
 /// divide-and-conquer.
 class LoopOutlineProcessor {
 protected:
-  /// The Module of the original Tapir code.
+  /// The original module.
   Module &M;
-  /// The Module into which the outlined Helper functions will be placed.
+
+  /// The module into which the outlined functions will be placed.
   Module &DestM;
+
+  /// The tapir target options.
+  const TapirTargetOptions &TTOpts;
+
   /// The type of clone-function change that outlining will make.
   CloneFunctionChangeType Changes = CloneFunctionChangeType::LocalChangesOnly;
 
   LoopOutlineProcessor(Module &M, Module &DestM,
+                       const TapirTargetOptions &TTOpts,
                        CloneFunctionChangeType Changes)
-      : M(M), DestM(DestM), Changes(Changes) {}
+      : M(M), DestM(DestM), TTOpts(TTOpts), Changes(Changes) {}
 
 public:
   using ArgStructMode = TapirTarget::ArgStructMode;
 
-  LoopOutlineProcessor(Module &M)
-      : M(M), DestM(M), Changes(CloneFunctionChangeType::LocalChangesOnly) {}
+  LoopOutlineProcessor(Module &M, const TapirTargetOptions &TTOpts)
+      : M(M), DestM(M), TTOpts(TTOpts),
+        Changes(CloneFunctionChangeType::LocalChangesOnly) {}
   virtual ~LoopOutlineProcessor() = default;
+
+  const TapirTargetOptions &getOptions() const { return TTOpts; }
 
   /// Returns an ArgStructMode enum value describing how inputs to the
   /// underlying task of a Tapir loop should be passed to the task, e.g.,

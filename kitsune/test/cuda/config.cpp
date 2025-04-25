@@ -9,7 +9,7 @@
 // configuration file is ok.
 //
 // RUN: %kitxx -### --tapir=cuda --tapir-cuda-arch=sm_80 \
-// RUN:     --config-kitsune-dir=%S/../ %s 2>&1                             \
+// RUN:     --config-kitsune-dir=%S %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM-NOEXIST
 //
 // -----------------------------------------------------------------------------
@@ -18,12 +18,12 @@
 // the default options are preserved.
 //
 // RUN: %kitxx -### -ftapir=cuda --tapir-cuda-arch=sm_80 \
-// RUN:     --config-kitsune-dir=%S %s 2>&1                          \
+// RUN:     --config-kitsune-dir=%S/input %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM
 //
 // CHECK-DEFAULT-CONFIG: Configuration file: {{.*}}/cuda.cfg
 // CHECK-CUSTOM-NOEXIST-NOT: Configuration file: {{.*}}/cuda.cfg
-// CHECK-CUSTOM: Configuration file: {{.*}}/cuda/cuda.cfg
+// CHECK-CUSTOM: Configuration file: {{.*}}/input/cuda.cfg
 // CHECK-CUSTOM: "-cc1"
 // CHECK-CUSTOM-SAME: "-D" "some_preprocessor_flag"
 // CHECK-CUSTOM-SAME: "-Wsome_compiler_flag"

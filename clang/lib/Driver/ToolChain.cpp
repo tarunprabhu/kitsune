@@ -31,6 +31,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/Frontend/Tapir/CommandLine.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/MC/TargetRegistry.h"
@@ -1742,7 +1743,6 @@ llvm::opt::DerivedArgList *ToolChain::TranslateXarchArgs(
 
 void ToolChain::PushArg(ArgStringList &CmdArgs, const ArgList &Args, bool MLLVM,
                         OptSpecifier Opt, StringRef Val) const {
-  const Driver &D = getDriver();
   const OptTable &OptTable = D.getOpts();
   StringRef Name = OptTable.getOptionName(Opt);
 
@@ -1821,6 +1821,13 @@ void ToolChain::AddKitsuneGPUCommonArgs(const ArgList &Args,
   PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_threads_per_block_EQ);
   PushLastArg(CmdArgs, Args, MLLVM,
               options::OPT_tapir_max_threads_per_block_EQ);
+
+  PushArg(CmdArgs, Args, MLLVM,
+          Args.hasFlag(options::OPT_tapir_gpu_prefetch,
+                       options::OPT_tapir_gpu_no_prefetch,
+                       llvm::driver::KitsuneOptions::defaultGPUPrefetch)
+              ? options::OPT_tapir_gpu_prefetch
+              : options::OPT_tapir_gpu_no_prefetch);
 }
 
 void ToolChain::AddKitsuneCudaCommonArgs(const ArgList &Args,
@@ -1845,8 +1852,9 @@ void ToolChain::AddKitsuneCudaCommonArgs(const ArgList &Args,
   std::string CudaArch =
       Args.hasArg(options::OPT_tapir_cuda_arch_EQ)
           ? Args.getLastArgValue(options::OPT_tapir_cuda_arch_EQ).str()
-          : GetUniqueSystemGPUOrDefault(D, NVTC, ExtendedArgs,
-                                        KITSUNE_CUDA_ARCH_DEFAULT);
+          : GetUniqueSystemGPUOrDefault(
+                D, NVTC, ExtendedArgs,
+                llvm::driver::KitsuneOptions::defaultCudaArch);
   PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_cuda_arch_EQ, CudaArch);
 
   OffloadArch OffloadArch = StringToOffloadArch(CudaArch);
@@ -1885,18 +1893,6 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
       llvm::join_items("", "--rocm-path=", KITSUNE_HIP_PREFIX);
   ExtraArgs.push_back(ROCMPath.c_str());
 
-  // If -mwavefrontsize64 or -mno-wavefrontsize64 are given, use them.
-  // Otherwise, don't specify anything and let the toolchain figure out how to
-  // handle the wavefront. We need to explicitly add the option to the extra
-  // args because CmdArgs will never have these.
-  std::string WaveFrontSize = "";
-  if (Args.hasArg(options::OPT_mwavefrontsize64))
-    WaveFrontSize = "-mwavefrontsize64";
-  else if (Args.hasArg(options::OPT_mno_wavefrontsize64))
-    WaveFrontSize = "-mno-wavefrontsize64";
-  if (WaveFrontSize.size())
-    ExtraArgs.push_back(WaveFrontSize.c_str());
-
   // If an explicit object version has been provided, push that argument onto
   // the extra args. This will not make it to CmdArgs at any point, so we have
   // to add it to the ExtraArgs explicitly.
@@ -1926,8 +1922,8 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   if (Args.hasArg(options::OPT_tapir_hip_arch_EQ))
     HipArch = Args.getLastArgValue(options::OPT_tapir_hip_arch_EQ).str();
   else
-    HipArch = GetUniqueSystemGPUOrDefault(D, *AMDTC, ExtendedArgs,
-                                          KITSUNE_HIP_ARCH_DEFAULT);
+    HipArch = GetUniqueSystemGPUOrDefault(
+        D, *AMDTC, ExtendedArgs, llvm::driver::KitsuneOptions::defaultHipArch);
   PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_hip_arch_EQ, HipArch);
 
   // In order to correctly compute the target features for this AMDGPU, as of
@@ -1964,7 +1960,8 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   // manner, those will, in all likelihood, also need to be in alphabetical
   // order.
   if (ErrorOr<MaybeBool> ECC = llvm::parseMaybeBool(Args.getLastArgValue(
-          options::OPT_tapir_hip_sramecc_EQ, llvm::toString(MaybeBool::On)))) {
+          options::OPT_tapir_hip_sramecc_EQ,
+          llvm::toString(llvm::driver::KitsuneOptions::defaultHipSRAMECC)))) {
     switch (*ECC) {
     case MaybeBool::Off:
       TargetID.push_back("sramecc-");
@@ -1980,7 +1977,8 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   }
 
   if (ErrorOr<MaybeBool> Xnack = llvm::parseMaybeBool(Args.getLastArgValue(
-          options::OPT_tapir_hip_xnack_EQ, llvm::toString(MaybeBool::On)))) {
+          options::OPT_tapir_hip_xnack_EQ,
+          llvm::toString(llvm::driver::KitsuneOptions::defaultHipXnack)))) {
     switch (*Xnack) {
     case MaybeBool::Off:
       TargetID.push_back("xnack-");
@@ -1999,6 +1997,14 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
       "-mcpu=" + llvm::join(TargetID.begin(), TargetID.end(), ":");
   ExtraArgs.push_back(MCPU.c_str());
 
+  // If -mwavefrontsize64 or -mno-wavefrontsize64 are given, use them.
+  // Otherwise, don't specify anything and let the toolchain figure out how to
+  // handle the wavefront. We need to explicitly add the option to the extra
+  // args because CmdArgs will never have these.
+  if (const Arg *A = Args.getLastArg(options::OPT_mwavefrontsize64,
+                                     options::OPT_mno_wavefrontsize64))
+    ExtraArgs.push_back(A->getSpelling().data());
+
   // Now we can finally create the actual extended arguments list and recreate
   // the final toolchain so we have exactly what we need for any future
   // lookups.
@@ -2016,24 +2022,14 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   // us.
   amdgpu::getAMDGPUTargetFeatures(D, AMDTriple, ExtendedArgs, Features);
 
+  if (toolchains::ROCMToolChain::isWave64(
+          ExtendedArgs, llvm::AMDGPU::parseArchAMDGCN(HipArch)))
+    Features.push_back("+wavefrontsize64");
+  else
+    Features.push_back("+wavefrontsize32");
+
   llvm::StringMap<bool> FeatureMap;
   llvm::AMDGPU::fillAMDGPUFeatureMap(HipArch, AMDTriple, FeatureMap);
-
-  // The call to getAMDGPUTargetFeatures will have already added
-  // +wavefrontsize64 to the features, so we only need to add -wavefrontsize32
-  // in that case. However, -mno-wavefrontsize64 will not have been handled at
-  // all, so we must handle both + and - explicitly in this case. If neither
-  // option has been provided, let LLVM determine what features to add
-  // depending on the specific GPU architecture.
-  if (Args.hasArg(options::OPT_mwavefrontsize64)) {
-    FeatureMap["wavefrontsize32"] = false;
-  } else if (Args.hasArg(options::OPT_mno_wavefrontsize64)) {
-    // This
-    FeatureMap["wavefrontsize32"] = true;
-    FeatureMap["wavefrontsize64"] = false;
-  } else {
-    llvm::AMDGPU::insertWaveSizeFeature(HipArch, AMDTriple, FeatureMap);
-  }
 
   // Now we can add features from the map to the actual features string and
   // add the string to the command line arguments.

@@ -132,16 +132,6 @@ static cl::opt<int>
     PTXasOptLevel("cuabi-ptxas-opt-level", cl::init(-1), cl::Hidden,
                   cl::desc("Specify the optimization level for ptxas."));
 
-// Enabled/disable compiler generated code for issuing data prefetch calls
-// prior to the launch of each kernel.  The associated prefetch calls are
-// directly to the kitsune runtime that will determine if the prefetch is
-// "valid" (primarily this means a pointer matches the known memory
-// allocations made by the runtime.
-static cl::opt<bool>
-    CodeGenPrefetch("cuabi-prefetch", cl::init(true), cl::NotHidden,
-                    cl::desc("Enable generation of calls to do data "
-                             "prefetching for managed memory"));
-
 // Request that the runtime carry out an extra set of steps to attempt to
 // refine the launch parameters of kernels.  In this mode of operation the
 // compiler will provide some compile-time information onto the runtime for
@@ -287,7 +277,7 @@ unsigned CudaLoop::NextKernelID = 0;
 
 CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
                    CudaABI *TT, bool MakeUniqueName)
-    : LoopOutlineProcessor(M, KernelModule,
+    : LoopOutlineProcessor(M, KernelModule, TT->getOptions(),
                            CloneFunctionChangeType::DifferentModule),
       TT(TT), KernelName(KN), KernelModule(KernelModule) {
   nonMicrosoftDemangle(KN, KernelName);
@@ -614,9 +604,9 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   KernelF->removeFnAttr("personality");
   KernelF->removeFnAttr("tune-cpu");
 
-  StringRef gpuArch = TT->getOptions().getCudaArch();
+  StringRef gpuArch = getOptions().getCudaArch();
   StringRef PTXVersion = PTXVersionFromCudaVersion();
-  if (TT->getOptions().getTapirVerbose()) {
+  if (getOptions().getTapirVerbose()) {
     errs() << "kitsune[cuabi]: CUDA version " << KITSUNE_CUDA_VERSION_MAJOR
            << "." << KITSUNE_CUDA_VERSION_MINOR << "\n";
     errs() << "kitsune[cuabi]: PTX version " << PTXVersion << "\n";
@@ -982,7 +972,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     NewBuilder.CreateStore(VoidVPtr, ArgPtr);
     i++;
 
-    if (CodeGenPrefetch && V->getType()->isPointerTy()) {
+    if (getOptions().getGPUPrefetch() && V->getType()->isPointerTy()) {
       LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for kernel arg #" << i - 1
                         << "\n");
       Value *VAS = NewBuilder.CreatePointerBitCastOrAddrSpaceCast(V, VoidPtrTy);
@@ -1085,19 +1075,8 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &Opts)
           M.getContext()) {
   LLVM_DEBUG(dbgs() << "cuabi: CudaABI::CudaABI()\n");
 
-  if (Opts.getTapirVerbose()) {
-    dbgs() << "'cuda' tapir target options:\n";
-    dbgs() << "  Runtime verbose:     " << Opts.getKitrtVerbose() << "\n";
-    dbgs() << "  Optimization level:  " << Opts.getOptLevel() << "\n";
-    dbgs() << "  FP Fusion:           " << Opts.getFPOpFusionMode() << "\n";
-    dbgs() << "  Fixed threads/block: " << Opts.getFixedThreadsPerBlock()
-           << "\n";
-    dbgs() << "  Max threads/block:   " << Opts.getMaxThreadsPerBlock() << "\n";
-    dbgs() << "  GPU arch:            " << Opts.getCudaArch() << "\n";
-    dbgs() << "  GPU virtual arch:    " << Opts.getCudaVirtArch() << "\n";
-    dbgs() << "  Target features:     " << Opts.getCudaFeatures() << "\n";
-    dbgs() << "  Bitcode file:        " << Opts.getCudaRuntimeBCFile() << "\n";
-  }
+  if (Opts.getTapirVerbose())
+    Opts.print(dbgs());
 
   // Create a module (KernelModule) to hold all device side functions for all
   // parallel constructs in the module we are processing (M). At present a loop

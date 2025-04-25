@@ -1,8 +1,7 @@
+// -----------------------------------------------------------------------------
 // Check that the default options added to the internal command lines (for -cc1
 // and the linker) are as expected.
 //
-// -----------------------------------------------------------------------------
-// RUN: %kitxx -### -ftapir=opencilk -O2 %s 2>&1 | FileCheck %s
 // RUN: %kitxx -### --tapir=opencilk -O2 %s 2>&1 | FileCheck %s
 //
 // CHECK: -cc1

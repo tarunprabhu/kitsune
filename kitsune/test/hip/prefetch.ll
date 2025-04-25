@@ -1,6 +1,7 @@
-; Check that prefetch function calls are inserted, or not as appropriate
+; -----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
+; RUN:     --tapir-gpu-prefetch=true \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix PREFETCH
@@ -14,7 +15,7 @@
 ; -----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
-; RUN:     -hipabi-prefetch=false \
+; RUN:     --tapir-gpu-prefetch=false \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix NO-PREFETCH
@@ -24,6 +25,8 @@
 ; NO-PREFETCH: call {{.+}} @__kithip_launch_kernel
 ; NO-PREFETCH: ret void
 ; NO-PREFETCH-NEXT: }
+;
+; -----------------------------------------------------------------------------
 
 ; ModuleID = 'clopts.c'
 source_filename = "clopts.c"

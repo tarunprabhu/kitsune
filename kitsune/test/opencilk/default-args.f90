@@ -1,10 +1,9 @@
 ! REQUIRES: kitfc
 !
+! ------------------------------------------------------------------------------
 ! Check that the default options added to the internal command lines (for -fc1
 ! and the linker) are as expected.
 !
-! ------------------------------------------------------------------------------
-! RUN: %kitfc -### -ftapir=opencilk -O2 %s 2>&1 | FileCheck %s
 ! RUN: %kitfc -### --tapir=opencilk -O2 %s 2>&1 | FileCheck %s
 !
 ! CHECK: -fc1

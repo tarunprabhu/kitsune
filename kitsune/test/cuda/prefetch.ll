@@ -1,23 +1,28 @@
-; Check that prefetch function calls are inserted, or not as appropriate
+; -----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' -S %s \
+; RUN:     --tapir-gpu-prefetch=true \
 ; RUN:     | FileCheck %s -check-prefix PREFETCH
 ;
 ; PREFETCH: define {{.+}} @f
 ; PREFETCH: call {{.+}} @__kitcuda_mem_gpu_prefetch
 ; PREFETCH: call {{.+}} @__kitcuda_launch_kernel
 ; PREFETCH: ret void
+; PREFETCH-NEXT: }
 ;
 ; -----------------------------------------------------------------------------
 ; 
 ; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' -S %s \
-; RUN:     -cuabi-prefetch=false \
+; RUN:     --tapir-gpu-prefetch=false \
 ; RUN:     | FileCheck %s -check-prefix NO-PREFETCH
 ;
 ; NO-PREFETCH: define {{.+}} @f
 ; NO-PREFETCH-NOT: call {{.+}} @__kitcuda_mem_gpu_prefetch
 ; NO-PREFETCH: call {{.+}} @__kitcuda_launch_kernel
 ; NO-PREFETCH: ret void
+; NO-PREFETCH-NEXT: }
+;
+; -----------------------------------------------------------------------------
 
 ; ModuleID = 'clopts.c'
 source_filename = "clopts.c"

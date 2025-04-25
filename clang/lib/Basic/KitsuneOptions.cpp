@@ -63,6 +63,10 @@ static void parseKitsuneCommonGPUArgs(KitsuneOptions &opts, const ArgList &args,
     val.getAsInteger(10, n);
     opts.setMaxThreadsPerBlock(n);
   }
+
+  opts.setGPUPrefetch(args.hasFlag(OPT_tapir_gpu_prefetch,
+                                   OPT_tapir_gpu_no_prefetch,
+                                   KitsuneOptions::defaultGPUPrefetch));
 }
 
 static bool parseKitsuneCudaArgs(KitsuneOptions &opts, const ArgList &args,

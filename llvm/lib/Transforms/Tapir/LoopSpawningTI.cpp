@@ -74,7 +74,8 @@ static const char TimerGroupDescription[] = "Loop spawning";
 /// The default loop-outline processor leaves the outlined Tapir loop as is.
 class DefaultLoopOutlineProcessor : public LoopOutlineProcessor {
 public:
-  DefaultLoopOutlineProcessor(Module &M) : LoopOutlineProcessor(M) {}
+  DefaultLoopOutlineProcessor(Module &M, const TapirTargetOptions &TTOpts)
+      : LoopOutlineProcessor(M, TTOpts) {}
   void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
                           ValueToValueMapTy &VMap) override final {
     LoopOutlineProcessor::postProcessOutline(TL, Out, VMap);
@@ -86,7 +87,8 @@ public:
 /// evaluate the iterations using parallel recursive divide-and-conquer.
 class DACSpawning : public LoopOutlineProcessor {
 public:
-  DACSpawning(Module &M) : LoopOutlineProcessor(M) {}
+  DACSpawning(Module &M, const TapirTargetOptions &TTOpts)
+      : LoopOutlineProcessor(M, TTOpts) {}
   void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
                           ValueToValueMapTy &VMap) override final {
     LoopOutlineProcessor::postProcessOutline(TL, Out, VMap);
@@ -1014,9 +1016,9 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
 
   switch (Hints.getStrategy()) {
   case TapirSpawnStrategy::DivideAndConquer:
-    return new DACSpawning(M);
+    return new DACSpawning(M, TGI.getOptions());
   default:
-    return new DefaultLoopOutlineProcessor(M);
+    return new DefaultLoopOutlineProcessor(M, TGI.getOptions());
   }
 }
 
