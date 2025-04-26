@@ -20,6 +20,7 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/GlobalsModRef.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Bitcode/BitcodeReader.h"
@@ -980,6 +981,11 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   std::unique_ptr<TargetLibraryInfoImpl> TLII(llvm::driver::createTLII(
       TargetTriple, CodeGenOpts.getVecLib(), KitsuneOpts.getTapirTarget()));
   FAM.registerPass([&] { return TargetLibraryAnalysis(*TLII); });
+
+  // Register the tapir target analysis directly with the tapir target options
+  // registered with the pass builder.
+  MAM.registerPass(
+      [&] { return TapirTargetAnalysis(PB.getTapirTargetOptions()); });
 
   // Register all the basic analyses with the managers.
   PB.registerModuleAnalyses(MAM);

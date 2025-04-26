@@ -483,10 +483,9 @@ public:
       ScalarEvolution &SE, AssumptionCache &AC, TargetTransformInfo &TTI,
       const TapirTargetInfo &TGI, TapirTargetID Target,
       OptimizationRemarkEmitter &ORE,
-      std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets,
-      OptimizationLevel OptLevel)
+      std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets)
       : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TGI(TGI),
-        ORE(ORE), Targets(Targets), Level(OptLevel) {}
+        ORE(ORE), Targets(Targets) {}
 
   ~LoopSpawningImpl() {
     for (TapirLoopInfo *TL : TapirLoops)
@@ -605,9 +604,6 @@ private:
   const TapirTargetInfo &TGI;
   OptimizationRemarkEmitter &ORE;
   std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets;
-  // FIXME: This should be removed. The optimization level is passed in via the
-  // TapirTargetOptions object.
-  OptimizationLevel Level;
 
   std::vector<TapirLoopInfo *> TapirLoops;
   DenseMap<Task *, TapirLoopInfo *> TaskToTapirLoop;
@@ -1011,7 +1007,7 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
 
   // Allow the Tapir target to define a custom loop-outline processor.
   if (LoopOutlineProcessor *TargetLOP =
-          Targets[TLTID]->getLoopOutlineProcessor(TL, Level))
+          Targets[TLTID]->getLoopOutlineProcessor(TL))
     return TargetLOP;
 
   switch (Hints.getStrategy()) {
@@ -1827,7 +1823,7 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
     HasParallelism |=
         LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
                          GetAC(*F), GetTTI(*F), TGI, TargetID,
-                         GetORE(*F), Targets, Level)
+                         GetORE(*F), Targets)
             .run();
   }
 

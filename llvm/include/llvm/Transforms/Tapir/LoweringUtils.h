@@ -369,8 +369,7 @@ public:
 
   /// Get the LoopOutlineProcessor associated with this Tapir target.
   virtual LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL,
-                          OptimizationLevel OptLevel = OptimizationLevel::O2) {
+  getLoopOutlineProcessor(const TapirLoopInfo *TL) {
     return nullptr;
   }
 };

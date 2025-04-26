@@ -49,10 +49,9 @@ public:
                     function_ref<DominatorTree &(Function &)> GetDT,
                     function_ref<TaskInfo &(Function &)> GetTI,
                     function_ref<AssumptionCache &(Function &)> GetAC,
-                    const TapirTargetInfo& TGI,
-                    OptimizationLevel OptLevel = OptimizationLevel::O2)
-      : M(M), Level(OptLevel), GetAA(GetAA), GetDT(GetDT), GetTI(GetTI),
-        GetAC(GetAC), TGI(TGI) {}
+                    const TapirTargetInfo& TGI)
+      : M(M), GetAA(GetAA), GetDT(GetDT), GetTI(GetTI), GetAC(GetAC),
+        TGI(TGI) {}
   ~TapirToTargetImpl() {
     if (Target)
       delete Target;
@@ -76,9 +75,6 @@ private:
 private:
   TapirTarget *Target = nullptr;
   Module &M;
-  // FIXME: This should be removed. The optimization level is passed using the
-  // TapirTargetOptions object.
-  OptimizationLevel Level;
 
   function_ref<AAResults &(Function &)> GetAA;
   function_ref<DominatorTree &(Function &)> GetDT;
@@ -475,7 +471,6 @@ bool TapirToTargetImpl::run() {
 
 PreservedAnalyses TapirToTargetPass::run(Module &M, ModuleAnalysisManager &AM) {
   auto &FAM = AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
-
   auto GetAA = [&FAM](Function &F) -> AAResults & {
     return FAM.getResult<AAManager>(F);
   };
@@ -491,7 +486,7 @@ PreservedAnalyses TapirToTargetPass::run(Module &M, ModuleAnalysisManager &AM) {
   const TapirTargetInfo &TGI = AM.getResult<TapirTargetAnalysis>(M);
 
   bool Changed =
-      TapirToTargetImpl(M, GetAA, GetDT, GetTI, GetAC, TGI, this->Level).run();
+      TapirToTargetImpl(M, GetAA, GetDT, GetTI, GetAC, TGI).run();
 
   if (Changed)
     return PreservedAnalyses::none();

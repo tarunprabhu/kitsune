@@ -15,6 +15,8 @@
 
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Passes/OptimizationLevel.h"
+#include "llvm/Support/CodeGen.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <set>
@@ -22,6 +24,12 @@
 namespace llvm {
 
 namespace tapir {
+
+/// Map a given optimization level to a CodeGenOptLevel.
+CodeGenOptLevel mapToCodeGenOptLevel(OptimizationLevel OptLevel);
+
+/// Map an integer to an optimization level. The integer must be in [0,3].
+OptimizationLevel mapToOptimizationLevel(unsigned OptLevel);
 
 /// Render a command line to the given output stream. This will typically be for
 /// a subcommand run by the GPU tapir targets - typically this will be one that

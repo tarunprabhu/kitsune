@@ -57,6 +57,7 @@
 #include "kitsune/Config/config.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/Frontend/Tapir/Tapir.h"
@@ -114,13 +115,13 @@ using namespace llvm;
 // due to a lack of systems for testing of these GPUs.
 
 // Set a specific optimization level for the transformation's pass over the
-// created "kernel-module".  By default this level will mirror that of the
+// created "kernel-module". By default this level will mirror that of the
 // frontend but can be set specifically here -- this is primarily useful
 // for exploring various details of levels between those operating on the
 // Tapir IR and those after the transformation to GPU-friendly LLVM IR.
-static cl::opt<int>
-    OptLevel("cuabi-opt-level", cl::init(-1), cl::Hidden,
-             cl::desc("Specify the GPU kernel optimization level."));
+static cl::opt<int> OptLevel("cuabi-opt-level", cl::init(-1), cl::Hidden,
+                             cl::desc("Specify the GPU kernel optimization "
+                                      "level. Must be 0, 1, 2 or 3"));
 
 // Similar to the optimization level above it is possible to separately
 // control the optimization level used by ptxas for creating the GPU
@@ -128,9 +129,9 @@ static cl::opt<int>
 // optimization level.  This is primarily intended to help explor the
 // various aspects of code generation details in the kitsune+tapir
 // pipeline(s).
-static cl::opt<int>
-    PTXasOptLevel("cuabi-ptxas-opt-level", cl::init(-1), cl::Hidden,
-                  cl::desc("Specify the optimization level for ptxas."));
+static cl::opt<int> PTXasOptLevel(
+    "cuabi-ptxas-opt-level", cl::init(-1), cl::Hidden,
+    cl::desc("Specify the optimization level for ptxas. Must be 0, 1, 2 or 3"));
 
 // Request that the runtime carry out an extra set of steps to attempt to
 // refine the launch parameters of kernels.  In this mode of operation the
@@ -561,7 +562,9 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
         LLVM_DEBUG(dbgs() << "cuabi: cloning device function '"
                           << DeviceF->getName() << "' into kernel module.\n");
 
-        // GPU calls are slow, try to force inlining...
+        // GPU calls are slow, try to force inlining. This is experimental and
+        // is only be done if the optimization level has been explicitly
+        // overridden. In general we don't want to force inlining.
         if (OptLevel > 1 && not DeviceF->hasFnAttribute(Attribute::NoInline))
           DeviceF->addFnAttr(Attribute::AlwaysInline);
       }
@@ -1099,29 +1102,10 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &Opts)
                        "Was LLVM built with the NVPTX target enabled?");
   }
 
-  CodeGenOptLevel TargetOptLevel;
-  CodeModel::Model TargetCodeModel;
-  switch (Level.getSpeedupLevel()) {
-  case 0:
-    TargetOptLevel = CodeGenOptLevel::None;
-    TargetCodeModel = CodeModel::Large;
-    break;
-  case 1:
-    TargetOptLevel = CodeGenOptLevel::Less;
-    TargetCodeModel = CodeModel::Large;
-    break;
-  case 2:
-    TargetOptLevel = CodeGenOptLevel::Default;
-    TargetCodeModel = CodeModel::Large;
-    break;
-  case 3:
-    TargetOptLevel = CodeGenOptLevel::Aggressive;
-    TargetCodeModel = CodeModel::Large;
-    break;
-  default:
-    llvm_unreachable("cuabi: unknown speed up level!");
-    break;
-  }
+  // TODO: Do we really need a large code model here?
+  CodeGenOptLevel TargetOptLevel =
+      tapir::mapToCodeGenOptLevel(TTO.getOptLevel());
+  CodeModel::Model TargetCodeModel = CodeModel::Large;
 
   TargetOptions Options;
   Options.AllowFPOpFusion = TTO.getFPOpFusionMode();
@@ -1243,8 +1227,10 @@ CudaABIOutputFile CudaABI::assemblePTXFile(CudaABIOutputFile &PTXFile) {
   if (TTO.getTapirVerbose())
     PTXASArgList.push_back("--verbose");
 
+  // If the ptxas optimization level has not been explicitly overridden, use the
+  // optimization level set by the frontend.
   if (PTXasOptLevel == -1)
-    PTXasOptLevel = Level.getSpeedupLevel();
+    PTXasOptLevel = TTO.getOptLevel().getSpeedupLevel();
 
   PTXASArgList.push_back("--opt-level");
   std::string optLevelStr = std::to_string(PTXasOptLevel);
@@ -1778,10 +1764,9 @@ void CudaABI::registerFatbinary(GlobalVariable *Fatbinary) {
 CudaABIOutputFile CudaABI::generatePTX() {
   LLVM_DEBUG(dbgs() << "\t- generating PTX...\n");
 
-  // Take the intermediate form code in the kernel module and
-  // generate a PTX file.  The PTX file will be named the same as
-  // the original input source module (M) with the extension changed
-  // to PTX.
+  // Take the intermediate form code in the kernel module and generate a PTX
+  // file. The PTX file will be named the same as the original input source
+  // module (M) with the extension changed to PTX.
   std::string ModelPTXFileName =
       std::string(CUABI_PREFIX) + "%%-%%-%%_" + KernelModule.getName().str();
   SmallString<1024> PTXFileName;
@@ -1797,25 +1782,11 @@ CudaABIOutputFile CudaABI::generatePTX() {
   KernelModule.setModuleFlag(llvm::Module::Override, "nvvm-reflect-ftz",
                              FTZCodeGen);
 
-  OptimizationLevel KModOptLevel(Level);
-  if (OptLevel != -1) {
-    switch (OptLevel) {
-    case 0:
-      KModOptLevel = OptimizationLevel::O0;
-      break;
-    case 1:
-      KModOptLevel = OptimizationLevel::O1;
-      break;
-    case 2:
-      KModOptLevel = OptimizationLevel::O2;
-      break;
-    case 3:
-      KModOptLevel = OptimizationLevel::O3;
-      break;
-    default:
-      llvm_unreachable("unexpected optimization level!");
-    }
-  }
+  // If an optimization level has been explicitly on the command line, prefer
+  // that over the tapir target options.
+  OptimizationLevel KModOptLevel = TTO.getOptLevel();
+  if (OptLevel != -1)
+    KModOptLevel = tapir::mapToOptimizationLevel(OptLevel);
 
   int SpeedupLevel = KModOptLevel.getSpeedupLevel();
   if (SpeedupLevel > 0) {
@@ -1825,10 +1796,9 @@ CudaABIOutputFile CudaABI::generatePTX() {
     pto.LoopStripmine = SpeedupLevel > 2;
     pto.LoopVectorization = false;
     pto.SLPVectorization = false;
-    // !!!! NOTE !!!!  From the LLVM docs: Create the analysis
-    // managers.  These must be declared in this order so that they
-    // are destroyed in the correct order due to
-    // inter-analysis-manager references.
+
+    // The analysis managers must be declared in this order so that they are
+    // destroyed in the correct order due to inter-analysis-manager references.
     LoopAnalysisManager lam;
     FunctionAnalysisManager fam;
     CGSCCAnalysisManager cgam;
@@ -1842,6 +1812,8 @@ CudaABIOutputFile CudaABI::generatePTX() {
     PTXTargetMachine->registerPassBuilderCallbacks(pb);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
 
+    mam.registerPass([&] { return TapirTargetAnalysis(std::nullopt); });
+
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(KModOptLevel);
     mpm.addPass(VerifierPass());
     LLVM_DEBUG(dbgs() << "\t\t* module: " << KernelModule.getName() << "\n");
@@ -1852,15 +1824,14 @@ CudaABIOutputFile CudaABI::generatePTX() {
   LLVM_DEBUG(saveModuleToFile(&KernelModule,
                               KernelModule.getName().str() + ".kmod.final"));
 
-  // Setup the passes and request that the output goes to the
-  // specified PTX file.
+  // Setup the passes and request that the output goes to the specified PTX
+  // file.
   LLVM_DEBUG(dbgs() << "\t- PTX file: '" << PTXFileName << "'.\n");
   legacy::PassManager PassMgr;
   if (PTXTargetMachine->addPassesToEmitFile(PassMgr, PTXFile->os(), nullptr,
                                             CodeGenFileType::AssemblyFile,
                                             false))
     report_fatal_error("Cuda ABI transform -- PTX generation failed!");
-
   PassMgr.run(KernelModule);
 
   LLVM_DEBUG(dbgs() << "\t\t - ptx file: '" << PTXFile->getFilename()
@@ -1929,8 +1900,7 @@ void CudaABI::postProcessModule() {
 }
 
 LoopOutlineProcessor *
-CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *TL,
-                                 OptimizationLevel OptLevel) {
+CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
   // The outline processor handles the steps required for the
   // loop --> kernel transformation.  This is driven from
   // the upstream compilation pipeline in a callback-driven
@@ -1971,8 +1941,6 @@ CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *TL,
       KernelName = CUABI_KERNEL_LOOP_NAME_PREFIX + KernelName;
     LLVM_DEBUG(dbgs() << "\t- kernel function '" << KernelName << "()'.\n");
   }
-
-  Level = OptLevel;
 
   CudaLoop *Outliner = new CudaLoop(M, KernelModule, KernelName, this);
   return Outliner;

@@ -10,6 +10,14 @@
 ; RUN:      --tapir-verbose --kitrt-verbose 2>&1\
 ; RUN:      | FileCheck %s -check-prefixes ALL,RUNTIME
 ;
+; RUN: opt --tapir=serial -passes="tapir-lowering<O1>" -o /dev/null %s \
+; RUN:      --tapir-verbose 2>&1 \
+; RUN:      | FileCheck %s -check-prefixes ALL,O1
+;
+; RUN: opt --tapir=serial -passes="tapir-lowering<O3>" -o /dev/null %s \
+; RUN:      --tapir-verbose 2>&1 \
+; RUN:      | FileCheck %s -check-prefixes ALL,O3
+;
 ; RUN: opt --tapir=serial --tapir-verbose -passes='tapir-lowering<O2>' %s \
 ; RUN:      -o /dev/null --fp-contract=off 2>&1 \
 ; RUN:      | FileCheck %s -check-prefixes=ALL,STRICT
@@ -25,6 +33,8 @@
 ; ALL: 'serial' tapir target options
 ; COMPILE:   Runtime verbose: 1
 ; RUNTIME:   Runtime verbose: 1
+; O1:        Optimization level: O1
+; O3:        Optimization level: O3
 ; STRICT:    FP fusion: strict
 ; STANDARD:  FP fusion: standard
 ; FAST:      FP fusion: fast

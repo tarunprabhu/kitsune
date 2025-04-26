@@ -18,7 +18,6 @@
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/CodeGen/MachinePassManager.h"
 #include "llvm/CodeGen/RegAllocCommon.h"
-#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/OptimizationLevel.h"
@@ -136,6 +135,10 @@ public:
                        PipelineTuningOptions PTO = PipelineTuningOptions(),
                        std::optional<PGOOptions> PGOOpt = std::nullopt,
                        PassInstrumentationCallbacks *PIC = nullptr);
+
+  const std::optional<TapirTargetOptions> getTapirTargetOptions() const {
+    return PTO.TTOpts;
+  }
 
   /// Cross register the analysis managers through their proxies.
   ///

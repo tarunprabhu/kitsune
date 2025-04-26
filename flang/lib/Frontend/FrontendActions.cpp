@@ -49,6 +49,7 @@
 #include "clang/Driver/DriverDiagnostic.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Bitcode/BitcodeWriterPass.h"
@@ -1017,6 +1018,8 @@ getFPOpFusionMode(Fortran::common::LangOptions::FPModeKind fpContractMode) {
     return llvm::FPOpFusion::Standard;
   case Fortran::common::LangOptions::FPM_Fast:
     return llvm::FPOpFusion::Fast;
+  default:
+    llvm_unreachable("getFPOpFusionMode: Unexpected FP contract mode");
   }
 }
 
@@ -1073,6 +1076,11 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   llvm::TargetLibraryInfoImpl *tlii = llvm::driver::createTLII(
       triple, opts.getVecLib(), kitsuneOpts.getTapirTarget());
   fam.registerPass([&] { return llvm::TargetLibraryAnalysis(*tlii); });
+
+  // Register the tapir target analysis directly with the tapir target options
+  // registered with the pass builder.
+  mam.registerPass(
+      [&] { return llvm::TapirTargetAnalysis(pb.getTapirTargetOptions()); });
 
   // Register all the basic analyses with the managers.
   pb.registerModuleAnalyses(mam);

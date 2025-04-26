@@ -74,6 +74,7 @@
 #include "llvm-c/Core.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/Frontend/Tapir/Tapir.h"
@@ -134,14 +135,20 @@ using namespace llvm;
 // This transformation is carrying out the prep to convert Tapir to a
 // kernel module suitable for codegen using the AMDGPU target.
 
+// Set a specific optimization level for the transformation's pass over the
+// created "kernel-module". By default this level will mirror that of the
+// frontend but can be set specifically here -- this is primarily useful
+// for exploring various details of levels between those operating on the
+// Tapir IR and those after the transformation to GPU-friendly LLVM IR.
 static cl::opt<int>
     OptLevel("hipabi-opt-level", cl::init(-1), cl::NotHidden,
-             cl::desc("The Tapir HIP target transform optimization level"));
+             cl::desc("The Tapir HIP target transform optimization level. Must "
+                      "be 0, 1, 2 or 3"));
 
 static cl::opt<unsigned> HostOptLevel( // EXPERIMENTAL
     "hipabi-host-opt-level", cl::init(0), cl::NotHidden,
     cl::desc("The optimization level for a final pass over the transformed "
-             "host-side code."));
+             "host-side code. Must be 0, 1, 2 or 3"));
 
 static cl::opt<unsigned> DefaultGrainSize(
     "hipabi-default-grainsize", cl::init(1), cl::Hidden,
@@ -1343,26 +1350,9 @@ HipABI::HipABI(Module &M, const TapirTargetOptions &Opts)
   sys::path::replace_extension(NewModuleName, ".amdgcn");
   KernelModule.setSourceFileName(NewModuleName.c_str());
 
-  CodeGenOptLevel TargetOptLevel;
+  CodeGenOptLevel TargetOptLevel =
+      tapir::mapToCodeGenOptLevel(TTO.getOptLevel());
   CodeModel::Model TargetCodeModel = CodeModel::Small; // ignored???
-
-  switch (Level.getSpeedupLevel()) {
-  case 0:
-    TargetOptLevel = CodeGenOptLevel::None;
-    break;
-  case 1:
-    TargetOptLevel = CodeGenOptLevel::Less;
-    break;
-  case 2:
-    TargetOptLevel = CodeGenOptLevel::Default;
-    break;
-  case 3:
-    TargetOptLevel = CodeGenOptLevel::Aggressive;
-    break;
-  default:
-    llvm_unreachable("cuabi: unknown speed up level!");
-    break;
-  }
 
   StringRef Features = TTO.getHipTargetFeatures();
   TargetOptions Options;
@@ -1526,34 +1516,17 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
   }
   ObjFile->keep();
 
-  OptimizationLevel KModOptLevel(Level);
-  if (OptLevel != -1) {
-    switch (OptLevel) {
-    case 0:
-      KModOptLevel = OptimizationLevel::O0;
-      break;
-    case 1:
-      KModOptLevel = OptimizationLevel::O1;
-      break;
-    case 2:
-      KModOptLevel = OptimizationLevel::O2;
-      break;
-    case 3:
-      KModOptLevel = OptimizationLevel::O3;
-      break;
-    default:
-      llvm_unreachable("unexpected optimization level!");
-    }
+  OptimizationLevel KModOptLevel = TTO.getOptLevel();
+  if (OptLevel != -1)
+    KModOptLevel = tapir::mapToOptimizationLevel(OptLevel);
 
-    if (VerboseMode)
-      errs() << "    - kernel module optimization level: -O"
-             << KModOptLevel.getSpeedupLevel() << ".\n";
-
+  if (VerboseMode) {
+    errs() << "    - kernel module optimization level: -O"
+           << KModOptLevel.getSpeedupLevel() << ".\n";
   } else {
-    if (VerboseMode) {
+    if (VerboseMode)
       errs() << "    - matching optimization level with primary pipline: -O"
              << KModOptLevel.getSpeedupLevel() << "\n";
-    }
   }
 
   int SpeedupLevel = KModOptLevel.getSpeedupLevel();
@@ -1593,6 +1566,8 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
     PB.registerLoopAnalyses(LAM);
     AMDTargetMachine->registerPassBuilderCallbacks(PB);
     PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+    MAM.registerPass([&] { return TapirTargetAnalysis(std::nullopt); });
 
     ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
         KModOptLevel, ThinOrFullLTOPhase::None);
@@ -2104,11 +2079,13 @@ void HipABI::postProcessModule() {
     pto.LoopUnrolling = HostOptLevel > 1;
     pto.LoopInterleaving = HostOptLevel > 1;
     pto.LoopStripmine = false;
+
     LoopAnalysisManager lam;
     FunctionAnalysisManager fam;
     CGSCCAnalysisManager cgam;
     ModuleAnalysisManager mam;
     PassBuilder pb(AMDTargetMachine, pto);
+
     pb.registerModuleAnalyses(mam);
     pb.registerCGSCCAnalyses(cgam);
     pb.registerFunctionAnalyses(fam);
@@ -2116,16 +2093,9 @@ void HipABI::postProcessModule() {
     AMDTargetMachine->registerPassBuilderCallbacks(pb);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
 
-    OptimizationLevel optLevels[] = {
-        OptimizationLevel::O0,
-        OptimizationLevel::O1,
-        OptimizationLevel::O2,
-        OptimizationLevel::O3,
-    };
+    mam.registerPass([&] { return TapirTargetAnalysis(std::nullopt); });
 
-    if (HostOptLevel > 3)
-      HostOptLevel = 3;
-    OptimizationLevel optLevel = optLevels[HostOptLevel];
+    OptimizationLevel optLevel = tapir::mapToOptimizationLevel(HostOptLevel);
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
     mpm.addPass(VerifierPass());
     pb.buildPerModuleDefaultPipeline(optLevel);
@@ -2140,10 +2110,7 @@ void HipABI::postProcessModule() {
     errs() << "kitsune[hipabi]: kernel module transform complete.\n";
 }
 
-LoopOutlineProcessor *
-HipABI::getLoopOutlineProcessor(const TapirLoopInfo *TL,
-                                OptimizationLevel OptLevel) {
-
+LoopOutlineProcessor *HipABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
   // Create a HIP loop outline processor for transforming parallel tapir loop
   // constructs into suitable GPU device code.  We hand the outliner the kernel
   // module (KM) as the destination for all generated (device-side) code.
@@ -2165,7 +2132,6 @@ HipABI::getLoopOutlineProcessor(const TapirLoopInfo *TL,
     KernelName = join_items("", HIPABI_KERNEL_NAME_PREFIX, ModName);
   }
 
-  Level = OptLevel;
   HipLoop *Outliner = new HipLoop(M, KernelModule, KernelName, this);
   return Outliner;
 }

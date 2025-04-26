@@ -1735,7 +1735,7 @@ PassBuilder::buildTapirLoweringPipeline(OptimizationLevel Level,
       C(MPM, Level);
 
     // Lower Tapir constructs to target runtime calls.
-    MPM.addPass(TapirToTargetPass(Level));
+    MPM.addPass(TapirToTargetPass());
     if (VerifyTapirLowering)
       MPM.addPass(VerifierPass());
 
@@ -1755,7 +1755,7 @@ PassBuilder::buildTapirLoweringPipeline(OptimizationLevel Level,
   MPM.addPass(createModuleToFunctionPassAdaptor(TaskCanonicalizePass()));
 
   // Lower Tapir to target runtime calls.
-  MPM.addPass(TapirToTargetPass(Level));
+  MPM.addPass(TapirToTargetPass());
   if (VerifyTapirLowering)
     MPM.addPass(VerifierPass());
 

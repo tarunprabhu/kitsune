@@ -20,7 +20,6 @@
 
 namespace llvm {
 
-class OpenCilkTTOptions;
 class TapirLoopInfo;
 class TapirTargetOptions;
 class Value;
@@ -175,9 +174,8 @@ public:
                           DominatorTree &DT) override final;
   bool processOrdinaryFunction(Function &F, BasicBlock *TFEntry) override final;
 
-  LoopOutlineProcessor *getLoopOutlineProcessor(
-      const TapirLoopInfo *TL,
-      OptimizationLevel OptLevel = OptimizationLevel::O2) override final;
+  LoopOutlineProcessor *
+  getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
 };
 } // namespace llvm
 

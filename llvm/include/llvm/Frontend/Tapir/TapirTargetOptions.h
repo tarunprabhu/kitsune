@@ -145,6 +145,9 @@ public:
   /// Create a clone of this options object.
   std::unique_ptr<TapirTargetOptions> clone() const;
 
+  void setOptLevel(OptimizationLevel optLevel) { this->optLevel = optLevel; }
+
+  /// Get the primary tapir target ID.
   TapirTargetID getTapirTargetID() const { return tt; }
 
   /// @{

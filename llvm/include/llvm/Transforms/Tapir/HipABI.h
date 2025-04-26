@@ -158,11 +158,8 @@ public:
   void postProcessHelper(Function &F) override { /* no-op */ }
 
   // Return the HIP outline processor associated with this target.
-  LoopOutlineProcessor *getLoopOutlineProcessor(
-      const TapirLoopInfo *TL,
-      OptimizationLevel OptLevel = OptimizationLevel::O2) override final;
-
-  OptimizationLevel getOptimizationLevel() const { return Level; }
+  LoopOutlineProcessor *
+  getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
 
 private:
   /// @brief Generate a AMDGPU (GCN) object file for the kernel module.
@@ -239,10 +236,6 @@ private:
   Module KernelModule;
   bool ROCmModulesLoaded;
   TargetMachine *AMDTargetMachine;
-
-  /// FIXME: This should be removed. The optimization level can be obtained
-  /// from the HipABIOptions object.
-  OptimizationLevel Level;
 };
 
 /// FIXME: Fix this documentation. This does not need cuda.

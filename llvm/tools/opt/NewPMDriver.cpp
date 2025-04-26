@@ -17,6 +17,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Bitcode/BitcodeWriterPass.h"
 #include "llvm/Config/llvm-config.h"
@@ -482,6 +483,9 @@ bool llvm::runPassPipeline(
       return false;
     }
   }
+
+  MAM.registerPass(
+      [&] { return TapirTargetAnalysis(PB.getTapirTargetOptions()); });
 
   if (VK != VerifierKind::None)
     MPM.addPass(VerifierPass());
