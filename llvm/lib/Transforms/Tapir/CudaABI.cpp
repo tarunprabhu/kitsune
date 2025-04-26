@@ -171,8 +171,6 @@ static cl::opt<bool>
     FTZCodeGen("cuabi-ftz", cl::init(false), cl::NotHidden,
                cl::desc("Use flush-denorms-to-zero code generation paths"));
 
-namespace {
-
 static const std::string CUABI_PREFIX = "kitcu";
 static const std::string CUABI_KERNEL_LOOP_NAME_PREFIX = "kitcu_loop_";
 
@@ -180,96 +178,6 @@ static const std::string CUABI_KERNEL_LOOP_NAME_PREFIX = "kitcu_loop_";
 // eventually be replaced with a global variable whose initializer is the actual
 // device code.
 constexpr StringRef CUABI_DUMMY_FATBIN_NAME = "_cuabi.dummy_fatbin";
-
-// Return the matching 'compute_*' target for the given 'sm_*' architecture.
-StringRef virtualArchForCudaArch(StringRef Arch) {
-  // TODO: We've scaled back from the full suite of Nvidia targets
-  // based on systems we have available for testing. We need to
-  // also cross-check with CUDA versions and what architectures
-  // are continuing to be supported.
-  StringRef VirtArch = StringSwitch<StringRef>(Arch)
-                           .Case("sm_60", "compute_60") // Pascal
-                           .Case("sm_61", "compute_61") //
-                           .Case("sm_62", "compute_62") //
-                           .Case("sm_70", "compute_70") // Volta
-                           .Case("sm_72", "compute_72") //
-                           .Case("sm_75", "compute_75") // Turing
-                           .Case("sm_80", "compute_80") // Ampere
-                           .Case("sm_86", "compute_86") //
-                           .Case("sm_87", "compute_87") //
-                           .Case("sm_90", "compute_90") // Hopper
-                           .Default("unknown");
-
-  if (VirtArch == "unknown") {
-    errs() << "kitsune[cuabi]: unsupported architecture target '" << Arch
-           << "'.\n"
-           << "  Support is only available for sm_60 through sm_90.\n";
-    report_fatal_error("kitsune[cuabi]: fatal error!");
-  }
-
-  return VirtArch;
-}
-
-// Given a cuda version, return a matching PTX version.  Note that this does
-// not exactly follow the same versioning details in CUDA releases. Instead
-// it is dependent upon the PTX version support available in the NVPTX
-// backend.
-//
-// We are currently dependent upon the cmake configuration process to provide
-// the CUDA version info.
-StringRef PTXVersionFromCudaVersion() {
-  std::string CudaVersion;
-  raw_string_ostream ss(CudaVersion);
-  ss << KITSUNE_CUDA_VERSION_MAJOR << "." << KITSUNE_CUDA_VERSION_MINOR;
-  LLVM_DEBUG(dbgs() << "cuabi: cuda toolkit version: " << CudaVersion << "\n");
-
-  // TODO: These CUDA to PTX version translations have to be watched between
-  // both CUDA and LLVM releases. It is common for LLVM to lag behind CUDA in
-  // these details.  The following is current for LLVM 19.x.
-  //
-  // For sync'ing up with CUDA check the PTX documentation and release notes
-  // that provide details for the version mapping:
-  //
-  //   https://docs.nvidia.com/cuda/parallel-thread-execution/#release-notes
-  //
-  // These details will then have to be cross-checked with the version detail in
-  // the NVPTX backend source.
-  //
-  StringRef PTXVersionStr = StringSwitch<StringRef>(CudaVersion)
-                                .Case("10.0", "+ptx63")
-                                .Case("10.1", "+ptx64")
-                                .Case("10.2", "+ptx65")
-                                .Case("10.0", "+ptx63")
-                                .Case("11.0", "+ptx70")
-                                .Case("11.1", "+ptx71")
-                                .Case("11.2", "+ptx72")
-                                .Case("11.3", "+ptx72")
-                                .Case("11.4", "+ptx72")
-                                .Case("11.5", "+ptx72")
-                                .Case("11.6", "+ptx76")
-                                .Case("11.7", "+ptx77")
-                                .Case("11.8", "+ptx78")
-                                .Case("12.0", "+ptx80")
-                                .Case("12.1", "+ptx81")
-                                .Case("12.2", "+ptx82")
-                                .Case("12.3", "+ptx83")
-                                .Case("12.4", "+ptx84")
-                                .Case("12.5", "+ptx85")
-                                .Case("12.6", "+ptx85")
-                                .Case("12.7", "+ptx85")
-                                .Case("12.8", "+ptx85")
-                                .Case("12.9", "+ptx85")
-                                .Default("");
-
-  if (PTXVersionStr.empty()) {
-    errs() << "kitsune[cuabi]: no matching PTX version found for cuda toolkit: "
-           << CudaVersion << "\n.  Check that PTX mapping is up-to-date.\n";
-    report_fatal_error("kitsune[cuabi]: fatal error!");
-  }
-  return PTXVersionStr;
-}
-
-} // namespace
 
 /// Static ID for kernel naming -- each encountered kernel (loop)
 /// during compilation will receive a unique ID.  TODO: This is
@@ -606,18 +514,10 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   KernelF->removeFnAttr("target-features");
   KernelF->removeFnAttr("personality");
   KernelF->removeFnAttr("tune-cpu");
-
-  StringRef gpuArch = getOptions().getCudaArch();
-  StringRef PTXVersion = PTXVersionFromCudaVersion();
-  if (getOptions().getTapirVerbose()) {
-    errs() << "kitsune[cuabi]: CUDA version " << KITSUNE_CUDA_VERSION_MAJOR
-           << "." << KITSUNE_CUDA_VERSION_MINOR << "\n";
-    errs() << "kitsune[cuabi]: PTX version " << PTXVersion << "\n";
-  }
-
-  KernelF->addFnAttr("target-cpu", gpuArch);
+  KernelF->addFnAttr("target-cpu", getOptions().getCudaArch());
   KernelF->addFnAttr("target-features",
-                     (Twine(PTXVersion) + "," + gpuArch).str());
+                     llvm::join_items(",", getOptions().getCudaTargetFeatures(),
+                                      getOptions().getCudaArch()));
   KernelF->addFnAttr("uniform-work-group-size", "true");
   NamedMDNode *Annotations =
       KernelModule.getOrInsertNamedMetadata("nvvm.annotations");
@@ -1093,7 +993,6 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &Opts)
   std::string ArchString = "nvptx64";
   Triple TT(ArchString, "nvidia", "cuda");
 
-  StringRef PTXVersionStr = PTXVersionFromCudaVersion();
   std::string Error;
   const Target *PTXTarget = TargetRegistry::lookupTarget("", TT, Error);
   if (!PTXTarget) {
@@ -1110,7 +1009,7 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &Opts)
   TargetOptions Options;
   Options.AllowFPOpFusion = TTO.getFPOpFusionMode();
   PTXTargetMachine = PTXTarget->createTargetMachine(
-      TT.getTriple(), TTO.getCudaArch(), PTXVersionStr.data(), Options,
+      TT.getTriple(), TTO.getCudaArch(), TTO.getCudaTargetFeatures(), Options,
       Reloc::PIC_, TargetCodeModel, TargetOptLevel);
 
   KernelModule.setTargetTriple(TT.str());
@@ -1395,10 +1294,10 @@ CudaABIOutputFile CudaABI::createFatbinaryFile(CudaABIOutputFile &AsmFile) {
 
   std::list<std::string> PTXFilesArgList;
   if (EmbedPTXInFatbinaries) {
-    StringRef VArchStr = virtualArchForCudaArch(TTO.getCudaArch());
+    StringRef VArchStr = TTO.getCudaVirtArch();
     if (VArchStr == "unknown")
       report_fatal_error("cuabi: no virtual target for given gpuarch '" +
-                         StringRef(TTO.getCudaArch()) + "'!");
+                         TTO.getCudaArch() + "'!");
 
     std::string PTXFixedArgStr =
         ("--image=profile=" + VArchStr + ",file=").str();
