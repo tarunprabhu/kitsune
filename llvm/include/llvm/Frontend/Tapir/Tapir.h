@@ -40,7 +40,6 @@ enum class TapirTargetID {
   OpenMP,   // Lower to OpenMP (TODO: Needs to be updated)
   Qthreads, // Lower to Qthreads (TODO: Needs to be updated)
   Realm,    // Lower to Realm (TODO: Needs to be updated)
-  Last_TapirTargetID
 };
 
 /// The loop spawning strategy.
