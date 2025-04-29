@@ -208,7 +208,13 @@ public:
 
   /// Construct an options object initialized from the command line options
   /// if the --tapir option was provided. Otherwise, return std::nullopt.
-  static std::optional<TapirTargetOptions> createFromCommandLineOptions();
+  static std::optional<TapirTargetOptions>
+  createFromCommandLineOptions(OptimizationLevel optLevel);
+
+  /// Construct an options object initialized from the command line options
+  /// if the --tapir option was provided. Otherwise, return std::nullopt.
+  static std::optional<TapirTargetOptions>
+  createFromCommandLineOptions(unsigned speedupLevel);
 };
 
 } // namespace llvm

@@ -74,9 +74,9 @@
 #include "llvm-c/Core.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
-#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Demangle/Demangle.h"
+#include "llvm/Frontend/Tapir/OptLevelUtils.h"
 #include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/Constants.h"
@@ -1350,8 +1350,7 @@ HipABI::HipABI(Module &M, const TapirTargetOptions &Opts)
   sys::path::replace_extension(NewModuleName, ".amdgcn");
   KernelModule.setSourceFileName(NewModuleName.c_str());
 
-  CodeGenOptLevel TargetOptLevel =
-      tapir::mapToCodeGenOptLevel(TTO.getOptLevel());
+  CodeGenOptLevel TargetOptLevel = mapToCodeGenOptLevel(TTO.getOptLevel());
   CodeModel::Model TargetCodeModel = CodeModel::Small; // ignored???
 
   StringRef Features = TTO.getHipTargetFeatures();
@@ -1518,7 +1517,7 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
 
   OptimizationLevel KModOptLevel = TTO.getOptLevel();
   if (OptLevel != -1)
-    KModOptLevel = tapir::mapToOptimizationLevel(OptLevel);
+    KModOptLevel = mapToOptimizationLevel(OptLevel);
 
   if (VerboseMode) {
     errs() << "    - kernel module optimization level: -O"
@@ -1566,8 +1565,6 @@ HipABIOutputFile HipABI::createTargetObj(const StringRef &ObjFileName) {
     PB.registerLoopAnalyses(LAM);
     AMDTargetMachine->registerPassBuilderCallbacks(PB);
     PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
-
-    MAM.registerPass([&] { return TapirTargetAnalysis(std::nullopt); });
 
     ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
         KModOptLevel, ThinOrFullLTOPhase::None);
@@ -2093,9 +2090,7 @@ void HipABI::postProcessModule() {
     AMDTargetMachine->registerPassBuilderCallbacks(pb);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
 
-    mam.registerPass([&] { return TapirTargetAnalysis(std::nullopt); });
-
-    OptimizationLevel optLevel = tapir::mapToOptimizationLevel(HostOptLevel);
+    OptimizationLevel optLevel = mapToOptimizationLevel(HostOptLevel);
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
     mpm.addPass(VerifierPass());
     pb.buildPerModuleDefaultPipeline(optLevel);

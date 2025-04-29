@@ -45,6 +45,13 @@ public:
   /// Is prefetching of managed memory between host and GPU enabled by default.
   static constexpr bool defaultGPUPrefetch = true;
 
+  /// The default optimization level to assume. While Tapir is only useful with
+  /// a non-zero optimization level, we set the default to 0 anyway to be
+  /// consistent with the rest of the compiler and to require optimizations to
+  /// be enabled by the user. Using a non-zero default complicates testing which
+  /// is enough of a pain already.
+  static constexpr unsigned defaultSpeedupLevel = 0;
+
   /// The default NVIDIA GPU architecture for which to generate code. This is
   /// only used if a NVIDIA GPU was not found on the system when using the cuda
   /// tapir target.

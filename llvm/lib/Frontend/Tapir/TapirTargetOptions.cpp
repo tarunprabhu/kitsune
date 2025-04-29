@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/Frontend/Tapir/CommandLine.h"
+#include "llvm/Frontend/Tapir/OptLevelUtils.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/Process.h"
@@ -168,7 +169,7 @@ static cl::alias
 TapirTargetOptions::TapirTargetOptions(TapirTargetID tt) : tt(tt) {}
 
 std::optional<TapirTargetOptions>
-TapirTargetOptions::createFromCommandLineOptions() {
+TapirTargetOptions::createFromCommandLineOptions(OptimizationLevel optLevel) {
   if (clTapirTarget) {
     TapirTargetOptions tto(*clTapirTarget);
 
@@ -180,6 +181,7 @@ TapirTargetOptions::createFromCommandLineOptions() {
     // Set common tapir target options
     tto.tapirVerbose = clTapirVerbose;
     tto.kitrtVerbose = clTapirVerbose || clKitrtVerbose;
+    tto.optLevel = optLevel;
     tto.fpOpFusionMode = codegen::getFuseFPOps();
     tto.lld = clLLD;
     if (clFixedThreadsPerBlock)
@@ -216,6 +218,11 @@ TapirTargetOptions::createFromCommandLineOptions() {
     return tto;
   }
   return std::nullopt;
+}
+
+std::optional<TapirTargetOptions>
+TapirTargetOptions::createFromCommandLineOptions(unsigned speedupLevel) {
+  return createFromCommandLineOptions(mapToOptimizationLevel(speedupLevel));
 }
 
 std::optional<TapirTargetOptions>

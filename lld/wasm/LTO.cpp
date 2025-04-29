@@ -51,7 +51,7 @@ static std::string getThinLTOOutputFile(StringRef modulePath) {
 
 static lto::Config createConfig() {
   lto::Config c;
-  c.PTO.TTOpts = TapirTargetOptions::createFromCommandLineOptions();
+  c.PTO.TTOpts = TapirTargetOptions::createFromCommandLineOptions(ctx.arg.ltoo);
   c.Options = initTargetOptionsFromCodeGenFlags();
 
   // Always emit a section per function/data with LTO.

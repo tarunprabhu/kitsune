@@ -17,7 +17,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
-#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Bitcode/BitcodeWriterPass.h"
 #include "llvm/Config/llvm-config.h"
@@ -331,6 +330,49 @@ static void registerEPCallbacks(PassBuilder &PB) {
         });
 }
 
+static std::optional<TapirTargetOptions>
+createTapirTargetOptions(TargetMachine *TM, StringRef PassPipeline) {
+  // If no passes were provided, then don't bother with the tapir target options
+  // because the tapir passes will not have been enabled. That only happens
+  // when 'tapir-lowering' is present in the pass pipeline.
+  if (PassPipeline.empty())
+    return std::nullopt;
+
+  // Parse the actual command line options to get a valid TapirTargetOptions
+  // object. If the --tapir option has been given, everything except the
+  // optimization level will have been set correctly. Just give it a default
+  // optimization level for now.
+  PipelineTuningOptions PTO;
+  PTO.TTOpts =
+      TapirTargetOptions::createFromCommandLineOptions(OptimizationLevel::O0);
+
+  // In order to create a tapir target options object, we need to know the
+  // optimization level. This can only be obtained by parsing the -passes option
+  // (if given). We cannot use the main pass builder for this because we need to
+  // construct the tapir target options *before* we setup the _actual_ pass
+  // builder. Instead, this will create a temporary pass builder since there is
+  // no way to parse the pipeline without a pass builder.
+  PassBuilder PB(TM, PTO, /* PGOOptions */ std::nullopt,
+                 /* PassInstrumentationCallback*/ nullptr);
+
+  // We don't care about setting up the analysis passes and, for now at least,
+  // it doesn't cause us any problems when we parse the pass pipeline.
+  ModulePassManager MPM;
+
+  // If an error occurred while parsing the pipeline, silently return. The
+  // actual error will be shown when the main pass builder is constructed.
+  // However, we do need to pretend to handle the error here to keep LLVM happy.
+  if (auto Err = PB.parsePassPipeline(MPM, PassPipeline)) {
+    (void)toString(std::move(Err));
+    return std::nullopt;
+  }
+
+  // If the pipeline was parsed successfully, the tapir target options object
+  // owned by the pass builder (if any) will have been updated with the
+  // optimization. Just return a clone of that.
+  return PB.getTapirTargetOptions();
+}
+
 #define HANDLE_EXTENSION(Ext)                                                  \
   llvm::PassPluginLibraryInfo get##Ext##PluginInfo();
 #include "llvm/Support/Extension.def"
@@ -433,7 +475,7 @@ bool llvm::runPassPipeline(
   // option has been enabled.
   PTO.LoopUnrolling = !DisableLoopUnrolling;
   PTO.UnifiedLTO = UnifiedLTO;
-  PTO.TTOpts = TapirTargetOptions::createFromCommandLineOptions();
+  PTO.TTOpts = createTapirTargetOptions(TM, PassPipeline);
   PassBuilder PB(TM, PTO, P, &PIC);
   registerEPCallbacks(PB);
 
@@ -483,9 +525,6 @@ bool llvm::runPassPipeline(
       return false;
     }
   }
-
-  MAM.registerPass(
-      [&] { return TapirTargetAnalysis(PB.getTapirTargetOptions()); });
 
   if (VK != VerifierKind::None)
     MPM.addPass(VerifierPass());

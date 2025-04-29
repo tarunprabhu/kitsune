@@ -17,7 +17,6 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
-#include "llvm/Transforms/Tapir/TapirTargets.h"
 
 #include <optional>
 

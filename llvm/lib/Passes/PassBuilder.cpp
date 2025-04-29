@@ -521,6 +521,14 @@ void PassBuilder::registerModuleAnalyses(ModuleAnalysisManager &MAM) {
   MAM.registerPass([&] { return CREATE_PASS; });
 #include "PassRegistry.def"
 
+  // Register the tapir target analysis pass manually. This has to be created
+  // with the target options in the pipeline tuning options object. There is no
+  // sane default for this anyway. This is exactly what we need wherever we
+  // create a pass pipeline, so we might as well create the pass here instead of
+  // requiring the callers to do it. It is the caller's responsibility to set up
+  // the TapirTargetOptions object correctly.
+  MAM.registerPass([&] { return TapirTargetAnalysis(PTO.TTOpts); });
+
   for (auto &C : ModuleAnalysisRegistrationCallbacks)
     C(MAM);
 }

@@ -14,6 +14,8 @@
 #ifndef LLVM_TAPIR_TARGETS_H
 #define LLVM_TAPIR_TARGETS_H
 
+#include "kitsune/Config/config.h"
+
 #if KITSUNE_CUDA_ENABLED
 #include "llvm/Transforms/Tapir/CudaABI.h"
 #endif // KITSUNE_CUDA_ENABLED

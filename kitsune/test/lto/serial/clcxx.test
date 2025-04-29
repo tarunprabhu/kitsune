@@ -2,9 +2,17 @@
 # correctly when -flto is provided. The serial tapir target is always built
 # and handles all the common options.
 #
+# RUN: %kitxx -### -ftapir=serial -O1 -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,O1
+#
 # RUN: %kitxx -### -ftapir=serial -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
-# RUN:     | FileCheck %s -check-prefixes=ALL
+# RUN:     | FileCheck %s -check-prefixes=ALL,O2
+#
+# RUN: %kitxx -### -ftapir=serial -O3 -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,O3
 #
 # RUN: %kitxx -### -ftapir=serial -O2 -flto --tapir-verbose \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
@@ -31,6 +39,9 @@
 # RUN:     | FileCheck %s -check-prefixes=ALL,FP_STANDARD
 #
 # ALL: /ld{{(64)?}}.lld"
+# O1: "--lto-O1"
+# O2: "--lto-O2"
+# O3: "--lto-O3"
 # ALL-SAME: "-mllvm" "--tapir=serial"
 # TAPIR_VERBOSE-SAME: "-mllvm" "--tapir-verbose"
 # KITRT_VERBOSE: "-mllvm" "--kitrt-verbose"

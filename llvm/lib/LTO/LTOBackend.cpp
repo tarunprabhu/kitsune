@@ -17,7 +17,6 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/ModuleSummaryAnalysis.h"
-#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
@@ -292,11 +291,6 @@ static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
     // Register the AA manager first so that our version is the one used.
     FAM.registerPass([&] { return std::move(AA); });
   }
-
-  // Register the tapir target analysis directly with the tapir target options
-  // registered with the pass builder.
-  MAM.registerPass(
-      [&] { return TapirTargetAnalysis(PB.getTapirTargetOptions()); });
 
   // Register all the basic analyses with the managers.
   PB.registerModuleAnalyses(MAM);

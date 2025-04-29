@@ -18,9 +18,10 @@
 # We emit LLVM instead of doing an actual link because the latter can fail on
 # systems with non-standard sysroots.
 #
-# RUN: %kitxx -flto --tapir=serial -O2 %t/main.o %t/add.o -o /dev/null \
+# RUN: %kitxx -flto --tapir=serial -O3 %t/main.o %t/add.o -o /dev/null \
 # RUN:     --tapir-verbose -fno-stripmine -Wl,--lto-emit-llvm 2>&1 \
 # RUN:     | FileCheck %s --check-prefixes=LOWER
 #
 # NO-LOWER-NOT: 'serial' tapir target options
 # LOWER: 'serial' tapir target options
+# LOWER: Optimization level: O3

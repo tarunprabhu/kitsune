@@ -57,9 +57,9 @@
 #include "kitsune/Config/config.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
-#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Demangle/Demangle.h"
+#include "llvm/Frontend/Tapir/OptLevelUtils.h"
 #include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/Constants.h"
@@ -1002,8 +1002,7 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &Opts)
   }
 
   // TODO: Do we really need a large code model here?
-  CodeGenOptLevel TargetOptLevel =
-      tapir::mapToCodeGenOptLevel(TTO.getOptLevel());
+  CodeGenOptLevel TargetOptLevel = mapToCodeGenOptLevel(TTO.getOptLevel());
   CodeModel::Model TargetCodeModel = CodeModel::Large;
 
   TargetOptions Options;
@@ -1685,7 +1684,7 @@ CudaABIOutputFile CudaABI::generatePTX() {
   // that over the tapir target options.
   OptimizationLevel KModOptLevel = TTO.getOptLevel();
   if (OptLevel != -1)
-    KModOptLevel = tapir::mapToOptimizationLevel(OptLevel);
+    KModOptLevel = mapToOptimizationLevel(OptLevel);
 
   int SpeedupLevel = KModOptLevel.getSpeedupLevel();
   if (SpeedupLevel > 0) {
@@ -1710,8 +1709,6 @@ CudaABIOutputFile CudaABI::generatePTX() {
     pb.registerLoopAnalyses(lam);
     PTXTargetMachine->registerPassBuilderCallbacks(pb);
     pb.crossRegisterProxies(lam, fam, cgam, mam);
-
-    mam.registerPass([&] { return TapirTargetAnalysis(std::nullopt); });
 
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(KModOptLevel);
     mpm.addPass(VerifierPass());

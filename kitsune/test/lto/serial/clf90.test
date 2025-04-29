@@ -4,9 +4,17 @@
 # correctly when -flto is provided with Fortran. The serial tapir target is
 # always built and handles all the common options.
 #
+# RUN: %kitfc -### -ftapir=serial -O1 -flto \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,O1
+#
 # RUN: %kitfc -### -ftapir=serial -O2 -flto \
 # RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
-# RUN:     | FileCheck %s -check-prefixes=ALL
+# RUN:     | FileCheck %s -check-prefixes=ALL,O2
+#
+# RUN: %kitfc -### -ftapir=serial -O3 -flto \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,O3
 #
 # RUN: %kitfc -### -ftapir=serial -O2 -flto --tapir-verbose \
 # RUN:     %S/../input/add.f90 %S/../input/main.f90 2>&1 \
@@ -25,6 +33,9 @@
 # RUN:     | FileCheck %s -check-prefixes=ALL,FP_FAST
 #
 # ALL: /ld{{(64)?}}.lld"
+# O1: "--lto-O1"
+# O2: "--lto-O2"
+# O3: "--lto-O3"
 # ALL-SAME: "-mllvm" "--tapir=serial"
 # TAPIR_VERBOSE-SAME: "-mllvm" "--tapir-verbose"
 # KITRT_VERBOSE: "-mllvm" "--kitrt-verbose"

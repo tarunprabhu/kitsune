@@ -2493,8 +2493,10 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
 void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
                                   ArgStringList &CmdArgs) const {
   if (std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args)) {
+    CmdArgs.push_back(Args.MakeArgString(
+        join_items("", "--lto-O",
+                   std::to_string(getSpeedupLevelAsInt(Args, D.getDiags())))));
     PushLastArg(CmdArgs, Args, true, options::OPT_tapir_EQ);
-
     PushLastArg(CmdArgs, Args, true, options::OPT_tapir_verbose);
     PushLastArg(CmdArgs, Args, true, options::OPT_kitrt_verbose);
     switch (*TT) {

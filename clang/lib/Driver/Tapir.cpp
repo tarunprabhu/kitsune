@@ -11,9 +11,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/Tapir.h"
+#include "clang/Driver/OptionUtils.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/ToolChain.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/Frontend/Tapir/CommandLine.h"
 #include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/Option/Arg.h"
@@ -22,32 +24,31 @@
 using namespace clang::driver;
 using namespace llvm;
 
-namespace clang {
-
-std::optional<TapirTargetID> parseTapirTargetIfValid(const opt::ArgList &Args) {
-  if (!Args.hasArg(options::OPT_tapir_EQ))
+std::optional<TapirTargetID>
+clang::parseTapirTargetIfValid(const opt::ArgList &args) {
+  if (!args.hasArg(options::OPT_tapir_EQ))
     return std::nullopt;
 
-  ErrorOr<TapirTargetID> TT =
-      parseTapirTarget(Args.getLastArgValue(options::OPT_tapir_EQ));
-  if (!TT)
+  ErrorOr<TapirTargetID> tt =
+      parseTapirTarget(args.getLastArgValue(options::OPT_tapir_EQ));
+  if (!tt)
     return std::nullopt;
 
-  return *TT;
+  return *tt;
 }
 
 std::optional<StringRef>
-getTapirTargetConfigFileName(const opt::ArgList &Args) {
-  if (!Args.hasArg(options::OPT_tapir_EQ))
+clang::getTapirTargetConfigFileName(const opt::ArgList &args) {
+  if (!args.hasArg(options::OPT_tapir_EQ))
     return std::nullopt;
 
   // Even if the value of the --tapir option is invalid, this will get called.
-  ErrorOr<TapirTargetID> TT =
-      parseTapirTarget(Args.getLastArgValue(options::OPT_tapir_EQ));
-  if (!TT)
+  ErrorOr<TapirTargetID> tt =
+      parseTapirTarget(args.getLastArgValue(options::OPT_tapir_EQ));
+  if (!tt)
     return std::nullopt;
 
-  switch (*TT) {
+  switch (*tt) {
   case TapirTargetID::None:
     return "none.cfg";
   case TapirTargetID::Serial:
@@ -73,4 +74,26 @@ getTapirTargetConfigFileName(const opt::ArgList &Args) {
   }
 }
 
-} // namespace clang
+unsigned clang::getSpeedupLevelAsInt(const opt::ArgList &args,
+                                     DiagnosticsEngine &diags) {
+  unsigned defaultSpeedup = llvm::driver::KitsuneOptions::defaultSpeedupLevel;
+  if (opt::Arg *a = args.getLastArg(options::OPT_O_Group)) {
+    if (a->getOption().matches(options::OPT_O0))
+      return 0;
+
+    if (a->getOption().matches(options::OPT_Ofast))
+      return 3;
+
+    assert(a->getOption().matches(options::OPT_O));
+
+    StringRef val = a->getValue();
+    if (val == "s" || val == "z")
+      return 2;
+
+    if (val == "g")
+      return 1;
+
+    return getLastArgIntValue(args, options::OPT_O, defaultSpeedup, diags);
+  }
+  return defaultSpeedup;
+}
