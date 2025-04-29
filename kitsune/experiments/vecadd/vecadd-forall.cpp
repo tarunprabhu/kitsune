@@ -4,7 +4,7 @@
 #include <kitsune.h>
 
 template<typename T>
-void random_fill(kitsune::mobile<T> data, size_t N) {
+void random_fill(kitsune::mobile_ptr<T> data, size_t N) {
   T base_value = rand() / (T)RAND_MAX;
   forall(size_t i = 0; i < N; ++i)
     data[i] = base_value + i;
@@ -26,9 +26,9 @@ int main (int argc, char* argv[]) {
   cout << "  Allocating arrays and filling with random values..."
        << std::flush;
 
-  kitsune::mobile<float> A(size);
-  kitsune::mobile<float> B(size);
-  kitsune::mobile<float> C(size);
+  kitsune::mobile_ptr<float> A(size);
+  kitsune::mobile_ptr<float> B(size);
+  kitsune::mobile_ptr<float> C(size);
   random_fill(A, size);
   random_fill(B, size);
   cout << "  done.\n\n";
