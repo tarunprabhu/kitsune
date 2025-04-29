@@ -2446,9 +2446,11 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     //
     CmdArgs.push_back("-lpthread");
 
-    // It is not clear if we need dl here since that will already have been
-    // linked in libkitrt.
+    // It is not clear if we need dl and rt here since they will have been
+    // linked in libkitrt. However, on some systems, that doesn't seem to work
+    // as expected, so link them here anyway.
     CmdArgs.push_back("-ldl");
+    CmdArgs.push_back("-lrt");
 
     const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
     CmdArgs.push_back("-L");
