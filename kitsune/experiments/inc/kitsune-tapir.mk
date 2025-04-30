@@ -1,7 +1,7 @@
 #
 # Kitsune+Tapir specific flags used by all the experiments.
 #
-# 
+#
 KITSUNE_PREFIX?=${kitsune_install_prefix}
 KITSUNE_OPTLEVEL?=3
 KITSUNE_ABI_OPTLEVEL?=3
@@ -12,7 +12,7 @@ KITSUNE_FAST_MATH=-ffp-contract=on
 GPU_STRIPMINE_FLAGS?=
 
 ##################################
-TAPIR_CUDA_TARGET=-ftapir=cuda 
+TAPIR_CUDA_TARGET=-ftapir=cuda
 TAPIR_CUDA_TARGET_FLAGS?= \
  -ffp-contract=on \
  -O$(KITSUNE_OPTLEVEL) \
@@ -36,7 +36,7 @@ endif
 
 
 ##################################
-TAPIR_HIP_TARGET=-ftapir=hip 
+TAPIR_HIP_TARGET=-ftapir=hip
 TAPIR_HIP_TARGET_FLAGS?= -O$(KITSUNE_OPTLEVEL) \
   -fmath-errno -ffp-contract=off -fno-rounding-math \
   -mllvm -hipabi-opt-level=$(KITSUNE_ABI_OPTLEVEL) \
@@ -67,17 +67,17 @@ TAPIR_OPENCILK_LTO_FLAGS?=-ftapir=opencilk -Wl,--lto-O${KITSUNE_OPTLEVEL}
 ##################################
 
 ##################################
-KITSUNE_KOKKOS_FLAGS?=-fkokkos -fkokkos-no-init 
+KITSUNE_KOKKOS_FLAGS?=-fkokkos -fkokkos-no-init
 ##################################
 
-KIT_CC=$(KITSUNE_PREFIX)/bin/clang $(C_FLAGS) -I$(KITSUNE_PREFIX)/include
+KIT_CC=$(KITSUNE_PREFIX)/bin/kitcc $(C_FLAGS) -I$(KITSUNE_PREFIX)/include
 ifneq ($(KITSUNE_VERBOSE),)
-  KITCC+=-v 
+  KITCC+=-v
 endif
 
-KIT_CXX=$(KITSUNE_PREFIX)/bin/clang++ $(CXX_FLAGS) -I$(KITSUNE_PREFIX)/include
+KIT_CXX=$(KITSUNE_PREFIX)/bin/kit++ $(CXX_FLAGS) -I$(KITSUNE_PREFIX)/include
 ifneq ($(KITSUNE_VERBOSE),)
-  KITCXX+=-v 
+  KITCXX+=-v
 endif
 
 CLANG=$(KITSUNE_PREFIX}/bin/clang
