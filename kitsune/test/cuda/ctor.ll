@@ -26,7 +26,7 @@
 ; ----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=cuda -S -passes='tapir-lowering<O2>' -S %s \
-; RUN:     --tapir-threads-per-block=77 \
+; RUN:     --tapir-gpu-tpb=77 \
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: kitcu.ctor{{.*}}
@@ -35,7 +35,7 @@
 ; ----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=cuda -S -passes='tapir-lowering<O2>' -S %s \
-; RUN:     --tapir-max-threads-per-block=29 \
+; RUN:     --tapir-gpu-max-tpb=29 \
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: kitcu.ctor{{.*}}

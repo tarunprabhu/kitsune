@@ -255,7 +255,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
   }
 
   // Check that options accepting numeric arguments are within a valid range.
-  if (Arg *A = Args.getLastArg(options::OPT_tapir_threads_per_block_EQ)) {
+  if (Arg *A = Args.getLastArg(options::OPT_tapir_gpu_tpb_EQ)) {
     int N = 0;
     StringRef Val = A->getValue();
     if (Val.empty())
@@ -267,7 +267,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
           << A->getAsString(Args);
   }
 
-  if (Arg *A = Args.getLastArg(options::OPT_tapir_max_threads_per_block_EQ)) {
+  if (Arg *A = Args.getLastArg(options::OPT_tapir_gpu_max_tpb_EQ)) {
     int N = 0;
     StringRef Val = A->getValue();
     if (Val.empty())

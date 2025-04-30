@@ -9217,7 +9217,7 @@ def tapir_verbose: Joined<["--"], "tapir-verbose">,
   HelpText<"Enable verbose mode in all tapir targets. This also enables "
            "verbose mode in the runtime i.e. it implies --kitrt-verbose">;
 
-def tapir_threads_per_block_EQ: Joined<["--"], "tapir-threads-per-block=">,
+def tapir_gpu_tpb_EQ: Joined<["--"], "tapir-gpu-tpb=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   MetaVarName<"<N>">,
   HelpText<"Use a fixed number of threads per block for all GPU kernel "
@@ -9225,8 +9225,7 @@ def tapir_threads_per_block_EQ: Joined<["--"], "tapir-threads-per-block=">,
            "the threads per block will be calculated by Kitsune's runtime. "
            "Can be at most 1024">;
 
-def tapir_max_threads_per_block_EQ:
-  Joined<["--"], "tapir-max-threads-per-block=">,
+def tapir_gpu_max_tpb_EQ: Joined<["--"], "tapir-gpu-max-tpb=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   MetaVarName<"<N>">,
   HelpText<"The maximum number of threads per block to launch. If this is not "

@@ -14,16 +14,16 @@
 #
 # RUN: %kitfc -### -ftapir=cuda -O2 -flto \
 # RUN:     %S/../input/add.f90 %S/../input/main.f90 \
-# RUN:     --tapir-threads-per-block=64 2>&1 \
+# RUN:     --tapir-gpu-tpb=64 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,TPB
 #
 # RUN: %kitfc -### -ftapir=cuda -O2 -flto \
 # RUN:     %S/../input/add.f90 %S/../input/main.f90 \
-# RUN:     --tapir-max-threads-per-block=128 2>&1 \
+# RUN:     --tapir-gpu-max-tpb=128 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,MTPB
 #
 # ALL: /ld{{(64)?}}.lld"
 # ALL-SAME: "-mllvm" "--tapir=cuda"
 # CUDA_ARCH: "-mllvm" "--tapir-cuda-arch=sm_72"
-# TPB: "-mllvm" "--tapir-threads-per-block=64"
-# MTPB: "-mllvm" "--tapir-max-threads-per-block=128"
+# TPB: "-mllvm" "--tapir-gpu-tpb=64"
+# MTPB: "-mllvm" "--tapir-gpu-max-tpb=128"

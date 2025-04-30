@@ -1,11 +1,11 @@
 // -----------------------------------------------------------------------------
 // Check that the options provided to kit++ make it to the tapir target.
 //
-// RUN: %kitxx --tapir=hip --tapir-verbose --tapir-threads-per-block=64 %s \
+// RUN: %kitxx --tapir=hip --tapir-verbose --tapir-gpu-tpb=64 %s \
 // RUN:     -O2 -S -emit-llvm -o - 2>&1 \
 // RUN:     | FileCheck %s -check-prefixes ALL,TPB
 //
-// RUN: %kitxx --tapir=hip --tapir-verbose --tapir-max-threads-per-block=64 %s \
+// RUN: %kitxx --tapir=hip --tapir-verbose --tapir-gpu-max-tpb=64 %s \
 // RUN:     -O2 -S -emit-llvm -o - 2>&1 \
 // RUN:     | FileCheck %s -check-prefixes ALL,MTPB
 //

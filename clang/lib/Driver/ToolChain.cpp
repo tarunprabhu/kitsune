@@ -1818,9 +1818,9 @@ static InputArgList ParseExtendedArgs(const Driver &D,
 void ToolChain::AddKitsuneGPUCommonArgs(const ArgList &Args,
                                         ArgStringList &CmdArgs,
                                         bool MLLVM) const {
-  PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_threads_per_block_EQ);
+  PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_tpb_EQ);
   PushLastArg(CmdArgs, Args, MLLVM,
-              options::OPT_tapir_max_threads_per_block_EQ);
+              options::OPT_tapir_gpu_max_tpb_EQ);
 
   PushArg(CmdArgs, Args, MLLVM,
           Args.hasFlag(options::OPT_tapir_gpu_prefetch,

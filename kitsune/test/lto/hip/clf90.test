@@ -14,12 +14,12 @@
 #
 # RUN: %kitfc -### -ftapir=hip -O2 -flto \
 # RUN:     %S/../input/add.f90 %S/../input/main.f90 \
-# RUN:     --tapir-threads-per-block=64 2>&1 \
+# RUN:     --tapir-gpu-tpb=64 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,TPB
 #
 # RUN: %kitfc -### -ftapir=hip -O2 -flto \
 # RUN:     %S/../input/add.f90 %S/../input/main.f90 \
-# RUN:     --tapir-max-threads-per-block=128 2>&1 \
+# RUN:     --tapir-gpu-max-tpb=128 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,MTPB
 #
 # RUN: %kitfc -### --tapir=hip -O2 -flto \
@@ -74,8 +74,8 @@
 # ALL: /ld{{(64)?}}.lld"{{.+}}"-dynamic-linker"
 # ALL-SAME: "-mllvm" "--tapir=hip"
 # HIP_ARCH: "-mllvm" "--tapir-hip-arch=gfx906"
-# TPB: "-mllvm" "--tapir-threads-per-block=64"
-# MTPB: "-mllvm" "--tapir-max-threads-per-block=128"
+# TPB: "-mllvm" "--tapir-gpu-tpb=64"
+# MTPB: "-mllvm" "--tapir-gpu-max-tpb=128"
 # SRAMECC_OFF: "-mllvm" "--tapir-hip-sramecc=off"
 # SRAMECC_ON: "-mllvm" "--tapir-hip-sramecc=on"
 # SRAMECC_ANY: "-mllvm" "--tapir-hip-sramecc=any"

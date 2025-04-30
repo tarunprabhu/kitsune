@@ -6,12 +6,12 @@
 //
 // RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
 // RUN:     --tapir-cuda-arch=sm_72 \
-// RUN:     --tapir-verbose --tapir-threads-per-block=64 2>&1 \
+// RUN:     --tapir-verbose --tapir-gpu-tpb=64 2>&1 \
 // RUN:     | FileCheck %s -check-prefixes ALL,TPB
 //
 // RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \
 // RUN:     --tapir-cuda-arch=sm_72 \
-// RUN:     --tapir-verbose --tapir-max-threads-per-block=128 2>&1 \
+// RUN:     --tapir-verbose --tapir-gpu-max-tpb=128 2>&1 \
 // RUN:     | FileCheck %s -check-prefixes ALL,MTPB
 //
 // RUN: %kitxx --tapir=cuda -O2 -S -emit-llvm -o /dev/null %s \

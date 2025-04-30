@@ -3,11 +3,11 @@
 ! ------------------------------------------------------------------------------
 ! Check that the options provided to kitfc make it to the tapir target.
 !
-! RUN: %kitfc --tapir=hip --tapir-verbose --tapir-threads-per-block=64 %s \
+! RUN: %kitfc --tapir=hip --tapir-verbose --tapir-gpu-tpb=64 %s \
 ! RUN:     -O2 -S -emit-llvm -o - 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes ALL,TPB
 !
-! RUN: %kitfc --tapir=hip --tapir-verbose --tapir-max-threads-per-block=64 %s \
+! RUN: %kitfc --tapir=hip --tapir-verbose --tapir-gpu-max-tpb=64 %s \
 ! RUN:     -O2 -S -emit-llvm -o - 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes ALL,MTPB
 !

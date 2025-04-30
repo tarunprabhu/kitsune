@@ -50,14 +50,14 @@ parseCommaSeparatedList(StringRef s, DiagnosticsEngine &diags) {
 static void parseKitsuneCommonGPUArgs(KitsuneOptions &opts, const ArgList &args,
                                       const OptTable &optTable,
                                       DiagnosticsEngine &diags) {
-  if (const Arg *a = args.getLastArg(OPT_tapir_threads_per_block_EQ)) {
+  if (const Arg *a = args.getLastArg(OPT_tapir_gpu_tpb_EQ)) {
     unsigned n;
     StringRef val = a->getValue();
     val.getAsInteger(10, n);
     opts.setFixedThreadsPerBlock(n);
   }
 
-  if (const Arg *a = args.getLastArg(OPT_tapir_max_threads_per_block_EQ)) {
+  if (const Arg *a = args.getLastArg(OPT_tapir_gpu_max_tpb_EQ)) {
     unsigned n;
     StringRef val = a->getValue();
     val.getAsInteger(10, n);

@@ -3,8 +3,8 @@
 ; RUN: opt --tapir=hip -passes="tapir-lowering<O2>" -o /dev/null %s \
 ; RUN:     --tapir-verbose \
 ; RUN:     --kitrt-verbose \
-; RUN:     --tapir-threads-per-block=64 \
-; RUN:     --tapir-max-threads-per-block=128 \
+; RUN:     --tapir-gpu-tpb=64 \
+; RUN:     --tapir-gpu-max-tpb=128 \
 ; RUN:     --tapir-gpu-prefetch=false \
 ; RUN:     --tapir-hip-arch=gfx906 \
 ; RUN:     --tapir-hip-sramecc=off \

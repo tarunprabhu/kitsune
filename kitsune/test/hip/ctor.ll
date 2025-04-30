@@ -35,7 +35,7 @@
 ; ----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
-; RUN:     --tapir-threads-per-block=77 \
+; RUN:     --tapir-gpu-tpb=77 \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix TPB
@@ -46,7 +46,7 @@
 ; ----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
-; RUN:     --tapir-max-threads-per-block=29 \
+; RUN:     --tapir-gpu-max-tpb=29 \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix MTPB

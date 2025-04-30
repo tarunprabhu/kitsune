@@ -74,7 +74,7 @@ static cl::opt<std::string> clLLD("tapir-lld", cl::init(""), cl::NotHidden,
 // ------------------ options common to the GPU tapir targets ------------------
 
 static cl::opt<unsigned> clFixedThreadsPerBlock(
-    "tapir-threads-per-block",
+    "tapir-gpu-tpb",
     cl::desc("Use a fixed number of threads per block for all GPU kernel "
              "launches unless overridden with pragmas. If this is not provided "
              "the threads per block will be calculated by Kitsune's runtime. "
@@ -82,7 +82,7 @@ static cl::opt<unsigned> clFixedThreadsPerBlock(
     cl::init(0));
 
 static cl::opt<unsigned> clMaxThreadsPerBlock(
-    "tapir-max-threads-per-block",
+    "tapir-gpu-max-tpb",
     cl::desc(
         "The maximum number of threads per block to launch. If this is not "
         "provided, Kitsune's runtime is free to launch as many threads per "

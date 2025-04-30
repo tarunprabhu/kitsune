@@ -4676,12 +4676,10 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
     // Arguments that are relevant to any GPU tapir target.
     if (*TT == llvm::TapirTargetID::Cuda || *TT == llvm::TapirTargetID::Hip) {
       if (unsigned N = Opts.getFixedThreadsPerBlock())
-        GenerateArg(Consumer, OPT_tapir_threads_per_block_EQ,
-                    std::to_string(N));
+        GenerateArg(Consumer, OPT_tapir_gpu_tpb_EQ, std::to_string(N));
 
       if (unsigned N = Opts.getMaxThreadsPerBlock())
-        GenerateArg(Consumer, OPT_tapir_max_threads_per_block_EQ,
-                    std::to_string(N));
+        GenerateArg(Consumer, OPT_tapir_gpu_max_tpb_EQ, std::to_string(N));
 
       GenerateArg(Consumer, Opts.getGPUPrefetch() ? OPT_tapir_gpu_prefetch
                                                   : OPT_tapir_gpu_no_prefetch);
