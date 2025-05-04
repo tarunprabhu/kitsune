@@ -79,5 +79,6 @@ add_llvm_component_library(LLVMTapirOpts
   Linker
   Scalar
   Support
+  TargetParser
   TransformUtils
 )

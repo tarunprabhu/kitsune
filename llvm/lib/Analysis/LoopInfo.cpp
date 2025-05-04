@@ -29,6 +29,7 @@
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
@@ -66,28 +67,31 @@ static bool succIsDetachUnwind(const BasicBlock *BB, const BasicBlock *Succ) {
   return false;
 }
 
-/// Returns true if the given instruction performs a taskframe resume, false
-/// otherwise.
-static bool isDetachedRethrow(const Instruction *I,
-                              const Value *SyncReg = nullptr) {
-  if (const InvokeInst *II = dyn_cast<InvokeInst>(I))
-    if (const Function *Called = II->getCalledFunction())
-      if (Intrinsic::detached_rethrow == Called->getIntrinsicID())
-        if (!SyncReg || (SyncReg == II->getArgOperand(0)))
+// Check if the given instruction is an intrinsic with the specified ID.  If a
+// value \p V is specified, then additionally checks that the first argument of
+// the intrinsic matches \p V.
+static bool isTapirIntrinsic(Intrinsic::ID ID, const Instruction *I,
+                             const Value *V = nullptr) {
+  if (const CallBase *CB = dyn_cast<CallBase>(I))
+    if (const Function *Called = CB->getCalledFunction())
+      if (ID == Called->getIntrinsicID())
+        if (!V || (V == CB->getArgOperand(0)))
           return true;
   return false;
 }
 
 /// Returns true if the given instruction performs a taskframe resume, false
 /// otherwise.
+static bool isDetachedRethrow(const Instruction *I,
+                              const Value *SyncReg = nullptr) {
+  return isTapirIntrinsic(Intrinsic::detached_rethrow, I, SyncReg);
+}
+
+/// Returns true if the given instruction performs a taskframe resume, false
+/// otherwise.
 static bool isTaskFrameResume(const Instruction *I,
                               const Value *TaskFrame = nullptr) {
-  if (const InvokeInst *II = dyn_cast<InvokeInst>(I))
-    if (const Function *Called = II->getCalledFunction())
-      if (Intrinsic::taskframe_resume == Called->getIntrinsicID())
-        if (!TaskFrame || (TaskFrame == II->getArgOperand(0)))
-          return true;
-  return false;
+  return isTapirIntrinsic(Intrinsic::taskframe_resume, I, TaskFrame);
 }
 
 /// Returns true if the given basic block is a placeholder successor of a
@@ -105,11 +109,29 @@ static bool isTapirPlaceholderSuccessor(const BasicBlock *B) {
   return true;
 }
 
+/// Return the taskframe used in the given detached block.
+static Value *getTaskFrameUsed(BasicBlock *Detached) {
+  // Scan the detached block for a taskframe.use intrinsic.  If we find one,
+  // return its argument.
+  for (const Instruction &I : *Detached)
+    if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I))
+      if (Intrinsic::taskframe_use == II->getIntrinsicID())
+        return II->getArgOperand(0);
+  return nullptr;
+}
+
 /// Helper method to find loop-exit blocks that are contained within tasks
 /// spawned within the loop.
-static void getTaskExitsHelper(BasicBlock *TaskEntry, const Value *SyncRegion,
+static void getTaskExitsHelper(Instruction *TaskStart, const DetachInst *TaskDI,
                                const Loop *L,
                                SmallPtrSetImpl<BasicBlock *> &TaskExits) {
+  const Value *TaskFrame =
+      isTapirIntrinsic(Intrinsic::taskframe_create, TaskStart) ? TaskStart
+                                                               : nullptr;
+  BasicBlock *TaskEntry =
+      TaskFrame ? TaskStart->getParent() : TaskDI->getDetached();
+  const Value *SyncRegion = TaskDI->getSyncRegion();
+
   // Traverse the CFG to find the exit blocks from SubT.
   SmallVector<BasicBlock *, 4> Worklist;
   SmallPtrSet<BasicBlock *, 4> Visited;
@@ -124,12 +146,24 @@ static void getTaskExitsHelper(BasicBlock *TaskEntry, const Value *SyncRegion,
       TaskExits.insert(BB);
 
     // Stop the CFG traversal at any reattach or detached.rethrow in the same
-    // sync region.
+    // sync region or taskframe.resume in the same task frame.
     if (ReattachInst *RI = dyn_cast<ReattachInst>(BB->getTerminator()))
       if (SyncRegion == RI->getSyncRegion())
         continue;
     if (isDetachedRethrow(BB->getTerminator(), SyncRegion))
       continue;
+    if (TaskFrame && isTaskFrameResume(BB->getTerminator(), TaskFrame))
+      continue;
+
+    if (DetachInst *DI = dyn_cast<DetachInst>(BB->getTerminator())) {
+      if (TaskDI == DI) {
+        // Don't add the reattach for this detach.
+        Worklist.push_back(DI->getDetached());
+        if (BasicBlock *DetachUnwind = DI->getUnwindDest())
+          Worklist.push_back(DetachUnwind);
+        continue;
+      }
+    }
 
     // For all other basic blocks, traverse all successors
     for (BasicBlock *Succ : successors(BB))
@@ -141,15 +175,23 @@ static void getTaskExitsHelper(BasicBlock *TaskEntry, const Value *SyncRegion,
 /// analysis, but inside tasks created within the loop.
 ///
 void Loop::getTaskExits(SmallPtrSetImpl<BasicBlock *> &TaskExits) const {
-  SmallVector<std::pair<BasicBlock *, Value *>, 4> TaskEntriesToCheck;
+  SmallVector<std::pair<Instruction *, DetachInst *>, 4> TaskEntriesToCheck;
   for (auto *BB : blocks())
     if (DetachInst *DI = dyn_cast<DetachInst>(BB->getTerminator()))
       if (DI->hasUnwindDest())
-        if (!contains(DI->getUnwindDest()))
-          TaskEntriesToCheck.push_back(
-              std::make_pair(DI->getDetached(), DI->getSyncRegion()));
+        if (!contains(DI->getUnwindDest())) {
+          if (Instruction *TaskFrame = dyn_cast_or_null<Instruction>(
+                  getTaskFrameUsed(DI->getDetached()))) {
+            assert(contains(TaskFrame) &&
+                   "Spawned loop body uses taskframe outside of loop!");
+            TaskEntriesToCheck.push_back(
+                std::make_pair(TaskFrame, DI));
+          } else {
+            TaskEntriesToCheck.push_back(std::make_pair(DI, DI));
+          }
+        }
 
-  for (std::pair<BasicBlock *, Value *> &TaskEntry : TaskEntriesToCheck)
+  for (auto &TaskEntry : TaskEntriesToCheck)
     getTaskExitsHelper(TaskEntry.first, TaskEntry.second, this, TaskExits);
 }
 
@@ -185,13 +227,15 @@ BasicBlock *Loop::getExitingBlock(bool IgnoreDetachUnwind) const {
 /// getExitBlocks - Return all of the successor blocks of this loop.  These
 /// are the blocks _outside of the current loop_ which are branched to.
 ///
-void Loop::getExitBlocks(
-    SmallVectorImpl<BasicBlock *> &ExitBlocks) const {
+void Loop::getExitBlocks(SmallVectorImpl<BasicBlock *> &ExitBlocks,
+                         bool IgnoreTaskExits) const {
   assert(!isInvalid() && "Loop not in a valid state!");
   std::vector<BasicBlock *> Blocks(block_begin(), block_end());
   SmallPtrSet<BasicBlock *, 4> TaskExits;
-  getTaskExits(TaskExits);
-  Blocks.insert(Blocks.end(), TaskExits.begin(), TaskExits.end());
+  if (!IgnoreTaskExits) {
+    getTaskExits(TaskExits);
+    Blocks.insert(Blocks.end(), TaskExits.begin(), TaskExits.end());
+  }
 
   for (const auto BB : Blocks)
     for (auto *Succ : children<BasicBlock *>(BB))

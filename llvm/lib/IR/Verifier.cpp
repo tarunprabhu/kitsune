@@ -3589,6 +3589,10 @@ static bool isDetachedRethrow(const Instruction *I,
 }
 
 void Verifier::verifyTask(const DetachInst *DI) {
+  Check(DI->getContinue() != DI->getUnwindDest(),
+        "Detach must have different continuation and unwind destinations");
+  Check(!DI->hasUnwindDest() || DI->getUnwindDest()->isLandingPad(),
+        "Detach unwind destination must be a landingpad.");
   SmallVector<const BasicBlock *, 32> Worklist;
   SmallPtrSet<const BasicBlock *, 32> Visited;
   Worklist.push_back(DI->getDetached());
@@ -7164,6 +7168,8 @@ void Verifier::visitIntrinsicCall(Intrinsic::ID ID, CallBase &Call) {
     if (InvokeInst *I = dyn_cast<InvokeInst>(&Call)) {
       Check(isa<UnreachableInst>(I->getNormalDest()->getTerminator()),
             "taskframe.resume normal destination is not unreachable", &Call);
+      Check(isa<Instruction>(I->getOperand(0)),
+            "taskframe.resume not associated with a valid taskframe.", &Call);
     }
     break;
   }
