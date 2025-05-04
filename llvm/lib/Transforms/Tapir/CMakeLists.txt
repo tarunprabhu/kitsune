@@ -70,15 +70,13 @@ add_llvm_component_library(LLVMTapirOpts
   LINK_COMPONENTS
   Analysis
   Core
-  FrontendTapir
   IPO
   IRReader
   Linker
   MC
   Scalar
   Support
-  FrontendTapir
   TransformUtils
   Vectorize
-  Passes
+  FrontendTapir
 )

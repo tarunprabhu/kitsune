@@ -442,20 +442,34 @@ set(KITSUNE_KNOWN_TAPIR_TARGETS_STR "${KITSUNE_KNOWN_TAPIR_TARGETS}")
 list(SORT KITSUNE_KNOWN_TAPIR_TARGETS_STR)
 list(JOIN KITSUNE_KNOWN_TAPIR_TARGETS_STR " " KITSUNE_KNOWN_TAPIR_TARGETS_STR)
 
-# The GPU tapir targets require the corresponding backend to be built.
+# The GPU tapir targets require the corresponding backend to be built. This
+# examines LLVM_TARGETS_TO_BUILD which defaults to "all". However, the variable
+# is declared later in the file, so if the user does not explicitly set the
+# variable, it will be unset here. If the variable is unset, do not add anything
+# to it since it will be set to "all" later, which will have the desired effect
+# of enabling the NVPTX and/or AMDGPU targets. Otherwise, if
+# LLVM_TARGETS_TO_BUILD has been set to some list of backend targets (including
+# the special value "host"), add the appropriate GPU backend target(s) as
+# needed.
 if (KITSUNE_CUDA_ENABLED AND
     NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
     NOT "NVPTX" IN_LIST LLVM_TARGETS_TO_BUILD)
-  list(APPEND LLVM_TARGETS_TO_BUILD "NVPTX")
-  set(LLVM_TARGETS_TO_BUILD "${LLVM_TARGETS_TO_BUILD}" CACHE STRING "Semicolon-separated list of targets to build, or \"all\"." FORCE)
+  if (LLVM_TARGETS_TO_BUILD)
+    list(APPEND LLVM_TARGETS_TO_BUILD "NVPTX")
+    set(LLVM_TARGETS_TO_BUILD "${LLVM_TARGETS_TO_BUILD}" CACHE STRING
+      "Semicolon-separated list of targets to build, or \"all\"." FORCE)
+  endif ()
   message(STATUS "enable NVPTX target")
 endif ()
 
 if (KITSUNE_HIP_ENABLED AND
     NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
     NOT "AMDGPU" IN_LIST LLVM_TARGETS_TO_BUILD)
-  list(APPEND LLVM_TARGETS_TO_BUILD "AMDGPU")
-  set(LLVM_TARGETS_TO_BUILD "${LLVM_TARGETS_TO_BUILD}" CACHE STRING "Semicolon-separated list of targets to build, or \"all\"." FORCE)
+  if (LLVM_TARGETS_TO_BUILD)
+    list(APPEND LLVM_TARGETS_TO_BUILD "AMDGPU")
+    set(LLVM_TARGETS_TO_BUILD "${LLVM_TARGETS_TO_BUILD}" CACHE STRING
+      "Semicolon-separated list of targets to build, or \"all\"." FORCE)
+  endif ()
   message(STATUS "enable AMDGPU target")
 endif ()
 
@@ -465,6 +479,17 @@ endif ()
 if (NOT LLVM_BUILD_LLVM_DYLIB)
   set(LLVM_BUILD_LLVM_DYLIB ON)
   message(STATUS "enable libLLVM")
+endif ()
+
+# The current organization of Kitsune's code is deeply problematic. There are a
+# host of circular dependences between the LLVM static libraries introduced by
+# libLLVMFrontendTapir. When linking against libLLVM.so or using static linking
+# for LLVM's tools (including clang, flang, lli, opt etc.), we just about get
+# away with this. But if building shared libraries, configuration will fail
+# specifically with a circular dependence error. Until we can untangle this
+# particular mess, don't allow BUILD_SHARED_LIBS=1
+if (BUILD_SHARED_LIBS)
+  message(FATAL_ERROR "Kitsune does not support BUILD_SHARED_LIBS=ON. See llvm/CMakeLists.txt for more details")
 endif ()
 
 # --------------------- END KITSUNE SPECIFIC CONFIGURATION ---------------------

@@ -16,6 +16,27 @@
 
 using namespace llvm;
 
+// NOTE: See llvm/lib/Passes/OptimizationLevel.cpp for an explanation for why
+// these are defined here.
+const OptimizationLevel OptimizationLevel::O0 = {
+    /*SpeedLevel*/ 0,
+    /*SizeLevel*/ 0};
+const OptimizationLevel OptimizationLevel::O1 = {
+    /*SpeedLevel*/ 1,
+    /*SizeLevel*/ 0};
+const OptimizationLevel OptimizationLevel::O2 = {
+    /*SpeedLevel*/ 2,
+    /*SizeLevel*/ 0};
+const OptimizationLevel OptimizationLevel::O3 = {
+    /*SpeedLevel*/ 3,
+    /*SizeLevel*/ 0};
+const OptimizationLevel OptimizationLevel::Os = {
+    /*SpeedLevel*/ 2,
+    /*SizeLevel*/ 1};
+const OptimizationLevel OptimizationLevel::Oz = {
+    /*SpeedLevel*/ 2,
+    /*SizeLevel*/ 2};
+
 CodeGenOptLevel llvm::mapToCodeGenOptLevel(OptimizationLevel OptLevel) {
   switch (OptLevel.getSpeedupLevel()) {
   case 0:

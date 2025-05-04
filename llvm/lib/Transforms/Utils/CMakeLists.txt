@@ -105,4 +105,5 @@ add_llvm_component_library(LLVMTransformUtils
   Core
   Support
   TargetParser
+  FrontendTapir
   )

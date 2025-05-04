@@ -283,10 +283,10 @@ bool TapirTargetOptions::lower() const { return tt != TapirTargetID::None; }
 
 void TapirTargetOptions::print(raw_ostream &os, bool all) const {
   os << "'" << tt << "' tapir target options:\n";
-  os << "  Compiler verbose:          " << getTapirVerbose() << "\n";
-  os << "  Runtime verbose:           " << getKitrtVerbose() << "\n";
-  os << "  Optimization level:        " << getOptLevel() << "\n";
-  os << "  FP fusion: " << getFPOpFusionMode() << "\n";
+  os << "  Compiler verbose:        " << getTapirVerbose() << "\n";
+  os << "  Runtime verbose:         " << getKitrtVerbose() << "\n";
+  os << "  Optimization level:      " << getOptLevel() << "\n";
+  os << "  FP fusion:               " << getFPOpFusionMode() << "\n";
   if (all || tt == TapirTargetID::Cuda || tt == TapirTargetID::Hip) {
     os << "  GPU fixed threads/block: " << getFixedThreadsPerBlock() << "\n";
     os << "  GPU max threads/block:   " << getMaxThreadsPerBlock() << "\n";

@@ -134,6 +134,13 @@ if (KITSUNE_GCC_INSTALL_DIR)
       "'${KITSUNE_GCC_INSTALL_DIR}'. Check the value of "
       "KITSUNE_GCC_INSTALL_DIR")
   endif ()
+
+  # Strip any trailing '/' from the value provided by the user. Not doing so
+  # breaks some tests. This also ensures that any path that is constructed with
+  # it will not contain '//' anywhere (which is not wrong, just not particularly
+  # aesthetic). We should do the same for '\', but we do not currently, and
+  # probably never will, support Windows.
+  string(REGEX REPLACE "[/]+$" "" KITSUNE_GCC_INSTALL_DIR "${KITSUNE_GCC_INSTALL_DIR}")
 endif ()
 
 # This is just the subpath to the internal directory. It will be interpreted
@@ -531,6 +538,7 @@ if (KITSUNE_OPENCILK_ENABLED)
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
     "-DCMAKE_CXX_FLAGS='${KITSUNE_OPENCILK_BUILD_CXX_FLAGS}'"
     -DCMAKE_CXX_COMPILER_WORKS=1
+    -DCMAKE_SIZEOF_VOID_P=${CMAKE_SIZEOF_VOID_P}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
     -DCMAKE_INSTALL_PREFIX=${KITSUNE_CHEETAH_INSTALL_DIR}
