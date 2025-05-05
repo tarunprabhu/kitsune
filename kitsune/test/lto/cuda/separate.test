@@ -2,9 +2,6 @@
 # file" (the prelink phase). When performing the actual link, the lowering
 # passes should be run.
 #
-# We emit LLVM instead of doing an actual link because the latter can fail on
-# systems with non-standard sysroots.
-#
 # RUN: mkdir -p %t
 #
 # RUN: %kitxx -c -flto --tapir=cuda -O2 --tapir-verbose %S/../input/add.cpp \
@@ -17,12 +14,12 @@
 # RUN:     -o %t/main.o 2>&1 \
 # RUN:     | FileCheck %s --check-prefixes=NO-LOWER --allow-empty
 #
-# RUN: %kitxx -flto --tapir=cuda -O2 %t/main.o %t/add.o -o %t/a.bc \
-# RUN:     --tapir-cuda-arch=sm_72 \
-# RUN:     --tapir-verbose -Wl,--lto-emit-llvm 2>&1 \
+# RUN: %kitxx -flto -O2 %t/main.o %t/add.o -o %t/a.bc %sysroot \
+# RUN:     -Wl,--lto-emit-llvm \
+# RUN:     --tapir=cuda --tapir-cuda-arch=sm_72 --tapir-verbose 2>&1 \
 # RUN:     | FileCheck %s --check-prefixes=LOWER
 #
-# RUN: opt -S %t/a.bc | FileCheck %s --check-prefix=LAUNCH
+# RUN: llvm-dis -o - %t/a.bc | FileCheck %s --check-prefix=LAUNCH
 #
 # NO-LOWER-NOT: 'cuda' tapir target options
 # LOWER: 'cuda' tapir target options

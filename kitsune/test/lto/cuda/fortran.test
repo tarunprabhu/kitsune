@@ -4,15 +4,12 @@
 # implemented yet.
 # XFAIL: *
 #
-# Check a standard "end-to-end" lowering using LTO. We emit LLVM from LLD
-# because running the linker may not work on systems with non-standard
-# sysroots.
+# Check a standard "end-to-end" lowering using LTO.
 #
-# mkdir -p %t/a.bc
-#
-# RUN: %kitfc -ftapir=cuda -O2 -flto -Wl,--lto-emit-llvm -o %t/a.bc \
-# RUN:     --tapir-cuda-arch=sm_72 \
-# RUN:     %S/../input/add.f90 %S/../input/main.f90
-# RUN: opt -S %t/a.bc | FileCheck %s
+# RUN: %kitfc -O2 -flto -Wl,--lto-emit-llvm -o - %sysroot \
+# RUN:     --tapir=cuda --tapir-cuda-arch=sm_72 \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
+# RUN:     | llvm-dis \
+# RUN:     | FileCheck
 #
 # CHECK: call {{.+}} @__kitcuda_launch_kernel

@@ -15,11 +15,12 @@
 # RUN:     -o %t/main.o 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=NO-LOWER --allow-empty
 #
-# RUN: %kitxx -flto --tapir=hip -O2 %t/main.o %t/add.o -o %t/a.bc \
-# RUN:     --tapir-verbose -Wl,--lto-emit-llvm 2>&1 \
+# RUN: %kitxx -flto -O2 %t/main.o %t/add.o -o %t/a.bc %sysroot \
+# RUN:     -Wl,--lto-emit-llvm \
+# RUN:     --tapir=hip --tapir-hip-arch=gfx90a --tapir-verbose 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=LOWER
 #
-# RUN: opt -S %t/a.bc | FileCheck %s --check-prefix=LAUNCH
+# RUN: llvm-dis -o - %t/a.bc | FileCheck %s --check-prefix=LAUNCH
 #
 # NO-LOWER-NOT: 'hip' tapir target options
 # LOWER: 'hip' tapir target options

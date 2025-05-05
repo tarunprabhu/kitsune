@@ -79,6 +79,7 @@ tools = [
     "clang-linker-wrapper",
     "not",
     "opt",
+    "llvm-dis",
     "llvm-lto",
     "llvm-lto2",
 ]

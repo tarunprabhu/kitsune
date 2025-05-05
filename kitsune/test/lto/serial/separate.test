@@ -2,9 +2,6 @@
 # file" (the prelink phase). When performing the actual link, the lowering
 # passes should be run.
 #
-# We emit LLVM instead of doing an actual link because the latter can fail on
-# systems with non-standard sysroots.
-#
 # RUN: mkdir -p %t
 #
 # RUN: %kitxx -c -flto --tapir=serial -O2 --tapir-verbose %S/../input/add.cpp \
@@ -15,11 +12,9 @@
 # RUN:     -o %t/main.o -fno-stripmine 2>&1 \
 # RUN:     | FileCheck %s --check-prefixes=NO-LOWER --allow-empty
 #
-# We emit LLVM instead of doing an actual link because the latter can fail on
-# systems with non-standard sysroots.
-#
-# RUN: %kitxx -flto --tapir=serial -O3 %t/main.o %t/add.o -o /dev/null \
-# RUN:     --tapir-verbose -fno-stripmine -Wl,--lto-emit-llvm 2>&1 \
+# RUN: %kitxx -flto -O3 %t/main.o %t/add.o -o %t/a.bc %sysroot \
+# RUN:     -fno-stripmine -Wl,--lto-emit-llvm \
+# RUN:     --tapir=serial --tapir-verbose 2>&1 \
 # RUN:     | FileCheck %s --check-prefixes=LOWER
 #
 # NO-LOWER-NOT: 'serial' tapir target options
