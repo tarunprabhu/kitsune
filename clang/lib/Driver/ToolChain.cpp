@@ -1881,7 +1881,8 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
 
   // We need to create a temporary AMDGPU toolchain in order to determine the
   // set of bitcode files to use among other things. This needs additional
-  // command line options to point to the correct ROCm installation to use.
+  // command line options to point to the correct ROCm installation to use,
+  // among other things.
   ArgStringList ExtraArgs = CmdArgs;
   InputArgList ExtendedArgs;
 
@@ -1892,6 +1893,10 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   std::string ROCMPath =
       llvm::join_items("", "--rocm-path=", KITSUNE_HIP_PREFIX);
   ExtraArgs.push_back(ROCMPath.c_str());
+
+  std::string ROCMDeviceLibPath =
+      llvm::join_items("=", "--rocm-device-lib-path", KITSUNE_HIP_BITCODE_DIR);
+  ExtraArgs.push_back(ROCMDeviceLibPath.c_str());
 
   // If an explicit object version has been provided, push that argument onto
   // the extra args. This will not make it to CmdArgs at any point, so we have
@@ -1950,11 +1955,6 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   // warning so the user will know that they did something questionable.
   std::vector<std::string> TargetID = {HipArch};
 
-  // FIXME: The default values of xnack and sramecc should be "any" and not
-  // "on". This is left as "on" for now because that is the assumption that was
-  // made in HipABI before the refactor to use clang in LLVM 20. But it is
-  // probably better to switch to "any" for the widest possible compatibility.
-  //
   // These must be added to the TargetID in alphabetical order, so sramecc first
   // and xnack next. If AMD decides to hack in more features in this appalling
   // manner, those will, in all likelihood, also need to be in alphabetical

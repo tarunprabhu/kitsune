@@ -351,7 +351,7 @@ if (KITSUNE_CUDA_ENABLED)
 
   set(KITSUNE_CUDA_ARCH_DEFAULT "sm_80"
     CACHE STRING
-    "The default NVIDIA GPU architecture used by the cuda tapir target")
+    "The default NVIDIA GPU architecture used by the cuda tapir target when a GPU is not detected on the system")
 
   set(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -377,35 +377,30 @@ if (KITSUNE_HIP_ENABLED)
   # interaction between that and Darwin. Whatever the case, we need this (pretty
   # lousy) workaround.
   if (NOT DEFINED ROCM_PATH)
-    message(STATUS "  Kitsune HIP support enabled but ROCM_PATH not set.")
+    message(STATUS "  Kitsune HIP support enabled but ROCM_PATH not set")
     if (DEFINED $ENV{ROCM_PATH})
-      message(STATUS "  Using ROCM_PATH environment variable.")
+      message(STATUS "  Using ROCM_PATH environment variable")
       set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH
-        "AMD ROCM/HIP installation directory.")
+        "AMD ROCM/HIP installation directory")
     else()
-      message(STATUS "  Using the default install location [/opt/rocm].")
+      message(STATUS "  Using the default install location [/opt/rocm]")
       set(ROCM_PATH "/opt/rocm" CACHE PATH
-        "AMD ROCM/HIP installation directory.")
+        "AMD ROCM/HIP installation directory")
     endif()
   endif()
   message(STATUS "ROCm/HIP path: ${ROCM_PATH}")
 
-  # The CMAKE_MODULE_PATH needs to be updated, probably because HIP doesn't know
-  # how to find itself. Or something mad like that. I have given up trying to
-  # write sane comments explaining all the workarounds to get AMD's software
-  # stack working.
-  list(APPEND CMAKE_MODULE_PATH "${ROCM_PATH}/lib/cmake/hip")
-  message(STATUS "   Updated cmake module search path: ${CMAKE_MODULE_PATH}")
-
-  # Now we can finally look for the HIP package ...
-  find_package(HIP MODULE REQUIRED)
-
-  # ... but apparently we need to explicitly include the .cmake file otherwise
-  # we don't get the variables that we need. WTH!
-  include(${ROCM_PATH}/lib/cmake/hip/hip-config.cmake)
+  # Now we can finally look for the HIP package. Just to be safe, stop it from
+  # accidentally finding something that is not in ROCM_PATH. We need to add both
+  # lib and lib64 because some systems install the hip libraries to lib64 while
+  # others install it in lib.
+  find_package(HIP ${KITSUNE_ROCM_VERSION_MIN} REQUIRED
+    PATHS ${ROCM_PATH}/lib/cmake/hip ${ROCM_PATH}/lib64/cmake/hip
+    NO_DEFAULT_PATH)
 
   # There ought to be a better way to set the HIP_PREFIX rather than simply
-  # relying on ROCM_PATH, but if wishes were horses ...
+  # relying on ROCM_PATH, but if wishes were horses.... In all code following
+  # this, we should use KITSUNE_HIP_PREFIX instead of ROCM_PATH for consistency.
   set(KITSUNE_HIP_PREFIX ${ROCM_PATH})
   set(KITSUNE_HIP_VERSION_MAJOR ${HIP_VERSION_MAJOR})
   set(KITSUNE_HIP_VERSION_MINOR ${HIP_VERSION_MINOR})
@@ -421,12 +416,12 @@ if (KITSUNE_HIP_ENABLED)
   set(KITSUNE_HIP_LIBNAME_AMDHIP "amdhip64")
 
   find_library(KITSUNE_HIP_LIB_AMDHIP64 ${KITSUNE_HIP_LIBNAME_AMDHIP} REQUIRED
-    PATHS ${KITSUNE_HIP_LIBRARY_DIR} ${ROCM_PATH}/lib
+    PATHS ${KITSUNE_HIP_LIBRARY_DIR}
     NO_DEFAULT_PATH)
 
   set(KITSUNE_HIP_ARCH_DEFAULT "gfx90a"
     CACHE STRING
-    "The default AMD GPU architecture used by the hip tapir target")
+    "The default AMD GPU architecture used by the hip tapir target when a GPU is not detected on the system")
 
   set(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -443,10 +438,18 @@ if (KITSUNE_HIP_ENABLED)
     CACHE STRING
     "Additional linker flags needed for the HIP target")
 
-  set(KITSUNE_HIP_BITCODE_DIR "${ROCM_PATH}/amdgcn/bitcode/")
-  find_file(KITSUNE_HIP_BITCODE_FILE hip.bc REQUIRED
-    PATHS ${KITSUNE_HIP_BITCODE_DIR}
+  # We need to find the directory containing the bitcode files. Depending on the
+  # system, this could be in one of several places. ${HIP_PREFIX}/amdgcn/bitcode
+  # is a legacy location, but look there anyway because, on some HPC platforms
+  # at least, the files can still be found there. We look for hip.bc because,
+  # as of ROCm-6.3 at least, that was still guaranteed to exist. But if that
+  # ever changes, we may need to look for a different bitcode file here.
+  find_file(HIP_BC hip.bc REQUIRED
+    PATHS ${KITSUNE_HIP_PREFIX}/amdgcn/bitcode
+    ${KITSUNE_HIP_PREFIX}/lib/amdgcn/bitcode
+    ${KITSUNE_HIP_PREFIX}/lib64/amdgcn/bitcode
     NO_DEFAULT_PATH)
+  get_filename_component(KITSUNE_HIP_BITCODE_DIR "${HIP_BC}" DIRECTORY)
   message(STATUS "hip bitcode file location: ${KITSUNE_HIP_BITCODE_DIR}")
 endif()
 
