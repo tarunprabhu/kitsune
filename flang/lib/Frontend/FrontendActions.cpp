@@ -43,7 +43,6 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/RuntimeLibcallInfo.h"
-#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Bitcode/BitcodeWriterPass.h"
@@ -1062,11 +1061,6 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
         targetMachine->Options.MCOptions.ABIName,
         targetMachine->Options.VecLib);
   });
-
-  // Register the tapir target analysis directly with the tapir target options
-  // registered with the pass builder.
-  mam.registerPass(
-      [&] { return llvm::TapirTargetAnalysis(pb.getTapirTargetOptions()); });
 
   // Register all the basic analyses with the managers.
   pb.registerModuleAnalyses(mam);
