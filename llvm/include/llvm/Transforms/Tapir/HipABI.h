@@ -229,10 +229,6 @@ private:
   typedef llvm::DenseMap<CallInst *, AllocaInst *> LaunchToStreamMapTy;
   LaunchToStreamMapTy KernelLaunchToStreamMap;
 
-  FunctionCallee KitHipGetGlobalSymbolFn = nullptr;
-  FunctionCallee KitHipMemcpySymbolToDevFn = nullptr;
-  FunctionCallee KitHipSyncFn = nullptr;
-
   Module KernelModule;
   bool ROCmModulesLoaded;
   TargetMachine *AMDTargetMachine;
@@ -361,28 +357,16 @@ private:
   // line, but until we do that this is something that will work.
   static unsigned NextKernelID;
 
-  // AMDGCN intrinsics.  TODO: These should probably not be prefixed with the
-  // kitsune runtime...
-  FunctionCallee KitHipWorkItemIdFn;
-  FunctionCallee KitHipWorkItemIdXFn, KitHipWorkItemIdYFn, KitHipWorkItemIdZFn;
-  FunctionCallee KitHipWorkGroupIdFn;
-  FunctionCallee KitHipWorkGroupIdXFn, KitHipWorkGroupIdYFn,
-      KitHipWorkGroupIdZFn;
-  FunctionCallee KitHipBlockDimFn;
+  // AMDGCN intrinsics.
+  FunctionCallee HipWorkItemIdFn;
+  FunctionCallee HipWorkItemIdXFn, HipWorkItemIdYFn, HipWorkItemIdZFn;
+  FunctionCallee HipWorkGroupIdFn;
+  FunctionCallee HipWorkGroupIdXFn, HipWorkGroupIdYFn, HipWorkGroupIdZFn;
+  FunctionCallee HipBlockDimFn;
 
   StructType *KernelInstMixTy;
 
-  // Kitsune runtime entry points.
-  FunctionCallee KitHipLaunchFn = nullptr;
-  FunctionCallee KitHipModuleLoadDataFn = nullptr;
-  FunctionCallee KitHipModuleLaunchFn = nullptr;
-
   // Runtime prefetch support entry points.
-  FunctionCallee KitHipStreamSetMemPrefetchFn = nullptr;
-  FunctionCallee KitHipMemPrefetchFn = nullptr;
-  FunctionCallee KitHipMemPrefetchOnStreamFn = nullptr;
-  FunctionCallee KitHipStreamMemPrefetchFn = nullptr;
-
   FunctionCallee KitHipCreateFBModuleFn = nullptr;
 
   SmallVector<Value *, 5> OrderedInputs;

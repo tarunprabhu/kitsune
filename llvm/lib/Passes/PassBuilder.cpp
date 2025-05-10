@@ -263,6 +263,7 @@
 #include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
 #include "llvm/Transforms/Instrumentation/ThreadSanitizer.h"
 #include "llvm/Transforms/Instrumentation/TypeSanitizer.h"
+#include "llvm/Transforms/Kitsune/LowerKitsuneRuntimeIntrinsics.h"
 #include "llvm/Transforms/Kitsune/LowerMobileIntrinsics.h"
 #include "llvm/Transforms/Kitsune/StripKitsuneAddrSpace.h"
 #include "llvm/Transforms/ObjCARC.h"

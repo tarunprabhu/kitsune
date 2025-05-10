@@ -62,9 +62,6 @@ TargetLibraryInfoImpl *createTLII(const llvm::Triple &TargetTriple,
     break;
   }
 
-  if (TapirTarget)
-    TLII->addTapirTargetLibraryFunctions(*TapirTarget);
-
   return TLII;
 }
 

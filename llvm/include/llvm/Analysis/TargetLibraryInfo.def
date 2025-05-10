@@ -2688,6 +2688,182 @@ TLI_DEFINE_ENUM_INTERNAL(write)
 TLI_DEFINE_STRING_INTERNAL("write")
 TLI_DEFINE_SIG_INTERNAL(SSizeT, Int, Ptr, SizeT)
 
+// ----------------------------------------------------------------------------
+// Kitsune runtime library functions
+//
+// NOTE: Unlike the other library functions declared here, the enum names and
+// the names of the actual runtime library function do not necessarily match.
+// This is intentional in order to keep the enum name consistent with the name
+// of the corresponding kitsune intrinsic.
+// ----------------------------------------------------------------------------
+
+/// @{
+// Runtime library functions common to all tapir targets
+
+/// void __kitrt_enable_verbose_mode();
+TLI_DEFINE_ENUM_INTERNAL(kitrt_enable_verbose)
+TLI_DEFINE_STRING_INTERNAL("__kitrt_enable_verbose_mode")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// @}
+
+/// @{
+/// Runtime library functions for the cuda tapir target
+
+/// void __kitcuda_enable_launch_refinement(bool enable);
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_enable_refine_launches)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_enable_launch_refinement")
+TLI_DEFINE_SIG_INTERNAL(Void, Bool)
+
+/// void __kitcuda_destroy()
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_finalize)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_destroy")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void __kitcuda_initialize();
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_initialize)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_initialize")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void* __kitcuda_launch_kernel(void* fat_binary,
+///                               const char* kernel_name,
+///                               void* args[],
+///                               int64_t trip_count,
+///                               int32_t threads_per_block,
+///                               InstrMixInfo* instr_mix_info,
+///                               void* stream);
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_launch_kernel)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_launch_kernel")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr, Ptr, Int64, Int32, Ptr, Ptr)
+
+/// void* __kitcuda_mem_gpu_prefetch(void* ptr, void* stream);
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_prefetch_device)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_mem_gpu_prefetch")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
+
+/// void __kitcuda_mem_host_prefetch(void* ptr, void* stream);
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_prefetch_host)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_mem_host_prefetch")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
+
+/// void __kitcuda_set_default_threads_per_blk(int32_t threads_per_block);
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_set_fixed_tpb)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_set_default_threads_per_blk")
+TLI_DEFINE_SIG_INTERNAL(Void, Int32)
+
+/// void __kitcuda_set_max_threads_per_blk(int32_t threads_per_block);
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_set_max_tpb)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_set_max_threads_per_blk")
+TLI_DEFINE_SIG_INTERNAL(Void, Int32)
+
+/// void* __kitcuda_get_global_symbol(void* fat_binary,
+///                                   const char* name);
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_symbol_device_ptr)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_get_global_symbol")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
+
+/// void __kitcuda_memcpy_sym_to_device(void* device_ptr,
+///                                     void* host_ptr,
+///                                     int64_t bytes);
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_symbol_memcpy_device)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_memcpy_sym_to_device")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Int64)
+
+/// void __kitcuda_memcpy_sym_to_host(void* host_ptr,
+///                                   void* device_ptr,
+///                                   int64_t bytes);
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_symbol_memcpy_host)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_memcpy_sym_to_host")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Int64)
+
+/// void __kitcuda_sync_thread_stream(void* stream);
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_sync_stream)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_sync_thread_stream")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
+
+/// @}
+
+/// @{
+/// Runtime library functions for the hip tapir target
+
+/// void __kithip_enable_xnack();
+TLI_DEFINE_ENUM_INTERNAL(kithip_enable_xnack)
+TLI_DEFINE_STRING_INTERNAL("__kithip_enable_xnack")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void __kithip_enable_ylaunch();
+TLI_DEFINE_ENUM_INTERNAL(kithip_enable_y_axis_launches)
+TLI_DEFINE_STRING_INTERNAL("__kithip_enable_ylaunch")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void __kithip_destroy()
+TLI_DEFINE_ENUM_INTERNAL(kithip_finalize)
+TLI_DEFINE_STRING_INTERNAL("__kithip_destroy")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void __kithip_initialize();
+TLI_DEFINE_ENUM_INTERNAL(kithip_initialize)
+TLI_DEFINE_STRING_INTERNAL("__kithip_initialize")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void* __kithip_launch_kernel(void* fat_binary,
+///                              const char* kernel_name,
+///                              void* args[],
+///                              int64_t trip_count,
+///                              int32_t threads_per_block,
+///                              InstrMixInfo* instr_mix_info,
+///                              void* stream);
+TLI_DEFINE_ENUM_INTERNAL(kithip_launch_kernel)
+TLI_DEFINE_STRING_INTERNAL("__kithip_launch_kernel")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr, Ptr, Int64, Int32, Ptr, Ptr)
+
+/// void* __kithip_mem_gpu_prefetch(void* ptr, void* stream);
+TLI_DEFINE_ENUM_INTERNAL(kithip_prefetch_device)
+TLI_DEFINE_STRING_INTERNAL("__kithip_mem_gpu_prefetch")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
+
+/// void __kithip_mem_host_prefetch(void* ptr, void* stream);
+TLI_DEFINE_ENUM_INTERNAL(kithip_prefetch_host)
+TLI_DEFINE_STRING_INTERNAL("__kithip_mem_host_prefetch")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
+
+/// void __kithip_set_default_threads_per_blk(int32_t threads_per_block);
+TLI_DEFINE_ENUM_INTERNAL(kithip_set_fixed_tpb)
+TLI_DEFINE_STRING_INTERNAL("__kithip_set_default_threads_per_blk")
+TLI_DEFINE_SIG_INTERNAL(Void, Int32)
+
+/// void __kithip_set_max_threads_per_blk(int32_t threads_per_block);
+TLI_DEFINE_ENUM_INTERNAL(kithip_set_max_tpb)
+TLI_DEFINE_STRING_INTERNAL("__kithip_set_max_threads_per_blk")
+TLI_DEFINE_SIG_INTERNAL(Void, Int32)
+
+/// void* __kithip_get_global_symbol(void* fat_binary,
+///                                  const char* name);
+TLI_DEFINE_ENUM_INTERNAL(kithip_symbol_device_ptr)
+TLI_DEFINE_STRING_INTERNAL("__kithip_get_global_symbol")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
+
+/// void __kithip_memcpy_sym_to_device(void* device_ptr,
+///                                    void* host_ptr,
+///                                    int64_t bytes);
+TLI_DEFINE_ENUM_INTERNAL(kithip_symbol_memcpy_device)
+TLI_DEFINE_STRING_INTERNAL("__kithip_memcpy_sym_to_device")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Int64)
+
+/// void __kithip_memcpy_sym_to_host(void* host_ptr,
+///                                  void* device_ptr,
+///                                  int64_t bytes);
+TLI_DEFINE_ENUM_INTERNAL(kithip_symbol_memcpy_host)
+TLI_DEFINE_STRING_INTERNAL("__kithip_memcpy_sym_to_host")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Int64)
+
+/// void __kithip_sync_thread_stream(void* stream);
+TLI_DEFINE_ENUM_INTERNAL(kithip_sync_stream)
+TLI_DEFINE_STRING_INTERNAL("__kithip_sync_thread_stream")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
+
+/// @}
+
 #undef TLI_DEFINE_ENUM_INTERNAL
 #undef TLI_DEFINE_STRING_INTERNAL
 #undef TLI_DEFINE_SIG_INTERNAL

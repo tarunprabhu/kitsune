@@ -336,6 +336,7 @@
 ; CHECK-O-NEXT: Running pass: LowerMobileIntrinsicsPass
 ; CHECK-O-NEXT: Running analysis: TapirTargetAnalysis
 ; CHECK-O-NEXT: Running pass: StripKitsuneAddrSpacePass
+; CHECK-O-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
 ; CHECK-O-NEXT: Running pass: PrintModulePass
 ;
 ; Make sure we get the IR back out without changes when we print the module.

@@ -206,7 +206,6 @@ private:
           FunctionType *type = Intrinsic::getType(ctxt, id, params);
           std::string name = Intrinsic::getName(id, params, &m, type);
           if (f.getName() != name)
-            // FIXME: This is deprecated. Use getOrInsertDeclaration instead.
             replace[&f] = Intrinsic::getOrInsertDeclaration(&m, id, params);
         }
       }

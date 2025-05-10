@@ -248,6 +248,7 @@
 ; CHECK-POSTLINK-O-NEXT: Running pass: LowerMobileIntrinsicsPass
 ; CHECK-POSTLINK-O-NEXT: Running analysis: TapirTargetAnalysis
 ; CHECK-POSTLINK-O-NEXT: Running pass: StripKitsuneAddrSpacePass
+; CHECK-POSTLINK-O-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
 ; CHECK-O-NEXT:          Running pass: AnnotationRemarksPass on foo
 ; CHECK-O-NEXT: Running pass: PrintModulePass
 

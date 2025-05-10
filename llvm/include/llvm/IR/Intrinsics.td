@@ -619,8 +619,6 @@ def llvm_externref_ty  : LLVMType<externref>;
 def llvm_funcref_ty    : LLVMType<funcref>;
 def llvm_exnref_ty     : LLVMType<exnref>;
 
-def llvm_mobile_ptr_ty : LLVMQualPointerType<67>; // Kitsune mobile pointers
-
 //===----------------------------------------------------------------------===//
 
 class MakeIdx<list<int> Set> {
@@ -1897,31 +1895,6 @@ def int_tapir_loop_grainsize
 def int_task_frameaddress
     : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty], [IntrWillReturn]>;
 
-
-///===------------------------- Kitsune Intrinsics ------------------------===//
-
-// Mobile memory allocator. This will allocate the given number of bytes as a
-// mobile buffer. The lowering of this intrinsic will depend on
-//
-//   - The Tapir target(s) that are enabled
-//   - The uses of the buffer
-//
-// TODO: This should eventually return a pointer in a specific address space.
-// This may require the returned type to be replaced with an
-// LLVMQualPointerType.
-//
-def int_kitsune_mobile_alloc
-    : Intrinsic<[llvm_mobile_ptr_ty], [llvm_i64_ty],
-                [IntrInaccessibleMemOnly, NoAlias<RetIndex>]>;
-
-// Mobile memory deallocator. This will free memory that was previously
-// allocated by kitsune_mobile_alloc.
-def int_kitsune_mobile_free
-    : Intrinsic<[], [llvm_mobile_ptr_ty],
-                [IntrInaccessibleMemOrArgMemOnly, IntrWillReturn,
-                 NoCapture<ArgIndex<0>>, ReadNone<ArgIndex<0>>]>;
-
-
 ///===-------------------------- Other Intrinsics --------------------------===//
 //
 // TODO: We should introduce a new memory kind fo traps (and other side effects
@@ -2944,6 +2917,11 @@ def int_experimental_convergence_loop
   : DefaultAttrsIntrinsic<[llvm_token_ty], [], [IntrNoMem, IntrConvergent]>;
 
 //===----------------------------------------------------------------------===//
+// Kitsune-specific intrinsics
+//===----------------------------------------------------------------------===//
+include "llvm/IR/IntrinsicsKitsune.td"
+
+//===----------------------------------------------------------------------===//
 // Target-specific intrinsics
 //===----------------------------------------------------------------------===//
 
@@ -2964,6 +2942,5 @@ include "llvm/IR/IntrinsicsSPIRV.td"
 include "llvm/IR/IntrinsicsVE.td"
 include "llvm/IR/IntrinsicsDirectX.td"
 include "llvm/IR/IntrinsicsLoongArch.td"
-include "llvm/IR/IntrinsicsKitsune.td"
 
 #endif // TEST_INTRINSICS_SUPPRESS_DEFS

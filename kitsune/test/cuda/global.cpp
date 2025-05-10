@@ -7,8 +7,8 @@
 // CHECK-DAG: @[[DEVVAR_NAME:.+]] = private constant [12 x i8] c"v137_devvar\00"
 //
 // CHECK: define {{.+}} @fill
-// CHECK: %[[DEVPTR:.+]] = call i64 @__kitcuda_get_global_symbol(ptr nonnull @__kitsune_fatbin_cuda, ptr nonnull @[[DEVVAR_NAME]])
-// CHECK: call void @__kitcuda_memcpy_sym_to_device(ptr nonnull @[[HOSTVAR]], i64 %[[DEVPTR]], i64 4)
+// CHECK: %[[DEVPTR:.+]] = call ptr @__kitcuda_get_global_symbol(ptr @__kitsune_fatbin_cuda, ptr @[[DEVVAR_NAME]])
+// CHECK: call void @__kitcuda_memcpy_sym_to_device(ptr @[[HOSTVAR]], ptr %[[DEVPTR]], i64 4)
 // CHECK: call ptr @__kitcuda_launch_kernel
 //
 // FIXME: Check that the variable is registered correctly.

@@ -917,6 +917,37 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
   if (T.isOSAIX())
     TLI.setUnavailable(LibFunc_memrchr);
 
+  // Kitsune's runtime functions are only available on some platforms. Without
+  // settings these as unavailable, we get some test failures in tli-checker.
+  if (!T.isOSLinux()) {
+    TLI.setUnavailable(LibFunc_kitrt_enable_verbose);
+    TLI.setUnavailable(LibFunc_kitcuda_enable_refine_launches);
+    TLI.setUnavailable(LibFunc_kitcuda_finalize);
+    TLI.setUnavailable(LibFunc_kitcuda_initialize);
+    TLI.setUnavailable(LibFunc_kitcuda_launch_kernel);
+    TLI.setUnavailable(LibFunc_kitcuda_prefetch_device);
+    TLI.setUnavailable(LibFunc_kitcuda_prefetch_host);
+    TLI.setUnavailable(LibFunc_kitcuda_set_fixed_tpb);
+    TLI.setUnavailable(LibFunc_kitcuda_set_max_tpb);
+    TLI.setUnavailable(LibFunc_kitcuda_symbol_device_ptr);
+    TLI.setUnavailable(LibFunc_kitcuda_symbol_memcpy_device);
+    TLI.setUnavailable(LibFunc_kitcuda_symbol_memcpy_host);
+    TLI.setUnavailable(LibFunc_kitcuda_sync_stream);
+    TLI.setUnavailable(LibFunc_kithip_enable_xnack);
+    TLI.setUnavailable(LibFunc_kithip_enable_y_axis_launches);
+    TLI.setUnavailable(LibFunc_kithip_finalize);
+    TLI.setUnavailable(LibFunc_kithip_initialize);
+    TLI.setUnavailable(LibFunc_kithip_launch_kernel);
+    TLI.setUnavailable(LibFunc_kithip_prefetch_device);
+    TLI.setUnavailable(LibFunc_kithip_prefetch_host);
+    TLI.setUnavailable(LibFunc_kithip_set_fixed_tpb);
+    TLI.setUnavailable(LibFunc_kithip_set_max_tpb);
+    TLI.setUnavailable(LibFunc_kithip_symbol_device_ptr);
+    TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_device);
+    TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_host);
+    TLI.setUnavailable(LibFunc_kithip_sync_stream);
+  }
+
   TLI.addVectorizableFunctionsFromVecLib(ClVectorLibrary, T);
 }
 
@@ -945,7 +976,6 @@ TargetLibraryInfoImpl::TargetLibraryInfoImpl(const TargetLibraryInfoImpl &TLI)
   memcpy(AvailableArray, TLI.AvailableArray, sizeof(AvailableArray));
   VectorDescs = TLI.VectorDescs;
   ScalarDescs = TLI.ScalarDescs;
-  TapirTargetFuncs = TLI.TapirTargetFuncs;
 }
 
 TargetLibraryInfoImpl::TargetLibraryInfoImpl(TargetLibraryInfoImpl &&TLI)
@@ -959,7 +989,6 @@ TargetLibraryInfoImpl::TargetLibraryInfoImpl(TargetLibraryInfoImpl &&TLI)
             AvailableArray);
   VectorDescs = TLI.VectorDescs;
   ScalarDescs = TLI.ScalarDescs;
-  TapirTargetFuncs = TLI.TapirTargetFuncs;
 }
 
 TargetLibraryInfoImpl &TargetLibraryInfoImpl::operator=(const TargetLibraryInfoImpl &TLI) {
@@ -1430,60 +1459,6 @@ void TargetLibraryInfoImpl::addVectorizableFunctionsFromVecLib(
   case NoLibrary:
     break;
   }
-}
-
-void TargetLibraryInfoImpl::addTapirTargetLibraryFunctions(
-    TapirTargetID TargetID) {
-  switch (TargetID) {
-  case TapirTargetID::OpenCilk: {
-    const StringLiteral TTFuncs[] = {
-    #define TLI_DEFINE_CILK_LIBS
-    #include "llvm/Analysis/TapirTargetFuncs.def"
-    };
-    TapirTargetFuncs.insert(TapirTargetFuncs.end(), std::begin(TTFuncs),
-                            std::end(TTFuncs));
-    break;
-  }
-  case TapirTargetID::None:
-  case TapirTargetID::Serial:
-  case TapirTargetID::Cuda:
-  case TapirTargetID::Hip:
-  case TapirTargetID::Lambda:
-  case TapirTargetID::OMPTask:
-  case TapirTargetID::OpenMP:
-  case TapirTargetID::Qthreads:
-  case TapirTargetID::Realm:
-    break;
-  }
-
-  // Ensure that the collected Tapir-target functions are in sorted order.
-  llvm::sort(TapirTargetFuncs);
-}
-
-bool TargetLibraryInfoImpl::isTapirTargetLibFunc(StringRef funcName) const {
-  funcName = sanitizeFunctionName(funcName);
-  if (funcName.empty())
-    return false;
-
-  const auto Start = TapirTargetFuncs.begin();
-  const auto End = TapirTargetFuncs.end();
-  const auto I = std::lower_bound(Start, End, funcName);
-  if (I != End && *I == funcName)
-    return true;
-  return false;
-}
-
-bool TargetLibraryInfoImpl::isTapirTargetLibFunc(
-    const Function &FDecl) const {
-  // Intrinsics don't overlap w/libcalls; if our module has a large number of
-  // intrinsics, this ends up being an interesting compile time win since we
-  // avoid string normalization and comparison.
-  if (FDecl.isIntrinsic()) return false;
-
-  // TODO: Check the function prototype of the Tapir-target library function to
-  // ensure a match.  This change may require building more detailed knowledge
-  // of these functions into TargetLibraryInfo.
-  return isTapirTargetLibFunc(FDecl.getName());
 }
 
 bool TargetLibraryInfoImpl::isFunctionVectorizable(StringRef funcName) const {

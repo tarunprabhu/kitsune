@@ -686,7 +686,35 @@ TEST_F(TargetLibraryInfoTest, ValidProto) {
 
       // These functions are OpenMP Offloading allocation / free routines
       "declare i8* @__kmpc_alloc_shared(i64)\n"
-      "declare void @__kmpc_free_shared(i8*, i64)\n");
+      "declare void @__kmpc_free_shared(i8*, i64)\n"
+
+      // These functions are Kitsune runtime routines
+      "declare void @__kitrt_enable_verbose_mode()"
+      "declare void @__kitcuda_enable_launch_refinement(i8)"
+      "declare void @__kitcuda_destroy()"
+      "declare void @__kitcuda_initialize()"
+      "declare ptr @__kitcuda_launch_kernel(ptr, ptr, ptr, i64, i32, ptr, ptr)"
+      "declare ptr @__kitcuda_mem_gpu_prefetch(ptr, ptr)"
+      "declare ptr @__kitcuda_mem_host_prefetch(ptr, ptr)"
+      "declare void @__kitcuda_set_default_threads_per_blk(i32)"
+      "declare void @__kitcuda_set_max_threads_per_blk(i32)"
+      "declare ptr @__kitcuda_get_global_symbol(ptr, ptr)"
+      "declare void @__kitcuda_memcpy_sym_to_device(ptr, ptr, i64)"
+      "declare void @__kitcuda_memcpy_sym_to_host(ptr, ptr, i64)"
+      "declare void @__kitcuda_sync_thread_stream(ptr)"
+      "declare void @__kithip_enable_xnack()"
+      "declare void @__kithip_enable_ylaunch()"
+      "declare void @__kithip_destroy()"
+      "declare void @__kithip_initialize()"
+      "declare ptr @__kithip_launch_kernel(ptr, ptr, ptr, i64, i32, ptr, ptr)"
+      "declare ptr @__kithip_mem_gpu_prefetch(ptr, ptr)"
+      "declare ptr @__kithip_mem_host_prefetch(ptr, ptr)"
+      "declare void @__kithip_set_default_threads_per_blk(i32)"
+      "declare void @__kithip_set_max_threads_per_blk(i32)"
+      "declare ptr @__kithip_get_global_symbol(ptr, ptr)"
+      "declare void @__kithip_memcpy_sym_to_device(ptr, ptr, i64)"
+      "declare void @__kithip_memcpy_sym_to_host(ptr, ptr, i64)"
+      "declare void @__kithip_sync_thread_stream(ptr)");
 
   for (unsigned FI = 0; FI != LibFunc::NumLibFuncs; ++FI) {
     LibFunc LF = (LibFunc)FI;

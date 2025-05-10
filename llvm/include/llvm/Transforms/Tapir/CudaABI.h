@@ -207,23 +207,9 @@ private:
   // Cuda/PTX grid dimensions access.
   Function *CUGridDimX = nullptr, *CUGridDimY = nullptr, *CUGridDimZ = nullptr;
 
-  // Cuda thread synchronize
-  Function *CUSyncThreads = nullptr;
-
   StructType *KernelInstMixTy;
 
-  FunctionCallee KitCudaLaunchFn = nullptr;
-  FunctionCallee KitCudaSyncFn = nullptr;
-
-  // Runtime prefetch support entry points.
-  FunctionCallee KitCudaMemPrefetchFn = nullptr;
-  FunctionCallee KitCudaMemPrefetchOnStreamFn = nullptr;
-  FunctionCallee KitCudaStreamMemPrefetchFn = nullptr;
-  FunctionCallee KitCudaStreamSetMemPrefetchFn = nullptr;
-
   FunctionCallee KitCudaCreateFBModuleFn = nullptr;
-  FunctionCallee KitCudaGetGlobalSymbolFn = nullptr;
-  FunctionCallee KitCudaMemcpySymbolToDeviceFn = nullptr;
   SmallVector<Value *, 5> OrderedInputs;
 
 public:

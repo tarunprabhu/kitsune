@@ -86,6 +86,7 @@
 #include "llvm/Transforms/Instrumentation/PGOForceFunctionAttrs.h"
 #include "llvm/Transforms/Instrumentation/PGOInstrumentation.h"
 #include "llvm/Transforms/Kitsune/LowerMobileIntrinsics.h"
+#include "llvm/Transforms/Kitsune/LowerKitsuneRuntimeIntrinsics.h"
 #include "llvm/Transforms/Kitsune/StripKitsuneAddrSpace.h"
 #include "llvm/Transforms/Scalar/ADCE.h"
 #include "llvm/Transforms/Scalar/AlignmentFromAssumptions.h"
@@ -1873,6 +1874,9 @@ PassBuilder::buildTapirLoweringPipeline(OptimizationLevel Level,
   return MPM;
 }
 
+// FIXME: This probably should go away once we figure out when the mobile
+// intrinsics need to be lowered and how to deal with kitsune's address spaces
+// which probably also need to be removed.
 ModulePassManager
 PassBuilder::buildKitsuneLoweringPipeline(OptimizationLevel Level,
                                           ThinOrFullLTOPhase Phase) {
@@ -1938,6 +1942,10 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
   } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
   }
+
+  // The tapir lowering passes may have introduced kitsune runtime intrinsics.
+  // These should be lowered as late as possible.
+  MPM.addPass(LowerKitsuneRuntimeIntrinsicsPass());
 
   return MPM;
 }
@@ -2168,6 +2176,10 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
   } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
   }
+
+  // The tapir lowering passes may have introduced kitsune runtime intrinsics.
+  // These should be lowered as late as possible.
+  MPM.addPass(LowerKitsuneRuntimeIntrinsicsPass());
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -2546,6 +2558,10 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
     invokeTapirLoopEndEPCallbacks(MPM, Level);
   }
 
+  // The tapir lowering passes may have introduced kitsune runtime intrinsics.
+  // These should be lowered as late as possible.
+  MPM.addPass(LowerKitsuneRuntimeIntrinsicsPass());
+
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
 
@@ -2676,6 +2692,10 @@ PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
   } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
   }
+
+  // The tapir lowering passes may have introduced kitsune runtime intrinsics.
+  // These should be lowered as late as possible.
+  MPM.addPass(LowerKitsuneRuntimeIntrinsicsPass());
 
   if (isLTOPreLink(Phase))
     addRequiredLTOPreLinkPasses(MPM);

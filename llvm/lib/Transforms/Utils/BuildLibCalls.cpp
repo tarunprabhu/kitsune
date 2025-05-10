@@ -1385,6 +1385,36 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
     Changed |= setWillReturn(F);
     Changed |= setOnlyWritesArgMemOrErrnoMem(F);
     break;
+  case LibFunc_kitcuda_enable_refine_launches:
+  case LibFunc_kitcuda_finalize:
+  case LibFunc_kitcuda_initialize:
+  case LibFunc_kitcuda_launch_kernel:
+  case LibFunc_kitcuda_prefetch_device:
+  case LibFunc_kitcuda_prefetch_host:
+  case LibFunc_kitcuda_set_fixed_tpb:
+  case LibFunc_kitcuda_set_max_tpb:
+  case LibFunc_kitcuda_symbol_device_ptr:
+  case LibFunc_kitcuda_symbol_memcpy_device:
+  case LibFunc_kitcuda_symbol_memcpy_host:
+  case LibFunc_kitcuda_sync_stream:
+  case LibFunc_kithip_enable_xnack:
+  case LibFunc_kithip_enable_y_axis_launches:
+  case LibFunc_kithip_finalize:
+  case LibFunc_kithip_initialize:
+  case LibFunc_kithip_launch_kernel:
+  case LibFunc_kithip_prefetch_device:
+  case LibFunc_kithip_prefetch_host:
+  case LibFunc_kithip_set_fixed_tpb:
+  case LibFunc_kithip_set_max_tpb:
+  case LibFunc_kithip_symbol_device_ptr:
+  case LibFunc_kithip_symbol_memcpy_device:
+  case LibFunc_kithip_symbol_memcpy_host:
+  case LibFunc_kithip_sync_stream:
+  case LibFunc_kitrt_enable_verbose:
+    Changed |= setOnlyAccessesInaccessibleMemOrArgMem(F);
+    Changed |= setDoesNotThrow(F);
+    Changed |= setWillReturn(F);
+    break;
   default:
     // FIXME: It'd be really nice to cover all the library functions we're
     // aware of here.
@@ -1505,6 +1535,26 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
   case LibFunc_vsnprintf:
     break;
 
+  case LibFunc_kitcuda_enable_refine_launches:
+  case LibFunc_kitcuda_set_fixed_tpb:
+  case LibFunc_kitcuda_set_max_tpb:
+  case LibFunc_kithip_set_fixed_tpb:
+  case LibFunc_kithip_set_max_tpb:
+    setArgExtAttr(*F, 0, TLI);
+    break;
+
+  case LibFunc_kitcuda_symbol_memcpy_device:
+  case LibFunc_kitcuda_symbol_memcpy_host:
+  case LibFunc_kithip_symbol_memcpy_device:
+  case LibFunc_kithip_symbol_memcpy_host:
+    setArgExtAttr(*F, 2, TLI);
+    break;
+
+  case LibFunc_kitcuda_launch_kernel:
+  case LibFunc_kithip_launch_kernel:
+    setArgExtAttr(*F, 4, TLI);
+    break;
+
   default:
 #ifndef NDEBUG
     for (unsigned i = 0; i < T->getNumParams(); i++)
@@ -1546,20 +1596,6 @@ bool llvm::isLibFuncEmittable(const Module *M, const TargetLibraryInfo *TLI,
   LibFunc TheLibFunc;
   return TLI->getLibFunc(Name, TheLibFunc) &&
          isLibFuncEmittable(M, TLI, TheLibFunc);
-}
-
-bool llvm::inferTapirTargetLibFuncAttributes(Function &F,
-                                             const TargetLibraryInfo &TLI) {
-  if (!TLI.isTapirTargetLibFunc(F))
-    return false;
-
-  bool Changed = false;
-  // FIXME: For now, we just set generic properties on Tapir-target library
-  // functions.
-  Changed |= setDoesNotFreeMemory(F);
-  Changed |= setWillReturn(F);
-
-  return Changed;
 }
 
 bool llvm::hasFloatFn(const Module *M, const TargetLibraryInfo *TLI, Type *Ty,
