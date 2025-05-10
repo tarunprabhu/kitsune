@@ -1,4 +1,5 @@
 add_llvm_component_library(LLVMKitsuneOpts
+  LowerKitsuneRuntimeIntrinsics.cpp
   LowerMobileIntrinsics.cpp
   StripKitsuneAddrSpace.cpp
 

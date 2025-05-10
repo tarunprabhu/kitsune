@@ -29,7 +29,7 @@ enum class MaybeBool {
 };
 
 /// The identifiers for the known tapir targets.
-enum class TapirTargetID {
+enum class TapirTargetID : uint8_t {
   None = 0, // Perform no lowering
   Serial,   // Lower to serial projection
   Cuda,     // Lower to Cuda ABI

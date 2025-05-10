@@ -7,8 +7,8 @@
 ; RUN:     | FileCheck %s -check-prefix PREFETCH
 ;
 ; PREFETCH: define {{.+}} @f
-; PREFETCH: call {{.+}} @__kithip_mem_gpu_prefetch
-; PREFETCH: call {{.+}} @__kithip_launch_kernel
+; PREFETCH: call {{.+}} @llvm.kitrt.prefetch.device(i8 3,
+; PREFETCH: call {{.+}} @llvm.kitrt.launch.kernel(i8 3,
 ; PREFETCH: ret void
 ; PREFETCH-NEXT: }
 ;
@@ -21,8 +21,8 @@
 ; RUN:     | FileCheck %s -check-prefix NO-PREFETCH
 ;
 ; NO-PREFETCH: define {{.+}} @f
-; NO-PREFETCH-NOT: call {{.+}} @__kithip_mem_gpu_prefetch
-; NO-PREFETCH: call {{.+}} @__kithip_launch_kernel
+; NO-PREFETCH-NOT: call {{.+}} @llvm.kitrt.prefetch.device(i8 3,
+; NO-PREFETCH: call {{.+}} @llvm.kitrt.launch.kernel(i8 3,
 ; NO-PREFETCH: ret void
 ; NO-PREFETCH-NEXT: }
 ;

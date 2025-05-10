@@ -7,8 +7,8 @@
 ;
 ; CHECK: @__kitsune_fatbin_hip = {{.+}} constant [{{[0-9]+}} x i8] c"
 ; CHECK: define {{.+}} @f
-; CHECK: %[[TS:.+]] = call {{.+}} @__kithip_launch_kernel(
-; CHECK: call {{.+}} @__kithip_sync_thread_stream(ptr %[[TS]])
+; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(i8 3,
+; CHECK: call {{.+}} @llvm.kitrt.sync.stream(i8 3, ptr %[[TS]])
 ; CHECK: ret void
 ; CHECK-NEXT: }
 

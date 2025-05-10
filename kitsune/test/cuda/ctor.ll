@@ -9,11 +9,11 @@
 ;
 ; DEFAULT: @llvm.global_ctors = appending {{.+}}, ptr @kitcu.ctor{{[^ ]+}},
 ; DEFAULT: define {{.+}} @kitcu.ctor{{.*}}
-; DEFAULT: call {{.+}}__kitcuda_initialize()
-; DEFAULT-NOT: call {{.+}}__kitcuda_set_default_threads_per_blk
-; DEFAULT: call {{.+}}__kitcuda_set_max_threads_per_blk(i32 1024)
-; DEFAULT-NOT: call {{.+}}__kitrt_enable_verbose_mode()
-; DEFAULT-DAG: call {{.+}}__kitcuda_enable_launch_refinement(i8 1)
+; DEFAULT: call {{.+}} @llvm.kitrt.initialize(i8 2)
+; DEFAULT: call {{.+}} @llvm.kitrt.enable.verbose(i8 0)
+; DEFAULT-NOT: call {{.+}} @llvm.kitrt.set.fixed.tpb(i8 2
+; DEFAULT: call {{.+}} @llvm.kitrt.set.max.tpb(i8 2, i32 1024)
+; DEFAULT-DAG: call {{.+}} @llvm.kitrt.enable.refine.launches(i8 2, i8 1)
 ; DEFAULT-DAG: call {{.+}}__cudaRegisterFatBinary
 ; DEFAULT: call {{.+}}__cudaRegisterFatBinaryEnd
 ; DEFAULT: call {{.+}}atexit(ptr nonnull @kitcu.dtor{{[^ ]*}})
@@ -21,7 +21,7 @@
 ;
 ; DEFAULT: define {{.+}} @kitcu.dtor{{.*}}
 ; DEFAULT: call {{.+}} @__cudaUnregisterFatBinary
-; DEFAULT: call {{.+}} @__kitcuda_destroy
+; DEFAULT: call {{.+}} @llvm.kitrt.finalize(i8 2)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -30,7 +30,7 @@
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: kitcu.ctor{{.*}}
-; TPB: call {{.+}}__kitcuda_set_default_threads_per_blk(i32 77)
+; TPB: call {{.+}} @llvm.kitrt.set.fixed.tpb(i8 2, i32 77)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -39,7 +39,7 @@
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: kitcu.ctor{{.*}}
-; MTPB: call {{.+}}__kitcuda_set_max_threads_per_blk(i32 29)
+; MTPB: call {{.+}} @llvm.kitrt.set.max.tpb(i8 2, i32 29)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -52,7 +52,7 @@
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: kitcu.ctor{{.*}}
-; VERBOSE: call {{.+}}__kitrt_enable_verbose_mode()
+; VERBOSE: call {{.+}} @llvm.kitrt.enable.verbose(i8 1)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -61,7 +61,7 @@
 ; RUN:     | FileCheck %s -check-prefix NOREFINE
 ;
 ; NOREFINE-LABEL: kitcu.ctor{{.*}}
-; NOREFINE: call {{.+}}__kitcuda_enable_launch_refinement(i8 0)
+; NOREFINE: call {{.+}} @llvm.kitrt.enable.refine.launches(i8 2, i8 0)
 ;
 ; ----------------------------------------------------------------------------
 

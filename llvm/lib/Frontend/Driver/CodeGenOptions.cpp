@@ -50,9 +50,6 @@ TargetLibraryInfoImpl *createTLII(const llvm::Triple &TargetTriple,
   TargetLibraryInfoImpl *TLII = new TargetLibraryInfoImpl(
       TargetTriple, convertDriverVectorLibraryToVectorLibrary(Veclib));
 
-  if (TapirTarget)
-    TLII->addTapirTargetLibraryFunctions(*TapirTarget);
-
   return TLII;
 }
 

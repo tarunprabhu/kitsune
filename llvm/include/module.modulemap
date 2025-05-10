@@ -11,7 +11,6 @@ module LLVM_Analysis {
   // This is intended for (repeated) textual inclusion.
   textual header "llvm/Analysis/ScalarFuncs.def"
   textual header "llvm/Analysis/VecFuncs.def"
-  textual header "llvm/Analysis/TapirTargetFuncs.def"
 }
 
 module LLVM_AsmParser {
