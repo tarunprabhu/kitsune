@@ -98,6 +98,7 @@
 #include "llvm/Transforms/Tapir/TapirGPUUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/KitsuneUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
 using namespace llvm;
@@ -197,12 +198,7 @@ CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
                     << "  - target kernel name: " << KernelName << "\n");
 
   LLVMContext &Ctx = KernelModule.getContext();
-  Type *Int32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
-  Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
-  PointerType *VoidPtrPtrTy = PointerType::getUnqual(Ctx);
-  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
 
   // Thread index values -- equivalent to Cuda's builtins:  threadIdx.[x,y,z].
   CUThreadIdxX = Intrinsic::getOrInsertDeclaration(
@@ -236,42 +232,11 @@ CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
   CUGridDimZ = Intrinsic::getOrInsertDeclaration(
       &KernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_z);
 
-  // NVVM-centric barrier -- equivalent to Cuda's __sync_threads().
-  CUSyncThreads = Intrinsic::getOrInsertDeclaration(&KernelModule,
-                                                    Intrinsic::nvvm_barrier0);
-
   // Get entry points into the Cuda-centric portion of the Kitsune GPU runtime.
   KernelInstMixTy = StructType::get(Int64Ty,  // number of memory ops.
                                     Int64Ty,  // number of floating point ops.
                                     Int64Ty,  // number of integer ops.
                                     Int64Ty); // number of other ops.
-  KitCudaLaunchFn =
-      M.getOrInsertFunction("__kitcuda_launch_kernel",
-                            VoidPtrTy,    // return an opaque stream
-                            VoidPtrTy,    // fat-binary
-                            VoidPtrTy,    // kernel name
-                            VoidPtrPtrTy, // arguments
-                            Int64Ty,      // trip count
-                            Int32Ty,      // threads-per-block
-                            PointerType::getUnqual(Ctx), // instruction mix info
-                            VoidPtrTy);                  // opaque cuda stream
-
-  KitCudaMemPrefetchFn =
-      M.getOrInsertFunction("__kitcuda_mem_gpu_prefetch",
-                            VoidPtrTy,  // return an opaque stream
-                            VoidPtrTy,  // pointer to prefetch
-                            VoidPtrTy); // opaque stream
-  KitCudaGetGlobalSymbolFn =
-      M.getOrInsertFunction("__kitcuda_get_global_symbol",
-                            Int64Ty,    // return the device pointer for symbol.
-                            VoidPtrTy,  // fat binary
-                            CharPtrTy); // symbol name
-  KitCudaMemcpySymbolToDeviceFn =
-      M.getOrInsertFunction("__kitcuda_memcpy_symbol_to_device",
-                            VoidTy,   // no return
-                            Int32Ty,  // host pointer
-                            Int64Ty,  // device pointer
-                            Int64Ty); // number of bytes to copy
   LLVM_DEBUG(dbgs() << "  - done.\n");
 }
 
@@ -857,19 +822,19 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // the hip and cuda transforms...
   LLVM_DEBUG(dbgs() << "\t*- code gen packing of " << OrderedInputs.size()
                     << " kernel args.\n");
-  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
-  ArrayType *ArrayTy = ArrayType::get(VoidPtrTy, OrderedInputs.size());
+  PointerType *PtrTy = PointerType::getUnqual(Ctx);
+  ArrayType *ArrayTy = ArrayType::get(PtrTy, OrderedInputs.size());
   Value *ArgArray = EntryBuilder.CreateAlloca(ArrayTy);
 
-  Value *NullPtr = ConstantPointerNull::get(PointerType::getUnqual(Ctx));
-  Value *CudaStream = ConstantPointerNull::get(PointerType::getUnqual(Ctx));
+  ConstantInt *ConstTT = getConstantInt(Ctx, TapirTargetID::Cuda);
+  Value *NullPtr = ConstantPointerNull::get(PtrTy);
+  Value *CudaStream = ConstantPointerNull::get(PtrTy);
 
   unsigned int i = 0;
   for (Value *V : OrderedInputs) {
     Value *VP = EntryBuilder.CreateAlloca(V->getType());
     NewBuilder.CreateStore(V, VP);
-    Value *VoidVPtr =
-        NewBuilder.CreatePointerBitCastOrAddrSpaceCast(VP, VoidPtrTy);
+    Value *VoidVPtr = NewBuilder.CreatePointerBitCastOrAddrSpaceCast(VP, PtrTy);
     Value *ArgPtr =
         NewBuilder.CreateConstInBoundsGEP2_32(ArrayTy, ArgArray, 0, i);
     NewBuilder.CreateStore(VoidVPtr, ArgPtr);
@@ -878,17 +843,27 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     if (getOptions().getGPUPrefetch() && V->getType()->isPointerTy()) {
       LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for kernel arg #" << i - 1
                         << "\n");
-      Value *VAS = NewBuilder.CreatePointerBitCastOrAddrSpaceCast(V, VoidPtrTy);
+      // The pointer to the data to be prefetched must point to UVM allocated
+      // memory. By setting the number of bytes to be prefetched to -1, we are
+      // instructing the runtime to prefetch the entire UVM-allocated buffer.
+      // The runtime keeps track of this.
+      //
+      // TODO: Do some analysis to only prefetch the number of bytes that are
+      // actually used (or likely to be used) by the kernel.
+      Function *PrefetchFn = Intrinsic::getOrInsertDeclaration(
+          &M, Intrinsic::kitrt_prefetch_device);
+      Value *Buf = NewBuilder.CreatePointerBitCastOrAddrSpaceCast(V, PtrTy);
+      ConstantInt *Bytes = NewBuilder.getInt64(-1);
+      ConstantInt *TTID = NewBuilder.getInt8(int8_t(TapirTargetID::Cuda));
       CudaStream =
-          NewBuilder.CreateCall(KitCudaMemPrefetchFn, {VAS, CudaStream});
+          NewBuilder.CreateCall(PrefetchFn, {TTID, Buf, Bytes, CudaStream});
     }
   }
 
-  // The next step is prep for the actual kernel launch call via
-  // the kitsune runtime.  We have to add some extra levels of
-  // pointers to match API details, deal with some potential
-  // type mismatches, build a dummy pointer for the yet-to-be-created
-  // fat binary, etc...
+  // The next step is prep for the actual kernel launch call via the kitsune
+  // runtime.  We have to add some extra levels of pointers to match API
+  // details, deal with some potential type mismatches, build a dummy pointer
+  // for the yet-to-be-created fat binary, etc...
   const DataLayout &DL = M.getDataLayout();
   Value *argsPtr =
       NewBuilder.CreateConstInBoundsGEP2_32(ArrayTy, ArgArray, 0, 0);
@@ -911,19 +886,15 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // use a 'dummy' (null) fat binary for code gen at this point -- we'll
   // post-process the module to clean this up after we've processed all tapir
   // loops.
-  (void)tapir::getOrInsertFBGlobal(M, CUABI_DUMMY_FATBIN_NAME, VoidPtrTy);
+  (void)tapir::getOrInsertFBGlobal(M, CUABI_DUMMY_FATBIN_NAME, PtrTy);
 
   // Deal with type mismatches for the trip count. A difference introduced via
   // the input source details and the runtime's API type signature for the
   // launch.
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   Value *TripCount = OrderedInputs[0];
-  Value *CastTripCount = nullptr;
-  if (TripCount->getType() != Int64Ty) {
-    CastTripCount = CastInst::CreateIntegerCast(TripCount, Int64Ty, false);
-    NewBuilder.Insert(CastTripCount, "cast.tc");
-  } else
-    CastTripCount = TripCount;
+  if (TripCount->getType() != Int64Ty)
+    TripCount = NewBuilder.CreateSExtOrBitCast(TripCount, Int64Ty, "cast.tc");
 
   // At this point we need a threads-per-block value for the launch call. The
   // runtime will determine this value if ThreadsPerBlock is zero but it can
@@ -936,9 +907,9 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // kernel launch call parameter for threads-per-block if an attributed
   // expression is present). See postProcessModule()'s stage of finalizing the
   // launch calls for details.
+  Type *Int32Ty = Type::getInt32Ty(Ctx);
   TapirLoopHints Hints(TL.getLoop());
-  unsigned TPB = Hints.getThreadsPerBlock();
-  Value *TPBValue = ConstantInt::get(Type::getInt32Ty(Ctx), TPB);
+  Value *TPB = ConstantInt::get(Int32Ty, Hints.getThreadsPerBlock());
 
   LLVM_DEBUG(dbgs() << "\tgathering kernel instruction mix....\n");
   tapir::KernelInstMixData InstMix = tapir::getKernelInstructionMix(F);
@@ -960,12 +931,11 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
   CudaStream = NewBuilder.CreateCall(
-      KitCudaLaunchFn,
-      {NullPtr, KNameParam, argsPtr, CastTripCount, TPBValue, AI, CudaStream});
-  Type *VoidTy = Type::getVoidTy(Ctx);
-  FunctionCallee KitCudaSyncFn =
-      M.getOrInsertFunction("__kitcuda_sync_thread_stream", VoidTy, VoidPtrTy);
-  (void)NewBuilder.CreateCall(KitCudaSyncFn, {CudaStream});
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_launch_kernel),
+      {ConstTT, NullPtr, KNameParam, argsPtr, TripCount, TPB, AI, CudaStream});
+  (void)NewBuilder.CreateCall(
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_sync_stream),
+      {ConstTT, CudaStream});
 
   TOI.ReplCall->eraseFromParent();
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
@@ -1188,27 +1158,16 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
 
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
-  Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
-  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *PtrTy = PointerType::getUnqual(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
+  ConstantInt *ConstTT = getConstantInt(Ctx, TapirTargetID::Cuda);
 
   // Look up a global (device-side) symbol via a module created from the fat
   // binary.
-  // TODO: Move these callees to the constructor (or, better, to
-  // TargetLibraryInfo)
-  FunctionCallee KitCudaGetGlobalSymbolFn =
-      M.getOrInsertFunction("__kitcuda_get_global_symbol",
-                            Int64Ty,    // device pointer
-                            VoidPtrTy,  // fat binary
-                            CharPtrTy); // symbol name
-
-  FunctionCallee KitCudaMemcpyToDeviceFn =
-      M.getOrInsertFunction("__kitcuda_memcpy_sym_to_device",
-                            VoidTy,    // returns
-                            VoidPtrTy, // host ptr
-                            Int64Ty,   // device ptr
-                            Int64Ty);  // num bytes
+  Function *KitrtSymbolDevicePtr =
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_symbol_device_ptr);
+  Function *KitrtSymbolMemcpyDevice = Intrinsic::getOrInsertDeclaration(
+      &M, Intrinsic::kitrt_symbol_memcpy_device);
 
   // Search for kernel launch calls that we built prior to the creation of the
   // fat binary, which we now have. Replace the first parameter in each call
@@ -1218,17 +1177,14 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
   for (Function &Fn : M)
     for (inst_iterator I = inst_begin(Fn); I != inst_end(Fn); ++I)
       if (auto *Call = dyn_cast<CallInst>(&*I))
-        if (Function *Callee = Call->getCalledFunction())
-          // FIXME: Should probably use the TargetLibraryInfo object to get the
-          // names of these functions.
-          if (Callee->getName().starts_with("__kitcuda_launch_kernel"))
-            LaunchCalls.push_back(Call);
+        if (Call->getIntrinsicID() == Intrinsic::kitrt_launch_kernel)
+          LaunchCalls.push_back(Call);
 
   for (CallInst *Call : LaunchCalls) {
     LLVM_DEBUG(dbgs() << "\t\t  patching launch call\n");
     Value *CFatbin = CastInst::CreateBitOrPointerCast(
-        Fatbin, VoidPtrTy, "_cubin.fatbin", Call->getIterator());
-    Call->setArgOperand(0, CFatbin);
+        Fatbin, PtrTy, "_cubin.fatbin", Call->getIterator());
+    Call->setArgOperand(1, CFatbin);
 
     // We need to explicitly add code to sync up host-side and device-side
     // globals prior to launching kernels. We only have a complete awareness of
@@ -1242,20 +1198,21 @@ void CudaABI::finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin) {
       std::string DevVarName = HostGV->getName().str() + "_devvar";
       Value *SymName = tapir::createConstantStr(DevVarName, M, DevVarName);
       Value *DevPtr =
-          CallInst::Create(KitCudaGetGlobalSymbolFn, {CFatbin, SymName},
+          CallInst::Create(KitrtSymbolDevicePtr, {ConstTT, CFatbin, SymName},
                            ".cuabi_devptr", Call->getIterator());
-      Value *VGVPtr = CastInst::CreatePointerCast(HostGV, VoidPtrTy, "",
-                                                  Call->getIterator());
-      uint64_t NumBytes = DL.getTypeAllocSize(HostGV->getValueType());
-      CallInst::Create(KitCudaMemcpyToDeviceFn,
-                       {VGVPtr, DevPtr, ConstantInt::get(Int64Ty, NumBytes)},
-                       "", Call->getIterator());
+      Value *VGVPtr =
+          CastInst::CreatePointerCast(HostGV, PtrTy, "", Call->getIterator());
+      Constant *Bytes = ConstantInt::get(
+          Int64Ty, DL.getTypeAllocSize(HostGV->getValueType()));
+      CallInst::Create(KitrtSymbolMemcpyDevice,
+                       {ConstTT, VGVPtr, DevPtr, Bytes}, "",
+                       Call->getIterator());
     }
   }
 
   GlobalVariable *ProxyFB = M.getGlobalVariable(CUABI_DUMMY_FATBIN_NAME, true);
   if (ProxyFB) {
-    Constant *CFB = ConstantExpr::getPointerCast(Fatbin, VoidPtrTy);
+    Constant *CFB = ConstantExpr::getPointerCast(Fatbin, PtrTy);
     LLVM_DEBUG(dbgs() << "\tcleaning up dummy fatbin global.\n");
     ProxyFB->replaceAllUsesWith(CFB);
     ProxyFB->eraseFromParent();
@@ -1391,14 +1348,12 @@ void CudaABI::bindGlobalVariables(Value *Handle, IRBuilder<> &B) {
   Type *IntTy = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
-  PointerType *VoidPtrPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *PtrTy = PointerType::getUnqual(Ctx);
   Type *VarSizeTy = Int64Ty;
-  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
 
-  FunctionCallee RegisterVarFn = M.getOrInsertFunction(
-      "__cudaRegisterVar", VoidTy, VoidPtrPtrTy, CharPtrTy, CharPtrTy,
-      CharPtrTy, IntTy, VarSizeTy, IntTy, IntTy);
+  FunctionCallee RegisterVarFn =
+      M.getOrInsertFunction("__cudaRegisterVar", VoidTy, PtrTy, PtrTy, PtrTy,
+                            PtrTy, IntTy, VarSizeTy, IntTy, IntTy);
   for (GlobalVariable *HostGV : GlobalVars) {
     uint64_t VarSize = DL.getTypeAllocSize(HostGV->getType());
     Value *VarName = tapir::createConstantStr(HostGV->getName().str(), M);
@@ -1406,7 +1361,7 @@ void CudaABI::bindGlobalVariables(Value *Handle, IRBuilder<> &B) {
     Value *DevName = tapir::createConstantStr(DevVarName, M, DevVarName);
     Value *Args[] = {
         Handle,
-        B.CreateBitCast(HostGV, VoidPtrTy),
+        B.CreateBitCast(HostGV, PtrTy),
         VarName,
         DevName,
         ConstantInt::get(IntTy, 0), // HostGV->isExternalLinkage()),
@@ -1424,61 +1379,57 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary,
                               GlobalVariable *Wrapper) {
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
-  PointerType *VoidPtrPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *PtrTy = PointerType::getUnqual(Ctx);
   Type *IntTy = Type::getInt32Ty(Ctx);
   Type *BoolTy = Type::getInt8Ty(Ctx);
+  ConstantInt *ConstTT = getConstantInt(Ctx, TapirTargetID::Cuda);
 
   Function *CtorFn = Function::Create(
-      FunctionType::get(VoidTy, VoidPtrTy, false), GlobalValue::InternalLinkage,
+      FunctionType::get(VoidTy, PtrTy, false), GlobalValue::InternalLinkage,
       CUABI_PREFIX + ".ctor." + KernelModule.getName(), &M);
 
   BasicBlock *CtorEntryBB = BasicBlock::Create(Ctx, "entry", CtorFn);
   IRBuilder<> CtorBuilder(CtorEntryBB);
   const DataLayout &DL = M.getDataLayout();
 
+  CtorBuilder.CreateCall(
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_initialize),
+      {ConstTT});
+
+  CtorBuilder.CreateCall(
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_enable_verbose),
+      {ConstantInt::get(BoolTy, TTO.getKitrtVerbose(), false)});
+
   unsigned DefaultThreadsPerBlock = TTO.getFixedThreadsPerBlock();
-  unsigned MaxThreadsPerBlock = TTO.getMaxThreadsPerBlock();
-
-  FunctionCallee KitCudaInitFn =
-      M.getOrInsertFunction("__kitcuda_initialize", VoidTy);
-  CtorBuilder.CreateCall(KitCudaInitFn, {});
-
   if (DefaultThreadsPerBlock) {
-    FunctionCallee KitRTSetDefaultThreadsPerBlockFn = M.getOrInsertFunction(
-        "__kitcuda_set_default_threads_per_blk", VoidTy, IntTy);
-    CtorBuilder.CreateCall(KitRTSetDefaultThreadsPerBlockFn,
-                           {ConstantInt::get(IntTy, DefaultThreadsPerBlock)});
+    Function *KitrtSetFixedTPB =
+        Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_set_fixed_tpb);
+    CtorBuilder.CreateCall(
+        KitrtSetFixedTPB,
+        {ConstTT, ConstantInt::get(IntTy, DefaultThreadsPerBlock)});
   }
 
-  FunctionCallee KitRTSetMaxThreadsPerBlockFn =
-      M.getOrInsertFunction("__kitcuda_set_max_threads_per_blk", VoidTy, IntTy);
+  unsigned MaxThreadsPerBlock = TTO.getMaxThreadsPerBlock();
+  Function *KitrtSetMaxTPB =
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_set_max_tpb);
   if (MaxThreadsPerBlock) {
-    CtorBuilder.CreateCall(KitRTSetMaxThreadsPerBlockFn,
-                           {ConstantInt::get(IntTy, MaxThreadsPerBlock)});
+    CtorBuilder.CreateCall(
+        KitrtSetMaxTPB, {ConstTT, ConstantInt::get(IntTy, MaxThreadsPerBlock)});
   } else {
+    // FIXME: Don't hardcode this value here. Maybe move it to a named constant.
+    //
     // If the MaxThreadsPerBlock has not been set, use a value of 1024 anyway.
     // At the time of writing, exceeding this value degrades performance. This
     // might change, and we may even have to set a different value depending
     // on the specific GPU architecture.
-    CtorBuilder.CreateCall(KitRTSetMaxThreadsPerBlockFn,
-                           {ConstantInt::get(IntTy, 1024)});
+    CtorBuilder.CreateCall(KitrtSetMaxTPB,
+                           {ConstTT, ConstantInt::get(IntTy, 1024)});
   }
 
-  if (TTO.getKitrtVerbose()) {
-    FunctionCallee KitRTVerboseModefn =
-        M.getOrInsertFunction("__kitrt_enable_verbose_mode", VoidTy);
-    CtorBuilder.CreateCall(KitRTVerboseModefn, {});
-  }
-
-  FunctionCallee KitCudaLaunchRefinementFn = M.getOrInsertFunction(
-      "__kitcuda_enable_launch_refinement", VoidTy, BoolTy);
-  Value *EnableRefinedLaunches;
-  if (RefineLaunches)
-    EnableRefinedLaunches = ConstantInt::get(BoolTy, 1);
-  else
-    EnableRefinedLaunches = ConstantInt::get(BoolTy, 0);
-  CtorBuilder.CreateCall(KitCudaLaunchRefinementFn, {EnableRefinedLaunches});
+  Function *KitrtEnableRefineLaunches = Intrinsic::getOrInsertDeclaration(
+      &M, Intrinsic::kitrt_enable_refine_launches);
+  CtorBuilder.CreateCall(KitrtEnableRefineLaunches,
+                         {ConstTT, ConstantInt::get(BoolTy, RefineLaunches)});
 
   // TODO: The parameters to the CUDA registration calls can be opaque about
   // specifics (e.g., types).  Once we sort out some details we should clean
@@ -1502,22 +1453,22 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary,
   //
   FunctionCallee RegisterFatbinaryFn =
       M.getOrInsertFunction("__cudaRegisterFatBinary",
-                            FunctionType::get(VoidPtrPtrTy, // cubin handle.
-                                              VoidPtrTy, // fat bin device txt.
+                            FunctionType::get(PtrTy, // cubin handle.
+                                              PtrTy, // fat bin device txt.
                                               false));
   CallInst *RegFatbin = CtorBuilder.CreateCall(
-      RegisterFatbinaryFn, CtorBuilder.CreateBitCast(Wrapper, VoidPtrTy));
+      RegisterFatbinaryFn, CtorBuilder.CreateBitCast(Wrapper, PtrTy));
 
   GlobalVariable *Handle = new GlobalVariable(
-      M, VoidPtrPtrTy, false, GlobalValue::InternalLinkage,
-      ConstantPointerNull::get(VoidPtrPtrTy), CUABI_PREFIX + ".fbhand");
+      M, PtrTy, false, GlobalValue::InternalLinkage,
+      ConstantPointerNull::get(PtrTy), CUABI_PREFIX + ".fbhand");
   Handle->setAlignment(Align(DL.getPointerABIAlignment(0)));
   CtorBuilder.CreateAlignedStore(RegFatbin, Handle,
                                  DL.getPointerABIAlignment(0));
   Handle->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
 
-  Value *HandlePtr = CtorBuilder.CreateLoad(VoidPtrPtrTy, Handle,
-                                            CUABI_PREFIX + ".fbhand.ptr");
+  Value *HandlePtr =
+      CtorBuilder.CreateLoad(PtrTy, Handle, CUABI_PREFIX + ".fbhand.ptr");
 
   // TODO: It is not 100% clear what calls we actually need to make here for
   // kernel, variable, etc. registration with CUDA.  Clang makes these calls but
@@ -1529,11 +1480,10 @@ Function *CudaABI::createCtor(GlobalVariable *Fatbinary,
   }
 
   // Wrap up fatbinary registration steps...
-  FunctionCallee EndFBRegistrationFn =
-      M.getOrInsertFunction("__cudaRegisterFatBinaryEnd",
-                            FunctionType::get(VoidTy,
-                                              VoidPtrPtrTy, // cubin handle.
-                                              false));
+  FunctionCallee EndFBRegistrationFn = M.getOrInsertFunction(
+      "__cudaRegisterFatBinaryEnd", FunctionType::get(VoidTy,
+                                                      PtrTy, // cubin handle.
+                                                      false));
   CtorBuilder.CreateCall(EndFBRegistrationFn, RegFatbin);
 
   // Now add a Dtor to help us clean up at program exit...
@@ -1554,27 +1504,26 @@ Function *CudaABI::createDtor(GlobalVariable *FBHandle) {
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  Type *VoidPtrTy = PointerType::getUnqual(Ctx);
-  Type *VoidPtrPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *PtrTy = PointerType::getUnqual(Ctx);
+  ConstantInt *ConstTT = getConstantInt(Ctx, TapirTargetID::Cuda);
 
-  FunctionCallee UnregisterFatbinFn =
-      M.getOrInsertFunction("__cudaUnregisterFatBinary",
-                            FunctionType::get(VoidTy, VoidPtrPtrTy, false));
+  FunctionCallee UnregisterFatbinFn = M.getOrInsertFunction(
+      "__cudaUnregisterFatBinary", FunctionType::get(VoidTy, PtrTy, false));
 
-  Function *DtorFn = Function::Create(
-      FunctionType::get(VoidTy, VoidPtrTy, false), GlobalValue::InternalLinkage,
-      CUABI_PREFIX + ".dtor", &M);
+  Function *DtorFn = Function::Create(FunctionType::get(VoidTy, PtrTy, false),
+                                      GlobalValue::InternalLinkage,
+                                      CUABI_PREFIX + ".dtor", &M);
 
   // TODO: Do we call into this too many times???
   BasicBlock *DtorEntryBB = BasicBlock::Create(Ctx, "entry", DtorFn);
   IRBuilder<> DtorBuilder(DtorEntryBB);
   Value *HandleValue = DtorBuilder.CreateAlignedLoad(
-      VoidPtrPtrTy, FBHandle, DL.getPointerABIAlignment(0));
+      PtrTy, FBHandle, DL.getPointerABIAlignment(0));
   DtorBuilder.CreateCall(UnregisterFatbinFn, HandleValue);
 
-  FunctionCallee KitRTDestroyFn =
-      M.getOrInsertFunction("__kitcuda_destroy", VoidTy);
-  DtorBuilder.CreateCall(KitRTDestroyFn, {});
+  DtorBuilder.CreateCall(
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_finalize),
+      {ConstTT});
 
   DtorBuilder.CreateRetVoid();
   return DtorFn;
@@ -1617,7 +1566,7 @@ void CudaABI::registerFatbinary(GlobalVariable *Fatbinary) {
 
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *PtrTy = PointerType::getUnqual(Ctx);
   Type *IntTy = Type::getInt32Ty(Ctx);
 
   const DataLayout &DL = M.getDataLayout();
@@ -1632,14 +1581,14 @@ void CudaABI::registerFatbinary(GlobalVariable *Fatbinary) {
 
   // Wrap the fatbinary in struct that the CUDA runtime and tools expect
   // to exist in final objects/executables.
-  StructType *WrapperTy = StructType::get(IntTy,      // magic #
-                                          IntTy,      // version
-                                          VoidPtrTy,  // data
-                                          VoidPtrTy); // unused for now.
+  StructType *WrapperTy = StructType::get(IntTy,  // magic #
+                                          IntTy,  // version
+                                          PtrTy,  // data
+                                          PtrTy); // unused for now.
   Constant *WrapperS = ConstantStruct::get(
       WrapperTy, ConstantInt::get(IntTy, FATBINARY_MAGIC_ID),
       ConstantInt::get(IntTy, FATBINARY_VERSION), FatbinaryPtr,
-      ConstantPointerNull::get(VoidPtrTy));
+      ConstantPointerNull::get(PtrTy));
 
   GlobalVariable *Wrapper =
       new GlobalVariable(M, WrapperTy, true, GlobalValue::InternalLinkage,
@@ -1652,8 +1601,7 @@ void CudaABI::registerFatbinary(GlobalVariable *Fatbinary) {
   Function *CtorFn = createCtor(Fatbinary, Wrapper);
   if (CtorFn) {
     FunctionType *CtorFnTy = FunctionType::get(VoidTy, false);
-    Type *CtorFnPtrTy =
-        PointerType::get(CtorFnTy, M.getDataLayout().getProgramAddressSpace());
+    Type *CtorFnPtrTy = PointerType::get(CtorFnTy, DL.getProgramAddressSpace());
     tapir::appendToGlobalCtors(M, ConstantExpr::getBitCast(CtorFn, CtorFnPtrTy),
                                65536, nullptr);
   }

@@ -15,10 +15,12 @@
 ;
 ; DEFAULT: @llvm.global_ctors = appending {{.+}}, ptr @kithip.ctor{{[^ ]+}},
 ; DEFAULT: define {{.+}} @kithip.ctor{{.*}}
-; DEFAULT: call {{.+}}__kithip_initialize()
-; DEFAULT-NOT: call {{.+}}__kithip_set_threads_per_blk
-; DEFAULT: call {{.+}}__kithip_set_max_threads_per_blk(i32 1024)
-; DEFAULT-NOT: call {{.+}}__kitrt_enable_verbose_mode()
+; DEFAULT: call {{.+}} @llvm.kitrt.initialize(i8 3)
+; DEFAULT: call {{.+}} @llvm.kitrt.enable.verbose(i8 0)
+; DEFAULT: call {{.+}} @llvm.kitrt.hip.enable.xnack(i8 1)
+; DEFAULT: call {{.+}} @llvm.kitrt.enable.y.axis.launches(i8 3, i8 0)
+; DEFAULT-NOT: call {{.+}} @llvm.kitrt.set.fixed.tpb(i8 3,
+; DEFAULT: call {{.+}} @llvm.kitrt.set.max.tpb(i8 3, i32 1024)
 ; DEFAULT-DAG: call {{.+}}__hipRegisterFatBinary
 ; DEFAULT: call {{.+}}atexit(ptr nonnull @kithip.dtor{{[^ ]*}})
 ; DEFAULT: }
@@ -30,7 +32,7 @@
 ;
 ; DEFAULT: define {{.+}} @kithip.dtor{{.*}}
 ; DEFAULT: call {{.+}} @__hipUnregisterFatBinary
-; DEFAULT-NOT: call {{.+}} @__kithip_destroy
+; DEFAULT-NOT: call {{.+}} @llvm.kitrt.finalize(i8 3)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -41,7 +43,7 @@
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: kithip.ctor{{.*}}
-; TPB: call {{.+}}__kithip_set_threads_per_blk(i32 77)
+; TPB: call {{.+}} @llvm.kitrt.set.fixed.tpb(i8 3, i32 77)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -52,7 +54,7 @@
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: kithip.ctor{{.*}}
-; MTPB: call {{.+}}__kithip_set_max_threads_per_blk(i32 29)
+; MTPB: call {{.+}} @llvm.kitrt.set.max.tpb(i8 3, i32 29)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -69,7 +71,7 @@
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: kithip.ctor{{.*}}
-; VERBOSE: call {{.+}}__kitrt_enable_verbose_mode()
+; VERBOSE: call {{.+}} @llvm.kitrt.enable.verbose(i8 1)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -79,8 +81,14 @@
 ; RUN:     --tapir-lld=ld.lld 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
+; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
+; RUN:     --tapir-hip-xnack=any \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-lld=ld.lld 2>&1 \
+; RUN:     | FileCheck %s -check-prefix NOXNACK
+;
 ; NOXNACK-LABEL: kithip.ctor{{.*}}
-; NOXNACK-NOT: call {{.+}}__kithip_enable_xnack()
+; NOXNACK: call {{.+}} @llvm.kitrt.hip.enable.xnack(i8 0)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -91,7 +99,7 @@
 ; RUN:     | FileCheck %s -check-prefix YLAUNCH
 ;
 ; YLAUNCH-LABEL: kithip.ctor{{.*}}
-; YLAUNCH: call {{.+}}__kithip_enable_ylaunch()
+; YLAUNCH: call {{.+}} @llvm.kitrt.enable.y.axis.launches(i8 3, i8 1)
 ;
 ; ----------------------------------------------------------------------------
 

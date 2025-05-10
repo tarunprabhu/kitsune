@@ -29,7 +29,6 @@ static bool inferAllPrototypeAttributes(
     if (F.isDeclaration() && !F.hasOptNone()) {
       if (!F.hasFnAttribute(Attribute::NoBuiltin))
         Changed |= inferNonMandatoryLibFuncAttrs(F, GetTLI(F));
-      Changed |= inferTapirTargetLibFuncAttributes(F, GetTLI(F));
       Changed |= inferAttributesFromOthers(F);
     }
 

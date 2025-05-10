@@ -10,7 +10,6 @@
 #define LLVM_ANALYSIS_TARGETLIBRARYINFO_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Module.h"
@@ -107,9 +106,6 @@ class TargetLibraryInfoImpl {
   /// Scalarization descriptors - same content as VectorDescs but sorted based
   /// on VectorFnName rather than ScalarFnName.
   std::vector<VecDesc> ScalarDescs;
-
-  /// Tapir target standard functions
-  std::vector<StringLiteral> TapirTargetFuncs;
 
   /// Return true if the function type FTy is valid for the library function
   /// F, regardless of whether the function is available.
@@ -274,18 +270,6 @@ public:
   /// conventions.
   static bool isCallingConvCCompatible(CallBase *CI);
   static bool isCallingConvCCompatible(Function *Callee);
-
-  /// Records known library functions associated with the specified Tapir
-  /// target.
-  void addTapirTargetLibraryFunctions(TapirTargetID TargetID);
-
-  /// Searches for a particular function name among known Tapir-target library
-  /// functions, also checking that its type is valid for the library function
-  /// matching that name.
-  ///
-  /// Return true if it is one of the known tapir-target library functions.
-  bool isTapirTargetLibFunc(StringRef funcName) const;
-  bool isTapirTargetLibFunc(const Function &FDecl) const;
 };
 
 /// Provides information about what library functions are available for
@@ -596,14 +580,6 @@ public:
   /// \copydoc TargetLibraryInfoImpl::getIntSize()
   unsigned getIntSize() const {
     return Impl->getIntSize();
-  }
-
-  /// \copydoc TargetLibraryInfoImpl::isTapirTargetLibFunc()
-  bool isTapirTargetLibFunc(StringRef funcName) const {
-    return Impl->isTapirTargetLibFunc(funcName);
-  }
-  bool isTapirTargetLibFunc(const Function &FDecl) const {
-    return Impl->isTapirTargetLibFunc(FDecl);
   }
 
   /// Handle invalidation from the pass manager.

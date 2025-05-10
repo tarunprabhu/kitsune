@@ -122,7 +122,7 @@
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/AMDGPUEmitPrintf.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/Mem2Reg.h"
+#include "llvm/Transforms/Utils/KitsuneUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
 using namespace llvm;
@@ -315,17 +315,13 @@ void HipABI::transformArguments(Function &Fn) {
 Value *HipLoop::emitWorkItemId(IRBuilder<> &Builder, int ItemIndex) {
   switch (ItemIndex) {
   case 0:
-    return Builder.CreateCall(KitHipWorkItemIdXFn, {}, "kern.witem.x");
-    break;
+    return Builder.CreateCall(HipWorkItemIdXFn, {}, "kern.witem.x");
   case 1:
-    return Builder.CreateCall(KitHipWorkItemIdYFn, {}, "kern.witem.y");
-    break;
+    return Builder.CreateCall(HipWorkItemIdYFn, {}, "kern.witem.y");
   case 2:
-    return Builder.CreateCall(KitHipWorkItemIdZFn, {}, "kern.witem.z");
-    break;
+    return Builder.CreateCall(HipWorkItemIdZFn, {}, "kern.witem.z");
   default:
     llvm_unreachable("unexpected item index!");
-    return nullptr;
   }
 }
 
@@ -335,17 +331,13 @@ Value *HipLoop::emitWorkItemId(IRBuilder<> &Builder, int ItemIndex) {
 Value *HipLoop::emitWorkGroupId(IRBuilder<> &Builder, int ItemIndex) {
   switch (ItemIndex) {
   case 0:
-    return Builder.CreateCall(KitHipWorkGroupIdXFn, {}, "kern.wgroup.x");
-    break;
+    return Builder.CreateCall(HipWorkGroupIdXFn, {}, "kern.wgroup.x");
   case 1:
-    return Builder.CreateCall(KitHipWorkGroupIdYFn, {}, "kern.wgroup.y");
-    break;
+    return Builder.CreateCall(HipWorkGroupIdYFn, {}, "kern.wgroup.y");
   case 2:
-    return Builder.CreateCall(KitHipWorkGroupIdZFn, {}, "kern.wgroup.z");
-    break;
+    return Builder.CreateCall(HipWorkGroupIdZFn, {}, "kern.wgroup.z");
   default:
     llvm_unreachable("unexpected item index!");
-    return nullptr;
   }
 }
 
@@ -371,7 +363,7 @@ Value *HipLoop::emitWorkGroupSize(IRBuilder<> &Builder, int ItemIndex) {
     llvm_unreachable("unexpected item index!");
   }
   Instruction *WorkGroupSizeCall =
-      Builder.CreateCall(KitHipBlockDimFn, {IndexVal}, WGName);
+      Builder.CreateCall(HipBlockDimFn, {IndexVal}, WGName);
   return WorkGroupSizeCall;
 }
 
@@ -395,7 +387,6 @@ HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
   LLVMContext &Ctx = KernelModule.getContext();
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
-  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
 
   NamedMDNode *IdentMetadata =
       KernelModule.getOrInsertNamedMetadata("llvm.ident");
@@ -412,40 +403,40 @@ HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
   // tucked into the HIP-centric header files as well a Clang lowering).
 
   // Get the local workitem ID for the calling thread.
-  KitHipWorkItemIdFn = KernelModule.getOrInsertFunction(
+  HipWorkItemIdFn = KernelModule.getOrInsertFunction(
       "__ockl_get_local_id",
       Int64Ty,  // return local thread id.
       Int32Ty); // axis/index select (x=0, y=1, z=2).
 
   // Get the work group ID for the calling thread.
-  KitHipWorkGroupIdFn = KernelModule.getOrInsertFunction(
+  HipWorkGroupIdFn = KernelModule.getOrInsertFunction(
       "__ockl_get_group_id",
       Int64Ty,  // return local thread id.
       Int32Ty); // axis/index select (x=0, y=1, z=2).
 
   // Get the block size for the calling thread.
-  KitHipBlockDimFn = KernelModule.getOrInsertFunction(
+  HipBlockDimFn = KernelModule.getOrInsertFunction(
       "__ockl_get_local_size",
       Int64Ty,  // return local thread id.
       Int32Ty); // axis/index select (x=0, y=1, z=2).
 
-  KitHipWorkItemIdXFn = /* threadIdx.x */
+  HipWorkItemIdXFn = /* threadIdx.x */
       Intrinsic::getOrInsertDeclaration(&KernelModule,
                                         Intrinsic::amdgcn_workitem_id_x);
-  KitHipWorkItemIdYFn = /* threadIdx.y */
+  HipWorkItemIdYFn = /* threadIdx.y */
       Intrinsic::getOrInsertDeclaration(&KernelModule,
                                         Intrinsic::amdgcn_workitem_id_y);
-  KitHipWorkItemIdZFn = /* threadIdx. z */
+  HipWorkItemIdZFn = /* threadIdx. z */
       Intrinsic::getOrInsertDeclaration(&KernelModule,
                                         Intrinsic::amdgcn_workitem_id_z);
 
-  KitHipWorkGroupIdXFn = /* blockIdx.x */
+  HipWorkGroupIdXFn = /* blockIdx.x */
       Intrinsic::getOrInsertDeclaration(&KernelModule,
                                         Intrinsic::amdgcn_workgroup_id_x);
-  KitHipWorkGroupIdYFn = /* blockIdx.y */
+  HipWorkGroupIdYFn = /* blockIdx.y */
       Intrinsic::getOrInsertDeclaration(&KernelModule,
                                         Intrinsic::amdgcn_workgroup_id_y);
-  KitHipWorkGroupIdZFn = /* blockIdx.z */
+  HipWorkGroupIdZFn = /* blockIdx.z */
       Intrinsic::getOrInsertDeclaration(&KernelModule,
                                         Intrinsic::amdgcn_workgroup_id_z);
 
@@ -458,23 +449,6 @@ HipLoop::HipLoop(Module &M, Module &KModule, const std::string &Name,
                                     Int64Ty,  // number of floating point ops.
                                     Int64Ty,  // number of integer ops.
                                     Int64Ty); // number of other ops.
-
-  KitHipLaunchFn =
-      M.getOrInsertFunction("__kithip_launch_kernel",
-                            VoidPtrTy, // return an opaque stream
-                            VoidPtrTy, // fat-binary
-                            VoidPtrTy, // kernel name
-                            VoidPtrTy, // arguments
-                            Int64Ty,   // trip count
-                            Int32Ty,   // threads-per-block
-                            PointerType::getUnqual(Ctx), // instruction mix info
-                            VoidPtrTy);                  // opaque hip stream
-
-  KitHipMemPrefetchFn =
-      M.getOrInsertFunction("__kithip_mem_gpu_prefetch",
-                            VoidPtrTy,  // return an opaque stream
-                            VoidPtrTy,  // pointer to prefetch
-                            VoidPtrTy); // use opaque stream.
 }
 
 HipLoop::~HipLoop() { /* no-op */ }
@@ -1123,6 +1097,10 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
                     << "\tkernel name: " << KernelName << "\n");
 
   LLVMContext &Ctx = M.getContext();
+  Type *Int32Ty = Type::getInt32Ty(Ctx);
+  Type *Int64Ty = Type::getInt64Ty(Ctx);
+  PointerType *PtrTy = PointerType::getUnqual(Ctx);
+  ConstantInt *ConstTT = getConstantInt(Ctx, TapirTargetID::Hip);
 
   // NOTE: If we are dealing with loop nests with multiple targets (in this case
   // only a CPU-target w/ a nested GPU target is supported) we can end up with
@@ -1173,18 +1151,17 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // and cuda transforms.
   LLVM_DEBUG(dbgs() << "\t*- code gen packing of " << OrderedInputs.size()
                     << " kernel args.\n");
-  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
-  ArrayType *ArrayTy = ArrayType::get(VoidPtrTy, OrderedInputs.size());
+  ArrayType *ArrayTy = ArrayType::get(PtrTy, OrderedInputs.size());
   Value *ArgArray = EntryBuilder.CreateAlloca(ArrayTy);
 
-  Value *NullPtr = ConstantPointerNull::get(PointerType::getUnqual(Ctx));
-  Value *HipStream = ConstantPointerNull::get(PointerType::getUnqual(Ctx));
+  Value *NullPtr = ConstantPointerNull::get(PtrTy);
+  Value *HipStream = ConstantPointerNull::get(PtrTy);
 
   unsigned int i = 0;
   for (Value *V : OrderedInputs) {
     Value *VP = EntryBuilder.CreateAlloca(V->getType());
     NewBuilder.CreateStore(V, VP);
-    Value *VoidVPtr = NewBuilder.CreateBitCast(VP, VoidPtrTy);
+    Value *VoidVPtr = NewBuilder.CreateBitCast(VP, PtrTy);
     Value *ArgPtr =
         NewBuilder.CreateConstInBoundsGEP2_32(ArrayTy, ArgArray, 0, i);
     NewBuilder.CreateStore(VoidVPtr, ArgPtr);
@@ -1193,8 +1170,20 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     if (getOptions().getGPUPrefetch() && V->getType()->isPointerTy()) {
       LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for kernel arg #" << i - 1
                         << "\n");
-      Value *VAS = NewBuilder.CreatePointerBitCastOrAddrSpaceCast(V, VoidPtrTy);
-      HipStream = NewBuilder.CreateCall(KitHipMemPrefetchFn, {VAS, HipStream});
+      // The pointer to the data to be prefetched must point to UVM allocated
+      // memory. By setting the number of bytes to be prefetched to -1, we are
+      // instructing the runtime to prefetch the entire UVM-allocated buffer.
+      // The runtime keeps track of this.
+      //
+      // TODO: Do some analysis to only prefetch the number of bytes that are
+      // actually used (or likely to be used) by the kernel.
+      Function *PrefetchFn = Intrinsic::getOrInsertDeclaration(
+          &M, Intrinsic::kitrt_prefetch_device);
+      Value *Buf = NewBuilder.CreatePointerBitCastOrAddrSpaceCast(V, PtrTy);
+      ConstantInt *Bytes = NewBuilder.getInt64(-1);
+      ConstantInt *TTID = NewBuilder.getInt8(int8_t(TapirTargetID::Hip));
+      HipStream =
+          NewBuilder.CreateCall(PrefetchFn, {TTID, Buf, Bytes, HipStream});
     }
   }
 
@@ -1225,19 +1214,14 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // current loop so we use a 'dummy' (null) fat binary for code gen at
   // this point -- we'll post-process the module to clean this up after
   // we've processed all tapir loops.
-  (void)tapir::getOrInsertFBGlobal(M, HIPABI_DUMMY_FATBIN_NAME, VoidPtrTy);
+  (void)tapir::getOrInsertFBGlobal(M, HIPABI_DUMMY_FATBIN_NAME, PtrTy);
 
-  // Deal with type mismatches for the trip count.  A difference
-  // introduced via the input source details and the runtime's
-  // API type signature for the lanuch.
-  Type *Int64Ty = Type::getInt64Ty(Ctx);
+  // Deal with type mismatches for the trip count. A difference introduced via
+  // the input source details and the runtime's API type signature for the
+  // launch.
   Value *TripCount = OrderedInputs[0];
-  Value *CastTripCount;
   if (TripCount->getType() != Int64Ty)
-    // It is not clear that this is actually signed.
-    CastTripCount = NewBuilder.CreateIntCast(TripCount, Int64Ty, true);
-  else
-    CastTripCount = TripCount; // Simplify cases in launch code gen below...
+    TripCount = NewBuilder.CreateSExtOrBitCast(TripCount, Int64Ty, "cast.tc");
 
   // At this point we need a threads-per-block value for the launch call. The
   // runtime will determine this value if ThreadsPerBlock is zero but it can
@@ -1252,15 +1236,14 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // launch calls for details.
   TapirLoopHints Hints(TL.getLoop());
   unsigned TPBHint = Hints.getThreadsPerBlock();
-  unsigned DefaultThreadsPerBlock = getOptions().getFixedThreadsPerBlock();
-  Value *TPBValue;
-
-  if (TPBHint != 0)
-    TPBValue = ConstantInt::get(Type::getInt32Ty(Ctx), TPBHint);
-  else if (DefaultThreadsPerBlock != 0)
-    TPBValue = ConstantInt::get(Type::getInt32Ty(Ctx), DefaultThreadsPerBlock);
+  unsigned FixedThreadsPerBlock = getOptions().getFixedThreadsPerBlock();
+  Value *TPB;
+  if (TPBHint)
+    TPB = ConstantInt::get(Int32Ty, TPBHint);
+  else if (FixedThreadsPerBlock)
+    TPB = ConstantInt::get(Int32Ty, FixedThreadsPerBlock);
   else
-    TPBValue = ConstantInt::get(Type::getInt32Ty(Ctx), 0);
+    TPB = ConstantInt::get(Int32Ty, 0);
 
   LLVM_DEBUG(dbgs() << "\tgathering kernel instruction mix....\n");
   tapir::KernelInstMixData InstMix = tapir::getKernelInstructionMix(F);
@@ -1282,12 +1265,11 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch...\n");
   HipStream = NewBuilder.CreateCall(
-      KitHipLaunchFn,
-      {NullPtr, KNameParam, argsPtr, CastTripCount, TPBValue, AI, HipStream});
-  Type *VoidTy = Type::getVoidTy(Ctx);
-  FunctionCallee KitHipSyncFn =
-      M.getOrInsertFunction("__kithip_sync_thread_stream", VoidTy, VoidPtrTy);
-  (void)NewBuilder.CreateCall(KitHipSyncFn, {HipStream});
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_launch_kernel),
+      {ConstTT, NullPtr, KNameParam, argsPtr, TripCount, TPB, AI, HipStream});
+  (void)NewBuilder.CreateCall(
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_sync_stream),
+      {ConstTT, HipStream});
 
   TOI.ReplCall->eraseFromParent();
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
@@ -1307,23 +1289,7 @@ HipABI::HipABI(Module &M, const TapirTargetOptions &Opts)
     Opts.print(dbgs());
 
   LLVMContext &Ctx = M.getContext();
-  Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
-  PointerType *CharPtrTy = PointerType::getUnqual(Ctx);
-  Type *Int64Ty = Type::getInt64Ty(Ctx);
-  KitHipGetGlobalSymbolFn =
-      M.getOrInsertFunction("__kithip_get_global_symbol",
-                            VoidPtrTy,  // return the device pointer
-                            VoidPtrTy,  // fat binary
-                            CharPtrTy); // symbol name
-  KitHipMemcpySymbolToDevFn =
-      M.getOrInsertFunction("__kithip_memcpy_sym_to_device",
-                            VoidTy,    // no return
-                            VoidPtrTy, // host pointer
-                            VoidPtrTy, // device pointer
-                            Int64Ty);  // number of bytes to copy
-  KitHipSyncFn = M.getOrInsertFunction("__kithip_sync_thread_stream", VoidTy,
-                                       VoidPtrTy); // no return, nor parameters
+
   // Build the details we need for the AMDGPU/HIP target.
   std::string ArchString = "amdgcn";
   Triple TargetTriple(ArchString, "amd", "amdhsa");
@@ -1449,42 +1415,57 @@ void HipABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {
 void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
-  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *PtrTy = PointerType::getUnqual(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
+  ConstantInt *ConstTT = getConstantInt(Ctx, TapirTargetID::Hip);
+
+  // Look up a global (device-side) symbol via a module created from the fat
+  // binary.
+  Function *KitrtSymbolDevicePtr =
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_symbol_device_ptr);
+  Function *KitrtSymbolMemcpyDevice = Intrinsic::getOrInsertDeclaration(
+      &M, Intrinsic::kitrt_symbol_memcpy_device);
 
   std::vector<CallInst *> LaunchCalls;
   for (Function &Fn : M)
     for (inst_iterator I = inst_begin(Fn); I != inst_end(Fn); ++I)
       if (auto *Call = dyn_cast<CallInst>(&*I))
-        if (Function *Callee = Call->getCalledFunction())
-          if (Callee->getName().starts_with("__kithip_launch_kernel"))
-            LaunchCalls.push_back(Call);
+        if (Call->getIntrinsicID() == Intrinsic::kitrt_launch_kernel)
+          LaunchCalls.push_back(Call);
 
   for (CallInst *Call : LaunchCalls) {
     Value *FatBin = CastInst::CreateBitOrPointerCast(
-        BundleBin, VoidPtrTy, "_hipbin.fatbin", Call->getIterator());
-    Call->setArgOperand(0, FatBin);
+        BundleBin, PtrTy, "_hipbin.fatbin", Call->getIterator());
+    Call->setArgOperand(1, FatBin);
 
     // TODO: Do we want to sync naming conventions up between the CUDA and HIP
     // ABIs?  Might make the world a better place???
     for (GlobalVariable *HostGV : GlobalVars) {
       LLVM_DEBUG(dbgs() << "\t\t* processing global: " << HostGV->getName()
                         << "\n");
-      // Get the global's name, look it up on the device side, and then issue
-      // the copy-to-device call (with appropriate casts).
-      std::string DevVarName = HostGV->getName().str() + "_devvar";
-      Value *SymName = M.getGlobalVariable(DevVarName);
-      if (!SymName)
-        SymName = tapir::createConstantStr(DevVarName, M, DevVarName);
-      Value *DevPtr =
-          CallInst::Create(KitHipGetGlobalSymbolFn, {FatBin, SymName},
-                           ".hipabi_devptr", Call->getIterator());
-      Value *VGVPtr = CastInst::CreatePointerCast(HostGV, VoidPtrTy, "",
-                                                  Call->getIterator());
-      uint64_t NumBytes = DL.getTypeAllocSize(HostGV->getValueType());
-      CallInst::Create(KitHipMemcpySymbolToDevFn,
-                       {VGVPtr, DevPtr, ConstantInt::get(Int64Ty, NumBytes)},
-                       "", Call->getIterator());
+
+      // We need to explicitly add code to sync up host-side and device-side
+      // globals prior to launching kernels. We only have a complete awareness
+      // of this now so insert the supporting runtime calls.
+      //
+      // FIXME: Only copy the globals used by the kernel - not all globals.
+      //
+      for (GlobalVariable *HostGV : GlobalVars) {
+        LLVM_DEBUG(dbgs() << "\t\t\t  processing global: '" << HostGV->getName()
+                          << "'\n");
+        std::string DevVarName = HostGV->getName().str() + "_devvar";
+        Value *SymName = tapir::createConstantStr(DevVarName, M, DevVarName);
+        Value *DevPtr =
+            CallInst::Create(KitrtSymbolDevicePtr, {ConstTT, FatBin, SymName},
+                             ".cuabi_devptr", Call->getIterator());
+        Value *VGVPtr =
+            CastInst::CreatePointerCast(HostGV, PtrTy, "", Call->getIterator());
+        Constant *Bytes = ConstantInt::get(
+            Int64Ty, DL.getTypeAllocSize(HostGV->getValueType()));
+        CallInst::Create(KitrtSymbolMemcpyDevice,
+                         {ConstTT, VGVPtr, DevPtr, Bytes}, "",
+                         Call->getIterator());
+      }
     }
   }
 
@@ -1797,12 +1778,13 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
 
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
-  PointerType *VoidPtrPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *PtrTy = PointerType::getUnqual(Ctx);
+  Type *BoolTy = Type::getInt8Ty(Ctx);
   Type *IntTy = Type::getInt32Ty(Ctx);
+  ConstantInt *ConstTT = getConstantInt(Ctx, TapirTargetID::Hip);
 
   Function *CtorFn = Function::Create(
-      FunctionType::get(VoidTy, VoidPtrTy, false), GlobalValue::InternalLinkage,
+      FunctionType::get(VoidTy, PtrTy, false), GlobalValue::InternalLinkage,
       join_items("", HIPABI_PREFIX, ".ctor.", sys::path::filename(M.getName())),
       &M);
 
@@ -1810,53 +1792,51 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
   IRBuilder<> CtorBuilder(CtorEntryBB);
   const DataLayout &DL = M.getDataLayout();
 
-  FunctionCallee KitRTInitFn =
-      M.getOrInsertFunction("__kithip_initialize", VoidTy);
-  CtorBuilder.CreateCall(KitRTInitFn, {});
+  CtorBuilder.CreateCall(
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_initialize),
+      {ConstTT});
 
-  if (TTO.getHipXnack() == MaybeBool::On) {
+  CtorBuilder.CreateCall(
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_enable_verbose),
+      {ConstantInt::get(BoolTy, TTO.getKitrtVerbose(), false)});
+
+  if (TTO.getHipXnack() == MaybeBool::On)
     LLVM_DEBUG(dbgs() << "\t\tenable xnack via ctor runtime call.\n");
-    FunctionCallee KitRTEnableXnackFn =
-        M.getOrInsertFunction("__kithip_enable_xnack", VoidTy);
-    CtorBuilder.CreateCall(KitRTEnableXnackFn, {});
-  }
+  CtorBuilder.CreateCall(
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_hip_enable_xnack),
+      {ConstantInt::get(BoolTy, TTO.getHipXnack() == MaybeBool::On)});
 
-  if (UseYLaunch) {
+  if (UseYLaunch)
     LLVM_DEBUG(
         dbgs() << "\t\tenable y-axis launch pattern via ctor runtime call.\n");
-    FunctionCallee KitRTEnableYLaunchFn =
-        M.getOrInsertFunction("__kithip_enable_ylaunch", VoidTy);
-    CtorBuilder.CreateCall(KitRTEnableYLaunchFn, {});
-  }
+  CtorBuilder.CreateCall(Intrinsic::getOrInsertDeclaration(
+                             &M, Intrinsic::kitrt_enable_y_axis_launches),
+                         {ConstTT, ConstantInt::get(BoolTy, UseYLaunch)});
 
   unsigned DefaultThreadsPerBlock = TTO.getFixedThreadsPerBlock();
-  unsigned MaxThreadsPerBlock = TTO.getMaxThreadsPerBlock();
-
   if (DefaultThreadsPerBlock) {
-    FunctionCallee KitRTSetDefaultThreadsPerBlockFn =
-        M.getOrInsertFunction("__kithip_set_threads_per_blk", VoidTy, IntTy);
-    CtorBuilder.CreateCall(KitRTSetDefaultThreadsPerBlockFn,
-                           {ConstantInt::get(IntTy, DefaultThreadsPerBlock)});
+    Function *KitrtSetFixedTPB =
+        Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_set_fixed_tpb);
+    CtorBuilder.CreateCall(
+        KitrtSetFixedTPB,
+        {ConstTT, ConstantInt::get(IntTy, DefaultThreadsPerBlock)});
   }
 
-  FunctionCallee KitRTSetMaxThreadsPerBlockFn =
-      M.getOrInsertFunction("__kithip_set_max_threads_per_blk", VoidTy, IntTy);
+  unsigned MaxThreadsPerBlock = TTO.getMaxThreadsPerBlock();
+  Function *KitrtSetMaxTPB =
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_set_max_tpb);
   if (MaxThreadsPerBlock) {
-    CtorBuilder.CreateCall(KitRTSetMaxThreadsPerBlockFn,
-                           {ConstantInt::get(IntTy, MaxThreadsPerBlock)});
+    CtorBuilder.CreateCall(
+        KitrtSetMaxTPB, {ConstTT, ConstantInt::get(IntTy, MaxThreadsPerBlock)});
   } else {
+    // FIXME: Don't hardcode this value here. Maybe move it to a named constant.
+    //
     // If the MaxThreadsPerBlock has not been set, use a value of 1024 anyway.
     // At the time of writing, exceeding this value degrades performance. This
     // might change, and we may even have to set a different value depending
     // on the specific GPU architecture.
-    CtorBuilder.CreateCall(KitRTSetMaxThreadsPerBlockFn,
-                           {ConstantInt::get(IntTy, 1024)});
-  }
-
-  if (TTO.getKitrtVerbose()) {
-    FunctionCallee KitRTVerboseModefn =
-        M.getOrInsertFunction("__kitrt_enable_verbose_mode", VoidTy);
-    CtorBuilder.CreateCall(KitRTVerboseModefn, {});
+    CtorBuilder.CreateCall(KitrtSetMaxTPB,
+                           {ConstTT, ConstantInt::get(IntTy, 1024)});
   }
 
   // TODO: It is still somewhat unclear if we actually need to register fat
@@ -1864,22 +1844,21 @@ Function *HipABI::createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper) {
   // commmon approach done via the frontend (e.g., we have no stub functions).
   // We should dig more into the details to find out if this is actually
   // needed/helpful/etc. This might mean digging into the ROCm source...
-  FunctionCallee RegisterFatbinaryFn =
-      M.getOrInsertFunction("__hipRegisterFatBinary",
-                            FunctionType::get(VoidPtrPtrTy, VoidPtrTy, false));
+  FunctionCallee RegisterFatbinaryFn = M.getOrInsertFunction(
+      "__hipRegisterFatBinary", FunctionType::get(PtrTy, PtrTy, false));
   LLVM_DEBUG(dbgs() << "\tregister fat binary.\n");
   CallInst *RegFatbin = CtorBuilder.CreateCall(
-      RegisterFatbinaryFn, CtorBuilder.CreateBitCast(Wrapper, VoidPtrTy));
+      RegisterFatbinaryFn, CtorBuilder.CreateBitCast(Wrapper, PtrTy));
   GlobalVariable *Handle = new GlobalVariable(
-      M, VoidPtrPtrTy,
+      M, PtrTy,
       /*isConstant=*/false, GlobalValue::InternalLinkage,
-      ConstantPointerNull::get(VoidPtrPtrTy), "__hip_gpubin_handle");
+      ConstantPointerNull::get(PtrTy), "__hip_gpubin_handle");
   Handle->setAlignment(DL.getPointerPrefAlignment());
   CtorBuilder.CreateAlignedStore(RegFatbin, Handle,
                                  DL.getPointerPrefAlignment());
 
   LoadInst *HandlePtr = CtorBuilder.CreateLoad(
-      VoidPtrPtrTy, Handle, join_items("", HIPABI_PREFIX, "__hip_fatbin"));
+      PtrTy, Handle, join_items("", HIPABI_PREFIX, "__hip_fatbin"));
   HandlePtr->setAlignment(DL.getPointerPrefAlignment());
 
   if (!GlobalVars.empty()) {
@@ -1906,22 +1885,21 @@ Function *HipABI::createDtor(GlobalVariable *BundleHandle) {
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  Type *VoidPtrTy = PointerType::getUnqual(Ctx);
-  Type *VoidPtrPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *PtrTy = PointerType::getUnqual(Ctx);
+  ConstantInt *ConstTT = getConstantInt(Ctx, TapirTargetID::Hip);
 
-  FunctionCallee UnregisterFatbinFn =
-      M.getOrInsertFunction("__hipUnregisterFatBinary",
-                            FunctionType::get(VoidTy, VoidPtrPtrTy, false));
+  FunctionCallee UnregisterFatbinFn = M.getOrInsertFunction(
+      "__hipUnregisterFatBinary", FunctionType::get(VoidTy, PtrTy, false));
 
   Function *DtorFn = Function::Create(
-      FunctionType::get(VoidTy, VoidPtrTy, false), GlobalValue::InternalLinkage,
+      FunctionType::get(VoidTy, PtrTy, false), GlobalValue::InternalLinkage,
       join_items("", HIPABI_PREFIX, ".dtor"), &M);
 
   // TODO: Do we call into this too many times???
   BasicBlock *DtorEntryBB = BasicBlock::Create(Ctx, "entry", DtorFn);
   IRBuilder<> DtorBuilder(DtorEntryBB);
   Value *HandleValue = DtorBuilder.CreateAlignedLoad(
-      VoidPtrPtrTy, BundleHandle, DL.getPointerABIAlignment(0));
+      PtrTy, BundleHandle, DL.getPointerABIAlignment(0));
   DtorBuilder.CreateCall(UnregisterFatbinFn, HandleValue);
 
   // FIXME: There is a bug here which seems to cause use-after-free errors in
@@ -1929,9 +1907,10 @@ Function *HipABI::createDtor(GlobalVariable *BundleHandle) {
   // This causes the kitsune-test-suite to consistently fail. In the interest
   // of having the test suite actually be useful, don't generate the call to
   // __kithip_destroy until we can figure out exactly what is going on there.
-  FunctionCallee KitRTDestroyFn =
-      M.getOrInsertFunction("__kithip_destroy", VoidTy);
-  // DtorBuilder.CreateCall(KitRTDestroyFn, {});
+
+  // DtorBuilder.CreateCall(
+  //     Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_finalize),
+  //     {ConstTT});
   DtorBuilder.CreateRetVoid();
   return DtorFn;
 }
@@ -1947,17 +1926,16 @@ void HipABI::registerBundle(GlobalVariable *Bundle) {
   LLVMContext &Ctx = M.getContext();
   const DataLayout &DL = M.getDataLayout();
   Type *VoidTy = Type::getVoidTy(Ctx);
-  PointerType *VoidPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *PtrTy = PointerType::getUnqual(Ctx);
   Type *IntTy = Type::getInt32Ty(Ctx);
 
-  StructType *WrapperTy = StructType::get(IntTy,      // magic #
-                                          IntTy,      // version
-                                          VoidPtrTy,  // binary (gpu executable)
-                                          VoidPtrTy); // unused for now.
-  Constant *WrapperS =
-      ConstantStruct::get(WrapperTy, ConstantInt::get(IntTy, BundleMagicID),
-                          ConstantInt::get(IntTy, 1), BundlePtr,
-                          ConstantPointerNull::get(VoidPtrTy));
+  StructType *WrapperTy = StructType::get(IntTy,  // magic #
+                                          IntTy,  // version
+                                          PtrTy,  // binary (gpu executable)
+                                          PtrTy); // unused for now.
+  Constant *WrapperS = ConstantStruct::get(
+      WrapperTy, ConstantInt::get(IntTy, BundleMagicID),
+      ConstantInt::get(IntTy, 1), BundlePtr, ConstantPointerNull::get(PtrTy));
   GlobalVariable *Wrapper =
       new GlobalVariable(M, WrapperTy, true, GlobalValue::InternalLinkage,
                          WrapperS, "__hip_fatbin_wrapper");
