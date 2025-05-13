@@ -31,8 +31,8 @@
 ! -----------------------------------------------------------------------------
 ! The -ftapir option must be used with a Kitsune frontend.
 !
-! RUN: not %clang -ftapir=serial %s 2>&1 | FileCheck %s -check-prefix FRONTEND
-! RUN: not %clang --tapir=serial %s 2>&1 | FileCheck %s -check-prefix FRONTEND
+! RUN: not %flang -ftapir=serial %s 2>&1 | FileCheck %s -check-prefix FRONTEND
+! RUN: not %flang --tapir=serial %s 2>&1 | FileCheck %s -check-prefix FRONTEND
 !
 ! FRONTEND: option '-{{.}}tapir=' must be used with a Kitsune frontend
 !
