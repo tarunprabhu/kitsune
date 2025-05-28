@@ -13,62 +13,86 @@
 #ifndef LLVM_ANALYSIS_TAPIR_TARGET_ANALYSIS_H
 #define LLVM_ANALYSIS_TAPIR_TARGET_ANALYSIS_H
 
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/Casting.h"
 
+#include <map>
 #include <optional>
+#include <vector>
 
 namespace llvm {
 
+class LoopInfo;
 class TapirTargetAnalysis;
+class TapirTargetAnalysisWrapperPass;
+class TaskInfo;
 
-/// An object that contains information about the TapirTargets that are
-/// enabled. Currently, it only has information about the "primary" tapir target
-/// but it should be extended to include information about the
-/// "construct-specific" tapir targets that may be used. The primary tapir
-/// target and associated options are computed exactly once - either when the
-/// pass is instantiated, or the first time the analysis results are requested.
-/// The construct-specific information will be computed from the module for
-/// which the analysis is requested and may be recomputed as needed.
+/// An object that contains information about the tapir targets that are
+/// enabled.
 class TapirTargetInfo {
-private:
-  /// The options for the primary tapir target. If not null, the pointee is
-  /// owned by the TapirTargetAnalysis pass and must not be freed.
-  const TapirTargetOptions *ttOpts;
+public:
+  using GetLoopInfo = std::function<LoopInfo &(Function &)>;
+  using GetTaskInfo = std::function<TaskInfo &(Function &)>;
 
 private:
-  TapirTargetInfo(const TapirTargetOptions *ttOpts) : ttOpts(ttOpts) {}
+  /// Options for the primary tapir target.
+  std::optional<TapirTargetOptions> ttOpts;
+
+  /// The tapir targets used by each function in the module.
+  ///
+  /// FIXME: It would be good to actually have the tapir target objects here.
+  /// But the way the code is currently organized, those objects are defined
+  /// in libLLVMTransforms while this is in libLLVMAnalysis. The former,
+  /// naturally, depends on the latter. Using the tapir target objects here will
+  /// result in libLLVMAnalysis depending on libLLVMTransforms, making the
+  /// dependence circular. Ideally, the tapir support code should be moved out
+  /// of llvm/Transforms into llvm/Tapir (or something of the sort).
+  std::map<Function *, std::vector<TapirTargetID>> ttsInFunc;
+
+  /// The tapir targets needed by the functions in the module.
+  std::vector<TapirTargetID> ttsInModule;
+
+private:
+  TapirTargetInfo(std::optional<TapirTargetOptions> ttOpts);
+
+  /// Compute the tapir target objects required by every function in a module.
+  void computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
+                          GetTaskInfo getTaskInfo);
 
 public:
-  TapirTargetInfo() = delete;
+  bool hasID() const { return ttOpts.has_value(); }
 
-  bool hasID() const { return ttOpts; }
+  /// Get the primary tapir target ID if the tapir target options have been set.
+  std::optional<TapirTargetID> getIDIfExists() const;
 
-  TapirTargetID getID() const {
-    assert(ttOpts && "Tapir target options have not been set");
-    return ttOpts->getTapirTargetID();
-  }
+  /// Get the primary tapir target ID. This should only be called when the tapir
+  /// target options are guaranteed to have been set.
+  TapirTargetID getID() const;
 
-  std::optional<TapirTargetID> getIDIfAvailable() const {
-    if (ttOpts)
-      return ttOpts->getTapirTargetID();
-    return std::nullopt;
-  }
+  /// Get the tapir target options. This should only be called when the tapir
+  /// target options are guaranteed to have been set.
+  const TapirTargetOptions &getOptions() const;
 
-  const TapirTargetOptions &getOptions() const {
-    assert(ttOpts && "Tapir target options have not been set");
-    return *ttOpts;
-  }
+  /// Get the tapir target ID's required by a function. This will be an empty
+  /// vector if there are no tapir loops in the function. If there is at least
+  /// one tapir loop in the function, this will contain the tapir target ID's
+  /// that appear as loop hints on the loop (this is the case for attributed
+  /// forall loops) and the primary tapir target ID if there is at least one
+  /// tapir loop in the function which does not have a target loop hint.
+  const std::vector<TapirTargetID> &getRequiredTTs(Function &f) const;
 
-  bool invalidate(Module &, const PreservedAnalyses &,
-                  ModuleAnalysisManager::Invalidator &) {
-    // The TapirTargetInfo is immutable for a module.
-    return false;
-  }
+  /// Get the tapir target ID's required by the module. This will be an empty
+  /// vector if there are no tapir loops in the module, even if a primary tapir
+  /// target has been set by the frontend.
+  const std::vector<TapirTargetID> &getRequiredTTs(Module& m) const;
+
+  bool invalidate(Module &, const PreservedAnalyses &pa,
+                  ModuleAnalysisManager::Invalidator &);
 
   friend class TapirTargetAnalysis;
+  friend class TapirTargetAnalysisWrapperPass;
 };
 
 /// Analysis pass to provide information about the "global" tapir targets.
@@ -77,18 +101,16 @@ public:
 /// targets that are needed by a given module, but that has not yet been
 /// implemented.
 class TapirTargetAnalysis : public AnalysisInfoMixin<TapirTargetAnalysis> {
-  friend AnalysisInfoMixin<TapirTargetAnalysis>;
-
-  static AnalysisKey Key;
-
 private:
-  /// The primary tapir target options. This will be nullptr if a tapir target
-  /// was not provided to the frontend.
-  std::unique_ptr<TapirTargetOptions> ttOpts = nullptr;
+  /// The TapirTargetInfo that will be populated when @ref run() is called.
+  /// A copy of this will be returned whenever the analysis is retrieved.
+  TapirTargetInfo ttInfo;
 
 public:
   using Result = TapirTargetInfo;
 
+  /// The new pass manager does not require a default constructor (unlike the
+  /// legacy pass manager), so it is safe to explicitly delete this.
   TapirTargetAnalysis() = delete;
 
   /// Construct an analysis pass with an optional TapirTargetOptions object.
@@ -96,8 +118,52 @@ public:
   /// given a tapir target to use.
   TapirTargetAnalysis(std::optional<TapirTargetOptions> ttOpts);
 
-  Result run(Module &M, ModuleAnalysisManager &AM);
+  Result run(Module &m, ModuleAnalysisManager &mam);
+
+private:
+  static AnalysisKey Key;
+
+  friend AnalysisInfoMixin<TapirTargetAnalysis>;
 };
+
+/// Legacy wrapper pass to provide the tapir target analysis results. This is
+/// provided since some transformations are run as part of code generation
+/// which still uses the legacy pass manager. This is an immutable pass because
+/// only function passes are allowed during the code generation phase. This
+/// means that the results returned by this pass will be slightly different from
+/// those returned by the new pass manager. Specifically, the required tapir
+/// targets will never be computed by this pass. This is ok since during
+/// codegen, we should never need anything other than the tapir target options.
+class TapirTargetAnalysisWrapperPass : public ImmutablePass {
+private:
+  /// The TapirTargetInfo that will be populated when @ref run() is called.
+  /// A copy of this will be returned whenever the analysis is retrieved.
+  TapirTargetInfo ttInfo;
+
+public:
+  using Result = TapirTargetInfo;
+
+public:
+  /// Create a default constructor because it is needed by the legacy pass
+  /// manager, but this should never be used anywhere else.
+  TapirTargetAnalysisWrapperPass();
+
+  /// Construct an analysis pass with an optional TapirTargetOptions object.
+  /// This may be std::nullopt if the frontend creating this pass has not been
+  /// given a tapir target to use.
+  TapirTargetAnalysisWrapperPass(std::optional<TapirTargetOptions> ttOpts);
+
+  void getAnalysisUsage(AnalysisUsage &au) const override;
+  // bool runOnModule(Module &m) override;
+
+  Result getResult() const;
+
+public:
+  static char ID;
+};
+
+ModulePass *
+createTapirTargetAnalysisWrapperPass(std::optional<TapirTargetOptions> ttOpts);
 
 } // namespace llvm
 

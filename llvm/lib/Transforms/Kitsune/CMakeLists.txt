@@ -1,4 +1,6 @@
 add_llvm_component_library(LLVMKitsuneOpts
+  FinalizeEmbeddedBitcode.cpp
+  GenerateKitsuneCtors.cpp
   LowerKitsuneRuntimeIntrinsics.cpp
   LowerMobileIntrinsics.cpp
   StripKitsuneAddrSpace.cpp

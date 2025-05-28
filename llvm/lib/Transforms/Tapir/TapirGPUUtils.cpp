@@ -20,6 +20,7 @@
 
 #include "llvm/Transforms/Tapir/TapirGPUUtils.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
@@ -95,6 +96,17 @@ void collectGlobalValues(Function &f, std::set<GlobalValue *> &seen) {
   seen.insert(&f);
   for (BasicBlock &bb : f)
     collectGlobalValues(bb, seen);
+}
+
+void collectGlobalValues(Loop &loop, std::set<GlobalValue *> &seen) {
+  // Collect the globals used in any subloops.
+  for (Loop *subLoop : loop)
+    for (BasicBlock *bb : subLoop->blocks())
+      collectGlobalValues(*bb, seen);
+
+  // Collect the globals used within the loop itself.
+  for (BasicBlock *bb : loop.blocks())
+    collectGlobalValues(*bb, seen);
 }
 
 raw_ostream &renderCommandLine(ArrayRef<StringRef> args, raw_ostream &os) {

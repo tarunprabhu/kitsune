@@ -1555,6 +1555,13 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
     setArgExtAttr(*F, 4, TLI);
     break;
 
+  case LibFunc_cuda_register_managed_var:
+  case LibFunc_cuda_register_var:
+    setArgExtAttr(*F, 4, TLI);
+    setArgExtAttr(*F, 6, TLI);
+    setArgExtAttr(*F, 7, TLI);
+    break;
+
   default:
 #ifndef NDEBUG
     for (unsigned i = 0; i < T->getNumParams(); i++)
@@ -1572,6 +1579,11 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
 FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
                                         LibFunc TheLibFunc, FunctionType *T) {
   return getOrInsertLibFunc(M, TLI, TheLibFunc, T, AttributeList());
+}
+
+FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
+                                        LibFunc LibFunc) {
+  return getOrInsertLibFunc(M, TLI, LibFunc, TLI.getLibFuncType(LibFunc, *M));
 }
 
 bool llvm::isLibFuncEmittable(const Module *M, const TargetLibraryInfo *TLI,

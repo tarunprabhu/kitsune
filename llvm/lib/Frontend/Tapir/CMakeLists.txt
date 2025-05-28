@@ -1,7 +1,6 @@
 add_llvm_component_library(LLVMFrontendTapir
   CommandLine.cpp
   OptLevelUtils.cpp
-  Tapir.cpp
   TapirTargetOptions.cpp
 
   ADDITIONAL_HEADER_DIRS

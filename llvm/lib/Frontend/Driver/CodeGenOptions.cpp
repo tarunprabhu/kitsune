@@ -61,7 +61,6 @@ TargetLibraryInfoImpl *createTLII(const llvm::Triple &TargetTriple,
   default:
     break;
   }
-
   return TLII;
 }
 

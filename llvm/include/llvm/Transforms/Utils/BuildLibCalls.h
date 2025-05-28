@@ -45,6 +45,9 @@ namespace llvm {
                                              const TargetLibraryInfo &TLI,
                                              LibFunc TheLibFunc,
                                              FunctionType *T);
+  LLVM_ABI FunctionCallee getOrInsertLibFunc(Module* M,
+                                             const TargetLibraryInfo &TLI,
+                                             LibFunc TheLibFunc);
   template <typename... ArgsTy>
   FunctionCallee getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
                                LibFunc TheLibFunc, AttributeList AttributeList,

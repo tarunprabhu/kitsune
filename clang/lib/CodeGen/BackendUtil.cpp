@@ -19,6 +19,7 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/GlobalsModRef.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Bitcode/BitcodeReader.h"
@@ -126,6 +127,37 @@ namespace clang {
 extern llvm::cl::opt<bool> ClSanitizeGuardChecks;
 }
 
+static OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
+  switch (Opts.OptimizationLevel) {
+  default:
+    llvm_unreachable("Invalid optimization level!");
+
+  case 0:
+    return OptimizationLevel::O0;
+
+  case 1:
+    return OptimizationLevel::O1;
+
+  case 2:
+    switch (Opts.OptimizeSize) {
+    default:
+      llvm_unreachable("Invalid optimization level for size!");
+
+    case 0:
+      return OptimizationLevel::O2;
+
+    case 1:
+      return OptimizationLevel::Os;
+
+    case 2:
+      return OptimizationLevel::Oz;
+    }
+
+  case 3:
+    return OptimizationLevel::O3;
+  }
+}
+
 // Path and name of file used for profile generation
 static std::string getProfileGenName(const CodeGenOptions &CodeGenOpts) {
   std::string FileName = CodeGenOpts.InstrProfileOutput.empty()
@@ -157,6 +189,14 @@ class EmitAssemblyHelper {
       return TM->getTargetIRAnalysis();
 
     return TargetIRAnalysis();
+  }
+
+  std::optional<TapirTargetOptions> getTapirTargetOptions() const {
+    OptimizationLevel OptLevel = mapToLevel(CodeGenOpts);
+    FPOpFusion::FPOpFusionMode FPOpFusionMode = FPOpFusion::Standard;
+    if (TM)
+      FPOpFusionMode = TM->Options.AllowFPOpFusion;
+    return TapirTargetOptions::create(KitsuneOpts, OptLevel, FPOpFusionMode);
   }
 
   /// Generates the TargetMachine.
@@ -627,8 +667,8 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
                                        raw_pwrite_stream &OS,
                                        raw_pwrite_stream *DwoOS) {
   // Add LibraryInfo.
-  std::unique_ptr<TargetLibraryInfoImpl> TLII(llvm::driver::createTLII(
-      TargetTriple, CodeGenOpts.getVecLib(), KitsuneOpts.getTapirTarget()));
+  std::unique_ptr<TargetLibraryInfoImpl> TLII(
+      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
   // Normal mode, emit a .s or .o file by running the code generator. Note,
@@ -642,37 +682,6 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
   }
 
   return true;
-}
-
-static OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
-  switch (Opts.OptimizationLevel) {
-  default:
-    llvm_unreachable("Invalid optimization level!");
-
-  case 0:
-    return OptimizationLevel::O0;
-
-  case 1:
-    return OptimizationLevel::O1;
-
-  case 2:
-    switch (Opts.OptimizeSize) {
-    default:
-      llvm_unreachable("Invalid optimization level for size!");
-
-    case 0:
-      return OptimizationLevel::O2;
-
-    case 1:
-      return OptimizationLevel::Os;
-
-    case 2:
-      return OptimizationLevel::Oz;
-    }
-
-  case 3:
-    return OptimizationLevel::O3;
-  }
 }
 
 static void addKCFIPass(const Triple &TargetTriple, const LangOptions &LangOpts,
@@ -913,13 +922,8 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   // non-integrated assemblers don't recognize .cgprofile section.
   PTO.CallGraphProfile = !CodeGenOpts.DisableIntegratedAS;
   PTO.UnifiedLTO = CodeGenOpts.UnifiedLTO;
-
-  FPOpFusion::FPOpFusionMode FPOpFusionMode = FPOpFusion::Standard;
-  if (TM)
-    FPOpFusionMode = TM->Options.AllowFPOpFusion;
   PTO.LoopStripmine = KitsuneOpts.getStripmineLoops();
-  PTO.TTOpts = TapirTargetOptions::create(KitsuneOpts, mapToLevel(CodeGenOpts),
-                                          FPOpFusionMode);
+  PTO.TTOpts = getTapirTargetOptions();
 
   LoopAnalysisManager LAM;
   FunctionAnalysisManager FAM;
@@ -1009,8 +1013,8 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
 
   // Register the target library analysis directly and give it a customized
   // preset TLI.
-  std::unique_ptr<TargetLibraryInfoImpl> TLII(llvm::driver::createTLII(
-      TargetTriple, CodeGenOpts.getVecLib(), KitsuneOpts.getTapirTarget()));
+  std::unique_ptr<TargetLibraryInfoImpl> TLII(
+      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
   FAM.registerPass([&] { return TargetLibraryAnalysis(*TLII); });
 
   // Register all the basic analyses with the managers.
@@ -1138,11 +1142,6 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
     } else {
       MPM.addPass(PB.buildPerModuleDefaultPipeline(Level));
     }
-    //} else if (TLII->hasTapirTarget() && TLII->getTapirTarget() ==
-    // llvm::TapirTargetID::Hip) {
-    // MPM.addPass(PB.buildPerModuleTapirHipPipeline(Level,
-    //                                              /* LTOPreLink */ false,
-    //                                             TLII->hasTapirTarget()));
   }
 
   // Link against bitcodes supplied via the -mlink-builtin-bitcode option
@@ -1246,6 +1245,8 @@ void EmitAssemblyHelper::RunCodegenPipeline(
   case Backend_EmitObj:
     CodeGenPasses.add(
         createTargetTransformInfoWrapperPass(getTargetIRAnalysis()));
+    CodeGenPasses.add(
+        createTapirTargetAnalysisWrapperPass(getTapirTargetOptions()));
     if (!CodeGenOpts.SplitDwarfOutput.empty()) {
       DwoOS = openOutputFile(CodeGenOpts.SplitDwarfOutput);
       if (!DwoOS)

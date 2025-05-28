@@ -167,6 +167,8 @@
 ; CHECK-O23SZ-NEXT: Running pass: LowerMobileIntrinsicsPass
 ; CHECK-O23SZ-NEXT: Running analysis: TapirTargetAnalysis
 ; CHECK-O23SZ-NEXT: Running pass: StripKitsuneAddrSpacePass
+; CHECK-O23SZ-NEXT: Running pass: FinalizeEmbeddedBitcodePass
+; CHECK-O23SZ-NEXT: Running pass: GenerateKitsuneCtorsPass
 ; CHECK-O23SZ-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
 ; CHECK-O-NEXT: Running pass: AnnotationRemarksPass on foo
 ; CHECK-O-NEXT: Running pass: PrintModulePass

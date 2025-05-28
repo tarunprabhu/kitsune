@@ -2848,14 +2848,14 @@ TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
 ///                                    int64_t bytes);
 TLI_DEFINE_ENUM_INTERNAL(kithip_symbol_memcpy_device)
 TLI_DEFINE_STRING_INTERNAL("__kithip_memcpy_sym_to_device")
-TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Int64)
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, SizeT)
 
 /// void __kithip_memcpy_sym_to_host(void* host_ptr,
 ///                                  void* device_ptr,
 ///                                  int64_t bytes);
 TLI_DEFINE_ENUM_INTERNAL(kithip_symbol_memcpy_host)
 TLI_DEFINE_STRING_INTERNAL("__kithip_memcpy_sym_to_host")
-TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Int64)
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, SizeT)
 
 /// void __kithip_sync_thread_stream(void* stream);
 TLI_DEFINE_ENUM_INTERNAL(kithip_sync_stream)
@@ -2863,6 +2863,61 @@ TLI_DEFINE_STRING_INTERNAL("__kithip_sync_thread_stream")
 TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
 
 /// @}
+
+// ----------------------------------------------------------------------------
+// cuda runtime library functions
+//
+// These are functions from libcudart and/or libcuda. These are used by
+// Kitsune's cuda tapir target
+// ----------------------------------------------------------------------------
+
+/// void* __cudaRegisterFatBinary(void* fatCubin)
+TLI_DEFINE_ENUM_INTERNAL(cuda_register_fat_binary)
+TLI_DEFINE_STRING_INTERNAL("__cudaRegisterFatBinary")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr)
+
+/// void __cudaRegisterFatBinaryEnd(void** fatBinHandle)
+TLI_DEFINE_ENUM_INTERNAL(cuda_register_fat_binary_end)
+TLI_DEFINE_STRING_INTERNAL("__cudaRegisterFatBinaryEnd")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
+
+/// void __cudaRegisterManagedVar(void**      fatBinHandle,
+///                               void**      hostVarPtrAddress,
+///                               char*       deviceAddress,
+///                               const char* deviceName,
+///                               int         ext,
+///                               size_t      size,
+///                               int         constant,
+///                               int         global);
+TLI_DEFINE_ENUM_INTERNAL(cuda_register_managed_var)
+TLI_DEFINE_STRING_INTERNAL("__cudaRegisterManagedVar")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Ptr, Ptr, Int, SizeT, Int, Int)
+
+/// void __cudaRegisterVar(void**      fatBinHandle,
+///                        char*       hostVar,
+///                        char*       deviceAddress,
+///                        const char* deviceName,
+///                        int         ext,
+///                        size_t      size,
+///                        int         constant,
+///                        int         global);
+TLI_DEFINE_ENUM_INTERNAL(cuda_register_var)
+TLI_DEFINE_STRING_INTERNAL("__cudaRegisterVar")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Ptr, Ptr, Int, SizeT, Int, Int)
+
+/// void __cudaUnregisterFatBinary(void** fatBinHandle)
+TLI_DEFINE_ENUM_INTERNAL(cuda_unregister_fat_binary)
+TLI_DEFINE_STRING_INTERNAL("__cudaUnregisterFatBinary")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
+
+/// @}
+
+// ----------------------------------------------------------------------------
+// hip runtime library functions
+//
+// These are functions from libamdhip64 and other AMD Hip runtim libraries that
+// kitsune links to. These are used by Kitsune's hip tapir target
+// ----------------------------------------------------------------------------
 
 #undef TLI_DEFINE_ENUM_INTERNAL
 #undef TLI_DEFINE_STRING_INTERNAL
