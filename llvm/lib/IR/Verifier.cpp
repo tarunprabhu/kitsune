@@ -61,6 +61,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/BinaryFormat/Dwarf.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/AttributeMask.h"
 #include "llvm/IR/Attributes.h"
@@ -99,6 +100,7 @@
 #include "llvm/IR/IntrinsicsARM.h"
 #include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/IntrinsicsWebAssembly.h"
+#include "llvm/IR/KitsuneMetadata.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/MemoryModelRelaxationAnnotations.h"
 #include "llvm/IR/Metadata.h"
@@ -120,6 +122,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/KitsuneStringExtras.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/ModRef.h"
 #include "llvm/Support/TimeProfiler.h"
@@ -130,6 +133,7 @@
 #include <cassert>
 #include <cstdint>
 #include <limits>
+#include <map>
 #include <memory>
 #include <optional>
 #include <queue>
@@ -307,6 +311,7 @@ public:
     for (const StringMapEntry<Comdat> &SMEC : M.getComdatSymbolTable())
       visitComdat(SMEC.getValue());
 
+    visitModuleEmbeddedFBs();
     visitModuleFlags();
     visitModuleIdents();
     visitModuleCommandLines();
@@ -345,6 +350,7 @@ private:
   void visitValueAsMetadata(const ValueAsMetadata &MD, Function *F);
   void visitDIArgList(const DIArgList &AL, Function *F);
   void visitComdat(const Comdat &C);
+  void visitModuleEmbeddedFBs();
   void visitModuleIdents();
   void visitModuleCommandLines();
   void visitModuleErrnoTBAA();
@@ -1789,6 +1795,35 @@ void Verifier::visitComdat(const Comdat &C) {
     if (const GlobalValue *GV = M.getNamedValue(C.getName()))
       Check(!GV->hasPrivateLinkage(), "comdat global value has private linkage",
             GV);
+}
+
+void Verifier::visitModuleEmbeddedFBs() {
+  // There can be at most one global variable containing a fat binary per
+  // tapir target.
+  std::map<TapirTargetID, unsigned> fbCounts;
+  for (const GlobalVariable &g : M.globals())
+    if (hasKitsuneFBMD(g))
+      ++fbCounts[*getKitsuneTTMD(g)];
+
+  for (const auto &[tt, n] : fbCounts) {
+    Check(n <= 1, "too many embedded fat binary globals for tapir target '" +
+                      toString(tt) + "'");
+  }
+
+  // If a global variable containing embedded bitcode exists, then a
+  // corresponding fat binary must exist also. The reverse is not true. Once the
+  // fat binary has been generated, the global variable containing embedded
+  // bitcode is removed.
+  std::map<TapirTargetID, unsigned> bcCounts;
+  for (const GlobalVariable &g : M.globals())
+    if (hasKitsuneBCMD(g))
+      ++bcCounts[*getKitsuneTTMD(g)];
+  for (const auto &[tt, n] : bcCounts) {
+    Check(n <= 1, "too many embedded bitcode globals for tapir target '" +
+                      toString(tt) + "'");
+    Check(fbCounts.find(tt) != fbCounts.end(),
+          "embedded bitcode global without fat binary global");
+  }
 }
 
 void Verifier::visitModuleIdents() {

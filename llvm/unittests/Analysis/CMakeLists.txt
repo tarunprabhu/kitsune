@@ -52,6 +52,7 @@ set(ANALYSIS_TEST_SOURCES
   ReplaceWithVecLibTest.cpp
   ScalarEvolutionTest.cpp
   SparsePropagation.cpp
+  TapirTargetAnalysisTest.cpp
   TargetLibraryInfoTest.cpp
   TensorSpecTest.cpp
   TBAATest.cpp

@@ -216,6 +216,7 @@ add_llvm_component_library(LLVMSupport
   IntervalMap.cpp
   Jobserver.cpp
   JSON.cpp
+  KitsuneStringExtras.cpp
   KnownBits.cpp
   KnownFPClass.cpp
   LEB128.cpp

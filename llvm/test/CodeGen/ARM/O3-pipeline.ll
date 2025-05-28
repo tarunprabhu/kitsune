@@ -8,6 +8,7 @@
 ; CHECK-NEXT:      Basic Alias Analysis (stateless AA impl)
 ; CHECK-NEXT:      Function Alias Analysis Results
 ; CHECK-NEXT:      ObjC ARC contraction
+; CHECK-NEXT:    Generate Kitsune fat binaries
 ; CHECK-NEXT:    Pre-ISel Intrinsic Lowering
 ; CHECK-NEXT:    FunctionPass Manager
 ; CHECK-NEXT:      Expand IR instructions

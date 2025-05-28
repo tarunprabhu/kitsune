@@ -357,9 +357,13 @@ public:
   virtual void postProcessFunction(Function &F,
                                    bool ProcessingTapirLoops = false) = 0;
 
+  /// Process a host module before any lowering is performed. Unlike
+  /// prepareModule(), this is called in LoopSpawningTI.
+  virtual void preProcessModule() {}
+
   /// Process a host module at the end of lowering all functions within the
   /// module.
-  virtual void postProcessModule() { return; };
+  virtual void postProcessModule() {}
 
   /// Process a generated helper Function \p F produced via outlining, at the
   /// end of the lowering process.

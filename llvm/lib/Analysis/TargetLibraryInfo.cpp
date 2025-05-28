@@ -35,6 +35,40 @@ std::string VecDesc::getVectorFunctionABIVariantString() const {
 #define GET_TARGET_LIBRARY_INFO_SIGNATURE_TABLE
 #include "llvm/Analysis/TargetLibraryInfo.inc"
 
+// Recognized types of library function arguments and return types.
+enum FuncArgTypeID : char {
+  Void = 0, // Must be zero.
+  Bool,     // 8 bits on all targets
+  Int16,
+  Int32,
+  Int,
+  IntPlus, // Int or bigger.
+  Long,    // Either 32 or 64 bits.
+  IntX,    // Any integer type.
+  Int64,
+  LLong,    // 64 bits on all targets.
+  SizeT,    // size_t.
+  SSizeT,   // POSIX ssize_t.
+  Flt,      // IEEE float.
+  Dbl,      // IEEE double.
+  LDbl,     // Any floating type (TODO: tighten this up).
+  Floating, // Any floating type.
+  Ptr,      // Any pointer type.
+  Struct,   // Any struct type.
+  Ellip,    // The ellipsis (...).
+  Same,     // Same argument type as the previous one.
+};
+
+typedef std::array<FuncArgTypeID, 10> FuncProtoTy;
+
+static const FuncProtoTy Signatures[] = {
+#define TLI_DEFINE_SIG
+#include "llvm/Analysis/TargetLibraryInfo.def"
+};
+
+static_assert(sizeof Signatures / sizeof *Signatures == LibFunc::NumLibFuncs,
+              "Missing library function signatures");
+
 static bool hasSinCosPiStret(const Triple &T) {
   // Only Darwin variants have _stret versions of combined trig functions.
   if (!T.isOSDarwin())
@@ -912,6 +946,12 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_device);
     TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_host);
     TLI.setUnavailable(LibFunc_kithip_sync_stream);
+
+    TLI.setUnavailable(LibFunc_cuda_register_fat_binary);
+    TLI.setUnavailable(LibFunc_cuda_register_fat_binary_end);
+    TLI.setUnavailable(LibFunc_cuda_register_managed_var);
+    TLI.setUnavailable(LibFunc_cuda_register_var);
+    TLI.setUnavailable(LibFunc_cuda_unregister_fat_binary);
   }
 
   TLI.addVectorizableFunctionsFromVecLib(VecLib, T);
@@ -1217,6 +1257,54 @@ bool TargetLibraryInfoImpl::isValidProtoForLibFunc(const FunctionType &FTy,
   // Return success only if all entries on both lists have been processed
   // and the function is not a variadic one.
   return Idx == NumParams + 1 && !FTy.isFunctionVarArg();
+}
+
+static Type *getType(FuncArgTypeID ArgTy, const Module &M,
+                     const TargetLibraryInfoImpl &tlii) {
+  LLVMContext &Ctx = M.getContext();
+  switch (ArgTy) {
+  case Void:
+    return Type::getVoidTy(Ctx);
+  case Bool:
+    return Type::getInt8Ty(Ctx);
+  case Int16:
+    return Type::getInt16Ty(Ctx);
+  case Int32:
+    return Type::getInt32Ty(Ctx);
+  case Int:
+  case IntX:
+    return IntegerType::get(Ctx, tlii.getIntSize());
+  case Int64:
+    return Type::getInt64Ty(Ctx);
+  case LLong:
+    return Type::getInt64Ty(Ctx);
+  case SizeT:
+  case SSizeT:
+    return IntegerType::get(Ctx, tlii.getSizeTSize(M));
+  case Flt:
+    return Type::getFloatTy(Ctx);
+  case Dbl:
+    return Type::getDoubleTy(Ctx);
+  case Ptr:
+    return PointerType::getUnqual(Ctx);
+  default:
+    break;
+  }
+  llvm_unreachable("TargetLibraryInfo::getType: Type not yet supported");
+}
+
+FunctionType *TargetLibraryInfoImpl::getLibFuncType(LibFunc F,
+                                                    const Module &M) const {
+  std::vector<Type *> Args;
+
+  // The only way to detect the end of value types in Signatures[F] is to check
+  // for FuncArgTyID == Void (which is defined to be 0).
+  const FuncProtoTy& TyIDs = Signatures[F];
+  for (size_t Idx = 1; Idx < TyIDs.size() && TyIDs[Idx]; ++Idx)
+    Args.push_back(getType(TyIDs[Idx], M, *this));
+
+  Type *RetTy = getType(TyIDs[0], M, *this);
+  return FunctionType::get(RetTy, Args, false);
 }
 
 bool TargetLibraryInfoImpl::getLibFunc(const Function &FDecl,

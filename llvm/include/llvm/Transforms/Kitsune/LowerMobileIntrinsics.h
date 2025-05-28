@@ -29,7 +29,7 @@ namespace llvm {
 class LowerMobileIntrinsicsPass
     : public PassInfoMixin<LowerMobileIntrinsicsPass> {
 public:
-  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+  PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
 
   /// This pass is required because the Kitsune intrinsics must be lowered even
   /// if optimizations have been disabled. There is no other way to lower the

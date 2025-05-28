@@ -18,6 +18,7 @@
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/ModuleSummaryAnalysis.h"
 #include "llvm/Analysis/RuntimeLibcallInfo.h"
+#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
@@ -488,6 +489,7 @@ static void codegen(const Config &Conf, TargetMachine *TM,
         Mod.getTargetTriple(), TM->Options.ExceptionModel,
         TM->Options.FloatABIType, TM->Options.EABIVersion,
         TM->Options.MCOptions.ABIName, TM->Options.VecLib));
+    CodeGenPasses.add(createTapirTargetAnalysisWrapperPass(Conf.PTO.TTOpts));
 
     // No need to make index available if the module is empty.
     // In theory these passes should not use the index for an empty

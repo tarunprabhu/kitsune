@@ -278,11 +278,17 @@ private:
     case Intrinsic::kitrt_set_fixed_tpb:
     case Intrinsic::kitrt_set_max_tpb:
     case Intrinsic::kitrt_symbol_device_ptr:
-    case Intrinsic::kitrt_symbol_memcpy_device:
-    case Intrinsic::kitrt_symbol_memcpy_host:
     case Intrinsic::kitrt_sync_stream:
       for (User::op_iterator arg = ++argBegin; arg != argEnd; ++arg)
         args.push_back(*arg);
+      break;
+
+      // The kitsune runtime functions have the signature (src, dst, bytes)
+      // while the intrinsics use (dst, src, bytes)
+    case Intrinsic::kitrt_symbol_memcpy_device:
+    case Intrinsic::kitrt_symbol_memcpy_host:
+      args = {call.getArgOperand(2), call.getArgOperand(1),
+              call.getArgOperand(3)};
       break;
 
       // Currently, the number of bytes to prefetch is passed as an argument to

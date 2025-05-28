@@ -148,7 +148,7 @@ public:
   void setOptLevel(OptimizationLevel optLevel) { this->optLevel = optLevel; }
 
   /// Get the primary tapir target ID.
-  TapirTargetID getTapirTargetID() const { return tt; }
+  TapirTargetID getID() const { return tt; }
 
   /// @{
   /// Options common to all tapir targets.

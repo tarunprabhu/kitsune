@@ -28,6 +28,7 @@
 #include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/Support/KitsuneStringExtras.h"
 using namespace clang;
 
 static bool MacroBodyEndsInBackslash(StringRef MacroBody) {

@@ -15,6 +15,7 @@
 
 ; GCN-O0:Target Library Information
 ; GCN-O0-NEXT:Runtime Library Function Analysis
+; GCN-O0-NEXT:Tapir Target Analysis
 ; GCN-O0-NEXT:Target Pass Configuration
 ; GCN-O0-NEXT:Machine Module Information
 ; GCN-O0-NEXT:Target Transform Information
@@ -25,6 +26,7 @@
 ; GCN-O0-NEXT:Register Usage Information Storage
 ; GCN-O0-NEXT:Machine Branch Probability Analysis
 ; GCN-O0-NEXT:  ModulePass Manager
+; GCN-O0-NEXT:    Generate Kitsune fat binaries
 ; GCN-O0-NEXT:    Pre-ISel Intrinsic Lowering
 ; GCN-O0-NEXT:    FunctionPass Manager
 ; GCN-O0-NEXT:      Expand IR instructions
@@ -176,6 +178,7 @@
 
 ; GCN-O1:Target Library Information
 ; GCN-O1-NEXT:Runtime Library Function Analysis
+; GCN-O1-NEXT:Tapir Target Analysis
 ; GCN-O1-NEXT:Target Pass Configuration
 ; GCN-O1-NEXT:Machine Module Information
 ; GCN-O1-NEXT:Target Transform Information
@@ -197,6 +200,7 @@
 ; GCN-O1-NEXT:      Basic Alias Analysis (stateless AA impl)
 ; GCN-O1-NEXT:      Function Alias Analysis Results
 ; GCN-O1-NEXT:      ObjC ARC contraction
+; GCN-O1-NEXT:    Generate Kitsune fat binaries
 ; GCN-O1-NEXT:    Pre-ISel Intrinsic Lowering
 ; GCN-O1-NEXT:    FunctionPass Manager
 ; GCN-O1-NEXT:      Expand IR instructions
@@ -479,6 +483,7 @@
 
 ; GCN-O1-OPTS:Target Library Information
 ; GCN-O1-OPTS-NEXT:Runtime Library Function Analysis
+; GCN-O1-OPTS-NEXT:Tapir Target Analysis
 ; GCN-O1-OPTS-NEXT:Target Pass Configuration
 ; GCN-O1-OPTS-NEXT:Machine Module Information
 ; GCN-O1-OPTS-NEXT:Target Transform Information
@@ -500,6 +505,7 @@
 ; GCN-O1-OPTS-NEXT:      Basic Alias Analysis (stateless AA impl)
 ; GCN-O1-OPTS-NEXT:      Function Alias Analysis Results
 ; GCN-O1-OPTS-NEXT:      ObjC ARC contraction
+; GCN-O1-OPTS-NEXT:    Generate Kitsune fat binaries
 ; GCN-O1-OPTS-NEXT:    Pre-ISel Intrinsic Lowering
 ; GCN-O1-OPTS-NEXT:    FunctionPass Manager
 ; GCN-O1-OPTS-NEXT:      Expand IR instructions
@@ -809,6 +815,7 @@
 
 ; GCN-O2:Target Library Information
 ; GCN-O2-NEXT:Runtime Library Function Analysis
+; GCN-O2-NEXT:Tapir Target Analysis
 ; GCN-O2-NEXT:Target Pass Configuration
 ; GCN-O2-NEXT:Machine Module Information
 ; GCN-O2-NEXT:Target Transform Information
@@ -830,6 +837,7 @@
 ; GCN-O2-NEXT:      Basic Alias Analysis (stateless AA impl)
 ; GCN-O2-NEXT:      Function Alias Analysis Results
 ; GCN-O2-NEXT:      ObjC ARC contraction
+; GCN-O2-NEXT:    Generate Kitsune fat binaries
 ; GCN-O2-NEXT:    Pre-ISel Intrinsic Lowering
 ; GCN-O2-NEXT:    FunctionPass Manager
 ; GCN-O2-NEXT:      Expand IR instructions
@@ -1145,6 +1153,7 @@
 
 ; GCN-O3:Target Library Information
 ; GCN-O3-NEXT:Runtime Library Function Analysis
+; GCN-O3-NEXT:Tapir Target Analysis
 ; GCN-O3-NEXT:Target Pass Configuration
 ; GCN-O3-NEXT:Machine Module Information
 ; GCN-O3-NEXT:Target Transform Information
@@ -1166,6 +1175,7 @@
 ; GCN-O3-NEXT:      Basic Alias Analysis (stateless AA impl)
 ; GCN-O3-NEXT:      Function Alias Analysis Results
 ; GCN-O3-NEXT:      ObjC ARC contraction
+; GCN-O3-NEXT:    Generate Kitsune fat binaries
 ; GCN-O3-NEXT:    Pre-ISel Intrinsic Lowering
 ; GCN-O3-NEXT:    FunctionPass Manager
 ; GCN-O3-NEXT:      Expand IR instructions

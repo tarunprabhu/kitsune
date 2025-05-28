@@ -55,20 +55,19 @@
 #ifndef LLVM_TAPIR_CUDA_ABI_H
 #define LLVM_TAPIR_CUDA_ABI_H
 
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
-#include "llvm/Transforms/Tapir/TapirLoopInfo.h"
+// #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
+
+#include <set>
 
 namespace llvm {
 
 class CudaLoop;
-class CudaTTOptions;
-class DataLayout;
+// class DataLayout;
 class TapirTargetOptions;
-class TargetMachine;
+// class TargetMachine;
 
-typedef std::unique_ptr<ToolOutputFile> CudaABIOutputFile;
+// typedef std::unique_ptr<ToolOutputFile> CudaABIOutputFile;
 
 class CudaABI : public TapirTarget {
 public:
@@ -79,6 +78,7 @@ public:
   void lowerSync(SyncInst &SI) override final;
 
   void addHelperAttributes(Function &F) override final;
+  void preProcessModule() override final;
   bool preProcessFunction(Function &F, TaskInfo &TI,
                           bool OutliningTapirLoops) override final;
   void postProcessFunction(Function &F,
@@ -104,50 +104,56 @@ public:
   LoopOutlineProcessor *
   getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
 
-  void pushPTXFilename(const std::string &PTXFilename);
+  // void pushPTXFilename(const std::string &PTXFilename);
 
-  std::unique_ptr<Module> &getLibDeviceModule();
+  Module &getLibDeviceModule();
 
   void pushGlobalVariable(GlobalVariable *GV);
-  bool hasGlobalVariables() const { return !GlobalVars.empty(); }
-  int globalVarCount() const { return GlobalVars.size(); }
+  // bool hasGlobalVariables() const { return !GlobalVars.empty(); }
+  // int globalVarCount() const { return GlobalVars.size(); }
   void pushSR(Value *SR) { SyncRegList.insert(SR); }
 
-  void registerLaunchStream(CallInst *CI, AllocaInst *AI) {
-    KernelLaunchToStreamMap.insert(std::pair<CallInst *, AllocaInst *>(CI, AI));
-  }
+  // void registerLaunchStream(CallInst *CI, AllocaInst *AI) {
+  //   KernelLaunchToStreamMap.insert(std::pair<CallInst *, AllocaInst *>(CI,
+  //   AI));
+  // }
 
-  AllocaInst *getLaunchStream(CallInst *CI) {
-    LaunchToStreamMapTy::iterator it;
-    it = KernelLaunchToStreamMap.find(CI);
-    if (it != KernelLaunchToStreamMap.end())
-      return it->second;
-    else
-      return nullptr;
-  }
+  // AllocaInst *getLaunchStream(CallInst *CI) {
+  //   LaunchToStreamMapTy::iterator it;
+  //   it = KernelLaunchToStreamMap.find(CI);
+  //   if (it != KernelLaunchToStreamMap.end())
+  //     return it->second;
+  //   else
+  //     return nullptr;
+  // }
 
 private:
-  CudaABIOutputFile generatePTX();
-  CudaABIOutputFile assemblePTXFile(CudaABIOutputFile &PTXFile);
-  CudaABIOutputFile createFatbinaryFile(CudaABIOutputFile &AsmFile);
-  GlobalVariable *embedFatbinary(CudaABIOutputFile &FatbinaryFile);
-  void registerFatbinary(GlobalVariable *RawFatbinary);
-  void finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin);
-  void bindGlobalVariables(Value *CM, IRBuilder<> &B);
-  Function *createCtor(GlobalVariable *Fatbinary, GlobalVariable *Wrapper);
-  Function *createDtor(GlobalVariable *FBHandle);
+  // CudaABIOutputFile generatePTX();
+  // CudaABIOutputFile assemblePTXFile(CudaABIOutputFile &PTXFile);
+  // CudaABIOutputFile createFatbinaryFile(CudaABIOutputFile &AsmFile);
+  // GlobalVariable *embedFatbinary(CudaABIOutputFile &FatbinaryFile);
+  // void registerFatbinary(GlobalVariable *RawFatbinary);
+  // void finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin);
+  // void bindGlobalVariables(Value *CM, IRBuilder<> &B);
+  // Function *createCtor(GlobalVariable *Fatbinary, GlobalVariable *Wrapper);
+  // Function *createDtor(GlobalVariable *FBHandle);
 
-  std::unique_ptr<Module> LibDeviceModule;
+  std::unique_ptr<Module> LibDeviceModule = nullptr;
 
-  std::list<std::string> ModulePTXFileList;
+  // std::list<std::string> ModulePTXFileList;
   std::list<GlobalVariable *> GlobalVars;
   std::set<Value *> SyncRegList;
 
-  typedef llvm::DenseMap<CallInst *, AllocaInst *> LaunchToStreamMapTy;
-  LaunchToStreamMapTy KernelLaunchToStreamMap;
+  // typedef llvm::DenseMap<CallInst *, AllocaInst *> LaunchToStreamMapTy;
+  // LaunchToStreamMapTy KernelLaunchToStreamMap;
 
+  /// Currently, we create a single module into which all tapir loops to be
+  /// run on an NVIDIA GPU are outlined. A loop outline processor is created for
+  /// each tapir loop which will add the outlined code into this module. This
+  /// will eventually be converted to PTX, and from there to executable GPU
+  /// code.
   Module KernelModule;
-  TargetMachine *PTXTargetMachine;
+  // TargetMachine *PTXTargetMachine;
 };
 
 /// The loop outline process for transforming a Tapir parallel loop
@@ -172,7 +178,7 @@ private:
   /// Unique ID for this transformed loop.
   unsigned KernelID;
 
-  /// The name of the kernel into which the loop is outliend. This incorporates
+  /// The name of the kernel into which the loop is outlined. This incorporates
   /// the unique @ref KernelID to ensure that there are no collisions.
   ///
   /// TODO: It would help if this name incorporated some source information such
@@ -209,8 +215,11 @@ private:
 
   StructType *KernelInstMixTy;
 
-  FunctionCallee KitCudaCreateFBModuleFn = nullptr;
   SmallVector<Value *, 5> OrderedInputs;
+
+  /// The GlobalValue's used in the loop that is being outlined. This includes
+  /// functions, global variables, aliases and ifunc's.
+  std::set<GlobalValue*> UsedGlobalValues;
 
 public:
   /// Create a loop outline processor for the cuda tapir target.
@@ -220,9 +229,8 @@ public:
   /// @param KernelName   The name of the function in the @ref KernelModule into
   ///                     which the loop is outlined
   /// @param TT           The "parent" tapir target object
-  /// @param MakeUniqueName Add a unique identifier to the name of the kernel
   CudaLoop(Module &M, Module &KernelModule, const std::string &KernelName,
-           CudaABI *TT, bool MakeUniqueName = true);
+           CudaABI *TT);
   ~CudaLoop();
 
   void setupLoopOutlineArgs(Function &F, ValueSet &HelperArgs,
