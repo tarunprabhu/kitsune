@@ -13,7 +13,10 @@
 #ifndef LLVM_CLANG_DRIVER_TAPIR_H
 #define LLVM_CLANG_DRIVER_TAPIR_H
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Frontend/Tapir/Tapir.h"
+
+#include <optional>
 
 namespace llvm {
 namespace opt {

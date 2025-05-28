@@ -44,6 +44,8 @@
 ; CHECK-CORO-NEXT: Running pass: LowerMobileIntrinsicsPass
 ; CHECK-CORO-NEXT: Running analysis: TapirTargetAnalysis
 ; CHECK-CORO-NEXT: Running pass: StripKitsuneAddrSpacePass
+; CHECK-CORO-NEXT: Running pass: FinalizeEmbeddedBitcodePass
+; CHECK-CORO-NEXT: Running pass: GenerateKitsuneCtorsPass
 ; CHECK-CORO-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
 ; CHECK-CORO-NEXT: Running analysis: TargetLibraryAnalysis
 ; CHECK-CORO-NEXT: Running analysis: TargetLibraryAnalysis

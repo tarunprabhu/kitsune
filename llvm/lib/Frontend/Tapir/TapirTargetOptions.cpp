@@ -20,6 +20,7 @@
 #include "llvm/Frontend/Tapir/OptLevelUtils.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/KitsuneStringExtras.h"
 #include "llvm/Support/Process.h"
 
 using namespace llvm;

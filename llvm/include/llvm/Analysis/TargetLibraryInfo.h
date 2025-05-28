@@ -141,6 +141,9 @@ public:
   TargetLibraryInfoImpl &operator=(const TargetLibraryInfoImpl &TLI);
   TargetLibraryInfoImpl &operator=(TargetLibraryInfoImpl &&TLI);
 
+  /// Get the type of a library function.
+  FunctionType *getLibFuncType(LibFunc F, const Module& M) const;
+
   /// Searches for a particular function name.
   ///
   /// If it is one of the known library functions, return true and set F to the
@@ -336,6 +339,11 @@ public:
   bool isValidProtoForLibFunc(const FunctionType &FTy, LibFunc F,
                               const Module &M) const {
     return Impl->isValidProtoForLibFunc(FTy, F, M);
+  }
+
+  /// Get the function type for a library function.
+  FunctionType *getLibFuncType(LibFunc F, const Module& M) const {
+    return Impl->getLibFuncType(F, M);
   }
 
   /// Searches for a particular function name.

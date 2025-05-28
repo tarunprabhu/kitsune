@@ -14,10 +14,7 @@
 #ifndef LLVM_FRONTEND_TAPIR_TAPIR_H
 #define LLVM_FRONTEND_TAPIR_TAPIR_H
 
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Passes/OptimizationLevel.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetOptions.h"
+#include <cstdint>
 
 namespace llvm {
 
@@ -48,19 +45,6 @@ enum class TapirSpawnStrategy {
   DivideAndConquer, /// Divide and conquer
   GPU               /// GPU-centric spawning strategy. Currently unused.
 };
-
-/// @{
-/// Serialization functions for various types.
-
-std::string toString(const TapirTargetID &);
-std::string toString(const MaybeBool &);
-
-raw_ostream &operator<<(raw_ostream &os, const TapirTargetID &);
-raw_ostream &operator<<(raw_ostream &os, const TapirSpawnStrategy &);
-raw_ostream &operator<<(raw_ostream &os, const OptimizationLevel &);
-raw_ostream &operator<<(raw_ostream &os, const FPOpFusion::FPOpFusionMode &);
-raw_ostream &operator<<(raw_ostream &os, const MaybeBool &);
-/// @}
 
 } // namespace llvm
 

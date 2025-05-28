@@ -38,7 +38,7 @@ enum class AllocatorKind {
 /// implemented eventually.
 static AllocatorKind determineAllocatorKind(const TapirTargetInfo &tti,
                                             CallInst &) {
-  if (std::optional<TapirTargetID> tt = tti.getIDIfAvailable()) {
+  if (std::optional<TapirTargetID> tt = tti.getIDIfExists()) {
     switch (*tt) {
     case TapirTargetID::None:
       return AllocatorKind::None;

@@ -36,6 +36,7 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/KitsuneStringExtras.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
@@ -481,9 +482,8 @@ public:
   LoopSpawningImpl(
       Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
       ScalarEvolution &SE, AssumptionCache &AC, TargetTransformInfo &TTI,
-      const TapirTargetInfo &TGI, TapirTargetID Target,
-      OptimizationRemarkEmitter &ORE,
-      std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets)
+      OptimizationRemarkEmitter &ORE, const TapirTargetInfo &TGI,
+      const std::map<TapirTargetID, std::unique_ptr<TapirTarget>> &Targets)
       : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TGI(TGI),
         ORE(ORE), Targets(Targets) {}
 
@@ -603,7 +603,7 @@ private:
   TargetTransformInfo &TTI;
   const TapirTargetInfo &TGI;
   OptimizationRemarkEmitter &ORE;
-  std::map<TapirTargetID, std::shared_ptr<TapirTarget>> &Targets;
+  const std::map<TapirTargetID, std::unique_ptr<TapirTarget>> &Targets;
 
   std::vector<TapirLoopInfo *> TapirLoops;
   DenseMap<Task *, TapirLoopInfo *> TaskToTapirLoop;
@@ -988,33 +988,20 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   Module &M = *F.getParent();
   Loop *L = TL->getLoop();
   TapirLoopHints Hints(L);
-  TapirTargetID TLTID = TGI.getID();
+  TapirTargetID TT = TGI.getID();
   if (std::optional<TapirTargetID> HintTT = Hints.getLoopTarget())
-    TLTID = *HintTT;
-
-  // get the LoopTarget from set of Targets if it exists, otherwise create it
-
-  // FIXME: The order of target processing here possibly breaks a "inside-out"
-  // contract (loosely speaking) for ordering.  In nested constructs this
-  // leaves us with a partially completed code transformation when we pop
-  // up a level of code nesting.  This is important for nested loops with
-  // different targets...
-  if (Targets.find(TLTID) == Targets.end()) {
-    const TapirTargetOptions &TTOpts = TGI.getOptions();
-    Targets[TLTID] =
-        std::shared_ptr<TapirTarget>(getTapirTargetFromID(M, TLTID, TTOpts));
-  }
+    TT = *HintTT;
+  const TapirTargetOptions &TTOpts = TGI.getOptions();
 
   // Allow the Tapir target to define a custom loop-outline processor.
-  if (LoopOutlineProcessor *TargetLOP =
-          Targets[TLTID]->getLoopOutlineProcessor(TL))
-    return TargetLOP;
+  if (LoopOutlineProcessor *LOP = Targets.at(TT)->getLoopOutlineProcessor(TL))
+    return LOP;
 
   switch (Hints.getStrategy()) {
   case TapirSpawnStrategy::DivideAndConquer:
-    return new DACSpawning(M, TGI.getOptions());
+    return new DACSpawning(M, TTOpts);
   default:
-    return new DefaultLoopOutlineProcessor(M, TGI.getOptions());
+    return new DefaultLoopOutlineProcessor(M, TTOpts);
   }
 }
 
@@ -1702,27 +1689,12 @@ bool LoopSpawningImpl::run() {
   if (TapirLoops.empty())
     return false;
 
+  // Perform any Target-dependent preprocessing of F.
+  for (TapirTargetID ID : TGI.getRequiredTTs(F))
+    Targets.at(ID)->preProcessFunction(F, TI, true);
+
   // Outline all Tapir loops.
   TaskOutlineMapTy TapirLoopOutlines = outlineAllTapirLoops();
-
-  // DWS I reordered this after outlineAllTapirLoops
-  // I don't know if I can do this, but we don't want to preprocess the Target
-  // yet since with attributed forall's we may never need to preprocess the
-  // command line target. We also need to preprocess all the backend targets
-  // which we only know after outlining all Tapir loops
-
-  // FIXME: The order of target processing here possibly breaks a "inside-out"
-  // contract (loosely speaking) for ordering.  In nested constructs this
-  // leaves us with a partially completed code transformation when we pop
-  // up a level of code nesting.  This is important for nested loops with
-  // different targets...
-
-  // Perform any Target-dependent preprocessing of F.
-  for (const auto &[TID, ThisTarget] : Targets)
-    // NOTE: TODO: This is a no-op for GPU targets (currently).  However,
-    // we need to consider if this is a ordering issue (processing per
-    // target vs. a post-ordering).
-    ThisTarget->preProcessFunction(F, TI, true);
 
   // Perform target-specific processing of the outlined-loop calls.
   {
@@ -1731,23 +1703,13 @@ bool LoopSpawningImpl::run() {
                          TimerGroupDescription, TimePassesIsEnabled);
     for (Task *T : post_order(TI.getRootTask()))
       if (TapirLoopInfo *TL = getTapirLoop(T))
-        // NOTE: TODO: For GPU transforms this replaces the outlined loop
-        // function call with the necessary code to (possibly) prefetch
-        // and lauch a kernel for the outlined loop body.
         OutlineProcessors[TL]->processOutlinedLoopCall(
             *TL, TapirLoopOutlines[T], DT);
   } // end timed region
 
-  // FIXME/TODO: The order of target processing here possibly breaks an
-  // "inside-out" contract (loosely speaking) for ordering.  In nested
-  // constructs this leaves us with a partially completed code transformation
-  // when we pop up a level of code nesting.  This is important for nested loops
-  // with different targets...
-  //
   // Perform any Target-dependent postprocessing of F.
-  //
-  for (const auto &[TID, ThisTarget] : Targets)
-    ThisTarget->postProcessFunction(F, true);
+  for (TapirTargetID ID : TGI.getRequiredTTs(F))
+    Targets.at(ID)->postProcessFunction(F, true);
 
   LLVM_DEBUG({
     NamedRegionTimer NRT("verify", "Post-loop-spawning verification",
@@ -1787,7 +1749,6 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
   };
 
   const TapirTargetInfo &TGI = AM.getResult<TapirTargetAnalysis>(M);
-  TapirTargetID TargetID = TGI.getID();
   const TapirTargetOptions &TTOpts = TGI.getOptions();
 
   SmallVector<Function *, 8> WorkList;
@@ -1796,47 +1757,37 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
     if (!F.empty())
       WorkList.push_back(&F);
 
-  Function *SavedF = nullptr;
   // Transform all loops into simplified, LCSSA form before we process them.
   for (Function *F : WorkList) {
-    if (SavedF == nullptr)
-      SavedF = F;
     LoopInfo &LI = GetLI(*F);
     DominatorTree &DT = GetDT(*F);
     ScalarEvolution &SE = GetSE(*F);
     SmallVector<Loop *, 8> LoopWorkList;
-    for (Loop *L : LI) {
-      Changed |= simplifyLoop(L, &DT, &LI, &SE, &GetAC(*F), nullptr,
-                              /* PreserveLCSSA */ false);
+    for (Loop *L : LI)
       LoopWorkList.push_back(L);
-    }
     for (Loop *L : LoopWorkList)
       Changed |= formLCSSARecursively(*L, DT, &LI, &SE);
   }
 
+  std::map<TapirTargetID, std::unique_ptr<TapirTarget>> Targets;
+  for (Function *F : WorkList)
+    for (TapirTargetID ID : TGI.getRequiredTTs(*F))
+      if (Targets.find(ID) == Targets.end())
+        Targets.emplace(ID, getTapirTargetFromID(M, ID, TTOpts));
+
+  for (TapirTargetID ID : TGI.getRequiredTTs(M))
+    Targets.at(ID)->preProcessModule();
+
   // Now process each loop.
-  bool HasParallelism = false;
-  std::map<TapirTargetID, std::shared_ptr<TapirTarget>> Targets;
   for (Function *F : WorkList) {
-    std::shared_ptr<TapirTarget> Target(
-        getTapirTargetFromID(M, TargetID, TTOpts));
-    HasParallelism |=
-        LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
-                         GetAC(*F), GetTTI(*F), TGI, TargetID,
-                         GetORE(*F), Targets)
-            .run();
+    Changed |= LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
+                                GetAC(*F), GetTTI(*F), GetORE(*F), TGI, Targets)
+                   .run();
   }
 
-  if (HasParallelism)
-    // FIXME: The order of target processing here possibly breaks a
-    // "inside-out" contract (loosely speaking) for ordering.  In nested
-    // constructs this leaves us with a partially completed code
-    // transformation when we pop up a level of code nesting.  This is
-    // important for nested loops with different targets...
-    for (const auto &[TID, ThisTarget] : Targets)
-      ThisTarget->postProcessModule();
+  for (TapirTargetID ID : TGI.getRequiredTTs(M))
+    Targets.at(ID)->postProcessModule();
 
-  Changed |= HasParallelism;
   if (Changed)
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();

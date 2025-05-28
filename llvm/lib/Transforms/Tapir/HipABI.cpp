@@ -786,7 +786,8 @@ void HipLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
         NewGV = new GlobalVariable(KernelModule, GVType, true /*isConstant*/,
                                    GlobalValue::InternalLinkage,
                                    GV->getInitializer(), GVName + "_devvar",
-                                   nullptr, GlobalValue::NotThreadLocal,
+                                   /*insertBefore*/ nullptr,
+                                   GlobalValue::NotThreadLocal,
                                    AMDGPUAS::CONSTANT_ADDRESS);
         NewGV->setDSOLocal(GV->isDSOLocal());
       } else {
@@ -799,9 +800,9 @@ void HipLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
             KernelModule, GVType, false /*isConstant*/,
             GlobalValue::LinkageTypes::ExternalLinkage,
             Constant::getNullValue(GVType), GVName + "_devvar",
-            /* insertBefore */ nullptr, GlobalValue::NotThreadLocal,
+            /*insertBefore*/ nullptr, GlobalValue::NotThreadLocal,
             AMDGPUAS::GLOBAL_ADDRESS,
-            /* externally initialized */ true);
+            /*externallyInitialized*/ true);
 
         // HIP (appears) to require protected visibility! Without this the
         // runtime won't be able to find the global variable for host <-> device
@@ -1463,7 +1464,7 @@ void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
         Constant *Bytes = ConstantInt::get(
             Int64Ty, DL.getTypeAllocSize(HostGV->getValueType()));
         CallInst::Create(KitrtSymbolMemcpyDevice,
-                         {ConstTT, VGVPtr, DevPtr, Bytes}, "",
+                         {ConstTT, DevPtr, VGVPtr, Bytes}, "",
                          Call->getIterator());
       }
     }
