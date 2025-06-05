@@ -18,33 +18,10 @@
 #include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/Frontend/Tapir/CommandLine.h"
 #include "llvm/Frontend/Tapir/OptLevelUtils.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/KitsuneStringExtras.h"
 #include "llvm/Support/Process.h"
 
 using namespace llvm;
-
-namespace {
-
-/// Parser for the -tapir-target option to create an optional TapirTargetID.
-struct TapirTargetIDParser : public cl::parser<std::optional<TapirTargetID>> {
-  TapirTargetIDParser(
-      cl::opt<std::optional<TapirTargetID>, false, TapirTargetIDParser> &opt)
-      : parser(opt) {}
-  bool parse(cl::Option &opt, StringRef name, StringRef val,
-             std::optional<TapirTargetID> &result) {
-    result = std::nullopt;
-    if (ErrorOr<TapirTargetID> tt = parseTapirTarget(val)) {
-      result = *tt;
-    } else {
-      opt.error("invalid value '" + val + "' in '" + name + "'");
-    }
-    return !result.has_value();
-  }
-};
-
-} // namespace
 
 namespace llvm {
 
@@ -54,8 +31,8 @@ namespace llvm {
 
 // -------------------- options common to all tapir targets --------------------
 
-static cl::opt<std::optional<TapirTargetID>, false, TapirTargetIDParser>
-    clTapirTarget("tapir-target", cl::desc("Target runtime for Tapir"),
+static cl::opt<std::optional<TapirTargetID>, false, cl::TapirTargetIDParser>
+    clTapirTarget("tapir-target", cl::desc("The primary tapir target"),
                   cl::init(std::optional<TapirTargetID>()));
 
 static cl::alias clTapir("tapir", cl::desc("Alias for --tapir-target"),
