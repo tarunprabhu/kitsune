@@ -16,6 +16,9 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/CommandLine.h"
+
+#include <optional>
 
 namespace llvm {
 
@@ -26,6 +29,27 @@ ErrorOr<TapirTargetID> parseTapirTarget(StringRef s);
 /// Parse a @ref MaybeBool enum from a string. If the string is not a valid
 /// string for this enum, an invalid argument error is returned.
 ErrorOr<MaybeBool> parseMaybeBool(StringRef s);
+
+namespace cl {
+
+/// Parser for command line options that will create an optional TapirTargetID.
+struct TapirTargetIDParser : public cl::parser<std::optional<TapirTargetID>> {
+  TapirTargetIDParser(
+      cl::opt<std::optional<TapirTargetID>, false, TapirTargetIDParser> &opt)
+      : parser(opt) {}
+  bool parse(cl::Option &opt, StringRef name, StringRef val,
+             std::optional<TapirTargetID> &result) {
+    result = std::nullopt;
+    if (ErrorOr<TapirTargetID> tt = parseTapirTarget(val)) {
+      result = *tt;
+    } else {
+      opt.error("invalid value '" + val + "' in '" + name + "'");
+    }
+    return !result.has_value();
+  }
+};
+
+} // namespace cl
 
 } // namespace llvm
 
