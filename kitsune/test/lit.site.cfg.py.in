@@ -43,6 +43,7 @@ config.kitfc = "@KITSUNE_Fortran_FRONTEND@"
 # these utilities could be made configurable, we need only change them here.
 config.kitconf = "kit-config"
 config.kitmbc = "kitmbc"
+config.kitmenc = "kitmenc"
 
 import lit.llvm
 lit.llvm.initialize(lit_config, config)
