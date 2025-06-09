@@ -1,0 +1,27 @@
+# Check basic usage and command line options
+#
+# ------------------------------------------------------------------------------
+#
+# RUN: echo "" | %kitmenc \
+# RUN:     | FileCheck %s --check-prefix=DEFAULT
+#
+# DEFAULT: !kitsune.bc ![[MDCUDA:[0-9]+]]
+# DEFAULT: ![[MDCUDA]] = !{i8 2}
+#
+# ------------------------------------------------------------------------------
+#
+# RUN: echo "" | %kitmenc -generator=serial \
+# RUN:     | FileCheck %s --check-prefix=SERIAL
+#
+# SERIAL: !kitsune.bc ![[MDSERIAL:[0-9]+]]
+# SERIAL: ![[MDSERIAL]] = !{i8 1}
+#
+# ------------------------------------------------------------------------------
+#
+# RUN: %kitmenc -generator=hip %S/input/empty.ll \
+# RUN:     | FileCheck %s --check-prefix=HIP
+#
+# HIP: !kitsune.bc ![[MDHIP:[0-9]+]]
+# HIP: ![[MDHIP]] = !{i8 3}
+#
+# ------------------------------------------------------------------------------
