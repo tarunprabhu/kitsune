@@ -1,8 +1,13 @@
 add_llvm_component_library(LLVMKitsuneOpts
-  FinalizeEmbeddedBitcode.cpp
+  EmbBCPassUtils.cpp
+  FinalizeKernelMetadata.cpp
   GenerateKitsuneCtors.cpp
+  LinkDeviceBitcode.cpp
   LowerKitsuneRuntimeIntrinsics.cpp
   LowerMobileIntrinsics.cpp
+  OptimizeEmbBC.cpp
+  PrepareEmbBC.cpp
+  ResolveDeviceFuncs.cpp
   StripKitsuneAddrSpace.cpp
 
   ADDITIONAL_HEADER_DIRS
@@ -28,3 +33,6 @@ add_llvm_component_library(LLVMKitsuneOpts
   TransformUtils
   Passes
 )
+
+target_include_directories(LLVMKitsuneOpts PRIVATE
+  ${CMAKE_SOURCE_DIR}/../kitsune/include)

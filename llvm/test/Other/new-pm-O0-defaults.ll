@@ -44,7 +44,11 @@
 ; CHECK-CORO-NEXT: Running pass: LowerMobileIntrinsicsPass
 ; CHECK-CORO-NEXT: Running analysis: TapirTargetAnalysis
 ; CHECK-CORO-NEXT: Running pass: StripKitsuneAddrSpacePass
-; CHECK-CORO-NEXT: Running pass: FinalizeEmbeddedBitcodePass
+; CHECK-CORO-NEXT: Running pass: ResolveDeviceFuncsPass
+; CHECK-CORO-NEXT: Running pass: PrepareEmbBCPass
+; CHECK-CORO-NEXT: Running pass: LinkDeviceBitcodePass
+; CHECK-CORO-NEXT: Running pass: OptimizeEmbBCPass
+; CHECK-CORO-NEXT: Running pass: FinalizeKernelMetadataPass
 ; CHECK-CORO-NEXT: Running pass: GenerateKitsuneCtorsPass
 ; CHECK-CORO-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
 ; CHECK-CORO-NEXT: Running analysis: TargetLibraryAnalysis

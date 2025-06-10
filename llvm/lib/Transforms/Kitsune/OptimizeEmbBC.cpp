@@ -1,4 +1,4 @@
-//=- FinalizeEmbeddedBitcode.cpp - Finalize embedded bitcode -----*- C++ -*--=//
+//===- OptimizeEmbBC.cpp - Optimize embedded bitcode -----------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Finalize any embedded bitcode in the module. This bitcode will have been
-// inserted by the tapir targets.
+// Run the standard sequence of optimization passes on the embedded bitcode.
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/Kitsune/FinalizeEmbeddedBitcode.h"
+#include "llvm/Transforms/Kitsune/OptimizeEmbBC.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Frontend/Tapir/OptLevelUtils.h"
@@ -28,7 +27,7 @@
 
 #include <vector>
 
-#define DEBUG_TYPE "finalize-embedded-bitcode"
+#define DEBUG_TYPE "optimize-emb-bc"
 
 using namespace llvm;
 
@@ -46,9 +45,9 @@ static cl::opt<int>
 
 namespace {
 
-/// Finalize the embedded bitcode. This runs the standard sequence of
+/// Optimize the embedded bitcode. This runs the standard sequence of
 /// optimization passes on it.
-class FinalizeEmbeddedBitcode {
+class OptimizeBC {
 private:
   const TapirTargetOptions &ttOpts;
 
@@ -122,7 +121,7 @@ private:
   }
 
 public:
-  FinalizeEmbeddedBitcode(const TapirTargetOptions &ttOpts) : ttOpts(ttOpts) {}
+  OptimizeBC(const TapirTargetOptions &ttOpts) : ttOpts(ttOpts) {}
 
   bool run(Module &m) {
     bool changed = false;
@@ -170,8 +169,8 @@ public:
 
 namespace llvm {
 
-PreservedAnalyses FinalizeEmbeddedBitcodePass::run(Module &m,
-                                                   ModuleAnalysisManager &mam) {
+PreservedAnalyses OptimizeEmbBCPass::run(Module &m,
+                                         ModuleAnalysisManager &mam) {
   // If no primary tapir target has been set, there will be nothing to do, so
   // bail out immediately.
   const TapirTargetInfo &tgi = mam.getResult<TapirTargetAnalysis>(m);
@@ -179,7 +178,7 @@ PreservedAnalyses FinalizeEmbeddedBitcodePass::run(Module &m,
     return PreservedAnalyses::all();
 
   const TapirTargetOptions &tto = tgi.getOptions();
-  FinalizeEmbeddedBitcode(tto).run(m);
+  OptimizeBC(tto).run(m);
 
   // This will preserve all analyses because the only thing that will have
   // changed are the types and initializers of one or more global variables.

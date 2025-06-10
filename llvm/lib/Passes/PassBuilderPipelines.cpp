@@ -85,10 +85,14 @@
 #include "llvm/Transforms/Instrumentation/PGOCtxProfLowering.h"
 #include "llvm/Transforms/Instrumentation/PGOForceFunctionAttrs.h"
 #include "llvm/Transforms/Instrumentation/PGOInstrumentation.h"
-#include "llvm/Transforms/Kitsune/FinalizeEmbeddedBitcode.h"
+#include "llvm/Transforms/Kitsune/FinalizeKernelMetadata.h"
 #include "llvm/Transforms/Kitsune/GenerateKitsuneCtors.h"
+#include "llvm/Transforms/Kitsune/LinkDeviceBitcode.h"
 #include "llvm/Transforms/Kitsune/LowerKitsuneRuntimeIntrinsics.h"
 #include "llvm/Transforms/Kitsune/LowerMobileIntrinsics.h"
+#include "llvm/Transforms/Kitsune/OptimizeEmbBC.h"
+#include "llvm/Transforms/Kitsune/PrepareEmbBC.h"
+#include "llvm/Transforms/Kitsune/ResolveDeviceFuncs.h"
 #include "llvm/Transforms/Kitsune/StripKitsuneAddrSpace.h"
 #include "llvm/Transforms/Scalar/ADCE.h"
 #include "llvm/Transforms/Scalar/AlignmentFromAssumptions.h"
@@ -1896,7 +1900,11 @@ PassBuilder::buildKitsunePostTapirPipeline(OptimizationLevel Level,
                                            ThinOrFullLTOPhase Phase) {
   ModulePassManager MPM;
 
-  MPM.addPass(FinalizeEmbeddedBitcodePass());
+  MPM.addPass(ResolveDeviceFuncsPass());
+  MPM.addPass(PrepareEmbBCPass());
+  MPM.addPass(LinkDeviceBitcodePass());
+  MPM.addPass(OptimizeEmbBCPass());
+  MPM.addPass(FinalizeKernelMetadataPass());
   MPM.addPass(GenerateKitsuneCtorsPass());
 
   // The tapir lowering passes may have introduced kitsune runtime intrinsics.

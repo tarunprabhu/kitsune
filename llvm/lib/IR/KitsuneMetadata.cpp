@@ -21,12 +21,18 @@ using namespace llvm;
 /// Metadata that indicates that a global variable contains serialized LLVM
 /// bitcode created by a tapir target. This contains a single integer value
 /// which is the id of the tapir target that created this metadata.
-static constexpr const char *mdKitsuneBC = "kitsune.bc";
+constexpr const char *mdKitsuneBC = "kitsune.bc";
 
 /// Metadata that indicates that a global variable contains the fat binary to
 /// be used by one of Kitsune's GPU runtimes. This contains a single integer
 /// value which is the id of the tapir target that created this metadata.
-static constexpr const char *mdKitsuneFB = "kitsune.fb";
+constexpr const char *mdKitsuneFB = "kitsune.fb";
+
+/// Metadata that indicates that a global variable contains metadata about a
+/// kernel function. This metadata currently includes counts for various
+/// instruction kinds in the function, but could be expanded to include other
+/// data that could be useful for the runtime.
+constexpr const char *mdKitsuneKernelMD = "kitsune.kernel.md";
 
 static std::optional<TapirTargetID> getKitsuneTTMD(const MDNode &md) {
   assert(md.getNumOperands() >= 1 &&
@@ -64,6 +70,13 @@ void llvm::setKitsuneFBMD(GlobalVariable &g, TapirTargetID tt) {
   g.setMetadata(mdKitsuneFB, md);
 }
 
+void llvm::setKitsuneKernelMDMD(GlobalVariable &g, StringRef kname) {
+  LLVMContext &ctx = g.getContext();
+  Constant *c = ConstantDataArray::getString(ctx, kname, /*AddNull=*/true);
+  MDNode *md = MDNode::get(ctx, ConstantAsMetadata::get(c));
+  g.setMetadata(mdKitsuneKernelMD, md);
+}
+
 bool llvm::hasKitsuneBCMD(const GlobalVariable &g) {
   return g.hasMetadata(mdKitsuneBC);
 }
@@ -84,10 +97,38 @@ bool llvm::hasKitsuneFBMD(const GlobalVariable &g, TapirTargetID tt) {
   return false;
 }
 
-std::optional<TapirTargetID> llvm::getKitsuneTTMD(const GlobalVariable &g) {
+bool llvm::hasKitsuneKernelMDMD(const GlobalVariable &g) {
+  return g.getMetadata(mdKitsuneKernelMD);
+}
+
+std::optional<TapirTargetID> llvm::getKitsuneBCMD(const GlobalVariable &g) {
   if (MDNode *md = g.getMetadata(mdKitsuneBC))
-    return ::getKitsuneTTMD(*md);
-  else if (MDNode *md = g.getMetadata(mdKitsuneFB))
-    return ::getKitsuneTTMD(*md);
+    return getKitsuneTTMD(*md);
+  return std::nullopt;
+}
+
+std::optional<TapirTargetID> llvm::getKitsuneFBMD(const GlobalVariable &g) {
+  if (MDNode *md = g.getMetadata(mdKitsuneFB))
+    return getKitsuneTTMD(*md);
+  return std::nullopt;
+}
+
+std::optional<StringRef> llvm::getKitsuneKernelMDMD(const GlobalVariable &g) {
+  if (MDNode *md = g.getMetadata(mdKitsuneKernelMD)) {
+    assert(md->getNumOperands() >= 1 &&
+           "Expected at least one operand in kernel metadata");
+    assert(isa<ConstantAsMetadata>(md->getOperand(0)) &&
+           "First argument of kernel metadata node must be constant");
+
+    auto *cmd = cast<ConstantAsMetadata>(md->getOperand(0));
+    assert(isa<ConstantDataArray>(cmd->getValue()) &&
+           "First argument of kernel metadata must contain constant data");
+
+    auto *cda = cast<ConstantDataArray>(cmd->getValue());
+    assert(cda->isCString() &&
+           "First argument of kernel metadata must contain a string literal");
+
+    return cda->getAsCString();
+  }
   return std::nullopt;
 }

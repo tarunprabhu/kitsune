@@ -148,7 +148,7 @@ struct ForcePassLinking {
     (void)llvm::createFixIrreduciblePass();
     (void)llvm::createSelectOptimizePass();
     (void)llvm::createTapirTargetAnalysisWrapperPass(std::nullopt);
-    (void)llvm::createCodeGenKitsuneFatBinariesLegacyPass();
+    (void)llvm::createCodeGenFatBinariesLegacyPass();
 
     (void)new llvm::ScalarEvolutionWrapperPass();
     llvm::Function::Create(nullptr, llvm::GlobalValue::ExternalLinkage)

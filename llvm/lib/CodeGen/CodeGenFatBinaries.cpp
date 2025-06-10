@@ -1,4 +1,4 @@
-//==- CodeGenKitsuneFatBinary.cpp - Generate fat binaries from GPU bitcode -==//
+//==- CodeGenFatBinaries.cpp - Generate fat binaries from embedded bitcode -==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/CodeGenKitsuneFatBinaries.h"
+#include "llvm/CodeGen/CodeGenFatBinaries.h"
 #include "kitsune/Config/config.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -38,17 +38,26 @@ using namespace llvm;
 
 #define DEBUG_TYPE "codegen-fat-binaries"
 
+// The default mode of the transformation is to embed a single fat binary image
+// for the selected target architecture. With this flag set, the PTX form of the
+// code will also be embedded into the fat binary.
+// FIXME: This is currently not used.
+static cl::opt<bool> clEmbedPTXInFatbinaries(
+    "cgfb-embed-ptx", cl::init(false), cl::Hidden,
+    cl::desc("Embed PTX code in the fat binaries generated for the cuda tapir "
+             "target (NOT YET IMPLEMENTED)"));
+
+static cl::opt<bool>
+    clKeepFiles("cgfb-keep-files", cl::init(false), cl::Hidden,
+                cl::desc("Do not delete intermediate files created during "
+                         "generation of the fat binaries"));
+
 // Override the optimization level used by ptxas when generating GPU code. If
 // this is not explicitly set, it will use the optimization level set in the
 // tapir target options, which is usually whatever was passed to the frontend.
 static cl::opt<int> clPtxasOptLevel(
-    "cuabi-ptxas-opt-level", cl::init(-1), cl::Hidden,
+    "cgfb-ptxas-opt-level", cl::init(-1), cl::Hidden,
     cl::desc("Set the optimization level for ptxas. Must be 0, 1, 2 or 3"));
-
-static cl::opt<bool>
-    clKeepFiles("cuabi-keep-files", cl::init(false), cl::Hidden,
-                cl::desc("Do not delete intermediate files created during "
-                         "generation of the fat binaries"));
 
 namespace {
 
@@ -80,7 +89,7 @@ private:
     // module (M) with the extension changed to PTX.
     SmallString<1024> ptxFilename;
     std::string model =
-        llvm::join_items("_", "kitcu", "%%-%%-%%", km.getName());
+        llvm::join_items("-", "kitcu", "%%%%%%%%", km.getName());
     sys::fs::createUniquePath(model.c_str(), ptxFilename, true);
     sys::path::replace_extension(ptxFilename, ".ptx");
     LLVM_DEBUG(dbgs() << "\t- PTX file: '" << ptxFilename << "'.\n");
@@ -88,7 +97,6 @@ private:
     std::error_code ec;
     std::unique_ptr<ToolOutputFile> ptxFile = std::make_unique<ToolOutputFile>(
         ptxFilename, ec, sys::fs::OpenFlags::OF_None);
-    ptxFile->keep();
 
     TargetOptions targetOpts;
     targetOpts.AllowFPOpFusion = ttOpts.getFPOpFusionMode();
@@ -136,10 +144,7 @@ private:
     std::unique_ptr<ToolOutputFile> asmFile = std::make_unique<ToolOutputFile>(
         asmFilename, ec, sys::fs::OpenFlags::OF_None);
 
-    // Build the command line for ptxas...  There are some target specific
-    // options that we support to configure some specifics here.  See the 'opt'
-    // entries near the top of this file. These can be passed to the transform
-    // via '-mllvm <cuabi-option>'.
+    // Build the command line for ptxas.
     std::vector<StringRef> args;
     args.push_back(ptxas);
 
@@ -171,13 +176,6 @@ private:
 
     args.push_back(ptxFilename);
 
-    // // Build argv for exec'ing ptxas...
-    // SmallVector<const char *, 128> PTXASArgv;
-    // PTXASArgv.append(args.begin(), args.end());
-    // PTXASArgv.push_back(nullptr);
-
-    // if (ttOpts.getTapirVerbose())
-    //   tapir::renderCommandLine(args, errs());
     LLVM_DEBUG({
       dbgs() << "\t- ptxas command line:\n";
       unsigned i = 0;
@@ -197,7 +195,6 @@ private:
       report_fatal_error(
           StringRef(llvm::join_items(" ", "'ptxas' failure:", errMsg)));
 
-    asmFile->keep();
     return asmFile;
   }
 
@@ -242,15 +239,6 @@ private:
     //   }
     // }
 
-    // args.push_back(nullptr);
-
-    // SmallVector<const char *, 128> FatbinaryArgv;
-    // FatbinaryArgv.append(args.begin(), args.end());
-    // std::vector<StringRef> FatbinaryArgs =
-    //     toStringRefArray(FatbinaryArgv.data());
-
-    // if (TTO.getTapirVerbose())
-    //   tapir::renderCommandLine(FatbinaryArgs, errs());
     LLVM_DEBUG({
       dbgs() << "\tfatbinary command line:\n";
       unsigned i = 0;
@@ -273,16 +261,6 @@ private:
           StringRef(llvm::join_items(" ", "'fatbinary' failure:", errMsg)));
     }
 
-    // if (EmbedPTXInFatbinaries) {
-    //   std::list<std::string>::iterator it = PTXFilesArgList.begin();
-    //   while (it != PTXFilesArgList.end()) {
-    //     PTXFilesArgList.erase(it++);
-    //   }
-    // }
-
-    // TODO: Not sure we need to force 'keep' here as we return the output file
-    // but will keep it here for now just to play it safe.
-    fatbinFile->keep();
     return fatbinFile;
   }
 
@@ -296,11 +274,12 @@ public:
     std::unique_ptr<ToolOutputFile> asmFile = assemblePTX(*ptxFile);
     std::unique_ptr<ToolOutputFile> fatbinFile = createFatBinary(*asmFile);
     embedFatBinary(*fatbinFile, gfb);
+    gbc.eraseFromParent();
 
-    if (not clKeepFiles) {
-      sys::fs::remove(ptxFile->getFilename());
-      sys::fs::remove(asmFile->getFilename());
-      sys::fs::remove(fatbinFile->getFilename());
+    if (clKeepFiles) {
+      ptxFile->keep();
+      asmFile->keep();
+      fatbinFile->keep();
     }
     return true;
   }
@@ -320,6 +299,7 @@ public:
 
     std::unique_ptr<ToolOutputFile> fbFile = nullptr;
     embedFatBinary(*fbFile, gfb);
+    gbc.eraseFromParent();
 
     llvm_unreachable("Not implemented");
     // if (not clKeepFiles) {
@@ -388,10 +368,10 @@ public:
 } // namespace
 
 /// Legacy pass to compile the embedded bitcode to fat binaries.
-class CodeGenKitsuneFatBinariesLegacyPass : public ModulePass {
+class CodeGenFatBinariesLegacyPass : public ModulePass {
 public:
-  CodeGenKitsuneFatBinariesLegacyPass() : ModulePass(ID) {
-    initializeCodeGenKitsuneFatBinariesLegacyPassPass(
+  CodeGenFatBinariesLegacyPass() : ModulePass(ID) {
+    initializeCodeGenFatBinariesLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 
@@ -409,18 +389,18 @@ public:
   static char ID;
 };
 
-char CodeGenKitsuneFatBinariesLegacyPass::ID = 0;
-INITIALIZE_PASS_BEGIN(CodeGenKitsuneFatBinariesLegacyPass, DEBUG_TYPE,
+char CodeGenFatBinariesLegacyPass::ID = 0;
+INITIALIZE_PASS_BEGIN(CodeGenFatBinariesLegacyPass, DEBUG_TYPE,
                       "Compile Kitsune fat binaries", false, false)
 INITIALIZE_PASS_DEPENDENCY(TapirTargetAnalysisWrapperPass)
-INITIALIZE_PASS_END(CodeGenKitsuneFatBinariesLegacyPass, DEBUG_TYPE,
+INITIALIZE_PASS_END(CodeGenFatBinariesLegacyPass, DEBUG_TYPE,
                     "Compile Kitsune fat binaries", false, false)
 
-ModulePass *llvm::createCodeGenKitsuneFatBinariesLegacyPass() {
-  return new CodeGenKitsuneFatBinariesLegacyPass();
+ModulePass *llvm::createCodeGenFatBinariesLegacyPass() {
+  return new CodeGenFatBinariesLegacyPass();
 }
 
-bool CodeGenKitsuneFatBinariesLegacyPass::runOnModule(Module &m) {
+bool CodeGenFatBinariesLegacyPass::runOnModule(Module &m) {
   TapirTargetInfo tgi =
       getAnalysis<TapirTargetAnalysisWrapperPass>().getResult();
   if (not tgi.hasID())
@@ -432,8 +412,8 @@ bool CodeGenKitsuneFatBinariesLegacyPass::runOnModule(Module &m) {
   return changed;
 }
 
-PreservedAnalyses
-CodeGenKitsuneFatBinariesPass::run(Module &m, ModuleAnalysisManager &mam) {
+PreservedAnalyses CodeGenFatBinariesPass::run(Module &m,
+                                              ModuleAnalysisManager &mam) {
   // If a primary tapir target ID has not been set, then tapir lowering was not
   // enabled and there is nothing to be done.
   const TapirTargetInfo &tgi = mam.getResult<TapirTargetAnalysis>(m);

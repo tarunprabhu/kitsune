@@ -20,6 +20,14 @@
 
 using namespace llvm;
 
+StructType *llvm::getKernelInstMixType(LLVMContext &ctx) {
+  Type *i64 = Type::getInt64Ty(ctx);
+  return StructType::get(i64,  // number of memory ops
+                         i64,  // number of floating point ops
+                         i64,  // number of integer ops
+                         i64); // number of other ops
+}
+
 ConstantInt *llvm::getConstantInt(LLVMContext &ctxt, TapirTargetID tt) {
   IntegerType *i8 = IntegerType::get(ctxt, 8);
   return ConstantInt::get(i8, int(tt), false);
@@ -129,6 +137,14 @@ GlobalVariable *llvm::resetEmbeddedBC(const Module &m, GlobalVariable &g) {
   return newG;
 }
 
+EmbeddedModulesMapTy llvm::getEmbeddedModules(Module &m) {
+  EmbeddedModulesMapTy embBCs;
+  for (TapirTargetID tt : getTargetsGeneratingEmbBC())
+    if (const GlobalVariable *g = getEmbeddedBC(tt, m))
+      embBCs.emplace(tt, parseEmbeddedBC(*g));
+  return embBCs;
+}
+
 GlobalVariable *llvm::createEmbeddedFB(TapirTargetID tt, Module &m) {
   std::unique_ptr<MemoryBuffer> buf = MemoryBuffer::getMemBuffer("");
   GlobalVariable *g = ::createEmbeddedFB(*buf, m);
@@ -171,12 +187,24 @@ GlobalVariable *llvm::resetEmbeddedFB(MemoryBufferRef buf, GlobalVariable &g) {
   return newG;
 }
 
+GlobalVariable *llvm::createKernelMDGlobal(Module &m, StringRef kname) {
+  LLVMContext &ctx = m.getContext();
+  StructType *type = getKernelInstMixType(ctx);
+  Constant *init = Constant::getNullValue(type);
+  auto *g = new GlobalVariable(m, type, /*IsConstant=*/true,
+                               GlobalValue::PrivateLinkage, init);
+  g->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
+  setKitsuneKernelMDMD(*g, kname);
+
+  return g;
+}
+
 GlobalVariable *llvm::getOrCreateGlobalString(Module &m, StringRef s,
                                               StringRef name) {
   for (GlobalVariable &g : m.globals())
     if (g.isConstant() and g.hasInitializer())
       if (auto *cda = dyn_cast<ConstantDataArray>(g.getInitializer()))
-        if (cda->getAsCString() == s)
+        if (cda->isCString() and cda->getAsCString() == s)
           return &g;
 
   LLVMContext &ctx = m.getContext();
@@ -187,4 +215,20 @@ GlobalVariable *llvm::getOrCreateGlobalString(Module &m, StringRef s,
   g->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
   g->setAlignment(Align(1));
   return g;
+}
+
+constexpr std::array<TapirTargetID, 2> tgtsGenEmbBC = {TapirTargetID::Cuda,
+                                                       TapirTargetID::Hip};
+const std::array<TapirTargetID, 2> &llvm::getTargetsGeneratingEmbBC() {
+  return tgtsGenEmbBC;
+}
+
+bool llvm::generatesEmbBC(TapirTargetID tt) {
+  switch (tt) {
+  case TapirTargetID::Cuda:
+  case TapirTargetID::Hip:
+    return true;
+  default:
+    return false;
+  }
 }

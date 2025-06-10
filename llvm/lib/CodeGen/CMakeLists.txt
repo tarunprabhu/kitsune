@@ -43,7 +43,7 @@ add_llvm_component_library(LLVMCodeGen
   CFIInstrInserter.cpp
   CodeGen.cpp
   CodeGenCommonISel.cpp
-  CodeGenKitsuneFatBinaries.cpp
+  CodeGenFatBinaries.cpp
   CodeGenPrepare.cpp
   CommandFlags.cpp
   ComplexDeinterleavingPass.cpp

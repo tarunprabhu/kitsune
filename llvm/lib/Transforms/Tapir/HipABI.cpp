@@ -748,9 +748,9 @@ void HipLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
   Loop &L = *TL.getLoop();
   for (Loop *SL : L)
     for (BasicBlock *BB : SL->blocks())
-      tapir::collectGlobalValues(*BB, UsedGlobalValues);
+      collectGlobalValues(*BB, UsedGlobalValues);
   for (BasicBlock *BB : L.blocks())
-    tapir::collectGlobalValues(*BB, UsedGlobalValues);
+    collectGlobalValues(*BB, UsedGlobalValues);
 
   if (VerboseMode) {
     errs() << "  - global address space (amdgpu): " << AMDGPUAS::GLOBAL_ADDRESS
@@ -1215,7 +1215,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // current loop so we use a 'dummy' (null) fat binary for code gen at
   // this point -- we'll post-process the module to clean this up after
   // we've processed all tapir loops.
-  (void)tapir::getOrInsertFBGlobal(M, HIPABI_DUMMY_FATBIN_NAME, PtrTy);
+  (void)getOrInsertFBGlobal(M, HIPABI_DUMMY_FATBIN_NAME, PtrTy);
 
   // Deal with type mismatches for the trip count. A difference introduced via
   // the input source details and the runtime's API type signature for the
@@ -1247,19 +1247,19 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     TPB = ConstantInt::get(Int32Ty, 0);
 
   LLVM_DEBUG(dbgs() << "\tgathering kernel instruction mix....\n");
-  tapir::KernelInstMixData InstMix = tapir::getKernelInstructionMix(F);
+  KernelInstMixData InstMix = getKernelInstMix(F);
   LLVM_DEBUG(
       dbgs() << "\tinstruction mix:\n"
-             << "      memory ops      : " << InstMix.numMemoryOps << "\n"
-             << "      flop count      : " << InstMix.numFlops << "\n"
-             << "      integer op count: " << InstMix.numIntOps << "\n"
-             << "      other ops count : " << InstMix.numOtherOps << "\n\n");
+             << "      memory ops      : " << InstMix.memOps << "\n"
+             << "      flop count      : " << InstMix.fpOps << "\n"
+             << "      integer op count: " << InstMix.intOps << "\n"
+             << "      other ops count : " << InstMix.otherOps << "\n\n");
 
   Constant *InstructionMix = ConstantStruct::get(
-      KernelInstMixTy, ConstantInt::get(Int64Ty, InstMix.numMemoryOps),
-      ConstantInt::get(Int64Ty, InstMix.numFlops),
-      ConstantInt::get(Int64Ty, InstMix.numIntOps),
-      ConstantInt::get(Int64Ty, InstMix.numOtherOps));
+      KernelInstMixTy, ConstantInt::get(Int64Ty, InstMix.memOps),
+      ConstantInt::get(Int64Ty, InstMix.fpOps),
+      ConstantInt::get(Int64Ty, InstMix.intOps),
+      ConstantInt::get(Int64Ty, InstMix.otherOps));
 
   AllocaInst *AI = EntryBuilder.CreateAlloca(KernelInstMixTy);
   NewBuilder.CreateStore(InstructionMix, AI);
@@ -1455,7 +1455,7 @@ void HipABI::finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin) {
         LLVM_DEBUG(dbgs() << "\t\t\t  processing global: '" << HostGV->getName()
                           << "'\n");
         std::string DevVarName = HostGV->getName().str() + "_devvar";
-        Value *SymName = tapir::createConstantStr(DevVarName, M, DevVarName);
+        Value *SymName = createConstantStr(DevVarName, M, DevVarName);
         Value *DevPtr =
             CallInst::Create(KitrtSymbolDevicePtr, {ConstTT, FatBin, SymName},
                              ".cuabi_devptr", Call->getIterator());
@@ -1632,7 +1632,7 @@ HipABIOutputFile HipABI::linkTargetObj(const HipABIOutputFile &ObjFile,
     // parse visually. This comes in handy when debugging.
     errs() << "    - running link stage...\n";
     errs() << "        ";
-    tapir::renderCommandLine(LLDArgs, errs());
+    renderCommandLine(LLDArgs, errs());
     errs() << "        $ ";
     for (StringRef Arg : LLDArgList)
       errs() << Arg << "\n          ";
@@ -1756,7 +1756,7 @@ void HipABI::bindGlobalVariables(Value *FatBinHandle, IRBuilder<> &B) {
     std::string DevVarName = HostGVName.str() + "_devvar";
     Value *VarName = M.getGlobalVariable(DevVarName);
     if (!VarName)
-      VarName = tapir::createConstantStr(DevVarName, M, DevVarName);
+      VarName = createConstantStr(DevVarName, M, DevVarName);
     GlobalVariable *DevPtrGV = M.getGlobalVariable(DevPtrName);
     assert(DevPtrGV && "Could not find device pointer global variable");
     LLVM_DEBUG(dbgs() << "\t\thost global '" << HostGVName.str()
@@ -1952,8 +1952,8 @@ void HipABI::registerBundle(GlobalVariable *Bundle) {
     FunctionType *CtorFnTy = FunctionType::get(VoidTy, false);
     Type *CtorFnPtrTy =
         PointerType::get(CtorFnTy, M.getDataLayout().getProgramAddressSpace());
-    tapir::appendToGlobalCtors(M, ConstantExpr::getBitCast(CtorFn, CtorFnPtrTy),
-                               65536, nullptr);
+    appendToGlobalCtors(M, ConstantExpr::getBitCast(CtorFn, CtorFnPtrTy), 65536,
+                        nullptr);
   } else
     LLVM_DEBUG(
         dbgs() << "WARNING: received null ctor -- initialization skipped?\n");

@@ -225,7 +225,7 @@ bool CodeGenTargetMachineImpl::addPassesToEmitFile(
     PassManagerBase &PM, raw_pwrite_stream &Out, raw_pwrite_stream *DwoOut,
     CodeGenFileType FileType, bool DisableVerify,
     MachineModuleInfoWrapperPass *MMIWP) {
-  PM.add(createCodeGenKitsuneFatBinariesLegacyPass());
+  PM.add(createCodeGenFatBinariesLegacyPass());
 
   // Add common CodeGen passes.
   if (!MMIWP)
