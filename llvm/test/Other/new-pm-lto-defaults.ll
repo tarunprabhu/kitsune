@@ -168,7 +168,11 @@
 ; CHECK-O23-NEXT: Running pass: LowerMobileIntrinsicsPass
 ; CHECK-O23-NEXT: Running analysis: TapirTargetAnalysis
 ; CHECK-O23-NEXT: Running pass: StripKitsuneAddrSpacePass
-; CHECK-O23-NEXT: Running pass: FinalizeEmbeddedBitcodePass
+; CHECK-O23-NEXT: Running pass: ResolveDeviceFuncsPass
+; CHECK-O23-NEXT: Running pass: PrepareEmbBCPass
+; CHECK-O23-NEXT: Running pass: LinkDeviceBitcodePass
+; CHECK-O23-NEXT: Running pass: OptimizeEmbBCPass
+; CHECK-O23-NEXT: Running pass: FinalizeKernelMetadataPass
 ; CHECK-O23-NEXT: Running pass: GenerateKitsuneCtorsPass
 ; CHECK-O23-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
 ; CHECK-O-NEXT: Running pass: AnnotationRemarksPass on foo

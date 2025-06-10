@@ -36,7 +36,11 @@
 // CHECK-FULL-O0-NEXT: Running pass: LowerMobileIntrinsicsPass
 // CHECK-FULL-O0-NEXT: Running analysis: TapirTargetAnalysis
 // CHECK-FULL-O0-NEXT: Running pass: StripKitsuneAddrSpacePass
-// CHECK-FULL-O0-NEXT: Running pass: FinalizeEmbeddedBitcodePass
+// CHECK-FULL-O0-NEXT: Running pass: ResolveDeviceFuncsPass
+// CHECK-FULL-O0-NEXT: Running pass: PrepareEmbBCPass
+// CHECK-FULL-O0-NEXT: Running pass: LinkDeviceBitcodePass
+// CHECK-FULL-O0-NEXT: Running pass: OptimizeEmbBCPass
+// CHECK-FULL-O0-NEXT: Running pass: FinalizeKernelMetadataPass
 // CHECK-FULL-O0-NEXT: Running pass: GenerateKitsuneCtorsPass
 // CHECK-FULL-O0-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
 // CHECK-FULL-O0-NEXT: Running analysis: TargetLibraryAnalysis
@@ -58,7 +62,11 @@
 // CHECK-THIN-O0-NEXT: Running pass: LowerMobileIntrinsicsPass
 // CHECK-THIN-O0-NEXT: Running analysis: TapirTargetAnalysis
 // CHECK-THIN-O0-NEXT: Running pass: StripKitsuneAddrSpacePass
-// CHECK-THIN-O0-NEXT: Running pass: FinalizeEmbeddedBitcodePass
+// CHECK-THIN-O0-NEXT: Running pass: ResolveDeviceFuncsPass
+// CHECK-THIN-O0-NEXT: Running pass: PrepareEmbBCPass
+// CHECK-THIN-O0-NEXT: Running pass: LinkDeviceBitcodePass
+// CHECK-THIN-O0-NEXT: Running pass: OptimizeEmbBCPass
+// CHECK-THIN-O0-NEXT: Running pass: FinalizeKernelMetadataPass
 // CHECK-THIN-O0-NEXT: Running pass: GenerateKitsuneCtorsPass
 // CHECK-THIN-O0-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
 // CHECK-THIN-O0-NEXT: Running analysis: TargetLibraryAnalysis

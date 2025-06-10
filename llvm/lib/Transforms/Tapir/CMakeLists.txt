@@ -80,3 +80,8 @@ add_llvm_component_library(LLVMTapirOpts
   Vectorize
   FrontendTapir
 )
+
+# FIXME: This is temporary. Once HipABI has been refactored like CudaABI, this
+# should be removed.
+target_include_directories(LLVMTapirOpts PRIVATE
+  ${CMAKE_SOURCE_DIR}/../kitsune/include)
