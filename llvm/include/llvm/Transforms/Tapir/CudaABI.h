@@ -56,19 +56,16 @@
 #define LLVM_TAPIR_CUDA_ABI_H
 
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
-// #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 
 #include <set>
 
 namespace llvm {
 
 class CudaLoop;
-// class DataLayout;
 class TapirTargetOptions;
-// class TargetMachine;
 
-// typedef std::unique_ptr<ToolOutputFile> CudaABIOutputFile;
-
+/// The tapir target to lower tapir loops to kitsune's cuda runtime. The tapir
+/// loops will be converted to GPU kernels.
 class CudaABI : public TapirTarget {
 public:
   CudaABI(Module &M, const TapirTargetOptions &opts);
@@ -104,99 +101,37 @@ public:
   LoopOutlineProcessor *
   getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
 
-  // void pushPTXFilename(const std::string &PTXFilename);
-
-  Module &getLibDeviceModule();
-
-  void pushGlobalVariable(GlobalVariable *GV);
-  // bool hasGlobalVariables() const { return !GlobalVars.empty(); }
-  // int globalVarCount() const { return GlobalVars.size(); }
-  void pushSR(Value *SR) { SyncRegList.insert(SR); }
-
-  // void registerLaunchStream(CallInst *CI, AllocaInst *AI) {
-  //   KernelLaunchToStreamMap.insert(std::pair<CallInst *, AllocaInst *>(CI,
-  //   AI));
-  // }
-
-  // AllocaInst *getLaunchStream(CallInst *CI) {
-  //   LaunchToStreamMapTy::iterator it;
-  //   it = KernelLaunchToStreamMap.find(CI);
-  //   if (it != KernelLaunchToStreamMap.end())
-  //     return it->second;
-  //   else
-  //     return nullptr;
-  // }
-
 private:
-  // CudaABIOutputFile generatePTX();
-  // CudaABIOutputFile assemblePTXFile(CudaABIOutputFile &PTXFile);
-  // CudaABIOutputFile createFatbinaryFile(CudaABIOutputFile &AsmFile);
-  // GlobalVariable *embedFatbinary(CudaABIOutputFile &FatbinaryFile);
-  // void registerFatbinary(GlobalVariable *RawFatbinary);
-  // void finalizeLaunchCalls(Module &M, GlobalVariable *Fatbin);
-  // void bindGlobalVariables(Value *CM, IRBuilder<> &B);
-  // Function *createCtor(GlobalVariable *Fatbinary, GlobalVariable *Wrapper);
-  // Function *createDtor(GlobalVariable *FBHandle);
-
-  std::unique_ptr<Module> LibDeviceModule = nullptr;
-
-  // std::list<std::string> ModulePTXFileList;
-  std::list<GlobalVariable *> GlobalVars;
-  std::set<Value *> SyncRegList;
-
-  // typedef llvm::DenseMap<CallInst *, AllocaInst *> LaunchToStreamMapTy;
-  // LaunchToStreamMapTy KernelLaunchToStreamMap;
-
   /// Currently, we create a single module into which all tapir loops to be
   /// run on an NVIDIA GPU are outlined. A loop outline processor is created for
   /// each tapir loop which will add the outlined code into this module. This
-  /// will eventually be converted to PTX, and from there to executable GPU
-  /// code.
+  /// will eventually be converted to PTX and from there to executable GPU code.
   Module KernelModule;
-  // TargetMachine *PTXTargetMachine;
 };
 
-/// The loop outline process for transforming a Tapir parallel loop
-/// representation into a Cuda runtime and PTX --> fat binary kernel execution.
-///
-///  * The loop processor requires a CUDA install and that the 'ptxas'
-///    and 'fatbinary' executables are in the user's path.  While it
-///    is tempting to inline direct CUDA calls into the transform this
-///    has two drawbacks:
-///
-///      1. CMake dependencies on Cuda would need to be added.
-///      2. GPU would be required at compile time (i.e., no cross
-///         compilation support).
-///
+/// The loop outline process for transforming a Tapir parallel loop into a
+/// cuda kernel function.
 class CudaLoop : public LoopOutlineProcessor {
-  friend class CudaABI;
-
 private:
-  /// The "parent" tapir target.
-  CudaABI *TT = nullptr;
-
-  /// Unique ID for this transformed loop.
-  unsigned KernelID;
-
-  /// The name of the kernel into which the loop is outlined. This incorporates
-  /// the unique @ref KernelID to ensure that there are no collisions.
-  ///
-  /// TODO: It would help if this name incorporated some source information such
-  /// as the source file and line number from which this loop was extracted. It
-  /// would make debugging easier.
+  /// The name of the kernel into which the loop is outlined.
   std::string KernelName;
 
   /// For GPU targets, we outline the loop into a separate module. This is that
   /// module.
   Module &KernelModule;
 
-  // We need to give every kernel a unique ID. This keeps track of the ID's
-  // that are used across all instances of this loop outline processor that are
-  // in use.
-  //
-  // TODO: This is not really what we want to be doing. Ideally, we want to a
-  // more "useful" ID, such as something that incorporates the source file and
-  // line, but until we do that this is something that will work.
+  /// Each tapir loop is outlined into its own kernel function. We need to
+  /// ensure that the names of these kernel functions do not collide. Since a
+  /// loop outline processor instance is created for every tapir loop that is
+  /// encountered, this identifier is shared by the instances to add something
+  /// to the kernel function name that is guaranteed to be unique.
+  ///
+  /// Although the tapir target is used to create instances of this loop outline
+  /// processor, multiple instances of the tapir target are created. It is not
+  /// clear that this is the expected behavior, but until we can fix that and
+  /// ensure that only a single instance of the tapir target is created for a
+  /// compilation unit (LLVM Module), we have to keep track of this unique ID in
+  /// the loop outline processor.
   static unsigned NextKernelID;
 
   // Cuda/PTX thread index access.
@@ -213,24 +148,21 @@ private:
   // Cuda/PTX grid dimensions access.
   Function *CUGridDimX = nullptr, *CUGridDimY = nullptr, *CUGridDimZ = nullptr;
 
-  StructType *KernelInstMixTy;
-
   SmallVector<Value *, 5> OrderedInputs;
 
   /// The GlobalValue's used in the loop that is being outlined. This includes
   /// functions, global variables, aliases and ifunc's.
-  std::set<GlobalValue*> UsedGlobalValues;
+  std::set<GlobalValue *> UsedGlobalValues;
 
 public:
   /// Create a loop outline processor for the cuda tapir target.
-  /// @param M            The host module
-  /// @param KernelModule The module into which the device code will be
-  ///                     outlined
-  /// @param KernelName   The name of the function in the @ref KernelModule into
-  ///                     which the loop is outlined
-  /// @param TT           The "parent" tapir target object
+  /// @param M The host module
+  /// @param KernelModule The module into which the device code will be outlined
+  /// @param KernelName The name of the function in the @ref KernelModule into
+  ///                   which the loop is outlined
+  /// @param TTOpts The tapir target options
   CudaLoop(Module &M, Module &KernelModule, const std::string &KernelName,
-           CudaABI *TT);
+           const TapirTargetOptions &TTOpts);
   ~CudaLoop();
 
   void setupLoopOutlineArgs(Function &F, ValueSet &HelperArgs,
@@ -246,19 +178,12 @@ public:
   unsigned getLimitArgIndex(const Function &F,
                             const ValueSet &Args) const override final;
 
-  std::string getKernelName() const { return KernelName; }
-
-  unsigned getKernelID() const { return KernelID; }
-
   void preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) override;
   void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
                           ValueToValueMapTy &VMap) override final;
   void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
                                DominatorTree &DT) override final;
-  void transformForPTX(Function &F);
   void remapData(ValueToValueMapTy &VMap) override final;
-
-  Function *resolveLibDeviceFunction(Function *F, bool enableFastMode);
 };
 
 } // namespace llvm

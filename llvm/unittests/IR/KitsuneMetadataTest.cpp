@@ -25,7 +25,7 @@ static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
   return m;
 }
 
-TEST(KitsuneMetadata, setAndCheck) {
+TEST(KitsuneMetadata, setAndCheckBCFB) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, R"(
 @g = constant [1 x i8] zeroinitializer
@@ -40,6 +40,11 @@ TEST(KitsuneMetadata, setAndCheck) {
   GlobalVariable &bcHip = *m->getGlobalVariable("bcHip");
   GlobalVariable &fbCuda = *m->getGlobalVariable("fbCuda");
   GlobalVariable &fbHip = *m->getGlobalVariable("fbHip");
+
+  EXPECT_FALSE(hasKitsuneBCMD(bcCuda));
+  EXPECT_FALSE(hasKitsuneBCMD(bcHip));
+  EXPECT_FALSE(hasKitsuneFBMD(fbCuda));
+  EXPECT_FALSE(hasKitsuneFBMD(fbHip));
 
   setKitsuneBCMD(bcCuda, TapirTargetID::Cuda);
   setKitsuneBCMD(bcHip, TapirTargetID::Hip);
@@ -66,11 +71,33 @@ TEST(KitsuneMetadata, setAndCheck) {
   EXPECT_FALSE(hasKitsuneFBMD(fbHip, TapirTargetID::Cuda));
   EXPECT_TRUE(hasKitsuneFBMD(fbHip, TapirTargetID::Hip));
 
-  EXPECT_EQ(getKitsuneTTMD(bcCuda), TapirTargetID::Cuda);
-  EXPECT_EQ(getKitsuneTTMD(bcHip), TapirTargetID::Hip);
-  EXPECT_EQ(getKitsuneTTMD(fbCuda), TapirTargetID::Cuda);
-  EXPECT_EQ(getKitsuneTTMD(fbHip), TapirTargetID::Hip);
-  EXPECT_EQ(getKitsuneTTMD(g), std::nullopt);
+  EXPECT_EQ(getKitsuneBCMD(bcCuda), TapirTargetID::Cuda);
+  EXPECT_EQ(getKitsuneBCMD(bcHip), TapirTargetID::Hip);
+  EXPECT_EQ(getKitsuneBCMD(g), std::nullopt);
+  EXPECT_EQ(getKitsuneBCMD(fbCuda), std::nullopt);
+  EXPECT_EQ(getKitsuneBCMD(fbHip), std::nullopt);
+
+  EXPECT_EQ(getKitsuneFBMD(fbCuda), TapirTargetID::Cuda);
+  EXPECT_EQ(getKitsuneFBMD(fbHip), TapirTargetID::Hip);
+  EXPECT_EQ(getKitsuneFBMD(g), std::nullopt);
+  EXPECT_EQ(getKitsuneFBMD(bcCuda), std::nullopt);
+  EXPECT_EQ(getKitsuneFBMD(bcHip), std::nullopt);
+}
+
+TEST(KitsuneMetadata, setAndCheckKernelMD) {
+  LLVMContext ctx;
+  std::unique_ptr<Module> m = parseIR(ctx, R"(
+@kmd = constant {i64, i64, i64, i64} zeroinitializer
+)");
+  GlobalVariable &kmd = *m->getGlobalVariable("kmd");
+
+  EXPECT_FALSE(hasKitsuneKernelMDMD(kmd));
+  EXPECT_EQ(getKitsuneKernelMDMD(kmd), std::nullopt);
+
+  setKitsuneKernelMDMD(kmd, "kfname");
+
+  EXPECT_TRUE(hasKitsuneKernelMDMD(kmd));
+  EXPECT_EQ(getKitsuneKernelMDMD(kmd), "kfname");
 }
 
 } // namespace

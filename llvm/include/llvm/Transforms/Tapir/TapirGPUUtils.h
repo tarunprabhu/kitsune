@@ -14,6 +14,7 @@
 #ifndef LLVM_TAPIR_GPU_UTILS_H
 #define LLVM_TAPIR_GPU_UTILS_H
 
+#include "kitsune/Common/Types.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -29,8 +30,6 @@ class Loop;
 class Module;
 class Type;
 class raw_ostream;
-
-namespace tapir {
 
 /// Render a command line to the given output stream. This will typically be for
 /// a subcommand run by the GPU tapir targets - typically this will be one that
@@ -79,21 +78,11 @@ llvm::Constant *createConstantStr(const std::string &str, llvm::Module &m,
 void appendToGlobalCtors(llvm::Module &m, llvm::Constant *c, int priority,
                          llvm::Constant *data);
 
-// NOTE: This needs to be kept up to date with the structure in the kitsune
-// runtime. We currently have avoided including files between the two but
-// perhaps we should...  ????
-struct KernelInstMixData {
-  uint64_t numMemoryOps = 0;
-  uint64_t numFlops = 0;
-  uint64_t numIntOps = 0;
-  uint64_t numOtherOps = 0;
-};
-
-/// Populate the given structure with the counts of various instruction types
-/// seen in the given LLVM function.
-KernelInstMixData getKernelInstructionMix(const llvm::Function &f);
-
-} // namespace tapir
+// FIXME: This should be removed from here when HipABI is refactored. This will
+// only be present in FinalizeKernelMetadataPass.
+/// Determine the counts of various instruction kinds in the given LLVM
+/// function.
+KernelInstMixData getKernelInstMix(const Function &f);
 
 } // namespace llvm
 

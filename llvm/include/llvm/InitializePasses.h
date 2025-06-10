@@ -75,7 +75,7 @@ void initializeCallGraphDOTPrinterPass(PassRegistry &);
 void initializeCallGraphViewerPass(PassRegistry &);
 void initializeCallGraphWrapperPassPass(PassRegistry &);
 void initializeCheckDebugMachineModulePass(PassRegistry &);
-void initializeCodeGenKitsuneFatBinariesLegacyPassPass(PassRegistry &);
+void initializeCodeGenFatBinariesLegacyPassPass(PassRegistry &);
 void initializeCodeGenPrepareLegacyPassPass(PassRegistry &);
 void initializeComplexDeinterleavingLegacyPassPass(PassRegistry &);
 void initializeConstantHoistingLegacyPassPass(PassRegistry &);

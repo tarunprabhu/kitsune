@@ -1714,8 +1714,8 @@ void Verifier::visitModuleEmbeddedFBs() {
   // tapir target.
   std::map<TapirTargetID, unsigned> fbCounts;
   for (const GlobalVariable &g : M.globals())
-    if (hasKitsuneFBMD(g))
-      ++fbCounts[*getKitsuneTTMD(g)];
+    if (std::optional<TapirTargetID> tt = getKitsuneFBMD(g))
+      ++fbCounts[*tt];
 
   for (const auto &[tt, n] : fbCounts) {
     Check(n <= 1, "too many embedded fat binary globals for tapir target '" +
@@ -1728,8 +1728,9 @@ void Verifier::visitModuleEmbeddedFBs() {
   // bitcode is removed.
   std::map<TapirTargetID, unsigned> bcCounts;
   for (const GlobalVariable &g : M.globals())
-    if (hasKitsuneBCMD(g))
-      ++bcCounts[*getKitsuneTTMD(g)];
+    if (std::optional<TapirTargetID> tt = getKitsuneBCMD(g))
+      ++bcCounts[*tt];
+
   for (const auto &[tt, n] : bcCounts) {
     Check(n <= 1, "too many embedded bitcode globals for tapir target '" +
                       toString(tt) + "'");

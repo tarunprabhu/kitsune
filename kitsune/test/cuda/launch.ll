@@ -1,31 +1,93 @@
-; Check that a launch call and a fat binary are present in the host.
+; Check that a launch call and a fat binary are present in the host. Check
+; that the launch kernel arguments are as expected.
 ;
 ; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}}, !kitsune.fb ![[TTMD:[0-9]+]]
-; CHECK-DAG: @[[KNAME:.+]] = private unnamed_addr constant [{{[0-9]+}} x i8]
+; CHECK-DAG: @[[G_KNAME:.+]] = private unnamed_addr constant [{{[0-9]+}} x i8] c"[[KNAME:.+]]"
+; CHECK-DAG: @[[G_KERNEL_MD:.+]] = private unnamed_addr constant {{.+}} zeroinitializer, !kitsune.kernel.md ![[KERNEL_MD:[0-9]+]]
 ;
-; CHECK: define {{.+}} @f
-; CHECK: %[[ARGS:.+]] = alloca [{{[0-9]+}} x ptr]
-; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(i8 2, ptr nonnull @[[FB]], ptr nonnull @[[KNAME]], ptr nonnull %[[ARGS]],
+; CHECK: define {{.+}} @f(ptr {{.*}}%[[C:.+]], i64 {{.*}}%[[N:.+]])
+;
+; Local variables for the arguments so everything is passed to the runtime
+; launch function.
+; CHECK: %[[ARGS:.+]] = alloca [5 x ptr]
+; CHECK: %[[LOCAL_TRIP_COUNT:.+]] = alloca i64
+; CHECK: %[[LOCAL_START:.+]] = alloca i64
+; CHECK: %[[LOCAL_GRAINSIZE:.+]] = alloca i64
+; CHECK: %[[LOCAL_C:.+]] = alloca ptr
+; CHECK: %[[LOCAL_N:.+]] = alloca i64
+;
+; The trip count is the first argument of the kernel function.
+; CHECK: store i64 %n, ptr %[[LOCAL_TRIP_COUNT]]
+; CHECK: store ptr %[[LOCAL_TRIP_COUNT]], ptr %[[ARGS]]
+;
+; The start index is the second argument.
+; CHECK: store i64 0, ptr %[[LOCAL_START]]
+; CHECK: %[[ARGS_START:.+]] = getelementptr {{.+}} i8, ptr %[[ARGS]], i64 8
+; CHECK: store ptr %[[LOCAL_START]], ptr %[[ARGS_START]]
+;
+; The grainsize is the third argument. This is usually 1, but don't assume that
+; here.
+; CHECK: store i64 {{.+}}, ptr %[[LOCAL_GRAINSIZE]]
+; CHECK: %[[ARGS_GRAINSIZE:.+]] = getelementptr {{.+}} i8, ptr %[[ARGS]], i64 16
+; CHECK: store ptr %[[LOCAL_GRAINSIZE]], ptr %[[ARGS_GRAINSIZE]]
+;
+; The remaining arguments to the kernel function are whatever else is used in
+; the kernel function.
+; CHECK: store ptr %[[C]], ptr %[[LOCAL_C]]
+; CHECK: %[[ARGS_C:.+]] = getelementptr {{.+}} i8, ptr %[[ARGS]], i64 24
+; CHECK: store ptr %[[LOCAL_C]], ptr %[[ARGS_C]]
+; CHECK: store i64 %[[N]], ptr %[[LOCAL_N]]
+; CHECK: %[[ARGS_N:.+]] = getelementptr {{.+}} i8, ptr %[[ARGS]], i64 32
+; CHECK: store ptr %[[LOCAL_N]], ptr %[[ARGS_N]]
+;
+; The actual launch. The arguments are:
+;
+;   - tapir target id
+;   - fat binary global
+;   - kernel name global string literal
+;   - trip count
+;   - threads per block (zero to indicate that it is unset)
+;   - kernel metadata global
+;   - thread stream
+;
+; If the signature of the launch kernel intrinsic changes, this will fail as it
+; should.
+;
+; global, the string literal for the kernel name, the arguments array, the
+; trip count,
+; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(
+; CHECK-SAME: i8 2,
+; CHECK-SAME: ptr {{.*}}@[[FB]],
+; CHECK-SAME: ptr {{.*}}@[[G_KNAME]],
+; CHECK-SAME: ptr {{.*}}%[[ARGS]],
+; CHECK-SAME: i64 %n,
+; CHECK-SAME: i32 0,
+; CHECK-SAME: ptr {{.*}}@[[G_KERNEL_MD]],
+; CHECK-SAME: ptr {{.*}}%{{[A-Za-z0-9._]+}}
+; CHECK-SAME: )
+;
+; By default, we always enter a sync immediately after the launch. A later
+; optimization pass may (re)move this if appropriate
 ; CHECK: call {{.+}} @llvm.kitrt.sync.stream(i8 2, ptr %[[TS]])
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;
 ; CHECK: ![[TTMD]] = !{i8 2}
+; CHECK: ![[KERNEL_MD]] = !{[{{[0-9]+}} x i8] c"[[KNAME]]"}
 
 target triple = "x86_64-pc-linux-gnu"
 
 ; Function Attrs: nounwind memory(argmem: write) uwtable
-define dso_local void @f(ptr nocapture noundef writeonly %c, i32 noundef %n) #0 {
+define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i32 %n, 0
+  %cmp5 = icmp sgt i64 %n, 0
   br i1 %cmp5, label %forall.detach.preheader, label %forall.sync
 
 forall.detach.preheader:                          ; preds = %entry
-  %wide.trip.count = zext nneg i32 %n to i64
   br label %forall.detach
 
 forall.detach:                                    ; preds = %forall.detach.preheader, %forall.inc
@@ -35,11 +97,11 @@ forall.detach:                                    ; preds = %forall.detach.prehe
 
 forall.body:                                      ; preds = %forall.detach
   %arrayidx = getelementptr inbounds i32, ptr %c, i64 %indvars.iv
-  store i32 %n, ptr %arrayidx, align 4
+  store i64 %n, ptr %arrayidx, align 4
   reattach within %syncreg, label %forall.inc
 
 forall.inc:                                       ; preds = %forall.body, %forall.detach
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %wide.trip.count
+  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
   br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
 
 forall.sync:                                      ; preds = %forall.inc, %entry

@@ -103,6 +103,43 @@ entry:
   EXPECT_TRUE(hasKitsuneBCMD(*g1, TapirTargetID::Cuda));
 }
 
+TEST(KitsuneUtils, getEmbeddedModules) {
+  LLVMContext ctx;
+  std::unique_ptr<Module> cudaM = parseIR(ctx, R"(
+define i32 @fcuda(i32 %n) {
+entry:
+  ret i32 %n
+}
+)");
+  std::unique_ptr<Module> hipM = parseIR(ctx, R"(
+define i32 @fhip(i32 %n) {
+entry:
+  ret i32 %n
+}
+)");
+  std::unique_ptr<Module> hostM = parseIR(ctx, R"()");
+
+  {
+    EmbeddedModulesMapTy embMs = getEmbeddedModules(*hostM);
+    EXPECT_EQ(embMs.size(), 0U);
+  }
+
+  {
+    createEmbeddedBC(*cudaM, TapirTargetID::Cuda, *hostM);
+    EmbeddedModulesMapTy embMs = getEmbeddedModules(*hostM);
+    EXPECT_EQ(embMs.size(), 1U);
+    EXPECT_TRUE(embMs[TapirTargetID::Cuda]->getFunction("fcuda"));
+  }
+
+  {
+    createEmbeddedBC(*hipM, TapirTargetID::Hip, *hostM);
+    EmbeddedModulesMapTy embMs = getEmbeddedModules(*hostM);
+    EXPECT_EQ(embMs.size(), 2U);
+    EXPECT_TRUE(embMs[TapirTargetID::Cuda]->getFunction("fcuda"));
+    EXPECT_TRUE(embMs[TapirTargetID::Hip]->getFunction("fhip"));
+  }
+}
+
 TEST(KitsuneUtils, createEmbeddedFB) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, R"()");
@@ -147,32 +184,61 @@ TEST(KitsuneUtils, resetEmbeddedFB) {
   EXPECT_EQ(getNumElements(g1->getInitializer()), 4U);
 }
 
+TEST(KitsuneUtils, createKernelMDGlobal) {
+  LLVMContext ctx;
+  std::unique_ptr<Module> m = parseIR(ctx, R"()");
+
+  GlobalVariable *g = createKernelMDGlobal(*m, "kname");
+  g->setName("g0");
+
+  EXPECT_TRUE(m->getGlobalVariable("g0", true));
+  EXPECT_TRUE(g->hasInitializer());
+  EXPECT_TRUE(isa<ConstantAggregateZero>(g->getInitializer()));
+  EXPECT_TRUE(hasKitsuneKernelMDMD(*g));
+}
+
 TEST(KitsuneUtils, getOrCreateGlobalString) {
   LLVMContext ctx;
-  Module m("", ctx);
   StringRef s1 = "test1";
   StringRef s2 = "test2";
+  std::unique_ptr<Module> m = parseIR(ctx, R"(
+    @farr = constant [2 x i32] [i32 11, i32 22]
+  )");
 
-  GlobalVariable* g1 = getOrCreateGlobalString(m, s1);
+  GlobalVariable *g1 = getOrCreateGlobalString(*m, s1);
 
   EXPECT_FALSE(g1->hasName());
   EXPECT_TRUE(g1->hasInitializer());
   EXPECT_TRUE(isa<ConstantDataArray>(g1->getInitializer()));
   EXPECT_EQ(cast<ConstantDataArray>(g1->getInitializer())->getAsCString(), s1);
-  EXPECT_EQ(m.global_size(), 1U);
+  EXPECT_EQ(m->global_size(), 2U);
 
   // It doesn't matter what other parameters are passed to the function, if a
   // global string with the given initializer already exists, it will be
   // returned.
-  EXPECT_EQ(getOrCreateGlobalString(m, s1), g1);
-  EXPECT_EQ(getOrCreateGlobalString(m, s1, "newName"), g1);
-  EXPECT_FALSE(getOrCreateGlobalString(m, s1, "newName")->hasName());
+  EXPECT_EQ(getOrCreateGlobalString(*m, s1), g1);
+  EXPECT_EQ(getOrCreateGlobalString(*m, s1, "newName"), g1);
+  EXPECT_FALSE(getOrCreateGlobalString(*m, s1, "newName")->hasName());
 
   // When asking for a different string, make sure that works too.
-  GlobalVariable *g2 = getOrCreateGlobalString(m, s2, "s2");
+  GlobalVariable *g2 = getOrCreateGlobalString(*m, s2, "s2");
 
-  EXPECT_EQ(m.global_size(), 2U);
+  EXPECT_EQ(m->global_size(), 3U);
   EXPECT_EQ(g2->getName(), "s2");
+}
+
+TEST(KitsuneUtils, getTargetsGeneratingEmbBC) {
+  std::array<TapirTargetID, 2> exp = {TapirTargetID::Cuda, TapirTargetID::Hip};
+  EXPECT_EQ(getTargetsGeneratingEmbBC(), exp);
+}
+
+TEST(KitsuneUtils, generatesEmbBC) {
+  EXPECT_FALSE(generatesEmbBC(TapirTargetID::None));
+  EXPECT_FALSE(generatesEmbBC(TapirTargetID::Serial));
+  EXPECT_FALSE(generatesEmbBC(TapirTargetID::OpenCilk));
+
+  EXPECT_TRUE(generatesEmbBC(TapirTargetID::Cuda));
+  EXPECT_TRUE(generatesEmbBC(TapirTargetID::Hip));
 }
 
 } // namespace

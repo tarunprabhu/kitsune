@@ -19,8 +19,11 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Frontend/Tapir/Tapir.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/MemoryBufferRef.h"
 
+#include <array>
+#include <map>
 #include <memory>
 
 namespace llvm {
@@ -29,6 +32,12 @@ class ConstantInt;
 class GlobalVariable;
 class LLVMContext;
 class Module;
+
+using EmbeddedModulesMapTy = std::map<TapirTargetID, std::unique_ptr<Module>>;
+
+/// Get the LLVM type for the instruction mix data. At some point, this should
+/// probably be renamed to reference more general kernel metadata.
+StructType *getKernelInstMixType(LLVMContext &ctx);
 
 /// Generate a ConstantInt for use in Kitsune-specific intrinsics that take a
 /// tapir target id as an argument.
@@ -63,6 +72,10 @@ GlobalVariable *getEmbeddedBC(TapirTargetID tt, Module &m);
 /// @returns The newly created global variable.
 GlobalVariable *resetEmbeddedBC(const Module &m, GlobalVariable &g);
 
+/// Serialize all the embedded bitcode and return the modules in a map keyed on
+/// the tapir target id that created the module.
+EmbeddedModulesMapTy getEmbeddedModules(Module &m);
+
 /// Create a global variable whose initializer is an empty array of bytes.
 /// Metadata is added to the global indicating that it contains a fat binary to
 /// be used by the runtime for the given tapir target.
@@ -86,6 +99,12 @@ GlobalVariable *getEmbeddedFB(TapirTargetID tt, Module &m);
 /// @returns The newly created global variable.
 GlobalVariable *resetEmbeddedFB(MemoryBufferRef buf, GlobalVariable &g);
 
+/// Create a global variable whose initializer will eventually contain the
+/// metadata for a kernel function. This metadata currently includes counts for
+/// various instruction kinds in the function, but could be expanded to other
+/// data as well. This global is passed to the kernel launch functions.
+GlobalVariable *createKernelMDGlobal(Module &m, StringRef kname);
+
 /// Create a private string with the given initializer if one with this
 /// initializer does not already exist in the module. If one does, return that.
 /// This is linear in the number of global variables in the module.
@@ -95,6 +114,14 @@ GlobalVariable *resetEmbeddedFB(MemoryBufferRef buf, GlobalVariable &g);
 /// @param name The name of the global variable that may be created
 GlobalVariable *getOrCreateGlobalString(Module &m, StringRef s,
                                         StringRef name = "");
+
+/// Get the list of tapir targets that create a global variable containing
+/// embedded bitcode.
+const std::array<TapirTargetID, 2> &getTargetsGeneratingEmbBC();
+
+/// Check if the given tapir target creates a global variable containing
+/// embedded bitcode.
+bool generatesEmbBC(TapirTargetID tt);
 
 } // namespace llvm
 

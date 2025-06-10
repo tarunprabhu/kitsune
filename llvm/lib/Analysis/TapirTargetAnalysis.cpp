@@ -26,7 +26,7 @@ using namespace llvm;
 /// Empty vector of tapir targets to be used when
 /// @ref TapirTargetInfo::getRequiredTTs is called with a function that does not
 /// contain any tapir loops.
-static std::vector<TapirTargetID> noTTs = {};
+static const std::vector<TapirTargetID> noTTs;
 
 TapirTargetInfo::TapirTargetInfo(std::optional<TapirTargetOptions> ttOpts)
     : ttOpts(ttOpts) {}
