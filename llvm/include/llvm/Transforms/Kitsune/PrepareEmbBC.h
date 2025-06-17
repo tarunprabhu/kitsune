@@ -21,10 +21,16 @@ namespace llvm {
 /// relatively late in the pipeline. This will carry out any
 /// architecture-specific transformations that are unrelated to optimizations
 /// and that have not already been carried out by the tapir targets that created
-/// this bitcode. For instance, for AMDGPU kernels, the kernel function
+/// this module. For instance, for AMDGPU kernels, the kernel function
 /// arguments must be placed in a specific address space, as must any alloca's
 /// in the kernel functions. In some cases, the calling conventions of such
 /// functions must also be changed.
+///
+/// This is mainly intended to be carried out on functions that are *not* the
+/// GPU entry points, i.e. the GPU "kernel" functions that are launched from the
+/// host, although this is not strictly enforced. The idea here is that the
+/// tapir target will have taken care of adding the correct attributes to the
+/// kernel function, but may not have done anything for the callees.
 class PrepareEmbBCPass : public EmbBCPass<PrepareEmbBCPass> {
 public:
   bool run(TapirTargetID tt, Module &km, Module &hostM,

@@ -2,6 +2,8 @@ add_llvm_component_library(LLVMKitsuneOpts
   EmbBCPassUtils.cpp
   FinalizeKernelMetadata.cpp
   GenerateKitsuneCtors.cpp
+  GenerateKitsuneCtorCuda.cpp
+  GenerateKitsuneCtorHip.cpp
   LinkDeviceBitcode.cpp
   LowerKitsuneRuntimeIntrinsics.cpp
   LowerMobileIntrinsics.cpp

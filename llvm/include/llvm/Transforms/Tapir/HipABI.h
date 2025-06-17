@@ -54,36 +54,36 @@
 #ifndef LLVM_TAPIR_HIP_ABI_H
 #define LLVM_TAPIR_HIP_ABI_H
 
-#include "llvm/Support/ToolOutputFile.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
-#include "llvm/Transforms/Tapir/TapirLoopInfo.h"
+
+#include <set>
 
 namespace llvm {
 
-class HipLoop;
-class HipTTOptions;
 class TapirTargetOptions;
-class TargetMachine;
 
-typedef std::unique_ptr<ToolOutputFile> HipABIOutputFile;
-
+/// The tapir target to lower tapir loops to kitsune's hip runtime. The tapir
+/// loops will be converted to GPU kernels.
 class HipABI : public TapirTarget {
 public:
-  HipABI(Module &InputModule, const TapirTargetOptions &opts);
+  HipABI(Module &HostM, const TapirTargetOptions &TTO);
   ~HipABI();
 
   /// Lower a call to the tapir.loop.grainsize intrinsic into a grain size
-  /// (coarsening) value.  For GPU codes we currently limit this to a
-  /// value of 1.
+  /// (coarsening) value.  For GPU codes we currently limit this to a value of
+  /// 1.
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
 
   /// Lower the given Tapir sync instruction (SI).
   void lowerSync(SyncInst &SI) override final;
 
+  void preProcessModule() override final;
+
   /// Process Function F before any function outlining is performed.  This
   /// routine should not modify the CFG structure.
-  virtual bool preProcessFunction(Function &F, TaskInfo &TI,
-                                  bool ProcessingTapirLoops) override;
+  bool preProcessFunction(Function &F, TaskInfo &TI,
+                          bool ProcessingTapirLoops) override;
 
   // Add attributes to the Function Helper produced from outlining a task.
   void addHelperAttributes(Function &F) override;
@@ -93,61 +93,27 @@ public:
   // the tasks in the original function.
   void preProcessOutlinedTask(Function &F, Instruction *DetachPt,
                               Instruction *TaskFrameCreate, bool isSpawner,
-                              BasicBlock *BB) override { /* no-op */ }
+                              BasicBlock *BB) override {}
 
   // Post-process the Function F that has just been outlined from a task.  This
   // routine is executed on each outlined function by traversing in post-order
   // the tasks in the original function.
   void postProcessOutlinedTask(Function &F, Instruction *DetachPtr,
                                Instruction *TaskFrameCreate, bool IsSpawner,
-                               BasicBlock *TFEntry) override { /* no-op */ }
+                               BasicBlock *TFEntry) override {}
 
   // Pre-process the root Function F as a function that can spawn subtasks.
-  void preProcessRootSpawner(Function &F,
-                             BasicBlock *TFEntry) override { /* no-op */ }
+  void preProcessRootSpawner(Function &F, BasicBlock *TFEntry) override {}
 
   // Post-process the root Function F as a function that can spawn subtasks.
-  void postProcessRootSpawner(Function &F,
-                              BasicBlock *TFEntry) override { /* no-op */ }
+  void postProcessRootSpawner(Function &F, BasicBlock *TFEntry) override {}
 
   // Process the invocation of a task for an outlined function.  This routine is
   // invoked after processSpawner once for each child subtask.
-  void processSubTaskCall(TaskOutlineInfo &TOI,
-                          DominatorTree &DT) override { /* no-op */ }
+  void processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) override {}
 
   // Process Function F at the end of the lowering process.
   void postProcessFunction(Function &F, bool OutliningTapirLoops) override;
-
-  std::unique_ptr<Module> &getLibDeviceModule();
-
-  /// @brief  Add a global var of those that need a host-to-device connection.
-  /// @param GV: The global variable to add to the set.
-  void pushGlobalVariable(GlobalVariable *GV);
-
-  /// @brief Any global variables to handle for host-to-device code gen?
-  /// @return True if there are globals to process, false otherwise.
-  bool hasGlobalVariables() const { return !GlobalVars.empty(); }
-
-  int globalVarCount() const { return GlobalVars.size(); }
-
-  void pushSR(Value *SR) { SyncRegList.insert(SR); }
-
-  void registerLaunchStream(CallInst *CI, AllocaInst *AI) {
-    KernelLaunchToStreamMap.insert(std::pair<CallInst *, AllocaInst *>(CI, AI));
-  }
-
-  AllocaInst *getLaunchStream(CallInst *CI) {
-    LaunchToStreamMapTy::iterator it;
-    it = KernelLaunchToStreamMap.find(CI);
-    if (it != KernelLaunchToStreamMap.end())
-      return it->second;
-    else
-      return nullptr;
-  }
-
-  void transformConstants(Function &Fn);
-
-  void transformArguments(Function &Fn);
 
   // Process the host-side module at the end of lowering all functions //
   // within the module.
@@ -155,110 +121,31 @@ public:
 
   // Process a generated helper Function F produced via outlining, at the end of
   // the lowering process.
-  void postProcessHelper(Function &F) override { /* no-op */ }
+  void postProcessHelper(Function &F) override {}
 
   // Return the HIP outline processor associated with this target.
   LoopOutlineProcessor *
   getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
 
 private:
-  /// @brief Generate a AMDGPU (GCN) object file for the kernel module.
-  /// @return The created object file.
-  HipABIOutputFile createTargetObj(const StringRef &ObjFileName);
-
-  /// @brief Link the object file created by the AMDGPU backend.
-  /// @param ObjFile - the object file created by the AMDGPU target.
-  /// @param SOFileName - output file name of linker output.
-  /// @return The linked output file.
-  HipABIOutputFile linkTargetObj(const HipABIOutputFile &ObjFile,
-                                 const StringRef &SOFileName);
-
-  /// @brief Generate a bundle/GCN file for the (kernels) module.
-  /// @return The file containing the GCN for the kernel.
-  HipABIOutputFile createBundleFile();
-
-  /// @brief  Embed the given bundle file in the generated code.
-  /// @param BundleFile: The bundle file.
-  /// @return A global variable containing the fat binary.
-  GlobalVariable *embedBundle(HipABIOutputFile &BundleFile);
-
-  /// @brief Load the given ROCM-centric bitcode file and return a module.
-  /// @param BCFileName: The file name for the bitcode file (not a full path)
-  /// @return  A module holding the bitcode.
-  std::unique_ptr<Module> loadBCFile(const std::string &BCFileName);
-
-  /// @brief Load (link) the given module into the generated kernel module.
-  /// @param M - the module to load/link into the generated kernel module.
-  /// @return  True on success, false otherwise.
-  bool linkInModule(std::unique_ptr<Module> &M);
-
-  /// @brief Establish a host-to-device registration of the global vars.
-  /// @param Handle: The GPU-side module (not llvm) that contains the kernels.
-  /// @param B: The builder to use for codegen.
-  void bindGlobalVariables(Value *Handle, IRBuilder<> &B);
-
-  /// @brief  Take the necessary steps to register the bundle w/ runtime.
-  /// @param Bundle -- the HIP bundle (fat binary) global variable.
-  void registerBundle(GlobalVariable *Bundle);
-
-  /// @brief  Add global constructor to initialize and register the runtime.
-  /// @param Bundle The HIP "bundle" (fat binary).
-  /// @param Wrapper The structure wrapper around the fat binary.
-  /// @return The created ctor.function.
-  Function *createCtor(GlobalVariable *Bundle, GlobalVariable *Wrapper);
-
-  /// @brief Add global destructor to cleanup the runtime details.
-  /// @param BundleHandle Handle to the HIP bundle (fat binary).
-  /// @return The created dtor function.
-  Function *createDtor(GlobalVariable *BundleHandle);
-
-  std::unique_ptr<Module> LibDeviceModule;
-  std::string BaseModuleName;
-
-  /// @brief  Make a final pass and 'bind' launch calls to fat binary image.
-  /// @param M -- the module containing the launch calls.
-  /// @param BundleBin -- the fat binary image that contains the kernels.
-  void finalizeLaunchCalls(Module &M, GlobalVariable *BundleBin);
-
-  typedef std::list<GlobalVariable *> GlobalVarListTy;
-  GlobalVarListTy GlobalVars;
-
-  typedef std::set<Value *> SyncRegionListTy;
-  SyncRegionListTy SyncRegList;
-
-  typedef llvm::DenseMap<CallInst *, AllocaInst *> LaunchToStreamMapTy;
-  LaunchToStreamMapTy KernelLaunchToStreamMap;
-
+  /// Currently, we create a single module into which all tapir loops to be
+  /// run on an AMD GPU are outlined. A loop outline processor is created for
+  /// each tapir loop which will add the outlined code into this module. This
+  /// will eventually be compiled executable GPU code.
   Module KernelModule;
-  bool ROCmModulesLoaded;
-  TargetMachine *AMDTargetMachine;
 };
 
-/// FIXME: Fix this documentation. This does not need cuda.
-///
-/// The loop outline process for transforming a Tapir parallel loop
-/// representing into a Hip runtime and PTX --> fat binary kernel
-/// execution.
-///
-///  * The loop processor requires a CUDA install and that the 'ptxas'
-///    and 'fatbinary' executables are in the user's path.  While it
-///    is tempting to inline direct CUDA calls into the transform this
-///    has two drawbacks:
-///
-///      1. CMake dependencies on Hip would need to be added.
-///      2. GPU would be required at compile time (i.e., no cross
-///         compilation support).
-///
+/// The loop outline process for transforming a Tapir parallel loop into a
+/// hip kernel function.
 class HipLoop : public LoopOutlineProcessor {
-  friend class HipABI;
-
 public:
   /// @brief Build the HipLoop outline processor.
   /// @param M: Module containing the input code.
   /// @param KM: The module that will contain the generated kernel.
   /// @param KernelName: The name of the kernel function that is generated.
-  /// @param TT: The "parent" tapir target.
-  HipLoop(Module &M, Module &KM, const std::string &KernelName, HipABI *Target);
+  /// @param TTO: The tapir target options.
+  HipLoop(Module &M, Module &KM, StringRef KernelName,
+          const TapirTargetOptions &TTO);
   ~HipLoop();
 
   /// Prepares the set HelperArgs of function arguments for the outlined helper
@@ -303,58 +190,30 @@ public:
 
   void remapData(ValueToValueMapTy &VMap) override final;
 
-  std::string getKernelName() const { return KernelName; }
-  unsigned getKernelID() const { return KernelID; }
-
 private:
   Value *emitWorkItemId(IRBuilder<> &Builder, int ItemIndex);
   Value *emitWorkGroupId(IRBuilder<> &Builder, int ItemIndex);
   Value *emitWorkGroupSize(IRBuilder<> &Builder, int ItemIndex);
 
-  /// @brief  Emit code to access the GCN dispatch pointer for V4 ABI.
-  /// @param Builder: The IR builder to use.
-  /// @return The dispatch structure pointer.
-  Value *emitDispatchPtr(IRBuilder<> &Builder);
-
-  /// @brief  Emit code to access the GCN dispatch pointer for v5 ABI.
-  /// @param Builder: The IR builder to use.
-  /// @return The dispatch structure pointer.
-  Value *emitImplicitArgPtr(IRBuilder<> &Builder);
-
-  /// @brief Resolve a call on the device side.
-  /// @param Fn: The function to resolve on the device side.
-  /// @return  The new Function for the device side call.
-  Function *resolveDeviceFunction(Function *F, bool enableFast = false);
-
-  /// @brief Transform the given Function so it is ready for GCN generation.
-  /// @param F The function to transform.
-  void transformForGCN(Function &F);
-
-  /// The "parent" tapir target.
-  HipABI *TT = nullptr;
-
-  /// Unique ID for this transformed loop.
-  unsigned KernelID;
-
-  /// The name of the kernel into which the loop is outliend. This incorporates
-  /// the unique @ref KernelID to ensure that there are no collisions.
-  ///
-  /// TODO: It would help if this name incorporated some source information such
-  /// as the source file and line number from which this loop was extracted. It
-  /// would make debugging easier.
+  /// The name of the kernel into which the loop is outlined.
   std::string KernelName;
 
   /// For GPU targets, we outline the loop into a separate module. This is that
   /// module.
   Module &KernelModule;
 
-  // We need to give every kernel a unique ID. This keeps track of the ID's
-  // that are used across all instances of this loop outline processor that are
-  // in use.
-  //
-  // TODO: This is not really what we want to be doing. Ideally, we want to a
-  // more "useful" ID, such as something that incorporates the source file and
-  // line, but until we do that this is something that will work.
+  /// Each tapir loop is outlined into its own kernel function. We need to
+  /// ensure that the names of these kernel functions do not collide. Since a
+  /// loop outline processor instance is created for every tapir loop that is
+  /// encountered, this identifier is shared by the instances to add something
+  /// to the kernel function name that is guaranteed to be unique.
+  ///
+  /// FIXME: Although the tapir target is used to create instances of this loop
+  /// outline processor, multiple instances of the tapir target are created. It
+  /// is not clear that this is the expected behavior, but until we can fix that
+  /// and ensure that only a single instance of the tapir target is created for
+  /// a compilation unit (LLVM Module), we have to keep track of this unique ID
+  /// in the loop outline processor.
   static unsigned NextKernelID;
 
   // AMDGCN intrinsics.
@@ -364,12 +223,11 @@ private:
   FunctionCallee HipWorkGroupIdXFn, HipWorkGroupIdYFn, HipWorkGroupIdZFn;
   FunctionCallee HipBlockDimFn;
 
-  StructType *KernelInstMixTy;
-
-  // Runtime prefetch support entry points.
-  FunctionCallee KitHipCreateFBModuleFn = nullptr;
-
   SmallVector<Value *, 5> OrderedInputs;
+
+  /// The GlobalValue's used in the loop that is being outlined. This includes
+  /// functions, global variables, aliases and ifunc's.
+  std::set<GlobalValue *> UsedGlobalValues;
 };
 
 } // namespace llvm

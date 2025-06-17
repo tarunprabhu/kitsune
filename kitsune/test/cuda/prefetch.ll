@@ -1,3 +1,5 @@
+; Check that the --tapir-gpu-prefetch option is handled correctly
+;
 ; -----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' -S %s \

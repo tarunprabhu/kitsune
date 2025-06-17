@@ -1,3 +1,6 @@
+; Check that the intermediate files generated during codegen are not deleted if
+; the -cgfb-keep-files option is provided
+;
 ; ------------------------------------------------------------------------------
 ; RUN: rm -rf %t
 ; RUN: mkdir -p %t
@@ -21,11 +24,13 @@
 ; RUN: env TMPDIR=%t TEMP=%t TMP=%t \
 ; RUN: opt -o /dev/null %s --tapir=cuda --tapir-cuda-arch=sm_80 \
 ; RUN:     -passes='codegen-fat-binaries' -cgfb-keep-files
-; RUN: ls -l %t/kitcu-*-.* | FileCheck %s
+; RUN: ls -l %t/kitcu-*-.* | FileCheck %s -check-prefix=EXT
+; RUN: ls -l %t/kitcu-*-.* | FileCheck %s -check-prefix=COUNT
 ;
-; CHECK-DAG: {{[.]cufatbin$}}
-; CHECK-DAG: {{[.]ptx$}}
-; CHECK-DAG: {{[.]s$}}
+; EXT-DAG: {{[.]cufatbin$}}
+; EXT-DAG: {{[.]ptx$}}
+; EXT-DAG: {{[.]s$}}
+; COUNT-COUNT-3: {{.+}}
 ;
 ; ------------------------------------------------------------------------------
 

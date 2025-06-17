@@ -10,6 +10,8 @@
 ; CHECK-NEXT: %[[SINF:.+]] = tail call float @__nv_fast_sinf(float %[[SIN]])
 ; CHECK-NEXT: store float %[[SINF]],
 
+target triple = "x86_64-pc-linux-gnu"
+
 declare float @__nv_sinf(float) #2
 declare float @__nv_fast_sinf(float) #2
 

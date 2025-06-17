@@ -12,13 +12,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/CodeGenFatBinaries.h"
-#include "kitsune/Config/config.h"
-#include "llvm/ADT/SmallString.h"
+#include "CodeGenFatBinariesImpl.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/TapirTargetAnalysis.h"
-#include "llvm/Frontend/Tapir/OptLevelUtils.h"
 #include "llvm/Frontend/Tapir/TapirTargetOptions.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/IR/KitsuneMetadata.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
@@ -26,290 +23,20 @@
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/Path.h"
-#include "llvm/Support/Program.h"
 #include "llvm/Support/ToolOutputFile.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Utils/KitsuneUtils.h"
 
 using namespace llvm;
 
 #define DEBUG_TYPE "codegen-fat-binaries"
 
-// The default mode of the transformation is to embed a single fat binary image
-// for the selected target architecture. With this flag set, the PTX form of the
-// code will also be embedded into the fat binary.
-// FIXME: This is currently not used.
-static cl::opt<bool> clEmbedPTXInFatbinaries(
-    "cgfb-embed-ptx", cl::init(false), cl::Hidden,
-    cl::desc("Embed PTX code in the fat binaries generated for the cuda tapir "
-             "target (NOT YET IMPLEMENTED)"));
-
 static cl::opt<bool>
     clKeepFiles("cgfb-keep-files", cl::init(false), cl::Hidden,
                 cl::desc("Do not delete intermediate files created during "
                          "generation of the fat binaries"));
 
-// Override the optimization level used by ptxas when generating GPU code. If
-// this is not explicitly set, it will use the optimization level set in the
-// tapir target options, which is usually whatever was passed to the frontend.
-static cl::opt<int> clPtxasOptLevel(
-    "cgfb-ptxas-opt-level", cl::init(-1), cl::Hidden,
-    cl::desc("Set the optimization level for ptxas. Must be 0, 1, 2 or 3"));
-
 namespace {
-
-static void embedFatBinary(ToolOutputFile &fatbinFile, GlobalVariable &g) {
-  // Allocate a buffer to store the fat binary image in. We will then codegen
-  // it into the host-side module.
-  ErrorOr<std::unique_ptr<MemoryBuffer>> bufOrErr =
-      MemoryBuffer::getFile(fatbinFile.getFilename());
-  if (std::error_code ec = bufOrErr.getError()) {
-    report_fatal_error(StringRef(llvm::join_items(
-        " ", "failed to load fat binary image:", ec.message())));
-  }
-
-  std::unique_ptr<MemoryBuffer> fb = std::move(bufOrErr.get());
-  resetEmbeddedFB(*fb, g);
-}
-
-/// Helper class to generate code for NVIDIA GPU's from embedded bitcode.
-class CodeGenCudaFB {
-private:
-  const TapirTargetOptions &ttOpts;
-
-private:
-  std::unique_ptr<ToolOutputFile> generatePTX(Module &km) {
-    LLVM_DEBUG(dbgs() << "\t- generating PTX...\n");
-
-    // Take the intermediate form code in the kernel module and generate a PTX
-    // file. The PTX file will be named the same as the original input source
-    // module (M) with the extension changed to PTX.
-    SmallString<1024> ptxFilename;
-    std::string model =
-        llvm::join_items("-", "kitcu", "%%%%%%%%", km.getName());
-    sys::fs::createUniquePath(model.c_str(), ptxFilename, true);
-    sys::path::replace_extension(ptxFilename, ".ptx");
-    LLVM_DEBUG(dbgs() << "\t- PTX file: '" << ptxFilename << "'.\n");
-
-    std::error_code ec;
-    std::unique_ptr<ToolOutputFile> ptxFile = std::make_unique<ToolOutputFile>(
-        ptxFilename, ec, sys::fs::OpenFlags::OF_None);
-
-    TargetOptions targetOpts;
-    targetOpts.AllowFPOpFusion = ttOpts.getFPOpFusionMode();
-
-    // TODO: Do we really need a large code model here?
-    CodeModel::Model codeModel = CodeModel::Large;
-    Reloc::Model relocModel = Reloc::PIC_;
-    CodeGenOptLevel optLevel = mapToCodeGenOptLevel(ttOpts.getOptLevel());
-
-    // The build system should have ensured that the NVPTX target is available.
-    std::string err;
-    Triple triple(km.getTargetTriple());
-    const Target *target = TargetRegistry::lookupTarget("", triple, err);
-    assert(target && "Unable to find registered PTX target");
-
-    TargetMachine *tm =
-        target->createTargetMachine(km.getTargetTriple(), ttOpts.getCudaArch(),
-                                    ttOpts.getCudaTargetFeatures(), targetOpts,
-                                    relocModel, codeModel, optLevel);
-
-    // Setup the passes and request that the output goes to the specified PTX
-    // file.
-    legacy::PassManager passMgr;
-    if (tm->addPassesToEmitFile(passMgr, ptxFile->os(),
-                                /*DwoOut=*/nullptr,
-                                CodeGenFileType::AssemblyFile,
-                                /*DisableVerify=*/false)) {
-      report_fatal_error("PTX generation failed");
-    }
-    passMgr.run(km);
-
-    LLVM_DEBUG(dbgs() << "PTX generation complete.\n\n");
-    return ptxFile;
-  }
-
-  std::unique_ptr<ToolOutputFile> assemblePTX(ToolOutputFile &ptxFile) {
-    std::string ptxFilename = ptxFile.getFilename().str();
-    LLVM_DEBUG(dbgs() << "\t- assembling PTX file '" << ptxFilename << "'.\n");
-
-    StringRef ptxas = KITSUNE_CUDA_PTXAS;
-    SmallString<255> asmFilename(ptxFilename);
-    sys::path::replace_extension(asmFilename, ".s");
-
-    std::error_code ec;
-    std::unique_ptr<ToolOutputFile> asmFile = std::make_unique<ToolOutputFile>(
-        asmFilename, ec, sys::fs::OpenFlags::OF_None);
-
-    // Build the command line for ptxas.
-    std::vector<StringRef> args;
-    args.push_back(ptxas);
-
-    // TODO: Do we need/want to add support for generating relocatable code?
-
-    // The gpu architecture (e.g., sm_86)
-    args.push_back("--gpu-name");
-    args.push_back(ttOpts.getCudaArch());
-
-    // Warn if we spill registers and provide feedback on kernel stats.
-    args.push_back("--warn-on-spills");
-
-    if (ttOpts.getTapirVerbose())
-      args.push_back("--verbose");
-
-    // If the ptxas optimization level has not been explicitly overridden, use
-    // the optimization level set by the frontend.
-    int ptxasOptLevel = clPtxasOptLevel;
-    if (ptxasOptLevel == -1)
-      ptxasOptLevel = ttOpts.getOptLevel().getSpeedupLevel();
-
-    std::string optLevel = std::to_string(ptxasOptLevel);
-    args.push_back("--opt-level");
-    args.push_back(optLevel);
-
-    std::string scodeFilename = asmFile->getFilename().str();
-    args.push_back("--output-file");
-    args.push_back(scodeFilename);
-
-    args.push_back(ptxFilename);
-
-    LLVM_DEBUG({
-      dbgs() << "\t- ptxas command line:\n";
-      unsigned i = 0;
-      for (StringRef arg : args)
-        dbgs() << "\t\t" << i++ << ": " << arg << "\n";
-      dbgs() << "\n\n";
-    });
-
-    std::string errMsg;
-    if (sys::ExecuteAndWait(/*Program=*/ptxas,
-                            /*Args=*/args,
-                            /*Env=*/std::nullopt,
-                            /*Redirects=*/{},
-                            /*(0 => unlimited) SecondsToWait=*/0,
-                            /*(0 => unlimited) MemoryLimit=*/0,
-                            /*ErrMsg=*/&errMsg))
-      report_fatal_error(
-          StringRef(llvm::join_items(" ", "'ptxas' failure:", errMsg)));
-
-    return asmFile;
-  }
-
-  std::unique_ptr<ToolOutputFile> createFatBinary(ToolOutputFile &asmFile) {
-    SmallString<255> fatbinFilename(asmFile.getFilename());
-    sys::path::replace_extension(fatbinFilename, ".cufatbin");
-    LLVM_DEBUG(dbgs() << "\t- generatng fatbinary image file '"
-                      << fatbinFilename << "'.\n");
-
-    std::error_code ec;
-    std::unique_ptr<ToolOutputFile> fatbinFile =
-        std::make_unique<ToolOutputFile>(fatbinFilename, ec,
-                                         sys::fs::OpenFlags::OF_None);
-
-    StringRef fatbin = KITSUNE_CUDA_FATBINARY;
-    std::vector<StringRef> args;
-    args.push_back(fatbin);
-    args.push_back("--64");
-    args.push_back("--create");
-    args.push_back(fatbinFilename);
-
-    std::string imgArgs =
-        llvm::join_items("", "--image=profile=", ttOpts.getCudaArch(),
-                         ",file=", asmFile.getFilename());
-    args.push_back(imgArgs);
-
-    // FIXME: This code looks like it is broken.
-    // std::list<std::string> PTXFilesArgList;
-    // if (EmbedPTXInFatbinaries) {
-    //   StringRef varch = ttOpts.getCudaVirtArch();
-    //   if (varch == "unknown")
-    //     report_fatal_error("cuabi: no virtual target for given gpuarch '" +
-    //                        TTO.getCudaArch() + "'!");
-
-    //   std::string PTXFixedArgStr =
-    //       ("--image=profile=" + VArchStr + ",file=").str();
-    //   for (auto &PTXFile : ModulePTXFileList) {
-    //     std::string arg = PTXFixedArgStr + PTXFile;
-    //     std::list<std::string>::const_iterator it;
-    //     it = PTXFilesArgList.emplace(PTXFilesArgList.end(), std::move(arg));
-    //     args.push_back(it->c_str());
-    //   }
-    // }
-
-    LLVM_DEBUG({
-      dbgs() << "\tfatbinary command line:\n";
-      unsigned i = 0;
-      for (StringRef arg : args)
-        dbgs() << "\t\t" << i++ << ": " << arg << "\n";
-      dbgs() << "\n\n";
-    });
-
-    std::string errMsg;
-    if (sys::ExecuteAndWait(/*Program=*/fatbin,
-                            /*Args=*/args,
-                            /*Env=*/std::nullopt,
-                            /*Redirects=*/{},
-                            /*(0 => unlimited) SecondsToWait=*/0,
-                            /*(0 => unlimited) MemoryLimit=*/0,
-                            /*ErrMsg=*/&errMsg)) {
-      // TODO: Need to check what sort of actual state 'fatbinary' returns to
-      // the environment -- currently assuming it matches standard practices
-      report_fatal_error(
-          StringRef(llvm::join_items(" ", "'fatbinary' failure:", errMsg)));
-    }
-
-    return fatbinFile;
-  }
-
-public:
-  CodeGenCudaFB(const TapirTargetOptions &ttOpts) : ttOpts(ttOpts) {}
-
-  bool run(GlobalVariable &gbc, GlobalVariable &gfb) {
-    std::unique_ptr<Module> km = parseEmbeddedBC(gbc);
-
-    std::unique_ptr<ToolOutputFile> ptxFile = generatePTX(*km);
-    std::unique_ptr<ToolOutputFile> asmFile = assemblePTX(*ptxFile);
-    std::unique_ptr<ToolOutputFile> fatbinFile = createFatBinary(*asmFile);
-    embedFatBinary(*fatbinFile, gfb);
-    gbc.eraseFromParent();
-
-    if (clKeepFiles) {
-      ptxFile->keep();
-      asmFile->keep();
-      fatbinFile->keep();
-    }
-    return true;
-  }
-};
-
-/// Helper class to generate code for NVIDIA GPU's from embedded bitcode.
-class CodeGenHipFB {
-private:
-  const TapirTargetOptions &ttOpts;
-
-public:
-  CodeGenHipFB(const TapirTargetOptions &ttOpts) : ttOpts(ttOpts) {}
-
-  bool run(GlobalVariable &gbc, GlobalVariable &gfb) {
-    // TODO: Implement this.
-    std::unique_ptr<Module> km = parseEmbeddedBC(gbc);
-
-    std::unique_ptr<ToolOutputFile> fbFile = nullptr;
-    embedFatBinary(*fbFile, gfb);
-    gbc.eraseFromParent();
-
-    llvm_unreachable("Not implemented");
-    // if (not clKeepFiles) {
-    //   // sys::fs::remove(ptxFile->getFilename());
-    //   // sys::fs::remove(asmFile->getFilename());
-    //   sys::fs::remove(fbFile->getFilename());
-    // }
-    return false;
-  }
-};
 
 /// Implementation class to compile the embedded bitcode to fat binaries.
 class CodeGenFatBinaries {
@@ -355,17 +82,36 @@ public:
   bool run(Module &m) {
     bool changed = false;
 
-    if (MaybeGlobalsBCFB r = getGlobalsBCFB(m, TapirTargetID::Cuda))
-      changed |= CodeGenCudaFB(ttOpts).run(*r->bc, *r->fb);
+    if (MaybeGlobalsBCFB r = getGlobalsBCFB(m, TapirTargetID::Cuda)) {
+      detail::cgFatBinaryCuda(*r->fb, *r->bc, ttOpts, clKeepFiles);
+      r->bc->eraseFromParent();
+      changed |= true;
+    }
 
-    if (MaybeGlobalsBCFB r = getGlobalsBCFB(m, TapirTargetID::Hip))
-      changed |= CodeGenHipFB(ttOpts).run(*r->bc, *r->fb);
+    if (MaybeGlobalsBCFB r = getGlobalsBCFB(m, TapirTargetID::Hip)) {
+      detail::cgFatBinaryHip(*r->fb, *r->bc, ttOpts, clKeepFiles);
+      r->bc->eraseFromParent();
+      changed |= true;
+    }
 
     return changed;
   }
 };
 
 } // namespace
+
+void llvm::detail::embedFatBinary(ToolOutputFile &fatbinFile,
+                                  GlobalVariable &g) {
+  ErrorOr<std::unique_ptr<MemoryBuffer>> bufOrErr =
+      MemoryBuffer::getFile(fatbinFile.getFilename());
+  if (std::error_code ec = bufOrErr.getError()) {
+    report_fatal_error(StringRef(llvm::join_items(
+        " ", "failed to load fat binary image:", ec.message())));
+  }
+
+  std::unique_ptr<MemoryBuffer> fb = std::move(bufOrErr.get());
+  resetEmbeddedFB(*fb, g);
+}
 
 /// Legacy pass to compile the embedded bitcode to fat binaries.
 class CodeGenFatBinariesLegacyPass : public ModulePass {
