@@ -7,11 +7,13 @@
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: @__kitcu__nwnm__v137_suffix = global i32
+; CHECK-DAG: @__kitcu__nwnm__v137_suffix = {{.*}}global i32
+; CHECK-DAG: @__kitcu__nwnm__v138_const = internal constant [4 x i32]
 
 target triple = "x86_64-unknown-linux-gnu"
 
 @v137.suffix = external local_unnamed_addr global i32, align 4
+@v138.const = constant [4 x i32] [i32 10, i32 21, i32 42, i32 93]
 
 define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
 entry:
@@ -25,8 +27,11 @@ forall.detach:                                    ; preds = %entry, %forall.inc
 
 forall.body:                                      ; preds = %forall.detach
   %0 = load i32, ptr @v137.suffix, align 4
+  %1 = getelementptr inbounds nuw i32, ptr @v138.const, i64 %i.05
+  %2 = load i32, ptr %1, align 4
+  %3 = add nuw i32 %0, %2
   %arrayidx = getelementptr inbounds nuw i32, ptr %c, i64 %i.05
-  store i32 %0, ptr %arrayidx, align 4
+  store i32 %3, ptr %arrayidx, align 4
   reattach within %syncreg, label %forall.inc
 
 forall.inc:                                       ; preds = %forall.body, %forall.detach

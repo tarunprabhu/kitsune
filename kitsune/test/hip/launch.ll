@@ -1,31 +1,94 @@
-; Check that a launch call and a fat binary are present in the host.
+; Check that a launch call and a fat binary are present in the host. Check
+; that the launch arguments are as expected.
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     --tapir-lld=ld.lld 2>&1 \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: @__kitsune_fatbin_hip = {{.+}} constant [{{[0-9]+}} x i8] c"
-; CHECK: define {{.+}} @f
-; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(i8 3,
+; CHECK-DAG: @[[FB:.+]] = constant {{.+}}, !kitsune.fb ![[TTMD:[0-9]+]]
+; CHECK-DAG: @[[G_KNAME:.+]] = private unnamed_addr constant [{{[0-9]+}} x i8] c"[[KNAME:.+]]"
+; CHECK-DAG: @[[G_KERNEL_MD:.+]] = private unnamed_addr constant {{.+}} zeroinitializer, !kitsune.kernel.md ![[KERNEL_MD:[0-9]+]]
+;
+; CHECK: define {{.+}} @f(ptr {{.*}}%[[C:.+]], i64 {{.*}}%[[N:.+]])
+;
+; Local variables for the arguments so everything is passed to the runtime
+; launch function.
+; CHECK: %[[ARGS:.+]] = alloca [5 x ptr]
+; CHECK: %[[LOCAL_TRIP_COUNT:.+]] = alloca i64
+; CHECK: %[[LOCAL_START:.+]] = alloca i64
+; CHECK: %[[LOCAL_GRAINSIZE:.+]] = alloca i64
+; CHECK: %[[LOCAL_C:.+]] = alloca ptr
+; CHECK: %[[LOCAL_N:.+]] = alloca i64
+;
+; The trip count is the first argument of the kernel function.
+; CHECK: store i64 %n, ptr %[[LOCAL_TRIP_COUNT]]
+; CHECK: store ptr %[[LOCAL_TRIP_COUNT]], ptr %[[ARGS]]
+;
+; The start index is the second argument.
+; CHECK: store i64 0, ptr %[[LOCAL_START]]
+; CHECK: %[[ARGS_START:.+]] = getelementptr {{.+}} i8, ptr %[[ARGS]], i64 8
+; CHECK: store ptr %[[LOCAL_START]], ptr %[[ARGS_START]]
+;
+; The grainsize is the third argument. This is usually 1, but don't assume that
+; here.
+; CHECK: store i64 {{.+}}, ptr %[[LOCAL_GRAINSIZE]]
+; CHECK: %[[ARGS_GRAINSIZE:.+]] = getelementptr {{.+}} i8, ptr %[[ARGS]], i64 16
+; CHECK: store ptr %[[LOCAL_GRAINSIZE]], ptr %[[ARGS_GRAINSIZE]]
+;
+; The remaining arguments to the kernel function are whatever else is used in
+; the kernel function.
+; CHECK: store ptr %[[C]], ptr %[[LOCAL_C]]
+; CHECK: %[[ARGS_C:.+]] = getelementptr {{.+}} i8, ptr %[[ARGS]], i64 24
+; CHECK: store ptr %[[LOCAL_C]], ptr %[[ARGS_C]]
+; CHECK: store i64 %[[N]], ptr %[[LOCAL_N]]
+; CHECK: %[[ARGS_N:.+]] = getelementptr {{.+}} i8, ptr %[[ARGS]], i64 32
+; CHECK: store ptr %[[LOCAL_N]], ptr %[[ARGS_N]]
+;
+; The actual launch. The arguments are:
+;
+;   - tapir target id
+;   - fat binary global
+;   - kernel name global string literal
+;   - trip count
+;   - threads per block (zero to indicate that it is unset)
+;   - kernel metadata global
+;   - thread stream
+;
+; If the signature of the launch kernel intrinsic changes, this will fail as it
+; should.
+;
+; global, the string literal for the kernel name, the arguments array, the
+; trip count,
+; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(
+; CHECK-SAME: i8 3,
+; CHECK-SAME: ptr {{.*}}@[[FB]],
+; CHECK-SAME: ptr {{.*}}@[[G_KNAME]],
+; CHECK-SAME: ptr {{.*}}%[[ARGS]],
+; CHECK-SAME: i64 %n,
+; CHECK-SAME: i32 0,
+; CHECK-SAME: ptr {{.*}}@[[G_KERNEL_MD]],
+; CHECK-SAME: ptr {{.*}}%{{[A-Za-z0-9._]+}}
+; CHECK-SAME: )
+;
+; By default, we always enter a sync immediately after the launch. A later
+; optimization pass may (re)move this if appropriate
 ; CHECK: call {{.+}} @llvm.kitrt.sync.stream(i8 3, ptr %[[TS]])
 ; CHECK: ret void
 ; CHECK-NEXT: }
+;
+; CHECK: ![[TTMD]] = !{i8 3}
+; CHECK: ![[KERNEL_MD]] = !{[{{[0-9]+}} x i8] c"[[KNAME]]"}
 
-; ModuleID = 'clopts.c'
-source_filename = "clopts.c"
-target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
-target triple = "x86_64-unknown-linux-gnu"
+target triple = "x86_64-pc-linux-gnu"
 
 ; Function Attrs: nounwind memory(argmem: write) uwtable
-define dso_local void @f(ptr nocapture noundef writeonly %c, i32 noundef %n) local_unnamed_addr #0 {
+define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i32 %n, 0
+  %cmp5 = icmp sgt i64 %n, 0
   br i1 %cmp5, label %forall.detach.preheader, label %forall.sync
 
 forall.detach.preheader:                          ; preds = %entry
-  %wide.trip.count = zext nneg i32 %n to i64
   br label %forall.detach
 
 forall.detach:                                    ; preds = %forall.detach.preheader, %forall.inc
@@ -35,12 +98,12 @@ forall.detach:                                    ; preds = %forall.detach.prehe
 
 forall.body:                                      ; preds = %forall.detach
   %arrayidx = getelementptr inbounds i32, ptr %c, i64 %indvars.iv
-  store i32 %n, ptr %arrayidx, align 4, !tbaa !5
+  store i64 %n, ptr %arrayidx, align 4
   reattach within %syncreg, label %forall.inc
 
 forall.inc:                                       ; preds = %forall.body, %forall.detach
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %wide.trip.count
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !9
+  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
+  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
 
 forall.sync:                                      ; preds = %forall.inc, %entry
   sync within %syncreg, label %forall.end
@@ -52,21 +115,9 @@ forall.end:                                       ; preds = %forall.sync
 ; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
 declare token @llvm.syncregion.start() #1
 
-attributes #0 = { nounwind memory(argmem: write) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #0 = { nounwind memory(argmem: write) uwtable }
 attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
 
-!llvm.module.flags = !{!0, !1, !2, !3}
-!llvm.ident = !{!4}
-
-!0 = !{i32 1, !"wchar_size", i32 4}
-!1 = !{i32 8, !"PIC Level", i32 2}
-!2 = !{i32 7, !"PIE Level", i32 2}
-!3 = !{i32 7, !"uwtable", i32 2}
-!4 = !{!"clang version 19.1.2 (git@github.com:tarunprabhu/kitsune.git 0ab68f142927b9548ac0bc51a82f9bf5e859b384)"}
-!5 = !{!6, !6, i64 0}
-!6 = !{!"int", !7, i64 0}
-!7 = !{!"omnipotent char", !8, i64 0}
-!8 = !{!"Simple C/C++ TBAA"}
-!9 = distinct !{!9, !10, !11}
-!10 = !{!"tapir.loop.spawn.strategy", i32 1}
-!11 = !{!"llvm.loop.unroll.disable"}
+!0 = distinct !{!0, !1, !2}
+!1 = !{!"tapir.loop.spawn.strategy", i32 1}
+!2 = !{!"llvm.loop.unroll.disable"}

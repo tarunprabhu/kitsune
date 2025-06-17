@@ -13,10 +13,16 @@
 #include "llvm/Transforms/Utils/KitsuneUtils.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/Frontend/Tapir/OptLevelUtils.h"
+#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/KitsuneMetadata.h"
 #include "llvm/IR/Module.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/CodeGen.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
@@ -36,18 +42,12 @@ ConstantInt *llvm::getConstantInt(LLVMContext &ctxt, TapirTargetID tt) {
 /// Serialize the module to LLVM bitcode. Create a constant byte array with this
 /// serialized result and return it.
 static Constant *serialize(const Module &m) {
-  SmallString<256> bcBuf;
-  BitcodeWriter bcWriter(bcBuf);
-  bcWriter.writeModule(m);
-  bcWriter.writeStrtab();
-
-  // Write a null byte to the end of the serialized buffer because it is
-  // required when this is deserialized.
-  bcBuf.append("\0");
+  SmallString<4096> buf;
+  raw_svector_ostream os(buf);
+  WriteBitcodeToFile(m, os);
 
   LLVMContext &ctx = m.getContext();
-  size_t bcSize = bcBuf.size();
-  return ConstantDataArray::getRaw(bcBuf, bcSize, Type::getInt8Ty(ctx));
+  return ConstantDataArray::getString(ctx, buf, /*AddNull=*/false);
 }
 
 static GlobalVariable *createEmbeddedBC(const Module &m, Module &hostM) {
@@ -59,7 +59,7 @@ static GlobalVariable *createEmbeddedBC(const Module &m, Module &hostM) {
   Type *bcType = bcInit->getType();
   GlobalVariable *g = new GlobalVariable(hostM, bcType, /*isConstant=*/true,
                                          linkage, bcInit, ".kitsune.emb.bc");
-  g->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
+  g->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
 
   return g;
 }
@@ -82,7 +82,7 @@ std::unique_ptr<Module> llvm::parseEmbeddedBC(const GlobalVariable &g) {
   assert(g.hasInitializer() &&
          "Global containing embedded bitcode requires initializer");
   assert(isa<ConstantDataArray>(g.getInitializer()) &&
-         "Global containing embedded bitcode requires an constant array "
+         "Global containing embedded bitcode requires a constant array "
          "initializer");
   assert(cast<ConstantDataArray>(g.getInitializer())
              ->getType()
@@ -92,7 +92,7 @@ std::unique_ptr<Module> llvm::parseEmbeddedBC(const GlobalVariable &g) {
 
   LLVMContext &ctx = g.getContext();
   const Constant *bcInit = g.getInitializer();
-  StringRef bcBytes = cast<ConstantDataArray>(bcInit)->getRawDataValues();
+  StringRef bcBytes = cast<ConstantDataArray>(bcInit)->getAsString();
   std::unique_ptr<MemoryBuffer> bcBuf = MemoryBuffer::getMemBuffer(bcBytes);
   assert(isBitcode((const unsigned char *)bcBuf->getBufferStart(),
                    (const unsigned char *)bcBuf->getBufferEnd()) &&
@@ -100,11 +100,18 @@ std::unique_ptr<Module> llvm::parseEmbeddedBC(const GlobalVariable &g) {
 
   Expected<std::unique_ptr<Module>> moduleOrErr = parseBitcodeFile(*bcBuf, ctx);
   if (not moduleOrErr) {
-    errs() << moduleOrErr.takeError() << "\n";
-    report_fatal_error("Error parsing embedded bitcode");
+    Error err = moduleOrErr.takeError();
+    handleAllErrors(std::move(err), [&](ErrorInfoBase &e) {
+      errs() << "Error parsing embedded bitcode: " << e.message() << "\n";
+    });
+    report_fatal_error("Could not parse embedded bitcode");
   }
 
-  return std::move(moduleOrErr.get());
+  std::unique_ptr<Module> m = std::move(moduleOrErr.get());
+  if (std::optional<StringRef> name = getNameFromModuleMD(*m))
+    m->setModuleIdentifier(*name);
+
+  return m;
 }
 
 GlobalVariable *llvm::createEmbeddedBC(const Module &m, TapirTargetID tt,
@@ -155,13 +162,14 @@ GlobalVariable *llvm::createEmbeddedFB(TapirTargetID tt, Module &m) {
     g->setSection(".nv_fatbin");
     break;
   case TapirTargetID::Hip:
+    g->setSection(".hip_fatbin");
+    g->setAlignment(Align(4096));
     break;
   default:
     llvm_unreachable(
         "Creating embedded fat binary with unexpected tapir target");
     break;
   }
-
   return g;
 }
 
@@ -215,6 +223,57 @@ GlobalVariable *llvm::getOrCreateGlobalString(Module &m, StringRef s,
   g->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
   g->setAlignment(Align(1));
   return g;
+}
+
+static TargetMachine *createAMDGPUTargetMachine(const TapirTargetOptions &tto) {
+  Triple triple("amdgcn", "amd", "amdhsa");
+
+  std::string err;
+  const Target *target = TargetRegistry::lookupTarget("", triple, err);
+  assert(target && "Unable to find registered AMDGPU target");
+
+  // TODO: Should we allow relocations here?
+  CodeModel::Model codeModel = CodeModel::Small;
+  Reloc::Model relocModel = Reloc::Static;
+  CodeGenOptLevel optLevel = mapToCodeGenOptLevel(tto.getOptLevel());
+  TargetOptions opts;
+  opts.UseInitArray = true;
+  opts.EmitAddrsig = true;
+  opts.AllowFPOpFusion = tto.getFPOpFusionMode();
+
+  return target->createTargetMachine(triple.str(), tto.getHipArch(),
+                                     tto.getHipTargetFeatures(), opts,
+                                     relocModel, codeModel, optLevel);
+}
+
+static TargetMachine *createPTXTargetMachine(const TapirTargetOptions &tto) {
+  Triple triple("nvptx64", "nvidia", "cuda");
+
+  std::string err;
+  const Target *target = TargetRegistry::lookupTarget("", triple, err);
+  assert(target && "Unable to find registered PTX target");
+
+  CodeModel::Model codeModel = CodeModel::Small;
+  Reloc::Model relocModel = Reloc::PIC_;
+  CodeGenOptLevel optLevel = mapToCodeGenOptLevel(tto.getOptLevel());
+  TargetOptions opts;
+  opts.AllowFPOpFusion = tto.getFPOpFusionMode();
+
+  return target->createTargetMachine(triple.str(), tto.getCudaArch(),
+                                     tto.getCudaTargetFeatures(), opts,
+                                     relocModel, codeModel, optLevel);
+}
+
+TargetMachine *llvm::createTargetMachine(TapirTargetID tt,
+                                         const TapirTargetOptions &tto) {
+  switch (tt) {
+  case TapirTargetID::Cuda:
+    return createPTXTargetMachine(tto);
+  case TapirTargetID::Hip:
+    return createAMDGPUTargetMachine(tto);
+  default:
+    llvm_unreachable("createTargetMachine: TapirTargetID not handled");
+  }
 }
 
 constexpr std::array<TapirTargetID, 2> tgtsGenEmbBC = {TapirTargetID::Cuda,

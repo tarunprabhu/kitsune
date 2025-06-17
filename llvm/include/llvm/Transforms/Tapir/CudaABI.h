@@ -61,14 +61,13 @@
 
 namespace llvm {
 
-class CudaLoop;
 class TapirTargetOptions;
 
 /// The tapir target to lower tapir loops to kitsune's cuda runtime. The tapir
 /// loops will be converted to GPU kernels.
 class CudaABI : public TapirTarget {
 public:
-  CudaABI(Module &M, const TapirTargetOptions &opts);
+  CudaABI(Module &HostM, const TapirTargetOptions &TTO);
   ~CudaABI();
 
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
@@ -126,12 +125,12 @@ private:
   /// encountered, this identifier is shared by the instances to add something
   /// to the kernel function name that is guaranteed to be unique.
   ///
-  /// Although the tapir target is used to create instances of this loop outline
-  /// processor, multiple instances of the tapir target are created. It is not
-  /// clear that this is the expected behavior, but until we can fix that and
-  /// ensure that only a single instance of the tapir target is created for a
-  /// compilation unit (LLVM Module), we have to keep track of this unique ID in
-  /// the loop outline processor.
+  /// FIXME: Although the tapir target is used to create instances of this loop
+  /// outline processor, multiple instances of the tapir target are created. It
+  /// is not clear that this is the expected behavior, but until we can fix that
+  /// and ensure that only a single instance of the tapir target is created for
+  /// a compilation unit (LLVM Module), we have to keep track of this unique ID
+  /// in the loop outline processor.
   static unsigned NextKernelID;
 
   // Cuda/PTX thread index access.

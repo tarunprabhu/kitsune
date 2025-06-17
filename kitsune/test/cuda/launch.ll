@@ -1,5 +1,5 @@
 ; Check that a launch call and a fat binary are present in the host. Check
-; that the launch kernel arguments are as expected.
+; that the launch arguments are as expected.
 ;
 ; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | FileCheck %s

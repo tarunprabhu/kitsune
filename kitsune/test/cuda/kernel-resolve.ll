@@ -7,7 +7,9 @@
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: tail call float @__nv_sinf
-; CHECK: tail call fast float @__nv_fast_cosf
+; CHECK: tail call float @__nv_cosf
+
+target triple = "x86_64-pc-linux-gnu"
 
 declare float @sinf(float)
 declare float @cosf(float)
@@ -31,7 +33,7 @@ forall.body:                                      ; preds = %forall.detach
   %arrayidx = getelementptr inbounds float, ptr %c, i64 %indvars.iv
   %asf = sitofp i64 %n to float
   %sin = tail call float @sinf(float %asf)
-  %cos = tail call fast float @cosf(float %sin)
+  %cos = tail call float @cosf(float %sin)
   store float %cos, ptr %arrayidx, align 4
   reattach within %syncreg, label %forall.inc
 

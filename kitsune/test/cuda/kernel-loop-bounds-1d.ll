@@ -29,7 +29,7 @@
 ; CHECK-NEXT: ret void
 ;
 ; CHECK: attributes #[[ATTRS]] = {
-; CHECK-SAME: "kitsune.outlined.from.tapir.loop"
+; CHECK-SAME: "kitsune.kernel"
 
 target triple = "x86_64-pc-linux-gnu"
 

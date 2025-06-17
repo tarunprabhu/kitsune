@@ -21,18 +21,21 @@ using namespace llvm;
 /// Metadata that indicates that a global variable contains serialized LLVM
 /// bitcode created by a tapir target. This contains a single integer value
 /// which is the id of the tapir target that created this metadata.
-constexpr const char *mdKitsuneBC = "kitsune.bc";
+static constexpr StringRef mdKitsuneBC = "kitsune.bc";
 
 /// Metadata that indicates that a global variable contains the fat binary to
 /// be used by one of Kitsune's GPU runtimes. This contains a single integer
 /// value which is the id of the tapir target that created this metadata.
-constexpr const char *mdKitsuneFB = "kitsune.fb";
+static constexpr StringRef mdKitsuneFB = "kitsune.fb";
 
 /// Metadata that indicates that a global variable contains metadata about a
 /// kernel function. This metadata currently includes counts for various
 /// instruction kinds in the function, but could be expanded to include other
 /// data that could be useful for the runtime.
-constexpr const char *mdKitsuneKernelMD = "kitsune.kernel.md";
+static constexpr StringRef mdKitsuneKernelMD = "kitsune.kernel.md";
+
+/// Name of a named metadata node containing top-level Kitsune metadata.
+static constexpr StringRef mdKitsuneAnnotations = "kitsune.module.flags";
 
 static std::optional<TapirTargetID> getKitsuneTTMD(const MDNode &md) {
   assert(md.getNumOperands() >= 1 &&
@@ -130,5 +133,44 @@ std::optional<StringRef> llvm::getKitsuneKernelMDMD(const GlobalVariable &g) {
 
     return cda->getAsCString();
   }
+  return std::nullopt;
+}
+
+bool llvm::hasKitsuneModuleMD(const Module &m) {
+  return m.getNamedMetadata(mdKitsuneAnnotations);
+}
+
+void llvm::addKitsuneModuleMD(TapirTargetID tt, Module &m) {
+  auto addOperandAt = [](NamedMDNode& nmd, unsigned i, MDNode* md) -> void {
+    if (nmd.getNumOperands() > i)
+      nmd.setOperand(i, md);
+    else
+      nmd.addOperand(md);
+  };
+
+  LLVMContext &ctx = m.getContext();
+  Type *i8 = Type::getInt8Ty(ctx);
+  NamedMDNode *nmd = m.getOrInsertNamedMetadata(mdKitsuneAnnotations);
+
+  Constant *cTT = ConstantInt::get(i8, int(tt));
+
+  addOperandAt(*nmd, 0, MDNode::get(ctx, ConstantAsMetadata::get(cTT)));
+  addOperandAt(*nmd, 1, MDNode::get(ctx, MDString::get(ctx, m.getName())));
+}
+
+std::optional<TapirTargetID> llvm::getTapirTargetFromModuleMD(const Module &m) {
+  if (const NamedMDNode *nmd = m.getNamedMetadata(mdKitsuneAnnotations))
+    if (const auto *md = nmd->getOperand(0))
+      if (const auto *cmd = dyn_cast<ConstantAsMetadata>(md->getOperand(0)))
+        if (const auto *cint = dyn_cast<ConstantInt>(cmd->getValue()))
+          return TapirTargetID(cint->getSExtValue());
+  return std::nullopt;
+}
+
+std::optional<StringRef> llvm::getNameFromModuleMD(const Module &m) {
+  if (const NamedMDNode *nmd = m.getNamedMetadata(mdKitsuneAnnotations))
+    if (const auto *md = nmd->getOperand(1))
+      if (const auto *mds = dyn_cast<MDString>(md->getOperand(0)))
+        return mds->getString();
   return std::nullopt;
 }

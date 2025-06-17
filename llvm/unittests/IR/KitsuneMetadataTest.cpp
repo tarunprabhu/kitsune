@@ -100,4 +100,18 @@ TEST(KitsuneMetadata, setAndCheckKernelMD) {
   EXPECT_EQ(getKitsuneKernelMDMD(kmd), "kfname");
 }
 
+TEST(KitsuneMetadata, setAndCheckModuleMD) {
+  LLVMContext ctx;
+  Module m("modname", ctx);
+
+  EXPECT_FALSE(hasKitsuneModuleMD(m));
+  EXPECT_FALSE(getTapirTargetFromModuleMD(m));
+  EXPECT_FALSE(getNameFromModuleMD(m));
+
+  addKitsuneModuleMD(TapirTargetID::Serial, m);
+  EXPECT_TRUE(hasKitsuneModuleMD(m));
+  EXPECT_EQ(*getTapirTargetFromModuleMD(m), TapirTargetID::Serial);
+  EXPECT_EQ(*getNameFromModuleMD(m), "modname");
+}
+
 } // namespace

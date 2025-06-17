@@ -14,6 +14,8 @@
 #ifndef LLVM_TRANSFORMS_KITSUNE_EMB_BC_PASS_UTILS_H
 #define LLVM_TRANSFORMS_KITSUNE_EMB_BC_PASS_UTILS_H
 
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/Module.h"
 
 #include <memory>
@@ -21,12 +23,16 @@
 namespace llvm {
 
 class LLVMContext;
+class NamedMDNode;
+class TapirTargetOptions;
 
-/// Parse a libdevice bitcode file. This is expected to succeed, so any failure
-/// to parse the file will result in a catastrophic error.
-/// @filename Full path to the bitcode file
-/// @ctx The LLVM context
-std::unique_ptr<Module> parseLibDeviceBCFile(StringRef file, LLVMContext &ctx);
+/// Generate a module containing the contents of the libDevice bitcode file(s)
+/// for the given tapir target. This will parse one or more files as specified
+/// in the given tapir target options. Calling this function multiple times can
+/// get expensive, so callers should cache this module if possible.
+std::unique_ptr<Module> getLibDeviceModule(TapirTargetID tt,
+                                           const TapirTargetOptions &ttOpts,
+                                           LLVMContext &ctx);
 
 } // namespace llvm
 

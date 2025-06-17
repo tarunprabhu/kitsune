@@ -843,6 +843,7 @@ bool NVPTXAsmPrinter::doInitialization(Module &M) {
   bool Result = AsmPrinter::doInitialization(M);
 
   GlobalsEmitted = false;
+  clearAnnotationCache(&M);
 
   return Result;
 }

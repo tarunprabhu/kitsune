@@ -2,7 +2,7 @@
 ; kernel metadata global variable. This intentionally does not check that the
 ; contents of the computed metadata are correct.
 ;
-; RUN: opt --tapir=cuda -S %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_80 -S %s \
 ; RUN:     -passes='tapir-lowering<O2>,finalize-kernel-metadata' \
 ; RUN:     | FileCheck %s
 ;
