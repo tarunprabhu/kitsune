@@ -9,6 +9,7 @@
 #include "llvm/Transforms/Utils/KitsuneUtils.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/KitsuneMetadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/SourceMgr.h"
@@ -58,10 +59,29 @@ entry:
 }
 )");
 
-  GlobalVariable *g = createEmbeddedBC(*cudaM, TapirTargetID::Cuda, *hostM);
-  std::unique_ptr<Module> parseM = parseEmbeddedBC(*g);
+  GlobalVariable *gCuda = createEmbeddedBC(*cudaM, TapirTargetID::Cuda, *hostM);
+  std::unique_ptr<Module> parseCudaM = parseEmbeddedBC(*gCuda);
 
-  EXPECT_TRUE(parseM->getFunction("fcuda"));
+  EXPECT_TRUE(parseCudaM->getFunction("fcuda"));
+  EXPECT_EQ(parseCudaM->getName(), "");
+
+  std::unique_ptr<Module> hipM = parseIR(ctx, R"(
+define i32 @fhip(i32 %n) {
+entry:
+  ret i32 %n
+}
+
+!kitsune.module.flags = !{!0, !1}
+
+!0 = !{i8 3}
+!1 = !{!"some-silly-name"}
+)");
+
+  GlobalVariable *gHip = createEmbeddedBC(*hipM, TapirTargetID::Hip, *hostM);
+  std::unique_ptr<Module> parseHipM = parseEmbeddedBC(*gHip);
+
+  EXPECT_TRUE(parseHipM->getFunction("fhip"));
+  EXPECT_EQ(parseHipM->getName(), "some-silly-name");
 }
 
 TEST(KitsuneUtils, resetEmbeddedBC) {
@@ -140,7 +160,7 @@ entry:
   }
 }
 
-TEST(KitsuneUtils, createEmbeddedFB) {
+TEST(KitsuneUtils, createEmbeddedFBCuda) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, R"()");
 
@@ -153,6 +173,23 @@ TEST(KitsuneUtils, createEmbeddedFB) {
   EXPECT_FALSE(hasKitsuneFBMD(*g, TapirTargetID::Hip));
   EXPECT_EQ(g->getParent(), m.get());
   EXPECT_EQ(getEmbeddedFB(TapirTargetID::Cuda, *m), g);
+}
+
+TEST(KitsuneUtils, createEmbeddedFBHip) {
+  LLVMContext ctx;
+  std::unique_ptr<Module> m = parseIR(ctx, R"()");
+
+  EXPECT_FALSE(getEmbeddedFB(TapirTargetID::Hip, *m));
+
+  GlobalVariable *g = createEmbeddedFB(TapirTargetID::Hip, *m);
+
+  EXPECT_EQ(g->getSection(), ".hip_fatbin");
+  EXPECT_EQ(g->getAlign(), Align(4096));
+  EXPECT_EQ(g->getUnnamedAddr(), GlobalValue::UnnamedAddr::None);
+  EXPECT_TRUE(hasKitsuneFBMD(*g, TapirTargetID::Hip));
+  EXPECT_FALSE(hasKitsuneFBMD(*g, TapirTargetID::Cuda));
+  EXPECT_EQ(g->getParent(), m.get());
+  EXPECT_EQ(getEmbeddedFB(TapirTargetID::Hip, *m), g);
 }
 
 TEST(KitsuneUtils, resetEmbeddedFB) {

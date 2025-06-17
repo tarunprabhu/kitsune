@@ -2881,26 +2881,28 @@ TLI_DEFINE_ENUM_INTERNAL(cuda_register_fat_binary_end)
 TLI_DEFINE_STRING_INTERNAL("__cudaRegisterFatBinaryEnd")
 TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
 
-/// void __cudaRegisterManagedVar(void**      fatBinHandle,
-///                               void**      hostVarPtrAddress,
-///                               char*       deviceAddress,
-///                               const char* deviceName,
-///                               int         ext,
-///                               size_t      size,
-///                               int         constant,
-///                               int         global);
+/// void
+/// __cudaRegisterManagedVar(void**      fatBinHandle,
+///                          void**      hostVarPtrAddress,
+///                          char*       deviceAddress,
+///                          const char* deviceName,
+///                          int         ext,
+///                          size_t      size,
+///                          int         constant,
+///                          int         global);
 TLI_DEFINE_ENUM_INTERNAL(cuda_register_managed_var)
 TLI_DEFINE_STRING_INTERNAL("__cudaRegisterManagedVar")
 TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Ptr, Ptr, Int, SizeT, Int, Int)
 
-/// void __cudaRegisterVar(void**      fatBinHandle,
-///                        char*       hostVar,
-///                        char*       deviceAddress,
-///                        const char* deviceName,
-///                        int         ext,
-///                        size_t      size,
-///                        int         constant,
-///                        int         global);
+/// void
+/// __cudaRegisterVar(void**      fatBinHandle,
+///                   char*       hostVar,
+///                   char*       deviceAddress,
+///                   const char* deviceName,
+///                   int         ext,
+///                   size_t      size,
+///                   int         constant,
+///                   int         global);
 TLI_DEFINE_ENUM_INTERNAL(cuda_register_var)
 TLI_DEFINE_STRING_INTERNAL("__cudaRegisterVar")
 TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Ptr, Ptr, Int, SizeT, Int, Int)
@@ -2918,6 +2920,44 @@ TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
 // These are functions from libamdhip64 and other AMD Hip runtim libraries that
 // kitsune links to. These are used by Kitsune's hip tapir target
 // ----------------------------------------------------------------------------
+
+/// void* __hipRegisterFatBinary(void*)
+TLI_DEFINE_ENUM_INTERNAL(hip_register_fat_binary)
+TLI_DEFINE_STRING_INTERNAL("__hipRegisterFatBinary")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr)
+
+/// void
+/// __hipRegisterManagedVar(
+///     void* hipModule,  // Pointer returned by __hipRegisterFatbinary()
+///     void** pointer,   // Pointer to a chunk of managed memory with size
+///                       // \p size and alignment \p align. The runtime
+///                       // allocates this managed memory and assigns it to
+///                       // \p pointer
+///     void* init_value, // Initial value to be copied into \p pointer
+///     const char* name, // Name of the variable in code object
+///     size_t size,      // Size in bytes of the variable
+///     unsigned align);  // The variable's alignment
+TLI_DEFINE_ENUM_INTERNAL(hip_register_managed_var)
+TLI_DEFINE_STRING_INTERNAL("__hipRegisterManagedVar")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Ptr, Ptr, SizeT, Int)
+
+/// void
+/// __hipRegisterVar(void** fatbinHandle,
+///                  void*  var,           // The shadow variable in host code
+///                  char*  hostVar,       // Variable name in host code
+///                  char*  deviceVar,     // Variable name in device code
+///                  int    ext,           // Whether this variable is external
+///                  size_t size,          // Size of the variable
+///                  int    constant,      // Whether this variable is constant
+///                  int    global);       // Unknown, always 0
+TLI_DEFINE_ENUM_INTERNAL(hip_register_var)
+TLI_DEFINE_STRING_INTERNAL("__hipRegisterVar")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Ptr, Ptr, Int, SizeT, Int, Int)
+
+/// void __hipUnregisterFatBinary(void**)
+TLI_DEFINE_ENUM_INTERNAL(hip_unregister_fat_binary)
+TLI_DEFINE_STRING_INTERNAL("__hipUnregisterFatBinary")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
 
 #undef TLI_DEFINE_ENUM_INTERNAL
 #undef TLI_DEFINE_STRING_INTERNAL

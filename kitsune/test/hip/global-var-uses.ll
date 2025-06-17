@@ -1,0 +1,88 @@
+; Non-constant global variabes used in a kernel (or device) function must be
+; in a specific address space. However, simply setting the address space is not
+; sufficient since we need to ensure that the change in address space does not
+; affect the instructions in the body. For instance, if the global is passed to
+; a device function, there may be a type mismatch if the device function does
+; not expect pointers in a specific address space. In order to deal with this,
+; we cast away the address space in every use of the global.
+;
+; RUN: opt --tapir=hip %s --tapir-hip-features="+16-bit-insts" \
+; RUN:     -passes='loop-spawning,prepare-emb-bc' \
+; RUN:     | %kitmbc -S \
+; RUN:     | FileCheck %s
+;
+; CHECK: @[[GV:.+]] = {{.*}}addrspace(1) global [16 x i64]
+;
+; CHECK-LABEL: define {{.+}} @id(
+; CHECK-SAME: ptr %[[ARG0:[^,]+]],
+; CHECK-SAME: i64 %[[ARG1:[^)]+]])
+; CHECK: getelementptr inbounds i64, ptr addrspacecast (ptr addrspace(1) @[[GV]] to ptr), i64 %[[ARG1]]
+;
+; CHECK-LABEL: define {{.+}} @__kithip_loop_f
+; CHECK: %[[IV:.+]] = phi i64
+; CHECK: %[[V0:.+]] = tail call fastcc i64 @id(ptr addrspacecast (ptr addrspace(1) @[[GV]] to ptr), i64 %[[IV]])
+; CHECK: %[[V1:.+]] = ptrtoint ptr addrspacecast (ptr addrspace(1) @[[GV]] to ptr) to i64
+; CHECK: %[[V2:.+]] = getelementptr inbounds i64, ptr addrspacecast (ptr addrspace(1) @[[GV]] to ptr), i64 %[[IV]]
+; CHECK: %[[V3:.+]] = load i64, ptr addrspacecast (ptr addrspace(1) @[[GV]] to ptr)
+; CHECK: ptrtoint ptr %[[V2]] to i64
+
+target triple = "x86_64-pc-linux-gnu"
+
+@v137 = external global [16 x i64]
+
+; Function Attrs: noinline nounwind willreturn memory(argmem: none)
+define dso_local i64 @id(ptr %p, i64 %iv) #2 {
+entry:
+  %0 = getelementptr inbounds i64, ptr @v137, i64 %iv
+  %1 = load i64, ptr %0
+  ret i64 %1
+}
+
+; Function Attrs: nounwind memory(argmem: write) uwtable
+define dso_local void @f(ptr %a, ptr %b, ptr %c, i64 %n) #0 {
+entry:
+  %syncreg = tail call token @llvm.syncregion.start()
+  %cmp5 = icmp sgt i64 %n, 0
+  br i1 %cmp5, label %forall.detach.preheader, label %forall.sync
+
+forall.detach.preheader:                          ; preds = %entry
+  br label %forall.detach
+
+forall.detach:                                    ; preds = %forall.detach.preheader, %forall.inc
+  %indvars.iv = phi i64 [ 0, %forall.detach.preheader ], [ %indvars.iv.next, %forall.inc ]
+  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
+  detach within %syncreg, label %forall.body, label %forall.inc
+
+forall.body:                                      ; preds = %forall.detach
+  %0 = tail call i64 @id(ptr @v137, i64 %indvars.iv)
+  %1 = ptrtoint ptr @v137 to i64
+  %2 = getelementptr inbounds i64, ptr @v137, i64 %indvars.iv
+  %3 = load i64, ptr @v137
+  %4 = add i64 %0, %1
+  %5 = ptrtoint ptr %2 to i64
+  %6 = mul i64 %4, %5
+  %7 = sub i64 %6, %3
+  store i64 %7, ptr @v137
+  reattach within %syncreg, label %forall.inc
+
+forall.inc:                                       ; preds = %forall.body, %forall.detach
+  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
+  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+
+forall.sync:                                      ; preds = %forall.inc, %entry
+  sync within %syncreg, label %forall.end
+
+forall.end:                                       ; preds = %forall.sync
+  ret void
+}
+
+; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
+declare token @llvm.syncregion.start() #1
+
+attributes #0 = { nounwind memory(argmem: write) uwtable }
+attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
+attributes #2 = { noinline nounwind willreturn memory(argmem: none) }
+
+!0 = distinct !{!0, !1, !2}
+!1 = !{!"tapir.loop.spawn.strategy", i32 1}
+!2 = !{!"llvm.loop.unroll.disable"}

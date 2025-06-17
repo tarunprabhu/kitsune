@@ -1,7 +1,8 @@
 ; Check that the global ctor calls the appropriate functions in Kitsune's
 ; runtime depending on the command line arguments passed.
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 \
+; RUN:     -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
 ; RUN:     -S %s \
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
@@ -25,10 +26,10 @@
 ; DEFAULT: call {{.+}} @__cudaUnregisterFatBinary(ptr %[[HD]])
 ; DEFAULT: call {{.+}} @llvm.kitrt.finalize(i8 2)
 ;
-; DEFAULT: define {{.*}} @[[CTOR]]
+; DEFAULT: define {{.+}} @[[CTOR]]
 ; DEFAULT: call {{.+}} @llvm.kitrt.initialize(i8 2)
 ; DEFAULT: call {{.+}} @llvm.kitrt.enable.verbose(i8 0)
-; DEFAULT-NOT: call {{.+}} @llvm.kitrt.set.fixed.tpb(i8 2
+; DEFAULT-NOT: call {{.+}} @llvm.kitrt.set.fixed.tpb(i8 2,
 ; DEFAULT: call {{.+}} @llvm.kitrt.set.max.tpb(i8 2, i32 1024)
 ; DEFAULT-DAG: call {{.+}} @llvm.kitrt.enable.refine.launches(i8 2, i8 1)
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}__cudaRegisterFatBinary(ptr @[[BUNDLE]])

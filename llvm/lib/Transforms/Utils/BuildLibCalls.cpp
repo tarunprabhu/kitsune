@@ -1557,9 +1557,14 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
 
   case LibFunc_cuda_register_managed_var:
   case LibFunc_cuda_register_var:
+  case LibFunc_hip_register_var:
     setArgExtAttr(*F, 4, TLI);
     setArgExtAttr(*F, 6, TLI);
     setArgExtAttr(*F, 7, TLI);
+    break;
+
+  case LibFunc_hip_register_managed_var:
+    setArgExtAttr(*F, 5, TLI);
     break;
 
   default:

@@ -1,7 +1,13 @@
-; Check that the correct attributes have been added to the kernel function
+; Check that the correct attributes have been added to and removed from the
+; kernel function.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch="sm_72" --tapir-cuda-features="+ptx87" %s \
-; RUN:     -passes='tapir-lowering<O2>' \
+; NOTE: We don't yet fully understand which attributes are actually needed for
+; correctness or beneficial for performance. For the immediate future, the
+; checks in this test will have to be updated to correctly reflect what CudaABI
+; does.
+;
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 --tapir-cuda-features="+ptx87" \
+; RUN:     %s -passes='tapir-lowering<O2>' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -9,9 +15,10 @@
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
-; CHECK-SAME: "kitsune.outlined.from.tapir.loop"
+; CHECK-SAME: "kitsune.kernel"
 ; CHECK-SAME: "target-cpu"="sm_72"
 ; CHECK-SAME: "target-features"="+ptx87,sm_72"
+; CHECK-SAME: "uniform-work-group-size"="true"
 
 target triple = "x86_64-pc-linux-gnu"
 

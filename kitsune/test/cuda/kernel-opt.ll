@@ -34,9 +34,9 @@
 ; O2-NOT: = phi i64
 ; O2: define {{.+}} @__kitcu_{{.+}}(i64 {{.*}}%[[UB:[^,]+]], i64 {{[^,]+}}, i64 {{[^,]+}}, ptr {{.*}}%[[BUF:[^,]+]], i64 {{.*}}%[[N:[^)]+]]) {{.*}}#[[ATTRS:[0-9]+]]
 ; O2-NEXT: [[BBENTRY:.+]]:
-; O2-NEXT: %[[TID:.+]] = {{.*}}call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
-; O2-NEXT: %[[BIDX:.+]] = {{.*}}call i32 @llvm.nvvm.read.ptx.sreg.ctaid.x()
-; O2-NEXT: %[[BDIM:.+]] = {{.*}}call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
+; O2-NEXT: %[[TID:.+]] = tail call range({{.+}}) i32 @llvm.nvvm.read.ptx.sreg.tid.x()
+; O2-NEXT: %[[BIDX:.+]] = tail call range({{.+}}) i32 @llvm.nvvm.read.ptx.sreg.ctaid.x()
+; O2-NEXT: %[[BDIM:.+]] = tail call range({{.+}}) i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
 ; O2-NEXT: %[[BOFF:.+]] = mul i32 %[[BIDX]], %[[BDIM]]
 ; O2-NEXT: %[[IV32:.+]] = add i32 %[[BOFF]], %[[TID]]
 ; O2-NEXT: %[[TIV:.+]] = zext i32 %[[IV32]] to i64
@@ -50,7 +50,7 @@
 ; O2-NEXT: ret void
 ;
 ; O2: attributes #[[ATTRS]] = {
-; O2-SAME: "kitsune.outlined.from.tapir.loop"
+; O2-SAME: "kitsune.kernel"
 ;
 ; ------------------------------------------------------------------------------
 

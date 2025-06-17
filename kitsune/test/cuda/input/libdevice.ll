@@ -819,6 +819,384 @@ __nvvm_builtin_cosf.exit:                         ; preds = %3, %5
   ret float %.0
 }
 
+; Function Attrs: alwaysinline nounwind
+define float @__nv_tanf(float %a) #0 {
+  %result.i.i = alloca [7 x i32], align 4
+  %1 = fmul float %a, 0x3FE45F3060000000
+  %2 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %3 = icmp ne i32 %2, 0
+  br i1 %3, label %4, label %6
+
+4:                                                ; preds = %0
+  %5 = call i32 @llvm.nvvm.f2i.rn.ftz(float %1) #6
+  br label %__nv_float2int_rn.exit.i
+
+6:                                                ; preds = %0
+  %7 = call i32 @llvm.nvvm.f2i.rn(float %1) #6
+  br label %__nv_float2int_rn.exit.i
+
+__nv_float2int_rn.exit.i:                         ; preds = %6, %4
+  %.01 = phi i32 [ %5, %4 ], [ %7, %6 ]
+  %8 = sitofp i32 %.01 to float
+  %9 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %10 = icmp ne i32 %9, 0
+  br i1 %10, label %11, label %13
+
+11:                                               ; preds = %__nv_float2int_rn.exit.i
+  %12 = call float @llvm.nvvm.fma.rn.ftz.f(float %8, float 0xBFF921FB40000000, float %a) #6
+  br label %__nv_fmaf_rn.exit.i
+
+13:                                               ; preds = %__nv_float2int_rn.exit.i
+  %14 = call float @llvm.nvvm.fma.rn.f(float %8, float 0xBFF921FB40000000, float %a) #6
+  br label %__nv_fmaf_rn.exit.i
+
+__nv_fmaf_rn.exit.i:                              ; preds = %13, %11
+  %.03 = phi float [ %12, %11 ], [ %14, %13 ]
+  %15 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %16 = icmp ne i32 %15, 0
+  br i1 %16, label %17, label %19
+
+17:                                               ; preds = %__nv_fmaf_rn.exit.i
+  %18 = call float @llvm.nvvm.fma.rn.ftz.f(float %8, float 0xBE74442D00000000, float %.03) #6
+  br label %__nv_fmaf_rn.exit1.i
+
+19:                                               ; preds = %__nv_fmaf_rn.exit.i
+  %20 = call float @llvm.nvvm.fma.rn.f(float %8, float 0xBE74442D00000000, float %.03) #6
+  br label %__nv_fmaf_rn.exit1.i
+
+__nv_fmaf_rn.exit1.i:                             ; preds = %19, %17
+  %.04 = phi float [ %18, %17 ], [ %20, %19 ]
+  %21 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %22 = icmp ne i32 %21, 0
+  br i1 %22, label %23, label %25
+
+23:                                               ; preds = %__nv_fmaf_rn.exit1.i
+  %24 = call float @llvm.nvvm.fma.rn.ftz.f(float %8, float 0xBCF84698A0000000, float %.04) #6
+  br label %__nv_fmaf_rn.exit2.i
+
+25:                                               ; preds = %__nv_fmaf_rn.exit1.i
+  %26 = call float @llvm.nvvm.fma.rn.f(float %8, float 0xBCF84698A0000000, float %.04) #6
+  br label %__nv_fmaf_rn.exit2.i
+
+__nv_fmaf_rn.exit2.i:                             ; preds = %25, %23
+  %.05 = phi float [ %24, %23 ], [ %26, %25 ]
+  %27 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %28 = icmp ne i32 %27, 0
+  br i1 %28, label %29, label %31
+
+29:                                               ; preds = %__nv_fmaf_rn.exit2.i
+  %30 = call float @llvm.nvvm.fabs.ftz.f(float %a) #6
+  br label %__nv_fabsf.exit.i
+
+31:                                               ; preds = %__nv_fmaf_rn.exit2.i
+  %32 = call float @llvm.nvvm.fabs.f(float %a) #6
+  br label %__nv_fabsf.exit.i
+
+__nv_fabsf.exit.i:                                ; preds = %31, %29
+  %.06 = phi float [ %30, %29 ], [ %32, %31 ]
+  %33 = fcmp oge float %.06, 1.056150e+05
+  br i1 %33, label %34, label %__internal_trig_reduction_kernel.exit
+
+34:                                               ; preds = %__nv_fabsf.exit.i
+  %35 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %36 = icmp ne i32 %35, 0
+  br i1 %36, label %37, label %39
+
+37:                                               ; preds = %34
+  %38 = call float @llvm.nvvm.fabs.ftz.f(float %a) #6
+  br label %__nv_isinff.exit.i
+
+39:                                               ; preds = %34
+  %40 = call float @llvm.nvvm.fabs.f(float %a) #6
+  br label %__nv_isinff.exit.i
+
+__nv_isinff.exit.i:                               ; preds = %39, %37
+  %.07 = phi float [ %38, %37 ], [ %40, %39 ]
+  %41 = bitcast i32 2139095040 to float
+  %42 = fcmp oeq float %.07, %41
+  %43 = select i1 %42, i32 1, i32 0
+  br i1 %42, label %44, label %51
+
+44:                                               ; preds = %__nv_isinff.exit.i
+  %45 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %46 = icmp ne i32 %45, 0
+  br i1 %46, label %47, label %49
+
+47:                                               ; preds = %44
+  %48 = call float @llvm.nvvm.mul.rn.ftz.f(float %a, float 0.000000e+00) #6
+  br label %__nv_fmul_rn.exit.i
+
+49:                                               ; preds = %44
+  %50 = call float @llvm.nvvm.mul.rn.f(float %a, float 0.000000e+00) #6
+  br label %__nv_fmul_rn.exit.i
+
+__nv_fmul_rn.exit.i:                              ; preds = %49, %47
+  %.08 = phi float [ %48, %47 ], [ %50, %49 ]
+  br label %127
+
+51:                                               ; preds = %__nv_isinff.exit.i
+  %52 = bitcast float %a to i32
+  %53 = and i32 %52, -2147483648
+  %54 = lshr i32 %52, 23
+  %55 = and i32 %54, 255
+  %56 = sub i32 %55, 128
+  %57 = shl i32 %52, 8
+  %58 = or i32 %57, -2147483648
+  %59 = lshr i32 %56, 5
+  %60 = sub i32 4, %59
+  br label %61
+
+61:                                               ; preds = %63, %51
+  %hi.i.i.0 = phi i32 [ 0, %51 ], [ %71, %63 ]
+  %iq.i.i.0 = phi i32 [ 0, %51 ], [ %74, %63 ]
+  %62 = icmp slt i32 %iq.i.i.0, 6
+  br i1 %62, label %63, label %75
+
+63:                                               ; preds = %61
+  %64 = sext i32 %iq.i.i.0 to i64
+  %65 = getelementptr inbounds [6 x i32], ptr addrspace(1) @__cudart_i2opi_f, i64 0, i64 %64
+  %66 = load i32, ptr addrspace(1) %65, align 4
+  %67 = call { i32, i32 } asm "{\0A\09mad.lo.cc.u32   $0, $2, $3, $4;\0A\09madc.hi.u32     $1, $2, $3,  0;\0A\09}", "=r,=r,r,r,r"(i32 %66, i32 %58, i32 %hi.i.i.0) #7, !srcloc !12
+  %68 = extractvalue { i32, i32 } %67, 0
+  %69 = extractvalue { i32, i32 } %67, 1
+  %insert = insertvalue %struct.uint2 undef, i32 %68, 0
+  %insert26 = insertvalue %struct.uint2 %insert, i32 %69, 1
+  %70 = extractvalue %struct.uint2 %insert26, 0
+  %71 = extractvalue %struct.uint2 %insert26, 1
+  %72 = sext i32 %iq.i.i.0 to i64
+  %73 = getelementptr inbounds [7 x i32], ptr %result.i.i, i64 0, i64 %72
+  store i32 %70, ptr %73, align 4
+  %74 = add nsw i32 %iq.i.i.0, 1
+  br label %61, !llvm.loop !13
+
+75:                                               ; preds = %61
+  %76 = sext i32 %iq.i.i.0 to i64
+  %77 = getelementptr inbounds [7 x i32], ptr %result.i.i, i64 0, i64 %76
+  store i32 %hi.i.i.0, ptr %77, align 4
+  %78 = and i32 %56, 31
+  %79 = add i32 %60, 2
+  %80 = sext i32 %79 to i64
+  %81 = getelementptr inbounds [7 x i32], ptr %result.i.i, i64 0, i64 %80
+  %82 = load i32, ptr %81, align 4
+  %83 = add i32 %60, 1
+  %84 = sext i32 %83 to i64
+  %85 = getelementptr inbounds [7 x i32], ptr %result.i.i, i64 0, i64 %84
+  %86 = load i32, ptr %85, align 4
+  %87 = icmp ne i32 %78, 0
+  br i1 %87, label %88, label %99
+
+88:                                               ; preds = %75
+  %89 = sub i32 32, %78
+  %90 = shl i32 %82, %78
+  %91 = lshr i32 %86, %89
+  %92 = add i32 %90, %91
+  %93 = shl i32 %86, %78
+  %94 = sext i32 %60 to i64
+  %95 = getelementptr inbounds [7 x i32], ptr %result.i.i, i64 0, i64 %94
+  %96 = load i32, ptr %95, align 4
+  %97 = lshr i32 %96, %89
+  %98 = add i32 %93, %97
+  br label %99
+
+99:                                               ; preds = %88, %75
+  %hi.i.i.1 = phi i32 [ %92, %88 ], [ %82, %75 ]
+  %lo.i.i.0 = phi i32 [ %98, %88 ], [ %86, %75 ]
+  %100 = lshr i32 %hi.i.i.1, 30
+  %101 = shl i32 %hi.i.i.1, 2
+  %102 = lshr i32 %lo.i.i.0, 30
+  %103 = add i32 %101, %102
+  %104 = shl i32 %lo.i.i.0, 2
+  %105 = lshr i32 %103, 31
+  %106 = add i32 %100, %105
+  %107 = icmp ne i32 %53, 0
+  br i1 %107, label %108, label %110
+
+108:                                              ; preds = %99
+  %109 = sub i32 0, %106
+  br label %110
+
+110:                                              ; preds = %108, %99
+  %q.i.i.0 = phi i32 [ %109, %108 ], [ %106, %99 ]
+  %111 = icmp ne i32 %105, 0
+  br i1 %111, label %112, label %116
+
+112:                                              ; preds = %110
+  %113 = xor i32 %103, -1
+  %114 = xor i32 %104, -1
+  %115 = xor i32 %53, -2147483648
+  br label %116
+
+116:                                              ; preds = %112, %110
+  %s.i.i.0 = phi i32 [ %115, %112 ], [ %53, %110 ]
+  %hi.i.i.2 = phi i32 [ %113, %112 ], [ %103, %110 ]
+  %lo.i.i.1 = phi i32 [ %114, %112 ], [ %104, %110 ]
+  %117 = zext i32 %hi.i.i.2 to i64
+  %118 = shl i64 %117, 32
+  %119 = zext i32 %lo.i.i.1 to i64
+  %120 = or i64 %118, %119
+  %121 = sitofp i64 %120 to double
+  %122 = fmul double %121, 0x3BF921FB54442D19
+  %123 = fptrunc double %122 to float
+  %124 = icmp ne i32 %s.i.i.0, 0
+  br i1 %124, label %125, label %__internal_trig_reduction_slowpath.exit.i
+
+125:                                              ; preds = %116
+  %126 = fsub float -0.000000e+00, %123
+  br label %__internal_trig_reduction_slowpath.exit.i
+
+__internal_trig_reduction_slowpath.exit.i:        ; preds = %125, %116
+  %r.i.i.0 = phi float [ %126, %125 ], [ %123, %116 ]
+  br label %127
+
+127:                                              ; preds = %__internal_trig_reduction_slowpath.exit.i, %__nv_fmul_rn.exit.i
+  %i.0 = phi i32 [ 0, %__nv_fmul_rn.exit.i ], [ %q.i.i.0, %__internal_trig_reduction_slowpath.exit.i ]
+  %t.i.0 = phi float [ %.08, %__nv_fmul_rn.exit.i ], [ %r.i.i.0, %__internal_trig_reduction_slowpath.exit.i ]
+  br label %__internal_trig_reduction_kernel.exit
+
+__internal_trig_reduction_kernel.exit:            ; preds = %__nv_fabsf.exit.i, %127
+  %i.1 = phi i32 [ %i.0, %127 ], [ %.01, %__nv_fabsf.exit.i ]
+  %t.i.1 = phi float [ %t.i.0, %127 ], [ %.05, %__nv_fabsf.exit.i ]
+  %128 = fmul float %t.i.1, %t.i.1
+  %129 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %130 = icmp ne i32 %129, 0
+  br i1 %130, label %131, label %133
+
+131:                                              ; preds = %__internal_trig_reduction_kernel.exit
+  %132 = call float @llvm.nvvm.fma.rn.ftz.f(float 0x3F83200000000000, float %128, float 0x3F6AC00000000000) #6
+  br label %__internal_fmad.exit.i
+
+133:                                              ; preds = %__internal_trig_reduction_kernel.exit
+  %134 = call float @llvm.nvvm.fma.rn.f(float 0x3F83200000000000, float %128, float 0x3F6AC00000000000) #6
+  br label %__internal_fmad.exit.i
+
+__internal_fmad.exit.i:                           ; preds = %133, %131
+  %.012 = phi float [ %132, %131 ], [ %134, %133 ]
+  %135 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %136 = icmp ne i32 %135, 0
+  br i1 %136, label %137, label %139
+
+137:                                              ; preds = %__internal_fmad.exit.i
+  %138 = call float @llvm.nvvm.fma.rn.ftz.f(float %.012, float %128, float 0x3F98E00000000000) #6
+  br label %__internal_fmad.exit1.i
+
+139:                                              ; preds = %__internal_fmad.exit.i
+  %140 = call float @llvm.nvvm.fma.rn.f(float %.012, float %128, float 0x3F98E00000000000) #6
+  br label %__internal_fmad.exit1.i
+
+__internal_fmad.exit1.i:                          ; preds = %139, %137
+  %.013 = phi float [ %138, %137 ], [ %140, %139 ]
+  %141 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %142 = icmp ne i32 %141, 0
+  br i1 %142, label %143, label %145
+
+143:                                              ; preds = %__internal_fmad.exit1.i
+  %144 = call float @llvm.nvvm.fma.rn.ftz.f(float %.013, float %128, float 0x3FAB600000000000) #6
+  br label %__internal_fmad.exit2.i
+
+145:                                              ; preds = %__internal_fmad.exit1.i
+  %146 = call float @llvm.nvvm.fma.rn.f(float %.013, float %128, float 0x3FAB600000000000) #6
+  br label %__internal_fmad.exit2.i
+
+__internal_fmad.exit2.i:                          ; preds = %145, %143
+  %.014 = phi float [ %144, %143 ], [ %146, %145 ]
+  %147 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %148 = icmp ne i32 %147, 0
+  br i1 %148, label %149, label %151
+
+149:                                              ; preds = %__internal_fmad.exit2.i
+  %150 = call float @llvm.nvvm.fma.rn.ftz.f(float %.014, float %128, float 0x3FC1128700000000) #6
+  br label %__internal_fmad.exit3.i
+
+151:                                              ; preds = %__internal_fmad.exit2.i
+  %152 = call float @llvm.nvvm.fma.rn.f(float %.014, float %128, float 0x3FC1128700000000) #6
+  br label %__internal_fmad.exit3.i
+
+__internal_fmad.exit3.i:                          ; preds = %151, %149
+  %.011 = phi float [ %150, %149 ], [ %152, %151 ]
+  %153 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %154 = icmp ne i32 %153, 0
+  br i1 %154, label %155, label %157
+
+155:                                              ; preds = %__internal_fmad.exit3.i
+  %156 = call float @llvm.nvvm.fma.rn.ftz.f(float %.011, float %128, float 0x3FD5555100000000) #6
+  br label %__internal_fmad.exit4.i
+
+157:                                              ; preds = %__internal_fmad.exit3.i
+  %158 = call float @llvm.nvvm.fma.rn.f(float %.011, float %128, float 0x3FD5555100000000) #6
+  br label %__internal_fmad.exit4.i
+
+__internal_fmad.exit4.i:                          ; preds = %157, %155
+  %.010 = phi float [ %156, %155 ], [ %158, %157 ]
+  %159 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %160 = icmp ne i32 %159, 0
+  br i1 %160, label %161, label %163
+
+161:                                              ; preds = %__internal_fmad.exit4.i
+  %162 = call float @llvm.nvvm.mul.rn.ftz.f(float %128, float %t.i.1) #6
+  br label %__nv_fmul_rn.exit.i2
+
+163:                                              ; preds = %__internal_fmad.exit4.i
+  %164 = call float @llvm.nvvm.mul.rn.f(float %128, float %t.i.1) #6
+  br label %__nv_fmul_rn.exit.i2
+
+__nv_fmul_rn.exit.i2:                             ; preds = %163, %161
+  %.09 = phi float [ %162, %161 ], [ %164, %163 ]
+  %165 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %166 = icmp ne i32 %165, 0
+  br i1 %166, label %167, label %169
+
+167:                                              ; preds = %__nv_fmul_rn.exit.i2
+  %168 = call float @llvm.nvvm.fma.rn.ftz.f(float %.010, float %.09, float %t.i.1) #6
+  br label %__internal_fmad.exit5.i
+
+169:                                              ; preds = %__nv_fmul_rn.exit.i2
+  %170 = call float @llvm.nvvm.fma.rn.f(float %.010, float %.09, float %t.i.1) #6
+  br label %__internal_fmad.exit5.i
+
+__internal_fmad.exit5.i:                          ; preds = %169, %167
+  %.02 = phi float [ %168, %167 ], [ %170, %169 ]
+  %171 = call i32 @__nvvm_reflect(ptr @.str) #6
+  %172 = icmp ne i32 %171, 0
+  br i1 %172, label %173, label %175
+
+173:                                              ; preds = %__internal_fmad.exit5.i
+  %174 = call float @llvm.nvvm.fabs.ftz.f(float %t.i.1) #6
+  br label %__nv_fabsf.exit.i3
+
+175:                                              ; preds = %__internal_fmad.exit5.i
+  %176 = call float @llvm.nvvm.fabs.f(float %t.i.1) #6
+  br label %__nv_fabsf.exit.i3
+
+__nv_fabsf.exit.i3:                               ; preds = %175, %173
+  %.0 = phi float [ %174, %173 ], [ %176, %175 ]
+  %177 = fcmp oeq float %.0, 0x3F40168780000000
+  br i1 %177, label %178, label %__internal_tan_kernel.exit
+
+178:                                              ; preds = %__nv_fabsf.exit.i3
+  br label %__internal_tan_kernel.exit
+
+__internal_tan_kernel.exit:                       ; preds = %__nv_fabsf.exit.i3, %178
+  %t.i1.0 = phi float [ %t.i.1, %178 ], [ %.02, %__nv_fabsf.exit.i3 ]
+  %179 = and i32 %i.1, 1
+  %180 = icmp ne i32 %179, 0
+  br i1 %180, label %181, label %184
+
+181:                                              ; preds = %__internal_tan_kernel.exit
+  %182 = fsub float -0.000000e+00, %t.i1.0
+  %183 = call float asm "rcp.approx.ftz.f32 $0,$1;", "=f,f"(float %182) #7, !srcloc !2
+  br label %184
+
+184:                                              ; preds = %181, %__internal_tan_kernel.exit
+  %z.0 = phi float [ %183, %181 ], [ %t.i1.0, %__internal_tan_kernel.exit ]
+  ret float %z.0
+}
+
+; Function Attrs: alwaysinline nounwind
+define double @__nv_sqrt(double %x) #0 {
+  %1 = call double @llvm.nvvm.sqrt.rn.d(double %x)
+  ret double %1
+}
+
 attributes #0 = { alwaysinline nounwind "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
 attributes #2 = { "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }

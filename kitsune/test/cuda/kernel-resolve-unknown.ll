@@ -11,6 +11,8 @@
 ; CHECK-NEXT: %[[VAL:.+]] = tail call float @some_library_func(float %[[ASF]])
 ; CHECK-NEXT: store float %[[VAL]],
 
+target triple = "x86_64-pc-linux-gnu"
+
 declare float @some_library_func(float) #2
 
 ; Function Attrs: nounwind memory(argmem: write) uwtable

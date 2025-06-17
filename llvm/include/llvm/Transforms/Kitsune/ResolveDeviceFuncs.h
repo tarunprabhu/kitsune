@@ -29,7 +29,7 @@ namespace llvm {
 /// separate pass.
 class ResolveDeviceFuncsPass : public EmbBCPass<ResolveDeviceFuncsPass> {
 public:
-  bool run(TapirTargetID tt, Module &km, Module &hostM,
+  bool run(TapirTargetID tt, Module &devM, Module &hostM,
            ModuleAnalysisManager &hostMAM);
 
   using EmbBCPass<ResolveDeviceFuncsPass>::run;

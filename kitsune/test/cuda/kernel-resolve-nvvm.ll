@@ -11,6 +11,8 @@
 ; CHECK-NEXT: %[[SQRT:.+]] = tail call float @llvm.nvvm.sqrt.rn.f(float %[[ASF]])
 ; CHECK-NEXT: store float %[[SQRT]],
 
+target triple = "x86_64-pc-linux-gnu"
+
 declare float @llvm.nvvm.sqrt.rn.f(float) #2
 
 ; Function Attrs: nounwind memory(argmem: write) uwtable

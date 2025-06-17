@@ -5,7 +5,6 @@
 ; RUN:     -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[GV:.+]] = external local_unnamed_addr constant i32
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}}, !kitsune.fb
 ;
 ; CHECK: define {{.+}} @f

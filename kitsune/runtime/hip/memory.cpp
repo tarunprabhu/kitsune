@@ -264,16 +264,14 @@ __kithip_mem_calloc_managed(size_t count, size_t element_size) {
 
   if (size > alloced_nbytes) {
     memptr = __kithip_mem_alloc_managed(size);
-    HIP_SAFE_CALL(hipMemcpy((void *)memptr /* dest */,
-                            (void *)ptr /* source */, alloced_nbytes,
-                            hipMemcpyDefault));
+    HIP_SAFE_CALL(hipMemcpy((void *)memptr /* dest */, (void *)ptr /* source */,
+                            alloced_nbytes, hipMemcpyDefault));
     // TODO: Race?  Do we need to lock the free here?
     __kithip_mem_free(ptr);
   } else if (size < alloced_nbytes) {
     memptr = __kithip_mem_alloc_managed(size);
-    HIP_SAFE_CALL(hipMemcpy((void *)memptr /* dest */,
-                            (void *)ptr /* source */, alloced_nbytes,
-                            hipMemcpyDefault));
+    HIP_SAFE_CALL(hipMemcpy((void *)memptr /* dest */, (void *)ptr /* source */,
+                            alloced_nbytes, hipMemcpyDefault));
     // TODO: Race?  Do we need to lock the free here?
     __kithip_mem_free(ptr);
   } else {
@@ -420,6 +418,13 @@ void __kithip_memcpy_sym_to_device(void *hostPtr, void *devPtr, size_t size) {
   assert(hostPtr != nullptr && "kitrt[hip]: unexpected null host pointer!");
   assert(size != 0 && "kitrt[hip]: requested a 0 byte copy!");
   HIP_SAFE_CALL(hipMemcpyHtoD(devPtr, hostPtr, size));
+}
+
+void __kithip_memcpy_sym_to_host(void *devPtr, void *hostPtr, size_t size) {
+  assert(devPtr != 0 && "kitrt[hip]: unexpected null device pointer!");
+  assert(hostPtr != nullptr && "kitrt[hip]: unexpected null host pointer!");
+  assert(size != 0 && "kitrt[hip]: requested a 0 byte copy!");
+  HIP_SAFE_CALL(hipMemcpyDtoH(hostPtr, devPtr, size));
 }
 
 } // extern "C"

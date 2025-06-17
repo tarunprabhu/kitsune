@@ -14,21 +14,18 @@
 #ifndef LLVM_TRANSFORMS_KITSUNE_OPTIMIZE_EMB_BC_H
 #define LLVM_TRANSFORMS_KITSUNE_OPTIMIZE_EMB_BC_H
 
-#include "llvm/IR/PassManager.h"
+#include "llvm/Transforms/Kitsune/EmbBCPass.h"
 
 namespace llvm {
 
-/// Some tapir targets embed bitcode into the module. For instance, the cuda and
-/// hip tapir targets add bitcode that will eventually be compiled to binaries
-/// to run on the GPU. Those tapir targets may generate multiple bitcode modules
-/// - one for each kernel that will eventually be launched for execution on the
-/// GPU. This will combine these into a single module per device architecture
-/// and run the standard optimization passes on the result.
-class OptimizeEmbBCPass : public PassInfoMixin<OptimizeEmbBCPass> {
+/// This will run the standard optimization passes on the embedded module for
+/// the given tapir target.
+class OptimizeEmbBCPass : public EmbBCPass<OptimizeEmbBCPass> {
 public:
-  PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
+  bool run(TapirTargetID tt, Module &devM, Module &hostM,
+           ModuleAnalysisManager &hostMAM);
 
-  static bool isRequired() { return true; }
+  using EmbBCPass<OptimizeEmbBCPass>::run;
 };
 
 } // namespace llvm

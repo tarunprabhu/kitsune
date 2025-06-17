@@ -952,6 +952,11 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_cuda_register_managed_var);
     TLI.setUnavailable(LibFunc_cuda_register_var);
     TLI.setUnavailable(LibFunc_cuda_unregister_fat_binary);
+
+    TLI.setUnavailable(LibFunc_hip_register_fat_binary);
+    TLI.setUnavailable(LibFunc_hip_register_managed_var);
+    TLI.setUnavailable(LibFunc_hip_register_var);
+    TLI.setUnavailable(LibFunc_hip_unregister_fat_binary);
   }
 
   TLI.addVectorizableFunctionsFromVecLib(ClVectorLibrary, T);
