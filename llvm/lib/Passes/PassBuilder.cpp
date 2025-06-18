@@ -264,6 +264,7 @@
 #include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
 #include "llvm/Transforms/Instrumentation/ThreadSanitizer.h"
 #include "llvm/Transforms/Instrumentation/TypeSanitizer.h"
+#include "llvm/Transforms/Kitsune/EmbBCVerifier.h"
 #include "llvm/Transforms/Kitsune/FinalizeKernelMetadata.h"
 #include "llvm/Transforms/Kitsune/GenerateKitsuneCtors.h"
 #include "llvm/Transforms/Kitsune/LinkDeviceBitcode.h"

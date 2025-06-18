@@ -123,6 +123,9 @@ GlobalVariable *llvm::createEmbeddedBC(const Module &m, TapirTargetID tt,
 }
 
 GlobalVariable *llvm::getEmbeddedBC(TapirTargetID tt, Module &m) {
+  // This assumes that only a single embedded bitcode module exists for a given
+  // tapir target. This is the current implementation and might change, though
+  // that is unlikely.
   for (GlobalVariable &g : m.globals())
     if (hasKitsuneBCMD(g, tt))
       return &g;
@@ -142,6 +145,12 @@ GlobalVariable *llvm::resetEmbeddedBC(const Module &m, GlobalVariable &g) {
   g.eraseFromParent();
 
   return newG;
+}
+
+std::unique_ptr<Module> llvm::getEmbeddedModule(TapirTargetID tt, Module &m) {
+  if (GlobalVariable *g = getEmbeddedBC(tt, m))
+    return parseEmbeddedBC(*g);
+  return nullptr;
 }
 
 EmbeddedModulesMapTy llvm::getEmbeddedModules(Module &m) {

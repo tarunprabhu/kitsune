@@ -7,7 +7,10 @@ target triple = "nvptx64-nvidia-gpulibs"
 %struct.uint2 = type { i32, i32 }
 
 @.str = private unnamed_addr constant [11 x i8] c"__CUDA_FTZ\00", align 1
+@.str.2 = private unnamed_addr constant [17 x i8] c"__CUDA_PREC_SQRT\00", align 1
+@.str.1 = private unnamed_addr constant [12 x i8] c"__CUDA_ARCH\00", align 1
 @__cudart_i2opi_f = internal addrspace(1) global [6 x i32] [i32 1011060801, i32 -614296167, i32 -181084736, i32 -64530479, i32 1313084713, i32 -1560706194], align 4
+@__cudart_sin_cos_coeffs = internal addrspace(1) global [16 x double] [double 0x3DE5DB65F9785EBA, double 0xBE5AE5F12CB0D246, double 0x3EC71DE369ACE392, double 0xBF2A01A019DB62A1, double 0x3F81111111110818, double 0xBFC5555555555554, double 0.000000e+00, double 0.000000e+00, double 0xBDA8FF8320FD8164, double 0x3E21EEA7C1EF8528, double 0xBE927E4F8E06E6D9, double 0x3EFA01A019DDBCE9, double 0xBF56C16C16C15D47, double 0x3FA5555555555551, double -5.000000e-01, double 1.000000e+00], align 8
 
 declare i32 @__nvvm_reflect(ptr) #2
 
@@ -25,6 +28,179 @@ declare float @llvm.nvvm.cos.approx.ftz.f(float) #3
 
 ; Function Attrs: nocallback nofree nosync nounwind willreturn memory(none)
 declare float @llvm.nvvm.cos.approx.f(float) #3
+
+; Function Attrs: alwaysinline nounwind
+define double @__nv_sinpi(double %a) #0 {
+  %1 = call i32 @__nvvm_reflect(ptr @.str.1)
+  %2 = icmp eq i32 %1, 350
+  br i1 %2, label %6, label %3
+
+3:                                                ; preds = %0
+  %4 = call i32 @__nvvm_reflect(ptr @.str.1)
+  %5 = icmp eq i32 %4, 370
+  br i1 %5, label %6, label %66
+
+6:                                                ; preds = %3, %0
+  %7 = call i32 @llvm.nvvm.d2i.hi(double %a) #6
+  %8 = add i32 %7, %7
+  %9 = icmp ugt i32 %8, -2038431744
+  br i1 %9, label %10, label %12
+
+10:                                               ; preds = %6
+  %11 = call double @llvm.nvvm.mul.rn.d(double %a, double 0.000000e+00) #6
+  br label %12
+
+12:                                               ; preds = %10, %6
+  %.01 = phi double [ %11, %10 ], [ %a, %6 ]
+  %13 = call i32 @llvm.nvvm.d2i.lo(double %.01) #6
+  %14 = call i32 @llvm.nvvm.d2i.hi(double %.01) #6
+  %15 = shl i32 1, 20
+  %16 = add i32 %15, %14
+  %17 = call double @llvm.nvvm.lohi.i2d(i32 %13, i32 %16) #6
+  %18 = call double @llvm.nvvm.round.d(double %17) #6
+  %19 = fptosi double %18 to i64
+  %20 = trunc i64 %19 to i32
+  %21 = fsub double -0.000000e+00, %18
+  %22 = call double @llvm.nvvm.fma.rn.d(double %21, double 5.000000e-01, double %.01) #6
+  %23 = fmul double %22, 0x3CA1A62633145C07
+  %24 = call double @llvm.nvvm.fma.rn.d(double %22, double 0x400921FB54442D18, double %23) #6
+  %25 = call double @llvm.nvvm.mul.rn.d(double %24, double %24) #6
+  %26 = call double @llvm.nvvm.fma.rn.d(double 0xBDA8FF8320FD8164, double %25, double 0x3E21EEA7C1EF8528) #6
+  %27 = call double @llvm.nvvm.fma.rn.d(double %26, double %25, double 0xBE927E4F8E06E6D9) #6
+  %28 = call double @llvm.nvvm.fma.rn.d(double %27, double %25, double 0x3EFA01A019DDBCE9) #6
+  %29 = call double @llvm.nvvm.fma.rn.d(double %28, double %25, double 0xBF56C16C16C15D47) #6
+  %30 = call double @llvm.nvvm.fma.rn.d(double %29, double %25, double 0x3FA5555555555551) #6
+  %31 = call double @llvm.nvvm.fma.rn.d(double %30, double %25, double -5.000000e-01) #6
+  %32 = call double @llvm.nvvm.fma.rn.d(double %31, double %25, double 1.000000e+00) #6
+  %33 = call double @llvm.nvvm.mul.rn.d(double %24, double %24) #6
+  %34 = call double @llvm.nvvm.fma.rn.d(double 0x3DE5DB65F9785EBA, double %33, double 0xBE5AE5F12CB0D246) #6
+  %35 = call double @llvm.nvvm.fma.rn.d(double %34, double %33, double 0x3EC71DE369ACE392) #6
+  %36 = call double @llvm.nvvm.fma.rn.d(double %35, double %33, double 0xBF2A01A019DB62A1) #6
+  %37 = call double @llvm.nvvm.fma.rn.d(double %36, double %33, double 0x3F81111111110818) #6
+  %38 = call double @llvm.nvvm.fma.rn.d(double %37, double %33, double 0xBFC5555555555554) #6
+  %39 = call double @llvm.nvvm.fma.rn.d(double %38, double %33, double 0.000000e+00) #6
+  %40 = call double @llvm.nvvm.fma.rn.d(double %39, double %24, double %24) #6
+  %41 = call i32 @llvm.nvvm.d2i.hi(double %40) #6
+  %42 = call i32 @llvm.nvvm.d2i.lo(double %40) #6
+  %43 = xor i32 %41, -2147483648
+  %44 = call double @llvm.nvvm.lohi.i2d(i32 %42, i32 %43) #6
+  %45 = and i32 %20, 1
+  %46 = icmp ne i32 %45, 0
+  br i1 %46, label %47, label %48
+
+47:                                               ; preds = %12
+  br label %48
+
+48:                                               ; preds = %47, %12
+  %s.i.0 = phi double [ %32, %47 ], [ %40, %12 ]
+  %c.i.0 = phi double [ %44, %47 ], [ %32, %12 ]
+  %49 = and i32 %20, 2
+  %50 = icmp ne i32 %49, 0
+  br i1 %50, label %51, label %60
+
+51:                                               ; preds = %48
+  %52 = call i32 @llvm.nvvm.d2i.hi(double %s.i.0) #6
+  %53 = call i32 @llvm.nvvm.d2i.lo(double %s.i.0) #6
+  %54 = xor i32 %52, -2147483648
+  %55 = call double @llvm.nvvm.lohi.i2d(i32 %53, i32 %54) #6
+  %56 = call i32 @llvm.nvvm.d2i.hi(double %c.i.0) #6
+  %57 = call i32 @llvm.nvvm.d2i.lo(double %c.i.0) #6
+  %58 = xor i32 %56, -2147483648
+  %59 = call double @llvm.nvvm.lohi.i2d(i32 %57, i32 %58) #6
+  br label %60
+
+60:                                               ; preds = %51, %48
+  %s.i.1 = phi double [ %55, %51 ], [ %s.i.0, %48 ]
+  %c.i.1 = phi double [ %59, %51 ], [ %c.i.0, %48 ]
+  %61 = call double @llvm.nvvm.fma.rn.d(double %c.i.1, double 1.000000e+00, double 0.000000e+00) #6
+  %62 = call double @llvm.nvvm.trunc.d(double %.01) #6
+  %63 = fcmp oeq double %.01, %62
+  br i1 %63, label %64, label %__nv_sincospi.exit
+
+64:                                               ; preds = %60
+  %65 = call double @llvm.nvvm.mul.rn.d(double %.01, double 0.000000e+00) #6
+  br label %__nv_sincospi.exit
+
+__nv_sincospi.exit:                               ; preds = %60, %64
+  %s.i.2 = phi double [ %65, %64 ], [ %s.i.1, %60 ]
+  br label %120
+
+66:                                               ; preds = %3
+  %67 = call i32 @llvm.nvvm.d2i.lo(double %a) #6
+  %68 = call i32 @llvm.nvvm.d2i.hi(double %a) #6
+  %69 = shl i32 1, 20
+  %70 = add i32 %69, %68
+  %71 = call double @llvm.nvvm.lohi.i2d(i32 %67, i32 %70) #6
+  %72 = call double @llvm.nvvm.round.d(double %71) #6
+  %73 = fptosi double %72 to i64
+  %74 = trunc i64 %73 to i32
+  %75 = fsub double -0.000000e+00, %72
+  %76 = call double @llvm.nvvm.fma.rn.d(double %75, double 5.000000e-01, double %a) #6
+  %77 = fmul double %76, 0x3CA1A62633145C07
+  %78 = call double @llvm.nvvm.fma.rn.d(double %76, double 0x400921FB54442D18, double %77) #6
+  %79 = and i32 %74, 1
+  %80 = mul nsw i32 8, %79
+  %81 = sext i32 %80 to i64
+  %82 = getelementptr inbounds double, ptr addrspace(1) @__cudart_sin_cos_coeffs, i64 %81
+  %83 = call double @llvm.nvvm.mul.rn.d(double %78, double %78) #6
+  %84 = and i32 %74, 1
+  %85 = icmp ne i32 %84, 0
+  %86 = select i1 %85, double 0xBDA8FF8320FD8164, double 0x3DE5DB65F9785EBA
+  %87 = getelementptr inbounds double, ptr addrspace(1) %82, i64 1
+  %88 = load double, ptr addrspace(1) %87, align 8
+  %89 = call double @llvm.nvvm.fma.rn.d(double %86, double %83, double %88) #6
+  %90 = getelementptr inbounds double, ptr addrspace(1) %82, i64 2
+  %91 = load double, ptr addrspace(1) %90, align 8
+  %92 = call double @llvm.nvvm.fma.rn.d(double %89, double %83, double %91) #6
+  %93 = getelementptr inbounds double, ptr addrspace(1) %82, i64 3
+  %94 = load double, ptr addrspace(1) %93, align 8
+  %95 = call double @llvm.nvvm.fma.rn.d(double %92, double %83, double %94) #6
+  %96 = getelementptr inbounds double, ptr addrspace(1) %82, i64 4
+  %97 = load double, ptr addrspace(1) %96, align 8
+  %98 = call double @llvm.nvvm.fma.rn.d(double %95, double %83, double %97) #6
+  %99 = getelementptr inbounds double, ptr addrspace(1) %82, i64 5
+  %100 = load double, ptr addrspace(1) %99, align 8
+  %101 = call double @llvm.nvvm.fma.rn.d(double %98, double %83, double %100) #6
+  %102 = getelementptr inbounds double, ptr addrspace(1) %82, i64 6
+  %103 = load double, ptr addrspace(1) %102, align 8
+  %104 = call double @llvm.nvvm.fma.rn.d(double %101, double %83, double %103) #6
+  %105 = call double @llvm.nvvm.fma.rn.d(double %104, double %78, double %78) #6
+  %106 = and i32 %74, 1
+  %107 = icmp ne i32 %106, 0
+  br i1 %107, label %108, label %110
+
+108:                                              ; preds = %66
+  %109 = call double @llvm.nvvm.fma.rn.d(double %104, double %83, double 1.000000e+00) #6
+  br label %110
+
+110:                                              ; preds = %108, %66
+  %.02 = phi double [ %109, %108 ], [ %105, %66 ]
+  %111 = and i32 %74, 2
+  %112 = icmp ne i32 %111, 0
+  br i1 %112, label %113, label %__internal_sin_cos_kerneld.exit
+
+113:                                              ; preds = %110
+  %114 = call double @llvm.nvvm.fma.rn.d(double %.02, double -1.000000e+00, double 0.000000e+00) #6
+  br label %__internal_sin_cos_kerneld.exit
+
+__internal_sin_cos_kerneld.exit:                  ; preds = %110, %113
+  %.1 = phi double [ %114, %113 ], [ %.02, %110 ]
+  %115 = call double @llvm.nvvm.trunc.d(double %a) #6
+  %116 = fcmp oeq double %a, %115
+  br i1 %116, label %117, label %119
+
+117:                                              ; preds = %__internal_sin_cos_kerneld.exit
+  %118 = call double @llvm.nvvm.mul.rn.d(double %a, double 0.000000e+00) #6
+  br label %119
+
+119:                                              ; preds = %117, %__internal_sin_cos_kerneld.exit
+  %z.0 = phi double [ %118, %117 ], [ %.1, %__internal_sin_cos_kerneld.exit ]
+  br label %120
+
+120:                                              ; preds = %119, %__nv_sincospi.exit
+  %.0 = phi double [ %s.i.2, %__nv_sincospi.exit ], [ %z.0, %119 ]
+  ret double %.0
+}
 
 ; Function Attrs: alwaysinline nounwind
 define float @__nv_sinf(float %a) #0 {

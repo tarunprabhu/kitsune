@@ -1,13 +1,17 @@
-; Check that device functions are resolved correctly. This is a very basic test.
-; We really should do something a bit more comprehensive
+; When device functions are resolved, a declaration for the libdevice function
+; is added to the device module, even if a definition is provided by the
+; libdevice module. The link-device-bitcode pass will provide the definition.
+; When doing this, we need to change the linkage types of the libdevice
+; functions because only external and external_weak linkage is allowed on
+; declarations.
 ;
 ; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
 ; RUN:     -passes='tapir-lowering<O2>,resolve-device-funcs' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: tail call float @__ocml_acos_f32
-; CHECK: tail call double @__ocml_sqrt_f64
+; CHECK: declare {{.*}}float @__ocml_acos_f32
+; CHECK: declare {{.*}}double @__ocml_sqrt_f64
 
 target triple = "x86_64-pc-linux-gnu"
 
