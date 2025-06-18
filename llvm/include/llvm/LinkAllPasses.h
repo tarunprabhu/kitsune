@@ -41,6 +41,7 @@
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
 #include "llvm/Transforms/IPO/GlobalDCE.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Kitsune/EmbBCVerifier.h"
 #include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
@@ -148,6 +149,7 @@ struct ForcePassLinking {
     (void)llvm::createSelectOptimizePass();
     (void)llvm::createTapirTargetAnalysisWrapperPass(std::nullopt);
     (void)llvm::createCodeGenFatBinariesLegacyPass();
+    (void)llvm::createVerifyAllEmbBCLegacyPass();
 
     (void)new llvm::ScalarEvolutionWrapperPass();
     llvm::Function::Create(nullptr, llvm::GlobalValue::ExternalLinkage)

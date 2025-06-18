@@ -10,12 +10,124 @@ target triple = "amdgcn-amd-amdhsa"
 
 @__oclc_unsafe_math_opt = external local_unnamed_addr addrspace(4) constant i8, align 1
 @__oclc_correctly_rounded_sqrt32 = external local_unnamed_addr addrspace(4) constant i8, align 1
+@__ocmltbl_M32_J0 = linkonce_odr protected local_unnamed_addr addrspace(4) constant [72x float] [float 1.000000e+00, float 0x3E6816D220000000, float 0xBFD00002E0000000, float 0x3ED0910BC0000000, float 0x3F8FF9F9A0000000, float 0x3EF38BC460000000, float 0xBF3D965580000000, float 0x3EE3040C20000000, float 0x3ED360EDC0000000, float 0.000000e+00, float 0xBFE09CDB40000000, float 0x3FBBA1DEE0000000, float 0x3FACFAE7A0000000, float 0xBF81BB1C40000000, float 0xBF61F92680000000, float 0x3F31530480000000, float 0x3F069F1460000000, float 0xBED1EAAF60000000, float 0xBFD9C6CF60000000, float 0xBE1704E3C0000000, float 0x3FC9C6CF40000000, float 0xBF91F06B20000000, float 0xBF8B589020000000, float 0x3F50F855C0000000, float 0x3F385F27C0000000, float 0xBEF9BB9700000000, float 0xBED6DA5DE0000000, float 0.000000e+00, float 0x3FD5C6E600000000, float 0xBF9F8F72E0000000, float 0xBFAB214EE0000000, float 0x3F72F7FEA0000000, float 0x3F627D6020000000, float 0xBF26F55C80000000, float 0xBF07F2A640000000, float 0x3ECA684BC0000000, float 0x3FD33518C0000000, float 0x3E186B66E0000000, float 0xBFC33518A0000000, float 0x3F7D340A80000000, float 0x3F880C7CA0000000, float 0xBF44825AE0000000, float 0xBF36FCD020000000, float 0x3EF26BCC40000000, float 0x3ED6C3CD40000000, float 0.000000e+00, float 0xBFD15F7980000000, float 0x3F900F7FC0000000, float 0x3FA68B96C0000000, float 0xBF648E6200000000, float 0xBF60E02280000000, float 0x3F1D783220000000, float 0x3F0717D3C0000000, float 0xBEC2DEE220000000, float 0xBFCFF65460000000, float 0xBE1396A9E0000000, float 0x3FBFF65440000000, float 0xBF70C179C0000000, float 0xBF84B0C180000000, float 0x3F393F1FA0000000, float 0x3F34DF60C0000000, float 0xBEE95D7A20000000, float 0xBED5A7F7A0000000, float 0.000000e+00, float 0x3FCDC13E60000000, float 0xBF842FF0C0000000, float 0xBFA38D1C80000000, float 0x3F5A55E800000000, float 0x3F5E2CD860000000, float 0xBF13DEF6E0000000, float 0xBF056E8D80000000, float 0x3EBB39ADE0000000], align 4
+
+declare float @__ocmlpriv_cosb_f32(float noundef, i32 noundef, float noundef) #2
 
 define linkonce_odr hidden noundef float @__ocml_fmuladd_f32(float noundef %0, float noundef %1, float noundef %2) local_unnamed_addr #0 {
   %4 = tail call float @llvm.fmuladd.f32(float %0, float %1, float %2)
   ret float %4
 }
 
+; Function Attrs: convergent mustprogress nofree norecurse nounwind willreturn memory(none)
+define linkonce_odr protected float @__ocmlpriv_ba0_f32(float noundef %0) local_unnamed_addr #2 {
+  %2 = tail call float @__ocml_fmuladd_f32(float noundef %0, float noundef 0x3FB92AECC0000000, float noundef 0xBFAFFE4720000000) #20
+  %3 = tail call float @__ocml_fmuladd_f32(float noundef %0, float noundef %2, float noundef 1.000000e+00) #20
+  ret float %3
+}
+
+; Function Attrs: convergent mustprogress nofree norecurse nounwind willreturn memory(none)
+define linkonce_odr protected float @__ocmlpriv_bp0_f32(float noundef %0) local_unnamed_addr #2 {
+  %2 = tail call float @__ocml_fmuladd_f32(float noundef %0, float noundef 0xBFF5EC5E60000000, float noundef 0x3FCAAFB080000000) #20
+  %3 = tail call float @__ocml_fmuladd_f32(float noundef %0, float noundef %2, float noundef 0xBFB0AA9260000000) #20
+  %4 = tail call float @__ocml_fmuladd_f32(float noundef %0, float noundef %3, float noundef 1.250000e-01) #20
+  ret float %4
+}
+
+; Function Attrs: convergent mustprogress nofree norecurse nounwind willreturn memory(none)
+define linkonce_odr protected float @__ocml_j0_f32(float noundef %0) local_unnamed_addr
+#2 {
+  %2 = tail call float @llvm.fabs.f32(float %0)
+  %3 = fcmp ugt float %2, 0x4029280000000000
+  br i1 %3, label %55, label %4
+
+4:                                                ; preds = %1
+  %5 = fcmp ugt float %2, 0x4019100000000000
+  br i1 %5, label %15, label %6
+
+6:                                                ; preds = %4
+  %7 = fcmp ugt float %2, 1.656250e+00
+  br i1 %7, label %8, label %24
+
+8:                                                ; preds = %6
+  %9 = fcmp ugt float %2, 3.125000e+00
+  br i1 %9, label %10, label %24
+
+10:                                               ; preds = %8
+  %11 = fcmp ugt float %2, 4.687500e+00
+  %12 = select i1 %11, ptr addrspace(4) getelementptr inbounds ([0 x float], ptr addrspace(4) @__ocmltbl_M32_J0, i64 0, i64 27), ptr addrspace(4) getelementptr inbounds ([0 x float], ptr addrspace(4) @__ocmltbl_M32_J0, i64 0, i64 18)
+  %13 = select i1 %11, float 0x4016148F60000000, float 0x400EA75580000000
+  %14 = select i1 %11, float 0xBE734F46E0000000, float 0xBE74A121E0000000
+  br label %24
+
+15:                                               ; preds = %4
+  %16 = fcmp ugt float %2, 7.843750e+00
+  br i1 %16, label %17, label %24
+
+17:                                               ; preds = %15
+  %18 = fcmp ugt float %2, 0x4022D80000000000
+  br i1 %18, label %19, label %24
+
+19:                                               ; preds = %17
+  %20 = fcmp ugt float %2, 0x4025F80000000000
+  %21 = select i1 %20, ptr addrspace(4) getelementptr inbounds ([0 x float], ptr addrspace(4) @__ocmltbl_M32_J0, i64 0, i64 63), ptr addrspace(4) getelementptr inbounds ([0 x float], ptr addrspace(4) @__ocmltbl_M32_J0, i64 0, i64 54)
+  %22 = select i1 %20, float 0x4027954400000000, float 0x402458D0E0000000
+  %23 = select i1 %20, float 0x3E504E56C0000000, float 0xBE9E8407A0000000
+  br label %24
+
+24:                                               ; preds = %19, %17, %15, %10, %8, %6
+  %25 = phi float [ 0.000000e+00, %6 ], [ 0x3E7D2E3680000000, %8 ], [ %14, %10 ], [ 0xBE88971B60000000, %15 ], [ 0x3E9999BDA0000000, %17 ], [ %23, %19 ]
+  %26 = phi float [ 0.000000e+00, %6 ], [ 0x40033D1520000000, %8 ], [ %13, %10 ], [ 0x401C0FF600000000, %15 ], [ 0x40214EB560000000, %17 ], [ %22, %19 ]
+  %27 = phi ptr addrspace(4) [ @__ocmltbl_M32_J0, %6 ], [ getelementptr inbounds ([0 x float], ptr addrspace(4) @__ocmltbl_M32_J0, i64 0, i64 9), %8 ], [ %12, %10 ], [ getelementptr inbounds ([0 x float], ptr addrspace(4) @__ocmltbl_M32_J0, i64 0, i64 36), %15 ],[ getelementptr inbounds ([0 x float], ptr addrspace(4) @__ocmltbl_M32_J0, i64 0, i64 45
+), %17 ], [ %21, %19 ]
+  %28 = fsub float %2, %26
+  %29 = fsub float %28, %25
+  %30 = getelementptr inbounds float, ptr addrspace(4) %27, i64 8
+  %31 = load float, ptr addrspace(4) %30, align 4, !tbaa !13
+  %32 = getelementptr inbounds float, ptr addrspace(4) %27, i64 7
+  %33 = load float, ptr addrspace(4) %32, align 4, !tbaa !13
+  %34 = tail call float @__ocml_fmuladd_f32(float noundef %29, float noundef %31, float noundef %33) #20
+  %35 = getelementptr inbounds float, ptr addrspace(4) %27, i64 6
+  %36 = load float, ptr addrspace(4) %35, align 4, !tbaa !13
+  %37 = tail call float @__ocml_fmuladd_f32(float noundef %29, float noundef %34, float noundef %36) #20
+  %38 = getelementptr inbounds float, ptr addrspace(4) %27, i64 5
+  %39 = load float, ptr addrspace(4) %38, align 4, !tbaa !13
+  %40 = tail call float @__ocml_fmuladd_f32(float noundef %29, float noundef %37, float noundef %39) #20
+  %41 = getelementptr inbounds float, ptr addrspace(4) %27, i64 4
+  %42 = load float, ptr addrspace(4) %41, align 4, !tbaa !13
+  %43 = tail call float @__ocml_fmuladd_f32(float noundef %29, float noundef %40, float noundef %42) #20
+  %44 = getelementptr inbounds float, ptr addrspace(4) %27, i64 3
+  %45 = load float, ptr addrspace(4) %44, align 4, !tbaa !13
+  %46 = tail call float @__ocml_fmuladd_f32(float noundef %29, float noundef %43, float noundef %45) #20
+  %47 = getelementptr inbounds float, ptr addrspace(4) %27, i64 2
+  %48 = load float, ptr addrspace(4) %47, align 4, !tbaa !13
+  %49 = tail call float @__ocml_fmuladd_f32(float noundef %29, float noundef %46, float noundef %48) #20
+  %50 = getelementptr inbounds float, ptr addrspace(4) %27, i64 1
+  %51 = load float, ptr addrspace(4) %50, align 4, !tbaa !13
+  %52 = tail call float @__ocml_fmuladd_f32(float noundef %29, float noundef %49, float noundef %51) #20
+  %53 = load float, ptr addrspace(4) %27, align 4, !tbaa !13
+  %54 = tail call float @__ocml_fmuladd_f32(float noundef %29, float noundef %52, float noundef %53) #20
+  br label %68
+
+55:                                               ; preds = %1
+  %56 = fdiv float 1.000000e+00, %2, !fpmath !10
+  %57 = fmul float %56, %56
+  %58 = tail call float @__ocmlpriv_bp0_f32(float noundef %57) #20
+  %59 = fmul float %56, %58
+  %60 = tail call float @llvm.amdgcn.rsq.f32(float %2)
+  %61 = fmul float %60, 0x3FE9884540000000
+  %62 = tail call float @__ocmlpriv_ba0_f32(float noundef %57) #20
+  %63 = fmul float %61, %62
+  %64 = tail call float @__ocmlpriv_cosb_f32(float noundef %2, i32 noundef 0, float noundef %59) #24
+  %65 = fmul float %63, %64
+  %66 = fcmp oeq float %2, 0x7FF0000000000000
+  %67 = select i1 %66, float 0.000000e+00, float %65
+  br label %68
+
+68:                                               ; preds = %55, %24
+  %69 = phi float [ %54, %24 ], [ %67, %55 ]
+  ret float %69
+}
 
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 define linkonce_odr hidden double @__ocml_acos_f64(double noundef %0) local_unnamed_addr #0 {

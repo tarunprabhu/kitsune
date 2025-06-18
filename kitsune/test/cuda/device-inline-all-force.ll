@@ -9,6 +9,7 @@
 ; CHECK: define {{.+}} @device_func{{.+}} #[[ATTRS:[0-9]+]]
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-SAME: alwaysinline
+; CHECK-NOT: noinline
 
 target triple = "x86_64-pc-linux-gnu"
 

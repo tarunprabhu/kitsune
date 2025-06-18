@@ -3,7 +3,7 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 %s \
+; RUN: opt --tapir=cuda %s \
 ; RUN:     -passes='tapir-lowering<O2>,prepare-emb-bc' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,DEFAULT
@@ -11,33 +11,29 @@
 ; ALL-DAG: define {{.+}} @sieve{{.+}} #[[ATTRS_SIEVE:[0-9]+]]
 ; ALL-DAG: define {{.+}} @id{{.+}} #[[ATTRS_ID:[0-9]+]]
 ;
-; DEFAULT-DAG: attributes #[[ATTRS_ID]] = {
-; DEFAULT-DAG-SAME: noinline
-; DEFAULT-DAG: attributes #[[ATTRS_SIEVE]] = {
-; DEFAULT-NOT: alwaysinline
+; DEFAULT-DAG: attributes #[[ATTRS_SIEVE]] = { memory(none) "
+; DEFAULT-DAG: attributes #[[ATTRS_ID]] = { noinline memory(none) "
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 %s \
+; RUN: opt --tapir=cuda %s \
 ; RUN:     -passes='tapir-lowering<O2>,prepare-emb-bc' -emb-inline-all \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,INLINE
 ;
-; INLINE-DAG: attributes #[[ATTRS_SIEVE]] = {
-; INLINE-DAG-SAME: alwaysinline
-; INLINE-DAG: attributes #[[ATTRS_ID]] = {
-; INLINE-DAG-SAME: noinline
+; INLINE-DAG: attributes #[[ATTRS_SIEVE]] = { alwaysinline memory(none) "
+; INLINE-DAG: attributes #[[ATTRS_ID]] = { noinline memory(none) "
 ;
 ; ------------------------------------------------------------------------------
 
 target triple = "x86_64-pc-linux-gnu"
 
-; Function Attrs: noinline willreturn memory(none)
+; Function Attrs: noinline
 define dso_local i64 @id(i64 noundef %n) #2 {
   ret i64 %n
 }
 
-; Function Attrs: mustprogress nofree norecurse nosync nounwind sspstrong willreturn memory(readwrite) uwtable
+; Function Attrs: memory(argmem: none)
 define dso_local i64 @sieve(i64 noundef %0) local_unnamed_addr #1 {
   %2 = alloca [256 x i8], align 16
   call void @llvm.lifetime.start.p0(i64 256, ptr nonnull %2) #2
@@ -101,7 +97,7 @@ define dso_local i64 @sieve(i64 noundef %0) local_unnamed_addr #1 {
   ret i64 %40
 }
 
-; Function Attrs: nounwind memory(argmem: write) uwtable
+; Function Attrs: memory(argmem: write)
 define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
@@ -138,9 +134,9 @@ forall.end:                                       ; preds = %forall.sync
 ; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
 declare token @llvm.syncregion.start() #1
 
-attributes #0 = { nounwind memory(argmem: write) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
-attributes #2 = { noinline willreturn memory(argmem: none) }
+attributes #0 = { memory(argmem: write) uwtable }
+attributes #1 = { memory(argmem: none) }
+attributes #2 = { noinline memory(argmem: none) }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}

@@ -1,47 +1,39 @@
 ; Check that the command line option to inline all device functions is handled
 ; correctly.
 ;
-; NOTE: Currently, we force inline everything that does not have an explicit
-; noinline attribute and ignore the -emb-inline-all option. When this changes,
-; this note should be removed and the tests below updated.
-;
 ; ------------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a %s \
-; RUN:     -passes='tapir-lowering<O2>,prepare-emb-bc' \
+; RUN:     -passes='tapir-lowering<O1>,prepare-emb-bc' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,DEFAULT
 ;
 ; ALL: define {{.+}} @sieve{{.+}} #[[ATTRS_SIEVE:[0-9]+]]
 ; ALL: define {{.+}} @id{{.+}} #[[ATTRS_ID:[0-9]+]]
 ;
-; DEFAULT-DAG: attributes #[[ATTRS_SIEVE]] = {
-; DEFAULT-DAG-SAME: alwaysinline
-; DEFAULT-DAG: attributes #[[ATTRS_ID]] = {
-; DEFAULT-DAG-SAME: noinline
+; DEFAULT-DAG: attributes #[[ATTRS_SIEVE]] = { nounwind memory(none) "
+; DEFAULT-DAG: attributes #[[ATTRS_ID]] = { noinline nounwind memory(none) "
 ;
 ; ------------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a %s \
-; RUN:     -passes='tapir-lowering<O2>,prepare-emb-bc' -emb-inline-all \
+; RUN:     -passes='tapir-lowering<O1>,prepare-emb-bc' -emb-inline-all \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,INLINE
 ;
-; INLINE-DAG: attributes #[[ATTRS_SIEVE]] = {
-; INLINE-DAG-SAME: alwaysinline
-; INLINE-DAG: attributes #[[ATTRS_ID]] = {
-; INLINE-DAG-SAME: noinline
+; INLINE-DAG: attributes #[[ATTRS_SIEVE]] = { alwaysinline nounwind memory(none) "
+; INLINE-DAG: attributes #[[ATTRS_ID]] = { noinline nounwind memory(none) "
 ;
 ; ------------------------------------------------------------------------------
 
 target triple = "x86_64-pc-linux-gnu"
 
-; Function Attrs: noinline willreturn memory(none)
-define dso_local i64 @id(i64 noundef %n) #2 {
+; Function Attrs: noinline memory(none)
+define dso_local i64 @id(i64 noundef %n) #0 {
   ret i64 %n
 }
 
-; Function Attrs: mustprogress nofree norecurse nosync nounwind sspstrong willreturn memory(readwrite) uwtable
+; Function Attrs: memory(readwrite)
 define dso_local i64 @sieve(i64 noundef %0) local_unnamed_addr #1 {
   %2 = alloca [256 x i8], align 16
   call void @llvm.lifetime.start.p0(i64 256, ptr nonnull %2) #2
@@ -106,7 +98,7 @@ define dso_local i64 @sieve(i64 noundef %0) local_unnamed_addr #1 {
 }
 
 ; Function Attrs: nounwind memory(argmem: write) uwtable
-define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #3 {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i64 %n, 0
@@ -142,9 +134,10 @@ forall.end:                                       ; preds = %forall.sync
 ; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
 declare token @llvm.syncregion.start() #1
 
-attributes #0 = { nounwind memory(argmem: write) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
-attributes #2 = { noinline willreturn memory(argmem: none) }
+attributes #0 = { noinline memory(argmem: none) }
+attributes #1 = { memory(argmem: none) }
+attributes #2 = { memory(argmem: none) }
+attributes #3 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}

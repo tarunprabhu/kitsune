@@ -1,5 +1,5 @@
 ; Check that device functions are resolved correctly. This is a very basic test.
-; We really should do something a bit more compreheensive
+; We really should do something a bit more comprehensive
 ;
 ; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
 ; RUN:     -passes='tapir-lowering<O2>,resolve-device-funcs' \
