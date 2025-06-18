@@ -137,35 +137,38 @@ private:
       std::vector<Type *> paramTys;
       for (Argument &arg : f.args()) {
         if (auto *argTy = dyn_cast<PointerType>(arg.getType())) {
-          assert(argTy->getAddressSpace() == 0 &&
-                 "Argument must be in the default address space");
+          if (argTy->getAddressSpace() != AMDGPUAS::GLOBAL_ADDRESS) {
+            assert(argTy->getAddressSpace() == 0 &&
+                   "Argument must be in the default address space");
 
-          // We cannot create a cast instruction before mutating the type of the
-          // argument since the source and destination types will be the same.
-          // Therefore, mutate the type of the argument.
-          arg.mutateType(ptrASTy);
+            // We cannot create a cast instruction before mutating the type of
+            // the argument since the source and destination types will be the
+            // same. Therefore, mutate the type of the argument.
+            arg.mutateType(ptrASTy);
 
-          // The cast can now be created since it will be valid.
-          Value *cst = builder.CreateAddrSpaceCast(&arg, ptrTy);
+            // The cast can now be created since it will be valid.
+            Value *cst = builder.CreateAddrSpaceCast(&arg, ptrTy);
 
-          // We want to replace all uses of the argument with this cast, but we
-          // cannot do so because the type of the argument and the cast will be
-          // different. Therefore, restore the original type of the argument.
-          arg.mutateType(argTy);
+            // We want to replace all uses of the argument with this cast, but
+            // we cannot do so because the type of the argument and the cast
+            // will be different. Therefore, restore the original type of the
+            // argument.
+            arg.mutateType(argTy);
 
-          // We cannot use replaceAllUsesWith because that would replace the
-          // operand to the cast instruction that we just created. Replace
-          // everything except the cast.
-          arg.replaceUsesWithIf(
-              cst, [&](Use &u) -> bool { return u.getUser() != cst; });
+            // We cannot use replaceAllUsesWith because that would replace the
+            // operand to the cast instruction that we just created. Replace
+            // everything except the cast.
+            arg.replaceUsesWithIf(
+                cst, [&](Use &u) -> bool { return u.getUser() != cst; });
 
-          // Now that we have replaced all the uses (except the cast), we can
-          // mutate the type once and for all.
-          arg.mutateType(ptrASTy);
+            // Now that we have replaced all the uses (except the cast), we can
+            // mutate the type once and for all.
+            arg.mutateType(ptrASTy);
+          }
         }
 
-        // We need to create a new function type, so keep track of the types of
-        // all the arguments. We must add the argument type here because it
+        // We need to create a new function type, so keep track of the types
+        // of all the arguments. We must add the argument type here because it
         // could have changed in the truly appalling code above.
         paramTys.push_back(arg.getType());
       }

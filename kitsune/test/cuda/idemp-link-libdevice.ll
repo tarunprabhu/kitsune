@@ -1,18 +1,17 @@
-; Check that device functions are resolved correctly. This is a very basic test.
-; We really should do something a bit more comprehensive
+; Check that linking libdevice bitcode multiple times does not result in
+; duplicate definitions or creation of a symbol with an additional LLVM suffix.
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O2>,resolve-device-funcs' \
+; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
+; RUN:     -passes='tapir-lowering<O2>,resolve-device-funcs,link-device-bitcode,link-device-bitcode' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: tail call float @__ocml_acos_f32
-; CHECK: tail call double @__ocml_sqrt_f64
+; CHECK-COUNT-1: @__cudart_sin_cos_coeffs{{.*}} =
+; CHECK-COUNT-1: define {{.+}} @__nv_sinpi
 
 target triple = "x86_64-pc-linux-gnu"
 
-declare float @acosf(float)
-declare double @sqrt(double)
+declare double @__nv_sinpi(double)
 
 ; Function Attrs: nounwind memory(argmem: write) uwtable
 define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
@@ -30,12 +29,10 @@ forall.detach:                                    ; preds = %forall.detach.prehe
   detach within %syncreg, label %forall.body, label %forall.inc
 
 forall.body:                                      ; preds = %forall.detach
-  %arrayidx = getelementptr inbounds float, ptr %c, i64 %indvars.iv
-  %asf = sitofp i64 %n to float
-  %.acos = tail call float @acosf(float %asf)
-  %.cst = fpext float %.acos to double
-  %.sqrt = tail call double @sqrt(double %.cst)
-  store double %.sqrt, ptr %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, ptr %c, i64 %indvars.iv
+  %asf = sitofp i64 %n to double
+  %.sinpi = tail call double @__nv_sinpi(double %asf)
+  store double %.sinpi, ptr %arrayidx, align 4
   reattach within %syncreg, label %forall.inc
 
 forall.inc:                                       ; preds = %forall.body, %forall.detach

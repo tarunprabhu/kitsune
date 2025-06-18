@@ -48,12 +48,16 @@ private:
                           << f->getName() << "' to '" << devFnName << "'\n");
         // If the device function has already been declared in the kernel
         // module, create a declaration for the device function with the correct
-        // attributes.
+        // attributes. We may need to fix the linkage type here because some
+        // linkages are not allowed on declarations. The link-device-bitcode
+        // pass will provide definitions for these functions.
         Module *m = f->getParent();
         Function *fdecl = m->getFunction(devFnName);
         if (not fdecl) {
           FunctionType *ftype = devFn->getFunctionType();
           GlobalValue::LinkageTypes linkage = devFn->getLinkage();
+          if (not GlobalValue::isValidDeclarationLinkage(linkage))
+            linkage = GlobalValue::ExternalLinkage;
 
           fdecl = Function::Create(ftype, linkage, devFnName, m);
           fdecl->setAttributes(devFn->getAttributes());
@@ -98,6 +102,7 @@ private:
         }
       }
     }
+
     return changed;
   }
 
@@ -292,6 +297,10 @@ const StringMap<StringRef> ResolveDeviceFuncsHip::devFuncs = {
     {"fmod", "fmod_f64"},
     {"hypotf", "hypot_f32"},
     {"hypot", "hypot_f64"},
+    {"j0f", "j0_f32"},
+    {"j0", "j0_f64"},
+    {"j1f", "j1_f32"},
+    {"j1", "j1_f64"},
     {"lgammaf", "lgamma_f32"},
     {"lgamma", "lgamma_f64"},
     {"llvm.acos.f32", "acos_f32"},
