@@ -3,12 +3,12 @@ add_subdirectory(Rewrite)
 set(LLVM_LINK_COMPONENTS
   BitReader
   BitstreamReader
+  KitSupport
   Option
   Plugins
   ProfileData
   Support
   TargetParser
-  FrontendTapir
   )
 
 add_clang_library(clangFrontend

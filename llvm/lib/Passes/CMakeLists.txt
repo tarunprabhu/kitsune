@@ -24,7 +24,11 @@ add_llvm_component_library(LLVMPasses
   IPO
   InstCombine
   IRPrinter
-  KitsuneOpts
+  KitAnalysis
+  KitCodeGen
+  KitCore
+  KitOpts
+  KitSupport
   ObjCARC
   Scalar
   Support

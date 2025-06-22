@@ -45,7 +45,7 @@ def int_kitsune_mobile_free
 // updated.
 def int_kitrt_enable_refine_launches
     : Intrinsic<[],
-                [llvm_i8_ty,  // tapir target id
+                [llvm_i32_ty, // tapir target id
                  llvm_i8_ty], // Non-zero to refine launches, zero otherwise
                 [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
                  IntrInaccessibleMemOnly, IntrHasSideEffects]>;
@@ -71,7 +71,7 @@ def int_kitrt_hip_enable_xnack
 // be updated.
 def int_kitrt_enable_y_axis_launches
     : Intrinsic<[],
-                [llvm_i8_ty,  // tapir target id
+                [llvm_i32_ty, // tapir target id
                  llvm_i8_ty], // Non-zero to enable y-axis launches, 0 otherwise
                 [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
                  IntrInaccessibleMemOnly, IntrHasSideEffects]>;
@@ -79,7 +79,7 @@ def int_kitrt_enable_y_axis_launches
 // Call the appropriate finalization function from the kitsune runtime.
 def int_kitrt_finalize
     : Intrinsic<[],
-                [llvm_i8_ty], // tapir target id
+                [llvm_i32_ty], // tapir target id
                 [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOnly,
                  IntrHasSideEffects]>;
 
@@ -87,7 +87,7 @@ def int_kitrt_finalize
 // functions in kitrt for the runtime components of certain tapir targets.
 def int_kitrt_initialize
     : Intrinsic<[],
-                [llvm_i8_ty], // tapir target id
+                [llvm_i32_ty], // tapir target id
                 [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOnly,
                  IntrHasSideEffects]>;
 
@@ -96,7 +96,7 @@ def int_kitrt_initialize
 // pointer to an opaque object.
 def int_kitrt_launch_kernel
     : Intrinsic<[llvm_ptr_ty], // stream
-                [llvm_i8_ty,   // tapir target id
+                [llvm_i32_ty,  // tapir target id
                  llvm_ptr_ty,  // fat binary
                  llvm_ptr_ty,  // name
                  llvm_ptr_ty,  // args[]
@@ -116,7 +116,7 @@ def int_kitrt_launch_kernel
 // that the runtime is required to determine the number of bytes to prefetch.
 def int_kitrt_prefetch_device
     : Intrinsic<[llvm_ptr_ty], // stream
-                [llvm_i8_ty,   // tapir target id
+                [llvm_i32_ty,  // tapir target id
                  llvm_ptr_ty,  // pointer to memory to prefetch
                  llvm_i64_ty,  // number of bytes to prefetch
                  llvm_ptr_ty], // stream
@@ -132,7 +132,7 @@ def int_kitrt_prefetch_device
 // that the runtime is required to determine the number of bytes to prefetch.
 def int_kitrt_prefetch_host
     : Intrinsic<[llvm_ptr_ty], // stream
-                [llvm_i8_ty,   // tapir target id
+                [llvm_i32_ty,  // tapir target id
                  llvm_ptr_ty,  // pointer to memory to prefetch
                  llvm_i64_ty,  // number of bytes to prefetch
                  llvm_ptr_ty], // stream
@@ -143,7 +143,7 @@ def int_kitrt_prefetch_host
 // kitsune's runtime.
 def int_kitrt_set_fixed_tpb
     : Intrinsic<[],
-                [llvm_i8_ty,   // tapir target id
+                [llvm_i32_ty,  // tapir target id
                  llvm_i32_ty], // threads per block
                 [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOnly,
                  IntrHasSideEffects]>;
@@ -152,7 +152,7 @@ def int_kitrt_set_fixed_tpb
 // by kitsune's runtime.
 def int_kitrt_set_max_tpb
     : Intrinsic<[],
-                [llvm_i8_ty,   // tapir target id
+                [llvm_i32_ty,  // tapir target id
                  llvm_i32_ty], // threads per block
                 [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOnly,
                  IntrHasSideEffects]>;
@@ -160,7 +160,7 @@ def int_kitrt_set_max_tpb
 // Synchronize a thread stream.
 def int_kitrt_sync_stream
     : Intrinsic<[],
-                [llvm_i8_ty,   // tapir target id
+                [llvm_i32_ty,  // tapir target id
                  llvm_ptr_ty], // stream
                 [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
                  IntrHasSideEffects]>;
@@ -170,7 +170,7 @@ def int_kitrt_sync_stream
 // global value.
 def int_kitrt_symbol_device_ptr
     : Intrinsic<[llvm_ptr_ty], // device pointer
-                [llvm_i8_ty,   // tapir target id
+                [llvm_i32_ty,  // tapir target id
                  llvm_ptr_ty,  // fat binary
                  llvm_ptr_ty], // name
                 [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly]>;
@@ -178,7 +178,7 @@ def int_kitrt_symbol_device_ptr
 // Copy a symbol from host to device
 def int_kitrt_symbol_memcpy_device
     : Intrinsic<[],
-                [llvm_i8_ty,   // tapir target id
+                [llvm_i32_ty,  // tapir target id
                  llvm_ptr_ty,  // pointer to symbol on the device
                  llvm_ptr_ty,  // pointer to symbol on the host
                  llvm_i64_ty], // number of bytes to copy
@@ -188,7 +188,7 @@ def int_kitrt_symbol_memcpy_device
 // Copy a symbol from device to host
 def int_kitrt_symbol_memcpy_host
     : Intrinsic<[],
-                [llvm_i8_ty,   // tapir target id
+                [llvm_i32_ty,  // tapir target id
                  llvm_ptr_ty,  // pointer to symbol on the host
                  llvm_ptr_ty,  // pointer to symbol on the device
                  llvm_i64_ty], // number of bytes to copy

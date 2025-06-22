@@ -11,6 +11,9 @@
 #include "InputFiles.h"
 #include "SymbolTable.h"
 #include "Symbols.h"
+#include "kitsune/Core/TapirTargetOptions.h"
+#include "lld/Common/Args.h"
+#include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/Filesystem.h"
 #include "lld/Common/Strings.h"
@@ -20,7 +23,6 @@
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/DTLTO/DTLTO.h"
-#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/LTO/Config.h"
 #include "llvm/LTO/LTO.h"
 #include "llvm/Support/Caching.h"
@@ -57,7 +59,7 @@ static std::string getThinLTOOutputFile(Ctx &ctx, StringRef modulePath) {
 static lto::Config createConfig(Ctx &ctx) {
   lto::Config c;
 
-  c.PTO.TTOpts = TapirTargetOptions::createFromCommandLineOptions(ctx.arg.ltoo);
+  c.PTO.TTOpts = TapirTargetOptions::createFromCLOpts(ctx.arg.ltoo);
 
   // LLD supports the new relocations and address-significance tables.
   c.Options = initTargetOptionsFromCodeGenFlags();

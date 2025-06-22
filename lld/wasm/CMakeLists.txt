@@ -24,6 +24,7 @@ add_lld_library(lldWasm
   BitWriter
   Core
   Demangle
+  KitCore
   LTO
   MC
   Object

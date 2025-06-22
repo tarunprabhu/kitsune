@@ -11,7 +11,7 @@
 ;
 ; DEFAULT: @[[FB:.+]] = constant [0 x i8] zeroinitializer
 ; DEFAULT-SAME: section ".nv_fatbin"
-; DEFAULT-SAME: !kitsune.fb
+; DEFAULT-SAME: #[[FBATTR:[0-9]+]]
 ;
 ; DEFAULT: @[[BUNDLE:.+]] = internal constant {{.+}} { i32 1180844977, i32 1, ptr @[[FB]], ptr null }
 ; DEFAULT-SAME: section ".nvFatBinSegment"
@@ -24,19 +24,21 @@
 ; DEFAULT: define {{.*}} @[[DTOR:[.]kitcuda[.]dtor.*]]{{[ ]*}}(
 ; DEFAULT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
 ; DEFAULT: call {{.+}} @__cudaUnregisterFatBinary(ptr %[[HD]])
-; DEFAULT: call {{.+}} @llvm.kitrt.finalize(i8 2)
+; DEFAULT: call {{.+}} @llvm.kitrt.finalize(i32 2)
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]
-; DEFAULT: call {{.+}} @llvm.kitrt.initialize(i8 2)
+; DEFAULT: call {{.+}} @llvm.kitrt.initialize(i32 2)
 ; DEFAULT: call {{.+}} @llvm.kitrt.enable.verbose(i8 0)
-; DEFAULT-NOT: call {{.+}} @llvm.kitrt.set.fixed.tpb(i8 2,
-; DEFAULT: call {{.+}} @llvm.kitrt.set.max.tpb(i8 2, i32 1024)
-; DEFAULT-DAG: call {{.+}} @llvm.kitrt.enable.refine.launches(i8 2, i8 1)
+; DEFAULT-NOT: call {{.+}} @llvm.kitrt.set.fixed.tpb(i32 2,
+; DEFAULT: call {{.+}} @llvm.kitrt.set.max.tpb(i32 2, i32 1024)
+; DEFAULT-DAG: call {{.+}} @llvm.kitrt.enable.refine.launches(i32 2, i8 1)
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}__cudaRegisterFatBinary(ptr @[[BUNDLE]])
 ; DEFAULT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT: call void @__cudaRegisterFatBinaryEnd(ptr %[[HC]])
 ; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
 ; DEFAULT: }
+;
+; DEFAULT: #[[FBATTR]] = { kit_fb(2) }
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -45,7 +47,7 @@
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: define {{.+}} @.kitcuda.ctor
-; TPB: call {{.+}} @llvm.kitrt.set.fixed.tpb(i8 2, i32 77)
+; TPB: call {{.+}} @llvm.kitrt.set.fixed.tpb(i32 2, i32 77)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -54,7 +56,7 @@
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: define {{.+}} @.kitcuda.ctor
-; MTPB: call {{.+}} @llvm.kitrt.set.max.tpb(i8 2, i32 29)
+; MTPB: call {{.+}} @llvm.kitrt.set.max.tpb(i32 2, i32 29)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -76,7 +78,7 @@
 ; RUN:     | FileCheck %s -check-prefix NOREFINE
 ;
 ; NOREFINE-LABEL: define {{.+}} @.kitcuda.ctor
-; NOREFINE: call {{.+}} @llvm.kitrt.enable.refine.launches(i8 2, i8 0)
+; NOREFINE: call {{.+}} @llvm.kitrt.enable.refine.launches(i32 2, i8 0)
 ;
 ; ----------------------------------------------------------------------------
 

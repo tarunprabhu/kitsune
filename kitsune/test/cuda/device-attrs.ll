@@ -15,7 +15,7 @@
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
-; CHECK-SAME: "kitsune.device"
+; CHECK-SAME: kit_device
 ; CHECK-SAME: "target-cpu"="sm_72"
 ; CHECK-SAME: "target-features"="+ptx87,sm_72"
 

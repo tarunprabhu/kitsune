@@ -107,7 +107,7 @@ forall.end:
 }
 
 ; Function Attrs: nounwind memory(argmem: readwrite, inaccessiblemem: readwrite)
-declare ptr @llvm.kitrt.launch.kernel(i8 immarg, ptr, ptr, ptr, i64, i32, ptr, ptr) #2
+declare ptr @llvm.kitrt.launch.kernel(i32 immarg, ptr, ptr, ptr, i64, i32, ptr, ptr) #2
 
 attributes #0 = { mustprogress nounwind memory(argmem: readwrite) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }

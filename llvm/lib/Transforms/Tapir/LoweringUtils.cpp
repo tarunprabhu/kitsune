@@ -11,9 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Config/config.h"
+#include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Demangle/Demangle.h"
-#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
@@ -39,60 +39,61 @@ using namespace llvm;
 static const char TimerGroupName[] = DEBUG_TYPE;
 static const char TimerGroupDescription[] = "Tapir lowering";
 
-TapirTarget *llvm::getTapirTargetFromID(Module &M, TapirTargetID ID,
+TapirTarget *llvm::getTapirTargetFromID(Module &M, TTID ID,
                                         const TapirTargetOptions &TTOpts) {
   // Yes, this is absolutely hideous. We should try to find a nicer way than
   // this horrendous conditionally compiled mess!
   switch (ID) {
-  case TapirTargetID::None:
+  case TTID::None:
     return nullptr;
 
 #if KITSUNE_CUDA_ENABLED
-  case TapirTargetID::Cuda:
+  case TTID::Cuda:
     return new CudaABI(M, TTOpts);
 #endif // KITSUNE_CUDA_ENABLED
 
 #if KITSUNE_HIP_ENABLED
-  case TapirTargetID::Hip:
+  case TTID::Hip:
     return new HipABI(M, TTOpts);
 #endif // KITSUNE_HIP_ENABLED
 
 #if KITSUNE_LAMBDA_ENABLED
-  case TapirTargetID::Lambda:
+  case TTID::Lambda:
     return new LambdaABI(M);
 #endif // KITSUNE_LAMBDA_ENABLED
 
 #if KITSUNE_OMPTASK_ENABLED
-  case TapirTargetID::OMPTask:
+  case TTID::OMPTask:
     return new OMPTaskABI(M);
 #endif // KITSUNE_OMPTASK_ENABLED
 
 #if KITSUNE_OPENCILK_ENABLED
-  case TapirTargetID::OpenCilk:
+  case TTID::OpenCilk:
     return new OpenCilkABI(M, TTOpts);
 #endif // KITSUNE_OPENCILK_ENABLED
 
 #if KITSUNE_OPENMP_ENABLED
-  case TapirTargetID::OpenMP:
+  case TTID::OpenMP:
     llvm_unreachable("OpenMP ABI is out of date");
 #endif // KITSUNE_OPENMP_ENABLED
 
 #if KITSUNE_QTHREADS_ENABLED
-  case TapirTargetID::Qthreads:
+  case TTID::Qthreads:
     return new QthreadsABI(M);
 #endif // KITSUNE_QTHREADS_ENABLED
 
 #if KITSUNE_REALM_ENABLED
-  case TapirTargetID::Realm:
+  case TTID::Realm:
     return new RealmABI(M);
 #endif // KITSUNE_REALM_ENABLED
 
-  case TapirTargetID::Serial:
+  case TTID::Serial:
     return new SerialABI(M, TTOpts);
 
   default:
-    llvm_unreachable("getTapirTargetFromID: TapirTargetID not handled");
+    break;
   }
+  llvm_unreachable("getTapirTargetFromID: TTID not handled");
 }
 
 //----------------------------------------------------------------------------//

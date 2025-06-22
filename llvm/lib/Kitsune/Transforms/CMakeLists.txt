@@ -1,0 +1,31 @@
+add_llvm_component_library(LLVMKitOpts
+  EmbBCPassUtils.cpp
+  FinalizeKernelMetadata.cpp
+  GenerateKitsuneCtors.cpp
+  GenerateKitsuneCtorCuda.cpp
+  GenerateKitsuneCtorHip.cpp
+  LinkDeviceBitcode.cpp
+  LowerKitsuneRuntimeIntrinsics.cpp
+  LowerMobileIntrinsics.cpp
+  OptimizeEmbBC.cpp
+  PrepareEmbBC.cpp
+  ResolveDeviceFuncs.cpp
+  StripKitsuneAddrSpace.cpp
+  EmbBCVerifier.cpp
+
+  DEPENDS
+  intrinsics_gen
+  LLVMLinker
+  LLVMBitWriter
+
+  LINK_COMPONENTS
+  Analysis
+  Core
+  IRReader
+  KitAnalysis
+  KitCore
+  KitSupport
+  Linker
+  Support
+  TransformUtils
+)

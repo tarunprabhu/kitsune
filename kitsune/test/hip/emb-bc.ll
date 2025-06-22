@@ -5,9 +5,10 @@
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @[[BC:.+]] = unnamed_addr constant [{{[0-9]+}} x i8] c"BC
-; CHECK-SAME: ", !kitsune.bc ![[TTMD:[0-9]+]]
+; CHECK-SAME: #[[ATTR:[0-9]+]]
 ;
-; CHECK: ![[TTMD]] = !{i8 3}
+; CHECK: #[[ATTR]] = {
+; CHECK-SAME: kit_bc(4)
 
 target triple = "x86_64-pc-linux-gnu"
 

@@ -4304,8 +4304,7 @@ public:
 
   // Kitsune attribute support
   llvm::TapirSpawnStrategy GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs);
-  std::optional<llvm::TapirTargetID>
-  GetTapirTargetAttr(ArrayRef<const Attr *> Attrs);
+  std::optional<llvm::TTID> GetTapirTargetAttr(ArrayRef<const Attr *> Attrs);
   unsigned GetKitsuneLaunchAttr(ArrayRef<const Attr *> Attrs);
 
   // Kitsune support for Kokkos.

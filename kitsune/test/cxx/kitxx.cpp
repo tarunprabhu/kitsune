@@ -12,5 +12,6 @@
 // CHECK-NOT: -ftapir
 // CHECK-NOT: -fkokkos
 // CHECK: "-x" "c++"
-// CHECK-NOT: -lkit{{.+}}
+// CHECK-NOT: -lkit
+// CHECK-NOT: -lkokkos
 // CHECK: "-l{{.*}}c++"

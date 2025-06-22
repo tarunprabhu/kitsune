@@ -916,6 +916,7 @@ static void generateMachineCodeOrAssemblyImpl(
   codeGenPasses.add(new llvm::RuntimeLibraryInfoWrapper(
       triple, tm.Options.ExceptionModel, tm.Options.FloatABIType,
       tm.Options.EABIVersion, tm.Options.MCOptions.ABIName, tm.Options.VecLib));
+  codeGenPasses.add(createCodeGenFatBinariesLegacyPass());
 
   std::unique_ptr<llvm::ToolOutputFile> dwoOS;
   if (!codeGenOpts.SplitDwarfOutput.empty()) {

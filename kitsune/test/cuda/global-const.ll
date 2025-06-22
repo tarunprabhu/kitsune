@@ -5,18 +5,20 @@
 ; RUN:     -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}}, !kitsune.fb
+; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f
 ; CHECK-NOT: llvm.kitrt.symbol.device.ptr
 ; CHECK-NOT: llvm.kitrt.symbol.memcpy.device
-; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(i8 2, ptr nonnull @[[FB]],
+; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(i32 2, ptr nonnull @[[FB]],
 ; CHECK-NOT: llvm.kitrt.symbol.memcpy.host
 ;
 ; CHECK: define {{.+}} @.kitcuda.ctor{{[^(]*}}
 ; CHECK: call {{.+}} @__cudaRegisterFatBinary
 ; CHECK-NOT: call {{.+}} @__cudaRegisterVar
 ; CHECK: call {{.+}} @__cudaRegisterFatBinaryEnd
+;
+; CHECK: #[[FBATTR]] = { kit_fb(2) }
 
 target triple = "x86_64-unknown-linux-gnu"
 

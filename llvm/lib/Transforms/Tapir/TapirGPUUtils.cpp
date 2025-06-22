@@ -107,123 +107,93 @@ void llvm::collectGlobalValues(Loop &loop, std::set<GlobalValue *> &seen) {
     collectGlobalValues(*bb, seen);
 }
 
-raw_ostream &llvm::renderCommandLine(ArrayRef<StringRef> args,
-                                     raw_ostream &os) {
-  if (args.size()) {
-    os << args.front();
-    for (size_t i = 1; i < args.size(); ++i)
-      os << " " << args[i];
-    os << "\n";
-  }
-  return os;
-}
+// raw_ostream &llvm::renderCommandLine(ArrayRef<StringRef> args,
+//                                      raw_ostream &os) {
+//   if (args.size()) {
+//     os << args.front();
+//     for (size_t i = 1; i < args.size(); ++i)
+//       os << " " << args[i];
+//     os << "\n";
+//   }
+//   return os;
+// }
 
-Constant *llvm::getOrInsertFBGlobal(Module &m, StringRef name, Type *ty) {
-  return m.getOrInsertGlobal(name, ty, [&] {
-    LLVMContext &ctxt = m.getContext();
-    PointerType *ptrTy = PointerType::getUnqual(ctxt);
-    return new GlobalVariable(m, ty, true, GlobalValue::InternalLinkage,
-                              ConstantPointerNull::get(ptrTy), name, nullptr);
-  });
-}
+// Constant *llvm::getOrInsertFBGlobal(Module &m, StringRef name, Type *ty) {
+//   return m.getOrInsertGlobal(name, ty, [&] {
+//     LLVMContext &ctxt = m.getContext();
+//     PointerType *ptrTy = PointerType::getUnqual(ctxt);
+//     return new GlobalVariable(m, ty, true, GlobalValue::InternalLinkage,
+//                               ConstantPointerNull::get(ptrTy), name, nullptr);
+//   });
+// }
 
-Constant *llvm::createConstantStr(const std::string &Str, Module &M,
-                                  const std::string &Name,
-                                  const std::string &SectionName,
-                                  unsigned Alignment) {
-  LLVMContext &Ctx = M.getContext();
-  Constant *CSN = ConstantDataArray::getString(Ctx, Str);
-  GlobalVariable *GV = new GlobalVariable(
-      M, CSN->getType(), true, GlobalVariable::PrivateLinkage, CSN, Name);
-  Type *StrTy = GV->getType();
+// Constant *llvm::createConstantStr(const std::string &Str, Module &M,
+//                                   const std::string &Name,
+//                                   const std::string &SectionName,
+//                                   unsigned Alignment) {
+//   LLVMContext &Ctx = M.getContext();
+//   Constant *CSN = ConstantDataArray::getString(Ctx, Str);
+//   GlobalVariable *GV = new GlobalVariable(
+//       M, CSN->getType(), true, GlobalVariable::PrivateLinkage, CSN, Name);
+//   Type *StrTy = GV->getType();
 
-  const DataLayout &DL = M.getDataLayout();
-  Constant *Zeros[] = {ConstantInt::get(DL.getIndexType(StrTy), 0),
-                       ConstantInt::get(DL.getIndexType(StrTy), 0)};
-  if (!SectionName.empty()) {
-    GV->setSection(SectionName);
-    // Mark the address as used which make sure that this section isn't
-    // merged and we will really have it in the object file.
-    GV->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
-  }
+//   const DataLayout &DL = M.getDataLayout();
+//   Constant *Zeros[] = {ConstantInt::get(DL.getIndexType(StrTy), 0),
+//                        ConstantInt::get(DL.getIndexType(StrTy), 0)};
+//   if (!SectionName.empty()) {
+//     GV->setSection(SectionName);
+//     // Mark the address as used which make sure that this section isn't
+//     // merged and we will really have it in the object file.
+//     GV->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
+//   }
 
-  if (Alignment)
-    GV->setAlignment(Align(Alignment));
+//   if (Alignment)
+//     GV->setAlignment(Align(Alignment));
 
-  Constant *CS = ConstantExpr::getGetElementPtr(GV->getValueType(), GV, Zeros);
-  return CS;
-}
+//   Constant *CS = ConstantExpr::getGetElementPtr(GV->getValueType(), GV, Zeros);
+//   return CS;
+// }
 
-// Adapted from Transforms/Utils/ModuleUtils.cpp
-void llvm::appendToGlobalCtors(Module &M, Constant *C, int Priority,
-                               Constant *Data) {
-  IRBuilder<> IRB(M.getContext());
-  FunctionType *FnTy = FunctionType::get(IRB.getVoidTy(), false);
+// // Adapted from Transforms/Utils/ModuleUtils.cpp
+// void llvm::appendToGlobalCtors(Module &M, Constant *C, int Priority,
+//                                Constant *Data) {
+//   IRBuilder<> IRB(M.getContext());
+//   FunctionType *FnTy = FunctionType::get(IRB.getVoidTy(), false);
 
-  // Get the current set of static global constructors and add
-  // the new ctor to the list.
-  SmallVector<Constant *, 16> CurrentCtors;
-  StructType *EltTy = StructType::get(
-      IRB.getInt32Ty(), PointerType::getUnqual(FnTy), IRB.getPtrTy());
-  if (GlobalVariable *GVCtor = M.getNamedGlobal("llvm.global_ctors")) {
-    if (Constant *Init = GVCtor->getInitializer()) {
-      unsigned N = Init->getNumOperands();
-      CurrentCtors.reserve(N + 1);
-      for (unsigned i = 0; i != N; ++i)
-        CurrentCtors.push_back(cast<Constant>(Init->getOperand(i)));
-    }
-    GVCtor->eraseFromParent();
-  }
+//   // Get the current set of static global constructors and add
+//   // the new ctor to the list.
+//   SmallVector<Constant *, 16> CurrentCtors;
+//   StructType *EltTy = StructType::get(
+//       IRB.getInt32Ty(), PointerType::getUnqual(FnTy), IRB.getPtrTy());
+//   if (GlobalVariable *GVCtor = M.getNamedGlobal("llvm.global_ctors")) {
+//     if (Constant *Init = GVCtor->getInitializer()) {
+//       unsigned N = Init->getNumOperands();
+//       CurrentCtors.reserve(N + 1);
+//       for (unsigned i = 0; i != N; ++i)
+//         CurrentCtors.push_back(cast<Constant>(Init->getOperand(i)));
+//     }
+//     GVCtor->eraseFromParent();
+//   }
 
-  // Build a 3 field global_ctor entry.
-  // We don't take a comdat key.
-  Constant *CSVals[3];
-  CSVals[0] = IRB.getInt32(Priority);
-  CSVals[1] = C;
-  CSVals[2] = Data ? ConstantExpr::getPointerCast(Data, IRB.getPtrTy())
-                   : Constant::getNullValue(IRB.getPtrTy());
-  Constant *RuntimeCtorInit = ConstantStruct::get(
-      EltTy, ArrayRef<Constant *>(CSVals, EltTy->getNumElements()));
+//   // Build a 3 field global_ctor entry.
+//   // We don't take a comdat key.
+//   Constant *CSVals[3];
+//   CSVals[0] = IRB.getInt32(Priority);
+//   CSVals[1] = C;
+//   CSVals[2] = Data ? ConstantExpr::getPointerCast(Data, IRB.getPtrTy())
+//                    : Constant::getNullValue(IRB.getPtrTy());
+//   Constant *RuntimeCtorInit = ConstantStruct::get(
+//       EltTy, ArrayRef<Constant *>(CSVals, EltTy->getNumElements()));
 
-  CurrentCtors.push_back(RuntimeCtorInit);
+//   CurrentCtors.push_back(RuntimeCtorInit);
 
-  // Create a new initializer.
-  ArrayType *AT = ArrayType::get(EltTy, CurrentCtors.size());
-  Constant *NewInit = ConstantArray::get(AT, CurrentCtors);
+//   // Create a new initializer.
+//   ArrayType *AT = ArrayType::get(EltTy, CurrentCtors.size());
+//   Constant *NewInit = ConstantArray::get(AT, CurrentCtors);
 
-  // Create the new global variable and replace all uses of
-  // the old global variable with the new one.
-  (void)new GlobalVariable(M, NewInit->getType(), false,
-                           GlobalValue::AppendingLinkage, NewInit,
-                           "llvm.global_ctors");
-}
-
-KernelInstMixData llvm::getKernelInstMix(const Function &f) {
-  KernelInstMixData instMix;
-
-  std::set<const Function *> calledFuncs;
-  for (const_inst_iterator i = inst_begin(f); i != inst_end(f); ++i) {
-    if (i->mayReadOrWriteMemory()) {
-      instMix.memOps++;
-    } else if (i->isUnaryOp() or i->isBinaryOp()) {
-      if (i->getType()->isFPOrFPVectorTy())
-        instMix.fpOps++;
-      else if (i->getType()->isIntegerTy())
-        instMix.intOps++;
-      else
-        instMix.otherOps++;
-    } else if (auto *call = dyn_cast<CallBase>(&*i)) {
-      calledFuncs.insert(call->getCalledFunction());
-    }
-  }
-
-  for (const Function *cf : calledFuncs) {
-    KernelInstMixData cfInstMix = getKernelInstMix(*cf);
-    instMix.memOps += cfInstMix.memOps;
-    instMix.fpOps += cfInstMix.fpOps;
-    instMix.intOps += cfInstMix.intOps;
-    instMix.otherOps += cfInstMix.otherOps;
-  }
-
-  return instMix;
-}
+//   // Create the new global variable and replace all uses of
+//   // the old global variable with the new one.
+//   (void)new GlobalVariable(M, NewInit->getType(), false,
+//                            GlobalValue::AppendingLinkage, NewInit,
+//                            "llvm.global_ctors");
+// }

@@ -20,8 +20,8 @@
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
 ; CHECK-NOT: "uwtable"
+; CHECK-SAME: kit_device
 ; CHECK-SAME: nounwind
-; CHECK-SAME: "kitsune.device"
 ; CHECK-SAME: "target-cpu"="gfx906"
 ; CHECK-SAME: "target-features"="+wavefrontsize32,+atomic-fadd-rtn-insts"
 

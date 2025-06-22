@@ -152,8 +152,8 @@ add_llvm_component_library(LLVMAnalysis
   StructuralHash.cpp
   SyntheticCountsUtils.cpp
   TFLiteUtils.cpp
+  TapirLoopHints.cpp
   TapirRaceDetect.cpp
-  TapirTargetAnalysis.cpp
   TapirTaskInfo.cpp
   TargetLibraryInfo.cpp
   TargetTransformInfo.cpp
@@ -186,6 +186,7 @@ add_llvm_component_library(LLVMAnalysis
   BinaryFormat
   Core
   FrontendHLSL
+  KitSupport
   Object
   ProfileData
   Support

@@ -21,6 +21,9 @@ set(LLVM_LINK_COMPONENTS
   IRReader
   InstCombine
   Instrumentation
+  KitAnalysis
+  KitCodeGen
+  KitCore
   LTO
   Linker
   MC

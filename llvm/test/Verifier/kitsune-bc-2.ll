@@ -7,6 +7,6 @@
 @.g2 = constant [0 x i8] zeroinitializer, !kitsune.bc !1
 
 !0 = !{i8 2}
-!1 = !{i8 3}
+!1 = !{i8 4}
 
 ; CHECK: too many embedded bitcode globals for tapir target 'hip'

@@ -7,22 +7,25 @@
 ; RUN:     -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}}, !kitsune.fb
+; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[ATTR:[0-9]+]]
 ; CHECK-DAG: @[[HOSTVAR:.+]] = external {{.+}} i32
 ; CHECK-DAG: @[[VARNAME:.+]] = private unnamed_addr constant [5 x i8] c"v137\00"
 ;
 ; CHECK: define {{.+}} @f
-; CHECK: %[[PTR1:.+]] = tail call {{.+}} @llvm.kitrt.symbol.device.ptr(i8 3, ptr nonnull @[[FB]], ptr nonnull @[[VARNAME]])
-; CHECK: call {{.+}} @llvm.kitrt.symbol.memcpy.device(i8 3, ptr %[[PTR1]], ptr nonnull @[[HOSTVAR]], i64 4)
-; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(i8 3, ptr nonnull @[[FB]],
-; CHECK: %[[PTR2:.+]] = call {{.+}} @llvm.kitrt.symbol.device.ptr(i8 3, ptr nonnull @[[FB]], ptr nonnull @[[VARNAME]])
-; CHECK: call {{.+}} @llvm.kitrt.symbol.memcpy.host(i8 3, ptr nonnull @[[HOSTVAR]], ptr %[[PTR2]], i64 4)
+; CHECK: %[[PTR1:.+]] = tail call {{.+}} @llvm.kitrt.symbol.device.ptr(i32 4, ptr nonnull @[[FB]], ptr nonnull @[[VARNAME]])
+; CHECK: call {{.+}} @llvm.kitrt.symbol.memcpy.device(i32 4, ptr %[[PTR1]], ptr nonnull @[[HOSTVAR]], i64 4)
+; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(i32 4, ptr nonnull @[[FB]],
+; CHECK: %[[PTR2:.+]] = call {{.+}} @llvm.kitrt.symbol.device.ptr(i32 4, ptr nonnull @[[FB]], ptr nonnull @[[VARNAME]])
+; CHECK: call {{.+}} @llvm.kitrt.symbol.memcpy.host(i32 4, ptr nonnull @[[HOSTVAR]], ptr %[[PTR2]], i64 4)
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;
 ; CHECK: define {{.+}} @.kithip.ctor{{[^(]*}}
 ; CHECK: %[[HANDLE:.+]] = call ptr @__hipRegisterFatBinary
 ; CHECK: call {{.+}} @__hipRegisterVar(ptr %[[HANDLE]], ptr @[[HOSTVAR]], ptr @[[VARNAME]]
+;
+; CHECK: #[[ATTR]] = {
+; CHECK-SAME: kit_fb(4)
 
 target triple = "x86_64-unknown-linux-gnu"
 

@@ -230,6 +230,14 @@ public:
     Attrs = Attrs.addAttributes(getContext(), AttrBuilder);
   }
 
+  /// Add attribute to this global.
+  void addAttribute(Attribute Attr) {
+    LLVMContext &Ctx = getContext();
+    AttrBuilder B(getContext(), Attrs);
+    B.addAttribute(Attr);
+    Attrs = AttributeSet::get(Ctx, B);
+  }
+
   /// Return true if the attribute exists.
   bool hasAttribute(Attribute::AttrKind Kind) const {
     return Attrs.hasAttribute(Kind);

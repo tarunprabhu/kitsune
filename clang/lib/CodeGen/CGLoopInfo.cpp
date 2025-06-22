@@ -471,6 +471,8 @@ void LoopAttributes::clear() {
   MustProgress = false;
   TapirGrainSize = 0;
   SpawnStrategy = llvm::TapirSpawnStrategy::Sequential;
+  LoopTarget = std::nullopt;
+  ThreadsPerBlock = 0;
 }
 
 clang::CodeGen::LoopInfo::LoopInfo(BasicBlock *Header,

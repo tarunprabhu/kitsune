@@ -50,7 +50,7 @@
 ; O2-NEXT: ret void
 ;
 ; O2: attributes #[[ATTRS]] = {
-; O2-SAME: "kitsune.kernel"
+; O2-SAME: kit_kernel
 ;
 ; ------------------------------------------------------------------------------
 

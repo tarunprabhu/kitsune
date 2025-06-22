@@ -13,7 +13,7 @@
 #ifndef LLVM_TRANSFORMS_TAPIR_TAPIRTOTARGET_H
 #define LLVM_TRANSFORMS_TAPIR_TAPIRTOTARGET_H
 
-#include "llvm/Frontend/Tapir/Tapir.h"
+#include "kitsune/Core/Tapir.h"
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {

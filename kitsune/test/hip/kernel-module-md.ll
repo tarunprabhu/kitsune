@@ -5,8 +5,8 @@
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;
-; The module identifier is generated a specific way. We don't really need care
-; exactly what that is, but might as well check it.
+; The module identifier is generated a specific way. We don't really need it to
+; be exactly what it is, but might as well check it.
 ;
 ; CHECK: ModuleID = '__kithip_kernel-module-md.ll'
 ;
@@ -15,9 +15,9 @@
 ; CHECK: define {{.*}}@[[F1:__kithip_loop_f1[^(]*]](
 ; CHECK: define {{.*}}@[[F2:__kithip_loop_f2[^(]*]](
 ;
-; CHECK: !kitsune.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
+; CHECK: !kitsune.device.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
 ;
-; CHECK-DAG: ![[MDTT]] = !{i8 3}
+; CHECK-DAG: ![[MDTT]] = !{i32 4}
 ; CHECK-DAG: ![[MDNAME]] = !{!"__kithip_kernel-module-md.ll"}
 
 target triple = "x86_64-pc-linux-gnu"

@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/LoopSpawningTI.h"
+#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -18,10 +20,9 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/TapirTargetAnalysis.h"
+#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
@@ -36,7 +37,6 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/KitsuneStringExtras.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
@@ -483,7 +483,7 @@ public:
       Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
       ScalarEvolution &SE, AssumptionCache &AC, TargetTransformInfo &TTI,
       OptimizationRemarkEmitter &ORE, const TapirTargetInfo &TGI,
-      const std::map<TapirTargetID, std::unique_ptr<TapirTarget>> &Targets)
+      const std::map<TTID, std::unique_ptr<TapirTarget>> &Targets)
       : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TGI(TGI),
         ORE(ORE), Targets(Targets) {}
 
@@ -603,7 +603,7 @@ private:
   TargetTransformInfo &TTI;
   const TapirTargetInfo &TGI;
   OptimizationRemarkEmitter &ORE;
-  const std::map<TapirTargetID, std::unique_ptr<TapirTarget>> &Targets;
+  const std::map<TTID, std::unique_ptr<TapirTarget>> &Targets;
 
   std::vector<TapirLoopInfo *> TapirLoops;
   DenseMap<Task *, TapirLoopInfo *> TaskToTapirLoop;
@@ -988,8 +988,8 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   Module &M = *F.getParent();
   Loop *L = TL->getLoop();
   TapirLoopHints Hints(L);
-  TapirTargetID TT = TGI.getID();
-  if (std::optional<TapirTargetID> HintTT = Hints.getLoopTarget())
+  TTID TT = TGI.getID();
+  if (std::optional<TTID> HintTT = Hints.getLoopTarget())
     TT = *HintTT;
   const TapirTargetOptions &TTOpts = TGI.getOptions();
 
@@ -1690,7 +1690,7 @@ bool LoopSpawningImpl::run() {
     return false;
 
   // Perform any Target-dependent preprocessing of F.
-  for (TapirTargetID ID : TGI.getRequiredTTs(F))
+  for (TTID ID : TGI.getRequiredTTs(F))
     Targets.at(ID)->preProcessFunction(F, TI, true);
 
   // Outline all Tapir loops.
@@ -1708,7 +1708,7 @@ bool LoopSpawningImpl::run() {
   } // end timed region
 
   // Perform any Target-dependent postprocessing of F.
-  for (TapirTargetID ID : TGI.getRequiredTTs(F))
+  for (TTID ID : TGI.getRequiredTTs(F))
     Targets.at(ID)->postProcessFunction(F, true);
 
   LLVM_DEBUG({
@@ -1769,13 +1769,13 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
       Changed |= formLCSSARecursively(*L, DT, &LI, &SE);
   }
 
-  std::map<TapirTargetID, std::unique_ptr<TapirTarget>> Targets;
+  std::map<TTID, std::unique_ptr<TapirTarget>> Targets;
   for (Function *F : WorkList)
-    for (TapirTargetID ID : TGI.getRequiredTTs(*F))
+    for (TTID ID : TGI.getRequiredTTs(*F))
       if (Targets.find(ID) == Targets.end())
         Targets.emplace(ID, getTapirTargetFromID(M, ID, TTOpts));
 
-  for (TapirTargetID ID : TGI.getRequiredTTs(M))
+  for (TTID ID : TGI.getRequiredTTs(M))
     Targets.at(ID)->preProcessModule();
 
   // Now process each loop.
@@ -1785,7 +1785,7 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
                    .run();
   }
 
-  for (TapirTargetID ID : TGI.getRequiredTTs(M))
+  for (TTID ID : TGI.getRequiredTTs(M))
     Targets.at(ID)->postProcessModule();
 
   if (Changed)

@@ -16,7 +16,6 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Options/Options.h"
-#include "clang/Driver/Tapir.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/ProfileData/InstrProf.h"
@@ -4173,8 +4172,7 @@ void DarwinClang::AddLinkTapirRuntimeLib(const ArgList &Args,
 
 void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
                                       ArgStringList &CmdArgs) const {
-  std::optional<llvm::TapirTargetID> TapirTarget =
-      parseTapirTargetIfValid(Args);
+  std::optional<llvm::TTID> TapirTarget = parseTapirTargetIfValid(Args);
   if (not TapirTarget)
     return;
 
@@ -4183,7 +4181,7 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
 
   // FIXME KITSUNE: Shouldn't this be like the code in ToolChain.cpp?
   switch (*TapirTarget) {
-  case llvm::TapirTargetID::OpenCilk: {
+  case llvm::TTID::OpenCilk: {
     bool StaticOpenCilk = false;
     bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
 
@@ -4211,13 +4209,13 @@ void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
                            !StaticOpenCilk);
     break;
   }
-  case llvm::TapirTargetID::OpenMP:
+  case llvm::TTID::OpenMP:
     CmdArgs.push_back("-lomp");
     break;
-  case llvm::TapirTargetID::Qthreads:
+  case llvm::TTID::Qthreads:
     CmdArgs.push_back("-lqthread");
     break;
-  case llvm::TapirTargetID::Realm:
+  case llvm::TTID::Realm:
     CmdArgs.push_back("-lrealm-abi");
     CmdArgs.push_back("-lrealm");
     break;

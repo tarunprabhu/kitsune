@@ -7,13 +7,17 @@ set( LLVM_LINK_COMPONENTS
   AggressiveInstCombine
   InstCombine
   Instrumentation
+  KitAnalysis
+  KitCodeGen
+  KitCore
+  KitOpts
+  KitSupport
   MC
   MCParser
   ObjCARCOpts
   Option
   ScalarOpts
   Support
-  FrontendTapir
   TargetParser
   TransformUtils
   Vectorize

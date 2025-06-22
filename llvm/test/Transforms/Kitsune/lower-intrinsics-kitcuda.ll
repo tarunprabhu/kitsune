@@ -7,41 +7,26 @@ target triple = "x86_64-unknown-linux-gnu"
 @.gname = unnamed_addr constant [5 x i8] c "gbuf\00"
 @.name = unnamed_addr constant [7 x i8] c"kernel\00"
 
-declare void @llvm.kitrt.enable.refine.launches(i8, i8)
-declare void @llvm.kitrt.finalize(i8)
-declare void @llvm.kitrt.initialize(i8)
-declare ptr @llvm.kitrt.launch.kernel(i8, ptr, ptr, ptr, i64, i32, ptr, ptr)
-declare ptr @llvm.kitrt.prefetch.device(i8, ptr, i64, ptr)
-declare ptr @llvm.kitrt.prefetch.host(i8, ptr, i64, ptr)
-declare void @llvm.kitrt.set.fixed.tpb(i8, i32)
-declare void @llvm.kitrt.set.max.tpb(i8, i32)
-declare ptr @llvm.kitrt.symbol.device.ptr(i8, ptr, ptr)
-declare void @llvm.kitrt.symbol.memcpy.device(i8, ptr, ptr, i64)
-declare void @llvm.kitrt.symbol.memcpy.host(i8, ptr, ptr, i64)
-declare void @llvm.kitrt.sync.stream(i8, ptr)
-
 ; Function Attrs: nounwind memory(inaccessiblemem: readwrite) uwtable
-define dso_local void @f(ptr noundef %buf, i64 noundef %n) local_unnamed_addr #0 {
+define dso_local void @f(ptr noundef %buf, i64 noundef %n) {
 entry:
-  call void @llvm.kitrt.initialize(i8 2)
-  call void @llvm.kitrt.enable.refine.launches(i8 2, i8 1)
-  call void @llvm.kitrt.enable.refine.launches(i8 2, i8 0)
-  call void @llvm.kitrt.set.fixed.tpb(i8 2, i32 24)
-  call void @llvm.kitrt.set.max.tpb(i8 2, i32 1024)
-  %0 = call ptr @llvm.kitrt.symbol.device.ptr(i8 2, ptr null, ptr @.gname)
-  call void @llvm.kitrt.symbol.memcpy.device(i8 2, ptr %0, ptr @gbuf, i64 28)
-  %1 = call ptr @llvm.kitrt.prefetch.device(i8 2, ptr %buf, i64 -1, ptr null)
-  %2 = call ptr @llvm.kitrt.prefetch.device(i8 2, ptr %buf, i64 1024, ptr %1)
-  %3 = call ptr @llvm.kitrt.launch.kernel(i8 2, ptr null, ptr @.name, ptr null, i64 128, i32 24, ptr null, ptr %2)
-  call void @llvm.kitrt.sync.stream(i8 2, ptr %3)
-  call void @llvm.kitrt.symbol.memcpy.host(i8 2, ptr @gbuf, ptr %0, i64 28)
-  %4 = call ptr @llvm.kitrt.prefetch.host(i8 2, ptr %buf, i64 -1, ptr %3)
-  %5 = call ptr @llvm.kitrt.prefetch.host(i8 2, ptr %buf, i64 1024, ptr %4)
-  call void @llvm.kitrt.finalize(i8 2)
+  call void @llvm.kitrt.initialize(i32 2)
+  call void @llvm.kitrt.enable.refine.launches(i32 2, i8 1)
+  call void @llvm.kitrt.enable.refine.launches(i32 2, i8 0)
+  call void @llvm.kitrt.set.fixed.tpb(i32 2, i32 24)
+  call void @llvm.kitrt.set.max.tpb(i32 2, i32 1024)
+  %0 = call ptr @llvm.kitrt.symbol.device.ptr(i32 2, ptr null, ptr @.gname)
+  call void @llvm.kitrt.symbol.memcpy.device(i32 2, ptr %0, ptr @gbuf, i64 28)
+  %1 = call ptr @llvm.kitrt.prefetch.device(i32 2, ptr %buf, i64 -1, ptr null)
+  %2 = call ptr @llvm.kitrt.prefetch.device(i32 2, ptr %buf, i64 1024, ptr %1)
+  %3 = call ptr @llvm.kitrt.launch.kernel(i32 2, ptr null, ptr @.name, ptr null, i64 128, i32 24, ptr null, ptr %2)
+  call void @llvm.kitrt.sync.stream(i32 2, ptr %3)
+  call void @llvm.kitrt.symbol.memcpy.host(i32 2, ptr @gbuf, ptr %0, i64 28)
+  %4 = call ptr @llvm.kitrt.prefetch.host(i32 2, ptr %buf, i64 -1, ptr %3)
+  %5 = call ptr @llvm.kitrt.prefetch.host(i32 2, ptr %buf, i64 1024, ptr %4)
+  call void @llvm.kitrt.finalize(i32 2)
   ret void
 }
-
-attributes #0 = { nounwind uwtable }
 
 ; CHECK-LABEL: @f
 ; CHECK-NEXT: entry:

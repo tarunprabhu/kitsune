@@ -15,7 +15,7 @@
 ;
 ; DEFAULT: @[[FB:.+]] = constant [0 x i8] zeroinitializer
 ; DEFAULT-SAME: section ".hip_fatbin"
-; DEFAULT-SAME: !kitsune.fb
+; DEFAULT-SAME: #[[FBATTR:[0-9]+]]
 ;
 ; DEFAULT: @[[BUNDLE:.+]] = internal constant {{.+}} { i32 1212764230, i32 1, ptr @[[FB]], ptr null }
 ; DEFAULT-SAME: section ".hipFatBinSegment"
@@ -32,19 +32,22 @@
 ;
 ; DEFAULT: define {{.*}} @[[DTOR:[.]kithip[.]dtor.*]]{{[ ]*}}(
 ; DEFAULT: call {{.+}} @__hipUnregisterFatBinary
-; DEFAULT-NOT: call {{.+}} @llvm.kitrt.finalize(i8 3)
+; DEFAULT-NOT: call {{.+}} @llvm.kitrt.finalize(i32 4)
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]
-; DEFAULT: call {{.+}} @llvm.kitrt.initialize(i8 3)
+; DEFAULT: call {{.+}} @llvm.kitrt.initialize(i32 4)
 ; DEFAULT: call {{.+}} @llvm.kitrt.enable.verbose(i8 0)
 ; DEFAULT: call {{.+}} @llvm.kitrt.hip.enable.xnack(i8 1)
-; DEFAULT: call {{.+}} @llvm.kitrt.enable.y.axis.launches(i8 3, i8 0)
-; DEFAULT-NOT: call {{.+}} @llvm.kitrt.set.fixed.tpb(i8 3,
-; DEFAULT: call {{.+}} @llvm.kitrt.set.max.tpb(i8 3, i32 1024)
+; DEFAULT: call {{.+}} @llvm.kitrt.enable.y.axis.launches(i32 4, i8 0)
+; DEFAULT-NOT: call {{.+}} @llvm.kitrt.set.fixed.tpb(i32 4,
+; DEFAULT: call {{.+}} @llvm.kitrt.set.max.tpb(i32 4, i32 1024)
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}__hipRegisterFatBinary(ptr @[[BUNDLE]])
 ; DEFAULT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
 ; DEFAULT: }
+;
+; DEFAULT: attributes #[[FBATTR]] = {
+; DEFAULT-SAME: kit_fb(4)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -55,7 +58,7 @@
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: kithip.ctor{{.*}}
-; TPB: call {{.+}} @llvm.kitrt.set.fixed.tpb(i8 3, i32 77)
+; TPB: call {{.+}} @llvm.kitrt.set.fixed.tpb(i32 4, i32 77)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -66,7 +69,7 @@
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: kithip.ctor{{.*}}
-; MTPB: call {{.+}} @llvm.kitrt.set.max.tpb(i8 3, i32 29)
+; MTPB: call {{.+}} @llvm.kitrt.set.max.tpb(i32 4, i32 29)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -111,7 +114,7 @@
 ; RUN:     | FileCheck %s -check-prefix YLAUNCH
 ;
 ; YLAUNCH-LABEL: kithip.ctor{{.*}}
-; YLAUNCH: call {{.+}} @llvm.kitrt.enable.y.axis.launches(i8 3, i8 1)
+; YLAUNCH: call {{.+}} @llvm.kitrt.enable.y.axis.launches(i32 4, i8 1)
 ;
 ; ----------------------------------------------------------------------------
 
