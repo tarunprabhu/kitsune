@@ -916,6 +916,14 @@ static uint64_t getAttrKindEncoding(Attribute::AttrKind Kind) {
     return bitc::ATTR_KIND_NO_EXT;
   case Attribute::Captures:
     return bitc::ATTR_KIND_CAPTURES;
+  case Attribute::KitBC:
+    return bitc::ATTR_KIND_KIT_BC;
+  case Attribute::KitFB:
+    return bitc::ATTR_KIND_KIT_FB;
+  case Attribute::KitKernel:
+    return bitc::ATTR_KIND_KIT_KERNEL;
+  case Attribute::KitDevice:
+    return bitc::ATTR_KIND_KIT_DEVICE;
   case Attribute::EndAttrKinds:
     llvm_unreachable("Can not encode end-attribute kinds marker.");
   case Attribute::None:

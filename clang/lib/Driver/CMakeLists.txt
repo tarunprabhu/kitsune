@@ -1,6 +1,6 @@
 set(LLVM_LINK_COMPONENTS
   BinaryFormat
-  FrontendTapir
+  KitSupport
   MC
   Object
   Option
@@ -22,13 +22,13 @@ add_clang_library(clangDriver
   Driver.cpp
   DriverOptions.cpp
   Job.cpp
+  KitsuneOptionUtils.cpp
   Multilib.cpp
   MultilibBuilder.cpp
   OffloadBundler.cpp
   OptionUtils.cpp
   Phases.cpp
   SanitizerArgs.cpp
-  Tapir.cpp
   Tool.cpp
   ToolChain.cpp
   ToolChains/Arch/AArch64.cpp

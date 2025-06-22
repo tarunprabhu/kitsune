@@ -6,17 +6,20 @@
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[GV:.+]] = external local_unnamed_addr constant i32
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}}, !kitsune.fb
+; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[ATTR:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f
 ; CHECK-NOT: llvm.kitrt.symbol.device.ptr
 ; CHECK-NOT: llvm.kitrt.symbol.memcpy.device
-; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(i8 3, ptr nonnull @[[FB]],
+; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(i32 4, ptr nonnull @[[FB]],
 ; CHECK-NOT: llvm.kitrt.symbol.memcpy.host
 ;
 ; CHECK: define {{.+}} @.kithip.ctor{{[^(]*}}
 ; CHECK: call {{.+}} @__hipRegisterFatBinary
 ; CHECK-NOT: call {{.+}} @__hipRegisterVar
+;
+; CHECK: #[[ATTR]] = {
+; CHECK-SAME: kit_fb(4)
 
 target triple = "x86_64-unknown-linux-gnu"
 

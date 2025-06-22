@@ -1,0 +1,19 @@
+add_llvm_component_library(LLVMKitCore
+  ConstantUtils.cpp
+  EmbUtils.cpp
+  GlobalVariableUtils.cpp
+  KernelProperties.cpp
+  ModuleUtils.cpp
+  TapirTargetOptions.cpp
+  TargetUtils.cpp
+
+  LINK_COMPONENTS
+  BitReader
+  BitWriter
+  CodeGen
+  Core
+  KitSupport
+  MC
+  Support
+  TargetParser
+)

@@ -162,6 +162,7 @@ namespace llvm {
     // Attribute builder reference information.
     std::map<Value*, std::vector<unsigned> > ForwardRefAttrGroups;
     std::map<unsigned, AttrBuilder> NumberedAttrBuilders;
+    std::map<unsigned, Value*> ValForAttrGroup;
 
     // Summary global value reference information.
     std::map<unsigned, std::vector<std::pair<ValueInfo *, LocTy>>>
@@ -318,6 +319,7 @@ namespace llvm {
     bool parseOptionalUWTableKind(UWTableKind &Kind);
     bool parseAllocKind(AllocFnKind &Kind);
     std::optional<MemoryEffects> parseMemoryAttr();
+    std::optional<TTID> parseTTIDAttr();
     unsigned parseNoFPClassAttr();
     bool parseScopeAndOrdering(bool IsAtomic, SyncScope::ID &SSID,
                                AtomicOrdering &Ordering);
@@ -377,6 +379,9 @@ namespace llvm {
     bool parseFnAttributeValuePairs(AttrBuilder &B,
                                     std::vector<unsigned> &FwdRefAttrGrps,
                                     bool inAttrGrp, LocTy &BuiltinLoc);
+    bool parseGlobalAttributeValuePairs(AttrBuilder &B,
+                                        std::vector<unsigned> &FwdRefAttrGrps,
+                                        bool inAttrGrp);
     bool parseRangeAttr(AttrBuilder &B);
     bool parseInitializesAttr(AttrBuilder &B);
     bool parseCapturesAttr(AttrBuilder &B);

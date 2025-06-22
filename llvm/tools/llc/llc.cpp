@@ -13,6 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "NewPMDriver.h"
+#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Support/OptLevelUtils.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
@@ -690,6 +693,13 @@ static int compileModule(char **argv, LLVMContext &Context) {
 
     // Construct a custom pass pipeline that starts after instruction
     // selection.
+    if (getRunPassNames().empty()) {
+      OptimizationLevel Opt = mapToOptimizationLevel(OptLevel);
+      std::optional<TapirTargetOptions> TTO =
+          TapirTargetOptions::createFromCLOpts(Opt);
+      PM.add(createTapirTargetAnalysisWrapperPass(TTO));
+      PM.add(createCodeGenFatBinariesLegacyPass());
+    }
     if (!getRunPassNames().empty()) {
       if (!MIR) {
         WithColor::warning(errs(), argv[0])

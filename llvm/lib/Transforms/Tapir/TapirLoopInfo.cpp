@@ -16,6 +16,7 @@
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"

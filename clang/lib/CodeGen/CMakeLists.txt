@@ -19,6 +19,9 @@ set(LLVM_LINK_COMPONENTS
   IRReader
   InstCombine
   Instrumentation
+  KitAnalysis
+  KitCodeGen
+  KitCore
   LTO
   Linker
   MC
@@ -83,7 +86,7 @@ add_clang_library(clangCodeGen
   CGGPUBuiltin.cpp
   CGHLSLRuntime.cpp
   CGKitsune.cpp
-  CGKokkos.cpp   
+  CGKokkos.cpp
   CGLoopInfo.cpp
   CGNonTrivialStruct.cpp
   CGObjC.cpp

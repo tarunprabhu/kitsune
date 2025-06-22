@@ -38,9 +38,9 @@
 #include "clang/Driver/Distro.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/InputInfo.h"
+#include "clang/Driver/KitsuneOptionUtils.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
-#include "clang/Driver/Tapir.h"
 #include "clang/Driver/Types.h"
 #include "clang/Driver/XRayArgs.h"
 #include "llvm/ADT/ScopeExit.h"
@@ -373,7 +373,7 @@ static bool addExceptionArgs(const ArgList &Args, types::ID InputType,
     // But if it has not, turn exceptions off only if Kokkos mode has been
     // enabled or if a tapir target has been set.
     const Driver &D = TC.getDriver();
-    std::optional<llvm::TapirTargetID> TT = parseTapirTargetIfValid(Args);
+    std::optional<llvm::TTID> TT = parseTapirTargetIfValid(Args);
     if (ExceptionArg) {
       CXXExceptionsEnabled =
           ExceptionArg->getOption().matches(options::OPT_fcxx_exceptions) ||

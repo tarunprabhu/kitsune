@@ -5,23 +5,23 @@
 # RUN: echo "" | %kitmenc \
 # RUN:     | FileCheck %s --check-prefix=DEFAULT
 #
-# DEFAULT: !kitsune.bc ![[MDCUDA:[0-9]+]]
-# DEFAULT: ![[MDCUDA]] = !{i8 2}
+# DEFAULT: @{{.+}} = unnamed_addr constant {{.+}} #[[CUDA:[0-9]+]]
+# DEFAULT: #[[CUDA]] = { kit_bc(2) }
 #
 # ------------------------------------------------------------------------------
 #
-# RUN: echo "" | %kitmenc -generator=serial \
+# RUN: echo "" | %kitmenc -tapir=serial \
 # RUN:     | FileCheck %s --check-prefix=SERIAL
 #
-# SERIAL: !kitsune.bc ![[MDSERIAL:[0-9]+]]
-# SERIAL: ![[MDSERIAL]] = !{i8 1}
+# SERIAL: @{{.+}} = unnamed_addr constant {{.+}} #[[SERIAL:[0-9]+]]
+# SERIAL: #[[SERIAL]] = { kit_bc(1) }
 #
 # ------------------------------------------------------------------------------
 #
-# RUN: %kitmenc -generator=hip %S/input/empty.ll \
+# RUN: %kitmenc -tapir=hip %S/input/empty.ll \
 # RUN:     | FileCheck %s --check-prefix=HIP
 #
-# HIP: !kitsune.bc ![[MDHIP:[0-9]+]]
-# HIP: ![[MDHIP]] = !{i8 3}
+# HIP: @{{.+}} = unnamed_addr constant {{.+}} #[[HIP:[0-9]+]]
+# HIP: #[[HIP]] = { kit_bc(4) }
 #
 # ------------------------------------------------------------------------------

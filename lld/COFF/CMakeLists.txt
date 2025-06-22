@@ -32,6 +32,7 @@ add_lld_library(lldCOFF
   DebugInfoMSF
   DebugInfoPDB
   Demangle
+  KitCore
   LibDriver
   LTO
   MC

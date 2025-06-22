@@ -15,6 +15,7 @@
 #ifndef LLVM_IR_ATTRIBUTES_H
 #define LLVM_IR_ATTRIBUTES_H
 
+#include "kitsune/Core/Tapir.h"
 #include "llvm-c/Types.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitmaskEnum.h"
@@ -116,6 +117,7 @@ public:
   static bool canUseAsFnAttr(AttrKind Kind);
   static bool canUseAsParamAttr(AttrKind Kind);
   static bool canUseAsRetAttr(AttrKind Kind);
+  static bool canUseAsGlobalAttr(AttrKind Kind);
 
   static bool intersectMustPreserve(AttrKind Kind);
   static bool intersectWithAnd(AttrKind Kind);
@@ -165,6 +167,8 @@ public:
   static Attribute getWithUWTableKind(LLVMContext &Context, UWTableKind Kind);
   static Attribute getWithMemoryEffects(LLVMContext &Context, MemoryEffects ME);
   static Attribute getWithNoFPClass(LLVMContext &Context, FPClassTest Mask);
+  static Attribute getWithTTID(LLVMContext &Context, AttrKind Kind, TTID TT);
+  static Attribute getWithKernelProps(LLVMContext &Contxt, StringRef Name);
 
   /// For a typed attribute, return the equivalent attribute with the type
   /// changed to \p ReplacementTy.
@@ -295,6 +299,9 @@ public:
 
   /// Returns the value of the initializes attribute.
   ArrayRef<ConstantRange> getInitializes() const;
+
+  /// Returns the value of the tapir target attribute.
+  TTID getTTID() const;
 
   /// The Attribute is converted to a string of equivalent mnemonic. This
   /// is, presumably, for writing out the mnemonics for the assembly writer.
@@ -1283,6 +1290,9 @@ public:
 
   /// Add initializes attribute.
   AttrBuilder &addInitializesAttr(const ConstantRangeList &CRL);
+
+  /// Add an attribute of the given kind that has a TTID value.
+  AttrBuilder &addTapirTargetAttr(Attribute::AttrKind AttrKind, TTID TT);
 
   ArrayRef<Attribute> attrs() const { return Attrs; }
 

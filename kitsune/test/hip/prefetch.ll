@@ -1,5 +1,5 @@
 ; Check that the --tapir-gpu-prefetch option is handled correctly
-; 
+;
 ; -----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
@@ -8,8 +8,8 @@
 ; RUN:     | FileCheck %s -check-prefix PREFETCH
 ;
 ; PREFETCH: define {{.+}} @f
-; PREFETCH: call {{.+}} @llvm.kitrt.prefetch.device(i8 3,
-; PREFETCH: call {{.+}} @llvm.kitrt.launch.kernel(i8 3,
+; PREFETCH: call {{.+}} @llvm.kitrt.prefetch.device(i32 4,
+; PREFETCH: call {{.+}} @llvm.kitrt.launch.kernel(i32 4,
 ; PREFETCH: ret void
 ; PREFETCH-NEXT: }
 ;
@@ -21,8 +21,8 @@
 ; RUN:     | FileCheck %s -check-prefix NO-PREFETCH
 ;
 ; NO-PREFETCH: define {{.+}} @f
-; NO-PREFETCH-NOT: call {{.+}} @llvm.kitrt.prefetch.device(i8 3,
-; NO-PREFETCH: call {{.+}} @llvm.kitrt.launch.kernel(i8 3,
+; NO-PREFETCH-NOT: call {{.+}} @llvm.kitrt.prefetch.device(i32 4,
+; NO-PREFETCH: call {{.+}} @llvm.kitrt.launch.kernel(i32 4,
 ; NO-PREFETCH: ret void
 ; NO-PREFETCH-NEXT: }
 ;

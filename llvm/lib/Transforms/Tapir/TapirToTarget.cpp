@@ -12,9 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/TapirToTarget.h"
+#include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AssumptionCache.h"
-#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IntrinsicInst.h"

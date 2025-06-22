@@ -20,7 +20,7 @@
 ; CHECK-NEXT: ret void
 ;
 ; CHECK: attributes #[[ATTRS]] = {
-; CHECK-SAME: "kitsune.kernel"
+; CHECK-SAME: kit_kernel
 
 target triple = "x86_64-pc-linux-gnu"
 

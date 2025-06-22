@@ -14,6 +14,8 @@
 #ifndef LLVM_LINKALLPASSES_H
 #define LLVM_LINKALLPASSES_H
 
+#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Transforms/EmbBCVerifier.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysisEvaluator.h"
 #include "llvm/Analysis/AliasSetTracker.h"
@@ -29,7 +31,6 @@
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/ScopedNoAliasAA.h"
-#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TypeBasedAliasAnalysis.h"
 #include "llvm/CodeGen/Passes.h"
@@ -39,7 +40,6 @@
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
-#include "llvm/Transforms/Kitsune/EmbBCVerifier.h"
 #include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"

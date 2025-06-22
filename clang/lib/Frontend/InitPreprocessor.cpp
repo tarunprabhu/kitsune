@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "kitsune/Support/ToString.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/HLSLRuntime.h"
 #include "clang/Basic/MacroBuilder.h"
@@ -28,7 +29,6 @@
 #include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
-#include "llvm/Support/KitsuneStringExtras.h"
 using namespace clang;
 
 static bool MacroBodyEndsInBackslash(StringRef MacroBody) {
@@ -884,7 +884,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   // with the principle of "absence indicating absence". The empty string would
   // be too much like the "special sentinel indicating absence".
   Builder.defineMacro("__kitsune__"); // Kitsune Frontend
-  if (std::optional<llvm::TapirTargetID> tt = KitsuneOpts.getTapirTarget()) {
+  if (std::optional<llvm::TTID> tt = KitsuneOpts.getTapirTarget()) {
     std::string s;
     llvm::raw_string_ostream os(s);
     os << '"' << *tt << '"';
