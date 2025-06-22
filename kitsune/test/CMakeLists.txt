@@ -44,6 +44,7 @@ list(APPEND KITSUNE_TEST_DEPS
   kit-config
   kitsune-resource-headers
   clang
+  llc
   llvm-config
   llvm-dis
   FileCheck count not
