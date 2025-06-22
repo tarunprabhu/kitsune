@@ -265,6 +265,11 @@ if (WIN32)
   message(FATAL_ERROR "Kitsune is not supported on Windows")
 endif ()
 
+set(KITSUNE_MAIN_SRC_DIR     ${CMAKE_SOURCE_DIR}/../kitsune)
+set(KITSUNE_MAIN_INCLUDE_DIR ${KITSUNE_MAIN_SRC_DIR}/include)
+
+include_directories(${KITSUNE_MAIN_INCLUDE_DIR})
+
 # For now, the kitsune version tracks the LLVM version, except that the major
 # version of Kitsune is 0 and the minor version is the same as LLVM's major
 # version. We use LLVM's version suffix which we will probably continue doing
@@ -516,15 +521,22 @@ if (NOT LLVM_BUILD_LLVM_DYLIB)
   message(STATUS "enable libLLVM")
 endif ()
 
-# The current organization of Kitsune's code is deeply problematic. There are a
-# host of circular dependences between the LLVM static libraries introduced by
-# libLLVMFrontendTapir. When linking against libLLVM.so or using static linking
-# for LLVM's tools (including clang, flang, lli, opt etc.), we just about get
-# away with this. But if building shared libraries, configuration will fail
-# specifically with a circular dependence error. Until we can untangle this
-# particular mess, don't allow BUILD_SHARED_LIBS=1
+# A circular dependence between the libraries in Kitsune exists that can only be
+# broken by a non-trivial reorganization. libLLVMPasses requires libLLVMKitOpts
+# in order to instantiate the Kitsune-specific passes when building a pass
+# pipeline. However, one of these passes builds an optimization pipeline to run
+# on the embedded modules. This results in libLLVMKitOpts depending on
+# libLLVMPasses, thereby creating a dependence cycle:
+#
+#   libLLVMPasses -> libLLVMKitOpts -> libLLVMPasses
+#
+# This makes it impossible to build Kitsune with -DBUILD_SHARED_LIBS=ON, though
+# building with static libraries or -DLLVM_LINK_LLVM_DYLIB=ON still works. For
+# now, we simply forbid setting -DBUILD_SHARED_LIBS=ON. It is not clear how we
+# might break this dependence cycle since the use of a "nested" pass pipeline
+# within an LLVM pass is a significant departure from LLVM's architecture.
 if (BUILD_SHARED_LIBS)
-  message(FATAL_ERROR "Kitsune does not support BUILD_SHARED_LIBS=ON. See llvm/CMakeLists.txt for more details")
+  message(FATAL_ERROR "Kitsune does not support BUILD_SHARED_LIBS. See llvm/CMakeLists.txt for more details")
 endif ()
 
 # --------------------- END KITSUNE SPECIFIC CONFIGURATION ---------------------

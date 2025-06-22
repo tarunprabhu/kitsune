@@ -5,9 +5,9 @@
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}}, !kitsune.fb ![[TTMD:[0-9]+]]
-; CHECK-DAG: @[[G_KNAME:.+]] = private unnamed_addr constant [{{[0-9]+}} x i8] c"[[KNAME:.+]]"
-; CHECK-DAG: @[[G_KERNEL_MD:.+]] = private unnamed_addr constant {{.+}} zeroinitializer, !kitsune.kernel.md ![[KERNEL_MD:[0-9]+]]
+; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]
+; CHECK-DAG: @[[G_KNAME:.+]] = private unnamed_addr constant [{{[0-9]+}} x i8] c"[[KNAME:.+]]\00"
+; CHECK-DAG: @[[G_KERNEL_PROPS:.+]] = private unnamed_addr constant {{.+}} zeroinitializer #[[KPATTR:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f(ptr {{.*}}%[[C:.+]], i64 {{.*}}%[[N:.+]])
 ;
@@ -60,24 +60,24 @@
 ; global, the string literal for the kernel name, the arguments array, the
 ; trip count,
 ; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(
-; CHECK-SAME: i8 3,
+; CHECK-SAME: i32 4,
 ; CHECK-SAME: ptr {{.*}}@[[FB]],
 ; CHECK-SAME: ptr {{.*}}@[[G_KNAME]],
 ; CHECK-SAME: ptr {{.*}}%[[ARGS]],
 ; CHECK-SAME: i64 %n,
 ; CHECK-SAME: i32 0,
-; CHECK-SAME: ptr {{.*}}@[[G_KERNEL_MD]],
+; CHECK-SAME: ptr {{.*}}@[[G_KERNEL_PROPS]],
 ; CHECK-SAME: ptr {{.*}}%{{[A-Za-z0-9._]+}}
 ; CHECK-SAME: )
 ;
 ; By default, we always enter a sync immediately after the launch. A later
 ; optimization pass may (re)move this if appropriate
-; CHECK: call {{.+}} @llvm.kitrt.sync.stream(i8 3, ptr %[[TS]])
+; CHECK: call {{.+}} @llvm.kitrt.sync.stream(i32 4, ptr %[[TS]])
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;
-; CHECK: ![[TTMD]] = !{i8 3}
-; CHECK: ![[KERNEL_MD]] = !{[{{[0-9]+}} x i8] c"[[KNAME]]"}
+; CHECK-DAG: #[[FBATTR]] = { kit_fb(4)
+; CHECK-DAG: #[[KPATTR]] = { "kit_kernel_props"="[[KNAME]]"
 
 target triple = "x86_64-pc-linux-gnu"
 

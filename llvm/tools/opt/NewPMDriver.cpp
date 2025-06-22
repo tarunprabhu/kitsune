@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "NewPMDriver.h"
+#include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
@@ -21,7 +22,6 @@
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Bitcode/BitcodeWriterPass.h"
 #include "llvm/Config/llvm-config.h"
-#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -351,20 +351,27 @@ createTapirTargetOptions(TargetMachine *TM, StringRef PassPipeline) {
   if (PassPipeline.empty())
     return std::nullopt;
 
-  // Parse the actual command line options to get a valid TapirTargetOptions
-  // object. If the --tapir option has been given, everything except the
-  // optimization level will have been set correctly. Just give it a default
-  // optimization level for now.
+  // The command line may have been provided a --tapir option in which case, we
+  // can construct a TapirTargetOptions object. However, the constructor
+  // requires an optimization level which can only be obtained by parsing the
+  // value of the --passes command line option. Doing so requires a PassBuilder
+  // object. However, the PassBuilder constructor requires a
+  // PipelineTuningOptions object in which the TapirTargetOptions has already
+  // been set. This is a bit of a chicken-and-egg problem. To get around this,
+  // we create a TapirTargetOptions object from the command line options, but
+  // with some default optimization level. Then, we construct a PassBuilder
+  // object and parse the pipeline. During that process, if either the
+  // "tapir-lowering" or "kitsune-lowering" meta passes is found in the
+  // --passes option, the optimization level in the TapirTargetOptions object
+  // will be updated.
+  //
+  // However, we cannot use the main PassBuilder object - if the
+  // TapirTargetOptions are not set before constructing the PassBuilder, some
+  // immutable passes (which we do use in Kitsune) may not be initialized
+  // correctly. Therefore, create a temporary PassBuilder, just to parse the
+  // pass pipeline.
   PipelineTuningOptions PTO;
-  PTO.TTOpts =
-      TapirTargetOptions::createFromCommandLineOptions(OptimizationLevel::O0);
-
-  // In order to create a tapir target options object, we need to know the
-  // optimization level. This can only be obtained by parsing the -passes option
-  // (if given). We cannot use the main pass builder for this because we need to
-  // construct the tapir target options *before* we setup the _actual_ pass
-  // builder. Instead, this will create a temporary pass builder since there is
-  // no way to parse the pipeline without a pass builder.
+  PTO.TTOpts = TapirTargetOptions::createFromCLOpts(OptimizationLevel::O0);
   PassBuilder PB(TM, PTO, /* PGOOptions */ std::nullopt,
                  /* PassInstrumentationCallback*/ nullptr);
 
@@ -375,12 +382,12 @@ createTapirTargetOptions(TargetMachine *TM, StringRef PassPipeline) {
   // If an error occurred while parsing the pipeline, silently return. The
   // actual error will be shown when the main pass builder is constructed.
   // However, we do need to pretend to handle the error here to keep LLVM happy.
-  if (auto Err = PB.parsePassPipeline(MPM, PassPipeline)) {
+  if (Error Err = PB.parsePassPipeline(MPM, PassPipeline)) {
     (void)toString(std::move(Err));
     return std::nullopt;
   }
 
-  // If the pipeline was parsed successfully, the tapir target options object
+  // If the pipeline was parsed successfully, the TapirTargetOptions object
   // owned by the pass builder (if any) will have been updated with the
   // optimization. Just return a clone of that.
   return PB.getTapirTargetOptions();

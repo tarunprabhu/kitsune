@@ -13,7 +13,10 @@ set(LLVM_LINK_COMPONENTS
   AggressiveInstCombine
   InstCombine
   Instrumentation
-  KitsuneOpts
+  KitAnalysis
+  KitCodeGen
+  KitCore
+  KitOpts
   Linker
   ObjCARCOpts
   ScalarOpts

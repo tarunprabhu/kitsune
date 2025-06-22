@@ -14,6 +14,7 @@
 #include "ToolChains/Flang.h"
 #include "ToolChains/InterfaceStubs.h"
 #include "kitsune/Config/config.h"
+#include "kitsune/Support/ToString.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Basic/Sanitizers.h"
 #include "clang/Config/config.h"
@@ -22,9 +23,9 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Job.h"
+#include "clang/Driver/KitsuneOptionUtils.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
-#include "clang/Driver/Tapir.h"
 #include "clang/Driver/XRayArgs.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -32,7 +33,6 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Frontend/Driver/KitsuneOptions.h"
-#include "llvm/Frontend/Tapir/CommandLine.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Option/Arg.h"
@@ -42,7 +42,6 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
-#include "llvm/Support/KitsuneStringExtras.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/VersionTuple.h"
@@ -1969,15 +1968,14 @@ void ToolChain::AddKitsuneGPUCommonArgs(const ArgList &Args,
                                         ArgStringList &CmdArgs,
                                         bool MLLVM) const {
   PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_tpb_EQ);
-  PushLastArg(CmdArgs, Args, MLLVM,
-              options::OPT_tapir_gpu_max_tpb_EQ);
+  PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_max_tpb_EQ);
 
-  PushArg(CmdArgs, Args, MLLVM,
-          Args.hasFlag(options::OPT_tapir_gpu_prefetch,
-                       options::OPT_tapir_gpu_no_prefetch,
-                       llvm::driver::KitsuneOptions::defaultGPUPrefetch)
-              ? options::OPT_tapir_gpu_prefetch
-              : options::OPT_tapir_gpu_no_prefetch);
+  bool DefaultPrefetch = llvm::driver::KitsuneOptions::defaultGPUPrefetch;
+  if (Args.hasFlag(options::OPT_tapir_gpu_prefetch,
+                   options::OPT_tapir_gpu_no_prefetch, DefaultPrefetch))
+    PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_prefetch);
+  else
+    PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_no_prefetch);
 }
 
 void ToolChain::AddKitsuneCudaCommonArgs(const ArgList &Args,
@@ -2109,9 +2107,11 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   // and xnack next. If AMD decides to hack in more features in this appalling
   // manner, those will, in all likelihood, also need to be in alphabetical
   // order.
-  if (ErrorOr<MaybeBool> ECC = llvm::parseMaybeBool(Args.getLastArgValue(
-          options::OPT_tapir_hip_sramecc_EQ,
-          llvm::toString(llvm::driver::KitsuneOptions::defaultHipSRAMECC)))) {
+  std::string DefaultECC =
+      llvm::toString(llvm::driver::KitsuneOptions::defaultHipSRAMECC);
+  StringRef ArgECC = Args.getLastArgValue(options::OPT_tapir_hip_sramecc_EQ,
+                                          DefaultECC);
+  if (std::optional<MaybeBool> ECC = llvm::createMaybeBoolFrom(ArgECC)) {
     switch (*ECC) {
     case MaybeBool::Off:
       TargetID.push_back("sramecc-");
@@ -2126,9 +2126,11 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
             llvm::toString(*ECC));
   }
 
-  if (ErrorOr<MaybeBool> Xnack = llvm::parseMaybeBool(Args.getLastArgValue(
-          options::OPT_tapir_hip_xnack_EQ,
-          llvm::toString(llvm::driver::KitsuneOptions::defaultHipXnack)))) {
+  std::string DefaultXnack =
+      llvm::toString(llvm::driver::KitsuneOptions::defaultHipXnack);
+  StringRef ArgXnack =
+      Args.getLastArgValue(options::OPT_tapir_hip_xnack_EQ, DefaultXnack);
+  if (std::optional<MaybeBool> Xnack = llvm::createMaybeBoolFrom(ArgXnack)) {
     switch (*Xnack) {
     case MaybeBool::Off:
       TargetID.push_back("xnack-");
@@ -2260,49 +2262,49 @@ void ToolChain::AddKitsuneRealmCommonArgs(const ArgList &Args,
 
 void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
                                            ArgStringList &CmdArgs) const {
-  std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args);
+  std::optional<TTID> TT = parseTapirTargetIfValid(Args);
   bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_kokkos);
 
   if (TT) {
     switch (*TT) {
-    case TapirTargetID::None:
+    case TTID::None:
       break;
-    case TapirTargetID::Cuda:
+    case TTID::Cuda:
       ExtractArgsFromString(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
                             Args);
       break;
-    case TapirTargetID::Hip:
+    case TTID::Hip:
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
                             Args);
       break;
-    case TapirTargetID::Lambda:
+    case TTID::Lambda:
       ExtractArgsFromString(KITSUNE_LAMBDA_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
                             Args);
       break;
-    case TapirTargetID::OMPTask:
+    case TTID::OMPTask:
       ExtractArgsFromString(KITSUNE_OMPTASK_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
                             Args);
       break;
-    case TapirTargetID::OpenCilk:
+    case TTID::OpenCilk:
       ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
                             Args);
       break;
-    case TapirTargetID::OpenMP:
+    case TTID::OpenMP:
       ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
                             Args);
       break;
-    case TapirTargetID::Qthreads:
+    case TTID::Qthreads:
       ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
                             Args);
       break;
-    case TapirTargetID::Realm:
+    case TTID::Realm:
       ExtractArgsFromString(KITSUNE_REALM_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
                             Args);
       break;
-    case TapirTargetID::Serial:
+    case TTID::Serial:
       break;
     default:
-      llvm_unreachable("AddKitsunePreprocessorArgs: TapirTargetID not handled");
+      llvm_unreachable("AddKitsunePreprocessorArgs: TTID not handled");
       break;
     }
   }
@@ -2329,53 +2331,53 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
   }
 
-  if (std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args)) {
+  if (std::optional<TTID> TT = parseTapirTargetIfValid(Args)) {
     Args.AddLastArg(CmdArgs, options::OPT_ffp_contract);
     Args.AddLastArg(CmdArgs, options::OPT_kitrt_verbose);
     Args.AddLastArg(CmdArgs, options::OPT_tapir_verbose);
     Args.AddLastArg(CmdArgs, options::OPT_tapir_EQ);
     switch (*TT) {
-    case TapirTargetID::None:
+    case TTID::None:
       break;
-    case TapirTargetID::Cuda:
+    case TTID::Cuda:
       AddKitsuneCudaCommonArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_CUDA_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::Hip:
+    case TTID::Hip:
       AddKitsuneHipCommonArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::Lambda:
+    case TTID::Lambda:
       AddKitsuneLambdaCommonArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_LAMBDA_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::OMPTask:
+    case TTID::OMPTask:
       AddKitsuneOMPTaskCommonArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_OMPTASK_EXTRA_COMPILER_FLAGS, CmdArgs,
                             Args);
       break;
-    case TapirTargetID::OpenCilk:
+    case TTID::OpenCilk:
       AddKitsuneOpenCilkCommonArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_COMPILER_FLAGS, CmdArgs,
                             Args);
       break;
-    case TapirTargetID::OpenMP:
+    case TTID::OpenMP:
       AddKitsuneOpenMPCommonArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::Qthreads:
+    case TTID::Qthreads:
       AddKitsuneQthreadsCommonArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_COMPILER_FLAGS, CmdArgs,
                             Args);
       break;
-    case TapirTargetID::Realm:
+    case TTID::Realm:
       AddKitsuneRealmCommonArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_REALM_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::Serial:
+    case TTID::Serial:
       break;
     default:
-      report_fatal_error("AddKitsuneCompiledArgs: TapirTargetID not handled");
+      report_fatal_error("AddKitsuneCompiledArgs: TTID not handled");
       break;
     }
 
@@ -2384,7 +2386,7 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     // is only enabled at certain optimization levels, if explicitly enabled
     // with the -fstripmine flag and disabled if -fno-stripmine is given. For
     // GPU tapir targets, stripmining must be enabled explicitly.
-    if (TT == TapirTargetID::Cuda || TT == TapirTargetID::Hip) {
+    if (TT == TTID::Cuda || TT == TTID::Hip) {
       if (Args.hasArg(options::OPT_fstripmine))
         CmdArgs.push_back("-fstripmine");
     } else {
@@ -2527,49 +2529,49 @@ void ToolChain::AddKitsuneRealmLinkerArgs(const ArgList &Args,
 
 void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
                                      ArgStringList &CmdArgs) const {
-  std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args);
+  std::optional<TTID> TT = parseTapirTargetIfValid(Args);
   bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_kokkos);
 
   if (TT) {
     switch (*TT) {
-    case TapirTargetID::None:
+    case TTID::None:
       break;
-    case TapirTargetID::Cuda:
+    case TTID::Cuda:
       AddKitsuneCudaLinkerArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_CUDA_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::Hip:
+    case TTID::Hip:
       AddKitsuneHipLinkerArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::Lambda:
+    case TTID::Lambda:
       AddKitsuneLambdaLinkerArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_LAMBDA_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::OMPTask:
+    case TTID::OMPTask:
       AddKitsuneOMPTaskLinkerArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_OMPTASK_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::OpenCilk:
+    case TTID::OpenCilk:
       AddKitsuneOpenCilkLinkerArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::OpenMP:
+    case TTID::OpenMP:
       AddKitsuneOpenMPLinkerArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::Qthreads:
+    case TTID::Qthreads:
       AddKitsuneQthreadsLinkerArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::Realm:
+    case TTID::Realm:
       AddKitsuneRealmLinkerArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_REALM_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       break;
-    case TapirTargetID::Serial:
+    case TTID::Serial:
       break;
     default:
-      report_fatal_error("AddKitsuneLinkerArgs: TapirTargetID not handled");
+      report_fatal_error("AddKitsuneLinkerArgs: TTID not handled");
       break;
     }
   }
@@ -2644,44 +2646,43 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
 
 void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
                                   ArgStringList &CmdArgs) const {
-  if (std::optional<TapirTargetID> TT = parseTapirTargetIfValid(Args)) {
-    CmdArgs.push_back(Args.MakeArgString(
-        join_items("", "--lto-O",
-                   std::to_string(getSpeedupLevelAsInt(Args, D.getDiags())))));
+  if (std::optional<TTID> TT = parseTapirTargetIfValid(Args)) {
+    CmdArgs.push_back(Args.MakeArgString(join_items(
+        "", "--lto-O", std::to_string(getSpeedupLevel(Args, D.getDiags())))));
     PushLastArg(CmdArgs, Args, true, options::OPT_tapir_EQ);
     PushLastArg(CmdArgs, Args, true, options::OPT_tapir_verbose);
     PushLastArg(CmdArgs, Args, true, options::OPT_kitrt_verbose);
     switch (*TT) {
-    case TapirTargetID::None:
+    case TTID::None:
       break;
-    case TapirTargetID::Cuda:
+    case TTID::Cuda:
       AddKitsuneCudaCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
-    case TapirTargetID::Hip:
+    case TTID::Hip:
       AddKitsuneHipCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
-    case TapirTargetID::Lambda:
+    case TTID::Lambda:
       AddKitsuneLambdaCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
-    case llvm::TapirTargetID::OMPTask:
+    case llvm::TTID::OMPTask:
       AddKitsuneOMPTaskCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
-    case TapirTargetID::OpenCilk:
+    case TTID::OpenCilk:
       AddKitsuneOpenCilkCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
-    case TapirTargetID::OpenMP:
+    case TTID::OpenMP:
       AddKitsuneOpenMPCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
-    case TapirTargetID::Qthreads:
+    case TTID::Qthreads:
       AddKitsuneQthreadsCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
-    case TapirTargetID::Realm:
+    case TTID::Realm:
       AddKitsuneRealmCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
       break;
-    case TapirTargetID::Serial:
+    case TTID::Serial:
       break;
     default:
-      llvm_unreachable("AddKitsuneLTOArgs: TapirTargetID not handled");
+      llvm_unreachable("AddKitsuneLTOArgs: TTID not handled");
       break;
     }
     // Handling of the -ffp-contract option has to be done exactly the way it is

@@ -48,6 +48,8 @@ add_flang_library(flangFrontend
   Extensions
   IRPrinter
   IRReader
+  KitAnalysis
+  KitCore
   Option
   Support
   Target

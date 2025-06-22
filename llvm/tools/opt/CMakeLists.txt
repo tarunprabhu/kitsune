@@ -17,7 +17,10 @@ set(LLVM_LINK_COMPONENTS
   IRPrinter
   InstCombine
   Instrumentation
-  KitsuneOpts
+  KitAnalysis
+  KitCore
+  KitCodeGen
+  KitOpts
   MC
   ObjCARCOpts
   Remarks

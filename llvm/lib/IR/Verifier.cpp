@@ -48,6 +48,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/IR/Verifier.h"
+#include "kitsune/Core/Tapir.h"
+#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -61,7 +63,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/BinaryFormat/Dwarf.h"
-#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/AttributeMask.h"
 #include "llvm/IR/Attributes.h"
@@ -98,7 +99,6 @@
 #include "llvm/IR/IntrinsicsARM.h"
 #include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/IntrinsicsWebAssembly.h"
-#include "llvm/IR/KitsuneMetadata.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/MemoryModelRelaxationAnnotations.h"
 #include "llvm/IR/Metadata.h"
@@ -120,7 +120,6 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/KitsuneStringExtras.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/ModRef.h"
 #include "llvm/Support/raw_ostream.h"
@@ -644,6 +643,8 @@ private:
                            const Value *V, bool IsIntrinsic, bool IsInlineAsm);
   void verifyFunctionMetadata(ArrayRef<std::pair<unsigned, MDNode *>> MDs);
 
+  void verifyGlobalVariableAttrs(AttributeSet Attrs, const Value* V);
+
   void visitConstantExprsRecursively(const Constant *EntryC);
   void visitConstantExpr(const ConstantExpr *CE);
   void visitConstantPtrAuth(const ConstantPtrAuth *CPA);
@@ -937,6 +938,8 @@ void Verifier::visitGlobalVariable(const GlobalVariable &GV) {
   Check(!GVType->containsNonGlobalTargetExtType(),
         "Global @" + GV.getName() + " has illegal target extension type",
         GVType);
+
+  verifyGlobalVariableAttrs(GV.getAttributes(), &GV);
 
   if (!GV.hasInitializer()) {
     visitGlobalValue(GV);
@@ -1771,10 +1774,10 @@ void Verifier::visitComdat(const Comdat &C) {
 void Verifier::visitModuleEmbeddedFBs() {
   // There can be at most one global variable containing a fat binary per
   // tapir target.
-  std::map<TapirTargetID, unsigned> fbCounts;
+  std::map<TTID, unsigned> fbCounts;
   for (const GlobalVariable &g : M.globals())
-    if (std::optional<TapirTargetID> tt = getKitsuneFBMD(g))
-      ++fbCounts[*tt];
+    if (g.hasAttribute(Attribute::KitFB))
+      ++fbCounts[g.getAttribute(Attribute::KitFB).getTTID()];
 
   for (const auto &[tt, n] : fbCounts) {
     Check(n <= 1, "too many embedded fat binary globals for tapir target '" +
@@ -1785,10 +1788,10 @@ void Verifier::visitModuleEmbeddedFBs() {
   // corresponding fat binary must exist also. The reverse is not true. Once the
   // fat binary has been generated, the global variable containing embedded
   // bitcode is removed.
-  std::map<TapirTargetID, unsigned> bcCounts;
+  std::map<TTID, unsigned> bcCounts;
   for (const GlobalVariable &g : M.globals())
-    if (std::optional<TapirTargetID> tt = getKitsuneBCMD(g))
-      ++bcCounts[*tt];
+    if (g.hasAttribute(Attribute::KitBC))
+      ++bcCounts[g.getAttribute(Attribute::KitBC).getTTID()];
 
   for (const auto &[tt, n] : bcCounts) {
     Check(n <= 1, "too many embedded bitcode globals for tapir target '" +
@@ -2566,6 +2569,10 @@ void Verifier::verifyFunctionAttrs(FunctionType *FT, AttributeList Attrs,
       CheckFailed("invalid value for 'denormal-fp-math-f32' attribute: " + S,
                   V);
   }
+
+  Check(!(Attrs.hasFnAttr(Attribute::KitKernel) &&
+          Attrs.hasFnAttr(Attribute::KitDevice)),
+        "Attributes 'kit_kernel and kit_device' are incompatible!", V);
 }
 
 void Verifier::verifyFunctionMetadata(
@@ -2615,6 +2622,12 @@ void Verifier::verifyFunctionMetadata(
             "expected a 32-bit integer constant operand for !kcfi_type", MD);
     }
   }
+}
+
+void Verifier::verifyGlobalVariableAttrs(AttributeSet Attrs, const Value* V) {
+  Check(!(Attrs.hasAttribute(Attribute::KitBC) &&
+          Attrs.hasAttribute(Attribute::KitFB)),
+        "Attributes 'kit_bc and kit_fb' are incompatible!", V);
 }
 
 void Verifier::visitConstantExprsRecursively(const Constant *EntryC) {

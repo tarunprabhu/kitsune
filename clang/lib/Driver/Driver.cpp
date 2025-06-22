@@ -55,6 +55,8 @@
 #include "ToolChains/XCore.h"
 #include "ToolChains/ZOS.h"
 #include "kitsune/Config/config.h"
+#include "kitsune/Core/Tapir.h"
+#include "kitsune/Support/ToString.h"
 #include "clang/Basic/Cuda.h"
 #include "clang/Basic/DiagnosticDriver.h"
 #include "clang/Basic/TargetID.h"
@@ -64,10 +66,10 @@
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Job.h"
+#include "clang/Driver/KitsuneOptionUtils.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/Phases.h"
 #include "clang/Driver/SanitizerArgs.h"
-#include "clang/Driver/Tapir.h"
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
 #include "clang/Driver/Types.h"
@@ -78,7 +80,6 @@
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Config/llvm-config.h"
-#include "llvm/Frontend/Tapir/CommandLine.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
@@ -157,8 +158,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
   // Check that the -ftapir flag has a valid value. This stops us from
   // reporting multiple errors because the flag is examined in several places.
   if (const Arg *A = Args.getLastArg(options::OPT_tapir_EQ)) {
-    llvm::ErrorOr<llvm::TapirTargetID> TT =
-        llvm::parseTapirTarget(A->getValue());
+    std::optional<llvm::TTID> TT = llvm::createTTIDFrom(A->getValue());
     if (not TT) {
       D.Diag(diag::err_drv_invalid_value)
           << A->getAsString(Args) << A->getValue();
@@ -167,49 +167,49 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
 
     // If the tapir target has not been enabled, fail right away.
     switch (*TT) {
-    case llvm::TapirTargetID::None:
+    case llvm::TTID::None:
       break;
-    case llvm::TapirTargetID::Cuda:
+    case llvm::TTID::Cuda:
       if (!KITSUNE_CUDA_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "cuda";
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
       break;
-    case llvm::TapirTargetID::Hip:
+    case llvm::TTID::Hip:
       if (!KITSUNE_HIP_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "hip";
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
       break;
-    case llvm::TapirTargetID::Lambda:
+    case llvm::TTID::Lambda:
       if (!KITSUNE_LAMBDA_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "lambda";
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
       break;
-    case llvm::TapirTargetID::OMPTask:
+    case llvm::TTID::OMPTask:
       if (!KITSUNE_OMPTASK_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "omptask";
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
       break;
-    case llvm::TapirTargetID::OpenCilk:
+    case llvm::TTID::OpenCilk:
       if (!KITSUNE_OPENCILK_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "lambda";
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
       break;
-    case llvm::TapirTargetID::OpenMP:
+    case llvm::TTID::OpenMP:
       if (!KITSUNE_OPENMP_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "openmp";
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
       break;
-    case llvm::TapirTargetID::Qthreads:
+    case llvm::TTID::Qthreads:
       if (!KITSUNE_QTHREADS_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "qthreads";
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
       break;
-    case llvm::TapirTargetID::Realm:
+    case llvm::TTID::Realm:
       if (!KITSUNE_REALM_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << "realm";
+        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
       break;
-    case llvm::TapirTargetID::Serial:
+    case llvm::TTID::Serial:
       // The serial tapir target is always enabled
       break;
     default:
-      llvm_unreachable("CheckKitsuneOptions: TapirTargetID not handled");
+      llvm_unreachable("CheckKitsuneOptions: TTID not handled");
       break;
     }
 
-    if (*TT == llvm::TapirTargetID::OpenCilk) {
+    if (*TT == llvm::TTID::OpenCilk) {
       if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
         D.Diag(diag::err_drv_opencilk_platform) << Triple.getOSName();
 
@@ -284,10 +284,9 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
        {options::OPT_tapir_hip_sramecc_EQ, options::OPT_tapir_hip_xnack_EQ}) {
     if (const Arg *A = Args.getLastArg(Opt)) {
       StringRef Val = A->getValue();
-      llvm::ErrorOr<llvm::MaybeBool> e = llvm::parseMaybeBool(A->getValue());
       if (Val.empty())
         D.Diag(diag::err_drv_missing_argument) << A->getAsString(Args) << 1;
-      else if (not e)
+      else if (not llvm::createMaybeBoolFrom(A->getValue()))
         D.Diag(diag::err_drv_invalid_argument_to_option)
             << Val << A->getOption().getName();
     }
@@ -296,8 +295,8 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
   // If LTO is enabled for use with Kitsune, the only linker that can be used is
   // lld built with Kitsune. Using any other linker is not allowed.
   if (D.isUsingLTO() && Args.getLastArg(options::OPT_tapir_EQ)) {
-    if (const Arg* A = Args.getLastArg(options::OPT_fuse_ld_EQ,
-                                       options::OPT_ld_path_EQ))
+    if (const Arg *A =
+            Args.getLastArg(options::OPT_fuse_ld_EQ, options::OPT_ld_path_EQ))
       D.Diag(diag::err_drv_kitsune_lto_disallowed_arg) << A->getSpelling();
   }
 }

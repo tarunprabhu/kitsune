@@ -13,10 +13,10 @@
 #ifndef LLVM_TAPIR_LOWERING_UTILS_H
 #define LLVM_TAPIR_LOWERING_UTILS_H
 
+#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Passes/OptimizationLevel.h"
@@ -520,7 +520,9 @@ public:
 };
 
 /// Generate a TapirTarget object for the specified TapirTargetID.
-TapirTarget *getTapirTargetFromID(Module &M, TapirTargetID TargetID,
+/// FIXME: This should be removed once we have the TapirTargetAnalysis pass
+/// keep track of the TapirTarget objects.
+TapirTarget *getTapirTargetFromID(Module &M, TTID TTID,
                                   const TapirTargetOptions &Opts);
 
 /// Find all inputs to tasks within a function \p F, including nested tasks.

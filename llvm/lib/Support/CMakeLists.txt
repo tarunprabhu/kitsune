@@ -206,7 +206,6 @@ add_llvm_component_library(LLVMSupport
   IntEqClasses.cpp
   IntervalMap.cpp
   JSON.cpp
-  KitsuneStringExtras.cpp
   KnownBits.cpp
   KnownFPClass.cpp
   LEB128.cpp
@@ -224,6 +223,7 @@ add_llvm_component_library(LLVMSupport
   MSP430AttributeParser.cpp
   Mustache.cpp
   NativeFormatting.cpp
+  OptimizationLevel.cpp
   OptimizedStructLayout.cpp
   Optional.cpp
   OptionStrCmp.cpp

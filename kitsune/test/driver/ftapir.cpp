@@ -23,7 +23,7 @@
 //
 // RUN: not %kitxx -### --tapir=off %s 2>&1 | FileCheck %s -check-prefix BAD
 // RUN: not %kitxx -### --tapir=Off %s 2>&1 | FileCheck %s -check-prefix BAD
-
+//
 // BAD: invalid value '{{.+}}' in '-{{.}}tapir={{.+}}'
 //
 // -----------------------------------------------------------------------------
@@ -31,9 +31,9 @@
 //
 // RUN: not %clang -ftapir=serial %s 2>&1 | FileCheck %s -check-prefix FRONTEND
 // RUN: not %clang --tapir=serial %s 2>&1 | FileCheck %s -check-prefix FRONTEND
-
+//
 // FRONTEND: option '-{{.}}tapir=' must be used with a Kitsune frontend
-
+//
 // -----------------------------------------------------------------------------
 // The -ftapir and --tapir options must be joined to the argument.
 //

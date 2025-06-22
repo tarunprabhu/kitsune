@@ -435,10 +435,8 @@ LoopAttributes::LoopAttributes(bool IsParallel)
       VectorizePredicateEnable(LoopAttributes::Unspecified), VectorizeWidth(0),
       VectorizeScalable(LoopAttributes::Unspecified), InterleaveCount(0),
       UnrollCount(0), UnrollAndJamCount(0),
-      TapirGrainSize(0),
       DistributeEnable(LoopAttributes::Unspecified), PipelineDisabled(false),
-      PipelineInitiationInterval(0), CodeAlign(0), MustProgress(false),
-      SpawnStrategy(llvm::TapirSpawnStrategy::Sequential) {}
+      PipelineInitiationInterval(0), CodeAlign(0), MustProgress(false) {}
 
 void LoopAttributes::clear() {
   IsParallel = false;
@@ -447,7 +445,6 @@ void LoopAttributes::clear() {
   InterleaveCount = 0;
   UnrollCount = 0;
   UnrollAndJamCount = 0;
-  TapirGrainSize = 0;
   VectorizeEnable = LoopAttributes::Unspecified;
   UnrollEnable = LoopAttributes::Unspecified;
   UnrollAndJamEnable = LoopAttributes::Unspecified;
@@ -457,7 +454,10 @@ void LoopAttributes::clear() {
   PipelineInitiationInterval = 0;
   CodeAlign = 0;
   MustProgress = false;
+  TapirGrainSize = 0;
   SpawnStrategy = llvm::TapirSpawnStrategy::Sequential;
+  LoopTarget = std::nullopt;
+  ThreadsPerBlock = 0;
 }
 
 LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
@@ -475,7 +475,6 @@ LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
   if (!Attrs.IsParallel && Attrs.VectorizeWidth == 0 &&
       Attrs.VectorizeScalable == LoopAttributes::Unspecified &&
       Attrs.InterleaveCount == 0 && Attrs.UnrollCount == 0 &&
-      Attrs.TapirGrainSize == 0 &&
       Attrs.UnrollAndJamCount == 0 && !Attrs.PipelineDisabled &&
       Attrs.PipelineInitiationInterval == 0 &&
       Attrs.VectorizePredicateEnable == LoopAttributes::Unspecified &&
@@ -484,6 +483,7 @@ LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
       Attrs.UnrollAndJamEnable == LoopAttributes::Unspecified &&
       Attrs.DistributeEnable == LoopAttributes::Unspecified &&
       Attrs.CodeAlign == 0 && !StartLoc && !EndLoc && !Attrs.MustProgress &&
+      Attrs.TapirGrainSize == 0 &&
       Attrs.SpawnStrategy == llvm::TapirSpawnStrategy::Sequential)
     return;
 

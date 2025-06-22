@@ -20,10 +20,10 @@
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
 ; CHECK-NOT: "uwtable"
+; CHECK-SAME: kit_kernel
 ; CHECK-SAME: mustprogress
 ; CHECK-SAME: nounwind
 ; CHECK-SAME: "amdgpu-flat-work-group-size"="128,1024"
-; CHECK-SAME: "kitsune.kernel"
 ; CHECK-SAME: "no-trapping-math"="true"
 ; CHECK-SAME: "target-cpu"="gfx906"
 ; CHECK-SAME: "target-features"="+wavefrontsize32,+atomic-fadd-rtn-insts"

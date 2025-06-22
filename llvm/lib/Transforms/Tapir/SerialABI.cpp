@@ -12,9 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/SerialABI.h"
+#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
-#include "llvm/Frontend/Tapir/Tapir.h"
-#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 

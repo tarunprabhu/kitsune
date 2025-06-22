@@ -92,36 +92,32 @@ CodeGenFunction::GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs) {
 // If a tapir target attribute exists, it will override the tapir target
 // specified on the command line - if any. If a tapir target attribute does not
 // exist and one was specified on the command line, that will be returned.
-std::optional<llvm::TapirTargetID>
+std::optional<llvm::TTID>
 CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
   // FIXME KITSUNE: This will check for the first occurrence of the tapir target
   // attribute and break immediately if it finds it. Is this what we actually
   // want?
-  for (auto curAttr : Attrs) {
+  for (const Attr *curAttr : Attrs) {
     if (curAttr->getKind() == attr::TapirTarget) {
       switch (cast<const TapirTargetAttr>(curAttr)->getTapirTargetAttrType()) {
       case TapirTargetAttr::None:
-        return llvm::TapirTargetID::None;
+        return llvm::TTID::None;
       case TapirTargetAttr::Serial:
-        return llvm::TapirTargetID::Serial;
+        return llvm::TTID::Serial;
       case TapirTargetAttr::Cuda:
-        return llvm::TapirTargetID::Cuda;
+        return llvm::TTID::Cuda;
       case TapirTargetAttr::Hip:
-        return llvm::TapirTargetID::Hip;
+        return llvm::TTID::Hip;
       case TapirTargetAttr::OpenCilk:
-        return llvm::TapirTargetID::OpenCilk;
+        return llvm::TTID::OpenCilk;
       case TapirTargetAttr::OpenMP:
-        return llvm::TapirTargetID::OpenMP;
+        return llvm::TTID::OpenMP;
       case TapirTargetAttr::Qthreads:
-        return llvm::TapirTargetID::Qthreads;
+        return llvm::TTID::Qthreads;
       case TapirTargetAttr::Realm:
-        return llvm::TapirTargetID::Realm;
+        return llvm::TTID::Realm;
       }
-      // We don't put this in a default block in the switch above because it
-      // results in compiler warnings about default blocks in a switch where all
-      // enumeration values are handled. But we want this error in case a new
-      // tapir target is added, but this code is not updated.
-      llvm_unreachable("Tapir target not handled");
+      llvm_unreachable("GetTapirTargetAttr: TTID not handled");
     }
   }
   return CGM.getKitsuneOpts().getTapirTarget();
@@ -298,7 +294,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 
   // A forall may have attributes but no tapir target so we can't simply
   // check if the attributes are empty.
-  std::optional<llvm::TapirTargetID> TT = GetTapirTargetAttr(ForallAttr);
+  std::optional<llvm::TTID> TT = GetTapirTargetAttr(ForallAttr);
   LoopStack.setLoopTarget(TT);
 
   // New basic blocks and jump destinations with Tapir terminators
@@ -318,7 +314,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   CurSyncRegion->setSyncRegionStart(SRStart);
   LoopStack.setSpawnStrategy(llvm::TapirSpawnStrategy::DivideAndConquer);
   // See if we have any launch attributes to handle before we start loop body.
-  if (TT == llvm::TapirTargetID::Cuda || TT == llvm::TapirTargetID::Hip) {
+  if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
     unsigned ThreadsPerBlock = GetKitsuneLaunchAttr(ForallAttr);
     if (ThreadsPerBlock > 0)
       LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);
@@ -464,10 +460,10 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 void CodeGenFunction::EmitCXXForallRangeStmt(
     const CXXForallRangeStmt &S, ArrayRef<const Attr *> ForallAttr) {
 
-  std::optional<llvm::TapirTargetID> TT = GetTapirTargetAttr(ForallAttr);
+  std::optional<llvm::TTID> TT = GetTapirTargetAttr(ForallAttr);
   LoopStack.setLoopTarget(TT);
 
-  if (TT == llvm::TapirTargetID::Cuda) {
+  if (TT == llvm::TTID::Cuda) {
     unsigned ThreadsPerBlock = GetKitsuneLaunchAttr(ForallAttr);
     if (ThreadsPerBlock > 0)
       LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);

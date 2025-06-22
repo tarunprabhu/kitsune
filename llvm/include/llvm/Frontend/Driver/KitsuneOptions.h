@@ -1,4 +1,4 @@
-//===--- KitsuneOptions.h ---------------------------------------*- C++ -*-===//
+//===- KitsuneOptions.h - Options shared by Kitsune frontends ---*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -17,8 +17,8 @@
 #define LLVM_FRONTEND_DRIVER_KITSUNE_OPTIONS_H
 
 #include "kitsune/Config/config.h"
+#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Frontend/Tapir/Tapir.h"
 
 #include <vector>
 
@@ -120,7 +120,7 @@ private:
   /// This is set to the value of the the --tapir option passed on the command
   /// line. It is option because we do not have a default tapir target, even
   /// when using the Kitsune frontends (kitcc, kitfc etc.)
-  std::optional<llvm::TapirTargetID> tapirTarget = std::nullopt;
+  std::optional<llvm::TTID> tapirTarget = std::nullopt;
 
   /// If this is non-zero, the number of threads per block to use.
   unsigned fixedThreadsPerBlock = 0;
@@ -205,12 +205,6 @@ public:
         stripmineLoops(defaultStripmineLoops), tapirVerbose(false),
         kitrtVerbose(false), gpuPrefetch(defaultGPUPrefetch) {}
 
-  /// Initialize this object from the command line arguments. Return true if
-  /// no errors occurred when parsing, false otherwise.
-  bool parseArgsInto(const char *argv0, const llvm::opt::ArgList &args,
-                     const llvm::opt::OptTable &optTable,
-                     clang::DiagnosticsEngine &diags);
-
   /// @{
   /// Setters for options not directly connected to a specific tapir target.
   void setKitsuneFrontend(bool kitsuneFrontend = true) {
@@ -223,7 +217,7 @@ public:
     this->kokkosNoInit = kokkosNoInit;
   }
 
-  void setTapirTarget(llvm::TapirTargetID tapirTarget) {
+  void setTapirTarget(llvm::TTID tapirTarget) {
     this->tapirTarget = tapirTarget;
   }
 
@@ -307,9 +301,7 @@ public:
 
   bool getKitrtVerbose() const { return kitrtVerbose; }
 
-  std::optional<llvm::TapirTargetID> getTapirTarget() const {
-    return tapirTarget;
-  }
+  std::optional<llvm::TTID> getTapirTarget() const { return tapirTarget; }
 
   unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
 

@@ -15,7 +15,7 @@
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
-; CHECK-SAME: "kitsune.kernel"
+; CHECK-SAME: kit_kernel
 ; CHECK-SAME: "target-cpu"="sm_72"
 ; CHECK-SAME: "target-features"="+ptx87,sm_72"
 ; CHECK-SAME: "uniform-work-group-size"="true"

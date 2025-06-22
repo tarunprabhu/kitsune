@@ -7,20 +7,20 @@
 ; RUN:     | FileCheck %s -check-prefix PREFETCH
 ;
 ; PREFETCH: define {{.+}} @f
-; PREFETCH: call {{.+}} @llvm.kitrt.prefetch.device(i8 2,
-; PREFETCH: call {{.+}} @llvm.kitrt.launch.kernel(i8 2,
+; PREFETCH: call {{.+}} @llvm.kitrt.prefetch.device(i32 2,
+; PREFETCH: call {{.+}} @llvm.kitrt.launch.kernel(i32 2,
 ; PREFETCH: ret void
 ; PREFETCH-NEXT: }
 ;
 ; -----------------------------------------------------------------------------
-; 
+;
 ; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     --tapir-gpu-prefetch=false \
 ; RUN:     | FileCheck %s -check-prefix NO-PREFETCH
 ;
 ; NO-PREFETCH: define {{.+}} @f
-; NO-PREFETCH-NOT: call {{.+}} @llvm.kitrt.prefetch.device(i8 2,
-; NO-PREFETCH: call {{.+}} @llvm.kitrt.launch.kernel(i8 2,
+; NO-PREFETCH-NOT: call {{.+}} @llvm.kitrt.prefetch.device(i32 2,
+; NO-PREFETCH: call {{.+}} @llvm.kitrt.launch.kernel(i32 2,
 ; NO-PREFETCH: ret void
 ; NO-PREFETCH-NEXT: }
 ;

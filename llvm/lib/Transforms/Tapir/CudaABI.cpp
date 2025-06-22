@@ -58,13 +58,18 @@
 
 #include "llvm/Transforms/Tapir/CudaABI.h"
 #include "kitsune/Config/config.h"
+#include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/KernelProperties.h"
+#include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TargetUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Demangle/Demangle.h"
-#include "llvm/Frontend/Tapir/OptLevelUtils.h"
-#include "llvm/Frontend/Tapir/Tapir.h"
-#include "llvm/Frontend/Tapir/TapirTargetOptions.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -75,7 +80,6 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IntrinsicsNVPTX.h"
-#include "llvm/IR/KitsuneMetadata.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
@@ -102,7 +106,6 @@
 #include "llvm/Transforms/Tapir/TapirGPUUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/KitsuneUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
 using namespace llvm;
@@ -411,7 +414,7 @@ void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
         Function *DeviceF = cast<Function>(VMap[F]);
         CloneFunctionInto(DeviceF, F, VMap,
                           CloneFunctionChangeType::DifferentModule, Returns);
-        DeviceF->addFnAttr(KITSUNE_ATTR_DEVICE);
+        DeviceF->addFnAttr(Attribute::KitDevice);
         LLVM_DEBUG(dbgs() << "cuabi: cloning device function '"
                           << DeviceF->getName() << "' into kernel module.\n");
       }
@@ -462,7 +465,7 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   KernelF->removeFnAttr("personality");
 
   // Add an attribute identifying this as a function outlined from a tapir loop.
-  KernelF->addFnAttr(KITSUNE_ATTR_KERNEL);
+  KernelF->addFnAttr(Attribute::KitKernel);
 
   // Replace some of the target-specific attributes with the correct ones.
   KernelF->addFnAttr("target-cpu", getOptions().getCudaArch());
@@ -600,11 +603,11 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   for (Instruction *I : RemoveList)
     I->eraseFromParent();
 
-  ConstantInt *ConstTT = getConstantInt(Ctx, TapirTargetID::Cuda);
+  ConstantInt *ConstTT = createConstInt(TTID::Cuda, Ctx);
   Value *CudaStream = ConstantPointerNull::get(PtrTy);
-  GlobalVariable *InstMix = createKernelMDGlobal(M, KernelName);
-  Value *KName = getOrCreateGlobalString(M, KernelName);
-  GlobalVariable *EmbeddedFB = getEmbeddedFB(TapirTargetID::Cuda, M);
+  GlobalVariable *InstMix = createKernelPropsGlobal(KernelName, M);
+  Value *KName = createConstString(KernelName, M);
+  GlobalVariable *EmbFB = getEmbFBGlobal(TTID::Cuda, M);
 
   // At this point we need a threads-per-block value for the launch call. The
   // runtime will determine this value if ThreadsPerBlock is zero but it can
@@ -647,7 +650,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   for (GlobalValue *G : UsedGlobalValues) {
     if (auto *GV = dyn_cast<GlobalVariable>(G)) {
       if (not GV->isConstant()) {
-        Value *SymName = getOrCreateGlobalString(M, GV->getName());
+        Value *SymName = createConstString(GV->getName(), M);
         DevGlobals.emplace(GV, SymName);
       }
     }
@@ -662,8 +665,8 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     GlobalVariable *HostGV = M.getGlobalVariable(GVName, /*AllowLocal=*/true);
     Type *GVType = DevGV->getValueType();
     size_t GVSize = DL.getTypeAllocSize(GVType);
-    Value *DevPtr = NewBuilder.CreateCall(KitrtSymbolDevicePtr,
-                                          {ConstTT, EmbeddedFB, SymName});
+    Value *DevPtr =
+        NewBuilder.CreateCall(KitrtSymbolDevicePtr, {ConstTT, EmbFB, SymName});
     Constant *Bytes = ConstantInt::get(Int64Ty, GVSize);
     NewBuilder.CreateCall(KitrtSymbolMemcpyDevice,
                           {ConstTT, DevPtr, HostGV, Bytes});
@@ -709,7 +712,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
   CudaStream = NewBuilder.CreateCall(
       Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_launch_kernel),
-      {ConstTT, EmbeddedFB, KName, Args, TripCount, TPB, InstMix, CudaStream});
+      {ConstTT, EmbFB, KName, Args, TripCount, TPB, InstMix, CudaStream});
 
   NewBuilder.CreateCall(
       Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_sync_stream),
@@ -727,8 +730,8 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     GlobalVariable *HostGV = M.getGlobalVariable(GVName, /*AllowLocal=*/true);
     Type *GVType = DevGV->getValueType();
     size_t GVSize = DL.getTypeAllocSize(GVType);
-    Value *DevPtr = NewBuilder.CreateCall(KitrtSymbolDevicePtr,
-                                          {ConstTT, EmbeddedFB, SymName});
+    Value *DevPtr =
+        NewBuilder.CreateCall(KitrtSymbolDevicePtr, {ConstTT, EmbFB, SymName});
     Constant *Bytes = ConstantInt::get(Int64Ty, GVSize);
     NewBuilder.CreateCall(KitrtSymbolMemcpyHost,
                           {ConstTT, HostGV, DevPtr, Bytes});
@@ -747,13 +750,13 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &TTO)
   if (TTO.getTapirVerbose())
     TTO.print(dbgs());
 
-  TargetMachine *TM = createTargetMachine(TapirTargetID::Cuda, TTO);
+  TargetMachine *TM = createTargetMachine(TTID::Cuda, TTO);
   KernelModule.setModuleIdentifier(
       join_items("", CUABI_PREFIX, sys::path::filename(M.getName())));
   KernelModule.setTargetTriple(TM->getTargetTriple().str());
   KernelModule.setDataLayout(TM->createDataLayout());
   KernelModule.setModuleFlag(Module::Override, "nvvm-reflect-ftz", FTZCodeGen);
-  addKitsuneModuleMD(TapirTargetID::Cuda, KernelModule);
+  addDeviceModuleMetadata(TTID::Cuda, KernelModule);
 }
 
 CudaABI::~CudaABI() { LLVM_DEBUG(dbgs() << "cuabi: destroy tapir target.\n"); }
@@ -784,7 +787,7 @@ void CudaABI::preProcessModule() {
   // GPU code. This is currently uninitialized, but will be passed to several
   // of the kitsune runtime intrinsic calls when launching kernels, copying
   // global variables from host to device etc.
-  (void)createEmbeddedFB(TapirTargetID::Cuda, M);
+  (void)createEmbFBGlobal(TTID::Cuda, M);
 }
 
 bool CudaABI::preProcessFunction(Function &F, TaskInfo &TI,
@@ -824,7 +827,7 @@ void CudaABI::postProcessModule() {
   // must be carried out on this module before it can be compiled to GPU code,
   // but those will be done by subsequent passes. The module here is in a state
   // where we can perform combined host/device analyses and optimizations.
-  (void)createEmbeddedBC(KernelModule, TapirTargetID::Cuda, M);
+  (void)createEmbBCGlobal(KernelModule, TTID::Cuda, M);
 }
 
 LoopOutlineProcessor *

@@ -11,42 +11,43 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Frontend/Tapir/CommandLine.h"
-#include "llvm/Frontend/Tapir/Tapir.h"
-#include "llvm/IR/Constants.h"
+#include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/Tapir.h"
+#include "kitsune/Support/CommandLine.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/Utils/KitsuneUtils.h"
 
 using namespace llvm;
-using namespace llvm::sys;
 
-cl::OptionCategory KitMEnc("kitmenc Options");
-
-static cl::opt<std::optional<TapirTargetID>, false, cl::TapirTargetIDParser>
-    clTapir(
-        "generator",
-        cl::desc(
-            "The tapir target that is to have generated the embedded bitcode"),
-        cl::value_desc("<tapir target>"), cl::init(TapirTargetID::Cuda),
-        cl::cat(KitMEnc));
+static cl::OptionCategory catKitMEnc("kitmenc Options");
 
 static cl::opt<std::string> clInFile(cl::Positional,
                                      cl::desc("<input bitcode file>"),
                                      cl::init("-"), cl::value_desc("filename"),
-                                     cl::cat(KitMEnc));
+                                     cl::cat(catKitMEnc));
+
+static void setupCommandLineOptions() {
+  cl::HideUnrelatedOptions(catKitMEnc);
+
+  // Override the descriptions and visibility of options that are shared between
+  // tools and have a different default description.
+  StringMap<cl::Option *> &clOpts = cl::getRegisteredOptions();
+  cl::Option &clTapir = *clOpts["tapir"];
+  clTapir.setDescription("The tapir target to attach to the embedded bitcode");
+  clTapir.setHiddenFlag(cl::NotHidden);
+}
 
 int main(int argc, char *argv[]) {
   InitLLVM X(argc, argv);
-  cl::HideUnrelatedOptions(KitMEnc);
+
+  setupCommandLineOptions();
   cl::ParseCommandLineOptions(
       argc, argv,
-      "Embed an LLVM module into a empty \"host\" module. Render the \"host\" "
+      "Embed an LLVM module into an empty \"host\" module. Render the \"host\" "
       "module to stdout as LLVM assembly");
 
   InitializeAllTargets();
@@ -63,7 +64,7 @@ int main(int argc, char *argv[]) {
   }
 
   Module hostM("", ctx);
-  (void)createEmbeddedBC(*embM, *clTapir, hostM);
+  (void)createEmbBCGlobal(*embM, *getClOptTapir(TTID::Cuda), hostM);
 
   outs() << hostM << "\n";
 

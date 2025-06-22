@@ -44,6 +44,7 @@ add_lld_library(lldMachO
   Core
   DebugInfoDWARF
   Demangle
+  KitCore
   LTO
   MC
   ObjCARCOpts

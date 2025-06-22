@@ -888,6 +888,7 @@ static void generateMachineCodeOrAssemblyImpl(clang::DiagnosticsEngine &diags,
   llvm::CodeGenFileType cgft = (act == BackendActionTy::Backend_EmitAssembly)
                                    ? llvm::CodeGenFileType::AssemblyFile
                                    : llvm::CodeGenFileType::ObjectFile;
+  codeGenPasses.add(createCodeGenFatBinariesLegacyPass());
   if (tm.addPassesToEmitFile(codeGenPasses, os, nullptr, cgft)) {
     unsigned diagID =
         diags.getCustomDiagID(clang::DiagnosticsEngine::Error,

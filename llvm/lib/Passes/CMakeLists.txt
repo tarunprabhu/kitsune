@@ -1,5 +1,6 @@
 add_llvm_component_library(LLVMPasses
   CodeGenPassBuilder.cpp
+  DroppedVariableStatsIR.cpp
   OptimizationLevel.cpp
   PassBuilder.cpp
   PassBuilderBindings.cpp
@@ -26,7 +27,11 @@ add_llvm_component_library(LLVMPasses
   IPO
   InstCombine
   IRPrinter
-  KitsuneOpts
+  KitAnalysis
+  KitCodeGen
+  KitCore
+  KitOpts
+  KitSupport
   ObjCARC
   Scalar
   Support

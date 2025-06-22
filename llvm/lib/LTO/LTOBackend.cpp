@@ -14,10 +14,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/LTO/LTOBackend.h"
+#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/ModuleSummaryAnalysis.h"
-#include "llvm/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
@@ -457,6 +458,7 @@ static void codegen(const Config &Conf, TargetMachine *TM,
           createImmutableModuleSummaryIndexWrapperPass(&CombinedIndex));
     if (Conf.PreCodeGenPassesHook)
       Conf.PreCodeGenPassesHook(CodeGenPasses);
+    CodeGenPasses.add(createCodeGenFatBinariesLegacyPass());
     if (TM->addPassesToEmitFile(CodeGenPasses, *Stream->OS,
                                 DwoOut ? &DwoOut->os() : nullptr,
                                 Conf.CGFileType))

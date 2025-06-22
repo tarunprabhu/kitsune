@@ -5,8 +5,8 @@
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;
-; The module identifier is generated a specific way. We don't really need care
-; exactly what that is, but might as well check it.
+; The module identifier is generated a specific way. We don't really need it to
+; be exactly what it is, but might as well check it.
 ;
 ; CHECK: ModuleID = '__kitcu_kernel-module-md.ll'
 ;
@@ -16,11 +16,11 @@
 ; CHECK: define {{.*}}@[[F2:__kitcu_loop_f2[^(]*]](
 ;
 ; CHECK: !llvm.module.flags = !{{{.*}}![[FTZ:[0-9]+]]{{.*}}}
-; CHECK: !kitsune.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
+; CHECK: !kitsune.device.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
 ; CHECK: !nvvm.annotations = !{![[MDF1:[0-9]+]], ![[MDF2:[0-9]+]]}
 ;
 ; CHECK-DAG: ![[FTZ]] = !{i32 4, !"nvvm-reflect-ftz", i32 0}
-; CHECK-DAG: ![[MDTT]] = !{i8 2}
+; CHECK-DAG: ![[MDTT]] = !{i32 2}
 ; CHECK-DAG: ![[MDNAME]] = !{!"__kitcu_kernel-module-md.ll"}
 ; CHECK-DAG: ![[MDF1]] = !{ptr @[[F1]], !"kernel", i32 1}
 ; CHECK-DAG: ![[MDF2]] = !{ptr @[[F2]], !"kernel", i32 1}

@@ -39,7 +39,6 @@ add_llvm_component_library(LLVMTransformUtils
   Instrumentation.cpp
   IntegerDivision.cpp
   IRNormalizer.cpp
-  KitsuneUtils.cpp
   LCSSA.cpp
   LibCallsShrinkWrap.cpp
   Local.cpp
@@ -105,7 +104,7 @@ add_llvm_component_library(LLVMTransformUtils
   LINK_COMPONENTS
   Analysis
   Core
+  KitSupport
   Support
   TargetParser
-  FrontendTapir
   )

@@ -7,9 +7,10 @@
 ; CHECK: @[[FB:.+]] = constant [{{[0-9]+}} x i8] zeroinitializer
 ; CHECK-SAME: section ".hip_fatbin"
 ; CHECK-SAME: align 4096
-; CHECK-SAME: !kitsune.fb ![[TTMD:[0-9]+]]
+; CHECK-SAME: #[[ATTR:[0-9]+]]
 ;
-; CHECK: ![[TTMD]] = !{i8 3}
+; CHECK: #[[ATTR]] = {
+; CHECK-SAME: kit_fb(4)
 
 target triple = "x86_64-pc-linux-gnu"
 

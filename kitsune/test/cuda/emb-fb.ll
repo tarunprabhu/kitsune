@@ -6,9 +6,10 @@
 ;
 ; CHECK: @[[FB:.+]] = constant [{{[0-9]+}} x i8] zeroinitializer
 ; CHECK-SAME: section ".nv_fatbin"
-; CHECK-SAME: !kitsune.fb ![[TTMD:[0-9]+]]
+; CHECK-SAME: #[[ATTR:[0-9]+]]
 ;
-; CHECK: ![[TTMD]] = !{i8 2}
+; CHECK: #[[ATTR]] = {
+; CHECK-SAME: kit_fb(2)
 
 target triple = "x86_64-pc-linux-gnu"
 

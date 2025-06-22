@@ -22,6 +22,8 @@ def ParamAttr : AttrProperty;
 /// Can be used as return attribute.
 def RetAttr : AttrProperty;
 
+/// Can be used as an attribute on global variables.
+def GlobalAttr : AttrProperty;
 
 
 /// Intersection rules. Used for example in sinking/hoisting two
@@ -425,6 +427,33 @@ def LoaderReplaceable : StrBoolAttr<"loader-replaceable">;
 
 def DenormalFPMath : ComplexStrAttr<"denormal-fp-math", [FnAttr]>;
 def DenormalFPMathF32 : ComplexStrAttr<"denormal-fp-math-f32", [FnAttr]>;
+
+// ------------------------ Kitsune-specific attributes ------------------------
+
+/// The global variable contains embedded bitcode. The value of the attribute is
+/// the integer representation of the tapir target that generated the global.
+def KitBC : IntAttr<"kit_bc", IntersectPreserve, [GlobalAttr]>;
+
+/// The global variable contains a fat binary. The value of the attribute is the
+/// integer representation of the tapir target that generated the global.
+def KitFB : IntAttr<"kit_fb", IntersectPreserve, [GlobalAttr]>;
+
+/// The global variable contains properties of a kitsune "kernel function".
+def KitKernelProps : ComplexStrAttr<"kit_kernel_props", [GlobalAttr]>;
+
+/// The function is a "kernel function". This is a function in the device module
+/// that was obtained by outlining a tapir loop. With GPU-centric tapir targets,
+/// this is the entry point into the GPU and will be launched onto the GPU by
+/// kitsune's runtime.
+def KitKernel : EnumAttr<"kit_kernel", IntersectPreserve, [FnAttr]>;
+
+/// The function is a "device function". This is a function in the device module
+/// that is reachable from at least one kernel function. This attribute must
+/// *not* be applied to "library" functions such as those provided by the
+/// libdevice bitcode files.
+def KitDevice : EnumAttr<"kit_device", IntersectPreserve, [FnAttr]>;
+
+// -----------------------------------------------------------------------------
 
 // Attribute compatiblity rules are generated to check the attribute of the
 // caller and callee and decide whether inlining should be allowed. CompatRule

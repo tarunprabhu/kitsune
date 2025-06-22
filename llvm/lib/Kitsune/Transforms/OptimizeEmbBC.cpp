@@ -1,0 +1,158 @@
+//===- OptimizeEmbBC.cpp - Optimize embedded modules ----------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Run the standard sequence of optimization passes on the embedded bitcode.
+//
+//===----------------------------------------------------------------------===//
+
+#include "kitsune/Transforms/OptimizeEmbBC.h"
+#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Support/OptLevelUtils.h"
+#include "kitsune/Transforms/EmbBCPassUtils.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Transforms/Tapir/LoweringUtils.h"
+
+#define DEBUG_TYPE "optimize-emb-bc"
+
+using namespace llvm;
+
+// Set a specific optimization level for the embedded bitcode. If this has not
+// been set explicitly, the optimization level from the tapir target options
+// will be used.
+static cl::opt<int>
+    clOptLevel("emb-opt-level", cl::init(-1), cl::Hidden,
+               cl::desc("The optimization level to use on the embedded "
+                        "modules. Must be 0, 1, 2 or 3"));
+
+namespace {
+
+/// Optimize the embedded bitcode. This runs the standard sequence of
+/// optimization passes on it.
+class OptimizeModule {
+private:
+  TTID tt;
+  const TapirTargetOptions &tto;
+
+protected:
+  OptimizeModule(TTID tt, const TapirTargetOptions &tto) : tt(tt), tto(tto) {}
+
+  /// Construct the pipeline tuning options. These may be different depending on
+  /// the bitcode being optimized.
+  virtual PipelineTuningOptions
+  getPipelineTuningOptions(OptimizationLevel optLevel) = 0;
+
+public:
+  virtual ~OptimizeModule() = default;
+
+  bool run(Module &devM) {
+    // If the optimization level has been overridden on the command line, prefer
+    // that, otherwise, use the optimization level from the tapir target options
+    OptimizationLevel optLevel = tto.getOptLevel();
+    if (clOptLevel != -1)
+      optLevel = mapToOptimizationLevel((unsigned)clOptLevel);
+
+    // If the speedup level is 0, no optimization passes are run.
+    if (not optLevel.getSpeedupLevel())
+      return false;
+
+    // The analysis managers must be declared in this order so that they are
+    // destroyed in the correct order due to inter-analysis-manager references
+    LoopAnalysisManager lam;
+    FunctionAnalysisManager fam;
+    CGSCCAnalysisManager cgam;
+    ModuleAnalysisManager mam;
+    TargetMachine *tm = createTargetMachine(tt, tto);
+    PipelineTuningOptions pto = getPipelineTuningOptions(optLevel);
+
+    PassBuilder pb(tm, pto);
+    pb.registerModuleAnalyses(mam);
+    pb.registerCGSCCAnalyses(cgam);
+    pb.registerFunctionAnalyses(fam);
+    pb.registerLoopAnalyses(lam);
+    tm->registerPassBuilderCallbacks(pb);
+    pb.crossRegisterProxies(lam, fam, cgam, mam);
+
+    ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
+    mpm.addPass(VerifierPass());
+    mpm.run(devM, mam);
+
+    return true;
+  }
+};
+
+/// Optimize a module for NVPTX.
+class OptimizeModuleCuda : public OptimizeModule {
+protected:
+  PipelineTuningOptions
+  getPipelineTuningOptions(OptimizationLevel optLevel) override final {
+    unsigned speedupLevel = optLevel.getSpeedupLevel();
+    PipelineTuningOptions pto;
+    pto.LoopUnrolling = speedupLevel > 1;
+    pto.LoopInterleaving = speedupLevel > 2;
+    pto.LoopStripmine = speedupLevel > 2;
+    pto.LoopVectorization = false;
+    pto.SLPVectorization = false;
+
+    return pto;
+  }
+
+public:
+  OptimizeModuleCuda(const TapirTargetOptions &tto)
+      : OptimizeModule(TTID::Cuda, tto) {}
+};
+
+/// Optimize a module for AMDGPU.
+class OptimizeModuleHip : public OptimizeModule {
+protected:
+  PipelineTuningOptions
+  getPipelineTuningOptions(OptimizationLevel optLevel) override final {
+    unsigned speedupLevel = optLevel.getSpeedupLevel();
+    PipelineTuningOptions pto;
+    pto.LoopUnrolling = speedupLevel > 1;
+    pto.LoopInterleaving = speedupLevel > 2;
+    pto.LoopStripmine = speedupLevel > 2;
+    pto.LoopVectorization = false;
+    pto.SLPVectorization = false;
+
+    return pto;
+  }
+
+public:
+  OptimizeModuleHip(const TapirTargetOptions &tto)
+      : OptimizeModule(TTID::Hip, tto) {}
+};
+
+} // namespace
+
+namespace llvm {
+
+bool OptimizeEmbBCPass::run(TTID tt, Module &devM, Module &hostM,
+                            ModuleAnalysisManager &hostMAM) {
+  const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
+  const TapirTargetOptions &tto = tgi.getOptions();
+
+  switch (tt) {
+  case TTID::Cuda:
+    return OptimizeModuleCuda(tto).run(devM);
+  case TTID::Hip:
+    return OptimizeModuleHip(tto).run(devM);
+  default:
+    llvm_unreachable("OptimizeEmbBCPass::run: TTID not handled");
+  }
+}
+
+} // namespace llvm

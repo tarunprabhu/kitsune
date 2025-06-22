@@ -944,6 +944,8 @@ Function *CodeExtractor::constructFunctionDeclaration(
       case Attribute::HybridPatchable:
       case Attribute::NoRecurse:
       case Attribute::InlineHint:
+      case Attribute::KitDevice:
+      case Attribute::KitKernel:
       case Attribute::MinSize:
       case Attribute::NoCallback:
       case Attribute::NoDuplicate:
@@ -995,6 +997,8 @@ Function *CodeExtractor::constructFunctionDeclaration(
       case Attribute::ElementType:
       case Attribute::InAlloca:
       case Attribute::InReg:
+      case Attribute::KitBC:
+      case Attribute::KitFB:
       case Attribute::Nest:
       case Attribute::NoAlias:
       case Attribute::NoUndef:

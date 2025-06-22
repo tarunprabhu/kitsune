@@ -296,7 +296,7 @@ void CodeGenFunction::EmitKokkosIncrement(const ParmVarDecl *IV) {
 
 bool CodeGenFunction::EmitKokkosParallelFor(
     const CallExpr *CE, ArrayRef<const Attr *> KokkosAttrs) {
-  std::optional<llvm::TapirTargetID> TT = GetTapirTargetAttr(KokkosAttrs);
+  std::optional<llvm::TTID> TT = GetTapirTargetAttr(KokkosAttrs);
   LoopStack.setLoopTarget(TT);
 
   // New basic blocks and jump destinations with Tapir terminators

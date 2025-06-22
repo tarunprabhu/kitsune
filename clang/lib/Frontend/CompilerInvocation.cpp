@@ -8,6 +8,8 @@
 
 #include "clang/Frontend/CompilerInvocation.h"
 #include "TestModuleFileExtension.h"
+#include "kitsune/Core/Tapir.h"
+#include "kitsune/Support/ToString.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/CodeGenOptions.h"
@@ -27,8 +29,9 @@
 #include "clang/Basic/XRayInstr.h"
 #include "clang/Config/config.h"
 #include "clang/Driver/Driver.h"
+#include "clang/Driver/DriverDiagnostic.h"
+#include "clang/Driver/KitsuneOptionUtils.h"
 #include "clang/Driver/Options.h"
-#include "clang/Driver/Tapir.h"
 #include "clang/Frontend/CommandLineSourceLoc.h"
 #include "clang/Frontend/DependencyOutputOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -53,8 +56,6 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Frontend/Debug/Options.h"
-#include "llvm/Frontend/Tapir/CommandLine.h"
-#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/Linker/Linker.h"
 #include "llvm/MC/MCTargetOptions.h"
@@ -72,7 +73,6 @@
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/HashBuilder.h"
-#include "llvm/Support/KitsuneStringExtras.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
@@ -4774,16 +4774,15 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   return Diags.getNumErrors() == NumErrorsBefore;
 }
 
-void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
+void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
                                                  ArgumentConsumer Consumer) {
-  if (std::optional<llvm::TapirTargetID> TT = Opts.getTapirTarget()) {
-    // FIXME: Find another way to do this.
+  if (std::optional<llvm::TTID> TT = Opts.getTapirTarget()) {
     GenerateArg(Consumer, OPT_tapir_EQ, llvm::toString(*TT));
 
     switch (*TT) {
-    case llvm::TapirTargetID::None:
+    case llvm::TTID::None:
       break;
-    case llvm::TapirTargetID::Cuda:
+    case llvm::TTID::Cuda:
       GenerateArg(Consumer, OPT_tapir_cuda_arch_EQ, Opts.getCudaArch());
       GenerateArg(Consumer, OPT_tapir_cuda_virt_arch_EQ,
                   Opts.getCudaVirtArch());
@@ -4791,7 +4790,7 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
       GenerateArg(Consumer, OPT_tapir_cuda_runtime_bc_EQ,
                   Opts.getCudaRuntimeBCFile());
       break;
-    case llvm::TapirTargetID::Hip: {
+    case llvm::TTID::Hip: {
       const std::vector<std::string> &BCS = Opts.getHipRuntimeBCFiles();
       GenerateArg(Consumer, OPT_tapir_hip_arch_EQ, Opts.getHipArch());
       GenerateArg(Consumer, OPT_tapir_hip_sramecc_EQ,
@@ -4804,25 +4803,25 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions& Opts,
       GenerateArg(Consumer, OPT_tapir_lld_EQ, Opts.getLLD());
       break;
     }
-    case llvm::TapirTargetID::Lambda:
-    case llvm::TapirTargetID::OMPTask:
+    case llvm::TTID::Lambda:
+    case llvm::TTID::OMPTask:
       break;
-    case llvm::TapirTargetID::OpenCilk:
+    case llvm::TTID::OpenCilk:
       GenerateArg(Consumer, OPT_tapir_opencilk_runtime_bc_EQ,
                   Opts.getOpenCilkRuntimeBCFile());
       break;
-    case llvm::TapirTargetID::OpenMP:
-    case llvm::TapirTargetID::Qthreads:
-    case llvm::TapirTargetID::Realm:
-    case llvm::TapirTargetID::Serial:
+    case llvm::TTID::OpenMP:
+    case llvm::TTID::Qthreads:
+    case llvm::TTID::Realm:
+    case llvm::TTID::Serial:
       break;
     default:
-      llvm_unreachable("GenerateKitsuneArg: TapirTargetID not handled");
+      llvm_unreachable("GenerateKitsuneArg: TTID not handled");
       break;
     }
 
     // Arguments that are relevant to any GPU tapir target.
-    if (*TT == llvm::TapirTargetID::Cuda || *TT == llvm::TapirTargetID::Hip) {
+    if (*TT == llvm::TTID::Cuda || *TT == llvm::TTID::Hip) {
       if (unsigned N = Opts.getFixedThreadsPerBlock())
         GenerateArg(Consumer, OPT_tapir_gpu_tpb_EQ, std::to_string(N));
 
@@ -4855,7 +4854,7 @@ bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
                                           const KitsuneOptions &KitsuneOpts,
                                           const LangOptions &LangOpts,
                                           DiagnosticsEngine &Diags) {
-  std::optional<llvm::TapirTargetID> TT = KitsuneOpts.getTapirTarget();
+  std::optional<llvm::TTID> TT = KitsuneOpts.getTapirTarget();
   if (not TT)
     return true;
 
@@ -5283,7 +5282,7 @@ bool CompilerInvocation::CreateFromArgsImpl(
   // Parse the Kitsune arguments as early as possible. These affect how the
   // lang options are setup. For instance, the default FPContract value changes
   // when compiling with Kitsune's frontend.
-  KitsuneOpts.parseArgsInto(Argv0, Args, Opts, Diags);
+  parseKitsuneArgs(KitsuneOpts, Argv0, Args, Opts, Diags);
   ParseLangArgs(LangOpts, Args, DashX, T, Res.getPreprocessorOpts().Includes,
                 Diags, KitsuneOpts);
   if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)

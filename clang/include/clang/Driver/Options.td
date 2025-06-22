@@ -1,3 +1,4 @@
+
 //===--- Options.td - Options for clang -----------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -9479,9 +9480,9 @@ def wasm_opt : Flag<["--"], "wasm-opt">,
 //     Kitsune frontends have different defaults for certain options such as
 //     -ffp-contract=
 //
-// Ideally, we would like to share the option definitions with those tools, but
-// each tool uses a slightly different tablegen syntax, so everything has to be
-// kept in sync manually.
+// Ideally, we would like to share the option definitions with tools such as opt
+// and lld, but each tool uses a slightly different tablegen syntax, so
+// everything has to be kept in sync manually.
 //
 //==============================================================================
 
@@ -9503,7 +9504,7 @@ def fkokkos : Flag<["-"], "fkokkos">, Alias<kokkos>,
 
 def kokkos_no_init : Flag<["--"], "kokkos-no-init">,
   Visibility<[ClangOption, CC1Option]>,
-  HelpText<"Skip generation of Kokkos initialization (and finalize) calls.">;
+  HelpText<"Skip generation of Kokkos initialize and finalize calls">;
 
 def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Alias<kokkos_no_init>,
   Visibility<[ClangOption, CC1Option]>,
@@ -9517,7 +9518,7 @@ def tapir_EQ : Joined<["--"], "tapir=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   MetaVarName<"<target>">,
   Values<"none,serial,cuda,hip,opencilk">,
-  HelpText<"The tapir target">;
+  HelpText<"The primary tapir target">;
 
 def ftapir_EQ : Joined<["-"], "ftapir=">, Alias<tapir_EQ>,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
@@ -9589,9 +9590,8 @@ def tapir_hip_arch_EQ : Joined<["--"], "tapir-hip-arch=">,
 //
 // This is set to 'on' by default temporarily. Prior to LLVM 20, the only way
 // to control xnack was with the -mllvm -enable-sramecc=[[true]|false], which
-// is a commandl line argument defined in hipabi. That option has been
-// deprecated and this is the preferred method. The default sould be switched
-// to 'any' after a transition period.
+// has been removed. The default here should be switched to 'any' after a
+// transition period.
 def tapir_hip_sramecc_EQ : Joined<["--"], "tapir-hip-sramecc=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   Default<"on">, MetaVarName<"<status>">,
@@ -9609,10 +9609,9 @@ def tapir_hip_sramecc_EQ : Joined<["--"], "tapir-hip-sramecc=">,
 // 'any'. More details follow:
 //
 // This is set to 'on' by default temporarily. Prior to LLVM 20, the only way
-// to control xnack was with the -mllvm -enable-sramecc=[[true]|false], which
-// is a commandl line argument defined in hipabi. That option has been
-// deprecated and this is the preferred method. The default sould be switched
-// to 'any' after a transition period.
+// to control xnack was with the -mllvm -enable-xnack=[[true]|false], which
+// has been removed. The default should be switched to 'any' after a transition
+// period.
 def tapir_hip_xnack_EQ : Joined<["--"], "tapir-hip-xnack=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   Default<"on">, MetaVarName<"<status>">,
@@ -9660,9 +9659,8 @@ def tapir_hip_wavefront32 : Flag<["--"], "tapir-hip-wavefront32">,
 // There is a fair bit of logic that looks for the correct bitcode file to use
 // depending on the current target. While that could be internalized, having
 // this option is very useful for the tests because we can point to a dummy
-// bitcode file and stop it from producing the "wrong" error (for instance
-// because we were checking that the frontend does not error out on supported
-// platforms).
+// bitcode file and stop it from producing the "wrong" error (for example, to
+// ensure that the frontend does not error out on supported platforms).
 def tapir_opencilk_runtime_bc_EQ : Joined<["--"], "tapir-opencilk-runtime-bc=">,
   Visibility<[CC1Option, FC1Option]>,
   MetaVarName<"<file>">,

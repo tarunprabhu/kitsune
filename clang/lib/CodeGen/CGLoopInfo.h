@@ -14,9 +14,9 @@
 #ifndef LLVM_CLANG_LIB_CODEGEN_CGLOOPINFO_H
 #define LLVM_CLANG_LIB_CODEGEN_CGLOOPINFO_H
 
+#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Frontend/Tapir/Tapir.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Compiler.h"
@@ -71,9 +71,6 @@ struct LoopAttributes {
   /// llvm.unroll.
   unsigned UnrollAndJamCount;
 
-  /// tapir.loop.grainsize.
-  unsigned TapirGrainSize;
-
   /// Value for llvm.loop.distribute.enable metadata.
   LVEnableState DistributeEnable;
 
@@ -89,13 +86,16 @@ struct LoopAttributes {
   /// Value for whether the loop is required to make progress.
   bool MustProgress;
 
+  /// tapir.loop.grainsize.
+  unsigned TapirGrainSize = 0;
+
   /// Value for tapir.loop.spawn.strategy metadata.
-  llvm::TapirSpawnStrategy SpawnStrategy;
+  llvm::TapirSpawnStrategy SpawnStrategy = llvm::TapirSpawnStrategy::Sequential;
 
   /// Value for tapir.loop.target metadata.
-  std::optional<llvm::TapirTargetID> LoopTarget;
+  std::optional<llvm::TTID> LoopTarget = std::nullopt;
 
-  unsigned int ThreadsPerBlock = 0;
+  unsigned ThreadsPerBlock = 0;
 };
 
 /// Information used when generating a structured loop.
@@ -321,7 +321,7 @@ public:
   void setTapirGrainSize(unsigned C) { StagedAttrs.TapirGrainSize = C; }
 
   /// Set the Tapir loop target
-  void setLoopTarget(std::optional<llvm::TapirTargetID> LT) {
+  void setLoopTarget(std::optional<llvm::TTID> LT) {
     StagedAttrs.LoopTarget = LT;
   }
 
