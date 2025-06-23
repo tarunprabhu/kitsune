@@ -14,7 +14,7 @@
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Config/config.h"
 #include "kitsune/Support/CommandLine.h"
-#include "kitsune/Support/OptLevelUtils.h"
+#include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/CodeGen/CommandFlags.h"
@@ -161,7 +161,7 @@ static cl::alias
 TapirTargetOptions::TapirTargetOptions(TTID tt) : tt(tt) {}
 
 std::optional<TapirTargetOptions>
-TapirTargetOptions::createFromCLOpts(OptimizationLevel optLevel) {
+TapirTargetOptions::createFromCLOpts(OptznLevel optLevel) {
   if (std::optional<TTID> tt = getClOptTapir()) {
     TapirTargetOptions tto(*tt);
 
@@ -214,12 +214,16 @@ TapirTargetOptions::createFromCLOpts(OptimizationLevel optLevel) {
 
 std::optional<TapirTargetOptions>
 TapirTargetOptions::createFromCLOpts(unsigned speedupLevel) {
-  return createFromCLOpts(mapToOptimizationLevel(speedupLevel));
+  return createFromCLOpts(createOptznLevelFrom(speedupLevel));
 }
 
 std::optional<TapirTargetOptions>
-TapirTargetOptions::create(const KitsuneOptions &opts,
-                           OptimizationLevel optLevel,
+TapirTargetOptions::createFromCLOpts(char optLevel) {
+  return createFromCLOpts(createOptznLevelFrom(optLevel));
+}
+
+std::optional<TapirTargetOptions>
+TapirTargetOptions::create(const KitsuneOptions &opts, OptznLevel optLevel,
                            FPOpFusionMode fpOpFusionMode) {
   if (std::optional<TTID> tt = opts.getTapirTarget()) {
     TapirTargetOptions tto(*tt);
@@ -277,7 +281,7 @@ void TapirTargetOptions::print(raw_ostream &os, bool all) const {
   os << "'" << tt << "' tapir target options:\n";
   os << "  Compiler verbose:        " << getTapirVerbose() << "\n";
   os << "  Runtime verbose:         " << getKitrtVerbose() << "\n";
-  os << "  Optimization level:      " << getOptLevel() << "\n";
+  os << "  Optimization level:      " << getOptznLevel() << "\n";
   os << "  FP fusion:               " << getFPOpFusionMode() << "\n";
   if (all || tt == TTID::Cuda || tt == TTID::Hip) {
     os << "  GPU fixed threads/block: " << getFixedThreadsPerBlock() << "\n";

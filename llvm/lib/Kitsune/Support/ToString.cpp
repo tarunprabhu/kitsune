@@ -96,14 +96,20 @@ raw_ostream &llvm::operator<<(raw_ostream &os,
   llvm_unreachable("operator<<: FPOpFusionMode not handled");
 }
 
-raw_ostream &llvm::operator<<(raw_ostream &os,
-                              const OptimizationLevel &optLevel) {
-  switch (optLevel.getSizeLevel()) {
-  case 1:
+raw_ostream &llvm::operator<<(raw_ostream &os, const OptznLevel &optLevel) {
+  switch (optLevel) {
+  case OptznLevel::O0:
+    return os << "O0";
+  case OptznLevel::O1:
+    return os << "O1";
+  case OptznLevel::O2:
+    return os << "O2";
+  case OptznLevel::O3:
+    return os << "O3";
+  case OptznLevel::Os:
     return os << "Os";
-  case 2:
-    return os << "Oz";
-  default:
-    return os << "O" << optLevel.getSpeedupLevel();
+  case OptznLevel::Oz:
+    return os << "Os";
   }
+  llvm_unreachable("operator<<: OptznLevel not handled");
 }

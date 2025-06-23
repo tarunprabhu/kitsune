@@ -15,7 +15,6 @@
 #include "NewPMDriver.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/TapirTargetOptions.h"
-#include "kitsune/Support/OptLevelUtils.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/Statistic.h"
@@ -799,9 +798,8 @@ static int compileModule(char **argv, SmallVectorImpl<PassPlugin> &PluginList,
     // Construct a custom pass pipeline that starts after instruction
     // selection.
     if (getRunPassNames().empty()) {
-      OptimizationLevel Opt = mapToOptimizationLevel(OptLevel);
       std::optional<TapirTargetOptions> TTO =
-          TapirTargetOptions::createFromCLOpts(Opt);
+          TapirTargetOptions::createFromCLOpts(OptLevel);
       PM.add(createTapirTargetAnalysisWrapperPass(TTO));
       PM.add(createCodeGenFatBinariesLegacyPass());
     }

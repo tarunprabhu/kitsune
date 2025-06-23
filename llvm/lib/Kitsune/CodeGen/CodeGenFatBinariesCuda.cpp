@@ -16,6 +16,7 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Support/OptznLevelUtils.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"
@@ -24,7 +25,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/OptimizationLevel.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/ToolOutputFile.h"
@@ -129,7 +129,7 @@ private:
     // the optimization level set by the frontend.
     int ptxasOptLevel = clPtxasOptLevel;
     if (ptxasOptLevel == -1)
-      ptxasOptLevel = tto.getOptLevel().getSpeedupLevel();
+      ptxasOptLevel = getSpeedupLevel(tto.getOptznLevel());
 
     std::string optLevel = std::to_string(ptxasOptLevel);
     args.push_back("--opt-level");

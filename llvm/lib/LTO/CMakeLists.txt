@@ -30,6 +30,7 @@ add_llvm_component_library(LLVMLTO
   InstCombine
   Instrumentation
   KitAnalysis
+  KitCodeGen
   KitSupport
   Linker
   MC

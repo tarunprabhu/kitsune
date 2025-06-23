@@ -14,13 +14,14 @@
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
-#include "kitsune/Support/OptLevelUtils.h"
+#include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Transforms/EmbBCPassUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetMachine.h"
@@ -33,10 +34,30 @@ using namespace llvm;
 // Set a specific optimization level for the embedded bitcode. If this has not
 // been set explicitly, the optimization level from the tapir target options
 // will be used.
+// FIXME: Replace this with a char so we can override the optimization for size
+// as well.
 static cl::opt<int>
     clOptLevel("emb-opt-level", cl::init(-1), cl::Hidden,
                cl::desc("The optimization level to use on the embedded "
                         "modules. Must be 0, 1, 2 or 3"));
+
+static OptimizationLevel mapToOptimizationLevel(OptznLevel optznLevel) {
+  switch (optznLevel) {
+  case OptznLevel::O0:
+    return OptimizationLevel::O0;
+  case OptznLevel::O1:
+    return OptimizationLevel::O1;
+  case OptznLevel::O2:
+    return OptimizationLevel::O2;
+  case OptznLevel::O3:
+    return OptimizationLevel::O3;
+  case OptznLevel::Os:
+    return OptimizationLevel::Os;
+  case OptznLevel::Oz:
+    return OptimizationLevel::Oz;
+  }
+  llvm_unreachable("mapToOptimizationLevel: OptznLevel not handled");
+}
 
 namespace {
 
@@ -60,13 +81,11 @@ public:
 
   bool run(Module &devM) {
     // If the optimization level has been overridden on the command line, prefer
-    // that, otherwise, use the optimization level from the tapir target options
-    OptimizationLevel optLevel = tto.getOptLevel();
+    // that, otherwise, use the optimization level from the TapirTargetOptions.
+    OptznLevel optznLevel = tto.getOptznLevel();
     if (clOptLevel != -1)
-      optLevel = mapToOptimizationLevel((unsigned)clOptLevel);
-
-    // If the speedup level is 0, no optimization passes are run.
-    if (not optLevel.getSpeedupLevel())
+      optznLevel = createOptznLevelFrom((unsigned)clOptLevel);
+    if (optznLevel == OptznLevel::O0)
       return false;
 
     // The analysis managers must be declared in this order so that they are
@@ -76,6 +95,7 @@ public:
     CGSCCAnalysisManager cgam;
     ModuleAnalysisManager mam;
     TargetMachine *tm = createTargetMachine(tt, tto);
+    OptimizationLevel optLevel = mapToOptimizationLevel(optznLevel);
     PipelineTuningOptions pto = getPipelineTuningOptions(optLevel);
 
     PassBuilder pb(tm, pto);

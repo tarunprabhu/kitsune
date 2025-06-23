@@ -13,8 +13,8 @@
 #ifndef KITSUNE_CORE_TAPIR_TARGET_OPTIONS_H
 #define KITSUNE_CORE_TAPIR_TARGET_OPTIONS_H
 
+#include "kitsune/Core/OptznLevel.h"
 #include "kitsune/Core/Tapir.h"
-#include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Target/TargetOptions.h"
 
 #include <set>
@@ -61,7 +61,7 @@ private:
   /// The optimization level set on the command line. This level will be used
   /// for both the middle-end optimizations on the kernel functions and the
   /// backend GPU code generators (including external assemblers as needed).
-  OptimizationLevel optLevel;
+  OptznLevel optLevel;
 
   /// How to use fuse floating-point operations.
   FPOpFusion::FPOpFusionMode fpOpFusionMode = FPOpFusion::Strict;
@@ -144,7 +144,7 @@ public:
   /// Create a clone of this options object.
   std::unique_ptr<TapirTargetOptions> clone() const;
 
-  void setOptLevel(OptimizationLevel optLevel) { this->optLevel = optLevel; }
+  void setOptznLevel(OptznLevel optLevel) { this->optLevel = optLevel; }
 
   /// Get the primary tapir target ID.
   TTID getID() const { return tt; }
@@ -153,7 +153,7 @@ public:
   /// Options common to all tapir targets.
   bool getTapirVerbose() const { return tapirVerbose; }
   bool getKitrtVerbose() const { return kitrtVerbose; }
-  OptimizationLevel getOptLevel() const { return optLevel; }
+  OptznLevel getOptznLevel() const { return optLevel; }
   FPOpFusion::FPOpFusionMode getFPOpFusionMode() const {
     return fpOpFusionMode;
   }
@@ -202,18 +202,24 @@ public:
   /// Construct an options object from the given frontend options. If a tapir
   /// target ID is not set in the kitsune options, std::nullopt is returned.
   static std::optional<TapirTargetOptions>
-  create(const KitsuneOptions &kitOpts, OptimizationLevel optLevel,
+  create(const KitsuneOptions &kitOpts, OptznLevel optLevel,
          FPOpFusionMode fpOpFusionMode);
 
   /// Construct an options object initialized from the command line options
   /// if the --tapir option was provided. Otherwise, return std::nullopt.
   static std::optional<TapirTargetOptions>
-  createFromCLOpts(OptimizationLevel optLevel);
+  createFromCLOpts(OptznLevel optLevel);
 
   /// Construct an options object initialized from the command line options
   /// if the --tapir option was provided. Otherwise, return std::nullopt.
   static std::optional<TapirTargetOptions>
   createFromCLOpts(unsigned speedupLevel);
+
+  /// Construct an options object initialized from the command line options
+  /// with the given optimization level. \ref optLevel must be one of {0, 1, 2,
+  /// 3, s, z}. It is an error if \ref optLevel is not one of these. If the
+  /// --tapir option is not provided, this returns std::nullopt.
+  static std::optional<TapirTargetOptions> createFromCLOpts(char optLevel);
 };
 
 } // namespace llvm

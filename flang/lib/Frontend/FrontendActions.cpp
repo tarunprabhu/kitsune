@@ -29,6 +29,8 @@
 #include "flang/Support/default-kinds.h"
 #include "flang/Tools/CrossToolHelpers.h"
 
+#include "kitsune/CodeGen/CodeGenFatBinaries.h"
+#include "kitsune/Support/OptznLevelUtils.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
@@ -971,6 +973,8 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   const Fortran::common::LangOptions &langOpts = invoc.getLangOpts();
   const CodeGenOptions &opts = ci.getInvocation().getCodeGenOpts();
   llvm::OptimizationLevel level = mapToLevel(opts);
+  llvm::OptznLevel optznLevel =
+      llvm::createOptznLevelFrom(level.getSpeedupLevel(), level.getSizeLevel());
 
   llvm::TargetMachine *targetMachine = &ci.getTargetMachine();
   // Create the analysis managers.
@@ -1037,8 +1041,7 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   pto.SLPVectorization = opts.VectorizeSLP;
   pto.LoopStripmine = kitsuneOpts.getStripmineLoops();
   pto.TTOpts = llvm::TapirTargetOptions::create(
-      kitsuneOpts, level, getFPOpFusionMode(langOpts.getFPContractMode()));
-
+      kitsuneOpts, optznLevel, getFPOpFusionMode(langOpts.getFPContractMode()));
   llvm::PassBuilder pb(targetMachine, pto, pgoOpt, &pic);
 
   // Register plugin callbacks with PB.
