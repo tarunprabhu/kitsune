@@ -29,6 +29,8 @@
 #include "flang/Support/default-kinds.h"
 #include "flang/Tools/CrossToolHelpers.h"
 
+#include "kitsune/CodeGen/CodeGenFatBinaries.h"
+#include "kitsune/Support/OptznLevelUtils.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
@@ -888,7 +890,7 @@ static void generateMachineCodeOrAssemblyImpl(clang::DiagnosticsEngine &diags,
   llvm::CodeGenFileType cgft = (act == BackendActionTy::Backend_EmitAssembly)
                                    ? llvm::CodeGenFileType::AssemblyFile
                                    : llvm::CodeGenFileType::ObjectFile;
-  codeGenPasses.add(createCodeGenFatBinariesLegacyPass());
+  codeGenPasses.add(llvm::createCodeGenFatBinariesLegacyPass());
   if (tm.addPassesToEmitFile(codeGenPasses, os, nullptr, cgft)) {
     unsigned diagID =
         diags.getCustomDiagID(clang::DiagnosticsEngine::Error,
@@ -928,6 +930,8 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   const CodeGenOptions &opts = ci.getInvocation().getCodeGenOpts();
   clang::DiagnosticsEngine &diags = ci.getDiagnostics();
   llvm::OptimizationLevel level = mapToLevel(opts);
+  llvm::OptznLevel optznLevel =
+      llvm::createOptznLevelFrom(level.getSpeedupLevel(), level.getSizeLevel());
 
   llvm::TargetMachine *targetMachine = &ci.getTargetMachine();
   // Create the analysis managers.
@@ -975,8 +979,7 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   pto.SLPVectorization = opts.VectorizeSLP;
   pto.LoopStripmine = kitsuneOpts.getStripmineLoops();
   pto.TTOpts = llvm::TapirTargetOptions::create(
-      kitsuneOpts, level, getFPOpFusionMode(langOpts.getFPContractMode()));
-
+      kitsuneOpts, optznLevel, getFPOpFusionMode(langOpts.getFPContractMode()));
   llvm::PassBuilder pb(targetMachine, pto, pgoOpt, &pic);
 
   // Attempt to load pass plugins and register their callbacks with PB.

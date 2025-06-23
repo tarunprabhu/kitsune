@@ -88,8 +88,14 @@ add_llvm_component_library(LLVMCore
   DEPENDS
   intrinsics_gen
 
+  # Including BitReader here results in a circular dependence since BitReader
+  # requires Core. This is a known issue in Kitsune. We need BitReader in order
+  # to verify embedded modules. The fix would be to move the verifier out of
+  # Core, which will make it much harder to keep up with LLVM, so we resign
+  # ourselves to having a cycle here.
   LINK_COMPONENTS
   BinaryFormat
+  BitReader
   Demangle
   KitSupport
   Remarks

@@ -12,7 +12,7 @@
 
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
-#include "kitsune/Support/OptLevelUtils.h"
+#include "kitsune/Support/OptznLevelUtils.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/CodeGen.h"
 
@@ -28,7 +28,7 @@ static TargetMachine *createAMDGPUTargetMachine(const TapirTargetOptions &tto) {
   // TODO: Should we allow relocations here?
   CodeModel::Model codeModel = CodeModel::Small;
   Reloc::Model relocModel = Reloc::Static;
-  CodeGenOptLevel optLevel = mapToCodeGenOptLevel(tto.getOptLevel());
+  CodeGenOptLevel optLevel = createCodeGenOptLevelFrom(tto.getOptznLevel());
   TargetOptions opts;
   opts.UseInitArray = true;
   opts.EmitAddrsig = true;
@@ -48,7 +48,7 @@ static TargetMachine *createPTXTargetMachine(const TapirTargetOptions &tto) {
 
   CodeModel::Model codeModel = CodeModel::Small;
   Reloc::Model relocModel = Reloc::PIC_;
-  CodeGenOptLevel optLevel = mapToCodeGenOptLevel(tto.getOptLevel());
+  CodeGenOptLevel optLevel = createCodeGenOptLevelFrom(tto.getOptznLevel());
   TargetOptions opts;
   opts.AllowFPOpFusion = tto.getFPOpFusionMode();
 

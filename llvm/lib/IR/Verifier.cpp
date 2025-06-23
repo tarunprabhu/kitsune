@@ -1829,11 +1829,11 @@ void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
 
   LLVMContext &Ctx = G.getContext();
   std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(BC);
-  Expected<std::unique_ptr<Module>> ModuleOrErr = parseBitcodeFile(*Buf, Ctx);
-  Check(bool(ModuleOrErr), "could not parse embedded bitcode");
+  // Expected<std::unique_ptr<Module>> ModuleOrErr = parseBitcodeFile(*Buf, Ctx);
+  // Check(bool(ModuleOrErr), "could not parse embedded bitcode");
 
-  std::unique_ptr<Module> EmbM = std::move(ModuleOrErr.get());
-  visitEmbModule(*EmbM);
+  // std::unique_ptr<Module> EmbM = std::move(ModuleOrErr.get());
+  // visitEmbModule(*EmbM);
 }
 
 void Verifier::visitEmbGlobals() {

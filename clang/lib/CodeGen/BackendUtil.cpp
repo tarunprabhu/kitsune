@@ -168,6 +168,30 @@ static std::string getProfileGenName(const CodeGenOptions &CodeGenOpts) {
   return FileName;
 }
 
+static OptznLevel mapToOptznLevel(const CodeGenOptions &Opts) {
+  switch (Opts.OptimizationLevel) {
+  case 0:
+    return OptznLevel::O0;
+  case 1:
+    return OptznLevel::O1;
+  case 2:
+    switch (Opts.OptimizeSize) {
+    case 0:
+      return OptznLevel::O2;
+    case 1:
+      return OptznLevel::Os;
+    case 2:
+      return OptznLevel::Oz;
+    default:
+      llvm_unreachable("Invalid optimization level for size");
+    }
+  case 3:
+    return OptznLevel::O3;
+  default:
+    llvm_unreachable("Invalid optimization level");
+  }
+}
+
 namespace {
 
 class EmitAssemblyHelper {
@@ -192,7 +216,7 @@ class EmitAssemblyHelper {
   }
 
   std::optional<TapirTargetOptions> getTapirTargetOptions() const {
-    OptimizationLevel OptLevel = mapToLevel(CodeGenOpts);
+    OptznLevel OptLevel = mapToOptznLevel(CodeGenOpts);
     FPOpFusion::FPOpFusionMode FPOpFusionMode = FPOpFusion::Standard;
     if (TM)
       FPOpFusionMode = TM->Options.AllowFPOpFusion;
@@ -1367,7 +1391,7 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
   Conf.PTO.CallGraphProfile = !CGOpts.DisableIntegratedAS;
-  Conf.PTO.TTOpts = TapirTargetOptions::create(KOpts, mapToLevel(CGOpts),
+  Conf.PTO.TTOpts = TapirTargetOptions::create(KOpts, mapToOptznLevel(CGOpts),
                                                Conf.Options.AllowFPOpFusion);
 
   // Context sensitive profile.
