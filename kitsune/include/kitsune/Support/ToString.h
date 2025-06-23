@@ -15,9 +15,9 @@
 #ifndef KITSUNE_SUPPORT_TO_STRING_H
 #define KITSUNE_SUPPORT_TO_STRING_H
 
+#include "kitsune/Core/OptznLevel.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Target/TargetOptions.h"
 
 #include <optional>
@@ -35,7 +35,7 @@ std::string toString(const MaybeBool &);
 raw_ostream &operator<<(raw_ostream &os, const std::optional<TTID> &);
 raw_ostream &operator<<(raw_ostream &os, const TTID &);
 raw_ostream &operator<<(raw_ostream &os, const TapirSpawnStrategy &);
-raw_ostream &operator<<(raw_ostream &os, const OptimizationLevel &);
+raw_ostream &operator<<(raw_ostream &os, const OptznLevel &);
 raw_ostream &operator<<(raw_ostream &os, const FPOpFusion::FPOpFusionMode &);
 raw_ostream &operator<<(raw_ostream &os, const MaybeBool &);
 /// @}

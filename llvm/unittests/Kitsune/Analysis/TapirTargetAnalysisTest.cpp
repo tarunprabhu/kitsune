@@ -234,8 +234,8 @@ attributes #0 = { nounwind memory(argmem: write) uwtable }
 
   kitOpts.setTapirTarget(TTID::Serial);
   kitOpts.setCudaArch("sm_17");
-  tto = TapirTargetOptions::create(kitOpts, OptimizationLevel::O2,
-                                   FPOpFusion::Standard);
+  tto =
+      TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
   Function *f = m->getFunction("f");
@@ -271,8 +271,8 @@ TEST(TapirTargetAnalysisTest, noHints) {
   std::optional<TapirTargetOptions> tto = std::nullopt;
 
   kitOpts.setTapirTarget(TTID::Serial);
-  tto = TapirTargetOptions::create(kitOpts, OptimizationLevel::O2,
-                                   FPOpFusion::Standard);
+  tto =
+      TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   std::unique_ptr<Module> m = parseAssemblyString(moduleNoHints, err, ctx);
   Function *f = m->getFunction("f");
@@ -309,8 +309,8 @@ TEST(TapirTargetAnalysisTest, withHintsMixed) {
 
   kitOpts.setTapirTarget(TTID::Serial);
   kitOpts.setCudaArch("sm_17");
-  tto = TapirTargetOptions::create(kitOpts, OptimizationLevel::O2,
-                                   FPOpFusion::Standard);
+  tto =
+      TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   std::unique_ptr<Module> m =
       parseAssemblyString(moduleWithHintsMixed, err, ctx);
@@ -420,8 +420,8 @@ attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
   std::optional<TapirTargetOptions> tto = std::nullopt;
 
   kitOpts.setTapirTarget(TTID::Serial);
-  tto = TapirTargetOptions::create(kitOpts, OptimizationLevel::O2,
-                                   FPOpFusion::Standard);
+  tto =
+      TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
   Function *f = m->getFunction("f");
@@ -532,8 +532,8 @@ attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
   std::optional<TapirTargetOptions> tto = std::nullopt;
 
   kitOpts.setTapirTarget(TTID::Serial);
-  tto = TapirTargetOptions::create(kitOpts, OptimizationLevel::O2,
-                                   FPOpFusion::Standard);
+  tto =
+      TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
   Function *f = m->getFunction("f");

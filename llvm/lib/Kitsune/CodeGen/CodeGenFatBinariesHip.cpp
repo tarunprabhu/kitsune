@@ -22,7 +22,6 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/OptimizationLevel.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/ToolOutputFile.h"
@@ -90,8 +89,8 @@ private:
 
     // FIXME: This only works on ELF-based systems.
     //
-    // We currently send the bindir down from clang. Instead, we might as well
-    // use the driver to compute the right lld variant and send that down
+    // We currently send the "top-level" lld binary down from clang. Instead, we
+    // could use the driver to compute the right lld variant and send that down
     // instead. That should obviate the need for the flavor argument since the
     // name with which lld is invoked will allow it to internally determine the
     // object file format.

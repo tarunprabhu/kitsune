@@ -24,6 +24,7 @@
 #include "clang/Basic/DiagnosticDriver.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Driver/DriverDiagnostic.h"
+#include "clang/Driver/KitsuneOptionUtils.h"
 #include "clang/Driver/OptionUtils.h"
 #include "clang/Driver/Options.h"
 #include "llvm/ADT/StringRef.h"

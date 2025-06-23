@@ -17,6 +17,7 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
+#include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Transforms/FinalizeKernelMetadata.h"
 #include "kitsune/Transforms/GenerateKitsuneCtors.h"
 #include "kitsune/Transforms/LinkDeviceBitcode.h"
@@ -1754,12 +1755,20 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
       else
         MPM.addPass(buildLTOPreLinkDefaultPipeline(L));
     } else if (Matches[1] == "tapir-lowering-loops") {
-      if (PTO.TTOpts)
-        PTO.TTOpts->setOptLevel(L);
+      if (PTO.TTOpts) {
+        unsigned SpeedupLevel = L.getSpeedupLevel();
+        unsigned SizeLevel = L.getSizeLevel();
+        PTO.TTOpts->setOptznLevel(
+            createOptznLevelFrom(SpeedupLevel, SizeLevel));
+      }
       MPM.addPass(buildTapirLoopLoweringPipeline(L, ThinOrFullLTOPhase::None));
     } else if (Matches[1] == "tapir-lowering") {
-      if (PTO.TTOpts)
-        PTO.TTOpts->setOptLevel(L);
+      if (PTO.TTOpts) {
+        unsigned SpeedupLevel = L.getSpeedupLevel();
+        unsigned SizeLevel = L.getSizeLevel();
+        PTO.TTOpts->setOptznLevel(
+            createOptznLevelFrom(SpeedupLevel, SizeLevel));
+      }
       MPM.addPass(buildTapirLoweringPipeline(L, ThinOrFullLTOPhase::None));
     } else {
       assert(Matches[1] == "lto" && "Not one of the matched options!");

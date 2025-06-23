@@ -43,14 +43,16 @@ add_flang_library(flangFrontend
   FlangOpenMPTransforms
 
   LINK_COMPONENTS
-  Passes
   Analysis
   Extensions
   IRPrinter
   IRReader
   KitAnalysis
+  KitCodeGen
   KitCore
+  KitSupport
   Option
+  Passes
   Support
   Target
   TargetParser

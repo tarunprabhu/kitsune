@@ -15,7 +15,6 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker/Linker.h"
-#include "llvm/Support/OptimizationLevel.h"
 #include "llvm/Support/SourceMgr.h"
 
 using namespace llvm;

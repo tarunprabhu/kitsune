@@ -219,7 +219,6 @@ add_llvm_component_library(LLVMSupport
   MSP430Attributes.cpp
   MSP430AttributeParser.cpp
   NativeFormatting.cpp
-  OptimizationLevel.cpp
   OptimizedStructLayout.cpp
   Optional.cpp
   OptionStrCmp.cpp
