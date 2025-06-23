@@ -11,7 +11,6 @@ add_llvm_component_library(LLVMKitOpts
   PrepareEmbBC.cpp
   ResolveDeviceFuncs.cpp
   StripKitsuneAddrSpace.cpp
-  EmbBCVerifier.cpp
 
   DEPENDS
   intrinsics_gen

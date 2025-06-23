@@ -321,7 +321,6 @@ void initializeUnpackMachineBundlesPass(PassRegistry &);
 void initializeUnreachableBlockElimLegacyPassPass(PassRegistry &);
 void initializeUnreachableMachineBlockElimPass(PassRegistry &);
 void initializeVerifierLegacyPassPass(PassRegistry &);
-void initializeVerifyAllEmbBCLegacyPassPass(PassRegistry &);
 void initializeVirtRegMapWrapperLegacyPass(PassRegistry &);
 void initializeVirtRegRewriterPass(PassRegistry &);
 void initializeWasmEHPreparePass(PassRegistry &);

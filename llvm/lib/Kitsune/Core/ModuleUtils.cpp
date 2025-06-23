@@ -24,7 +24,7 @@ bool llvm::hasDeviceModuleMetadata(const Module &m) {
   return m.getNamedMetadata(mdDeviceModuleFlags);
 }
 
-void llvm::addDeviceModuleMetadata(TTID tt, Module &m) {
+NamedMDNode& llvm::addDeviceModuleMetadata(TTID tt, Module &m) {
   auto addOperandAt = [](NamedMDNode &nmd, unsigned i, MDNode *md) -> void {
     if (nmd.getNumOperands() > i)
       nmd.setOperand(i, md);
@@ -40,6 +40,8 @@ void llvm::addDeviceModuleMetadata(TTID tt, Module &m) {
 
   addOperandAt(*nmd, 0, MDNode::get(ctx, ConstantAsMetadata::get(cTT)));
   addOperandAt(*nmd, 1, MDNode::get(ctx, MDString::get(ctx, m.getName())));
+
+  return *nmd;
 }
 
 std::optional<TTID> llvm::getTTIDFromDeviceModuleMetadata(const Module &m) {
