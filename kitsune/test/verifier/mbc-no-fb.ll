@@ -2,9 +2,9 @@
 ; present too.
 ;
 ; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
-
-@0 = constant [0 x i8] zeroinitializer, !kitsune.bc !0
-
-!0 = !{i8 2}
-
+;
 ; CHECK: embedded bitcode global without fat binary global
+
+@0 = constant [0 x i8] zeroinitializer #0
+
+attributes #0 = { kit_bc(1) }

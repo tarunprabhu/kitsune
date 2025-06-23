@@ -63,6 +63,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/BinaryFormat/Dwarf.h"
+#include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/AttributeMask.h"
 #include "llvm/IR/Attributes.h"
@@ -121,6 +122,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/ModRef.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -325,6 +327,12 @@ public:
 
 namespace {
 
+static bool IsInt8ArrayTy(Type* Ty) {
+  if (auto* ArrayTy = dyn_cast<ArrayType>(Ty))
+    return ArrayTy->getElementType()->isIntegerTy(8);
+  return false;
+}
+
 class Verifier : public InstVisitor<Verifier>, VerifierSupport {
   friend class InstVisitor<Verifier>;
   DominatorTree DT;
@@ -483,7 +491,7 @@ public:
     for (const StringMapEntry<Comdat> &SMEC : M.getComdatSymbolTable())
       visitComdat(SMEC.getValue());
 
-    visitModuleEmbeddedFBs();
+    visitEmbGlobals();
     visitModuleFlags();
     visitModuleIdents();
     visitModuleCommandLines();
@@ -508,6 +516,10 @@ private:
   };
 
   // Verification methods...
+  void visitEmbGlobals();
+  void visitEmbBCGlobalVariable(const GlobalVariable &GV);
+  void visitEmbFBGlobalVariable(const GlobalVariable &GV);
+  void visitEmbModule(const Module& EmbM);
   void visitGlobalValue(const GlobalValue &GV);
   void visitGlobalVariable(const GlobalVariable &GV);
   void visitGlobalAlias(const GlobalAlias &GA);
@@ -521,7 +533,6 @@ private:
   void visitValueAsMetadata(const ValueAsMetadata &MD, Function *F);
   void visitDIArgList(const DIArgList &AL, Function *F);
   void visitComdat(const Comdat &C);
-  void visitModuleEmbeddedFBs();
   void visitModuleIdents();
   void visitModuleCommandLines();
   void visitModuleFlags();
@@ -1762,6 +1773,19 @@ void Verifier::visitDIImportedEntity(const DIImportedEntity &N) {
           N.getRawEntity());
 }
 
+void Verifier::visitEmbModule(const Module &EmbM) {
+  // Embedded modules cannot contain any embedded bitcode or fat binaries.
+  for (const GlobalVariable &G : EmbM.globals()) {
+    Check(!G.hasAttribute(Attribute::KitBC),
+          "embedded module cannot contain embedded bitcode");
+    Check(!G.hasAttribute(Attribute::KitFB),
+          "embedded module cannot contain an embedded fat binary");
+  }
+
+  Check(not verifyModule(EmbM, OS, &BrokenDebugInfo),
+        "broken embedded module found");
+}
+
 void Verifier::visitComdat(const Comdat &C) {
   // In COFF the Module is invalid if the GlobalValue has private linkage.
   // Entities with private linkage don't have entries in the symbol table.
@@ -1771,32 +1795,79 @@ void Verifier::visitComdat(const Comdat &C) {
             GV);
 }
 
-void Verifier::visitModuleEmbeddedFBs() {
+void Verifier::visitEmbFBGlobalVariable(const GlobalVariable &G) {
+  Check(IsInt8ArrayTy(G.getValueType()),
+        "incorrect type of global containing fat binary");
+  Check(G.hasInitializer(),
+        "missing initializer in global containing fat binary");
+
+  const Constant *Init = G.getInitializer();
+  Check(isa<ConstantDataArray>(Init) || Init->isZeroValue(),
+        "invalid initializer in global containing fat binary");
+}
+
+void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
+  Check(IsInt8ArrayTy(G.getValueType()),
+        "incorrect type of global containing bitcode");
+  Check(G.hasInitializer(), "missing initializer in global containing bitcode");
+  Check(isa<ConstantDataArray>(G.getInitializer()),
+        "invalid initializer in global containing bitcode");
+
+  // Checking the embedded modules requires functions from LLVMBitReader which
+  // results in a circular dependence between LLVMCore and LLVMBitReader.
+  // Obviously, this is very, very bad. However, there is already a very deep
+  // circular dependence between LLVMPasses and LLVMKitOpts which cannot be
+  // easily broken. In that case, we might as well introduce this dependence
+  // here.
+  //
+  // We cannot directly use parseEmbBCGlobal from here because that would
+  // introduce a circular dependence between LLVMCore and LLVMKitCore which is
+  // really not something we should tolerate.
+  StringRef BC = cast<ConstantDataArray>(G.getInitializer())->getAsString();
+  Check(isBitcode(BC.bytes_begin(), BC.bytes_end()),
+        "invalid data in global containing embedded bitcode");
+
+  LLVMContext &Ctx = G.getContext();
+  std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(BC);
+  Expected<std::unique_ptr<Module>> ModuleOrErr = parseBitcodeFile(*Buf, Ctx);
+  Check(bool(ModuleOrErr), "could not parse embedded bitcode");
+
+  std::unique_ptr<Module> EmbM = std::move(ModuleOrErr.get());
+  visitEmbModule(*EmbM);
+}
+
+void Verifier::visitEmbGlobals() {
   // There can be at most one global variable containing a fat binary per
   // tapir target.
-  std::map<TTID, unsigned> fbCounts;
-  for (const GlobalVariable &g : M.globals())
-    if (g.hasAttribute(Attribute::KitFB))
-      ++fbCounts[g.getAttribute(Attribute::KitFB).getTTID()];
+  std::map<TTID, unsigned> FBCounts;
+  for (const GlobalVariable &G : M.globals()) {
+    if (G.hasAttribute(Attribute::KitFB)) {
+      visitEmbFBGlobalVariable(G);
+      ++FBCounts[G.getAttribute(Attribute::KitFB).getTTID()];
+    }
+  }
 
-  for (const auto &[tt, n] : fbCounts) {
-    Check(n <= 1, "too many embedded fat binary globals for tapir target '" +
-                      toString(tt) + "'");
+  for (const auto &[TT, N] : FBCounts) {
+    Check(N <= 1, "too many embedded fat binary globals for tapir target '" +
+                      toString(TT) + "'");
   }
 
   // If a global variable containing embedded bitcode exists, then a
   // corresponding fat binary must exist also. The reverse is not true. Once the
   // fat binary has been generated, the global variable containing embedded
   // bitcode is removed.
-  std::map<TTID, unsigned> bcCounts;
-  for (const GlobalVariable &g : M.globals())
-    if (g.hasAttribute(Attribute::KitBC))
-      ++bcCounts[g.getAttribute(Attribute::KitBC).getTTID()];
+  std::map<TTID, unsigned> BCCounts;
+  for (const GlobalVariable &G : M.globals()) {
+    if (G.hasAttribute(Attribute::KitBC)) {
+      visitEmbBCGlobalVariable(G);
+      ++BCCounts[G.getAttribute(Attribute::KitBC).getTTID()];
+    }
+  }
 
-  for (const auto &[tt, n] : bcCounts) {
-    Check(n <= 1, "too many embedded bitcode globals for tapir target '" +
-                      toString(tt) + "'");
-    Check(fbCounts.find(tt) != fbCounts.end(),
+  for (const auto &[TT, N] : BCCounts) {
+    Check(N <= 1, "too many embedded bitcode globals for tapir target '" +
+                      toString(TT) + "'");
+    Check(FBCounts.find(TT) != FBCounts.end(),
           "embedded bitcode global without fat binary global");
   }
 }
@@ -2627,7 +2698,15 @@ void Verifier::verifyFunctionMetadata(
 void Verifier::verifyGlobalVariableAttrs(AttributeSet Attrs, const Value* V) {
   Check(!(Attrs.hasAttribute(Attribute::KitBC) &&
           Attrs.hasAttribute(Attribute::KitFB)),
-        "Attributes 'kit_bc and kit_fb' are incompatible!", V);
+        "Attributes 'kit_bc' and 'kit_fb' are incompatible!", V);
+
+  Check(!(Attrs.hasAttribute(Attribute::KitBC) &&
+          Attrs.hasAttribute("kit_kernel_props")),
+        "Attributes 'kit_bc' and 'kit_kernel_props' are incompatible!", V);
+
+  Check(!(Attrs.hasAttribute(Attribute::KitFB) &&
+          Attrs.hasAttribute("kit_kernel_props")),
+        "Attributes 'kit_fb' and 'kit_kernel_props' are incompatible!", V);
 }
 
 void Verifier::visitConstantExprsRecursively(const Constant *EntryC) {

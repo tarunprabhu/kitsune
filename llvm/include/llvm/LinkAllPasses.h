@@ -15,7 +15,6 @@
 #define LLVM_LINKALLPASSES_H
 
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Transforms/EmbBCVerifier.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysisEvaluator.h"
 #include "llvm/Analysis/AliasSetTracker.h"
@@ -150,7 +149,6 @@ struct ForcePassLinking {
     (void)llvm::createSelectOptimizePass();
     (void)llvm::createTapirTargetAnalysisWrapperPass(std::nullopt);
     (void)llvm::createCodeGenFatBinariesLegacyPass();
-    (void)llvm::createVerifyAllEmbBCLegacyPass();
 
     (void)new llvm::ScalarEvolutionWrapperPass();
     llvm::Function::Create(nullptr, llvm::GlobalValue::ExternalLinkage)

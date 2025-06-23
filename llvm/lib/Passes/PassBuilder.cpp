@@ -17,7 +17,6 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
-#include "kitsune/Transforms/EmbBCVerifier.h"
 #include "kitsune/Transforms/FinalizeKernelMetadata.h"
 #include "kitsune/Transforms/GenerateKitsuneCtors.h"
 #include "kitsune/Transforms/LinkDeviceBitcode.h"

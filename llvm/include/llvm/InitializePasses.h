@@ -342,7 +342,7 @@ LLVM_ABI void initializeWriteBitcodePassPass(PassRegistry &);
 LLVM_ABI void initializeXRayInstrumentationLegacyPass(PassRegistry &);
 
 // Initialize Kitsune codegen passes
-LLVM_ABI void initializeCodeGenKitsuneFatBinariesLegacyPassPass(PassRegistry &);
+LLVM_ABI void initializeCodeGenFatBinariesLegacyPassPass(PassRegistry &);
 
 } // end namespace llvm
 
