@@ -21,7 +21,7 @@ using namespace llvm;
 
 /// Find hints specified in the loop metadata and update local values.
 void llvm::TapirLoopHints::getHintsFromMetadata() {
-  MDNode *LoopID = TheLoop->getLoopID();
+  MDNode *LoopID = theLoop->getLoopID();
   if (!LoopID)
     return;
 
@@ -56,239 +56,217 @@ void llvm::TapirLoopHints::getHintsFromMetadata() {
   }
 }
 
-bool llvm::TapirLoopHints::validate(StringRef Name, unsigned V) {
-  if (Name == nameStrategy) {
-    switch (TapirSpawnStrategy(V)) {
+bool llvm::TapirLoopHints::validate(StringRef name, unsigned v) {
+  if (name == nameStrategy) {
+    switch (TapirSpawnStrategy(v)) {
     case TapirSpawnStrategy::Sequential:
     case TapirSpawnStrategy::DivideAndConquer:
     case TapirSpawnStrategy::GPU:
       return true;
-    default:
-      return false;
     }
-  } else if (Name == nameGrainSize) {
+    return false;
+  } else if (name == nameGrainSize) {
     return true;
-  } else if (Name == nameLoopTarget) {
-    if (std::optional<TTID> TT = createTTIDFrom(V)) {
-      switch (*TT) {
-      case TTID::None:
-      case TTID::Serial:
-      case TTID::Cuda:
-      case TTID::Hip:
-      case TTID::Lambda:
-      case TTID::OMPTask:
-      case TTID::OpenCilk:
-      case TTID::OpenMP:
-      case TTID::Qthreads:
-      case TTID::Realm:
-        return true;
-      default:
-        return false;
-      }
-    } else {
-      return false;
-    }
-  } else if (Name == nameThreadsPerBlock) {
-    return V <= KITSUNE_MAX_FIXED_THREADS_PER_BLOCK;
-  } else if (Name == nameAutotuneLaunch) {
+  } else if (name == nameLoopTarget) {
+    return createTTIDFrom(v).has_value();
+  } else if (name == nameThreadsPerBlock) {
+    return v <= KITSUNE_MAX_FIXED_THREADS_PER_BLOCK;
+  } else if (name == nameAutotuneLaunch) {
     return true;
   } else {
     llvm_unreachable("TapirLoopHints::validate: Name not handled");
   }
 }
 
-bool llvm::TapirLoopHints::canCreateMetadata(StringRef Name,
-                                             const ValueType &V) const {
-  if (Name == nameLoopTarget)
+bool llvm::TapirLoopHints::canCreateMetadata(StringRef name,
+                                             const ValueType &v) const {
+  if (name == nameLoopTarget)
     return getLoopTarget().has_value();
   return true;
 }
 
 unsigned llvm::TapirLoopHints::toMetadataValue(
-    StringRef Name, const llvm::TapirLoopHints::ValueType &V) const {
-  assert(canCreateMetadata(Name, V) && "Cannot get metadata value for hint");
-  if (std::holds_alternative<bool>(V))
-    return std::get<bool>(V);
-  else if (std::holds_alternative<unsigned>(V))
-    return std::get<unsigned>(V);
-  else if (std::holds_alternative<TapirSpawnStrategy>(V))
-    return unsigned(std::get<TapirSpawnStrategy>(V));
-  else if (std::holds_alternative<std::optional<TTID>>(V))
-    return unsigned(*std::get<std::optional<TTID>>(V));
+    StringRef name, const llvm::TapirLoopHints::ValueType &v) const {
+  assert(canCreateMetadata(name, v) && "Cannot get metadata value for hint");
+  if (std::holds_alternative<bool>(v))
+    return std::get<bool>(v);
+  else if (std::holds_alternative<unsigned>(v))
+    return std::get<unsigned>(v);
+  else if (std::holds_alternative<TapirSpawnStrategy>(v))
+    return unsigned(std::get<TapirSpawnStrategy>(v));
+  else if (std::holds_alternative<std::optional<TTID>>(v))
+    return unsigned(*std::get<std::optional<TTID>>(v));
   else
     llvm_unreachable("toMetadataValue: type not handled");
 }
 
-void llvm::TapirLoopHints::setHint(StringRef Name, Metadata *Arg) {
-  if (!Name.starts_with(namePrefix))
+void llvm::TapirLoopHints::setHint(StringRef name, Metadata *arg) {
+  if (!name.starts_with(namePrefix))
     return;
-  const ConstantInt *C = mdconst::dyn_extract<ConstantInt>(Arg);
-  if (!C)
+  const auto *c = mdconst::dyn_extract<ConstantInt>(arg);
+  if (!c)
     return;
 
-  unsigned Val = C->getZExtValue();
-  if (not TapirLoopHints::validate(Name, Val))
-    report_fatal_error(Twine("Invalid loop hint value: '") + Name + "'");
-  else if (Name == nameStrategy)
-    hints[Name] = TapirSpawnStrategy(Val);
-  else if (Name == nameGrainSize)
-    hints[Name] = Val;
-  else if (Name == nameLoopTarget)
-    hints[Name] = TTID(Val);
-  else if (Name == nameThreadsPerBlock)
-    hints[Name] = Val;
-  else if (Name == nameAutotuneLaunch)
-    hints[Name] = bool(Val);
+  unsigned val = c->getZExtValue();
+  if (not TapirLoopHints::validate(name, val))
+    report_fatal_error(Twine("Invalid loop hint value: '") + name + "'");
+  else if (name == nameStrategy)
+    hints[name] = TapirSpawnStrategy(val);
+  else if (name == nameGrainSize)
+    hints[name] = val;
+  else if (name == nameLoopTarget)
+    hints[name] = TTID(val);
+  else if (name == nameThreadsPerBlock)
+    hints[name] = val;
+  else if (name == nameAutotuneLaunch)
+    hints[name] = bool(val);
   else
     llvm_unreachable("TapirLoopHints::setHint: Hint name not handled");
 }
 
 /// Create a new hint from name / value pair.
-MDNode *llvm::TapirLoopHints::createHintMetadata(StringRef Name,
-                                                 unsigned V) const {
-  LLVMContext &Context = TheLoop->getHeader()->getContext();
-  Metadata *MDs[] = {
-      MDString::get(Context, Name),
-      ConstantAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Context), V))};
-  return MDNode::get(Context, MDs);
+MDNode *llvm::TapirLoopHints::createHintMetadata(StringRef name,
+                                                 unsigned v) const {
+  LLVMContext &ctx = theLoop->getHeader()->getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+  Metadata *mds[] = {MDString::get(ctx, name),
+                     ConstantAsMetadata::get(ConstantInt::get(i32, v))};
+  return MDNode::get(ctx, mds);
 }
 
 /// Matches metadata with hint name.
-bool llvm::TapirLoopHints::matchesHintMetadataName(MDNode *Node,
-                                                   const Hints &Hints) const {
-  MDString *Name = dyn_cast<MDString>(Node->getOperand(0));
-  if (!Name)
+bool llvm::TapirLoopHints::matchesHintMetadataName(MDNode *node,
+                                                   const Hints &hints) const {
+  auto *name = dyn_cast<MDString>(node->getOperand(0));
+  if (!name)
     return false;
 
   // KITSUNE FIXME: Search for the full name.
-  for (const auto &i : Hints)
-    if (Name->getString().ends_with(i.first))
+  for (const auto &i : hints)
+    if (name->getString().ends_with(i.first))
       return true;
   return false;
 }
 
 /// Sets current hints into loop metadata, keeping other values intact.
-void llvm::TapirLoopHints::writeHintsToMetadata(const Hints &Hints) {
-  if (Hints.size() == 0)
+void llvm::TapirLoopHints::writeHintsToMetadata(const Hints &hints) {
+  if (hints.size() == 0)
     return;
 
-  LLVMContext &Context = TheLoop->getHeader()->getContext();
-  SmallVector<Metadata *, 4> MDs;
+  LLVMContext &ctx = theLoop->getHeader()->getContext();
+  SmallVector<Metadata *, 4> mds;
 
   // Reserve first location for self reference to the LoopID metadata node.
-  TempMDTuple TempNode = MDNode::getTemporary(Context, std::nullopt);
-  MDs.push_back(TempNode.get());
+  TempMDTuple tempNode = MDNode::getTemporary(ctx, std::nullopt);
+  mds.push_back(tempNode.get());
 
   // If the loop already has metadata, then ignore the existing operands.
-  MDNode *LoopID = TheLoop->getLoopID();
-  if (LoopID) {
-    for (unsigned i = 1, ie = LoopID->getNumOperands(); i < ie; ++i) {
-      MDNode *Node = cast<MDNode>(LoopID->getOperand(i));
+  if (MDNode *loopID = theLoop->getLoopID()) {
+    for (unsigned i = 1, ie = loopID->getNumOperands(); i < ie; ++i) {
+      auto *node = cast<MDNode>(loopID->getOperand(i));
       // If node in update list, ignore old value.
-      if (!matchesHintMetadataName(Node, Hints))
-        MDs.push_back(Node);
+      if (!matchesHintMetadataName(node, hints))
+        mds.push_back(node);
     }
   }
 
   // Now, add the missing hints.
-  for (const auto &i : Hints) {
-    StringRef Name = i.first;
-    const ValueType &V = i.second;
-    if (canCreateMetadata(Name, V))
-      MDs.push_back(createHintMetadata(Name, toMetadataValue(Name, V)));
+  for (const auto &i : hints) {
+    StringRef name = i.first;
+    const ValueType &v = i.second;
+    if (canCreateMetadata(name, v))
+      mds.push_back(createHintMetadata(name, toMetadataValue(name, v)));
   }
 
   // Replace current metadata node with new one.
-  MDNode *NewLoopID = MDNode::get(Context, MDs);
+  MDNode *newLoopID = MDNode::get(ctx, mds);
   // Set operand 0 to refer to the loop id itself.
-  NewLoopID->replaceOperandWith(0, NewLoopID);
+  newLoopID->replaceOperandWith(0, newLoopID);
 
-  TheLoop->setLoopID(NewLoopID);
+  theLoop->setLoopID(newLoopID);
 }
 
 /// Sets current hints into loop metadata, keeping other values intact.
-void llvm::TapirLoopHints::writeHintsToClonedMetadata(const Hints &Hints,
-                                                      ValueToValueMapTy &VMap) {
-  if (Hints.size() == 0)
+void llvm::TapirLoopHints::writeHintsToClonedMetadata(const Hints &hints,
+                                                      ValueToValueMapTy &vmap) {
+  if (hints.size() == 0)
     return;
 
-  LLVMContext &Context =
-      cast<BasicBlock>(VMap[TheLoop->getHeader()])->getContext();
-  SmallVector<Metadata *, 4> MDs;
+  LLVMContext &ctx =
+      cast<BasicBlock>(vmap[theLoop->getHeader()])->getContext();
+  SmallVector<Metadata *, 4> mds;
 
   // Reserve first location for self reference to the LoopID metadata node.
-  TempMDTuple TempNode = MDNode::getTemporary(Context, std::nullopt);
-  MDs.push_back(TempNode.get());
+  TempMDTuple tempNode = MDNode::getTemporary(ctx, std::nullopt);
+  mds.push_back(tempNode.get());
 
   // If the loop already has metadata, then ignore the existing operands.
-  MDNode *OrigLoopID = TheLoop->getLoopID();
-  if (!OrigLoopID)
+  MDNode *origLoopID = theLoop->getLoopID();
+  if (!origLoopID)
     return;
 
-  if (MDNode *LoopID = dyn_cast_or_null<MDNode>(VMap.MD()[OrigLoopID])) {
-    for (unsigned i = 1, ie = LoopID->getNumOperands(); i < ie; ++i) {
-      MDNode *Node = cast<MDNode>(LoopID->getOperand(i));
+  if (MDNode *loopID = dyn_cast_or_null<MDNode>(vmap.MD()[origLoopID])) {
+    for (unsigned i = 1, ie = loopID->getNumOperands(); i < ie; ++i) {
+      auto *node = cast<MDNode>(loopID->getOperand(i));
       // If node in update list, ignore old value.
-      if (!matchesHintMetadataName(Node, Hints))
-        MDs.push_back(Node);
+      if (!matchesHintMetadataName(node, hints))
+        mds.push_back(node);
     }
   }
 
   // Now, add the missing hints.
-  for (const auto &i : Hints) {
-    StringRef Name = i.first;
-    const ValueType &V = i.second;
-    if (canCreateMetadata(Name, V))
-      MDs.push_back(createHintMetadata(Name, toMetadataValue(Name, V)));
+  for (const auto &i : hints) {
+    StringRef name = i.first;
+    const ValueType &v = i.second;
+    if (canCreateMetadata(name, v))
+      mds.push_back(createHintMetadata(name, toMetadataValue(name, v)));
   }
 
   // Replace current metadata node with new one.
-  MDNode *NewLoopID = MDNode::get(Context, MDs);
+  MDNode *newLoopID = MDNode::get(ctx, mds);
   // Set operand 0 to refer to the loop id itself.
-  NewLoopID->replaceOperandWith(0, NewLoopID);
+  newLoopID->replaceOperandWith(0, newLoopID);
 
   // Set the metadata on the terminator of the cloned loop's latch.
-  BasicBlock *ClonedLatch = cast<BasicBlock>(VMap[TheLoop->getLoopLatch()]);
-  assert(ClonedLatch && "Cloned Tapir loop does not have a single latch.");
-  ClonedLatch->getTerminator()->setMetadata(LLVMContext::MD_loop, NewLoopID);
+  auto *clonedLatch = cast<BasicBlock>(vmap[theLoop->getLoopLatch()]);
+  assert(clonedLatch && "Cloned Tapir loop does not have a single latch.");
+  clonedLatch->getTerminator()->setMetadata(LLVMContext::MD_loop, newLoopID);
 }
 
 void llvm::TapirLoopHints::clearHintsMetadata() {
-  LLVMContext &Context = TheLoop->getHeader()->getContext();
-  SmallVector<Metadata *, 4> MDs;
+  LLVMContext &ctx = theLoop->getHeader()->getContext();
+  SmallVector<Metadata *, 4> mds;
 
   // Reserve first location for self reference to the LoopID metadata node.
-  TempMDTuple TempNode = MDNode::getTemporary(Context, std::nullopt);
-  MDs.push_back(TempNode.get());
+  TempMDTuple tempNode = MDNode::getTemporary(ctx, std::nullopt);
+  mds.push_back(tempNode.get());
 
   // If the loop already has metadata, then ignore the existing operands.
-  MDNode *LoopID = TheLoop->getLoopID();
-  if (LoopID) {
-    for (unsigned i = 1, ie = LoopID->getNumOperands(); i < ie; ++i) {
-      MDNode *Node = cast<MDNode>(LoopID->getOperand(i));
+  if (MDNode *loopID = theLoop->getLoopID()) {
+    for (unsigned i = 1, ie = loopID->getNumOperands(); i < ie; ++i) {
+      auto *node = cast<MDNode>(loopID->getOperand(i));
       // If node in update list, ignore old value.
-      if (!matchesHintMetadataName(Node, hints))
-        MDs.push_back(Node);
+      if (!matchesHintMetadataName(node, hints))
+        mds.push_back(node);
     }
   }
 
   // Replace current metadata node with new one.
-  MDNode *NewLoopID = MDNode::get(Context, MDs);
+  MDNode *newLoopID = MDNode::get(ctx, mds);
   // Set operand 0 to refer to the loop id itself.
-  NewLoopID->replaceOperandWith(0, NewLoopID);
+  newLoopID->replaceOperandWith(0, newLoopID);
 
-  TheLoop->setLoopID(NewLoopID);
+  theLoop->setLoopID(newLoopID);
 }
 
 /// Returns true if Tapir-loop hints require loop outlining during lowering.
-bool llvm::hintsDemandOutlining(const TapirLoopHints &Hints) {
-  switch (Hints.getStrategy()) {
+bool llvm::hintsDemandOutlining(const TapirLoopHints &hints) {
+  switch (hints.getStrategy()) {
   case TapirSpawnStrategy::DivideAndConquer:
   case TapirSpawnStrategy::GPU:
     return true;
   case TapirSpawnStrategy::Sequential:
     return false;
-  default:
-    llvm_unreachable("hintsDemandOutlining: SpawningStrategy not handled");
   }
+  llvm_unreachable("hintsDemandOutlining: SpawningStrategy not handled");
 }

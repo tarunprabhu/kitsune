@@ -80,10 +80,8 @@ CodeGenFunction::GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs) {
         return llvm::TapirSpawnStrategy::DivideAndConquer;
       case TapirStrategyAttr::GPU:
         return llvm::TapirSpawnStrategy::GPU;
-        break;
-      default:
-        llvm_unreachable("all strategies should be handled before this!");
       }
+      llvm_unreachable("GetTapirStrategyAttr: TapirStrategyAttr not handled");
     }
   }
   return llvm::TapirSpawnStrategy::Sequential;
