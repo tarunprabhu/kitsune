@@ -9,7 +9,7 @@
 ; RUN: opt --tapir=hip \
 ; RUN:     --tapir-hip-arch=gfx906 \
 ; RUN:     --tapir-hip-features="+wavefrontsize32,+atomic-fadd-rtn-insts" \
-; RUN:     -passes='tapir-lowering<O2>,prepare-emb-bc' %s \
+; RUN:     -passes='tapir-lowering<O2>,emb-prepare' %s \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;

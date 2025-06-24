@@ -12,7 +12,7 @@
 ;
 ; RUN: env TMPDIR=%t TEMP=%t TMP=%t \
 ; RUN: opt -o /dev/null %s --tapir=cuda --tapir-cuda-arch=sm_80 \
-; RUN:     -passes='codegen-fat-binaries'
+; RUN:     -passes='kit-cgfb'
 ; RUN: not ls -l %t/kitcu-*-.*
 ;
 ; ------------------------------------------------------------------------------
@@ -23,7 +23,7 @@
 ;
 ; RUN: env TMPDIR=%t TEMP=%t TMP=%t \
 ; RUN: opt -o /dev/null %s --tapir=cuda --tapir-cuda-arch=sm_80 \
-; RUN:     -passes='codegen-fat-binaries' -cgfb-keep-files
+; RUN:     -passes='kit-cgfb' -cgfb-keep-files
 ; RUN: ls -l %t/kitcu-*-.* | FileCheck %s -check-prefix=EXT
 ; RUN: ls -l %t/kitcu-*-.* | FileCheck %s -check-prefix=COUNT
 ;

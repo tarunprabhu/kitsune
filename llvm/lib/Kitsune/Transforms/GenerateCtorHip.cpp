@@ -1,4 +1,4 @@
-//=- GenerateKitsuneCtorCuda.cpp - ctor for Kitsune's cuda runtime --------*-=//
+//=- GenerateCtorHip.cpp - ctor for Kitsune's hip runtime -------*-=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,11 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Generate global constructors for Kitsune's cuda runtime
+// Generate global constructors for Kitsune's hip runtime
 //
 //===----------------------------------------------------------------------===//
 
-#include "GenerateKitsuneCtorsImpl.h"
+#include "GenerateCtorsImpl.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/ConstantUtils.h"
@@ -31,50 +31,19 @@
 
 using namespace llvm;
 
-// Request that the runtime carry out an extra set of steps to attempt to
-// refine the launch parameters of kernels.  In this mode of operation the
-// compiler will provide some compile-time information onto the runtime for
-// assisting in the analysis an refinement of launches.
-static cl::opt<bool> clRefineLaunches(
-    "cuabi-refine-launches", cl::init(true), cl::Hidden,
-    cl::desc("Enable runtime's refinement of launch parameters"));
+static cl::opt<bool>
+    clUseYLaunch("hipabi-y-launch", cl::init(false), cl::Hidden,
+                 cl::desc("Launch kernel using y-axis threading."));
 
 namespace {
 
-/// Helper class to generate a ctor for kitcuda (Kitsune's runtime for the cuda
-/// tapir target). This will also create variables for the fat binary and the
-/// bundle containing the fat binary that is needed by the cuda runtime.
-///
-/// Registering the fat binary image (and all the associated components) is
-/// an undocumented portion of the CUDA API. One place to peek for some details
-/// hides in the cuda header files; specifially fatbinary_section.h. This shows
-/// the following struct that we need to have in the host side code.
-///
-///    struct fatbinC_Wrapper_t {
-///      int magic;
-///      int version;
-///      const unsigned long long *data;
-///      void *filename_or_fatbins;
-///    };
-///
-/// * Per the header, the magic number is 0x466243B1
-/// * FATBINC_VERSION is 1 and FATBINC_LINK_VERSION is 2 (more below)
-/// * Then section and segments are needed that contains the "fatbin control
-///   structure".  This loosely looks like:
-///
-///        Control section name: ".nvFatBinSegment"
-///        Fatbinary section name: ".nv_fatbin"
-///        Pre-linked relocatable section: "__nv_relfatbin"
-///
-/// * The last struct member varies between versions. In the case of version 1
-///   it can be a offline filename and for version 2 it is an array of
-///   pre-linked fatbins.
-///
-class GenerateKitsuneCtorCuda {
+/// Helper class to generate a ctor for kithip (Kitsune's runtime for the hip
+/// tapir target).
+class GenerateCtorHip {
 private:
-  static constexpr int magic = 0x466243B1;
+  static constexpr int magic = 0x48495046;
   static constexpr int version = 1;
-  static constexpr const char *controlSectionName = ".nvFatBinSegment";
+  static constexpr const char *section = ".hipFatBinSegment";
 
 private:
   const TapirTargetOptions &tto;
@@ -95,10 +64,12 @@ private:
                                            /*fat binary data*/ ptrTy,
                                            /*unused*/ ptrTy);
 
+    // TODO: Do we really need the ConstantExpr here or can we just pass the
+    // global variable directly?
     Constant *zero = ConstantInt::get(idxTy, 0);
     Constant *zeros[] = {zero, zero};
 
-    // Wrap the fatbinary in struct that the CUDA runtime and tools expect.
+    // Wrap the fatbinary in a struct that the hip runtime and tools expect.
     Constant *bundleInit = ConstantStruct::get(
         bundleTy, ConstantInt::get(i32Ty, magic),
         ConstantInt::get(i32Ty, version),
@@ -107,17 +78,17 @@ private:
 
     GlobalVariable *g = new GlobalVariable(m, bundleTy, /*isConstant*/ true,
                                            GlobalValue::InternalLinkage,
-                                           bundleInit, ".kitcuda.bundle");
-    g->setSection(controlSectionName);
+                                           bundleInit, ".kithip.bundle");
+    g->setSection(section);
     g->setAlignment(dl.getPrefTypeAlign(g->getType()));
 
     return g;
   }
 
   /// Create a global variable that will contain the "handle" to the fat binary.
-  /// The handle is the value returned by __cudaRegisterFatBinary(). The handle
+  /// The handle is the value returned by __hipRegisterFatBinary(). The handle
   /// is saved into this global and read from there by the global dtor and
-  /// passed to __cudaUnregisterFatBinary().
+  /// passed to __hipUnregisterFatBinary().
   GlobalVariable *createBundleHandleGV(Module &m) {
     const DataLayout &dl = m.getDataLayout();
 
@@ -126,7 +97,7 @@ private:
 
     GlobalVariable *g = new GlobalVariable(
         m, ptrTy, /*isConstant*/ false, GlobalValue::InternalLinkage,
-        ConstantPointerNull::get(ptrTy), ".kitcuda.handle");
+        ConstantPointerNull::get(ptrTy), ".kithip.handle");
     g->setAlignment(dl.getPointerABIAlignment(0));
     g->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
 
@@ -145,12 +116,12 @@ private:
     Type *i32Ty = Type::getInt32Ty(ctx);
     Type *boolTy = Type::getInt8Ty(ctx);
 
-    ConstantInt *constTT = createConstInt(TTID::Cuda, ctx);
+    ConstantInt *constTT = createConstInt(TTID::Hip, ctx);
     Constant *czero = ConstantInt::get(i32Ty, 0);
 
     FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, false);
     Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
-                                      ".kitcuda.ctor", &m);
+                                      ".kithip.ctor", &m);
 
     TargetLibraryInfo &tli = getTLI(*ctor);
     Type *sizeTTy = tli.getSizeTType(m);
@@ -168,6 +139,24 @@ private:
     builder.CreateCall(
         kitrtEnableVerbose,
         {ConstantInt::get(boolTy, tto.getKitrtVerbose(), false)});
+
+    if (tto.getHipXnack() == MaybeBool::On)
+      LLVM_DEBUG(dbgs() << "\t\tenable xnack via ctor runtime call.\n");
+
+    FunctionCallee kitrtEnableXnack = Intrinsic::getOrInsertDeclaration(
+        &m, Intrinsic::kitrt_hip_enable_xnack);
+    builder.CreateCall(
+        kitrtEnableXnack,
+        {ConstantInt::get(boolTy, tto.getHipXnack() == MaybeBool::On)});
+
+    if (clUseYLaunch)
+      LLVM_DEBUG(
+          dbgs()
+          << "\t\tenable y-axis launch pattern via ctor runtime call.\n");
+    FunctionCallee kitrtEnableYAxisLaunch = Intrinsic::getOrInsertDeclaration(
+        &m, Intrinsic::kitrt_enable_y_axis_launches);
+    builder.CreateCall(kitrtEnableYAxisLaunch,
+                       {constTT, ConstantInt::get(boolTy, clUseYLaunch)});
 
     if (unsigned fixedTPB = tto.getFixedThreadsPerBlock()) {
       FunctionCallee kitrtSetFixedTPB =
@@ -190,21 +179,15 @@ private:
     builder.CreateCall(kitrtSetMaxTPB,
                        {constTT, ConstantInt::get(i32Ty, maxTPB)});
 
-    FunctionCallee kitrtEnableRefineLaunches =
-        Intrinsic::getOrInsertDeclaration(
-            &m, Intrinsic::kitrt_enable_refine_launches);
-    builder.CreateCall(kitrtEnableRefineLaunches,
-                       {constTT, ConstantInt::get(boolTy, clRefineLaunches)});
-
-    FunctionCallee cudaRegisterFatBinary =
-        getOrInsertLibFunc(&m, tli, LibFunc_cuda_register_fat_binary);
-    Value *bundleHandle = builder.CreateCall(cudaRegisterFatBinary, gBundle);
+    FunctionCallee hipRegisterFatBinary =
+        getOrInsertLibFunc(&m, tli, LibFunc_hip_register_fat_binary);
+    Value *bundleHandle = builder.CreateCall(hipRegisterFatBinary, gBundle);
     builder.CreateAlignedStore(bundleHandle, gBundleHandle, alignPtr);
 
     // Register any non-constant global variables used in the kernel module.
     // Each of these should have a corresponding global in the host.
-    FunctionCallee cudaRegisterVar =
-        getOrInsertLibFunc(&m, tli, LibFunc_cuda_register_var);
+    FunctionCallee hipRegisterVar =
+        getOrInsertLibFunc(&m, tli, LibFunc_hip_register_var);
     for (const GlobalVariable &devG : devM.globals()) {
       if (devG.isConstant())
         continue;
@@ -222,24 +205,19 @@ private:
       // if this is externally defined (as in C's extern)? In either case, why
       // are we always passing 0 here? Is this just the "safer" course, or is it
       // that we just haven't yet encountered a situation where this should be
-      // non-zero? Or does cuda require this to be zero currently because it is
+      // non-zero? Or does hip require this to be zero currently because it is
       // they who have not implemented something?
       Constant *gExt = ConstantInt::get(i32Ty, 0);
 
       Value *args[] = {bundleHandle, hostG, gName, gName, gExt, gSize, gConst,
                        // Per the documentation, The last argument to
-                       // cudaRegisterVar() must always be zero
+                       // hipRegisterVar() must always be zero
                        czero};
 
       LLVM_DEBUG(dbgs() << "\t\t\tregister global '" << hostG->getName()
                         << "' via ctor runtime call.\n");
-      builder.CreateCall(cudaRegisterVar, args);
+      builder.CreateCall(hipRegisterVar, args);
     }
-
-    // Wrap up fatbinary registration steps.
-    FunctionCallee cudaRegisterFatBinaryEnd =
-        getOrInsertLibFunc(&m, tli, LibFunc_cuda_register_fat_binary_end);
-    builder.CreateCall(cudaRegisterFatBinaryEnd, bundleHandle);
 
     // Now add the dtor to help us clean up at program exit.
     FunctionCallee atExit = getOrInsertLibFunc(&m, tli, LibFunc_atexit);
@@ -259,34 +237,40 @@ private:
 
     FunctionType *dtorTy = FunctionType::get(voidTy, ptrTy, false);
     Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,
-                                      ".kitcuda.dtor", &m);
+                                      ".kithip.dtor", &m);
 
     TargetLibraryInfo &tli = getTLI(*dtor);
     IRBuilder<> builder(BasicBlock::Create(ctx, "entry", dtor));
     Value *handle = builder.CreateAlignedLoad(ptrTy, gBundleHandle, alignPtr);
 
-    FunctionCallee cudaUnregisterFatBinary =
-        getOrInsertLibFunc(&m, tli, LibFunc_cuda_unregister_fat_binary);
-    builder.CreateCall(cudaUnregisterFatBinary, handle);
+    FunctionCallee hipUnregisterFatBinary =
+        getOrInsertLibFunc(&m, tli, LibFunc_hip_unregister_fat_binary);
+    builder.CreateCall(hipUnregisterFatBinary, handle);
 
-    ConstantInt *constTT = createConstInt(TTID::Cuda, ctx);
-    FunctionCallee kitrtFinalize =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kitrt_finalize);
-    builder.CreateCall(kitrtFinalize, {constTT});
+    // FIXME: There is a bug here which seems to cause use-after-free errors in
+    // Kitsune's runtime. It is not entirely clear where exactly the problem is.
+    // This causes the kitsune-test-suite to consistently fail. In the interest
+    // of having the test suite actually be useful, don't generate the call to
+    // finalize the runtime until we can figure out exactly what is going on
+    // there.
+    // ConstantInt *constTT = createConstInt(TTID::Hip, ctx);
+    // FunctionCallee kitrtFinalize =
+    //     Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kitrt_finalize);
+    // builder.CreateCall(kitrtFinalize, {constTT});
 
     builder.CreateRetVoid();
     return dtor;
   }
 
 public:
-  GenerateKitsuneCtorCuda(const TapirTargetOptions &tto, detail::GetTLI getTLI)
+  GenerateCtorHip(const TapirTargetOptions &tto, detail::GetTLI getTLI)
       : tto(tto), getTLI(getTLI) {}
 
   void run(Module &m) {
-    GlobalVariable *gFB = getEmbFBGlobal(TTID::Cuda, m);
-    assert(gFB && "Could not find global with embedded cuda fat binary");
+    GlobalVariable *gFB = getEmbFBGlobal(TTID::Hip, m);
+    assert(gFB && "Could not find global with embedded hip fat binary");
 
-    GlobalVariable *gBC = getEmbBCGlobal(TTID::Cuda, m);
+    GlobalVariable *gBC = getEmbBCGlobal(TTID::Hip, m);
     assert(gBC && "Could not find global with embedded bitcode");
 
     std::unique_ptr<Module> devM = parseEmbBCGlobal(*gBC);
@@ -304,7 +288,7 @@ public:
 
 } // namespace
 
-void llvm::detail::genKitsuneCtorCuda(Module &m, const TapirTargetOptions &tto,
-                                      detail::GetTLI getTLI) {
-  GenerateKitsuneCtorCuda(tto, getTLI).run(m);
+void llvm::detail::genCtorHip(Module &m, const TapirTargetOptions &tto,
+                              detail::GetTLI getTLI) {
+  GenerateCtorHip(tto, getTLI).run(m);
 }

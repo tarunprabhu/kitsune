@@ -1,4 +1,4 @@
-//===- EmbBCPassUtils.cpp - Utilities for embedded bitcode passes ---------===//
+//===- EmbModulePassUtils.cpp - Utilities for embedded module passes ------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,11 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities shared by embedded bitcode passes.
+// Utilities shared by embedded module passes.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/EmbBCPassUtils.h"
+#include "kitsune/Transforms/Utils/EmbModulePassUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IRReader/IRReader.h"
@@ -58,6 +58,6 @@ std::unique_ptr<Module> llvm::getLibDeviceModule(TTID tt,
   case TTID::Hip:
     return getLibDeviceModuleHip(tto, ctx);
   default:
-    llvm_unreachable("getLibDeviceBCFile: TTID not handled");
+    llvm_unreachable("getLibDeviceModule: TTID not handled");
   }
 }

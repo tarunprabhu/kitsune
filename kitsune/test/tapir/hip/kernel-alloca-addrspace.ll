@@ -1,7 +1,7 @@
 ; Check that alloca instructions have the correct address space annotation
 ; added to them.
 ;
-; RUN: opt --tapir=hip -passes='loop-spawning,prepare-emb-bc' %s \
+; RUN: opt --tapir=hip -passes='loop-spawning,emb-prepare' %s \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;

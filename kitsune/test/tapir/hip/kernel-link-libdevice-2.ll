@@ -3,7 +3,7 @@
 ;
 ; RUN: opt %s --tapir=hip \
 ; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll,%S/input/libdevice-2.ll \
-; RUN:     -passes='tapir-lowering<O2>,resolve-device-funcs,link-device-bitcode' \
+; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls,emb-link-libdevice-bitcode' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;

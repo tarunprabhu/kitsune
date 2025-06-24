@@ -1,7 +1,7 @@
 ; Check that any constant global variables are handled correctly. They should
 ; not be copied memcpy'ed, and they should not be registered with the runtime.
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     -S %s \
 ; RUN:     | FileCheck %s
 ;

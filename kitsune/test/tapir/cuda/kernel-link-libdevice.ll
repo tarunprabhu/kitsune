@@ -1,7 +1,7 @@
 ; Check that linking libdevice bitcode works as expected.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O2>,resolve-device-funcs,link-device-bitcode' \
+; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls,emb-link-libdevice-bitcode' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;

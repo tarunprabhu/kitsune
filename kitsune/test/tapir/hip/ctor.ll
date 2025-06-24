@@ -2,7 +2,7 @@
 ; runtime depending on the command line arguments passed.
 ;
 ; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     --tapir-hip-arch=gfx906 \
 ; RUN:     --tapir-hip-sramecc=off \
 ; RUN:     --tapir-hip-xnack=on \
@@ -52,7 +52,7 @@
 ; ----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     --tapir-gpu-tpb=77 \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     | FileCheck %s -check-prefix TPB
@@ -63,7 +63,7 @@
 ; ----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     --tapir-gpu-max-tpb=29 \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     | FileCheck %s -check-prefix MTPB
@@ -74,13 +74,13 @@
 ; ----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     --tapir-verbose \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     --kitrt-verbose \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
@@ -91,13 +91,13 @@
 ; ----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     --tapir-hip-xnack=off \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
 ; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     --tapir-hip-xnack=any \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
@@ -108,7 +108,7 @@
 ; ----------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     -hipabi-y-launch \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     | FileCheck %s -check-prefix YLAUNCH

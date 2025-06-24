@@ -2,7 +2,7 @@
 ; runtime depending on the command line arguments passed.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 \
-; RUN:     -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     -S %s \
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
@@ -42,7 +42,7 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     -S %s --tapir-gpu-tpb=77 \
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
@@ -51,7 +51,7 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     -S %s --tapir-gpu-max-tpb=29 \
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
@@ -60,11 +60,11 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     -S %s --tapir-verbose \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     -S %s --kitrt-verbose \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
@@ -73,7 +73,7 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     -S %s -cuabi-refine-launches=false \
 ; RUN:     | FileCheck %s -check-prefix NOREFINE
 ;

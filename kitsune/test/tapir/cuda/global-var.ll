@@ -3,7 +3,7 @@
 ; before and after launch calls and must be registered with the runtime in
 ; the ctor for kitsune's runtime.
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,generate-kitsune-ctors' \
+; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     -S %s \
 ; RUN:     | FileCheck %s
 ;

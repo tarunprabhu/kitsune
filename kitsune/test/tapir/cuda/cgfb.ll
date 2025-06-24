@@ -2,14 +2,16 @@
 ; embedded bitcode should be removed after the fat binary is generated.
 ;
 ; RUN: opt -S %s --tapir=cuda --tapir-cuda-arch=sm_80 \
-; RUN:     -passes='codegen-fat-binaries' \
+; RUN:     -passes='kit-cgfb' \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-NOT: @{{.+}}.bc{{.*}} = constant [{{[0-9]+}} x i8] c"{{.+}}", !kitsune.bc
+; CHECK-NOT: @{{.+}}.bc{{.*}} = constant [{{[0-9]+}} x i8] c"{{.+}}"
 ; CHECK: @{{.+}}.fb{{.*}} = constant [{{[0-9]+}} x i8] c"{{[^,]+}}",
 ; CHECK-SAME: section ".nv_fatbin"
-; CHECK-SAME: #[[ATTR:[0-9]+]]
-; CHECK: #[[ATTR]] = { kit_fb(2) }
+; CHECK-SAME: #[[FBATTR:[0-9]+]]
+;
+; CHECK: #[[FBATTR]] = { kit_fb(2) }
+; CHECK-NOT: #{{[0-9]+}} = {{.+}} kit_bc(2)
 
 target triple = "x86_64-pc-linux-gnu"
 

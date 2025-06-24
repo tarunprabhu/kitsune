@@ -1,4 +1,4 @@
-//==- CodeGenFatBinariesHip.cpp - Generate fat binaries for AMD GPU's ------==//
+//===- CGFBHip.cpp - Generate fat binaries for AMD GPU's ============------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CodeGenFatBinariesImpl.h"
+#include "CGFBImpl.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
@@ -32,7 +32,7 @@ using namespace llvm;
 namespace {
 
 /// Helper class to generate code for AMD GPU's from embedded bitcode.
-class CodeGenFatBinaryHip {
+class CGFBHip {
 private:
   const TapirTargetOptions &tto;
 
@@ -150,7 +150,7 @@ private:
   }
 
 public:
-  CodeGenFatBinaryHip(const TapirTargetOptions &tto) : tto(tto) {}
+  CGFBHip(const TapirTargetOptions &tto) : tto(tto) {}
 
   bool run(GlobalVariable &gfb, const GlobalVariable &gbc, bool keepFiles) {
     std::unique_ptr<Module> km = parseEmbBCGlobal(gbc);
@@ -169,9 +169,7 @@ public:
 
 } // namespace
 
-bool llvm::detail::cgFatBinaryHip(GlobalVariable &gfb,
-                                  const GlobalVariable &gbc,
-                                  const TapirTargetOptions &tto,
-                                  bool keepFiles) {
-  return CodeGenFatBinaryHip(tto).run(gfb, gbc, keepFiles);
+bool llvm::detail::cgfbHip(GlobalVariable &gfb, const GlobalVariable &gbc,
+                           const TapirTargetOptions &tto, bool keepFiles) {
+  return CGFBHip(tto).run(gfb, gbc, keepFiles);
 }

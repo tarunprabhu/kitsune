@@ -1,21 +1,18 @@
 add_llvm_component_library(LLVMKitOpts
-  EmbBCPassUtils.cpp
-  FinalizeKernelMetadata.cpp
-  GenerateKitsuneCtors.cpp
-  GenerateKitsuneCtorCuda.cpp
-  GenerateKitsuneCtorHip.cpp
-  LinkDeviceBitcode.cpp
+  EmbLinkLibDeviceBitcode.cpp
+  EmbPrepare.cpp
+  EmbOptimize.cpp
+  EmbResolveLibDeviceCalls.cpp
+  GenerateCtors.cpp
+  GenerateCtorCuda.cpp
+  GenerateCtorHip.cpp
   LowerKitsuneRuntimeIntrinsics.cpp
   LowerMobileIntrinsics.cpp
-  OptimizeEmbBC.cpp
-  PrepareEmbBC.cpp
-  ResolveDeviceFuncs.cpp
+  RecomputeKernelProperties.cpp
   StripKitsuneAddrSpace.cpp
 
   DEPENDS
   intrinsics_gen
-  LLVMLinker
-  LLVMBitWriter
 
   # Including Passes here results in a circular dependence since Passes requires
   # KitOpts. This is a known issue and like a very fundamental one that would
@@ -39,5 +36,5 @@ add_llvm_component_library(LLVMKitOpts
   Linker
   Passes
   Support
-  TransformUtils
+  KitTransformUtils
 )

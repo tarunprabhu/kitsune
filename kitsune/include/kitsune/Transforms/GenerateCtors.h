@@ -1,4 +1,4 @@
-//=- GenerateKitsuneCtor.h - Generate global ctors for Kitsune ----*- C++ -*-=//
+//=- GenerateCtors.h - Generate global ctors for Kitsune ----------*- C++ -*-=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_TRANSFORMS_GENERATE_CTOR_H
-#define KITSUNE_TRANSFORMS_GENERATE_CTOR_H
+#ifndef KITSUNE_TRANSFORMS_GENERATE_CTORS_H
+#define KITSUNE_TRANSFORMS_GENERATE_CTORS_H
 
 #include "llvm/IR/PassManager.h"
 
@@ -33,8 +33,7 @@ namespace llvm {
 ///
 /// This pass should only be run once per module and should be run as late as
 /// possible to ensure that all tapir targets have been run already.
-class GenerateKitsuneCtorsPass
-    : public PassInfoMixin<GenerateKitsuneCtorsPass> {
+class GenerateCtorsPass : public PassInfoMixin<GenerateCtorsPass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
 
@@ -43,4 +42,4 @@ public:
 
 } // namespace llvm
 
-#endif // KITSUNE_TRANSFORMS_GENERATE_CTOR_H
+#endif // KITSUNE_TRANSFORMS_GENERATE_CTORS_H

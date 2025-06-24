@@ -10,7 +10,7 @@
 ; arguments in the body of the function.
 ;
 ; RUN: opt --tapir=hip %s --tapir-hip-features="+16-bit-insts" \
-; RUN:     -passes='loop-spawning,prepare-emb-bc' \
+; RUN:     -passes='loop-spawning,emb-prepare' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;
