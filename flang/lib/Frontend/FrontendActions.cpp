@@ -917,9 +917,8 @@ getFPOpFusionMode(Fortran::common::LangOptions::FPModeKind fpContractMode) {
     return llvm::FPOpFusion::Standard;
   case Fortran::common::LangOptions::FPM_Fast:
     return llvm::FPOpFusion::Fast;
-  default:
-    llvm_unreachable("getFPOpFusionMode: Unexpected FP contract mode");
   }
+  llvm_unreachable("getFPOpFusionMode: Unexpected FP contract mode");
 }
 
 void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {

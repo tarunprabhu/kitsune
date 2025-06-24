@@ -281,6 +281,34 @@ static bool parseKitsuneRealmArgs(KitsuneOptions &opts, const ArgList &args,
   return diags.getNumErrors() == numErrorsBefore;
 }
 
+static bool parseKitsuneTTArgs(KitsuneOptions &kitOpts, TTID tt,
+                               const ArgList &args, const OptTable &optTable,
+                               DiagnosticsEngine &diags) {
+  switch (tt) {
+  case llvm::TTID::None:
+    return true;
+  case llvm::TTID::Cuda:
+    return parseKitsuneCudaArgs(kitOpts, args, optTable, diags);
+  case llvm::TTID::Hip:
+    return parseKitsuneHipArgs(kitOpts, args, optTable, diags);
+  case llvm::TTID::Lambda:
+    return parseKitsuneLambdaArgs(kitOpts, args, optTable, diags);
+  case llvm::TTID::OMPTask:
+    return parseKitsuneOMPTaskArgs(kitOpts, args, optTable, diags);
+  case llvm::TTID::OpenCilk:
+    return parseKitsuneOpenCilkArgs(kitOpts, args, optTable, diags);
+  case llvm::TTID::OpenMP:
+    return parseKitsuneOpenMPArgs(kitOpts, args, optTable, diags);
+  case llvm::TTID::Qthreads:
+    return parseKitsuneQthreadsArgs(kitOpts, args, optTable, diags);
+  case llvm::TTID::Realm:
+    return parseKitsuneRealmArgs(kitOpts, args, optTable, diags);
+  case llvm::TTID::Serial:
+    return true;
+  }
+  llvm_unreachable("ParseKitsuneTTArgs: TTID not handled");
+}
+
 bool clang::parseKitsuneArgs(KitsuneOptions &kitOpts, const char *argv0,
                              const ArgList &args, const OptTable &optTable,
                              DiagnosticsEngine &diags) {
@@ -295,38 +323,7 @@ bool clang::parseKitsuneArgs(KitsuneOptions &kitOpts, const char *argv0,
   if (args.hasArg(OPT_tapir_EQ)) {
     StringRef argVal = args.getLastArgValue(OPT_tapir_EQ);
     if (std::optional<llvm::TTID> tt = createTTIDFrom(argVal)) {
-      switch (*tt) {
-      case llvm::TTID::None:
-        break;
-      case llvm::TTID::Cuda:
-        parseKitsuneCudaArgs(kitOpts, args, optTable, diags);
-        break;
-      case llvm::TTID::Hip:
-        parseKitsuneHipArgs(kitOpts, args, optTable, diags);
-        break;
-      case llvm::TTID::Lambda:
-        parseKitsuneLambdaArgs(kitOpts, args, optTable, diags);
-        break;
-      case llvm::TTID::OMPTask:
-        parseKitsuneOMPTaskArgs(kitOpts, args, optTable, diags);
-        break;
-      case llvm::TTID::OpenCilk:
-        parseKitsuneOpenCilkArgs(kitOpts, args, optTable, diags);
-        break;
-      case llvm::TTID::OpenMP:
-        parseKitsuneOpenMPArgs(kitOpts, args, optTable, diags);
-        break;
-      case llvm::TTID::Qthreads:
-        parseKitsuneQthreadsArgs(kitOpts, args, optTable, diags);
-        break;
-      case llvm::TTID::Realm:
-        parseKitsuneRealmArgs(kitOpts, args, optTable, diags);
-        break;
-      case llvm::TTID::Serial:
-        break;
-      default:
-        llvm_unreachable("ParseKitsuneargs: TTID not handled");
-      }
+      parseKitsuneTTArgs(kitOpts, *tt, args, optTable, diags);
       kitOpts.setTapirTarget(*tt);
     }
   }

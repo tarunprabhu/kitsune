@@ -535,9 +535,8 @@ TransformationMode llvm::hasLoopSpawningTransformation(const Loop *L) {
   case TapirSpawnStrategy::Sequential:
   case TapirSpawnStrategy::GPU:
     return TM_Disable;
-  default:
-    return TM_Unspecified;
   }
+  return TM_Unspecified;
 }
 
 /// Does a BFS from a given node to all of its children inside a given loop.
