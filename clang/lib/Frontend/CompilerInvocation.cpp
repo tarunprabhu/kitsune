@@ -4628,12 +4628,11 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
 
 void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
                                                  ArgumentConsumer Consumer) {
-  if (std::optional<llvm::TTID> TT = Opts.getTapirTarget()) {
-    GenerateArg(Consumer, OPT_tapir_EQ, llvm::toString(*TT));
-
-    switch (*TT) {
+  auto GenerateTTArg = [&](llvm::TTID TT, const KitsuneOptions &Opts,
+                           ArgumentConsumer Consumer) -> void {
+    switch (TT) {
     case llvm::TTID::None:
-      break;
+      return;
     case llvm::TTID::Cuda:
       GenerateArg(Consumer, OPT_tapir_cuda_arch_EQ, Opts.getCudaArch());
       GenerateArg(Consumer, OPT_tapir_cuda_virt_arch_EQ,
@@ -4641,7 +4640,7 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
       GenerateArg(Consumer, OPT_tapir_cuda_features_EQ, Opts.getCudaFeatures());
       GenerateArg(Consumer, OPT_tapir_cuda_runtime_bc_EQ,
                   Opts.getCudaRuntimeBCFile());
-      break;
+      return;
     case llvm::TTID::Hip: {
       const std::vector<std::string> &BCS = Opts.getHipRuntimeBCFiles();
       GenerateArg(Consumer, OPT_tapir_hip_arch_EQ, Opts.getHipArch());
@@ -4653,7 +4652,7 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
       GenerateArg(Consumer, OPT_tapir_hip_runtime_bcs_EQ,
                   llvm::join(BCS.begin(), BCS.end(), ","));
       GenerateArg(Consumer, OPT_tapir_lld_EQ, Opts.getLLD());
-      break;
+      return;
     }
     case llvm::TTID::Lambda:
     case llvm::TTID::OMPTask:
@@ -4661,16 +4660,19 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
     case llvm::TTID::OpenCilk:
       GenerateArg(Consumer, OPT_tapir_opencilk_runtime_bc_EQ,
                   Opts.getOpenCilkRuntimeBCFile());
-      break;
+      return;
     case llvm::TTID::OpenMP:
     case llvm::TTID::Qthreads:
     case llvm::TTID::Realm:
     case llvm::TTID::Serial:
-      break;
-    default:
-      llvm_unreachable("GenerateKitsuneArg: TTID not handled");
-      break;
+      return;
     }
+    llvm_unreachable("GenerateKitsuneArgs: TTID not handled");
+  };
+
+  if (std::optional<llvm::TTID> TT = Opts.getTapirTarget()) {
+    GenerateArg(Consumer, OPT_tapir_EQ, llvm::toString(*TT));
+    GenerateTTArg(*TT, Opts, Consumer);
 
     // Arguments that are relevant to any GPU tapir target.
     if (*TT == llvm::TTID::Cuda || *TT == llvm::TTID::Hip) {

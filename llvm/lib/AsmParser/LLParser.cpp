@@ -1488,7 +1488,6 @@ bool LLParser::parseGlobal(const std::string &Name, unsigned NameID,
   }
 
   AttrBuilder Attrs(M->getContext());
-  LocTy BuiltinLoc;
   std::vector<unsigned> FwdRefAttrGrps;
   if (parseGlobalAttributeValuePairs(Attrs, FwdRefAttrGrps, false))
     return true;

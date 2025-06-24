@@ -123,6 +123,50 @@ bool driver::IsKitsuneFrontend(StringRef ProgName) {
          Suffix == KITSUNE_Fortran_FRONTEND;
 }
 
+static void CheckTTEnabled(const Driver &D, llvm::TTID TT) {
+  // If the tapir target has not been enabled, fail right away.
+  switch (TT) {
+  case llvm::TTID::None:
+    return;
+  case llvm::TTID::Cuda:
+    if (!KITSUNE_CUDA_ENABLED)
+      D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
+    return;
+  case llvm::TTID::Hip:
+    if (!KITSUNE_HIP_ENABLED)
+      D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
+    return;
+  case llvm::TTID::Lambda:
+    if (!KITSUNE_LAMBDA_ENABLED)
+      D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
+    return;
+  case llvm::TTID::OMPTask:
+    if (!KITSUNE_OMPTASK_ENABLED)
+      D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
+    return;
+  case llvm::TTID::OpenCilk:
+    if (!KITSUNE_OPENCILK_ENABLED)
+      D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
+    return;
+  case llvm::TTID::OpenMP:
+    if (!KITSUNE_OPENMP_ENABLED)
+      D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
+    return;
+  case llvm::TTID::Qthreads:
+    if (!KITSUNE_QTHREADS_ENABLED)
+      D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
+    return;
+  case llvm::TTID::Realm:
+    if (!KITSUNE_REALM_ENABLED)
+      D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
+    return;
+  case llvm::TTID::Serial:
+    // The serial tapir target is always enabled
+    return;
+  }
+  llvm_unreachable("CheckTTEnabled: TTID not handled");
+}
+
 static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
                                 DiagnosticsEngine &Diags) {
   llvm::Triple Triple = llvm::Triple(D.getTargetTriple());
@@ -164,50 +208,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       return;
     }
 
-    // If the tapir target has not been enabled, fail right away.
-    switch (*TT) {
-    case llvm::TTID::None:
-      break;
-    case llvm::TTID::Cuda:
-      if (!KITSUNE_CUDA_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
-      break;
-    case llvm::TTID::Hip:
-      if (!KITSUNE_HIP_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
-      break;
-    case llvm::TTID::Lambda:
-      if (!KITSUNE_LAMBDA_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
-      break;
-    case llvm::TTID::OMPTask:
-      if (!KITSUNE_OMPTASK_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
-      break;
-    case llvm::TTID::OpenCilk:
-      if (!KITSUNE_OPENCILK_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
-      break;
-    case llvm::TTID::OpenMP:
-      if (!KITSUNE_OPENMP_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
-      break;
-    case llvm::TTID::Qthreads:
-      if (!KITSUNE_QTHREADS_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
-      break;
-    case llvm::TTID::Realm:
-      if (!KITSUNE_REALM_ENABLED)
-        D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(*TT);
-      break;
-    case llvm::TTID::Serial:
-      // The serial tapir target is always enabled
-      break;
-    default:
-      llvm_unreachable("CheckKitsuneOptions: TTID not handled");
-      break;
-    }
-
+    CheckTTEnabled(D, *TT);
     if (*TT == llvm::TTID::OpenCilk) {
       if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
         D.Diag(diag::err_drv_opencilk_platform) << Triple.getOSName();

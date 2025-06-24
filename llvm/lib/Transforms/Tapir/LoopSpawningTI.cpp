@@ -460,7 +460,7 @@ static void emitMissedWarning(const Loop *L, const TapirLoopHints &LH,
         << "failed to use divide-and-conquer loop spawning."
         << "  Compile with -Rpass-analysis=" << LS_NAME
         << " for more details.");
-    break;
+    return;
   case TapirSpawnStrategy::Sequential:
   case TapirSpawnStrategy::GPU:
     ORE->emit(DiagnosticInfoOptimizationFailure(DEBUG_TYPE, "SpawningDisabled",
@@ -468,12 +468,10 @@ static void emitMissedWarning(const Loop *L, const TapirLoopHints &LH,
                                                 L->getHeader())
               << "Tapir loop not transformed: "
               << "loop-spawning transformation disabled");
-    break;
-  default:
-    llvm_unreachable(
-        "LoopSpawning::emitMissedWarning: SpawningStrategy not handled");
-    break;
+    return;
   }
+  llvm_unreachable(
+      "LoopSpawning::emitMissedWarning: SpawningStrategy not handled");
 }
 
 /// Process Tapir loops within the given function for loop spawning.

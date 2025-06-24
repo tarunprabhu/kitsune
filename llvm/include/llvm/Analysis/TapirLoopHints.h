@@ -68,7 +68,7 @@ private:
   /// currently be serialized - for instance, those with optional values when
   /// the value is std::nullopt. The name is passed in case we the ability to
   /// serialize depends on the specific hint.
-  bool canCreateMetadata(StringRef Name, const ValueType &V) const;
+  bool canCreateMetadata(StringRef name, const ValueType &v) const;
 
   /// Convert the value to one that can be serialized to LLVM's metadata.
   /// Currently, all hints are serialized as unsigned integers, but we may
@@ -78,15 +78,15 @@ private:
   ///
   /// This should only be called if the hint can be serialized to LLVM
   /// metadata.
-  unsigned toMetadataValue(StringRef Name, const ValueType &V) const;
+  unsigned toMetadataValue(StringRef name, const ValueType &v) const;
 
   /// Validate the given value associated with a name in LLVM metadata.
   /// Currently, all hints are serialized as unsigned integers in LLVM metadata,
   /// but this should be changed.
-  static bool validate(StringRef Name, unsigned V);
+  static bool validate(StringRef name, unsigned v);
 
 public:
-  TapirLoopHints(const Loop *L) : TheLoop(L) {
+  TapirLoopHints(const Loop *loop) : theLoop(loop) {
     // Populate values with existing loop metadata.
     getHintsFromMetadata();
   }
@@ -135,30 +135,30 @@ private:
   void getHintsFromMetadata();
 
   /// Set the value of the hint with the given name.
-  void setHint(StringRef Name, ValueType Val);
+  void setHint(StringRef name, ValueType val);
 
   /// Checks string hint with one operand and set value if valid.
-  void setHint(StringRef Name, Metadata *Arg);
+  void setHint(StringRef name, Metadata *arg);
 
   /// Create a new hint from name / value pair.
-  MDNode *createHintMetadata(StringRef Name, unsigned V) const;
+  MDNode *createHintMetadata(StringRef name, unsigned v) const;
 
   /// Matches metadata with hint name.
-  bool matchesHintMetadataName(MDNode *Node, const Hints &Hints) const;
+  bool matchesHintMetadataName(MDNode *node, const Hints &hints) const;
 
   /// Sets current hints into loop metadata, keeping other values intact.
-  void writeHintsToMetadata(const Hints &Hints);
+  void writeHintsToMetadata(const Hints &hints);
 
   /// Sets hints into cloned loop metadata, keeping other values intact.
-  void writeHintsToClonedMetadata(const Hints &Hints, ValueToValueMapTy &VMap);
+  void writeHintsToClonedMetadata(const Hints &hints, ValueToValueMapTy &vmap);
 
   /// The loop these hints belong to.
-  const Loop *TheLoop;
+  const Loop *theLoop;
 };
 
 /// Returns true if the hints on a tapir loop require outlining during
 /// lowering.
-bool hintsDemandOutlining(const TapirLoopHints &Hints);
+bool hintsDemandOutlining(const TapirLoopHints &hints);
 
 } // namespace llvm
 
