@@ -688,7 +688,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   ConstantInt *ConstTT = createConstInt(TTID::Hip, Ctx);
   Value *HipStream = ConstantPointerNull::get(PtrTy);
-  GlobalVariable *InstMix = createKernelPropsGlobal(KernelName, M);
+  GlobalVariable *InstMix = createKernelPropertiesGlobal(KernelName, M);
   Value *KName = createConstString(KernelName, M);
   GlobalVariable *EmbFB = getEmbFBGlobal(TTID::Hip, M);
 

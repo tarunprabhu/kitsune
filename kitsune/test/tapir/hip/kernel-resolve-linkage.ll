@@ -1,12 +1,12 @@
 ; When device functions are resolved, a declaration for the libdevice function
 ; is added to the device module, even if a definition is provided by the
-; libdevice module. The link-device-bitcode pass will provide the definition.
+; libdevice module. The emb-link-libdevice-bitcode pass will provide the definition.
 ; When doing this, we need to change the linkage types of the libdevice
 ; functions because only external and external_weak linkage is allowed on
 ; declarations.
 ;
 ; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O2>,resolve-device-funcs' \
+; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;

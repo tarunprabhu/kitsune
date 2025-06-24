@@ -1,4 +1,4 @@
-//==- CodeGenFatBinariesCuda.cpp - Generate fat binaries for NVIDIA GPUs ---==//
+//===- CGFBCuda.cpp - Generate fat binaries for NVIDIA GPUs ---------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CodeGenFatBinariesImpl.h"
+#include "CGFBImpl.h"
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
@@ -51,7 +51,7 @@ static cl::opt<int> clPtxasOptLevel(
 namespace {
 
 /// Helper class to generate code for NVIDIA GPU's from embedded bitcode.
-class CodeGenFatBinaryCuda {
+class CGFBCuda {
 private:
   const TapirTargetOptions &tto;
 
@@ -228,7 +228,7 @@ private:
   }
 
 public:
-  CodeGenFatBinaryCuda(const TapirTargetOptions &tto) : tto(tto) {}
+  CGFBCuda(const TapirTargetOptions &tto) : tto(tto) {}
 
   bool run(GlobalVariable &gfb, const GlobalVariable &gbc, bool keepFiles) {
     std::unique_ptr<Module> km = parseEmbBCGlobal(gbc);
@@ -249,9 +249,7 @@ public:
 
 } // namespace
 
-bool llvm::detail::cgFatBinaryCuda(GlobalVariable &gfb,
-                                   const GlobalVariable &gbc,
-                                   const TapirTargetOptions &tto,
-                                   bool keepFiles) {
-  return CodeGenFatBinaryCuda(tto).run(gfb, gbc, keepFiles);
+bool llvm::detail::cgfbCuda(GlobalVariable &gfb, const GlobalVariable &gbc,
+                            const TapirTargetOptions &tto, bool keepFiles) {
+  return CGFBCuda(tto).run(gfb, gbc, keepFiles);
 }

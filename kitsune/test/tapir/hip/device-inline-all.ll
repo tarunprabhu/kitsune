@@ -4,7 +4,7 @@
 ; ------------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a %s \
-; RUN:     -passes='tapir-lowering<O1>,prepare-emb-bc' \
+; RUN:     -passes='tapir-lowering<O1>,emb-prepare' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,DEFAULT
 ;
@@ -17,7 +17,7 @@
 ; ------------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a %s \
-; RUN:     -passes='tapir-lowering<O1>,prepare-emb-bc' -emb-inline-all \
+; RUN:     -passes='tapir-lowering<O1>,emb-prepare' -emb-inline-all \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,INLINE
 ;

@@ -1,11 +1,11 @@
-; When resolving libdevice functions in the resolve-device-funcs pass, a
+; When resolving libdevice functions in the emb-resolve-libdevice-calls pass, a
 ; declaration of the libdevice function is added into the device module. At this
 ; time, the linkage of the function is changed to be external. When the
-; definitions of the functions are provided in the link-device-bitcode pass,
+; definitions of the functions are provided in the emb-link-libdevice-bitcode pass,
 ; these linkages should be overridden with those in the libdevice module.
 ;
 ; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O2>,resolve-device-funcs,link-device-bitcode' \
+; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls,emb-link-libdevice-bitcode' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;

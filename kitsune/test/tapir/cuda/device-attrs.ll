@@ -7,7 +7,7 @@
 ; does.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 --tapir-cuda-features="+ptx87" \
-; RUN:     %s -passes='tapir-lowering<O2>,prepare-emb-bc' \
+; RUN:     %s -passes='tapir-lowering<O2>,emb-prepare' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;

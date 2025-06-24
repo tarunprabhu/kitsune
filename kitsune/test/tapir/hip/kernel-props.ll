@@ -3,7 +3,7 @@
 ; contents of the computed metadata are correct.
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx906 -S %s \
-; RUN:     -passes='tapir-lowering<O2>,finalize-kernel-metadata' \
+; RUN:     -passes='tapir-lowering<O2>,kit-kernel-properties' \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @{{.+}} = private unnamed_addr constant {{.+}} { {{.+}} } #[[KERNEL_PROPS:[0-9]+]]

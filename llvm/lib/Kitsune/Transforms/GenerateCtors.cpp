@@ -1,4 +1,4 @@
-//===- GenerateKitsuneCtor.cpp - Generate global ctors for Kitsune --------===//
+//===- GenerateCtors.cpp - Generate global ctors for Kitsune --------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/GenerateKitsuneCtors.h"
-#include "GenerateKitsuneCtorsImpl.h"
+#include "kitsune/Transforms/GenerateCtors.h"
+#include "GenerateCtorsImpl.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Instructions.h"
@@ -47,8 +47,8 @@ static bool shouldGenerateGPUCtor(Module &m, TTID tt) {
 
 namespace llvm {
 
-PreservedAnalyses GenerateKitsuneCtorsPass::run(Module &m,
-                                                ModuleAnalysisManager &mam) {
+PreservedAnalyses GenerateCtorsPass::run(Module &m,
+                                         ModuleAnalysisManager &mam) {
   // If no primary tapir target has been set, there will be nothing to do, so
   // bail out immediately.
   const TapirTargetInfo &tgi = mam.getResult<TapirTargetAnalysis>(m);
@@ -62,10 +62,10 @@ PreservedAnalyses GenerateKitsuneCtorsPass::run(Module &m,
   const TapirTargetOptions &tto = tgi.getOptions();
 
   if (shouldGenerateGPUCtor(m, TTID::Cuda))
-    detail::genKitsuneCtorCuda(m, tto, getTLI);
+    detail::genCtorCuda(m, tto, getTLI);
 
   if (shouldGenerateGPUCtor(m, TTID::Hip))
-    detail::genKitsuneCtorHip(m, tto, getTLI);
+    detail::genCtorHip(m, tto, getTLI);
 
   // This never invalidates any analyses since only a global variable will have
   // changed. The generated ctors will not be called explicitly in the code,

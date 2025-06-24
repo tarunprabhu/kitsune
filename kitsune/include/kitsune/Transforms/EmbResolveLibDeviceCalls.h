@@ -1,4 +1,4 @@
-//=- ResolveDeviceFuncs.h - Resolve device functions -------------*- C++ -*--=//
+//==- EmbResolveLibDeviceCalls.h - Resolve libdevice calls ------*- C++ -*--==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,16 +6,16 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// The embedded bitcode may contain calls to library functions for which
-// device-specific implementations exist. This resolves the calls to such
-// functions in the embedded bitcode to use the device-specific implementations.
+// Embedded modules may contain calls to library functions for which
+// device-specific implementations exist. This resolves calls to such functions
+// in embedded modules to use the device-specific implementations.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_TRANSFORMS_RESOLVE_DEVICE_FUNCS_H
-#define KITSUNE_TRANSFORMS_RESOLVE_DEVICE_FUNCS_H
+#ifndef KITSUNE_TRANSFORMS_EMB_RESOLVE_LIB_DEVICE_CALLS_H
+#define KITSUNE_TRANSFORMS_EMB_RESOLVE_LIB_DEVICE_CALLS_H
 
-#include "kitsune/Transforms/EmbBCPass.h"
+#include "kitsune/Transforms/EmbModulePass.h"
 
 namespace llvm {
 
@@ -27,14 +27,15 @@ namespace llvm {
 /// files are provided by vendors containing the definitions of these functions.
 /// Those bitcode files are linked into the embedded bitcode module in a
 /// separate pass.
-class ResolveDeviceFuncsPass : public EmbBCPass<ResolveDeviceFuncsPass> {
+class EmbResolveLibDeviceCallsPass
+    : public EmbModulePass<EmbResolveLibDeviceCallsPass> {
 public:
   bool run(TTID tt, Module &devM, Module &hostM,
            ModuleAnalysisManager &hostMAM);
 
-  using EmbBCPass<ResolveDeviceFuncsPass>::run;
+  using EmbModulePass<EmbResolveLibDeviceCallsPass>::run;
 };
 
 } // namespace llvm
 
-#endif // KITSUNE_TRANSFORMS_RESOLVE_DEVICE_FUNCS_H
+#endif // KITSUNE_TRANSFORMS_EMB_RESOLVE_LIB_DEVICE_CALLS_H

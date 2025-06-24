@@ -32,7 +32,7 @@ TEST(KitConstantUtils, createConstIntTT) {
   ConstantInt *cCuda = createConstInt(TTID::Cuda, ctx);
 
   EXPECT_EQ(cCuda->getType(), i32);
-  EXPECT_EQ(cCuda->getZExtValue(), int(TTID::Cuda));
+  EXPECT_EQ(cCuda->getZExtValue(), unsigned(TTID::Cuda));
 }
 
 TEST(KitConstantUtils, createConstString) {

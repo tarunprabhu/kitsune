@@ -2,7 +2,7 @@
 ; embedded bitcode should be removed after the fat binary is generated.
 ;
 ; RUN: opt -S %s --tapir=hip --tapir-hip-arch=gfx90a --tapir-lld=ld.lld \
-; RUN:     -passes='codegen-fat-binaries' \
+; RUN:     -passes='kit-cgfb' \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-NOT: @{{.+}}.bc = constant [{{[0-9]+}} x i8] c"{{.+}}"
@@ -10,8 +10,8 @@
 ; CHECK-SAME: section ".hip_fatbin"
 ; CHECK-SAME: #[[FBATTR:[0-9]+]]
 ;
-; CHECK-NOT: attributes #{{[0-9]+}} = {{.+}} kit_bc(4)
 ; CHECK: attributes #[[FBATTR]] = { kit_fb(4) }
+; CHECK-NOT: #{{[0-9]+}} = {{.+}} kit_bc(4)
 
 target triple = "x86_64-pc-linux-gnu"
 

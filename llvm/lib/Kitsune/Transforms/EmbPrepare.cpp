@@ -1,4 +1,4 @@
-//===- PrepareEmbBC.cpp - Prepare embedded modules for codegen ------------===//
+//===- EmbPrepare.cpp - Prepare embedded modules for codegen --------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/PrepareEmbBC.h"
+#include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/ADT/StringExtras.h"
@@ -20,7 +20,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/Support/AMDGPUAddrSpace.h"
 
-#define DEBUG_TYPE "prepare-emb-bc"
+#define DEBUG_TYPE "emb-prepare"
 
 using namespace llvm;
 
@@ -37,7 +37,7 @@ static cl::opt<bool> clInlineAllForce(
 
 namespace {
 
-class PrepareEmbBCCuda {
+class EmbPrepareCuda {
 private:
   const TapirTargetOptions &tto;
 
@@ -72,7 +72,7 @@ private:
   }
 
 public:
-  PrepareEmbBCCuda(const TapirTargetOptions &tto) : tto(tto) {}
+  EmbPrepareCuda(const TapirTargetOptions &tto) : tto(tto) {}
 
   bool run(Module &devM) {
     bool changed = false;
@@ -83,7 +83,7 @@ public:
   }
 };
 
-class PrepareEmbBCHip {
+class EmbPrepareHip {
 private:
   const TapirTargetOptions &tto;
 
@@ -287,7 +287,7 @@ private:
   }
 
 public:
-  PrepareEmbBCHip(const TapirTargetOptions &tto) : tto(tto) {}
+  EmbPrepareHip(const TapirTargetOptions &tto) : tto(tto) {}
 
   bool run(Module &devM) {
     bool changed = false;
@@ -305,17 +305,17 @@ public:
 
 namespace llvm {
 
-bool PrepareEmbBCPass::run(TTID tt, Module &devM, Module &hostM,
-                           ModuleAnalysisManager &hostMAM) {
+bool EmbPreparePass::run(TTID tt, Module &devM, Module &hostM,
+                         ModuleAnalysisManager &hostMAM) {
   const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
   const TapirTargetOptions &tto = tgi.getOptions();
   switch (tt) {
   case TTID::Cuda:
-    return PrepareEmbBCCuda(tto).run(devM);
+    return EmbPrepareCuda(tto).run(devM);
   case TTID::Hip:
-    return PrepareEmbBCHip(tto).run(devM);
+    return EmbPrepareHip(tto).run(devM);
   default:
-    llvm_unreachable("PrepareEmbBCPass::run: TTID not handled");
+    llvm_unreachable("EmbPreparePass::run: TTID not handled");
   }
 }
 

@@ -1,4 +1,4 @@
-//===- OptimizeEmbBC.cpp - Optimize embedded modules ----------------------===//
+//===- EmbOptimize.cpp - Optimize embedded modules ------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,12 +10,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/OptimizeEmbBC.h"
+#include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
-#include "kitsune/Transforms/EmbBCPassUtils.h"
+#include "kitsune/Transforms/Utils/EmbModulePassUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
@@ -27,7 +27,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
-#define DEBUG_TYPE "optimize-emb-bc"
+#define DEBUG_TYPE "emb-optimize"
 
 using namespace llvm;
 
@@ -63,13 +63,13 @@ namespace {
 
 /// Optimize the embedded bitcode. This runs the standard sequence of
 /// optimization passes on it.
-class OptimizeModule {
+class EmbOptimize {
 private:
   TTID tt;
   const TapirTargetOptions &tto;
 
 protected:
-  OptimizeModule(TTID tt, const TapirTargetOptions &tto) : tt(tt), tto(tto) {}
+  EmbOptimize(TTID tt, const TapirTargetOptions &tto) : tt(tt), tto(tto) {}
 
   /// Construct the pipeline tuning options. These may be different depending on
   /// the bitcode being optimized.
@@ -77,7 +77,7 @@ protected:
   getPipelineTuningOptions(OptimizationLevel optLevel) = 0;
 
 public:
-  virtual ~OptimizeModule() = default;
+  virtual ~EmbOptimize() = default;
 
   bool run(Module &devM) {
     // If the optimization level has been overridden on the command line, prefer
@@ -115,7 +115,7 @@ public:
 };
 
 /// Optimize a module for NVPTX.
-class OptimizeModuleCuda : public OptimizeModule {
+class EmbOptimizeCuda : public EmbOptimize {
 protected:
   PipelineTuningOptions
   getPipelineTuningOptions(OptimizationLevel optLevel) override final {
@@ -131,12 +131,12 @@ protected:
   }
 
 public:
-  OptimizeModuleCuda(const TapirTargetOptions &tto)
-      : OptimizeModule(TTID::Cuda, tto) {}
+  EmbOptimizeCuda(const TapirTargetOptions &tto)
+      : EmbOptimize(TTID::Cuda, tto) {}
 };
 
 /// Optimize a module for AMDGPU.
-class OptimizeModuleHip : public OptimizeModule {
+class EmbOptimizeHip : public EmbOptimize {
 protected:
   PipelineTuningOptions
   getPipelineTuningOptions(OptimizationLevel optLevel) override final {
@@ -152,26 +152,25 @@ protected:
   }
 
 public:
-  OptimizeModuleHip(const TapirTargetOptions &tto)
-      : OptimizeModule(TTID::Hip, tto) {}
+  EmbOptimizeHip(const TapirTargetOptions &tto) : EmbOptimize(TTID::Hip, tto) {}
 };
 
 } // namespace
 
 namespace llvm {
 
-bool OptimizeEmbBCPass::run(TTID tt, Module &devM, Module &hostM,
-                            ModuleAnalysisManager &hostMAM) {
+bool EmbOptimizePass::run(TTID tt, Module &devM, Module &hostM,
+                          ModuleAnalysisManager &hostMAM) {
   const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
   const TapirTargetOptions &tto = tgi.getOptions();
 
   switch (tt) {
   case TTID::Cuda:
-    return OptimizeModuleCuda(tto).run(devM);
+    return EmbOptimizeCuda(tto).run(devM);
   case TTID::Hip:
-    return OptimizeModuleHip(tto).run(devM);
+    return EmbOptimizeHip(tto).run(devM);
   default:
-    llvm_unreachable("OptimizeEmbBCPass::run: TTID not handled");
+    llvm_unreachable("EmbOptimizePass::run: TTID not handled");
   }
 }
 

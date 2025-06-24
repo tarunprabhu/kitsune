@@ -20,7 +20,7 @@ TEST(KitsuneUtils, createKernelPropertiesGlobal) {
   LLVMContext ctx;
   Module m("", ctx);
 
-  GlobalVariable *g = createKernelPropsGlobal("kern_132", m);
+  GlobalVariable *g = createKernelPropertiesGlobal("kern_132", m);
   g->setName("g0");
 
   EXPECT_TRUE(m.getGlobalVariable("g0", true));

@@ -2,7 +2,7 @@
 ; (including those that have the noinline attribute) is handled correctly.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 %s \
-; RUN:     -passes='tapir-lowering<O2>,prepare-emb-bc' -emb-inline-all-force \
+; RUN:     -passes='tapir-lowering<O2>,emb-prepare' -emb-inline-all-force \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;

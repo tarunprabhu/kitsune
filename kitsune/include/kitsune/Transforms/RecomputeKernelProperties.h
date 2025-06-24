@@ -1,4 +1,4 @@
-//===- FinalizeKernelMetadata.h - Compute kernel metadata ------*- C++ -*--===//
+//==- RecomputeKernelProperties.h - Recompute kernel properties -*- C++ -*--==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Compute the kernel metadata used in kernel launches.
+// Update the global variables containing the properties of functions launched
+// in kernel launch calls.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_TRANSFORMS_FINALIZE_KERNEL_METADATA_H
-#define KITSUNE_TRANSFORMS_FINALIZE_KERNEL_METADATA_H
+#ifndef KITSUNE_TRANSFORMS_RECOMPUTE_KERNEL_PROPERTIES_H
+#define KITSUNE_TRANSFORMS_RECOMPUTE_KERNEL_PROPERTIES_H
 
 #include "llvm/IR/PassManager.h"
 
@@ -24,8 +25,8 @@ namespace llvm {
 /// In the future, this could be expanded to include anything else that could be
 /// useful. This pass is run as late in the pipeline as possible to allow for
 /// all the optimizations to be run on the embedded bitcode.
-class FinalizeKernelMetadataPass
-    : public PassInfoMixin<FinalizeKernelMetadataPass> {
+class RecomputeKernelPropertiesPass
+    : public PassInfoMixin<RecomputeKernelPropertiesPass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
 
@@ -34,4 +35,4 @@ public:
 
 } // namespace llvm
 
-#endif // KITSUNE_TRANSFORMS_FINALIZE_KERNEL_METADATA_H
+#endif // KITSUNE_TRANSFORMS_RECOMPUTE_KERNEL_PROPERTIES_H

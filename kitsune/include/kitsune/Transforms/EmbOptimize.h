@@ -1,4 +1,4 @@
-//===- OptimizeEmbBC.h - Optimize embedded bitcode -------------*- C++ -*--===//
+//===- EmbOptimize.h - Optimize embedded modules ---------------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,22 +11,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_TRANSFORMS_OPTIMIZE_EMB_BC_H
-#define KITSUNE_TRANSFORMS_OPTIMIZE_EMB_BC_H
+#ifndef KITSUNE_TRANSFORMS_EMB_OPTIMIZE_H
+#define KITSUNE_TRANSFORMS_EMB_OPTIMIZE_H
 
-#include "kitsune/Transforms/EmbBCPass.h"
+#include "kitsune/Transforms/EmbModulePass.h"
 
 namespace llvm {
 
 /// This will run the standard optimization passes on the embedded module for
 /// the given tapir target.
-class OptimizeEmbBCPass : public EmbBCPass<OptimizeEmbBCPass> {
+class EmbOptimizePass : public EmbModulePass<EmbOptimizePass> {
 public:
   bool run(TTID tt, Module &devM, Module &hostM, ModuleAnalysisManager &hostAM);
 
-  using EmbBCPass<OptimizeEmbBCPass>::run;
+  using EmbModulePass<EmbOptimizePass>::run;
 };
 
 } // namespace llvm
 
-#endif // KITSUNE_TRANSFORMS_OPTIMIZE_EMB_BC_H
+#endif // KITSUNE_TRANSFORMS_EMB_OPTIMIZE_H

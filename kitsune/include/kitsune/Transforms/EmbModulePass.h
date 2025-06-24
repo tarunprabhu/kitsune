@@ -1,4 +1,4 @@
-//==- EmbBCPass.h - Base for passes that run on embedded modules -*- C++ -*-==//
+//==- EmbModulePass.h - Base class for embedded module passes ----*- C++ -*-==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,14 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Interface for embedded bitcode passes. These typically perform
-// transformations on embedded bitcode and update the global variable in the
-// parent module that contains the embedded bitcode.
+// Base class for passes that operate on embedded modules. These typically
+// perform transformations on the embedded modules and update the global
+// variables in the parent module that contain them.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_TRANSFORMS_EMB_BC_PASS_H
-#define KITSUNE_TRANSFORMS_EMB_BC_PASS_H
+#ifndef KITSUNE_TRANSFORMS_EMB_MODULE_PASS_H
+#define KITSUNE_TRANSFORMS_EMB_MODULE_PASS_H
 
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
@@ -75,11 +75,11 @@ static constexpr bool needsAnalysisManager = needs_analysis_manager<T>::value;
 ///
 /// NOTE: Embedded bitcode passes *MUST NOT* modify the host module. They
 /// may examine the host module and request analyses from it. The only
-/// modification that is allowed is the one that is performed in
-/// EmbBCPass::run() which is where the initializer of the global variable
-/// is updated if needed.
+/// modification these passes may make to the host is to update the initializer
+/// of the global variable containing the bitcode that was modified.
 ///
-template <typename DerivedT> class EmbBCPass : public PassInfoMixin<DerivedT> {
+template <typename DerivedT>
+class EmbModulePass : public PassInfoMixin<DerivedT> {
 public:
   PreservedAnalyses run(Module &hostM, ModuleAnalysisManager &hostMAM) {
     // If no primary tapir target has been set, the tapir target options will
@@ -135,4 +135,4 @@ public:
 
 } // namespace llvm
 
-#endif // KITSUNE_TRANSFORMS_EMB_BC_PASS_H
+#endif // KITSUNE_TRANSFORMS_EMB_MODULE_PASS_H

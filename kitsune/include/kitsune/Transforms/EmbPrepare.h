@@ -1,4 +1,4 @@
-//=- PrepareEmbBC.h - Prepare the embedded bitcode for codegen ---*- C++ -*--=//
+//===- EmbPrepare.h - Prepare embedded modules for codegen -----*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,14 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Prepare the embedded bitcode for code generation.
+// Prepare embedded modules for code generation.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_TRANSFORMS_PREPARE_EMB_BC_H
-#define KITSUNE_TRANSFORMS_PREPARE_EMB_BC_H
+#ifndef KITSUNE_TRANSFORMS_EMB_PREPARE_H
+#define KITSUNE_TRANSFORMS_EMB_PREPARE_H
 
-#include "kitsune/Transforms/EmbBCPass.h"
+#include "kitsune/Transforms/EmbModulePass.h"
 
 namespace llvm {
 
@@ -31,13 +31,13 @@ namespace llvm {
 /// host, although this is not strictly enforced. The idea here is that the
 /// tapir target will have taken care of adding the correct attributes to the
 /// kernel function, but may not have done anything for the callees.
-class PrepareEmbBCPass : public EmbBCPass<PrepareEmbBCPass> {
+class EmbPreparePass : public EmbModulePass<EmbPreparePass> {
 public:
   bool run(TTID tt, Module &devM, Module &hostM, ModuleAnalysisManager &hostAM);
 
-  using EmbBCPass<PrepareEmbBCPass>::run;
+  using EmbModulePass<EmbPreparePass>::run;
 };
 
 } // namespace llvm
 
-#endif // KITSUNE_TRANSFORMS_PREPARE_EMB_BC_H
+#endif // KITSUNE_TRANSFORMS_EMB_PREPARE_H

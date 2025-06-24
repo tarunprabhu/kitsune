@@ -9,7 +9,7 @@
 ; loop. Setting the optimization level to O0 retains this loop.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O1>,optimize-emb-bc' -emb-opt-level=0 \
+; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -emb-opt-level=0 \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s --check-prefix=O0
 ;
@@ -27,7 +27,7 @@
 ; may need to check for unrolling.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O2>,optimize-emb-bc' \
+; RUN:     -passes='tapir-lowering<O2>,emb-optimize' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s --check-prefix=O2
 ;
