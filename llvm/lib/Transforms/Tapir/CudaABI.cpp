@@ -576,7 +576,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   ConstantInt *ConstTT = createConstInt(TTID::Cuda, Ctx);
   Value *CudaStream = ConstantPointerNull::get(PtrTy);
-  GlobalVariable *InstMix = createKernelPropsGlobal(KernelName, M);
+  GlobalVariable *InstMix = createKernelPropertiesGlobal(KernelName, M);
   Value *KName = createConstString(KernelName, M);
   GlobalVariable *EmbFB = getEmbFBGlobal(TTID::Cuda, M);
 

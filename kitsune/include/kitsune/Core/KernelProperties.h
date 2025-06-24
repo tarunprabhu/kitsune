@@ -19,20 +19,26 @@
 
 namespace llvm {
 
+class ConstantStruct;
+class Function;
 class GlobalVariable;
 class LLVMContext;
 class Module;
 class StructType;
 
-/// Get the LLVM type for the instruction mix data. At some point, this should
-/// probably be renamed to reference more general kernel metadata.
-StructType *getKernelInstMixType(LLVMContext &ctx);
+/// Get the LLVM type for the instruction mix data.
+StructType *getKernelPropertiesType(LLVMContext &ctx);
+
+/// Calculate the kernel properties for the given kernel function and return a
+/// Constant that can be used as the initializer of the kernel properties
+/// global variable.
+ConstantStruct *getKernelPropertiesConstant(const Function &f);
 
 /// Create a global variable whose initializer will eventually contain the
 /// properties of a kernel function. These properties currently captures counts
 /// for various instruction kinds in the function, but could be expanded to
 /// other data as well. This global is passed to the kernel launch functions.
-GlobalVariable *createKernelPropsGlobal(StringRef kernelName, Module &m);
+GlobalVariable *createKernelPropertiesGlobal(StringRef kernelName, Module &m);
 
 } // namespace llvm
 

@@ -1,4 +1,4 @@
-//===- ResolveDeviceFuncsInEmbBC.cpp - Resolve device functions -----------===//
+//==- EmbResolveLibDeviceCalls.cpp - Resolve calls to libdevice functions --==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,15 +6,15 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// The embedded bitcode may contain calls to library functions for which
-// device-specific implementations exist. This resolves the calls to such
-// functions in the embedded bitcode to use the device-specific implementations.
+// Embedded modules may contain calls to library functions for which
+// device-specific implementations exist. This resolves calls to such functions
+// in embedded modules to use the device-specific implementations.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/ResolveDeviceFuncs.h"
+#include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Transforms/EmbBCPassUtils.h"
+#include "kitsune/Transforms/Utils/EmbModulePassUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/InstIterator.h"
@@ -24,7 +24,7 @@
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/SourceMgr.h"
 
-#define DEBUG_TYPE "resolve-device-funcs"
+#define DEBUG_TYPE "emb-resolve-libdevice-calls"
 
 using namespace llvm;
 
@@ -33,7 +33,7 @@ namespace {
 /// Implementation class to resolve calls to device functions in kernel modules.
 /// This specifically replaces calls to functions known to have a
 /// device-specific implementations in libDevice modules.
-class ResolveDeviceFuncs {
+class ResolveLibDeviceCalls {
 private:
   TTID tt;
   const TapirTargetOptions &tto;
@@ -43,13 +43,14 @@ private:
     std::string devFnName = getDeviceFunc(f->getName(), fast);
     if (not devFnName.empty()) {
       if (Function *devFn = libDeviceM.getFunction(devFnName)) {
-        LLVM_DEBUG(dbgs() << "resolve-device-funcs: mapped function '"
+        LLVM_DEBUG(dbgs() << "resolve-libdevice-calls: mapped function '"
                           << f->getName() << "' to '" << devFnName << "'\n");
         // If the device function has already been declared in the kernel
         // module, create a declaration for the device function with the correct
         // attributes. We may need to fix the linkage type here because some
-        // linkages are not allowed on declarations. The link-device-bitcode
-        // pass will provide definitions for these functions.
+        // linkages are not allowed on declarations. The
+        // emb-link-libdevice-bitcode pass will provide definitions for these
+        // functions.
         Module *m = f->getParent();
         Function *fdecl = m->getFunction(devFnName);
         if (not fdecl) {
@@ -66,7 +67,7 @@ private:
       }
       // If a device function was not found, we can't resolve anything. This is
       // an error, but we don't deal with it here.
-      LLVM_DEBUG(dbgs() << "resolve-device-funcs: WARNING: Mapped function '"
+      LLVM_DEBUG(dbgs() << "resolve-libdevice-calls: WARNING: Mapped function '"
                         << devFnName << "' not in libdevice module" << "\n");
     }
 
@@ -76,13 +77,14 @@ private:
     // or is already a function from the libdevice module, there is no need to
     // replace it. However, if it is a function that should have been handled,
     // this will result in an error later in the compilation process.
-    LLVM_DEBUG(dbgs() << "resolve-device-funcs: Not resolving '" << f->getName()
-                      << "'\n");
+    LLVM_DEBUG(dbgs() << "resolve-libdevice-calls: Not resolving '"
+                      << f->getName() << "'\n");
     return nullptr;
   }
 
   bool resolveCallees(Function &f, Module &libDeviceM) {
-    LLVM_DEBUG(dbgs() << "resolve-device-funcs: In '" << f.getName() << "'\n");
+    LLVM_DEBUG(dbgs() << "resolve-libdevice-calls: In '" << f.getName()
+                      << "'\n");
 
     bool changed = false;
     for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i) {
@@ -106,13 +108,13 @@ private:
   }
 
 protected:
-  ResolveDeviceFuncs(TTID tt, const TapirTargetOptions &tto)
+  ResolveLibDeviceCalls(TTID tt, const TapirTargetOptions &tto)
       : tt(tt), tto(tto) {}
 
   virtual std::string getDeviceFunc(StringRef f, bool fast) = 0;
 
 public:
-  virtual ~ResolveDeviceFuncs() = default;
+  virtual ~ResolveLibDeviceCalls() = default;
 
   bool run(Module &m) {
     LLVMContext &ctx = m.getContext();
@@ -127,7 +129,7 @@ public:
 };
 
 /// Resolve device functions for cuda.
-class ResolveDeviceFuncsCuda : public ResolveDeviceFuncs {
+class ResolveLibDeviceCallsCuda : public ResolveLibDeviceCalls {
 private:
   static const StringMap<StringRef> devFuncs;
 
@@ -141,11 +143,11 @@ protected:
   }
 
 public:
-  ResolveDeviceFuncsCuda(const TapirTargetOptions &tto)
-      : ResolveDeviceFuncs(TTID::Cuda, tto) {}
+  ResolveLibDeviceCallsCuda(const TapirTargetOptions &tto)
+      : ResolveLibDeviceCalls(TTID::Cuda, tto) {}
 };
 
-const StringMap<StringRef> ResolveDeviceFuncsCuda::devFuncs = {
+const StringMap<StringRef> ResolveLibDeviceCallsCuda::devFuncs = {
     {"acos", "acos"},
     {"acosf", "acosf"},
     {"acosh", "acosh"},
@@ -239,7 +241,7 @@ const StringMap<StringRef> ResolveDeviceFuncsCuda::devFuncs = {
 };
 
 /// Resolve device functions for hip.
-class ResolveDeviceFuncsHip : public ResolveDeviceFuncs {
+class ResolveLibDeviceCallsHip : public ResolveLibDeviceCalls {
 private:
   static const StringMap<StringRef> devFuncs;
 
@@ -257,11 +259,11 @@ protected:
   }
 
 public:
-  ResolveDeviceFuncsHip(const TapirTargetOptions &tto)
-      : ResolveDeviceFuncs(TTID::Hip, tto) {}
+  ResolveLibDeviceCallsHip(const TapirTargetOptions &tto)
+      : ResolveLibDeviceCalls(TTID::Hip, tto) {}
 };
 
-const StringMap<StringRef> ResolveDeviceFuncsHip::devFuncs = {
+const StringMap<StringRef> ResolveLibDeviceCallsHip::devFuncs = {
     {"acos", "acos_f64"},
     {"acosf", "acos_f32"},
     {"acosh", "acosh_f64"},
@@ -362,18 +364,18 @@ const StringMap<StringRef> ResolveDeviceFuncsHip::devFuncs = {
 
 namespace llvm {
 
-bool ResolveDeviceFuncsPass::run(TTID tt, Module &devM, Module &hostM,
-                                 ModuleAnalysisManager &hostMAM) {
+bool EmbResolveLibDeviceCallsPass::run(TTID tt, Module &devM, Module &hostM,
+                                       ModuleAnalysisManager &hostMAM) {
   const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
   const TapirTargetOptions &tto = tgi.getOptions();
 
   switch (tt) {
   case TTID::Cuda:
-    return ResolveDeviceFuncsCuda(tto).run(devM);
+    return ResolveLibDeviceCallsCuda(tto).run(devM);
   case TTID::Hip:
-    return ResolveDeviceFuncsHip(tto).run(devM);
+    return ResolveLibDeviceCallsHip(tto).run(devM);
   default:
-    llvm_unreachable("ResolveDeviceFuncsPass: TTID not handled");
+    llvm_unreachable("ResolveLibDeviceCallsPass: TTID not handled");
   }
 }
 

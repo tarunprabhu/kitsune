@@ -15,14 +15,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Transforms/FinalizeKernelMetadata.h"
-#include "kitsune/Transforms/GenerateKitsuneCtors.h"
-#include "kitsune/Transforms/LinkDeviceBitcode.h"
+#include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
+#include "kitsune/Transforms/EmbOptimize.h"
+#include "kitsune/Transforms/EmbPrepare.h"
+#include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
+#include "kitsune/Transforms/GenerateCtors.h"
 #include "kitsune/Transforms/LowerKitsuneRuntimeIntrinsics.h"
 #include "kitsune/Transforms/LowerMobileIntrinsics.h"
-#include "kitsune/Transforms/OptimizeEmbBC.h"
-#include "kitsune/Transforms/PrepareEmbBC.h"
-#include "kitsune/Transforms/ResolveDeviceFuncs.h"
+#include "kitsune/Transforms/RecomputeKernelProperties.h"
 #include "kitsune/Transforms/StripKitsuneAddrSpace.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
@@ -1869,12 +1869,12 @@ PassBuilder::buildKitsunePostTapirPipeline(OptimizationLevel Level,
                                            ThinOrFullLTOPhase Phase) {
   ModulePassManager MPM;
 
-  MPM.addPass(ResolveDeviceFuncsPass());
-  MPM.addPass(PrepareEmbBCPass());
-  MPM.addPass(LinkDeviceBitcodePass());
-  MPM.addPass(OptimizeEmbBCPass());
-  MPM.addPass(FinalizeKernelMetadataPass());
-  MPM.addPass(GenerateKitsuneCtorsPass());
+  MPM.addPass(EmbResolveLibDeviceCallsPass());
+  MPM.addPass(EmbPreparePass());
+  MPM.addPass(EmbLinkLibDeviceBitcodePass());
+  MPM.addPass(EmbOptimizePass());
+  MPM.addPass(RecomputeKernelPropertiesPass());
+  MPM.addPass(GenerateCtorsPass());
 
   // The tapir lowering passes may have introduced kitsune runtime intrinsics.
   // These should be lowered as late as possible.

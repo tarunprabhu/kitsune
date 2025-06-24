@@ -2,7 +2,7 @@
 ; it has already been run on does not cause any appreciable changes.
 ;
 ; RUN: opt --tapir=hip %s --tapir-hip-features="+16-bit-insts" \
-; RUN:     -passes='tapir-lowering<O2>,prepare-emb-bc,prepare-emb-bc' \
+; RUN:     -passes='tapir-lowering<O2>,emb-prepare,emb-prepare' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;

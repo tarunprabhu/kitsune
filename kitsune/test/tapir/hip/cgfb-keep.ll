@@ -11,7 +11,7 @@
 ;
 ; RUN: env TMPDIR=%t TEMP=%t TMP=%t \
 ; RUN: opt -S %s --tapir=hip --tapir-hip-arch=gfx1103 --tapir-lld=ld.lld \
-; RUN:     -passes='codegen-fat-binaries'
+; RUN:     -passes='kit-cgfb'
 ; RUN: not ls -l %t/kithip-*-.*
 ;
 ; ------------------------------------------------------------------------------
@@ -21,7 +21,7 @@
 ;
 ; RUN: env TMPDIR=%t TEMP=%t TMP=%t \
 ; RUN: opt -S %s --tapir=hip --tapir-hip-arch=gfx906 --tapir-lld=ld.lld \
-; RUN:     -passes='codegen-fat-binaries' -cgfb-keep-files
+; RUN:     -passes='kit-cgfb' -cgfb-keep-files
 ; RUN: ls -l %t/kithip-*-.* | FileCheck %s -check-prefix=EXT
 ; RUN: ls -l %t/kithip-*-.* | FileCheck %s -check-prefix=COUNT
 ;

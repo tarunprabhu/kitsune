@@ -1,4 +1,4 @@
-//==- EmbBCPassUtils.h - Utilities for embedded bitcode passes --*- C++ -*--==//
+//=- EmbModulePassUtils.h - Utilities for embedded module passes -*- C++ -*--=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities shared by embedded bitcode passes.
+// Utilities shared by embedded module passes.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_TRANSFORMS_EMB_BC_PASS_UTILS_H
-#define KITSUNE_TRANSFORMS_EMB_BC_PASS_UTILS_H
+#ifndef KITSUNE_TRANSFORMS_UTILS_EMB_MODULE_PASS_UTILS_H
+#define KITSUNE_TRANSFORMS_UTILS_EMB_MODULE_PASS_UTILS_H
 
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
@@ -33,4 +33,4 @@ getLibDeviceModule(TTID tt, const TapirTargetOptions &ttOpts, LLVMContext &ctx);
 
 } // namespace llvm
 
-#endif // KITSUNE_TRANSFORMS_EMB_BC_PASS_UTILS_H
+#endif // KITSUNE_TRANSFORMS_UTILS_EMB_MODULE_PASS_UTILS_H

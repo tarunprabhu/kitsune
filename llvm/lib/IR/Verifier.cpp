@@ -1714,6 +1714,15 @@ void Verifier::visitDIImportedEntity(const DIImportedEntity &N) {
           N.getRawEntity());
 }
 
+void Verifier::visitComdat(const Comdat &C) {
+  // In COFF the Module is invalid if the GlobalValue has private linkage.
+  // Entities with private linkage don't have entries in the symbol table.
+  if (TT.isOSBinFormatCOFF())
+    if (const GlobalValue *GV = M.getNamedValue(C.getName()))
+      Check(!GV->hasPrivateLinkage(), "comdat global value has private linkage",
+            GV);
+}
+
 void Verifier::visitEmbModule(const Module &EmbM) {
   // Embedded modules cannot contain any embedded bitcode or fat binaries.
   for (const GlobalVariable &G : EmbM.globals()) {
@@ -1725,15 +1734,6 @@ void Verifier::visitEmbModule(const Module &EmbM) {
 
   Check(not verifyModule(EmbM, OS, &BrokenDebugInfo),
         "broken embedded module found");
-}
-
-void Verifier::visitComdat(const Comdat &C) {
-  // In COFF the Module is invalid if the GlobalValue has private linkage.
-  // Entities with private linkage don't have entries in the symbol table.
-  if (TT.isOSBinFormatCOFF())
-    if (const GlobalValue *GV = M.getNamedValue(C.getName()))
-      Check(!GV->hasPrivateLinkage(), "comdat global value has private linkage",
-            GV);
 }
 
 void Verifier::visitEmbFBGlobalVariable(const GlobalVariable &G) {
@@ -1770,11 +1770,11 @@ void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
 
   LLVMContext &Ctx = G.getContext();
   std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(BC);
-  // Expected<std::unique_ptr<Module>> ModuleOrErr = parseBitcodeFile(*Buf, Ctx);
-  // Check(bool(ModuleOrErr), "could not parse embedded bitcode");
+  Expected<std::unique_ptr<Module>> ModuleOrErr = parseBitcodeFile(*Buf, Ctx);
+  Check(bool(ModuleOrErr), "could not parse embedded bitcode");
 
-  // std::unique_ptr<Module> EmbM = std::move(ModuleOrErr.get());
-  // visitEmbModule(*EmbM);
+  std::unique_ptr<Module> EmbM = std::move(ModuleOrErr.get());
+  visitEmbModule(*EmbM);
 }
 
 void Verifier::visitEmbGlobals() {

@@ -3,7 +3,7 @@
 ; test that that prefix, if present, is also handled correctly.
 ;
 ; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O2>,resolve-device-funcs' \
+; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s
 ;

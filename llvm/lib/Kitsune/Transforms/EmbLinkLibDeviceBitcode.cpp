@@ -1,4 +1,4 @@
-//=- LinkDeviceBitcode.cpp - Link device bitcode into the embedded bitcode --=//
+//===- EmbLinkLibDeviceBitcode.cpp - Link libdevice and embedded modules --===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,23 +6,23 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Link the device bitcode file(s) into the embedded bitcode modules.
+// Link the libdevice bitcode module(s) into the embedded bitcode modules.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/LinkDeviceBitcode.h"
+#include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Transforms/EmbBCPassUtils.h"
+#include "kitsune/Transforms/Utils/EmbModulePassUtils.h"
 #include "llvm/Linker/Linker.h"
 
-#define DEBUG_TYPE "link-device-bitcode"
+#define DEBUG_TYPE "emb-link-libdevice-bitcode"
 
 using namespace llvm;
 
 namespace llvm {
 
-bool LinkDeviceBitcodePass::run(TTID tt, Module &devM, Module &hostM,
-                                ModuleAnalysisManager &hostMAM) {
+bool EmbLinkLibDeviceBitcodePass::run(TTID tt, Module &devM, Module &hostM,
+                                      ModuleAnalysisManager &hostMAM) {
   LLVMContext &ctx = devM.getContext();
   const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
   const TapirTargetOptions &tto = tgi.getOptions();

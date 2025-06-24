@@ -10,12 +10,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_GENERATE_KITSUNE_CTORS_IMPL_H
-#define LLVM_GENERATE_KITSUNE_CTORS_IMPL_H
+#ifndef LLVM_KITSUNE_GENERATE_CTORS_IMPL_H
+#define LLVM_KITSUNE_GENERATE_CTORS_IMPL_H
 
 #include <functional>
 
-#define DEBUG_TYPE "generate-kitsune-ctors"
+#define DEBUG_TYPE "kit-ctors"
 
 namespace llvm {
 
@@ -29,14 +29,13 @@ namespace detail {
 using GetTLI = std::function<TargetLibraryInfo &(Function &)>;
 
 /// Generate a ctor for kitsune's cuda runtime.
-void genKitsuneCtorCuda(Module &m, const TapirTargetOptions &tto,
-                        GetTLI getTLI);
+void genCtorCuda(Module &m, const TapirTargetOptions &tto, GetTLI getTLI);
 
 /// Generate a ctor for kitsune's hip runtime.
-void genKitsuneCtorHip(Module &m, const TapirTargetOptions &tto, GetTLI getTLI);
+void genCtorHip(Module &m, const TapirTargetOptions &tto, GetTLI getTLI);
 
 } // namespace detail
 
 } // namespace llvm
 
-#endif // LLVM_GENERATE_KITSUNE CTORS_IMPL_H
+#endif // LLVM_KITSUNE_GENERATE CTORS_IMPL_H
