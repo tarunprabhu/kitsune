@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Run the standard sequence of optimization passes on the embedded bitcode.
+// Run the standard sequence of optimization passes on the embedded modules.
 //
 //===----------------------------------------------------------------------===//
 
@@ -31,15 +31,21 @@
 
 using namespace llvm;
 
-// Set a specific optimization level for the embedded bitcode. If this has not
-// been set explicitly, the optimization level from the tapir target options
-// will be used.
-// FIXME: Replace this with a char so we can override the optimization for size
-// as well.
-static cl::opt<int>
-    clOptLevel("emb-opt-level", cl::init(-1), cl::Hidden,
-               cl::desc("The optimization level to use on the embedded "
-                        "modules. Must be 0, 1, 2 or 3"));
+static cl::opt<OptznLevel> clOptznLevel(
+    cl::init(OptznLevel::O2), cl::Hidden,
+    cl::values(clEnumValN(OptznLevel::O0, "emb-O0", "No optimizations"),
+               clEnumValN(OptznLevel::O1, "emb-O1", "Some optimizations"),
+               clEnumValN(OptznLevel::O2, "emb-O2", "Most optimizations"),
+               clEnumValN(OptznLevel::O3, "emb-O3",
+                          "Most optimizations plus expensive ones"),
+               clEnumValN(OptznLevel::Os, "emb-Os", "Optimize for size"),
+               clEnumValN(OptznLevel::Oz, "emb-Oz",
+                          "Aggressively optimize for size")),
+    cl::desc("Optimization level for the embedded modules"));
+
+static cl::opt<bool> clPrintEmbPipelinePasses(
+    "emb-print-pipeline-passes", cl::init(false), cl::Hidden,
+    cl::desc("Print the passes that will be run on the embedded modules"));
 
 static OptimizationLevel mapToOptimizationLevel(OptznLevel optznLevel) {
   switch (optznLevel) {
@@ -83,10 +89,8 @@ public:
     // If the optimization level has been overridden on the command line, prefer
     // that, otherwise, use the optimization level from the TapirTargetOptions.
     OptznLevel optznLevel = tto.getOptznLevel();
-    if (clOptLevel != -1)
-      optznLevel = createOptznLevelFrom((unsigned)clOptLevel);
-    if (optznLevel == OptznLevel::O0)
-      return false;
+    if (clOptznLevel.getNumOccurrences())
+      optznLevel = clOptznLevel;
 
     // The analysis managers must be declared in this order so that they are
     // destroyed in the correct order due to inter-analysis-manager references
@@ -94,6 +98,7 @@ public:
     FunctionAnalysisManager fam;
     CGSCCAnalysisManager cgam;
     ModuleAnalysisManager mam;
+    PassInstrumentationCallbacks pic;
     TargetMachine *tm = createTargetMachine(tt, tto);
     OptimizationLevel optLevel = mapToOptimizationLevel(optznLevel);
     PipelineTuningOptions pto = getPipelineTuningOptions(optLevel);
@@ -108,6 +113,13 @@ public:
 
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
     mpm.addPass(VerifierPass());
+    if (clPrintEmbPipelinePasses) {
+      mpm.printPipeline(outs(), [&pic](StringRef className) -> StringRef {
+        StringRef passName = pic.getPassNameForClassName(className);
+        return passName.empty() ? className : passName;
+      });
+      outs() << "\n";
+    }
     mpm.run(devM, mam);
 
     return true;
