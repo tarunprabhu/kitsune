@@ -1,16 +1,21 @@
-; Check that the command lines to external commands issued during fat binary
-; generation are as expected.
+; Check that the -cgfb-ptxas-O<N> option is handled correctly.
 ;
 ; RUN: opt -S %s --tapir=cuda --tapir-cuda-arch=sm_72 \
-; RUN:     -passes='kit-cgfb' -cgfb-### \
-; RUN:     | FileCheck %s
+; RUN:     -passes='kit-cgfb' -cgfb-### -o /dev/null \
+; RUN:     | FileCheck %s --check-prefixes ALL,DEFAULT
 ;
-; CHECK: ptxas
-; CHECK-SAME: --gpu-name sm_72
-; CHECK-SAME: --warn-on-spills
-; CHECK-SAME: --opt-level 1
-; CHECK-SAME: --output-file [[ASMFILE:.+[.]s]]
-; CHECK-SAME: {{.+}}.ptx
+; RUN: opt -S %s --tapir=cuda --tapir-cuda-arch=sm_72 -cgfb-ptxas-O0 \
+; RUN:     -passes='kit-cgfb' -cgfb-### -o /dev/null \
+; RUN:     | FileCheck %s --check-prefixes ALL,O0
+;
+; ALL: ptxas
+; DEFAULT-SAME: --opt-level 1
+; O0-SAME: --opt-level 0
+; O1-SAME: --opt-level 1
+; O2-SAME: --opt-level 2
+; O3-SAME: --opt-level 3
+; Os: Unknown command line argument '-cgfb-ptxas-Os'
+; Oz: Unknown command line argument '-cgfb-ptxas-Oz'
 ;
 ; CHECK: fatbinary
 ; CHECK-SAME: --64

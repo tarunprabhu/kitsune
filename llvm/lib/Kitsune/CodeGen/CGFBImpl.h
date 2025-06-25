@@ -13,6 +13,8 @@
 #ifndef LLVM_KITSUNE_CGFB_IMPL_H
 #define LLVM_KITSUNE_CGFB_IMPL_H
 
+#include "kitsune/Core/OptznLevel.h"
+
 #define DEBUG_TYPE "kit-cgfb"
 
 namespace llvm {
@@ -34,6 +36,11 @@ struct CGFBOptions {
   /// Print the command lines for any external tools that are called during
   /// fat binary generation. This is only really useful for debugging.
   bool printCommandLines = false;
+
+  /// The optimization level to use for ptxas. This will be set to the value in
+  /// TapirTargetOptions if the -cgfb-ptxas-O<N> option is not used. If it is,
+  /// that value takes precedence.
+  OptznLevel ptxasOptLevel;
 };
 
 /// Copy the bytes in the given file containing a fat binary containing into the
