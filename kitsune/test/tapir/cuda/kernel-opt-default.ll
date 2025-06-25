@@ -1,56 +1,27 @@
-; Check that when the standard sequence of optimization passes are run on the
-; code, the results as expected.
+; ------------------------------------------------------------------------------
+; If no explicit optimization level is specified, the optimization level set by
+; the "frontend" (in this case, the value passed to the tapir-lower meta-pass)
+; should be used.
 ;
 ; ------------------------------------------------------------------------------
 ;
-; We have to set the optimization level of tapir lowering to non-zero for it to
-; work. However, we can override the optimization level used on the embedded
-; bitcode module. The lowering only adjusts the bounds of the original tapir
-; loop. Setting the optimization level to O0 retains this loop.
-;
 ; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -emb-O0 \
-; RUN:     | %kitmbc -S \
-; RUN:     | FileCheck %s --check-prefix=O0
+; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null \
+; RUN:     -emb-print-pipeline-passes \
+; RUN:     | FileCheck %s --check-prefix=O1
 ;
-; O0: define {{.+}} @__kitcu_{{.+}}(i64
-; O0: = phi i64
+; O1: NVVMReflectPass
+; O1-SAME: LoopUnrollPass<O1>
 ;
 ; ------------------------------------------------------------------------------
 ;
-; NOTE: This assumes that the grainsize is 1. For now, this is hard-coded into
-; the cuda tapir target. If we ever allow this to be configurable, and set the
-; default value to something other than 1, this needs to be changed.
-;
-; If compiling with optimizations, the loop will be removed since the trip
-; is determined to be 1. If the grain size is changed to be greater than 1, we
-; may need to check for unrolling.
-;
 ; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O2>,emb-optimize' \
-; RUN:     | %kitmbc -S \
+; RUN:     -passes='tapir-lowering<O2>,emb-optimize' -o /dev/null \
+; RUN:     -emb-print-pipeline-passes \
 ; RUN:     | FileCheck %s --check-prefix=O2
 ;
-; O2-NOT: = phi i64
-; O2: define {{.+}} @__kitcu_{{.+}}(i64 {{.*}}%[[UB:[^,]+]], i64 {{[^,]+}}, i64 {{[^,]+}}, ptr {{.*}}%[[BUF:[^,]+]], i64 {{.*}}%[[N:[^)]+]]) {{.*}}#[[ATTRS:[0-9]+]]
-; O2-NEXT: [[BBENTRY:.+]]:
-; O2-NEXT: %[[TID:.+]] = tail call range({{.+}}) i32 @llvm.nvvm.read.ptx.sreg.tid.x()
-; O2-NEXT: %[[BIDX:.+]] = tail call range({{.+}}) i32 @llvm.nvvm.read.ptx.sreg.ctaid.x()
-; O2-NEXT: %[[BDIM:.+]] = tail call range({{.+}}) i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
-; O2-NEXT: %[[BOFF:.+]] = mul i32 %[[BIDX]], %[[BDIM]]
-; O2-NEXT: %[[IV32:.+]] = add i32 %[[BOFF]], %[[TID]]
-; O2-NEXT: %[[TIV:.+]] = zext i32 %[[IV32]] to i64
-; O2-NEXT: %[[COND:.+]] = icmp ugt i64 %[[UB]], %[[TIV]]
-; O2-NEXT: br i1 %[[COND]], label %[[BBBODY:[^,]+]], label %[[BBEXIT:.+]]
-; O2: [[BBBODY]]:
-; O2-NEXT: %[[ARRIDX:.+]] = getelementptr {{.+}}, ptr %[[BUF]], i64 %[[TIV]]
-; O2-NEXT: store i64 %[[N]], ptr %[[ARRIDX]]
-; O2-NEXT: br label %[[BBEXIT]]
-; O2: [[BBEXIT]]:
-; O2-NEXT: ret void
-;
-; O2: attributes #[[ATTRS]] = {
-; O2-SAME: kit_kernel
+; O2: NVVMReflectPass
+; O2-SAME: LoopUnrollPass<O2>
 ;
 ; ------------------------------------------------------------------------------
 
