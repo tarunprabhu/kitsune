@@ -30,6 +30,11 @@
 using namespace llvm;
 
 static cl::opt<bool>
+    clPrintCommandLines("cgfb-###", cl::init(false), cl::Hidden,
+                        cl::desc("Print command lines of external tools that "
+                                 "are called during fat binary generation"));
+
+static cl::opt<bool>
     clKeepFiles("cgfb-keep-files", cl::init(false), cl::Hidden,
                 cl::desc("Do not delete intermediate files created during "
                          "generation of the fat binaries"));
@@ -47,10 +52,14 @@ public:
   bool run(Module &m) {
     bool changed = false;
 
+    detail::CGFBOptions cgfbOpts;
+    cgfbOpts.keepFiles = clKeepFiles;
+    cgfbOpts.printCommandLines = clPrintCommandLines;
+
     GlobalVariable *bcCuda = getEmbBCGlobal(TTID::Cuda, m);
     GlobalVariable *fbCuda = getEmbFBGlobal(TTID::Cuda, m);
     if (bcCuda and fbCuda) {
-      detail::cgfbCuda(*fbCuda, *bcCuda, ttOpts, clKeepFiles);
+      detail::cgfbCuda(*fbCuda, *bcCuda, ttOpts, cgfbOpts);
       bcCuda->eraseFromParent();
       changed |= true;
     }
@@ -58,7 +67,7 @@ public:
     GlobalVariable *bcHip = getEmbBCGlobal(TTID::Hip, m);
     GlobalVariable *fbHip = getEmbFBGlobal(TTID::Hip, m);
     if (bcHip and fbHip) {
-      detail::cgfbHip(*fbHip, *bcHip, ttOpts, clKeepFiles);
+      detail::cgfbHip(*fbHip, *bcHip, ttOpts, cgfbOpts);
       bcHip->eraseFromParent();
       changed |= true;
     }

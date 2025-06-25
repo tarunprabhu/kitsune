@@ -15,6 +15,7 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"
@@ -31,10 +32,33 @@ using namespace llvm;
 
 namespace {
 
+static StringRef getSRAMECCFeature(const TapirTargetOptions &tto) {
+  switch (tto.getHipSRAMECC()) {
+  case MaybeBool::On:
+    return ":sramecc+";
+  case MaybeBool::Off:
+    return ":sramecc-";
+  default:
+    return "";
+  }
+}
+
+static StringRef getXnackFeature(const TapirTargetOptions &tto) {
+  switch (tto.getHipXnack()) {
+  case MaybeBool::On:
+    return ":xnack+";
+  case MaybeBool::Off:
+    return ":xnack-";
+  default:
+    return "";
+  }
+}
+
 /// Helper class to generate code for AMD GPU's from embedded bitcode.
 class CGFBHip {
 private:
   const TapirTargetOptions &tto;
+  const detail::CGFBOptions &cgfbOpts;
 
 private:
   std::unique_ptr<ToolOutputFile> createObject(Module &km) {
@@ -110,16 +134,11 @@ private:
     args.push_back("--eh-frame-hdr");
     args.push_back("--plugin-opt=-amdgpu-internalize-symbols");
 
-    std::string mcpu = "--plugin-opt=-mcpu=" + tto.getHipArch().str();
-    if (tto.getHipSRAMECC() == MaybeBool::On)
-      mcpu += ":sramecc+";
-    if (tto.getHipXnack() == MaybeBool::On)
-      mcpu += ":xnack+";
+    std::string mcpu = join_items("", "--plugin-opt=-mcpu=", tto.getHipArch(),
+                                  getSRAMECCFeature(tto), getXnackFeature(tto));
     args.push_back(mcpu);
 
-    // TODO: Do we always want this to be -O3, or should this match the "main"
-    // optimization level?
-    std::string optLevel = "-O" + std::to_string(3);
+    std::string optLevel = "-" + toString(tto.getOptznLevel());
     args.push_back(optLevel);
 
     args.push_back("-o");
@@ -135,6 +154,8 @@ private:
         dbgs() << "\t\t" << i++ << ": " << arg << "\n";
       dbgs() << "\n\n";
     });
+    if (cgfbOpts.printCommandLines)
+      outs() << join(args, " ") << "\n";
 
     std::string errMsg;
     if (sys::ExecuteAndWait(lld, args,
@@ -150,16 +171,17 @@ private:
   }
 
 public:
-  CGFBHip(const TapirTargetOptions &tto) : tto(tto) {}
+  CGFBHip(const TapirTargetOptions &tto, const detail::CGFBOptions &cgfbOpts)
+      : tto(tto), cgfbOpts(cgfbOpts) {}
 
-  bool run(GlobalVariable &gfb, const GlobalVariable &gbc, bool keepFiles) {
+  bool run(GlobalVariable &gfb, const GlobalVariable &gbc) {
     std::unique_ptr<Module> km = parseEmbBCGlobal(gbc);
 
     std::unique_ptr<ToolOutputFile> objFile = createObject(*km);
     std::unique_ptr<ToolOutputFile> soFile = createSharedObject(*objFile);
     detail::embedFatBinary(*soFile, gfb);
 
-    if (keepFiles) {
+    if (cgfbOpts.keepFiles) {
       objFile->keep();
       soFile->keep();
     }
@@ -170,6 +192,7 @@ public:
 } // namespace
 
 bool llvm::detail::cgfbHip(GlobalVariable &gfb, const GlobalVariable &gbc,
-                           const TapirTargetOptions &tto, bool keepFiles) {
-  return CGFBHip(tto).run(gfb, gbc, keepFiles);
+                           const TapirTargetOptions &tto,
+                           const detail::CGFBOptions &cgfbOpts) {
+  return CGFBHip(tto, cgfbOpts).run(gfb, gbc);
 }

@@ -31,6 +31,7 @@ class raw_ostream;
 
 std::string toString(const TTID &tt);
 std::string toString(const MaybeBool &);
+std::string toString(const OptznLevel &);
 
 raw_ostream &operator<<(raw_ostream &os, const std::optional<TTID> &);
 raw_ostream &operator<<(raw_ostream &os, const TTID &);

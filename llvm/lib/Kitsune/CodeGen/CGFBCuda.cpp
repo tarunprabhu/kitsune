@@ -54,6 +54,7 @@ namespace {
 class CGFBCuda {
 private:
   const TapirTargetOptions &tto;
+  const detail::CGFBOptions &cgfbOpts;
 
 private:
   std::unique_ptr<ToolOutputFile> generatePTX(Module &km) {
@@ -149,6 +150,8 @@ private:
         dbgs() << "\t\t" << i++ << ": " << arg << "\n";
       dbgs() << "\n\n";
     });
+    if (cgfbOpts.printCommandLines)
+      outs() << join(args, " ") << "\n";
 
     std::string errMsg;
     if (sys::ExecuteAndWait(ptxas, args,
@@ -211,6 +214,8 @@ private:
         dbgs() << "\t\t" << i++ << ": " << arg << "\n";
       dbgs() << "\n\n";
     });
+    if (cgfbOpts.printCommandLines)
+      outs() << join(args, " ") << "\n";
 
     std::string errMsg;
     if (sys::ExecuteAndWait(/*Program=*/fatbin,
@@ -228,9 +233,10 @@ private:
   }
 
 public:
-  CGFBCuda(const TapirTargetOptions &tto) : tto(tto) {}
+  CGFBCuda(const TapirTargetOptions &tto, const detail::CGFBOptions &cgfbOpts)
+      : tto(tto), cgfbOpts(cgfbOpts) {}
 
-  bool run(GlobalVariable &gfb, const GlobalVariable &gbc, bool keepFiles) {
+  bool run(GlobalVariable &gfb, const GlobalVariable &gbc) {
     std::unique_ptr<Module> km = parseEmbBCGlobal(gbc);
 
     std::unique_ptr<ToolOutputFile> ptxFile = generatePTX(*km);
@@ -238,7 +244,7 @@ public:
     std::unique_ptr<ToolOutputFile> fatbinFile = createFatBinary(*asmFile);
     detail::embedFatBinary(*fatbinFile, gfb);
 
-    if (keepFiles) {
+    if (cgfbOpts.keepFiles) {
       ptxFile->keep();
       asmFile->keep();
       fatbinFile->keep();
@@ -250,6 +256,7 @@ public:
 } // namespace
 
 bool llvm::detail::cgfbCuda(GlobalVariable &gfb, const GlobalVariable &gbc,
-                            const TapirTargetOptions &tto, bool keepFiles) {
-  return CGFBCuda(tto).run(gfb, gbc, keepFiles);
+                            const TapirTargetOptions &tto,
+                            const detail::CGFBOptions &cgfbOpts) {
+  return CGFBCuda(tto, cgfbOpts).run(gfb, gbc);
 }
