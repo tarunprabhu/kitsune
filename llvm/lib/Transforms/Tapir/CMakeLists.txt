@@ -6,9 +6,9 @@ set(SOURCES
   LoweringUtils.cpp
   Outline.cpp
   GPUABI.cpp
+  KitsuneUtils.cpp
   SerialABI.cpp
   SerializeSmallTasks.cpp
-  TapirGPUUtils.cpp
   TapirLoopInfo.cpp
   TapirToTarget.cpp
 )

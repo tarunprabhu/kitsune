@@ -51,8 +51,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Implementation of Kitsune's cuda tapir target that lowers to Kitsune's cuda
-// runtime for NVIDIA GPU's
+// Tapir target that lowers to Kitsune's cuda runtime
 //
 //===----------------------------------------------------------------------===//
 
@@ -75,7 +74,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Transforms/Tapir/TapirGPUUtils.h"
+#include "llvm/Transforms/Tapir/KitsuneUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
@@ -547,38 +546,19 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   Function *KitrtPrefetchDevice =
       Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_prefetch_device);
 
-  // NOTE: If we are dealing with loop nests with multiple targets (in this case
-  // only a CPU-target w/ a nested GPU target is supported) we can end up with
-  // multiple calls to the outlined loop (which has been setup for dead code
-  // elimination) but can cause invalid IR that trips us up when handling the
-  // GPU module code generation. This is a challenge in the Tapir design that
-  // was not geared to handle some of the nuances of GPU target transformations
-  // (and code gen).  To address this, we need to do some clean up to keep the
-  // IR correct (or the verifier will fail on us...). Specifically, we can no
-  // longer depend upon DCE as it runs too late in the GPU transformation
-  // process...
-  //
-  // TODO: This code can be shared between the cuda and hip targets...
-  Function *TargetKF = KernelModule.getFunction(KernelName);
-  std::list<Instruction *> RemoveList;
-  if (TargetKF) {
-    LLVM_DEBUG(dbgs() << "\t*- searching for 'dangling' outline calls...\n");
-    for (Use &U : TargetKF->uses()) {
-      if (auto *Inst = dyn_cast<Instruction>(U.getUser())) {
-        LLVM_DEBUG(dbgs() << "\t\t- marking use for removal.\n");
-        if (Inst != TOI.ReplCall)
-          RemoveList.push_back(Inst);
-      }
-    }
-  }
-  for (Instruction *I : RemoveList)
-    I->eraseFromParent();
-
-  ConstantInt *ConstTT = createConstInt(TTID::Cuda, Ctx);
+  ConstantInt *CTT = createConstInt(TTID::Cuda, Ctx);
   Value *CudaStream = ConstantPointerNull::get(PtrTy);
   GlobalVariable *InstMix = createKernelPropertiesGlobal(KernelName, M);
   Value *KName = createConstString(KernelName, M);
   GlobalVariable *EmbFB = getEmbFBGlobal(TTID::Cuda, M);
+
+  // Create a global string literal for each of the non-const globals that are
+  // reachable from the kernel function.
+  std::map<GlobalVariable *, Value *> UsedGlobalNames;
+  for (GlobalValue *G : UsedGlobalValues)
+    if (auto *GV = dyn_cast<GlobalVariable>(G))
+      if (not GV->isConstant())
+        UsedGlobalNames.emplace(GV, createConstString(GV->getName(), M));
 
   // At this point we need a threads-per-block value for the launch call. The
   // runtime will determine this value if ThreadsPerBlock is zero but it can
@@ -586,11 +566,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // the launch attribute's value for this is flexible and be a computed
   // expression vs. a compile-time constant. For this first step of creating the
   // kernel launch, we take the path of a runtime configuration vs. an
-  // attributed launch. This will get patched up as needed when we post-process
-  // the module and replace the DummyFBPtr (as we will also need to replace the
-  // kernel launch call parameter for threads-per-block if an attributed
-  // expression is present). See postProcessModule()'s stage of finalizing the
-  // launch calls for details.
+  // attributed launch.
   TapirLoopHints Hints(TL.getLoop());
   Value *TPB = ConstantInt::get(Int32Ty, Hints.getThreadsPerBlock());
 
@@ -617,30 +593,17 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   if (TripCount->getType() != Int64Ty)
     TripCount = NewBuilder.CreateSExtOrBitCast(TripCount, Int64Ty, "cast.tc");
 
-  std::map<GlobalVariable *, Value *> DevGlobals;
-  for (GlobalValue *G : UsedGlobalValues) {
-    if (auto *GV = dyn_cast<GlobalVariable>(G)) {
-      if (not GV->isConstant()) {
-        Value *SymName = createConstString(GV->getName(), M);
-        DevGlobals.emplace(GV, SymName);
-      }
-    }
-  }
-
   // We need to explicitly add code to sync up host-side and device-side globals
   // prior to launching kernels.
-  for (auto [DevGV, SymName] : DevGlobals) {
-    LLVM_DEBUG(dbgs() << "\t\t\t  processing global: '" << DevGV->getName()
+  for (auto [GV, Name] : UsedGlobalNames) {
+    LLVM_DEBUG(dbgs() << "\t\t\t  processing global: '" << GV->getName()
                       << "'\n");
-    StringRef GVName = DevGV->getName();
-    GlobalVariable *HostGV = M.getGlobalVariable(GVName, /*AllowLocal=*/true);
-    Type *GVType = DevGV->getValueType();
+    Type *GVType = GV->getValueType();
     size_t GVSize = DL.getTypeAllocSize(GVType);
     Value *DevPtr =
-        NewBuilder.CreateCall(KitrtSymbolDevicePtr, {ConstTT, EmbFB, SymName});
+        NewBuilder.CreateCall(KitrtSymbolDevicePtr, {CTT, EmbFB, Name});
     Constant *Bytes = ConstantInt::get(Int64Ty, GVSize);
-    NewBuilder.CreateCall(KitrtSymbolMemcpyDevice,
-                          {ConstTT, DevPtr, HostGV, Bytes});
+    NewBuilder.CreateCall(KitrtSymbolMemcpyDevice, {CTT, DevPtr, GV, Bytes});
   }
 
   // TODO: There is some potential here to share this code across both the hip
@@ -670,7 +633,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
       // actually used (or likely to be used) by the kernel.
       ConstantInt *Bytes = NewBuilder.getInt64(-1);
       CudaStream = NewBuilder.CreateCall(KitrtPrefetchDevice,
-                                         {ConstTT, Inp, Bytes, CudaStream});
+                                         {CTT, Inp, Bytes, CudaStream});
     }
   }
 
@@ -683,29 +646,25 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
   CudaStream = NewBuilder.CreateCall(
       Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_launch_kernel),
-      {ConstTT, EmbFB, KName, Args, TripCount, TPB, InstMix, CudaStream});
+      {CTT, EmbFB, KName, Args, TripCount, TPB, InstMix, CudaStream});
 
   NewBuilder.CreateCall(
       Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_sync_stream),
-      {ConstTT, CudaStream});
+      {CTT, CudaStream});
 
   // After the kernel is done, copy the non-const globals back to the host. This
   // is done here to keep this part of the code generation simple. A subsequent
   // pass will attempt to move this call to the point where the global is
   // actually used on the host (or perhaps even delete it if the host never uses
   // the global again).
-  for (auto [DevGV, SymName] : DevGlobals) {
-    LLVM_DEBUG(dbgs() << "\t\t\t  processing global: '" << DevGV->getName()
+  for (auto [GV, Name] : UsedGlobalNames) {
+    LLVM_DEBUG(dbgs() << "\t\t\t  processing global: '" << GV->getName()
                       << "'\n");
-    StringRef GVName = DevGV->getName();
-    GlobalVariable *HostGV = M.getGlobalVariable(GVName, /*AllowLocal=*/true);
-    Type *GVType = DevGV->getValueType();
-    size_t GVSize = DL.getTypeAllocSize(GVType);
+    size_t GVSize = DL.getTypeAllocSize(GV->getValueType());
     Value *DevPtr =
-        NewBuilder.CreateCall(KitrtSymbolDevicePtr, {ConstTT, EmbFB, SymName});
+        NewBuilder.CreateCall(KitrtSymbolDevicePtr, {CTT, EmbFB, Name});
     Constant *Bytes = ConstantInt::get(Int64Ty, GVSize);
-    NewBuilder.CreateCall(KitrtSymbolMemcpyHost,
-                          {ConstTT, HostGV, DevPtr, Bytes});
+    NewBuilder.CreateCall(KitrtSymbolMemcpyHost, {CTT, GV, DevPtr, Bytes});
   }
 
   TOI.ReplCall->eraseFromParent();
@@ -722,10 +681,9 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &TTO)
     TTO.print(dbgs());
 
   TargetMachine *TM = createTargetMachine(TTID::Cuda, TTO);
-  KernelModule.setModuleIdentifier(
-      join_items("", CUABI_PREFIX, sys::path::filename(M.getName())));
   KernelModule.setTargetTriple(TM->getTargetTriple().str());
   KernelModule.setDataLayout(TM->createDataLayout());
+  KernelModule.setModuleIdentifier(getNameForDeviceModule(M, CUABI_PREFIX));
   KernelModule.setModuleFlag(Module::Override, "nvvm-reflect-ftz", FTZCodeGen);
   addDeviceModuleMetadata(TTID::Cuda, KernelModule);
 }
@@ -806,43 +764,8 @@ CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
   LLVM_DEBUG(dbgs() << "cuabi: create loop outlining processor.\n");
   LLVM_DEBUG(saveModuleToFile(&M, M.getName().str() + ".input"));
 
-  std::string KernelName;
-  raw_string_ostream Os(KernelName);
-  Os << CUABI_KERNEL_NAME_PREFIX;
-
-  // TODO #1: Need to do some more work on debugging and debug info.
-  const Loop *Loop = TL->getLoop();
-  if (M.getNamedMetadata("llvm.dbg.cu") || M.getNamedMetadata("llvm.dbg")) {
-    // If we have debug info in the module use the line number to name the
-    // kernel. This is only to make debugging a shade easier since it makes it
-    // easier to associate the kernel function with a loop in source code.
-    //
-    // FIXME: This is risky. In principle, in a large project, we could have
-    // multiple files with the same name in different directories. There is a
-    // small possibility that a forall loop occurs on exactly the same line in
-    // both of these files. Ideally, we should include the full file path which
-    // is guaranteed to be unique. However, that would detract from the
-    // "usefulness" of this name (mainly for debugging). For now, we'll stick
-    // with this until we can make some of the support tooling more robust to
-    // allow us to mangle the name to avoid collisions.
-    DebugLoc Loc = Loop->getStartLoc();
-    unsigned Line = Loc.getLine();
-    unsigned Col = Loc.getCol();
-    StringRef FilePath = Loc->getFile()->getFilename();
-    StringRef FileName = sys::path::filename(FilePath);
-    Os << convertNameForPTX(FileName, false) << "_" << Line << "_" << Col;
-  } else {
-    Function *F = Loop->getHeader()->getParent();
-    StringRef FName = F->getName();
-    std::string DemangledName;
-    if (nonMicrosoftDemangle(FName, DemangledName,
-                             /*CanHaveLeadingDot=*/false,
-                             /*ParseParams=*/false))
-      Os << DemangledName;
-    else
-      Os << FName;
-  }
-  LLVM_DEBUG(dbgs() << "\t- kernel function '" << KernelName << "()'.\n");
-
+  std::string KernelName =
+      convertNameForPTX(getNameForTapirLoop(*TL, CUABI_KERNEL_NAME_PREFIX),
+                        /*AddPrefix=*/false);
   return new CudaLoop(M, KernelModule, KernelName, this->getOptions());
 }

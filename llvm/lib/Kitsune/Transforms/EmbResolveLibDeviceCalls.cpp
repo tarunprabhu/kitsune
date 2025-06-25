@@ -241,6 +241,15 @@ const StringMap<StringRef> ResolveLibDeviceCallsCuda::devFuncs = {
 };
 
 /// Resolve device functions for hip.
+///
+/// TODO: device-side calls to cover feature set and double-precision support
+/// TODO: add printf() support.
+/// TODO: math options for:
+///         - DAZ [on|off],
+///         - unsafe math [on|off],
+///         - sqrt rounding [on|off],
+///         - etc.
+///
 class ResolveLibDeviceCallsHip : public ResolveLibDeviceCalls {
 private:
   static const StringMap<StringRef> devFuncs;
