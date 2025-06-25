@@ -1,4 +1,4 @@
-//===- CudaABI.h - Tapir to the Kitsune runtime CUDA target -----*- C++ -*-===//
+//===- CudaABI.h - Tapir target for Kitsune's cuda runtime ------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -50,10 +50,14 @@
 //  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 //  POSSIBILITY OF SUCH DAMAGE.
 //
-//===---------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-#ifndef LLVM_TAPIR_CUDA_ABI_H
-#define LLVM_TAPIR_CUDA_ABI_H
+// Tapir target that lowers to Kitsune's cuda runtime
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_TRANSFORMS_TAPIR_CUDA_ABI_H
+#define LLVM_TRANSFORMS_TAPIR_CUDA_ABI_H
 
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
@@ -187,4 +191,4 @@ public:
 
 } // namespace llvm
 
-#endif // LLVM_TAPIR_CUDA_ABI_H
+#endif // LLVM_TRANSFORMS_TAPIR_CUDA_ABI_H

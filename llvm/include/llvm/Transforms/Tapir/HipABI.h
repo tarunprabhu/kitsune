@@ -1,4 +1,4 @@
-//===- HipABI.h - Tapir to Kitsune runtime HIP target -----------*- C++ -*-===//
+//===- HipABI.h - Tapir target for Kitsune's hip runtime --------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -49,10 +49,14 @@
 //  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 //  POSSIBILITY OF SUCH DAMAGE.
 //
-//===---------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-#ifndef LLVM_TAPIR_HIP_ABI_H
-#define LLVM_TAPIR_HIP_ABI_H
+// Tapir target that lowers to Kitsune's hip runtime
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_TRANSFORMS_TAPIR_HIP_ABI_H
+#define LLVM_TRANSFORMS_TAPIR_HIP_ABI_H
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
@@ -232,4 +236,4 @@ private:
 
 } // namespace llvm
 
-#endif // LLVM_TAPIR_HIP_ABI_H
+#endif // LLVM_TRANSFORMS_TAPIR_HIP_ABI_H
