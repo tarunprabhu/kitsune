@@ -61,7 +61,9 @@ private:
   /// The optimization level set on the command line. This level will be used
   /// for both the middle-end optimizations on the kernel functions and the
   /// backend GPU code generators (including external assemblers as needed).
-  OptznLevel optLevel;
+  /// This is set to -O2 because we need at least -O1 to use tapir, and most of
+  /// the time, we actually want optimizations.
+  OptznLevel optLevel = OptznLevel::O2;
 
   /// How to use fuse floating-point operations.
   FPOpFusion::FPOpFusionMode fpOpFusionMode = FPOpFusion::Strict;

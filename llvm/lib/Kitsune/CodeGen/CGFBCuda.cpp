@@ -32,22 +32,6 @@
 
 using namespace llvm;
 
-// The default mode of the transformation is to embed a single fat binary image
-// for the selected target architecture. With this flag set, the PTX form of the
-// code will also be embedded into the fat binary.
-// FIXME: This is currently not used.
-static cl::opt<bool> clEmbedPTXInFatbinaries(
-    "cgfb-embed-ptx", cl::init(false), cl::Hidden,
-    cl::desc("Embed PTX code in the fat binaries generated for the cuda tapir "
-             "target (NOT YET IMPLEMENTED)"));
-
-// Override the optimization level used by ptxas when generating GPU code. If
-// this is not explicitly set, it will use the optimization level set in the
-// tapir target options, which is usually whatever was passed to the frontend.
-static cl::opt<int> clPtxasOptLevel(
-    "cgfb-ptxas-opt-level", cl::init(-1), cl::Hidden,
-    cl::desc("Set the optimization level for ptxas. Must be 0, 1, 2 or 3"));
-
 namespace {
 
 /// Helper class to generate code for NVIDIA GPU's from embedded bitcode.
@@ -126,13 +110,8 @@ private:
     if (tto.getTapirVerbose())
       args.push_back("--verbose");
 
-    // If the ptxas optimization level has not been explicitly overridden, use
-    // the optimization level set by the frontend.
-    int ptxasOptLevel = clPtxasOptLevel;
-    if (ptxasOptLevel == -1)
-      ptxasOptLevel = getSpeedupLevel(tto.getOptznLevel());
-
-    std::string optLevel = std::to_string(ptxasOptLevel);
+    std::string optLevel =
+        std::to_string(getSpeedupLevel(cgfbOpts.ptxasOptLevel));
     args.push_back("--opt-level");
     args.push_back(optLevel);
 

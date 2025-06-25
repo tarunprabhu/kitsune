@@ -8,7 +8,7 @@
 ; CHECK: ptxas
 ; CHECK-SAME: --gpu-name sm_72
 ; CHECK-SAME: --warn-on-spills
-; CHECK-SAME: --opt-level 0
+; CHECK-SAME: --opt-level 1
 ; CHECK-SAME: --output-file [[ASMFILE:.+[.]s]]
 ; CHECK-SAME: {{.+}}.ptx
 ;
