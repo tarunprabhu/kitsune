@@ -53,6 +53,24 @@ std::string llvm::toString(const MaybeBool &v) {
   llvm_unreachable("toString: MaybeBool value not handled");
 }
 
+std::string llvm::toString(const OptznLevel &optLevel) {
+  switch (optLevel) {
+  case OptznLevel::O0:
+    return "O0";
+  case OptznLevel::O1:
+    return "O1";
+  case OptznLevel::O2:
+    return "O2";
+  case OptznLevel::O3:
+    return "O3";
+  case OptznLevel::Os:
+    return "Os";
+  case OptznLevel::Oz:
+    return "Os";
+  }
+  llvm_unreachable("operator<<: OptznLevel not handled");
+}
+
 raw_ostream &llvm::operator<<(raw_ostream &os, const TTID &tt) {
   os << toString(tt);
   return os;
@@ -97,19 +115,6 @@ raw_ostream &llvm::operator<<(raw_ostream &os,
 }
 
 raw_ostream &llvm::operator<<(raw_ostream &os, const OptznLevel &optLevel) {
-  switch (optLevel) {
-  case OptznLevel::O0:
-    return os << "O0";
-  case OptznLevel::O1:
-    return os << "O1";
-  case OptznLevel::O2:
-    return os << "O2";
-  case OptznLevel::O3:
-    return os << "O3";
-  case OptznLevel::Os:
-    return os << "Os";
-  case OptznLevel::Oz:
-    return os << "Os";
-  }
-  llvm_unreachable("operator<<: OptznLevel not handled");
+  os << toString(optLevel);
+  return os;
 }
