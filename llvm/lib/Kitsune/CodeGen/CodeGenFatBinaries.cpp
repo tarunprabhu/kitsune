@@ -39,15 +39,38 @@ static cl::opt<bool>
                 cl::desc("Do not delete intermediate files created during "
                          "generation of the fat binaries"));
 
+// FIXME: Check if this is something that could be enabled and do so, if
+// possible.
+//
+// The default mode of the transformation is to embed a single fat binary image
+// for the selected target architecture. With this flag set, the PTX form of the
+// code will also be embedded into the fat binary.
+// static cl::opt<bool> clEmbedPTXInFatbinaries(
+//     "cgfb-embed-ptx", cl::init(false), cl::Hidden,
+//     cl::desc("Embed PTX code in the fat binaries generated for the cuda tapir
+//     "
+//              "target (NOT YET IMPLEMENTED)"));
+
+// Override the optimization level used by ptxas when generating GPU code. If
+// this is not explicitly set, it will use the optimization level set in the
+// tapir target options, which is usually whatever was passed to the frontend.
+static cl::opt<OptznLevel> clPtxasOptLevel(
+    cl::init(OptznLevel::O3), cl::Hidden,
+    cl::values(clEnumValN(OptznLevel::O0, "cgfb-ptxas-O0", "Pass O0 to ptxas"),
+               clEnumValN(OptznLevel::O1, "cgfb-ptxas-O1", "Pass O1 to ptxas"),
+               clEnumValN(OptznLevel::O2, "cgfb-ptxas-O2", "Pass O2 to ptxas"),
+               clEnumValN(OptznLevel::O3, "cgfb-ptxas-O3", "Pass O3 to ptxas")),
+    cl::desc("Override the optimization level passed to ptxas"));
+
 namespace {
 
 /// Implementation class to compile the embedded bitcode to fat binaries.
 class CodeGenFatBinaries {
 private:
-  const TapirTargetOptions &ttOpts;
+  const TapirTargetOptions &tto;
 
 public:
-  CodeGenFatBinaries(const TapirTargetOptions &ttOpts) : ttOpts(ttOpts) {}
+  CodeGenFatBinaries(const TapirTargetOptions &tto) : tto(tto) {}
 
   bool run(Module &m) {
     bool changed = false;
@@ -55,11 +78,14 @@ public:
     detail::CGFBOptions cgfbOpts;
     cgfbOpts.keepFiles = clKeepFiles;
     cgfbOpts.printCommandLines = clPrintCommandLines;
+    cgfbOpts.ptxasOptLevel = tto.getOptznLevel();
+    if (clPtxasOptLevel.getNumOccurrences())
+      cgfbOpts.ptxasOptLevel = clPtxasOptLevel;
 
     GlobalVariable *bcCuda = getEmbBCGlobal(TTID::Cuda, m);
     GlobalVariable *fbCuda = getEmbFBGlobal(TTID::Cuda, m);
     if (bcCuda and fbCuda) {
-      detail::cgfbCuda(*fbCuda, *bcCuda, ttOpts, cgfbOpts);
+      detail::cgfbCuda(*fbCuda, *bcCuda, tto, cgfbOpts);
       bcCuda->eraseFromParent();
       changed |= true;
     }
@@ -67,7 +93,7 @@ public:
     GlobalVariable *bcHip = getEmbBCGlobal(TTID::Hip, m);
     GlobalVariable *fbHip = getEmbFBGlobal(TTID::Hip, m);
     if (bcHip and fbHip) {
-      detail::cgfbHip(*fbHip, *bcHip, ttOpts, cgfbOpts);
+      detail::cgfbHip(*fbHip, *bcHip, tto, cgfbOpts);
       bcHip->eraseFromParent();
       changed |= true;
     }
