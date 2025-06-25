@@ -9,7 +9,7 @@
 ; loop. Setting the optimization level to O0 retains this loop.
 ;
 ; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -emb-opt-level=0 \
+; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -emb-O0 \
 ; RUN:     | %kitmbc -S \
 ; RUN:     | FileCheck %s --check-prefix=O0
 ;
