@@ -104,11 +104,12 @@ int main(int argc, char *argv[]) {
   std::vector<GlobalVariable *> gs;
   if (std::optional<TTID> tt = getClOptTapir()) {
     for (GlobalVariable &g : hostM->globals())
-      if (getAttrValueAsTTID(g, Attribute::KitBC) == tt)
+      if (g.hasAttribute(Attribute::KitBC) and
+          getAttrValueAsTTID(g, Attribute::KitTT) == tt)
         gs.push_back(&g);
   } else {
     for (GlobalVariable &g : hostM->globals())
-      if (g.hasAttribute(Attribute::KitBC))
+      if (g.hasAttribute(Attribute::KitBC) and g.hasAttribute(Attribute::KitTT))
         gs.push_back(&g);
   }
 

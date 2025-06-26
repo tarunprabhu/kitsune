@@ -303,8 +303,8 @@ Attribute Attribute::getWithVScaleRangeArgs(LLVMContext &Context,
   return get(Context, VScaleRange, packVScaleRangeArgs(MinValue, MaxValue));
 }
 
-Attribute Attribute::getWithTTID(LLVMContext &Context, AttrKind Kind, TTID TT) {
-  return get(Context, Kind, int(TT));
+Attribute Attribute::getWithTTID(LLVMContext &Context, TTID TT) {
+  return get(Context, KitTT, int(TT));
 }
 
 Attribute Attribute::getWithKernelProps(LLVMContext &Context,
@@ -514,8 +514,8 @@ FPClassTest Attribute::getNoFPClass() const {
 }
 
 TTID Attribute::getTTID() const {
-  assert((hasAttribute(Attribute::KitBC) || hasAttribute(Attribute::KitFB)) &&
-         "Can only call getTTID() on kit_bc or kit_fb attributes");
+  assert(hasAttribute(Attribute::KitTT) &&
+         "Can only call getTTID() on kit_tt attributes");
   return *createTTIDFrom(pImpl->getValueAsInt());
 }
 
@@ -710,18 +710,10 @@ std::string Attribute::getAsString(bool InAttrGrp) const {
     return Result;
   }
 
-  if (hasAttribute(Attribute::KitBC)) {
+  if (hasAttribute(Attribute::KitTT)) {
     std::string Result;
     raw_string_ostream OS(Result);
-    OS << "kit_bc(" << int(getTTID()) << ")";
-    OS.flush();
-    return Result;
-  }
-
-  if (hasAttribute(Attribute::KitFB)) {
-    std::string Result;
-    raw_string_ostream OS(Result);
-    OS << "kit_fb(" << int(getTTID()) << ")";
+    OS << "kit_tt(" << int(getTTID()) << ")";
     OS.flush();
     return Result;
   }
@@ -2269,9 +2261,8 @@ AttrBuilder &AttrBuilder::addNoFPClassAttr(FPClassTest Mask) {
   return addRawIntAttr(Attribute::NoFPClass, Mask);
 }
 
-AttrBuilder &AttrBuilder::addTapirTargetAttr(Attribute::AttrKind AttrKind,
-                                             TTID TT) {
-  return addRawIntAttr(AttrKind, int(TT));
+AttrBuilder &AttrBuilder::addTTIDAttr(TTID TT) {
+  return addRawIntAttr(Attribute::KitTT, int(TT));
 }
 
 AttrBuilder &AttrBuilder::addAllocKindAttr(AllocFnKind Kind) {

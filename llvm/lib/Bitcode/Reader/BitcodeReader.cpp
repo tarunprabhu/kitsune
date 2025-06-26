@@ -2256,6 +2256,8 @@ static Attribute::AttrKind getAttrFromCode(uint64_t Code) {
     return Attribute::NoExt;
   case bitc::ATTR_KIND_CAPTURES:
     return Attribute::Captures;
+  case bitc::ATTR_KIND_KIT_TT:
+    return Attribute::KitTT;
   case bitc::ATTR_KIND_KIT_BC:
     return Attribute::KitBC;
   case bitc::ATTR_KIND_KIT_FB:
@@ -2408,9 +2410,9 @@ Error BitcodeReader::parseAttributeGroupBlock() {
           else if (Kind == Attribute::NoFPClass)
             B.addNoFPClassAttr(
                 static_cast<FPClassTest>(Record[++i] & fcAllFlags));
-          else if (Kind == Attribute::KitBC || Kind == Attribute::KitFB) {
+          else if (Kind == Attribute::KitTT) {
             if (std::optional<TTID> TT = createTTIDFrom(Record[++i]))
-              B.addTapirTargetAttr(Kind, *TT);
+              B.addTTIDAttr(*TT);
             else
               return error("Not a valid tapir target id");
           }

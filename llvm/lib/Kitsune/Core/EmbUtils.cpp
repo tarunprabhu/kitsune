@@ -44,6 +44,7 @@ static GlobalVariable *createEmbBCGlobal(const Module &m, Module &hostM) {
   Type *type = init->getType();
   GlobalVariable *g = new GlobalVariable(hostM, type, /*isConstant=*/true,
                                          linkage, init, ".kitsune.emb.bc");
+  g->addAttribute(Attribute::KitBC);
   g->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
 
   return g;
@@ -59,6 +60,7 @@ static GlobalVariable *createEmbFBGlobal(MemoryBufferRef buf, Module &m) {
   Type *type = init->getType();
   GlobalVariable *g = new GlobalVariable(m, type, /*isConstant=*/true, linkage,
                                          init, ".kitsune.emb.fb");
+  g->addAttribute(Attribute::KitFB);
 
   return g;
 }
@@ -106,7 +108,7 @@ GlobalVariable *llvm::createEmbBCGlobal(const Module &devM, TTID tt,
                                         Module &hostM) {
   LLVMContext &ctx = hostM.getContext();
   GlobalVariable *g = ::createEmbBCGlobal(devM, hostM);
-  g->addAttribute(Attribute::getWithTTID(ctx, Attribute::KitBC, tt));
+  g->addAttribute(Attribute::getWithTTID(ctx, tt));
 
   return g;
 }
@@ -116,8 +118,8 @@ GlobalVariable *llvm::getEmbBCGlobal(TTID tt, Module &m) {
   // tapir target. This is the current implementation and might change, though
   // that is unlikely.
   for (GlobalVariable &g : m.globals())
-    if (g.hasAttribute(Attribute::KitBC) and
-        g.getAttribute(Attribute::KitBC).getTTID() == tt)
+    if (g.hasAttribute(Attribute::KitBC) && g.hasAttribute(Attribute::KitTT) &&
+        g.getAttribute(Attribute::KitTT).getTTID() == tt)
       return &g;
   return nullptr;
 }
@@ -161,7 +163,7 @@ GlobalVariable *llvm::createEmbFBGlobal(TTID tt, Module &m) {
   LLVMContext &ctx = m.getContext();
   std::unique_ptr<MemoryBuffer> buf = MemoryBuffer::getMemBuffer("");
   GlobalVariable *g = ::createEmbFBGlobal(*buf, m);
-  g->addAttribute(Attribute::getWithTTID(ctx, Attribute::KitFB, tt));
+  g->addAttribute(Attribute::getWithTTID(ctx, tt));
 
   switch (tt) {
   case TTID::Cuda:
@@ -181,8 +183,8 @@ GlobalVariable *llvm::createEmbFBGlobal(TTID tt, Module &m) {
 
 GlobalVariable *llvm::getEmbFBGlobal(TTID tt, Module &m) {
   for (GlobalVariable &g : m.globals())
-    if (g.hasAttribute(Attribute::KitFB) and
-        g.getAttribute(Attribute::KitFB).getTTID() == tt)
+    if (g.hasAttribute(Attribute::KitFB) && g.hasAttribute(Attribute::KitTT) &&
+        g.getAttribute(Attribute::KitTT).getTTID() == tt)
       return &g;
   return nullptr;
 }

@@ -645,7 +645,8 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   ConstantInt *CTT = createConstInt(TTID::Hip, Ctx);
   Value *HipStream = ConstantPointerNull::get(PtrTy);
-  GlobalVariable *InstMix = createKernelPropertiesGlobal(KernelName, M);
+  GlobalVariable *KProps =
+      createKernelPropertiesGlobal(KernelName, TTID::Hip, M);
   Value *KName = createConstString(KernelName, M);
   GlobalVariable *EmbFB = getEmbFBGlobal(TTID::Hip, M);
 
@@ -750,7 +751,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
   HipStream = NewBuilder.CreateCall(
       Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_launch_kernel),
-      {CTT, EmbFB, KName, Args, TripCount, TPB, InstMix, HipStream});
+      {CTT, EmbFB, KName, Args, TripCount, TPB, KProps, HipStream});
 
   NewBuilder.CreateCall(
       Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_sync_stream),

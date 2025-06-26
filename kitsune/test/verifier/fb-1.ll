@@ -8,6 +8,6 @@
 @fb = constant [0 x i8] zeroinitializer #1
 @.fb = constant [0 x i8] zeroinitializer #2
 
-attributes #0 = { kit_fb(1) }
-attributes #1 = { kit_fb(2) }
-attributes #2 = { kit_fb(4) }
+attributes #0 = { kit_fb kit_tt(1) }
+attributes #1 = { kit_fb kit_tt(2) }
+attributes #2 = { kit_fb kit_tt(4) }

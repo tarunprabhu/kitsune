@@ -8,5 +8,5 @@
 @fb = constant [0 x i8] zeroinitializer #0
 @bc = constant [4 x i8] c"BC\C0\DF" #1
 
-attributes #0 = { kit_fb(1) }
-attributes #1 = { kit_bc(1) }
+attributes #0 = { kit_fb kit_tt(1) }
+attributes #1 = { kit_bc kit_tt(1) }

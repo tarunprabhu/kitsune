@@ -7,7 +7,7 @@
 ; CHECK: @[[BC:.+]] = unnamed_addr constant [{{[0-9]+}} x i8] c"BC
 ; CHECK-SAME: #[[ATTR:[0-9]+]]
 ;
-; CHECK: #[[ATTR]] = { kit_bc(2) }
+; CHECK: #[[ATTR]] = { kit_bc kit_tt(2) }
 
 target triple = "x86_64-pc-linux-gnu"
 

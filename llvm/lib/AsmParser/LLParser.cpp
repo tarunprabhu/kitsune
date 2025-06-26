@@ -1647,12 +1647,11 @@ bool LLParser::parseEnumAttribute(Attribute::AttrKind Attr, AttrBuilder &B,
 
     return true;
   }
-  case Attribute::KitBC:
-  case Attribute::KitFB: {
+  case Attribute::KitTT: {
     std::optional<TTID> TT = parseTTIDAttr();
     if (!TT)
       return true;
-    B.addTapirTargetAttr(Attr, *TT);
+    B.addTTIDAttr(*TT);
     return false;
   }
   case Attribute::Range:

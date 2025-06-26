@@ -7,4 +7,4 @@
 
 @fb = constant [1 x i8] undef #0
 
-attributes #0 = { kit_fb(1) }
+attributes #0 = { kit_fb kit_tt(1) }

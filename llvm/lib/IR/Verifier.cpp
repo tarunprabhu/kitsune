@@ -1784,7 +1784,8 @@ void Verifier::visitEmbGlobals() {
   for (const GlobalVariable &G : M.globals()) {
     if (G.hasAttribute(Attribute::KitFB)) {
       visitEmbFBGlobalVariable(G);
-      ++FBCounts[G.getAttribute(Attribute::KitFB).getTTID()];
+      if (G.hasAttribute(Attribute::KitTT))
+        ++FBCounts[G.getAttribute(Attribute::KitTT).getTTID()];
     }
   }
 
@@ -1801,7 +1802,8 @@ void Verifier::visitEmbGlobals() {
   for (const GlobalVariable &G : M.globals()) {
     if (G.hasAttribute(Attribute::KitBC)) {
       visitEmbBCGlobalVariable(G);
-      ++BCCounts[G.getAttribute(Attribute::KitBC).getTTID()];
+      if (G.hasAttribute(Attribute::KitTT))
+        ++BCCounts[G.getAttribute(Attribute::KitTT).getTTID()];
     }
   }
 
@@ -2606,6 +2608,18 @@ void Verifier::verifyGlobalVariableAttrs(AttributeSet Attrs, const Value* V) {
   Check(!(Attrs.hasAttribute(Attribute::KitFB) &&
           Attrs.hasAttribute("kit_kernel_props")),
         "Attributes 'kit_fb' and 'kit_kernel_props' are incompatible!", V);
+
+  if (Attrs.hasAttribute(Attribute::KitBC))
+    Check(Attrs.hasAttribute(Attribute::KitTT),
+          "Attribute 'kit_bc' requires 'kit_tt'", V);
+
+  if (Attrs.hasAttribute(Attribute::KitFB))
+    Check(Attrs.hasAttribute(Attribute::KitTT),
+          "Attribute 'kit_fb' requires 'kit_tt'", V);
+
+  if (Attrs.hasAttribute("kit_kernel_props"))
+    Check(Attrs.hasAttribute(Attribute::KitTT),
+          "Attribute 'kit_kernel_props' requires 'kit_tt'", V);
 }
 
 void Verifier::visitConstantExprsRecursively(const Constant *EntryC) {

@@ -167,8 +167,8 @@ public:
   static Attribute getWithUWTableKind(LLVMContext &Context, UWTableKind Kind);
   static Attribute getWithMemoryEffects(LLVMContext &Context, MemoryEffects ME);
   static Attribute getWithNoFPClass(LLVMContext &Context, FPClassTest Mask);
-  static Attribute getWithTTID(LLVMContext &Context, AttrKind Kind, TTID TT);
-  static Attribute getWithKernelProps(LLVMContext &Contxt, StringRef Name);
+  static Attribute getWithTTID(LLVMContext &Context, TTID TT);
+  static Attribute getWithKernelProps(LLVMContext &Context, StringRef Name);
 
   /// For a typed attribute, return the equivalent attribute with the type
   /// changed to \p ReplacementTy.
@@ -1291,8 +1291,8 @@ public:
   /// Add initializes attribute.
   AttrBuilder &addInitializesAttr(const ConstantRangeList &CRL);
 
-  /// Add an attribute of the given kind that has a TTID value.
-  AttrBuilder &addTapirTargetAttr(Attribute::AttrKind AttrKind, TTID TT);
+  /// Add kit_tt attribute.
+  AttrBuilder &addTTIDAttr(TTID TT);
 
   ArrayRef<Attribute> attrs() const { return Attrs; }
 
