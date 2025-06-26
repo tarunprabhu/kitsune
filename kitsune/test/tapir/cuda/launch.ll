@@ -75,8 +75,8 @@
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;
-; CHECK-DAG: #[[KPATTR]] = { "kit_kernel_props"="[[KNAME]]" }
-; CHECK-DAG: #[[FBATTR]] = { kit_fb(2) }
+; CHECK-DAG: #[[KPATTR]] = { kit_tt(2) "kit_kernel_props"="[[KNAME]]" }
+; CHECK-DAG: #[[FBATTR]] = { kit_fb kit_tt(2) }
 
 target triple = "x86_64-pc-linux-gnu"
 

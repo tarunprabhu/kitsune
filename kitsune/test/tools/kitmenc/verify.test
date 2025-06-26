@@ -1,0 +1,8 @@
+# Check that the module produced by the tool passes the verifier. If the
+# verifier succeeds, nothing should be printed.
+#
+# RUN: echo "" | %kitmenc \
+# RUN:     | opt -passes=verify -o /dev/null 2>&1 \
+# RUN:     | FileCheck %s --allow-empty
+#
+# CHECK-NOT: {{.+}}

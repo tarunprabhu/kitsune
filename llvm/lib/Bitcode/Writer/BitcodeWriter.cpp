@@ -1018,6 +1018,8 @@ static uint64_t getAttrKindEncoding(Attribute::AttrKind Kind) {
     return bitc::ATTR_KIND_NOOUTLINE;
   case Attribute::NoIPA:
     return bitc::ATTR_KIND_NOIPA;
+  case Attribute::KitTT:
+    return bitc::ATTR_KIND_KIT_TT;
   case Attribute::KitBC:
     return bitc::ATTR_KIND_KIT_BC;
   case Attribute::KitFB:

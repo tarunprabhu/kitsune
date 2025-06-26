@@ -94,8 +94,8 @@ public:
     // pass on each.
     std::vector<std::tuple<GlobalVariable *, TTID>> gs;
     for (GlobalVariable &g : hostM.globals())
-      if (g.hasAttribute(Attribute::KitBC))
-        gs.emplace_back(&g, g.getAttribute(Attribute::KitBC).getTTID());
+      if (g.hasAttribute(Attribute::KitBC) && g.hasAttribute(Attribute::KitTT))
+        gs.emplace_back(&g, g.getAttribute(Attribute::KitTT).getTTID());
 
     auto *pass = static_cast<DerivedT *>(this);
     for (auto &tup : gs) {

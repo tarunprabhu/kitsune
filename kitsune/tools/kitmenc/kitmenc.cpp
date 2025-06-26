@@ -14,11 +14,15 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/CommandLine.h"
+#include "kitsune/Support/TTUtils.h"
+#include "kitsune/Support/ToString.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -63,10 +67,18 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  Module hostM("", ctx);
-  (void)createEmbBCGlobal(*embM, *getClOptTapir(TTID::Cuda), hostM);
+  TTID tt = *getClOptTapir(TTID::Cuda);
+  if (not doesTTGenEmbBC(tt)) {
+    WithColor::error() << "'" << tt
+                       << "' tapir target does not generate embedded bitcode\n";
+    return 2;
+  }
 
-  outs() << hostM << "\n";
+  Module hostM("", ctx);
+  (void)createEmbBCGlobal(*embM, tt, hostM);
+  (void)createEmbFBGlobal(tt, hostM);
+
+  outs() << hostM;
 
   return 0;
 }

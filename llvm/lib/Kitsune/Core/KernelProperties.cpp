@@ -138,6 +138,7 @@ StructType *llvm::getKernelPropertiesType(LLVMContext &ctx) {
 }
 
 GlobalVariable *llvm::createKernelPropertiesGlobal(StringRef kernelName,
+                                                   TTID tt,
                                                    Module &m) {
   LLVMContext &ctx = m.getContext();
   StructType *type = getKernelPropertiesType(ctx);
@@ -146,6 +147,7 @@ GlobalVariable *llvm::createKernelPropertiesGlobal(StringRef kernelName,
                                GlobalValue::PrivateLinkage, init);
 
   g->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
+  g->addAttribute(Attribute::getWithTTID(ctx, tt));
   g->addAttribute(Attribute::getWithKernelProps(ctx, kernelName));
 
   return g;

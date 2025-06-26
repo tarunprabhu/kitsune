@@ -25,7 +25,7 @@
 ; CHECK: call {{.+}} @__hipRegisterVar(ptr %[[HANDLE]], ptr @[[HOSTVAR]], ptr @[[VARNAME]]
 ;
 ; CHECK: #[[ATTR]] = {
-; CHECK-SAME: kit_fb(4)
+; CHECK-SAME: kit_fb kit_tt(4)
 
 target triple = "x86_64-unknown-linux-gnu"
 

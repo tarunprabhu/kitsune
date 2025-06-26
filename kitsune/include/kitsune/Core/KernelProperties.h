@@ -15,6 +15,7 @@
 #ifndef KITSUNE_CORE_KERNEL_PROPERTIES_H
 #define KITSUNE_CORE_KERNEL_PROPERTIES_H
 
+#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
@@ -38,7 +39,11 @@ ConstantStruct *getKernelPropertiesConstant(const Function &f);
 /// properties of a kernel function. These properties currently captures counts
 /// for various instruction kinds in the function, but could be expanded to
 /// other data as well. This global is passed to the kernel launch functions.
-GlobalVariable *createKernelPropertiesGlobal(StringRef kernelName, Module &m);
+/// \param kernelName The name of the kernel function
+/// \param tt The tapir target that generated the kernel function
+/// \param m The host module
+GlobalVariable *createKernelPropertiesGlobal(StringRef kernelName, TTID tt,
+                                             Module &m);
 
 } // namespace llvm
 

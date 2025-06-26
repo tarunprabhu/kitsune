@@ -38,7 +38,7 @@
 ; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
 ; DEFAULT: }
 ;
-; DEFAULT: #[[FBATTR]] = { kit_fb(2) }
+; DEFAULT: #[[FBATTR]] = { kit_fb kit_tt(2) }
 ;
 ; ----------------------------------------------------------------------------
 ;

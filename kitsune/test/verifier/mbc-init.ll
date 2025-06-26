@@ -7,5 +7,5 @@
 @bc = constant [1 x i8] undef #0
 @fb = constant [0 x i8] zeroinitializer #1
 
-attributes #0 = { kit_bc(8) }
-attributes #1 = { kit_fb(8) }
+attributes #0 = { kit_bc kit_tt(8) }
+attributes #1 = { kit_fb kit_tt(8) }

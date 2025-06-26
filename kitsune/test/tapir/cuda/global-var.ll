@@ -25,7 +25,7 @@
 ; CHECK: call {{.+}} @__cudaRegisterVar(ptr %[[HANDLE]], ptr @[[HOSTVAR]], ptr @[[VARNAME]]
 ; CHECK: call {{.+}} @__cudaRegisterFatBinaryEnd
 ;
-; CHECK: #[[FBATTR]] = { kit_fb(2) }
+; CHECK: #[[FBATTR]] = { kit_fb kit_tt(2) }
 
 target triple = "x86_64-unknown-linux-gnu"
 

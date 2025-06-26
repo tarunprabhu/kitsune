@@ -43,7 +43,8 @@ entry:
   // it may be deleted by the global variable optimizastion pass.
   EXPECT_TRUE(g->hasName());
   EXPECT_TRUE(g->hasAttribute(Attribute::KitBC));
-  EXPECT_EQ(g->getAttribute(Attribute::KitBC).getTTID(), TTID::Cuda);
+  EXPECT_TRUE(g->hasAttribute(Attribute::KitTT));
+  EXPECT_EQ(g->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
   EXPECT_EQ(g->getParent(), hostM.get());
   EXPECT_EQ(getEmbBCGlobal(TTID::Cuda, *hostM), g);
 }
@@ -117,7 +118,7 @@ entry:
   EXPECT_EQ(hostM->global_size(), 1U);
   EXPECT_FALSE(parseM->getFunction("fcuda"));
   EXPECT_TRUE(parseM->getFunction("fhip"));
-  EXPECT_EQ(g1->getAttribute(Attribute::KitBC).getTTID(), TTID::Cuda);
+  EXPECT_EQ(g1->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
 }
 
 TEST(KitEmbUtils, getEmbModules) {
@@ -172,7 +173,8 @@ TEST(KitEmbUtils, createEmbFBCuda) {
   EXPECT_EQ(cast<ArrayType>(g->getValueType())->getNumElements(), 0U);
   EXPECT_EQ(g->getSection(), ".nv_fatbin");
   EXPECT_TRUE(g->hasAttribute(Attribute::KitFB));
-  EXPECT_EQ(g->getAttribute(Attribute::KitFB).getTTID(), TTID::Cuda);
+  EXPECT_TRUE(g->hasAttribute(Attribute::KitTT));
+  EXPECT_EQ(g->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
   EXPECT_EQ(g->getParent(), m.get());
   EXPECT_EQ(getEmbFBGlobal(TTID::Cuda, *m), g);
 }
@@ -194,7 +196,7 @@ TEST(KitEmbUtils, createEmbFBHip) {
   EXPECT_EQ(g->getAlign(), Align(4096));
   EXPECT_EQ(g->getUnnamedAddr(), GlobalValue::UnnamedAddr::None);
   EXPECT_TRUE(g->hasAttribute(Attribute::KitFB));
-  EXPECT_EQ(g->getAttribute(Attribute::KitFB).getTTID(), TTID::Hip);
+  EXPECT_EQ(g->getAttribute(Attribute::KitTT).getTTID(), TTID::Hip);
   EXPECT_EQ(g->getParent(), m.get());
   EXPECT_EQ(getEmbFBGlobal(TTID::Hip, *m), g);
 }
@@ -212,7 +214,7 @@ TEST(KitEmbUtils, resetEmbFB) {
   EXPECT_TRUE(m->getGlobalVariable("g0"));
   EXPECT_EQ(g1->getName(), "g0");
   EXPECT_EQ(m->global_size(), 1U);
-  EXPECT_EQ(g1->getAttribute(Attribute::KitFB).getTTID(), TTID::Cuda);
+  EXPECT_EQ(g1->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
   EXPECT_TRUE(isa<ConstantDataArray>(g1->getInitializer()));
   EXPECT_EQ(cast<ConstantDataArray>(g1->getInitializer())->getAsString(),
             "repl");
