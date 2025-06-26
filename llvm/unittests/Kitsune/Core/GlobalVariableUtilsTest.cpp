@@ -22,12 +22,11 @@ TEST(KitGlobalVariableUtils, getAttrValueAsTTID) {
   Type *i64 = Type::getInt64Ty(ctx);
   GlobalVariable g(i64, false, GlobalValue::ExternalLinkage);
 
-  EXPECT_EQ(getAttrValueAsTTID(g, Attribute::KitBC), std::nullopt);
+  EXPECT_EQ(getAttrValueAsTTID(g, Attribute::KitTT), std::nullopt);
 
-  g.addAttribute(Attribute::getWithTTID(ctx, Attribute::KitBC, TTID::Cuda));
+  g.addAttribute(Attribute::getWithTTID(ctx, TTID::Cuda));
 
-  EXPECT_EQ(getAttrValueAsTTID(g, Attribute::KitFB), std::nullopt);
-  EXPECT_EQ(getAttrValueAsTTID(g, Attribute::KitBC), TTID::Cuda);
+  EXPECT_EQ(getAttrValueAsTTID(g, Attribute::KitTT), TTID::Cuda);
 }
 
 } // namespace

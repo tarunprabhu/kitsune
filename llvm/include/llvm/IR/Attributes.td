@@ -430,15 +430,24 @@ def DenormalFPMathF32 : ComplexStrAttr<"denormal-fp-math-f32", [FnAttr]>;
 
 // ------------------------ Kitsune-specific attributes ------------------------
 
+/// The global variable was added by a tapir target and contains some other
+/// attribute that indicates how to interpret the global's initializer. This
+/// attribute must always occur in conjunction with another attribute.
+/// Currently, the auxiliary attribute must be 'kit_bc', 'kit_fb' or
+/// 'kit_kernel_props'. The value of the attribute is the integer representation
+/// of the tapir target that generated the global.
+def KitTT : IntAttr<"kit_tt", IntersectPreserve, [GlobalAttr]>;
+
 /// The global variable contains embedded bitcode. The value of the attribute is
 /// the integer representation of the tapir target that generated the global.
-def KitBC : IntAttr<"kit_bc", IntersectPreserve, [GlobalAttr]>;
+def KitBC : EnumAttr<"kit_bc", IntersectPreserve, [GlobalAttr]>;
 
 /// The global variable contains a fat binary. The value of the attribute is the
 /// integer representation of the tapir target that generated the global.
-def KitFB : IntAttr<"kit_fb", IntersectPreserve, [GlobalAttr]>;
+def KitFB : EnumAttr<"kit_fb", IntersectPreserve, [GlobalAttr]>;
 
-/// The global variable contains properties of a kitsune "kernel function".
+/// The global variable contains properties of a kitsune "kernel function". The
+/// value of the attribute is the name of the kernel function.
 def KitKernelProps : ComplexStrAttr<"kit_kernel_props", [GlobalAttr]>;
 
 /// The function is a "kernel function". This is a function in the device module

@@ -7,4 +7,4 @@
 
 @0 = constant [0 x i8] zeroinitializer #0
 
-attributes #0 = { kit_bc(1) }
+attributes #0 = { kit_bc kit_tt(1) }

@@ -950,6 +950,8 @@ static uint64_t getAttrKindEncoding(Attribute::AttrKind Kind) {
     return bitc::ATTR_KIND_CAPTURES;
   case Attribute::DeadOnReturn:
     return bitc::ATTR_KIND_DEAD_ON_RETURN;
+  case Attribute::KitTT:
+    return bitc::ATTR_KIND_KIT_TT;
   case Attribute::KitBC:
     return bitc::ATTR_KIND_KIT_BC;
   case Attribute::KitFB:

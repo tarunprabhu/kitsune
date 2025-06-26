@@ -184,7 +184,7 @@ public:
                                                CaptureInfo CI);
   LLVM_ABI static Attribute getWithTTID(LLVMContext &Context, AttrKind Kind,
                                         TTID TT);
-  LLVM_ABI static Attribute getWithKernelProps(LLVMContext &Contxt,
+  LLVM_ABI static Attribute getWithKernelProps(LLVMContext &Context,
                                                StringRef Name);
 
   /// For a typed attribute, return the equivalent attribute with the type
@@ -1322,8 +1322,8 @@ public:
   /// the same as the original instruction and the attribute is compatible.
   LLVM_ABI AttrBuilder &addFromEquivalentMetadata(const Instruction &I);
 
-  /// Add an attribute of the given kind that has a TTID value.
-  AttrBuilder &addTapirTargetAttr(Attribute::AttrKind AttrKind, TTID TT);
+  /// Add kit_tt attribute.
+  AttrBuilder &addTTIDAttr(TTID TT);
 
   ArrayRef<Attribute> attrs() const { return Attrs; }
 

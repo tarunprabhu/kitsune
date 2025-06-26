@@ -8,5 +8,5 @@
 
 @.kitsune.emb.fb = constant [0 x i8] zeroinitializer #1
 
-attributes #0 = { kit_bc(1) kit_fb(2) }
-attributes #1 = { kit_fb(1) }
+attributes #0 = { kit_bc kit_fb kit_tt(4) }
+attributes #1 = { kit_fb kit_tt(1) }

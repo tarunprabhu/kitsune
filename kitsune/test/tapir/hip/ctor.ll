@@ -47,7 +47,7 @@
 ; DEFAULT: }
 ;
 ; DEFAULT: attributes #[[FBATTR]] = {
-; DEFAULT-SAME: kit_fb(4)
+; DEFAULT-SAME: kit_fb kit_tt(4)
 ;
 ; ----------------------------------------------------------------------------
 ;

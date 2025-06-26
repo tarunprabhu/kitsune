@@ -9,7 +9,7 @@
 ; CHECK-SAME: #[[ATTR:[0-9]+]]
 ;
 ; CHECK: #[[ATTR]] = {
-; CHECK-SAME: kit_fb(2)
+; CHECK-SAME: kit_fb kit_tt(2)
 
 target triple = "x86_64-pc-linux-gnu"
 

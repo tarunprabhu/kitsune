@@ -42,6 +42,8 @@ set(KITSUNE_TEST_PARAMS
 list(APPEND KITSUNE_TEST_DEPS
   ${KITSUNE_LIBNAME}
   kit-config
+  kitmbc
+  kitmenc
   kitsune-resource-headers
   clang
   llc

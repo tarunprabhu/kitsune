@@ -11,9 +11,9 @@
 ; CHECK-DAG: define void @fkernel() #[[KERNEL:[0-9]+]]
 ; CHECK-DAG: define void @fdevice() #[[DEVICE:[0-9]+]]
 ;
-; COM: CHECK-DAG: #[[BC]] = { kit_bc(4) }
-; COM: CHECK-DAG: #[[FB]] = { kit_fb(4) }
-; CHECK-DAG: #[[PROPS]] = { "kit_kernel_props"="some_kernel_name" }
+; COM: CHECK-DAG: #[[BC]] = { kit_bc kit_tt(4) }
+; COM: CHECK-DAG: #[[FB]] = { kit_fb kit_tt(4) }
+; CHECK-DAG: #[[PROPS]] = { kit_tt(4) "kit_kernel_props"="some_kernel_name" }
 ; CHECK-DAG: #[[KERNEL]] = { kit_kernel }
 ; CHECK-DAG: #[[DEVICE]] = { kit_device }
 
@@ -29,8 +29,8 @@ define void @fdevice() #4 {
   ret void
 }
 
-attributes #0 = { kit_bc(4) }
-attributes #1 = { kit_fb(4) }
-attributes #2 = { "kit_kernel_props"="some_kernel_name" }
+attributes #0 = { kit_bc kit_tt(4) }
+attributes #1 = { kit_fb kit_tt(4) }
+attributes #2 = { kit_tt(4) "kit_kernel_props"="some_kernel_name" }
 attributes #3 = { kit_kernel }
 attributes #4 = { kit_device }

@@ -6,4 +6,4 @@
 
 @fb = external global [0 x i8] #0
 
-attributes #0 = { kit_fb(4) }
+attributes #0 = { kit_fb kit_tt(4) }

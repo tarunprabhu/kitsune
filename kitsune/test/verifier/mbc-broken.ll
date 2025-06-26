@@ -16,7 +16,7 @@
 
 @.kitsune.emb.fb.hip = global [0 x i8] zeroinitializer #3
 
-attributes #0 = { kit_bc(2) }
-attributes #1 = { kit_fb(2) }
-attributes #2 = { kit_bc(4) }
-attributes #3 = { kit_fb(4) }
+attributes #0 = { kit_bc kit_tt(2) }
+attributes #1 = { kit_fb kit_tt(2) }
+attributes #2 = { kit_bc kit_tt(4) }
+attributes #3 = { kit_fb kit_tt(4) }
