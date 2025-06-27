@@ -3,6 +3,9 @@
 ; pipeline. This does not attempt to be very thorough. It simply checks that
 ; the various optimization levels produce a "reasonably different" pipelines.
 ;
+; The Kitsune post-tapir passes should not be run, but the mandatory passes
+; should always be run.
+;
 ; ------------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
@@ -11,7 +14,10 @@
 ; RUN:     | FileCheck %s --check-prefix=O0
 ;
 ; O0: AMDGPUPrintfRuntimeBindingPass
+; O0-SAME: LowerMobileIntrinsics
 ; O0-NOT: LoopUnrollPass
+; O0-NOT: EmbResolveLibDeviceCalls
+; O0-NOT: GenerateCtors
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -22,6 +28,9 @@
 ;
 ; O1: AMDGPUPrintfRuntimeBindingPass
 ; O1-SAME: LoopUnrollPass<O1>
+; O1-SAME: LowerMobileIntrinsics
+; O1-NOT: EmbResolveLibDeviceCalls
+; O1-NOT: GenerateCtors
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -32,6 +41,9 @@
 ;
 ; O2: AMDGPUPrintfRuntimeBindingPass
 ; O2-SAME: LoopUnrollPass<O2>
+; O2-SAME: LowerMobileIntrinsics
+; O2-NOT: EmbResolveLibDeviceCalls
+; O2-NOT: GenerateCtors
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -42,6 +54,9 @@
 ;
 ; O3: AMDGPUPrintfRuntimeBindingPass
 ; O3-SAME: LoopUnrollPass<O3>
+; O3-SAME: LowerMobileIntrinsics
+; O3-NOT: EmbResolveLibDeviceCalls
+; O3-NOT: GenerateCtors
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -52,7 +67,10 @@
 ;
 ; Os: AMDGPUPrintfRuntimeBindingPass
 ; Os-SAME: LoopRotatePass<header-duplication;no-prepare-for-lto>
+; Os-SAME: LowerMobileIntrinsics
 ; Os-NOT: LibCallsShrinkWrapPass
+; Os-NOT: EmbResolveLibDeviceCalls
+; Os-NOT: GenerateCtors
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -63,7 +81,10 @@
 ;
 ; Oz: AMDGPUPrintfRuntimeBindingPass
 ; Oz-SAME: LoopRotatePass<no-header-duplication;no-prepare-for-lto>
+; Oz-SAME: LowerMobileIntrinsics
 ; Oz-NOT: LibCallsShrinkWrapPass
+; Oz-NOT: EmbResolveLibDeviceCalls
+; Oz-NOT: GenerateCtors
 ;
 ; ------------------------------------------------------------------------------
 ;

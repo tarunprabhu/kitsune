@@ -801,7 +801,8 @@ static int compileModule(char **argv, SmallVectorImpl<PassPlugin> &PluginList,
       std::optional<TapirTargetOptions> TTO =
           TapirTargetOptions::createFromCLOpts(OptLevel);
       PM.add(createTapirTargetAnalysisWrapperPass(TTO));
-      PM.add(createCodeGenFatBinariesLegacyPass());
+      if (TTO)
+        PM.add(createCodeGenFatBinariesLegacyPass());
     }
     if (!getRunPassNames().empty()) {
       if (!MIR) {

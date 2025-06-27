@@ -36,18 +36,11 @@
 // CHECK-FULL-O0-NEXT: Running pass: LowerMobileIntrinsicsPass
 // CHECK-FULL-O0-NEXT: Running analysis: TapirTargetAnalysis
 // CHECK-FULL-O0-NEXT: Running pass: StripKitsuneAddrSpacePass
-// CHECK-FULL-O0-NEXT: Running pass: EmbResolveLibDeviceCallsPass
-// CHECK-FULL-O0-NEXT: Running pass: EmbPreparePass
-// CHECK-FULL-O0-NEXT: Running pass: EmbLinkLibDeviceBitcodePass
-// CHECK-FULL-O0-NEXT: Running pass: EmbOptimizePass
-// CHECK-FULL-O0-NEXT: Running pass: RecomputeKernelPropertiesPass
-// CHECK-FULL-O0-NEXT: Running pass: GenerateCtorsPass
-// CHECK-FULL-O0-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
-// CHECK-FULL-O0-NEXT: Running analysis: TargetLibraryAnalysis
 // CHECK-FULL-O0-NEXT: Running pass: CanonicalizeAliasesPass
 // CHECK-FULL-O0-NEXT: Running pass: NameAnonGlobalPass
 // CHECK-FULL-O0-NEXT: Running pass: AssignGUIDPass
 // CHECK-FULL-O0-NEXT: Running pass: AnnotationRemarksPass
+// CHECK-FULL-O0-NEXT: Running analysis: TargetLibraryAnalysis
 // CHECK-FULL-O0-NEXT: Running pass: VerifierPass
 // CHECK-FULL-O0-NEXT: Running pass: BitcodeWriterPass
 
@@ -62,18 +55,11 @@
 // CHECK-THIN-O0-NEXT: Running pass: LowerMobileIntrinsicsPass
 // CHECK-THIN-O0-NEXT: Running analysis: TapirTargetAnalysis
 // CHECK-THIN-O0-NEXT: Running pass: StripKitsuneAddrSpacePass
-// CHECK-THIN-O0-NEXT: Running pass: EmbResolveLibDeviceCall
-// CHECK-THIN-O0-NEXT: Running pass: EmbPreparePass
-// CHECK-THIN-O0-NEXT: Running pass: EmbLinkLibDeviceBitcodePass
-// CHECK-THIN-O0-NEXT: Running pass: EmbOptimizePass
-// CHECK-THIN-O0-NEXT: Running pass: RecomputeKernelPropertiesPass
-// CHECK-THIN-O0-NEXT: Running pass: GenerateCtorsPass
-// CHECK-THIN-O0-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
-// CHECK-THIN-O0-NEXT: Running analysis: TargetLibraryAnalysis
 // CHECK-THIN-O0-NEXT: Running pass: CanonicalizeAliasesPass
 // CHECK-THIN-O0-NEXT: Running pass: NameAnonGlobalPass
 // CHECK-THIN-O0-NEXT: Running pass: AssignGUIDPass
 // CHECK-THIN-O0-NEXT: Running pass: AnnotationRemarksPass
+// CHECK-THIN-O0-NEXT: Running analysis: TargetLibraryAnalysis
 // CHECK-THIN-O0-NEXT: Running pass: VerifierPass
 // CHECK-THIN-O0-NEXT: Running pass: ThinLTOBitcodeWriterPass
 
