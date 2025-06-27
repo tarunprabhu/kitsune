@@ -2749,7 +2749,9 @@ std::optional<TTID> LLParser::parseTTIDAttr() {
   }
 
   uint32_t UTT = -1;
-  parseUInt32(UTT);
+  if (parseUInt32(UTT))
+    return std::nullopt;
+
   std::optional<TTID> TT = createTTIDFrom(UTT);
   if (!TT) {
     tokError("unknown tapir target");
