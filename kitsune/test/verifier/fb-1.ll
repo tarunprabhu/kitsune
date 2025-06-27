@@ -2,12 +2,13 @@
 ; module, but there can be no more than 1 of each. A corresponding embedded
 ; bitcode file is not required.
 ;
+; This should contain one fat binary for each tapir target that is known to
+; generate embedded bitcode.
+;
 ; RUN: llvm-as %s -o /dev/null
 
-@0 = constant [0 x i8] zeroinitializer #0
-@fb = constant [0 x i8] zeroinitializer #1
-@.fb = constant [0 x i8] zeroinitializer #2
+@fb = constant [0 x i8] zeroinitializer #0
+@.fb = constant [0 x i8] zeroinitializer #1
 
-attributes #0 = { kit_fb kit_tt(1) }
-attributes #1 = { kit_fb kit_tt(2) }
-attributes #2 = { kit_fb kit_tt(4) }
+attributes #0 = { kit_fb kit_tt(2) }
+attributes #1 = { kit_fb kit_tt(4) }

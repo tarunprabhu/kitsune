@@ -49,7 +49,7 @@ std::optional<TTID> llvm::getTTIDFromDeviceModuleMetadata(const Module &m) {
     if (const MDNode *md = nmd->getOperand(0))
       if (const auto *cmd = dyn_cast<ConstantAsMetadata>(md->getOperand(0)))
         if (const auto *cint = dyn_cast<ConstantInt>(cmd->getValue()))
-          return TTID(cint->getSExtValue());
+          return createTTIDFrom(cint->getSExtValue());
   return std::nullopt;
 }
 
