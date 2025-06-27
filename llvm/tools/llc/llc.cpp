@@ -701,7 +701,7 @@ static int compileModule(char **argv, LLVMContext &Context) {
     // selection.
     if (getRunPassNames().empty()) {
       std::optional<TapirTargetOptions> TTO =
-          TapirTargetOptions::createFromCLOpts(OptLevel);
+          TapirTargetOptions::createFromCommandLine(OptLevel);
       PM.add(createTapirTargetAnalysisWrapperPass(TTO));
       if (TTO)
         PM.add(createCodeGenFatBinariesLegacyPass());

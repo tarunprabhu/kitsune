@@ -986,7 +986,7 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   Module &M = *F.getParent();
   Loop *L = TL->getLoop();
   TapirLoopHints Hints(L);
-  TTID TT = TGI.getID();
+  TTID TT = TGI.getTTID();
   if (std::optional<TTID> HintTT = Hints.getLoopTarget())
     TT = *HintTT;
   const TapirTargetOptions &TTOpts = TGI.getOptions();

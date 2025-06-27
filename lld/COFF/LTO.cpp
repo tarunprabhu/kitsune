@@ -45,7 +45,7 @@ std::string BitcodeCompiler::getThinLTOOutputFile(StringRef path) {
 
 lto::Config BitcodeCompiler::createConfig() {
   lto::Config c;
-  c.PTO.TTOpts = TapirTargetOptions::createFromCLOpts(ctx.config.ltoo);
+  c.PTO.TTOpts = TapirTargetOptions::createFromCommandLine(ctx.config.ltoo);
   c.Options = initTargetOptionsFromCodeGenFlags();
   c.Options.EmitAddrsig = true;
   for (StringRef C : ctx.config.mllvmOpts)
