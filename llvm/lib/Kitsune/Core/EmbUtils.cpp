@@ -117,10 +117,14 @@ GlobalVariable *llvm::getEmbBCGlobal(TTID tt, Module &m) {
   // This assumes that only a single embedded bitcode module exists for a given
   // tapir target. This is the current implementation and might change, though
   // that is unlikely.
-  for (GlobalVariable &g : m.globals())
-    if (g.hasAttribute(Attribute::KitBC) && g.hasAttribute(Attribute::KitTT) &&
-        g.getAttribute(Attribute::KitTT).getTTID() == tt)
-      return &g;
+  for (GlobalVariable &g : m.globals()) {
+    if (g.hasAttribute(Attribute::KitBC)) {
+      assert(g.hasAttribute(Attribute::KitTT) &&
+             "Attribute 'kit_bc' requires 'kit_tt");
+      if (g.getAttribute(Attribute::KitTT).getTTID() == tt)
+        return &g;
+    }
+  }
   return nullptr;
 }
 
@@ -182,10 +186,14 @@ GlobalVariable *llvm::createEmbFBGlobal(TTID tt, Module &m) {
 }
 
 GlobalVariable *llvm::getEmbFBGlobal(TTID tt, Module &m) {
-  for (GlobalVariable &g : m.globals())
-    if (g.hasAttribute(Attribute::KitFB) && g.hasAttribute(Attribute::KitTT) &&
-        g.getAttribute(Attribute::KitTT).getTTID() == tt)
-      return &g;
+  for (GlobalVariable &g : m.globals()) {
+    if (g.hasAttribute(Attribute::KitFB)) {
+      assert(g.hasAttribute(Attribute::KitTT) &&
+             "Attribute 'kit_bc' requires 'kit_tt");
+      if (g.getAttribute(Attribute::KitTT).getTTID() == tt)
+        return &g;
+    }
+  }
   return nullptr;
 }
 
