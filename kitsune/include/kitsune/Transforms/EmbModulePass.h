@@ -85,7 +85,7 @@ public:
     // If no primary tapir target has been set, the tapir target options will
     // not have been set, so there is nothing that we can do.
     const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
-    if (not tgi.hasID())
+    if (not tgi.hasTTID())
       return PreservedAnalyses::all();
 
     // Calling resetEmbeddedBC() will delete the global variable whose

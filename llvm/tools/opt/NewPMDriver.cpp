@@ -358,7 +358,7 @@ createTapirTargetOptions(TargetMachine *TM, StringRef PassPipeline) {
   // correctly. Therefore, create a temporary PassBuilder, just to parse the
   // pass pipeline.
   PipelineTuningOptions PTO;
-  PTO.TTOpts = TapirTargetOptions::createFromCLOpts(OptznLevel::O1);
+  PTO.TTOpts = TapirTargetOptions::createFromCommandLine(OptznLevel::O1);
   PassBuilder PB(TM, PTO, /* PGOOptions */ std::nullopt,
                  /* PassInstrumentationCallback*/ nullptr);
 

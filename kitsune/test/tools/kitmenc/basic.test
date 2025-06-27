@@ -1,6 +1,7 @@
 # Check basic usage and command line options
 #
 # ------------------------------------------------------------------------------
+# The default tapir target to add to the encoded module is cuda.
 #
 # RUN: echo "" | %kitmenc \
 # RUN:     | FileCheck %s --check-prefix=DEFAULT
@@ -11,6 +12,7 @@
 # DEFAULT-DAG: attributes #[[CUDAFB]] = { kit_fb kit_tt(2) }
 #
 # ------------------------------------------------------------------------------
+# Check that the --tapir option overrides the default.
 #
 # RUN: %kitmenc -tapir=hip %S/input/empty.ll \
 # RUN:     | FileCheck %s --check-prefix=HIP
@@ -21,3 +23,12 @@
 # HIP-DAG: attributes #[[HIPFB]] = { kit_fb kit_tt(4) }
 #
 # ------------------------------------------------------------------------------
+# Check that the --name option overrides the input module name
+#
+# RUN: echo "" | %kitmenc --name="winnie-the-pooh" \
+# RUN:     | %kitmbc -S \
+# RUN:     | FileCheck %s --check-prefix=NAME
+#
+# NAME: ModuleID = 'winnie-the-pooh'
+# NAME: !kitsune.device.module.flags = !{!{{[0-9]+}}, ![[NAMEMD:[0-9]+]]}
+# NAME: [[NAMEMD]] = !{!"winnie-the-pooh"}

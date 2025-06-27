@@ -159,7 +159,7 @@ ModulePass *llvm::createCodeGenFatBinariesLegacyPass() {
 bool CodeGenFatBinariesLegacyPass::runOnModule(Module &m) {
   TapirTargetInfo tgi =
       getAnalysis<TapirTargetAnalysisWrapperPass>().getResult();
-  if (not tgi.hasID())
+  if (not tgi.hasTTID())
     return false;
 
   const TapirTargetOptions &ttOpts = tgi.getOptions();
@@ -173,7 +173,7 @@ PreservedAnalyses CodeGenFatBinariesPass::run(Module &m,
   // If a primary tapir target ID has not been set, then tapir lowering was not
   // enabled and there is nothing to be done.
   const TapirTargetInfo &tgi = mam.getResult<TapirTargetAnalysis>(m);
-  if (not tgi.hasID())
+  if (not tgi.hasTTID())
     return PreservedAnalyses::all();
 
   const TapirTargetOptions &ttOpts = tgi.getOptions();

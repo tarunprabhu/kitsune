@@ -60,7 +60,7 @@ RecomputeKernelPropertiesPass::run(Module &m, ModuleAnalysisManager &mam) {
   // If no primary tapir target has been set, the tapir target options will
   // not have been set, so there is nothing that we can do.
   const TapirTargetInfo &tgi = mam.getResult<TapirTargetAnalysis>(m);
-  if (not tgi.hasID())
+  if (not tgi.hasTTID())
     return PreservedAnalyses::all();
 
   EmbModulesMapTy embMs = getEmbModules(m);

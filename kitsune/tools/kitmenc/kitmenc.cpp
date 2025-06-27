@@ -14,12 +14,15 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/Tapir.h"
-#include "kitsune/Support/CommandLine.h"
+#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Support/CommandLineUtils.h"
 #include "kitsune/Support/TTUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
@@ -39,15 +42,21 @@ static cl::opt<std::string> clInFile(cl::Positional,
                                      cl::init("-"), cl::value_desc("filename"),
                                      cl::cat(catKitMEnc));
 
+// The default tapir target to set on the encoded global variable if one has
+// not been specified.
+static constexpr TTID ttDefault = TTID::Cuda;
+
 static void setupCommandLineOptions() {
+  // We need this because the constructor of the TapirTargetOptions object reads
+  // the -fp-contract option which requires registering the codegen flags.
+  static codegen::RegisterCodeGenFlags cgf;
+
   cl::HideUnrelatedOptions(catKitMEnc);
 
-  // Override the descriptions and visibility of options that are shared between
-  // tools and have a different default description.
-  StringMap<cl::Option *> &clOpts = cl::getRegisteredOptions();
-  cl::Option &clTapir = *clOpts["tapir"];
-  clTapir.setDescription("The tapir target to attach to the embedded bitcode");
-  clTapir.setHiddenFlag(cl::NotHidden);
+  StringRef optTapir = "tapir";
+  clSetOptionVisible(optTapir);
+  clSetOptionDescription(optTapir,
+                         "The tapir target to attach to the embedded bitcode");
 }
 
 int main(int argc, char *argv[]) {
@@ -59,10 +68,17 @@ int main(int argc, char *argv[]) {
       "Embed an LLVM module into an empty \"host\" module. Render the \"host\" "
       "module to stdout as LLVM assembly");
 
-  InitializeAllTargets();
-  InitializeAllTargetMCs();
   InitializeAllAsmPrinters();
   InitializeAllAsmParsers();
+
+  std::optional<TapirTargetOptions> tto =
+      TapirTargetOptions::createFromCommandLine(OptznLevel::O0);
+  TTID tt = tto ? tto->getTTID() : ttDefault;
+  if (not doesTTGenEmbBC(tt)) {
+    WithColor::error() << "'" << tt
+                       << "' tapir target does not generate embedded bitcode\n";
+    return 2;
+  }
 
   LLVMContext ctx;
   SMDiagnostic err;
@@ -74,13 +90,6 @@ int main(int argc, char *argv[]) {
 
   if (clModuleName.getNumOccurrences())
     embM->setModuleIdentifier(clModuleName);
-
-  TTID tt = *getClOptTapir(TTID::Cuda);
-  if (not doesTTGenEmbBC(tt)) {
-    WithColor::error() << "'" << tt
-                       << "' tapir target does not generate embedded bitcode\n";
-    return 2;
-  }
 
   Module hostM("", ctx);
   (void)addDeviceModuleMetadata(tt, *embM);
