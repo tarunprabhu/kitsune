@@ -93,9 +93,13 @@ public:
     // while running passes on them, so collect the globals first, then run the
     // pass on each.
     std::vector<std::tuple<GlobalVariable *, TTID>> gs;
-    for (GlobalVariable &g : hostM.globals())
-      if (g.hasAttribute(Attribute::KitBC) && g.hasAttribute(Attribute::KitTT))
+    for (GlobalVariable &g : hostM.globals()) {
+      if (g.hasAttribute(Attribute::KitBC)) {
+        assert(g.hasAttribute(Attribute::KitTT) &&
+               "Attribute 'kit_bc' requires 'kit_tt");
         gs.emplace_back(&g, g.getAttribute(Attribute::KitTT).getTTID());
+      }
+    }
 
     auto *pass = static_cast<DerivedT *>(this);
     for (auto &tup : gs) {

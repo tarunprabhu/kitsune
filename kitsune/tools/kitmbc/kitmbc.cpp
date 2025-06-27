@@ -103,14 +103,23 @@ int main(int argc, char *argv[]) {
   // containing embedded bitcode.
   std::vector<GlobalVariable *> gs;
   if (std::optional<TTID> tt = getClOptTapir()) {
-    for (GlobalVariable &g : hostM->globals())
-      if (g.hasAttribute(Attribute::KitBC) and
-          getAttrValueAsTTID(g, Attribute::KitTT) == tt)
-        gs.push_back(&g);
+    for (GlobalVariable &g : hostM->globals()) {
+      if (g.hasAttribute(Attribute::KitBC)) {
+        assert(g.hasAttribute(Attribute::KitTT) &&
+               "Attribute 'kit_bc' requires 'kit_tt");
+        if (getAttrValueAsTTID(g, Attribute::KitTT) == tt)
+          gs.push_back(&g);
+      }
+    }
   } else {
-    for (GlobalVariable &g : hostM->globals())
-      if (g.hasAttribute(Attribute::KitBC) and g.hasAttribute(Attribute::KitTT))
-        gs.push_back(&g);
+    for (GlobalVariable &g : hostM->globals()) {
+      if (g.hasAttribute(Attribute::KitBC)) {
+        assert(g.hasAttribute(Attribute::KitTT) &&
+               "Attribute 'kit_bc' requires 'kit_tt");
+        if (g.hasAttribute(Attribute::KitTT))
+          gs.push_back(&g);
+      }
+    }
   }
 
   // Now parse those into modules.

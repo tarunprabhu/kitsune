@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/CommandLine.h"
 #include "kitsune/Support/TTUtils.h"
@@ -28,6 +29,10 @@
 using namespace llvm;
 
 static cl::OptionCategory catKitMEnc("kitmenc Options");
+
+static cl::opt<std::string>
+    clModuleName("name", cl::init(""), cl::value_desc("name"),
+                 cl::desc("Override the encoded module name"));
 
 static cl::opt<std::string> clInFile(cl::Positional,
                                      cl::desc("<input bitcode file>"),
@@ -67,6 +72,9 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  if (clModuleName.getNumOccurrences())
+    embM->setModuleIdentifier(clModuleName);
+
   TTID tt = *getClOptTapir(TTID::Cuda);
   if (not doesTTGenEmbBC(tt)) {
     WithColor::error() << "'" << tt
@@ -75,6 +83,7 @@ int main(int argc, char *argv[]) {
   }
 
   Module hostM("", ctx);
+  (void)addDeviceModuleMetadata(tt, *embM);
   (void)createEmbBCGlobal(*embM, tt, hostM);
   (void)createEmbFBGlobal(tt, hostM);
 

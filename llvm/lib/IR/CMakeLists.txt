@@ -92,10 +92,20 @@ add_llvm_component_library(LLVMCore
   # to verify embedded modules. The fix would be to move the verifier out of
   # Core, which will make it much harder to keep up with LLVM, so we resign
   # ourselves to having a cycle here.
+  #
+  # We want all IR verification to be carried out in the main verifier which is
+  # in this library. Doing so cleanly requires utilities from KitCore which
+  # already depends on this. We now have yet another circular dependence.
+  # Ideally, we would like the verifier to live outside LLVMCore in which case,
+  # we could easily break this dependence cycle, but that would cause us no end
+  # of problems when merging, so, regrettably, we introduce (yet another)
+  # circular dependence.
+  #
   LINK_COMPONENTS
   BinaryFormat
   BitReader
   Demangle
+  KitCore
   KitSupport
   Remarks
   Support

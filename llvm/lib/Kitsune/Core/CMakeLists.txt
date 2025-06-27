@@ -7,6 +7,9 @@ add_llvm_component_library(LLVMKitCore
   TapirTargetOptions.cpp
   TargetUtils.cpp
 
+  # There is a circular dependence here between this library and LLVMCore. For
+  # more details, see llvm/lib/IR/CMakeLists.txt. It would be nice if we could
+  # get rid of these, but that is highly unlikely.
   LINK_COMPONENTS
   BitReader
   BitWriter
