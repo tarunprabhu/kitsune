@@ -696,7 +696,8 @@ static int compileModule(char **argv, LLVMContext &Context) {
       std::optional<TapirTargetOptions> TTO =
           TapirTargetOptions::createFromCLOpts(OptLevel);
       PM.add(createTapirTargetAnalysisWrapperPass(TTO));
-      PM.add(createCodeGenFatBinariesLegacyPass());
+      if (TTO)
+        PM.add(createCodeGenFatBinariesLegacyPass());
     }
     if (!getRunPassNames().empty()) {
       if (!MIR) {

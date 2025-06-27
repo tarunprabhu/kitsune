@@ -1934,11 +1934,10 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
                       Phase == ThinOrFullLTOPhase::FullLTOPreLink;
   if (PTO.TTOpts && PTO.TTOpts->lower() && !IsLTOPrelink) {
     MPM.addPass(buildTapirLoweringPipeline(Level, Phase));
+    MPM.addPass(buildKitsunePostTapirPipeline(Level, Phase));
   } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
   }
-
-  MPM.addPass(buildKitsunePostTapirPipeline(Level, Phase));
 
   return MPM;
 }
@@ -2150,12 +2149,11 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
   if (PTO.TTOpts && PTO.TTOpts->lower()) {
     MPM.addPass(
         buildTapirLoweringPipeline(Level, ThinOrFullLTOPhase::ThinLTOPostLink));
+    MPM.addPass(buildKitsunePostTapirPipeline(
+        Level, ThinOrFullLTOPhase::ThinLTOPostLink));
   } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
   }
-
-  MPM.addPass(buildKitsunePostTapirPipeline(
-      Level, ThinOrFullLTOPhase::ThinLTOPostLink));
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -2515,12 +2513,11 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   if (PTO.TTOpts && PTO.TTOpts->lower()) {
     MPM.addPass(
         buildTapirLoweringPipeline(Level, ThinOrFullLTOPhase::FullLTOPostLink));
+    MPM.addPass(buildKitsunePostTapirPipeline(
+        Level, ThinOrFullLTOPhase::FullLTOPostLink));
   } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
   }
-
-  MPM.addPass(buildKitsunePostTapirPipeline(
-      Level, ThinOrFullLTOPhase::FullLTOPostLink));
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -2649,11 +2646,10 @@ PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
 
   if (PTO.TTOpts && PTO.TTOpts->lower()) {
     MPM.addPass(buildTapirLoweringPipeline(Level, Phase));
+    MPM.addPass(buildKitsunePostTapirPipeline(Level, Phase));
   } else {
     invokeTapirLoopEndEPCallbacks(MPM, Level);
   }
-
-  MPM.addPass(buildKitsunePostTapirPipeline(Level, Phase));
 
   if (isLTOPreLink(Phase))
     addRequiredLTOPreLinkPasses(MPM);
