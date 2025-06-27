@@ -48,7 +48,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/IR/Verifier.h"
+#include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/TypeUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/TTUtils.h"
 #include "kitsune/Support/ToString.h"
@@ -328,12 +330,6 @@ public:
 
 namespace {
 
-static bool IsInt8ArrayTy(Type* Ty) {
-  if (auto* ArrayTy = dyn_cast<ArrayType>(Ty))
-    return ArrayTy->getElementType()->isIntegerTy(8);
-  return false;
-}
-
 class Verifier : public InstVisitor<Verifier>, VerifierSupport {
   friend class InstVisitor<Verifier>;
   DominatorTree DT;
@@ -493,6 +489,7 @@ public:
       visitComdat(SMEC.getValue());
 
     visitEmbGlobals();
+    visitKPGlobals();
     visitModuleFlags();
     visitModuleIdents();
     visitModuleCommandLines();
@@ -518,8 +515,10 @@ private:
 
   // Verification methods...
   void visitEmbGlobals();
+  void visitKPGlobals();
   void visitEmbBCGlobalVariable(const GlobalVariable &GV);
   void visitEmbFBGlobalVariable(const GlobalVariable &GV);
+  void visitKPGlobalVariable(const GlobalVariable &GV);
   void visitEmbModule(const Module& EmbM, TTID TT);
   void visitEmbModuleMetadata(const Module &EmbM);
   void visitGlobalValue(const GlobalValue &GV);
@@ -656,7 +655,7 @@ private:
                            const Value *V, bool IsIntrinsic, bool IsInlineAsm);
   void verifyFunctionMetadata(ArrayRef<std::pair<unsigned, MDNode *>> MDs);
 
-  void verifyGlobalVariableAttrs(AttributeSet Attrs, const Value* V);
+  void verifyGlobalVariableAttrs(AttributeSet Attrs, const GlobalVariable* V);
 
   void visitConstantExprsRecursively(const Constant *EntryC);
   void visitConstantExpr(const ConstantExpr *CE);
@@ -711,6 +710,201 @@ private:
       return;                                                                  \
     }                                                                          \
   } while (false)
+
+void Verifier::visitEmbModuleMetadata(const Module &EmbM) {
+  Check(hasDeviceModuleMetadata(EmbM),
+        "embedded module requires device module metadata");
+
+  std::optional<TTID> TT = getTTIDFromDeviceModuleMetadata(EmbM);
+  Check(TT.has_value(), "embedded module requires valid tapir target in "
+                        "device module metadata");
+
+  std::optional<StringRef> Name = getNameFromDeviceModuleMetadata(EmbM);
+  Check(Name.has_value() && Name->size(),
+        "embedded module requires non-empty name in device module metadata");
+}
+
+void Verifier::visitEmbModule(const Module &EmbM, TTID TTFromHostGV) {
+  // Embedded modules cannot contain any embedded bitcode or fat binaries.
+  for (const GlobalVariable &G : EmbM.globals()) {
+    Check(!G.hasAttribute(Attribute::KitBC),
+          "embedded module cannot contain embedded bitcode");
+    Check(!G.hasAttribute(Attribute::KitFB),
+          "embedded module cannot contain an embedded fat binary");
+  }
+
+  visitEmbModuleMetadata(EmbM);
+  if (std::optional<TTID> TT = getTTIDFromDeviceModuleMetadata(EmbM))
+    Check(*TT == TTFromHostGV,
+          "tapir target in embedded module must match tapir target in host "
+          "embedded bitcode global variable");
+
+  Check(not verifyModule(EmbM, OS, &BrokenDebugInfo),
+        "broken embedded module found");
+}
+
+void Verifier::visitEmbFBGlobalVariable(const GlobalVariable &G) {
+  Check(isByteArrayTy(G.getValueType()),
+        "incorrect type of global containing fat binary");
+
+  Check(G.hasInitializer(),
+        "missing initializer in global containing fat binary");
+
+  const Constant *Init = G.getInitializer();
+  Check(isa<ConstantDataArray>(Init) || Init->isZeroValue(),
+        "invalid initializer in global containing fat binary");
+}
+
+void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
+  Check(isByteArrayTy(G.getValueType()),
+        "incorrect type of global containing bitcode");
+  Check(G.hasInitializer(), "missing initializer in global containing bitcode");
+  Check(isa<ConstantDataArray>(G.getInitializer()),
+        "invalid initializer in global containing bitcode");
+
+  // Checking the embedded modules requires functions from LLVMBitReader which
+  // results in a circular dependence between LLVMCore and LLVMBitReader.
+  // Obviously, this is very, very bad. However, there is already a very deep
+  // circular dependence between LLVMPasses and LLVMKitOpts which cannot be
+  // easily broken. In that case, we might as well introduce this dependence
+  // here.
+  StringRef BC = cast<ConstantDataArray>(G.getInitializer())->getAsString();
+  Check(isBitcode(BC.bytes_begin(), BC.bytes_end()),
+        "invalid data in global containing embedded bitcode");
+
+  LLVMContext &Ctx = G.getContext();
+  std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(BC);
+  Expected<std::unique_ptr<Module>> ModuleOrErr = parseBitcodeFile(*Buf, Ctx);
+  if (not ModuleOrErr) {
+    handleAllErrors(std::move(ModuleOrErr.takeError()), [&](ErrorInfoBase &e) {
+      Check(false, "could not parse embedded bitcode");
+    });
+    return;
+  }
+
+  // An embedded bitcode global variable must have the kit_tt attribute, but the
+  // module could be invalid, so check to avoid a crash. The error will be
+  // caught when the global variable attributes are verified
+  if (G.hasAttribute(Attribute::KitTT)) {
+    TTID TT = G.getAttribute(Attribute::KitTT).getTTID();
+    std::unique_ptr<Module> EmbM = std::move(ModuleOrErr.get());
+    visitEmbModule(*EmbM, TT);
+  }
+}
+
+void Verifier::visitKPGlobalVariable(const GlobalVariable &G) {
+  Check(G.hasInitializer(),
+        "missing initializer in global containing kernel properties", &G);
+
+  const Constant *Init = G.getInitializer();
+  Check((isa<ConstantStruct>(Init) || Init->isZeroValue()),
+        "invalid initializer in global containing kernel properties", &G);
+}
+
+void Verifier::visitEmbGlobals() {
+  // There can be at most one global variable containing a fat binary per
+  // tapir target.
+  std::map<TTID, unsigned> FBCounts;
+  for (const GlobalVariable &G : M.globals())
+    // If the global variable has the kit_fb attribute, it must also have
+    // kit_tt. We may have a broken module, so check for the presence of the
+    // attribute to avoid a crash.
+    if (G.hasAttribute(Attribute::KitFB) && G.hasAttribute(Attribute::KitTT))
+      ++FBCounts[G.getAttribute(Attribute::KitTT).getTTID()];
+
+  for (const auto &[TT, N] : FBCounts) {
+    Check(N <= 1, "too many embedded fat binary globals for tapir target '" +
+                      toString(TT) + "'");
+  }
+
+  // If a global variable containing embedded bitcode exists, then a
+  // corresponding global containing a fat binary must exist also. The reverse
+  // is not true. Once the fat binary has been generated, the global variable
+  // containing embedded bitcode is removed.
+  std::map<TTID, unsigned> BCCounts;
+  for (const GlobalVariable &G : M.globals())
+    if (G.hasAttribute(Attribute::KitBC) && G.hasAttribute(Attribute::KitTT))
+      // If the global variable has the kit_bc attribute, it must also have
+      // kit_tt. We may have a broken module, so check for the presence of the
+      // attribute to avoid a crash.
+      ++BCCounts[G.getAttribute(Attribute::KitTT).getTTID()];
+
+  for (const auto &[TT, N] : BCCounts) {
+    Check(N <= 1, "too many embedded bitcode globals for tapir target '" +
+                      toString(TT) + "'");
+    Check(FBCounts.find(TT) != FBCounts.end(),
+          "embedded bitcode global without fat binary global");
+  }
+}
+
+void Verifier::visitKPGlobals() {
+  auto hasKPGlobals = [](const Module &M) -> bool {
+    for (const GlobalVariable &G : M.globals())
+      if (G.hasAttribute("kit_kernel_props") &&
+          G.hasAttribute(Attribute::KitTT))
+        return true;
+    return false;
+  };
+
+  if (not hasKPGlobals(M))
+    return;
+
+  EmbModulesMapTy EmbMs = getEmbModules(M);
+  for (const GlobalVariable &G : M.globals()) {
+    // If the global variable has the kit_kernel_props attribute, it must also
+    // have kit_tt. We may have a broken module, so check for the presence of
+    // the attribute to avoid a crash.
+    if (G.hasAttribute("kit_kernel_props") &&
+        G.hasAttribute(Attribute::KitTT)) {
+      TTID TT = G.getAttribute(Attribute::KitTT).getTTID();
+      StringRef F = G.getAttribute("kit_kernel_props").getValueAsString();
+      if (EmbMs.find(TT) != EmbMs.end())
+        Check(EmbMs.at(TT)->getFunction(F),
+              "global containing properties of non-existent kernel function");
+    }
+  }
+}
+
+void Verifier::verifyGlobalVariableAttrs(AttributeSet Attrs,
+                                         const GlobalVariable *G) {
+  Check(!(Attrs.hasAttribute(Attribute::KitBC) &&
+          Attrs.hasAttribute(Attribute::KitFB)),
+        "Attributes 'kit_bc' and 'kit_fb' are incompatible!", G);
+
+  Check(!(Attrs.hasAttribute(Attribute::KitBC) &&
+          Attrs.hasAttribute("kit_kernel_props")),
+        "Attributes 'kit_bc' and 'kit_kernel_props' are incompatible!", G);
+
+  Check(!(Attrs.hasAttribute(Attribute::KitFB) &&
+          Attrs.hasAttribute("kit_kernel_props")),
+        "Attributes 'kit_fb' and 'kit_kernel_props' are incompatible!", G);
+
+  if (Attrs.hasAttribute(Attribute::KitBC))
+    Check(Attrs.hasAttribute(Attribute::KitTT),
+          "Attribute 'kit_bc' requires 'kit_tt'", G);
+
+  if (Attrs.hasAttribute(Attribute::KitFB))
+    Check(Attrs.hasAttribute(Attribute::KitTT),
+          "Attribute 'kit_fb' requires 'kit_tt'", G);
+
+  if (Attrs.hasAttribute("kit_kernel_props")) {
+    Check(Attrs.hasAttribute(Attribute::KitTT),
+          "Attribute 'kit_kernel_props' requires 'kit_tt'", G);
+
+    Attribute Attr = Attrs.getAttribute("kit_kernel_props");
+    StringRef F = Attr.getValueAsString();
+    Check(F.size(),
+          "invalid value of 'kit_kernel_props' attribute. Kernel name cannot "
+          "be empty");
+  }
+
+  if (Attrs.hasAttribute(Attribute::KitTT)) {
+    TTID TT = Attrs.getAttribute(Attribute::KitTT).getTTID();
+    Check(doesTTGenEmbBC(TT),
+          "invalid value for 'kit_tt' attribute. Tapir target does not "
+          "generate embedded bitcode");
+  }
+}
 
 void Verifier::visitDbgRecords(Instruction &I) {
   if (!I.DebugMarker)
@@ -957,6 +1151,12 @@ void Verifier::visitGlobalVariable(const GlobalVariable &GV) {
         GVType);
 
   verifyGlobalVariableAttrs(GV.getAttributes(), &GV);
+  if (GV.hasAttribute(Attribute::KitBC))
+    visitEmbBCGlobalVariable(GV);
+  else if (GV.hasAttribute(Attribute::KitFB))
+    visitEmbFBGlobalVariable(GV);
+  else if (GV.hasAttribute("kit_kernel_props"))
+    visitKPGlobalVariable(GV);
 
   if (!GV.hasInitializer()) {
     visitGlobalValue(GV);
@@ -1724,127 +1924,6 @@ void Verifier::visitComdat(const Comdat &C) {
     if (const GlobalValue *GV = M.getNamedValue(C.getName()))
       Check(!GV->hasPrivateLinkage(), "comdat global value has private linkage",
             GV);
-}
-
-void Verifier::visitEmbModuleMetadata(const Module& EmbM) {
-  Check(hasDeviceModuleMetadata(EmbM),
-        "embedded module requires device module metadata");
-
-  std::optional<TTID> TT = getTTIDFromDeviceModuleMetadata(EmbM);
-  Check(TT.has_value(), "embedded module requires valid tapir target in "
-                        "device module metadata");
-
-  std::optional<StringRef> Name = getNameFromDeviceModuleMetadata(EmbM);
-  Check(Name.has_value() && Name->size(),
-        "embedded module requires non-empty name in device module metadata");
-}
-
-void Verifier::visitEmbModule(const Module &EmbM, TTID TTFromHostGV) {
-  // Embedded modules cannot contain any embedded bitcode or fat binaries.
-  for (const GlobalVariable &G : EmbM.globals()) {
-    Check(!G.hasAttribute(Attribute::KitBC),
-          "embedded module cannot contain embedded bitcode");
-    Check(!G.hasAttribute(Attribute::KitFB),
-          "embedded module cannot contain an embedded fat binary");
-  }
-
-  visitEmbModuleMetadata(EmbM);
-  if (std::optional<TTID> TT = getTTIDFromDeviceModuleMetadata(EmbM))
-    Check(*TT == TTFromHostGV,
-          "tapir target in embedded module must match tapir target in host "
-          "embedded bitcode global variable");
-
-  Check(not verifyModule(EmbM, OS, &BrokenDebugInfo),
-        "broken embedded module found");
-}
-
-void Verifier::visitEmbFBGlobalVariable(const GlobalVariable &G) {
-  Check(IsInt8ArrayTy(G.getValueType()),
-        "incorrect type of global containing fat binary");
-  Check(G.hasInitializer(),
-        "missing initializer in global containing fat binary");
-
-  const Constant *Init = G.getInitializer();
-  Check(isa<ConstantDataArray>(Init) || Init->isZeroValue(),
-        "invalid initializer in global containing fat binary");
-}
-
-void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
-  Check(IsInt8ArrayTy(G.getValueType()),
-        "incorrect type of global containing bitcode");
-  Check(G.hasInitializer(), "missing initializer in global containing bitcode");
-  Check(isa<ConstantDataArray>(G.getInitializer()),
-        "invalid initializer in global containing bitcode");
-
-  // Checking the embedded modules requires functions from LLVMBitReader which
-  // results in a circular dependence between LLVMCore and LLVMBitReader.
-  // Obviously, this is very, very bad. However, there is already a very deep
-  // circular dependence between LLVMPasses and LLVMKitOpts which cannot be
-  // easily broken. In that case, we might as well introduce this dependence
-  // here.
-  StringRef BC = cast<ConstantDataArray>(G.getInitializer())->getAsString();
-  Check(isBitcode(BC.bytes_begin(), BC.bytes_end()),
-        "invalid data in global containing embedded bitcode");
-
-  LLVMContext &Ctx = G.getContext();
-  std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(BC);
-  Expected<std::unique_ptr<Module>> ModuleOrErr = parseBitcodeFile(*Buf, Ctx);
-  Check(bool(ModuleOrErr), "could not parse embedded bitcode");
-
-  // An embedded bitcode global variable must have the kit_tt attribute, but the
-  // module could be invalid, so check to avoid a crash. The error will be
-  // caught when the global variable attributes are verified
-  if (G.hasAttribute(Attribute::KitTT)) {
-    TTID TT = G.getAttribute(Attribute::KitTT).getTTID();
-    std::unique_ptr<Module> EmbM = std::move(ModuleOrErr.get());
-    visitEmbModule(*EmbM, TT);
-  }
-}
-
-void Verifier::visitEmbGlobals() {
-  // There can be at most one global variable containing a fat binary per
-  // tapir target.
-  std::map<TTID, unsigned> FBCounts;
-  for (const GlobalVariable &G : M.globals()) {
-    if (G.hasAttribute(Attribute::KitFB)) {
-      visitEmbFBGlobalVariable(G);
-
-      // If the global variable has the kit_bc attribute, it must also have
-      // kit_tt. We may have a broken module, so check for the presence of the
-      // attribute to avoid a crash.
-      if (G.hasAttribute(Attribute::KitTT))
-        ++FBCounts[G.getAttribute(Attribute::KitTT).getTTID()];
-    }
-  }
-
-  for (const auto &[TT, N] : FBCounts) {
-    Check(N <= 1, "too many embedded fat binary globals for tapir target '" +
-                      toString(TT) + "'");
-  }
-
-  // If a global variable containing embedded bitcode exists, then a
-  // corresponding fat binary must exist also. The reverse is not true. Once the
-  // fat binary has been generated, the global variable containing embedded
-  // bitcode is removed.
-  std::map<TTID, unsigned> BCCounts;
-  for (const GlobalVariable &G : M.globals()) {
-    if (G.hasAttribute(Attribute::KitBC)) {
-      visitEmbBCGlobalVariable(G);
-
-      // If the global variable has the kit_bc attribute, it must also have
-      // kit_tt. We may have a broken module, so check for the presence of the
-      // attribute to avoid a crash.
-      if (G.hasAttribute(Attribute::KitTT))
-        ++BCCounts[G.getAttribute(Attribute::KitTT).getTTID()];
-    }
-  }
-
-  for (const auto &[TT, N] : BCCounts) {
-    Check(N <= 1, "too many embedded bitcode globals for tapir target '" +
-                      toString(TT) + "'");
-    Check(FBCounts.find(TT) != FBCounts.end(),
-          "embedded bitcode global without fat binary global");
-  }
 }
 
 void Verifier::visitModuleIdents() {
@@ -2625,39 +2704,6 @@ void Verifier::verifyFunctionMetadata(
       Check(cast<ConstantInt>(C)->getBitWidth() == 32,
             "expected a 32-bit integer constant operand for !kcfi_type", MD);
     }
-  }
-}
-
-void Verifier::verifyGlobalVariableAttrs(AttributeSet Attrs, const Value* V) {
-  Check(!(Attrs.hasAttribute(Attribute::KitBC) &&
-          Attrs.hasAttribute(Attribute::KitFB)),
-        "Attributes 'kit_bc' and 'kit_fb' are incompatible!", V);
-
-  Check(!(Attrs.hasAttribute(Attribute::KitBC) &&
-          Attrs.hasAttribute("kit_kernel_props")),
-        "Attributes 'kit_bc' and 'kit_kernel_props' are incompatible!", V);
-
-  Check(!(Attrs.hasAttribute(Attribute::KitFB) &&
-          Attrs.hasAttribute("kit_kernel_props")),
-        "Attributes 'kit_fb' and 'kit_kernel_props' are incompatible!", V);
-
-  if (Attrs.hasAttribute(Attribute::KitBC))
-    Check(Attrs.hasAttribute(Attribute::KitTT),
-          "Attribute 'kit_bc' requires 'kit_tt'", V);
-
-  if (Attrs.hasAttribute(Attribute::KitFB))
-    Check(Attrs.hasAttribute(Attribute::KitTT),
-          "Attribute 'kit_fb' requires 'kit_tt'", V);
-
-  if (Attrs.hasAttribute("kit_kernel_props"))
-    Check(Attrs.hasAttribute(Attribute::KitTT),
-          "Attribute 'kit_kernel_props' requires 'kit_tt'", V);
-
-  if (Attrs.hasAttribute(Attribute::KitTT)) {
-    TTID TT = Attrs.getAttribute(Attribute::KitTT).getTTID();
-    Check(doesTTGenEmbBC(TT),
-          "invalid value for 'kit_tt' attribute. Tapir target does not "
-          "generate embedded bitcode");
   }
 }
 

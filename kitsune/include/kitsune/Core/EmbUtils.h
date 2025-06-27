@@ -63,7 +63,7 @@ std::unique_ptr<Module> getEmbModule(TTID tt, Module &m);
 
 /// Deserialize all the embedded bitcode and return the modules in a map keyed
 /// on the tapir target id that created the module.
-EmbModulesMapTy getEmbModules(Module &m);
+EmbModulesMapTy getEmbModules(const Module &m);
 
 /// Create a global variable whose initializer is an empty array of bytes.
 /// Metadata is added to the global indicating that it contains a fat binary to

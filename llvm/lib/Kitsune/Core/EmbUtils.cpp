@@ -1,4 +1,4 @@
-//=- EmbUtils.cpp - Helper functions for embedded data in modules -----------=//
+//===- EmbUtils.cpp - Helper functions for embedded data in modules -------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -155,11 +155,13 @@ std::unique_ptr<Module> llvm::getEmbModule(TTID tt, Module &m) {
   return nullptr;
 }
 
-EmbModulesMapTy llvm::getEmbModules(Module &m) {
+EmbModulesMapTy llvm::getEmbModules(const Module &m) {
   EmbModulesMapTy embBCs;
   for (TTID tt : ttsGenEmbBC())
-    if (const GlobalVariable *g = getEmbBCGlobal(tt, m))
-      embBCs.emplace(tt, parseEmbBCGlobal(*g));
+    for (const GlobalVariable &g : m.globals())
+      if (g.hasAttribute(Attribute::KitBC) && g.hasAttribute(Attribute::KitTT))
+        if (g.getAttribute(Attribute::KitTT).getTTID() == tt)
+          embBCs.emplace(tt, parseEmbBCGlobal(g));
   return embBCs;
 }
 
