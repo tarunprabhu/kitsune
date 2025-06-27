@@ -17,6 +17,7 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GlobalVariableUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Support/TTUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
@@ -68,6 +69,19 @@ namespace {
 class CodeGenFatBinaries {
 private:
   const TapirTargetOptions &tto;
+  detail::CGFBOptions cgfbOpts;
+
+private:
+  bool cgfb(GlobalVariable &fb, const GlobalVariable &bc, TTID tt) {
+    switch (tt) {
+    case TTID::Cuda:
+      return detail::cgfbCuda(fb, bc, tto, cgfbOpts);
+    case TTID::Hip:
+      return detail::cgfbHip(fb, bc, tto, cgfbOpts);
+    default:
+      llvm_unreachable("CodeGenFatBinaries::run: TTID not handled");
+    }
+  }
 
 public:
   CodeGenFatBinaries(const TapirTargetOptions &tto) : tto(tto) {}
@@ -75,27 +89,19 @@ public:
   bool run(Module &m) {
     bool changed = false;
 
-    detail::CGFBOptions cgfbOpts;
     cgfbOpts.keepFiles = clKeepFiles;
     cgfbOpts.printCommandLines = clPrintCommandLines;
     cgfbOpts.ptxasOptLevel = tto.getOptznLevel();
     if (clPtxasOptLevel.getNumOccurrences())
       cgfbOpts.ptxasOptLevel = clPtxasOptLevel;
 
-    GlobalVariable *bcCuda = getEmbBCGlobal(TTID::Cuda, m);
-    GlobalVariable *fbCuda = getEmbFBGlobal(TTID::Cuda, m);
-    if (bcCuda and fbCuda) {
-      detail::cgfbCuda(*fbCuda, *bcCuda, tto, cgfbOpts);
-      bcCuda->eraseFromParent();
-      changed |= true;
-    }
-
-    GlobalVariable *bcHip = getEmbBCGlobal(TTID::Hip, m);
-    GlobalVariable *fbHip = getEmbFBGlobal(TTID::Hip, m);
-    if (bcHip and fbHip) {
-      detail::cgfbHip(*fbHip, *bcHip, tto, cgfbOpts);
-      bcHip->eraseFromParent();
-      changed |= true;
+    for (TTID tt : ttsGenEmbBC()) {
+      GlobalVariable *bc = getEmbBCGlobal(tt, m);
+      GlobalVariable *fb = getEmbFBGlobal(tt, m);
+      if (bc and fb) {
+        changed |= cgfb(*fb, *bc, tt);
+        bc->eraseFromParent();
+      }
     }
 
     return changed;
