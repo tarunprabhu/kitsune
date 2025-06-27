@@ -13,7 +13,6 @@
 
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Config/config.h"
-#include "kitsune/Support/CommandLine.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -34,10 +33,34 @@ namespace llvm {
 // that can be used to tweak their behavior. Those are intended for
 // experimentation. If any are deemed to be generally useful, they should be
 // added here and a corresponding frontend option should be created for them.
+//
+// Some of the options here are also used by some Kitsune tools. In those
+// cases, the tools create a TapirTargetOptions object, so these options remain
+// static here. To keep the help messages
 
 // -------------------- options common to all tapir targets --------------------
 
-static cl::OptionCategory &catKitClOpts = getKitClOptCategory();
+static cl::OptionCategory catKitClOpts("Kitsune Options");
+
+static cl::opt<TTID>
+    clTapir("tapir", cl::desc("The primary tapir target"), cl::init(TTID::None),
+            cl::value_desc("target"), cl::cat(catKitClOpts),
+            cl::values(clEnumValN(TTID::None, "none", ""),
+                       clEnumValN(TTID::Serial, "serial", ""),
+                       clEnumValN(TTID::Cuda, "cuda", ""),
+                       clEnumValN(TTID::Hip, "hip", ""),
+                       clEnumValN(TTID::OpenCilk, "opencilk", ""),
+                       // clEnumValN(TTID::GPUABI, "gpuabi", ""),
+                       clEnumValN(TTID::Qthreads, "qthreads", ""),
+                       clEnumValN(TTID::Realm, "realm", ""),
+                       clEnumValN(TTID::Lambda, "lambda", ""),
+                       clEnumValN(TTID::OMPTask, "omptask", ""),
+                       clEnumValN(TTID::OpenMP, "openmp", "")));
+
+/// This was the option originally in tapir, but in Kitsune, we prefer to use
+/// --tapir instead.
+static cl::alias clTapirTarget("tapir-target", cl::desc("Alias for --tapir"),
+                               cl::aliasopt(clTapir), cl::cat(catKitClOpts));
 
 static cl::opt<bool>
     clTapirVerbose("tapir-verbose", cl::init(false),
@@ -161,9 +184,9 @@ static cl::alias
 TapirTargetOptions::TapirTargetOptions(TTID tt) : tt(tt) {}
 
 std::optional<TapirTargetOptions>
-TapirTargetOptions::createFromCLOpts(OptznLevel optLevel) {
-  if (std::optional<TTID> tt = getClOptTapir()) {
-    TapirTargetOptions tto(*tt);
+TapirTargetOptions::createFromCommandLine(OptznLevel optLevel) {
+  if (clTapir.getNumOccurrences()) {
+    TapirTargetOptions tto(clTapir);
 
     // No validation of inputs is done here. This is intentional since these
     // command line options are primarily for internal use. Obviously, tools
@@ -213,13 +236,13 @@ TapirTargetOptions::createFromCLOpts(OptznLevel optLevel) {
 }
 
 std::optional<TapirTargetOptions>
-TapirTargetOptions::createFromCLOpts(unsigned speedupLevel) {
-  return createFromCLOpts(createOptznLevelFrom(speedupLevel));
+TapirTargetOptions::createFromCommandLine(unsigned speedupLevel) {
+  return createFromCommandLine(createOptznLevelFrom(speedupLevel));
 }
 
 std::optional<TapirTargetOptions>
-TapirTargetOptions::createFromCLOpts(char optLevel) {
-  return createFromCLOpts(createOptznLevelFrom(optLevel));
+TapirTargetOptions::createFromCommandLine(char optLevel) {
+  return createFromCommandLine(createOptznLevelFrom(optLevel));
 }
 
 std::optional<TapirTargetOptions>
@@ -228,41 +251,34 @@ TapirTargetOptions::create(const KitsuneOptions &opts, OptznLevel optLevel,
   if (std::optional<TTID> tt = opts.getTapirTarget()) {
     TapirTargetOptions tto(*tt);
 
-    // Set common tapir target options
+    // Set common tapir target options.
     tto.tapirVerbose = opts.getTapirVerbose();
     tto.kitrtVerbose = opts.getTapirVerbose() or opts.getKitrtVerbose();
     tto.fpOpFusionMode = fpOpFusionMode;
     tto.optLevel = optLevel;
     tto.lld = opts.getLLD();
+
+    // Set tapir target options shared by GPU-centric tapir targets.
     tto.fixedThreadsPerBlock = opts.getFixedThreadsPerBlock();
     tto.maxThreadsPerBlock = opts.getMaxThreadsPerBlock();
     tto.gpuPrefetch = opts.getGPUPrefetch();
 
-    // Set cuda tapir target options
+    // Set cuda tapir target options.
     tto.cudaArch = opts.getCudaArch();
     tto.cudaVirtArch = opts.getCudaVirtArch();
     tto.cudaTargetFeatures = opts.getCudaFeatures();
     tto.cudaRuntimeBCFile = opts.getCudaRuntimeBCFile();
 
-    // Set hip tapir target options
+    // Set hip tapir target options.
     tto.hipArch = opts.getHipArch();
     tto.hipSRAMECC = opts.getHipSRAMECC();
     tto.hipXnack = opts.getHipXnack();
     tto.hipTargetFeatures = opts.getHipFeatures();
     tto.hipRuntimeBCFiles = opts.getHipRuntimeBCFiles();
 
-    // Set opencilk tapir target options
+    // Set opencilk tapir target options.
     tto.openCilkRuntimeBCFile = opts.getOpenCilkRuntimeBCFile();
 
-    // FIXME: This is here purely for debugging because it was in HipABI.cpp
-    // originally. It really should go away.
-    if (std::optional<std::string> tpb =
-            sys::Process::GetEnv("KITHIP_THREADS_PER_BLOCK")) {
-      if (clFixedThreadsPerBlock)
-        errs() << "kitsune[hipabi]: Note that KITHIP_THREADS_PER_BLOCK is "
-               << "overriding command line args.\n";
-      tto.fixedThreadsPerBlock = std::stoi(tpb.value());
-    }
     return tto;
   }
   return std::nullopt;

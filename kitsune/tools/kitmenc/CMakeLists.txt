@@ -1,8 +1,6 @@
 set(LLVM_LINK_COMPONENTS
   AllTargetsAsmParsers
-  AllTargetsCodeGens
-  AllTargetsDescs
-  AllTargetsInfos
+  CodeGen
   Core
   IRReader
   KitCore

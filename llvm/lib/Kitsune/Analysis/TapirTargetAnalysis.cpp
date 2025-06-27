@@ -48,7 +48,7 @@ void TapirTargetInfo::computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
     for (const Loop *tl : li) {
       for (const Loop *loop : post_order(tl)) {
         if (getTaskIfTapirLoopStructure(loop, &ti)) {
-          TTID tt = ttOpts->getID();
+          TTID tt = ttOpts->getTTID();
           if (std::optional<TTID> hintTT = TapirLoopHints(loop).getLoopTarget())
             tt = *hintTT;
           ttsForFunc.insert(tt);
@@ -72,14 +72,14 @@ void TapirTargetInfo::computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
   this->ttsInModule.assign(ttsForModule.begin(), ttsForModule.end());
 }
 
-TTID TapirTargetInfo::getID() const {
+TTID TapirTargetInfo::getTTID() const {
   assert(ttOpts && "Tapir target options have not been set");
-  return ttOpts->getID();
+  return ttOpts->getTTID();
 }
 
-std::optional<TTID> TapirTargetInfo::getIDIfExists() const {
+std::optional<TTID> TapirTargetInfo::getTTIDOrNull() const {
   if (ttOpts)
-    return ttOpts->getID();
+    return ttOpts->getTTID();
   return std::nullopt;
 }
 
@@ -116,7 +116,7 @@ TapirTargetAnalysis::run(Module &m, ModuleAnalysisManager &mam) {
   // If a primary tapir target has not been set, don't do anything more since
   // the lack of a primary tapir target implies that tapir lowering has not been
   // enabled.
-  if (not ttInfo.hasID())
+  if (not ttInfo.hasTTID())
     return ttInfo;
 
   auto &fam = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();

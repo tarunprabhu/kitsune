@@ -33,6 +33,28 @@ using FPOpFusionMode = FPOpFusion::FPOpFusionMode;
 /// doesn't really help with anything. Having everything "under one roof" makes
 /// it a shade easier to support multiple tapir targets in a single compilation.
 class TapirTargetOptions {
+public:
+  /// The default optimization level to use when one has not been specified.
+  /// This is mostly useful for the tools that create this options object
+  /// simply to parse the kitsune options, but don't actually care about the
+  /// optimization level.
+  ///
+  /// Most frontends that drive the kitsune transformation pipeline should set
+  /// an appropriate optimization level based on the frontend options.
+  ///
+  /// We could set this higher because we generally want to enable as many
+  /// optimizations as possible, but we still try to hew relatively close to
+  /// most compiler frontends by explicitly requiring optimizations. We could
+  /// have set this to -O0, but most of the pipeline will not work in that case,
+  /// so we set it to -O1 - the lowest level that is still usable.
+  static constexpr OptznLevel defaultOptznLevel = OptznLevel::O1;
+
+  /// The default fusion mode for floating point operations. This is mainly
+  /// used by tools that need to create a tapir target options object, but don't
+  /// necessarily need to use the fusion mode.
+  static constexpr FPOpFusionMode defaultFpOpFusionMode =
+      FPOpFusionMode::Standard;
+
 private:
   /// The primary tapir target. This is guaranteed to always be set since there
   /// must always be at least one tapir target.
@@ -61,12 +83,10 @@ private:
   /// The optimization level set on the command line. This level will be used
   /// for both the middle-end optimizations on the kernel functions and the
   /// backend GPU code generators (including external assemblers as needed).
-  /// This is set to -O2 because we need at least -O1 to use tapir, and most of
-  /// the time, we actually want optimizations.
-  OptznLevel optLevel = OptznLevel::O2;
+  OptznLevel optLevel = defaultOptznLevel;
 
   /// How to use fuse floating-point operations.
-  FPOpFusion::FPOpFusionMode fpOpFusionMode = FPOpFusion::Strict;
+  FPOpFusion::FPOpFusionMode fpOpFusionMode = defaultFpOpFusionMode;
 
   /// Options common to the GPU tapir targets
   /// @{
@@ -149,7 +169,7 @@ public:
   void setOptznLevel(OptznLevel optLevel) { this->optLevel = optLevel; }
 
   /// Get the primary tapir target ID.
-  TTID getID() const { return tt; }
+  TTID getTTID() const { return tt; }
 
   /// @{
   /// Options common to all tapir targets.
@@ -210,18 +230,18 @@ public:
   /// Construct an options object initialized from the command line options
   /// if the --tapir option was provided. Otherwise, return std::nullopt.
   static std::optional<TapirTargetOptions>
-  createFromCLOpts(OptznLevel optLevel);
+  createFromCommandLine(OptznLevel optLevel);
 
   /// Construct an options object initialized from the command line options
   /// if the --tapir option was provided. Otherwise, return std::nullopt.
   static std::optional<TapirTargetOptions>
-  createFromCLOpts(unsigned speedupLevel);
+  createFromCommandLine(unsigned speedupLevel);
 
   /// Construct an options object initialized from the command line options
   /// with the given optimization level. \ref optLevel must be one of {0, 1, 2,
   /// 3, s, z}. It is an error if \ref optLevel is not one of these. If the
   /// --tapir option is not provided, this returns std::nullopt.
-  static std::optional<TapirTargetOptions> createFromCLOpts(char optLevel);
+  static std::optional<TapirTargetOptions> createFromCommandLine(char optLevel);
 };
 
 } // namespace llvm

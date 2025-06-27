@@ -280,8 +280,8 @@ static bool tryToStripMineLoop(
   // Some parallel runtimes, such as OpenCilk, require nested parallel tasks to be
   // synchronized.
   bool NeedNestedSync = IncludeNestedSync;
-  if (!NeedNestedSync && TGI.hasID())
-    NeedNestedSync = TGI.getID() == TTID::OpenCilk;
+  if (!NeedNestedSync && TGI.hasTTID())
+    NeedNestedSync = TGI.getTTID() == TTID::OpenCilk;
 
   // Save loop properties before it is transformed.
   MDNode *OrigLoopID = L->getLoopID();

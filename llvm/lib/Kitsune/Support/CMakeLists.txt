@@ -3,7 +3,7 @@
 # on any libraries that transitively depend on LLVMCore.
 
 add_llvm_component_library(LLVMKitSupport
-  CommandLine.cpp
+  CommandLineUtils.cpp
   Deserialize.cpp
   OptznLevelUtils.cpp
   ToString.cpp

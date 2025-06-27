@@ -52,7 +52,7 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
   // If no primary tapir target has been set, there will be nothing to do, so
   // bail out immediately.
   const TapirTargetInfo &tgi = mam.getResult<TapirTargetAnalysis>(m);
-  if (not tgi.hasID())
+  if (not tgi.hasTTID())
     return PreservedAnalyses::all();
 
   auto &fam = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();

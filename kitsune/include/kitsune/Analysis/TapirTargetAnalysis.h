@@ -63,14 +63,14 @@ private:
                           GetTaskInfo getTaskInfo);
 
 public:
-  bool hasID() const { return ttOpts.has_value(); }
+  bool hasTTID() const { return ttOpts.has_value(); }
 
   /// Get the primary tapir target ID if the tapir target options have been set.
-  std::optional<TTID> getIDIfExists() const;
+  std::optional<TTID> getTTIDOrNull() const;
 
   /// Get the primary tapir target ID. This should only be called when the tapir
   /// target options are guaranteed to have been set.
-  TTID getID() const;
+  TTID getTTID() const;
 
   /// Get the tapir target options. This should only be called when the tapir
   /// target options are guaranteed to have been set.
