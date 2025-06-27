@@ -44,15 +44,6 @@
 ; CHECK-CORO-NEXT: Running pass: LowerMobileIntrinsicsPass
 ; CHECK-CORO-NEXT: Running analysis: TapirTargetAnalysis
 ; CHECK-CORO-NEXT: Running pass: StripKitsuneAddrSpacePass
-; CHECK-CORO-NEXT: Running pass: EmbResolveLibDeviceCallsPass
-; CHECK-CORO-NEXT: Running pass: EmbPreparePass
-; CHECK-CORO-NEXT: Running pass: EmbLinkLibDeviceBitcodePass
-; CHECK-CORO-NEXT: Running pass: EmbOptimizePass
-; CHECK-CORO-NEXT: Running pass: RecomputeKernelPropertiesPass
-; CHECK-CORO-NEXT: Running pass: GenerateCtorsPass
-; CHECK-CORO-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
-; CHECK-CORO-NEXT: Running analysis: TargetLibraryAnalysis
-; CHECK-CORO-NEXT: Running analysis: TargetLibraryAnalysis
 ; CHECK-PRE-LINK: Running pass: CanonicalizeAliasesPass
 ; CHECK-PRE-LINK-NEXT: Running pass: NameAnonGlobalPass
 ; CHECK-THINLTO: Running pass: LowerTypeTestsPass
@@ -65,6 +56,7 @@
 ; CHECK-LTO-NEXT: Running pass: LowerTypeTestsPass
 ; CHECK-LTO-NEXT: CoroConditionalWrapper
 ; CHECK-CORO-NEXT: Running pass: AnnotationRemarksPass
+; CHECK-CORO-NEXT: Running analysis: TargetLibraryAnalysis
 ; CHECK-LTO-NEXT: Running pass: AnnotationRemarksPass
 ; CHECK-LTO-NEXT: Running analysis: TargetLibraryAnalysis
 ; CHECK-NEXT: Running pass: PrintModulePass

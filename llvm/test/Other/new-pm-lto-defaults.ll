@@ -167,13 +167,6 @@
 ; CHECK-O23SZ-NEXT: Running pass: LowerMobileIntrinsicsPass
 ; CHECK-O23SZ-NEXT: Running analysis: TapirTargetAnalysis
 ; CHECK-O23SZ-NEXT: Running pass: StripKitsuneAddrSpacePass
-; CHECK-O23SZ-NEXT: Running pass: EmbResolveLibDeviceCallsPass
-; CHECK-O23SZ-NEXT: Running pass: EmbPreparePass
-; CHECK-O23SZ-NEXT: Running pass: EmbLinkLibDeviceBitcodePass
-; CHECK-O23SZ-NEXT: Running pass: EmbOptimizePass
-; CHECK-O23SZ-NEXT: Running pass: RecomputeKernelPropertiesPass
-; CHECK-O23SZ-NEXT: Running pass: GenerateCtorsPass
-; CHECK-O23SZ-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
 ; CHECK-O-NEXT: Running pass: AnnotationRemarksPass on foo
 ; CHECK-O-NEXT: Running pass: PrintModulePass
 

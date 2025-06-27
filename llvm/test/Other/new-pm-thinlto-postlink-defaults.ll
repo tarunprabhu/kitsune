@@ -248,13 +248,6 @@
 ; CHECK-POSTLINK-O-NEXT: Running pass: LowerMobileIntrinsicsPass
 ; CHECK-POSTLINK-O-NEXT: Running analysis: TapirTargetAnalysis
 ; CHECK-POSTLINK-O-NEXT: Running pass: StripKitsuneAddrSpacePass
-; CHECK-POSTLINK-O-NEXT: Running pass: EmbResolveLibDeviceCallsPass
-; CHECK-POSTLINK-O-NEXT: Running pass: EmbPreparePass
-; CHECK-POSTLINK-O-NEXT: Running pass: EmbLinkLibDeviceBitcodePass
-; CHECK-POSTLINK-O-NEXT: Running pass: EmbOptimizePass
-; CHECK-POSTLINK-O-NEXT: Running pass: RecomputeKernelPropertiesPass
-; CHECK-POSTLINK-O-NEXT: Running pass: GenerateCtorsPass
-; CHECK-POSTLINK-O-NEXT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
 ; CHECK-O-NEXT:          Running pass: AnnotationRemarksPass on foo
 ; CHECK-O-NEXT: Running pass: PrintModulePass
 
