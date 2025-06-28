@@ -37,8 +37,10 @@ getLibDeviceModuleCuda(const TapirTargetOptions &tto, LLVMContext &ctx) {
 static std::unique_ptr<Module>
 getLibDeviceModuleHip(const TapirTargetOptions &tto, LLVMContext &ctx) {
   const std::vector<std::string> &bcFiles = tto.getHipRuntimeBCFiles();
-  std::unique_ptr<Module> libDeviceM = parseLibDeviceBCFile(bcFiles[0], ctx);
+  assert(tto.getHipRuntimeBCFiles().size() &&
+         "At least one bitcode file is required by Hip's libDevice module");
 
+  std::unique_ptr<Module> libDeviceM = parseLibDeviceBCFile(bcFiles[0], ctx);
   Linker linker(*libDeviceM);
   for (size_t i = 1; i < bcFiles.size(); ++i) {
     StringRef bcFile = bcFiles[i];
