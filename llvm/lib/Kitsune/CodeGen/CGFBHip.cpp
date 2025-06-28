@@ -65,8 +65,7 @@ private:
     LLVM_DEBUG(dbgs() << "\t- generating amdgpu object file...\n");
 
     SmallString<1024> objFilename;
-    std::string model =
-        llvm::join_items("-", "kithip", "%%%%%%%%", km.getName());
+    std::string model = join_items("-", "kithip", "%%%%%%%%", km.getName());
     sys::fs::createUniquePath(model.c_str(), objFilename, true);
     sys::path::replace_extension(objFilename, ".amdgpu.o");
     LLVM_DEBUG(dbgs() << "\t- amdgpu object file: '" << objFilename << "'.\n");
@@ -80,8 +79,15 @@ private:
 
     // The build system should have ensured that the AMDGPU target is
     // available.
-    TargetMachine *tm = createTargetMachine(TTID::Hip, tto);
+    TargetMachine *tm =
+        createTargetMachine(TTID::Hip, tto, cgfbOpts.cgOptLevel);
     assert(tm && "Could not create AMDGPU target machine");
+    if (cgfbOpts.debugTargetMachine)
+      detail::debugTargetMachine(*tm, errs());
+    if (cgfbOpts.debugTargetOptions)
+      dump(tm->Options, errs());
+    if (cgfbOpts.debugMCTargetOptions)
+      dump(tm->Options.MCOptions, errs());
 
     // Setup the passes and request that the output goes to the specified object
     // file.
@@ -154,7 +160,7 @@ private:
         dbgs() << "\t\t" << i++ << ": " << arg << "\n";
       dbgs() << "\n\n";
     });
-    if (cgfbOpts.printCommandLines)
+    if (cgfbOpts.debugCommandLines)
       outs() << join(args, " ") << "\n";
 
     std::string errMsg;

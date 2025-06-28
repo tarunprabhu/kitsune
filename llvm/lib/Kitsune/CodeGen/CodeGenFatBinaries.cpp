@@ -17,7 +17,9 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GlobalVariableUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/TTUtils.h"
+#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
@@ -27,34 +29,42 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
-
-static cl::opt<bool>
-    clPrintCommandLines("cgfb-###", cl::init(false), cl::Hidden,
-                        cl::desc("Print command lines of external tools that "
-                                 "are called during fat binary generation"));
 
 static cl::opt<bool>
     clKeepFiles("cgfb-keep-files", cl::init(false), cl::Hidden,
                 cl::desc("Do not delete intermediate files created during "
                          "generation of the fat binaries"));
 
+// Override the optimization used by the target machine. If this is not
+// explicitly set, it will use the optimization level set in the
+// TapirTargetOptions.
+static cl::opt<CodeGenOptLevel> clCGOptLevel(
+    cl::init(CodeGenOptLevel::Default), cl::Hidden,
+    cl::values(clEnumValN(CodeGenOptLevel::None, "cgfb-O0", ""),
+               clEnumValN(CodeGenOptLevel::Less, "cgfb-O1", ""),
+               clEnumValN(CodeGenOptLevel::Default, "cgfb-O2", ""),
+               clEnumValN(CodeGenOptLevel::Aggressive, "cgfb-O3", "")));
+
 // FIXME: Check if this is something that could be enabled and do so, if
 // possible.
 //
-// The default mode of the transformation is to embed a single fat binary image
-// for the selected target architecture. With this flag set, the PTX form of the
-// code will also be embedded into the fat binary.
-// static cl::opt<bool> clEmbedPTXInFatbinaries(
+// The default mode of the transformation is to embed a single fat binary
+// image for the selected target architecture. With this flag set, the PTX
+// form of the code will also be embedded into the fat binary. static
+// cl::opt<bool> clEmbedPTXInFatbinaries(
 //     "cgfb-embed-ptx", cl::init(false), cl::Hidden,
-//     cl::desc("Embed PTX code in the fat binaries generated for the cuda tapir
+//     cl::desc("Embed PTX code in the fat binaries generated for the cuda
+//     tapir
 //     "
 //              "target (NOT YET IMPLEMENTED)"));
 
-// Override the optimization level used by ptxas when generating GPU code. If
-// this is not explicitly set, it will use the optimization level set in the
-// tapir target options, which is usually whatever was passed to the frontend.
+// Override the optimization level used by ptxas when generating GPU code.
+// If this is not explicitly set, it will use the optimization level set in
+// the TapirTargetOptions, which is usually whatever was passed to the
+// frontend.
 static cl::opt<OptznLevel> clPtxasOptLevel(
     cl::init(OptznLevel::O3), cl::Hidden,
     cl::values(clEnumValN(OptznLevel::O0, "cgfb-ptxas-O0", "Pass O0 to ptxas"),
@@ -62,6 +72,59 @@ static cl::opt<OptznLevel> clPtxasOptLevel(
                clEnumValN(OptznLevel::O2, "cgfb-ptxas-O2", "Pass O2 to ptxas"),
                clEnumValN(OptznLevel::O3, "cgfb-ptxas-O3", "Pass O3 to ptxas")),
     cl::desc("Override the optimization level passed to ptxas"));
+
+// @{
+
+// These options are mainly used by the tests, but could be useful for
+// debugging.
+
+static cl::opt<bool> clDebugCommandLines(
+    "cgfb-###", cl::init(false), cl::Hidden,
+    cl::desc("Print command lines invoking external tools to stderr"));
+
+static cl::opt<bool>
+    clDebugMCTargetOptions("cgfb-debug-mc-target-options", cl::init(false),
+                           cl::Hidden,
+                           cl::desc("Print machine target options to stderr"));
+
+static cl::opt<bool> clDebugTargetMachine(
+    "cgfb-debug-target-machine", cl::init(false), cl::Hidden,
+    cl::desc("Print some properties of the target machine to stderr"));
+
+static cl::opt<bool>
+    clDebugTargetOptions("cgfb-debug-target-options", cl::init(false),
+                         cl::Hidden,
+                         cl::desc("Print target options to stderr"));
+
+// @}
+
+void llvm::detail::embedFatBinary(ToolOutputFile &fatbinFile,
+                                  GlobalVariable &g) {
+  ErrorOr<std::unique_ptr<MemoryBuffer>> bufOrErr =
+      MemoryBuffer::getFile(fatbinFile.getFilename());
+  if (std::error_code ec = bufOrErr.getError()) {
+    report_fatal_error(StringRef(llvm::join_items(
+        " ", "failed to load fat binary image:", ec.message())));
+  }
+
+  std::unique_ptr<MemoryBuffer> fb = std::move(bufOrErr.get());
+  resetEmbFBGlobal(*fb, g);
+}
+
+void llvm::detail::debugTargetMachine(const TargetMachine &tm,
+                                      raw_ostream &os) {
+  const Target &tgt = tm.getTarget();
+  os << "Target Machine:\n";
+  os << "  Name: " << tgt.getName() << "\n";
+  os << "  Description: " << tgt.getShortDescription() << "\n";
+  os << "  Backend: " << tgt.getBackendName() << "\n";
+  os << "  Triple: " << tm.getTargetTriple().str() << "\n";
+  os << "  CPU: " << tm.getTargetCPU() << "\n";
+  os << "  Features: " << tm.getTargetFeatureString() << "\n";
+  os << "  Code model: " << tm.getCodeModel() << "\n";
+  os << "  Relocation model: " << tm.getRelocationModel() << "\n";
+  os << "  Optimization level: " << tm.getOptLevel() << "\n";
+}
 
 namespace {
 
@@ -72,6 +135,22 @@ private:
   detail::CGFBOptions cgfbOpts;
 
 private:
+  void initializeCGFBOptions() {
+    cgfbOpts.cgOptLevel = createCodeGenOptLevelFrom(tto.getOptznLevel());
+    if (clCGOptLevel.getNumOccurrences())
+      cgfbOpts.cgOptLevel = clCGOptLevel;
+
+    cgfbOpts.ptxasOptLevel = tto.getOptznLevel();
+    if (clPtxasOptLevel.getNumOccurrences())
+      cgfbOpts.ptxasOptLevel = clPtxasOptLevel;
+
+    cgfbOpts.keepFiles = clKeepFiles;
+    cgfbOpts.debugCommandLines = clDebugCommandLines;
+    cgfbOpts.debugMCTargetOptions = clDebugMCTargetOptions;
+    cgfbOpts.debugTargetMachine = clDebugTargetMachine;
+    cgfbOpts.debugTargetOptions = clDebugTargetOptions;
+  }
+
   bool cgfb(GlobalVariable &fb, const GlobalVariable &bc, TTID tt) {
     switch (tt) {
     case TTID::Cuda:
@@ -89,12 +168,7 @@ public:
   bool run(Module &m) {
     bool changed = false;
 
-    cgfbOpts.keepFiles = clKeepFiles;
-    cgfbOpts.printCommandLines = clPrintCommandLines;
-    cgfbOpts.ptxasOptLevel = tto.getOptznLevel();
-    if (clPtxasOptLevel.getNumOccurrences())
-      cgfbOpts.ptxasOptLevel = clPtxasOptLevel;
-
+    initializeCGFBOptions();
     for (TTID tt : ttsGenEmbBC()) {
       GlobalVariable *bc = getEmbBCGlobal(tt, m);
       GlobalVariable *fb = getEmbFBGlobal(tt, m);
@@ -109,19 +183,6 @@ public:
 };
 
 } // namespace
-
-void llvm::detail::embedFatBinary(ToolOutputFile &fatbinFile,
-                                  GlobalVariable &g) {
-  ErrorOr<std::unique_ptr<MemoryBuffer>> bufOrErr =
-      MemoryBuffer::getFile(fatbinFile.getFilename());
-  if (std::error_code ec = bufOrErr.getError()) {
-    report_fatal_error(StringRef(llvm::join_items(
-        " ", "failed to load fat binary image:", ec.message())));
-  }
-
-  std::unique_ptr<MemoryBuffer> fb = std::move(bufOrErr.get());
-  resetEmbFBGlobal(*fb, g);
-}
 
 /// Legacy pass to compile the embedded bitcode to fat binaries.
 class CodeGenFatBinariesLegacyPass : public ModulePass {
