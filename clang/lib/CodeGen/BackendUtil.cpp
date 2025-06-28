@@ -677,9 +677,6 @@ void EmitAssemblyHelper::CreateTargetMachine(bool MustCreateTM) {
   if (!initTargetOptions(CI, Diags, Options))
     return;
 
-  // Kitsune note: This can be helpful to look for differences between
-  // Clang and Kitsune configuraiton details for GPU targets.
-  // Options.dump();
   TM.reset(TheTarget->createTargetMachine(Triple, TargetOpts.CPU, FeaturesStr,
                                           Options, RM, CM, OptLevel));
   if (TM)

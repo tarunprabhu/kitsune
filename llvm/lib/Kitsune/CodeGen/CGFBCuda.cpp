@@ -17,6 +17,7 @@
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
+#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"
@@ -44,12 +45,10 @@ private:
   std::unique_ptr<ToolOutputFile> generatePTX(Module &km) {
     LLVM_DEBUG(dbgs() << "\t- generating ptx...\n");
 
-    // Take the intermediate form code in the kernel module and generate a PTX
-    // file. The PTX file will be named the same as the original input source
-    // module (M) with the extension changed to PTX.
+    // Translate the device module from LLVM-IR to PTX. This creates an
+    // intermediate PTX file.
     SmallString<1024> ptxFilename;
-    std::string model =
-        llvm::join_items("-", "kitcu", "%%%%%%%%", km.getName());
+    std::string model = join_items("-", "kitcu", "%%%%%%%%", km.getName());
     sys::fs::createUniquePath(model.c_str(), ptxFilename, true);
     sys::path::replace_extension(ptxFilename, ".ptx");
     LLVM_DEBUG(dbgs() << "\t- ptx file: '" << ptxFilename << "'.\n");
@@ -61,8 +60,15 @@ private:
       report_fatal_error(Twine("Could not create ptx file: ") + ec.message());
 
     // The build system should have ensured that the NVPTX target is available.
-    TargetMachine *tm = createTargetMachine(TTID::Cuda, tto);
+    TargetMachine *tm =
+        createTargetMachine(TTID::Cuda, tto, cgfbOpts.cgOptLevel);
     assert(tm && "Could not create NVPTX target machine");
+    if (cgfbOpts.debugTargetMachine)
+      detail::debugTargetMachine(*tm, errs());
+    if (cgfbOpts.debugTargetOptions)
+      dump(tm->Options, errs());
+    if (cgfbOpts.debugMCTargetOptions)
+      dump(tm->Options.MCOptions, errs());
 
     // Setup the passes and request that the output goes to the specified PTX
     // file.
@@ -98,7 +104,11 @@ private:
     StringRef ptxas = KITSUNE_CUDA_PTXAS;
     args.push_back(ptxas);
 
-    // TODO: Do we need/want to add support for generating relocatable code?
+    // TODO: Do we need/want to add support for generating relocatable code? It
+    // may be useful to allow deferring symbol resolution to link time. That
+    // may be necessary if we ever support separate compilation with device
+    // functions spread across translation units. That would entail adding
+    // the --compile option here.
 
     // The gpu architecture (e.g., sm_86)
     args.push_back("--gpu-name");
@@ -129,8 +139,8 @@ private:
         dbgs() << "\t\t" << i++ << ": " << arg << "\n";
       dbgs() << "\n\n";
     });
-    if (cgfbOpts.printCommandLines)
-      outs() << join(args, " ") << "\n";
+    if (cgfbOpts.debugCommandLines)
+      errs() << join(args, " ") << "\n";
 
     std::string errMsg;
     if (sys::ExecuteAndWait(ptxas, args,
@@ -163,9 +173,8 @@ private:
     args.push_back("--create");
     args.push_back(fatbinFilename);
 
-    std::string imgArgs =
-        llvm::join_items("", "--image=profile=", tto.getCudaArch(),
-                         ",file=", asmFile.getFilename());
+    std::string imgArgs = join_items("", "--image=profile=", tto.getCudaArch(),
+                                     ",file=", asmFile.getFilename());
     args.push_back(imgArgs);
 
     // FIXME: This code looks like it is broken.
@@ -193,8 +202,8 @@ private:
         dbgs() << "\t\t" << i++ << ": " << arg << "\n";
       dbgs() << "\n\n";
     });
-    if (cgfbOpts.printCommandLines)
-      outs() << join(args, " ") << "\n";
+    if (cgfbOpts.debugCommandLines)
+      errs() << join(args, " ") << "\n";
 
     std::string errMsg;
     if (sys::ExecuteAndWait(/*Program=*/fatbin,
