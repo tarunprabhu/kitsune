@@ -12,6 +12,7 @@
 
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/DataLayout.h"
@@ -25,15 +26,16 @@
 using namespace llvm;
 
 static cl::opt<bool> clInlineAll(
-    "emb-inline-all", cl::init(false),
+    "emb-inline-all", cl::init(false), cl::Hidden,
     cl::desc("Inline all device functions in the kernel module, unless they "
              "have the 'noinline' attribute"),
-    cl::NotHidden);
+    cl::cat(cl::catKitClDevOpts));
 
 static cl::opt<bool> clInlineAllForce(
-    "emb-inline-all-force", cl::init(false),
+    "emb-inline-all-force", cl::init(false), cl::Hidden,
     cl::desc("Inline all device functions in the kernel module, including "
-             "those that have the 'noinline' attribute"));
+             "those that have the 'noinline' attribute"),
+    cl::cat(cl::catKitClDevOpts));
 
 namespace {
 

@@ -13,6 +13,7 @@
 #include "GenerateCtorsImpl.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Config/config.h"
+#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/Tapir.h"
@@ -33,7 +34,8 @@ using namespace llvm;
 
 static cl::opt<bool>
     clUseYLaunch("hipabi-y-launch", cl::init(false), cl::Hidden,
-                 cl::desc("Launch kernel using y-axis threading."));
+                 cl::desc("Launch kernel using y-axis threading."),
+                 cl::cat(cl::catKitClDevOpts));
 
 namespace {
 

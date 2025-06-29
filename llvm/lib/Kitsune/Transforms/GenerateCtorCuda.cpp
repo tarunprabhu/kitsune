@@ -13,6 +13,7 @@
 #include "GenerateCtorsImpl.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Config/config.h"
+#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/Tapir.h"
@@ -37,7 +38,8 @@ using namespace llvm;
 // assisting in the analysis an refinement of launches.
 static cl::opt<bool> clRefineLaunches(
     "cuabi-refine-launches", cl::init(true), cl::Hidden,
-    cl::desc("Enable runtime's refinement of launch parameters"));
+    cl::desc("Enable runtime's refinement of launch parameters"),
+    cl::cat(cl::catKitClDevOpts));
 
 namespace {
 

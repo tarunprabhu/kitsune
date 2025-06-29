@@ -13,6 +13,7 @@
 
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Config/config.h"
+#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -26,8 +27,6 @@
 
 using namespace llvm;
 
-namespace llvm {
-
 // The options here are those that are used to initialize the TapirTargetOptions
 // object *only*. Several tapir targets have additional command line options
 // that can be used to tweak their behavior. Those are intended for
@@ -40,11 +39,9 @@ namespace llvm {
 
 // -------------------- options common to all tapir targets --------------------
 
-static cl::OptionCategory catKitClOpts("Kitsune Options");
-
 static cl::opt<TTID>
     clTapir("tapir", cl::desc("The primary tapir target"), cl::init(TTID::None),
-            cl::value_desc("target"), cl::cat(catKitClOpts),
+            cl::value_desc("target"), cl::cat(cl::catKitClOpts),
             cl::values(clEnumValN(TTID::None, "none", ""),
                        clEnumValN(TTID::Serial, "serial", ""),
                        clEnumValN(TTID::Cuda, "cuda", ""),
@@ -60,21 +57,22 @@ static cl::opt<TTID>
 /// This was the option originally in tapir, but in Kitsune, we prefer to use
 /// --tapir instead.
 static cl::alias clTapirTarget("tapir-target", cl::desc("Alias for --tapir"),
-                               cl::aliasopt(clTapir), cl::cat(catKitClOpts));
+                               cl::aliasopt(clTapir),
+                               cl::cat(cl::catKitClOpts));
 
 static cl::opt<bool>
     clTapirVerbose("tapir-verbose", cl::init(false),
                    cl::desc("Enable verbose mode in all tapir targets"),
-                   cl::cat(catKitClOpts));
+                   cl::cat(cl::catKitClOpts));
 
 static cl::opt<bool>
     clKitrtVerbose("kitrt-verbose", cl::init(false),
                    cl::desc("Enable verbose mode in kitsune's runtime"),
-                   cl::cat(catKitClOpts));
+                   cl::cat(cl::catKitClOpts));
 
 static cl::opt<std::string> clLLD("tapir-lld", cl::init(""),
                                   cl::desc("Path to LLD"),
-                                  cl::cat(catKitClOpts));
+                                  cl::cat(cl::catKitClOpts));
 
 // ------------------ options common to the GPU tapir targets ------------------
 
@@ -84,7 +82,7 @@ static cl::opt<unsigned> clFixedThreadsPerBlock(
              "launches unless overridden with pragmas. If this is not provided "
              "the threads per block will be calculated by Kitsune's runtime. "
              "Can be at most 1024"),
-    cl::cat(catKitClOpts));
+    cl::cat(cl::catKitClOpts));
 
 static cl::opt<unsigned> clMaxThreadsPerBlock(
     "tapir-gpu-max-tpb", cl::init(0),
@@ -92,14 +90,14 @@ static cl::opt<unsigned> clMaxThreadsPerBlock(
         "The maximum number of threads per block to launch. If this is not "
         "provided, Kitsune's runtime is free to launch as many threads per "
         "block as it sees fit"),
-    cl::cat(catKitClOpts));
+    cl::cat(cl::catKitClOpts));
 
 static cl::opt<bool>
     clGPUPrefetch("tapir-gpu-prefetch",
                   cl::init(KitsuneOptions::defaultGPUPrefetch),
                   cl::desc("Enable generation of calls to prefetch managed "
                            "memory between host and device"),
-                  cl::cat(catKitClOpts));
+                  cl::cat(cl::catKitClOpts));
 
 // ------------------------- cuda tapir target options -------------------------
 
@@ -109,22 +107,22 @@ static const std::string clCudaArchHelp =
 static cl::opt<std::string>
     clCudaArch("tapir-cuda-arch",
                cl::init(KitsuneOptions::defaultCudaArch.str()),
-               cl::desc(clCudaArchHelp), cl::cat(catKitClOpts));
+               cl::desc(clCudaArchHelp), cl::cat(cl::catKitClOpts));
 
 static cl::opt<std::string>
     clCudaVirtArch("tapir-cuda-virt-arch", cl::init(""),
                    cl::desc("NVIDIA GPU virtual architecture"),
-                   cl::cat(catKitClOpts));
+                   cl::cat(cl::catKitClOpts));
 
 static cl::opt<std::string> clCudaFeatures(
     "tapir-cuda-features", cl::init(""),
     cl::desc("The target features to use in the cuda tapir target"),
-    cl::cat(catKitClOpts));
+    cl::cat(cl::catKitClOpts));
 
 static cl::opt<std::string>
     clCudaRuntimeBCFile("tapir-cuda-runtime-bc", cl::init(""),
                         cl::desc("Path to the cuda runtime bitcode file"),
-                        cl::cat(catKitClOpts));
+                        cl::cat(cl::catKitClOpts));
 
 // ------------------------- hip tapir target options -------------------------
 
@@ -132,7 +130,7 @@ static const std::string clHipArchHelp = join_items(
     KitsuneOptions::defaultHipArch, "AMD GPU architecture (default = ", ")");
 static cl::opt<std::string>
     clHipArch("tapir-hip-arch", cl::init(KitsuneOptions::defaultHipArch.str()),
-              cl::desc(clHipArchHelp), cl::cat(catKitClOpts));
+              cl::desc(clHipArchHelp), cl::cat(cl::catKitClOpts));
 
 static const std::string clHipSRAMECCHelp = join_items(
     toString(KitsuneOptions::defaultHipSRAMECC),
@@ -144,7 +142,7 @@ static cl::opt<MaybeBool> clHipSRAMECC(
         clEnumValN(MaybeBool::Off, "off", "Set the sramecc- target feature"),
         clEnumValN(MaybeBool::On, "on", "Set the sramecc+ target feature"),
         clEnumValN(MaybeBool::Any, "any", "Leave the sramecc feature unset")),
-    cl::cat(catKitClOpts));
+    cl::cat(cl::catKitClOpts));
 
 static const std::string clHipXnackHelp =
     join_items(toString(KitsuneOptions::defaultHipXnack),
@@ -156,17 +154,17 @@ static cl::opt<MaybeBool> clHipXnack(
         clEnumValN(MaybeBool::Off, "off", "Set the xnack- target feature"),
         clEnumValN(MaybeBool::On, "on", "Set the xnack+ target feature"),
         clEnumValN(MaybeBool::Any, "any", "Leave the xnack feature unset")),
-    cl::cat(catKitClOpts));
+    cl::cat(cl::catKitClOpts));
 
 static cl::opt<std::string> clHipFeatures(
     "tapir-hip-features", cl::init(""),
     cl::desc("The target features to use in the hip tapir target"),
-    cl::cat(catKitClOpts));
+    cl::cat(cl::catKitClOpts));
 
 static cl::list<std::string> clHipRuntimeBCFiles(
     "tapir-hip-runtime-bcs",
     cl::desc("The bitcode files to use in the hip tapir target"),
-    cl::cat(catKitClOpts), cl::CommaSeparated);
+    cl::cat(cl::catKitClOpts), cl::CommaSeparated);
 
 // ----------------------- opencilk tapir target options -----------------------
 
@@ -325,5 +323,3 @@ void TapirTargetOptions::print(raw_ostream &os, bool all) const {
     os << "  Opencilk bitcode file:   " << getOpenCilkRuntimeBCFile() << "\n";
   }
 }
-
-} // namespace llvm

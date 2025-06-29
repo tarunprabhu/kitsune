@@ -12,6 +12,7 @@
 
 #include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
@@ -41,11 +42,13 @@ static cl::opt<OptznLevel> clOptznLevel(
                clEnumValN(OptznLevel::Os, "emb-Os", "Optimize for size"),
                clEnumValN(OptznLevel::Oz, "emb-Oz",
                           "Aggressively optimize for size")),
-    cl::desc("Optimization level for the embedded modules"));
+    cl::desc("Optimization level for the embedded modules"),
+    cl::cat(cl::catKitClDevOpts));
 
 static cl::opt<bool> clPrintEmbPipelinePasses(
     "emb-print-pipeline-passes", cl::init(false), cl::Hidden,
-    cl::desc("Print the passes that will be run on the embedded modules"));
+    cl::desc("Print the passes that will be run on the embedded modules"),
+    cl::cat(cl::catKitClDevOpts));
 
 static OptimizationLevel mapToOptimizationLevel(OptznLevel optznLevel) {
   switch (optznLevel) {

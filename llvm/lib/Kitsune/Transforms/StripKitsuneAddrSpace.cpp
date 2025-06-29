@@ -14,6 +14,7 @@
 
 #include "kitsune/Transforms/StripKitsuneAddrSpace.h"
 #include "kitsune/Config/config.h"
+#include "kitsune/Core/CommandLineOptions.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
@@ -27,7 +28,8 @@ using namespace llvm;
 // This is only really useful for testing.
 static cl::opt<bool> clDisableStripKitsuneAddrspace(
     "disable-strip-kitsune-addrspaces", cl::init(false), cl::Hidden,
-    cl::desc("Do not strip kitsune address spaces"));
+    cl::desc("Do not strip kitsune address spaces"),
+    cl::cat(cl::catKitClDevOpts));
 
 #define DEBUG_TYPE "strip-kitsune-addrspace"
 
