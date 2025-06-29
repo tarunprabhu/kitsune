@@ -56,6 +56,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/CudaABI.h"
+#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/KernelProperties.h"
@@ -94,16 +95,6 @@ using namespace llvm;
 // module to use Kitsune's cuda runtime to launch the tapir loops. There is a
 // lot more that needs to be done before the kernel module can be compiled to
 // GPU code, but those steps are handled in subsequent passes.
-//
-
-// Set a specific optimization level for the transformation's pass over the
-// created "kernel-module". By default this level will mirror that of the
-// frontend but can be set specifically here -- this is primarily useful
-// for exploring various details of levels between those operating on the
-// Tapir IR and those after the transformation to GPU-friendly LLVM IR.
-static cl::opt<int> OptLevel("cuabi-opt-level", cl::init(-1), cl::Hidden,
-                             cl::desc("Specify the GPU kernel optimization "
-                                      "level. Must be 0, 1, 2 or 3"));
 
 // This is meant to be a factor used for additional kernel optimizations but is
 // currently not used this. It should be left in its default state.
@@ -113,9 +104,26 @@ static cl::opt<unsigned> DefaultGrainSize(
              "when analysis fails to determine one (default=1)"));
 
 // Enable/Disable flush denorms-to-zero code generation.
-static cl::opt<bool>
-    FTZCodeGen("cuabi-ftz", cl::init(false), cl::NotHidden,
-               cl::desc("Use flush-denorms-to-zero code generation paths"));
+static cl::opt<bool> clFTZ("cuabi-ftz", cl::init(false), cl::Hidden,
+                           cl::desc("Enable flush-denorms-to-zero"),
+                           cl::cat(cl::catKitClDevOpts));
+
+// FIXME: The default is currently set to true. This should be changed to false
+// and the name of the option changed.
+//
+// FIXME: We really should not be exposing command line options from other
+// source files. This is an experimental option that has been hacked in for the
+// moment. If this is useful, we should consider adding it to the tapir target
+// options instead. Otherwise, it should be removed altogether.
+//
+// Request that the runtime carry out an extra set of steps to attempt to refine
+// the launch parameters of kernels. In this mode of operation the compiler will
+// provide some compile-time information to the runtime for assisting in the
+// assisting in the analysis and refinement of launches.
+cl::opt<bool> clRefineLaunches(
+    "cuabi-refine-launches", cl::init(true), cl::Hidden,
+    cl::desc("Enable runtime's refinement of launch parameters"),
+    cl::cat(cl::catKitClDevOpts));
 
 /// This prefix is intentionally *NOT* __kitcuda to ensure that there is no
 /// confusion - and, more importantly, no collisions - between any names
@@ -685,7 +693,7 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &TTO)
   KernelModule.setTargetTriple(TM->getTargetTriple().str());
   KernelModule.setDataLayout(TM->createDataLayout());
   KernelModule.setModuleIdentifier(getNameForDeviceModule(M, CUABI_PREFIX));
-  KernelModule.setModuleFlag(Module::Override, "nvvm-reflect-ftz", FTZCodeGen);
+  KernelModule.setModuleFlag(Module::Override, "nvvm-reflect-ftz", clFTZ);
   addDeviceModuleMetadata(TTID::Cuda, KernelModule);
 }
 

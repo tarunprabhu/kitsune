@@ -13,7 +13,6 @@
 #include "GenerateCtorsImpl.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Config/config.h"
-#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/Tapir.h"
@@ -26,16 +25,10 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 
 using namespace llvm;
-
-static cl::opt<bool>
-    clUseYLaunch("hipabi-y-launch", cl::init(false), cl::Hidden,
-                 cl::desc("Launch kernel using y-axis threading."),
-                 cl::cat(cl::catKitClDevOpts));
 
 namespace {
 
@@ -48,8 +41,9 @@ private:
   static constexpr const char *section = ".hipFatBinSegment";
 
 private:
-  const TapirTargetOptions &tto;
   detail::GetTLI getTLI;
+  const TapirTargetOptions &tto;
+  const detail::GenerateCtorOptions &genCtorOpts;
 
 private:
   /// Create a global variable containing the fat binary "bundle". This
@@ -151,14 +145,15 @@ private:
         kitrtEnableXnack,
         {ConstantInt::get(boolTy, tto.getHipXnack() == MaybeBool::On)});
 
-    if (clUseYLaunch)
+    if (genCtorOpts.useYLaunch)
       LLVM_DEBUG(
           dbgs()
           << "\t\tenable y-axis launch pattern via ctor runtime call.\n");
     FunctionCallee kitrtEnableYAxisLaunch = Intrinsic::getOrInsertDeclaration(
         &m, Intrinsic::kitrt_enable_y_axis_launches);
-    builder.CreateCall(kitrtEnableYAxisLaunch,
-                       {constTT, ConstantInt::get(boolTy, clUseYLaunch)});
+    builder.CreateCall(
+        kitrtEnableYAxisLaunch,
+        {constTT, ConstantInt::get(boolTy, genCtorOpts.useYLaunch)});
 
     if (unsigned fixedTPB = tto.getFixedThreadsPerBlock()) {
       FunctionCallee kitrtSetFixedTPB =
@@ -265,8 +260,9 @@ private:
   }
 
 public:
-  GenerateCtorHip(const TapirTargetOptions &tto, detail::GetTLI getTLI)
-      : tto(tto), getTLI(getTLI) {}
+  GenerateCtorHip(detail::GetTLI getTLI, const TapirTargetOptions &tto,
+                  const detail::GenerateCtorOptions &genCtorOpts)
+      : getTLI(getTLI), tto(tto), genCtorOpts(genCtorOpts) {}
 
   void run(Module &m) {
     GlobalVariable *gFB = getEmbFBGlobal(TTID::Hip, m);
@@ -290,7 +286,8 @@ public:
 
 } // namespace
 
-void llvm::detail::genCtorHip(Module &m, const TapirTargetOptions &tto,
-                              detail::GetTLI getTLI) {
-  GenerateCtorHip(tto, getTLI).run(m);
+void llvm::detail::genCtorHip(Module &m, detail::GetTLI getTLI,
+                              const TapirTargetOptions &tto,
+                              const detail::GenerateCtorOptions &genCtorOpts) {
+  GenerateCtorHip(getTLI, tto, genCtorOpts).run(m);
 }
