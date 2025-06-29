@@ -57,6 +57,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/HipABI.h"
+#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/KernelProperties.h"
@@ -96,12 +97,13 @@ static cl::opt<unsigned> DefaultGrainSize(
     cl::desc("The default grain size used by the transform "
              "when analysis fails to determine one. (default=1)"));
 
-// FIXME: The y-launch options are needed both here and when generating the
-// code in global ctor. This command line option should be move somewhere where
-// it can be shared. That is a refactor that is on the cards.
-static cl::opt<bool>
-    UseYLaunch("TO-REMOVE-hipabi-y-launch", cl::init(false), cl::Hidden,
-               cl::desc("Launch kernel using y-axis threading."));
+// FIXME: We really should not be exposing command line options from other
+// source files. This is an experimental option that has been hacked in for the
+// moment. If this is useful, we should consider adding it to the tapir target
+// options instead. Otherwise, it should be removed altogether.
+cl::opt<bool> clUseYLaunch("hipabi-y-launch", cl::init(false), cl::Hidden,
+                           cl::desc("Launch kernel using y-axis threading"),
+                           cl::cat(cl::catKitClDevOpts));
 
 static constexpr StringRef HIPABI_PREFIX = "__kithip_";
 static constexpr StringRef HIPABI_KERNEL_NAME_PREFIX = "__kithip_loop_";
@@ -511,7 +513,7 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
     AttrVal = std::string("1,") + utostr(TPB);
     KernelF->addFnAttr("amdgpu-flat-work-group-size", AttrVal);
 
-    if (UseYLaunch)
+    if (clUseYLaunch)
       AttrVal = std::string("1,") + utostr(TPB) + std::string(",1");
     else
       AttrVal = utostr(TPB) + std::string(",1,1");
@@ -521,7 +523,7 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
     AttrVal = std::string("1,") + utostr(DefaultThreadsPerBlock);
     KernelF->addFnAttr("amdgpu-flat-work-group-size", AttrVal);
 
-    if (UseYLaunch)
+    if (clUseYLaunch)
       AttrVal = std::string("1,") + utostr(DefaultThreadsPerBlock)
                     + std::string(",1");
     else
@@ -531,7 +533,7 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
     AttrVal = std::string("1,") + utostr(MaxThreadsPerBlock);
     KernelF->addFnAttr("amdgpu-flat-work-group-size", AttrVal);
 
-    if (UseYLaunch)
+    if (clUseYLaunch)
       AttrVal = std::string("1,") + utostr(MaxThreadsPerBlock) +
                 std::string(",1");
     else
@@ -572,7 +574,7 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   Value *ThreadIdx;
   Value *BlockDim;
 
-  if (not UseYLaunch) {
+  if (not clUseYLaunch) {
     Value *WorkItemIdX = emitWorkItemId(Builder, 0);
     ThreadIdx = Builder.CreateIntCast(WorkItemIdX, PrimaryIVType,
                                       /*isSigned=*/false, ".kern.tidx.x");
