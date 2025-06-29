@@ -8,6 +8,10 @@
 # RUN: opt -help 2>&1 | FileCheck %s -check-prefix HELP
 #
 # HELP-NOT: Kitsune Developer Options
+# HELP-NOT: cgfb-###
+# HELP-NOT: cuabi-
+# HELP-NOT: emb-O0
+# HELP-NOT: hipabi-
 # HELP: Kitsune Options
 # HELP: --kitrt-verbose
 # HELP: --tapir

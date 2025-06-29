@@ -14,12 +14,21 @@
 #include "kitsune/Transforms/GenerateCtors.h"
 #include "GenerateCtorsImpl.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/CommandLineOptions.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
+
+// FIXME: We really should not be exposing command line options from other
+// source files. These are experimental options that have been hacked in for the
+// moment. If this is useful, we should consider adding it to the tapir target
+// options instead. Otherwise, it should be removed altogether.
+extern cl::opt<bool> clRefineLaunches;
+extern cl::opt<bool> clUseYLaunch;
 
 /// Should a ctor be generated for a GPU-centric tapir target. To determine if
 /// this is the case, check that at least one call to Kitsune's launch kernel
@@ -35,7 +44,7 @@ static bool shouldGenerateGPUCtor(Module &m, TTID tt) {
         // argument to some other function. Just in case, check that the callee
         // at this site is the launch kernel function.
         if (call->getIntrinsicID() == Intrinsic::kitrt_launch_kernel) {
-          auto *cint = dyn_cast<ConstantInt>(call->getArgOperand(0));
+          auto *cint = cast<ConstantInt>(call->getArgOperand(0));
           if (cint->getZExtValue() == unsigned(tt))
             return true;
         }
@@ -61,11 +70,15 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
   };
   const TapirTargetOptions &tto = tgi.getOptions();
 
+  detail::GenerateCtorOptions genCtorOpts;
+  genCtorOpts.refineLaunches = clRefineLaunches;
+  genCtorOpts.useYLaunch = clUseYLaunch;
+
   if (shouldGenerateGPUCtor(m, TTID::Cuda))
-    detail::genCtorCuda(m, tto, getTLI);
+    detail::genCtorCuda(m, getTLI, tto, genCtorOpts);
 
   if (shouldGenerateGPUCtor(m, TTID::Hip))
-    detail::genCtorHip(m, tto, getTLI);
+    detail::genCtorHip(m, getTLI, tto, genCtorOpts);
 
   // This never invalidates any analyses since only a global variable will have
   // changed. The generated ctors will not be called explicitly in the code,

@@ -13,7 +13,6 @@
 #include "GenerateCtorsImpl.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Config/config.h"
-#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/Tapir.h"
@@ -26,20 +25,10 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 
 using namespace llvm;
-
-// Request that the runtime carry out an extra set of steps to attempt to
-// refine the launch parameters of kernels.  In this mode of operation the
-// compiler will provide some compile-time information onto the runtime for
-// assisting in the analysis an refinement of launches.
-static cl::opt<bool> clRefineLaunches(
-    "cuabi-refine-launches", cl::init(true), cl::Hidden,
-    cl::desc("Enable runtime's refinement of launch parameters"),
-    cl::cat(cl::catKitClDevOpts));
 
 namespace {
 
@@ -79,8 +68,9 @@ private:
   static constexpr const char *controlSectionName = ".nvFatBinSegment";
 
 private:
-  const TapirTargetOptions &tto;
   detail::GetTLI getTLI;
+  const TapirTargetOptions &tto;
+  const detail::GenerateCtorOptions &genCtorOpts;
 
 private:
   /// Create a global variable containing the fat binary "bundle". This
@@ -195,8 +185,9 @@ private:
     FunctionCallee kitrtEnableRefineLaunches =
         Intrinsic::getOrInsertDeclaration(
             &m, Intrinsic::kitrt_enable_refine_launches);
-    builder.CreateCall(kitrtEnableRefineLaunches,
-                       {constTT, ConstantInt::get(boolTy, clRefineLaunches)});
+    builder.CreateCall(
+        kitrtEnableRefineLaunches,
+        {constTT, ConstantInt::get(boolTy, genCtorOpts.refineLaunches)});
 
     FunctionCallee cudaRegisterFatBinary =
         getOrInsertLibFunc(&m, tli, LibFunc_cuda_register_fat_binary);
@@ -281,8 +272,9 @@ private:
   }
 
 public:
-  GenerateCtorCuda(const TapirTargetOptions &tto, detail::GetTLI getTLI)
-      : tto(tto), getTLI(getTLI) {}
+  GenerateCtorCuda(detail::GetTLI getTLI, const TapirTargetOptions &tto,
+                   const detail::GenerateCtorOptions &genCtorOpts)
+      : getTLI(getTLI), tto(tto), genCtorOpts(genCtorOpts) {}
 
   void run(Module &m) {
     GlobalVariable *gFB = getEmbFBGlobal(TTID::Cuda, m);
@@ -306,7 +298,8 @@ public:
 
 } // namespace
 
-void llvm::detail::genCtorCuda(Module &m, const TapirTargetOptions &tto,
-                               detail::GetTLI getTLI) {
-  GenerateCtorCuda(tto, getTLI).run(m);
+void llvm::detail::genCtorCuda(Module &m, detail::GetTLI getTLI,
+                               const TapirTargetOptions &tto,
+                               const detail::GenerateCtorOptions &genCtorOpts) {
+  GenerateCtorCuda(getTLI, tto, genCtorOpts).run(m);
 }
