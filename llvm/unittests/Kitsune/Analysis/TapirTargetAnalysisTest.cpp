@@ -253,10 +253,10 @@ attributes #0 = { nounwind memory(argmem: write) uwtable }
   auto tta = std::make_unique<TapirTargetAnalysis>(tto);
   TapirTargetInfo tgi = tta->run(*m, mam);
 
-  EXPECT_TRUE(tgi.hasID());
+  EXPECT_TRUE(tgi.hasTTID());
   EXPECT_TRUE(tgi.getTTIDOrNull());
   EXPECT_EQ(*tgi.getTTIDOrNull(), TTID::Serial);
-  EXPECT_EQ(tgi.getID(), TTID::Serial);
+  EXPECT_EQ(tgi.getTTID(), TTID::Serial);
   EXPECT_EQ(tgi.getOptions().getCudaArch(), StringRef("sm_17"));
   EXPECT_EQ(tgi.getRequiredTTs(*f).size(), 0UL);
   EXPECT_EQ(tgi.getRequiredTTs(*m).size(), 0UL);
@@ -579,7 +579,7 @@ TEST(TapirTargetAnalysisTest, noTTO) {
     auto tta = std::make_unique<TapirTargetAnalysis>(std::nullopt);
     TapirTargetInfo tgi = tta->run(*m, mam);
 
-    EXPECT_FALSE(tgi.hasID());
+    EXPECT_FALSE(tgi.hasTTID());
     EXPECT_FALSE(tgi.getTTIDOrNull());
     EXPECT_EQ(tgi.getRequiredTTs(*f).size(), 0UL);
   }
@@ -592,7 +592,7 @@ TEST(TapirTargetAnalysisTest, noTTO) {
     auto tta = std::make_unique<TapirTargetAnalysis>(std::nullopt);
     TapirTargetInfo tgi = tta->run(*m, mam);
 
-    EXPECT_FALSE(tgi.hasID());
+    EXPECT_FALSE(tgi.hasTTID());
     EXPECT_FALSE(tgi.getTTIDOrNull());
     EXPECT_EQ(tgi.getRequiredTTs(*f).size(), 0UL);
     EXPECT_EQ(tgi.getRequiredTTs(*m).size(), 0UL);
