@@ -1,0 +1,34 @@
+# Check that the Kitsune options are visible in opt under the appropriate
+# category. This is not intended to be a comprehensive check of all options. It
+# merely exists to ensure that the categories of Kitsune options are not lost.
+#
+# ------------------------------------------------------------------------------
+# The "developer" options are not visible when simply asking for help
+#
+# RUN: opt -help 2>&1 | FileCheck %s -check-prefix HELP
+#
+# HELP-NOT: Kitsune Developer Options
+# HELP: Kitsune Options
+# HELP: --kitrt-verbose
+# HELP: --tapir
+# HELP: --tapir-cuda-arch=
+# HELP: --tapir-hip-arch=
+# HELP: --tapir-verbose
+#
+# -----------------------------------------------------------------------------
+# The "developer" options are visible when hidden options are included. The
+# developer options are intended to override the default behavior of Kitsune's
+# passes and are typically, but not always, prefixed with some short form
+# indicating the pass.
+#
+# RUN: opt -help-hidden 2>&1 | FileCheck %s -check-prefix HIDDEN
+#
+# HIDDEN: Kitsune Developer Options
+# HIDDEN: cgfb-###
+# HIDDEN: cgfb-ptxas-O1
+# HIDDEN: emb-O0
+# HIDDEN: emb-inline-all
+# HIDDEN: emb-print-pipeline-passes
+# HIDDEN: Kitsune Options
+# HIDDEN: --kitrt-verbose
+# HIDDEN: --tapir
