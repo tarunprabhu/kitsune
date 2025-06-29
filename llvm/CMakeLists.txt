@@ -235,6 +235,12 @@ set(KITSUNE_MAIN_INCLUDE_DIR ${KITSUNE_MAIN_SRC_DIR}/include)
 
 include_directories(${KITSUNE_MAIN_INCLUDE_DIR})
 
+# Kitsune is registered as a tool, so it will be built in this directory (unless
+# LLVM changes the location where tools are built, in which case, this should be
+# updated).
+set(KITSUNE_SOURCE_DIR ${KITSUNE_MAIN_SRC_DIR})
+set(KITSUNE_BINARY_DIR ${CMAKE_BINARY_DIR}/tools/kitsune)
+
 # For now, the kitsune version tracks the LLVM version, except that the major
 # version of Kitsune is 0 and the minor version is the same as LLVM's major
 # version. We use LLVM's version suffix which we will probably continue doing
@@ -1546,6 +1552,30 @@ endif()
 if(LLVM_INCLUDE_TESTS)
   umbrella_lit_testsuite_begin(check-all)
 endif()
+
+# ------------------------ Extra Kitsune sanity checks ------------------------
+#
+# Some LLVM options are registered after Kitsune's main configuration block
+# near the start of this file. We could move the block until after the
+# configuration options, but that was placed there carefully. It is just easier
+# to do these late sanity checks.
+
+# Kitsune's is registered as a "tool" with LLVM's build system. As a result,
+# tools must be built when building Kitsune. LLVM_BUILD_TOOLS defaults to ON. If
+# this has been set to OFF, the user has set this explicitly. They may well have
+# had some reason for doing so, in which case, it is up to them to tweak the
+# build system to suit their purpose. In most other cases, this should not have
+# been turned off, so error out instead of overriding the user's setting.
+if (NOT LLVM_BUILD_TOOLS)
+  message(FATAL_ERROR "Kitsune requires LLVM_BUILD_TOOLS=ON")
+endif ()
+
+# LLVM_INCLUDE_TOOLS is similar to LLVM_BUILD_TOOLS, so treat it the same way.
+if (NOT LLVM_INCLUDE_TOOLS)
+  message(FATAL_ERROR "Kitsune requires LLVM_INCLUDE_TOOLS=ON")
+endif ()
+
+# ---------------------- End extra Kitsune sanity checks ----------------------
 
 # Put this before tblgen. Else we have a circular dependence.
 add_subdirectory(lib/Demangle)
