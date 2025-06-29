@@ -766,9 +766,9 @@ void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
   // Checking the embedded modules requires functions from LLVMBitReader which
   // results in a circular dependence between LLVMCore and LLVMBitReader.
   // Obviously, this is very, very bad. However, there is already a very deep
-  // circular dependence between LLVMPasses and LLVMKitOpts which cannot be
-  // easily broken. In that case, we might as well introduce this dependence
-  // here.
+  // circular dependence between LLVMPasses and LLVMKitTransforms which cannot
+  // be broken easily. Since we're in trouble anyway, adding another circular
+  // dependence doesn't make things markedly worse.
   StringRef BC = cast<ConstantDataArray>(G.getInitializer())->getAsString();
   Check(isBitcode(BC.bytes_begin(), BC.bytes_end()),
         "invalid data in global containing embedded bitcode");
