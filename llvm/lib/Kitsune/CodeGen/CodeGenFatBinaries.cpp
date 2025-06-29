@@ -14,6 +14,7 @@
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "CGFBImpl.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GlobalVariableUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
@@ -36,7 +37,8 @@ using namespace llvm;
 static cl::opt<bool>
     clKeepFiles("cgfb-keep-files", cl::init(false), cl::Hidden,
                 cl::desc("Do not delete intermediate files created during "
-                         "generation of the fat binaries"));
+                         "generation of the fat binaries"),
+                cl::cat(cl::catKitClDevOpts));
 
 // Override the optimization used by the target machine. If this is not
 // explicitly set, it will use the optimization level set in the
@@ -46,7 +48,8 @@ static cl::opt<CodeGenOptLevel> clCGOptLevel(
     cl::values(clEnumValN(CodeGenOptLevel::None, "cgfb-O0", ""),
                clEnumValN(CodeGenOptLevel::Less, "cgfb-O1", ""),
                clEnumValN(CodeGenOptLevel::Default, "cgfb-O2", ""),
-               clEnumValN(CodeGenOptLevel::Aggressive, "cgfb-O3", "")));
+               clEnumValN(CodeGenOptLevel::Aggressive, "cgfb-O3", "")),
+    cl::cat(cl::catKitClDevOpts));
 
 // FIXME: Check if this is something that could be enabled and do so, if
 // possible.
@@ -71,7 +74,8 @@ static cl::opt<OptznLevel> clPtxasOptLevel(
                clEnumValN(OptznLevel::O1, "cgfb-ptxas-O1", "Pass O1 to ptxas"),
                clEnumValN(OptznLevel::O2, "cgfb-ptxas-O2", "Pass O2 to ptxas"),
                clEnumValN(OptznLevel::O3, "cgfb-ptxas-O3", "Pass O3 to ptxas")),
-    cl::desc("Override the optimization level passed to ptxas"));
+    cl::desc("Override the optimization level passed to ptxas"),
+    cl::cat(cl::catKitClDevOpts));
 
 // @{
 
@@ -80,21 +84,24 @@ static cl::opt<OptznLevel> clPtxasOptLevel(
 
 static cl::opt<bool> clDebugCommandLines(
     "cgfb-###", cl::init(false), cl::Hidden,
-    cl::desc("Print command lines invoking external tools to stderr"));
+    cl::desc("Print command lines invoking external tools to stderr"),
+    cl::cat(cl::catKitClDevOpts));
 
 static cl::opt<bool>
     clDebugMCTargetOptions("cgfb-debug-mc-target-options", cl::init(false),
                            cl::Hidden,
-                           cl::desc("Print machine target options to stderr"));
+                           cl::desc("Print machine target options to stderr"),
+                           cl::cat(cl::catKitClDevOpts));
 
 static cl::opt<bool> clDebugTargetMachine(
     "cgfb-debug-target-machine", cl::init(false), cl::Hidden,
-    cl::desc("Print some properties of the target machine to stderr"));
+    cl::desc("Print some properties of the target machine to stderr"),
+    cl::cat(cl::catKitClDevOpts));
 
 static cl::opt<bool>
     clDebugTargetOptions("cgfb-debug-target-options", cl::init(false),
-                         cl::Hidden,
-                         cl::desc("Print target options to stderr"));
+                         cl::Hidden, cl::desc("Print target options to stderr"),
+                         cl::cat(cl::catKitClDevOpts));
 
 // @}
 
