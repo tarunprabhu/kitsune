@@ -29,11 +29,11 @@ namespace llvm {
 // we don't expect the spelling of these options to change, we require the
 // string representing the option to be passed to these utilities.
 
-/// Make the given option with the given spelling visible.
-void clSetOptionVisible(StringRef opt);
+/// Make the option with the given spelling visible.
+void clSetOptionVisible(StringRef spelling);
 
 /// Override the description of the option with the given spelling.
-void clSetOptionDescription(StringRef opt, StringRef descr);
+void clSetOptionDescription(StringRef spelling, StringRef descr);
 
 } // namespace llvm
 
