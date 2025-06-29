@@ -487,13 +487,13 @@ if (NOT LLVM_BUILD_LLVM_DYLIB)
 endif ()
 
 # A circular dependence between the libraries in Kitsune exists that can only be
-# broken by a non-trivial reorganization. libLLVMPasses requires libLLVMKitOpts
-# in order to instantiate the Kitsune-specific passes when building a pass
-# pipeline. However, one of these passes builds an optimization pipeline to run
-# on the embedded modules. This results in libLLVMKitOpts depending on
-# libLLVMPasses, thereby creating a dependence cycle:
+# broken by a non-trivial reorganization. libLLVMPasses requires
+# libLLVMKitTransforms in order to instantiate the Kitsune-specific passes when
+# building a pass pipeline. However, one of these passes builds an optimization
+# pipeline to run on the embedded modules. This results in libLLVMKitTransforms
+# depending on libLLVMPasses, thereby creating a dependence cycle:
 #
-#   libLLVMPasses -> libLLVMKitOpts -> libLLVMPasses
+#   libLLVMPasses -> libLLVMKitTransforms -> libLLVMPasses
 #
 # This makes it impossible to build Kitsune with -DBUILD_SHARED_LIBS=ON, though
 # building with static libraries or -DLLVM_LINK_LLVM_DYLIB=ON still works. For

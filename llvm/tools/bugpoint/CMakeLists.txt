@@ -16,7 +16,7 @@ set(LLVM_LINK_COMPONENTS
   KitAnalysis
   KitCodeGen
   KitCore
-  KitOpts
+  KitTransforms
   Linker
   ObjCARCOpts
   ScalarOpts

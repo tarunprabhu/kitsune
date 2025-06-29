@@ -10,8 +10,8 @@ set( LLVM_LINK_COMPONENTS
   KitAnalysis
   KitCodeGen
   KitCore
-  KitOpts
   KitSupport
+  KitTransforms
   MC
   MCParser
   ObjCARCOpts

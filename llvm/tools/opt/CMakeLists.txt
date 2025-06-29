@@ -20,7 +20,7 @@ set(LLVM_LINK_COMPONENTS
   KitAnalysis
   KitCore
   KitCodeGen
-  KitOpts
+  KitTransforms
   MC
   ObjCARCOpts
   Remarks
