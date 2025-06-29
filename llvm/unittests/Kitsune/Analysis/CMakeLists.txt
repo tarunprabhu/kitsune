@@ -1,9 +1,10 @@
 set(LLVM_LINK_COMPONENTS
   Analysis
   AsmParser
+  BitWriter
+  Core
   KitAnalysis
   KitCore
-  Core
 )
 
 add_llvm_unittest_with_input_files(KitAnalysisTests
