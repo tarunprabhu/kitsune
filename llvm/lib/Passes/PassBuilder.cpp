@@ -2108,6 +2108,26 @@ static bool startsWithDefaultPipelineAliasPrefix(StringRef Name) {
          Name.starts_with("lto") || Name.starts_with("tapir-lowering");
 }
 
+static Error resetOptznLevel(StringRef PassName, OptimizationLevel L,
+                             PipelineTuningOptions &PTO) {
+  if (L.getSpeedupLevel() == 0)
+    return make_error<StringError>(
+        formatv("{} passes require optimization level O1 or higher", PassName)
+            .str(),
+        inconvertibleErrorCode());
+  else if (not PTO.TTOpts)
+    return make_error<StringError>(
+        formatv("{} passes require the --tapir option", PassName).str(),
+        inconvertibleErrorCode());
+
+  unsigned SpeedupLevel = L.getSpeedupLevel();
+  unsigned SizeLevel = L.getSizeLevel();
+  OptznLevel OptznLevel = createOptznLevelFrom(SpeedupLevel, SizeLevel);
+
+  PTO.TTOpts->setOptznLevel(OptznLevel);
+  return Error::success();
+}
+
 Error PassBuilder::parseModulePass(ModulePassManager &MPM,
                                    const PipelineElement &E) {
   auto &Name = E.Name;
@@ -2165,6 +2185,11 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
   // now handled. Leave it here for now until we can figure it out and once we
   // do, this can be removed.
 #if 0
+  static const Regex
+      DefaultAliasRegex("^(default|thinlto-pre-link|thinlto|lto-pre-link|lto|"
+                        "tapir-lowering|tapir-lowering-loops|kit-lowering)"
+                        "<(O[0123sz])>$");
+
   // Manually handle aliases for pre-configured pipeline fragments.
   if (startsWithDefaultPipelineAliasPrefix(Name)) {
     SmallVector<StringRef, 3> Matches;
@@ -2200,21 +2225,19 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
       else
         MPM.addPass(buildLTOPreLinkDefaultPipeline(L));
     } else if (Matches[1] == "tapir-lowering-loops") {
-      if (PTO.TTOpts) {
-        unsigned SpeedupLevel = L.getSpeedupLevel();
-        unsigned SizeLevel = L.getSizeLevel();
-        PTO.TTOpts->setOptznLevel(
-            createOptznLevelFrom(SpeedupLevel, SizeLevel));
-      }
+      if (Error Err = resetOptznLevel(Matches[1], L, PTO))
+        return Err;
       MPM.addPass(buildTapirLoopLoweringPipeline(L, ThinOrFullLTOPhase::None));
     } else if (Matches[1] == "tapir-lowering") {
-      if (PTO.TTOpts) {
-        unsigned SpeedupLevel = L.getSpeedupLevel();
-        unsigned SizeLevel = L.getSizeLevel();
-        PTO.TTOpts->setOptznLevel(
-            createOptznLevelFrom(SpeedupLevel, SizeLevel));
-      }
+      if (Error Err = resetOptznLevel(Matches[1], L, PTO))
+        return Err;
       MPM.addPass(buildTapirLoweringPipeline(L, ThinOrFullLTOPhase::None));
+    } else if (Matches[1] == "kit-lowering") {
+      if (Error Err = resetOptznLevel(Matches[1], L, PTO))
+        return Err;
+      MPM.addPass(buildKitsunePreTapirPipeline(L, ThinOrFullLTOPhase::None));
+      MPM.addPass(buildTapirLoweringPipeline(L, ThinOrFullLTOPhase::None));
+      MPM.addPass(buildKitsunePostTapirPipeline(L, ThinOrFullLTOPhase::None));
     } else {
       assert(Matches[1] == "lto" && "Not one of the matched options!");
       MPM.addPass(buildLTODefaultPipeline(L, nullptr));
