@@ -3,11 +3,11 @@
 ; module as well.
 ;
 ; RUN: opt %s --tapir=cuda -passes='tapir-lowering<O2>' \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes=ALL,DEFAULT
 ;
 ; RUN: opt %s --tapir=cuda -passes='tapir-lowering<O2>' -cuabi-ftz \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes=ALL,FTZ
 ;
 ; ALL: !llvm.module.flags = !{{{.*}}![[FTZ:[0-9]+]]{{.*}}}

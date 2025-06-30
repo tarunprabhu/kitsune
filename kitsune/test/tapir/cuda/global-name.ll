@@ -4,7 +4,7 @@
 ; code.
 ;
 ; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' %s \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @__kitcu__nwnm__v137_suffix = {{.*}}global i32

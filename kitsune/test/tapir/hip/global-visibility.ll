@@ -2,7 +2,7 @@
 ; the kernel module with the correct visibility.
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' %s \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @v137 = protected {{.*}}global i32
