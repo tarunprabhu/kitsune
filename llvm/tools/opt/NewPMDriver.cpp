@@ -334,7 +334,7 @@ static std::optional<TapirTargetOptions>
 createTapirTargetOptions(TargetMachine *TM, StringRef PassPipeline) {
   // If no passes were provided, then don't bother with the tapir target options
   // because the tapir passes will not have been enabled. That only happens
-  // when 'tapir-lowering' is present in the pass pipeline.
+  // when 'tapir-lowering' or 'kit-lowering' is present in the pass pipeline.
   if (PassPipeline.empty())
     return std::nullopt;
 
@@ -348,9 +348,9 @@ createTapirTargetOptions(TargetMachine *TM, StringRef PassPipeline) {
   // we create a TapirTargetOptions object from the command line options, but
   // with some default optimization level. Then, we construct a PassBuilder
   // object and parse the pipeline. During that process, if either the
-  // "tapir-lowering" or "kitsune-lowering" meta passes is found in the
-  // --passes option, the optimization level in the TapirTargetOptions object
-  // will be updated.
+  // "tapir-lowering" or "kit-lowering" meta passes is found in the --passes
+  // option, the optimization level in the TapirTargetOptions object will be
+  // updated.
   //
   // However, we cannot use the main PassBuilder object - if the
   // TapirTargetOptions are not set before constructing the PassBuilder, some

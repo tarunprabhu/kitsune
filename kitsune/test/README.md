@@ -48,11 +48,11 @@ directories include:
     are parsed from LLVM bitcode correctly.
 
   - `driver/`: Check basic handling of Kitsune-specific command line options,
-    especially those that apply to all tapir targets. This is only intended to
-    check that the behavior in the driver is as expected. Tests that are
-    intended for the effect of a command line option on analyses, optimization
-    and code generation should be added to the directories for specific
-    tapir targets or frontends.
+    especially those that apply to all tapir targets. This should only check
+    that the behavior in the frontend driver is as expected. Tests that check
+    the effect of a command line option on analyses, optimization and code
+    generation should be added to the directories for specific tapir targets or
+    frontends.
 
   - `frontend/`: This contains tests for the supported language-specific
     frontends, `kitcc`, `kit++`, `kitfc` etc. Some of the features that these
@@ -69,7 +69,7 @@ directories include:
     added by Kitsune. These primarily are intended to check that the parsing,
     semantic analysis and LLVM-IR generation are as expected. The tests in this
     directory may be subdivided into tests for specific constructs. For
-    instance, `Lang/` currently contains `forall/` to check handling of the
+    instance, `lang/` currently contains `forall/` to check handling of the
     `forall` construct, `attr/` to check handling of Kitsune-specific
     attributes etc.
 
@@ -80,8 +80,11 @@ directories include:
     GPU-centric tapir targets for instance which have to generate code for
     both host and device).
 
-  - `tools/`: Tests for Kitsune-specific tools such as `kitmbc`, `kit-config`
-    etc. Each tool will have its own subdirectory.
+  - `tools/`: Tests for Kitsune-specific tools such as `kit-mbc`, `kit-config`
+    etc. Each tool will have its own subdirectory. The LLVM subdirectory
+    contains tests of LLVM tools that have been modified with Kitsune-specific
+    features. For example, `opt` and `llc` both have been customized with
+    special handling of Kitsune's passes.
 
   - `transforms/`: Tests for passes whose behavior is not very closely tied to
     a given tapir target. These are typically passes that operate on the host
