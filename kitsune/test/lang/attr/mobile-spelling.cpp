@@ -1,5 +1,5 @@
-// RUN: %kitxx -Xclang -verify -fsyntax-only -ftapir=serial %s
-// RUN: %kitcc -x c -std=c23 -Xclang -verify -fsyntax-only -ftapir=serial %s
+// RUN: %kitxx -Xclang -verify -fsyntax-only -ftapir=serial -O1 %s
+// RUN: %kitcc -x c -std=c23 -Xclang -verify -fsyntax-only -ftapir=serial -O1 %s
 // expected-no-diagnostics
 
 void f1(int *[[kitsune::mobile]] ptr) {}

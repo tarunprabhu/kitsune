@@ -238,6 +238,14 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       D.Diag(diag::err_drv_kitsune_hip_code_object_version)
           << CodeObjectVersion;
     }
+
+    // The --tapir option requires optimization level O1 or higher, unless the
+    // tapir target is set to none. The latter allows -O0 because no lowering
+    // takes place and it is very useful to just dump out "tapirized" LLVM IR.
+    Arg *OptLevel = Args.getLastArg(options::OPT_O_Group);
+    bool IsO0 = !OptLevel || OptLevel->getOption().matches(options::OPT_O0);
+    if (IsO0 and *TT != llvm::TTID::None)
+      D.Diag(clang::diag::err_drv_kitsune_optzns_required);
   }
 
   // Check that the --tapir-cuda-arch option has a valid value. If an empty
