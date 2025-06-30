@@ -863,6 +863,9 @@ def err_drv_unsupported_option_argument_for_frontend : Error<
 def err_drv_kitsune_missing_required : Error<
   "missing required option '--%0'">;
 
+def err_drv_kitsune_optzns_required : Error<
+  "--tapir requires optimization level O1 or higher">;
+
 def err_drv_kitsune_bad_cuda_arch : Error<
   "unsupported NVIDIA GPU architecture '%0'">;
 def err_drv_kitsune_bad_hip_arch : Error<

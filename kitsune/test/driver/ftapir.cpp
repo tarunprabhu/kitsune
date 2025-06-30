@@ -2,27 +2,31 @@
 // Providing a valid value to ftapir should not produce any output and return
 // a success code. This only tests those backends that are always built.
 //
-// RUN: %kitxx -### -ftapir=none %s
-// RUN: %kitxx -### --tapir=none %s
-// RUN: %kitxx -### -ftapir=serial %s
-// RUN: %kitxx -### --tapir=serial %s
+// RUN: %kitxx -### -ftapir=none -O1 %s
+// RUN: %kitxx -### --tapir=none -O1 %s
+// RUN: %kitxx -### -ftapir=serial -O1 %s
+// RUN: %kitxx -### --tapir=serial -O1 %s
 //
 // -----------------------------------------------------------------------------
 // The -ftapir flag is case sensitive.
 //
-// RUN: not %kitxx -### -ftapir=None %s 2>&1 | FileCheck %s -check-prefix BAD
-// RUN: not %kitxx -### --tapir=Serial %s 2>&1 | FileCheck %s -check-prefix BAD
+// RUN: not %kitxx -### -ftapir=None -O1 %s 2>&1 \
+// RUN:     | FileCheck %s -check-prefix BAD
+// RUN: not %kitxx -### --tapir=Serial -O1 %s 2>&1 \
+// RUN:     | FileCheck %s -check-prefix BAD
 //
 // -----------------------------------------------------------------------------
 // Unknown target.
 //
-// RUN: not %kitxx -ftapir=fancy-target -fsyntax-only %s 2>&1 \
+// RUN: not %kitxx -ftapir=fancy-target -fsyntax-only -O1 %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix BAD
 //
 // off used to be a valid value for the -ftapir flag, but it is not any longer.
 //
-// RUN: not %kitxx -### --tapir=off %s 2>&1 | FileCheck %s -check-prefix BAD
-// RUN: not %kitxx -### --tapir=Off %s 2>&1 | FileCheck %s -check-prefix BAD
+// RUN: not %kitxx -### --tapir=off -O1 %s 2>&1 \
+// RUN:     | FileCheck %s -check-prefix BAD
+// RUN: not %kitxx -### --tapir=Off -O1 %s 2>&1 \
+// RUN:     | FileCheck %s -check-prefix BAD
 //
 // BAD: invalid value '{{.+}}' in '-{{.}}tapir={{.+}}'
 //
@@ -37,7 +41,9 @@
 // -----------------------------------------------------------------------------
 // The -ftapir and --tapir options must be joined to the argument.
 //
-// RUN: not %kitxx -### -ftapir serial %s 2>&1 | FileCheck %s -check-prefix SPLIT
-// RUN: not %kitxx -### --tapir serial %s 2>&1 | FileCheck %s -check-prefix SPLIT
+// RUN: not %kitxx -### -ftapir serial -O1 %s 2>&1 \
+// RUN:     | FileCheck %s -check-prefix SPLIT
+// RUN: not %kitxx -### --tapir serial -O1 %s 2>&1 \
+// RUN:     | FileCheck %s -check-prefix SPLIT
 //
 // SPLIT: error: unknown argument: '-{{.}}tapir'

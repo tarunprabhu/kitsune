@@ -4,7 +4,7 @@
 ! run, but most should not.
 !
 ! RUN: %kitfc -O3 -c -emit-llvm -o /dev/null %s \
-! RUN:     -Xclang -fdebug-pass-manager 2>&1 \
+! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
 ! RUN:     | FileCheck %s
 !
 ! CHECK: LowerMobileIntrinsics

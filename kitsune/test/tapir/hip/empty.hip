@@ -16,7 +16,7 @@
 // -----------------------------------------------------------------------------
 // We cannot compile hip code with a tapir target
 //
-// RUN: not %kitxx -fsyntax-only -ftapir=hip -nogpulib -nogpuinc %s 2>&1 \
+// RUN: not %kitxx -fsyntax-only -ftapir=hip -O1 -nogpulib -nogpuinc %s 2>&1 \
 // RUN:     | FileCheck --check-prefix=BAD %s
 //
 // -----------------------------------------------------------------------------
