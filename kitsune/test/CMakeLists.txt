@@ -35,7 +35,6 @@ configure_lit_site_cfg(
   "CMAKE_LIBRARY_OUTPUT_DIRECTORY"
 )
 
-message(STATUS "LLVM_BUILD_MODE: ${LLVM_BUILD_MODE}")
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/unit/lit.site.cfg.py.in
   ${CMAKE_CURRENT_BINARY_DIR}/unit/lit.site.cfg.py
@@ -58,8 +57,8 @@ list(APPEND KITSUNE_TEST_DEPS
   ${KITSUNE_LIBNAME}
   KitsuneUnitTests
   kit-config
-  kitmbc
-  kitmenc
+  kit-enc
+  kit-mbc
   kitsune-resource-headers
   clang
   count

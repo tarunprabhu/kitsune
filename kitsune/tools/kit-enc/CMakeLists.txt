@@ -9,5 +9,5 @@ set(LLVM_LINK_COMPONENTS
   Support
 )
 
-add_llvm_tool(kitmenc
-  kitmenc.cpp)
+add_llvm_tool(kit-enc
+  kit-enc.cpp)

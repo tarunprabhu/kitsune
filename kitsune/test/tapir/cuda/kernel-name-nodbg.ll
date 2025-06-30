@@ -10,7 +10,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 %s \
 ; RUN:     -passes='tapir-lowering<O2>' \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: define {{.+}} @__kitcu_loop_scale_0(

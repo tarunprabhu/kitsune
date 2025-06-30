@@ -3,7 +3,7 @@
 ; the host module
 ;
 ; RUN: opt --tapir=hip -passes='loop-spawning' %s \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @v137 = internal {{.*}}constant i32 921

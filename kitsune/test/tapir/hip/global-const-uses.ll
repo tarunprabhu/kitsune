@@ -8,7 +8,7 @@
 ;
 ; RUN: opt --tapir=hip %s --tapir-hip-features="+16-bit-insts" \
 ; RUN:     -passes='loop-spawning,emb-prepare' \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @[[GV:.+]] = {{.*}}addrspace(4) constant [6 x i64]

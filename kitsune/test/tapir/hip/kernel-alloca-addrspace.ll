@@ -2,7 +2,7 @@
 ; added to them.
 ;
 ; RUN: opt --tapir=hip -passes='loop-spawning,emb-prepare' %s \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: %[[A1:.+]] = alloca i64, align 8, addrspace(5)

@@ -2,7 +2,7 @@
 ; kernel module, regardless of their linkage in the host.
 ;
 ; RUN: opt --tapir=hip -passes='loop-spawning' %s \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; If the variables have external linkage, an explicit linkage will not appear

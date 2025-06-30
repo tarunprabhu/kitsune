@@ -10,5 +10,5 @@ set(LLVM_LINK_COMPONENTS
   Support
 )
 
-add_llvm_tool(kitmbc
-  kitmbc.cpp)
+add_llvm_tool(kit-mbc
+  kit-mbc.cpp)

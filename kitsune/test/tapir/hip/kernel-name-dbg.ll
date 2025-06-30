@@ -9,7 +9,7 @@
 ;
 ; RUN: opt --tapir=hip %s \
 ; RUN:     -passes='tapir-lowering<O2>' \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: define {{.+}} @__kithip_loop_test.cpp_6_3_{{[0-9]+}}(

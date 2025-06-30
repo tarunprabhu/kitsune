@@ -3,7 +3,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 %s \
 ; RUN:     -passes='tapir-lowering<O2>,emb-prepare' -emb-inline-all-force \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.+}} @device_func{{.+}} #[[ATTRS:[0-9]+]]

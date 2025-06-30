@@ -5,7 +5,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a %s \
 ; RUN:     -passes='tapir-lowering<O1>,emb-prepare' \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,DEFAULT
 ;
 ; ALL: define {{.+}} @sieve{{.+}} #[[ATTRS_SIEVE:[0-9]+]]
@@ -18,7 +18,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a %s \
 ; RUN:     -passes='tapir-lowering<O1>,emb-prepare' -emb-inline-all \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,INLINE
 ;
 ; INLINE-DAG: attributes #[[ATTRS_SIEVE]] = { alwaysinline kit_device nounwind "
