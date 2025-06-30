@@ -794,6 +794,7 @@ add_subdirectory(experiments)
 
 if(KITSUNE_INCLUDE_TESTS)
   add_subdirectory(test)
+  add_subdirectory(unittests)
 endif()
 
 # Create the rules to create a "base" Kitsune executable. This is simply a copy

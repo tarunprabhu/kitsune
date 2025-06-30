@@ -4,7 +4,7 @@ set(LLVM_LINK_COMPONENTS
   Core
 )
 
-add_llvm_unittest_with_input_files(KitCoreTests
+add_kitsune_unittest_with_input_files(KitCoreTests
   ConstantUtilsTest.cpp
   EmbUtilsTest.cpp
   GlobalVariableUtilsTest.cpp

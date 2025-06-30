@@ -12,7 +12,7 @@ config.llvm_version_minor = @LLVM_VERSION_MINOR@
 config.lit_tools_dir = path(r"@LLVM_LIT_TOOLS_DIR@")
 config.kitsune_lit_site_cfg = __file__
 config.kitsune_obj_root = path(r"@KITSUNE_BINARY_DIR@")
-config.kitsune_src_dir = path(r"@KITSUNE_SOURCE_DIR@")
+config.kitsune_src_root = path(r"@KITSUNE_SOURCE_DIR@")
 config.clang_lib_dir = path(r"@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
 config.host_triple = "@LLVM_HOST_TRIPLE@"
 config.target_triple = "@LLVM_TARGET_TRIPLE@"
@@ -50,4 +50,4 @@ lit.llvm.initialize(lit_config, config)
 
 # Let the main config do the real work.
 lit_config.load_config(
-    config, os.path.join(config.kitsune_src_dir, "test/lit.cfg.py"))
+    config, os.path.join(config.kitsune_src_root, "test/lit.cfg.py"))
