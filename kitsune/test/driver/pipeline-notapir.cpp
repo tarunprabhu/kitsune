@@ -6,11 +6,12 @@
 // RUN:     | FileCheck %s
 //
 // CHECK: LowerMobileIntrinsics
-// CHECK: StripKitsuneAddrSpace
-// CHECK-NOT: EmbResolveLibDeviceCalls
-// CHECK-NOT: EmbPreparePass
-// CHECK-NOT: EmbLinkLibDeviceBitcode
-// CHECK-NOT: EmbOptimize
-// CHECK-NOT: RecomputeKernelProperties
-// CHECK-NOT: GenerateCtors
-// CHECK-NOT: LowerKitsuneRuntimeIntrinsics
+// CHECK-NEXT: Running analysis: TapirTargetAnalysis
+// CHECK-NEXT: Running pass: StripKitsuneAddrSpacePass
+// CHECK-NOT: Running pass: EmbResolveLibDeviceCallsPass
+// CHECK-NOT: Running pass: EmbPreparePass
+// CHECK-NOT: Running pass: EmbLinkLibDeviceBitcodePass
+// CHECK-NOT: Running pass: EmbOptimizePass
+// CHECK-NOT: Running pass: RecomputeKernelPropertiesPass
+// CHECK-NOT: Running pass: GenerateCtorsPass
+// CHECK-NOT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
