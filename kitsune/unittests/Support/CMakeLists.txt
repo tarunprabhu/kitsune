@@ -3,7 +3,7 @@ set(LLVM_LINK_COMPONENTS
   Support
 )
 
-add_llvm_unittest_with_input_files(KitSupportTests
+add_kitsune_unittest_with_input_files(KitSupportTests
   TTUtilsTest.cpp
 
   EXPORT_SYMBOLS

@@ -7,7 +7,7 @@ set(LLVM_LINK_COMPONENTS
   KitCore
 )
 
-add_llvm_unittest_with_input_files(KitAnalysisTests
+add_kitsune_unittest_with_input_files(KitAnalysisTests
   TapirTargetAnalysisTest.cpp
 
   EXPORT_SYMBOLS

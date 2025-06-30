@@ -35,23 +35,42 @@ configure_lit_site_cfg(
   "CMAKE_LIBRARY_OUTPUT_DIRECTORY"
 )
 
+message(STATUS "LLVM_BUILD_MODE: ${LLVM_BUILD_MODE}")
+configure_lit_site_cfg(
+  ${CMAKE_CURRENT_SOURCE_DIR}/unit/lit.site.cfg.py.in
+  ${CMAKE_CURRENT_BINARY_DIR}/unit/lit.site.cfg.py
+  MAIN_CONFIG
+  ${CMAKE_CURRENT_SOURCE_DIR}/unit/lit.cfg.py
+  PATHS
+  "LLVM_SOURCE_DIR"
+  "LLVM_BINARY_DIR"
+  "LLVM_TOOLS_DIR"
+  "SHLIBDIR"
+  "KITSUNE_BINARY_DIR"
+  "KITSUNE_SOURCE_DIR"
+)
+
 set(KITSUNE_TEST_PARAMS
   USE_Z3_SOLVER=0
 )
 
 list(APPEND KITSUNE_TEST_DEPS
   ${KITSUNE_LIBNAME}
+  KitsuneUnitTests
   kit-config
   kitmbc
   kitmenc
   kitsune-resource-headers
   clang
+  count
+  FileCheck
   llc
+  lld
+  llvm-as
   llvm-config
   llvm-dis
-  FileCheck count not
+  not
   opt
-  lld
 )
 if (KITSUNE_C_ENABLED)
   list(APPEND KITSUNE_TEST_DEPS ${KITSUNE_C_FRONTEND})
