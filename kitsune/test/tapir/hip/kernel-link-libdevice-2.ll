@@ -4,7 +4,7 @@
 ; RUN: opt %s --tapir=hip \
 ; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll,%S/input/libdevice-2.ll \
 ; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls,emb-link-libdevice-bitcode' \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; We should only link in what is actually needed

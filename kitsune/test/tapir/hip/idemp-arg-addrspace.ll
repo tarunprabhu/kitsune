@@ -3,7 +3,7 @@
 ;
 ; RUN: opt --tapir=hip %s --tapir-hip-features="+16-bit-insts" \
 ; RUN:     -passes='tapir-lowering<O2>,emb-prepare,emb-prepare' \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.+}} @id(

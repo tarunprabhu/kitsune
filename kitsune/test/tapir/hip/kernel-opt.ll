@@ -10,7 +10,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
 ; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -emb-O0 \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s --check-prefix=O0
 ;
 ; O0: define {{.+}} @__kithip_{{.+}}(i64
@@ -28,7 +28,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
 ; RUN:     -passes='tapir-lowering<O2>,emb-optimize' \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s --check-prefix=O2
 ;
 ; O2-NOT: = phi i64

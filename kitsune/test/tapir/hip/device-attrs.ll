@@ -10,7 +10,7 @@
 ; RUN:     --tapir-hip-arch=gfx906 \
 ; RUN:     --tapir-hip-features="+wavefrontsize32,+atomic-fadd-rtn-insts" \
 ; RUN:     -passes='tapir-lowering<O2>,emb-prepare' %s \
-; RUN:     | %kitmbc -S \
+; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; The visibility and calling convention must be set.
