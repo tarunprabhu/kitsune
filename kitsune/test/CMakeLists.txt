@@ -113,3 +113,16 @@ add_lit_testsuites(KITSUNE ${CMAKE_CURRENT_SOURCE_DIR}
   DEPENDS ${KITSUNE_TEST_DEPS}
   FOLDER "Kitsune tests"
 )
+
+# Add a target that is used to run the tests for the LLVM projects that are
+# relevant for kitsune.
+add_custom_target(check-kitsune-all DEPENDS
+  check-llvm
+  check-clang
+  check-lld
+  check-kitsune)
+if (KITSUNE_Fortran_ENABLED)
+  add_dependencies(check-kitsune-all
+    check-mlir
+    check-flang)
+endif ()
