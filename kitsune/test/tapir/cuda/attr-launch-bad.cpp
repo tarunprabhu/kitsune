@@ -1,4 +1,4 @@
-// RUN: %kitxx -Xclang -verify -fsyntax-only \
+// RUN: %kitxx -Xclang -verify -fsyntax-only -O1 \
 // RUN:     --tapir=cuda --tapir-cuda-arch=sm_72 %s
 
 #include <kitsune.h>

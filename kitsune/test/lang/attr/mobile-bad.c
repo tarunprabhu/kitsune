@@ -1,4 +1,4 @@
-// RUN: %kitcc -std=c23 -Xclang -verify -ftapir=serial -fsyntax-only %s
+// RUN: %kitcc -std=c23 -Xclang -verify -ftapir=serial -O1 -fsyntax-only %s
 
 #include <stdlib.h>
 

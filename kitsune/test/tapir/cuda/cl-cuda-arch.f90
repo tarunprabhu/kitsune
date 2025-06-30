@@ -4,14 +4,14 @@
 !
 ! -----------------------------------------------------------------------------
 !
-! RUN: not %kitfc -### --tapir=cuda --tapir-cuda-arch=gfx906 %s 2>&1 \
+! RUN: not %kitfc -### --tapir=cuda --tapir-cuda-arch=gfx906 -O1 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix INVALID
 !
 ! INVALID: error: unsupported NVIDIA GPU architecture 'gfx906'
 !
 ! -----------------------------------------------------------------------------
 !
-! RUN: %kitfc -### --tapir=cuda --tapir-cuda-arch=sm_72 %s 2>&1 \
+! RUN: %kitfc -### --tapir=cuda --tapir-cuda-arch=sm_72 -O1 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix OK
 !
 ! OK: -fc1

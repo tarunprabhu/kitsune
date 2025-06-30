@@ -27,8 +27,12 @@ using namespace llvm;
 // source files. These are experimental options that have been hacked in for the
 // moment. If this is useful, we should consider adding it to the tapir target
 // options instead. Otherwise, it should be removed altogether.
-extern cl::opt<bool> clRefineLaunches;
-extern cl::opt<bool> clUseYLaunch;
+//
+// These are declared [[weak]] because they are defined in one of the tapir
+// targets. The tapir targets are not guaranteed to be built, therefore, these
+// globals may not be available at link time.
+extern __attribute__((weak)) cl::opt<bool> clRefineLaunches;
+extern __attribute__((weak)) cl::opt<bool> clUseYLaunch;
 
 /// Should a ctor be generated for a GPU-centric tapir target. To determine if
 /// this is the case, check that at least one call to Kitsune's launch kernel
@@ -71,8 +75,10 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
   const TapirTargetOptions &tto = tgi.getOptions();
 
   detail::GenerateCtorOptions genCtorOpts;
-  genCtorOpts.refineLaunches = clRefineLaunches;
-  genCtorOpts.useYLaunch = clUseYLaunch;
+  if (&clRefineLaunches)
+    genCtorOpts.refineLaunches = clRefineLaunches;
+  if (&clUseYLaunch)
+    genCtorOpts.useYLaunch = clUseYLaunch;
 
   if (shouldGenerateGPUCtor(m, TTID::Cuda))
     detail::genCtorCuda(m, getTLI, tto, genCtorOpts);

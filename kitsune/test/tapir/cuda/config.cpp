@@ -1,14 +1,14 @@
 // -----------------------------------------------------------------------------
 // Check that the default target-specific configuration file is always found.
 //
-// RUN: %kitxx -### --tapir=cuda --tapir-cuda-arch=sm_80 %s 2>&1 \
+// RUN: %kitxx -### --tapir=cuda --tapir-cuda-arch=sm_80 -O1 %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-DEFAULT-CONFIG
 //
 // -----------------------------------------------------------------------------
 // Check that providing a custom config directory without a target-specific
 // configuration file is ok.
 //
-// RUN: %kitxx -### --tapir=cuda --tapir-cuda-arch=sm_80 \
+// RUN: %kitxx -### --tapir=cuda --tapir-cuda-arch=sm_80 -O1 \
 // RUN:     --config-kitsune-dir=%S %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM-NOEXIST
 //
@@ -17,7 +17,7 @@
 // configuration file leads to the file being found and the contents used and
 // the default options are preserved.
 //
-// RUN: %kitxx -### -ftapir=cuda --tapir-cuda-arch=sm_80 \
+// RUN: %kitxx -### -ftapir=cuda --tapir-cuda-arch=sm_80 -O1 \
 // RUN:     --config-kitsune-dir=%S/input %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM
 //

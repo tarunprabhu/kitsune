@@ -22,8 +22,6 @@
 ! Check that stripmining is enabled correctly depending on the optimization
 ! level.
 !
-! RUN: %kitfc -### -O0 -ftapir=serial %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
 ! RUN: %kitfc -### -O1 -ftapir=serial %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
 ! RUN: %kitfc -### -O2 -ftapir=serial %s 2>&1 \
@@ -39,8 +37,6 @@
 !
 ! Check that the -fstripmine and -fno-stripmine flags override the defaults
 !
-! RUN: %kitfc -### -O0 -ftapir=serial -fstripmine %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefix STRIPMINE
 ! RUN: %kitfc -### -O1 -ftapir=serial -fstripmine %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STRIPMINE
 ! RUN: %kitfc -### -O2 -ftapir=serial -fno-stripmine %s 2>&1 \

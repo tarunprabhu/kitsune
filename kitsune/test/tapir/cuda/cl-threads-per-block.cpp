@@ -1,26 +1,26 @@
 // Check that the --tapir-gpu-tpb option is handled correctly.
 //
-// RUN: not %kitxx -### --tapir=cuda --tapir-gpu-tpb= %s \
+// RUN: not %kitxx -### --tapir=cuda --tapir-gpu-tpb= -O1 %s \
 // RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 // RUN:     | FileCheck %s -check-prefix MISSING
 //
-// RUN: not %kitxx -### --tapir=cuda --tapir-gpu-tpb=-1 %s \
+// RUN: not %kitxx -### --tapir=cuda --tapir-gpu-tpb=-1 -O1 %s \
 // RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 // RUN:     | FileCheck %s -check-prefix RANGE
 //
-// RUN: not %kitxx -### --tapir=cuda --tapir-gpu-tpb=0 %s \
+// RUN: not %kitxx -### --tapir=cuda --tapir-gpu-tpb=0 -O1 %s \
 // RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 // RUN:     | FileCheck %s -check-prefix RANGE
 //
-// RUN: not %kitxx -### --tapir=cuda --tapir-gpu-tpb=1025 %s \
+// RUN: not %kitxx -### --tapir=cuda --tapir-gpu-tpb=1025 -O1 %s \
 // RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 // RUN:     | FileCheck %s -check-prefix RANGE
 //
-// RUN: %kitxx -### --tapir=cuda --tapir-gpu-tpb=1 %s \
+// RUN: %kitxx -### --tapir=cuda --tapir-gpu-tpb=1 -O1 %s \
 // RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 // RUN:     | FileCheck %s -check-prefix OK
 //
-// RUN: %kitxx -### --tapir=cuda --tapir-gpu-tpb=1024 %s \
+// RUN: %kitxx -### --tapir=cuda --tapir-gpu-tpb=1024 -O1 %s \
 // RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 // RUN:     | FileCheck %s -check-prefix OK
 //

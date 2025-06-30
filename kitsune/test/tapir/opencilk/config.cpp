@@ -1,22 +1,24 @@
 // -----------------------------------------------------------------------------
 // Check that the default target-specific configuration file is always found.
 //
-// RUN: %kitxx -### --tapir=opencilk %s 2>&1 \
+// RUN: %kitxx -### --tapir=opencilk -O1 %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-DEFAULT-CONFIG
 //
 // -----------------------------------------------------------------------------
 // Check that providing a custom config directory without a target-specific
 // configuration file is ok.
 //
-// RUN: %kitxx -### --tapir=opencilk --config-kitsune-dir=%S %s 2>&1 \
+// RUN: %kitxx -### --tapir=opencilk -O1 --config-kitsune-dir=%S %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM-NOEXIST
 //
 // -----------------------------------------------------------------------------
 // Check that providing a custom config directory with a target-specific
 // configuration file leads to the file being found and the contents used.
 //
-// RUN: %kitxx -### --tapir=opencilk --config-kitsune-dir=%S/input %s 2>&1 \
+// RUN: %kitxx -### --tapir=opencilk -O1 --config-kitsune-dir=%S/input %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM
+//
+// -----------------------------------------------------------------------------
 //
 // CHECK-DEFAULT-CONFIG: Configuration file: {{.*}}/opencilk.cfg
 // CHECK-CUSTOM-NOEXIST-NOT: Configuration file: {{.*}}/opencilk.cfg

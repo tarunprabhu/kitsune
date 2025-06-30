@@ -2,27 +2,27 @@
 !
 ! Check that the --tapir-gpu-max-tpb option is handled correctly.
 !
-! RUN: not %kitfc -### --tapir=cuda --tapir-gpu-max-tpb= %s \
+! RUN: not %kitfc -### --tapir=cuda --tapir-gpu-max-tpb= -O1 %s \
 ! RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix MISSING
 !
-! RUN: not %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=-1 %s \
+! RUN: not %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=-1 -O1 %s \
 ! RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix UNDERFLOW
 !
-! RUN: not %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=0 %s \
+! RUN: not %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=0 -O1 %s \
 ! RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix UNDERFLOW
 !
-! RUN: %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=1 %s \
+! RUN: %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=1 -O1 %s \
 ! RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix OK
 !
-! RUN: %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=1024 %s \
+! RUN: %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=1024 -O1 %s \
 ! RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix OK
 !
-! RUN: %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=1025 %s \
+! RUN: %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=1025 -O1 %s \
 ! RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix OK
 !

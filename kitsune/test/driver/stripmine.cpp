@@ -20,8 +20,6 @@
 // Check that the strip mining is enabled correctly depending on the
 // optimization level.
 //
-// RUN: %kitxx -### -O0 -ftapir=serial %s 2>&1 \
-// RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
 // RUN: %kitxx -### -O1 -ftapir=serial %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
 // RUN: %kitxx -### -O2 -ftapir=serial %s 2>&1 \
@@ -36,8 +34,6 @@
 // RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
 //
 // Check that the -fstripmine and -fno-stripmine flags override the defaults
-// RUN: %kitxx -### -O0 -ftapir=serial -fstripmine %s 2>&1 \
-// RUN:     | FileCheck %s -check-prefix STRIPMINE
 // RUN: %kitxx -### -O1 -ftapir=serial -fstripmine %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix STRIPMINE
 // RUN: %kitxx -### -O2 -ftapir=serial -fno-stripmine %s 2>&1 \

@@ -2,11 +2,11 @@
 // turned off automatically unless explicitly requested by the user. If a tapir
 // target is not used, exceptions are enabled as usual.
 
-// RUN: %kitxx -### -ftapir=serial %s 2>&1 \
+// RUN: %kitxx -### -ftapir=serial -O1 %s 2>&1 \
 // RUN:     | FileCheck --check-prefixes=NO-EXCEPTIONS %s
-// RUN: %kitxx -### -ftapir=serial -fexceptions %s 2>&1 \
+// RUN: %kitxx -### -ftapir=serial -O1 -fexceptions %s 2>&1 \
 // RUN:     | FileCheck --check-prefixes=EXCEPTIONS %s
-// RUN: %kitxx -### -ftapir=serial -fcxx-exceptions %s 2>&1 \
+// RUN: %kitxx -### -ftapir=serial -O1 -fcxx-exceptions %s 2>&1 \
 // RUN:     | FileCheck --check-prefixes=EXCEPTIONS %s
 
 // Check that the behavior of the clang frontend has not changed.
