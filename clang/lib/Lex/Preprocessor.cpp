@@ -79,13 +79,12 @@ ExternalPreprocessorSource::~ExternalPreprocessorSource() = default;
 
 Preprocessor::Preprocessor(std::shared_ptr<PreprocessorOptions> PPOpts,
                            DiagnosticsEngine &diags, const LangOptions &opts,
-                           const KitsuneOptions &KitsuneOpts,
                            SourceManager &SM, HeaderSearch &Headers,
                            ModuleLoader &TheModuleLoader,
                            IdentifierInfoLookup *IILookup, bool OwnsHeaders,
                            TranslationUnitKind TUKind)
     : PPOpts(std::move(PPOpts)), Diags(&diags), LangOpts(opts),
-      KitsuneOpts(KitsuneOpts), FileMgr(Headers.getFileMgr()), SourceMgr(SM),
+      FileMgr(Headers.getFileMgr()), SourceMgr(SM),
       ScratchBuf(new ScratchBuffer(SourceMgr)), HeaderInfo(Headers),
       TheModuleLoader(TheModuleLoader), ExternalSource(nullptr),
       // As the language options may have not been loaded yet (when

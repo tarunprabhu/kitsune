@@ -6,7 +6,7 @@
 //
 //===--------------------------------------------------------------===//
 
-#include "clang/Lex/Preprocessor.h"
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/Diagnostic.h"
@@ -19,11 +19,11 @@
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/ModuleLoader.h"
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Parse/Parser.h"
 #include "clang/Sema/Sema.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/Support/Path.h"
 #include "gtest/gtest.h"
 
@@ -104,10 +104,10 @@ public:
                              const clang::IdentifierInfo *Name,
                              clang::SourceLocation StateLoc,
                              unsigned State) override {
-      this->NameLoc = NameLoc;
-      this->Name = Name->getName();
-      this->StateLoc = StateLoc;
-      this->State = State;
+    this->NameLoc = NameLoc;
+    this->Name = Name->getName();
+    this->StateLoc = StateLoc;
+    this->State = State;
   }
 
   SourceLocation NameLoc;
@@ -171,8 +171,8 @@ protected:
 
   // Get the raw source string of the range.
   StringRef GetSourceString(CharSourceRange Range) {
-    const char* B = SourceMgr.getCharacterData(Range.getBegin());
-    const char* E = SourceMgr.getCharacterData(Range.getEnd());
+    const char *B = SourceMgr.getCharacterData(Range.getBegin());
+    const char *E = SourceMgr.getCharacterData(Range.getEnd());
 
     return StringRef(B, E - B);
   }
@@ -202,7 +202,7 @@ protected:
     AddFakeHeader(HeaderInfo, HeaderPath, SystemHeader);
 
     Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                    KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
+                    SourceMgr, HeaderInfo, ModLoader,
                     /*IILookup =*/nullptr,
                     /*OwnsHeaderSearch =*/false);
     return InclusionDirectiveCallback(PP)->FilenameRange;
@@ -221,7 +221,7 @@ protected:
     AddFakeHeader(HeaderInfo, HeaderPath, SystemHeader);
 
     Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                    KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
+                    SourceMgr, HeaderInfo, ModLoader,
                     /*IILookup =*/nullptr,
                     /*OwnsHeaderSearch =*/false);
     return InclusionDirectiveCallback(PP)->FileType;
@@ -229,7 +229,7 @@ protected:
 
   InclusionDirectiveCallbacks *InclusionDirectiveCallback(Preprocessor &PP) {
     PP.Initialize(*Target);
-    InclusionDirectiveCallbacks* Callbacks = new InclusionDirectiveCallbacks;
+    InclusionDirectiveCallbacks *Callbacks = new InclusionDirectiveCallbacks;
     PP.addPPCallbacks(std::unique_ptr<PPCallbacks>(Callbacks));
 
     // Lex source text.
@@ -249,7 +249,7 @@ protected:
     HeaderSearch HeaderInfo(std::make_shared<HeaderSearchOptions>(), SourceMgr,
                             Diags, LangOpts, Target.get());
     Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                    KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
+                    SourceMgr, HeaderInfo, ModLoader,
                     /*IILookup =*/nullptr,
                     /*OwnsHeaderSearch =*/false);
     PP.Initialize(*Target);
@@ -274,8 +274,7 @@ protected:
     TrivialModuleLoader ModLoader;
 
     Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                    KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
-                    /*IILookup=*/nullptr,
+                    SourceMgr, HeaderInfo, ModLoader, /*IILookup=*/nullptr,
                     /*OwnsHeaderSearch=*/false);
     PP.Initialize(*Target);
 
@@ -303,8 +302,7 @@ protected:
                             Diags, OpenCLLangOpts, Target.get());
 
     Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags,
-                    OpenCLLangOpts, KitsuneOpts, SourceMgr, HeaderInfo,
-                    ModLoader,
+                    OpenCLLangOpts, SourceMgr, HeaderInfo, ModLoader,
                     /*IILookup =*/nullptr,
                     /*OwnsHeaderSearch =*/false);
     PP.Initialize(*Target);
@@ -313,14 +311,15 @@ protected:
     // according to LangOptions, so we init Parser to register opencl
     // pragma handlers
     ASTContext Context(OpenCLLangOpts, SourceMgr, PP.getIdentifierTable(),
-                       PP.getSelectorTable(), PP.getBuiltinInfo(),
-                       KitsuneOpts, PP.TUKind);
+                       PP.getSelectorTable(), PP.getBuiltinInfo(), KitsuneOpts,
+                       PP.TUKind);
     Context.InitBuiltinTypes(*Target);
 
     ASTConsumer Consumer;
     Sema S(PP, Context, Consumer);
     Parser P(PP, S, false);
-    PragmaOpenCLExtensionCallbacks* Callbacks = new PragmaOpenCLExtensionCallbacks;
+    PragmaOpenCLExtensionCallbacks *Callbacks =
+        new PragmaOpenCLExtensionCallbacks;
     PP.addPPCallbacks(std::unique_ptr<PPCallbacks>(Callbacks));
 
     // Lex source text.
@@ -328,9 +327,7 @@ protected:
     PP.LexTokensUntilEOF();
 
     PragmaOpenCLExtensionCallbacks::CallbackParameters RetVal = {
-      Callbacks->Name,
-      Callbacks->State
-    };
+        Callbacks->Name, Callbacks->State};
     return RetVal;
   }
 };
@@ -345,87 +342,79 @@ TEST_F(PPCallbacksTest, UserFileCharacteristics) {
 }
 
 TEST_F(PPCallbacksTest, QuotedFilename) {
-  const char* Source =
-    "#include \"quoted.h\"\n";
+  const char *Source = "#include \"quoted.h\"\n";
 
   CharSourceRange Range =
-    InclusionDirectiveFilenameRange(Source, "/quoted.h", false);
+      InclusionDirectiveFilenameRange(Source, "/quoted.h", false);
 
   ASSERT_EQ("\"quoted.h\"", GetSourceString(Range));
 }
 
 TEST_F(PPCallbacksTest, AngledFilename) {
-  const char* Source =
-    "#include <angled.h>\n";
+  const char *Source = "#include <angled.h>\n";
 
   CharSourceRange Range =
-    InclusionDirectiveFilenameRange(Source, "/angled.h", true);
+      InclusionDirectiveFilenameRange(Source, "/angled.h", true);
 
   ASSERT_EQ("<angled.h>", GetSourceString(Range));
 }
 
 TEST_F(PPCallbacksTest, QuotedInMacro) {
-  const char* Source =
-    "#define MACRO_QUOTED \"quoted.h\"\n"
-    "#include MACRO_QUOTED\n";
+  const char *Source = "#define MACRO_QUOTED \"quoted.h\"\n"
+                       "#include MACRO_QUOTED\n";
 
   CharSourceRange Range =
-    InclusionDirectiveFilenameRange(Source, "/quoted.h", false);
+      InclusionDirectiveFilenameRange(Source, "/quoted.h", false);
 
   ASSERT_EQ("\"quoted.h\"", GetSourceString(Range));
 }
 
 TEST_F(PPCallbacksTest, AngledInMacro) {
-  const char* Source =
-    "#define MACRO_ANGLED <angled.h>\n"
-    "#include MACRO_ANGLED\n";
+  const char *Source = "#define MACRO_ANGLED <angled.h>\n"
+                       "#include MACRO_ANGLED\n";
 
   CharSourceRange Range =
-    InclusionDirectiveFilenameRange(Source, "/angled.h", true);
+      InclusionDirectiveFilenameRange(Source, "/angled.h", true);
 
   ASSERT_EQ("<angled.h>", GetSourceString(Range));
 }
 
 TEST_F(PPCallbacksTest, StringizedMacroArgument) {
-  const char* Source =
-    "#define MACRO_STRINGIZED(x) #x\n"
-    "#include MACRO_STRINGIZED(quoted.h)\n";
+  const char *Source = "#define MACRO_STRINGIZED(x) #x\n"
+                       "#include MACRO_STRINGIZED(quoted.h)\n";
 
   CharSourceRange Range =
-    InclusionDirectiveFilenameRange(Source, "/quoted.h", false);
+      InclusionDirectiveFilenameRange(Source, "/quoted.h", false);
 
   ASSERT_EQ("\"quoted.h\"", GetSourceString(Range));
 }
 
 TEST_F(PPCallbacksTest, ConcatenatedMacroArgument) {
-  const char* Source =
-    "#define MACRO_ANGLED <angled.h>\n"
-    "#define MACRO_CONCAT(x, y) x ## _ ## y\n"
-    "#include MACRO_CONCAT(MACRO, ANGLED)\n";
+  const char *Source = "#define MACRO_ANGLED <angled.h>\n"
+                       "#define MACRO_CONCAT(x, y) x ## _ ## y\n"
+                       "#include MACRO_CONCAT(MACRO, ANGLED)\n";
 
   CharSourceRange Range =
-    InclusionDirectiveFilenameRange(Source, "/angled.h", false);
+      InclusionDirectiveFilenameRange(Source, "/angled.h", false);
 
   ASSERT_EQ("<angled.h>", GetSourceString(Range));
 }
 
 TEST_F(PPCallbacksTest, TrigraphFilename) {
-  const char* Source =
-    "#include \"tri\?\?-graph.h\"\n";
+  const char *Source = "#include \"tri\?\?-graph.h\"\n";
 
   CharSourceRange Range =
-    InclusionDirectiveFilenameRange(Source, "/tri~graph.h", false);
+      InclusionDirectiveFilenameRange(Source, "/tri~graph.h", false);
 
   ASSERT_EQ("\"tri\?\?-graph.h\"", GetSourceString(Range));
 }
 
 TEST_F(PPCallbacksTest, TrigraphInMacro) {
-  const char* Source =
-    "#define MACRO_TRIGRAPH \"tri\?\?-graph.h\"\n"
-    "#include MACRO_TRIGRAPH\n";
+  const char *Source = "#define MACRO_TRIGRAPH \"tri\?\?-graph.h\"\n"
+                       "#include MACRO_TRIGRAPH\n";
 
   CharSourceRange Range =
-    InclusionDirectiveFilenameRange(Source, "/tri~graph.h", false);
+      InclusionDirectiveFilenameRange(Source, "/tri~graph.h", false);
 
   ASSERT_EQ("\"tri\?\?-graph.h\"", GetSourceString(Range));
 }
@@ -444,7 +433,7 @@ TEST_F(PPCallbacksTest, FileNotFoundSkipped) {
   DiagnosticConsumer *DiagConsumer = new DiagnosticConsumer;
   DiagnosticsEngine FileNotFoundDiags(DiagID, DiagOpts.get(), DiagConsumer);
   Preprocessor PP(std::make_shared<PreprocessorOptions>(), FileNotFoundDiags,
-                  LangOpts, KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
+                  LangOpts, SourceMgr, HeaderInfo, ModLoader,
                   /*IILookup=*/nullptr,
                   /*OwnsHeaderSearch=*/false);
   PP.Initialize(*Target);
@@ -470,11 +459,10 @@ TEST_F(PPCallbacksTest, FileNotFoundSkipped) {
 }
 
 TEST_F(PPCallbacksTest, OpenCLExtensionPragmaEnabled) {
-  const char* Source =
-    "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
+  const char *Source = "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
 
   PragmaOpenCLExtensionCallbacks::CallbackParameters Parameters =
-    PragmaOpenCLExtensionCall(Source);
+      PragmaOpenCLExtensionCall(Source);
 
   ASSERT_EQ("cl_khr_fp64", Parameters.Name);
   unsigned ExpectedState = 1;
@@ -482,11 +470,10 @@ TEST_F(PPCallbacksTest, OpenCLExtensionPragmaEnabled) {
 }
 
 TEST_F(PPCallbacksTest, OpenCLExtensionPragmaDisabled) {
-  const char* Source =
-    "#pragma OPENCL EXTENSION cl_khr_fp16 : disable\n";
+  const char *Source = "#pragma OPENCL EXTENSION cl_khr_fp16 : disable\n";
 
   PragmaOpenCLExtensionCallbacks::CallbackParameters Parameters =
-    PragmaOpenCLExtensionCall(Source);
+      PragmaOpenCLExtensionCall(Source);
 
   ASSERT_EQ("cl_khr_fp16", Parameters.Name);
   unsigned ExpectedState = 0;
@@ -494,11 +481,10 @@ TEST_F(PPCallbacksTest, OpenCLExtensionPragmaDisabled) {
 }
 
 TEST_F(PPCallbacksTest, CollectMarks) {
-  const char *Source =
-    "#pragma mark\n"
-    "#pragma mark\r\n"
-    "#pragma mark - trivia\n"
-    "#pragma mark - trivia\r\n";
+  const char *Source = "#pragma mark\n"
+                       "#pragma mark\r\n"
+                       "#pragma mark - trivia\n"
+                       "#pragma mark - trivia\r\n";
 
   auto Marks = PragmaMarkCall(Source);
 

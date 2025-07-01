@@ -11,14 +11,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/KitsuneOptionUtils.h"
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Driver/Driver.h"
-// #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/OptionUtils.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/ToolChain.h"
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 

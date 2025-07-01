@@ -20,7 +20,6 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Config/llvm-config.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Process.h"
 #include "gtest/gtest.h"
@@ -56,7 +55,6 @@ protected:
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
   LangOptions LangOpts;
-  llvm::driver::KitsuneOptions KitsuneOpts;
   std::shared_ptr<TargetOptions> TargetOpts;
   IntrusiveRefCntPtr<TargetInfo> Target;
 };
@@ -141,7 +139,7 @@ TEST_F(SourceManagerTest, isBeforeInTranslationUnit) {
   HeaderSearch HeaderInfo(std::make_shared<HeaderSearchOptions>(), SourceMgr,
                           Diags, LangOpts, &*Target);
   Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                  KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
+                  SourceMgr, HeaderInfo, ModLoader,
                   /*IILookup =*/nullptr,
                   /*OwnsHeaderSearch =*/false);
   PP.Initialize(*Target);
@@ -191,7 +189,7 @@ TEST_F(SourceManagerTest, isBeforeInTranslationUnitWithTokenSplit) {
   HeaderSearch HeaderInfo(std::make_shared<HeaderSearchOptions>(), SourceMgr,
                           Diags, LangOpts, &*Target);
   Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                  KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
+                  SourceMgr, HeaderInfo, ModLoader,
                   /*IILookup =*/nullptr,
                   /*OwnsHeaderSearch =*/false);
   PP.Initialize(*Target);
@@ -466,7 +464,7 @@ TEST_F(SourceManagerTest, ResetsIncludeLocMap) {
     HeaderSearch HeaderInfo(std::make_shared<HeaderSearchOptions>(), SourceMgr,
                             Diags, LangOpts, &*Target);
     Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                    KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
+                    SourceMgr, HeaderInfo, ModLoader,
                     /*IILookup =*/nullptr,
                     /*OwnsHeaderSearch =*/false);
     PP.Initialize(*Target);
@@ -544,7 +542,7 @@ TEST_F(SourceManagerTest, getMacroArgExpandedLocation) {
                           Diags, LangOpts, &*Target);
 
   Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                  KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
+                  SourceMgr, HeaderInfo, ModLoader,
                   /*IILookup =*/nullptr,
                   /*OwnsHeaderSearch =*/false);
   // Ensure we can get expanded locations in presence of implicit includes.
@@ -662,7 +660,7 @@ TEST_F(SourceManagerTest, isBeforeInTranslationUnitWithMacroInInclude) {
   HeaderSearch HeaderInfo(std::make_shared<HeaderSearchOptions>(), SourceMgr,
                           Diags, LangOpts, &*Target);
   Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                  KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
+                  SourceMgr, HeaderInfo, ModLoader,
                   /*IILookup =*/nullptr,
                   /*OwnsHeaderSearch =*/false);
   PP.Initialize(*Target);

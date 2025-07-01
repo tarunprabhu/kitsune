@@ -19,7 +19,6 @@
 #include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorOptions.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "gtest/gtest.h"
 
 using namespace clang;
@@ -46,7 +45,6 @@ protected:
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
   LangOptions LangOpts;
-  llvm::driver::KitsuneOptions KitsuneOpts;
   std::shared_ptr<TargetOptions> TargetOpts;
   IntrusiveRefCntPtr<TargetInfo> Target;
 };
@@ -79,7 +77,7 @@ TEST_F(PPConditionalDirectiveRecordTest, PPRecAPI) {
   HeaderSearch HeaderInfo(std::make_shared<HeaderSearchOptions>(), SourceMgr,
                           Diags, LangOpts, Target.get());
   Preprocessor PP(std::make_shared<PreprocessorOptions>(), Diags, LangOpts,
-                  KitsuneOpts, SourceMgr, HeaderInfo, ModLoader,
+                  SourceMgr, HeaderInfo, ModLoader,
                   /*IILookup =*/nullptr,
                   /*OwnsHeaderSearch =*/false);
   PP.Initialize(*Target);

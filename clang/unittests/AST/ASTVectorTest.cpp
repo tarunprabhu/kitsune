@@ -11,11 +11,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/ASTVector.h"
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "gtest/gtest.h"
 
 using namespace clang;
@@ -72,7 +72,7 @@ TEST_F(ASTVectorTest, InsertEmpty) {
   ASTVector<double> V;
 
   // Ensure no pointer overflow when inserting empty range
-  int Values[] = { 0, 1, 2, 3 };
+  int Values[] = {0, 1, 2, 3};
   ArrayRef<int> IntVec(Values);
   auto I = V.insert(Ctxt, V.begin(), IntVec.begin(), IntVec.begin());
   ASSERT_EQ(V.begin(), I);

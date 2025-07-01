@@ -31,6 +31,12 @@
 #include <utility>
 #include <vector>
 
+namespace llvm {
+namespace driver {
+class KitsuneOptions;
+}
+} // namespace llvm
+
 namespace clang {
 
 class ASTReader;
@@ -50,7 +56,8 @@ class CodeGenOptions;
 void InitializePreprocessor(Preprocessor &PP, const PreprocessorOptions &PPOpts,
                             const PCHContainerReader &PCHContainerRdr,
                             const FrontendOptions &FEOpts,
-                            const CodeGenOptions &CodeGenOpts);
+                            const CodeGenOptions &CodeGenOpts,
+                            const llvm::driver::KitsuneOptions &KitsuneOpts);
 
 /// DoPrintPreprocessedInput - Implement -E mode.
 void DoPrintPreprocessedInput(Preprocessor &PP, raw_ostream *OS,

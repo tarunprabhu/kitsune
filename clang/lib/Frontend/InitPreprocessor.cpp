@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/ToString.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/HLSLRuntime.h"
@@ -26,7 +27,6 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Serialization/ASTReader.h"
 #include "llvm/ADT/APFloat.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
 using namespace clang;
@@ -1563,9 +1563,9 @@ void clang::InitializePreprocessor(Preprocessor &PP,
                                    const PreprocessorOptions &InitOpts,
                                    const PCHContainerReader &PCHContainerRdr,
                                    const FrontendOptions &FEOpts,
-                                   const CodeGenOptions &CodeGenOpts) {
+                                   const CodeGenOptions &CodeGenOpts,
+                                   const KitsuneOptions &KitsuneOpts) {
   const LangOptions &LangOpts = PP.getLangOpts();
-  const KitsuneOptions &KitsuneOpts = PP.getKitsuneOpts();
   std::string PredefineBuffer;
   PredefineBuffer.reserve(4080);
   llvm::raw_string_ostream Predefines(PredefineBuffer);

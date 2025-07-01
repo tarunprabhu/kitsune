@@ -83,7 +83,7 @@ TEST(KitsuneFrontendTest, KitsuneLangOptions) {
   IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> fs(
       new llvm::vfs::InMemoryFileSystem);
   CompilerInvocation invoc;
-  const char * args[] = {"-cc1", "foo.c"};
+  const char *args[] = {"-cc1", "foo.c"};
 
   CompilerInvocation::CreateFromArgs(invoc, args, diags, KITSUNE_C_FRONTEND);
   EXPECT_TRUE(invoc.getKitsuneOpts().isKitsuneFrontend());
@@ -98,7 +98,7 @@ TEST(KitsuneFrontendTest, KitsuneLangOptions) {
   EXPECT_FALSE(invoc.getKitsuneOpts().isKitsuneFrontend());
 
 #if KITSUNE_Fortran_ENABLED
-  const char* fc1Args[] = {"-fc1", "foo.f90"};
+  const char *fc1Args[] = {"-fc1", "foo.f90"};
 
   CompilerInvocation::CreateFromArgs(invoc, fc1Args, diags,
                                      KITSUNE_Fortran_FRONTEND);
