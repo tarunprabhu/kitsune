@@ -73,7 +73,6 @@ add_clang_library(clangBasic
   FileManager.cpp
   FileSystemStatCache.cpp
   IdentifierTable.cpp
-  KitsuneOptions.cpp
   LangOptions.cpp
   LangStandards.cpp
   MakeSupport.cpp

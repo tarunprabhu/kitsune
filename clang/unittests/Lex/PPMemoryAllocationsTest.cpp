@@ -18,7 +18,6 @@
 #include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorOptions.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "gtest/gtest.h"
 
 using namespace clang;
@@ -42,7 +41,6 @@ protected:
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
   LangOptions LangOpts;
-  KitsuneOptions KitsuneOpts;
   std::shared_ptr<TargetOptions> TargetOpts;
   IntrusiveRefCntPtr<TargetInfo> Target;
 };
@@ -72,8 +70,7 @@ TEST_F(PPMemoryAllocationsTest, PPMacroDefinesAllocations) {
   TrivialModuleLoader ModLoader;
   HeaderSearch HeaderInfo(HSOpts, SourceMgr, Diags, LangOpts, Target.get());
   PreprocessorOptions PPOpts;
-  Preprocessor PP(PPOpts, Diags, LangOpts, KitsuneOpts, SourceMgr, HeaderInfo,
-                  ModLoader,
+  Preprocessor PP(PPOpts, Diags, LangOpts, SourceMgr, HeaderInfo, ModLoader,
                   /*IILookup =*/nullptr,
                   /*OwnsHeaderSearch =*/false);
   PP.Initialize(*Target);

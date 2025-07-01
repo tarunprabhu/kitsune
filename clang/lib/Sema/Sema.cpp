@@ -273,7 +273,7 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
            TranslationUnitKind TUKind, CodeCompleteConsumer *CodeCompleter)
     : SemaBase(*this), CollectStats(false), TUKind(TUKind),
       CurFPFeatures(pp.getLangOpts()), LangOpts(pp.getLangOpts()),
-      KitsuneOpts(pp.getKitsuneOpts()), PP(pp),
+      KitsuneOpts(ctxt.getKitsuneOpts()), PP(pp),
       Context(ctxt), Consumer(consumer), Diags(PP.getDiagnostics()),
       SourceMgr(PP.getSourceManager()), APINotes(SourceMgr, LangOpts),
       AnalysisWarnings(*this), ThreadSafetyDeclCache(nullptr),

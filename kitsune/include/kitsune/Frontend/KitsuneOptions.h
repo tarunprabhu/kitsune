@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_FRONTEND_DRIVER_KITSUNE_OPTIONS_H
-#define LLVM_FRONTEND_DRIVER_KITSUNE_OPTIONS_H
+#ifndef KITSUNE_FRONTEND_KITSUNE_OPTIONS_H
+#define KITSUNE_FRONTEND_KITSUNE_OPTIONS_H
 
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/Tapir.h"
@@ -22,21 +22,20 @@
 
 #include <vector>
 
-namespace clang {
-class DiagnosticsEngine;
-} // namespace clang
-
 namespace llvm {
+
 namespace opt {
 class ArgList;
 class OptTable;
 } // namespace opt
-} // namespace llvm
 
-namespace llvm::driver {
+namespace driver {
 
 /// Options that are Kitsune-specific. These affect both the Kitsune "language"
 /// i.e. forall, spawn, sync etc. and the backend code-generation via Tapir.
+/// This is in the llvm::driver namespace because that is where objects that are
+/// shared between LLVM frontends are added by convention. This object is
+/// currently shared between clang and flang.
 class KitsuneOptions {
 public:
   /// Should the loop stripmining pass be enabled by default.
@@ -336,6 +335,8 @@ public:
   }
 };
 
-} // namespace llvm::driver
+} // namespace driver
 
-#endif // LLVM_FRONTEND_DRIVER_KITSUNE_OPTIONS_H
+} // namespace llvm
+
+#endif // KITSUNE_FRONTEND_KITSUNE_OPTIONS_H

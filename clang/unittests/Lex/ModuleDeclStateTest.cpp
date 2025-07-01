@@ -18,7 +18,6 @@
 #include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorOptions.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "gtest/gtest.h"
 #include <cstddef>
 #include <initializer_list>
@@ -79,8 +78,8 @@ protected:
 
     HeaderInfo.emplace(HSOpts, SourceMgr, Diags, LangOpts, Target.get());
 
-    return std::make_unique<Preprocessor>(PPOpts, Diags, LangOpts, KitsuneOpts,
-                                          SourceMgr, *HeaderInfo, ModLoader,
+    return std::make_unique<Preprocessor>(PPOpts, Diags, LangOpts, SourceMgr,
+                                          *HeaderInfo, ModLoader,
                                           /*IILookup=*/nullptr,
                                           /*OwnsHeaderSearch=*/false);
   }
@@ -102,7 +101,6 @@ protected:
   std::shared_ptr<TargetOptions> TargetOpts;
   IntrusiveRefCntPtr<TargetInfo> Target;
   LangOptions LangOpts;
-  llvm::driver::KitsuneOptions KitsuneOpts;
   TrivialModuleLoader ModLoader;
   HeaderSearchOptions HSOpts;
   std::optional<HeaderSearch> HeaderInfo;

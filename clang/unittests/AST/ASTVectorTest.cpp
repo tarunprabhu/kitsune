@@ -11,11 +11,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/ASTVector.h"
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "gtest/gtest.h"
 
 using namespace clang;

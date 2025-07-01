@@ -13,6 +13,7 @@
 #ifndef LLVM_CLANG_FRONTEND_ASTUNIT_H
 #define LLVM_CLANG_FRONTEND_ASTUNIT_H
 
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang-c/Index.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/Diagnostic.h"
@@ -22,12 +23,12 @@
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetOptions.h"
+#include "clang/Frontend/PrecompiledPreamble.h"
 #include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Sema/CodeCompleteConsumer.h"
 #include "clang/Serialization/ASTBitCodes.h"
-#include "clang/Frontend/PrecompiledPreamble.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -36,7 +37,6 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -475,7 +475,7 @@ public:
     return *TheSema;
   }
 
-  const KitsuneOptions &getKitsuneOpts() const {
+  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
     assert(KitsuneOpts && "ASTUnit does not have Kitsune options");
     return *KitsuneOpts;
   }

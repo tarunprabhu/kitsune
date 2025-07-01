@@ -14,6 +14,7 @@
 #include "ToolChains/Flang.h"
 #include "ToolChains/InterfaceStubs.h"
 #include "kitsune/Config/config.h"
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/ToString.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Basic/Sanitizers.h"
@@ -32,7 +33,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Config/llvm-config.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Option/Arg.h"
@@ -61,6 +61,7 @@ using namespace driver;
 using namespace tools;
 using namespace llvm;
 using namespace llvm::opt;
+using llvm::driver::KitsuneOptions;
 
 static llvm::opt::Arg *GetRTTIArgument(const ArgList &Args) {
   return Args.getLastArg(options::OPT_mkernel, options::OPT_fapple_kext,
@@ -1970,7 +1971,7 @@ void ToolChain::AddKitsuneGPUCommonArgs(const ArgList &Args,
   PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_tpb_EQ);
   PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_max_tpb_EQ);
 
-  bool DefaultPrefetch = llvm::driver::KitsuneOptions::defaultGPUPrefetch;
+  bool DefaultPrefetch = KitsuneOptions::defaultGPUPrefetch;
   if (Args.hasFlag(options::OPT_tapir_gpu_prefetch,
                    options::OPT_tapir_gpu_no_prefetch, DefaultPrefetch))
     PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_prefetch);
@@ -1997,12 +1998,12 @@ void ToolChain::AddKitsuneCudaCommonArgs(const ArgList &Args,
   // architecture. Otherwise, if a unique GPU architecture was detected on the
   // system, generate code for that. If no GPU was found, use the default GPU
   // architecture specified at configure-time.
-  std::string CudaArch =
-      Args.hasArg(options::OPT_tapir_cuda_arch_EQ)
-          ? Args.getLastArgValue(options::OPT_tapir_cuda_arch_EQ).str()
-          : GetUniqueSystemGPUOrDefault(
-                D, NVTC, ExtendedArgs,
-                llvm::driver::KitsuneOptions::defaultCudaArch);
+  std::string CudaArch;
+  if (Args.hasArg(options::OPT_tapir_cuda_arch_EQ))
+    CudaArch = Args.getLastArgValue(options::OPT_tapir_cuda_arch_EQ).str();
+  else
+    CudaArch = GetUniqueSystemGPUOrDefault(D, NVTC, ExtendedArgs,
+                                           KitsuneOptions::defaultCudaArch);
   PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_cuda_arch_EQ, CudaArch);
 
   OffloadArch OffloadArch = StringToOffloadArch(CudaArch);
@@ -2071,12 +2072,12 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   auto AMDTC =
       std::make_unique<toolchains::ROCMToolChain>(D, AMDTriple, ExtendedArgs);
 
-  std::string HipArch = "";
+  std::string HipArch;
   if (Args.hasArg(options::OPT_tapir_hip_arch_EQ))
     HipArch = Args.getLastArgValue(options::OPT_tapir_hip_arch_EQ).str();
   else
-    HipArch = GetUniqueSystemGPUOrDefault(
-        D, *AMDTC, ExtendedArgs, llvm::driver::KitsuneOptions::defaultHipArch);
+    HipArch = GetUniqueSystemGPUOrDefault(D, *AMDTC, ExtendedArgs,
+                                          KitsuneOptions::defaultHipArch);
   PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_hip_arch_EQ, HipArch);
 
   // In order to correctly compute the target features for this AMDGPU, as of
@@ -2107,10 +2108,9 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   // and xnack next. If AMD decides to hack in more features in this appalling
   // manner, those will, in all likelihood, also need to be in alphabetical
   // order.
-  std::string DefaultECC =
-      llvm::toString(llvm::driver::KitsuneOptions::defaultHipSRAMECC);
-  StringRef ArgECC = Args.getLastArgValue(options::OPT_tapir_hip_sramecc_EQ,
-                                          DefaultECC);
+  std::string DefaultECC = llvm::toString(KitsuneOptions::defaultHipSRAMECC);
+  StringRef ArgECC =
+      Args.getLastArgValue(options::OPT_tapir_hip_sramecc_EQ, DefaultECC);
   if (std::optional<MaybeBool> ECC = llvm::createMaybeBoolFrom(ArgECC)) {
     switch (*ECC) {
     case MaybeBool::Off:
@@ -2126,8 +2126,7 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
             llvm::toString(*ECC));
   }
 
-  std::string DefaultXnack =
-      llvm::toString(llvm::driver::KitsuneOptions::defaultHipXnack);
+  std::string DefaultXnack = llvm::toString(KitsuneOptions::defaultHipXnack);
   StringRef ArgXnack =
       Args.getLastArgValue(options::OPT_tapir_hip_xnack_EQ, DefaultXnack);
   if (std::optional<MaybeBool> Xnack = llvm::createMaybeBoolFrom(ArgXnack)) {

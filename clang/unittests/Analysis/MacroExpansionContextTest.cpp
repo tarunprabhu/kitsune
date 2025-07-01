@@ -22,7 +22,6 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Parse/Parser.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "gtest/gtest.h"
 
 // static bool HACK_EnableDebugInUnitTest = (::llvm::DebugFlag = true);
@@ -51,7 +50,6 @@ protected:
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
   LangOptions LangOpts;
-  llvm::driver::KitsuneOptions KitsuneOpts;
   std::shared_ptr<TargetOptions> TargetOpts;
   IntrusiveRefCntPtr<TargetInfo> Target;
 
@@ -64,8 +62,7 @@ protected:
     TrivialModuleLoader ModLoader;
     PreprocessorOptions PPOpts;
     HeaderSearch HeaderInfo(HSOpts, SourceMgr, Diags, LangOpts, Target.get());
-    Preprocessor PP(PPOpts, Diags, LangOpts, KitsuneOpts, SourceMgr, HeaderInfo,
-                    ModLoader,
+    Preprocessor PP(PPOpts, Diags, LangOpts, SourceMgr, HeaderInfo, ModLoader,
                     /*IILookup=*/nullptr, /*OwnsHeaderSearch=*/false);
 
     PP.Initialize(*Target);

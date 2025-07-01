@@ -7,10 +7,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/AsmParser/Parser.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassInstrumentation.h"
