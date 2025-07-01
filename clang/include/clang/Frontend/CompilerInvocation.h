@@ -9,6 +9,7 @@
 #ifndef LLVM_CLANG_FRONTEND_COMPILERINVOCATION_H
 #define LLVM_CLANG_FRONTEND_COMPILERINVOCATION_H
 
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/APINotes/APINotesOptions.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/DiagnosticOptions.h"
@@ -24,7 +25,6 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/ScopeExit.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 
 #include <memory>
 #include <string>

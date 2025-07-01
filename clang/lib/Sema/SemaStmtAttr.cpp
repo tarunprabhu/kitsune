@@ -10,13 +10,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Sema/DelayedDiagnostic.h"
 #include "clang/Sema/ParsedAttr.h"
 #include "clang/Sema/ScopeInfo.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include <optional>
 
 using namespace clang;

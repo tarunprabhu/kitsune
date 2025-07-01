@@ -13,6 +13,7 @@
 #ifndef LLVM_CLANG_FRONTEND_ASTUNIT_H
 #define LLVM_CLANG_FRONTEND_ASTUNIT_H
 
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang-c/Index.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/Diagnostic.h"
@@ -39,7 +40,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Bitstream/BitstreamWriter.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -474,7 +474,7 @@ public:
     return *TheSema;
   }
 
-  const KitsuneOptions &getKitsuneOpts() const {
+  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
     assert(KitsuneOpts && "ASTUnit does not have Kitsune options");
     return *KitsuneOpts;
   }

@@ -62,10 +62,6 @@
 
 namespace llvm {
 
-namespace driver {
-class KitsuneOptions;
-}
-
 template<unsigned InternalLen> class SmallString;
 
 } // namespace llvm
@@ -93,8 +89,6 @@ class NoTrivialPPDirectiveTracer;
 namespace Builtin {
 class Context;
 }
-
-using llvm::driver::KitsuneOptions;
 
 /// Stores token information for comparing actual tokens with
 /// predefined values.  Only handles simple tokens and identifiers.
@@ -198,7 +192,6 @@ class Preprocessor {
   const PreprocessorOptions &PPOpts;
   DiagnosticsEngine        *Diags;
   const LangOptions &LangOpts;
-  const KitsuneOptions &KitsuneOpts;
   const TargetInfo *Target = nullptr;
   const TargetInfo *AuxTarget = nullptr;
   FileManager       &FileMgr;
@@ -1230,8 +1223,7 @@ private:
 
 public:
   Preprocessor(const PreprocessorOptions &PPOpts, DiagnosticsEngine &diags,
-               const LangOptions &LangOpts, const KitsuneOptions & KitsuneOpts,
-               SourceManager &SM,
+               const LangOptions &LangOpts, SourceManager &SM,
                HeaderSearch &Headers, ModuleLoader &TheModuleLoader,
                IdentifierInfoLookup *IILookup = nullptr,
                bool OwnsHeaderSearch = false,
@@ -1266,7 +1258,6 @@ public:
   void setDiagnostics(DiagnosticsEngine &D) { Diags = &D; }
 
   const LangOptions &getLangOpts() const { return LangOpts; }
-  const KitsuneOptions &getKitsuneOpts() const { return KitsuneOpts; }
   const TargetInfo &getTargetInfo() const { return *Target; }
   const TargetInfo *getAuxTargetInfo() const { return AuxTarget; }
   FileManager &getFileManager() const { return FileMgr; }

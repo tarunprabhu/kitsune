@@ -51,13 +51,13 @@
  ***************************************************************************/
 #include "CGCleanup.h"
 #include "CodeGenFunction.h"
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/StmtKitsune.h"
 #include "clang/Basic/AttrKinds.h"
 #include "clang/Basic/Attributes.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
-#include "llvm/Frontend/Driver/KitsuneOptions.h"
 #include "llvm/IR/ValueMap.h"
 
 using namespace clang;

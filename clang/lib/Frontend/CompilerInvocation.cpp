@@ -105,6 +105,7 @@
 using namespace clang;
 using namespace options;
 using namespace llvm::opt;
+using llvm::driver::KitsuneOptions;
 
 //===----------------------------------------------------------------------===//
 // Helpers.
@@ -5198,7 +5199,7 @@ bool CompilerInvocation::CreateFromArgsImpl(
   InputArgList Args = Opts.ParseArgs(CommandLineArgs, MissingArgIndex,
                                      MissingArgCount, VisibilityMask);
   LangOptions &LangOpts = Res.getLangOpts();
-  llvm::driver::KitsuneOptions &KitsuneOpts = Res.getKitsuneOpts();
+  KitsuneOptions &KitsuneOpts = Res.getKitsuneOpts();
 
   // Check for missing argument error.
   if (MissingArgCount)
