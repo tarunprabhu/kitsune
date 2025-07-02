@@ -866,6 +866,12 @@ def err_drv_kitsune_missing_required : Error<
 def err_drv_kitsune_optzns_required : Error<
   "--tapir requires optimization level O1 or higher">;
 
+def err_drv_kitsune_lto_o2_required : Error<
+  "--tapir requires optimization level O2 or higher for LTO">;
+
+def err_drv_kitsune_bad_opt_level : Error<
+  "unsupported optimization level '%0'">;
+
 def err_drv_kitsune_bad_cuda_arch : Error<
   "unsupported NVIDIA GPU architecture '%0'">;
 def err_drv_kitsune_bad_hip_arch : Error<

@@ -933,7 +933,11 @@ void Flang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // Optimization level for CodeGen.
   if (const Arg *A = Args.getLastArg(options::OPT_O_Group)) {
-    if (A->getOption().matches(options::OPT_O4)) {
+    if (D.IsKitsuneFrontend()) {
+      // Kitsune supports fewer optimization levels than clang -in particular,
+      // it does not support -O4 or -Ofast.
+      A->render(Args, CmdArgs);
+    } else if (A->getOption().matches(options::OPT_O4)) {
       CmdArgs.push_back("-O3");
       D.Diag(diag::warn_O4_is_O3);
     } else if (A->getOption().matches(options::OPT_Ofast)) {

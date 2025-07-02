@@ -1,17 +1,37 @@
 // If the --tapir argument is not given, some mandatory Kitsune passes should
 // run, but most should not.
 //
+// RUN: %kitxx -O0 -c -emit-llvm -o /dev/null %s \
+// RUN:     -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s
+//
+// RUN: %kitxx -O1 -c -emit-llvm -o /dev/null %s \
+// RUN:     -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s
+//
+// RUN: %kitxx -O2 -c -emit-llvm -o /dev/null %s \
+// RUN:     -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s
+//
 // RUN: %kitxx -O3 -c -emit-llvm -o /dev/null %s \
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s
 //
-// CHECK: LowerMobileIntrinsics
+// RUN: %kitxx -Os -c -emit-llvm -o /dev/null %s \
+// RUN:     -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s
+//
+// RUN: %kitxx -Oz -c -emit-llvm -o /dev/null %s \
+// RUN:     -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s
+//
+// CHECK:      Running pass:     LowerMobileIntrinsics
 // CHECK-NEXT: Running analysis: TapirTargetAnalysis
-// CHECK-NEXT: Running pass: StripKitsuneAddrSpacePass
-// CHECK-NOT: Running pass: EmbResolveLibDeviceCallsPass
-// CHECK-NOT: Running pass: EmbPreparePass
-// CHECK-NOT: Running pass: EmbLinkLibDeviceBitcodePass
-// CHECK-NOT: Running pass: EmbOptimizePass
-// CHECK-NOT: Running pass: RecomputeKernelPropertiesPass
-// CHECK-NOT: Running pass: GenerateCtorsPass
-// CHECK-NOT: Running pass: LowerKitsuneRuntimeIntrinsicsPass
+// CHECK-NEXT: Running pass:     StripKitsuneAddrSpacePass
+// CHECK-NOT:  Running pass:     EmbResolveLibDeviceCallsPass
+// CHECK-NOT:  Running pass:     EmbPreparePass
+// CHECK-NOT:  Running pass:     EmbLinkLibDeviceBitcodePass
+// CHECK-NOT:  Running pass:     EmbOptimizePass
+// CHECK-NOT:  Running pass:     RecomputeKernelPropertiesPass
+// CHECK-NOT:  Running pass:     GenerateCtorsPass
+// CHECK-NEXT: Running pass:     LowerKitsuneRuntimeIntrinsicsPass

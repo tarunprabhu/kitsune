@@ -5559,7 +5559,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
     // Optimization level for CodeGen.
     if (const Arg *A = Args.getLastArg(options::OPT_O_Group)) {
-      if (A->getOption().matches(options::OPT_O4)) {
+      if (D.IsKitsuneFrontend()) {
+        // Kitsune supports fewer optimization levels than clang -in particular,
+        // it does not support -O4.
+        A->render(Args, CmdArgs);
+      } else if (A->getOption().matches(options::OPT_O4)) {
         CmdArgs.push_back("-O3");
         D.Diag(diag::warn_O4_is_O3);
       } else {
@@ -5958,7 +5962,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                      options::OPT_fno_zero_initialized_in_bss);
 
   bool OFastEnabled = isOptimizationLevelFast(Args);
-  if (OFastEnabled)
+  if (OFastEnabled && !D.IsKitsuneFrontend())
     D.Diag(diag::warn_drv_deprecated_arg_ofast);
   // If -Ofast is the optimization level, then -fstrict-aliasing should be
   // enabled.  This alias option is being used to simplify the hasFlag logic.
@@ -6443,7 +6447,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // Manually translate -O4 to -O3; let clang reject others.
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
-    if (A->getOption().matches(options::OPT_O4)) {
+    if (D.IsKitsuneFrontend()) {
+      // Kitsune supports fewer optimization levels than clang -in particular,
+      // it does not support -O4.
+      A->render(Args, CmdArgs);
+    } else if (A->getOption().matches(options::OPT_O4)) {
       CmdArgs.push_back("-O3");
       D.Diag(diag::warn_O4_is_O3);
     } else {

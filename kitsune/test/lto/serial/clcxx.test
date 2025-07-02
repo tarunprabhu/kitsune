@@ -1,10 +1,5 @@
 # Check that the command line options common to all tapir targets are handled
-# correctly when -flto is provided. The serial tapir target is always built
-# and handles all the common options.
-#
-# RUN: %kitxx -### -ftapir=serial -O1 -flto \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
-# RUN:     | FileCheck %s -check-prefixes=ALL,O1
+# correctly when -flto is provided.
 #
 # RUN: %kitxx -### -ftapir=serial -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
@@ -38,8 +33,20 @@
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,FP_STANDARD
 #
+# ------------------------------------------------------------------------------
+# -Os and -Oz both operate at -O2 optimization level as far as LTO is concerned.
+#
+# RUN: %kitxx -### -ftapir=serial -Os -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,O2
+#
+# RUN: %kitxx -### -ftapir=serial -Oz -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,O2
+#
+# ------------------------------------------------------------------------------
+#
 # ALL: /ld{{(64)?}}.lld"
-# O1: "--lto-O1"
 # O2: "--lto-O2"
 # O3: "--lto-O3"
 # ALL-SAME: "-mllvm" "--tapir=serial"

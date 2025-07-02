@@ -167,6 +167,24 @@ static void CheckTTEnabled(const Driver &D, llvm::TTID TT) {
   llvm_unreachable("CheckTTEnabled: TTID not handled");
 }
 
+// Check the optimization level. Kitsune supports a narrower range of
+// optimization levels than clang or flang. If an optimization level is
+// specified and it is invalid, return true, otherwise return false.
+static bool CheckOptLevel(const ArgList &Args) {
+  if (const Arg *A = Args.getLastArg(options::OPT_O_Group)) {
+    if (A->getOption().matches(options::OPT_O0)) {
+      return true;
+    } else if (A->getNumValues()) {
+      StringRef V = A->getValue();
+      if (V == "1" || V == "2" || V == "3" || V == "g" || V == "s" || V == "z")
+        return true;
+    }
+    return false;
+  }
+  // An explicit optimization level was not provided. This is ok.
+  return true;
+}
+
 static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
                                 DiagnosticsEngine &Diags) {
   llvm::Triple Triple = llvm::Triple(D.getTargetTriple());
@@ -185,10 +203,18 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
     if (D.IsFlangMode()) {
       if (Arg *A = Args.getLastArg(options::OPT_ffp_contract)) {
         StringRef FpContract = A->getValue();
-        if (FpContract == "on" || FpContract == "fast-honor-pragmas")
+        if (FpContract == "on" || FpContract == "fast-honor-pragmas") {
           D.Diag(diag::err_drv_unsupported_option_argument_for_frontend)
               << A->getSpelling() << FpContract << KITSUNE_Fortran_FRONTEND;
+          return;
+        }
       }
+    }
+
+    if (!CheckOptLevel(Args)) {
+      Diags.Report(diag::err_drv_kitsune_bad_opt_level)
+          << Args.getLastArg(options::OPT_O_Group)->getSpelling();
+      return;
     }
   }
 
@@ -196,6 +222,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
   bool IsKokkosNoInit = Args.hasArg(options::OPT_kokkos_no_init);
   if ((IsKokkos || IsKokkosNoInit) && !KITSUNE_KOKKOS_ENABLED) {
     D.Diag(diag::err_drv_kitsune_kokkos_disabled);
+    return;
   }
 
   // Check that the -ftapir flag has a valid value. This stops us from
@@ -238,13 +265,26 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
           << CodeObjectVersion;
     }
 
+    // Kitsune supports a narrower range of optimization levels than clang or
+    // flang. If we cannot determine the speedup level, this will issue a
+    // diagnostic.
+    unsigned speedupLevel = getSpeedupLevel(Args, Diags);
+
     // The --tapir option requires optimization level O1 or higher, unless the
-    // tapir target is set to none. The latter allows -O0 because no lowering
+    // tapir target is set to 'none'. The latter allows -O0 because no lowering
     // takes place and it is very useful to just dump out "tapirized" LLVM IR.
-    Arg *OptLevel = Args.getLastArg(options::OPT_O_Group);
-    bool IsO0 = !OptLevel || OptLevel->getOption().matches(options::OPT_O0);
-    if (IsO0 and *TT != llvm::TTID::None)
+    if (speedupLevel == 0 && *TT != llvm::TTID::None)
       D.Diag(clang::diag::err_drv_kitsune_optzns_required);
+
+    // The way the middle-end passes are built, the tapir passes are not run if
+    // LTO is enabled and the optimization level is < O2. It is not clear why
+    // this is the case, but until we decide whether we want to enable tapir
+    // lowering at O1 with LTO, don't allow it at all in the frontend. In this
+    // case, we don't make an exception for --tapir=none
+    bool IsLTO =
+        Args.hasArg(options::OPT_flto) || Args.hasArg(options::OPT_flto_EQ);
+    if (IsLTO && speedupLevel < 2)
+      D.Diag(clang::diag::err_drv_kitsune_lto_o2_required);
   }
 
   // Check that the --tapir-cuda-arch option has a valid value. If an empty

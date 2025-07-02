@@ -1672,12 +1672,7 @@ PassBuilder::parsePipelineText(StringRef Text) {
 
 static Error resetOptznLevel(StringRef PassName, OptimizationLevel L,
                              PipelineTuningOptions &PTO) {
-  if (L.getSpeedupLevel() == 0)
-    return make_error<StringError>(
-        formatv("{} passes require optimization level O1 or higher", PassName)
-            .str(),
-        inconvertibleErrorCode());
-  else if (not PTO.TTOpts)
+  if (not PTO.TTOpts)
     return make_error<StringError>(
         formatv("{} passes require the --tapir option", PassName).str(),
         inconvertibleErrorCode());
