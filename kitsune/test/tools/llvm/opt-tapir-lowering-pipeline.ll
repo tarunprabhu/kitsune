@@ -2,13 +2,18 @@
 ; pipeline.
 ;
 ; ------------------------------------------------------------------------------
-; Tapir lowering is not available at O0.
+; Tapir lowering is available at O0, but only a limited set of passes are run.
 ;
-; RUN: not opt -passes='tapir-lowering<O0>' -print-pipeline-passes %s \
+; RUN: opt -passes='tapir-lowering<O0>' --tapir=serial -debug-pass-manager %s \
 ; RUN:     -disable-output 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O0
 ;
-; O0: tapir-lowering passes require optimization level O1 or higher
+; O0:      Running pass:     TapirToTargetPass
+; O0-NEXT: Running analysis: InnerAnalysisManagerProxy
+; O0-NEXT: Running analysis: TapirTargetAnalysis
+; O0-NEXT: Running pass:     AlwaysInlinerPass
+; O0-NEXT: Running analysis: ProfileSummaryAnalysis
+; O0-NEXT: Running pass:     VerifierPass
 ;
 ; ------------------------------------------------------------------------------
 ; At higher optimization levels, the Kitsune passes that are run are always
@@ -35,20 +40,21 @@
 ; RUN:     -disable-output 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O123SZ
 ;
-; O123SZ: Running pass: LoopSpawningPass
+; O123SZ:      Running pass:     LoopSpawningPass
 ; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
-; O123SZ-NEXT: Running pass: TapirToTargetPass
-; O123SZ-NEXT: Running pass: IPSCCPPass
-; O123SZ-NEXT: Running pass: CalledValuePropagationPass
-; O123SZ-NEXT: Running pass: GlobalOptPass
-; O123SZ-NEXT: Running pass: DeadArgumentEliminationPass
-; O123SZ-NEXT: Running pass: AlwaysInlinerPass
+; O123SZ-NEXT: Running pass:     TapirToTargetPass
+; O123SZ-NEXT: Running pass:     IPSCCPPass
+; O123SZ-NEXT: Running pass:     CalledValuePropagationPass
+; O123SZ-NEXT: Running pass:     GlobalOptPass
+; O123SZ-NEXT: Running pass:     DeadArgumentEliminationPass
+; O123SZ-NEXT: Running pass:     AlwaysInlinerPass
 ; O123SZ-NEXT: Running analysis: ProfileSummaryAnalysis
-; O123SZ: Running analysis: GlobalsAA
+; O123SZ:      Running analysis: GlobalsAA
 ; O123SZ-NEXT: Running analysis: CallGraphAnalysis
-; O123SZ: Running analysis: LazyCallGraphAnalysis
-; O123SZ-NEXT: Running pass: EliminateAvailableExternallyPass
-; O123SZ-NEXT: Running pass: ReversePostOrderFunctionAttrs
-; O123SZ-NEXT: Running pass: GlobalDCEPass
+; O123SZ:      Running analysis: LazyCallGraphAnalysis
+; O123SZ-NEXT: Running pass:     EliminateAvailableExternallyPass
+; O123SZ-NEXT: Running pass:     ReversePostOrderFunctionAttrs
+; O123SZ-NEXT: Running pass:     GlobalDCEPass
+; O123SZ-NEXT: Running pass:     VerifierPass
 ;
 ; ------------------------------------------------------------------------------

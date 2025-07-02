@@ -1,4 +1,4 @@
-//===--- Tapir.cpp - C Language Family Language Options ---------*- C++ -*-===//
+//===- KitsuneOptionUtils.cpp - Utilities for Kitsune-specific options ----===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This file defines the functions from Tapir.h
+// Utilities to parse Kitsune-specific command line options
 //
 //===----------------------------------------------------------------------===//
 
@@ -31,28 +31,48 @@ using namespace llvm::opt;
 
 using llvm::driver::KitsuneOptions;
 
+static unsigned reportInvalidOptimizationLevel(const opt::Arg &a,
+                                               DiagnosticsEngine &diags) {
+  diags.Report(diag::err_drv_kitsune_bad_opt_level) << a.getSpelling();
+
+  // The maximum supported optimization level is 3. Return an unsupported
+  // level because we shouldn't return the default here. The caller should
+  // be prepared to deal with such an occurrence.
+  return 4;
+}
+
 unsigned clang::getSpeedupLevel(const opt::ArgList &args,
                                 DiagnosticsEngine &diags) {
   unsigned defaultSpeedup = KitsuneOptions::defaultSpeedupLevel;
-  if (opt::Arg *a = args.getLastArg(OPT_O_Group)) {
-    if (a->getOption().matches(OPT_O0))
+  if (const opt::Arg *a = args.getLastArg(OPT_O_Group)) {
+    const opt::Option &option = a->getOption();
+    if (option.matches(OPT_O0)) {
       return 0;
-
-    if (a->getOption().matches(OPT_Ofast))
-      return 3;
-
-    assert(a->getOption().matches(OPT_O));
-
-    StringRef val = a->getValue();
-    if (val == "s" || val == "z")
-      return 2;
-
-    if (val == "g")
-      return 1;
-
-    return getLastArgIntValue(args, OPT_O, defaultSpeedup, diags);
+    } else if (a->getNumValues()) {
+      StringRef v = a->getValue();
+      if (v == "1" || v == "g")
+        return 1;
+      else if (v == "2" || v == "s" || v == "z")
+        return 2;
+      else if (v == "3")
+        return 3;
+    }
+    return reportInvalidOptimizationLevel(*a, diags);
   }
   return defaultSpeedup;
+}
+
+unsigned clang::getSizeLevel(const opt::ArgList &args,
+                             DiagnosticsEngine &diags) {
+  const opt::Arg *a = args.getLastArg(OPT_O_Group);
+  if (a && a->getNumValues()) {
+    StringRef v = a->getValue();
+    if (v == "s")
+      return 1;
+    else if (v == "z")
+      return 2;
+  }
+  return 0;
 }
 
 std::optional<TTID> clang::parseTapirTargetIfValid(const opt::ArgList &args) {

@@ -5425,6 +5425,20 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       break;
     }
 
+    // Optimization level for CodeGen.
+    if (const Arg *A = Args.getLastArg(options::OPT_O_Group)) {
+      if (D.IsKitsuneFrontend()) {
+        // Kitsune supports fewer optimization levels than clang -in particular,
+        // it does not support -O4.
+        A->render(Args, CmdArgs);
+      } else if (A->getOption().matches(options::OPT_O4)) {
+        CmdArgs.push_back("-O3");
+        D.Diag(diag::warn_O4_is_O3);
+      } else {
+        A->render(Args, CmdArgs);
+      }
+    }
+
     // Input/Output file.
     if (Output.getType() == types::TY_Dependencies) {
       // Handled with other dependency code.
@@ -5825,7 +5839,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                      options::OPT_fno_zero_initialized_in_bss);
 
   bool OFastEnabled = isOptimizationLevelFast(Args);
-  if (OFastEnabled)
+  if (OFastEnabled && !D.IsKitsuneFrontend())
     D.Diag(diag::warn_drv_deprecated_arg_ofast);
   // If -Ofast is the optimization level, then -fstrict-aliasing should be
   // enabled.  This alias option is being used to simplify the hasFlag logic.
@@ -6313,6 +6327,20 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // When building with ccache, it will pass -D options to clang even on
   // preprocessed inputs and configure concludes that -fPIC is not supported.
   Args.ClaimAllArgs(options::OPT_D);
+
+  // Manually translate -O4 to -O3; let clang reject others.
+  if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
+    if (D.IsKitsuneFrontend()) {
+      // Kitsune supports fewer optimization levels than clang -in particular,
+      // it does not support -O4.
+      A->render(Args, CmdArgs);
+    } else if (A->getOption().matches(options::OPT_O4)) {
+      CmdArgs.push_back("-O3");
+      D.Diag(diag::warn_O4_is_O3);
+    } else {
+      A->render(Args, CmdArgs);
+    }
+  }
 
   // Warn about ignored options to clang.
   for (const Arg *A :
