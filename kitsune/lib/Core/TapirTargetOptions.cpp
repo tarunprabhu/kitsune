@@ -246,7 +246,7 @@ TapirTargetOptions::createFromCommandLine(char optLevel) {
 std::optional<TapirTargetOptions>
 TapirTargetOptions::create(const KitsuneOptions &opts, OptznLevel optLevel,
                            FPOpFusionMode fpOpFusionMode) {
-  if (std::optional<TTID> tt = opts.getTapirTarget()) {
+  if (std::optional<TTID> tt = opts.getTTID()) {
     TapirTargetOptions tto(*tt);
 
     // Set common tapir target options.

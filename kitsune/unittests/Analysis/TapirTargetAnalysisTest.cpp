@@ -232,7 +232,7 @@ attributes #0 = { nounwind memory(argmem: write) uwtable }
   driver::KitsuneOptions kitOpts;
   std::optional<TapirTargetOptions> tto = std::nullopt;
 
-  kitOpts.setTapirTarget(TTID::Serial);
+  kitOpts.setTTID(TTID::Serial);
   kitOpts.setCudaArch("sm_17");
   tto =
       TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
@@ -270,7 +270,7 @@ TEST(TapirTargetAnalysisTest, noHints) {
   driver::KitsuneOptions kitOpts;
   std::optional<TapirTargetOptions> tto = std::nullopt;
 
-  kitOpts.setTapirTarget(TTID::Serial);
+  kitOpts.setTTID(TTID::Serial);
   tto =
       TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
@@ -307,7 +307,7 @@ TEST(TapirTargetAnalysisTest, withHintsMixed) {
   driver::KitsuneOptions kitOpts;
   std::optional<TapirTargetOptions> tto = std::nullopt;
 
-  kitOpts.setTapirTarget(TTID::Serial);
+  kitOpts.setTTID(TTID::Serial);
   kitOpts.setCudaArch("sm_17");
   tto =
       TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
@@ -419,7 +419,7 @@ attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
   driver::KitsuneOptions kitOpts;
   std::optional<TapirTargetOptions> tto = std::nullopt;
 
-  kitOpts.setTapirTarget(TTID::Serial);
+  kitOpts.setTTID(TTID::Serial);
   tto =
       TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
@@ -531,7 +531,7 @@ attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
   driver::KitsuneOptions kitOpts;
   std::optional<TapirTargetOptions> tto = std::nullopt;
 
-  kitOpts.setTapirTarget(TTID::Serial);
+  kitOpts.setTTID(TTID::Serial);
   tto =
       TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
