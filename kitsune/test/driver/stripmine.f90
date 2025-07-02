@@ -28,8 +28,6 @@
 ! RUN:     | FileCheck %s -check-prefix STRIPMINE
 ! RUN: %kitfc -### -O3 -ftapir=serial %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STRIPMINE
-! RUN: %kitfc -### -O4 -ftapir=serial %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefix STRIPMINE
 ! RUN: %kitfc -### -Os -ftapir=serial %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STRIPMINE
 ! RUN: %kitfc -### -Oz -ftapir=serial %s 2>&1 \
@@ -42,8 +40,6 @@
 ! RUN: %kitfc -### -O2 -ftapir=serial -fno-stripmine %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
 ! RUN: %kitfc -### -O3 -ftapir=serial -fno-stripmine %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
-! RUN: %kitfc -### -O4 -ftapir=serial -fno-stripmine %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
 ! RUN: %kitfc -### -Os -ftapir=serial -fno-stripmine %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE

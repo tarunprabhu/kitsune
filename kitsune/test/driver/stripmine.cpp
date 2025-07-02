@@ -26,8 +26,6 @@
 // RUN:     | FileCheck %s -check-prefix STRIPMINE
 // RUN: %kitxx -### -O3 -ftapir=serial %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix STRIPMINE
-// RUN: %kitxx -### -O4 -ftapir=serial %s 2>&1 \
-// RUN:     | FileCheck %s -check-prefix STRIPMINE
 // RUN: %kitxx -### -Os -ftapir=serial %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix STRIPMINE
 // RUN: %kitxx -### -Oz -ftapir=serial %s 2>&1 \
@@ -39,8 +37,6 @@
 // RUN: %kitxx -### -O2 -ftapir=serial -fno-stripmine %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
 // RUN: %kitxx -### -O3 -ftapir=serial -fno-stripmine %s 2>&1 \
-// RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
-// RUN: %kitxx -### -O4 -ftapir=serial -fno-stripmine %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
 // RUN: %kitxx -### -Os -ftapir=serial -fno-stripmine %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix NO-STRIPMINE

@@ -39,11 +39,18 @@ class DiagnosticsEngine;
 /// Get the optimzation speedup level as an integer. This is not as
 /// straightforward as it might appear since clang and flang use different
 /// defaults when no optimization level is provided and we have to handle flags
-/// such as -Ofast and the rather infuritation -O. We need this behavior to be
+/// such as -Ofast and the rather infuriating -O. We need this behavior to be
 /// consistent between kitcc, kit++ and kitfc, even if that behavior differs
 /// from clang and flang.
 unsigned getSpeedupLevel(const llvm::opt::ArgList &args,
                          clang::DiagnosticsEngine &diags);
+
+/// Get the optimization size level as an integer. A value of 0 indicates that
+/// the code is not optimized for size. The other valid values are 1 and 2
+/// corresponding to -Os and -Oz respectively where the value of 2 indicates
+/// aggressive optimizations for size.
+unsigned getSizeLevel(const llvm::opt::ArgList &args,
+                      clang::DiagnosticsEngine &diags);
 
 /// Parse the -ftapir flag if it is present and get the name of the config file
 /// of the Tapir target that was specified. If the argument of the -ftapir flag
@@ -61,7 +68,7 @@ parseTapirTargetIfValid(const llvm::opt::ArgList &args);
 /// \param kitOpts The KitsuneOptions object into which to parse the command
 /// line options
 /// \param argv0 The first argument on the command line. This is the name of the
-/// execuable
+/// executable
 /// \param args The command line arguments
 /// \param optTable The options table
 /// \param diags The diagnostics engine

@@ -33,9 +33,6 @@
 // CHECK-FULL-O0-NEXT: Running analysis: ProfileSummaryAnalysis
 // CHECK-FULL-O0-NEXT: Running pass: CoroConditionalWrapper
 // CHECK-FULL-O0-NEXT: Running pass: LowerCommentStringPass
-// CHECK-FULL-O0-NEXT: Running pass: LowerMobileIntrinsicsPass
-// CHECK-FULL-O0-NEXT: Running analysis: TapirTargetAnalysis
-// CHECK-FULL-O0-NEXT: Running pass: StripKitsuneAddrSpacePass
 // CHECK-FULL-O0-NEXT: Running pass: CanonicalizeAliasesPass
 // CHECK-FULL-O0-NEXT: Running pass: NameAnonGlobalPass
 // CHECK-FULL-O0-NEXT: Running pass: AssignGUIDPass
@@ -52,9 +49,6 @@
 // CHECK-THIN-O0-NEXT: Running analysis: ProfileSummaryAnalysis
 // CHECK-THIN-O0-NEXT: Running pass: CoroConditionalWrapper
 // CHECK-THIN-O0-NEXT: Running pass: LowerCommentStringPass
-// CHECK-THIN-O0-NEXT: Running pass: LowerMobileIntrinsicsPass
-// CHECK-THIN-O0-NEXT: Running analysis: TapirTargetAnalysis
-// CHECK-THIN-O0-NEXT: Running pass: StripKitsuneAddrSpacePass
 // CHECK-THIN-O0-NEXT: Running pass: CanonicalizeAliasesPass
 // CHECK-THIN-O0-NEXT: Running pass: NameAnonGlobalPass
 // CHECK-THIN-O0-NEXT: Running pass: AssignGUIDPass
