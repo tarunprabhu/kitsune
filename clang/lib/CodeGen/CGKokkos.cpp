@@ -50,6 +50,7 @@
  *z
  ***************************************************************************/
 #include "CodeGenFunction.h"
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include <cstdio>
@@ -296,8 +297,13 @@ void CodeGenFunction::EmitKokkosIncrement(const ParmVarDecl *IV) {
 
 bool CodeGenFunction::EmitKokkosParallelFor(
     const CallExpr *CE, ArrayRef<const Attr *> KokkosAttrs) {
-  std::optional<llvm::TTID> TT = GetTapirTargetAttr(KokkosAttrs);
-  LoopStack.setLoopTarget(TT);
+  assert(CGM.getKitsuneOpts().getTTID().has_value() &&
+         "TTID not set in Kitsune options");
+  llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
+  if (std::optional<llvm::TTID> AttrTT = GetTapirTargetAttr(KokkosAttrs))
+    TT = *AttrTT;
+  if (TT != llvm::TTID::None)
+    LoopStack.setLoopTarget(TT);
 
   // New basic blocks and jump destinations with Tapir terminators
   // Note that we only need one of each of these regardless of the number of

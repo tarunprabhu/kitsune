@@ -343,7 +343,7 @@ bool clang::parseKitsuneArgs(KitsuneOptions &kitOpts, const char *argv0,
     StringRef argVal = args.getLastArgValue(OPT_tapir_EQ);
     if (std::optional<llvm::TTID> tt = createTTIDFrom(argVal)) {
       parseKitsuneTTArgs(kitOpts, *tt, args, optTable, diags);
-      kitOpts.setTapirTarget(*tt);
+      kitOpts.setTTID(*tt);
     }
   }
 

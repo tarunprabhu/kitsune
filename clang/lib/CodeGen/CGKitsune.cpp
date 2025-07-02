@@ -118,7 +118,7 @@ CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
       llvm_unreachable("GetTapirTargetAttr: TTID not handled");
     }
   }
-  return CGM.getKitsuneOpts().getTapirTarget();
+  return CGM.getKitsuneOpts().getTTID();
 }
 
 unsigned CodeGenFunction::GetKitsuneLaunchAttr(ArrayRef<const Attr *> Attrs) {
@@ -289,11 +289,13 @@ void CodeGenFunction::RestoreDeclMap(const VarDecl *IV,
 
 void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
                                      ArrayRef<const Attr *> ForallAttr) {
-
-  // A forall may have attributes but no tapir target so we can't simply
-  // check if the attributes are empty.
-  std::optional<llvm::TTID> TT = GetTapirTargetAttr(ForallAttr);
-  LoopStack.setLoopTarget(TT);
+  assert(CGM.getKitsuneOpts().getTTID().has_value() &&
+         "TTID not set in Kitsune options");
+  llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
+  if (std::optional<llvm::TTID> AttrTT = GetTapirTargetAttr(ForallAttr))
+    TT = *AttrTT;
+  if (TT != llvm::TTID::None)
+    LoopStack.setLoopTarget(TT);
 
   // New basic blocks and jump destinations with Tapir terminators
   llvm::BasicBlock *Detach = createBasicBlock("forall.detach");
@@ -457,11 +459,15 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 
 void CodeGenFunction::EmitCXXForallRangeStmt(
     const CXXForallRangeStmt &S, ArrayRef<const Attr *> ForallAttr) {
+  assert(CGM.getKitsuneOpts().getTTID().has_value() &&
+         "TTID not set in Kitsune options");
+  llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
+  if (std::optional<llvm::TTID> AttrTT = GetTapirTargetAttr(ForallAttr))
+    TT = *AttrTT;
+  if (TT != llvm::TTID::None)
+    LoopStack.setLoopTarget(TT);
 
-  std::optional<llvm::TTID> TT = GetTapirTargetAttr(ForallAttr);
-  LoopStack.setLoopTarget(TT);
-
-  if (TT == llvm::TTID::Cuda) {
+  if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
     unsigned ThreadsPerBlock = GetKitsuneLaunchAttr(ForallAttr);
     if (ThreadsPerBlock > 0)
       LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);

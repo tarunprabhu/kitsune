@@ -24,11 +24,6 @@
 
 namespace llvm {
 
-namespace opt {
-class ArgList;
-class OptTable;
-} // namespace opt
-
 namespace driver {
 
 /// Options that are Kitsune-specific. These affect both the Kitsune "language"
@@ -81,8 +76,8 @@ public:
 
 private:
   /// Is a Kitsune frontend being used. The frontend could be used without a
-  /// tapir target, so we can't use the @ref TapirTarget field to determine
-  /// whether we are using Kitsune.
+  /// tapir target, so we can't use the @ref tt field to determine whether we
+  /// are using Kitsune.
   unsigned kitsuneFrontend : 1;
 
   /// Is "Kokkos mode" enabled.
@@ -117,9 +112,8 @@ private:
   /// The "primary" tapir target for code generation. The "inline" tapir
   /// targets that are attached to specific constructs are separate from this.
   /// This is set to the value of the the --tapir option passed on the command
-  /// line. It is option because we do not have a default tapir target, even
-  /// when using the Kitsune frontends (kitcc, kitfc etc.)
-  std::optional<llvm::TTID> tapirTarget = std::nullopt;
+  /// line. It is optional because we do not have a default tapir target
+  std::optional<llvm::TTID> tt = std::nullopt;
 
   /// If this is non-zero, the number of threads per block to use.
   unsigned fixedThreadsPerBlock = 0;
@@ -129,8 +123,10 @@ private:
   /// value must be greater than or equal to @ref threadsPerBlock.
   unsigned maxThreadsPerBlock = 0;
 
-  /// The path to LLD that was built with Kitsune. If clang is invoked from the
-  /// build directory, this will be the lld that is in the build directory.
+  /// The path to LLD that was built with Kitsune. This path is determined by
+  /// the location of clang's executable. This allows it to be used from both
+  /// the build and install directories. The logic for doing so was already in
+  /// the driver and we just use it.
   std::string lld;
 
   /// The NVIDIA GPU architecture for which to generate code. This is only
@@ -216,8 +212,8 @@ public:
     this->kokkosNoInit = kokkosNoInit;
   }
 
-  void setTapirTarget(llvm::TTID tapirTarget) {
-    this->tapirTarget = tapirTarget;
+  void setTTID(llvm::TTID tt) {
+    this->tt = tt;
   }
 
   void setStripmineLoops(bool stripmineLoops = true) {
@@ -288,7 +284,7 @@ public:
 
   bool isKitsuneFrontend() const { return kitsuneFrontend; }
 
-  bool hasTapirTarget() const { return tapirTarget.has_value(); }
+  bool hasTTID() const { return tt.has_value(); }
 
   bool getKokkos() const { return kokkos; }
 
@@ -300,7 +296,7 @@ public:
 
   bool getKitrtVerbose() const { return kitrtVerbose; }
 
-  std::optional<llvm::TTID> getTapirTarget() const { return tapirTarget; }
+  std::optional<llvm::TTID> getTTID() const { return tt; }
 
   unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
 
