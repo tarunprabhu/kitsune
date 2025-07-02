@@ -10,6 +10,7 @@
 // O0-NEXT: Running pass:     StripKitsuneAddrSpacePass
 // O0-NEXT: Running pass:     LowerKitsuneRuntimeIntrinsicsPass
 // O0-NEXT: Running pass:     VerifierPass
+// O0-NEXT: Running pass:     BitcodeWriterPass
 //
 // -----------------------------------------------------------------------------
 // If the --tapir argument is provided, all Tapir and Kitsune passes should run.
@@ -55,5 +56,5 @@
 // O23SZ-NEXT: Running pass:     RecomputeKernelPropertiesPass
 // O23SZ-NEXT: Running pass:     GenerateCtorsPass
 // O23SZ-NEXT: Running pass:     LowerKitsuneRuntimeIntrinsicsPass
-// O23SZ-NEXT: Running analysis: TargetLibraryAnalysis
 // O23SZ-NEXT: Running pass:     VerifierPass
+// O23SZ-NEXT: Running pass:     BitcodeWriterPass

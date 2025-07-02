@@ -12,6 +12,7 @@
 // NONE:      Running pass:     StripKitsuneAddrSpacePass
 // NONE-NEXT: Running pass:     LowerKitsuneRuntimeIntrinsicsPass
 // NONE-NEXT: Running pass:     VerifierPass
+// NONE-NEXT: Running analysis: VerifierAnalysis
 //
 // -----------------------------------------------------------------------------
 // All Kitsune, and Tapir, passes should run during the postlink phase of LTO,
@@ -56,5 +57,5 @@
 // O23SZ-NEXT: Running pass:     RecomputeKernelPropertiesPass
 // O23SZ-NEXT: Running pass:     GenerateCtorsPass
 // O23SZ-NEXT: Running pass:     LowerKitsuneRuntimeIntrinsicsPass
-// O23SZ-NEXT: Running analysis: TargetLibraryAnalysis
 // O23SZ-NEXT: Running pass:     VerifierPass
+// O23SZ-NEXT: Running analysis: VerifierAnalysis
