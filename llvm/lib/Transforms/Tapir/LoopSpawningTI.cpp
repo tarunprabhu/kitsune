@@ -991,6 +991,14 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
     TT = *HintTT;
   const TapirTargetOptions &TTOpts = TGI.getOptions();
 
+  // Support for multiple targets is currently broken. Some of the frontend
+  // elements have been implemented but the middle-end support is not yet there.
+  // For now, we require that the target on the loop is the same as the primary
+  // tapir target.
+  assert(TT == TTOpts.getTTID() &&
+         "NOT YET IMPLEMENTED: Multi-target support. Loop target metadata must "
+         "match the primary tapir target");
+
   // Allow the Tapir target to define a custom loop-outline processor.
   if (LoopOutlineProcessor *LOP = Targets.at(TT)->getLoopOutlineProcessor(TL))
     return LOP;

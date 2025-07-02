@@ -3173,7 +3173,7 @@ void CodeGenModule::SetFunctionAttributes(GlobalDecl GD, llvm::Function *F,
   // opt-in features. Since the attributes will have no effect unless lowering
   // using tapir is enabled, we might as well only add the attributes only if a
   // tapir target has been set.
-  if (getKitsuneOpts().hasTapirTarget()) {
+  if (getKitsuneOpts().hasTTID()) {
     SetKitsuneAttributes(*FD, *F);
   }
 }
@@ -5380,7 +5380,7 @@ CodeGenModule::GetOrCreateLLVMGlobal(StringRef MangledName, llvm::Type *Ty,
   // opt-in features. Since the attributes will have no effect unless lowering
   // using tapir is enabled, we might as well only add the attributes only if a
   // tapir target has been set.
-  if (D && getKitsuneOpts().hasTapirTarget())
+  if (D && getKitsuneOpts().hasTTID())
     SetKitsuneAttributes(*D, *GV);
 
   LangAS ExpectedAS =

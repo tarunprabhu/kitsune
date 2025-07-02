@@ -4180,8 +4180,7 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
 
   // KitsuneOpts will already have been set correctly. IsKitsune must be set
   // before setting the defaults.
-  Opts.IsKitsune =
-      KitsuneOpts.isKitsuneFrontend() && KitsuneOpts.hasTapirTarget();
+  Opts.IsKitsune = KitsuneOpts.isKitsuneFrontend() && KitsuneOpts.hasTTID();
 
   LangOptions::setLangDefaults(Opts, IK.getLanguage(), T, Includes, LangStd);
 
@@ -4819,7 +4818,7 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
     llvm_unreachable("GenerateKitsuneArgs: TTID not handled");
   };
 
-  if (std::optional<llvm::TTID> TT = Opts.getTapirTarget()) {
+  if (std::optional<llvm::TTID> TT = Opts.getTTID()) {
     GenerateArg(Consumer, OPT_tapir_EQ, llvm::toString(*TT));
     GenerateTTArg(*TT, Opts, Consumer);
 
@@ -4857,7 +4856,7 @@ bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
                                           const KitsuneOptions &KitsuneOpts,
                                           const LangOptions &LangOpts,
                                           DiagnosticsEngine &Diags) {
-  std::optional<llvm::TTID> TT = KitsuneOpts.getTapirTarget();
+  std::optional<llvm::TTID> TT = KitsuneOpts.getTTID();
   if (not TT)
     return true;
 

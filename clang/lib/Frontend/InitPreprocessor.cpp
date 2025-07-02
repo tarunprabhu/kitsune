@@ -892,7 +892,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   // with the principle of "absence indicating absence". The empty string would
   // be too much like the "special sentinel indicating absence".
   Builder.defineMacro("__kitsune__"); // Kitsune Frontend
-  if (std::optional<llvm::TTID> tt = KitsuneOpts.getTapirTarget()) {
+  if (std::optional<llvm::TTID> tt = KitsuneOpts.getTTID()) {
     std::string s;
     llvm::raw_string_ostream os(s);
     os << '"' << *tt << '"';

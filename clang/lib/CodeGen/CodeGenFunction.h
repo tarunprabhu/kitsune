@@ -4222,8 +4222,16 @@ public:
   llvm::Value *EmitSEHExceptionInfo();
   llvm::Value *EmitSEHAbnormalTermination();
 
+  /// Get the value of the tapir spawning strategy attribute if was set. If the
+  /// attribute was not set, return std::nullopt.
   llvm::TapirSpawnStrategy GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs);
+
+  /// Get the value of the tapir::target attribute if it was was set. If the
+  /// attribute was not set, return std::nullopt.
   std::optional<llvm::TTID> GetTapirTargetAttr(ArrayRef<const Attr *> Attrs);
+
+  /// Get the value of the kitsune::launch attribute if it was set. If the
+  /// attribute was not set, return 0.
   unsigned GetKitsuneLaunchAttr(ArrayRef<const Attr *> Attrs);
 
   // Kitsune support for Kokkos.
