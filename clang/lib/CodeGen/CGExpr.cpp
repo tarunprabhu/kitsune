@@ -5843,29 +5843,28 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue,
                                      llvm::CallBase **CallOrInvoke) {
-  // kitsune: handle kokkos-centric details -- specifically we are
-  // dealing with a case where we transform a lambda construct into
-  // a traditional loop construct; thus our parallel_for and
-  // parallel_reduce calls result in the removal of a lambda/call.
-  if (CGM.getKitsuneOpts().getKokkos()) {
-    const FunctionDecl *fdecl = E->getDirectCallee();
-    if (fdecl) {
+  // kitsune: handle kokkos-centric details -- specifically we are dealing with
+  // a case where we transform a lambda construct into a traditional loop
+  // construct; thus our parallel_for and parallel_reduce calls result in the
+  // removal of a lambda/call.
+  const llvm::driver::KitsuneOptions &kitOpts = CGM.getKitsuneOpts();
+  if (kitOpts.getKokkos() || kitOpts.getKokkosNoInit()) {
+    if (const FunctionDecl *fdecl = E->getDirectCallee()) {
       std::string qname = fdecl->getQualifiedNameAsString();
       if (qname == "Kokkos::parallel_for" ||
           qname == "Kokkos::parallel_reduce") {
-	// We handle the special case of Tapir target attributes on a
-	// Kokkos "statement" elsewhere (as the attribute is not
-	// really attached to the CallExpr but instead the C++ goop
-	// around the call -- implicit and clean up stuff).  If we
-	// have seen such an attribute it was saved and we can simply
-	// pass TapirAttrs on from here for the Kokkos code
-	// transformation/generation.
+        // We handle the special case of Tapir target attributes on a Kokkos
+        // "statement" elsewhere (as the attribute is not really attached to the
+        // CallExpr but instead the C++ goop around the call -- implicit and
+        // clean up stuff).  If we have seen such an attribute it was saved and
+        // we can simply pass TapirAttrs on from here for the Kokkos code
+        // transformation/generation.
         if (EmitKokkosConstruct(E, TapirAttrs))
           return RValue::get(nullptr);
-      } else if (CGM.getKitsuneOpts().getKokkosNoInit() &&
-                 (qname == "Kokkos::initialize" ||
-                  qname == "Kokkos::finalize"))
+      } else if (kitOpts.getKokkosNoInit() && (qname == "Kokkos::initialize" ||
+                                               qname == "Kokkos::finalize")) {
         return RValue::get(nullptr);
+      }
     }
   }
 
