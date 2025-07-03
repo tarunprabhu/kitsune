@@ -1,7 +1,7 @@
 // Check that the correct tapir.loop.target metadata is added to the tapir
 // loops created by lowering kokkos::parallel_for
 //
-// -----------------------------------------------------------------------------\
+// -----------------------------------------------------------------------------
 // If the tapir target is not 'none', the tapir loops must have a loop.target
 // metadata whose value is the integer representation of the tapir target.
 //

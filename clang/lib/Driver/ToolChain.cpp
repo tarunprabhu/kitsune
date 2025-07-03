@@ -2587,11 +2587,11 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
   };
 
   std::optional<TTID> TT = parseTapirTargetIfValid(Args);
-  bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_kokkos);
-
   if (TT)
     AddTTArgs(*TT, Args, CmdArgs);
 
+  bool IsKokkos = D.CCCIsCXX() &&
+                  Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
   if (IsKokkos) {
     std::string InclDir = concat(D.ResourceDir, "include", "kokkos");
     CmdArgs.push_back(Args.MakeArgString(join_items("", "-I", InclDir)));
@@ -2653,7 +2653,8 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     llvm_unreachable("AddKitsuneCompilerArgs: TTID not handled");
   };
 
-  bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_kokkos);
+  bool IsKokkos = D.CCCIsCXX() &&
+                  Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
   if (IsKokkos) {
     Args.AddLastArg(CmdArgs, options::OPT_kokkos);
     Args.AddLastArg(CmdArgs, options::OPT_kokkos_no_init);
@@ -2859,11 +2860,11 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
   };
 
   std::optional<TTID> TT = parseTapirTargetIfValid(Args);
-  bool IsKokkos = D.CCCIsCXX() && Args.hasArg(options::OPT_kokkos);
-
   if (TT)
     AddTTArgs(*TT, Args, CmdArgs);
 
+  bool IsKokkos = D.CCCIsCXX() &&
+                  Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
   if (IsKokkos) {
     const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib64"));
     CmdArgs.push_back("-L");
