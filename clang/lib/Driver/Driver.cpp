@@ -220,9 +220,19 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
 
   bool IsKokkos = Args.hasArg(options::OPT_kokkos);
   bool IsKokkosNoInit = Args.hasArg(options::OPT_kokkos_no_init);
-  if ((IsKokkos || IsKokkosNoInit) && !KITSUNE_KOKKOS_ENABLED) {
-    D.Diag(diag::err_drv_kitsune_kokkos_disabled);
-    return;
+  if (IsKokkos || IsKokkosNoInit) {
+    if (!KITSUNE_KOKKOS_ENABLED) {
+      D.Diag(diag::err_drv_kitsune_kokkos_disabled);
+      return;
+    }
+
+    // If --kokkos is provided, then a tapir target must also be provided.
+    if (!Args.hasArg(options::OPT_tapir_EQ)) {
+      D.Diag(diag::err_drv_kitsune_kokkos_no_tapir)
+          << Args.getLastArg(options::OPT_kokkos, options::OPT_kokkos_no_init)
+                 ->getSpelling();
+      return;
+    }
   }
 
   // Check that the -ftapir flag has a valid value. This stops us from
@@ -1543,7 +1553,7 @@ bool Driver::loadConfigFiles() {
   // Then load configuration files specified explicitly.
   SmallString<128> CfgFilePath;
   if (CLOptions) {
-    if (CLOptions->hasArg(options::OPT_kokkos)) {
+    if (CLOptions->hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init)) {
       // It is ok if the Kokkos configuration file was not found. It is
       // intended to be optional just like the top-level clang config file.
       if (ExpCtx.findConfigFile("kokkos.cfg", CfgFilePath)) {

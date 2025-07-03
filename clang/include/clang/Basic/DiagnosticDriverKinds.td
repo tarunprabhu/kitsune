@@ -852,7 +852,6 @@ def err_drv_malformed_warning_suppression_mapping : Error<
 def warn_drv_kitsune_no_gpu : Warning<
   "%0. Using default '%1'">,
   InGroup<Kitsune>;
-
 def warn_drv_kitsune_multi_gpu : Warning<
   "multiple %0 GPU architectures detected: '%1'">,
   InGroup<Kitsune>;
@@ -865,23 +864,21 @@ def err_drv_kitsune_missing_required : Error<
 
 def err_drv_kitsune_optzns_required : Error<
   "--tapir requires optimization level O1 or higher">;
-
 def err_drv_kitsune_lto_o2_required : Error<
   "--tapir requires optimization level O2 or higher for LTO">;
-
 def err_drv_kitsune_bad_opt_level : Error<
   "unsupported optimization level '%0'">;
-
-def err_drv_kitsune_bad_cuda_arch : Error<
-  "unsupported NVIDIA GPU architecture '%0'">;
-def err_drv_kitsune_bad_hip_arch : Error<
-  "unsupported AMD GPU architecture '%0'">;
 
 def err_drv_kitsune_fixed_threads_per_block : Error<
   "value of '%0' not in range [1,1024]">;
 def err_drv_kitsune_max_threads_per_block : Error<
   "value of '%0' must be at least 1">;
 
+def err_drv_kitsune_bad_cuda_arch : Error<
+  "unsupported NVIDIA GPU architecture '%0'">;
+
+def err_drv_kitsune_bad_hip_arch : Error<
+  "unsupported AMD GPU architecture '%0'">;
 def err_drv_kitsune_hip_code_object_version : Error<
   "rocm code object version '%0' is not supported">;
 
@@ -903,17 +900,13 @@ def err_drv_opencilk_platform: Error<
   "opencilk tapir target does not support system '%0'">;
 def err_drv_opencilk_target: Error<
   "opencilk tapir target does not support architecture '%0'">;
-
 def err_drv_opencilk_missing_abi_bitcode: Error<
   "cannot find OpenCilk runtime ABI bitcode file">;
 
-def err_drv_mix_tapir_cuda : Error<
-  "cuda source cannot be used with a tapir target">;
-def err_drv_mix_tapir_hip : Error<
-  "hip source cannot be used with a tapir target">;
-
 def err_drv_kitsune_kokkos_disabled : Error<
   "kokkos support was not enabled when kitsune was built">;
+def err_drv_kitsune_kokkos_no_tapir : Error<
+  "--tapir is required with '%0'">;
 
 def err_drv_kitsune_target_not_enabled: Error<
   "tapir target '%0' was not enabled when kitsune was built">;
