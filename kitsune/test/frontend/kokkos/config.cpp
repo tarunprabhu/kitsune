@@ -1,18 +1,18 @@
 // -----------------------------------------------------------------------------
 // Check that the default target-specific configuration file is always found.
 //
-// RUN: %kitxx -### --kokkos --tapir=none %s 2>&1 \
+// RUN: %kitxx -### --kokkos --tapir=nolo %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-DEFAULT-CONFIG
-// RUN: %kitxx -### --kokkos-no-init --tapir=none %s 2>&1 \
+// RUN: %kitxx -### --kokkos-no-init --tapir=nolo %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-DEFAULT-CONFIG
 //
 // -----------------------------------------------------------------------------
 // Check that providing a custom config directory without a target-specific
 // configuration file is ok.
 //
-// RUN: %kitxx -### --kokkos --tapir=none --config-kitsune-dir=%S/../ %s 2>&1 \
+// RUN: %kitxx -### --kokkos --tapir=nolo --config-kitsune-dir=%S/../ %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM-NOEXIST
-// RUN: %kitxx -### --kokkos-no-init --tapir=none --config-kitsune-dir=%S/../ \
+// RUN: %kitxx -### --kokkos-no-init --tapir=nolo --config-kitsune-dir=%S/../ \
 // RUN:     %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM-NOEXIST
 //
@@ -20,9 +20,9 @@
 // Check that providing a custom config directory with a target-specific
 // configuration file leads to the file being found and the contents used.
 //
-// RUN: %kitxx -### --kokkos --tapir=none --config-kitsune-dir=%S %s 2>&1 \
+// RUN: %kitxx -### --kokkos --tapir=nolo --config-kitsune-dir=%S %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM
-// RUN: %kitxx -### --kokkos-no-init --tapir=none --config-kitsune-dir=%S \
+// RUN: %kitxx -### --kokkos-no-init --tapir=nolo --config-kitsune-dir=%S \
 // RUN:     %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM
 //

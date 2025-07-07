@@ -2,9 +2,9 @@
 // regardless of the specified optimization level.
 //
 // -----------------------------------------------------------------------------
-// Only the 'none' tapir target is allowed at -O0.
+// Only the nolo tapir target is allowed at -O0.
 //
-// RUN: %kitcc -O2 --tapir=none -c -emit-llvm -o /dev/null %s \
+// RUN: %kitcc -O2 --tapir=nolo -c -emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s
 //

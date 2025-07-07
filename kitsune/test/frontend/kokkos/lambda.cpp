@@ -2,7 +2,7 @@
 // Check that both "anonymous" and "named" parallel_for constructs, given a
 // lambda, are lowered correctly
 //
-// RUN: %kitxx -fkokkos -fkokkos-no-init -O1 --tapir=none -S -emit-llvm \
+// RUN: %kitxx -fkokkos -fkokkos-no-init -O1 --tapir=nolo -S -emit-llvm \
 // RUN:     -o - %sysroot %s \
 // RUN:     | FileCheck %s
 

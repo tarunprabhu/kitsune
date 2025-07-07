@@ -92,8 +92,8 @@ clang::getTapirTargetConfigFileName(const opt::ArgList &args) {
     return std::nullopt;
 
   switch (*tt) {
-  case TTID::None:
-    return "none.cfg";
+  case TTID::Nolo:
+    return "nolo.cfg";
   case TTID::Serial:
     return "serial.cfg";
   case TTID::Cuda:
@@ -304,7 +304,7 @@ static bool parseKitsuneTTArgs(KitsuneOptions &kitOpts, TTID tt,
                                const ArgList &args, const OptTable &optTable,
                                DiagnosticsEngine &diags) {
   switch (tt) {
-  case llvm::TTID::None:
+  case llvm::TTID::Nolo:
     return true;
   case llvm::TTID::Cuda:
     return parseKitsuneCudaArgs(kitOpts, args, optTable, diags);

@@ -1,7 +1,7 @@
 // Check that we correctly emit a warning and fall back to standard C++ lowering
 // upon encountering a Kokkos::parallel_for with a functor instead of a lambda.
 //
-// RUN: %kitxx -fkokkos -fkokkos-no-init --tapir=none -O1 -S -emit-llvm \
+// RUN: %kitxx -fkokkos -fkokkos-no-init --tapir=nolo -O1 -S -emit-llvm \
 // RUN:     -o - -Xclang -verify %sysroot %s \
 // RUN:     | FileCheck -vv %s
 

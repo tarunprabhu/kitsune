@@ -158,11 +158,6 @@ private:
   TapirTargetOptions(TTID tt, const std::vector<TTID> tts);
 
 public:
-  /// If a tapir target is set, does the tapir target support lowering. The
-  /// "none" "pseudo tapir target" is the only tapir target that is never
-  /// lowered.
-  bool lower() const;
-
   /// Create a clone of this options object.
   std::unique_ptr<TapirTargetOptions> clone() const;
 

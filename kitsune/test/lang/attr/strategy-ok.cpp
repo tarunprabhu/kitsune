@@ -1,4 +1,4 @@
-// RUN: %kitxx -Xclang -verify -fsyntax-only -ftapir=none %s
+// RUN: %kitxx -Xclang -verify -fsyntax-only -ftapir=nolo %s
 // expected-no-diagnostics
 
 #include <cstdio>

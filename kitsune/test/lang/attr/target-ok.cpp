@@ -1,10 +1,10 @@
-// RUN: %kitxx -Xclang -verify -fsyntax-only -ftapir=none %s
+// RUN: %kitxx -Xclang -verify -fsyntax-only -ftapir=nolo %s
 // expected-no-diagnostics
 
 #include <kitsune.h>
 
 int main(int argc, char *argv[]) {
-  [[tapir::target("none")]]
+  [[tapir::target("nolo")]]
   forall(int i = 0; i < 1024; ++i) { }
 
   [[tapir::target("serial")]]

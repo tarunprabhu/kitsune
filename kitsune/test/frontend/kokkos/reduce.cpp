@@ -3,7 +3,7 @@
 // and that we fall back to the default C++ lowering. Obviously when we support
 // parallel_reduce, this test will have to be changed or removed.
 //
-// RUN: %kitxx -fkokkos -fkokkos-no-init -O1 --tapir=none -S -emit-llvm \
+// RUN: %kitxx -fkokkos -fkokkos-no-init -O1 --tapir=nolo -S -emit-llvm \
 // RUN:     -fno-inline -o - %sysroot %s \
 // RUN:     | FileCheck %s
 

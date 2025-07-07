@@ -18,16 +18,16 @@
 ; If the --tapir option is provided to llc, the Kitsune passes are run at all
 ; optimization levels.
 ;
-; RUN: llc -O0 --tapir=none -debug-pass=Structure %s -o /dev/null 2>&1 \
+; RUN: llc -O0 --tapir=nolo -debug-pass=Structure %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix TAPIR %s
 ;
-; RUN: llc -O1 --tapir=none -debug-pass=Structure %s -o /dev/null 2>&1 \
+; RUN: llc -O1 --tapir=nolo -debug-pass=Structure %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix TAPIR %s
 ;
-; RUN: llc -O2 --tapir=none -debug-pass=Structure %s -o /dev/null 2>&1 \
+; RUN: llc -O2 --tapir=nolo -debug-pass=Structure %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix TAPIR %s
 ;
-; RUN: llc -O3 --tapir=none -debug-pass=Structure %s -o /dev/null 2>&1 \
+; RUN: llc -O3 --tapir=nolo -debug-pass=Structure %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix TAPIR %s
 ;
 ; TAPIR: Target Library Information

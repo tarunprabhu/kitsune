@@ -17,8 +17,8 @@ using namespace llvm;
 
 std::string llvm::toString(const TTID &tt) {
   switch (tt) {
-  case TTID::None:
-    return "none";
+  case TTID::Nolo:
+    return "nolo";
   case TTID::Serial:
     return "serial";
   case TTID::Cuda:

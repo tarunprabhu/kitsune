@@ -2,7 +2,7 @@
 // loops created by lowering kokkos::parallel_for
 //
 // -----------------------------------------------------------------------------
-// If the tapir target is not 'none', the tapir loops must have a loop.target
+// If the tapir target is not nolo, the tapir loops must have a loop.target
 // metadata whose value is the integer representation of the tapir target.
 //
 // RUN: %kitxx -DUSEF --kokkos --kokkos-no-init %sysroot --tapir=serial -O1 \
@@ -14,21 +14,20 @@
 // SERIAL-NOT: "tapir.loop.target"
 //
 // -----------------------------------------------------------------------------
-// If the tapir target is 'none', the loop must not have any loop.target
-// metadata.
+// If the tapir target is nolo, the loop must not have any loop.target metadata.
 //
-// RUN: %kitxx -DUSEF --kokkos --kokkos-no-init %sysroot --tapir=none -O1 \
+// RUN: %kitxx -DUSEF --kokkos --kokkos-no-init %sysroot --tapir=nolo -O1 \
 // RUN:     -c -emit-llvm -o /dev/null %s \
 // RUN:     -mllvm -print-before=annotation2metadata 2>&1 \
-// RUN:     | FileCheck %s -check-prefix NONE
+// RUN:     | FileCheck %s -check-prefix NOLO
 //
-// NONE-NOT: "tapir.loop.target"
+// NOLO-NOT: "tapir.loop.target"
 //
 // -----------------------------------------------------------------------------
 // If a loop has a tapir target attribute, it must override the value of the
 // loop.target metadata must be the value of the attribute. The tapir target
 // passed on the command line is ignored, even if the specified tapir target
-// is 'none'.
+// is nolo.
 //
 // FIXME: The tests below actually trigger an assertion in LoopSpawningTI
 // because it does not allow the loop.target metadata value to be different
@@ -51,7 +50,7 @@
 // RUN:     -mllvm -print-before=annotation2metadata 2>&1 \
 // RUN:     | FileCheck %s -check-prefix ATTR
 //
-// RUN: %kitxx -DUSEG --kokkos --kokkos-no-init %sysroot --tapir=none -O1 \
+// RUN: %kitxx -DUSEG --kokkos --kokkos-no-init %sysroot --tapir=nolo -O1 \
 // RUN:     -c -emit-llvm -o /dev/null %s \
 // RUN:     -mllvm -print-before=annotation2metadata 2>&1 \
 // RUN:     | FileCheck %s -check-prefix ATTR

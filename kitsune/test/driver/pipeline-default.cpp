@@ -1,7 +1,7 @@
-// If the --tapir=none option is provided without optimizations, neither tapir,
+// If the --tapir=nolo option is provided without optimizations, neither tapir,
 // nor Kitsune, passes are run.
 //
-// RUN: %kitxx --tapir=none -O0 -c -emit-llvm -o /dev/null %s \
+// RUN: %kitxx --tapir=nolo -O0 -c -emit-llvm -o /dev/null %s \
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s -check-prefix O0
 //

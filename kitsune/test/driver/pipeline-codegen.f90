@@ -27,19 +27,19 @@
 ! If the --tapir option is provided, the Kitsune passes are run at all
 ! optimization levels.
 !
-! RUN: %kitfc -O0 --tapir=none %s -c -o /dev/null \
+! RUN: %kitfc -O0 --tapir=nolo %s -c -o /dev/null \
 ! RUN:     -mllvm -debug-pass=Structure 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix TAPIR
 !
-! RUN: %kitfc -O1 --tapir=none %s -c -o /dev/null \
+! RUN: %kitfc -O1 --tapir=nolo %s -c -o /dev/null \
 ! RUN:     -mllvm -debug-pass=Structure 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix TAPIR
 !
-! RUN: %kitfc -O2 --tapir=none %s -c -o /dev/null \
+! RUN: %kitfc -O2 --tapir=nolo %s -c -o /dev/null \
 ! RUN:     -mllvm -debug-pass=Structure 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix TAPIR
 !
-! RUN: %kitfc -O3 --tapir=none %s -c -o /dev/null \
+! RUN: %kitfc -O3 --tapir=nolo %s -c -o /dev/null \
 ! RUN:     -mllvm -debug-pass=Structure 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix TAPIR
 !

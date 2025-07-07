@@ -4,8 +4,8 @@
 ! Providing a valid value to ftapir should not produce any output and return
 ! a success code. This only tests those backends that are always built.
 !
-! RUN: %kitfc -### -ftapir=none -O1 %s
-! RUN: %kitfc -### --tapir=none -O1 %s
+! RUN: %kitfc -### -ftapir=nolo -O1 %s
+! RUN: %kitfc -### --tapir=nolo -O1 %s
 ! RUN: %kitfc -### -ftapir=serial %s -O1
 ! RUN: %kitfc -### --tapir=serial %s -O1
 !

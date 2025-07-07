@@ -2,12 +2,12 @@
 ; various tapir targets.
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt --tapir=none -passes='kit-lower-intrinsics' -S %s \
-; RUN:     | FileCheck --check-prefix=NONE %s
+; RUN: opt --tapir=nolo -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck --check-prefix=NOLO %s
 ;
-; NONE: define {{.+}} @allocate(i64 %[[N:.+]])
-; NONE-NEXT: %[[PTR:[0-9]+]] = call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %[[N]])
-; NONE-NEXT: ret ptr addrspace(67) %[[PTR]]
+; NOLO: define {{.+}} @allocate(i64 %[[N:.+]])
+; NOLO-NEXT: %[[PTR:[0-9]+]] = call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %[[N]])
+; NOLO-NEXT: ret ptr addrspace(67) %[[PTR]]
 ;
 ; ------------------------------------------------------------------------------
 ; RUN: opt --tapir=serial -passes='kit-lower-intrinsics' -S %s \

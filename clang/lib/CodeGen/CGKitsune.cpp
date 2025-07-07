@@ -98,8 +98,8 @@ CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
   for (const Attr *curAttr : Attrs) {
     if (curAttr->getKind() == attr::TapirTarget) {
       switch (cast<const TapirTargetAttr>(curAttr)->getTapirTargetAttrType()) {
-      case TapirTargetAttr::None:
-        return llvm::TTID::None;
+      case TapirTargetAttr::Nolo:
+        return llvm::TTID::Nolo;
       case TapirTargetAttr::Serial:
         return llvm::TTID::Serial;
       case TapirTargetAttr::Cuda:
@@ -294,7 +294,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
   if (std::optional<llvm::TTID> AttrTT = GetTapirTargetAttr(ForallAttr))
     TT = *AttrTT;
-  if (TT != llvm::TTID::None)
+  if (TT != llvm::TTID::Nolo)
     LoopStack.setLoopTarget(TT);
 
   // New basic blocks and jump destinations with Tapir terminators
@@ -464,7 +464,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(
   llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
   if (std::optional<llvm::TTID> AttrTT = GetTapirTargetAttr(ForallAttr))
     TT = *AttrTT;
-  if (TT != llvm::TTID::None)
+  if (TT != llvm::TTID::Nolo)
     LoopStack.setLoopTarget(TT);
 
   if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {

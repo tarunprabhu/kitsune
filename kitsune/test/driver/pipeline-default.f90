@@ -4,10 +4,10 @@
 ! tests. Those will eventually be supported, at which time this test should be
 ! updated to include those as well.
 !
-! If the --tapir=none option is provided without optimizations, neither tapir,
+! If the --tapir=nolo option is provided without optimizations, neither tapir,
 ! nor Kitsune, passes are run.
 !
-! RUN: %kitfc --tapir=none -O0 -c -emit-llvm -o /dev/null %s \
+! RUN: %kitfc --tapir=nolo -O0 -c -emit-llvm -o /dev/null %s \
 ! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix O0
 !

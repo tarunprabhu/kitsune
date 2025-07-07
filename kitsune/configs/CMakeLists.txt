@@ -12,8 +12,8 @@ if (KITSUNE_KOKKOS_ENABLED)
     ${LLVM_BINARY_DIR}/share/kitsune/kokkos.cfg)
 endif ()
 
-configure_file(none.cfg.in
-  ${LLVM_BINARY_DIR}/share/kitsune/none.cfg)
+configure_file(nolo.cfg.in
+  ${LLVM_BINARY_DIR}/share/kitsune/nolo.cfg)
 
 configure_file(serial.cfg.in
   ${LLVM_BINARY_DIR}/share/kitsune/serial.cfg)

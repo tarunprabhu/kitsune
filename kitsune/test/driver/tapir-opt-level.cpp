@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// The --tapir option requires optimizations, unless the tapir target is none.
+// The --tapir option requires optimizations, unless the tapir target is nolo.
 //
 // RUN: not %kitcc --tapir=serial %s -c -emit-llvm -o /dev/null 2>&1 \
 // RUN:      | FileCheck %s --check-prefix=O1
@@ -9,7 +9,7 @@
 //
 // -----------------------------------------------------------------------------
 //
-// RUN: %kitcc --tapir=none -O0 %s -c -emit-llvm -o /dev/null 2>&1 \
+// RUN: %kitcc --tapir=nolo -O0 %s -c -emit-llvm -o /dev/null 2>&1 \
 // RUN:      | FileCheck %s --allow-empty --check-prefix=OK
 //
 // ----------------------------------------------------------------------------
@@ -23,7 +23,7 @@
 //
 // -----------------------------------------------------------------------------
 // If -flto is given, at least O2 is required. There is true even if the tapir
-// target is set to 'none'
+// target is set to nolo.
 //
 // RUN: not %kitcc -flto --tapir=serial -O0 %s -c -emit-llvm -o /dev/null 2>&1 \
 // RUN:      | FileCheck %s --check-prefix=O2
@@ -31,7 +31,7 @@
 // RUN: not %kitcc -flto --tapir=serial -O1 %s -c -emit-llvm -o /dev/null 2>&1 \
 // RUN:      | FileCheck %s --check-prefix=O2
 //
-// RUN: not %kitcc -flto --tapir=none -O1 %s -c -emit-llvm -o /dev/null 2>&1 \
+// RUN: not %kitcc -flto --tapir=nolo -O1 %s -c -emit-llvm -o /dev/null 2>&1 \
 // RUN:      | FileCheck %s --check-prefix=O2
 //
 // RUN: %kitcc -flto --tapir=serial -O2 %s -c -emit-llvm -o /dev/null 2>&1 \

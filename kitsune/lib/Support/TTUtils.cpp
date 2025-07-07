@@ -19,7 +19,7 @@ using namespace llvm;
 // All known tapir targets.
 // TODO: Update this when GPUABI is supported.
 static constexpr TTID tts[] = {
-    TTID::None,     TTID::Serial, TTID::Cuda,   TTID::Hip,
+    TTID::Nolo,     TTID::Serial, TTID::Cuda,   TTID::Hip,
     TTID::OpenCilk, // TTID::GPUABI,
     TTID::Qthreads, TTID::Realm,  TTID::Lambda, TTID::OMPTask, TTID::OpenMP};
 

@@ -27,27 +27,27 @@
 // If the --tapir option is provided, the Kitsune passes are run at all
 // optimization levels.
 //
-// RUN: %kitxx -O0 --tapir=none %s -c -o /dev/null \
+// RUN: %kitxx -O0 --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
 // RUN:     | FileCheck %s -check-prefix TAPIR
 //
-// RUN: %kitxx -O1 --tapir=none %s -c -o /dev/null \
+// RUN: %kitxx -O1 --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
 // RUN:     | FileCheck %s -check-prefix TAPIR
 //
-// RUN: %kitxx -O2 --tapir=none %s -c -o /dev/null \
+// RUN: %kitxx -O2 --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
 // RUN:     | FileCheck %s -check-prefix TAPIR
 //
-// RUN: %kitxx -O3 --tapir=none %s -c -o /dev/null \
+// RUN: %kitxx -O3 --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
 // RUN:     | FileCheck %s -check-prefix TAPIR
 //
-// RUN: %kitxx -Os --tapir=none %s -c -o /dev/null \
+// RUN: %kitxx -Os --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
 // RUN:     | FileCheck %s -check-prefix TAPIR
 //
-// RUN: %kitxx -Oz --tapir=none %s -c -o /dev/null \
+// RUN: %kitxx -Oz --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
 // RUN:     | FileCheck %s -check-prefix TAPIR
 //

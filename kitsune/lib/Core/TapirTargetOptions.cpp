@@ -40,9 +40,9 @@ using namespace llvm;
 // -------------------- options common to all tapir targets --------------------
 
 static cl::opt<TTID>
-    clTapir("tapir", cl::desc("The primary tapir target"), cl::init(TTID::None),
+    clTapir("tapir", cl::desc("The primary tapir target"), cl::init(TTID::Nolo),
             cl::value_desc("target"), cl::cat(cl::catKitClOpts),
-            cl::values(clEnumValN(TTID::None, "none", ""),
+            cl::values(clEnumValN(TTID::Nolo, "nolo", ""),
                        clEnumValN(TTID::Serial, "serial", ""),
                        clEnumValN(TTID::Cuda, "cuda", ""),
                        clEnumValN(TTID::Hip, "hip", ""),
@@ -288,8 +288,6 @@ std::unique_ptr<TapirTargetOptions> TapirTargetOptions::clone() const {
 
   return std::unique_ptr<TapirTargetOptions>(clone);
 }
-
-bool TapirTargetOptions::lower() const { return tt != TTID::None; }
 
 void TapirTargetOptions::print(raw_ostream &os, bool all) const {
   os << "'" << tt << "' tapir target options:\n";

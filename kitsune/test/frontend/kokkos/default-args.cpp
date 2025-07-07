@@ -1,7 +1,7 @@
-// RUN: %kitxx -### -fkokkos --tapir=none %s 2>&1 | FileCheck %s
-// RUN: %kitxx -### --kokkos --tapir=none %s 2>&1 | FileCheck %s
-// RUN: %kitxx -### -fkokkos-no-init --tapir=none %s 2>&1 | FileCheck %s
-// RUN: %kitxx -### --kokkos-no-init --tapir=none %s 2>&1 | FileCheck %s
+// RUN: %kitxx -### -fkokkos --tapir=nolo %s 2>&1 | FileCheck %s
+// RUN: %kitxx -### --kokkos --tapir=nolo %s 2>&1 | FileCheck %s
+// RUN: %kitxx -### -fkokkos-no-init --tapir=nolo %s 2>&1 | FileCheck %s
+// RUN: %kitxx -### --kokkos-no-init --tapir=nolo %s 2>&1 | FileCheck %s
 //
 // CHECK: "-cc1"
 // CHECK-SAME: -I{{[^ ]*}}/include/kokkos

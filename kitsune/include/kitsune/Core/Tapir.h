@@ -24,7 +24,7 @@ namespace llvm {
 /// The identifiers for the known tapir targets.
 ///
 /// These are some useful constraints that it would be useful to maintain.
-/// The "None" tapir target does not perform any lowering - instead, the tapir
+/// The Nolo tapir target does not perform any lowering - instead, the tapir
 /// instructions are retained in the tapir loop even after it has been
 /// "lowered". This should always have an integer value of 0. The serial tapir
 /// target simply lowers the tapir loop to a serial loop. This should have an
@@ -38,9 +38,8 @@ namespace llvm {
 ///
 enum class TTID : uint32_t {
   /// Pseudo tapir target that does not lower tapir instructions. This is
-  /// primarily useful to generate, then serialize LLVM IR containing tapir
-  /// instructions.
-  None = 0x0,
+  /// primarily useful to generate, LLVM IR containing tapir instructions.
+  Nolo = 0x0,
 
   /// Lower to serial projection.
   Serial = 0x1,

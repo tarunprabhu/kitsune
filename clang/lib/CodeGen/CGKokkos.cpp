@@ -302,7 +302,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(
   llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
   if (std::optional<llvm::TTID> AttrTT = GetTapirTargetAttr(KokkosAttrs))
     TT = *AttrTT;
-  if (TT != llvm::TTID::None)
+  if (TT != llvm::TTID::Nolo)
     LoopStack.setLoopTarget(TT);
 
   // New basic blocks and jump destinations with Tapir terminators
