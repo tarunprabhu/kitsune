@@ -37,25 +37,25 @@ entry:
   %cmp4.not = icmp eq i64 %n, 0
   br i1 %cmp4.not, label %forall.sync, label %forall.detach
 
-forall.detach:                                    ; preds = %entry, %forall.inc
+forall.detach:
   %i.05 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
   detach within %syncreg, label %forall.body, label %forall.inc
 
-forall.body:                                      ; preds = %forall.detach
+forall.body:
   %0 = load i32, ptr @v137, align 4
-  %arrayidx = getelementptr inbounds nuw i32, ptr %c, i64 %i.05
+  %arrayidx = getelementptr inbounds i32, ptr %c, i64 %i.05
   store i32 %0, ptr %arrayidx, align 4
   reattach within %syncreg, label %forall.inc
 
-forall.inc:                                       ; preds = %forall.body, %forall.detach
+forall.inc:
   %inc = add nuw i64 %i.05, 1
   %exitcond.not = icmp eq i64 %inc, %n
   br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
 
-forall.sync:                                      ; preds = %forall.inc, %entry
+forall.sync:
   sync within %syncreg, label %forall.end
 
-forall.end:                                       ; preds = %forall.sync
+forall.end:
   ret void
 }
 

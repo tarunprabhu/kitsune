@@ -12,45 +12,39 @@
 
 target triple = "x86_64-unknown-linux-gnu"
 
-@v137.suffix = external local_unnamed_addr global i32, align 4
+@v137.suffix = external global i32, align 4
 @v138.const = constant [4 x i32] [i32 10, i32 21, i32 42, i32 93]
 
-define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp4.not = icmp eq i64 %n, 0
   br i1 %cmp4.not, label %forall.sync, label %forall.detach
 
-forall.detach:                                    ; preds = %entry, %forall.inc
+forall.detach:
   %i.05 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
   detach within %syncreg, label %forall.body, label %forall.inc
 
-forall.body:                                      ; preds = %forall.detach
+forall.body:
   %0 = load i32, ptr @v137.suffix, align 4
-  %1 = getelementptr inbounds nuw i32, ptr @v138.const, i64 %i.05
+  %1 = getelementptr inbounds i32, ptr @v138.const, i64 %i.05
   %2 = load i32, ptr %1, align 4
   %3 = add nuw i32 %0, %2
-  %arrayidx = getelementptr inbounds nuw i32, ptr %c, i64 %i.05
+  %arrayidx = getelementptr inbounds i32, ptr %c, i64 %i.05
   store i32 %3, ptr %arrayidx, align 4
   reattach within %syncreg, label %forall.inc
 
-forall.inc:                                       ; preds = %forall.body, %forall.detach
+forall.inc:
   %inc = add nuw i64 %i.05, 1
   %exitcond.not = icmp eq i64 %inc, %n
   br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
 
-forall.sync:                                      ; preds = %forall.inc, %entry
+forall.sync:
   sync within %syncreg, label %forall.end
 
-forall.end:                                       ; preds = %forall.sync
+forall.end:
   ret void
 }
-
-; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
-declare token @llvm.syncregion.start() #1
-
-attributes #0 = { mustprogress nounwind memory(read, argmem: write, inaccessiblemem: none) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}
