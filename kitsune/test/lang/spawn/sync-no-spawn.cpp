@@ -1,7 +1,7 @@
 // A sync without a corresponding spawn should be an error since the label will
 // not have been declared, but this is not currently checked.
 // XFAIL: *
-// RUN: %kitcc -Xclang -verify -fsyntax-only -ftapir=nolo %s
+// RUN: %kitcc -Xclang -verify -fsyntax-only --tapir=nolo %s
 
 #include <kitsune.h>
 

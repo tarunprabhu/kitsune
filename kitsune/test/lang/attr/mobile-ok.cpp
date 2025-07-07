@@ -1,4 +1,4 @@
-// RUN: %kitxx -ftapir=nolo -S -emit-llvm -O0 -o - %s \
+// RUN: %kitxx --tapir=nolo -S -emit-llvm -O0 -o - %s \
 // RUN:     | FileCheck %s
 
 typedef struct {

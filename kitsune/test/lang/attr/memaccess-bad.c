@@ -1,4 +1,4 @@
-// RUN: %kitcc -ftapir=nolo -Xclang -verify -fsyntax-only %s
+// RUN: %kitcc --tapir=nolo -Xclang -verify -fsyntax-only %s
 
 int f1(_readonly _readwrite int* a, int n) {
   // expected-error@-1 {{multiple access qualifiers}}

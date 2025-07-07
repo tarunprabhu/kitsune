@@ -5,7 +5,7 @@
 // but this has not currently been implemented. When that changes, these tests
 // should be updated.
 //
-// RUN: %kitcc -ftapir=nolo -S -emit-llvm -o - %s | FileCheck %s
+// RUN: %kitcc --tapir=nolo -S -emit-llvm -o - %s | FileCheck %s
 
 #include <stdlib.h>
 

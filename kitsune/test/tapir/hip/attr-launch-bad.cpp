@@ -1,4 +1,4 @@
-// RUN: %kitxx -Xclang -verify -fsyntax-only -ftapir=hip -O1 %s
+// RUN: %kitxx -Xclang -verify -fsyntax-only --tapir=hip -O1 %s
 
 #include <kitsune.h>
 

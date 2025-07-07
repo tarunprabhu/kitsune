@@ -1,4 +1,4 @@
-// RUN: %kitxx -Xclang -verify -ftapir=serial -O1 -fsyntax-only %s
+// RUN: %kitxx -Xclang -verify --tapir=serial -O1 -fsyntax-only %s
 
 #include <string>
 

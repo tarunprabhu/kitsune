@@ -6,7 +6,7 @@
 ! RUN: false
 !
 ! ------------------------------------------------------------------------------
-! RUN: %kitfc -### -ftapir=realm %s 2>&1 | FileCheck %s
+! RUN: %kitfc -### --tapir=realm %s 2>&1 | FileCheck %s
 ! RUN: %kitfc -### --tapir=realm %s 2>&1 | FileCheck %s
 !
 ! CHECK: -fc1

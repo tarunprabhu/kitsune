@@ -3,7 +3,7 @@
 # FIXME: Need to double-check exactly what to expect here, so, for now, just
 # check that tapir instructions are removed.
 #
-# RUN: %kitxx -ftapir=serial -O2 -flto -Wl,--lto-emit-llvm -o - %sysroot \
+# RUN: %kitxx --tapir=serial -O2 -flto -Wl,--lto-emit-llvm -o - %sysroot \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp \
 # RUN:     | llvm-dis -o - \
 # RUN:     | FileCheck %s

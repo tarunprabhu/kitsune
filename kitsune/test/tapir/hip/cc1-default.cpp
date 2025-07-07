@@ -33,7 +33,7 @@
 // Check that the stripmine pass is disabled by default. This checks that the
 // the pipeline tuning options object value is set correctly by default.
 //
-// RUN: %kitxx -mllvm -print-pipeline-passes -O2 -ftapir=hip \
+// RUN: %kitxx -mllvm -print-pipeline-passes -O2 --tapir=hip \
 // RUN:      -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
 //
 // STRIPMINE-PASS-NOT: loop-stripmine

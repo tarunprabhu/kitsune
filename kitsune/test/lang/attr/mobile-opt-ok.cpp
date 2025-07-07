@@ -1,4 +1,4 @@
-// RUN: %kitxx -ftapir=serial -S -emit-llvm -O1 -o - %s \
+// RUN: %kitxx --tapir=serial -S -emit-llvm -O1 -o - %s \
 // RUN:     | FileCheck %s
 
 extern "C" {

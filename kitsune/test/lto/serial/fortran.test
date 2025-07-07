@@ -9,7 +9,7 @@
 # FIXME: Need to double-check exactly what to expect here, so, for now, just
 # check that tapir instructions are removed.
 #
-# RUN: %kitfc -ftapir=serial -O2 -flto -Wl,--lto-emit-llvm -o - %sysroot \
+# RUN: %kitfc --tapir=serial -O2 -flto -Wl,--lto-emit-llvm -o - %sysroot \
 # RUN:     %S/../input/add.f90 %S/../input/main.f90 \
 # RUN:     | llvm-dis \
 # RUN:     | FileCheck %s

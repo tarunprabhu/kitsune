@@ -1,4 +1,4 @@
-// RUN: %kitxx -Xclang -verify -fsyntax-only -ftapir=nolo %s
+// RUN: %kitxx -Xclang -verify -fsyntax-only --tapir=nolo %s
 //
 // This checks for various syntax errors in a forall statement. These are
 // essentially the same checks as those for a regular for statement. The forall

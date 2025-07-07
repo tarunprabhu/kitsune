@@ -20,7 +20,7 @@
 ! Check that the stripmine pass is enabled by default. This checks that the
 ! the pipeline tuning options object value is set correctly by default.
 !
-! RUN: %kitfc -mllvm -print-pipeline-passes -O2 -ftapir=serial \
+! RUN: %kitfc -mllvm -print-pipeline-passes -O2 --tapir=serial \
 ! RUN:     -S -emit-llvm %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
 !

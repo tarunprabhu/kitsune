@@ -6,7 +6,7 @@
 ! RUN: false
 !
 ! ------------------------------------------------------------------------------
-! RUN: %kitfc -### -ftapir=qthreads %s 2>&1 | FileCheck %s
+! RUN: %kitfc -### --tapir=qthreads %s 2>&1 | FileCheck %s
 ! RUN: %kitfc -### --tapir=qthreads %s 2>&1 | FileCheck %s
 !
 ! CHECK: -fc1

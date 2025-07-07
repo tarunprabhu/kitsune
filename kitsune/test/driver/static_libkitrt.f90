@@ -6,7 +6,7 @@
 !
 ! ----------------------------------------------------------------------------
 !
-! RUN: %kitfc -### -ftapir=opencilk -O2 %s 2>&1 \
+! RUN: %kitfc -### --tapir=opencilk -O2 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix DYNAMIC
 !
 ! DYNAMIC: -dynamic-linker
@@ -15,7 +15,7 @@
 !
 ! ----------------------------------------------------------------------------
 !
-! RUN: %kitfc -### -ftapir=opencilk -O2 -static-libkitrt %s 2>&1 \
+! RUN: %kitfc -### --tapir=opencilk -O2 -static-libkitrt %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix LIBKITRT
 !
 ! LIBKITRT: -dynamic-linker
@@ -25,7 +25,7 @@
 !
 ! ----------------------------------------------------------------------------
 !
-! RUN: %kitfc -### -ftapir=opencilk -O2 -static %s 2>&1 \
+! RUN: %kitfc -### --tapir=opencilk -O2 -static %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STATIC
 !
 ! STATIC: -fc1

@@ -1,4 +1,4 @@
-// RUN: %kitcc -ftapir=nolo -Xclang -verify -fsyntax-only %s
+// RUN: %kitcc --tapir=nolo -Xclang -verify -fsyntax-only %s
 
 // Attributes are not valid on functions.
 int _readonly f5(int* a, int n);

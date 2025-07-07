@@ -22,28 +22,28 @@
 ! Check that stripmining is enabled correctly depending on the optimization
 ! level.
 !
-! RUN: %kitfc -### -O1 -ftapir=serial %s 2>&1 \
+! RUN: %kitfc -### -O1 --tapir=serial %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
-! RUN: %kitfc -### -O2 -ftapir=serial %s 2>&1 \
+! RUN: %kitfc -### -O2 --tapir=serial %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STRIPMINE
-! RUN: %kitfc -### -O3 -ftapir=serial %s 2>&1 \
+! RUN: %kitfc -### -O3 --tapir=serial %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STRIPMINE
-! RUN: %kitfc -### -Os -ftapir=serial %s 2>&1 \
+! RUN: %kitfc -### -Os --tapir=serial %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STRIPMINE
-! RUN: %kitfc -### -Oz -ftapir=serial %s 2>&1 \
+! RUN: %kitfc -### -Oz --tapir=serial %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
 !
 ! Check that the -fstripmine and -fno-stripmine flags override the defaults
 !
-! RUN: %kitfc -### -O1 -ftapir=serial -fstripmine %s 2>&1 \
+! RUN: %kitfc -### -O1 --tapir=serial -fstripmine %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STRIPMINE
-! RUN: %kitfc -### -O2 -ftapir=serial -fno-stripmine %s 2>&1 \
+! RUN: %kitfc -### -O2 --tapir=serial -fno-stripmine %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
-! RUN: %kitfc -### -O3 -ftapir=serial -fno-stripmine %s 2>&1 \
+! RUN: %kitfc -### -O3 --tapir=serial -fno-stripmine %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
-! RUN: %kitfc -### -Os -ftapir=serial -fno-stripmine %s 2>&1 \
+! RUN: %kitfc -### -Os --tapir=serial -fno-stripmine %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
-! RUN: %kitfc -### -Oz -ftapir=serial -fstripmine %s 2>&1 \
+! RUN: %kitfc -### -Oz --tapir=serial -fstripmine %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STRIPMINE
 !
 ! STRIPMINE: -fstripmine
@@ -53,10 +53,10 @@
 !
 ! Check that the stripmine pass is enabled/disabled correctly
 !
-! RUN: %kitfc -mllvm -print-pipeline-passes -O2 -fstripmine -ftapir=serial \
+! RUN: %kitfc -mllvm -print-pipeline-passes -O2 -fstripmine --tapir=serial \
 ! RUN:      -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
 !
-! RUN: %kitfc -mllvm -print-pipeline-passes -O2 -fno-stripmine -ftapir=serial \
+! RUN: %kitfc -mllvm -print-pipeline-passes -O2 -fno-stripmine --tapir=serial \
 ! RUN:      -S -emit-llvm %s | FileCheck %s -check-prefix NO-STRIPMINE-PASS
 !
 ! STRIPMINE-PASS: loop-stripmine
