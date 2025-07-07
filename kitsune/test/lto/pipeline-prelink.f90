@@ -8,9 +8,9 @@
 ! regardless of the specified optimization level.
 !
 ! -----------------------------------------------------------------------------
-! Only the 'none' tapir target is allowed at -O0.
+! Only the nolo tapir target is allowed at -O0.
 !
-! RUN: %kitfc -O2 --tapir=none -c -emit-llvm -o /dev/null %s \
+! RUN: %kitfc -O2 --tapir=nolo -c -emit-llvm -o /dev/null %s \
 ! RUN:     -flto -Xflang -fdebug-pass-manager %sysroot 2>&1 \
 ! RUN:     | FileCheck %s
 !

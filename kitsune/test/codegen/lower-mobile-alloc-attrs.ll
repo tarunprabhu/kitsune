@@ -3,15 +3,15 @@
 ; special case in the lowering code.
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt --tapir=none -passes='kit-lower-intrinsics' -S %s \
-; RUN:     | FileCheck --check-prefixes NONE,ATTRS %s
+; RUN: opt --tapir=nolo -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck --check-prefixes NOLO,ATTRS %s
 ;
-; NONE: define {{.+}} @allocate(i64 %[[N:.+]])
-; NONE-NEXT: call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %[[N]]){{$}}
-; NONE-NEXT: call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %[[N]]) #[[ATTR:[0-9]+]]
-; NONE-NEXT: call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 noundef %[[N]]){{$}}
-; NONE-NEXT: call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 noundef %[[N]]) #[[ATTR]]
-; NONE-NEXT: ret ptr addrspace(67) null
+; NOLO: define {{.+}} @allocate(i64 %[[N:.+]])
+; NOLO-NEXT: call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %[[N]]){{$}}
+; NOLO-NEXT: call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %[[N]]) #[[ATTR:[0-9]+]]
+; NOLO-NEXT: call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 noundef %[[N]]){{$}}
+; NOLO-NEXT: call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 noundef %[[N]]) #[[ATTR]]
+; NOLO-NEXT: ret ptr addrspace(67) null
 ;
 ; ------------------------------------------------------------------------------
 ; RUN: opt --tapir=serial -passes='kit-lower-intrinsics' -S %s \

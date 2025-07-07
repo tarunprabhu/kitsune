@@ -2,14 +2,14 @@
 ; llvm.kit.mobile.alloc intrinsics.
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt --tapir=none -passes='kit-lower-intrinsics' -S %s \
-; RUN:     | FileCheck --check-prefix=NONE %s
+; RUN: opt --tapir=nolo -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck --check-prefix=NOLO %s
 ;
-; NONE: define {{.+}} @allocate(i64 %[[N:.+]])
-; NONE-NEXT: %[[PTR1:[0-9]+]] = tail call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %[[N]])
-; NONE-NEXT: %[[PTR2:[0-9]+]] = notail call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %[[N]])
-; NONE-NEXT: %[[PTR3:[0-9]+]] = musttail call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %[[N]])
-; NONE-NEXT: ret ptr addrspace(67) %[[PTR3]]
+; NOLO: define {{.+}} @allocate(i64 %[[N:.+]])
+; NOLO-NEXT: %[[PTR1:[0-9]+]] = tail call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %[[N]])
+; NOLO-NEXT: %[[PTR2:[0-9]+]] = notail call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %[[N]])
+; NOLO-NEXT: %[[PTR3:[0-9]+]] = musttail call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %[[N]])
+; NOLO-NEXT: ret ptr addrspace(67) %[[PTR3]]
 ;
 ; ------------------------------------------------------------------------------
 ; musttail calls are relaxed to simple tail calls. Since the result of the

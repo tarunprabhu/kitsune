@@ -44,7 +44,7 @@ TapirTarget *llvm::getTapirTargetFromID(Module &M, TTID ID,
   // Yes, this is absolutely hideous. We should try to find a nicer way than
   // this horrendous conditionally compiled mess!
   switch (ID) {
-  case TTID::None:
+  case TTID::Nolo:
     return nullptr;
 
 #if KITSUNE_CUDA_ENABLED

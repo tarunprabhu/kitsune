@@ -1948,7 +1948,8 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
 
   // Lower Tapir if necessary. If the LTO phase is prelink, we should not run
   // the tapir lowering passes. Those should only run at actual link time
-  if (PTO.TTOpts && PTO.TTOpts->lower() && !isLTOPreLink(Phase)) {
+  const std::optional<TapirTargetOptions> &TTOpts = PTO.TTOpts;
+  if (TTOpts && TTOpts->getTTID() != TTID::Nolo && !isLTOPreLink(Phase)) {
     MPM.addPass(buildKitsunePreTapirPipeline(Level, Phase));
     MPM.addPass(buildTapirLoweringPipeline(Level, Phase));
     MPM.addPass(buildKitsunePostTapirPipeline(Level, Phase));
@@ -2128,7 +2129,7 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
   invokeTapirLateEPCallbacks(MPM, Level);
 
   // Lower Tapir if necessary
-  if (PTO.TTOpts && PTO.TTOpts->lower()) {
+  if (PTO.TTOpts && PTO.TTOpts->getTTID() != TTID::Nolo) {
     ThinOrFullLTOPhase Phase = ThinOrFullLTOPhase::ThinLTOPostLink;
     MPM.addPass(buildKitsunePreTapirPipeline(Level, Phase));
     MPM.addPass(buildTapirLoweringPipeline(Level, Phase));
@@ -2508,7 +2509,7 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   // those that must only be run if tapir lowering has been enabled.
 
   // Lower Tapir if necessary
-  if (PTO.TTOpts && PTO.TTOpts->lower()) {
+  if (PTO.TTOpts && PTO.TTOpts->getTTID() != TTID::Nolo) {
     ThinOrFullLTOPhase Phase = ThinOrFullLTOPhase::FullLTOPostLink;
     MPM.addPass(buildKitsunePreTapirPipeline(Level, Phase));
     MPM.addPass(buildTapirLoweringPipeline(Level, Phase));
@@ -2636,7 +2637,8 @@ PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
   // Add passes to run just before Tapir lowering.
   invokeTapirLateEPCallbacks(MPM, Level);
 
-  if (PTO.TTOpts && PTO.TTOpts->lower() && !isLTOPreLink(Phase)) {
+  const std::optional<TapirTargetOptions> &TTOpts = PTO.TTOpts;
+  if (TTOpts && TTOpts->getTTID() != TTID::Nolo && !isLTOPreLink(Phase)) {
     MPM.addPass(buildKitsunePreTapirPipeline(Level, Phase));
     MPM.addPass(buildTapirLoweringPipeline(Level, Phase));
     MPM.addPass(buildKitsunePostTapirPipeline(Level, Phase));

@@ -127,7 +127,7 @@ bool driver::IsKitsuneFrontend(StringRef ProgName) {
 static void CheckTTEnabled(const Driver &D, llvm::TTID TT) {
   // If the tapir target has not been enabled, fail right away.
   switch (TT) {
-  case llvm::TTID::None:
+  case llvm::TTID::Nolo:
     return;
   case llvm::TTID::Cuda:
     if (!KITSUNE_CUDA_ENABLED)
@@ -282,9 +282,9 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
     unsigned speedupLevel = getSpeedupLevel(Args, Diags);
 
     // The --tapir option requires optimization level O1 or higher, unless the
-    // tapir target is set to 'none'. The latter allows -O0 because no lowering
+    // tapir target is set to nolo. The latter allows -O0 because no lowering
     // takes place and it is very useful to just dump out "tapirized" LLVM IR.
-    if (speedupLevel == 0 && *TT != llvm::TTID::None)
+    if (speedupLevel == 0 && *TT != llvm::TTID::Nolo)
       D.Diag(clang::diag::err_drv_kitsune_optzns_required);
 
     // The way the middle-end passes are built, the tapir passes are not run if

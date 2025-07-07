@@ -4779,7 +4779,7 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
   auto GenerateTTArg = [&](llvm::TTID TT, const KitsuneOptions &Opts,
                            ArgumentConsumer Consumer) -> void {
     switch (TT) {
-    case llvm::TTID::None:
+    case llvm::TTID::Nolo:
       return;
     case llvm::TTID::Cuda:
       GenerateArg(Consumer, OPT_tapir_cuda_arch_EQ, Opts.getCudaArch());

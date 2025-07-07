@@ -2264,7 +2264,7 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
   auto AddTTArgs = [&](TTID TT, const ArgList &Args,
                        ArgStringList &CmdArgs) -> void {
     switch (TT) {
-    case TTID::None:
+    case TTID::Nolo:
       return;
     case TTID::Cuda:
       return ExtractArgsFromString(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS,
@@ -2321,7 +2321,7 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
   auto AddTTArgs = [&](TTID TT, const ArgList &Args,
                        ArgStringList &CmdArgs) -> void {
     switch (TT) {
-    case TTID::None:
+    case TTID::Nolo:
       return;
     case TTID::Cuda:
       AddKitsuneCudaCommonArgs(Args, CmdArgs);
@@ -2530,7 +2530,7 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
   auto AddTTArgs = [&](TTID TT, const ArgList &Args,
                        ArgStringList &CmdArgs) -> void {
     switch (TT) {
-    case TTID::None:
+    case TTID::Nolo:
       return;
     case TTID::Cuda:
       AddKitsuneCudaLinkerArgs(Args, CmdArgs);
@@ -2649,7 +2649,7 @@ void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
   auto AddTTArgs = [&](TTID TT, const ArgList &Args,
                        ArgStringList &CmdArgs) -> void {
     switch (TT) {
-    case TTID::None:
+    case TTID::Nolo:
       return;
     case TTID::Cuda:
       return AddKitsuneCudaCommonArgs(Args, CmdArgs, /*MLLVM=*/true);

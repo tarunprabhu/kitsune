@@ -6,7 +6,7 @@
 // TeamPolicy's, this should be replaced with something else that is not
 // supported.
 //
-// RUN: %kitxx -fkokkos -fkokkos-no-init -O1 --tapir=none -S -emit-llvm \
+// RUN: %kitxx -fkokkos -fkokkos-no-init -O1 --tapir=nolo -S -emit-llvm \
 // RUN:     -fno-inline -o - %sysroot %s \
 // RUN:     | FileCheck %s
 

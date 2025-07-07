@@ -1,16 +1,16 @@
 // -----------------------------------------------------------------------------
-// If the tapir target is 'none', the behavior is similar to the regular
-// pipeline i.e. loop spawning is not run and neither are any Kitsune passes.
+// If the tapir target is nolo, the behavior is similar to the regular pipeline
+// i.e. loop spawning is not run and neither are any Kitsune passes.
 //
-// RUN: %kitcc -O2 --tapir=none -Xlinker --lto-emit-llvm -o /dev/null %s \
+// RUN: %kitcc -O2 --tapir=nolo -Xlinker --lto-emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xlinker --lto-debug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s -check-prefix NONE
+// RUN:     | FileCheck %s -check-prefix NOLO
 //
-// NONE:      Running pass:     VerifierPass
-// NONE-NOT:  Running pass:     LoopSpawning
-// NONE-NOT:  Running pass:     LowerRuntimeIntrinsicsPass
-// NONE:      Running pass:     VerifierPass
-// NONE-NEXT: Running analysis: VerifierAnalysis
+// NOLO:      Running pass:     VerifierPass
+// NOLO-NOT:  Running pass:     LoopSpawning
+// NOLO-NOT:  Running pass:     LowerRuntimeIntrinsicsPass
+// NOLO:      Running pass:     VerifierPass
+// NOLO-NEXT: Running analysis: VerifierAnalysis
 //
 // -----------------------------------------------------------------------------
 // All Kitsune, and Tapir, passes should run during the postlink phase of LTO.

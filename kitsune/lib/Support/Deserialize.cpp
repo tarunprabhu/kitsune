@@ -19,7 +19,7 @@ using namespace llvm;
 
 std::optional<TTID> llvm::createTTIDFrom(StringRef s) {
   return StringSwitch<std::optional<TTID>>(s)
-      .Case("none", TTID::None)
+      .Case("nolo", TTID::Nolo)
       .Case("cuda", TTID::Cuda)
       .Case("hip", TTID::Hip)
       .Case("lambda", TTID::Lambda)
@@ -35,7 +35,7 @@ std::optional<TTID> llvm::createTTIDFrom(StringRef s) {
 std::optional<TTID> llvm::createTTIDFrom(uint32_t u) {
   switch (u) {
   case 0x0:
-    return TTID::None;
+    return TTID::Nolo;
   case 0x1:
     return TTID::Serial;
   case 0x2:

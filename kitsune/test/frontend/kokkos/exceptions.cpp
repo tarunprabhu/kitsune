@@ -2,22 +2,22 @@
 // If Kokkos mode is enabled, exceptions are turned off automatically unless
 // explicitly requested by the user.
 //
-// RUN: %kitxx -### --kokkos --tapir=none %s 2>&1 \
+// RUN: %kitxx -### --kokkos --tapir=nolo %s 2>&1 \
 // RUN:     | FileCheck --check-prefixes=NO-EXCEPTIONS %s
 //
-// RUN: %kitxx -### --kokkos-no-init --tapir=none %s 2>&1 \
+// RUN: %kitxx -### --kokkos-no-init --tapir=nolo %s 2>&1 \
 // RUN:     | FileCheck --check-prefixes=NO-EXCEPTIONS %s
 //
-// RUN: %kitxx -### --kokkos -fexceptions --tapir=none %s 2>&1 \
+// RUN: %kitxx -### --kokkos -fexceptions --tapir=nolo %s 2>&1 \
 // RUN:     | FileCheck --check-prefixes=EXCEPTIONS %s
 //
-// RUN: %kitxx -### --kokkos-no-init -fexceptions --tapir=none %s 2>&1 \
+// RUN: %kitxx -### --kokkos-no-init -fexceptions --tapir=nolo %s 2>&1 \
 // RUN:     | FileCheck --check-prefixes=EXCEPTIONS %s
 //
-// RUN: %kitxx -### --kokkos -fcxx-exceptions --tapir=none %s 2>&1 \
+// RUN: %kitxx -### --kokkos -fcxx-exceptions --tapir=nolo %s 2>&1 \
 // RUN:     | FileCheck --check-prefixes=EXCEPTIONS %s
 //
-// RUN: %kitxx -### --kokkos-no-init -fcxx-exceptions --tapir=none %s 2>&1 \
+// RUN: %kitxx -### --kokkos-no-init -fcxx-exceptions --tapir=nolo %s 2>&1 \
 // RUN:     | FileCheck --check-prefixes=EXCEPTIONS %s
 //
 // -----------------------------------------------------------------------------

@@ -2,13 +2,13 @@
 ; intrinsics.
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt --tapir=none -passes='kit-lower-intrinsics' -S %s \
-; RUN:     | FileCheck --check-prefixes NONE,DEBUG %s
+; RUN: opt --tapir=nolo -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck --check-prefixes NOLO,DEBUG %s
 ;
-; NONE: define {{.+}} @deallocate(ptr addrspace(67) %[[P:[^)]+]])
-; NONE-NEXT: #dbg_value
-; NONE-NEXT: call void @llvm.kit.mobile.free(ptr addrspace(67) %[[P]]), !dbg ![[LOC:[0-9]+]]
-; NONE-NEXT: ret void
+; NOLO: define {{.+}} @deallocate(ptr addrspace(67) %[[P:[^)]+]])
+; NOLO-NEXT: #dbg_value
+; NOLO-NEXT: call void @llvm.kit.mobile.free(ptr addrspace(67) %[[P]]), !dbg ![[LOC:[0-9]+]]
+; NOLO-NEXT: ret void
 ;
 ; ------------------------------------------------------------------------------
 ; RUN: opt --tapir=serial -passes='kit-lower-intrinsics' -S %s \
