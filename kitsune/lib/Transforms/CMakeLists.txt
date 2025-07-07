@@ -1,15 +1,14 @@
 add_llvm_component_library(LLVMKitTransforms
   EmbLinkLibDeviceBitcode.cpp
   EmbPrepare.cpp
+  EmbPrepareCuda.cpp
+  EmbPrepareHip.cpp
   EmbOptimize.cpp
   EmbResolveLibDeviceCalls.cpp
   GenerateCtors.cpp
   GenerateCtorCuda.cpp
   GenerateCtorHip.cpp
-  LowerKitsuneRuntimeIntrinsics.cpp
-  LowerMobileIntrinsics.cpp
   RecomputeKernelProperties.cpp
-  StripKitsuneAddrSpace.cpp
 
   DEPENDS
   intrinsics_gen

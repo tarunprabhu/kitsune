@@ -17,7 +17,6 @@
 
 ; LAXX-LABEL: Pass Arguments:
 ; LAXX-NEXT: Target Library Information
-; LAXX-NEXT: Tapir Target Analysis
 ; LAXX-NEXT: Target Pass Configuration
 ; LAXX-NEXT: Machine Module Information
 ; LAXX-NEXT: Target Transform Information
@@ -30,7 +29,6 @@
 ; LAXX-NEXT: Default Regalloc Eviction Advisor
 ; LAXX-NEXT: Default Regalloc Priority Advisor
 ; LAXX-NEXT:   ModulePass Manager
-; LAXX-NEXT:     Generate Kitsune fat binaries
 ; LAXX-NEXT:     Pre-ISel Intrinsic Lowering
 ; LAXX-NEXT:     FunctionPass Manager
 ; LAXX-NEXT:       Expand large div/rem

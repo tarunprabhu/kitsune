@@ -24,17 +24,6 @@
 // --gcc-install-dir on the command line
 #define KITSUNE_GCC_INSTALL_DIR "@KITSUNE_GCC_INSTALL_DIR@"
 
-// The address space for Kitsune's mobile pointers. This is a lousy workaround
-// because there is no way to have attributed types in LLVM, but we want to be
-// able to identify pointers to data that may be moved between host and device
-// memory when GPU tapir targets are enabled. LLVM has a maximum of 24-bits for
-// the address space, clang has 22 (23 usually, but we stole a bit in Kitsune -
-// ironically, for the mobile attribute). Just in case, don't use more than
-// 16 bits for this.
-constexpr unsigned KITSUNE_ADDRSPACE = 67;
-static_assert(KITSUNE_ADDRSPACE <= 0xFFFF &&
-              "Kitsune's address space must occupy no more than 16 bits");
-
 // When using a fixed number of threads per block, the maximum value that can be
 // specified.
 constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;

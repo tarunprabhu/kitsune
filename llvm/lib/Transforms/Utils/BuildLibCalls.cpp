@@ -1318,26 +1318,26 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
   case LibFunc_kitcuda_finalize:
   case LibFunc_kitcuda_initialize:
   case LibFunc_kitcuda_launch_kernel:
-  case LibFunc_kitcuda_prefetch_device:
-  case LibFunc_kitcuda_prefetch_host:
+  case LibFunc_kitcuda_prefetch_dtoh:
+  case LibFunc_kitcuda_prefetch_htod:
   case LibFunc_kitcuda_set_fixed_tpb:
   case LibFunc_kitcuda_set_max_tpb:
   case LibFunc_kitcuda_symbol_device_ptr:
-  case LibFunc_kitcuda_symbol_memcpy_device:
-  case LibFunc_kitcuda_symbol_memcpy_host:
+  case LibFunc_kitcuda_symbol_memcpy_dtoh:
+  case LibFunc_kitcuda_symbol_memcpy_htod:
   case LibFunc_kitcuda_sync_stream:
   case LibFunc_kithip_enable_xnack:
   case LibFunc_kithip_enable_y_axis_launches:
   case LibFunc_kithip_finalize:
   case LibFunc_kithip_initialize:
   case LibFunc_kithip_launch_kernel:
-  case LibFunc_kithip_prefetch_device:
-  case LibFunc_kithip_prefetch_host:
+  case LibFunc_kithip_prefetch_dtoh:
+  case LibFunc_kithip_prefetch_htod:
   case LibFunc_kithip_set_fixed_tpb:
   case LibFunc_kithip_set_max_tpb:
   case LibFunc_kithip_symbol_device_ptr:
-  case LibFunc_kithip_symbol_memcpy_device:
-  case LibFunc_kithip_symbol_memcpy_host:
+  case LibFunc_kithip_symbol_memcpy_dtoh:
+  case LibFunc_kithip_symbol_memcpy_htod:
   case LibFunc_kithip_sync_stream:
   case LibFunc_kitrt_enable_verbose:
     Changed |= setOnlyAccessesInaccessibleMemOrArgMem(F);
@@ -1465,6 +1465,8 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
     break;
 
   case LibFunc_kitcuda_enable_refine_launches:
+  case LibFunc_kitcuda_managed_malloc:
+  case LibFunc_kithip_managed_malloc:
   case LibFunc_kitcuda_set_fixed_tpb:
   case LibFunc_kitcuda_set_max_tpb:
   case LibFunc_kithip_set_fixed_tpb:
@@ -1472,10 +1474,10 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
     setArgExtAttr(*F, 0, TLI);
     break;
 
-  case LibFunc_kitcuda_symbol_memcpy_device:
-  case LibFunc_kitcuda_symbol_memcpy_host:
-  case LibFunc_kithip_symbol_memcpy_device:
-  case LibFunc_kithip_symbol_memcpy_host:
+  case LibFunc_kitcuda_symbol_memcpy_dtoh:
+  case LibFunc_kitcuda_symbol_memcpy_htod:
+  case LibFunc_kithip_symbol_memcpy_dtoh:
+  case LibFunc_kithip_symbol_memcpy_htod:
     setArgExtAttr(*F, 2, TLI);
     break;
 

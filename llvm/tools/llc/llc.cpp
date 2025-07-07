@@ -15,6 +15,7 @@
 #include "NewPMDriver.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/PipelineUtils.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
@@ -692,13 +693,6 @@ static int compileModule(char **argv, LLVMContext &Context) {
 
     // Construct a custom pass pipeline that starts after instruction
     // selection.
-    if (getRunPassNames().empty()) {
-      std::optional<TapirTargetOptions> TTO =
-          TapirTargetOptions::createFromCommandLine(OptLevel);
-      PM.add(createTapirTargetAnalysisWrapperPass(TTO));
-      if (TTO)
-        PM.add(createCodeGenFatBinariesLegacyPass());
-    }
     if (!getRunPassNames().empty()) {
       if (!MIR) {
         WithColor::warning(errs(), argv[0])
@@ -728,10 +722,14 @@ static int compileModule(char **argv, LLVMContext &Context) {
       TPC.setInitialized();
       PM.add(createPrintMIRPass(*OS));
       PM.add(createFreeMachineFunctionPass());
-    } else if (Target->addPassesToEmitFile(
-                   PM, *OS, DwoOut ? &DwoOut->os() : nullptr,
-                   codegen::getFileType(), NoVerify, MMIWP)) {
-      reportError("target does not support generation of this file type");
+    } else {
+      std::optional<TapirTargetOptions> TTO =
+          TapirTargetOptions::createFromCommandLine(OptLevel);
+      if (TTO)
+        populateKitCodeGenPasses(PM, TTO);
+      if (Target->addPassesToEmitFile(PM, *OS, DwoOut ? &DwoOut->os() : nullptr,
+                                      codegen::getFileType(), NoVerify, MMIWP))
+        reportError("target does not support generation of this file type");
     }
 
     const_cast<TargetLoweringObjectFile *>(Target->getObjFileLowering())

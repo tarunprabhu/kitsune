@@ -3,7 +3,6 @@
 ; REQUIRES: asserts
 
 ; CHECK:       ModulePass Manager
-; CHECK-NEXT:    Generate Kitsune fat binaries
 ; CHECK-NEXT:    Pre-ISel Intrinsic Lowering
 ; CHECK-NEXT:    FunctionPass Manager
 ; CHECK-NEXT:      Expand large div/rem

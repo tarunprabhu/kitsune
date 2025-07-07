@@ -14,10 +14,11 @@
 ; RUN:     | FileCheck %s --check-prefix=O0
 ;
 ; O0: NVVMReflectPass
-; O0-SAME: LowerMobileIntrinsics
 ; O0-NOT: LoopUnrollPass
 ; O0-NOT: EmbResolveLibDeviceCalls
 ; O0-NOT: GenerateCtors
+; O0-SAME: GlobalDCEPass
+; O0-SAME: VerifierPass
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -28,9 +29,10 @@
 ;
 ; O1: NVVMReflectPass
 ; O1-SAME: LoopUnrollPass<O1>
-; O1-SAME: LowerMobileIntrinsics
 ; O1-NOT: EmbResolveLibDeviceCalls
 ; O1-NOT: GenerateCtors
+; O1-SAME: GlobalDCEPass
+; O1-SAME: VerifierPass
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -41,9 +43,10 @@
 ;
 ; O2: NVVMReflectPass
 ; O2-SAME: LoopUnrollPass<O2>
-; O2-SAME: LowerMobileIntrinsics
 ; O2-NOT: EmbResolveLibDeviceCalls
 ; O2-NOT: GenerateCtors
+; O2-SAME: GlobalDCEPass
+; O2-SAME: VerifierPass
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -54,9 +57,10 @@
 ;
 ; O3: NVVMReflectPass
 ; O3-SAME: LoopUnrollPass<O3>
-; O3-SAME: LowerMobileIntrinsics
 ; O3-NOT: EmbResolveLibDeviceCalls
 ; O3-NOT: GenerateCtors
+; O3-SAME: GlobalDCEPass
+; O3-SAME: VerifierPass
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -67,10 +71,11 @@
 ;
 ; Os: NVVMReflectPass
 ; Os-SAME: LoopRotatePass<header-duplication;no-prepare-for-lto>
-; Os-SAME: LowerMobileIntrinsics
 ; Os-NOT: LibCallsShrinkWrapPass
 ; Os-NOT: EmbResolveLibDeviceCalls
 ; Os-NOT: GenerateCtors
+; Os-SAME: GlobalDCEPass
+; Os-SAME: VerifierPass
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -81,17 +86,17 @@
 ;
 ; Oz: NVVMReflectPass
 ; Oz-SAME: LoopRotatePass<no-header-duplication;no-prepare-for-lto>
-; Oz-SAME: LowerMobileIntrinsics
 ; Oz-NOT: LibCallsShrinkWrapPass
 ; Oz-NOT: EmbResolveLibDeviceCalls
 ; Oz-NOT: GenerateCtors
+; Oz-SAME: GlobalDCEPass
+; Oz-SAME: VerifierPass
 ;
 ; ------------------------------------------------------------------------------
 
 target triple = "x86_64-pc-linux-gnu"
 
-; Function Attrs: nounwind memory(argmem: write) uwtable
-define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i64 %n, 0
@@ -120,12 +125,6 @@ forall.sync:                                      ; preds = %forall.inc, %entry
 forall.end:                                       ; preds = %forall.sync
   ret void
 }
-
-; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
-declare token @llvm.syncregion.start() #1
-
-attributes #0 = { nounwind memory(argmem: write) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}

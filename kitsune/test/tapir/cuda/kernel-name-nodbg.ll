@@ -3,10 +3,10 @@
 ; are demangled when generating the outlined kernel name.
 ;
 ; NOTE: At this time, the generated name is obtained from the source file and
-; debug info, if available. The approach currently used still runs (low) risk of
-; collisions with other function names. Eventually, we will switch to some form
-; of name mangling to eliminate the change of collisions. When that happens,
-; this test may need to be updated/removed.
+; debug info, if available. The approach currently used still runs a (low) risk
+; of collisions with other function names. Eventually, we will switch to some
+; form of name mangling to eliminate the change of collisions. When that
+; happens, this test may need to be updated/removed.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 %s \
 ; RUN:     -passes='tapir-lowering<O2>' \
@@ -19,8 +19,7 @@
 
 target triple = "x86_64-unknown-linux-gnu"
 
-; Function Attrs: mustprogress nounwind memory(argmem: readwrite) uwtable
-define dso_local void @_Z5scalePffm(ptr nocapture noundef %buf, float noundef %factor, i64 noundef %n) local_unnamed_addr #0 {
+define void @_Z5scalePffm(ptr %buf, float %factor, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp4.not = icmp eq i64 %n, 0
@@ -49,11 +48,7 @@ forall.end:                                       ; preds = %forall.sync
   ret void
 }
 
-; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
-declare token @llvm.syncregion.start() #1
-
-; Function Attrs: mustprogress nounwind memory(argmem: readwrite) uwtable
-define dso_local void @xlate(ptr nocapture noundef %buf, float noundef %dist, i64 noundef %n) local_unnamed_addr #0 {
+define void @xlate(ptr %buf, float %dist, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp4.not = icmp eq i64 %n, 0
@@ -105,13 +100,6 @@ forall.sync.2:
 forall.end:
   ret void
 }
-
-; Function Attrs: nounwind memory(argmem: readwrite, inaccessiblemem: readwrite)
-declare ptr @llvm.kitrt.launch.kernel(i32 immarg, ptr, ptr, ptr, i64, i32, ptr, ptr) #2
-
-attributes #0 = { mustprogress nounwind memory(argmem: readwrite) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
-attributes #2 = { nounwind memory(argmem: readwrite, inaccessiblemem: readwrite) }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}

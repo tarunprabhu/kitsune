@@ -17,7 +17,7 @@
 #include "CGOpenCLRuntime.h"
 #include "CGRecordLayout.h"
 #include "TargetInfo.h"
-#include "kitsune/Config/config.h"
+#include "kitsune/Support/AddrSpace.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
@@ -618,7 +618,7 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
       // pointers, the best we can do is to set an address space on them.
       assert(!AS &&
              "Pointee of mobile pointer must be in default address space");
-      AS = KITSUNE_ADDRSPACE;
+      AS = llvm::KitAS::Mobile;
     }
     ResultType = llvm::PointerType::get(getLLVMContext(), AS);
     break;

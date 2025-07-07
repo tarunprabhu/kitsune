@@ -1,10 +1,10 @@
 // Check that the --kokkos-no-init option is handled correctly. This will
 // remove calls to Kokkos::initialize and Kokkos::finalize.
 //
-// RUN: %kitxx --kokkos --tapir=none -S -emit-llvm -o - %s \
+// RUN: %kitxx --kokkos --tapir=none -S -emit-llvm -o - %s %sysroot \
 // RUN:     | FileCheck %s --check-prefix KOKKOS
 //
-// RUN: %kitxx --kokkos-no-init --tapir=none -S -emit-llvm -o - %s \
+// RUN: %kitxx --kokkos-no-init --tapir=none -S -emit-llvm -o - %s %sysroot \
 // RUN:     | FileCheck %s --check-prefix KOKKOS_NO_INIT
 //
 // KOKKOS: call void @_ZN6Kokkos10initializeERiPPc

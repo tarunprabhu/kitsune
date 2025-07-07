@@ -637,13 +637,13 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   ArrayType *ArrayTy = ArrayType::get(PtrTy, OrderedInputs.size());
 
   Function *KitrtSymbolDevicePtr =
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_symbol_device_ptr);
-  Function *KitrtSymbolMemcpyDevice = Intrinsic::getOrInsertDeclaration(
-      &M, Intrinsic::kitrt_symbol_memcpy_device);
-  Function *KitrtSymbolMemcpyHost = Intrinsic::getOrInsertDeclaration(
-      &M, Intrinsic::kitrt_symbol_memcpy_host);
-  Function *KitrtPrefetchDevice =
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_prefetch_device);
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_symbol_device_ptr);
+  Function *KitrtSymbolMemcpyHToD =
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_symbol_memcpy_htod);
+  Function *KitrtSymbolMemcpyDToH =
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_symbol_memcpy_dtoh);
+  Function *KitrtPrefetchHToD =
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_async_prefetch_htod);
 
   ConstantInt *CTT = createConstInt(TTID::Hip, Ctx);
   Value *HipStream = ConstantPointerNull::get(PtrTy);
@@ -710,7 +710,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     Value *DevPtr =
         NewBuilder.CreateCall(KitrtSymbolDevicePtr, {CTT, EmbFB, SymName});
     Constant *Bytes = ConstantInt::get(Int64Ty, GVSize);
-    NewBuilder.CreateCall(KitrtSymbolMemcpyDevice, {CTT, DevPtr, GV, Bytes});
+    NewBuilder.CreateCall(KitrtSymbolMemcpyHToD, {CTT, DevPtr, GV, Bytes});
   }
 
   // TODO: There is some potential here to share this code across both the hip
@@ -720,7 +720,14 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   Value *ArgArray = EntryBuilder.CreateAlloca(ArrayTy);
 
   for (size_t I = 0; I < OrderedInputs.size(); ++I) {
+    // If the input is a pointer, there is a good chance that it is in Kitsune's
+    // mobile pointer address space. Kitsune's runtime intrinsics currently
+    // expect pointers in the default address space. This should change at some
+    // point.
     Value *Inp = OrderedInputs[I];
+    if (Inp->getType()->isPointerTy())
+      Inp = NewBuilder.CreateAddrSpaceCast(Inp, PtrTy);
+
     Value *InpAlloca = EntryBuilder.CreateAlloca(Inp->getType());
     NewBuilder.CreateStore(Inp, InpAlloca);
 
@@ -739,7 +746,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
       // TODO: Do some analysis to only prefetch the number of bytes that are
       // actually used (or likely to be used) by the kernel.
       ConstantInt *Bytes = NewBuilder.getInt64(-1);
-      HipStream = NewBuilder.CreateCall(KitrtPrefetchDevice,
+      HipStream = NewBuilder.CreateCall(KitrtPrefetchHToD,
                                         {CTT, Inp, Bytes, HipStream});
     }
   }
@@ -752,11 +759,11 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // always synchronizing immediately after the kernel launch.
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
   HipStream = NewBuilder.CreateCall(
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_launch_kernel),
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_async_launch_kernel),
       {CTT, EmbFB, KName, Args, TripCount, TPB, KProps, HipStream});
 
   NewBuilder.CreateCall(
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kitrt_sync_stream),
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_sync_stream),
       {CTT, HipStream});
 
   // After the kernel is done, copy the non-const globals back to the host. This
@@ -771,7 +778,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     Value *DevPtr =
         NewBuilder.CreateCall(KitrtSymbolDevicePtr, {CTT, EmbFB, SymName});
     Constant *Bytes = ConstantInt::get(Int64Ty, GVSize);
-    NewBuilder.CreateCall(KitrtSymbolMemcpyHost, {CTT, GV, DevPtr, Bytes});
+    NewBuilder.CreateCall(KitrtSymbolMemcpyDToH, {CTT, GV, DevPtr, Bytes});
   }
 
   TOI.ReplCall->eraseFromParent();

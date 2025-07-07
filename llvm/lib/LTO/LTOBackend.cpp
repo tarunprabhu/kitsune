@@ -14,8 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/LTO/LTOBackend.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/CodeGen/CodeGenFatBinaries.h"
+#include "kitsune/Core/PipelineUtils.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/ModuleSummaryAnalysis.h"
@@ -439,7 +438,6 @@ static void codegen(const Config &Conf, TargetMachine *TM,
   legacy::PassManager CodeGenPasses;
   TargetLibraryInfoImpl TLII(Triple(Mod.getTargetTriple()));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(TLII));
-  CodeGenPasses.add(createTapirTargetAnalysisWrapperPass(Conf.PTO.TTOpts));
   // No need to make index available if the module is empty.
   // In theory these passes should not use the index for an empty
   // module, however, this guards against doing any unnecessary summary-based
@@ -450,7 +448,8 @@ static void codegen(const Config &Conf, TargetMachine *TM,
         createImmutableModuleSummaryIndexWrapperPass(&CombinedIndex));
   if (Conf.PreCodeGenPassesHook)
     Conf.PreCodeGenPassesHook(CodeGenPasses);
-  CodeGenPasses.add(createCodeGenFatBinariesLegacyPass());
+  if (Conf.PTO.TTOpts)
+    populateKitCodeGenPasses(CodeGenPasses, Conf.PTO.TTOpts);
   if (TM->addPassesToEmitFile(CodeGenPasses, *Stream->OS,
                               DwoOut ? &DwoOut->os() : nullptr,
                               Conf.CGFileType))

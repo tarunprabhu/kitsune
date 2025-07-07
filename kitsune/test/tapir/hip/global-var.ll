@@ -12,11 +12,11 @@
 ; CHECK-DAG: @[[VARNAME:.+]] = private unnamed_addr constant [5 x i8] c"v137\00"
 ;
 ; CHECK: define {{.+}} @f
-; CHECK: %[[PTR1:.+]] = tail call {{.+}} @llvm.kitrt.symbol.device.ptr(i32 4, ptr nonnull @[[FB]], ptr nonnull @[[VARNAME]])
-; CHECK: call {{.+}} @llvm.kitrt.symbol.memcpy.device(i32 4, ptr %[[PTR1]], ptr nonnull @[[HOSTVAR]], i64 4)
-; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(i32 4, ptr nonnull @[[FB]],
-; CHECK: %[[PTR2:.+]] = call {{.+}} @llvm.kitrt.symbol.device.ptr(i32 4, ptr nonnull @[[FB]], ptr nonnull @[[VARNAME]])
-; CHECK: call {{.+}} @llvm.kitrt.symbol.memcpy.host(i32 4, ptr nonnull @[[HOSTVAR]], ptr %[[PTR2]], i64 4)
+; CHECK: %[[PTR1:.+]] = tail call {{.+}} @llvm.kit.symbol.device.ptr(i32 4, ptr nonnull @[[FB]], ptr nonnull @[[VARNAME]])
+; CHECK: call {{.+}} @llvm.kit.symbol.memcpy.htod(i32 4, ptr %[[PTR1]], ptr nonnull @[[HOSTVAR]], i64 4)
+; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kit.async.launch.kernel(i32 4, ptr nonnull @[[FB]],
+; CHECK: %[[PTR2:.+]] = call {{.+}} @llvm.kit.symbol.device.ptr(i32 4, ptr nonnull @[[FB]], ptr nonnull @[[VARNAME]])
+; CHECK: call {{.+}} @llvm.kit.symbol.memcpy.dtoh(i32 4, ptr nonnull @[[HOSTVAR]], ptr %[[PTR2]], i64 4)
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;
@@ -29,9 +29,9 @@
 
 target triple = "x86_64-unknown-linux-gnu"
 
-@v137 = external local_unnamed_addr global i32, align 4
+@v137 = external global i32, align 4
 
-define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp4.not = icmp eq i64 %n, 0
@@ -58,12 +58,6 @@ forall.sync:                                      ; preds = %forall.inc, %entry
 forall.end:                                       ; preds = %forall.sync
   ret void
 }
-
-; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
-declare token @llvm.syncregion.start() #1
-
-attributes #0 = { mustprogress nounwind memory(read, argmem: write, inaccessiblemem: none) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}
