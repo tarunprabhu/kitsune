@@ -29,21 +29,20 @@
 target triple = "x86_64-pc-linux-gnu"
 
 ; Function Attrs: noinline
-define dso_local i64 @id(i64 noundef %n) #0 {
+define i64 @id(i64 %n) #0 {
   ret i64 %n
 }
 
-; Function Attrs:
-define dso_local i64 @sieve(i64 noundef %0) local_unnamed_addr {
+define dso_local i64 @sieve(i64 %0) {
   %2 = alloca [256 x i8], align 16
   call void @llvm.lifetime.start.p0(i64 256, ptr nonnull %2) #1
   br label %5
 
-3:                                                ; preds = %5
+3:
   %4 = icmp slt i64 %0, 4
   br i1 %4, label %10, label %16
 
-5:                                                ; preds = %1, %5
+5:
   %6 = phi i64 [ 0, %1 ], [ %8, %5 ]
   %7 = getelementptr inbounds [256 x i8], ptr %2, i64 0, i64 %6
   store i8 1, ptr %7, align 1
@@ -51,7 +50,7 @@ define dso_local i64 @sieve(i64 noundef %0) local_unnamed_addr {
   %9 = icmp eq i64 %8, 256
   br i1 %9, label %3, label %5, !llvm.loop !4
 
-10:                                               ; preds = %30, %3
+10:
   %11 = add nsw i64 %0, -1
   %12 = getelementptr inbounds [256 x i8], ptr %2, i64 0, i64 %11
   %13 = load i8, ptr %12, align 1
@@ -59,7 +58,7 @@ define dso_local i64 @sieve(i64 noundef %0) local_unnamed_addr {
   %15 = add nsw i64 %0, -2
   br i1 %14, label %39, label %34
 
-16:                                               ; preds = %3, %30
+16:
   %17 = phi i64 [ %31, %30 ], [ 2, %3 ]
   %18 = phi i64 [ %32, %30 ], [ 4, %3 ]
   %19 = getelementptr inbounds [256 x i8], ptr %2, i64 0, i64 %17
@@ -70,7 +69,7 @@ define dso_local i64 @sieve(i64 noundef %0) local_unnamed_addr {
   %24 = and i1 %23, %21
   br i1 %24, label %25, label %30
 
-25:                                               ; preds = %16, %25
+25:
   %26 = phi i64 [ %28, %25 ], [ %22, %16 ]
   %27 = getelementptr inbounds [256 x i8], ptr %2, i64 0, i64 %26
   store i8 0, ptr %27, align 1
@@ -78,40 +77,40 @@ define dso_local i64 @sieve(i64 noundef %0) local_unnamed_addr {
   %29 = icmp sgt i64 %28, %0
   br i1 %29, label %30, label %25, !llvm.loop !5
 
-30:                                               ; preds = %25, %16
+30:
   %31 = add nuw nsw i64 %17, 1
   %32 = mul nuw nsw i64 %31, %31
   %33 = icmp sgt i64 %32, %0
   br i1 %33, label %10, label %16, !llvm.loop !6
 
-34:                                               ; preds = %10
+34:
   %35 = getelementptr inbounds [256 x i8], ptr %2, i64 0, i64 %15
   %36 = load i8, ptr %35, align 1
   %37 = zext nneg i8 %36 to i64
   %38 = add nsw i64 %37, %0
   br label %39
 
-39:                                               ; preds = %10, %34
+39:
   %40 = phi i64 [ %38, %34 ], [ %15, %10 ]
   call void @llvm.lifetime.end.p0(i64 256, ptr nonnull %2) #1
   ret i64 %40
 }
 
-define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %forall.detach.preheader, label %forall.sync
+  br i1 %cmp5, label %preheader, label %forall.sync
 
-forall.detach.preheader:                          ; preds = %entry
+preheader:
   br label %forall.detach
 
-forall.detach:                                    ; preds = %forall.detach.preheader, %forall.inc
-  %indvars.iv = phi i64 [ 0, %forall.detach.preheader ], [ %indvars.iv.next, %forall.inc ]
+forall.detach:
+  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
   detach within %syncreg, label %forall.body, label %forall.inc
 
-forall.body:                                      ; preds = %forall.detach
+forall.body:
   %arrayidx = getelementptr inbounds i32, ptr %c, i64 %indvars.iv
   %.call1 = call i64 @sieve(i64 %n)
   %.call2 = call i64 @id(i64 %n)
@@ -119,14 +118,14 @@ forall.body:                                      ; preds = %forall.detach
   store i64 %.sum, ptr %arrayidx, align 4
   reattach within %syncreg, label %forall.inc
 
-forall.inc:                                       ; preds = %forall.body, %forall.detach
+forall.inc:
   %exitcond.not = icmp eq i64 %indvars.iv.next, %n
   br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
 
-forall.sync:                                      ; preds = %forall.inc, %entry
+forall.sync:
   sync within %syncreg, label %forall.end
 
-forall.end:                                       ; preds = %forall.sync
+forall.end:
   ret void
 }
 
@@ -134,7 +133,6 @@ forall.end:                                       ; preds = %forall.sync
 declare token @llvm.syncregion.start() #1
 
 attributes #0 = { noinline }
-attributes #1 = { memory(argmem: none) }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}

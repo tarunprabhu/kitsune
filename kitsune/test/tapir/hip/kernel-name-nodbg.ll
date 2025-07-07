@@ -25,26 +25,26 @@ entry:
   %cmp4.not = icmp eq i64 %n, 0
   br i1 %cmp4.not, label %forall.sync, label %forall.detach
 
-forall.detach:                                    ; preds = %entry, %forall.inc
+forall.detach:
   %i.05 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
   detach within %syncreg, label %forall.body, label %forall.inc
 
-forall.body:                                      ; preds = %forall.detach
-  %arrayidx = getelementptr inbounds nuw float, ptr %buf, i64 %i.05
+forall.body:
+  %arrayidx = getelementptr inbounds float, ptr %buf, i64 %i.05
   %0 = load float, ptr %arrayidx, align 4
   %mul = fmul float %factor, %0
   store float %mul, ptr %arrayidx, align 4
   reattach within %syncreg, label %forall.inc
 
-forall.inc:                                       ; preds = %forall.body, %forall.detach
+forall.inc:
   %inc = add nuw i64 %i.05, 1
   %exitcond.not = icmp eq i64 %inc, %n
   br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
 
-forall.sync:                                      ; preds = %forall.inc, %entry
+forall.sync:
   sync within %syncreg, label %forall.end
 
-forall.end:                                       ; preds = %forall.sync
+forall.end:
   ret void
 }
 
@@ -54,23 +54,23 @@ entry:
   %cmp4.not = icmp eq i64 %n, 0
   br i1 %cmp4.not, label %forall.sync, label %forall.detach
 
-forall.detach:                                    ; preds = %entry, %forall.inc
+forall.detach:
   %i.05 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
   detach within %syncreg, label %forall.body, label %forall.inc
 
-forall.body:                                      ; preds = %forall.detach
-  %arrayidx = getelementptr inbounds nuw float, ptr %buf, i64 %i.05
+forall.body:
+  %arrayidx = getelementptr inbounds float, ptr %buf, i64 %i.05
   %0 = load float, ptr %arrayidx, align 4
   %add = fadd float %dist, %0
   store float %add, ptr %arrayidx, align 4
   reattach within %syncreg, label %forall.inc
 
-forall.inc:                                       ; preds = %forall.body, %forall.detach
+forall.inc:
   %inc = add nuw i64 %i.05, 1
   %exitcond.not = icmp eq i64 %inc, %n
   br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !3
 
-forall.sync:                                      ; preds = %forall.inc, %entry
+forall.sync:
   sync within %syncreg, label %forall.ph.2
 
 forall.ph.2:
@@ -83,7 +83,7 @@ forall.detach.2:
   detach within %syncreg.2, label %forall.body.2, label %forall.inc.2
 
 forall.body.2:
-  %arrayidx.2 = getelementptr inbounds nuw float, ptr %buf, i64 %i.06
+  %arrayidx.2 = getelementptr inbounds float, ptr %buf, i64 %i.06
   %1 = load float, ptr %arrayidx.2, align 4
   %add.2 = fadd float %dist, %1
   store float %add.2, ptr %arrayidx.2, align 4

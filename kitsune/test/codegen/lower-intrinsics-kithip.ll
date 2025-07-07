@@ -48,7 +48,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @.gname = unnamed_addr constant [5 x i8] c "gbuf\00"
 @.name = unnamed_addr constant [7 x i8] c"kernel\00"
 
-define dso_local void @f(ptr noundef %buf, i64 noundef %n) {
+define dso_local void @f(ptr %buf, i64 %n) {
 entry:
   call void @llvm.kit.initialize(i32 4)
   call void @llvm.kit.enable.y.axis.launches(i32 4, i8 1)
