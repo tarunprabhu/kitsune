@@ -14,11 +14,11 @@ entry:
   %syncreg = tail call token @llvm.syncregion.start()
   br label %forall.detach
 
-forall.detach:                                    ; preds = %entry, %forall.inc
+forall.detach:
   %i = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
   detach within %syncreg, label %forall.body, label %forall.inc
 
-forall.body:                                      ; preds = %forall.detach
+forall.body:
   %arrayidx.a = getelementptr double, ptr addrspace(67) %a, i64 %i
   %0 = load double, ptr addrspace(67) %arrayidx.a, align 8
   %arrayidx.b = getelementptr double, ptr addrspace(67) %b, i64 %i
@@ -28,15 +28,15 @@ forall.body:                                      ; preds = %forall.detach
   store double %add, ptr addrspace(67) %arrayidx.c, align 8
   reattach within %syncreg, label %forall.inc
 
-forall.inc:                                       ; preds = %forall.body, %forall.detach
+forall.inc:
   %inc = add nuw i64 %i, 1
   %exitcond.not = icmp eq i64 %inc, %n
   br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
 
-forall.sync:                                      ; preds = %forall.inc, %entry
+forall.sync:
   sync within %syncreg, label %forall.end
 
-forall.end:                                       ; preds = %forall.sync
+forall.end:
   ret void
 }
 

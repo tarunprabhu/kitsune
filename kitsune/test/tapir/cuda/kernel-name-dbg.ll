@@ -28,29 +28,29 @@ entry:
   %cmp4.not = icmp eq i64 %n, 0, !dbg !276
   br i1 %cmp4.not, label %forall.sync, label %forall.detach, !dbg !277
 
-forall.detach:                                    ; preds = %entry, %forall.inc
+forall.detach:
   %i.05 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
     #dbg_value(i64 %i.05, !270, !DIExpression(), !275)
   detach within %syncreg, label %forall.body, label %forall.inc, !dbg !277
 
-forall.body:                                      ; preds = %forall.detach
+forall.body:
     #dbg_value(i64 %i.05, !272, !DIExpression(), !278)
-  %arrayidx = getelementptr inbounds nuw float, ptr %buf, i64 %i.05, !dbg !279
+  %arrayidx = getelementptr inbounds float, ptr %buf, i64 %i.05, !dbg !279
   %0 = load float, ptr %arrayidx, align 4, !dbg !280, !tbaa !281
   %mul = fmul float %factor, %0, !dbg !280
   store float %mul, ptr %arrayidx, align 4, !dbg !280, !tbaa !281
   reattach within %syncreg, label %forall.inc, !dbg !279
 
-forall.inc:                                       ; preds = %forall.body, %forall.detach
+forall.inc:
   %inc = add nuw i64 %i.05, 1, !dbg !285
     #dbg_value(i64 %inc, !270, !DIExpression(), !275)
   %exitcond.not = icmp eq i64 %inc, %n, !dbg !276
   br i1 %exitcond.not, label %forall.sync, label %forall.detach, !dbg !277, !llvm.loop !286
 
-forall.sync:                                      ; preds = %forall.inc, %entry
+forall.sync:
   sync within %syncreg, label %forall.end, !dbg !291
 
-forall.end:                                       ; preds = %forall.sync
+forall.end:
   ret void, !dbg !292
 }
 
@@ -64,55 +64,55 @@ entry:
   %cmp23.not = icmp eq i64 %n, 0, !dbg !308
   br i1 %cmp23.not, label %forall.sync, label %forall.detach, !dbg !309
 
-forall.detach:                                    ; preds = %entry, %forall.inc
+forall.detach:
   %i.024 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
     #dbg_value(i64 %i.024, !298, !DIExpression(), !307)
   detach within %syncreg2, label %forall.body, label %forall.inc, !dbg !309
 
-forall.body:                                      ; preds = %forall.detach
+forall.body:
     #dbg_value(i64 %i.024, !300, !DIExpression(), !310)
-  %arrayidx = getelementptr inbounds nuw float, ptr %buf, i64 %i.024, !dbg !311
+  %arrayidx = getelementptr inbounds float, ptr %buf, i64 %i.024, !dbg !311
   %0 = load float, ptr %arrayidx, align 4, !dbg !312, !tbaa !281
   %add = fadd float %dist, %0, !dbg !312
   store float %add, ptr %arrayidx, align 4, !dbg !312, !tbaa !281
   reattach within %syncreg2, label %forall.inc, !dbg !311
 
-forall.inc:                                       ; preds = %forall.body, %forall.detach
+forall.inc:
   %inc = add nuw i64 %i.024, 1, !dbg !313
     #dbg_value(i64 %inc, !298, !DIExpression(), !307)
   %exitcond.not = icmp eq i64 %inc, %n, !dbg !308
   br i1 %exitcond.not, label %forall.sync, label %forall.detach, !dbg !309, !llvm.loop !314
 
-forall.sync:                                      ; preds = %forall.inc, %entry
+forall.sync:
   sync within %syncreg2, label %forall.cond4.preheader, !dbg !316
 
-forall.cond4.preheader:                           ; preds = %forall.sync
+forall.cond4.preheader:
     #dbg_value(i64 0, !302, !DIExpression(), !317)
   br i1 %cmp23.not, label %forall.sync14, label %forall.detach7, !dbg !318
 
-forall.detach7:                                   ; preds = %forall.cond4.preheader, %forall.inc12
+forall.detach7:
   %i3.026 = phi i64 [ %inc13, %forall.inc12 ], [ 0, %forall.cond4.preheader ]
     #dbg_value(i64 %i3.026, !302, !DIExpression(), !317)
   detach within %syncreg2, label %forall.body8, label %forall.inc12, !dbg !318
 
-forall.body8:                                     ; preds = %forall.detach7
+forall.body8:
     #dbg_value(i64 %i3.026, !304, !DIExpression(), !319)
-  %arrayidx10 = getelementptr inbounds nuw float, ptr %buf, i64 %i3.026, !dbg !320
+  %arrayidx10 = getelementptr inbounds float, ptr %buf, i64 %i3.026, !dbg !320
   %1 = load float, ptr %arrayidx10, align 4, !dbg !321, !tbaa !281
   %2 = tail call float @llvm.fmuladd.f32(float %dist, float 2.000000e+00, float %1), !dbg !321
   store float %2, ptr %arrayidx10, align 4, !dbg !321, !tbaa !281
   reattach within %syncreg2, label %forall.inc12, !dbg !320
 
-forall.inc12:                                     ; preds = %forall.body8, %forall.detach7
+forall.inc12:
   %inc13 = add nuw i64 %i3.026, 1, !dbg !322
     #dbg_value(i64 %inc13, !302, !DIExpression(), !317)
   %exitcond27.not = icmp eq i64 %inc13, %n, !dbg !323
   br i1 %exitcond27.not, label %forall.sync14, label %forall.detach7, !dbg !318, !llvm.loop !324
 
-forall.sync14:                                    ; preds = %forall.inc12, %forall.cond4.preheader
+forall.sync14:
   sync within %syncreg2, label %forall.end15, !dbg !326
 
-forall.end15:                                     ; preds = %forall.sync14
+forall.end15:
   ret void, !dbg !327
 }
 

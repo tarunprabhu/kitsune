@@ -15,45 +15,37 @@ target triple = "x86_64-pc-linux-gnu"
 
 declare float @__ocml_sqrt_f32(float) #2
 
-; Function Attrs: nounwind memory(argmem: write) uwtable
-define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %forall.detach.preheader, label %forall.sync
+  br i1 %cmp5, label %preheader, label %forall.sync
 
-forall.detach.preheader:                          ; preds = %entry
+preheader:
   br label %forall.detach
 
-forall.detach:                                    ; preds = %forall.detach.preheader, %forall.inc
-  %indvars.iv = phi i64 [ 0, %forall.detach.preheader ], [ %indvars.iv.next, %forall.inc ]
+forall.detach:
+  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
   detach within %syncreg, label %forall.body, label %forall.inc
 
-forall.body:                                      ; preds = %forall.detach
+forall.body:
   %arrayidx = getelementptr inbounds float, ptr %c, i64 %indvars.iv
   %.cst = sitofp i64 %indvars.iv to float
   %sin = tail call float @__ocml_sqrt_f32(float %.cst)
   store float %sin, ptr %arrayidx, align 4
   reattach within %syncreg, label %forall.inc
 
-forall.inc:                                       ; preds = %forall.body, %forall.detach
+forall.inc:
   %exitcond.not = icmp eq i64 %indvars.iv.next, %n
   br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
 
-forall.sync:                                      ; preds = %forall.inc, %entry
+forall.sync:
   sync within %syncreg, label %forall.end
 
-forall.end:                                       ; preds = %forall.sync
+forall.end:
   ret void
 }
-
-; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
-declare token @llvm.syncregion.start() #1
-
-attributes #0 = { nounwind memory(argmem: write) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
-attributes #2 = { mustprogress nocallback nofree nosync nounwind speculatable willreturn memory(none) }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}
