@@ -189,8 +189,6 @@ public:
   }
 };
 
-} // namespace
-
 /// Legacy pass to compile the embedded bitcode to fat binaries.
 class CodeGenFatBinariesLegacyPass : public ModulePass {
 public:
@@ -207,11 +205,21 @@ public:
     au.addRequired<TapirTargetAnalysisWrapperPass>();
   }
 
-  bool runOnModule(Module &m) override;
+  bool runOnModule(Module &m) override {
+    TapirTargetInfo tgi =
+        getAnalysis<TapirTargetAnalysisWrapperPass>().getResult();
+    if (not tgi.hasTTID())
+      return false;
+
+    const TapirTargetOptions &ttOpts = tgi.getOptions();
+    return CodeGenFatBinaries(ttOpts).run(m);
+  }
 
 public:
   static char ID;
 };
+
+} // namespace
 
 char CodeGenFatBinariesLegacyPass::ID = 0;
 INITIALIZE_PASS_BEGIN(CodeGenFatBinariesLegacyPass, DEBUG_TYPE,
@@ -222,18 +230,6 @@ INITIALIZE_PASS_END(CodeGenFatBinariesLegacyPass, DEBUG_TYPE,
 
 ModulePass *llvm::createCodeGenFatBinariesLegacyPass() {
   return new CodeGenFatBinariesLegacyPass();
-}
-
-bool CodeGenFatBinariesLegacyPass::runOnModule(Module &m) {
-  TapirTargetInfo tgi =
-      getAnalysis<TapirTargetAnalysisWrapperPass>().getResult();
-  if (not tgi.hasTTID())
-    return false;
-
-  const TapirTargetOptions &ttOpts = tgi.getOptions();
-  bool changed = CodeGenFatBinaries(ttOpts).run(m);
-
-  return changed;
 }
 
 PreservedAnalyses CodeGenFatBinariesPass::run(Module &m,

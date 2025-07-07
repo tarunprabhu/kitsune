@@ -15,6 +15,7 @@
 #include "NewPMDriver.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/PipelineUtils.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/Statistic.h"
@@ -797,13 +798,6 @@ static int compileModule(char **argv, SmallVectorImpl<PassPlugin> &PluginList,
 
     // Construct a custom pass pipeline that starts after instruction
     // selection.
-    if (getRunPassNames().empty()) {
-      std::optional<TapirTargetOptions> TTO =
-          TapirTargetOptions::createFromCommandLine(OptLevel);
-      PM.add(createTapirTargetAnalysisWrapperPass(TTO));
-      if (TTO)
-        PM.add(createCodeGenFatBinariesLegacyPass());
-    }
     if (!getRunPassNames().empty()) {
       if (!MIR) {
         WithColor::error(errs(), argv[0])
@@ -845,6 +839,10 @@ static int compileModule(char **argv, SmallVectorImpl<PassPlugin> &PluginList,
 
       PM.add(createFreeMachineFunctionPass());
     } else {
+      std::optional<TapirTargetOptions> TTO =
+          TapirTargetOptions::createFromCommandLine(OptLevel);
+      if (TTO)
+        populateKitCodeGenPasses(PM, TTO);
       if (Target->addPassesToEmitFile(PM, *OS, DwoOut ? &DwoOut->os() : nullptr,
                                       codegen::getFileType(), NoVerify,
                                       MMIWP)) {

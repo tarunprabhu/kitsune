@@ -1,10 +1,13 @@
 add_llvm_component_library(LLVMKitCore
+  AddrSpaceUtils.cpp
   CommandLineOptions.cpp
   ConstantUtils.cpp
   EmbUtils.cpp
   GlobalVariableUtils.cpp
+  IntrinsicUtils.cpp
   KernelProperties.cpp
   ModuleUtils.cpp
+  PipelineUtils.cpp
   TapirTargetOptions.cpp
   TargetUtils.cpp
   TypeUtils.cpp

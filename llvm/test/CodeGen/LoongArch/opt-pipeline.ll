@@ -18,7 +18,6 @@
 ; LAXX-LABEL: Pass Arguments:
 ; LAXX-NEXT: Target Library Information
 ; LAXX-NEXT: Runtime Library Function Analysis
-; LAXX-NEXT: Tapir Target Analysis
 ; LAXX-NEXT: Target Pass Configuration
 ; LAXX-NEXT: Machine Module Information
 ; LAXX-NEXT: Target Transform Information
@@ -37,7 +36,6 @@
 ; LAXX-NEXT:       Basic Alias Analysis (stateless AA impl)
 ; LAXX-NEXT:       Function Alias Analysis Results
 ; LAXX-NEXT:       ObjC ARC contraction
-; LAXX-NEXT:     Generate Kitsune fat binaries
 ; LAXX-NEXT:     Pre-ISel Intrinsic Lowering
 ; LAXX-NEXT:     FunctionPass Manager
 ; LAXX-NEXT:       Expand IR instructions

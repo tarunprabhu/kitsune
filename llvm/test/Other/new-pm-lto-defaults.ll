@@ -165,9 +165,6 @@
 ; CHECK-O23-NEXT: Running pass: CoroCleanupPass
 ; CHECK-O-NEXT: Running pass: AllocTokenPass
 ; CHECK-EP-NEXT: Running pass: NoOpModulePass
-; CHECK-O23-NEXT: Running pass: LowerMobileIntrinsicsPass
-; CHECK-O23-NEXT: Running analysis: TapirTargetAnalysis
-; CHECK-O23-NEXT: Running pass: StripKitsuneAddrSpacePass
 ; CHECK-O-NEXT: Running pass: AnnotationRemarksPass on foo
 ; CHECK-O-NEXT: Running pass: PrintModulePass
 

@@ -22,6 +22,7 @@
 #include "ConstantEmitter.h"
 #include "TargetInfo.h"
 #include "TrapReasonBuilder.h"
+#include "kitsune/Support/AddrSpace.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/DeclObjC.h"
@@ -33,7 +34,6 @@
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/DiagnosticTrap.h"
 #include "clang/Basic/TargetInfo.h"
-#include "kitsune/Config/config.h"
 #include "llvm/ADT/APFixedPoint.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/IR/Argument.h"
@@ -2693,8 +2693,8 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     assert(
         (!SrcTy->isPtrOrPtrVectorTy() || !DstTy->isPtrOrPtrVectorTy() ||
          SrcTy->getPointerAddressSpace() == DstTy->getPointerAddressSpace() ||
-         SrcTy->getPointerAddressSpace() == KITSUNE_ADDRSPACE ||
-         DstTy->getPointerAddressSpace() == KITSUNE_ADDRSPACE) &&
+         SrcTy->getPointerAddressSpace() == llvm::KitAS::Mobile ||
+         DstTy->getPointerAddressSpace() == llvm::KitAS::Mobile) &&
         "Address-space cast must be used to convert address spaces");
 
     if (CGF.SanOpts.has(SanitizerKind::CFIUnrelatedCast)) {
@@ -2819,11 +2819,11 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
 
     // We may need to perform an address space cast here since mobile pointers
     // are put in a special, kitsune-specific address space.
-    llvm::Value* Result = nullptr;
+    llvm::Value *Result = nullptr;
     if ((SrcTy->isPointerTy() &&
-         SrcTy->getPointerAddressSpace() == KITSUNE_ADDRSPACE) ||
+         SrcTy->getPointerAddressSpace() == llvm::KitAS::Mobile) ||
         (DstTy->isPointerTy() &&
-         DstTy->getPointerAddressSpace() == KITSUNE_ADDRSPACE))
+         DstTy->getPointerAddressSpace() == llvm::KitAS::Mobile))
       Result = Builder.CreateAddrSpaceCast(Src, DstTy);
     else
       Result = Builder.CreateBitCast(Src, DstTy);

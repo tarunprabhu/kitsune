@@ -4,12 +4,12 @@
 # implemented yet.
 # XFAIL: *
 #
-# Check a standard "end-to-end" lowering using LTO.
+# Check a standard lowering using LTO.
 #
 # RUN: %kitfc -O2 -flto -Wl,--lto-emit-llvm -o - %sysroot \
 # RUN:     --tapir=hip --tapir-hip-arch=gfx90a \
 # RUN:     %S/../input/add.f90 %S/../input/main.f90 \
-# RUN:     | llvm-dis \
+# RUN:     | llvm-dis -o - \
 # RUN:     | FileCheck %s
 #
-# CHECK: call {{.+}} @__kithip_launch_kernel
+# CHECK-COUNT-1: call {{.+}} @llvm.kit.launch.kernel(i32 2,

@@ -58,7 +58,7 @@
 ;
 ; global, the string literal for the kernel name, the arguments array, the
 ; trip count,
-; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(
+; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kit.async.launch.kernel(
 ; CHECK-SAME: i32 2,
 ; CHECK-SAME: ptr {{.*}}@[[FB]],
 ; CHECK-SAME: ptr {{.*}}@[[G_KNAME]],
@@ -71,7 +71,7 @@
 ;
 ; By default, we always enter a sync immediately after the launch. A later
 ; optimization pass may (re)move this if appropriate
-; CHECK: call {{.+}} @llvm.kitrt.sync.stream(i32 2, ptr %[[TS]])
+; CHECK: call {{.+}} @llvm.kit.sync.stream(i32 2, ptr %[[TS]])
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;
@@ -80,8 +80,7 @@
 
 target triple = "x86_64-pc-linux-gnu"
 
-; Function Attrs: nounwind memory(argmem: write) uwtable
-define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i64 %n, 0
@@ -110,12 +109,6 @@ forall.sync:                                      ; preds = %forall.inc, %entry
 forall.end:                                       ; preds = %forall.sync
   ret void
 }
-
-; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
-declare token @llvm.syncregion.start() #1
-
-attributes #0 = { nounwind memory(argmem: write) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}

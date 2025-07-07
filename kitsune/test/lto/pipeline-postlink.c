@@ -1,22 +1,19 @@
 // -----------------------------------------------------------------------------
 // If the tapir target is 'none', the behavior is similar to the regular
-// pipeline i.e. loop spawning is not run and neither are most Kitsune passes
-// except the mandatory ones.
+// pipeline i.e. loop spawning is not run and neither are any Kitsune passes.
 //
 // RUN: %kitcc -O2 --tapir=none -Xlinker --lto-emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xlinker --lto-debug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s -check-prefix NONE
 //
-// NONE:      Running pass:     LowerMobileIntrinsicsPass
-// NONE-NEXT: Running analysis: TapirTargetAnalysis
-// NONE:      Running pass:     StripKitsuneAddrSpacePass
-// NONE-NEXT: Running pass:     LowerKitsuneRuntimeIntrinsicsPass
-// NONE-NEXT: Running pass:     VerifierPass
+// NONE:      Running pass:     VerifierPass
+// NONE-NOT:  Running pass:     LoopSpawning
+// NONE-NOT:  Running pass:     LowerRuntimeIntrinsicsPass
+// NONE:      Running pass:     VerifierPass
 // NONE-NEXT: Running analysis: VerifierAnalysis
 //
 // -----------------------------------------------------------------------------
-// All Kitsune, and Tapir, passes should run during the postlink phase of LTO,
-// regardless of the optimization level if the tapir target is not 'none'.
+// All Kitsune, and Tapir, passes should run during the postlink phase of LTO.
 //
 // RUN: %kitcc -O2 --tapir=serial -Xlinker --lto-emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xlinker --lto-debug-pass-manager 2>&1 \
@@ -36,10 +33,9 @@
 //
 // -----------------------------------------------------------------------------
 //
-// O23SZ:      Running pass:     LowerMobileIntrinsicsPass
-// O23SZ-NEXT: Running analysis: TapirTargetAnalysis
-// O23SZ:      Running pass:     StripKitsuneAddrSpacePass
+// O23SZ:      Running pass:     GlobalDCEPass
 // O23SZ:      Running pass:     LoopSpawningPass
+// O23SZ-NEXT: Running analysis: TapirTargetAnalysis
 // O23SZ-NEXT: Running pass:     TapirToTargetPass
 // O23SZ-NEXT: Running pass:     IPSCCPPass
 // O23SZ-NEXT: Running pass:     CalledValuePropagationPass
@@ -56,6 +52,5 @@
 // O23SZ-NEXT: Running pass:     EmbOptimizePass
 // O23SZ-NEXT: Running pass:     RecomputeKernelPropertiesPass
 // O23SZ-NEXT: Running pass:     GenerateCtorsPass
-// O23SZ-NEXT: Running pass:     LowerKitsuneRuntimeIntrinsicsPass
 // O23SZ-NEXT: Running pass:     VerifierPass
 // O23SZ-NEXT: Running analysis: VerifierAnalysis

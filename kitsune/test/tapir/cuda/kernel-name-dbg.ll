@@ -18,8 +18,7 @@
 
 target triple = "x86_64-unknown-linux-gnu"
 
-; Function Attrs: mustprogress nounwind memory(argmem: readwrite) uwtable
-define dso_local void @_Z5scalePffm(ptr nocapture noundef %buf, float noundef %factor, i64 noundef %n) local_unnamed_addr #0 !dbg !261 {
+define dso_local void @_Z5scalePffm(ptr %buf, float %factor, i64 %n) !dbg !261 {
 entry:
   %syncreg = tail call token @llvm.syncregion.start(), !dbg !274
     #dbg_value(ptr %buf, !267, !DIExpression(), !274)
@@ -55,11 +54,7 @@ forall.end:                                       ; preds = %forall.sync
   ret void, !dbg !292
 }
 
-; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
-declare token @llvm.syncregion.start() #1
-
-; Function Attrs: mustprogress nounwind memory(argmem: readwrite) uwtable
-define dso_local void @_Z5xlatePffm(ptr nocapture noundef %buf, float noundef %dist, i64 noundef %n) local_unnamed_addr #0 !dbg !293 {
+define void @_Z5xlatePffm(ptr %buf, float %dist, i64 %n) !dbg !293 {
 entry:
   %syncreg2 = tail call token @llvm.syncregion.start(), !dbg !306
     #dbg_value(ptr %buf, !295, !DIExpression(), !306)
@@ -121,23 +116,12 @@ forall.end15:                                     ; preds = %forall.sync14
   ret void, !dbg !327
 }
 
-; Function Attrs: mustprogress nocallback nofree nosync nounwind speculatable willreturn memory(none)
-declare float @llvm.fmuladd.f32(float, float, float) #2
-
-; Function Attrs: nounwind memory(argmem: readwrite, inaccessiblemem: readwrite)
-declare ptr @llvm.kitrt.launch.kernel(i32 immarg, ptr, ptr, ptr, i64, i32, ptr, ptr) #3
-
-attributes #0 = { mustprogress nounwind memory(argmem: readwrite) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
-attributes #2 = { mustprogress nocallback nofree nosync nounwind speculatable willreturn memory(none) }
-attributes #3 = { nounwind memory(argmem: readwrite, inaccessiblemem: readwrite) }
-
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!253, !254, !255, !256, !257, !258, !259}
 !llvm.ident = !{!260}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !1, producer: "clang version 20.1.2 (git@github.com:tarunprabhu/kitsune.git 47fb5c713fe270f3b5e65b8fda13558bd7b0f215)", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, imports: !2, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "/tmp/test.cpp", directory: "/home/tarun/workspace/kitsune/build", checksumkind: CSK_MD5, checksum: "d6203c6cc928ec16307d3c5f2aa122b6")
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !1, producer: "clang version 20.1.2", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, imports: !2, splitDebugInlining: false, nameTableKind: None)
+!1 = !DIFile(filename: "/tmp/test.cpp", directory: "/build", checksumkind: CSK_MD5, checksum: "d6203c6cc928ec16307d3c5f2aa122b6")
 !2 = !{!3, !11, !15, !22, !26, !34, !39, !41, !50, !54, !58, !69, !71, !75, !79, !83, !88, !92, !96, !100, !104, !112, !116, !120, !122, !126, !130, !135, !141, !145, !149, !151, !159, !163, !171, !173, !177, !181, !185, !189, !194, !199, !204, !205, !206, !207, !209, !210, !211, !212, !213, !214, !215, !217, !218, !219, !220, !221, !222, !223, !224, !229, !230, !231, !232, !233, !234, !235, !236, !237, !238, !239, !240, !241, !242, !243, !244, !245, !246, !247, !248, !249, !250, !251, !252}
 !3 = !DIImportedEntity(tag: DW_TAG_imported_declaration, scope: !4, entity: !5, file: !10, line: 52)
 !4 = !DINamespace(name: "std", scope: null)
@@ -168,7 +152,7 @@ attributes #3 = { nounwind memory(argmem: readwrite, inaccessiblemem: readwrite)
 !29 = !{!30, !31, !31}
 !30 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: null, size: 64)
 !31 = !DIDerivedType(tag: DW_TAG_typedef, name: "size_t", file: !32, line: 18, baseType: !33)
-!32 = !DIFile(filename: "lib/clang/20/include/__stddef_size_t.h", directory: "/home/tarun/workspace/kitsune/build", checksumkind: CSK_MD5, checksum: "2c44e821a2b1951cde2eb0fb2e656867")
+!32 = !DIFile(filename: "lib/clang/20/include/__stddef_size_t.h", directory: "/build", checksumkind: CSK_MD5, checksum: "2c44e821a2b1951cde2eb0fb2e656867")
 !33 = !DIBasicType(name: "unsigned long", size: 64, encoding: DW_ATE_unsigned)
 !34 = !DIImportedEntity(tag: DW_TAG_imported_declaration, scope: !4, entity: !35, file: !14, line: 138)
 !35 = !DISubprogram(name: "atexit", scope: !6, file: !6, line: 734, type: !36, flags: DIFlagPrototyped, spFlags: DISPFlagOptimized)
@@ -396,7 +380,7 @@ attributes #3 = { nounwind memory(argmem: readwrite, inaccessiblemem: readwrite)
 !257 = !{i32 7, !"PIE Level", i32 2}
 !258 = !{i32 7, !"uwtable", i32 2}
 !259 = !{i32 7, !"debug-info-assignment-tracking", i1 true}
-!260 = !{!"clang version 20.1.2 (git@github.com:tarunprabhu/kitsune.git 47fb5c713fe270f3b5e65b8fda13558bd7b0f215)"}
+!260 = !{!"clang version 20.1.2"}
 !261 = distinct !DISubprogram(name: "scale", linkageName: "_Z5scalePffm", scope: !262, file: !262, line: 5, type: !263, scopeLine: 5, flags: DIFlagPrototyped | DIFlagAllCallsDescribed, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !0, retainedNodes: !266)
 !262 = !DIFile(filename: "/tmp/test.cpp", directory: "", checksumkind: CSK_MD5, checksum: "d6203c6cc928ec16307d3c5f2aa122b6")
 !263 = !DISubroutineType(types: !264)

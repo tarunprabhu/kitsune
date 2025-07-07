@@ -8,10 +8,10 @@
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f
-; CHECK-NOT: llvm.kitrt.symbol.device.ptr
-; CHECK-NOT: llvm.kitrt.symbol.memcpy.device
-; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kitrt.launch.kernel(i32 2, ptr nonnull @[[FB]],
-; CHECK-NOT: llvm.kitrt.symbol.memcpy.host
+; CHECK-NOT: llvm.kit.symbol.device.ptr
+; CHECK-NOT: llvm.kit.symbol.memcpy.htod
+; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kit.async.launch.kernel(i32 2, ptr nonnull @[[FB]],
+; CHECK-NOT: llvm.kit.symbol.memcpy.host
 ;
 ; CHECK: define {{.+}} @.kitcuda.ctor{{[^(]*}}
 ; CHECK: call {{.+}} @__cudaRegisterFatBinary
@@ -24,7 +24,7 @@ target triple = "x86_64-unknown-linux-gnu"
 
 @v137 = external constant i32, align 4
 
-define dso_local void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp4.not = icmp eq i64 %n, 0
@@ -51,12 +51,6 @@ forall.sync:                                      ; preds = %forall.inc, %entry
 forall.end:                                       ; preds = %forall.sync
   ret void
 }
-
-; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
-declare token @llvm.syncregion.start() #1
-
-attributes #0 = { mustprogress nounwind memory(read, argmem: write, inaccessiblemem: none) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}

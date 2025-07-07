@@ -23,6 +23,9 @@ class GlobalVariable;
 class LLVMContext;
 class Module;
 
+/// Create a TTID from the given constant.
+std::optional<TTID> createTTIDFrom(const ConstantInt &);
+
 /// Generate a ConstantInt for use in Kitsune-specific intrinsics that take a
 /// tapir target id as an argument.
 ConstantInt *createConstInt(TTID tt, LLVMContext &ctxt);

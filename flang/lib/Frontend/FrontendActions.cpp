@@ -29,7 +29,8 @@
 #include "flang/Support/default-kinds.h"
 #include "flang/Tools/CrossToolHelpers.h"
 
-#include "kitsune/CodeGen/CodeGenFatBinaries.h"
+#include "kitsune/Core/PipelineUtils.h"
+#include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/Parser/Parser.h"
@@ -605,6 +606,36 @@ mapToLevel(const Fortran::frontend::CodeGenOptions &opts) {
   }
 }
 
+/// Get the llvm::FPOpFusionMode for a given FPContractMode.
+static llvm::FPOpFusion::FPOpFusionMode
+getFPOpFusionMode(Fortran::common::LangOptions::FPModeKind fpContractMode) {
+  switch (fpContractMode) {
+  case Fortran::common::LangOptions::FPM_Off:
+    // Using FPOpFusion::Standard preserves any contract performed in the
+    // frontend. Setting this to strict will result in the backend splitting any
+    // muladd intrinsics.
+    return llvm::FPOpFusion::Standard;
+  case Fortran::common::LangOptions::FPM_Fast:
+    return llvm::FPOpFusion::Fast;
+  }
+  llvm_unreachable("getFPOpFusionMode: Unexpected FP contract mode");
+}
+
+static std::optional<llvm::TapirTargetOptions>
+getTapirTargetOptions(CompilerInstance &ci) {
+  CompilerInvocation &invoc = ci.getInvocation();
+  const llvm::driver::KitsuneOptions &kitsuneOpts = invoc.getKitsuneOpts();
+  const Fortran::common::LangOptions &langOpts = invoc.getLangOpts();
+  const CodeGenOptions &opts = invoc.getCodeGenOpts();
+  llvm::OptimizationLevel level = mapToLevel(opts);
+  llvm::OptznLevel optznLevel =
+      llvm::createOptznLevelFrom(level.getSpeedupLevel(), level.getSizeLevel());
+  llvm::FPOpFusion::FPOpFusionMode fpFusion =
+      getFPOpFusionMode(langOpts.getFPContractMode());
+
+  return llvm::TapirTargetOptions::create(kitsuneOpts, optznLevel, fpFusion);
+}
+
 // Lower using HLFIR then run the FIR to HLFIR pipeline
 void CodeGenAction::lowerHLFIRToFIR() {
   assert(mlirModule && "The MLIR module has not been generated yet.");
@@ -881,6 +912,7 @@ getOutputStream(CompilerInstance &ci, llvm::StringRef inFile,
 /// Generate target-specific machine-code or assembly file from the input LLVM
 /// module.
 ///
+/// \param [in] The compiler instance, used to compute the TapirTargetOptions
 /// \param [in] diags Diagnostics engine for reporting errors
 /// \param [in] tm Target machine to aid the code-gen pipeline set-up
 /// \param [in] act Backend act to run (assembly vs machine-code generation)
@@ -950,30 +982,12 @@ static void generateMachineCodeOrAssemblyImpl(
   delete tlii;
 }
 
-/// Get the llvm::FPOpFusionMode for a given FPContractMode.
-static llvm::FPOpFusion::FPOpFusionMode
-getFPOpFusionMode(Fortran::common::LangOptions::FPModeKind fpContractMode) {
-  switch (fpContractMode) {
-  case Fortran::common::LangOptions::FPM_Off:
-    // Using FPOpFusion::Standard preserves any contract performed in the
-    // frontend. Setting this to strict will result in the backend splitting any
-    // muladd intrinsics.
-    return llvm::FPOpFusion::Standard;
-  case Fortran::common::LangOptions::FPM_Fast:
-    return llvm::FPOpFusion::Fast;
-  }
-  llvm_unreachable("getFPOpFusionMode: Unexpected FP contract mode");
-}
-
 void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   CompilerInstance &ci = getInstance();
-  CompilerInvocation &invoc = ci.getInvocation();
-  const llvm::driver::KitsuneOptions &kitsuneOpts = invoc.getKitsuneOpts();
-  const Fortran::common::LangOptions &langOpts = invoc.getLangOpts();
+  const llvm::driver::KitsuneOptions &kitsuneOpts =
+      ci.getInvocation().getKitsuneOpts();
   const CodeGenOptions &opts = ci.getInvocation().getCodeGenOpts();
   llvm::OptimizationLevel level = mapToLevel(opts);
-  llvm::OptznLevel optznLevel =
-      llvm::createOptznLevelFrom(level.getSpeedupLevel(), level.getSizeLevel());
 
   llvm::TargetMachine *targetMachine = &ci.getTargetMachine();
   // Create the analysis managers.
@@ -1039,8 +1053,8 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   pto.LoopVectorization = opts.VectorizeLoop;
   pto.SLPVectorization = opts.VectorizeSLP;
   pto.LoopStripmine = kitsuneOpts.getStripmineLoops();
-  pto.TTOpts = llvm::TapirTargetOptions::create(
-      kitsuneOpts, optznLevel, getFPOpFusionMode(langOpts.getFPContractMode()));
+  pto.TTOpts = getTapirTargetOptions(ci);
+
   llvm::PassBuilder pb(targetMachine, pto, pgoOpt, &pic);
 
   // Register plugin callbacks with PB.

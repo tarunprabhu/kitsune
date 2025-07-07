@@ -1,5 +1,4 @@
 // RUN: %kitcc -std=c23 -ftapir=none -S -emit-llvm -O0 -o - %s \
-// RUN:     -mllvm -disable-strip-kitsune-addrspaces \
 // RUN:     | FileCheck %s
 
 #include <stdlib.h>

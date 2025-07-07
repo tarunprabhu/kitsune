@@ -2,7 +2,7 @@
 // regardless of the specified optimization level.
 //
 // -----------------------------------------------------------------------------
-// Only the 'none' tapir target is allowed at -O0
+// Only the 'none' tapir target is allowed at -O0.
 //
 // RUN: %kitcc -O2 --tapir=none -c -emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
@@ -28,8 +28,6 @@
 //
 // -----------------------------------------------------------------------------
 //
-// CHECK-NOT: LowerMobileIntrinsics
-// CHECK-NOT: StripKitsuneAddrSpace
 // CHECK-NOT: LoopSpawning
 // CHECK-NOT: EmbResolveLibDeviceCalls
 // CHECK-NOT: EmbPreparePass
@@ -37,4 +35,4 @@
 // CHECK-NOT: EmbOptimize
 // CHECK-NOT: RecomputeKernelProperties
 // CHECK-NOT: GenerateCtors
-// CHECK-NOT: LowerKitsuneRuntimeIntrinsics
+// CHECK-NOT: LowerRuntimeIntrinsics

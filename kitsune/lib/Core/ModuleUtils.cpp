@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
@@ -24,7 +25,7 @@ bool llvm::hasDeviceModuleMetadata(const Module &m) {
   return m.getNamedMetadata(mdDeviceModuleFlags);
 }
 
-NamedMDNode& llvm::addDeviceModuleMetadata(TTID tt, Module &m) {
+NamedMDNode &llvm::addDeviceModuleMetadata(TTID tt, Module &m) {
   auto addOperandAt = [](NamedMDNode &nmd, unsigned i, MDNode *md) -> void {
     if (nmd.getNumOperands() > i)
       nmd.setOperand(i, md);
@@ -49,7 +50,7 @@ std::optional<TTID> llvm::getTTIDFromDeviceModuleMetadata(const Module &m) {
     if (const MDNode *md = nmd->getOperand(0))
       if (const auto *cmd = dyn_cast<ConstantAsMetadata>(md->getOperand(0)))
         if (const auto *cint = dyn_cast<ConstantInt>(cmd->getValue()))
-          return createTTIDFrom(cint->getSExtValue());
+          return createTTIDFrom(*cint);
   return std::nullopt;
 }
 

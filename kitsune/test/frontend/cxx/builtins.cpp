@@ -1,14 +1,22 @@
-// Check that in C++, the builtins can be called directly if needed.
-
-// The serial target is always built, so this is safe in all builds.
-// RUN: %kitxx -ftapir=serial -O2 -S -emit-llvm -o - %s \
-// RUN:     | FileCheck %s --check-prefixes=TAPIR,DECLARES
-
-// If the builtins are used, they should be lowered correctly even if no tapir
-// target is enabled. In this case, it should directly call malloc/free since
-// the kitrt runtime will not be linked.
-// RUN: %kitxx -O0 -S -emit-llvm -o - %s | FileCheck %s --check-prefix=NOTAPIR
-// RUN: %kitxx -O2 -S -emit-llvm -o - %s | FileCheck %s --check-prefix=NOTAPIR
+// Check that the memory (de)allocation builtins are recognized and translated
+// into the correct Kitsune memory (de)allocation intrinsics. This should be
+// the case even if a tapir target has not been set. In C++, the builtins can be
+// called directly if needed.
+//
+// RUN: %kitxx -ftapir=none -O1 -S -emit-llvm -o - %s | FileCheck %s
+// RUN: %kitxx -O1 -S -emit-llvm -o - %s | FileCheck %s
+//
+// CHECK: define {{.+}} @_Z8allocateRN7kitsune
+// CHECK: call ptr addrspace(67) @llvm.kit.mobile.alloc({{.+}})
+//
+// CHECK: define {{.+}} @_Z10deallocateRN7kitsune
+// CHECK: call void @llvm.kit.mobile.free(ptr addrspace(67) %{{.+}})
+//
+// CHECK: define {{.+}} @allocate_c
+// CHECK: call ptr addrspace(67) @llvm.kit.mobile.alloc({{.+}})
+//
+// CHECK: define {{.+}} @deallocate_c
+// CHECK: call void @llvm.kit.mobile.free(ptr addrspace(67) %{{.+}})
 
 #include <kitsune.h>
 
@@ -16,28 +24,12 @@ using namespace kitsune;
 
 void allocate(mobile_ptr<int> &buf, size_t n) { buf.alloc(n); }
 
-// TAPIR-LABEL: _Z8allocate
-// TAPIR: call {{.+}} @malloc({{.+}})
-// NOTAPIR: call {{.+}} @malloc({{.+}})
-
 void deallocate(mobile_ptr<int> &buf) { buf.free(); }
 
-// TAPIR-LABEL: _Z10deallocate
-// TAPIR: call {{.+}} @free({{.+}})
-// NOTAPIR: call {{.+}} @free({{.+}})
-
-void *[[kitsune::mobile]] allocate_c(size_t n) {
+extern "C" void *[[kitsune::mobile]] allocate_c(size_t n) {
   return kitsune_mobile_alloc(n * sizeof(int));
 }
 
-// TAPIR-LABEL: allocate_c
-// TAPIR: call {{.+}} @malloc({{.+}})
-// NOTAPIR: call {{.+}} @malloc({{.+}})
-
-void deallocate_c(void *[[kitsune::mobile]] ptr) { kitsune_mobile_free(ptr); }
-
-// TAPIR-LABEL: deallocate_c
-// TAPIR: call {{.+}} @free({{.+}})
-// NOTAPIR: call {{.+}} @free({{.+}})
-
-// DECLARES-DAG: declare noalias ptr @malloc
+extern "C" void deallocate_c(void *[[kitsune::mobile]] ptr) {
+  kitsune_mobile_free(ptr);
+}

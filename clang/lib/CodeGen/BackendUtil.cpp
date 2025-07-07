@@ -10,6 +10,7 @@
 #include "BackendConsumer.h"
 #include "LinkInModulesPass.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/PipelineUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/Diagnostic.h"
@@ -704,7 +705,6 @@ void EmitAssemblyHelper::CreateTargetMachine(bool MustCreateTM) {
   llvm::TargetOptions Options;
   if (!initTargetOptions(CI, Diags, Options))
     return;
-
   TM.reset(TheTarget->createTargetMachine(Triple, TargetOpts.CPU, FeaturesStr,
                                           Options, RM, CM, OptLevel));
   if (TM)
@@ -743,7 +743,9 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
   // this also adds codegenerator level optimization passes.
   CodeGenFileType CGFT = getCodeGenFileType(Action);
 
-  CodeGenPasses.add(createCodeGenFatBinariesLegacyPass());
+  std::optional<TapirTargetOptions> TTO = getTapirTargetOptions();
+  if (TTO)
+    populateKitCodeGenPasses(CodeGenPasses, TTO);
   if (TM->addPassesToEmitFile(CodeGenPasses, OS, DwoOS, CGFT,
                               /*DisableVerify=*/!CodeGenOpts.VerifyModule)) {
     Diags.Report(diag::err_fe_unable_to_interface_with_target);
@@ -1008,9 +1010,6 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.CallGraphProfile = !CodeGenOpts.DisableIntegratedAS;
   PTO.UnifiedLTO = CodeGenOpts.UnifiedLTO;
   PTO.DevirtualizeSpeculatively = CodeGenOpts.DevirtualizeSpeculatively;
-  FPOpFusion::FPOpFusionMode FPOpFusionMode = FPOpFusion::Standard;
-  if (TM)
-    FPOpFusionMode = TM->Options.AllowFPOpFusion;
   PTO.LoopStripmine = KitsuneOpts.getStripmineLoops();
   PTO.TTOpts = getTapirTargetOptions();
 

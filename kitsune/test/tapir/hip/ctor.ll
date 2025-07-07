@@ -32,15 +32,15 @@
 ;
 ; DEFAULT: define {{.*}} @[[DTOR:[.]kithip[.]dtor.*]]{{[ ]*}}(
 ; DEFAULT: call {{.+}} @__hipUnregisterFatBinary
-; DEFAULT-NOT: call {{.+}} @llvm.kitrt.finalize(i32 4)
+; DEFAULT-NOT: call {{.+}} @llvm.kit.finalize(i32 4)
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]
-; DEFAULT: call {{.+}} @llvm.kitrt.initialize(i32 4)
-; DEFAULT: call {{.+}} @llvm.kitrt.enable.verbose(i8 0)
-; DEFAULT: call {{.+}} @llvm.kitrt.hip.enable.xnack(i8 1)
-; DEFAULT: call {{.+}} @llvm.kitrt.enable.y.axis.launches(i32 4, i8 0)
-; DEFAULT-NOT: call {{.+}} @llvm.kitrt.set.fixed.tpb(i32 4,
-; DEFAULT: call {{.+}} @llvm.kitrt.set.max.tpb(i32 4, i32 1024)
+; DEFAULT: call {{.+}} @llvm.kit.initialize(i32 4)
+; DEFAULT: call {{.+}} @llvm.kit.enable.verbose(i8 0)
+; DEFAULT: call {{.+}} @llvm.kit.enable.xnack(i8 1)
+; DEFAULT: call {{.+}} @llvm.kit.enable.y.axis.launches(i32 4, i8 0)
+; DEFAULT-NOT: call {{.+}} @llvm.kit.set.fixed.tpb(i32 4,
+; DEFAULT: call {{.+}} @llvm.kit.set.max.tpb(i32 4, i32 1024)
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}__hipRegisterFatBinary(ptr @[[BUNDLE]])
 ; DEFAULT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
@@ -58,7 +58,7 @@
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: kithip.ctor{{.*}}
-; TPB: call {{.+}} @llvm.kitrt.set.fixed.tpb(i32 4, i32 77)
+; TPB: call {{.+}} @llvm.kit.set.fixed.tpb(i32 4, i32 77)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -69,7 +69,7 @@
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: kithip.ctor{{.*}}
-; MTPB: call {{.+}} @llvm.kitrt.set.max.tpb(i32 4, i32 29)
+; MTPB: call {{.+}} @llvm.kit.set.max.tpb(i32 4, i32 29)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -86,7 +86,7 @@
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: kithip.ctor{{.*}}
-; VERBOSE: call {{.+}} @llvm.kitrt.enable.verbose(i8 1)
+; VERBOSE: call {{.+}} @llvm.kit.enable.verbose(i8 1)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -103,7 +103,7 @@
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
 ; NOXNACK-LABEL: kithip.ctor{{.*}}
-; NOXNACK: call {{.+}} @llvm.kitrt.hip.enable.xnack(i8 0)
+; NOXNACK: call {{.+}} @llvm.kit.enable.xnack(i8 0)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -114,18 +114,13 @@
 ; RUN:     | FileCheck %s -check-prefix YLAUNCH
 ;
 ; YLAUNCH-LABEL: kithip.ctor{{.*}}
-; YLAUNCH: call {{.+}} @llvm.kitrt.enable.y.axis.launches(i32 4, i8 1)
+; YLAUNCH: call {{.+}} @llvm.kit.enable.y.axis.launches(i32 4, i8 1)
 ;
 ; ----------------------------------------------------------------------------
 
-; ModuleID = 'clopts.c'
-source_filename = "clopts.c"
-target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
-
 target triple = "x86_64-pc-linux-gnu"
 
-; Function Attrs: nounwind memory(argmem: write) uwtable
-define dso_local void @f(ptr nocapture noundef writeonly %c, i32 noundef %n) #0 {
+define void @f(ptr %c, i32 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i32 %n, 0
@@ -155,12 +150,6 @@ forall.sync:                                      ; preds = %forall.inc, %entry
 forall.end:                                       ; preds = %forall.sync
   ret void
 }
-
-; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
-declare token @llvm.syncregion.start() #1
-
-attributes #0 = { nounwind memory(argmem: write) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}

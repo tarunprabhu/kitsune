@@ -24,6 +24,7 @@
 #include "ConstantEmitter.h"
 #include "PatternInit.h"
 #include "TargetInfo.h"
+#include "kitsune/Support/AddrSpace.h"
 #include "clang/AST/OSLog.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/TargetInfo.h"
@@ -5974,8 +5975,13 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
           /*IndexTypeQuals=*/0);
       auto Tmp = CreateMemTemp(SizeArrayTy, "block_sizes");
       llvm::Value *TmpPtr = Tmp.getPointer();
+      // The EmitLifetime* pair expect a naked Alloca as their last argument,
+      // however for cases where the default AS is not the Alloca AS, Tmp is
+      // actually the Alloca ascasted to the default AS, hence the
+      // stripPointerCasts()
+      llvm::Value *Alloca = TmpPtr->stripPointerCasts();
       llvm::Value *TmpSize = EmitLifetimeStart(
-          CGM.getDataLayout().getTypeAllocSize(Tmp.getElementType()), TmpPtr);
+          CGM.getDataLayout().getTypeAllocSize(Tmp.getElementType()), Alloca);
       llvm::Value *ElemPtr;
       // Each of the following arguments specifies the size of the corresponding
       // argument passed to the enqueued block.
@@ -6305,7 +6311,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
   // Kitsune builtins
   case Builtin::BIkitsune_mobile_alloc: {
-    Function *F = CGM.getIntrinsic(Intrinsic::kitsune_mobile_alloc);
+    Function *F = CGM.getIntrinsic(Intrinsic::kit_mobile_alloc);
     llvm::FunctionType *FTy = F->getFunctionType();
     Value *Size = EmitScalarExpr(E->getArg(0));
     if (Size->getType() != FTy->getParamType(0))
@@ -6314,15 +6320,15 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   }
 
   case Builtin::BIkitsune_mobile_free: {
-    Function *F = CGM.getIntrinsic(Intrinsic::kitsune_mobile_free);
+    Function *F = CGM.getIntrinsic(Intrinsic::kit_mobile_free);
     Value *Ptr = EmitScalarExpr(E->getArg(0));
     return RValue::get(Builder.CreateCall(F, {Ptr}));
   }
 
   case Builtin::BI__kitsune_mobile_cast_unsafe: {
     Value *Ptr = EmitScalarExpr(E->getArg(0));
-    LLVMContext& Ctxt = getLLVMContext();
-    llvm::Type *DestTy = llvm::PointerType::get(Ctxt, KITSUNE_ADDRSPACE);
+    LLVMContext &Ctxt = getLLVMContext();
+    llvm::Type *DestTy = llvm::PointerType::get(Ctxt, KitAS::Mobile);
     return RValue::get(Builder.CreateAddrSpaceCast(Ptr, DestTy));
   }
   }

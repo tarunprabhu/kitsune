@@ -15,6 +15,7 @@
 #include "GenerateCtorsImpl.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/CommandLineOptions.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
@@ -40,20 +41,18 @@ extern __attribute__((weak)) cl::opt<bool> clUseYLaunch;
 static bool shouldGenerateGPUCtor(Module &m, TTID tt) {
   assert((tt == TTID::Cuda || tt == TTID::Hip) &&
          "shouldGenerateGPUCtor: Tapir target must be GPU-centric");
-  StringRef launch = Intrinsic::getBaseName(Intrinsic::kitrt_launch_kernel);
+  StringRef launch = Intrinsic::getBaseName(Intrinsic::kit_async_launch_kernel);
   if (Function *f = m.getFunction(launch)) {
-    for (Use &u : f->uses()) {
-      if (auto *call = dyn_cast<CallBase>(u.getUser())) {
+    for (Use &u : f->uses())
+      if (auto *call = dyn_cast<CallBase>(u.getUser()))
         // Although unlikely, the intrinsic could have been passed as an
         // argument to some other function. Just in case, check that the callee
         // at this site is the launch kernel function.
-        if (call->getIntrinsicID() == Intrinsic::kitrt_launch_kernel) {
-          auto *cint = cast<ConstantInt>(call->getArgOperand(0));
-          if (cint->getZExtValue() == unsigned(tt))
-            return true;
-        }
-      }
-    }
+        if (call->getCalledFunction() == f)
+          if (auto *cint = dyn_cast<ConstantInt>(call->getArgOperand(0)))
+            if (std::optional<TTID> ttid = createTTIDFrom(*cint))
+              if (*ttid == tt)
+                return true;
   }
   return false;
 }
