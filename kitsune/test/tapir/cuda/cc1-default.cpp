@@ -27,7 +27,7 @@
 // ----------------------------------------------------------------------------
 // Check that the stripmine pass is disabled by default.
 //
-// RUN: %kitxx -mllvm -print-pipeline-passes -O2 -ftapir=cuda \
+// RUN: %kitxx -mllvm -print-pipeline-passes -O2 --tapir=cuda \
 // RUN:     --tapir-cuda-arch=sm_72 -S -emit-llvm %s \
 // RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
 //

@@ -1,4 +1,4 @@
-// RUN: %kitxx -ftapir=openmp -O2 -S -emit-llvm -o - %s | FileCheck %s --check-prefixes=CHECK,DECLARES
+// RUN: %kitxx --tapir=openmp -O2 -S -emit-llvm -o - %s | FileCheck %s --check-prefixes=CHECK,DECLARES
 
 #include <kitsune.h>
 

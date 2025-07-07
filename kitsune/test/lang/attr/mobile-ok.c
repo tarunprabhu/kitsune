@@ -1,4 +1,4 @@
-// RUN: %kitcc -std=c23 -ftapir=nolo -S -emit-llvm -O0 -o - %s \
+// RUN: %kitcc -std=c23 --tapir=nolo -S -emit-llvm -O0 -o - %s \
 // RUN:     | FileCheck %s
 
 #include <stdlib.h>

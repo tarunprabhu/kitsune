@@ -3,7 +3,7 @@
 //
 // RUN: %clang -c -x hip -nogpuinc -nogpulib %s
 // RUN: %kitxx -c -x hip -nogpuinc -nogpulib %s
-// RUN: not %kitxx -x hip -ftapir=hip -O1 -nogpuinc -nogpulib %s 2>&1 \
+// RUN: not %kitxx -x hip --tapir=hip -O1 -nogpuinc -nogpulib %s 2>&1 \
 // RUN:     | FileCheck %s
 //
 // CHECK: kitsune does not support the Hip language

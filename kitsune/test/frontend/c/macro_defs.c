@@ -8,7 +8,7 @@
 //
 // RUN: %kitcc -E %s -o - \
 // RUN:      | FileCheck --check-prefixes=ID,NOTAPIR %s
-// RUN: %kitcc -ftapir=serial -O1 -E %s -o - \
+// RUN: %kitcc --tapir=serial -O1 -E %s -o - \
 // RUN:      | FileCheck --check-prefixes=ID,TAPIR %s
 //
 // -----------------------------------------------------------------------------
