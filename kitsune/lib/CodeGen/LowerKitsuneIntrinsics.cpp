@@ -427,7 +427,7 @@ public:
   bool run(Function &f) {
     bool changed = false;
     std::optional<TTID> tt = tgi.getTTIDOrNull();
-    if (not tt or *tt == TTID::None)
+    if (not tt or *tt == TTID::Nolo)
       return changed;
 
     std::vector<CallInst *> calls;

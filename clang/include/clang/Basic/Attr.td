@@ -4996,9 +4996,9 @@ def TapirTarget : StmtAttr {
                              ErrorDiag, "'parallel' statements">;
   let Args = [
     EnumArgument<"TapirTargetAttrType", "TapirTargetAttrTy", /*is_string=*/ true,
-                 ["none", "serial", "cuda", "hip", "opencilk", "openmp",
+                 ["nolo", "serial", "cuda", "hip", "opencilk", "openmp",
                   "qthreads", "realm"],
-                 ["None", "Serial", "Cuda", "Hip", "OpenCilk", "OpenMP",
+                 ["Nolo", "Serial", "Cuda", "Hip", "OpenCilk", "OpenMP",
                   "Qthreads", "Realm"],
                  0>
   ];

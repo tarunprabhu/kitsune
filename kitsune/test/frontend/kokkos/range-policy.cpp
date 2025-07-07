@@ -1,4 +1,4 @@
-// RUN: %kitxx -fkokkos -fkokkos-no-init --tapir=none -S -emit-llvm %s \
+// RUN: %kitxx -fkokkos -fkokkos-no-init --tapir=nolo -S -emit-llvm %s \
 // RUN:     -O1 -fno-stripmine -fno-vectorize -o - %sysroot \
 // RUN:     | FileCheck %s
 

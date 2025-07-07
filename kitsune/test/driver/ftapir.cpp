@@ -2,8 +2,8 @@
 // Providing a valid value to ftapir should not produce any output and return
 // a success code. This only tests those backends that are always built.
 //
-// RUN: %kitxx -### -ftapir=none -O1 %s
-// RUN: %kitxx -### --tapir=none -O1 %s
+// RUN: %kitxx -### -ftapir=nolo -O1 %s
+// RUN: %kitxx -### --tapir=nolo -O1 %s
 // RUN: %kitxx -### -ftapir=serial -O1 %s
 // RUN: %kitxx -### --tapir=serial -O1 %s
 //

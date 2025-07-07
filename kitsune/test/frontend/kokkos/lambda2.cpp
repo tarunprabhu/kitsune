@@ -2,7 +2,7 @@
 // handled correctly. The fact that one is anonymous and one is named is not
 // relevant
 //
-// RUN: %kitxx -fkokkos -fkokkos-no-init -O1 --tapir=none -S -emit-llvm \
+// RUN: %kitxx -fkokkos -fkokkos-no-init -O1 --tapir=nolo -S -emit-llvm \
 // RUN:     -o - %sysroot %s \
 // RUN:     | FileCheck %s
 

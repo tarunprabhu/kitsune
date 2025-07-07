@@ -1,4 +1,4 @@
-// RUN: %kitcc -Xclang -verify -ftapir=none -fsyntax-only %s
+// RUN: %kitcc -Xclang -verify -ftapir=nolo -fsyntax-only %s
 
 #include <kitsune.h>
 #include <stdio.h>

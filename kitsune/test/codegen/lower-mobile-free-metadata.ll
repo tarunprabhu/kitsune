@@ -2,12 +2,12 @@
 ; intrinsic
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt -tapir=none -passes='kit-lower-intrinsics' -S %s \
-; RUN:     | FileCheck --check-prefixes NONE,METADATA %s
+; RUN: opt -tapir=nolo -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck --check-prefixes NOLO,METADATA %s
 ;
-; NONE: define {{.+}} @deallocate(ptr addrspace(67) %[[P:.+]])
-; NONE-NEXT: call void @llvm.kit.mobile.free(ptr addrspace(67) %[[P]]), !custom-key ![[MD:[0-9]+]]
-; NONE-NEXT: ret void
+; NOLO: define {{.+}} @deallocate(ptr addrspace(67) %[[P:.+]])
+; NOLO-NEXT: call void @llvm.kit.mobile.free(ptr addrspace(67) %[[P]]), !custom-key ![[MD:[0-9]+]]
+; NOLO-NEXT: ret void
 ;
 ; ------------------------------------------------------------------------------
 ; RUN: opt -tapir=serial -passes='kit-lower-intrinsics' -S %s \

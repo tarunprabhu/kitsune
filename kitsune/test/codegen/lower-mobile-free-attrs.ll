@@ -3,15 +3,15 @@
 ; special case in the lowering code.
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt -tapir=none -passes='kit-lower-intrinsics' -S %s \
-; RUN:     | FileCheck --check-prefixes NONE,ATTRS %s
+; RUN: opt -tapir=nolo -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck --check-prefixes NOLO,ATTRS %s
 ;
-; NONE: define {{.+}} @deallocate(ptr addrspace(67) %[[P:.+]])
-; NONE-NEXT: call void @llvm.kit.mobile.free(ptr addrspace(67) %[[P]]){{$}}
-; NONE-NEXT: call void @llvm.kit.mobile.free(ptr addrspace(67) %[[P]]) #[[ATTR:[0-9]+]]
-; NONE-NEXT: call void @llvm.kit.mobile.free(ptr addrspace(67) nonnull %[[P]]){{$}}
-; NONE-NEXT: call void @llvm.kit.mobile.free(ptr addrspace(67) nonnull %[[P]]) #[[ATTR]]
-; NONE-NEXT: ret void
+; NOLO: define {{.+}} @deallocate(ptr addrspace(67) %[[P:.+]])
+; NOLO-NEXT: call void @llvm.kit.mobile.free(ptr addrspace(67) %[[P]]){{$}}
+; NOLO-NEXT: call void @llvm.kit.mobile.free(ptr addrspace(67) %[[P]]) #[[ATTR:[0-9]+]]
+; NOLO-NEXT: call void @llvm.kit.mobile.free(ptr addrspace(67) nonnull %[[P]]){{$}}
+; NOLO-NEXT: call void @llvm.kit.mobile.free(ptr addrspace(67) nonnull %[[P]]) #[[ATTR]]
+; NOLO-NEXT: ret void
 ;
 ; ------------------------------------------------------------------------------
 ; RUN: opt -tapir=serial -passes='kit-lower-intrinsics' -S %s \

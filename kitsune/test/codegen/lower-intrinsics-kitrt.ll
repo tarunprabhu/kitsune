@@ -2,16 +2,16 @@
 ; correctly.
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt --tapir=none -passes='kit-lower-intrinsics' -S %s \
-; RUN:     | FileCheck %s --check-prefix NONE
+; RUN: opt --tapir=nolo -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck %s --check-prefix NOLO
 ;
-; NONE-LABEL: @f
-; NONE-NEXT: call void @llvm.kit.enable.verbose(i8 1)
-; NONE-NEXT: ret void
+; NOLO-LABEL: @f
+; NOLO-NEXT: call void @llvm.kit.enable.verbose(i8 1)
+; NOLO-NEXT: ret void
 ;
-; NONE-LABEL: @g
-; NONE-NEXT: call void @llvm.kit.enable.verbose(i8 0)
-; NONE-NEXT: ret void
+; NOLO-LABEL: @g
+; NOLO-NEXT: call void @llvm.kit.enable.verbose(i8 0)
+; NOLO-NEXT: ret void
 ;
 ; ------------------------------------------------------------------------------
 ; RUN: opt --tapir=serial -passes='kit-lower-intrinsics' -S %s \

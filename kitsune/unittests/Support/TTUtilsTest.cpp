@@ -33,7 +33,7 @@ TEST(TTUtilsTest, ttsGenEmbBC) {
 }
 
 TEST(TTUtilsTest, doesTTGenerateEmbBC) {
-  EXPECT_FALSE(doesTTGenEmbBC(TTID::None));
+  EXPECT_FALSE(doesTTGenEmbBC(TTID::Nolo));
   EXPECT_FALSE(doesTTGenEmbBC(TTID::Serial));
   EXPECT_FALSE(doesTTGenEmbBC(TTID::OpenCilk));
 

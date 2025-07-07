@@ -32,7 +32,7 @@
 ;
 ; -----------------------------------------------------------------------------
 ; Unlike the frontends, -O0 is allowed with --tapir, even if the tapir target
-; is not 'none'. In this case, only a limited number of passes are run.
+; is not nolo. In this case, only a limited number of passes are run.
 ;
 ; RUN: opt -O0 --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix O0 %s
