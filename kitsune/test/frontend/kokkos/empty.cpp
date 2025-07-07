@@ -1,6 +1,6 @@
 // Check that kokkos::parallel_for calls are lowered correctly.
 //
-// RUN: %kitxx --kokkos -ftapir=nolo -S -emit-llvm %sysroot -o - %s 2>&1 \
+// RUN: %kitxx --kokkos --tapir=nolo -S -emit-llvm %sysroot -o - %s 2>&1 \
 // RUN:     | FileCheck %s
 //
 // CHECK: %[[SYNCREG:.+]] = call token @llvm.syncregion.start()

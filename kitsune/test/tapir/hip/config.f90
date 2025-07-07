@@ -3,21 +3,21 @@
 ! ------------------------------------------------------------------------------
 ! Check that the default target-specific configuration file is always found.
 !
-! RUN: %kitfc -### -ftapir=hip -O1 %s 2>&1 \
+! RUN: %kitfc -### --tapir=hip -O1 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=CHECK-DEFAULT-CONFIG
 !
 ! ------------------------------------------------------------------------------
 ! Check that providing a custom config directory without a target-specific
 ! configuration file is ok.
 !
-! RUN: %kitfc -### -ftapir=hip --config-kitsune-dir=%S -O1 %s 2>&1 | \
+! RUN: %kitfc -### --tapir=hip --config-kitsune-dir=%S -O1 %s 2>&1 | \
 ! RUN:     FileCheck %s -check-prefix=CHECK-CUSTOM-NOEXIST
 !
 ! ------------------------------------------------------------------------------
 ! Check that providing a custom config directory with a target-specific
 ! configuration file leads to the file being found and the contents used.
 !
-! RUN: %kitfc -### -ftapir=hip --config-kitsune-dir=%S/input -O1 %s 2>&1 \
+! RUN: %kitfc -### --tapir=hip --config-kitsune-dir=%S/input -O1 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM
 !
 ! CHECK-DEFAULT-CONFIG: Configuration file: {{.*}}/hip.cfg

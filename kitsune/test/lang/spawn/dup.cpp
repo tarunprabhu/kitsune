@@ -1,7 +1,7 @@
 // FIXME: Currently we don't raise an error if we encounter duplicate spawn
 // labels.
 // XFAIL: *
-// RUN: %kitxx -Xclang -verify -fsyntax-only -ftapir=nolo %s
+// RUN: %kitxx -Xclang -verify -fsyntax-only --tapir=nolo %s
 
 #include <kitsune.h>
 

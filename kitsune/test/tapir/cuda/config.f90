@@ -19,7 +19,7 @@
 ! configuration file leads to the file being found and the contents used and
 ! the default options are preserved.
 !
-! RUN: %kitfc -### -ftapir=cuda --tapir-cuda-arch=sm_80 -O1 \
+! RUN: %kitfc -### --tapir=cuda --tapir-cuda-arch=sm_80 -O1 \
 ! RUN:     --config-kitsune-dir=%S/input %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM
 !

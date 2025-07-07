@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// RUN: %kitxx -### -ftapir=nolo -O2 %s 2>&1 | FileCheck %s
+// RUN: %kitxx -### --tapir=nolo -O2 %s 2>&1 | FileCheck %s
 // RUN: %kitxx -### --tapir=nolo -O2 %s 2>&1 | FileCheck %s
 //
 // CHECK: -cc1

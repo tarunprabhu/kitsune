@@ -3,21 +3,21 @@
 ! -----------------------------------------------------------------------------
 ! Check that the default target-specific configuration file is always found.
 !
-! RUN: %kitfc -### -ftapir=nolo -O1 %s 2>&1 \
+! RUN: %kitfc -### --tapir=nolo -O1 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=CHECK-DEFAULT-CONFIG
 !
 ! -----------------------------------------------------------------------------
 ! Check that providing a custom config directory without a target-specific
 ! configuration file is ok.
 !
-! RUN: %kitfc -### -ftapir=nolo -O1 --config-kitsune-dir=%S %s 2>&1 \
+! RUN: %kitfc -### --tapir=nolo -O1 --config-kitsune-dir=%S %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM-NOEXIST
 !
 ! -----------------------------------------------------------------------------
 ! Check that providing a custom config directory with a target-specific
 ! configuration file leads to the file being found and the contents used.
 !
-! RUN: %kitfc -### -ftapir=nolo -O1 --config-kitsune-dir=%S/input %s 2>&1 \
+! RUN: %kitfc -### --tapir=nolo -O1 --config-kitsune-dir=%S/input %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM
 !
 ! -----------------------------------------------------------------------------

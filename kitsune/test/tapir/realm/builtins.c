@@ -1,4 +1,4 @@
-// RUN: %kitcc -ftapir=realm -std=c23 -O2 -S -emit-llvm -o - %s \
+// RUN: %kitcc --tapir=realm -std=c23 -O2 -S -emit-llvm -o - %s \
 // RUN:     | FileCheck %s --check-prefixes=CHECK,DECLARES
 
 #include <kitsune.h>

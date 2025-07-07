@@ -1,7 +1,7 @@
 # Ensure that the command line options specific to the opencilk tapir target are
 # correctly handled when compiling with -flto
 #
-# RUN: %kitxx -### -ftapir=opencilk -O2 -flto \
+# RUN: %kitxx -### --tapir=opencilk -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL
 #

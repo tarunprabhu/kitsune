@@ -1,4 +1,4 @@
-// RUN: %kitcc -std=c23 -ftapir=serial -S -emit-llvm -O1 -o - %s \
+// RUN: %kitcc -std=c23 --tapir=serial -S -emit-llvm -O1 -o - %s \
 // RUN:     | FileCheck %s
 
 double f1(double* [[kitsune::mobile]] ptr) { return *ptr; }

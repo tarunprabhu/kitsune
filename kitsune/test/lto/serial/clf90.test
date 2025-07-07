@@ -7,27 +7,27 @@
 # Check that the command line options common to all tapir targets are handled
 # correctly when -flto is provided with Fortran.
 #
-# RUN: %kitxx -### -ftapir=serial -O2 -flto \
+# RUN: %kitxx -### --tapir=serial -O2 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,O2
 #
-# RUN: %kitfc -### -ftapir=serial -O3 -flto \
+# RUN: %kitfc -### --tapir=serial -O3 -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,O3
 #
-# RUN: %kitfc -### -ftapir=serial -O2 -flto --tapir-verbose \
+# RUN: %kitfc -### --tapir=serial -O2 -flto --tapir-verbose \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,TAPIR_VERBOSE
 #
-# RUN: %kitfc -### -ftapir=serial -O2 -flto --kitrt-verbose \
+# RUN: %kitfc -### --tapir=serial -O2 -flto --kitrt-verbose \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,KITRT_VERBOSE
 #
-# RUN: %kitfc -### -ftapir=serial -O2 -flto -ffp-contract=off  \
+# RUN: %kitfc -### --tapir=serial -O2 -flto -ffp-contract=off  \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,FP_STANDARD
 #
-# RUN: %kitfc -### -ftapir=serial -O2 -flto -ffp-contract=fast  \
+# RUN: %kitfc -### --tapir=serial -O2 -flto -ffp-contract=fast  \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,FP_FAST
 #

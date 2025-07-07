@@ -2,7 +2,7 @@
 // handled correctly.
 //
 // RUN: %kitxx -Xclang -verify -fsyntax-only -fkokkos -fkokkos-no-init  \
-// RUN:   -ftapir=serial -O1 %sysroot %s
+// RUN:   --tapir=serial -O1 %sysroot %s
 
 #include <Kokkos_Core.hpp>
 

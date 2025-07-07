@@ -1,4 +1,4 @@
-// RUN: %kitxx -ftapir=qthreads -O2 -S -emit-llvm -o - %s \
+// RUN: %kitxx --tapir=qthreads -O2 -S -emit-llvm -o - %s \
 // RUN:     | FileCheck %s --check-prefixes=CHECK,DECLARES
 
 #include <kitsune.h>

@@ -23,7 +23,7 @@
 // Check that the stripmine pass is enabled by default. This checks that the
 // the pipeline tuning options object value is set correctly by default.
 //
-// RUN: %kitxx -mllvm -print-pipeline-passes -O2 -ftapir=opencilk \
+// RUN: %kitxx -mllvm -print-pipeline-passes -O2 --tapir=opencilk \
 // RUN:      -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
 //
 // STRIPMINE-PASS: loop-stripmine
