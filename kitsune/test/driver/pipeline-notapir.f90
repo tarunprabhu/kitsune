@@ -1,7 +1,6 @@
 ! REQUIRES: kitfc
 !
-! If the --tapir argument is not given, some mandatory Kitsune passes should
-! run, but most should not.
+! If the --tapir argument is not given, none of Kitsune's passes should run.
 !
 ! TODO: -Os and -Oz are not supported in flang at the time of writing these
 ! tests. Those will eventually be supported, at which time this test should be
@@ -23,13 +22,13 @@
 ! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
 ! RUN:     | FileCheck %s
 !
-! CHECK:      Running pass:     LowerMobileIntrinsics
-! CHECK-NEXT: Running analysis: TapirTargetAnalysis
-! CHECK-NEXT: Running pass:     StripKitsuneAddrSpacePass
+! CHECK-NOT:  Running pass:     LowerMobileIntrinsics
+! CHECK-NOT:  Running analysis: TapirTargetAnalysis
+! CHECK-NOT:  Running pass:     StripKitsuneAddrSpacePass
 ! CHECK-NOT:  Running pass:     EmbResolveLibDeviceCallsPass
 ! CHECK-NOT:  Running pass:     EmbPreparePass
 ! CHECK-NOT:  Running pass:     EmbLinkLibDeviceBitcodePass
 ! CHECK-NOT:  Running pass:     EmbOptimizePass
 ! CHECK-NOT:  Running pass:     RecomputeKernelPropertiesPass
 ! CHECK-NOT:  Running pass:     GenerateCtorsPass
-! CHECK-NEXT: Running pass:     LowerKitsuneRuntimeIntrinsicsPass
+! CHECK-NOT:  Running pass:     LowerKitsuneRuntimeIntrinsicsPass

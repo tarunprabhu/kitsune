@@ -999,6 +999,7 @@ Function *CodeExtractor::constructFunctionDeclaration(
       case Attribute::InReg:
       case Attribute::KitBC:
       case Attribute::KitFB:
+      case Attribute::KitTT:
       case Attribute::Nest:
       case Attribute::NoAlias:
       case Attribute::NoUndef:

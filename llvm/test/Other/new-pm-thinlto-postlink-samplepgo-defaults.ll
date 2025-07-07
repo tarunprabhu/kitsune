@@ -236,9 +236,6 @@
 ; CHECK-O-NEXT: Running pass: ConstantMergePass
 ; CHECK-O-NEXT: Running pass: CGProfilePass
 ; CHECK-O-NEXT: Running pass: RelLookupTableConverterPass
-; CHECK-O-NEXT: Running pass: LowerMobileIntrinsicsPass
-; CHECK-O-NEXT: Running analysis: TapirTargetAnalysis
-; CHECK-O-NEXT: Running pass: StripKitsuneAddrSpacePass
 ; CHECK-O-NEXT: Running pass: AnnotationRemarksPass on foo
 ; CHECK-O-NEXT: Running pass: PrintModulePass
 

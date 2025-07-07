@@ -29,7 +29,8 @@
 #include "flang/Support/default-kinds.h"
 #include "flang/Tools/CrossToolHelpers.h"
 
-#include "kitsune/CodeGen/CodeGenFatBinaries.h"
+#include "kitsune/Core/PipelineUtils.h"
+#include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/Parser/Parser.h"
@@ -599,6 +600,36 @@ mapToLevel(const Fortran::frontend::CodeGenOptions &opts) {
   }
 }
 
+/// Get the llvm::FPOpFusionMode for a given FPContractMode.
+static llvm::FPOpFusion::FPOpFusionMode
+getFPOpFusionMode(Fortran::common::LangOptions::FPModeKind fpContractMode) {
+  switch (fpContractMode) {
+  case Fortran::common::LangOptions::FPM_Off:
+    // Using FPOpFusion::Standard preserves any contract performed in the
+    // frontend. Setting this to strict will result in the backend splitting any
+    // muladd intrinsics.
+    return llvm::FPOpFusion::Standard;
+  case Fortran::common::LangOptions::FPM_Fast:
+    return llvm::FPOpFusion::Fast;
+  }
+  llvm_unreachable("getFPOpFusionMode: Unexpected FP contract mode");
+}
+
+static std::optional<llvm::TapirTargetOptions>
+getTapirTargetOptions(CompilerInstance &ci) {
+  CompilerInvocation &invoc = ci.getInvocation();
+  const llvm::driver::KitsuneOptions &kitsuneOpts = invoc.getKitsuneOpts();
+  const Fortran::common::LangOptions &langOpts = invoc.getLangOpts();
+  const CodeGenOptions &opts = invoc.getCodeGenOpts();
+  llvm::OptimizationLevel level = mapToLevel(opts);
+  llvm::OptznLevel optznLevel =
+      llvm::createOptznLevelFrom(level.getSpeedupLevel(), level.getSizeLevel());
+  llvm::FPOpFusion::FPOpFusionMode fpFusion =
+      getFPOpFusionMode(langOpts.getFPContractMode());
+
+  return llvm::TapirTargetOptions::create(kitsuneOpts, optznLevel, fpFusion);
+}
+
 // Lower using HLFIR then run the FIR to HLFIR pipeline
 void CodeGenAction::lowerHLFIRToFIR() {
   assert(mlirModule && "The MLIR module has not been generated yet.");
@@ -864,12 +895,14 @@ getOutputStream(CompilerInstance &ci, llvm::StringRef inFile,
 /// \param [in] act Backend act to run (assembly vs machine-code generation)
 /// \param [in] llvmModule LLVM module to lower to assembly/machine-code
 /// \param [in] codeGenOpts options configuring codegen pipeline
+/// \param [in] The compiler instance, used to compute the TapirTargetOptions
 /// \param [out] os Output stream to emit the generated code to
 static void generateMachineCodeOrAssemblyImpl(clang::DiagnosticsEngine &diags,
                                               llvm::TargetMachine &tm,
                                               BackendActionTy act,
                                               llvm::Module &llvmModule,
                                               const CodeGenOptions &codeGenOpts,
+                                              CompilerInstance &ci,
                                               llvm::raw_pwrite_stream &os) {
   assert(((act == BackendActionTy::Backend_EmitObj) ||
           (act == BackendActionTy::Backend_EmitAssembly)) &&
@@ -887,10 +920,12 @@ static void generateMachineCodeOrAssemblyImpl(clang::DiagnosticsEngine &diags,
       llvm::driver::createTLII(triple, codeGenOpts.getVecLib());
   codeGenPasses.add(new llvm::TargetLibraryInfoWrapperPass(*tlii));
 
+  if (std::optional<llvm::TapirTargetOptions> tto = getTapirTargetOptions(ci))
+    llvm::populateKitCodeGenPasses(codeGenPasses, tto);
+
   llvm::CodeGenFileType cgft = (act == BackendActionTy::Backend_EmitAssembly)
                                    ? llvm::CodeGenFileType::AssemblyFile
                                    : llvm::CodeGenFileType::ObjectFile;
-  codeGenPasses.add(llvm::createCodeGenFatBinariesLegacyPass());
   if (tm.addPassesToEmitFile(codeGenPasses, os, nullptr, cgft)) {
     unsigned diagID =
         diags.getCustomDiagID(clang::DiagnosticsEngine::Error,
@@ -906,31 +941,13 @@ static void generateMachineCodeOrAssemblyImpl(clang::DiagnosticsEngine &diags,
   delete tlii;
 }
 
-/// Get the llvm::FPOpFusionMode for a given FPContractMode.
-static llvm::FPOpFusion::FPOpFusionMode
-getFPOpFusionMode(Fortran::common::LangOptions::FPModeKind fpContractMode) {
-  switch (fpContractMode) {
-  case Fortran::common::LangOptions::FPM_Off:
-    // Using FPOpFusion::Standard preserves any contract performed in the
-    // frontend. Setting this to strict will result in the backend splitting any
-    // muladd intrinsics.
-    return llvm::FPOpFusion::Standard;
-  case Fortran::common::LangOptions::FPM_Fast:
-    return llvm::FPOpFusion::Fast;
-  }
-  llvm_unreachable("getFPOpFusionMode: Unexpected FP contract mode");
-}
-
 void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   CompilerInstance &ci = getInstance();
-  CompilerInvocation &invoc = ci.getInvocation();
-  const llvm::driver::KitsuneOptions &kitsuneOpts = invoc.getKitsuneOpts();
-  const Fortran::common::LangOptions &langOpts = invoc.getLangOpts();
+  const llvm::driver::KitsuneOptions &kitsuneOpts =
+      ci.getInvocation().getKitsuneOpts();
   const CodeGenOptions &opts = ci.getInvocation().getCodeGenOpts();
   clang::DiagnosticsEngine &diags = ci.getDiagnostics();
   llvm::OptimizationLevel level = mapToLevel(opts);
-  llvm::OptznLevel optznLevel =
-      llvm::createOptznLevelFrom(level.getSpeedupLevel(), level.getSizeLevel());
 
   llvm::TargetMachine *targetMachine = &ci.getTargetMachine();
   // Create the analysis managers.
@@ -977,8 +994,7 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   pto.LoopVectorization = opts.VectorizeLoop;
   pto.SLPVectorization = opts.VectorizeSLP;
   pto.LoopStripmine = kitsuneOpts.getStripmineLoops();
-  pto.TTOpts = llvm::TapirTargetOptions::create(
-      kitsuneOpts, optznLevel, getFPOpFusionMode(langOpts.getFPContractMode()));
+  pto.TTOpts = getTapirTargetOptions(ci);
   llvm::PassBuilder pb(targetMachine, pto, pgoOpt, &pic);
 
   // Attempt to load pass plugins and register their callbacks with PB.
@@ -1397,7 +1413,7 @@ void CodeGenAction::executeAction() {
   if (action == BackendActionTy::Backend_EmitAssembly ||
       action == BackendActionTy::Backend_EmitObj) {
     generateMachineCodeOrAssemblyImpl(
-        diags, targetMachine, action, *llvmModule, codeGenOpts,
+        diags, targetMachine, action, *llvmModule, codeGenOpts, ci,
         ci.isOutputStreamNull() ? *os : ci.getOutputStream());
     if (timingMgr.isEnabled())
       llvm::reportAndResetTimings(&ci.getTimingStreamCodeGen());

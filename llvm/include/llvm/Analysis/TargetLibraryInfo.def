@@ -2736,14 +2736,24 @@ TLI_DEFINE_ENUM_INTERNAL(kitcuda_launch_kernel)
 TLI_DEFINE_STRING_INTERNAL("__kitcuda_launch_kernel")
 TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr, Ptr, Int64, Int32, Ptr, Ptr)
 
-/// void* __kitcuda_mem_gpu_prefetch(void* ptr, void* stream);
-TLI_DEFINE_ENUM_INTERNAL(kitcuda_prefetch_device)
-TLI_DEFINE_STRING_INTERNAL("__kitcuda_mem_gpu_prefetch")
-TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
+/// void __kitcuda_mem_free(void*)
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_managed_free)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_mem_free")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
+
+/// void* __kitcuda_mem_alloc_managed(size_t)
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_managed_malloc)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_mem_alloc_managed")
+TLI_DEFINE_SIG_INTERNAL(Ptr, SizeT)
 
 /// void __kitcuda_mem_host_prefetch(void* ptr, void* stream);
-TLI_DEFINE_ENUM_INTERNAL(kitcuda_prefetch_host)
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_prefetch_dtoh)
 TLI_DEFINE_STRING_INTERNAL("__kitcuda_mem_host_prefetch")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
+
+/// void* __kitcuda_mem_gpu_prefetch(void* ptr, void* stream);
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_prefetch_htod)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_mem_gpu_prefetch")
 TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
 
 /// void __kitcuda_set_default_threads_per_blk(int32_t threads_per_block);
@@ -2762,18 +2772,18 @@ TLI_DEFINE_ENUM_INTERNAL(kitcuda_symbol_device_ptr)
 TLI_DEFINE_STRING_INTERNAL("__kitcuda_get_global_symbol")
 TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
 
-/// void __kitcuda_memcpy_sym_to_device(void* device_ptr,
-///                                     void* host_ptr,
-///                                     int64_t bytes);
-TLI_DEFINE_ENUM_INTERNAL(kitcuda_symbol_memcpy_device)
-TLI_DEFINE_STRING_INTERNAL("__kitcuda_memcpy_sym_to_device")
-TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Int64)
-
 /// void __kitcuda_memcpy_sym_to_host(void* host_ptr,
 ///                                   void* device_ptr,
 ///                                   int64_t bytes);
-TLI_DEFINE_ENUM_INTERNAL(kitcuda_symbol_memcpy_host)
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_symbol_memcpy_dtoh)
 TLI_DEFINE_STRING_INTERNAL("__kitcuda_memcpy_sym_to_host")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Int64)
+
+/// void __kitcuda_memcpy_sym_to_device(void* device_ptr,
+///                                     void* host_ptr,
+///                                     int64_t bytes);
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_symbol_memcpy_htod)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_memcpy_sym_to_device")
 TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Int64)
 
 /// void __kitcuda_sync_thread_stream(void* stream);
@@ -2817,14 +2827,24 @@ TLI_DEFINE_ENUM_INTERNAL(kithip_launch_kernel)
 TLI_DEFINE_STRING_INTERNAL("__kithip_launch_kernel")
 TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr, Ptr, Int64, Int32, Ptr, Ptr)
 
-/// void* __kithip_mem_gpu_prefetch(void* ptr, void* stream);
-TLI_DEFINE_ENUM_INTERNAL(kithip_prefetch_device)
-TLI_DEFINE_STRING_INTERNAL("__kithip_mem_gpu_prefetch")
-TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
+/// void __kithip_mem_free(void*)
+TLI_DEFINE_ENUM_INTERNAL(kithip_managed_free)
+TLI_DEFINE_STRING_INTERNAL("__kithip_mem_free")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
+
+/// void* __kithip_mem_alloc_managed(size_t)
+TLI_DEFINE_ENUM_INTERNAL(kithip_managed_malloc)
+TLI_DEFINE_STRING_INTERNAL("__kithip_mem_alloc_managed")
+TLI_DEFINE_SIG_INTERNAL(Ptr, SizeT)
 
 /// void __kithip_mem_host_prefetch(void* ptr, void* stream);
-TLI_DEFINE_ENUM_INTERNAL(kithip_prefetch_host)
+TLI_DEFINE_ENUM_INTERNAL(kithip_prefetch_dtoh)
 TLI_DEFINE_STRING_INTERNAL("__kithip_mem_host_prefetch")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
+
+/// void* __kithip_mem_gpu_prefetch(void* ptr, void* stream);
+TLI_DEFINE_ENUM_INTERNAL(kithip_prefetch_htod)
+TLI_DEFINE_STRING_INTERNAL("__kithip_mem_gpu_prefetch")
 TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
 
 /// void __kithip_set_default_threads_per_blk(int32_t threads_per_block);
@@ -2843,18 +2863,18 @@ TLI_DEFINE_ENUM_INTERNAL(kithip_symbol_device_ptr)
 TLI_DEFINE_STRING_INTERNAL("__kithip_get_global_symbol")
 TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
 
-/// void __kithip_memcpy_sym_to_device(void* device_ptr,
-///                                    void* host_ptr,
-///                                    int64_t bytes);
-TLI_DEFINE_ENUM_INTERNAL(kithip_symbol_memcpy_device)
-TLI_DEFINE_STRING_INTERNAL("__kithip_memcpy_sym_to_device")
-TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, SizeT)
-
 /// void __kithip_memcpy_sym_to_host(void* host_ptr,
 ///                                  void* device_ptr,
 ///                                  int64_t bytes);
-TLI_DEFINE_ENUM_INTERNAL(kithip_symbol_memcpy_host)
+TLI_DEFINE_ENUM_INTERNAL(kithip_symbol_memcpy_dtoh)
 TLI_DEFINE_STRING_INTERNAL("__kithip_memcpy_sym_to_host")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, SizeT)
+
+/// void __kithip_memcpy_sym_to_device(void* device_ptr,
+///                                    void* host_ptr,
+///                                    int64_t bytes);
+TLI_DEFINE_ENUM_INTERNAL(kithip_symbol_memcpy_htod)
+TLI_DEFINE_STRING_INTERNAL("__kithip_memcpy_sym_to_device")
 TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, SizeT)
 
 /// void __kithip_sync_thread_stream(void* stream);

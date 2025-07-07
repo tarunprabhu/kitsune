@@ -10,6 +10,7 @@
 #include "BackendConsumer.h"
 #include "LinkInModulesPass.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/PipelineUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/Diagnostic.h"
@@ -696,7 +697,9 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
   // this also adds codegenerator level optimization passes.
   CodeGenFileType CGFT = getCodeGenFileType(Action);
 
-  CodeGenPasses.add(createCodeGenFatBinariesLegacyPass());
+  std::optional<TapirTargetOptions> TTO = getTapirTargetOptions();
+  if (TTO)
+    populateKitCodeGenPasses(CodeGenPasses, TTO);
   if (TM->addPassesToEmitFile(CodeGenPasses, OS, DwoOS, CGFT,
                               /*DisableVerify=*/!CodeGenOpts.VerifyModule)) {
     Diags.Report(diag::err_fe_unable_to_interface_with_target);
@@ -1267,8 +1270,6 @@ void EmitAssemblyHelper::RunCodegenPipeline(
   case Backend_EmitObj:
     CodeGenPasses.add(
         createTargetTransformInfoWrapperPass(getTargetIRAnalysis()));
-    CodeGenPasses.add(
-        createTapirTargetAnalysisWrapperPass(getTapirTargetOptions()));
     if (!CodeGenOpts.SplitDwarfOutput.empty()) {
       DwoOS = openOutputFile(CodeGenOpts.SplitDwarfOutput);
       if (!DwoOS)

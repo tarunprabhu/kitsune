@@ -777,7 +777,7 @@ void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
   std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(BC);
   Expected<std::unique_ptr<Module>> ModuleOrErr = parseBitcodeFile(*Buf, Ctx);
   if (not ModuleOrErr) {
-    handleAllErrors(std::move(ModuleOrErr.takeError()), [&](ErrorInfoBase &e) {
+    handleAllErrors(ModuleOrErr.takeError(), [&](ErrorInfoBase &e) {
       Check(false, "could not parse embedded bitcode");
     });
     return;

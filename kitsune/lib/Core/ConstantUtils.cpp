@@ -17,8 +17,12 @@
 
 using namespace llvm;
 
-ConstantInt *llvm::createConstInt(TTID tt, LLVMContext &ctxt) {
-  return ConstantInt::get(Type::getInt32Ty(ctxt), int(tt), false);
+std::optional<TTID> llvm::createTTIDFrom(const ConstantInt& cint) {
+  return createTTIDFrom(cint.getZExtValue());
+}
+
+ConstantInt *llvm::createConstInt(TTID tt, LLVMContext &ctx) {
+  return ConstantInt::get(Type::getInt32Ty(ctx), int(tt), false);
 }
 
 GlobalVariable *llvm::createConstString(StringRef s, Module &m,

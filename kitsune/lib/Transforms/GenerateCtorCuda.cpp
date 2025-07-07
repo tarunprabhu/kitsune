@@ -150,20 +150,20 @@ private:
     IRBuilder<> builder(BasicBlock::Create(ctx, "entry", ctor));
 
     FunctionCallee kitrtInitialize =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kitrt_initialize);
+        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_initialize);
     builder.CreateCall(kitrtInitialize, {constTT});
 
     // Enable verbose mode early in the constructor so all verbose statements
     // are printed after the runtime has been initialized.
     FunctionCallee kitrtEnableVerbose =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kitrt_enable_verbose);
+        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_enable_verbose);
     builder.CreateCall(
         kitrtEnableVerbose,
         {ConstantInt::get(boolTy, tto.getKitrtVerbose(), false)});
 
     if (unsigned fixedTPB = tto.getFixedThreadsPerBlock()) {
       FunctionCallee kitrtSetFixedTPB =
-          Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kitrt_set_fixed_tpb);
+          Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_set_fixed_tpb);
       builder.CreateCall(kitrtSetFixedTPB,
                          {constTT, ConstantInt::get(i32Ty, fixedTPB)});
     }
@@ -175,7 +175,7 @@ private:
     //
     // FIXME: Don't hardcode this value here. Maybe move it to a named constant.
     FunctionCallee kitrtSetMaxTPB =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kitrt_set_max_tpb);
+        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_set_max_tpb);
     unsigned maxTPB = tto.getMaxThreadsPerBlock();
     if (!maxTPB)
       maxTPB = 1024;
@@ -184,7 +184,7 @@ private:
 
     FunctionCallee kitrtEnableRefineLaunches =
         Intrinsic::getOrInsertDeclaration(
-            &m, Intrinsic::kitrt_enable_refine_launches);
+            &m, Intrinsic::kit_enable_refine_launches);
     builder.CreateCall(
         kitrtEnableRefineLaunches,
         {constTT, ConstantInt::get(boolTy, genCtorOpts.refineLaunches)});
@@ -264,7 +264,7 @@ private:
 
     ConstantInt *constTT = createConstInt(TTID::Cuda, ctx);
     FunctionCallee kitrtFinalize =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kitrt_finalize);
+        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_finalize);
     builder.CreateCall(kitrtFinalize, {constTT});
 
     builder.CreateRetVoid();

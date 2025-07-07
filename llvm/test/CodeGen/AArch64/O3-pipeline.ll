@@ -5,7 +5,6 @@
 
 ; CHECK-LABEL: Pass Arguments:
 ; CHECK-NEXT: Target Library Information
-; CHECK-NEXT: Tapir Target Analysis
 ; CHECK-NEXT: Target Pass Configuration
 ; CHECK-NEXT: Machine Module Information
 ; CHECK-NEXT: Target Transform Information
@@ -18,7 +17,6 @@
 ; CHECK-NEXT: Default Regalloc Eviction Advisor
 ; CHECK-NEXT: Default Regalloc Priority Advisor
 ; CHECK-NEXT:   ModulePass Manager
-; CHECK-NEXT:     Generate Kitsune fat binaries
 ; CHECK-NEXT:     Pre-ISel Intrinsic Lowering
 ; CHECK-NEXT:     FunctionPass Manager
 ; CHECK-NEXT:       Expand large div/rem

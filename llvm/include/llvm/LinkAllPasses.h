@@ -14,7 +14,6 @@
 #ifndef LLVM_LINKALLPASSES_H
 #define LLVM_LINKALLPASSES_H
 
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysisEvaluator.h"
 #include "llvm/Analysis/AliasSetTracker.h"
@@ -147,8 +146,6 @@ struct ForcePassLinking {
     (void)llvm::createUnifyLoopExitsPass();
     (void)llvm::createFixIrreduciblePass();
     (void)llvm::createSelectOptimizePass();
-    (void)llvm::createTapirTargetAnalysisWrapperPass(std::nullopt);
-    (void)llvm::createCodeGenFatBinariesLegacyPass();
 
     (void)new llvm::ScalarEvolutionWrapperPass();
     llvm::Function::Create(nullptr, llvm::GlobalValue::ExternalLinkage)

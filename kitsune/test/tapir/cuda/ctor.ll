@@ -24,14 +24,14 @@
 ; DEFAULT: define {{.*}} @[[DTOR:[.]kitcuda[.]dtor.*]]{{[ ]*}}(
 ; DEFAULT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
 ; DEFAULT: call {{.+}} @__cudaUnregisterFatBinary(ptr %[[HD]])
-; DEFAULT: call {{.+}} @llvm.kitrt.finalize(i32 2)
+; DEFAULT: call {{.+}} @llvm.kit.finalize(i32 2)
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]
-; DEFAULT: call {{.+}} @llvm.kitrt.initialize(i32 2)
-; DEFAULT: call {{.+}} @llvm.kitrt.enable.verbose(i8 0)
-; DEFAULT-NOT: call {{.+}} @llvm.kitrt.set.fixed.tpb(i32 2,
-; DEFAULT: call {{.+}} @llvm.kitrt.set.max.tpb(i32 2, i32 1024)
-; DEFAULT-DAG: call {{.+}} @llvm.kitrt.enable.refine.launches(i32 2, i8 1)
+; DEFAULT: call {{.+}} @llvm.kit.initialize(i32 2)
+; DEFAULT: call {{.+}} @llvm.kit.enable.verbose(i8 0)
+; DEFAULT-NOT: call {{.+}} @llvm.kit.set.fixed.tpb(i32 2,
+; DEFAULT: call {{.+}} @llvm.kit.set.max.tpb(i32 2, i32 1024)
+; DEFAULT-DAG: call {{.+}} @llvm.kit.enable.refine.launches(i32 2, i8 1)
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}__cudaRegisterFatBinary(ptr @[[BUNDLE]])
 ; DEFAULT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT: call void @__cudaRegisterFatBinaryEnd(ptr %[[HC]])
@@ -47,7 +47,7 @@
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: define {{.+}} @.kitcuda.ctor
-; TPB: call {{.+}} @llvm.kitrt.set.fixed.tpb(i32 2, i32 77)
+; TPB: call {{.+}} @llvm.kit.set.fixed.tpb(i32 2, i32 77)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -56,7 +56,7 @@
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: define {{.+}} @.kitcuda.ctor
-; MTPB: call {{.+}} @llvm.kitrt.set.max.tpb(i32 2, i32 29)
+; MTPB: call {{.+}} @llvm.kit.set.max.tpb(i32 2, i32 29)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -69,7 +69,7 @@
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: define {{.+}} @.kitcuda.ctor
-; VERBOSE: call {{.+}} @llvm.kitrt.enable.verbose(i8 1)
+; VERBOSE: call {{.+}} @llvm.kit.enable.verbose(i8 1)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -78,14 +78,13 @@
 ; RUN:     | FileCheck %s -check-prefix NOREFINE
 ;
 ; NOREFINE-LABEL: define {{.+}} @.kitcuda.ctor
-; NOREFINE: call {{.+}} @llvm.kitrt.enable.refine.launches(i32 2, i8 0)
+; NOREFINE: call {{.+}} @llvm.kit.enable.refine.launches(i32 2, i8 0)
 ;
 ; ----------------------------------------------------------------------------
 
 target triple = "x86_64-pc-linux-gnu"
 
-; Function Attrs: nounwind memory(argmem: write) uwtable
-define dso_local void @f(ptr nocapture noundef writeonly %c, i32 noundef %n) #0 {
+define void @f(ptr %c, i32 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i32 %n, 0
@@ -115,12 +114,6 @@ forall.sync:                                      ; preds = %forall.inc, %entry
 forall.end:                                       ; preds = %forall.sync
   ret void
 }
-
-; Function Attrs: mustprogress nounwind willreturn memory(argmem: readwrite)
-declare token @llvm.syncregion.start() #1
-
-attributes #0 = { nounwind memory(argmem: write) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}
