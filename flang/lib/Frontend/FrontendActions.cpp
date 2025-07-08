@@ -36,8 +36,8 @@
 #include "flang/Semantics/unparse-with-symbols.h"
 #include "flang/Tools/CrossToolHelpers.h"
 
-#include "kitsune/Core/PipelineUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Passes/PipelineUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/Parser/Parser.h"
@@ -1023,8 +1023,7 @@ static void generateMachineCodeOrAssemblyImpl(clang::DiagnosticsEngine &diags,
       llvm::driver::createTLII(triple, codeGenOpts.getVecLib());
   codeGenPasses.add(new llvm::TargetLibraryInfoWrapperPass(*tlii));
 
-  if (std::optional<llvm::TapirTargetOptions> tto = getTapirTargetOptions(ci))
-    llvm::populateKitCodeGenPasses(codeGenPasses, tto);
+  llvm::populateKitCodeGenPasses(codeGenPasses, getTapirTargetOptions(ci));
 
   llvm::CodeGenFileType cgft = (act == BackendActionTy::Backend_EmitAssembly)
                                    ? llvm::CodeGenFileType::AssemblyFile

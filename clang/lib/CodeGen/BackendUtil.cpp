@@ -10,8 +10,9 @@
 #include "BackendConsumer.h"
 #include "LinkInModulesPass.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Core/PipelineUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Passes/PipelineUtils.h"
+#include "kitsune/Support/OptznLevelUtils.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LangOptions.h"
@@ -158,30 +159,6 @@ static OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
   }
 }
 
-static OptznLevel mapToOptznLevel(const CodeGenOptions &Opts) {
-  switch (Opts.OptimizationLevel) {
-  case 0:
-    return OptznLevel::O0;
-  case 1:
-    return OptznLevel::O1;
-  case 2:
-    switch (Opts.OptimizeSize) {
-    case 0:
-      return OptznLevel::O2;
-    case 1:
-      return OptznLevel::Os;
-    case 2:
-      return OptznLevel::Oz;
-    default:
-      llvm_unreachable("Invalid optimization level for size");
-    }
-  case 3:
-    return OptznLevel::O3;
-  default:
-    llvm_unreachable("Invalid optimization level");
-  }
-}
-
 namespace {
 
 // Default filename used for profile generation.
@@ -213,7 +190,8 @@ class EmitAssemblyHelper {
   }
 
   std::optional<TapirTargetOptions> getTapirTargetOptions() const {
-    OptznLevel OptLevel = mapToOptznLevel(CodeGenOpts);
+    OptznLevel OptLevel = createOptznLevelFrom(CodeGenOpts.OptimizationLevel,
+                                               CodeGenOpts.OptimizeSize);
     FPOpFusion::FPOpFusionMode FPOpFusionMode = FPOpFusion::Standard;
     if (TM)
       FPOpFusionMode = TM->Options.AllowFPOpFusion;
@@ -670,7 +648,6 @@ void EmitAssemblyHelper::CreateTargetMachine(bool MustCreateTM) {
   llvm::TargetOptions Options;
   if (!initTargetOptions(CI, Diags, Options))
     return;
-
   TM.reset(TheTarget->createTargetMachine(Triple, TargetOpts.CPU, FeaturesStr,
                                           Options, RM, CM, OptLevel));
   TM->setLargeDataThreshold(CodeGenOpts.LargeDataThreshold);
@@ -685,13 +662,12 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
       llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
+  populateKitCodeGenPasses(CodeGenPasses, getTapirTargetOptions());
+
   // Normal mode, emit a .s or .o file by running the code generator. Note,
   // this also adds codegenerator level optimization passes.
   CodeGenFileType CGFT = getCodeGenFileType(Action);
 
-  std::optional<TapirTargetOptions> TTO = getTapirTargetOptions();
-  if (TTO)
-    populateKitCodeGenPasses(CodeGenPasses, TTO);
   if (TM->addPassesToEmitFile(CodeGenPasses, OS, DwoOS, CGFT,
                               /*DisableVerify=*/!CodeGenOpts.VerifyModule)) {
     Diags.Report(diag::err_fe_unable_to_interface_with_target);
@@ -1356,8 +1332,10 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
   Conf.PTO.CallGraphProfile = !CGOpts.DisableIntegratedAS;
-  Conf.PTO.TTOpts = TapirTargetOptions::create(KOpts, mapToOptznLevel(CGOpts),
-                                               Conf.Options.AllowFPOpFusion);
+  Conf.PTO.TTOpts = TapirTargetOptions::create(
+      KOpts,
+      createOptznLevelFrom(CGOpts.OptimizationLevel, CGOpts.OptimizeSize),
+      Conf.Options.AllowFPOpFusion);
 
   // Context sensitive profile.
   if (CGOpts.hasProfileCSIRInstr()) {
