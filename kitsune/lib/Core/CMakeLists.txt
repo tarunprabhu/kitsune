@@ -7,7 +7,6 @@ add_llvm_component_library(LLVMKitCore
   IntrinsicUtils.cpp
   KernelProperties.cpp
   ModuleUtils.cpp
-  PipelineUtils.cpp
   TapirTargetOptions.cpp
   TargetUtils.cpp
   TypeUtils.cpp

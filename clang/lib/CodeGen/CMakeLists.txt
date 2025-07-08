@@ -24,6 +24,7 @@ set(LLVM_LINK_COMPONENTS
   KitAnalysis
   KitCodeGen
   KitCore
+  KitSupport
   LTO
   Linker
   MC

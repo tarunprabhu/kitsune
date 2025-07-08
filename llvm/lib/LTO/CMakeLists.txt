@@ -32,6 +32,7 @@ add_llvm_component_library(LLVMLTO
   KitAnalysis
   KitCore
   KitCodeGen
+  KitPasses
   KitSupport
   Linker
   MC

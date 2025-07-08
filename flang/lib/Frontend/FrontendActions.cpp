@@ -29,8 +29,8 @@
 #include "flang/Support/default-kinds.h"
 #include "flang/Tools/CrossToolHelpers.h"
 
-#include "kitsune/Core/PipelineUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Passes/PipelineUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/Parser/Parser.h"
@@ -950,7 +950,6 @@ static void generateMachineCodeOrAssemblyImpl(
   codeGenPasses.add(new llvm::RuntimeLibraryInfoWrapper(
       triple, tm.Options.ExceptionModel, tm.Options.FloatABIType,
       tm.Options.EABIVersion, tm.Options.MCOptions.ABIName, tm.Options.VecLib));
-  codeGenPasses.add(createCodeGenFatBinariesLegacyPass());
 
   std::unique_ptr<llvm::ToolOutputFile> dwoOS;
   if (!codeGenOpts.SplitDwarfOutput.empty()) {
@@ -963,6 +962,7 @@ static void generateMachineCodeOrAssemblyImpl(
       return;
     }
   }
+  llvm::populateKitCodeGenPasses(codeGenPasses, getTapirTargetOptions(ci));
   if (tm.addPassesToEmitFile(codeGenPasses, os, dwoOS ? &dwoOS->os() : nullptr,
                              cgft)) {
     unsigned diagID =

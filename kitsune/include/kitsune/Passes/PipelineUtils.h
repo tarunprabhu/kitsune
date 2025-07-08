@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_CORE_PIPELINE_UTILS_H
-#define KITSUNE_CORE_PIPELINE_UTILS_H
+#ifndef KITSUNE_PASSES_PIPELINE_UTILS_H
+#define KITSUNE_PASSES_PIPELINE_UTILS_H
 
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -25,19 +25,24 @@ namespace llvm {
 
 class PipelineTuningOptions;
 
+/// Check if the tapir (and by extension Kitsune) lowering pipeline should be
+/// used.
+bool useTapirLowering(ThinOrFullLTOPhase phase,
+                      const PipelineTuningOptions &pto);
+
 /// Populate a ModulePassManager with the passes that should be run as part of
 /// Kitsune's pre-tapir pipeline. These passes are run immediately before tapir
 /// lowering.
-void populateKitPreTapirPasses(ModulePassManager &mpm, OptimizationLevel level,
-                               ThinOrFullLTOPhase phase,
-                               const PipelineTuningOptions &pto);
+ModulePassManager populateKitPreTapirPasses(OptimizationLevel level,
+                                            ThinOrFullLTOPhase phase,
+                                            const PipelineTuningOptions &pto);
 
 /// Populate a ModulePassManager with the passes that should be run as part of
 /// Kitsune's post-tapir pipeline. These passes are run immediately after tapir
 /// lowering.
-void populateKitPostTapirPasses(ModulePassManager &mpm, OptimizationLevel level,
-                                ThinOrFullLTOPhase phase,
-                                const PipelineTuningOptions &pto);
+ModulePassManager populateKitPostTapirPasses(OptimizationLevel level,
+                                             ThinOrFullLTOPhase phase,
+                                             const PipelineTuningOptions &pto);
 
 /// Populate a pass manager with Kitsune's codegen passes.
 void populateKitCodeGenPasses(legacy::PassManager &pm,
@@ -45,4 +50,4 @@ void populateKitCodeGenPasses(legacy::PassManager &pm,
 
 } // namespace llvm
 
-#endif // KITSUNE_CORE_PIPELINE_UTILS_H
+#endif // KITSUNE_PASSES_PIPELINE_UTILS_H
