@@ -59,10 +59,7 @@ static cl::opt<bool> UseOpenCilkRuntimeBC(
 static const StringRef StackFrameName = "__cilkrts_sf";
 
 OpenCilkABI::OpenCilkABI(Module &M, const TapirTargetOptions &Opts)
-    : TapirTarget(M, Opts) {
-  if (Opts.getTapirVerbose())
-    Opts.print(dbgs());
-}
+    : TapirTarget(M, Opts) {}
 
 // Helper function to fix the implementation of __cilk_sync.  In particular,
 // this fixup ensures that __cilk_sync, and specific __cilkrts method calls

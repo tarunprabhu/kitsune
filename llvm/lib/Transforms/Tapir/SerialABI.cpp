@@ -23,10 +23,7 @@ using namespace llvm;
 #define DEBUG_TYPE "serialabi"
 
 SerialABI::SerialABI(Module &M, const TapirTargetOptions &Opts)
-    : TapirTarget(M, Opts) {
-  if (Opts.getTapirVerbose())
-    Opts.print(dbgs());
-}
+    : TapirTarget(M, Opts) {}
 
 Value *SerialABI::lowerGrainsizeCall(CallInst *GrainsizeCall) {
   Value *Grainsize = ConstantInt::get(GrainsizeCall->getType(), 1);

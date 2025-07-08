@@ -691,11 +691,6 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &TTO)
     : TapirTarget(M, TTO), KernelModule("", M.getContext()) {
   LLVM_DEBUG(dbgs() << "cuabi: CudaABI::CudaABI()\n");
 
-  // This is used for testing, so it should not be removed. At some point, this
-  // will be replaced with something less stupid for testing.
-  if (TTO.getTapirVerbose())
-    TTO.print(dbgs());
-
   TargetMachine *TM = createTargetMachine(TTID::Cuda, TTO);
   KernelModule.setTargetTriple(TM->getTargetTriple().str());
   KernelModule.setDataLayout(TM->createDataLayout());

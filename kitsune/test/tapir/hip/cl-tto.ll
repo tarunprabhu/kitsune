@@ -1,8 +1,7 @@
-; Check that the command line options make it to the options objects.
+; Check that opt's command line options make it to the tapir target options.
 ;
 ; RUN: opt --tapir=hip -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:     --tapir-verbose \
-; RUN:     --kitrt-verbose \
+; RUN:     -dump-tapir-target-options \
 ; RUN:     --tapir-gpu-tpb=64 \
 ; RUN:     --tapir-gpu-max-tpb=128 \
 ; RUN:     --tapir-gpu-prefetch=false \
@@ -15,26 +14,21 @@
 ; RUN:     | FileCheck %s -check-prefixes ALL,CHECK
 ;
 ; RUN: opt --tapir=hip -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:     --tapir-verbose --tapir-gpu-prefetch=true 2>&1 \
+; RUN:     -dump-tapir-target-options \
+; RUN:     --tapir-gpu-prefetch=true 2>&1 \
 ; RUN:     | FileCheck %s -check-prefixes ALL,PREFETCH
 ;
-; ALL: 'hip' tapir target options
-; CHECK:    Runtime verbose: 1
-; CHECK:    Optimization level: O2
-; CHECK:    GPU fixed threads/block: 64
-; CHECK:    GPU max threads/block: 128
-; CHECK:    GPU prefetch: 0
-; CHECK:    Hip arch: gfx906
-; CHECK:    Hip sramecc: off
-; CHECK:    Hip xnack: on
-; CHECK:    Hip target features: -sramecc,+xnack
-; CHECK:    Hip bitcode files: [
-; CHECK:      {{.+}}/input/amd.bc
-; CHECK:    ]
-; PREFETCH: GPU prefetch: 1
-
-target triple = "x86_64-unknown-linux-gnu"
-
-define void @f(ptr %c, i32 %n) {
-  ret void
-}
+; ALL:       Tapir target options
+; ALL:       Primary: hip
+; CHECK:     Optimization level: O2
+; CHECK:     GPU fixed threads/block: 64
+; CHECK:     GPU max threads/block: 128
+; CHECK:     GPU prefetch: 0
+; CHECK:     Hip arch: gfx906
+; CHECK:     Hip sramecc: off
+; CHECK:     Hip xnack: on
+; CHECK:     Hip target features: -sramecc,+xnack
+; CHECK:     Hip bitcode files: [
+; CHECK:       {{.+}}/input/amd.bc
+; CHECK:     ]
+; PREFETCH:  GPU prefetch: 1
