@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/CommandLineOptions.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
@@ -23,6 +24,11 @@
 #define DEBUG_TYPE "tapir-target-analysis"
 
 using namespace llvm;
+
+static cl::opt<bool>
+    clDumpTTO("dump-tapir-target-options", cl::init(false),
+              cl::desc("Dump the tapir target options if they have been set"),
+              cl::Hidden, cl::cat(cl::catKitClOpts));
 
 /// Empty vector of tapir targets to be used when
 /// @ref TapirTargetInfo::getRequiredTTs is called with a function that does not
@@ -109,7 +115,10 @@ bool TapirTargetInfo::invalidate(Module &, const PreservedAnalyses &pa,
 AnalysisKey TapirTargetAnalysis::Key;
 
 TapirTargetAnalysis::TapirTargetAnalysis(std::optional<TapirTargetOptions> tto)
-    : ttInfo(tto) {}
+    : ttInfo(tto) {
+  if (clDumpTTO and ttInfo.hasTTID())
+    ttInfo.getOptions().print(outs(), /*all=*/true);
+}
 
 TapirTargetAnalysis::Result
 TapirTargetAnalysis::run(Module &m, ModuleAnalysisManager &mam) {

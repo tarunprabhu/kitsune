@@ -290,7 +290,8 @@ std::unique_ptr<TapirTargetOptions> TapirTargetOptions::clone() const {
 }
 
 void TapirTargetOptions::print(raw_ostream &os, bool all) const {
-  os << "'" << tt << "' tapir target options:\n";
+  os << "Tapir target options:\n";
+  os << "  Primary:                 " << tt << "\n";
   os << "  Compiler verbose:        " << getTapirVerbose() << "\n";
   os << "  Runtime verbose:         " << getKitrtVerbose() << "\n";
   os << "  Optimization level:      " << getOptznLevel() << "\n";
