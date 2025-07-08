@@ -1963,9 +1963,7 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
     } else if (Matches[1] == "kit-lowering") {
       if (Error Err = resetOptznLevel(Matches[1], L, PTO))
         return Err;
-      MPM.addPass(buildKitsunePreTapirPipeline(L, ThinOrFullLTOPhase::None));
-      MPM.addPass(buildTapirLoweringPipeline(L, ThinOrFullLTOPhase::None));
-      MPM.addPass(buildKitsunePostTapirPipeline(L, ThinOrFullLTOPhase::None));
+      MPM.addPass(buildKitsuneLoweringPipeline(L, ThinOrFullLTOPhase::None));
     } else {
       assert(Matches[1] == "lto" && "Not one of the matched options!");
       MPM.addPass(buildLTODefaultPipeline(L, nullptr));

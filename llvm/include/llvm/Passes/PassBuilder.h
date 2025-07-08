@@ -274,21 +274,13 @@ public:
   ModulePassManager buildTapirLoweringPipeline(OptimizationLevel Level,
                                                ThinOrFullLTOPhase Phase);
 
-  /// Construct the pipeline for Kitsune passes that run just before the tapir
-  /// lowering passes.
+  /// Construct the pipeline to lower Tapir constructs with Kitsune passes
+  /// running on either side of the tapir lowering.
   ///
-  /// TODO: Write more documentation about this once we figure out what actually
-  /// goes in here.
-  ModulePassManager buildKitsunePreTapirPipeline(OptimizationLevel Level,
+  /// This is intended to be used with the PerModuleDefault pipeline and various
+  /// LTO pipelines. This runs late in the parent pipelines.
+  ModulePassManager buildKitsuneLoweringPipeline(OptimizationLevel,
                                                  ThinOrFullLTOPhase Phase);
-
-  /// Construct the pipeline for Kitsune passes that run just after the tapir
-  /// lowering passes.
-  ///
-  /// TODO: Write more documentation about this once we figure out what actually
-  /// goes in here.
-  ModulePassManager buildKitsunePostTapirPipeline(OptimizationLevel Level,
-                                                  ThinOrFullLTOPhase Phase);
 
   /// Build a per-module default optimization pipeline.
   ///

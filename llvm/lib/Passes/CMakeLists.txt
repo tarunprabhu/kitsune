@@ -30,6 +30,7 @@ add_llvm_component_library(LLVMPasses
   KitAnalysis
   KitCodeGen
   KitCore
+  KitPasses
   KitSupport
   KitTransforms
   KitTransformUtils
