@@ -519,12 +519,6 @@ public:
                                        DominatorTree &DT) {}
 };
 
-/// Generate a TapirTarget object for the specified TapirTargetID.
-/// FIXME: This should be removed once we have the TapirTargetAnalysis pass
-/// keep track of the TapirTarget objects.
-TapirTarget *getTapirTargetFromID(Module &M, TTID TTID,
-                                  const TapirTargetOptions &Opts);
-
 /// Find all inputs to tasks within a function \p F, including nested tasks.
 TaskValueSetMap findAllTaskInputs(Function &F, const DominatorTree &DT,
                                   const TaskInfo &TI);

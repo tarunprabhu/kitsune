@@ -15,6 +15,7 @@
 #define LLVM_TAPIR_TARGETS_H
 
 #include "kitsune/Config/config.h"
+#include "llvm/Transforms/Tapir/SerialABI.h"
 
 #if KITSUNE_CUDA_ENABLED
 #include "llvm/Transforms/Tapir/CudaABI.h"
@@ -43,7 +44,5 @@
 #if KITSNUE_REALM_ENABLED
 #include "llvm/Transforms/Tapir/RealmABI.h"
 #endif // KITSUNE_REALM_ENABLED
-
-#include "llvm/Transforms/Tapir/SerialABI.h"
 
 #endif // LLVM_TAPIR_TARGETS_H
