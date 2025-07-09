@@ -10,39 +10,6 @@
 ;
 ; CHECK: define {{.+}} @f(ptr {{.*}}%[[C:.+]], i64 {{.*}}%[[N:.+]])
 ;
-; Local variables for the arguments so everything is passed to the runtime
-; launch function.
-; CHECK: %[[ARGS:.+]] = alloca [5 x ptr]
-; CHECK: %[[LOCAL_TRIP_COUNT:.+]] = alloca i64
-; CHECK: %[[LOCAL_START:.+]] = alloca i64
-; CHECK: %[[LOCAL_GRAINSIZE:.+]] = alloca i64
-; CHECK: %[[LOCAL_C:.+]] = alloca ptr
-; CHECK: %[[LOCAL_N:.+]] = alloca i64
-;
-; The trip count is the first argument of the kernel function.
-; CHECK: store i64 %n, ptr %[[LOCAL_TRIP_COUNT]]
-; CHECK: store ptr %[[LOCAL_TRIP_COUNT]], ptr %[[ARGS]]
-;
-; The start index is the second argument.
-; CHECK: store i64 0, ptr %[[LOCAL_START]]
-; CHECK: %[[ARGS_START:.+]] = getelementptr {{.+}} i8, ptr %[[ARGS]], i64 8
-; CHECK: store ptr %[[LOCAL_START]], ptr %[[ARGS_START]]
-;
-; The grainsize is the third argument. This is usually 1, but don't assume that
-; here.
-; CHECK: store i64 {{.+}}, ptr %[[LOCAL_GRAINSIZE]]
-; CHECK: %[[ARGS_GRAINSIZE:.+]] = getelementptr {{.+}} i8, ptr %[[ARGS]], i64 16
-; CHECK: store ptr %[[LOCAL_GRAINSIZE]], ptr %[[ARGS_GRAINSIZE]]
-;
-; The remaining arguments to the kernel function are whatever else is used in
-; the kernel function.
-; CHECK: store ptr %[[C]], ptr %[[LOCAL_C]]
-; CHECK: %[[ARGS_C:.+]] = getelementptr {{.+}} i8, ptr %[[ARGS]], i64 24
-; CHECK: store ptr %[[LOCAL_C]], ptr %[[ARGS_C]]
-; CHECK: store i64 %[[N]], ptr %[[LOCAL_N]]
-; CHECK: %[[ARGS_N:.+]] = getelementptr {{.+}} i8, ptr %[[ARGS]], i64 32
-; CHECK: store ptr %[[LOCAL_N]], ptr %[[ARGS_N]]
-;
 ; The actual launch. The arguments are:
 ;
 ;   - tapir target id
@@ -50,23 +17,33 @@
 ;   - kernel name global string literal
 ;   - trip count
 ;   - threads per block (zero to indicate that it is unset)
-;   - kernel metadata global
+;   - kernel properties global
 ;   - thread stream
 ;
-; If the signature of the launch kernel intrinsic changes, this will fail as it
-; should.
+; These are followed by a variable number of arguments that are to be passed to
+; the kernel being launched. These are typically in the order
 ;
-; global, the string literal for the kernel name, the arguments array, the
-; trip count,
-; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kit.async.launch.kernel(
+;   - trip count
+;   - start index
+;   - grain size
+;   - ...
+;
+; where ... are the rest of the arguments to be passed to the kernel. Currently,
+; we force the grain size to be 1. The start index is always 0.
+;
+; CHECK: %[[TS:.+]] = {{.*}}call {{.+}} @llvm.kit.async.launch.kernel(
 ; CHECK-SAME: i32 2,
 ; CHECK-SAME: ptr {{.*}}@[[FB]],
 ; CHECK-SAME: ptr {{.*}}@[[G_KNAME]],
-; CHECK-SAME: ptr {{.*}}%[[ARGS]],
 ; CHECK-SAME: i64 %n,
 ; CHECK-SAME: i32 0,
 ; CHECK-SAME: ptr {{.*}}@[[G_KERNEL_PROPS]],
-; CHECK-SAME: ptr {{.*}}%{{[A-Za-z0-9._]+}}
+; CHECK-SAME: ptr null,
+; CHECK-SAME: i64 %n,
+; CHECK-SAME: i64 0,
+; CHECK-SAME: i64 1,
+; CHECK-SAME: ptr %c,
+; CHECK-SAME: i64 %n
 ; CHECK-SAME: )
 ;
 ; By default, we always enter a sync immediately after the launch. A later

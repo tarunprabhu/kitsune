@@ -34,11 +34,11 @@ def int_kit_async_launch_kernel
                 [llvm_i32_ty,  // tapir target id
                  llvm_ptr_ty,  // fat binary
                  llvm_ptr_ty,  // name
-                 llvm_ptr_ty,  // args[]
                  llvm_i64_ty,  // trip_count
                  llvm_i32_ty,  // threads per block
                  llvm_ptr_ty,  // instruction mix info
-                 llvm_ptr_ty], // stream
+                 llvm_ptr_ty,  // stream
+                 llvm_vararg_ty],
                 [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
                  IntrHasSideEffects]>;
 

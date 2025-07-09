@@ -12,10 +12,10 @@
 ; CHECK-DAG: @[[VARNAME:.+]] = private unnamed_addr constant [5 x i8] c"v137\00"
 ;
 ; CHECK: define {{.+}} @f
-; CHECK: %[[PTR1:.+]] = tail call {{.+}} @llvm.kit.symbol.device.ptr(i32 4, ptr nonnull @[[FB]], ptr nonnull @[[VARNAME]])
+; CHECK: %[[PTR1:.+]] = {{.*}}call {{.+}} @llvm.kit.symbol.device.ptr(i32 4, ptr nonnull @[[FB]], ptr nonnull @[[VARNAME]])
 ; CHECK: call {{.+}} @llvm.kit.symbol.memcpy.htod(i32 4, ptr %[[PTR1]], ptr nonnull @[[HOSTVAR]], i64 4)
-; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kit.async.launch.kernel(i32 4, ptr nonnull @[[FB]],
-; CHECK: %[[PTR2:.+]] = call {{.+}} @llvm.kit.symbol.device.ptr(i32 4, ptr nonnull @[[FB]], ptr nonnull @[[VARNAME]])
+; CHECK: %[[TS:.+]] = {{.*}}call {{.+}} @llvm.kit.async.launch.kernel(i32 4, ptr nonnull @[[FB]],
+; CHECK: %[[PTR2:.+]] = {{.*}}call {{.+}} @llvm.kit.symbol.device.ptr(i32 4, ptr nonnull @[[FB]], ptr nonnull @[[VARNAME]])
 ; CHECK: call {{.+}} @llvm.kit.symbol.memcpy.dtoh(i32 4, ptr nonnull @[[HOSTVAR]], ptr %[[PTR2]], i64 4)
 ; CHECK: ret void
 ; CHECK-NEXT: }

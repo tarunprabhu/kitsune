@@ -11,14 +11,16 @@
 ; ------------------------------------------------------------------------------
 ;
 ; RUN: opt --tapir=cuda -passes='kit-lower-intrinsics' -S %s \
-; RUN:     | FileCheck %s --check-prefix CUDA
+; RUN:     | FileCheck %s
 ;
-; CUDA-LABEL: @launch
-; CUDA-NEXT: call ptr @__kitcuda_launch_kernel(ptr nonnull @fb, ptr nonnull @1, ptr nonnull %q, i64 %n, i32 0, ptr nonnull @0, ptr %p)
-; CUDA-NEXT: call ptr @__kitcuda_launch_kernel(ptr nonnull @fb, ptr nonnull @1, ptr nonnull %q, i64 %n, i32 0, ptr nonnull @0, ptr %p) #[[ATTRS:[0-9]+]]
-; CUDA-NEXT: ret void
+; CHECK-LABEL: @launch
+; CHECK: %[[ARRAY2:[0-9]+]] = alloca [3 x ptr]
+; CHECK: %[[ARRAY1:[0-9]+]] = alloca [4 x ptr]
+; CHECK: call ptr @__kitcuda_launch_kernel(ptr nonnull @fb, ptr nonnull @1, ptr nonnull %[[ARRAY1]], i64 %n, i32 0, ptr nonnull @0, ptr %p)
+; CHECK: call ptr @__kitcuda_launch_kernel(ptr nonnull @fb, ptr nonnull @1, ptr nonnull %[[ARRAY2]], i64 %n, i32 0, ptr nonnull @0, ptr %p) #[[ATTRS:[0-9]+]]
+; CHECK: ret void
 ;
-; CUDA: attributes #[[ATTRS]] = { "custom-attr" }
+; CHECK: attributes #[[ATTRS]] = { "custom-attr" }
 
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -26,9 +28,9 @@ target triple = "x86_64-unknown-linux-gnu"
 @0 = external global i32
 @1 = external global float
 
-define void @launch(ptr %p, ptr nonnull %q, i64 %n) {
-  call ptr @llvm.kit.async.launch.kernel(i32 2, ptr nonnull @fb, ptr nonnull @1, ptr nonnull %q, i64 %n, i32 0, ptr nonnull @0, ptr %p)
-  call ptr @llvm.kit.async.launch.kernel(i32 2, ptr nonnull @fb, ptr nonnull @1, ptr nonnull %q, i64 %n, i32 0, ptr nonnull @0, ptr %p) #0
+define void @launch(ptr %p, ptr nonnull %q, i64 %n, float %f) {
+  call ptr (i32, ptr, ptr, i64, i32, ptr, ptr, ...) @llvm.kit.async.launch.kernel(i32 2, ptr nonnull @fb, ptr nonnull @1, i64 %n, i32 0, ptr nonnull @0, ptr %p, ptr dereferenceable(32) %q, i32 noundef 98, float %f, ptr null)
+  call ptr (i32, ptr, ptr, i64, i32, ptr, ptr, ...) @llvm.kit.async.launch.kernel(i32 2, ptr nonnull @fb, ptr nonnull @1, i64 %n, i32 0, ptr nonnull @0, ptr %p, ptr dereferenceable(32) %q, i32 noundef 98, ptr null) #0
   ret void
 }
 

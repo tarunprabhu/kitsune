@@ -16,6 +16,7 @@
 #include "kitsune/Core/Tapir.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -115,7 +116,6 @@ static const std::map<TTID, KitsuneRuntimeFuncMap> kitTTFuncs = {
 /// modified before passing them to the runtime function, the lowering *MUST* be
 /// handled with a custom lowering function.
 static const std::map<Intrinsic::ID, std::vector<unsigned>> kitRTArgMap = {
-    {Intrinsic::kit_async_launch_kernel, {1, 2, 3, 4, 5, 6, 7}},
     {Intrinsic::kit_async_memcpy_dtoh, {1, 2, 3, 4}},
     {Intrinsic::kit_async_memcpy_htod, {1, 2, 3, 4}},
     {Intrinsic::kit_async_prefetch_dtoh, {1, 3}},
@@ -250,41 +250,60 @@ private:
     }
   }
 
-  AttributeList addAttributes(AttributeList attrs, LLVMContext &ctx,
-                              unsigned idx, const AttributeSet &as) {
-    for (const Attribute &attr : as)
-      attrs = attrs.addAttributeAtIndex(ctx, idx, attr);
+  /// Return a new attribute list which is exactly the same as the given
+  /// attribute list \ref attrs except that the attributes at index \ref src of
+  /// \ref call's attribute list are added to index \ref dst of \ref attrs. The
+  /// newly created attribute list is returned.
+  AttributeList addAttrsFrom(AttributeList attrs, unsigned dst,
+                             const CallInst &call, unsigned src) {
+    LLVMContext &ctx = call.getContext();
+    AttributeList callAttrs = call.getAttributes();
+    for (const Attribute &attr : callAttrs.getAttributes(src))
+      attrs = attrs.addAttributeAtIndex(ctx, dst, attr);
     return attrs;
   }
 
-  AttributeList createNewAttrList(CallInst &call, ArrayRef<unsigned> argMap) {
-    LLVMContext &ctx = call.getContext();
-    AttributeList attrsC = call.getAttributes();
-    AttributeSet attrsF = attrsC.getAttributes(AttributeList::FunctionIndex);
-    AttributeSet attrsR = attrsC.getAttributes(AttributeList::ReturnIndex);
+  /// Return a new attribute list which is exactly the same as the given
+  /// attribute list \ref attrs except that the attributes at index \ref src of
+  /// \ref call's attribute list are added to index \ref src of \ref attrs. The
+  /// newly created attribute list is returned.
+  AttributeList addAttrsFrom(AttributeList attrs, const CallInst &call,
+                             unsigned src) {
+    return addAttrsFrom(attrs, src, call, src);
+  }
 
+  /// Create a new attribute list that will eventually be applied to the
+  /// replacement of the given call instruction. If \ref argMap[i] = j, the
+  /// attributes from the j'th argument of \ref call will be added to index i
+  /// of the new attribute list that is returned.
+  AttributeList createNewAttrList(const CallInst &call,
+                                  ArrayRef<unsigned> argMap) {
     AttributeList attrs;
-    attrs = addAttributes(attrs, ctx, AttributeList::FunctionIndex, attrsF);
-    attrs = addAttributes(attrs, ctx, AttributeList::ReturnIndex, attrsR);
+    attrs = addAttrsFrom(attrs, call, AttributeList::FunctionIndex);
+    attrs = addAttrsFrom(attrs, call, AttributeList::ReturnIndex);
     for (size_t i = 0; i < argMap.size(); ++i) {
       unsigned isrc = AttributeList::FirstArgIndex + argMap[i];
       unsigned idst = AttributeList::FirstArgIndex + i;
-      attrs = addAttributes(attrs, ctx, idst, attrsC.getAttributes(isrc));
+      attrs = addAttrsFrom(attrs, idst, call, isrc);
     }
-
     return attrs;
   }
 
+  /// Create a new call to the given function to replace an existing call. The
+  /// debug info, metadata, calling convention and tail call kind will be copied
+  /// over from the original call. However, the attributes will not be copied.
+  /// The new call is returned, but the original call will remain unchanged.
+  ///
+  /// The attributes are not copied because there are some intrinsics where the
+  /// attributes cannot be copied over directly. To avoid having conditional
+  /// statements in this function, we require the attributes to be copied over
+  /// by callers.
   CallInst *createNewCallFor(CallInst &call, FunctionCallee f,
-                             ArrayRef<Value *> args,
-                             ArrayRef<unsigned> argMap) {
+                             ArrayRef<Value *> args) {
     StringRef name = call.getName();
     BasicBlock::iterator pos = call.getIterator();
 
-    AttributeList newAttrs = createNewAttrList(call, argMap);
-
     CallInst *newCall = CallInst::Create(f, args, name, pos);
-    newCall->setAttributes(newAttrs);
     newCall->cloneDebugInfoFrom(&call);
     newCall->copyMetadata(call);
     newCall->setCallingConv(call.getCallingConv());
@@ -316,9 +335,10 @@ private:
     // The result of the new call will be a pointer in the default address
     // space. However, all uses of the call will be in the mobile address
     // space.
-    CallInst *newCall = createNewCallFor(call, f, args, {0});
+    CallInst *newCall = createNewCallFor(call, f, args);
     CastInst *cst =
         CastInst::Create(Instruction::AddrSpaceCast, newCall, retTy, "", pos);
+    newCall->setAttributes(createNewAttrList(call, {0}));
 
     cst->moveAfter(newCall);
     call.replaceAllUsesWith(cst);
@@ -342,8 +362,78 @@ private:
     // argument to Kitsune's intrinsic will be in the mobile address space.
     CastInst *cst = CastInst::Create(Instruction::AddrSpaceCast,
                                      call.getArgOperand(0), ptrTy, "", pos);
-    CallInst *newCall = createNewCallFor(call, f, cst, {0});
+    CallInst *newCall = createNewCallFor(call, f, cst);
+    newCall->setAttributes(createNewAttrList(call, {0}));
 
+    call.replaceAllUsesWith(newCall);
+    call.eraseFromParent();
+
+    return true;
+  }
+
+  /// Lower the kernel launch intrinsic. This is a vararg intrinsic, but the
+  /// corresponding runtime functions need the arguments to be passed an array
+  /// of pointers to the arguments. We implement this by creating a stack slot
+  /// for each argument, and an array of pointers, each of which is a pointer to
+  /// one of these stack slots. The runtime function is passed a pointer to
+  /// this array of pointers.
+  bool lowerLaunchKernel(CallInst &call) {
+    LLVMContext &ctx = call.getContext();
+    Type *i64 = Type::getInt64Ty(ctx);
+    PointerType *ptrTy = PointerType::getUnqual(ctx);
+    Constant *c0 = ConstantInt::get(i64, 0);
+
+    // The last parameter of the function type of the callee is the "var arg
+    // type". By definition, this is also the argument number of the first
+    // variadic argument in the call. This, along with all subsequent arguments
+    // in the call are the arguments to the kernel function being launched.
+    std::vector<Value *> kernelArgs;
+    Function *callee = call.getCalledFunction();
+    FunctionType *calleeTy = callee->getFunctionType();
+    for (unsigned i = calleeTy->getNumParams(); i < call.arg_size(); ++i)
+      kernelArgs.push_back(call.getArgOperand(i));
+
+    BasicBlock &bbEntry = call.getParent()->getParent()->getEntryBlock();
+
+    ArrayType *arrTy = ArrayType::get(ptrTy, kernelArgs.size());
+    AllocaInst *argArray = new AllocaInst(arrTy, 0, "", bbEntry.begin());
+    for (size_t i = 0; i < kernelArgs.size(); ++i) {
+      Constant *ci = ConstantInt::get(i64, i);
+      Value *indices[] = {c0, ci};
+      Value *kernelArg = kernelArgs[i];
+      Type *argTy = kernelArg->getType();
+
+      AllocaInst *slot = new AllocaInst(argTy, 0, "", argArray->getIterator());
+      (void)new StoreInst(kernelArg, slot, call.getIterator());
+      GetElementPtrInst *argOffset = GetElementPtrInst::CreateInBounds(
+          arrTy, argArray, indices, "", call.getIterator());
+      (void)new StoreInst(slot, argOffset, call.getIterator());
+    }
+
+    // The attributes can mostly be copied over to the new call. However, the
+    // 3rd argument in the runtime call will be the packed argument array, so
+    // those attributes cannot be copied over from the intrinsic call.
+    unsigned attr0 = AttributeList::FirstArgIndex;
+    AttributeList attrs;
+    attrs = addAttrsFrom(attrs, call, AttributeList::FunctionIndex);
+    attrs = addAttrsFrom(attrs, call, AttributeList::ReturnIndex);
+    attrs = addAttrsFrom(attrs, attr0 + 0, call, attr0 + 1);
+    attrs = addAttrsFrom(attrs, attr0 + 1, call, attr0 + 2);
+    attrs = addAttrsFrom(attrs, attr0 + 3, call, attr0 + 3);
+    attrs = addAttrsFrom(attrs, attr0 + 4, call, attr0 + 4);
+    attrs = addAttrsFrom(attrs, attr0 + 5, call, attr0 + 5);
+    attrs = addAttrsFrom(attrs, attr0 + 6, call, attr0 + 6);
+    attrs = attrs.addAttributeAtIndex(ctx, attr0 + 2, Attribute::NonNull);
+
+    FunctionCallee rtFunc = getRuntimeFunc(call);
+    Value *args[] = {
+        call.getArgOperand(1), call.getArgOperand(2), argArray,
+        call.getArgOperand(3), call.getArgOperand(4), call.getArgOperand(5),
+        call.getArgOperand(6),
+    };
+    CallInst *newCall = createNewCallFor(call, rtFunc, args);
+
+    newCall->setAttributes(attrs);
     call.replaceAllUsesWith(newCall);
     call.eraseFromParent();
 
@@ -363,7 +453,8 @@ private:
     for (unsigned argNo : argMap)
       args.push_back(call.getArgOperand(argNo));
 
-    CallInst *newCall = createNewCallFor(call, f, args, argMap);
+    CallInst *newCall = createNewCallFor(call, f, args);
+    newCall->setAttributes(createNewAttrList(call, argMap));
 
     call.replaceAllUsesWith(newCall);
     call.eraseFromParent();
@@ -386,6 +477,10 @@ private:
 
     case Intrinsic::kit_mobile_free:
       changed |= lowerMobileFree(call);
+      break;
+
+    case Intrinsic::kit_async_launch_kernel:
+      changed |= lowerLaunchKernel(call);
       break;
 
     case Intrinsic::kit_enable_verbose:

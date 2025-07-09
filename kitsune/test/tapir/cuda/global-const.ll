@@ -10,7 +10,7 @@
 ; CHECK: define {{.+}} @f
 ; CHECK-NOT: llvm.kit.symbol.device.ptr
 ; CHECK-NOT: llvm.kit.symbol.memcpy.htod
-; CHECK: %[[TS:.+]] = call {{.+}} @llvm.kit.async.launch.kernel(i32 2, ptr nonnull @[[FB]],
+; CHECK: %[[TS:.+]] = {{.*}}call {{.+}} @llvm.kit.async.launch.kernel(i32 2, ptr nonnull @[[FB]],
 ; CHECK-NOT: llvm.kit.symbol.memcpy.host
 ;
 ; CHECK: define {{.+}} @.kitcuda.ctor{{[^(]*}}
