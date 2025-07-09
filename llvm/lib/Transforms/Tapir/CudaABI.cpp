@@ -540,17 +540,11 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   const DataLayout &DL = M.getDataLayout();
   LLVMContext &Ctx = M.getContext();
+  Type *VoidTy = Type::getVoidTy(Ctx);
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   PointerType *PtrTy = PointerType::getUnqual(Ctx);
-  ArrayType *ArrayTy = ArrayType::get(PtrTy, OrderedInputs.size());
 
-  Function *KitrtSymbolDevicePtr =
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_symbol_device_ptr);
-  Function *KitrtSymbolMemcpyHToD =
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_symbol_memcpy_htod);
-  Function *KitrtSymbolMemcpyDToH =
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_symbol_memcpy_dtoh);
   Function *KitrtPrefetchHToD =
       Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_async_prefetch_htod);
 
@@ -579,20 +573,6 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   TapirLoopHints Hints(TL.getLoop());
   Value *TPB = ConstantInt::get(Int32Ty, Hints.getThreadsPerBlock());
 
-  // Create two builders
-  //
-  //   1. EntryBuilder: Inserts instructions - typically allocas into the entry
-  //      block
-  //   2. NewBuilder: Inserts new code in a split basic block
-  //
-  // *** NOTE: If you are going to code gen an alloca in the code below it is
-  // most likely (100%?) you should use the EntryBuilder vs. the NewBuilder. If
-  // you find yourself with stack issues for longer running code this is a
-  // likely bug to check.
-  Function *Parent = TOI.ReplCall->getFunction();
-  BasicBlock &EntryBB = Parent->getEntryBlock();
-  IRBuilder<> EntryBuilder(&EntryBB.front());
-
   BasicBlock *RCBB = TOI.ReplCall->getParent();
   BasicBlock *NewBB = RCBB->splitBasicBlock(TOI.ReplCall);
   IRBuilder<> NewBuilder(&NewBB->front());
@@ -609,33 +589,24 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
                       << "'\n");
     Type *GVType = GV->getValueType();
     size_t GVSize = DL.getTypeAllocSize(GVType);
-    Value *DevPtr =
-        NewBuilder.CreateCall(KitrtSymbolDevicePtr, {CTT, EmbFB, Name});
     Constant *Bytes = ConstantInt::get(Int64Ty, GVSize);
-    NewBuilder.CreateCall(KitrtSymbolMemcpyHToD, {CTT, DevPtr, GV, Bytes});
+    Value *DevPtr = NewBuilder.CreateIntrinsic(
+        PtrTy, Intrinsic::kit_symbol_device_ptr, {CTT, EmbFB, Name});
+    (void)NewBuilder.CreateIntrinsic(VoidTy, Intrinsic::kit_symbol_memcpy_htod,
+                                     {CTT, DevPtr, GV, Bytes});
   }
 
-  // TODO: There is some potential here to share this code across both the hip
-  // and cuda tapir targets.
-  LLVM_DEBUG(dbgs() << "\t*- code gen packing of " << OrderedInputs.size()
-                    << " kernel args.\n");
-  Value *ArgArray = EntryBuilder.CreateAlloca(ArrayTy);
-
+  std::vector<Value *> Args = {CTT, EmbFB,  KName,     TripCount,
+                               TPB, KProps, CudaStream};
   for (size_t I = 0; I < OrderedInputs.size(); ++I) {
     // If the input is a pointer, there is a good chance that it is in Kitsune's
     // mobile pointer address space. Kitsune's runtime intrinsics currently
-    // expect pointers in the default address space. This should change at some
-    // point.
+    // expect pointers in the default address space. This might need to change
+    // at some point.
     Value *Inp = OrderedInputs[I];
     if (Inp->getType()->isPointerTy())
       Inp = NewBuilder.CreateAddrSpaceCast(Inp, PtrTy);
-
-    Value *InpAlloca = EntryBuilder.CreateAlloca(Inp->getType());
-    NewBuilder.CreateStore(Inp, InpAlloca);
-
-    Value *ArgPtr =
-        NewBuilder.CreateConstInBoundsGEP2_32(ArrayTy, ArgArray, 0, I);
-    NewBuilder.CreateStore(InpAlloca, ArgPtr);
+    Args.push_back(Inp);
 
     if (getOptions().getGPUPrefetch() && Inp->getType()->isPointerTy()) {
       LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for kernel arg #" << I
@@ -653,20 +624,17 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     }
   }
 
-  Value *Args = NewBuilder.CreateConstInBoundsGEP2_32(ArrayTy, ArgArray, 0, 0);
-
   // TODO: We should probably have the launch and sync kitsune intrinsics take
   // a sync region as an argument This may make it easier to do post-outlining
   // analyses to eliminate/delay device synchronization calls instead of
   // always synchronizing immediately after the kernel launch.
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
-  CudaStream = NewBuilder.CreateCall(
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_async_launch_kernel),
-      {CTT, EmbFB, KName, Args, TripCount, TPB, KProps, CudaStream});
+  Function *LaunchKernel =
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_async_launch_kernel);
+  CudaStream = NewBuilder.CreateCall(LaunchKernel, Args);
 
-  NewBuilder.CreateCall(
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_sync_stream),
-      {CTT, CudaStream});
+  NewBuilder.CreateIntrinsic(VoidTy, Intrinsic::kit_sync_stream,
+                             {CTT, CudaStream});
 
   // After the kernel is done, copy the non-const globals back to the host. This
   // is done here to keep this part of the code generation simple. A subsequent
@@ -677,10 +645,11 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
     LLVM_DEBUG(dbgs() << "\t\t\t  processing global: '" << GV->getName()
                       << "'\n");
     size_t GVSize = DL.getTypeAllocSize(GV->getValueType());
-    Value *DevPtr =
-        NewBuilder.CreateCall(KitrtSymbolDevicePtr, {CTT, EmbFB, Name});
     Constant *Bytes = ConstantInt::get(Int64Ty, GVSize);
-    NewBuilder.CreateCall(KitrtSymbolMemcpyDToH, {CTT, GV, DevPtr, Bytes});
+    Value *DevPtr = NewBuilder.CreateIntrinsic(
+        PtrTy, Intrinsic::kit_symbol_device_ptr, {CTT, EmbFB, Name});
+    (void)NewBuilder.CreateIntrinsic(VoidTy, Intrinsic::kit_symbol_memcpy_dtoh,
+                                     {CTT, GV, DevPtr, Bytes});
   }
 
   TOI.ReplCall->eraseFromParent();
