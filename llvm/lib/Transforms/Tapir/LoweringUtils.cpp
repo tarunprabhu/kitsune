@@ -26,7 +26,6 @@
 #include "llvm/Transforms/IPO/FunctionAttrs.h"
 #include "llvm/Transforms/Tapir/Outline.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
-#include "llvm/Transforms/Tapir/TapirTargets.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -38,63 +37,6 @@ using namespace llvm;
 
 static const char TimerGroupName[] = DEBUG_TYPE;
 static const char TimerGroupDescription[] = "Tapir lowering";
-
-TapirTarget *llvm::getTapirTargetFromID(Module &M, TTID ID,
-                                        const TapirTargetOptions &TTOpts) {
-  // Yes, this is absolutely hideous. We should try to find a nicer way than
-  // this horrendous conditionally compiled mess!
-  switch (ID) {
-  case TTID::Nolo:
-    return nullptr;
-
-#if KITSUNE_CUDA_ENABLED
-  case TTID::Cuda:
-    return new CudaABI(M, TTOpts);
-#endif // KITSUNE_CUDA_ENABLED
-
-#if KITSUNE_HIP_ENABLED
-  case TTID::Hip:
-    return new HipABI(M, TTOpts);
-#endif // KITSUNE_HIP_ENABLED
-
-#if KITSUNE_LAMBDA_ENABLED
-  case TTID::Lambda:
-    return new LambdaABI(M);
-#endif // KITSUNE_LAMBDA_ENABLED
-
-#if KITSUNE_OMPTASK_ENABLED
-  case TTID::OMPTask:
-    return new OMPTaskABI(M);
-#endif // KITSUNE_OMPTASK_ENABLED
-
-#if KITSUNE_OPENCILK_ENABLED
-  case TTID::OpenCilk:
-    return new OpenCilkABI(M, TTOpts);
-#endif // KITSUNE_OPENCILK_ENABLED
-
-#if KITSUNE_OPENMP_ENABLED
-  case TTID::OpenMP:
-    llvm_unreachable("OpenMP ABI is out of date");
-#endif // KITSUNE_OPENMP_ENABLED
-
-#if KITSUNE_QTHREADS_ENABLED
-  case TTID::Qthreads:
-    return new QthreadsABI(M);
-#endif // KITSUNE_QTHREADS_ENABLED
-
-#if KITSUNE_REALM_ENABLED
-  case TTID::Realm:
-    return new RealmABI(M);
-#endif // KITSUNE_REALM_ENABLED
-
-  case TTID::Serial:
-    return new SerialABI(M, TTOpts);
-
-  default:
-    break;
-  }
-  llvm_unreachable("getTapirTargetFromID: TTID not handled");
-}
 
 //----------------------------------------------------------------------------//
 // Lowering utilities for Tapir tasks.

@@ -15,6 +15,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassInstrumentation.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/TargetSelect.h"
 
 #include "gtest/gtest.h"
 
@@ -23,7 +24,7 @@ using namespace llvm;
 constexpr StringRef moduleNoHints = R"m(
 target triple = "x86_64-unknown-linux-gnu"
 
-define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i64 %n, 0
@@ -81,11 +82,6 @@ end2:
   ret void
 }
 
-declare token @llvm.syncregion.start() #1
-
-attributes #0 = { nounwind memory(argmem: write) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
-
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}
 !2 = !{!"llvm.loop.unroll.disable"}
@@ -94,7 +90,7 @@ attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
 constexpr StringRef moduleWithHintsMixed = R"m(
 target triple = "x86_64-unknown-linux-gnu"
 
-define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i64 %n, 0
@@ -152,26 +148,30 @@ end2:
   ret void
 }
 
-declare token @llvm.syncregion.start() #1
-
-attributes #0 = { nounwind memory(argmem: write) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
-
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}
 !2 = !{!"llvm.loop.unroll.disable"}
 !3 = distinct !{!3, !4, !5, !6}
 !4 = !{!"tapir.loop.spawn.strategy", i32 1}
 !5 = !{!"llvm.loop.unroll.disable"}
-!6 = !{!"tapir.loop.target", i32 4}
+!6 = !{!"tapir.loop.target", i32 2}
 )m";
 
-// There are no tapir loops. getRequiredTTs() should return an empty list.
-TEST(TapirTargetAnalysisTest, noTapirLoops) {
+class TapirTargetAnalysisTest : public ::testing::Test {
+public:
+  TapirTargetAnalysisTest() {
+    InitializeAllTargets();
+    InitializeAllTargetMCs();
+  }
+};
+
+// There are no tapir loops. getRequiredTTs() should return an empty list. Even
+// so, a tapir target for the prrimary tapir target must have been created.
+TEST_F(TapirTargetAnalysisTest, noTapirLoops) {
   constexpr StringRef ir = R"m(
 target triple = "x86_64-unknown-linux-gnu"
 
-define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) {
 entry:
   %cmp5 = icmp sgt i64 %n, 0
   br i1 %cmp5, label %detach.preheader, label %sync
@@ -221,8 +221,6 @@ sync2:
   ret void
 }
 
-attributes #0 = { nounwind memory(argmem: write) uwtable }
-
 !0 = distinct !{!0, !1}
 !1 = !{!"llvm.loop.unroll.disable"}
 )m";
@@ -260,11 +258,13 @@ attributes #0 = { nounwind memory(argmem: write) uwtable }
   EXPECT_EQ(tgi.getOptions().getCudaArch(), StringRef("sm_17"));
   EXPECT_EQ(tgi.getRequiredTTs(*f).size(), 0UL);
   EXPECT_EQ(tgi.getRequiredTTs(*m).size(), 0UL);
+
+  EXPECT_TRUE(tgi.hasTT(TTID::Serial));
 }
 
 // None of the tapir loops have a tapir target set on them. getRequiredTTs()
 // should only return the primary tapir target id.
-TEST(TapirTargetAnalysisTest, noHints) {
+TEST_F(TapirTargetAnalysisTest, noHints) {
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
@@ -293,15 +293,19 @@ TEST(TapirTargetAnalysisTest, noHints) {
   // The expected array will be in ascending order. If the order of tapir
   // targets or their numerical values are changed, this will need to be
   // updated.
-  std::vector<TTID> expected = {TTID::Serial};
-  EXPECT_EQ(tgi.getRequiredTTs(*f), expected);
-  EXPECT_EQ(tgi.getRequiredTTs(*m), expected);
+  TTID expected[] = {TTID::Serial};
+  EXPECT_EQ(tgi.getRequiredTTs(*f), ArrayRef(expected));
+  EXPECT_EQ(tgi.getRequiredTTs(*m), ArrayRef(expected));
+
+  EXPECT_TRUE(tgi.hasTT(TTID::Serial));
+  EXPECT_FALSE(tgi.hasTT(TTID::Cuda));
+  EXPECT_FALSE(tgi.hasTT(TTID::OpenCilk));
 }
 
 // One of the two tapir loops has a target set, the other does not.
 // getRequiredTTs() should return the primary tapir target ID and the target on
 // the loop.
-TEST(TapirTargetAnalysisTest, withHintsMixed) {
+TEST_F(TapirTargetAnalysisTest, withHintsMixed) {
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
@@ -332,18 +336,24 @@ TEST(TapirTargetAnalysisTest, withHintsMixed) {
   // The expected array will be in ascending order. If the order of tapir
   // targets or their numerical values are changed, this will need to be
   // updated.
-  std::vector<TTID> expected = {TTID::Serial, TTID::Hip};
-  EXPECT_EQ(tgi.getRequiredTTs(*f), expected);
-  EXPECT_EQ(tgi.getRequiredTTs(*m), expected);
+  TTID expected[] = {TTID::Serial, TTID::Cuda};
+  EXPECT_EQ(tgi.getRequiredTTs(*f), ArrayRef(expected));
+  EXPECT_EQ(tgi.getRequiredTTs(*m), ArrayRef(expected));
+
+  EXPECT_TRUE(tgi.hasTT(TTID::Serial));
+  EXPECT_TRUE(tgi.hasTT(TTID::Cuda));
+  EXPECT_FALSE(tgi.hasTT(TTID::Hip));
+  EXPECT_FALSE(tgi.hasTT(TTID::OpenCilk));
 }
 
 // All tapir loops have a tapir target set on them. getRequiredTTs() should not
-// return the primary tapir target id.
-TEST(TapirTargetAnalysisTest, withHintsNoDefault) {
+// return the primary tapir target id. TapirTarget objects should have been
+// created for each of the id's.
+TEST_F(TapirTargetAnalysisTest, withHintsNoDefault) {
   constexpr StringRef ir = R"m(
 target triple = "x86_64-unknown-linux-gnu"
 
-define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i64 %n, 0
@@ -401,17 +411,12 @@ end2:
   ret void
 }
 
-declare token @llvm.syncregion.start() #1
-
-attributes #0 = { nounwind memory(argmem: write) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
-
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}
 !2 = !{!"llvm.loop.unroll.disable"}
-!3 = !{!"tapir.loop.target", i32 4}
+!3 = !{!"tapir.loop.target", i32 2}
 !4 = distinct !{!4, !1, !2, !5}
-!5 = !{!"tapir.loop.target", i32 2}
+!5 = !{!"tapir.loop.target", i32 1}
 )m";
 
   LLVMContext ctx;
@@ -442,18 +447,24 @@ attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
   // The expected array will be in ascending order. If the order of tapir
   // targets or their numerical values are changed, this will need to be
   // updated.
-  std::vector<TTID> expected = {TTID::Cuda, TTID::Hip};
-  EXPECT_EQ(tgi.getRequiredTTs(*f), expected);
-  EXPECT_EQ(tgi.getRequiredTTs(*m), expected);
+  TTID expected[] = {TTID::Serial, TTID::Cuda};
+  EXPECT_EQ(tgi.getRequiredTTs(*f), ArrayRef(expected));
+  EXPECT_EQ(tgi.getRequiredTTs(*m), ArrayRef(expected));
+
+  EXPECT_TRUE(tgi.hasTT(TTID::Serial));
+  EXPECT_TRUE(tgi.hasTT(TTID::Cuda));
+  EXPECT_FALSE(tgi.hasTT(TTID::Hip));
 }
 
 // Check that in a module with multiple functions, the required TT's are
-// computed correctly for both the functions and the module.
-TEST(TapirTargetAnalysisTest, withMultipleFuncs) {
+// computed correctly for both the functions and the module. In each case, a
+// TapirTarget object should have been created. A tapir target for the primary
+// tapir target will also have been created unconditionally.
+TEST_F(TapirTargetAnalysisTest, withMultipleFuncs) {
   constexpr StringRef ir = R"m(
 target triple = "x86_64-unknown-linux-gnu"
 
-define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i64 %n, 0
@@ -483,7 +494,7 @@ end:
   ret void
 }
 
-define void @g(ptr nocapture noundef writeonly %c, i64 noundef %n) #0 {
+define void @g(ptr nocapture noundef writeonly %c, i64 noundef %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp6 = icmp sgt i64 %n, 0
@@ -513,19 +524,21 @@ end:
   ret void
 }
 
-declare token @llvm.syncregion.start() #1
-
-attributes #0 = { nounwind memory(argmem: write) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
-
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}
 !2 = !{!"llvm.loop.unroll.disable"}
 !3 = !{!"tapir.loop.target", i32 2}
 !4 = distinct !{!4, !1, !2, !5}
-!5 = !{!"tapir.loop.target", i32 4}
+!5 = !{!"tapir.loop.target", i32 8}
 )m";
 
+  // FIXME: This requires certain tapir targets to be enabled. However,
+  // Kitsune's build system allows only a subset of the tapir targets to be
+  // built, so there is a chance that either the cuda or opencilk tapir targets
+  // has not been enabled. This is far from ideal. Something that may be
+  // slightly better is to tweak the input above to use two tapir targets that
+  // have been enabled.
+#if KITSUNE_CUDA_ENABLED && KITSUNE_OPENCILK_ENABLED
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
@@ -555,17 +568,23 @@ attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
   // The expected array will be in ascending order. If the order of tapir
   // targets or their numerical values are changed, this will need to be
   // updated.
-  std::vector<TTID> expectedF = {TTID::Cuda};
-  std::vector<TTID> expectedG = {TTID::Hip};
-  std::vector<TTID> expected = {TTID::Cuda, TTID::Hip};
-  EXPECT_EQ(tgi.getRequiredTTs(*f), expectedF);
-  EXPECT_EQ(tgi.getRequiredTTs(*g), expectedG);
-  EXPECT_EQ(tgi.getRequiredTTs(*m), expected);
+  TTID expectedF[] = {TTID::Cuda};
+  TTID expectedG[] = {TTID::OpenCilk};
+  TTID expected[] = {TTID::Cuda, TTID::OpenCilk};
+  EXPECT_EQ(tgi.getRequiredTTs(*f), ArrayRef(expectedF));
+  EXPECT_EQ(tgi.getRequiredTTs(*g), ArrayRef(expectedG));
+  EXPECT_EQ(tgi.getRequiredTTs(*m), ArrayRef(expected));
+
+  EXPECT_TRUE(tgi.hasTT(TTID::Serial));
+  EXPECT_TRUE(tgi.hasTT(TTID::Cuda));
+  EXPECT_TRUE(tgi.hasTT(TTID::OpenCilk));
+  EXPECT_FALSE(tgi.hasTT(TTID::Hip));
+#endif // KITSUNE_CUDA_ENABLED && KITSUNE_OPENCILK_ENABLED
 }
 
 // If a tapir target options object has not been set, getRequiredTTs() will
 // always return an empty vector.
-TEST(TapirTargetAnalysisTest, noTTO) {
+TEST_F(TapirTargetAnalysisTest, noTTO) {
   LLVMContext ctx;
   SMDiagnostic err;
   std::optional<TapirTargetOptions> tto = std::nullopt;

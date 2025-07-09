@@ -16,8 +16,10 @@
 
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TapirTargetOptions.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
+#include "llvm/Transforms/Tapir/LoweringUtils.h"
 
 #include <map>
 #include <optional>
@@ -26,6 +28,7 @@
 namespace llvm {
 
 class LoopInfo;
+class TapirTarget;
 class TapirTargetAnalysis;
 class TapirTargetAnalysisWrapperPass;
 class TaskInfo;
@@ -42,18 +45,17 @@ private:
   std::optional<TapirTargetOptions> ttOpts;
 
   /// The tapir targets used by each function in the module.
-  ///
-  /// FIXME: It would be good to actually have the tapir target objects here.
-  /// But the way the code is currently organized, those objects are defined
-  /// in libLLVMTransforms while this is in libLLVMAnalysis. The former,
-  /// naturally, depends on the latter. Using the tapir target objects here will
-  /// result in libLLVMAnalysis depending on libLLVMTransforms, making the
-  /// dependence circular. Ideally, the tapir support code should be moved out
-  /// of llvm/Transforms into llvm/Tapir (or something of the sort).
   std::map<Function *, std::vector<TTID>> ttsInFunc;
 
   /// The tapir targets needed by the functions in the module.
   std::vector<TTID> ttsInModule;
+
+  /// The TapirTarget objects needed by the module. These will be created
+  /// when \ref computeRequiredTTs is run. If computeRequiredTTs is run more
+  /// than once, a new TapirTarget object will only be created if one does not
+  /// already exist in this map. The actual TapirTarget objects are owned by the
+  /// TapirTargetAnalysis object.
+  std::map<TTID, TapirTarget *> tts;
 
 private:
   TapirTargetInfo(std::optional<TapirTargetOptions> ttOpts);
@@ -61,6 +63,10 @@ private:
   /// Compute the tapir target objects required by every function in a module.
   void computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
                           GetTaskInfo getTaskInfo);
+
+  /// Add a TapirTarget object for the given ID. The object will be owned by
+  /// the TapirTargetAnalysis object.
+  void addTT(TTID id, TapirTarget *tt);
 
 public:
   bool hasTTID() const { return ttOpts.has_value(); }
@@ -72,6 +78,12 @@ public:
   /// target options are guaranteed to have been set.
   TTID getTTID() const;
 
+  /// Check if a TapirTarget exists for the given ID.
+  bool hasTT(TTID id) const;
+
+  /// Get the TapirTarget for the given ID. The id is assumed to exist.
+  TapirTarget *getTT(TTID id) const;
+
   /// Get the tapir target options. This should only be called when the tapir
   /// target options are guaranteed to have been set.
   const TapirTargetOptions &getOptions() const;
@@ -82,12 +94,12 @@ public:
   /// that appear as loop hints on the loop (this is the case for attributed
   /// forall loops) and the primary tapir target ID if there is at least one
   /// tapir loop in the function which does not have a target loop hint.
-  const std::vector<TTID> &getRequiredTTs(Function &f) const;
+  ArrayRef<TTID> getRequiredTTs(Function &f) const;
 
   /// Get the tapir target ID's required by the module. This will be an empty
   /// vector if there are no tapir loops in the module, even if a primary tapir
   /// target has been set by the frontend.
-  const std::vector<TTID> &getRequiredTTs(Module &m) const;
+  ArrayRef<TTID> getRequiredTTs(Module &m) const;
 
   bool invalidate(Module &, const PreservedAnalyses &pa,
                   ModuleAnalysisManager::Invalidator &);
@@ -107,12 +119,11 @@ private:
   /// A copy of this will be returned whenever the analysis is retrieved.
   TapirTargetInfo ttInfo;
 
+  /// The tapir targets needed by the module.
+  std::map<TTID, std::unique_ptr<TapirTarget>> tts;
+
 public:
   using Result = TapirTargetInfo;
-
-  /// The new pass manager does not require a default constructor (unlike the
-  /// legacy pass manager), so it is safe to explicitly delete this.
-  TapirTargetAnalysis() = delete;
 
   /// Construct an analysis pass with an optional TapirTargetOptions object.
   /// This may be std::nullopt if the frontend creating this pass has not been
@@ -155,7 +166,6 @@ public:
   TapirTargetAnalysisWrapperPass(std::optional<TapirTargetOptions> ttOpts);
 
   void getAnalysisUsage(AnalysisUsage &au) const override;
-  // bool runOnModule(Module &m) override;
 
   Result getResult() const;
 

@@ -52,10 +52,7 @@ public:
                     const TapirTargetInfo& TGI)
       : M(M), GetAA(GetAA), GetDT(GetDT), GetTI(GetTI), GetAC(GetAC),
         TGI(TGI) {}
-  ~TapirToTargetImpl() {
-    if (Target)
-      delete Target;
-  }
+  ~TapirToTargetImpl() {}
 
   bool run();
 
@@ -73,7 +70,10 @@ private:
                            OutlineAnalysis &OA, TaskInfo &TI);
 
 private:
+  // This TapirTarget is owned by the TapirTargetAnalysis pass and should not
+  // be freed.
   TapirTarget *Target = nullptr;
+
   Module &M;
 
   function_ref<AAResults &(Function &)> GetAA;
@@ -431,7 +431,7 @@ bool TapirToTargetImpl::run() {
     // TODO: Use per-function Tapir targets?
     if (!Target) {
       const TapirTargetOptions &TTOpts = TGI.getOptions();
-      Target = getTapirTargetFromID(M, TTOpts.getTTID(), TTOpts);
+      Target = TGI.getTT(TTOpts.getTTID());
     }
     assert(Target && "Missing Tapir target");
     if (Target->shouldProcessFunction(F))

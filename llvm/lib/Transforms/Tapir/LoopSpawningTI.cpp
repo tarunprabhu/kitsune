@@ -481,7 +481,7 @@ public:
       Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
       ScalarEvolution &SE, AssumptionCache &AC, TargetTransformInfo &TTI,
       OptimizationRemarkEmitter &ORE, const TapirTargetInfo &TGI,
-      const std::map<TTID, std::unique_ptr<TapirTarget>> &Targets)
+      const std::map<TTID, TapirTarget*> &Targets)
       : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TGI(TGI),
         ORE(ORE), Targets(Targets) {}
 
@@ -601,7 +601,7 @@ private:
   TargetTransformInfo &TTI;
   const TapirTargetInfo &TGI;
   OptimizationRemarkEmitter &ORE;
-  const std::map<TTID, std::unique_ptr<TapirTarget>> &Targets;
+  const std::map<TTID, TapirTarget*> &Targets;
 
   std::vector<TapirLoopInfo *> TapirLoops;
   DenseMap<Task *, TapirLoopInfo *> TaskToTapirLoop;
@@ -1755,7 +1755,6 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
   };
 
   const TapirTargetInfo &TGI = AM.getResult<TapirTargetAnalysis>(M);
-  const TapirTargetOptions &TTOpts = TGI.getOptions();
 
   SmallVector<Function *, 8> WorkList;
   bool Changed = false;
@@ -1775,11 +1774,14 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
       Changed |= formLCSSARecursively(*L, DT, &LI, &SE);
   }
 
-  std::map<TTID, std::unique_ptr<TapirTarget>> Targets;
+  // FIXME: This code is a remnant from an initial attempt at multi-target
+  // support. It is badly broken and is unlikely to work properly. It may not be
+  // a bad idea to get rid of this and switch back to single-target execution.
+  std::map<TTID, TapirTarget *> Targets;
   for (Function *F : WorkList)
     for (TTID ID : TGI.getRequiredTTs(*F))
       if (Targets.find(ID) == Targets.end())
-        Targets.emplace(ID, getTapirTargetFromID(M, ID, TTOpts));
+        Targets[ID] = TGI.getTT(ID);
 
   for (TTID ID : TGI.getRequiredTTs(M))
     Targets.at(ID)->preProcessModule();
