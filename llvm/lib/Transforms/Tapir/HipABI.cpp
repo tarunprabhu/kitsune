@@ -708,6 +708,7 @@ HipABI::HipABI(Module &M, const TapirTargetOptions &TTO)
   KernelModule.setModuleIdentifier(getNameForDeviceModule(M, HIPABI_PREFIX));
   addDeviceModuleMetadata(TTID::Hip, KernelModule);
   cloneModuleFlagsMetadataInto(M, KernelModule);
+  cloneIdentMetadataInto(M, KernelModule);
 }
 
 HipABI::~HipABI() { /* no-op */ }

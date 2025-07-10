@@ -63,6 +63,14 @@ NamedMDNode &llvm::cloneModuleFlagsMetadataInto(const Module &hostM,
   return nmd;
 }
 
+NamedMDNode &llvm::cloneIdentMetadataInto(const Module &hostM, Module &devM) {
+  NamedMDNode &nmd = *devM.getOrInsertNamedMetadata("llvm.ident");
+  if (const NamedMDNode *ident = hostM.getNamedMetadata("llvm.ident"))
+    for (const MDNode *md : ident->operands())
+      nmd.addOperand(MDNode::replaceWithPermanent(md->clone()));
+  return nmd;
+}
+
 std::optional<TTID> llvm::getTTIDFromDeviceModuleMetadata(const Module &m) {
   if (const NamedMDNode *nmd = m.getNamedMetadata(mdDeviceModuleFlags))
     if (const MDNode *md = nmd->getOperand(0))

@@ -606,6 +606,7 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &TTO)
   KernelModule.setModuleIdentifier(getNameForDeviceModule(M, CUABI_PREFIX));
   addDeviceModuleMetadata(TTID::Cuda, KernelModule);
   cloneModuleFlagsMetadataInto(M, KernelModule);
+  cloneIdentMetadataInto(M, KernelModule);
   KernelModule.setModuleFlag(Module::Override, "nvvm-reflect-ftz", clFTZ);
 }
 
