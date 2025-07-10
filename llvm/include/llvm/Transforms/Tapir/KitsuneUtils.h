@@ -14,7 +14,9 @@
 #ifndef LLVM_TRANSFORMS_TAPIR_KITSUNE_UTILS_H
 #define LLVM_TRANSFORMS_TAPIR_KITSUNE_UTILS_H
 
+#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/IRBuilder.h"
 
 #include <set>
 
@@ -50,6 +52,16 @@ std::string getNameForTapirLoop(const TapirLoopInfo &tl, StringRef prefix = "",
 
 /// Construct the name for a device module.
 std::string getNameForDeviceModule(const Module &hostM, StringRef prefix = "");
+
+/// Generate calls to copy non-constant globals, which are used in the outlined
+/// tapir loop, from device to host after launching the kernel.
+void copyNonConstGlobalsDToH(const std::set<GlobalValue *> &gvs, TTID tt,
+                             Module &m, IRBuilder<> &builder);
+
+/// Generate calls to copy non-constant globals, which are used in the outlined
+/// tapir loop, from host to device before launching the kernel.
+void copyNonConstGlobalsHToD(const std::set<GlobalValue *> &gvs, TTID tt,
+                             Module &m, IRBuilder<> &builder);
 
 } // namespace llvm
 
