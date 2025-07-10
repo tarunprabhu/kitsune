@@ -16,6 +16,8 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 
+#include <set>
+
 using namespace llvm;
 
 /// Name of a named metadata node Kitsune metadata for device modules.
@@ -43,6 +45,22 @@ NamedMDNode &llvm::addDeviceModuleMetadata(TTID tt, Module &m) {
   addOperandAt(*nmd, 1, MDNode::get(ctx, MDString::get(ctx, m.getName())));
 
   return *nmd;
+}
+
+NamedMDNode &llvm::cloneModuleFlagsMetadataInto(const Module &hostM,
+                                                Module &devM) {
+  // These are the module flags that should be cloned over. Others will be
+  // ignored.
+  std::set<StringRef> flags = {"wchar_size", "PIC Level", "PIE Level"};
+
+  NamedMDNode &nmd = *devM.getOrInsertModuleFlagsMetadata();
+  if (const NamedMDNode *hostMD = hostM.getModuleFlagsMetadata())
+    for (const MDNode *md : hostMD->operands())
+      if (md->getNumOperands() > 1)
+        if (auto *mdString = dyn_cast<MDString>(md->getOperand(1)))
+          if (flags.find(mdString->getString()) != flags.end())
+            nmd.addOperand(MDNode::replaceWithPermanent(md->clone()));
+  return nmd;
 }
 
 std::optional<TTID> llvm::getTTIDFromDeviceModuleMetadata(const Module &m) {
