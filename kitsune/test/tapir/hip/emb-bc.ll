@@ -12,14 +12,13 @@
 
 target triple = "x86_64-pc-linux-gnu"
 
-define void @f(ptr %c, i32 %n) {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i32 %n, 0
+  %cmp5 = icmp sgt i64 %n, 0
   br i1 %cmp5, label %preheader, label %forall.sync
 
 preheader:
-  %wide.trip.count = zext nneg i32 %n to i64
   br label %forall.detach
 
 forall.detach:
@@ -28,12 +27,12 @@ forall.detach:
   detach within %syncreg, label %forall.body, label %forall.inc
 
 forall.body:
-  %arrayidx = getelementptr inbounds i32, ptr %c, i64 %indvars.iv
-  store i32 %n, ptr %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i64, ptr %c, i64 %indvars.iv
+  store i64 %n, ptr %arrayidx, align 4
   reattach within %syncreg, label %forall.inc
 
 forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %wide.trip.count
+  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
   br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
 
 forall.sync:

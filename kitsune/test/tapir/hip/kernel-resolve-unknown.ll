@@ -13,9 +13,9 @@
 
 target triple = "x86_64-pc-linux-gnu"
 
-declare float @some_library_func(float) #2
+declare float @some_library_func(float)
 
-define void @f(ptr %c, i64 %n) #0 {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i64 %n, 0
