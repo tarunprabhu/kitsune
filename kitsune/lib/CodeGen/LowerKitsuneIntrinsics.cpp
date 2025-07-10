@@ -57,6 +57,7 @@ static const KitsuneRuntimeFuncMap kitCudaFuncs = {
     {Intrinsic::kit_symbol_memcpy_dtoh, LibFunc_kitcuda_symbol_memcpy_dtoh},
     {Intrinsic::kit_symbol_memcpy_htod, LibFunc_kitcuda_symbol_memcpy_htod},
     {Intrinsic::kit_sync_stream, LibFunc_kitcuda_sync_stream},
+    {Intrinsic::kit_thread_stream, LibFunc_kitcuda_get_thread_stream},
 };
 
 /// Kitsune runtime functions for the hip tapir target.
@@ -77,6 +78,7 @@ static const KitsuneRuntimeFuncMap kitHipFuncs = {
     {Intrinsic::kit_symbol_memcpy_dtoh, LibFunc_kithip_symbol_memcpy_dtoh},
     {Intrinsic::kit_symbol_memcpy_htod, LibFunc_kithip_symbol_memcpy_htod},
     {Intrinsic::kit_sync_stream, LibFunc_kithip_sync_stream},
+    {Intrinsic::kit_thread_stream, LibFunc_kithip_get_thread_stream},
 };
 
 /// Runtime library function maps for tapir targets that have a corresponding
@@ -134,6 +136,7 @@ static const std::map<Intrinsic::ID, std::vector<unsigned>> kitRTArgMap = {
     {Intrinsic::kit_symbol_memcpy_dtoh, {2, 1, 3}},
     {Intrinsic::kit_symbol_memcpy_htod, {2, 1, 3}},
     {Intrinsic::kit_sync_stream, {1}},
+    {Intrinsic::kit_thread_stream, {}},
 };
 
 /// Main implementation class to lower Kitsune intrinsics.
@@ -383,18 +386,9 @@ private:
     PointerType *ptrTy = PointerType::getUnqual(ctx);
     Constant *c0 = ConstantInt::get(i64, 0);
 
-    // The last parameter of the function type of the callee is the "var arg
-    // type". By definition, this is also the argument number of the first
-    // variadic argument in the call. This, along with all subsequent arguments
-    // in the call are the arguments to the kernel function being launched.
-    std::vector<Value *> kernelArgs;
-    Function *callee = call.getCalledFunction();
-    FunctionType *calleeTy = callee->getFunctionType();
-    for (unsigned i = calleeTy->getNumParams(); i < call.arg_size(); ++i)
-      kernelArgs.push_back(call.getArgOperand(i));
-
     BasicBlock &bbEntry = call.getParent()->getParent()->getEntryBlock();
 
+    std::vector<Value *> kernelArgs = getKernelArgumentsFromLaunch(call);
     ArrayType *arrTy = ArrayType::get(ptrTy, kernelArgs.size());
     AllocaInst *argArray = new AllocaInst(arrTy, 0, "", bbEntry.begin());
     for (size_t i = 0; i < kernelArgs.size(); ++i) {

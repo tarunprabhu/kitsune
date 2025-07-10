@@ -923,6 +923,7 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kitrt_enable_verbose);
     TLI.setUnavailable(LibFunc_kitcuda_enable_refine_launches);
     TLI.setUnavailable(LibFunc_kitcuda_finalize);
+    TLI.setUnavailable(LibFunc_kitcuda_get_thread_stream);
     TLI.setUnavailable(LibFunc_kitcuda_initialize);
     TLI.setUnavailable(LibFunc_kitcuda_launch_kernel);
     TLI.setUnavailable(LibFunc_kitcuda_managed_free);
@@ -938,6 +939,7 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kithip_enable_xnack);
     TLI.setUnavailable(LibFunc_kithip_enable_y_axis_launches);
     TLI.setUnavailable(LibFunc_kithip_finalize);
+    TLI.setUnavailable(LibFunc_kithip_get_thread_stream);
     TLI.setUnavailable(LibFunc_kithip_initialize);
     TLI.setUnavailable(LibFunc_kithip_launch_kernel);
     TLI.setUnavailable(LibFunc_kithip_managed_free);

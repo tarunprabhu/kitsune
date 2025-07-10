@@ -25,6 +25,7 @@
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "kitsune/Transforms/GenerateCtors.h"
+#include "kitsune/Transforms/Prefetching.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/AliasAnalysisEvaluator.h"
@@ -402,17 +403,15 @@
 
 using namespace llvm;
 
-<<<<<<< HEAD
-cl::opt<bool> llvm::PrintPipelinePasses(
-=======
+// KITSUNE FIXME: See KITSUNE FIXME comment below
+#if 0
 static const Regex
     DefaultAliasRegex("^(default|thinlto-pre-link|thinlto|lto-pre-link|lto|"
                       "tapir-lowering|tapir-lowering-loops|kit-lowering)"
                       "<(O[0123sz])>$");
+#endif // 0
 
-namespace llvm {
-cl::opt<bool> PrintPipelinePasses(
->>>>>>> f19bd14304bc ([kitsune] Add kit-lowering meta-pass)
+cl::opt<bool> llvm::PrintPipelinePasses(
     "print-pipeline-passes",
     cl::desc("Print a '-passes' compatible string describing the pipeline "
              "(best-effort only)."));
@@ -1530,8 +1529,9 @@ parseBoundsCheckingOptions(StringRef Params) {
 /// alias.
 static bool startsWithDefaultPipelineAliasPrefix(StringRef Name) {
   return Name.starts_with("default") || Name.starts_with("thinlto") ||
-<<<<<<< HEAD
-         Name.starts_with("lto") || Name.starts_with("tapir-lowering");
+         Name.starts_with("lto") || Name.starts_with("tapir-lowering") ||
+         Name.starts_with("kit-lowering");
+}
 
 Expected<RAGreedyPass::Options>
 parseRegAllocGreedyFilterFunc(PassBuilder &PB, StringRef Params) {
@@ -1545,10 +1545,6 @@ parseRegAllocGreedyFilterFunc(PassBuilder &PB, StringRef Params) {
   return make_error<StringError>(
       formatv("invalid regallocgreedy register filter '{}'", Params).str(),
       inconvertibleErrorCode());
-=======
-         Name.starts_with("lto") || Name.starts_with("tapir-lowering") ||
-         Name.starts_with("kit-lowering");
->>>>>>> f19bd14304bc ([kitsune] Add kit-lowering meta-pass)
 }
 
 Expected<bool> parseMachineSinkingPassOptions(StringRef Params) {

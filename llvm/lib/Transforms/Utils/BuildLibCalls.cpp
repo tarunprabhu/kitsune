@@ -1387,6 +1387,7 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
     break;
   case LibFunc_kitcuda_enable_refine_launches:
   case LibFunc_kitcuda_finalize:
+  case LibFunc_kitcuda_get_thread_stream:
   case LibFunc_kitcuda_initialize:
   case LibFunc_kitcuda_launch_kernel:
   case LibFunc_kitcuda_prefetch_dtoh:
@@ -1400,6 +1401,7 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
   case LibFunc_kithip_enable_xnack:
   case LibFunc_kithip_enable_y_axis_launches:
   case LibFunc_kithip_finalize:
+  case LibFunc_kithip_get_thread_stream:
   case LibFunc_kithip_initialize:
   case LibFunc_kithip_launch_kernel:
   case LibFunc_kithip_prefetch_dtoh:

@@ -2720,6 +2720,11 @@ TLI_DEFINE_ENUM_INTERNAL(kitcuda_finalize)
 TLI_DEFINE_STRING_INTERNAL("__kitcuda_destroy")
 TLI_DEFINE_SIG_INTERNAL(Void)
 
+/// void* __kitcuda_get_thread_stream()
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_get_thread_stream)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_get_thread_stream")
+TLI_DEFINE_SIG_INTERNAL(Ptr)
+
 /// void __kitcuda_initialize();
 TLI_DEFINE_ENUM_INTERNAL(kitcuda_initialize)
 TLI_DEFINE_STRING_INTERNAL("__kitcuda_initialize")
@@ -2810,6 +2815,11 @@ TLI_DEFINE_SIG_INTERNAL(Void)
 TLI_DEFINE_ENUM_INTERNAL(kithip_finalize)
 TLI_DEFINE_STRING_INTERNAL("__kithip_destroy")
 TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void* __kithip_get_thread_stream()
+TLI_DEFINE_ENUM_INTERNAL(kithip_get_thread_stream)
+TLI_DEFINE_STRING_INTERNAL("__kithip_get_thread_stream")
+TLI_DEFINE_SIG_INTERNAL(Ptr)
 
 /// void __kithip_initialize();
 TLI_DEFINE_ENUM_INTERNAL(kithip_initialize)

@@ -10,6 +10,11 @@
 ;
 ; CHECK: define {{.+}} @f(ptr {{.*}}%[[C:.+]], i64 {{.*}}%[[N:.+]])
 ;
+; Create a stream
+;
+; CHECK: %[[STREAM:.+]] = {{.*}}call {{.+}} @llvm.kit.thread.stream(i32 2)
+; CHECK-NOT: {{.*}}call {{.+}} @llvm.kit.async.prefetch.htod
+;
 ; The actual launch. The arguments are:
 ;
 ;   - tapir target id
@@ -31,14 +36,14 @@
 ; where ... are the rest of the arguments to be passed to the kernel. Currently,
 ; we force the grain size to be 1. The start index is always 0.
 ;
-; CHECK: %[[TS:.+]] = {{.*}}call {{.+}} @llvm.kit.async.launch.kernel(
+; CHECK: %{{[0-9]+}} = {{.*}}call {{.+}} @llvm.kit.async.launch.kernel(
 ; CHECK-SAME: i32 2,
 ; CHECK-SAME: ptr {{.*}}@[[FB]],
 ; CHECK-SAME: ptr {{.*}}@[[G_KNAME]],
 ; CHECK-SAME: i64 %n,
 ; CHECK-SAME: i32 0,
 ; CHECK-SAME: ptr {{.*}}@[[G_KERNEL_PROPS]],
-; CHECK-SAME: ptr null,
+; CHECK-SAME: ptr %[[STREAM]],
 ; CHECK-SAME: i64 %n,
 ; CHECK-SAME: i64 0,
 ; CHECK-SAME: i64 1,
@@ -48,7 +53,7 @@
 ;
 ; By default, we always enter a sync immediately after the launch. A later
 ; optimization pass may (re)move this if appropriate
-; CHECK: call {{.+}} @llvm.kit.sync.stream(i32 2, ptr %[[TS]])
+; CHECK: call {{.+}} @llvm.kit.sync.stream(i32 2, ptr %[[STREAM]])
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;
