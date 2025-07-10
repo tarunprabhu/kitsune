@@ -45,7 +45,8 @@ void collectGlobalValues(Loop &loop, std::set<GlobalValue *> &seen);
 
 /// Construct the name to be used for the outlined function consisting of the
 /// body of the tapir loop.
-std::string getNameForTapirLoop(const TapirLoopInfo &tl, StringRef prefix = "");
+std::string getNameForTapirLoop(const TapirLoopInfo &tl, StringRef prefix = "",
+                                unsigned suffix = 0);
 
 /// Construct the name for a device module.
 std::string getNameForDeviceModule(const Module &hostM, StringRef prefix = "");

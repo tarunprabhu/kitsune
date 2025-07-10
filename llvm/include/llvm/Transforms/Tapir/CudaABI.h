@@ -110,6 +110,13 @@ private:
   /// each tapir loop which will add the outlined code into this module. This
   /// will eventually be converted to PTX and from there to executable GPU code.
   Module KernelModule;
+
+  /// When outlining tapir loops into the \ref KernelModule, we need to generate
+  /// a name for the outlined function. This name must be unique. In the absence
+  /// of debug information, the computed outlined function name consists of a
+  /// fixed base with an integer suffix that is incremented for each tapir loop
+  /// that is encountered.
+  unsigned NextKernelID = 0;
 };
 
 /// The loop outline process for transforming a Tapir parallel loop into a
@@ -122,20 +129,6 @@ private:
   /// For GPU targets, we outline the loop into a separate module. This is that
   /// module.
   Module &KernelModule;
-
-  /// Each tapir loop is outlined into its own kernel function. We need to
-  /// ensure that the names of these kernel functions do not collide. Since a
-  /// loop outline processor instance is created for every tapir loop that is
-  /// encountered, this identifier is shared by the instances to add something
-  /// to the kernel function name that is guaranteed to be unique.
-  ///
-  /// FIXME: Although the tapir target is used to create instances of this loop
-  /// outline processor, multiple instances of the tapir target are created. It
-  /// is not clear that this is the expected behavior, but until we can fix that
-  /// and ensure that only a single instance of the tapir target is created for
-  /// a compilation unit (LLVM Module), we have to keep track of this unique ID
-  /// in the loop outline processor.
-  static unsigned NextKernelID;
 
   // Cuda/PTX thread index access.
   Function *CUThreadIdxX = nullptr, *CUThreadIdxY = nullptr,
