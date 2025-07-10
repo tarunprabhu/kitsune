@@ -25,7 +25,7 @@ define i64 @device_func(i64 %n) {
   ret i64 %n
 }
 
-define void @f(ptr %c, i64 %n) #0 {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i64 %n, 0
