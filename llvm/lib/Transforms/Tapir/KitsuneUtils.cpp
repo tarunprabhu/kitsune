@@ -98,7 +98,8 @@ void llvm::collectGlobalValues(Loop &loop, std::set<GlobalValue *> &seen) {
     collectGlobalValues(*bb, seen);
 }
 
-std::string llvm::getNameForTapirLoop(const TapirLoopInfo &tl, StringRef pfx) {
+std::string llvm::getNameForTapirLoop(const TapirLoopInfo &tl, StringRef pfx,
+                                      unsigned suffix) {
   std::string buf;
   raw_string_ostream os(buf);
   const Loop *loop = tl.getLoop();
@@ -134,6 +135,7 @@ std::string llvm::getNameForTapirLoop(const TapirLoopInfo &tl, StringRef pfx) {
       os << demangledName;
     else
       os << name;
+    os << "_" << suffix;
   }
 
   return buf;

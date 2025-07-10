@@ -156,18 +156,11 @@ static std::string convertNameForPTX(StringRef name, bool addPrefix = true) {
   return buf;
 }
 
-// Definition of static member of CudaLoop. See the class declaration for
-// documentation of this member.
-unsigned CudaLoop::NextKernelID = 0;
-
 CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
                    const TapirTargetOptions &TTOpts)
     : LoopOutlineProcessor(M, KernelModule, TTOpts,
                            CloneFunctionChangeType::DifferentModule),
       KernelName(KN), KernelModule(KernelModule) {
-  KernelName = join_items("", KernelName, "_", std::to_string(NextKernelID));
-  NextKernelID++;
-
   LLVM_DEBUG(dbgs() << "debug[cuabi]: creating a cuda loop outliner.\n"
                     << "  - target kernel name: " << KernelName << "\n");
 
@@ -631,7 +624,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 }
 
 CudaABI::CudaABI(Module &M, const TapirTargetOptions &TTO)
-    : TapirTarget(M, TTO), KernelModule("", M.getContext()) {
+    : TapirTarget(M, TTO), KernelModule("", M.getContext()), NextKernelID(0) {
   LLVM_DEBUG(dbgs() << "cuabi: CudaABI::CudaABI()\n");
 
   TargetMachine *TM = createTargetMachine(TTID::Cuda, TTO);
@@ -718,8 +711,8 @@ CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
   LLVM_DEBUG(dbgs() << "cuabi: create loop outlining processor.\n");
   LLVM_DEBUG(saveModuleToFile(&M, M.getName().str() + ".input"));
 
-  std::string KernelName =
-      convertNameForPTX(getNameForTapirLoop(*TL, CUABI_KERNEL_NAME_PREFIX),
-                        /*AddPrefix=*/false);
+  std::string KernelName = convertNameForPTX(
+      getNameForTapirLoop(*TL, CUABI_KERNEL_NAME_PREFIX, NextKernelID++),
+      /*AddPrefix=*/false);
   return new CudaLoop(M, KernelModule, KernelName, this->getOptions());
 }

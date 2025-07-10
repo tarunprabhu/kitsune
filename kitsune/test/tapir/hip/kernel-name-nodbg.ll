@@ -2,12 +2,6 @@
 ; contains both mangled and demangled function names. This checks that the names
 ; are demangled when generating the outlined kernel name.
 ;
-; NOTE: At this time, the generated name is obtained from the source file and
-; debug info, if available. The approach currently used still runs a (low) risk
-; of collisions with other function names. Eventually, we will switch to some
-; form of name mangling to eliminate the change of collisions. When that
-; happens, this test may need to be updated/removed.
-;
 ; RUN: opt --tapir=hip %s \
 ; RUN:     -passes='tapir-lowering<O2>' \
 ; RUN:     | kit-mbc -S \

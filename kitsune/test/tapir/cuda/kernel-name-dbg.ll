@@ -7,14 +7,13 @@
 ; of name mangling to eliminate the change of collisions. When that happens,
 ; this test may need to be updated/removed.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 %s \
-; RUN:     -passes='tapir-lowering<O2>' \
+; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' %s \
 ; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: define {{.+}} @__kitcu_loop_test_cpp_6_3_{{[0-9]+}}(
-; CHECK-DAG: define {{.+}} @__kitcu_loop_test_cpp_11_3_{{[0-9]+}}(
-; CHECK-DAG: define {{.+}} @__kitcu_loop_test_cpp_14_3_{{[0-9]+}}(
+; CHECK-DAG: define {{.+}} @__kitcu_loop_test_cpp_6_3(
+; CHECK-DAG: define {{.+}} @__kitcu_loop_test_cpp_11_3(
+; CHECK-DAG: define {{.+}} @__kitcu_loop_test_cpp_14_3(
 
 target triple = "x86_64-unknown-linux-gnu"
 

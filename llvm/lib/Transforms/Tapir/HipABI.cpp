@@ -165,18 +165,11 @@ Value *HipLoop::emitWorkGroupSize(IRBuilder<> &Builder, int ItemIndex) {
   return Builder.CreateCall(HipBlockDimFn, {Index}, Name);
 }
 
-// Definition of static member of CudaLoop. See the class declaration for
-// documentation of this member.
-unsigned HipLoop::NextKernelID = 0;
-
 HipLoop::HipLoop(Module &M, Module &KM, StringRef Name,
                  const TapirTargetOptions &TTO)
     : LoopOutlineProcessor(M, KM, TTO,
                            CloneFunctionChangeType::DifferentModule),
       KernelName(Name), KernelModule(KM) {
-  KernelName = join_items("", KernelName, "_", std::to_string(NextKernelID));
-  NextKernelID++;
-
   LLVM_DEBUG(dbgs() << "hipabi: hip loop outliner creation:\n"
                     << "\ttransforming loop to kernel: " << KernelName
                     << "(...)\n"
@@ -693,7 +686,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
       Builder.CreateIntrinsic(PtrTy, Intrinsic::kit_thread_stream, {CTT});
   std::vector<Value *> Args = {CTT, EmbFB,  KName,    TripCount,
                                TPB, KProps, HipStream};
-  for (Value* Inp : OrderedInputs)
+  for (Value *Inp : OrderedInputs)
     Args.push_back(Inp);
 
   // TODO: We should probably have the launch and sync kitsune intrinsics take
@@ -732,7 +725,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 // corresponding module that contains the transformed device-side code. This is
 // the KernelModule that is created below in the target constructor.
 HipABI::HipABI(Module &M, const TapirTargetOptions &TTO)
-    : TapirTarget(M, TTO), KernelModule("", M.getContext()) {
+    : TapirTarget(M, TTO), KernelModule("", M.getContext()), NextKernelID(0) {
   LLVM_DEBUG(dbgs() << "hipABI: HipABI::HipABI()\n");
 
   TargetMachine *TM = createTargetMachine(TTID::Hip, TTO);
@@ -814,6 +807,7 @@ LoopOutlineProcessor *HipABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
   LLVM_DEBUG(dbgs() << "hipabi: create loop outlining processor.\n");
   LLVM_DEBUG(saveModuleToFile(&M, M.getName().str() + ".input"));
 
-  std::string KernelName = getNameForTapirLoop(*TL, HIPABI_KERNEL_NAME_PREFIX);
+  std::string KernelName =
+      getNameForTapirLoop(*TL, HIPABI_KERNEL_NAME_PREFIX, NextKernelID++);
   return new HipLoop(M, KernelModule, KernelName, this->getOptions());
 }
