@@ -15,7 +15,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @v138 = private constant i32 11, align 4
 @v139 = internal constant i32 46, align 4
 
-define void @f(ptr %c, i64 %n) #0 {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp4.not = icmp eq i64 %n, 0

@@ -11,7 +11,7 @@ target triple = "x86_64-unknown-linux-gnu"
 
 @v137 = external global i32, align 4
 
-define void @f(ptr %c, i64 %n) #0 {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp4.not = icmp eq i64 %n, 0
