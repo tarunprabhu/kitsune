@@ -621,7 +621,6 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   LLVM_DEBUG(dbgs() << "hiploop: processing outlined loop call...\n"
                     << "\tkernel name: " << KernelName << "\n");
 
-  const DataLayout &DL = M.getDataLayout();
   LLVMContext &Ctx = M.getContext();
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *Int32Ty = Type::getInt32Ty(Ctx);
@@ -633,14 +632,6 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
       createKernelPropertiesGlobal(KernelName, TTID::Hip, M);
   Value *KName = createConstString(KernelName, M);
   GlobalVariable *EmbFB = getEmbFBGlobal(TTID::Hip, M);
-
-  // Create a global string literal for each of the non-const globals that are
-  // reachable from the kernel function.
-  std::map<GlobalVariable *, Value *> UsedGlobalNames;
-  for (GlobalValue *G : UsedGlobalValues)
-    if (auto *GV = dyn_cast<GlobalVariable>(G))
-      if (not GV->isConstant())
-        UsedGlobalNames.emplace(GV, createConstString(GV->getName(), M));
 
   // At this point we need a threads-per-block value for the launch call. The
   // runtime will determine this value if ThreadsPerBlock is zero but it can
@@ -669,18 +660,9 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   if (TripCount->getType() != Int64Ty)
     TripCount = Builder.CreateSExtOrBitCast(TripCount, Int64Ty, "cast.tc");
 
-  // We need to explicitly add code to sync up host-side and device-side globals
-  // prior to launching kernels.
-  for (auto [GV, SymName] : UsedGlobalNames) {
-    LLVM_DEBUG(dbgs() << "\t\t\t  processing global: '" << GV->getName()
-                      << "'\n");
-    size_t GVSize = DL.getTypeAllocSize(GV->getValueType());
-    Constant *Bytes = ConstantInt::get(Int64Ty, GVSize);
-    Value *DevPtr = Builder.CreateIntrinsic(
-        PtrTy, Intrinsic::kit_symbol_device_ptr, {CTT, EmbFB, SymName});
-    (void)Builder.CreateIntrinsic(VoidTy, Intrinsic::kit_symbol_memcpy_htod,
-                                  {CTT, DevPtr, GV, Bytes});
-  }
+  // We need to explicitly sync non-const globals that are used in the kernel
+  // before the kernel is launched.
+  copyNonConstGlobalsHToD(UsedGlobalValues, TTID::Hip, M, Builder);
 
   Value *HipStream =
       Builder.CreateIntrinsic(PtrTy, Intrinsic::kit_thread_stream, {CTT});
@@ -705,16 +687,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // pass will attempt to move this call to the point where the global is
   // actually used on the host (or perhaps even delete it if the host never uses
   // the global again).
-  for (auto [GV, SymName] : UsedGlobalNames) {
-    LLVM_DEBUG(dbgs() << "\t\t\t  processing global: '" << GV->getName()
-                      << "'\n");
-    size_t GVSize = DL.getTypeAllocSize(GV->getValueType());
-    Constant *Bytes = ConstantInt::get(Int64Ty, GVSize);
-    Value *DevPtr = Builder.CreateIntrinsic(
-        PtrTy, Intrinsic::kit_symbol_device_ptr, {CTT, EmbFB, SymName});
-    (void)Builder.CreateIntrinsic(VoidTy, Intrinsic::kit_symbol_memcpy_dtoh,
-                                  {CTT, GV, DevPtr, Bytes});
-  }
+  copyNonConstGlobalsDToH(UsedGlobalValues, TTID::Hip, M, Builder);
 
   TOI.ReplCall->eraseFromParent();
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");

@@ -112,6 +112,7 @@ add_llvm_component_library(LLVMTransformUtils
   Analysis
   Core
   ProfileData
+  KitCore
   KitSupport
   Support
   TargetParser

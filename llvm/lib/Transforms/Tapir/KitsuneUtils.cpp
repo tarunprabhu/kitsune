@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/KitsuneUtils.h"
+#include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/EmbUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Demangle/Demangle.h"
@@ -19,6 +21,7 @@
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/Path.h"
@@ -143,4 +146,50 @@ std::string llvm::getNameForTapirLoop(const TapirLoopInfo &tl, StringRef pfx,
 
 std::string llvm::getNameForDeviceModule(const Module &hostM, StringRef pfx) {
   return join_items("", pfx, sys::path::filename(hostM.getName()));
+}
+
+static void copyNonConstGlobals(const std::set<GlobalValue *> &gvs, TTID tt,
+                                Intrinsic::ID copyFn, Module &m,
+                                IRBuilder<> &builder) {
+  const DataLayout &dl = m.getDataLayout();
+  LLVMContext &ctx = m.getContext();
+  Type *i64Ty = Type::getInt64Ty(ctx);
+  Type *voidTy = Type::getVoidTy(ctx);
+  PointerType *ptrTy = PointerType::getUnqual(ctx);
+
+  GlobalVariable *fb = getEmbFBGlobal(tt, m);
+  assert(fb && "Embedded fat binary must exist");
+
+  Constant *ctt = createConstInt(tt, ctx);
+  for (GlobalValue *gv : gvs) {
+    if (auto *g = dyn_cast<GlobalVariable>(gv)) {
+      if (not g->isConstant()) {
+        GlobalVariable *name = createConstString(g->getName(), m);
+        Type *type = g->getValueType();
+        size_t size = dl.getTypeAllocSize(type);
+        Constant *bytes = ConstantInt::get(i64Ty, size);
+
+        Value *devPtr = builder.CreateIntrinsic(
+            ptrTy, Intrinsic::kit_symbol_device_ptr, {ctt, fb, name});
+        if (copyFn == Intrinsic::kit_symbol_memcpy_dtoh)
+          (void)builder.CreateIntrinsic(voidTy, copyFn,
+                                        {ctt, g, devPtr, bytes});
+        else if (copyFn == Intrinsic::kit_symbol_memcpy_htod)
+          (void)builder.CreateIntrinsic(voidTy, copyFn,
+                                        {ctt, devPtr, g, bytes});
+        else
+          llvm_unreachable("copyNonConstGlobals: Invalid intrinsic");
+      }
+    }
+  }
+}
+
+void llvm::copyNonConstGlobalsDToH(const std::set<GlobalValue *> &gvs, TTID tt,
+                                   Module &m, IRBuilder<> &builder) {
+  copyNonConstGlobals(gvs, tt, Intrinsic::kit_symbol_memcpy_dtoh, m, builder);
+}
+
+void llvm::copyNonConstGlobalsHToD(const std::set<GlobalValue *> &gvs, TTID tt,
+                                   Module &m, IRBuilder<> &builder) {
+  copyNonConstGlobals(gvs, tt, Intrinsic::kit_symbol_memcpy_htod, m, builder);
 }
