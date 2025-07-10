@@ -602,9 +602,11 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &TTO)
   TargetMachine *TM = createTargetMachine(TTID::Cuda, TTO);
   KernelModule.setTargetTriple(TM->getTargetTriple().str());
   KernelModule.setDataLayout(TM->createDataLayout());
+
   KernelModule.setModuleIdentifier(getNameForDeviceModule(M, CUABI_PREFIX));
-  KernelModule.setModuleFlag(Module::Override, "nvvm-reflect-ftz", clFTZ);
   addDeviceModuleMetadata(TTID::Cuda, KernelModule);
+  cloneModuleFlagsMetadataInto(M, KernelModule);
+  KernelModule.setModuleFlag(Module::Override, "nvvm-reflect-ftz", clFTZ);
 }
 
 CudaABI::~CudaABI() { LLVM_DEBUG(dbgs() << "cuabi: destroy tapir target.\n"); }
@@ -665,10 +667,10 @@ void CudaABI::postProcessModule() {
   LLVM_DEBUG(saveModuleToFile(&KernelModule,
                               M.getName().str() + ".kmod.pre-postproc"));
 
-  // TODO #1: Need to do some more work on debugging and debug info...
-  // Make sure any outlined (cloned) debugged info is removed from the kernel
-  // module (if we don't it will show up duplicated w/ the host-side module).
-  StripDebugInfo(KernelModule);
+  // // TODO #1: Need to do some more work on debugging and debug info...
+  // // Make sure any outlined (cloned) debugged info is removed from the kernel
+  // // module (if we don't it will show up duplicated w/ the host-side module).
+  // StripDebugInfo(KernelModule);
 
   // At this point, we are done with the minimum task of outlining the tapir
   // loop into a kernel module. There are still a number of transformations that
