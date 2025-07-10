@@ -73,6 +73,9 @@ bool hasDeviceModuleMetadata(const Module &m);
 /// that will copy *all* operands *except* those that are known to be unsafe.
 NamedMDNode &cloneModuleFlagsMetadataInto(const Module &hostM, Module &devM);
 
+/// Clone LLVM's ident metadata from the host into the device module.
+NamedMDNode &cloneIdentMetadataInto(const Module &hostM, Module &devM);
+
 /// Get the tapir target that generated this module. This is recorded in the
 /// top-level kitsune metadata node in the module.
 std::optional<TTID> getTTIDFromDeviceModuleMetadata(const Module &m);
