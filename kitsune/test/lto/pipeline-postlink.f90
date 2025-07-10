@@ -44,6 +44,7 @@
 ! O23SZ-NEXT: Running pass:     EliminateAvailableExternallyPass
 ! O23SZ-NEXT: Running pass:     ReversePostOrderFunctionAttrs
 ! O23SZ-NEXT: Running pass:     GlobalDCEPass
+! O23SZ-NEXT: Running pass:     PrefetchingPass
 ! O23SZ-NEXT: Running pass:     EmbResolveLibDeviceCallsPass
 ! O23SZ-NEXT: Running pass:     EmbPreparePass
 ! O23SZ-NEXT: Running pass:     EmbLinkLibDeviceBitcodePass

@@ -15,7 +15,12 @@
 
 #include "llvm/IR/Intrinsics.h"
 
+#include <vector>
+
 namespace llvm {
+
+class CallBase;
+class Value;
 
 /// Check if the intrinsic is a Kitsune intrinsic.
 bool isKitsuneIntrinsic(Intrinsic::ID id);
@@ -30,6 +35,13 @@ bool isKitsuneIntrinsicAsync(Intrinsic::ID id);
 /// the operation that it is intended to perform has completed. It is an error
 /// to call this function with an intrinsic that is not a Kitsune intrinsic.
 bool isKitsuneIntrinsicBlocking(Intrinsic::ID id);
+
+/// Get the stream from the given call to Kitsune's kernel launch intrinsic.
+Value *getStreamFromLaunch(const CallBase &call);
+
+/// Get the arguments that will be passed to the kernel in the given call to
+/// Kitsune's launch_kernel intrinsic.
+std::vector<Value *> getKernelArgumentsFromLaunch(const CallBase &call);
 
 } // namespace llvm
 

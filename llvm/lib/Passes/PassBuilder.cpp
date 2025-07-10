@@ -25,6 +25,7 @@
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "kitsune/Transforms/GenerateCtors.h"
+#include "kitsune/Transforms/Prefetching.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/StringTable.h"

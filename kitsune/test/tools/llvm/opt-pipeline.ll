@@ -23,6 +23,7 @@
 ; DEFAULT-NOT: Running pass:     LoopSpawningPass
 ; DEFAULT-NOT: Running analysis: TapirTargetAnalysis
 ; DEFAULT-NOT: Running pass:     TapirToTargetPass
+; DEFAULT-NOT: Running pass:     PrefetchingPass
 ; DEFAULT-NOT: Running pass:     EmbResolveLibDeviceCallsPass
 ; DEFAULT-NOT: Running pass:     EmbPreparePass
 ; DEFAULT-NOT: Running pass:     EmbLinkLibDeviceBitcodePass
@@ -75,6 +76,7 @@
 ; O123SZ-NEXT: Running pass:     EliminateAvailableExternallyPass
 ; O123SZ-NEXT: Running pass:     ReversePostOrderFunctionAttrs
 ; O123SZ-NEXT: Running pass:     GlobalDCEPass
+; O123SZ-NEXT: Running pass:     PrefetchingPass
 ; O123SZ-NEXT: Running pass:     EmbResolveLibDeviceCallsPass
 ; O123SZ-NEXT: Running pass:     EmbPreparePass
 ; O123SZ-NEXT: Running pass:     EmbLinkLibDeviceBitcodePass

@@ -15,18 +15,19 @@
 ; CHECK-NOT: call void @__kithip_enable_xnack()
 ; CHECK-NEXT: call void @__kithip_set_default_threads_per_blk(i32 24)
 ; CHECK-NEXT: call void @__kithip_set_max_threads_per_blk(i32 1024)
-; CHECK-NEXT: %3 = call ptr @__kithip_get_global_symbol(ptr null, ptr @.gname)
-; CHECK-NEXT: call void @__kithip_memcpy_sym_to_device(ptr @gbuf, ptr %3, i64 28)
-; CHECK-NEXT: %4 = call ptr @__kithip_mem_gpu_prefetch(ptr %buf, ptr null)
-; CHECK-NEXT: %5 = call ptr @__kithip_mem_gpu_prefetch(ptr %buf, ptr %4)
+; CHECK-NEXT: %3 = call ptr @__kithip_get_thread_stream()
+; CHECK-NEXT: %4 = call ptr @__kithip_get_global_symbol(ptr null, ptr @.gname)
+; CHECK-NEXT: call void @__kithip_memcpy_sym_to_device(ptr @gbuf, ptr %4, i64 28)
+; CHECK-NEXT: %5 = call ptr @__kithip_mem_gpu_prefetch(ptr %buf, ptr %3)
+; CHECK-NEXT: %6 = call ptr @__kithip_mem_gpu_prefetch(ptr %buf, ptr %3)
 ; CHECK-NEXT: store ptr null, ptr %1
-; CHECK-NEXT: %6 = getelementptr inbounds [1 x ptr], ptr %2, i64 0, i64 0
-; CHECK-NEXT: store ptr %1, ptr %6
-; CHECK-NEXT: %7 = call ptr @__kithip_launch_kernel(ptr null, ptr @.name, ptr nonnull %2, i64 128, i32 24, ptr null, ptr %5)
-; CHECK-NEXT: call void @__kithip_sync_thread_stream(ptr %7)
-; CHECK-NEXT: call void @__kithip_memcpy_sym_to_host(ptr %3, ptr @gbuf, i64 28)
-; CHECK-NEXT: %8 = call ptr @__kithip_mem_host_prefetch(ptr %buf, ptr %7)
-; CHECK-NEXT: %9 = call ptr @__kithip_mem_host_prefetch(ptr %buf, ptr %8)
+; CHECK-NEXT: %7 = getelementptr inbounds [1 x ptr], ptr %2, i64 0, i64 0
+; CHECK-NEXT: store ptr %1, ptr %7
+; CHECK-NEXT: %8 = call ptr @__kithip_launch_kernel(ptr null, ptr @.name, ptr nonnull %2, i64 128, i32 24, ptr null, ptr %3)
+; CHECK-NEXT: call void @__kithip_sync_thread_stream(ptr %3)
+; CHECK-NEXT: call void @__kithip_memcpy_sym_to_host(ptr %4, ptr @gbuf, i64 28)
+; CHECK-NEXT: %9 = call ptr @__kithip_mem_host_prefetch(ptr %buf, ptr %3)
+; CHECK-NEXT: %10 = call ptr @__kithip_mem_host_prefetch(ptr %buf, ptr %3)
 ; CHECK-NEXT: call void @__kithip_destroy()
 ; CHECK-NEXT: ret void
 ;
@@ -60,15 +61,16 @@ define void @f(ptr %buf, i64 %n) {
   call void @llvm.kit.enable.xnack(i8 0)
   call void @llvm.kit.set.fixed.tpb(i32 4, i32 24)
   call void @llvm.kit.set.max.tpb(i32 4, i32 1024)
-  %1 = call ptr @llvm.kit.symbol.device.ptr(i32 4, ptr null, ptr @.gname)
-  call void @llvm.kit.symbol.memcpy.htod(i32 4, ptr %1, ptr @gbuf, i64 28)
-  %2 = call ptr @llvm.kit.async.prefetch.htod(i32 4, ptr %buf, i64 -1, ptr null)
-  %3 = call ptr @llvm.kit.async.prefetch.htod(i32 4, ptr %buf, i64 1024, ptr %2)
-  %4 = call ptr (i32, ptr, ptr, i64, i32, ptr, ptr, ...) @llvm.kit.async.launch.kernel(i32 4, ptr null, ptr @.name, i64 128, i32 24, ptr null, ptr %3, ptr null)
-  call void @llvm.kit.sync.stream(i32 4, ptr %4)
-  call void @llvm.kit.symbol.memcpy.dtoh(i32 4, ptr @gbuf, ptr %1, i64 28)
-  %5 = call ptr @llvm.kit.async.prefetch.dtoh(i32 4, ptr %buf, i64 -1, ptr %4)
-  %6 = call ptr @llvm.kit.async.prefetch.dtoh(i32 4, ptr %buf, i64 1024, ptr %5)
+  %1 = call ptr @llvm.kit.thread.stream(i32 4)
+  %2 = call ptr @llvm.kit.symbol.device.ptr(i32 4, ptr null, ptr @.gname)
+  call void @llvm.kit.symbol.memcpy.htod(i32 4, ptr %2, ptr @gbuf, i64 28)
+  %3 = call ptr @llvm.kit.async.prefetch.htod(i32 4, ptr %buf, i64 -1, ptr %1)
+  %4 = call ptr @llvm.kit.async.prefetch.htod(i32 4, ptr %buf, i64 1024, ptr %1)
+  %5 = call ptr (i32, ptr, ptr, i64, i32, ptr, ptr, ...) @llvm.kit.async.launch.kernel(i32 4, ptr null, ptr @.name, i64 128, i32 24, ptr null, ptr %1, ptr null)
+  call void @llvm.kit.sync.stream(i32 4, ptr %1)
+  call void @llvm.kit.symbol.memcpy.dtoh(i32 4, ptr @gbuf, ptr %2, i64 28)
+  %6 = call ptr @llvm.kit.async.prefetch.dtoh(i32 4, ptr %buf, i64 -1, ptr %1)
+  %7 = call ptr @llvm.kit.async.prefetch.dtoh(i32 4, ptr %buf, i64 1024, ptr %1)
   call void @llvm.kit.finalize(i32 4)
   ret void
 }

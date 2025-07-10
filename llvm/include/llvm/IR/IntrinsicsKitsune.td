@@ -253,3 +253,10 @@ def int_kit_sync_stream
                  llvm_ptr_ty], // stream
                 [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
                  IntrHasSideEffects]>;
+
+// Get a thread stream for use.
+def int_kit_thread_stream
+    : Intrinsic<[llvm_ptr_ty],
+                [llvm_i32_ty], // tapir target id
+                [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
+                 IntrHasSideEffects]>;

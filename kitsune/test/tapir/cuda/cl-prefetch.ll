@@ -2,27 +2,25 @@
 ;
 ; -----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
+; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
 ; RUN:     --tapir-gpu-prefetch=true \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     | FileCheck %s -check-prefix PREFETCH
 ;
 ; PREFETCH: define {{.+}} @f
-; PREFETCH: call {{.+}} @llvm.kit.async.prefetch.htod(i32 4,
-; PREFETCH: call {{.+}} @llvm.kit.async.launch.kernel(i32 4,
+; PREFETCH: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2,
+; PREFETCH: call {{.+}} @llvm.kit.async.launch.kernel(i32 2,
 ; PREFETCH: ret void
 ; PREFETCH-NEXT: }
 ;
 ; -----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
+; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
 ; RUN:     --tapir-gpu-prefetch=false \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     | FileCheck %s -check-prefix NO-PREFETCH
 ;
 ; NO-PREFETCH: define {{.+}} @f
-; NO-PREFETCH-NOT: call {{.+}} @llvm.kit.async.prefetch.htod(i32 4,
-; NO-PREFETCH: call {{.+}} @llvm.kit.async.launch.kernel(i32 4,
+; NO-PREFETCH-NOT: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2,
+; NO-PREFETCH: call {{.+}} @llvm.kit.async.launch.kernel(i32 2,
 ; NO-PREFETCH: ret void
 ; NO-PREFETCH-NEXT: }
 ;
