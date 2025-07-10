@@ -25,6 +25,7 @@
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "kitsune/Transforms/GenerateCtors.h"
+#include "kitsune/Transforms/Prefetching.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/AliasAnalysisEvaluator.h"
@@ -660,7 +661,8 @@ Expected<HardwareLoopOptions> parseHardwareLoopOptions(StringRef Params) {
       int Count;
       if (ParamName.getAsInteger(0, Count))
         return make_error<StringError>(
-            formatv("invalid HardwareLoopPass parameter '{0}' ", ParamName).str(),
+            formatv("invalid HardwareLoopPass parameter '{0}' ", ParamName)
+                .str(),
             inconvertibleErrorCode());
       HardwareLoopOpts.setDecrement(Count);
       continue;
@@ -669,7 +671,8 @@ Expected<HardwareLoopOptions> parseHardwareLoopOptions(StringRef Params) {
       int Count;
       if (ParamName.getAsInteger(0, Count))
         return make_error<StringError>(
-            formatv("invalid HardwareLoopPass parameter '{0}' ", ParamName).str(),
+            formatv("invalid HardwareLoopPass parameter '{0}' ", ParamName)
+                .str(),
             inconvertibleErrorCode());
       HardwareLoopOpts.setCounterBitwidth(Count);
       continue;
@@ -987,7 +990,8 @@ Expected<SimplifyCFGOptions> parseSimplifyCFGOptions(StringRef Params) {
         return make_error<StringError>(
             formatv("invalid argument to SimplifyCFG pass bonus-threshold "
                     "parameter: '{0}' ",
-                    ParamName).str(),
+                    ParamName)
+                .str(),
             inconvertibleErrorCode());
       Result.bonusInstThreshold(BonusInstThreshold.getSExtValue());
     } else {
@@ -1017,7 +1021,8 @@ Expected<InstCombineOptions> parseInstCombineOptions(StringRef Params) {
         return make_error<StringError>(
             formatv("invalid argument to InstCombine pass max-iterations "
                     "parameter: '{0}' ",
-                    ParamName).str(),
+                    ParamName)
+                .str(),
             inconvertibleErrorCode());
       Result.setMaxIterations((unsigned)MaxIterations.getZExtValue());
     } else {
@@ -1806,8 +1811,8 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
 #define MODULE_ANALYSIS(NAME, CREATE_PASS)                                     \
   if (Name == "require<" NAME ">") {                                           \
     MPM.addPass(                                                               \
-        RequireAnalysisPass<                                                   \
-            std::remove_reference_t<decltype(CREATE_PASS)>, Module>());        \
+        RequireAnalysisPass<std::remove_reference_t<decltype(CREATE_PASS)>,    \
+                            Module>());                                        \
     return Error::success();                                                   \
   }                                                                            \
   if (Name == "invalidate<" NAME ">") {                                        \
@@ -1933,10 +1938,10 @@ Error PassBuilder::parseCGSCCPass(CGSCCPassManager &CGPM,
   }
 #define CGSCC_ANALYSIS(NAME, CREATE_PASS)                                      \
   if (Name == "require<" NAME ">") {                                           \
-    CGPM.addPass(RequireAnalysisPass<                                          \
-                 std::remove_reference_t<decltype(CREATE_PASS)>,               \
-                 LazyCallGraph::SCC, CGSCCAnalysisManager, LazyCallGraph &,    \
-                 CGSCCUpdateResult &>());                                      \
+    CGPM.addPass(                                                              \
+        RequireAnalysisPass<std::remove_reference_t<decltype(CREATE_PASS)>,    \
+                            LazyCallGraph::SCC, CGSCCAnalysisManager,          \
+                            LazyCallGraph &, CGSCCUpdateResult &>());          \
     return Error::success();                                                   \
   }                                                                            \
   if (Name == "invalidate<" NAME ">") {                                        \
@@ -2055,8 +2060,8 @@ Error PassBuilder::parseFunctionPass(FunctionPassManager &FPM,
 #define FUNCTION_ANALYSIS(NAME, CREATE_PASS)                                   \
   if (Name == "require<" NAME ">") {                                           \
     FPM.addPass(                                                               \
-        RequireAnalysisPass<                                                   \
-            std::remove_reference_t<decltype(CREATE_PASS)>, Function>());      \
+        RequireAnalysisPass<std::remove_reference_t<decltype(CREATE_PASS)>,    \
+                            Function>());                                      \
     return Error::success();                                                   \
   }                                                                            \
   if (Name == "invalidate<" NAME ">") {                                        \
@@ -2144,10 +2149,10 @@ Error PassBuilder::parseLoopPass(LoopPassManager &LPM,
   }
 #define LOOP_ANALYSIS(NAME, CREATE_PASS)                                       \
   if (Name == "require<" NAME ">") {                                           \
-    LPM.addPass(RequireAnalysisPass<                                           \
-                std::remove_reference_t<decltype(CREATE_PASS)>, Loop,          \
-                LoopAnalysisManager, LoopStandardAnalysisResults &,            \
-                LPMUpdater &>());                                              \
+    LPM.addPass(                                                               \
+        RequireAnalysisPass<std::remove_reference_t<decltype(CREATE_PASS)>,    \
+                            Loop, LoopAnalysisManager,                         \
+                            LoopStandardAnalysisResults &, LPMUpdater &>());   \
     return Error::success();                                                   \
   }                                                                            \
   if (Name == "invalidate<" NAME ">") {                                        \
@@ -2326,12 +2331,14 @@ Error PassBuilder::parsePassPipeline(ModulePassManager &MPM,
       Pipeline = {{"function", std::move(*Pipeline)}};
     } else if (isLoopNestPassName(FirstName, LoopPipelineParsingCallbacks,
                                   UseMemorySSA)) {
-      Pipeline = {{"function", {{UseMemorySSA ? "loop-mssa" : "loop",
-                                 std::move(*Pipeline)}}}};
+      Pipeline = {
+          {"function",
+           {{UseMemorySSA ? "loop-mssa" : "loop", std::move(*Pipeline)}}}};
     } else if (isLoopPassName(FirstName, LoopPipelineParsingCallbacks,
                               UseMemorySSA)) {
-      Pipeline = {{"function", {{UseMemorySSA ? "loop-mssa" : "loop",
-                                 std::move(*Pipeline)}}}};
+      Pipeline = {
+          {"function",
+           {{UseMemorySSA ? "loop-mssa" : "loop", std::move(*Pipeline)}}}};
     } else if (isMachineFunctionPassName(
                    FirstName, MachineFunctionPipelineParsingCallbacks)) {
       Pipeline = {{"function", {{"machine-function", std::move(*Pipeline)}}}};

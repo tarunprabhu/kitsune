@@ -73,7 +73,6 @@
 #include "llvm/IR/IntrinsicsAMDGPU.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/AMDGPUAddrSpace.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Tapir/KitsuneUtils.h"
@@ -94,7 +93,8 @@ using namespace llvm;
 static cl::opt<unsigned> DefaultGrainSize(
     "hipabi-default-grainsize", cl::init(1), cl::Hidden,
     cl::desc("The default grain size used by the transform "
-             "when analysis fails to determine one. (default=1)"));
+             "when analysis fails to determine one. (default=1)"),
+    cl::cat(cl::catKitClDevOpts));
 
 // FIXME: We really should not be exposing command line options from other
 // source files. This is an experimental option that has been hacked in for the
@@ -635,11 +635,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   PointerType *PtrTy = PointerType::getUnqual(Ctx);
 
-  Function *KitrtPrefetchHToD =
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_async_prefetch_htod);
-
   ConstantInt *CTT = createConstInt(TTID::Hip, Ctx);
-  Value *HipStream = ConstantPointerNull::get(PtrTy);
   GlobalVariable *KProps =
       createKernelPropertiesGlobal(KernelName, TTID::Hip, M);
   Value *KName = createConstString(KernelName, M);
@@ -673,12 +669,12 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   BasicBlock *RCBB = TOI.ReplCall->getParent();
   BasicBlock *NewBB = RCBB->splitBasicBlock(TOI.ReplCall);
-  IRBuilder<> NewBuilder(&NewBB->front());
+  IRBuilder<> Builder(&NewBB->front());
 
   // Deal with type mismatches for the trip count.
   Value *TripCount = OrderedInputs[0];
   if (TripCount->getType() != Int64Ty)
-    TripCount = NewBuilder.CreateSExtOrBitCast(TripCount, Int64Ty, "cast.tc");
+    TripCount = Builder.CreateSExtOrBitCast(TripCount, Int64Ty, "cast.tc");
 
   // We need to explicitly add code to sync up host-side and device-side globals
   // prior to launching kernels.
@@ -687,51 +683,29 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
                       << "'\n");
     size_t GVSize = DL.getTypeAllocSize(GV->getValueType());
     Constant *Bytes = ConstantInt::get(Int64Ty, GVSize);
-    Value *DevPtr = NewBuilder.CreateIntrinsic(
+    Value *DevPtr = Builder.CreateIntrinsic(
         PtrTy, Intrinsic::kit_symbol_device_ptr, {CTT, EmbFB, SymName});
-    (void)NewBuilder.CreateIntrinsic(VoidTy, Intrinsic::kit_symbol_memcpy_htod,
-                                     {CTT, DevPtr, GV, Bytes});
+    (void)Builder.CreateIntrinsic(VoidTy, Intrinsic::kit_symbol_memcpy_htod,
+                                  {CTT, DevPtr, GV, Bytes});
   }
 
-  std::vector<Value *> Args = {CTT, EmbFB,  KName,     TripCount,
+  Value *HipStream =
+      Builder.CreateIntrinsic(PtrTy, Intrinsic::kit_thread_stream, {CTT});
+  std::vector<Value *> Args = {CTT, EmbFB,  KName,    TripCount,
                                TPB, KProps, HipStream};
-  for (size_t I = 0; I < OrderedInputs.size(); ++I) {
-    // If the input is a pointer, there is a good chance that it is in Kitsune's
-    // mobile pointer address space. Kitsune's runtime intrinsics currently
-    // expect pointers in the default address space. This might need to change
-    // at some point.
-    Value *Inp = OrderedInputs[I];
-    if (Inp->getType()->isPointerTy())
-      Inp = NewBuilder.CreateAddrSpaceCast(Inp, PtrTy);
+  for (Value* Inp : OrderedInputs)
     Args.push_back(Inp);
-
-    if (getOptions().getGPUPrefetch() && Inp->getType()->isPointerTy()) {
-      LLVM_DEBUG(dbgs() << "\t\t- code gen prefetch for kernel arg #" << I
-                        << "\n");
-      // The pointer to the data to be prefetched must point to UVM allocated
-      // memory. By setting the number of bytes to be prefetched to -1, we are
-      // instructing the runtime to prefetch the entire UVM-allocated buffer.
-      // The runtime keeps track of this.
-      //
-      // TODO: Do some analysis to only prefetch the number of bytes that are
-      // actually used (or likely to be used) by the kernel.
-      ConstantInt *Bytes = NewBuilder.getInt64(-1);
-      HipStream = NewBuilder.CreateCall(KitrtPrefetchHToD,
-                                        {CTT, Inp, Bytes, HipStream});
-    }
-  }
 
   // TODO: We should probably have the launch and sync kitsune intrinsics take
   // a sync region as an argument This may make it easier to do post-outlining
   // analyses to eliminate/delay device synchronization calls instead of
   // always synchronizing immediately after the kernel launch.
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
-  Function *LaunchKernel =
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_async_launch_kernel);
-  HipStream = NewBuilder.CreateCall(LaunchKernel, Args);
-
-  NewBuilder.CreateIntrinsic(VoidTy, Intrinsic::kit_sync_stream,
-                             {CTT, HipStream});
+  (void)Builder.CreateCall(
+      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_async_launch_kernel),
+      Args);
+  (void)Builder.CreateIntrinsic(VoidTy, Intrinsic::kit_sync_stream,
+                                {CTT, HipStream});
 
   // After the kernel is done, copy the non-const globals back to the host. This
   // is done here to keep this part of the code generation simple. A subsequent
@@ -743,10 +717,10 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
                       << "'\n");
     size_t GVSize = DL.getTypeAllocSize(GV->getValueType());
     Constant *Bytes = ConstantInt::get(Int64Ty, GVSize);
-    Value *DevPtr = NewBuilder.CreateIntrinsic(
+    Value *DevPtr = Builder.CreateIntrinsic(
         PtrTy, Intrinsic::kit_symbol_device_ptr, {CTT, EmbFB, SymName});
-    (void)NewBuilder.CreateIntrinsic(VoidTy, Intrinsic::kit_symbol_memcpy_dtoh,
-                                     {CTT, GV, DevPtr, Bytes});
+    (void)Builder.CreateIntrinsic(VoidTy, Intrinsic::kit_symbol_memcpy_dtoh,
+                                  {CTT, GV, DevPtr, Bytes});
   }
 
   TOI.ReplCall->eraseFromParent();
