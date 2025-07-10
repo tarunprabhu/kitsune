@@ -704,8 +704,10 @@ HipABI::HipABI(Module &M, const TapirTargetOptions &TTO)
   TargetMachine *TM = createTargetMachine(TTID::Hip, TTO);
   KernelModule.setTargetTriple(TM->getTargetTriple().str());
   KernelModule.setDataLayout(TM->createDataLayout());
+
   KernelModule.setModuleIdentifier(getNameForDeviceModule(M, HIPABI_PREFIX));
   addDeviceModuleMetadata(TTID::Hip, KernelModule);
+  cloneModuleFlagsMetadataInto(M, KernelModule);
 }
 
 HipABI::~HipABI() { /* no-op */ }
