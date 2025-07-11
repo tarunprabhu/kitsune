@@ -480,10 +480,9 @@ public:
   LoopSpawningImpl(
       Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
       ScalarEvolution &SE, AssumptionCache &AC, TargetTransformInfo &TTI,
-      OptimizationRemarkEmitter &ORE, const TapirTargetInfo &TGI,
-      const std::map<TTID, TapirTarget*> &Targets)
+      OptimizationRemarkEmitter &ORE, const TapirTargetInfo &TGI)
       : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TGI(TGI),
-        ORE(ORE), Targets(Targets) {}
+        ORE(ORE) {}
 
   ~LoopSpawningImpl() {
     for (TapirLoopInfo *TL : TapirLoops)
@@ -601,7 +600,6 @@ private:
   TargetTransformInfo &TTI;
   const TapirTargetInfo &TGI;
   OptimizationRemarkEmitter &ORE;
-  const std::map<TTID, TapirTarget*> &Targets;
 
   std::vector<TapirLoopInfo *> TapirLoops;
   DenseMap<Task *, TapirLoopInfo *> TaskToTapirLoop;
@@ -1000,7 +998,7 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
          "match the primary tapir target");
 
   // Allow the Tapir target to define a custom loop-outline processor.
-  if (LoopOutlineProcessor *LOP = Targets.at(TT)->getLoopOutlineProcessor(TL))
+  if (LoopOutlineProcessor *LOP = TGI.getTT(TT)->getLoopOutlineProcessor(TL))
     return LOP;
 
   switch (Hints.getStrategy()) {
@@ -1695,9 +1693,12 @@ bool LoopSpawningImpl::run() {
   if (TapirLoops.empty())
     return false;
 
+  // FIXME: This code is a remnant from an initial attempt at multi-target
+  // support. It is badly broken and is unlikely to work properly. It may not be
+  // a bad idea to get rid of this and switch back to single-target execution.
   // Perform any Target-dependent preprocessing of F.
   for (TTID ID : TGI.getRequiredTTs(F))
-    Targets.at(ID)->preProcessFunction(F, TI, true);
+    TGI.getTT(ID)->preProcessFunction(F, TI, true);
 
   // Outline all Tapir loops.
   TaskOutlineMapTy TapirLoopOutlines = outlineAllTapirLoops();
@@ -1713,9 +1714,12 @@ bool LoopSpawningImpl::run() {
             *TL, TapirLoopOutlines[T], DT);
   } // end timed region
 
+  // FIXME: This code is a remnant from an initial attempt at multi-target
+  // support. It is badly broken and is unlikely to work properly. It may not be
+  // a bad idea to get rid of this and switch back to single-target execution.
   // Perform any Target-dependent postprocessing of F.
   for (TTID ID : TGI.getRequiredTTs(F))
-    Targets.at(ID)->postProcessFunction(F, true);
+    TGI.getTT(ID)->postProcessFunction(F, true);
 
   LLVM_DEBUG({
     NamedRegionTimer NRT("verify", "Post-loop-spawning verification",
@@ -1777,24 +1781,21 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
   // FIXME: This code is a remnant from an initial attempt at multi-target
   // support. It is badly broken and is unlikely to work properly. It may not be
   // a bad idea to get rid of this and switch back to single-target execution.
-  std::map<TTID, TapirTarget *> Targets;
-  for (Function *F : WorkList)
-    for (TTID ID : TGI.getRequiredTTs(*F))
-      if (Targets.find(ID) == Targets.end())
-        Targets[ID] = TGI.getTT(ID);
-
   for (TTID ID : TGI.getRequiredTTs(M))
-    Targets.at(ID)->preProcessModule();
+    TGI.getTT(ID)->preProcessModule();
 
   // Now process each loop.
   for (Function *F : WorkList) {
     Changed |= LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
-                                GetAC(*F), GetTTI(*F), GetORE(*F), TGI, Targets)
+                                GetAC(*F), GetTTI(*F), GetORE(*F), TGI)
                    .run();
   }
 
+  // FIXME: This code is a remnant from an initial attempt at multi-target
+  // support. It is badly broken and is unlikely to work properly. It may not be
+  // a bad idea to get rid of this and switch back to single-target execution.
   for (TTID ID : TGI.getRequiredTTs(M))
-    Targets.at(ID)->postProcessModule();
+    TGI.getTT(ID)->postProcessModule();
 
   if (Changed)
     return PreservedAnalyses::none();
