@@ -4,6 +4,8 @@ add_llvm_component_library(LLVMKitTransforms
   EmbPrepareCuda.cpp
   EmbPrepareHip.cpp
   EmbOptimize.cpp
+  EmbResolveCallsCuda.cpp
+  EmbResolveCallsHip.cpp
   EmbResolveLibDeviceCalls.cpp
   GenerateCtors.cpp
   GenerateCtorCuda.cpp

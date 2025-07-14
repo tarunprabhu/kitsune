@@ -65,14 +65,10 @@
 #include "kitsune/Core/TargetUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/TapirLoopHints.h"
-#include "llvm/Demangle/Demangle.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DebugInfo.h"
-#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/Path.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Tapir/KitsuneUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
@@ -665,8 +661,6 @@ void CudaABI::preProcessRootSpawner(Function &, BasicBlock *TFEntry) {}
 
 void CudaABI::postProcessModule() {
   LLVM_DEBUG(dbgs() << "cuabi: post processing kernel and host modules...\n");
-  LLVM_DEBUG(saveModuleToFile(&KernelModule,
-                              M.getName().str() + ".kmod.pre-postproc"));
 
   // At this point, we are done with the minimum task of outlining the tapir
   // loop into a kernel module. There are still a number of transformations that
