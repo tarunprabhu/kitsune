@@ -142,14 +142,32 @@ private:
   detail::CGFBOptions cgfbOpts;
 
 private:
-  void initializeCGFBOptions() {
+  void initializeCGFBOptions(const Module &m) {
     cgfbOpts.cgOptLevel = createCodeGenOptLevelFrom(tto.getOptznLevel());
     if (clCGOptLevel.getNumOccurrences())
       cgfbOpts.cgOptLevel = clCGOptLevel;
 
+    // ptxas does not support "optimized debugging". This is where one provides
+    // both -O<N> and -g to ptxas, where <N> is greater than 0. If the module
+    // contains debug information, always set the ptxas optimization level to
+    // 0, otherwise ptxas will crash. If using the clang/flang frontends, a
+    // warning message to this effect should have been printed.
+    //
+    // If the ptxas optimization level is overridden using the developer option,
+    // that takes precedence. Since that is a developer option, and normally
+    // hidden, it is reasonable to assume that the developer used it
+    // intentionally. If that results in ptxas crashing, then so be it.
+    //
+    // FIXME: Ideally, this should have been prevented "at the source" i.e.
+    // compiling with -g and -O<N> for <N> greater than 0 should be disallowed
+    // in the frontend. Currently, any use of --tapir=cuda requires
+    // optimizations. There are several ways around this issue, but until we
+    // decide on an approach, we will just override the optimization level here.
     cgfbOpts.ptxasOptLevel = tto.getOptznLevel();
     if (clPtxasOptLevel.getNumOccurrences())
       cgfbOpts.ptxasOptLevel = clPtxasOptLevel;
+    else if (m.getNamedMetadata("llvm.dbg.cu"))
+      cgfbOpts.ptxasOptLevel = OptznLevel::O0;
 
     cgfbOpts.keepFiles = clKeepFiles;
     cgfbOpts.debugCommandLines = clDebugCommandLines;
@@ -175,7 +193,7 @@ public:
   bool run(Module &m) {
     bool changed = false;
 
-    initializeCGFBOptions();
+    initializeCGFBOptions(m);
     for (TTID tt : ttsGenEmbBC()) {
       GlobalVariable *bc = getEmbBCGlobal(tt, m);
       GlobalVariable *fb = getEmbFBGlobal(tt, m);
