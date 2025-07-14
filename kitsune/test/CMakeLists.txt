@@ -126,3 +126,13 @@ if (KITSUNE_Fortran_ENABLED)
     check-mlir
     check-flang)
 endif ()
+
+# These custom targets are purely for convenience. Currently, to run the tests
+# for just a single tapir target, we need to type check-kitsune-tapir-<TT>,
+# where TT is the name of one of the tapir targets. This is a result of the
+# organization of tests in this directory. check-kitsune-<TT> is more ergonomic
+# and saves a bit of typing during development.
+foreach(TT IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
+  add_custom_target(check-kitsune-${TT}
+    DEPENDS check-kitsune-tapir-${TT})
+endforeach()
