@@ -668,11 +668,6 @@ void CudaABI::postProcessModule() {
   LLVM_DEBUG(saveModuleToFile(&KernelModule,
                               M.getName().str() + ".kmod.pre-postproc"));
 
-  // // TODO #1: Need to do some more work on debugging and debug info...
-  // // Make sure any outlined (cloned) debugged info is removed from the kernel
-  // // module (if we don't it will show up duplicated w/ the host-side module).
-  // StripDebugInfo(KernelModule);
-
   // At this point, we are done with the minimum task of outlining the tapir
   // loop into a kernel module. There are still a number of transformations that
   // must be carried out on this module before it can be compiled to GPU code,

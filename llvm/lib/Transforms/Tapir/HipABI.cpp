@@ -753,8 +753,6 @@ void HipABI::postProcessModule() {
     errs() << "  - kernel module: " << KernelModule.getName() << "\n";
   }
 
-  StripDebugInfo(KernelModule);
-
   // At this point, we are done with the minimum task of outlining the tapir
   // loop into a kernel module. There are still a number of transformations that
   // must be carried out on this module before it can be compiled to GPU code,

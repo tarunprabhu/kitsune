@@ -44,23 +44,6 @@ public:
   SetVector<BasicBlock *> BlocksToRemap;
 };
 
-/// Clone Blocks into NewFunc, transforming the old arguments into references to
-/// VMap values.
-///
-/// TODO: Fix the std::vector part of the type of this function.
-void CloneIntoFunction(
-    Function *NewFunc, const Function *OldFunc,
-    std::vector<BasicBlock *> Blocks, ValueToValueMapTy &VMap,
-    CloneFunctionChangeType Changes, SmallVectorImpl<ReturnInst *> &Returns,
-    const StringRef NameSuffix, std::optional<DebugInfoFinder> &DIFinder,
-    SmallPtrSetImpl<BasicBlock *> *ReattachBlocks = nullptr,
-    SmallPtrSetImpl<BasicBlock *> *DetachedRethrowBlocks = nullptr,
-    SmallPtrSetImpl<BasicBlock *> *SharedEHEntries = nullptr,
-    DISubprogram *SPClonedWithinModule = nullptr,
-    ClonedCodeInfo *CodeInfo = nullptr,
-    ValueMapTypeRemapper *TypeMapper = nullptr,
-    OutlineMaterializer *Materializer = nullptr);
-
 /// Create a helper function whose signature is based on Inputs and
 /// Outputs as follows: f(in0, ..., inN, out0, ..., outN)
 ///
