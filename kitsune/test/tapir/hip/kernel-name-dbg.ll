@@ -120,7 +120,7 @@ forall.end15:
 !llvm.ident = !{!260}
 
 !0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !1, producer: "clang version 20.1.2", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, imports: !2, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "/tmp/test.cpp", directory: "/build", checksumkind: CSK_MD5, checksum: "d6203c6cc928ec16307d3c5f2aa122b6")
+!1 = !DIFile(filename: "test.cpp", directory: "build", checksumkind: CSK_MD5, checksum: "d6203c6cc928ec16307d3c5f2aa122b6")
 !2 = !{!3, !11, !15, !22, !26, !34, !39, !41, !50, !54, !58, !69, !71, !75, !79, !83, !88, !92, !96, !100, !104, !112, !116, !120, !122, !126, !130, !135, !141, !145, !149, !151, !159, !163, !171, !173, !177, !181, !185, !189, !194, !199, !204, !205, !206, !207, !209, !210, !211, !212, !213, !214, !215, !217, !218, !219, !220, !221, !222, !223, !224, !229, !230, !231, !232, !233, !234, !235, !236, !237, !238, !239, !240, !241, !242, !243, !244, !245, !246, !247, !248, !249, !250, !251, !252}
 !3 = !DIImportedEntity(tag: DW_TAG_imported_declaration, scope: !4, entity: !5, file: !10, line: 52)
 !4 = !DINamespace(name: "std", scope: null)
@@ -151,7 +151,7 @@ forall.end15:
 !29 = !{!30, !31, !31}
 !30 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: null, size: 64)
 !31 = !DIDerivedType(tag: DW_TAG_typedef, name: "size_t", file: !32, line: 18, baseType: !33)
-!32 = !DIFile(filename: "lib/clang/20/include/__stddef_size_t.h", directory: "/build", checksumkind: CSK_MD5, checksum: "2c44e821a2b1951cde2eb0fb2e656867")
+!32 = !DIFile(filename: "lib/clang/20/include/__stddef_size_t.h", directory: "build", checksumkind: CSK_MD5, checksum: "2c44e821a2b1951cde2eb0fb2e656867")
 !33 = !DIBasicType(name: "unsigned long", size: 64, encoding: DW_ATE_unsigned)
 !34 = !DIImportedEntity(tag: DW_TAG_imported_declaration, scope: !4, entity: !35, file: !14, line: 138)
 !35 = !DISubprogram(name: "atexit", scope: !6, file: !6, line: 734, type: !36, flags: DIFlagPrototyped, spFlags: DISPFlagOptimized)
@@ -381,7 +381,7 @@ forall.end15:
 !259 = !{i32 7, !"debug-info-assignment-tracking", i1 true}
 !260 = !{!"clang version 20.1.2"}
 !261 = distinct !DISubprogram(name: "scale", linkageName: "_Z5scalePffm", scope: !262, file: !262, line: 5, type: !263, scopeLine: 5, flags: DIFlagPrototyped | DIFlagAllCallsDescribed, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !0, retainedNodes: !266)
-!262 = !DIFile(filename: "/tmp/test.cpp", directory: "", checksumkind: CSK_MD5, checksum: "d6203c6cc928ec16307d3c5f2aa122b6")
+!262 = !DIFile(filename: "test.cpp", directory: "", checksumkind: CSK_MD5, checksum: "d6203c6cc928ec16307d3c5f2aa122b6")
 !263 = !DISubroutineType(types: !264)
 !264 = !{null, !265, !198, !31}
 !265 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !198, size: 64)

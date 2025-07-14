@@ -51,7 +51,8 @@ NamedMDNode &llvm::cloneModuleFlagsMetadataInto(const Module &hostM,
                                                 Module &devM) {
   // These are the module flags that should be cloned over. Others will be
   // ignored.
-  std::set<StringRef> flags = {"wchar_size", "PIC Level", "PIE Level"};
+  std::set<StringRef> flags = {"Debug Info Version", "Dwarf Version",
+                               "PIC Level", "PIE Level", "wchar_size"};
 
   NamedMDNode &nmd = *devM.getOrInsertModuleFlagsMetadata();
   if (const NamedMDNode *hostMD = hostM.getModuleFlagsMetadata())
