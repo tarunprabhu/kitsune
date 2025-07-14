@@ -65,19 +65,14 @@
 #include "kitsune/Core/TargetUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/TapirLoopHints.h"
-#include "llvm/Demangle/Demangle.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DebugInfo.h"
-#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicsAMDGPU.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/AMDGPUAddrSpace.h"
-#include "llvm/Support/Path.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Tapir/KitsuneUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
-#include "llvm/Transforms/Utils/AMDGPUEmitPrintf.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
@@ -747,34 +742,12 @@ bool HipABI::preProcessFunction(Function &F, TaskInfo &TI,
 void HipABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {}
 
 void HipABI::postProcessModule() {
-  if (TTO.getTapirVerbose()) {
-    errs() << "kitsune[hipabi]: running kernel module postprocessing "
-           << "transformations.\n";
-    errs() << "  - kernel module: " << KernelModule.getName() << "\n";
-  }
-
   // At this point, we are done with the minimum task of outlining the tapir
   // loop into a kernel module. There are still a number of transformations that
   // must be carried out on this module before it can be compiled to GPU code,
   // but those will be done by subsequent passes. The module here is in a state
   // where we can perform combined host/device analyses and optimizations.
   (void)createEmbBCGlobal(KernelModule, TTID::Hip, M);
-
-  // FIXME: This suggests that printf can be run in an AMD GPU, but puts cannot,
-  // so instances of puts must be replaced with printf. Is this something that
-  // should be moved to the PrepareEmbBC pass?
-  if (Function *puts = KernelModule.getFunction("puts")) {
-    Value *printf = KernelModule.getFunction("printf");
-    if (not printf) {
-      LLVMContext &context = KernelModule.getContext();
-      Type *paramTys[] = {PointerType::getUnqual(context)};
-      Type *retTy = Type::getInt32Ty(context);
-      FunctionType *funcTy = FunctionType::get(retTy, paramTys, false);
-      FunctionCallee fce = KernelModule.getOrInsertFunction("printf", funcTy);
-      printf = fce.getCallee();
-    }
-    puts->replaceAllUsesWith(printf);
-  }
 }
 
 LoopOutlineProcessor *HipABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
