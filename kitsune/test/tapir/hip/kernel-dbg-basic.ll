@@ -1,19 +1,37 @@
-; Check that the names of the outlined kernel functions are as expected when
-; compiled with debug info.
+; Check that debug information makes it to the kernel module. This checks some
+; basic debug info nodes.
 ;
-; NOTE: At this time, the generated name is obtained from the source file and
-; debug info, if available. The approach currently used still runs (low) risk of
-; collisions with other function names. Eventually, we will switch to some form
-; of name mangling to eliminate the change of collisions. When that happens,
-; this test may need to be updated/removed.
-;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' %s \
+; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' %s \
 ; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: define {{.+}} @__kitcu_loop_test_cpp_6_3(
-; CHECK-DAG: define {{.+}} @__kitcu_loop_test_cpp_11_3(
-; CHECK-DAG: define {{.+}} @__kitcu_loop_test_cpp_14_3(
+; CHECK-LABEL: @__kithip_loop_test.cpp_6_3(
+; CHECK-SAME: !dbg ![[DILOOP1:[0-9]+]]
+; CHECK: getelementptr inbounds float{{.+}} !dbg ![[DILOC1:[0-9]+]]
+; CHECK-LABEL: @__kithip_loop_test.cpp_11_3(
+; CHECK-SAME: !dbg ![[DILOOP2:[0-9]+]]
+; CHECK: getelementptr inbounds float{{.+}} !dbg ![[DILOC2:[0-9]+]]
+; CHECK-LABEL: @__kithip_loop_test.cpp_14_3(
+; CHECK-SAME: !dbg ![[DILOOP3:[0-9]+]]
+; CHECK: getelementptr inbounds float{{.+}} !dbg ![[DILOC3:[0-9]+]]
+;
+; CHECK-COUNT-1: !DICompileUnit(language: DW_LANG_C_plus_plus
+;
+; CHECK: ![[DILOOP1]] = {{.*}}!DISubprogram(name: "scale",{{.*}} scope: ![[DIFILE:[0-9]+]],
+; CHECK: ![[DIFILE]] = {{.*}}!DIFile(filename: "test.cpp",
+; CHECK: ![[DIBODY1:[0-9]+]] = {{.*}}!DILexicalBlock(scope: ![[DILOOP1]], file: ![[DIFILE]], line: 6, column: 3)
+; CHECK: ![[DIBLOCK1:[0-9]+]] = {{.*}}!DILexicalBlock(scope: ![[DIBODY1]], file: ![[DIFILE]], line: 6, column: 3)
+; CHECK: ![[DILOC1]] = {{.*}}!DILocation(line: 7, column: 5, scope: ![[DIBLOCK1]])
+;
+; CHECK: ![[DILOOP2]] = {{.*}}!DISubprogram(name: "xlate",{{.*}} scope: ![[DIFILE]]
+; CHECK: ![[DIBODY2:[0-9]+]] = {{.*}}!DILexicalBlock(scope: ![[DILOOP2]], file: ![[DIFILE]], line: 11, column: 3)
+; CHECK: ![[DIBLOCK2:[0-9]+]] = {{.*}}!DILexicalBlock(scope: ![[DIBODY2]], file: ![[DIFILE]], line: 11, column: 3)
+; CHECK: ![[DILOC2]] = {{.*}}!DILocation(line: 12, column: 5, scope: ![[DIBLOCK2]])
+;
+; CHECK: ![[DILOOP3]] = {{.*}}!DISubprogram(name: "xlate",{{.*}} scope: ![[DIFILE]]
+; CHECK: ![[DIBODY3:[0-9]+]] = {{.*}}!DILexicalBlock(scope: ![[DILOOP3]], file: ![[DIFILE]], line: 14, column: 3)
+; CHECK: ![[DIBLOCK3:[0-9]+]] = {{.*}}!DILexicalBlock(scope: ![[DIBODY3]], file: ![[DIFILE]], line: 14, column: 3)
+; CHECK: ![[DILOC3]] = {{.*}}!DILocation(line: 15, column: 5, scope: ![[DIBLOCK3]])
 
 target triple = "x86_64-unknown-linux-gnu"
 
