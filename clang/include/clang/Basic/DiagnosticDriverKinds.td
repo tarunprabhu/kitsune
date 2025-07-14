@@ -856,6 +856,15 @@ def warn_drv_kitsune_multi_gpu : Warning<
   "multiple %0 GPU architectures detected: '%1'">,
   InGroup<Kitsune>;
 
+def warn_drv_kitsune_cuda_optzns_debug : Warning<
+  "ptxas does not support optimized debugging. Setting ptxas optimization "
+  "level to -O0. All other optimizations will be performed at level '-O%0'">,
+  InGroup<Kitsune>;
+
+def err_drv_kitsune_cuda_optzns_debug : Error<
+  "ptxas does not support optimized debugging. Use -O1 for partial debugging "
+  "support">;
+
 def err_drv_unsupported_option_argument_for_frontend : Error<
   "unsupported argument '%1' to option '%0' for frontend '%2'">;
 
