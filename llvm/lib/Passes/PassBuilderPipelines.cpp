@@ -419,6 +419,31 @@ void PassBuilder::invokeTapirLoopEndEPCallbacks(ModulePassManager &MPM,
   for (auto &C : TapirLoopEndEPCallbacks)
     C(MPM, Level);
 }
+void PassBuilder::invokeKitsunePreTapirEarlyEPCallbacks(
+    ModulePassManager &MPM, OptimizationLevel Level) {
+  for (auto &C : KitsunePreTapirEarlyEPCallbacks)
+    C(MPM, Level);
+}
+void PassBuilder::invokeKitsunePreTapirLateEPCallbacks(
+    ModulePassManager &MPM, OptimizationLevel Level) {
+  for (auto &C : KitsunePreTapirLateEPCallbacks)
+    C(MPM, Level);
+}
+void PassBuilder::invokeKitsunePostTapirEarlyEPCallbacks(
+    ModulePassManager &MPM, OptimizationLevel Level) {
+  for (auto &C : KitsunePostTapirEarlyEPCallbacks)
+    C(MPM, Level);
+}
+void PassBuilder::invokeKitsunePostTapirLateEPCallbacks(
+    ModulePassManager &MPM, OptimizationLevel Level) {
+  for (auto &C : KitsunePostTapirLateEPCallbacks)
+    C(MPM, Level);
+}
+void PassBuilder::invokeKitsunePostTapirLastEPCallbacks(
+    ModulePassManager &MPM, OptimizationLevel Level) {
+  for (auto &C : KitsunePostTapirLastEPCallbacks)
+    C(MPM, Level);
+}
 
 // Helper to add AnnotationRemarksPass.
 static void addAnnotationRemarksPass(ModulePassManager &MPM) {
@@ -1848,9 +1873,9 @@ PassBuilder::buildKitsuneLoweringPipeline(OptimizationLevel Level,
 
   // TODO: Implement Kitsune-specific extension points.
 
-  MPM.addPass(populateKitPreTapirPasses(Level, Phase, PTO));
+  MPM.addPass(populateKitPreTapirPasses(*this, Level, Phase, PTO));
   MPM.addPass(buildTapirLoweringPipeline(Level, Phase));
-  MPM.addPass(populateKitPostTapirPasses(Level, Phase, PTO));
+  MPM.addPass(populateKitPostTapirPasses(*this, Level, Phase, PTO));
 
   return MPM;
 }

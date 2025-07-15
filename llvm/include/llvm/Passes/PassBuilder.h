@@ -582,6 +582,60 @@ public:
     TapirLoopEndEPCallbacks.push_back(C);
   }
 
+  /// Register a callback for a default optimizer pipeline extension point.
+  ///
+  /// This extension point allows adding passes early in Kitsune's pre-tapir
+  /// pipeline. Kitsune's pre-tapir pipeline runs just before the tapir lowering
+  /// pipeline.
+  void registerKitsunePreTapirEarlyEPCallback(
+      const std::function<void(ModulePassManager &, OptimizationLevel)> &C) {
+    KitsunePreTapirEarlyEPCallbacks.push_back(C);
+  }
+
+  /// Register a callback for a default optimizer pipeline extension point.
+  ///
+  /// This extension point allows adding passes late in Kitsune's pre-tapir
+  /// pipeline. Kitsune's pre-tapir pipeline runs just before the tapir lowering
+  /// pipeline.
+  void registerKitsunePreTapirLateEPCallback(
+      const std::function<void(ModulePassManager &, OptimizationLevel)> &C) {
+    KitsunePreTapirLateEPCallbacks.push_back(C);
+  }
+
+  /// Register a callback for a default optimizer pipeline extension point.
+  ///
+  /// This extension point allows adding passes early in Kitsune's post-tapir
+  /// pipeline. Kitsune's post-tapir pipeline runs immediately after the tapir
+  /// lowering and post-tapir-lowering cleanup passes have run.
+  void registerKitsunePostTapirEarlyEPCallback(
+      const std::function<void(ModulePassManager &, OptimizationLevel)> &C) {
+    KitsunePostTapirEarlyEPCallbacks.push_back(C);
+  }
+
+  /// Register a callback for a default optimizer pipeline extension point.
+  ///
+  /// This extension point allows adding passes late in Kitsune's post-tapir
+  /// pipeline. Kitsune's post-tapir pipeline runs immediately after the tapir
+  /// lowering and post-tapir-lowering cleanup passes have run. The passes added
+  /// to this extension point will be run just before the kit-kernel-properties
+  /// and kit-ctors passes.
+  void registerKitsunePostTapirLateEPCallback(
+      const std::function<void(ModulePassManager &, OptimizationLevel)> &C) {
+    KitsunePostTapirLateEPCallbacks.push_back(C);
+  }
+
+  /// Register a callback for a default optimizer pipeline extension point.
+  ///
+  /// This extension point allows adding passes at the very end of Kitsune's
+  /// post-tapir pipeline. Kitsune's post-tapir pipeline runs immediately after
+  /// the tapir lowering and post-tapir-lowering cleanup passes have run. The
+  /// passed added to this extension point will be run after the last of the
+  /// standard post-kitsune passes.
+  void registerKitsunePostTapirLastEPCallback(
+      const std::function<void(ModulePassManager &, OptimizationLevel)> &C) {
+    KitsunePostTapirLastEPCallbacks.push_back(C);
+  }
+
   /// Register a callback for parsing an AliasAnalysis Name to populate
   /// the given AAManager \p AA
   void registerParseAACallback(
@@ -709,6 +763,16 @@ public:
                                   OptimizationLevel Level);
   void invokeTapirLoopEndEPCallbacks(ModulePassManager &MPM,
                                      OptimizationLevel Level);
+  void invokeKitsunePreTapirEarlyEPCallbacks(ModulePassManager &MPM,
+                                             OptimizationLevel Level);
+  void invokeKitsunePreTapirLateEPCallbacks(ModulePassManager &MPM,
+                                            OptimizationLevel Level);
+  void invokeKitsunePostTapirEarlyEPCallbacks(ModulePassManager &MPM,
+                                              OptimizationLevel Level);
+  void invokeKitsunePostTapirLateEPCallbacks(ModulePassManager &MPM,
+                                             OptimizationLevel Level);
+  void invokeKitsunePostTapirLastEPCallbacks(ModulePassManager &MPM,
+                                             OptimizationLevel Level);
 
   static bool checkParametrizedPassName(StringRef Name, StringRef PassName) {
     if (!Name.consume_front(PassName))
@@ -839,6 +903,16 @@ private:
       TapirLateEPCallbacks;
   SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
       TapirLoopEndEPCallbacks;
+  SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
+      KitsunePreTapirEarlyEPCallbacks;
+  SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
+      KitsunePreTapirLateEPCallbacks;
+  SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
+      KitsunePostTapirEarlyEPCallbacks;
+  SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
+      KitsunePostTapirLateEPCallbacks;
+  SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
+      KitsunePostTapirLastEPCallbacks;
   SmallVector<std::function<void(ModulePassManager &, OptimizationLevel)>, 2>
       PipelineStartEPCallbacks;
   SmallVector<std::function<void(ModulePassManager &, OptimizationLevel,
