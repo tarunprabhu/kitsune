@@ -23,6 +23,7 @@
 
 namespace llvm {
 
+class PassBuilder;
 class PipelineTuningOptions;
 
 /// Check if the tapir (and by extension Kitsune) lowering pipeline should be
@@ -33,14 +34,16 @@ bool useTapirLowering(ThinOrFullLTOPhase phase,
 /// Populate a ModulePassManager with the passes that should be run as part of
 /// Kitsune's pre-tapir pipeline. These passes are run immediately before tapir
 /// lowering.
-ModulePassManager populateKitPreTapirPasses(OptimizationLevel level,
+ModulePassManager populateKitPreTapirPasses(PassBuilder &pb,
+                                            OptimizationLevel level,
                                             ThinOrFullLTOPhase phase,
                                             const PipelineTuningOptions &pto);
 
 /// Populate a ModulePassManager with the passes that should be run as part of
 /// Kitsune's post-tapir pipeline. These passes are run immediately after tapir
 /// lowering.
-ModulePassManager populateKitPostTapirPasses(OptimizationLevel level,
+ModulePassManager populateKitPostTapirPasses(PassBuilder &pb,
+                                             OptimizationLevel level,
                                              ThinOrFullLTOPhase phase,
                                              const PipelineTuningOptions &pto);
 
