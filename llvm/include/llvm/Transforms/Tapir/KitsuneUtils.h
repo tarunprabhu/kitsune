@@ -17,6 +17,7 @@
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
 
 #include <set>
 
@@ -30,20 +31,66 @@ class Module;
 class TapirLoopInfo;
 
 /// Collect the GlobalValues used in a \ref BasicBlock.
-/// @param bb The basic block
-/// @param seen The set into which to collect the GlobalValue's
+/// \param bb The basic block
+/// \param seen The set into which to collect the GlobalValue's
 void collectGlobalValues(llvm::BasicBlock &bb,
                          std::set<llvm::GlobalValue *> &seen);
 
 /// Collect the GlobalValues used in a \ref Function.
-/// @param f The function
-/// @param seen The set into which to collect the GlobalValue's
+/// \param f The function
+/// \param seen The set into which to collect the GlobalValue's
 void collectGlobalValues(Function &f, std::set<GlobalValue *> &seen);
 
 /// Get the GlobalValues used in a \ref Loop.
-/// @param loop The loop
-/// @param seen The set into which to collect the GlobalValue's
+/// \param loop The loop
+/// \param seen The set into which to collect the GlobalValue's
 void collectGlobalValues(Loop &loop, std::set<GlobalValue *> &seen);
+
+/// Clone global variables that are used in outlined tapir loop from the host to
+/// the device module.
+/// \param devM The device module
+/// \param usedGlobalValues The global values used by the tapir loop
+/// \param vmap The ValueMap containing mappings for the global values that are
+///             cloned into the device module
+/// \param asConstant Address space for constant global variables
+/// \param asNonConst Address space for non-constant global variables
+/// \param visConst Visibility of constant global variables
+/// \param visNonConst Visibility of non-constant global variables
+void cloneUsedGlobalVariablesInto(
+    Module &devM, const std::set<GlobalValue *> &usedGlobalValues,
+    ValueToValueMapTy &vmap, unsigned asConst = 0, unsigned asNonConst = 0,
+    GlobalValue::VisibilityTypes visConst = GlobalValue::DefaultVisibility,
+    GlobalValue::VisibilityTypes visNonConst = GlobalValue::DefaultVisibility);
+
+/// Clone functions that are transitively reachable from outlined tapir loops
+/// from the host to the device module.
+/// \param devM The device module
+/// \param usedGlobalValues The global values used by the tapir loop
+/// \param vmap The ValueMap containing mappings for the global values that are
+///             cloned into the device module
+void cloneReachableFuncsInto(Module &devM,
+                             const std::set<GlobalValue *> &usedGlobalValues,
+                             ValueToValueMapTy &vmap);
+
+/// Clone IFuncs that are transitively reachable from outlined tapir loops from
+/// the host to the device module.
+/// \param devM The device module
+/// \param usedGlobalValues The global values used by the tapir loop
+/// \param vmap The ValueMap containing mappings for the global values that are
+///             cloned into the device module
+void cloneReachableIFuncsInto(Module &devM,
+                              const std::set<GlobalValue *> &usedGlobalValues,
+                              ValueToValueMapTy &vmap);
+
+/// Clone global aliases that are used in outlined tapir loop from the host to
+/// the device module.
+/// \param devM The device module
+/// \param usedGlobalValues The global values used by the tapir loop
+/// \param vmap The ValueMap containing mappings for the global values that are
+///             cloned into the device module
+void cloneUsedGlobalAliasesInto(Module &devM,
+                                const std::set<GlobalValue *> &usedGlobalValues,
+                                ValueToValueMapTy &vmap);
 
 /// Construct the name to be used for the outlined function consisting of the
 /// body of the tapir loop.
