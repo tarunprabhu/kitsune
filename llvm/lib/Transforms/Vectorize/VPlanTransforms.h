@@ -253,6 +253,12 @@ struct VPlanTransforms {
   /// was unsuccessful.
   static bool handleFindLastReductions(VPlan &Plan);
 
+  /// Check if \p Plan contains any FMaxNum or FMinNum reductions. If they do,
+  /// try to update the vector loop to exit early if any input is NaN and resume
+  /// executing in the scalar loop to handle the NaNs there. Return false if
+  /// this attempt was unsuccessful.
+  static bool handleMaxMinNumReductions(VPlan &Plan);
+
   /// Clear NSW/NUW flags from reduction instructions if necessary.
   static void clearReductionWrapFlags(VPlan &Plan);
 
