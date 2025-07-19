@@ -313,8 +313,6 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   Task *T = TLI.getTask();
   Loop *TL = TLI.getLoop();
 
-  TapirLoopHints Hints(TL);
-
   BasicBlock *Entry = cast<BasicBlock>(VMap[TL->getLoopPreheader()]);
   BasicBlock *Header = cast<BasicBlock>(VMap[TL->getHeader()]);
   BasicBlock *Exit = cast<BasicBlock>(VMap[TLI.getExitBlock()]);
@@ -327,7 +325,19 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
       cast<Instruction>(VMap[T->getDetach()->getSyncRegion()]);
   ClonedSyncReg->eraseFromParent();
 
+  // Some attributes that must be fixed for both kernel and device functions
+  // (such as the target-cpu) will be set/removed in the EmbPrepare pass.
+  // Others which have a more direct bearing on the correctness/performance of
+  // code-generation are currently set here, but it may be reasonable to move
+  // those to EmbPrepare as well since they are not directly related to the
+  // transformation of the code.
   Function *KernelF = Out.Outline;
+
+  // Add an attribute identifying this as a function outlined from a tapir loop.
+  KernelF->addFnAttr(Attribute::KitKernel);
+
+  // Add other attributes that are relevant for the target.
+  KernelF->addFnAttr("uniform-work-group-size", "true");
 
   // Set the generated name for the kernel. This name is passed to the runtime's
   // kernel launch function, so it must be set correctly.
@@ -336,30 +346,6 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   // Set the linkage of the kernel to external to prevent it from being DCE'ed
   // since there will be no caller for the function in the kernel module.
   KernelF->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
-
-  // Remove all target-related attributes from the kernel function. These may be
-  // present because the frontend believes that the code is being compiled for
-  // the CPU (host) only.
-  KernelF->removeFnAttr("target-cpu");
-  KernelF->removeFnAttr("target-features");
-  KernelF->removeFnAttr("tune-cpu");
-
-  // Remove some functions that are relevant for functionality that is not
-  // supported on the GPU. For instance, exceptions are not currently available
-  // on GPU's.
-  KernelF->removeFnAttr("personality");
-
-  // Add an attribute identifying this as a function outlined from a tapir loop.
-  KernelF->addFnAttr(Attribute::KitKernel);
-
-  // Replace some of the target-specific attributes with the correct ones.
-  KernelF->addFnAttr("target-cpu", getOptions().getCudaArch());
-  KernelF->addFnAttr("target-features",
-                     join_items(",", getOptions().getCudaTargetFeatures(),
-                                getOptions().getCudaArch()));
-
-  // Add other attributes that are relevant for the target.
-  KernelF->addFnAttr("uniform-work-group-size", "true");
 
   NamedMDNode *Annotations =
       KernelModule.getOrInsertNamedMetadata("nvvm.annotations");

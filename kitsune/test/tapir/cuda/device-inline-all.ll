@@ -11,8 +11,8 @@
 ; ALL-DAG: define {{.+}} @sieve{{.+}} #[[ATTRS_SIEVE:[0-9]+]]
 ; ALL-DAG: define {{.+}} @id{{.+}} #[[ATTRS_ID:[0-9]+]]
 ;
-; DEFAULT-DAG: attributes #[[ATTRS_SIEVE]] = { kit_device "
-; DEFAULT-DAG: attributes #[[ATTRS_ID]] = { kit_device noinline "
+; DEFAULT-DAG: attributes #[[ATTRS_SIEVE]] = { kit_device nounwind "
+; DEFAULT-DAG: attributes #[[ATTRS_ID]] = { kit_device noinline nounwind "
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -21,8 +21,8 @@
 ; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,INLINE
 ;
-; INLINE-DAG: attributes #[[ATTRS_SIEVE]] = { alwaysinline kit_device "
-; INLINE-DAG: attributes #[[ATTRS_ID]] = { kit_device noinline "
+; INLINE-DAG: attributes #[[ATTRS_SIEVE]] = { alwaysinline kit_device nounwind "
+; INLINE-DAG: attributes #[[ATTRS_ID]] = { kit_device noinline nounwind "
 ;
 ; ------------------------------------------------------------------------------
 

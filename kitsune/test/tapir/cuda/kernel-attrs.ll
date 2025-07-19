@@ -7,7 +7,7 @@
 ; does.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 --tapir-cuda-features="+ptx87" \
-; RUN:     %s -passes='tapir-lowering<O2>' \
+; RUN:     %s -passes='tapir-lowering<O2>,emb-prepare' \
 ; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -15,7 +15,9 @@
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
+; CHECK-NOT: uwtable
 ; CHECK-SAME: kit_kernel
+; CHECK-SAME: nounwind
 ; CHECK-SAME: "target-cpu"="sm_72"
 ; CHECK-SAME: "target-features"="+ptx87,sm_72"
 ; CHECK-SAME: "uniform-work-group-size"="true"

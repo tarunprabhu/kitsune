@@ -176,6 +176,42 @@ private:
     return changed;
   }
 
+  /// Fix attributes that must be handled the same way for both kernel and
+  /// device functions.
+  void fixCommonFuncAttrs(Function &f) {
+    // The target attributes will have been set assuming that the code will
+    // be run on the host.
+    f.removeFnAttr("target-cpu");
+    f.removeFnAttr("target-features");
+    f.removeFnAttr("tune-cpu");
+
+    // We do not support exceptions on GPU's.
+    f.removeFnAttr("personality");
+    f.removeFnAttr(Attribute::UWTable);
+
+    // Add new target-specific attributes.
+    f.addFnAttr("target-cpu", tto.getHipArch());
+    f.addFnAttr("target-features", tto.getHipTargetFeatures());
+
+    // Add other attributes that are relevant for GPU code.
+    f.addFnAttr(Attribute::NoUnwind);
+  }
+
+  /// Fix the attribute on "kernel" functions. Some attributes will have been
+  /// set by the tapir target. Ideally, those should be moved here as well.
+  /// There is not a lot to be gained by doing this early.
+  bool fixKernelFuncAttrs(Module &devM) {
+    bool changed = false;
+    for (Function &f : devM.functions()) {
+      if (f.hasFnAttribute(Attribute::KitKernel)) {
+        fixCommonFuncAttrs(f);
+
+        changed |= true;
+      }
+    }
+    return changed;
+  }
+
   /// Fix the attributes on the "non-kernel" functions. These may still have
   /// attributes that are only relevant if they are run on the CPU. The
   /// attributes on the kernel function will have been set by the tapir targets.
@@ -242,6 +278,7 @@ public:
 
     changed |= fixKernelArgumentAddrSpace(devM);
     changed |= fixAllocaAddrSpace(devM);
+    changed |= fixKernelFuncAttrs(devM);
     changed |= fixDeviceFuncAttrs(devM);
     changed |= fixCallingConventions(devM);
     changed |= stripKitsuneAddrSpaces(devM);

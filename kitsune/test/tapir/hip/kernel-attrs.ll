@@ -9,7 +9,7 @@
 ; RUN: opt --tapir=hip \
 ; RUN:     --tapir-hip-arch=gfx906 \
 ; RUN:     --tapir-hip-features="+wavefrontsize32,+atomic-fadd-rtn-insts" \
-; RUN:     -passes='tapir-lowering<O2>' %s \
+; RUN:     -passes='tapir-lowering<O2>,emb-prepare' %s \
 ; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -21,7 +21,6 @@
 ; CHECK-NOT: "tune-cpu"
 ; CHECK-NOT: "uwtable"
 ; CHECK-SAME: kit_kernel
-; CHECK-SAME: mustprogress
 ; CHECK-SAME: nounwind
 ; CHECK-SAME: "amdgpu-flat-work-group-size"="128,1024"
 ; CHECK-SAME: "no-trapping-math"="true"

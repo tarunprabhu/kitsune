@@ -341,32 +341,19 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
       cast<Instruction>(VMap[T->getDetach()->getSyncRegion()]);
   ClonedSyncReg->eraseFromParent();
 
-  // Get the kernel function for this loop and clean up any stray (target
-  // related) attributes. Because of the way we compile the code, those
-  // attributes will only be relevant for the host.
+  // Some attributes that must be fixed for both kernel and device functions
+  // (such as the target-cpu) will be set/removed in the EmbPrepare pass.
+  // Others which have a more direct bearing on the correctness/performance of
+  // code-generation are currently set here, but it may be reasonable to move
+  // those to EmbPrepare as well since they are not directly related to the
+  // transformation of the code.
   Function *KernelF = Out.Outline;
-  KernelF->setName(KernelName);
-
-  // Remove any attributes that are only relevant for the host.
-  KernelF->removeFnAttr("target-cpu");
-  KernelF->removeFnAttr("target-features");
-  KernelF->removeFnAttr("tune-cpu");
-
-  // Remove other attributes that we cannot deal with in any reasonable way in
-  // the device
-  KernelF->removeFnAttr(Attribute::UWTable);
 
   // Add an attribute identifying this as a function outlined from a tapir loop.
   KernelF->addFnAttr(Attribute::KitKernel);
 
-  // Add new target-specific attributes
-  KernelF->addFnAttr("target-cpu", getOptions().getHipArch());
-  KernelF->addFnAttr("target-features", getOptions().getHipTargetFeatures());
-
   // Add other attributes that are either required or desirable.
   KernelF->addFnAttr("no-trapping-math", "true");
-  KernelF->addFnAttr(Attribute::MustProgress);
-  KernelF->addFnAttr(Attribute::NoUnwind);
 
   // This only works when the code object version >= 5, but we have ensured that
   // this is the case in the frontend.
@@ -377,6 +364,10 @@ void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   std::string AttrVal;
   AttrVal = std::string("128,1024");
   KernelF->addFnAttr("amdgpu-flat-work-group-size", AttrVal);
+
+  // Set the generated name for the kernel. This name is passed to the runtime's
+  // kernel launch function, so it must be set correctly.
+  KernelF->setName(KernelName);
 
   // AMD requires that the kernel function have protected visiblity otherwise
   // AMD's runtime is unable to find the kernel function at runtime. This, in
