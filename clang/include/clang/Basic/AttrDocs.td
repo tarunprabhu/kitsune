@@ -9114,7 +9114,6 @@ inaccurate).
 def KitsuneLaunchDocs : Documentation {
   let Category = KitsuneDocs;
   let Content = [{
-
 The kitsune launch attributes lets programmers inform the compiler how
 to tweak the code generation aspects for launching the GPU kernels for
 parallel constructs in the code.  This information is not verified in
@@ -9139,7 +9138,6 @@ and testing vs. an end-user feature.
 def KitsuneMobileDocs : Documentation {
   let Category = KitsuneDocs;
   let Content = [{
-
 The mobile attribute should be attached to pointers that may be allocated using
 UVM, or that would otherwise point to data that may be moved to a GPU. This is
 required when using the GPU tapir targets, but is optional in other cases.
@@ -9150,6 +9148,15 @@ must be explicit.
 
 TODO: Add more text here once the semantics of this attribute have been agreed
 upon.
+  }];
+}
 
+def KitsuneDeviceDocs : Documentation {
+  let Category = KitsuneDocs;
+  let Content = [{
+The device attribute should be attached to functions that are reachable from
+forall loops and other constructs that might execute on a GPU (or, more
+generally, a device other than the host CPU). This is similar in principle to
+the __device__ attribute used in the cuda/hip languages.
   }];
 }

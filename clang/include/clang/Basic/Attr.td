@@ -5047,3 +5047,10 @@ def KitsuneMobile : TypeAttr {
                    C23<"kitsune", "mobile">];
   let Documentation = [KitsuneMobileDocs];
 }
+
+def KitsuneDevice : InheritableAttr {
+  let Spellings = [GNU<"kitsune_device">, CXX11<"kitsune", "device">,
+                   C23<"kitsune", "device">];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let Documentation = [KitsuneDeviceDocs];
+}

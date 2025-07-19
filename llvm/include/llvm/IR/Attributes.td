@@ -448,7 +448,10 @@ def KitKernel : EnumAttr<"kit_kernel", IntersectPreserve, [FnAttr]>;
 /// The function is a "device function". This is a function in the device module
 /// that is reachable from at least one kernel function. This attribute must
 /// *not* be applied to "library" functions such as those provided by the
-/// libdevice bitcode files.
+/// libdevice bitcode files. The attribute may also appear on functions in the
+/// host module. In this case, it indicates that the function must be added to
+/// an embedded module since it is reachable from a kernel function in a
+/// different translation unit.
 def KitDevice : EnumAttr<"kit_device", IntersectPreserve, [FnAttr]>;
 
 // -----------------------------------------------------------------------------

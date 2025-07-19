@@ -68,11 +68,11 @@ using namespace CodeGen;
 // incremented? Or is there some mysterious C++ black magic at work again?
 llvm::TapirSpawnStrategy
 CodeGenFunction::GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs) {
-  auto curAttr = Attrs.begin();
-  while (curAttr != Attrs.end()) {
-    const attr::Kind AttrKind = (*curAttr)->getKind();
+  ArrayRef<const Attr *>::iterator A = Attrs.begin();
+  while (A != Attrs.end()) {
+    const attr::Kind AttrKind = (*A)->getKind();
     if (AttrKind == attr::TapirStrategy) {
-      const auto *SAttr = cast<TapirStrategyAttr>(*curAttr);
+      const auto *SAttr = cast<TapirStrategyAttr>(*A);
       switch (SAttr->getTapirStrategyType()) {
       case TapirStrategyAttr::SEQ:
         return llvm::TapirSpawnStrategy::Sequential;
@@ -95,9 +95,9 @@ CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
   // FIXME KITSUNE: This will check for the first occurrence of the tapir target
   // attribute and break immediately if it finds it. Is this what we actually
   // want?
-  for (const Attr *curAttr : Attrs) {
-    if (curAttr->getKind() == attr::TapirTarget) {
-      switch (cast<const TapirTargetAttr>(curAttr)->getTapirTargetAttrType()) {
+  for (const Attr *A : Attrs) {
+    if (A->getKind() == attr::TapirTarget) {
+      switch (cast<const TapirTargetAttr>(A)->getTapirTargetAttrType()) {
       case TapirTargetAttr::Nolo:
         return llvm::TTID::Nolo;
       case TapirTargetAttr::Serial:
@@ -122,10 +122,10 @@ CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
 }
 
 unsigned CodeGenFunction::GetKitsuneLaunchAttr(ArrayRef<const Attr *> Attrs) {
-  for (const auto *curAttr : Attrs) {
-    if (curAttr->getKind() == attr::KitsuneLaunch) {
+  for (const Attr *A : Attrs) {
+    if (A->getKind() == attr::KitsuneLaunch) {
       unsigned ThreadsPerBlock =
-          cast<const KitsuneLaunchAttr>(curAttr)->getThreadsPerBlock();
+          cast<const KitsuneLaunchAttr>(A)->getThreadsPerBlock();
       return ThreadsPerBlock;
     }
   }

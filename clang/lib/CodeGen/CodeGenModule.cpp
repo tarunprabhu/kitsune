@@ -7949,6 +7949,9 @@ void CodeGenModule::SetKitsuneAttributes(const VarDecl &VD,
 
 void CodeGenModule::SetKitsuneAttributes(const FunctionDecl &FD,
                                          llvm::Function &Fn) {
+  if (FD.getAttr<KitsuneDeviceAttr>())
+    Fn.addFnAttr(llvm::Attribute::KitDevice);
+
   if (const auto *A = FD.getAttr<KitsuneMemAccessAttr>())
     Fn.addFnAttr(GetLLVMAttrNameFor(*A));
 
