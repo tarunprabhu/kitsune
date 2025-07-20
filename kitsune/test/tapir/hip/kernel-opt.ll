@@ -44,8 +44,7 @@
 ; O2-NEXT: %[[COND:.+]] = icmp ult i64 %[[TIV]], %[[UB]]
 ; O2-NEXT: br i1 %[[COND]], label %[[BBBODY:[^,]+]], label %[[BBEXIT:.+]]
 ; O2: [[BBBODY]]:
-; O2-NEXT: %[[BUFCST:.+]] = addrspacecast ptr %[[BUF]] to ptr addrspace(1)
-; O2-NEXT: %[[ARRIDX:.+]] = getelementptr {{.+}}, ptr {{.*}}%[[BUFCST]], i64 %[[TIV]]
+; O2-NEXT: %[[ARRIDX:.+]] = getelementptr {{.+}}, ptr {{.*}}%[[BUF]], i64 %[[TIV]]
 ; O2-NEXT: store i64 %[[N]], ptr {{.*}}%[[ARRIDX]]
 ; O2-NEXT: br label %[[BBEXIT]]
 ; O2: [[BBEXIT]]:

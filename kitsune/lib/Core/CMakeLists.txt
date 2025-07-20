@@ -1,5 +1,6 @@
 add_llvm_component_library(LLVMKitCore
   AddrSpaceUtils.cpp
+  CloningUtils.cpp
   CommandLineOptions.cpp
   ConstantUtils.cpp
   EmbUtils.cpp
@@ -7,6 +8,7 @@ add_llvm_component_library(LLVMKitCore
   IntrinsicUtils.cpp
   KernelProperties.cpp
   ModuleUtils.cpp
+  ReachableGlobals.cpp
   TapirTargetOptions.cpp
   TargetUtils.cpp
   TypeUtils.cpp

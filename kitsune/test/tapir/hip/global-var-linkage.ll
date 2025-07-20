@@ -8,7 +8,7 @@
 ; If the variables have external linkage, an explicit linkage will not appear
 ; here. But the visibility and address space will. But we don't check for those
 ; explicitly to avoid test failures if either of those properties are changed.
-; A separate test will explicitly look for the visibility
+; A separate test will explicitly look for the visibility.
 ;
 ; CHECK-DAG: @v137 = {{[a-z_]+}} {{[A-Za-z0-9()]+}} global i32
 ; CHECK-DAG: @v138 = {{[a-z_]+}} {{[A-Za-z0-9()]+}} global i32

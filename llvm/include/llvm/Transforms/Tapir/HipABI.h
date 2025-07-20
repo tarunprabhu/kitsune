@@ -58,10 +58,9 @@
 #ifndef LLVM_TRANSFORMS_TAPIR_HIP_ABI_H
 #define LLVM_TRANSFORMS_TAPIR_HIP_ABI_H
 
+#include "kitsune/Core/ReachableGlobals.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
-
-#include <set>
 
 namespace llvm {
 
@@ -224,7 +223,7 @@ private:
 
   /// The GlobalValue's used in the loop that is being outlined. This includes
   /// functions, global variables, aliases and ifunc's.
-  std::set<GlobalValue *> UsedGlobalValues;
+  ReachableGlobals UsedGlobals;
 };
 
 } // namespace llvm

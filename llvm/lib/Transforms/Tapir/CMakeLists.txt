@@ -6,7 +6,7 @@ set(SOURCES
   LoweringUtils.cpp
   Outline.cpp
   GPUABI.cpp
-  KitsuneUtils.cpp
+  KitsuneLoweringUtils.cpp
   SerialABI.cpp
   SerializeSmallTasks.cpp
   TapirLoopInfo.cpp

@@ -16,6 +16,7 @@
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Support/AddrSpace.h"
 #include "llvm/IR/Attributes.h"
+#include "llvm/IR/CallingConv.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
@@ -26,6 +27,31 @@
 using namespace llvm;
 
 namespace {
+
+// Set the calling convention of the given value (currently, must be a function
+// or a callsite). Return true if the calling convention was changed, false
+// otherwise.
+template <typename V> static bool setCallingConv(V &v, unsigned cc) {
+  if (v.getCallingConv() != cc) {
+    v.setCallingConv(cc);
+    return true;
+  }
+  return false;
+}
+
+// Set the visibility of the given global value. If setting the visibility to
+// "protected", the linkage must be changed to 'external'. Return true if the
+// visibility was changed, false otherwise.
+static bool setVisibilityAndLinkage(GlobalValue &v,
+                                    GlobalValue::VisibilityTypes vis) {
+  if (v.getVisibility() != vis) {
+    if (vis == GlobalValue::ProtectedVisibility)
+      v.setLinkage(GlobalValue::ExternalLinkage);
+    v.setVisibility(vis);
+    return true;
+  }
+  return false;
+}
 
 class EmbPrepareHip {
 private:
@@ -242,29 +268,53 @@ private:
     return changed;
   }
 
+  /// Fix the visibility of kernel functions.
+  bool fixKernelFuncVisibility(Module &devM) {
+    bool changed = false;
+    for (Function &f : devM.functions())
+      if (f.hasFnAttribute(Attribute::KitKernel))
+        // If the visibility of kernel functions is not set to 'protected',
+        // AMD's runtime is unable to find the kernel function at runtime. This,
+        // in turn requires the function to have external linkage. In case the
+        // function gets here with a different linkage type, override it.
+        changed |= setVisibilityAndLinkage(f, GlobalValue::ProtectedVisibility);
+    return changed;
+  }
+
   /// Fix the calling convention on device functions and the callsites.
   bool fixCallingConventions(Module &devM) {
     bool changed = false;
 
     // Set the calling convention to fast on the device functions because
     // that is what hipcc does.
-    for (Function &f : devM.functions()) {
-      if (f.hasFnAttribute(Attribute::KitDevice)) {
-        if (f.getCallingConv() != CallingConv::Fast) {
-          f.setCallingConv(CallingConv::Fast);
-          changed |= true;
-        }
-      }
-    }
+    for (Function &f : devM.functions())
+      if (f.hasFnAttribute(Attribute::KitDevice))
+        changed |= setCallingConv(f, CallingConv::Fast);
 
+    // Set the calling convention on kernel functions.
+    for (Function &f : devM.functions())
+      if (f.hasFnAttribute(Attribute::KitKernel))
+        changed |= setCallingConv(f, CallingConv::AMDGPU_KERNEL);
+
+    // Fix callsites. We don't necessarily fix the callsites of device functions
+    // only, but we probably can do it that way.
     for (Function &f : devM.functions())
       for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
         if (auto *ci = dyn_cast<CallBase>(&*i))
           if (Function *cf = ci->getCalledFunction())
-            if (ci->getCallingConv() != cf->getCallingConv()) {
-              ci->setCallingConv(cf->getCallingConv());
-              changed |= true;
-            }
+            changed |= setCallingConv(*ci, cf->getCallingConv());
+
+    return changed;
+  }
+
+  /// Fix the visibility of global variables.
+  bool fixGlobalVariableVisibility(Module &devM) {
+    bool changed = false;
+    for (GlobalVariable &g : devM.globals())
+      if (auto *gv = dyn_cast<GlobalVariable>(&g))
+        if (not gv->isConstant())
+          changed |=
+              setVisibilityAndLinkage(*gv, GlobalValue::ProtectedVisibility);
     return changed;
   }
 
@@ -280,6 +330,8 @@ public:
     changed |= fixAllocaAddrSpace(devM);
     changed |= fixKernelFuncAttrs(devM);
     changed |= fixDeviceFuncAttrs(devM);
+    changed |= fixKernelFuncVisibility(devM);
+    changed |= fixGlobalVariableVisibility(devM);
     changed |= fixCallingConventions(devM);
     changed |= stripKitsuneAddrSpaces(devM);
 

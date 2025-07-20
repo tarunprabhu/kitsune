@@ -5,8 +5,8 @@
 ; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @v137{{[^ ]*}} = protected addrspace(1) global i32
-; CHECK-DAG: @v138{{[^ ]*}} = protected addrspace(1) global i32
+; CHECK-DAG: @v137{{[^ ]*}} = {{.*}}global i32
+; CHECK-DAG: @v138{{[^ ]*}} = {{.*}}global i32
 ; CHECK-NOT: @v137{{.*}} =
 ; CHECK-NOT: @v138{{.*}} =
 

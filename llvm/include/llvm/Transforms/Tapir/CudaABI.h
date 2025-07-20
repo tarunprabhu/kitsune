@@ -59,9 +59,8 @@
 #ifndef LLVM_TRANSFORMS_TAPIR_CUDA_ABI_H
 #define LLVM_TRANSFORMS_TAPIR_CUDA_ABI_H
 
+#include "kitsune/Core/ReachableGlobals.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
-
-#include <set>
 
 namespace llvm {
 
@@ -130,14 +129,21 @@ private:
   /// module.
   Module &KernelModule;
 
-  // Cuda/PTX thread index access.
+  // FIXME: There doesn't seem to be a compelling reason to have these be
+  // class-level variables. These can be set in the module constructor which
+  // avoids the need to call getOrInsert() per tapir-loop, but it is not clear
+  // how much that is saving us. We might as well move these into the functions
+  // where they are used since they are only used in postProcessOutline().
+
+  // Intrinsics to determine the thread index.
   Function *CUThreadIdxX = nullptr, *CUThreadIdxY = nullptr,
            *CUThreadIdxZ = nullptr;
 
-  // Cuda/PTX block index and dimensions access.
+  // Intrinsics to determine the block index.
   Function *CUBlockIdxX = nullptr, *CUBlockIdxY = nullptr,
            *CUBlockIdxZ = nullptr;
 
+  // Intrinsics to determine the block dimensions.
   Function *CUBlockDimX = nullptr, *CUBlockDimY = nullptr,
            *CUBlockDimZ = nullptr;
 
@@ -148,7 +154,7 @@ private:
 
   /// The GlobalValue's used in the loop that is being outlined. This includes
   /// functions, global variables, aliases and ifunc's.
-  std::set<GlobalValue *> UsedGlobalValues;
+  ReachableGlobals UsedGlobals;
 
 public:
   /// Create a loop outline processor for the cuda tapir target.
