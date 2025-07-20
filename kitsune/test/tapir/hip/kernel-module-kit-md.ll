@@ -8,7 +8,7 @@
 ; The module identifier is generated a specific way. We don't really need it to
 ; be exactly what it is, but might as well check it.
 ;
-; CHECK: ModuleID = '__kithip_kernel-module-kit-md.ll'
+; CHECK: ModuleID = '[[NAME:__kit_hip_kernel-module-kit-md.ll]]'
 ;
 ; CHECK: target triple = "amdgcn-amd-amdhsa"
 ;
@@ -18,7 +18,7 @@
 ; CHECK: !kitsune.device.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
 ;
 ; CHECK-DAG: ![[MDTT]] = !{i32 4}
-; CHECK-DAG: ![[MDNAME]] = !{!"__kithip_kernel-module-kit-md.ll"}
+; CHECK-DAG: ![[MDNAME]] = !{!"[[NAME]]"}
 
 target triple = "x86_64-pc-linux-gnu"
 

@@ -13,7 +13,10 @@
 
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Support/TTUtils.h"
+#include "kitsune/Support/ToString.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/Constants.h"
@@ -21,6 +24,8 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
@@ -106,6 +111,8 @@ std::unique_ptr<Module> llvm::parseEmbBCGlobal(const GlobalVariable &g) {
 
 GlobalVariable *llvm::createEmbBCGlobal(const Module &devM, TTID tt,
                                         Module &hostM) {
+  assert(!getEmbBCGlobal(tt, hostM) &&
+         "Embedded bitcode global already exists");
   LLVMContext &ctx = hostM.getContext();
   GlobalVariable *g = ::createEmbBCGlobal(devM, hostM);
   g->addAttribute(Attribute::getWithTTID(ctx, tt));
@@ -165,10 +172,12 @@ EmbModulesMapTy llvm::getEmbModules(const Module &m) {
   return embBCs;
 }
 
-GlobalVariable *llvm::createEmbFBGlobal(TTID tt, Module &m) {
-  LLVMContext &ctx = m.getContext();
+GlobalVariable *llvm::createEmbFBGlobal(TTID tt, Module &hostM) {
+  assert(!getEmbFBGlobal(tt, hostM) &&
+         "Embedded fat binary global already exists");
+  LLVMContext &ctx = hostM.getContext();
   std::unique_ptr<MemoryBuffer> buf = MemoryBuffer::getMemBuffer("");
-  GlobalVariable *g = ::createEmbFBGlobal(*buf, m);
+  GlobalVariable *g = ::createEmbFBGlobal(*buf, hostM);
   g->addAttribute(Attribute::getWithTTID(ctx, tt));
 
   switch (tt) {
@@ -177,6 +186,7 @@ GlobalVariable *llvm::createEmbFBGlobal(TTID tt, Module &m) {
     break;
   case TTID::Hip:
     g->setSection(".hip_fatbin");
+    // FIXME: This alignment is not necessary.
     g->setAlignment(Align(4096));
     break;
   default:
@@ -218,4 +228,21 @@ GlobalVariable *llvm::resetEmbFBGlobal(MemoryBufferRef buf, GlobalVariable &g) {
   g.eraseFromParent();
 
   return newG;
+}
+
+std::unique_ptr<Module> llvm::createEmbModule(TTID tt,
+                                              const TapirTargetOptions &tto,
+                                              const Module &hostM) {
+  LLVMContext &ctx = hostM.getContext();
+  TargetMachine *tm = createTargetMachine(tt, tto);
+
+  std::unique_ptr<Module> devM = std::make_unique<Module>("", ctx);
+
+  devM->setTargetTriple(tm->getTargetTriple().str());
+  devM->setDataLayout(tm->createDataLayout());
+  devM->setModuleIdentifier(join_items("_", "__kit", toString(tt),
+                                       sys::path::filename(hostM.getName())));
+  addDeviceModuleMetadata(tt, *devM);
+
+  return devM;
 }

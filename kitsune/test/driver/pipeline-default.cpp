@@ -34,8 +34,9 @@
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s -check-prefix O123SZ
 //
-// O123SZ:      Running pass:     LoopSpawningPass
+// O123SZ:      Running pass:     CreateEmbBitcodePass
 // O123SZ-NEXT: Running analysis: TapirTargetAnalysis
+// O123SZ-NEXT: Running pass:     LoopSpawningPass
 // O123SZ-NEXT: Running pass:     TapirToTargetPass
 // O123SZ-NEXT: Running pass:     IPSCCPPass
 // O123SZ-NEXT: Running pass:     CalledValuePropagationPass

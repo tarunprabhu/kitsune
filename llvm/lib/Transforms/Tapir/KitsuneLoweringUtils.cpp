@@ -15,7 +15,6 @@
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ReachableGlobals.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/IR/Constants.h"
@@ -68,10 +67,6 @@ std::string llvm::getNameForTapirLoop(const Loop &loop, StringRef pfx,
   return buf;
 }
 
-std::string llvm::getNameForDeviceModule(const Module &hostM, StringRef pfx) {
-  return join_items("", pfx, sys::path::filename(hostM.getName()));
-}
-
 static void copyNonConstGlobals(const ReachableGlobals &globals, TTID tt,
                                 Intrinsic::ID copyFn, Module &m,
                                 IRBuilder<> &builder) {
@@ -118,4 +113,17 @@ void llvm::copyNonConstGlobalsHToD(const ReachableGlobals &globals, TTID tt,
                                    Module &m, IRBuilder<> &builder) {
   copyNonConstGlobals(globals, tt, Intrinsic::kit_symbol_memcpy_htod, m,
                       builder);
+}
+
+std::unique_ptr<Module>
+llvm::getOrCreateEmbModule(TTID tt, const TapirTargetOptions &tto,
+                           Module &hostM) {
+  if (std::unique_ptr<Module> devM = getEmbModule(tt, hostM))
+    return devM;
+
+  std::unique_ptr<Module> devM = createEmbModule(tt, tto, hostM);
+  (void)createEmbBCGlobal(*devM, tt, hostM);
+  (void)createEmbFBGlobal(tt, hostM);
+
+  return devM;
 }

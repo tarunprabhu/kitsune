@@ -8,7 +8,7 @@
 ; The module identifier is generated a specific way. We don't really need it to
 ; be exactly what it is, but might as well check it.
 ;
-; CHECK: ModuleID = '__kitcu_kernel-module-kit-md.ll'
+; CHECK: ModuleID = '[[NAME:__kit_cuda_kernel-module-kit-md.ll]]'
 ;
 ; CHECK: target triple = "nvptx64-nvidia-cuda"
 ;
@@ -21,7 +21,7 @@
 ;
 ; CHECK-DAG: ![[FTZ]] = !{i32 4, !"nvvm-reflect-ftz", i32 0}
 ; CHECK-DAG: ![[MDTT]] = !{i32 2}
-; CHECK-DAG: ![[MDNAME]] = !{!"__kitcu_kernel-module-kit-md.ll"}
+; CHECK-DAG: ![[MDNAME]] = !{!"[[NAME]]"}
 ; CHECK-DAG: ![[MDF1]] = !{ptr @[[F1]], !"kernel", i32 1}
 ; CHECK-DAG: ![[MDF2]] = !{ptr @[[F2]], !"kernel", i32 1}
 

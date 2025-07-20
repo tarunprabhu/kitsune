@@ -21,16 +21,21 @@ namespace llvm {
 class Module;
 class ReachableGlobals;
 
-/// Clone the given GlobalValue's into the given device module. These global
-/// values are typically those reachable from some device function or tapir
-/// loop, but they need not be. This function is specially geared towards
-/// cloning the globals into a device module. It does not necessarily retain all
-/// properties of the source globals exactly. For instance, depending on the
-/// given tapir target id, the address space of the cloned global may not be the
-/// same as that of the host. Similarly, the unnamed_addr flag is set on the
-/// clone, even if it is not set on the source.
+/// Clone the reachable GlobalValue's into the given device module. This
+/// function is specially geared towards cloning the globals into a device
+/// module. It does not necessarily retain all properties of the source globals
+/// exactly. For instance, depending on the given tapir target id, the address
+/// space of the cloned global may not be the same as that of the host.
+/// Similarly, the unnamed_addr flag is set on the clone, even if it is not set
+/// on the source.
 void cloneGlobalValuesInto(const ReachableGlobals &globals, TTID tt,
                            Module &devM, ValueToValueMapTy &vmap);
+
+/// Clone the reachable GlobalValue's into the given device module. This entry
+/// point is useful if we don't need to populate a ValueMap between the source
+/// and cloned values.
+void cloneGlobalValuesInto(const ReachableGlobals &globals, TTID tt,
+                           Module &devM);
 
 } // namespace llvm
 

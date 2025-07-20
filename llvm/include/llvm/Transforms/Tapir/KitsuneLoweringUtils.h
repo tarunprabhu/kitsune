@@ -18,20 +18,19 @@
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Module.h"
 
 namespace llvm {
 
 class Loop;
 class Module;
 class ReachableGlobals;
+class TapirTargetOptions;
 
 /// Construct the name to be used for the outlined function consisting of the
 /// body of the tapir loop.
 std::string getNameForTapirLoop(const Loop &loop, StringRef prefix = "",
                                 unsigned suffix = 0);
-
-/// Construct the name for a device module.
-std::string getNameForDeviceModule(const Module &hostM, StringRef prefix = "");
 
 /// Generate calls to copy non-constant globals, which are used in the outlined
 /// tapir loop, from device to host after launching the kernel.
@@ -42,6 +41,11 @@ void copyNonConstGlobalsDToH(const ReachableGlobals &globals, TTID tt,
 /// tapir loop, from host to device before launching the kernel.
 void copyNonConstGlobalsHToD(const ReachableGlobals &globals, TTID tt,
                              Module &m, IRBuilder<> &builder);
+
+/// Get the embedded module for the given tapir target. If one does not exist in
+/// the given host module, create it.
+std::unique_ptr<Module>
+getOrCreateEmbModule(TTID tt, const TapirTargetOptions &tto, Module &hostM);
 
 } // namespace llvm
 

@@ -1,4 +1,5 @@
 add_llvm_component_library(LLVMKitTransforms
+  CreateEmbBitcode.cpp
   EmbLinkLibDeviceBitcode.cpp
   EmbPrepare.cpp
   EmbPrepareCuda.cpp

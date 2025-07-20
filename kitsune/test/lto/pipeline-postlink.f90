@@ -31,9 +31,9 @@
 !
 ! -----------------------------------------------------------------------------
 !
-! O23SZ:      Running pass:     GlobalDCEPass
-! O23SZ:      Running pass:     LoopSpawningPass
+! O23SZ:      Running pass:     CreateEmbBitcodePass
 ! O23SZ-NEXT: Running analysis: TapirTargetAnalysis
+! O23SZ-NEXT: Running pass:     LoopSpawningPass
 ! O23SZ-NEXT: Running pass:     TapirToTargetPass
 ! O23SZ-NEXT: Running pass:     IPSCCPPass
 ! O23SZ-NEXT: Running pass:     CalledValuePropagationPass

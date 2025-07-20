@@ -178,3 +178,9 @@ void llvm::cloneGlobalValuesInto(const ReachableGlobals &globals, TTID tt,
   // after the global variables and functions are in the vmap.
   cloneGlobalAliasesInto(globals, tt, devM, vmap);
 }
+
+void llvm::cloneGlobalValuesInto(const ReachableGlobals &globals, TTID tt,
+                                 Module &devM) {
+  ValueToValueMapTy vmap;
+  cloneGlobalValuesInto(globals, tt, devM, vmap);
+}

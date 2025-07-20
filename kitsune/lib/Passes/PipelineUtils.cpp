@@ -15,6 +15,7 @@
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "kitsune/CodeGen/LowerKitsuneIntrinsics.h"
 #include "kitsune/CodeGen/StripKitsuneAddrSpaces.h"
+#include "kitsune/Transforms/CreateEmbBitcode.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
 #include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Transforms/EmbPrepare.h"
@@ -44,11 +45,16 @@ llvm::populateKitPreTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
                                 const PipelineTuningOptions &pto) {
   ModulePassManager mpm;
 
-  pb.invokeKitsunePreTapirEarlyEPCallbacks(mpm, optLevel);
+  // Since the tapir lowering passes and post-tapir Kitsune passes are only
+  // truly effective at optimization levels O1 or higher, only run the pre-tapir
+  // passes at non-zero optimization levels.
+  if (optLevel.getSpeedupLevel() > 0) {
+    pb.invokeKitsunePreTapirEarlyEPCallbacks(mpm, optLevel);
 
-  // There are currently no standard pre-tapir passes.
+    mpm.addPass(CreateEmbBitcodePass());
 
-  pb.invokeKitsunePreTapirLateEPCallbacks(mpm, optLevel);
+    pb.invokeKitsunePreTapirLateEPCallbacks(mpm, optLevel);
+  }
 
   return mpm;
 }

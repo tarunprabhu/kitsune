@@ -13,8 +13,7 @@
 ; RUN:     -passes='tapir-lowering<O2>,kit-kernel-properties' \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: @{{.+}} = private unnamed_addr constant
-; CHECK-SAME: { i64, i64, i64, i64 }
+; CHECK: @{{.+}} = private unnamed_addr constant { i64, i64, i64, i64 }
 ; CHECK-SAME: { i64 2, i64 1, {{.+}} }
 ; CHECK-SAME: #[[KERNEL_PROPS:[0-9]+]]
 ;

@@ -20,8 +20,9 @@
 ; RUN: opt -Oz -debug-pass-manager %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
-; DEFAULT-NOT: Running pass:     LoopSpawningPass
+; DEFAULT-NOT: Running pass:     CreateEmbBitcodePass
 ; DEFAULT-NOT: Running analysis: TapirTargetAnalysis
+; DEFAULT-NOT: Running pass:     LoopSpawningPass
 ; DEFAULT-NOT: Running pass:     TapirToTargetPass
 ; DEFAULT-NOT: Running pass:     PrefetchingPass
 ; DEFAULT-NOT: Running pass:     EmbResolveLibDeviceCallsPass
@@ -64,8 +65,9 @@
 ; RUN: opt -Oz --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix O123SZ %s
 ;
-; O123SZ:      Running pass:     LoopSpawningPass
+; O123SZ:      Running pass:     CreateEmbBitcodePass
 ; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
+; O123SZ-NEXT: Running pass:     LoopSpawningPass
 ; O123SZ-NEXT: Running pass:     TapirToTargetPass
 ; O123SZ-NEXT: Running pass:     IPSCCPPass
 ; O123SZ-NEXT: Running pass:     CalledValuePropagationPass
