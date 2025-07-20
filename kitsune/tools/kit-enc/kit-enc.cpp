@@ -31,7 +31,7 @@
 
 using namespace llvm;
 
-static cl::OptionCategory catKitMEnc("kitmenc Options");
+static cl::OptionCategory catKitMEnc("Kitsune Options (kit-enc)");
 
 static cl::opt<std::string>
     clModuleName("name", cl::init(""), cl::value_desc("name"),
@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
   std::optional<TapirTargetOptions> tto =
       TapirTargetOptions::createFromCommandLine(OptznLevel::O0);
   TTID tt = tto ? tto->getTTID() : ttDefault;
-  if (not doesTTGenEmbBC(tt)) {
+  if (not generatesEmbBC(tt)) {
     WithColor::error() << "'" << tt
                        << "' tapir target does not generate embedded bitcode\n";
     return 2;

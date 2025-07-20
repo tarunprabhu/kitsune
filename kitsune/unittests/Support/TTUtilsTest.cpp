@@ -33,12 +33,12 @@ TEST(TTUtilsTest, ttsGenEmbBC) {
 }
 
 TEST(TTUtilsTest, doesTTGenerateEmbBC) {
-  EXPECT_FALSE(doesTTGenEmbBC(TTID::Nolo));
-  EXPECT_FALSE(doesTTGenEmbBC(TTID::Serial));
-  EXPECT_FALSE(doesTTGenEmbBC(TTID::OpenCilk));
+  EXPECT_FALSE(generatesEmbBC(TTID::Nolo));
+  EXPECT_FALSE(generatesEmbBC(TTID::Serial));
+  EXPECT_FALSE(generatesEmbBC(TTID::OpenCilk));
 
-  EXPECT_TRUE(doesTTGenEmbBC(TTID::Cuda));
-  EXPECT_TRUE(doesTTGenEmbBC(TTID::Hip));
+  EXPECT_TRUE(generatesEmbBC(TTID::Cuda));
+  EXPECT_TRUE(generatesEmbBC(TTID::Hip));
 }
 
 } // namespace

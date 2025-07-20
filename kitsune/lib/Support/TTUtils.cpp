@@ -30,7 +30,7 @@ ArrayRef<TTID> llvm::ttsAll() { return tts; }
 
 ArrayRef<TTID> llvm::ttsGenEmbBC() { return ttbcs; }
 
-bool llvm::doesTTGenEmbBC(TTID tt) {
+bool llvm::generatesEmbBC(TTID tt) {
   for (TTID ttbc : ttsGenEmbBC())
     if (ttbc == tt)
       return true;

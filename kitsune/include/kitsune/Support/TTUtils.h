@@ -27,7 +27,7 @@ ArrayRef<TTID> ttsAll();
 ArrayRef<TTID> ttsGenEmbBC();
 
 /// Check if the given tapir target generates embedded bitcode.
-bool doesTTGenEmbBC(TTID tt);
+bool generatesEmbBC(TTID tt);
 
 } // namespace llvm
 
