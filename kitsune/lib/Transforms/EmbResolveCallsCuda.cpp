@@ -12,10 +12,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "EmbResolveCallsImpl.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Transforms/Utils/EmbModulePassUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/InstIterator.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
+
+#include "llvm/IR/Verifier.h"
 
 using namespace llvm;
 
@@ -120,6 +126,124 @@ static std::string getDeviceFunc(StringRef f, bool fast) {
   return join_items("", pfx, devFuncs.at(f));
 }
 
+static Function *getVPrintf(Module &m) {
+  LLVMContext &ctx = m.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+  PointerType *ptr = PointerType::getUnqual(ctx);
+
+  Type *params[] = {ptr, ptr};
+  FunctionType *fty = FunctionType::get(i32, params, false);
+
+  // If the function already exists, make sure that it has the correct
+  // signature. It should not be present unless we have added it, and we are
+  // guaranteed to have added it with the correct signature.
+  if (Function *f = m.getFunction("vprintf")) {
+    assert(f->getFunctionType() == fty);
+    return f;
+  }
+
+  return Function::Create(fty, GlobalValue::ExternalLinkage, "vprintf", &m);
+}
+
+// Emit a call to vprintf. This function takes two arguments, a format string
+// and a pointer to a buffer containing the (variable number of) arguments to
+// printf. The buffer is allocated on the stack.
+static Value *emitPrintfCall(Value *fmt, ArrayRef<Value *> args,
+                             CallBase &callToReplace) {
+  LLVMContext &ctx = callToReplace.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *i64 = Type::getInt64Ty(ctx);
+
+  Constant *c0 = ConstantInt::get(i64, 0);
+
+  std::vector<Type *> argTypes;
+  for (Value *arg : args)
+    argTypes.push_back(arg->getType());
+  StructType *packType = StructType::create(ctx, argTypes, "vprintf_pack");
+
+  Function &f = *callToReplace.getParent()->getParent();
+  Module &m = *f.getParent();
+  BasicBlock &bbEntry = f.getEntryBlock();
+  AllocaInst *pack = new AllocaInst(packType, 0, "", bbEntry.begin());
+
+  // Construct and fill the args buffer that we'll pass to vprintf.
+  for (unsigned i = 0; i < args.size(); ++i) {
+    Constant *cidx = ConstantInt::get(i32, i);
+    Value *idxs[] = {c0, cidx};
+    GetElementPtrInst *packOff = GetElementPtrInst::Create(
+        packType, pack, idxs, "", callToReplace.getIterator());
+    (void)new StoreInst(args[i], packOff, callToReplace.getIterator());
+  }
+
+  std::vector<Value *> vprintfArgs = {fmt, pack};
+  Function *vprintf = getVPrintf(m);
+
+  return CallInst::Create(vprintf, vprintfArgs, "",
+                          callToReplace.getIterator());
+}
+
+// Calls to puts have to be handled as a special case. The frontend will have
+// stripped one trailing newline from any string literal passed to puts()
+// since puts() will always append a newline after emitting the string. When
+// resolving this to cuda's vprintf, we have to ensure that the newline is
+// added back. To ensure this, we replace calls to puts as follows:
+//
+//     puts(s);
+//
+//  becomes
+//
+//     printf("%s\n", s);
+//
+// Returns true if at least one call to puts was replaced, false otherwise.
+static bool resolvePutsCalls(Function &f) {
+  std::vector<CallBase *> calls;
+  for (inst_iterator i = inst_begin(f); i != inst_end(f); ++i)
+    if (auto *call = dyn_cast<CallBase>(&*i))
+      if (Function *callee = call->getCalledFunction())
+        if (callee->getName() == "puts")
+          calls.push_back(call);
+
+  if (calls.size()) {
+    Module &m = *f.getParent();
+    GlobalVariable *fmt = createConstString("%s\n", m);
+    for (CallBase *call : calls) {
+      std::vector<Value *> args;
+      for (Value *arg : call->args())
+        args.push_back(arg);
+      emitPrintfCall(fmt, args, *call);
+    }
+
+    for (CallBase *call : calls)
+      call->eraseFromParent();
+  }
+
+  return calls.size();
+}
+
+static bool resolvePrintfCalls(Function &f) {
+  std::vector<CallBase *> calls;
+  for (inst_iterator i = inst_begin(f); i != inst_end(f); ++i)
+    if (auto *call = dyn_cast<CallBase>(&*i))
+      if (Function *callee = call->getCalledFunction())
+        if (callee->getName() == "printf")
+          calls.push_back(call);
+
+  if (calls.size()) {
+    for (CallBase *call : calls) {
+      assert(call->arg_size() > 0 && "printf must have at least one argument");
+      std::vector<Value *> args;
+      for (size_t i = 1; i < call->arg_size(); ++i)
+        args.push_back(call->getArgOperand(i));
+      emitPrintfCall(call->getArgOperand(0), args, *call);
+    }
+
+    for (CallBase *call : calls)
+      call->eraseFromParent();
+  }
+
+  return calls.size();
+}
+
 bool llvm::detail::resolveLibDeviceCallsCuda(Module &devM,
                                              const TapirTargetOptions &tto) {
   LLVMContext &ctx = devM.getContext();
@@ -128,6 +252,8 @@ bool llvm::detail::resolveLibDeviceCallsCuda(Module &devM,
   bool changed = false;
   for (Function &f : devM.functions()) {
     if (f.size()) {
+      changed |= resolvePrintfCalls(f);
+      changed |= resolvePutsCalls(f);
       changed |= resolveCallees(f, *libDeviceM, getDeviceFunc);
     }
   }
