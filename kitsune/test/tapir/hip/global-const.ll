@@ -15,8 +15,8 @@
 ; CHECK-NOT: llvm.kit.symbol.memcpy.dtoh
 ;
 ; CHECK: define {{.+}} @.kithip.ctor{{[^(]*}}
-; CHECK: call {{.+}} @__hipRegisterFatBinary
-; CHECK-NOT: call {{.+}} @__hipRegisterVar
+; CHECK: call {{.+}} @__kithip_register_fatbin
+; CHECK-NOT: call {{.+}} @__kithip_register_var
 ;
 ; CHECK: #[[ATTR]] = {
 ; CHECK-SAME: kit_fb kit_tt(4)

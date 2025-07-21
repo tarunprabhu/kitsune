@@ -185,6 +185,10 @@ GlobalVariable *llvm::createEmbFBGlobal(TTID tt, Module &hostM) {
     g->setSection(".nv_fatbin");
     break;
   case TTID::Hip:
+    // FIXME: This is temporarily set to experiment with the kithip fatbin
+    // globals. Eventually, this should be a name that is unlikely to collide
+    // with the corresponding fatbin variables from other translation units.
+    g->setName("__kithip_fatbin");
     g->setSection(".hip_fatbin");
     // FIXME: This alignment is not necessary.
     g->setAlignment(Align(4096));

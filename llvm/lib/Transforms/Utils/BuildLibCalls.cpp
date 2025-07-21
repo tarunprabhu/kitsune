@@ -1335,6 +1335,8 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
   case LibFunc_kithip_launch_kernel:
   case LibFunc_kithip_prefetch_dtoh:
   case LibFunc_kithip_prefetch_htod:
+  case LibFunc_kithip_register_fatbin:
+  case LibFunc_kithip_register_var:
   case LibFunc_kithip_set_fixed_tpb:
   case LibFunc_kithip_set_max_tpb:
   case LibFunc_kithip_symbol_device_ptr:
@@ -1480,6 +1482,7 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
   case LibFunc_kitcuda_symbol_memcpy_htod:
   case LibFunc_kithip_symbol_memcpy_dtoh:
   case LibFunc_kithip_symbol_memcpy_htod:
+  case LibFunc_kithip_register_var:
     setArgExtAttr(*F, 2, TLI);
     break;
 
@@ -1490,14 +1493,9 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
 
   case LibFunc_cuda_register_managed_var:
   case LibFunc_cuda_register_var:
-  case LibFunc_hip_register_var:
     setArgExtAttr(*F, 4, TLI);
     setArgExtAttr(*F, 6, TLI);
     setArgExtAttr(*F, 7, TLI);
-    break;
-
-  case LibFunc_hip_register_managed_var:
-    setArgExtAttr(*F, 5, TLI);
     break;
 
   default:

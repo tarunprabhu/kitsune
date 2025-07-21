@@ -17,11 +17,6 @@
 ; DEFAULT-SAME: section ".hip_fatbin"
 ; DEFAULT-SAME: #[[FBATTR:[0-9]+]]
 ;
-; DEFAULT: @[[BUNDLE:.+]] = internal constant {{.+}} { i32 1212764230, i32 1, ptr @[[FB]], ptr null }
-; DEFAULT-SAME: section ".hipFatBinSegment"
-;
-; DEFAULT: @[[HANDLE:[.]kithip[.].+]] = internal global ptr null
-;
 ; DEFAULT: @llvm.global_ctors = appending global
 ; DEFAULT-SAME: { i32 65536, ptr @[[CTOR:[.]kithip[.]ctor.*]], ptr null }
 ;
@@ -30,10 +25,6 @@
 ; temporary workaround, __kithip_destroy is not called, but it eventually
 ; should be once the issue is fixed.
 ;
-; DEFAULT: define {{.*}} @[[DTOR:[.]kithip[.]dtor.*]]{{[ ]*}}(
-; DEFAULT: call {{.+}} @__hipUnregisterFatBinary
-; DEFAULT-NOT: call {{.+}} @llvm.kit.finalize(i32 4)
-;
 ; DEFAULT: define {{.+}} @[[CTOR]]
 ; DEFAULT: call {{.+}} @llvm.kit.initialize(i32 4)
 ; DEFAULT: call {{.+}} @llvm.kit.enable.verbose(i8 0)
@@ -41,9 +32,7 @@
 ; DEFAULT: call {{.+}} @llvm.kit.enable.y.axis.launches(i32 4, i8 0)
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.set.fixed.tpb(i32 4,
 ; DEFAULT: call {{.+}} @llvm.kit.set.max.tpb(i32 4, i32 1024)
-; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}__hipRegisterFatBinary(ptr @[[BUNDLE]])
-; DEFAULT: store ptr %[[HC]], ptr @[[HANDLE]]
-; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
+; DEFAULT-DAG: call {{.+}}__kithip_register_fatbin()
 ; DEFAULT: }
 ;
 ; DEFAULT: attributes #[[FBATTR]] = {

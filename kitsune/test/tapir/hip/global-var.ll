@@ -21,8 +21,8 @@
 ; CHECK-NEXT: }
 ;
 ; CHECK: define {{.+}} @.kithip.ctor{{[^(]*}}
-; CHECK: %[[HANDLE:.+]] = call ptr @__hipRegisterFatBinary
-; CHECK: call {{.+}} @__hipRegisterVar(ptr %[[HANDLE]], ptr @[[HOSTVAR]], ptr @[[VARNAME]]
+; CHECK: call void @__kithip_register_fatbin()
+; CHECK: call {{.+}} @__kithip_register_var(ptr @[[HOSTVAR]], ptr @[[VARNAME]]
 ;
 ; CHECK: #[[ATTR]] = {
 ; CHECK-SAME: kit_fb kit_tt(4)

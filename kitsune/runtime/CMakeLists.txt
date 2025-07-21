@@ -115,8 +115,9 @@ endif()
 # each release of rocm/hip.
 if (KITSUNE_HIP_ENABLED)
   target_sources(${KITSUNE_OBJLIB} PUBLIC
-    hip/kithip.cpp
     hip/dylib_support.cpp
+    hip/fatbin_globals.cpp
+    hip/kithip.cpp
     hip/launching.cpp
     hip/memory.cpp
     hip/streams.cpp)

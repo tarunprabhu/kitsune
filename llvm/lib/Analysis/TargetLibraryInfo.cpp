@@ -937,6 +937,8 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kithip_managed_malloc);
     TLI.setUnavailable(LibFunc_kithip_prefetch_dtoh);
     TLI.setUnavailable(LibFunc_kithip_prefetch_htod);
+    TLI.setUnavailable(LibFunc_kithip_register_fatbin);
+    TLI.setUnavailable(LibFunc_kithip_register_var);
     TLI.setUnavailable(LibFunc_kithip_set_fixed_tpb);
     TLI.setUnavailable(LibFunc_kithip_set_max_tpb);
     TLI.setUnavailable(LibFunc_kithip_symbol_device_ptr);
@@ -949,11 +951,6 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_cuda_register_managed_var);
     TLI.setUnavailable(LibFunc_cuda_register_var);
     TLI.setUnavailable(LibFunc_cuda_unregister_fat_binary);
-
-    TLI.setUnavailable(LibFunc_hip_register_fat_binary);
-    TLI.setUnavailable(LibFunc_hip_register_managed_var);
-    TLI.setUnavailable(LibFunc_hip_register_var);
-    TLI.setUnavailable(LibFunc_hip_unregister_fat_binary);
   }
 
   TLI.addVectorizableFunctionsFromVecLib(ClVectorLibrary, T);
