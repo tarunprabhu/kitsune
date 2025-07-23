@@ -40,11 +40,11 @@ static std::vector<TTID> getTTsGeneratingEmbBC(Module &m,
   // the module, an embedded bitcode module will have to be created for it.
   TTID mainTT = tgi.getTTID();
   std::vector<TTID> tts;
-  if (generatesEmbBC(mainTT))
+  if (ttUsesEmbBC(mainTT))
     tts.push_back(mainTT);
 
   for (TTID tt : tgi.getRequiredTTs(m))
-    if (generatesEmbBC(tt) and tt != mainTT)
+    if (ttUsesEmbBC(tt) and tt != mainTT)
       tts.push_back(tt);
 
   return tts;

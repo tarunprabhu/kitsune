@@ -18,16 +18,28 @@
 
 namespace llvm {
 
-/// Get all known tapir targets.
-/// FIXME: The definition of this function must be updated when a new tapir
-/// target is added.
-ArrayRef<TTID> ttsAll();
+// TODO: This list must be updated if a tapir target that generates embedded
+// bitcode is added.
+/// The tapir targets that generate embedded bitcode.
+constexpr TTID ttsUsingEmbBC[] = {TTID::Cuda, TTID::Hip};
 
-/// Get the tapir targets that generate embedded bitcode.
-ArrayRef<TTID> ttsGenEmbBC();
+// FIXME: It may be possible to use cmake to populate this array. Otherwise,
+// the code in llvm/CMakeLists.txt must be kept in sync with this.
+// FIXME: Update this when GPUABI is supported.
+// TODO: This list must be updated when a tapir target is added/removed.
+/// All known tapir targets.
+constexpr TTID ttsAll[] = {TTID::Nolo,     TTID::Serial,   TTID::Cuda,
+                           TTID::Hip,      TTID::OpenCilk, /* TTID::GPUABI, */
+                           TTID::Qthreads, TTID::Realm,    TTID::Lambda,
+                           TTID::OMPTask,  TTID::OpenMP};
 
 /// Check if the given tapir target generates embedded bitcode.
-bool generatesEmbBC(TTID tt);
+inline bool ttUsesEmbBC(TTID tt) {
+  for (TTID ttid : ttsUsingEmbBC)
+    if (ttid == tt)
+      return true;
+  return false;
+}
 
 } // namespace llvm
 

@@ -33,7 +33,7 @@
 using namespace llvm;
 using namespace llvm::sys;
 
-static cl::OptionCategory catKitMBC("kitmbc options");
+static cl::OptionCategory catKitMBC("Kitsune Options (kit-mbc)");
 
 static cl::opt<bool> clForce("f", cl::desc("Enable binary output on terminals"),
                              cl::cat(catKitMBC));

@@ -7,10 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Support/TTUtils.h"
-#include "llvm/AsmParser/Parser.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/SourceMgr.h"
 
 #include "gtest/gtest.h"
 
@@ -19,26 +15,27 @@ using namespace llvm;
 namespace {
 
 TEST(TTUtilsTest, ttsAll) {
-  ArrayRef<TTID> tts = ttsAll();
+  EXPECT_EQ(unsigned(TTID::Nolo), 0);
+  EXPECT_EQ(unsigned(TTID::Serial), 1);
 
-  EXPECT_EQ(tts.size(), 10U);
+  EXPECT_EQ(ArrayRef<TTID>(ttsAll).size(), 10U);
 }
 
-TEST(TTUtilsTest, ttsGenEmbBC) {
-  ArrayRef<TTID> tts = ttsGenEmbBC();
+TEST(TTUtilsTest, ttsUsingEmbBC) {
+  ArrayRef<TTID> tts = ttsUsingEmbBC;
 
-  EXPECT_EQ(tts.size(), 2U);
+  EXPECT_EQ(ArrayRef<TTID>(tts).size(), 2U);
   EXPECT_EQ(tts[0], TTID::Cuda);
   EXPECT_EQ(tts[1], TTID::Hip);
 }
 
-TEST(TTUtilsTest, doesTTGenerateEmbBC) {
-  EXPECT_FALSE(generatesEmbBC(TTID::Nolo));
-  EXPECT_FALSE(generatesEmbBC(TTID::Serial));
-  EXPECT_FALSE(generatesEmbBC(TTID::OpenCilk));
+TEST(TTUtilsTest, ttUsesEmbBC) {
+  EXPECT_FALSE(ttUsesEmbBC(TTID::Nolo));
+  EXPECT_FALSE(ttUsesEmbBC(TTID::Serial));
+  EXPECT_FALSE(ttUsesEmbBC(TTID::OpenCilk));
 
-  EXPECT_TRUE(generatesEmbBC(TTID::Cuda));
-  EXPECT_TRUE(generatesEmbBC(TTID::Hip));
+  EXPECT_TRUE(ttUsesEmbBC(TTID::Cuda));
+  EXPECT_TRUE(ttUsesEmbBC(TTID::Hip));
 }
 
 } // namespace

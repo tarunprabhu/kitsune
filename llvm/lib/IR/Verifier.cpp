@@ -900,7 +900,7 @@ void Verifier::verifyGlobalVariableAttrs(AttributeSet Attrs,
 
   if (Attrs.hasAttribute(Attribute::KitTT)) {
     TTID TT = Attrs.getAttribute(Attribute::KitTT).getTTID();
-    Check(generatesEmbBC(TT),
+    Check(ttUsesEmbBC(TT),
           "invalid value for 'kit_tt' attribute. Tapir target does not "
           "generate embedded bitcode");
   }

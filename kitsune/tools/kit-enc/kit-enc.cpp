@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
   std::optional<TapirTargetOptions> tto =
       TapirTargetOptions::createFromCommandLine(OptznLevel::O0);
   TTID tt = tto ? tto->getTTID() : ttDefault;
-  if (not generatesEmbBC(tt)) {
+  if (not ttUsesEmbBC(tt)) {
     WithColor::error() << "'" << tt
                        << "' tapir target does not generate embedded bitcode\n";
     return 2;
