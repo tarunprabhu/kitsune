@@ -1480,6 +1480,7 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
 
   case LibFunc_kitcuda_symbol_memcpy_dtoh:
   case LibFunc_kitcuda_symbol_memcpy_htod:
+  case LibFunc_kitcuda_register_var:
   case LibFunc_kithip_symbol_memcpy_dtoh:
   case LibFunc_kithip_symbol_memcpy_htod:
   case LibFunc_kithip_register_var:
@@ -1489,13 +1490,6 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
   case LibFunc_kitcuda_launch_kernel:
   case LibFunc_kithip_launch_kernel:
     setArgExtAttr(*F, 4, TLI);
-    break;
-
-  case LibFunc_cuda_register_managed_var:
-  case LibFunc_cuda_register_var:
-    setArgExtAttr(*F, 4, TLI);
-    setArgExtAttr(*F, 6, TLI);
-    setArgExtAttr(*F, 7, TLI);
     break;
 
   default:

@@ -34,6 +34,32 @@
 
 using namespace llvm;
 
+static unsigned parseCudaArch(StringRef arch) {
+  auto fail = [](StringRef arch) -> void {
+    report_fatal_error("Unexpected cuda architecture: " + arch);
+  };
+
+  // The architecture is expected to be of the form sm_NNNN where NNNN is some
+  // integer. Anything deviation from this should have been caught in the
+  // frontend. If using opt directly to run this pass, such checks are
+  // skipped, so we might yet end up with an invalid architecture. The parse
+  // function will return 0 if any unexpected character was found. Fail
+  // catastrophically if that happens.
+  unsigned res = 0;
+  if (arch.starts_with("sm_")) {
+    for (unsigned i = 3; i < arch.size(); ++i) {
+      if (std::isdigit(arch[i]))
+        res = res * 10 + (int(arch[i]) - int('0'));
+      else
+        fail(arch);
+    }
+  }
+
+  if (res == 0)
+    fail(arch);
+  return res;
+}
+
 namespace {
 
 /// Helper class to generate code for NVIDIA GPU's from embedded bitcode.
@@ -43,16 +69,49 @@ private:
   const detail::CGFBOptions &cgfbOpts;
 
 private:
-  void embedFatBinary(ToolOutputFile &fatbinFile, GlobalVariable &g) {
+  void embedAsmFile(ToolOutputFile &asmFile, Module &hostM) {
     ErrorOr<std::unique_ptr<MemoryBuffer>> bufOrErr =
-        MemoryBuffer::getFile(fatbinFile.getFilename());
+        MemoryBuffer::getFile(asmFile.getFilename());
     if (std::error_code ec = bufOrErr.getError()) {
       report_fatal_error(StringRef(llvm::join_items(
-          " ", "failed to load fat binary image:", ec.message())));
+          " ", "failed to load assembled file image:", ec.message())));
     }
 
-    // std::unique_ptr<MemoryBuffer> fb = std::move(bufOrErr.get());
-    // resetEmbFBGlobal(*fb, g);
+    const MemoryBuffer &buf = **bufOrErr;
+    LLVMContext &ctx = hostM.getContext();
+    size_t size = buf.getBufferSize();
+    StringRef data = buf.getBuffer();
+
+    // The embedded code is saved in a struct of the form
+    //
+    //   struct {
+    //     uint64_t size;  // The size in bytes of the code
+    //     uint32_t isPtx; // A boolean where 1 indicates that the code is PTX,
+    //                     // SASS otherwise
+    //     uint32_t arch;  // The architecture. If the cuda architecture is
+    //                     // "sm_86", this will be 86.
+    //     byte code[];    // The actual code.
+    //   };
+    //
+    Type *i8 = Type::getInt8Ty(ctx);
+    Type *i32 = Type::getInt32Ty(ctx);
+    Type *i64 = Type::getInt64Ty(ctx);
+    Type *bufTy = ArrayType::get(i8, size);
+    StructType *type = StructType::get(i64, i32, i32, bufTy);
+    GlobalValue::LinkageTypes linkage = GlobalValue::PrivateLinkage;
+
+    Constant *csz = ConstantInt::get(i64, size);
+    Constant *cptx = ConstantInt::get(i32, cgfbOpts.embedPTX);
+    Constant *carch = ConstantInt::get(i32, parseCudaArch(tto.getCudaArch()));
+    Constant *cbuf = ConstantDataArray::getString(ctx, data, /*AddNull=*/false);
+    Constant *init = ConstantStruct::get(type, {csz, cptx, carch, cbuf});
+
+    GlobalVariable *payload =
+        new GlobalVariable(hostM, type, /*isConstant=*/true, linkage, init);
+    payload->setAlignment(MaybeAlign(8));
+    payload->addAttribute(Attribute::getWithTTID(ctx, TTID::Cuda));
+    payload->setSection(cudaDeviceCodeSection);
+    payload->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
   }
 
   std::unique_ptr<ToolOutputFile> generatePTX(Module &km) {
@@ -237,18 +296,14 @@ public:
   CGFBCuda(const TapirTargetOptions &tto, const detail::CGFBOptions &cgfbOpts)
       : tto(tto), cgfbOpts(cgfbOpts) {}
 
-  bool run(GlobalVariable &gfb, const GlobalVariable &gbc) {
-    std::unique_ptr<Module> km = parseEmbBCGlobal(gbc);
-
-    std::unique_ptr<ToolOutputFile> ptxFile = generatePTX(*km);
+  bool run(Module &hostM, Module &devM) {
+    std::unique_ptr<ToolOutputFile> ptxFile = generatePTX(devM);
     std::unique_ptr<ToolOutputFile> asmFile = assemblePTX(*ptxFile);
-    std::unique_ptr<ToolOutputFile> fatbinFile = createFatBinary(*asmFile);
-    embedFatBinary(*fatbinFile, gfb);
+    embedAsmFile(*asmFile, hostM);
 
     if (cgfbOpts.keepFiles) {
       ptxFile->keep();
       asmFile->keep();
-      fatbinFile->keep();
     }
     return true;
   }
@@ -256,8 +311,8 @@ public:
 
 } // namespace
 
-bool llvm::detail::cgfbCuda(GlobalVariable &gfb, const GlobalVariable &gbc,
+bool llvm::detail::cgfbCuda(Module &hostM, Module &devM,
                             const TapirTargetOptions &tto,
                             const detail::CGFBOptions &cgfbOpts) {
-  return CGFBCuda(tto, cgfbOpts).run(gfb, gbc);
+  return CGFBCuda(tto, cgfbOpts).run(hostM, devM);
 }

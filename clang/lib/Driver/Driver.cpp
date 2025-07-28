@@ -376,7 +376,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       StringRef Val = A->getValue();
       if (!Val.starts_with_insensitive("lld")) {
         D.Diag(diag::err_drv_unsupported_option_argument)
-            << Val << A->getSpelling();
+            << A->getSpelling() << Val;
         return;
       }
     }

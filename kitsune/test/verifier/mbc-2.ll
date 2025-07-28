@@ -1,5 +1,5 @@
-; Currently, we expect all the code embedded bitcode from a given tapir target
-; must be combined into a single global. If more than one global with the kit_bc
+; Currently, we require all the code embedded bitcode from a given tapir target
+; be combined into a single global. If more than one global with the kit_bc
 ; attribute is found for a given tapir target, it is an error.
 ;
 ; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s

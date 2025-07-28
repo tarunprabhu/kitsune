@@ -67,8 +67,9 @@ target_link_libraries(${KITSUNE_OBJLIB} PUBLIC
 # project.
 if (KITSUNE_CUDA_ENABLED)
   target_sources(${KITSUNE_OBJLIB} PUBLIC
-    cuda/kitcuda.cpp
     cuda/dylib_support.cpp
+    cuda/fatbin_globals.cpp
+    cuda/kitcuda.cpp
     cuda/launching.cpp
     cuda/memory.cpp
     cuda/streams.cpp)
@@ -143,13 +144,32 @@ if (KITSUNE_HIP_ENABLED)
     ${KITSUNE_HIP_LIB_AMDHIP64})
 endif()
 
+# Query the linker-properties of the KITSUNE_OBJLIB target. These need to be
+# added to both the static libkitrt and shared libkitrt targets.
+get_target_property(OBJLIB_LINK_DIRS ${KITSUNE_OBJLIB} LINK_DIRECTORIES)
+if (NOT OBJLIB_LINK_DIRS)
+  set(OBJLIB_LINK_DIRS)
+endif ()
+
+get_target_property(OBJLIB_LINK_LIBS ${KITSUNE_OBJLIB} LINK_LIBRARIES)
+if (NOT OBJLIB_LINK_LIBS)
+  set(OBJLIB_LINK_LIBS)
+endif ()
+
+get_target_property(OBJLIB_LINK_OPTS ${KITSUNE_OBJLIB} LINK_OPTIONS)
+if (NOT OBJLIB_LINK_OPTS)
+  set(OBJLIB_LINK_OPTS)
+endif ()
+
 # Create the static library
 add_library(${KITSUNE_LIBNAME_STATIC} STATIC
   $<TARGET_OBJECTS:${KITSUNE_OBJLIB}>)
 
 set_target_properties(${KITSUNE_LIBNAME_STATIC} PROPERTIES
   ARCHIVE_OUTPUT_DIRECTORY ${CLANG_RESOURCE_INTDIR}/lib
-  LINK_LIBRARIES $<LINK_LIBRARY:${KITSUNE_OBJLIB}>)
+  LINK_DIRECTORIES "${OBJLIB_LINK_DIRS}"
+  LINK_LIBRARIES "${OBJLIB_LINK_LIBS}"
+  LINK_OPTIONS "${OBJLIB_LINK_OPTS}")
 
 # Create the shared library
 add_library(${KITSUNE_LIBNAME} SHARED
@@ -157,7 +177,9 @@ add_library(${KITSUNE_LIBNAME} SHARED
 
 set_target_properties(${KITSUNE_LIBNAME} PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CLANG_RESOURCE_INTDIR}/lib
-  LINK_LIBRARIES $<LINK_LIBRARY:${KITSUNE_OBJLIB}>)
+  LINK_DIRECTORIES "${OBJLIB_LINK_DIRS}"
+  LINK_LIBRARIES "${OBJLIB_LINK_LIBS}"
+  LINK_OPTIONS "${OBJLIB_LINK_OPTS}")
 
 # $ORIGIN is the location of libkitrt.so. This is
 #

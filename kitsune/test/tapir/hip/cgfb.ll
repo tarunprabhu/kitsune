@@ -9,7 +9,7 @@
 ;
 ; CHECK-NOT: @.kitsune.emb.bc
 ; CHECK: @__hip_fatbin = external constant [0 x i8]{{.*}} #[[FBATTR:[0-9]+]]
-; CHECK: @{{[0-9]+}} = unnamed_addr constant { i64, [[[SIZE:[0-9]+]] x i8] }
+; CHECK: @{{[0-9]+}} = private unnamed_addr constant { i64, [[[SIZE:[0-9]+]] x i8] }
 ; CHECK-SAME: { i64 [[SIZE]], [[[SIZE]] x i8] c"
 ; CHECK-SAME: " },
 ; CHECK-SAME: section ".kit.code.hip"

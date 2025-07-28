@@ -926,6 +926,9 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kitcuda_symbol_device_ptr);
     TLI.setUnavailable(LibFunc_kitcuda_symbol_memcpy_dtoh);
     TLI.setUnavailable(LibFunc_kitcuda_symbol_memcpy_htod);
+    TLI.setUnavailable(LibFunc_kitcuda_register_fatbin);
+    TLI.setUnavailable(LibFunc_kitcuda_register_fatbin_end);
+    TLI.setUnavailable(LibFunc_kitcuda_register_var);
     TLI.setUnavailable(LibFunc_kitcuda_sync_stream);
     TLI.setUnavailable(LibFunc_kithip_enable_xnack);
     TLI.setUnavailable(LibFunc_kithip_enable_y_axis_launches);
@@ -945,12 +948,6 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_dtoh);
     TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_htod);
     TLI.setUnavailable(LibFunc_kithip_sync_stream);
-
-    TLI.setUnavailable(LibFunc_cuda_register_fat_binary);
-    TLI.setUnavailable(LibFunc_cuda_register_fat_binary_end);
-    TLI.setUnavailable(LibFunc_cuda_register_managed_var);
-    TLI.setUnavailable(LibFunc_cuda_register_var);
-    TLI.setUnavailable(LibFunc_cuda_unregister_fat_binary);
   }
 
   TLI.addVectorizableFunctionsFromVecLib(ClVectorLibrary, T);

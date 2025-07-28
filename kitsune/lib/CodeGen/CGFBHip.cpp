@@ -64,7 +64,8 @@ private:
     Constant *init = ConstantStruct::get(type, {csz, cbuf});
 
     GlobalVariable *payload =
-        new GlobalVariable(hostM, type, /*isConstant=*/false, linkage, init);
+        new GlobalVariable(hostM, type, /*isConstant=*/true, linkage, init);
+    payload->setAlignment(MaybeAlign(8));
     payload->addAttribute(Attribute::getWithTTID(ctx, TTID::Hip));
     payload->setSection(hipDeviceCodeSection);
     payload->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
@@ -115,11 +116,9 @@ public:
   CGFBHip(const TapirTargetOptions &tto, const detail::CGFBOptions &cgfbOpts)
       : tto(tto), cgfbOpts(cgfbOpts) {}
 
-  bool run(GlobalVariable &gbc) {
-    std::unique_ptr<Module> km = parseEmbBCGlobal(gbc);
-
-    std::unique_ptr<ToolOutputFile> objFile = createObject(*km);
-    embedObjFile(*objFile, *gbc.getParent());
+  bool run(Module &hostM, Module &devM) {
+    std::unique_ptr<ToolOutputFile> objFile = createObject(devM);
+    embedObjFile(*objFile, hostM);
 
     if (cgfbOpts.keepFiles)
       objFile->keep();
@@ -131,8 +130,8 @@ public:
 } // namespace
 
 // FIXME: We don't need the fatbin global here.
-bool llvm::detail::cgfbHip(GlobalVariable &gbc,
+bool llvm::detail::cgfbHip(Module &hostM, Module &devM,
                            const TapirTargetOptions &tto,
                            const detail::CGFBOptions &cgfbOpts) {
-  return CGFBHip(tto, cgfbOpts).run(gbc);
+  return CGFBHip(tto, cgfbOpts).run(hostM, devM);
 }

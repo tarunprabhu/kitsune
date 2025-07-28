@@ -427,12 +427,12 @@ def DenormalFPMathF32 : ComplexStrAttr<"denormal-fp-math-f32", [FnAttr]>;
 /// of the tapir target that generated the global.
 def KitTT : IntAttr<"kit_tt", IntersectPreserve, [GlobalAttr]>;
 
-/// The global variable contains embedded bitcode. The value of the attribute is
-/// the integer representation of the tapir target that generated the global.
+/// The global variable contains embedded bitcode. If this is present, the
+/// kit_tt attribute must also be present.
 def KitBC : EnumAttr<"kit_bc", IntersectPreserve, [GlobalAttr]>;
 
-/// The global variable contains a fat binary. The value of the attribute is the
-/// integer representation of the tapir target that generated the global.
+/// The global variable contains a fat binary. If this is present, the kit_tt
+/// attribute must also be present.
 def KitFB : EnumAttr<"kit_fb", IntersectPreserve, [GlobalAttr]>;
 
 /// The global variable contains properties of a kitsune "kernel function". The

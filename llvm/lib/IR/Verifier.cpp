@@ -820,38 +820,21 @@ void Verifier::visitKPGlobalVariable(const GlobalVariable &G) {
 }
 
 void Verifier::visitEmbGlobals() {
-  // There can be at most one global variable containing a fat binary per
-  // tapir target.
-  std::map<TTID, unsigned> FBCounts;
-  for (const GlobalVariable &G : M.globals())
-    // If the global variable has the kit_fb attribute, it must also have
-    // kit_tt. We may have a broken module, so check for the presence of the
-    // attribute to avoid a crash.
-    if (G.hasAttribute(Attribute::KitFB) && G.hasAttribute(Attribute::KitTT))
-      ++FBCounts[G.getAttribute(Attribute::KitTT).getTTID()];
-
-  for (const auto &[TT, N] : FBCounts) {
-    Check(N <= 1, "too many embedded fat binary globals for tapir target '" +
-                      toString(TT) + "'");
-  }
-
-  // If a global variable containing embedded bitcode exists, then a
-  // corresponding global containing a fat binary must also exist. The reverse
-  // is not true. Once the fat binary has been generated, the global variable
-  // containing embedded bitcode is removed.
+  // There can be at most one global variable containing embedded bitcode in
+  // a module. A corresponding singleton fat binary global is not required.
+  // Modules may contain only device functions without any kernel functions, in
+  // which case, there is no need for the singleton.
   std::map<TTID, unsigned> BCCounts;
   for (const GlobalVariable &G : M.globals())
+    // If the global variable has the kit_bc attribute, it must also have
+    // kit_tt. We may have a broken module, so check for the presence of the
+    // attribute to avoid a crash.
     if (G.hasAttribute(Attribute::KitBC) && G.hasAttribute(Attribute::KitTT))
-      // If the global variable has the kit_bc attribute, it must also have
-      // kit_tt. We may have a broken module, so check for the presence of the
-      // attribute to avoid a crash.
       ++BCCounts[G.getAttribute(Attribute::KitTT).getTTID()];
 
   for (const auto &[TT, N] : BCCounts) {
     Check(N <= 1, "too many embedded bitcode globals for tapir target '" +
                       toString(TT) + "'");
-    // Check(FBCounts.find(TT) != FBCounts.end(),
-    //       "embedded bitcode global without fat binary global");
   }
 }
 

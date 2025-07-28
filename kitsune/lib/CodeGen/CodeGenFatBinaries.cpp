@@ -52,18 +52,13 @@ static cl::opt<CodeGenOptLevel> clCGOptLevel(
                clEnumValN(CodeGenOptLevel::Aggressive, "cgfb-O3", "")),
     cl::cat(cl::catKitClDevOpts));
 
-// FIXME: Check if this is something that could be enabled and do so, if
-// possible.
-//
 // The default mode of the transformation is to embed a single fat binary
 // image for the selected target architecture. With this flag set, the PTX
 // form of the code will also be embedded into the fat binary. static
-// cl::opt<bool> clEmbedPTXInFatbinaries(
-//     "cgfb-embed-ptx", cl::init(false), cl::Hidden,
-//     cl::desc("Embed PTX code in the fat binaries generated for the cuda
-//     tapir
-//     "
-//              "target (NOT YET IMPLEMENTED)"));
+cl::opt<bool> clEmbedPTX(
+    "cgfb-embed-ptx", cl::init(false), cl::Hidden,
+    cl::desc("Embed PTX code in the fat binaries generated for the cuda tapir "
+             "target (NOT YET IMPLEMENTED)"));
 
 // Override the optimization level used by ptxas when generating GPU code.
 // If this is not explicitly set, it will use the optimization level set in
@@ -157,23 +152,20 @@ private:
     else if (m.getNamedMetadata("llvm.dbg.cu"))
       cgfbOpts.ptxasOptLevel = OptznLevel::O0;
 
+    cgfbOpts.embedPTX = clEmbedPTX;
     cgfbOpts.keepFiles = clKeepFiles;
     cgfbOpts.debugCommandLines = clDebugCommandLines;
     cgfbOpts.debugMCTargetOptions = clDebugMCTargetOptions;
     cgfbOpts.debugTargetMachine = clDebugTargetMachine;
     cgfbOpts.debugTargetOptions = clDebugTargetOptions;
-  }
 
-  // bool cgfb(GlobalVariable &fb, GlobalVariable &bc, TTID tt) {
-  //   switch (tt) {
-  //   case TTID::Cuda:
-  //     return detail::cgfbCuda(fb, bc, tto, cgfbOpts);
-  //   case TTID::Hip:
-  //     return detail::cgfbHip(fb, bc, tto, cgfbOpts);
-  //   default:
-  //     llvm_unreachable("CodeGenFatBinaries::run: TTID not handled");
-  //   }
-  // }
+    // Embedding PTX has not been tested, so far now, fail catastrophically.
+    // The documentation does say that it not yet implemented, so the user
+    // should not expect things to work smoothly. Plus, it is better than
+    // silently ignoring the option.
+    if (cgfbOpts.embedPTX)
+      report_fatal_error("NOT YET IMPLEMENTED: -cgfb-embed-ptx");
+  }
 
 public:
   CodeGenFatBinaries(const TapirTargetOptions &tto) : tto(tto) {}
@@ -183,23 +175,19 @@ public:
 
     initializeCGFBOptions(m);
     for (TTID tt : ttsUsingEmbBC) {
-      GlobalVariable *bc = getEmbBCGlobal(tt, m);
-      GlobalVariable *fb = getSingletonFBGlobal(tt, m);
-      switch (tt) {
-      case TTID::Cuda:
-        if (bc and fb) {
-          changed |= detail::cgfbCuda(*fb, *bc, tto, cgfbOpts);
-          bc->eraseFromParent();
+      if (GlobalVariable *bc = getEmbBCGlobal(tt, m)) {
+        std::unique_ptr<Module> devM = parseEmbBCGlobal(*bc);
+        switch (tt) {
+        case TTID::Cuda:
+          changed |= detail::cgfbCuda(m, *devM, tto, cgfbOpts);
+          break;
+        case TTID::Hip:
+          changed |= detail::cgfbHip(m, *devM, tto, cgfbOpts);
+          break;
+        default:
+          llvm_unreachable("CodeGenFatBinaries::run: TTID not handled");
         }
-        break;
-      case TTID::Hip:
-        if (bc) {
-          changed |= detail::cgfbHip(*bc, tto, cgfbOpts);
-          bc->eraseFromParent();
-        }
-        break;
-      default:
-        llvm_unreachable("CodeGenFatBinaries::run: TTID not handled");
+        bc->eraseFromParent();
       }
     }
 

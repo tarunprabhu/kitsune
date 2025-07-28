@@ -114,8 +114,8 @@ private:
         getOrInsertLibFunc(&m, tli, LibFunc_kithip_register_fatbin);
     (void)builder.CreateCall(kitRegisterFatbin, {});
 
-    // Register the non-constant global variables used in the kernel module.
-    // Each of these should have a corresponding global in the host.
+    // Register the non-constant global variables reachable from the kernel
+    // module. Each of these should have a corresponding global in the host.
     FunctionCallee kitRegisterVar =
         getOrInsertLibFunc(&m, tli, LibFunc_kithip_register_var);
     for (const GlobalVariable &devG : devM.globals()) {

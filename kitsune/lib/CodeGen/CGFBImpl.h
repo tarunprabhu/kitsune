@@ -21,6 +21,7 @@
 namespace llvm {
 
 class GlobalVariable;
+class Module;
 class TapirTargetOptions;
 class TargetMachine;
 class ToolOutputFile;
@@ -41,6 +42,10 @@ struct CGFBOptions {
   /// TapirTargetOptions if the -cgfb-ptxas-O<N> option is not used. If it is,
   /// that value takes precedence.
   OptznLevel ptxasOptLevel;
+
+  /// If true, embed PTX in the fat binaries when using the cuda tapir target.
+  /// By default, SASS is embedded.
+  unsigned embedPTX : 1;
 
   /// Don't delete any intermediate files that were generated in the course of
   /// fat binary generation.
@@ -69,15 +74,15 @@ void debugTargetMachine(const TargetMachine &tm, raw_ostream &os);
 /// containing the bitcode from which the fat binary will be generated. If
 /// \ref keepFiles is true, the intermediate files generated during the
 /// compilation process will not be deleted after use.
-bool cgfbCuda(GlobalVariable &gfb, const GlobalVariable &gbc,
-              const TapirTargetOptions &tto, const CGFBOptions &cgfbOpts);
+bool cgfbCuda(Module &hostM, Module &devM, const TapirTargetOptions &tto,
+              const CGFBOptions &cgfbOpts);
 
 /// Codegen a fat binary for AMD GPU's. \ref gfb is the global variable into
 /// which the fat binary will be saved. \ref gbc is the global variable
 /// containing the bitcode from which the fat binary will be generated. If
 /// \ref keepFiles is true, the intermediate files generated during the
 /// compilation process will not be deleted after use.
-bool cgfbHip(GlobalVariable &gbc, const TapirTargetOptions &tto,
+bool cgfbHip(Module &hostM, Module &devM, const TapirTargetOptions &tto,
              const CGFBOptions &cgfbOpts);
 
 } // namespace detail

@@ -51,6 +51,10 @@ static Path getEmptyFilePath(StringRef tempDir) {
   return path;
 }
 
+static size_t align(size_t pos, size_t multiple) {
+  return ((pos + multiple - 1) / multiple) * multiple;
+}
+
 class DeviceCodeLinker {
 protected:
   Ctx &ctx;
@@ -252,16 +256,25 @@ public:
 
 class CudaLinker : public DeviceCodeLinker {
 protected:
-  virtual void link(ArrayRef<Path> objFiles, StringRef linkedFile) override {
+  virtual void link(ArrayRef<Path> files, StringRef linkedFile) override {
     // TODO: Construct this command line properly.
     StringRef prog = KITSUNE_CUDA_FATBINARY;
     std::vector<StringRef> args = {prog};
     args.push_back("--64");
     args.push_back("--create");
-    args.push_back(linkedFileName);
+    args.push_back(linkedFile);
+
+    // FIXME: For now, just assume that everything is a SASS file and compiled
+    // for sm_70. This is obviously very wrong, but it's just to see if the
+    // basic stuff works.
+    std::vector<std::string> images;
+    for (StringRef file : files) {
+      images.push_back(join_items("", "--image=profile=sm_70", ",file=", file));
+      args.push_back(images.back());
+    }
 
     if (ctx.e.verbose)
-      Msg(ctx) << join_items(args, " ");
+      Msg(ctx) << join(args, " ");
 
     // The 0 values for SecondsToWait and MemoryLimit indicate that there is
     // no limit on the command execution time, nor the amount of memory it can
@@ -338,7 +351,7 @@ public:
 
 DeviceCodeCtx::DeviceCodeCtx(Ctx &ctx) : ctx(ctx) {
   // The ctx object will not have been initialized when this is called, so it
-  // should not be used.
+  // should not be used for anything.
 }
 
 DeviceCodeCtx::~DeviceCodeCtx() {
@@ -357,7 +370,7 @@ bool DeviceCodeCtx::createWorkingDir() {
   return true;
 }
 
-StringRef DeviceCodeCtx::getTempFilePath(TTID tt) {
+StringRef DeviceCodeCtx::getTempFilePath(TTID tt, StringRef ext) {
   // The files containing the device code are named 1.o, 2.o etc. This is
   // determined by the number of object files that have been recorded. First,
   // create an empty string at the end of the list of object files for the
@@ -366,17 +379,17 @@ StringRef DeviceCodeCtx::getTempFilePath(TTID tt) {
   size_t idx = tempFiles[tt].size();
   Path &objFile = tempFiles[tt].back();
   sys::path::append(objFile, tempDir, std::to_string(idx));
-  sys::path::replace_extension(objFile, "o");
+  sys::path::replace_extension(objFile, ext);
 
   return objFile.str();
 }
 
-bool DeviceCodeCtx::saveDeviceCode(TTID tt, StringRef code) {
+bool DeviceCodeCtx::saveDeviceCode(TTID tt, StringRef code, StringRef ext) {
   if (not createWorkingDir())
     return false;
 
   std::error_code ec;
-  StringRef objFile = getTempFilePath(tt);
+  StringRef objFile = getTempFilePath(tt, ext);
   raw_fd_ostream fs(objFile, ec);
   if (ec) {
     err(ctx, "Could not create file for device code buffer: ", ec.message());
@@ -388,18 +401,68 @@ bool DeviceCodeCtx::saveDeviceCode(TTID tt, StringRef code) {
   return true;
 }
 
-unsigned DeviceCodeCtx::parseSection(TTID tt, ArrayRef<char> buf) {
-  // The section is divided into an array of elements of the form:
+unsigned DeviceCodeCtx::parseSectionCuda(ArrayRef<char> buf) {
+  auto error = [&](StringRef msg, size_t pos) -> int {
+    err(ctx, msg, " at offset ", pos);
+    return 0;
+  };
+
+  // The section can be treated as an array of non-uniform structs:
   //
-  //   .---------------------------------------------.
-  //   | SIZE |    CODE    | SIZE |    CODE    | ... |
-  //   '---------------------------------------------'
-  //   0      8            N    N + 8
+  //   struct {
+  //     uint64_t size;  // The size, in bytes, of the code block
+  //     uint32_t isPtx; // A boolean where 1 indicates that the code is PTX,
+  //                     // SASS otherwise
+  //     uint32_t arch;  // The architecture. If the cuda architecture is
+  //                     // "sm_86", this will be 86.
+  //     byte code[];    // A block of <SIZE> bytes.
+  //   };
   //
-  // The first 8 bytes contain a size, <SIZE>. The following <SIZE> bytes
-  // contain the device code corresponding to a single object file. This is
-  // followed by another 8 bytes containing the size of the next object file
-  // and so on.
+  // Each struct is aligned on an 8-byte boundary.
+  //
+  unsigned count = 0;
+  for (size_t pos = 0; pos < buf.size();) {
+    if (pos + 8 > buf.size())
+      return error("invalid device code section: Expected size", pos);
+    uint64_t size = *reinterpret_cast<const uint64_t *>(&buf[pos]);
+    pos += 8;
+
+    if (pos + 4 > buf.size())
+      return error("invalid device code section: Expected flag", pos);
+    uint32_t isPtx = *reinterpret_cast<const uint32_t *>(&buf[pos]);
+    pos += 4;
+
+    if (pos + 4 > buf.size())
+      return error("invalid device code section: Expected arch", pos);
+    uint32_t arch = *reinterpret_cast<const uint32_t *>(&buf[pos]);
+    pos += 4;
+
+    if (pos + size > buf.size())
+      return error("invalid device code section: Unexpected end of section",
+                   pos);
+    StringRef code(&buf[pos], size);
+    pos += size;
+
+    StringRef ext = isPtx ? "ptx" : "s";
+    if (not saveDeviceCode(TTID::Cuda, code, ext))
+      return 0;
+
+    ++count;
+    pos = align(pos, 8);
+  }
+  return count;
+}
+
+unsigned DeviceCodeCtx::parseSectionHip(ArrayRef<char> buf) {
+  // The section can be treated as an array of non-uniform structs:
+  //
+  //   struct {
+  //     uint64_t size; // The size, in bytes, of the following code block
+  //     byte code[];   // A block of <SIZE> bytes.
+  //   };
+  //
+  // Each struct is aligned on an 8-byte boundary.
+  //
   unsigned count = 0;
   for (size_t pos = 0; pos < buf.size();) {
     if (pos + 8 > buf.size()) {
@@ -416,11 +479,24 @@ unsigned DeviceCodeCtx::parseSection(TTID tt, ArrayRef<char> buf) {
     StringRef code(&buf[pos], size);
     pos += size;
 
-    ++count;
-    if (not saveDeviceCode(tt, code))
+    if (not saveDeviceCode(TTID::Hip, code, "o"))
       return 0;
+
+    ++count;
+    pos = align(pos, 8);
   }
   return count;
+}
+
+unsigned DeviceCodeCtx::parseSection(TTID tt, ArrayRef<char> buf) {
+  switch (tt) {
+  case TTID::Cuda:
+    return parseSectionCuda(buf);
+  case TTID::Hip:
+    return parseSectionHip(buf);
+  default:
+    llvm_unreachable("DeviceCodeCtx::parseSection: TTID not handled");
+  }
 }
 
 bool DeviceCodeCtx::createEmptyFile() {
