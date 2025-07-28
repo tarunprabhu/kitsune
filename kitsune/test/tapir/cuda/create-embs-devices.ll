@@ -14,7 +14,7 @@
 ;
 ; HOST: @{{.+}} = {{.*}}constant [{{[0-9]+}} x i8] c"BC{{.+}}"
 ; HOST-SAME: #[[BC:[0-9]+]]
-; HOST: @{{.+}} = {{.*}}constant [0 x i8] zeroinitializer
+; HOST: @__nv_fatbin = external constant [0 x i8], section ".nv_fatbin"
 ; HOST-SAME: #[[FB:[0-9]+]]
 ; HOST-DAG: #[[BC]] = { kit_bc kit_tt(2) }
 ; HOST-DAG: #[[FB]] = { kit_fb kit_tt(2) }

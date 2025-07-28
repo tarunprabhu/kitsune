@@ -16,6 +16,7 @@
 #include "kitsune/Core/CloningUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ReachableGlobals.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Support/TTUtils.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
@@ -111,12 +112,16 @@ PreservedAnalyses CreateEmbBitcodePass::run(Module &m,
     usedGlobals.analyze(*f);
 
   // Create device modules for the required targets and clone the device
-  // functions into them.
+  // functions into them. The bitcode module must be accompanied by a singleton
+  // fat binary global declaration.
   for (TTID tt : tts) {
     std::unique_ptr<Module> devM = createEmbModule(tt, tto, m);
     cloneGlobalValuesInto(usedGlobals, tt, *devM);
-    (void)createEmbBCGlobal(*devM, tt, m);
-    (void)createEmbFBGlobal(tt, m);
+    if (GlobalVariable *g = getEmbBCGlobal(tt, m))
+      (void)resetEmbBCGlobal(*devM, *g);
+    else
+      (void)createEmbBCGlobal(*devM, tt, m);
+    (void)createSingletonFBGlobal(tt, m);
   }
 
   // At best, this will add one or more global variables, so none of the

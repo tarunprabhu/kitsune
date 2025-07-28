@@ -865,7 +865,14 @@ def err_drv_kitsune_cuda_optzns_debug : Error<
   "ptxas does not support optimized debugging. Use -O1 for partial debugging "
   "support">;
 
-def err_drv_unsupported_option_argument_for_frontend : Error<
+def err_drv_kitsune_unsupported_option : Error<
+  "'%0' is not allowed in Kitsune">;
+def err_drv_kitsune_lto_unsupported_option : Error<
+  "'%0' cannot be used with -flto in Kitsune">;
+
+def err_drv_kitsune_unsupported_option_argument : Error<
+  "unsupported argument '%1' to optoin '%0' in Kitsune">;
+def err_drv_kitsune_unsupported_option_argument_for_frontend : Error<
   "unsupported argument '%1' to option '%0' for frontend '%2'">;
 
 def err_drv_kitsune_missing_required : Error<
@@ -890,9 +897,6 @@ def err_drv_kitsune_bad_hip_arch : Error<
   "unsupported AMD GPU architecture '%0'">;
 def err_drv_kitsune_hip_code_object_version : Error<
   "rocm code object version '%0' is not supported">;
-
-def err_drv_kitsune_lto_disallowed_arg : Error<
-  "'%0' cannot be used with -flto in Kitsune">;
 
 def err_drv_kitsune_objc : Error<
   "kitsune does not support Objective-C">;

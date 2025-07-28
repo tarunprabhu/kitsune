@@ -14,6 +14,7 @@
 #include "CGFBImpl.h"
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
@@ -42,6 +43,18 @@ private:
   const detail::CGFBOptions &cgfbOpts;
 
 private:
+  void embedFatBinary(ToolOutputFile &fatbinFile, GlobalVariable &g) {
+    ErrorOr<std::unique_ptr<MemoryBuffer>> bufOrErr =
+        MemoryBuffer::getFile(fatbinFile.getFilename());
+    if (std::error_code ec = bufOrErr.getError()) {
+      report_fatal_error(StringRef(llvm::join_items(
+          " ", "failed to load fat binary image:", ec.message())));
+    }
+
+    // std::unique_ptr<MemoryBuffer> fb = std::move(bufOrErr.get());
+    // resetEmbFBGlobal(*fb, g);
+  }
+
   std::unique_ptr<ToolOutputFile> generatePTX(Module &km) {
     LLVM_DEBUG(dbgs() << "\t- generating ptx...\n");
 
@@ -230,7 +243,7 @@ public:
     std::unique_ptr<ToolOutputFile> ptxFile = generatePTX(*km);
     std::unique_ptr<ToolOutputFile> asmFile = assemblePTX(*ptxFile);
     std::unique_ptr<ToolOutputFile> fatbinFile = createFatBinary(*asmFile);
-    detail::embedFatBinary(*fatbinFile, gfb);
+    embedFatBinary(*fatbinFile, gfb);
 
     if (cgfbOpts.keepFiles) {
       ptxFile->keep();

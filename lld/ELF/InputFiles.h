@@ -11,6 +11,7 @@
 
 #include "Config.h"
 #include "Symbols.h"
+#include "kitsune/Core/Tapir.h"
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/LLVM.h"
 #include "lld/Common/Reproduce.h"
@@ -216,6 +217,16 @@ public:
 
   // Get cached DWARF information.
   DWARFCache *getDwarf();
+
+  // If the given section contains device code, get the tapir target that
+  // generated the device code.
+  template <typename ELFT>
+  std::optional<llvm::TTID> getDeviceCodeTT(const typename ELFT::Shdr &sec);
+
+  // If the given section contains device code, extract it into \ref deviceCode.
+  // Return true if the section contains device code, false otherwise.
+  template <typename ELFT>
+  bool parseIfDeviceCodeSection(const typename ELFT::Shdr &sec);
 
 protected:
   // Initializes this class's member variables.

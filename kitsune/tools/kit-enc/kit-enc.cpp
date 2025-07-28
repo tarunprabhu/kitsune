@@ -13,6 +13,7 @@
 
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Support/CommandLineUtils.h"
@@ -94,7 +95,7 @@ int main(int argc, char *argv[]) {
   Module hostM("", ctx);
   (void)addDeviceModuleMetadata(tt, *embM);
   (void)createEmbBCGlobal(*embM, tt, hostM);
-  (void)createEmbFBGlobal(tt, hostM);
+  (void)createSingletonFBGlobal(tt, hostM);
 
   outs() << hostM;
 

@@ -6,7 +6,7 @@
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[GV:.+]] = external local_unnamed_addr constant i32
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[ATTR:[0-9]+]]
+; CHECK-DAG: @[[FB:.+]] = external constant [0 x i8]{{.*}} #[[ATTR:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f
 ; CHECK-NOT: llvm.kit.symbol.device.ptr

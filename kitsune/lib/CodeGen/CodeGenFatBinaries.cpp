@@ -17,6 +17,7 @@
 #include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GlobalVariableUtils.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/TTUtils.h"
@@ -105,19 +106,6 @@ static cl::opt<bool>
 
 // @}
 
-void llvm::detail::embedFatBinary(ToolOutputFile &fatbinFile,
-                                  GlobalVariable &g) {
-  ErrorOr<std::unique_ptr<MemoryBuffer>> bufOrErr =
-      MemoryBuffer::getFile(fatbinFile.getFilename());
-  if (std::error_code ec = bufOrErr.getError()) {
-    report_fatal_error(StringRef(llvm::join_items(
-        " ", "failed to load fat binary image:", ec.message())));
-  }
-
-  std::unique_ptr<MemoryBuffer> fb = std::move(bufOrErr.get());
-  resetEmbFBGlobal(*fb, g);
-}
-
 void llvm::detail::debugTargetMachine(const TargetMachine &tm,
                                       raw_ostream &os) {
   const Target &tgt = tm.getTarget();
@@ -176,16 +164,16 @@ private:
     cgfbOpts.debugTargetOptions = clDebugTargetOptions;
   }
 
-  bool cgfb(GlobalVariable &fb, const GlobalVariable &bc, TTID tt) {
-    switch (tt) {
-    case TTID::Cuda:
-      return detail::cgfbCuda(fb, bc, tto, cgfbOpts);
-    case TTID::Hip:
-      return detail::cgfbHip(fb, bc, tto, cgfbOpts);
-    default:
-      llvm_unreachable("CodeGenFatBinaries::run: TTID not handled");
-    }
-  }
+  // bool cgfb(GlobalVariable &fb, GlobalVariable &bc, TTID tt) {
+  //   switch (tt) {
+  //   case TTID::Cuda:
+  //     return detail::cgfbCuda(fb, bc, tto, cgfbOpts);
+  //   case TTID::Hip:
+  //     return detail::cgfbHip(fb, bc, tto, cgfbOpts);
+  //   default:
+  //     llvm_unreachable("CodeGenFatBinaries::run: TTID not handled");
+  //   }
+  // }
 
 public:
   CodeGenFatBinaries(const TapirTargetOptions &tto) : tto(tto) {}
@@ -194,12 +182,24 @@ public:
     bool changed = false;
 
     initializeCGFBOptions(m);
-    for (TTID tt : ttsGenEmbBC()) {
+    for (TTID tt : ttsUsingEmbBC) {
       GlobalVariable *bc = getEmbBCGlobal(tt, m);
-      GlobalVariable *fb = getEmbFBGlobal(tt, m);
-      if (bc and fb) {
-        changed |= cgfb(*fb, *bc, tt);
-        bc->eraseFromParent();
+      GlobalVariable *fb = getSingletonFBGlobal(tt, m);
+      switch (tt) {
+      case TTID::Cuda:
+        if (bc and fb) {
+          changed |= detail::cgfbCuda(*fb, *bc, tto, cgfbOpts);
+          bc->eraseFromParent();
+        }
+        break;
+      case TTID::Hip:
+        if (bc) {
+          changed |= detail::cgfbHip(*bc, tto, cgfbOpts);
+          bc->eraseFromParent();
+        }
+        break;
+      default:
+        llvm_unreachable("CodeGenFatBinaries::run: TTID not handled");
       }
     }
 

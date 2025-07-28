@@ -9,6 +9,7 @@ add_llvm_component_library(LLVMKitCore
   KernelProperties.cpp
   ModuleUtils.cpp
   ReachableGlobals.cpp
+  SingletonUtils.cpp
   TapirTargetOptions.cpp
   TargetUtils.cpp
   TypeUtils.cpp

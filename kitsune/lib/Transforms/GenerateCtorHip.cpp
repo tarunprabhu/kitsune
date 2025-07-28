@@ -15,6 +15,7 @@
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
@@ -51,8 +52,8 @@ private:
     PointerType *ptr = PointerType::getUnqual(ctx);
 
     FunctionType *fty = FunctionType::get(voidTy, ptr, false);
-    Function *ctor = Function::Create(fty, GlobalValue::InternalLinkage,
-                                      ".kithip.ctor", &m);
+    Function *ctor =
+        Function::Create(fty, GlobalValue::InternalLinkage, ".kithip.ctor", &m);
     TargetLibraryInfo &tli = getTLI(*ctor);
     Type *sizeTTy = tli.getSizeTType(m);
 
@@ -68,9 +69,8 @@ private:
     // are printed after the runtime has been initialized.
     FunctionCallee kitrtEnableVerbose =
         Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_enable_verbose);
-    builder.CreateCall(
-        kitrtEnableVerbose,
-        {ConstantInt::get(i8, tto.getKitrtVerbose(), false)});
+    builder.CreateCall(kitrtEnableVerbose,
+                       {ConstantInt::get(i8, tto.getKitrtVerbose(), false)});
 
     if (tto.getHipXnack() == MaybeBool::On)
       LLVM_DEBUG(dbgs() << "\t\tenable xnack via ctor runtime call.\n");

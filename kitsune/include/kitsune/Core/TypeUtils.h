@@ -20,6 +20,9 @@ class Type;
 /// Is the type an array of bytes.
 bool isByteArrayTy(Type *ty);
 
+/// Is the type a zero-length array of bytes.
+bool isZeroLenByteArrayTy(Type *ty);
+
 } // namespace llvm
 
 #endif // KITSUNE_CORE_TYPE_UTILS_H

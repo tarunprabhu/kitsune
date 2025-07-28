@@ -62,6 +62,7 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "llvm/ADT/StringExtras.h"
@@ -490,8 +491,9 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   GlobalVariable *KProps =
       createKernelPropertiesGlobal(KernelName, TTID::Hip, M);
 
-  GlobalVariable *EmbFB = getEmbFBGlobal(TTID::Hip, M);
-  assert(EmbFB && "Embedded hip fat binary global must have been created");
+  GlobalVariable *SingletonFB = getSingletonFBGlobal(TTID::Hip, M);
+  assert(SingletonFB &&
+         "Singleton hip fat binary global must have been created");
 
   // At this point we need a threads-per-block value for the launch call. The
   // runtime will determine this value if ThreadsPerBlock is zero but it can
@@ -526,8 +528,8 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   Value *HipStream =
       Builder.CreateIntrinsic(PtrTy, Intrinsic::kit_thread_stream, {CTT});
-  std::vector<Value *> Args = {CTT, EmbFB,  KName,    TripCount,
-                               TPB, KProps, HipStream};
+  std::vector<Value *> Args = {CTT, SingletonFB, KName,    TripCount,
+                               TPB, KProps,      HipStream};
   for (Value *Inp : KernelArgs)
     Args.push_back(Inp);
 

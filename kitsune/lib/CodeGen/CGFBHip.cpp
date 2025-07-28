@@ -13,6 +13,7 @@
 
 #include "CGFBImpl.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Support/ToString.h"
@@ -32,28 +33,6 @@ using namespace llvm;
 
 namespace {
 
-static StringRef getSRAMECCFeature(const TapirTargetOptions &tto) {
-  switch (tto.getHipSRAMECC()) {
-  case MaybeBool::On:
-    return ":sramecc+";
-  case MaybeBool::Off:
-    return ":sramecc-";
-  default:
-    return "";
-  }
-}
-
-static StringRef getXnackFeature(const TapirTargetOptions &tto) {
-  switch (tto.getHipXnack()) {
-  case MaybeBool::On:
-    return ":xnack+";
-  case MaybeBool::Off:
-    return ":xnack-";
-  default:
-    return "";
-  }
-}
-
 /// Helper class to generate code for AMD GPU's from embedded bitcode.
 class CGFBHip {
 private:
@@ -61,6 +40,36 @@ private:
   const detail::CGFBOptions &cgfbOpts;
 
 private:
+  void embedObjFile(ToolOutputFile &objFile, Module &hostM) {
+    ErrorOr<std::unique_ptr<MemoryBuffer>> bufOrErr =
+        MemoryBuffer::getFile(objFile.getFilename());
+    if (std::error_code ec = bufOrErr.getError()) {
+      report_fatal_error(StringRef(llvm::join_items(
+          " ", "could not load device code object file:", ec.message())));
+    }
+
+    const MemoryBuffer &buf = **bufOrErr;
+    LLVMContext &ctx = hostM.getContext();
+    size_t size = buf.getBufferSize();
+    StringRef data = buf.getBuffer();
+
+    Type *i8 = Type::getInt8Ty(ctx);
+    Type *i64 = Type::getInt64Ty(ctx);
+    Type *bufTy = ArrayType::get(i8, size);
+    StructType *type = StructType::get(i64, bufTy);
+    GlobalValue::LinkageTypes linkage = GlobalValue::PrivateLinkage;
+
+    Constant *csz = ConstantInt::get(i64, size);
+    Constant *cbuf = ConstantDataArray::getString(ctx, data, /*AddNull=*/false);
+    Constant *init = ConstantStruct::get(type, {csz, cbuf});
+
+    GlobalVariable *payload =
+        new GlobalVariable(hostM, type, /*isConstant=*/false, linkage, init);
+    payload->addAttribute(Attribute::getWithTTID(ctx, TTID::Hip));
+    payload->setSection(hipDeviceCodeSection);
+    payload->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
+  }
+
   std::unique_ptr<ToolOutputFile> createObject(Module &km) {
     LLVM_DEBUG(dbgs() << "\t- generating amdgpu object file...\n");
 
@@ -102,103 +111,28 @@ private:
     return objFile;
   }
 
-  std::unique_ptr<ToolOutputFile> createSharedObject(ToolOutputFile &objFile) {
-    LLVM_DEBUG(dbgs() << "\t- generating amdgpu shared object...\n");
-
-    SmallString<255> soFilename(objFile.getFilename());
-    sys::path::replace_extension(soFilename, ".amdgpu.so");
-    LLVM_DEBUG(dbgs() << "\t- amdgpu shared object file: '" << soFilename
-                      << "'.\n");
-
-    std::error_code ec;
-    auto soFile = std::make_unique<ToolOutputFile>(soFilename, ec,
-                                                   sys::fs::OpenFlags::OF_None);
-    if (ec)
-      report_fatal_error(Twine("Could not create amdgpu shared object file: ") +
-                         ec.message());
-
-    // FIXME: This only works on ELF-based systems.
-    //
-    // We currently send the "top-level" lld binary down from clang. Instead, we
-    // could use the driver to compute the right lld variant and send that down
-    // instead. That should obviate the need for the flavor argument since the
-    // name with which lld is invoked will allow it to internally determine the
-    // object file format.
-    //
-    // Once we do that, would we even need "-m elf64_amdgpu"? What does that do?
-    std::vector<StringRef> args;
-
-    StringRef lld = tto.getLLD();
-    args.push_back(lld);
-
-    args.push_back("-flavor");
-    args.push_back("gnu");
-    args.push_back("-m");
-    args.push_back("elf64_amdgpu");
-    args.push_back("--no-undefined");
-    args.push_back("-shared");
-    args.push_back("--eh-frame-hdr");
-    args.push_back("--plugin-opt=-amdgpu-internalize-symbols");
-
-    std::string mcpu = join_items("", "--plugin-opt=-mcpu=", tto.getHipArch(),
-                                  getSRAMECCFeature(tto), getXnackFeature(tto));
-    args.push_back(mcpu);
-
-    std::string optLevel = "-" + toString(tto.getOptznLevel());
-    args.push_back(optLevel);
-
-    args.push_back("-o");
-    args.push_back(soFile->getFilename());
-
-    args.push_back(objFile.getFilename());
-
-    LLVM_DEBUG({
-      dbgs() << "\t- lld command line:\n";
-      dbgs() << "\t\t" << lld << "\n";
-      unsigned i = 1;
-      for (StringRef arg : args)
-        dbgs() << "\t\t" << i++ << ": " << arg << "\n";
-      dbgs() << "\n\n";
-    });
-    if (cgfbOpts.debugCommandLines)
-      outs() << join(args, " ") << "\n";
-
-    std::string errMsg;
-    if (sys::ExecuteAndWait(lld, args,
-                            /*Env=*/std::nullopt,
-                            /*Redirects=*/{},
-                            /*SecondsToWait=*/0, /* 0 => unlimited */
-                            /*MemoryLimit=*/0,   /* 0 => unlimited */
-                            &errMsg))
-      report_fatal_error(Twine("lld failed: ") + errMsg);
-
-    LLVM_DEBUG(dbgs() << "AMDGPU shared object file generation complete.\n\n");
-    return soFile;
-  }
-
 public:
   CGFBHip(const TapirTargetOptions &tto, const detail::CGFBOptions &cgfbOpts)
       : tto(tto), cgfbOpts(cgfbOpts) {}
 
-  bool run(GlobalVariable &gfb, const GlobalVariable &gbc) {
+  bool run(GlobalVariable &gbc) {
     std::unique_ptr<Module> km = parseEmbBCGlobal(gbc);
 
     std::unique_ptr<ToolOutputFile> objFile = createObject(*km);
-    std::unique_ptr<ToolOutputFile> soFile = createSharedObject(*objFile);
-    detail::embedFatBinary(*soFile, gfb);
+    embedObjFile(*objFile, *gbc.getParent());
 
-    if (cgfbOpts.keepFiles) {
+    if (cgfbOpts.keepFiles)
       objFile->keep();
-      soFile->keep();
-    }
+
     return false;
   }
 };
 
 } // namespace
 
-bool llvm::detail::cgfbHip(GlobalVariable &gfb, const GlobalVariable &gbc,
+// FIXME: We don't need the fatbin global here.
+bool llvm::detail::cgfbHip(GlobalVariable &gbc,
                            const TapirTargetOptions &tto,
                            const detail::CGFBOptions &cgfbOpts) {
-  return CGFBHip(tto, cgfbOpts).run(gfb, gbc);
+  return CGFBHip(tto, cgfbOpts).run(gbc);
 }

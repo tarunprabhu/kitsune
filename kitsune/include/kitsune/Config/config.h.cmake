@@ -120,8 +120,20 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 #define KITSUNE_CUDA_LIBNAME_CUDART_STATIC                                     \
   "@KITSUNE_CUDA_LIBNAME_CUDART_STATIC@"
 
-// The name of the symbol containing the cuda device code (the fat binary)
-#define KITSUNE_CUDA_FATBIN_NAME "__kitsune_fatbin_cuda"
+// The name of the symbol containing the singleton linked NVIDIA GPU code
+#define KITSUNE_CUDA_FB_NAME "__nv_fatbin"
+
+// The name of the section containing the singleton linked NVIDIA GPU code
+#define KITSUNE_CUDA_FB_SECTION ".nv_fatbin"
+
+// The name of the section containing the singleton NVIDIA GPU code bundle. The
+// bundle is a struct consisting of a magic number, the object code version and
+// a pointer to the singleton fat binary.
+#define KITSUNE_CUDA_BUNDLE_SECTION ".nvFatBinSegment"
+
+// The name of the section containing one or more relocatable AMDGPU code
+// objects
+#define KITSUNE_CUDA_EMB_CODE_SECTION ".kit.code.cuda"
 
 // -----------------------------------------------------------------------------
 
@@ -152,8 +164,20 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 #define KITSUNE_HIP_LIBNAME_AMDHIP "@KITSUNE_HIP_LIBNAME_AMDHIP@"
 
-// The name of the symbol containing the hip device code (the fat binary)
-#define KITSUNE_HIP_FATBIN_NAME "__kitsune_fatbin_hip"
+// The name of the symbol containing the singleton linked AMDGPU code
+#define KITSUNE_HIP_FB_NAME "__hip_fatbin"
+
+// The name of the section containing the singleton linked AMDGPU code
+#define KITSUNE_HIP_FB_SECTION ".hip_fatbin"
+
+// The name of the section containing the singleton AMDGPU code bundle. The
+// bundle is a struct consisting of a magic number, the object code version and
+// a pointer to the singleton fat binary.
+#define KITSUNE_HIP_BUNDLE_SECTION ".hipFatBinSegment"
+
+// The name of the section containing one or more relocatable AMDGPU code
+// objects
+#define KITSUNE_HIP_EMB_CODE_SECTION ".kit.code.hip"
 
 // -----------------------------------------------------------------------------
 

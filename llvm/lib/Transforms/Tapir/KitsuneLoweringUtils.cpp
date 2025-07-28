@@ -15,6 +15,7 @@
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ReachableGlobals.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/IR/Constants.h"
@@ -76,8 +77,8 @@ static void copyNonConstGlobals(const ReachableGlobals &globals, TTID tt,
   Type *voidTy = Type::getVoidTy(ctx);
   PointerType *ptrTy = PointerType::getUnqual(ctx);
 
-  GlobalVariable *fb = getEmbFBGlobal(tt, m);
-  assert(fb && "Embedded fat binary must exist");
+  GlobalVariable *fb = getSingletonFBGlobal(tt, m);
+  assert(fb && "Singleton fat binary must exist");
 
   Constant *ctt = createConstInt(tt, ctx);
   for (GlobalValue *gv : globals) {
@@ -113,17 +114,4 @@ void llvm::copyNonConstGlobalsHToD(const ReachableGlobals &globals, TTID tt,
                                    Module &m, IRBuilder<> &builder) {
   copyNonConstGlobals(globals, tt, Intrinsic::kit_symbol_memcpy_htod, m,
                       builder);
-}
-
-std::unique_ptr<Module>
-llvm::getOrCreateEmbModule(TTID tt, const TapirTargetOptions &tto,
-                           Module &hostM) {
-  if (std::unique_ptr<Module> devM = getEmbModule(tt, hostM))
-    return devM;
-
-  std::unique_ptr<Module> devM = createEmbModule(tt, tto, hostM);
-  (void)createEmbBCGlobal(*devM, tt, hostM);
-  (void)createEmbFBGlobal(tt, hostM);
-
-  return devM;
 }

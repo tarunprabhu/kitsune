@@ -1,10 +1,9 @@
-; The type of global variables with the kit_fb attribute must be [n x i8] where
-; N could be any positive integer
+; The type of global variables with the kit_fb attribute must be [0 x i8]
 ;
-; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
+; RUN: llvm-as %s -o /dev/null 2>&1 | FileCheck %s --allow-empty
 ;
-; CHECK: incorrect type of global containing fat binary
+; CHECK-NOT: {{.+}}
 
-@fb = constant i256 zeroinitializer #0
+@__nv_fatbin = external constant [0 x i8], section ".nv_fatbin" #0
 
-attributes #0 = { kit_fb kit_tt(4) }
+attributes #0 = { kit_fb kit_tt(2) }

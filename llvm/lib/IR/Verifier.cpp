@@ -50,8 +50,9 @@
 #include "llvm/IR/Verifier.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
-#include "kitsune/Core/TypeUtils.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TypeUtils.h"
 #include "kitsune/Support/TTUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/APFloat.h"
@@ -515,12 +516,13 @@ private:
 
   // Verification methods...
   void visitEmbGlobals();
-  void visitKPGlobals();
-  void visitEmbBCGlobalVariable(const GlobalVariable &GV);
-  void visitEmbFBGlobalVariable(const GlobalVariable &GV);
-  void visitKPGlobalVariable(const GlobalVariable &GV);
   void visitEmbModule(const Module& EmbM, TTID TT);
   void visitEmbModuleMetadata(const Module &EmbM);
+  void visitEmbBCGlobalVariable(const GlobalVariable &GV);
+  void visitEmbFBGlobalVariable(const GlobalVariable &GV);
+  void visitSingletonFBGlobalVariable(const GlobalVariable &GV);
+  void visitKPGlobals();
+  void visitKPGlobalVariable(const GlobalVariable &GV);
   void visitGlobalValue(const GlobalValue &GV);
   void visitGlobalVariable(const GlobalVariable &GV);
   void visitGlobalAlias(const GlobalAlias &GA);
@@ -743,18 +745,6 @@ void Verifier::visitEmbModule(const Module &EmbM, TTID TTFromHostGV) {
         "broken embedded module found");
 }
 
-void Verifier::visitEmbFBGlobalVariable(const GlobalVariable &G) {
-  Check(isByteArrayTy(G.getValueType()),
-        "incorrect type of global containing fat binary");
-
-  Check(G.hasInitializer(),
-        "missing initializer in global containing fat binary");
-
-  const Constant *Init = G.getInitializer();
-  Check(isa<ConstantDataArray>(Init) || Init->isZeroValue(),
-        "invalid initializer in global containing fat binary");
-}
-
 void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
   Check(isByteArrayTy(G.getValueType()),
         "incorrect type of global containing bitcode");
@@ -784,11 +774,39 @@ void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
 
   // An embedded bitcode global variable must have the kit_tt attribute, but the
   // module could be invalid, so check to avoid a crash. The error will be
-  // caught when the global variable attributes are verified
+  // caught when the global variable attributes are verified.
   if (G.hasAttribute(Attribute::KitTT)) {
     TTID TT = G.getAttribute(Attribute::KitTT).getTTID();
     std::unique_ptr<Module> EmbM = std::move(ModuleOrErr.get());
     visitEmbModule(*EmbM, TT);
+  }
+}
+
+void Verifier::visitEmbFBGlobalVariable(const GlobalVariable& G) {
+  // TODO: Implement this.
+}
+
+void Verifier::visitSingletonFBGlobalVariable(const GlobalVariable &G) {
+  Check(G.hasName(), "singleton fat binary global must have a name");
+  Check(isZeroLenByteArrayTy(G.getValueType()),
+        "singleton fat binary global must be a zero-length array of bytes");
+  Check(G.getLinkage() == GlobalValue::ExternalLinkage,
+        "singleton fat binary global must have external linkage");
+  Check(!G.hasInitializer(),
+        "singleton fat binary global must not have an initializer");
+
+  // An embedded fat binary global variable must have the kit_tt attribute, but
+  // the module could be invalid, so check for its existence to avoid a crash.
+  // If the attribute is missing, it will be caught when they (the attributes)
+  // are verified. This is done elsewhere.
+  if (G.hasAttribute(Attribute::KitTT)) {
+    TTID TT = G.getAttribute(Attribute::KitTT).getTTID();
+    StringRef name = getFatbinName(TT);
+    StringRef section = getFatbinSection(TT);
+    Check(G.getName() == name,
+          Twine("singleton fat binary global must be named ") + name);
+    Check(G.getSection() == section,
+          Twine("singleton fat binary global must be in section ") + section);
   }
 }
 
@@ -818,7 +836,7 @@ void Verifier::visitEmbGlobals() {
   }
 
   // If a global variable containing embedded bitcode exists, then a
-  // corresponding global containing a fat binary must exist also. The reverse
+  // corresponding global containing a fat binary must also exist. The reverse
   // is not true. Once the fat binary has been generated, the global variable
   // containing embedded bitcode is removed.
   std::map<TTID, unsigned> BCCounts;
@@ -832,8 +850,8 @@ void Verifier::visitEmbGlobals() {
   for (const auto &[TT, N] : BCCounts) {
     Check(N <= 1, "too many embedded bitcode globals for tapir target '" +
                       toString(TT) + "'");
-    Check(FBCounts.find(TT) != FBCounts.end(),
-          "embedded bitcode global without fat binary global");
+    // Check(FBCounts.find(TT) != FBCounts.end(),
+    //       "embedded bitcode global without fat binary global");
   }
 }
 
@@ -1154,7 +1172,7 @@ void Verifier::visitGlobalVariable(const GlobalVariable &GV) {
   if (GV.hasAttribute(Attribute::KitBC))
     visitEmbBCGlobalVariable(GV);
   else if (GV.hasAttribute(Attribute::KitFB))
-    visitEmbFBGlobalVariable(GV);
+    visitSingletonFBGlobalVariable(GV);
   else if (GV.hasAttribute("kit_kernel_props"))
     visitKPGlobalVariable(GV);
 

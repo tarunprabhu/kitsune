@@ -4,7 +4,7 @@
 ; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]
+; CHECK-DAG: @[[FB:.+]] = external constant [0 x i8]{{.*}} #[[FBATTR:[0-9]+]]
 ; CHECK-DAG: @[[G_KNAME:.+]] = private unnamed_addr constant [{{[0-9]+}} x i8] c"[[KNAME:.+]]\00"
 ; CHECK-DAG: @[[G_KERNEL_PROPS:.+]] = private unnamed_addr constant {{.+}} zeroinitializer #[[KPATTR:[0-9]+]]
 ;

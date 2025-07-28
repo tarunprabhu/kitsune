@@ -9,7 +9,7 @@
 ; Currently, even if a max-threads-per-block option is not used, the max is set
 ; to 1024.
 ;
-; DEFAULT: @[[FB:.+]] = constant [0 x i8] zeroinitializer
+; DEFAULT: @[[FB:.+]] = external constant [0 x i8]
 ; DEFAULT-SAME: section ".nv_fatbin"
 ; DEFAULT-SAME: #[[FBATTR:[0-9]+]]
 ;

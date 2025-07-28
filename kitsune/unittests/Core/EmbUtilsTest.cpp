@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalValue.h"
@@ -156,68 +157,6 @@ entry:
     EXPECT_TRUE(embMs[TTID::Cuda]->getFunction("fcuda"));
     EXPECT_TRUE(embMs[TTID::Hip]->getFunction("fhip"));
   }
-}
-
-TEST(KitEmbUtils, createEmbFBCuda) {
-  LLVMContext ctx;
-  std::unique_ptr<Module> m = parseIR(ctx, R"()");
-
-  EXPECT_FALSE(getEmbFBGlobal(TTID::Cuda, *m));
-
-  GlobalVariable *g = createEmbFBGlobal(TTID::Cuda, *m);
-
-  EXPECT_TRUE(g->hasInitializer());
-  EXPECT_TRUE(g->isConstant());
-  EXPECT_TRUE(g->getInitializer()->isZeroValue());
-  EXPECT_TRUE(isa<ArrayType>(g->getValueType()));
-  EXPECT_EQ(cast<ArrayType>(g->getValueType())->getNumElements(), 0U);
-  EXPECT_EQ(g->getSection(), ".nv_fatbin");
-  EXPECT_TRUE(g->hasAttribute(Attribute::KitFB));
-  EXPECT_TRUE(g->hasAttribute(Attribute::KitTT));
-  EXPECT_EQ(g->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
-  EXPECT_EQ(g->getParent(), m.get());
-  EXPECT_EQ(getEmbFBGlobal(TTID::Cuda, *m), g);
-}
-
-TEST(KitEmbUtils, createEmbFBHip) {
-  LLVMContext ctx;
-  std::unique_ptr<Module> m = parseIR(ctx, R"()");
-
-  EXPECT_FALSE(getEmbFBGlobal(TTID::Hip, *m));
-
-  GlobalVariable *g = createEmbFBGlobal(TTID::Hip, *m);
-
-  EXPECT_TRUE(g->hasInitializer());
-  EXPECT_TRUE(g->isConstant());
-  EXPECT_TRUE(g->getInitializer()->isZeroValue());
-  EXPECT_TRUE(isa<ArrayType>(g->getValueType()));
-  EXPECT_EQ(cast<ArrayType>(g->getValueType())->getNumElements(), 0U);
-  EXPECT_EQ(g->getSection(), ".hip_fatbin");
-  EXPECT_EQ(g->getAlign(), Align(4096));
-  EXPECT_EQ(g->getUnnamedAddr(), GlobalValue::UnnamedAddr::None);
-  EXPECT_TRUE(g->hasAttribute(Attribute::KitFB));
-  EXPECT_EQ(g->getAttribute(Attribute::KitTT).getTTID(), TTID::Hip);
-  EXPECT_EQ(g->getParent(), m.get());
-  EXPECT_EQ(getEmbFBGlobal(TTID::Hip, *m), g);
-}
-
-TEST(KitEmbUtils, resetEmbFB) {
-  LLVMContext ctx;
-  std::unique_ptr<Module> m = parseIR(ctx, R"()");
-  std::unique_ptr<MemoryBuffer> buf = MemoryBuffer::getMemBuffer("repl");
-
-  GlobalVariable *g0 = createEmbFBGlobal(TTID::Cuda, *m);
-  g0->setName("g0");
-
-  GlobalVariable *g1 = resetEmbFBGlobal(*buf, *g0);
-
-  EXPECT_TRUE(m->getGlobalVariable("g0"));
-  EXPECT_EQ(g1->getName(), "g0");
-  EXPECT_EQ(m->global_size(), 1U);
-  EXPECT_EQ(g1->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
-  EXPECT_TRUE(isa<ConstantDataArray>(g1->getInitializer()));
-  EXPECT_EQ(cast<ConstantDataArray>(g1->getInitializer())->getAsString(),
-            "repl");
 }
 
 } // namespace

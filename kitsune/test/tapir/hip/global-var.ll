@@ -7,7 +7,7 @@
 ; RUN:     -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[ATTR:[0-9]+]]
+; CHECK-DAG: @[[FB:.+]] = external constant [0 x i8]{{.*}} #[[ATTR:[0-9]+]]
 ; CHECK-DAG: @[[HOSTVAR:.+]] = external {{.+}} i32
 ; CHECK-DAG: @[[VARNAME:.+]] = private unnamed_addr constant [5 x i8] c"v137\00"
 ;

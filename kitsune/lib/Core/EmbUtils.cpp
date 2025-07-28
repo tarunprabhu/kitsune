@@ -14,6 +14,7 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Support/TTUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -51,21 +52,6 @@ static GlobalVariable *createEmbBCGlobal(const Module &m, Module &hostM) {
                                          linkage, init, ".kitsune.emb.bc");
   g->addAttribute(Attribute::KitBC);
   g->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
-
-  return g;
-}
-
-static GlobalVariable *createEmbFBGlobal(MemoryBufferRef buf, Module &m) {
-  // The linkage of the global variable is external to prevent it from being
-  // DCE'ed.
-  GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
-  StringRef data = buf.getBuffer();
-  LLVMContext &ctx = m.getContext();
-  Constant *init = ConstantDataArray::getString(ctx, data, /*AddNull=*/false);
-  Type *type = init->getType();
-  GlobalVariable *g = new GlobalVariable(m, type, /*isConstant=*/true, linkage,
-                                         init, ".kitsune.emb.fb");
-  g->addAttribute(Attribute::KitFB);
 
   return g;
 }
@@ -162,78 +148,6 @@ std::unique_ptr<Module> llvm::getEmbModule(TTID tt, Module &m) {
   return nullptr;
 }
 
-EmbModulesMapTy llvm::getEmbModules(const Module &m) {
-  EmbModulesMapTy embBCs;
-  for (TTID tt : ttsGenEmbBC())
-    for (const GlobalVariable &g : m.globals())
-      if (g.hasAttribute(Attribute::KitBC) && g.hasAttribute(Attribute::KitTT))
-        if (g.getAttribute(Attribute::KitTT).getTTID() == tt)
-          embBCs.emplace(tt, parseEmbBCGlobal(g));
-  return embBCs;
-}
-
-GlobalVariable *llvm::createEmbFBGlobal(TTID tt, Module &hostM) {
-  assert(!getEmbFBGlobal(tt, hostM) &&
-         "Embedded fat binary global already exists");
-  LLVMContext &ctx = hostM.getContext();
-  std::unique_ptr<MemoryBuffer> buf = MemoryBuffer::getMemBuffer("");
-  GlobalVariable *g = ::createEmbFBGlobal(*buf, hostM);
-  g->addAttribute(Attribute::getWithTTID(ctx, tt));
-
-  switch (tt) {
-  case TTID::Cuda:
-    g->setSection(".nv_fatbin");
-    break;
-  case TTID::Hip:
-    // FIXME: This is temporarily set to experiment with the kithip fatbin
-    // globals. Eventually, this should be a name that is unlikely to collide
-    // with the corresponding fatbin variables from other translation units.
-    g->setName("__kithip_fatbin");
-    g->setSection(".hip_fatbin");
-    // FIXME: This alignment is not necessary.
-    g->setAlignment(Align(4096));
-    break;
-  default:
-    llvm_unreachable(
-        "Creating embedded fat binary with unexpected tapir target");
-    break;
-  }
-  return g;
-}
-
-GlobalVariable *llvm::getEmbFBGlobal(TTID tt, Module &m) {
-  for (GlobalVariable &g : m.globals()) {
-    if (g.hasAttribute(Attribute::KitFB)) {
-      assert(g.hasAttribute(Attribute::KitTT) &&
-             "Attribute 'kit_bc' requires 'kit_tt");
-      if (g.getAttribute(Attribute::KitTT).getTTID() == tt)
-        return &g;
-    }
-  }
-  return nullptr;
-}
-
-GlobalVariable *llvm::resetEmbFBGlobal(MemoryBufferRef buf, GlobalVariable &g) {
-  assert(g.getParent() && "Global with embedded bitcode must be in a module");
-
-  Module &m = *g.getParent();
-  GlobalVariable *newG = ::createEmbFBGlobal(buf, m);
-
-  if (g.hasName()) {
-    StringRef name = g.getName();
-    g.setName("");
-    newG->setName(name);
-  }
-  if (g.hasSection())
-    newG->setSection(g.getSection());
-  newG->copyAttributesFrom(&g);
-  newG->copyMetadata(&g, 0);
-  g.replaceAllUsesWith(newG);
-  g.eraseFromParent();
-
-  return newG;
-}
-
 std::unique_ptr<Module> llvm::createEmbModule(TTID tt,
                                               const TapirTargetOptions &tto,
                                               const Module &hostM) {
@@ -249,4 +163,27 @@ std::unique_ptr<Module> llvm::createEmbModule(TTID tt,
   addDeviceModuleMetadata(tt, *devM);
 
   return devM;
+}
+
+std::unique_ptr<Module>
+llvm::getOrCreateEmbModule(TTID tt, const TapirTargetOptions &tto,
+                           Module &hostM) {
+  if (std::unique_ptr<Module> devM = getEmbModule(tt, hostM))
+    return devM;
+
+  std::unique_ptr<Module> devM = createEmbModule(tt, tto, hostM);
+  (void)createEmbBCGlobal(*devM, tt, hostM);
+  (void)createSingletonFBGlobal(tt, hostM);
+
+  return devM;
+}
+
+EmbModulesMapTy llvm::getEmbModules(const Module &m) {
+  EmbModulesMapTy embBCs;
+  for (TTID tt : ttsUsingEmbBC)
+    for (const GlobalVariable &g : m.globals())
+      if (g.hasAttribute(Attribute::KitBC) && g.hasAttribute(Attribute::KitTT))
+        if (g.getAttribute(Attribute::KitTT).getTTID() == tt)
+          embBCs.emplace(tt, parseEmbBCGlobal(g));
+  return embBCs;
 }

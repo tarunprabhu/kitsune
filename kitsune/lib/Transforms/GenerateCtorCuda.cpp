@@ -15,6 +15,7 @@
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
@@ -277,7 +278,7 @@ public:
       : getTLI(getTLI), tto(tto), genCtorOpts(genCtorOpts) {}
 
   void run(Module &m) {
-    GlobalVariable *gFB = getEmbFBGlobal(TTID::Cuda, m);
+    GlobalVariable *gFB = getSingletonFBGlobal(TTID::Cuda, m);
     assert(gFB && "Could not find global with embedded cuda fat binary");
 
     GlobalVariable *gBC = getEmbBCGlobal(TTID::Cuda, m);

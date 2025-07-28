@@ -204,7 +204,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       if (Arg *A = Args.getLastArg(options::OPT_ffp_contract)) {
         StringRef FpContract = A->getValue();
         if (FpContract == "on" || FpContract == "fast-honor-pragmas") {
-          D.Diag(diag::err_drv_unsupported_option_argument_for_frontend)
+          D.Diag(diag::err_drv_kitsune_unsupported_option_argument_for_frontend)
               << A->getSpelling() << FpContract << KITSUNE_Fortran_FRONTEND;
           return;
         }
@@ -363,12 +363,23 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
     }
   }
 
-  // If LTO is enabled for use with Kitsune, the only linker that can be used is
-  // lld built with Kitsune. Using any other linker is not allowed.
-  if (D.isUsingLTO() && Args.getLastArg(options::OPT_tapir_EQ)) {
-    if (const Arg *A =
-            Args.getLastArg(options::OPT_fuse_ld_EQ, options::OPT_ld_path_EQ))
-      D.Diag(diag::err_drv_kitsune_lto_disallowed_arg) << A->getSpelling();
+  // If a --tapir option has been provided, lld must be used as the linker.
+  // Overriding this is not permitted. Allow -fuse-ld=lld since that is what we
+  // do under the hood anyway, but don't allow ld-path= at all, under any
+  // circumstances.
+  if (Args.getLastArg(options::OPT_tapir_EQ)) {
+    if (const Arg* A = Args.getLastArg(options::OPT_ld_path_EQ)) {
+      D.Diag(diag::err_drv_kitsune_unsupported_option) << A->getSpelling();
+      return;
+    }
+    if (const Arg *A = Args.getLastArg(options::OPT_fuse_ld_EQ)) {
+      StringRef Val = A->getValue();
+      if (!Val.starts_with_insensitive("lld")) {
+        D.Diag(diag::err_drv_unsupported_option_argument)
+            << Val << A->getSpelling();
+        return;
+      }
+    }
   }
 }
 

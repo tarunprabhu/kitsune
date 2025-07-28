@@ -64,10 +64,6 @@ struct CGFBOptions {
 /// Print some properties of the target machine to the given output stream.
 void debugTargetMachine(const TargetMachine &tm, raw_ostream &os);
 
-/// Copy the bytes in the given file containing a fat binary containing into the
-/// initializer of the given global variable.
-void embedFatBinary(ToolOutputFile &fatbinFile, GlobalVariable &g);
-
 /// Codegen a fat binary for NVIDIA GPU's. \ref gfb is the global variable into
 /// which the fat binary will be saved. \ref gbc is the global variable
 /// containing the bitcode from which the fat binary will be generated. If
@@ -81,8 +77,8 @@ bool cgfbCuda(GlobalVariable &gfb, const GlobalVariable &gbc,
 /// containing the bitcode from which the fat binary will be generated. If
 /// \ref keepFiles is true, the intermediate files generated during the
 /// compilation process will not be deleted after use.
-bool cgfbHip(GlobalVariable &gfb, const GlobalVariable &gbc,
-             const TapirTargetOptions &tto, const CGFBOptions &cgfbOpts);
+bool cgfbHip(GlobalVariable &gbc, const TapirTargetOptions &tto,
+             const CGFBOptions &cgfbOpts);
 
 } // namespace detail
 

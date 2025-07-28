@@ -62,39 +62,22 @@ GlobalVariable *resetEmbBCGlobal(const Module &m, GlobalVariable &g);
 /// by the tapir target.
 std::unique_ptr<Module> getEmbModule(TTID tt, Module &m);
 
-/// Deserialize all the embedded bitcode and return the modules in a map keyed
-/// on the tapir target id that created the module.
-EmbModulesMapTy getEmbModules(const Module &m);
-
-/// Create a global variable whose initializer is an empty array of bytes. The
-/// initializer of the global will eventually contain the fat binary for the
-/// module. It is an error to call this on a module that already contains a
-/// global variable for the fat binary of the given tapir target.
-///
-/// @param tt The ID of the tapir target that is creating this embedded bitcode
-/// @param m The host module into which the global variable will be created
-/// @returns The newly created global variable
-GlobalVariable *createEmbFBGlobal(TTID tt, Module &m);
-
-/// Get the global variable created by a previous call to @ref createEmbFBGlobal
-/// with the given tapir target if one exists.
-GlobalVariable *getEmbFBGlobal(TTID tt, Module &m);
-
-/// Reset the initializer of the given global variable \ref g with the given
-/// bytes. All uses of \ref g will be replaced with the newly created global.
-/// The old global will be erased from its parent module.
-///
-/// @param buf The buffer from which to create the global variable initializer
-/// @param g The global variable to replace with the new global
-/// @returns The newly created global variable.
-GlobalVariable *resetEmbFBGlobal(MemoryBufferRef buf, GlobalVariable &g);
-
 /// Create a module for use as the embedded module for the given tapir target.
-/// This will set the datalayout and target triple of the module correctly, but
+/// This will set the data layout and target triple of the module correctly, but
 /// nothing else - so any metadata that is needed for correct optimization
 /// and/or code generation will not be added.
 std::unique_ptr<Module> createEmbModule(TTID tt, const TapirTargetOptions &tto,
                                         const Module &hostM);
+
+/// Create a module for use as the embedded module for the given tapir target
+/// if it does not already exist. If it does, return the existing module. See
+/// \ref createEmbModule for more details on embedded module creation.
+std::unique_ptr<Module>
+getOrCreateEmbModule(TTID tt, const TapirTargetOptions &tto, Module &hostM);
+
+/// Deserialize all the embedded bitcode and return the modules in a map keyed
+/// on the tapir target id that created the module.
+EmbModulesMapTy getEmbModules(const Module &m);
 
 } // namespace llvm
 

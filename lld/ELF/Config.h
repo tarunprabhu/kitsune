@@ -9,6 +9,7 @@
 #ifndef LLD_ELF_CONFIG_H
 #define LLD_ELF_CONFIG_H
 
+#include "DeviceCode.h"
 #include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/ErrorHandler.h"
 #include "llvm/ADT/CachedHashString.h"
@@ -554,6 +555,7 @@ struct InStruct {
 };
 
 struct Ctx : CommonLinkerContext {
+  DeviceCodeCtx deviceCode;
   Config arg;
   LinkerDriver driver;
   LinkerScript *script;
@@ -621,6 +623,7 @@ struct Ctx : CommonLinkerContext {
 
   SmallVector<std::unique_ptr<MemoryBuffer>> memoryBuffers;
   SmallVector<ELFFileBase *, 0> objectFiles;
+  SmallVector<std::unique_ptr<ELFFileBase>, 0> deviceObjectFiles;
   SmallVector<SharedFile *, 0> sharedFiles;
   SmallVector<BinaryFile *, 0> binaryFiles;
   SmallVector<BitcodeFile *, 0> bitcodeFiles;

@@ -5,7 +5,7 @@
 ; RUN:     -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]
+; CHECK-DAG: @[[FB:.+]] = external constant [0 x i8]{{.*}} #[[FBATTR:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f
 ; CHECK-NOT: llvm.kit.symbol.device.ptr

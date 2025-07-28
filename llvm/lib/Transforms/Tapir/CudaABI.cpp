@@ -62,6 +62,7 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "llvm/ADT/StringExtras.h"
@@ -430,8 +431,9 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   GlobalVariable *KProps =
       createKernelPropertiesGlobal(KernelName, TTID::Cuda, M);
 
-  GlobalVariable *EmbFB = getEmbFBGlobal(TTID::Cuda, M);
-  assert(EmbFB && "Embedded cuda fat binary global must have been created");
+  GlobalVariable *SingletonFB = getSingletonFBGlobal(TTID::Cuda, M);
+  assert(SingletonFB &&
+         "Singleton cuda fat binary global must have been created");
 
   // At this point we need a threads-per-block value for the launch call. The
   // runtime will determine this value if ThreadsPerBlock is zero but it can
@@ -458,8 +460,8 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 
   Value *CudaStream =
       Builder.CreateIntrinsic(PtrTy, Intrinsic::kit_thread_stream, {CTT});
-  std::vector<Value *> Args = {CTT, EmbFB,  KName,     TripCount,
-                               TPB, KProps, CudaStream};
+  std::vector<Value *> Args = {CTT, SingletonFB, KName,     TripCount,
+                               TPB, KProps,      CudaStream};
   for (Value *Inp : KernelArgs)
     Args.push_back(Inp);
 

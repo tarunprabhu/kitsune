@@ -39,6 +39,7 @@ add_lld_library(lldELF
   ARMErrataFix.cpp
   CallGraphSort.cpp
   DWARF.cpp
+  DeviceCode.cpp
   Driver.cpp
   DriverUtils.cpp
   EhFrame.cpp

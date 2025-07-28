@@ -16,8 +16,14 @@
 
 using namespace llvm;
 
-bool llvm::isByteArrayTy(Type *Ty) {
-  if (auto *arrayTy = dyn_cast<ArrayType>(Ty))
-    return arrayTy->getElementType()->isIntegerTy(8);
+bool llvm::isByteArrayTy(Type *ty) {
+  if (auto *aty = dyn_cast<ArrayType>(ty))
+    return aty->getElementType()->isIntegerTy(8);
+  return false;
+}
+
+bool llvm::isZeroLenByteArrayTy(Type *ty) {
+  if (auto *aty = dyn_cast<ArrayType>(ty))
+    return aty->getElementType()->isIntegerTy(8) and aty->getNumElements() == 0;
   return false;
 }
