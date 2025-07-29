@@ -257,21 +257,31 @@ public:
 class CudaLinker : public DeviceCodeLinker {
 protected:
   virtual void link(ArrayRef<Path> files, StringRef linkedFile) override {
-    // TODO: Construct this command line properly.
-    StringRef prog = KITSUNE_CUDA_FATBINARY;
-    std::vector<StringRef> args = {prog};
-    args.push_back("--64");
-    args.push_back("--create");
-    args.push_back(linkedFile);
+    // StringRef prog = KITSUNE_CUDA_FATBINARY;
+    // std::vector<StringRef> args = {prog};
+    // args.push_back("--64");
+    // args.push_back("--create");
+    // args.push_back(linkedFile);
 
+    // std::vector<std::string> images;
+    // for (StringRef file : files) {
+    //   images.push_back(join_items("", "--image=profile=sm_70", ",file=", file));
+    //   args.push_back(images.back());
+    // }
+
+    StringRef prog = "/vast/home/tarun/gentoo/aarch64/opt/cuda/bin/nvlink";
+    std::vector<StringRef> args = {prog};
     // FIXME: For now, just assume that everything is a SASS file and compiled
     // for sm_70. This is obviously very wrong, but it's just to see if the
     // basic stuff works.
-    std::vector<std::string> images;
-    for (StringRef file : files) {
-      images.push_back(join_items("", "--image=profile=sm_70", ",file=", file));
-      args.push_back(images.back());
-    }
+    args.push_back("--arch");
+    args.push_back("sm_70");
+    args.push_back("--output-file");
+    args.push_back(linkedFile);
+
+    // std::vector<std::string> images;
+    for (StringRef file : files)
+      args.push_back(file);
 
     if (ctx.e.verbose)
       Msg(ctx) << join(args, " ");
@@ -295,7 +305,7 @@ public:
   CudaLinker(Ctx &ctx, StringRef tempDir) : DeviceCodeLinker(ctx, tempDir) {
     varName = cudaFatbinName;
     sectionName = cudaFatbinSection;
-    linkedFileName = "kitcuda_linked.o";
+    linkedFileName = "kitcuda_linked.cubin";
     finalObjFileName = "kitcuda_fb.o";
   }
 };
@@ -443,7 +453,7 @@ unsigned DeviceCodeCtx::parseSectionCuda(ArrayRef<char> buf) {
     StringRef code(&buf[pos], size);
     pos += size;
 
-    StringRef ext = isPtx ? "ptx" : "s";
+    StringRef ext = isPtx ? "ptx" : "cubin";
     if (not saveDeviceCode(TTID::Cuda, code, ext))
       return 0;
 

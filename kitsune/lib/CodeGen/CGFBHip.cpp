@@ -40,9 +40,9 @@ private:
   const detail::CGFBOptions &cgfbOpts;
 
 private:
-  void embedObjFile(ToolOutputFile &objFile, Module &hostM) {
+  void embedDeviceCode(ToolOutputFile &mcFile, Module &hostM) {
     ErrorOr<std::unique_ptr<MemoryBuffer>> bufOrErr =
-        MemoryBuffer::getFile(objFile.getFilename());
+        MemoryBuffer::getFile(mcFile.getFilename());
     if (std::error_code ec = bufOrErr.getError()) {
       report_fatal_error(StringRef(llvm::join_items(
           " ", "could not load device code object file:", ec.message())));
@@ -71,18 +71,18 @@ private:
     payload->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
   }
 
-  std::unique_ptr<ToolOutputFile> createObject(Module &km) {
+  std::unique_ptr<ToolOutputFile> genMachineCode(Module &km) {
     LLVM_DEBUG(dbgs() << "\t- generating amdgpu object file...\n");
 
-    SmallString<1024> objFilename;
+    SmallString<1024> mcFileName;
     std::string model = join_items("-", "kithip", "%%%%%%%%", km.getName());
-    sys::fs::createUniquePath(model.c_str(), objFilename, true);
-    sys::path::replace_extension(objFilename, ".amdgpu.o");
-    LLVM_DEBUG(dbgs() << "\t- amdgpu object file: '" << objFilename << "'.\n");
+    sys::fs::createUniquePath(model.c_str(), mcFileName, true);
+    sys::path::replace_extension(mcFileName, ".amdgpu.o");
+    LLVM_DEBUG(dbgs() << "\t- amdgpu object file: '" << mcFileName << "'.\n");
 
     std::error_code ec;
     auto objFile = std::make_unique<ToolOutputFile>(
-        objFilename, ec, sys::fs::OpenFlags::OF_None);
+        mcFileName, ec, sys::fs::OpenFlags::OF_None);
     if (ec)
       report_fatal_error(Twine("Could not create amdgpu object file: ") +
                          ec.message());
@@ -117,11 +117,11 @@ public:
       : tto(tto), cgfbOpts(cgfbOpts) {}
 
   bool run(Module &hostM, Module &devM) {
-    std::unique_ptr<ToolOutputFile> objFile = createObject(devM);
-    embedObjFile(*objFile, hostM);
+    std::unique_ptr<ToolOutputFile> mcFile = genMachineCode(devM);
+    embedDeviceCode(*mcFile, hostM);
 
     if (cgfbOpts.keepFiles)
-      objFile->keep();
+      mcFile->keep();
 
     return false;
   }

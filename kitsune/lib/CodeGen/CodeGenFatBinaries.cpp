@@ -55,10 +55,11 @@ static cl::opt<CodeGenOptLevel> clCGOptLevel(
 // The default mode of the transformation is to embed a single fat binary
 // image for the selected target architecture. With this flag set, the PTX
 // form of the code will also be embedded into the fat binary. static
-cl::opt<bool> clEmbedPTX(
+static cl::opt<bool> clEmbedPTX(
     "cgfb-embed-ptx", cl::init(false), cl::Hidden,
     cl::desc("Embed PTX code in the fat binaries generated for the cuda tapir "
-             "target (NOT YET IMPLEMENTED)"));
+             "target (NOT YET IMPLEMENTED)"),
+    cl::cat(cl::catKitClDevOpts));
 
 // Override the optimization level used by ptxas when generating GPU code.
 // If this is not explicitly set, it will use the optimization level set in
@@ -71,6 +72,15 @@ static cl::opt<OptznLevel> clPtxasOptLevel(
                clEnumValN(OptznLevel::O2, "cgfb-ptxas-O2", "Pass O2 to ptxas"),
                clEnumValN(OptznLevel::O3, "cgfb-ptxas-O3", "Pass O3 to ptxas")),
     cl::desc("Override the optimization level passed to ptxas"),
+    cl::cat(cl::catKitClDevOpts));
+
+/// Have ptxas generate position-independent code.
+/// TODO: We may want to do this by default, but if there is a significant
+/// performance penalty associated with it, we may not want to. We should check
+/// what the situation is and update this option, or this comment, accordingly.
+static cl::opt<bool> clPtxasPIC(
+    "cgfb-ptxas-PIC", cl::init(false), cl::Hidden,
+    cl::desc("Have ptxas generate position-independent NVIDIA GPU code"),
     cl::cat(cl::catKitClDevOpts));
 
 // @{
@@ -152,6 +162,7 @@ private:
     else if (m.getNamedMetadata("llvm.dbg.cu"))
       cgfbOpts.ptxasOptLevel = OptznLevel::O0;
 
+    cgfbOpts.ptxasPIC = clPtxasPIC;
     cgfbOpts.embedPTX = clEmbedPTX;
     cgfbOpts.keepFiles = clKeepFiles;
     cgfbOpts.debugCommandLines = clDebugCommandLines;

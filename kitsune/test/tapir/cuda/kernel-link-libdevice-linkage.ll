@@ -1,21 +1,20 @@
-; When device functions are resolved, a declaration for the libdevice function
-; is added to the device module, even if a definition is provided by the
-; libdevice module. The emb-link-libdevice-bitcode pass will provide the
-; definition. When doing this, we need to change the linkage types of the
-; libdevice functions because only external and external_weak linkage is allowed
-; on declarations.
+; When resolving libdevice functions in the emb-resolve-libdevice-calls pass, a
+; declaration of the libdevice function is added into the device module. At this
+; time, the linkage of the function is changed to be external. When the
+; definitions of the functions are provided in the emb-link-libdevice-bitcode
+; pass, these linkages should be overridden and set to linkonce_odr.
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' \
+; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
+; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls,emb-link-libdevice-bitcode' \
 ; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: declare {{.*}}float @__ocml_acos_f32
-; CHECK: declare {{.*}}double @__ocml_sqrt_f64
+; CHECK-DAG: define linkonce_odr {{.*}}float @__nv_sinf
+; CHECK-DAG: define linkonce_odr {{.*}}double @__nv_sqrt
 
 target triple = "x86_64-pc-linux-gnu"
 
-declare float @acosf(float)
+declare float @sinf(float)
 declare double @sqrt(double)
 
 define void @f(ptr %c, i64 %n) {
@@ -33,9 +32,9 @@ forall.detach:
   detach within %syncreg, label %forall.body, label %forall.inc
 
 forall.body:
-  %arrayidx = getelementptr inbounds float, ptr %c, i64 %indvars.iv
+  %arrayidx = getelementptr inbounds i32, ptr %c, i64 %indvars.iv
   %asf = sitofp i64 %n to float
-  %.acos = tail call float @acosf(float %asf)
+  %.acos = tail call float @sinf(float %asf)
   %.cst = fpext float %.acos to double
   %.sqrt = tail call double @sqrt(double %.cst)
   store double %.sqrt, ptr %arrayidx, align 4

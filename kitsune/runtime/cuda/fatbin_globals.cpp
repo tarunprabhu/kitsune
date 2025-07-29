@@ -150,7 +150,7 @@ extern "C" void __kitcuda_register_fatbin(void) {
   if (__kitcuda_handle)
     return;
 
-  // The object version is currently set to 1 because that is what it is set
+  // The object version is currently set to 1 because that is what it is set to
   // when compiling cuda code with clang. It is not clear when, or if, this will
   // ever change.
   __kitcuda_bundle.magic = 0x466243b1;
@@ -179,15 +179,15 @@ extern "C" void __kitcuda_register_var(void *var, const char *name,
   // if this is externally defined (as in C's extern)? In either case, why
   // are we always passing 0 here? Is this just the "safer" course, or is it
   // that we just haven't yet encountered a situation where this should be
-  // non-zero? Or does cuda require this to be zero currently because it is
-  // they who have not implemented something?
+  // non-zero? Or does cuda require this to be zero currently because something
+  // has not yet been implemented there?
   int ext = 0;
 
   // Only non-constant globals need to be registered.
   int constant = 0;
 
   __cudaRegisterVar(__kitcuda_handle, /* Handle to the registered fat binary */
-                    var,              /* The shadow variable in host code */
+                    var,              /* Address of the variable on the host */
                     name,             /* The name of the global in the host */
                     name,             /* The name of the global in the device */
                     ext,              /* Is this global external */

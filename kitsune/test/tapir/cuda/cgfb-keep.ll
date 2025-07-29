@@ -28,7 +28,7 @@
 ; RUN: ls -l %t/kitcu-*-cgfbkeep.* | FileCheck %s -check-prefix=COUNT
 ;
 ; EXT-DAG: {{[.]ptx$}}
-; EXT-DAG: {{[.]s$}}
+; EXT-DAG: {{[.]cubin$}}
 ; COUNT-COUNT-2: {{.+}}
 ;
 ; ------------------------------------------------------------------------------

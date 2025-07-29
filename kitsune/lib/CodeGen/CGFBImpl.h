@@ -47,6 +47,9 @@ struct CGFBOptions {
   /// By default, SASS is embedded.
   unsigned embedPTX : 1;
 
+  /// If true, have ptxas generate position-independent code.
+  unsigned ptxasPIC : 1;
+
   /// Don't delete any intermediate files that were generated in the course of
   /// fat binary generation.
   unsigned keepFiles : 1;
