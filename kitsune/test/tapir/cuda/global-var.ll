@@ -21,9 +21,9 @@
 ; CHECK-NEXT: }
 ;
 ; CHECK: define {{.+}} @.kitcuda.ctor{{[^(]*}}
-; CHECK: %[[HANDLE:.+]] = call ptr @__cudaRegisterFatBinary
-; CHECK: call {{.+}} @__cudaRegisterVar(ptr %[[HANDLE]], ptr @[[HOSTVAR]], ptr @[[VARNAME]]
-; CHECK: call {{.+}} @__cudaRegisterFatBinaryEnd
+; CHECK: call {{.+}} @__kitcuda_register_fatbin
+; CHECK: call {{.+}} @__kitcuda_register_var(ptr @[[HOSTVAR]], ptr @[[VARNAME]]
+; CHECK: call {{.+}} @__kitcuda_register_fatbin_end
 ;
 ; CHECK: #[[FBATTR]] = { kit_fb kit_tt(2) }
 

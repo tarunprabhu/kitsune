@@ -14,9 +14,9 @@
 ; CHECK-NOT: llvm.kit.symbol.memcpy.host
 ;
 ; CHECK: define {{.+}} @.kitcuda.ctor{{[^(]*}}
-; CHECK: call {{.+}} @__cudaRegisterFatBinary
+; CHECK: call {{.+}} @__kitcuda_register_fatbin
 ; CHECK-NOT: call {{.+}} @__cudaRegisterVar
-; CHECK: call {{.+}} @__cudaRegisterFatBinaryEnd
+; CHECK: call {{.+}} @__kitcuda_register_fatbin_end
 ;
 ; CHECK: #[[FBATTR]] = { kit_fb kit_tt(2) }
 

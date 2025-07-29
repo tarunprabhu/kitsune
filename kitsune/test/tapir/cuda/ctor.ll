@@ -13,18 +13,8 @@
 ; DEFAULT-SAME: section ".nv_fatbin"
 ; DEFAULT-SAME: #[[FBATTR:[0-9]+]]
 ;
-; DEFAULT: @[[BUNDLE:.+]] = internal constant {{.+}} { i32 1180844977, i32 1, ptr @[[FB]], ptr null }
-; DEFAULT-SAME: section ".nvFatBinSegment"
-;
-; DEFAULT: @[[HANDLE:[.]kitcuda[.].+]] = internal global ptr null
-;
 ; DEFAULT: @llvm.global_ctors = appending global
 ; DEFAULT-SAME: { i32 65536, ptr @[[CTOR:[.]kitcuda[.]ctor.*]], ptr null }
-;
-; DEFAULT: define {{.*}} @[[DTOR:[.]kitcuda[.]dtor.*]]{{[ ]*}}(
-; DEFAULT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
-; DEFAULT: call {{.+}} @__cudaUnregisterFatBinary(ptr %[[HD]])
-; DEFAULT: call {{.+}} @llvm.kit.finalize(i32 2)
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]
 ; DEFAULT: call {{.+}} @llvm.kit.initialize(i32 2)
@@ -32,10 +22,8 @@
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.set.fixed.tpb(i32 2,
 ; DEFAULT: call {{.+}} @llvm.kit.set.max.tpb(i32 2, i32 1024)
 ; DEFAULT-DAG: call {{.+}} @llvm.kit.enable.refine.launches(i32 2, i8 1)
-; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}__cudaRegisterFatBinary(ptr @[[BUNDLE]])
-; DEFAULT: store ptr %[[HC]], ptr @[[HANDLE]]
-; DEFAULT: call void @__cudaRegisterFatBinaryEnd(ptr %[[HC]])
-; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
+; DEFAULT-DAG: call {{.+}}__kitcuda_register_fatbin()
+; DEFAULT: call {{.+}} @__kitcuda_register_fatbin_end()
 ; DEFAULT: }
 ;
 ; DEFAULT: #[[FBATTR]] = { kit_fb kit_tt(2) }

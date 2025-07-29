@@ -13,6 +13,7 @@
 ; CHECK-SAME: { i64 [[SIZE]], [[[SIZE]] x i8] c"
 ; CHECK-SAME: " },
 ; CHECK-SAME: section ".kit.code.hip"
+; CHECK-SAME: align 8
 ; CHECK-SAME: #[[OBJATTR:[0-9]+]]
 ;
 ; CHECK-DAG: attributes #[[FBATTR]] = { kit_fb kit_tt(4) }
