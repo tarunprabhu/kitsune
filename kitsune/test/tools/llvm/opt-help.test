@@ -3,7 +3,8 @@
 # merely exists to ensure that the categories of Kitsune options are not lost.
 #
 # ------------------------------------------------------------------------------
-# The "developer" options are not visible when simply asking for help
+# The "developer" options are not visible when simply asking for help. But both
+# 'core' and 'common' options must be displayed.
 #
 # RUN: opt -help 2>&1 | FileCheck %s -check-prefix HELP
 #
@@ -12,9 +13,12 @@
 # HELP-NOT: cuabi-
 # HELP-NOT: emb-O0
 # HELP-NOT: hipabi-
-# HELP: Kitsune Options
-# HELP: --kitrt-verbose
+#
+# HELP: Kitsune Options (common)
 # HELP: --tapir
+#
+# HELP: Kitsune Options (core)
+# HELP: --kitrt-verbose
 # HELP: --tapir-cuda-arch=
 # HELP: --tapir-hip-arch=
 # HELP: --tapir-verbose
@@ -33,6 +37,10 @@
 # HIDDEN: emb-O0
 # HIDDEN: emb-inline-all
 # HIDDEN: emb-print-pipeline-passes
-# HIDDEN: Kitsune Options
-# HIDDEN: --kitrt-verbose
+#
+# HIDDEN: Kitsune Options (common)
 # HIDDEN: --tapir
+#
+# HIDDEN: Kitsune Options (core)
+# HIDDEN: --kitrt-verbose
+# HIDDEN: --tapir-verbose

@@ -12,7 +12,7 @@
 ; RUN:     -passes='kit-lowering<O2>,kit-cgfb' -cgfb-### %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,DEFAULT
 ;
-; RUN: not --crash opt --tapir=cuda --tapir-cuda-arch=sm_80 --cgfb-ptxas-O3 \
+; RUN: not opt --tapir=cuda --tapir-cuda-arch=sm_80 --cgfb-ptxas-O3 \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:     -passes='kit-lowering<O2>,kit-cgfb' -cgfb-### %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,OVERRIDE

@@ -1,0 +1,183 @@
+//===- EmbDeviceCodeParser.cpp - Parse device code in object files --------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Parse embedded device code in object files.
+//
+//===----------------------------------------------------------------------===//
+
+#include "kitsune/Object/EmbDeviceCodeParser.h"
+#include "kitsune/Core/SingletonUtils.h"
+#include "kitsune/Support/StringUtils.h"
+#include "kitsune/Support/ToString.h"
+#include "llvm/BinaryFormat/Magic.h"
+#include "llvm/Object/Archive.h"
+#include "llvm/Object/ArchiveWriter.h"
+#include "llvm/Object/ObjectFile.h"
+
+#include <map>
+
+using namespace llvm;
+using namespace llvm::object;
+
+static bool isDeviceCodeSection(SectionRef sec) {
+  if (Expected<StringRef> name = sec.getName())
+    return StringSwitch<bool>(*name)
+        .Cases(KITSUNE_CUDA_CODE_SECTION, KITSUNE_HIP_CODE_SECTION, true)
+        .Default(false);
+  return false;
+}
+
+static Expected<EmbDeviceCode> parseSection(SectionRef sec) {
+  Expected<StringRef> contents = sec.getContents();
+  if (not contents)
+    return createStringError("Could not parse device code section contents");
+
+  size_t pos = 0;
+  const char *buf = contents->data();
+  const ObjectFile &objFile = *sec.getObject();
+
+  // The section is guaranteed to contain a single binary blob. If the parent
+  // object file is a relocatable object, the blob will also be a relocatable
+  // ELF object. If the parent object file is a dynamic shared object (DSO),
+  // this will be a static archive. The first 8 bytes of the section is an
+  // EmbDeviceCode::Id. The rest of the section is the blob.
+  //
+  //   struct {
+  //     uint64_t id;  // The EmbDeviceCode::Id
+  //     byte code[];  // The embedded code.
+  //   };
+  //
+  if (sec.getSize() <= 8)
+    return createStringError(sjoin("Expected id at ", pos));
+  uint64_t nid = *reinterpret_cast<const uint64_t *>(&buf[pos]);
+  Expected<EmbDeviceCode::Id> id = EmbDeviceCode::getIdFor(nid);
+  if (not id)
+    return createStringError(
+        sjoin("Invalid id for embedded device code: ", nid));
+
+  pos += 8;
+  StringRef code(&buf[pos], sec.getSize() - pos);
+
+  // The contents of the section must be something that is expected.
+  file_magic embMagic = identify_magic(code);
+  file_magic srcMagic = identify_magic(objFile.getData());
+  switch (file_magic::Impl(embMagic)) {
+  case file_magic::elf_relocatable:
+    if (srcMagic != file_magic::elf_relocatable)
+      return createStringError("Embedded device code in relocatable ELF object "
+                               "must also be relocatable ELF object");
+    break;
+  case file_magic::archive:
+    if (srcMagic != file_magic::elf_shared_object)
+      return createStringError("Embedded device code in dynamic shared object "
+                               "must be a static archive");
+    break;
+  default:
+    return createStringError(
+        sjoin("Unexpected magic in embedded device code: ", embMagic));
+  }
+
+  return EmbDeviceCode(*id, code, sec.getObject()->getFileName());
+}
+
+Error EmbDeviceCodes::parse(const ObjectFile &objFile) {
+  for (SectionRef sec : objFile.sections()) {
+    if (isDeviceCodeSection(sec)) {
+      Expected<EmbDeviceCode> embDeviceCode = parseSection(sec);
+      if (not embDeviceCode)
+        return embDeviceCode.takeError();
+      codes.emplace_back(*embDeviceCode);
+    }
+  }
+  return Error::success();
+}
+
+Error EmbDeviceCodes::parse(const Archive &archive) {
+  std::map<TTID, SmallVector<EmbDeviceCode, 1>> devCodesMap;
+
+  Error err = Error::success();
+  for (const Archive::Child &child : archive.children(err)) {
+    if (err)
+      return err;
+
+    Expected<MemoryBufferRef> memBufOrErr = child.getMemoryBufferRef();
+    if (not memBufOrErr)
+      return memBufOrErr.takeError();
+    const MemoryBufferRef &memBuf = *memBufOrErr;
+
+    Expected<std::unique_ptr<ObjectFile>> objFileOrErr =
+        ObjectFile::createObjectFile(memBuf);
+    if (not objFileOrErr)
+      return objFileOrErr.takeError();
+    const ObjectFile &objFile = **objFileOrErr;
+    const Binary &bin = objFile;
+
+    Expected<EmbDeviceCodes> devCodesOrErr = EmbDeviceCodes::parse(bin);
+    if (not devCodesOrErr)
+      return devCodesOrErr.takeError();
+    const EmbDeviceCodes &devCodes = *devCodesOrErr;
+
+    for (const EmbDeviceCode &devCode : devCodes)
+      devCodesMap[devCode.getTTID()].push_back(devCode);
+  }
+
+  // Combine the embedded device code found in each of the members of the
+  // parent archive into a new archive. This will be the
+  for (const auto &[tt, devCodes] : devCodesMap) {
+    // Sanity check the embedded device code objects that were found. All
+    // embedded device code objects generated by a given tapir target must have
+    // the same binary format and target.
+    assert(devCodes.size() && "Cannot have empty device code array");
+    EmbDeviceCode::Id id = devCodes[0].getId();
+    for (const EmbDeviceCode &devCode : devCodes)
+      if (devCode.getId() != id)
+        return createStringError("Inconsistent formats and targets for "
+                                 "embedded device code in archive");
+
+    // Now construct a new archive containing all the embedded device code.
+    SmallVector<NewArchiveMember, 1> newMembers;
+    for (const EmbDeviceCode &devCode : devCodes) {
+      StringRef name = devCode.getName();
+      StringRef code = devCode.getCode();
+      NewArchiveMember &member = newMembers.emplace_back();
+
+      member.Buf = MemoryBuffer::getMemBuffer(code, name,
+                                              /*RequiresNullTerminator=*/false);
+      member.MemberName = name;
+    }
+
+    Expected<std::unique_ptr<MemoryBuffer>> newArchiveOrErr =
+        writeArchiveToBuffer(newMembers, SymtabWritingMode::NormalSymtab,
+                             Archive::getDefaultKind(), /*Deterministic=*/false,
+                             /*Thin=*/false);
+    if (not newArchiveOrErr)
+      return newArchiveOrErr.takeError();
+
+    const MemoryBuffer &newArchive = **newArchiveOrErr;
+    StringRef newArchiveCode = newArchive.getBuffer();
+    StringRef oldArchiveName = archive.getFileName();
+
+    archives.emplace_back(std::move(*newArchiveOrErr));
+    codes.emplace_back(id, newArchiveCode, oldArchiveName);
+  }
+  return Error::success();
+}
+
+Expected<EmbDeviceCodes> EmbDeviceCodes::parse(const Binary &bin) {
+  EmbDeviceCodes codes(bin);
+  if (auto *objFile = dyn_cast<object::ObjectFile>(&bin)) {
+    if (Error e = codes.parse(*objFile))
+      return e;
+  } else if (auto *archive = dyn_cast<Archive>(&bin)) {
+    if (Error e = codes.parse(*archive))
+      return e;
+  } else {
+    llvm_unreachable("parseEmbDeviceCode: File format not supported");
+  }
+  return codes;
+}

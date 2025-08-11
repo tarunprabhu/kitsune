@@ -18,6 +18,7 @@
 #include "kitsune/Core/OptznLevel.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/BinaryFormat/Magic.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Target/TargetOptions.h"
@@ -44,7 +45,7 @@ raw_ostream &operator<<(raw_ostream &os, const MaybeBool &);
 /// @}
 
 /// @{
-/// Serialize functions for CodeGen types.
+/// Serialization functions for CodeGen types.
 
 raw_ostream &operator<<(raw_ostream &os, const CodeGenOptLevel &);
 raw_ostream &operator<<(raw_ostream &os, const CodeModel::Model &);
@@ -73,6 +74,20 @@ raw_ostream &operator<<(raw_ostream &os, const DebugCompressionType &);
 raw_ostream &operator<<(raw_ostream &os,
                         const MCTargetOptions::DwarfDirectory &);
 raw_ostream &operator<<(raw_ostream &os, const EmitDwarfUnwindType &);
+
+/// @}
+
+/// @{
+/// Serialization functions for C++ standard library types.
+
+raw_ostream &operator<<(raw_ostream &os, const std::error_code &ec);
+
+/// @}
+
+/// @{
+/// Serialization functions for other LLVM types.
+
+raw_ostream &operator<<(raw_ostream &os, const file_magic::Impl &magic);
 
 /// @}
 

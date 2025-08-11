@@ -801,8 +801,8 @@ void Verifier::visitSingletonFBGlobalVariable(const GlobalVariable &G) {
   // are verified. This is done elsewhere.
   if (G.hasAttribute(Attribute::KitTT)) {
     TTID TT = G.getAttribute(Attribute::KitTT).getTTID();
-    StringRef name = getFatbinName(TT);
-    StringRef section = getFatbinSection(TT);
+    StringRef name = getSingletonFBName(TT);
+    StringRef section = getSingletonFBSection(TT);
     Check(G.getName() == name,
           Twine("singleton fat binary global must be named ") + name);
     Check(G.getSection() == section,

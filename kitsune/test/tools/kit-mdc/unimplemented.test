@@ -1,0 +1,35 @@
+# Check that the kit-mdc fails in the expected way when given an object file in
+# a format for which support has not yet been implemented. This is different
+# from binary file formats that can never be supported.
+#
+# Create temporary working directories
+#
+# RUN: rm -rf %t && mkdir -p %t
+# RUN: rm -rf %t/in && mkdir -p %t/in
+#
+# Create the object files to be used for testing. The sources are checked in
+# to avoid having binary blobs checked in. We need an object file created from
+# an empty input file.
+#
+# RUN: llc --mtriple=x86_64-apple-darwin -filetype=obj %S/input/empty.ll \
+# RUN:     -o %t/in/macho.o
+#
+# RUN: llc --mtriple=x86_64-windows-mscv -filetype=obj %S/input/empty.ll \
+# RUN:     -o %t/in/coff.o
+#
+# ------------------------------------------------------------------------------
+# Support for MachO has not been implemented yet, but might become available at
+# some point.
+#
+# RUN: not kit-mdc %t/in/macho.o 2>&1 \
+# RUN:     | FileCheck %s -check-prefix MACHO
+#
+# MACHO: NOT YET IMPLEMENTED: support for object file format 'macho-object'
+#
+# ------------------------------------------------------------------------------
+# It is unlikely that Windows will ever be supported.
+#
+# RUN: not kit-mdc %S/input/coff.o 2>&1 \
+# RUN:     | FileCheck %s -check-prefix COFF
+#
+# COFF: NOT YET IMPLEMENTED: support for object file format 'coff-object'

@@ -329,23 +329,22 @@ if (KITSUNE_CUDA_ENABLED)
   get_filename_component(
     KITSUNE_CUDA_LIBCUDA_DIR "${KITSUNE_CUDA_LIB_CUDA}" DIRECTORY)
 
-  find_library(KITSUNE_CUDA_LIB_CUDART "${KITSUNE_CUDA_LIBNAME_CUDART}" REQUIRED
-    PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
-    NO_DEFAULT_PATH)
-
   find_library(KITSUNE_CUDA_LIB_CUDART_STATIC "${KITSUNE_CUDA_LIBNAME_CUDART_STATIC}" REQUIRED
     PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
     NO_DEFAULT_PATH)
 
-  find_library(KITSUNE_CUDA_LIB_NVPTX_STATIC nvptxcompiler_static REQUIRED
+  # This is needed for JIT compilation of cuda kernels. By default, we compile
+  # everything ahead of time, but we might enable JIT compilation, so keep this
+  # around for now.
+  find_library(KITSUNE_CUDA_LIB_NVPTX_COMPILER_STATIC nvptxcompiler_static REQUIRED
     PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
     NO_DEFAULT_PATH)
 
-  find_program(KITSUNE_CUDA_PTXAS ptxas REQUIRED
+  find_program(KITSUNE_CUDA_NVLINK nvlink REQUIRED
     PATHS ${KITSUNE_CUDA_BINARY_DIR}
     NO_DEFAULT_PATH)
 
-  find_program(KITSUNE_CUDA_FATBINARY fatbinary REQUIRED
+  find_program(KITSUNE_CUDA_PTXAS ptxas REQUIRED
     PATHS ${KITSUNE_CUDA_BINARY_DIR}
     NO_DEFAULT_PATH)
 

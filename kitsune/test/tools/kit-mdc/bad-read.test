@@ -1,0 +1,6 @@
+# If the input file could not be read, exit with an appropriate error message.
+#
+# RUN: not kit-mdc non-existent-file.o 2>&1 | FileCheck %s
+#
+# CHECK: error:
+# CHECK-NOT: ^{{.+}}$

@@ -1,0 +1,305 @@
+//===- EmbDeviceCode.cpp - Parse embedded device code in object files -----===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Parse embedded device code in object files.
+//
+//===----------------------------------------------------------------------===//
+
+#include "kitsune/Object/EmbDeviceCode.h"
+#include "kitsune/Support/StringUtils.h"
+#include "llvm/ADT/StringSwitch.h"
+#include "llvm/BinaryFormat/Magic.h"
+#include "llvm/Support/Path.h"
+#include "kitsune/Support/ToString.h"
+
+using namespace llvm;
+
+static StringRef getExt(EmbDeviceCode::BinaryFormat fmt, file_magic magic) {
+  switch (magic) {
+  case file_magic::archive:
+    return ".a";
+  case file_magic::elf_relocatable:
+    switch (fmt) {
+    case EmbDeviceCode::AMDGPU:
+      return ".o";
+    case EmbDeviceCode::NVSASS:
+      return ".cubin";
+    case EmbDeviceCode::NVPTX:
+      return ".ptx";
+    }
+    llvm_unreachable("getExt(elf_relocatable): Unknown binary format");
+  default:
+    llvm_unreachable("getExt: Magic number not handled");
+  }
+}
+
+EmbDeviceCode::EmbDeviceCode(Id id, StringRef code, StringRef hostFileName)
+    : id(id), code(code) {
+  const auto &[base, e] = sys::path::filename(hostFileName).rsplit('.');
+  file_magic magic = identify_magic(getCode());
+  BinaryFormat fmt = getBinaryFormat();
+  StringRef ext = getExt(fmt, magic);
+  name = sjoin(base, "-", getArch(), ext);
+}
+
+TTID EmbDeviceCode::getTTID() const {
+  switch (getBinaryFormat()) {
+  case BinaryFormat::AMDGPU:
+    return TTID::Hip;
+  case BinaryFormat::NVSASS:
+  case BinaryFormat::NVPTX:
+    return TTID::Cuda;
+  }
+  llvm_unreachable("EmbDeviceCode::getTTID: Unknown format");
+}
+
+StringRef EmbDeviceCode::getArch() const {
+  // clang-format off
+  switch (id) {
+    // AMDGPU architecture
+  case GFX600: return "gfx600";
+  case GFX601: return "gfx601";
+  case GFX602: return "gfx602";
+  case GFX700: return "gfx700";
+  case GFX701: return "gfx701";
+  case GFX702: return "gfx702";
+  case GFX703: return "gfx703";
+  case GFX704: return "gfx704";
+  case GFX705: return "gfx705";
+  case GFX801: return "gfx801";
+  case GFX802: return "gfx802";
+  case GFX803: return "gfx803";
+  case GFX805: return "gfx805";
+  case GFX810: return "gfx810";
+  case GFX900: return "gfx900";
+  case GFX902: return "gfx902";
+  case GFX904: return "gfx904";
+  case GFX906: return "gfx906";
+  case GFX908: return "gfx908";
+  case GFX90A: return "gfx90a";
+  case GFX90C: return "gfx90c";
+  case GFX940: return "gfx940";
+  case GFX941: return "gfx941";
+  case GFX942: return "gfx942";
+  case GFX950: return "gfx950";
+  case GFX1010: return "gfx1010";
+  case GFX1011: return "gfx1011";
+  case GFX1012: return "gfx1012";
+  case GFX1013: return "gfx1013";
+  case GFX1030: return "gfx1030";
+  case GFX1031: return "gfx1031";
+  case GFX1032: return "gfx1032";
+  case GFX1033: return "gfx1033";
+  case GFX1034: return "gfx1034";
+  case GFX1035: return "gfx1035";
+  case GFX1036: return "gfx1036";
+  case GFX1100: return "gfx1100";
+  case GFX1101: return "gfx1101";
+  case GFX1102: return "gfx1102";
+  case GFX1103: return "gfx1103";
+  case GFX1150: return "gfx1150";
+  case GFX1151: return "gfx1151";
+  case GFX1152: return "gfx1152";
+  case GFX1153: return "gfx1153";
+  case GFX1200: return "gfx1200";
+  case GFX1201: return "gfx1201";
+
+    // NVIDIA cuda architecture
+  case SM_30: return "sm_30";
+  case SM_32: return "sm_32";
+  case SM_35: return "sm_35";
+  case SM_37: return "sm_37";
+  case SM_50: return "sm_50";
+  case SM_52: return "sm_52";
+  case SM_53: return "sm_53";
+  case SM_60: return "sm_60";
+  case SM_61: return "sm_61";
+  case SM_62: return "sm_62";
+  case SM_70: return "sm_70";
+  case SM_72: return "sm_72";
+  case SM_75: return "sm_75";
+  case SM_80: return "sm_80";
+  case SM_86: return "sm_86";
+  case SM_87: return "sm_87";
+  case SM_89: return "sm_89";
+  case SM_90: return "sm_90";
+  case SM_90A: return "sm_90a";
+  case SM_100: return "sm_100";
+  case SM_100A: return "sm_100a";
+  case SM_101: return "sm_101";
+  case SM_101A: return "sm_101a";
+  case SM_120: return "sm_120";
+  case SM_120A: return "sm_120a";
+
+    // NVIDIA PTX virtual architecture
+  case COMPUTE_30: return "compute_30";
+  case COMPUTE_32: return "compute_32";
+  case COMPUTE_35: return "compute_35";
+  case COMPUTE_37: return "compute_37";
+  case COMPUTE_50: return "compute_50";
+  case COMPUTE_52: return "compute_52";
+  case COMPUTE_53: return "compute_53";
+  case COMPUTE_60: return "compute_60";
+  case COMPUTE_61: return "compute_61";
+  case COMPUTE_62: return "compute_62";
+  case COMPUTE_70: return "compute_70";
+  case COMPUTE_72: return "compute_72";
+  case COMPUTE_75: return "compute_75";
+  case COMPUTE_80: return "compute_80";
+  case COMPUTE_86: return "compute_86";
+  case COMPUTE_87: return "compute_87";
+  case COMPUTE_89: return "compute_89";
+  case COMPUTE_90: return "compute_90";
+  case COMPUTE_90A: return "compute_90a";
+  case COMPUTE_100: return "compute_100";
+  case COMPUTE_100A: return "compute_100a";
+  case COMPUTE_101: return "compute_101";
+  case COMPUTE_101A: return "compute_101a";
+  case COMPUTE_120: return "compute_120";
+  case COMPUTE_120A: return "compute_120a";
+
+    // Sentinels
+  case AMDGPU_lo:
+  case AMDGPU_hi:
+  case NVSASS_lo:
+  case NVSASS_hi:
+  case NVPTX_lo:
+  case NVPTX_hi:
+    llvm_unreachable("EmbDeviceCode::getArch: Got sentinel");
+  }
+
+  llvm_unreachable("EmbDeviceCode::getArch: DeviceID not handled");
+  // clang-format on
+}
+
+Expected<EmbDeviceCode::Id> EmbDeviceCode::getIdFor(StringRef s) {
+  return StringSwitch<Expected<EmbDeviceCode::Id>>(s)
+      .Case("gfx600", EmbDeviceCode::GFX600)
+      .Case("gfx601", EmbDeviceCode::GFX601)
+      .Case("gfx602", EmbDeviceCode::GFX602)
+      .Case("gfx700", EmbDeviceCode::GFX700)
+      .Case("gfx701", EmbDeviceCode::GFX701)
+      .Case("gfx702", EmbDeviceCode::GFX702)
+      .Case("gfx703", EmbDeviceCode::GFX703)
+      .Case("gfx704", EmbDeviceCode::GFX704)
+      .Case("gfx705", EmbDeviceCode::GFX705)
+      .Case("gfx801", EmbDeviceCode::GFX801)
+      .Case("gfx802", EmbDeviceCode::GFX802)
+      .Case("gfx803", EmbDeviceCode::GFX803)
+      .Case("gfx805", EmbDeviceCode::GFX805)
+      .Case("gfx810", EmbDeviceCode::GFX810)
+      .Case("gfx900", EmbDeviceCode::GFX900)
+      .Case("gfx902", EmbDeviceCode::GFX902)
+      .Case("gfx904", EmbDeviceCode::GFX904)
+      .Case("gfx906", EmbDeviceCode::GFX906)
+      .Case("gfx908", EmbDeviceCode::GFX908)
+      .Case("gfx90a", EmbDeviceCode::GFX90A)
+      .Case("gfx90c", EmbDeviceCode::GFX90C)
+      .Case("gfx940", EmbDeviceCode::GFX940)
+      .Case("gfx941", EmbDeviceCode::GFX941)
+      .Case("gfx942", EmbDeviceCode::GFX942)
+      .Case("gfx950", EmbDeviceCode::GFX950)
+      .Case("gfx1010", EmbDeviceCode::GFX1010)
+      .Case("gfx1011", EmbDeviceCode::GFX1011)
+      .Case("gfx1012", EmbDeviceCode::GFX1012)
+      .Case("gfx1013", EmbDeviceCode::GFX1013)
+      .Case("gfx1030", EmbDeviceCode::GFX1030)
+      .Case("gfx1031", EmbDeviceCode::GFX1031)
+      .Case("gfx1032", EmbDeviceCode::GFX1032)
+      .Case("gfx1033", EmbDeviceCode::GFX1033)
+      .Case("gfx1034", EmbDeviceCode::GFX1034)
+      .Case("gfx1035", EmbDeviceCode::GFX1035)
+      .Case("gfx1036", EmbDeviceCode::GFX1036)
+      .Case("gfx1100", EmbDeviceCode::GFX1100)
+      .Case("gfx1101", EmbDeviceCode::GFX1101)
+      .Case("gfx1102", EmbDeviceCode::GFX1102)
+      .Case("gfx1103", EmbDeviceCode::GFX1103)
+      .Case("gfx1150", EmbDeviceCode::GFX1150)
+      .Case("gfx1151", EmbDeviceCode::GFX1151)
+      .Case("gfx1152", EmbDeviceCode::GFX1152)
+      .Case("gfx1153", EmbDeviceCode::GFX1153)
+      .Case("gfx1200", EmbDeviceCode::GFX1200)
+      .Case("gfx1201", EmbDeviceCode::GFX1201)
+
+      // NVIDIA cuda architecture
+      .Case("sm_30", EmbDeviceCode::SM_30)
+      .Case("sm_32", EmbDeviceCode::SM_32)
+      .Case("sm_35", EmbDeviceCode::SM_35)
+      .Case("sm_37", EmbDeviceCode::SM_37)
+      .Case("sm_50", EmbDeviceCode::SM_50)
+      .Case("sm_52", EmbDeviceCode::SM_52)
+      .Case("sm_53", EmbDeviceCode::SM_53)
+      .Case("sm_60", EmbDeviceCode::SM_60)
+      .Case("sm_61", EmbDeviceCode::SM_61)
+      .Case("sm_62", EmbDeviceCode::SM_62)
+      .Case("sm_70", EmbDeviceCode::SM_70)
+      .Case("sm_72", EmbDeviceCode::SM_72)
+      .Case("sm_75", EmbDeviceCode::SM_75)
+      .Case("sm_80", EmbDeviceCode::SM_80)
+      .Case("sm_86", EmbDeviceCode::SM_86)
+      .Case("sm_87", EmbDeviceCode::SM_87)
+      .Case("sm_89", EmbDeviceCode::SM_89)
+      .Case("sm_90", EmbDeviceCode::SM_90)
+      .Case("sm_90a", EmbDeviceCode::SM_90A)
+      .Case("sm_100", EmbDeviceCode::SM_100)
+      .Case("sm_100a", EmbDeviceCode::SM_100A)
+      .Case("sm_101", EmbDeviceCode::SM_101)
+      .Case("sm_101a", EmbDeviceCode::SM_101A)
+      .Case("sm_120", EmbDeviceCode::SM_120)
+      .Case("sm_120a", EmbDeviceCode::SM_120A)
+
+      // NVIDIA PTX virtual architecture
+      .Case("compute_30", EmbDeviceCode::COMPUTE_30)
+      .Case("compute_32", EmbDeviceCode::COMPUTE_32)
+      .Case("compute_35", EmbDeviceCode::COMPUTE_35)
+      .Case("compute_37", EmbDeviceCode::COMPUTE_37)
+      .Case("compute_50", EmbDeviceCode::COMPUTE_50)
+      .Case("compute_52", EmbDeviceCode::COMPUTE_52)
+      .Case("compute_53", EmbDeviceCode::COMPUTE_53)
+      .Case("compute_60", EmbDeviceCode::COMPUTE_60)
+      .Case("compute_61", EmbDeviceCode::COMPUTE_61)
+      .Case("compute_62", EmbDeviceCode::COMPUTE_62)
+      .Case("compute_70", EmbDeviceCode::COMPUTE_70)
+      .Case("compute_72", EmbDeviceCode::COMPUTE_72)
+      .Case("compute_75", EmbDeviceCode::COMPUTE_75)
+      .Case("compute_80", EmbDeviceCode::COMPUTE_80)
+      .Case("compute_86", EmbDeviceCode::COMPUTE_86)
+      .Case("compute_87", EmbDeviceCode::COMPUTE_87)
+      .Case("compute_89", EmbDeviceCode::COMPUTE_89)
+      .Case("compute_90", EmbDeviceCode::COMPUTE_90)
+      .Case("compute_90a", EmbDeviceCode::COMPUTE_90A)
+      .Case("compute_100", EmbDeviceCode::COMPUTE_100)
+      .Case("compute_100a", EmbDeviceCode::COMPUTE_100A)
+      .Case("compute_101", EmbDeviceCode::COMPUTE_101)
+      .Case("compute_101a", EmbDeviceCode::COMPUTE_101A)
+      .Case("compute_120", EmbDeviceCode::COMPUTE_120)
+      .Case("compute_120a", EmbDeviceCode::COMPUTE_120A)
+
+      // Unknown
+      .Default(createStringError("Cannot convert string to EmbDeviceCode::Id"));
+}
+
+Expected<EmbDeviceCode::Id> EmbDeviceCode::getIdFor(uint64_t n) {
+  uint64_t unused = n & maskUnused;
+  auto fmt = static_cast<BinaryFormat>(n & maskFormat);
+
+  if (unused == 0) {
+    Id id = Id(n);
+    if (fmt == BinaryFormat::AMDGPU) {
+      if (id > Id::AMDGPU_lo and id < AMDGPU_hi)
+        return id;
+    } else if (fmt == BinaryFormat::NVSASS) {
+      if (id > Id::NVSASS_lo and id < Id::NVSASS_hi)
+        return id;
+    } else if (fmt == BinaryFormat::NVPTX) {
+      if (id > Id::NVPTX_lo and id < Id::NVPTX_hi)
+        return id;
+    }
+  }
+  return createStringError("Cannot convert integer to EmbDeviceCode::Id");
+}

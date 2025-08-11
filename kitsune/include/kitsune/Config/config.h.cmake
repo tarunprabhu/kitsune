@@ -111,12 +111,12 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 #define KITSUNE_CUDA_BINARY_DIR "@KITSUNE_CUDA_BINARY_DIR@"
 #define KITSUNE_CUDA_LIBRARY_DIR "@KITSUNE_CUDA_LIBRARY_DIR@"
 #define KITSUNE_CUDA_LIBCUDA_DIR "@KITSUNE_CUDA_LIBCUDA_DIR@"
-#define KITSUNE_CUDA_PTXAS "@KITSUNE_CUDA_PTXAS@"
-#define KITSUNE_CUDA_FATBINARY "@KITSUNE_CUDA_FATBINARY@"
 #define KITSUNE_CUDA_ARCH_DEFAULT "@KITSUNE_CUDA_ARCH_DEFAULT@"
 
+#define KITSUNE_CUDA_NVLINK "@KITSUNE_CUDA_NVLINK@"
+#define KITSUNE_CUDA_PTXAS "@KITSUNE_CUDA_PTXAS@"
+
 #define KITSUNE_CUDA_LIBNAME_CUDA "@KITSUNE_CUDA_LIBNAME_CUDA@"
-#define KITSUNE_CUDA_LIBNAME_CUDART "@KITSUNE_CUDA_LIBNAME_CUDART@"
 #define KITSUNE_CUDA_LIBNAME_CUDART_STATIC                                     \
   "@KITSUNE_CUDA_LIBNAME_CUDART_STATIC@"
 
@@ -133,7 +133,7 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // The name of the section containing one or more relocatable AMDGPU code
 // objects
-#define KITSUNE_CUDA_EMB_CODE_SECTION ".kit.code.cuda"
+#define KITSUNE_CUDA_CODE_SECTION ".kit.code.cuda"
 
 // -----------------------------------------------------------------------------
 
@@ -177,7 +177,7 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // The name of the section containing one or more relocatable AMDGPU code
 // objects
-#define KITSUNE_HIP_EMB_CODE_SECTION ".kit.code.hip"
+#define KITSUNE_HIP_CODE_SECTION ".kit.code.hip"
 
 // -----------------------------------------------------------------------------
 

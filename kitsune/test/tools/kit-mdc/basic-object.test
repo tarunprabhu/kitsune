@@ -1,0 +1,19 @@
+# Test some basic functionality of kit-mdc when operating on object files.
+#
+# Create temporary working directories
+#
+# RUN: rm -rf %t && mkdir -p %t
+# RUN: rm -rf %t/in && mkdir -p %t/in
+#
+# Create the object files to be used for testing. The sources are checked in
+# to avoid having binary blobs checked in. We need an object file created from
+# an empty input file.
+#
+# RUN: llc -o %t/in/empty.o -filetype=obj %S/input/empty.ll
+#
+# ------------------------------------------------------------------------------
+# If the input object does not contain any embedded device code, an output
+# file should not be created
+#
+# RUN: kit-mdc -o %t/empty-extracted.o %t/in/empty.o
+# RUN: not cat %t/empty-extracted.o

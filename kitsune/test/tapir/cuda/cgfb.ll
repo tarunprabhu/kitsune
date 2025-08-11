@@ -7,8 +7,8 @@
 ;
 ; CHECK-NOT: @{{.+}}.bc{{.*}} = constant [{{[0-9]+}} x i8] c"{{.+}}"
 ; CHECK: @__nv_fatbin = external constant [0 x i8]{{.*}} #[[FBATTR:[0-9]+]]
-; CHECK: @{{[0-9]+}} = private unnamed_addr constant { i64, i32, i32, [[[SIZE:[0-9]+]] x i8] }
-; CHECK-SAME: { i64 [[SIZE]], i32 0, i32 80, [[[SIZE]] x i8] c"
+; CHECK: @{{[0-9]+}} = private unnamed_addr constant { i64, [[[SIZE:[0-9]+]] x i8] }
+; CHECK-SAME: { i64 {{[0-9]+}}, [[[SIZE]] x i8] c"
 ; CHECK-SAME: " },
 ; CHECK-SAME: section ".kit.code.cuda"
 ; CHECK-SAME: align 8

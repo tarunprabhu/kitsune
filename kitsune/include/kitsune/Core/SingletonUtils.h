@@ -8,8 +8,7 @@
 //
 // Kitsune uses some singletons to interface correctly with its own runtime, and
 // the external runtimes used by some tapir targets (such as libcuda and
-// libamdhip64). This is a central location where the names of these singletons
-// are defined. Several convenience functions are also provided.
+// libamdhip64). This provides utilities to work with these singletons.
 //
 //===----------------------------------------------------------------------===//
 
@@ -25,55 +24,17 @@ namespace llvm {
 class GlobalVariable;
 class Module;
 
-// Utilities for singletons used by the cuda tapir target.
-// @{
-
-// The name of the global variable that will contain the linked NVIDIA fat
-// binary.
-constexpr StringLiteral cudaFatbinName = KITSUNE_CUDA_FB_NAME;
-
-// The section containing the cuda fat binary.
-constexpr StringLiteral cudaFatbinSection = KITSUNE_CUDA_FB_SECTION;
-
-// The section containing the cuda fat binary "bundle". The bundle consists of
-// a magic number, version number and the fat binary. NVIDIA's tools look for
-// the fat binary in this section.
-constexpr StringLiteral cudaBundleSection = KITSUNE_CUDA_BUNDLE_SECTION;
-
-// The name of the section containing relocatable cuda code. This is where
-// kit-fblink looks for embedded device code object files.
-constexpr StringLiteral cudaDeviceCodeSection = KITSUNE_CUDA_EMB_CODE_SECTION;
-
-// @}
-
-// Utilities for singletons used by the hip tapir target.
-// @{
-
-// The name of the global variable that will contain the linked AMDGPU fat
-// binary.
-constexpr StringLiteral hipFatbinName = KITSUNE_HIP_FB_NAME;
-
-// The section containing the cuda fat binary.
-constexpr StringLiteral hipFatbinSection = KITSUNE_HIP_FB_SECTION;
-
-// The section containing the hip fat binary "bundle". The bundle consists of
-// a magic number, version number and the fat binary. AMD's tools look for the
-// fat binary in this section.
-constexpr StringLiteral hipBundleSection = KITSUNE_HIP_BUNDLE_SECTION;
-
-// The name of the section containing relocatable hip code. This is where
-// kit-fblink looks for embedded device code object files.
-constexpr StringLiteral hipDeviceCodeSection = KITSUNE_HIP_EMB_CODE_SECTION;
-
-// @}
+/// If the given string is the name of an embedded device code section, return
+/// the tapir target that will have generated it.
+std::optional<TTID> getTTIDForSection(StringRef section);
 
 /// Get the name of the singleton global variable that will contain the fat
 /// binary for the given tapir target.
-StringLiteral getFatbinName(TTID tt);
+StringLiteral getSingletonFBName(TTID tt);
 
 /// Get the name of the section containing the singleton fat binary global
 /// varible.
-StringLiteral getFatbinSection(TTID tt);
+StringLiteral getSingletonFBSection(TTID tt);
 
 /// Get the global variable created by a previous call to @ref
 /// createSingletonFBGlobal with the given tapir target if one exists.

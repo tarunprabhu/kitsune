@@ -1,0 +1,15 @@
+# If a tapir target that does not generate embedded device code is provided, an
+# error must be emitted in all cases.
+#
+# RUN: not kit-mdc --tapir nolo %S/input/elf.o 2>&1 \
+# RUN:     | FileCheck %s -check-prefix NOLO
+#
+# RUN: not kit-mdc --tapir serial %S/input/elf.o 2>&1 \
+# RUN:     | FileCheck %s -check-prefix SERIAL
+#
+# RUN: not kit-mdc --tapir opencilk %S/input/elf.o 2>&1 \
+# RUN:     | FileCheck %s -check-prefix OPENCILK
+#
+# NOLO: error: 'nolo' tapir target does not generate embedded device code
+# SERIAL: error: 'serial' tapir target does not generate embedded device code
+# OPENCILK: error: 'opencilk' tapir target does not generate embedded device code

@@ -1,0 +1,18 @@
+# Check that the correct error message is shown when a tapir target that does
+# not generate embedded bitcode is provided.
+#
+# RUN: echo "" \
+# RUN:     | not kit-enc -tapir=nolo 2>&1 \
+# RUN:     | FileCheck %s -check-prefix NOLO
+#
+# RUN: echo "" \
+# RUN:     | not kit-enc -tapir=serial 2>&1 \
+# RUN:     | FileCheck %s -check-prefix SERIAL
+#
+# RUN: echo "" \
+# RUN:     | not kit-enc -tapir=opencilk 2>&1 \
+# RUN:     | FileCheck %s -check-prefix OPENCILK
+#
+# NOLO: error: 'nolo' tapir target does not generate embedded bitcode
+# SERIAL: error: 'serial' tapir target does not generate embedded bitcode
+# OPENCILK: error: 'opencilk' tapir target does not generate embedded bitcode

@@ -43,12 +43,12 @@ static cl::opt<OptznLevel> clOptznLevel(
                clEnumValN(OptznLevel::Oz, "emb-Oz",
                           "Aggressively optimize for size")),
     cl::desc("Optimization level for the embedded modules"),
-    cl::cat(cl::catKitClDevOpts));
+    cl::cat(catKitDev));
 
 static cl::opt<bool> clPrintEmbPipelinePasses(
     "emb-print-pipeline-passes", cl::init(false), cl::Hidden,
     cl::desc("Print the passes that will be run on the embedded modules"),
-    cl::cat(cl::catKitClDevOpts));
+    cl::cat(catKitDev));
 
 static OptimizationLevel mapToOptimizationLevel(OptznLevel optznLevel) {
   switch (optznLevel) {

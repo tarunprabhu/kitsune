@@ -30,17 +30,17 @@ using namespace llvm;
 static cl::opt<bool>
     clDumpTTO("dump-tapir-target-options", cl::init(false),
               cl::desc("Dump the tapir target options if they have been set"),
-              cl::Hidden, cl::cat(cl::catKitClOpts));
+              cl::Hidden, cl::cat(catKitDev));
 
 /// Empty vector of tapir targets to be used when
 /// @ref TapirTargetInfo::getRequiredTTs is called with a function that does not
 /// contain any tapir loops.
 static const std::vector<TTID> noTTs;
 
-static std::unique_ptr<TapirTarget>
-createTT(TTID id, Module &m, const TapirTargetOptions &tto) {
-  // Yes, this is absolutely hideous. We should try to find a nicer way than
-  // this horrendous conditionally compiled mess!
+static std::unique_ptr<TapirTarget> createTT(TTID id, Module &m,
+                                             const TapirTargetOptions &tto) {
+  // Yes, this is absolutely hideous! We should try to find something better
+  // than this conditionally compiled mess.
   switch (id) {
   case TTID::Nolo:
     return nullptr;

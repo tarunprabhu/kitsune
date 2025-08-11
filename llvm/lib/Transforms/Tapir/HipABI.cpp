@@ -90,7 +90,7 @@ static cl::opt<unsigned> DefaultGrainSize(
     "hipabi-default-grainsize", cl::init(1), cl::Hidden,
     cl::desc("The default grain size used by the transform "
              "when analysis fails to determine one. (default=1)"),
-    cl::cat(cl::catKitClDevOpts));
+    cl::cat(catKitDev));
 
 // FIXME: We really should not be exposing command line options from other
 // source files. This is an experimental option that has been hacked in for the
@@ -98,7 +98,7 @@ static cl::opt<unsigned> DefaultGrainSize(
 // options instead. Otherwise, it should be removed altogether.
 cl::opt<bool> clUseYLaunch("hipabi-y-launch", cl::init(false), cl::Hidden,
                            cl::desc("Launch kernel using y-axis threading"),
-                           cl::cat(cl::catKitClDevOpts));
+                           cl::cat(catKitDev));
 
 /// @brief Return the work item ID for the calling thread. (thread index)
 /// @param Builder - IR builder for code gen assistance.

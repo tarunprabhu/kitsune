@@ -21,13 +21,13 @@ static cl::opt<bool> clInlineAll(
     "emb-inline-all", cl::init(false), cl::Hidden,
     cl::desc("Inline all device functions in the kernel module, unless they "
              "have the 'noinline' attribute"),
-    cl::cat(cl::catKitClDevOpts));
+    cl::cat(catKitDev));
 
 static cl::opt<bool> clInlineAllForce(
     "emb-inline-all-force", cl::init(false), cl::Hidden,
     cl::desc("Inline all device functions in the kernel module, including "
              "those that have the 'noinline' attribute"),
-    cl::cat(cl::catKitClDevOpts));
+    cl::cat(catKitDev));
 
 namespace llvm {
 

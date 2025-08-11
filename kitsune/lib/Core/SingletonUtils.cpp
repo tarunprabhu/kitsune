@@ -14,29 +14,37 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/SingletonUtils.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/Error.h"
 
 using namespace llvm;
 
-StringLiteral llvm::getFatbinName(TTID tt) {
+std::optional<TTID> llvm::getTTIDForSection(StringRef section) {
+  return StringSwitch<std::optional<TTID>>(section)
+      .Case(KITSUNE_CUDA_CODE_SECTION, TTID::Cuda)
+      .Case(KITSUNE_HIP_CODE_SECTION, TTID::Hip)
+      .Default(std::nullopt);
+}
+
+StringLiteral llvm::getSingletonFBName(TTID tt) {
   switch (tt) {
   case TTID::Cuda:
-    return cudaFatbinName;
+    return KITSUNE_CUDA_FB_NAME;
   case TTID::Hip:
-    return hipFatbinName;
+    return KITSUNE_HIP_FB_NAME;
   default:
     llvm_unreachable("getFatbinName: TTID not handled");
   }
 }
 
-StringLiteral llvm::getFatbinSection(TTID tt) {
+StringLiteral llvm::getSingletonFBSection(TTID tt) {
   switch (tt) {
   case TTID::Cuda:
-    return cudaFatbinSection;
+    return KITSUNE_CUDA_FB_SECTION;
   case TTID::Hip:
-    return hipFatbinSection;
+    return KITSUNE_HIP_FB_SECTION;
   default:
     llvm_unreachable("getFatbinSection: TTID not handled");
   }
@@ -49,18 +57,18 @@ GlobalVariable *llvm::createSingletonFBGlobal(TTID tt, Module &hostM) {
   LLVMContext &ctx = hostM.getContext();
   Type *i8 = Type::getInt8Ty(ctx);
   Type *type = ArrayType::get(i8, 0);
-  StringLiteral name = getFatbinName(tt);
+  StringLiteral name = getSingletonFBName(tt);
   GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
 
   GlobalVariable *g = new GlobalVariable(
       hostM, type, /*isConstant=*/true, linkage, /*Initializer=*/nullptr, name);
   g->addAttribute(Attribute::KitFB);
   g->addAttribute(Attribute::getWithTTID(ctx, tt));
-  g->setSection(getFatbinSection(tt));
+  g->setSection(getSingletonFBSection(tt));
 
   return g;
 }
 
 GlobalVariable *llvm::getSingletonFBGlobal(TTID tt, Module &m) {
-  return m.getGlobalVariable(getFatbinName(tt));
+  return m.getGlobalVariable(getSingletonFBName(tt));
 }

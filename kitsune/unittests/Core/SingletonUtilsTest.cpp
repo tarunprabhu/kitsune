@@ -14,24 +14,23 @@
 
 using namespace llvm;
 
-TEST(KitsuneSingletonUtils, names) {
-  EXPECT_EQ(cudaFatbinName, "__nv_fatbin");
-  EXPECT_EQ(cudaFatbinSection, ".nv_fatbin");
-  EXPECT_EQ(cudaBundleSection, ".nvFatBinSegment");
+TEST(KitsuneSingletonUtils, getTTIDFromSection) {
+  EXPECT_EQ(getTTIDForSection(KITSUNE_CUDA_CODE_SECTION), TTID::Cuda);
+  EXPECT_EQ(getTTIDForSection(KITSUNE_HIP_CODE_SECTION), TTID::Hip);
 
-  EXPECT_EQ(hipFatbinName, "__hip_fatbin");
-  EXPECT_EQ(hipFatbinSection, ".hip_fatbin");
-  EXPECT_EQ(hipBundleSection, ".hipFatBinSegment");
+  EXPECT_EQ(getTTIDForSection(""), std::nullopt);
+  EXPECT_EQ(getTTIDForSection(KITSUNE_CUDA_FB_SECTION), std::nullopt);
+  EXPECT_EQ(getTTIDForSection(KITSUNE_HIP_FB_SECTION), std::nullopt);
 }
 
-TEST(KitSingletonUtils, getName) {
-  EXPECT_EQ(getFatbinName(TTID::Cuda), cudaFatbinName);
-  EXPECT_EQ(getFatbinName(TTID::Hip), hipFatbinName);
+TEST(KitsuneSingletonUtils, getName) {
+  EXPECT_EQ(getSingletonFBName(TTID::Cuda), KITSUNE_CUDA_FB_NAME);
+  EXPECT_EQ(getSingletonFBName(TTID::Hip), KITSUNE_HIP_FB_NAME);
 }
 
 TEST(KitsuneSingletonUtils, getSection) {
-  EXPECT_EQ(getFatbinSection(TTID::Cuda), cudaFatbinSection);
-  EXPECT_EQ(getFatbinSection(TTID::Hip), hipFatbinSection);
+  EXPECT_EQ(getSingletonFBSection(TTID::Cuda), KITSUNE_CUDA_FB_SECTION);
+  EXPECT_EQ(getSingletonFBSection(TTID::Hip), KITSUNE_HIP_FB_SECTION);
 }
 
 TEST(KitEmbUtils, createSingletonFBCuda) {
@@ -43,12 +42,12 @@ TEST(KitEmbUtils, createSingletonFBCuda) {
   GlobalVariable *g = createSingletonFBGlobal(TTID::Cuda, m);
 
   EXPECT_TRUE(g->hasName());
-  EXPECT_EQ(g->getName(), cudaFatbinName);
+  EXPECT_EQ(g->getName(), KITSUNE_CUDA_FB_NAME);
   EXPECT_TRUE(g->isConstant());
   EXPECT_FALSE(g->hasInitializer());
   EXPECT_TRUE(isa<ArrayType>(g->getValueType()));
   EXPECT_EQ(cast<ArrayType>(g->getValueType())->getNumElements(), 0U);
-  EXPECT_EQ(g->getSection(), cudaFatbinSection);
+  EXPECT_EQ(g->getSection(), KITSUNE_CUDA_FB_SECTION);
   EXPECT_TRUE(g->hasAttribute(Attribute::KitFB));
   EXPECT_TRUE(g->hasAttribute(Attribute::KitTT));
   EXPECT_EQ(g->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
@@ -66,12 +65,12 @@ TEST(KitEmbUtils, createEmbFBHip) {
   GlobalVariable *g = createSingletonFBGlobal(TTID::Hip, m);
 
   EXPECT_TRUE(g->hasName());
-  EXPECT_EQ(g->getName(), hipFatbinName);
+  EXPECT_EQ(g->getName(), KITSUNE_HIP_FB_NAME);
   EXPECT_TRUE(g->isConstant());
   EXPECT_FALSE(g->hasInitializer());
   EXPECT_TRUE(isa<ArrayType>(g->getValueType()));
   EXPECT_EQ(cast<ArrayType>(g->getValueType())->getNumElements(), 0U);
-  EXPECT_EQ(g->getSection(), hipFatbinSection);
+  EXPECT_EQ(g->getSection(), KITSUNE_HIP_FB_SECTION);
   EXPECT_EQ(g->getUnnamedAddr(), GlobalValue::UnnamedAddr::None);
   EXPECT_TRUE(g->hasAttribute(Attribute::KitFB));
   EXPECT_TRUE(g->hasAttribute(Attribute::KitTT));

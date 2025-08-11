@@ -99,12 +99,12 @@ static cl::opt<unsigned> DefaultGrainSize(
     "cuabi-default-grainsize", cl::init(1), cl::Hidden,
     cl::desc("The default grain size used by the transform "
              "when analysis fails to determine one (default=1)"),
-    cl::cat(cl::catKitClDevOpts));
+    cl::cat(catKitDev));
 
 // Enable/Disable flush denorms-to-zero code generation.
 static cl::opt<bool> clFTZ("cuabi-ftz", cl::init(false), cl::Hidden,
                            cl::desc("Enable flush-denorms-to-zero"),
-                           cl::cat(cl::catKitClDevOpts));
+                           cl::cat(catKitDev));
 
 // FIXME: The default is currently set to true. This should be changed to false
 // and the name of the option changed.
@@ -114,14 +114,14 @@ static cl::opt<bool> clFTZ("cuabi-ftz", cl::init(false), cl::Hidden,
 // moment. If this is useful, we should consider adding it to the tapir target
 // options instead. Otherwise, it should be removed altogether.
 //
-// Request that the runtime carry out an extra set of steps to attempt to refine
+// Instruct the runtime to carry out an extra set of steps to attempt to refine
 // the launch parameters of kernels. In this mode of operation the compiler will
-// provide some compile-time information to the runtime for assisting in the
-// assisting in the analysis and refinement of launches.
+// provide some compile-time information to the runtime to assist in the
+// analysis and refinement of launches parameters.
 cl::opt<bool> clRefineLaunches(
     "cuabi-refine-launches", cl::init(true), cl::Hidden,
     cl::desc("Enable runtime's refinement of launch parameters"),
-    cl::cat(cl::catKitClDevOpts));
+    cl::cat(catKitDev));
 
 /// This prefix is intentionally *NOT* __kitcuda to ensure that there is no
 /// confusion - and, more importantly, no collisions - between any names

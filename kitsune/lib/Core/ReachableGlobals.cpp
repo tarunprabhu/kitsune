@@ -23,18 +23,18 @@
 using namespace llvm;
 
 void ReachableGlobals::analyze(GlobalVariable &g) {
-  seen.insert(&g);
+  gvs.insert(&g);
   if (g.hasInitializer())
     analyze(*g.getInitializer());
 }
 
 void ReachableGlobals::analyze(GlobalIFunc &g) {
-  seen.insert(&g);
+  gvs.insert(&g);
   llvm_unreachable("ReachableGlobals: GNU IFUNC not yet supported");
 }
 
 void ReachableGlobals::analyze(GlobalAlias &g) {
-  seen.insert(&g);
+  gvs.insert(&g);
   llvm_unreachable("ReachableGlobals: GlobalAlias not yet supported");
 }
 
@@ -47,7 +47,7 @@ void ReachableGlobals::analyze(BlockAddress &blkaddr) {
 
 void ReachableGlobals::analyze(Constant &c) {
   if (GlobalValue *g = dyn_cast<GlobalValue>(&c))
-    if (seen.find(g) != seen.end())
+    if (gvs.find(g) != gvs.end())
       return;
 
   if (auto *f = dyn_cast<Function>(&c))
@@ -67,14 +67,20 @@ void ReachableGlobals::analyze(Constant &c) {
 }
 
 void ReachableGlobals::analyze(BasicBlock &bb) {
-  for (Instruction &inst : bb)
-    for (Use &op : inst.operands())
-      if (auto *c = dyn_cast<Constant>(&op))
-        analyze(*c);
+  if (bbs.insert(&bb).second) {
+    for (Instruction &inst : bb) {
+      for (Use &op : inst.operands()) {
+        if (auto *c = dyn_cast<Constant>(&op))
+          analyze(*c);
+        else if (auto* bb = dyn_cast<BasicBlock>(&op))
+          analyze(*bb);
+      }
+    }
+  }
 }
 
 void ReachableGlobals::analyze(Function &f) {
-  seen.insert(&f);
+  gvs.insert(&f);
   for (BasicBlock &bb : f)
     analyze(bb);
 }
@@ -83,8 +89,7 @@ void ReachableGlobals::analyze(Loop &loop) {
   // Collect the globals used in any subloops, then the globals used within the
   // loop itself.
   for (Loop *subLoop : loop)
-    for (BasicBlock *bb : subLoop->blocks())
-      analyze(*bb);
+    analyze(*subLoop);
   for (BasicBlock *bb : loop.blocks())
     analyze(*bb);
 }

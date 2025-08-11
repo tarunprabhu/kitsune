@@ -1,0 +1,61 @@
+# REQUIRES: kitsune-cuda && kitsune-hip \
+# REQUIRES:   && (system-linux || system-freebsd || system-netbsd)
+#
+# FIXME: Dynamc shared objects are not yet supported, so fail for now.
+# XFAIL: *
+#
+# Test some basic functionality of kit-mdc when operating on dynamic shared
+# objects.
+#
+# Create temporary working directories
+#
+# RUN: rm -rf %t && mkdir -p %t
+# RUN: rm -rf %t/in && mkdir -p %t/in
+# RUN: rm -rf %t/out && mkdir -p %t/out
+#
+# Create the object files to be used for testing. The sources are checked in
+# to avoid having binary blobs checked in.
+#
+# RUN: llc -o %t/in/cdc.o -filetype=obj %S/input/cuda-mbc.ll \
+# RUN:     --tapir=cuda --tapir-cuda-arch=sm_72
+#
+# RUN: llc -o %t/in/hdc.o -filetype=obj %S/input/hip-mbc.ll \
+# RUN:     --tapir=hip --tapir-hip-arch=gfx1103
+#
+# RUN: lld -shared -o %t/in/libmulti.so %t/in/cdc.o %t/in/hdc.o
+#
+# ------------------------------------------------------------------------------
+# If an explicit output file has been given, the extracted device code must be
+# written to it.
+#
+# RUN: rm -rf %t/nv.cubin %t/amdgpu.o
+#
+# RUN: %if kitsune-cuda %{ not cat %t/nv-cubin %}
+# RUN: %if kitsune-cuda %{ kit-mdc -o %t/nv.cubin %t/in/cdc.o %}
+# RUN: %if kitsune-cuda %{ cat %t/nv.cubin %}
+#
+# RUN: %if kitsune-hip %{ not cat %t/amdgpu.o %}
+# RUN: %if kitsune-hip %{ kit-mdc -o %t/amdgpu.o %t/in/hdc.o %}
+# RUN: %if kitsune-hip %{ cat %t/amdgpu.o %}
+#
+# ------------------------------------------------------------------------------
+# If neither an output file, nor an output directory have been specified,
+# extract the embedded device code into the current directory. The names of the
+# extracted files are derived from the device architecture and binary format.
+#
+# RUN: cd %t/wd
+# RUN: rm -rf %t/wd/*
+#
+# RUN: kit-mdc %t/in/libmulti.so
+# RUN: cat %t/wd/libmulti.sm_72.a
+# RUN: cat %t/wd/libmulti.gfx1103.a
+#
+# ------------------------------------------------------------------------------
+# If an output directory has been given, ensure that the extracted files are
+# written to that directory.
+#
+# RUN: rm -rf %t/out/*
+#
+# RUN: kit-mdc -J %t/out %t/in/libmulti.so
+# RUN: cat %t/out/libmulti.sm_72.a
+# RUN: cat %t/out/libmulti.gfx1103.a

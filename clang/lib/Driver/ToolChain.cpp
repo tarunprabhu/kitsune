@@ -980,7 +980,6 @@ std::string ToolChain::GetLinkerPath(bool *LinkerIsLLD) const {
     *LinkerIsLLD = false;
 
   // If a tapir target has been specified, always use lld.
-  const Driver &D = getDriver();
   if (Args.getLastArg(options::OPT_tapir_EQ)) {
     StringRef LinkerName = Triple.isOSDarwin() ? "ld64.lld" : "ld.lld";
     std::string LinkerPath = GetProgramPath(LinkerName.data());

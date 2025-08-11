@@ -59,12 +59,14 @@ list(APPEND KITSUNE_TEST_DEPS
   kit-config
   kit-enc
   kit-mbc
+  kit-mdc
   kitsune-resource-headers
   clang
   count
   FileCheck
   llc
   lld
+  llvm-ar
   llvm-as
   llvm-config
   llvm-dis

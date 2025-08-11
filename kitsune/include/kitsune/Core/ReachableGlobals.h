@@ -38,11 +38,18 @@ class Loop;
 /// least attempt to detect indirect use of GlobalValue's.
 class ReachableGlobals {
 public:
-  using Set = SmallSet<GlobalValue *, 16>;
-  using Iterator = Set::const_iterator;
+  using SeenGlobals = SmallSet<GlobalValue *, 16>;
+  using Iterator = SeenGlobals::const_iterator;
 
 private:
-  Set seen;
+  using SeenBasicBlocks = SmallSet<BasicBlock*, 16>;
+
+private:
+  /// The global values that have been seen.
+  SeenGlobals gvs;
+
+  /// The basic blocks that have been seen.
+  SeenBasicBlocks bbs;
 
 private:
   void analyze(BlockAddress &addr);
@@ -52,17 +59,17 @@ private:
   void analyze(GlobalVariable &gv);
 
 public:
-  Iterator begin() const { return seen.begin(); }
-  Iterator end() const { return seen.end(); }
+  Iterator begin() const { return gvs.begin(); }
+  Iterator end() const { return gvs.end(); }
 
   /// Is the set of reachable globals empty?
-  bool empty() const { return seen.empty(); }
+  bool empty() const { return gvs.empty(); }
 
   /// Get the size of the reachable globals set.
-  size_t size() const { return seen.size(); }
+  size_t size() const { return gvs.size(); }
 
   /// Check if the given GlobalValue is known to be reachable.
-  bool contains(const GlobalValue &g) const { return seen.contains(&g); }
+  bool contains(const GlobalValue &g) const { return gvs.contains(&g); }
 
   /// Collect the GlobalValues used in a \ref BasicBlock.
   void analyze(BasicBlock &bb);

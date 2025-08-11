@@ -1,0 +1,3 @@
+This is a text file, but it is named text.o to subtly check that kit-mdc
+actually checks the contents of the file instead of just relying on the
+extension.

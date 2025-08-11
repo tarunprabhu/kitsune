@@ -1,0 +1,21 @@
+# Check that the correct error is emitted when a file in an unsupported format
+# is passed to kit-mdc
+#
+# RUN: rm -rf %t
+# RUN: mkdir -p %t
+#
+# ------------------------------------------------------------------------------
+# Text files are text files, even if they purport not to be.
+#
+# RUN: not kit-mdc %S/input/text.o 2>&1 \
+# RUN:     | FileCheck %s -check-prefix UNKNOWN
+#
+# ------------------------------------------------------------------------------
+# Generate a bitcode file and ensure that they cannot be handled.
+#
+# RUN: opt -o %t/bitcode.o %S/input/empty.ll
+# RUN: not kit-mdc %t/bitcode.o 2>&1 \
+# RUN:     | FileCheck %s -check-prefix BITCODE
+#
+# UNKNOWN: unsupported file format 'unknown'
+# BITCODE: unsupported file format 'bitcode'
