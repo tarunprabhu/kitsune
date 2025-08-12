@@ -3052,16 +3052,8 @@ template <class ELFT> void LinkerDriver::link(opt::InputArgList &args) {
   const size_t numInputFilesBeforeLTO = ctx.driver.files.size();
   compileBitcodeFiles<ELFT>(skipLinkedOutput);
 
-  if (!ctx.arg.shared) {
-    for (StringRef devObj : ctx.deviceCode.linkAll()) {
-      std::optional<MemoryBufferRef> bufOrErr = readFile(ctx, devObj);
-      if (!bufOrErr)
-        return;
-      MemoryBufferRef buf = *bufOrErr;
-      ctx.deviceObjectFiles.push_back(createObjFile(ctx, buf, "", false));
-      parseFile(ctx, &*ctx.deviceObjectFiles.back());
-    }
-  }
+  // // Link all device code that was found. This will have updated the context.
+  // ctx.deviceCode.linkAll();
 
   // Symbol resolution finished. Report backward reference problems,
   // --print-archive-stats=, and --why-extract=.

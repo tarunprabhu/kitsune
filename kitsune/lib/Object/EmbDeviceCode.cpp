@@ -11,19 +11,76 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Object/EmbDeviceCode.h"
+#include "kitsune/Object/ObjectUtils.h"
 #include "kitsune/Support/StringUtils.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/BinaryFormat/Magic.h"
 #include "llvm/Support/Path.h"
-#include "kitsune/Support/ToString.h"
 
 using namespace llvm;
+
+static bool isDeviceCodeSection(SectionRef sec, TTID tt) {
+  if (Expected<StringRef> name = sec.getName())
+    return StringSwitch<bool>(*name)
+        .Case(KITSUNE_CUDA_CODE_SECTION, tt == TTID::Cuda)
+        .Case(KITSUNE_HIP_CODE_SECTION, tt == TTID::Hip)
+        .Default(false);
+  return false;
+}
+
+static Expected<std::optional<EmbDeviceCode>> parseSection(SectionRef sec) {
+  Expected<StringRef> contents = sec.getContents();
+  if (not contents)
+    return createStringError("Could not parse device code section contents");
+
+  size_t pos = 0;
+  const char *buf = contents->data();
+  const ObjectFile &objFile = *sec.getObject();
+
+  // The section is guaranteed to contain a single binary blob. If the parent
+  // object file is a relocatable object, the blob will also be a relocatable
+  // ELF object. If the parent object file is a dynamic shared object (DSO),
+  // this will be a static archive. The first 8 bytes of the section is an
+  // EmbDeviceCode::Id. The rest of the section is the blob.
+  //
+  //   struct {
+  //     uint64_t id;  // The EmbDeviceCode::Id
+  //     byte code[];  // The embedded code.
+  //   };
+  //
+  if (sec.getSize() <= 8)
+    return createStringError(sjoin("Expected id at ", pos));
+  uint64_t nid = *reinterpret_cast<const uint64_t *>(&buf[pos]);
+  Expected<EmbDeviceCode::Id> id = EmbDeviceCode::getIdFor(nid);
+  if (not id)
+    return createStringError(
+        sjoin("Invalid id for embedded device code: ", nid));
+
+  pos += 8;
+  StringRef code(&buf[pos], sec.getSize() - pos);
+
+  // The contents of the section must be something that is expected.
+  if (isObject(objFile)) {
+    if (not isObject(code))
+      return createStringError("Embedded device code in relocatable object "
+                               "must be a relocatable object");
+  } else if (isShared(objFile)) {
+    if (not isArchive(code))
+      return createStringError("Embedded device code in dynamic shared object "
+                               "must be a static archive");
+  } else {
+    report_internal_error("Section in unexpected kind of binary object");
+  }
+
+  return EmbDeviceCode(objFile, *id, code, objFile.getFileName());
+}
 
 static StringRef getExt(EmbDeviceCode::BinaryFormat fmt, file_magic magic) {
   switch (magic) {
   case file_magic::archive:
     return ".a";
   case file_magic::elf_relocatable:
+  case file_magic::macho_object:
     switch (fmt) {
     case EmbDeviceCode::AMDGPU:
       return ".o";
@@ -33,17 +90,24 @@ static StringRef getExt(EmbDeviceCode::BinaryFormat fmt, file_magic magic) {
       return ".ptx";
     }
     llvm_unreachable("getExt(elf_relocatable): Unknown binary format");
+  case file_magic::elf_shared_object:
+    return ".so";
+  case file_magic::macho_dynamically_linked_shared_lib:
+    return ".dylib";
   default:
+    outs() << "magic: " << magic << "\n";
     llvm_unreachable("getExt: Magic number not handled");
   }
 }
 
-EmbDeviceCode::EmbDeviceCode(Id id, StringRef code, StringRef hostFileName)
-    : id(id), code(code) {
-  const auto &[base, e] = sys::path::filename(hostFileName).rsplit('.');
-  file_magic magic = identify_magic(getCode());
+EmbDeviceCode::EmbDeviceCode(const Binary &bin, Id id, StringRef code)
+    : bin(bin), id(id), code(code) {
+  StringRef fileName = bin.getFileName();
+  file_magic magic = identify_magic(code);
   BinaryFormat fmt = getBinaryFormat();
   StringRef ext = getExt(fmt, magic);
+  const auto &[base, e] = sys::path::filename(fileName).rsplit('.');
+
   name = sjoin(base, "-", getArch(), ext);
 }
 
@@ -284,6 +348,12 @@ Expected<EmbDeviceCode::Id> EmbDeviceCode::getIdFor(StringRef s) {
       .Default(createStringError("Cannot convert string to EmbDeviceCode::Id"));
 }
 
+bool EmbDeviceCode::isArchive() const { return object::isArchive(code); }
+
+bool EmbDeviceCode::isObject() const { return object::isObject(code); }
+
+bool EmbDeviceCode::isShared() const { return object::isShared(code); }
+
 Expected<EmbDeviceCode::Id> EmbDeviceCode::getIdFor(uint64_t n) {
   uint64_t unused = n & maskUnused;
   auto fmt = static_cast<BinaryFormat>(n & maskFormat);
@@ -302,4 +372,51 @@ Expected<EmbDeviceCode::Id> EmbDeviceCode::getIdFor(uint64_t n) {
     }
   }
   return createStringError("Cannot convert integer to EmbDeviceCode::Id");
+}
+
+Expected<std::optional<EmbDeviceCode>>
+EmbDeviceCode::parse(const ObjectFile &objFile, TTID tt) {
+  for (SectionRef sec : objFile.sections())
+    if (isDeviceCodeSection(sec, tt))
+      return parseSection(sec);
+  return std::nullopt;
+}
+
+Expected<std::optional<EmbDeviceCode>>
+EmbDeviceCode::parse(const Archive &archive, TTID tt) {
+  Error err = Error::success();
+  for (const Archive::Child &child : archive.children(err)) {
+    if (err)
+      return err;
+
+    Expected<MemoryBufferRef> memBufOrErr = child.getMemoryBufferRef();
+    if (not memBufOrErr)
+      return memBufOrErr.takeError();
+    const MemoryBufferRef &memBuf = *memBufOrErr;
+
+    Expected<std::unique_ptr<ObjectFile>> objFileOrErr =
+        ObjectFile::createObjectFile(memBuf);
+    if (not objFileOrErr)
+      return objFileOrErr.takeError();
+    const ObjectFile &objFile = **objFileOrErr;
+
+    Expected<std::optional<EmbDeviceCode>> devCodeOrErr = parse(objFile, tt);
+    if (not devCodeOrErr)
+      return devCodeOrErr.takeError();
+    std::optional<EmbDeviceCode> devCode = *devCodeOrErr;
+
+    if (devCode)
+      linker.add(*devCode);
+  }
+
+  return linker.linkStatic();
+}
+
+Expected<std::optional<EmbDeviceCode>> EmbDeviceCode::create(const Binary &bin,
+                                                             TTID tt) {
+  if (auto *objFile = dyn_cast<ObjectFile>(&bin))
+    return EmbDeviceCode::create(*objFile, tt);
+  else if (auto *archive = dyn_cast<Archive>(&bin))
+    return EmbDeviceCode::create(*archive, tt);
+  llvm_unreachable("EmbDeviceCode::create: File format not supported");
 }

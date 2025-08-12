@@ -448,32 +448,6 @@ template <class ELFT> void ObjFile<ELFT>::initDwarf() {
       }));
 }
 
-template <typename ELFT>
-std::optional<TTID>
-ELFFileBase::getDeviceCodeTT(const typename ELFT::Shdr &sec) {
-  object::ELFFile<ELFT> obj = this->getObj<ELFT>();
-  ArrayRef<typename ELFT::Shdr> sections = getELFShdrs<ELFT>();
-  StringRef shstrtab = CHECK2(obj.getSectionStringTable(sections), this);
-  StringRef secName = check(obj.getSectionName(sec, shstrtab));
-
-  return StringSwitch<std::optional<TTID>>(secName)
-      .Case(cudaDeviceCodeSection, TTID::Cuda)
-      .Case(hipDeviceCodeSection, TTID::Hip)
-      .Default(std::nullopt);
-}
-
-template <class ELFT>
-bool ELFFileBase::parseIfDeviceCodeSection(const typename ELFT::Shdr &sec) {
-  object::ELFFile<ELFT> obj = this->getObj<ELFT>();
-  if (std::optional<TTID> tt = getDeviceCodeTT<ELFT>(sec)) {
-    ArrayRef<char> data =
-        CHECK2(obj.template getSectionContentsAsArray<char>(sec), this);
-    ctx.deviceCode.parseSection(*tt, data);
-    return true;
-  }
-  return false;
-}
-
 DWARFCache *ELFFileBase::getDwarf() {
   assert(fileKind == ObjKind);
   llvm::call_once(initDwarf, [this]() {
@@ -565,6 +539,26 @@ uint32_t ObjFile<ELFT>::getSectionIndex(const Elf_Sym &sym) const {
   return CHECK2(
       this->getObj().getSectionIndex(sym, getELFSyms<ELFT>(), shndxTable),
       this);
+}
+
+template <typename ELFT>
+std::optional<TTID>
+ELFFileBase::getDeviceCodeTT(const typename ELFT::Shdr &sec) {
+  object::ELFFile<ELFT> obj = this->getObj<ELFT>();
+  ArrayRef<typename ELFT::Shdr> sections = getELFShdrs<ELFT>();
+  StringRef shstrtab = CHECK2(obj.getSectionStringTable(sections), this);
+  StringRef secName = check(obj.getSectionName(sec, shstrtab));
+
+  return getTTIDForSection(secName);
+}
+
+template <class ELFT>
+bool ELFFileBase::parseIfDeviceCodeSection(const typename ELFT::Shdr &sec) {
+  object::ELFFile<ELFT> obj = this->getObj<ELFT>();
+  std::optional<TTID> tt = getDeviceCodeTT<ELFT>(sec);
+  // if (tt)
+  //   ctx.deviceCode.parseSection(*tt, CHECK2(getSectionContents(sec), this));
+  return tt.has_value();
 }
 
 template <class ELFT> void ObjFile<ELFT>::parse(bool ignoreComdats) {

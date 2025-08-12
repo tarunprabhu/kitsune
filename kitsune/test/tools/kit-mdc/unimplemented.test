@@ -14,7 +14,7 @@
 # RUN: llc --mtriple=x86_64-apple-darwin -filetype=obj %S/input/empty.ll \
 # RUN:     -o %t/in/macho.o
 #
-# RUN: llc --mtriple=x86_64-windows-mscv -filetype=obj %S/input/empty.ll \
+# RUN: llc --mtriple=x86_64-windows-msvc -filetype=obj %S/input/empty.ll \
 # RUN:     -o %t/in/coff.o
 #
 # ------------------------------------------------------------------------------
@@ -29,7 +29,7 @@
 # ------------------------------------------------------------------------------
 # It is unlikely that Windows will ever be supported.
 #
-# RUN: not kit-mdc %S/input/coff.o 2>&1 \
+# RUN: not kit-mdc %t/in/coff.o 2>&1 \
 # RUN:     | FileCheck %s -check-prefix COFF
 #
 # COFF: NOT YET IMPLEMENTED: support for object file format 'coff-object'

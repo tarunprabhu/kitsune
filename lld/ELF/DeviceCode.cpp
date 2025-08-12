@@ -8,6 +8,7 @@
 
 #include "DeviceCode.h"
 #include "Config.h"
+#include "InputFiles.h"
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Support/TTUtils.h"
@@ -23,7 +24,7 @@ using namespace lld;
 using namespace lld::elf;
 using namespace llvm;
 
-namespace {
+namespace lld::elf {
 
 using Path = DeviceCodeCtx::Path;
 
@@ -45,28 +46,49 @@ template <typename... Args> static void err(Ctx &ctx, Args &&...args) {
   ctx.e.error(buf);
 }
 
-static Path getEmptyFilePath(StringRef tempDir) {
+static size_t align(size_t pos, size_t multiple) {
+  return ((pos + multiple - 1) / multiple) * multiple;
+}
+
+static Path getTempFilePath(StringRef tempDir, StringRef fileName) {
   Path path;
-  sys::path::append(path, tempDir, "empty.dat");
+  sys::path::append(path, tempDir, fileName);
   return path;
 }
 
-static size_t align(size_t pos, size_t multiple) {
-  return ((pos + multiple - 1) / multiple) * multiple;
+static StringRef getLinkedFileExt(TTID tt) {
+  switch (tt) {
+  case TTID::Cuda:
+    return "cubin";
+  case TTID::Hip:
+    return "so";
+  default:
+    llvm_unreachable("getLinkedFileExt: TTID not handled");
+  }
 }
 
 class DeviceCodeLinker {
 protected:
   Ctx &ctx;
-  StringRef tempDir;
-  StringRef varName;
-  StringRef sectionName;
-  StringRef linkedFileName;
-  StringRef finalObjFileName;
+  TTID tt;
+  Path emptyFile;
+  Path linkedFile;
+  Path finalObjFile;
 
 protected:
-  DeviceCodeLinker(Ctx &ctx, StringRef tempDir) : ctx(ctx), tempDir(tempDir) {}
+  DeviceCodeLinker(Ctx &ctx, TTID tt, StringRef tempDir) : ctx(ctx), tt(tt) {
+    StringRef ttStr = toString(tt);
+    StringRef ext = getLinkedFileExt(tt);
+    std::string linkedFileName = join_items("", "kit", ttStr, "_linked.", ext);
+    std::string finalObjFileName = join_items("", "kit", ttStr, "_fb.o");
 
+    emptyFile = getTempFilePath(tempDir, "empty.dat");
+    linkedFile = getTempFilePath(tempDir, linkedFileName);
+    finalObjFile = getTempFilePath(tempDir, finalObjFileName);
+  }
+
+  /// Get the path to an LLVM tool. The tool is expected to be in the same
+  /// directory as the linker executable.
   Path getLLVMTool(StringRef tool) {
     Path path;
     StringRef dirName = sys::path::parent_path(ctx.arg.progName);
@@ -74,18 +96,39 @@ protected:
     return path;
   }
 
-  Path getLinkedFilePath() {
-    Path path;
-    sys::path::append(path, tempDir, linkedFileName);
-    return path;
+  void parseError(StringRef msg, size_t pos) {
+    err(ctx, "invalid device code section: ", msg, " at offset ", pos);
   }
 
-  Path getFinalObjFilePath() {
-    Path path;
-    sys::path::append(path, tempDir, finalObjFileName);
-    return path;
+  /// Execute the command consisting of the given args. The first element of
+  /// the args array is the full path to the executable to be run.
+  void execute(ArrayRef<StringRef> args, StringRef errLabel) {
+    // The 0 values for SecondsToWait and MemoryLimit indicate that there is no
+    // limit on the command execution time, nor the amount of memory it can use.
+    std::string errMsg;
+    if (sys::ExecuteAndWait(args[0], args,
+                            /*Env=*/std::nullopt,
+                            /*Redirects=*/{},
+                            /*SecondsToWait=*/0, /* 0 => unlimited */
+                            /*MemoryLimit=*/0,   /* 0 => unlimited */
+                            &errMsg))
+      err(ctx, errLabel, ": ", errMsg);
   }
 
+  /// Create a static archive consisting of the given object files.
+  void createArchive(ArrayRef<StringRef> objFiles, StringRef archiveFile) {
+    Path prog = getLLVMTool("llvm-ar");
+    std::vector<StringRef> args = {prog};
+    args.push_back("rc");
+    args.push_back(archiveFile);
+    for (StringRef objFile : objFiles)
+      args.push_back(objFile);
+
+    execute(args, "could not create device code archive");
+  }
+
+  /// Get the architecture of the final object file. This consists of the ELF
+  /// architecture and the machine architecture e.g. elf64-x86-64.
   std::string getOutputTarget() {
     auto getOutputFormat = [](bool is64) -> StringRef {
       return is64 ? "elf64" : "elf32";
@@ -98,9 +141,8 @@ protected:
       case ELF::EM_AARCH64:
         return "aarch64";
       default:
-        break;
+        llvm_unreachable("getOutputMachine: ELF ID not handled");
       }
-      llvm_unreachable("getOutputMachine: ELF ID not handled");
     };
 
     StringRef format = getOutputFormat(ctx.arg.is64);
@@ -116,10 +158,11 @@ protected:
   ///
   /// where
   ///
-  ///   <PATH>   is the <infile> command line argument with any characters that
-  ///            are not allowed in C identifiers replaced with '_'
+  ///   <PATH>    is the <infile> command line argument to llvm-objcopy with any
+  ///             characters that are not allowed in C identifiers replaced with
+  ///             an underscore
   ///
-  ///   <SUFFIX> One of "start", "end", "size" (with the double quotes)
+  ///   <SUFFIX>  One of "start", "end", "size" (without the double quotes)
   ///
   std::string getSymbol(StringRef inFile, StringRef suffix) {
     SmallVector<StringRef, 4> parts;
@@ -132,7 +175,10 @@ protected:
     for (StringRef part : parts) {
       os << '_';
       for (char c : part)
-        os << ((std::isalnum(c) || c == '_') ? c : '_');
+        if (std::isalnum(c) || c == '_')
+          os << c;
+        else
+          os << '_';
     }
     os << '_' << suffix;
     os.flush();
@@ -140,8 +186,10 @@ protected:
     return buf;
   }
 
-  void embedIntoObjectFile(StringRef linkedFile, StringRef objFile) {
-    Path emptyFile = getEmptyFilePath(tempDir);
+  /// Embed the linked fat binary into an object file.
+  void embedIntoObjectFile() {
+    StringRef varName = getSingletonFBName(tt);
+    StringRef sectionName = getSingletonFBSection(tt);
     std::string symStart = getSymbol(emptyFile, "start");
     std::string symEnd = getSymbol(emptyFile, "end");
     std::string symSize = getSymbol(emptyFile, "size");
@@ -217,38 +265,30 @@ protected:
     // explanation.
     args.push_back(emptyFile);
 
-    // The output file. This is the path to the final host object file into
-    // which the linked file is embedded.
-    args.push_back(objFile);
+    llvm_unreachable("Not implemented: embedIntoObjectFile");
+    // // The output file. This is the path to the final host object file into
+    // // which the linked file is embedded.
+    // args.push_back(objFile);
 
     if (ctx.e.verbose)
       Msg(ctx) << join(args, " ");
 
-    // The 0 values for SecondsToWait and MemoryLimit indicate that there is no
-    // limit on the command execution time, nor the amount of memory it can use.
-    std::string errMsg;
-    if (sys::ExecuteAndWait(args[0], args,
-                            /*Env=*/std::nullopt,
-                            /*Redirects=*/{},
-                            /*SecondsToWait=*/0, /* 0 => unlimited */
-                            /*MemoryLimit=*/0,   /* 0 => unlimited */
-                            &errMsg))
-      err(ctx, "could not generate embedded object file: ", errMsg);
+    execute(args, "could not generate final object file");
   }
 
+  // Parse the contents of the given section.
+  virtual void parseSection(ArrayRef<uint8_t> buf) = 0;
+
   // Link the given object files into the given output file.
-  virtual void link(ArrayRef<Path> objFiles, StringRef linkedFile) = 0;
+  virtual void link(ArrayRef<Path> objFiles) = 0;
 
 public:
   virtual ~DeviceCodeLinker() = default;
 
   Path run(ArrayRef<Path> objFiles) {
-    Path finalObjFile = getFinalObjFilePath();
-    Path linkedFile = getLinkedFilePath();
-
-    link(objFiles, linkedFile);
+    link(objFiles);
     if (ctx.e.errorCount == 0)
-      embedIntoObjectFile(linkedFile, finalObjFile);
+      embedIntoObjectFile();
 
     return finalObjFile;
   }
@@ -256,20 +296,68 @@ public:
 
 class CudaLinker : public DeviceCodeLinker {
 protected:
-  virtual void link(ArrayRef<Path> files, StringRef linkedFile) override {
-    // StringRef prog = KITSUNE_CUDA_FATBINARY;
-    // std::vector<StringRef> args = {prog};
-    // args.push_back("--64");
-    // args.push_back("--create");
-    // args.push_back(linkedFile);
+  /// Metadata above a single embedded device code object.
+  struct CodeObject {
+    /// The actual code
+    StringRef code;
 
-    // std::vector<std::string> images;
-    // for (StringRef file : files) {
-    //   images.push_back(join_items("", "--image=profile=sm_70", ",file=", file));
-    //   args.push_back(images.back());
-    // }
+    /// The cuda architecture. If the code object is PTX, this corresponds to
+    /// a virtual architecture of compute_<ARCH>. Otherwise, it corresponds to
+    /// an architecture
+    unsigned arch;
 
-    StringRef prog = "/vast/home/tarun/gentoo/aarch64/opt/cuda/bin/nvlink";
+    /// True if the code is NVIDIA PTX. If this false, the code object is GPU
+    /// machine code.
+    bool isPTX;
+  };
+
+protected:
+  /// The code objects that were seen in the various host object files.
+  std::vector<CodeObject> codeObjs;
+
+protected:
+  virtual void parseSection(ArrayRef<uint8_t> buf) override {
+    // The section can be treated as an array of non-uniform structs:
+    //
+    //   struct {
+    //     uint64_t size;  // The size, in bytes, of the code block
+    //     uint32_t isPtx; // A boolean where 1 indicates that the code is PTX,
+    //                     // SASS otherwise
+    //     uint32_t arch;  // The architecture. If the cuda architecture is
+    //                     // "sm_86", this will be 86.
+    //     byte code[];    // A block of <SIZE> bytes.
+    //   };
+    //
+    // Each struct is aligned on an 8-byte boundary.
+    for (size_t pos = 0; pos < buf.size();) {
+      if (pos + 8 > buf.size())
+        return parseError("Expected size", pos);
+      uint64_t size = *reinterpret_cast<const uint64_t *>(&buf[pos]);
+      pos += 8;
+
+      if (pos + 4 > buf.size())
+        return parseError("Expected flag", pos);
+      uint32_t isPtx = *reinterpret_cast<const uint32_t *>(&buf[pos]);
+      pos += 4;
+
+      if (pos + 4 > buf.size())
+        return parseError("Expected arch", pos);
+      uint32_t arch = *reinterpret_cast<const uint32_t *>(&buf[pos]);
+      pos += 4;
+
+      if (pos + size > buf.size())
+        return parseError("Unexpected end of section", pos);
+      StringRef code(reinterpret_cast<const char *>(&buf[pos]), size);
+      pos += size;
+      pos = align(pos, 8);
+
+      llvm_unreachable("parseSection: NOT IMPLEMENTED");
+      // codeObjs.emplace_back(code, arch, isPtx);
+    }
+  }
+
+  virtual void link(ArrayRef<Path> files) override {
+    StringRef prog = KITSUNE_CUDA_NVLINK;
     std::vector<StringRef> args = {prog};
     // FIXME: For now, just assume that everything is a SASS file and compiled
     // for sm_70. This is obviously very wrong, but it's just to see if the
@@ -278,41 +366,56 @@ protected:
     args.push_back("sm_70");
     args.push_back("--output-file");
     args.push_back(linkedFile);
-
-    // std::vector<std::string> images;
     for (StringRef file : files)
       args.push_back(file);
 
     if (ctx.e.verbose)
       Msg(ctx) << join(args, " ");
 
-    // The 0 values for SecondsToWait and MemoryLimit indicate that there is
-    // no limit on the command execution time, nor the amount of memory it can
-    // use.
-    std::string errMsg;
-    if (sys::ExecuteAndWait(args[0], args,
-                            /*Env=*/std::nullopt,
-                            /*Redirects=*/{},
-                            /*SecondsToWait=*/0, /* 0 => unlimited */
-                            /*MemoryLimit=*/0,   /* 0 => unlimited */
-                            &errMsg))
-      err(ctx, errMsg);
+    execute(args, "could not link cuda fatbin");
   }
 
 public:
   ~CudaLinker() = default;
 
-  CudaLinker(Ctx &ctx, StringRef tempDir) : DeviceCodeLinker(ctx, tempDir) {
-    varName = cudaFatbinName;
-    sectionName = cudaFatbinSection;
-    linkedFileName = "kitcuda_linked.cubin";
-    finalObjFileName = "kitcuda_fb.o";
-  }
+  CudaLinker(Ctx &ctx, StringRef tempDir)
+      : DeviceCodeLinker(ctx, TTID::Cuda, tempDir) {}
 };
 
 class HipLinker : public DeviceCodeLinker {
 protected:
-  virtual void link(ArrayRef<Path> objFiles, StringRef linkedFile) override {
+  /// The code objects that were found in the various host object files that
+  /// were parsed.
+  std::vector<StringRef> codeObjs;
+
+protected:
+  virtual void parseSection(ArrayRef<uint8_t> buf) override {
+    // The section can be treated as an array of non-uniform structs:
+    //
+    //   struct {
+    //     uint64_t size; // The size, in bytes, of the following code block
+    //     byte code[];   // A block of <SIZE> bytes.
+    //   };
+    //
+    // Each struct is aligned on an 8-byte boundary.
+    //
+    for (size_t pos = 0; pos < buf.size();) {
+      if (pos + 8 > buf.size())
+        return parseError("Expected size", pos);
+      uint64_t size = *reinterpret_cast<const uint64_t *>(&buf[pos]);
+      pos += 8;
+
+      if (pos + size > buf.size())
+        return parseError("Unexpected end of section", buf.size());
+      StringRef code(reinterpret_cast<const char*>(&buf[pos]), size);
+      pos += size;
+      pos = align(pos, 8);
+
+      codeObjs.emplace_back(code);
+    }
+  }
+
+  virtual void link(ArrayRef<Path> objFiles) override {
     Path prog = getLLVMTool("ld.lld");
     std::vector<StringRef> args = {prog};
     args.push_back("-m");
@@ -332,36 +435,24 @@ protected:
     // global state that causes issues. If that is ever fixed by upstream, we
     // should be able to just call lldMain here with this argument list which
     // will save us having to spawn a process.
-    //
-    // The 0 values for SecondsToWait and MemoryLimit indicate that there is
-    // no limit on the command execution time, nor the amount of memory it can
-    // use.
-    std::string errMsg;
-    if (sys::ExecuteAndWait(args[0], args,
-                            /*Env=*/std::nullopt,
-                            /*Redirects=*/{},
-                            /*SecondsToWait=*/0, /* 0 => unlimited */
-                            /*MemoryLimit=*/0,   /* 0 => unlimited */
-                            &errMsg))
-      err(ctx, errMsg);
+    execute(args, "could not link hip fatbin");
   }
 
 public:
   ~HipLinker() = default;
 
-  HipLinker(Ctx &ctx, StringRef tempDir) : DeviceCodeLinker(ctx, tempDir) {
-    varName = hipFatbinName;
-    sectionName = hipFatbinSection;
-    linkedFileName = "kithip_linked.so";
-    finalObjFileName = "kithip_fb.o";
-  }
+  HipLinker(Ctx &ctx, StringRef tempDir)
+      : DeviceCodeLinker(ctx, TTID::Hip, tempDir) {}
 };
 
-} // namespace
+} // namespace lld::elf
 
 DeviceCodeCtx::DeviceCodeCtx(Ctx &ctx) : ctx(ctx) {
   // The ctx object will not have been initialized when this is called, so it
   // should not be used for anything.
+  std::error_code ec = sys::fs::createUniqueDirectory("kit-lld", tempDir);
+  if (ec)
+    err(ctx, ec.message());
 }
 
 DeviceCodeCtx::~DeviceCodeCtx() {
@@ -369,187 +460,93 @@ DeviceCodeCtx::~DeviceCodeCtx() {
     sys::fs::remove_directories(tempDir);
 }
 
-bool DeviceCodeCtx::createWorkingDir() {
-  if (tempDir.empty()) {
-    if (std::error_code ec =
-            sys::fs::createUniqueDirectory("kit-lld", tempDir)) {
-      err(ctx, ec.message());
-      return false;
-    }
-  }
-  return true;
-}
+// StringRef DeviceCodeCtx::getTempFilePath(TTID tt, StringRef ext) {
+//   // The files containing the device code are named 1.o, 2.o etc. This is
+//   // determined by the number of object files that have been recorded. First,
+//   // create an empty string at the end of the list of object files for the
+//   // tapir target. That string is populated in the call to path::append.
+//   tempFiles[tt].emplace_back("");
+//   size_t idx = tempFiles[tt].size();
+//   Path &objFile = tempFiles[tt].back();
+//   sys::path::append(objFile, tempDir, std::to_string(idx));
+//   sys::path::replace_extension(objFile, ext);
 
-StringRef DeviceCodeCtx::getTempFilePath(TTID tt, StringRef ext) {
-  // The files containing the device code are named 1.o, 2.o etc. This is
-  // determined by the number of object files that have been recorded. First,
-  // create an empty string at the end of the list of object files for the
-  // tapir target. That string is populated in the call to path::append.
-  tempFiles[tt].emplace_back("");
-  size_t idx = tempFiles[tt].size();
-  Path &objFile = tempFiles[tt].back();
-  sys::path::append(objFile, tempDir, std::to_string(idx));
-  sys::path::replace_extension(objFile, ext);
+//   return objFile.str();
+// }
 
-  return objFile.str();
-}
+// bool DeviceCodeCtx::saveDeviceCode(TTID tt, StringRef code, StringRef ext) {
+//   if (not createWorkingDir())
+//     return false;
 
-bool DeviceCodeCtx::saveDeviceCode(TTID tt, StringRef code, StringRef ext) {
-  if (not createWorkingDir())
-    return false;
+//   std::error_code ec;
+//   StringRef objFile = getTempFilePath(tt, ext);
+//   raw_fd_ostream fs(objFile, ec);
+//   if (ec) {
+//     err(ctx, "Could not create file for device code buffer: ", ec.message());
+//     return false;
+//   }
+//   fs << code;
+//   fs.close();
 
-  std::error_code ec;
-  StringRef objFile = getTempFilePath(tt, ext);
-  raw_fd_ostream fs(objFile, ec);
-  if (ec) {
-    err(ctx, "Could not create file for device code buffer: ", ec.message());
-    return false;
-  }
-  fs << code;
-  fs.close();
+//   return true;
+// }
 
-  return true;
-}
-
-unsigned DeviceCodeCtx::parseSectionCuda(ArrayRef<char> buf) {
-  auto error = [&](StringRef msg, size_t pos) -> int {
-    err(ctx, msg, " at offset ", pos);
-    return 0;
-  };
-
-  // The section can be treated as an array of non-uniform structs:
-  //
-  //   struct {
-  //     uint64_t size;  // The size, in bytes, of the code block
-  //     uint32_t isPtx; // A boolean where 1 indicates that the code is PTX,
-  //                     // SASS otherwise
-  //     uint32_t arch;  // The architecture. If the cuda architecture is
-  //                     // "sm_86", this will be 86.
-  //     byte code[];    // A block of <SIZE> bytes.
-  //   };
-  //
-  // Each struct is aligned on an 8-byte boundary.
-  //
-  unsigned count = 0;
-  for (size_t pos = 0; pos < buf.size();) {
-    if (pos + 8 > buf.size())
-      return error("invalid device code section: Expected size", pos);
-    uint64_t size = *reinterpret_cast<const uint64_t *>(&buf[pos]);
-    pos += 8;
-
-    if (pos + 4 > buf.size())
-      return error("invalid device code section: Expected flag", pos);
-    uint32_t isPtx = *reinterpret_cast<const uint32_t *>(&buf[pos]);
-    pos += 4;
-
-    if (pos + 4 > buf.size())
-      return error("invalid device code section: Expected arch", pos);
-    uint32_t arch = *reinterpret_cast<const uint32_t *>(&buf[pos]);
-    pos += 4;
-
-    if (pos + size > buf.size())
-      return error("invalid device code section: Unexpected end of section",
-                   pos);
-    StringRef code(&buf[pos], size);
-    pos += size;
-
-    StringRef ext = isPtx ? "ptx" : "cubin";
-    if (not saveDeviceCode(TTID::Cuda, code, ext))
-      return 0;
-
-    ++count;
-    pos = align(pos, 8);
-  }
-  return count;
-}
-
-unsigned DeviceCodeCtx::parseSectionHip(ArrayRef<char> buf) {
-  // The section can be treated as an array of non-uniform structs:
-  //
-  //   struct {
-  //     uint64_t size; // The size, in bytes, of the following code block
-  //     byte code[];   // A block of <SIZE> bytes.
-  //   };
-  //
-  // Each struct is aligned on an 8-byte boundary.
-  //
-  unsigned count = 0;
-  for (size_t pos = 0; pos < buf.size();) {
-    if (pos + 8 > buf.size()) {
-      err(ctx, "invalid device code section: Expected size at offset ", pos);
-      return 0;
-    }
-    uint64_t size = *reinterpret_cast<const uint64_t *>(&buf[pos]);
-    pos += 8;
-
-    if (pos + size > buf.size()) {
-      err(ctx, "invalid device code section: Unexpected end of section");
-      return 0;
-    }
-    StringRef code(&buf[pos], size);
-    pos += size;
-
-    if (not saveDeviceCode(TTID::Hip, code, "o"))
-      return 0;
-
-    ++count;
-    pos = align(pos, 8);
-  }
-  return count;
-}
-
-unsigned DeviceCodeCtx::parseSection(TTID tt, ArrayRef<char> buf) {
-  switch (tt) {
-  case TTID::Cuda:
-    return parseSectionCuda(buf);
-  case TTID::Hip:
-    return parseSectionHip(buf);
-  default:
+void DeviceCodeCtx::parseSection(TTID tt, ArrayRef<uint8_t> buf) {
+  // switch (tt) {
+  // case TTID::Cuda:
+  //   return parseSectionCuda(buf);
+  // case TTID::Hip:
+  //   return parseSectionHip(buf);
+  // default:
     llvm_unreachable("DeviceCodeCtx::parseSection: TTID not handled");
-  }
+  // }
 }
 
 bool DeviceCodeCtx::createEmptyFile() {
-  std::error_code ec;
-  raw_fd_ostream nullf(getEmptyFilePath(tempDir), ec);
-  if (ec) {
-    err(ctx, "Could not create empty file");
-    return false;
-  }
-  nullf.close();
+  llvm_unreachable("createEmptyFile");
+  // std::error_code ec;
+  // raw_fd_ostream nullf(getEmptyFilePath(tempDir), ec);
+  // if (ec) {
+  //   err(ctx, "Could not create empty file");
+  //   return false;
+  // }
+  // nullf.close();
 
   return true;
 }
 
-SmallVector<Path, 0> DeviceCodeCtx::linkAll() {
+void DeviceCodeCtx::linkAll() {
   auto getLinker = [this](TTID tt) -> std::unique_ptr<DeviceCodeLinker> {
-    Ctx &ctx = this->ctx;
-    StringRef tempDir = this->tempDir;
-    switch (tt) {
-    case TTID::Cuda:
-      return std::make_unique<CudaLinker>(ctx, tempDir);
-    case TTID::Hip:
-      return std::make_unique<HipLinker>(ctx, tempDir);
-    default:
+    // Ctx &ctx = this->ctx;
+    // StringRef tempDir = this->tempDir;
+    // switch (tt) {
+    // case TTID::Cuda:
+    //   return std::make_unique<CudaLinker>(ctx, TTID::Cuda, tempDir);
+    // case TTID::Hip:
+    //   return std::make_unique<HipLinker>(ctx, TTID::Hip, tempDir);
+    // default:
       llvm_unreachable("DeviceCodeCtx::linkAll: TTID not handled");
-    }
+    // }
   };
 
-  SmallVector<Path, 0> linkedFiles;
-  if (tempFiles.empty())
-    return linkedFiles;
-
+  // Try to create an empty file. If it could not be created, just return. The
+  // context will have been updated to indicate that an error has occurred.
   if (not createEmptyFile())
-    return linkedFiles;
+    return;
 
-  for (TTID tt : ttsUsingEmbBC) {
-    if (tempFiles.find(tt) != tempFiles.end()) {
-      std::unique_ptr<DeviceCodeLinker> linker = getLinker(tt);
-      const SmallVectorImpl<Path> &objFiles = tempFiles.at(tt);
-      Path finalObjFile = linker->run(objFiles);
+  // for (TTID tt : ttsUsingEmbBC) {
+  //   if (tempFiles.find(tt) != tempFiles.end()) {
+  //     std::unique_ptr<DeviceCodeLinker> linker = getLinker(tt);
+  //     const SmallVectorImpl<Path> &objFiles = tempFiles.at(tt);
+  //     Path finalObjFile = linker->run(objFiles);
 
-      linkedFiles.push_back(finalObjFile);
-    }
-  }
-  return linkedFiles;
+  //     // If finalObjFile could not be read, the context will have been updated
+  //     // with an error, so just don't worry about it too much here.
+  //     if (std::optional<MemoryBufferRef> buf = readFile(ctx, finalObjFile)) {
+  //       ctx.deviceObjectFiles.push_back(
+  //           createObjFile(ctx, *buf, /*archiveName=*/"", /*isLazy=*/false));
+  //       parseFile(ctx, &*ctx.deviceObjectFiles.back());
+  //     }
+  //   }
+  // }
 }

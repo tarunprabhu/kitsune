@@ -12,8 +12,18 @@
 
 using namespace llvm;
 
-static constexpr StringRef elf("\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\1\0>\0", 20);
-static constexpr StringRef archive("!<arch>\n", 8);
+static const StringRef archive("!<arch>\n", 8);
+static const StringRef elfObject("\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\1\0", 18);
+static const StringRef elfShared("\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0", 18);
+
+// The minimum size of MachO objects at this time is 32. Hopefully, this does
+// not change too often.
+static const StringRef machoObject(
+    "\317\372\355\376\7\0\0\1\3\0\0\0\1\0\0\0\2\0\0\0\250\0\0\0\0\40\0\0\0\0",
+    32);
+static const StringRef machoShared("\317\372\355\376\7\0\0\1\3\0\0\0\6\0\0\0\12"
+                                   "\0\0\0\240\1\0\0\205\0\20\0\0\0",
+                                   32);
 
 TEST(EmbDeviceCodeTest, sentinels) {
   auto u = [](EmbDeviceCode::Id id) -> uint64_t { return uint64_t(id); };
@@ -28,6 +38,42 @@ TEST(EmbDeviceCodeTest, sentinels) {
   EXPECT_EQ(u(EmbDeviceCode::NVPTX_hi), u(EmbDeviceCode::COMPUTE_120A) + 1);
 }
 
+TEST(EmbDeviceCodeTest, isArchive) {
+  auto isArchive = [](StringRef code) -> bool {
+    return EmbDeviceCode(EmbDeviceCode::GFX90A, code, "").isArchive();
+  };
+
+  EXPECT_TRUE(isArchive(archive));
+  EXPECT_FALSE(isArchive(elfObject));
+  EXPECT_FALSE(isArchive(elfShared));
+  EXPECT_FALSE(isArchive(machoObject));
+  EXPECT_FALSE(isArchive(machoShared));
+}
+
+TEST(EmbDeviceCodeTest, isObject) {
+  auto isObject = [](StringRef code) -> bool {
+    return EmbDeviceCode(EmbDeviceCode::SM_80, code, "").isObject();
+  };
+
+  EXPECT_TRUE(isObject(elfObject));
+  EXPECT_TRUE(isObject(machoObject));
+  EXPECT_FALSE(isObject(archive));
+  EXPECT_FALSE(isObject(elfShared));
+  EXPECT_FALSE(isObject(machoShared));
+}
+
+TEST(EmbDeviceCodeTest, isShared) {
+  auto isShared = [](StringRef code) -> bool {
+    return EmbDeviceCode(EmbDeviceCode::GFX1103, code, "").isShared();
+  };
+
+  EXPECT_TRUE(isShared(elfShared));
+  EXPECT_TRUE(isShared(machoShared));
+  EXPECT_FALSE(isShared(archive));
+  EXPECT_FALSE(isShared(elfObject));
+  EXPECT_FALSE(isShared(machoObject));
+}
+
 TEST(EmbDeviceCodeTest, getName) {
   auto check = [](EmbDeviceCode::Id id, StringRef code, StringRef file,
                   StringRef exp) -> void {
@@ -36,17 +82,17 @@ TEST(EmbDeviceCodeTest, getName) {
     EXPECT_EQ(devCode.getName(), exp);
   };
 
-  check(EmbDeviceCode::GFX600, elf, "f1.o", "f1-gfx600.o");
+  check(EmbDeviceCode::GFX600, elfObject, "f1.o", "f1-gfx600.o");
   check(EmbDeviceCode::GFX90C, archive, "f2.o", "f2-gfx90c.a");
   check(EmbDeviceCode::SM_30, archive, "f3.so", "f3-sm_30.a");
-  check(EmbDeviceCode::SM_120A, elf, "f4.o", "f4-sm_120a.cubin");
+  check(EmbDeviceCode::SM_120A, elfObject, "f4.o", "f4-sm_120a.cubin");
   check(EmbDeviceCode::COMPUTE_30, archive, "f5.o", "f5-compute_30.a");
-  check(EmbDeviceCode::COMPUTE_120A, elf, "f6.a", "f6-compute_120a.ptx");
+  check(EmbDeviceCode::COMPUTE_120A, elfObject, "f6.a", "f6-compute_120a.ptx");
 }
 
 TEST(EmbDeviceCodeTest, getArch) {
   auto check_eq = [](EmbDeviceCode::Id id) -> void {
-    EmbDeviceCode devCode(id, elf, "");
+    EmbDeviceCode devCode(id, elfObject, "");
     StringRef arch = devCode.getArch();
     Expected<EmbDeviceCode::Id> idOrErr = EmbDeviceCode::getIdFor(arch);
 
@@ -67,7 +113,7 @@ TEST(EmbDeviceCodeTest, getArch) {
 
 TEST(EmbDeviceCodeTest, getFormat) {
   auto make = [](EmbDeviceCode::Id id) -> EmbDeviceCode::BinaryFormat {
-    return EmbDeviceCode(id, elf, "").getBinaryFormat();
+    return EmbDeviceCode(id, elfObject, "").getBinaryFormat();
   };
 
   // This checks the first and last device id for each "class" of device. It

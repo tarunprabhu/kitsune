@@ -25,6 +25,7 @@
 namespace lld::elf {
 
 struct Ctx;
+class DeviceCodeLinker;
 
 /// Context that contains everything needed to link Kitsune's embedded device
 /// code.
@@ -36,38 +37,36 @@ private:
   /// The "global" constant object created by the linker driver.
   Ctx &ctx;
 
-  /// Path to a temporary working directory. This is typically in the system's
-  /// temporary directory. It may contain one or more subdirectories for each
-  /// tapir target for which embedded device code was found. This directory,
-  /// and any subdirectories are only created on demand. Unless an option to
+  /// Path to a temporary working directory in which to link the embedded device
+  /// code that was found in the various object files. Unless an option to
   /// persist them has been provided, they will be deleted when the destructor
   /// of this object is run.
   Path tempDir;
 
-  /// Paths to the temporary files that were created for the embedded device
-  /// code.
-  std::map<llvm::TTID, SmallVector<Path, 0>> tempFiles;
+  std::map<llvm::TTID, std::unique_ptr<DeviceCodeLinker>> linkers;
 
 private:
   /// Create an empty file in the temporary working directory. Return true if
   /// the temporary directory was created, false otherwise.
   bool createEmptyFile();
 
-  /// Create a temporary working directory. Return true if the temporary
-  /// directory was created, false otherwise.
-  bool createWorkingDir();
+  // /// Create a temporary working directory. Return true if the temporary
+  // /// directory was created, false otherwise.
+  // bool createWorkingDir();
 
-  /// Get the full path to a file to which to write device code. The returned
-  /// path will be to a non-existent file in the temporary working directory.
-  llvm::StringRef getTempFilePath(llvm::TTID tt, llvm::StringRef ext);
+  // /// Get the full path to a file to which to write device code. The returned
+  // /// path will be to a non-existent file in the temporary working directory.
+  // llvm::StringRef getTempFilePath(llvm::TTID tt, llvm::StringRef ext);
 
-  /// Save the device code to a file in the temporary working directory. If a
-  /// temporary directory does not exist, one will be created. Returns true if
-  /// device code could be saved, false otherwise.
-  bool saveDeviceCode(llvm::TTID tt, llvm::StringRef code, llvm::StringRef ext);
+  // /// Save the device code to a file in the temporary working directory. If a
+  // /// temporary directory does not exist, one will be created. Returns true
+  // if
+  // /// device code could be saved, false otherwise.
+  // bool saveDeviceCode(llvm::TTID tt, llvm::StringRef code, llvm::StringRef
+  // ext);
 
-  unsigned parseSectionCuda(llvm::ArrayRef<char> buf);
-  unsigned parseSectionHip(llvm::ArrayRef<char> buf);
+  // unsigned parseSectionCuda(llvm::ArrayRef<uint8_t> buf);
+  // unsigned parseSectionHip(llvm::ArrayRef<uint8_t> buf);
 
 public:
   DeviceCodeCtx(Ctx &ctx);
@@ -84,12 +83,12 @@ public:
   /// saved into a temporary directory. The number of object files that were
   /// found and saved is returned. If any error occurred while parsing, 0 is
   /// returned.
-  unsigned parseSection(llvm::TTID tt, llvm::ArrayRef<char> buf);
+  void parseSection(llvm::TTID tt, llvm::ArrayRef<uint8_t> buf);
 
   /// Link all the device code seen. This will produce a linked object file for
   /// each tapir target for which at least one embedded device code object was
   /// found. Returns the absolute paths to the linked files.
-  llvm::SmallVector<Path, 0> linkAll();
+  void linkAll();
 };
 
 } // namespace lld::elf
