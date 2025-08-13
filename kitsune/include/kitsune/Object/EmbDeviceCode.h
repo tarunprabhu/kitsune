@@ -58,6 +58,9 @@ public:
   /// are only used for sentinels.
   ///
   enum Id : uint64_t {
+    /// Invalid device code id.
+    INVALID = 0x0,
+
     /// AMDGPU machine ids
     /// @{
     /// Sentinel one before the first valid AMDGPU id

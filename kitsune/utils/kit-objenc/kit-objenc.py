@@ -28,6 +28,15 @@ def main() -> int:
         epilog = 'Compression uses zlib. Encoding is standard base64'
     )
     ap.add_argument(
+        '--remove-sections',
+        default = [],
+        nargs = '+',
+        help =
+        'Strip the given sections. When using this command, use -- to separate '
+        'the name of the last section to be removed and the name of the object '
+        'file'
+    )
+    ap.add_argument(
         '--strip-sections',
         action = 'store_true',
         help = 'Strip sections from the object file'
@@ -51,6 +60,8 @@ def main() -> int:
     strip_args = [llvm_strip, '--strip-all', '-o', temp.name]
     if args.strip_sections:
         strip_args.append('--strip-sections')
+    for section in args.remove_sections:
+        strip_args.append(f'--remove-section={section}')
     strip_args.append(infile)
 
     os.system(' '.join(strip_args))
@@ -59,8 +70,8 @@ def main() -> int:
     compressed = zlib.compress(obj, level = 9)
     s = base64.b64encode(compressed).decode('utf-8')
 
-    print(s)
-    print(len(obj), len(s))
+    print(f'encoded: {s}')
+    print(f'decompressed size: {len(obj)}')
 
     return 0
 

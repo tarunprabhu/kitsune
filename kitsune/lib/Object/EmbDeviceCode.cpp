@@ -16,6 +16,7 @@
 #include "kitsune/Object/ObjectUtils.h"
 #include "kitsune/Support/Error.h"
 #include "kitsune/Support/StringUtils.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/BinaryFormat/Magic.h"
 #include "llvm/Object/ObjectFile.h"
@@ -234,6 +235,7 @@ StringRef EmbDeviceCode::getArch() const {
   case COMPUTE_120A: return "compute_120a";
 
     // Sentinels
+  case INVALID:
   case AMDGPU_lo:
   case AMDGPU_hi:
   case NVSASS_lo:
@@ -248,110 +250,117 @@ StringRef EmbDeviceCode::getArch() const {
 }
 
 Expected<EmbDeviceCode::Id> EmbDeviceCode::getIdFor(StringRef s) {
-  return StringSwitch<Expected<EmbDeviceCode::Id>>(s)
-      .Case("gfx600", EmbDeviceCode::GFX600)
-      .Case("gfx601", EmbDeviceCode::GFX601)
-      .Case("gfx602", EmbDeviceCode::GFX602)
-      .Case("gfx700", EmbDeviceCode::GFX700)
-      .Case("gfx701", EmbDeviceCode::GFX701)
-      .Case("gfx702", EmbDeviceCode::GFX702)
-      .Case("gfx703", EmbDeviceCode::GFX703)
-      .Case("gfx704", EmbDeviceCode::GFX704)
-      .Case("gfx705", EmbDeviceCode::GFX705)
-      .Case("gfx801", EmbDeviceCode::GFX801)
-      .Case("gfx802", EmbDeviceCode::GFX802)
-      .Case("gfx803", EmbDeviceCode::GFX803)
-      .Case("gfx805", EmbDeviceCode::GFX805)
-      .Case("gfx810", EmbDeviceCode::GFX810)
-      .Case("gfx900", EmbDeviceCode::GFX900)
-      .Case("gfx902", EmbDeviceCode::GFX902)
-      .Case("gfx904", EmbDeviceCode::GFX904)
-      .Case("gfx906", EmbDeviceCode::GFX906)
-      .Case("gfx908", EmbDeviceCode::GFX908)
-      .Case("gfx90a", EmbDeviceCode::GFX90A)
-      .Case("gfx90c", EmbDeviceCode::GFX90C)
-      .Case("gfx940", EmbDeviceCode::GFX940)
-      .Case("gfx941", EmbDeviceCode::GFX941)
-      .Case("gfx942", EmbDeviceCode::GFX942)
-      .Case("gfx950", EmbDeviceCode::GFX950)
-      .Case("gfx1010", EmbDeviceCode::GFX1010)
-      .Case("gfx1011", EmbDeviceCode::GFX1011)
-      .Case("gfx1012", EmbDeviceCode::GFX1012)
-      .Case("gfx1013", EmbDeviceCode::GFX1013)
-      .Case("gfx1030", EmbDeviceCode::GFX1030)
-      .Case("gfx1031", EmbDeviceCode::GFX1031)
-      .Case("gfx1032", EmbDeviceCode::GFX1032)
-      .Case("gfx1033", EmbDeviceCode::GFX1033)
-      .Case("gfx1034", EmbDeviceCode::GFX1034)
-      .Case("gfx1035", EmbDeviceCode::GFX1035)
-      .Case("gfx1036", EmbDeviceCode::GFX1036)
-      .Case("gfx1100", EmbDeviceCode::GFX1100)
-      .Case("gfx1101", EmbDeviceCode::GFX1101)
-      .Case("gfx1102", EmbDeviceCode::GFX1102)
-      .Case("gfx1103", EmbDeviceCode::GFX1103)
-      .Case("gfx1150", EmbDeviceCode::GFX1150)
-      .Case("gfx1151", EmbDeviceCode::GFX1151)
-      .Case("gfx1152", EmbDeviceCode::GFX1152)
-      .Case("gfx1153", EmbDeviceCode::GFX1153)
-      .Case("gfx1200", EmbDeviceCode::GFX1200)
-      .Case("gfx1201", EmbDeviceCode::GFX1201)
+  // We could have used a StringSwitch here, but we use a StringMap instead
+  // because the StringSwitch<Expected<EmbDeviceCode::Id>> is unreliable.
+  // Depending on the compiler, the Expected<.> object may be copied instead of
+  // being moved. When this happens, the destructor raises a runtime error
+  // because the destructed object has not been checked for an error.
+  static const StringMap<EmbDeviceCode::Id> archs = {
+      {"gfx600", EmbDeviceCode::GFX600},
+      {"gfx601", EmbDeviceCode::GFX601},
+      {"gfx602", EmbDeviceCode::GFX602},
+      {"gfx700", EmbDeviceCode::GFX700},
+      {"gfx701", EmbDeviceCode::GFX701},
+      {"gfx702", EmbDeviceCode::GFX702},
+      {"gfx703", EmbDeviceCode::GFX703},
+      {"gfx704", EmbDeviceCode::GFX704},
+      {"gfx705", EmbDeviceCode::GFX705},
+      {"gfx801", EmbDeviceCode::GFX801},
+      {"gfx802", EmbDeviceCode::GFX802},
+      {"gfx803", EmbDeviceCode::GFX803},
+      {"gfx805", EmbDeviceCode::GFX805},
+      {"gfx810", EmbDeviceCode::GFX810},
+      {"gfx900", EmbDeviceCode::GFX900},
+      {"gfx902", EmbDeviceCode::GFX902},
+      {"gfx904", EmbDeviceCode::GFX904},
+      {"gfx906", EmbDeviceCode::GFX906},
+      {"gfx908", EmbDeviceCode::GFX908},
+      {"gfx90a", EmbDeviceCode::GFX90A},
+      {"gfx90c", EmbDeviceCode::GFX90C},
+      {"gfx940", EmbDeviceCode::GFX940},
+      {"gfx941", EmbDeviceCode::GFX941},
+      {"gfx942", EmbDeviceCode::GFX942},
+      {"gfx950", EmbDeviceCode::GFX950},
+      {"gfx1010", EmbDeviceCode::GFX1010},
+      {"gfx1011", EmbDeviceCode::GFX1011},
+      {"gfx1012", EmbDeviceCode::GFX1012},
+      {"gfx1013", EmbDeviceCode::GFX1013},
+      {"gfx1030", EmbDeviceCode::GFX1030},
+      {"gfx1031", EmbDeviceCode::GFX1031},
+      {"gfx1032", EmbDeviceCode::GFX1032},
+      {"gfx1033", EmbDeviceCode::GFX1033},
+      {"gfx1034", EmbDeviceCode::GFX1034},
+      {"gfx1035", EmbDeviceCode::GFX1035},
+      {"gfx1036", EmbDeviceCode::GFX1036},
+      {"gfx1100", EmbDeviceCode::GFX1100},
+      {"gfx1101", EmbDeviceCode::GFX1101},
+      {"gfx1102", EmbDeviceCode::GFX1102},
+      {"gfx1103", EmbDeviceCode::GFX1103},
+      {"gfx1150", EmbDeviceCode::GFX1150},
+      {"gfx1151", EmbDeviceCode::GFX1151},
+      {"gfx1152", EmbDeviceCode::GFX1152},
+      {"gfx1153", EmbDeviceCode::GFX1153},
+      {"gfx1200", EmbDeviceCode::GFX1200},
+      {"gfx1201", EmbDeviceCode::GFX1201},
 
       // NVIDIA cuda architecture
-      .Case("sm_30", EmbDeviceCode::SM_30)
-      .Case("sm_32", EmbDeviceCode::SM_32)
-      .Case("sm_35", EmbDeviceCode::SM_35)
-      .Case("sm_37", EmbDeviceCode::SM_37)
-      .Case("sm_50", EmbDeviceCode::SM_50)
-      .Case("sm_52", EmbDeviceCode::SM_52)
-      .Case("sm_53", EmbDeviceCode::SM_53)
-      .Case("sm_60", EmbDeviceCode::SM_60)
-      .Case("sm_61", EmbDeviceCode::SM_61)
-      .Case("sm_62", EmbDeviceCode::SM_62)
-      .Case("sm_70", EmbDeviceCode::SM_70)
-      .Case("sm_72", EmbDeviceCode::SM_72)
-      .Case("sm_75", EmbDeviceCode::SM_75)
-      .Case("sm_80", EmbDeviceCode::SM_80)
-      .Case("sm_86", EmbDeviceCode::SM_86)
-      .Case("sm_87", EmbDeviceCode::SM_87)
-      .Case("sm_89", EmbDeviceCode::SM_89)
-      .Case("sm_90", EmbDeviceCode::SM_90)
-      .Case("sm_90a", EmbDeviceCode::SM_90A)
-      .Case("sm_100", EmbDeviceCode::SM_100)
-      .Case("sm_100a", EmbDeviceCode::SM_100A)
-      .Case("sm_101", EmbDeviceCode::SM_101)
-      .Case("sm_101a", EmbDeviceCode::SM_101A)
-      .Case("sm_120", EmbDeviceCode::SM_120)
-      .Case("sm_120a", EmbDeviceCode::SM_120A)
+      {"sm_30", EmbDeviceCode::SM_30},
+      {"sm_32", EmbDeviceCode::SM_32},
+      {"sm_35", EmbDeviceCode::SM_35},
+      {"sm_37", EmbDeviceCode::SM_37},
+      {"sm_50", EmbDeviceCode::SM_50},
+      {"sm_52", EmbDeviceCode::SM_52},
+      {"sm_53", EmbDeviceCode::SM_53},
+      {"sm_60", EmbDeviceCode::SM_60},
+      {"sm_61", EmbDeviceCode::SM_61},
+      {"sm_62", EmbDeviceCode::SM_62},
+      {"sm_70", EmbDeviceCode::SM_70},
+      {"sm_72", EmbDeviceCode::SM_72},
+      {"sm_75", EmbDeviceCode::SM_75},
+      {"sm_80", EmbDeviceCode::SM_80},
+      {"sm_86", EmbDeviceCode::SM_86},
+      {"sm_87", EmbDeviceCode::SM_87},
+      {"sm_89", EmbDeviceCode::SM_89},
+      {"sm_90", EmbDeviceCode::SM_90},
+      {"sm_90a", EmbDeviceCode::SM_90A},
+      {"sm_100", EmbDeviceCode::SM_100},
+      {"sm_100a", EmbDeviceCode::SM_100A},
+      {"sm_101", EmbDeviceCode::SM_101},
+      {"sm_101a", EmbDeviceCode::SM_101A},
+      {"sm_120", EmbDeviceCode::SM_120},
+      {"sm_120a", EmbDeviceCode::SM_120A},
 
       // NVIDIA PTX virtual architecture
-      .Case("compute_30", EmbDeviceCode::COMPUTE_30)
-      .Case("compute_32", EmbDeviceCode::COMPUTE_32)
-      .Case("compute_35", EmbDeviceCode::COMPUTE_35)
-      .Case("compute_37", EmbDeviceCode::COMPUTE_37)
-      .Case("compute_50", EmbDeviceCode::COMPUTE_50)
-      .Case("compute_52", EmbDeviceCode::COMPUTE_52)
-      .Case("compute_53", EmbDeviceCode::COMPUTE_53)
-      .Case("compute_60", EmbDeviceCode::COMPUTE_60)
-      .Case("compute_61", EmbDeviceCode::COMPUTE_61)
-      .Case("compute_62", EmbDeviceCode::COMPUTE_62)
-      .Case("compute_70", EmbDeviceCode::COMPUTE_70)
-      .Case("compute_72", EmbDeviceCode::COMPUTE_72)
-      .Case("compute_75", EmbDeviceCode::COMPUTE_75)
-      .Case("compute_80", EmbDeviceCode::COMPUTE_80)
-      .Case("compute_86", EmbDeviceCode::COMPUTE_86)
-      .Case("compute_87", EmbDeviceCode::COMPUTE_87)
-      .Case("compute_89", EmbDeviceCode::COMPUTE_89)
-      .Case("compute_90", EmbDeviceCode::COMPUTE_90)
-      .Case("compute_90a", EmbDeviceCode::COMPUTE_90A)
-      .Case("compute_100", EmbDeviceCode::COMPUTE_100)
-      .Case("compute_100a", EmbDeviceCode::COMPUTE_100A)
-      .Case("compute_101", EmbDeviceCode::COMPUTE_101)
-      .Case("compute_101a", EmbDeviceCode::COMPUTE_101A)
-      .Case("compute_120", EmbDeviceCode::COMPUTE_120)
-      .Case("compute_120a", EmbDeviceCode::COMPUTE_120A)
+      {"compute_30", EmbDeviceCode::COMPUTE_30},
+      {"compute_32", EmbDeviceCode::COMPUTE_32},
+      {"compute_35", EmbDeviceCode::COMPUTE_35},
+      {"compute_37", EmbDeviceCode::COMPUTE_37},
+      {"compute_50", EmbDeviceCode::COMPUTE_50},
+      {"compute_52", EmbDeviceCode::COMPUTE_52},
+      {"compute_53", EmbDeviceCode::COMPUTE_53},
+      {"compute_60", EmbDeviceCode::COMPUTE_60},
+      {"compute_61", EmbDeviceCode::COMPUTE_61},
+      {"compute_62", EmbDeviceCode::COMPUTE_62},
+      {"compute_70", EmbDeviceCode::COMPUTE_70},
+      {"compute_72", EmbDeviceCode::COMPUTE_72},
+      {"compute_75", EmbDeviceCode::COMPUTE_75},
+      {"compute_80", EmbDeviceCode::COMPUTE_80},
+      {"compute_86", EmbDeviceCode::COMPUTE_86},
+      {"compute_87", EmbDeviceCode::COMPUTE_87},
+      {"compute_89", EmbDeviceCode::COMPUTE_89},
+      {"compute_90", EmbDeviceCode::COMPUTE_90},
+      {"compute_90a", EmbDeviceCode::COMPUTE_90A},
+      {"compute_100", EmbDeviceCode::COMPUTE_100},
+      {"compute_100a", EmbDeviceCode::COMPUTE_100A},
+      {"compute_101", EmbDeviceCode::COMPUTE_101},
+      {"compute_101a", EmbDeviceCode::COMPUTE_101A},
+      {"compute_120", EmbDeviceCode::COMPUTE_120},
+      {"compute_120a", EmbDeviceCode::COMPUTE_120A},
+  };
 
-      // Unknown
-      .Default(createStringError("Cannot convert string to EmbDeviceCode::Id"));
+  if (not archs.contains(s))
+    return createStringError("Cannot convert string to EmbDeviceCode::Id");
+  return archs.at(s);
 }
 
 bool EmbDeviceCode::isArchive() const { return object::isArchive(code); }

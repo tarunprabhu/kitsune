@@ -1,4 +1,4 @@
-//===- BinaryUtilsTest.cpp - Tests for LLVM's binary object utilities -----===//
+//===- BinaryUtilsTest.cpp - Tests for Kitsune's binary object utilities --===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,45 +7,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Object/BinaryUtils.h"
+#include "CompressedBinary.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/Binary.h"
 #include "llvm/Object/ObjectFile.h"
-#include "llvm/Support/Base64.h"
-#include "llvm/Support/Compression.h"
 
 #include "gtest/gtest.h"
 
 using namespace llvm;
 using namespace llvm::object;
 
-struct Compressed {
-  StringRef inBuf;        /// The compressed buffer
-  uint64_t outSize;       /// The decompressed buffer size
-  SmallString<8> outBuf;  /// The decompressed buffer
-  MemoryBufferRef memBuf; /// The decompressed memory buffer
+static const detail::CompressedBinary
+    cArchive("eNpTtEksSs6w49JXQAUGGGwDFHELuGwCFwMUFOfGmxvp5esTMsPMxARKI8yod/"
+             "VxY2JkhBnFwMhgx4DgYQcOSOz0tApLAzOE5fS0GwCsziGR",
+             324);
 
-  Compressed(StringRef inBuf, uint64_t outSize)
-      : inBuf(inBuf), outSize(outSize) {
-    outBuf.resize_for_overwrite(outSize);
-
-    DebugCompressionType zlib = DebugCompressionType::Zlib;
-    std::vector<char> decoded;
-    if (Error err = decodeBase64(inBuf, decoded))
-      ADD_FAILURE();
-    ArrayRef<uint8_t> in(reinterpret_cast<const uint8_t *>(decoded.data()),
-                         decoded.size());
-    uint8_t *out = reinterpret_cast<uint8_t *>(outBuf.data());
-    if (Error err = compression::decompress(zlib, in, out, outSize))
-      ADD_FAILURE();
-
-    memBuf = MemoryBufferRef(StringRef(outBuf.data(), outSize), "");
-  }
-};
-
-static const StringRef sArchive("!<arch>\n", 8);
-
-// The minimum size of ELF objects at this time is 18.
-static const Compressed cELFExec(
+static const detail::CompressedBinary cELFExec(
     "eNrtmt9LVEEUx+fuD11N260UTCUlRAraXdZfGOEPUvNKGmb64EPeVl1tYV1DVxJ7SLKgRYQC6b"
     "k/IcKXnlpRRN/0rUcNBQOtjQqswNvM3jO7cycXpBcJzkfW7z1nzjkzd+a6eJl53NJ+w6IohGMl"
     "9YRZpS7DbiR/00hqyWm4zqAfmxAnq8tqVkeyHyNvHvyyFhOzKoLaSHp27WYlrlSeXbBl9SlmFf"
@@ -65,10 +42,10 @@ static const Compressed cELFExec(
     "MkEv2c39xkCzpPzfujEeHnoI9gGMRwebz1Mc7F1o/wm29YTXlZ8fTwc/n/oHZVAGWQ==",
     12304);
 
-static const Compressed cELFObject("eNqrd/VxY2JkZIABRgY7BgQPO3BAYgMAY34B2w==",
-                                   64);
+static const detail::CompressedBinary
+    cELFObject("eNqrd/VxY2JkZIABRgY7BgQPO3BAYgMAY34B2w==", 64);
 
-static const Compressed cELFShared(
+static const detail::CompressedBinary cELFShared(
     "eNrtms9rE0EUx2fzy41aUqQFrdIU8VChpBCpRCFpsL+m0BYsiXgpS5omYTFNIFlBvBiMCiVUiv"
     "g3iHjz5s2GSOlJol6Kp3goKBQpiND2kHUn+8bMbtOiJw++T9h85715b37t7mHhPZiYmXRIEuE4"
     "SYS0LUKi5DBREiIytFmsixyDy6bd7Ty3YNt1n1hVzGsNNQB+m9qnE/M8xhUKmHYoYtU6bHpLsu"
@@ -84,7 +61,7 @@ static const Compressed cELFShared(
     "o/vF69UPETXlF/CkuGk=",
     12296);
 
-static const Compressed cMachOExec(
+static const detail::CompressedBinary cMachOExec(
     "eNrtmb9LQlEUx8/1qUmZPajBfgyviLBJXeKNRUpKUiIKEcTN8oWCGpiSNbkUNATtLfafBA2N/Q"
     "EtLY3R3lDd6zvizR7l0BTnAwc913e+75xzz+K9D28v70MATAMAlzC/sCfx5QwMkEwKSwjjPL2y"
     "Ft+OZzbhGwx+R+qYTOpk41tZh3ijLwB9D5qGy5zXrWa991i/nqHZej7Fd6u6bmipLueN6nGpWu"
@@ -96,22 +73,20 @@ static const Compressed cMachOExec(
     "K2PMvtW070S5QzTAJ4BQWDE=",
     8288);
 
-static const Compressed cMachOObject(
+static const detail::CompressedBinary cMachOObject(
     "eNo7/+vtP3YGBkZmBiABxExAvAKIGRQYwEASiGcwEAYn0PjsUMwI5cfHl6RWlCDk4+NDXCNCiD"
     "cPCBqQOSpALABisHCB+QAQpQwj",
     200);
 
-static const Compressed cMachOShared(
+static const detail::CompressedBinary cMachOShared(
     "eNo7/+vtP3YGBkZmBgYGNiDmAuIFjAwMrQwCDCAgCcQeQBwfH+IaEcJANGCFYhhAmOPj6eft6u"
     "IJM0sAlT7AiCrMCMUwoMTA0GBAvDMYmIBYAohPQA0B0RxAmhuIAxioB3iB2ABqFzLQL8kt0E/U"
     "y01MzsjXS6nMyUyCiEtD1fr4uJiFhhq6LIy5Ffj9ezaLCszvLFxgrAblH4C6WxPKP8GIao8ClA"
     "YArX8e8g==",
     488);
 
-class ObjectUtilsTest : public testing::Test {
+class BinaryUtilsTest : public testing::Test {
 protected:
-  MemoryBufferRef mArchive;
-
   std::unique_ptr<Archive> archive;
   std::unique_ptr<ObjectFile> elfExec;
   std::unique_ptr<ObjectFile> elfObject;
@@ -128,10 +103,8 @@ protected:
     return std::move(*optr);
   }
 
-  ObjectUtilsTest() {
-    mArchive = MemoryBufferRef(sArchive, "archive");
-
-    archive = getIfOk(Archive::create(mArchive));
+  BinaryUtilsTest() {
+    archive = getIfOk(Archive::create(cArchive.memBuf));
     elfExec = getIfOk(ObjectFile::createObjectFile(cELFExec.memBuf));
     elfObject = getIfOk(ObjectFile::createObjectFile(cELFObject.memBuf));
     elfShared = getIfOk(ObjectFile::createObjectFile(cELFShared.memBuf));
@@ -141,107 +114,66 @@ protected:
   }
 };
 
-TEST_F(ObjectUtilsTest, isArchive) {
-  auto check = [](const Compressed &c, bool expected) -> void {
-    const MemoryBufferRef &memBuf = c.memBuf;
-    StringRef strRef = memBuf.getBuffer();
-
-    EXPECT_EQ(isArchive(memBuf), expected);
-    EXPECT_EQ(isArchive(strRef), expected);
+TEST_F(BinaryUtilsTest, isArchive) {
+  auto check = [](const Binary &bin, bool expected) -> void {
+    EXPECT_EQ(isArchive(bin), expected);
+    EXPECT_EQ(isArchive(bin.getData()), expected);
+    EXPECT_EQ(isArchive(bin.getMemoryBufferRef()), expected);
   };
 
-  EXPECT_TRUE(isArchive(*archive));
-  EXPECT_FALSE(isArchive(*elfExec));
-  EXPECT_FALSE(isArchive(*elfObject));
-  EXPECT_FALSE(isArchive(*elfShared));
-  EXPECT_FALSE(isArchive(*machOExec));
-  EXPECT_FALSE(isArchive(*machOObject));
-  EXPECT_FALSE(isArchive(*machOShared));
-
-  // FIXME: Also encode archives in base64.
-  // check(mArchive, true);
-  check(cELFExec, false);
-  check(cELFObject, false);
-  check(cELFShared, false);
-  check(cMachOExec, false);
-  check(cMachOObject, false);
-  check(cMachOShared, false);
+  check(*archive, true);
+  check(*elfExec, false);
+  check(*elfObject, false);
+  check(*elfShared, false);
+  check(*machOExec, false);
+  check(*machOObject, false);
+  check(*machOShared, false);
 }
 
-TEST_F(ObjectUtilsTest, isExecutable) {
-  auto check = [](const Compressed &c, bool expected) -> void {
-    const MemoryBufferRef &memBuf = c.memBuf;
-    StringRef strRef = memBuf.getBuffer();
-
-    EXPECT_EQ(isExecutable(memBuf), expected);
-    EXPECT_EQ(isExecutable(strRef), expected);
+TEST_F(BinaryUtilsTest, isExecutable) {
+  auto check = [](const Binary &bin, bool expected) -> void {
+    EXPECT_EQ(isExecutable(bin), expected);
+    EXPECT_EQ(isExecutable(bin.getData()), expected);
+    EXPECT_EQ(isExecutable(bin.getMemoryBufferRef()), expected);
   };
 
-  EXPECT_FALSE(isExecutable(*archive));
-  EXPECT_TRUE(isExecutable(*elfExec));
-  EXPECT_FALSE(isExecutable(*elfObject));
-  EXPECT_FALSE(isExecutable(*elfShared));
-  EXPECT_TRUE(isExecutable(*machOExec));
-  EXPECT_FALSE(isExecutable(*machOObject));
-  EXPECT_FALSE(isExecutable(*machOShared));
-
-  // check(mArchive, false);
-  check(cELFExec, true);
-  check(cELFObject, false);
-  check(cELFShared, false);
-  check(cMachOExec, true);
-  check(cMachOObject, false);
-  check(cMachOShared, false);
+  check(*archive, false);
+  check(*elfExec, true);
+  check(*elfObject, false);
+  check(*elfShared, false);
+  check(*machOExec, true);
+  check(*machOObject, false);
+  check(*machOShared, false);
 }
 
-TEST_F(ObjectUtilsTest, isObject) {
-  auto check = [](const Compressed &c, bool expected) -> void {
-    const MemoryBufferRef &memBuf = c.memBuf;
-    StringRef strRef = memBuf.getBuffer();
-
-    EXPECT_EQ(isObject(memBuf), expected);
-    EXPECT_EQ(isObject(strRef), expected);
+TEST_F(BinaryUtilsTest, isObject) {
+  auto check = [](const Binary &bin, bool expected) -> void {
+    EXPECT_EQ(isObject(bin), expected);
+    EXPECT_EQ(isObject(bin.getData()), expected);
+    EXPECT_EQ(isObject(bin.getMemoryBufferRef()), expected);
   };
 
-  EXPECT_FALSE(isObject(*archive));
-  EXPECT_FALSE(isObject(*elfExec));
-  EXPECT_TRUE(isObject(*elfObject));
-  EXPECT_FALSE(isObject(*elfShared));
-  EXPECT_FALSE(isObject(*machOExec));
-  EXPECT_TRUE(isObject(*machOObject));
-  EXPECT_FALSE(isObject(*machOShared));
-
-  // check(mArchive, false);
-  check(cELFExec, false);
-  check(cELFObject, true);
-  check(cELFShared, false);
-  check(cMachOExec, false);
-  check(cMachOObject, true);
-  check(cMachOShared, false);
+  check(*archive, false);
+  check(*elfExec, false);
+  check(*elfObject, true);
+  check(*elfShared, false);
+  check(*machOExec, false);
+  check(*machOObject, true);
+  check(*machOShared, false);
 }
 
-TEST_F(ObjectUtilsTest, isShared) {
-  auto check = [](const Compressed &c, bool expected) -> void {
-    const MemoryBufferRef &memBuf = c.memBuf;
-    StringRef strRef = memBuf.getBuffer();
-
-    EXPECT_EQ(isShared(memBuf), expected);
-    EXPECT_EQ(isShared(strRef), expected);
+TEST_F(BinaryUtilsTest, isShared) {
+  auto check = [](const Binary &bin, bool expected) -> void {
+    EXPECT_EQ(isShared(bin), expected);
+    EXPECT_EQ(isShared(bin.getData()), expected);
+    EXPECT_EQ(isShared(bin.getMemoryBufferRef()), expected);
   };
 
-  EXPECT_FALSE(isShared(*archive));
-  EXPECT_FALSE(isShared(*elfExec));
-  EXPECT_FALSE(isShared(*elfObject));
-  EXPECT_TRUE(isShared(*elfShared));
-  EXPECT_FALSE(isShared(*machOExec));
-  EXPECT_FALSE(isShared(*machOObject));
-  EXPECT_TRUE(isShared(*machOShared));
-
-  // check(mArchive, false);
-  check(cELFExec, false);
-  check(cELFObject, false);
-  check(cELFShared, true);
-  check(cMachOExec, false);
-  check(cMachOObject, false);
-  check(cMachOShared, true);
+  check(*archive, false);
+  check(*elfExec, false);
+  check(*elfObject, false);
+  check(*elfShared, true);
+  check(*machOExec, false);
+  check(*machOObject, false);
+  check(*machOShared, true);
 }

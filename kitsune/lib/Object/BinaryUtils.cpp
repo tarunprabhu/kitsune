@@ -53,12 +53,21 @@ static bool isELFExecutable(StringRef data) {
     llvm_unreachable("isELFExecutable: Must be an ELF executable");
 }
 
-Expected<bool> llvm::object::hasEmbDeviceCode(const Binary &bin, TTID tt) {
+Expected<bool> llvm::object::hasEmbDeviceCode(const Binary &bin) {
   if (auto *objFile = dyn_cast<ObjectFile>(&bin))
-    return hasEmbDeviceCode(*objFile, tt);
+    return hasEmbDeviceCode(*objFile);
   else if (auto *archive = dyn_cast<Archive>(&bin))
-    return hasEmbDeviceCode(*archive, tt);
-  return false;
+    return hasEmbDeviceCode(*archive);
+  llvm_unreachable("hasEmbDeviceCode: Binary file format not supported");
+}
+
+Expected<SmallVector<TTID, 0>>
+llvm::object::getEmbDeviceCodeTTIDs(const Binary &bin) {
+  if (auto *objFile = dyn_cast<ObjectFile>(&bin))
+    return getEmbDeviceCodeTTIDs(*objFile);
+  else if (auto *archive = dyn_cast<Archive>(&bin))
+    return getEmbDeviceCodeTTIDs(*archive);
+  llvm_unreachable("getEmbDeviceCodeTTs: Binary file format not supported");
 }
 
 bool llvm::object::isArchive(StringRef data) {

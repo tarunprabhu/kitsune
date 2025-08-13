@@ -14,6 +14,7 @@
 #include "kitsune/Object/BinaryUtils.h"
 #include "kitsune/Object/EmbDeviceCode.h"
 #include "kitsune/Object/ObjectUtils.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/ArchiveWriter.h"
 #include "llvm/Object/ObjectFile.h"
@@ -22,25 +23,36 @@
 using namespace llvm;
 using namespace llvm::object;
 
-Expected<bool> llvm::object::hasEmbDeviceCode(const Archive &archive, TTID tt) {
-  Expected<SmallVector<std::unique_ptr<ObjectFile>, 4>> objsOrErr =
-      getMemberObjects(archive);
-  if (not objsOrErr)
-    return objsOrErr.takeError();
-  const SmallVector<std::unique_ptr<ObjectFile>, 4> &objs = *objsOrErr;
+Expected<bool> llvm::object::hasEmbDeviceCode(const Archive &archive) {
+  Expected<ArchiveMemberObjects> objs = getMemberObjects(archive);
+  if (not objs)
+    return objs.takeError();
 
-  Expected<size_t> sizeOrErr = getNumMembers(archive);
-  if (not sizeOrErr)
-    return sizeOrErr.takeError();
-  size_t size = *sizeOrErr;
-
-  if (objs.size() != size)
-    return createStringError("All members of the archive must be objects");
-
-  for (const std::unique_ptr<ObjectFile> &obj : objs)
-    if (hasEmbDeviceCode(*obj, tt))
+  for (const std::unique_ptr<ObjectFile> &obj : *objs) {
+    Expected<bool> hasDeviceCode = hasEmbDeviceCode(*obj);
+    if (not hasDeviceCode)
+      return hasDeviceCode.takeError();
+    else if (*hasDeviceCode)
       return true;
+  }
   return false;
+}
+
+Expected<SmallVector<TTID, 0>>
+llvm::object::getEmbDeviceCodeTTIDs(const Archive &archive) {
+  Expected<ArchiveMemberObjects> objs = getMemberObjects(archive);
+  if (not objs)
+    return objs.takeError();
+
+  SmallSetVector<TTID, 2> tts;
+  for (const std::unique_ptr<ObjectFile> &obj : *objs) {
+    Expected<SmallVector<TTID, 0>> objTTs = getEmbDeviceCodeTTIDs(*obj);
+    if (not objTTs)
+      return objTTs.takeError();
+    for (TTID tt : *objTTs)
+      tts.insert(tt);
+  }
+  return tts.takeVector();
 }
 
 Expected<size_t> llvm::object::getNumMembers(const Archive &archive) {
@@ -51,10 +63,12 @@ Expected<size_t> llvm::object::getNumMembers(const Archive &archive) {
       return err;
     ++count;
   }
+  if (err)
+    return err;
   return count;
 }
 
-Expected<SmallVector<std::unique_ptr<ObjectFile>, 4>>
+Expected<ArchiveMemberObjects>
 llvm::object::getMemberObjects(const Archive &archive) {
   SmallVector<std::unique_ptr<ObjectFile>, 4> objFiles;
   Error err = Error::success();
@@ -76,6 +90,8 @@ llvm::object::getMemberObjects(const Archive &archive) {
     if (isObject(*objFile))
       objFiles.emplace_back(std::move(objFile));
   }
+  if (err)
+    return err;
   return objFiles;
 }
 

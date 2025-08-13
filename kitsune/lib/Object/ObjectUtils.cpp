@@ -12,25 +12,31 @@
 
 #include "kitsune/Object/ObjectUtils.h"
 #include "kitsune/Config/config.h"
-#include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Object/ObjectFile.h"
 
 using namespace llvm;
 using namespace llvm::object;
 
-static bool isDeviceCodeSection(SectionRef sec, TTID tt) {
-  if (Expected<StringRef> name = sec.getName())
-    return StringSwitch<bool>(*name)
-        .Case(KITSUNE_CUDA_CODE_SECTION, tt == TTID::Cuda)
-        .Case(KITSUNE_HIP_CODE_SECTION, tt == TTID::Hip)
-        .Default(false);
+Expected<bool> llvm::object::hasEmbDeviceCode(const ObjectFile &objFile) {
+  for (SectionRef sec : objFile.sections())
+    if (Expected<StringRef> name = sec.getName())
+      if (*name == KITSUNE_CUDA_CODE_SECTION or
+          *name == KITSUNE_HIP_CODE_SECTION)
+        return true;
   return false;
 }
 
-Expected<bool> llvm::object::hasEmbDeviceCode(const ObjectFile &objFile,
-                                              TTID tt) {
-  for (SectionRef sec : objFile.sections())
-    if (isDeviceCodeSection(sec, tt))
-      return true;
-  return false;
+Expected<SmallVector<TTID, 0>>
+llvm::object::getEmbDeviceCodeTTIDs(const ObjectFile &objFile) {
+  SmallSetVector<TTID, 2> tts;
+  for (SectionRef sec : objFile.sections()) {
+    if (Expected<StringRef> name = sec.getName()) {
+      if (*name == KITSUNE_CUDA_CODE_SECTION)
+        tts.insert(TTID::Cuda);
+      else if (*name == KITSUNE_HIP_CODE_SECTION)
+        tts.insert(TTID::Hip);
+    }
+  }
+  return tts.takeVector();
 }
