@@ -789,6 +789,7 @@ ExternalProject_Add(${KITSUNE_LIBNAME}
 add_subdirectory(configs)
 add_subdirectory(include/kitsune)
 add_subdirectory(tools)
+add_subdirectory(utils)
 add_subdirectory(experiments)
 
 if(KITSUNE_INCLUDE_TESTS)

@@ -78,30 +78,31 @@ static void write(const EmbDeviceCode &devCode) {
 // The embedded device codes have been parsed. Write these out depending on the
 // command line options.
 static int processDeviceCodes(const Binary &bin, std::optional<TTID> tt) {
-  Expected<EmbDeviceCodes> devCodesOrErr = EmbDeviceCodes::parse(bin);
-  if (not devCodesOrErr)
-    report_error(sjoin(devCodesOrErr.takeError()));
-  const EmbDeviceCodes &devCodes = *devCodesOrErr;
+  llvm_unreachable("NOT IMPLEMENTED: kit-mdc: processDeviceCodes");
+  // Expected<EmbDeviceCodes> devCodesOrErr = EmbDeviceCodes::parse(bin);
+  // if (not devCodesOrErr)
+  //   report_error(sjoin(devCodesOrErr.takeError()));
+  // const EmbDeviceCodes &devCodes = *devCodesOrErr;
 
-  SmallVector<EmbDeviceCode, 1> codes;
-  for (const EmbDeviceCode &devCode : devCodes)
-    if (not tt or *tt == devCode.getTTID())
-      codes.push_back(devCode);
+  // SmallVector<EmbDeviceCode, 1> codes;
+  // for (const EmbDeviceCode &devCode : devCodes)
+  //   if (not tt or *tt == devCode.getTTID())
+  //     codes.push_back(devCode);
 
-  if (codes.empty()) {
-    report_warning("no embedded device code found");
-  } else if (codes.size() == 1) {
-    write(codes[0]);
-  } else if (not clOutFile.empty()) {
-    // If the input file contains more than one embedded device code objects and
-    // all of them must be extracted, they cannot be extracted into a single
-    // file.
-    report_error(sjoin("cannot write ", codes.size(),
-                       " device code files to a single output file"));
-  } else {
-    for (const EmbDeviceCode &devCode : codes)
-      write(devCode);
-  }
+  // if (codes.empty()) {
+  //   report_warning("no embedded device code found");
+  // } else if (codes.size() == 1) {
+  //   write(codes[0]);
+  // } else if (not clOutFile.empty()) {
+  //   // If the input file contains more than one embedded device code objects and
+  //   // all of them must be extracted, they cannot be extracted into a single
+  //   // file.
+  //   report_error(sjoin("cannot write ", codes.size(),
+  //                      " device code files to a single output file"));
+  // } else {
+  //   for (const EmbDeviceCode &devCode : codes)
+  //     write(devCode);
+  // }
   return 0;
 }
 

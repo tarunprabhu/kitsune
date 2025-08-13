@@ -13,14 +13,45 @@
 #include "kitsune/Object/BinaryUtils.h"
 #include "kitsune/Object/ArchiveUtils.h"
 #include "kitsune/Object/ObjectUtils.h"
+#include "kitsune/Support/Error.h"
 #include "llvm/BinaryFormat/Magic.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/Binary.h"
+#include "llvm/Object/ELF.h"
+#include "llvm/Object/ELFObjectFile.h"
+#include "llvm/Object/ELFTypes.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/MemoryBuffer.h"
 
 using namespace llvm;
 using namespace llvm::object;
+
+template <typename ELFT>
+static bool isELFExecutable(const ELFObjectFile<ELFT> &elfObjFile) {
+  const ELFFile<ELFT> &elfFile = elfObjFile.getELFFile();
+  const Elf_Ehdr_Impl<ELFT> &header = elfFile.getHeader();
+  return header.e_entry;
+}
+
+static bool isELFExecutable(StringRef data) {
+  MemoryBufferRef memBuf(data, "");
+  Expected<std::unique_ptr<ObjectFile>> objFileOrErr =
+      ObjectFile::createELFObjectFile(memBuf);
+  if (not objFileOrErr)
+    report_internal_error(objFileOrErr.takeError());
+  const ObjectFile &objFile = **objFileOrErr;
+
+  if (const auto *elf64le = dyn_cast<ELFObjectFile<ELF64LE>>(&objFile))
+    return isELFExecutable(*elf64le);
+  else if (const auto *elf32le = dyn_cast<ELFObjectFile<ELF32LE>>(&objFile))
+    return isELFExecutable(*elf32le);
+  else if (const auto *elf64be = dyn_cast<ELFObjectFile<ELF64BE>>(&objFile))
+    return isELFExecutable(*elf64be);
+  else if (const auto *elf32be = dyn_cast<ELFObjectFile<ELF32BE>>(&objFile))
+    return isELFExecutable(*elf32be);
+  else
+    llvm_unreachable("isELFExecutable: Must be an ELF executable");
+}
 
 Expected<bool> llvm::object::hasEmbDeviceCode(const Binary &bin, TTID tt) {
   if (auto *objFile = dyn_cast<ObjectFile>(&bin))
@@ -53,6 +84,8 @@ bool llvm::object::isExecutable(StringRef data) {
   case file_magic::macho_executable:
   case file_magic::pecoff_executable:
     return true;
+  case file_magic::elf_shared_object:
+    return isELFExecutable(data);
   default:
     return false;
   }
@@ -92,10 +125,11 @@ bool llvm::object::isObject(const Binary &bin) {
 
 bool llvm::object::isShared(StringRef data) {
   switch (identify_magic(data)) {
-  case file_magic::elf_shared_object:
   case file_magic::macho_dynamically_linked_shared_lib:
   case file_magic::coff_import_library:
     return true;
+  case file_magic::elf_shared_object:
+    return not isELFExecutable(data);
   default:
     return false;
   }

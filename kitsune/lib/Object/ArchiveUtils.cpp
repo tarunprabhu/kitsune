@@ -97,21 +97,21 @@ Error llvm::object::validateEmbDeviceCode(const Archive &archive) {
   if (objFiles.empty())
     return Error::success();
 
-  SmallVector<EmbDeviceCode, 1> devCodes;
-  for (const std::unique_ptr<ObjectFile> &objFilePtr : objFiles) {
-    const ObjectFile &objFile = *objFilePtr;
-    Expected<std::optional<EmbDeviceCode>> devCodeOrErr = parse(objFile, tt);
-    if (not devCodeOrErr)
-      return devCodeOrErr.takeError();
+  // SmallVector<EmbDeviceCode, 1> devCodes;
+  // for (const std::unique_ptr<ObjectFile> &objFilePtr : objFiles) {
+  //   const ObjectFile &objFile = *objFilePtr;
+  //   Expected<std::optional<EmbDeviceCode>> devCodeOrErr = parse(objFile, tt);
+  //   if (not devCodeOrErr)
+  //     return devCodeOrErr.takeError();
 
-    if (std::optional<EmbDeviceCode> devCode = *devCodeOrErr)
-      devCodes.push_back(*devCode);
-  }
+  //   if (std::optional<EmbDeviceCode> devCode = *devCodeOrErr)
+  //     devCodes.push_back(*devCode);
+  // }
 
-  EmbDeviceCode::Id id = devCodes[0].getId();
-  for (const EmbDeviceCode &devCode : devCodes)
-    if (devCode.getId() != id)
-      return createStringError("Inconsistent embedded device code targets");
+  // EmbDeviceCode::Id id = devCodes[0].getId();
+  // for (const EmbDeviceCode &devCode : devCodes)
+  //   if (devCode.getId() != id)
+  //     return createStringError("Inconsistent embedded device code targets");
 
   return Error::success();
 }

@@ -11,13 +11,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Object/EmbDeviceCode.h"
+#include "kitsune/Config/config.h"
+#include "kitsune/Object/BinaryUtils.h"
 #include "kitsune/Object/ObjectUtils.h"
+#include "kitsune/Support/Error.h"
 #include "kitsune/Support/StringUtils.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/BinaryFormat/Magic.h"
+#include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Path.h"
 
 using namespace llvm;
+using namespace llvm::object;
 
 static bool isDeviceCodeSection(SectionRef sec, TTID tt) {
   if (Expected<StringRef> name = sec.getName())
@@ -72,7 +77,8 @@ static Expected<std::optional<EmbDeviceCode>> parseSection(SectionRef sec) {
     report_internal_error("Section in unexpected kind of binary object");
   }
 
-  return EmbDeviceCode(objFile, *id, code, objFile.getFileName());
+  llvm_unreachable("NOT YET IMPLEMENTED: parseSection");
+  // return EmbDeviceCode(objFile, *id, code, objFile.getFileName());
 }
 
 static StringRef getExt(EmbDeviceCode::BinaryFormat fmt, file_magic magic) {
@@ -100,13 +106,13 @@ static StringRef getExt(EmbDeviceCode::BinaryFormat fmt, file_magic magic) {
   }
 }
 
-EmbDeviceCode::EmbDeviceCode(const Binary &bin, Id id, StringRef code)
+EmbDeviceCode::EmbDeviceCode(const Binary &bin, Id id, StringRef code,
+                             StringRef hostFileName)
     : bin(bin), id(id), code(code) {
-  StringRef fileName = bin.getFileName();
   file_magic magic = identify_magic(code);
   BinaryFormat fmt = getBinaryFormat();
   StringRef ext = getExt(fmt, magic);
-  const auto &[base, e] = sys::path::filename(fileName).rsplit('.');
+  const auto &[base, e] = sys::path::filename(hostFileName).rsplit('.');
 
   name = sjoin(base, "-", getArch(), ext);
 }
@@ -374,49 +380,50 @@ Expected<EmbDeviceCode::Id> EmbDeviceCode::getIdFor(uint64_t n) {
   return createStringError("Cannot convert integer to EmbDeviceCode::Id");
 }
 
-Expected<std::optional<EmbDeviceCode>>
-EmbDeviceCode::parse(const ObjectFile &objFile, TTID tt) {
-  for (SectionRef sec : objFile.sections())
-    if (isDeviceCodeSection(sec, tt))
-      return parseSection(sec);
-  return std::nullopt;
-}
+// Expected<std::optional<EmbDeviceCode>>
+// EmbDeviceCode::parse(const ObjectFile &objFile, TTID tt) {
+//   for (SectionRef sec : objFile.sections())
+//     if (isDeviceCodeSection(sec, tt))
+//       return parseSection(sec);
+//   return std::nullopt;
+// }
 
-Expected<std::optional<EmbDeviceCode>>
-EmbDeviceCode::parse(const Archive &archive, TTID tt) {
-  Error err = Error::success();
-  for (const Archive::Child &child : archive.children(err)) {
-    if (err)
-      return err;
+// Expected<std::optional<EmbDeviceCode>>
+// EmbDeviceCode::parse(const Archive &archive, TTID tt) {
+//   Error err = Error::success();
+//   for (const Archive::Child &child : archive.children(err)) {
+//     if (err)
+//       return err;
 
-    Expected<MemoryBufferRef> memBufOrErr = child.getMemoryBufferRef();
-    if (not memBufOrErr)
-      return memBufOrErr.takeError();
-    const MemoryBufferRef &memBuf = *memBufOrErr;
+//     Expected<MemoryBufferRef> memBufOrErr = child.getMemoryBufferRef();
+//     if (not memBufOrErr)
+//       return memBufOrErr.takeError();
+//     const MemoryBufferRef &memBuf = *memBufOrErr;
 
-    Expected<std::unique_ptr<ObjectFile>> objFileOrErr =
-        ObjectFile::createObjectFile(memBuf);
-    if (not objFileOrErr)
-      return objFileOrErr.takeError();
-    const ObjectFile &objFile = **objFileOrErr;
+//     Expected<std::unique_ptr<ObjectFile>> objFileOrErr =
+//         ObjectFile::createObjectFile(memBuf);
+//     if (not objFileOrErr)
+//       return objFileOrErr.takeError();
+//     const ObjectFile &objFile = **objFileOrErr;
 
-    Expected<std::optional<EmbDeviceCode>> devCodeOrErr = parse(objFile, tt);
-    if (not devCodeOrErr)
-      return devCodeOrErr.takeError();
-    std::optional<EmbDeviceCode> devCode = *devCodeOrErr;
+//     Expected<std::optional<EmbDeviceCode>> devCodeOrErr = parse(objFile, tt);
+//     if (not devCodeOrErr)
+//       return devCodeOrErr.takeError();
+//     std::optional<EmbDeviceCode> devCode = *devCodeOrErr;
 
-    if (devCode)
-      linker.add(*devCode);
-  }
+//     if (devCode)
+//       linker.add(*devCode);
+//   }
 
-  return linker.linkStatic();
-}
+//   return linker.linkStatic();
+// }
 
-Expected<std::optional<EmbDeviceCode>> EmbDeviceCode::create(const Binary &bin,
-                                                             TTID tt) {
-  if (auto *objFile = dyn_cast<ObjectFile>(&bin))
-    return EmbDeviceCode::create(*objFile, tt);
-  else if (auto *archive = dyn_cast<Archive>(&bin))
-    return EmbDeviceCode::create(*archive, tt);
-  llvm_unreachable("EmbDeviceCode::create: File format not supported");
-}
+// Expected<std::optional<EmbDeviceCode>> EmbDeviceCode::create(const Binary
+// &bin,
+//                                                              TTID tt) {
+//   if (auto *objFile = dyn_cast<ObjectFile>(&bin))
+//     return EmbDeviceCode::create(*objFile, tt);
+//   else if (auto *archive = dyn_cast<Archive>(&bin))
+//     return EmbDeviceCode::create(*archive, tt);
+//   llvm_unreachable("EmbDeviceCode::create: File format not supported");
+// }

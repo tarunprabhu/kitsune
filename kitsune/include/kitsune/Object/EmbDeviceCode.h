@@ -233,7 +233,8 @@ private:
   // std::unique_ptr<MemoryBuffer> archive;
 
 private:
-  EmbDeviceCode(const object::Binary &bin, Id id, StringRef code);
+  EmbDeviceCode(const object::Binary &bin, Id id, StringRef code,
+                StringRef hostFileName);
 
 public:
   /// The tapir target that generated this embedded device code.
