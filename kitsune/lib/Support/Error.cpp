@@ -34,6 +34,11 @@ void llvm::report_warning(StringRef msg) {
   WithColor::warning() << msg << "\n";
 }
 
+void llvm::report_error(Error e) {
+  WithColor::error() << e << "\n";
+  std::exit(2);
+}
+
 void llvm::report_error(StringRef msg) {
   WithColor::error() << msg << "\n";
   std::exit(2);
@@ -50,6 +55,6 @@ void llvm::report_error(const SMDiagnostic &diag) {
   std::exit(2);
 }
 
-void llvm::report_error(StringRef msg, const DebugLoc& loc) {
+void llvm::report_error(StringRef msg, const DebugLoc &loc) {
   llvm_unreachable("NOT IMPLEMENTED: report_error(DebugLoc)");
 }

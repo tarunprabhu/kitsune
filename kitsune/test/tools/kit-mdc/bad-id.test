@@ -1,0 +1,21 @@
+# If the id in an embedded device code section is not a valid device code id,
+# emit an appropriate error.
+#
+# RUN: rm -rf %t
+# RUN: mkdir -p %t
+#
+# RUN: llc -filetype=obj -o %t/emb.o %S/input/empty.ll
+# RUN: printf '\0\0\01\0\0\0\0\0' >> %t/sect.bin
+# RUN: cat %t/emb.o >> %t/sect.bin
+#
+# RUN: llc -filetype=obj -o %t/cuda.o %S/input/empty.ll
+# RUN: llvm-objcopy --add-section .kit.code.cuda=%t/sect.bin %t/cuda.o
+#
+# RUN: llc -filetype=obj -o %t/hip.o %S/input/empty.ll
+# RUN: llvm-objcopy --add-section .kit.code.hip=%t/sect.bin %t/hip.o
+#
+# ------------------------------------------------------------------------------
+# RUN: not kit-mdc %t/cuda.o 2>&1 | FileCheck %s
+# RUN: not kit-mdc %t/hip.o 2>&1 | FileCheck %s
+#
+# CHECK: corrupt embedded device code id

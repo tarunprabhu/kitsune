@@ -1,0 +1,25 @@
+# REQUIRES: kitsune-cuda
+#
+# Check that an error is raised when extracting device code from a static
+# archive with inconsistent device ids.
+#
+# RUN: rm -rf %t
+# RUN: mkdir %t
+# RUN: mkdir %t/in
+#
+# Create the object files to be used for testing. Do this on the fly to avoid
+# adding binary blobs to the repo.
+#
+# RUN: llc -o %t/in/cdc70.o -filetype=obj %S/input/cuda-mbc.ll \
+# RUN:     --tapir=cuda --tapir-cuda-arch=sm_70
+#
+# RUN: llc -o %t/in/cdc72.o -filetype=obj %S/input/cuda-mbc.ll \
+# RUN:     --tapir=cuda --tapir-hip-arch=sm_72
+#
+# RUN: llvm-ar rc %t/in/libcuda.a %t/in/cdc70.o %t/in/cdc72.o
+#
+# ------------------------------------------------------------------------------
+#
+# RUN: not kit-mdc %t/in/libcuda.a 2>&1 | FileCheck %s
+#
+# CHECK: error: inconsistent formats and targets

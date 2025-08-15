@@ -14,10 +14,13 @@
 #define KITSUNE_OBJECT_OBJECT_UTILS_H
 
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Object/EmbDeviceCode.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
 
 namespace llvm {
+
+class EmbDeviceCodeContext;
 
 namespace object {
 

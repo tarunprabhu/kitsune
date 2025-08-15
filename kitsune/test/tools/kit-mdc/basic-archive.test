@@ -3,15 +3,12 @@
 #
 # Test some basic functionality of kit-mdc when operating on static archives.
 #
-# Create temporary working directories
+# RUN: rm -rf %t
+# RUN: mkdir %t
+# RUN: mkdir %t/in %t/wd %t/out
 #
-# RUN: rm -rf %t && mkdir -p %t
-# RUN: rm -rf %t/wd && mkdir -p %t/wd
-# RUN: rm -rf %t/in && mkdir -p %t/in
-# RUN: rm -rf %t/out && mkdir -p %t/out
-#
-# Create the object files to be used for testing. The sources are checked in
-# to avoid having binary blobs checked in.
+# Create the object files to be used for testing. Do this on the fly to avoid
+# adding binary blobs to the repo.
 #
 # RUN: llc -o %t/in/cdc.o -filetype=obj %S/input/cuda-mbc.ll \
 # RUN:     --tapir=cuda --tapir-cuda-arch=sm_72
@@ -29,8 +26,8 @@
 # RUN: rm -rf %t/wd/* && cd %t/wd
 #
 # RUN: kit-mdc %t/in/libmulti.a
-# RUN: cat %t/wd/libmulti-sm_72.a
-# RUN: cat %t/wd/libmulti-gfx1103.a
+# RUN: ls %t/wd/libmulti-sm_72.a
+# RUN: ls %t/wd/libmulti-gfx1103.a
 # RUN: llvm-ar t %t/wd/libmulti-sm_72.a | FileCheck %s -check-prefix CUDA
 # RUN: llvm-ar t %t/wd/libmulti-gfx1103.a | FileCheck %s -check-prefix HIP
 #
@@ -41,12 +38,40 @@
 # RUN: rm -rf %t/out/*
 #
 # RUN: kit-mdc -J %t/out %t/in/libmulti.a
-# RUN: cat %t/out/libmulti-sm_72.a
-# RUN: cat %t/out/libmulti-gfx1103.a
+# RUN: ls %t/out/libmulti-sm_72.a
+# RUN: ls %t/out/libmulti-gfx1103.a
 # RUN: llvm-ar t %t/out/libmulti-sm_72.a | FileCheck %s -check-prefix CUDA
 # RUN: llvm-ar t %t/out/libmulti-gfx1103.a | FileCheck %s -check-prefix HIP
+#
+# ------------------------------------------------------------------------------
+# Check that the --tapir option works as expected.
+#
+# RUN: cd %t/wd
+#
+# RUN: rm -rf %t/wd/*.*
+# RUN: kit-mdc --tapir=cuda -o %t/wd/amdgpu.o %t/in/hdc.o
+# RUN: not ls *
+#
+# RUN: kit-mdc --tapir=hip -o %t/wd/nv.cubin %t/in/cdc.o
+# RUN: not ls *
 #
 # ------------------------------------------------------------------------------
 #
 # CUDA: cdc-sm_72.cubin
 # HIP: hdc-gfx1103.o
+#
+# ------------------------------------------------------------------------------
+# Check that the --tapir option works as expected.
+#
+# RUN: cd %t/wd
+# RUN: rm -rf %t/wd/*.*
+#
+# RUN: rm -rf %t/wd/*.*
+# RUN: kit-mdc --tapir=cuda %t/in/libmulti.a
+# RUN: ls *sm*.a
+# RUN: not ls *gfx*.a
+#
+# RUN: rm -rf %t/wd/*.*
+# RUN: kit-mdc --tapir=hip %t/in/libmulti.a
+# RUN: not ls *sm*.a
+# RUN: ls *gfx*.a

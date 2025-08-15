@@ -1,0 +1,22 @@
+# REQUIRES: kitsune-hip
+#
+# The embedded device code id must match the actual code contents. For instance,
+# if the device id is for an AMDGPU, the contents must be AMDGPU code.
+#
+# FIXME: This validation has not been implemented yet
+# XFAIL: *
+#
+# RUN: rm -rf %t
+# RUN: mkdir -p %t
+#
+# RUN: llc --tapir=hip -filetype=obj -o %t/emb.o %S/input/empty.ll
+# RUN: printf '\012\0\01\0\0\0\0\0' >> %t/sect.bin
+# RUN: cat %t/emb.o >> %t/sect.bin
+#
+# RUN: llc -filetype=obj -o %t/host.o %S/input/empty.ll
+# RUN: llvm-objcopy --add-section .kit.code.hip=%t/sect.bin %t/host.o
+#
+# ------------------------------------------------------------------------------
+# RUN: not kit-mdc %t/host.o 2>&1 | FileCheck %s
+#
+# CHECK: error:

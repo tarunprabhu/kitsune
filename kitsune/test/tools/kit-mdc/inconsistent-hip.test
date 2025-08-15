@@ -1,0 +1,25 @@
+# REQUIRES: kitsune-hip
+#
+# Check that an error is raised when extracting device code from a static
+# archive with inconsistent device ids.
+#
+# RUN: rm -rf %t
+# RUN: mkdir %t
+# RUN: mkdir %t/in
+#
+# Create the object files to be used for testing. Do this on the fly to avoid
+# adding binary blobs to the repo.
+#
+# RUN: llc -o %t/in/hdc906.o -filetype=obj %S/input/hip-mbc.ll \
+# RUN:     --tapir=hip --tapir-hip-arch=gfx906
+#
+# RUN: llc -o %t/in/hdc1103.o -filetype=obj %S/input/hip-mbc.ll \
+# RUN:     --tapir=hip --tapir-hip-arch=gfx1103
+#
+# RUN: llvm-ar rc %t/in/libhip.a %t/in/hdc906.o %t/in/hdc1103.o
+#
+# ------------------------------------------------------------------------------
+#
+# RUN: not kit-mdc %t/in/libhip.a 2>&1 | FileCheck %s
+#
+# CHECK: error: inconsistent formats and targets

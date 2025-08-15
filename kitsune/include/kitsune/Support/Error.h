@@ -17,6 +17,7 @@
 
 #include "kitsune/Support/StringUtils.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Error.h"
 
 namespace llvm {
 
@@ -55,6 +56,9 @@ void report_warning(StringRef msg);
 /// report "user" errors. \ref report_fatal_error should be used to report
 /// internal compiler errors.
 void report_error(StringRef msg);
+
+/// Print an error message and exit immediately.
+void report_error(Error e);
 
 /// Print an error message and exit immediately.
 void report_error(const std::error_code &ec);

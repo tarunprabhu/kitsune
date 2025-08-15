@@ -9,6 +9,7 @@
 #include "kitsune/Object/ArchiveUtils.h"
 #include "CheckUtils.h"
 #include "CompressedBinary.h"
+#include "kitsune/Object/EmbDeviceCodeContext.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/ObjectFile.h"
@@ -18,122 +19,42 @@
 using namespace llvm;
 using namespace llvm::object;
 
-// This is an empty archive i.e. it contains no members.
-static const detail::CompressedBinary cNoMembers("eNpTtEksSs6w4wIACn4CRA==", 8);
+TEST(ArchiveUtilsTest, hasEmbDeviceCode) {
+  detail::check_false(hasEmbDeviceCode(*arEmpty));
+  detail::check_false(hasEmbDeviceCode(*arNoDeviceCode));
+  detail::check_true(hasEmbDeviceCode(*arCuda1));
+  detail::check_true(hasEmbDeviceCode(*arHip1));
+  detail::check_true(hasEmbDeviceCode(*arMulti));
 
-// This archive contains a single object file named empty.o that does not
-// contain any embedded device code.
-static const detail::CompressedBinary cNoDeviceCode(
-    "eNpTtEksSs6w49JXQAUGGGwDFHELuGwCFwMUpOYWlFTq5esTMsPMxARMGxlYwM2od/VxY2JkhB"
-    "nFwMhgx4DgIUAAEtsBSjKBVOoVlxSVJCYxUAmA7GbGIu4ApTmxqEcGAMBPGhs=",
-    344);
-
-// This archive contains a single object file named sm_72.o that contains
-// embedded NVIDIA GPU code for the sm_72 architecture.
-static const detail::CompressedBinary cCuda(
-    "eNpTtEksSs6w49JXQAUGGGwDFHELuGwCFwMUFOfGmxvp5esTMsPMxARMGxoYGMDMqHf1cWNiZI"
-    "QZxcDIYMeA4CGABjOC7QAlmYEqeRiYwDyoOcbscHP2MTRgMccDargHqwfQBAuwOWwgG/WKM4pL"
-    "ikoSk4AsGF2Zi0THF2fkpVQw6OWV6WXmpeUz6KWkJpWmx6cVJeamgkWTE3Ny0osSCzLAvIKi/J"
-    "L8ksqCVJoajRPYAzEzAytWuf9AAKL/Qem/UPoPlKYEMILtxQQOUDoai3pkwI1D/2wi9QsDMRMW"
-    "/T+gtAGUZoJiDihfAkobYTETnP4YcfsXPdyBYgW49CtA+TA/skBpmDsQSSQ7s0QvOT8lVS+5NC"
-    "WRgVbxIsCM6n9c/uKEijHhiNcLaBIcaOoAPJ54rw==",
-    1136);
-
-// This archive contains a single object file named gfx906.o that contains
-// embedded AMDGPU code for the gfx906.o
-static const detail::CompressedBinary cHip(
-    "eNpTtEksSs6w49JXQAUGGGwDFHELuGwCFwMUpKdVWBqY6eXrEzDDzMQETBsamJnAzKh39XFjYm"
-    "SEGcXAyGDHgOAhQAYzgu0AJZmBKoWgqqHmODDDzXmA1RwOqKA+K8IcDqBKdiDLG4gVgNjR18U9"
-    "IJSBoXldYm5KRnGiXnZqUV5qTvGEtVB+SWJRemrJTiAvPTlPF0jpQiR0dSFBAdNXllpUnJmfN4"
-    "mRiQEn0CtJrShh0IPYqZdeUBSfm1iRmVuaW8ygl5dfkqrn7heqW1ySmJzNoJeTU5Ybn5iSAjQ1"
-    "HSLLoFdcUlSSmASkK3NBNKUAFCbMWMR3QOkANHFGLHwQZsNiLjbAgsZnx2ImPv3oamUo1G8FdQ"
-    "MTDv0JBNyvAwo/n//5QKoBW/gh+xOb/R5Y7AaBBVBaAi2cOdDEGfSyM0v0kvNTUvUyMgvgyYNi"
-    "wI8jXQRABcWJTBe4wlUAzXAONHUArFVkYA==",
-    1200);
-
-// This archive contains two object files named sm_72.o and gfx906.o that
-// contain NVIDIA and AMD GPU code for the sm_72 and gfx906 architectures
-// respectively.
-static const detail::CompressedBinary cMulti(
-    "eNq1VE9v0zAUd5J1KwOJaRzgwGHcOBA3jKoMhEaQgFVioF524pB5iZtEzT/FbtWdmMQXQFy58A"
-    "XgDBc+Ax+Bj8EBGG760rRpTIuqPcn5+T37/Rzbz79bj0hqe/ubjZ1ZM+b6xkx8bzJ6vInAWGjd"
-    "38VxYxFHq9nM8K5hGDnHm2eHz1VFyamQgvZR4RV2Wyv6Jnw1MfMKUjMPeO5tTHi+obMKnjaQt2"
-    "ttwbCX8ayPVsTMYzzl5ET0cjwNp9BiXuQMEY4G2I+6McIOPem7VjclIc2iNgkCNyWJl3lJGvOY"
-    "nyb0Qqml9lg0DdUqx86FjfAP4G/AX4CrmJKtO28m4OuK+dN2WZL/Ycn8a6KpFfk/AQ1AFVod/B"
-    "uAuxWcWf0p8v2Wz13EEln+Dvj5HtcA8/8oSqTnc2zHDsV23yHoou5lS5vdv2xflyCmSu71e2mg"
-    "XprndocPjFYhEos1otX8X43wJBqxDbOBx9QmPD8qeeoQbNQKnrqYOdKWF3CHT14+PegcIfT2Mw"
-    "kdjxHco2lEA/buE/icpC7lX4Xn2pEuQB8P6Pr4KPK8AU2ZH0fvFVV+eZjTIUd4vCZ2k9QKydAP"
-    "+yETehBzig9eHemME7uHcBAMQos4jmB1x6NzqrOqmZJa+gLYWVBLCrR1SS2Vba3kb0jeqImWe6"
-    "M3V8x/CP8gewvHC/7/zuj8Ds9jAWdV5ze9z6r12xKN+1jSsvycyxo3pS2en0zKY2W7KqmLDgSv"
-    "L1kXsnPd0v6tMX8BseTSug==",
-    2260);
-
-// This archive contains an an object file named empty.o and a text file named
-// empty.txt. This is used to check that we don't require an archive to
-// contain object files only.
-static const detail::CompressedBinary cHetero(
-    "eNpTtEksSs6w49JXQAUGGGwDFHELuGwCFwMUpOYWlFTq5esTMsPMxARMGxlYwM2od/VxY2JkhB"
-    "nFwMhgx4DgIUAAEtsBSjKBVOoVlxSVJCYxUAmA7GbGIu4ApTmxqEcGkLAoqSjRJy4sDJHCk4sL"
-    "AK9BJQQ=",
-    406);
-
-class ArchiveUtilsTest : public testing::Test {
-protected:
-  std::unique_ptr<Archive> noMembers;
-  std::unique_ptr<Archive> noDeviceCode;
-  std::unique_ptr<Archive> cuda;
-  std::unique_ptr<Archive> hip;
-  std::unique_ptr<Archive> multi;
-  std::unique_ptr<Archive> hetero;
-
-protected:
-  template <typename T>
-  std::unique_ptr<T> getIfOk(Expected<std::unique_ptr<T>> optr) {
-    if (not optr)
-      ADD_FAILURE();
-    return std::move(*optr);
-  }
-
-  ArchiveUtilsTest() {
-    noMembers = getIfOk(Archive::create(cNoMembers.memBuf));
-    noDeviceCode = getIfOk(Archive::create(cNoDeviceCode.memBuf));
-    cuda = getIfOk(Archive::create(cCuda.memBuf));
-    hip = getIfOk(Archive::create(cHip.memBuf));
-    multi = getIfOk(Archive::create(cMulti.memBuf));
-    hetero = getIfOk(Archive::create(cHetero.memBuf));
-  }
-};
-
-TEST_F(ArchiveUtilsTest, hasEmbDeviceCode) {
-  detail::check_false(hasEmbDeviceCode(*noMembers));
-  detail::check_false(hasEmbDeviceCode(*noDeviceCode));
-  detail::check_true(hasEmbDeviceCode(*cuda));
+  EXPECT_FALSE(hasEmbDeviceCode(*arHetero));
 }
 
-TEST_F(ArchiveUtilsTest, getEmbDeviceCodeTTIDs) {
+TEST(ArchiveUtilsTest, getEmbDeviceCodeTTIDs) {
   using Vec = SmallVector<TTID, 0>;
 
-  detail::check_eq(getEmbDeviceCodeTTIDs(*noMembers), Vec({}));
-  detail::check_eq(getEmbDeviceCodeTTIDs(*noDeviceCode), Vec({}));
-  detail::check_eq(getEmbDeviceCodeTTIDs(*cuda), Vec({TTID::Cuda}));
-  detail::check_eq(getEmbDeviceCodeTTIDs(*hip), Vec({TTID::Hip}));
+  detail::check_eq(getEmbDeviceCodeTTIDs(*arEmpty), Vec({}));
+  detail::check_eq(getEmbDeviceCodeTTIDs(*arNoDeviceCode), Vec({}));
+  detail::check_eq(getEmbDeviceCodeTTIDs(*arCuda1), Vec({TTID::Cuda}));
+  detail::check_eq(getEmbDeviceCodeTTIDs(*arHip1), Vec({TTID::Hip}));
 
-  Expected<SmallVector<TTID, 0>> tts = getEmbDeviceCodeTTIDs(*multi);
+  Expected<SmallVector<TTID, 0>> tts = getEmbDeviceCodeTTIDs(*arMulti);
   EXPECT_TRUE(bool(tts));
-
   std::sort(tts->begin(), tts->end());
   EXPECT_EQ(*tts, Vec({TTID::Cuda, TTID::Hip}));
+
+  EXPECT_FALSE(getEmbDeviceCodeTTIDs(*arHetero));
 }
 
-TEST_F(ArchiveUtilsTest, getNumMembers) {
-  detail::check_eq(getNumMembers(*noMembers), 0UL);
-  detail::check_eq(getNumMembers(*noDeviceCode), 1UL);
-  detail::check_eq(getNumMembers(*cuda), 1UL);
-  detail::check_eq(getNumMembers(*hip), 1UL);
-  detail::check_eq(getNumMembers(*multi), 2UL);
+TEST(ArchiveUtilsTest, getNumMembers) {
+  detail::check_eq(getNumMembers(*arEmpty), 0UL);
+  detail::check_eq(getNumMembers(*arNoDeviceCode), 1UL);
+  detail::check_eq(getNumMembers(*arCuda1), 1UL);
+  detail::check_eq(getNumMembers(*arHip1), 1UL);
+  detail::check_eq(getNumMembers(*arMulti), 2UL);
+  detail::check_eq(getNumMembers(*arHetero), 2UL);
 }
 
-TEST_F(ArchiveUtilsTest, getMemberObjects) {
+TEST(ArchiveUtilsTest, getMemberObjects) {
   auto check = [](const Archive &archive,
                   const SmallSet<StringRef, 2> &fileNames) {
     Expected<ArchiveMemberObjects> objsOrErr = getMemberObjects(archive);
@@ -145,10 +66,121 @@ TEST_F(ArchiveUtilsTest, getMemberObjects) {
       EXPECT_TRUE(fileNames.contains(obj->getFileName()));
   };
 
-  check(*noMembers, {});
-  check(*noDeviceCode, {"empty.o"});
-  check(*cuda, {"sm_72.o"});
-  check(*hip, {"gfx906.o"});
-  check(*multi, {"sm_72.o", "gfx906.o"});
-  check(*hetero, {"empty.o", "empty.txt"});
+  check(*arEmpty, {});
+  check(*arNoDeviceCode, {"empty.o"});
+  check(*arCuda1, {"sm_72.o"});
+  check(*arHip1, {"gfx906.o"});
+  check(*arMulti, {"sm_72.o", "gfx906.o"});
+
+  EXPECT_FALSE(getMemberObjects(*arHetero));
+}
+
+// The add* tests actually test EmbDeviceCodeContext::add(ObjectFile). But these
+// are tested here since the are defined in kitsune/lib/Object/ObjectUtils.cpp.
+TEST(ArchiveUtilsTest, addEmpty) {
+  EmbDeviceCodeContext ctx;
+  Expected<unsigned> res = ctx.add(cast<Binary>(*elfEmpty));
+
+  EXPECT_TRUE(bool(res));
+  EXPECT_TRUE(*res == 0);
+  EXPECT_TRUE(ctx.getTTIDs().empty());
+  EXPECT_FALSE(ctx.contains(*arEmpty));
+}
+
+TEST(ArchiveUtilsTest, addNoDeviceCode) {
+  EmbDeviceCodeContext ctx;
+  Expected<unsigned> res = ctx.add(cast<Binary>(*arNoDeviceCode));
+
+  EXPECT_TRUE(bool(res));
+  EXPECT_TRUE(*res == 0);
+  EXPECT_TRUE(ctx.getTTIDs().empty());
+  EXPECT_FALSE(ctx.contains(*arNoDeviceCode));
+}
+
+TEST(ArchiveUtilsTest, addCuda1) {
+  EmbDeviceCodeContext ctx;
+  SmallVector<TTID, 2> tts = {TTID::Cuda};
+
+  Expected<unsigned> res1 = ctx.add(cast<Binary>(*arCuda1));
+  EXPECT_TRUE(bool(res1));
+  EXPECT_EQ(*res1, 1U);
+  EXPECT_EQ(ctx.getTTIDs(), tts);
+  EXPECT_EQ(ctx.get(TTID::Cuda).size(), 1UL);
+  EXPECT_EQ(ctx.get(TTID::Hip).size(), 0UL);
+  EXPECT_TRUE(ctx.contains(*arCuda1));
+
+  Expected<unsigned> res2 = ctx.add(cast<Binary>(*arCuda1));
+  EXPECT_TRUE(bool(res2));
+  EXPECT_EQ(*res2, 0U);
+  EXPECT_EQ(ctx.getTTIDs(), tts);
+  EXPECT_EQ(ctx.get(TTID::Cuda).size(), 1UL);
+  EXPECT_EQ(ctx.get(TTID::Hip).size(), 0UL);
+}
+
+TEST(ArchiveUtilsTest, addHip) {
+  EmbDeviceCodeContext ctx;
+  SmallVector<TTID, 2> tts = {TTID::Hip};
+
+  Expected<unsigned> res1 = ctx.add(cast<Binary>(*arHip1));
+  EXPECT_TRUE(bool(res1));
+  EXPECT_EQ(*res1, 1U);
+  EXPECT_EQ(ctx.getTTIDs(), tts);
+  EXPECT_EQ(ctx.get(TTID::Cuda).size(), 0UL);
+  EXPECT_EQ(ctx.get(TTID::Hip).size(), 1UL);
+  EXPECT_TRUE(ctx.contains(*arHip1));
+
+  Expected<unsigned> res2 = ctx.add(cast<Binary>(*arHip1));
+  EXPECT_TRUE(bool(res2));
+  EXPECT_EQ(*res2, 0U);
+  EXPECT_EQ(ctx.getTTIDs(), tts);
+  EXPECT_EQ(ctx.get(TTID::Cuda).size(), 0UL);
+  EXPECT_EQ(ctx.get(TTID::Hip).size(), 1UL);
+}
+
+TEST(ArchiveUtilsTest, addMulti) {
+  EmbDeviceCodeContext ctx;
+  SmallVector<TTID, 2> tts = {TTID::Cuda, TTID::Hip};
+
+  Expected<unsigned> res1 = ctx.add(cast<Binary>(*arMulti));
+  EXPECT_TRUE(bool(res1));
+  EXPECT_EQ(*res1, 2U);
+  EXPECT_EQ(ctx.getTTIDs(), tts);
+  EXPECT_EQ(ctx.get(TTID::Cuda).size(), 1U);
+  EXPECT_EQ(ctx.get(TTID::Hip).size(), 1U);
+  EXPECT_TRUE(ctx.contains(*arMulti));
+
+  Expected<unsigned> res2 = ctx.add(cast<Binary>(*arCuda1));
+  EXPECT_TRUE(bool(res2));
+  EXPECT_EQ(*res2, 1U);
+  EXPECT_EQ(ctx.getTTIDs(), tts);
+  EXPECT_EQ(ctx.get(TTID::Cuda).size(), 2U);
+  EXPECT_EQ(ctx.get(TTID::Hip).size(), 1U);
+  EXPECT_TRUE(ctx.contains(*arCuda1));
+
+  Expected<unsigned> res3 = ctx.add(cast<Binary>(*arHip1));
+  EXPECT_TRUE(bool(res3));
+  EXPECT_EQ(*res3, 1U);
+  EXPECT_EQ(ctx.getTTIDs(), tts);
+  EXPECT_EQ(ctx.get(TTID::Cuda).size(), 2U);
+  EXPECT_EQ(ctx.get(TTID::Hip).size(), 2U);
+  EXPECT_TRUE(ctx.contains(*arHip1));
+
+  const SmallVectorImpl<EmbDeviceCode> &cudas = ctx.get(TTID::Cuda);
+  EXPECT_EQ(cudas[0].getName(), "arMulti-sm_72.a");
+  EXPECT_EQ(cudas[1].getName(), "arCuda1-sm_72.a");
+
+  const SmallVectorImpl<EmbDeviceCode> &hips = ctx.get(TTID::Hip);
+  EXPECT_EQ(hips[0].getName(), "arMulti-gfx906.a");
+  EXPECT_EQ(hips[1].getName(), "arHip1-gfx906.a");
+
+  EXPECT_TRUE(ctx.contains(*arMulti));
+}
+
+TEST(ArchiveUtilsTest, addHetero) {
+  EmbDeviceCodeContext ctx;
+  Expected<unsigned> res = ctx.add(cast<Binary>(*arHetero));
+
+  EXPECT_FALSE(res);
+  EXPECT_TRUE(ctx.getTTIDs().empty());
+  EXPECT_FALSE(ctx.contains(*arHetero));
 }

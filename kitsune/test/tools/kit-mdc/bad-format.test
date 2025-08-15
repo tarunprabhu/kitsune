@@ -1,0 +1,72 @@
+# The format of the embedded device code must be consistent with the format of
+# the binary file in which it is contained.
+#
+#   - If the host file is a relocatable object, the embedded code must also be a
+#     relocatable object
+#
+#   - If the host file is a dynamic shared object, the embedded code must be a
+#     static archive
+#
+#   - If the host file is a static archive, the embedded code must be a static
+#     archive. Checking that an error occurs in this case is difficult because
+#     the embedded code is not contained directly within the archive but is
+#     constructed on the fly by extracting and combining the device code
+#     embedded in the archive members.
+#
+# RUN: rm -rf %t
+# RUN: mkdir -p %t
+#
+# RUN: llc -filetype=obj -o %t/emb.o %S/input/empty.ll
+# RUN: llvm-ar rc %t/libemb.a %t/emb.o
+#
+# RUN: rm -rf %t/sect.bin
+# RUN: printf '\01\0\01\0\0\0\0\0' >> %t/sect.bin
+# RUN: cat %S/input/text.o >> %t/sect.bin
+#
+# ------------------------------------------------------------------------------
+# Add bad contents to the sections used by the cuda tapir target.
+#
+# RUN: llc -filetype=obj -o %t/cuda.o %S/input/empty.ll
+# RUN: ld.lld --shared -o %t/libcuda.so %t/cuda.o
+#
+# RUN: llvm-objcopy --add-section .kit.code.cuda=%t/libemb.a \
+# RUN:     %t/cuda.o
+#
+# RUN: llvm-objcopy --add-section .kit.code.cuda=%t/emb.o \
+# RUN:     %t/libcuda.so
+#
+# RUN: not kit-mdc %t/cuda.o 2>&1 | FileCheck %s -check-prefix=OBJECT
+# RUN: not kit-mdc %t/libcuda.so 2>&1 | FileCheck %s -check-prefix=SHARED
+#
+# ------------------------------------------------------------------------------
+# Add bad contents to the sections used by the hip tapir target.
+#
+# RUN: llc -filetype=obj -o %t/hip.o %S/input/empty.ll
+# RUN: ld.lld --shared -o %t/libhip.so %t/hip.o
+#
+# RUN: llvm-objcopy --add-section .kit.code.hip=%t/libemb.a \
+# RUN:     %t/hip.o
+#
+# RUN: llvm-objcopy --add-section .kit.code.hip=%t/emb.o \
+# RUN:     %t/libhip.so
+#
+# RUN: not kit-mdc %t/hip.o 2>&1 | FileCheck %s -check-prefix=OBJECT
+# RUN: not kit-mdc %t/libhip.so 2>&1 | FileCheck %s -check-prefix=SHARED
+#
+# ------------------------------------------------------------------------------
+# A similar error should be emitted if the contents of the section is not a
+# known binary file. In this case, it is a text file.
+#
+# RUN: llc -filetype=obj -o %t/cuda-text.o %S/input/empty.ll
+# RUN: llvm-objcopy --add-section .kit.code.cuda=%t/sect.bin %t/cuda-text.o
+
+# RUN: llc -filetype=obj -o %t/hip-text.o %S/input/empty.ll
+# RUN: llvm-objcopy --add-section .kit.code.hip=%t/sect.bin %t/hip-text.o
+#
+# RUN: not kit-mdc %t/cuda-text.o 2>&1 | FileCheck %s -check-prefix=OBJECT
+# RUN: not kit-mdc %t/hip-text.o 2>&1 | FileCheck %s -check-prefix=OBJECT
+#
+# ------------------------------------------------------------------------------
+#
+# OBJECT: error: {{.+}} must be a relocatable object
+# SHARED: error: {{.+}} must be a static archive

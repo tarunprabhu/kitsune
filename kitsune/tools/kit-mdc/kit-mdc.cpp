@@ -12,7 +12,7 @@
 
 #include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/Tapir.h"
-#include "kitsune/Object/EmbDeviceCodeParser.h"
+#include "kitsune/Object/EmbDeviceCodeContext.h"
 #include "kitsune/Support/Error.h"
 #include "kitsune/Support/TTUtils.h"
 #include "kitsune/Support/ToString.h"
@@ -77,32 +77,32 @@ static void write(const EmbDeviceCode &devCode) {
 
 // The embedded device codes have been parsed. Write these out depending on the
 // command line options.
-static int processDeviceCodes(const Binary &bin, std::optional<TTID> tt) {
-  llvm_unreachable("NOT IMPLEMENTED: kit-mdc: processDeviceCodes");
-  // Expected<EmbDeviceCodes> devCodesOrErr = EmbDeviceCodes::parse(bin);
-  // if (not devCodesOrErr)
-  //   report_error(sjoin(devCodesOrErr.takeError()));
-  // const EmbDeviceCodes &devCodes = *devCodesOrErr;
+static int processDeviceCodes(const Binary &bin, std::optional<TTID> only) {
+  EmbDeviceCodeContext ctx;
+  Expected<unsigned> res = ctx.add(bin);
+  if (not res)
+    report_error(res.takeError());
 
-  // SmallVector<EmbDeviceCode, 1> codes;
-  // for (const EmbDeviceCode &devCode : devCodes)
-  //   if (not tt or *tt == devCode.getTTID())
-  //     codes.push_back(devCode);
+  SmallVector<EmbDeviceCode, 1> devCodes;
+  for (TTID tt : ctx.getTTIDs())
+    for (const EmbDeviceCode &devCode : ctx.get(tt))
+      if (not only or *only == tt)
+        devCodes.push_back(devCode);
 
-  // if (codes.empty()) {
-  //   report_warning("no embedded device code found");
-  // } else if (codes.size() == 1) {
-  //   write(codes[0]);
-  // } else if (not clOutFile.empty()) {
-  //   // If the input file contains more than one embedded device code objects and
-  //   // all of them must be extracted, they cannot be extracted into a single
-  //   // file.
-  //   report_error(sjoin("cannot write ", codes.size(),
-  //                      " device code files to a single output file"));
-  // } else {
-  //   for (const EmbDeviceCode &devCode : codes)
-  //     write(devCode);
-  // }
+  if (devCodes.empty()) {
+    report_warning("no embedded device code found");
+  } else if (devCodes.size() == 1) {
+    write(devCodes[0]);
+  } else if (not clOutFile.empty()) {
+    // If the input file contains more than one embedded device code objects and
+    // all of them must be extracted, they cannot be extracted into a single
+    // file.
+    report_error(sjoin("cannot write ", devCodes.size(),
+                       " device code files to a single output file"));
+  } else {
+    for (const EmbDeviceCode &devCode : devCodes)
+      write(devCode);
+  }
   return 0;
 }
 
@@ -111,7 +111,7 @@ static int processArchive(const MemoryBufferRef &memBuf,
                           std::optional<TTID> tt) {
   Expected<std::unique_ptr<Archive>> archiveOrErr = Archive::create(memBuf);
   if (not archiveOrErr)
-    report_error(sjoin(archiveOrErr.takeError()));
+    report_error(archiveOrErr.takeError());
   return processDeviceCodes(**archiveOrErr, tt);
 }
 
@@ -121,7 +121,7 @@ static int processObjectFile(const MemoryBufferRef &memBuf,
   Expected<std::unique_ptr<ObjectFile>> objFileOrErr =
       ObjectFile::createObjectFile(memBuf);
   if (not objFileOrErr)
-    report_error(sjoin(objFileOrErr.takeError()));
+    report_error(objFileOrErr.takeError());
   return processDeviceCodes(**objFileOrErr, tt);
 }
 

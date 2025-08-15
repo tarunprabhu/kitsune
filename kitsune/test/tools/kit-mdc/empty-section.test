@@ -1,0 +1,8 @@
+# If the section containing embedded device code is empty, emit an appropriate
+# error.
+#
+# RUN: rm -rf %t
+# RUN: mkdir %t
+# RUN: mkdir %t/in
+#
+# RUN: llc -o filetype=obj

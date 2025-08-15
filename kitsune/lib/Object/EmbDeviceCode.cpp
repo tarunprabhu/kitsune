@@ -25,98 +25,23 @@
 using namespace llvm;
 using namespace llvm::object;
 
-static bool isDeviceCodeSection(SectionRef sec, TTID tt) {
-  if (Expected<StringRef> name = sec.getName())
-    return StringSwitch<bool>(*name)
-        .Case(KITSUNE_CUDA_CODE_SECTION, tt == TTID::Cuda)
-        .Case(KITSUNE_HIP_CODE_SECTION, tt == TTID::Hip)
-        .Default(false);
-  return false;
-}
-
-static Expected<std::optional<EmbDeviceCode>> parseSection(SectionRef sec) {
-  Expected<StringRef> contents = sec.getContents();
-  if (not contents)
-    return createStringError("Could not parse device code section contents");
-
-  size_t pos = 0;
-  const char *buf = contents->data();
-  const ObjectFile &objFile = *sec.getObject();
-
-  // The section is guaranteed to contain a single binary blob. If the parent
-  // object file is a relocatable object, the blob will also be a relocatable
-  // ELF object. If the parent object file is a dynamic shared object (DSO),
-  // this will be a static archive. The first 8 bytes of the section is an
-  // EmbDeviceCode::Id. The rest of the section is the blob.
-  //
-  //   struct {
-  //     uint64_t id;  // The EmbDeviceCode::Id
-  //     byte code[];  // The embedded code.
-  //   };
-  //
-  if (sec.getSize() <= 8)
-    return createStringError(sjoin("Expected id at ", pos));
-  uint64_t nid = *reinterpret_cast<const uint64_t *>(&buf[pos]);
-  Expected<EmbDeviceCode::Id> id = EmbDeviceCode::getIdFor(nid);
-  if (not id)
-    return createStringError(
-        sjoin("Invalid id for embedded device code: ", nid));
-
-  pos += 8;
-  StringRef code(&buf[pos], sec.getSize() - pos);
-
-  // The contents of the section must be something that is expected.
-  if (isObject(objFile)) {
-    if (not isObject(code))
-      return createStringError("Embedded device code in relocatable object "
-                               "must be a relocatable object");
-  } else if (isShared(objFile)) {
-    if (not isArchive(code))
-      return createStringError("Embedded device code in dynamic shared object "
-                               "must be a static archive");
-  } else {
-    report_internal_error("Section in unexpected kind of binary object");
-  }
-
-  llvm_unreachable("NOT YET IMPLEMENTED: parseSection");
-  // return EmbDeviceCode(objFile, *id, code, objFile.getFileName());
-}
-
-static StringRef getExt(EmbDeviceCode::BinaryFormat fmt, file_magic magic) {
-  switch (magic) {
-  case file_magic::archive:
-    return ".a";
-  case file_magic::elf_relocatable:
-  case file_magic::macho_object:
-    switch (fmt) {
-    case EmbDeviceCode::AMDGPU:
-      return ".o";
-    case EmbDeviceCode::NVSASS:
-      return ".cubin";
-    case EmbDeviceCode::NVPTX:
-      return ".ptx";
-    }
-    llvm_unreachable("getExt(elf_relocatable): Unknown binary format");
-  case file_magic::elf_shared_object:
-    return ".so";
-  case file_magic::macho_dynamically_linked_shared_lib:
-    return ".dylib";
+static bool isSentinel(EmbDeviceCode::Id id) {
+  switch (id) {
+  case EmbDeviceCode::INVALID:
+  case EmbDeviceCode::AMDGPU_lo:
+  case EmbDeviceCode::AMDGPU_hi:
+  case EmbDeviceCode::NVSASS_lo:
+  case EmbDeviceCode::NVSASS_hi:
+  case EmbDeviceCode::NVPTX_lo:
+  case EmbDeviceCode::NVPTX_hi:
+    return true;
   default:
-    outs() << "magic: " << magic << "\n";
-    llvm_unreachable("getExt: Magic number not handled");
+    return false;
   }
 }
 
-EmbDeviceCode::EmbDeviceCode(const Binary &bin, Id id, StringRef code,
-                             StringRef hostFileName)
-    : bin(bin), id(id), code(code) {
-  file_magic magic = identify_magic(code);
-  BinaryFormat fmt = getBinaryFormat();
-  StringRef ext = getExt(fmt, magic);
-  const auto &[base, e] = sys::path::filename(hostFileName).rsplit('.');
-
-  name = sjoin(base, "-", getArch(), ext);
-}
+EmbDeviceCode::EmbDeviceCode(Id id, MemoryBufferRef memBuf)
+    : id(id), memBuf(memBuf) {}
 
 TTID EmbDeviceCode::getTTID() const {
   switch (getBinaryFormat()) {
@@ -127,6 +52,36 @@ TTID EmbDeviceCode::getTTID() const {
     return TTID::Cuda;
   }
   llvm_unreachable("EmbDeviceCode::getTTID: Unknown format");
+}
+
+std::string EmbDeviceCode::getName() const {
+  auto getExt = [](BinaryFormat fmt, file_magic magic) {
+    switch (magic) {
+    case file_magic::archive:
+      return ".a";
+    case file_magic::elf_relocatable:
+    case file_magic::macho_object:
+      switch (fmt) {
+      case EmbDeviceCode::AMDGPU:
+        return ".o";
+      case EmbDeviceCode::NVSASS:
+        return ".cubin";
+      case EmbDeviceCode::NVPTX:
+        return ".ptx";
+      }
+      llvm_unreachable("EmbDeviceCode::getName(object): Unknown binary format");
+    default:
+      llvm_unreachable("EmbDeviceCode::getName: Magic number not handled");
+    }
+  };
+
+  StringRef name = memBuf.getBufferIdentifier();
+  StringRef code = memBuf.getBuffer();
+  BinaryFormat fmt = getBinaryFormat();
+  file_magic magic = identify_magic(code);
+  const auto &[base, e] = sys::path::filename(name).rsplit('.');
+
+  return sjoin(base, "-", getArch(), getExt(fmt, magic));
 }
 
 StringRef EmbDeviceCode::getArch() const {
@@ -242,10 +197,10 @@ StringRef EmbDeviceCode::getArch() const {
   case NVSASS_hi:
   case NVPTX_lo:
   case NVPTX_hi:
-    llvm_unreachable("EmbDeviceCode::getArch: Got sentinel");
+    llvm_unreachable("EmbDeviceCode::getArchString: Got sentinel");
   }
 
-  llvm_unreachable("EmbDeviceCode::getArch: DeviceID not handled");
+  llvm_unreachable("EmbDeviceCode::getArchString: DeviceID not handled");
   // clang-format on
 }
 
@@ -363,76 +318,39 @@ Expected<EmbDeviceCode::Id> EmbDeviceCode::getIdFor(StringRef s) {
   return archs.at(s);
 }
 
-bool EmbDeviceCode::isArchive() const { return object::isArchive(code); }
+bool EmbDeviceCode::isArchive() const { return object::isArchive(memBuf); }
 
-bool EmbDeviceCode::isObject() const { return object::isObject(code); }
+bool EmbDeviceCode::isObject() const { return object::isObject(memBuf); }
 
-bool EmbDeviceCode::isShared() const { return object::isShared(code); }
+bool EmbDeviceCode::isShared() const { return object::isShared(memBuf); }
 
-Expected<EmbDeviceCode::Id> EmbDeviceCode::getIdFor(uint64_t n) {
+Expected<EmbDeviceCode> EmbDeviceCode::create(uint64_t n,
+                                              MemoryBufferRef memBuf) {
+  StringRef errMsg = "corrupt embedded device code id";
+  Id id = Id(n);
   uint64_t unused = n & maskUnused;
   auto fmt = static_cast<BinaryFormat>(n & maskFormat);
-
-  if (unused == 0) {
-    Id id = Id(n);
-    if (fmt == BinaryFormat::AMDGPU) {
-      if (id > Id::AMDGPU_lo and id < AMDGPU_hi)
-        return id;
-    } else if (fmt == BinaryFormat::NVSASS) {
-      if (id > Id::NVSASS_lo and id < Id::NVSASS_hi)
-        return id;
-    } else if (fmt == BinaryFormat::NVPTX) {
-      if (id > Id::NVPTX_lo and id < Id::NVPTX_hi)
-        return id;
-    }
+  if (unused) {
+    return createStringError(errMsg);
+  } else if (fmt == BinaryFormat::AMDGPU) {
+    if (id <= Id::AMDGPU_lo or id >= AMDGPU_hi)
+      return createStringError(errMsg);
+  } else if (fmt == BinaryFormat::NVSASS) {
+    if (id <= Id::NVSASS_lo or id >= Id::NVSASS_hi)
+      return createStringError(errMsg);
+  } else if (fmt == BinaryFormat::NVPTX) {
+    if (id <= Id::NVPTX_lo or id >= Id::NVPTX_hi)
+      return createStringError(errMsg);
+  } else {
+    return createStringError(errMsg);
   }
-  return createStringError("Cannot convert integer to EmbDeviceCode::Id");
+
+  return EmbDeviceCode(id, memBuf);
 }
 
-// Expected<std::optional<EmbDeviceCode>>
-// EmbDeviceCode::parse(const ObjectFile &objFile, TTID tt) {
-//   for (SectionRef sec : objFile.sections())
-//     if (isDeviceCodeSection(sec, tt))
-//       return parseSection(sec);
-//   return std::nullopt;
-// }
-
-// Expected<std::optional<EmbDeviceCode>>
-// EmbDeviceCode::parse(const Archive &archive, TTID tt) {
-//   Error err = Error::success();
-//   for (const Archive::Child &child : archive.children(err)) {
-//     if (err)
-//       return err;
-
-//     Expected<MemoryBufferRef> memBufOrErr = child.getMemoryBufferRef();
-//     if (not memBufOrErr)
-//       return memBufOrErr.takeError();
-//     const MemoryBufferRef &memBuf = *memBufOrErr;
-
-//     Expected<std::unique_ptr<ObjectFile>> objFileOrErr =
-//         ObjectFile::createObjectFile(memBuf);
-//     if (not objFileOrErr)
-//       return objFileOrErr.takeError();
-//     const ObjectFile &objFile = **objFileOrErr;
-
-//     Expected<std::optional<EmbDeviceCode>> devCodeOrErr = parse(objFile, tt);
-//     if (not devCodeOrErr)
-//       return devCodeOrErr.takeError();
-//     std::optional<EmbDeviceCode> devCode = *devCodeOrErr;
-
-//     if (devCode)
-//       linker.add(*devCode);
-//   }
-
-//   return linker.linkStatic();
-// }
-
-// Expected<std::optional<EmbDeviceCode>> EmbDeviceCode::create(const Binary
-// &bin,
-//                                                              TTID tt) {
-//   if (auto *objFile = dyn_cast<ObjectFile>(&bin))
-//     return EmbDeviceCode::create(*objFile, tt);
-//   else if (auto *archive = dyn_cast<Archive>(&bin))
-//     return EmbDeviceCode::create(*archive, tt);
-//   llvm_unreachable("EmbDeviceCode::create: File format not supported");
-// }
+Expected<EmbDeviceCode> EmbDeviceCode::create(EmbDeviceCode::Id id,
+                                              MemoryBufferRef memBuf) {
+  if (isSentinel(id))
+    return createStringError("sentinel is not a valid device id");
+  return EmbDeviceCode(id, memBuf);
+}

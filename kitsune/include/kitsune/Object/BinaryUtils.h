@@ -14,6 +14,7 @@
 #define KITSUNE_OBJECT_BINARY_UTILS_H
 
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Object/EmbDeviceCode.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 
@@ -30,7 +31,8 @@ class Binary;
 Expected<bool> hasEmbDeviceCode(const Binary &bin);
 
 /// Get the tapir targets that have generated embedded device code contained in
-/// an object file.
+/// a binary file. The file must be an archive, an executable, a relocatable
+/// object or a dynamic shared object.
 Expected<SmallVector<TTID, 0>> getEmbDeviceCodeTTIDs(const Binary &bin);
 
 /// Is the given binary object a static archive.

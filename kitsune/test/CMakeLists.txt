@@ -70,6 +70,7 @@ list(APPEND KITSUNE_TEST_DEPS
   llvm-as
   llvm-config
   llvm-dis
+  llvm-objcopy
   not
   opt
 )
