@@ -20,7 +20,7 @@
 #include "mlir/IR/Visitors.h"
 #include "mlir/Rewrite/PatternApplicator.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/DebugLog.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 
 #define DEBUG_TYPE "walk-rewriter"
@@ -136,8 +136,12 @@ void walkAndApplyPatterns(Operation *op,
       }
       ++blockIt;
       if (blockIt != regionIt->end()) {
-        LDBG() << "Incrementing block iterator, next op: "
-               << OpWithFlags(&*blockIt, OpPrintingFlags().skipRegions());
+        LLVM_DEBUG({
+          llvm::dbgs() << "Incrementing block iterator, next op: "
+                       << OpWithFlags(&*blockIt,
+                                      OpPrintingFlags().skipRegions())
+                       << "\n";
+        });
       }
     }
     // The region we're iterating over.
@@ -155,7 +159,8 @@ void walkAndApplyPatterns(Operation *op,
   // Worklist of regions to visit to drive the post-order traversal.
   SmallVector<RegionReachableOpIterator> worklist;
 
-  LDBG() << "Starting walk-based pattern rewrite driver";
+  LLVM_DEBUG(
+      { llvm::dbgs() << "Starting walk-based pattern rewrite driver\n"; });
   ctx->executeAction<WalkAndApplyPatternsAction>(
       [&] {
         // Perform a post-order traversal of the regions, visiting each
@@ -200,13 +205,16 @@ void walkAndApplyPatterns(Operation *op,
             // would be erased.
             it.advance();
 
-            LDBG() << "Visiting op: "
-                   << OpWithFlags(op, OpPrintingFlags().skipRegions());
+            LLVM_DEBUG({
+              llvm::dbgs() << "Visiting op: "
+                           << OpWithFlags(op, OpPrintingFlags().skipRegions())
+                           << "\n";
+            });
 #if MLIR_ENABLE_EXPENSIVE_PATTERN_API_CHECKS
             erasedListener.visitedOp = op;
 #endif // MLIR_ENABLE_EXPENSIVE_PATTERN_API_CHECKS
             if (succeeded(applicator.matchAndRewrite(op, rewriter)))
-              LDBG() << "\tOp matched and rewritten";
+              LLVM_DEBUG({ llvm::dbgs() << "\tOp matched and rewritten\n"; });
           }
         }
       },
