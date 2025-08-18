@@ -4,7 +4,7 @@ set(LLVM_LINK_COMPONENTS
   CodeGen
   Core
   KitCore
-  # KitLinker [FIXME: Enable this once it is available]
+  KitLinker
   KitObject
   KitSupport
   Passes

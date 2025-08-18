@@ -1,7 +1,7 @@
 add_subdirectory(Analysis)
 add_subdirectory(CodeGen)
 add_subdirectory(Core)
-# add_subdirectory(Linker)
+add_subdirectory(Linker)
 add_subdirectory(Object)
 add_subdirectory(Passes)
 add_subdirectory(Support)

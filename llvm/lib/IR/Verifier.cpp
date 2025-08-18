@@ -1,4 +1,4 @@
-//===-- Verifier.cpp - Implement the Module Verifier -----------------------==//
+//===-- Verifier.cpp - Implement the Module Verifier ----------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -48,9 +48,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/IR/Verifier.h"
-#include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/EmbBitcodeUtils.h"
+#include "kitsune/Core/EmbDeviceCodeUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
-#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TypeUtils.h"
 #include "kitsune/Support/TTUtils.h"

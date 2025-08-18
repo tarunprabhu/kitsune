@@ -1,4 +1,4 @@
-//===- CudaABI.cpp - Lower Tapir Kitsune's cuda runtime -----------------*-===//
+//===- CudaABI.cpp - Lower Tapir Kitsune's cuda runtime -------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -59,10 +59,10 @@
 #include "kitsune/Core/CloningUtils.h"
 #include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/ConstantUtils.h"
-#include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/EmbBitcodeUtils.h"
+#include "kitsune/Core/EmbDeviceCodeUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/ModuleUtils.h"
-#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "llvm/ADT/StringExtras.h"

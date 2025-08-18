@@ -8,6 +8,7 @@ set(LLVM_LINK_COMPONENTS
 add_kitsune_unittest_with_input_files(KitObjectTests
   ArchiveUtilsTest.cpp
   BinaryUtilsTest.cpp
+  CheckUtils.cpp
   CompressedBinary.cpp
   EmbDeviceCodeTest.cpp
   EmbDeviceCodeContextTest.cpp

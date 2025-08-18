@@ -1,3 +1,5 @@
+# REQUIRES: x86-64
+#
 # Check that the kit-mdc fails in the expected way when given an object file in
 # a format for which support has not yet been implemented. This is different
 # from binary file formats that can never be supported.

@@ -12,9 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/CommandLineOptions.h"
-#include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/EmbBitcodeUtils.h"
+#include "kitsune/Core/EmbDeviceCodeUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
-#include "kitsune/Core/SingletonUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/Error.h"
 #include "kitsune/Support/TTUtils.h"

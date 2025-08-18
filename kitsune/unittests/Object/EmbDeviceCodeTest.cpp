@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Object/EmbDeviceCode.h"
+#include "CheckUtils.h"
 #include "CompressedBinary.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/Binary.h"
@@ -62,7 +63,7 @@ TEST(EmbDeviceCodeTest, createFromInt) {
     MemoryBufferRef memBuf = elfEmpty->getMemoryBufferRef();
     Expected<EmbDeviceCode> devCode = EmbDeviceCode::create(n, memBuf);
 
-    EXPECT_FALSE(bool(devCode));
+    detail::check_err(std::move(devCode));
   };
 
   pass(EmbDeviceCode::GFX600, EmbDeviceCode::GFX600);
@@ -94,7 +95,7 @@ TEST(EmbDeviceCodeTest, createFromId) {
     MemoryBufferRef memBuf = elfEmpty->getMemoryBufferRef();
     Expected<EmbDeviceCode> devCode = EmbDeviceCode::create(id, memBuf);
 
-    EXPECT_FALSE(bool(devCode));
+    detail::check_err(std::move(devCode));
   };
 
   pass(EmbDeviceCode::GFX600);
@@ -168,7 +169,8 @@ TEST(EmbDeviceCodeTest, getName) {
   check(EmbDeviceCode::SM_30, *arEmpty, "f3.so", "f3-sm_30.a");
   check(EmbDeviceCode::SM_120A, *elfEmpty, "f4.o", "f4-sm_120a.cubin");
   check(EmbDeviceCode::COMPUTE_30, *arEmpty, "f5.o", "f5-compute_30.a");
-  check(EmbDeviceCode::COMPUTE_120A, *elfEmpty, "f6.a", "f6-compute_120a.ptx");
+  check(EmbDeviceCode::COMPUTE_120A, *elfEmpty, "f6.a",
+  "f6-compute_120a.ptx");
 }
 
 TEST(EmbDeviceCodeTest, getArch) {
@@ -238,16 +240,16 @@ TEST(EmbDeviceCodeTest, getIdForString) {
   check_eq("compute_120a", EmbDeviceCode::COMPUTE_120A);
 
   // The device code id's are case sensitive.
-  EXPECT_FALSE(EmbDeviceCode::getIdFor("GFX600"));
-  EXPECT_FALSE(EmbDeviceCode::getIdFor("Gfx1201"));
-  EXPECT_FALSE(EmbDeviceCode::getIdFor("SM_30"));
-  EXPECT_FALSE(EmbDeviceCode::getIdFor("Sm_120A"));
-  EXPECT_FALSE(EmbDeviceCode::getIdFor("COMPUTE_30"));
-  EXPECT_FALSE(EmbDeviceCode::getIdFor("Compute_30"));
+  detail::check_err(EmbDeviceCode::getIdFor("GFX600"));
+  detail::check_err(EmbDeviceCode::getIdFor("Gfx1201"));
+  detail::check_err(EmbDeviceCode::getIdFor("SM_30"));
+  detail::check_err(EmbDeviceCode::getIdFor("Sm_120A"));
+  detail::check_err(EmbDeviceCode::getIdFor("COMPUTE_30"));
+  detail::check_err(EmbDeviceCode::getIdFor("Compute_30"));
 
   // Unknown strings
-  EXPECT_FALSE(EmbDeviceCode::getIdFor(""));
-  EXPECT_FALSE(EmbDeviceCode::getIdFor("gfx500"));
-  EXPECT_FALSE(EmbDeviceCode::getIdFor("sm_20"));
-  EXPECT_FALSE(EmbDeviceCode::getIdFor("compute_120b"));
+  detail::check_err(EmbDeviceCode::getIdFor(""));
+  detail::check_err(EmbDeviceCode::getIdFor("gfx500"));
+  detail::check_err(EmbDeviceCode::getIdFor("sm_20"));
+  detail::check_err(EmbDeviceCode::getIdFor("compute_120b"));
 }

@@ -1,4 +1,4 @@
-//===- SingletonUtilsTest.cpp - Unit tests for embedded data utilities ----===//
+//=- EmbDeviceCodeUtilsTest.cpp - Unit tests for embedded device code utils -=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Core/SingletonUtils.h"
+#include "kitsune/Core/EmbDeviceCodeUtils.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
 
@@ -14,7 +14,7 @@
 
 using namespace llvm;
 
-TEST(KitsuneSingletonUtils, getTTIDFromSection) {
+TEST(EmbDeviceCodeUtils, getTTIDForSection) {
   EXPECT_EQ(getTTIDForSection(KITSUNE_CUDA_CODE_SECTION), TTID::Cuda);
   EXPECT_EQ(getTTIDForSection(KITSUNE_HIP_CODE_SECTION), TTID::Hip);
 
@@ -23,17 +23,26 @@ TEST(KitsuneSingletonUtils, getTTIDFromSection) {
   EXPECT_EQ(getTTIDForSection(KITSUNE_HIP_FB_SECTION), std::nullopt);
 }
 
-TEST(KitsuneSingletonUtils, getName) {
+TEST(EmbDeviceCodeUtils, getSectionForTTID) {
+  EXPECT_EQ(*getSectionForTTID(TTID::Cuda), KITSUNE_CUDA_CODE_SECTION);
+  EXPECT_EQ(*getSectionForTTID(TTID::Hip), KITSUNE_HIP_CODE_SECTION);
+
+  EXPECT_FALSE(getSectionForTTID(TTID::Nolo));
+  EXPECT_FALSE(getSectionForTTID(TTID::Serial));
+  EXPECT_FALSE(getSectionForTTID(TTID::OpenCilk));
+}
+
+TEST(EmbDeviceCodeUtils, getName) {
   EXPECT_EQ(getSingletonFBName(TTID::Cuda), KITSUNE_CUDA_FB_NAME);
   EXPECT_EQ(getSingletonFBName(TTID::Hip), KITSUNE_HIP_FB_NAME);
 }
 
-TEST(KitsuneSingletonUtils, getSection) {
+TEST(EmbDeviceCodeUtils, getSection) {
   EXPECT_EQ(getSingletonFBSection(TTID::Cuda), KITSUNE_CUDA_FB_SECTION);
   EXPECT_EQ(getSingletonFBSection(TTID::Hip), KITSUNE_HIP_FB_SECTION);
 }
 
-TEST(KitEmbUtils, createSingletonFBCuda) {
+TEST(EmbDeviceCodeUtils, createSingletonFBCuda) {
   LLVMContext ctx;
   Module m("", ctx);
 
@@ -56,7 +65,7 @@ TEST(KitEmbUtils, createSingletonFBCuda) {
   EXPECT_EQ(getSingletonFBGlobal(TTID::Cuda, m), g);
 }
 
-TEST(KitEmbUtils, createEmbFBHip) {
+TEST(EmbDeviceCodeUtils, createEmbFBHip) {
   LLVMContext ctx;
   Module m("", ctx);
 

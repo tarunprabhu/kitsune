@@ -3,13 +3,13 @@ add_llvm_component_library(LLVMKitCore
   CloningUtils.cpp
   CommandLineOptions.cpp
   ConstantUtils.cpp
-  EmbUtils.cpp
+  EmbBitcodeUtils.cpp
+  EmbDeviceCodeUtils.cpp
   GlobalVariableUtils.cpp
   IntrinsicUtils.cpp
   KernelProperties.cpp
   ModuleUtils.cpp
   ReachableGlobals.cpp
-  SingletonUtils.cpp
   TapirTargetOptions.cpp
   TargetUtils.cpp
   TypeUtils.cpp

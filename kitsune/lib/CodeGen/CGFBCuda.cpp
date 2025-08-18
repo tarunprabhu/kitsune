@@ -13,8 +13,8 @@
 
 #include "CGFBImpl.h"
 #include "kitsune/Config/config.h"
-#include "kitsune/Core/EmbUtils.h"
-#include "kitsune/Core/SingletonUtils.h"
+#include "kitsune/Core/EmbBitcodeUtils.h"
+#include "kitsune/Core/EmbDeviceCodeUtils.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Object/EmbDeviceCode.h"

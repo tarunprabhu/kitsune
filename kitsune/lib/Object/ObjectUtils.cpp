@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Object/ObjectUtils.h"
-#include "kitsune/Core/SingletonUtils.h"
+#include "kitsune/Core/EmbDeviceCodeUtils.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Object/BinaryUtils.h"
 #include "kitsune/Object/EmbDeviceCode.h"

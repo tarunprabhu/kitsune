@@ -28,6 +28,7 @@ namespace detail {
 
 /// Print a message to stderr indicating that an internal compiler error
 /// occurred and exit immediately.
+[[noreturn]]
 void report_internal_error_impl(StringRef msg, StringRef file = "",
                                 unsigned line = 0);
 
@@ -80,28 +81,28 @@ void report_warning(StringRef msg);
 /// on an error than \ref report_fatal_error and is intended to be used to
 /// report "user" errors. \ref report_fatal_error should be used to report
 /// internal compiler errors.
-void report_error(StringRef msg);
+[[noreturn]] void report_error(StringRef msg);
 
 /// Print an error message and exit immediately.
-void report_error(Error e);
+[[noreturn]] void report_error(Error e);
 
 /// Print an error message and exit immediately.
-void report_error(const std::error_code &ec);
+[[noreturn]] void report_error(const std::error_code &ec);
 
 /// Print the error message in the given diagnostic object and exit immediately.
-void report_error(const SMDiagnostic &sm);
+[[noreturn]] void report_error(const SMDiagnostic &sm);
 
 /// Print an error message and exit immediately. This should be used to report
 /// "delayed" errors. These are errors that cannot be caught during semantic
 /// checking, or the result of a static analysis that operates on LLVM-IR.
-void report_error(StringRef msg, const DebugLoc &loc);
+[[noreturn]] void report_error(StringRef msg, const DebugLoc &loc);
 
 /// Print an error message and exit immediately. This just calls LLVM's
 /// llvm_fatal_error internally, but generates a more user-friendly error
 /// message. This is intended to display an error when an internal compiler
 /// error is encountered. "User" errors should be reported with \ref
 /// report_error.
-void report_fatal_error(StringRef msg);
+[[noreturn]] void report_fatal_error(StringRef msg);
 
 } // namespace llvm
 

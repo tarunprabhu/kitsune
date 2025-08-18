@@ -13,7 +13,7 @@
 
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/EmbBitcodeUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalVariable.h"

@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/CommandLineOptions.h"
-#include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/EmbBitcodeUtils.h"
 #include "kitsune/Core/GlobalVariableUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/Error.h"

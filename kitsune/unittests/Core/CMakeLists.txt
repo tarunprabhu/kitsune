@@ -6,12 +6,12 @@ set(LLVM_LINK_COMPONENTS
 
 add_kitsune_unittest_with_input_files(KitCoreTests
   ConstantUtilsTest.cpp
-  EmbUtilsTest.cpp
+  EmbBitcodeUtilsTest.cpp
+  EmbDeviceCodeUtilsTest.cpp
   GlobalVariableUtilsTest.cpp
   IntrinsicUtilsTest.cpp
   KernelPropertiesTest.cpp
   ModuleUtilsTest.cpp
-  SingletonUtilsTest.cpp
   TypeUtilsTest.cpp
 
   EXPORT_SYMBOLS

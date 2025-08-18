@@ -1,4 +1,4 @@
-//=- EmbUtils.h - Helper functions for embedded data in modules --*- C++ -*--=//
+//==- EmbBitcodeUtils.h - Helper functions for embedded bitcode -*- C++ -*--==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_CORE_EMB_UTILS_H
-#define KITSUNE_CORE_EMB_UTILS_H
+#ifndef KITSUNE_CORE_EMB_BITCODE_UTILS_H
+#define KITSUNE_CORE_EMB_BITCODE_UTILS_H
 
 #include "kitsune/Core/Tapir.h"
 #include "llvm/IR/Module.h"
@@ -81,4 +81,4 @@ EmbModulesMapTy getEmbModules(const Module &m);
 
 } // namespace llvm
 
-#endif // KITSUNE_CORE_EMB_UTILS_H
+#endif // KITSUNE_CORE_EMB_BITCODE_UTILS_H

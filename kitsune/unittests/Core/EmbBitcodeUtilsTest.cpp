@@ -1,4 +1,4 @@
-//===- EmbUtilsTest.cpp - Unit tests for embedded data utilities ----------===//
+//==- EmbBitcodeUtilsTest.cpp - Unit tests for embedded bitcode utilities --==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/EmbBitcodeUtils.h"
 #include "kitsune/Core/SingletonUtils.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Constants.h"

@@ -57,7 +57,7 @@ llvm::object::getEmbDeviceCodeTTIDs(const Archive &archive) {
 Expected<size_t> llvm::object::getNumMembers(const Archive &archive) {
   size_t count = 0;
   Error err = Error::success();
-  for (const Archive::Child &[[gnu::unused]] child : archive.children(err)) {
+  for ([[gnu::unused]] const Archive::Child &child : archive.children(err)) {
     if (err)
       return err;
     ++count;

@@ -10,7 +10,7 @@
 #include "Config.h"
 #include "InputFiles.h"
 #include "kitsune/Config/config.h"
-#include "kitsune/Core/SingletonUtils.h"
+#include "kitsune/Core/EmbDeviceCodeUtils.h"
 #include "kitsune/Support/TTUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"

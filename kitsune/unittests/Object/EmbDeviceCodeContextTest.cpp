@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Object/EmbDeviceCodeContext.h"
+#include "CheckUtils.h"
 #include "CompressedBinary.h"
 #include "llvm/Object/Binary.h"
 #include "llvm/Object/ObjectFile.h"
@@ -63,9 +64,9 @@ TEST(EmbDeviceCodeContextTest, init) {
   EXPECT_TRUE(ctx.get(TTID::Hip).empty());
   EXPECT_TRUE(ctx.get(TTID::Serial).empty());
 
-  EXPECT_FALSE(ctx.getEmbDeviceCodeId(TTID::Cuda));
-  EXPECT_FALSE(ctx.getEmbDeviceCodeId(TTID::Hip));
-  EXPECT_FALSE(ctx.contains(*elfEmpty));
+  detail::check_err(ctx.getEmbDeviceCodeId(TTID::Cuda));
+  detail::check_err(ctx.getEmbDeviceCodeId(TTID::Hip));
+  detail::check_false(ctx.contains(*elfEmpty));
 }
 
 TEST(EmbDeviceCodeContextTest, getEmbDeviceCodeIdFail) {
@@ -74,14 +75,12 @@ TEST(EmbDeviceCodeContextTest, getEmbDeviceCodeIdFail) {
   const std::unique_ptr<ObjectFile> bin80 = o(sm80);
 
   Expected<unsigned> res1 = ctx.add(cast<Binary>(*bin72));
-  EXPECT_TRUE(bool(res1));
-  EXPECT_EQ(*res1, 1U);
+  detail::check_eq(std::move(res1), 1);
 
   Expected<unsigned> res2 = ctx.add(cast<Binary>(*bin80));
-  EXPECT_TRUE(bool(res2));
-  EXPECT_EQ(*res2, 1U);
+  detail::check_eq(std::move(res2), 1);
 
-  EXPECT_FALSE(ctx.getEmbDeviceCodeId(TTID::Cuda));
+  detail::check_err(ctx.getEmbDeviceCodeId(TTID::Cuda));
 }
 
 TEST(EmbdeviceCodeContextTest, getEmbDeviceCodeIdPass) {

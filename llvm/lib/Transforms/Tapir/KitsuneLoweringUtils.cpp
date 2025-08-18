@@ -13,9 +13,9 @@
 
 #include "llvm/Transforms/Tapir/KitsuneLoweringUtils.h"
 #include "kitsune/Core/ConstantUtils.h"
-#include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/EmbBitcodeUtils.h"
+#include "kitsune/Core/EmbDeviceCodeUtils.h"
 #include "kitsune/Core/ReachableGlobals.h"
-#include "kitsune/Core/SingletonUtils.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/IR/Constants.h"

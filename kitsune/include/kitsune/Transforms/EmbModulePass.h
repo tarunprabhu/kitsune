@@ -16,7 +16,7 @@
 #define KITSUNE_TRANSFORMS_EMB_MODULE_PASS_H
 
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/EmbBitcodeUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
@@ -55,15 +55,15 @@ static constexpr bool needsAnalysisManager = needs_analysis_manager<T>::value;
 /// one function named run() with either of the following signatures:
 ///
 ///     bool run(TTID,
-///              Module& m,
+///              Module& deviceModule,
 ///              Module& hostModule,
 ///              ModuleAnalysisManager& hostMAM);
 ///
 ///   OR
 ///
 ///     bool run(TTID,
-///              Module& m,
-///              ModuleAnalysisManager& mam,
+///              Module& deviceModule,
+///              ModuleAnalysisManager& devMAM,
 ///              Module& hostModule,
 ///              ModuleAnalysisManager& hostMAM);
 ///

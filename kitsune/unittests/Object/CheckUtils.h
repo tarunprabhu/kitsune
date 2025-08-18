@@ -23,15 +23,11 @@ namespace llvm {
 
 namespace detail {
 
-static void check_true(Expected<bool> val) {
-  EXPECT_TRUE((bool)val);
-  EXPECT_TRUE(*val);
-}
+/// Check that the there is no error and the returned value is true.
+void check_true(Expected<bool> val);
 
-static void check_false(Expected<bool> val) {
-  EXPECT_TRUE((bool)val);
-  EXPECT_FALSE(*val);
-}
+/// Check that there is no error and the returned value is false.
+void check_false(Expected<bool> val);
 
 template <typename T, typename U,
           std::enable_if_t<std::is_convertible_v<T, U> ||
@@ -40,6 +36,17 @@ template <typename T, typename U,
 void check_eq(Expected<T> val, const U &expected) {
   EXPECT_TRUE((bool)val);
   EXPECT_EQ(*val, static_cast<T>(expected));
+}
+
+/// Check that an error has occurred.
+template <typename T> void check_err(Expected<T> val) {
+  EXPECT_FALSE(bool(val));
+
+  // The error needs to be handled, otherwise we get a runtime error. Since this
+  // overload does not check for the actual message, just pipe everything to
+  // null which seems to work.
+  handleAllErrors(val.takeError(),
+                  [](ErrorInfoBase &e) { nulls() << e.message(); });
 }
 
 } // namespace detail

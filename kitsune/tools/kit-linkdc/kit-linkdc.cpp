@@ -13,15 +13,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/CommandLineOptions.h"
-#include "kitsune/Core/SingletonUtils.h"
+#include "kitsune/Core/EmbDeviceCodeUtils.h"
 #include "kitsune/Core/Tapir.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Support/Error.h"
+#include "kitsune/Support/StringUtils.h"
 #include "kitsune/Support/TTUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/InitLLVM.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
@@ -47,12 +49,15 @@ static cl::opt<bool> clFatbin(
     cl::cat(catKitLinkDC));
 
 static cl::opt<std::string> clOutFile(
-    "output", cl::init("a.o"), cl::value_desc("file"),
+    "o", cl::init("a.o"), cl::value_desc("file"),
     cl::desc("The output file. This will always be a relocatable object. The "
              "linked device code will be in specific sections of this file. If "
              "no embedded device code was found in the input, the output file "
              "will be created anyway"),
     cl::cat(catKitLinkDC));
+static cl::alias clOutFileLong("output", cl::aliasopt(clOutFile),
+                               cl::desc("Alias for -o"), cl::NotHidden,
+                               cl::cat(catKitLinkDC));
 
 static cl::list<std::string> clInFiles(cl::Positional, cl::OneOrMore,
                                        cl::desc("<files>"),
@@ -70,9 +75,16 @@ int main(int argc, char *argv[]) {
   InitializeAllAsmParsers();
   InitializeAllAsmPrinters();
 
-  for (StringRef inFile : clInFiles) {
-    outs() << inFile << "\n";
+  SmallVector<std::unique_ptr<MemoryBuffer>> inFiles;
+  for (StringRef f : clInFiles) {
+    ErrorOr<std::unique_ptr<MemoryBuffer>> memBuf = MemoryBuffer::getFile(
+        f, /*IsText=*/false, /*RequiresNullTerminator=*/false);
+    if (not memBuf)
+      report_error(memBuf.getError());
+    inFiles.emplace_back(std::move(memBuf.get()));
   }
+
+  errs() << "|inFiles| = " << inFiles.size() << "\n";
 
   return 0;
 }

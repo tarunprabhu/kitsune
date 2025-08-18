@@ -1,4 +1,4 @@
-//=- GenerateCtorCuda.cpp - ctor for Kitsune's cuda runtime --------*-=//
+//===- GenerateCtorCuda.cpp - ctor for Kitsune's cuda runtime -------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -14,8 +14,8 @@
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/ConstantUtils.h"
-#include "kitsune/Core/EmbUtils.h"
-#include "kitsune/Core/SingletonUtils.h"
+#include "kitsune/Core/EmbBitcodeUtils.h"
+#include "kitsune/Core/EmbDeviceCodeUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"

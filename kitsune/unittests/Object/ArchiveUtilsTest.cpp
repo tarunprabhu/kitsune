@@ -26,7 +26,7 @@ TEST(ArchiveUtilsTest, hasEmbDeviceCode) {
   detail::check_true(hasEmbDeviceCode(*arHip1));
   detail::check_true(hasEmbDeviceCode(*arMulti));
 
-  EXPECT_FALSE(hasEmbDeviceCode(*arHetero));
+  detail::check_err(hasEmbDeviceCode(*arHetero));
 }
 
 TEST(ArchiveUtilsTest, getEmbDeviceCodeTTIDs) {
@@ -42,7 +42,7 @@ TEST(ArchiveUtilsTest, getEmbDeviceCodeTTIDs) {
   std::sort(tts->begin(), tts->end());
   EXPECT_EQ(*tts, Vec({TTID::Cuda, TTID::Hip}));
 
-  EXPECT_FALSE(getEmbDeviceCodeTTIDs(*arHetero));
+  detail::check_err(getEmbDeviceCodeTTIDs(*arHetero));
 }
 
 TEST(ArchiveUtilsTest, getNumMembers) {
@@ -71,7 +71,7 @@ TEST(ArchiveUtilsTest, getMemberObjects) {
   check(*arHip1, {"gfx906.o"});
   check(*arMulti, {"sm_72.o", "gfx906.o"});
 
-  EXPECT_FALSE(getMemberObjects(*arHetero));
+  detail::check_err(getMemberObjects(*arHetero));
 }
 
 // The add* tests actually test EmbDeviceCodeContext::add(ObjectFile). But these
@@ -178,8 +178,7 @@ TEST(ArchiveUtilsTest, addMulti) {
 TEST(ArchiveUtilsTest, addHetero) {
   EmbDeviceCodeContext ctx;
 
-  Expected<unsigned> res = ctx.add(cast<Binary>(*arHetero));
-  EXPECT_FALSE(res);
+  detail::check_err(ctx.add(cast<Binary>(*arHetero)));
   EXPECT_TRUE(ctx.getTTIDs().empty());
   EXPECT_FALSE(ctx.contains(*arHetero));
 }
