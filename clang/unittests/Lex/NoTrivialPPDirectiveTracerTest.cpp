@@ -29,8 +29,8 @@ class NoTrivialPPDirectiveTracerTest : public ::testing::Test {
 protected:
   NoTrivialPPDirectiveTracerTest()
       : VFS(llvm::makeIntrusiveRefCnt<llvm::vfs::InMemoryFileSystem>()),
-        FileMgr(FileMgrOpts, VFS),
-        Diags(DiagnosticIDs::create(), DiagOpts, new IgnoringDiagConsumer()),
+        FileMgr(FileMgrOpts, VFS), DiagID(new DiagnosticIDs()),
+        Diags(DiagID, DiagOpts, new IgnoringDiagConsumer()),
         SourceMgr(Diags, FileMgr), TargetOpts(new TargetOptions) {
     TargetOpts->Triple = "x86_64-unknown-linux-gnu";
     Target = TargetInfo::CreateTargetInfo(Diags, *TargetOpts);
@@ -74,6 +74,7 @@ protected:
   IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> VFS;
   FileSystemOptions FileMgrOpts;
   FileManager FileMgr;
+  IntrusiveRefCntPtr<DiagnosticIDs> DiagID;
   DiagnosticOptions DiagOpts;
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
