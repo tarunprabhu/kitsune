@@ -98,7 +98,7 @@ ELFSyncStream elf::InternalErr(Ctx &ctx, const uint8_t *buf) {
   return s;
 }
 
-Ctx::Ctx() : deviceCode(*this), driver(*this) {}
+Ctx::Ctx() : driver(*this) {}
 
 llvm::raw_fd_ostream Ctx::openAuxiliaryFile(llvm::StringRef filename,
                                             std::error_code &ec) {
@@ -120,7 +120,7 @@ namespace elf {
 bool link(ArrayRef<const char *> args, llvm::raw_ostream &stdoutOS,
           llvm::raw_ostream &stderrOS, bool exitEarly, bool disableOutput) {
   // This driver-specific context will be freed later by unsafeLldMain().
-  std::unique_ptr<Ctx> context = std::make_unique<Ctx>();
+  auto *context = new Ctx;
   Ctx &ctx = *context;
 
   context->e.initialize(stdoutOS, stderrOS, exitEarly, disableOutput);
@@ -3053,6 +3053,16 @@ template <class ELFT> void LinkerDriver::link(opt::InputArgList &args) {
   compileBitcodeFiles<ELFT>(skipLinkedOutput);
 
   // // Link all device code that was found. This will have updated the context.
+  SmallSet<StringRef, 8> archives;
+  for (const std::unique_ptr<InputFile> &file : files)
+    if (not file->lazy)
+      llvm::errs() << "file: " << elf::toStr(ctx, file.get()) << "\n";
+    else if (file->archiveName.size()) {
+      if (not archives.contains(file->archiveName)) {
+        llvm::errs() << "ARCHIVE: " << file->archiveName << "\n";
+        archives.insert(file->archiveName);
+      }
+    }
   // ctx.deviceCode.linkAll();
 
   // Symbol resolution finished. Report backward reference problems,

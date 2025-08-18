@@ -75,6 +75,20 @@ TargetMachine *llvm::createTargetMachine(TTID tt, const TapirTargetOptions &tto,
   }
 }
 
+TargetMachine *llvm::createTargetMachine(StringRef tripleStr,
+                                         CodeGenOptLevel optLevel,
+                                         Reloc::Model relocModel,
+                                         CodeModel::Model codeModel) {
+  Triple triple(tripleStr);
+  std::string err;
+  const Target *target = TargetRegistry::lookupTarget("", triple, err);
+  assert(target && "Unable to find registered target");
+
+  TargetOptions opts;
+  return target->createTargetMachine(triple.str(), "", "", opts, relocModel,
+                                     codeModel, optLevel);
+}
+
 #define OPT_BOOL(NAME)                                                         \
   do {                                                                         \
     os << "  " << #NAME << ": " << ((opts.NAME) ? "true" : "false") << "\n";   \

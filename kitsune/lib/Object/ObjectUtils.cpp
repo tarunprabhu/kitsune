@@ -11,35 +11,165 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Object/ObjectUtils.h"
-#include "kitsune/Config/config.h"
+#include "kitsune/Core/SingletonUtils.h"
+#include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Object/BinaryUtils.h"
 #include "kitsune/Object/EmbDeviceCode.h"
 #include "kitsune/Object/EmbDeviceCodeContext.h"
 #include "kitsune/Support/Error.h"
 #include "kitsune/Support/StringUtils.h"
+#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/Module.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/ObjCopy/ConfigManager.h"
+#include "llvm/ObjCopy/ObjCopy.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
+#include "llvm/TargetParser/Triple.h"
 
 using namespace llvm;
 using namespace llvm::object;
 
-/// Get the TTID that generates the section.
-static std::optional<TTID> getSectionTTID(const SectionRef &sec) {
-  if (Expected<StringRef> name = sec.getName()) {
-    return StringSwitch<std::optional<TTID>>(*name)
-        .Case(KITSUNE_CUDA_CODE_SECTION, TTID::Cuda)
-        .Case(KITSUNE_HIP_CODE_SECTION, TTID::Hip)
-        .Default(std::nullopt);
-  }
+static std::optional<TTID> getTTIDForSection(SectionRef section) {
+  if (Expected<StringRef> sectionName = section.getName())
+    return getTTIDForSection(*sectionName);
   return std::nullopt;
+}
+
+Expected<std::unique_ptr<ObjectFile>>
+llvm::object::createObjectFileFrom(StringRef data) {
+  return ObjectFile::createObjectFile(MemoryBufferRef(data, ""));
+}
+
+Expected<bool> llvm::object::hasSection(const ObjectFile &objFile,
+                                        StringRef name) {
+  for (SectionRef section : objFile.sections())
+    if (Expected<StringRef> sectionName = section.getName())
+      if (*sectionName == name)
+        return true;
+  return false;
+}
+
+Expected<bool> llvm::object::hasSymbol(const ObjectFile &objFile,
+                                       StringRef name) {
+  for (SymbolRef sym : objFile.symbols())
+    if (Expected<StringRef> symName = sym.getName())
+      if (*symName == name)
+        return true;
+  return false;
+}
+
+Expected<size_t> llvm::object::getNumSections(const ObjectFile &objFile) {
+  return std::distance(objFile.section_begin(), objFile.section_end());
+}
+
+Expected<size_t> llvm::object::getNumSymbols(const ObjectFile &objFile) {
+  return std::distance(objFile.symbol_begin(), objFile.symbol_end());
+}
+
+Expected<bool> llvm::object::hasEmbDeviceCode(const ObjectFile &objFile) {
+  for (SectionRef sec : objFile.sections())
+    if (::getTTIDForSection(sec))
+      return true;
+  return false;
+}
+
+Expected<SmallVector<TTID, 0>>
+llvm::object::getEmbDeviceCodeTTIDs(const ObjectFile &objFile) {
+  SmallSetVector<TTID, 2> tts;
+  for (SectionRef sec : objFile.sections())
+    if (std::optional<TTID> tt = ::getTTIDForSection(sec))
+      tts.insert(*tt);
+  return tts.takeVector();
+}
+
+static SmallString<1024> createEmptyObject(StringRef triple) {
+  TargetMachine *tm = createTargetMachine(triple.str());
+  assert(tm && "Could not get target machine");
+
+  LLVMContext ctx;
+  Module m("", ctx);
+
+  std::error_code ec;
+  SmallString<1024> buf;
+  raw_svector_ostream os(buf);
+  legacy::PassManager passMgr;
+  if (tm->addPassesToEmitFile(passMgr, os,
+                              /*DwoOut=*/nullptr, CodeGenFileType::ObjectFile,
+                              /*DisableVerify=*/false))
+    report_internal_error("createEmptyObject: ", ec);
+  passMgr.run(m);
+
+  return buf;
+}
+
+Expected<OwningBinary<ObjectFile>>
+llvm::object::embedIntoNewObject(StringRef triple, MemoryBufferRef payload,
+                                 StringRef section,
+                                 std::optional<StringRef> startSymbol) {
+  SmallString<1024> inBuf = createEmptyObject(triple);
+  Expected<std::unique_ptr<ObjectFile>> in = createObjectFileFrom(inBuf.str());
+  RETURN_IF_ERROR(in);
+
+  objcopy::ConfigManager confMgr;
+  objcopy::CommonConfig &conf = confMgr.Common;
+
+  // Strip all symbols and other unnecessary things.
+  conf.StripAll = true;
+
+  // StripAll does not remove the .text section, so add that to the list of
+  // things to remove explicitly.
+  auto errFn = [](Error e) -> Error { return e; };
+  if (Error e = conf.ToRemove.addMatcher(objcopy::NameOrPattern::create(
+          "[.]text.*", objcopy::MatchStyle::Regex, errFn)))
+    return e;
+
+  // Add the section that was requested.
+  conf.AddSection.emplace_back(
+      section,
+      MemoryBuffer::getMemBuffer(payload, /*RequiresNullTerminator=*/false));
+
+  // Set the flags on the new section to be added.
+  objcopy::SectionFlag flags = objcopy::SecAlloc | objcopy::SecLoad |
+                               objcopy::SecReadonly | objcopy::SecData |
+                               objcopy::SecContents;
+  conf.SetSectionFlags.try_emplace(section,
+                                   objcopy::SectionFlagsUpdate{section, flags});
+
+  // If we have to add a start symbol, do that now. This will generally be
+  // required when creating an object file containing a fat binary.
+  if (startSymbol) {
+    SmallVector<objcopy::SymbolFlag, 0> symFlags = {
+        objcopy::SymbolFlag::Global,
+        objcopy::SymbolFlag::Protected,
+    };
+    conf.SymbolsToAdd.emplace_back(objcopy::NewSymbolInfo{
+        *startSymbol, section, /*Value=*/0, symFlags, {}});
+  }
+
+  SmallString<1024> buf;
+  raw_svector_ostream os(buf);
+  if (Error e = objcopy::executeObjcopyOnBinary(confMgr, **in, os))
+    return e;
+
+  std::unique_ptr<MemoryBuffer> memBuf =
+      MemoryBuffer::getMemBufferCopy(buf.str(), "");
+  Expected<std::unique_ptr<ObjectFile>> res =
+      ObjectFile::createObjectFile(*memBuf);
+  if (not res)
+    return res.takeError();
+  return OwningBinary<ObjectFile>(std::move(*res), std::move(memBuf));
 }
 
 static Expected<EmbDeviceCode> parseSection(SectionRef sec) {
   Expected<StringRef> contents = sec.getContents();
-  if (not contents)
-    return createStringError("Could not parse device code section contents");
+  RETURN_IF_ERROR(contents);
 
   size_t pos = 0;
   const char *buf = contents->data();
@@ -81,34 +211,22 @@ static Expected<EmbDeviceCode> parseSection(SectionRef sec) {
   return EmbDeviceCode::create(nid, memBuf);
 }
 
-Expected<bool> llvm::object::hasEmbDeviceCode(const ObjectFile &objFile) {
-  for (SectionRef sec : objFile.sections())
-    if (getSectionTTID(sec))
-      return true;
-  return false;
-}
+Expected<unsigned> EmbDeviceCodeContext::add(const ObjectFile &objFile,
+                                             StringRef fileName, bool unique) {
+  if (unique and bins.contains(fileName))
+    return 0;
 
-Expected<SmallVector<TTID, 0>>
-llvm::object::getEmbDeviceCodeTTIDs(const ObjectFile &objFile) {
-  SmallSetVector<TTID, 2> tts;
-  for (SectionRef sec : objFile.sections())
-    if (std::optional<TTID> tt = getSectionTTID(sec))
-      tts.insert(*tt);
-  return tts.takeVector();
-}
-
-Expected<unsigned> EmbDeviceCodeContext::add(const ObjectFile &objFile) {
   unsigned added = 0;
   for (SectionRef sec : objFile.sections()) {
-    if (std::optional<TTID> tt = getSectionTTID(sec)) {
+    if (std::optional<TTID> tt = ::getTTIDForSection(sec)) {
       Expected<EmbDeviceCode> devCode = parseSection(sec);
-      if (not devCode)
-        return devCode.takeError();
+      RETURN_IF_ERROR(devCode);
       devCodes[*tt].push_back(*devCode);
       ++added;
     }
   }
-  if (added)
-    bins.insert(objFile.getFileName());
+
+  if (unique and added)
+    bins.insert(fileName);
   return added;
 }

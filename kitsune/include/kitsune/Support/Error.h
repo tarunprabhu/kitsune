@@ -33,6 +33,31 @@ void report_internal_error_impl(StringRef msg, StringRef file = "",
 
 } // namespace detail
 
+// The given expression must be of type Expected<T>. This checks if \ref expr
+// contains an error, and if it does, it returns the error. This is expected to
+// be used as follows:
+//
+//     Expected<T> t = ...;
+//     EXPECT(t)
+//
+// This will expand to:
+//
+//     do {
+//       if (not t)
+//         return t.takeError();
+//     } while(0)
+//
+// This can only be used in a function that returns Expected<.>. Note that the
+// return type of the containing function does not have to return Expected<T>,
+// the type of \ref expr.
+//
+#define RETURN_IF_ERROR(expr)                                                  \
+  do {                                                                         \
+    decltype(expr) &ref = (expr);                                              \
+    if (not ref)                                                               \
+      return ref.takeError();                                                  \
+  } while (0)
+
 // Report a fatal internal compiler error and exit immediately.
 #if defined(__FILE__) && defined(__LINE__)
 #define report_internal_error(...)                                             \

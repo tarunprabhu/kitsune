@@ -10,22 +10,73 @@
 #include "CheckUtils.h"
 #include "CompressedBinary.h"
 #include "kitsune/Object/EmbDeviceCodeContext.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Object/Binary.h"
 #include "llvm/Object/ObjectFile.h"
+#include "llvm/PassRegistry.h"
+#include "llvm/Support/InitLLVM.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/TargetParser/Host.h"
 
 #include "gtest/gtest.h"
 
 using namespace llvm;
 using namespace llvm::object;
 
-TEST(ObjectUtilsTest, hasEmbDeviceCode) {
+class ObjectUtilsTest : public testing::Test {
+protected:
+  ObjectUtilsTest() {
+    InitializeAllTargets();
+    InitializeAllTargetMCs();
+    InitializeAllAsmPrinters();
+    InitializeAllAsmParsers();
+
+    PassRegistry *Registry = PassRegistry::getPassRegistry();
+    initializeCore(*Registry);
+    initializeCodeGen(*Registry);
+  }
+};
+
+TEST_F(ObjectUtilsTest, getNumSections) {
+  detail::check_eq(getNumSections(*elfEmpty), 0);
+  detail::check_eq(getNumSections(*elfCuda), 3);
+  detail::check_eq(getNumSections(*elfHip), 3);
+  detail::check_eq(getNumSections(*elfMulti), 4);
+  detail::check_eq(getNumSections(*elfSectsSyms), 5);
+}
+
+TEST_F(ObjectUtilsTest, getNumSymbols) {
+  detail::check_eq(getNumSymbols(*elfEmpty), 0);
+  detail::check_eq(getNumSymbols(*elfSectsSyms), 3);
+}
+
+TEST_F(ObjectUtilsTest, hasSection) {
+  detail::check_false(hasSection(*elfEmpty, ".kit.code.cuda"));
+  detail::check_false(hasSection(*elfEmpty, ".kit.code.hip"));
+  detail::check_true(hasSection(*elfCuda, ".kit.code.cuda"));
+  detail::check_true(hasSection(*elfHip, ".kit.code.hip"));
+  detail::check_true(hasSection(*elfMulti, ".kit.code.cuda"));
+  detail::check_true(hasSection(*elfMulti, ".kit.code.hip"));
+  detail::check_true(hasSection(*elfSectsSyms, ".data"));
+  detail::check_true(hasSection(*elfSectsSyms, ".text"));
+  detail::check_false(hasSection(*elfSectsSyms, ".comment"));
+  detail::check_false(hasSection(*elfSectsSyms, ".bss"));
+}
+
+TEST_F(ObjectUtilsTest, hasSymbol) {
+  detail::check_false(hasSymbol(*elfEmpty, "x"));
+  detail::check_true(hasSymbol(*elfSectsSyms, "x"));
+  detail::check_true(hasSymbol(*elfSectsSyms, "get"));
+}
+
+TEST_F(ObjectUtilsTest, hasEmbDeviceCode) {
   detail::check_false(hasEmbDeviceCode(*elfEmpty));
   detail::check_true(hasEmbDeviceCode(*elfCuda));
   detail::check_true(hasEmbDeviceCode(*elfHip));
   detail::check_true(hasEmbDeviceCode(*elfMulti));
 }
 
-TEST(ObjectUtilsTest, getEmbDeviceCodeTTIDs) {
+TEST_F(ObjectUtilsTest, getEmbDeviceCodeTTIDs) {
   using Vec = SmallVector<TTID, 0>;
 
   detail::check_eq(getEmbDeviceCodeTTIDs(*elfEmpty), Vec({}));
@@ -39,9 +90,48 @@ TEST(ObjectUtilsTest, getEmbDeviceCodeTTIDs) {
   EXPECT_EQ(*tts, Vec({TTID::Cuda, TTID::Hip}));
 }
 
+TEST_F(ObjectUtilsTest, embedIntoNewObjectNoSym) {
+  StringRef section = ".new.section";
+  MemoryBufferRef payload("hello\0", "");
+
+  Expected<OwningBinary<ObjectFile>> objOrErr =
+      embedIntoNewObject(sys::getDefaultTargetTriple(), payload, section);
+
+  EXPECT_TRUE(bool(objOrErr));
+
+  const ObjectFile &obj = *objOrErr->getBinary();
+  detail::check_eq(getNumSections(obj), 3);
+  detail::check_true(hasSection(obj, ""));
+  detail::check_true(hasSection(obj, ".strtab"));
+  detail::check_true(hasSection(obj, section));
+
+  detail::check_eq(getNumSymbols(obj), 0);
+  detail::check_false(hasSymbol(obj, "msg"));
+}
+
+TEST_F(ObjectUtilsTest, embedIntoNewObjectSym) {
+  StringRef section = ".new.section";
+  MemoryBufferRef payload("hello\0", "");
+
+  Expected<OwningBinary<ObjectFile>> objOrErr = embedIntoNewObject(
+      sys::getDefaultTargetTriple(), payload, section, "msg");
+
+  EXPECT_TRUE(bool(objOrErr));
+
+  const ObjectFile &obj = *objOrErr->getBinary();
+  detail::check_eq(getNumSections(obj), 4);
+  detail::check_true(hasSection(obj, ""));
+  detail::check_true(hasSection(obj, ".strtab"));
+  detail::check_true(hasSection(obj, ".symtab"));
+  detail::check_true(hasSection(obj, section));
+
+  detail::check_eq(getNumSymbols(obj), 1);
+  detail::check_true(hasSymbol(obj, "msg"));
+}
+
 // The add* tests actually test EmbDeviceCodeContext::add(ObjectFile). But these
 // are tested here since the are defined in kitsune/lib/Object/ObjectUtils.cpp.
-TEST(ObjectUtilsTest, addEmpty) {
+TEST_F(ObjectUtilsTest, addEmpty) {
   EmbDeviceCodeContext ctx;
   Expected<unsigned> res = ctx.add(cast<Binary>(*elfEmpty));
 
@@ -51,7 +141,7 @@ TEST(ObjectUtilsTest, addEmpty) {
   EXPECT_FALSE(ctx.contains(*elfEmpty));
 }
 
-TEST(ObjectUtilsTest, addCuda) {
+TEST_F(ObjectUtilsTest, addCuda) {
   EmbDeviceCodeContext ctx;
   SmallVector<TTID, 2> tts = {TTID::Cuda};
 
@@ -71,7 +161,7 @@ TEST(ObjectUtilsTest, addCuda) {
   EXPECT_EQ(ctx.get(TTID::Hip).size(), 0UL);
 }
 
-TEST(ObjectUtilsTest, addHip) {
+TEST_F(ObjectUtilsTest, addHip) {
   EmbDeviceCodeContext ctx;
   SmallVector<TTID, 2> tts = {TTID::Hip};
 
@@ -91,7 +181,7 @@ TEST(ObjectUtilsTest, addHip) {
   EXPECT_EQ(ctx.get(TTID::Hip).size(), 1UL);
 }
 
-TEST(ObjectUtilsTest, addMulti) {
+TEST_F(ObjectUtilsTest, addMulti) {
   EmbDeviceCodeContext ctx;
   SmallVector<TTID, 2> tts = {TTID::Cuda, TTID::Hip};
 
@@ -120,4 +210,25 @@ TEST(ObjectUtilsTest, addMulti) {
   EXPECT_TRUE(ctx.contains(*elfHip));
 
   EXPECT_TRUE(ctx.contains(*elfMulti));
+}
+
+TEST_F(ObjectUtilsTest, addMemBuf) {
+  EmbDeviceCodeContext ctx;
+  MemoryBufferRef memBuf = elfHip->getMemoryBufferRef();
+
+  Expected<unsigned> res1 = ctx.add(memBuf);
+  EXPECT_TRUE(bool(res1));
+  EXPECT_EQ(*res1, 1U);
+  EXPECT_EQ(ctx.getTTIDs().size(), 1U);
+  EXPECT_EQ(ctx.get(TTID::Hip).size(), 1U);
+  EXPECT_EQ(ctx.get(TTID::Cuda).size(), 0U);
+
+  // When adding a memory buffer, we do not check the contents of the buffer, so
+  // multiple buffers with identical contents can be added to the context.
+  Expected<unsigned> res2 = ctx.add(memBuf);
+  EXPECT_TRUE(bool(res2));
+  EXPECT_EQ(*res2, 1U);
+  EXPECT_EQ(ctx.getTTIDs().size(), 1U);
+  EXPECT_EQ(ctx.get(TTID::Hip).size(), 2U);
+  EXPECT_EQ(ctx.get(TTID::Cuda).size(), 0U);
 }

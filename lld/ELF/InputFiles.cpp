@@ -9,7 +9,6 @@
 #include "InputFiles.h"
 #include "Config.h"
 #include "DWARF.h"
-#include "DeviceCode.h"
 #include "Driver.h"
 #include "InputSection.h"
 #include "LinkerScript.h"
@@ -17,7 +16,6 @@
 #include "Symbols.h"
 #include "SyntheticSections.h"
 #include "Target.h"
-#include "kitsune/Core/SingletonUtils.h"
 #include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/DWARF.h"
 #include "llvm/ADT/CachedHashString.h"
@@ -541,26 +539,6 @@ uint32_t ObjFile<ELFT>::getSectionIndex(const Elf_Sym &sym) const {
       this);
 }
 
-template <typename ELFT>
-std::optional<TTID>
-ELFFileBase::getDeviceCodeTT(const typename ELFT::Shdr &sec) {
-  object::ELFFile<ELFT> obj = this->getObj<ELFT>();
-  ArrayRef<typename ELFT::Shdr> sections = getELFShdrs<ELFT>();
-  StringRef shstrtab = CHECK2(obj.getSectionStringTable(sections), this);
-  StringRef secName = check(obj.getSectionName(sec, shstrtab));
-
-  return getTTIDForSection(secName);
-}
-
-template <class ELFT>
-bool ELFFileBase::parseIfDeviceCodeSection(const typename ELFT::Shdr &sec) {
-  object::ELFFile<ELFT> obj = this->getObj<ELFT>();
-  std::optional<TTID> tt = getDeviceCodeTT<ELFT>(sec);
-  // if (tt)
-  //   ctx.deviceCode.parseSection(*tt, CHECK2(getSectionContents(sec), this));
-  return tt.has_value();
-}
-
 template <class ELFT> void ObjFile<ELFT>::parse(bool ignoreComdats) {
   object::ELFFile<ELFT> obj = this->getObj();
   // Read a section table. justSymbols is usually false.
@@ -578,8 +556,6 @@ template <class ELFT> void ObjFile<ELFT>::parse(bool ignoreComdats) {
   sections.resize(size);
   for (size_t i = 0; i != size; ++i) {
     const Elf_Shdr &sec = objSections[i];
-    if (LLVM_UNLIKELY(parseIfDeviceCodeSection<ELFT>(sec)))
-      continue;
     if (LLVM_LIKELY(sec.sh_type == SHT_PROGBITS))
       continue;
     if (LLVM_LIKELY(sec.sh_type == SHT_GROUP)) {
@@ -776,6 +752,11 @@ void ObjFile<ELFT>::initializeSections(bool ignoreComdats,
     const Elf_Shdr &sec = objSections[i];
     const uint32_t type = sec.sh_type;
 
+    /*
+     * TODO: We do want to discard the section. Check if we can do this after
+     * the fact i.e. late in the process so we only have hooks in
+     * ELF/Driver.cpp.
+     *
     // Discard sections containing embedded device bitcode. These will have
     // been extracted and linked into a proper fat binary, but only if we are
     // not building a shared library. We could keep them around in all cases
@@ -786,6 +767,7 @@ void ObjFile<ELFT>::initializeSections(bool ignoreComdats,
         continue;
       }
     }
+    */
 
     // SHF_EXCLUDE'ed sections are discarded by the linker. However,
     // if -r is given, we'll let the final link discard such sections.
@@ -1501,7 +1483,6 @@ template <class ELFT> void SharedFile::parse() {
 
   // Search for .dynsym, .dynamic, .symtab, .gnu.version and .gnu.version_d.
   for (const Elf_Shdr &sec : sections) {
-    parseIfDeviceCodeSection<ELFT>(sec);
     switch (sec.sh_type) {
     default:
       continue;

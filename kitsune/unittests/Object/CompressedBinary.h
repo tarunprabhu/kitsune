@@ -94,6 +94,9 @@ extern const std::unique_ptr<llvm::object::ObjectFile> elfHip;
 /// sm_72 and gfx906 architectures respectively.
 extern const std::unique_ptr<llvm::object::ObjectFile> elfMulti;
 
+/// A relocatable ELF object with visible symbols.
+extern const std::unique_ptr<llvm::object::ObjectFile> elfSectsSyms;
+
 /// A simple MachO executable.
 extern const std::unique_ptr<llvm::object::ObjectFile> machOExec;
 

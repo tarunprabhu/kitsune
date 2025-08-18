@@ -12,6 +12,7 @@
 
 #include "kitsune/Object/EmbDeviceCodeContext.h"
 #include "kitsune/Object/ArchiveUtils.h"
+#include "kitsune/Object/BinaryUtils.h"
 #include "kitsune/Object/ObjectUtils.h"
 #include "kitsune/Support/Error.h"
 #include "kitsune/Support/ToString.h"
@@ -44,17 +45,6 @@ bool EmbDeviceCodeContext::contains(const Binary &bin) const {
   return bins.contains(bin.getFileName());
 }
 
-Expected<unsigned> EmbDeviceCodeContext::add(const Binary &bin) {
-  if (bins.contains(bin.getFileName()))
-    return 0;
-
-  if (const auto *objFile = dyn_cast<ObjectFile>(&bin))
-    return add(*objFile);
-  else if (const auto *archive = dyn_cast<Archive>(&bin))
-    return add(*archive);
-  llvm_unreachable("EmbDeviceCodeContext::add: Unsupported binary file format");
-}
-
 Expected<EmbDeviceCode::Id>
 EmbDeviceCodeContext::getEmbDeviceCodeId(TTID tt) const {
   if (devCodes.empty())
@@ -70,4 +60,26 @@ EmbDeviceCodeContext::getEmbDeviceCodeId(TTID tt) const {
       return createStringError("inconsistent formats and targets for "
                                "embedded device code in archive");
   return id;
+}
+
+Expected<unsigned> EmbDeviceCodeContext::add(const Binary &bin) {
+  if (const auto *objFile = dyn_cast<ObjectFile>(&bin))
+    return add(*objFile, bin.getFileName(), /*unique=*/true);
+  else if (const auto *archive = dyn_cast<Archive>(&bin))
+    return add(*archive, bin.getFileName(), /*unique=*/true);
+  llvm_unreachable("EmbDeviceCodeContext::add: Unsupported binary file format");
+}
+
+Expected<unsigned> EmbDeviceCodeContext::add(MemoryBufferRef memBuf) {
+  if (isArchive(memBuf)) {
+    Expected<std::unique_ptr<Archive>> archive = Archive::create(memBuf);
+    RETURN_IF_ERROR(archive);
+    return add(**archive, memBuf.getBufferIdentifier(), /*unique=*/false);
+  } else if (isObject(memBuf)) {
+    Expected<std::unique_ptr<ObjectFile>> obj =
+        ObjectFile::createObjectFile(memBuf);
+    RETURN_IF_ERROR(obj);
+    return add(**obj, memBuf.getBufferIdentifier(), /*unique=*/false);
+  }
+  llvm_unreachable("EmbDeviceCodeContext::add: Unsupported binary file format");
 }

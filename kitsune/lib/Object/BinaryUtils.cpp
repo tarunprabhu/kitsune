@@ -35,19 +35,18 @@ static bool isELFExecutable(const ELFObjectFile<ELFT> &elfObjFile) {
 
 static bool isELFExecutable(StringRef data) {
   MemoryBufferRef memBuf(data, "");
-  Expected<std::unique_ptr<ObjectFile>> objFileOrErr =
+  Expected<std::unique_ptr<ObjectFile>> objFile =
       ObjectFile::createELFObjectFile(memBuf);
-  if (not objFileOrErr)
-    report_internal_error(objFileOrErr.takeError());
-  const ObjectFile &objFile = **objFileOrErr;
+  if (not objFile)
+    report_internal_error("isELFExecutable: Could not parse object");
 
-  if (const auto *elf64le = dyn_cast<ELFObjectFile<ELF64LE>>(&objFile))
+  if (const auto *elf64le = dyn_cast<ELFObjectFile<ELF64LE>>(&**objFile))
     return isELFExecutable(*elf64le);
-  else if (const auto *elf32le = dyn_cast<ELFObjectFile<ELF32LE>>(&objFile))
+  else if (const auto *elf32le = dyn_cast<ELFObjectFile<ELF32LE>>(&**objFile))
     return isELFExecutable(*elf32le);
-  else if (const auto *elf64be = dyn_cast<ELFObjectFile<ELF64BE>>(&objFile))
+  else if (const auto *elf64be = dyn_cast<ELFObjectFile<ELF64BE>>(&**objFile))
     return isELFExecutable(*elf64be);
-  else if (const auto *elf32be = dyn_cast<ELFObjectFile<ELF32BE>>(&objFile))
+  else if (const auto *elf32be = dyn_cast<ELFObjectFile<ELF32BE>>(&**objFile))
     return isELFExecutable(*elf32be);
   else
     llvm_unreachable("isELFExecutable: Must be an ELF executable");

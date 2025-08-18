@@ -17,11 +17,11 @@ using namespace llvm;
 using namespace llvm::object;
 
 static std::unique_ptr<ObjectFile> o(const CompressedBinary &c) {
-  Expected<std::unique_ptr<ObjectFile>> objOrErr =
+  Expected<std::unique_ptr<ObjectFile>> obj =
       ObjectFile::createObjectFile(c.memBuf);
-  if (not objOrErr)
+  if (not obj)
     ADD_FAILURE();
-  return std::move(*objOrErr);
+  return std::move(*obj);
 }
 
 // A relocatable ELF object containing device for the sm_72 cuda architecture.

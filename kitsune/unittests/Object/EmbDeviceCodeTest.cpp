@@ -175,10 +175,10 @@ TEST(EmbDeviceCodeTest, getArch) {
   auto check = [](EmbDeviceCode::Id id) -> void {
     EmbDeviceCode devCode = make(id, *elfEmpty);
     StringRef arch = devCode.getArch();
-    Expected<EmbDeviceCode::Id> idOrErr = EmbDeviceCode::getIdFor(arch);
+    Expected<EmbDeviceCode::Id> id2 = EmbDeviceCode::getIdFor(arch);
 
-    EXPECT_TRUE(bool(idOrErr));
-    EXPECT_EQ(idOrErr.get(), id);
+    EXPECT_TRUE(bool(id2));
+    EXPECT_EQ(*id2, id);
   };
 
   // This checks the first and last device id for each "class" of device. It
@@ -221,10 +221,10 @@ TEST(EmbDeviceCodeTest, getTTID) {
 
 TEST(EmbDeviceCodeTest, getIdForString) {
   auto check_eq = [](StringRef s, EmbDeviceCode::Id expected) -> void {
-    Expected<EmbDeviceCode::Id> idOrErr = EmbDeviceCode::getIdFor(s);
+    Expected<EmbDeviceCode::Id> id = EmbDeviceCode::getIdFor(s);
 
-    EXPECT_TRUE(bool(idOrErr));
-    EXPECT_EQ(*idOrErr, expected);
+    EXPECT_TRUE(bool(id));
+    EXPECT_EQ(*id, expected);
   };
 
   // This checks the first and last device id for each "class" of device. It

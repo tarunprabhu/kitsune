@@ -33,9 +33,13 @@ static void check_false(Expected<bool> val) {
   EXPECT_FALSE(*val);
 }
 
-template <typename T> void check_eq(Expected<T> val, const T &expected) {
+template <typename T, typename U,
+          std::enable_if_t<std::is_convertible_v<T, U> ||
+                               (std::is_integral_v<T> && std::is_integral_v<U>),
+                           int> = 0>
+void check_eq(Expected<T> val, const U &expected) {
   EXPECT_TRUE((bool)val);
-  EXPECT_EQ(*val, expected);
+  EXPECT_EQ(*val, static_cast<T>(expected));
 }
 
 } // namespace detail

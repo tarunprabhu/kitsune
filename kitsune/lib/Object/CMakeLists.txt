@@ -9,6 +9,11 @@ add_llvm_component_library(LLVMKitObject
   KitObject
 
   LINK_COMPONENTS
+  CodeGen
+  Core
+  MC
   Object
+  Passes
   Support
+  TargetParser
 )

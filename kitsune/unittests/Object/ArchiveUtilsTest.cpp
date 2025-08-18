@@ -57,12 +57,11 @@ TEST(ArchiveUtilsTest, getNumMembers) {
 TEST(ArchiveUtilsTest, getMemberObjects) {
   auto check = [](const Archive &archive,
                   const SmallSet<StringRef, 2> &fileNames) {
-    Expected<ArchiveMemberObjects> objsOrErr = getMemberObjects(archive);
-    EXPECT_TRUE(bool(objsOrErr));
-    const ArchiveMemberObjects &objs = *objsOrErr;
+    Expected<ArchiveMemberObjects> objs = getMemberObjects(archive);
+    EXPECT_TRUE(bool(objs));
 
-    EXPECT_EQ(objs.size(), fileNames.size());
-    for (const std::unique_ptr<ObjectFile> &obj : objs)
+    EXPECT_EQ(objs->size(), fileNames.size());
+    for (const std::unique_ptr<ObjectFile> &obj : *objs)
       EXPECT_TRUE(fileNames.contains(obj->getFileName()));
   };
 
@@ -79,8 +78,8 @@ TEST(ArchiveUtilsTest, getMemberObjects) {
 // are tested here since the are defined in kitsune/lib/Object/ObjectUtils.cpp.
 TEST(ArchiveUtilsTest, addEmpty) {
   EmbDeviceCodeContext ctx;
-  Expected<unsigned> res = ctx.add(cast<Binary>(*elfEmpty));
 
+  Expected<unsigned> res = ctx.add(cast<Binary>(*elfEmpty));
   EXPECT_TRUE(bool(res));
   EXPECT_TRUE(*res == 0);
   EXPECT_TRUE(ctx.getTTIDs().empty());
@@ -89,8 +88,8 @@ TEST(ArchiveUtilsTest, addEmpty) {
 
 TEST(ArchiveUtilsTest, addNoDeviceCode) {
   EmbDeviceCodeContext ctx;
-  Expected<unsigned> res = ctx.add(cast<Binary>(*arNoDeviceCode));
 
+  Expected<unsigned> res = ctx.add(cast<Binary>(*arNoDeviceCode));
   EXPECT_TRUE(bool(res));
   EXPECT_TRUE(*res == 0);
   EXPECT_TRUE(ctx.getTTIDs().empty());
@@ -178,9 +177,30 @@ TEST(ArchiveUtilsTest, addMulti) {
 
 TEST(ArchiveUtilsTest, addHetero) {
   EmbDeviceCodeContext ctx;
-  Expected<unsigned> res = ctx.add(cast<Binary>(*arHetero));
 
+  Expected<unsigned> res = ctx.add(cast<Binary>(*arHetero));
   EXPECT_FALSE(res);
   EXPECT_TRUE(ctx.getTTIDs().empty());
   EXPECT_FALSE(ctx.contains(*arHetero));
+}
+
+TEST(ArchiveUtilsTest, addMemBuf) {
+  EmbDeviceCodeContext ctx;
+  MemoryBufferRef memBuf = arCuda1->getMemoryBufferRef();
+
+  Expected<unsigned> res1 = ctx.add(memBuf);
+  EXPECT_TRUE(bool(res1));
+  EXPECT_EQ(*res1, 1U);
+  EXPECT_EQ(ctx.getTTIDs().size(), 1U);
+  EXPECT_EQ(ctx.get(TTID::Cuda).size(), 1U);
+  EXPECT_EQ(ctx.get(TTID::Hip).size(), 0U);
+
+  // When adding a memory buffer, we do not check the contents of the buffer, so
+  // multiple buffers with identical contents can be added to the context.
+  Expected<unsigned> res2 = ctx.add(memBuf);
+  EXPECT_TRUE(bool(res2));
+  EXPECT_EQ(*res2, 1U);
+  EXPECT_EQ(ctx.getTTIDs().size(), 1U);
+  EXPECT_EQ(ctx.get(TTID::Cuda).size(), 2U);
+  EXPECT_EQ(ctx.get(TTID::Hip).size(), 0U);
 }

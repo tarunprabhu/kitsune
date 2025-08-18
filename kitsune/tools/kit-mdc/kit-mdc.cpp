@@ -109,20 +109,20 @@ static int processDeviceCodes(const Binary &bin, std::optional<TTID> only) {
 // Process a static archive. Always returns 0.
 static int processArchive(const MemoryBufferRef &memBuf,
                           std::optional<TTID> tt) {
-  Expected<std::unique_ptr<Archive>> archiveOrErr = Archive::create(memBuf);
-  if (not archiveOrErr)
-    report_error(archiveOrErr.takeError());
-  return processDeviceCodes(**archiveOrErr, tt);
+  Expected<std::unique_ptr<Archive>> archive = Archive::create(memBuf);
+  if (not archive)
+    report_error(archive.takeError());
+  return processDeviceCodes(**archive, tt);
 }
 
 // Process an object file. Always returns 0.
 static int processObjectFile(const MemoryBufferRef &memBuf,
                              const std::optional<TTID> &tt) {
-  Expected<std::unique_ptr<ObjectFile>> objFileOrErr =
+  Expected<std::unique_ptr<ObjectFile>> objFile =
       ObjectFile::createObjectFile(memBuf);
-  if (not objFileOrErr)
-    report_error(objFileOrErr.takeError());
-  return processDeviceCodes(**objFileOrErr, tt);
+  if (not objFile)
+    report_error(objFile.takeError());
+  return processDeviceCodes(**objFile, tt);
 }
 
 int main(int argc, char *argv[]) {
@@ -144,23 +144,22 @@ int main(int argc, char *argv[]) {
     report_error(sjoin(
         "'", *tt, "' tapir target does not generate embedded device code"));
 
-  ErrorOr<std::unique_ptr<MemoryBuffer>> memBufOrErr =
+  ErrorOr<std::unique_ptr<MemoryBuffer>> memBuf =
       MemoryBuffer::getFile(clInFile);
-  if (not memBufOrErr)
-    report_error(sjoin(memBufOrErr.getError()));
+  if (not memBuf)
+    report_error(sjoin(memBuf.getError()));
 
   // The input file may be an archive or an object file.
-  const MemoryBuffer &memBuf = **memBufOrErr;
-  file_magic magic = identify_magic(memBuf.getBuffer());
+  file_magic magic = identify_magic((**memBuf).getBuffer());
   switch (magic) {
   case file_magic::archive:
-    return processArchive(memBuf, tt);
+    return processArchive(**memBuf, tt);
   case file_magic::elf:
   case file_magic::elf_core:
   case file_magic::elf_executable:
   case file_magic::elf_relocatable:
   case file_magic::elf_shared_object:
-    return processObjectFile(memBuf, tt);
+    return processObjectFile(**memBuf, tt);
   case file_magic::macho_object:
   case file_magic::macho_executable:
   case file_magic::macho_dynamically_linked_shared_lib:

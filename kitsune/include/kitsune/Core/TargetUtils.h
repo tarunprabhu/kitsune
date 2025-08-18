@@ -15,6 +15,7 @@
 
 #include "kitsune/Core/Tapir.h"
 #include "llvm/Support/CodeGen.h"
+#include "llvm/TargetParser/Host.h"
 
 namespace llvm {
 
@@ -40,7 +41,17 @@ TargetMachine *createTargetMachine(TTID tt, const TapirTargetOptions &tto);
 TargetMachine *createTargetMachine(TTID tt, const TapirTargetOptions &opts,
                                    CodeGenOptLevel cgOptLevel);
 
-/// Dump the contents of the TargetOptions object to the given output stream.
+/// Create a target machine for the given target triple. The target options
+/// given to the target machine are left at  their defaults. This is intended to
+/// be used when quickly generating an object file for the host.
+TargetMachine *
+createTargetMachine(StringRef triple = llvm::sys::getDefaultTargetTriple(),
+                    CodeGenOptLevel cgOptLevel = CodeGenOptLevel::None,
+                    Reloc::Model reloc = Reloc::PIC_,
+                    CodeModel::Model codeModel = CodeModel::Small);
+
+/// Dump the contents of the TargetOptions object to the given output
+/// stream.
 void dump(const TargetOptions &, raw_ostream &);
 
 /// Dump the contents of the MCTargetOptions object to the given output stream.

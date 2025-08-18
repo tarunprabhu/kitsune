@@ -63,7 +63,13 @@ private:
   // This is defined in kitsune/lib/Object/ObjectUtils.cpp
   /// Add the device code found in an object file. Returns the number of
   /// embedded device code objects that were added to this context.
-  Expected<unsigned> add(const object::ObjectFile &obj);
+  /// \param obj The object
+  /// \param fileName The object file name. This is usually the absolute path,
+  ///                 but it need not be
+  /// \param unique If true, check \ref fileName and only add the object if
+  ///               \ref fileName has not been seen before
+  Expected<unsigned> add(const object::ObjectFile &obj, StringRef fileName,
+                         bool unique);
 
   // This is defined in kitsune/lib/Object/ArchiveUtils.cpp
   /// Add the device code found in an archive. Returns the number of embedded
@@ -76,7 +82,13 @@ private:
   /// function does *not* reflect how many of members \ref archive contained
   /// device code - it only reflects how many distinct tapir targets embedded
   /// device code into at least one member of \ref archive.
-  Expected<unsigned> add(const object::Archive &archive);
+  /// \param obj The archive
+  /// \param fileName The archive file name. This is usually the absolute path,
+  ///                 but it need not be
+  /// \param unique If true, check \ref fileName and only add the archive if
+  ///               \ref fileName has not been seen before
+  Expected<unsigned> add(const object::Archive &archive, StringRef fileName,
+                         bool unique);
 
 public:
   EmbDeviceCodeContext() = default;
@@ -106,6 +118,15 @@ public:
   ///   - \ref bin has already been added to this context.
   ///
   Expected<unsigned> add(const object::Binary &bin);
+
+  /// Add embedded bitcode from the given memory buffer. The contents of the
+  /// buffer must be an archive or an object file. Returns the number of
+  /// embedded device code objects that were added to this context. See
+  /// \ref add(const object::Binary&) for more information about the return
+  /// value. When using this method, it is up to the caller to ensure that a
+  /// buffer or binary with the same exact contents as \ref memBuf has not been
+  /// added before.
+  Expected<unsigned> add(MemoryBufferRef memBuf);
 };
 
 } // namespace llvm

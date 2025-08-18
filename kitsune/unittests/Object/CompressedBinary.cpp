@@ -44,12 +44,12 @@ CompressedBinary::CompressedBinary(StringRef name, StringRef inBuf,
 }
 
 template <typename T>
-static std::unique_ptr<T> getIfOk(Expected<std::unique_ptr<T>> tOrErr) {
-  if (not tOrErr) {
+static std::unique_ptr<T> getIfOk(Expected<std::unique_ptr<T>> obj) {
+  if (not obj) {
     fprintf(stderr, "Unexpected error creating global object");
     exit(1);
   }
-  return std::move(*tOrErr);
+  return std::move(*obj);
 }
 
 static std::unique_ptr<Archive> a(const CompressedBinary &c) {
@@ -203,6 +203,14 @@ static const CompressedBinary elfMultiC(
     "th8RblkMa55OsWn5qTwGs1pbJ2h8TAl0UoOHXxxR5zmYE9X5f2ahKtBZ1n+68JFF/u/vHK8o",
     1864);
 const std::unique_ptr<ObjectFile> elfMulti = o(elfMultiC);
+
+static const CompressedBinary elfSectsSymsC(
+    "elfSectsSyms",
+    "eNqrd/VxY2JkZIABRgY7BgQPAW4gsR2gJCtQZTcriH2YgZmBMGBmYMIQ4wRiISRxdrg7GBgEkU"
+    "xlgTEqGPRKUitKGNJTSxj0ikuKShKTgHRlLphOSSxJZKAK4AW7FxNsgNLKaOKMGH6FiLGhiTug"
+    "+RMGBND4slD96G7wQA8PHHxRIGbC4v4AKJ2A5G6QOg4oXwJKAwDNuhIg",
+    536);
+const std::unique_ptr<ObjectFile> elfSectsSyms = o(elfSectsSymsC);
 
 static const CompressedBinary machOExecC(
     "machOExec",
