@@ -232,7 +232,7 @@ namespace ParameterScopes {
 
   const int k = 42;
   constexpr const int &ObscureTheTruth(const int &a) { return a; }
-  constexpr const int &MaybeReturnJunk(bool b, const int a) { // expected-note 2{{declared here}}
+  constexpr const int &MaybeReturnJunk(bool b, const int a) {
     return ObscureTheTruth(b ? a : k);
   }
   static_assert(MaybeReturnJunk(false, 0) == 42, ""); // ok
@@ -694,8 +694,7 @@ static_assert(selfref[1][0][1] == 3, "");
 static_assert(selfref[1][1][0] == 0, "");
 static_assert(selfref[1][1][1] == 0, "");
 
-constexpr int badselfref[2][2][2] = { // expected-error {{constant expression}} \
-                                      // expected-note {{declared here}}
+constexpr int badselfref[2][2][2] = { // expected-error {{constant expression}}
   badselfref[1][0][0] // expected-note {{outside its lifetime}}
 };
 
@@ -1379,7 +1378,7 @@ namespace ExternConstexpr {
     constexpr int k; // expected-error {{constexpr variable 'k' must be initialized by a constant expression}}
   }
 
-  extern const int q; // expected-note {{declared here}}
+  extern const int q;
   constexpr int g() { return q; } // expected-note {{outside its lifetime}}
   constexpr int q = g(); // expected-error {{constant expression}} expected-note {{in call}}
 
@@ -1387,7 +1386,7 @@ namespace ExternConstexpr {
   constexpr int h() { return r; } // cxx11_20-error {{never produces a constant}} cxx11_20-note {{read of non-const}}
 
   struct S { int n; };
-  extern const S s; // expected-note {{declared here}}
+  extern const S s;
   constexpr int x() { return s.n; } // expected-note {{outside its lifetime}}
   constexpr S s = {x()}; // expected-error {{constant expression}} expected-note {{in call}}
 }
@@ -1414,8 +1413,8 @@ namespace ComplexConstexpr {
   static_assert(t2p[2] == 0.0, ""); // expected-error {{constant expr}} expected-note {{one-past-the-end pointer}}
   static_assert(t2p[3] == 0.0, ""); // expected-error {{constant expr}} expected-note {{cannot refer to element 3 of array of 2 elements}}
   constexpr _Complex float *p = 0; // expected-warning {{'_Complex' is a C99 extension}}
-  constexpr float pr = __real *p; // expected-error {{constant expr}} expected-note {{dereferencing a null pointer}}
-  constexpr float pi = __imag *p; // expected-error {{constant expr}} expected-note {{dereferencing a null pointer}}
+  constexpr float pr = __real *p; // expected-error {{constant expr}} expected-note {{cannot access real component of null}}
+  constexpr float pi = __imag *p; // expected-error {{constant expr}} expected-note {{cannot access imaginary component of null}}
   constexpr const _Complex double *q = &test3 + 1; // expected-warning {{'_Complex' is a C99 extension}}
   constexpr double qr = __real *q; // expected-error {{constant expr}} expected-note {{cannot access real component of pointer past the end}}
   constexpr double qi = __imag *q; // expected-error {{constant expr}} expected-note {{cannot access imaginary component of pointer past the end}}
@@ -2015,9 +2014,7 @@ namespace Lifetime {
   void f() {
     constexpr int &n = n; // expected-error {{constant expression}} cxx23-note {{reference to 'n' is not a constant expression}} cxx23-note {{address of non-static constexpr variable 'n' may differ}} expected-warning {{not yet bound to a value}}
                           // cxx11_20-note@-1 {{use of reference outside its lifetime is not allowed in a constant expression}}
-    constexpr int m = m; // expected-error {{constant expression}} \
-                         // expected-note {{read of object outside its lifetime}} \
-                         // expected-note {{declared here}}
+    constexpr int m = m; // expected-error {{constant expression}} expected-note {{read of object outside its lifetime}}
   }
 
   constexpr int &get(int &&n) { return n; }
@@ -2027,10 +2024,8 @@ namespace Lifetime {
     int &&r;
     int &s;
     int t;
-    constexpr S() : r(get_rv(0)), s(get(0)), t(r) {} // cxx11_20-note {{read of object outside its lifetime}} \
-                                                     // cxx11_20-note {{temporary created here}}
-    constexpr S(int) : r(get_rv(0)), s(get(0)), t(s) {} // cxx11_20-note {{read of object outside its lifetime}} \
-                                                        // cxx11_20-note {{temporary created here}}
+    constexpr S() : r(get_rv(0)), s(get(0)), t(r) {} // cxx11_20-note {{read of object outside its lifetime}}
+    constexpr S(int) : r(get_rv(0)), s(get(0)), t(s) {} // cxx11_20-note {{read of object outside its lifetime}}
   };
   constexpr int k1 = S().t; // expected-error {{constant expression}} cxx11_20-note {{in call}}
   constexpr int k2 = S(0).t; // expected-error {{constant expression}} cxx11_20-note {{in call}}
@@ -2039,8 +2034,7 @@ namespace Lifetime {
     int n = 0;
     constexpr int f() const { return 0; }
   };
-  constexpr Q *out_of_lifetime(Q q) { return &q; } // expected-warning {{address of stack}} \
-                                                   // expected-note 2{{declared here}}
+  constexpr Q *out_of_lifetime(Q q) { return &q; } // expected-warning {{address of stack}}
   constexpr int k3 = out_of_lifetime({})->n; // expected-error {{constant expression}} expected-note {{read of object outside its lifetime}}
   constexpr int k4 = out_of_lifetime({})->f(); // expected-error {{constant expression}} expected-note {{member call on object outside its lifetime}}
 
@@ -2076,14 +2070,9 @@ namespace Lifetime {
     int a = b.f(); // expected-warning {{uninitialized}} expected-note 2{{member call on object outside its lifetime}}
     Inner b;
   };
-  constexpr R r; // expected-error {{constant expression}} \
-                 // expected-note {{in call}} \
-                 // expected-note {{implicit default constructor for 'Lifetime::R' first required here}} \
-                 // expected-note {{declared here}}
+  constexpr R r; // expected-error {{constant expression}} expected-note {{in call}} expected-note {{implicit default constructor for 'Lifetime::R' first required here}}
   void rf() {
-    constexpr R r; // expected-error {{constant expression}} \
-                   // expected-note {{in call}} \
-                   // expected-note {{declared here}}
+    constexpr R r; // expected-error {{constant expression}} expected-note {{in call}}
   }
 }
 
@@ -2625,36 +2614,6 @@ namespace DoubleCapture {
       [a, &a] { // expected-error {{'a' can appear only once in a capture list}}
     };
   }
-}
-
-namespace GH150709 {
-  struct C { };
-  struct D : C {
-    constexpr int f() const { return 1; };
-  };
-  struct E : C { };
-  struct F : D { };
-  struct G : E { };
-  
-  constexpr C c1, c2[2];
-  constexpr D d1, d2[2];
-  constexpr E e1, e2[2];
-  constexpr F f;
-  constexpr G g;
-
-  constexpr auto mp = static_cast<int (C::*)() const>(&D::f);
-
-  // sanity checks for fix of GH150709 (unchanged behavior)
-  static_assert((c1.*mp)() == 1, ""); // expected-error {{constant expression}}
-  static_assert((d1.*mp)() == 1, "");
-  static_assert((f.*mp)() == 1, "");
-  static_assert((c2[0].*mp)() == 1, ""); // expected-error {{constant expression}}
-  static_assert((d2[0].*mp)() == 1, "");
-
-  // incorrectly undiagnosed before fix of GH150709
-  static_assert((e1.*mp)() == 1, ""); // expected-error {{constant expression}}
-  static_assert((e2[0].*mp)() == 1, ""); // expected-error {{constant expression}}
-  static_assert((g.*mp)() == 1, ""); // expected-error {{constant expression}}
 }
 
 namespace GH154567 {
