@@ -367,6 +367,65 @@ if (KITSUNE_CUDA_ENABLED)
     ""
     CACHE STRING
     "Additional linker flags needed for the Cuda target")
+
+  set(KITSUNE_CUDA_TRIPLE nvptx64-nvidia-cuda)
+  set(KITSUNE_CUDA_LIBC_DIR ${KITSUNE_TARGETS_BINARY_DIR}/libc/${KITSUNE_CUDA_TRIPLE})
+  set(KITSUNE_CUDA_LIBC_SOURCE_DIR ${CMAKE_SOURCE_DIR})
+  set(KITSUNE_CUDA_LIBC_BINARY_DIR ${KITSUNE_CUDA_LIBC_DIR}/build)
+  set(KITSUNE_CUDA_LIBC_INSTALL_DIR ${KITSUNE_CUDA_LIBC_DIR})
+  set(KITSUNE_CUDA_LIBC_BUILD_CMAKE_FLAGS
+    -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
+    -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
+    -DCMAKE_C_COMPILER_WORKS=1
+    -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
+    -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    -DCMAKE_CXX_COMPILER_WORKS=1
+    "-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld -Xlinker -m -Xlinker elf64_cuda"
+    -DCMAKE_SIZEOF_VOID_P=${CMAKE_SIZEOF_VOID_P}
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+    -DCMAKE_INSTALL_PREFIX=${KITSUNE_CUDA_LIBC_INSTALL_DIR}
+    -DPACKAGE_VERSION=${PACKAGE_VERSION}
+    -DLLVM_ENABLE_RUNTIMES=libc
+    -DLLVM_LIBC_FULL_BUILD=ON
+    -DLLVM_RUNTIMES_TARGET=${KITSUNE_CUDA_TRIPLE}
+    -DCUDAToolkit_ROOT=${CUDAToolkit_ROOT})
+
+  ExternalProject_Add(libc-nvidia
+    DEPENDS                 clang lld llvm-config
+    SOURCE_DIR              ${KITSUNE_CUDA_LIBC_SOURCE_DIR}/../runtimes
+    BINARY_DIR              ${KITSUNE_CUDA_LIBC_BINARY_DIR}
+    CMAKE_ARGS              ${KITSUNE_CUDA_LIBC_BUILD_CMAKE_FLAGS}
+    USES_TERMINAL_PATCH     TRUE
+    USES_TERMINAL_CONFIGURE TRUE
+    USES_TERMINAL_BUILD     TRUE
+    USES_TERMINAL_INSTALL   TRUE
+    UPDATE_DISCONNECTED     TRUE
+    ALWAYS_BUILD            TRUE)
+
+  # Copy the built files into a "staging" area. This allows kitsune to be
+  # run from the build directory. The destination is the lib directory of
+  # clang's resource directory. We only care about a subset of the files that
+  # are built, therefore we only copy those.
+  set(KITSUNE_CUDA_LIBC_INTDIR ${CLANG_RESOURCE_INTDIR}/lib/${KITSUNE_CUDA_TRIPLE})
+  add_custom_target(libc-nvidia-copy-to-build-dir ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${KITSUNE_CUDA_LIBC_INTDIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${KITSUNE_CUDA_LIBC_INSTALL_DIR}/lib/libc.a
+    ${KITSUNE_CUDA_LIBC_INSTALL_DIR}/lib/libc.bc
+    ${KITSUNE_CUDA_LIBC_INSTALL_DIR}/lib/libm.a
+    ${KITSUNE_CUDA_LIBC_INSTALL_DIR}/lib/libm.bc
+    ${KITSUNE_CUDA_LIBC_INTDIR}
+    COMMENT "Copying libc/libm (AMD) to the 'top-level' build directory"
+    VERBATIM USES_TERMINAL)
+  add_dependencies(libc-nvidia-copy-to-build-dir libc-nvidia)
+
+  install(FILES
+    ${KITSUNE_CUDA_LIBC_INSTALL_DIR}/lib/libc.a
+    ${KITSUNE_CUDA_LIBC_INSTALL_DIR}/lib/libc.bc
+    ${KITSUNE_CUDA_LIBC_INSTALL_DIR}/lib/libm.a
+    ${KITSUNE_CUDA_LIBC_INSTALL_DIR}/lib/libm.bc
+    DESTINATION ${CLANG_RESOURCE_INSTALL_DIR}/lib/${KITSUNE_CUDA_TRIPLE})
 endif()
 
 if (KITSUNE_HIP_ENABLED)
@@ -450,7 +509,65 @@ if (KITSUNE_HIP_ENABLED)
     ${KITSUNE_HIP_PREFIX}/lib64/amdgcn/bitcode
     NO_DEFAULT_PATH)
   get_filename_component(KITSUNE_HIP_BITCODE_DIR "${HIP_BC}" DIRECTORY)
-  message(STATUS "hip bitcode file location: ${KITSUNE_HIP_BITCODE_DIR}")
+  message(STATUS "  Hip bitcode dir: ${KITSUNE_HIP_BITCODE_DIR}")
+
+  set(KITSUNE_HIP_TRIPLE amdgcn-amd-amdhsa)
+  set(KITSUNE_HIP_LIBC_DIR ${KITSUNE_TARGETS_BINARY_DIR}/libc/${KITSUNE_HIP_TRIPLE})
+  set(KITSUNE_HIP_LIBC_SOURCE_DIR ${CMAKE_SOURCE_DIR})
+  set(KITSUNE_HIP_LIBC_BINARY_DIR ${KITSUNE_HIP_LIBC_DIR}/build)
+  set(KITSUNE_HIP_LIBC_INSTALL_DIR ${KITSUNE_HIP_LIBC_DIR})
+  set(KITSUNE_HIP_LIBC_BUILD_CMAKE_FLAGS
+    -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
+    -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
+    -DCMAKE_C_COMPILER_WORKS=1
+    -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
+    -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    -DCMAKE_CXX_COMPILER_WORKS=1
+    "-DCMAKE_EXE_LINKER_FLAGS='-fuse-ld=lld -Xlinker -m -Xlinker elf64_amdgpu'"
+    -DCMAKE_SIZEOF_VOID_P=${CMAKE_SIZEOF_VOID_P}
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+    -DCMAKE_INSTALL_PREFIX=${KITSUNE_HIP_LIBC_INSTALL_DIR}
+    -DPACKAGE_VERSION=${PACKAGE_VERSION}
+    -DLLVM_ENABLE_RUNTIMES=libc
+    -DLLVM_LIBC_FULL_BUILD=ON
+    -DLLVM_RUNTIMES_TARGET=${KITSUNE_HIP_TRIPLE})
+
+  ExternalProject_Add(libc-amd
+    DEPENDS                 clang lld llvm-config
+    SOURCE_DIR              ${KITSUNE_HIP_LIBC_SOURCE_DIR}/../runtimes
+    BINARY_DIR              ${KITSUNE_HIP_LIBC_BINARY_DIR}
+    CMAKE_ARGS              ${KITSUNE_HIP_LIBC_BUILD_CMAKE_FLAGS}
+    USES_TERMINAL_PATCH     TRUE
+    USES_TERMINAL_CONFIGURE TRUE
+    USES_TERMINAL_BUILD     TRUE
+    USES_TERMINAL_INSTALL   TRUE
+    UPDATE_DISCONNECTED     TRUE
+    ALWAYS_BUILD            TRUE)
+
+  # Copy the built files into a "staging" area. This allows kitsune to be
+  # run from the build directory. The destination is the lib directory of
+  # clang's resource directory. We only care about a subset of the files that
+  # are built, therefore we only copy those.
+  set(KITSUNE_HIP_LIBC_INTDIR ${CLANG_RESOURCE_INTDIR}/lib/${KITSUNE_HIP_TRIPLE})
+  add_custom_target(libc-amd-copy-to-build-dir ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${KITSUNE_HIP_LIBC_INTDIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${KITSUNE_HIP_LIBC_INSTALL_DIR}/lib/libc.a
+    ${KITSUNE_HIP_LIBC_INSTALL_DIR}/lib/libc.bc
+    ${KITSUNE_HIP_LIBC_INSTALL_DIR}/lib/libm.a
+    ${KITSUNE_HIP_LIBC_INSTALL_DIR}/lib/libm.bc
+    ${KITSUNE_HIP_LIBC_INTDIR}
+    COMMENT "Copying libc/libm (AMD) to the 'top-level' build directory"
+    VERBATIM USES_TERMINAL)
+  add_dependencies(libc-amd-copy-to-build-dir libc-amd)
+
+  install(FILES
+    ${KITSUNE_HIP_LIBC_INSTALL_DIR}/lib/libc.a
+    ${KITSUNE_HIP_LIBC_INSTALL_DIR}/lib/libc.bc
+    ${KITSUNE_HIP_LIBC_INSTALL_DIR}/lib/libm.a
+    ${KITSUNE_HIP_LIBC_INSTALL_DIR}/lib/libm.bc
+    DESTINATION ${CLANG_RESOURCE_INSTALL_DIR}/lib/${KITSUNE_HIP_TRIPLE})
 endif()
 
 if (KITSUNE_LAMBDA_ENABLED)
