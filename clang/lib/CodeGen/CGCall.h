@@ -424,6 +424,12 @@ struct DisableDebugLocationUpdates {
   operator=(const DisableDebugLocationUpdates &) = delete;
 };
 
+struct DisableDebugLocationUpdates {
+  CodeGenFunction &CGF;
+  DisableDebugLocationUpdates(CodeGenFunction &CGF);
+  ~DisableDebugLocationUpdates();
+};
+
 } // end namespace CodeGen
 } // end namespace clang
 
