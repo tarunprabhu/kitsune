@@ -2,6 +2,7 @@
 Test that ASan memory history provider returns correct stack traces
 """
 
+
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -9,10 +10,7 @@ from lldbsuite.test import lldbplatform
 from lldbsuite.test import lldbutil
 from lldbsuite.test_event.build_exception import BuildError
 
-
 class MemoryHistoryTestCase(TestBase):
-    SHARED_BUILD_TESTCASE = False
-
     @skipIfFreeBSD  # llvm.org/pr21136 runtimes not yet available by default
     @expectedFailureNetBSD
     @skipUnlessAddressSanitizer
@@ -43,16 +41,18 @@ class MemoryHistoryTestCase(TestBase):
         self.line_free = line_number("main.c", "// free line")
         self.line_breakpoint = line_number("main.c", "// break line")
 
-    def check_traces(self):
+    # Test line numbers: rdar://126237493
+    # for libsanitizers and remove `skip_line_numbers` parameter
+    def check_traces(self, skip_line_numbers=False):
         self.expect(
             "memory history 'pointer'",
             substrs=[
                 "Memory deallocated by Thread",
                 "a.out`f2",
-                f"main.c:{self.line_free}",
+                "main.c" if skip_line_numbers else f"main.c:{self.line_free}",
                 "Memory allocated by Thread",
                 "a.out`f1",
-                f"main.c:{self.line_malloc}",
+                "main.c" if skip_line_numbers else f"main.c:{self.line_malloc}",
             ],
         )
 
@@ -76,7 +76,7 @@ class MemoryHistoryTestCase(TestBase):
         self.runCmd("env SanitizersAllocationTraces=all")
 
         self.run_to_breakpoint(target)
-        self.check_traces()
+        self.check_traces(skip_line_numbers=True)
 
     def libsanitizers_asan_tests(self):
         target = self.createTestTarget()
@@ -84,7 +84,7 @@ class MemoryHistoryTestCase(TestBase):
         self.runCmd("env SanitizersAddress=1 MallocSanitizerZone=1")
 
         self.run_to_breakpoint(target)
-        self.check_traces()
+        self.check_traces(skip_line_numbers=True)
 
         self.runCmd("continue")
 
@@ -94,12 +94,11 @@ class MemoryHistoryTestCase(TestBase):
             "Process should be stopped due to ASan report",
             substrs=["stopped", "stop reason = Use of deallocated memory"],
         )
-        self.check_traces()
+        self.check_traces(skip_line_numbers=True)
 
-        if self.platformIsDarwin():
-            # Make sure we're not stopped in the sanitizer library but instead at the
-            # point of failure in the user-code.
-            self.assertEqual(self.frame().GetFunctionName(), "main")
+        # Make sure we're not stopped in the sanitizer library but instead at the
+        # point of failure in the user-code.
+        self.assertEqual(self.frame().GetFunctionName(), "main")
 
         # do the same using SB API
         process = self.dbg.GetSelectedTarget().process
@@ -225,10 +224,9 @@ class MemoryHistoryTestCase(TestBase):
 
         self.check_traces()
 
-        if self.platformIsDarwin():
-            # Make sure we're not stopped in the sanitizer library but instead at the
-            # point of failure in the user-code.
-            self.assertEqual(self.frame().GetFunctionName(), "main")
+        # Make sure we're not stopped in the sanitizer library but instead at the
+        # point of failure in the user-code.
+        self.assertEqual(self.frame().GetFunctionName(), "main")
 
         # make sure the 'memory history' command still works even when we're
         # generating a report now
