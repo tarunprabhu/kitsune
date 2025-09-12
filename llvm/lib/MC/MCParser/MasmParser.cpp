@@ -39,7 +39,7 @@
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/MC/MCSymbolCOFF.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -212,7 +212,7 @@ struct FieldInfo {
 StructFieldInfo::StructFieldInfo(std::vector<StructInitializer> V,
                                  StructInfo S) {
   Initializers = std::move(V);
-  Structure = std::move(S);
+  Structure = S;
 }
 
 StructInfo::StructInfo(StringRef StructName, bool Union,
@@ -462,7 +462,7 @@ public:
 
   void addDirectiveHandler(StringRef Directive,
                            ExtensionDirectiveHandler Handler) override {
-    ExtensionDirectiveMap[Directive] = std::move(Handler);
+    ExtensionDirectiveMap[Directive] = Handler;
     DirectiveKindMap.try_emplace(Directive, DK_HANDLER_DIRECTIVE);
   }
 
@@ -483,9 +483,11 @@ public:
     AssemblerDialect = i;
   }
 
-  void Note(SMLoc L, const Twine &Msg, SMRange Range = {}) override;
-  bool Warning(SMLoc L, const Twine &Msg, SMRange Range = {}) override;
-  bool printError(SMLoc L, const Twine &Msg, SMRange Range = {}) override;
+  void Note(SMLoc L, const Twine &Msg, SMRange Range = std::nullopt) override;
+  bool Warning(SMLoc L, const Twine &Msg,
+               SMRange Range = std::nullopt) override;
+  bool printError(SMLoc L, const Twine &Msg,
+                  SMRange Range = std::nullopt) override;
 
   enum ExpandKind { ExpandMacros, DoNotExpandMacros };
   const AsmToken &Lex(ExpandKind ExpandNextToken);
@@ -590,7 +592,7 @@ private:
   bool expandStatement(SMLoc Loc);
 
   void printMessage(SMLoc Loc, SourceMgr::DiagKind Kind, const Twine &Msg,
-                    SMRange Range = {}) const {
+                    SMRange Range = std::nullopt) const {
     ArrayRef<SMRange> Ranges(Range);
     SrcMgr.PrintMessage(Loc, Kind, Msg, Ranges);
   }
@@ -717,7 +719,6 @@ private:
     DK_END,
     DK_PUSHFRAME,
     DK_PUSHREG,
-    DK_PUSH2REGS,
     DK_SAVEREG,
     DK_SAVEXMM128,
     DK_SETFRAME,
@@ -750,7 +751,6 @@ private:
     BI_DATASIZE,
     BI_MODEL,
     BI_STACK,
-    BI_UNWINDVERSION,
   };
 
   /// Maps builtin name --> BuiltinSymbol enum, for builtins handled by this
@@ -964,6 +964,8 @@ private:
 namespace llvm {
 
 extern cl::opt<unsigned> AsmMacroMaxNestingDepth;
+
+extern MCAsmParserExtension *createCOFFMasmParser();
 
 } // end namespace llvm
 
@@ -1205,7 +1207,7 @@ const AsmToken MasmParser::peekTok(bool ShouldSkipSpace) {
 bool MasmParser::Run(bool NoInitialTextSection, bool NoFinalize) {
   // Create the initial section, if requested.
   if (!NoInitialTextSection)
-    Out.initSections(getTargetParser().getSTI());
+    Out.initSections(false, getTargetParser().getSTI());
 
   // Prime the lexer.
   Lex();
@@ -1275,7 +1277,7 @@ bool MasmParser::Run(bool NoInitialTextSection, bool NoFinalize) {
 bool MasmParser::checkForValidSection() {
   if (!ParsingMSInlineAsm && !(getStreamer().getCurrentFragment() &&
                                getStreamer().getCurrentSectionOnly())) {
-    Out.initSections(getTargetParser().getSTI());
+    Out.initSections(false, getTargetParser().getSTI());
     return Error(getTok().getLoc(),
                  "expected section directive before assembly directive");
   }
@@ -1478,7 +1480,7 @@ bool MasmParser::parsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc,
       auto VarIt = Variables.find(SymbolName.lower());
       if (VarIt != Variables.end())
         SymbolName = VarIt->second.Name;
-      Sym = getContext().parseSymbol(SymbolName);
+      Sym = getContext().getOrCreateSymbol(SymbolName);
     }
 
     // If this is an absolute variable reference, substitute it now to preserve
@@ -1963,7 +1965,7 @@ bool MasmParser::parseStatement(ParseStatementInfo &Info,
     if (IDVal == "@@") {
       Sym = Ctx.createDirectionalLocalSymbol(0);
     } else {
-      Sym = getContext().parseSymbol(IDVal);
+      Sym = getContext().getOrCreateSymbol(IDVal);
     }
 
     // End of Labels should be treated as end of line for lexing
@@ -2901,7 +2903,7 @@ bool MasmParser::parseIdentifier(StringRef &Res,
   if (Position == StartOfStatement &&
       StringSwitch<bool>(Res)
           .CaseLower("echo", true)
-          .CasesLower({"ifdef", "ifndef", "elseifdef", "elseifndef"}, true)
+          .CasesLower("ifdef", "ifndef", "elseifdef", "elseifndef", true)
           .Default(false)) {
     ExpandNextToken = DoNotExpandMacros;
   }
@@ -3007,7 +3009,8 @@ bool MasmParser::parseDirectiveEquate(StringRef IDVal, StringRef Name,
     return false;
   }
 
-  auto *Sym = static_cast<MCSymbolCOFF *>(getContext().parseSymbol(Var.Name));
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Var.Name);
+
   const MCConstantExpr *PrevValue =
       Sym->isVariable()
           ? dyn_cast_or_null<MCConstantExpr>(Sym->getVariableValue())
@@ -3315,7 +3318,7 @@ bool MasmParser::parseDirectiveNamedValue(StringRef TypeName, unsigned Size,
                                           StringRef Name, SMLoc NameLoc) {
   if (StructInProgress.empty()) {
     // Initialize named data value.
-    MCSymbol *Sym = getContext().parseSymbol(Name);
+    MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
     getStreamer().emitLabel(Sym);
     unsigned Count;
     if (emitIntegralValues(Size, &Count))
@@ -3506,7 +3509,7 @@ bool MasmParser::parseDirectiveNamedRealValue(StringRef TypeName,
                                               SMLoc NameLoc) {
   if (StructInProgress.empty()) {
     // Initialize named data value.
-    MCSymbol *Sym = getContext().parseSymbol(Name);
+    MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
     getStreamer().emitLabel(Sym);
     unsigned Count;
     if (emitRealValues(Semantics, &Count))
@@ -4000,7 +4003,7 @@ bool MasmParser::parseDirectiveNamedStructValue(const StructInfo &Structure,
                                                 SMLoc DirLoc, StringRef Name) {
   if (StructInProgress.empty()) {
     // Initialize named data value.
-    MCSymbol *Sym = getContext().parseSymbol(Name);
+    MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
     getStreamer().emitLabel(Sym);
     unsigned Count;
     if (emitStructValues(Structure, &Count))
@@ -4100,7 +4103,7 @@ bool MasmParser::parseDirectiveEnds(StringRef Name, SMLoc NameLoc) {
   // and the size of its largest field.
   Structure.Size = llvm::alignTo(
       Structure.Size, std::min(Structure.Alignment, Structure.AlignmentSize));
-  Structs[Name.lower()] = std::move(Structure);
+  Structs[Name.lower()] = Structure;
 
   if (parseEOL())
     return addErrorSuffix(" in ENDS directive");
@@ -4225,9 +4228,10 @@ bool MasmParser::emitAlignTo(int64_t Alignment) {
     // Check whether we should use optimal code alignment for this align
     // directive.
     const MCSection *Section = getStreamer().getCurrentSectionOnly();
-    if (MAI.useCodeAlign(*Section)) {
+    assert(Section && "must have section to emit alignment");
+    if (Section->useCodeAlign()) {
       getStreamer().emitCodeAlignment(Align(Alignment),
-                                      getTargetParser().getSTI(),
+                                      &getTargetParser().getSTI(),
                                       /*MaxBytesToEmit=*/0);
     } else {
       // FIXME: Target specific behavior about how the "extra" bytes are filled.
@@ -4518,7 +4522,7 @@ bool MasmParser::parseDirectiveExtern() {
       KnownType[Sym->getName().lower()] = Type;
     }
 
-    static_cast<MCSymbolCOFF *>(Sym)->setExternal(true);
+    Sym->setExternal(true);
     getStreamer().emitSymbolAttribute(Sym, MCSA_Extern);
 
     return false;
@@ -5273,10 +5277,6 @@ void MasmParser::initializeDirectiveKindMap() {
   // DirectiveKindMap[".cfi_def_cfa_register"] = DK_CFI_DEF_CFA_REGISTER;
   // DirectiveKindMap[".cfi_offset"] = DK_CFI_OFFSET;
   // DirectiveKindMap[".cfi_rel_offset"] = DK_CFI_REL_OFFSET;
-  // DirectiveKindMap[".cfi_llvm_register_pair"] = DK_CFI_LLVM_REGISTER_PAIR;
-  // DirectiveKindMap[".cfi_llvm_vector_registers"] =
-  //   DK_CFI_LLVM_VECTOR_REGISTERS;
-  // DirectiveKindMap[".cfi_llvm_vector_offset"] = DK_CFI_LLVM_VECTOR_OFFSET;
   // DirectiveKindMap[".cfi_personality"] = DK_CFI_PERSONALITY;
   // DirectiveKindMap[".cfi_lsda"] = DK_CFI_LSDA;
   // DirectiveKindMap[".cfi_remember_state"] = DK_CFI_REMEMBER_STATE;
@@ -5308,15 +5308,9 @@ void MasmParser::initializeDirectiveKindMap() {
   DirectiveKindMap[".errnz"] = DK_ERRNZ;
   DirectiveKindMap[".pushframe"] = DK_PUSHFRAME;
   DirectiveKindMap[".pushreg"] = DK_PUSHREG;
-  DirectiveKindMap[".push2reg"] = DK_PUSH2REGS;
-  DirectiveKindMap[".pop2reg"] = DK_PUSH2REGS;
-  DirectiveKindMap[".popreg"] = DK_PUSHREG;
   DirectiveKindMap[".savereg"] = DK_SAVEREG;
-  DirectiveKindMap[".restorereg"] = DK_SAVEREG;
   DirectiveKindMap[".savexmm128"] = DK_SAVEXMM128;
-  DirectiveKindMap[".restorexmm128"] = DK_SAVEXMM128;
   DirectiveKindMap[".setframe"] = DK_SETFRAME;
-  DirectiveKindMap[".unsetframe"] = DK_SETFRAME;
   DirectiveKindMap[".radix"] = DK_RADIX;
   DirectiveKindMap["db"] = DK_DB;
   DirectiveKindMap["dd"] = DK_DD;
@@ -5333,10 +5327,10 @@ void MasmParser::initializeDirectiveKindMap() {
 bool MasmParser::isMacroLikeDirective() {
   if (getLexer().is(AsmToken::Identifier)) {
     bool IsMacroLike = StringSwitch<bool>(getTok().getIdentifier())
-                           .CasesLower({"repeat", "rept"}, true)
+                           .CasesLower("repeat", "rept", true)
                            .CaseLower("while", true)
-                           .CasesLower({"for", "irp"}, true)
-                           .CasesLower({"forc", "irpc"}, true)
+                           .CasesLower("for", "irp", true)
+                           .CasesLower("forc", "irpc", true)
                            .Default(false);
     if (IsMacroLike)
       return true;
@@ -5852,11 +5846,11 @@ bool MasmParser::lookUpField(const StructInfo &Structure, StringRef Member,
 
 bool MasmParser::lookUpType(StringRef Name, AsmTypeInfo &Info) const {
   unsigned Size = StringSwitch<unsigned>(Name)
-                      .CasesLower({"byte", "db", "sbyte"}, 1)
-                      .CasesLower({"word", "dw", "sword"}, 2)
-                      .CasesLower({"dword", "dd", "sdword"}, 4)
-                      .CasesLower({"fword", "df"}, 6)
-                      .CasesLower({"qword", "dq", "sqword"}, 8)
+                      .CasesLower("byte", "db", "sbyte", 1)
+                      .CasesLower("word", "dw", "sword", 2)
+                      .CasesLower("dword", "dd", "sdword", 4)
+                      .CasesLower("fword", "df", 6)
+                      .CasesLower("qword", "dq", "sqword", 8)
                       .CaseLower("real4", 4)
                       .CaseLower("real8", 8)
                       .CaseLower("real10", 10)
@@ -6082,7 +6076,7 @@ bool MasmParser::parseMSInlineAsm(
         OS << "]";
       break;
     case AOK_Label:
-      OS << Ctx.getAsmInfo().getInternalSymbolPrefix() << AR.Label;
+      OS << Ctx.getAsmInfo()->getPrivateLabelPrefix() << AR.Label;
       break;
     case AOK_Input:
       OS << '$' << InputIdx++;
@@ -6112,7 +6106,7 @@ bool MasmParser::parseMSInlineAsm(
       // MS alignment directives are measured in bytes. If the native assembler
       // measures alignment in bytes, we can pass it straight through.
       OS << ".align";
-      if (getContext().getAsmInfo().getAlignmentIsInBytes())
+      if (getContext().getAsmInfo()->getAlignmentIsInBytes())
         break;
 
       // Alignment is in log2 form, so print that instead and skip the original
@@ -6147,7 +6141,6 @@ void MasmParser::initializeBuiltinSymbolMaps() {
   // Numeric built-ins (supported in all versions)
   BuiltinSymbolMap["@version"] = BI_VERSION;
   BuiltinSymbolMap["@line"] = BI_LINE;
-  BuiltinSymbolMap["@unwindversion"] = BI_UNWINDVERSION;
 
   // Text built-ins (supported in all versions)
   BuiltinSymbolMap["@date"] = BI_DATE;
@@ -6195,9 +6188,6 @@ const MCExpr *MasmParser::evaluateBuiltinValue(BuiltinSymbol Symbol,
                                    ActiveMacros.front()->ExitBuffer);
     return MCConstantExpr::create(Line, getContext());
   }
-  case BI_UNWINDVERSION:
-    return MCConstantExpr::create(getStreamer().getDefaultWinCFIUnwindVersion(),
-                                  getContext());
   }
   llvm_unreachable("unhandled built-in symbol");
 }
