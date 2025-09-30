@@ -990,8 +990,7 @@ TaskOutlineInfo llvm::outlineTaskFrame(
 /// Replaces the spawned task \p T, with associated TaskOutlineInfo \p Out, with
 /// a call or invoke to the outlined helper function created for \p T.
 Instruction *llvm::replaceTaskFrameWithCallToOutline(
-    Spindle *TF, TaskOutlineInfo &Out,
-    SmallVectorImpl<Value *> &OutlineInputs) {
+    Spindle *TF, TaskOutlineInfo &Out, SmallVectorImpl<Value *> &OutlineInputs) {
   if (Task *T = TF->getTaskFromTaskFrame())
     // Remove any dependencies from T's exception-handling code to T's parent.
     unlinkTaskEHFromParent(T);
@@ -1060,13 +1059,13 @@ TaskOutlineInfo llvm::outlineTask(
   DetachInst *DI = T->getDetach();
   Value *TFCreate = T->getTaskFrameUsed();
 
-  Instruction *LoadPt = &*T->getEntry()->getFirstNonPHIOrDbgOrLifetime();
+  Instruction *LoadPt = T->getEntry()->getFirstNonPHIOrDbgOrLifetime();
   Instruction *StorePt = DI;
   BasicBlock *Unwind = DI->getUnwindDest();
   if (Spindle *TaskFrameCreate = T->getTaskFrameCreateSpindle()) {
     // If this task uses a taskframe, determine load and store points based on
     // taskframe intrinsics.
-    LoadPt = &*++TaskFrameCreate->getEntry()->begin();
+    LoadPt = ++TaskFrameCreate->getEntry()->begin();
     StorePt =
         TaskFrameCreate->getEntry()->getSinglePredecessor()->getTerminator();
     // Ensure debug information on StorePt
@@ -1101,8 +1100,7 @@ TaskOutlineInfo llvm::outlineTask(
 /// blocks in a function.
 static bool definedOutsideBlocks(const Value *V,
                                  SmallPtrSetImpl<BasicBlock *> &Blocks) {
-  if (isa<Argument>(V))
-    return true;
+  if (isa<Argument>(V)) return true;
   if (const Instruction *I = dyn_cast<Instruction>(V))
     return !Blocks.count(I->getParent());
   return false;
@@ -1141,8 +1139,7 @@ ValueSet llvm::getTapirLoopInputs(TapirLoopInfo *TL, ValueSet &TaskInputs) {
   for (BasicBlock *BB : BlocksToCheck) {
     for (Instruction &II : *BB) {
       // Skip the condition of this loop, since we will process that specially.
-      if (TL->getCondition() == &II)
-        continue;
+      if (TL->getCondition() == &II) continue;
       // Examine all operands of this instruction.
       for (User::op_iterator OI = II.op_begin(), OE = II.op_end(); OI != OE;
            ++OI) {
@@ -1166,8 +1163,8 @@ ValueSet llvm::getTapirLoopInputs(TapirLoopInfo *TL, ValueSet &TaskInputs) {
 
 /// Replaces the Tapir loop \p TL, with associated TaskOutlineInfo \p Out, with
 /// a call or invoke to the outlined helper function created for \p TL.
-Instruction *
-llvm::replaceLoopWithCallToOutline(TapirLoopInfo *TL, TaskOutlineInfo &Out,
+Instruction *llvm::replaceLoopWithCallToOutline(
+    TapirLoopInfo *TL, TaskOutlineInfo &Out,
                                    SmallVectorImpl<Value *> &OutlineInputs) {
   // Remove any dependencies from the detach unwind of T code to T's parent.
   unlinkTaskEHFromParent(TL->getTask());

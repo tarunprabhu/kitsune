@@ -1,4 +1,4 @@
-//===- OpenCilkABI.cpp - Interface to the OpenCilk runtime system --------===//S
+//===- OpenCilkABI.cpp - Interface to the OpenCilk runtime system --------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -200,7 +200,7 @@ void OpenCilkABI::prepareModule() {
   StackFrameTy = StructType::lookupOrCreate(C, StackFrameName);
   WorkerTy = StructType::lookupOrCreate(C, "struct.__cilkrts_worker");
 
-  PointerType *StackFramePtrTy = PointerType::getUnqual(StackFrameTy);
+  PointerType *StackFramePtrTy = PointerType::getUnqual(C);
   Type *VoidTy = Type::getVoidTy(C);
   Type *VoidPtrTy = PointerType::getUnqual(C);
   Type *BoolTy = Type::getInt1Ty(C);
@@ -317,7 +317,7 @@ void OpenCilkABI::prepareModule() {
     // Promote the stack frame structure alignment to the largest convenient
     // value given the ABI.
     MaybeAlign ABIStackAlign = M.getDataLayout().getStackAlignment();
-    if (ABIStackAlign.valueOrOne() > StackFrameAlign.valueOrOne())
+    if (*ABIStackAlign > StackFrameAlign.valueOrOne())
       StackFrameAlign = ABIStackAlign;
   }
   // Create declarations of all CilkRTS functions, and add basic attributes to

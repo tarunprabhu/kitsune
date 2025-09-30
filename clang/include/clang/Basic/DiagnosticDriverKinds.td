@@ -932,8 +932,8 @@ def err_drv_kitsune_cuda: Error<
   "kitsune does not support the Cuda language">;
 def err_drv_kitsune_hip: Error<
   "kitsune does not support the Hip language">;
-def err_drv_kitsune_openmp_offload : Error<
-  "cannot use OpenMP offload with a tapir target">;
+def err_drv_kitsune_offload : Error<
+  "cannot use offload with a tapir target">;
 
 def err_drv_opencilk_platform: Error<
   "opencilk tapir target does not support system '%0'">;

@@ -320,9 +320,12 @@ LLVM_ABI void initializeStripDebugMachineModulePass(PassRegistry &);
 LLVM_ABI void initializeStructurizeCFGLegacyPassPass(PassRegistry &);
 LLVM_ABI void initializeTailCallElimPass(PassRegistry &);
 LLVM_ABI void initializeTailDuplicateLegacyPass(PassRegistry &);
+LLVM_ABI void initializeTapirCleanupPass(PassRegistry &);
+LLVM_ABI void initializeTapirTargetAnalysisWrapperPassPass(PassRegistry &);
 LLVM_ABI void initializeTargetLibraryInfoWrapperPassPass(PassRegistry &);
 LLVM_ABI void initializeTargetPassConfigPass(PassRegistry &);
 LLVM_ABI void initializeTargetTransformInfoWrapperPassPass(PassRegistry &);
+LLVM_ABI void initializeTaskInfoWrapperPassPass(PassRegistry &);
 LLVM_ABI void initializeTwoAddressInstructionLegacyPassPass(PassRegistry &);
 LLVM_ABI void initializeTypeBasedAAWrapperPassPass(PassRegistry &);
 LLVM_ABI void initializeTypePromotionLegacyPass(PassRegistry &);
@@ -343,6 +346,8 @@ LLVM_ABI void initializeXRayInstrumentationLegacyPass(PassRegistry &);
 
 // Initialize Kitsune codegen passes
 LLVM_ABI void initializeCodeGenFatBinariesLegacyPassPass(PassRegistry &);
+LLVM_ABI void initializeLowerKitsuneIntrinsicsLegacyPassPass(PassRegistry &);
+LLVM_ABI void initializeStripKitsuneAddrSpacesLegacyPassPass(PassRegistry &);
 
 } // end namespace llvm
 

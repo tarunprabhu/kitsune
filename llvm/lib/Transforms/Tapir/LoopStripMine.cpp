@@ -213,11 +213,11 @@ bool llvm::computeStripMineCount(
   // Solving for G yeilds G >= d/(\eps * S).  Substituting in \eps = 1/C for a
   // given coarsening factor C gives the equation below.
   Instruction *DetachI = L->getHeader()->getTerminator();
-  SMP.Count = *((SMP.DefaultCoarseningFactor *
-                 TTI.getInstructionCost(
+  SMP.Count = (SMP.DefaultCoarseningFactor *
+               TTI.getInstructionCost(
                      DetachI, TargetTransformInfo::TCK_SizeAndLatency) /
-                 LoopCost)
-                    .getValue());
+               LoopCost)
+                  .getValue();
 
   return false;
 }

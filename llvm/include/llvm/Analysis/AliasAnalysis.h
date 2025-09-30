@@ -61,7 +61,6 @@ class DominatorTree;
 class DetachInst;
 class FenceInst;
 class LoopInfo;
-class PreservedAnalyses;
 class SyncInst;
 class TargetLibraryInfo;
 
@@ -537,12 +536,13 @@ public:
   /// Return information about whether a call and an instruction may refer to
   /// the same memory locations.
   LLVM_ABI ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call);
+  LLVM_ABI ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call,
+                                    bool AssumeSameSpindle);
 
   /// Return information about whether two instructions may refer to the same
   /// memory locations.
   LLVM_ABI ModRefInfo getModRefInfo(const Instruction *I1,
-                                    const Instruction *I2,
-                                    bool AssumeSameSpindle);
+                                    const Instruction *I2);
 
   /// Return information about whether a particular call site modifies
   /// or reads the specified memory location \p MemLoc before instruction \p I
@@ -633,6 +633,12 @@ public:
   LLVM_ABI ModRefInfo getModRefInfo(const CatchReturnInst *I,
                                     const MemoryLocation &Loc,
                                     AAQueryInfo &AAQI);
+  LLVM_ABI ModRefInfo getModRefInfo(const DetachInst *D,
+                                    const MemoryLocation &Loc,
+                                    AAQueryInfo &AAQI);
+  LLVM_ABI ModRefInfo getModRefInfo(const SyncInst *S,
+                                    const MemoryLocation &Loc,
+                                    AAQueryInfo &AAQI);
   LLVM_ABI ModRefInfo getModRefInfo(const Instruction *I,
                                     const std::optional<MemoryLocation> &OptLoc,
                                     AAQueryInfo &AAQIP);
@@ -649,8 +655,7 @@ public:
                                           AAQueryInfo &AAQI);
 
   /// Return the behavior for a sync instruction.
-  LLVM_ABI MemoryEffects getMemoryEffects(const SyncInst *S,
-                                          AAQueryInfo &AAQI);
+  LLVM_ABI MemoryEffects getMemoryEffects(const SyncInst *S, AAQueryInfo &AAQI);
 
 private:
   class Concept;

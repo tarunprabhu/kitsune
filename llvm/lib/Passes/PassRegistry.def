@@ -62,6 +62,8 @@ MODULE_PASS("constmerge", ConstantMergePass())
 MODULE_PASS("coro-cleanup", CoroCleanupPass())
 MODULE_PASS("coro-early", CoroEarlyPass())
 MODULE_PASS("cross-dso-cfi", CrossDSOCFIPass())
+MODULE_PASS("csi", ComprehensiveStaticInstrumentationPass())
+MODULE_PASS("csi-setup", CSISetupPass())
 MODULE_PASS("ctx-instr-gen",
             PGOInstrumentationGen(PGOInstrumentationType::CTXPROF))
 MODULE_PASS("ctx-prof-flatten",
@@ -69,8 +71,6 @@ MODULE_PASS("ctx-prof-flatten",
 MODULE_PASS("ctx-prof-flatten-prethinlink",
             PGOCtxProfFlatteningPass(/*IsPreThinlink=*/true))
 MODULE_PASS("noinline-nonprevailing", NoinlineNonPrevailing())
-MODULE_PASS("csi", ComprehensiveStaticInstrumentationPass())
-MODULE_PASS("csi-setup", CSISetupPass())
 MODULE_PASS("deadargelim", DeadArgumentEliminationPass())
 MODULE_PASS("debugify", NewPMDebugifyPass())
 MODULE_PASS("declare-runtime-libcalls", DeclareRuntimeLibcallsPass())
@@ -78,10 +78,6 @@ MODULE_PASS("dfsan", DataFlowSanitizerPass())
 MODULE_PASS("dot-callgraph", CallGraphDOTPrinterPass())
 MODULE_PASS("dxil-upgrade", DXILUpgradePass())
 MODULE_PASS("elim-avail-extern", EliminateAvailableExternallyPass())
-MODULE_PASS("emb-link-libdevice-bitcode", EmbLinkLibDeviceBitcodePass())
-MODULE_PASS("emb-optimize", EmbOptimizePass())
-MODULE_PASS("emb-prepare", EmbPreparePass())
-MODULE_PASS("emb-resolve-libdevice-calls", EmbResolveLibDeviceCallsPass())
 MODULE_PASS("extract-blocks", BlockExtractorPass({}, false))
 MODULE_PASS("expand-variadics",
             ExpandVariadicsPass(ExpandVariadicsMode::Disable))
@@ -108,12 +104,6 @@ MODULE_PASS("print<ctx-prof-analysis>", CtxProfAnalysisPrinterPass(errs()))
 MODULE_PASS("invalidate<all>", InvalidateAllAnalysesPass())
 MODULE_PASS("iroutliner", IROutlinerPass())
 MODULE_PASS("jmc-instrumenter", JMCInstrumenterPass())
-MODULE_PASS("kit-cgfb", CodeGenFatBinariesPass())
-MODULE_PASS("kit-ctors", GenerateCtorsPass())
-MODULE_PASS("kit-kernel-properties", RecomputeKernelPropertiesPass())
-MODULE_PASS("kit-prefetch", PrefetchingPass())
-MODULE_PASS("kit-lower-intrinsics", LowerKitsuneIntrinsicsPass())
-MODULE_PASS("kit-strip-addr-spaces", StripKitsuneAddrSpacesPass())
 MODULE_PASS("loop-spawning", LoopSpawningPass())
 MODULE_PASS("lower-emutls", LowerEmuTLSPass())
 MODULE_PASS("lower-global-dtors", LowerGlobalDtorsPass())
@@ -189,6 +179,20 @@ MODULE_PASS("tysan", TypeSanitizerPass())
 MODULE_PASS("verify", VerifierPass())
 MODULE_PASS("view-callgraph", CallGraphViewerPass())
 MODULE_PASS("wholeprogramdevirt", WholeProgramDevirtPass())
+
+// Kitsune-specific passes. Keep these separate from the rest because it makes
+// merges a bit easier at times.
+MODULE_PASS("emb-link-libdevice-bitcode", EmbLinkLibDeviceBitcodePass())
+MODULE_PASS("emb-optimize", EmbOptimizePass())
+MODULE_PASS("emb-prepare", EmbPreparePass())
+MODULE_PASS("emb-resolve-libdevice-calls", EmbResolveLibDeviceCallsPass())
+MODULE_PASS("kit-cgfb", CodeGenFatBinariesPass())
+MODULE_PASS("kit-ctors", GenerateCtorsPass())
+MODULE_PASS("kit-kernel-properties", RecomputeKernelPropertiesPass())
+MODULE_PASS("kit-prefetch", PrefetchingPass())
+MODULE_PASS("kit-lower-intrinsics", LowerKitsuneIntrinsicsPass())
+MODULE_PASS("kit-strip-addr-spaces", StripKitsuneAddrSpacesPass())
+
 #undef MODULE_PASS
 
 #ifndef MODULE_PASS_WITH_PARAMS
@@ -308,6 +312,30 @@ MODULE_PASS_WITH_PARAMS(
 
 #undef MODULE_PASS_WITH_PARAMS
 
+#ifndef TAPIR_PIPELINE_PASS
+#define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)
+#endif
+TAPIR_PIPELINE_PASS(
+    "tapir-lowering", "", [&](OptimizationLevel L) {
+      setupOptionsForPipelineAlias(PTO, L);
+      return buildTapirLoweringPipeline(L, ThinOrFullLTOPhase::None);
+    },
+    parseOptLevelParam, "O0;O1;O2;O3;Os;Oz")
+TAPIR_PIPELINE_PASS(
+    "tapir-lowering-loops", "", [&](OptimizationLevel L) {
+      setupOptionsForPipelineAlias(PTO, L);
+      return buildTapirLoopLoweringPipeline(L, ThinOrFullLTOPhase::None);
+    },
+    parseOptLevelParam, "O0;O1;O2;O3;Os;Oz")
+TAPIR_PIPELINE_PASS(
+    "kit-lowering", "", [&](OptimizationLevel L) {
+      setupOptionsForPipelineAlias(PTO, L);
+      return buildKitsuneLoweringPipeline(L, ThinOrFullLTOPhase::None);
+    },
+    parseOptLevelParam, "O0;O1;O2;O3;Os;Oz")
+
+#undef TAPIR_PIPELINE_PASS
+
 #ifndef CGSCC_ANALYSIS
 #define CGSCC_ANALYSIS(NAME, CREATE_PASS)
 #endif
@@ -399,11 +427,11 @@ FUNCTION_ANALYSIS("verify", VerifierAnalysis())
   FUNCTION_ANALYSIS(NAME, CREATE_PASS)
 #endif
 FUNCTION_ALIAS_ANALYSIS("basic-aa", BasicAA())
-FUNCTION_ALIAS_ANALYSIS("drf-aa", DRFAA())
 FUNCTION_ALIAS_ANALYSIS("objc-arc-aa", objcarc::ObjCARCAA())
 FUNCTION_ALIAS_ANALYSIS("scev-aa", SCEVAA())
 FUNCTION_ALIAS_ANALYSIS("scoped-noalias-aa", ScopedNoAliasAA())
 FUNCTION_ALIAS_ANALYSIS("tbaa", TypeBasedAA())
+FUNCTION_ALIAS_ANALYSIS("drf-aa", DRFAA())
 #undef FUNCTION_ALIAS_ANALYSIS
 #undef FUNCTION_ANALYSIS
 
@@ -535,11 +563,11 @@ FUNCTION_PASS("print<loops>", LoopPrinterPass(errs()))
 FUNCTION_PASS("print<memoryssa-walker>", MemorySSAWalkerPrinterPass(errs()))
 FUNCTION_PASS("print<phi-values>", PhiValuesPrinterPass(errs()))
 FUNCTION_PASS("print<postdomtree>", PostDominatorTreePrinterPass(errs()))
-FUNCTION_PASS("print<race-detect>", TapirRaceDetectPrinterPass(dbgs()))
+FUNCTION_PASS("print<race-detect>", TapirRaceDetectPrinterPass(errs()))
 FUNCTION_PASS("print<regions>", RegionInfoPrinterPass(errs()))
 FUNCTION_PASS("print<scalar-evolution>", ScalarEvolutionPrinterPass(errs()))
 FUNCTION_PASS("print<stack-safety-local>", StackSafetyPrinterPass(errs()))
-FUNCTION_PASS("print<tasks>", TaskPrinterPass(dbgs()))
+FUNCTION_PASS("print<tasks>", TaskPrinterPass(errs()))
 FUNCTION_PASS("print<uniformity>", UniformityInfoPrinterPass(errs()))
 FUNCTION_PASS("reassociate", ReassociatePass())
 FUNCTION_PASS("redundant-dbg-inst-elim", RedundantDbgInstEliminationPass())

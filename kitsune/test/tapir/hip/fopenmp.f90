@@ -8,7 +8,7 @@
 ! RUN:     --tapir=hip --tapir-hip-arch=gfx90a 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=TAPIR
 !
-! TAPIR: cannot use OpenMP offload with a tapir target
+! TAPIR: cannot use offload with a tapir target
 !
 ! ----------------------------------------------------------------------------
 ! Running the kitsune frontend without --tapir is allowed.
@@ -17,4 +17,4 @@
 ! RUN:     --offload-arch=gfx90a -nogpulib -c -O2 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=NOTAPIR
 !
-! NOTAPIR-NOT: cannot use OpenMP offload with a tapir target
+! NOTAPIR-NOT: cannot use offload with a tapir target

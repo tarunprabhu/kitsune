@@ -246,6 +246,7 @@ bool TapirToTargetImpl::processRootTask(
   NamedRegionTimer NRT("processRootTask", "Process root task",
                        TimerGroupName, TimerGroupDescription,
                        TimePassesIsEnabled);
+  LLVM_DEBUG(dbgs() << "processRootTask: " << F.getName() << "\n");
   bool Changed = false;
   // Check if the root task performs a spawn
   bool PerformsSpawn = false;
@@ -279,7 +280,7 @@ bool TapirToTargetImpl::processSpawnerTaskFrame(
                        TimerGroupName, TimerGroupDescription,
                        TimePassesIsEnabled);
   Function &F = *TFToOutline[TF].Outline;
-
+  LLVM_DEBUG(dbgs() << "processSpawnerTaskFrame: " << F.getName() << "\n");
   // Process function F as a spawner.
   Target->preProcessRootSpawner(F, TF->getEntry());
 
@@ -302,6 +303,7 @@ bool TapirToTargetImpl::processOutlinedTask(
                        TimePassesIsEnabled);
   Spindle *TF = getTaskFrameForTask(T);
   Function &F = *TFToOutline[TF].Outline;
+  LLVM_DEBUG(dbgs() << "processOutlinedTask: " << F.getName() << "\n");
 
   Instruction *DetachPt = TFToOutline[TF].DetachPt;
   Instruction *TaskFrameCreate = TFToOutline[TF].TaskFrameCreate;
@@ -349,15 +351,15 @@ bool TapirToTargetImpl::processFunction(
   NamedRegionTimer NRT("TargetPreProcess", "Target preprocessing",
                        TimerGroupName, TimerGroupDescription,
                        TimePassesIsEnabled);
-  ChangedCFG = Target->preProcessFunction(F, TI);
+  Changed = Target->preProcessFunction(F, TI);
   } // end timed region
 
   // If we don't need to do outlining, then just handle the simple ABI.
   if (!Target->shouldDoOutlining(F)) {
     // Process the Tapir instructions in F directly.
     if (!Target->processOrdinaryFunction(F, &F.getEntryBlock()))
-      processSimpleABI(F, &F.getEntryBlock());
-    return ChangedCFG;
+      Changed |= processSimpleABI(F, &F.getEntryBlock());
+    return true;
   }
 
   // Traverse the tasks in this function in post order.
@@ -389,7 +391,7 @@ bool TapirToTargetImpl::processFunction(
     NewHelpers.push_back(TFToOutline[TF].Outline);
   }
   // Process the root task
-  processRootTask(F, TFToOutline, OA, TI);
+  Changed |= processRootTask(F, TFToOutline, OA, TI);
 
   {
   NamedRegionTimer NRT("TargetPostProcess", "Target postprocessing",
@@ -415,7 +417,7 @@ bool TapirToTargetImpl::processFunction(
       }
   });
 
-  return ChangedCFG || !NewHelpers.empty();
+  return Changed || !NewHelpers.empty();
 }
 
 bool TapirToTargetImpl::run() {

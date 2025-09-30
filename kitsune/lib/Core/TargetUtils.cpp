@@ -14,6 +14,7 @@
 #include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/ToString.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/CodeGen.h"
 
@@ -21,7 +22,7 @@ using namespace llvm;
 
 static TargetMachine *createAMDGPUTargetMachine(const TapirTargetOptions &tto,
                                                 CodeGenOptLevel cgOptLevel) {
-  Triple triple("amdgcn", "amd", "amdhsa");
+  Triple triple(Twine("amdgcn"), Twine("amd"), Twine("amdhsa"));
 
   std::string err;
   const Target *target = TargetRegistry::lookupTarget("", triple, err);
@@ -34,14 +35,14 @@ static TargetMachine *createAMDGPUTargetMachine(const TapirTargetOptions &tto,
   opts.EmitAddrsig = true;
   opts.AllowFPOpFusion = tto.getFPOpFusionMode();
 
-  return target->createTargetMachine(triple.str(), tto.getHipArch(),
+  return target->createTargetMachine(triple, tto.getHipArch(),
                                      tto.getHipTargetFeatures(), opts,
                                      relocModel, codeModel, cgOptLevel);
 }
 
 static TargetMachine *createPTXTargetMachine(const TapirTargetOptions &tto,
                                              CodeGenOptLevel cgOptLevel) {
-  Triple triple("nvptx64", "nvidia", "cuda");
+  Triple triple(Twine("nvptx64"), Twine("nvidia"), Twine("cuda"));
 
   std::string err;
   const Target *target = TargetRegistry::lookupTarget("", triple, err);
@@ -52,7 +53,7 @@ static TargetMachine *createPTXTargetMachine(const TapirTargetOptions &tto,
   TargetOptions opts;
   opts.AllowFPOpFusion = tto.getFPOpFusionMode();
 
-  return target->createTargetMachine(triple.str(), tto.getCudaArch(),
+  return target->createTargetMachine(triple, tto.getCudaArch(),
                                      tto.getCudaTargetFeatures(), opts,
                                      relocModel, codeModel, cgOptLevel);
 }

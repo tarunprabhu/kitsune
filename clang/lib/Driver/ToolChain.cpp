@@ -2191,9 +2191,15 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_hip_features_EQ,
           llvm::join(Features.begin(), Features.end(), ","));
 
-  llvm::SmallVector<std::string> BCFiles = AMDTC->getCommonDeviceLibNames(
-      ExtendedArgs, HipArch, /* IsOpenMP */ false);
-  std::string BCFilesStr = llvm::join(BCFiles.begin(), BCFiles.end(), ",");
+  std::string BCFilesStr;
+  raw_string_ostream BCFilesStream(BCFilesStr);
+  for (BitCodeLibraryInfo BCInfo :
+       AMDTC->getCommonDeviceLibNames(ExtendedArgs, HipArch,
+                                      /*IsOpenMP=*/false)) {
+    if (!BCFilesStr.empty())
+      BCFilesStream << ",";
+    BCFilesStream << BCInfo.Path;
+  }
   PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_hip_runtime_bcs_EQ,
           BCFilesStr);
 

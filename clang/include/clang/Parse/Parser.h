@@ -187,6 +187,7 @@ class Parser : public CodeCompletionHandler {
   // 14. `inline asm` Statement (ParseStmtAsm.cpp)
   // 15. C++ Templates (ParseTemplate.cpp)
   // 16. Tentative Parsing (ParseTentative.cpp)
+  // 17. Kitsune (ParseKitsune.cpp)
 
   /// \name Parsing
   /// Implementations are in Parser.cpp
@@ -8932,6 +8933,55 @@ private:
   CXX11AttributeKind
   isCXX11AttributeSpecifier(bool Disambiguate = false,
                             bool OuterMightBeMessageSend = false);
+
+  ///@}
+
+public:
+  //
+  //
+  // -------------------------------------------------------------------------
+  //
+  //
+
+  /// \name Kitsune
+  /// Implementations are in ParseKitsune.cpp
+  ///@{
+
+  /// TODO: Write documentation for this.
+  StmtResult ParseSpawnStatement();
+
+  /// TODO: Write documentation for this.
+  StmtResult ParseSyncStatement();
+
+  /// FIXME: The documentation for this has been shamelessly ripped off from
+  /// that of the for statement. It has been tweaked to disallow some of the
+  /// constructs that are expressly not supported, but there is no guarantee
+  /// that what is claimed to be supproted here works. In particularly,
+  /// arbitrary expressions are not really allowed. The loop induction variable
+  /// is expected to be an integer that increments by 1 (non-unit strides
+  /// increments have not been tested).
+  ///
+  /// \verbatim
+  ///       forall-statement: [Kitsune (unpublished)]
+  ///         'forall' '(' expr[opt] ';' expr[opt] ';' expr[opt] ')' statement
+  ///         'forall' '(' declaration expr[opt] ';' expr[opt] ')' statement
+  /// [C++]   'forall' '(' forall-init-statement condition[opt] ';' expression[opt] ')'
+  /// [C++]       statement
+  /// [C++0x] 'forall'
+  ///             '(' forall-range-declaration ':' forall-range-initializer ')'
+  ///             statement
+  ///
+  /// [C++] forall-init-statement:
+  /// [C++]   expression-statement
+  ///
+  /// [C++0x] forall-range-declaration:
+  /// [C++0x]   attribute-specifier-seq[opt] type-specifier-seq declarator
+  /// [C++0x] forall-range-initializer:
+  /// [C++0x]   expression
+  /// [C++0x]   braced-init-list            [TODO]
+  ///
+  /// \endverbatim
+  StmtResult ParseForallStatement(SourceLocation *TrailingElseLoc);
 
   ///@}
 };

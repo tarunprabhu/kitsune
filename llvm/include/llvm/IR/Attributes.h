@@ -182,8 +182,7 @@ public:
                                              FPClassTest Mask);
   LLVM_ABI static Attribute getWithCaptureInfo(LLVMContext &Context,
                                                CaptureInfo CI);
-  LLVM_ABI static Attribute getWithTTID(LLVMContext &Context, AttrKind Kind,
-                                        TTID TT);
+  LLVM_ABI static Attribute getWithTTID(LLVMContext &Context, TTID TT);
   LLVM_ABI static Attribute getWithKernelProps(LLVMContext &Context,
                                                StringRef Name);
 

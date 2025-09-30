@@ -34,17 +34,17 @@
 ; O2-NOT: = phi i64
 ; O2: define {{.+}} @__kithip_{{.+}}(i64 {{.*}}%[[UB:[^,]+]], i64 {{[^,]+}}, i64 {{[^,]+}}, ptr {{.*}}%[[BUF:[^,]+]], i64 {{.*}}%[[N:[^)]+]]) {{.*}}#[[ATTRS:[0-9]+]]
 ; O2-NEXT: [[BBENTRY:.+]]:
+; O2-NEXT: %[[BUFCST:.+]] = addrspacecast ptr %[[BUF]] to ptr addrspace(1)
 ; O2-NEXT: %[[WITEM:.+]] = {{.*}}call i32 @llvm.amdgcn.workitem.id.x()
-; O2-NEXT: %[[TID:.+]] = zext i32 %[[WITEM]] to i64
+; O2-NEXT: %[[TID:.+]] = zext {{.*}}i32 %[[WITEM]] to i64
 ; O2-NEXT: %[[BDIM:.+]] = {{.*}}call i64 @__ockl_get_local_size(i32 0)
 ; O2-NEXT: %[[WGRP:.+]] = {{.*}}call i32 @llvm.amdgcn.workgroup.id.x()
-; O2-NEXT: %[[BIDX:.+]] = zext i32 %[[WGRP]] to i64
+; O2-NEXT: %[[BIDX:.+]] = zext {{.*}}i32 %[[WGRP]] to i64
 ; O2-NEXT: %[[BOFF:.+]] = mul i64 %[[BDIM]], %[[BIDX]]
 ; O2-NEXT: %[[TIV:.+]] = add i64 %[[BOFF]], %[[TID]]
 ; O2-NEXT: %[[COND:.+]] = icmp ult i64 %[[TIV]], %[[UB]]
 ; O2-NEXT: br i1 %[[COND]], label %[[BBBODY:[^,]+]], label %[[BBEXIT:.+]]
 ; O2: [[BBBODY]]:
-; O2-NEXT: %[[BUFCST:.+]] = addrspacecast ptr %[[BUF]] to ptr addrspace(1)
 ; O2-NEXT: %[[ARRIDX:.+]] = getelementptr {{.+}}, ptr {{.*}}%[[BUFCST]], i64 %[[TIV]]
 ; O2-NEXT: store i64 %[[N]], ptr {{.*}}%[[ARRIDX]]
 ; O2-NEXT: br label %[[BBEXIT]]

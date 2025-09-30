@@ -477,10 +477,10 @@ static void emitMissedWarning(const Loop *L, const TapirLoopHints &LH,
 /// Process Tapir loops within the given function for loop spawning.
 class LoopSpawningImpl {
 public:
-  LoopSpawningImpl(
-      Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
-      ScalarEvolution &SE, AssumptionCache &AC, TargetTransformInfo &TTI,
-      OptimizationRemarkEmitter &ORE, const TapirTargetInfo &TGI)
+  LoopSpawningImpl(Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
+                   ScalarEvolution &SE, AssumptionCache &AC,
+                   TargetTransformInfo &TTI, OptimizationRemarkEmitter &ORE,
+                   const TapirTargetInfo &TGI)
       : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TGI(TGI),
         ORE(ORE) {}
 
@@ -1330,8 +1330,8 @@ public:
       Metadata *MD = MDV->getMetadata();
       if (auto *LAM = dyn_cast<LocalAsMetadata>(MD))
         if (LAM->getValue() == TripCount)
-          return MetadataAsValue::get(
-              V->getContext(), MDTuple::get(V->getContext(), std::nullopt));
+          return MetadataAsValue::get(V->getContext(),
+                                      MDTuple::get(V->getContext(), {}));
     }
 
     // Materialize TripCount with ArgEnd.  This should only occur in the loop

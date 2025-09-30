@@ -12,5 +12,5 @@
 ! RUN:     -fopenmp -fopenmp-targets=x86_64-pc-linux-gnu 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix OK
 !
-! BAD: cannot use OpenMP offload with a tapir target
-! OK-NOT: cannot use OpenMP offload with a tapir target
+! BAD: cannot use offload with a tapir target
+! OK-NOT: cannot use offload with a tapir target

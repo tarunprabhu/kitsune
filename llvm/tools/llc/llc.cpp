@@ -734,7 +734,7 @@ static int compileModule(char **argv, LLVMContext &Context) {
           PM, TapirTargetOptions::createFromCommandLine(OptLevel));
       if (Target->addPassesToEmitFile(
                    PM, *OS, DwoOut ? &DwoOut->os() : nullptr,
-                   codegen::getFileType(), NoVerify, MMIWP)) {
+                   codegen::getFileType(), NoVerify, MMIWP))
         if (!HasMCErrors)
           reportError("target does not support generation of this file type");
     }

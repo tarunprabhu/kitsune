@@ -26,6 +26,9 @@ namespace llvm {
 class PassBuilder;
 class PipelineTuningOptions;
 
+/// Is the pass name a Tapir/Kitsune lowering pipeline alias.
+bool isKitsuneOrTapirPipelineAlias(StringRef name);
+
 /// Check if the tapir (and by extension Kitsune) lowering pipeline should be
 /// used.
 bool useTapirLowering(ThinOrFullLTOPhase phase,

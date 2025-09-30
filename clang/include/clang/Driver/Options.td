@@ -1,4 +1,3 @@
-
 //===--- Options.td - Options for clang -----------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -1165,7 +1164,6 @@ def offload_arch_EQ : CommaJoined<["--"], "offload-arch=">,
            "For HIP offloading, the device architecture can be followed by target ID features "
            "delimited by a colon (e.g. gfx908:xnack+:sramecc-). May be specified more than once.">;
 def no_offload_arch_EQ : Joined<["--"], "no-offload-arch=">,
-  Flags<[NoXarchOption]>,
   Visibility<[ClangOption, FlangOption]>,
   HelpText<"Remove CUDA/HIP offloading device architecture (e.g. sm_35, gfx906) from the list of devices to compile for. "
            "'all' resets the list to its default value.">;

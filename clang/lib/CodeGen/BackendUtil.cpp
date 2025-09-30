@@ -129,37 +129,6 @@ namespace clang {
 extern llvm::cl::opt<bool> ClSanitizeGuardChecks;
 }
 
-static OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
-  switch (Opts.OptimizationLevel) {
-  default:
-    llvm_unreachable("Invalid optimization level!");
-
-  case 0:
-    return OptimizationLevel::O0;
-
-  case 1:
-    return OptimizationLevel::O1;
-
-  case 2:
-    switch (Opts.OptimizeSize) {
-    default:
-      llvm_unreachable("Invalid optimization level for size!");
-
-    case 0:
-      return OptimizationLevel::O2;
-
-    case 1:
-      return OptimizationLevel::Os;
-
-    case 2:
-      return OptimizationLevel::Oz;
-    }
-
-  case 3:
-    return OptimizationLevel::O3;
-  }
-}
-
 // Path and name of file used for profile generation
 static std::string getProfileGenName(const CodeGenOptions &CodeGenOpts) {
   std::string FileName = CodeGenOpts.InstrProfileOutput.empty()
@@ -683,6 +652,37 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
   }
 
   return true;
+}
+
+static OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
+  switch (Opts.OptimizationLevel) {
+  default:
+    llvm_unreachable("Invalid optimization level!");
+
+  case 0:
+    return OptimizationLevel::O0;
+
+  case 1:
+    return OptimizationLevel::O1;
+
+  case 2:
+    switch (Opts.OptimizeSize) {
+    default:
+      llvm_unreachable("Invalid optimization level for size!");
+
+    case 0:
+      return OptimizationLevel::O2;
+
+    case 1:
+      return OptimizationLevel::Os;
+
+    case 2:
+      return OptimizationLevel::Oz;
+    }
+
+  case 3:
+    return OptimizationLevel::O3;
+  }
 }
 
 static void addKCFIPass(const Triple &TargetTriple, const LangOptions &LangOpts,

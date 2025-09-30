@@ -3083,9 +3083,9 @@ bool GVNPass::performScalarPRE(Instruction *CurInst) {
       PredMap.push_back(std::make_pair(PredV, P));
       // Record any detach and reattach predecessors.
       if (DetachInst *DI = dyn_cast<DetachInst>(P->getTerminator()))
-        Detaches.push_back(std::make_pair(predV, DI));
+        Detaches.push_back(std::make_pair(PredV, DI));
       if (ReattachInst *RI = dyn_cast<ReattachInst>(P->getTerminator()))
-        Reattaches.push_back(std::make_pair(predV, RI));
+        Reattaches.push_back(std::make_pair(PredV, RI));
       ++NumWith;
     }
   }
@@ -3160,7 +3160,7 @@ bool GVNPass::performScalarPRE(Instruction *CurInst) {
             if (DI->getParent() == PREPred) {
               assert(nullptr == DV.first &&
                      "Detach predecessor already had a value.");
-              predMap.push_back(std::make_pair(PREInstr, RI->getParent()));
+              PredMap.push_back(std::make_pair(PREInstr, RI->getParent()));
             }
           }
         }

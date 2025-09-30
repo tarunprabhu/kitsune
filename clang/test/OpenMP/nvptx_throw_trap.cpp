@@ -1,4 +1,4 @@
-// REQUIRES: nvptx-registered-target
+// REQUIRES: nvptx-registered-target, x86-registered-target
 
 // RUN: %clang_cc1 -fopenmp -triple nvptx64 -fopenmp-is-target-device %s -S -Wno-openmp-target-exception -o - | FileCheck -check-prefix=DEVICE %s
 // RUN: %clang_cc1 -fopenmp -fopenmp-is-target-device -fcxx-exceptions %s -S -Wno-openmp-target-exception -o - | FileCheck -check-prefix=HOST %s

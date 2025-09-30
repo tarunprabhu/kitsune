@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/Diagnostic.h"
@@ -102,7 +103,7 @@ protected:
     Builtin::Context Builtins;
 
     return std::make_unique<ASTContext>(LangOpts, SourceMgr, Idents, Selectors,
-                                        Builtins, TU_Complete);
+                                        Builtins, KitOpts, TU_Complete);
   }
 
   StringLiteral *wrapSource(std::unique_ptr<ASTContext> &Ctx,
@@ -119,6 +120,7 @@ protected:
   ExpectedDiagConsumer *Consumer;
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
+  llvm::driver::KitsuneOptions KitOpts;
   LangOptions LangOpts;
   PreprocessorOptions PPOpts;
   std::shared_ptr<TargetOptions> TargetOpts;

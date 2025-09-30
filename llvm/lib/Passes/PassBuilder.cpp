@@ -19,6 +19,7 @@
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "kitsune/CodeGen/LowerKitsuneIntrinsics.h"
 #include "kitsune/CodeGen/StripKitsuneAddrSpaces.h"
+#include "kitsune/Passes/PipelineUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
 #include "kitsune/Transforms/EmbOptimize.h"
@@ -403,14 +404,6 @@
 
 using namespace llvm;
 
-// KITSUNE FIXME: See KITSUNE FIXME comment below
-#if 0
-static const Regex
-    DefaultAliasRegex("^(default|thinlto-pre-link|thinlto|lto-pre-link|lto|"
-                      "tapir-lowering|tapir-lowering-loops|kit-lowering)"
-                      "<(O[0123sz])>$");
-#endif // 0
-
 cl::opt<bool> llvm::PrintPipelinePasses(
     "print-pipeline-passes",
     cl::desc("Print a '-passes' compatible string describing the pipeline "
@@ -524,6 +517,8 @@ PassBuilder::PassBuilder(TargetMachine *TM, PipelineTuningOptions PTO,
   PIC->addClassToPassName(CLASS, NAME);
 #define MODULE_ANALYSIS(NAME, CREATE_PASS)                                     \
   PIC->addClassToPassName(decltype(CREATE_PASS)::name(), NAME);
+#define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)          \
+  PIC->addClassToPassName(CLASS, NAME);
 #define FUNCTION_PASS(NAME, CREATE_PASS)                                       \
   PIC->addClassToPassName(decltype(CREATE_PASS)::name(), NAME);
 #define FUNCTION_PASS_WITH_PARAMS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)    \
@@ -1525,14 +1520,6 @@ parseBoundsCheckingOptions(StringRef Params) {
   return Options;
 }
 
-/// Tests whether a pass name starts with a valid prefix for a default pipeline
-/// alias.
-static bool startsWithDefaultPipelineAliasPrefix(StringRef Name) {
-  return Name.starts_with("default") || Name.starts_with("thinlto") ||
-         Name.starts_with("lto") || Name.starts_with("tapir-lowering") ||
-         Name.starts_with("kit-lowering");
-}
-
 Expected<RAGreedyPass::Options>
 parseRegAllocGreedyFilterFunc(PassBuilder &PB, StringRef Params) {
   if (Params.empty() || Params == "all")
@@ -1655,6 +1642,9 @@ static bool isModulePassName(StringRef Name, CallbacksT &Callbacks) {
     return true;
 #define MODULE_ANALYSIS(NAME, CREATE_PASS)                                     \
   if (Name == "require<" NAME ">" || Name == "invalidate<" NAME ">")           \
+    return true;
+#define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)          \
+  if (PassBuilder::checkParametrizedPassName(Name, NAME))                      \
     return true;
 #include "PassRegistry.def"
 
@@ -1842,21 +1832,6 @@ static void setupOptionsForPipelineAlias(PipelineTuningOptions &PTO,
   PTO.SLPVectorization = L.getSpeedupLevel() > 1 && L != OptimizationLevel::Oz;
 }
 
-static Error resetOptznLevel(StringRef PassName, OptimizationLevel L,
-                             PipelineTuningOptions &PTO) {
-  if (not PTO.TTOpts)
-    return make_error<StringError>(
-        formatv("{} passes require the --tapir option", PassName).str(),
-        inconvertibleErrorCode());
-
-  unsigned SpeedupLevel = L.getSpeedupLevel();
-  unsigned SizeLevel = L.getSizeLevel();
-  OptznLevel OptznLevel = createOptznLevelFrom(SpeedupLevel, SizeLevel);
-
-  PTO.TTOpts->setOptznLevel(OptznLevel);
-  return Error::success();
-}
-
 Error PassBuilder::parseModulePass(ModulePassManager &MPM,
                                    const PipelineElement &E) {
   auto &Name = E.Name;
@@ -1909,65 +1884,6 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
     ;
   }
 
-  // KITSUNE FIXME: In LLVM 21.x, this has been removed. At the time of merging,
-  // it is not clear where this has been moved to or how this functionality is
-  // now handled. Leave it here for now until we can figure it out and once we
-  // do, this can be removed.
-#if 0
-  // Manually handle aliases for pre-configured pipeline fragments.
-  if (startsWithDefaultPipelineAliasPrefix(Name)) {
-    SmallVector<StringRef, 3> Matches;
-    if (!DefaultAliasRegex.match(Name, &Matches))
-      return make_error<StringError>(
-          formatv("unknown default pipeline alias '{0}'", Name).str(),
-          inconvertibleErrorCode());
-
-    assert(Matches.size() == 3 && "Must capture two matched strings!");
-
-    OptimizationLevel L = *parseOptLevel(Matches[2]);
-
-    // This is consistent with old pass manager invoked via opt, but
-    // inconsistent with clang. Clang doesn't enable loop vectorization
-    // but does enable slp vectorization at Oz.
-    PTO.LoopVectorization =
-        L.getSpeedupLevel() > 1 && L != OptimizationLevel::Oz;
-    PTO.SLPVectorization =
-        L.getSpeedupLevel() > 1 && L != OptimizationLevel::Oz;
-
-    if (Matches[1] == "default") {
-      MPM.addPass(buildPerModuleDefaultPipeline(L));
-    } else if (Matches[1] == "thinlto-pre-link") {
-      MPM.addPass(buildThinLTOPreLinkDefaultPipeline(L));
-    } else if (Matches[1] == "thinlto") {
-      MPM.addPass(buildThinLTODefaultPipeline(L, nullptr));
-    } else if (Matches[1] == "lto-pre-link") {
-      if (PTO.UnifiedLTO)
-        // When UnifiedLTO is enabled, use the ThinLTO pre-link pipeline. This
-        // avoids compile-time performance regressions and keeps the pre-link
-        // LTO pipeline "unified" for both LTO modes.
-        MPM.addPass(buildThinLTOPreLinkDefaultPipeline(L));
-      else
-        MPM.addPass(buildLTOPreLinkDefaultPipeline(L));
-    } else if (Matches[1] == "tapir-lowering-loops") {
-      if (Error Err = resetOptznLevel(Matches[1], L, PTO))
-        return Err;
-      MPM.addPass(buildTapirLoopLoweringPipeline(L, ThinOrFullLTOPhase::None));
-    } else if (Matches[1] == "tapir-lowering") {
-      if (Error Err = resetOptznLevel(Matches[1], L, PTO))
-        return Err;
-      MPM.addPass(buildTapirLoweringPipeline(L, ThinOrFullLTOPhase::None));
-    } else if (Matches[1] == "kit-lowering") {
-      if (Error Err = resetOptznLevel(Matches[1], L, PTO))
-        return Err;
-      MPM.addPass(buildKitsuneLoweringPipeline(L, ThinOrFullLTOPhase::None));
-    } else {
-      assert(Matches[1] == "lto" && "Not one of the matched options!");
-      MPM.addPass(buildLTODefaultPipeline(L, nullptr));
-    }
-    return Error::success();
-  }
-#endif // 0
-
   // Finally expand the basic registered passes from the .inc file.
 #define MODULE_PASS(NAME, CREATE_PASS)                                         \
   if (Name == NAME) {                                                          \
@@ -1992,6 +1908,24 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
   if (Name == "invalidate<" NAME ">") {                                        \
     MPM.addPass(InvalidateAnalysisPass<                                        \
                 std::remove_reference_t<decltype(CREATE_PASS)>>());            \
+    return Error::success();                                                   \
+  }
+#define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)          \
+  if (checkParametrizedPassName(Name, NAME)) {                                 \
+    if (not PTO.TTOpts)                                                        \
+      return make_error<StringError>(                                          \
+          formatv("{} passes require the --tapir option", NAME).str(),         \
+          inconvertibleErrorCode());                                           \
+                                                                               \
+    Expected<OptimizationLevel> Params =                                       \
+        parsePassParameters(PARSER, Name, NAME);                               \
+    if (!Params)                                                               \
+      return Params.takeError();                                               \
+                                                                               \
+    OptimizationLevel L = Params.get();                                        \
+    PTO.TTOpts->setOptznLevelFrom(L);                                          \
+                                                                               \
+    MPM.addPass(CREATE_PASS(L));                                               \
     return Error::success();                                                   \
   }
 #define CGSCC_PASS(NAME, CREATE_PASS)                                          \
@@ -2663,6 +2597,8 @@ void PassBuilder::printPassNames(raw_ostream &OS) {
 
   OS << "Module passes with params:\n";
 #define MODULE_PASS_WITH_PARAMS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)      \
+  printPassName(NAME, PARAMS, OS);
+#define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS) \
   printPassName(NAME, PARAMS, OS);
 #include "PassRegistry.def"
 

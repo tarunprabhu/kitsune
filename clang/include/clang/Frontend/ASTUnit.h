@@ -717,7 +717,7 @@ public:
       IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
       const FileSystemOptions &FileSystemOpts,
       const HeaderSearchOptions &HSOpts, const LangOptions *LangOpts = nullptr,
-      const KitsuneOpts *KitsuneOpts = nullptr,
+      const llvm::driver::KitsuneOptions *KitsuneOpts = nullptr,
       bool OnlyLocalDecls = false,
       CaptureDiagsKind CaptureDiagnostics = CaptureDiagsKind::None,
       bool AllowASTWithCompilerErrors = false,

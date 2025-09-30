@@ -15,7 +15,6 @@
 #include "ToolChains/BareMetal.h"
 #include "ToolChains/CSKYToolChain.h"
 #include "ToolChains/Clang.h"
-#include "ToolChains/CommonArgs.h"
 #include "ToolChains/CrossWindows.h"
 #include "ToolChains/Cuda.h"
 #include "ToolChains/Cygwin.h"
@@ -63,6 +62,7 @@
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 #include "clang/Driver/Action.h"
+#include "clang/Driver/CommonArgs.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Job.h"
@@ -265,8 +265,8 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       }
     }
 
-    if (Args.getLastArg(options::OPT_fopenmp_targets_EQ))
-      D.Diag(clang::diag::err_drv_kitsune_openmp_offload);
+    if (Args.hasArg(options::OPT_offload_targets_EQ))
+      D.Diag(clang::diag::err_drv_kitsune_offload);
 
     // Kitsune does not support ROCm ABI versions < 5. But that should only be
     // relevant when using the Kitsune frontend.
@@ -1253,7 +1253,6 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
     Diag(clang::diag::err_drv_mix_cuda_hip);
     return;
   }
-
   if (IsCuda && !UseLLVMOffload) {
     auto CudaTriple = getNVIDIAOffloadTargetTriple(
         *this, C.getInputArgs(), C.getDefaultToolChain().getTriple());
@@ -2796,11 +2795,11 @@ bool Driver::HandleImmediateArgs(Compilation &C) {
 
   if (C.getArgs().hasArg(options::OPT_v)) {
     if (!SystemConfigDir.empty())
-      llvm::errs() << "System configuration file directory: " << SystemConfigDir
-                   << "\n";
+      llvm::errs() << "System configuration file directory: "
+                   << SystemConfigDir << "\n";
     if (!UserConfigDir.empty())
-      llvm::errs() << "User configuration file directory: " << UserConfigDir
-                   << "\n";
+      llvm::errs() << "User configuration file directory: "
+                   << UserConfigDir << "\n";
     if (!KitsuneConfigDir.empty())
       llvm::errs() << "Kitsune configuration file directory: "
                    << KitsuneConfigDir << "\n";

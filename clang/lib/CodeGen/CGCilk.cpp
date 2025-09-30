@@ -11,8 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CodeGenFunction.h"
 #include "CGCleanup.h"
+#include "CGDebugInfo.h"
+#include "CodeGenFunction.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -102,7 +103,7 @@ void CodeGenFunction::DetachScope::InitDetachScope() {
 }
 
 void CodeGenFunction::DetachScope::PushSpawnedTaskTerminate() {
-  CGF.pushFullExprCleanup<CallDetRethrow>(
+  CGF.pushFullExprCleanupImpl<CallDetRethrow>(
       // This cleanup should not be a TaskExit, because we've pushed a TaskExit
       // cleanup onto EHStack already, corresponding with the taskframe.
       static_cast<CleanupKind>(EHCleanup | LifetimeMarker),

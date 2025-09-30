@@ -40,6 +40,7 @@
 #define LLVM_ANALYSIS_DEPENDENCEANALYSIS_H
 
 #include "llvm/ADT/SmallBitVector.h"
+#include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/PassManager.h"
@@ -407,6 +408,18 @@ namespace llvm {
     /// getRuntimeAssumptions - Returns all the runtime assumptions under which
     /// the dependence test is valid.
     LLVM_ABI SCEVUnionPredicate getRuntimeAssumptions() const;
+
+    AAResults *getAA() const { return AA; }
+
+    /// depends - Tests for a dependence between the general accesses SrcA and
+    /// DstA.  Returns NULL if no dependence; otherwise, returns a Dependence
+    /// (or a FullDependence) with as much information as can be gleaned.  The
+    /// flag PossiblyLoopIndependent should be set by the caller if it appears
+    /// that control flow can reach from Src to Dst without traversing a loop
+    /// back edge.
+    LLVM_ABI std::unique_ptr<Dependence>
+    depends(GeneralAccess *SrcA, GeneralAccess *DstA,
+            bool UnderRuntimeAssumptions = false);
 
   private:
     AAResults *AA;

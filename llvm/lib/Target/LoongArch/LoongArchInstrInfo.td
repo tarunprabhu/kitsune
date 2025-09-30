@@ -1129,10 +1129,13 @@ def RDTIME_D : RDTIME_2R<0x00006800>;
 
 /// Generic pattern classes
 
+def assertsexti32 : PatFrag<(ops node:$src), (assertsext node:$src), [{
+  return cast<VTSDNode>(N->getOperand(1))->getVT().bitsLE(MVT::i32);
+}]>;
 class PatGprGpr<SDPatternOperator OpNode, LAInst Inst>
     : Pat<(OpNode GPR:$rj, GPR:$rk), (Inst GPR:$rj, GPR:$rk)>;
 class PatGprGpr_32<SDPatternOperator OpNode, LAInst Inst>
-    : Pat<(sext_inreg (OpNode GPR:$rj, GPR:$rk), i32), (Inst GPR:$rj, GPR:$rk)>;
+    : Pat<(sext_inreg (OpNode (assertsexti32 GPR:$rj), (assertsexti32 GPR:$rk)), i32), (Inst GPR:$rj, GPR:$rk)>;
 class PatGpr<SDPatternOperator OpNode, LAInst Inst>
     : Pat<(OpNode GPR:$rj), (Inst GPR:$rj)>;
 
@@ -2134,9 +2137,9 @@ class PseudoCmpXchg
 def PseudoCmpXchg32 : PseudoCmpXchg;
 def PseudoCmpXchg64 : PseudoCmpXchg;
 
-class PseudoCmpXchg128Pat 
+class PseudoCmpXchg128Pat
     : Pseudo<(outs GPR:$res_lo, GPR:$res_hi, GPR:$scratch),
-             (ins GPR:$addr, GPR:$cmpval_lo, GPR:$cmpval_hi, 
+             (ins GPR:$addr, GPR:$cmpval_lo, GPR:$cmpval_hi,
                   GPR:$newval_lo, GPR:$newval_hi)> {
   let Constraints = "@earlyclobber $res_lo,@earlyclobber $res_hi,@earlyclobber $scratch";
   let mayLoad = 1;

@@ -278,18 +278,6 @@ public:
   /// conventions.
   LLVM_ABI static bool isCallingConvCCompatible(CallBase *CI);
   LLVM_ABI static bool isCallingConvCCompatible(Function *Callee);
-
-  /// Records known library functions associated with the specified Tapir
-  /// target.
-  LLVM_ABI void addTapirTargetLibraryFunctions(TapirTargetID TargetID);
-
-  /// Searches for a particular function name among known Tapir-target library
-  /// functions, also checking that its type is valid for the library function
-  /// matching that name.
-  ///
-  /// Return true if it is one of the known tapir-target library functions.
-  LLVM_ABI bool isTapirTargetLibFunc(StringRef funcName) const;
-  LLVM_ABI bool isTapirTargetLibFunc(const Function &FDecl) const;
 };
 
 /// Provides information about what library functions are available for

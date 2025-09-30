@@ -1274,8 +1274,11 @@ static llvm::Value *CoerceIntOrPtrToIntOrPtr(llvm::Value *Val, llvm::Type *Ty,
 
   if (isa<llvm::PointerType>(Val->getType())) {
     // If this is Pointer->Pointer avoid conversion to and from int.
+    // We may need to do an address space cast here because the source (or
+    // destination) type may be a mobile pointer.
     if (isa<llvm::PointerType>(Ty))
-      return CGF.Builder.CreateBitCast(Val, Ty, "coerce.val");
+      return CGF.Builder.CreatePointerBitCastOrAddrSpaceCast(Val, Ty,
+                                                             "coerce.val");
 
     // Convert the pointer to an integer so we can play with its width.
     Val = CGF.Builder.CreatePtrToInt(Val, CGF.IntPtrTy, "coerce.val.pi");

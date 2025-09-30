@@ -401,10 +401,22 @@ foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
       message(STATUS "enable flang project")
     endif ()
 
+    if (NOT "all" IN_LIST LLVM_ENABLE_RUNTIMES AND
+        NOT "flang-rt" IN_LIST LLVM_ENABLE_RUNTIMES)
+      list(APPEND LLVM_ENABLE_RUNTIMES "flang-rt")
+      message(STATUS "enable flang-rt runtime")
+    endif ()
+
     if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
         NOT "mlir" IN_LIST LLVM_ENABLE_PROJECTS)
       list(APPEND LLVM_ENABLE_PROJECTS "mlir")
       message(STATUS "enable mlir project")
+    endif ()
+
+    if (NOT "all" IN_LIST LLVM_ENABLE_RUNTIMES AND
+        NOT "compiler-rt" IN_LIST LLVM_ENABLE_RUNTIMES)
+      list(APPEND LLVM_ENABLE_RUNTIMES "compiler-rt")
+      message(STATUS "enable compiler-rt runtime")
     endif ()
 
     # flang requires clang's driver. clang should have been enabled already, but

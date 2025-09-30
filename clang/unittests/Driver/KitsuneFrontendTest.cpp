@@ -28,10 +28,10 @@ namespace {
 
 // Check that the KitsuneFrontend flag is correctly set in the driver.
 TEST(KitsuneFrontendTest, KitsuneFrontend) {
-  IntrusiveRefCntPtr<DiagnosticOptions> diagOpts = new DiagnosticOptions();
+  DiagnosticOptions diagOpts;
   IntrusiveRefCntPtr<DiagnosticIDs> diagID(new DiagnosticIDs());
   struct TestDiagnosticConsumer : public DiagnosticConsumer {};
-  DiagnosticsEngine diags(diagID, &*diagOpts, new TestDiagnosticConsumer);
+  DiagnosticsEngine diags(diagID, diagOpts, new TestDiagnosticConsumer);
   IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> fs(
       new llvm::vfs::InMemoryFileSystem);
 
@@ -76,10 +76,10 @@ TEST(KitsuneFrontendTest, KitsuneFrontend) {
 // the frontend used. This checks for the flag in the LangOptions object which
 // is different from the driver and must be set correctly as well.w
 TEST(KitsuneFrontendTest, KitsuneLangOptions) {
-  IntrusiveRefCntPtr<DiagnosticOptions> diagOpts = new DiagnosticOptions();
+  DiagnosticOptions diagOpts;
   IntrusiveRefCntPtr<DiagnosticIDs> diagID(new DiagnosticIDs());
   struct TestDiagnosticConsumer : public DiagnosticConsumer {};
-  DiagnosticsEngine diags(diagID, &*diagOpts, new TestDiagnosticConsumer);
+  DiagnosticsEngine diags(diagID, diagOpts, new TestDiagnosticConsumer);
   IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> fs(
       new llvm::vfs::InMemoryFileSystem);
   CompilerInvocation invoc;

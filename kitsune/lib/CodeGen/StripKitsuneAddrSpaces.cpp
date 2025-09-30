@@ -51,7 +51,7 @@ char StripKitsuneAddrSpacesLegacyPass::ID = 0;
 INITIALIZE_PASS_BEGIN(StripKitsuneAddrSpacesLegacyPass, DEBUG_TYPE,
                       "Strip kitsune address spaces", false, false)
 INITIALIZE_PASS_END(StripKitsuneAddrSpacesLegacyPass, DEBUG_TYPE,
-                    "Strip kitusne address spaces", false, false)
+                    "Strip kitsune address spaces", false, false)
 
 ModulePass *llvm::createStripKitsuneAddrSpacesLegacyPass() {
   return new StripKitsuneAddrSpacesLegacyPass();

@@ -17,13 +17,10 @@
 ;
 ; CHECK: !kitsune.device.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
 ; CHECK: !llvm.module.flags = !{{{.*}}![[FTZ:[0-9]+]]{{.*}}}
-; CHECK: !nvvm.annotations = !{![[MDF1:[0-9]+]], ![[MDF2:[0-9]+]]}
 ;
 ; CHECK-DAG: ![[FTZ]] = !{i32 4, !"nvvm-reflect-ftz", i32 0}
 ; CHECK-DAG: ![[MDTT]] = !{i32 2}
 ; CHECK-DAG: ![[MDNAME]] = !{!"__kitcu_kernel-module-kit-md.ll"}
-; CHECK-DAG: ![[MDF1]] = !{ptr @[[F1]], !"kernel", i32 1}
-; CHECK-DAG: ![[MDF2]] = !{ptr @[[F2]], !"kernel", i32 1}
 
 target triple = "x86_64-pc-linux-gnu"
 

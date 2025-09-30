@@ -452,7 +452,7 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   ToolChain.AddFilePathLibArgs(Args, CmdArgs);
 
-  if (D.isUsingLTO())
+  if (D.isUsingLTO()) {
     addLTOOptions(ToolChain, Args, CmdArgs, Output, Inputs,
                   D.getLTOMode() == LTOK_Thin);
     ToolChain.AddKitsuneLTOArgs(Args, CmdArgs);

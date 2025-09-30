@@ -21,7 +21,7 @@ namespace llvm::driver {
 
 TargetLibraryInfoImpl *createTLII(const llvm::Triple &TargetTriple,
                                   driver::VectorLibrary Veclib,
-                                  std::optional<TapirTargetID> TapirTarget) {
+                                  std::optional<TTID> TapirTarget) {
   TargetLibraryInfoImpl *TLII = new TargetLibraryInfoImpl(TargetTriple);
 
   using VectorLibrary = llvm::driver::VectorLibrary;

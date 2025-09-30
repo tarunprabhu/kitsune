@@ -2118,6 +2118,7 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
     break;
   case attr::ExtVectorType:
     OS << "ext_vector_type";
+    break;
   case attr::KitsuneMobile:
     OS << "kitsune::mobile";
     break;
