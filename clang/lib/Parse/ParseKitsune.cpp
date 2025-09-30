@@ -205,7 +205,7 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
     }
   } else {
     ProhibitAttributes(attrs);
-    Value = Actions.CorrectDelayedTyposInExpr(ParseExpression());
+    Value = ParseExpression();
 
     ForEach = isTokIdentifier_in();
 
@@ -352,12 +352,10 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
   StmtResult ForEachStmt;
 
   if (ForRangeInfo.ParsedForRangeDecl()) {
-    ExprResult CorrectedRange =
-        Actions.CorrectDelayedTyposInExpr(ForRangeInfo.RangeExpr.get());
     ForallRangeStmt = Actions.ActOnCXXForallRangeStmt(
         getCurScope(), ForLoc, CoawaitLoc, FirstPart.get(),
-        ForRangeInfo.LoopVar.get(), ForRangeInfo.ColonLoc, CorrectedRange.get(),
-        T.getCloseLocation(), Sema::BFRK_Build);
+        ForRangeInfo.LoopVar.get(), ForRangeInfo.ColonLoc,
+        ForRangeInfo.RangeExpr.get(), T.getCloseLocation(), Sema::BFRK_Build);
 
     // Similarly, we need to do the semantic analysis for a for-range
     // statement immediately in order to close over temporaries correctly.

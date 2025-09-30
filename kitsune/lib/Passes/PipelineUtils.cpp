@@ -25,6 +25,17 @@
 
 using namespace llvm;
 
+bool llvm::isKitsuneOrTapirPipelineAlias(StringRef name) {
+  // The tapir and kitsune pipeline aliases are parameterized i.e. they take
+  // arguments. These are attached to the name of the pipeline itself e.g.
+  // 'kit-lowering<O1>', 'tapir-lowering-loops<O2>' etc. This function may be
+  // called with just the name, or it may be called with the parameters
+  // attached. Do the right thing in both cases.
+  StringRef baseName = name.take_while([](char c) { return c != '<'; });
+  return baseName == "kit-lowering" || baseName == "tapir-lowering" ||
+         baseName == "tapir-lowering-loops";
+}
+
 bool llvm::useTapirLowering(ThinOrFullLTOPhase phase,
                             const PipelineTuningOptions &pto) {
   if (not pto.TTOpts)

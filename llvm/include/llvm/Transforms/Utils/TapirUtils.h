@@ -36,19 +36,26 @@ class TaskInfo;
 // the intrinsic matches \p V.
 bool isTapirIntrinsic(Intrinsic::ID ID, const Instruction *I,
                       const Value *V = nullptr);
+bool isTapirIntrinsic(Intrinsic::ID ID, BasicBlock::const_iterator It,
+                      const Value *V = nullptr);
 
 /// Returns true if the given instruction performs a detached.rethrow, false
 /// otherwise.  If \p SyncRegion is specified, then additionally checks that the
 /// detached.rethrow uses \p SyncRegion.
 bool isDetachedRethrow(const Instruction *I, const Value *SyncRegion = nullptr);
+bool isDetachedRethrow(BasicBlock::const_iterator It,
+                       const Value *SyncRegion = nullptr);
 
 /// Returns true if the given instruction performs a taskframe.resume, false
 /// otherwise.  If \p TaskFrame is specified, then additionally checks that the
 /// taskframe.resume uses \p TaskFrame.
 bool isTaskFrameResume(const Instruction *I, const Value *TaskFrame = nullptr);
+bool isTaskFrameResume(BasicBlock::const_iterator It,
+                       const Value *TaskFrame = nullptr);
 
 /// Check if the given instruction is a Tapir intrinsic that can be skipped.
 bool isSkippableTapirIntrinsic(const Instruction *I);
+bool isSkippableTapirIntrinsic(BasicBlock::const_iterator It);
 
 /// Returns true if the given basic block \p B is a placeholder successor of a
 /// taskframe.resume or detached.rethrow.
@@ -66,6 +73,9 @@ BasicBlock *getTaskFrameResumeDest(Value *TaskFrame);
 /// \p SyncRegion is specified, then additionally checks that the sync.unwind
 /// uses \p SyncRegion.
 bool isSyncUnwind(const Instruction *I, const Value *SyncRegion = nullptr,
+                  bool CheckForInvoke = false);
+bool isSyncUnwind(BasicBlock::const_iterator It,
+                  const Value *SyncRegion = nullptr,
                   bool CheckForInvoke = false);
 
 /// Returns true if BasicBlock \p B is a placeholder successor, that is, it's
@@ -232,8 +242,12 @@ BasicBlock *CreateSubTaskUnwindEdge(Intrinsic::ID TermFunc, Value *Token,
 
 /// promoteCallsInTasksToInvokes - Traverse the control-flow graph of F to
 /// convert calls to invokes, recursively traversing tasks and taskframes to
-/// insert appropriate detached.rethrow and taskframe.resume terminators.
-void promoteCallsInTasksToInvokes(Function &F, const Twine Name = "cleanup");
+/// insert appropriate detached.rethrow and taskframe.resume terminators.  The
+/// optional \p IgnoreFunctionCheck parameter allows the caller to handle some
+/// call sites in a custom manner.
+void promoteCallsInTasksToInvokes(
+    Function &F, const Twine Name = "cleanup",
+    std::function<bool(CallBase *)> IgnoreFunctionCheck = nullptr);
 
 /// eraseTaskFrame - Remove the specified taskframe and all uses of it.  The
 /// given \p TaskFrame should correspond to a taskframe.create call.  The

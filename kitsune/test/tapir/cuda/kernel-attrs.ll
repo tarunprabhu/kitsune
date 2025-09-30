@@ -11,7 +11,7 @@
 ; RUN:     | kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: define {{.+}} #[[ATTRS:[0-9]+]]
+; CHECK: define {{.*}}ptx_kernel void {{.+}} #[[ATTRS:[0-9]+]]
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"

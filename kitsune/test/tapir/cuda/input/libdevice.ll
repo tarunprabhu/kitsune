@@ -29,6 +29,12 @@ declare float @llvm.nvvm.cos.approx.ftz.f(float) #3
 ; Function Attrs: nocallback nofree nosync nounwind willreturn memory(none)
 declare float @llvm.nvvm.cos.approx.f(float) #3
 
+; Function Attrs: nocallback nofree nosync nounwind willreturn memory(none)
+declare float @llvm.nvvm.fabs.ftz.f(float) #3
+
+; Function Attrs: nocallback nofree nosync nounwind willreturn memory(none)
+declare float @llvm.nvvm.fabs.f(float) #3
+
 ; Function Attrs: alwaysinline nounwind
 define double @__nv_sinpi(double %a) #0 {
   %1 = call i32 @__nvvm_reflect(ptr @.str.1)

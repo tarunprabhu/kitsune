@@ -45,8 +45,7 @@ convertDriverVectorLibraryToVectorLibrary(llvm::driver::VectorLibrary VecLib) {
 }
 
 TargetLibraryInfoImpl *createTLII(const llvm::Triple &TargetTriple,
-                                  driver::VectorLibrary Veclib,
-                                  std::optional<TapirTargetID> TapirTarget) {
+                                  driver::VectorLibrary Veclib) {
   return new TargetLibraryInfoImpl(
       TargetTriple, convertDriverVectorLibraryToVectorLibrary(Veclib));
 }

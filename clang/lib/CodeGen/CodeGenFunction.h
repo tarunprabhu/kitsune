@@ -927,6 +927,11 @@ public:
   /// we're currently inside a conditionally-evaluated expression.
   template <class T, class... As>
   void pushFullExprCleanup(CleanupKind kind, As... A) {
+    pushFullExprCleanupImpl<T>(kind, A...);
+  }
+
+  template <class T, class... As>
+  void pushFullExprCleanupImpl(CleanupKind kind, As... A) {
     // If we're not in a conditional branch, or if none of the
     // arguments requires saving, then use the unconditional cleanup.
     if (!isInConditionalBranch())
@@ -1359,7 +1364,7 @@ public:
   };
 
   // Flag indicating whether CodeGen is currently emitting within a some
-  // _Cilk_scope.
+  // cilk_scope.
   bool WithinCilkScope = false;
 
   /// Cleanup to ensure a tapir.runtime.end intrinsic is inserted.
@@ -1401,7 +1406,7 @@ public:
   /// A sync region is a collection of spawned tasks and syncs such that syncs
   /// in the collection may wait on the spawned tasks in the same collection
   /// (control-flow permitting).  In Cilk, certain constructs, such as functions
-  /// _Cilk_spawn bodies, or _Cilk_for loop bodies, use a separate sync region
+  /// cilk_spawn bodies, or cilk_for loop bodies, use a separate sync region
   /// to handle spawning and syncing of tasks within that construct.
   class SyncRegion {
     CodeGenFunction &CGF;
@@ -4298,9 +4303,9 @@ public:
   void EmitSpawnStmt(const SpawnStmt &S);
   void EmitSyncStmt(const SyncStmt &S);
   void EmitForallStmt(const ForallStmt &S,
-                      ArrayRef<const Attr *> Attrs = std::nullopt);
+                      ArrayRef<const Attr *> Attrs = {});
   void EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
-                              ArrayRef<const Attr *> Attrs = std::nullopt);
+                              ArrayRef<const Attr *> Attrs = {});
 
   // Kitsune attribute support
 

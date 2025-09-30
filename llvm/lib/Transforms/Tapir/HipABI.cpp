@@ -592,7 +592,7 @@ HipABI::HipABI(Module &M, const TapirTargetOptions &TTO)
   LLVM_DEBUG(dbgs() << "hipABI: HipABI::HipABI()\n");
 
   TargetMachine *TM = createTargetMachine(TTID::Hip, TTO);
-  KernelModule.setTargetTriple(TM->getTargetTriple().str());
+  KernelModule.setTargetTriple(TM->getTargetTriple());
   KernelModule.setDataLayout(TM->createDataLayout());
 
   KernelModule.setModuleIdentifier(getNameForDeviceModule(M, HIPABI_PREFIX));

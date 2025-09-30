@@ -14,7 +14,6 @@
 #include "ToolChains/BareMetal.h"
 #include "ToolChains/CSKYToolChain.h"
 #include "ToolChains/Clang.h"
-#include "ToolChains/CommonArgs.h"
 #include "ToolChains/CrossWindows.h"
 #include "ToolChains/Cuda.h"
 #include "ToolChains/Cygwin.h"
@@ -67,12 +66,9 @@
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Job.h"
-<<<<<<< HEAD
-#include "clang/Driver/ModulesDriver.h"
-=======
 #include "clang/Driver/KitsuneOptionUtils.h"
+#include "clang/Driver/ModulesDriver.h"
 #include "clang/Driver/Options.h"
->>>>>>> fad8c5ade94 ([kitsune] Major code reorganization)
 #include "clang/Driver/Phases.h"
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Driver/Tool.h"
@@ -284,8 +280,8 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       }
     }
 
-    if (Args.getLastArg(options::OPT_fopenmp_targets_EQ))
-      D.Diag(clang::diag::err_drv_kitsune_openmp_offload);
+    if (Args.hasArg(options::OPT_offload_targets_EQ))
+      D.Diag(clang::diag::err_drv_kitsune_offload);
 
     // Kitsune does not support ROCm ABI versions < 5. But that should only be
     // relevant when using the Kitsune frontend.

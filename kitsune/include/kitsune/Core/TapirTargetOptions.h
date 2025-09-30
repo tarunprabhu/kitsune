@@ -15,6 +15,7 @@
 
 #include "kitsune/Core/OptznLevel.h"
 #include "kitsune/Core/Tapir.h"
+#include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Target/TargetOptions.h"
 
 #include <set>
@@ -162,6 +163,7 @@ public:
   std::unique_ptr<TapirTargetOptions> clone() const;
 
   void setOptznLevel(OptznLevel optLevel) { this->optLevel = optLevel; }
+  void setOptznLevelFrom(OptimizationLevel optLevel);
 
   /// Get the primary tapir target ID.
   TTID getTTID() const { return tt; }

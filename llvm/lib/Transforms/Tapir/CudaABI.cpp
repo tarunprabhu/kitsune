@@ -336,6 +336,7 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   // Set the linkage of the kernel to external to prevent it from being DCE'ed
   // since there will be no caller for the function in the kernel module.
   KernelF->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
+  KernelF->setCallingConv(CallingConv::PTX_Kernel);
 
   // Remove all target-related attributes from the kernel function. These may be
   // present because the frontend believes that the code is being compiled for
@@ -514,7 +515,7 @@ CudaABI::CudaABI(Module &M, const TapirTargetOptions &TTO)
   LLVM_DEBUG(dbgs() << "cuabi: CudaABI::CudaABI()\n");
 
   TargetMachine *TM = createTargetMachine(TTID::Cuda, TTO);
-  KernelModule.setTargetTriple(TM->getTargetTriple().str());
+  KernelModule.setTargetTriple(TM->getTargetTriple());
   KernelModule.setDataLayout(TM->createDataLayout());
 
   KernelModule.setModuleIdentifier(getNameForDeviceModule(M, CUABI_PREFIX));

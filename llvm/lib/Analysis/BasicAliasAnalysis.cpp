@@ -1643,8 +1643,8 @@ static AliasResult underlyingNoAlias(const Value *O1, const Value *O2,
 
   // Function arguments can't alias with things that are known to be
   // unambigously identified at the function level.
-  if ((isa<Argument>(O1) && isIdentifiedFunctionLocal(O2)) ||
-      (isa<Argument>(O2) && isIdentifiedFunctionLocal(O1)))
+  if ((isArgumentOrArgumentLike(O1) && isIdentifiedFunctionLocal(O2)) ||
+      (isArgumentOrArgumentLike(O2) && isIdentifiedFunctionLocal(O1)))
     return AliasResult::NoAlias;
 
   // If one pointer is the result of a call/invoke or load and the other is a
@@ -1656,11 +1656,11 @@ static AliasResult underlyingNoAlias(const Value *O1, const Value *O2,
   // temporary store the nocapture argument's value in a temporary memory
   // location if that memory location doesn't escape. Or it may pass a
   // nocapture value to other functions as long as they don't capture it.
-  if (isEscapeSource(O1) && AAQI.CA->isNotCapturedBefore(
-                                O2, dyn_cast<Instruction>(O1), /*OrAt*/ true))
+  if (isEscapeSource(O1) && capturesNothing(AAQI.CA->getCapturesBefore(
+                                O2, dyn_cast<Instruction>(O1), /*OrAt*/ true)))
    return AliasResult::NoAlias;
-  if (isEscapeSource(O2) && AAQI.CA->isNotCapturedBefore(
-                                O1, dyn_cast<Instruction>(O2), /*OrAt*/ true))
+  if (isEscapeSource(O2) && capturesNothing(AAQI.CA->getCapturesBefore(
+                                O1, dyn_cast<Instruction>(O2), /*OrAt*/ true)))
     return AliasResult::NoAlias;
 
   return AliasResult::MayAlias;
@@ -1920,10 +1920,11 @@ AliasResult BasicAAResult::aliasCheck(const Value *V1, LocationSize V1Size,
   if (InjectiveResult == AliasResult::MustAlias)
     return AliasResult::MayAlias;
 
-  // KITSUNE FIXME: The disabled block below is from LLVM upstream. It is not
-  // clear if we should use this, or if we should use the #else block which is
-  // in Tapir
-#if 0
+  if (O1 != O2) {
+    // If V1/V2 point to two different objects, we know that we have no alias.
+    if (isIdentifiedObject(O1) && isIdentifiedObject(O2))
+      return AliasResult::NoAlias;
+
     // Function arguments can't alias with things that are known to be
     // unambigously identified at the function level.
     if ((isArgumentOrArgumentLike(O1) && isIdentifiedFunctionLocal(O2)) ||
@@ -1947,10 +1948,7 @@ AliasResult BasicAAResult::aliasCheck(const Value *V1, LocationSize V1Size,
                                   O1, dyn_cast<Instruction>(O2), /*OrAt=*/true,
                                   /*ReturnCaptures=*/false)))
       return AliasResult::NoAlias;
-#else
-  if (O1 != O2 && underlyingNoAlias(O1, O2, AAQI) == AliasResult::NoAlias)
-    return AliasResult::NoAlias;
-#endif // 0
+  }
 
   // If the size of one access is larger than the entire object on the other
   // side, then we know such behavior is undefined and can assume no alias.

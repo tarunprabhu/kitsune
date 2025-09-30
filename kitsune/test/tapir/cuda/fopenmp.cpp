@@ -7,7 +7,7 @@
 // RUN:     --libomptarget-nvptx-bc-path=%S/input/nvptx.bc 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=TAPIR
 //
-// TAPIR: cannot use OpenMP offload with a tapir target
+// TAPIR: cannot use offload with a tapir target
 //
 // -----------------------------------------------------------------------------
 // Running the kitsune frontend without --tapir is ok
@@ -17,4 +17,4 @@
 // RUN:     --libomptarget-nvptx-bc-path=%S/input/nvptx.bc 2>&1 \
 // RUN:     | FileCheck %s -check-prefix=NOTAPIR
 //
-// NOTAPIR-NOT: cannot use OpenMP offload with a tapir target
+// NOTAPIR-NOT: cannot use offload with a tapir target

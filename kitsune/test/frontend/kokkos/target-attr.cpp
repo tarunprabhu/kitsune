@@ -13,17 +13,17 @@ void f(float* A, int N) {
     A[i] = i;
   });
 
-  [[tapir::target(serial)]] // expected-error {{'target' attribute requires a string}}
+  [[tapir::target(serial)]] // expected-error {{'tapir::target' attribute requires a string}}
   Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
     A[i] = i;
   });
 
-  [[tapir::target()]] // expected-error {{'target' attribute takes one argument}}
+  [[tapir::target()]] // expected-error {{'tapir::target' attribute takes one argument}}
   Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
     A[i] = i;
   });
 
-  [[tapir::target("serial","-03")]] // expected-error {{'target' attribute takes one argument}}
+  [[tapir::target("serial","-03")]] // expected-error {{'tapir::target' attribute takes one argument}}
   Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
     A[i] = i;
   });

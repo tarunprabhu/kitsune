@@ -24,12 +24,14 @@
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/IR/EHPersonalities.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
@@ -238,6 +240,8 @@ bool CSIImpl::callsPlaceholderFunction(const Instruction &I) {
     case Intrinsic::annotation:
     case Intrinsic::assume:
     case Intrinsic::sideeffect:
+    case Intrinsic::donothing:
+    case Intrinsic::fake_use:
     case Intrinsic::invariant_start:
     case Intrinsic::invariant_end:
     case Intrinsic::launder_invariant_group:
@@ -308,8 +312,7 @@ Constant *ForensicTable::getObjectStrGV(Module &M, StringRef Str,
   Constant *Zero = ConstantInt::get(Int32Ty, 0);
   Value *GepArgs[] = {Zero, Zero};
   if (Str.empty())
-    return ConstantPointerNull::get(
-        PointerType::get(IntegerType::get(C, 8), 0));
+    return ConstantPointerNull::get(PointerType::get(C, 0));
 
   Constant *NameStrConstant = ConstantDataArray::getString(C, Str);
   GlobalVariable *GV = M.getGlobalVariable((GVName + Str).str(), true);
@@ -353,7 +356,7 @@ Value *ForensicTable::localToGlobalId(uint64_t LocalId,
   LLVMContext &C = IRB.getContext();
   Type *BaseIdTy = IRB.getInt64Ty();
   LoadInst *Base = IRB.CreateLoad(BaseIdTy, BaseId);
-  MDNode *MD = MDNode::get(C, std::nullopt);
+  MDNode *MD = MDNode::get(C, {});
   Base->setMetadata(LLVMContext::MD_invariant_load, MD);
   Value *Offset = IRB.getInt64(LocalId);
   return IRB.CreateAdd(Base, Offset);
@@ -370,7 +373,7 @@ uint64_t SizeTable::add(const BasicBlock &BB, TargetTransformInfo *TTI) {
       if (!ICost.isValid())
         IRCost += static_cast<int>(TargetTransformInfo::TCC_Basic);
       else
-        IRCost += *(ICost.getValue());
+        IRCost += ICost.getValue();
     } else {
       if (isa<PHINode>(I))
         continue;
@@ -384,7 +387,7 @@ uint64_t SizeTable::add(const BasicBlock &BB, TargetTransformInfo *TTI) {
 }
 
 PointerType *SizeTable::getPointerType(LLVMContext &C) {
-  return PointerType::get(getSizeStructType(C), 0);
+  return PointerType::get(C, 0);
 }
 
 StructType *SizeTable::getSizeStructType(LLVMContext &C) {
@@ -458,15 +461,15 @@ uint64_t FrontEndDataTable::add(const Instruction &I,
 }
 
 PointerType *FrontEndDataTable::getPointerType(LLVMContext &C) {
-  return PointerType::get(getSourceLocStructType(C), 0);
+  return PointerType::get(C, 0);
 }
 
 StructType *FrontEndDataTable::getSourceLocStructType(LLVMContext &C) {
   return StructType::get(
-      /* Name */ PointerType::get(IntegerType::get(C, 8), 0),
+      /* Name */ PointerType::get(C, 0),
       /* Line */ IntegerType::get(C, 32),
       /* Column */ IntegerType::get(C, 32),
-      /* File */ PointerType::get(IntegerType::get(C, 8), 0));
+      /* File */ PointerType::get(C, 0));
 }
 
 void FrontEndDataTable::add(uint64_t ID, const DILocation *Loc,
@@ -545,13 +548,13 @@ void CSIImpl::initializeFuncHooks() {
   IRBuilder<> IRB(C);
   // Initialize function entry hook
   Type *FuncPropertyTy = CsiFuncProperty::getType(C);
-  CsiFuncEntry = M.getOrInsertFunction("__csi_func_entry", IRB.getVoidTy(),
+  CsiFuncEntry = getHookFunction("__csi_func_entry", IRB.getVoidTy(),
                                        IRB.getInt64Ty(), FuncPropertyTy);
   // Initialize function exit hook
   Type *FuncExitPropertyTy = CsiFuncExitProperty::getType(C);
-  CsiFuncExit = M.getOrInsertFunction("__csi_func_exit", IRB.getVoidTy(),
-                                      IRB.getInt64Ty(), IRB.getInt64Ty(),
-                                      FuncExitPropertyTy);
+  CsiFuncExit =
+      getHookFunction("__csi_func_exit", IRB.getVoidTy(), IRB.getInt64Ty(),
+                      IRB.getInt64Ty(), FuncExitPropertyTy);
 }
 
 /// Basic-block hook initialization
@@ -559,9 +562,9 @@ void CSIImpl::initializeBasicBlockHooks() {
   LLVMContext &C = M.getContext();
   IRBuilder<> IRB(C);
   Type *PropertyTy = CsiBBProperty::getType(C);
-  CsiBBEntry = M.getOrInsertFunction("__csi_bb_entry", IRB.getVoidTy(),
+  CsiBBEntry = getHookFunction("__csi_bb_entry", IRB.getVoidTy(),
                                      IRB.getInt64Ty(), PropertyTy);
-  CsiBBExit = M.getOrInsertFunction("__csi_bb_exit", IRB.getVoidTy(),
+  CsiBBExit = getHookFunction("__csi_bb_exit", IRB.getVoidTy(),
                                     IRB.getInt64Ty(), PropertyTy);
 }
 
@@ -573,18 +576,15 @@ void CSIImpl::initializeLoopHooks() {
   Type *LoopPropertyTy = CsiLoopProperty::getType(C);
   Type *LoopExitPropertyTy = CsiLoopExitProperty::getType(C);
 
-  CsiBeforeLoop = M.getOrInsertFunction("__csi_before_loop", IRB.getVoidTy(),
-                                        IDType, IRB.getInt64Ty(),
+  CsiBeforeLoop = getHookFunction("__csi_before_loop", IRB.getVoidTy(), IDType,
+                                  IRB.getInt64Ty(), LoopPropertyTy);
+  CsiAfterLoop = getHookFunction("__csi_after_loop", IRB.getVoidTy(), IDType,
                                         LoopPropertyTy);
-  CsiAfterLoop = M.getOrInsertFunction("__csi_after_loop", IRB.getVoidTy(),
-                                       IDType, LoopPropertyTy);
 
-  CsiLoopBodyEntry = M.getOrInsertFunction("__csi_loopbody_entry",
-                                           IRB.getVoidTy(), IDType,
-                                           LoopPropertyTy);
-  CsiLoopBodyExit = M.getOrInsertFunction("__csi_loopbody_exit",
-                                          IRB.getVoidTy(), IDType, IDType,
-                                          LoopExitPropertyTy);
+  CsiLoopBodyEntry = getHookFunction("__csi_loopbody_entry", IRB.getVoidTy(),
+                                       IDType, LoopPropertyTy);
+  CsiLoopBodyExit = getHookFunction("__csi_loopbody_exit", IRB.getVoidTy(),
+                                    IDType, IDType, LoopExitPropertyTy);
 }
 
 // Call-site hook initialization
@@ -592,12 +592,12 @@ void CSIImpl::initializeCallsiteHooks() {
   LLVMContext &C = M.getContext();
   IRBuilder<> IRB(C);
   Type *PropertyTy = CsiCallProperty::getType(C);
-  CsiBeforeCallsite = M.getOrInsertFunction("__csi_before_call",
-                                            IRB.getVoidTy(), IRB.getInt64Ty(),
+  CsiBeforeCallsite =
+      getHookFunction("__csi_before_call", IRB.getVoidTy(), IRB.getInt64Ty(),
                                             IRB.getInt64Ty(), PropertyTy);
-  CsiAfterCallsite = M.getOrInsertFunction("__csi_after_call", IRB.getVoidTy(),
-                                           IRB.getInt64Ty(), IRB.getInt64Ty(),
-                                           PropertyTy);
+  CsiAfterCallsite =
+      getHookFunction("__csi_after_call", IRB.getVoidTy(), IRB.getInt64Ty(),
+                      IRB.getInt64Ty(), PropertyTy);
 }
 
 // Alloca (local variable) hook initialization
@@ -608,7 +608,7 @@ void CSIImpl::initializeAllocaHooks() {
   Type *AddrType = IRB.getPtrTy();
   Type *PropType = CsiAllocaProperty::getType(C);
 
-  CsiAfterAlloca = M.getOrInsertFunction("__csi_after_alloca", IRB.getVoidTy(),
+  CsiAfterAlloca = getHookFunction("__csi_after_alloca", IRB.getVoidTy(),
                                          IDType, AddrType, IntptrTy, PropType);
 }
 
@@ -623,22 +623,21 @@ void CSIImpl::initializeAllocFnHooks() {
   Type *AllocFnPropType = CsiAllocFnProperty::getType(C);
   Type *FreePropType = CsiFreeProperty::getType(C);
 
-  CsiBeforeAllocFn = M.getOrInsertFunction("__csi_before_allocfn", RetType,
-                                           IDType, LargeNumBytesType,
-                                           LargeNumBytesType, LargeNumBytesType,
-                                           AddrType, AllocFnPropType);
-  CsiAfterAllocFn = M.getOrInsertFunction("__csi_after_allocfn", RetType,
-                                          IDType, /* new ptr */ AddrType,
+  CsiBeforeAllocFn = getHookFunction(
+      "__csi_before_allocfn", RetType, IDType, LargeNumBytesType,
+      LargeNumBytesType, LargeNumBytesType, AddrType, AllocFnPropType);
+  CsiAfterAllocFn = getHookFunction("__csi_after_allocfn", RetType, IDType,
+                                    /* new ptr */ AddrType,
                                           /* size */ LargeNumBytesType,
                                           /* num elements */ LargeNumBytesType,
                                           /* alignment */ LargeNumBytesType,
                                           /* old ptr */ AddrType,
                                           /* property */ AllocFnPropType);
 
-  CsiBeforeFree = M.getOrInsertFunction("__csi_before_free", RetType, IDType,
+  CsiBeforeFree = getHookFunction("__csi_before_free", RetType, IDType,
                                         AddrType, FreePropType);
-  CsiAfterFree = M.getOrInsertFunction("__csi_after_free", RetType, IDType,
-                                       AddrType, FreePropType);
+  CsiAfterFree = getHookFunction("__csi_after_free", RetType, IDType, AddrType,
+                                 FreePropType);
 }
 
 // Load and store hook initialization
@@ -652,18 +651,17 @@ void CSIImpl::initializeLoadStoreHooks() {
   Type *NumBytesType = IRB.getInt32Ty();
 
   CsiBeforeRead =
-      M.getOrInsertFunction("__csi_before_load", RetType, IRB.getInt64Ty(),
-                            AddrType, NumBytesType, LoadPropertyTy);
-  CsiAfterRead =
-      M.getOrInsertFunction("__csi_after_load", RetType, IRB.getInt64Ty(),
+      getHookFunction("__csi_before_load", RetType, IRB.getInt64Ty(), AddrType,
+                      NumBytesType, LoadPropertyTy);
+  CsiAfterRead = getHookFunction("__csi_after_load", RetType, IRB.getInt64Ty(),
                             AddrType, NumBytesType, LoadPropertyTy);
 
   CsiBeforeWrite =
-      M.getOrInsertFunction("__csi_before_store", RetType, IRB.getInt64Ty(),
-                            AddrType, NumBytesType, StorePropertyTy);
+      getHookFunction("__csi_before_store", RetType, IRB.getInt64Ty(), AddrType,
+                      NumBytesType, StorePropertyTy);
   CsiAfterWrite =
-      M.getOrInsertFunction("__csi_after_store", RetType, IRB.getInt64Ty(),
-                            AddrType, NumBytesType, StorePropertyTy);
+      getHookFunction("__csi_after_store", RetType, IRB.getInt64Ty(), AddrType,
+                      NumBytesType, StorePropertyTy);
 }
 
 // Initialization of hooks for LLVM memory intrinsics
@@ -671,15 +669,12 @@ void CSIImpl::initializeMemIntrinsicsHooks() {
   LLVMContext &C = M.getContext();
   IRBuilder<> IRB(C);
 
-  MemmoveFn = M.getOrInsertFunction("memmove", IRB.getPtrTy(),
-                                    IRB.getPtrTy(), IRB.getPtrTy(),
-                                    IntptrTy);
-  MemcpyFn = M.getOrInsertFunction("memcpy", IRB.getPtrTy(),
-                                   IRB.getPtrTy(), IRB.getPtrTy(),
-                                   IntptrTy);
-  MemsetFn = M.getOrInsertFunction("memset", IRB.getPtrTy(),
-                                   IRB.getPtrTy(), IRB.getInt32Ty(),
-                                   IntptrTy);
+  MemmoveFn = getHookFunction("memmove", IRB.getPtrTy(), IRB.getPtrTy(),
+                              IRB.getPtrTy(), IntptrTy);
+  MemcpyFn = getHookFunction("memcpy", IRB.getPtrTy(), IRB.getPtrTy(),
+                             IRB.getPtrTy(), IntptrTy);
+  MemsetFn = getHookFunction("memset", IRB.getPtrTy(), IRB.getPtrTy(),
+                             IRB.getInt32Ty(), IntptrTy);
 }
 
 // Initialization of Tapir hooks
@@ -694,28 +689,26 @@ void CSIImpl::initializeTapirHooks() {
   Type *DetachPropertyTy = CsiDetachProperty::getType(C);
   Type *DetContPropertyTy = CsiDetachContinueProperty::getType(C);
 
-  CsiDetach =
-      M.getOrInsertFunction("__csi_detach", RetType,
+  CsiDetach = getHookFunction("__csi_detach", RetType,
                             /* detach_id */ IDType,
                             /* sync_reg */ SyncRegType, DetachPropertyTy);
-  CsiTaskEntry = M.getOrInsertFunction("__csi_task", RetType,
+  CsiTaskEntry = getHookFunction("__csi_task", RetType,
                                        /* task_id */ IDType,
                                        /* detach_id */ IDType, TaskPropertyTy);
-  CsiTaskExit =
-      M.getOrInsertFunction("__csi_task_exit", RetType,
+  CsiTaskExit = getHookFunction("__csi_task_exit", RetType,
                             /* task_exit_id */ IDType,
                             /* task_id */ IDType,
                             /* detach_id */ IDType,
                             /* sync_reg */ SyncRegType, TaskExitPropertyTy);
   CsiDetachContinue =
-      M.getOrInsertFunction("__csi_detach_continue", RetType,
+      getHookFunction("__csi_detach_continue", RetType,
                             /* detach_continue_id */ IDType,
                             /* detach_id */ IDType,
                             /* sync_reg */ SyncRegType, DetContPropertyTy);
   CsiBeforeSync =
-      M.getOrInsertFunction("__csi_before_sync", RetType, IDType, SyncRegType);
+      getHookFunction("__csi_before_sync", RetType, IDType, SyncRegType);
   CsiAfterSync =
-      M.getOrInsertFunction("__csi_after_sync", RetType, IDType, SyncRegType);
+      getHookFunction("__csi_after_sync", RetType, IDType, SyncRegType);
 }
 
 // Prepare any calls in the CFG for instrumentation, e.g., by making sure any
@@ -725,21 +718,28 @@ void CSIImpl::setupCalls(Function &F) {
   if (F.doesNotThrow())
     return;
 
-  promoteCallsInTasksToInvokes(F, "csi.cleanup");
+  promoteCallsInTasksToInvokes(F, "csi.cleanup", [](CallBase *CB) {
+    if (const Function *F = CB->getCalledFunction()) {
+      if (F->getName().starts_with("__asan")) {
+        CB->setDoesNotThrow();
+        return true;
+      }
+    }
+    return false;
+  });
 }
 
 static BasicBlock *splitOffPreds(BasicBlock *BB,
                                  SmallVectorImpl<BasicBlock *> &Preds,
-                                 DominatorTree *DT, LoopInfo *LI) {
+                                 DomTreeUpdater *DTU, LoopInfo *LI) {
   if (BB->isLandingPad()) {
-    DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
     SmallVector<BasicBlock *, 2> NewBBs;
     SplitLandingPadPredecessors(BB, Preds, ".csi-split-lp", ".csi-split",
-                                NewBBs, &DTU, LI);
+                                NewBBs, DTU, LI);
     return NewBBs[1];
   }
 
-  BasicBlock *NewBB = SplitBlockPredecessors(BB, Preds, ".csi-split", DT, LI);
+  BasicBlock *NewBB = SplitBlockPredecessors(BB, Preds, ".csi-split", DTU, LI);
   if (isa<UnreachableInst>(BB->getFirstNonPHIOrDbg())) {
     // If the block being split is simply contains an unreachable, then replace
     // the terminator of the new block with an unreachable.  This helps preserve
@@ -747,8 +747,8 @@ static BasicBlock *splitOffPreds(BasicBlock *BB,
     // detached.rethrow and taskframe.resume terminators.
     ReplaceInstWithInst(NewBB->getTerminator(),
                         new UnreachableInst(BB->getContext()));
-    if (DT) {
-      DT->deleteEdge(NewBB, BB);
+    if (DTU) {
+      DTU->applyUpdatesPermissive({{DominatorTree::Delete, NewBB, BB}});
     }
   }
   return BB;
@@ -757,7 +757,7 @@ static BasicBlock *splitOffPreds(BasicBlock *BB,
 // Setup each block such that all of its predecessors belong to the same CSI ID
 // space.
 static void setupBlock(BasicBlock *BB, const TargetLibraryInfo *TLI,
-                       DominatorTree *DT, LoopInfo *LI) {
+                       DomTreeUpdater *DTU, LoopInfo *LI) {
   if (BB->getUniquePredecessor())
     return;
 
@@ -812,34 +812,34 @@ static void setupBlock(BasicBlock *BB, const TargetLibraryInfo *TLI,
   BasicBlock *BBToSplit = BB;
   // Split off the predecessors of each type.
   if (!SyncPreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = splitOffPreds(BBToSplit, SyncPreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, SyncPreds, DTU, LI);
     NumPredTypes--;
   }
   if (!SyncUnwindPreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = splitOffPreds(BBToSplit, SyncUnwindPreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, SyncUnwindPreds, DTU, LI);
     NumPredTypes--;
   }
   if (!AllocFnPreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = splitOffPreds(BBToSplit, AllocFnPreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, AllocFnPreds, DTU, LI);
     NumPredTypes--;
   }
   if (!FreeFnPreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = splitOffPreds(BBToSplit, FreeFnPreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, FreeFnPreds, DTU, LI);
     NumPredTypes--;
   }
   if (!InvokePreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = splitOffPreds(BBToSplit, InvokePreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, InvokePreds, DTU, LI);
     NumPredTypes--;
   }
   if (!TFResumePreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = splitOffPreds(BBToSplit, TFResumePreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, TFResumePreds, DTU, LI);
     NumPredTypes--;
   }
   // We handle detach and detached.rethrow predecessors at the end to preserve
   // invariants on the CFG structure about the deadness of basic blocks after
   // detached-rethrows.
   if (!DetachPreds.empty() && NumPredTypes > NumPredTypesRequired) {
-    BBToSplit = splitOffPreds(BBToSplit, DetachPreds, DT, LI);
+    BBToSplit = splitOffPreds(BBToSplit, DetachPreds, DTU, LI);
     NumPredTypes--;
   }
 }
@@ -860,8 +860,9 @@ void CSIImpl::setupBlocks(Function &F, const TargetLibraryInfo *TLI,
       BlocksToSetup.insert(SI->getSuccessor(0));
   }
 
+  DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
   for (BasicBlock *BB : BlocksToSetup)
-    setupBlock(BB, TLI, DT, LI);
+    setupBlock(BB, TLI, &DTU, LI);
 }
 
 // Split basic blocks so that ordinary call instructions terminate basic blocks.
@@ -1109,10 +1110,19 @@ bool CSIImpl::instrumentMemIntrinsic(Instruction *I) {
 }
 
 void CSIImpl::instrumentBasicBlock(BasicBlock &BB, const TaskInfo &TI) {
-  IRBuilder<> IRB(&*BB.getFirstInsertionPt());
+  Instruction *InsertPt = &*BB.getFirstInsertionPt();
   bool IsEntry = isEntryBlock(BB, TI);
   if (IsEntry)
-    IRB.SetInsertPoint(getEntryBBInsertPt(BB));
+    InsertPt = getEntryBBInsertPt(BB);
+  // Skip any sync.unwind intrinsics, which need to remain paired with
+  // corresponding syncs.
+  if (isSyncUnwind(InsertPt))
+    InsertPt = InsertPt->getNextNode();
+  // Skip any taskframe.end intrinsics, to keep the basic-block instrumentation
+  // in the same basic block.
+  if (isTapirIntrinsic(Intrinsic::taskframe_end, InsertPt))
+    InsertPt = InsertPt->getNextNode();
+  IRBuilder<> IRB(InsertPt);
   uint64_t LocalId = BasicBlockFED.add(BB);
   uint64_t BBSizeId = BBSize.add(BB, GetTTI ?
                                  &(*GetTTI)(*BB.getParent()) : nullptr);
@@ -1206,8 +1216,24 @@ void CSIImpl::instrumentLoop(Loop &L, TaskInfo &TI, ScalarEvolution *SE) {
   insertHookCall(&*IRB.GetInsertPoint(), CsiLoopBodyEntry, {LoopCsiId,
                                                             LoopPropVal});
 
+  SmallPtrSet<BasicBlock *, 4> ExitingBlocksVisited;
   // Insert hooks at the ends of the exiting blocks.
-  for (BasicBlock *BB : ExitingBlocks) {
+  while (!ExitingBlocks.empty()) {
+    BasicBlock *BB = ExitingBlocks.pop_back_val();
+    if (!ExitingBlocksVisited.insert(BB).second)
+      continue;
+    if (isSyncUnwind(BB->getTerminator())) {
+      // Insert the loopbody_exit hook before the sync instruction, rather than
+      // the sync.unwind.
+      // TODO: I don't think there's anything preventing a sync.unwind from
+      // having multiple sync-instruction predecessors, so all such predecessors
+      // need to be addressed.  This logic should become simpler if sync itself
+      // is modified to have an unwind destination.
+      for (BasicBlock *Pred : predecessors(BB))
+        ExitingBlocks.push_back(Pred);
+      continue;
+    }
+
     // Record properties of this loop exit
     CsiLoopExitProperty LoopExitProp;
     LoopExitProp.setIsLatch(L.isLoopLatch(BB));
@@ -1545,9 +1571,14 @@ void CSIImpl::instrumentSync(SyncInst *SI, unsigned SyncRegNum) {
 
 void CSIImpl::instrumentAlloca(Instruction *I, TaskInfo &TI) {
   IRBuilder<> IRB(I);
-  bool AllocaInEntryBlock = isEntryBlock(*I->getParent(), TI);
-  if (AllocaInEntryBlock)
-    IRB.SetInsertPoint(getEntryBBInsertPt(*I->getParent()));
+  bool InsertingAtAlloca = true;
+  if (isEntryBlock(*I->getParent(), TI)) {
+    Instruction *EntryBBInsertPt = getEntryBBInsertPt(*I->getParent());
+    if (I->comesBefore(EntryBBInsertPt)) {
+      IRB.SetInsertPoint(EntryBBInsertPt);
+      InsertingAtAlloca = false;
+    }
+  }
   AllocaInst *AI = cast<AllocaInst>(I);
 
   uint64_t LocalId = AllocaFED.add(*I);
@@ -1566,7 +1597,7 @@ void CSIImpl::instrumentAlloca(Instruction *I, TaskInfo &TI) {
                                                     IRB.getInt64Ty()));
 
   BasicBlock::iterator Iter(I);
-  if (!AllocaInEntryBlock) {
+  if (InsertingAtAlloca) {
     Iter++;
     IRB.SetInsertPoint(&*Iter);
   } else {
@@ -1772,13 +1803,16 @@ CallInst *CSIImpl::insertHookCallInSuccessorBB(BasicBlock *Succ, BasicBlock *BB,
                                                ArrayRef<Value *> HookArgs,
                                                ArrayRef<Value *> DefaultArgs) {
   assert(HookFunction && "No hook function given.");
+  Instruction *InsertPt = &*Succ->getFirstInsertionPt();
+  if (isSyncUnwind(InsertPt))
+    InsertPt = InsertPt->getNextNode();
+
   // If this successor block has a unique predecessor, just insert the hook call
   // as normal.
   if (Succ->getUniquePredecessor()) {
     assert(Succ->getUniquePredecessor() == BB &&
            "BB is not unique predecessor of successor block");
-    return insertHookCall(&*Succ->getFirstInsertionPt(), HookFunction,
-                          HookArgs);
+    return insertHookCall(InsertPt, HookFunction, HookArgs);
   }
 
   if (updateArgPHIs(Succ, BB, HookFunction, HookArgs, DefaultArgs))
@@ -1789,7 +1823,7 @@ CallInst *CSIImpl::insertHookCallInSuccessorBB(BasicBlock *Succ, BasicBlock *BB,
   for (PHINode *ArgPHI : ArgPHIs[Key])
     SuccessorHookArgs.push_back(ArgPHI);
 
-  IRBuilder<> IRB(&*Succ->getFirstInsertionPt());
+  IRBuilder<> IRB(InsertPt);
   // Insert the hook call, using the PHI as the CSI ID.
   CallInst *Call = IRB.CreateCall(HookFunction, SuccessorHookArgs);
   setInstrumentationDebugLoc(*Succ, (Instruction *)Call);
@@ -1987,7 +2021,7 @@ void CSIImpl::initializeCsi() {
 // Create a struct type to match the unit_fed_entry_t type in csirt.c.
 StructType *CSIImpl::getUnitFedTableType(LLVMContext &C,
                                          PointerType *EntryPointerType) {
-  return StructType::get(IntegerType::get(C, 64), PointerType::get(C, 0),
+  return StructType::get(IntegerType::get(C, 64), PointerType::getUnqual(C),
                          EntryPointerType);
 }
 
@@ -1997,7 +2031,7 @@ Constant *CSIImpl::fedTableToUnitFedTable(Module &M,
   Constant *NumEntries =
       ConstantInt::get(IntegerType::get(M.getContext(), 64), FedTable.size());
   Constant *BaseIdPtr = ConstantExpr::getPointerCast(
-      FedTable.baseId(), PointerType::get(M.getContext(), 0));
+      FedTable.baseId(), PointerType::getUnqual(M.getContext()));
   Constant *InsertedTable = FedTable.insertIntoModule(M);
   return ConstantStruct::get(UnitFedTableType, NumEntries, BaseIdPtr,
                              InsertedTable);
@@ -2076,9 +2110,8 @@ CallInst *CSIImpl::createRTUnitInitCall(IRBuilder<> &IRB) {
       getUnitSizeTableType(C, SizeTable::getPointerType(C));
 
   // Lookup __csirt_unit_init
-  SmallVector<Type *, 4> InitArgTypes({IRB.getPtrTy(),
-                                       PointerType::get(UnitFedTableType, 0),
-                                       PointerType::get(UnitSizeTableType, 0),
+  SmallVector<Type *, 4> InitArgTypes({IRB.getPtrTy(), PointerType::get(C, 0),
+                                       PointerType::get(C, 0),
                                        InitCallsiteToFunction->getType()});
   FunctionType *InitFunctionTy =
       FunctionType::get(IRB.getVoidTy(), InitArgTypes, false);
@@ -2658,7 +2691,7 @@ void CSIImpl::instrumentFunction(Function &F) {
         Detaches.push_back(DI);
       } else if (SyncInst *SI = dyn_cast<SyncInst>(&I)) {
         Syncs.push_back(SI);
-        if (isSyncUnwind(&*SI->getSuccessor(0)->getFirstNonPHIOrDbgOrLifetime(),
+        if (isSyncUnwind(SI->getSuccessor(0)->getFirstNonPHIOrDbgOrLifetime(),
                          /*SyncRegion=*/nullptr, /*CheckForInvoke=*/true)) {
           SyncsWithUnwinds.insert(SI);
           BBsToIgnore.insert(SI->getSuccessor(0));
@@ -2713,6 +2746,11 @@ void CSIImpl::instrumentFunction(Function &F) {
     for (BasicBlock *BB : BasicBlocks)
       instrumentBasicBlock(*BB, TI);
 
+  if (Options.InstrumentLoops)
+    // Recursively instrument all loops
+    for (Loop *L : LI)
+      instrumentLoop(*L, TI, SE);
+
   // Instrument Tapir constructs.
   if (Options.InstrumentTapir) {
     if (Config->DoesFunctionRequireInstrumentationForPoint(
@@ -2733,11 +2771,6 @@ void CSIImpl::instrumentFunction(Function &F) {
   if (Options.InstrumentAllocas)
     for (Instruction *I : Allocas)
       instrumentAlloca(I, TI);
-
-  if (Options.InstrumentLoops)
-    // Recursively instrument all loops
-    for (Loop *L : LI)
-      instrumentLoop(*L, TI, SE);
 
   // Do this work in a separate loop after copying the iterators so that we
   // aren't modifying the list as we're iterating.
@@ -2810,7 +2843,7 @@ Function *CSIImpl::getInterpositionFunction(Function *F) {
 
   std::string InterposedName = "__csi_interpose_" + F->getName().str();
   Function *InterpositionFunction = cast<Function>(
-      M.getOrInsertFunction(InterposedName, F->getFunctionType()).getCallee());
+      getHookFunction(InterposedName, F->getFunctionType()).getCallee());
 
   InterpositionFunctions.insert({F, InterpositionFunction});
 

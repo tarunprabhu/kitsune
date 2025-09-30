@@ -181,6 +181,14 @@ static cl::alias
 
 TapirTargetOptions::TapirTargetOptions(TTID tt) : tt(tt) {}
 
+void TapirTargetOptions::setOptznLevelFrom(OptimizationLevel optLevel) {
+  unsigned speedupLevel = optLevel.getSpeedupLevel();
+  unsigned sizeLevel = optLevel.getSizeLevel();
+  OptznLevel optznLevel = createOptznLevelFrom(speedupLevel, sizeLevel);
+
+  setOptznLevel(optznLevel);
+}
+
 std::optional<TapirTargetOptions>
 TapirTargetOptions::createFromCommandLine(OptznLevel optLevel) {
   if (clTapir.getNumOccurrences()) {
