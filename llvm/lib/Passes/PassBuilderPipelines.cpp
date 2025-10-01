@@ -2265,7 +2265,7 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
     invokeTapirLateEPCallbacks(MPM, Level);
 
     // Lower Tapir if necessary
-    if (LowerTapir)
+    if (useTapirLowering(ThinOrFullLTOPhase::ThinLTOPostLink, PTO))
       MPM.addPass(buildTapirLoweringPipeline(
           Level, ThinOrFullLTOPhase::FullLTOPostLink));
     else
@@ -2508,14 +2508,6 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
 
   // Add passes to run just before Tapir lowering.
   invokeTapirLateEPCallbacks(MPM, Level);
-
-  // We should always run the kitsune pre-tapir lowering pipeline because the
-  // Kitsune memory (de)allocators could have been used in code that is not
-  // compiled with Tapir, but the intrinsics need to be handled correctly in
-  // those cases too.
-  //
-  // FIXME: We should split this into those passes that must always be run and
-  // those that must only be run if tapir lowering has been enabled.
 
   // Lower Tapir if necessary
   if (useTapirLowering(ThinOrFullLTOPhase::FullLTOPostLink, PTO)) {
