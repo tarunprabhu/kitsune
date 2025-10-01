@@ -228,7 +228,7 @@ bool TapirToTargetImpl::processSimpleABI(Function &F, BasicBlock *TFEntry) {
     Target->lowerTaskFrameAddrCall(TaskFrameAddrCall);
     Changed = true;
   }
-  Target->lowerTapirRTCalls(TapirRTCalls, F, TFEntry);
+  Changed |= Target->lowerTapirRTCalls(TapirRTCalls, F, TFEntry);
 
   // Process the set of syncs.
   while (!Syncs.empty()) {
@@ -346,7 +346,7 @@ bool TapirToTargetImpl::processFunction(
   splitTaskFrameCreateBlocks(F, &OA.DT, &TI);
   TI.findTaskFrameTree();
 
-  bool ChangedCFG = false;
+  bool Changed = false;
   {
   NamedRegionTimer NRT("TargetPreProcess", "Target preprocessing",
                        TimerGroupName, TimerGroupDescription,

@@ -1059,7 +1059,7 @@ TaskOutlineInfo llvm::outlineTask(
   DetachInst *DI = T->getDetach();
   Value *TFCreate = T->getTaskFrameUsed();
 
-  Instruction *LoadPt = T->getEntry()->getFirstNonPHIOrDbgOrLifetime();
+  BasicBlock::iterator LoadPt = T->getEntry()->getFirstNonPHIOrDbgOrLifetime();
   Instruction *StorePt = DI;
   BasicBlock *Unwind = DI->getUnwindDest();
   if (Spindle *TaskFrameCreate = T->getTaskFrameCreateSpindle()) {
@@ -1079,7 +1079,7 @@ TaskOutlineInfo llvm::outlineTask(
   // Convert the inputs of the task to inputs to the helper.
   ValueSet TaskHelperArgs;
   Instruction *ArgsStart = fixupHelperInputs(
-      F, T, Inputs, TaskHelperArgs, StorePt, LoadPt, UseArgStruct, InputMap);
+      F, T, Inputs, TaskHelperArgs, StorePt, &*LoadPt, UseArgStruct, InputMap);
   ValueSet HelperArgs;
   Target->setupTaskOutlineArgs(F, HelperArgs, HelperInputs, TaskHelperArgs);
 
@@ -1244,10 +1244,10 @@ void TapirTarget::lowerTaskFrameAddrCall(CallInst *TaskFrameAddrCall) {
       &M, Intrinsic::frameaddress, PointerType::getUnqual(M.getContext())));
 }
 
-void TapirTarget::lowerTapirRTCalls(SmallVectorImpl<CallInst *> &TapirRTCalls,
+bool TapirTarget::lowerTapirRTCalls(SmallVectorImpl<CallInst *> &TapirRTCalls,
                                     Function &F, BasicBlock *TFEntry) {
   // By default, do nothing with tapir_runtime_{start,end} calls.
-  return;
+  return false;
 }
 
 /// Process the Tapir instructions in an ordinary (non-spawning and not spawned)
