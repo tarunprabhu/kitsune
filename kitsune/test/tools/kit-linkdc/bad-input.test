@@ -1,0 +1,16 @@
+# Check that invalid (or missing) produce appropriate errors.
+#
+# RUN: mkdir -p %t
+#
+# ------------------------------------------------------------------------------
+# At least one input file is required
+#
+# RUN: not kit-linkdc 2>&1 | FileCheck %s -check-prefix MISSING
+# MISSING: Must specify at least 1 positional argument
+#
+# ------------------------------------------------------------------------------
+# Inputs must be object files, archives or shared libraries.
+#
+# RUN: not kit-linkdc %S/input/empty.txt 2>&1 \
+# RUN:     | FileCheck %s -check-prefix=FORMAT
+# FORMAT: file format not supported

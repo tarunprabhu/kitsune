@@ -90,32 +90,102 @@ TEST_F(ObjectUtilsTest, getEmbDeviceCodeTTIDs) {
   EXPECT_EQ(*tts, Vec({TTID::Cuda, TTID::Hip}));
 }
 
-TEST_F(ObjectUtilsTest, embedIntoNewObjectNoSym) {
+TEST_F(ObjectUtilsTest, createEmptyObject) {
+  StringRef triple = sys::getDefaultTargetTriple();
+  Triple tt(triple);
+
+  if (tt.isOSBinFormatELF()) {
+    Expected<OwningBinary<ObjectFile>> objOrErr =
+        createEmptyObject(sys::getDefaultTargetTriple(), "empty.o");
+
+    EXPECT_TRUE(bool(objOrErr));
+
+    const ObjectFile &obj = *objOrErr->getBinary();
+    for (SectionRef sec : obj.sections()) {
+      outs() << "sec: " << *sec.getName() << "\n";
+    }
+
+    detail::check_eq(getNumSections(obj), 2);
+    detail::check_true(hasSection(obj, ""));
+    detail::check_true(hasSection(obj, ".strtab"));
+    detail::check_false(hasSection(obj, ".symtab"));
+    detail::check_eq(getNumSymbols(obj), 0);
+  } else if (tt.isOSBinFormatMachO()) {
+    FAIL();
+  } else {
+    FAIL();
+  }
+}
+
+TEST_F(ObjectUtilsTest, embedIntoObjectNoSym) {
   StringRef section = ".new.section";
-  MemoryBufferRef payload("hello\0", "");
+  std::unique_ptr<MemoryBuffer> payload = MemoryBuffer::getMemBuffer("hello");
+
+  Expected<OwningBinary<ObjectFile>> empObjOrErr =
+      createEmptyObject(sys::getDefaultTargetTriple());
+  EXPECT_TRUE(bool(empObjOrErr));
 
   Expected<OwningBinary<ObjectFile>> objOrErr =
-      embedIntoNewObject(sys::getDefaultTargetTriple(), payload, section);
-
+      embedIntoObject(std::move(*empObjOrErr), std::move(payload), section);
   EXPECT_TRUE(bool(objOrErr));
 
   const ObjectFile &obj = *objOrErr->getBinary();
   detail::check_eq(getNumSections(obj), 3);
   detail::check_true(hasSection(obj, ""));
   detail::check_true(hasSection(obj, ".strtab"));
+  detail::check_false(hasSection(obj, ".symtab"));
   detail::check_true(hasSection(obj, section));
 
   detail::check_eq(getNumSymbols(obj), 0);
   detail::check_false(hasSymbol(obj, "msg"));
 }
 
-TEST_F(ObjectUtilsTest, embedIntoNewObjectSym) {
+TEST_F(ObjectUtilsTest, embedIntoObject2) {
+  Expected<OwningBinary<ObjectFile>> empObjOrErr =
+      createEmptyObject(sys::getDefaultTargetTriple());
+  EXPECT_TRUE(bool(empObjOrErr));
+
+  std::unique_ptr<MemoryBuffer> hello = MemoryBuffer::getMemBuffer("hello");
+  Expected<OwningBinary<ObjectFile>> obj1OrErr =
+      embedIntoObject(std::move(*empObjOrErr), std::move(hello), ".hello");
+  EXPECT_TRUE(bool(obj1OrErr));
+
+  const ObjectFile &obj1 = *obj1OrErr->getBinary();
+  detail::check_eq(getNumSections(obj1), 3);
+  detail::check_true(hasSection(obj1, ""));
+  detail::check_true(hasSection(obj1, ".strtab"));
+  detail::check_false(hasSection(obj1, ".symtab"));
+  detail::check_true(hasSection(obj1, ".hello"));
+  detail::check_false(hasSection(obj1, ".world"));
+  detail::check_eq(getNumSymbols(obj1), 0);
+  detail::check_false(hasSymbol(obj1, "msg"));
+
+  std::unique_ptr<MemoryBuffer> world = MemoryBuffer::getMemBuffer("world");
+  Expected<OwningBinary<ObjectFile>> obj2OrErr =
+      embedIntoObject(std::move(*obj1OrErr), std::move(world), ".world", "msg");
+  EXPECT_TRUE(bool(obj2OrErr));
+
+  const ObjectFile &obj2 = *obj2OrErr->getBinary();
+  detail::check_eq(getNumSections(obj2), 5);
+  detail::check_true(hasSection(obj2, ""));
+  detail::check_true(hasSection(obj2, ".strtab"));
+  detail::check_true(hasSection(obj2, ".symtab"));
+  detail::check_true(hasSection(obj2, ".hello"));
+  detail::check_true(hasSection(obj2, ".world"));
+  detail::check_eq(getNumSymbols(obj2), 1);
+  detail::check_true(hasSymbol(obj2, "msg"));
+}
+
+TEST_F(ObjectUtilsTest, embedIntoObjectSym) {
   StringRef section = ".new.section";
-  MemoryBufferRef payload("hello\0", "");
+  std::unique_ptr<MemoryBuffer> payload = MemoryBuffer::getMemBuffer("hello");
 
-  Expected<OwningBinary<ObjectFile>> objOrErr = embedIntoNewObject(
-      sys::getDefaultTargetTriple(), payload, section, "msg");
+  Expected<OwningBinary<ObjectFile>> empObjOrErr =
+      createEmptyObject(sys::getDefaultTargetTriple());
+  EXPECT_TRUE(bool(empObjOrErr));
 
+  Expected<OwningBinary<ObjectFile>> objOrErr = embedIntoObject(
+      std::move(*empObjOrErr), std::move(payload), section, "msg");
   EXPECT_TRUE(bool(objOrErr));
 
   const ObjectFile &obj = *objOrErr->getBinary();
@@ -127,6 +197,11 @@ TEST_F(ObjectUtilsTest, embedIntoNewObjectSym) {
 
   detail::check_eq(getNumSymbols(obj), 1);
   detail::check_true(hasSymbol(obj, "msg"));
+
+  std::error_code ec;
+  raw_fd_ostream fs("/tmp/embedded.o", ec);
+  fs << obj.getMemoryBufferRef().getBuffer();
+  fs.close();
 }
 
 // The add* tests actually test EmbDeviceCodeContext::add(ObjectFile). But these

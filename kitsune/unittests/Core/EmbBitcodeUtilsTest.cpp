@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/EmbBitcodeUtils.h"
-#include "kitsune/Core/SingletonUtils.h"
+#include "kitsune/Core/EmbDeviceCodeUtils.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalValue.h"

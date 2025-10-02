@@ -15,11 +15,14 @@
 #include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/EmbDeviceCodeUtils.h"
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Linker/DeviceCodeLinker.h"
+#include "kitsune/Object/BinaryUtils.h"
 #include "kitsune/Support/Error.h"
 #include "kitsune/Support/StringUtils.h"
 #include "kitsune/Support/TTUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/InitLLVM.h"
@@ -29,6 +32,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
+using namespace llvm::object;
 
 static cl::OptionCategory catKitLinkDC("Kitsune Options (kit-linkdc)");
 
@@ -59,6 +63,13 @@ static cl::alias clOutFileLong("output", cl::aliasopt(clOutFile),
                                cl::desc("Alias for -o"), cl::NotHidden,
                                cl::cat(catKitLinkDC));
 
+static cl::opt<std::string>
+    clTarget("target", cl::init(sys::getDefaultTargetTriple()),
+             cl::value_desc("triple"),
+             cl::desc("The target triple of the host object file into which "
+                      "the linked device code will be embedded"),
+             cl::cat(catKitLinkDC));
+
 static cl::list<std::string> clInFiles(cl::Positional, cl::OneOrMore,
                                        cl::desc("<files>"),
                                        cl::cat(catKitLinkDC));
@@ -80,11 +91,37 @@ int main(int argc, char *argv[]) {
     ErrorOr<std::unique_ptr<MemoryBuffer>> memBuf = MemoryBuffer::getFile(
         f, /*IsText=*/false, /*RequiresNullTerminator=*/false);
     if (not memBuf)
-      report_error(memBuf.getError());
+      report_error(sjoin(f, ": ", memBuf.getError()));
     inFiles.emplace_back(std::move(memBuf.get()));
+
+    MemoryBufferRef memRef = inFiles.back()->getMemBufferRef();
+    if (not isObject(memRef) and not isArchive(memRef) and not isShared(memRef))
+      report_error(sjoin(f, ": file format not supported"));
   }
 
-  errs() << "|inFiles| = " << inFiles.size() << "\n";
+  DeviceCodeLinker linker;
+  for (const std::unique_ptr<MemoryBuffer> &inFile : inFiles) {
+    Expected<int> added = linker.add(*inFile);
+    if (not added)
+      report_error(added.takeError());
+  }
+
+  DeviceCodeLinker::Mode mode;
+  if (clFatbin)
+    mode = DeviceCodeLinker::FatBin;
+  else
+    mode = DeviceCodeLinker::Static;
+  Expected<OwningBinary<ObjectFile>> linked = linker.link(mode, clTarget);
+  if (not linked)
+    report_error(linked.takeError());
+
+  std::error_code ec;
+  raw_fd_ostream fs(clOutFile, ec);
+  if (ec)
+    report_error(ec);
+
+  fs << linked->getBinary()->getMemoryBufferRef().getBuffer();
+  fs.close();
 
   return 0;
 }

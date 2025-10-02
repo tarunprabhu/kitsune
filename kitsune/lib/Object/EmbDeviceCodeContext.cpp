@@ -23,44 +23,59 @@
 using namespace llvm;
 using namespace llvm::object;
 
-/// Empty vector of device code so we can always return a const reference in
-/// EmbDeviceCodeContext::get().
-static const SmallVector<EmbDeviceCode, 8> noDeviceCode;
+// /// Empty vector of device code so we can always return a const reference in
+// /// EmbDeviceCodeContext::get().
+// static const SmallVector<EmbDeviceCode, 8> noDeviceCode;
 
-const SmallVectorImpl<EmbDeviceCode> &EmbDeviceCodeContext::get(TTID tt) const {
-  decltype(devCodes)::const_iterator it = devCodes.find(tt);
-  if (it == devCodes.end())
-    return noDeviceCode;
-  return it->second;
-}
+// const SmallVectorImpl<EmbDeviceCode> &EmbDeviceCodeContext::get(TTID tt) const {
+//   decltype(devCodes)::const_iterator it = devCodes.find(tt);
+//   if (it == devCodes.end())
+//     return noDeviceCode;
+//   return it->second;
+// }
 
-SmallVector<TTID, 0> EmbDeviceCodeContext::getTTIDs() const {
-  SmallVector<TTID, 0> tts;
-  for (const auto &[tt, embCodes] : devCodes)
-    tts.push_back(tt);
-  return tts;
+// SmallVector<TTID, 0> EmbDeviceCodeContext::getTTIDs() const {
+//   SmallVector<TTID, 0> tts;
+//   for (const auto &[tt, embCodes] : devCodes)
+//     tts.push_back(tt);
+//   return tts;
+// }
+
+bool EmbDeviceCodeContext::empty() const {
+  for (const auto &[embId, embCodes] : devCodes)
+    if (not embCodes.empty())
+      return false;
+  return true;
 }
 
 bool EmbDeviceCodeContext::contains(const Binary &bin) const {
   return bins.contains(bin.getFileName());
 }
 
-Expected<EmbDeviceCode::Id>
-EmbDeviceCodeContext::getEmbDeviceCodeId(TTID tt) const {
-  if (devCodes.empty())
-    return createStringError(
-        sjoin("no embedded device code for '", tt, "' tapir target"));
-
-  const SmallVectorImpl<EmbDeviceCode> &devCodesForTT = get(tt);
-  assert(devCodesForTT.size() && "Array for device codes cannot be empty");
-
-  EmbDeviceCode::Id id = devCodesForTT[0].getId();
-  for (const EmbDeviceCode &devCode : devCodesForTT)
-    if (devCode.getId() != id)
-      return createStringError("inconsistent formats and targets for "
-                               "embedded device code in archive");
-  return id;
+EmbDeviceCodeContext::iterator EmbDeviceCodeContext::begin() const {
+  return devCodes.begin();
 }
+
+EmbDeviceCodeContext::iterator EmbDeviceCodeContext::end() const {
+  return devCodes.end();
+}
+
+// Expected<EmbDeviceCode::Id>
+// EmbDeviceCodeContext::getEmbDeviceCodeId(TTID tt) const {
+//   if (devCodes.empty())
+//     return createStringError(
+//         sjoin("no embedded device code for '", tt, "' tapir target"));
+
+//   const SmallVectorImpl<EmbDeviceCode> &devCodesForTT = get(tt);
+//   assert(devCodesForTT.size() && "Array for device codes cannot be empty");
+
+//   EmbDeviceCode::Id id = devCodesForTT[0].getId();
+//   for (const EmbDeviceCode &devCode : devCodesForTT)
+//     if (devCode.getId() != id)
+//       return createStringError("inconsistent formats and targets for "
+//                                "embedded device code in archive");
+//   return id;
+// }
 
 Expected<unsigned> EmbDeviceCodeContext::add(const Binary &bin) {
   if (const auto *objFile = dyn_cast<ObjectFile>(&bin))

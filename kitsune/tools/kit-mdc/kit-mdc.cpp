@@ -58,7 +58,8 @@ static std::string getOutputFile(const EmbDeviceCode &devCode) {
   if (not clOutFile.empty())
     outFile = clOutFile;
   else
-    sys::path::append(outFile, clOutDir, devCode.getName());
+    sys::path::append(outFile, clOutDir,
+                      sys::path::filename(devCode.getName()));
 
   std::error_code ec = sys::fs::make_absolute(outFile);
   if (ec)

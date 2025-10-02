@@ -1,0 +1,31 @@
+# REQUIRES: kitsune-cuda && x86-registered-target
+#
+# Check for basic functionality when *only* NVIDIA device code is present in
+# various binary files.
+#
+# TODO: Shared library support has not been implemented yet. When that is
+# available, add tests for that as well.
+#
+# RUN: mkdir -p %t/in
+#
+# RUN: cd %t
+# RUN: rm -rf *.o
+#
+# RUN: llc -mtriple=x86_64-pc-linux --tapir=cuda --tapir-cuda-arch=sm_72 \
+# RUN:     -filetype=obj -o %t/in/a.o %S/input/a-cuda.ll
+# RUN: llc -mtriple=x86_64-pc-linux --tapir=cuda --tapir-cuda-arch=sm_72 -filetype=obj -o %t/in/b.o %S/input/b-cuda.ll
+# RUN: llc -mtriple=x86_64-pc-linux --tapir=cuda --tapir-cuda-arch=sm_72 -filetype=obj -o %t/in/c.o %S/input/c-cuda.ll
+#
+# RUN: llvm-ar rc %t/liba.a %t/in/a.o
+# RUN: llvm-ar rc %t/libb.a %t/in/b.o
+# RUN: llvm-ar rc %t/libc.a %t/in/c.o
+# RUN: llvm-ar rc %t/libbc.a %t/in/b.o %t/in/c.o
+# RUN: llvm-ar rc %t/libabc.a %t/in/a.o %t/in/b.o %t/in/c.o
+#
+# ------------------------------------------------------------------------------
+# RUN: kit-linkdc -o %t/a-host.o %t/in/a.o
+# RUN: kit-mdc -o %t/a-dc.a %t/a-host.o
+# RUN: llvm-ar t %t/a-dc.a | FileCheck %s -check-prefix=ONLY-A
+#
+# ------------------------------------------------------------------------------
+# ONLY-A: a-sm_72.o

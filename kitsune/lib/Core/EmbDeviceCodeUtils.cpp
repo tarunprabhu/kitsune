@@ -20,22 +20,147 @@
 
 using namespace llvm;
 
+#define DEVICE_CODE_SECTION_BASE ".kit.device.code."
+
+static const StringMap<StringRef> archsAMDGPU({
+    {"gfx600", DEVICE_CODE_SECTION_BASE "gfx600"},
+    {"gfx601", DEVICE_CODE_SECTION_BASE "gfx601"},
+    {"gfx602", DEVICE_CODE_SECTION_BASE "gfx602"},
+    {"gfx700", DEVICE_CODE_SECTION_BASE "gfx700"},
+    {"gfx701", DEVICE_CODE_SECTION_BASE "gfx701"},
+    {"gfx702", DEVICE_CODE_SECTION_BASE "gfx702"},
+    {"gfx703", DEVICE_CODE_SECTION_BASE "gfx703"},
+    {"gfx704", DEVICE_CODE_SECTION_BASE "gfx704"},
+    {"gfx705", DEVICE_CODE_SECTION_BASE "gfx705"},
+    {"gfx801", DEVICE_CODE_SECTION_BASE "gfx801"},
+    {"gfx802", DEVICE_CODE_SECTION_BASE "gfx802"},
+    {"gfx803", DEVICE_CODE_SECTION_BASE "gfx803"},
+    {"gfx805", DEVICE_CODE_SECTION_BASE "gfx805"},
+    {"gfx810", DEVICE_CODE_SECTION_BASE "gfx810"},
+    {"gfx900", DEVICE_CODE_SECTION_BASE "gfx900"},
+    {"gfx902", DEVICE_CODE_SECTION_BASE "gfx902"},
+    {"gfx903", DEVICE_CODE_SECTION_BASE "gfx903"},
+    {"gfx906", DEVICE_CODE_SECTION_BASE "gfx906"},
+    {"gfx908", DEVICE_CODE_SECTION_BASE "gfx908"},
+    {"gfx909", DEVICE_CODE_SECTION_BASE "gfx909"},
+    {"gfx90a", DEVICE_CODE_SECTION_BASE "gfx90a"},
+    {"gfx90c", DEVICE_CODE_SECTION_BASE "gfx90c"},
+    {"gfx940", DEVICE_CODE_SECTION_BASE "gfx940"},
+    {"gfx941", DEVICE_CODE_SECTION_BASE "gfx941"},
+    {"gfx942", DEVICE_CODE_SECTION_BASE "gfx942"},
+    {"gfx950", DEVICE_CODE_SECTION_BASE "gfx950"},
+    {"gfx1010", DEVICE_CODE_SECTION_BASE "gfx1010"},
+    {"gfx1011", DEVICE_CODE_SECTION_BASE "gfx1011"},
+    {"gfx1012", DEVICE_CODE_SECTION_BASE "gfx1012"},
+    {"gfx1013", DEVICE_CODE_SECTION_BASE "gfx1013"},
+    {"gfx1030", DEVICE_CODE_SECTION_BASE "gfx1030"},
+    {"gfx1031", DEVICE_CODE_SECTION_BASE "gfx1031"},
+    {"gfx1032", DEVICE_CODE_SECTION_BASE "gfx1032"},
+    {"gfx1033", DEVICE_CODE_SECTION_BASE "gfx1033"},
+    {"gfx1034", DEVICE_CODE_SECTION_BASE "gfx1034"},
+    {"gfx1035", DEVICE_CODE_SECTION_BASE "gfx1035"},
+    {"gfx1036", DEVICE_CODE_SECTION_BASE "gfx1036"},
+    {"gfx1100", DEVICE_CODE_SECTION_BASE "gfx1100"},
+    {"gfx1101", DEVICE_CODE_SECTION_BASE "gfx1101"},
+    {"gfx1102", DEVICE_CODE_SECTION_BASE "gfx1102"},
+    {"gfx1103", DEVICE_CODE_SECTION_BASE "gfx1103"},
+    {"gfx1150", DEVICE_CODE_SECTION_BASE "gfx1150"},
+    {"gfx1151", DEVICE_CODE_SECTION_BASE "gfx1151"},
+    {"gfx1152", DEVICE_CODE_SECTION_BASE "gfx1152"},
+    {"gfx1153", DEVICE_CODE_SECTION_BASE "gfx1153"},
+    {"gfx1200", DEVICE_CODE_SECTION_BASE "gfx1200"},
+    {"gfx1201", DEVICE_CODE_SECTION_BASE "gfx1201"},
+});
+
+static const StringMap<StringRef> archsNV({
+    {"sm_20", DEVICE_CODE_SECTION_BASE "sm_20"},
+    {"sm_21", DEVICE_CODE_SECTION_BASE "sm_21"},
+    {"sm_30", DEVICE_CODE_SECTION_BASE "sm_30"},
+    {"sm_32", DEVICE_CODE_SECTION_BASE "sm_32"},
+    {"sm_35", DEVICE_CODE_SECTION_BASE "sm_35"},
+    {"sm_37", DEVICE_CODE_SECTION_BASE "sm_37"},
+    {"sm_50", DEVICE_CODE_SECTION_BASE "sm_50"},
+    {"sm_52", DEVICE_CODE_SECTION_BASE "sm_52"},
+    {"sm_53", DEVICE_CODE_SECTION_BASE "sm_53"},
+    {"sm_60", DEVICE_CODE_SECTION_BASE "sm_60"},
+    {"sm_61", DEVICE_CODE_SECTION_BASE "sm_61"},
+    {"sm_62", DEVICE_CODE_SECTION_BASE "sm_62"},
+    {"sm_70", DEVICE_CODE_SECTION_BASE "sm_70"},
+    {"sm_72", DEVICE_CODE_SECTION_BASE "sm_72"},
+    {"sm_75", DEVICE_CODE_SECTION_BASE "sm_75"},
+    {"sm_80", DEVICE_CODE_SECTION_BASE "sm_80"},
+    {"sm_86", DEVICE_CODE_SECTION_BASE "sm_86"},
+    {"sm_87", DEVICE_CODE_SECTION_BASE "sm_87"},
+    {"sm_89", DEVICE_CODE_SECTION_BASE "sm_89"},
+    {"sm_90", DEVICE_CODE_SECTION_BASE "sm_90"},
+    {"sm_90a", DEVICE_CODE_SECTION_BASE "sm_90a"},
+    {"sm_100", DEVICE_CODE_SECTION_BASE "sm_100"},
+    {"sm_100a", DEVICE_CODE_SECTION_BASE "sm_100a"},
+    {"sm_101", DEVICE_CODE_SECTION_BASE "sm_101"},
+    {"sm_101a", DEVICE_CODE_SECTION_BASE "sm_101a"},
+    {"sm_120", DEVICE_CODE_SECTION_BASE "sm_120"},
+    {"sm_120a", DEVICE_CODE_SECTION_BASE "sm_120a"},
+});
+
+static const StringMap<StringRef> virtArchsNV({
+    {"compute_20", DEVICE_CODE_SECTION_BASE "compute_20"},
+    {"compute_21", DEVICE_CODE_SECTION_BASE "compute_21"},
+    {"compute_30", DEVICE_CODE_SECTION_BASE "compute_30"},
+    {"compute_32", DEVICE_CODE_SECTION_BASE "compute_32"},
+    {"compute_35", DEVICE_CODE_SECTION_BASE "compute_35"},
+    {"compute_37", DEVICE_CODE_SECTION_BASE "compute_37"},
+    {"compute_50", DEVICE_CODE_SECTION_BASE "compute_50"},
+    {"compute_52", DEVICE_CODE_SECTION_BASE "compute_52"},
+    {"compute_53", DEVICE_CODE_SECTION_BASE "compute_53"},
+    {"compute_60", DEVICE_CODE_SECTION_BASE "compute_60"},
+    {"compute_61", DEVICE_CODE_SECTION_BASE "compute_61"},
+    {"compute_62", DEVICE_CODE_SECTION_BASE "compute_62"},
+    {"compute_70", DEVICE_CODE_SECTION_BASE "compute_70"},
+    {"compute_72", DEVICE_CODE_SECTION_BASE "compute_72"},
+    {"compute_75", DEVICE_CODE_SECTION_BASE "compute_75"},
+    {"compute_80", DEVICE_CODE_SECTION_BASE "compute_80"},
+    {"compute_86", DEVICE_CODE_SECTION_BASE "compute_86"},
+    {"compute_87", DEVICE_CODE_SECTION_BASE "compute_87"},
+    {"compute_89", DEVICE_CODE_SECTION_BASE "compute_89"},
+    {"compute_90", DEVICE_CODE_SECTION_BASE "compute_90"},
+    {"compute_90a", DEVICE_CODE_SECTION_BASE "compute_90a"},
+    {"compute_100", DEVICE_CODE_SECTION_BASE "compute_100"},
+    {"compute_100a", DEVICE_CODE_SECTION_BASE "compute_100a"},
+    {"compute_101", DEVICE_CODE_SECTION_BASE "compute_101"},
+    {"compute_101a", DEVICE_CODE_SECTION_BASE "compute_101a"},
+    {"compute_120", DEVICE_CODE_SECTION_BASE "compute_120"},
+    {"compute_120a", DEVICE_CODE_SECTION_BASE "compute_120a"},
+});
+
+bool isAMDGPUArch(StringRef arch) { return archsAMDGPU.contains(arch); }
+
+bool isNVArch(StringRef arch) { return archsNV.contains(arch); }
+
+bool isNVVirtArch(StringRef arch) { return virtArchsNV.contains(arch); }
+
 std::optional<TTID> llvm::getTTIDForSection(StringRef section) {
-  return StringSwitch<std::optional<TTID>>(section)
-      .Case(KITSUNE_CUDA_CODE_SECTION, TTID::Cuda)
-      .Case(KITSUNE_HIP_CODE_SECTION, TTID::Hip)
-      .Default(std::nullopt);
+  if (not section.starts_with(DEVICE_CODE_SECTION_BASE))
+    return std::nullopt;
+
+  size_t off = StringRef(DEVICE_CODE_SECTION_BASE).size();
+  StringRef tail = section.substr(off);
+  if (isAMDGPUArch(tail))
+    return TTID::Hip;
+  else if (isNVArch(tail) or isNVVirtArch(tail))
+    return TTID::Cuda;
+  else
+    return std::nullopt;
 }
 
-std::optional<StringRef> llvm::getSectionForTTID(TTID tt) {
-  switch (tt) {
-  case TTID::Cuda:
-    return KITSUNE_CUDA_CODE_SECTION;
-  case TTID::Hip:
-    return KITSUNE_HIP_CODE_SECTION;
-  default:
-    return std::nullopt;
-  }
+Expected<StringRef> llvm::getSectionForArch(StringRef arch) {
+  if (isAMDGPUArch(arch))
+    return archsAMDGPU[arch];
+  else if (isNVArch(arch))
+    return archsNV[arch];
+  else if (isNVVirtArch(arch))
+    return virtArchsNV[arch];
+  else
+    return createStringError(sjoin("Unknown device architecture: ", arch));
 }
 
 StringLiteral llvm::getSingletonFBName(TTID tt) {

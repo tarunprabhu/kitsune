@@ -1,0 +1,36 @@
+# Check some basic functionality of the kit-linkdc utility
+#
+# RUN: mkdir -p %t/in
+# RUN: echo "" | llc -o %t/in/empty.o -filetype=obj
+# RUN: llvm-ar rc %t/in/libempty.a %t/in/empty.o
+#
+# RUN: %if darwin %{ \
+# RUN:     ld64.lld -shared -o %t/in/libempty.so %t/in/empty.o \
+# RUN: %} %else %{ \
+# RUN:     ld.lld -shared -o %t/in/libempty.so %t/in/empty.o \
+# RUN: %}
+#
+# ------------------------------------------------------------------------------
+# The output will always be an object file, regardless of the input file type.
+#
+# RUN: cd %t
+#
+# RUN: rm -f a.o
+# RUN: kit-linkdc %t/in/empty.o
+# RUN: ls a.o
+#
+# RUN: rm -f a.o
+# RUN: kit-linkdc %t/in/libempty.a
+# RUN: ls a.o
+#
+# RUN: rm -f a.o
+# RUN: kit-linkdc %t/in/libempty.a
+# RUN: ls a.o
+#
+# ------------------------------------------------------------------------------
+# Check that the -o option works as expected.
+#
+# RUN: rm -f %t/a.o %t/dc.o
+#
+# RUN: kit-linkdc -o %t/dc.o %t/in/empty.o
+# RUN: ls %t/dc.o

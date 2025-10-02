@@ -17,6 +17,7 @@
 
 #include "kitsune/Core/OptznLevel.h"
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Support/StringUtils.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/Magic.h"
 #include "llvm/MC/MCTargetOptions.h"

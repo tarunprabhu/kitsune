@@ -46,37 +46,18 @@ private:
 
 private:
   void embedDeviceCode(ToolOutputFile &deviceCode, Module &hostM, bool isPTX) {
-    ErrorOr<std::unique_ptr<MemoryBuffer>> bufOrErr =
+    ErrorOr<std::unique_ptr<MemoryBuffer>> buf =
         MemoryBuffer::getFile(deviceCode.getFilename());
-    if (std::error_code ec = bufOrErr.getError())
+    if (std::error_code ec = buf.getError())
       report_internal_error("error loading nvidia device code. ", ec);
 
-    // TODO: Support embedded PTX as well as SASS.
-    Expected<EmbDeviceCode::Id> id = EmbDeviceCode::getIdFor(tto.getCudaArch());
-    if (not id)
-      report_internal_error(id.takeError());
-
-    const MemoryBuffer &buf = **bufOrErr;
     LLVMContext &ctx = hostM.getContext();
-    StringRef data = buf.getBuffer();
-    size_t size = buf.getBufferSize();
-
-    // The embedded code is saved in a struct of the form
-    //
-    //   struct {
-    //     uint64_t id;  // The EmbDeviceCode::Id.
-    //     byte code[];  // The actual code.
-    //   };
-    //
     Type *i8 = Type::getInt8Ty(ctx);
     Type *i64 = Type::getInt64Ty(ctx);
-    Type *bufTy = ArrayType::get(i8, size);
-    StructType *type = StructType::get(i64, bufTy);
-    GlobalValue::LinkageTypes linkage = GlobalValue::PrivateLinkage;
 
-    Constant *cid = ConstantInt::get(i64, *id);
-    Constant *cbuf = ConstantDataArray::getString(ctx, data, /*AddNull=*/false);
-    Constant *init = ConstantStruct::get(type, {cid, cbuf});
+    Constant *init =
+        ConstantDataArray::getString(ctx, buf->getBuffer(), /*AddNull=*/false);
+    GlobalValue::LinkageTypes linkage = GlobalValue::PrivateLinkage;
 
     GlobalVariable *payload =
         new GlobalVariable(hostM, type, /*isConstant=*/true, linkage, init);

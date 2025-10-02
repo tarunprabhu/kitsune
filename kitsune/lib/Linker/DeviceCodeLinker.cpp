@@ -20,12 +20,14 @@
 using namespace llvm;
 using namespace llvm::object;
 
-void LinkedDeviceCode::add(OwningBinary<ObjectFile> objFile) {
-  linked.emplace_back(std::move(objFile));
+Expected<unsigned> DeviceCodeLinker::add(MemoryBufferRef memBuf) {
+  return ctx.add(memBuf);
 }
 
-Error DeviceCodeLinker::addArchiveTo(const EmbDeviceCode &devCode,
-                                     NewArchiveMembers &members) {
+using NewArchiveMembers = SmallVector<NewArchiveMember, 8>;
+
+static Error addArchiveTo(const EmbDeviceCode &devCode,
+                          NewArchiveMembers &members) {
   MemoryBufferRef memBuf = devCode.getMemoryBufferRef();
   Expected<std::unique_ptr<Archive>> archive = Archive::create(memBuf);
   if (not archive)
@@ -41,14 +43,13 @@ Error DeviceCodeLinker::addArchiveTo(const EmbDeviceCode &devCode,
   return Error::success();
 }
 
-Error DeviceCodeLinker::addObjectTo(const EmbDeviceCode &devCode,
-                                    NewArchiveMembers &members) {
+static Error addObjectTo(const EmbDeviceCode &devCode,
+                         NewArchiveMembers &members) {
   members.emplace_back(devCode.getMemoryBufferRef());
   return Error::success();
 }
 
-Error DeviceCodeLinker::addTo(const EmbDeviceCode &devCode,
-                              NewArchiveMembers &members) {
+static Error addTo(const EmbDeviceCode &devCode, NewArchiveMembers &members) {
   if (devCode.isArchive())
     return addArchiveTo(devCode, members);
   else if (devCode.isObject())
@@ -57,15 +58,15 @@ Error DeviceCodeLinker::addTo(const EmbDeviceCode &devCode,
     report_internal_error("Unexpected format of embedded device code");
 }
 
-Expected<unsigned> DeviceCodeLinker::add(MemoryBufferRef memBuf) {
-  return ctx.add(memBuf);
-}
+Expected<OwningBinary<ObjectFile>>
+DeviceCodeLinker::linkStatic(StringRef triple) {
+  Expected<OwningBinary<ObjectFile>> result = createEmptyObject(triple);
+  if (not result)
+    return result.takeError();
 
-Expected<LinkedDeviceCode> DeviceCodeLinker::linkStatic(StringRef triple) {
-  LinkedDeviceCode result;
-  for (TTID tt : ctx.getTTIDs()) {
+  for (const auto &[arch, devCodes] : ctx) {
     NewArchiveMembers members;
-    for (const EmbDeviceCode &devCode : ctx.get(tt))
+    for (const EmbDeviceCode &devCode : ctx)
       if (Error e = addTo(devCode, members))
         return e;
 
@@ -75,21 +76,31 @@ Expected<LinkedDeviceCode> DeviceCodeLinker::linkStatic(StringRef triple) {
                              /*Thin=*/false);
     RETURN_IF_ERROR(archive);
 
-    std::optional<StringRef> section = getSectionForTTID(tt);
+    std::optional<StringRef> section = getSectionForArch(arch);
     if (not section)
       report_internal_error("Could not get section to embed device code");
 
-    Expected<OwningBinary<ObjectFile>> wrapperObj = embedIntoNewObject(
-        triple, (*archive)->getMemBufferRef(), *section);
-    RETURN_IF_ERROR(wrapperObj);
-
-    result.add(std::move(*wrapperObj));
+    result = embedIntoObject(std::move(*result), std::move(*archive), *section);
+    if (not result)
+      return result.takeError();
   }
   return result;
 }
 
-Expected<LinkedDeviceCode> DeviceCodeLinker::linkFatBinary(StringRef triple) {
-  LinkedDeviceCode result;
+Expected<OwningBinary<ObjectFile>>
+DeviceCodeLinker::linkFatBinary(StringRef triple) {
+  OwningBinary<ObjectFile> result;
   llvm_unreachable("NOT YET IMPLEMENTED: linkFatBinary");
   return result;
+}
+
+Expected<OwningBinary<ObjectFile>>
+DeviceCodeLinker::link(DeviceCodeLinker::Mode mode, StringRef triple) {
+  switch (mode) {
+  case Mode::Static:
+    return linkStatic(triple);
+  case Mode::FatBin:
+    return linkFatBinary(triple);
+  }
+  llvm_unreachable("DeviceCodeLinker::link: Mode not handled");
 }

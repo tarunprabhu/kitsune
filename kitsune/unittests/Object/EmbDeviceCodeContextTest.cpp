@@ -59,6 +59,7 @@ static const CompressedBinary sm80(
 TEST(EmbDeviceCodeContextTest, init) {
   EmbDeviceCodeContext ctx;
 
+  EXPECT_TRUE(ctx.empty());
   EXPECT_TRUE(ctx.getTTIDs().empty());
   EXPECT_TRUE(ctx.get(TTID::Cuda).empty());
   EXPECT_TRUE(ctx.get(TTID::Hip).empty());
@@ -67,6 +68,15 @@ TEST(EmbDeviceCodeContextTest, init) {
   detail::check_err(ctx.getEmbDeviceCodeId(TTID::Cuda));
   detail::check_err(ctx.getEmbDeviceCodeId(TTID::Hip));
   detail::check_false(ctx.contains(*elfEmpty));
+}
+
+TEST(EmbDeviceCodeContextTest, empty) {
+  EmbDeviceCodeContext ctx;
+  const std::unique_ptr<ObjectFile> bin72 = o(sm72);
+
+  Expected<unsigned> res = ctx.add(cast<Binary>(*bin72));
+  detail::check_eq(std::move(res), 1);
+  EXPECT_FALSE(ctx.empty());
 }
 
 TEST(EmbDeviceCodeContextTest, getEmbDeviceCodeIdFail) {

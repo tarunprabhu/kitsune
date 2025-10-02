@@ -1,8 +1,8 @@
 # REQUIRES: kitsune-hip
 #
-# RUN: %kitconf --hip-target | FileCheck %s -check-prefix ON
-# RUN: %kitconf --hip-prefix | FileCheck %s --check-prefix PREFIX
-# RUN: %kitconf --tapir-targets | FileCheck %s -check-prefix TARGETS
+# RUN: kit-config --hip-target | FileCheck %s -check-prefix ON
+# RUN: kit-config --hip-prefix | FileCheck %s --check-prefix PREFIX
+# RUN: kit-config --tapir-targets | FileCheck %s -check-prefix TARGETS
 #
 # ON: ON
 # PREFIX: /{{.+}}

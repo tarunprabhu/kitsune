@@ -58,6 +58,7 @@ list(APPEND KITSUNE_TEST_DEPS
   KitsuneUnitTests
   kit-config
   kit-enc
+  kit-linkdc
   kit-mbc
   kit-mdc
   kitsune-resource-headers

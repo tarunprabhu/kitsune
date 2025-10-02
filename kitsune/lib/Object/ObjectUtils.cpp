@@ -42,6 +42,31 @@ static std::optional<TTID> getTTIDForSection(SectionRef section) {
   return std::nullopt;
 }
 
+/// Create an object file from the raw data. Create a copy of the data and take
+/// ownership of it.
+static Expected<OwningBinary<ObjectFile>> createObjectFile(StringRef data,
+                                                           StringRef name) {
+  std::unique_ptr<MemoryBuffer> memBuf =
+      MemoryBuffer::getMemBufferCopy(data, name);
+  Expected<std::unique_ptr<ObjectFile>> obj =
+      ObjectFile::createObjectFile(memBuf->getMemBufferRef());
+  if (not obj)
+    return obj.takeError();
+  return OwningBinary<ObjectFile>(std::move(*obj), std::move(memBuf));
+}
+
+/// Run objcopy on the given object. Discard the original object and return a
+/// new object.
+static Expected<OwningBinary<ObjectFile>>
+runObjcopy(const objcopy::ConfigManager &confMgr, OwningBinary<ObjectFile> in) {
+  SmallString<1024> buf;
+  raw_svector_ostream os(buf);
+  ObjectFile &obj = *in.getBinary();
+  if (Error err = objcopy::executeObjcopyOnBinary(confMgr, obj, os))
+    return err;
+  return createObjectFile(buf.str(), obj.getFileName());
+}
+
 Expected<std::unique_ptr<ObjectFile>>
 llvm::object::createObjectFileFrom(StringRef data) {
   return ObjectFile::createObjectFile(MemoryBufferRef(data, ""));
@@ -89,8 +114,31 @@ llvm::object::getEmbDeviceCodeTTIDs(const ObjectFile &objFile) {
   return tts.takeVector();
 }
 
-static SmallString<1024> createEmptyObject(StringRef triple) {
-  TargetMachine *tm = createTargetMachine(triple.str());
+#define ADD_MATCHER(conf, sec, style)                                          \
+  do {                                                                         \
+    if (Error err = (conf).ToRemove.addMatcher(                                \
+            objcopy::NameOrPattern::create((sec), (style), errIdent)))         \
+      return err;                                                              \
+  } while (0)
+
+static Error errIdent(Error e) { return e; }
+
+static Error addELFSectionsToRemove(objcopy::CommonConfig &conf) {
+  // if (Error err = conf.ToRemove.addMatcher(objcopy::NameOrPattern::create(
+  //         *secName, objcopy::MatchStyle::Literal, errIdent)))
+  //   return err;
+  ADD_MATCHER(conf, ".text", objcopy::MatchStyle::Literal);
+  ADD_MATCHER(conf, "^$", objcopy::MatchStyle::Regex);
+  return Error::success();
+}
+
+static Error addMachOSectionsToRemove(objcopy::CommonConfig &conf) {
+  llvm_unreachable("addMachOSectionsToRemove: NOT YET IMPLEMENTED");
+}
+
+Expected<OwningBinary<ObjectFile>>
+llvm::object::createEmptyObject(StringRef triple, StringRef name) {
+  TargetMachine *tm = createTargetMachine(triple);
   assert(tm && "Could not get target machine");
 
   LLVMContext ctx;
@@ -106,34 +154,35 @@ static SmallString<1024> createEmptyObject(StringRef triple) {
     report_internal_error("createEmptyObject: ", ec);
   passMgr.run(m);
 
-  return buf;
-}
-
-Expected<OwningBinary<ObjectFile>>
-llvm::object::embedIntoNewObject(StringRef triple, MemoryBufferRef payload,
-                                 StringRef section,
-                                 std::optional<StringRef> startSymbol) {
-  SmallString<1024> inBuf = createEmptyObject(triple);
-  Expected<std::unique_ptr<ObjectFile>> in = createObjectFileFrom(inBuf.str());
-  RETURN_IF_ERROR(in);
+  Expected<OwningBinary<ObjectFile>> obj = createObjectFile(buf.str(), name);
+  if (not obj)
+    return obj.takeError();
 
   objcopy::ConfigManager confMgr;
   objcopy::CommonConfig &conf = confMgr.Common;
 
-  // Strip all symbols and other unnecessary things.
   conf.StripAll = true;
+  if (obj->getBinary()->isELF()) {
+    if (Error err = addELFSectionsToRemove(conf))
+      return err;
+  } else if (obj->getBinary()->isMachO()) {
+    if (Error err = addMachOSectionsToRemove(conf))
+      return err;
+  } else {
+    llvm_unreachable("createEmptyObject: File format not handled yet");
+  }
 
-  // StripAll does not remove the .text section, so add that to the list of
-  // things to remove explicitly.
-  auto errFn = [](Error e) -> Error { return e; };
-  if (Error e = conf.ToRemove.addMatcher(objcopy::NameOrPattern::create(
-          "[.]text.*", objcopy::MatchStyle::Regex, errFn)))
-    return e;
+  return runObjcopy(confMgr, std::move(*obj));
+}
+
+Expected<OwningBinary<ObjectFile>> llvm::object::embedIntoObject(
+    OwningBinary<ObjectFile> in, std::unique_ptr<MemoryBuffer> payload,
+    StringRef section, std::optional<StringRef> startSymbol) {
+  objcopy::ConfigManager confMgr;
+  objcopy::CommonConfig &conf = confMgr.Common;
 
   // Add the section that was requested.
-  conf.AddSection.emplace_back(
-      section,
-      MemoryBuffer::getMemBuffer(payload, /*RequiresNullTerminator=*/false));
+  conf.AddSection.emplace_back(section, std::move(payload));
 
   // Set the flags on the new section to be added.
   objcopy::SectionFlag flags = objcopy::SecAlloc | objcopy::SecLoad |
@@ -153,18 +202,7 @@ llvm::object::embedIntoNewObject(StringRef triple, MemoryBufferRef payload,
         *startSymbol, section, /*Value=*/0, symFlags, {}});
   }
 
-  SmallString<1024> buf;
-  raw_svector_ostream os(buf);
-  if (Error e = objcopy::executeObjcopyOnBinary(confMgr, **in, os))
-    return e;
-
-  std::unique_ptr<MemoryBuffer> memBuf =
-      MemoryBuffer::getMemBufferCopy(buf.str(), "");
-  Expected<std::unique_ptr<ObjectFile>> res =
-      ObjectFile::createObjectFile(*memBuf);
-  if (not res)
-    return res.takeError();
-  return OwningBinary<ObjectFile>(std::move(*res), std::move(memBuf));
+  return std::move(runObjcopy(confMgr, std::move(in)));
 }
 
 static Expected<EmbDeviceCode> parseSection(SectionRef sec) {
@@ -183,7 +221,7 @@ static Expected<EmbDeviceCode> parseSection(SectionRef sec) {
   //
   //   struct {
   //     uint64_t id;  // The EmbDeviceCode::Id
-  //     byte code[];  // The embedded code.
+  //     byte code[];  // The embedded code
   //   };
   //
   if (sec.getSize() <= 8)
@@ -196,9 +234,10 @@ static Expected<EmbDeviceCode> parseSection(SectionRef sec) {
 
   // The contents of the section must be something that is expected.
   if (isObject(objFile)) {
-    if (not isObject(code))
-      return createStringError("embedded device code in relocatable object "
-                               "must be a relocatable object");
+    if (not isObject(code) and not isArchive(code))
+      return createStringError(
+          "embedded device code in relocatable object "
+          "must be a relocatable object or a static archive");
   } else if (isShared(objFile)) {
     if (not isArchive(code))
       return createStringError("embedded device code in dynamic shared object "

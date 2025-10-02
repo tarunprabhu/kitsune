@@ -131,10 +131,6 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 // a pointer to the singleton fat binary.
 #define KITSUNE_CUDA_BUNDLE_SECTION ".nvFatBinSegment"
 
-// The name of the section containing one or more relocatable AMDGPU code
-// objects
-#define KITSUNE_CUDA_CODE_SECTION ".kit.code.cuda"
-
 // -----------------------------------------------------------------------------
 
 // Is the hip tapir target enabled
@@ -174,10 +170,6 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 // bundle is a struct consisting of a magic number, the object code version and
 // a pointer to the singleton fat binary.
 #define KITSUNE_HIP_BUNDLE_SECTION ".hipFatBinSegment"
-
-// The name of the section containing one or more relocatable AMDGPU code
-// objects
-#define KITSUNE_HIP_CODE_SECTION ".kit.code.hip"
 
 // -----------------------------------------------------------------------------
 
