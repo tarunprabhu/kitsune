@@ -65,12 +65,6 @@ public:
   LambdaABI(Module &M, const TapirTargetOptions &opts);
   ~LambdaABI() { DetachCtxToStackFrame.clear(); }
 
-  /// FIXME: Option support for this tapir target is currently limited.
-  /// Eventually, a specific options class must be created for this target and
-  /// that must be returned. For now, calling either of these methods will
-  /// result in a catastrophic failure.
-  const TapirTargetOptions &getOptions() const override final;
-
   void prepareModule() override final;
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
   void lowerSync(SyncInst &SI) override final;

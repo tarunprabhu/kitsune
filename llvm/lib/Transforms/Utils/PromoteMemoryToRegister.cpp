@@ -890,9 +890,10 @@ void PromoteMem2Reg::run() {
     IDF.setDefiningBlocks(DefBlocks);
     SmallVector<BasicBlock *, 32> PHIBlocks;
     IDF.calculate(PHIBlocks);
-    llvm::sort(PHIBlocks, [](BasicBlock *A, BasicBlock *B) {
-      return A->getNumber() < B->getNumber();
-    });
+    if (PHIBlocks.size() > 1)
+      llvm::sort(PHIBlocks, [](BasicBlock *A, BasicBlock *B) {
+        return A->getNumber() < B->getNumber();
+      });
 
     unsigned CurrentVersion = 0;
     for (BasicBlock *BB : PHIBlocks)

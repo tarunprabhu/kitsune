@@ -1915,21 +1915,6 @@ bool SimplifyCFGOpt::hoistCommonCodeFromSuccessors(Instruction *TI,
 
     Instruction *I1 = &*BB1ItrPair.first;
 
-    // Skip debug info if it is not identical.
-    bool AllDbgInstsAreIdentical = all_of(OtherSuccIterRange, [I1](auto &Iter) {
-      Instruction *I2 = &*Iter;
-      return I1->isIdenticalToWhenDefined(I2);
-    });
-    if (!AllDbgInstsAreIdentical) {
-      while (isa<DbgInfoIntrinsic>(I1))
-        I1 = &*++BB1ItrPair.first;
-      for (auto &SuccIter : OtherSuccIterRange) {
-        Instruction *I2 = &*SuccIter;
-        while (isa<DbgInfoIntrinsic>(I2))
-          I2 = &*++SuccIter;
-      }
-    }
-
     // Skip Tapir intrinsics if they are not identical.
     bool AllTapirIntrinsicsAreIdentical = all_of(OtherSuccIterRange, [I1](auto &Iter) {
       Instruction *I2 = &*Iter;
@@ -3079,19 +3064,19 @@ static Value *isSafeToSpeculateStore(Instruction *I, BasicBlock *BrBB,
       if (LI->getPointerOperand() == StorePtr && LI->getType() == StoreTy &&
           LI->isSimple() && LI->getAlign() >= StoreToHoist->getAlign()) {
         Value *Obj = getUnderlyingObject(StorePtr);
+        Instruction *ObjI = dyn_cast_or_null<Instruction>(Obj);
         bool ExplicitlyDereferenceableOnly;
         if (isWritableObject(Obj, ExplicitlyDereferenceableOnly) &&
             capturesNothing(
                 PointerMayBeCaptured(Obj, /*ReturnCaptures=*/false,
                                      CaptureComponents::Provenance)) &&
+            (!ObjI || GetDetachedCtx(LI->getParent()) ==
+                          GetDetachedCtx(ObjI->getParent())) &&
             (!ExplicitlyDereferenceableOnly ||
              isDereferenceablePointer(StorePtr, StoreTy,
                                       LI->getDataLayout()))) {
-          AllocaInst *AI = dyn_cast<AllocaInst>(Obj);
-          BasicBlock *DetachedCtx = GetDetachedCtx(LI->getParent());
-          if (AI && (DetachedCtx == GetDetachedCtx(AI->getParent()))) {
-            return LI;
-          }
+          // Found a previous load, return it.
+          return LI;
         }
       }
       // The load didn't work out, but we may still find a store.
@@ -5454,8 +5439,8 @@ bool SimplifyCFGOpt::simplifySingleResume(ResumeInst *RI) {
   for (const BasicBlock *Pred : predecessors(BB))
     if (isTaskFrameResume(Pred->getTerminator()) &&
         isTaskFrameUnassociated(
-              cast<InvokeInst>(Pred->getTerminator())->getArgOperand(0)))
-        return false;
+            cast<InvokeInst>(Pred->getTerminator())->getArgOperand(0)))
+      return false;
 
   // If this block is a successor of both a detach and a detached.rethrow,
   // check the detached.rethrow predecessors.
@@ -5761,9 +5746,10 @@ bool SimplifyCFGOpt::simplifyUnreachable(UnreachableInst *UI) {
           DTU->applyUpdates(Updates);
           Updates.clear();
         }
-        auto *CI = cast<CallInst>(removeUnwindEdge(TI->getParent(), DTU));
-        if (!CI->doesNotThrow())
-          CI->setDoesNotThrow();
+        if (auto *CI =
+                dyn_cast<CallInst>(removeUnwindEdge(TI->getParent(), DTU)))
+          if (!CI->doesNotThrow())
+            CI->setDoesNotThrow();
         Changed = true;
       }
     } else if (auto *CSI = dyn_cast<CatchSwitchInst>(TI)) {
@@ -8575,7 +8561,7 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB,
 /// reattach.
 static bool serializeDetachToImmediateSync(BasicBlock *BB,
                                            DomTreeUpdater *DTU) {
-  Instruction *I = &*BB->getFirstNonPHIOrDbgOrLifetime();
+  auto I = BB->getFirstNonPHIOrDbgOrLifetime();
   if (isa<SyncInst>(I)) {
     // This block is empty
     bool Changed = false;
@@ -8655,27 +8641,27 @@ static bool serializeDetachToImmediateSync(BasicBlock *BB,
 /// remove the blocks appropriately.  Return false if BB does not terminate with
 /// a reattach or predecessor does terminate with detach.
 static bool serializeTrivialDetachedBlock(BasicBlock *BB, DomTreeUpdater *DTU) {
-  Instruction *I = &*BB->getFirstNonPHIOrDbgOrLifetime();
+  auto I = BB->getFirstNonPHIOrDbgOrLifetime();
   SmallVector<Instruction *, 2> ToErase;
   // Skip a possible taskframe.use intrinsic in the task.
   if (isTapirIntrinsic(Intrinsic::taskframe_use, I)) {
     Value *TaskFrame = cast<IntrinsicInst>(I)->getArgOperand(0);
     // Check for any other uses of TaskFrame.
     for (User *U : TaskFrame->users())
-      if (U != I)
+      if (U != &*I)
         // We found another use of the taskframe, making it too complicated for
         // us to handle.  Abort.
         return false;
-    ToErase.push_back(I);
+    ToErase.push_back(&*I);
     ToErase.push_back(cast<Instruction>(TaskFrame));
-    I = &*(++(I->getIterator()));
+    ++I;
   }
   if (ReattachInst *RI = dyn_cast<ReattachInst>(I)) {
     // This detached block is empty.
     // Scan predecessors to verify that all of them detach BB.
     for (BasicBlock *PredBB : predecessors(BB)) {
       if (!isa<DetachInst>(PredBB->getTerminator()))
-	return false;
+        return false;
     }
     // All predecessors detach BB, so we can serialize.  Copy the predecessors
     // into a separate vector, so we can safely remove the predecessors.
@@ -8781,8 +8767,8 @@ static bool removeEmptySyncs(BasicBlock *BB) {
       SmallPtrSet<CallBase *, 1> MaybeDeadSyncUnwinds;
       for (SyncInst *Sync : Syncs) {
         // Check for any sync.unwinds that might now be dead.
-        Instruction *MaybeSyncUnwind =
-            &*Sync->getSuccessor(0)->getFirstNonPHIOrDbgOrLifetime();
+        auto MaybeSyncUnwind =
+            Sync->getSuccessor(0)->getFirstNonPHIOrDbgOrLifetime();
         if (isSyncUnwind(MaybeSyncUnwind, SyncRegion))
           MaybeDeadSyncUnwinds.insert(cast<CallBase>(MaybeSyncUnwind));
 

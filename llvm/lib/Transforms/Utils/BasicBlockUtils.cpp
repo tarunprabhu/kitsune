@@ -958,7 +958,7 @@ static BasicBlock *SplitBlockImpl(BasicBlock *Old, BasicBlock::iterator SplitPt,
       }
 
     DTU->applyUpdates(Updates);
-  } else if (DT) {
+  } else if (DT)
     // Old dominates New. New node dominates all other nodes dominated by Old.
     if (DomTreeNode *OldNode = DT->getNode(Old)) {
       std::vector<DomTreeNode *> Children(OldNode->begin(), OldNode->end());
@@ -966,7 +966,6 @@ static BasicBlock *SplitBlockImpl(BasicBlock *Old, BasicBlock::iterator SplitPt,
       DomTreeNode *NewNode = DT->addNewBlock(New, Old);
       for (DomTreeNode *I : Children)
         DT->changeImmediateDominator(I, NewNode);
-    }
   }
 
   // Move MemoryAccesses still tracked in Old, but part of New now.

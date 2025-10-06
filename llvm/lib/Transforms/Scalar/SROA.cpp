@@ -175,7 +175,7 @@ class SROA {
   LLVMContext *const C;
   DomTreeUpdater *const DTU;
   AssumptionCache *const AC;
-  TaskInfo *TI;
+  TaskInfo *const TI;
   const bool PreserveCFG;
 
   /// Worklist of alloca instructions to simplify.
@@ -5913,8 +5913,8 @@ std::pair<bool /*Changed*/, bool /*CFGChanged*/> SROA::runSROA(Function &F) {
 PreservedAnalyses SROAPass::run(Function &F, FunctionAnalysisManager &AM) {
   DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
   AssumptionCache &AC = AM.getResult<AssumptionAnalysis>(F);
-  TaskInfo& TI = AM.getResult<TaskAnalysis>(F);
   DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
+  TaskInfo &TI = AM.getResult<TaskAnalysis>(F);
   auto [Changed, CFGChanged] =
       SROA(&F.getContext(), &DTU, &AC, &TI, PreserveCFG).runSROA(F);
   if (!Changed)
@@ -5959,7 +5959,7 @@ public:
     AssumptionCache &AC =
         getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
     DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
-    TaskInfo& TI = getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
+    TaskInfo &TI = getAnalysis<TaskInfoWrapperPass>().getTaskInfo();
     auto [Changed, _] =
         SROA(&F.getContext(), &DTU, &AC, &TI, PreserveCFG).runSROA(F);
     return Changed;

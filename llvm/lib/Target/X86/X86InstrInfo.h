@@ -620,6 +620,10 @@ public:
                             Register SrcReg2, int64_t CmpMask, int64_t CmpValue,
                             const MachineRegisterInfo *MRI) const override;
 
+  std::optional<BlockBRNZ> isZeroTest(MachineBasicBlock &MBB) const override;
+  bool isSetConstant(const MachineInstr &MI, Register &Reg,
+                     int64_t &Value) const override;
+
   bool foldImmediate(MachineInstr &UseMI, MachineInstr &DefMI, Register Reg,
                      MachineRegisterInfo *MRI) const override;
 

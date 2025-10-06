@@ -262,8 +262,8 @@ public:
   /// This pipeline is intended to be used early within
   /// buildTapirLoweringPipeline at Level > O0 or run on its own for debugging
   /// purposes.
-  ModulePassManager buildTapirLoopLoweringPipeline(OptimizationLevel Level,
-                                                   ThinOrFullLTOPhase Phase);
+  LLVM_ABI ModulePassManager buildTapirLoopLoweringPipeline(
+      OptimizationLevel Level, ThinOrFullLTOPhase Phase);
 
   /// Construct the pipeline for lowering Tapir constructs to a target parallel
   /// runtime.
@@ -271,16 +271,16 @@ public:
   /// This pipeline is intended to be used with the PerModuleDefault pipeline
   /// and various LTO pipelines to lower Tapir constructs.  This pipeline is
   /// expected to run late in the parent pipelines.
-  ModulePassManager buildTapirLoweringPipeline(OptimizationLevel Level,
-                                               ThinOrFullLTOPhase Phase);
+  LLVM_ABI ModulePassManager
+  buildTapirLoweringPipeline(OptimizationLevel Level, ThinOrFullLTOPhase Phase);
 
   /// Construct the pipeline to lower Tapir constructs with Kitsune passes
   /// running on either side of the tapir lowering.
   ///
   /// This is intended to be used with the PerModuleDefault pipeline and various
   /// LTO pipelines. This runs late in the parent pipelines.
-  ModulePassManager buildKitsuneLoweringPipeline(OptimizationLevel,
-                                                 ThinOrFullLTOPhase Phase);
+  LLVM_ABI ModulePassManager 
+  buildKitsuneLoweringPipeline(OptimizationLevel, ThinOrFullLTOPhase Phase);
 
   /// Build a per-module default optimization pipeline.
   ///

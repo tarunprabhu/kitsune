@@ -805,6 +805,8 @@ enum AttributeKindCodes {
   ATTR_KIND_DEAD_ON_RETURN = 103,
   ATTR_KIND_SANITIZE_CILK = 104,
   ATTR_KIND_STEALABLE = 105,
+
+  // ---------------------- Kitsune-specific attributes ----------------------
   ATTR_KIND_KIT_TT = 106,
   ATTR_KIND_KIT_BC = 107,
   ATTR_KIND_KIT_FB = 108,

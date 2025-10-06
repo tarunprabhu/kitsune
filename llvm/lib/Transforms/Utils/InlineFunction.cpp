@@ -2084,10 +2084,10 @@ static Value *HandleByValArgument(Type *ByValType, Value *Arg,
   AllocaInst *NewAlloca =
       new AllocaInst(ByValType, Arg->getType()->getPointerAddressSpace(),
                      nullptr, Alignment, Arg->getName());
+  NewAlloca->setDebugLoc(DebugLoc::getCompilerGenerated());
   BasicBlock::iterator InsertPoint = NewCtx->begin();
   if (isTaskFrameCreate(*InsertPoint))
     InsertPoint++;
-  NewAlloca->setDebugLoc(DebugLoc::getCompilerGenerated());
   NewAlloca->insertBefore(InsertPoint);
   IFI.StaticAllocas.push_back(NewAlloca);
 
@@ -2781,8 +2781,8 @@ static BasicBlock *SplitResume(ResumeInst *RI, Intrinsic::ID TermFunc,
 
   // Invoke the specified terminator function at the end of the old block.
   InvokeInst *TermFuncInvoke = InvokeInst::Create(
-      Intrinsic::getOrInsertDeclaration(M, TermFunc, { RIValue->getType() }),
-      Unreachable, NewBB, { Token, RIValue });
+      Intrinsic::getOrInsertDeclaration(M, TermFunc, {RIValue->getType()}),
+      Unreachable, NewBB, {Token, RIValue});
   ReplaceInstWithInst(OldBB->getTerminator(), TermFuncInvoke);
 
   // Insert a landingpad at the start of the new block.

@@ -249,8 +249,8 @@ LLVM_ABI void CloneAndPruneIntoFromInst(
 LLVM_ABI void CloneAndPruneFunctionInto(
     Function *NewFunc, const Function *OldFunc, ValueToValueMapTy &VMap,
     bool ModuleLevelChanges, SmallVectorImpl<ReturnInst *> &Returns,
-    SmallVectorImpl<ResumeInst *> &Resumes,
-    const char *NameSuffix = "", ClonedCodeInfo *CodeInfo = nullptr);
+    SmallVectorImpl<ResumeInst *> &Resumes, const char *NameSuffix = "",
+    ClonedCodeInfo *CodeInfo = nullptr);
 
 /// This class captures the data input to the InlineFunction call, and records
 /// the auxiliary results produced by it.

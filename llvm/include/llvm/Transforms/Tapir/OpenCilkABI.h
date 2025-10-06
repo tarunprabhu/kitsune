@@ -74,16 +74,24 @@ class OpenCilkABI final : public TapirTarget {
   // Otherwise, these functions will return FunctionCallees for placeholder
   // declarations of these functions.  The latter case is intended for debugging
   // ABI-call insertion.
-  FunctionCallee Get__cilkrts_enter_frame() { return CilkRTSEnterFrame; }
+  FunctionCallee Get__cilkrts_enter_frame() {
+    return CilkRTSEnterFrame;
+  }
   FunctionCallee Get__cilkrts_enter_frame_helper() {
     return CilkRTSEnterFrameHelper;
   }
-  FunctionCallee Get__cilkrts_detach() { return CilkRTSDetach; }
-  FunctionCallee Get__cilkrts_leave_frame() { return CilkRTSLeaveFrame; }
+  FunctionCallee Get__cilkrts_detach() {
+    return CilkRTSDetach;
+  }
+  FunctionCallee Get__cilkrts_leave_frame() {
+    return CilkRTSLeaveFrame;
+  }
   FunctionCallee Get__cilkrts_leave_frame_helper() {
     return CilkRTSLeaveFrameHelper;
   }
-  FunctionCallee Get__cilkrts_pause_frame() { return CilkRTSPauseFrame; }
+  FunctionCallee Get__cilkrts_pause_frame() {
+    return CilkRTSPauseFrame;
+  }
   FunctionCallee Get__cilkrts_enter_landingpad() {
     return CilkRTSEnterLandingpad;
   }
@@ -109,15 +117,29 @@ class OpenCilkABI final : public TapirTarget {
   FunctionCallee Get__cilkrts_reducer_unregister() {
     return CilkRTSReducerUnregister;
   }
-  FunctionCallee Get__cilkrts_reducer_lookup() { return CilkRTSReducerLookup; }
+  FunctionCallee Get__cilkrts_reducer_lookup() {
+    return CilkRTSReducerLookup;
+  }
 
   // Helper functions for implementing the Cilk ABI protocol
-  FunctionCallee GetCilkPrepareSpawnFn() { return CilkPrepareSpawn; }
-  FunctionCallee GetCilkSyncFn() { return CilkSync; }
-  FunctionCallee GetCilkSyncNoThrowFn() { return CilkSyncNoThrow; }
-  FunctionCallee GetCilkParentEpilogueFn() { return CilkParentEpilogue; }
-  FunctionCallee GetCilkHelperEpilogueFn() { return CilkHelperEpilogue; }
-  FunctionCallee GetCilkHelperEpilogueExnFn() { return CilkHelperEpilogueExn; }
+  FunctionCallee GetCilkPrepareSpawnFn() {
+    return CilkPrepareSpawn;
+  }
+  FunctionCallee GetCilkSyncFn() {
+    return CilkSync;
+  }
+  FunctionCallee GetCilkSyncNoThrowFn() {
+    return CilkSyncNoThrow;
+  }
+  FunctionCallee GetCilkParentEpilogueFn() {
+    return CilkParentEpilogue;
+  }
+  FunctionCallee GetCilkHelperEpilogueFn() {
+    return CilkHelperEpilogue;
+  }
+  FunctionCallee GetCilkHelperEpilogueExnFn() {
+    return CilkHelperEpilogueExn;
+  }
 
   void GetTapirRTCalls(Spindle *TaskFrame, bool IsRootTask, TaskInfo &TI);
   void LowerTapirRTCalls(Function &F, CallVector &Calls);

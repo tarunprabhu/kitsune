@@ -42,8 +42,8 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Module.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/ProfDataUtils.h"
 #include "llvm/IR/Use.h"
@@ -3627,7 +3627,7 @@ static bool unswitchBestCondition(Loop &L, DominatorTree &DT, LoopInfo &LI,
 static bool unswitchLoop(Loop &L, DominatorTree &DT, LoopInfo &LI,
                          AssumptionCache &AC, AAResults &AA,
                          TargetTransformInfo &TTI, bool Trivial,
-                         bool NonTrivial, ScalarEvolution *SE, TaskInfo* TaskI,
+                         bool NonTrivial, ScalarEvolution *SE, TaskInfo *TaskI,
                          MemorySSAUpdater *MSSAU, ProfileSummaryInfo *PSI,
                          BlockFrequencyInfo *BFI, LPMUpdater &LoopUpdater) {
   assert(L.isRecursivelyLCSSAForm(DT, LI) &&
@@ -3710,7 +3710,8 @@ static bool unswitchLoop(Loop &L, DominatorTree &DT, LoopInfo &LI,
 
   // Try to unswitch the best invariant condition. We prefer this full unswitch to
   // a partial unswitch when possible below the threshold.
-  if (unswitchBestCondition(L, DT, LI, AC, AA, TTI, SE, TaskI, MSSAU, LoopUpdater))
+  if (unswitchBestCondition(L, DT, LI, AC, AA, TTI, SE, TaskI, MSSAU,
+                            LoopUpdater))
     return true;
 
   // No other opportunities to unswitch.

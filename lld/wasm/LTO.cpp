@@ -11,7 +11,6 @@
 #include "InputFiles.h"
 #include "Symbols.h"
 #include "kitsune/Core/TapirTargetOptions.h"
-#include "lld/Common/Args.h"
 #include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/Filesystem.h"

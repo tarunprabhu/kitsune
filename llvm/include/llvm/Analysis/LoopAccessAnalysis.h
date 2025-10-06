@@ -362,7 +362,7 @@ private:
   std::optional<ScalarEvolution::LoopGuards> LoopGuards;
 
   /// Optional TaskInfo
-  TaskInfo *TI = nullptr;
+  TaskInfo *TI;
 
   /// Check whether there is a plausible dependence between the two
   /// accesses.

@@ -116,8 +116,6 @@ class MemoryAccess;
 class MemorySSAWalker;
 class Module;
 class TaskInfo;
-class Use;
-class Value;
 class raw_ostream;
 
 namespace MSSAHelpers {
@@ -706,8 +704,7 @@ class MemorySSA {
 public:
   LLVM_ABI MemorySSA(Function &, AliasAnalysis *, DominatorTree *,
                      TaskInfo * = nullptr);
-  LLVM_ABI MemorySSA(Loop &, AliasAnalysis *, DominatorTree *,
-                     TaskInfo * = nullptr);
+  LLVM_ABI MemorySSA(Loop &, AliasAnalysis *, DominatorTree *);
 
   // MemorySSA must remain where it's constructed; Walkers it creates store
   // pointers to it.
@@ -887,9 +884,9 @@ private:
   void renumberBlock(const BasicBlock *) const;
   AliasAnalysis *AA = nullptr;
   DominatorTree *DT;
+  TaskInfo *TI = nullptr;
   Function *F = nullptr;
   Loop *L = nullptr;
-  TaskInfo *TI = nullptr;
 
   // Memory SSA mappings
   DenseMap<const Value *, MemoryAccess *> ValueToMemoryAccess;

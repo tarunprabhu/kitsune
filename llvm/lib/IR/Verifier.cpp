@@ -5795,7 +5795,7 @@ void Verifier::visitInstruction(Instruction &I) {
                 IsAttachedCallOperand(F, CBI, i),
             "Cannot invoke an intrinsic other than donothing, patchpoint, "
             "statepoint, coro_resume, coro_destroy, detached_rethrow, "
-            "taskframe_resume, sync_unwind or clang.arc.attachedcall or "
+            "taskframe_resume, sync_unwind, clang.arc.attachedcall or "
             "wasm.(re)throw",
             &I);
       Check(F->getParent() == &M, "Referencing function in another module!", &I,
@@ -7144,7 +7144,8 @@ void Verifier::visitIntrinsicCall(Intrinsic::ID ID, CallBase &Call) {
       for (const DetachInst *DI2 : DetachUsers)
         if (DI1 != DI2)
           Check(!DT.dominates(DI1->getDetached(), DI2->getParent()),
-                "One detach user of a sync region dominates another", DI1, DI2);
+                "One detach user of a sync region dominates another",
+                DI1, DI2);
     break;
   }
   case Intrinsic::tapir_runtime_start: {

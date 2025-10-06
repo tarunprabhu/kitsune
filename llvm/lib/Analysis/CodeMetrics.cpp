@@ -131,7 +131,7 @@ static bool extendsConvergenceOutsideLoop(const Instruction &I, const Loop *L) {
 void CodeMetrics::analyzeBasicBlock(
     const BasicBlock *BB, const TargetTransformInfo &TTI,
     const SmallPtrSetImpl<const Value *> &EphValues, bool PrepareForLTO,
-    const Loop *L, TargetLibraryInfo* TLI) {
+    const Loop *L, TargetLibraryInfo *TLI) {
   ++NumBlocks;
   InstructionCost NumInstsBeforeThisBB = NumInsts;
   for (const Instruction &I : *BB) {

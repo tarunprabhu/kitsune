@@ -42,8 +42,8 @@ using namespace llvm;
 
 extern cl::opt<bool> DebugABICalls;
 
-static cl::opt<std::string>
-    ClRuntimeBCPath("omp-bc-path", cl::init(""),
+static cl::opt<std::string> ClRuntimeBCPath(
+    "omp-bc-path", cl::init(""),
                     cl::desc("Path to the bitcode file for the runtime ABI"),
                     cl::Hidden);
 
@@ -102,10 +102,6 @@ struct RTSFnDesc {
 OMPTaskABI::OMPTaskABI(Module &m, const TapirTargetOptions &opts)
     : TapirTarget(m, opts) {
   llvm_unreachable("OMPTaskABI::OMPTaskABI: NOT IMPLEMENTED")
-}
-
-const TapirTargetOptions &OMPTaskABI::getOptions() const {
-  llvm_unreachable("OmpTaskABI::getOptions: NOT IMPLEMENTED");
 }
 
 void OMPTaskABI::prepareModule() {
@@ -301,7 +297,7 @@ static bool skipInstruction(const Instruction &I) {
 
   if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I)) {
     // Skip simple intrinsics
-    switch (II->getIntrinsicID()) {
+    switch(II->getIntrinsicID()) {
     case Intrinsic::annotation:
     case Intrinsic::assume:
     case Intrinsic::sideeffect:
@@ -362,7 +358,7 @@ Value *OMPTaskABI::CreateStackFrame(Function &F) {
   return SF;
 }
 
-Value *OMPTaskABI::GetOrCreateStackFrame(Function &F) {
+Value* OMPTaskABI::GetOrCreateStackFrame(Function &F) {
   if (DetachCtxToStackFrame.count(&F))
     return DetachCtxToStackFrame[&F];
 
@@ -443,7 +439,7 @@ void OMPTaskABI::lowerSync(SyncInst &SI) {
     return;
 
   Value *SF = GetOrCreateStackFrame(Fn);
-  Value *Args[] = {SF};
+  Value *Args[] = { SF };
   assert(Args[0] && "sync used in function without frame!");
 
   Instruction *SyncUnwind = nullptr;
@@ -562,8 +558,8 @@ void OMPTaskABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
     // Get the helper arguments from the task structure.
     Value *ArgsFromTask = IRB.CreateCall(
         RTSGetArgsFromTask, {OMPTask->getArg(1), IRB.getInt64(Alignment)});
-    Value *ArgsCast =
-        IRB.CreateBitOrPointerCast(ArgsFromTask, ArgAlloca->getType());
+    Value *ArgsCast = IRB.CreateBitOrPointerCast(
+        ArgsFromTask, ArgAlloca->getType());
     // Insert call to helper in OMP function helper.
     CallInst *Call = IRB.CreateCall(ReplCall->getCalledFunction(), {ArgsCast});
     Call->setCallingConv(ReplCall->getCallingConv());

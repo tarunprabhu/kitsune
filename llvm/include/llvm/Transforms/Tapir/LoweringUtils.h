@@ -422,10 +422,10 @@ public:
 /// divide-and-conquer.
 class LoopOutlineProcessor {
 protected:
-  /// The original module.
+  /// The Module of the original Tapir code.
   Module &M;
 
-  /// The module into which the outlined functions will be placed.
+  /// The Module into which the outlined Helper functions will be placed.
   Module &DestM;
 
   /// The tapir target options.

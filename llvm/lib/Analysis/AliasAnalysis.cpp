@@ -1074,6 +1074,9 @@ bool llvm::isNoAliasCall(const Value *V) {
 }
 
 bool llvm::isNoAliasCallIfInSameSpindle(const Value *V) {
+  // Upstream tapir returns true if the call has the StrandNoAlias attribute
+  // on the return type. However, this attribute has been removed in Kitsune,
+  // so we assume that it always false.
   if (isa<CallBase>(V))
     return false;
   return isNoAliasCall(V);

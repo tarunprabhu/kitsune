@@ -169,8 +169,8 @@ LLVM_ABI bool sinkRegionForLoopNest(DomTreeNode *, AAResults *, LoopInfo *,
                                     DominatorTree *, TargetLibraryInfo *,
                                     TargetTransformInfo *, Loop *,
                                     MemorySSAUpdater &, ICFLoopSafetyInfo *,
-                                    SinkAndHoistLICMFlags &, TaskInfo *,
-                                    OptimizationRemarkEmitter *);
+                                    SinkAndHoistLICMFlags &,
+                                    TaskInfo *, OptimizationRemarkEmitter *);
 
 /// Walk the specified region of the CFG (defined by all blocks
 /// dominated by the specified block, and that are in the current loop) in depth
@@ -187,8 +187,8 @@ LLVM_ABI bool hoistRegion(DomTreeNode *, AAResults *, LoopInfo *,
                           TargetLibraryInfo *, Loop *, MemorySSAUpdater &,
                           ScalarEvolution *, ICFLoopSafetyInfo *,
                           SinkAndHoistLICMFlags &, TaskInfo *,
-                          OptimizationRemarkEmitter *,
-                          bool, bool AllowSpeculation);
+                          OptimizationRemarkEmitter *, bool,
+                          bool AllowSpeculation);
 
 /// Return true if the induction variable \p IV in a Loop whose latch is
 /// \p LatchBlock would become dead if the exit test \p Cond were removed.

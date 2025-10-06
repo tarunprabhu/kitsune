@@ -4648,14 +4648,20 @@ public:
   /// block (the unwind destination).
   LandingPadInst *getLandingPadInst() const;
 
+  // Shadow Instruction::setInstructionSubclassData with a private forwarding
+  // method so that subclasses cannot accidentally use it.
+  template <typename Bitfield>
+  void setSubclassData(typename Bitfield::Type Value) {
+    Instruction::setSubclassData<Bitfield>(Value);
+  }
+
 private:
   void init(Value *SyncRegion, BasicBlock *Detached, BasicBlock *Continue,
             BasicBlock *Unwind = nullptr);
 };
 
 template <>
-struct OperandTraits<DetachInst> : public VariadicOperandTraits<DetachInst> {
-};
+struct OperandTraits<DetachInst> : public VariadicOperandTraits<DetachInst> {};
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(DetachInst, Value)
 
@@ -4670,16 +4676,16 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(DetachInst, Value)
 /// corresponding to this reattach.
 ///
 class ReattachInst : public Instruction {
-  constexpr static IntrusiveOperandsAllocMarker AllocMarker{2};
-
-  ReattachInst(const ReattachInst &RI);
+  ReattachInst(const ReattachInst &RI, AllocInfo AllocInfo);
   void AssertOK();
   // ReattachInst constructors (where C is a block and SR is a token):
   // ReattachInst(BB *C, Value *SR)          - 'reattach SR, C'
   // ReattachInst(BB *C, Value *SR, Inst *I) - 'reattach SR, C', insert before I
   // ReattachInst(BB *C, Value *SR, BB *I)   - 'reattach SR, C', insert at end
   explicit ReattachInst(BasicBlock *DetachContinue, Value *SyncRegion,
+                        AllocInfo AllocInfo,
                         InsertPosition InsertBefore = nullptr);
+
 protected:
   // Note: Instruction needs to be a friend here to call cloneImpl.
   friend class Instruction;
@@ -4688,8 +4694,9 @@ protected:
 public:
   static ReattachInst *Create(BasicBlock *DetachContinue, Value *SyncRegion,
                               InsertPosition InsertBefore = nullptr) {
+    IntrusiveOperandsAllocMarker AllocMarker{2};
     return new (AllocMarker)
-        ReattachInst(DetachContinue, SyncRegion, InsertBefore);
+        ReattachInst(DetachContinue, SyncRegion, AllocMarker, InsertBefore);
   }
 
   /// Transparently provide more efficient getOperand methods.
@@ -4728,8 +4735,8 @@ public:
 };
 
 template <>
-struct OperandTraits<ReattachInst> : public VariadicOperandTraits<ReattachInst> {
-};
+struct OperandTraits<ReattachInst>
+    : public VariadicOperandTraits<ReattachInst> {};
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ReattachInst, Value)
 
@@ -4741,17 +4748,16 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ReattachInst, Value)
 /// SyncInst - Sync instruction.
 ///
 class SyncInst : public Instruction {
-  constexpr static IntrusiveOperandsAllocMarker AllocMarker{2};
-
   /// Ops list - A sync looks like an unconditional branch to its continuation.
-  SyncInst(const SyncInst &SI);
+  SyncInst(const SyncInst &SI, AllocInfo AllocInfo);
   void AssertOK();
   // SyncInst constructor (where C is a block and SR is a token):
   // SyncInst(BB *C, Value *SR)          - 'sync SR, C'
   // SyncInst(BB *C, Value *SR, Inst *I) - 'sync SR, C'        insert before I
   // SyncInst(BB *C, Value *SR, BB *I)   - 'sync SR, C'        insert at end
   explicit SyncInst(BasicBlock *Continue, Value *SyncRegion,
-                    InsertPosition InsertBefore = nullptr);
+                    AllocInfo AllocInfo, InsertPosition InsertBefore = nullptr);
+
 protected:
   // Note: Instruction needs to be a friend here to call cloneImpl.
   friend class Instruction;
@@ -4760,7 +4766,9 @@ protected:
 public:
   static SyncInst *Create(BasicBlock *Continue, Value *SyncRegion,
                           InsertPosition InsertBefore = nullptr) {
-    return new(AllocMarker) SyncInst(Continue, SyncRegion, InsertBefore);
+    IntrusiveOperandsAllocMarker AllocMarker{2};
+    return new (AllocMarker)
+        SyncInst(Continue, SyncRegion, AllocMarker, InsertBefore);
   }
 
   /// Transparently provide more efficient getOperand methods.
@@ -4795,8 +4803,7 @@ public:
 };
 
 template <>
-struct OperandTraits<SyncInst> : public VariadicOperandTraits<SyncInst> {
-};
+struct OperandTraits<SyncInst> : public VariadicOperandTraits<SyncInst> {};
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(SyncInst, Value)
 

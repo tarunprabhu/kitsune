@@ -1952,11 +1952,10 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
 
   // Lower Tapir if necessary. If the LTO phase is prelink, we should not run
   // the tapir lowering passes. Those should only run at actual link time
-  if (useTapirLowering(Phase, PTO)) {
+  if (useTapirLowering(Phase, PTO))
     MPM.addPass(buildKitsuneLoweringPipeline(Level, Phase));
-  } else {
+  else if (!isLTOPreLink(Phase))
     invokeTapirLoopEndEPCallbacks(MPM, Level);
-  }
 
   return MPM;
 }
@@ -2130,12 +2129,11 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
   invokeTapirLateEPCallbacks(MPM, Level);
 
   // Lower Tapir if necessary
-  if (useTapirLowering(ThinOrFullLTOPhase::ThinLTOPostLink, PTO)) {
+  if (useTapirLowering(ThinOrFullLTOPhase::ThinLTOPostLink, PTO))
     MPM.addPass(buildKitsuneLoweringPipeline(
         Level, ThinOrFullLTOPhase::ThinLTOPostLink));
-  } else {
+  else
     invokeTapirLoopEndEPCallbacks(MPM, Level);
-  }
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -2510,12 +2508,11 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   invokeTapirLateEPCallbacks(MPM, Level);
 
   // Lower Tapir if necessary
-  if (useTapirLowering(ThinOrFullLTOPhase::FullLTOPostLink, PTO)) {
+  if (useTapirLowering(ThinOrFullLTOPhase::FullLTOPostLink, PTO))
     MPM.addPass(buildKitsuneLoweringPipeline(
         Level, ThinOrFullLTOPhase::FullLTOPostLink));
-  } else {
+  else
     invokeTapirLoopEndEPCallbacks(MPM, Level);
-  }
 
   // Emit annotation remarks.
   addAnnotationRemarksPass(MPM);
@@ -2631,16 +2628,15 @@ PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
 
   MPM.addPass(buildCoroWrapper(Phase));
 
-  invokeOptimizerLastEPCallbacks(MPM, Level, Phase);
-
   // Add passes to run just before Tapir lowering.
   invokeTapirLateEPCallbacks(MPM, Level);
 
-  if (useTapirLowering(Phase, PTO)) {
+  if (useTapirLowering(Phase, PTO))
     MPM.addPass(buildKitsuneLoweringPipeline(Level, Phase));
-  } else {
+  else
     invokeTapirLoopEndEPCallbacks(MPM, Level);
-  }
+
+  invokeOptimizerLastEPCallbacks(MPM, Level, Phase);
 
   if (isLTOPreLink(Phase))
     addRequiredLTOPreLinkPasses(MPM);
