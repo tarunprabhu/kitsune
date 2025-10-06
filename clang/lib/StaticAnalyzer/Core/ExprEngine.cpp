@@ -1687,6 +1687,8 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
 
   switch (S->getStmtClass()) {
     // C++, OpenMP and ARC stuff we don't support yet.
+    case Stmt::SpawnStmtClass:
+    case Stmt::SyncStmtClass:      
     case Stmt::CXXDependentScopeMemberExprClass:
     case Stmt::CXXReflectExprClass:
     case Stmt::CXXTryStmtClass:
@@ -1707,8 +1709,6 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::PackIndexingExprClass:
     case Stmt::SubstNonTypeTemplateParmPackExprClass:
     case Stmt::FunctionParmPackExprClass:
-    case Stmt::SpawnStmtClass:
-    case Stmt::SyncStmtClass:      
     case Stmt::CoroutineBodyStmtClass:
     case Stmt::CoawaitExprClass:
     case Stmt::DependentCoawaitExprClass:
@@ -1830,6 +1830,8 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
       llvm_unreachable("GenericSelectionExprs already handled.");
     // Cases that should never be evaluated simply because they shouldn't
     // appear in the CFG.
+    case Stmt::ForallStmtClass:
+    case Stmt::CXXForallRangeStmtClass:
     case Stmt::BreakStmtClass:
     case Stmt::CaseStmtClass:
     case Stmt::CompoundStmtClass:
@@ -1854,9 +1856,6 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
       // Moreover, no additional evaluation required for them, the
       // analyzer can reconstruct these values from the AST.
       llvm_unreachable("Should be pruned from CFG");
-    case Stmt::ForallStmtClass:
-    case Stmt::CXXForallRangeStmtClass:
-      llvm_unreachable("Stmt should not be in analyzer evaluation loop");
 
     case Stmt::ObjCSubscriptRefExprClass:
     case Stmt::ObjCPropertyRefExprClass:

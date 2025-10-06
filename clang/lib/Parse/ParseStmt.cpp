@@ -484,17 +484,6 @@ Retry:
     ProhibitAttributes(GNUAttrs);
     return HandlePragmaCaptured();
 
-  case tok::kw__kitsune_spawn:              // spawn statement
-    return ParseSpawnStatement();
-
-  case tok::kw__kitsune_sync:               // sync statement
-    Res = ParseSyncStatement();
-    SemiError = "sync";
-    break;
-
-  case tok::kw__kitsune_forall:
-    return ParseForallStatement(TrailingElseLoc);
-
   case tok::annot_pragma_openmp:
     // Prohibit attributes that are not OpenMP attributes, but only before
     // processing a #pragma omp clause.
@@ -548,6 +537,17 @@ Retry:
     ProhibitAttributes(GNUAttrs);
     HandlePragmaExport();
     return StmtEmpty();
+
+  case tok::kw__kitsune_spawn:              // spawn statement
+    return ParseSpawnStatement();
+
+  case tok::kw__kitsune_sync:               // sync statement
+    Res = ParseSyncStatement();
+    SemiError = "sync";
+    break;
+
+  case tok::kw__kitsune_forall:
+    return ParseForallStatement(TrailingElseLoc);
   }
 
   // If we reached this code, the statement must end in a semicolon.

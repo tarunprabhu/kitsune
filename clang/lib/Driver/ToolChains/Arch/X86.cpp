@@ -256,8 +256,8 @@ void x86::getX86TargetFeatures(const Driver &D, const llvm::Triple &Triple,
                "AVX10/256 is not supported and will be removed";
       else
         assert((Width == "256" || Width == "512") && "Invalid vector length.");
-    Features.push_back(Args.MakeArgString((IsNegative ? "-" : "+") + Name));
-  }
+      Features.push_back(Args.MakeArgString((IsNegative ? "-" : "+") + Name));
+    }
   }
 
   // Now add any that the user explicitly requested on the command line,

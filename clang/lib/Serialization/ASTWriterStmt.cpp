@@ -2455,6 +2455,26 @@ void ASTStmtWriter::VisitAsTypeExpr(AsTypeExpr *E) {
 }
 
 //===----------------------------------------------------------------------===//
+// Kitsune Expressions and Statements.
+//===----------------------------------------------------------------------===//
+
+void ASTStmtWriter::VisitCXXForallRangeStmt(CXXForallRangeStmt *S) {
+  VisitStmt(S);
+  Record.AddSourceLocation(S->getForLoc());
+  Record.AddSourceLocation(S->getCoawaitLoc());
+  Record.AddSourceLocation(S->getColonLoc());
+  Record.AddSourceLocation(S->getRParenLoc());
+  Record.AddStmt(S->getInit());
+  Record.AddStmt(S->getRangeStmt());
+  Record.AddStmt(S->getBeginStmt());
+  Record.AddStmt(S->getEndStmt());
+  Record.AddStmt(S->getCond());
+  Record.AddStmt(S->getInc());
+  Record.AddStmt(S->getLoopVarStmt());
+  Record.AddStmt(S->getBody());
+  Code = serialization::STMT_CXX_FORALL_RANGE;
+}
+
 void ASTStmtWriter::VisitSpawnStmt(SpawnStmt *S) {
   VisitStmt(S);
   Record.AddSourceLocation(S->getSpawnLoc());

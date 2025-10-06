@@ -13,7 +13,6 @@
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/ToString.h"
 #include "clang/Basic/DiagnosticLex.h"
-#include "clang/Basic/FileManager.h"
 #include "clang/Basic/HLSLRuntime.h"
 #include "clang/Basic/MacroBuilder.h"
 #include "clang/Basic/SourceManager.h"
