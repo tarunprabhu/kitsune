@@ -1019,6 +1019,7 @@ bool TailRecursionEliminator::processBlock(BasicBlock &BB) {
     if (CI)
       return eliminateCall(CI);
   } else if (SyncInst *SI = dyn_cast<SyncInst>(TI)) {
+
     BasicBlock *Succ = SI->getSuccessor(0);
     // If the successor is terminated by a sync.unwind (which will necessarily
     // be an invoke), skip TRE.

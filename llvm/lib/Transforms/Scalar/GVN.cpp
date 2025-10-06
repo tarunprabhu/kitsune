@@ -3770,7 +3770,8 @@ bool GVNPass::performScalarPRE(Instruction *CurInst) {
 #endif
       PREInstr->deleteValue();
       return false;
-    } else if (isa<DetachInst>(PREPred->getTerminator())) {
+    }
+    if (isa<DetachInst>(PREPred->getTerminator())) {
       for (auto RV : Reattaches) {
         ReattachInst *RI = RV.second;
         for (auto DV : Detaches) {

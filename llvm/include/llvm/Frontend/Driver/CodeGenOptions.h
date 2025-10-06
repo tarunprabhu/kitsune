@@ -13,7 +13,6 @@
 #ifndef LLVM_FRONTEND_DRIVER_CODEGENOPTIONS_H
 #define LLVM_FRONTEND_DRIVER_CODEGENOPTIONS_H
 
-#include "kitsune/Core/Tapir.h"
 #include "llvm/Support/Compiler.h"
 #include <string>
 
@@ -54,9 +53,8 @@ enum class VectorLibrary {
 LLVM_ABI llvm::VectorLibrary
 convertDriverVectorLibraryToVectorLibrary(llvm::driver::VectorLibrary VecLib);
 
-LLVM_ABI TargetLibraryInfoImpl *
-createTLII(const llvm::Triple &TargetTriple, VectorLibrary Veclib,
-           std::optional<TTID> TapirTarget = std::nullopt);
+LLVM_ABI TargetLibraryInfoImpl *createTLII(const llvm::Triple &TargetTriple,
+                                           VectorLibrary Veclib);
 
 enum ProfileInstrKind {
   ProfileNone,       // Profile instrumentation is turned off.

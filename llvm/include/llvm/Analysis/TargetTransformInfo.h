@@ -778,7 +778,7 @@ public:
   /// Get target-customized preferences for the generic Tapir loop stripmining
   /// transformation. The caller will initialize SMP with the current
   /// target-independent defaults.
-  void getStripMiningPreferences(Loop *L, ScalarEvolution &,
+  LLVM_ABI void getStripMiningPreferences(Loop *L, ScalarEvolution &,
                                  StripMiningPreferences &SMP) const;
 
   // Parameters that control the loop peeling transformation

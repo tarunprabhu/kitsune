@@ -538,8 +538,8 @@ private:
   // Get the LoopOutlineProcessor for handling Tapir loop \p TL.
   LoopOutlineProcessor *getOutlineProcessor(TapirLoopInfo *TL);
 
-  using LOPMapTy =
-      DenseMap<TapirLoopInfo *, std::unique_ptr<LoopOutlineProcessor>>;
+  using LOPMapTy = DenseMap<TapirLoopInfo *,
+                            std::unique_ptr<LoopOutlineProcessor>>;
 
   // For all recorded Tapir loops, determine the function arguments and inputs
   // for the outlined helper functions for those loops.
@@ -567,13 +567,12 @@ private:
   //
   // This method relies on being executed on the Tapir loops in a function in
   // post order.
-  void
-  getTapirLoopTaskBlocks(TapirLoopInfo *TL,
-                         std::vector<BasicBlock *> &TaskBlocks,
-                         SmallPtrSetImpl<BasicBlock *> &ReattachBlocks,
-                         SmallPtrSetImpl<BasicBlock *> &DetachedRethrowBlocks,
-                         SmallPtrSetImpl<BasicBlock *> &SharedEHEntries,
-                         SmallPtrSetImpl<BasicBlock *> &UnreachableExits);
+  void getTapirLoopTaskBlocks(
+      TapirLoopInfo *TL, std::vector<BasicBlock *> &TaskBlocks,
+      SmallPtrSetImpl<BasicBlock *> &ReattachBlocks,
+      SmallPtrSetImpl<BasicBlock *> &DetachedRethrowBlocks,
+      SmallPtrSetImpl<BasicBlock *> &SharedEHEntries,
+      SmallPtrSetImpl<BasicBlock *> &UnreachableExits);
 
   // Outline Tapir loop \p TL into a helper function.  The \p Args set specified
   // the arguments to that helper function.  The map \p VMap will store the
@@ -622,8 +621,8 @@ static BasicBlock *createTaskUnwind(Function *F, BasicBlock *UnwindDest,
 
   // Create the landing bad.
   IRBuilder<> Builder(CallUnwind);
-  LandingPadInst *LPad =
-      Builder.CreateLandingPad(UnwindDest->getLandingPadInst()->getType(), 0);
+  LandingPadInst *LPad = Builder.CreateLandingPad(
+      UnwindDest->getLandingPadInst()->getType(), 0);
   LPad->setCleanup(true);
   // Create the normal return for the detached rethrow.
   BasicBlock *DRUnreachable =
@@ -642,9 +641,8 @@ static BasicBlock *createTaskUnwind(Function *F, BasicBlock *UnwindDest,
 
 /// Implement the parallel loop control for a given outlined Tapir loop to
 /// process loop iterations in a parallel recursive divide-and-conquer fashion.
-void DACSpawning::implementDACIterSpawnOnHelper(TapirLoopInfo &TL,
-                                                TaskOutlineInfo &Out,
-                                                ValueToValueMapTy &VMap) {
+void DACSpawning::implementDACIterSpawnOnHelper(
+    TapirLoopInfo &TL, TaskOutlineInfo &Out, ValueToValueMapTy &VMap) {
   NamedRegionTimer NRT("implementDACIterSpawnOnHelper",
                        "Implement D&C spawning of loop iterations",
                        TimerGroupName, TimerGroupDescription,
@@ -831,13 +829,14 @@ void DACSpawning::implementDACIterSpawnOnHelper(TapirLoopInfo &TL,
         RecurCall->setDoesNotThrow();
     } else {
       InvokeInst *RecurCall;
-      BasicBlock *CallDest = SplitBlock(
-          RecurDet, RecurDet->getTerminator(), (DomTreeUpdater *)nullptr,
-          nullptr, nullptr, RecurDet->getName() + ".noexc");
-      BasicBlock *CallUnwind = createTaskUnwind(
-          Helper, UnwindDest, SyncRegion, RecurDet->getName() + ".unwind");
-      RecurCall =
-          InvokeInst::Create(Helper, CallDest, CallUnwind, RecurCallInputs);
+      BasicBlock *CallDest = SplitBlock(RecurDet, RecurDet->getTerminator(),
+                                        (DomTreeUpdater *)nullptr, nullptr,
+                                        nullptr, RecurDet->getName() + ".noexc");
+      BasicBlock *CallUnwind =
+        createTaskUnwind(Helper, UnwindDest, SyncRegion,
+                         RecurDet->getName()+".unwind");
+      RecurCall = InvokeInst::Create(Helper, CallDest, CallUnwind,
+                                     RecurCallInputs);
       // Use a fast calling convention for the outline.
       RecurCall->setCallingConv(Helper->getCallingConv());
       RecurCall->setDebugLoc(TLDebugLoc);
@@ -856,8 +855,9 @@ void DACSpawning::implementDACIterSpawnOnHelper(TapirLoopInfo &TL,
   Instruction *NextIter = MidIter;
   if (TL.isInclusiveRange()) {
     IRBuilder<> Builder(&(RecurCont->front()));
-    NextIter = cast<Instruction>(Builder.CreateAdd(
-        MidIter, ConstantInt::get(End->getType(), 1), "miditerplusone"));
+    NextIter = cast<Instruction>(
+        Builder.CreateAdd(MidIter, ConstantInt::get(End->getType(), 1),
+                          "miditerplusone"));
     // Copy flags from the increment operation on the primary IV.
     NextIter->copyIRFlags(PrimaryIVInc);
     // Extend or truncate NextIter, if necessary
@@ -902,7 +902,8 @@ void DACSpawning::implementDACIterSpawnOnHelper(TapirLoopInfo &TL,
     if (!UnwindDest)
       NewDI = Builder.CreateDetach(RecurDet, RecurCont, SyncRegion);
     else
-      NewDI = Builder.CreateDetach(RecurDet, RecurCont, UnwindDest, SyncRegion);
+      NewDI = Builder.CreateDetach(RecurDet, RecurCont, UnwindDest,
+                                   SyncRegion);
     NewDI->setDebugLoc(TLDebugLoc);
     RecurHead->getTerminator()->eraseFromParent();
 
@@ -918,9 +919,10 @@ void DACSpawning::implementDACIterSpawnOnHelper(TapirLoopInfo &TL,
 /// processed.  Returns the Task that encodes the loop body if so, or nullptr if
 /// not.
 Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
-  NamedRegionTimer NRT(
-      "getTaskIfTapirLoop", "Check if loop is a Tapir loop to process",
-      TimerGroupName, TimerGroupDescription, TimePassesIsEnabled);
+  NamedRegionTimer NRT("getTaskIfTapirLoop",
+                       "Check if loop is a Tapir loop to process",
+                       TimerGroupName, TimerGroupDescription,
+                       TimePassesIsEnabled);
 
   LLVM_DEBUG(dbgs() << "Analyzing for spawning: " << *L);
 
@@ -942,8 +944,8 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
   if (!isa<BranchInst>(Preheader->getTerminator())) {
     LLVM_DEBUG(dbgs() << "Loop preheader is not terminated by a branch.\n");
     if (hintsDemandOutlining(Hints)) {
-      ORE.emit(
-          TapirLoopInfo::createMissedAnalysis(LS_NAME, "ComplexPreheader", L)
+      ORE.emit(TapirLoopInfo::createMissedAnalysis(LS_NAME, "ComplexPreheader",
+                                                   L)
           << "loop preheader not terminated by a branch");
       emitMissedWarning(L, Hints, &ORE);
     }
@@ -969,8 +971,8 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
   if (!T) {
     LLVM_DEBUG(dbgs() << "Loop does not match structure of Tapir loop.\n");
     if (hintsDemandOutlining(Hints)) {
-      ORE.emit(
-          TapirLoopInfo::createMissedAnalysis(LS_NAME, "NonCanonicalLoop", L)
+      ORE.emit(TapirLoopInfo::createMissedAnalysis(LS_NAME, "NonCanonicalLoop",
+                                                   L)
           << "loop does not have the canonical structure of a Tapir loop");
       emitMissedWarning(L, Hints, &ORE);
     }
@@ -982,9 +984,10 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
 
 /// Get the LoopOutlineProcessor for handling Tapir loop \p TL.
 LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
-  NamedRegionTimer NRT(
-      "getOutlineProcessor", "Get a loop-outline processor for a Tapir loop",
-      TimerGroupName, TimerGroupDescription, TimePassesIsEnabled);
+  NamedRegionTimer NRT("getOutlineProcessor",
+                       "Get a loop-outline processor for a Tapir loop",
+                       TimerGroupName, TimerGroupDescription,
+                       TimePassesIsEnabled);
 
   Module &M = *F.getParent();
   Loop *L = TL->getLoop();
@@ -1017,8 +1020,9 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
 /// Associate tasks with Tapir loops that enclose them.
 void LoopSpawningImpl::associateTasksToTapirLoops() {
   NamedRegionTimer NRT("associateTasksToTapirLoops",
-                       "Associate tasks to Tapir loops", TimerGroupName,
-                       TimerGroupDescription, TimePassesIsEnabled);
+                       "Associate tasks to Tapir loops",
+                       TimerGroupName, TimerGroupDescription,
+                       TimePassesIsEnabled);
 
   SmallVector<Task *, 4> UnassocTasks;
   // Traverse the tasks in post order, queueing up tasks that are not roots of
@@ -1072,8 +1076,9 @@ void LoopSpawningImpl::getTapirLoopTaskBlocks(
     SmallPtrSetImpl<BasicBlock *> &SharedEHEntries,
     SmallPtrSetImpl<BasicBlock *> &UnreachableExits) {
   NamedRegionTimer NRT("getTapirLoopTaskBlocks",
-                       "Get basic blocks for Tapir loop", TimerGroupName,
-                       TimerGroupDescription, TimePassesIsEnabled);
+                       "Get basic blocks for Tapir loop",
+                       TimerGroupName, TimerGroupDescription,
+                       TimePassesIsEnabled);
 
   Task *T = TL->getTask();
   SmallVector<Task *, 4> EnclosedTasks;
@@ -1182,8 +1187,8 @@ static void getLoopControlInputs(TapirLoopInfo *TL,
   // Add an argument for the primary induction variable.
   auto &PrimaryInduction = TL->getPrimaryInduction();
   PHINode *PrimaryPhi = PrimaryInduction.first;
-  TL->StartIterArg =
-      new Argument(PrimaryPhi->getType(), PrimaryPhi->getName() + ".start");
+  TL->StartIterArg = new Argument(PrimaryPhi->getType(),
+                                  PrimaryPhi->getName() + ".start");
   LCArgs.push_back(TL->StartIterArg);
   LCInputs.push_back(PrimaryInduction.second.getStartValue());
 
@@ -1226,8 +1231,9 @@ void LoopSpawningImpl::getAllTapirLoopInputs(
     DenseMap<Loop *, SmallVector<Value *, 3>> &LoopCtlArgs,
     DenseMap<Loop *, SmallVector<Value *, 3>> &LoopCtlInputs) {
   NamedRegionTimer NRT("getAllTapirLoopInputs",
-                       "Determine inputs for all Tapir loops", TimerGroupName,
-                       TimerGroupDescription, TimePassesIsEnabled);
+                       "Determine inputs for all Tapir loops",
+                       TimerGroupName, TimerGroupDescription,
+                       TimePassesIsEnabled);
 
   // Determine the inputs for all tasks.
   TaskValueSetMap TaskInputs = findAllTaskInputs(F, DT, TI);
@@ -1262,9 +1268,10 @@ void LoopSpawningImpl::getAllTapirLoopInputs(
   }
 }
 
-static void updateClonedIVs(TapirLoopInfo *TL, BasicBlock *OrigPreheader,
-                            ValueSet &Args, ValueToValueMapTy &VMap,
-                            unsigned IVArgIndex, unsigned NextIVArgOffset = 3) {
+static void updateClonedIVs(
+    TapirLoopInfo *TL, BasicBlock *OrigPreheader,
+    ValueSet &Args, ValueToValueMapTy &VMap, unsigned IVArgIndex,
+    unsigned NextIVArgOffset = 3) {
   NamedRegionTimer NRT("updateClonedIVs", "Updated IVs in Tapir-loop helper",
                        TimerGroupName, TimerGroupDescription,
                        TimePassesIsEnabled);
@@ -1441,12 +1448,11 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
   // Add alignment assumptions to arguments of helper, based on alignment of
   // values in old function.
   {
-    NamedRegionTimer NRT("AddAlignmentAssumptions",
-                         "Add alignment assumptions to Tapir-loop helper",
-                         TimerGroupName, TimerGroupDescription,
-                         TimePassesIsEnabled);
-    AddAlignmentAssumptions(&F, Args, VMap, Preheader->getTerminator(), &AC,
-                            &DT);
+  NamedRegionTimer NRT("AddAlignmentAssumptions",
+                       "Add alignment assumptions to Tapir-loop helper",
+                       TimerGroupName, TimerGroupDescription,
+                       TimePassesIsEnabled);
+  AddAlignmentAssumptions(&F, Args, VMap, Preheader->getTerminator(), &AC, &DT);
   } // end timed region
 
   // CreateHelper partially serializes the cloned copy of the loop by converting
@@ -1527,8 +1533,8 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
   for (Task *T : post_order(TI.getRootTask())) {
     if (TapirLoopInfo *TL = getTapirLoop(T)) {
       PredicatedScalarEvolution PSE(SE, *TL->getLoop());
-      bool CanOutline =
-          TL->prepareForOutlining(DT, LI, TI, PSE, AC, LS_NAME, ORE, TTI);
+      bool CanOutline = TL->prepareForOutlining(DT, LI, TI, PSE, AC, LS_NAME,
+                                                ORE, TTI);
       if (!CanOutline) {
         const Loop *L = TL->getLoop();
         TapirLoopHints Hints(L);
@@ -1562,9 +1568,10 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
     // If any subtasks were outlined as Tapir loops, replace these loops with
     // calls to the outlined functions.
     {
-      NamedRegionTimer NRT(
-          "replaceSubLoopCalls", "Update sub-Tapir-loops with calls to helpers",
-          TimerGroupName, TimerGroupDescription, TimePassesIsEnabled);
+    NamedRegionTimer NRT("replaceSubLoopCalls",
+                         "Update sub-Tapir-loops with calls to helpers",
+                         TimerGroupName, TimerGroupDescription,
+                         TimePassesIsEnabled);
       for (Task *SubT : T->subtasks()) {
         if (TapirLoopInfo *TL = getTapirLoop(SubT)) {
           // emitSCEVChecks(TL->getLoop(), TL->getBypass());
@@ -1588,21 +1595,24 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
     Instruction *ArgStart;
     {
       NamedRegionTimer NRT("fixupHelperInputs",
-                           "Fixup inputs to Tapir-loop body", TimerGroupName,
-                           TimerGroupDescription, TimePassesIsEnabled);
-      ArgStart = fixupHelperInputs(F, T, LoopInputSets[L], TLInputsFixed,
+                         "Fixup inputs to Tapir-loop body",
+                         TimerGroupName, TimerGroupDescription,
+                         TimePassesIsEnabled);
+    ArgStart =
+        fixupHelperInputs(F, T, LoopInputSets[L], TLInputsFixed,
                                    L->getLoopPreheader()->getTerminator(),
                                    &*L->getHeader()->getFirstInsertionPt(),
-                                   OutlineProcessors[TL]->getArgStructMode(),
-                                   InputMap, L);
+                          OutlineProcessors[TL]->getArgStructMode(), InputMap,
+                          L);
     } // end timed region
 
     ValueSet HelperArgs;
     SmallVector<Value *, 8> HelperInputs;
     {
-      NamedRegionTimer NRT(
-          "setupLoopOutlineArgs", "Setup inputs to Tapir-loop helper function",
-          TimerGroupName, TimerGroupDescription, TimePassesIsEnabled);
+    NamedRegionTimer NRT("setupLoopOutlineArgs",
+                         "Setup inputs to Tapir-loop helper function",
+                         TimerGroupName, TimerGroupDescription,
+                         TimePassesIsEnabled);
       OutlineProcessors[TL]->setupLoopOutlineArgs(
           F, HelperArgs, HelperInputs, LoopInputSets[L], LoopCtlArgs[L],
           LoopCtlInputs[L], TLInputsFixed);
@@ -1642,17 +1652,18 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
 
     // Do ABI-dependent processing of each outlined Tapir loop.
     {
-      NamedRegionTimer NRT(
-          "postProcessOutline", "Post-process Tapir-loop helper function",
-          TimerGroupName, TimerGroupDescription, TimePassesIsEnabled);
-      OutlineProcessors[TL]->postProcessOutline(*TL, TaskToOutline[T], VMap);
+    NamedRegionTimer NRT("postProcessOutline",
+                         "Post-process Tapir-loop helper function",
+                         TimerGroupName, TimerGroupDescription,
+                         TimePassesIsEnabled);
+    OutlineProcessors[TL]->postProcessOutline(*TL, TaskToOutline[T], VMap);
     } // end timed region
 
     LLVM_DEBUG({
-      dbgs() << "LoopInputs[L]:\n";
-      for (Value *V : LoopInputs[L])
-        dbgs() << "\t" << *V << "\n";
-    });
+        dbgs() << "LoopInputs[L]:\n";
+        for (Value *V : LoopInputs[L])
+          dbgs() << "\t" << *V << "\n";
+      });
 
     {
       NamedRegionTimer NRT("clearMetadata", "Cleanup Tapir-loop metadata",
@@ -1710,13 +1721,14 @@ bool LoopSpawningImpl::run() {
 
   // Perform target-specific processing of the outlined-loop calls.
   {
-    NamedRegionTimer NRT("processOutlinedLoopCall",
-                         "Process calls to outlined loops", TimerGroupName,
-                         TimerGroupDescription, TimePassesIsEnabled);
-    for (Task *T : post_order(TI.getRootTask()))
-      if (TapirLoopInfo *TL = getTapirLoop(T))
-        OutlineProcessors[TL]->processOutlinedLoopCall(
-            *TL, TapirLoopOutlines[T], DT);
+  NamedRegionTimer NRT("processOutlinedLoopCall",
+                       "Process calls to outlined loops",
+                       TimerGroupName, TimerGroupDescription,
+                       TimePassesIsEnabled);
+  for (Task *T : post_order(TI.getRootTask()))
+    if (TapirLoopInfo *TL = getTapirLoop(T))
+      OutlineProcessors[TL]->processOutlinedLoopCall(*TL, TapirLoopOutlines[T],
+                                                     DT);
   } // end timed region
 
   // FIXME: This code is a remnant from an initial attempt at multi-target

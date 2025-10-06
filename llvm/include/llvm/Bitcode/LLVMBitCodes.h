@@ -832,6 +832,8 @@ enum AttributeKindCodes {
   ATTR_KIND_NOIPA = 109,
   ATTR_KIND_SANITIZE_CILK = 110,
   ATTR_KIND_STEALABLE = 111,
+
+  // ---------------------- Kitsune-specific attributes ----------------------
   ATTR_KIND_KIT_TT = 112,
   ATTR_KIND_KIT_BC = 113,
   ATTR_KIND_KIT_FB = 114,

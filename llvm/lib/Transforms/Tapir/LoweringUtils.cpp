@@ -43,8 +43,9 @@ static const char TimerGroupDescription[] = "Tapir lowering";
 
 /// Helper function to find the inputs and outputs to task T, based only the
 /// blocks in T and no subtask of T.
-static void findTaskInputsOutputs(const Task *T, ValueSet &Inputs,
-                                  ValueSet &Outputs, const DominatorTree &DT) {
+static void
+findTaskInputsOutputs(const Task *T, ValueSet &Inputs, ValueSet &Outputs,
+                      const DominatorTree &DT) {
   NamedRegionTimer NRT("findTaskInputsOutputs", "Find task inputs and outputs",
                        TimerGroupName, TimerGroupDescription,
                        TimePassesIsEnabled);
@@ -131,8 +132,7 @@ TaskValueSetMap llvm::findAllTaskInputs(Function &F, const DominatorTree &DT,
   TaskValueSetMap TaskInputs;
   for (Task *T : post_order(TI.getRootTask())) {
     // Skip the root task
-    if (T->isRootTask())
-      break;
+    if (T->isRootTask()) break;
 
     LLVM_DEBUG(dbgs() << "Finding inputs/outputs for task@"
                       << T->getEntry()->getName() << "\n");
@@ -194,12 +194,16 @@ static bool definedOutsideTaskFrame(const Value *V, const Spindle *TF,
 
 /// Get the set of inputs for the given task T, accounting for the taskframe of
 /// T, if it exists.
-void llvm::getTaskFrameInputsOutputs(
-    TFValueSetMap &TFInputs, TFValueSetMap &TFOutputs, const Spindle &TF,
-    const ValueSet *TaskInputs, const TaskInfo &TI, const DominatorTree &DT) {
+void llvm::getTaskFrameInputsOutputs(TFValueSetMap &TFInputs,
+                                     TFValueSetMap &TFOutputs,
+                                     const Spindle &TF,
+                                     const ValueSet *TaskInputs,
+                                     const TaskInfo &TI,
+                                     const DominatorTree &DT) {
   NamedRegionTimer NRT("getTaskFrameInputsOutputs",
-                       "Find taskframe inputs and outputs", TimerGroupName,
-                       TimerGroupDescription, TimePassesIsEnabled);
+                       "Find taskframe inputs and outputs",
+                       TimerGroupName, TimerGroupDescription,
+                       TimePassesIsEnabled);
 
   const Task *T = TF.getTaskFromTaskFrame();
   if (T)
@@ -333,9 +337,11 @@ void llvm::findAllTaskFrameInputs(
 /// location as the Reference compiler and other compilers that lower parallel
 /// constructs in the front end.  This location is NOT the correct place,
 /// however, for handling tasks that are spawned inside of a serial loop.
-std::pair<AllocaInst *, Instruction *> llvm::createTaskArgsStruct(
-    const ValueSet &Inputs, Task *T, Instruction *StorePt, Instruction *LoadPt,
-    bool StaticStruct, ValueToValueMapTy &InputsMap, Loop *TapirL) {
+std::pair<AllocaInst *, Instruction *>
+llvm::createTaskArgsStruct(const ValueSet &Inputs, Task *T,
+                           Instruction *StorePt, Instruction *LoadPt,
+                           bool StaticStruct, ValueToValueMapTy &InputsMap,
+                           Loop *TapirL) {
   assert(T && T->getParentTask() && "Expected spawned task.");
   SmallPtrSet<BasicBlock *, 4> TaskFrameBlocks;
   if (Spindle *TFCreateSpindle = T->getTaskFrameCreateSpindle()) {
@@ -493,12 +499,11 @@ void llvm::fixupInputSet(Function &F, const ValueSet &Inputs, ValueSet &Fixed) {
 /// Organize the inputs to task \p T, given in \p TaskInputs, to create an
 /// appropriate set of inputs, \p HelperInputs, to pass to the outlined
 /// function for \p T.
-Instruction *llvm::fixupHelperInputs(Function &F, Task *T, ValueSet &TaskInputs,
-                                     ValueSet &HelperArgs, Instruction *StorePt,
-                                     Instruction *LoadPt,
+Instruction *llvm::fixupHelperInputs(
+    Function &F, Task *T, ValueSet &TaskInputs, ValueSet &HelperArgs,
+    Instruction *StorePt, Instruction *LoadPt,
                                      TapirTarget::ArgStructMode UseArgStruct,
-                                     ValueToValueMapTy &InputsMap,
-                                     Loop *TapirL) {
+    ValueToValueMapTy &InputsMap, Loop *TapirL) {
   if (TapirTarget::ArgStructMode::None != UseArgStruct) {
     std::pair<AllocaInst *, Instruction *> ArgsStructInfo =
         createTaskArgsStruct(TaskInputs, T, StorePt, LoadPt,
@@ -1059,7 +1064,7 @@ TaskOutlineInfo llvm::outlineTask(
   DetachInst *DI = T->getDetach();
   Value *TFCreate = T->getTaskFrameUsed();
 
-  BasicBlock::iterator LoadPt = T->getEntry()->getFirstNonPHIOrDbgOrLifetime();
+  auto LoadPt = T->getEntry()->getFirstNonPHIOrDbgOrLifetime();
   Instruction *StorePt = DI;
   BasicBlock *Unwind = DI->getUnwindDest();
   if (Spindle *TaskFrameCreate = T->getTaskFrameCreateSpindle()) {

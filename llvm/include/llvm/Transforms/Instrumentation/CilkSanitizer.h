@@ -19,7 +19,6 @@
 #define LLVM_TRANSFORMS_CILKSANITIZER_H
 
 #include "llvm/IR/PassManager.h"
-#include "llvm/Transforms/Utils/Instrumentation.h"
 
 namespace llvm {
 

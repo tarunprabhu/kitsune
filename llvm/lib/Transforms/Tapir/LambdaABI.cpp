@@ -101,10 +101,6 @@ LambdaABI::LambdaABI(Module &m, const TapirTargetOptions &opts)
   llvm_unreachable("LambdaABI::LambdaABI: NOT IMPLEMENTED")
 }
 
-const TapirTargetOptions &LambdaABI::getOptions() const {
-  llvm_unreachable("LambdaABI::getOptions: NOT IMPLEMENTED");
-}
-
 void LambdaABI::prepareModule() {
   LLVMContext &C = M.getContext();
   const DataLayout &DL = DestM.getDataLayout();
@@ -179,7 +175,7 @@ void LambdaABI::prepareModule() {
   const char *StackFrameName = "struct.__rts_stack_frame";
   StackFrameTy = StructType::lookupOrCreate(C, StackFrameName);
 
-  PointerType *StackFramePtrTy = PointerType::getUnqual(StackFrameTy);
+  PointerType *StackFramePtrTy = PointerType::getUnqual(C);
   Type *VoidTy = Type::getVoidTy(C);
   Type *VoidPtrTy = PointerType::getUnqual(C);
 
@@ -191,7 +187,7 @@ void LambdaABI::prepareModule() {
   SpawnBodyFnTy = FunctionType::get(VoidTy, {SpawnBodyFnArgTy}, false);
   FunctionType *SpawnFnTy =
       FunctionType::get(VoidTy,
-                        {StackFramePtrTy, PointerType::getUnqual(SpawnBodyFnTy),
+                        {StackFramePtrTy, PointerType::getUnqual(C),
                          SpawnBodyFnArgTy, SpawnBodyFnArgSizeTy, IntPtrTy},
                         false);
   FunctionType *Grainsize8FnTy = FunctionType::get(Int8Ty, {Int8Ty}, false);
@@ -424,7 +420,7 @@ void LambdaABI::InsertStackFramePop(Function &F, bool PromoteCallsToInvokes,
   }
 
   for (ReturnInst *RI : Returns) {
-    CallInst::Create(RTSLeaveFrame, {SF}, "", RI)
+    CallInst::Create(RTSLeaveFrame, {SF}, "", RI->getIterator())
         ->setDebugLoc(RI->getDebugLoc());
   }
 }
@@ -483,14 +479,15 @@ void LambdaABI::lowerSync(SyncInst &SI) {
   if (!SyncUnwindDest) {
     if (Fn.doesNotThrow())
       CB = CallInst::Create(RTSSyncNoThrow, Args, "",
-                            /*insert before*/ &SI);
+                            /*insert before*/ SI.getIterator());
     else
-      CB = CallInst::Create(RTSSync, Args, "", /*insert before*/ &SI);
+      CB = CallInst::Create(RTSSync, Args, "",
+                            /*insert before*/ SI.getIterator());
 
     BranchInst::Create(SyncCont, CB->getParent());
   } else {
     CB = InvokeInst::Create(RTSSync, SyncCont, SyncUnwindDest, Args, "",
-                            /*insert before*/ &SI);
+                            /*insert before*/ SI.getIterator());
     for (PHINode &PN : SyncCont->phis())
       PN.addIncoming(PN.getIncomingValueForBlock(SyncUnwind->getParent()),
                      SI.getParent());
@@ -550,7 +547,7 @@ void LambdaABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
 
   IRBuilder<> B(ReplCall);
   Value *FnCast = B.CreateBitCast(ReplCall->getCalledFunction(),
-                                  PointerType::getUnqual(SpawnBodyFnTy));
+                                  PointerType::getUnqual(F.getContext()));
   Value *ArgCast =
       B.CreateBitOrPointerCast(ReplCall->getArgOperand(0), SpawnBodyFnArgTy);
   auto ArgSize =

@@ -616,9 +616,9 @@ void LandingPadInliningInfo::forwardTaskResume(InvokeInst *TR) {
 
 static void handleDetachedLandingPads(
     DetachInst *DI, BasicBlock *EHContinue, Value *LPadValInEHContinue,
-                          SmallPtrSetImpl<LandingPadInst *> &InlinedLPads,
-                          SmallVectorImpl<Instruction *> &DetachedRethrows,
-                          DominatorTree *DT = nullptr, TaskInfo *TI = nullptr) {
+    SmallPtrSetImpl<LandingPadInst *> &InlinedLPads,
+    SmallVectorImpl<Instruction *> &DetachedRethrows,
+    DominatorTree *DT = nullptr, TaskInfo *TI = nullptr) {
   LandingPadInliningInfo DetUnwind(DI, EHContinue, LPadValInEHContinue, DT, TI);
 
   // Append the clauses from the outer landing pad instruction into the inlined
@@ -813,7 +813,7 @@ void llvm::cloneEHBlocks(Function *F,
 // Helper function to find landingpads in the specified taskframe.
 static void getTaskFrameLandingPads(
     Value *TaskFrame, Instruction *TaskFrameResume,
-                        SmallPtrSetImpl<LandingPadInst *> &InlinedLPads) {
+    SmallPtrSetImpl<LandingPadInst *> &InlinedLPads) {
   const BasicBlock *TaskFrameBB = cast<Instruction>(TaskFrame)->getParent();
   SmallVector<BasicBlock *, 8> Worklist;
   SmallPtrSet<BasicBlock *, 8> Visited;
@@ -944,7 +944,7 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
   // Move static alloca instructions in the task entry to the appropriate entry
   // block.
   bool ContainsDynamicAllocas =
-      MoveStaticAllocasInBlock(ParentEntry, TaskEntry, ExitPoints);
+    MoveStaticAllocasInBlock(ParentEntry, TaskEntry, ExitPoints);
   // If the cloned loop contained dynamic alloca instructions, wrap the inlined
   // code with llvm.stacksave/llvm.stackrestore intrinsics.
   if (ContainsDynamicAllocas) {
@@ -1087,7 +1087,7 @@ void llvm::AnalyzeTaskForSerialization(
     for (BasicBlock *BB : S->blocks()) {
       if (isa<ReattachInst>(BB->getTerminator())) {
         assert(cast<ReattachInst>(BB->getTerminator())->getSyncRegion() ==
-                   SyncRegion &&
+               SyncRegion &&
                "Reattach in task does not match sync region with detach.");
         Reattaches.push_back(BB->getTerminator());
       } else if (InvokeInst *II = dyn_cast<InvokeInst>(BB->getTerminator())) {
@@ -1491,10 +1491,10 @@ void llvm::GetDetachedCFG(const DetachInst &DI, const DominatorTree &DT,
       // Make sure that the control flow through these exception-handling blocks
       // doesn't reattach to the detached CFG's continuation.
       LLVM_DEBUG({
-        if (ReattachInst *RI = dyn_cast<ReattachInst>(BB->getTerminator()))
-          assert(RI->getSuccessor(0) != Continue &&
-                 "Exit block reaches a reattach to the continuation.");
-      });
+          if (ReattachInst *RI = dyn_cast<ReattachInst>(BB->getTerminator()))
+            assert(RI->getSuccessor(0) != Continue &&
+                   "Exit block reaches a reattach to the continuation.");
+        });
 
       // Stop searching down this path upon finding a detached rethrow.
       if (isDetachedRethrow(BB->getTerminator(), SyncRegion)) {
@@ -1515,16 +1515,16 @@ void llvm::GetDetachedCFG(const DetachInst &DI, const DominatorTree &DT,
   }
 
   LLVM_DEBUG({
-    dbgs() << "Exit blocks:";
-    for (BasicBlock *Exit : EHBlocks) {
-      if (DT.dominates(DetachEdge, Exit))
-        dbgs() << "(dominated)";
-      else
-        dbgs() << "(shared)";
-      dbgs() << *Exit;
-    }
-    dbgs() << "\n";
-  });
+      dbgs() << "Exit blocks:";
+      for (BasicBlock *Exit : EHBlocks) {
+        if (DT.dominates(DetachEdge, Exit))
+          dbgs() << "(dominated)";
+        else
+          dbgs() << "(shared)";
+        dbgs() << *Exit;
+      }
+      dbgs() << "\n";
+    });
 }
 
 // Helper function to find PHI nodes that depend on the landing pad in the
@@ -2188,26 +2188,26 @@ static void promoteCallsInTasksHelper(
     if (DetachInst *DI = dyn_cast<DetachInst>(BB->getTerminator())) {
       Processed.insert(BB);
 
-        // Create an unwind edge for the subtask, which is terminated with a
-        // detached-rethrow.
-        BasicBlock *SubTaskUnwindEdge = CreateSubTaskUnwindEdge(
+      // Create an unwind edge for the subtask, which is terminated with a
+      // detached-rethrow.
+      BasicBlock *SubTaskUnwindEdge = CreateSubTaskUnwindEdge(
           Intrinsic::detached_rethrow, DI->getSyncRegion(),
           DI->hasUnwindDest() ? DI->getUnwindDest() : UnwindEdge, Unreachable,
           DI);
-        // Recursively check all blocks in the detached task.
-        promoteCallsInTasksHelper(DI->getDetached(), SubTaskUnwindEdge,
-                                  Unreachable, CurrentTaskFrame, &Worklist,
+      // Recursively check all blocks in the detached task.
+      promoteCallsInTasksHelper(DI->getDetached(), SubTaskUnwindEdge,
+                                Unreachable, CurrentTaskFrame, &Worklist,
                                 Processed, IgnoreFunctionCheck);
 
-        // If the new unwind edge is not used, remove it.
-        if (pred_empty(SubTaskUnwindEdge))
-          SubTaskUnwindEdge->eraseFromParent();
+      // If the new unwind edge is not used, remove it.
+      if (pred_empty(SubTaskUnwindEdge))
+        SubTaskUnwindEdge->eraseFromParent();
       else if (!DI->hasUnwindDest())
-          DetachesToReplace.push_back(DI);
+        DetachesToReplace.push_back(DI);
 
       if (DI->hasUnwindDest() && Visited.insert(DI->getUnwindDest()).second)
-          // If the detach-unwind isn't dead, add it to the worklist.
-          Worklist.push_back(DI->getUnwindDest());
+        // If the detach-unwind isn't dead, add it to the worklist.
+        Worklist.push_back(DI->getUnwindDest());
 
       // Add the continuation to the worklist.
       if (isTaskFrameResume(UnwindEdge->getTerminator()) &&

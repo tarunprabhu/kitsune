@@ -595,6 +595,8 @@ bool TailDuplicator::shouldTailDuplicate(const BlockDesc &Desc,
     MaxDuplicateCount = TailDuplicateSize;
   else
     MaxDuplicateCount = TailDupSize;
+  if (Desc.BRNZ)
+    MaxDuplicateCount += (TailDupCBZ > 1) + Desc.BRNZ.value().IsKill;
   if (llvm::shouldOptimizeForSize(&TailBB, PSI, MBFI))
     MaxDuplicateCount = 1;
 
