@@ -447,19 +447,6 @@ void StmtPrinter::VisitCXXForRangeStmt(CXXForRangeStmt *Node) {
   PrintControlledStmt(Node->getBody());
 }
 
-void StmtPrinter::VisitCXXForallRangeStmt(CXXForallRangeStmt *Node) {
-  Indent() << "forall (";
-  if (Node->getInit())
-    PrintInitStmt(Node->getInit(), 5);
-  PrintingPolicy SubPolicy(Policy);
-  SubPolicy.SuppressInitializers = true;
-  Node->getLoopVariable()->print(OS, SubPolicy, IndentLevel);
-  OS << " : ";
-  PrintExpr(Node->getRangeInit());
-  OS << ")";
-  PrintControlledStmt(Node->getBody());
-}
-
 void StmtPrinter::VisitMSDependentExistsStmt(MSDependentExistsStmt *Node) {
   Indent();
   if (Node->isIfExists())
@@ -497,14 +484,6 @@ void StmtPrinter::VisitBreakStmt(BreakStmt *Node) {
   Indent() << "break;";
   if (Policy.IncludeNewlines) OS << NL;
 }
-
-void StmtPrinter::VisitSpawnStmt(SpawnStmt *Node) {
-  Indent() << "spawn " << Node->getSyncVar();
-  PrintStmt(Node->getSpawnedStmt());
-  OS << ";";
-  if (Policy.IncludeNewlines) OS << "\n";
-}
-
 
 void StmtPrinter::VisitReturnStmt(ReturnStmt *Node) {
   Indent() << "return";
@@ -2957,6 +2936,19 @@ void StmtPrinter::VisitHLSLOutArgExpr(HLSLOutArgExpr *Node) {
   PrintExpr(Node->getArgLValue());
 }
 
+void StmtPrinter::VisitCXXForallRangeStmt(CXXForallRangeStmt *Node) {
+  Indent() << "forall (";
+  if (Node->getInit())
+    PrintInitStmt(Node->getInit(), 5);
+  PrintingPolicy SubPolicy(Policy);
+  SubPolicy.SuppressInitializers = true;
+  Node->getLoopVariable()->print(OS, SubPolicy, IndentLevel);
+  OS << " : ";
+  PrintExpr(Node->getRangeInit());
+  OS << ")";
+  PrintControlledStmt(Node->getBody());
+}
+
 void StmtPrinter::VisitForallStmt(ForallStmt *Node) {
   Indent() << "forall (";
   if (Node->getInit())
@@ -2972,6 +2964,13 @@ void StmtPrinter::VisitForallStmt(ForallStmt *Node) {
   }
   OS << ")";
   PrintControlledStmt(Node->getBody());
+}
+
+void StmtPrinter::VisitSpawnStmt(SpawnStmt *Node) {
+  Indent() << "spawn " << Node->getSyncVar();
+  PrintStmt(Node->getSpawnedStmt());
+  OS << ";";
+  if (Policy.IncludeNewlines) OS << "\n";
 }
 
 void StmtPrinter::VisitSyncStmt(SyncStmt *Node) {

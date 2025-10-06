@@ -177,12 +177,6 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     EmitCapturedStmt(*CS, CS->getCapturedRegionKind());
     }
     break;
-  case Stmt::ForallStmtClass:
-    EmitForallStmt(cast<ForallStmt>(*S), Attrs);
-    break;
-  case Stmt::SpawnStmtClass:
-    EmitSpawnStmt(cast<SpawnStmt>(*S));
-    break;
   case Stmt::ObjCAtTryStmtClass:
     EmitObjCAtTryStmt(cast<ObjCAtTryStmt>(*S));
     break;
@@ -210,9 +204,6 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     break;
   case Stmt::CXXForRangeStmtClass:
     EmitCXXForRangeStmt(cast<CXXForRangeStmt>(*S), Attrs);
-    break;
-  case Stmt::CXXForallRangeStmtClass:
-    EmitCXXForallRangeStmt(cast<CXXForallRangeStmt>(*S), Attrs);
     break;
   case Stmt::SEHTryStmtClass:
     EmitSEHTryStmt(cast<SEHTryStmt>(*S));
@@ -565,6 +556,15 @@ bool CodeGenFunction::EmitSimpleStmt(const Stmt *S,
     // should not be called or emitted during device compilation); the SYCL
     // kernel call statement is thus handled as a null statement for the
     // purpose of code generation.
+    break;
+  case Stmt::CXXForallRangeStmtClass:
+    EmitCXXForallRangeStmt(cast<CXXForallRangeStmt>(*S), Attrs);
+    break;
+  case Stmt::ForallStmtClass:
+    EmitForallStmt(cast<ForallStmt>(*S), Attrs);
+    break;
+  case Stmt::SpawnStmtClass:
+    EmitSpawnStmt(cast<SpawnStmt>(*S));
     break;
   case Stmt::SyncStmtClass:
     EmitSyncStmt(cast<SyncStmt>(*S));

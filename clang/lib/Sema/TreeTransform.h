@@ -1469,18 +1469,6 @@ public:
                                   Inc, RParenLoc, Body);
   }
 
-  /// Build a new for statement.
-  ///
-  /// By default, performs semantic analysis to build the new statement.
-  /// Subclasses may override this routine to provide different behavior.
-  StmtResult RebuildForallStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
-                            Stmt *Init, Sema::ConditionResult Cond,
-                            Sema::FullExprArg Inc, SourceLocation RParenLoc,
-                            Stmt *Body) {
-    return getSema().ActOnForallStmt(ForLoc, LParenLoc, Init, Cond,
-                                  Inc, RParenLoc, Body);
-  }
-
   /// Build a new goto statement.
   ///
   /// By default, performs semantic analysis to build the new statement.
@@ -1506,14 +1494,6 @@ public:
   /// Subclasses may override this routine to provide different behavior.
   StmtResult RebuildReturnStmt(SourceLocation ReturnLoc, Expr *Result) {
     return getSema().BuildReturnStmt(ReturnLoc, Result);
-  }
-
-  /// Build a new spawn statment.
-  ///
-  /// By default, performs semantic analysis to build the new expression.
-  /// Subclasses may override this routine to provide different behavior.
-  StmtResult RebuildSpawnStmt(SourceLocation SpawnLoc, StringRef SV, Stmt *S) {
-    return getSema().ActOnSpawnStmt(SpawnLoc, SV, S);
   }
 
   /// Build a new declaration statement.
@@ -2660,6 +2640,39 @@ public:
         LoopVar, RParenLoc, Sema::BFRK_Rebuild, LifetimeExtendTemps);
   }
 
+  /// Build a new C++0x range-based for statement.
+  ///
+  /// By default, performs semantic analysis to build the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  StmtResult RebuildMSDependentExistsStmt(SourceLocation KeywordLoc,
+                                          bool IsIfExists,
+                                          NestedNameSpecifierLoc QualifierLoc,
+                                          DeclarationNameInfo NameInfo,
+                                          Stmt *Nested) {
+    return getSema().BuildMSDependentExistsStmt(KeywordLoc, IsIfExists,
+                                                QualifierLoc, NameInfo, Nested);
+  }
+
+  /// Build a new for statement.
+  ///
+  /// By default, performs semantic analysis to build the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  StmtResult RebuildForallStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
+                            Stmt *Init, Sema::ConditionResult Cond,
+                            Sema::FullExprArg Inc, SourceLocation RParenLoc,
+                            Stmt *Body) {
+    return getSema().ActOnForallStmt(ForLoc, LParenLoc, Init, Cond,
+                                  Inc, RParenLoc, Body);
+  }
+
+  /// Build a new spawn statment.
+  ///
+  /// By default, performs semantic analysis to build the new expression.
+  /// Subclasses may override this routine to provide different behavior.
+  StmtResult RebuildSpawnStmt(SourceLocation SpawnLoc, StringRef SV, Stmt *S) {
+    return getSema().ActOnSpawnStmt(SpawnLoc, SV, S);
+  }
+
   StmtResult RebuildCXXForallRangeStmt(SourceLocation ForLoc,
                                        SourceLocation CoawaitLoc, Stmt *Init,
                                        SourceLocation ColonLoc, Stmt *Range,
@@ -2695,19 +2708,6 @@ public:
     return getSema().BuildCXXForallRangeStmt(
         ForLoc, CoawaitLoc, Init, ColonLoc, Range, Begin, End, Index, IndexEnd,
         Cond, Inc, LoopVar, RParenLoc, Sema::BFRK_Rebuild);
-  }
-
-  /// Build a new C++0x range-based for statement.
-  ///
-  /// By default, performs semantic analysis to build the new statement.
-  /// Subclasses may override this routine to provide different behavior.
-  StmtResult RebuildMSDependentExistsStmt(SourceLocation KeywordLoc,
-                                          bool IsIfExists,
-                                          NestedNameSpecifierLoc QualifierLoc,
-                                          DeclarationNameInfo NameInfo,
-                                          Stmt *Nested) {
-    return getSema().BuildMSDependentExistsStmt(KeywordLoc, IsIfExists,
-                                                QualifierLoc, NameInfo, Nested);
   }
 
   /// Attach body to a C++0x range-based for statement.
@@ -9360,90 +9360,6 @@ TreeTransform<Derived>::TransformCXXForRangeStmt(CXXForRangeStmt *S) {
   return FinishCXXForRangeStmt(NewStmt.get(), Body.get());
 }
 
-template<typename Derived>
-StmtResult
-TreeTransform<Derived>::TransformCXXForallRangeStmt(CXXForallRangeStmt *S) {
-  StmtResult Init =
-      S->getInit() ? getDerived().TransformStmt(S->getInit()) : StmtResult();
-  if (Init.isInvalid())
-    return StmtError();
-
-  StmtResult Range = getDerived().TransformStmt(S->getRangeStmt());
-  if (Range.isInvalid())
-    return StmtError();
-
-  StmtResult Begin = getDerived().TransformStmt(S->getBeginStmt());
-  if (Begin.isInvalid())
-    return StmtError();
-  StmtResult End = getDerived().TransformStmt(S->getEndStmt());
-  if (End.isInvalid())
-    return StmtError();
-  StmtResult Index = getDerived().TransformStmt(S->getIndexStmt());
-  if (Index.isInvalid())
-    return StmtError();
-  StmtResult IndexEnd = getDerived().TransformStmt(S->getIndexEndStmt());
-  if (IndexEnd.isInvalid())
-    return StmtError();
-
-  ExprResult Cond = getDerived().TransformExpr(S->getCond());
-  if (Cond.isInvalid())
-    return StmtError();
-  if (Cond.get())
-    Cond = SemaRef.CheckBooleanCondition(S->getColonLoc(), Cond.get());
-  if (Cond.isInvalid())
-    return StmtError();
-  if (Cond.get())
-    Cond = SemaRef.MaybeCreateExprWithCleanups(Cond.get());
-
-  ExprResult Inc = getDerived().TransformExpr(S->getInc());
-  if (Inc.isInvalid())
-    return StmtError();
-  if (Inc.get())
-    Inc = SemaRef.MaybeCreateExprWithCleanups(Inc.get());
-
-  StmtResult LoopVar = getDerived().TransformStmt(S->getLoopVarStmt());
-  if (LoopVar.isInvalid())
-    return StmtError();
-
-  StmtResult NewStmt = S;
-  if (getDerived().AlwaysRebuild() ||
-      Init.get() != S->getInit() ||
-      Range.get() != S->getRangeStmt() ||
-      Begin.get() != S->getBeginStmt() ||
-      End.get() != S->getEndStmt() ||
-      Index.get() != S->getIndexStmt() ||
-      IndexEnd.get() != S->getIndexEndStmt() ||
-      Cond.get() != S->getCond() ||
-      Inc.get() != S->getInc() ||
-      LoopVar.get() != S->getLoopVarStmt()) {
-    NewStmt = getDerived().RebuildCXXForallRangeStmt(
-        S->getForLoc(), S->getCoawaitLoc(), Init.get(), S->getColonLoc(),
-        Range.get(), Begin.get(), End.get(), Index.get(), IndexEnd.get(),
-        Cond.get(), Inc.get(), LoopVar.get(), S->getRParenLoc());
-    if (NewStmt.isInvalid())
-      return StmtError();
-  }
-
-  StmtResult Body = getDerived().TransformStmt(S->getBody());
-  if (Body.isInvalid())
-    return StmtError();
-
-  // Body has changed but we didn't rebuild the for-range statement. Rebuild
-  // it now so we have a new statement to attach the body to.
-  if (Body.get() != S->getBody() && NewStmt.get() == S) {
-    NewStmt = getDerived().RebuildCXXForallRangeStmt(
-        S->getForLoc(), S->getCoawaitLoc(), Init.get(), S->getColonLoc(),
-        Range.get(), Begin.get(), End.get(), Index.get(), IndexEnd.get(),
-        Cond.get(), Inc.get(), LoopVar.get(), S->getRParenLoc());
-    if (NewStmt.isInvalid())
-      return StmtError();
-  }
-
-  if (NewStmt.get() == S)
-    return S;
-
-  return FinishCXXForallRangeStmt(NewStmt.get(), Body.get());
-}
 template<typename Derived>
 StmtResult
 TreeTransform<Derived>::TransformMSDependentExistsStmt(
@@ -17811,6 +17727,91 @@ ExprResult TreeTransform<Derived>::TransformHLSLOutArgExpr(HLSLOutArgExpr *E) {
   // We can transform the base expression and allow argument resolution to fill
   // in the rest.
   return getDerived().TransformExpr(E->getArgLValue());
+}
+
+template<typename Derived>
+StmtResult
+TreeTransform<Derived>::TransformCXXForallRangeStmt(CXXForallRangeStmt *S) {
+  StmtResult Init =
+      S->getInit() ? getDerived().TransformStmt(S->getInit()) : StmtResult();
+  if (Init.isInvalid())
+    return StmtError();
+
+  StmtResult Range = getDerived().TransformStmt(S->getRangeStmt());
+  if (Range.isInvalid())
+    return StmtError();
+
+  StmtResult Begin = getDerived().TransformStmt(S->getBeginStmt());
+  if (Begin.isInvalid())
+    return StmtError();
+  StmtResult End = getDerived().TransformStmt(S->getEndStmt());
+  if (End.isInvalid())
+    return StmtError();
+  StmtResult Index = getDerived().TransformStmt(S->getIndexStmt());
+  if (Index.isInvalid())
+    return StmtError();
+  StmtResult IndexEnd = getDerived().TransformStmt(S->getIndexEndStmt());
+  if (IndexEnd.isInvalid())
+    return StmtError();
+
+  ExprResult Cond = getDerived().TransformExpr(S->getCond());
+  if (Cond.isInvalid())
+    return StmtError();
+  if (Cond.get())
+    Cond = SemaRef.CheckBooleanCondition(S->getColonLoc(), Cond.get());
+  if (Cond.isInvalid())
+    return StmtError();
+  if (Cond.get())
+    Cond = SemaRef.MaybeCreateExprWithCleanups(Cond.get());
+
+  ExprResult Inc = getDerived().TransformExpr(S->getInc());
+  if (Inc.isInvalid())
+    return StmtError();
+  if (Inc.get())
+    Inc = SemaRef.MaybeCreateExprWithCleanups(Inc.get());
+
+  StmtResult LoopVar = getDerived().TransformStmt(S->getLoopVarStmt());
+  if (LoopVar.isInvalid())
+    return StmtError();
+
+  StmtResult NewStmt = S;
+  if (getDerived().AlwaysRebuild() ||
+      Init.get() != S->getInit() ||
+      Range.get() != S->getRangeStmt() ||
+      Begin.get() != S->getBeginStmt() ||
+      End.get() != S->getEndStmt() ||
+      Index.get() != S->getIndexStmt() ||
+      IndexEnd.get() != S->getIndexEndStmt() ||
+      Cond.get() != S->getCond() ||
+      Inc.get() != S->getInc() ||
+      LoopVar.get() != S->getLoopVarStmt()) {
+    NewStmt = getDerived().RebuildCXXForallRangeStmt(
+        S->getForLoc(), S->getCoawaitLoc(), Init.get(), S->getColonLoc(),
+        Range.get(), Begin.get(), End.get(), Index.get(), IndexEnd.get(),
+        Cond.get(), Inc.get(), LoopVar.get(), S->getRParenLoc());
+    if (NewStmt.isInvalid())
+      return StmtError();
+  }
+
+  StmtResult Body = getDerived().TransformStmt(S->getBody());
+  if (Body.isInvalid())
+    return StmtError();
+
+  // Body has changed but we didn't rebuild the for-range statement. Rebuild
+  // it now so we have a new statement to attach the body to.
+  if (Body.get() != S->getBody() && NewStmt.get() == S) {
+    NewStmt = getDerived().RebuildCXXForallRangeStmt(
+        S->getForLoc(), S->getCoawaitLoc(), Init.get(), S->getColonLoc(),
+        Range.get(), Begin.get(), End.get(), Index.get(), IndexEnd.get(),
+        Cond.get(), Inc.get(), LoopVar.get(), S->getRParenLoc());
+    if (NewStmt.isInvalid())
+      return StmtError();
+  }
+
+  if (NewStmt.get() == S)
+    return S;
+
+  return FinishCXXForallRangeStmt(NewStmt.get(), Body.get());
 }
 
 template <typename Derived>

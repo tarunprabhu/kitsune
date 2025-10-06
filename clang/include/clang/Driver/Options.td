@@ -1853,11 +1853,11 @@ def fprofile_continuous : Flag<["-"], "fprofile-continuous">,
 
 defm pseudo_probe_for_profiling
     : BoolFOption<"pseudo-probe-for-profiling",
-  CodeGenOpts<"PseudoProbeForProfiling">, DefaultFalse,
-  PosFlag<SetTrue, [], [ClangOption], "Emit">,
-  NegFlag<SetFalse, [], [ClangOption], "Do not emit">,
-  BothFlags<[], [ClangOption, CC1Option],
-          " pseudo probes for sample profiling">>;
+                  CodeGenOpts<"PseudoProbeForProfiling">, DefaultFalse,
+                  PosFlag<SetTrue, [], [ClangOption], "Emit">,
+                  NegFlag<SetFalse, [], [ClangOption], "Do not emit">,
+                  BothFlags<[], [ClangOption, CC1Option],
+                            " pseudo probes for sample profiling">>;
 def fprofile_list_EQ : Joined<["-"], "fprofile-list=">,
     Group<f_Group>, Visibility<[ClangOption, CC1Option, CLOption]>,
     HelpText<"Filename defining the list of functions/files to instrument. "
@@ -2919,8 +2919,8 @@ def finstrument_functions
     : Flag<["-"], "finstrument-functions">,
       Group<f_Group>,
       Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  HelpText<"Generate calls to instrument function entry and exit">,
-  MarshallingInfoFlag<CodeGenOpts<"InstrumentFunctions">>;
+      HelpText<"Generate calls to instrument function entry and exit">,
+      MarshallingInfoFlag<CodeGenOpts<"InstrumentFunctions">>;
 def finstrument_functions_after_inlining : Flag<["-"], "finstrument-functions-after-inlining">, Group<f_Group>,
   Visibility<[ClangOption, CC1Option]>,
   HelpText<"Like -finstrument-functions, but insert the calls after inlining">,
@@ -3874,13 +3874,13 @@ defm pascal_strings : BoolFOption<"pascal-strings",
 def fpatchable_function_entry_EQ
     : Joined<["-"], "fpatchable-function-entry=">,
       Group<f_Group>,
-  Visibility<[ClangOption, CC1Option]>,
+      Visibility<[ClangOption, CC1Option]>,
       MetaVarName<"<N,M,Section>">,
       HelpText<"Generate M NOPs before function entry and N-M NOPs after "
                "function entry. "
                "If section is specified, use it instead of "
                "__patchable_function_entries.">,
-  MarshallingInfoInt<CodeGenOpts<"PatchableFunctionEntryCount">>;
+      MarshallingInfoInt<CodeGenOpts<"PatchableFunctionEntryCount">>;
 def fms_hotpatch : Flag<["-"], "fms-hotpatch">, Group<f_Group>,
   Visibility<[ClangOption, CC1Option, CLOption]>,
   HelpText<"Ensure that all functions can be hotpatched at runtime">,
@@ -5865,8 +5865,8 @@ def : Flag<["-"], "nocudainc">, Alias<no_offload_inc>;
 def no_offloadlib
     : Flag<["--"], "no-offloadlib">,
       MarshallingInfoFlag<LangOpts<"NoGPULib">>,
-  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
-  HelpText<"Do not link device library for CUDA/HIP device compilation">;
+      Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+      HelpText<"Do not link device library for CUDA/HIP device compilation">;
 def offloadlib : Flag<["--"], "offloadlib">,
                  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
                  HelpText<"Link device libraries for GPU device compilation">;
@@ -7773,8 +7773,8 @@ def funwind_tables_EQ : Joined<["-"], "funwind-tables=">,
 defm constructor_aliases
     : BoolMOption<"constructor-aliases", CodeGenOpts<"CXXCtorDtorAliases">,
                   DefaultFalse, PosFlag<SetTrue, [], [ClangOption], "Enable">,
-  NegFlag<SetFalse, [], [ClangOption], "Disable">,
-  BothFlags<[], [ClangOption, CC1Option],
+                  NegFlag<SetFalse, [], [ClangOption], "Disable">,
+                  BothFlags<[], [ClangOption, CC1Option],
                             " emitting complete constructors and destructors "
                             "as aliases when possible">>;
 defm link_builtin_bitcode_postopt: BoolMOption<"link-builtin-bitcode-postopt",

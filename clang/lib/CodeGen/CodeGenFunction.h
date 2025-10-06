@@ -1010,8 +1010,7 @@ public:
   /// PopCleanupBlock - Will pop the cleanup entry on the stack and
   /// process all branch fixups.
   void PopCleanupBlock(bool FallThroughIsBranchThrough = false,
-                       bool ForDeactivation = false,
-                       bool AfterSync = false);
+                       bool ForDeactivation = false, bool AfterSync = false);
 
   /// DeactivateCleanupBlock - Deactivates the given cleanup block.
   /// The block cannot be reactivated.  Pops it if it's the top of the
@@ -1044,8 +1043,8 @@ public:
 
   protected:
     bool PerformCleanup;
-
     bool CleanupAfterSync;
+
     /// Protected method to control whether a sync is inserted before any
     /// cleanups.
     void setCleanupAfterSync(bool V = true) { CleanupAfterSync = V; }
@@ -4164,17 +4163,6 @@ public:
   void EmitCaseStmtRange(const CaseStmt &S, ArrayRef<const Attr *> Attrs);
   void EmitAsmStmt(const AsmStmt &S);
 
-  void EmitDetachBlock(const DeclStmt *DS, llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
-  void ReplaceAllUsesInCurrentBlock(llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
-  void SetAllocaInsertPoint(llvm::Value* v, llvm::BasicBlock* bb);
-
-  typedef llvm::DenseMap<const VarDecl *,
-                         std::pair<Address,llvm::SmallVector<llvm::Value*,4>>> DeclMapByValueTy;
-  void EmitIVLoad(const VarDecl* LoopVar,
-                          DeclMapByValueTy & IVDeclMap);
-  void EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,4>& Values);
-  void RestoreDeclMap(const VarDecl* IV, const Address);
-
   void EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S);
   void EmitObjCAtTryStmt(const ObjCAtTryStmt &S);
   void EmitObjCAtThrowStmt(const ObjCAtThrowStmt &S);
@@ -4219,47 +4207,6 @@ public:
   llvm::Value *EmitSEHExceptionCode();
   llvm::Value *EmitSEHExceptionInfo();
   llvm::Value *EmitSEHAbnormalTermination();
-
-  void EmitSpawnStmt(const SpawnStmt &S);
-  void EmitSyncStmt(const SyncStmt &S);
-  void EmitForallStmt(const ForallStmt &S,
-                      ArrayRef<const Attr *> Attrs = {});
-  void EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
-                              ArrayRef<const Attr *> Attrs = {});
-
-  /// Get the value of the tapir spawning strategy attribute if was set. If the
-  /// attribute was not set, return std::nullopt.
-  llvm::TapirSpawnStrategy GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs);
-
-  /// Get the value of the tapir::target attribute if it was was set. If the
-  /// attribute was not set, return std::nullopt.
-  std::optional<llvm::TTID> GetTapirTargetAttr(ArrayRef<const Attr *> Attrs);
-
-  /// Get the value of the kitsune::launch attribute if it was set. If the
-  /// attribute was not set, return 0.
-  unsigned GetKitsuneLaunchAttr(ArrayRef<const Attr *> Attrs);
-
-  // Kitsune support for Kokkos.
-  bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?
-  bool
-  EmitKokkosConstruct(const CallExpr *CE,
-                      ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
-  bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
-  bool EmitKokkosParallelReduce(const CallExpr *CE,
-                                ArrayRef<const Attr *> Attrs);
-  bool ParseAndValidateParallelFor(
-      const CallExpr *CE, std::string &CN,
-      SmallVector<
-          std::pair<const ParmVarDecl *, std::pair<const Expr *, const Expr *>>,
-          6> &IVinfos,
-      const LambdaExpr *&LE, DiagnosticsEngine &Diags);
-  void EmitAndInitializeKokkosIV(
-      const std::pair<const ParmVarDecl *,
-                      std::pair<const Expr *, const Expr *>> &IVInfo);
-  llvm::Value *EmitKokkosParallelForCond(
-      const std::pair<const ParmVarDecl *,
-                      std::pair<const Expr *, const Expr *>> &IVInfo);
-  void EmitKokkosIncrement(const ParmVarDecl *IV);
 
   /// Emit simple code for OpenMP directives in Simd-only mode.
   void EmitSimpleOMPExecutableDirective(const OMPExecutableDirective &D);
@@ -6139,6 +6086,71 @@ private:
   llvm::Value *FormAArch64ResolverCondition(const FMVResolverOption &RO);
   llvm::Value *EmitAArch64CpuSupports(const CallExpr *E);
   llvm::Value *EmitAArch64CpuSupports(ArrayRef<StringRef> FeatureStrs);
+
+public:
+  //===--------------------------------------------------------------------===//
+  //                       Kitsune extensions Emission
+  //===--------------------------------------------------------------------===//
+
+  // KITSUNE FIXME: Go through these and see how many strictly need to be
+  // public and privatize accordingly. These methods are likely only used in
+  // CGKitsune.cpp and CGKokkos.cpp, so they could probably be made private to
+  // those files in some cases. Making the public footprint smaller may make 
+  // maintenance a little easier.
+
+  void EmitDetachBlock(const DeclStmt *DS, llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
+  void ReplaceAllUsesInCurrentBlock(llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
+  void SetAllocaInsertPoint(llvm::Value* v, llvm::BasicBlock* bb);
+
+  typedef llvm::DenseMap<const VarDecl *,
+                         std::pair<Address,llvm::SmallVector<llvm::Value*,4>>> DeclMapByValueTy;
+  void EmitIVLoad(const VarDecl* LoopVar,
+                          DeclMapByValueTy & IVDeclMap);
+  void EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,4>& Values);
+  void RestoreDeclMap(const VarDecl* IV, const Address);
+
+
+  void EmitSpawnStmt(const SpawnStmt &S);
+  void EmitSyncStmt(const SyncStmt &S);
+  void EmitForallStmt(const ForallStmt &S,
+                      ArrayRef<const Attr *> Attrs = {});
+  void EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
+                              ArrayRef<const Attr *> Attrs = {});
+
+  /// Get the value of the tapir spawning strategy attribute if was set. If the
+  /// attribute was not set, return std::nullopt.
+  llvm::TapirSpawnStrategy GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs);
+
+  /// Get the value of the tapir::target attribute if it was was set. If the
+  /// attribute was not set, return std::nullopt.
+  std::optional<llvm::TTID> GetTapirTargetAttr(ArrayRef<const Attr *> Attrs);
+
+  /// Get the value of the kitsune::launch attribute if it was set. If the
+  /// attribute was not set, return 0.
+  unsigned GetKitsuneLaunchAttr(ArrayRef<const Attr *> Attrs);
+
+  // Kitsune support for Kokkos.
+  bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?
+  bool
+  EmitKokkosConstruct(const CallExpr *CE,
+                      ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
+  bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
+  bool EmitKokkosParallelReduce(const CallExpr *CE,
+                                ArrayRef<const Attr *> Attrs);
+  bool ParseAndValidateParallelFor(
+      const CallExpr *CE, std::string &CN,
+      SmallVector<
+          std::pair<const ParmVarDecl *, std::pair<const Expr *, const Expr *>>,
+          6> &IVinfos,
+      const LambdaExpr *&LE, DiagnosticsEngine &Diags);
+  void EmitAndInitializeKokkosIV(
+      const std::pair<const ParmVarDecl *,
+                      std::pair<const Expr *, const Expr *>> &IVInfo);
+  llvm::Value *EmitKokkosParallelForCond(
+      const std::pair<const ParmVarDecl *,
+                      std::pair<const Expr *, const Expr *>> &IVInfo);
+  void EmitKokkosIncrement(const ParmVarDecl *IV);
+
 };
 
 inline DominatingLLVMValue::saved_type

@@ -2137,9 +2137,9 @@ class PseudoCmpXchg
 def PseudoCmpXchg32 : PseudoCmpXchg;
 def PseudoCmpXchg64 : PseudoCmpXchg;
 
-class PseudoCmpXchg128Pat
+class PseudoCmpXchg128Pat 
     : Pseudo<(outs GPR:$res_lo, GPR:$res_hi, GPR:$scratch),
-             (ins GPR:$addr, GPR:$cmpval_lo, GPR:$cmpval_hi,
+             (ins GPR:$addr, GPR:$cmpval_lo, GPR:$cmpval_hi, 
                   GPR:$newval_lo, GPR:$newval_hi)> {
   let Constraints = "@earlyclobber $res_lo,@earlyclobber $res_hi,@earlyclobber $scratch";
   let mayLoad = 1;

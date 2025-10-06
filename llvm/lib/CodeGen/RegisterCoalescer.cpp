@@ -231,7 +231,7 @@ class RegisterCoalescer : private LiveRangeEdit::Delegate {
   void setUndefOnPrunedSubRegUses(LiveInterval &LI, Register Reg,
                                   LaneBitmask PrunedLanes);
 
-   /// Return true if the live interval from coalescing SrcLI and DstLI crosses
+  /// Return true if the live interval from coalescing SrcLI and DstLI crosses
   /// a basic-block edge that may be produced by a setjmp.
   bool coalescedLiveIntervalMayCrossSetjmp(LiveInterval &SrcLI,
                                            LiveInterval &DstLI);

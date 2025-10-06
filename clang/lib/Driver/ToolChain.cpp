@@ -211,9 +211,10 @@ static void processMultilibCustomFlags(Multilib::flags_list &List,
   }
 }
 
-static void getAArch64MultilibFlags(const Driver &D, const llvm::Triple &Triple,
-                                    const llvm::opt::ArgList &Args,
-                                    Multilib::flags_list &Result) {
+static void getAArch64MultilibFlags(const Driver &D,
+                                          const llvm::Triple &Triple,
+                                          const llvm::opt::ArgList &Args,
+                                          Multilib::flags_list &Result) {
   std::vector<StringRef> Features;
   tools::aarch64::getAArch64TargetFeatures(D, Triple, Args, Features,
                                            /*ForAS=*/false,
@@ -263,9 +264,10 @@ static void getAArch64MultilibFlags(const Driver &D, const llvm::Triple &Triple,
   processMultilibCustomFlags(Result, Args);
 }
 
-static void getARMMultilibFlags(const Driver &D, const llvm::Triple &Triple,
-                                const llvm::opt::ArgList &Args,
-                                Multilib::flags_list &Result) {
+static void getARMMultilibFlags(const Driver &D,
+                                      const llvm::Triple &Triple,
+                                      const llvm::opt::ArgList &Args,
+                                      Multilib::flags_list &Result) {
   std::vector<StringRef> Features;
   llvm::ARM::FPUKind FPUKind = tools::arm::getARMTargetFeatures(
       D, Triple, Args, Features, false /*ForAs*/, true /*ForMultilib*/);
@@ -489,7 +491,8 @@ static const DriverSuffix *parseDriverSuffix(StringRef ProgName, size_t &Pos) {
   return DS;
 }
 
-ParsedClangName ToolChain::getTargetAndModeFromProgramName(StringRef PN) {
+ParsedClangName
+ToolChain::getTargetAndModeFromProgramName(StringRef PN) {
   std::string ProgName = normalizeProgramName(PN);
   size_t SuffixPos;
   const DriverSuffix *DS = parseDriverSuffix(ProgName, SuffixPos);
@@ -500,8 +503,8 @@ ParsedClangName ToolChain::getTargetAndModeFromProgramName(StringRef PN) {
   size_t LastComponent = ProgName.rfind('-', SuffixPos);
   if (LastComponent == std::string::npos)
     return ParsedClangName(ProgName.substr(0, SuffixEnd), DS->ModeFlag);
-  std::string ModeSuffix =
-      ProgName.substr(LastComponent + 1, SuffixEnd - LastComponent - 1);
+  std::string ModeSuffix = ProgName.substr(LastComponent + 1,
+                                           SuffixEnd - LastComponent - 1);
 
   // Infer target from the prefix.
   StringRef Prefix(ProgName);
@@ -558,7 +561,9 @@ Tool *ToolChain::getFlang() const {
   return Flang.get();
 }
 
-Tool *ToolChain::buildAssembler() const { return new tools::ClangAs(*this); }
+Tool *ToolChain::buildAssembler() const {
+  return new tools::ClangAs(*this);
+}
 
 Tool *ToolChain::buildLinker() const {
   llvm_unreachable("Linking is not supported by this toolchain");
@@ -1063,10 +1068,8 @@ bool ToolChain::needsGCovInstrumentation(const llvm::opt::ArgList &Args) {
 }
 
 Tool *ToolChain::SelectTool(const JobAction &JA) const {
-  if (D.IsFlangMode() && getDriver().ShouldUseFlangCompiler(JA))
-    return getFlang();
-  if (getDriver().ShouldUseClangCompiler(JA))
-    return getClang();
+  if (D.IsFlangMode() && getDriver().ShouldUseFlangCompiler(JA)) return getFlang();
+  if (getDriver().ShouldUseClangCompiler(JA)) return getClang();
   Action::ActionClass AC = JA.getKind();
   if (AC == Action::AssembleJobClass && useIntegratedAs() &&
       !getTriple().isOSAIX())
@@ -1104,7 +1107,7 @@ std::string ToolChain::GetLinkerPath(bool *LinkerIsLLD) const {
 
   // Get -fuse-ld= first to prevent -Wunused-command-line-argument. -fuse-ld= is
   // considered as the linker flavor, e.g. "bfd", "gold", or "lld".
-  const Arg *A = Args.getLastArg(options::OPT_fuse_ld_EQ);
+  const Arg* A = Args.getLastArg(options::OPT_fuse_ld_EQ);
   StringRef UseLinker = A ? A->getValue() : CLANG_DEFAULT_LINKER;
 
   // --ld-path= takes precedence over -fuse-ld= and specifies the executable
@@ -1189,7 +1192,9 @@ types::ID ToolChain::LookupTypeForExtension(StringRef Ext) const {
   return id;
 }
 
-bool ToolChain::HasNativeLLVMSupport() const { return false; }
+bool ToolChain::HasNativeLLVMSupport() const {
+  return false;
+}
 
 bool ToolChain::isCrossCompiling() const {
   llvm::Triple HostTriple(LLVM_HOST_TRIPLE);
@@ -1201,8 +1206,7 @@ bool ToolChain::isCrossCompiling() const {
   case llvm::Triple::thumb:
   case llvm::Triple::thumbeb:
     return getArch() != llvm::Triple::arm && getArch() != llvm::Triple::thumb &&
-           getArch() != llvm::Triple::armeb &&
-           getArch() != llvm::Triple::thumbeb;
+           getArch() != llvm::Triple::armeb && getArch() != llvm::Triple::thumbeb;
   default:
     return HostTriple.getArch() != getArch();
   }
@@ -1291,7 +1295,9 @@ std::string ToolChain::ComputeEffectiveClangTriple(const ArgList &Args,
   return ComputeLLVMTriple(Args, InputType);
 }
 
-std::string ToolChain::computeSysRoot() const { return D.SysRoot; }
+std::string ToolChain::computeSysRoot() const {
+  return D.SysRoot;
+}
 
 void ToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
                                           ArgStringList &CC1Args) const {
@@ -1315,12 +1321,12 @@ void ToolChain::addProfileRTLibs(const llvm::opt::ArgList &Args,
   CmdArgs.push_back(getCompilerRTArgString(Args, "profile"));
 }
 
-ToolChain::RuntimeLibType
-ToolChain::GetRuntimeLibType(const ArgList &Args) const {
+ToolChain::RuntimeLibType ToolChain::GetRuntimeLibType(
+    const ArgList &Args) const {
   if (runtimeLibType)
     return *runtimeLibType;
 
-  const Arg *A = Args.getLastArg(options::OPT_rtlib_EQ);
+  const Arg* A = Args.getLastArg(options::OPT_rtlib_EQ);
   StringRef LibName = A ? A->getValue() : CLANG_DEFAULT_RTLIB;
 
   // Only use "platform" in tests to override CLANG_DEFAULT_RTLIB!
@@ -1341,8 +1347,8 @@ ToolChain::GetRuntimeLibType(const ArgList &Args) const {
   return *runtimeLibType;
 }
 
-ToolChain::UnwindLibType
-ToolChain::GetUnwindLibType(const ArgList &Args) const {
+ToolChain::UnwindLibType ToolChain::GetUnwindLibType(
+    const ArgList &Args) const {
   if (unwindLibType)
     return *unwindLibType;
 
@@ -1377,8 +1383,7 @@ ToolChain::GetUnwindLibType(const ArgList &Args) const {
   return *unwindLibType;
 }
 
-ToolChain::CXXStdlibType
-ToolChain::GetCXXStdlibType(const ArgList &Args) const {
+ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
   if (cxxStdlibType)
     return *cxxStdlibType;
 
@@ -1550,7 +1555,7 @@ void ToolChain::AddCXXStdlibLibArgs(const ArgList &Args,
 void ToolChain::AddFilePathLibArgs(const ArgList &Args,
                                    ArgStringList &CmdArgs) const {
   for (const auto &LibPath : getFilePaths())
-    if (LibPath.length() > 0)
+    if(LibPath.length() > 0)
       CmdArgs.push_back(Args.MakeArgString(StringRef("-L") + LibPath));
 }
 

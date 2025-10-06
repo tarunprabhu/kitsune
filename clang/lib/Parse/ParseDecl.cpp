@@ -1078,13 +1078,6 @@ void Parser::ParseHLSLQualifiers(ParsedAttributes &Attrs) {
   Attrs.addNew(AttrName, AttrNameLoc, AttributeScopeInfo(), nullptr, 0, Kind);
 }
 
-void Parser::ParseKitsuneMemAccessQualifiers(ParsedAttributes &Attrs) {
-  IdentifierInfo *AttrName = Tok.getIdentifierInfo();
-  SourceLocation AttrNameLoc = Tok.getLocation();
-  Attrs.addNew(AttrName, AttrNameLoc, AttributeScopeInfo(), nullptr,
-               0, Tok.getKind());
-}
-
 void Parser::ParseNullabilityTypeSpecifiers(ParsedAttributes &attrs) {
   // Treat these like attributes, even though they're type specifiers.
   while (true) {
@@ -8199,4 +8192,11 @@ void Parser::DiagnoseBitIntUse(const Token &Tok) {
     else
       Diag(Loc, diag::ext_bit_int) << getLangOpts().CPlusPlus;
   }
+}
+
+void Parser::ParseKitsuneMemAccessQualifiers(ParsedAttributes &Attrs) {
+  IdentifierInfo *AttrName = Tok.getIdentifierInfo();
+  SourceLocation AttrNameLoc = Tok.getLocation();
+  Attrs.addNew(AttrName, AttrNameLoc, AttributeScopeInfo(), nullptr,
+               0, Tok.getKind());
 }

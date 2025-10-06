@@ -369,7 +369,7 @@ enum Kind {
   kw_detach,
   kw_reattach,
   // NOTE: kw_sync is already defined for a different context.
-  // kw_tsync,
+  // kw_sync,
 
   // Metadata types.
   kw_distinct,

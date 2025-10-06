@@ -205,8 +205,6 @@ static KeywordStatus getKeywordStatusHelper(const LangOptions &LangOpts,
     return LangOpts.ZOSExt ? KS_Enabled : KS_Unknown;
   case KEYHLSL:
     return LangOpts.HLSL ? KS_Enabled : KS_Unknown;
-  case KEYKITSUNE:
-    return LangOpts.IsKitsune ? KS_Enabled : KS_Unknown;
   case KEYNOCXX:
     // This is enabled in all non-C++ modes, but might be enabled for other
     // reasons as well.
@@ -218,6 +216,8 @@ static KeywordStatus getKeywordStatusHelper(const LangOptions &LangOpts,
     return KS_Unknown;
   case KEYFIXEDPOINT:
     return LangOpts.FixedPoint ? KS_Enabled : KS_Disabled;
+  case KEYKITSUNE:
+    return LangOpts.IsKitsune ? KS_Enabled : KS_Unknown;
   default:
     llvm_unreachable("Unknown KeywordStatus flag");
   }

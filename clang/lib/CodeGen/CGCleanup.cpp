@@ -654,8 +654,7 @@ static void destroyOptimisticNormalEntry(CodeGenFunction &CGF,
 /// current insertion point is threaded through the cleanup, as are
 /// any branch fixups on the cleanup.
 void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough,
-                                      bool ForDeactivation,
-                                      bool AfterSync) {
+                                      bool ForDeactivation, bool AfterSync) {
   assert(!EHStack.empty() && "cleanup stack is empty!");
   assert(isa<EHCleanupScope>(*EHStack.begin()) && "top not a cleanup!");
   EHCleanupScope &Scope = cast<EHCleanupScope>(*EHStack.begin());
@@ -964,9 +963,9 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough,
       }
 
       // IV.  Pop the cleanup and emit it.
-      Scope.MarkEmitted();
       if (AfterSync)
         EmitImplicitSyncCleanup();
+      Scope.MarkEmitted();
       EHStack.popCleanup();
       assert(EHStack.hasNormalCleanups() == HasEnclosingCleanups);
 

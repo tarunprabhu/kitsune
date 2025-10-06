@@ -1531,4 +1531,3 @@ StringRef SpawnStmt::getSyncVar() const {
 StringRef SyncStmt::getSyncVar() const {
   return SyncVar;
 }
-
