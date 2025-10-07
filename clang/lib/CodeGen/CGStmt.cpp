@@ -500,6 +500,15 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
   case Stmt::OpenACCCacheConstructClass:
     EmitOpenACCCacheConstruct(cast<OpenACCCacheConstruct>(*S));
     break;
+  case Stmt::CXXForallRangeStmtClass:
+    EmitCXXForallRangeStmt(cast<CXXForallRangeStmt>(*S), Attrs);
+    break;
+  case Stmt::ForallStmtClass:
+    EmitForallStmt(cast<ForallStmt>(*S), Attrs);
+    break;
+  case Stmt::SpawnStmtClass:
+    EmitSpawnStmt(cast<SpawnStmt>(*S));
+    break;
   }
 }
 
@@ -556,15 +565,6 @@ bool CodeGenFunction::EmitSimpleStmt(const Stmt *S,
     // should not be called or emitted during device compilation); the SYCL
     // kernel call statement is thus handled as a null statement for the
     // purpose of code generation.
-    break;
-  case Stmt::CXXForallRangeStmtClass:
-    EmitCXXForallRangeStmt(cast<CXXForallRangeStmt>(*S), Attrs);
-    break;
-  case Stmt::ForallStmtClass:
-    EmitForallStmt(cast<ForallStmt>(*S), Attrs);
-    break;
-  case Stmt::SpawnStmtClass:
-    EmitSpawnStmt(cast<SpawnStmt>(*S));
     break;
   case Stmt::SyncStmtClass:
     EmitSyncStmt(cast<SyncStmt>(*S));
