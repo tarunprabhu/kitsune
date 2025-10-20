@@ -96,7 +96,7 @@ config.substitutions.append(("%kitxx", config.kitxx))
 config.substitutions.append(("%kitfc", config.kitfc))
 config.substitutions.append(("%kit-config", config.kit_config))
 config.substitutions.append(("%kit-mbc", config.kit_mbc))
-config.substitutions.append(("kit-enc", config.kitmenc))
+config.substitutions.append(("%kit-enc", config.kit_enc))
 config.substitutions.append(("%kitsune_gcc_install_dir",
                              config.kitsune_gcc_install_dir))
 if config.kitsune_sysroot:

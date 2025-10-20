@@ -1,4 +1,4 @@
-//=-- kitmenc.cpp - Kitsune tool to encode a module as embedded bitcode -----=//
+//===- kit-enc.cpp - Kitsune tool to encode a module as embedded bitcode --===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -31,7 +31,7 @@
 
 using namespace llvm;
 
-static cl::OptionCategory catKitMEnc("kitmenc Options");
+static cl::OptionCategory catKitEnc("kit-enc Options");
 
 static cl::opt<std::string>
     clModuleName("name", cl::init(""), cl::value_desc("name"),
@@ -40,7 +40,7 @@ static cl::opt<std::string>
 static cl::opt<std::string> clInFile(cl::Positional,
                                      cl::desc("<input bitcode file>"),
                                      cl::init("-"), cl::value_desc("filename"),
-                                     cl::cat(catKitMEnc));
+                                     cl::cat(catKitEnc));
 
 // The default tapir target to set on the encoded global variable if one has
 // not been specified.
@@ -51,7 +51,7 @@ static void setupCommandLineOptions() {
   // the -fp-contract option which requires registering the codegen flags.
   static codegen::RegisterCodeGenFlags cgf;
 
-  cl::HideUnrelatedOptions(catKitMEnc);
+  cl::HideUnrelatedOptions(catKitEnc);
 
   StringRef optTapir = "tapir";
   clSetOptionVisible(optTapir);

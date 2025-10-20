@@ -1,7 +1,7 @@
 # Check that the correct error message is shown when a tapir target that does
 # not generate embedded bitcode is specified.
 #
-# RUN: echo "" | not kit-enc -tapir=serial 2>&1 \
+# RUN: echo "" | not %kit-enc -tapir=serial 2>&1 \
 # RUN:     | FileCheck %s
 #
 # CHECK: 'serial' tapir target does not generate embedded bitcode
