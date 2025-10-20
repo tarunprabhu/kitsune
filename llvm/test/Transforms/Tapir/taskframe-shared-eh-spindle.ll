@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that Tapir lowering properly handles shared EH spindles when
 ; computing taskframe inputs.
 ;

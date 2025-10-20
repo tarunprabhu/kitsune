@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that tapir2target handles shared-eh spindles tracked in an
 ; ancestor task other than the parent.
 ;

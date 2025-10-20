@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that Tapir lowering correctly handles PHI nodes following
 ; detached.rethrow terminators.
 ;

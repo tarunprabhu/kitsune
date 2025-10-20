@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Test to verify that LoopSpawning creates a helper function that places any
 ; sret parameters at the begin of the argument list.
 ;

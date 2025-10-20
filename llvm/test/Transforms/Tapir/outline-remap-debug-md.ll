@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that Tapir outlining properly remaps debug information,
 ; including debug metadata used withing llvm.dbg intrinsic functions.
 ;

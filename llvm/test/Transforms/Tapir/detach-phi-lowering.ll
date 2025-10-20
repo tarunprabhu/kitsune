@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that PHI nodes in detached blocks are handled properly during
 ; Tapir lowering.
 ;

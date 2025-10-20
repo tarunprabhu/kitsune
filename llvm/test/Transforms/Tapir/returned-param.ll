@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Test to verify that an outlined helper function discards the
 ; "returned" attribute on function parameters.
 ;

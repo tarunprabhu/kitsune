@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Test correct IV updating in loop spawning pass.
 ;
 ; Credit to Guy Blelloch for providing the original source code for

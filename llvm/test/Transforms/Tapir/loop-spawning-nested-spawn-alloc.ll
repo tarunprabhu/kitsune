@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that loop-spawning and task-simplify correctly handle a static memory allocation and
 ; nested spawn within a parallel loop body.
 ;

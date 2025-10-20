@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that Tapir lowering ensures the call to the outlined helper
 ; function has debug information.
 ;

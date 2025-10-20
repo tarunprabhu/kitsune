@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that loop spawning can handle a Tapir loop with an unusual
 ; comparison test for its backedge.
 ;

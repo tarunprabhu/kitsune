@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Test to verify that optimizations performed after Tapir lowering
 ; will not hoist the setjmp and comparison inserted by Tapir lowering
 ; above a branch on a different condition.  Although the IR for the

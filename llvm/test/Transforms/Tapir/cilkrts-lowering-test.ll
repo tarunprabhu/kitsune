@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; RUN: opt < %s -passes=tapir2target -tapir-target=opencilk -opencilk-runtime-bc-path=%S/libopencilk-abi.bc -S
 
 ; ModuleID = '/data/compilers/tapir/cilkrts/runtime/cilk-abi-cilk-for.cpp'

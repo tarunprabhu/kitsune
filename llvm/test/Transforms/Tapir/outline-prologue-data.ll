@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that prologue data attached to a function with Tapir
 ; instructions does not get copied to a generated helper function.
 ;

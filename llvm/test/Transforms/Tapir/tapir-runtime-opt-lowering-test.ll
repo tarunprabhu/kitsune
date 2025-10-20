@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Test optimization and lowering of tapir.runtime intrinsics.
 ; 1) Check that tapir.runtime.start intrinsics aren't hoisted out of taskframes.
 ; 2) Check that tapir.runtime intrinsics only cause one OpenCilk ABI call to be inserted for each.

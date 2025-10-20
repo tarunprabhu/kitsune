@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check Tapir outlining properly handles taskframe.resume instructions
 ; with critical unwind edges.
 ;

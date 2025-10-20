@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; RUN: opt < %s -passes="function(loop-simplify),loop-spawning" -S -tapir-target=opencilk | FileCheck %s --check-prefixes=CHECK,CHECK-NOLCSSA
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"

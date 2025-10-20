@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that the Cilksan and Tapir lowering keep allocas at the start
 ; of the function together and before a potential stack switch, so
 ; that ASan does not attempt to unpoison allocas that end up on

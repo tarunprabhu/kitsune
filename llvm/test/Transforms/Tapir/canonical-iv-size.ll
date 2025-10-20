@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that LoopSpawning transforms Tapir loops where the canonical
 ; induction variable does not necessarily have the widest type.
 ;

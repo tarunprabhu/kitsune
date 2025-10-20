@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Thanks to Valentin Churavy for providing this test case.
 ;
 ; RUN: opt %s -passes='indvars' -S | FileCheck %s -check-prefix=IV

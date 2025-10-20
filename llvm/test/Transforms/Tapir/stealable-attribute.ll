@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that Tapir lowering to the Cilk or OpenCilk targets will decorate
 ; functions that can be stolen with the "stealable" attribute.
 ;
