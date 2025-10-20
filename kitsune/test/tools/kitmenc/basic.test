@@ -26,7 +26,7 @@
 # Check that the --name option overrides the input module name
 #
 # RUN: echo "" | kit-enc --name="winnie-the-pooh" \
-# RUN:     | kit-mbc -S \
+# RUN:     | %kit-mbc -S \
 # RUN:     | FileCheck %s --check-prefix=NAME
 #
 # NAME: ModuleID = 'winnie-the-pooh'

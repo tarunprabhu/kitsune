@@ -2,7 +2,7 @@
 ; module.
 ;
 ; RUN: opt %s --tapir=hip -passes='tapir-lowering<O2>' \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: !llvm.ident = !{![[IDENT:[0-9]+]]}

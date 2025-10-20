@@ -2,7 +2,7 @@
 ; only a single instance of the global is created in the kernel module.
 ;
 ; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' %s \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @v137{{[^ ]*}} = internal constant [4 x i32]

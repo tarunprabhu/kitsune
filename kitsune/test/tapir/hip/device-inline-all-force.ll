@@ -3,7 +3,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a %s \
 ; RUN:     -passes='tapir-lowering<O2>,emb-prepare' -emb-inline-all-force \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.+}} @device_func{{.+}} #[[ATTRS:[0-9]+]]

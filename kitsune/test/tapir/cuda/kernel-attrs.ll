@@ -8,7 +8,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 --tapir-cuda-features="+ptx87" \
 ; RUN:     %s -passes='tapir-lowering<O2>' \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.*}}ptx_kernel void {{.+}} #[[ATTRS:[0-9]+]]

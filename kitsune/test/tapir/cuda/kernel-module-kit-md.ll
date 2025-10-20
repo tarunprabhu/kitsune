@@ -2,7 +2,7 @@
 ; metadata to the kernel module.
 ;
 ; RUN: opt %s --tapir=cuda -passes='tapir-lowering<O2>' \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; The module identifier is generated a specific way. We don't really need it to

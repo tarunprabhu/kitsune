@@ -6,7 +6,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch="gfx90a" %s \
 ; RUN:     -passes='tapir-lowering<O2>' \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.+}}(i64 {{.*}}%[[UB:[^,]+]], i64 {{[^,]+}}, i64 {{[^,]+}}, ptr {{.*}}%[[BUF:[^,]+]], i64 {{.*}}%[[N:[^)]+]]) #[[ATTRS:[0-9]+]]

@@ -2,7 +2,7 @@
 ; host module to the device module.
 ;
 ; RUN: opt %s --tapir=hip -passes='tapir-lowering<O2>' \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: !llvm.module.flags = !{![[WCHAR:[0-9]+]], ![[PIC:[0-9]+]], ![[PIE:[0-9]+]], ![[DWARF_VERSION:[0-9]+]], ![[DEBUG_INFO_VERSION:[0-9]+]]

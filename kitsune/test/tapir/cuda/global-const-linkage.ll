@@ -3,7 +3,7 @@
 ; the host module
 ;
 ; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @v137 = internal constant i32 921

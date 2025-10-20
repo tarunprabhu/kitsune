@@ -2,7 +2,7 @@
 ; the prepare pass is run.
 ;
 ; RUN: opt --tapir=cuda --passes='tapir-lowering<O2>,emb-prepare' -S %s \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-NOT: addrspace(67)
