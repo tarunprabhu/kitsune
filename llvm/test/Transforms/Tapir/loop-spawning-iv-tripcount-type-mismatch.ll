@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that the loop-spawning pass properly handles Tapir loops where
 ; the primary IV and trip count do not have the same type.
 ;

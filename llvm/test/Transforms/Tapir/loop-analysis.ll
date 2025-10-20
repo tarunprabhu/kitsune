@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; RUN: opt < %s -tapir-target=opencilk -passes='loop-stripmine' -disable-output -pass-remarks-analysis=loop-stripmine 2>&1 | FileCheck %s
 ; RUN: opt < %s -tapir-target=opencilk -passes='loop-spawning' -disable-output -pass-remarks-analysis=loop-spawning 2>&1 | FileCheck %s --check-prefixes=CHECK,CHECK-LS
 

@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that the OpenCilk back end marks the spawner with the correct memory effects.
 ;
 ; RUN: opt < %s -passes="tapir-lowering<O2>" -tapir-target=opencilk -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s

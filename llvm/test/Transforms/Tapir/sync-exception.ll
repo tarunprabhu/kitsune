@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that the syncs in a function that can throw are lowered to use
 ; a default cleanup landingpad.  In addition, make sure that the same
 ; default cleanup landingpad is used for multiple syncs (for

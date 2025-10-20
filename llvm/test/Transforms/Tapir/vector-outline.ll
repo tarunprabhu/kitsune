@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; RUN: opt < %s -tapir-target=opencilk -passes='loop-spawning' -S | FileCheck %s
 
 ; ModuleID = 'vectoroutline.cpp'

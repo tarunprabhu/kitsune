@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Test that Tapir's loop spawning pass transforms this simple loop
 ; into recursive divide-and-conquer.
 

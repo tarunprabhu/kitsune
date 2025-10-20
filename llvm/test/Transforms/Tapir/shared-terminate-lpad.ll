@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that shared terminate landingpads are outlined properly.
 ;
 ; RUN: opt < %s -passes="tapir2target" -tapir-target=opencilk -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s

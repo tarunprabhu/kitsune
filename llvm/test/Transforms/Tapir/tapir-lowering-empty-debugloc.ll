@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that Tapir lowering adds debug locations to inlinable function calls even when instrumented instructions don't have debug information to copy.
 ;
 ; RUN: opt < %s -passes="tapir2target" -tapir-target=opencilk -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s

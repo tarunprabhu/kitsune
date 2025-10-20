@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that Tapir lowering handles branches to unreachable blocks
 ; when those blocks are shared with the parent spawner.
 ;

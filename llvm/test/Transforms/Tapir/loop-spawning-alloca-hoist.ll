@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that loop-spawning hoists allocas out of the parallel-loop
 ; body but below the recursive calls in the generated helper.
 ;

@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Thanks to Brian Wheatman for providing the original test case for this bug.
 ;
 ; RUN: opt < %s -passes=tapir2target -tapir-target=opencilk -opencilk-runtime-bc-path=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s

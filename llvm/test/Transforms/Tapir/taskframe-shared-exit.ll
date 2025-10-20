@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check how Tapir-lowering handles a taskframe with an unusual
 ; shared-exiting spindle.
 ;

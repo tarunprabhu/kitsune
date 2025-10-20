@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Test that Tapir's loop spawning pass correctly transforms a loop
 ; that reads its original end iteration count.
 

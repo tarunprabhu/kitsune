@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that loop spawning removes the norecurse and noreturn attributes.
 ;
 ; RUN: opt < %s -tapir-target=opencilk -passes='loop-spawning' -S | FileCheck %s

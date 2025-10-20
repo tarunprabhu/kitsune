@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that the OpenCilk Tapir target properly handles invalid
 ; bitcode files.
 ;

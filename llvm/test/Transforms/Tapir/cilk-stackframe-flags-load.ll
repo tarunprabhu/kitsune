@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that the flags in a __cilkrts_stack_frame are reloaded after a
 ; call to a spawning function.
 ;

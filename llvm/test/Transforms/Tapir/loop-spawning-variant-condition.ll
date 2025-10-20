@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check the loop-spawning pass's handling to loop-variant loop conditions.
 ;
 ; RUN: opt < %s -tapir-target=opencilk -passes='loop-spawning' -S 2>&1 | FileCheck %s --check-prefix=CHECK-ERROR

@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that unlinking a task from its unwind destination handles
 ; unreachable blocks correctly.
 ;

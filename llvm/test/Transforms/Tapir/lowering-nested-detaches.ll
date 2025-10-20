@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; RUN: opt < %s -passes='tapir2target,function(simplifycfg,instcombine)' -tapir-target=opencilk -opencilk-runtime-bc-path=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s
 
 source_filename = "c2islModule"

@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that the OpenCilk Tapir target always properly marks runtime
 ; ABI functions so that they are not included in the final object
 ; file.

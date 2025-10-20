@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that Tapir lowering perperly handles debug information around
 ; taskframe.end intrinsics.
 ;

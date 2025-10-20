@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that Tapir lowering properly handles PHI nodes in shared-EH
 ; spindles when outlining taskframes.
 ;

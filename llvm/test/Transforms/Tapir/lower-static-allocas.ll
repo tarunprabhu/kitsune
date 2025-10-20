@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; RUN: opt < %s -tapir-target=opencilk -passes=tapir2target -opencilk-runtime-bc-path=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s --check-prefix=TT
 ; RUN: opt < %s -tapir-target=opencilk -passes=loop-spawning -S | FileCheck %s --check-prefix=LS
 

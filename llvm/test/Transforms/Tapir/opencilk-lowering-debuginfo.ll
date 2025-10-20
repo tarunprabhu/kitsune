@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that the OpenCilk Tapir target finds debug information for
 ; runtime ABI function calls, to ensure they can be inlined.
 ;

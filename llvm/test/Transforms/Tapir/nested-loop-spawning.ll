@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Test to verify that LoopSpawning properly outlines helper functions
 ; for nested Tapir loops.
 ;

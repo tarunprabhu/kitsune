@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; RUN: opt < %s -tapir-target=opencilk -passes="loop-spawning,function(simplifycfg),cgscc(function-attrs),tapir2target" -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s
 ; RUN: opt < %s -passes="loop-spawning,function(simplifycfg),cgscc(function-attrs),tapir2target,always-inline" -tapir-target=opencilk -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s
 

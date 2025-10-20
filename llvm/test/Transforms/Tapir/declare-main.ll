@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that Tapir lowering always ignores empty functions, even main.
 ;
 ; RUN: opt < %s -passes='tapir2target' -tapir-target=opencilk -use-opencilk-runtime-bc -opencilk-runtime-bc-path=%S/libopencilk-abi.bc -S | FileCheck %s

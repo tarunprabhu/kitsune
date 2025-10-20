@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Thanks to Shannon Kuntz for the original source for this test case.
 ;
 ; RUN: opt < %s -passes='tapir2target' -tapir-target=opencilk -opencilk-runtime-bc-path=%S/libopencilk-abi.bc -S

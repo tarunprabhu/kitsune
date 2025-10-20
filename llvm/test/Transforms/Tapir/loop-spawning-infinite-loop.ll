@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-opencilk
+;
 ; Check that loop spawning does not attempt to process infinite Tapir loops.
 ;
 ; RUN: opt < %s -tapir-target=opencilk -passes="loop-spawning" -pass-remarks-analysis=loop-spawning -disable-output 2>&1 | FileCheck %s
