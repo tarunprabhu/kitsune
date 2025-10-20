@@ -41,7 +41,7 @@ config.kitfc = "@KITSUNE_Fortran_FRONTEND@"
 
 # These are currently hard-coded here, but if we ever decide that the names of
 # these utilities could be made configurable, we need only change them here.
-config.kitconf = "kit-config"
+config.kit_config = "kit-config"
 config.kitmbc = "kit-mbc"
 config.kitmenc = "kit-enc"
 

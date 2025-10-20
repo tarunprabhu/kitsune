@@ -1,8 +1,8 @@
 # REQUIRES: kitfc
 #
-# RUN: %kitconf --langs | FileCheck %s -check-prefix LANGS
-# RUN: %kitconf --fortran | FileCheck %s -check-prefix ON
-# RUN: %kitconf --fortran-frontend | FileCheck %s --check-prefix KITFC
+# RUN: %kit-config --langs | FileCheck %s -check-prefix LANGS
+# RUN: %kit-config --fortran | FileCheck %s -check-prefix ON
+# RUN: %kit-config --fortran-frontend | FileCheck %s --check-prefix KITFC
 #
 # LANGS: Fortran
 # ON: ON

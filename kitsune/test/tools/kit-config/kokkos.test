@@ -1,5 +1,5 @@
 # REQUIRES: kitsune-kokkos
 #
-# RUN: %kitconf --kokkos | FileCheck %s -check-prefix ON
+# RUN: %kit-config --kokkos | FileCheck %s -check-prefix ON
 #
 # ON: ON
