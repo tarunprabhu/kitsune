@@ -1,4 +1,8 @@
 set(LLVM_LINK_COMPONENTS
+  AllTargetsAsmParsers
+  AllTargetsCodeGens
+  AllTargetsDescs
+  AllTargetsInfos
   AsmParser
   Core
   KitCore
