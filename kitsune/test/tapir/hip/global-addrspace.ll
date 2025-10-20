@@ -2,7 +2,7 @@
 ; annotation.
 ;
 ; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' %s \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @v137 = {{.*}}addrspace(1) global i32

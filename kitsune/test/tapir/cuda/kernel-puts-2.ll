@@ -3,7 +3,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
 ; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: private unnamed_addr constant [4 x i8] c"%s\0A\00"

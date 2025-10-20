@@ -3,7 +3,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
 ; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: private unnamed_addr addrspace(1) constant [4 x i8] c"%s\0A\00"

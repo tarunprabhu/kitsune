@@ -2,7 +2,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
 ; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: %[[ASF:.+]] = uitofp nneg i64

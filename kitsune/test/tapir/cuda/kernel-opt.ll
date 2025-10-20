@@ -10,7 +10,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
 ; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -emb-O0 \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s --check-prefix=O0
 ;
 ; O0: define {{.+}} @__kitcu_{{.+}}(i64
@@ -28,7 +28,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
 ; RUN:     -passes='tapir-lowering<O2>,emb-optimize' \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s --check-prefix=O2
 ;
 ; O2-NOT: = phi i64

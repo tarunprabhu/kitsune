@@ -3,14 +3,14 @@
 ;
 ; RUN: not \
 ; RUN: %if asserts %{ --crash %} \
-; RUN: kit-mbc %s 2>&1 | FileCheck %s --check-prefix ERROR
+; RUN: %kit-mbc %s 2>&1 | FileCheck %s --check-prefix ERROR
 ;
 ; ------------------------------------------------------------------------------
 ;
 ; If a global variable contains embedded bitcode which cannot be parsed into an
 ; LLVM module, but that module is never requested, it is not an error
 ;
-; RUN: kit-mbc %s --tapir hip -S | FileCheck %s --check-prefix HIP
+; RUN: %kit-mbc %s --tapir hip -S | FileCheck %s --check-prefix HIP
 ;
 ; ------------------------------------------------------------------------------
 ;

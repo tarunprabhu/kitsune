@@ -4,7 +4,7 @@
 ; RUN: opt --tapir=hip %s \
 ; RUN:     -passes='tapir-lowering<O2>' \
 ; RUN:     -hipabi-y-launch \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.+}}(i64 {{[^%]*}}%[[UB:[^,]+]], {{.+}}) #[[ATTRS:[0-9]+]]

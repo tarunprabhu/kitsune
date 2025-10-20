@@ -1,4 +1,4 @@
-//===-- kitmbc.cpp - Kitsune tool to extract embedded bitcode -------------===//
+//===- kit-mbc.cpp - Kitsune tool to extract embedded bitcode -------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -33,7 +33,7 @@
 using namespace llvm;
 using namespace llvm::sys;
 
-static cl::OptionCategory catKitMBC("kitmbc options");
+static cl::OptionCategory catKitMBC("kit-mbc options");
 
 static cl::opt<bool> clForce("f", cl::desc("Enable binary output on terminals"),
                              cl::cat(catKitMBC));

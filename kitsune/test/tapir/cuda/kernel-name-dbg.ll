@@ -8,7 +8,7 @@
 ; this test may need to be updated/removed.
 ;
 ; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' %s \
-; RUN:     | kit-mbc -S \
+; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: define {{.+}} @__kitcu_loop_test_cpp_6_3(
