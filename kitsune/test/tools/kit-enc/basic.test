@@ -3,7 +3,7 @@
 # ------------------------------------------------------------------------------
 # The default tapir target to add to the encoded module is cuda.
 #
-# RUN: echo "" | kit-enc \
+# RUN: echo "" | %kit-enc \
 # RUN:     | FileCheck %s --check-prefix=DEFAULT
 #
 # DEFAULT-DAG: @{{.+}} = {{.+}} #[[CUDABC:[0-9]+]]
@@ -14,7 +14,7 @@
 # ------------------------------------------------------------------------------
 # Check that the --tapir option overrides the default.
 #
-# RUN: kit-enc -tapir=hip %S/input/empty.ll \
+# RUN: %kit-enc -tapir=hip %S/input/empty.ll \
 # RUN:     | FileCheck %s --check-prefix=HIP
 #
 # HIP-DAG: @{{.+}} = {{.+}} #[[HIPBC:[0-9]+]]
@@ -25,7 +25,7 @@
 # ------------------------------------------------------------------------------
 # Check that the --name option overrides the input module name
 #
-# RUN: echo "" | kit-enc --name="winnie-the-pooh" \
+# RUN: echo "" | %kit-enc --name="winnie-the-pooh" \
 # RUN:     | %kit-mbc -S \
 # RUN:     | FileCheck %s --check-prefix=NAME
 #
