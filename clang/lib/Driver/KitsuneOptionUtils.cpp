@@ -108,6 +108,8 @@ clang::getTapirTargetConfigFileName(const opt::ArgList &args) {
     return "opencilk.cfg";
   case TTID::OpenMP:
     return "openmp.cfg";
+  case TTID::Pthreads:
+    return "pthreads.cfg";
   case TTID::Qthreads:
     return "qthreads.cfg";
   case TTID::Realm:
@@ -318,6 +320,8 @@ static bool parseKitsuneTTArgs(KitsuneOptions &kitOpts, TTID tt,
     return parseKitsuneOpenCilkArgs(kitOpts, args, optTable, diags);
   case llvm::TTID::OpenMP:
     return parseKitsuneOpenMPArgs(kitOpts, args, optTable, diags);
+  case llvm::TTID::Pthreads:
+    return true;
   case llvm::TTID::Qthreads:
     return parseKitsuneQthreadsArgs(kitOpts, args, optTable, diags);
   case llvm::TTID::Realm:

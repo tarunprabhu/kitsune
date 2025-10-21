@@ -101,7 +101,7 @@ declare void @llvm.assume(i1) #26
 !13 = !{!9, !9, i64 0}
 !18 = !{!"any pointer", !5, i64 0}
 !22 = !{!"long", !5, i64 0}
-!24 = !{!"tapir.loop.spawn.strategy", i32 1}
+!24 = !{!"tapir.loop.spawn.strategy", i32 2}
 !56 = !{!7, !7, i64 0}
 !66 = !{i8 0, i8 2}
 !93 = !{!94, !18, i64 8}

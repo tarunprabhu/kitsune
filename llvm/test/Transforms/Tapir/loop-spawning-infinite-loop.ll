@@ -33,5 +33,5 @@ attributes #0 = { nounwind willreturn memory(argmem: readwrite) }
 
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"llvm.loop.mustprogress"}
-!2 = !{!"tapir.loop.spawn.strategy", i32 1}
+!2 = !{!"tapir.loop.spawn.strategy", i32 2}
 !3 = !{!"tapir.loop.grainsize", i32 1}

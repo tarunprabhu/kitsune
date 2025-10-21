@@ -138,5 +138,5 @@ attributes #2 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-
 attributes #3 = { nounwind }
 
 !2 = distinct !{!2, !3}
-!3 = !{!"tapir.loop.spawn.strategy", i32 1}
+!3 = !{!"tapir.loop.spawn.strategy", i32 2}
 !4 = distinct !{!4, !3}

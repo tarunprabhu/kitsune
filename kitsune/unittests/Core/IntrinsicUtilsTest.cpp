@@ -23,6 +23,7 @@ namespace {
 TEST(KitIntrinsicUtils, isKitsuneIntrinsic) {
   // This is not a comprehensive list, it just attempts to ensure some sanity.
   EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_async_launch_kernel));
+  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_async_launch_threads));
   EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_async_prefetch_dtoh));
   EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_async_prefetch_htod));
   EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_enable_verbose));
@@ -37,11 +38,13 @@ TEST(KitIntrinsicUtils, isKitsuneIntrinsic) {
 TEST(KitIntrinsicUtils, isKitsuneIntrinsicAsync) {
   // This ought to be a comprehensive list.
   EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_launch_kernel));
+  EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_launch_threads));
   EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_memcpy_dtoh));
   EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_memcpy_htod));
   EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_prefetch_dtoh));
   EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_prefetch_htod));
 
+  EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_sync_threads));
   EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_memcpy_dtoh));
   EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_memcpy_htod));
   EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_enable_verbose));
@@ -54,11 +57,13 @@ TEST(KitIntrinsicUtils, isKitsuneIntrinsicBlocking) {
   // this function does not report async calls as blocking. At least the async
   // calls here ought to be comprehensive.
   EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_launch_kernel));
+  EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_launch_threads));
   EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_memcpy_dtoh));
   EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_memcpy_htod));
   EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_prefetch_dtoh));
   EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_prefetch_htod));
 
+  EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_sync_threads));
   EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_memcpy_dtoh));
   EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_memcpy_htod));
   EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_enable_verbose));

@@ -6255,7 +6255,7 @@ declare void @llvm.detached.rethrow.sl_p0i8i32s(token, { i8*, i32 }) #12
 !8558 = !DILocation(line: 363, column: 5, scope: !8541)
 !8559 = distinct !{!8559, !8532, !8560, !8561}
 !8560 = !DILocation(line: 363, column: 5, scope: !8529)
-!8561 = !{!"tapir.loop.spawn.strategy", i32 1}
+!8561 = !{!"tapir.loop.spawn.strategy", i32 2}
 !8562 = !DILocation(line: 366, column: 1, scope: !8537)
 !8563 = !DILocation(line: 364, column: 3, scope: !8530)
 !8564 = distinct !{!8564, !8520, !8565, !8561}

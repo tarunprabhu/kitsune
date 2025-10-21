@@ -113,4 +113,4 @@ attributes #3 = { nounwind }
 !8 = !{!9, !9, i64 0}
 !9 = !{!"long", !4, i64 0}
 !10 = distinct !{!10, !11}
-!11 = !{!"tapir.loop.spawn.strategy", i32 1}
+!11 = !{!"tapir.loop.spawn.strategy", i32 2}

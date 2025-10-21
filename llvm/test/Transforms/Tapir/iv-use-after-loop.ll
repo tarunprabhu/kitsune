@@ -306,7 +306,7 @@ declare void @free(i8* nocapture) local_unnamed_addr #1
 
 !3 = !{!"omnipotent char", !4, i64 0}
 !4 = !{!"Simple C++ TBAA"}
-!6 = !{!"tapir.loop.spawn.strategy", i32 1}
+!6 = !{!"tapir.loop.spawn.strategy", i32 2}
 !7 = !{!8, !8, i64 0}
 !8 = !{!"bool", !3, i64 0}
 !27 = !{!"int", !3, i64 0}

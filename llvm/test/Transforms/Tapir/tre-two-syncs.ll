@@ -251,6 +251,6 @@ attributes #7 = { nounwind }
 !4 = !{!"llvm.loop.mustprogress"}
 !5 = !{!"llvm.loop.unroll.disable"}
 !6 = distinct !{!6, !7, !5}
-!7 = !{!"tapir.loop.spawn.strategy", i32 1}
+!7 = !{!"tapir.loop.spawn.strategy", i32 2}
 !8 = distinct !{!8, !4, !5}
 !9 = distinct !{!9, !7, !5}

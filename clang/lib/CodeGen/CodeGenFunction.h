@@ -6095,7 +6095,7 @@ public:
   // KITSUNE FIXME: Go through these and see how many strictly need to be
   // public and privatize accordingly. These methods are likely only used in
   // CGKitsune.cpp and CGKokkos.cpp, so they could probably be made private to
-  // those files in some cases. Making the public footprint smaller may make 
+  // those files in some cases. Making the public footprint smaller may make
   // maintenance a little easier.
 
   void EmitDetachBlock(const DeclStmt *DS, llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
@@ -6118,12 +6118,17 @@ public:
                               ArrayRef<const Attr *> Attrs = {});
 
   /// Get the value of the tapir spawning strategy attribute if was set. If the
-  /// attribute was not set, return std::nullopt.
-  llvm::TapirSpawnStrategy GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs);
+  /// attribute was not set, a SpawnStrategy depending on the primary tapir
+  /// target that was set on the command line. If a primary tapir target has not
+  /// been provided, the \ref defaultTapirSpawnStrategy will be returned.
+  llvm::TapirSpawnStrategy GetTapirSpawnStrategy(ArrayRef<const Attr *> Attrs);
 
   /// Get the value of the tapir::target attribute if it was was set. If the
-  /// attribute was not set, return std::nullopt.
-  std::optional<llvm::TTID> GetTapirTargetAttr(ArrayRef<const Attr *> Attrs);
+  /// attribute was not set, get the primary tapir target specified on the
+  /// command line. If a primary tapir target was not provided, return the
+  /// \ref defaultTapirTarget (which is unlikely to be anything other than
+  /// std::nullopt).
+  std::optional<llvm::TTID> GetTapirTarget(ArrayRef<const Attr *> Attrs);
 
   /// Get the value of the kitsune::launch attribute if it was set. If the
   /// attribute was not set, return 0.

@@ -45,6 +45,9 @@ static std::unique_ptr<TapirTarget> createTT(TTID id, Module &m,
   case TTID::Nolo:
     return nullptr;
 
+  case TTID::Pthreads:
+    return std::make_unique<PthreadsTT>(m, tto);
+
   case TTID::Serial:
     return std::make_unique<SerialABI>(m, tto);
 
@@ -65,7 +68,7 @@ static std::unique_ptr<TapirTarget> createTT(TTID id, Module &m,
 
 #if KITSUNE_OMPTASK_ENABLED
   case TTID::OMPTask:
-    return std::make_unique<OMPTask>(m, tto);
+    return std::make_unique<OMPTaskABI>(m, tto);
 #endif // KITSUNE_OMPTASK_ENABLED
 
 #if KITSUNE_OPENCILK_ENABLED

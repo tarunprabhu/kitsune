@@ -6,6 +6,7 @@ add_llvm_component_library(LLVMKitCore
   GlobalVariableUtils.cpp
   IntrinsicUtils.cpp
   KernelProperties.cpp
+  MetadataUtils.cpp
   ModuleUtils.cpp
   TapirTargetOptions.cpp
   TargetUtils.cpp

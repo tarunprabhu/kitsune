@@ -45,14 +45,15 @@ static cl::opt<TTID>
             cl::values(clEnumValN(TTID::Nolo, "nolo", ""),
                        clEnumValN(TTID::Serial, "serial", ""),
                        clEnumValN(TTID::Cuda, "cuda", ""),
-                       clEnumValN(TTID::Hip, "hip", ""),
-                       clEnumValN(TTID::OpenCilk, "opencilk", ""),
                        // clEnumValN(TTID::GPUABI, "gpuabi", ""),
-                       clEnumValN(TTID::Qthreads, "qthreads", ""),
-                       clEnumValN(TTID::Realm, "realm", ""),
+                       clEnumValN(TTID::Hip, "hip", ""),
                        clEnumValN(TTID::Lambda, "lambda", ""),
                        clEnumValN(TTID::OMPTask, "omptask", ""),
-                       clEnumValN(TTID::OpenMP, "openmp", "")));
+                       clEnumValN(TTID::OpenCilk, "opencilk", ""),
+                       clEnumValN(TTID::OpenMP, "openmp", ""),
+                       clEnumValN(TTID::Pthreads, "pthreads", ""),
+                       clEnumValN(TTID::Qthreads, "qthreads", ""),
+                       clEnumValN(TTID::Realm, "realm", "")));
 
 /// This was the option originally in tapir, but in Kitsune, we prefer to use
 /// --tapir instead.

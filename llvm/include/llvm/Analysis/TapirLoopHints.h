@@ -58,9 +58,9 @@ private:
   /// All tapir loop hints. Every known loop hint must contain an entry in this
   /// map, even if a hint is not found in the metadata. When adding support for
   /// a new hint, a default value *MUST* be added to this map.
-  Hints hints = {{nameStrategy, TapirSpawnStrategy::Sequential},
-                 {nameGrainSize, 0U},
-                 {nameLoopTarget, std::nullopt},
+  Hints hints = {{nameStrategy, defaultTapirSpawnStrategy},
+                 {nameGrainSize, defaultTapirGrainSize},
+                 {nameLoopTarget, defaultTapirTarget},
                  {nameThreadsPerBlock, 0U},
                  {nameAutotuneLaunch, false}};
 
@@ -116,12 +116,12 @@ public:
 
   /// Mark the loop as having no spawning strategy.
   void clearStrategy() {
-    hints[nameStrategy] = TapirSpawnStrategy::Sequential;
-    writeHintsToMetadata({{nameStrategy, TapirSpawnStrategy::Sequential}});
+    hints[nameStrategy] = defaultTapirSpawnStrategy;
+    writeHintsToMetadata({{nameStrategy, defaultTapirSpawnStrategy}});
   }
 
   void clearClonedLoopMetadata(ValueToValueMapTy &VMap) {
-    writeHintsToClonedMetadata({{nameStrategy, TapirSpawnStrategy::Sequential}},
+    writeHintsToClonedMetadata({{nameStrategy, defaultTapirSpawnStrategy}},
                                VMap);
   }
 

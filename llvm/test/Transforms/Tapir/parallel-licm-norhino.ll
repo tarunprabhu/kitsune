@@ -67,4 +67,4 @@ attributes #3 = { nounwind }
 !3 = !{!"omnipotent char", !4, i64 0}
 !4 = !{!"Simple C/C++ TBAA"}
 !5 = distinct !{!5, !6}
-!6 = !{!"tapir.loop.spawn.strategy", i32 1}
+!6 = !{!"tapir.loop.spawn.strategy", i32 2}

@@ -317,4 +317,4 @@ attributes #7 = { nounwind }
 !4 = !{}
 !5 = !{!"branch_weights", i32 1048575, i32 1}
 !6 = distinct !{!6, !7}
-!7 = !{!"tapir.loop.spawn.strategy", i32 1}
+!7 = !{!"tapir.loop.spawn.strategy", i32 2}

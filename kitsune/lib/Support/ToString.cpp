@@ -33,6 +33,8 @@ std::string llvm::toString(const TTID &tt) {
     return "opencilk";
   case TTID::OpenMP:
     return "openmp";
+  case TTID::Pthreads:
+    return "pthreads";
   case TTID::Qthreads:
     return "qthreads";
   case TTID::Realm:
@@ -92,6 +94,8 @@ raw_ostream &llvm::operator<<(raw_ostream &os,
     return os << "Divide and conquer";
   case TapirSpawnStrategy::GPU:
     return os << "GPU";
+  case TapirSpawnStrategy::Basic:
+    return os << "Basic";
   }
   llvm_unreachable("operator<<: TapirSpawnStrategy not handled");
 }

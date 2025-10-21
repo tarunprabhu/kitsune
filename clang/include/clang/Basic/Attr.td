@@ -5247,10 +5247,8 @@ def TapirTarget : StmtAttr {
                              ErrorDiag, "'parallel' statements">;
   let Args = [
     EnumArgument<"TapirTargetAttrType", "TapirTargetAttrTy", /*is_string=*/ true,
-                 ["nolo", "serial", "cuda", "hip", "opencilk", "openmp",
-                  "qthreads", "realm"],
-                 ["Nolo", "Serial", "Cuda", "Hip", "OpenCilk", "OpenMP",
-                  "Qthreads", "Realm"],
+                 ["nolo", "cuda", "hip", "opencilk", "pthreads", "serial"],
+                 ["Nolo", "Cuda", "Hip", "OpenCilk", "Pthreads", "Serial"],
                  0>
   ];
   let Documentation = [TapirRTDocs];
@@ -5262,8 +5260,8 @@ def TapirStrategy : StmtAttr {
                              ErrorDiag, "'forall' statement">;
   let Args = [
       EnumArgument<"TapirStrategyType", "TapirStrategyTy", /*is_string=*/ true,
-      ["seq", "dac", "gpu"],
-      ["SEQ", "DAC", "GPU"], 0>
+      ["seq", "dac", "gpu", "basic"],
+      ["Sequential", "DivideAndConquer", "GPU", "Basic"], 0>
   ];
   // FIXME -- how do we document this?
   let Documentation = [TapirStrategyDocs];

@@ -75,5 +75,5 @@ attributes #1 = { "use-soft-float"="false" }
 
 !0 = !{!"clang version 12.0.0 (git@github.com:OpenCilk/opencilk-project.git 6483c891d59b7ee269d7dbde7cbf3dd36b83dd69)"}
 !1 = distinct !{!1, !2, !3}
-!2 = !{!"tapir.loop.spawn.strategy", i32 1}
+!2 = !{!"tapir.loop.spawn.strategy", i32 2}
 !3 = !{!"llvm.loop.unroll.disable"}

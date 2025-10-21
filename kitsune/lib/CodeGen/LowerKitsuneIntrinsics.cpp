@@ -40,6 +40,14 @@ static const KitsuneRuntimeFuncMap kitFuncs = {
     {Intrinsic::kit_enable_verbose, LibFunc_kitrt_enable_verbose},
 };
 
+/// Kitsune runtime functions for the pthreads tapir target.
+static const KitsuneRuntimeFuncMap kitPthreadsFuncs = {
+    {Intrinsic::kit_finalize, LibFunc_kitpthr_finalize},
+    {Intrinsic::kit_initialize, LibFunc_kitpthr_initialize},
+    {Intrinsic::kit_sync_threads, LibFunc_kitpthr_sync},
+    {Intrinsic::kit_async_launch_threads, LibFunc_kitpthr_launch},
+};
+
 /// Kitsune runtime functions for the cuda tapir target.
 static const KitsuneRuntimeFuncMap kitCudaFuncs = {
     {Intrinsic::kit_async_launch_kernel, LibFunc_kitcuda_launch_kernel},
@@ -84,6 +92,7 @@ static const KitsuneRuntimeFuncMap kitHipFuncs = {
 /// Runtime library function maps for tapir targets that have a corresponding
 /// kitsune runtime.
 static const std::map<TTID, KitsuneRuntimeFuncMap> kitTTFuncs = {
+    {TTID::Pthreads, kitPthreadsFuncs},
     {TTID::Cuda, kitCudaFuncs},
     {TTID::Hip, kitHipFuncs},
 };
@@ -118,6 +127,8 @@ static const std::map<TTID, KitsuneRuntimeFuncMap> kitTTFuncs = {
 /// modified before passing them to the runtime function, the lowering *MUST* be
 /// handled with a custom lowering function.
 static const std::map<Intrinsic::ID, std::vector<unsigned>> kitRTArgMap = {
+    {Intrinsic::kit_async_launch_threads, {1, 2, 3, 4, 5}},
+    {Intrinsic::kit_sync_threads, {1}},
     {Intrinsic::kit_async_memcpy_dtoh, {1, 2, 3, 4}},
     {Intrinsic::kit_async_memcpy_htod, {1, 2, 3, 4}},
     {Intrinsic::kit_async_prefetch_dtoh, {1, 3}},
@@ -196,6 +207,7 @@ private:
     case TTID::Hip:
       return getOrInsertLibFunc(m, TTID::Hip, id);
     case TTID::OpenCilk:
+    case TTID::Pthreads:
     case TTID::Serial:
       return getOrInsertLibFunc(m, LibFunc_malloc);
     default:
@@ -218,6 +230,7 @@ private:
     case TTID::Hip:
       return getOrInsertLibFunc(m, TTID::Hip, id);
     case TTID::OpenCilk:
+    case TTID::Pthreads:
     case TTID::Serial:
       return getOrInsertLibFunc(m, LibFunc_free);
     default:

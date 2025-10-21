@@ -11,6 +11,7 @@ add_kitsune_unittest_with_input_files(KitCoreTests
   IntrinsicUtilsTest.cpp
   KernelPropertiesTest.cpp
   ModuleUtilsTest.cpp
+  TypeUtilsTest.cpp
 
   EXPORT_SYMBOLS
 )

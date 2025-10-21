@@ -1892,4 +1892,4 @@ attributes #11 = { noreturn nounwind }
 !38 = !{!39, !19, i64 0}
 !39 = !{!"_ZTSN6parlay14_sequence_baseINS_8sequenceIcNS_9allocatorIcEEEENS2_IS4_EEE14_sequence_impl18capacitated_buffer6headerE", !19, i64 0, !6, i64 8}
 !40 = distinct !{!40, !41}
-!41 = !{!"tapir.loop.spawn.strategy", i32 1}
+!41 = !{!"tapir.loop.spawn.strategy", i32 2}

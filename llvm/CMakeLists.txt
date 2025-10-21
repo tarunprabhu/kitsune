@@ -442,6 +442,7 @@ list(JOIN KITSUNE_ENABLED_LANGS_STR " " KITSUNE_ENABLED_LANGS_STR)
 #
 # The Kokkos option does not need to be moved here (for now) because that only
 # affects clang. And we have ensured that kitsune is configured before clang.
+set(KITSUNE_PTHREADS_ENABLED ON CACHE INTERNAL "Enable 'pthreads' tapir target" FORCE)
 set(KITSUNE_CUDA_ENABLED OFF CACHE INTERNAL "Enable 'cuda' tapir target" FORCE)
 set(KITSUNE_HIP_ENABLED OFF CACHE INTERNAL "Enable 'hip' tapir target" FORCE)
 set(KITSUNE_LAMBDA_ENABLED OFF CACHE INTERNAL "Enable 'lambda' tapir target" FORCE)
@@ -453,15 +454,23 @@ set(KITSUNE_REALM_ENABLED OFF CACHE INTERNAL "Enable 'realm' tapir target" FORCE
 set(KITSUNE_SERIAL_ENABLED ON CACHE INTERNAL "Enable 'serial' tapir target" FORCE)
 
 set(KITSUNE_KNOWN_TAPIR_TARGETS
-  "cuda;hip;lambda;omptask;opencilk;openmp;qthreads;realm;serial"
+  "pthreads;cuda;hip;lambda;omptask;opencilk;openmp;qthreads;realm;serial"
   CACHE INTERNAL
-  "All known Tapir targets" FORCE)
+  "All known Tapir targets"
+  FORCE)
 
 set(KITSUNE_DEFAULT_TAPIR_TARGETS
   "cuda;hip;opencilk"
   CACHE INTERNAL
   "The tapir targets that are built by default if a list of targets to build is
-not provided explicitly" FORCE)
+not provided explicitly"
+  FORCE)
+
+set(KITSUNE_GUARANTEED_TAPIR_TARGETS
+  "pthreads;serial"
+  CACHE INTERNAL
+  "The tapir targets that are always built"
+  FORCE)
 
 set(KITSUNE_ENABLE_TAPIR_TARGETS "${KITSUNE_DEFAULT_TAPIR_TARGETS}" CACHE STRING
   "Semi-colon separated list of tapir targets to build (${KITSUNE_KNOWN_TAPIR_TARGETS}) or \"all\" to build all known tapir targets")
@@ -476,10 +485,11 @@ set(KITSUNE_ENABLED_TAPIR_TARGETS
   CACHE INTERNAL
   "Semicolon-separated list of tapir targets to build")
 
-# Always build the serial tapir target
-if (NOT "serial" IN_LIST KITSUNE_ENABLED_TAPIR_TARGETS)
-  list(APPEND KITSUNE_ENABLED_TAPIR_TARGETS "serial")
-endif ()
+foreach(target IN LISTS KITSUNE_GUARANTEED_TAPIR_TARGETS)
+  if (NOT target IN_LIST KITSUNE_ENABLED_TAPIR_TARGETS)
+    list(APPEND KITSUNE_ENABLED_TAPIR_TARGETS "${target}")
+  endif ()
+endforeach ()
 
 set(KITSUNE_ENABLED_TAPIR_TARGETS_STR)
 foreach(target IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
@@ -487,7 +497,8 @@ foreach(target IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
     message(STATUS "'${target}' tapir target is enabled")
     string(TOUPPER "${target}" upper)
     set(KITSUNE_${upper}_ENABLED ON CACHE INTERNAL
-      "Enable '${target}' tapir target" FORCE)
+      "Enable '${target}' tapir target"
+      FORCE)
     list(APPEND KITSUNE_ENABLED_TAPIR_TARGETS_STR "${target}")
   else ()
     message(FATAL_ERROR "Unknown Tapir target '${target}'")
@@ -515,7 +526,8 @@ if (KITSUNE_CUDA_ENABLED AND
   if (LLVM_TARGETS_TO_BUILD)
     list(APPEND LLVM_TARGETS_TO_BUILD "NVPTX")
     set(LLVM_TARGETS_TO_BUILD "${LLVM_TARGETS_TO_BUILD}" CACHE STRING
-      "Semicolon-separated list of targets to build, or \"all\"." FORCE)
+      "Semicolon-separated list of targets to build, or \"all\"."
+      FORCE)
   endif ()
   message(STATUS "enable NVPTX target")
 endif ()
@@ -526,7 +538,8 @@ if (KITSUNE_HIP_ENABLED AND
   if (LLVM_TARGETS_TO_BUILD)
     list(APPEND LLVM_TARGETS_TO_BUILD "AMDGPU")
     set(LLVM_TARGETS_TO_BUILD "${LLVM_TARGETS_TO_BUILD}" CACHE STRING
-      "Semicolon-separated list of targets to build, or \"all\"." FORCE)
+      "Semicolon-separated list of targets to build, or \"all\"."
+      FORCE)
   endif ()
   message(STATUS "enable AMDGPU target")
 endif ()

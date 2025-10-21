@@ -252,4 +252,4 @@ attributes #7 = { nocallback nofree nosync nounwind willreturn memory(none) }
 !5 = !{!"clang version 16.0.6 (git@github.com:OpenCilk/opencilk-project.git d631c52742bc32d008a8101e6fc002f5085e1274)"}
 !6 = !{}
 !7 = distinct !{!7, !8}
-!8 = !{!"tapir.loop.spawn.strategy", i32 1}
+!8 = !{!"tapir.loop.spawn.strategy", i32 2}

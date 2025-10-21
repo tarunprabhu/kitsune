@@ -169,5 +169,5 @@ attributes #4 = { nounwind }
 !15 = !{!16, !16, i64 0}
 !16 = !{!"int", !11, i64 0}
 !17 = distinct !{!17, !18, !19}
-!18 = !{!"tapir.loop.spawn.strategy", i32 1}
+!18 = !{!"tapir.loop.spawn.strategy", i32 2}
 !19 = !{!"llvm.loop.unroll.disable"}

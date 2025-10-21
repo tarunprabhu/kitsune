@@ -2387,3 +2387,7 @@ Task *llvm::getTaskIfTapirLoop(const Loop *L, TaskInfo *TI) {
 
   return T;
 }
+
+bool llvm::shouldOutlineTapirLoop(const Loop &L) {
+  return hintsDemandOutlining(TapirLoopHints(&L));
+}

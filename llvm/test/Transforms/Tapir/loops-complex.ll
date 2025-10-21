@@ -1775,7 +1775,7 @@ declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i32, i1) #5
 !5 = !{!"Simple C++ TBAA"}
 !6 = !{!7, !7, i64 0}
 !7 = !{!"int", !4, i64 0}
-!9 = !{!"tapir.loop.spawn.strategy", i32 1}
+!9 = !{!"tapir.loop.spawn.strategy", i32 2}
 !10 = !{!11, !12, i64 0}
 !11 = !{!"_ZTSNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_Alloc_hiderE", !12, i64 0}
 !12 = !{!"any pointer", !4, i64 0}

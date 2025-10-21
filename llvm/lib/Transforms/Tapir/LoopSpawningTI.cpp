@@ -469,6 +469,13 @@ static void emitMissedWarning(const Loop *L, const TapirLoopHints &LH,
               << "Tapir loop not transformed: "
               << "loop-spawning transformation disabled");
     return;
+  case TapirSpawnStrategy::Basic:
+    ORE->emit(DiagnosticInfoOptimizationFailure(
+                  DEBUG_TYPE, "BasicSpawningDisabled", L->getStartLoc(),
+                  L->getHeader())
+              << "Tapir loop not transformed: "
+              << "loop-spawning transformation disabled");
+    return;
   }
   llvm_unreachable(
       "LoopSpawning::emitMissedWarning: SpawningStrategy not handled");
@@ -1535,7 +1542,7 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
       PredicatedScalarEvolution PSE(SE, *TL->getLoop());
       bool CanOutline = TL->prepareForOutlining(DT, LI, TI, PSE, AC, LS_NAME,
                                                 ORE, TTI);
-      if (!CanOutline) {
+      if (!CanOutline || !shouldOutlineTapirLoop(*TL->getLoop())) {
         const Loop *L = TL->getLoop();
         TapirLoopHints Hints(L);
         emitMissedWarning(L, Hints, &ORE);

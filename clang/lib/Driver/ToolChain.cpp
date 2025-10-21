@@ -2296,6 +2296,8 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
     case TTID::OpenMP:
       return ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS,
                                    CmdArgs, Args);
+    case TTID::Pthreads:
+      return;
     case TTID::Qthreads:
       return ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS,
                                    CmdArgs, Args);
@@ -2360,6 +2362,8 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
       AddKitsuneOpenMPCommonArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       return;
+    case TTID::Pthreads:
+      return;
     case TTID::Qthreads:
       AddKitsuneQthreadsCommonArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_COMPILER_FLAGS, CmdArgs,
@@ -2392,8 +2396,8 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
 
     // If a tapir target is not given, for consistency with clang, stripmining
     // is never enabled. If the tapir target is a CPU tapir target, stripmining
-    // is only enabled at certain optimization levels, if explicitly enabled
-    // with the -fstripmine flag and disabled if -fno-stripmine is given. For
+    // is only enabled at certain optimization levels or if explicitly enabled
+    // with the -fstripmine flag. It is disabled if -fno-stripmine is given. For
     // GPU tapir targets, stripmining must be enabled explicitly.
     if (TT == TTID::Cuda || TT == TTID::Hip) {
       if (Args.hasArg(options::OPT_fstripmine))
@@ -2567,6 +2571,8 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       AddKitsuneOpenMPLinkerArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       return;
+    case TTID::Pthreads:
+      return;
     case TTID::Qthreads:
       AddKitsuneQthreadsLinkerArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_LINKER_FLAGS, CmdArgs, Args);
@@ -2674,6 +2680,8 @@ void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
       return AddKitsuneOpenCilkCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
     case TTID::OpenMP:
       return AddKitsuneOpenMPCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
+    case TTID::Pthreads:
+      return;
     case TTID::Qthreads:
       return AddKitsuneQthreadsCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
     case TTID::Realm:

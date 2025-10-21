@@ -108,4 +108,4 @@ uselistorder ptr @llvm.syncregion.start, { 1, 0 }
 attributes #0 = { nounwind willreturn memory(argmem: readwrite) }
 
 !0 = distinct !{!0, !1}
-!1 = !{!"tapir.loop.spawn.strategy", i32 1}
+!1 = !{!"tapir.loop.spawn.strategy", i32 2}

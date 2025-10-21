@@ -33,6 +33,55 @@ class ASTContext;
 class CodeGenOptions;
 namespace CodeGen {
 
+/// Attributes that may only be specified on tapir loops. These are kept
+/// separate because we have to be careful not to add these attributes when a
+/// tapir target has not been set, and it makes it easier if all such attributes
+/// are in one place.
+struct TapirLoopAttributes {
+  /// Value for the tapir.loop.target metadata. The value will be determined
+  /// by the first condition that is true in the list below:
+  ///
+  ///   1. If the loop contains a value tapir::target attribute, the value of
+  ///      the attribute will be used.
+  ///
+  ///   2. If a primary tapir target has been set on the command line, that
+  ///      value will be used.
+  ///
+  ///   3. If neither a primary tapir target, nor a loop-specific tapir::target
+  ///      attribute have been set, some default value will be used. This
+  ///      doesn't strictly have to be std::nullopt, but it is unlikely to ever
+  ///      be anything else.
+  ///
+  std::optional<llvm::TTID> TapirTarget = llvm::defaultTapirTarget;
+
+  /// Value for the tapir.loop.spawn.strategy metadata. The value will be
+  /// determined by the first condition that is true in the list below:
+  ///
+  ///   1. If the loop contains a valid tapir::strategy attribute, the value of
+  ///      the attribute will be used.
+  ///
+  ///   2. If the loop contains a valid tapir::target attribute, the spawn
+  ///      strategy will be inferred from it.
+  ///
+  ///   3. If a primary tapir target has been set on the command line, the
+  ///      spawn strategy will be inferred from it. The rules for doing so are
+  ///      the same as when using a loop-specific tapir::target attribute.
+  ///
+  ///   4. If neither a primary tapir target, nor a loop-specific tapir::target
+  ///      attribute have been set, some default value will be used.
+  ///
+  llvm::TapirSpawnStrategy TapirSpawnStrategy = llvm::defaultTapirSpawnStrategy;
+
+  /// Value for the tapir.loop.grainsize metadata.
+  /// TODO: Write some more documentation about this.
+  unsigned TapirGrainSize = llvm::defaultTapirGrainSize;
+
+  /// The number of threads per block to use when launching a tapir loop that
+  /// has been compiled to a GPU kernel. Only relevant for the GPU-centric
+  /// tapir targets.
+  unsigned ThreadsPerBlock = 0;
+};
+
 /// Attributes that may be specified on loops.
 struct LoopAttributes {
   explicit LoopAttributes(bool IsParallel = false);
@@ -86,16 +135,9 @@ struct LoopAttributes {
   /// Value for whether the loop is required to make progress.
   bool MustProgress;
 
-  /// tapir.loop.grainsize.
-  unsigned TapirGrainSize = 0;
-
-  /// Value for tapir.loop.spawn.strategy metadata.
-  llvm::TapirSpawnStrategy SpawnStrategy = llvm::TapirSpawnStrategy::Sequential;
-
-  /// Value for tapir.loop.target metadata.
-  std::optional<llvm::TTID> LoopTarget = std::nullopt;
-
-  unsigned ThreadsPerBlock = 0;
+  /// The tapir loop attributes. This will be std::nullopt unless a tapir target
+  /// has been provided.
+  std::optional<TapirLoopAttributes> TapirLoopAttrs = std::nullopt;
 };
 
 /// Information used when generating a structured loop.
@@ -312,21 +354,32 @@ public:
   /// Set no progress for the next loop pushed.
   void setMustProgress(bool P) { StagedAttrs.MustProgress = P; }
 
-  /// Set the Tapir-loop spawning strategy for the next loop pushed.
-  void setSpawnStrategy(const llvm::TapirSpawnStrategy &Strategy) {
-    StagedAttrs.SpawnStrategy = Strategy;
+  /// Set the tapir target for the next loop pushed.
+  void setTapirTarget(std::optional<llvm::TTID> TT) {
+    if (not StagedAttrs.TapirLoopAttrs)
+      StagedAttrs.TapirLoopAttrs = std::make_optional<TapirLoopAttributes>();
+    StagedAttrs.TapirLoopAttrs->TapirTarget = TT;
   }
 
-  /// Set the Tapir-loop grainsize for the next loop pushed.
-  void setTapirGrainSize(unsigned C) { StagedAttrs.TapirGrainSize = C; }
-
-  /// Set the Tapir loop target
-  void setLoopTarget(std::optional<llvm::TTID> LT) {
-    StagedAttrs.LoopTarget = LT;
+  /// Set the tapir loop spawning strategy for the next loop pushed. This must
+  /// be called *after* the tapir target has already been set by calling
+  /// \ref setTapirTarget.
+  void setTapirSpawnStrategy(llvm::TapirSpawnStrategy SpawnStrategy) {
+    StagedAttrs.TapirLoopAttrs->TapirSpawnStrategy = SpawnStrategy;
   }
 
+  /// Set the tapir grain size for the next loop pushed. This must be called
+  /// *after* the tapir target has already been set by calling \ref
+  /// setTapirTarget.
+  void setTapirGrainSize(unsigned GrainSize) {
+    StagedAttrs.TapirLoopAttrs->TapirGrainSize = GrainSize;
+  }
+
+  /// Set the number of threads per block to use when launching a tapir loop
+  /// that has been compiled to a GPU kernel. This must be called *after* the
+  /// tapir target has already been set by calling \ref setTapirTarget.
   void setLoopThreadsPerBlock(unsigned TPB) {
-    StagedAttrs.ThreadsPerBlock = TPB;
+    StagedAttrs.TapirLoopAttrs->ThreadsPerBlock = TPB;
   }
 
 private:

@@ -535,6 +535,6 @@ attributes #23 = { builtin allocsize(0) }
 !14 = !{!"llvm.loop.unroll.disable"}
 !15 = !{!10, !4, i64 0}
 !16 = distinct !{!16, !17, !18, !14}
-!17 = !{!"tapir.loop.spawn.strategy", i32 1}
+!17 = !{!"tapir.loop.spawn.strategy", i32 2}
 !18 = !{!"tapir.loop.grainsize", i32 64}
 !19 = !{!"branch_weights", i32 1, i32 2000}

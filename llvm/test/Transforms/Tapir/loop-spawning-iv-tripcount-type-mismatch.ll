@@ -283,4 +283,4 @@ attributes #3 = { argmemonly nounwind willreturn }
 !6 = !{!"omnipotent char", !7, i64 0}
 !7 = !{!"Simple C++ TBAA"}
 !8 = distinct !{!8, !9}
-!9 = !{!"tapir.loop.spawn.strategy", i32 1}
+!9 = !{!"tapir.loop.spawn.strategy", i32 2}

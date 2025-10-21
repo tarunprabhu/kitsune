@@ -373,7 +373,7 @@ eh.resume:                                        ; preds = %lpad43, %lpad23
 ; CHECK: )
 ; CHECK: pfor.inc.ls1:
 
-; CHECK-NOT: !{!"tapir.loop.spawn.strategy", i32 1}
+; CHECK-NOT: !{!"tapir.loop.spawn.strategy", i32 2}
 
 ; CHECK-NOT: Tapir loop not transformed: failed to use divide-and-conquer loop spawning
 
@@ -389,7 +389,7 @@ declare void @llvm.detached.rethrow.sl_p0i8i32s(token, { i8*, i32 }) #13
 !6 = !{!"Simple C++ TBAA"}
 !10 = !{!"any pointer", !5, i64 0}
 !13 = !{!"int", !5, i64 0}
-!29 = !{!"tapir.loop.spawn.strategy", i32 1}
+!29 = !{!"tapir.loop.spawn.strategy", i32 2}
 !32 = !{!"llvm.loop.unroll.disable"}
 !57 = !{!13, !13, i64 0}
 !60 = !{!"llvm.loop.isvectorized", i32 1}

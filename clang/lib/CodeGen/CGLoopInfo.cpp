@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CGLoopInfo.h"
+#include "kitsune/Core/MetadataUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"
@@ -437,7 +438,7 @@ LoopAttributes::LoopAttributes(bool IsParallel)
       UnrollCount(0), UnrollAndJamCount(0),
       DistributeEnable(LoopAttributes::Unspecified), PipelineDisabled(false),
       PipelineInitiationInterval(0), CodeAlign(0), MustProgress(false),
-      TapirGrainSize(0), SpawnStrategy(llvm::TapirSpawnStrategy::Sequential) {}
+      TapirLoopAttrs(std::nullopt) {}
 
 void LoopAttributes::clear() {
   IsParallel = false;
@@ -455,10 +456,7 @@ void LoopAttributes::clear() {
   PipelineInitiationInterval = 0;
   CodeAlign = 0;
   MustProgress = false;
-  TapirGrainSize = 0;
-  SpawnStrategy = llvm::TapirSpawnStrategy::Sequential;
-  LoopTarget = std::nullopt;
-  ThreadsPerBlock = 0;
+  TapirLoopAttrs = std::nullopt;
 }
 
 LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
@@ -484,8 +482,8 @@ LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
       Attrs.UnrollAndJamEnable == LoopAttributes::Unspecified &&
       Attrs.DistributeEnable == LoopAttributes::Unspecified &&
       Attrs.CodeAlign == 0 && !StartLoc && !EndLoc && !Attrs.MustProgress &&
-      Attrs.TapirGrainSize == 0 &&
-      Attrs.SpawnStrategy == llvm::TapirSpawnStrategy::Sequential)
+      !Attrs.TapirLoopAttrs.has_value()
+      )
     return;
 
   TempLoopID = MDNode::getTemporary(Header->getContext(), {});
@@ -494,47 +492,24 @@ LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
 std::vector<Metadata *>
 LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
   std::vector<Metadata *> LoopProperties;
-  LLVMContext &Ctx = Header->getContext();
 
-  if (Attrs.SpawnStrategy == llvm::TapirSpawnStrategy::Sequential)
-    return LoopProperties;
+  // If the --tapir option was not provided, we don't have a tapir target, nor
+  // do we (currently) have a reasonable default. In this case, don't add any
+  // tapir loop metadata.
+  if (std::optional<TapirLoopAttributes> TapirAttrs = Attrs.TapirLoopAttrs) {
+    LLVMContext &Ctx = Header->getContext();
 
-  // Setting tapir.loop.spawn.strategy
-  if (Attrs.SpawnStrategy != llvm::TapirSpawnStrategy::Sequential) {
-    Metadata *Vals[] = {
-        MDString::get(Ctx, "tapir.loop.spawn.strategy"),
-        ConstantAsMetadata::get(ConstantInt::get(
-            llvm::Type::getInt32Ty(Ctx), unsigned(Attrs.SpawnStrategy)))};
-    LoopProperties.push_back(MDNode::get(Ctx, Vals));
-  }
-
-  // Setting tapir.loop.grainsize
-  if (Attrs.TapirGrainSize > 0) {
-    Metadata *Vals[] = {
-        MDString::get(Ctx, "tapir.loop.grainsize"),
-        ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
-                                                 Attrs.TapirGrainSize))};
-    LoopProperties.push_back(MDNode::get(Ctx, Vals));
-  }
-
-  // Setting tapir.loop.target. A target may not have been set and we do not
-  // have a reasonable "default". If we don't have a target, don't add the
-  // metadata.
-  if (Attrs.LoopTarget) {
-    Metadata *Vals[] = {
-        MDString::get(Ctx, "tapir.loop.target"),
-        ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
-                                                 unsigned(*Attrs.LoopTarget)))};
-    LoopProperties.push_back(MDNode::get(Ctx, Vals));
-  }
-
-  // Setting tapir.loop.threads.per.block
-  if (Attrs.ThreadsPerBlock) {
-    Metadata *Vals[] = {
-        MDString::get(Ctx, "tapir.loop.threads.per.block"),
-        ConstantAsMetadata::get(ConstantInt::get(
-            llvm::Type::getInt32Ty(Ctx), unsigned(Attrs.ThreadsPerBlock)))};
-    LoopProperties.push_back(MDNode::get(Ctx, Vals));
+    // Even if the --tapir option was provided, the tapir target may be
+    // std::nullopt if --tapir=nolo was specified.
+    if (std::optional<TTID> TT = TapirAttrs->TapirTarget)
+      LoopProperties.push_back(
+          makeTapirLoopMetadata<uint32_t>(Ctx, "tapir.loop.target", *TT));
+    LoopProperties.push_back(makeTapirLoopMetadata<uint32_t>(
+        Ctx, "tapir.loop.spawn.strategy", TapirAttrs->TapirSpawnStrategy));
+    LoopProperties.push_back(makeTapirLoopMetadata<uint32_t>(
+        Ctx, "tapir.loop.grainsize", TapirAttrs->TapirGrainSize));
+    LoopProperties.push_back(makeTapirLoopMetadata<uint32_t>(
+        Ctx, "tapir.loop.threads.per.block", TapirAttrs->ThreadsPerBlock));
   }
 
   return LoopProperties;

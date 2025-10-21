@@ -10,6 +10,7 @@ add_llvm_component_library(LLVMKitTransforms
   GenerateCtors.cpp
   GenerateCtorCuda.cpp
   GenerateCtorHip.cpp
+  GenerateCtorPthreads.cpp
   Prefetching.cpp
   RecomputeKernelProperties.cpp
 

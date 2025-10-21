@@ -339,4 +339,4 @@ attributes #2 = { nounwind }
 !9 = !{!"llvm.loop.unroll.disable"}
 !10 = distinct !{!10, !9}
 !11 = distinct !{!11, !12}
-!12 = !{!"tapir.loop.spawn.strategy", i32 1}
+!12 = !{!"tapir.loop.spawn.strategy", i32 2}

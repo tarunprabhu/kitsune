@@ -921,6 +921,10 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
   // settings these as unavailable, we get some test failures in tli-checker.
   if (!T.isOSLinux()) {
     TLI.setUnavailable(LibFunc_kitrt_enable_verbose);
+    TLI.setUnavailable(LibFunc_kitpthr_finalize);
+    TLI.setUnavailable(LibFunc_kitpthr_initialize);
+    TLI.setUnavailable(LibFunc_kitpthr_launch);
+    TLI.setUnavailable(LibFunc_kitpthr_sync);
     TLI.setUnavailable(LibFunc_kitcuda_enable_refine_launches);
     TLI.setUnavailable(LibFunc_kitcuda_finalize);
     TLI.setUnavailable(LibFunc_kitcuda_get_thread_stream);

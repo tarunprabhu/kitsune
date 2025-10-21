@@ -4621,4 +4621,4 @@ attributes #5 = { readonly }
 !3981 = !DILocation(line: 373, column: 4, scope: !3978)
 !3982 = distinct !{!3982, !3973, !3983, !3984}
 !3983 = !DILocation(line: 382, column: 5, scope: !3974)
-!3984 = !{!"tapir.loop.spawn.strategy", i32 1}
+!3984 = !{!"tapir.loop.spawn.strategy", i32 2}

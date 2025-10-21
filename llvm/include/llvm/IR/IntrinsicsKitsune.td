@@ -26,6 +26,31 @@ def llvm_mobile_ptr_ty : LLVMQualPointerType<67>;
 
 //===----------------------------------------------------------------------===//
 
+// Launch a function on one or more CPU threads. An opaque context object is
+// returned which must be used to join the threads.
+def int_kit_async_launch_threads
+    : Intrinsic<[llvm_ptr_ty], // thread context
+                [llvm_i32_ty,  // tapir target id
+                 llvm_ptr_ty,  // thread function to launch on each thread
+                 llvm_i64_ty,  // start index passed to the thread function
+                 llvm_i64_ty,  // end index passed to the thread function
+                 llvm_i64_ty,  // grain size passed to the thread function
+                 llvm_ptr_ty], // argument bundle passed to the thread function
+                [NonNull<RetIndex>, Dereferenceable<RetIndex, 16>,
+                 ImmArg<ArgIndex<0>>,
+                 NonNull<ArgIndex<1>>,
+                 NonNull<ArgIndex<5>>,
+                 IntrInaccessibleMemOrArgMemOnly, IntrHasSideEffects]>;
+
+// Sync the threads launched in a previous call to kit.async.launch.threads
+def int_kit_sync_threads
+    : Intrinsic<[],
+                [llvm_i32_ty,  // tapir target id
+                 llvm_ptr_ty], // thread context
+                [ImmArg<ArgIndex<0>>,
+                 NonNull<ArgIndex<1>>, Dereferenceable<ArgIndex<1>, 16>,
+                 IntrInaccessibleMemOrArgMemOnly, IntrHasSideEffects]>;
+
 // Launch a kernel on the GPU on the given stream. Returns the same stream. If
 // a stream is not provided, one will be created and returned. The stream is a
 // pointer to an opaque object.

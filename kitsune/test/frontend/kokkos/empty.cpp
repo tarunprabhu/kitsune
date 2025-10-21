@@ -4,15 +4,18 @@
 // RUN:     | FileCheck %s
 //
 // CHECK: %[[SYNCREG:.+]] = call token @llvm.syncregion.start()
+// CHECK: br label %[[COND:.+]]
+// CHECK: [[COND]]:
+// CHECK: br {{.+}}, label %[[DETACH:.+]], label %[[SYNC:.+]]
+// CHECK: [[DETACH]]:
 // CHECK: detach within %[[SYNCREG:.+]], label %[[BODY:.+]], label %[[INC:.+]]
 // CHECK: [[BODY]]
-// CHECK store
 // CHECK: br label %[[REATTACH:.+]]
 // CHECK: [[REATTACH]]:
 // CHECK: reattach within %[[SYNCREG]], label %[[INC]]
 // CHECK: [[INC]]:
-// CHECK: br label {{.+}}, !llvm.loop
-// CHECK: [[SYNC:.+]]:
+// CHECK: br label %[[COND]]
+// CHECK: [[SYNC]]:
 // CHECK: sync within %[[SYNCREG]]
 
 #include "Kokkos_Core.hpp"

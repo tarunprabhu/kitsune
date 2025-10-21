@@ -122,4 +122,4 @@ attributes #2 = { argmemonly nounwind willreturn }
 attributes #3 = { argmemonly willreturn }
 
 !0 = distinct !{!0, !1}
-!1 = !{!"tapir.loop.spawn.strategy", i32 1}
+!1 = !{!"tapir.loop.spawn.strategy", i32 2}

@@ -109,7 +109,7 @@ attributes #1 = { argmemonly nounwind willreturn }
 !4 = !{!"omnipotent char", !5, i64 0}
 !5 = !{!"Simple C/C++ TBAA"}
 !6 = distinct !{!6, !7, !8}
-!7 = !{!"tapir.loop.spawn.strategy", i32 1}
+!7 = !{!"tapir.loop.spawn.strategy", i32 2}
 !8 = !{!"llvm.loop.vectorize.width", i32 1}
 !9 = distinct !{!9, !7, !10, !11, !12}
 !10 = !{!"llvm.loop.vectorize.width", i32 4}
@@ -124,7 +124,7 @@ attributes #1 = { argmemonly nounwind willreturn }
 ; CHECK: [[FROM_TAPIR]] = !{!"llvm.loop.fromtapirloop"}
 
 ; CHECK: [[STRPM_OUTER_LOOPID1]] = distinct !{[[STRPM_OUTER_LOOPID1]], [[SPAWN_STRATEGY:![0-9]+]], [[NOVEC]], [[GRAINSIZE:![0-9]+]]}
-; CHECK: [[SPAWN_STRATEGY]] = !{!"tapir.loop.spawn.strategy", i32 1}
+; CHECK: [[SPAWN_STRATEGY]] = !{!"tapir.loop.spawn.strategy", i32 2}
 ; CHECK: [[GRAINSIZE]] = !{!"tapir.loop.grainsize", i32 1}
 
 ; CHECK: [[STRPM_EPIL_LOOPID1]] = distinct !{[[STRPM_EPIL_LOOPID1]], [[FROM_TAPIR]], [[NOVEC]]}

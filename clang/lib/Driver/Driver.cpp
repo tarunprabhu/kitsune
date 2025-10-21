@@ -153,6 +153,9 @@ static void CheckTTEnabled(const Driver &D, llvm::TTID TT) {
     if (!KITSUNE_OPENMP_ENABLED)
       D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
     return;
+  case llvm::TTID::Pthreads:
+    // The pthreads tapir target is always enabled.
+    return;
   case llvm::TTID::Qthreads:
     if (!KITSUNE_QTHREADS_ENABLED)
       D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
@@ -229,7 +232,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
 
     // If --kokkos is provided, then a tapir target must also be provided.
     if (!Args.hasArg(options::OPT_tapir_EQ)) {
-      D.Diag(diag::err_drv_kitsune_kokkos_no_tapir)
+      D.Diag(diag::err_drv_kitsune_tapir_required)
           << Args.getLastArg(options::OPT_kokkos, options::OPT_kokkos_no_init)
                  ->getSpelling();
       return;

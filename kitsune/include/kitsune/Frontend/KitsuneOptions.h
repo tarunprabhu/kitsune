@@ -112,8 +112,8 @@ private:
   /// The "primary" tapir target for code generation. The "inline" tapir
   /// targets that are attached to specific constructs are separate from this.
   /// This is set to the value of the the --tapir option passed on the command
-  /// line. It is optional because we do not have a default tapir target
-  std::optional<llvm::TTID> tt = std::nullopt;
+  /// line. It is optional because we may not have a default tapir target
+  std::optional<llvm::TTID> tt = llvm::defaultTapirTarget;
 
   /// If this is non-zero, the number of threads per block to use.
   unsigned fixedThreadsPerBlock = 0;

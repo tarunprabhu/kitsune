@@ -1,0 +1,5 @@
+# RUN: %kit-config --pthreads-target | FileCheck %s -check-prefix ON
+# RUN: %kit-config --tapir-targets | FileCheck %s -check-prefix TARGETS
+#
+# ON: ON
+# TARGETS: pthreads
