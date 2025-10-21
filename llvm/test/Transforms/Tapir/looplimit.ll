@@ -95,4 +95,4 @@ attributes #3 = { nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="fals
 attributes #4 = { nounwind }
 
 !2 = distinct !{!2, !3}
-!3 = !{!"tapir.loop.spawn.strategy", i32 1}
+!3 = !{!"tapir.loop.spawn.strategy", i32 2}

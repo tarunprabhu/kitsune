@@ -19,14 +19,8 @@ int main(int argc, char *argv[]) {
   [[tapir::target("opencilk")]]
   forall(int i = 0; i < 1024; ++i) {}
 
-  [[tapir::target("openmp")]]
-  forall(int i = 0; i < 1024; ++i) {}
-
-  [[tapir::target("qthreads")]]
-  forall(int i = 0; i < 1024; ++i) {}
-
-  [[tapir::target("realm")]]
-  forall(int i = 0; i < 1024; ++i) {}
+  [[tapir::target("pthreads")]]
+  forall(int i = 0; i < 1024; ++i) { }
 
   return 0;
 }

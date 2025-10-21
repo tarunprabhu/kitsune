@@ -73,5 +73,5 @@ attributes #1 = { argmemonly nounwind }
 !16 = !DILocation(line: 10, column: 10, scope: !6)
 !17 = distinct !{!17, !8, !18, !19}
 !18 = !DILocation(line: 10, column: 20, scope: !6)
-!19 = !{!"tapir.loop.spawn.strategy", i32 1}
+!19 = !{!"tapir.loop.spawn.strategy", i32 2}
 !20 = !DILocation(line: 11, column: 1, scope: !6)

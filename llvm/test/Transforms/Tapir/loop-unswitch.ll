@@ -451,5 +451,5 @@ attributes #10 = { nounwind }
 !12 = !{!13, !13, i64 0}
 !13 = !{!"float", !4, i64 0}
 !14 = distinct !{!14, !15}
-!15 = !{!"tapir.loop.spawn.strategy", i32 1}
+!15 = !{!"tapir.loop.spawn.strategy", i32 2}
 !16 = distinct !{!16, !15}

@@ -6,8 +6,8 @@
 # RUN: %kit-config --known-tapir-targets \
 # RUN:     | FileCheck %s -check-prefix KNOWN-TARGETS
 #
-# KNOWN-LANGS: C C++ Fortran
-# KNOWN-TARGETS: cuda hip lambda omptask opencilk openmp qthreads realm serial
+# KNOWN-LANGS: {{^C C[+][+] Fortran$}}
+# KNOWN-TARGETS: {{^cuda hip lambda omptask opencilk openmp pthreads qthreads realm serial$}}
 #
 # -----------------------------------------------------------------------------
 #

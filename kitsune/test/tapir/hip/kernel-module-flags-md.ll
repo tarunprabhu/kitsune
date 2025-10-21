@@ -49,7 +49,7 @@ forall.end:
 !llvm.module.flags = !{!3, !4, !5, !6, !7, !8}
 
 !0 = distinct !{!0, !1, !2}
-!1 = !{!"tapir.loop.spawn.strategy", i32 1}
+!1 = !{!"tapir.loop.spawn.strategy", i32 2}
 !2 = !{!"llvm.loop.unroll.disable"}
 !3 = !{i32 1, !"wchar_size", i32 4}
 !4 = !{i32 8, !"PIC Level", i32 2}

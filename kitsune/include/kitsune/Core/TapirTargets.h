@@ -15,6 +15,7 @@
 #define LLVM_TAPIR_TARGETS_H
 
 #include "kitsune/Config/config.h"
+#include "llvm/Transforms/Tapir/PthreadsTT.h"
 #include "llvm/Transforms/Tapir/SerialABI.h"
 
 #if KITSUNE_CUDA_ENABLED

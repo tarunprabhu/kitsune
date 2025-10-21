@@ -59,9 +59,10 @@ void llvm::TapirLoopHints::getHintsFromMetadata() {
 bool llvm::TapirLoopHints::validate(StringRef name, unsigned v) {
   if (name == nameStrategy) {
     switch (TapirSpawnStrategy(v)) {
-    case TapirSpawnStrategy::Sequential:
+    case TapirSpawnStrategy::Basic:
     case TapirSpawnStrategy::DivideAndConquer:
     case TapirSpawnStrategy::GPU:
+    case TapirSpawnStrategy::Sequential:
       return true;
     }
     return false;
@@ -262,6 +263,7 @@ void llvm::TapirLoopHints::clearHintsMetadata() {
 /// Returns true if Tapir-loop hints require loop outlining during lowering.
 bool llvm::hintsDemandOutlining(const TapirLoopHints &hints) {
   switch (hints.getStrategy()) {
+  case TapirSpawnStrategy::Basic:
   case TapirSpawnStrategy::DivideAndConquer:
   case TapirSpawnStrategy::GPU:
     return true;

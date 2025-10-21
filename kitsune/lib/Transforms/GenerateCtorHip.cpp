@@ -1,4 +1,4 @@
-//=- GenerateCtorHip.cpp - ctor for Kitsune's hip runtime -------*-=//
+//===- GenerateCtorHip.cpp - Generate ctor for Kitsune's hip runtime ------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Generate global constructors for Kitsune's hip runtime
+// Generate a global constructor and destructor for Kitsune's hip runtime
 //
 //===----------------------------------------------------------------------===//
 

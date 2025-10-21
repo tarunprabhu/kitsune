@@ -136,9 +136,12 @@ if config.kitsune_cxx_enabled:
 if config.kitsune_fortran_enabled:
     config.available_features.add("kitfc")
 
-# If these features are not enabled, create a corresponding no-<FEATURE>. This
-# is needed to run tests that check the frontends handle the case where
-# --tapir=<TARGET> is given but TARGET has not been enabled in the build.
+# If these features are not enabled, create a corresponding no-<FEATURE>.
+# The drivers should raise an error when --tapir=<TARGET> is provided on the
+# command line and the tapir target <TARGET> has not been enabled in the build.
+# In order to test this, we have to run some tests *only* when some tapir target
+# <TARGET> has not been built. The "kitsune-no-*" features defined below are
+# required for these tests.
 if config.kitsune_kokkos_enabled:
     config.available_features.add("kitsune-kokkos")
 else:
@@ -186,5 +189,5 @@ else:
 
 # It is not realistically possible to account for all options that could
 # possibly be present in system and user configuration files, so disable
-# default configs for the test runs.
+# default configuration files for the test runs.
 config.environment["CLANG_NO_DEFAULT_CONFIG"] = "1"

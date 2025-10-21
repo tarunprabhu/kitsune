@@ -240,5 +240,5 @@ attributes #5 = { nounwind }
 !18 = distinct !{!18, !19}
 !19 = !{!"llvm.loop.mustprogress"}
 !20 = distinct !{!20, !21}
-!21 = !{!"tapir.loop.spawn.strategy", i32 1}
+!21 = !{!"tapir.loop.spawn.strategy", i32 2}
 !22 = distinct !{!22, !19}

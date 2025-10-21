@@ -15,6 +15,9 @@ endif ()
 configure_file(nolo.cfg.in
   ${LLVM_BINARY_DIR}/share/kitsune/nolo.cfg)
 
+configure_file(pthreads.cfg.in
+  ${LLVM_BINARY_DIR}/share/kitsune/pthreads.cfg)
+
 configure_file(serial.cfg.in
   ${LLVM_BINARY_DIR}/share/kitsune/serial.cfg)
 

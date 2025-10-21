@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CGLoopInfo.h"
+#include "kitsune/Core/MetadataUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"
@@ -469,10 +470,7 @@ void LoopAttributes::clear() {
   PipelineInitiationInterval = 0;
   CodeAlign = 0;
   MustProgress = false;
-  TapirGrainSize = 0;
-  SpawnStrategy = llvm::TapirSpawnStrategy::Sequential;
-  LoopTarget = std::nullopt;
-  ThreadsPerBlock = 0;
+  TapirLoopAttrs = std::nullopt;
 }
 
 clang::CodeGen::LoopInfo::LoopInfo(BasicBlock *Header,
@@ -500,11 +498,37 @@ clang::CodeGen::LoopInfo::LoopInfo(BasicBlock *Header,
       Attrs.UnrollAndJamEnable == LoopAttributes::Unspecified &&
       Attrs.DistributeEnable == LoopAttributes::Unspecified &&
       Attrs.CodeAlign == 0 && !StartLoc && !EndLoc && !Attrs.MustProgress &&
-      Attrs.TapirGrainSize == 0 &&
-      Attrs.SpawnStrategy == llvm::TapirSpawnStrategy::Sequential)
+      !Attrs.TapirLoopAttrs.has_value()
+      )
     return;
 
   TempLoopID = MDNode::getTemporary(Header->getContext(), {});
+}
+
+std::vector<Metadata *>
+clang::CodeGen::LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
+  std::vector<Metadata *> LoopProperties;
+
+  // If the --tapir option was not provided, we don't have a tapir target, nor
+  // do we (currently) have a reasonable default. In this case, don't add any
+  // tapir loop metadata.
+  if (std::optional<TapirLoopAttributes> TapirAttrs = Attrs.TapirLoopAttrs) {
+    LLVMContext &Ctx = Header->getContext();
+
+    // Even if the --tapir option was provided, the tapir target may be
+    // std::nullopt if --tapir=nolo was specified.
+    if (std::optional<TTID> TT = TapirAttrs->TapirTarget)
+      LoopProperties.push_back(
+          makeTapirLoopMetadata<uint32_t>(Ctx, "tapir.loop.target", *TT));
+    LoopProperties.push_back(makeTapirLoopMetadata<uint32_t>(
+        Ctx, "tapir.loop.spawn.strategy", TapirAttrs->TapirSpawnStrategy));
+    LoopProperties.push_back(makeTapirLoopMetadata<uint32_t>(
+        Ctx, "tapir.loop.grainsize", TapirAttrs->TapirGrainSize));
+    LoopProperties.push_back(makeTapirLoopMetadata<uint32_t>(
+        Ctx, "tapir.loop.threads.per.block", TapirAttrs->ThreadsPerBlock));
+  }
+
+  return LoopProperties;
 }
 
 void clang::CodeGen::LoopInfo::finish() {

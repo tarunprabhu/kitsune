@@ -112,6 +112,6 @@ attributes #4 = { argmemonly willreturn }
 !14 = !DILocation(line: 4, column: 38, scope: !7)
 !15 = !DILocation(line: 4, column: 33, scope: !7)
 !16 = distinct !{!16, !13, !14, !17, !18}
-!17 = !{!"tapir.loop.spawn.strategy", i32 1}
+!17 = !{!"tapir.loop.spawn.strategy", i32 2}
 !18 = !{!"llvm.loop.unroll.disable"}
 !19 = !DILocation(line: 5, column: 3, scope: !7)

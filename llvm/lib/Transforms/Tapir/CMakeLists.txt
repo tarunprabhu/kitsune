@@ -1,12 +1,13 @@
 set(SOURCES
   DRFScopedNoAliasAA.cpp
+  GPUABI.cpp
   LoopSpawningTI.cpp
   LoopStripMine.cpp
   LoopStripMinePass.cpp
   LoweringUtils.cpp
-  Outline.cpp
-  GPUABI.cpp
   KitsuneUtils.cpp
+  Outline.cpp
+  PthreadsTT.cpp
   SerialABI.cpp
   SerializeSmallTasks.cpp
   TapirLoopInfo.cpp

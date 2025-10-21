@@ -35,14 +35,10 @@ using namespace llvm;
 extern __attribute__((weak)) cl::opt<bool> clRefineLaunches;
 extern __attribute__((weak)) cl::opt<bool> clUseYLaunch;
 
-/// Should a ctor be generated for a GPU-centric tapir target. To determine if
-/// this is the case, check that at least one call to Kitsune's launch kernel
-/// intrinsic is present in the module.
-static bool shouldGenerateGPUCtor(Module &m, TTID tt) {
-  assert((tt == TTID::Cuda || tt == TTID::Hip) &&
-         "shouldGenerateGPUCtor: Tapir target must be GPU-centric");
-  StringRef launch = Intrinsic::getBaseName(Intrinsic::kit_async_launch_kernel);
-  if (Function *f = m.getFunction(launch)) {
+/// Is the given intrinsic \param id called at least once in the module \param m
+/// with the tapir target id \param tt
+static bool isCalledWithTTID(Module &m, Intrinsic::ID id, TTID tt) {
+  if (Function *f = m.getFunction(Intrinsic::getBaseName(id)))
     for (Use &u : f->uses())
       if (auto *call = dyn_cast<CallBase>(u.getUser()))
         // Although unlikely, the intrinsic could have been passed as an
@@ -53,11 +49,27 @@ static bool shouldGenerateGPUCtor(Module &m, TTID tt) {
             if (std::optional<TTID> ttid = createTTIDFrom(*cint))
               if (*ttid == tt)
                 return true;
-  }
   return false;
 }
 
-namespace llvm {
+/// Should a ctor be generated for a tapir target.
+static bool shouldGenerateCtor(Module &m, TTID tt) {
+  switch (tt) {
+  case TTID::Cuda:
+  case TTID::Hip:
+    return isCalledWithTTID(m, Intrinsic::kit_async_launch_kernel, tt);
+  case TTID::Pthreads:
+    return isCalledWithTTID(m, Intrinsic::kit_async_launch_threads, tt);
+  default:
+    llvm_unreachable("shouldGenereateCtor: TTID not handled");
+  }
+}
+
+static const std::map<TTID, detail::GenerateCtorImplFn> genCtorFns = {
+    {TTID::Pthreads, detail::genCtorPthreads},
+    {TTID::Cuda, detail::genCtorCuda},
+    {TTID::Hip, detail::genCtorHip},
+};
 
 PreservedAnalyses GenerateCtorsPass::run(Module &m,
                                          ModuleAnalysisManager &mam) {
@@ -71,7 +83,6 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
   auto getTLI = [&](Function &f) -> TargetLibraryInfo & {
     return fam.getResult<TargetLibraryAnalysis>(f);
   };
-  const TapirTargetOptions &tto = tgi.getOptions();
 
   detail::GenerateCtorOptions genCtorOpts;
   if (&clRefineLaunches)
@@ -79,16 +90,13 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
   if (&clUseYLaunch)
     genCtorOpts.useYLaunch = clUseYLaunch;
 
-  if (shouldGenerateGPUCtor(m, TTID::Cuda))
-    detail::genCtorCuda(m, getTLI, tto, genCtorOpts);
+  const TapirTargetOptions &ttOpts = tgi.getOptions();
+  for (const auto &[tt, genCtorFn] : genCtorFns)
+    if (shouldGenerateCtor(m, tt))
+      genCtorFn(m, getTLI, ttOpts, genCtorOpts);
 
-  if (shouldGenerateGPUCtor(m, TTID::Hip))
-    detail::genCtorHip(m, getTLI, tto, genCtorOpts);
-
-  // This never invalidates any analyses since only a global variable will have
-  // changed. The generated ctors will not be called explicitly in the code,
-  // so the callgraph will not have changed either.
+  // This never invalidates any analyses since, at most, only the initializer of
+  // a global variable will have changed. The generated ctors will not be called
+  // explicitly in the code, so the callgraph will not have changed either.
   return PreservedAnalyses::all();
 }
-
-} // namespace llvm

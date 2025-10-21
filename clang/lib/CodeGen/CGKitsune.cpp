@@ -63,57 +63,62 @@
 using namespace clang;
 using namespace CodeGen;
 
-// KITSUNE FIXME: This seems to be unused. Is this actually the case? Also, is
-// there is a bug in the attribute handling loop since curAttr is never
-// incremented? Or is there some mysterious C++ black magic at work again?
 llvm::TapirSpawnStrategy
-CodeGenFunction::GetTapirStrategyAttr(ArrayRef<const Attr *> Attrs) {
-  auto curAttr = Attrs.begin();
-  while (curAttr != Attrs.end()) {
-    const attr::Kind AttrKind = (*curAttr)->getKind();
-    if (AttrKind == attr::TapirStrategy) {
-      const auto *SAttr = cast<TapirStrategyAttr>(*curAttr);
-      switch (SAttr->getTapirStrategyType()) {
-      case TapirStrategyAttr::SEQ:
-        return llvm::TapirSpawnStrategy::Sequential;
-      case TapirStrategyAttr::DAC:
+CodeGenFunction::GetTapirSpawnStrategy(ArrayRef<const Attr *> Attrs) {
+  for (const Attr *Attr : Attrs) {
+    if (const auto *StrategyAttr = dyn_cast<TapirStrategyAttr>(Attr)) {
+      switch (StrategyAttr->getTapirStrategyType()) {
+      case TapirStrategyAttr::Basic:
+        return llvm::TapirSpawnStrategy::Basic;
+      case TapirStrategyAttr::DivideAndConquer:
         return llvm::TapirSpawnStrategy::DivideAndConquer;
       case TapirStrategyAttr::GPU:
         return llvm::TapirSpawnStrategy::GPU;
+      case TapirStrategyAttr::Sequential:
+        return llvm::TapirSpawnStrategy::Sequential;
       }
-      llvm_unreachable("GetTapirStrategyAttr: TapirStrategyAttr not handled");
+      llvm_unreachable("GetTapirStrategy: TapirStrategyAttr not handled");
     }
   }
-  return llvm::TapirSpawnStrategy::Sequential;
+  if (std::optional<llvm::TTID> TT = GetTapirTarget(Attrs)) {
+    switch (*TT) {
+    case llvm::TTID::Nolo:
+    case llvm::TTID::Serial:
+      return llvm::TapirSpawnStrategy::Sequential;
+    case llvm::TTID::Cuda:
+    case llvm::TTID::Hip:
+      return llvm::TapirSpawnStrategy::GPU;
+    case llvm::TTID::OpenCilk:
+      return llvm::TapirSpawnStrategy::DivideAndConquer;
+    case llvm::TTID::Pthreads:
+      return llvm::TapirSpawnStrategy::Basic;
+    default:
+      llvm_unreachable("GetTapirStrategy: TTID not handled");
+    }
+  }
+  return llvm::defaultTapirSpawnStrategy;
 }
 
-// If a tapir target attribute exists, it will override the tapir target
-// specified on the command line - if any. If a tapir target attribute does not
-// exist and one was specified on the command line, that will be returned.
 std::optional<llvm::TTID>
-CodeGenFunction::GetTapirTargetAttr(ArrayRef<const Attr *> Attrs) {
+CodeGenFunction::GetTapirTarget(ArrayRef<const Attr *> Attrs) {
   // FIXME KITSUNE: This will check for the first occurrence of the tapir target
   // attribute and break immediately if it finds it. Is this what we actually
   // want?
-  for (const Attr *curAttr : Attrs) {
-    if (curAttr->getKind() == attr::TapirTarget) {
-      switch (cast<const TapirTargetAttr>(curAttr)->getTapirTargetAttrType()) {
+  for (const Attr *Attr : Attrs) {
+    if (const auto *TargetAttr = dyn_cast<TapirTargetAttr>(Attr)) {
+      switch (TargetAttr->getTapirTargetAttrType()) {
       case TapirTargetAttr::Nolo:
         return llvm::TTID::Nolo;
-      case TapirTargetAttr::Serial:
-        return llvm::TTID::Serial;
       case TapirTargetAttr::Cuda:
         return llvm::TTID::Cuda;
       case TapirTargetAttr::Hip:
         return llvm::TTID::Hip;
       case TapirTargetAttr::OpenCilk:
         return llvm::TTID::OpenCilk;
-      case TapirTargetAttr::OpenMP:
-        return llvm::TTID::OpenMP;
-      case TapirTargetAttr::Qthreads:
-        return llvm::TTID::Qthreads;
-      case TapirTargetAttr::Realm:
-        return llvm::TTID::Realm;
+      case TapirTargetAttr::Pthreads:
+        return llvm::TTID::Pthreads;
+      case TapirTargetAttr::Serial:
+        return llvm::TTID::Serial;
       }
       llvm_unreachable("GetTapirTargetAttr: TTID not handled");
     }
@@ -147,9 +152,9 @@ llvm::Instruction *CodeGenFunction::EmitLabeledSyncRegionStart(StringRef SV) {
 void CodeGenFunction::EmitSyncStmt(const SyncStmt &S) {
   llvm::BasicBlock *ContinueBlock = createBasicBlock("sync.continue");
 
-  // If this code is reachable then emit a stop point (if generating
-  // debug info). We have to do this ourselves because we are on the
-  // "simple" statement path.
+  // If this code is reachable then emit a stop point (if generating debug
+  // info). We have to do this ourselves because we are on the "simple"
+  // statement path.
   if (HaveInsertPoint())
     EmitStopPoint(&S);
 
@@ -288,14 +293,25 @@ void CodeGenFunction::RestoreDeclMap(const VarDecl *IV,
 }
 
 void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
-                                     ArrayRef<const Attr *> ForallAttr) {
+                                     ArrayRef<const Attr *> Attrs) {
   assert(CGM.getKitsuneOpts().getTTID().has_value() &&
          "TTID not set in Kitsune options");
+
   llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
-  if (std::optional<llvm::TTID> AttrTT = GetTapirTargetAttr(ForallAttr))
+  if (std::optional<llvm::TTID> AttrTT = GetTapirTarget(Attrs))
     TT = *AttrTT;
-  if (TT != llvm::TTID::Nolo)
-    LoopStack.setLoopTarget(TT);
+
+  // The tapir target *must* be set before any other attributes are set in
+  // LoopStack.
+  if (TT != llvm::TTID::Nolo) {
+    LoopStack.setTapirTarget(TT);
+    LoopStack.setTapirSpawnStrategy(GetTapirSpawnStrategy(Attrs));
+  }
+  if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
+    unsigned ThreadsPerBlock = GetKitsuneLaunchAttr(Attrs);
+    if (ThreadsPerBlock > 0)
+      LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);
+  }
 
   // New basic blocks and jump destinations with Tapir terminators
   llvm::BasicBlock *Detach = createBasicBlock("forall.detach");
@@ -312,13 +328,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   PushSyncRegion();
   llvm::Instruction *SRStart = EmitSyncRegionStart();
   CurSyncRegion->setSyncRegionStart(SRStart);
-  LoopStack.setSpawnStrategy(llvm::TapirSpawnStrategy::DivideAndConquer);
   // See if we have any launch attributes to handle before we start loop body.
-  if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
-    unsigned ThreadsPerBlock = GetKitsuneLaunchAttr(ForallAttr);
-    if (ThreadsPerBlock > 0)
-      LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);
-  }
 
   JumpDest LoopExit = getJumpDestInCurrentScope("forall.end");
   LexicalScope ForScope(*this, S.getSourceRange());
@@ -326,14 +336,14 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   // Evaluate the initialization before the loop.
   EmitStmt(S.getInit());
 
-  // In a parallel loop there will always be a condition block
-  // so there is no need to test
+  // In a parallel loop there will always be a condition block so there is no
+  // no need to test
   JumpDest Condition = getJumpDestInCurrentScope("forall.cond");
   llvm::BasicBlock *CondBlock = Condition.getBlock();
   EmitBlock(CondBlock);
 
   const SourceRange &R = S.getSourceRange();
-  LoopStack.push(CondBlock, CGM.getContext(), CGM.getCodeGenOpts(), ForallAttr,
+  LoopStack.push(CondBlock, CGM.getContext(), CGM.getCodeGenOpts(), Attrs,
                  SourceLocToDebugLoc(R.getBegin()),
                  SourceLocToDebugLoc(R.getEnd()));
 
@@ -457,18 +467,23 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   EmitBlock(LoopExit.getBlock(), true);
 }
 
-void CodeGenFunction::EmitCXXForallRangeStmt(
-    const CXXForallRangeStmt &S, ArrayRef<const Attr *> ForallAttr) {
+void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
+                                             ArrayRef<const Attr *> Attrs) {
   assert(CGM.getKitsuneOpts().getTTID().has_value() &&
          "TTID not set in Kitsune options");
-  llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
-  if (std::optional<llvm::TTID> AttrTT = GetTapirTargetAttr(ForallAttr))
-    TT = *AttrTT;
-  if (TT != llvm::TTID::Nolo)
-    LoopStack.setLoopTarget(TT);
 
+  llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
+  if (std::optional<llvm::TTID> AttrTT = GetTapirTarget(Attrs))
+    TT = *AttrTT;
+
+  // The tapir target *must* be set before any other attributes are set in
+  // LoopStack.
+  if (TT != llvm::TTID::Nolo) {
+    LoopStack.setTapirTarget(TT);
+    LoopStack.setTapirSpawnStrategy(GetTapirSpawnStrategy(Attrs));
+  }
   if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
-    unsigned ThreadsPerBlock = GetKitsuneLaunchAttr(ForallAttr);
+    unsigned ThreadsPerBlock = GetKitsuneLaunchAttr(Attrs);
     if (ThreadsPerBlock > 0)
       LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);
   }
@@ -491,7 +506,6 @@ void CodeGenFunction::EmitCXXForallRangeStmt(
   PushSyncRegion();
   llvm::Instruction *SRStart = EmitSyncRegionStart();
   CurSyncRegion->setSyncRegionStart(SRStart);
-  LoopStack.setSpawnStrategy(llvm::TapirSpawnStrategy::DivideAndConquer);
 
   llvm::BasicBlock *End = createBasicBlock("forall.end");
 
@@ -512,7 +526,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(
   EmitBlock(CondBlock);
 
   const SourceRange &R = S.getSourceRange();
-  LoopStack.push(CondBlock, CGM.getContext(), CGM.getCodeGenOpts(), ForallAttr,
+  LoopStack.push(CondBlock, CGM.getContext(), CGM.getCodeGenOpts(), Attrs,
                  SourceLocToDebugLoc(R.getBegin()),
                  SourceLocToDebugLoc(R.getEnd()));
 

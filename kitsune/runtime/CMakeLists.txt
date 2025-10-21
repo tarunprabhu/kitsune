@@ -62,6 +62,11 @@ target_include_directories(${KITSUNE_OBJLIB} PUBLIC
 target_link_libraries(${KITSUNE_OBJLIB} PUBLIC
   pthread rt dl)
 
+if (KITSUNE_PTHREADS_ENABLED)
+  target_sources(${KITSUNE_OBJLIB} PUBLIC
+    pthreads/kitpthr.cpp)
+endif ()
+
 # The KITSUNE_CUDA_* variables are defined in kitsune/CMakeLists.txt. They are
 # passed in via CMake because the Kitsune runtime is treated as an external
 # project.

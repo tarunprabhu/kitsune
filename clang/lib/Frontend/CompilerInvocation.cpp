@@ -4769,6 +4769,8 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
                   Opts.getOpenCilkRuntimeBCFile());
       return;
     case llvm::TTID::OpenMP:
+    case llvm::TTID::Pthreads:
+      return;
     case llvm::TTID::Qthreads:
     case llvm::TTID::Realm:
     case llvm::TTID::Serial:

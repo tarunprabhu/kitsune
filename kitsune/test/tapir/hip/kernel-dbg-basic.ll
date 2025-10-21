@@ -425,7 +425,7 @@ forall.end15:
 !285 = !DILocation(line: 6, column: 32, scope: !273)
 !286 = distinct !{!286, !277, !287, !288, !328, !290}
 !287 = !DILocation(line: 7, column: 15, scope: !271)
-!288 = !{!"tapir.loop.spawn.strategy", i32 1}
+!288 = !{!"tapir.loop.spawn.strategy", i32 2}
 !290 = !{!"llvm.loop.unroll.disable"}
 !291 = !DILocation(line: 6, column: 3, scope: !273)
 !292 = !DILocation(line: 8, column: 1, scope: !261)

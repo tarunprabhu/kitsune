@@ -82,4 +82,4 @@ attributes #3 = { nounwind }
 !0 = !{i32 1, !"wchar_size", i32 4}
 !1 = !{!"clang version 6.0.0 (git@github.com:wsmoses/Tapir-Clang.git 96fbe7006d96197be05a8c45720a2b1d281e1678) (git@github.com:wsmoses/Tapir-LLVM.git 8a0ce31c7dd131c39642b9097a00fe3bcc18bb81)"}
 !2 = distinct !{!2, !3}
-!3 = !{!"tapir.loop.spawn.strategy", i32 1}
+!3 = !{!"tapir.loop.spawn.strategy", i32 2}

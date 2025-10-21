@@ -26,8 +26,6 @@ class TargetLibraryInfo;
 
 namespace detail {
 
-using GetTLI = std::function<TargetLibraryInfo &(Function &)>;
-
 /// Options to generate global ctors for kitsune's runtime.
 struct GenerateCtorOptions {
 public:
@@ -38,13 +36,25 @@ public:
   unsigned useYLaunch : 1;
 };
 
-/// Generate a ctor for kitsune's cuda runtime.
-void genCtorCuda(Module &m, GetTLI getTLI, const TapirTargetOptions &tto,
+/// Type of function that queries the TargetLibraryInfo analysis for an LLVM
+/// Function.
+using GetTLI = std::function<TargetLibraryInfo &(Function &)>;
+
+/// Type of the function that will generate a global ctor for some tapir target.
+using GenerateCtorImplFn = std::function<void(
+    Module &, GetTLI, const TapirTargetOptions &, GenerateCtorOptions &)>;
+
+/// Generate a global constructor and destructor for kitsune's cuda runtime.
+void genCtorCuda(Module &m, GetTLI getTLI, const TapirTargetOptions &ttOpts,
                  const GenerateCtorOptions &ctorOpts);
 
-/// Generate a ctor for kitsune's hip runtime.
-void genCtorHip(Module &m, GetTLI getTLI, const TapirTargetOptions &tto,
+/// Generate a global constructor and destructor for kitsune's hip runtime.
+void genCtorHip(Module &m, GetTLI getTLI, const TapirTargetOptions &ttOpts,
                 const GenerateCtorOptions &ctorOpts);
+
+/// Generate a global constructor and destructor for Kitsune's pthreads runtime.
+void genCtorPthreads(Module &m, GetTLI getTLI, const TapirTargetOptions &ttOpts,
+                     const GenerateCtorOptions &ctorOpts);
 
 } // namespace detail
 

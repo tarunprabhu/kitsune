@@ -1442,6 +1442,8 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
     Changed |= setOnlyWritesArgMemOrErrnoMem(F);
     Changed |= setDoesNotSync(F);
     break;
+  case LibFunc_kitpthr_launch:
+  case LibFunc_kitpthr_sync:
   case LibFunc_kitcuda_enable_refine_launches:
   case LibFunc_kitcuda_finalize:
   case LibFunc_kitcuda_get_thread_stream:
@@ -1592,6 +1594,12 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
   case LibFunc_strncmp:
   case LibFunc_strncpy:
   case LibFunc_vsnprintf:
+    break;
+
+  case LibFunc_kitpthr_launch:
+  case LibFunc_kitpthr_sync:
+    setArgExtAttr(*F, 0, TLI);
+    setArgExtAttr(*F, 1, TLI);
     break;
 
   case LibFunc_kitcuda_enable_refine_launches:

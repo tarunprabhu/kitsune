@@ -407,7 +407,7 @@ declare i64 @strlen(i8* nocapture) local_unnamed_addr #13
 !4 = !{!"double", !5, i64 0}
 !5 = !{!"omnipotent char", !6, i64 0}
 !6 = !{!"Simple C++ TBAA"}
-!14 = !{!"tapir.loop.spawn.strategy", i32 1}
+!14 = !{!"tapir.loop.spawn.strategy", i32 2}
 !20 = !{!21, !21, i64 0}
 !21 = !{!"any pointer", !5, i64 0}
 !35 = !{!"int", !5, i64 0}

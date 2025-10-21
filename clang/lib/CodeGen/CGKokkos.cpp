@@ -295,15 +295,25 @@ void CodeGenFunction::EmitKokkosIncrement(const ParmVarDecl *IV) {
   Builder.CreateStore(IncVal, GetAddrOfLocalVar(IV));
 }
 
-bool CodeGenFunction::EmitKokkosParallelFor(
-    const CallExpr *CE, ArrayRef<const Attr *> KokkosAttrs) {
+bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
+                                            ArrayRef<const Attr *> Attrs) {
   assert(CGM.getKitsuneOpts().getTTID().has_value() &&
          "TTID not set in Kitsune options");
   llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
-  if (std::optional<llvm::TTID> AttrTT = GetTapirTargetAttr(KokkosAttrs))
+  if (std::optional<llvm::TTID> AttrTT = GetTapirTarget(Attrs))
     TT = *AttrTT;
-  if (TT != llvm::TTID::Nolo)
-    LoopStack.setLoopTarget(TT);
+
+  // The tapir target *must* be set before any other attributes are set in
+  // LoopStack.
+  if (TT != llvm::TTID::Nolo) {
+    LoopStack.setTapirTarget(TT);
+    LoopStack.setTapirSpawnStrategy(GetTapirSpawnStrategy(Attrs));
+  }
+  if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
+    unsigned ThreadsPerBlock = GetKitsuneLaunchAttr(Attrs);
+    if (ThreadsPerBlock > 0)
+      LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);
+  }
 
   // New basic blocks and jump destinations with Tapir terminators
   // Note that we only need one of each of these regardless of the number of
@@ -322,7 +332,6 @@ bool CodeGenFunction::EmitKokkosParallelFor(
   PushSyncRegion();
   llvm::Instruction *SRStart = EmitSyncRegionStart();
   CurSyncRegion->setSyncRegionStart(SRStart);
-  LoopStack.setSpawnStrategy(llvm::TapirSpawnStrategy::DivideAndConquer);
 
   // Parse and validate the parallel for
   std::string PFName; // construct name (for kokkos profiling)
@@ -380,8 +389,8 @@ bool CodeGenFunction::EmitKokkosParallelFor(
     if (i < numIVs - 1)
       EmitAndInitializeKokkosIV(IVInfos[i + 1]);
 
-    LoopStack.push(CondBlock[i], CGM.getContext(), CGM.getCodeGenOpts(),
-                   KokkosAttrs, SourceLocToDebugLoc(R.getBegin()),
+    LoopStack.push(CondBlock[i], CGM.getContext(), CGM.getCodeGenOpts(), Attrs,
+                   SourceLocToDebugLoc(R.getBegin()),
                    SourceLocToDebugLoc(R.getEnd()));
 
     // Store the blocks to use for break and continue. Since we are emitting all

@@ -1,4 +1,4 @@
-//=- GenerateCtorCuda.cpp - ctor for Kitsune's cuda runtime --------*-=//
+//===- GenerateCtorCuda.cpp - Generate ctor for Kitsune's cuda runtime ----===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Generate global constructors for Kitsune's cuda runtime
+// Generate a global constructor and destructor for Kitsune's cuda runtime
 //
 //===----------------------------------------------------------------------===//
 

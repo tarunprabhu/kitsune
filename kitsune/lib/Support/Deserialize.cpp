@@ -26,6 +26,7 @@ std::optional<TTID> llvm::createTTIDFrom(StringRef s) {
       .Case("omptask", TTID::OMPTask)
       .Case("opencilk", TTID::OpenCilk)
       .Case("openmp", TTID::OpenMP)
+      .Case("pthreads", TTID::Pthreads)
       .Case("qthreads", TTID::Qthreads)
       .Case("realm", TTID::Realm)
       .Case("serial", TTID::Serial)
@@ -57,6 +58,8 @@ std::optional<TTID> llvm::createTTIDFrom(uint32_t u) {
     return TTID::OMPTask;
   case 0x200:
     return TTID::OpenMP;
+  case 0x400:
+    return TTID::Pthreads;
   default:
     return std::nullopt;
   }

@@ -263,6 +263,10 @@ MDNode *CopyNonTapirLoopMetadata(MDNode *LoopID, MDNode *OrigLoopID);
 /// or nullptr if not.
 Task *getTaskIfTapirLoop(const Loop *L, TaskInfo *TI);
 
+/// Examine a tapir loop and check if it should be outlined based on the loop
+/// hints.
+bool shouldOutlineTapirLoop(const Loop &L);
+
 } // namespace llvm
 
 #endif

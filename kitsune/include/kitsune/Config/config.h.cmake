@@ -87,6 +87,11 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // -----------------------------------------------------------------------------
 
+// Is the pthreads tapir target enabled
+#cmakedefine01 KITSUNE_PTHREADS_ENABLED
+
+// -----------------------------------------------------------------------------
+
 // Is the cuda tapir target enabled
 #cmakedefine01 KITSUNE_CUDA_ENABLED
 
@@ -271,6 +276,11 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 // Extra linker flags needed when compiling with the realm tapir target.
 // These are in addition to any flags automatically added by Kitsune
 #define KITSUNE_REALM_EXTRA_LINKER_FLAGS "@KITSUNE_REALM_EXTRA_LINKER_FLAGS@"
+
+// -----------------------------------------------------------------------------
+
+// Is the serial tapir target enabled
+#cmakedefine01 KITSUNE_SERIAL_ENABLED
 
 // -----------------------------------------------------------------------------
 

@@ -44,6 +44,6 @@ forall.end:
 !llvm.ident = !{!3}
 
 !0 = distinct !{!0, !1, !2}
-!1 = !{!"tapir.loop.spawn.strategy", i32 1}
+!1 = !{!"tapir.loop.spawn.strategy", i32 2}
 !2 = !{!"llvm.loop.unroll.disable"}
 !3 = !{!"clang 67.3"}

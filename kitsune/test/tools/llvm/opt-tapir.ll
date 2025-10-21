@@ -11,7 +11,7 @@
 ; CHECK-NEXT:  %[[IV:.+]] = phi i64 [ %[[INC:.+]], %[[BODY]] ], [ 0, %[[ENTRY]] ]
 ; CHECK-NEXT:  %[[IDX:.+]] = getelementptr inbounds nuw i64, ptr %{{.}}, i64 %[[IV]]
 ; CHECK-NEXT:  store i64 %{{.+}}, ptr %[[IDX]]
-; CHECK-NEXT:  %[[INC]] = add nuw nsw i64 %[[IV]], 1
+; CHECK-NEXT:  %[[INC]] = add {{.*}}i64 %[[IV]], 1
 ; CHECK-NEXT:  %[[COND:.+]] = icmp eq i64 %[[INC]], %{{.+}}
 ; CHECK-NEXT:  br i1 %[[COND]], label %[[EXIT:.+]], label %[[BODY]]
 ; CHECK: [[EXIT]]:
@@ -46,5 +46,5 @@ forall.end:
 }
 
 !0 = distinct !{!0, !1, !2}
-!1 = !{!"tapir.loop.spawn.strategy", i32 0}
+!1 = !{!"tapir.loop.spawn.strategy", i32 1}
 !2 = !{!"llvm.loop.unroll.disable"}

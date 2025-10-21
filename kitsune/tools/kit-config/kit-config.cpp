@@ -27,12 +27,14 @@ usage: kit-config <OPTION>... \n\
 Get configuration information about Kitsune\n\
 \n\
 Options:\n\
+  -h                    Print this help message\n\
   --c                   Has the C frontend been built (ON or OFF)\n\
   --c-frontend          Path to the C frontend\n\
-  --cxx                 Has the C++ frontend been built (ON or OFF)\n\
-  --cxx-frontend        Path to the C++ frontend\n\
+  --pthreads-target     Has the pthreads tapir target been built (ON or OFF)\n\
   --cuda-prefix         The cuda installation used by the cuda tapir target\n\
   --cuda-target         Has the cuda tapir target been built (ON or OFF)\n\
+  --cxx                 Has the C++ frontend been built (ON or OFF)\n\
+  --cxx-frontend        Path to the C++ frontend\n\
   --fortran             Has the Fortran frontend been built (ON or OFF)\n\
   --fortran-frontend    Path to the Fortran frontend\n\
   --help                Print this help message\n\
@@ -50,18 +52,19 @@ Options:\n\
   --openmp-target       Has the openmp tapir target been built (ON or OFF)\n\
   --qthreads-target     Has the qthreads tapir target been built (ON or OFF)\n\
   --realm-target        Has the realm tapir target been built (ON or OFF)\n\
+  --serial-target       Has the serial tapir target been built (ON or OFF)\n\
   --tapir-targets       The tapir targets that have been built\n\
   --version             Prints both LLVM and Kitsune versions\n\
 \n\
 When querying paths to frontends and prefixes, no output will be printed if\n\
-if the corresponding frontend or related tapir target has not been built\n";
+that frontend or tapir target has not been built\n";
   if (exitWithFailure)
     exit(1);
 }
 
 // Get the path to the given frontend. @ref kitConfig is the full path to the
-// this kitConfig executable. The frontend is assumed to be in the same
-// directory as kitConfig.
+// this kit-config executable. The frontend is expected to be in the same
+// directory as kit-config.
 static std::string frontendPath(StringRef kitConfig, StringRef frontend) {
   SmallString<256> path(sys::path::parent_path(kitConfig));
   sys::path::append(path, frontend);
@@ -102,14 +105,16 @@ int main(int argc, char **argv) {
       render((bool)KITSUNE_C_ENABLED);
     else if (arg == "--c-frontend")
       renderPathIf(KITSUNE_C_ENABLED, argv[0], KITSUNE_C_FRONTEND);
-    else if (arg == "--cxx")
-      render((bool)KITSUNE_CXX_ENABLED);
-    else if (arg == "--cxx-frontend")
-      renderPathIf(KITSUNE_CXX_ENABLED, argv[0], KITSUNE_CXX_FRONTEND);
+    else if (arg == "--pthreads-target")
+      render((bool)KITSUNE_PTHREADS_ENABLED);
     else if (arg == "--cuda-prefix")
       renderIf(KITSUNE_CUDA_ENABLED, KITSUNE_CUDA_PREFIX);
     else if (arg == "--cuda-target")
       render((bool)KITSUNE_CUDA_ENABLED);
+    else if (arg == "--cxx")
+      render((bool)KITSUNE_CXX_ENABLED);
+    else if (arg == "--cxx-frontend")
+      renderPathIf(KITSUNE_CXX_ENABLED, argv[0], KITSUNE_CXX_FRONTEND);
     else if (arg == "--fortran")
       render((bool)KITSUNE_Fortran_ENABLED);
     else if (arg == "--fortran-frontend")
@@ -142,6 +147,8 @@ int main(int argc, char **argv) {
       render((bool)KITSUNE_REALM_ENABLED);
     else if (arg == "--realm-target")
       render((bool)KITSUNE_REALM_ENABLED);
+    else if (arg == "--serial-target")
+      render((bool)KITSUNE_SERIAL_ENABLED);
     else if (arg == "--tapir-targets")
       render(KITSUNE_ENABLED_TAPIR_TARGETS);
     else if (arg == "--version")

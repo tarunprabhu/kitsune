@@ -267,6 +267,6 @@ attributes #6 = { nounwind }
 !4 = !{i32 7, !"frame-pointer", i32 2}
 !5 = !{!"clang version 16.0.6 (git@github.com:OpenCilk/opencilk-project.git d631c52742bc32d008a8101e6fc002f5085e1274)"}
 !6 = distinct !{!6, !7}
-!7 = !{!"tapir.loop.spawn.strategy", i32 1}
+!7 = !{!"tapir.loop.spawn.strategy", i32 2}
 !8 = distinct !{!8, !9}
 !9 = !{!"llvm.loop.mustprogress"}
