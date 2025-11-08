@@ -132,7 +132,7 @@ forall.end:
 attributes #0 = { noinline }
 
 !0 = distinct !{!0, !1, !2, !3}
-!1 = !{!"tapir.loop.spawn.strategy", i32 1}
+!1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 2}
 !3 = !{!"llvm.loop.unroll.disable"}
 !4 = !{!"llvm.loop.mustprogress"}
