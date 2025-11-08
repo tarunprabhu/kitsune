@@ -51,6 +51,6 @@ forall.end:
 }
 
 !0 = distinct !{!0, !1, !2, !3}
-!1 = !{!"tapir.loop.spawn.strategy", i32 1}
+!1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 4}
 !3 = !{!"llvm.loop.unroll.disable"}
