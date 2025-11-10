@@ -82,9 +82,10 @@ end2:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2}
+!0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}
-!2 = !{!"llvm.loop.unroll.disable"}
+!2 = !{!"tapir.loop.target", i32 1}
+!3 = !{!"llvm.loop.unroll.disable"}
 )m";
 
 constexpr StringRef moduleWithHintsMixed = R"m(
@@ -139,7 +140,7 @@ body2:
 
 inc2:
   %exitcond.not2 = icmp eq i64 %iv.next2, %n
-  br i1 %exitcond.not2, label %sync2, label %detach2, !llvm.loop !3
+  br i1 %exitcond.not2, label %sync2, label %detach2, !llvm.loop !4
 
 sync2:
   sync within %syncreg2, label %end2
@@ -148,13 +149,13 @@ end2:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2}
+!0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}
-!2 = !{!"llvm.loop.unroll.disable"}
-!3 = distinct !{!3, !4, !5, !6}
-!4 = !{!"tapir.loop.spawn.strategy", i32 1}
-!5 = !{!"llvm.loop.unroll.disable"}
-!6 = !{!"tapir.loop.target", i32 2}
+!2 = !{!"tapir.loop.target", i32 1}
+!3 = !{!"llvm.loop.unroll.disable"}
+!4 = distinct !{!4, !5, !6, !3}
+!5 = !{!"tapir.loop.spawn.strategy", i32 4}
+!6 = !{!"tapir.loop.target", i32 1024}
 )m";
 
 class TapirTargetAnalysisTest : public ::testing::Test {
@@ -312,7 +313,6 @@ TEST_F(TapirTargetAnalysisTest, withHintsMixed) {
   std::optional<TapirTargetOptions> tto = std::nullopt;
 
   kitOpts.setTTID(TTID::Serial);
-  kitOpts.setCudaArch("sm_17");
   tto =
       TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
@@ -336,12 +336,13 @@ TEST_F(TapirTargetAnalysisTest, withHintsMixed) {
   // The expected array will be in ascending order. If the order of tapir
   // targets or their numerical values are changed, this will need to be
   // updated.
-  TTID expected[] = {TTID::Serial, TTID::Cuda};
+  TTID expected[] = {TTID::Serial, TTID::Pthreads};
   EXPECT_EQ(tgi.getRequiredTTs(*f), ArrayRef(expected));
   EXPECT_EQ(tgi.getRequiredTTs(*m), ArrayRef(expected));
 
   EXPECT_TRUE(tgi.hasTT(TTID::Serial));
-  EXPECT_TRUE(tgi.hasTT(TTID::Cuda));
+  EXPECT_TRUE(tgi.hasTT(TTID::Pthreads));
+  EXPECT_FALSE(tgi.hasTT(TTID::Cuda));
   EXPECT_FALSE(tgi.hasTT(TTID::Hip));
   EXPECT_FALSE(tgi.hasTT(TTID::OpenCilk));
 }
@@ -414,7 +415,7 @@ end2:
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}
 !2 = !{!"llvm.loop.unroll.disable"}
-!3 = !{!"tapir.loop.target", i32 2}
+!3 = !{!"tapir.loop.target", i32 1024}
 !4 = distinct !{!4, !1, !2, !5}
 !5 = !{!"tapir.loop.target", i32 1}
 )m";
@@ -447,15 +448,17 @@ end2:
   // The expected array will be in ascending order. If the order of tapir
   // targets or their numerical values are changed, this will need to be
   // updated.
-  TTID expected[] = {TTID::Serial, TTID::Cuda};
+  TTID expected[] = {TTID::Serial, TTID::Pthreads};
   EXPECT_EQ(tgi.getRequiredTTs(*f), ArrayRef(expected));
   EXPECT_EQ(tgi.getRequiredTTs(*m), ArrayRef(expected));
 
   EXPECT_TRUE(tgi.hasTT(TTID::Serial));
-  EXPECT_TRUE(tgi.hasTT(TTID::Cuda));
+  EXPECT_TRUE(tgi.hasTT(TTID::Pthreads));
+  EXPECT_FALSE(tgi.hasTT(TTID::Cuda));
   EXPECT_FALSE(tgi.hasTT(TTID::Hip));
 }
 
+#if KITSUNE_OPENCILK_ENABLED
 // Check that in a module with multiple functions, the required TT's are
 // computed correctly for both the functions and the module. In each case, a
 // TapirTarget object should have been created. A tapir target for the primary
@@ -525,11 +528,12 @@ end:
 }
 
 !0 = distinct !{!0, !1, !2, !3}
-!1 = !{!"tapir.loop.spawn.strategy", i32 1}
-!2 = !{!"llvm.loop.unroll.disable"}
-!3 = !{!"tapir.loop.target", i32 2}
-!4 = distinct !{!4, !1, !2, !5}
-!5 = !{!"tapir.loop.target", i32 8}
+!1 = !{!"tapir.loop.spawn.strategy", i32 4}
+!2 = !{!"tapir.loop.target", i32 1024}
+!3 = !{!"llvm.loop.unroll.disable"}
+!4 = distinct !{!4, !5, !6, !3}
+!5 = !{!"tapir.loop.spawn.strategy", i32 2}
+!6 = !{!"tapir.loop.target", i32 8}
 )m";
 
   // FIXME: This requires certain tapir targets to be enabled. However,
@@ -538,7 +542,6 @@ end:
   // has not been enabled. This is far from ideal. Something that may be
   // slightly better is to tweak the input above to use two tapir targets that
   // have been enabled.
-#if KITSUNE_CUDA_ENABLED && KITSUNE_OPENCILK_ENABLED
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
@@ -568,19 +571,20 @@ end:
   // The expected array will be in ascending order. If the order of tapir
   // targets or their numerical values are changed, this will need to be
   // updated.
-  TTID expectedF[] = {TTID::Cuda};
+  TTID expectedF[] = {TTID::Pthreads};
   TTID expectedG[] = {TTID::OpenCilk};
-  TTID expected[] = {TTID::Cuda, TTID::OpenCilk};
+  TTID expected[] = {TTID::OpenCilk, TTID::Pthreads};
   EXPECT_EQ(tgi.getRequiredTTs(*f), ArrayRef(expectedF));
   EXPECT_EQ(tgi.getRequiredTTs(*g), ArrayRef(expectedG));
   EXPECT_EQ(tgi.getRequiredTTs(*m), ArrayRef(expected));
 
   EXPECT_TRUE(tgi.hasTT(TTID::Serial));
-  EXPECT_TRUE(tgi.hasTT(TTID::Cuda));
   EXPECT_TRUE(tgi.hasTT(TTID::OpenCilk));
+  EXPECT_TRUE(tgi.hasTT(TTID::Pthreads));
+  EXPECT_FALSE(tgi.hasTT(TTID::Cuda));
   EXPECT_FALSE(tgi.hasTT(TTID::Hip));
-#endif // KITSUNE_CUDA_ENABLED && KITSUNE_OPENCILK_ENABLED
 }
+#endif // KITSUNE_OPENCILK_ENABLED
 
 // If a tapir target options object has not been set, getRequiredTTs() will
 // always return an empty vector.

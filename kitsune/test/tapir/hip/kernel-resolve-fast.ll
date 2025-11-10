@@ -1,5 +1,5 @@
 ; Check that device functions are resolved correctly. This is a very basic test.
-; We really should do something a bit more compreheensive
+; We really should do something a bit more comprehensive
 ;
 ; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
 ; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' \
@@ -46,6 +46,7 @@ forall.end:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2}
+!0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
-!2 = !{!"llvm.loop.unroll.disable"}
+!2 = !{!"tapir.loop.target", i32 4}
+!3 = !{!"llvm.loop.unroll.disable"}

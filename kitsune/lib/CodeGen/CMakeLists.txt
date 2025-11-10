@@ -15,4 +15,4 @@ add_llvm_component_library(LLVMKitCodeGen
   KitCore
   KitSupport
   Support
-  )
+)

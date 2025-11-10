@@ -37,6 +37,10 @@ static cl::opt<std::string>
     clModuleName("name", cl::init(""), cl::value_desc("name"),
                  cl::desc("Override the encoded module name"));
 
+static cl::opt<bool>
+    clSkipMetadata("skip-metadata", cl::init(false),
+                   cl::desc("Do not add metadata to the device module"));
+
 static cl::opt<std::string> clInFile(cl::Positional,
                                      cl::desc("<input bitcode file>"),
                                      cl::init("-"), cl::value_desc("filename"),
@@ -91,8 +95,10 @@ int main(int argc, char *argv[]) {
   if (clModuleName.getNumOccurrences())
     embM->setModuleIdentifier(clModuleName);
 
+  if (not clSkipMetadata)
+    (void)addDeviceModuleMetadata(tt, *embM);
+
   Module hostM("", ctx);
-  (void)addDeviceModuleMetadata(tt, *embM);
   (void)createEmbBCGlobal(*embM, tt, hostM);
   (void)createEmbFBGlobal(tt, hostM);
 

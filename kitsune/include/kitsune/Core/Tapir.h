@@ -174,9 +174,9 @@ static constexpr unsigned defaultTapirGrainSize = 0;
 
 /// An enumeration that may be set to a boolean value or unset.
 enum class MaybeBool {
-  Off, /// The value is set to false
-  On,  /// The value is set to true
-  Any  /// The value is unset
+  Off,    /// The value is set to false
+  On,     /// The value is set to true
+  Any = 3 /// The value is unset
 };
 
 /// Convert the string to a \ref MaybeBool. If the string cannot be converted to
