@@ -65,7 +65,8 @@ private:
     LLVM_DEBUG(dbgs() << "\t- generating amdgpu object file...\n");
 
     SmallString<1024> objFilename;
-    std::string model = join_items("-", "kithip", "%%%%%%%%", km.getName());
+    std::string model = join_items("-", "kithip", "%%%%%%%%",
+                                   sys::path::filename(km.getName()));
     sys::fs::createUniquePath(model.c_str(), objFilename, true);
     sys::path::replace_extension(objFilename, ".amdgpu.o");
     LLVM_DEBUG(dbgs() << "\t- amdgpu object file: '" << objFilename << "'.\n");

@@ -48,7 +48,8 @@ private:
     // Translate the device module from LLVM-IR to PTX. This creates an
     // intermediate PTX file.
     SmallString<1024> ptxFilename;
-    std::string model = join_items("-", "kitcu", "%%%%%%%%", km.getName());
+    std::string model =
+        join_items("-", "kitcu", "%%%%%%%%", sys::path::filename(km.getName()));
     sys::fs::createUniquePath(model.c_str(), ptxFilename, true);
     sys::path::replace_extension(ptxFilename, ".ptx");
     LLVM_DEBUG(dbgs() << "\t- ptx file: '" << ptxFilename << "'.\n");

@@ -46,14 +46,15 @@ forall.end:
   ret void
 }
 
-!llvm.module.flags = !{!3, !4, !5, !6, !7, !8}
+!llvm.module.flags = !{!4, !5, !6, !7, !8, !9}
 
-!0 = distinct !{!0, !1, !2}
+!0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
-!2 = !{!"llvm.loop.unroll.disable"}
-!3 = !{i32 1, !"wchar_size", i32 4}
-!4 = !{i32 8, !"PIC Level", i32 2}
-!5 = !{i32 7, !"PIE Level", i32 2}
-!6 = !{i32 7, !"uwtable", i32 2}
-!7 = !{i32 7, !"Dwarf Version", i32 5}
-!8 = !{i32 2, !"Debug Info Version", i32 3}
+!2 = !{!"tapir.loop.target", i32 4}
+!3 = !{!"llvm.loop.unroll.disable"}
+!4 = !{i32 1, !"wchar_size", i32 4}
+!5 = !{i32 8, !"PIC Level", i32 2}
+!6 = !{i32 7, !"PIE Level", i32 2}
+!7 = !{i32 7, !"uwtable", i32 2}
+!8 = !{i32 7, !"Dwarf Version", i32 5}
+!9 = !{i32 2, !"Debug Info Version", i32 3}
