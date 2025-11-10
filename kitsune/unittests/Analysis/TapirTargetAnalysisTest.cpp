@@ -458,6 +458,12 @@ end2:
   EXPECT_FALSE(tgi.hasTT(TTID::Hip));
 }
 
+// TODO: The test below requires 3 tapir targets to have been built. Currently,
+// we only guarantee that the 'serial' and 'pthreads' targets will be built.
+// The choice of 'opencilk' as the third required tapir target here is quite
+// arbitrary. If we ever have a third tapir target that is guaranteed to be
+// built, that should be used instead so this test can be built and run
+// unconditionally.
 #if KITSUNE_OPENCILK_ENABLED
 // Check that in a module with multiple functions, the required TT's are
 // computed correctly for both the functions and the module. In each case, a
