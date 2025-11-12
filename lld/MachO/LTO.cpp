@@ -13,7 +13,7 @@
 #include "Symbols.h"
 #include "Target.h"
 
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/Filesystem.h"
 #include "lld/Common/Strings.h"
@@ -39,7 +39,7 @@ static std::string getThinLTOOutputFile(StringRef modulePath) {
 
 static lto::Config createConfig() {
   lto::Config c;
-  c.PTO.TTOpts = TapirTargetOptions::createFromCommandLine(config->ltoo);
+  c.PTO.TTOpts = TTOptions::createFromCommandLine(config->ltoo);
   c.Options = initTargetOptionsFromCodeGenFlags();
   c.Options.EmitAddrsig = config->icfLevel == ICFLevel::safe;
   for (StringRef C : config->mllvmOpts)

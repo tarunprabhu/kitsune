@@ -25,7 +25,7 @@ bool EmbLinkLibDeviceBitcodePass::run(TTID tt, Module &devM, Module &hostM,
                                       ModuleAnalysisManager &hostMAM) {
   LLVMContext &ctx = devM.getContext();
   const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
-  const TapirTargetOptions &tto = tgi.getOptions();
+  const TTOptions &tto = tgi.getOptions();
 
   Linker linker(devM);
   std::unique_ptr<Module> libDeviceM = getLibDeviceModule(tt, tto, ctx);

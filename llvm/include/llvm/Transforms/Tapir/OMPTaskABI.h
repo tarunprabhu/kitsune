@@ -61,7 +61,7 @@ class OMPTaskABI final : public TapirTarget {
                            bool InsertPauseFrame, bool Helper);
 
 public:
-  OMPTaskABI(Module &M, const TapirTargetOptions& opts)
+  OMPTaskABI(Module &M, const TTOptions& opts)
   ~OMPTaskABI() { DetachCtxToStackFrame.clear(); }
 
   void prepareModule() override final;

@@ -15,8 +15,8 @@
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Tapir.h"
-#include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
@@ -37,7 +37,7 @@ namespace {
 class GenerateCtorPthreads {
 private:
   detail::GetTLI getTLI;
-  const TapirTargetOptions &ttOpts;
+  const TTOptions &ttOpts;
 
 private:
   Function *createCtor(Module &m, Function *dtor) {
@@ -90,7 +90,7 @@ private:
   }
 
 public:
-  GenerateCtorPthreads(detail::GetTLI getTLI, const TapirTargetOptions &ttOpts)
+  GenerateCtorPthreads(detail::GetTLI getTLI, const TTOptions &ttOpts)
       : getTLI(getTLI), ttOpts(ttOpts) {}
 
   void run(Module &m) {
@@ -106,7 +106,7 @@ public:
 } // namespace
 
 void llvm::detail::genCtorPthreads(Module &m, detail::GetTLI getTLI,
-                                   const TapirTargetOptions &ttOpts,
+                                   const TTOptions &ttOpts,
                                    const detail::GenerateCtorOptions &) {
   GenerateCtorPthreads(getTLI, ttOpts).run(m);
 }

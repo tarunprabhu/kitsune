@@ -13,8 +13,8 @@
 
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Tapir.h"
-#include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Support/CommandLineUtils.h"
 #include "kitsune/Support/TTUtils.h"
 #include "kitsune/Support/ToString.h"
@@ -51,7 +51,7 @@ static cl::opt<std::string> clInFile(cl::Positional,
 static constexpr TTID ttDefault = TTID::Cuda;
 
 static void setupCommandLineOptions() {
-  // We need this because the constructor of the TapirTargetOptions object reads
+  // We need this because the constructor of the TTOptions object reads
   // the -fp-contract option which requires registering the codegen flags.
   static codegen::RegisterCodeGenFlags cgf;
 
@@ -75,8 +75,8 @@ int main(int argc, char *argv[]) {
   InitializeAllAsmPrinters();
   InitializeAllAsmParsers();
 
-  std::optional<TapirTargetOptions> tto =
-      TapirTargetOptions::createFromCommandLine(OptznLevel::O0);
+  std::optional<TTOptions> tto =
+      TTOptions::createFromCommandLine(OptznLevel::O0);
   TTID tt = tto ? tto->getTTID() : ttDefault;
   if (not doesTTGenEmbBC(tt)) {
     WithColor::error() << "'" << tt

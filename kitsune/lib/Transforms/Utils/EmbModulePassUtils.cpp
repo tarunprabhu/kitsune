@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/Utils/EmbModulePassUtils.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker/Linker.h"
@@ -29,13 +29,13 @@ static std::unique_ptr<Module> parseLibDeviceBCFile(StringRef file,
   return m;
 }
 
-static std::unique_ptr<Module>
-getLibDeviceModuleCuda(const TapirTargetOptions &tto, LLVMContext &ctx) {
+static std::unique_ptr<Module> getLibDeviceModuleCuda(const TTOptions &tto,
+                                                      LLVMContext &ctx) {
   return parseLibDeviceBCFile(tto.getCudaRuntimeBCFile(), ctx);
 }
 
-static std::unique_ptr<Module>
-getLibDeviceModuleHip(const TapirTargetOptions &tto, LLVMContext &ctx) {
+static std::unique_ptr<Module> getLibDeviceModuleHip(const TTOptions &tto,
+                                                     LLVMContext &ctx) {
   const std::vector<std::string> &bcFiles = tto.getHipRuntimeBCFiles();
   assert(tto.getHipRuntimeBCFiles().size() &&
          "At least one bitcode file is required by Hip's libDevice module");
@@ -51,8 +51,7 @@ getLibDeviceModuleHip(const TapirTargetOptions &tto, LLVMContext &ctx) {
   return libDeviceM;
 }
 
-std::unique_ptr<Module> llvm::getLibDeviceModule(TTID tt,
-                                                 const TapirTargetOptions &tto,
+std::unique_ptr<Module> llvm::getLibDeviceModule(TTID tt, const TTOptions &tto,
                                                  LLVMContext &ctx) {
   switch (tt) {
   case TTID::Cuda:

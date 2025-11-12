@@ -75,8 +75,8 @@ TEST(ExtensionPoints, all) {
 
   KitsuneOptions kitOpts;
   kitOpts.setTTID(TTID::Cuda);
-  std::optional<TapirTargetOptions> tto = TapirTargetOptions::create(
-      kitOpts, OptznLevel::O2, FPOpFusionMode::Standard);
+  std::optional<TTOptions> tto =
+      TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusionMode::Standard);
 
   // The analysis managers must be declared in this order so that they are
   // destroyed in the correct order due to inter-analysis-manager references

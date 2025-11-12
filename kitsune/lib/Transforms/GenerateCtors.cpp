@@ -90,7 +90,7 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
   if (&clUseYLaunch)
     genCtorOpts.useYLaunch = clUseYLaunch;
 
-  const TapirTargetOptions &ttOpts = tgi.getOptions();
+  const TTOptions &ttOpts = tgi.getOptions();
   for (const auto &[tt, genCtorFn] : genCtorFns)
     if (shouldGenerateCtor(m, tt))
       genCtorFn(m, getTLI, ttOpts, genCtorOpts);

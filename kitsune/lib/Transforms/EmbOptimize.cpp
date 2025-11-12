@@ -13,7 +13,7 @@
 #include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/CommandLineOptions.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Transforms/Utils/EmbModulePassUtils.h"
@@ -75,10 +75,10 @@ namespace {
 class EmbOptimize {
 private:
   TTID tt;
-  const TapirTargetOptions &tto;
+  const TTOptions &tto;
 
 protected:
-  EmbOptimize(TTID tt, const TapirTargetOptions &tto) : tt(tt), tto(tto) {}
+  EmbOptimize(TTID tt, const TTOptions &tto) : tt(tt), tto(tto) {}
 
   /// Construct the pipeline tuning options. These may be different depending on
   /// the bitcode being optimized.
@@ -90,7 +90,7 @@ public:
 
   bool run(Module &devM) {
     // If the optimization level has been overridden on the command line, prefer
-    // that, otherwise, use the optimization level from the TapirTargetOptions.
+    // that, otherwise, use the optimization level from the TTOptions.
     OptznLevel optznLevel = tto.getOptznLevel();
     if (clOptznLevel.getNumOccurrences())
       optznLevel = clOptznLevel;
@@ -146,8 +146,7 @@ protected:
   }
 
 public:
-  EmbOptimizeCuda(const TapirTargetOptions &tto)
-      : EmbOptimize(TTID::Cuda, tto) {}
+  EmbOptimizeCuda(const TTOptions &tto) : EmbOptimize(TTID::Cuda, tto) {}
 };
 
 /// Optimize a module for AMDGPU.
@@ -167,7 +166,7 @@ protected:
   }
 
 public:
-  EmbOptimizeHip(const TapirTargetOptions &tto) : EmbOptimize(TTID::Hip, tto) {}
+  EmbOptimizeHip(const TTOptions &tto) : EmbOptimize(TTID::Hip, tto) {}
 };
 
 } // namespace
@@ -177,7 +176,7 @@ namespace llvm {
 bool EmbOptimizePass::run(TTID tt, Module &devM, Module &hostM,
                           ModuleAnalysisManager &hostMAM) {
   const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
-  const TapirTargetOptions &tto = tgi.getOptions();
+  const TTOptions &tto = tgi.getOptions();
 
   switch (tt) {
   case TTID::Cuda:

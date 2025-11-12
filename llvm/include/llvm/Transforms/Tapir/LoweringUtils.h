@@ -34,7 +34,7 @@ class Loop;
 class LoopOutlineProcessor;
 class Spindle;
 class TapirLoopInfo;
-class TapirTargetOptions;
+class TTOptions;
 class Task;
 class TaskInfo;
 class Value;
@@ -227,13 +227,13 @@ protected:
   /// call getOptions() to retrieve the actual options object. This object is
   /// owned by TargetLibraryAnalysis which is guaranteed to outlive this
   /// TapirTarget.
-  const TapirTargetOptions &TTO;
+  const TTOptions &TTO;
 
   /// Create a tapir target with separate host and destination modules. This is
   /// typically only used by the GPU tapir targets since they need to create two
   /// different modules - one each for the host and the device.
   TapirTarget(Module &M, Module &DestM, CloneFunctionChangeType Changes,
-              const TapirTargetOptions &TTO)
+              const TTOptions &TTO)
       : M(M), DestM(DestM), Changes(Changes), TTO(TTO) {}
 
 public:
@@ -247,7 +247,7 @@ public:
   /// Create a tapir target for the given module. All outlining will be done
   /// within the same module, so the host and destination are the same in this
   /// case. This is the default behavior for all CPU-centric tapir targets.
-  TapirTarget(Module &M, const TapirTargetOptions &opts)
+  TapirTarget(Module &M, const TTOptions &opts)
       : TapirTarget(M, M, CloneFunctionChangeType::LocalChangesOnly, opts) {}
   virtual ~TapirTarget() {}
 
@@ -313,7 +313,7 @@ public:
   }
 
   /// Get the tapir target options
-  const TapirTargetOptions& getOptions() { return TTO; }
+  const TTOptions& getOptions() { return TTO; }
 
   /// Get the Module where outlined Helper will be placed.
   Module &getDestinationModule() const { return DestM; }
@@ -429,25 +429,25 @@ protected:
   Module &DestM;
 
   /// The tapir target options.
-  const TapirTargetOptions &TTOpts;
+  const TTOptions &TTOpts;
 
   /// The type of clone-function change that outlining will make.
   CloneFunctionChangeType Changes = CloneFunctionChangeType::LocalChangesOnly;
 
   LoopOutlineProcessor(Module &M, Module &DestM,
-                       const TapirTargetOptions &TTOpts,
+                       const TTOptions &TTOpts,
                        CloneFunctionChangeType Changes)
       : M(M), DestM(DestM), TTOpts(TTOpts), Changes(Changes) {}
 
 public:
   using ArgStructMode = TapirTarget::ArgStructMode;
 
-  LoopOutlineProcessor(Module &M, const TapirTargetOptions &TTOpts)
+  LoopOutlineProcessor(Module &M, const TTOptions &TTOpts)
       : M(M), DestM(M), TTOpts(TTOpts),
         Changes(CloneFunctionChangeType::LocalChangesOnly) {}
   virtual ~LoopOutlineProcessor() = default;
 
-  const TapirTargetOptions &getOptions() const { return TTOpts; }
+  const TTOptions &getOptions() const { return TTOpts; }
 
   /// Returns an ArgStructMode enum value describing how inputs to the
   /// underlying task of a Tapir loop should be passed to the task, e.g.,

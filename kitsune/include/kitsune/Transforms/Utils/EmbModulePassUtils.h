@@ -22,14 +22,14 @@
 namespace llvm {
 
 class LLVMContext;
-class TapirTargetOptions;
+class TTOptions;
 
 /// Generate a module containing the contents of the libDevice bitcode file(s)
 /// for the given tapir target. This will parse one or more files as specified
 /// in the given tapir target options. Calling this function multiple times can
 /// get expensive, so callers should cache this module if possible.
-std::unique_ptr<Module>
-getLibDeviceModule(TTID tt, const TapirTargetOptions &ttOpts, LLVMContext &ctx);
+std::unique_ptr<Module> getLibDeviceModule(TTID tt, const TTOptions &ttOpts,
+                                           LLVMContext &ctx);
 
 } // namespace llvm
 

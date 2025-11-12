@@ -38,7 +38,7 @@ bool EmbPreparePass::run(TTID tt, Module &devM, Module &hostM,
   prepOpts.inlineAllForce = clInlineAllForce;
 
   const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
-  const TapirTargetOptions &tto = tgi.getOptions();
+  const TTOptions &tto = tgi.getOptions();
   switch (tt) {
   case TTID::Cuda:
     return detail::embPrepareCuda(devM, tto, prepOpts);

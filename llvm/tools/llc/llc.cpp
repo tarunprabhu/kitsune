@@ -14,7 +14,7 @@
 
 #include "NewPMDriver.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/PipelineUtils.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
@@ -730,8 +730,7 @@ static int compileModule(char **argv, LLVMContext &Context) {
       PM.add(createPrintMIRPass(*OS));
       PM.add(createFreeMachineFunctionPass());
     } else {
-      populateKitCodeGenPasses(
-          PM, TapirTargetOptions::createFromCommandLine(OptLevel));
+      populateKitCodeGenPasses(PM, TTOptions::createFromCommandLine(OptLevel));
       if (Target->addPassesToEmitFile(
                    PM, *OS, DwoOut ? &DwoOut->os() : nullptr,
                    codegen::getFileType(), NoVerify, MMIWP))

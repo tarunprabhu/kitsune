@@ -65,13 +65,13 @@
 
 namespace llvm {
 
-class TapirTargetOptions;
+class TTOptions;
 
 /// The tapir target to lower tapir loops to kitsune's hip runtime. The tapir
 /// loops will be converted to GPU kernels.
 class HipABI : public TapirTarget {
 public:
-  HipABI(Module &HostM, const TapirTargetOptions &TTO);
+  HipABI(Module &HostM, const TTOptions &TTO);
   ~HipABI();
 
   /// Lower a call to the tapir.loop.grainsize intrinsic into a grain size
@@ -155,8 +155,7 @@ public:
   /// @param KM: The module that will contain the generated kernel.
   /// @param KernelName: The name of the kernel function that is generated.
   /// @param TTO: The tapir target options.
-  HipLoop(Module &M, Module &KM, StringRef KernelName,
-          const TapirTargetOptions &TTO);
+  HipLoop(Module &M, Module &KM, StringRef KernelName, const TTOptions &TTO);
   ~HipLoop();
 
   /// Process the TapirLoop before it is outlined -- just prior to the

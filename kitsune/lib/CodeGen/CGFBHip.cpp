@@ -13,7 +13,7 @@
 
 #include "CGFBImpl.h"
 #include "kitsune/Core/EmbUtils.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/SmallString.h"
@@ -32,7 +32,7 @@ using namespace llvm;
 
 namespace {
 
-static StringRef getSRAMECCFeature(const TapirTargetOptions &tto) {
+static StringRef getSRAMECCFeature(const TTOptions &tto) {
   switch (tto.getHipSRAMECC()) {
   case MaybeBool::On:
     return ":sramecc+";
@@ -43,7 +43,7 @@ static StringRef getSRAMECCFeature(const TapirTargetOptions &tto) {
   }
 }
 
-static StringRef getXnackFeature(const TapirTargetOptions &tto) {
+static StringRef getXnackFeature(const TTOptions &tto) {
   switch (tto.getHipXnack()) {
   case MaybeBool::On:
     return ":xnack+";
@@ -57,7 +57,7 @@ static StringRef getXnackFeature(const TapirTargetOptions &tto) {
 /// Helper class to generate code for AMD GPU's from embedded bitcode.
 class CGFBHip {
 private:
-  const TapirTargetOptions &tto;
+  const TTOptions &tto;
   const detail::CGFBOptions &cgfbOpts;
 
 private:
@@ -178,7 +178,7 @@ private:
   }
 
 public:
-  CGFBHip(const TapirTargetOptions &tto, const detail::CGFBOptions &cgfbOpts)
+  CGFBHip(const TTOptions &tto, const detail::CGFBOptions &cgfbOpts)
       : tto(tto), cgfbOpts(cgfbOpts) {}
 
   bool run(GlobalVariable &gfb, const GlobalVariable &gbc) {
@@ -199,7 +199,7 @@ public:
 } // namespace
 
 bool llvm::detail::cgfbHip(GlobalVariable &gfb, const GlobalVariable &gbc,
-                           const TapirTargetOptions &tto,
+                           const TTOptions &tto,
                            const detail::CGFBOptions &cgfbOpts) {
   return CGFBHip(tto, cgfbOpts).run(gfb, gbc);
 }

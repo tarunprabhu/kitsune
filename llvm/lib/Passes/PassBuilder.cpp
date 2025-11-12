@@ -563,7 +563,7 @@ void PassBuilder::registerModuleAnalyses(ModuleAnalysisManager &MAM) {
   // sane default for this anyway. This is exactly what we need wherever we
   // create a pass pipeline, so we might as well create the pass here instead of
   // requiring the callers to do it. It is the caller's responsibility to set up
-  // the TapirTargetOptions object correctly.
+  // the TTOptions object correctly.
   MAM.registerPass([&] { return TapirTargetAnalysis(PTO.TTOpts); });
 
   for (auto &C : ModuleAnalysisRegistrationCallbacks)

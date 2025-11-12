@@ -14,7 +14,7 @@
 #include "CGFBImpl.h"
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/EmbUtils.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/ToString.h"
@@ -38,7 +38,7 @@ namespace {
 /// Helper class to generate code for NVIDIA GPU's from embedded bitcode.
 class CGFBCuda {
 private:
-  const TapirTargetOptions &tto;
+  const TTOptions &tto;
   const detail::CGFBOptions &cgfbOpts;
 
 private:
@@ -224,7 +224,7 @@ private:
   }
 
 public:
-  CGFBCuda(const TapirTargetOptions &tto, const detail::CGFBOptions &cgfbOpts)
+  CGFBCuda(const TTOptions &tto, const detail::CGFBOptions &cgfbOpts)
       : tto(tto), cgfbOpts(cgfbOpts) {}
 
   bool run(GlobalVariable &gfb, const GlobalVariable &gbc) {
@@ -247,7 +247,7 @@ public:
 } // namespace
 
 bool llvm::detail::cgfbCuda(GlobalVariable &gfb, const GlobalVariable &gbc,
-                            const TapirTargetOptions &tto,
+                            const TTOptions &tto,
                             const detail::CGFBOptions &cgfbOpts) {
   return CGFBCuda(tto, cgfbOpts).run(gfb, gbc);
 }

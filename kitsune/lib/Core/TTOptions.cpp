@@ -1,4 +1,4 @@
-//===- TapirTargetOptions.cpp - Options for the tapir targets -------------===//
+//===- TTOptions.cpp - Options for the tapir targets ----------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,14 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Implementation for the TapirTargetOptions object. Also contains any command
-// line options shared by some or all tapir targets.
+// Implementation for the TTOptions object. Also contains any command line
+// options shared by some or all tapir targets.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Core/TapirTargetOptions.h"
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/CommandLineOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/ToString.h"
@@ -27,15 +27,11 @@
 
 using namespace llvm;
 
-// The options here are those that are used to initialize the TapirTargetOptions
-// object *only*. Several tapir targets have additional command line options
-// that can be used to tweak their behavior. Those are intended for
-// experimentation. If any are deemed to be generally useful, they should be
-// added here and a corresponding frontend option should be created for them.
-//
-// Some of the options here are also used by some Kitsune tools. In those
-// cases, the tools create a TapirTargetOptions object, so these options remain
-// static here. To keep the help messages
+// The options here are those that are used to initialize the TTOptions object
+// *only*. Several tapir targets have additional command line options that can
+// be used to tweak their behavior. Those are intended for experimentation. If
+// any are deemed to be generally useful, they should be added here and a
+// corresponding frontend option should be created for them.
 
 // -------------------- options common to all tapir targets --------------------
 
@@ -180,9 +176,9 @@ static cl::alias
 
 // -----------------------------------------------------------------------------
 
-TapirTargetOptions::TapirTargetOptions(TTID tt) : tt(tt) {}
+TTOptions::TTOptions(TTID tt) : tt(tt) {}
 
-void TapirTargetOptions::setOptznLevelFrom(OptimizationLevel optLevel) {
+void TTOptions::setOptznLevelFrom(OptimizationLevel optLevel) {
   unsigned speedupLevel = optLevel.getSpeedupLevel();
   unsigned sizeLevel = optLevel.getSizeLevel();
   OptznLevel optznLevel = createOptznLevelFrom(speedupLevel, sizeLevel);
@@ -190,10 +186,9 @@ void TapirTargetOptions::setOptznLevelFrom(OptimizationLevel optLevel) {
   setOptznLevel(optznLevel);
 }
 
-std::optional<TapirTargetOptions>
-TapirTargetOptions::createFromCommandLine(OptznLevel optLevel) {
+std::optional<TTOptions> TTOptions::createFromCommandLine(OptznLevel optLevel) {
   if (clTapir.getNumOccurrences()) {
-    TapirTargetOptions tto(clTapir);
+    TTOptions tto(clTapir);
 
     // No validation of inputs is done here. This is intentional since these
     // command line options are primarily for internal use. Obviously, tools
@@ -242,21 +237,20 @@ TapirTargetOptions::createFromCommandLine(OptznLevel optLevel) {
   return std::nullopt;
 }
 
-std::optional<TapirTargetOptions>
-TapirTargetOptions::createFromCommandLine(unsigned speedupLevel) {
+std::optional<TTOptions>
+TTOptions::createFromCommandLine(unsigned speedupLevel) {
   return createFromCommandLine(createOptznLevelFrom(speedupLevel));
 }
 
-std::optional<TapirTargetOptions>
-TapirTargetOptions::createFromCommandLine(char optLevel) {
+std::optional<TTOptions> TTOptions::createFromCommandLine(char optLevel) {
   return createFromCommandLine(createOptznLevelFrom(optLevel));
 }
 
-std::optional<TapirTargetOptions>
-TapirTargetOptions::create(const KitsuneOptions &opts, OptznLevel optLevel,
-                           FPOpFusionMode fpOpFusionMode) {
+std::optional<TTOptions> TTOptions::create(const KitsuneOptions &opts,
+                                           OptznLevel optLevel,
+                                           FPOpFusionMode fpOpFusionMode) {
   if (std::optional<TTID> tt = opts.getTTID()) {
-    TapirTargetOptions tto(*tt);
+    TTOptions tto(*tt);
 
     // Set common tapir target options.
     tto.tapirVerbose = opts.getTapirVerbose();
@@ -291,14 +285,14 @@ TapirTargetOptions::create(const KitsuneOptions &opts, OptznLevel optLevel,
   return std::nullopt;
 }
 
-std::unique_ptr<TapirTargetOptions> TapirTargetOptions::clone() const {
-  TapirTargetOptions *clone = new TapirTargetOptions;
+std::unique_ptr<TTOptions> TTOptions::clone() const {
+  TTOptions *clone = new TTOptions;
   *clone = *this;
 
-  return std::unique_ptr<TapirTargetOptions>(clone);
+  return std::unique_ptr<TTOptions>(clone);
 }
 
-void TapirTargetOptions::print(raw_ostream &os, bool all) const {
+void TTOptions::print(raw_ostream &os, bool all) const {
   os << "Tapir target options:\n";
   os << "  Primary:                 " << tt << "\n";
   os << "  Compiler verbose:        " << getTapirVerbose() << "\n";

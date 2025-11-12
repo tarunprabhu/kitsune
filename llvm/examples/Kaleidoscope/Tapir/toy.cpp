@@ -1691,7 +1691,7 @@ static void RunOptimizations() {
   // Set the target for Tapir lowering to the Cilk runtime system.
   TLII.setTapirTarget(TheTapirTarget);
   if (TapirTargetID::OpenCilk == TheTapirTarget)
-    TLII.setTapirTargetOptions(
+    TLII.setTTOptions(
         std::make_unique<OpenCilkABIOptions>(OpenCilkRuntimeBCPath));
 
   // Add the TargetLibraryInfo to the pass manager.

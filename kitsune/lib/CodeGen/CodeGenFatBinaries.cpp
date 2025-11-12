@@ -17,7 +17,7 @@
 #include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GlobalVariableUtils.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/TTUtils.h"
 #include "kitsune/Support/ToString.h"
@@ -42,7 +42,7 @@ static cl::opt<bool>
 
 // Override the optimization used by the target machine. If this is not
 // explicitly set, it will use the optimization level set in the
-// TapirTargetOptions.
+// TTOptions.
 static cl::opt<CodeGenOptLevel> clCGOptLevel(
     cl::init(CodeGenOptLevel::Default), cl::Hidden,
     cl::values(clEnumValN(CodeGenOptLevel::None, "cgfb-O0", ""),
@@ -66,7 +66,7 @@ static cl::opt<CodeGenOptLevel> clCGOptLevel(
 
 // Override the optimization level used by ptxas when generating GPU code.
 // If this is not explicitly set, it will use the optimization level set in
-// the TapirTargetOptions, which is usually whatever was passed to the
+// the TTOptions, which is usually whatever was passed to the
 // frontend.
 static cl::opt<OptznLevel> clPtxasOptLevel(
     cl::init(OptznLevel::O3), cl::Hidden,
@@ -138,7 +138,7 @@ namespace {
 /// Implementation class to compile the embedded bitcode to fat binaries.
 class CodeGenFatBinaries {
 private:
-  const TapirTargetOptions &tto;
+  const TTOptions &tto;
   detail::CGFBOptions cgfbOpts;
 
 private:
@@ -188,7 +188,7 @@ private:
   }
 
 public:
-  CodeGenFatBinaries(const TapirTargetOptions &tto) : tto(tto) {}
+  CodeGenFatBinaries(const TTOptions &tto) : tto(tto) {}
 
   bool run(Module &m) {
     bool changed = false;
@@ -229,7 +229,7 @@ public:
     if (not tgi.hasTTID())
       return false;
 
-    const TapirTargetOptions &ttOpts = tgi.getOptions();
+    const TTOptions &ttOpts = tgi.getOptions();
     return CodeGenFatBinaries(ttOpts).run(m);
   }
 
@@ -258,7 +258,7 @@ PreservedAnalyses CodeGenFatBinariesPass::run(Module &m,
   if (not tgi.hasTTID())
     return PreservedAnalyses::all();
 
-  const TapirTargetOptions &ttOpts = tgi.getOptions();
+  const TTOptions &ttOpts = tgi.getOptions();
   CodeGenFatBinaries(ttOpts).run(m);
 
   // This does not invalidate any analyses, even if any fat binaries were

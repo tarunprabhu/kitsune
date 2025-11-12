@@ -75,7 +75,7 @@ static const char TimerGroupDescription[] = "Loop spawning";
 /// The default loop-outline processor leaves the outlined Tapir loop as is.
 class DefaultLoopOutlineProcessor : public LoopOutlineProcessor {
 public:
-  DefaultLoopOutlineProcessor(Module &M, const TapirTargetOptions &TTOpts)
+  DefaultLoopOutlineProcessor(Module &M, const TTOptions &TTOpts)
       : LoopOutlineProcessor(M, TTOpts) {}
   void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
                           ValueToValueMapTy &VMap) override final {
@@ -88,7 +88,7 @@ public:
 /// evaluate the iterations using parallel recursive divide-and-conquer.
 class DACSpawning : public LoopOutlineProcessor {
 public:
-  DACSpawning(Module &M, const TapirTargetOptions &TTOpts)
+  DACSpawning(Module &M, const TTOptions &TTOpts)
       : LoopOutlineProcessor(M, TTOpts) {}
   void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
                           ValueToValueMapTy &VMap) override final {
@@ -1002,7 +1002,7 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   TTID TT = TGI.getTTID();
   if (std::optional<TTID> HintTT = Hints.getLoopTarget())
     TT = *HintTT;
-  const TapirTargetOptions &TTOpts = TGI.getOptions();
+  const TTOptions &TTOpts = TGI.getOptions();
 
   // Support for multiple targets is currently broken. Some of the frontend
   // elements have been implemented but the middle-end support is not yet there.

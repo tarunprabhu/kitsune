@@ -11,7 +11,7 @@
 #include "Config.h"
 #include "InputFiles.h"
 #include "Symbols.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "lld/Common/Args.h"
 #include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/Filesystem.h"
@@ -45,7 +45,7 @@ std::string BitcodeCompiler::getThinLTOOutputFile(StringRef path) {
 
 lto::Config BitcodeCompiler::createConfig() {
   lto::Config c;
-  c.PTO.TTOpts = TapirTargetOptions::createFromCommandLine(ctx.config.ltoo);
+  c.PTO.TTOpts = TTOptions::createFromCommandLine(ctx.config.ltoo);
   c.Options = initTargetOptionsFromCodeGenFlags();
   c.Options.EmitAddrsig = true;
   for (StringRef C : ctx.config.mllvmOpts)

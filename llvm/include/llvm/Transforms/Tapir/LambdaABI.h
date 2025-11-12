@@ -62,7 +62,7 @@ class LambdaABI final : public TapirTarget {
                            bool InsertPauseFrame, bool Helper);
 
 public:
-  LambdaABI(Module &M, const TapirTargetOptions &opts);
+  LambdaABI(Module &M, const TTOptions &opts);
   ~LambdaABI() { DetachCtxToStackFrame.clear(); }
 
   void prepareModule() override final;

@@ -13,7 +13,7 @@
 #ifndef KITSUNE_PASSES_PIPELINE_UTILS_H
 #define KITSUNE_PASSES_PIPELINE_UTILS_H
 
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
@@ -52,7 +52,7 @@ ModulePassManager populateKitPostTapirPasses(PassBuilder &pb,
 
 /// Populate a pass manager with Kitsune's codegen passes.
 void populateKitCodeGenPasses(legacy::PassManager &pm,
-                              std::optional<TapirTargetOptions> tto);
+                              std::optional<TTOptions> tto);
 
 } // namespace llvm
 

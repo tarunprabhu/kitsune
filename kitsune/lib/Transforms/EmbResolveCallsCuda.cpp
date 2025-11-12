@@ -245,7 +245,7 @@ static bool resolvePrintfCalls(Function &f) {
 }
 
 bool llvm::detail::resolveLibDeviceCallsCuda(Module &devM,
-                                             const TapirTargetOptions &tto) {
+                                             const TTOptions &tto) {
   LLVMContext &ctx = devM.getContext();
   std::unique_ptr<Module> libDeviceM = getLibDeviceModule(TTID::Cuda, tto, ctx);
 

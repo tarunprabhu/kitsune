@@ -96,7 +96,7 @@ struct RTSFnDesc {
 };
 } // namespace
 
-LambdaABI::LambdaABI(Module &m, const TapirTargetOptions &opts)
+LambdaABI::LambdaABI(Module &m, const TTOptions &opts)
     : TapirTarget(m, opts) {
   llvm_unreachable("LambdaABI::LambdaABI: NOT IMPLEMENTED")
 }

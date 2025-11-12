@@ -65,13 +65,13 @@
 
 namespace llvm {
 
-class TapirTargetOptions;
+class TTOptions;
 
 /// The tapir target to lower tapir loops to kitsune's cuda runtime. The tapir
 /// loops will be converted to GPU kernels.
 class CudaABI : public TapirTarget {
 public:
-  CudaABI(Module &HostM, const TapirTargetOptions &TTO);
+  CudaABI(Module &HostM, const TTOptions &TTO);
   ~CudaABI();
 
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
@@ -156,7 +156,7 @@ public:
   ///                   which the loop is outlined
   /// @param TTOpts The tapir target options
   CudaLoop(Module &M, Module &KernelModule, const std::string &KernelName,
-           const TapirTargetOptions &TTOpts);
+           const TTOptions &TTOpts);
   ~CudaLoop();
 
   void preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) override;

@@ -21,7 +21,7 @@ namespace llvm {
 
 class Function;
 class Module;
-class TapirTargetOptions;
+class TTOptions;
 class TargetLibraryInfo;
 
 namespace detail {
@@ -42,18 +42,18 @@ using GetTLI = std::function<TargetLibraryInfo &(Function &)>;
 
 /// Type of the function that will generate a global ctor for some tapir target.
 using GenerateCtorImplFn = std::function<void(
-    Module &, GetTLI, const TapirTargetOptions &, GenerateCtorOptions &)>;
+    Module &, GetTLI, const TTOptions &, GenerateCtorOptions &)>;
 
 /// Generate a global constructor and destructor for kitsune's cuda runtime.
-void genCtorCuda(Module &m, GetTLI getTLI, const TapirTargetOptions &ttOpts,
+void genCtorCuda(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
                  const GenerateCtorOptions &ctorOpts);
 
 /// Generate a global constructor and destructor for kitsune's hip runtime.
-void genCtorHip(Module &m, GetTLI getTLI, const TapirTargetOptions &ttOpts,
+void genCtorHip(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
                 const GenerateCtorOptions &ctorOpts);
 
 /// Generate a global constructor and destructor for Kitsune's pthreads runtime.
-void genCtorPthreads(Module &m, GetTLI getTLI, const TapirTargetOptions &ttOpts,
+void genCtorPthreads(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
                      const GenerateCtorOptions &ctorOpts);
 
 } // namespace detail

@@ -13,7 +13,7 @@
 
 #include "llvm/Transforms/Tapir/OpenCilkABI.h"
 #include "kitsune/Core/Tapir.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringSet.h"
@@ -58,7 +58,7 @@ static cl::opt<bool> UseOpenCilkRuntimeBC(
 
 static const StringRef StackFrameName = "__cilkrts_sf";
 
-OpenCilkABI::OpenCilkABI(Module &M, const TapirTargetOptions &Opts)
+OpenCilkABI::OpenCilkABI(Module &M, const TTOptions &Opts)
     : TapirTarget(M, Opts) {}
 
 // Helper function to fix the implementation of __cilk_sync.  In particular,
