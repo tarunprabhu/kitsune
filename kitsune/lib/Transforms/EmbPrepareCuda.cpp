@@ -13,7 +13,7 @@
 
 #include "EmbPrepareImpl.h"
 #include "kitsune/Core/AddrSpaceUtils.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Function.h"
@@ -25,7 +25,7 @@ namespace {
 
 class EmbPrepareCuda {
 private:
-  const TapirTargetOptions &tto;
+  const TTOptions &tto;
   const detail::EmbPrepareOptions &prepOpts;
 
 private:
@@ -59,7 +59,7 @@ private:
   }
 
 public:
-  EmbPrepareCuda(const TapirTargetOptions &tto,
+  EmbPrepareCuda(const TTOptions &tto,
                  const detail::EmbPrepareOptions &prepOpts)
       : tto(tto), prepOpts(prepOpts) {}
 
@@ -75,7 +75,7 @@ public:
 
 } // namespace
 
-bool llvm::detail::embPrepareCuda(Module &m, const TapirTargetOptions &tto,
+bool llvm::detail::embPrepareCuda(Module &m, const TTOptions &tto,
                                   const detail::EmbPrepareOptions &prepOpts) {
   return EmbPrepareCuda(tto, prepOpts).run(m);
 }

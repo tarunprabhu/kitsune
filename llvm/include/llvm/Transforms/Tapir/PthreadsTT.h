@@ -20,14 +20,14 @@
 
 namespace llvm {
 
-class TapirTargetOptions;
+class TTOptions;
 
 class PthreadsLoop : public LoopOutlineProcessor {
 public:
   /// Create a loop outline processor for the pthreads tapir target.
   /// \param M The host module
   /// \param TTOpts The tapir target options
-  PthreadsLoop(Module &m, const TapirTargetOptions &ttOpts);
+  PthreadsLoop(Module &m, const TTOptions &ttOpts);
   ~PthreadsLoop();
 
   /// Returns an ArgStructMode enum value describing how inputs to the
@@ -41,7 +41,7 @@ public:
 
 class PthreadsTT : public TapirTarget {
 public:
-  PthreadsTT(Module &m, const TapirTargetOptions &ttOpts);
+  PthreadsTT(Module &m, const TTOptions &ttOpts);
   virtual ~PthreadsTT() = default;
 
   /// Lower a call to the tapir.loop.grainsize intrinsic into a grainsize

@@ -61,7 +61,7 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/ModuleUtils.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/TapirLoopHints.h"
@@ -160,8 +160,7 @@ Value *HipLoop::emitWorkGroupSize(IRBuilder<> &Builder, int ItemIndex) {
   return Builder.CreateCall(HipBlockDimFn, {Index}, Name);
 }
 
-HipLoop::HipLoop(Module &M, Module &KM, StringRef Name,
-                 const TapirTargetOptions &TTO)
+HipLoop::HipLoop(Module &M, Module &KM, StringRef Name, const TTOptions &TTO)
     : LoopOutlineProcessor(M, KM, TTO,
                            CloneFunctionChangeType::DifferentModule),
       KernelName(Name), KernelModule(KM) {
@@ -510,7 +509,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
 // Tapir constructs within a given input Module (M). It then creates a
 // corresponding module that contains the transformed device-side code. This is
 // the KernelModule that is created below in the target constructor.
-HipABI::HipABI(Module &M, const TapirTargetOptions &TTO)
+HipABI::HipABI(Module &M, const TTOptions &TTO)
     : TapirTarget(M, TTO), KernelModule("", M.getContext()), NextKernelID(0) {
   LLVM_DEBUG(dbgs() << "hipABI: HipABI::HipABI()\n");
 

@@ -13,7 +13,7 @@
 
 #include "EmbPrepareImpl.h"
 #include "kitsune/Core/AddrSpaceUtils.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Support/AddrSpace.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/DataLayout.h"
@@ -29,7 +29,7 @@ namespace {
 
 class EmbPrepareHip {
 private:
-  const TapirTargetOptions &tto;
+  const TTOptions &tto;
   const detail::EmbPrepareOptions &prepOpts;
 
 private:
@@ -233,8 +233,7 @@ private:
   }
 
 public:
-  EmbPrepareHip(const TapirTargetOptions &tto,
-                const detail::EmbPrepareOptions &prepOpts)
+  EmbPrepareHip(const TTOptions &tto, const detail::EmbPrepareOptions &prepOpts)
       : tto(tto), prepOpts(prepOpts) {}
 
   bool run(Module &devM) {
@@ -252,7 +251,7 @@ public:
 
 } // namespace
 
-bool llvm::detail::embPrepareHip(Module &m, const TapirTargetOptions &tto,
+bool llvm::detail::embPrepareHip(Module &m, const TTOptions &tto,
                                  const detail::EmbPrepareOptions &prepOpts) {
   return EmbPrepareHip(tto, prepOpts).run(m);
 }

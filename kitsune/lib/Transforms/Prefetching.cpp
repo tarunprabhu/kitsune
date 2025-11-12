@@ -13,7 +13,7 @@
 #include "kitsune/Transforms/Prefetching.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/IntrinsicUtils.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
@@ -38,7 +38,7 @@ namespace {
 /// to reflect any changes.
 class Prefetch {
 private:
-  const TapirTargetOptions &tto;
+  const TTOptions &tto;
 
 private:
   /// Insert prefetches from host to device before the given kernel launch call.
@@ -125,7 +125,7 @@ private:
   }
 
 public:
-  Prefetch(const TapirTargetOptions &tto) : tto(tto) {}
+  Prefetch(const TTOptions &tto) : tto(tto) {}
 
   /// Iterate over the functions in the module and insert prefetch calls into
   /// them if required. Return false if no prefetch calls were inserted, true
@@ -152,7 +152,7 @@ PreservedAnalyses PrefetchingPass::run(Module &m, ModuleAnalysisManager &mam) {
   if (not tgi.hasTTID())
     return PreservedAnalyses::all();
 
-  const TapirTargetOptions &tto = tgi.getOptions();
+  const TTOptions &tto = tgi.getOptions();
 
   if (Prefetch(tto).run(m))
     return PreservedAnalyses::none();

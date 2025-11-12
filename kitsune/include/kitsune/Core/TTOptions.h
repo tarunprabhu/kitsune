@@ -1,4 +1,4 @@
-//===- TapirTargetOptions.h - Options shared by tapir targets --*- C++ -*--===//
+//===- TTOptions.h - Options shared by tapir targets -----------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_CORE_TAPIR_TARGET_OPTIONS_H
-#define KITSUNE_CORE_TAPIR_TARGET_OPTIONS_H
+#ifndef KITSUNE_CORE_TTOPTIONS_H
+#define KITSUNE_CORE_TTOPTIONS_H
 
 #include "kitsune/Core/OptznLevel.h"
 #include "kitsune/Core/Tapir.h"
@@ -33,7 +33,7 @@ using FPOpFusionMode = FPOpFusion::FPOpFusionMode;
 /// tapir targets. We could split it into types for each tapir target, but it
 /// doesn't really help with anything. Having everything "under one roof" makes
 /// it a shade easier to support multiple tapir targets in a single compilation.
-class TapirTargetOptions {
+class TTOptions {
 public:
   /// The default optimization level to use when one has not been specified.
   /// This is mostly useful for the tools that create this options object
@@ -149,18 +149,18 @@ private:
   /// @}
 
 private:
-  TapirTargetOptions() = default;
+  TTOptions() = default;
 
   /// Create an options object with the given primary tapir target.
-  TapirTargetOptions(TTID tt);
+  TTOptions(TTID tt);
 
   /// Create an options object with the given primary tapir target and the given
   /// secondary tapir targets.
-  TapirTargetOptions(TTID tt, const std::vector<TTID> tts);
+  TTOptions(TTID tt, const std::vector<TTID> tts);
 
 public:
   /// Create a clone of this options object.
-  std::unique_ptr<TapirTargetOptions> clone() const;
+  std::unique_ptr<TTOptions> clone() const;
 
   void setOptznLevel(OptznLevel optLevel) { this->optLevel = optLevel; }
   void setOptznLevelFrom(OptimizationLevel optLevel);
@@ -220,27 +220,25 @@ public:
 
   /// Construct an options object from the given frontend options. If a tapir
   /// target ID is not set in the kitsune options, std::nullopt is returned.
-  static std::optional<TapirTargetOptions>
-  create(const KitsuneOptions &kitOpts, OptznLevel optLevel,
-         FPOpFusionMode fpOpFusionMode);
+  static std::optional<TTOptions> create(const KitsuneOptions &kitOpts,
+                                         OptznLevel optLevel,
+                                         FPOpFusionMode fpOpFusionMode);
 
   /// Construct an options object initialized from the command line options
   /// if the --tapir option was provided. Otherwise, return std::nullopt.
-  static std::optional<TapirTargetOptions>
-  createFromCommandLine(OptznLevel optLevel);
+  static std::optional<TTOptions> createFromCommandLine(OptznLevel optLevel);
 
   /// Construct an options object initialized from the command line options
   /// if the --tapir option was provided. Otherwise, return std::nullopt.
-  static std::optional<TapirTargetOptions>
-  createFromCommandLine(unsigned speedupLevel);
+  static std::optional<TTOptions> createFromCommandLine(unsigned speedupLevel);
 
   /// Construct an options object initialized from the command line options
   /// with the given optimization level. \ref optLevel must be one of {0, 1, 2,
   /// 3, s, z}. It is an error if \ref optLevel is not one of these. If the
   /// --tapir option is not provided, this returns std::nullopt.
-  static std::optional<TapirTargetOptions> createFromCommandLine(char optLevel);
+  static std::optional<TTOptions> createFromCommandLine(char optLevel);
 };
 
 } // namespace llvm
 
-#endif // KITSUNE_CORE_TAPIR_TARGET_OPTIONS_H
+#endif // KITSUNE_CORE_TTOPTIONS_H

@@ -100,7 +100,7 @@ bool resolveCallees(Function &f, Module &libDeviceM,
 bool EmbResolveLibDeviceCallsPass::run(TTID tt, Module &devM, Module &hostM,
                                        ModuleAnalysisManager &hostMAM) {
   const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
-  const TapirTargetOptions &tto = tgi.getOptions();
+  const TTOptions &tto = tgi.getOptions();
 
   switch (tt) {
   case TTID::Cuda:

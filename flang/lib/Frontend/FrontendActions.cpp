@@ -29,7 +29,7 @@
 #include "flang/Support/default-kinds.h"
 #include "flang/Tools/CrossToolHelpers.h"
 
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/PipelineUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "mlir/IR/Dialect.h"
@@ -621,8 +621,8 @@ getFPOpFusionMode(Fortran::common::LangOptions::FPModeKind fpContractMode) {
   llvm_unreachable("getFPOpFusionMode: Unexpected FP contract mode");
 }
 
-static std::optional<llvm::TapirTargetOptions>
-getTapirTargetOptions(CompilerInstance &ci) {
+static std::optional<llvm::TTOptions>
+getTTOptions(CompilerInstance &ci) {
   CompilerInvocation &invoc = ci.getInvocation();
   const llvm::driver::KitsuneOptions &kitsuneOpts = invoc.getKitsuneOpts();
   const Fortran::common::LangOptions &langOpts = invoc.getLangOpts();
@@ -633,7 +633,7 @@ getTapirTargetOptions(CompilerInstance &ci) {
   llvm::FPOpFusion::FPOpFusionMode fpFusion =
       getFPOpFusionMode(langOpts.getFPContractMode());
 
-  return llvm::TapirTargetOptions::create(kitsuneOpts, optznLevel, fpFusion);
+  return llvm::TTOptions::create(kitsuneOpts, optznLevel, fpFusion);
 }
 
 // Lower using HLFIR then run the FIR to HLFIR pipeline
@@ -1053,7 +1053,7 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   pto.LoopVectorization = opts.VectorizeLoop;
   pto.SLPVectorization = opts.VectorizeSLP;
   pto.LoopStripmine = kitsuneOpts.getStripmineLoops();
-  pto.TTOpts = getTapirTargetOptions(ci);
+  pto.TTOpts = getTTOptions(ci);
 
   llvm::PassBuilder pb(targetMachine, pto, pgoOpt, &pic);
 

@@ -23,7 +23,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "pthreadstt"
 
-PthreadsLoop::PthreadsLoop(Module &m, const TapirTargetOptions &ttOpts)
+PthreadsLoop::PthreadsLoop(Module &m, const TTOptions &ttOpts)
     : LoopOutlineProcessor(m, m, ttOpts,
                            CloneFunctionChangeType::GlobalChanges) {}
 
@@ -41,12 +41,12 @@ void PthreadsLoop::processOutlinedLoopCall(TapirLoopInfo &tl,
   LLVMContext &ctx = M.getContext();
 
   ConstantInt *ctt = createConstInt(TTID::Pthreads, ctx);
-  Function* outlined = toi.Outline;
+  Function *outlined = toi.Outline;
   CallBase *replCall = cast<CallBase>(toi.ReplCall);
   IRBuilder<> builder(replCall);
 
-  SmallVector<Value*, 16> launchArgs = {ctt, outlined};
-  for (Value* arg : replCall->args())
+  SmallVector<Value *, 16> launchArgs = {ctt, outlined};
+  for (Value *arg : replCall->args())
     launchArgs.push_back(arg);
   Value *thrdCtx =
       builder.CreateIntrinsic(Intrinsic::kit_async_launch_threads, launchArgs);
@@ -61,7 +61,7 @@ void PthreadsLoop::processOutlinedLoopCall(TapirLoopInfo &tl,
   replCall->eraseFromParent();
 }
 
-PthreadsTT::PthreadsTT(Module &m, const TapirTargetOptions &ttOpts)
+PthreadsTT::PthreadsTT(Module &m, const TTOptions &ttOpts)
     : TapirTarget(m, ttOpts) {}
 
 bool PthreadsTT::shouldDoOutlining(const Function &f) const { return true; }

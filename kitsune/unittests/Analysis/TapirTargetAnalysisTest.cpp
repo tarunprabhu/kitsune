@@ -229,12 +229,11 @@ sync2:
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
-  std::optional<TapirTargetOptions> tto = std::nullopt;
+  std::optional<TTOptions> tto = std::nullopt;
 
   kitOpts.setTTID(TTID::Serial);
   kitOpts.setCudaArch("sm_17");
-  tto =
-      TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
+  tto = TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
   Function *f = m->getFunction("f");
@@ -269,11 +268,10 @@ TEST_F(TapirTargetAnalysisTest, noHints) {
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
-  std::optional<TapirTargetOptions> tto = std::nullopt;
+  std::optional<TTOptions> tto = std::nullopt;
 
   kitOpts.setTTID(TTID::Serial);
-  tto =
-      TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
+  tto = TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   std::unique_ptr<Module> m = parseAssemblyString(moduleNoHints, err, ctx);
   Function *f = m->getFunction("f");
@@ -310,11 +308,10 @@ TEST_F(TapirTargetAnalysisTest, withHintsMixed) {
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
-  std::optional<TapirTargetOptions> tto = std::nullopt;
+  std::optional<TTOptions> tto = std::nullopt;
 
   kitOpts.setTTID(TTID::Serial);
-  tto =
-      TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
+  tto = TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   std::unique_ptr<Module> m =
       parseAssemblyString(moduleWithHintsMixed, err, ctx);
@@ -423,11 +420,10 @@ end2:
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
-  std::optional<TapirTargetOptions> tto = std::nullopt;
+  std::optional<TTOptions> tto = std::nullopt;
 
   kitOpts.setTTID(TTID::Serial);
-  tto =
-      TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
+  tto = TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
   Function *f = m->getFunction("f");
@@ -551,11 +547,10 @@ end:
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
-  std::optional<TapirTargetOptions> tto = std::nullopt;
+  std::optional<TTOptions> tto = std::nullopt;
 
   kitOpts.setTTID(TTID::Serial);
-  tto =
-      TapirTargetOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
+  tto = TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
   Function *f = m->getFunction("f");
@@ -597,7 +592,7 @@ end:
 TEST_F(TapirTargetAnalysisTest, noTTO) {
   LLVMContext ctx;
   SMDiagnostic err;
-  std::optional<TapirTargetOptions> tto = std::nullopt;
+  std::optional<TTOptions> tto = std::nullopt;
 
   {
     std::unique_ptr<Module> m =

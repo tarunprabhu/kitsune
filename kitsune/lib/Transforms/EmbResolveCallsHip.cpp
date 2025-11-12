@@ -226,7 +226,7 @@ static bool resolvePrintfCalls(Function &f) {
 }
 
 bool llvm::detail::resolveLibDeviceCallsHip(Module &devM,
-                                            const TapirTargetOptions &tto) {
+                                            const TTOptions &tto) {
   LLVMContext &ctx = devM.getContext();
   std::unique_ptr<Module> libDeviceM = getLibDeviceModule(TTID::Hip, tto, ctx);
 

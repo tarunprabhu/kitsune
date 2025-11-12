@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/TargetUtils.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/Twine.h"
@@ -20,7 +20,7 @@
 
 using namespace llvm;
 
-static TargetMachine *createAMDGPUTargetMachine(const TapirTargetOptions &tto,
+static TargetMachine *createAMDGPUTargetMachine(const TTOptions &tto,
                                                 CodeGenOptLevel cgOptLevel) {
   Triple triple(Twine("amdgcn"), Twine("amd"), Twine("amdhsa"));
 
@@ -40,7 +40,7 @@ static TargetMachine *createAMDGPUTargetMachine(const TapirTargetOptions &tto,
                                      relocModel, codeModel, cgOptLevel);
 }
 
-static TargetMachine *createPTXTargetMachine(const TapirTargetOptions &tto,
+static TargetMachine *createPTXTargetMachine(const TTOptions &tto,
                                              CodeGenOptLevel cgOptLevel) {
   Triple triple(Twine("nvptx64"), Twine("nvidia"), Twine("cuda"));
 
@@ -58,13 +58,12 @@ static TargetMachine *createPTXTargetMachine(const TapirTargetOptions &tto,
                                      relocModel, codeModel, cgOptLevel);
 }
 
-TargetMachine *llvm::createTargetMachine(TTID tt,
-                                         const TapirTargetOptions &tto) {
+TargetMachine *llvm::createTargetMachine(TTID tt, const TTOptions &tto) {
   CodeGenOptLevel cgOptLevel = createCodeGenOptLevelFrom(tto.getOptznLevel());
   return createTargetMachine(tt, tto, cgOptLevel);
 }
 
-TargetMachine *llvm::createTargetMachine(TTID tt, const TapirTargetOptions &tto,
+TargetMachine *llvm::createTargetMachine(TTID tt, const TTOptions &tto,
                                          CodeGenOptLevel cgOptLevel) {
   switch (tt) {
   case TTID::Cuda:

@@ -14,8 +14,8 @@
 #ifndef KITSUNE_ANALYSIS_TAPIR_TARGET_ANALYSIS_H
 #define KITSUNE_ANALYSIS_TAPIR_TARGET_ANALYSIS_H
 
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Tapir.h"
-#include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
@@ -42,7 +42,7 @@ public:
 
 private:
   /// Options for the primary tapir target.
-  std::optional<TapirTargetOptions> ttOpts;
+  std::optional<TTOptions> ttOpts;
 
   /// The tapir targets used by each function in the module.
   std::map<Function *, std::vector<TTID>> ttsInFunc;
@@ -58,7 +58,7 @@ private:
   std::map<TTID, TapirTarget *> tts;
 
 private:
-  TapirTargetInfo(std::optional<TapirTargetOptions> ttOpts);
+  TapirTargetInfo(std::optional<TTOptions> ttOpts);
 
   /// Compute the tapir target objects required by every function in a module.
   void computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
@@ -86,7 +86,7 @@ public:
 
   /// Get the tapir target options. This should only be called when the tapir
   /// target options are guaranteed to have been set.
-  const TapirTargetOptions &getOptions() const;
+  const TTOptions &getOptions() const;
 
   /// Get the tapir target ID's required by a function. This will be an empty
   /// vector if there are no tapir loops in the function. If there is at least
@@ -125,10 +125,10 @@ private:
 public:
   using Result = TapirTargetInfo;
 
-  /// Construct an analysis pass with an optional TapirTargetOptions object.
+  /// Construct an analysis pass with an optional TTOptions object.
   /// This may be std::nullopt if the frontend creating this pass has not been
   /// given a tapir target to use.
-  TapirTargetAnalysis(std::optional<TapirTargetOptions> ttOpts);
+  TapirTargetAnalysis(std::optional<TTOptions> ttOpts);
 
   Result run(Module &m, ModuleAnalysisManager &mam);
 
@@ -160,10 +160,10 @@ public:
   /// manager, but this should never be used anywhere else.
   TapirTargetAnalysisWrapperPass();
 
-  /// Construct an analysis pass with an optional TapirTargetOptions object.
+  /// Construct an analysis pass with an optional TTOptions object.
   /// This may be std::nullopt if the frontend creating this pass has not been
   /// given a tapir target to use.
-  TapirTargetAnalysisWrapperPass(std::optional<TapirTargetOptions> ttOpts);
+  TapirTargetAnalysisWrapperPass(std::optional<TTOptions> ttOpts);
 
   void getAnalysisUsage(AnalysisUsage &au) const override;
 
@@ -174,7 +174,7 @@ public:
 };
 
 ModulePass *
-createTapirTargetAnalysisWrapperPass(std::optional<TapirTargetOptions> ttOpts);
+createTapirTargetAnalysisWrapperPass(std::optional<TTOptions> ttOpts);
 
 } // namespace llvm
 

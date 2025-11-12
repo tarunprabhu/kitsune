@@ -432,7 +432,7 @@ bool TapirToTargetImpl::run() {
       continue;
     // TODO: Use per-function Tapir targets?
     if (!Target) {
-      const TapirTargetOptions &TTOpts = TGI.getOptions();
+      const TTOptions &TTOpts = TGI.getOptions();
       Target = TGI.getTT(TTOpts.getTTID());
     }
     assert(Target && "Missing Tapir target");

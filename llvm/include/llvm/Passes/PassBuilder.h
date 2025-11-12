@@ -15,7 +15,7 @@
 #ifndef LLVM_PASSES_PASSBUILDER_H
 #define LLVM_PASSES_PASSBUILDER_H
 
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/CodeGen/MachinePassManager.h"
 #include "llvm/CodeGen/RegAllocCommon.h"
@@ -111,7 +111,7 @@ public:
 
   /// The options for the primary tapir target, if any. If this is set, the
   /// primary tapir target id can be determined from it.
-  std::optional<TapirTargetOptions> TTOpts;
+  std::optional<TTOptions> TTOpts;
 };
 
 /// This class provides access to building LLVM's passes.
@@ -148,7 +148,7 @@ public:
       PassInstrumentationCallbacks *PIC = nullptr,
       IntrusiveRefCntPtr<vfs::FileSystem> FS = vfs::getRealFileSystem());
 
-  const std::optional<TapirTargetOptions> getTapirTargetOptions() const {
+  const std::optional<TTOptions> getTTOptions() const {
     return PTO.TTOpts;
   }
 

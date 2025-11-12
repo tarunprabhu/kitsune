@@ -7,9 +7,9 @@
 //===----------------------------------------------------------------------===//
 //
 // This file defines Kitsune-specific frontend options common to clang and
-// flang. These are not exactly the same as TapirTargetOptions which are the
-// options used by the various tapir targets. These options can affect parsing
-// and lowering of the various languages supported by Kitsune.
+// flang. These are not exactly the same as TTOptions which are the options used
+// by the various tapir targets. These options can affect parsing and lowering
+// of the various languages supported by Kitsune.
 //
 //===----------------------------------------------------------------------===//
 

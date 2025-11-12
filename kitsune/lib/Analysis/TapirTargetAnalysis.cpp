@@ -38,7 +38,7 @@ static cl::opt<bool>
 static const std::vector<TTID> noTTs;
 
 static std::unique_ptr<TapirTarget> createTT(TTID id, Module &m,
-                                             const TapirTargetOptions &tto) {
+                                             const TTOptions &tto) {
   // Yes, this is absolutely hideous. We should try to find a nicer way than
   // this horrendous conditionally compiled mess!
   switch (id) {
@@ -96,7 +96,7 @@ static std::unique_ptr<TapirTarget> createTT(TTID id, Module &m,
   }
 }
 
-TapirTargetInfo::TapirTargetInfo(std::optional<TapirTargetOptions> ttOpts)
+TapirTargetInfo::TapirTargetInfo(std::optional<TTOptions> ttOpts)
     : ttOpts(ttOpts) {}
 
 void TapirTargetInfo::computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
@@ -159,7 +159,7 @@ std::optional<TTID> TapirTargetInfo::getTTIDOrNull() const {
   return std::nullopt;
 }
 
-const TapirTargetOptions &TapirTargetInfo::getOptions() const {
+const TTOptions &TapirTargetInfo::getOptions() const {
   assert(ttOpts && "Tapir target options have not been set");
   return *ttOpts;
 }
@@ -184,7 +184,7 @@ bool TapirTargetInfo::invalidate(Module &, const PreservedAnalyses &pa,
 
 AnalysisKey TapirTargetAnalysis::Key;
 
-TapirTargetAnalysis::TapirTargetAnalysis(std::optional<TapirTargetOptions> tto)
+TapirTargetAnalysis::TapirTargetAnalysis(std::optional<TTOptions> tto)
     : ttInfo(tto) {
   if (clDumpTTO and ttInfo.hasTTID())
     ttInfo.getOptions().print(outs(), /*all=*/true);
@@ -208,7 +208,7 @@ TapirTargetAnalysis::run(Module &m, ModuleAnalysisManager &mam) {
 
   ttInfo.computeRequiredTTs(m, getLoopInfo, getTaskInfo);
 
-  const TapirTargetOptions &tto = ttInfo.getOptions();
+  const TTOptions &tto = ttInfo.getOptions();
   std::vector<TTID> ids = ttInfo.getRequiredTTs(m);
   ids.push_back(ttInfo.getTTID());
   for (TTID id : ids) {
@@ -232,7 +232,7 @@ TapirTargetAnalysisWrapperPass::TapirTargetAnalysisWrapperPass()
 }
 
 TapirTargetAnalysisWrapperPass::TapirTargetAnalysisWrapperPass(
-    std::optional<TapirTargetOptions> ttOpts)
+    std::optional<TTOptions> ttOpts)
     : ImmutablePass(ID), ttInfo(ttOpts) {
   initializeTapirTargetAnalysisWrapperPassPass(
       *PassRegistry::getPassRegistry());
@@ -247,7 +247,7 @@ TapirTargetAnalysisWrapperPass::getResult() const {
   return ttInfo;
 }
 
-ModulePass *llvm::createTapirTargetAnalysisWrapperPass(
-    std::optional<TapirTargetOptions> ttOpts) {
+ModulePass *
+llvm::createTapirTargetAnalysisWrapperPass(std::optional<TTOptions> ttOpts) {
   return new TapirTargetAnalysisWrapperPass(ttOpts);
 }

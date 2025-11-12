@@ -28,9 +28,9 @@ namespace llvm {
 /// defined in LLVMPasses. That is "reasonable" in the case of LLVM since
 /// neither the frontends (clang, flang) nor the middle-ends use it very much
 /// outside of constructing the pass pipeline. However, Kitsune records this in
-/// the \ref TapirTargetOptions object in order to use it in the nested
-/// emb-optimize pass. This results in a circular dependence between LLVMPasses
-/// and LLVMKitCore - something that we would really like to avoid. Moving the
+/// the \ref TTOptions object in order to use it in the nested emb-optimize
+/// pass. This results in a circular dependence between LLVMPasses and
+/// LLVMKitCore - something that we would really like to avoid. Moving the
 /// OptimizationLevel class to a different library was attempted - LLVMSupport
 /// seemed a natural place for it, but that causes more problems.
 ///

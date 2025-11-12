@@ -18,8 +18,8 @@
 namespace llvm {
 
 // NOTE: Most options that control Kitsune's behavior are defined in
-// TapirTargetOptions.cpp. They are private to the file and we intend to keep it
-// that way. These options are in the "Kitsune" option category.
+// TTOptions.cpp. They are private to the file and we intend to keep it that
+// way. These options are in the "Kitsune" option category.
 //
 // In the Kitsune tools, we hide all categories except those of the tool's
 // command line options. This keeps the help screen of the tools clean. However,

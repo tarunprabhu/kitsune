@@ -3,7 +3,7 @@
 ;
 ; Currently, this always uses PIC as the relocation model. If that is ever made
 ; configurable, or if the model in the target machine is derived from the
-; TapirTargetOptions, this should be changed.
+; TTOptions, this should be changed.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
 ; RUN:     | opt -o /dev/null --tapir=cuda --tapir-cuda-arch=sm_86 \

@@ -14,7 +14,7 @@ several separate checks:
      passed to the driver (`-cc1`, `-fc1`). This is optional, particularly if
      the option parsing and validation code is fairly trivial
 
-  2. A test that checks that the fields of `TapirTargetOptions` object are
+  2. A test that checks that the fields of `TTOptions` object are
      set correctly depending on the option (if applicable)
 
   3. A test of the behavior of one or more of the transformation passes when

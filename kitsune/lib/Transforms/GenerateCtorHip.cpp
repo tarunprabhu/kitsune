@@ -15,8 +15,8 @@
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Tapir.h"
-#include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
@@ -42,7 +42,7 @@ private:
 
 private:
   detail::GetTLI getTLI;
-  const TapirTargetOptions &tto;
+  const TTOptions &tto;
   const detail::GenerateCtorOptions &genCtorOpts;
 
 private:
@@ -260,7 +260,7 @@ private:
   }
 
 public:
-  GenerateCtorHip(detail::GetTLI getTLI, const TapirTargetOptions &tto,
+  GenerateCtorHip(detail::GetTLI getTLI, const TTOptions &tto,
                   const detail::GenerateCtorOptions &genCtorOpts)
       : getTLI(getTLI), tto(tto), genCtorOpts(genCtorOpts) {}
 
@@ -287,7 +287,7 @@ public:
 } // namespace
 
 void llvm::detail::genCtorHip(Module &m, detail::GetTLI getTLI,
-                              const TapirTargetOptions &tto,
+                              const TTOptions &tto,
                               const detail::GenerateCtorOptions &genCtorOpts) {
   GenerateCtorHip(getTLI, tto, genCtorOpts).run(m);
 }

@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/SerialABI.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Tapir.h"
-#include "kitsune/Core/TapirTargetOptions.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
@@ -22,8 +22,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "serialabi"
 
-SerialABI::SerialABI(Module &M, const TapirTargetOptions &Opts)
-    : TapirTarget(M, Opts) {}
+SerialABI::SerialABI(Module &M, const TTOptions &Opts) : TapirTarget(M, Opts) {}
 
 Value *SerialABI::lowerGrainsizeCall(CallInst *GrainsizeCall) {
   Value *Grainsize = ConstantInt::get(GrainsizeCall->getType(), 1);

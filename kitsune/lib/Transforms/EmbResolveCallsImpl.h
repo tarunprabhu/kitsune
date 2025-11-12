@@ -22,7 +22,7 @@ namespace llvm {
 
 class Function;
 class Module;
-class TapirTargetOptions;
+class TTOptions;
 
 namespace detail {
 
@@ -30,11 +30,11 @@ using GetLibDeviceFunc = std::function<std::string(StringRef f, bool fast)>;
 
 /// Resolve calls to library functions for which an implementation exists in
 /// cuda's libdevice module.
-bool resolveLibDeviceCallsCuda(Module &devM, const TapirTargetOptions &tto);
+bool resolveLibDeviceCallsCuda(Module &devM, const TTOptions &tto);
 
 /// Resolve calls to library functions for which an implementation exists in
 /// hip's libdevice modules.
-bool resolveLibDeviceCallsHip(Module &devM, const TapirTargetOptions &tto);
+bool resolveLibDeviceCallsHip(Module &devM, const TTOptions &tto);
 
 /// Resolve all calls in the given function where the callee is a library
 /// function for which an implementation exists in a libdevice module for the

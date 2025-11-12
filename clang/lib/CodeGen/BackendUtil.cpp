@@ -10,7 +10,7 @@
 #include "BackendConsumer.h"
 #include "LinkInModulesPass.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/PipelineUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "clang/Basic/CodeGenOptions.h"
@@ -168,13 +168,13 @@ class EmitAssemblyHelper {
     return TargetIRAnalysis();
   }
 
-  std::optional<TapirTargetOptions> getTapirTargetOptions() const {
+  std::optional<TTOptions> getTTOptions() const {
     OptznLevel OptLevel = createOptznLevelFrom(CodeGenOpts.OptimizationLevel,
                                                CodeGenOpts.OptimizeSize);
     FPOpFusion::FPOpFusionMode FPOpFusionMode = FPOpFusion::Standard;
     if (TM)
       FPOpFusionMode = TM->Options.AllowFPOpFusion;
-    return TapirTargetOptions::create(KitsuneOpts, OptLevel, FPOpFusionMode);
+    return TTOptions::create(KitsuneOpts, OptLevel, FPOpFusionMode);
   }
 
   /// Generates the TargetMachine.
@@ -686,7 +686,7 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
       llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
-  populateKitCodeGenPasses(CodeGenPasses, getTapirTargetOptions());
+  populateKitCodeGenPasses(CodeGenPasses, getTTOptions());
 
   // Normal mode, emit a .s or .o file by running the code generator. Note,
   // this also adds codegenerator level optimization passes.
@@ -988,7 +988,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.UnifiedLTO = CodeGenOpts.UnifiedLTO;
   PTO.DevirtualizeSpeculatively = CodeGenOpts.DevirtualizeSpeculatively;
   PTO.LoopStripmine = KitsuneOpts.getStripmineLoops();
-  PTO.TTOpts = getTapirTargetOptions();
+  PTO.TTOpts = getTTOptions();
 
   LoopAnalysisManager LAM;
   FunctionAnalysisManager FAM;
@@ -1500,7 +1500,7 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
   Conf.PTO.CallGraphProfile = !CGOpts.DisableIntegratedAS;
-  Conf.PTO.TTOpts = TapirTargetOptions::create(
+  Conf.PTO.TTOpts = TTOptions::create(
       KOpts,
       createOptznLevelFrom(CGOpts.OptimizationLevel, CGOpts.OptimizeSize),
       Conf.Options.AllowFPOpFusion);

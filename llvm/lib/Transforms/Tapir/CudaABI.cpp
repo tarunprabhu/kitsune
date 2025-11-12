@@ -61,7 +61,7 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/ModuleUtils.h"
-#include "kitsune/Core/TapirTargetOptions.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/TapirLoopHints.h"
@@ -153,7 +153,7 @@ static std::string convertNameForPTX(StringRef name, bool addPrefix = true) {
 }
 
 CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
-                   const TapirTargetOptions &TTOpts)
+                   const TTOptions &TTOpts)
     : LoopOutlineProcessor(M, KernelModule, TTOpts,
                            CloneFunctionChangeType::DifferentModule),
       KernelName(KN), KernelModule(KernelModule) {
@@ -384,7 +384,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   TapirLoopHints Hints(TL.getLoop());
   Value *TPB = ConstantInt::get(Int32Ty, Hints.getThreadsPerBlock());
 
-  CallBase* CallOutlined = cast<CallBase>(TOI.ReplCall);
+  CallBase *CallOutlined = cast<CallBase>(TOI.ReplCall);
   BasicBlock *RCBB = CallOutlined->getParent();
   BasicBlock *NewBB = RCBB->splitBasicBlock(CallOutlined);
   IRBuilder<> Builder(&NewBB->front());
@@ -427,7 +427,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
 }
 
-CudaABI::CudaABI(Module &M, const TapirTargetOptions &TTO)
+CudaABI::CudaABI(Module &M, const TTOptions &TTO)
     : TapirTarget(M, TTO), KernelModule("", M.getContext()), NextKernelID(0) {
   LLVM_DEBUG(dbgs() << "cuabi: CudaABI::CudaABI()\n");
 

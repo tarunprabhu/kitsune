@@ -99,7 +99,7 @@ struct RTSFnDesc {
 };
 } // namespace
 
-OMPTaskABI::OMPTaskABI(Module &m, const TapirTargetOptions &opts)
+OMPTaskABI::OMPTaskABI(Module &m, const TTOptions &opts)
     : TapirTarget(m, opts) {
   llvm_unreachable("OMPTaskABI::OMPTaskABI: NOT IMPLEMENTED")
 }

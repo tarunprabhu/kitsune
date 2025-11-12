@@ -8,7 +8,7 @@ add_llvm_component_library(LLVMKitCore
   KernelProperties.cpp
   MetadataUtils.cpp
   ModuleUtils.cpp
-  TapirTargetOptions.cpp
+  TTOptions.cpp
   TargetUtils.cpp
   TypeUtils.cpp
 

@@ -21,7 +21,7 @@
 namespace llvm {
 
 class TapirLoopInfo;
-class TapirTargetOptions;
+class TTOptions;
 class Value;
 
 class OpenCilkABI final : public TapirTarget {
@@ -159,7 +159,7 @@ class OpenCilkABI final : public TapirTarget {
   BasicBlock *GetDefaultSyncLandingpad(Function &F, Value *SF, DebugLoc Loc);
 
 public:
-  OpenCilkABI(Module &M, const TapirTargetOptions &opts);
+  OpenCilkABI(Module &M, const TTOptions &opts);
   ~OpenCilkABI() { DetachCtxToStackFrame.clear(); }
 
   void prepareModule() override final;

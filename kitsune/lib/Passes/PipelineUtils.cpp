@@ -93,7 +93,7 @@ llvm::populateKitPostTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
 }
 
 void llvm::populateKitCodeGenPasses(legacy::PassManager &pm,
-                                    std::optional<TapirTargetOptions> tto) {
+                                    std::optional<TTOptions> tto) {
   if (tto) {
     pm.add(createTapirTargetAnalysisWrapperPass(tto));
     pm.add(createLowerKitsuneIntrinsicsLegacyPass());

@@ -19,11 +19,11 @@
 namespace llvm {
 
 class SerialTTOptions;
-class TapirTargetOptions;
+class TTOptions;
 
 class SerialABI : public TapirTarget {
 public:
-  SerialABI(Module &M, const TapirTargetOptions &opts);
+  SerialABI(Module &M, const TTOptions &opts);
   virtual ~SerialABI() = default;
 
   Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
