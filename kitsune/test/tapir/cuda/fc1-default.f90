@@ -33,7 +33,8 @@
 ! ------------------------------------------------------------------------------
 ! Check that the stripmine pass is disabled by default.
 !
-! RUN: %kitfc -mllvm -print-pipeline-passes -O2 --tapir=cuda \
+! RUN: %kitfc -mllvm -print-pipeline-passes -O2 \
+! RUN:     --tapir=cuda --tapir-cuda-arch=sm_86 \
 ! RUN:     -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
 !
 ! STRIPMINE-PASS-NOT: loop-stripmine
