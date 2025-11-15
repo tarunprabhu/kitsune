@@ -9,6 +9,8 @@ add_llvm_component_library(LLVMKitCore
   MetadataUtils.cpp
   ModuleUtils.cpp
   TTOptions.cpp
+  TTPlugin.cpp
+  TTUtils.cpp
   TargetUtils.cpp
   TypeUtils.cpp
 

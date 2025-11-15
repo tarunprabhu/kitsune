@@ -6,7 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Kitsune-specific optimization level (but not really)
+// Kitsune-specific representation of the optimization levels known to the
+// compiler.
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,30 +25,29 @@ namespace llvm {
 /// really why this class exists.
 ///
 /// The motivation for this is to avoid the inevitable circular dependences that
-/// are introduced if we use LLVM's \ref OptimizationLevel object. That is
-/// defined in LLVMPasses. That is "reasonable" in the case of LLVM since
-/// neither the frontends (clang, flang) nor the middle-ends use it very much
-/// outside of constructing the pass pipeline. However, Kitsune records this in
-/// the \ref TTOptions object in order to use it in the nested emb-optimize
-/// pass. This results in a circular dependence between LLVMPasses and
-/// LLVMKitCore - something that we would really like to avoid. Moving the
+/// are introduced if we use LLVM's \ref OptimizationLevel object. Instances of
+/// this class are defined in libLLVMPasses. That is "reasonable" in the case of
+/// LLVM since the frontends (clang, flang) don't use it for much and the
+/// middle-end only uses it to construct the pass pipeline. However, Kitsune
+/// records this in the \ref TTOptions object in order to use it in the nested
+/// emb-optimize pass. This results in a circular dependence between LLVMPasses
+/// and LLVMKitCore - something that we would really like to avoid. Moving the
 /// OptimizationLevel class to a different library was attempted - LLVMSupport
-/// seemed a natural place for it, but that causes more problems.
+/// seemed a natural place for it, but that caused more problems.
 ///
 /// LLVMSupport is built with -Werror=global-constructors where possible. LLVM's
-/// OptimizationLevel class is not intended to be instantiated on demand -
-/// instead, several static members are provided, each of which represents a
-/// single optimization level. Obviously, initializing these requires the use of
-/// global constructors. Ono the whole, it does seem like a good idea to avoid
-/// the use of global constructors given the well-known static initialization
-/// issues in C++. In any case, that makes we would have to put it in a less
-/// desirable library, or find some other way of dealing with it.
+/// OptimizationLevel class is not intended to be instantiated on demand.
+/// Instead, singleton instances of the class are provided for each of the
+/// optimization levels supported by the compiler. Obviously, instantiating
+/// these requires the use of global constructors. To work around this, the
+/// definition of the singletons would have to be moved to a less obvious
+/// library.
 ///
-/// We have chosen to just use our own optimization level instance in Kitsune
-/// and just convert it to LLVM's OptimizationLevel on demand. It's annoying,
-/// but, arguably, less so than having introducing even more cyclic dependencies
-/// between LLVM and Kitsune than are already present (see llvm/CMakeLists.txt
-/// for a details).
+/// We have chosen, instead, to create our own representation of the
+/// optimization levels and to convert them to LLVM's OptimizationLevel on
+/// demand. It's annoying, but, arguably, less so than introducing yet more
+/// circular dependencies between LLVM and Kitsune than already exist (see
+/// llvm/CMakeLists.txt for a details).
 enum class OptznLevel {
   /// No optimizations
   O0,

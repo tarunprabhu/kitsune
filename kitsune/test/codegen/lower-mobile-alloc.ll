@@ -41,15 +41,24 @@
 ; HIP-NEXT: ret ptr addrspace(67) %[[CST]]
 ;
 ; ------------------------------------------------------------------------------
-; RUN: %if kitsune-opencilk %{ \
-; RUN:   opt --tapir=opencilk -passes='kit-lower-intrinsics' -S %s \
-; RUN:       | FileCheck --check-prefix=OPENCILK %s \
+; RUN: %if kitsune-examples %{ \
+; RUN:   opt --tapir=custom --tapir-plugin=%kit-ttplugin-demo \
+; RUN:       -passes='kit-lower-intrinsics' -S %s \
+; RUN:       | FileCheck --check-prefix=MALLOC %s \
 ; RUN: %}
 ;
-; OPENCILK: define {{.+}} @allocate(i64 %[[N:.+]])
-; OPENCILK-NEXT: %[[PTR:[0-9]+]] = call noalias ptr @malloc(i64 %[[N]])
-; OPENCILK-NEXT: %[[CST:[0-9]]] = addrspacecast ptr %[[PTR]] to ptr addrspace(67)
-; OPENCILK-NEXT: ret ptr addrspace(67) %[[CST]]
+; RUN: %if kitsune-opencilk %{ \
+; RUN:   opt --tapir=opencilk -passes='kit-lower-intrinsics' -S %s \
+; RUN:       | FileCheck --check-prefix=MALLOC %s \
+; RUN: %}
+;
+; RUN: opt --tapir=pthreads -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck --check-prefix=MALLOC %s
+;
+; MALLOC: define {{.+}} @allocate(i64 %[[N:.+]])
+; MALLOC-NEXT: %[[PTR:[0-9]+]] = call noalias ptr @malloc(i64 %[[N]])
+; MALLOC-NEXT: %[[CST:[0-9]]] = addrspacecast ptr %[[PTR]] to ptr addrspace(67)
+; MALLOC-NEXT: ret ptr addrspace(67) %[[CST]]
 ;
 ; ------------------------------------------------------------------------------
 

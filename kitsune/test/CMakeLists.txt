@@ -14,7 +14,15 @@ llvm_canonicalize_cmake_booleans(
   KITSUNE_OPENMP_ENABLED
   KITSUNE_QTHREADS_ENABLED
   KITSUNE_REALM_ENABLED
+  KITSUNE_BUILD_EXAMPLES
 )
+
+if (KITSUNE_BUILD_EXAMPLES)
+  get_target_property(KITSUNE_TTPLUGIN_NAME kit-ttplugin-demo OUTPUT_NAME)
+  get_target_property(KITSUNE_TTPLUGIN_DIR kit-ttplugin-demo LIBRARY_OUTPUT_DIRECTORY)
+
+  set(KITSUNE_TTPLUGIN_DEMO_DYLIB "${KITSUNE_TTPLUGIN_DIR}/${KITSUNE_TTPLUGIN_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+endif ()
 
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
@@ -31,6 +39,9 @@ configure_lit_site_cfg(
   "LLVM_EXTERNAL_LIT"
   "KITSUNE_BINARY_DIR"
   "KITSUNE_SOURCE_DIR"
+  "KITSUNE_EXAMPLES_SOURCE_DIR"
+  "KITSUNE_EXAMPLES_BINARY_DIR"
+  "KITSUNE_TTPLUGIN_DEMO_DYLIB"
   "CURRENT_TOOLS_DIR"
   "CMAKE_LIBRARY_OUTPUT_DIRECTORY"
 )
@@ -99,6 +110,10 @@ if(TARGET llvm-lto)
   list(APPEND KITSUNE_TEST_DEPS llvm-lto)
 endif()
 
+if (KITSUNE_BUILD_EXAMPLES)
+  list(APPEND KITSUNE_TEST_DEPS kit-ttplugin-demo)
+endif ()
+
 add_custom_target(kitsune-test-depends DEPENDS ${KITSUNE_TEST_DEPS})
 set_target_properties(kitsune-test-depends PROPERTIES FOLDER "Kitsune tests")
 
@@ -137,3 +152,7 @@ foreach(TT IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
   add_custom_target(check-kitsune-${TT}
     DEPENDS check-kitsune-tapir-${TT})
 endforeach()
+
+# Like the targets to check for the individual tapir targets above, these are
+# provided for convenience.
+add_custom_target(check-kitsune-ttplugin DEPENDS check-kitsune-plugins-ttplugin)

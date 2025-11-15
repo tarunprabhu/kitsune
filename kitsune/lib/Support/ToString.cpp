@@ -1,4 +1,4 @@
-//=- ToString.cpp - String and serialization functions ------------*- C++ -*-=//
+//===- ToString.cpp - String and serialization functions ------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -19,10 +19,10 @@ std::string llvm::toString(const TTID &tt) {
   switch (tt) {
   case TTID::Nolo:
     return "nolo";
-  case TTID::Serial:
-    return "serial";
   case TTID::Cuda:
     return "cuda";
+  case TTID::Custom:
+    return "custom";
   case TTID::Hip:
     return "hip";
   case TTID::Lambda:
@@ -39,6 +39,8 @@ std::string llvm::toString(const TTID &tt) {
     return "qthreads";
   case TTID::Realm:
     return "realm";
+  case TTID::Serial:
+    return "serial";
   }
   llvm_unreachable("toString: TTID not handled");
 }

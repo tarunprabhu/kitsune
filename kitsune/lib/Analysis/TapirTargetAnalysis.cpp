@@ -45,6 +45,10 @@ static std::unique_ptr<TapirTarget> createTT(TTID id, Module &m,
   case TTID::Nolo:
     return nullptr;
 
+  case TTID::Custom:
+    return std::unique_ptr<TapirTarget>(
+        tto.getTTPlugin()->makeTapirTarget(m, tto));
+
   case TTID::Pthreads:
     return std::make_unique<PthreadsTT>(m, tto);
 

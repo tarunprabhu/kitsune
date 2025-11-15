@@ -31,7 +31,6 @@ add_llvm_component_library(LLVMPasses
   KitPasses
   KitSupport
   KitTransforms
-  KitTransformUtils
   ObjCARC
   Scalar
   Support

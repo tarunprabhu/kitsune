@@ -11,9 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/CommandLineOptions.h"
-#include "kitsune/Core/TTOptions.h"
+#include "kitsune/Core/TTUtils.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/ToString.h"
@@ -41,6 +42,7 @@ static cl::opt<TTID>
             cl::values(clEnumValN(TTID::Nolo, "nolo", ""),
                        clEnumValN(TTID::Serial, "serial", ""),
                        clEnumValN(TTID::Cuda, "cuda", ""),
+                       clEnumValN(TTID::Custom, "custom", ""),
                        // clEnumValN(TTID::GPUABI, "gpuabi", ""),
                        clEnumValN(TTID::Hip, "hip", ""),
                        clEnumValN(TTID::Lambda, "lambda", ""),
@@ -121,6 +123,14 @@ static cl::opt<std::string>
                         cl::desc("Path to the cuda runtime bitcode file"),
                         cl::cat(cl::catKitClOpts));
 
+// ----------------------- 'custom' tapir target options -----------------------
+
+static cl::opt<std::string>
+    clCustomTTPlugin("tapir-plugin", cl::init(""),
+                     cl::desc("Load a plugin containing a custom tapir target "
+                              "from a shared object file"),
+                     cl::cat(cl::catKitClOpts));
+
 // ------------------------- hip tapir target options -------------------------
 
 static const std::string clHipArchHelp = join_items(
@@ -176,7 +186,194 @@ static cl::alias
 
 // -----------------------------------------------------------------------------
 
+#define CHECK(expr)                                                            \
+  if (Error e = (expr))                                                        \
+    return e;                                                                  \
+  else
+#define ELSE_CHECK(expr)                                                       \
+  if (Error e = (expr))                                                        \
+    return e;                                                                  \
+  else
+#define ELSE_SUCCESS return Error::success
+
+// If a string option is provided exactly once, it must be non-empty
+static Error validateStringOption(const cl::opt<std::string> &clOpt) {
+  if (clOpt.getNumOccurrences() == 1)
+    if (clOpt.empty())
+      return createStringError(join_items("", "for the --", clOpt.ArgStr,
+                                          " option: value '", clOpt,
+                                          "' is invalid"));
+  return Error::success();
+}
+
+// If a list option is provided exactly once, it must contain at least one
+// non-empty string
+static Error validateListOption(const cl::list<std::string> &clOpt) {
+  auto isEmpty = [](const std::string &s) -> bool { return s.empty(); };
+
+  if (clOpt.empty() || std::all_of(clOpt.begin(), clOpt.end(), isEmpty))
+    return createStringError(
+        join_items("", "for the --", clOpt.ArgStr,
+                   " option: at least one valid value is required"));
+  return Error::success();
+}
+
+// The given option must be provided exactly once.
+static Error validateRequiredOption(const cl::Option &clOpt) {
+  if (clOpt.getNumOccurrences() != 1)
+    return createStringError(join_items(
+        "", "the --", clOpt.ArgStr, " option must be provided exactly once"));
+  return Error::success();
+}
+
+// The given string option must be provided exactly once. The value must be
+// non-empty
+static Error validateRequiredStringOption(const cl::opt<std::string> &clOpt) {
+  CHECK(validateRequiredOption(clOpt))
+  ELSE_CHECK(validateStringOption(clOpt))
+  ELSE_SUCCESS();
+  // if (Error e = validateRequiredOption(clOpt))
+  //   return e;
+  // else if (Error e = validateStringOption(clOpt))
+  //   return e;
+  // else
+  //   return Error::success();
+}
+
+// The given list option must be provided exactly once. The list must contain
+// at least one non-empty string
+static Error validateRequiredListOption(const cl::list<std::string> &clOpt) {
+  if (clOpt.getNumOccurrences() == 0)
+    return createStringError(join_items(
+        "", "the --", clOpt.ArgStr, " option must be provided exactly once"));
+  else if (Error e = validateListOption(clOpt))
+    return e;
+  else
+    return Error::success();
+}
+
+// The threads-per-block options must be provided at most once with a value in
+// the range [1,1024]. The options are optional.
+static Error validateThreadsPerBlock(const TTOptions &tto) {
+  auto validate = [](const cl::opt<unsigned> &clOpt) -> Error {
+    if (clOpt.getNumOccurrences())
+      if (clOpt < 1 || clOpt > 1024)
+        return createStringError(
+            join_items("", "for the --", clOpt.ArgStr, " option: value '",
+                       std::to_string(clOpt), "' is not in range [1,1024]"));
+    return Error::success();
+  };
+
+  CHECK(validate(clFixedThreadsPerBlock))
+  ELSE_CHECK(validate(clMaxThreadsPerBlock))
+  ELSE_SUCCESS();
+  // if (Error e = validate(clFixedThreadsPerBlock))
+  //   return e;
+  // else if (Error e = validate(clMaxThreadsPerBlock))
+  //   return e;
+  // else
+  //   return Error::success();
+}
+
+static Error validateSupportBCFiles(TTID tt, const TTOptions &tto) {
+  LLVMContext ctx;
+  return getSupportModule(tt, tto, ctx).takeError();
+}
+
 TTOptions::TTOptions(TTID tt) : tt(tt) {}
+
+Error TTOptions::validateCudaOptions() const {
+  CHECK(validateThreadsPerBlock(*this))
+  ELSE_CHECK(validateRequiredStringOption(clCudaArch))
+  ELSE_CHECK(validateRequiredStringOption(clCudaRuntimeBCFile))
+  ELSE_CHECK(validateStringOption(clCudaVirtArch))
+  ELSE_CHECK(validateStringOption(clCudaFeatures))
+  ELSE_CHECK(validateSupportBCFiles(TTID::Cuda, *this))
+  ELSE_SUCCESS();
+  // Error errs[] = {
+  //       validateThreadsPerBlock(*this),
+  //       validateRequiredStringOption(clCudaArch),
+  //       validateRequiredStringOption(clCudaRuntimeBCFile),
+  //       validateStringOption(clCudaVirtArch),
+  //       validateStringOption(clCudaFeatures),
+  //       validateSupportBCFiles(TTID::Cuda, *this),
+  //   };
+  // RETURN_ERROR_OR_SUCCESS(errs);
+}
+
+Error TTOptions::validateCustomOptions() const {
+  // if (Error e = validateRequiredStringOption(clCustomTTPlugin))
+  //   return e;
+  // else if (Error e = TTPlugin::load(clCustomTTPlugin).takeError())
+  //   return e;
+  // return Error::success();
+  // return std::move(validateRequiredStringOption(clCustomTTPlugin) ||
+  //   TTPlugin::load(clCustomTTPlugin).takeError());
+  // Error errs[] = {
+  //     validateRequiredStringOption(clCustomTTPlugin),
+  //     TTPlugin::load(clCustomTTPlugin).takeError(),
+  // };
+  // RETURN_ERROR_OR_SUCCESS(errs);
+  CHECK(validateRequiredStringOption(clCustomTTPlugin))
+  ELSE_CHECK(TTPlugin::load(clCustomTTPlugin).takeError())
+  ELSE_SUCCESS();
+}
+
+Error TTOptions::validateHipOptions() const {
+  CHECK(validateThreadsPerBlock(*this))
+  ELSE_CHECK(validateRequiredStringOption(clHipArch))
+  ELSE_CHECK(validateRequiredListOption(clHipRuntimeBCFiles))
+  ELSE_CHECK(validateStringOption(clHipFeatures))
+  ELSE_CHECK(validateSupportBCFiles(TTID::Hip, *this))
+  ELSE_SUCCESS();
+
+  // Error errs[] = {
+  //     validateThreadsPerBlock(*this),
+  //     validateRequiredStringOption(clHipArch),
+  //     validateRequiredListOption(clHipRuntimeBCFiles),
+  //     validateStringOption(clHipFeatures),
+  //     validateSupportBCFiles(TTID::Hip, *this),
+  // };
+  // RETURN_ERROR_OR_SUCCESS(errs);
+}
+
+Error TTOptions::validateOpenCilkOptions() const {
+  // Error errs[] = {
+  //     validateRequiredStringOption(clOpenCilkRuntimeBCFile),
+  //     validateSupportBCFiles(TTID::OpenCilk, *this),
+  // };
+  // RETURN_ERROR_OR_SUCCESS(errs);
+  CHECK(validateRequiredStringOption(clOpenCilkRuntimeBCFile))
+  ELSE_CHECK(validateSupportBCFiles(TTID::OpenCilk, *this))
+  ELSE_SUCCESS();
+}
+
+Error TTOptions::validate() const {
+  switch (tt) {
+  case TTID::Cuda:
+    return validateCudaOptions();
+  case TTID::Custom:
+    return validateCustomOptions();
+  case TTID::Hip:
+    return validateHipOptions();
+  case TTID::OpenCilk:
+    return validateOpenCilkOptions();
+  case TTID::Nolo:
+  case TTID::Pthreads:
+  case TTID::Serial:
+    // There are no options specific to these tapir targets that need to be
+    // checked.
+    return Error::success();
+  case TTID::Lambda:
+  case TTID::OMPTask:
+  case TTID::OpenMP:
+  case TTID::Qthreads:
+  case TTID::Realm:
+    // These options are not fully supported.
+    break;
+  }
+  llvm_unreachable("TTID not handled!");
+}
 
 void TTOptions::setOptznLevelFrom(OptimizationLevel optLevel) {
   unsigned speedupLevel = optLevel.getSpeedupLevel();
@@ -186,110 +383,127 @@ void TTOptions::setOptznLevelFrom(OptimizationLevel optLevel) {
   setOptznLevel(optznLevel);
 }
 
-std::optional<TTOptions> TTOptions::createFromCommandLine(OptznLevel optLevel) {
-  if (clTapir.getNumOccurrences()) {
-    TTOptions tto(clTapir);
-
-    // No validation of inputs is done here. This is intentional since these
-    // command line options are primarily for internal use. Obviously, tools
-    // such as opt use these too, but it is probably safe to assume that anyone
-    // using opt directly is sufficiently expert. If they are not, well ...
-
-    // Set common tapir target options
-    tto.tapirVerbose = clTapirVerbose;
-    tto.kitrtVerbose = clTapirVerbose || clKitrtVerbose;
-    tto.optLevel = optLevel;
-    tto.fpOpFusionMode = codegen::getFuseFPOps();
-    tto.lld = clLLD;
-    if (clFixedThreadsPerBlock)
-      tto.fixedThreadsPerBlock = clFixedThreadsPerBlock;
-    if (clMaxThreadsPerBlock)
-      tto.maxThreadsPerBlock = clMaxThreadsPerBlock;
-    tto.gpuPrefetch = clGPUPrefetch;
-
-    // Set cuda tapir target options
-    tto.cudaArch = clCudaArch;
-    tto.cudaVirtArch = clCudaVirtArch;
-    tto.cudaTargetFeatures = clCudaFeatures;
-    tto.cudaRuntimeBCFile = clCudaRuntimeBCFile;
-
-    // Set hip tapir target options
-    tto.hipArch = clHipArch;
-    tto.hipSRAMECC = clHipSRAMECC;
-    tto.hipXnack = clHipXnack;
-    tto.hipTargetFeatures = clHipFeatures;
-    tto.hipRuntimeBCFiles = clHipRuntimeBCFiles;
-
-    // Set opencilk tapir target options
-    tto.openCilkRuntimeBCFile = clOpenCilkRuntimeBCFile;
-
-    // FIXME: This is here purely for debugging because it was in HipABI.cpp
-    // originally. It really should go away.
-    if (std::optional<std::string> tpb =
-            sys::Process::GetEnv("KITHIP_THREADS_PER_BLOCK")) {
-      if (clFixedThreadsPerBlock)
-        errs() << "kitsune[hipabi]: Note that KITHIP_THREADS_PER_BLOCK is "
-               << "overriding command line args.\n";
-      tto.fixedThreadsPerBlock = std::stoi(tpb.value());
-    }
-    return tto;
-  }
+std::optional<TTOptions>
+TTOptions::createFromSharedCommandLineOptions(OptznLevel optznLevel) {
+  if (clTapir.getNumOccurrences())
+    return TTOptions(clTapir);
   return std::nullopt;
 }
 
-std::optional<TTOptions>
-TTOptions::createFromCommandLine(unsigned speedupLevel) {
+MaybeTTOptionsOrErr TTOptions::createFromCommandLine(OptznLevel optznLevel) {
+  if (!clTapir.getNumOccurrences())
+    return std::nullopt;
+
+  TTOptions tto(clTapir);
+
+  // Set common tapir target options
+  tto.tapirVerbose = clTapirVerbose;
+  tto.kitrtVerbose = clTapirVerbose || clKitrtVerbose;
+  tto.optLevel = optznLevel;
+  tto.fpOpFusionMode = codegen::getFuseFPOps();
+  tto.lld = clLLD;
+  if (clFixedThreadsPerBlock)
+    tto.fixedThreadsPerBlock = clFixedThreadsPerBlock;
+  if (clMaxThreadsPerBlock)
+    tto.maxThreadsPerBlock = clMaxThreadsPerBlock;
+  tto.gpuPrefetch = clGPUPrefetch;
+
+  // Set cuda tapir target options
+  tto.cudaArch = clCudaArch;
+  tto.cudaVirtArch = clCudaVirtArch;
+  tto.cudaTargetFeatures = clCudaFeatures;
+  tto.cudaRuntimeBCFile = clCudaRuntimeBCFile;
+
+  // Set 'custom' tapir target options
+  if (clCustomTTPlugin.getNumOccurrences()) {
+    // If the plugin could not be loaded, ignore the error here. In this case,
+    // the validate() method will be called by users before using this object,
+    // at which time the error will be caught and returned.
+    if (Expected<TTPlugin> ttPlugin = TTPlugin::load(clCustomTTPlugin))
+      tto.ttPlugin = *ttPlugin;
+    else
+      (void)toString(ttPlugin.takeError());
+  }
+
+  // Set hip tapir target options
+  tto.hipArch = clHipArch;
+  tto.hipSRAMECC = clHipSRAMECC;
+  tto.hipXnack = clHipXnack;
+  tto.hipTargetFeatures = clHipFeatures;
+  tto.hipRuntimeBCFiles = clHipRuntimeBCFiles;
+
+  // Set opencilk tapir target options
+  tto.openCilkRuntimeBCFile = clOpenCilkRuntimeBCFile;
+
+  // FIXME: This is here purely for debugging because it was in HipABI.cpp
+  // originally. It really should go away.
+  if (std::optional<std::string> tpb =
+          sys::Process::GetEnv("KITHIP_THREADS_PER_BLOCK")) {
+    if (clFixedThreadsPerBlock)
+      errs() << "kitsune[hipabi]: Note that KITHIP_THREADS_PER_BLOCK is "
+             << "overriding command line args.\n";
+    tto.fixedThreadsPerBlock = std::stoi(tpb.value());
+  }
+
+  return validate(tto);
+}
+
+MaybeTTOptionsOrErr TTOptions::createFromCommandLine(unsigned speedupLevel) {
   return createFromCommandLine(createOptznLevelFrom(speedupLevel));
 }
 
-std::optional<TTOptions> TTOptions::createFromCommandLine(char optLevel) {
+MaybeTTOptionsOrErr TTOptions::createFromCommandLine(char optLevel) {
   return createFromCommandLine(createOptznLevelFrom(optLevel));
 }
 
-std::optional<TTOptions> TTOptions::create(const KitsuneOptions &opts,
-                                           OptznLevel optLevel,
+std::optional<TTOptions> TTOptions::create(const KitsuneOptions &kitOpts,
+                                           OptznLevel optznLevel,
                                            FPOpFusionMode fpOpFusionMode) {
-  if (std::optional<TTID> tt = opts.getTTID()) {
-    TTOptions tto(*tt);
+  if (!kitOpts.getTTID())
+    return std::nullopt;
 
-    // Set common tapir target options.
-    tto.tapirVerbose = opts.getTapirVerbose();
-    tto.kitrtVerbose = opts.getTapirVerbose() or opts.getKitrtVerbose();
-    tto.fpOpFusionMode = fpOpFusionMode;
-    tto.optLevel = optLevel;
-    tto.lld = opts.getLLD();
+  TTOptions tto(*kitOpts.getTTID());
 
-    // Set tapir target options shared by GPU-centric tapir targets.
-    tto.fixedThreadsPerBlock = opts.getFixedThreadsPerBlock();
-    tto.maxThreadsPerBlock = opts.getMaxThreadsPerBlock();
-    tto.gpuPrefetch = opts.getGPUPrefetch();
+  // Set common tapir target options.
+  tto.tapirVerbose = kitOpts.getTapirVerbose();
+  tto.kitrtVerbose = kitOpts.getTapirVerbose() or kitOpts.getKitrtVerbose();
+  tto.fpOpFusionMode = fpOpFusionMode;
+  tto.optLevel = optznLevel;
+  tto.lld = kitOpts.getLLD();
 
-    // Set cuda tapir target options.
-    tto.cudaArch = opts.getCudaArch();
-    tto.cudaVirtArch = opts.getCudaVirtArch();
-    tto.cudaTargetFeatures = opts.getCudaFeatures();
-    tto.cudaRuntimeBCFile = opts.getCudaRuntimeBCFile();
+  // Set tapir target options shared by GPU-centric tapir targets.
+  tto.fixedThreadsPerBlock = kitOpts.getFixedThreadsPerBlock();
+  tto.maxThreadsPerBlock = kitOpts.getMaxThreadsPerBlock();
+  tto.gpuPrefetch = kitOpts.getGPUPrefetch();
 
-    // Set hip tapir target options.
-    tto.hipArch = opts.getHipArch();
-    tto.hipSRAMECC = opts.getHipSRAMECC();
-    tto.hipXnack = opts.getHipXnack();
-    tto.hipTargetFeatures = opts.getHipFeatures();
-    tto.hipRuntimeBCFiles = opts.getHipRuntimeBCFiles();
+  // Set cuda tapir target options.
+  tto.cudaArch = kitOpts.getCudaArch();
+  tto.cudaVirtArch = kitOpts.getCudaVirtArch();
+  tto.cudaTargetFeatures = kitOpts.getCudaFeatures();
+  tto.cudaRuntimeBCFile = kitOpts.getCudaRuntimeBCFile();
 
-    // Set opencilk tapir target options.
-    tto.openCilkRuntimeBCFile = opts.getOpenCilkRuntimeBCFile();
-
-    return tto;
+  // Set 'custom' tapir target options.
+  if (kitOpts.getTTPlugin().size()) {
+    if (Expected<TTPlugin> ttPlugin = TTPlugin::load(kitOpts.getTTPlugin()))
+      tto.ttPlugin = *ttPlugin;
+    else
+      llvm_unreachable("Tapir target plugin load failure not caught earlier");
   }
-  return std::nullopt;
-}
 
-std::unique_ptr<TTOptions> TTOptions::clone() const {
-  TTOptions *clone = new TTOptions;
-  *clone = *this;
+  // Set hip tapir target options.
+  tto.hipArch = kitOpts.getHipArch();
+  tto.hipSRAMECC = kitOpts.getHipSRAMECC();
+  tto.hipXnack = kitOpts.getHipXnack();
+  tto.hipTargetFeatures = kitOpts.getHipFeatures();
+  tto.hipRuntimeBCFiles = kitOpts.getHipRuntimeBCFiles();
 
-  return std::unique_ptr<TTOptions>(clone);
+  // Set opencilk tapir target options.
+  tto.openCilkRuntimeBCFile = kitOpts.getOpenCilkRuntimeBCFile();
+
+  if (MaybeTTOptionsOrErr ttOpts = validate(tto))
+    return *ttOpts;
+
+  llvm_unreachable("TTOptions created from KitsuneOptions cannot be invalid");
 }
 
 void TTOptions::print(raw_ostream &os, bool all) const {
@@ -309,6 +523,14 @@ void TTOptions::print(raw_ostream &os, bool all) const {
     os << "  Cuda virtual arch:       " << getCudaVirtArch() << "\n";
     os << "  Cuda target features:    " << getCudaTargetFeatures() << "\n";
     os << "  Cuda bitcode file:       " << getCudaRuntimeBCFile() << "\n";
+  }
+  if (all || tt == TTID::Custom) {
+    if (std::optional<TTPlugin> plugin = getTTPlugin()) {
+      StringRef name = plugin->getName();
+      StringRef version = plugin->getVersion();
+      os << "  Custom plugin:           " << name << " " << version << "\n";
+      os << "  Custom plugin file:      " << plugin->getFile() << "\n";
+    }
   }
   if (all || tt == TTID::Hip) {
     os << "  Hip arch:                " << getHipArch() << "\n";

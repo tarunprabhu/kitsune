@@ -800,6 +800,10 @@ add_subdirectory(include/kitsune)
 add_subdirectory(tools)
 add_subdirectory(experiments)
 
+if (KITSUNE_BUILD_EXAMPLES)
+  add_subdirectory(examples)
+endif ()
+
 if(KITSUNE_INCLUDE_TESTS)
   add_subdirectory(test)
   add_subdirectory(unittests)

@@ -1,4 +1,4 @@
-//===- TTUtils.cpp - Utilities to deal with tapir target ids --------------===//
+//===- TTUIDtils.cpp - Utilities to deal with tapir target ids ------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,11 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities to get "properties" of tapir targets.
+// Utilities for TTID's.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Support/TTUtils.h"
+#include "kitsune/Support/TTIDUtils.h"
 
 using namespace llvm;
 
@@ -18,6 +18,7 @@ using namespace llvm;
 //
 // All known tapir targets.
 // TODO: Update this when GPUABI is supported.
+// FIXME: Generate a list of known tapir target ID's at configure time.
 static constexpr TTID tts[] = {
     TTID::Nolo,     TTID::Serial, TTID::Cuda,   TTID::Hip,
     TTID::OpenCilk, // TTID::GPUABI,

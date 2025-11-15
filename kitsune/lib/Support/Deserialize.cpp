@@ -1,4 +1,4 @@
-//==- FromString.cpp - Deserialization functions for Kitsune ---------------==//
+//===- FromString.cpp - Deserialization functions for Kitsune -------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -21,6 +21,7 @@ std::optional<TTID> llvm::createTTIDFrom(StringRef s) {
   return StringSwitch<std::optional<TTID>>(s)
       .Case("nolo", TTID::Nolo)
       .Case("cuda", TTID::Cuda)
+      .Case("custom", TTID::Custom)
       .Case("hip", TTID::Hip)
       .Case("lambda", TTID::Lambda)
       .Case("omptask", TTID::OMPTask)
@@ -60,6 +61,8 @@ std::optional<TTID> llvm::createTTIDFrom(uint32_t u) {
     return TTID::OpenMP;
   case 0x400:
     return TTID::Pthreads;
+  case 0x800:
+    return TTID::Custom;
   default:
     return std::nullopt;
   }

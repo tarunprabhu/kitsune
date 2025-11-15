@@ -80,8 +80,8 @@ CodeGenFunction::GetTapirSpawnStrategy(ArrayRef<const Attr *> Attrs) {
       llvm_unreachable("GetTapirStrategy: TapirStrategyAttr not handled");
     }
   }
-  if (std::optional<llvm::TTID> TT = GetTapirTarget(Attrs)) {
-    switch (*TT) {
+  if (Expected<std::optional<llvm::TTID>> TT = GetTapirTarget(Attrs)) {
+    switch (**TT) {
     case llvm::TTID::Nolo:
     case llvm::TTID::Serial:
       return llvm::TapirSpawnStrategy::Sequential;
@@ -90,6 +90,7 @@ CodeGenFunction::GetTapirSpawnStrategy(ArrayRef<const Attr *> Attrs) {
       return llvm::TapirSpawnStrategy::GPU;
     case llvm::TTID::OpenCilk:
       return llvm::TapirSpawnStrategy::DivideAndConquer;
+    case llvm::TTID::Custom:
     case llvm::TTID::Pthreads:
       return llvm::TapirSpawnStrategy::Basic;
     default:
@@ -99,7 +100,7 @@ CodeGenFunction::GetTapirSpawnStrategy(ArrayRef<const Attr *> Attrs) {
   return llvm::defaultTapirSpawnStrategy;
 }
 
-std::optional<llvm::TTID>
+Expected<std::optional<llvm::TTID>>
 CodeGenFunction::GetTapirTarget(ArrayRef<const Attr *> Attrs) {
   // FIXME KITSUNE: This will check for the first occurrence of the tapir target
   // attribute and break immediately if it finds it. Is this what we actually
@@ -111,6 +112,9 @@ CodeGenFunction::GetTapirTarget(ArrayRef<const Attr *> Attrs) {
         return llvm::TTID::Nolo;
       case TapirTargetAttr::Cuda:
         return llvm::TTID::Cuda;
+      case TapirTargetAttr::Custom:
+        return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                       "Value of attribute cannot be 'custom'");
       case TapirTargetAttr::Hip:
         return llvm::TTID::Hip;
       case TapirTargetAttr::OpenCilk:
@@ -298,8 +302,12 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
          "TTID not set in Kitsune options");
 
   llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
-  if (std::optional<llvm::TTID> AttrTT = GetTapirTarget(Attrs))
-    TT = *AttrTT;
+  if (Expected<std::optional<llvm::TTID>> AttrTT = GetTapirTarget(Attrs)) {
+    TT = **AttrTT;
+  } else {
+    CGM.getDiags().Report(diag::err_fe_kitsune_custom_attr);
+    return;
+  }
 
   // The tapir target *must* be set before any other attributes are set in
   // LoopStack.
@@ -473,8 +481,12 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
          "TTID not set in Kitsune options");
 
   llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
-  if (std::optional<llvm::TTID> AttrTT = GetTapirTarget(Attrs))
-    TT = *AttrTT;
+  if (Expected<std::optional<llvm::TTID>> AttrTT = GetTapirTarget(Attrs)) {
+    TT = **AttrTT;
+  } else {
+    CGM.getDiags().Report(diag::err_fe_kitsune_custom_attr);
+    return;
+  }
 
   // The tapir target *must* be set before any other attributes are set in
   // LoopStack.

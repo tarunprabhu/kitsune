@@ -13,7 +13,7 @@
 
 #include "EmbResolveCallsImpl.h"
 #include "kitsune/Core/ConstantUtils.h"
-#include "kitsune/Transforms/Utils/EmbModulePassUtils.h"
+#include "kitsune/Core/TTUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/IRBuilder.h"

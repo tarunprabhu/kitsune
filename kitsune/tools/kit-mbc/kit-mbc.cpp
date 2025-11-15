@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
   // generate multiple bitcode files. First collect the global variables
   // containing embedded bitcode.
   std::optional<TTOptions> tto =
-      TTOptions::createFromCommandLine(OptznLevel::O0);
+      TTOptions::createFromSharedCommandLineOptions();
   std::vector<GlobalVariable *> gs;
   if (tto) {
     TTID tt = tto->getTTID();

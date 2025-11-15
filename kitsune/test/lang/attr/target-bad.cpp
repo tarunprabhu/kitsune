@@ -12,10 +12,10 @@ int main(int argc, char *argv[]) {
   [[tapir::target()]] // expected-error {{'tapir::target' attribute takes one argument}}
   forall(int i = 0; i < 1024; ++i) {}
 
-  [[tapir::target("cuda","-03")]] // expected-error {{'tapir::target' attribute takes one argument}}
+  [[tapir::target("serial","-03")]] // expected-error {{'tapir::target' attribute takes one argument}}
   forall(int i = 0; i < 1024; ++i) {}
 
-  [[tapir::target("cuda")]] // expected-error {{tapir target attribute on unsupported statement}}
+  [[tapir::target("serial")]] // expected-error {{tapir target attribute on unsupported statement}}
   if (argc == 1) {
     forall(int i = 0; i < 1024; ++i) {}
   }

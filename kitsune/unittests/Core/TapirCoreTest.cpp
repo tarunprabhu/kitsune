@@ -57,5 +57,5 @@ TEST(TapirCore, defaults) {
   // The default tapir grain size may change if we decide to handle it
   // differently in the various tapir targets. The type may also change to
   // optional.
-  EXPECT_EQ(defaultTapirGrainSize, 0);
+  EXPECT_EQ(defaultTapirGrainSize, 0U);
 }

@@ -96,6 +96,10 @@ enum class TTID : uint32_t {
   /// guaranteed to be available, but this may not be the case on non-POSIX
   /// systems.
   Pthreads = 0x400,
+
+  /// Lower using a tapir target that is loaded from tapir target plugin. The
+  /// plugin is a dynamic shared object.
+  Custom = 0x800,
 };
 
 /// The default primary tapir target. This is present simply to reiterate the

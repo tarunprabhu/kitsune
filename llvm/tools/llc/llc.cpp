@@ -839,7 +839,10 @@ static int compileModule(char **argv, SmallVectorImpl<PassPlugin> &PluginList,
 
       PM.add(createFreeMachineFunctionPass());
     } else {
-      populateKitCodeGenPasses(PM, TTOptions::createFromCommandLine(OptLevel));
+      MaybeTTOptionsOrErr ttOpts = TTOptions::createFromCommandLine(OptLevel);
+      if (!ttOpts)
+        reportError(toString(ttOpts.takeError()));
+      populateKitCodeGenPasses(PM, *ttOpts);
       if (Target->addPassesToEmitFile(PM, *OS, DwoOut ? &DwoOut->os() : nullptr,
                                       codegen::getFileType(), NoVerify,
                                       MMIWP)) {

@@ -4738,8 +4738,6 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
   auto GenerateTTArg = [&](llvm::TTID TT, const KitsuneOptions &Opts,
                            ArgumentConsumer Consumer) -> void {
     switch (TT) {
-    case llvm::TTID::Nolo:
-      return;
     case llvm::TTID::Cuda:
       GenerateArg(Consumer, OPT_tapir_cuda_arch_EQ, Opts.getCudaArch());
       GenerateArg(Consumer, OPT_tapir_cuda_virt_arch_EQ,
@@ -4747,6 +4745,9 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
       GenerateArg(Consumer, OPT_tapir_cuda_features_EQ, Opts.getCudaFeatures());
       GenerateArg(Consumer, OPT_tapir_cuda_runtime_bc_EQ,
                   Opts.getCudaRuntimeBCFile());
+      return;
+    case llvm::TTID::Custom:
+      GenerateArg(Consumer, OPT_tapir_plugin_EQ, Opts.getTTPlugin());
       return;
     case llvm::TTID::Hip: {
       const std::vector<std::string> &BCS = Opts.getHipRuntimeBCFiles();
@@ -4761,20 +4762,26 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
       GenerateArg(Consumer, OPT_tapir_lld_EQ, Opts.getLLD());
       return;
     }
-    case llvm::TTID::Lambda:
-    case llvm::TTID::OMPTask:
-      break;
     case llvm::TTID::OpenCilk:
       GenerateArg(Consumer, OPT_tapir_opencilk_runtime_bc_EQ,
                   Opts.getOpenCilkRuntimeBCFile());
       return;
-    case llvm::TTID::OpenMP:
+    case llvm::TTID::Nolo:
     case llvm::TTID::Pthreads:
+    case llvm::TTID::Serial:
+      // These do not have any target-specific options that need to be
+      // generated.
       return;
+    case llvm::TTID::OpenMP:
+    case llvm::TTID::Lambda:
+    case llvm::TTID::OMPTask:
     case llvm::TTID::Qthreads:
     case llvm::TTID::Realm:
-    case llvm::TTID::Serial:
-      return;
+      // These tapir targets are not fully supported. We add them here to
+      // avoid compiler warnings about enum values not being handled. By
+      // explicitly enumerating these, we ensure that we do get a warning when
+      // a new tapir target is added.
+      break;
     }
     llvm_unreachable("GenerateKitsuneArgs: TTID not handled");
   };

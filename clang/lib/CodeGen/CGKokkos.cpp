@@ -300,8 +300,12 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   assert(CGM.getKitsuneOpts().getTTID().has_value() &&
          "TTID not set in Kitsune options");
   llvm::TTID TT = *CGM.getKitsuneOpts().getTTID();
-  if (std::optional<llvm::TTID> AttrTT = GetTapirTarget(Attrs))
-    TT = *AttrTT;
+  if (Expected<std::optional<llvm::TTID>> AttrTT = GetTapirTarget(Attrs)) {
+    TT = **AttrTT;
+  } else {
+    CGM.getDiags().Report(diag::err_fe_kitsune_custom_attr);
+    return false;
+  }
 
   // The tapir target *must* be set before any other attributes are set in
   // LoopStack.

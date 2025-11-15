@@ -7,7 +7,7 @@ add_llvm_component_library(LLVMKitSupport
   Deserialize.cpp
   OptznLevelUtils.cpp
   ToString.cpp
-  TTUtils.cpp
+  TTIDUtils.cpp
 
   COMPONENT_NAME
   KitSupport

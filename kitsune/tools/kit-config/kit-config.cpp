@@ -35,6 +35,7 @@ Options:\n\
   --cuda-target         Has the cuda tapir target been built (ON or OFF)\n\
   --cxx                 Has the C++ frontend been built (ON or OFF)\n\
   --cxx-frontend        Path to the C++ frontend\n\
+  --custom-target       Has the custom tapir target been built (ON or OFF)\n\
   --fortran             Has the Fortran frontend been built (ON or OFF)\n\
   --fortran-frontend    Path to the Fortran frontend\n\
   --help                Print this help message\n\
@@ -111,6 +112,8 @@ int main(int argc, char **argv) {
       renderIf(KITSUNE_CUDA_ENABLED, KITSUNE_CUDA_PREFIX);
     else if (arg == "--cuda-target")
       render((bool)KITSUNE_CUDA_ENABLED);
+    else if (arg == "--custom-target")
+      render((bool)KITSUNE_CUSTOM_ENABLED);
     else if (arg == "--cxx")
       render((bool)KITSUNE_CXX_ENABLED);
     else if (arg == "--cxx-frontend")
