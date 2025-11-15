@@ -89,14 +89,21 @@ if config.kitsune_fortran_enabled:
 
 llvm_config.add_tool_substitutions(tools, tool_dirs)
 
-config.substitutions.append(("%host_cc", config.host_cc))
-config.substitutions.append(("%host_cxx", config.host_cxx))
+config.substitutions.append(("%llvm_src_root", config.llvm_src_root))
+config.substitutions.append(("%llvm_src_inc_dir",
+                             os.path.join(config.llvm_src_root, 'include')))
+config.substitutions.append(("%llvm_obj_inc_dir",
+                             os.path.join(config.llvm_obj_root, 'include')))
+config.substitutions.append(("%kit_src_root", config.kitsune_src_root))
+config.substitutions.append(("%kit_inc_dir",
+                             os.path.join(config.kitsune_src_root, 'include')))
 config.substitutions.append(("%kitcc", config.kitcc))
 config.substitutions.append(("%kitxx", config.kitxx))
 config.substitutions.append(("%kitfc", config.kitfc))
 config.substitutions.append(("%kit-config", config.kit_config))
 config.substitutions.append(("%kit-mbc", config.kit_mbc))
 config.substitutions.append(("%kit-enc", config.kit_enc))
+config.substitutions.append(("%kit-ttplugin-demo", config.kitsune_ttplugin_demo))
 config.substitutions.append(("%kitsune_gcc_install_dir",
                              config.kitsune_gcc_install_dir))
 if config.kitsune_sysroot:
@@ -126,6 +133,9 @@ llvm_config.feature_config([
 
 if config.kitsune_gcc_install_dir:
     config.available_features.add("kitsune-gcc-install-dir")
+
+if config.kitsune_examples:
+    config.available_features.add("kitsune-examples")
 
 if config.kitsune_c_enabled:
     config.available_features.add("kitcc")

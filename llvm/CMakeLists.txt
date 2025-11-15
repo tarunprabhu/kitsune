@@ -444,6 +444,7 @@ list(JOIN KITSUNE_ENABLED_LANGS_STR " " KITSUNE_ENABLED_LANGS_STR)
 # affects clang. And we have ensured that kitsune is configured before clang.
 set(KITSUNE_PTHREADS_ENABLED ON CACHE INTERNAL "Enable 'pthreads' tapir target" FORCE)
 set(KITSUNE_CUDA_ENABLED OFF CACHE INTERNAL "Enable 'cuda' tapir target" FORCE)
+set(KITSUNE_CUSTOM_ENABLED OFF CACHE INTERNAL "Enable 'custom' tapir target" FORCE)
 set(KITSUNE_HIP_ENABLED OFF CACHE INTERNAL "Enable 'hip' tapir target" FORCE)
 set(KITSUNE_LAMBDA_ENABLED OFF CACHE INTERNAL "Enable 'lambda' tapir target" FORCE)
 set(KITSUNE_OMPTASK_ENABLED OFF CACHE INTERNAL "Enable 'omptask' tapir target" FORCE)
@@ -454,7 +455,7 @@ set(KITSUNE_REALM_ENABLED OFF CACHE INTERNAL "Enable 'realm' tapir target" FORCE
 set(KITSUNE_SERIAL_ENABLED ON CACHE INTERNAL "Enable 'serial' tapir target" FORCE)
 
 set(KITSUNE_KNOWN_TAPIR_TARGETS
-  "pthreads;cuda;hip;lambda;omptask;opencilk;openmp;qthreads;realm;serial"
+  "cuda;custom;hip;lambda;omptask;opencilk;openmp;pthreads;qthreads;realm;serial"
   CACHE INTERNAL
   "All known Tapir targets"
   FORCE)
@@ -467,7 +468,7 @@ not provided explicitly"
   FORCE)
 
 set(KITSUNE_GUARANTEED_TAPIR_TARGETS
-  "pthreads;serial"
+  "custom;pthreads;serial"
   CACHE INTERNAL
   "The tapir targets that are always built"
   FORCE)
@@ -543,6 +544,13 @@ if (KITSUNE_HIP_ENABLED AND
   endif ()
   message(STATUS "enable AMDGPU target")
 endif ()
+
+# Should the examples be built. Unlike in LLVM, for Kitsune, this defaults to
+# ON. Building these requires full linker support and also requires a fairly
+# standard sysroot. Of the platforms that Kitsune supports, this is only likely
+# to happen on some HPC systems. If a build/test error occurs on such systems,
+# this could be turned off.
+set(KITSUNE_BUILD_EXAMPLES ON CACHE BOOL "Build kitsune's examples")
 
 # Kitsune's runtime, libkitrt, used to have a dependence on libLLVM, but it does
 # not any longer. However, we might re-introduce it, so for now, build libLLVM

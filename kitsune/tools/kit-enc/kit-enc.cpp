@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
   InitializeAllAsmParsers();
 
   std::optional<TTOptions> tto =
-      TTOptions::createFromCommandLine(OptznLevel::O0);
+      TTOptions::createFromSharedCommandLineOptions();
   TTID tt = tto ? tto->getTTID() : ttDefault;
   if (not doesTTGenEmbBC(tt)) {
     WithColor::error() << "'" << tt

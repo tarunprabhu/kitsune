@@ -1,4 +1,4 @@
-//===- TTUtilsTest.cpp - Unit tests for tapir target properties -----------===//
+//===- TTIDUtilsTest.cpp - Unit tests for TTID utilities ------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,10 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Support/TTUtils.h"
-#include "llvm/AsmParser/Parser.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/SourceMgr.h"
 
 #include "gtest/gtest.h"
 

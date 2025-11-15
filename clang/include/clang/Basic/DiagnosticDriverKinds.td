@@ -904,6 +904,15 @@ def err_drv_kitsune_missing_required : Error<
 def err_drv_kitsune_tapir_required : Error<
   "--tapir is required with '%0'">;
 
+def err_drv_kitsune_plugin_missing : Error<
+  "'--tapir-plugin' is required with the 'custom' tapir target">;
+def err_drv_kitsune_plugin_multiple : Error<
+  "'--tapir-plugin' must have a unique value">;
+def err_drv_kitsune_plugin_wrong_target : Error<
+  "'--tapir-plugin' requires '--tapir=custom'">;
+def err_drv_kitsune_plugin_invalid : Error<
+  "invalid tapir target plugin: %0">;
+
 def err_drv_kitsune_optzns_required : Error<
   "--tapir requires optimization level O1 or higher">;
 def err_drv_kitsune_lto_o2_required : Error<

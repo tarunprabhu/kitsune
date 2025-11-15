@@ -206,13 +206,28 @@ private:
       return getOrInsertLibFunc(m, TTID::Cuda, id);
     case TTID::Hip:
       return getOrInsertLibFunc(m, TTID::Hip, id);
+    case TTID::Custom:
+      // TODO: A custom tapir target may require a custom memory allocator.
+      // Currently, there is no way to have the plugin specify a memory
+      // allocator to use, so just default to using libc's malloc.
+    case TTID::Nolo:
+      // When using the 'nolo' tapir target, we should never get here, but in
+      // case we do, just default to using libc's malloc.
     case TTID::OpenCilk:
     case TTID::Pthreads:
     case TTID::Serial:
       return getOrInsertLibFunc(m, LibFunc_malloc);
-    default:
-      llvm_unreachable("getMemAllocFunc: TTID not handled");
+    case TTID::Lambda:
+    case TTID::OMPTask:
+    case TTID::OpenMP:
+    case TTID::Qthreads:
+    case TTID::Realm:
+      // These tapir targets are not fully supported yet, but add them to this
+      // switch to ensure that a warning is emitted when a new tapir target is
+      // added.
+      break;
     }
+    llvm_unreachable("getMemAllocFunc: TTID not handled");
   }
 
   FunctionCallee getMemFreeFunc(Module &m, Intrinsic::ID id) {
@@ -229,13 +244,28 @@ private:
       return getOrInsertLibFunc(m, TTID::Cuda, id);
     case TTID::Hip:
       return getOrInsertLibFunc(m, TTID::Hip, id);
+    case TTID::Custom:
+      // TODO: A custom tapir target may require a custom memory deallocator.
+      // Currently, there is no way to have the plugin specify a memory
+      // deallocator to use, so just default to using libc's free.
+    case TTID::Nolo:
+      // When using the 'nolo' tapir target, we should never get here, but in
+      // case we do, just default to using libc's free.
     case TTID::OpenCilk:
     case TTID::Pthreads:
     case TTID::Serial:
       return getOrInsertLibFunc(m, LibFunc_free);
-    default:
-      llvm_unreachable("getMemFreeFunc: TTID not handled");
+    case TTID::Lambda:
+    case TTID::OMPTask:
+    case TTID::OpenMP:
+    case TTID::Qthreads:
+    case TTID::Realm:
+      // These tapir targets are not fully supported yet, but add them to this
+      // switch to ensure that a warning is emitted when a new tapir target is
+      // added.
+      break;
     }
+    llvm_unreachable("getMemFreeFunc: TTID not handled");
   }
 
   /// Get the kitsune runtime function that will replace the intrinsic called in

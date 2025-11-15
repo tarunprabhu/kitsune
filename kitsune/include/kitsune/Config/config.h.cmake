@@ -87,12 +87,7 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // -----------------------------------------------------------------------------
 
-// Is the pthreads tapir target enabled
-#cmakedefine01 KITSUNE_PTHREADS_ENABLED
-
-// -----------------------------------------------------------------------------
-
-// Is the cuda tapir target enabled
+// Has the cuda tapir target been enabled
 #cmakedefine01 KITSUNE_CUDA_ENABLED
 
 // Extra preprocessor flags needed when compiling with the cuda tapir target.
@@ -130,7 +125,12 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // -----------------------------------------------------------------------------
 
-// Is the hip tapir target enabled
+// Has the custom tapir target been enabled
+#cmakedefine01 KITSUNE_CUSTOM_ENABLED
+
+// -----------------------------------------------------------------------------
+
+// Has the hip tapir target been enabled
 #cmakedefine01 KITSUNE_HIP_ENABLED
 
 // Extra preprocessor flags needed when compiling with the hip tapir target.
@@ -162,7 +162,7 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // -----------------------------------------------------------------------------
 
-// Is the lambda tapir target enabled
+// Has the lambda tapir target been enabled
 #cmakedefine01 KITSUNE_LAMBDA_ENABLED
 
 // Extra preprocessor flags needed when compiling with the lambda tapir target.
@@ -181,7 +181,7 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // -----------------------------------------------------------------------------
 
-// Is the omptask tapir target enabled
+// Has the omptask tapir target been enabled
 #cmakedefine01 KITSUNE_OMPTASK_ENABLED
 
 // Extra preprocessor flags needed when compiling with the omptask tapir target.
@@ -201,7 +201,7 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // -----------------------------------------------------------------------------
 
-// Is the opencilk tapir target enabled
+// Has the opencilk tapir target been enabled
 #cmakedefine01 KITSUNE_OPENCILK_ENABLED
 
 // Extra preprocessor flags needed when compiling with the opencilk tapir
@@ -221,7 +221,7 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // -----------------------------------------------------------------------------
 
-// is the openmp tapir target enabled
+// Has the openmp tapir target been enabled
 #cmakedefine01 KITSUNE_OPENMP_ENABLED
 
 // Extra preprocessor flags needed when compiling with the openmp tapir target.
@@ -240,7 +240,12 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // -----------------------------------------------------------------------------
 
-// Is the qthreads tapir target enabled
+// Has the pthreads tapir target been enabled
+#cmakedefine01 KITSUNE_PTHREADS_ENABLED
+
+// -----------------------------------------------------------------------------
+
+// Has the qthreads tapir target been enabled
 #cmakedefine01 KITSUNE_QTHREADS_ENABLED
 
 // Extra preprocessor flags needed when compiling with the qthreads tapir
@@ -260,7 +265,7 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // -----------------------------------------------------------------------------
 
-// Is the realm tapir target enabled
+// Has the realm tapir target been enabled
 #cmakedefine01 KITSUNE_REALM_ENABLED
 
 // Extra preprocessor flags needed when compiling with the realm tapir target.
@@ -279,7 +284,7 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // -----------------------------------------------------------------------------
 
-// Is the serial tapir target enabled
+// Has the serial tapir target been enabled
 #cmakedefine01 KITSUNE_SERIAL_ENABLED
 
 // -----------------------------------------------------------------------------

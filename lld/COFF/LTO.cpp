@@ -45,7 +45,11 @@ std::string BitcodeCompiler::getThinLTOOutputFile(StringRef path) {
 
 lto::Config BitcodeCompiler::createConfig() {
   lto::Config c;
-  c.PTO.TTOpts = TTOptions::createFromCommandLine(ctx.config.ltoo);
+  if (MaybeTTOptionsOrErr tto =
+          TTOptions::createFromCommandLine(ctx.config.ltoo))
+    c.PTO.TTOpts = *tto;
+  else
+    checkError(tto.takeError());
   c.Options = initTargetOptionsFromCodeGenFlags();
   c.Options.EmitAddrsig = true;
   for (StringRef C : ctx.config.mllvmOpts)

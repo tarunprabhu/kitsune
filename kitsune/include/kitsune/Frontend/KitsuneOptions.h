@@ -115,6 +115,10 @@ private:
   /// line. It is optional because we may not have a default tapir target
   std::optional<llvm::TTID> tt = llvm::defaultTapirTarget;
 
+  /// If this is not std::nullopt, it must be the path to a dynamic shared
+  /// object that can be loaded as a tapir target plugin.
+  std::string ttPlugin;
+
   /// If this is non-zero, the number of threads per block to use.
   unsigned fixedThreadsPerBlock = 0;
 
@@ -214,6 +218,8 @@ public:
 
   void setTTID(llvm::TTID tt) { this->tt = tt; }
 
+  void setTTPlugin(llvm::StringRef path) { this->ttPlugin = path; }
+
   void setStripmineLoops(bool stripmineLoops = true) {
     this->stripmineLoops = stripmineLoops;
   }
@@ -284,6 +290,8 @@ public:
 
   bool hasTTID() const { return tt.has_value(); }
 
+  bool hasTTPlugin() const { return ttPlugin.size(); }
+
   bool getKokkos() const { return kokkos; }
 
   bool getKokkosNoInit() const { return kokkosNoInit; }
@@ -295,6 +303,8 @@ public:
   bool getKitrtVerbose() const { return kitrtVerbose; }
 
   std::optional<llvm::TTID> getTTID() const { return tt; }
+
+  llvm::StringRef getTTPlugin() const { return ttPlugin; }
 
   unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
 

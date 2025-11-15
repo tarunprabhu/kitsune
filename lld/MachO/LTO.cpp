@@ -39,7 +39,10 @@ static std::string getThinLTOOutputFile(StringRef modulePath) {
 
 static lto::Config createConfig() {
   lto::Config c;
-  c.PTO.TTOpts = TTOptions::createFromCommandLine(config->ltoo);
+  if (MaybeTTOptionsOrErr tto = TTOptions::createFromCommandLine(config->ltoo))
+    c.PTO.TTOpts = *tto;
+  else
+    fatal("error creating tapir target options: " + toString(tto.takeError()));
   c.Options = initTargetOptionsFromCodeGenFlags();
   c.Options.EmitAddrsig = config->icfLevel == ICFLevel::safe;
   for (StringRef C : config->mllvmOpts)

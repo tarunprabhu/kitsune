@@ -343,7 +343,7 @@ static void registerEPCallbacks(PassBuilder &PB) {
         });
 }
 
-static std::optional<TTOptions>
+static MaybeTTOptionsOrErr
 createTTOptions(TargetMachine *TM, StringRef PassPipeline) {
   // If no passes were provided, then don't bother with the tapir target options
   // because the tapir passes will not have been enabled. That only happens
@@ -369,9 +369,12 @@ createTTOptions(TargetMachine *TM, StringRef PassPipeline) {
   // we do use in Kitsune) may not be initialized correctly. Therefore, create a
   // temporary PassBuilder, just to parse the pass pipeline.
   PipelineTuningOptions PTO;
-  PTO.TTOpts = TTOptions::createFromCommandLine(OptznLevel::O1);
-  PassBuilder PB(TM, PTO, /* PGOOptions */ std::nullopt,
-                 /* PassInstrumentationCallback*/ nullptr);
+  MaybeTTOptionsOrErr TTOpts = TTOptions::createFromCommandLine(OptznLevel::O1);
+  if (!TTOpts)
+    return TTOpts;
+  PTO.TTOpts = *TTOpts;
+  PassBuilder PB(TM, PTO, /*PGOOptions=*/std::nullopt,
+                 /*PassInstrumentationCallback=*/nullptr);
 
   // We don't care about setting up the analysis passes and, for now at least,
   // it doesn't cause us any problems when we parse the pass pipeline.
@@ -494,7 +497,12 @@ bool llvm::runPassPipeline(
   // option has been enabled.
   PTO.LoopUnrolling = !DisableLoopUnrolling;
   PTO.UnifiedLTO = UnifiedLTO;
-  PTO.TTOpts = createTTOptions(TM, PassPipeline);
+  MaybeTTOptionsOrErr TTOpts = createTTOptions(TM, PassPipeline);
+  if (!TTOpts) {
+    errs() << Arg0 << ": " << toString(std::move(TTOpts.takeError())) << "\n";
+    return false;
+  }
+  PTO.TTOpts = *TTOpts;
   PassBuilder PB(TM, PTO, P, &PIC);
   registerEPCallbacks(PB);
 

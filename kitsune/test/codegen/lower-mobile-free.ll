@@ -41,15 +41,24 @@
 ; HIP-NEXT: ret void
 ;
 ; ------------------------------------------------------------------------------
-; RUN: %if kitsune-opencilk %{ \
-; RUN:   opt --tapir=opencilk -passes='kit-lower-intrinsics' -S %s \
-; RUN:       | FileCheck --check-prefix=OPENCILK %s \
+; RUN: %if kitsune-examples %{ \
+; RUN:   opt --tapir=custom --tapir-plugin=%kit-ttplugin-demo \
+; RUN:       -passes='kit-lower-intrinsics' -S %s \
+; RUN:       | FileCheck --check-prefix=FREE %s \
 ; RUN: %}
 ;
-; OPENCILK: define {{.+}} @deallocate(ptr addrspace(67) %[[P:.+]])
-; OPENCILK-NEXT: %[[CST:[0-9]+]] = addrspacecast ptr addrspace(67) %[[P]] to ptr
-; OPENCILK-NEXT: call void @free(ptr %[[CST]])
-; OPENCILK-NEXT: ret void
+; RUN: %if kitsune-opencilk %{ \
+; RUN:   opt --tapir=opencilk -passes='kit-lower-intrinsics' -S %s \
+; RUN:       | FileCheck --check-prefix=FREE %s \
+; RUN: %}
+;
+; RUN: opt --tapir=pthreads -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck --check-prefix=FREE %s
+;
+; FREE: define {{.+}} @deallocate(ptr addrspace(67) %[[P:.+]])
+; FREE-NEXT: %[[CST:[0-9]+]] = addrspacecast ptr addrspace(67) %[[P]] to ptr
+; FREE-NEXT: call void @free(ptr %[[CST]])
+; FREE-NEXT: ret void
 ;
 ; ------------------------------------------------------------------------------
 

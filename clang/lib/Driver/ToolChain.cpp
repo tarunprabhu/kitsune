@@ -2026,6 +2026,12 @@ void ToolChain::AddKitsuneCudaCommonArgs(const ArgList &Args,
   AddKitsuneGPUCommonArgs(Args, CmdArgs, MLLVM);
 }
 
+void ToolChain::AddKitsuneCustomCommonArgs(const ArgList &Args,
+                                            ArgStringList &CmdArgs,
+                                            bool MLLVM) const {
+  PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_plugin_EQ);
+}
+
 void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
                                         ArgStringList &CmdArgs,
                                         bool MLLVM) const {
@@ -2272,6 +2278,16 @@ void ToolChain::AddKitsuneRealmCommonArgs(const ArgList &Args,
 
 void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
                                            ArgStringList &CmdArgs) const {
+  // FIXME: It is not clear if there is any use for the extra preprocessor flags
+  // any longer. This used to be the case in the past because Kitsune was not
+  // always able to find the header files needed when compiling with certain
+  // tapir targets. However, this has now been fixed. There is also less
+  // flexibility permitted when building the dependencies. For instance,
+  // building Cheetah or Kokkos separately is no longer permitted. Especially
+  // in the case of the former, this will never be permitted. All this code adds
+  // a fair bit of complexity, and has also not been tested well, if at all.
+  //
+  // It is probably a good idea to get rid of this entirely.
   auto AddTTArgs = [&](TTID TT, const ArgList &Args,
                        ArgStringList &CmdArgs) -> void {
     switch (TT) {
@@ -2281,6 +2297,10 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
       return ExtractArgsFromString(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS,
                                    CmdArgs, Args);
       break;
+    case TTID::Custom:
+      // There are no special preprocessor flags that can be set for the custom
+      // tapir target
+      return;
     case TTID::Hip:
       return ExtractArgsFromString(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS,
                                    CmdArgs, Args);
@@ -2297,6 +2317,7 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
       return ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS,
                                    CmdArgs, Args);
     case TTID::Pthreads:
+      // There are no special preprocessor flags for the pthreads tapir target
       return;
     case TTID::Qthreads:
       return ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS,
@@ -2340,6 +2361,9 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
       AddKitsuneCudaCommonArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_CUDA_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       return;
+    case TTID::Custom:
+      AddKitsuneCustomCommonArgs(Args, CmdArgs);
+      return;
     case TTID::Hip:
       AddKitsuneHipCommonArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
@@ -2363,6 +2387,8 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
       ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
       return;
     case TTID::Pthreads:
+      // There are no options specific to the pthreads tapir target that have
+      // to be handled
       return;
     case TTID::Qthreads:
       AddKitsuneQthreadsCommonArgs(Args, CmdArgs);
@@ -2399,7 +2425,7 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     // is only enabled at certain optimization levels or if explicitly enabled
     // with the -fstripmine flag. It is disabled if -fno-stripmine is given. For
     // GPU tapir targets, stripmining must be enabled explicitly.
-    if (TT == TTID::Cuda || TT == TTID::Hip) {
+    if (TT == TTID::Cuda || TT == TTID::Custom || TT == TTID::Hip) {
       if (Args.hasArg(options::OPT_fstripmine))
         CmdArgs.push_back("-fstripmine");
     } else {
@@ -2551,6 +2577,13 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       AddKitsuneCudaLinkerArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_CUDA_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       return;
+    case TTID::Custom:
+      // The custom tapir target does not allow setting any additional linker
+      // options. Since we have no control over what the tapir target actually
+      // does, we cannot link any additional libraries that may be needed. It is
+      // up to the user to do so explicitly on the command line where they will
+      // be handled like any other linker option.
+      return;
     case TTID::Hip:
       AddKitsuneHipLinkerArgs(Args, CmdArgs);
       ExtractArgsFromString(KITSUNE_HIP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
@@ -2572,6 +2605,8 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       return;
     case TTID::Pthreads:
+      // The pthreads tapir target does not require additional linker options,
+      // so there is nothing that can be customized
       return;
     case TTID::Qthreads:
       AddKitsuneQthreadsLinkerArgs(Args, CmdArgs);
@@ -2582,6 +2617,8 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       ExtractArgsFromString(KITSUNE_REALM_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       return;
     case TTID::Serial:
+      // The serial tapir target does not require additional linker options, so
+      // there is nothing that can be customized
       return;
     }
     llvm_unreachable("AddKitsuneLinkerArgs: TTID not handled");
@@ -2670,6 +2707,8 @@ void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
       return;
     case TTID::Cuda:
       return AddKitsuneCudaCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
+    case TTID::Custom:
+      return AddKitsuneCustomCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
     case TTID::Hip:
       return AddKitsuneHipCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
     case TTID::Lambda:

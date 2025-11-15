@@ -52,9 +52,9 @@ unsigned getSpeedupLevel(const llvm::opt::ArgList &args,
 unsigned getSizeLevel(const llvm::opt::ArgList &args,
                       clang::DiagnosticsEngine &diags);
 
-/// Parse the -ftapir flag if it is present and get the name of the config file
-/// of the Tapir target that was specified. If the argument of the -ftapir flag
-/// is invalid, this will return std::nullopt.
+/// Parse the --tapir flag if it is present and get the name of the config file
+/// of the Tapir target that was specified. If the argument of the flag is
+/// invalid, this will return std::nullopt.
 std::optional<llvm::StringRef>
 getTapirTargetConfigFileName(const llvm::opt::ArgList &args);
 

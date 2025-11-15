@@ -18,7 +18,6 @@
 
 namespace llvm {
 
-class SerialTTOptions;
 class TTOptions;
 
 class SerialABI : public TapirTarget {

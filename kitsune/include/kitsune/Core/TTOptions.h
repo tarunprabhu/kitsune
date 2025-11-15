@@ -14,11 +14,11 @@
 #define KITSUNE_CORE_TTOPTIONS_H
 
 #include "kitsune/Core/OptznLevel.h"
+#include "kitsune/Core/TTPlugin.h"
 #include "kitsune/Core/Tapir.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Target/TargetOptions.h"
-
-#include <set>
 
 namespace llvm {
 
@@ -63,7 +63,7 @@ private:
 
   /// When multiple tapir targets are fully supported, these are the secondary
   /// tapir targets. This set will *not* include the primary tapir target.
-  std::set<TTID> tts;
+  llvm::SmallSetVector<TTID, 4> tts;
 
   /// Options common to all tapir targets
   /// @{
@@ -122,6 +122,13 @@ private:
   std::string cudaRuntimeBCFile;
   /// @}
 
+  /// Options for the 'custom' tapir target
+  /// @{
+  /// The tapir target plugin object. This contains a wrapper around the actual
+  /// dynamic library among other things.
+  std::optional<TTPlugin> ttPlugin;
+  /// @}
+
   /// Options for the hip tapir target
   /// @{
   /// The AMD GPU architecture for which to generate code.
@@ -159,9 +166,6 @@ private:
   TTOptions(TTID tt, const std::vector<TTID> tts);
 
 public:
-  /// Create a clone of this options object.
-  std::unique_ptr<TTOptions> clone() const;
-
   void setOptznLevel(OptznLevel optLevel) { this->optLevel = optLevel; }
   void setOptznLevelFrom(OptimizationLevel optLevel);
 
@@ -198,6 +202,11 @@ public:
   /// @}
 
   /// @{
+  /// Options for the the 'custom' tapir target
+  std::optional<TTPlugin> getTTPlugin() const { return ttPlugin; }
+  /// @}
+
+  /// @{
   /// Options for the hip tapir target.
   StringRef getHipArch() const { return hipArch; }
   MaybeBool getHipSRAMECC() const { return hipSRAMECC; }
@@ -218,26 +227,49 @@ public:
   /// the primary tapir target will be printed.
   void print(llvm::raw_ostream &os, bool all = false) const;
 
-  /// Construct an options object from the given frontend options. If a tapir
-  /// target ID is not set in the kitsune options, std::nullopt is returned.
+  /// Construct an options object from the given frontend options. If a TTID
+  /// is not set in the kitsune options, std::nullopt is returned.
   static std::optional<TTOptions> create(const KitsuneOptions &kitOpts,
                                          OptznLevel optLevel,
                                          FPOpFusionMode fpOpFusionMode);
 
-  /// Construct an options object initialized from the command line options
-  /// if the --tapir option was provided. Otherwise, return std::nullopt.
-  static std::optional<TTOptions> createFromCommandLine(OptznLevel optLevel);
+  /// Construct an options object initialized from the "shared" command line
+  /// options. The "shared" options are those used by one or more tools or
+  /// utilities in addition to being available to opt. This is intended to be a
+  /// very minimal set, and guaranteed to succeed.
+  static std::optional<TTOptions>
+  createFromSharedCommandLineOptions(OptznLevel optznLevel = OptznLevel::O0);
 
   /// Construct an options object initialized from the command line options
-  /// if the --tapir option was provided. Otherwise, return std::nullopt.
-  static std::optional<TTOptions> createFromCommandLine(unsigned speedupLevel);
+  /// if the --tapir option was provided. If the --tapir option is not provided,
+  /// return std::nullopt. Otherwise, if the constructed options object is
+  /// invalid, return an error. This can happen if one or more command line
+  /// options have invalid values, or if the values of the options are
+  /// inconsistent. Otherwise, return the optoins object.
+  static Expected<std::optional<TTOptions>>
+  createFromCommandLine(OptznLevel optznLevel);
+
+  /// Construct an options object initialized from the command line options
+  /// if the --tapir option was provided. If the --tapir option is not provided,
+  /// return std::nullopt. Otherwise, if the constructed options object is
+  /// invalid, return an error. This can happen if one or more command line
+  /// options have invalid values, or if the values of the options are
+  /// inconsistent. Otherwise, return the options object.
+  static Expected<std::optional<TTOptions>>
+  createFromCommandLine(unsigned speedupLevel);
 
   /// Construct an options object initialized from the command line options
   /// with the given optimization level. \ref optLevel must be one of {0, 1, 2,
   /// 3, s, z}. It is an error if \ref optLevel is not one of these. If the
-  /// --tapir option is not provided, this returns std::nullopt.
-  static std::optional<TTOptions> createFromCommandLine(char optLevel);
+  /// --tapir option is not provided, return std::nullopt. Otherwise, if the
+  /// constructed options object is invalid, return an error. This can happen if
+  /// one or more command line options have invalid values, or if the values of
+  /// the options are inconsistent. Otherwise, return the options object.
+  static Expected<std::optional<TTOptions>>
+  createFromCommandLine(char optLevel);
 };
+
+using MaybeTTOptionsOrErr = Expected<std::optional<TTOptions>>;
 
 } // namespace llvm
 

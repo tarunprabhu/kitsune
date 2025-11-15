@@ -1,0 +1,22 @@
+# Check that an appropriate error is emitted when a non-existent plugin file
+# is loaded
+#
+# RUN: not %kitcc --tapir=custom --tapir-plugin=does-not-exist.file \
+# RUN:     -O1 -S -emit-llvm -o /dev/null %S/input/empty.c 2>&1 \
+# RUN:     | FileCheck %s
+#
+# RUN: not %kitxx --tapir=custom --tapir-plugin=does-not-exist.file \
+# RUN:     -O1 -S -emit-llvm -o /dev/null %S/input/empty.cpp 2>&1 \
+# RUN:     | FileCheck %s
+#
+# RUN: %if kitfc %{ \
+# RUN:     not %kitfc --tapir=custom --tapir-plugin=does-not-exist.file \
+# RUN:         -O1 -S -emit-llvm -o /dev/null %S/input/empty.f90 2>&1 \
+# RUN:         | FileCheck %s \
+# RUN: %}
+#
+# RUN: not opt --tapir=custom --tapir-plugin=does-not-exist.file \
+# RUN:     -passes='kit-lowering<O1>' -o /dev/null %S/input/empty.ll 2>&1 \
+# RUN:     | FileCheck %s
+#
+# CHECK: Could not load library

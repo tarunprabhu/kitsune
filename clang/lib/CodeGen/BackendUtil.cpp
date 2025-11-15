@@ -139,6 +139,13 @@ static std::string getProfileGenName(const CodeGenOptions &CodeGenOpts) {
   return FileName;
 }
 
+static std::optional<TTOptions>
+createTTOptions(const KitsuneOptions &KitOpts, unsigned SpeedupLevel,
+                unsigned SizeLevel, FPOpFusion::FPOpFusionMode FPOpFusionMode) {
+  OptznLevel OptznLevel = createOptznLevelFrom(SpeedupLevel, SizeLevel);
+  return TTOptions::create(KitOpts, OptznLevel, FPOpFusionMode);
+}
+
 namespace {
 
 class EmitAssemblyHelper {
@@ -163,12 +170,11 @@ class EmitAssemblyHelper {
   }
 
   std::optional<TTOptions> getTTOptions() const {
-    OptznLevel OptLevel = createOptznLevelFrom(CodeGenOpts.OptimizationLevel,
-                                               CodeGenOpts.OptimizeSize);
     FPOpFusion::FPOpFusionMode FPOpFusionMode = FPOpFusion::Standard;
     if (TM)
       FPOpFusionMode = TM->Options.AllowFPOpFusion;
-    return TTOptions::create(KitsuneOpts, OptLevel, FPOpFusionMode);
+    return createTTOptions(KitsuneOpts, CodeGenOpts.OptimizationLevel,
+                           CodeGenOpts.OptimizeSize, FPOpFusionMode);
   }
 
   /// Generates the TargetMachine.
@@ -1365,10 +1371,9 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
   Conf.PTO.CallGraphProfile = !CGOpts.DisableIntegratedAS;
-  Conf.PTO.TTOpts = TTOptions::create(
-      KOpts,
-      createOptznLevelFrom(CGOpts.OptimizationLevel, CGOpts.OptimizeSize),
-      Conf.Options.AllowFPOpFusion);
+  Conf.PTO.TTOpts =
+      createTTOptions(KOpts, CGOpts.OptimizationLevel, CGOpts.OptimizeSize,
+                      Conf.Options.AllowFPOpFusion);
 
   // Context sensitive profile.
   if (CGOpts.hasProfileCSIRInstr()) {

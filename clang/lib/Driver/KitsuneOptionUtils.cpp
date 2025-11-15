@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/KitsuneOptionUtils.h"
+#include "kitsune/Core/TTPlugin.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Driver/Driver.h"
@@ -98,6 +99,10 @@ clang::getTapirTargetConfigFileName(const opt::ArgList &args) {
     return "serial.cfg";
   case TTID::Cuda:
     return "cuda.cfg";
+  case TTID::Custom:
+    // The custom tapir target does not have a config file since the compiler
+    // knows nothing about the tapir target
+    return "";
   case TTID::Hip:
     return "hip.cfg";
   case TTID::Lambda:
@@ -172,6 +177,31 @@ static bool parseKitsuneCudaArgs(KitsuneOptions &opts, const ArgList &args,
   opts.setCudaRuntimeBCFile(args.getLastArgValue(OPT_tapir_cuda_runtime_bc_EQ));
 
   parseKitsuneCommonGPUArgs(opts, args, optTable, diags);
+
+  return diags.getNumErrors() == numErrorsBefore;
+}
+
+static bool parseKitsuneCustomArgs(KitsuneOptions &opts, const ArgList &args,
+                                   const OptTable &optTable,
+                                   DiagnosticsEngine &diags) {
+  unsigned numErrorsBefore = diags.getNumErrors();
+
+  const OptSpecifier requiredOpts[] = {OPT_tapir_plugin_EQ};
+  for (OptSpecifier opt : requiredOpts)
+    if (!args.hasArg(opt))
+      diags.Report(diag::err_drv_kitsune_missing_required)
+          << optTable.getOptionName(opt);
+
+  if (diags.getNumErrors() > numErrorsBefore)
+    return false;
+
+  StringRef pluginFile = args.getLastArgValue(OPT_tapir_plugin_EQ);
+  Expected<TTPlugin> ttPlugin = TTPlugin::load(pluginFile);
+  if (!ttPlugin)
+    diags.Report(diag::err_drv_kitsune_plugin_invalid)
+        << toString(ttPlugin.takeError());
+
+  opts.setTTPlugin(args.getLastArgValue(OPT_tapir_plugin_EQ));
 
   return diags.getNumErrors() == numErrorsBefore;
 }
@@ -310,6 +340,8 @@ static bool parseKitsuneTTArgs(KitsuneOptions &kitOpts, TTID tt,
     return true;
   case llvm::TTID::Cuda:
     return parseKitsuneCudaArgs(kitOpts, args, optTable, diags);
+  case llvm::TTID::Custom:
+    return parseKitsuneCustomArgs(kitOpts, args, optTable, diags);
   case llvm::TTID::Hip:
     return parseKitsuneHipArgs(kitOpts, args, optTable, diags);
   case llvm::TTID::Lambda:
@@ -343,9 +375,8 @@ bool clang::parseKitsuneArgs(KitsuneOptions &kitOpts, const char *argv0,
   kitOpts.setTapirVerbose(args.hasArg(OPT_tapir_verbose));
   kitOpts.setKitrtVerbose(args.hasArg(OPT_kitrt_verbose));
 
-  if (args.hasArg(OPT_tapir_EQ)) {
-    StringRef argVal = args.getLastArgValue(OPT_tapir_EQ);
-    if (std::optional<llvm::TTID> tt = createTTIDFrom(argVal)) {
+  if (const Arg *arg = args.getLastArg(OPT_tapir_EQ)) {
+    if (std::optional<llvm::TTID> tt = createTTIDFrom(arg->getValue())) {
       parseKitsuneTTArgs(kitOpts, *tt, args, optTable, diags);
       kitOpts.setTTID(*tt);
     }

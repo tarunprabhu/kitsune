@@ -5247,10 +5247,12 @@ def TapirTarget : StmtAttr {
                              ErrorDiag, "'parallel' statements">;
   let Args = [
     EnumArgument<"TapirTargetAttrType", "TapirTargetAttrTy", /*is_string=*/ true,
-                 ["nolo", "cuda", "hip", "opencilk", "pthreads", "serial"],
-                 ["Nolo", "Cuda", "Hip", "OpenCilk", "Pthreads", "Serial"],
+                 ["nolo", "cuda", "custom", "hip", "opencilk", "pthreads", "serial"],
+                 ["Nolo", "Cuda", "Custom", "Hip", "OpenCilk", "Pthreads", "Serial"],
                  0>
   ];
+  // FIXME: Change the reference name here to KitsuneDocs or something of the
+  // sort.
   let Documentation = [TapirRTDocs];
 }
 

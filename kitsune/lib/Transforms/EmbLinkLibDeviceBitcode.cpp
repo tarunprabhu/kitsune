@@ -12,7 +12,7 @@
 
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Transforms/Utils/EmbModulePassUtils.h"
+#include "kitsune/Core/TTUtils.h"
 #include "llvm/Linker/Linker.h"
 
 #define DEBUG_TYPE "emb-link-libdevice-bitcode"

@@ -6128,7 +6128,8 @@ public:
   /// command line. If a primary tapir target was not provided, return the
   /// \ref defaultTapirTarget (which is unlikely to be anything other than
   /// std::nullopt).
-  std::optional<llvm::TTID> GetTapirTarget(ArrayRef<const Attr *> Attrs);
+  llvm::Expected<std::optional<llvm::TTID>>
+  GetTapirTarget(ArrayRef<const Attr *> Attrs);
 
   /// Get the value of the kitsune::launch attribute if it was set. If the
   /// attribute was not set, return 0.

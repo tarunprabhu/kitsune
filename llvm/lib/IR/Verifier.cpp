@@ -52,7 +52,7 @@
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TypeUtils.h"
-#include "kitsune/Support/TTUtils.h"
+#include "kitsune/Support/TTIDUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"

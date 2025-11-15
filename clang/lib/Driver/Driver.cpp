@@ -75,6 +75,7 @@
 #include "clang/Driver/Types.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
@@ -124,14 +125,27 @@ bool driver::IsKitsuneFrontend(StringRef ProgName) {
          Suffix == KITSUNE_Fortran_FRONTEND;
 }
 
+static std::optional<std::string> GetUniqueArgValue(const ArgList &Args,
+                                                    OptSpecifier Id) {
+  std::vector<std::string> Vals = Args.getAllArgValues(Id);
+  llvm::SmallSet<std::string, 4> Uniq(Vals.begin(), Vals.end());
+  if (Uniq.size() == 1)
+    return *Uniq.begin();
+  return std::nullopt;
+}
+
 static void CheckTTEnabled(const Driver &D, llvm::TTID TT) {
   // If the tapir target has not been enabled, fail right away.
   switch (TT) {
   case llvm::TTID::Nolo:
+    // The nolo pseudo tapir target is always enabled
     return;
   case llvm::TTID::Cuda:
     if (!KITSUNE_CUDA_ENABLED)
       D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
+    return;
+  case llvm::TTID::Custom:
+    // The custom tapir target is always enabled
     return;
   case llvm::TTID::Hip:
     if (!KITSUNE_HIP_ENABLED)
@@ -239,7 +253,13 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
     }
   }
 
-  // Check that the -ftapir flag has a valid value. This stops us from
+  // If --tapir-plugin= is provided, then a tapir target must also be provided.
+  // That target must be 'custom', but that will be checked later.
+  if (Args.hasArg(options::OPT_tapir_plugin_EQ))
+    if (not Args.hasArg(options::OPT_tapir_EQ))
+      D.Diag(diag::err_drv_kitsune_plugin_wrong_target);
+
+  // Check that the --tapir flag has a valid value. This stops us from
   // reporting multiple errors because the flag is examined in several places.
   if (const Arg *A = Args.getLastArg(options::OPT_tapir_EQ)) {
     std::optional<llvm::TTID> TT = llvm::createTTIDFrom(A->getValue());
@@ -249,8 +269,24 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       return;
     }
 
+    if (Args.hasArg(options::OPT_tapir_plugin_EQ))
+      if (*TT != llvm::TTID::Custom)
+        D.Diag(diag::err_drv_kitsune_plugin_wrong_target);
+
     CheckTTEnabled(D, *TT);
-    if (*TT == llvm::TTID::OpenCilk) {
+
+    if (*TT == llvm::TTID::Custom) {
+      const Arg* A = Args.getLastArg(options::OPT_tapir_plugin_EQ);
+      if (!A)
+        D.Diag(diag::err_drv_kitsune_plugin_missing);
+      if (std::optional<std::string> Plugin =
+              GetUniqueArgValue(Args, options::OPT_tapir_plugin_EQ)) {
+        if (Plugin->empty())
+          D.Diag(diag::err_drv_missing_argument) << A->getAsString(Args) << 1;
+      } else {
+        D.Diag(diag::err_drv_kitsune_plugin_multiple);
+      }
+    } else if (*TT == llvm::TTID::OpenCilk) {
       if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
         D.Diag(diag::err_drv_opencilk_platform) << Triple.getOSName();
 

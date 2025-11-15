@@ -9515,8 +9515,13 @@ def kitrt_verbose: Joined<["--"], "kitrt-verbose">,
 def tapir_EQ : Joined<["--"], "tapir=">,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
   MetaVarName<"<target>">,
-  Values<"nolo,serial,cuda,hip,opencilk,pthreads">,
+  Values<"cuda,custom,hip,nolo,opencilk,pthreads,serial">,
   HelpText<"The primary tapir target">;
+
+def tapir_plugin_EQ : Joined<["--"], "tapir-plugin=">,
+  Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,
+  MetaVarName<"<dsopath>">, Flags<[NoArgumentUnused]>,
+  HelpText<"Load a plugin containing a custom tapir target from a shared object file">;
 
 def ftapir_EQ : Joined<["-"], "ftapir=">, Alias<tapir_EQ>,
   Visibility<[ClangOption, CC1Option, FlangOption, FC1Option]>,

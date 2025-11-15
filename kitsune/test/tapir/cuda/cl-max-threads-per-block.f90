@@ -8,11 +8,11 @@
 !
 ! RUN: not %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=-1 -O1 %s \
 ! RUN:     --tapir-cuda-arch=sm_72 2>&1 \
-! RUN:     | FileCheck %s -check-prefix UNDERFLOW
+! RUN:     | FileCheck %s -check-prefix RANGE
 !
 ! RUN: not %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=0 -O1 %s \
 ! RUN:     --tapir-cuda-arch=sm_72 2>&1 \
-! RUN:     | FileCheck %s -check-prefix UNDERFLOW
+! RUN:     | FileCheck %s -check-prefix RANGE
 !
 ! RUN: %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=1 -O1 %s \
 ! RUN:     --tapir-cuda-arch=sm_72 2>&1 \
@@ -22,10 +22,10 @@
 ! RUN:     --tapir-cuda-arch=sm_72 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix OK
 !
-! RUN: %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=1025 -O1 %s \
+! RUN: not %kitfc -### --tapir=cuda --tapir-gpu-max-tpb=1025 -O1 %s \
 ! RUN:     --tapir-cuda-arch=sm_72 2>&1 \
-! RUN:     | FileCheck %s -check-prefix OK
+! RUN:     | FileCheck %s -check-prefix RANGE
 !
 ! MISSING: error: argument to '{{.+}}' is missing
-! UNDERFLOW: error: value of '{{.+}}' must be at least 1
+! RANGE: error: value of '{{.+}}' not in range [1,1024]
 ! OK: --tapir-gpu-max-tpb={{[0-9]+}}
