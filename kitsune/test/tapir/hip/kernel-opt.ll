@@ -8,8 +8,9 @@
 ; bitcode module. The lowering only adjusts the bounds of the original tapir
 ; loop. Setting the optimization level to O0 retains this loop.
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -emb-O0 \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -emb-O0 -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s --check-prefix=O0
 ;
@@ -26,8 +27,9 @@
 ; is determined to be 1. If the grain size is changed to be greater than 1, we
 ; may need to check for unrolling.
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O2>,emb-optimize' \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>,emb-optimize' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s --check-prefix=O2
 ;

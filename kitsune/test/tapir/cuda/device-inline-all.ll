@@ -3,7 +3,8 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 %s \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:     -passes='tapir-lowering<O2>,emb-prepare' \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,DEFAULT
@@ -16,7 +17,8 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 %s \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:     -passes='tapir-lowering<O2>,emb-prepare' -emb-inline-all \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,INLINE

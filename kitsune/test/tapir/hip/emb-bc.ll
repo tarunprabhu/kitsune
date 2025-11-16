@@ -1,7 +1,9 @@
 ; Check that a global variable containing embedded bitcode is added by the
 ; hip tapir target.
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @[[BC:.+]] = unnamed_addr constant [{{[0-9]+}} x i8] c"BC{{.+}}"

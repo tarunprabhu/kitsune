@@ -46,11 +46,10 @@ static std::string getThinLTOOutputFile(Ctx &ctx, StringRef modulePath) {
 static lto::Config createConfig(Ctx &ctx) {
   lto::Config c;
 
-  if (MaybeTTOptionsOrErr tto = TTOptions::createFromCommandLine(ctx.arg.ltoo))
-    c.PTO.TTOpts = *tto;
-  else
-    ErrAlways(ctx) << "error creating tapir target options: "
-                   << toString(tto.takeError());
+  c.PTO.TTOpts = TTOptions::createFromCommandLine(ctx.arg.ltoo);
+  if (c.PTO.TTOpts)
+    if (Error err = c.PTO.TTOpts->validate())
+      ErrAlways(ctx) << std::move(err);
 
   // LLD supports the new relocations and address-significance tables.
   c.Options = initTargetOptionsFromCodeGenFlags();

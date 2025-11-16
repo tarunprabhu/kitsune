@@ -20,6 +20,8 @@
 #include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Target/TargetOptions.h"
 
+#include <optional>
+
 namespace llvm {
 
 namespace driver {
@@ -126,7 +128,7 @@ private:
   /// @{
   /// The tapir target plugin object. This contains a wrapper around the actual
   /// dynamic library among other things.
-  std::optional<TTPlugin> ttPlugin;
+  std::optional<TTPlugin> ttPlugin = std::nullopt;
   /// @}
 
   /// Options for the hip tapir target
@@ -150,7 +152,7 @@ private:
   std::vector<std::string> hipRuntimeBCFiles;
   /// @}
 
-  /// Options for the OpenCilk tapir target
+  /// Options for the opencilk tapir target
   /// @{
   std::string openCilkRuntimeBCFile;
   /// @}
@@ -165,7 +167,17 @@ private:
   /// secondary tapir targets.
   TTOptions(TTID tt, const std::vector<TTID> tts);
 
+  Error validateCudaOptions() const;
+  Error validateCustomOptions() const;
+  Error validateHipOptions() const;
+  Error validateOpenCilkOptions() const;
+
 public:
+  // Check the object for inconsistencies and invalid values. If none are found,
+  // return Error::success(). Otherwise, return an error.
+  Error validate() const;
+
+  // Set the Kitsune-specific optimization level.
   void setOptznLevel(OptznLevel optLevel) { this->optLevel = optLevel; }
   void setOptznLevelFrom(OptimizationLevel optLevel);
 
@@ -202,7 +214,8 @@ public:
   /// @}
 
   /// @{
-  /// Options for the the 'custom' tapir target
+  /// Options for the the 'custom' tapir target. These should only be called
+  /// when we know that the options object is valid.
   std::optional<TTPlugin> getTTPlugin() const { return ttPlugin; }
   /// @}
 
@@ -242,34 +255,20 @@ public:
 
   /// Construct an options object initialized from the command line options
   /// if the --tapir option was provided. If the --tapir option is not provided,
-  /// return std::nullopt. Otherwise, if the constructed options object is
-  /// invalid, return an error. This can happen if one or more command line
-  /// options have invalid values, or if the values of the options are
-  /// inconsistent. Otherwise, return the optoins object.
-  static Expected<std::optional<TTOptions>>
-  createFromCommandLine(OptznLevel optznLevel);
+  /// return std::nullopt.
+  static std::optional<TTOptions> createFromCommandLine(OptznLevel optznLevel);
 
   /// Construct an options object initialized from the command line options
   /// if the --tapir option was provided. If the --tapir option is not provided,
-  /// return std::nullopt. Otherwise, if the constructed options object is
-  /// invalid, return an error. This can happen if one or more command line
-  /// options have invalid values, or if the values of the options are
-  /// inconsistent. Otherwise, return the options object.
-  static Expected<std::optional<TTOptions>>
-  createFromCommandLine(unsigned speedupLevel);
+  /// return std::nullopt.
+  static std::optional<TTOptions> createFromCommandLine(unsigned speedupLevel);
 
   /// Construct an options object initialized from the command line options
   /// with the given optimization level. \ref optLevel must be one of {0, 1, 2,
   /// 3, s, z}. It is an error if \ref optLevel is not one of these. If the
-  /// --tapir option is not provided, return std::nullopt. Otherwise, if the
-  /// constructed options object is invalid, return an error. This can happen if
-  /// one or more command line options have invalid values, or if the values of
-  /// the options are inconsistent. Otherwise, return the options object.
-  static Expected<std::optional<TTOptions>>
-  createFromCommandLine(char optLevel);
+  /// --tapir option is not provided, return std::nullopt.
+  static std::optional<TTOptions> createFromCommandLine(char optLevel);
 };
-
-using MaybeTTOptionsOrErr = Expected<std::optional<TTOptions>>;
 
 } // namespace llvm
 

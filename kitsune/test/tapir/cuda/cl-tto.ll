@@ -11,9 +11,11 @@
 ; RUN:     --tapir-cuda-runtime-bc="%S/input/nvptx.bc" 2>&1\
 ; RUN:     | FileCheck %s -check-prefixes ALL,CHECK
 ;
-; RUN: opt --tapir=cuda -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:     -dump-tapir-target-options \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:     --tapir-gpu-prefetch=true 2>&1 \
+; RUN:     -passes="tapir-lowering<O2>" -o /dev/null %s \
+; RUN:     -dump-tapir-target-options \
 ; RUN:     | FileCheck %s -check-prefixes ALL,PREFETCH
 ;
 ; ALL:       Tapir target options

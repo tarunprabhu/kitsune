@@ -3,8 +3,10 @@
 ; pass -1 indicating that the runtime should compute the number of bytes to be
 ; prefetched. If this changes, this test must be updated.
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-gpu-prefetch=true \
+; RUN:     -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.+}} @f

@@ -2,9 +2,10 @@
 ;
 ; -----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a \
 ; RUN:     --tapir-gpu-prefetch=true \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s -check-prefix PREFETCH
 ;
 ; PREFETCH: define {{.+}} @f
@@ -15,9 +16,10 @@
 ;
 ; -----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a \
 ; RUN:     --tapir-gpu-prefetch=false \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s -check-prefix NO-PREFETCH
 ;
 ; NO-PREFETCH: define {{.+}} @f

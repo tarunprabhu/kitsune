@@ -343,7 +343,7 @@ static void registerEPCallbacks(PassBuilder &PB) {
         });
 }
 
-static MaybeTTOptionsOrErr
+static std::optional<TTOptions>
 createTTOptions(TargetMachine *TM, StringRef PassPipeline) {
   // If no passes were provided, then don't bother with the tapir target options
   // because the tapir passes will not have been enabled. That only happens
@@ -369,12 +369,9 @@ createTTOptions(TargetMachine *TM, StringRef PassPipeline) {
   // we do use in Kitsune) may not be initialized correctly. Therefore, create a
   // temporary PassBuilder, just to parse the pass pipeline.
   PipelineTuningOptions PTO;
-  MaybeTTOptionsOrErr TTOpts = TTOptions::createFromCommandLine(OptznLevel::O1);
-  if (!TTOpts)
-    return TTOpts;
-  PTO.TTOpts = *TTOpts;
-  PassBuilder PB(TM, PTO, /*PGOOptions=*/std::nullopt,
-                 /*PassInstrumentationCallback=*/nullptr);
+  PTO.TTOpts = TTOptions::createFromCommandLine(OptznLevel::O1);
+  PassBuilder PB(TM, PTO, /* PGOOptions */ std::nullopt,
+                 /* PassInstrumentationCallback*/ nullptr);
 
   // We don't care about setting up the analysis passes and, for now at least,
   // it doesn't cause us any problems when we parse the pass pipeline.
@@ -383,10 +380,8 @@ createTTOptions(TargetMachine *TM, StringRef PassPipeline) {
   // If an error occurred while parsing the pipeline, silently return. The
   // actual error will be shown when the main pass builder is constructed.
   // However, we do need to pretend to handle the error here to keep LLVM happy.
-  if (Error Err = PB.parsePassPipeline(MPM, PassPipeline)) {
+  if (Error Err = PB.parsePassPipeline(MPM, PassPipeline))
     (void)toString(std::move(Err));
-    return std::nullopt;
-  }
 
   // If the pipeline was parsed successfully, the TTOptions object owned by the
   // pass builder (if any) will have been updated with the optimization. Just
@@ -497,12 +492,7 @@ bool llvm::runPassPipeline(
   // option has been enabled.
   PTO.LoopUnrolling = !DisableLoopUnrolling;
   PTO.UnifiedLTO = UnifiedLTO;
-  MaybeTTOptionsOrErr TTOpts = createTTOptions(TM, PassPipeline);
-  if (!TTOpts) {
-    errs() << Arg0 << ": " << toString(std::move(TTOpts.takeError())) << "\n";
-    return false;
-  }
-  PTO.TTOpts = *TTOpts;
+  PTO.TTOpts = createTTOptions(TM, PassPipeline);
   PassBuilder PB(TM, PTO, P, &PIC);
   registerEPCallbacks(PB);
 

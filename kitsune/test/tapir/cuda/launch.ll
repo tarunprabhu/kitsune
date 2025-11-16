@@ -1,7 +1,9 @@
 ; Check that a launch call and a fat binary are present in the host. Check
 ; that the launch arguments are as expected.
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' -S %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]

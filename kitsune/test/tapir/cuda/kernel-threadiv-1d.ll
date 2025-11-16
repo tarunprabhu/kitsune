@@ -1,8 +1,9 @@
 ; Check that the induction variable for a 1D launch is computed correctly and
 ; bypasses the body of the loop if out of bounds
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch="sm_72" %s \
-; RUN:     -passes='tapir-lowering<O2>' \
+; RUN: opt --tapir=cuda --tapir-cuda-arch="sm_72" \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

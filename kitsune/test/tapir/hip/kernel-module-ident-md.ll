@@ -1,7 +1,9 @@
 ; Check that the tapir target copies the llvm ident metadata into the device
 ; module.
 ;
-; RUN: opt %s --tapir=hip -passes='tapir-lowering<O2>' \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

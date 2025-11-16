@@ -1,7 +1,9 @@
 ; Check that if the same constant global is used in two separate tapir loops,
 ; only a single instance of the global is created in the kernel module.
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

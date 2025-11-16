@@ -16,7 +16,7 @@
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/CommandLineUtils.h"
-#include "kitsune/Support/TTUtils.h"
+#include "kitsune/Support/TTIDUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/CodeGen/CommandFlags.h"

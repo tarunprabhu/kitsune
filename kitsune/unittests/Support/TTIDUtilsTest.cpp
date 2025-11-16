@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Support/TTUtils.h"
+#include "kitsune/Support/TTIDUtils.h"
 
 #include "gtest/gtest.h"
 

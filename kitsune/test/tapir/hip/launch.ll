@@ -1,8 +1,9 @@
 ; Check that a launch call and a fat binary are present in the host. Check
 ; that the launch arguments are as expected.
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' -S %s \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" 2>&1 \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]

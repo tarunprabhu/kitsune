@@ -1,7 +1,9 @@
 ; Check that Kitsune's address spaces are stripped from the kernel module when
 ; the prepare pass is run.
 ;
-; RUN: opt --tapir=hip --passes='tapir-lowering<O2>,emb-prepare' -S %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --passes='tapir-lowering<O2>,emb-prepare' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

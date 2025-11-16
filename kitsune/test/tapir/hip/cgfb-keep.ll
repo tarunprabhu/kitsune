@@ -14,6 +14,7 @@
 ;
 ; RUN: %kit-enc --tapir=hip %s \
 ; RUN:     | opt --tapir=hip --tapir-hip-arch=gfx1103 --tapir-lld=ld.lld \
+; RUN:            --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
 ; RUN:            -passes='kit-cgfb' \
 ; RUN:            -o /dev/null
 ; RUN: not ls -l %t/kithip-*.*
@@ -25,6 +26,7 @@
 ;
 ; RUN: %kit-enc --tapir=hip %s \
 ; RUN:     | opt --tapir=hip --tapir-hip-arch=gfx906 --tapir-lld=ld.lld \
+; RUN:           --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
 ; RUN:           -passes='kit-cgfb' -cgfb-keep-files \
 ; RUN:           -o /dev/null
 ; RUN: ls -l %t/kithip-*.* | FileCheck %s -check-prefix=EXT

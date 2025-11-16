@@ -1,7 +1,9 @@
 ; Check that any constant global variables are handled correctly. They should
 ; not be copied memcpy'ed, and they should not be registered with the runtime.
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     -S %s \
 ; RUN:     | FileCheck %s
 ;

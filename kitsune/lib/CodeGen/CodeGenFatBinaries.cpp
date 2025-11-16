@@ -19,7 +19,7 @@
 #include "kitsune/Core/GlobalVariableUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
-#include "kitsune/Support/TTUtils.h"
+#include "kitsune/Support/TTIDUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/LegacyPassManager.h"

@@ -1,7 +1,9 @@
 ; Check that a global variable containing the fat binary is added by the
 ; cuda tapir target.
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' -S %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @[[FB:.+]] = constant [{{[0-9]+}} x i8] zeroinitializer

@@ -7,7 +7,9 @@
 ; of name mangling to eliminate the change of collisions. When that happens,
 ; this test may need to be updated/removed.
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

@@ -2,6 +2,7 @@
 ; (including those that have the noinline attribute) is handled correctly.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 %s \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:     -passes='tapir-lowering<O2>,emb-prepare' -emb-inline-all-force \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s

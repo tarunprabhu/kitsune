@@ -1,7 +1,9 @@
 ; Check that Kitsune's address spaces are stripped from the kernel module when
 ; the prepare pass is run.
 ;
-; RUN: opt --tapir=cuda --passes='tapir-lowering<O2>,emb-prepare' -S %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     --passes='tapir-lowering<O2>,emb-prepare' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

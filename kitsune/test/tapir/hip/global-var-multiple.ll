@@ -1,7 +1,9 @@
 ; Check that if the same global is used in two separate tapir loops, only a
 ; single instance of the global is created in the kernel module.
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

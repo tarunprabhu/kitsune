@@ -7,7 +7,9 @@
 ; of name mangling to eliminate the change of collisions. When that happens,
 ; this test may need to be updated/removed.
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

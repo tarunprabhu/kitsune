@@ -1,7 +1,9 @@
 ; Check that the tapir target adds the expected Kitsune-specific module-level
 ; metadata to the kernel module.
 ;
-; RUN: opt %s --tapir=hip --tapir-hip-arch=gfx90a -passes='tapir-lowering<O2>' \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

@@ -34,8 +34,8 @@ static Expected<OwnedModule> getLibDeviceModuleCuda(const TTOptions &tto,
   return parseLLVMFile(tto.getCudaRuntimeBCFile(), ctx);
 }
 
-static std::unique_ptr<Module> getLibDeviceModuleHip(const TTOptions &tto,
-                                                     LLVMContext &ctx) {
+static Expected<OwnedModule> getLibDeviceModuleHip(const TTOptions &tto,
+                                                   LLVMContext &ctx) {
   const std::vector<std::string> &bcFiles = tto.getHipRuntimeBCFiles();
   assert(tto.getHipRuntimeBCFiles().size() &&
          "At least one bitcode file is required by Hip's libDevice module");

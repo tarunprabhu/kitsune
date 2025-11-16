@@ -2,8 +2,9 @@
 ; TODO: When fast math functions are supported in hip, this should be fixed to
 ; test that that prefix, if present, is also handled correctly.
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

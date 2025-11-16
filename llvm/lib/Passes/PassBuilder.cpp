@@ -1916,6 +1916,10 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
       return make_error<StringError>(                                          \
           formatv("{} passes require the --tapir option", NAME).str(),         \
           inconvertibleErrorCode());                                           \
+    else if (Error Err = PTO.TTOpts->validate())                               \
+      return make_error<StringError>(                                          \
+          formatv("error: {}", toString(std::move(Err))).str(),                \
+          inconvertibleErrorCode());                                           \
                                                                                \
     Expected<OptimizationLevel> Params =                                       \
         parsePassParameters(PARSER, Name, NAME);                               \

@@ -3,8 +3,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a %s \
-; RUN:     -passes='tapir-lowering<O1>,emb-prepare' \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O1>,emb-prepare' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,DEFAULT
 ;
@@ -16,8 +17,10 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a %s \
-; RUN:     -passes='tapir-lowering<O1>,emb-prepare' -emb-inline-all \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -emb-inline-all \
+; RUN:     -passes='tapir-lowering<O1>,emb-prepare' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,INLINE
 ;

@@ -2,8 +2,10 @@
 ;
 ; -----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:     --tapir-gpu-prefetch=true \
+; RUN:     -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s -check-prefix PREFETCH
 ;
 ; PREFETCH: define {{.+}} @f
@@ -14,8 +16,10 @@
 ;
 ; -----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:     --tapir-gpu-prefetch=false \
+; RUN:     -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s -check-prefix NO-PREFETCH
 ;
 ; NO-PREFETCH: define {{.+}} @f

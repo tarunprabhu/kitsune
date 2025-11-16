@@ -374,9 +374,8 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       D.Diag(diag::err_drv_missing_argument) << A->getAsString(Args) << 1;
     else if (Val.getAsInteger(10, N))
       D.Diag(diag::err_drv_invalid_int_value) << A->getAsString(Args) << Val;
-    else if (N <= 0 || N > 1024)
-      D.Diag(diag::err_drv_kitsune_fixed_threads_per_block)
-          << A->getAsString(Args);
+    else if (N < 1 || N > 1024)
+      D.Diag(diag::err_drv_kitsune_threads_per_block) << A->getAsString(Args);
   }
 
   if (Arg *A = Args.getLastArg(options::OPT_tapir_gpu_max_tpb_EQ)) {
@@ -386,9 +385,8 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       D.Diag(diag::err_drv_missing_argument) << A->getAsString(Args) << 1;
     else if (Val.getAsInteger(10, N))
       D.Diag(diag::err_drv_invalid_int_value) << A->getAsString(Args) << Val;
-    else if (N <= 0)
-      D.Diag(diag::err_drv_kitsune_max_threads_per_block)
-          << A->getAsString(Args);
+    else if (N < 1 || N > 1024)
+      D.Diag(diag::err_drv_kitsune_threads_per_block) << A->getAsString(Args);
   }
 
   for (OptSpecifier Opt :

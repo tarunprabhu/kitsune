@@ -6,8 +6,10 @@
 ; implement device-to-host prefetches, one is likely to be inserted. When we do
 ; implement this, this comment should be updated/removed.
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:     --tapir-gpu-prefetch=true \
+; RUN:     -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.+}} @f

@@ -6,8 +6,10 @@
 ; implement device-to-host prefetches, one is likely to be inserted. When we do
 ; implement this, this comment should be updated/removed.
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-gpu-prefetch=true \
+; RUN:     -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.+}} @f

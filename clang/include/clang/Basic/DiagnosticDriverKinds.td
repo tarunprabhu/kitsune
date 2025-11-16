@@ -920,10 +920,8 @@ def err_drv_kitsune_lto_o2_required : Error<
 def err_drv_kitsune_bad_opt_level : Error<
   "unsupported optimization level '%0'">;
 
-def err_drv_kitsune_fixed_threads_per_block : Error<
+def err_drv_kitsune_threads_per_block : Error<
   "value of '%0' not in range [1,1024]">;
-def err_drv_kitsune_max_threads_per_block : Error<
-  "value of '%0' must be at least 1">;
 
 def err_drv_kitsune_bad_cuda_arch : Error<
   "unsupported NVIDIA GPU architecture '%0'">;

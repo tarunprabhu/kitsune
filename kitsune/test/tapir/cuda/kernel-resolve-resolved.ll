@@ -1,7 +1,8 @@
 ; Check that functions with the __nv and __nv_fast prefixes are left as is.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

@@ -3,8 +3,9 @@
 ; before and after launch calls and must be registered with the runtime in
 ; the ctor for kitsune's runtime.
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     -S %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[ATTR:[0-9]+]]

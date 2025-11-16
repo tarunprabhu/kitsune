@@ -1,13 +1,13 @@
 ; Check that the global ctor calls the appropriate functions in Kitsune's
 ; runtime depending on the command line arguments passed.
 ;
-; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
+; RUN: opt --tapir=hip \
 ; RUN:     --tapir-hip-arch=gfx906 \
 ; RUN:     --tapir-hip-sramecc=off \
 ; RUN:     --tapir-hip-xnack=on \
 ; RUN:     --tapir-hip-features="-sramecc,+xnack" \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
 ; Currently, even if a max-threads-per-block option is not used, the max is set
@@ -51,10 +51,10 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     --tapir-gpu-tpb=77 \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-gpu-tpb=77 \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: kithip.ctor{{.*}}
@@ -62,10 +62,10 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     --tapir-gpu-max-tpb=29 \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-gpu-max-tpb=29 \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: kithip.ctor{{.*}}
@@ -73,16 +73,16 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     --tapir-verbose \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-verbose \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
-; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     --kitrt-verbose \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --kitrt-verbose \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: kithip.ctor{{.*}}
@@ -90,16 +90,16 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" -S %s \
 ; RUN:     --tapir-hip-xnack=off \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
-; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     --tapir-hip-xnack=any \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     --tapir-hip-xnack=any \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
 ; NOXNACK-LABEL: kithip.ctor{{.*}}
@@ -107,10 +107,10 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip -S %s \
-; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     -hipabi-y-launch \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -hipabi-y-launch \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix YLAUNCH
 ;
 ; YLAUNCH-LABEL: kithip.ctor{{.*}}

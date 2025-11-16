@@ -2,8 +2,9 @@
 ; contains both mangled and demangled function names. This checks that the names
 ; are demangled when generating the outlined kernel name.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 %s \
-; RUN:     -passes='tapir-lowering<O2>' \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

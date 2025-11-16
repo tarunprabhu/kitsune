@@ -2,8 +2,9 @@
 ; contains both mangled and demangled function names. This checks that the names
 ; are demangled when generating the outlined kernel name.
 ;
-; RUN: opt --tapir=hip %s \
-; RUN:     -passes='tapir-lowering<O2>' \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
