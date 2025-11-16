@@ -4,8 +4,9 @@
 ; NOTE: Currently, we use a grainsize of 1 i.e. every thread computes a single
 ; iteration of the tapir loop, but if that changes, this test must be updated.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch="gfx90a" %s \
-; RUN:     -passes='tapir-lowering<O2>' \
+; RUN: opt --tapir=hip --tapir-hip-arch="gfx90a" \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

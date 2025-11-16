@@ -6,10 +6,10 @@
 ; checks in this test will have to be updated to correctly reflect what HipABI
 ; does.
 ;
-; RUN: opt --tapir=hip \
-; RUN:     --tapir-hip-arch=gfx906 \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx906 \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-hip-features="+wavefrontsize32,+atomic-fadd-rtn-insts" \
-; RUN:     -passes='tapir-lowering<O2>,emb-prepare' %s \
+; RUN:     -passes='tapir-lowering<O2>,emb-prepare' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

@@ -2,7 +2,9 @@
 ;
 ; Check that the launch of a cuda kernel is lowered correctly.
 ;
-; RUN: opt --tapir=cuda -passes='kit-lower-intrinsics' -S %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-LABEL: @launch

@@ -1,7 +1,9 @@
 ; Check that debug information makes it to the kernel module. This checks some
 ; basic debug info nodes.
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>' %s \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

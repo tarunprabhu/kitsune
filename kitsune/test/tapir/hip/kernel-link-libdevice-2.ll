@@ -1,9 +1,9 @@
 ; Check that linking libdevice bitcode works as expected. The functions used
 ; here are defined in two separate files.
 ;
-; RUN: opt %s --tapir=hip \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll,%S/input/libdevice-2.ll \
-; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls,emb-link-libdevice-bitcode' \
+; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls,emb-link-libdevice-bitcode' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

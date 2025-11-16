@@ -1,8 +1,9 @@
 ; When multiple calls to puts exist, only a single global containing the format
 ; string should be created.
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

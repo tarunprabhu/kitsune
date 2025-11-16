@@ -2,8 +2,8 @@
 ; runtime depending on the command line arguments passed.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 \
-; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     -S %s \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
 ; Currently, even if a max-threads-per-block option is not used, the max is set
@@ -42,8 +42,10 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     -S %s --tapir-gpu-tpb=77 \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     --tapir-gpu-tpb=77 \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: define {{.+}} @.kitcuda.ctor
@@ -51,8 +53,10 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     -S %s --tapir-gpu-max-tpb=29 \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     --tapir-gpu-max-tpb=29 \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: define {{.+}} @.kitcuda.ctor
@@ -60,12 +64,16 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     -S %s --tapir-verbose \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     --tapir-verbose \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     -S %s --kitrt-verbose \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     --kitrt-verbose \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: define {{.+}} @.kitcuda.ctor
@@ -73,8 +81,10 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     -S %s -cuabi-refine-launches=false \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -cuabi-refine-launches=false \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix NOREFINE
 ;
 ; NOREFINE-LABEL: define {{.+}} @.kitcuda.ctor

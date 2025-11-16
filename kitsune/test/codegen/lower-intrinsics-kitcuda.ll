@@ -4,7 +4,10 @@
 ; correctly. If more intrinsics are created, they should be added here so that
 ; the basic lowering can be tested.
 ;
-; RUN: opt --tapir=cuda -passes='kit-lower-intrinsics' -S %s | FileCheck %s
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck %s
 ;
 ; CHECK-LABEL: @f
 ; CHECK-NEXT: %1 = alloca ptr

@@ -28,7 +28,10 @@ bool EmbLinkLibDeviceBitcodePass::run(TTID tt, Module &devM, Module &hostM,
   const TTOptions &tto = tgi.getOptions();
 
   Linker linker(devM);
-  std::unique_ptr<Module> libDeviceM = getLibDeviceModule(tt, tto, ctx);
+  Expected<OwnedModule> mOrErr = getLibDeviceModule(tt, tto, ctx);
+  assert(mOrErr && "Expected libDevice module");
+
+  OwnedModule libDeviceM = std::move(*mOrErr);
   if (linker.linkInModule(std::move(libDeviceM), Linker::LinkOnlyNeeded))
     report_fatal_error("Error linking device module");
 

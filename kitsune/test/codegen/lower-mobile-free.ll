@@ -20,7 +20,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ; RUN: %if kitsune-cuda %{ \
-; RUN:   opt --tapir=cuda -passes='kit-lower-intrinsics' -S %s \
+; RUN:   opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:       --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:       -passes='kit-lower-intrinsics' -S %s \
 ; RUN:       | FileCheck --check-prefix=CUDA %s \
 ; RUN: %}
 ;
@@ -31,7 +33,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ; RUN: %if kitsune-hip %{ \
-; RUN:   opt --tapir=hip -passes='kit-lower-intrinsics' -S %s \
+; RUN:   opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:       --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN:       -passes='kit-lower-intrinsics' -S %s \
 ; RUN:       | FileCheck --check-prefix=HIP %s \
 ; RUN: %}
 ;
@@ -48,7 +52,9 @@
 ; RUN: %}
 ;
 ; RUN: %if kitsune-opencilk %{ \
-; RUN:   opt --tapir=opencilk -passes='kit-lower-intrinsics' -S %s \
+; RUN:   opt --tapir=opencilk \
+; RUN:       --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
+; RUN:       -passes='kit-lower-intrinsics' -S %s \
 ; RUN:       | FileCheck --check-prefix=FREE %s \
 ; RUN: %}
 ;

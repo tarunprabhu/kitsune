@@ -1,7 +1,9 @@
 ; Check that the tapir target adds the expected Kitsune-specific module-level
 ; metadata to the kernel module.
 ;
-; RUN: opt %s --tapir=cuda -passes='tapir-lowering<O2>' \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

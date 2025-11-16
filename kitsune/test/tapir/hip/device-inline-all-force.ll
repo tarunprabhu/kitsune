@@ -1,8 +1,10 @@
 ; Check that the command line option to force inline all device functions
 ; (including those that have the noinline attribute) is handled correctly.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a %s \
-; RUN:     -passes='tapir-lowering<O2>,emb-prepare' -emb-inline-all-force \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -emb-inline-all-force \
+; RUN:     -passes='tapir-lowering<O2>,emb-prepare' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

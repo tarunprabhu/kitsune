@@ -20,11 +20,10 @@
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/CodeGen/CommandFlags.h"
+#include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/Process.h"
-
-#include <optional>
+#include "llvm/Support/SourceMgr.h"
 
 using namespace llvm;
 
@@ -232,12 +231,6 @@ static Error validateRequiredStringOption(const cl::opt<std::string> &clOpt) {
   CHECK(validateRequiredOption(clOpt))
   ELSE_CHECK(validateStringOption(clOpt))
   ELSE_SUCCESS();
-  // if (Error e = validateRequiredOption(clOpt))
-  //   return e;
-  // else if (Error e = validateStringOption(clOpt))
-  //   return e;
-  // else
-  //   return Error::success();
 }
 
 // The given list option must be provided exactly once. The list must contain
@@ -267,12 +260,6 @@ static Error validateThreadsPerBlock(const TTOptions &tto) {
   CHECK(validate(clFixedThreadsPerBlock))
   ELSE_CHECK(validate(clMaxThreadsPerBlock))
   ELSE_SUCCESS();
-  // if (Error e = validate(clFixedThreadsPerBlock))
-  //   return e;
-  // else if (Error e = validate(clMaxThreadsPerBlock))
-  //   return e;
-  // else
-  //   return Error::success();
 }
 
 static Error validateSupportBCFiles(TTID tt, const TTOptions &tto) {
@@ -290,30 +277,9 @@ Error TTOptions::validateCudaOptions() const {
   ELSE_CHECK(validateStringOption(clCudaFeatures))
   ELSE_CHECK(validateSupportBCFiles(TTID::Cuda, *this))
   ELSE_SUCCESS();
-  // Error errs[] = {
-  //       validateThreadsPerBlock(*this),
-  //       validateRequiredStringOption(clCudaArch),
-  //       validateRequiredStringOption(clCudaRuntimeBCFile),
-  //       validateStringOption(clCudaVirtArch),
-  //       validateStringOption(clCudaFeatures),
-  //       validateSupportBCFiles(TTID::Cuda, *this),
-  //   };
-  // RETURN_ERROR_OR_SUCCESS(errs);
 }
 
 Error TTOptions::validateCustomOptions() const {
-  // if (Error e = validateRequiredStringOption(clCustomTTPlugin))
-  //   return e;
-  // else if (Error e = TTPlugin::load(clCustomTTPlugin).takeError())
-  //   return e;
-  // return Error::success();
-  // return std::move(validateRequiredStringOption(clCustomTTPlugin) ||
-  //   TTPlugin::load(clCustomTTPlugin).takeError());
-  // Error errs[] = {
-  //     validateRequiredStringOption(clCustomTTPlugin),
-  //     TTPlugin::load(clCustomTTPlugin).takeError(),
-  // };
-  // RETURN_ERROR_OR_SUCCESS(errs);
   CHECK(validateRequiredStringOption(clCustomTTPlugin))
   ELSE_CHECK(TTPlugin::load(clCustomTTPlugin).takeError())
   ELSE_SUCCESS();
@@ -326,23 +292,9 @@ Error TTOptions::validateHipOptions() const {
   ELSE_CHECK(validateStringOption(clHipFeatures))
   ELSE_CHECK(validateSupportBCFiles(TTID::Hip, *this))
   ELSE_SUCCESS();
-
-  // Error errs[] = {
-  //     validateThreadsPerBlock(*this),
-  //     validateRequiredStringOption(clHipArch),
-  //     validateRequiredListOption(clHipRuntimeBCFiles),
-  //     validateStringOption(clHipFeatures),
-  //     validateSupportBCFiles(TTID::Hip, *this),
-  // };
-  // RETURN_ERROR_OR_SUCCESS(errs);
 }
 
 Error TTOptions::validateOpenCilkOptions() const {
-  // Error errs[] = {
-  //     validateRequiredStringOption(clOpenCilkRuntimeBCFile),
-  //     validateSupportBCFiles(TTID::OpenCilk, *this),
-  // };
-  // RETURN_ERROR_OR_SUCCESS(errs);
   CHECK(validateRequiredStringOption(clOpenCilkRuntimeBCFile))
   ELSE_CHECK(validateSupportBCFiles(TTID::OpenCilk, *this))
   ELSE_SUCCESS();
@@ -390,7 +342,8 @@ TTOptions::createFromSharedCommandLineOptions(OptznLevel optznLevel) {
   return std::nullopt;
 }
 
-MaybeTTOptionsOrErr TTOptions::createFromCommandLine(OptznLevel optznLevel) {
+std::optional<TTOptions>
+TTOptions::createFromCommandLine(OptznLevel optznLevel) {
   if (!clTapir.getNumOccurrences())
     return std::nullopt;
 
@@ -445,14 +398,15 @@ MaybeTTOptionsOrErr TTOptions::createFromCommandLine(OptznLevel optznLevel) {
     tto.fixedThreadsPerBlock = std::stoi(tpb.value());
   }
 
-  return validate(tto);
+  return tto;
 }
 
-MaybeTTOptionsOrErr TTOptions::createFromCommandLine(unsigned speedupLevel) {
+std::optional<TTOptions>
+TTOptions::createFromCommandLine(unsigned speedupLevel) {
   return createFromCommandLine(createOptznLevelFrom(speedupLevel));
 }
 
-MaybeTTOptionsOrErr TTOptions::createFromCommandLine(char optLevel) {
+std::optional<TTOptions> TTOptions::createFromCommandLine(char optLevel) {
   return createFromCommandLine(createOptznLevelFrom(optLevel));
 }
 
@@ -500,10 +454,7 @@ std::optional<TTOptions> TTOptions::create(const KitsuneOptions &kitOpts,
   // Set opencilk tapir target options.
   tto.openCilkRuntimeBCFile = kitOpts.getOpenCilkRuntimeBCFile();
 
-  if (MaybeTTOptionsOrErr ttOpts = validate(tto))
-    return *ttOpts;
-
-  llvm_unreachable("TTOptions created from KitsuneOptions cannot be invalid");
+  return tto;
 }
 
 void TTOptions::print(raw_ostream &os, bool all) const {

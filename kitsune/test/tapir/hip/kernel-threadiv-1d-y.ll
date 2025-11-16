@@ -1,9 +1,10 @@
 ; Check that when y launches are enabled, the index calculations are carried out
 ; correctly.
 ;
-; RUN: opt --tapir=hip %s \
-; RUN:     -passes='tapir-lowering<O2>' \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
 ; RUN:     -hipabi-y-launch \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

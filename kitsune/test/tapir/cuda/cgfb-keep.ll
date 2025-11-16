@@ -14,6 +14,7 @@
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
 ; RUN:     | opt --tapir=cuda --tapir-cuda-arch=sm_80  \
+; RUN:           --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:           -passes='kit-cgfb' \
 ; RUN:           -o /dev/null
 ; RUN: not ls -l %t/kitcu-*-.*
@@ -26,6 +27,7 @@
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
 ; RUN:     | opt --tapir=cuda --tapir-cuda-arch=sm_80 \
+; RUN:           --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:           -passes='kit-cgfb' -cgfb-keep-files \
 ; RUN:           -o /dev/null
 ; RUN: ls -l %t/kitcu-*.* | FileCheck %s -check-prefix=EXT

@@ -1,7 +1,9 @@
 ; Check that non-constant global variables used in a tapir loop are cloned into
 ; the kernel module with the correct visibility.
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>' %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

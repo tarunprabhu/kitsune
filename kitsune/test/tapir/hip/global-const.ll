@@ -1,8 +1,9 @@
 ; Check that any constant global variables are handled correctly. They should
 ; not be copied memcpy'ed, and they should not be registered with the runtime.
 ;
-; RUN: opt --tapir=hip -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     -S %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[GV:.+]] = external local_unnamed_addr constant i32

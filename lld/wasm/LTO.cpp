@@ -43,11 +43,10 @@ static std::string getThinLTOOutputFile(StringRef modulePath) {
 
 static lto::Config createConfig() {
   lto::Config c;
-  if (MaybeTTOptionsOrErr ttOpts =
-          TTOptions::createFromCommandLine(ctx.arg.ltoo))
-    c.PTO.TTOpts = *ttOpts;
-  else
-    llvm_unreachable("Emit an error here");
+  c.PTO.TTOpts = TTOptions::createFromCommandLine(ctx.arg.ltoo);
+  if (c.PTO.TTOpts)
+    if (Error err = c.PTO.TTOpts->validate())
+      fatal(toString(std::move(err)));
   c.Options = initTargetOptionsFromCodeGenFlags();
 
   // Always emit a section per function/data with LTO.

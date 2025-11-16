@@ -8,8 +8,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null %s \
 ; RUN:     -emb-print-pipeline-passes -emb-O0 \
 ; RUN:     | FileCheck %s --check-prefix=O0
 ;
@@ -22,8 +23,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null %s \
 ; RUN:     -emb-print-pipeline-passes -emb-O1 \
 ; RUN:     | FileCheck %s --check-prefix=O1
 ;
@@ -36,9 +38,10 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
 ; RUN:     -emb-print-pipeline-passes -emb-O2 \
+; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=O2
 ;
 ; O2: AMDGPUPrintfRuntimeBindingPass
@@ -50,9 +53,10 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
 ; RUN:     -emb-print-pipeline-passes -emb-O3 \
+; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=O3
 ;
 ; O3: AMDGPUPrintfRuntimeBindingPass
@@ -64,9 +68,10 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
 ; RUN:     -emb-print-pipeline-passes -emb-Os \
+; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=Os
 ;
 ; Os: AMDGPUPrintfRuntimeBindingPass
@@ -79,9 +84,10 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
 ; RUN:     -emb-print-pipeline-passes -emb-Oz \
+; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null \
 ; RUN:     | FileCheck %s --check-prefix=Oz
 ;
 ; Oz: AMDGPUPrintfRuntimeBindingPass
@@ -94,9 +100,10 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: not opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null \
+; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
 ; RUN:     -emb-print-pipeline-passes -emb-O4 2>&1 \
+; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null \
 ; RUN:     | FileCheck %s --check-prefix=O4
 ;
 ; O4: Unknown command line argument '-emb-O4'

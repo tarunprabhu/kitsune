@@ -9,8 +9,9 @@
 ; can be computed easily. If we change the kernel properties that are computed,
 ; this test, and the type of the global variable will have to be udpated.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_80 -S %s \
-; RUN:     -passes='tapir-lowering<O2>,kit-kernel-properties' \
+; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_80 \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>,kit-kernel-properties' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @{{.+}} = private unnamed_addr constant

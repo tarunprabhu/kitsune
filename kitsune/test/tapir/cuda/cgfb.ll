@@ -3,6 +3,7 @@
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
 ; RUN:     | opt --tapir=cuda --tapir-cuda-arch=sm_80 -S \
+; RUN:           --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:           -passes='kit-cgfb' \
 ; RUN:     | FileCheck %s
 ;

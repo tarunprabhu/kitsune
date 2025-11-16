@@ -7,6 +7,7 @@
 ; does.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 --tapir-cuda-features="+ptx87" \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:     %s -passes='tapir-lowering<O2>,emb-prepare' \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s

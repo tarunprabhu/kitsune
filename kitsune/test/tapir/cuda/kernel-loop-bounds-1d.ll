@@ -4,8 +4,9 @@
 ; NOTE: Currently, we use a grainsize of 1 i.e. every thread computes a single
 ; iteration of the tapir loop, but if that changes, this test must be updated.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch="sm_72" %s \
-; RUN:     -passes='tapir-lowering<O2>' \
+; RUN: opt --tapir=cuda --tapir-cuda-arch="sm_72" \
+; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

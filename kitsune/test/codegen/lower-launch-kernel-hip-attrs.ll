@@ -10,7 +10,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip -passes='kit-lower-intrinsics' -S %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN:     -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-LABEL: @launch

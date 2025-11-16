@@ -1,0 +1,103 @@
+# REQUIRES: kitsune-cuda
+#
+# Check that the values of the command line options used by the cuda tapir
+# target are validated when passed to lld.
+#
+# ------------------------------------------------------------------------------
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch= \
+# RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=ARCH
+#
+# ARCH: error: for the --tapir-cuda-arch option: value '' is invalid
+#
+# ------------------------------------------------------------------------------
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN:         -mllvm --tapir-cuda-runtime-bc= \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=BC
+#
+# BC: error: for the --tapir-cuda-runtime-bc option: value '' is invalid
+#
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN:         -mllvm --tapir-cuda-runtime-bc=noexist \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=BC-NOEXIST
+#
+# BC-NOEXIST: error: failed to parse LLVM file
+# BC-NOEXIST-SAME: Could not open input file
+# BC-NOEXIST-SAME: No such file or directory
+#
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/bogus.ll \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=BC-CONTENTS
+#
+# BC-CONTENTS: error: failed to parse LLVM file
+# BC-CONTENTS-SAME: expected top-level entity
+#
+# ------------------------------------------------------------------------------
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
+# RUN:         -mllvm --tapir-cuda-virt-arch= \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=VIRTARCH
+#
+# VIRTARCH: error: for the --tapir-cuda-virt-arch option: value '' is invalid
+#
+# ------------------------------------------------------------------------------
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
+# RUN:         -mllvm --tapir-cuda-features= \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=FEATURES
+#
+# FEATURES: error: for the --tapir-cuda-features option: value '' is invalid
+#
+# ------------------------------------------------------------------------------
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
+# RUN:         -mllvm --tapir-gpu-tpb= \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=TPB
+#
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
+# RUN:         -mllvm --tapir-gpu-tpb=ten \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=TPB
+#
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
+# RUN:         -mllvm --tapir-gpu-tpb=0 \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=RANGE
+#
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
+# RUN:         -mllvm --tapir-gpu-tpb=1025 \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=RANGE
+#
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
+# RUN:         -mllvm --tapir-gpu-max-tpb= \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=TPB
+#
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
+# RUN:         -mllvm --tapir-gpu-max-tpb=0 \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=RANGE
+#
+# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
+# RUN:         -mllvm --tapir-gpu-max-tpb=1025 \
+# RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefix=RANGE
+#
+# TPB: for the --tapir-gpu{{(-.+)?}}-tpb option: '{{.*}}' value invalid
+# RANGE: error: for the --tapir-gpu{{(-.+)?}}-tpb option: value '{{.+}}' is not in range [1,1024]
+#
+# ------------------------------------------------------------------------------

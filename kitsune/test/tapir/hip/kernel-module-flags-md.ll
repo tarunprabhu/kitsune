@@ -1,7 +1,9 @@
 ; Check that the tapir target copies the correct module flags metadata from the
 ; host module to the device module.
 ;
-; RUN: opt %s --tapir=hip -passes='tapir-lowering<O2>' \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O2>' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

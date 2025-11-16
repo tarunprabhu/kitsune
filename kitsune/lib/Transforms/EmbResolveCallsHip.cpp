@@ -228,9 +228,11 @@ static bool resolvePrintfCalls(Function &f) {
 bool llvm::detail::resolveLibDeviceCallsHip(Module &devM,
                                             const TTOptions &tto) {
   LLVMContext &ctx = devM.getContext();
-  std::unique_ptr<Module> libDeviceM = getLibDeviceModule(TTID::Hip, tto, ctx);
+  Expected<OwnedModule> mOrErr = getLibDeviceModule(TTID::Hip, tto, ctx);
+  assert(mOrErr && "Expected libDevice module");
 
   bool changed = false;
+  OwnedModule libDeviceM = std::move(*mOrErr);
   for (Function &f : devM.functions()) {
     if (f.size()) {
       changed |= resolvePutsCalls(f);

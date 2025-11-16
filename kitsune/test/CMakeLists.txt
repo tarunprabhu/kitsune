@@ -156,3 +156,8 @@ endforeach()
 # Like the targets to check for the individual tapir targets above, these are
 # provided for convenience.
 add_custom_target(check-kitsune-ttplugin DEPENDS check-kitsune-plugins-ttplugin)
+add_custom_target(check-kitsune-kit-enc DEPENDS check-kitsune-tools-kit-enc)
+add_custom_target(check-kitsune-kit-mbc DEPENDS check-kitsune-tools-kit-mbc)
+add_custom_target(check-kitsune-llc DEPENDS check-kitsune-tools-llc)
+add_custom_target(check-kitsune-lld DEPENDS check-kitsune-tools-lld)
+add_custom_target(check-kitsune-opt DEPENDS check-kitsune-tools-opt)
