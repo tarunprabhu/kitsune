@@ -1,10 +1,12 @@
 // -x cuda is not supported in combination with a Tapir target. Check that we
 // don't disallow other uses.
 //
-// RUN: %clang -### -c -emit-llvm -x cuda -nocudalib -nocudainc %s
-// RUN: %kitxx -### -c -emit-llvm -x cuda -nocudalib -nocudainc %s
-// RUN: not %kitxx -c -emit-llvm -x cuda -nocudalib -nocudainc %s \
-// RUN:     --tapir=cuda --tapir-cuda-arch=sm_80 -O1 \
-// RUN:     2>&1 | FileCheck %s
+// RUN: %clang -x cuda -nocudalib -nocudainc --offload-arch=sm_80 \
+// RUN:     -S -o /dev/null %s
+// RUN: %kitxx -x cuda -nocudalib -nocudainc --offload-arch=sm_80 \
+// RUN:     -S -o /dev/null %s
+// RUN: not %kitxx -x cuda -nocudalib -nocudainc -S -o /dev/null %s \
+// RUN:     --tapir=cuda --tapir-cuda-arch=sm_80 -O1 2>&1 \
+// RUN:     | FileCheck %s
 //
 // CHECK: kitsune does not support the Cuda language

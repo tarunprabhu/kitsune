@@ -1,4 +1,4 @@
-// Check the -x options that are supported. This list may need to be updated
+// Check the -x options that are not supported. This list may need to be updated
 //
 // RUN: not %kitcc -x cuda --tapir=serial -O1 -nocudainc -nocudalib %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix CUDA

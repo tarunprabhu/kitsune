@@ -72,6 +72,7 @@ list(APPEND KITSUNE_TEST_DEPS
   kit-mbc
   kitsune-resource-headers
   clang
+  clang-offload-bundler
   count
   FileCheck
   llc
