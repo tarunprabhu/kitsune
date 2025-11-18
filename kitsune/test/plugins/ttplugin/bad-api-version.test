@@ -1,5 +1,5 @@
 # Check that an appropriate error is emitted when loading a tapir target plugin
-# with a bad API version results in an appropriate error.
+# with a bad API version.
 #
 # RUN: rm -rf %t
 # RUN: mkdir %t

@@ -13,6 +13,7 @@
 #ifndef KITSUNE_CORE_TT_PLUGIN_H
 #define KITSUNE_CORE_TT_PLUGIN_H
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Error.h"
@@ -53,6 +54,16 @@ struct TTPluginInfo {
   /// The callback to construct the tapir target object that will be used. The
   /// caller will own the returned object.
   TapirTarget *(*makeTapirTarget)(Module &, const TTOptions &);
+
+  /// Callback to get any options that should always be added to the compiler
+  /// (cc1/fc1) when using the plugin. If no additional compiler options are
+  /// required, return an empty string.
+  SmallVector<std::string, 4> (*getCompilerOptions)();
+
+  /// Callback to get any options that should always be added to the linker when
+  /// using the plugin. If no additional linker options are required, return
+  /// an empty string.
+  SmallVector<std::string, 4> (*getLinkerOptions)();
 };
 
 } // extern "C"
@@ -62,6 +73,9 @@ struct TTPluginInfo {
 /// An instance of this class wraps a loaded tapir target plugin and gives
 /// access to its interface defined by the \c TTPluginInfo it exposes.
 class TTPlugin {
+public:
+  using ExtraArgsList = SmallVector<std::string, 4>;
+
 private:
   /// The path to the dynamic shared object that is the plugin
   std::string dsoPath;
@@ -101,6 +115,14 @@ public:
   TapirTarget *makeTapirTarget(Module &hostM, const TTOptions &tto) const {
     return info.makeTapirTarget(hostM, tto);
   }
+
+  /// Return any options that must always be added to the compiler (cc1/fc1)
+  /// when using this plugin.
+  ExtraArgsList getCompilerOptions() const { return info.getCompilerOptions(); }
+
+  /// Return any options that must always be added to the linker when using this
+  /// plugin.
+  ExtraArgsList getLinkerOptions() const { return info.getLinkerOptions(); }
 };
 
 } // namespace llvm
@@ -117,8 +139,10 @@ public:
 ///   return {
 ///     LLVM_TTPLUGIN_API_VERSION, "MyPlugin", "v0.1",
 ///     [](Module &hostM, const TTOptions &tto) {
-///       ...
-///     }
+///       // return a new tapir target
+///     },
+///     [] { ... // return a (possibly empty) array of compiler options },
+///     [] { ... // return a (possibly empty) array of linker options }
 ///   };
 /// }
 /// ```

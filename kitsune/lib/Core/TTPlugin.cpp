@@ -50,9 +50,16 @@ Expected<TTPlugin> TTPlugin::load(StringRef dsoPath) {
         inconvertibleErrorCode());
 
   if (!plugin.info.makeTapirTarget)
-    return make_error<StringError>(
-        join_items("", "Missing constructor callback in plugin '", dsoPath),
-        inconvertibleErrorCode());
+    return createStringError(join_items(
+        "", "Missing constructor callback in plugin '", dsoPath, "'"));
+
+  if (!plugin.info.getCompilerOptions)
+    return createStringError(join_items(
+        "", "Missing compiler options callback in plugin '", dsoPath, "'"));
+
+  if (!plugin.info.getLinkerOptions)
+    return createStringError(join_items(
+        "", "Missing linker options callback in plugin '", dsoPath, "'"));
 
   return plugin;
 }
