@@ -80,9 +80,22 @@ public:
 
 // This externally visible function with C linkage is required. It is the
 // well-known entry point required by LLVM.
+//
+// The compiler and linker options that are returned have been chosen to be
+// relatively "innocuous". This plugin is used in Kitsune's core tests, so we
+// do need something that is unlikely to unexpectedly change the compiler's
+// output.
 extern "C" ::llvm::TTPluginInfo LLVM_ATTRIBUTE_WEAK llvmGetTTPluginInfo() {
-  return {LLVM_TTPLUGIN_API_VERSION, "TTPluginDemo", "1.0",
+  return {LLVM_TTPLUGIN_API_VERSION,
+          "TTPluginDemo",
+          "1.0",
           [](Module &hostM, const TTOptions &tto) -> TapirTarget * {
             return new BookendTT(hostM, tto);
+          },
+          []() -> TTPlugin::ExtraArgsList {
+            return {"-fno-show-column"};
+          },
+          []() -> TTPlugin::ExtraArgsList {
+            return {"-L/path/to/something/that/does/not/exist"};
           }};
 }

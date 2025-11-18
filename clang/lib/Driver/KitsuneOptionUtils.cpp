@@ -201,7 +201,7 @@ static bool parseKitsuneCustomArgs(KitsuneOptions &opts, const ArgList &args,
     diags.Report(diag::err_drv_kitsune_plugin_invalid)
         << toString(ttPlugin.takeError());
 
-  opts.setTTPlugin(args.getLastArgValue(OPT_tapir_plugin_EQ));
+  opts.setTTPlugin(pluginFile);
 
   return diags.getNumErrors() == numErrorsBefore;
 }

@@ -888,11 +888,18 @@ public:
   AddKitsuneCudaLinkerArgs(const llvm::opt::ArgList &Args,
                            llvm::opt::ArgStringList &CmdArgs) const;
 
-  /// Add compiler/LTO options for the dyname tapir target. If MLLVM is true,
-  /// all options will be prepended with -mllvm.
+  /// Add compiler/LTO options for the custom tapir target. If MLLVM is true,
+  /// all options will be prepended with -mllvm. These options will be obtained
+  /// by querying the loaded TTPlugin object.
   virtual void AddKitsuneCustomCommonArgs(const llvm::opt::ArgList &Args,
                                            llvm::opt::ArgStringList &CmdArgs,
                                            bool MLLVM = false) const;
+
+  /// Add linker options for the custom tapir target. These options will be
+  /// obtained by querying the loaded TTPlugin object.
+  virtual void
+  AddKitsuneCustomLinkerArgs(const llvm::opt::ArgList &Args,
+                             llvm::opt::ArgStringList &CmdArgs) const;
 
   /// Add compiler/LTO options for the hip tapir target. If MLLVM is true, all
   /// options will be prepended with -mllvm.

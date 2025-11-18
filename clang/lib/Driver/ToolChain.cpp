@@ -14,6 +14,7 @@
 #include "ToolChains/Flang.h"
 #include "ToolChains/InterfaceStubs.h"
 #include "kitsune/Config/config.h"
+#include "kitsune/Core/TTPlugin.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/ToString.h"
 #include "clang/Basic/ObjCRuntime.h"
@@ -2027,9 +2028,22 @@ void ToolChain::AddKitsuneCudaCommonArgs(const ArgList &Args,
 }
 
 void ToolChain::AddKitsuneCustomCommonArgs(const ArgList &Args,
-                                            ArgStringList &CmdArgs,
-                                            bool MLLVM) const {
+                                           ArgStringList &CmdArgs,
+                                           bool MLLVM) const {
   PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_plugin_EQ);
+
+  // If MLLVM is true, we are looking for options that should be passed to the
+  // linker during LTO. This is not currently supported with custom tapir
+  // targets.
+  if (!MLLVM) {
+    // TODO: We really should just load the plugin once and reuse it as needed.
+    // If the plugin could not be loaded, don't emit diagnostics here. That will
+    // be handled elsewhere.
+    StringRef PluginFile = Args.getLastArgValue(options::OPT_tapir_plugin_EQ);
+    if (Expected<TTPlugin> Plugin = TTPlugin::load(PluginFile))
+      for (StringRef Arg : Plugin->getCompilerOptions())
+        CmdArgs.push_back(Args.MakeArgString(Arg));
+  }
 }
 
 void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
@@ -2095,9 +2109,9 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   // April 2025, the SRAMECC and XNACK "system" features (not to be confused
   // with the corresponding target features) have to be specified explicitly.
   // The only way to do this is to provide a -mcpu option where the value is
-  // of the form <gpu-arch-name>:([+-]sramecc)?:([+-]xnack)?. Note in this
-  // delightful regular expression that both the sramecc and xnack target
-  // features are optional.
+  // of the form <gpu-arch-name>:([+-]sramecc)?:([+-]xnack)?. Note that, in this
+  // delightful regular expression, both the sramecc and xnack target features
+  // are optional.
   //
   // It would be nice to not have to require the users to remember some opaque
   // architecture name such as gfx90a just so they can use xnack correctly.
@@ -2468,6 +2482,17 @@ void ToolChain::AddKitsuneCudaLinkerArgs(const ArgList &Args,
   // Nothing to do here for now.
 }
 
+void ToolChain::AddKitsuneCustomLinkerArgs(const ArgList &Args,
+                                           ArgStringList &CmdArgs) const {
+  // TODO: We really should just load the plugin once and reuse it as needed.
+  // If the plugin could not be loaded, don't emit diagnostics here. That will
+  // be handled elsewhere.
+  StringRef PluginFile = Args.getLastArgValue(options::OPT_tapir_plugin_EQ);
+  if (Expected<TTPlugin> Plugin = TTPlugin::load(PluginFile))
+    for (StringRef Arg : Plugin->getLinkerOptions())
+      CmdArgs.push_back(Args.MakeArgString(Arg));
+}
+
 void ToolChain::AddKitsuneHipLinkerArgs(const ArgList &Args,
                                         ArgStringList &CmdArgs) const {
   // Nothing to do here for now.
@@ -2578,11 +2603,7 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       ExtractArgsFromString(KITSUNE_CUDA_EXTRA_LINKER_FLAGS, CmdArgs, Args);
       return;
     case TTID::Custom:
-      // The custom tapir target does not allow setting any additional linker
-      // options. Since we have no control over what the tapir target actually
-      // does, we cannot link any additional libraries that may be needed. It is
-      // up to the user to do so explicitly on the command line where they will
-      // be handled like any other linker option.
+      AddKitsuneCustomLinkerArgs(Args, CmdArgs);
       return;
     case TTID::Hip:
       AddKitsuneHipLinkerArgs(Args, CmdArgs);

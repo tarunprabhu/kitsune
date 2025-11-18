@@ -1,28 +1,28 @@
 # Check that an appropriate error is emitted when loading a tapir target plugin
-# with a bad API version.
+# in which the getCompilerOptions callback is not set
 #
 # RUN: rm -rf %t
 # RUN: mkdir %t
 #
 # RUN: %kitxx -I%kit_inc_dir -I%llvm_obj_inc_dir -I%llvm_src_inc_dir %sysroot \
-# RUN:     -shared -o %t/bad-api-version.so %S/input/bad-api-version.cpp
+# RUN:     -shared -o %t/bad-compiler-opts.so %S/input/bad-compiler-options.cpp
 #
-# RUN: not %kitcc --tapir=custom --tapir-plugin=%t/bad-api-version.so \
+# RUN: not %kitcc --tapir=custom --tapir-plugin=%t/bad-compiler-opts.so \
 # RUN:     -S -emit-llvm -O1 -o /dev/null %S/input/empty.c 2>&1 \
 # RUN:     | FileCheck %s
 #
-# RUN: not %kitxx --tapir=custom --tapir-plugin=%t/bad-api-version.so \
+# RUN: not %kitxx --tapir=custom --tapir-plugin=%t/bad-compiler-opts.so \
 # RUN:     -S -emit-llvm -O1 -o /dev/null %S/input/empty.cpp 2>&1 \
 # RUN:     | FileCheck %s
 #
 # RUN: %if kitfc %{\
-# RUN:     not %kitfc --tapir=custom --tapir-plugin=%t/bad-api-version.so \
+# RUN:     not %kitfc --tapir=custom --tapir-plugin=%t/compiler-opts.so \
 # RUN:     -S -emit-llvm -O1 -o /dev/null %S/input/empty.f90 2>&1 \
 # RUN:     | FileCheck %s \
 # RUN: %}
 #
-# RUN: not opt --tapir=custom --tapir-plugin=%t/bad-api-version.so \
+# RUN: not opt --tapir=custom --tapir-plugin=%t/bad-compiler-opts.so \
 # RUN:     -passes='kit-lowering<O1>' %S/input/empty.ll 2>&1 \
 # RUN:     | FileCheck %s
 #
-# CHECK: Wrong API version on plugin
+# CHECK: Missing compiler options callback in plugin
