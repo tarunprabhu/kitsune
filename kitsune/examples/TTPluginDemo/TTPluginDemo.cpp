@@ -93,7 +93,7 @@ extern "C" ::llvm::TTPluginInfo LLVM_ATTRIBUTE_WEAK llvmGetTTPluginInfo() {
             return new BookendTT(hostM, tto);
           },
           []() -> TTPlugin::ExtraArgsList {
-            return {"-fno-show-column"};
+            return {"-O"};
           },
           []() -> TTPlugin::ExtraArgsList {
             return {"-L/path/to/something/that/does/not/exist"};

@@ -4,17 +4,19 @@
 // that option is officially deprecated and may be removed at some point.
 //
 // -----------------------------------------------------------------------------
-// The test below should return a success code. We only need to check for that
+// The tests below should return a success code.
 //
 // RUN: %kitxx -### --tapir=nolo -O1 %s
 // RUN: %kitxx -### --tapir=serial -O1 %s
+// RUN: %kitxx -### --tapir=pthreads -O1 %s
+// RUN: %kitxx -### --tapir=custom --tapir-plugin=plugin-file -O1 %s
 // RUN: %if kitsune-cuda %{ \
 // RUN:     %kitxx -### --tapir=cuda --tapir-cuda-arch=sm_80 -O1 %s \
 // RUN: %}
-// RUN: %if kitsune-hip %{ %kitxx -### --tapir=hip -O1 %s %}
+// RUN: %if kitsune-hip %{ \
+// RUN:     %kitxx -### --tapir=hip --tapir-hip-arch=gfx90c -O1 %s \
+// RUN: %}
 // RUN: %if kitsune-opencilk %{ %kitxx -### --tapir=opencilk -O1 %s %}
-// RUN: %kitxx -### --tapir=pthreads -O1 %s
-// RUN: %kitxx -### --tapir=custom --tapir-plugin=plugin-file -O1 %s
 //
 // -----------------------------------------------------------------------------
 // Unknown tapir targets provided to --tapir= should return an error.
@@ -29,10 +31,10 @@
 //
 // -----------------------------------------------------------------------------
 // The tapir targets below have implementations and some measure of support in
-// the code. But they have not been maintained and may ave bit-rotted, and are,
-// therefore, disabled with limited support even in the build system. If any
-// are ever resurrected, they should be moved to the first set of known tapir
-// targets.
+// the code. But they have not been maintained and may have bit-rotted. They
+// are, therefore, disabled with limited support even in the build system. If
+// any are ever resurrected, they should be moved to the first set of known
+// tapir targets.
 //
 // RUN: not %kitxx -### --tapir=gpuabi -O1 %s 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=ERROR

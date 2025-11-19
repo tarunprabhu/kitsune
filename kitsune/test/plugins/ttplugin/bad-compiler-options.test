@@ -16,8 +16,8 @@
 # RUN:     | FileCheck %s
 #
 # RUN: %if kitfc %{\
-# RUN:     not %kitfc --tapir=custom --tapir-plugin=%t/compiler-opts.so \
-# RUN:     -S -emit-llvm -O1 -o /dev/null %S/input/empty.f90 2>&1 \
+# RUN:     not %kitfc --tapir=custom --tapir-plugin=%t/bad-compiler-opts.so \
+# RUN:         -S -emit-llvm -O1 -o /dev/null %S/input/empty.f90 2>&1 \
 # RUN:     | FileCheck %s \
 # RUN: %}
 #

@@ -14,6 +14,7 @@
 
 #include "NewPMDriver.h"
 #include "kitsune/Core/TTOptions.h"
+#include "kitsune/Support/ErrorUtils.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
@@ -381,7 +382,7 @@ createTTOptions(TargetMachine *TM, StringRef PassPipeline) {
   // actual error will be shown when the main pass builder is constructed.
   // However, we do need to pretend to handle the error here to keep LLVM happy.
   if (Error Err = PB.parsePassPipeline(MPM, PassPipeline))
-    (void)toString(std::move(Err));
+    ignoreAllErrors(std::move(Err));
 
   // If the pipeline was parsed successfully, the TTOptions object owned by the
   // pass builder (if any) will have been updated with the optimization. Just

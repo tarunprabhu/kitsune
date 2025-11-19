@@ -16,6 +16,7 @@
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/TTPlugin.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Support/ErrorUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Basic/Sanitizers.h"
@@ -2040,9 +2041,12 @@ void ToolChain::AddKitsuneCustomCommonArgs(const ArgList &Args,
     // If the plugin could not be loaded, don't emit diagnostics here. That will
     // be handled elsewhere.
     StringRef PluginFile = Args.getLastArgValue(options::OPT_tapir_plugin_EQ);
-    if (Expected<TTPlugin> Plugin = TTPlugin::load(PluginFile))
+    if (Expected<TTPlugin> Plugin = TTPlugin::load(PluginFile)) {
       for (StringRef Arg : Plugin->getCompilerOptions())
         CmdArgs.push_back(Args.MakeArgString(Arg));
+    } else {
+      ignoreAllErrors(Plugin.takeError());
+    }
   }
 }
 
@@ -2488,9 +2492,12 @@ void ToolChain::AddKitsuneCustomLinkerArgs(const ArgList &Args,
   // If the plugin could not be loaded, don't emit diagnostics here. That will
   // be handled elsewhere.
   StringRef PluginFile = Args.getLastArgValue(options::OPT_tapir_plugin_EQ);
-  if (Expected<TTPlugin> Plugin = TTPlugin::load(PluginFile))
+  if (Expected<TTPlugin> Plugin = TTPlugin::load(PluginFile)) {
     for (StringRef Arg : Plugin->getLinkerOptions())
       CmdArgs.push_back(Args.MakeArgString(Arg));
+  } else {
+    ignoreAllErrors(Plugin.takeError());
+  }
 }
 
 void ToolChain::AddKitsuneHipLinkerArgs(const ArgList &Args,
