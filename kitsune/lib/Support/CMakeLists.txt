@@ -4,6 +4,7 @@
 
 add_llvm_component_library(LLVMKitSupport
   CommandLineUtils.cpp
+  ErrorUtils.cpp
   Deserialize.cpp
   OptznLevelUtils.cpp
   ToString.cpp

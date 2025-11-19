@@ -20,7 +20,7 @@
 ! RUN:     | FileCheck %s --check-prefixes=ARGS
 !
 ! ARGS: -fc1
-! ARGS-SAME: "-fno-show-column"
+! ARGS-SAME: "-O"
 ! ARGS-NEXT: "-L/path/to/something/that/does/not/exist"
 !
 ! -----------------------------------------------------------------------------
