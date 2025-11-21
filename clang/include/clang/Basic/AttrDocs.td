@@ -9488,6 +9488,7 @@ strategies are:
 
 def KitsuneMemAccessDocs : Documentation {
   let Category = KitsuneDocs;
+  let Heading = "_readonly, _readwrite, _writeonly";
   let Content = [{
 
 The kitsune memory access attributes lets programmers inform the compiler of
@@ -9533,12 +9534,13 @@ and testing vs. an end-user feature.
    forall(...) {
      // loop body goes here.
    }
-...
+
   }];
 }
 
 def KitsuneMobileDocs : Documentation {
   let Category = KitsuneDocs;
+  let Heading = "mobile";
   let Content = [{
 
 The mobile attribute should be attached to pointers that may be allocated using

@@ -1,9 +1,15 @@
+---
+# This is obsolete and should probably be removed. Until we confirm that this
+# is the case and remove it, declare it to be an orphan so sphinx does not
+# complain about it.
+orphan: true
+---
 
 ## TODO items for version 13.x:
 
-* Add clang-level flags for setting GPU architecture target details.  For example, ``-ftapir-nvarch=sm_80``.  The current path requires use of the ``-mllvm`` command line option from clang. 
+* Add clang-level flags for setting GPU architecture target details.  For example, ``-ftapir-nvarch=sm_80``.  The current path requires use of the ``-mllvm`` command line option from clang.
 
-* By default, "borrow" the optimization setting from clang to set the various flags for the ABI transforms; however, would also be nice to add an optional flag for a different level of optimization for ABI tranforms. 
+* By default, "borrow" the optimization setting from clang to set the various flags for the ABI transforms; however, would also be nice to add an optional flag for a different level of optimization for ABI tranforms.
 
 * Need to look at sharing some code bewteen the CUDA and GPU ABIs -- there are some similarities and they should probably at least inherient off a shared base class.
 

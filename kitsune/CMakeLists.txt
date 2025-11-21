@@ -858,6 +858,10 @@ if (KITSUNE_BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif ()
 
+if (KITSUNE_ENABLE_SPHINX OR KITSUNE_ENABLE_DOXYGEN)
+  add_subdirectory(docs)
+endif ()
+
 if(KITSUNE_INCLUDE_TESTS)
   add_subdirectory(test)
   add_subdirectory(unittests)

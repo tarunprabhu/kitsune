@@ -549,8 +549,24 @@ endif ()
 # ON. Building these requires full linker support and also requires a fairly
 # standard sysroot. Of the platforms that Kitsune supports, this is only likely
 # to happen on some HPC systems. If a build/test error occurs on such systems,
-# this could be turned off.
-set(KITSUNE_BUILD_EXAMPLES ON CACHE BOOL "Build kitsune's examples")
+# this should be turned off.
+option(KITSUNE_BUILD_EXAMPLES "Build kitsune's examples" ON)
+
+# Documentation options
+option(KITSUNE_BUILD_DOCS "Build all Kitsune documentation" OFF)
+option(KITSUNE_ENABLE_DOXYGEN
+  "Use doxygen to generate API documentation" OFF)
+option(KITSUNE_ENABLE_SPHINX
+  "Use sphinx to generate HTML documentation and man pages" OFF)
+if (KITSUNE_BUILD_DOCS)
+  set(KITSUNE_ENABLE_DOXYGEN ON)
+  set(KITSUNE_ENABLE_SPHINX ON)
+endif ()
+
+# If the kitsune documentation options are set, some LLVM variables need to be
+# set to ensure that the doxygen and sphinx executables (as needed) are found.
+set(LLVM_ENABLE_SPHINX ${KITSUNE_ENABLE_SPHINX})
+set(LLVM_ENABLE_DOXYGEN ${KITSUNE_ENABLE_DOXYGEN})
 
 # Kitsune's runtime, libkitrt, used to have a dependence on libLLVM, but it does
 # not any longer. However, we might re-introduce it, so for now, build libLLVM
