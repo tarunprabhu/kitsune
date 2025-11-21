@@ -125,6 +125,7 @@ enum ActionType {
   GenBuiltinDocs,
   GenDiagDocs,
   GenOptDocs,
+  GenKitsuneOptDocs,
   GenDataCollectors,
   GenTestPragmaAttributeSupportedAttributes
 };
@@ -365,6 +366,8 @@ cl::opt<ActionType> Action(
         clEnumValN(GenDiagDocs, "gen-diag-docs",
                    "Generate diagnostic documentation"),
         clEnumValN(GenOptDocs, "gen-opt-docs", "Generate option documentation"),
+        clEnumValN(GenKitsuneOptDocs, "gen-kitsune-opt-docs",
+                   "Generate Kitsune option documentation"),
         clEnumValN(GenDataCollectors, "gen-clang-data-collectors",
                    "Generate data collectors for AST nodes"),
         clEnumValN(GenTestPragmaAttributeSupportedAttributes,
@@ -686,6 +689,9 @@ bool ClangTableGenMain(raw_ostream &OS, const RecordKeeper &Records) {
     break;
   case GenOptDocs:
     EmitClangOptDocs(Records, OS);
+    break;
+  case GenKitsuneOptDocs:
+    EmitKitsuneOptDocs(Records, OS);
     break;
   case GenDataCollectors:
     EmitClangDataCollectors(Records, OS);
