@@ -452,6 +452,11 @@ namespace {
 static void emitMissedWarning(const Loop *L, const TapirLoopHints &LH,
                               OptimizationRemarkEmitter *ORE) {
   switch (LH.getStrategy()) {
+  case TapirSpawnStrategy::Sequential:
+    // The sequential spawn strategy does not outline tapir loops. As a result
+    // the tapir loop will be ignored since outlineAllTapirLoops will skip
+    // over it. We should not emit any warnings for this case.
+    return;
   case TapirSpawnStrategy::DivideAndConquer:
     ORE->emit(
         DiagnosticInfoOptimizationFailure(DEBUG_TYPE, "FailedRequestedSpawning",
@@ -461,7 +466,6 @@ static void emitMissedWarning(const Loop *L, const TapirLoopHints &LH,
         << "  Compile with -Rpass-analysis=" << LS_NAME
         << " for more details.");
     return;
-  case TapirSpawnStrategy::Sequential:
   case TapirSpawnStrategy::GPU:
     ORE->emit(DiagnosticInfoOptimizationFailure(DEBUG_TYPE, "SpawningDisabled",
                                                 L->getStartLoc(),
