@@ -17,6 +17,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/CodeGen.h"
+#include "llvm/TargetParser/Host.h"
 
 using namespace llvm;
 
@@ -73,6 +74,23 @@ TargetMachine *llvm::createTargetMachine(TTID tt, const TTOptions &tto,
   default:
     llvm_unreachable("createTargetMachine: TTID not handled");
   }
+}
+
+TargetMachine *llvm::createHostTargetMachine(const TTOptions &tto) {
+  CodeGenOptLevel cgOptLevel = createCodeGenOptLevelFrom(tto.getOptznLevel());
+  Triple triple(sys::getDefaultTargetTriple());
+
+  std::string err;
+  const Target *target = TargetRegistry::lookupTarget("", triple, err);
+  assert(target && "Unable to find registered target");
+
+  CodeModel::Model codeModel = CodeModel::Small;
+  Reloc::Model relocModel = Reloc::PIC_;
+  TargetOptions opts;
+  opts.AllowFPOpFusion = tto.getFPOpFusionMode();
+
+  return target->createTargetMachine(triple, "", "", opts, relocModel,
+                                     codeModel, cgOptLevel);
 }
 
 #define OPT_BOOL(NAME)                                                         \

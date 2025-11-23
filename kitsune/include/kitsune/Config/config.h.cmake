@@ -87,6 +87,16 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // -----------------------------------------------------------------------------
 
+// A semicolon-separated list of library names that should always be linked when
+// linking with Kitsune.
+#define KITSUNE_COMMON_LIB_NAMES "@KITSUNE_COMMON_LIB_NAMES@"
+
+// A semicolon-separated list of directories that should always be added to the
+// linker library search paths and the rpath.
+#define KITSUNE_COMMON_LIB_DIRS "@KITSUNE_COMMON_LIB_DIRS@"
+
+// -----------------------------------------------------------------------------
+
 // Has the cuda tapir target been enabled
 #cmakedefine01 KITSUNE_CUDA_ENABLED
 
@@ -110,15 +120,18 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 #define KITSUNE_CUDA_VERSION_STRING "@KITSUNE_CUDA_VERSION_STRING@"
 #define KITSUNE_CUDA_BINARY_DIR "@KITSUNE_CUDA_BINARY_DIR@"
 #define KITSUNE_CUDA_LIBRARY_DIR "@KITSUNE_CUDA_LIBRARY_DIR@"
-#define KITSUNE_CUDA_LIBCUDA_DIR "@KITSUNE_CUDA_LIBCUDA_DIR@"
 #define KITSUNE_CUDA_PTXAS "@KITSUNE_CUDA_PTXAS@"
 #define KITSUNE_CUDA_FATBINARY "@KITSUNE_CUDA_FATBINARY@"
 #define KITSUNE_CUDA_ARCH_DEFAULT "@KITSUNE_CUDA_ARCH_DEFAULT@"
 
-#define KITSUNE_CUDA_LIBNAME_CUDA "@KITSUNE_CUDA_LIBNAME_CUDA@"
-#define KITSUNE_CUDA_LIBNAME_CUDART "@KITSUNE_CUDA_LIBNAME_CUDART@"
-#define KITSUNE_CUDA_LIBNAME_CUDART_STATIC                                     \
-  "@KITSUNE_CUDA_LIBNAME_CUDART_STATIC@"
+// A semicolon-separated list of library names that should be linked when the
+// cuda tapir target is specified.
+#define KITSUNE_CUDA_LIB_NAMES "@KITSUNE_CUDA_LIB_NAMES@"
+
+// A semicolon-separated list of directories that should be added to the
+// linker's library search and the rpath when the cuda tapir target is
+// specified
+#define KITSUNE_CUDA_LIB_DIRS "@KITSUNE_CUDA_LIB_DIRS@"
 
 // The name of the symbol containing the cuda device code (the fat binary)
 #define KITSUNE_CUDA_FATBIN_NAME "__kitsune_fatbin_cuda"
@@ -155,7 +168,14 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 #define KITSUNE_HIP_BITCODE_DIR "@KITSUNE_HIP_BITCODE_DIR@"
 #define KITSUNE_HIP_ARCH_DEFAULT "@KITSUNE_HIP_ARCH_DEFAULT@"
 
-#define KITSUNE_HIP_LIBNAME_AMDHIP "@KITSUNE_HIP_LIBNAME_AMDHIP@"
+// A semicolon-separated list of library names that should be linked when the
+// hip tapir target is specified.
+#define KITSUNE_HIP_LIB_NAMES "@KITSUNE_HIP_LIB_NAMES@"
+
+// A semicolon-separated list of directories that should be added to the
+// linker's library search and the rpath when the cuda tapir target is
+// specified
+#define KITSUNE_HIP_LIB_DIRS "@KITSUNE_HIP_LIB_DIRS@"
 
 // The name of the symbol containing the hip device code (the fat binary)
 #define KITSUNE_HIP_FATBIN_NAME "__kitsune_fatbin_hip"

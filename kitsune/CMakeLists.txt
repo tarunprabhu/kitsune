@@ -2,7 +2,7 @@
 # Copyright (c) 2021 Triad National Security, LLC
 #                         All rights reserved.
 #
-# This file is part of the kitsune+tapir project.  It is released under
+# This file is part of the kitsune.  It is released under
 # the LLVM license.
 #
 cmake_minimum_required(VERSION 3.20)
@@ -33,6 +33,19 @@ include(KitsuneUtils)
 #
 # TODO: A better fix might be to generate a configuration file in this case just
 # for the purpose of building the tool/runtime with clang with --sysroot set.
+#
+# ------------------------------------------------------------------------------
+
+# Lookup the unique directories containing the libraries in LIBS and add them
+# to the list OUT.
+macro(populate_unique_parents LIBS OUT)
+  foreach (LIB IN LISTS ${LIBS})
+    get_filename_component(DIR ${LIB} DIRECTORY)
+    if (NOT DIR IN_LIST ${OUT})
+      list(APPEND ${OUT} ${DIR})
+    endif ()
+  endforeach ()
+endmacro ()
 
 option(KITSUNE_INCLUDE_TESTS
   "Generate build targets for the Kitsune tests"
@@ -171,10 +184,11 @@ if (KITSUNE_KOKKOS_ENABLED)
     "Additional C++ compiler flags needed to build Kokkos. These are only
      used when building Kitsune")
 
-  set(KITSUNE_KOKKOS_BUILD_CXX_FLAGS "${KITSUNE_KOKKOS_BUILD_COMPILE_FLAGS}")
+  set(KITSUNE_KOKKOS_CXX_FLAGS "${KITSUNE_KOKKOS_BUILD_COMPILE_FLAGS}")
   if (KITSUNE_SYSROOT)
-    string(APPEND KITSUNE_KOKKOS_BUILD_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+    string(APPEND KITSUNE_KOKKOS_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
   endif ()
+  string(REPLACE ";" ":" KITSUNE_KOKKOS_CXX_FLAGS "${KITSUNE_KOKKOS_CXX_FLAGS}")
 
   set(KITSUNE_KOKKOS_SRC_DIR  ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/kokkos)
   set(KITSUNE_KOKKOS_BUILD_DIR ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/build)
@@ -183,7 +197,7 @@ if (KITSUNE_KOKKOS_ENABLED)
   set(KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS
     -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
-    "-DCMAKE_CXX_FLAGS='${KITSUNE_KOKKOS_BUILD_CXX_FLAGS}'"
+    -DCMAKE_CXX_FLAGS=${KITSUNE_KOKKOS_CXX_FLAGS}
     -DCMAKE_CXX_COMPILER_WORKS=1
     -DCMAKE_SIZEOF_VOID_P=${CMAKE_SIZEOF_VOID_P}
     -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
@@ -231,6 +245,7 @@ if (KITSUNE_KOKKOS_ENABLED)
                             | ${GREP} -q 0
                             && ${PATCH} -p0 --input=${KITSUNE_KOKKOS_PATCH_EXCS}
                             || ${CMAKE_COMMAND} -E echo "${patch_warning}"
+    LIST_SEPARATOR          :
     USES_TERMINAL_PATCH     TRUE
     USES_TERMINAL_CONFIGURE TRUE
     USES_TERMINAL_BUILD     TRUE
@@ -273,11 +288,45 @@ if (KITSUNE_KOKKOS_ENABLED)
     "Additional linker flags needed for Kokkos support")
 endif()
 
+# The pthread functions are now part of libc. libpthread was removed from glibc
+# 2.34. There is no need to explicitly link this in unless we have older
+# versions of libc around. We should consider removing this from here at some
+# point when we are certain we don't need this. That might be a while since HPC
+# machines are notorious for their antique software stacks.
+#
+# https://developers.redhat.com/articles/2021/12/17/why-glibc-234-removed-libpthread
+#
+find_library(LIB_DL dl REQUIRED)
+list(APPEND KITSUNE_COMMON_LIB_NAMES dl)
+list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_DL})
+
+find_library(LIB_PTHREAD pthread REQUIRED)
+list(APPEND KITSUNE_COMMON_LIB_NAMES pthread)
+list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_PTHREAD})
+
+find_library(LIB_RT rt REQUIRED)
+list(APPEND KITSUNE_COMMON_LIB_NAMES rt)
+list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_RT})
+
+# On FreeBSD, the backtrace-related functions are defined in libexecinfo. On
+# other systems, they are part of libc, so there is nothing to be done
+# elsewhere.
+if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+  find_library(LIB_EXECINFO execinfo REQUIRED)
+  list(APPEND KITSUNE_COMMON_LIB_NAMES execinfo)
+  list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_EXECINFO})
+endif()
+
+populate_unique_parents(KITSUNE_COMMON_LIB_LIBS KITSUNE_COMMON_LIB_DIRS)
+string(REPLACE ";" "|" KITSUNE_COMMON_LIB_NAMES "${KITSUNE_COMMON_LIB_NAMES}")
+string(REPLACE ";" "|" KITSUNE_COMMON_LIB_LIBS "${KITSUNE_COMMON_LIB_LIBS}")
+string(REPLACE ";" "|" KITSUNE_COMMON_LIB_DIRS "${KITSUNE_COMMON_LIB_DIRS}")
+
 set(KITSUNE_CUDA_VERSION_MAJOR 0)
 set(KITSUNE_CUDA_VERSION_MINOR 0)
 set(KITSUNE_CUDA_VERSION_PATCH 0)
 if (KITSUNE_CUDA_ENABLED)
-  message(STATUS "Kitsune: CUDA target enabled")
+  message(STATUS "Kitsune: cuda tapir target enabled")
 
   find_package(CUDAToolkit ${KITSUNE_CUDA_VERSION_MIN} REQUIRED)
 
@@ -320,28 +369,22 @@ if (KITSUNE_CUDA_ENABLED)
   message(STATUS "  Cuda include dir: ${KITSUNE_CUDA_INCLUDE_DIR}")
   message(STATUS "  Cuda library dir: ${KITSUNE_CUDA_LIBRARY_DIR}")
 
-  set(KITSUNE_CUDA_LIBNAME_CUDART_STATIC cudart_static)
-  set(KITSUNE_CUDA_LIBNAME_CUDART cudart)
-  set(KITSUNE_CUDA_LIBNAME_CUDA cuda)
-
   # This should almost always be the libcuda that is installed on the system,
   # so look for it in the "usual" places.
-  find_library(KITSUNE_CUDA_LIB_CUDA "${KITSUNE_CUDA_LIBNAME_CUDA}"  REQUIRED)
+  find_library(KITSUNE_CUDA_LIB_CUDA cuda REQUIRED)
+  list(APPEND KITSUNE_CUDA_LIB_NAMES cuda)
+  list(APPEND KITSUNE_CUDA_LIB_LIBS ${KITSUNE_CUDA_LIB_CUDA})
 
-  get_filename_component(
-    KITSUNE_CUDA_LIBCUDA_DIR "${KITSUNE_CUDA_LIB_CUDA}" DIRECTORY)
-
-  find_library(KITSUNE_CUDA_LIB_CUDART "${KITSUNE_CUDA_LIBNAME_CUDART}" REQUIRED
+  find_library(KITSUNE_CUDA_LIB_CUDART_STATIC cudart_static REQUIRED
     PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
     NO_DEFAULT_PATH)
+  list(APPEND KITSUNE_CUDA_LIB_NAMES cudart_static)
+  list(APPEND KITSUNE_CUDA_LIB_LIBS ${KITSUNE_CUDA_LIB_CUDART_STATIC})
 
-  find_library(KITSUNE_CUDA_LIB_CUDART_STATIC "${KITSUNE_CUDA_LIBNAME_CUDART_STATIC}" REQUIRED
-    PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
-    NO_DEFAULT_PATH)
-
-  find_library(KITSUNE_CUDA_LIB_NVPTX_STATIC nvptxcompiler_static REQUIRED
-    PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
-    NO_DEFAULT_PATH)
+  populate_unique_parents(KITSUNE_CUDA_LIB_LIBS KITSUNE_CUDA_LIB_DIRS)
+  string(REPLACE ";" "|" KITSUNE_CUDA_LIB_NAMES "${KITSUNE_CUDA_LIB_NAMES}")
+  string(REPLACE ";" "|" KITSUNE_CUDA_LIB_LIBS "${KITSUNE_CUDA_LIB_LIBS}")
+  string(REPLACE ";" "|" KITSUNE_CUDA_LIB_DIRS "${KITSUNE_CUDA_LIB_DIRS}")
 
   find_program(KITSUNE_CUDA_PTXAS ptxas REQUIRED
     PATHS ${KITSUNE_CUDA_BINARY_DIR}
@@ -376,7 +419,7 @@ set(KITSUNE_HIP_VERSION_MAJOR 0)
 set(KITSUNE_HIP_VERSION_MINOR 0)
 set(KITSUNE_HIP_VERSION_PATCH 0)
 if (KITSUNE_HIP_ENABLED)
-  message(STATUS "Kitsune: HIP target enabled.")
+  message(STATUS "Kitsune: hip tapir target enabled.")
 
   # Apparently, ROCM_PATH needs to be set for Hip's build system to work
   # correctly. It is not clear if this is a problem with ROCM/HIP or a weird
@@ -419,11 +462,16 @@ if (KITSUNE_HIP_ENABLED)
   message(STATUS "  Hip include dir: ${KITSUNE_HIP_INCLUDE_DIR}")
   message(STATUS "  Hip library dir: ${KITSUNE_HIP_LIBRARY_DIR}")
 
-  set(KITSUNE_HIP_LIBNAME_AMDHIP "amdhip64")
-
-  find_library(KITSUNE_HIP_LIB_AMDHIP64 ${KITSUNE_HIP_LIBNAME_AMDHIP} REQUIRED
+  find_library(KITSUNE_HIP_LIB_AMDHIP64 amdhip64 REQUIRED
     PATHS ${KITSUNE_HIP_LIBRARY_DIR}
     NO_DEFAULT_PATH)
+  list(APPEND KITSUNE_HIP_LIB_NAMES amdhip64)
+  list(APPEND KITSUNE_HIP_LIB_LIBS ${KITSUNE_HIP_LIB_AMDHIP64})
+
+  populate_unique_parents(KITSUNE_HIP_LIB_LIBS KITSUNE_HIP_LIB_DIRS)
+  string(REPLACE ";" "|" KITSUNE_HIP_LIB_NAMES "${KITSUNE_HIP_LIB_NAMES}")
+  string(REPLACE ";" "|" KITSUNE_HIP_LIB_LIBS "${KITSUNE_HIP_LIB_LIBS}")
+  string(REPLACE ";" "|" KITSUNE_HIP_LIB_DIRS "${KITSUNE_HIP_LIB_DIRS}")
 
   set(KITSUNE_HIP_ARCH_DEFAULT "gfx90a"
     CACHE STRING
@@ -458,10 +506,11 @@ if (KITSUNE_HIP_ENABLED)
   get_filename_component(KITSUNE_HIP_BITCODE_DIR "${HIP_BC}" DIRECTORY)
   message(STATUS "hip bitcode file location: ${KITSUNE_HIP_BITCODE_DIR}")
 endif()
+set(KITSUNE_HIP_VERSION_STRING "${KITSUNE_HIP_VERSION_MAJOR}.${KITSUNE_HIP_VERSION_MINOR}.${KITSUNE_HIP_VERSION_PATCH}")
 
 if (KITSUNE_LAMBDA_ENABLED)
   message(FATAL_ERROR "NOT YET IMPLEMENTED: 'lambda' tapir target")
-  message(STATUS "Kitsune: Lambda target enabled")
+  message(STATUS "Kitsune: lambda tapir target enabled")
 
   set(KITSUNE_LAMBDA_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -478,11 +527,10 @@ if (KITSUNE_LAMBDA_ENABLED)
     CACHE STRING
     "Additional linker flags needed for the Lambda target")
 endif ()
-set(KITSUNE_HIP_VERSION_STRING "${KITSUNE_HIP_VERSION_MAJOR}.${KITSUNE_HIP_VERSION_MINOR}.${KITSUNE_HIP_VERSION_PATCH}")
 
 if (KITSUNE_OMPTASK_ENABLED)
   message(FATAL_ERROR "NOT YET IMPLEMENTED: 'omptask' tapir target")
-  message(STATUS "Kitsune: OMPTask target enabled")
+  message(STATUS "Kitsune: omptask target enabled")
 
   set(KITSUNE_OMPTASK_EXTRA_PREPROCESSOR_FLAGS
     ""
@@ -501,7 +549,7 @@ if (KITSUNE_OMPTASK_ENABLED)
 endif ()
 
 if (KITSUNE_OPENCILK_ENABLED)
-  message(STATUS "Kitsune: OpenCilk target enabled")
+  message(STATUS "Kitsune: opencilk target enabled")
 
   # We currently don't allow using a pre-built Cheetah. It would have to be
   # built with a "compatible" version of clang which is possible by using a
@@ -518,15 +566,17 @@ if (KITSUNE_OPENCILK_ENABLED)
     "Additional compiler flags needed to build Cheetah (the OpenCilk runtime).
     These are only used when building Kitsune")
 
-  set(KITSUNE_OPENCILK_BUILD_C_FLAGS "${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}")
+  set(KITSUNE_OPENCILK_C_FLAGS "${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}")
   if (KITSUNE_SYSROOT)
-    string(APPEND KITSUNE_OPENCILK_BUILD_C_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+    string(APPEND KITSUNE_OPENCILK_C_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
   endif ()
+  string(REPLACE ";" | KITSUNE_OPENCILK_C_FLAGS "${KITSUNE_OPENCILK_C_FLAGS}")
 
-  set(KITSUNE_OPENCILK_BUILD_CXX_FLAGS "${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}")
+  set(KITSUNE_OPENCILK_CXX_FLAGS "${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}")
   if (KITSUNE_SYSROOT)
-    string(APPEND KITSUNE_OPENCILK_BUILD_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+    string(APPEND KITSUNE_OPENCILK_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
   endif ()
+  string(REPLACE ";" | KITSUNE_OPENCILK_CXX_FLAGS "${KITSUNE_OPENCILK_CXX_FLAGS}")
 
   # We pass some LLVM_* variables to make Cheetah behave as if it were an
   # in-tree build.
@@ -542,11 +592,11 @@ if (KITSUNE_OPENCILK_ENABLED)
   set(KITSUNE_CHEETAH_BUILD_CMAKE_FLAGS
     -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
     -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
-    "-DCMAKE_C_FLAGS='${KITSUNE_OPENCILK_BUILD_C_FLAGS}'"
+    -DCMAKE_C_FLAGS=${KITSUNE_OPENCILK_C_FLAGS}
     -DCMAKE_C_COMPILER_WORKS=1
     -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
-    "-DCMAKE_CXX_FLAGS='${KITSUNE_OPENCILK_BUILD_CXX_FLAGS}'"
+    -DCMAKE_CXX_FLAGS=${KITSUNE_OPENCILK_CXX_FLAGS}
     -DCMAKE_CXX_COMPILER_WORKS=1
     -DCMAKE_SIZEOF_VOID_P=${CMAKE_SIZEOF_VOID_P}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
@@ -569,6 +619,7 @@ if (KITSUNE_OPENCILK_ENABLED)
     SOURCE_DIR              ${KITSUNE_CHEETAH_SOURCE_DIR}
     BINARY_DIR              ${KITSUNE_CHEETAH_BINARY_DIR}
     CMAKE_ARGS              ${KITSUNE_CHEETAH_BUILD_CMAKE_FLAGS}
+    LIST_SEPARATOR          |
     USES_TERMINAL_PATCH     TRUE
     USES_TERMINAL_CONFIGURE TRUE
     USES_TERMINAL_BUILD     TRUE
@@ -617,7 +668,7 @@ endif()
 
 if (KITSUNE_OPENMP_ENABLED)
   message(FATAL_ERROR "NOT YET IMPLEMENTED: 'openmp' tapir target")
-  message(STATUS "Kitsune: OpenMP target enabled")
+  message(STATUS "Kitsune: openmp tapir target enabled")
 
   # FIXME: Unconditionally fail so that when (if) the openmp tapir target is
   # ever resurrected, we know to look here and do whatever is appropriate.
@@ -641,12 +692,13 @@ endif()
 
 if (KITSUNE_QTHREADS_ENABLED)
   message(FATAL_ERROR "NOT YET IMPLEMENTED: 'qthreads' tapir target")
-  message(STATUS "Kitsune: Qthreads target enabled")
+  message(STATUS "Kitsune: qthreads tapir target enabled")
 
   # FIXME: Do find_package or ExternalProject_add or something else here for
-  # qthreads. Odds are that we will end up building realm like we build Cheetah.
-  # In any case, this message is here to ensure that when (if) we ever resurrect
-  # the qthreads tapir target, we don't forget to do the right thing here.
+  # qthreads. Odds are that we will end up building qthreads like we build
+  # Cheetah. In any case, this message is here to ensure that when (if) we ever
+  # resurrect the qthreads tapir target, we don't forget to do the right thing
+  # here.
   message(FATAL_ERROR "Finding/building QThreads has not been implemented")
 
   set(KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS
@@ -667,7 +719,7 @@ endif()
 
 if (KITSUNE_REALM_ENABLED)
   message(FATAL_ERROR "NOT YET IMPLEMENTED: 'realm' tapir target")
-  message(STATUS "Kitsune: Realm target enabled")
+  message(STATUS "Kitsune: realm tapir target enabled")
 
   # FIXME: Do find_package or ExternalProject_add or something else here for
   # realm. Odds are that we will end up building realm like we build Cheetah.
@@ -698,18 +750,19 @@ endif()
 # install directory for kitsune as specified by ${CMAKE_INSTALL_PREFIX}.
 set(KITSUNE_RUNTIME_INSTALL_DIR ${KITSUNE_BINARY_DIR}/${KITSUNE_LIBNAME})
 
-set(KITSUNE_RUNTIME_BUILD_C_FLAGS "")
+set(KITSUNE_RUNTIME_C_FLAGS)
 if (KITSUNE_SYSROOT)
-  string(APPEND KITSUNE_RUNTIME_BUILD_C_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+  list(APPEND KITSUNE_RUNTIME_C_FLAGS "--sysroot=${KITSUNE_SYSROOT}")
 endif ()
+string(REPLACE ";" "|" KITSUNE_RUNTIME_C_FLAGS "${KITSUNE_RUNTIME_C_FLAGS}")
 
-set(KITSUNE_RUNTIME_BUILD_CXX_FLAGS "")
+set(KITSUNE_RUNTIME_CXX_FLAGS)
 if (KITSUNE_SYSROOT)
-  string(APPEND KITSUNE_RUNTIME_BUILD_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+  list(APPEND KITSUNE_RUNTIME_CXX_FLAGS "--sysroot=${KITSUNE_SYSROOT}")
 endif ()
+string(REPLACE ";" "|" KITSUNE_RUNTIME_CXX_FLAGS "${KITSUNE_RUNTIME_CXX_FLAGS}")
 
 # -----------------------------------------------------------------------------
-#
 # The CLANG_, KITSUNE_ and LLVM_ variables that are passed in when configuring
 # the runtime must be updated if any variables not already being passed are
 # used within the runtime.
@@ -727,16 +780,17 @@ set(KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
   -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
   -DCMAKE_C_COMPILER_WORKS=1
-  "-DCMAKE_C_FLAGS=${KITSUNE_RUNTIME_BUILD_C_FLAGS}"
+  -DCMAKE_C_FLAGS=${KITSUNE_RUNTIME_C_FLAGS}
   -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
   -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
   -DCMAKE_CXX_COMPILER_WORKS=1
-  "-DCMAKE_CXX_FLAGS=${KITSUNE_RUNTIME_BUILD_CXX_FLAGS}"
+  -DCMAKE_CXX_FLAGS=${KITSUNE_RUNTIME_CXX_FLAGS}
   -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
   -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
   -DCMAKE_INSTALL_PREFIX=${KITSUNE_RUNTIME_INSTALL_DIR}
   -DCMAKE_COLOR_DIAGNOSTICS=${CMAKE_COLOR_DIAGNOSTICS}
   -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
+  -DCMAKE_VERBOSE_BUILD=ON
   -DCLANG_RESOURCE_INTDIR=${CLANG_RESOURCE_INTDIR}
   -DCLANG_RESOURCE_DIR=${CLANG_RESOURCE_INSTALL_DIR}
   -DCLANG_RESOURCE_SUBDIR=${CLANG_RESOURCE_SUBDIR}
@@ -755,24 +809,27 @@ set(KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DLLVM_RUNTIME_OUTPUT_INTDIR=${LLVM_RUNTIME_OUTPUT_INTDIR}
   -DKITSUNE_LIBNAME=${KITSUNE_LIBNAME}
   -DKITSUNE_LIBNAME_STATIC=${KITSUNE_LIBNAME_STATIC}
+  -DKITSUNE_COMMON_LIB_NAMES=${KITSUNE_COMMON_LIB_NAMES}
+  -DKITSUNE_COMMON_LIB_DIRS=${KITSUNE_COMMON_LIB_DIRS}
+  -DKITSUNE_COMMON_LIB_LIBS=${KITSUNE_COMMON_LIB_LIBS}
   -DKITSUNE_CUDA_ENABLED=${KITSUNE_CUDA_ENABLED}
-  -DKITSUNE_HIP_ENABLED=${KITSUNE_HIP_ENABLED}
-  -DKITSUNE_PTHREADS_ENABLED=${KITSUNE_PTHREADS_ENABLED})
+  -DKITSUNE_HIP_ENABLED=${KITSUNE_HIP_ENABLED})
 if (KITSUNE_CUDA_ENABLED)
   list(APPEND KITSUNE_RUNTIME_CONFIGURE_ARGS
     -DKITSUNE_CUDA_INCLUDE_DIR=${KITSUNE_CUDA_INCLUDE_DIR}
     -DKITSUNE_CUDA_LIBRARY_DIR=${KITSUNE_CUDA_LIBRARY_DIR}
-    -DKITSUNE_CUDA_LIB_CUDA=${KITSUNE_CUDA_LIB_CUDA}
-    -DKITSUNE_CUDA_LIB_CUDART=${KITSUNE_CUDA_LIB_CUDART}
-    -DKITSUNE_CUDA_LIB_CUDART_STATIC=${KITSUNE_CUDA_LIB_CUDART_STATIC}
-    -DKITSUNE_CUDA_LIB_NVPTX_STATIC=${KITSUNE_CUDA_LIB_NVPTX_STATIC}
+    -DKITSUNE_CUDA_LIB_NAMES=${KITSUNE_CUDA_LIB_NAMES}
+    -DKITSUNE_CUDA_LIB_DIRS=${KITSUNE_CUDA_LIB_DIRS}
+    -DKITSUNE_CUDA_LIB_LIBS=${KITSUNE_CUDA_LIB_LIBS}
     -DKITCUDA_ENABLE_NVTX=${KITCUDA_ENABLE_NVTX})
 endif()
 if (KITSUNE_HIP_ENABLED)
   list(APPEND KITSUNE_RUNTIME_CONFIGURE_ARGS
     -DKITSUNE_HIP_INCLUDE_DIR=${KITSUNE_HIP_INCLUDE_DIR}
     -DKITSUNE_HIP_LIBRARY_DIR=${KITSUNE_HIP_LIBRARY_DIR}
-    -DKITSUNE_HIP_LIB_AMDHIP64=${KITSUNE_HIP_LIB_AMDHIP64})
+    -DKITSUNE_HIP_LIB_NAMES=${KITSUNE_HIP_LIB_NAMES}
+    -DKITSUNE_HIP_LIB_DIRS=${KITSUNE_HIP_LIB_DIRS}
+    -DKITSUNE_HIP_LIB_LIBS=${KITSUNE_HIP_LIB_LIBS})
 endif ()
 
 # We don't descend into the runtime subdirectory because that should only be
@@ -786,6 +843,7 @@ ExternalProject_Add(${KITSUNE_LIBNAME}
   STAMP_DIR                  ${KITSUNE_BINARY_DIR}/stamp
   BINARY_DIR                 ${KITSUNE_BINARY_DIR}/runtime
   CMAKE_ARGS                 ${KITSUNE_RUNTIME_CONFIGURE_ARGS}
+  LIST_SEPARATOR             |
   USES_TERMINAL_CONFIGURE    TRUE
   USES_TERMINAL_BUILD        TRUE
   USES_TERMINAL_INSTALL      TRUE

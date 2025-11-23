@@ -5,7 +5,8 @@
 # RUN: mkdir %t
 #
 # RUN: %kitxx -I%kit_inc_dir -I%llvm_obj_inc_dir -I%llvm_src_inc_dir %sysroot \
-# RUN:     -shared -o %t/bad-linker-opts.so %S/input/bad-linker-options.cpp
+# RUN:     -fPIC -shared -o %t/bad-linker-opts.so \
+# RUN:     %S/input/bad-linker-options.cpp
 #
 # RUN: not %kitcc --tapir=custom --tapir-plugin=%t/bad-linker-opts.so \
 # RUN:     -S -emit-llvm -O1 -o /dev/null %S/input/empty.c 2>&1 \

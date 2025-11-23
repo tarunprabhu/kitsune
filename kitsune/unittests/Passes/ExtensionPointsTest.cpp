@@ -85,7 +85,7 @@ TEST(ExtensionPoints, all) {
   CGSCCAnalysisManager cgam;
   ModuleAnalysisManager mam;
   PassInstrumentationCallbacks pic;
-  TargetMachine *tm = createTargetMachine(TTID::Cuda, *tto);
+  TargetMachine *tm = createHostTargetMachine(*tto);
   OptimizationLevel optLevel = OptimizationLevel::O2;
 
   PrintPassOptions printOpts;

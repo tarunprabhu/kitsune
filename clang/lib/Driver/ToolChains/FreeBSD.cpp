@@ -275,6 +275,12 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   if (auto LTO = ToolChain.getLTOMode(Args); LTO != LTOK_None)
     addLTOOptions(ToolChain, Args, CmdArgs, Output, Inputs, LTO == LTOK_Thin);
 
+  if (D.isUsingLTO()) {
+    addLTOOptions(ToolChain, Args, CmdArgs, Output, Inputs,
+                  D.getLTOMode() == LTOK_Thin);
+    ToolChain.AddKitsuneLTOArgs(Args, CmdArgs);
+  }
+
   bool NeedsSanitizerDeps = addSanitizerRuntimes(ToolChain, Args, CmdArgs);
   bool NeedsXRayDeps = addXRayRuntime(ToolChain, Args, CmdArgs);
   addLinkerCompressDebugSectionsOption(ToolChain, Args, CmdArgs);

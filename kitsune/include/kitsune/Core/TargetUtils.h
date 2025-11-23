@@ -37,8 +37,13 @@ TargetMachine *createTargetMachine(TTID tt, const TTOptions &tto);
 /// targets. The machine is configured with the options in the
 /// TTOptions object that is provided. The exception is the optimization level
 /// which is provided explicitly.
-TargetMachine *createTargetMachine(TTID tt, const TTOptions &opts,
+TargetMachine *createTargetMachine(TTID tt, const TTOptions &tto,
                                    CodeGenOptLevel cgOptLevel);
+
+/// Create a "default" target machine. This is typically the target machine for
+/// the default triple for the current Kitsune build. This will typically be
+/// the host. The machine will *NOT* be specialized for the specific host CPU.
+TargetMachine *createHostTargetMachine(const TTOptions &tto);
 
 /// Dump the contents of the TargetOptions object to the given output stream.
 void dump(const TargetOptions &, raw_ostream &);

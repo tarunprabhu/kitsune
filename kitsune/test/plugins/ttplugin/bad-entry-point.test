@@ -5,7 +5,8 @@
 # RUN: mkdir %t
 #
 # RUN: %kitxx -I%kit_inc_dir -I%llvm_obj_inc_dir -I%llvm_src_inc_dir %sysroot \
-# RUN:     -shared -o %t/bad-entry-point.so %S/input/bad-entry-point.cpp
+# RUN:     -fPIC -shared -o %t/bad-entry-point.so \
+# RUN:     %S/input/bad-entry-point.cpp
 #
 # RUN: not %kitcc --tapir=custom --tapir-plugin=%t/bad-entry-point.so \
 # RUN:     -S -emit-llvm -O1 -o /dev/null %S/input/empty.c 2>&1 \

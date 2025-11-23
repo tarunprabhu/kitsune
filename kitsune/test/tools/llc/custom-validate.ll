@@ -11,9 +11,11 @@
 ; RUN:         -filetype=asm -o /dev/null %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=NOEXIST
 ;
+; The actual error message for a non-existent file is system-dependent. While
+; it would be nice if we could check that the correct error message is shown
+; in such cases, it is probably not worth the extra effort.
+;
 ; NOEXIST: error: Could not load library
-; NOEXIST-SAME: cannot open shared object file
-; NOEXIST-SAME: No such file or directory
 ;
 ; RUN: not llc --tapir=custom --tapir-plugin=%s \
 ; RUN:         -filetype=asm -o /dev/null %s 2>&1 \
