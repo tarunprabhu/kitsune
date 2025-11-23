@@ -12,9 +12,9 @@
 ;     bitcode contains a function named "f"
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
-; RUN:     | sed -E '/^[@][.]kitsune[.]emb[.]fb/a\ \
+; RUN:     | sed -E $'/^[@][.]kitsune[.]emb[.]fb/a\\\n \
 ; RUN:         @kp = constant {i64, i64} zeroinitializer #2' \
-; RUN:     | sed -E '/^attributes #1/a\ \
+; RUN:     | sed -E $'/^attributes #1/a\\\n \
 ; RUN:         attributes #2 = { kit_tt(2) "kit_kernel_props"="g" }' \
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s

@@ -43,30 +43,6 @@ add_library(${KITSUNE_OBJLIB} OBJECT
   memory.cpp
   memory_map.cpp)
 
-set_target_properties(${KITSUNE_OBJLIB} PROPERTIES
-  POSITION_INDEPENDENT_CODE 1)
-
-target_include_directories(${KITSUNE_OBJLIB} PUBLIC
-  ${LLVM_MAIN_INCLUDE_DIR}
-  ${LLVM_INCLUDE_DIR}
-  ${KITSUNE_SOURCE_DIR}/include
-  ${KITSUNE_RUNTIME_INCLUDE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR})
-
-# FIXME: We probably don't need to explicitly link pthread and rt. These are
-# only necessary for older versions of glibc, but we might get some antique
-# software stacks on HPC machines. Some details are here:
-#
-# https://developers.redhat.com/articles/2021/12/17/why-glibc-234-removed-libpthread
-#
-target_link_libraries(${KITSUNE_OBJLIB} PUBLIC
-  pthread rt dl)
-
-if (KITSUNE_PTHREADS_ENABLED)
-  target_sources(${KITSUNE_OBJLIB} PUBLIC
-    pthreads/kitpthr.cpp)
-endif ()
-
 # The KITSUNE_CUDA_* variables are defined in kitsune/CMakeLists.txt. They are
 # passed in via CMake because the Kitsune runtime is treated as an external
 # project.
@@ -90,12 +66,10 @@ if (KITSUNE_CUDA_ENABLED)
     ${CMAKE_CURRENT_SOURCE_DIR}/cuda)
 
   target_link_directories(${KITSUNE_OBJLIB} PUBLIC
-    ${KITSUNE_CUDA_LIBRARY_DIR})
+    ${KITSUNE_CUDA_LIB_DIRS})
 
   target_link_libraries(${KITSUNE_OBJLIB} PUBLIC
-    ${KITSUNE_CUDA_LIB_NVPTX_STATIC}
-    ${KITSUNE_CUDA_LIB_CUDART_STATIC}
-    ${KITSUNE_CUDA_LIB_CUDA})
+    ${KITSUNE_CUDA_LIB_LIBS})
 
   if (KITCUDA_ENABLE_NVTX)
     find_library(LIB_NVTOOLS_EXT nvToolsExt REQUIRED
@@ -141,27 +115,50 @@ if (KITSUNE_HIP_ENABLED)
     ${KITSUNE_HIP_INCLUDE_DIR})
 
   target_link_directories(${KITSUNE_OBJLIB} PUBLIC
-    ${KITSUNE_HIP_LIBRARY_DIR})
+    ${KITSUNE_HIP_LIB_DIRS})
 
   target_link_libraries(${KITSUNE_OBJLIB} PUBLIC
-    ${KITSUNE_HIP_LIB_AMDHIP64})
+    ${KITSUNE_HIP_LIB_LIBS})
 endif()
+
+# The pthreads tapir target is always enabled
+target_sources(${KITSUNE_OBJLIB} PUBLIC
+  pthreads/kitpthr.cpp)
+
+set_target_properties(${KITSUNE_OBJLIB} PROPERTIES
+  POSITION_INDEPENDENT_CODE 1)
+
+target_include_directories(${KITSUNE_OBJLIB} PUBLIC
+  ${LLVM_MAIN_INCLUDE_DIR}
+  ${LLVM_INCLUDE_DIR}
+  ${KITSUNE_SOURCE_DIR}/include
+  ${KITSUNE_RUNTIME_INCLUDE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_link_directories(${KITSUNE_OBJLIB} PUBLIC
+  ${KITSUNE_COMMON_LIB_DIRS})
+
+target_link_libraries(${KITSUNE_OBJLIB} PUBLIC
+  ${KITSUNE_COMMON_LIB_LIBS})
 
 # Create the static library
 add_library(${KITSUNE_LIBNAME_STATIC} STATIC
   $<TARGET_OBJECTS:${KITSUNE_OBJLIB}>)
 
 set_target_properties(${KITSUNE_LIBNAME_STATIC} PROPERTIES
-  ARCHIVE_OUTPUT_DIRECTORY ${CLANG_RESOURCE_INTDIR}/lib
-  LINK_LIBRARIES $<LINK_LIBRARY:${KITSUNE_OBJLIB}>)
+  ARCHIVE_OUTPUT_DIRECTORY ${CLANG_RESOURCE_INTDIR}/lib)
 
 # Create the shared library
 add_library(${KITSUNE_LIBNAME} SHARED
   $<TARGET_OBJECTS:${KITSUNE_OBJLIB}>)
 
 set_target_properties(${KITSUNE_LIBNAME} PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${CLANG_RESOURCE_INTDIR}/lib
-  LINK_LIBRARIES $<LINK_LIBRARY:${KITSUNE_OBJLIB}>)
+  LIBRARY_OUTPUT_DIRECTORY ${CLANG_RESOURCE_INTDIR}/lib)
+
+get_target_property(KITSUNE_LINK_LIBRARIES ${KITSUNE_OBJLIB} LINK_LIBRARIES)
+foreach (LIB IN LISTS KITSUNE_LINK_LIBRARIES)
+  target_link_libraries(${KITSUNE_LIBNAME} PUBLIC ${LIB})
+endforeach()
 
 # $ORIGIN is the location of libkitrt.so. This is
 #

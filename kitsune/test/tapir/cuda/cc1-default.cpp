@@ -21,8 +21,8 @@
 // expected linker flags.
 //
 // CHECK-NEXT: -lkitrt
-// CHECK-SAME: -lcudart_static
 // CHECK-SAME: -lcuda
+// CHECK-SAME: -lcudart_static
 //
 // ----------------------------------------------------------------------------
 // Check that the stripmine pass is disabled by default.

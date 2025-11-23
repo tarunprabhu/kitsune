@@ -2481,6 +2481,26 @@ static StringRef getArchNameForOpenCilkRTLib(const ToolChain &TC,
   return getArchNameForCompilerRTLib(TC, Args);
 }
 
+static void addDirsFromString(StringRef Str, const ArgList &Args,
+                              ArgStringList &CmdArgs) {
+  SmallVector<StringRef> Dirs;
+  Str.split(Dirs, "|");
+  for (StringRef Dir : Dirs) {
+    CmdArgs.push_back("-L");
+    CmdArgs.push_back(Dir.data());
+    CmdArgs.push_back("-rpath");
+    CmdArgs.push_back(Dir.data());
+  }
+}
+
+static void addLibsFromString(StringRef Str, const ArgList &Args,
+                              ArgStringList &CmdArgs) {
+  SmallVector<StringRef> Libs;
+  Str.split(Libs, "|");
+  for (StringRef Lib : Libs)
+    CmdArgs.push_back(Args.MakeArgString(Twine("-l") + Lib));
+}
+
 void ToolChain::AddKitsuneCudaLinkerArgs(const ArgList &Args,
                                          ArgStringList &CmdArgs) const {
   // Nothing to do here for now.
@@ -2671,21 +2691,6 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
   // We always link in libkitrt if a tapir target or special Kokkos handling has
   // been specified.
   if (TT or IsKokkos) {
-    // The pthread functions are now part of libc. libpthread was removed from
-    // glibc 2.34. There is no need to explicitly link this in unless we have
-    // older versions of libc around. We should consider removing this from here
-    // at some point when we are certain we don't need this any longer.
-    //
-    // https://developers.redhat.com/articles/2021/12/17/why-glibc-234-removed-libpthread
-    //
-    CmdArgs.push_back("-lpthread");
-
-    // It is not clear if we need dl and rt here since they will have been
-    // linked in libkitrt. However, on some systems, that doesn't seem to work
-    // as expected, so link them here anyway.
-    CmdArgs.push_back("-ldl");
-    CmdArgs.push_back("-lrt");
-
     const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
     CmdArgs.push_back("-L");
     CmdArgs.push_back(LibDir);
@@ -2702,26 +2707,22 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       CmdArgs.push_back("-l" KITSUNE_LIBNAME);
     }
 
+    addDirsFromString(KITSUNE_COMMON_LIB_DIRS, Args, CmdArgs);
+    addLibsFromString(KITSUNE_COMMON_LIB_NAMES, Args, CmdArgs);
+
     // libkitrt links against libcuda if the cuda target is enabled and
     // libamdhip64 if the hip target is enabled. The libraries may not be where
     // the dynamic linker will find them, so the paths need to be set correctly
     // here if libkitrt.so will be linked, regardless of the Tapir target being
     // used.
     if (KITSUNE_HIP_ENABLED) {
-      CmdArgs.push_back("-L");
-      CmdArgs.push_back(KITSUNE_HIP_LIBRARY_DIR);
-      CmdArgs.push_back("-rpath");
-      CmdArgs.push_back(KITSUNE_HIP_LIBRARY_DIR);
-      CmdArgs.push_back("-l" KITSUNE_HIP_LIBNAME_AMDHIP);
+      addDirsFromString(KITSUNE_HIP_LIB_DIRS, Args, CmdArgs);
+      addLibsFromString(KITSUNE_HIP_LIB_NAMES, Args, CmdArgs);
     }
 
     if (KITSUNE_CUDA_ENABLED) {
-      CmdArgs.push_back("-L");
-      CmdArgs.push_back(KITSUNE_CUDA_LIBRARY_DIR);
-      CmdArgs.push_back("-rpath");
-      CmdArgs.push_back(KITSUNE_CUDA_LIBRARY_DIR);
-      CmdArgs.push_back("-l" KITSUNE_CUDA_LIBNAME_CUDART_STATIC);
-      CmdArgs.push_back("-l" KITSUNE_CUDA_LIBNAME_CUDA);
+      addDirsFromString(KITSUNE_CUDA_LIB_DIRS, Args, CmdArgs);
+      addLibsFromString(KITSUNE_CUDA_LIB_NAMES, Args, CmdArgs);
     }
   }
 }
