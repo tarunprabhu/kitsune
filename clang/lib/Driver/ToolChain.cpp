@@ -779,7 +779,7 @@ std::string ToolChain::getCompilerRT(const ArgList &Args, StringRef Component,
   std::string CRTBasename = buildCompilerRTBasename(
       Args, Component, Type, /*AddArch=*/false, IsFortran);
   SmallString<128> Path;
-  for (const auto &LibPath : getLibraryPaths()) {
+  for (const std::string &LibPath : getLibraryPaths()) {
     SmallString<128> P(LibPath);
     llvm::sys::path::append(P, CRTBasename);
     if (getVFS().exists(P))
@@ -2478,6 +2478,12 @@ static void addOpenCilkRuntimeRunPath(const ToolChain &TC, const ArgList &Args,
 
 static StringRef getArchNameForOpenCilkRTLib(const ToolChain &TC,
                                              const ArgList &Args) {
+  // Cheetah's installs the bitcode file with the arm64 suffix on MacOSX with
+  // Apple silicon. The usual arch name on this architecture is aarch64. Without
+  // this workaround, the bitcode file will not be found.
+  Triple Triple = TC.getTriple();
+  if (Triple.getArch() == Triple::aarch64 && Triple.isOSDarwin())
+    return "arm64";
   return getArchNameForCompilerRTLib(TC, Args);
 }
 
@@ -2487,9 +2493,9 @@ static void addDirsFromString(StringRef Str, const ArgList &Args,
   Str.split(Dirs, "|");
   for (StringRef Dir : Dirs) {
     CmdArgs.push_back("-L");
-    CmdArgs.push_back(Dir.data());
+    CmdArgs.push_back(Args.MakeArgString(Dir));
     CmdArgs.push_back("-rpath");
-    CmdArgs.push_back(Dir.data());
+    CmdArgs.push_back(Args.MakeArgString(Dir));
   }
 }
 
@@ -2543,16 +2549,16 @@ void ToolChain::AddKitsuneOpenCilkLinkerArgs(const ArgList &Args,
                                              ArgStringList &CmdArgs) const {
   bool IsStatic = Args.hasArg(options::OPT_static);
   FileType FT = IsStatic ? ToolChain::FT_Static : ToolChain::FT_Shared;
-  StringRef Personality = getDriver().CCCIsCXX() ? "opencilk-personality-cpp"
-                                                 : "opencilk-personality-c";
 
   // Link the correct Cilk personality fn
+  std::string Personality = getOpenCilkPersonalityName(Args, FT);
   CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(Args, Personality, FT)));
 
   // Link the opencilk runtime.  We do this after linking the personality
   // function, to ensure that symbols are resolved correctly when using
   // static linking.
-  CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(Args, "opencilk", FT)));
+  std::string Runtime = getOpenCilkRuntimeName(Args, FT);
+  CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(Args, Runtime, FT)));
 
   // Add to the executable's runpath the default directory containing the
   // OpenCilk runtime.
@@ -2791,6 +2797,19 @@ ToolChain::getOpenCilkABIBitcodeFile(const ArgList &Args) const {
   return getOpenCilkBC(Args, "opencilk-abi");
 }
 
+std::string ToolChain::getOpenCilkPersonalityName(const ArgList &Args,
+                                                  FileType FT) const {
+  const Driver &D = getDriver();
+  if (D.CCCIsCXX())
+    return "opencilk-personality-cpp";
+  return "opencilk-personality-c";
+}
+
+std::string ToolChain::getOpenCilkRuntimeName(const ArgList &Args,
+                                              FileType FT) const {
+  return "opencilk";
+}
+
 std::optional<std::string>
 ToolChain::getOpenCilkRuntimePath(const ArgList &Args) const {
   return getRuntimePath();
@@ -2799,16 +2818,16 @@ ToolChain::getOpenCilkRuntimePath(const ArgList &Args) const {
 std::string ToolChain::getOpenCilkBCBasename(const ArgList &Args,
                                              StringRef Component,
                                              bool AddArch) const {
-  const llvm::Triple &TT = getTriple();
-  const char *Prefix = "lib";
-  const char *Suffix = ".bc";
+  const llvm::Triple &Triple = getTriple();
+  StringRef Prefix = "lib";
+  StringRef Suffix = ".bc";
   std::string ArchAndEnv;
   if (AddArch) {
     StringRef Arch = getArchNameForOpenCilkRTLib(*this, Args);
-    const char *Env = TT.isAndroid() ? "-android" : "";
-    ArchAndEnv = ("-" + Arch + Env).str();
+    StringRef Env = Triple.isAndroid() ? "-android" : "";
+    ArchAndEnv = join_items("", "-", Arch, Env);
   }
-  return (Prefix + Component + ArchAndEnv + Suffix).str();
+  return join_items("", Prefix, Component, ArchAndEnv, Suffix);
 }
 
 std::optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
@@ -2820,7 +2839,7 @@ std::optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
     SmallString<128> P(*RuntimePath);
     llvm::sys::path::append(P, BCBasename);
     if (getVFS().exists(P))
-      return std::optional<std::string>(std::string(P.str()));
+      return P.c_str();
   }
 
   // Fall back to the OpenCilk name with the arch if the no-arch version does
@@ -2830,7 +2849,7 @@ std::optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
     SmallString<128> P(*RuntimePath);
     llvm::sys::path::append(P, BCBasename);
     if (getVFS().exists(P))
-      return std::optional<std::string>(std::string(P.str()));
+      return P.c_str();
   }
 
   return std::nullopt;
@@ -2839,9 +2858,9 @@ std::optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
 std::string ToolChain::getOpenCilkRTBasename(const ArgList &Args,
                                              StringRef Component, FileType Type,
                                              bool AddArch) const {
-  const llvm::Triple &TT = getTriple();
-  const char *Prefix = "lib";
-  const char *Suffix;
+  const llvm::Triple &Triple = getTriple();
+  StringRef Prefix = "lib";
+  StringRef Suffix;
   switch (Type) {
   case ToolChain::FT_Object:
     Suffix = ".o";
@@ -2850,16 +2869,19 @@ std::string ToolChain::getOpenCilkRTBasename(const ArgList &Args,
     Suffix = ".a";
     break;
   case ToolChain::FT_Shared:
-    Suffix = ".so";
+    if (Triple.isOSDarwin())
+      Suffix = ".dylib";
+    else
+      Suffix = ".so";
     break;
   }
   std::string ArchAndEnv;
   if (AddArch) {
     StringRef Arch = getArchNameForOpenCilkRTLib(*this, Args);
-    const char *Env = TT.isAndroid() ? "-android" : "";
-    ArchAndEnv = ("-" + Arch + Env).str();
+    StringRef Env = Triple.isAndroid() ? "-android" : "";
+    ArchAndEnv = join_items("", "-", Arch, Env);
   }
-  return (Prefix + Component + ArchAndEnv + Suffix).str();
+  return join_items("", Prefix, Component, ArchAndEnv, Suffix);
 }
 
 std::string ToolChain::getOpenCilkRT(const ArgList &Args, StringRef Component,
@@ -2867,12 +2889,12 @@ std::string ToolChain::getOpenCilkRT(const ArgList &Args, StringRef Component,
   // Check for runtime files without the architecture first.
   std::string RTBasename =
       getOpenCilkRTBasename(Args, Component, Type, /*AddArch=*/false);
-  for (const auto &LibPath : getLibraryPaths()) {
+  for (const std::string &LibPath : getLibraryPaths()) {
     SmallString<128> P(LibPath);
     llvm::sys::path::append(P, RTBasename);
     if (getVFS().exists(P))
       // If we found the library in LibraryPaths, let the linker resolve it.
-      return std::string(("-l" + Component).str());
+      return join_items("", "-l", Component);
   }
 
   // Fall back to the OpenCilk name with the arch if the no-arch version does
@@ -2882,9 +2904,9 @@ std::string ToolChain::getOpenCilkRT(const ArgList &Args, StringRef Component,
     SmallString<128> P(*RuntimePath);
     llvm::sys::path::append(P, RTBasename);
     if (getVFS().exists(P))
-      return std::string(P.str());
+      return P.c_str();
   }
 
   // Otherwise, trust the linker to find the library on the system.
-  return std::string(("-l" + Component).str());
+  return join_items("", "-l", Component);
 }

@@ -1,6 +1,6 @@
-// RUN: %kitcc -Xclang -verify -fsyntax-only -std=c23 %s
+// RUN: %kitcc -Xclang -verify -fsyntax-only -std=c23 %s %sysroot
 
-#include <stdlib.h>
+#include <stddef.h>
 
 void mobile_free() {
   int *ptr = NULL;

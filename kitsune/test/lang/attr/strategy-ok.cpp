@@ -1,4 +1,4 @@
-// RUN: %kitxx -Xclang -verify -fsyntax-only --tapir=nolo %s
+// RUN: %kitxx -Xclang -verify -fsyntax-only --tapir=nolo %s %sysroot
 // expected-no-diagnostics
 
 #include <kitsune.h>

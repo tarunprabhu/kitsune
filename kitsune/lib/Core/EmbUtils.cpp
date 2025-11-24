@@ -134,11 +134,8 @@ GlobalVariable *llvm::resetEmbBCGlobal(const Module &devM, GlobalVariable &g) {
   Module &hostM = *g.getParent();
   GlobalVariable *newG = ::createEmbBCGlobal(devM, hostM);
 
-  if (g.hasName()) {
-    StringRef name = g.getName();
-    g.setName("");
-    newG->setName(name);
-  }
+  if (g.hasName())
+    newG->takeName(&g);
   if (g.hasSection())
     newG->setSection(g.getSection());
   newG->copyAttributesFrom(&g);
@@ -205,11 +202,8 @@ GlobalVariable *llvm::resetEmbFBGlobal(MemoryBufferRef buf, GlobalVariable &g) {
   Module &m = *g.getParent();
   GlobalVariable *newG = ::createEmbFBGlobal(buf, m);
 
-  if (g.hasName()) {
-    StringRef name = g.getName();
-    g.setName("");
-    newG->setName(name);
-  }
+  if (g.hasName())
+    newG->takeName(&g);
   if (g.hasSection())
     newG->setSection(g.getSection());
   newG->copyAttributesFrom(&g);

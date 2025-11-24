@@ -304,10 +304,6 @@ find_library(LIB_PTHREAD pthread REQUIRED)
 list(APPEND KITSUNE_COMMON_LIB_NAMES pthread)
 list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_PTHREAD})
 
-find_library(LIB_RT rt REQUIRED)
-list(APPEND KITSUNE_COMMON_LIB_NAMES rt)
-list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_RT})
-
 # On FreeBSD, the backtrace-related functions are defined in libexecinfo. On
 # other systems, they are part of libc, so there is nothing to be done
 # elsewhere.

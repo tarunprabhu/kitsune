@@ -1,3 +1,9 @@
+# REQUIRES: !system-darwin
+#
+# ld64.lld does not support --lto-emit-llvm. We may implement this at some
+# point, until then, disable this test there.
+#
+# ------------------------------------------------------------------------------
 # Check a "standard" lowering using LTO, but where each file is compiled
 # separately.
 #
@@ -6,14 +12,16 @@
 #
 # RUN: mkdir -p %t
 #
-# RUN: %kitxx -c -flto --tapir=serial -O2 -o %t/add.o  %S/../input/add.cpp \
+# RUN: %kitxx -c -flto --tapir=serial -O2 %sysroot -fno-stripmine \
+# RUN:     -o %t/add.o  %S/../input/add.cpp
+#
+# RUN: %kitxx -c -flto --tapir=serial -O2 %sysroot -fno-stripmine \
+# RUN:     -o %t/main.o %S/../input/main.cpp \
 # RUN:     -fno-stripmine
 #
-# RUN: %kitxx -c -flto --tapir=serial -O2 -o %t/main.o %S/../input/main.cpp \
-# RUN:     -fno-stripmine
-#
-# RUN: %kitxx -flto --tapir=serial -O2 %t/main.o %t/add.o -o %t/a.bc %sysroot \
-# RUN:     -fno-stripmine -Wl,--lto-emit-llvm
+# RUN: %kitxx -flto --tapir=serial -O2 %sysroot -fno-stripmine\
+# RUN:     %t/main.o %t/add.o -o %t/a.bc \
+# RUN:     -Wl,--lto-emit-llvm
 #
 # RUN: llvm-dis -o - %t/add.o | FileCheck %s --check-prefix TAPIR
 # RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN

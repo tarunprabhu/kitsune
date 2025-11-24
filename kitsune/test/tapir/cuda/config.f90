@@ -36,5 +36,5 @@
 !
 ! CHECK-CUSTOM-NEXT: "-some_linker_flag"
 ! CHECK-CUSTOM-SAME: -lkitrt
-! CHECK-CUSTOM-SAME: -lcudart_static
 ! CHECK-CUSTOM-SAME: -lcuda
+! CHECK-CUSTOM-SAME: -lcudart_static

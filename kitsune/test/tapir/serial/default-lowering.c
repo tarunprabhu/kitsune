@@ -1,6 +1,6 @@
 // Check that the default lowering of a simple loop is as expected.
 //
-// RUN: %kitcc --tapir=serial -O1 -S -emit-llvm -o - %s \
+// RUN: %kitcc --tapir=serial -O1 -S -emit-llvm -o - %s %sysroot \
 // RUN:     | FileCheck %s
 //
 // CHECK: define {{.*}}void @f(ptr {{.*}}%[[A:.+]], i32 {{.*}}%[[SCALE:.+]], i64 {{.*}}%[[N:.+]])

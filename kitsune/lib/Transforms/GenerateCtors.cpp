@@ -32,8 +32,14 @@ using namespace llvm;
 // These are declared [[weak]] because they are defined in one of the tapir
 // targets. The tapir targets are not guaranteed to be built, therefore, these
 // globals may not be available at link time.
-extern __attribute__((weak)) cl::opt<bool> clRefineLaunches;
-extern __attribute__((weak)) cl::opt<bool> clUseYLaunch;
+//
+#ifdef __APPLE__
+#define WEAK weak_import
+#else
+#define WEAK weak
+#endif
+extern __attribute__((WEAK)) cl::opt<bool> clRefineLaunches;
+extern __attribute__((WEAK)) cl::opt<bool> clUseYLaunch;
 
 /// Is the given intrinsic \param id called at least once in the module \param m
 /// with the tapir target id \param tt

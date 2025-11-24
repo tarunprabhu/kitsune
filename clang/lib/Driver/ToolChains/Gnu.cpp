@@ -452,11 +452,9 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   ToolChain.AddFilePathLibArgs(Args, CmdArgs);
 
-  if (D.isUsingLTO()) {
+  if (D.isUsingLTO())
     addLTOOptions(ToolChain, Args, CmdArgs, Output, Inputs,
                   D.getLTOMode() == LTOK_Thin);
-    ToolChain.AddKitsuneLTOArgs(Args, CmdArgs);
-  }
 
   if (Args.hasArg(options::OPT_Z_Xlinker__no_demangle))
     CmdArgs.push_back("--no-demangle");
@@ -471,6 +469,10 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   // The profile runtime also needs access to system libraries.
   getToolChain().addProfileRTLibs(Args, CmdArgs);
 
+  // Add the Kitsune-specific options just before linking the C++ standard
+  // library (if needed).
+  if (D.isUsingLTO())
+    ToolChain.AddKitsuneLTOArgs(Args, CmdArgs);
   ToolChain.AddKitsuneLinkerArgs(Args, CmdArgs);
 
   if (D.CCCIsCXX() &&

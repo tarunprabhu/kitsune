@@ -287,7 +287,7 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
   // This is the number of threads that *may* be launched. However, there may
   // not be enough for work for all threads, so the actual number of threads
   // that are launched may be smaller than this.
-  int64_t availThrds = kitpthrGetNumThreads(start, end);
+  const int64_t availThrds = kitpthrGetNumThreads(start, end);
 
   // If only a single thread is to be used, don't launch any threads. Run f on
   // the main thread and block until it finishes. Return nullptr as the thread
@@ -295,7 +295,12 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
   if (availThrds == 1)
     return runOnMainThread(f, start, end, grainSize, args);
 
-  int64_t thrdSpan = std::max((end - start) / availThrds, 1L);
+  // On some systems, int64_t maps to long while on others it is long long.
+  // Adding the literal to the call to std::max results in a compile time error
+  // on one or another platform. Setting to a constant avoids the conditional
+  // compilation directives that would other wise be needed here.
+  constexpr int64_t one = 1;
+  const int64_t thrdSpan = std::max((end - start) / availThrds, one);
   message("Iterations per thread: %ld", thrdSpan);
 
   // The actual number of threads that are to be launched. Adding `thrdSpan - 1`
@@ -303,7 +308,7 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
   // integer multiple of thrdSpan. We could have used a conditional statement to
   // handle the two cases separately, but this is a fairly standard way of doing
   // such things.
-  int64_t thrds = (end + thrdSpan - 1 - start) / thrdSpan;
+  const int64_t thrds = (end + thrdSpan - 1 - start) / thrdSpan;
   message("Launching %ld threads", thrds);
 
   KitPthrContext *ctx = new KitPthrContext(thrds);

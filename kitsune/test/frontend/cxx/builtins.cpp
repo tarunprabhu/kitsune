@@ -3,8 +3,8 @@
 // the case even if a tapir target has not been set. In C++, the builtins can be
 // called directly if needed.
 //
-// RUN: %kitxx --tapir=nolo -O1 -S -emit-llvm -o - %s | FileCheck %s
-// RUN: %kitxx -O1 -S -emit-llvm -o - %s | FileCheck %s
+// RUN: %kitxx --tapir=nolo -O1 -S -emit-llvm -o - %s %sysroot | FileCheck %s
+// RUN: %kitxx -O1 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 //
 // CHECK: define {{.+}} @_Z8allocateRN7kitsune
 // CHECK: call ptr addrspace(67) @llvm.kit.mobile.alloc({{.+}})

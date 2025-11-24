@@ -1,6 +1,6 @@
 // Check that the correct metadata is added to a tapir loop by default.
 //
-// RUN: %kitcc --tapir=pthreads -O1 %s \
+// RUN: %kitcc --tapir=pthreads -O1 %s %sysroot \
 // RUN:     -Xclang -disable-llvm-passes -S -emit-llvm -o - 2>&1 \
 // RUN:     | FileCheck %s
 //

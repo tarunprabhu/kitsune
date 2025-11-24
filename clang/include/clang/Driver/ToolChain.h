@@ -1021,6 +1021,19 @@ public:
   /// standard locations.
   virtual std::optional<std::string>
   getOpenCilkABIBitcodeFile(const llvm::opt::ArgList &Args) const;
+
+  /// Get the name of the personality library for opencilk. This is just the
+  /// name of the library, not the full path to it. This is suitable for use
+  /// in a -l linker option when constructing the linker command line.
+  virtual std::string
+  getOpenCilkPersonalityName(const llvm::opt::ArgList &Args,
+                             FileType FT) const;
+
+  /// Get the name of opencilk's runtime library. This is just the name of the
+  /// library, not the full path to it. It is suitable for use in a -l linker
+  /// option when constructing the linker command line.
+  virtual std::string getOpenCilkRuntimeName(const llvm::opt::ArgList &Args,
+                                             FileType FT) const;
 };
 
 /// Set a ToolChain's effective triple. Reset it when the registration object

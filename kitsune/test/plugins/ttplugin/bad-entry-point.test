@@ -1,28 +1,37 @@
 # Check that an appropriate error is emitted when loading a tapir target plugin
 # that does not contain the expected entry point.
 #
+# Plugins should not link against LLVM libraries. Since the process that will
+# load this plugin is guaranteed to be linked against LLVM, there is a risk of
+# running into duplicate definition errors at load-time if the plugin is linked
+# against LLVM libraries at link time. On some systems, we need to explicitly
+# tell the linker not to complain about undefined symbols.
+#
+# DEFINE: %{IGNORE_UNDEF} = %if system-darwin %{ -Wl -undefined -Wl suppress %}
+#
 # RUN: rm -rf %t
 # RUN: mkdir %t
 #
 # RUN: %kitxx -I%kit_inc_dir -I%llvm_obj_inc_dir -I%llvm_src_inc_dir %sysroot \
-# RUN:     -fPIC -shared -o %t/bad-entry-point.so \
-# RUN:     %S/input/bad-entry-point.cpp
+# RUN:     -fPIC -shared \
+# RUN:     %if system-darwin %{ -Xlinker -undefined -Xlinker suppress %} \
+# RUN:     -o %t/bad-entry-point%shlibext %S/input/bad-entry-point.cpp
 #
-# RUN: not %kitcc --tapir=custom --tapir-plugin=%t/bad-entry-point.so \
+# RUN: not %kitcc --tapir=custom --tapir-plugin=%t/bad-entry-point%shlibext \
 # RUN:     -S -emit-llvm -O1 -o /dev/null %S/input/empty.c 2>&1 \
 # RUN:     | FileCheck %s
 #
-# RUN: not %kitxx --tapir=custom --tapir-plugin=%t/bad-entry-point.so \
+# RUN: not %kitxx --tapir=custom --tapir-plugin=%t/bad-entry-point%shlibext \
 # RUN:     -S -emit-llvm -O1 -o /dev/null %S/input/empty.cpp 2>&1 \
 # RUN:     | FileCheck %s
 #
-# RUN: %if kitfc %{\
-# RUN:     not %kitfc --tapir=custom --tapir-plugin=%t/bad-entry-point.so \
-# RUN:     -S -emit-llvm -O1 -o /dev/null %S/input/empty.f90 2>&1 \
+# RUN: %if kitfc %{ \
+# RUN:     not %kitfc --tapir=custom --tapir-plugin=%t/bad-entry-point%shlibext \
+# RUN:         -S -emit-llvm -O1 -o /dev/null %S/input/empty.f90 2>&1 \
 # RUN:     | FileCheck %s \
 # RUN: %}
 #
-# RUN: not opt --tapir=custom --tapir-plugin=%t/bad-entry-point.so \
+# RUN: not opt --tapir=custom --tapir-plugin=%t/bad-entry-point%shlibext \
 # RUN:     -passes='kit-lowering<O1>' %S/input/empty.ll 2>&1 \
 # RUN:     | FileCheck %s
 #

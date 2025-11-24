@@ -1,6 +1,6 @@
 // Check that the correct metadata is added to a tapir loop by default.
 //
-// RUN: %kitcc --tapir=opencilk -O1 %s \
+// RUN: %kitcc --tapir=opencilk -O1 %s %sysroot \
 // RUN:     -Xclang -disable-llvm-passes -S -emit-llvm -o - \
 // RUN:     | FileCheck %s
 //

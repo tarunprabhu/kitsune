@@ -2,9 +2,9 @@
 // into the correct Kitsune memory (de)allocation intrinsics. This should be
 // the case even if a tapir target has not been set.
 //
-// RUN: %clang -O0 -S -emit-llvm -o - %s | FileCheck  %s
-// RUN: %kitcc --tapir=nolo -O0 -S -emit-llvm -o - %s | FileCheck %s
-// RUN: %kitcc -O0 -S -emit-llvm -o - %s | FileCheck %s
+// RUN: %clang -O0 -S -emit-llvm -o - %s %sysroot | FileCheck  %s
+// RUN: %kitcc --tapir=nolo -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
+// RUN: %kitcc -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 //
 // CHECK-LABEL: allocate_c
 // CHECK: call ptr addrspace(67) @llvm.kit.mobile.alloc({{.+}})

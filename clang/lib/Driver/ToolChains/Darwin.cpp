@@ -568,20 +568,6 @@ static void renderRemarksOptions(const ArgList &Args, ArgStringList &CmdArgs,
   }
 }
 
-// FIXME: We may want to consider removing this since we have do not test that
-// this works.
-static void renderTapirLoweringOptions(const ArgList &Args,
-                                       ArgStringList &CmdArgs,
-                                       const ToolChain &TC, bool LinkerIsLLD) {
-  if (!(TC.getDriver().isUsingLTO() && LinkerIsLLD))
-    return;
-
-  if (const Arg *A = Args.getLastArg(options::OPT_tapir_EQ)) {
-    CmdArgs.push_back(
-        Args.MakeArgString(Twine("--tapir-target=") + A->getValue()));
-  }
-}
-
 static void AppendPlatformPrefix(SmallString<128> &Path, const llvm::Triple &T);
 
 void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
@@ -620,8 +606,6 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       checkRemarksOptions(getToolChain().getDriver(), Args,
                           getToolChain().getTriple()))
     renderRemarksOptions(Args, CmdArgs, getToolChain().getTriple(), Output, JA);
-
-  renderTapirLoweringOptions(Args, CmdArgs, getToolChain(), LinkerIsLLD);
 
   // Propagate the -moutline flag to the linker in LTO.
   if (Arg *A =
@@ -758,6 +742,12 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(Args.MakeArgString("-threads=" + Twine(NumThreads)));
   }
 
+  // Add the Kitsune-specific options just before linking the C++ standard
+  // library (if needed).
+  if (D.isUsingLTO())
+    getToolChain().AddKitsuneLTOArgs(Args, CmdArgs);
+  getToolChain().AddKitsuneLinkerArgs(Args, CmdArgs);
+
   if (getToolChain().ShouldLinkCXXStdlib(Args))
     getToolChain().AddCXXStdlibLibArgs(Args, CmdArgs);
 
@@ -781,8 +771,6 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       Args.ClaimAllArgs(options::OPT_pthreads);
     }
   }
-
-  getMachOToolChain().AddLinkTapirRuntime(Args, CmdArgs);
 
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles)) {
     // endfile_spec is empty.
@@ -3813,115 +3801,35 @@ DarwinClang::getOpenCilkRuntimePath(const ArgList &Args) const {
   return std::string(P);
 }
 
-std::optional<std::string> DarwinClang::getOpenCilkABIBitcodeFile(const ArgList& Args) const {
-  SmallString<128> BitcodeFilename("libopencilk-abi");
+std::optional<std::string>
+DarwinClang::getOpenCilkABIBitcodeFile(const ArgList &Args) const {
+  SmallString<128> BitcodeFilename("opencilk-abi");
   BitcodeFilename += "_";
   BitcodeFilename += getOSLibraryNameSuffix();
-  BitcodeFilename += ".bc";
 
-  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePath(Args)) {
-    SmallString<128> P(*RuntimePath);
-    llvm::sys::path::append(P, BitcodeFilename);
-    if (getVFS().exists(P))
-      return P.c_str();
-  }
-  return std::nullopt;
+  return getOpenCilkBC(Args, BitcodeFilename);
 }
 
-void DarwinClang::AddLinkTapirRuntimeLib(const ArgList &Args,
-                                         ArgStringList &CmdArgs,
-                                         StringRef LibName,
-                                         RuntimeLinkOptions Opts,
-                                         bool IsShared) const {
-  SmallString<64> DarwinLibName = StringRef("lib");
-  DarwinLibName += LibName;
-  DarwinLibName += "_";
-  DarwinLibName += getOSLibraryNameSuffix();
-  DarwinLibName += IsShared ? "_dynamic.dylib" : ".a";
-  SmallString<128> Dir(getDriver().ResourceDir);
-  llvm::sys::path::append(
-      Dir, "lib", (Opts & RLO_IsEmbedded) ? "macho_embedded" : "darwin");
-
-  SmallString<128> P(Dir);
-  llvm::sys::path::append(P, DarwinLibName);
-
-  // For now, allow missing resource libraries to support developers who may
-  // not have compiler-rt checked out or integrated into their build (unless
-  // we explicitly force linking with this library).
-  if ((Opts & RLO_AlwaysLink) || getVFS().exists(P)) {
-    const char *LibArg = Args.MakeArgString(P);
-    CmdArgs.push_back(LibArg);
-  }
-
-  // Adding the rpaths might negatively interact when other rpaths are involved,
-  // so we should make sure we add the rpaths last, after all user-specified
-  // rpaths. This is currently true from this place, but we need to be
-  // careful if this function is ever called before user's rpaths are emitted.
-  if (Opts & RLO_AddRPath) {
-    assert(DarwinLibName.ends_with(".dylib") && "must be a dynamic library");
-
-    // Add @executable_path to rpath to support having the dylib copied with
-    // the executable.
-    CmdArgs.push_back("-rpath");
-    CmdArgs.push_back("@executable_path");
-
-    // Add the path to the resource dir to rpath to support using the dylib
-    // from the default location without copying.
-    CmdArgs.push_back("-rpath");
-    CmdArgs.push_back(Args.MakeArgString(Dir));
-  }
+std::string DarwinClang::getOpenCilkRuntimeName(const ArgList &Args,
+                                                FileType FT) const {
+  SmallString<32> Runtime("opencilk_");
+  Runtime += getOSLibraryNameSuffix();
+  if (FT == ToolChain::FT_Shared)
+    Runtime += "_dynamic";
+  return Runtime.c_str();
 }
 
-void DarwinClang::AddLinkTapirRuntime(const ArgList &Args,
-                                      ArgStringList &CmdArgs) const {
-  std::optional<llvm::TTID> TapirTarget = parseTapirTargetIfValid(Args);
-  if (not TapirTarget)
-    return;
-
-  llvm_unreachable(
-      "NOT IMPLEMENTED: AddLinkTapirRuntime has to be fixed for Darwin");
-
-  // FIXME KITSUNE: Shouldn't this be like the code in ToolChain.cpp?
-  switch (*TapirTarget) {
-  case llvm::TTID::OpenCilk: {
-    bool StaticOpenCilk = false;
-    bool UseAsan = getSanitizerArgs(Args).needsAsanRt();
-
-    auto RLO = RLO_AlwaysLink;
-    if (!StaticOpenCilk)
-      RLO = RuntimeLinkOptions(RLO | RLO_AddRPath);
-
-    // Link the correct Cilk personality fn
-    if (getDriver().CCCIsCXX())
-      AddLinkTapirRuntimeLib(Args, CmdArgs,
-                             UseAsan ? "opencilk-asan-personality-cpp"
-                                     : "opencilk-personality-cpp",
-                             RLO, !StaticOpenCilk);
-    else
-      AddLinkTapirRuntimeLib(Args, CmdArgs,
-                             UseAsan ? "opencilk-asan-personality-c"
-                                     : "opencilk-personality-c",
-                             RLO, !StaticOpenCilk);
-
-    // Link the opencilk runtime.  We do this after linking the personality
-    // function, to ensure that symbols are resolved correctly when using static
-    // linking.
-    AddLinkTapirRuntimeLib(Args, CmdArgs,
-                           UseAsan ? "opencilk-asan" : "opencilk", RLO,
-                           !StaticOpenCilk);
-    break;
-  }
-  case llvm::TTID::OpenMP:
-    CmdArgs.push_back("-lomp");
-    break;
-  case llvm::TTID::Qthreads:
-    CmdArgs.push_back("-lqthread");
-    break;
-  case llvm::TTID::Realm:
-    CmdArgs.push_back("-lrealm-abi");
-    CmdArgs.push_back("-lrealm");
-    break;
-  default:
-    break;
-  }
+std::string DarwinClang::getOpenCilkPersonalityName(const ArgList &Args,
+                                                    FileType FT) const {
+  const Driver &D = getDriver();
+  SmallString<32> Personality;
+  if (D.CCCIsCXX())
+    Personality += "opencilk-personality-cpp";
+  else
+    Personality += "opencilk-personality-c";
+  Personality += "_";
+  Personality += getOSLibraryNameSuffix();
+  if (FT == ToolChain::FT_Shared)
+    Personality += "_dynamic";
+  return Personality.c_str();
 }

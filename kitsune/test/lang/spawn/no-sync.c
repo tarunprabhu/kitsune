@@ -1,4 +1,4 @@
-// RUN: %kitcc --tapir=nolo -S -emit-llvm -o - %s | FileCheck %s
+// RUN: %kitcc --tapir=nolo -S -emit-llvm -o - %s %sysroot | FileCheck %s
 
 #include <kitsune.h>
 

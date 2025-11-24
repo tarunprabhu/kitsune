@@ -193,7 +193,7 @@ private:
       // after all the old instances are replaced.
       if (structTys.at(sty) && !sty->isLiteral()) {
         StructType *newSty = structTys.at(sty);
-        StringRef t = sty->getName();
+        std::string t = sty->getName().str();
         sty->setName(newSty->getName());
         newSty->setName(t);
       }

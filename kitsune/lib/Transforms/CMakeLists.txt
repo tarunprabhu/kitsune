@@ -36,3 +36,8 @@ add_llvm_component_library(LLVMKitTransforms
   Passes
   Support
 )
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  target_link_options(LLVMKitTransforms PUBLIC
+    LINKER:-U,_clRefineLaunches,-U,_clUseYLaunch)
+endif ()

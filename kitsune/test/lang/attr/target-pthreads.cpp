@@ -2,7 +2,7 @@
 // overrides the primary tapir target.
 //
 // RUN: %kitxx -O1 --tapir=serial -Xclang -disable-llvm-passes \
-// RUN:     -S -emit-llvm -o - %s \
+// RUN:     -S -emit-llvm -o - %s %sysroot \
 // RUN:     | FileCheck %s
 //
 // CHECK-DAG: !{!"tapir.loop.target", i32 1024}
