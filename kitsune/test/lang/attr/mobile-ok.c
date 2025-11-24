@@ -1,7 +1,7 @@
-// RUN: %kitcc -std=c23 --tapir=nolo -S -emit-llvm -O0 -o - %s \
+// RUN: %kitcc -std=c23 --tapir=nolo -S -emit-llvm -O0 -o - %s %sysroot \
 // RUN:     | FileCheck %s
 
-#include <stdlib.h>
+#include <stddef.h>
 
 typedef struct {
   int n;

@@ -1,7 +1,7 @@
 // Check that empty forall's are lowered correctly. It is ok for them to be
 // empty, though, with optimizations enabled, they are likely to be DCE'ed
 //
-// RUN: %kitcc --tapir=nolo -S -emit-llvm -o - %s | FileCheck %s
+// RUN: %kitcc --tapir=nolo -S -emit-llvm -o - %s %sysroot | FileCheck %s
 //
 // CHECK: %[[SYNCREG:.+]] = call token @llvm.syncregion.start()
 // CHECK: br label %[[COND:.+]]

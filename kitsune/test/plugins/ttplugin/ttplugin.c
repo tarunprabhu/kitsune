@@ -11,7 +11,7 @@
 // output below.
 //
 // RUN: %kitcc -### --tapir=custom --tapir-plugin=%kit-ttplugin-demo %s \
-// RUN:     -o /dev/null -O2 2>&1 \
+// RUN:     -o /dev/null -O2 %sysroot 2>&1 \
 // RUN:     | FileCheck %s --check-prefixes=ARGS
 //
 // ARGS: -cc1
@@ -22,7 +22,7 @@
 // Check that the plugin modified the code in the expected way.
 //
 // RUN: %kitcc --tapir=custom --tapir-plugin=%kit-ttplugin-demo %s \
-// RUN:     -S -emit-llvm -o - -O2 \
+// RUN:     -S -emit-llvm -o - -O2 %sysroot \
 // RUN:     | FileCheck %s --check-prefix=BOOKEND
 //
 // BOOKEND: call void @bookend

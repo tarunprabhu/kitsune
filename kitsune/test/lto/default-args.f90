@@ -19,6 +19,6 @@
 ! RUN:     | FileCheck %s -check-prefix LINKER-ARGS
 !
 ! LINKER-ARGS: /ld{{(64)?}}.lld
-! LINKER-ARGS-SAME: -dynamic-linker
+! LINKER-ARGS-SAME: -dynamic{{(-linker)?}}
 !
 ! -----------------------------------------------------------------------------

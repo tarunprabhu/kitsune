@@ -89,11 +89,13 @@ if config.kitsune_fortran_enabled:
 
 llvm_config.add_tool_substitutions(tools, tool_dirs)
 
+config.substitutions.append(("%shlibext", config.shlibext))
 config.substitutions.append(("%llvm_src_root", config.llvm_src_root))
 config.substitutions.append(("%llvm_src_inc_dir",
                              os.path.join(config.llvm_src_root, 'include')))
 config.substitutions.append(("%llvm_obj_inc_dir",
                              os.path.join(config.llvm_obj_root, 'include')))
+config.substitutions.append(("%llvm_shlib_dir", config.llvm_shlib_dir))
 config.substitutions.append(("%kit_src_root", config.kitsune_src_root))
 config.substitutions.append(("%kit_inc_dir",
                              os.path.join(config.kitsune_src_root, 'include')))

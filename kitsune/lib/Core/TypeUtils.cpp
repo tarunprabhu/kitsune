@@ -47,10 +47,6 @@ template Type *llvm::getLLVMTypeFor<uint32_t>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<int64_t>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<uint64_t>(LLVMContext &);
 
-template Type *llvm::getLLVMTypeFor<char>(LLVMContext &);
-template Type *llvm::getLLVMTypeFor<long long>(LLVMContext &);
-template Type *llvm::getLLVMTypeFor<unsigned long long>(LLVMContext &);
-
 template Type *llvm::getLLVMTypeFor<const int8_t>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const uint8_t>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const int16_t>(LLVMContext &);
@@ -60,11 +56,20 @@ template Type *llvm::getLLVMTypeFor<const uint32_t>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const int64_t>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const uint64_t>(LLVMContext &);
 
-template Type *llvm::getLLVMTypeFor<const char>(LLVMContext &);
-template Type *llvm::getLLVMTypeFor<const long long>(LLVMContext &);
-template Type *llvm::getLLVMTypeFor<const unsigned long long>(LLVMContext &);
-
 template Type *llvm::getLLVMTypeFor<float>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const float>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<double>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const double>(LLVMContext &);
+
+template Type *llvm::getLLVMTypeFor<char>(LLVMContext &);
+template Type *llvm::getLLVMTypeFor<const char>(LLVMContext &);
+
+// On some systems, long long and int64_t are the same type where explicitly
+// instantiating both results in an error. __unix__ below implies __linux__
+// and *BSD, but not MacOSX
+#if __unix__
+template Type *llvm::getLLVMTypeFor<long long>(LLVMContext &);
+template Type *llvm::getLLVMTypeFor<unsigned long long>(LLVMContext &);
+template Type *llvm::getLLVMTypeFor<const long long>(LLVMContext &);
+template Type *llvm::getLLVMTypeFor<const unsigned long long>(LLVMContext &);
+#endif // __unix__

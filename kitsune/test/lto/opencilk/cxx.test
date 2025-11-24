@@ -1,3 +1,9 @@
+# REQUIRES: !system-darwin
+#
+# ld64.lld does not support --lto-emit-llvm. We may implement this at some
+# point, until then, disable this test there.
+#
+# ------------------------------------------------------------------------------
 # Check a standard lowering using LTO.
 #
 # RUN: %kitxx --tapir=opencilk -O2 -flto -Wl,--lto-emit-llvm -o - %sysroot \

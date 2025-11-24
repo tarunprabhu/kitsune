@@ -2,29 +2,41 @@
 // Check that the default options added to the internal command lines (for -cc1
 // and the linker) are as expected.
 //
-// RUN: %kitxx -### --tapir=opencilk -O2 %s 2>&1 | FileCheck %s
+// RUN: %if system-darwin %{ \
+// RUN:     %kitxx -### --tapir=opencilk -O2 %s %sysroot 2>&1 \
+// RUN:         | FileCheck %s --check-prefixes=ALL,DARWIN \
+// RUN: %} %else %{ \
+// RUN:     %kitxx -### --tapir=opencilk -O2 %s %sysroot 2>&1 \
+// RUN:         | FileCheck %s --check-prefixes=ALL,X86 \
+// RUN: %}
 //
-// CHECK: -cc1
-// CHECK-SAME: --tapir=opencilk
-// CHECK-SAME: --tapir-opencilk-runtime-bc
+// ALL: -cc1
+// ALL-SAME: --tapir=opencilk
+// ALL-SAME: --tapir-opencilk-runtime-bc
 //
-// For OpenCilk, stripmining is enabled by default.
+// For opencilk, stripmining is enabled by default.
 //
-// CHECK-SAME: -fstripmine
+// ALL-SAME: -fstripmine
 //
 // It is a pain to check for the actual linker executable. There are far too
 // many options depending on the platform, so just check the next line for the
 // expected linker flags.
 //
-// CHECK-NEXT: -lopencilk
-// CHECK-SAME: -lkitrt
+// DARWIN-NEXT: "-lopencilk-personality-cpp_osx_dynamic"
+// DARWIN-SAME: "-lopencilk_osx_dynamic"
+//
+// X86-NEXT: "-lopencilk-personality-cpp"
+// X86-SAME: "-lopencilk"
+//
+// ALL-SAME: "-lkitrt"
 //
 // -----------------------------------------------------------------------------
 // Check that the stripmine pass is enabled by default. This checks that the
 // the pipeline tuning options object value is set correctly by default.
 //
 // RUN: %kitxx -mllvm -print-pipeline-passes -O2 --tapir=opencilk \
-// RUN:      -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
+// RUN:     -S -emit-llvm %s %sysroot 2>&1 \
+// RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
 //
 // STRIPMINE-PASS: loop-stripmine
 //

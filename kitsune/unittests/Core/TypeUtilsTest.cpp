@@ -35,19 +35,25 @@ TEST(TypeUtils, getLLVMTypeFor) {
 
   EXPECT_TRUE(getLLVMTypeFor<int64_t>(ctx)->isIntegerTy(64));
   EXPECT_TRUE(getLLVMTypeFor<uint64_t>(ctx)->isIntegerTy(64));
-  EXPECT_TRUE(getLLVMTypeFor<long>(ctx)->isIntegerTy(64));
-  EXPECT_TRUE(getLLVMTypeFor<unsigned long>(ctx)->isIntegerTy(64));
-  EXPECT_TRUE(getLLVMTypeFor<long long>(ctx)->isIntegerTy(64));
-  EXPECT_TRUE(getLLVMTypeFor<unsigned long long>(ctx)->isIntegerTy(64));
 
   EXPECT_TRUE(getLLVMTypeFor<float>(ctx)->isFloatTy());
   EXPECT_TRUE(getLLVMTypeFor<double>(ctx)->isDoubleTy());
 
-  EXPECT_TRUE(getLLVMTypeFor<void*>(ctx)->isPointerTy());
-  EXPECT_TRUE(getLLVMTypeFor<int*>(ctx)->isPointerTy());
-  EXPECT_TRUE(getLLVMTypeFor<const char*>(ctx)->isPointerTy());
-  EXPECT_TRUE(getLLVMTypeFor<double*>(ctx)->isPointerTy());
+  EXPECT_TRUE(getLLVMTypeFor<void *>(ctx)->isPointerTy());
+  EXPECT_TRUE(getLLVMTypeFor<int *>(ctx)->isPointerTy());
+  EXPECT_TRUE(getLLVMTypeFor<const char *>(ctx)->isPointerTy());
+  EXPECT_TRUE(getLLVMTypeFor<double *>(ctx)->isPointerTy());
 
   EXPECT_TRUE(getLLVMTypeFor<const int32_t>(ctx)->isIntegerTy(32));
   EXPECT_TRUE(getLLVMTypeFor<const uint32_t>(ctx)->isIntegerTy(32));
+
+  // On some systems, long long and int64_t are the same type. On those systems,
+  // we do not instantiate long and long long. __unix__ below implies __linux__
+  // and *BSD, but not MacOSX.
+#if __unix__
+  EXPECT_TRUE(getLLVMTypeFor<long>(ctx)->isIntegerTy(64));
+  EXPECT_TRUE(getLLVMTypeFor<unsigned long>(ctx)->isIntegerTy(64));
+  EXPECT_TRUE(getLLVMTypeFor<long long>(ctx)->isIntegerTy(64));
+  EXPECT_TRUE(getLLVMTypeFor<unsigned long long>(ctx)->isIntegerTy(64));
+#endif // __unix__
 }

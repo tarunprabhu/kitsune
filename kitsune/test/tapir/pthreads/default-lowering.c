@@ -2,7 +2,7 @@
 // body must be outlined. The outlined function is passed to Kitsune's
 // async launch threads intrinsic. The threads are synchronized immediately.
 //
-// RUN: %kitcc --tapir=pthreads -O1 %s \
+// RUN: %kitcc --tapir=pthreads -O1 %s %sysroot \
 // RUN:     -S -emit-llvm -o - \
 // RUN:     | FileCheck %s
 //

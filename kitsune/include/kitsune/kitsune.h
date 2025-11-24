@@ -35,7 +35,7 @@
 #define EXTERN_C
 #endif // __cplusplus
 
-#include <stdint.h>
+#include <stddef.h>
 #include <stdlib.h>
 
 // The definitions allow code containing kitsune builtins and library functions

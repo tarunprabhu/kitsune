@@ -1,6 +1,7 @@
-// RUN: %kitcc -std=c23 -Xclang -verify --tapir=serial -O1 -fsyntax-only %s
+// RUN: %kitcc -Xclang -verify --tapir=nolo -O1 -fsyntax-only %s \
+// RUN:     -std=c23 %sysroot
 
-#include <stdlib.h>
+#include <stddef.h>
 
 typedef struct {
   int n;

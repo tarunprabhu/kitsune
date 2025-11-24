@@ -5,7 +5,7 @@
 // If the tapir target is nolo, the loop must not have any loop.target metadata.
 //
 // RUN: %kitxx -DUSEF --tapir=nolo -O1 -c -emit-llvm -o /dev/null %s \
-// RUN:     -mllvm -print-before=annotation2metadata 2>&1 \
+// RUN:     -mllvm -print-before=annotation2metadata %sysroot 2>&1 \
 // RUN:     | FileCheck %s -check-prefix NOLO
 //
 // NOLO-NOT: "tapir.loop.target"
@@ -15,7 +15,7 @@
 // metadata whose value is the integer representation of the tapir target.
 //
 // RUN: %kitxx -DUSEF --tapir=serial -O1 -c -emit-llvm -o /dev/null %s \
-// RUN:     -mllvm -print-before=annotation2metadata 2>&1 \
+// RUN:     -mllvm -print-before=annotation2metadata %sysroot 2>&1 \
 // RUN:     | FileCheck %s -check-prefix SERIAL
 //
 // SERIAL: !{!"tapir.loop.target", i32 1}
@@ -43,17 +43,17 @@
 // `not` in the test below can be removed.
 //
 // RUN: not %kitxx -DUSEG --tapir=serial -O1 -c -emit-llvm -o /dev/null %s \
-// RUN:     -mllvm -print-before=annotation2metadata 2>&1 \
+// RUN:     -mllvm -print-before=annotation2metadata %sysroot 2>&1 \
 // RUN:     | FileCheck %s -check-prefix ATTR
 //
 // RUN: %kitxx -DUSEG --tapir=nolo -O1 -c -emit-llvm -o /dev/null %s \
-// RUN:     -mllvm -print-before=annotation2metadata 2>&1 \
+// RUN:     -mllvm -print-before=annotation2metadata %sysroot 2>&1 \
 // RUN:     | FileCheck %s -check-prefix ATTR
 //
 // ATTR: !{!"tapir.loop.target", i32 2}
 // ATTR-NOT: "tapir.loop.target"
 
-#include "kitsune.h"
+#include <kitsune.h>
 
 #ifdef USEF
 extern "C" void f(int *a, int scale, size_t n) {

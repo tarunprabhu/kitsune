@@ -5,9 +5,9 @@
 // but this has not currently been implemented. When that changes, these tests
 // should be updated.
 //
-// RUN: %kitcc --tapir=nolo -S -emit-llvm -o - %s | FileCheck %s
+// RUN: %kitcc --tapir=nolo -S -emit-llvm -o - %s %sysroot | FileCheck %s
 
-#include <stdlib.h>
+#include <stddef.h>
 
 extern int _writeonly gdecl;
 

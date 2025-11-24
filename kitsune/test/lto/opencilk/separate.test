@@ -1,13 +1,22 @@
+# REQUIRES: !system-darwin
+#
+# ld64.lld does not support --lto-emit-llvm. We may implement this at some
+# point, until then, disable this test there.
+#
+# ------------------------------------------------------------------------------
 # Check a "standard" lowering using LTO, but where each file is compiled
 # separately.
 #
 # RUN: mkdir -p %t
 #
-# RUN: %kitxx -c -flto --tapir=opencilk -O2 -o %t/add.o %S/../input/add.cpp
+# RUN: %kitxx -c -flto --tapir=opencilk -O2 %sysroot \
+# RUN:     -o %t/add.o %S/../input/add.cpp
 #
-# RUN: %kitxx -c -flto --tapir=opencilk -O2 -o %t/main.o %S/../input/main.cpp
+# RUN: %kitxx -c -flto --tapir=opencilk -O2 %sysroot \
+# RUN:     -o %t/main.o %S/../input/main.cpp
 #
-# RUN: %kitxx -flto --tapir=opencilk -O2 %t/main.o %t/add.o -o %t/a.bc %sysroot \
+# RUN: %kitxx -flto --tapir=opencilk -O2 %sysroot \
+# RUN:     -o %t/a.bc %t/main.o %t/add.o \
 # RUN:     -Wl,--lto-emit-llvm
 #
 # RUN: llvm-dis -o - %t/add.o | FileCheck %s --check-prefix TAPIR
