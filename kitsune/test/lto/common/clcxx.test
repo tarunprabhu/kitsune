@@ -1,0 +1,56 @@
+# Check that the command line options common to all tapir targets are handled
+# correctly when -flto is provided. The serial tapir target is always enabled,
+# so use that here.
+#
+# RUN: %kitxx -### --tapir=serial -O2 -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,O2
+#
+# RUN: %kitxx -### --tapir=serial -O3 -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,O3
+#
+# RUN: %kitxx -### --tapir=serial -O2 -flto --tapir-verbose \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,TAPIR_VERBOSE
+#
+# RUN: %kitxx -### --tapir=serial -O2 -flto --kitrt-verbose \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,KITRT_VERBOSE
+#
+# RUN: %kitxx -### --tapir=serial -O2 -flto -ffp-contract=off  \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,FP_STANDARD
+#
+# RUN: %kitxx -### --tapir=serial -O2 -flto -ffp-contract=on  \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,FP_STANDARD
+#
+# RUN: %kitxx -### --tapir=serial -O2 -flto -ffp-contract=fast  \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,FP_FAST
+#
+# RUN: %kitxx -### --tapir=serial -O2 -flto -ffp-contract=fast-honor-pragmas \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,FP_STANDARD
+#
+# ------------------------------------------------------------------------------
+# -Os and -Oz both operate at -O2 optimization level as far as LTO is concerned.
+#
+# RUN: %kitxx -### --tapir=serial -Os -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,O2
+#
+# RUN: %kitxx -### --tapir=serial -Oz -flto \
+# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
+# RUN:     | FileCheck %s -check-prefixes=ALL,O2
+#
+# ------------------------------------------------------------------------------
+#
+# ALL: /ld{{(64)?}}.lld"
+# O2: "--lto-O2"
+# O3: "--lto-O3"
+# TAPIR_VERBOSE-SAME: "-mllvm" "--tapir-verbose"
+# KITRT_VERBOSE: "-mllvm" "--kitrt-verbose"
+# FP_STANDARD: "-mllvm" "--fp-contract=on"
+# FP_FAST: "-mllvm" "--fp-contract=fast"

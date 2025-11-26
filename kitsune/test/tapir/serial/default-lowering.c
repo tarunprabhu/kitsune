@@ -3,7 +3,10 @@
 // RUN: %kitcc --tapir=serial -O1 -S -emit-llvm -o - %s %sysroot \
 // RUN:     | FileCheck %s
 //
-// CHECK: define {{.*}}void @f(ptr {{.*}}%[[A:.+]], i32 {{.*}}%[[SCALE:.+]], i64 {{.*}}%[[N:.+]])
+// CHECK: define {{.*}}void @f(
+// CHECK-SAME: ptr {{[^%]*}}%[[A:[^,]+]],
+// CHECK-SAME: i32 {{[^%]*}}%[[SCALE:[^,]+]],
+// CHECK-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
 // CHECK: [[ENTRY:.+]]:
 // CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:.+]]
 // CHECK: [[BODY]]:

@@ -1,0 +1,78 @@
+# REQUIRES: !system-darwin
+#
+# FIXME: ld64.lld does not support --lto-emit-llvm. We may implement this at
+# some point. Until then, disable this test there.
+#
+# ------------------------------------------------------------------------------
+# Check a "standard" lowering using LTO, but where each file is compiled
+# separately.
+#
+# RUN: mkdir -p %t
+#
+# RUN: %kitxx -flto --tapir=pthreads -fno-inline -fno-stripmine -O2 %sysroot \
+# RUN:     -c -o %t/add.o  %S/../input/add.cpp
+#
+# RUN: %kitxx -flto --tapir=pthreads -fno-inline -fno-stripmine -O2 %sysroot \
+# RUN:     -c -o %t/main.o %S/../input/main.cpp \
+# RUN:     -fno-stripmine
+#
+# RUN: %kitxx -flto --tapir=pthreads -fno-inline -fno-stripmine -O2 %sysroot \
+# RUN:     -Wl,--lto-emit-llvm \
+# RUN:     %t/main.o %t/add.o -o %t/a.bc
+#
+# RUN: llvm-dis -o - %t/add.o | FileCheck %s --check-prefix TAPIR
+# RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
+# RUN: llvm-dis -o - %t/a.bc | FileCheck %s --check-prefix LOWERED
+#
+# TAPIR: detach within
+# TAPIR: reattach within
+# TAPIR: sync within
+#
+# MAIN: call void @_Z6vecadd
+#
+# LOWERED: define {{.*}}void @_Z6vecadd{{[^(]+}}(
+# LOWERED-SAME: ptr addrspace(67) writeonly %[[C:[^,]+]],
+# LOWERED-SAME: ptr addrspace(67) readonly %[[A:[^,]+]],
+# LOWERED-SAME: ptr addrspace(67) readonly %[[B:[^,]+]],
+# LOWERED-SAME: i64 {{.*}}%[[N:[^,]+]])
+# LOWERED: %[[PACK:.+]] = alloca
+# LOWERED: store ptr addrspace(67) %[[A]], ptr %[[PACK]]
+# LOWERED: %[[PACK1:.+]] = getelementptr {{.*}}i8, ptr %[[PACK]]
+# LOWERED: store ptr addrspace(67) %[[B]], ptr %[[PACK1]]
+# LOWERED: %[[PACK2:.+]] = getelementptr {{.*}}i8, ptr %[[PACK]]
+# LOWERED: store ptr addrspace(67) %[[C]], ptr %[[PACK2]]
+# LOWERED: %[[CTX:.+]] = call ptr @llvm.kit.async.launch.threads(
+# LOWERED-SANE: i32 1024,
+# LOWERED-SAME: ptr @[[OUTLINED:_Z6vecadd[^,]+]],
+# LOWERED-SAME: i64 0,
+# LOWERED-SAME: i64 %[[N]],
+# LOWERED-SAME: i64 0,
+# LOWERED-SAME: ptr %[[PACK]])
+# LOWERED: call void @llvm.kit.sync.threads(i32 1024, ptr %[[CTX]])
+# LOWERED: ret void
+#
+# LOWERED: define internal fastcc void @[[OUTLINED]](
+# LOWERED-SAME: i64 %[[START:[^,]+]],
+# LOWERED-SAME: i64 %[[END:[^,]+]],
+# LOWERED-SAME: i64 %[[GRAINSIZE:[^,]+]],
+# LOWERED-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
+# LOWERED: %[[ARGB:.+]] = getelementptr i8, ptr %[[ARGS]], i64 8
+# LOWERED: %[[ARGC:.+]] = getelementptr i8, ptr %[[ARGS]], i64 16
+# LOWERED: br label %[[BODY:.+]]
+# LOWERED: [[BODY:.+]]:
+# LOWERED: %[[I:.+]] = phi i64
+# LOWERED: %[[PTRA:.+]] = load ptr addrspace(67), ptr %[[ARGS]]
+# LOWERED: %[[PTRB:.+]] = load ptr addrspace(67), ptr %[[ARGB]]
+# LOWERED: %[[PTRC:.+]] = load ptr addrspace(67), ptr %[[ARGC]]
+# LOWERED: %[[IDXA:.+]] = {{.*}}call
+# LOWERED: %[[VA:.+]] = load double, ptr %[[IDXA]]
+# LOWERED: %[[IDXB:.+]] = {{.*}}call
+# LOWERED: %[[VB:.+]] = load double, ptr %[[IDXB]]
+# LOWERED: %[[SUM:.+]] = fadd double %[[VA]], %[[VB]]
+# LOWERED: %[[IDXC:.+]] = {{.*}}call
+# LOWERED: store double %[[SUM]], ptr %[[IDXC]]
+# LOWERED: add {{.*}}i64 %[[I]], 1
+# LOWERED: %[[ICMP:.+]] = icmp
+# LOWERED: br i1 %[[ICMP]], label %[[EXIT:.+]], label %[[BODY]]
+# LOWERED: [[EXIT]]:
+# LOWERED: ret void

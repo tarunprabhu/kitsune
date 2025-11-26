@@ -23,47 +23,47 @@
 # RUN:     | FileCheck %s -check-prefixes=ALL,MTPB
 #
 # RUN: %kitfc -### --tapir=hip -O2 -flto \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
 # RUN:     --tapir-hip-sramecc=off 2>&1 \
 # RUN:     | FileCheck %s -check-prefix SRAMECC_OFF
 #
 # RUN: %kitfc -### --tapir=hip -O2 -flto \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
 # RUN:     --tapir-hip-sramecc=on 2>&1 \
 # RUN:     | FileCheck %s -check-prefix SRAMECC_ON
 #
 # RUN: %kitfc -### --tapir=hip -O2 -flto \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
 # RUN:     --tapir-hip-sramecc=any 2>&1 \
 # RUN:     | FileCheck %s -check-prefix SRAMECC_ANY
 #
 # RUN: %kitfc -### --tapir=hip -O2 -flto \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
 # RUN:     --tapir-hip-xnack=off 2>&1 \
 # RUN:     | FileCheck %s -check-prefix XNACK_OFF
 #
 # RUN: %kitfc -### --tapir=hip -O2 -flto \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
 # RUN:     --tapir-hip-xnack=on 2>&1 \
 # RUN:     | FileCheck %s -check-prefix XNACK_ON
 #
 # RUN: %kitfc -### --tapir=hip -O2 -flto \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
 # RUN:     --tapir-hip-xnack=any 2>&1 \
 # RUN:     | FileCheck %s -check-prefix XNACK_ANY
 #
 # RUN: %kitfc -### --tapir=hip -O2 -flto \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
 # RUN:     --tapir-hip-arch=gfx1103 --tapir-hip-wavefront64 2>&1 \
 # RUN:     | FileCheck %s -check-prefix W_64
 #
 # RUN: %kitfc -### --tapir=hip -O2 -flto \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
 # RUN:     --tapir-hip-arch=gfx1103 --tapir-hip-wavefront32 2>&1 \
 # RUN:     | FileCheck %s -check-prefix W_32
 #
 # RUN: %kitfc -### --tapir=hip -O2 -flto \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
 # RUN:     --tapir-hip-abi-version=5 2>&1 \
 # RUN:     | FileCheck %s -check-prefix ABI_V5
 #
