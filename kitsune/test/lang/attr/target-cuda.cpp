@@ -11,7 +11,6 @@
 
 #include <kitsune.h>
 
-
 void f(int *a, int scale, size_t n) {
   // clang-format off
   [[tapir::target("cuda")]]

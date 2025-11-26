@@ -71,6 +71,12 @@ directories include:
     For instance, `lang/forall` contains tests of the `forall` construct,
     `lang/attr/` contains tests for Kitsune-specific attributes etc.
 
+  - `lto/`: This contains tests of the handling of command-line options and
+    basic when using LTO. Each tapir target that supports LTO has a dedicated
+    subdirectory. The tests in these subdirectory should only contain
+    functionality specific to that tapir target. The `common/` subdirectory
+    contains tests of functionality that is shared by all tapir targets.
+
   - `plugins/`: Tests for the plugins that can be used with Kitsune. This
      includes both tapir target plugins and pass plugins.
 
@@ -79,7 +85,8 @@ directories include:
     these tapir-target-specific subdirectories check everything from command
     line option handling to device-specific code generation (in the case of
     GPU-centric tapir targets for instance which have to generate code for
-    both host and device).
+    both host and device). Functionality shared by all tapir targets are
+    tested in `tapir/common/`.
 
   - `tools/`: Tests for Kitsune-specific tools such as `kit-mbc`, `kit-config`
     etc. Each tool will have its own subdirectory. Some LLVM tools such as

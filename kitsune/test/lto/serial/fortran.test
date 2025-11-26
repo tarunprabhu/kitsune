@@ -6,14 +6,29 @@
 #
 # Check a standard lowering using LTO.
 #
-# FIXME: Need to double-check exactly what to expect here, so, for now, just
-# check that tapir instructions are removed.
-#
-# RUN: %kitfc --tapir=serial -O2 -flto -Wl,--lto-emit-llvm -o - %sysroot \
+# RUN: %kitfc -flto --tapir=serial -fno-inline -O2 -o - %sysroot \
+# RUN:     -Wl,--lto-emit-llvm \
 # RUN:     %S/../input/add.f90 %S/../input/main.f90 \
 # RUN:     | llvm-dis \
 # RUN:     | FileCheck %s
 #
-# CHECK-NOT: detach
-# CHECK-NOT: reattach
-# CHECK-NOT: {{[ ]}}sync{{[ ]}}
+# CHECK: define {{.*}}void @_Z6vecadd{{[^(]+}}(
+# CHECK-SAME: ptr addrspace(67) writeonly %[[C:[^,]+]],
+# CHECK-SAME: ptr addrspace(67) readonly %[[A:[^,]+]],
+# CHECK-SAME: ptr addrspace(67) readonly %[[B:[^,]+]],
+# CHECK-SAME: i64 noundef {{.*}}%[[N:[^,]+]])
+# CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:.+]]
+# CHECK: [[BODY]]:
+# CHECK: %[[I:.+]] = phi i64
+# CHECK: %[[IDXA:.+]] = tail call {{.*}}(ptr {{.*}}%[[A]], i64 {{.*}}%[[I]])
+# CHECK: %[[VA:.+]] = load double, ptr %[[IDXA]]
+# CHECK: %[[IDXB:.+]] = tail call {{.*}}(ptr {{.*}}%[[B]], i64 {{.*}}%[[I]])
+# CHECK: %[[VB:.+]] = load double, ptr %[[IDXB]]
+# CHECK: %[[ADD:.+]] = fadd double %[[VA]], %[[VB]]
+# CHECK: %[[IDXC:.+]] = tail call {{.*}}(ptr {{.*}}%[[C]], i64 {{.*}}%[[I]])
+# CHECK: store double %[[ADD]], ptr %[[IDXC]]
+# CHECK: %[[INC:.+]] = add {{.+}} %[[I]], 1
+# CHECK: %[[CMP:.+]] = icmp
+# CHECK: br i1 %[[CMP]], label %[[END]], label %[[BODY]], !llvm.loop
+# CHECK: [[END:.+]]:
+# CHECK: ret void

@@ -1,27 +1,23 @@
 # REQUIRES: !system-darwin
-#
-# ld64.lld does not support --lto-emit-llvm. We may implement this at some
-# point, until then, disable this test there.
+# FIXME: ld64.lld does not support --lto-emit-llvm. We may implement this at
+# some point. Until then, disable this test there.
 #
 # ------------------------------------------------------------------------------
 # Check a "standard" lowering using LTO, but where each file is compiled
 # separately.
 #
-# FIXME: Need to double-check exactly what to expect here, so, for now, just
-# check that tapir instructions are removed.
-#
 # RUN: mkdir -p %t
 #
-# RUN: %kitxx -c -flto --tapir=serial -O2 %sysroot -fno-stripmine \
+# RUN: %kitxx -c -flto --tapir=serial -O2 %sysroot -fno-inline -fno-stripmine \
 # RUN:     -o %t/add.o  %S/../input/add.cpp
 #
-# RUN: %kitxx -c -flto --tapir=serial -O2 %sysroot -fno-stripmine \
+# RUN: %kitxx -c -flto --tapir=serial -O2 %sysroot -fno-inline -fno-stripmine \
 # RUN:     -o %t/main.o %S/../input/main.cpp \
 # RUN:     -fno-stripmine
 #
-# RUN: %kitxx -flto --tapir=serial -O2 %sysroot -fno-stripmine\
-# RUN:     %t/main.o %t/add.o -o %t/a.bc \
-# RUN:     -Wl,--lto-emit-llvm
+# RUN: %kitxx -flto --tapir=serial -fno-inline -fno-stripmine -O2 %sysroot \
+# RUN:     -Wl,--lto-emit-llvm \
+# RUN:     %t/main.o %t/add.o -o %t/a.bc
 #
 # RUN: llvm-dis -o - %t/add.o | FileCheck %s --check-prefix TAPIR
 # RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
@@ -30,7 +26,26 @@
 # TAPIR: detach within
 # TAPIR: reattach within
 # TAPIR: sync within
-# MAIN: call void @_Z6vecaddN7kitsune
-# LOWERED-NOT: detach within
-# LOWERED-NOT: reattach within
-# LOWERED-NOT: sync within
+#
+# MAIN: call void @_Z6vecadd
+#
+# LOWERED: define {{.*}}void @_Z6vecadd{{[^(]+}}(
+# LOWERED-SAME: ptr addrspace(67) writeonly %[[C:[^,]+]],
+# LOWERED-SAME: ptr addrspace(67) readonly %[[A:[^,]+]],
+# LOWERED-SAME: ptr addrspace(67) readonly %[[B:[^,]+]],
+# LOWERED-SAME: i64 noundef {{.*}}%[[N:[^,]+]])
+# LOWERED: br {{.+}}, label %[[END:.+]], label %[[BODY:.+]]
+# LOWERED: [[BODY]]:
+# LOWERED: %[[I:.+]] = phi i64
+# LOWERED: %[[IDXA:.+]] = tail call {{.*}}(ptr {{.*}}%[[A]], i64 {{.*}}%[[I]])
+# LOWERED: %[[VA:.+]] = load double, ptr %[[IDXA]]
+# LOWERED: %[[IDXB:.+]] = tail call {{.*}}(ptr {{.*}}%[[B]], i64 {{.*}}%[[I]])
+# LOWERED: %[[VB:.+]] = load double, ptr %[[IDXB]]
+# LOWERED: %[[ADD:.+]] = fadd double %[[VA]], %[[VB]]
+# LOWERED: %[[IDXC:.+]] = tail call {{.*}}(ptr {{.*}}%[[C]], i64 {{.*}}%[[I]])
+# LOWERED: store double %[[ADD]], ptr %[[IDXC]]
+# LOWERED: %[[INC:.+]] = add {{.+}} %[[I]], 1
+# LOWERED: %[[CMP:.+]] = icmp
+# LOWERED: br i1 %[[CMP]], label %[[END]], label %[[BODY]], !llvm.loop
+# LOWERED: [[END:.+]]:
+# LOWERED: ret void
