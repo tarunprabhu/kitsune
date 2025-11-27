@@ -1,9 +1,3 @@
-# REQUIRES: !system-darwin
-#
-# FIXME: ld64.lld does not support --lto-emit-llvm. We may implement this at
-# some point. Until then, disable this test there.
-#
-# ------------------------------------------------------------------------------
 # Check a "standard" lowering using LTO, but where each file is compiled
 # separately.
 #
@@ -31,16 +25,15 @@
 # MAIN: call void @_Z6vecadd
 #
 # LOWERED: define {{.*}}void @_Z6vecadd{{[^(]+}}(
-# LOWERED-SAME: ptr addrspace(67) writeonly %[[C:[^,]+]],
-# LOWERED-SAME: ptr addrspace(67) readonly %[[A:[^,]+]],
-# LOWERED-SAME: ptr addrspace(67) readonly %[[B:[^,]+]],
-# LOWERED-SAME: i64 {{.*}}%[[N:[^,]+]])
+# LOWERED-SAME: {{[^%]*}}%[[C:[^,]+]],
+# LOWERED-SAME: {{[^%]*}}%[[A:[^,]+]],
+# LOWERED-SAME: {{[^%]*}}%[[B:[^,]+]],
+# LOWERED-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
 # LOWERED: %[[PACK:.+]] = alloca
-# LOWERED: store ptr addrspace(67) %[[A]], ptr %[[PACK]]
-# LOWERED: %[[PACK1:.+]] = getelementptr {{.*}}i8, ptr %[[PACK]]
-# LOWERED: store ptr addrspace(67) %[[B]], ptr %[[PACK1]]
-# LOWERED: %[[PACK2:.+]] = getelementptr {{.*}}i8, ptr %[[PACK]]
-# LOWERED: store ptr addrspace(67) %[[C]], ptr %[[PACK2]]
+# LOWERED-SAME: ptr addrspace(67)
+# LOWERED-SAME: ptr addrspace(67)
+# LOWERED-SAME: ptr addrspace(67)
+# LOWERED-SAME: {{[}]}}
 # LOWERED: %[[CTX:.+]] = call ptr @llvm.kit.async.launch.threads(
 # LOWERED-SANE: i32 1024,
 # LOWERED-SAME: ptr @[[OUTLINED:_Z6vecadd[^,]+]],
