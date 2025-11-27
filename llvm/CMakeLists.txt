@@ -477,8 +477,6 @@ set(KITSUNE_ENABLE_TAPIR_TARGETS "${KITSUNE_DEFAULT_TAPIR_TARGETS}" CACHE STRING
   "Semi-colon separated list of tapir targets to build (${KITSUNE_KNOWN_TAPIR_TARGETS}) or \"all\" to build all known tapir targets")
 if (KITSUNE_ENABLE_TAPIR_TARGETS STREQUAL "all")
   set(KITSUNE_ENABLE_TAPIR_TARGETS "${KITSUNE_KNOWN_TAPIR_TARGETS}")
-elseif (NOT KITSUNE_ENABLE_TAPIR_TARGETS)
-  message(FATAL_ERROR "At least one tapir target must be built")
 endif ()
 
 set(KITSUNE_ENABLED_TAPIR_TARGETS
