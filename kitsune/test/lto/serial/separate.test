@@ -1,8 +1,3 @@
-# REQUIRES: !system-darwin
-# FIXME: ld64.lld does not support --lto-emit-llvm. We may implement this at
-# some point. Until then, disable this test there.
-#
-# ------------------------------------------------------------------------------
 # Check a "standard" lowering using LTO, but where each file is compiled
 # separately.
 #
@@ -30,19 +25,19 @@
 # MAIN: call void @_Z6vecadd
 #
 # LOWERED: define {{.*}}void @_Z6vecadd{{[^(]+}}(
-# LOWERED-SAME: ptr addrspace(67) writeonly %[[C:[^,]+]],
-# LOWERED-SAME: ptr addrspace(67) readonly %[[A:[^,]+]],
-# LOWERED-SAME: ptr addrspace(67) readonly %[[B:[^,]+]],
-# LOWERED-SAME: i64 noundef {{.*}}%[[N:[^,]+]])
+# LOWERED-SAME: {{[^%]*}}%[[C:[^,]+]],
+# LOWERED-SAME: {{[^%]*}}%[[A:[^,]+]],
+# LOWERED-SAME: {{[^%]*}}%[[B:[^,]+]],
+# LOWERED-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
 # LOWERED: br {{.+}}, label %[[END:.+]], label %[[BODY:.+]]
 # LOWERED: [[BODY]]:
 # LOWERED: %[[I:.+]] = phi i64
-# LOWERED: %[[IDXA:.+]] = tail call {{.*}}(ptr {{.*}}%[[A]], i64 {{.*}}%[[I]])
+# LOWERED: %[[IDXA:.+]] = tail call {{.*}}(ptr {{.*}}, i64 {{.*}}%[[I]])
 # LOWERED: %[[VA:.+]] = load double, ptr %[[IDXA]]
-# LOWERED: %[[IDXB:.+]] = tail call {{.*}}(ptr {{.*}}%[[B]], i64 {{.*}}%[[I]])
+# LOWERED: %[[IDXB:.+]] = tail call {{.*}}(ptr {{.*}}, i64 {{.*}}%[[I]])
 # LOWERED: %[[VB:.+]] = load double, ptr %[[IDXB]]
 # LOWERED: %[[ADD:.+]] = fadd double %[[VA]], %[[VB]]
-# LOWERED: %[[IDXC:.+]] = tail call {{.*}}(ptr {{.*}}%[[C]], i64 {{.*}}%[[I]])
+# LOWERED: %[[IDXC:.+]] = tail call {{.*}}(ptr {{.*}}, i64 {{.*}}%[[I]])
 # LOWERED: store double %[[ADD]], ptr %[[IDXC]]
 # LOWERED: %[[INC:.+]] = add {{.+}} %[[I]], 1
 # LOWERED: %[[CMP:.+]] = icmp

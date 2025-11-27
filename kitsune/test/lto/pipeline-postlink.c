@@ -1,8 +1,3 @@
-// REQUIRES: !system-darwin
-//
-// ld64.lld does not support --lto-emit-llvm. We may implement this at some
-// point, until then, disable this test there.
-//
 // -----------------------------------------------------------------------------
 // If the tapir target is nolo, the behavior is similar to the regular pipeline
 // i.e. loop spawning is not run and neither are any Kitsune passes.
