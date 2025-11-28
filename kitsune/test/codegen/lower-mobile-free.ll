@@ -2,6 +2,8 @@
 ; various tapir targets.
 ;
 ; ------------------------------------------------------------------------------
+; When the tapir target is 'nolo', the intrinsic is not lowered.
+;
 ; RUN: opt -tapir=nolo -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck --check-prefix=NOLO %s
 ;
@@ -10,15 +12,9 @@
 ; NOLO-NEXT: ret void
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt -tapir=serial -passes='kit-lower-intrinsics' -S %s \
-; RUN:     | FileCheck --check-prefix=SERIAL %s
+; When the tapir target is 'cuda', call the appropriate function from Kitsune's
+; runtime.
 ;
-; SERIAL: define {{.+}} @deallocate(ptr addrspace(67) %[[P:.+]])
-; SERIAL-NEXT: %[[CST:[0-9]+]] = addrspacecast ptr addrspace(67) %[[P]] to ptr
-; SERIAL-NEXT: call void @free(ptr %[[CST]])
-; SERIAL-NEXT: ret void
-;
-; ------------------------------------------------------------------------------
 ; RUN: %if kitsune-cuda %{ \
 ; RUN:   opt --tapir=cuda --tapir-cuda-arch=sm_86 \
 ; RUN:       --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
@@ -32,6 +28,9 @@
 ; CUDA-NEXT: ret void
 ;
 ; ------------------------------------------------------------------------------
+; When the tapir target is 'hip', call the appropriate function from Kitsune's
+; runtime.
+;
 ; RUN: %if kitsune-hip %{ \
 ; RUN:   opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:       --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
@@ -45,8 +44,11 @@
 ; HIP-NEXT: ret void
 ;
 ; ------------------------------------------------------------------------------
+; For all other tapir targets, call the default memory deallocation function
+; from libc.
+;
 ; RUN: %if kitsune-examples %{ \
-; RUN:   opt --tapir=custom --tapir-plugin=%kit-ttplugin-demo \
+; RUN:   opt --tapir=custom --tapir-plugin=%kit-tt-plugin-demo \
 ; RUN:       -passes='kit-lower-intrinsics' -S %s \
 ; RUN:       | FileCheck --check-prefix=FREE %s \
 ; RUN: %}
@@ -59,6 +61,9 @@
 ; RUN: %}
 ;
 ; RUN: opt --tapir=pthreads -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck --check-prefix=FREE %s
+;
+; RUN: opt -tapir=serial -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck --check-prefix=FREE %s
 ;
 ; FREE: define {{.+}} @deallocate(ptr addrspace(67) %[[P:.+]])

@@ -15,7 +15,7 @@
 ! be on the line immediately after the invocation to the compiler in the -###
 ! output below.
 !
-! RUN: %kitfc -### --tapir=custom --tapir-plugin=%kit-ttplugin-demo %s \
+! RUN: %kitfc -### --tapir=custom --tapir-plugin=%kit-tt-plugin-demo %s \
 ! RUN:     -o /dev/null -O2 2>&1 \
 ! RUN:     | FileCheck %s --check-prefixes=ARGS
 !
@@ -26,7 +26,7 @@
 ! -----------------------------------------------------------------------------
 ! Check that the plugin modified the code in the expected way.
 !
-! RUN: %kitfc --tapir=custom --tapir-plugin=%kit-ttplugin-demo %s \
+! RUN: %kitfc --tapir=custom --tapir-plugin=%kit-tt-plugin-demo %s \
 ! RUN:     -S -emit-llvm -o - -O2 \
 ! RUN:     | FileCheck %s --check-prefix=BOOKEND
 !
