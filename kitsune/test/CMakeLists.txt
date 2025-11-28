@@ -18,10 +18,20 @@ llvm_canonicalize_cmake_booleans(
 )
 
 if (KITSUNE_BUILD_EXAMPLES)
-  get_target_property(KITSUNE_TTPLUGIN_NAME kit-ttplugin-demo OUTPUT_NAME)
-  get_target_property(KITSUNE_TTPLUGIN_DIR kit-ttplugin-demo LIBRARY_OUTPUT_DIRECTORY)
+  get_target_property(KITSUNE_PASS_PLUGIN_NAME kit-pass-plugin-demo
+    OUTPUT_NAME)
+  get_target_property(KITSUNE_PASS_PLUGIN_DIR kit-pass-plugin-demo
+    LIBRARY_OUTPUT_DIRECTORY)
+  get_target_property(KITSUNE_TT_PLUGIN_NAME kit-tt-plugin-demo
+    OUTPUT_NAME)
+  get_target_property(KITSUNE_TT_PLUGIN_DIR kit-tt-plugin-demo
+    LIBRARY_OUTPUT_DIRECTORY)
 
-  set(KITSUNE_TTPLUGIN_DEMO_DYLIB "${KITSUNE_TTPLUGIN_DIR}/${KITSUNE_TTPLUGIN_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+  set(SHLIB_EXT "${CMAKE_SHARED_LIBRARY_SUFFIX}")
+  set(KITSUNE_PASS_PLUGIN_DEMO_DYLIB
+    "${KITSUNE_PASS_PLUGIN_DIR}/${KITSUNE_PASS_PLUGIN_NAME}${SHLIB_EXT}")
+  set(KITSUNE_TT_PLUGIN_DEMO_DYLIB
+    "${KITSUNE_TT_PLUGIN_DIR}/${KITSUNE_TT_PLUGIN_NAME}${SHLIB_EXT}")
 endif ()
 
 configure_lit_site_cfg(
@@ -41,7 +51,8 @@ configure_lit_site_cfg(
   "KITSUNE_SOURCE_DIR"
   "KITSUNE_EXAMPLES_SOURCE_DIR"
   "KITSUNE_EXAMPLES_BINARY_DIR"
-  "KITSUNE_TTPLUGIN_DEMO_DYLIB"
+  "KITSUNE_PASS_PLUGIN_DEMO_DYLIB"
+  "KITSUNE_TT_PLUGIN_DEMO_DYLIB"
   "CURRENT_TOOLS_DIR"
   "CMAKE_LIBRARY_OUTPUT_DIRECTORY"
 )
@@ -112,7 +123,8 @@ if(TARGET llvm-lto)
 endif()
 
 if (KITSUNE_BUILD_EXAMPLES)
-  list(APPEND KITSUNE_TEST_DEPS kit-ttplugin-demo)
+  list(APPEND KITSUNE_TEST_DEPS kit-pass-plugin-demo)
+  list(APPEND KITSUNE_TEST_DEPS kit-tt-plugin-demo)
 endif ()
 
 add_custom_target(kitsune-test-depends DEPENDS ${KITSUNE_TEST_DEPS})
@@ -156,7 +168,8 @@ endforeach()
 
 # Like the targets to check for the individual tapir targets above, these are
 # provided for convenience.
-add_custom_target(check-kitsune-ttplugin DEPENDS check-kitsune-plugins-ttplugin)
+add_custom_target(check-kitsune-pass-plugin DEPENDS check-kitsune-plugins-pass)
+add_custom_target(check-kitsune-tt-plugin DEPENDS check-kitsune-plugins-tt)
 add_custom_target(check-kitsune-kit-enc DEPENDS check-kitsune-tools-kit-enc)
 add_custom_target(check-kitsune-kit-mbc DEPENDS check-kitsune-tools-kit-mbc)
 add_custom_target(check-kitsune-llc DEPENDS check-kitsune-tools-llc)

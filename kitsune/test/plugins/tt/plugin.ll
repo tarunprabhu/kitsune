@@ -4,7 +4,7 @@
 ; tapir target plugin demo for consistency with the way LLVM pass plugins are
 ; tested.
 ;
-; RUN: opt --tapir=custom --tapir-plugin=%kit-ttplugin-demo %s \
+; RUN: opt --tapir=custom --tapir-plugin=%kit-tt-plugin-demo %s \
 ; RUN:     -S -o - -O2 \
 ; RUN:     | FileCheck %s --check-prefix=BOOKEND
 ;

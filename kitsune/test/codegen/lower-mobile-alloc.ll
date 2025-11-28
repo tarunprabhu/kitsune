@@ -2,6 +2,8 @@
 ; various tapir targets.
 ;
 ; ------------------------------------------------------------------------------
+; When the tapir target is 'nolo', the intrinsic is not lowered.
+;
 ; RUN: opt --tapir=nolo -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck --check-prefix=NOLO %s
 ;
@@ -10,15 +12,9 @@
 ; NOLO-NEXT: ret ptr addrspace(67) %[[PTR]]
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt --tapir=serial -passes='kit-lower-intrinsics' -S %s \
-; RUN:     | FileCheck --check-prefix=SERIAL %s
+; When the tapir target is 'cuda', call the appropriate function from Kitsune's
+; runtime.
 ;
-; SERIAL: define {{.+}} @allocate(i64 %[[N:.+]])
-; SERIAL-NEXT: %[[PTR:[0-9]+]] = call noalias ptr @malloc(i64 %[[N]])
-; SERIAL-NEXT: %[[CST:[0-9]]] = addrspacecast ptr %[[PTR]] to ptr addrspace(67)
-; SERIAL-NEXT: ret ptr addrspace(67) %[[CST]]
-;
-; ------------------------------------------------------------------------------
 ; RUN: %if kitsune-cuda %{ \
 ; RUN:   opt --tapir=cuda --tapir-cuda-arch=sm_86 \
 ; RUN:       --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
@@ -32,6 +28,9 @@
 ; CUDA-NEXT: ret ptr addrspace(67) %[[CST]]
 ;
 ; ------------------------------------------------------------------------------
+; When the tapir target is 'hip', call the appropriate function from Kitsune's
+; runtime.
+;
 ; RUN: %if kitsune-hip %{ \
 ; RUN:   opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:       --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
@@ -45,8 +44,11 @@
 ; HIP-NEXT: ret ptr addrspace(67) %[[CST]]
 ;
 ; ------------------------------------------------------------------------------
+; For all other tapir targets, call the default memory allocation function from
+; libc.
+;
 ; RUN: %if kitsune-examples %{ \
-; RUN:   opt --tapir=custom --tapir-plugin=%kit-ttplugin-demo \
+; RUN:   opt --tapir=custom --tapir-plugin=%kit-tt-plugin-demo \
 ; RUN:       -passes='kit-lower-intrinsics' -S %s \
 ; RUN:       | FileCheck --check-prefix=MALLOC %s \
 ; RUN: %}
@@ -59,6 +61,9 @@
 ; RUN: %}
 ;
 ; RUN: opt --tapir=pthreads -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck --check-prefix=MALLOC %s
+;
+; RUN: opt --tapir=serial -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck --check-prefix=MALLOC %s
 ;
 ; MALLOC: define {{.+}} @allocate(i64 %[[N:.+]])

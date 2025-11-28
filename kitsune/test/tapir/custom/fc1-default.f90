@@ -23,7 +23,7 @@
 ! RUN: %if kitsune-examples %{ \
 ! RUN:     %kitfc -O2 -S -emit-llvm -o /dev/null %s \
 ! RUN:         -mllvm -print-pipeline-passes \
-! RUN:         --tapir=custom --tapir-plugin=%kit-ttplugin-demo \
+! RUN:         --tapir=custom --tapir-plugin=%kit-tt-plugin-demo \
 ! RUN:         | FileCheck %s -check-prefix STRIPMINE-PASS \
 ! RUN: %}
 !

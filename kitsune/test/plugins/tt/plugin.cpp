@@ -10,7 +10,7 @@
 // be on the line immediately after the invocation to the compiler in the -###
 // output below.
 //
-// RUN: %kitxx -### --tapir=custom --tapir-plugin=%kit-ttplugin-demo %s \
+// RUN: %kitxx -### --tapir=custom --tapir-plugin=%kit-tt-plugin-demo %s \
 // RUN:     -o /dev/null -O2 %sysroot 2>&1 \
 // RUN:     | FileCheck %s --check-prefixes=ARGS
 //
@@ -21,7 +21,7 @@
 // -----------------------------------------------------------------------------
 // Check that the plugin modified the code in the expected way.
 //
-// RUN: %kitxx --tapir=custom --tapir-plugin=%kit-ttplugin-demo %s \
+// RUN: %kitxx --tapir=custom --tapir-plugin=%kit-tt-plugin-demo %s \
 // RUN:     -S -emit-llvm -o - -O2 %sysroot \
 // RUN:     | FileCheck %s --check-prefix=BOOKEND
 //

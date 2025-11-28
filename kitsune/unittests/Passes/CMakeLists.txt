@@ -11,7 +11,6 @@ set(LLVM_LINK_COMPONENTS
 )
 
 add_kitsune_unittest_with_input_files(KitPassesTests
-  ExtensionPointsTest.cpp
   PipelineUtilsTest.cpp
 
   EXPORT_SYMBOLS
