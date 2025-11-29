@@ -110,24 +110,30 @@ building kitrt")
 set(KITSUNE_LIBNAME kitrt)
 set(KITSUNE_LIBNAME_STATIC "${KITSUNE_LIBNAME}_static")
 
-# TODO: The _MAX variables are not currently used but it would be good to
+# FIXME: The _MAX variables are not currently used but it would be good to
 # require a range instead of just a minimum. In practice, we may want to
 # restrict it to just a single version because maintaining even a small range
 # is likely to be a pain.
-set(KITSUNE_CUDA_VERSION_MIN 12.3 CACHE INTERNAL "Minimum Cuda version required")
-set(KITSUNE_CUDA_VERSION_MAX 12.3 CACHE INTERNAL "Maxmimum Cuda version supported")
-set(KITSUNE_ROCM_VERSION_MIN 6.0 CACHE INTERNAL "Minimum ROCM version required")
-set(KITSUNE_ROCM_VERSION_MAX 7.0 CACHE INTERNAL "Maximum ROCM version supported")
+# FIXME: Fix the min and max version for both cuda and hip
+set(KITSUNE_CUDA_VERSION_MIN 12.3 CACHE INTERNAL "Minimum cuda version required")
+set(KITSUNE_CUDA_VERSION_MAX 12.3 CACHE INTERNAL "Maxmimum cuda version supported")
+set(KITSUNE_ROCM_VERSION_MIN 6.0 CACHE INTERNAL "Minimum rocm version required")
+set(KITSUNE_ROCM_VERSION_MAX 7.0 CACHE INTERNAL "Maximum rocm version supported")
 
 set(KITSUNE_SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR})
 set(KITSUNE_INCLUDE_DIR ${KITSUNE_SOURCE_DIR}/include)
 set(KITSUNE_BINARY_DIR  ${PROJECT_BINARY_DIR})
 set(KITSUNE_TARGETS_BINARY_DIR ${KITSUNE_BINARY_DIR}/targets)
 
+# git is only needed in some cases. The conditional here will have to be updated
+# if new tapir targets or runtime dependencies are added
+if (KITSUNE_KOKKOS_ENABLED OR KITSUNE_OPENCILK_ENABLED)
+  find_program(GIT git REQUIRED)
+endif ()
+
 # Just in case, check for utilities that are needed to build some of the
 # dependencies. These are not needed for everything, but they are basic enough
 # that we might as well check for them unconditionally and "globally".
-find_program(GIT git REQUIRED)
 find_program(GREP grep REQUIRED)
 find_program(PATCH patch REQUIRED)
 find_program(WC wc REQUIRED)
@@ -320,6 +326,7 @@ set(KITSUNE_CUDA_VERSION_PATCH 0)
 if (KITSUNE_CUDA_ENABLED)
   message(STATUS "Kitsune: cuda tapir target enabled")
 
+  # FIXME: Use a version range here.
   find_package(CUDAToolkit ${KITSUNE_CUDA_VERSION_MIN} REQUIRED)
 
   # CUDAToolkit does not provide a CUDAToolkit_PREFIX variable. CUDAToolkit_ROOT
@@ -435,6 +442,7 @@ if (KITSUNE_HIP_ENABLED)
   # accidentally finding something that is not in ROCM_PATH. We need to add both
   # lib and lib64 because some systems install the hip libraries to lib64 while
   # others install it in lib.
+  # FIXME: Use a version range here.
   find_package(HIP ${KITSUNE_ROCM_VERSION_MIN} REQUIRED
     PATHS ${ROCM_PATH}/lib/cmake/hip ${ROCM_PATH}/lib64/cmake/hip
     NO_DEFAULT_PATH)

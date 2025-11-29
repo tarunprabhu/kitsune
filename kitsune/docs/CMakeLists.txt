@@ -44,6 +44,12 @@ if (KITSUNE_ENABLE_SPHINX)
     if (SPHINX_OUTPUT_HTML)
       add_sphinx_target(html kitsune SOURCE_DIR "${HTML_DIR}")
 
+      # kitsune-docs is just an alias for the kitsune-doc target that is created
+      # by the add_sphinx_target call above. Only because kitsune-docs feels a
+      # bit more intuitive than the singular.
+      add_custom_target(kitsune-docs
+        DEPENDS kitsune-doc)
+
       gen_rst_from_td(${HTML_DIR}/KitClangOptionsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitClangOptionsDoc.td
         kit-clang-options-doc)

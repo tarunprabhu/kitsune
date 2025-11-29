@@ -1,0 +1,260 @@
+# Builds Kitsune with only the CPU-centric tapir targets and the minimal set of
+# LLVM projects that are needed, then runs the tests.
+
+name: Kitsune Test
+
+permissions:
+  actions: write
+  contents: read
+
+on:
+  # This workflow can be run manually. In this case, run it unconditionally.
+  workflow_dispatch:
+
+  # When triggering the workflow on a push, only do so if certain directories
+  # has changed.
+  push:
+    paths:
+      - 'clang/**'
+      - 'flang/**'
+      - 'kitsune/**'
+      - 'lld/**'
+      - 'llvm/**'
+      - '.github/workflows/kitsune-test-defaults.yml'
+
+concurrency:
+  # Only allow one instance of this workflow on a given branch. This ensures
+  # that pushes to a branch will cancel any workflow that was triggered.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # test-on-freebsd:
+  #   name: Test (freebsd-14.3)
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout Kitsune
+  #       uses: actions/checkout@v4
+
+  #     - name: Restore ccache
+  #       id: ccache-restore
+  #       uses: actions/cache/restore@v4
+  #       with:
+  #         path: ${{ github.workspace }}/build-ccache
+  #         key: ccache-freebsd
+
+  #     - name: Configure, build and test
+  #       env:
+  #         CCACHE_DIR: ${{ github.workspace }}/build-ccache
+  #       uses: vmactions/freebsd-vm@v1
+  #       with:
+  #         envs: 'CCACHE_DIR'
+  #         release: 14.3
+  #         sync: rsync
+  #         usesh: true
+  #         prepare: |
+  #           pkg install -y ccache cmake git libxml2 ninja
+  #           build_dir="$(pwd)/build"
+  #           mkdir -p ${build_dir}
+  #         run: |
+  #           build_dir="$(pwd)/build"
+  #           cmake -G Ninja \
+  #                 -B ${build_dir} \
+  #                 -S llvm \
+  #                 -DCMAKE_BUILD_TYPE=Release \
+  #                 -DKITSUNE_ENABLE_EXPERIMENTS=OFF \
+  #                 -DKITSUNE_ENABLE_LANGS='c;cxx' \
+  #                 -DKITSUNE_ENABLE_TAPIR_TARGETS='opencilk' \
+  #                 -DLLVM_CCACHE_BUILD=ON \
+  #                 -DLLVM_ENABLE_ASSERTIONS=ON \
+  #                 -DLLVM_TARGETS_TO_BUILD=host
+  #           # ninja -v -C ${build_dir} check-llvm check-clang check-lld
+  #           # ninja -j1 -v -C ${build_dir} check-mlir
+  #           # ninja -j1 -v -C ${build_dir} check-flang
+  #           ninja -v -C ${build_dir} check-kitsune
+
+  #     - name: Save ccache
+  #       id: ccache-save
+  #       uses: actions/cache/save@v4
+  #       with:
+  #         path: ${{ github.workspace }}/build-ccache
+  #         key: freebsd-ccache-
+
+
+  test-on-linux:
+    name: Test on Linux
+
+    # Don't fail all jobs if any one in the matrix fails
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Setup environment variables
+        id: setup-envs
+        env:
+          BUILD_DIR: ${{ github.workspace }}/build/build
+          CCACHE_DIR: ${{ github.workspace }}/build/ccache
+          CCACHE_KEY: ccache-${{ matrix.os }}
+        run: |
+          echo "build-dir=${BUILD_DIR}" >> "${GITHUB_OUTPUT}"
+          echo "ccache-dir=${CCACHE_DIR}" >> "${GITHUB_OUTPUT}"
+          echo "ccache-key=${CCACHE_KEY}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout Kitsune
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Restore ccache
+        id: ccache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.setup-envs.outputs.ccache-dir }}
+          key: ${{ steps.setup-envs.outputs.ccache-key }}
+
+      - name: Install system dependencies
+        id: install-system-dependencies
+        run: |
+          sudo apt-get install -y ccache
+
+      - name: Configure
+        id: configure
+        env:
+          CCACHE_DIR: ${{ steps.setup-envs.outputs.ccache-dir }}
+        run: |
+          tapir_targets='opencilk'
+          build_dir=${{ steps.setup-envs.outputs.build-dir }}
+          mkdir -p ${build_dir}
+          cmake -G Ninja \
+                -B ${build_dir} \
+                -S llvm \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DKITSUNE_ENABLE_EXPERIMENTS=OFF \
+                -DKITSUNE_ENABLE_LANGS='c;cxx' \
+                -DKITSUNE_ENABLE_TAPIR_TARGETS='${tapir_targets}' \
+                -DLLVM_ENABLE_ASSERTIONS=ON \
+                -DLLVM_TARGETS_TO_BUILD=host \
+                -DLLVM_CCACHE_BUILD=ON \
+
+      - name: Build and test
+        id: test
+        env:
+          CCACHE_DIR: ${{ steps.setup-envs.outputs.ccache-dir }}
+        run: |
+          build_dir=${{ steps.setup-envs.outputs.build-dir }}
+          # ninja -v -C ${build_dir} check-llvm check-clang check-lld
+          # ninja -j1 -v -C ${build_dir} check-mlir
+          # ninja -j1 -v -C ${build_dir} check-flang
+          ninja -v -C ${build_dir} check-kitsune
+          ccache --show-stats --verbose
+
+      - name: Delete old ccache
+        id: ccache-delete
+        if: steps.ccache-restore.outputs.cache-hit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh cache delete --repo ${{ github.repository }} \
+              ${{ steps.setup-envs.outputs.ccache-key }}
+
+      - name: Save ccache
+        id: ccache-save
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: ${{ steps.setup-envs.outputs.ccache-dir }}
+          key: ${{ steps.setup-envs.outputs.ccache-key }}
+
+
+  # test-on-macosx:
+  #   name: Test on MacOSX
+
+  #   # Don't fail all jobs in any one in the matrix fails
+  #   continue-on-error: true
+  #   strategy:
+  #     failfast: false
+  #     matrix:
+  #       os: [macos-15, macos-15-intel]
+
+  #   runs-on: ${{ matrix-os }}
+
+  #   steps:
+  #     - name: Setup environment variables
+  #       id: setup-envs
+  #       env:
+  #         BUILD_DIR: ${{ github.workspace }}/build/build
+  #         CCACHE_DIR: ${{ github.workspace }}/build/ccache
+  #         CCACHE_KEY: ccache-${{ matrix.os }}
+  #       run: |
+  #         echo "build-dir=${BUILD_DIR}" >> "${GITHUB_OUTPUT}"
+  #         echo "ccache-dir=${CCACHE_DIR}" >> "${GITHUB_OUTPUT}"
+  #         echo "ccache-key=${CCACHE_KEY}" >> "${GITHUB_OUTPUT}"
+
+  #     - name: Checkout Kitsune
+  #       id: checkout
+  #       uses: actions/checkout@v4
+
+  #     - name: Restore ccache
+  #       id: ccache-restore
+  #       uses: actions/cache/restore@v4
+  #       with:
+  #         path: ${{ steps.setup-envs.outputs.ccache-dir }}
+  #         key: ${{ steps.setup-envs.outputs.ccache-key }}
+
+  #     - name: Configure
+  #       id: configure
+  #       env:
+  #         CCACHE_DIR: ${{ steps.setup-envs.outputs.ccache-dir }}
+  #       # Pass -DLLVM_DISABLE_ASSEMBLY_FILES=ON to work around test failure on
+  #       # some lld tests:
+  #       #
+  #       #     https://github.com/llvm/llvm-project/issues/81967
+  #       #
+  #       run: |
+  #         build_dir=${{ steps.setup-envs.outputs.build-dir }}
+  #         mkdir -p ${build_dir}
+  #         xcode_sdk="$(xcrun --show-sdk-path)"
+  #         cmake -G Ninja \
+  #               -B ${build_dir} \
+  #               -S llvm \
+  #               -DCMAKE_BUILD_TYPE=Release \
+  #               -DKITSUNE_ENABLE_EXPERIMENTS=OFF \
+  #               -DKITSUNE_ENABLE_LANGS='c;cxx' \
+  #               -DKITSUNE_ENABLE_TAPIR_TARGETS=opencilk \
+  #               -DLLVM_ENABLE_ASSERTIONS=ON \
+  #               -DLLVM_DISABLE_ASSEMBLY_FILES=ON \
+  #               -DLLVM_TARGETS_TO_BUILD=host \
+  #               -DLLVM_CCACHE_BUILD=ON
+
+  #     - name: Build and test
+  #       id: test
+  #       env:
+  #         CCACHE_DIR: ${{ steps.setup-envs.outputs.ccache-dir }}
+  #       run: |
+  #         build_dir=${{ steps.setup-envs.outputs.build-dir }}
+  #         # ninja -v -C ${build_dir} check-llvm check-clang check-lld
+  #         # ninja -j1 -v -C ${build_dir} check-mlir
+  #         # ninja -j1 -v -C ${build_dir} check-flang
+  #         ninja -v -C ${build_dir} check-kitsune
+  #         ccache --show-stats --verbose
+
+  #     - name: Delete old ccache
+  #       id: ccache-delete
+  #       if: steps.ccache-restore.outputs.cache-hit
+  #       env:
+  #         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       run: |
+  #         gh cache delete --repo ${{ github.repository }} \
+  #             ${{ steps.setup-envs.outputs.ccache-key }}
+
+  #     - name: Save ccache
+  #       id: ccache-save
+  #       uses: actions/cache/save@v4
+  #       if: always()
+  #       with:
+  #         path: ${{ steps.setup-envs.outputs.ccache-dir }}
+  #         key: ${{ steps.setup-envs.outputs.ccache-key }}
