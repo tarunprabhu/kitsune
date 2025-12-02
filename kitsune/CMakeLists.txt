@@ -51,10 +51,6 @@ option(KITSUNE_INCLUDE_TESTS
   "Generate build targets for the Kitsune tests"
   ${LLVM_INCLUDE_TESTS})
 
-option(KITSUNE_KOKKOS_ENABLED
-  "Enable custom recognition and compilation of Kokkos"
-  ON)
-
 # FIXME: Should this be named KITRT_* since we don't have a separate kitcuda
 # library any longer?
 option(KITCUDA_ENABLE_NVTX

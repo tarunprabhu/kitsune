@@ -543,6 +543,13 @@ if (KITSUNE_HIP_ENABLED AND
   message(STATUS "enable AMDGPU target")
 endif ()
 
+# The option here is for use when configuring Kitsune. The spelling is kept
+# consistent with that of the other options.
+option(KITSUNE_ENABLE_KOKKOS "Enable special handling of Kokkos constructs" ON)
+set(KITSUNE_KOKKOS_ENABLED ${KITSUNE_ENABLE_KOKKOS} CACHE INTERNAL
+  "Enable special handling of Kokkos constructs" FORCE)
+message(STATUS "enable Kokkos support")
+
 # Should the examples be built. Unlike in LLVM, for Kitsune, this defaults to
 # ON. Building these requires full linker support and also requires a fairly
 # standard sysroot. Of the platforms that Kitsune supports, this is only likely
