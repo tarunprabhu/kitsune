@@ -848,7 +848,6 @@ ExternalProject_Add(${KITSUNE_LIBNAME}
 add_subdirectory(configs)
 add_subdirectory(include/kitsune)
 add_subdirectory(tools)
-add_subdirectory(experiments)
 
 if (KITSUNE_BUILD_EXAMPLES)
   add_subdirectory(examples)
@@ -862,6 +861,10 @@ if(KITSUNE_INCLUDE_TESTS)
   add_subdirectory(test)
   add_subdirectory(unittests)
 endif()
+
+if (KITSUNE_ENABLE_EXPERIMENTS)
+  add_subdirectory(experiments)
+endif ()
 
 # Create the rules to create a "base" Kitsune executable. This is simply a copy
 # of the base clang (or flang) executable. We have to create a copy because a

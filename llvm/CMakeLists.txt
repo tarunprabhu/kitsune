@@ -550,6 +550,16 @@ set(KITSUNE_KOKKOS_ENABLED ${KITSUNE_ENABLE_KOKKOS} CACHE INTERNAL
   "Enable special handling of Kokkos constructs" FORCE)
 message(STATUS "enable Kokkos support")
 
+# Should the kitsune/experiments directory be configured. Configuring the
+# directory results in a file being created in the source directory. This makes
+# it impossible to use the source in a readonly context- such as when mounting
+# the directory containing it on a shared filesystem such as SMB or NFS. In
+# general, the configure and build steps should not modify the source directory
+# anyway. We should eventually fix this, so for now, provide an option to skip
+# configuration of the directory. The default is to configure the directory
+# since that is the current behavior.
+option(KITSUNE_ENABLE_EXPERIMENTS "Enable Kitsune's experiments" ON)
+
 # Should the examples be built. Unlike in LLVM, for Kitsune, this defaults to
 # ON. Building these requires full linker support and also requires a fairly
 # standard sysroot. Of the platforms that Kitsune supports, this is only likely
