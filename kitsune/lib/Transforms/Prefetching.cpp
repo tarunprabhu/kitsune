@@ -107,23 +107,6 @@ private:
     return changed;
   }
 
-  /// Determine where to insert prefetches in a given function. Returns true if
-  /// any prefetch calls were inserted, false if the function remained
-  /// unchanged.
-  bool run(Function &f) {
-    bool changed = false;
-
-    Module &m = *f.getParent();
-    if (Function *launch = Intrinsic::getDeclarationIfExists(
-            &m, Intrinsic::kit_async_launch_kernel))
-      for (Use &u : launch->uses())
-        if (auto *call = dyn_cast<CallBase>(u.getUser()))
-          if (call->getCalledFunction() == launch)
-            changed |= insertPrefetches(*call);
-
-    return changed;
-  }
-
 public:
   Prefetch(const TTOptions &tto) : tto(tto) {}
 
@@ -135,9 +118,12 @@ public:
     if (not tto.getGPUPrefetch())
       return changed;
 
-    for (Function &f : m)
-      if (f.size())
-        changed |= run(f);
+    if (Function *launch = Intrinsic::getDeclarationIfExists(
+            &m, Intrinsic::kit_async_launch_kernel))
+      for (Use &u : launch->uses())
+        if (auto *call = dyn_cast<CallBase>(u.getUser()))
+          if (call->getCalledFunction() == launch)
+            changed |= insertPrefetches(*call);
 
     return changed;
   }

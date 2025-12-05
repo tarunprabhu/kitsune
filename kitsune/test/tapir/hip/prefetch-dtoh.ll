@@ -1,5 +1,6 @@
 ; Check that the prefetch pass inserts device-to-host prefetch calls correctly.
 ;
+; FIXME:
 ; Currently, we do not insert such prefetch calls, so the checks here ensure
 ; that this call is not inserted. The test code itself is crafted to ensure that
 ; the array is accessed on the host after the forall loop, so when we do
