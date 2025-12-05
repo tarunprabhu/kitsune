@@ -256,13 +256,12 @@ endif()
 
 # ----------------------- KITSUNE SPECIFIC CONFIGURATION -----------------------
 
-# Kitsune and the runtimes associated with some of its tapir targets are either
-# known to not support certain platforms. Kitsune itself is only tested on a
-# limited number of systems. We error out early on those that we know for
-# certain are not supported. We may want to provide a different error message
-# for systems on which Kitsune might work but that we have not tested.
-if (WIN32)
-  message(FATAL_ERROR "Kitsune is not supported on Windows")
+# Kitsune is only known to work on a limited number of systems.
+# TODO: We should probably emit a different error message on systems where
+# Kitsune might work, but where it has not been tested.
+set(KITSUNE_SUPPORTED_SYSTEMS "Linux;Darwin;FreeBSD")
+if (NOT CMAKE_SYSTEM_NAME IN_LIST KITSUNE_SUPPORTED_SYSTEMS)
+  message(FATAL_ERROR "Kitsune is not supported on ${CMAKE_SYSTEM_NAME}")
 endif ()
 
 set(KITSUNE_MAIN_SRC_DIR     ${CMAKE_SOURCE_DIR}/../kitsune)
@@ -298,10 +297,88 @@ if (NOT KITSUNE_PACKAGE_VERSION)
     "${KITSUNE_VERSION_MAJOR}.${KITSUNE_VERSION_MINOR}.${KITSUNE_VERSION_PATCH}${KITSUNE_VERSION_SUFFIX}")
 endif()
 
-# Names of the kitsune frontends.
-set(KITSUNE_C_FRONTEND kitcc)
-set(KITSUNE_CXX_FRONTEND kit++)
-set(KITSUNE_Fortran_FRONTEND kitfc)
+set(KITSUNE_CUDA_PREFIX "" CACHE STRING
+  "Path to the cuda installation to use with the cuda tapir target")
+
+set(KITSUNE_HIP_PREFIX "" CACHE STRING
+  "Path to the hip installation to use with the hip tapir target")
+
+# clang has deprecated GCC_INSTALL_PREFIX and --gcc-toolchain is also likely to
+# be removed. The only way to use clang on systems where GCC is installed to a
+# non-standard directory is to pass --gcc-install-dir on the command line. On
+# HPC systems, spack packages install a config file that sets this argument so
+# the user does not have to pass this explicitly on the command line. Gentoo
+# does the same. Sometimes, we may not want to install a config file, in which
+# case, the GCC_INSTALL_DIR can be provided at configure time. This is *NOT* a
+# direct equivalent to clang's old GCC_INSTALL_PREFIX configure-time option. The
+# argument passed here must be exactly that which would be passed to
+# --gcc-install-dir. At "use time", if --gcc-install-dir is passed, either
+# explicitly on the command line or via a config file, that value will override
+# this one. Other options such as --gcc-toolchain will also override this value.
+#
+# FIXME: We should allow the user to provide a symlink, but then that symlink
+# should be resolved before setting this.
+set(KITSUNE_GCC_INSTALL_DIR "" CACHE STRING
+  "The GCC installation directory to use. This should be the path to a
+directory containing libgcc.a. This will nearly always be in the lib/
+subdirectory in GCC's install directory. For instance, if GCC was installed to
+/gcc_install, this is usually /gcc_install/lib/gcc/<triple>/<version> where
+<triple> is the target triple for the system and <version> is the GCC version")
+
+# Sanity check the value of KITSUNE_GCC_INSTALL_DIR if it was set
+if (KITSUNE_GCC_INSTALL_DIR)
+  find_library(LIBGCC gcc
+    PATHS "${KITSUNE_GCC_INSTALL_DIR}"
+    NO_DEFAULT_PATH)
+
+  if (NOT LIBGCC)
+    message(FATAL_ERROR
+      "Could not find libgcc.a in '${KITSUNE_GCC_INSTALL_DIR}'. "
+      "Check the value of KITSUNE_GCC_INSTALL_DIR")
+  endif ()
+
+  # Strip any trailing '/' from the value provided by the user. Not doing so
+  # breaks some tests. This also ensures that any path that is constructed with
+  # it will not contain '//' anywhere (which is not wrong, just not particularly
+  # aesthetic). We should do the same for '\', but we do not currently, and
+  # probably never will, support Windows.
+  string(REGEX REPLACE "[/]+$" "" KITSUNE_GCC_INSTALL_DIR "${KITSUNE_GCC_INSTALL_DIR}")
+endif ()
+
+# On systems where system tools such as the dynamic linker and standard library
+# headers are in non-standard locations, clang only works with a configuration
+# file containing a --sysroot=/path/to/sysroot entry. In such cases, some of
+# Kitsune's tests need a --sysroot option to be provided in order to work
+# correctly. These are typically the Kokkos tests because the Kokkos headers
+# include system headers for things like pthreads. There is no precedent for
+# this in LLVM because LLVM does not generally build third-party projects as
+# part of its build like we do. Tests that use such external projects are
+# consigned to the LLVM test suite. However, since we handle Kokkos' constructs
+# as special cases, we need the tests that include Kokkos headers in the repo as
+# part of the core tests. We therefore need to provide a sysroot when running
+# the tests.
+#
+# There is a -DDEFAULT_SYSROOT configuration option in LLVM, though it has been
+# deprecated. Unlike KITSUNE_GCC_INSTALL_DIR however, we do not provide an
+# equivalent for it because it causes too many test failures and is fiendishly
+# difficult to get right. The KITSUNE_SYSROOT option is only used in Kitsune's
+# tests, when building Kitsune's dependencies such as Kokkos and Cheetah and
+# also when building Kitsune's runtime, kitrt.
+set(KITSUNE_SYSROOT "" CACHE STRING
+  "Path suitable for use in --sysroot=<path>. Only used in Kitsune's tests, to build Kitsune's dependencies and Kitsune's own runtime")
+
+# Sanity check the value of KITSUNE_SYSROOT if it was set.
+if (KITSUNE_SYSROOT)
+  find_file(STDLIB_H stdlib.h
+    PATHS "${KITSUNE_SYSROOT}/usr/include"
+    NO_DEFAULT_PATH)
+
+  if (NOT STDLIB_H)
+    message(FATAL_ERROR
+      "Could not find stdlib.h in '${KITSUNE_SYSROOT}'. "
+      "Check the value of KITSUNE_SYSROOT")
+  endif ()
+endif ()
 
 # Make sure kitsune, and everything it needs is always enabled. We could just
 # set the default for LLVM_ENABLE_PROJECTS to include these projects, but we
@@ -371,10 +448,15 @@ if (NOT "c" IN_LIST KITSUNE_ENABLED_LANGS OR
   message(FATAL_ERROR "The C and C++ frontends must be enabled")
 endif ()
 
+set(KITSUNE_C_FRONTEND kitcc)
 set(KITSUNE_C_ENABLED OFF CACHE INTERNAL
   "Enable '${KITSUNE_C_FRONTEND}' frontend" FORCE)
+
+set(KITSUNE_CXX_FRONTEND kit++)
 set(KITSUNE_CXX_ENABLED OFF CACHE INTERNAL
   "Enable '${KITSUNE_CXX_FRONTEND}' frontend" FORCE)
+
+set(KITSUNE_Fortran_FRONTEND kitfc)
 set(KITSUNE_Fortran_ENABLED OFF CACHE INTERNAL
   "Enable '${KITSUNE_Fortran_FRONTEND}' frontend" FORCE)
 
@@ -442,18 +524,34 @@ list(JOIN KITSUNE_ENABLED_LANGS_STR " " KITSUNE_ENABLED_LANGS_STR)
 #
 # The Kokkos option does not need to be moved here (for now) because that only
 # affects clang. And we have ensured that kitsune is configured before clang.
-set(KITSUNE_PTHREADS_ENABLED ON CACHE INTERNAL "Enable 'pthreads' tapir target" FORCE)
-set(KITSUNE_CUDA_ENABLED OFF CACHE INTERNAL "Enable 'cuda' tapir target" FORCE)
-set(KITSUNE_CUSTOM_ENABLED OFF CACHE INTERNAL "Enable 'custom' tapir target" FORCE)
-set(KITSUNE_HIP_ENABLED OFF CACHE INTERNAL "Enable 'hip' tapir target" FORCE)
-set(KITSUNE_LAMBDA_ENABLED OFF CACHE INTERNAL "Enable 'lambda' tapir target" FORCE)
-set(KITSUNE_OMPTASK_ENABLED OFF CACHE INTERNAL "Enable 'omptask' tapir target" FORCE)
-set(KITSUNE_OPENCILK_ENABLED OFF CACHE INTERNAL "Enable 'opencilk' tapir target" FORCE)
-set(KITSUNE_OPENMP_ENABLED OFF CACHE INTERNAL "Enable 'openmp' tapir target" FORCE)
-set(KITSUNE_QTHREADS_ENABLED OFF CACHE INTERNAL "Enable 'qthreads' tapir target" FORCE)
-set(KITSUNE_REALM_ENABLED OFF CACHE INTERNAL "Enable 'realm' tapir target" FORCE)
-set(KITSUNE_SERIAL_ENABLED ON CACHE INTERNAL "Enable 'serial' tapir target" FORCE)
+set(KITSUNE_CUDA_ENABLED OFF CACHE INTERNAL
+  "Enable 'cuda' tapir target" FORCE)
+set(KITSUNE_CUSTOM_ENABLED ON CACHE INTERNAL
+  "Enable 'custom' tapir target" FORCE)
+set(KITSUNE_HIP_ENABLED OFF CACHE INTERNAL
+  "Enable 'hip' tapir target" FORCE)
+set(KITSUNE_LAMBDA_ENABLED OFF CACHE INTERNAL
+  "Enable 'lambda' tapir target" FORCE)
+set(KITSUNE_OMPTASK_ENABLED OFF CACHE INTERNAL
+  "Enable 'omptask' tapir target" FORCE)
+set(KITSUNE_OPENCILK_ENABLED OFF CACHE INTERNAL
+  "Enable 'opencilk' tapir target" FORCE)
+set(KITSUNE_OPENMP_ENABLED OFF CACHE INTERNAL
+  "Enable 'openmp' tapir target" FORCE)
+set(KITSUNE_PTHREADS_ENABLED ON CACHE INTERNAL
+  "Enable 'pthreads' tapir target" FORCE)
+set(KITSUNE_QTHREADS_ENABLED OFF CACHE INTERNAL
+  "Enable 'qthreads' tapir target" FORCE)
+set(KITSUNE_REALM_ENABLED OFF CACHE INTERNAL
+  "Enable 'realm' tapir target" FORCE)
+set(KITSUNE_SERIAL_ENABLED ON CACHE INTERNAL
+  "Enable 'serial' tapir target" FORCE)
 
+# FIXME: This contains all tapir targets for which some support exists in
+# Kitsune. This includes those tapir targets that are known to be incomplete,
+# bit-rotted or otherwise broken. At some point, we should only retain support
+# for tapir targets that are in "reasonable" shape. This list should be trimmed
+# down at that point.
 set(KITSUNE_KNOWN_TAPIR_TARGETS
   "cuda;custom;hip;lambda;omptask;opencilk;openmp;pthreads;qthreads;realm;serial"
   CACHE INTERNAL
@@ -519,6 +617,39 @@ list(JOIN KITSUNE_KNOWN_TAPIR_TARGETS_STR " " KITSUNE_KNOWN_TAPIR_TARGETS_STR)
 # LLVM_TARGETS_TO_BUILD has been set to some list of backend targets (including
 # the special value "host"), add the appropriate GPU backend target(s) as
 # needed.
+
+# If KITSUNE_CUDA_PREFIX has been provided, set CUDAToolkit_ROOT before enabling
+# the NVPTX target. FindCUDA works correctly if CUDA_PATH is set in the
+# environment, even if CUDAToolkit_ROOT is not set. For consistency, set it from
+# CUDA_PATH if possible.
+#
+# FIXME: Using a default installation directory for cuda is not reliable. On
+# some systems, it is installed to /opt/cuda, but in others, it is installed to
+# /usr/local/cuda.
+if (KITSUNE_CUDA_ENABLED)
+  if (KITSUNE_CUDA_PREFIX)
+    message(STATUS "setting CUDAToolkit_ROOT from KITSUNE_CUDA_PREFIX")
+    set(CUDAToolkit_ROOT "${KITSUNE_CUDA_PREFIX}")
+  elseif (DEFINED ENV{CUDA_PATH})
+    message(STATUS "setting CUDAToolkit_ROOT from CUDA_PATH in environment")
+    set(CUDAToolkit_ROOT "$ENV{CUDA_PATH}")
+  elseif (CUDAToolkit_ROOT)
+    message(WARNING
+      "DEPRECATED: Setting CUDAToolkit_ROOT directly. "
+      "Set KITSUNE_CUDA_PREFIX to the path of a supported cuda installation.")
+  elseif (CUDA_PATH)
+    message(WARNING
+      "DEPRECATED: Setting CUDA_PATH directly. "
+      "Set KITSUNE_CUDA_PREFIX to the path of a supported cuda installation")
+    set(CUDAToolkit_ROOT "${CUDA_PATH}")
+  else ()
+    message(FATAL_ERROR
+      "Could not determine CUDAToolkit_ROOT. "
+      "Set KITSUNE_CUDA_PREFIX to the path of a supported cuda installation")
+  endif ()
+endif()
+message(STATUS "using CUDAToolkit_ROOT: ${CUDAToolkit_ROOT}")
+
 if (KITSUNE_CUDA_ENABLED AND
     NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
     NOT "NVPTX" IN_LIST LLVM_TARGETS_TO_BUILD)
@@ -530,6 +661,35 @@ if (KITSUNE_CUDA_ENABLED AND
   endif ()
   message(STATUS "enable NVPTX target")
 endif ()
+
+# If KITSUNE_HIP_PREFIX has been provided, set ROCM_PATH before enabling the
+# AMDGPU target. ROCM_PATH needs to be set before trying to find the hip
+# installation, so it will be needed when building Kitsune's runtime anyway. But
+# it may also be used by the AMDGPU target.
+#
+# FIXME: For consistency with an earlier iteration of Kitsune's build system,
+# look in /opt/rocm for an installation if ROCM_PATH is not set. We should stop
+# doing this since the installation directories are not consistent.
+if (KITSUNE_HIP_ENABLED)
+  if (KITSUNE_HIP_PREFIX)
+    message(STATUS "setting ROCM_PATH from KITSUNE_HIP_PREFIX")
+    set(ROCM_PATH "${KITSUNE_HIP_PREFIX}")
+  elseif (DEFINED ENV{ROCM_PATH})
+    message(STATUS "using ROCM_PATH from environment")
+    set(ROCM_PATH "$ENV{ROCM_PATH}")
+  elseif (ROCM_PATH)
+    message(WARNING
+      "DEPRECATED: Setting ROCM_PATH directly. "
+      "Set KITSUNE_HIP_PREFIX to the path of a supported ROCm installation")
+  else ()
+    message(STATUS "using default ROCm install path")
+    message(WARNING
+      "DEPRECATED: Using default ROCm install location. "
+      "Set KITSUNE_HIP_PREFIX to the path of a supported ROCm installation")
+    set(ROCM_PATH "/opt/rocm")
+  endif ()
+endif ()
+message(STATUS "using ROCM_PATH: ${ROCM_PATH}")
 
 if (KITSUNE_HIP_ENABLED AND
     NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
@@ -566,6 +726,8 @@ option(KITSUNE_ENABLE_EXPERIMENTS "Enable Kitsune's experiments" ON)
 # to happen on some HPC systems. If a build/test error occurs on such systems,
 # this should be turned off.
 option(KITSUNE_BUILD_EXAMPLES "Build kitsune's examples" ON)
+
+option(KITSUNE_INCLUDE_TESTS "Generate build targets for Kitsune's tests" ON)
 
 # Documentation options
 option(KITSUNE_BUILD_DOCS "Build all Kitsune documentation" OFF)

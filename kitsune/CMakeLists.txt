@@ -17,22 +17,25 @@ include(KitsuneUtils)
 
 # ----------------------------------- NOTES -----------------------------------
 #
-# When building some of the third-party runtimes such as Kokkos and Cheetah, and
-# also Kitsune's pwn runtime, kitrt, we suppress CMake's checks that the
-# compiler works by setting -DCMAKE_CXX_COMPILER_WORKS=1.
+# When building Kitsune's dependencies such as Kokkos and Cheetah - and also
+# Kitsune's own runtime, kitrt - we suppress CMake's checks that the compiler
+# works by setting -DCMAKE_CXX_COMPILER_WORKS=1. These are built with the clang
+# that has just been built. They are not, and must not be, built with the
+# compiler being used to build Kitsune itself.
 #
-# These are built with the clang that was just built. On systems where clang
-# requires a --sysroot argument, this will fail the compiler checks since it
-# will not use the --sysroot= option. A quick workaround for now is to just
-# suppress those checks - if clang itself should work, and if it doesn't, then
-# we obviously have bigger problems (in cases where it doesn't work, it should
-# nearly always be because the person building this is a Kitsune developer and
-# they left some sort of bug in the code which they will fix immediately). The
-# build itself will work because in such cases, --sysroot=${KITSUNE_SYSROOT}
-# will have been added to the compile flags.
+# On systems where clang requires --sysroot to function correctly, the compiler
+# checks will fail since they do not set --sysroot. For now, a workaround is to
+# suppress those checks. It is reasonable to expect that the clang that was just
+# build works - if it doesn't, then we obviously have bigger problems (if it
+# doesn't work, the cause should nearly always be a bug introduced by a Kitsune
+# developer who will, naturally, fix the issue immediately). We ensure that
+# --sysroot=${KITSUNE_SYSROOT} is added to the build commands for the
+# dependencies and kitrt, so, barring other issues, the build will succeed.
 #
 # TODO: A better fix might be to generate a configuration file in this case just
 # for the purpose of building the tool/runtime with clang with --sysroot set.
+# But this might result in other issues related to the tests. It would be
+# worth exploring this option though.
 #
 # ------------------------------------------------------------------------------
 
@@ -47,77 +50,17 @@ macro(populate_unique_parents LIBS OUT)
   endforeach ()
 endmacro ()
 
-option(KITSUNE_INCLUDE_TESTS
-  "Generate build targets for the Kitsune tests"
-  ${LLVM_INCLUDE_TESTS})
-
 # FIXME: Should this be named KITRT_* since we don't have a separate kitcuda
 # library any longer?
 option(KITCUDA_ENABLE_NVTX
   "Enable NVTX profiling within the runtime"
   OFF)
 
-# clang has deprecated GCC_INSTALL_PREFIX and --gcc-toolchain is also likely to
-# be removed. The only way to use clang on systems where GCC is installed to a
-# non-standard directory is to pass --gcc-install-dir on the command line. On
-# HPC systems, spack packages install a config file that sets this argument so
-# the user does not have to pass this explicitly on the command line. Gentoo
-# does the same. Sometimes, we may not want to install a config file, in which
-# case, the GCC_INSTALL_DIR can be provided at configure time. This is *NOT* a
-# direct equivalent to clang's old GCC_INSTALL_PREFIX configure-time option. The
-# argument passed here must be exactly that which would be passed to
-# --gcc-install-dir. At "use time", if --gcc-install-dir is passed, either
-# explicitly on the command line or via a config file, that value will override
-# this one. Other options such as --gcc-toolchain will also override this value.
-#
-# FIXME: We should allow the user to provide a symlink, but then that symlink
-# should be resolved before setting this.
-set(KITSUNE_GCC_INSTALL_DIR "" CACHE STRING
-  "The GCC installation directory to use. This should be the path to a
-directory containing libgcc.a. This will nearly always be in the lib/
-subdirectory in GCC's install directory. For instance, if GCC was installed to
-/gcc_install, this is usually /gcc_install/lib/gcc/<triple>/<version> where
-<triple> is the target triple for the system and <version> is the GCC version")
-
-# On some systems, clang only works with a configuration file containing a
-# --sysroot=/path/to/sysroot entry. This is usually needed when system tools
-# such as the dynamic linker are in non-standard locations - typically because
-# the system linkers and standard libraries are very old. In such cases, some of
-# Kitsune's tests need a --sysroot option to be provided in order to work
-# correctly. These are typically the Kokkos tests because the Kokkos headers
-# include system headers for things like pthreads. There is no precedent for
-# this in LLVM because LLVM does not generally build "third-party" projects as
-# part of its build like we do - let alone contain tests that use such
-# "external" projects. Those are consigned to the LLVM test suite. However, in
-# our case, since we handle Kokkos' constructs as special cases, we do need the
-# more fine-grained tests to be part of the core tests and these must be able
-# to include the Kokkos headers.
-#
-# There is a -DDEFAULT_SYSROOT configuration option in LLVM, though it has been
-# deprecated. Unlike KITSUNE_GCC_INSTALL_DIR however, we do not provide an
-# equivalent for it because it causes too many test failures and is fiendishly
-# difficult to get right. Besides, the --sysroot issue does not affect nearly as
-# many users as the --gcc-install-dir one does. For those for whom this is a
-# concern, the only option is to provide a configuration file with --sysroot.
-set(KITSUNE_SYSROOT "" CACHE STRING
-  "The sysroot to use. This is used in some of Kitsune's tests, when building
-third-party runtimes and libraries such as Kokkos and Cheetah as well as when
-building kitrt")
-
 # The name of Kitsune's main runtime library. This is created here because it is
 # also used by the tests to ensure that check-kitsune does not run before the
 # runtime has been built.
 set(KITSUNE_LIBNAME kitrt)
 set(KITSUNE_LIBNAME_STATIC "${KITSUNE_LIBNAME}_static")
-
-# TODO: The _MAX variables are not currently used but it would be good to
-# require a range instead of just a minimum. In practice, we may want to
-# restrict it to just a single version because maintaining even a small range
-# is likely to be a pain.
-set(KITSUNE_CUDA_VERSION_MIN 12.3 CACHE INTERNAL "Minimum Cuda version required")
-set(KITSUNE_CUDA_VERSION_MAX 12.3 CACHE INTERNAL "Maxmimum Cuda version supported")
-set(KITSUNE_ROCM_VERSION_MIN 6.0 CACHE INTERNAL "Minimum ROCM version required")
-set(KITSUNE_ROCM_VERSION_MAX 7.0 CACHE INTERNAL "Maximum ROCM version supported")
 
 set(KITSUNE_SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR})
 set(KITSUNE_INCLUDE_DIR ${KITSUNE_SOURCE_DIR}/include)
@@ -131,26 +74,6 @@ find_program(GIT git REQUIRED)
 find_program(GREP grep REQUIRED)
 find_program(PATCH patch REQUIRED)
 find_program(WC wc REQUIRED)
-
-# Sanity check the value of KITSUNE_GCC_INSTALL_DIR if it was set
-if (KITSUNE_GCC_INSTALL_DIR)
-  find_library(LIBGCC gcc
-    PATHS "${KITSUNE_GCC_INSTALL_DIR}"
-    NO_DEFAULT_PATH)
-
-  if (NOT LIBGCC)
-    message(FATAL_ERROR "Could not find libgcc.a in "
-      "'${KITSUNE_GCC_INSTALL_DIR}'. Check the value of "
-      "KITSUNE_GCC_INSTALL_DIR")
-  endif ()
-
-  # Strip any trailing '/' from the value provided by the user. Not doing so
-  # breaks some tests. This also ensures that any path that is constructed with
-  # it will not contain '//' anywhere (which is not wrong, just not particularly
-  # aesthetic). We should do the same for '\', but we do not currently, and
-  # probably never will, support Windows.
-  string(REGEX REPLACE "[/]+$" "" KITSUNE_GCC_INSTALL_DIR "${KITSUNE_GCC_INSTALL_DIR}")
-endif ()
 
 # This is just the subpath to the internal directory. It will be interpreted
 # relative to some base path, typically ${CMAKE_INSTALL_PREFIX}
@@ -309,6 +232,18 @@ if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_EXECINFO})
 endif()
 
+# The KITSUNE_COMMON_LIB_* variables are passed to the configure command for
+# Kitsune's runtime below. If we pass the list as-is, it nearly always fails
+# because the terminal interprets the semicolon in the string-representation of
+# a cmake list as a terminator in the shell command. To work around this, we
+# use a pipe '|' as a separator (since it is unlikely to appear in library or
+# path names).
+#
+# The same technique is used when determining the library names and install
+# directories of Kitsune's dependencies that are configured/built below. In
+# the corresponding External_Project commands, the LIST_SEPARATOR option is used
+# to inform cmake that the pipe symbol is actually a list separator.
+#
 populate_unique_parents(KITSUNE_COMMON_LIB_LIBS KITSUNE_COMMON_LIB_DIRS)
 string(REPLACE ";" "|" KITSUNE_COMMON_LIB_NAMES "${KITSUNE_COMMON_LIB_NAMES}")
 string(REPLACE ";" "|" KITSUNE_COMMON_LIB_LIBS "${KITSUNE_COMMON_LIB_LIBS}")
@@ -320,7 +255,35 @@ set(KITSUNE_CUDA_VERSION_PATCH 0)
 if (KITSUNE_CUDA_ENABLED)
   message(STATUS "Kitsune: cuda tapir target enabled")
 
-  find_package(CUDAToolkit ${KITSUNE_CUDA_VERSION_MIN} REQUIRED)
+  # We cannot request a version range in the call to find_package below because
+  # CUDAToolkit does not support version ranges. Instead, we check the version
+  # that was found and raise an error if it is not in the supported range.
+  #
+  # CUDAToolkit_ROOT will already have been set correctly in llvm/CMakeLists.txt
+  find_package(CUDAToolkit REQUIRED)
+
+  # FIXME: We do not test for all versions in this range. In all likelihood,
+  # only some of the versions in the range below actually work. We should setup
+  # some infrastructure that actually tests these so we can keep a known
+  # working range.
+
+  # The minimum cuda version that is supported
+  set(KITSUNE_CUDA_VERSION_MIN 12.8)
+
+  # The lowest unsupported cuda version that is greater than the minimum
+  # supported version
+  set(KITSUNE_CUDA_VERSION_MAX 13.2)
+
+  set(KITSUNE_CUDA_VERSION ${CUDAToolkit_VERSION_MAJOR}.${CUDAToolkit_VERSION_MINOR})
+  if (KITSUNE_CUDA_VERSION VERSION_LESS KITSUNE_CUDA_VERSION_MIN
+      OR KITSUNE_CUDA_VERSION VERSION_GREATER_EQUAL KITSUNE_CUDA_VERSION_MAX)
+    message(FATAL_ERROR
+      "cuda version '${KITSUNE_CUDA_VERSION}' not in supported range ${KITSUNE_CUDA_VERSION_MIN}...<${KITSUNE_CUDA_VERSION_MAX}")
+  endif ()
+
+  set(KITSUNE_CUDA_VERSION_MAJOR ${CUDAToolkit_VERSION_MAJOR})
+  set(KITSUNE_CUDA_VERSION_MINOR ${CUDAToolkit_VERSION_MINOR})
+  set(KITSUNE_CUDA_VERSION_PATCH ${CUDAToolkit_VERSION_PATCH})
 
   # CUDAToolkit does not provide a CUDAToolkit_PREFIX variable. CUDAToolkit_ROOT
   # is not set either, even if the CUDAToolkit is found. The prefix relies on
@@ -347,10 +310,6 @@ if (KITSUNE_CUDA_ENABLED)
   if (NOT KITSUNE_CUDA_PREFIX)
     message(FATAL_ERROR "Could not determine cuda prefix")
   endif()
-
-  set(KITSUNE_CUDA_VERSION_MAJOR ${CUDAToolkit_VERSION_MAJOR})
-  set(KITSUNE_CUDA_VERSION_MINOR ${CUDAToolkit_VERSION_MINOR})
-  set(KITSUNE_CUDA_VERSION_PATCH ${CUDAToolkit_VERSION_PATCH})
 
   set(KITSUNE_CUDA_INCLUDE_DIR ${CUDAToolkit_INCLUDE_DIRS})
   set(KITSUNE_CUDA_BINARY_DIR ${CUDAToolkit_BIN_DIR})
@@ -413,39 +372,46 @@ set(KITSUNE_HIP_VERSION_PATCH 0)
 if (KITSUNE_HIP_ENABLED)
   message(STATUS "Kitsune: hip tapir target enabled.")
 
-  # Apparently, ROCM_PATH needs to be set for Hip's build system to work
-  # correctly. It is not clear if this is a problem with ROCM/HIP or a weird
-  # interaction between that and Darwin. Whatever the case, we need this (pretty
-  # lousy) workaround.
-  if (NOT DEFINED ROCM_PATH)
-    message(STATUS "  Kitsune HIP support enabled but ROCM_PATH not set")
-    if (DEFINED $ENV{ROCM_PATH})
-      message(STATUS "  Using ROCM_PATH environment variable")
-      set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH
-        "AMD ROCM/HIP installation directory")
-    else()
-      message(STATUS "  Using the default install location [/opt/rocm]")
-      set(ROCM_PATH "/opt/rocm" CACHE PATH
-        "AMD ROCM/HIP installation directory")
-    endif()
-  endif()
-  message(STATUS "ROCm/HIP path: ${ROCM_PATH}")
-
-  # Now we can finally look for the HIP package. Just to be safe, stop it from
-  # accidentally finding something that is not in ROCM_PATH. We need to add both
-  # lib and lib64 because some systems install the hip libraries to lib64 while
-  # others install it in lib.
-  find_package(HIP ${KITSUNE_ROCM_VERSION_MIN} REQUIRED
+  # We need to add both lib and lib64 because some systems install the hip
+  # libraries to lib64 while others install it in lib. ROCM_PATH will already
+  # have been set correctly in llvm/CMakeLists.txt
+  #
+  # We cannot check for the range of versions here because cmake's version
+  # constraints do not work as expected when the major versions of the minimum
+  # and maximum supported versions are different. Instead, we check the version
+  # of the hip package that is found.
+  find_package(HIP REQUIRED
     PATHS ${ROCM_PATH}/lib/cmake/hip ${ROCM_PATH}/lib64/cmake/hip
     NO_DEFAULT_PATH)
+
+  # FIXME: We do not test for all versions in this range. In all likelihood,
+  # only some of the versions in the range below actually work. We should setup
+  # some infrastructure that actually tests these so we can keep a known
+  # working range.
+
+  # The minimum ROCm version that is supported
+  set(KITSUNE_ROCM_VERSION_MIN 6.3)
+
+  # The lowest unsupported ROCm version that is greater than the minimum
+  # supported version
+  set(KITSUNE_ROCM_VERSION_MAX 7.2)
+
+  set(KITSUNE_ROCM_VERSION
+    ${HIP_VERSION_MAJOR}.${HIP_VERSION_MINOR}.${HIP_VERSION_PATCH})
+  if (KITSUNE_ROCM_VERSION VERSION_LESS KITSUNE_ROCM_VERSION_MIN
+      OR KITSUNE_ROCM_VERSION VERSION_GREATER_EQUAL KITSUNE_ROCM_VERSION_MAX)
+    message(FATAL_ERROR
+      "ROCm version '${KITSUNE_ROCM_VERSION}' not in supported range ${KITSUNE_ROCM_VERSION_MIN}...<${KITSUNE_ROCM_VERSION_MAX}")
+  endif ()
+
+  set(KITSUNE_HIP_VERSION_MAJOR ${HIP_VERSION_MAJOR})
+  set(KITSUNE_HIP_VERSION_MINOR ${HIP_VERSION_MINOR})
+  set(KITSUNE_HIP_VERSION_PATCH ${HIP_VERSION_PATCH})
 
   # There ought to be a better way to set the HIP_PREFIX rather than simply
   # relying on ROCM_PATH, but if wishes were horses.... In all code following
   # this, we should use KITSUNE_HIP_PREFIX instead of ROCM_PATH for consistency.
   set(KITSUNE_HIP_PREFIX ${ROCM_PATH})
-  set(KITSUNE_HIP_VERSION_MAJOR ${HIP_VERSION_MAJOR})
-  set(KITSUNE_HIP_VERSION_MINOR ${HIP_VERSION_MINOR})
-  set(KITSUNE_HIP_VERSION_PATCH ${HIP_VERSION_PATCH})
 
   set(KITSUNE_HIP_INCLUDE_DIR ${HIP_INCLUDE_DIR})
   set(KITSUNE_HIP_LIBRARY_DIR ${HIP_LIB_INSTALL_DIR})
@@ -857,7 +823,7 @@ if (KITSUNE_ENABLE_SPHINX OR KITSUNE_ENABLE_DOXYGEN)
   add_subdirectory(docs)
 endif ()
 
-if(KITSUNE_INCLUDE_TESTS)
+if(LLVM_INCLUDE_TESTS AND KITSUNE_INCLUDE_TESTS)
   add_subdirectory(test)
   add_subdirectory(unittests)
 endif()
