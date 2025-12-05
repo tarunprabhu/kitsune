@@ -9,16 +9,23 @@
 ; RUN:     -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: define {{.+}} @f
+; CHECK: define {{.+}} @f1
 ; CHECK: %[[STREAM:[0-9]+]] = {{.*}}call ptr @llvm.kit.thread.stream(i32 2)
-; CHECK: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2, ptr %c, i64 -1, ptr %[[STREAM]])
-; CHECK: call {{.+}} @llvm.kit.async.launch.kernel(i32 2,
+; CHECK-NEXT: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2, ptr %source, i64 -1, ptr %[[STREAM]])
+; CHECK-NEXT: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2, ptr %dest, i64 -1, ptr %[[STREAM]])
+; CHECK-NEXT: call {{.+}} @llvm.kit.async.launch.kernel(i32 2,
+;
+; CHECK: define {{.+}} @f2
+; CHECK: %[[STREAM:[0-9]+]] = {{.*}}call ptr @llvm.kit.thread.stream(i32 2)
+; CHECK-NEXT: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2, ptr %source, i64 -1, ptr %[[STREAM]])
+; CHECK-NEXT: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2, ptr %dest, i64 -1, ptr %[[STREAM]])
+; CHECK-NEXT: call {{.+}} @llvm.kit.async.launch.kernel(i32 2,
 ;
 ; -----------------------------------------------------------------------------
 
 target triple = "x86_64-unknown-linux-gnu"
 
-define void @f(ptr %c, float %scale, i64 %n) {
+define void @f1(ptr %dest, ptr %source, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp5 = icmp sgt i64 %n, 0
@@ -33,10 +40,42 @@ forall.detach:
   detach within %syncreg, label %forall.body, label %forall.inc
 
 forall.body:
-  %arrayidx = getelementptr inbounds float, ptr %c, i64 %indvars.iv
-  %v = load float, ptr %arrayidx, align 4
-  %scaled = fmul float %v, %scale
-  store float %scaled, ptr %arrayidx, align 4
+  %sourceidx = getelementptr inbounds float, ptr %source, i64 %indvars.iv
+  %v = load float, ptr %sourceidx, align 4
+  %destidx = getelementptr inbounds float, ptr %dest, i64 %indvars.iv
+  store float %v, ptr %destidx, align 4
+  reattach within %syncreg, label %forall.inc
+
+forall.inc:
+  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
+  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+
+forall.sync:
+  sync within %syncreg, label %forall.end
+
+forall.end:
+  ret void
+}
+
+define void @f2(ptr %dest, ptr %source, i64 %n) {
+entry:
+  %syncreg = tail call token @llvm.syncregion.start()
+  %cmp5 = icmp sgt i64 %n, 0
+  br i1 %cmp5, label %preheader, label %forall.sync
+
+preheader:
+  br label %forall.detach
+
+forall.detach:
+  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
+  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
+  detach within %syncreg, label %forall.body, label %forall.inc
+
+forall.body:
+  %sourceidx = getelementptr inbounds float, ptr %source, i64 %indvars.iv
+  %v = load float, ptr %sourceidx, align 4
+  %destidx = getelementptr inbounds float, ptr %dest, i64 %indvars.iv
+  store float %v, ptr %destidx, align 4
   reattach within %syncreg, label %forall.inc
 
 forall.inc:
