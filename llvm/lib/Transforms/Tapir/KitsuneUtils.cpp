@@ -260,9 +260,12 @@ std::string llvm::getNameForTapirLoop(const TapirLoopInfo &tl, StringRef pfx,
     // "usefulness" of this name (mainly for debugging). For now, we'll stick
     // with this until we can make some of the support tooling more robust to
     // allow us to mangle the name to avoid collisions.
-    DebugLoc loc = loop->getStartLoc();
-    unsigned line = loc.getLine();
-    unsigned col = loc.getCol();
+    DebugLoc dbgLoc = loop->getStartLoc();
+    const DILocation* loc = dbgLoc.get();
+    if (const DILocation* inlinedLoc = dbgLoc.getInlinedAt())
+      loc = inlinedLoc;
+    unsigned line = loc->getLine();
+    unsigned col = loc->getColumn();
     StringRef filePath = loc->getFile()->getFilename();
     StringRef fileName = sys::path::filename(filePath);
     os << fileName << "_" << line << "_" << col;
