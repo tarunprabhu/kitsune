@@ -27,11 +27,11 @@ project(kitrt C CXX)
 # here for now. There is a lot of unused code in the runtime, most of which
 # should probably be deleted but is still kept around in case we decide to
 # resurrect something. If we do, some of it might require libLLVM.
-find_library(LIB_LLVM
-  NAMES LLVM
+find_library(LIB_LLVM REQUIRED
+  NAMES
+  LLVM
   LLVM-${LLVM_VERSION_MAJOR}
   LLVM-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}
-  REQUIRED
   PATHS ${LLVM_LIBRARY_OUTPUT_INTDIR}
   NO_DEFAULT_PATH)
 
@@ -60,7 +60,7 @@ if (KITSUNE_CUDA_ENABLED)
     KITRT_CUDA_ENABLED)
 
   target_include_directories(${KITSUNE_OBJLIB} SYSTEM PUBLIC
-    ${KITSUNE_CUDA_INCLUDE_DIR})
+    ${KITSUNE_CUDA_INC_DIRS})
 
   target_include_directories(${KITSUNE_OBJLIB} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/cuda)
@@ -73,7 +73,7 @@ if (KITSUNE_CUDA_ENABLED)
 
   if (KITCUDA_ENABLE_NVTX)
     find_library(LIB_NVTOOLS_EXT nvToolsExt REQUIRED
-      PATHS ${KITSUNE_CUDA_LIBRARY_DIR}
+      PATHS ${KITSUNE_CUDA_LIB_DIRS}
       NO_DEFAULT_PATH)
 
     target_compile_definitions(${KITSUNE_OBJLIB} PUBLIC
@@ -112,7 +112,7 @@ if (KITSUNE_HIP_ENABLED)
     __HIP_PLATFORM_AMD__)
 
   target_include_directories(${KITSUNE_OBJLIB} PUBLIC
-    ${KITSUNE_HIP_INCLUDE_DIR})
+    ${KITSUNE_HIP_INC_DIRS})
 
   target_link_directories(${KITSUNE_OBJLIB} PUBLIC
     ${KITSUNE_HIP_LIB_DIRS})
