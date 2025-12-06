@@ -881,3 +881,22 @@ add_dependencies(kitrt-copy-to-build-dir ${KITSUNE_LIBNAME})
 install(DIRECTORY ${KITSUNE_RUNTIME_INSTALL_DIR}/
   DESTINATION ${CMAKE_INSTALL_PREFIX}
   USE_SOURCE_PERMISSIONS)
+
+# If performing a "toolchain-only" install, don't install headers.
+if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
+  install(DIRECTORY include/kitsune
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    COMPONENT kitsune-headers
+    FILES_MATCHING
+    PATTERN *.h
+    PATTERN kitsune.h EXCLUDE
+    PATTERN CMakeLists.txt EXCLUDE
+    PATTERN config.h.cmake EXCLUDE)
+
+  set_target_properties(kitsune-headers PROPERTIES FOLDER "LLVM/Resources")
+  if (NOT LLVM_ENABLE_IDE)
+    add_llvm_install_targets(install-kitsune-headers
+      DEPENDS kitsune-headers
+      COMPONENT kitsune-headers)
+  endif ()
+endif ()
