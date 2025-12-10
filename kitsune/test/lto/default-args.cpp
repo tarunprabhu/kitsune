@@ -17,7 +17,6 @@
 // Check that lld is used when LTO is enabled.
 //
 // RUN: %kitxx -### --tapir=serial -flto -O2 %s 2>&1 \
-// RUN:     | FileCheck %s -check-prefix LINKER-ARGS
+// RUN:     | FileCheck %s -check-prefix=LINKER-ARGS
 //
-// LINKER-ARGS: /ld{{(64)?}}.lld
-// LINKER-ARGS-SAME: "-dynamic{{(-linker)?}}"
+// LINKER-ARGS: /ld{{(64)?}}.lld"

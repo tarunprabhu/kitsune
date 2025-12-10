@@ -1095,8 +1095,7 @@ std::string ToolChain::GetLinkerPath(bool *LinkerIsLLD) const {
   // with Kitsune. This is the only linker that is guaranteed to support
   // Kitsune-specific options.
   const Driver &D = getDriver();
-  if (D.IsKitsuneFrontend() && D.isUsingLTO() &&
-      Args.getLastArg(options::OPT_tapir_EQ)) {
+  if (isKitsuneUsingLTO(D, Args)) {
     StringRef LinkerName = Triple.isOSDarwin() ? "ld64.lld" : "ld.lld";
     std::string LinkerPath = GetProgramPath(LinkerName.data());
     if (llvm::sys::fs::can_execute(LinkerPath)) {

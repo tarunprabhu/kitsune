@@ -387,3 +387,8 @@ bool clang::parseKitsuneArgs(KitsuneOptions &kitOpts, const char *argv0,
 
   return diags.getNumErrors() == numErrorsBefore;
 }
+
+bool clang::isKitsuneUsingLTO(const Driver &driver, const ArgList &args) {
+  return driver.IsKitsuneFrontend() && driver.isUsingLTO() &&
+         args.getLastArg(options::OPT_tapir_EQ);
+}

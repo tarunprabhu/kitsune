@@ -259,7 +259,7 @@ endif()
 # Kitsune is only known to work on a limited number of systems.
 # TODO: We should probably emit a different error message on systems where
 # Kitsune might work, but where it has not been tested.
-set(KITSUNE_SUPPORTED_SYSTEMS "Linux;Darwin;FreeBSD")
+set(KITSUNE_SUPPORTED_SYSTEMS "Linux;Darwin;FreeBSD;SunOS")
 if (NOT CMAKE_SYSTEM_NAME IN_LIST KITSUNE_SUPPORTED_SYSTEMS)
   message(FATAL_ERROR "Kitsune is not supported on ${CMAKE_SYSTEM_NAME}")
 endif ()

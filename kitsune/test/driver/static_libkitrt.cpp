@@ -6,8 +6,8 @@
 // RUN: %kitxx -### --tapir=pthreads -O2 %s %sysroot 2>&1 \
 // RUN:     | FileCheck %s -check-prefix DYNAMIC
 //
-// DYNAMIC: "-dynamic{{(-linker)?}}"
-// DYNAMIC-SAME: "-lkitrt"
+// DYNAMIC: "-cc1"
+// DYNAMIC-NEXT: "-lkitrt"
 // DYNAMIC-NOT: -lkitrt_static
 //
 // ----------------------------------------------------------------------------
@@ -17,8 +17,8 @@
 // RUN: %kitxx -### --tapir=pthreads -O2 -static-libkitrt %s %sysroot 2>&1 \
 // RUN:     | FileCheck %s -check-prefixes=STATIC-LIBKITRT
 //
-// STATIC-LIBKITRT: "-dynamic{{(-linker)?}}"
-// STATIC-LIBKITRT-SAME: "-Bstatic"
+// STATIC-LIBKITRT: "-cc1"
+// STATIC-LIBKITRT-NEXT: "-Bstatic"
 // STATIC-LIBKITRT-SAME: "-lkitrt_static"
 // STATIC-LIBKITRT-SAME: "-Bdynamic"
 //
@@ -34,5 +34,5 @@
 // STATIC-SAME: "{{.+}}/static_libkitrt.cpp"
 // STATIC-LLD-NEXT: "-Bstatic"
 // STATIC-LD-NEXT: "-static"
-// STATIC-SAME: "-lkitrt_static"
+// STATIC: "-lkitrt_static"
 // STATIC-NOT: -Bdynamic

@@ -34,6 +34,10 @@ class OptTable;
 
 namespace clang {
 
+namespace driver {
+class Driver;
+} // namespace driver
+
 class DiagnosticsEngine;
 
 /// Get the optimzation speedup level as an integer. This is not as
@@ -77,6 +81,11 @@ bool parseKitsuneArgs(llvm::driver::KitsuneOptions &kitOpts, const char *argv0,
                       const llvm::opt::ArgList &args,
                       const llvm::opt::OptTable &optTable,
                       clang::DiagnosticsEngine &diags);
+
+/// Check if the kitsune driver is being used with a valid tapir target and
+/// LTO enabled.
+bool isKitsuneUsingLTO(const driver::Driver &driver,
+                       const llvm::opt::ArgList &args);
 
 } // namespace clang
 

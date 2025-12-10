@@ -61,8 +61,9 @@ template Type *llvm::getLLVMTypeFor<const float>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<double>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const double>(LLVMContext &);
 
+#if !defined(__sun)
 template Type *llvm::getLLVMTypeFor<char>(LLVMContext &);
-template Type *llvm::getLLVMTypeFor<const char>(LLVMContext &);
+#endif // __sun
 
 // On some systems, long long and int64_t are the same type where explicitly
 // instantiating both results in an error. __unix__ below implies __linux__

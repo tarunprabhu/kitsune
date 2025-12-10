@@ -13,6 +13,7 @@
 #include "clang/Driver/CommonArgs.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
+#include "clang/Driver/KitsuneOptionUtils.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Driver/ToolChain.h"
@@ -55,6 +56,15 @@ static bool getPIE(const ArgList &Args, const ToolChain &TC) {
 // FIXME: Need to handle CLANG_DEFAULT_LINKER here?
 std::string solaris::Linker::getLinkerPath(const ArgList &Args) const {
   const ToolChain &ToolChain = getToolChain();
+
+  const Driver &D = ToolChain.getDriver();
+  if (isKitsuneUsingLTO(D, Args)) {
+    std::string LinkerPath = D.GetProgramPath("ld.lld", ToolChain);
+    if (llvm::sys::fs::can_execute(LinkerPath))
+      return LinkerPath;
+    llvm_unreachable("GetLinkerPath: Could not find lld for use with -flto");
+  }
+
   if (const Arg *A = Args.getLastArg(options::OPT_fuse_ld_EQ)) {
     StringRef UseLinker = A->getValue();
     if (!UseLinker.empty()) {
@@ -91,7 +101,7 @@ void solaris::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   ArgStringList CmdArgs;
 
   // Demangle C++ names in errors.  GNU ld already defaults to --demangle.
-  if (!LinkerIsGnuLd)
+  if (!LinkerIsGnuLd && !isKitsuneUsingLTO(D, Args))
     CmdArgs.push_back("-C");
 
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_shared,
@@ -205,6 +215,10 @@ void solaris::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   bool NeedsSanitizerDeps = addSanitizerRuntimes(ToolChain, Args, CmdArgs);
   AddLinkerInputs(ToolChain, Inputs, Args, CmdArgs, JA);
 
+  // Add the Kitsune-specific options just before linking the C++ standard
+  // library (if needed).
+  if (D.isUsingLTO())
+    getToolChain().AddKitsuneLTOArgs(Args, CmdArgs);
   getToolChain().AddKitsuneLinkerArgs(Args, CmdArgs);
 
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs,
@@ -328,6 +342,12 @@ Solaris::Solaris(const Driver &D, const llvm::Triple &Triple,
     addPathIfExists(D, D.Dir + "/../lib", Paths);
 
   addPathIfExists(D, D.SysRoot + "/usr/lib" + LibSuffix, Paths);
+}
+
+bool Solaris::HasNativeLLVMSupport() const {
+  if (getDriver().isUsingLTO())
+    return true;
+  return false;
 }
 
 SanitizerMask Solaris::getSupportedSanitizers() const {

@@ -19,9 +19,6 @@ TEST(TypeUtils, getLLVMTypeFor) {
 
   EXPECT_TRUE(getLLVMTypeFor<int8_t>(ctx)->isIntegerTy(8));
   EXPECT_TRUE(getLLVMTypeFor<uint8_t>(ctx)->isIntegerTy(8));
-  EXPECT_TRUE(getLLVMTypeFor<char>(ctx)->isIntegerTy(8));
-  EXPECT_TRUE(getLLVMTypeFor<signed char>(ctx)->isIntegerTy(8));
-  EXPECT_TRUE(getLLVMTypeFor<unsigned char>(ctx)->isIntegerTy(8));
 
   EXPECT_TRUE(getLLVMTypeFor<int16_t>(ctx)->isIntegerTy(16));
   EXPECT_TRUE(getLLVMTypeFor<uint16_t>(ctx)->isIntegerTy(16));
@@ -46,6 +43,12 @@ TEST(TypeUtils, getLLVMTypeFor) {
 
   EXPECT_TRUE(getLLVMTypeFor<const int32_t>(ctx)->isIntegerTy(32));
   EXPECT_TRUE(getLLVMTypeFor<const uint32_t>(ctx)->isIntegerTy(32));
+
+#if !defined(__sun)
+  EXPECT_TRUE(getLLVMTypeFor<char>(ctx)->isIntegerTy(8));
+  EXPECT_TRUE(getLLVMTypeFor<signed char>(ctx)->isIntegerTy(8));
+  EXPECT_TRUE(getLLVMTypeFor<unsigned char>(ctx)->isIntegerTy(8));
+#endif // __sun
 
   // On some systems, long long and int64_t are the same type. On those systems,
   // we do not instantiate long and long long. __unix__ below implies __linux__

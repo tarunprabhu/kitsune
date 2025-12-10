@@ -919,7 +919,8 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
 
   // Kitsune's runtime functions are only available on some platforms. Without
   // settings these as unavailable, we get some test failures in tli-checker.
-  if (!T.isOSLinux() && !T.isOSFreeBSD() && !T.isOSDarwin()) {
+  if (!(T.isOSLinux() || T.isOSFreeBSD() || T.isOSDarwin() ||
+        T.isOSSolaris())) {
     TLI.setUnavailable(LibFunc_kitrt_enable_verbose);
     TLI.setUnavailable(LibFunc_kitpthr_finalize);
     TLI.setUnavailable(LibFunc_kitpthr_initialize);
