@@ -118,8 +118,8 @@ class DocFlatten { bit DocFlatten = 1; }
 def kitsune_Group : OptionGroup<"<Kitsune-specific option group>">,
                     DocName<"Kitsune options">,
                     DocBrief<[{
-Options that are specific to the Kitsune frontends (kitcc, kit++, kitfc). These
-may not be used with any other frontends.
+Options that are specific to the Kitsune compiler drivers i.e. those named kit*.
+These cannot be used with other drivers such as clang or flang.
 }]>;
 
 def Action_Group : OptionGroup<"<action group>">, DocName<"Actions">,

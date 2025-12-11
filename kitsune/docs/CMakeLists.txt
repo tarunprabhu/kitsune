@@ -1,6 +1,11 @@
 add_custom_target(kitsune-doc)
 set_target_properties(kitsune-doc PROPERTIES FOLDER "Kitsune/Docs")
 
+# This is a convenience synonym for kitsune-doc. The latter is present for
+# consistency with other LLVM subprojects.
+add_custom_target(kitsune-docs)
+add_dependencies(kitsune-docs kitsune-doc)
+
 function (gen_rst_from_td rst td target)
   get_filename_component(TABLEGEN_INCLUDE_DIR ${td} DIRECTORY)
   list(APPEND LLVM_TABLEGEN_FLAGS "-I${TABLEGEN_INCLUDE_DIR}")
@@ -27,6 +32,18 @@ if (KITSUNE_ENABLE_SPHINX)
   set(HTML_DIR ${CMAKE_CURRENT_BINARY_DIR}/SourceHtml)
   set(MAN_DIR ${CMAKE_CURRENT_BINARY_DIR}/SourceMan)
 
+  set(KITSUNE_REPO_HOST "github.com" CACHE INTERNAL
+    "URL where the official Kitsune repo is hosted" FORCE)
+  set(KITSUNE_REPO_OWNER "lanl" CACHE INTERNAL
+    "Username of the owner of the official Kitsune repo" FORCE)
+
+  # Right now, we do not use the main branch on the Kitsune official repo. We
+  # will at some point, but for now, it is best to point users to point to one
+  # of the dev/* branches since they are likely to be more "stable" than the
+  # other branches
+  set(KITSUNE_REPO_BRANCH "dev/${LLVM_VERSION_MAJOR}.x" CACHE INTERNAL
+    "The current branch in Kitsune's repo" FORCE)
+
   include(AddSphinxTarget)
 
   if (SPHINX_FOUND)
@@ -41,8 +58,31 @@ if (KITSUNE_ENABLE_SPHINX)
     add_custom_target(kitsune-man-dir
       COMMAND ${CMAKE_COMMAND} -E make_directory ${MAN_DIR})
 
+    # Since the top-level CMakeLists.txt file is in the llvm/ directory of this
+    # checkout, CMAKE_SOURCE_DIR will point to that directory. The true root is
+    # one level up from there.
+    get_filename_component(CMAKE_SOURCE_ROOT_DIR "${CMAKE_SOURCE_DIR}" DIRECTORY)
+
     if (SPHINX_OUTPUT_HTML)
-      add_sphinx_target(html kitsune SOURCE_DIR "${HTML_DIR}")
+      # The environment variables here are read directly in conf.py.
+      # sphinx-build accepts a SPHINXOPT environment variable, but it seems as
+      # if any -D options in that variable are not recognized.
+      add_sphinx_target(html kitsune SOURCE_DIR "${HTML_DIR}"
+        ENV_VARS
+        SPHINXOPTS="-j 1"
+        CMAKE_SOURCE_DIR="${CMAKE_SOURCE_ROOT_DIR}"
+        KITSUNE_REPO_HOST="${KITSUNE_REPO_HOST}"
+        KITSUNE_REPO_OWNER="${KITSUNE_REPO_OWNER}"
+        KITSUNE_REPO_BRANCH="${KITSUNE_REPO_BRANCH}"
+        KITSUNE_DEFAULT_LANGS="${KITSUNE_DEFAULT_LANGS}"
+        KITSUNE_DEFAULT_TAPIR_TARGETS="${KITSUNE_DEFAULT_TAPIR_TARGETS}"
+        KITSUNE_GUARANTEED_TAPIR_TARGETS="${KITSUNE_GUARANTEED_TAPIR_TARGETS}"
+        KITSUNE_CUDA_ARCH_DEFAULT="${KITSUNE_CUDA_ARCH_DEFAULT}"
+        KITSUNE_CUDA_VERSION_MIN="${KITSUNE_CUDA_VERSION_MIN}"
+        KITSUNE_CUDA_VERSION_MAX="${KITSUNE_CUDA_VERSION_MAX}"
+        KITSUNE_HIP_ARCH_DEFAULT="${KITSUNE_HIP_ARCH_DEFAULT}"
+        KITSUNE_HIP_VERSION_MIN="${KITSUNE_HIP_VERSION_MIN}"
+        KITSUNE_HIP_VERSION_MAX="${KITSUNE_HIP_VERSION_MAX}")
 
       gen_rst_from_td(${HTML_DIR}/KitClangOptionsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitClangOptionsDoc.td
@@ -56,9 +96,11 @@ if (KITSUNE_ENABLE_SPHINX)
 
       set(MDS
         AddingCommandLineOption.md
+        AddingKitsuneIntrinsic.md
         AddingTapirTarget.md
+        BasicUsage.md
         BuildSystem.md
-        C++LanguageExtensions.md
+        ConfigurationFiles.md
         DriverDesign.md
         EmbeddedBitcode.md
         FortranSupport.md
@@ -66,11 +108,14 @@ if (KITSUNE_ENABLE_SPHINX)
         KitsuneTestSuite.md
         KitsuneTools.md
         KokkosSupport.md
+        LanguageExtensions.md
         Limitations.md
         LLVMTools.md
+        MemoryManagement.md
         OldReleaseNotes.md
         Overview.md
         PassPipeline.md
+        RegisteringLibraryFunction.md
         ReleaseNotes.md
         TapirTargets.md
         Testing.md
@@ -89,7 +134,7 @@ if (KITSUNE_ENABLE_SPHINX)
 
       # Copy the .md files from kitsune/docs into the build Source dir
       add_custom_target(copy-mds
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${MDS} ${HTML_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy ${MDS} ${HTML_DIR}
         DEPENDS ${MDS} kitsune-html-dir)
 
       add_custom_target(copy-static

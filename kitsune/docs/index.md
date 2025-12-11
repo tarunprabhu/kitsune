@@ -1,65 +1,84 @@
-# Welcome to Kitsune's documentation
+# Kitsune's Documentation
 
 TODO: Write a reasonable description
 
-```{eval-rst}
-.. toctree::
-   :titlesonly:
-
-   ReleaseNotes
+```{warning}
+Kitsune is under active development. While we make every effort to
+keep this documentation up-to-date, parts of it may not reflect the current
+state of Kitsune. In such cases, the inline documentation in Kitsune's source
+code is more likely to be accurate.
 ```
 
-# Using Kitsune
+The user guides are intended for users of Kitsune, while the developer guides
+are intended for those interested in contributing to Kitsune's development. The
+design documents describe some aspects of Kitsune's design though they are not,
+and may never be, comprehensive.
+
+# User Guides
 
 ```{eval-rst}
 .. toctree::
-   :titlesonly:
+    :titlesonly:
 
-   Overview
-   GettingStarted
-   C++LanguageExtensions
-   FortranSupport
-   KokkosSupport
-   Limitations
-   TapirTargets
+    Overview
+    TapirTargets
+    GettingStarted
+    BasicUsage
+    LanguageExtensions
+    MemoryManagement
+    FortranSupport
+    KokkosSupport
+    Limitations
+    ConfigurationFiles
 ```
-# Command-Line Options
+# Command-Line Reference
 
 ```{eval-rst}
 .. toctree::
-   :titlesonly:
+    :titlesonly:
 
-   KitClangOptionsDoc
-   KitFlangOptionsDoc
+    KitClangOptionsDoc
+    KitFlangOptionsDoc
 ```
 
 # Design Documents
 
 ```{eval-rst}
 .. toctree::
-   :titlesonly:
+    :titlesonly:
 
-   BuildSystem
-   DriverDesign
-   EmbeddedBitcode
-   PassPipeline
+    BuildSystem
+    DriverDesign
+    EmbeddedBitcode
+    PassPipeline
 ```
 
 # Developer Guides
 
 ```{eval-rst}
 .. toctree::
-   :titlesonly:
+    :titlesonly:
 
-   AddingCommandLineOption
-   AddingTapirTarget
-   KitsuneTools
-   KitsuneTestSuite
-   Testing
-   LLVMTools
-   WritingEmbeddedBitcodePass
-   WritingPassPlugin
-   WritingTapirTargetPlugin
+    AddingCommandLineOption
+    AddingTapirTarget
+    AddingKitsuneIntrinsic
+    KitsuneTools
+    KitsuneTestSuite
+    Testing
+    LLVMTools
+    RegisteringLibraryFunction
+    WritingEmbeddedBitcodePass
+    WritingPassPlugin
+    WritingTapirTargetPlugin
+```
+
+# Release Notes
+
+```{eval-rst}
+.. toctree::
+    :titlesonly:
+
+    ReleaseNotes
 ```
 
 # Indices and tables
