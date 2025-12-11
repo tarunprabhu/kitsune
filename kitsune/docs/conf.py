@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#
 # Kitsune documentation build configuration file.
 #
 # This file is execfile()d with the current directory set to its containing dir.
@@ -10,6 +11,9 @@
 # serve to show the default.
 
 from datetime import date
+from importlib.util import spec_from_file_location, module_from_spec
+from os import getenv, path
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -39,8 +43,53 @@ except ImportError:
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
-source_suffix = {".rst": "restructuredtext", ".md": "markdown",}
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
 myst_heading_anchors = 6
+
+# Enable myst's substitution extension since markdown files cannot use the
+# |version| and |release| substitutions available to .rst files.
+myst_enable_extensions = ["attrs_block", "attrs_inline", "substitution"]
+
+# The substitutions to use in markdown files. This contains unconditional
+# substitutions, but more may be added once the configuration is obtained.
+#
+# Several values that should be configuration values are passed to sphinx-build
+# as environment variables in kitsune/docs/CMakeLists.txt. These should be
+# passed as -D options, but that would require changes to add_sphinx_target()
+# which we do not make since that would entail changes to the LLVM repo -
+# something that we try to avoid when possible. sphinx-build does support an
+# environment variable SPHINXOPTS through which command-line options may be
+# passed to it, but it seems as if -D options passed that way are not
+# recognized. For now, using environment variables directly is a, somewhat ugly,
+# workaround
+myst_substitutions = {
+    "kitsune_repo_host": getenv("KITSUNE_REPO_HOST"),
+    "kitsune_repo_owner": getenv("KITSUNE_REPO_OWNER"),
+    "kitsune_repo_branch": getenv("KITSUNE_REPO_BRANCH"),
+    "kitsune_cuda_arch_default": getenv("KITSUNE_CUDA_ARCH_DEFAULT"),
+    "kitsune_cuda_version_min": getenv("KITSUNE_CUDA_VERSION_MIN"),
+    "kitsune_cuda_version_max": getenv("KITSUNE_CUDA_VERSION_MAX"),
+    "kitsune_hip_arch_default": getenv("KITSUNE_HIP_ARCH_DEFAULT"),
+    "kitsune_hip_version_min": getenv("KITSUNE_HIP_VERSION_MIN"),
+    "kitsune_hip_version_max": getenv("KITSUNE_HIP_VERSION_MAX"),
+}
+
+# The values here are cmake lists that are normally separated by semicolons.
+# However, when stringifying them into an environment variable, the semicolons
+# are replaced with spaces. All uses of these require semicolons, so put those
+# back. Also have a corresponding comma-separated list since that is more
+# useful in documents.
+for key in [
+    "kitsune_default_langs",
+    "kitsune_default_tapir_targets",
+    "kitsune_guaranteed_tapir_targets",
+]:
+    v = getenv(key.upper())
+    myst_substitutions[key] = v.replace(" ", ";")
+    myst_substitutions[key + "_list"] = v.replace(" ", ", ")
 
 import sphinx
 
@@ -103,7 +152,7 @@ pygments_style = "friendly"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "haiku"
+html_theme = "nature"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -195,13 +244,15 @@ latex_elements = {
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
-latex_documents = [(
-    "Overview",
-    "Kitsune.tex",
-    "Kitsune Documentation",
-    "The Kitsune Team",
-    "manual"
-),]
+latex_documents = [
+    (
+        "Overview",
+        "Kitsune.tex",
+        "Kitsune Documentation",
+        "The Kitsune Team",
+        "manual",
+    ),
+]
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
@@ -242,15 +293,17 @@ man_pages = [
 # Grouping the document tree into Texinfo files. List of tuples
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
-texinfo_documents = [(
-    "Overview",
-    "Kitsune",
-    "Kitsune Documentation",
-    "The Kitsune Team",
-    "Kitsune",
-    "Kitsune compiler collection",
-    "Miscellaneous",
-),]
+texinfo_documents = [
+    (
+        "Overview",
+        "Kitsune",
+        "Kitsune Documentation",
+        "The Kitsune Team",
+        "Kitsune",
+        "Kitsune compiler collection",
+        "Miscellaneous",
+    ),
+]
 
 # Documents to append as an appendix to all manuals.
 # texinfo_appendices = []
@@ -260,3 +313,65 @@ texinfo_documents = [(
 
 # How to display URL addresses: 'footnote', 'no', or 'inline'.
 # texinfo_show_urls = 'footnote'
+
+
+command_checkout = f"""```
+git checkout {getenv('KITSUNE_REPO_BRANCH')}
+```"""
+
+command_clone_html = f"""```
+git clone https://{getenv('KITSUNE_REPO_HOST')}/{getenv('KITSUNE_REPO_OWNER')}/kitsune
+```"""
+
+command_clone_ssh = f"""```
+git clone git@{getenv('KITSUNE_REPO_HOST')}:{getenv('KITSUNE_REPO_OWNER')}/kitsune.git
+```"""
+
+command_clone_current = f"""```
+git clone  --single-branch --branch {getenv('KITSUNE_REPO_BRANCH')} https://{getenv('KITSUNE_REPO_HOST')}:{getenv('KITSUNE_REPO_OWNER')}/kitsune
+```"""
+
+command_clone_current_head = f"""```
+git clone  --single-branch --branch {getenv('KITSUNE_REPO_BRANCH')} --depth 1 https://{getenv('KITSUNE_REPO_HOST')}:{getenv('KITSUNE_REPO_OWNER')}/kitsune
+```"""
+
+
+# This can be treated as its own sphinx extension. setup() will be called by
+# sphinx. In it, register a function to be called when the configuration has
+# been initialized. The configuration will contain the values of the -D options
+# passed to sphinx-build on the command line.
+#
+# See llvm/cmake/modules/AddSphinxTarget.cmake for details on how sphinx-build
+# is invoked.
+def setup(app):
+    kitll_spec = spec_from_file_location(
+        "kitsune_llvm_lexer",
+        path.join(
+            getenv("CMAKE_SOURCE_DIR"),
+            "kitsune",
+            "utils",
+            "pygments",
+            "kitsune_llvm_lexer.py",
+        ),
+    )
+    kitll = module_from_spec(kitll_spec)
+    kitll_spec.loader.exec_module(kitll)
+    app.add_lexer("kitll", kitll.KitsuneLLVMLexer)
+
+    app.connect("config-inited", myst_substitutions_update)
+
+
+# Override the myst_parser substitutions map after the configuration has been
+# initialized.
+def myst_substitutions_update(app, config):
+    config.myst_substitutions.update(
+        {
+            "release": config.release,
+            "version": config.version,
+            "command_clone_html": command_clone_html,
+            "command_clone_ssh": command_clone_ssh,
+            "command_clone_current": command_clone_current,
+            "command_clone_current_head": command_clone_current_head,
+            "command_checkout": command_checkout,
+        }
+    )

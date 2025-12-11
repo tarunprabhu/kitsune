@@ -213,7 +213,7 @@ and a wrapper around CUDA for simplifying code generation implementation).
   Tapir bug fixes and new features.
 
 * Tweaks and changes to the CMake configuration to support building examples and
-  tests for each enabled backend runtime target.  An initial set of [notes](building.md) about
+  tests for each enabled backend runtime target.  An initial set of [notes](GettingStarted.md) about
   building Kitsune is now provided as part of this release.
 
 * Starting to add a larger set of examples and tests.  A minimal set of items for
