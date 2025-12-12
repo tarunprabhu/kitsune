@@ -7,12 +7,12 @@ Since Kitsune is built using LLVM, much of LLVM's
 make frequent references to it here rather than repeating the material.
 Divergences from LLVM will be stated explicitly.
 
-## **Requirements**
+## Requirements
 
 Compiling Kitsune is very demanding of the host system - both the software
 and the hardware. Before beginning, please review the requirements below.
 
-### **Hardware**
+### Hardware
 
 Kitsune has only been tested on the following platforms. It may work on
 platforms not listed here, but that will almost certainly require some
@@ -30,7 +30,7 @@ be capable of compiling Kitsune, but they have not been tested.
 
 There are no plans to support Kitsune on Windows.
 
-### **Software**
+### Software
 
 Kitsune requires several software packages to be installed. These are
 enumerated [here](https://llvm.org/docs/GettingStarted.html#software). In
@@ -47,7 +47,7 @@ If they are not, they should be readily available in the system's package
 manager.
 
 (getting-started-host-cxx-toolchain)=
-#### **Host C++ Toolchain**
+#### Host C++ Toolchain
 
 Kitsune has only been built with fairly modern C++ compilers. The oldest
 versions that are known to work are GCC 13.1 and Clang 16. Older versions of
@@ -56,7 +56,7 @@ these compilers may also work but have not been tested. LLVM's
 provides more detailed information on how to obtain a C++ toolchain suitable
 for building LLVM.
 
-### **Tapir target dependencies**
+### Tapir target dependencies
 
 Some tapir targets require dependencies that must be available before Kitsune
 can be built. These are only required if the corresponding tapir targets are
@@ -128,7 +128,7 @@ versions are supported. If the package provided by your distribution does not
 fall in this range, you may have to download and install it
 [manually](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/).
 
-## **Obtaining Kitsune**
+## Obtaining Kitsune
 
 Kitsune's source code must be checked out using [git](https://git-scm.com/). The
 most straightforward to do so is:
@@ -163,7 +163,7 @@ If you are interested in contributing to Kitsune, a full checkout using SSH
 is recommended.
 ```
 
-## **Building Kitsune**
+## Building Kitsune
 
 Only cmake's [Ninja](https://cmake.org/cmake/help/latest/generator/Ninja.html)
 and
@@ -188,7 +188,7 @@ ninja
 ninja install
 ```
 
-### **Configure**
+### Configure
 
 Kitsune requires that it be built outside of the source directory. In other
 words, cmake must *not* be run in the same directory in which Kitsune was
@@ -514,7 +514,7 @@ For more information about the design and behavior of Kitsune's build system,
 see [this document](BuildSystem.md).
 
 
-### **Build**
+### Build
 
 If the Ninja generator was used when configuring Kitsune, simply running
 
@@ -571,7 +571,7 @@ on memory as `flang`, though building it requires substantially more memory
 than building `clang` or `llvm`.
 
 
-### **Check**
+### Check
 
 Running Kitsune's checks after a successful build is not required, but it is
 recommended.
@@ -599,7 +599,7 @@ Unlike the builds, the tests of MLIR and Flang are not as
 memory-intensive, so running them without explicitly providing `-j <N>` to
 `ninja` should not cause any problems.
 
-### **Install**
+### Install
 
 In most cases, installing Kitsune is optional. Unless `KITSUNE_SYSROOT` was
 provided, Kitsune can be run from the build directory. It can be more
@@ -617,7 +617,7 @@ when compiling non-trivial applications. In this case, installation is generally
 required. See [post-install](#post-install) section for more
 information.
 
-### **Post-install**
+### Post-install
 
 If either `-DKITSUNE_GCC_INSTALL_DIR` or `-DKITSUNE_SYSROOT` were provided
 when building Kitsune, it is very likely that the corresponding
