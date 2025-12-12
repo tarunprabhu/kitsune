@@ -7465,14 +7465,20 @@ Driver::getOptionVisibilityMask(bool UseDriverMode) const {
 const char *Driver::getExecutableForDriverMode(DriverMode Mode) {
   switch (Mode) {
   case GCCMode:
+    if (IsKitsuneFrontend())
+      return "kitcc";
     return "clang";
   case GXXMode:
+    if (IsKitsuneFrontend())
+      return "kit++";
     return "clang++";
   case CPPMode:
     return "clang-cpp";
   case CLMode:
     return "clang-cl";
   case FlangMode:
+    if (IsKitsuneFrontend())
+      return "kitfc";
     return "flang";
   case DXCMode:
     return "clang-dxc";
