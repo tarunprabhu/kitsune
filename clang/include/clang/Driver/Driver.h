@@ -803,7 +803,7 @@ private:
       Action::OffloadKind TargetDeviceOffloadKind) const;
 
   /// Return the typical executable name for the specified driver \p Mode.
-  static const char *getExecutableForDriverMode(DriverMode Mode);
+  const char *getExecutableForDriverMode(DriverMode Mode);
 
 public:
   /// GetReleaseVersion - Parse (([0-9]+)(.([0-9]+)(.([0-9]+)?))?)? and

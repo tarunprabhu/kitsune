@@ -1,13 +1,13 @@
 ! REQUIRES: kitfc
-
+!
 ! Kitsune-specific config files
-
+!
 !------------------------------------------------------------------------------
 ! RUN: %kitfc --config-kitsune-dir=%S/inputs/config3 -o /dev/null -v 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix DIR
 !
 ! DIR: Kitsune configuration file directory: {{.*}}/inputs/config3
-
+!
 ! -----------------------------------------------------------------------------
 ! The --config-kitsune-dir option can only be used with a Kitsune frontend.
 !
@@ -15,7 +15,7 @@
 ! RUN:     | FileCheck %s -check-prefix FRONTEND
 !
 ! FRONTEND: option '--config-kitsune-dir=' must be used with a Kitsune frontend
-
+!
 ! -----------------------------------------------------------------------------
 ! Check that the kitsune config directory is examined for config files
 !
@@ -30,3 +30,35 @@
 ! NOTFOUND-NEXT: was searched for in the directory: {{.*}}/inputs/config3
 ! NOTFOUND-NEXT: was searched for in the directory: {{.*}}/inputs/config1
 ! NOTFOUND-NEXT: was searched for in the directory:
+!
+! ------------------------------------------------------------------------------
+! If both kitfc.cfg and flang.cfg are present in the same directory, ensure
+! that the correct configuration file is picked up.
+!
+! RUN: env CLANG_NO_DEFAULT_CONFIG= \
+! RUN:     not %kitfc --config-system-dir=%S/input/cfgs %s 2>&1 \
+! RUN:         | FileCheck %s --check-prefixes=KITFC
+!
+! RUN: env CLANG_NO_DEFAULT_CONFIG= \
+! RUN:     not %kitfc --config-user-dir=%S/input/cfgs %s 2>&1 \
+! RUN:         | FileCheck %s --check-prefixes=KITFC
+!
+! RUN: env CLANG_NO_DEFAULT_CONFIG= \
+! RUN:     not %kitfc --config-kitsune-dir=%S/input/cfgs %s 2>&1 \
+! RUN:         | FileCheck %s --check-prefixes=KITFC
+!
+! KITFC: error: unknown argument: '--not-a-kitfc-option'
+!
+! RUN: env CLANG_NO_DEFAULT_CONFIG= \
+! RUN:     not %flang --config-system-dir=%S/input/cfgs %s 2>&1 \
+! RUN:         | FileCheck %s --check-prefixes=FLANG
+!
+! RUN: env CLANG_NO_DEFAULT_CONFIG= \
+! RUN:     not %flang --config-user-dir=%S/input/cfgs %s 2>&1 \
+! RUN:         | FileCheck %s --check-prefixes=FLANG
+!
+! RUN: env CLANG_NO_DEFAULT_CONFIG= \
+! RUN:     not %flang --config-kitsune-dir=%S/input/cfgs %s 2>&1 \
+! RUN:         | FileCheck %s --check-prefixes=FLANG
+!
+! FLANG: error: unknown argument: '--not-a-flang-option'
