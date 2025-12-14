@@ -6,12 +6,19 @@
 ! RUN: %kitfc -### --tapir=pthreads -O1 %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=CHECK-DEFAULT-CONFIG
 !
+! CHECK-DEFAULT-CONFIG: Configuration file: {{.*}}/pthreads.cfg
+!
 ! -----------------------------------------------------------------------------
 ! Check that providing a custom config directory without a target-specific
 ! configuration file is ok.
 !
 ! RUN: %kitfc -### --tapir=pthreads -O1 --config-kitsune-dir=%S/ %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM-NOEXIST
+!
+! COM: %kitfc -### --tapir=pthreads -O1 --config-user-dir=%S/ %s 2>&1 \
+! COM:     | FileCheck %s -check-prefix=CHECK-CUSTOM-NOEXIST
+!
+! CHECK-CUSTOM-NOEXIST-NOT: Configuration file: {{.*}}/pthreads.cfg
 !
 ! -----------------------------------------------------------------------------
 ! Check that providing a custom config directory with a target-specific
@@ -20,17 +27,36 @@
 ! RUN: %kitfc -### --tapir=pthreads -O1 --config-kitsune-dir=%S/input %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM
 !
-! -----------------------------------------------------------------------------
+! RUN: %kitfc -### --tapir=pthreads -O1 --config-user-dir=%S/input %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM
 !
-! CHECK-DEFAULT-CONFIG: Configuration file: {{.*}}/pthreads.cfg
-! CHECK-CUSTOM-NOEXIST-NOT: Configuration file: {{.*}}/pthreads.cfg
 ! CHECK-CUSTOM: Configuration file: {{.*}}/input/pthreads.cfg
 ! CHECK-CUSTOM: "-fc1"
 ! CHECK-CUSTOM-SAME: "-D" "some_preprocessor_flag"
 ! CHECK-CUSTOM-SAME: "-Wsome_compiler_flag"
-!
-! It is a pain to check for the actual linker executable. There are far too
-! many options depending on the platform, so just check the next line for the
-! expected linker flag.
-!
 ! CHECK-CUSTOM-NEXT: "-some_linker_flag"
+!
+! -----------------------------------------------------------------------------
+! If configuration files for both the driver and the tapir target are present,
+! check that the contents of both are used and the default options are
+! preserved.
+!
+! RUN: env CLANG_NO_DEFAULT_CONFIG= \
+! RUN: %kitfc -### --tapir=pthreads -O1 %s 2>&1 \
+! RUN:     --config-kitsune-dir=%S/input/cfgs \
+! RUN:     | FileCheck %s -check-prefix=BOTH
+!
+! RUN: env CLANG_NO_DEFAULT_CONFIG= \
+! RUN: %kitfc -### --tapir=pthreads -O1 %s 2>&1 \
+! RUN:     --config-user-dir=%S/input/cfgs \
+! RUN:     | FileCheck %s -check-prefix=BOTH
+!
+! BOTH: Configuration file: {{.*}}/input/cfgs/kitfc.cfg
+! BOTH: Configuration file: {{.*}}/input/cfgs/pthreads.cfg
+! BOTH: "-fc1"
+! BOTH-SAME: "-D" "driver_preprocessor_flag"
+! BOTH-SAME: "-D" "tapir_preprocessor_flag"
+! BOTH-SAME: "-Wdriver_compiler_flag"
+! BOTH-SAME: "-Wtapir_compiler_flag"
+! BOTH-NEXT: "-driver_linker_flag"
+! BOTH-SAME: "-tapir_linker_flag"

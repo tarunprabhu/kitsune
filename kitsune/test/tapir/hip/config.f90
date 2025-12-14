@@ -4,33 +4,67 @@
 ! Check that the default target-specific configuration file is always found.
 !
 ! RUN: %kitfc -### --tapir=hip -O1 %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefix=CHECK-DEFAULT-CONFIG
+! RUN:     | FileCheck %s -check-prefix=DEFAULT
+!
+! DEFAULT: Configuration file: {{.*}}/hip.cfg
 !
 ! ------------------------------------------------------------------------------
 ! Check that providing a custom config directory without a target-specific
 ! configuration file is ok.
 !
-! RUN: %kitfc -### --tapir=hip --config-kitsune-dir=%S -O1 %s 2>&1 | \
-! RUN:     FileCheck %s -check-prefix=CHECK-CUSTOM-NOEXIST
+! RUN: %kitfc -### --tapir=hip --tapir-hip-arch=gfx90a -O1 \
+! RUN:     --config-kitsune-dir=%S %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix=CUSTOM-NOEXIST
+!
+! COM: %kitfc -### --tapir=hip --tapir-hip-arch=gfx90a -O1 \
+! COM:     --config-user-dir=%S %s 2>&1 \
+! COM:     | FileCheck %s -check-prefix=CUSTOM-NOEXIST
+!
+! CUSTOM-NOEXIST-NOT: Configuration file: {{.*}}/hip.cfg
 !
 ! ------------------------------------------------------------------------------
 ! Check that providing a custom config directory with a target-specific
 ! configuration file leads to the file being found and the contents used.
 !
-! RUN: %kitfc -### --tapir=hip --config-kitsune-dir=%S/input -O1 %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefix=CHECK-CUSTOM
+! RUN: %kitfc -### --tapir=hip --tapir-hip-arch=gfx90a -O1 \
+! RUN:     --config-kitsune-dir=%S/input %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix=CUSTOM
 !
-! CHECK-DEFAULT-CONFIG: Configuration file: {{.*}}/hip.cfg
-! CHECK-CUSTOM-NOEXIST-NOT: Configuration file: {{.*}}/hip.cfg
-! CHECK-CUSTOM: Configuration file: {{.*}}/input/hip.cfg
-! CHECK-CUSTOM: "-fc1"
-! CHECK-CUSTOM-SAME: "-D" "some_preprocessor_flag"
-! CHECK-CUSTOM-SAME: "-Wsome_compiler_flag"
+! RUN: %kitfc -### --tapir=hip --tapir-hip-arch=gfx90a -O1 \
+! RUN:     --config-user-dir=%S/input %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix=CUSTOM
 !
-! It is a pain to check for the actual linker executable. There are far too
-! many options depending on the platform, so just check the next line for the
-! expected linker flags.
+! CUSTOM: Configuration file: {{.*}}/input/hip.cfg
+! CUSTOM: "-fc1"
+! CUSTOM-SAME: "-D" "some_preprocessor_flag"
+! CUSTOM-SAME: "-Wsome_compiler_flag"
+! CUSTOM-NEXT: "-some_linker_flag"
+! CUSTOM-SAME: -lkitrt
+! CUSTOM-SAME: "-lamdhip64"
 !
-! CHECK-CUSTOM-NEXT: "-some_linker_flag"
-! CHECK-CUSTOM-SAME: -lkitrt
-! CHECK-CUSTOM-SAME: "-lamdhip64"
+! -----------------------------------------------------------------------------
+! If configuration files for both the driver and the tapir target are present,
+! check that the contents of both are used and the default options are
+! preserved.
+!
+! RUN: env CLANG_NO_DEFAULT_CONFIG= \
+! RUN: %kitfc -### --tapir=hip --tapir-hip-arch=gfx90a -O1 \
+! RUN:     --config-kitsune-dir=%S/input/cfgs %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix=BOTH
+!
+! RUN: env CLANG_NO_DEFAULT_CONFIG= \
+! RUN: %kitfc -### --tapir=hip --tapir-hip-arch=gfx90a -O1 \
+! RUN:     --config-user-dir=%S/input/cfgs %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix=BOTH
+!
+! BOTH: Configuration file: {{.*}}/input/cfgs/kitfc.cfg
+! BOTH: Configuration file: {{.*}}/input/cfgs/hip.cfg
+! BOTH: "-fc1"
+! BOTH-SAME: "-D" "driver_preprocessor_flag"
+! BOTH-SAME: "-D" "tapir_preprocessor_flag"
+! BOTH-SAME: "-Wdriver_compiler_flag"
+! BOTH-SAME: "-Wtapir_compiler_flag"
+! BOTH-NEXT: "-driver_linker_flag"
+! BOTH-SAME: "-tapir_linker_flag"
+! BOTH-SAME: -lkitrt
+! BOTH-SAME: -lamdhip64
