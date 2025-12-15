@@ -7,6 +7,7 @@ time.
 
 [^1]: The term "parallel loops" are used to refer both to loops where the iterations of the loop can be run independently of one another, and loops containing reductions that can be performed in parallel.
 
+(tapir-targets-supported)=
 ## **Supported Tapir Targets**
 
 The [table](#tapir-targets-table-platforms) below summarizes the tapir targets

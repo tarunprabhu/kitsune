@@ -36,67 +36,38 @@ not require other passes to be run at test-time. It is not always possible
 to satisfy such constraints, but one should make a concerted effort to do so. If
 a test requires more support from other parts of the compiler, errors in
 unrelated areas of the compiler may manifest as spurious test failures [^2].
-Some tips for writing such tests are presented here. These are not intended to
-be comprehensive. Feel free to use the existing tests both Kitsune-specific and
-those in the broader LLVM project as a guide.
 
-- When testing the handling of command-line options, the `-###` option can be
-  very useful. This prints the command-lines used to invoke `-cc1` or `-fc1`,
-  but will not actually invoke those language-specific compilers (or the
-  linker). However, command-line option diagnostics will be issued which can be
-  used to check that the options were validated. This also improves testing
-  times since it is much faster to print the command-lines than to invoke the
-  underlying compiler.
+### Writing Core Tests
 
-- When testing Kitsune's language extensions, the high-level source code that
-  is used should be kept to a bare minimum. The use of standard library headers
-  and functions should be avoided if possible. For instance, to check a simple
-  `for` loop, the empty loop below should be used if possible
+We follow the pattern established in LLVM to write core tests. These make
+extensive use of LLVM's
+[lit](https://llvm.org/docs/CommandGuide/lit.html) and
+[FileCheck](https://llvm.org/docs/CommandGuide/FileCheck.html) utilities. Since
+`lit` is the tool that runs these tests, we will refer to them as "lit tests".
 
-  ```c
-  void f(long n) {
-    for (long i = 0; i < n; ++i) {}
-  }
-  ```
+```{note}
+The tests do not always have to use FileCheck, but the overwhelming majority of
+tests will do so.
+```
 
-  The code below should be avoided since it requires `<stdio.h>`. This is
-  because `stdio.h` may be in a non-standard location make it more difficult
-  to craft a command line that will work on all systems.
+The majority of "lit tests" consist of a single file. The files will certainly
+contain one or more lit directives - the most common being `RUN:`. Most files
+will also contain either high-level source or LLVM assembly, but many will
+only contain lit directives. The `RUN:` directives will typically consists of
+command-lines to be executed.
 
-  ```c
-  #include <stdio.h>
-  void f(long n) {
-    for (long i = 0; i < n; ++i) {
-      printf("Hello\n");
-    }
-  }
-  ```
+In some cases, the files may require an additional files as input. These will
+typically be present in an `input/` directory in the same directory as the
+"lit test". Tests that are primarily focused on the linker such as those in
+`kitsune/test/lto/` and `kitsune/test/tools/lld` may require multiple input
+files.
 
-  If a non-empty loop body is required, prefer something closer to the code
-  below that does not require "external" files.
-
-  ```c
-  void f(float *a, long n) {
-    for (long i = 0; i < n; ++i) {
-      a[i] = i;
-    }
-  }
-  ```
-
-- When testing LLVM-IR passes, do *not* use high-level source code as input.
-  Instead, LLVM-IR should be used as input and the pass invoked directly using
-  LLVM's [opt](https://llvm.org/docs/CommandGuide/opt.html) utility. To the
-  extent possible, the LLVM-IR should be the bare minimum that triggers the
-  exact behavior in the pass that is being tested. Tools such as
-  [llvm-reduce](https://llvm.org/docs/CommandGuide/llvm-reduce.html) and
-  Kitsune's [kit-enc](CommandGuide/kit-enc.md) may be useful in such cases.
-
-- To test Kitsune's codegen passes, LLVM's
-  [llc](https://llvm.org/docs/CommandGuide/llc.html) tool could be used. The
-  `--tapir` option must be used to ensure that Kitsune's codegen passes are run.
-  These passes can also be run explicitly using LLVM's
-  [opt](https://llvm.org/docs/CommandGuide/opt.html) tool as well by explicitly
-  adding them to the `-passes` command-line option.
+This is a very high-level overview of Kitsune's (really, it is LLVM's) testing
+infrastructure. A detailed description of these is outside the scope of this
+document.
+[LLVM's testing infrastructure guide](https://llvm.org/docs/TestingGuide.html)
+contains more information. We recommend using the existing tests - both
+Kitsune-specific and those in the broader LLVM project - as a guide.
 
 Most core tests can be found in
 `kitsune/test` and `kitsune/unittests`, but, historically, some may also be
@@ -113,21 +84,138 @@ inherently Kitsune-specific and could, in principle, be useful to "vanilla"
 `lld`. As a result, tests for this new option were added to `lld/test/MachO`,
 _not_ `kitsune/test/tools/lld` [^1].
 
-The tests in `kitsune/test` are designed to run with LLVM's
-[lit](https://llvm.org/docs/CommandGuide/lit.html) tool and will be hereafter
-referred to as "lit tests".
+Some tips for writing core tests are presented here. These are not intended to
+be comprehensive.
 
-### Running the core tests
+#### Testing the Driver
+
+When testing the handling of command-line options, the `-###` option can be
+very useful. This prints the command-lines used to invoke `-cc1` or `-fc1`,
+but will not actually invoke those language-specific compilers (or the
+linker). However, command-line option diagnostics will be issued which can be
+used to check that the options were validated. This also improves testing
+times since it is much faster to print the command-lines than to invoke the
+underlying compiler.
+
+#### Testing Language Extensions
+
+When testing Kitsune's language extensions, the high-level source code that
+is used should be kept to a bare minimum. The use of standard library headers
+and functions should be avoided if possible. For instance, to check a simple
+`for` loop, the empty loop below should be used if possible
+
+```c
+void f(long n) {
+  for (long i = 0; i < n; ++i) {}
+}
+```
+
+The code below should be avoided since it requires `<stdio.h>`. This is
+because `stdio.h` may be in a non-standard location make it more difficult
+to craft a command line that will work on all systems.
+
+```c
+#include <stdio.h>
+void f(long n) {
+  for (long i = 0; i < n; ++i) {
+    printf("Hello\n");
+  }
+}
+```
+
+If a non-empty loop body is required, prefer something closer to the code
+below that does not require "external" files.
+
+```c
+void f(float *a, long n) {
+  for (long i = 0; i < n; ++i) {
+    a[i] = i;
+  }
+}
+```
+
+#### Testing LLVM-IR Passes
+
+When testing LLVM-IR passes, do *not* use high-level source code as input.
+Instead, LLVM-IR should be used as input and the pass invoked directly using
+LLVM's [opt](https://llvm.org/docs/CommandGuide/opt.html) utility. To the
+extent possible, the LLVM-IR should be the bare minimum that triggers the
+exact behavior in the pass that is being tested. Tools such as
+[llvm-reduce](https://llvm.org/docs/CommandGuide/llvm-reduce.html) and
+Kitsune's [kit-enc](CommandGuide/kit-enc.md) may be useful in such cases.
+
+Ideally, a pass should be tested on its own i.e. only the pass under test should
+be run on input crafted to test some specific behavior of the pass. The example
+below shows how to run only the loop-spawning pass.
+
+```
+opt -passes='loop-spawning' in.ll
+```
+
+In some cases, however, it may not be possible - or convenient - to run a
+single pass. This is particularly true for the GPU-centric passes in
+Kitsune's [pass pipeline](PassPipeline.md). These passes typically require a
+specific sequence of passes to have run in order to work correctly. One could,
+in principle, craft LLVM-IR that would allow these passes to be run on their
+own, but it may not be worth the effort. In such cases, one will often instruct
+`opt` to run one or more passes. A fairly common pattern in Kitsune's tests is
+to run the tapir pipeline followed by a specific pass.
+
+```
+opt -passses='tapir-lowering<O1>,kit-cgfb' in.ll
+```
+
+If it is possible to craft IR that can be used to run just a single pass, that
+should be preferred. Understanding the nuances of Kitsune's
+[pass pipelines](PassPipeline.md) will help in deciding when deciding how to
+test a specific pass.
+
+#### Testing Embedded Bitcode Passes
+
+Some tapir targets, particularly [cuda](tapir-targets-cuda) and
+[hip](tapir-targets-hip) use [embedded bitcode](EmbeddedBitcode.md). Some
+passes in Kitsune's pass pipeline operate exclusively on this embedded bitcode.
+Testing these requires a slightly different approach since the lit tests
+typically expect that the LLVM module that is passed to `opt` is what is
+being tested.
+
+To test an embedded bitcode pass, we need to craft LLVM-IR that is appropriate
+for the pass being tested, then embed that into a host module that can be passed
+to `opt`. The [kit-enc](CommandGuide/kit-enc.md) utility can be used for this. A
+simple example of such a lit test is shown below
+
+```llvm
+; RUN: %kit-enc %s \
+; RUN:     | opt -passes='my-mbc-pass' \
+; RUN:     | kit-mbc -S \
+; RUN:     | FileCheck %s
+;
+; CHECK: <check-strings>;
+
+define void @f() {
+  ret void
+}
+```
+
+In the example above, the LLVM-IR module consisting of a single function named
+`@f` is embedded into an empty host module in the call to `kit-enc`. This
+module is then piped into `opt` which runs the embedded bitcode pass
+`my-mbc-pass`. This pass will run on the embedded bitcode and update it as
+needed. The output of `opt` will be a module containing the updated embedded
+bitcode. This is passed to [kit-mbc](CommandGuide/kit-mbc.md) which will
+extract the embedded bitcode from the host module and write it as human-readable
+LLVM assembly to stdout. This, in turn, is piped into `FileCheck`.
+
+### Running the Core Tests
 
 The core tests can be run from the build directory after
 [building Kitsune](GettingStarted.md#build). The core tests in `kitsune/test`
 and `kitsune-unittests` can be run using the `check-kitsune` target. The
-example below shows how to run these using both the `Ninja` and `Unix Makefiles`
-cmake generators.
+example below shows how to run these if the `Ninja` generator was used when
+configuring Kitsune.
 
 ```
 ninja check-kitsune
-make check-kitsune
 ```
 
 If you wish to run just the unittests, use the `check-kitsune-unit` target.
@@ -155,7 +243,9 @@ ninja check-kitsune-tapir-cuda
 ```
 
 For convenience, Kitsune's build system provides some shorter aliases. The
-tests for the [cuda](tapir-targets-cuda) can also be run as follows.
+tests for the [cuda](tapir-targets-cuda) tapir target can also be run as shown
+below. This pattern can also be used to run the tests for the other
+[supported](tapir-targets-supported) tapir targets.
 
 ```
 ninja check-kitsune-cuda
@@ -191,7 +281,7 @@ to run each test in a directory.
 llvm-lit --time-tests <dir>
 ```
 
-[^1]: In such cases, we do attempt to upstream such code if possible. In this particular case, we did submit a [PR](https://github.com/llvm/llvm-project/pull/170355) to LLVM.
+[^1]: We do attempt to upstream such code. In this particular case, we did submit a [PR](https://github.com/llvm/llvm-project/pull/170355) to LLVM.
 
 [^2]: For example, if a test for pass A requires pass B to be run, an error in pass B will also result in the failure of the test of pass A. This can result in wasted time spent debugging pass A.
 
@@ -202,8 +292,38 @@ executables. These are used to check that the resulting executable both runs
 and produces the correct answer [^3].
 
 ```{important}
-The main Kitsune repository does *not* contain any end-to-end tests.
+The main Kitsune repository does *not* contain _any_ end-to-end tests.
 ```
 
+Building and running end-to-end tests requires a complete development
+toolchain, including standard libraries, linkers and, on some platforms,
+a dynamic linker (also known as a loader). Even within the
+limited number of platforms that Kitsune supports, it is easy to find systems
+with non-standard sysroots that make writing reliable build scripts for such
+tests very difficult. On most HPC clusters for instance, Kitsune cannot always
+be run from the build directory because the C++ standard libraries found by the
+default dynamic linker (loader) are often incompatible. In such cases, Kitsune
+needs to be explicitly provided a functional alternative sysroot - including a
+loader in a non-standard location. Adding configuration files to the build
+directory is a possibility, but one risks breaking upstream tests, such as those
+in `clang/test` and `flang/test`. In such cases,, installing Kitsune and
+providing a configuration file to be used from the install directory is known
+to work well.
+
+```{important}
+End-to-end tests must not be added to the core tests in kitsune/test.
+```
+
+All end-to-end tests are in the
+[Kitsune Test Tuite](KitsuneTestSuite.md). As a developer, you should use the
+Kitsune test suite _as well as_ the core tests for greater confidence that your
+changes have not introduced any regressions. It is not uncommon for the core
+kitsune tests to pass but for the kitsune test suite to fail.
 
 [^3]: For code that makes extensive use of floating point arithmetic, the results produced when compiling with Kitsune may not be bitwise-identical to those produced by other compilers. This has to do with the fundamental limitations of floating-point arithemtic and its interaction with compiler optimizations.
+
+## Runtime tests
+
+Currently, Kitsune's runtime has very limited testing. It largely relies on the
+end-to-end tests in the [Kitsune test suite](KitsuneTestSuite.md) to test for
+correctness, but these are, naturally, extremely coarse-grained.
