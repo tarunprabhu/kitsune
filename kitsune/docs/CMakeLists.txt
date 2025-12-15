@@ -16,18 +16,6 @@ function (gen_rst_from_td rst td target)
     TARGET ${target})
 endfunction()
 
-# All .md files in the top level of this directory must be explicitly added
-# when generating HTML documentation. This is similar to LLVM's requirements of
-# source files.
-function (check_md_file_list sources)
-  file(GLOB globbed "${CMAKE_CURRENT_SOURCE_DIR}/*.md")
-  foreach (f ${globbed})
-    if (NOT ${f} IN_LIST sources)
-      message(SEND_ERROR "All .md files in kitsune/docs must be listed explicitly as sources. Found unlisted file: '${f}'")
-    endif ()
-  endforeach()
-endfunction ()
-
 if (KITSUNE_ENABLE_SPHINX)
   set(HTML_DIR ${CMAKE_CURRENT_BINARY_DIR}/SourceHtml)
   set(MAN_DIR ${CMAKE_CURRENT_BINARY_DIR}/SourceMan)
@@ -77,6 +65,7 @@ if (KITSUNE_ENABLE_SPHINX)
         KITSUNE_DEFAULT_LANGS="${KITSUNE_DEFAULT_LANGS}"
         KITSUNE_DEFAULT_TAPIR_TARGETS="${KITSUNE_DEFAULT_TAPIR_TARGETS}"
         KITSUNE_GUARANTEED_TAPIR_TARGETS="${KITSUNE_GUARANTEED_TAPIR_TARGETS}"
+        KITSUNE_KNOWN_TAPIR_TARGETS="${KITSUNE_KNOWN_TAPIR_TARGETS}"
         KITSUNE_CUDA_ARCH_DEFAULT="${KITSUNE_CUDA_ARCH_DEFAULT}"
         KITSUNE_CUDA_VERSION_MIN="${KITSUNE_CUDA_VERSION_MIN}"
         KITSUNE_CUDA_VERSION_MAX="${KITSUNE_CUDA_VERSION_MAX}"
@@ -94,72 +83,29 @@ if (KITSUNE_ENABLE_SPHINX)
         kit-flang-options-doc)
       add_dependencies(kit-flang-options-doc kitsune-html-dir)
 
-      set(MDS
-        AddingCommandLineOption.md
-        AddingKitsuneIntrinsic.md
-        AddingTapirTarget.md
-        BasicUsage.md
-        BuildSystem.md
-        ConfigurationFiles.md
-        DriverDesign.md
-        EmbeddedBitcode.md
-        FortranSupport.md
-        GettingStarted.md
-        KitsuneTestSuite.md
-        KitsuneTools.md
-        KokkosSupport.md
-        LanguageExtensions.md
-        Limitations.md
-        LLVMTools.md
-        MemoryManagement.md
-        OldReleaseNotes.md
-        Overview.md
-        PassPipeline.md
-        RegisteringLibraryFunction.md
-        ReleaseNotes.md
-        TapirTargets.md
-        Testing.md
-        WritingEmbeddedBitcodePass.md
-        WritingPassPlugin.md
-        WritingTapirTargetPlugin.md
-        index.md)
-      list(TRANSFORM MDS PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
-      check_md_file_list("${MDS}")
-
-      # Copy the conf.py file
-      add_custom_target(copy-conf-html
+      # Sphinx needs all the input files in one place for it to work. Since
+      # some of the input files, such as the command-line option references,
+      # are generated, they will be in the build directory. This means that the
+      # static (non-generated) files also need to be copied to the build
+      # directory before invoking sphinx-build.
+      add_custom_target(copy-inputs
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_CURRENT_SOURCE_DIR}/conf.py ${HTML_DIR}
-        DEPENDS conf.py kitsune-html-dir)
-
-      # Copy the .md files from kitsune/docs into the build Source dir
-      add_custom_target(copy-mds
-        COMMAND ${CMAKE_COMMAND} -E copy ${MDS} ${HTML_DIR}
-        DEPENDS ${MDS} kitsune-html-dir)
-
-      add_custom_target(copy-static
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.md ${HTML_DIR}
         COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/_static ${HTML_DIR}
-        DEPENDS _static kitsune-html-dir)
-
-      add_custom_target(copy-templates
+        ${CMAKE_CURRENT_SOURCE_DIR}/CommandGuide ${HTML_DIR}/CommandGuide
         COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/_templates ${HTML_DIR}
-        DEPENDS _templates kitsune-html-dir)
-
-      add_custom_target(copy-themes
+        ${CMAKE_CURRENT_SOURCE_DIR}/static ${HTML_DIR}/static
         COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/_themes ${HTML_DIR}
-        DEPENDS _themes kitsune-html-dir)
+        ${CMAKE_CURRENT_SOURCE_DIR}/_themes/kitsune-theme
+        ${HTML_DIR}/_themes/kitsune-theme
+        DEPENDS kitsune-html-dir)
 
       add_dependencies(docs-kitsune-html
         kit-clang-options-doc
         kit-flang-options-doc
-        copy-conf-html
-        copy-mds
-        copy-static
-        copy-templates
-        copy-themes)
+        copy-inputs)
       add_dependencies(kitsune-doc docs-kitsune-html)
     endif()
 

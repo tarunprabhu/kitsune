@@ -395,7 +395,7 @@ values of these.
 
 #### Recommended LLVM CMake Options ####
 
-Some cmake options from LLVM are recommended, but certainly not required. These
+Some cmake options from LLVM are recommended, but not required. These
 are listed below.
 
 - **LLVM_CCACHE_BUILD** (`OFF`): `BOOL`
@@ -414,7 +414,7 @@ are listed below.
     from Kitsune's repo.
 
     ```{note}
-    Note that `ccache` may require 200-500MB of disk space
+    `ccache` may require an additional 500MB or more of disk space.
     ```
 
     Other compiler caches such as [sccache](https://github.com/mozilla/sccache)
@@ -482,10 +482,11 @@ are listed below.
     | [hip](tapir-targets-hip) | AMDGPU |
     ```
 
-    Even if these targets have been enabled, the corresponding backends do not
-    have to be added to `LLVM_TARGETS_TO_BUILD`. Kitsune's build system will
-    automatically add the required backends. See [here](BuildSystem.md) for more
-    details about Kitsune's build system.
+    If these tapir targets targets have been enabled, the corresponding backends
+    must be added to `LLVM_TARGETS_TO_BUILD`. For convenience, Kitsune's build
+    system will automatically add the required backends if they have not been
+    explicitly specified. More details about Kitsune's build system can be
+    [found here](BuildSystem.md).
 
 
 #### Modified LLVM CMake Options ###

@@ -478,5 +478,4 @@ void clang::EmitKitsuneOptDocs(const RecordKeeper &Records, raw_ostream &OS) {
   emitHeading(0, "Other options", OS);
   for (auto &O : Doc.Options)
     emitOption(O, DocInfo, OS);
-  // emitDocumentation(0, extractDocumentation(Records, DocInfo), DocInfo, OS);
 }
