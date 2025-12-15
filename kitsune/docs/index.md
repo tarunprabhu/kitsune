@@ -30,6 +30,7 @@ and may never be, comprehensive.
     KokkosSupport
     Limitations
     ConfigurationFiles
+    StaticLinking
 ```
 # Command-Line Reference
 
@@ -49,6 +50,7 @@ and may never be, comprehensive.
     :titlesonly:
 
     BuildSystem
+    CodeOrganization
     DriverDesign
     EmbeddedBitcode
     PassPipeline
