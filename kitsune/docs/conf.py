@@ -51,7 +51,12 @@ myst_heading_anchors = 6
 
 # Enable myst's substitution extension since markdown files cannot use the
 # |version| and |release| substitutions available to .rst files.
-myst_enable_extensions = ["attrs_block", "attrs_inline", "substitution"]
+myst_enable_extensions = [
+    "attrs_block",
+    "attrs_inline",
+    "deflist",
+    "substitution",
+]
 
 # The substitutions to use in markdown files. This contains unconditional
 # substitutions, but more may be added once the configuration is obtained.
@@ -86,10 +91,12 @@ for key in [
     "kitsune_default_langs",
     "kitsune_default_tapir_targets",
     "kitsune_guaranteed_tapir_targets",
+    "kitsune_known_tapir_targets",
 ]:
     v = getenv(key.upper())
     myst_substitutions[key] = v.replace(" ", ";")
     myst_substitutions[key + "_list"] = v.replace(" ", ", ")
+    myst_substitutions[key + "_alternatives"] = v.replace(" ", " | ")
 
 import sphinx
 
@@ -143,7 +150,7 @@ exclude_patterns = ["_build"]
 # show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = "friendly"
+# pygments_style = "default"
 
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
@@ -152,12 +159,14 @@ pygments_style = "friendly"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "nature"
+html_theme = "kitsune-theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-# html_theme_options = {}
+html_theme_options = {
+    "sidebarwidth": "25%",
+}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
@@ -358,6 +367,8 @@ def setup(app):
     kitll_spec.loader.exec_module(kitll)
     app.add_lexer("kitll", kitll.KitsuneLLVMLexer)
 
+    theme_dir = path.join(path.dirname(__file__), "_themes")
+    app.add_html_theme("kitsune-theme", path.join(theme_dir, "kitsune-theme"))
     app.connect("config-inited", myst_substitutions_update)
 
 

@@ -39,6 +39,7 @@ and may never be, comprehensive.
 
     KitClangOptionsDoc
     KitFlangOptionsDoc
+    CommandGuide/index.md
 ```
 
 # Design Documents
@@ -62,7 +63,6 @@ and may never be, comprehensive.
     AddingCommandLineOption
     AddingTapirTarget
     AddingKitsuneIntrinsic
-    KitsuneTools
     KitsuneTestSuite
     Testing
     LLVMTools

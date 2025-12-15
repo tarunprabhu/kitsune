@@ -35,7 +35,7 @@ using namespace llvm::sys;
 
 static cl::OptionCategory catKitMBC("kit-mbc options");
 
-static cl::opt<bool> clForce("f", cl::desc("Enable binary output on terminals"),
+static cl::opt<bool> clForce("f", cl::desc("Force binary output on terminals"),
                              cl::cat(catKitMBC));
 
 static cl::opt<std::string>

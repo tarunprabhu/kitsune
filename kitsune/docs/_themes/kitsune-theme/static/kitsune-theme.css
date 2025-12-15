@@ -1,0 +1,12 @@
+/*
+ * The styles here are intended to override those defined in nature.css - the
+ * stylesheet for the 'nature' theme that forms the base of kitsune-theme.
+ */
+
+div.related {
+  background-color: #C35817;
+}
+
+div.sphinxsidebar {
+  font-size: 0.85em;
+}
