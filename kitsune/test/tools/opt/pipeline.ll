@@ -46,7 +46,7 @@
 ; O0-NEXT: Running pass:     BitcodeWriterPass
 ;
 ; -----------------------------------------------------------------------------
-; If the --tapir option is provided to llc, the Kitsune passes are run at all
+; If the --tapir option is provided to opt, the Kitsune passes are run at all
 ; optimization levels.
 ;
 ; RUN: opt -O1 --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
