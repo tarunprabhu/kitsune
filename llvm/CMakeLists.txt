@@ -735,15 +735,18 @@ option(KITSUNE_ENABLE_DOXYGEN
   "Use doxygen to generate API documentation" OFF)
 option(KITSUNE_ENABLE_SPHINX
   "Use sphinx to generate HTML documentation and man pages" OFF)
+
+# If building all of LLVM's documentation, build Kitsune's as well. The reverse
+# is *not* true. We could choose to build *only* Kitsune's documentation without
+# building any of LLVM's.
+if (LLVM_BUILD_DOCS)
+  set(KITSUNE_BUILD_DOCS ON)
+endif ()
+
 if (KITSUNE_BUILD_DOCS)
   set(KITSUNE_ENABLE_DOXYGEN ON)
   set(KITSUNE_ENABLE_SPHINX ON)
 endif ()
-
-# If the kitsune documentation options are set, some LLVM variables need to be
-# set to ensure that the doxygen and sphinx executables (as needed) are found.
-set(LLVM_ENABLE_SPHINX ${KITSUNE_ENABLE_SPHINX})
-set(LLVM_ENABLE_DOXYGEN ${KITSUNE_ENABLE_DOXYGEN})
 
 # Kitsune's runtime, libkitrt, used to have a dependence on libLLVM, but it does
 # not any longer. However, we might re-introduce it, so for now, build libLLVM

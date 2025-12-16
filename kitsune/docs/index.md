@@ -65,6 +65,7 @@ and may never be, comprehensive.
     AddingCommandLineOption
     AddingTapirTarget
     AddingKitsuneIntrinsic
+    BuildingDocumentation
     KitsuneTestSuite
     Testing
     LLVMTools

@@ -106,10 +106,6 @@ have not found these to be available on any system that we have used.
 
 ### Experimental Workaround for Full Static Linking
 
-```{warning}
-The instructions provided in this section have not been tested.
-```
-
 In order to build a fully statically executable for use with, say, the
 `opencilk` tapir target, the `cuda` and `hip` tapir targets must _not_ be
 enabled when building Kitsune. This can be achieved by omitting these tapir
@@ -122,5 +118,9 @@ tapir targets will be built. For more information, see
 Once Kitsune has been built without either the `cuda` or `hip` tapir targets,
 the `-static` command-line option should be sufficient to produce a fully
 statically linked executable.
+
+This has been tested with the [opencilk](tapir-targets-opencilk),
+[pthreads](tapir-targets-pthreads) and [serial](tapir-targets-serial) tapir
+targets.
 
 [^1]: Windows is not currently supported, so `libkitrt.dll` is never built

@@ -94,6 +94,8 @@ for key in [
     "kitsune_known_tapir_targets",
 ]:
     v = getenv(key.upper())
+    if not v:
+        v = ''
     myst_substitutions[key] = v.replace(" ", ";")
     myst_substitutions[key + "_list"] = v.replace(" ", ", ")
     myst_substitutions[key + "_alternatives"] = v.replace(" ", " | ")
@@ -165,7 +167,7 @@ html_theme = "kitsune-theme"
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    "sidebarwidth": "25%",
+    "sidebarwidth": "280px",
 }
 
 # Add any paths that contain custom themes here, relative to this directory.

@@ -8,7 +8,7 @@ time.
 [^1]: The term "parallel loops" are used to refer both to loops where the iterations of the loop can be run independently of one another, and loops containing reductions that can be performed in parallel.
 
 (tapir-targets-supported)=
-## **Supported Tapir Targets**
+## Supported Tapir Targets
 
 The [table](#tapir-targets-table-platforms) below summarizes the tapir targets
 that may be passed
@@ -30,7 +30,7 @@ usually require dependencies that may not be available on all platforms.
 ```
 
 (tapir-targets-cuda)=
-### **cuda**
+### cuda
 
 The [cuda](#cuda) tapir target lowers parallel loops to run on NVIDIA GPU's.
 This tapir target is currently under active development. Currently, code for a
@@ -89,7 +89,7 @@ this tapir target start with the prefix `--tapir-cuda-`. Options starting with
 `--tapir-gpu-` are also recognized by this tapir target.
 
 (tapir-targets-custom)=
-### **custom**
+### custom
 
 The [custom](#custom) tapir target is a "pseudo" tapir target. The tapir target
 itself is
@@ -104,7 +104,7 @@ CPU's, GPU's, some other hardware architecture entirely, or even on multiple
 device types simultaneously.
 
 (tapir-targets-hip)=
-### **hip**
+### hip
 
 The [hip](#hip) tapir target lowers parallel loops to run on AMD GPU's.
 This tapir target is currently under active development. Currently, code for a
@@ -165,7 +165,7 @@ this tapir target start with the prefix `--tapir-hip-`. Options starting with
 `--tapir-gpu-` are also recognized by this tapir target.
 
 (tapir-targets-opencilk)=
-### **opencilk**
+### opencilk
 
 The [opencilk](#opencilk) tapir target lowers parallel loops to use
 [Cheetah](https://github.com/OpenCilk/cheetah), the runtime system for
@@ -185,7 +185,7 @@ If the opencilk tapir target is enabled when
 Cheetah will be automatically downloaded and built.
 
 (tapir-targets-nolo)=
-### **nolo**
+### nolo
 
 The [nolo](#nolo) (No Lowering) tapir target is a pseudo tapir target that is
 intended for Kitsune developers. This tapir target will *not* lower parallel
@@ -237,7 +237,7 @@ forall.sync:
 ```
 
 (tapir-targets-pthreads)=
-### **pthreads**
+### pthreads
 
 The [pthreads](#pthreads) tapir target uses pthreads to run iterations of tapir
 loops in
@@ -257,7 +257,7 @@ The current implementation simply splits the iteration space of parallel loops
 evenly across all threads that are launched, but this may change in the future.
 
 (tapir-targets-serial)=
-### **serial**
+### serial
 
 The [serial](#serial) tapir target lowers parallel loops to a straightforward
 serial loop.
@@ -285,7 +285,7 @@ forall.detach:
 ```
 
 
-## **Unsupported Tapir Targets**
+## Unsupported Tapir Targets
 
 Kitsune's source code currently contains implementations of a number of tapir
 targets that are not officially supported. These are not currently built, though
@@ -294,31 +294,31 @@ build system as well as Kitsune's source code. These are listed below for
 reference. Some of these are likely to be supported in the future.
 
 (tapir-targets-openmp)=
-### **openmp**
+### openmp
 
 The openmp tapir target lowers parallel loops to use OpenMP's runtime system.
 This tapir target will likely be removed in favor of the [omptask](#omptask)
 tapir target.
 
 (tapir-targets-omptask)=
-### **omptask**
+### omptask
 
 The omptask tapir target lowers parallel loops to use kmpc task runtime calls.
 
 (tapir-targets-lambda)=
-### **lambda**
+### lambda
 
 The lambda tapir target lowers parallel loops to use a generic runtime system
 that operates on spawned computations as lambdas.
 
 (tapir-targets-qthreads)=
-### **qthreads**
+### qthreads
 
 The qthreads tapir target lowers parallel loops to use the
 [qthreads](https://github.com/sandialabs/qthreads) user-level threading runtime.
 
 (tapir-targets-realm)=
-### **realm**
+### realm
 
 The realm tapir target lowers parallel loops to use
 [realm](https://github.com/StanfordLegion/legion/tree/stable/realm), the

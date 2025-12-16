@@ -301,12 +301,8 @@ the option.
 - **KITSUNE_BUILD_DOCS** (`OFF`) : `BOOL`
 
     Set this to `ON` to build Kitsune's documentation. This requires a number
-    of packages to be installed including
-    [sphinx](https://www.sphinx-doc.org/en/master/),
-    [doxygen](https://www.doxygen.nl/),
-    [myst-parser](https://myst-parser.readthedocs.io/en/latest/), among others.
-    A complete list can be found
-    [here](https://github.com/llvm/llvm-project/tree/main/llvm/docs/requirements.txt).
+    of packages to be installed ahead-of-time. See the page on
+    [building Kitsune's documentation](BuildingDocumentation.md) for details.
 
 - **KITSUNE_GCC_INSTALL_DIR** (`""`) : `STRING`
 
