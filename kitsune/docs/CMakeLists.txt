@@ -16,6 +16,62 @@ function (gen_rst_from_td rst td target)
     TARGET ${target})
 endfunction()
 
+if (KITSUNE_ENABLE_DOXYGEN)
+  find_package(Doxygen)
+
+  # First, set a number of variables that are required before configuring
+  # doxygen.cfg.in.
+  set(abs_top_srcdir ${CMAKE_CURRENT_SOURCE_DIR})
+  set(abs_top_builddir ${CMAKE_CURRENT_BINARY_DIR})
+
+  if (HAVE_DOT)
+    set(DOT ${LLVM_PATH_DOT})
+  endif()
+
+  if (LLVM_DOXYGEN_EXTERNAL_SEARCH)
+    set(enable_searchengine "YES")
+    set(searchengine_url "${LLVM_DOXYGEN_SEARCHENGINE_URL}")
+    set(enable_server_based_search "YES")
+    set(enable_external_search "YES")
+    set(extra_search_mappings "${LLVM_DOXYGEN_SEARCH_MAPPINGS}")
+  else()
+    set(enable_searchengine "NO")
+    set(searchengine_url "")
+    set(enable_server_based_search "NO")
+    set(enable_external_search "NO")
+    set(extra_search_mappings "")
+  endif()
+
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doxygen.cfg.in
+    ${CMAKE_CURRENT_BINARY_DIR}/doxygen.cfg @ONLY)
+
+  # Now that doxygen.cfg.in has been configured, unset the variables, just in
+  # case.
+  set(abs_top_srcdir)
+  set(abs_top_builddir)
+  set(DOT)
+  set(enable_searchengine)
+  set(searchengine_url)
+  set(enable_server_based_search)
+  set(enable_external_search)
+  set(extra_search_mappings)
+
+  add_custom_target(doxygen-kitsune
+    COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxygen.cfg
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Generating kitsune doxygen documentation." VERBATIM)
+  set_target_properties(doxygen-kitsune PROPERTIES FOLDER "Kitsune/Docs")
+  if (LLVM_BUILD_DOCS)
+   add_dependencies(doxygen doxygen-kitsune)
+  endif()
+
+  if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
+    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doxygen/html
+      DESTINATION docs/html)
+  endif()
+
+endif ()
+
 if (KITSUNE_ENABLE_SPHINX)
   set(HTML_DIR ${CMAKE_CURRENT_BINARY_DIR}/SourceHtml)
   set(MAN_DIR ${CMAKE_CURRENT_BINARY_DIR}/SourceMan)
@@ -32,9 +88,40 @@ if (KITSUNE_ENABLE_SPHINX)
   set(KITSUNE_REPO_BRANCH "dev/${LLVM_VERSION_MAJOR}.x" CACHE INTERNAL
     "The current branch in Kitsune's repo" FORCE)
 
+  # Since the top-level CMakeLists.txt file is in the llvm/ directory of this
+  # checkout, CMAKE_SOURCE_DIR will point to that directory. The true root is
+  # one level up from there.
+  get_filename_component(CMAKE_SOURCE_ROOT_DIR "${CMAKE_SOURCE_DIR}" DIRECTORY)
+
+  # The AddSphinxTarget module only looks for the sphinx executable if
+  # LLVM_ENABLE_SPHINX=ON. Since we may only be interested in building Kitsune's
+  # documentation, not all of LLVM's, we do not set LLVM_ENABLE_SPHINX=ON even
+  # if KITSUNE_ENABLE_SPHINX=ON. However, the user may well have set both if
+  # they were interested in building all documentation. Therefore, save the
+  # value of LLVM_ENABLE_SPHINX, and "temporarily" set it to ON just so we
+  # can find sphinx.
+  set(LLVM_ENABLE_SPHINX_BAK ${LLVM_ENABLE_SPHINX})
+  set(LLVM_ENABLE_SPHINX ON)
   include(AddSphinxTarget)
+  set(LLVM_ENABLE_SPHINX ${LLVM_ENABLE_SPHINX_BAK})
 
   if (SPHINX_FOUND)
+    set(ENV_VARS
+      CMAKE_SOURCE_DIR="${CMAKE_SOURCE_ROOT_DIR}"
+      KITSUNE_REPO_HOST="${KITSUNE_REPO_HOST}"
+      KITSUNE_REPO_OWNER="${KITSUNE_REPO_OWNER}"
+      KITSUNE_REPO_BRANCH="${KITSUNE_REPO_BRANCH}"
+      KITSUNE_DEFAULT_LANGS="${KITSUNE_DEFAULT_LANGS}"
+      KITSUNE_DEFAULT_TAPIR_TARGETS="${KITSUNE_DEFAULT_TAPIR_TARGETS}"
+      KITSUNE_GUARANTEED_TAPIR_TARGETS="${KITSUNE_GUARANTEED_TAPIR_TARGETS}"
+      KITSUNE_KNOWN_TAPIR_TARGETS="${KITSUNE_KNOWN_TAPIR_TARGETS}"
+      KITSUNE_CUDA_ARCH_DEFAULT="${KITSUNE_CUDA_ARCH_DEFAULT}"
+      KITSUNE_CUDA_VERSION_MIN="${KITSUNE_CUDA_VERSION_MIN}"
+      KITSUNE_CUDA_VERSION_MAX="${KITSUNE_CUDA_VERSION_MAX}"
+      KITSUNE_HIP_ARCH_DEFAULT="${KITSUNE_HIP_ARCH_DEFAULT}"
+      KITSUNE_HIP_VERSION_MIN="${KITSUNE_HIP_VERSION_MIN}"
+      KITSUNE_HIP_VERSION_MAX="${KITSUNE_HIP_VERSION_MAX}")
+
     # CLANG_TABLEGEN_EXE must be set for clang_tablegen to run without errors
     find_program(CLANG_TABLEGEN_EXE "clang-tblgen"
       PATHS ${LLVM_TOOLS_BINARY_DIR}
@@ -46,32 +133,12 @@ if (KITSUNE_ENABLE_SPHINX)
     add_custom_target(kitsune-man-dir
       COMMAND ${CMAKE_COMMAND} -E make_directory ${MAN_DIR})
 
-    # Since the top-level CMakeLists.txt file is in the llvm/ directory of this
-    # checkout, CMAKE_SOURCE_DIR will point to that directory. The true root is
-    # one level up from there.
-    get_filename_component(CMAKE_SOURCE_ROOT_DIR "${CMAKE_SOURCE_DIR}" DIRECTORY)
-
     if (SPHINX_OUTPUT_HTML)
       # The environment variables here are read directly in conf.py.
       # sphinx-build accepts a SPHINXOPT environment variable, but it seems as
       # if any -D options in that variable are not recognized.
       add_sphinx_target(html kitsune SOURCE_DIR "${HTML_DIR}"
-        ENV_VARS
-        SPHINXOPTS="-j 1"
-        CMAKE_SOURCE_DIR="${CMAKE_SOURCE_ROOT_DIR}"
-        KITSUNE_REPO_HOST="${KITSUNE_REPO_HOST}"
-        KITSUNE_REPO_OWNER="${KITSUNE_REPO_OWNER}"
-        KITSUNE_REPO_BRANCH="${KITSUNE_REPO_BRANCH}"
-        KITSUNE_DEFAULT_LANGS="${KITSUNE_DEFAULT_LANGS}"
-        KITSUNE_DEFAULT_TAPIR_TARGETS="${KITSUNE_DEFAULT_TAPIR_TARGETS}"
-        KITSUNE_GUARANTEED_TAPIR_TARGETS="${KITSUNE_GUARANTEED_TAPIR_TARGETS}"
-        KITSUNE_KNOWN_TAPIR_TARGETS="${KITSUNE_KNOWN_TAPIR_TARGETS}"
-        KITSUNE_CUDA_ARCH_DEFAULT="${KITSUNE_CUDA_ARCH_DEFAULT}"
-        KITSUNE_CUDA_VERSION_MIN="${KITSUNE_CUDA_VERSION_MIN}"
-        KITSUNE_CUDA_VERSION_MAX="${KITSUNE_CUDA_VERSION_MAX}"
-        KITSUNE_HIP_ARCH_DEFAULT="${KITSUNE_HIP_ARCH_DEFAULT}"
-        KITSUNE_HIP_VERSION_MIN="${KITSUNE_HIP_VERSION_MIN}"
-        KITSUNE_HIP_VERSION_MAX="${KITSUNE_HIP_VERSION_MAX}")
+        ENV_VARS "${ENV_VARS}")
 
       gen_rst_from_td(${HTML_DIR}/KitClangOptionsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitClangOptionsDoc.td
@@ -96,8 +163,6 @@ if (KITSUNE_ENABLE_SPHINX)
         COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         ${CMAKE_CURRENT_SOURCE_DIR}/CommandGuide ${HTML_DIR}/CommandGuide
         COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/static ${HTML_DIR}/static
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         ${CMAKE_CURRENT_SOURCE_DIR}/_themes/kitsune-theme
         ${HTML_DIR}/_themes/kitsune-theme
         DEPENDS kitsune-html-dir)
@@ -110,7 +175,8 @@ if (KITSUNE_ENABLE_SPHINX)
     endif()
 
     if (SPHINX_OUTPUT_MAN)
-      add_sphinx_target(man kitsune SOURCE_DIR "${MAN_DIR}")
+      add_sphinx_target(man kitsune SOURCE_DIR "${MAN_DIR}"
+        ENV_VARS "${ENV_VARS}")
 
       gen_rst_from_td(${MAN_DIR}/KitClangOptionsMan.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitClangOptionsMan.td
