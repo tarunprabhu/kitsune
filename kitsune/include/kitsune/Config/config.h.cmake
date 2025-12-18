@@ -61,20 +61,6 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 // Has kokkos support been enabled
 #cmakedefine01 KITSUNE_KOKKOS_ENABLED
 
-// Extra preprocessor flags needed when compiling in kokkos mode.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_KOKKOS_EXTRA_PREPROCESSOR_FLAGS                                \
-  "@KITSUNE_KOKKOS_EXTRA_PREPROCESSOR_FLAGS@"
-
-// Extra compiler flags needed when compiling in kokkos mode.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_KOKKOS_EXTRA_COMPILER_FLAGS                                    \
-  "@KITSUNE_KOKKOS_EXTRA_COMPILER_FLAGS@"
-
-// Extra linker flags needed when compiling in kokkos mode.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_KOKKOS_EXTRA_LINKER_FLAGS "@KITSUNE_KOKKOS_EXTRA_LINKER_FLAGS@"
-
 // -----------------------------------------------------------------------------
 
 // A space-separated string of all known Tapir targets, including those that
@@ -99,19 +85,6 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 
 // Has the cuda tapir target been enabled
 #cmakedefine01 KITSUNE_CUDA_ENABLED
-
-// Extra preprocessor flags needed when compiling with the cuda tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS                                  \
-  "@KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS@"
-
-// Extra compiler flags needed when compiling with the cuda tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_CUDA_EXTRA_COMPILER_FLAGS "@KITSUNE_CUDA_EXTRA_COMPILER_FLAGS@"
-
-// Extra linker flags needed when compiling with the cuda tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_CUDA_EXTRA_LINKER_FLAGS "@KITSUNE_CUDA_EXTRA_LINKER_FLAGS@"
 
 #define KITSUNE_CUDA_PREFIX "@KITSUNE_CUDA_PREFIX@"
 #define KITSUNE_CUDA_VERSION_MAJOR @KITSUNE_CUDA_VERSION_MAJOR@
@@ -144,19 +117,6 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 // Has the hip tapir target been enabled
 #cmakedefine01 KITSUNE_HIP_ENABLED
 
-// Extra preprocessor flags needed when compiling with the hip tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS                                   \
-  "@KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS@"
-
-// Extra compiler flags needed when compiling with the hip tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_HIP_EXTRA_COMPILER_FLAGS "@KITSUNE_HIP_EXTRA_COMPILER_FLAGS@"
-
-// Extra linker flags needed when compiling with the hip tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_HIP_EXTRA_LINKER_FLAGS "@KITSUNE_HIP_EXTRA_LINKER_FLAGS@"
-
 #define KITSUNE_HIP_PREFIX "@KITSUNE_HIP_PREFIX@"
 #define KITSUNE_HIP_VERSION_MAJOR @KITSUNE_HIP_VERSION_MAJOR@
 #define KITSUNE_HIP_VERSION_MINOR @KITSUNE_HIP_VERSION_MINOR@
@@ -182,78 +142,20 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 // Has the lambda tapir target been enabled
 #cmakedefine01 KITSUNE_LAMBDA_ENABLED
 
-// Extra preprocessor flags needed when compiling with the lambda tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_LAMBDA_EXTRA_PREPROCESSOR_FLAGS                                \
-  "@KITSUNE_LAMBDA_EXTRA_PREPROCESSOR_FLAGS@"
-
-// Extra compiler flags needed when compiling with the lambda tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_LAMBDA_EXTRA_COMPILER_FLAGS                                    \
-  "@KITSUNE_LAMBDA_EXTRA_COMPILER_FLAGS@"
-
-// Extra linker flags needed when compiling with the lambda tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_LAMBDA_EXTRA_LINKER_FLAGS "@KITSUNE_LAMBDA_EXTRA_LINKER_FLAGS@"
-
 // -----------------------------------------------------------------------------
 
 // Has the omptask tapir target been enabled
 #cmakedefine01 KITSUNE_OMPTASK_ENABLED
-
-// Extra preprocessor flags needed when compiling with the omptask tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_OMPTASK_EXTRA_PREPROCESSOR_FLAGS                               \
-  "@KITSUNE_OMPTASK_EXTRA_PREPROCESSOR_FLAGS@"
-
-// Extra compiler flags needed when compiling with the omptask tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_OMPTASK_EXTRA_COMPILER_FLAGS                                   \
-  "@KITSUNE_OMPTASK_EXTRA_COMPILER_FLAGS@"
-
-// Extra linker flags needed when compiling with the omptask tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_OMPTASK_EXTRA_LINKER_FLAGS                                     \
-  "@KITSUNE_OMPTASK_EXTRA_LINKER_FLAGS@"
 
 // -----------------------------------------------------------------------------
 
 // Has the opencilk tapir target been enabled
 #cmakedefine01 KITSUNE_OPENCILK_ENABLED
 
-// Extra preprocessor flags needed when compiling with the opencilk tapir
-// target. These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_OPENCILK_EXTRA_PREPROCESSOR_FLAGS                              \
-  "@KITSUNE_OPENCILK_EXTRA_PREPROCESSOR_FLAGS@"
-
-// Extra compiler flags needed when compiling with the opencilk tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_OPENCILK_EXTRA_COMPILER_FLAGS                                  \
-  "@KITSUNE_OPENCILK_EXTRA_COMPILER_FLAGS@"
-
-// Extra linker flags needed when compiling with the opencilk tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_OPENCILK_EXTRA_LINKER_FLAGS                                    \
-  "@KITSUNE_OPENCILK_EXTRA_LINKER_FLAGS@"
-
 // -----------------------------------------------------------------------------
 
 // Has the openmp tapir target been enabled
 #cmakedefine01 KITSUNE_OPENMP_ENABLED
-
-// Extra preprocessor flags needed when compiling with the openmp tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS                                \
-  "@KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS@"
-
-// Extra compiler flags needed when compiling with the openmp tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_OPENMP_EXTRA_COMPILER_FLAGS                                    \
-  "@KITSUNE_OPENMP_EXTRA_COMPILER_FLAGS@"
-
-// Extra linker flags needed when compiling with the openmp tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_OPENMP_EXTRA_LINKER_FLAGS "@KITSUNE_OPENMP_EXTRA_LINKER_FLAGS@"
 
 // -----------------------------------------------------------------------------
 
@@ -265,39 +167,10 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 // Has the qthreads tapir target been enabled
 #cmakedefine01 KITSUNE_QTHREADS_ENABLED
 
-// Extra preprocessor flags needed when compiling with the qthreads tapir
-// target. These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS                              \
-  "@KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS@"
-
-// Extra compiler flags needed when compiling with the qthreads tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_QTHREADS_EXTRA_COMPILER_FLAGS                                  \
-  "@KITSUNE_QTHREADS_EXTRA_COMPILER_FLAGS@"
-
-// Extra linker flags needed when compiling with the qthreads tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_QTHREADS_EXTRA_LINKER_FLAGS                                    \
-  "@KITSUNE_QTHREADS_EXTRA_LINKER_FLAGS@"
-
 // -----------------------------------------------------------------------------
 
 // Has the realm tapir target been enabled
 #cmakedefine01 KITSUNE_REALM_ENABLED
-
-// Extra preprocessor flags needed when compiling with the realm tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_REALM_EXTRA_PREPROCESSOR_FLAGS                                 \
-  "@KITSUNE_REALM_EXTRA_PREPROCESSOR_FLAGS@"
-
-// Extra compiler flags needed when compiling with the realm tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_REALM_EXTRA_COMPILER_FLAGS                                     \
-  "@KITSUNE_REALM_EXTRA_COMPILER_FLAGS@"
-
-// Extra linker flags needed when compiling with the realm tapir target.
-// These are in addition to any flags automatically added by Kitsune
-#define KITSUNE_REALM_EXTRA_LINKER_FLAGS "@KITSUNE_REALM_EXTRA_LINKER_FLAGS@"
 
 // -----------------------------------------------------------------------------
 
