@@ -9492,11 +9492,6 @@ def KitsuneOption : OptionVisibility;
 
 let Group = kitsune_Group in {
 
-def config_kitsune_dir_EQ : Joined<["--"], "config-kitsune-dir=">,
-  Flags<[NoXarchOption, HelpHidden]>,
-  Visibility<[KitsuneOption, ClangOption, CC1Option, FlangOption, FC1Option]>,
-  HelpText<"Directory for kitsune's configuration files">;
-
 def kokkos : Flag<["--"], "kokkos">,
   Visibility<[KitsuneOption, ClangOption, CC1Option]>,
   HelpText<"Enable custom parsing and code generation of some Kokkos "

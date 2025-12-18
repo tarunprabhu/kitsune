@@ -10,7 +10,7 @@
 // RUN:     | FileCheck %s
 //
 // RUN: %kitxx -### --tapir=custom --tapir-plugin=%kit-tt-plugin-demo -O1 \
-// RUN:     --config-kitsune-dir=%S/input %s 2>&1 \
+// RUN:     --config-system-dir=%S/input %s 2>&1 \
 // RUN:     | FileCheck %s
 //
 // RUN: %kitxx -### --tapir=custom --tapir-plugin=%kit-tt-plugin-demo -O1 \

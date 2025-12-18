@@ -600,18 +600,6 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
     UserConfigDir = static_cast<std::string>(P);
   }
 #endif
-#if defined(KITSUNE_CONFIG_FILE_DIR)
-  {
-    SmallString<128> P;
-    llvm::sys::fs::expand_tilde(KITSUNE_CONFIG_FILE_DIR, P);
-    KitsuneConfigDir = static_cast<std::string>(P);
-  }
-#else
-  {
-    llvm::StringRef PrefixDir = llvm::sys::path::parent_path(Dir);
-    KitsuneConfigDir = PrefixDir.str() + std::string("/share/kitsune");
-  }
-#endif
 
   KitsuneFrontend = driver::IsKitsuneFrontend(ClangExecutable);
 
@@ -1633,23 +1621,10 @@ bool Driver::loadConfigFiles() {
       else
         UserConfigDir = static_cast<std::string>(CfgDir);
     }
-
-    if (CLOptions->hasArg(options::OPT_config_kitsune_dir_EQ)) {
-      SmallString<128> CfgDir;
-      CfgDir.append(
-          CLOptions->getLastArgValue(options::OPT_config_kitsune_dir_EQ));
-      if (!CfgDir.empty()) {
-        if (llvm::sys::fs::make_absolute(CfgDir).value() != 0)
-          KitsuneConfigDir.clear();
-        else
-          KitsuneConfigDir = std::string(CfgDir.begin(), CfgDir.end());
-      }
-    }
   }
 
   // Prepare list of directories where config file is searched for.
-  StringRef CfgFileSearchDirs[] = {UserConfigDir, KitsuneConfigDir,
-                                   SystemConfigDir, Dir};
+  StringRef CfgFileSearchDirs[] = {UserConfigDir, SystemConfigDir, Dir};
   ExpCtx.setSearchDirs(CfgFileSearchDirs);
 
   // First try to load configuration from the default files, return on error.
@@ -2837,9 +2812,6 @@ bool Driver::HandleImmediateArgs(Compilation &C) {
     if (!UserConfigDir.empty())
       llvm::errs() << "User configuration file directory: "
                    << UserConfigDir << "\n";
-    if (!KitsuneConfigDir.empty())
-      llvm::errs() << "Kitsune configuration file directory: "
-                   << KitsuneConfigDir << "\n";
   }
 
   const ToolChain &TC = C.getDefaultToolChain();
