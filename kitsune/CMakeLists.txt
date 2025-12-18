@@ -190,21 +190,6 @@ if (KITSUNE_KOKKOS_ENABLED)
   install(DIRECTORY ${KITSUNE_KOKKOS_INSTALL_DIR}/
     DESTINATION ${CLANG_RESOURCE_INSTALL_DIR}
     USE_SOURCE_PERMISSIONS)
-
-  set(KITSUNE_KOKKOS_EXTRA_PREPROCESSOR_FLAGS
-    ""
-    CACHE STRING
-    "Additional preprocessor flags needed for Kokkos support")
-
-  set(KITSUNE_KOKKOS_EXTRA_COMPILER_FLAGS
-    ""
-    CACHE STRING
-    "Additional compiler flags needed for Kokkos support")
-
-  set(KITSUNE_KOKKOS_EXTRA_LINKER_FLAGS
-    ""
-    CACHE STRING
-    "Additional linker flags needed for Kokkos support")
 endif()
 
 # The pthread functions are now part of libc. libpthread was removed from glibc
@@ -346,21 +331,6 @@ if (KITSUNE_CUDA_ENABLED)
   set(KITSUNE_CUDA_ARCH_DEFAULT "sm_80"
     CACHE STRING
     "The default NVIDIA GPU architecture used by the cuda tapir target when a GPU is not detected on the system")
-
-  set(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS
-    ""
-    CACHE STRING
-    "Additional preprocessor flags needed for the Cuda target")
-
-  set(KITSUNE_CUDA_EXTRA_COMPILER_FLAGS
-    ""
-    CACHE STRING
-    "Additional compiler flags needed for the Cuda target")
-
-  set(KITSUNE_CUDA_EXTRA_LINKER_FLAGS
-    ""
-    CACHE STRING
-    "Additional linker flags needed for the Cuda target")
 endif()
 set(KITSUNE_CUDA_VERSION_STRING "${KITSUNE_CUDA_VERSION_MAJOR}.${KITSUNE_CUDA_VERSION_MINOR}.${KITSUNE_CUDA_VERSION_PATCH}")
 
@@ -432,21 +402,6 @@ if (KITSUNE_HIP_ENABLED)
     CACHE STRING
     "The default AMD GPU architecture used by the hip tapir target when a GPU is not detected on the system")
 
-  set(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS
-    ""
-    CACHE STRING
-    "Additional preprocessor flags needed for the HIP target")
-
-  set(KITSUNE_HIP_EXTRA_COMPILER_FLAGS
-    ""
-    CACHE STRING
-    "Additional compiler flags needed for the HIP target")
-
-  set(KITSUNE_HIP_EXTRA_LINKER_FLAGS
-    ""
-    CACHE STRING
-    "Additional linker flags needed for the HIP target")
-
   # We need to find the directory containing the bitcode files. Depending on the
   # system, this could be in one of several places. ${HIP_PREFIX}/amdgcn/bitcode
   # is a legacy location, but look there anyway because, on some HPC platforms
@@ -466,41 +421,11 @@ set(KITSUNE_HIP_VERSION_STRING "${KITSUNE_HIP_VERSION_MAJOR}.${KITSUNE_HIP_VERSI
 if (KITSUNE_LAMBDA_ENABLED)
   message(FATAL_ERROR "NOT YET IMPLEMENTED: 'lambda' tapir target")
   message(STATUS "Kitsune: lambda tapir target enabled")
-
-  set(KITSUNE_LAMBDA_EXTRA_PREPROCESSOR_FLAGS
-    ""
-    CACHE STRING
-    "Additional preprocessor flags needed for the Lambda target")
-
-  set(KITSUNE_LAMBDA_EXTRA_COMPILER_FLAGS
-    ""
-    CACHE STRING
-    "Additional compiler flags needed for the Lambda target")
-
-  set(KITSUNE_LAMBDA_EXTRA_LINKER_FLAGS
-    ""
-    CACHE STRING
-    "Additional linker flags needed for the Lambda target")
 endif ()
 
 if (KITSUNE_OMPTASK_ENABLED)
   message(FATAL_ERROR "NOT YET IMPLEMENTED: 'omptask' tapir target")
   message(STATUS "Kitsune: omptask target enabled")
-
-  set(KITSUNE_OMPTASK_EXTRA_PREPROCESSOR_FLAGS
-    ""
-    CACHE STRING
-    "Additional preprocessor flags needed for the OMPTask target")
-
-  set(KITSUNE_OMPTASK_EXTRA_COMPILER_FLAGS
-    ""
-    CACHE STRING
-    "Additional compiler flags needed for the OMPTask target")
-
-  set(KITSUNE_OMPTASK_EXTRA_LINKER_FLAGS
-    ""
-    CACHE STRING
-    "Additional linker flags needed for the OMPTask target")
 endif ()
 
 if (KITSUNE_OPENCILK_ENABLED)
@@ -604,21 +529,6 @@ if (KITSUNE_OPENCILK_ENABLED)
   install(DIRECTORY ${KITSUNE_CHEETAH_INSTALL_DIR}/
     DESTINATION ${CMAKE_INSTALL_PREFIX}
     USE_SOURCE_PERMISSIONS)
-
-  set(KITSUNE_OPENCILK_EXTRA_PREPROCESSOR_FLAGS
-    ""
-    CACHE STRING
-    "Additional preprocessor flags needed for the OpenCilk target")
-
-  set(KITSUNE_OPENCILK_EXTRA_COMPILER_FLAGS
-    ""
-    CACHE STRING
-    "Additional compiler flags needed for the OpenCilk target")
-
-  set(KITSUNE_OPENCILK_EXTRA_LINKER_FLAGS
-    ""
-    CACHE STRING
-    "Additional linker flags needed for the OpenCilk target")
 endif()
 
 if (KITSUNE_OPENMP_ENABLED)
@@ -628,21 +538,6 @@ if (KITSUNE_OPENMP_ENABLED)
   # FIXME: Unconditionally fail so that when (if) the openmp tapir target is
   # ever resurrected, we know to look here and do whatever is appropriate.
   message(FATAL_ERROR "TODO: Do we need to check for libomp?")
-
-  set(KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS
-    ""
-    CACHE STRING
-    "Additional preprocessor flags needed for the OpenMP target")
-
-  set(KITSUNE_OPENMP_EXTRA_COMPILER_FLAGS
-    ""
-    CACHE STRING
-    "Additional compiler flags needed for the OpenMP target")
-
-  set(KITSUNE_OPENMP_EXTRA_LINKER_FLAGS
-    ""
-    CACHE STRING
-    "Additional linker flags needed for the OpenMP target")
 endif()
 
 if (KITSUNE_QTHREADS_ENABLED)
@@ -655,21 +550,6 @@ if (KITSUNE_QTHREADS_ENABLED)
   # resurrect the qthreads tapir target, we don't forget to do the right thing
   # here.
   message(FATAL_ERROR "Finding/building QThreads has not been implemented")
-
-  set(KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS
-    ""
-    CACHE STRING
-    "Additional preprocessor flags needed for the Qthreads target")
-
-  set(KITSUNE_QTHREADS_EXTRA_COMPILER_FLAGS
-    ""
-    CACHE STRING
-    "Additional compiler flags needed for the Qthreads target")
-
-  set(KITSUNE_QTHREADS_EXTRA_LINKER_FLAGS
-    ""
-    CACHE STRING
-    "Additional linker flags needed for the Qthreads target")
 endif()
 
 if (KITSUNE_REALM_ENABLED)
@@ -681,21 +561,6 @@ if (KITSUNE_REALM_ENABLED)
   # In any case, this message is here to ensure that when (if) we ever resurrect
   # the realm tapir target, we don't forget to do the right thing here.
   message(FATAL_ERROR "Finding/building Realm has not been implemented")
-
-  set(KITSUNE_REALM_EXTRA_PREPROCESSOR_FLAGS
-    ""
-    CACHE STRING
-    "Additional preprocessor flags needed for the Realm target")
-
-  set(KITSUNE_REALM_EXTRA_COMPILER_FLAGS
-    ""
-    CACHE STRING
-    "Additional compiler flags needed for the Realm target")
-
-  set(KITSUNE_REALM_EXTRA_LINKER_FLAGS
-    ""
-    CACHE STRING
-    "Additional linker flags needed for the Realm target")
 endif()
 
 # Because we treat kitsune's runtime as an external project, we handle it the

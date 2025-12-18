@@ -2296,70 +2296,13 @@ void ToolChain::AddKitsuneRealmCommonArgs(const ArgList &Args,
 
 void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
                                            ArgStringList &CmdArgs) const {
-  // FIXME: It is not clear if there is any use for the extra preprocessor flags
-  // any longer. This used to be the case in the past because Kitsune was not
-  // always able to find the header files needed when compiling with certain
-  // tapir targets. However, this has now been fixed. There is also less
-  // flexibility permitted when building the dependencies. For instance,
-  // building Cheetah or Kokkos separately is no longer permitted. Especially
-  // in the case of the former, this will never be permitted. All this code adds
-  // a fair bit of complexity, and has also not been tested well, if at all.
-  //
-  // It is probably a good idea to get rid of this entirely.
-  auto AddTTArgs = [&](TTID TT, const ArgList &Args,
-                       ArgStringList &CmdArgs) -> void {
-    switch (TT) {
-    case TTID::Nolo:
-      return;
-    case TTID::Cuda:
-      return ExtractArgsFromString(KITSUNE_CUDA_EXTRA_PREPROCESSOR_FLAGS,
-                                   CmdArgs, Args);
-      break;
-    case TTID::Custom:
-      // There are no special preprocessor flags that can be set for the custom
-      // tapir target
-      return;
-    case TTID::Hip:
-      return ExtractArgsFromString(KITSUNE_HIP_EXTRA_PREPROCESSOR_FLAGS,
-                                   CmdArgs, Args);
-    case TTID::Lambda:
-      return ExtractArgsFromString(KITSUNE_LAMBDA_EXTRA_PREPROCESSOR_FLAGS,
-                                   CmdArgs, Args);
-    case TTID::OMPTask:
-      return ExtractArgsFromString(KITSUNE_OMPTASK_EXTRA_PREPROCESSOR_FLAGS,
-                                   CmdArgs, Args);
-    case TTID::OpenCilk:
-      return ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_PREPROCESSOR_FLAGS,
-                                   CmdArgs, Args);
-    case TTID::OpenMP:
-      return ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_PREPROCESSOR_FLAGS,
-                                   CmdArgs, Args);
-    case TTID::Pthreads:
-      // There are no special preprocessor flags for the pthreads tapir target
-      return;
-    case TTID::Qthreads:
-      return ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_PREPROCESSOR_FLAGS,
-                                   CmdArgs, Args);
-    case TTID::Realm:
-      return ExtractArgsFromString(KITSUNE_REALM_EXTRA_PREPROCESSOR_FLAGS,
-                                   CmdArgs, Args);
-    case TTID::Serial:
-      return;
-    }
-    llvm_unreachable("AddKitsunePreprocessorArgs: TTID not handled");
-  };
-
   std::optional<TTID> TT = parseTapirTargetIfValid(Args);
-  if (TT)
-    AddTTArgs(*TT, Args, CmdArgs);
-
   bool IsKokkos = D.CCCIsCXX() &&
                   Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
+
   if (IsKokkos) {
     std::string InclDir = concat(D.ResourceDir, "include", "kokkos");
     CmdArgs.push_back(Args.MakeArgString(join_items("", "-I", InclDir)));
-    ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_PREPROCESSOR_FLAGS, CmdArgs,
-                          Args);
   }
 
   if (TT or IsKokkos) {
@@ -2376,47 +2319,27 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     case TTID::Nolo:
       return;
     case TTID::Cuda:
-      AddKitsuneCudaCommonArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_CUDA_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneCudaCommonArgs(Args, CmdArgs);
     case TTID::Custom:
-      AddKitsuneCustomCommonArgs(Args, CmdArgs);
-      return;
+      return AddKitsuneCustomCommonArgs(Args, CmdArgs);
     case TTID::Hip:
-      AddKitsuneHipCommonArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_HIP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneHipCommonArgs(Args, CmdArgs);
     case TTID::Lambda:
-      AddKitsuneLambdaCommonArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_LAMBDA_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneLambdaCommonArgs(Args, CmdArgs);
     case TTID::OMPTask:
-      AddKitsuneOMPTaskCommonArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_OMPTASK_EXTRA_COMPILER_FLAGS, CmdArgs,
-                            Args);
-      return;
+      return AddKitsuneOMPTaskCommonArgs(Args, CmdArgs);
     case TTID::OpenCilk:
-      AddKitsuneOpenCilkCommonArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_COMPILER_FLAGS, CmdArgs,
-                            Args);
-      return;
+      return AddKitsuneOpenCilkCommonArgs(Args, CmdArgs);
     case TTID::OpenMP:
-      AddKitsuneOpenMPCommonArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneOpenMPCommonArgs(Args, CmdArgs);
     case TTID::Pthreads:
       // There are no options specific to the pthreads tapir target that have
       // to be handled
       return;
     case TTID::Qthreads:
-      AddKitsuneQthreadsCommonArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_COMPILER_FLAGS, CmdArgs,
-                            Args);
-      return;
+      return AddKitsuneQthreadsCommonArgs(Args, CmdArgs);
     case TTID::Realm:
-      AddKitsuneRealmCommonArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_REALM_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneRealmCommonArgs(Args, CmdArgs);
     case TTID::Serial:
       return;
     }
@@ -2428,7 +2351,6 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
   if (IsKokkos) {
     Args.AddLastArg(CmdArgs, options::OPT_kokkos);
     Args.AddLastArg(CmdArgs, options::OPT_kokkos_no_init);
-    ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_COMPILER_FLAGS, CmdArgs, Args);
   }
 
   if (std::optional<TTID> TT = parseTapirTargetIfValid(Args)) {
@@ -2632,47 +2554,29 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     case TTID::Nolo:
       return;
     case TTID::Cuda:
-      AddKitsuneCudaLinkerArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_CUDA_EXTRA_LINKER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneCudaLinkerArgs(Args, CmdArgs);
     case TTID::Custom:
-      AddKitsuneCustomLinkerArgs(Args, CmdArgs);
-      return;
+      return AddKitsuneCustomLinkerArgs(Args, CmdArgs);
     case TTID::Hip:
-      AddKitsuneHipLinkerArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_HIP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneHipLinkerArgs(Args, CmdArgs);
     case TTID::Lambda:
-      AddKitsuneLambdaLinkerArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_LAMBDA_EXTRA_LINKER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneLambdaLinkerArgs(Args, CmdArgs);
     case TTID::OMPTask:
-      AddKitsuneOMPTaskLinkerArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_OMPTASK_EXTRA_LINKER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneOMPTaskLinkerArgs(Args, CmdArgs);
     case TTID::OpenCilk:
-      AddKitsuneOpenCilkLinkerArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_OPENCILK_EXTRA_LINKER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneOpenCilkLinkerArgs(Args, CmdArgs);
     case TTID::OpenMP:
-      AddKitsuneOpenMPLinkerArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_OPENMP_EXTRA_LINKER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneOpenMPLinkerArgs(Args, CmdArgs);
     case TTID::Pthreads:
-      // The pthreads tapir target does not require additional linker options,
-      // so there is nothing that can be customized
+      // libpthread is always added as part of the dependencies for Kitsune's
+      // runtime, libkitrt. Other than this, nothing else is required.
       return;
     case TTID::Qthreads:
-      AddKitsuneQthreadsLinkerArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_QTHREADS_EXTRA_LINKER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneQthreadsLinkerArgs(Args, CmdArgs);
     case TTID::Realm:
-      AddKitsuneRealmLinkerArgs(Args, CmdArgs);
-      ExtractArgsFromString(KITSUNE_REALM_EXTRA_LINKER_FLAGS, CmdArgs, Args);
-      return;
+      return AddKitsuneRealmLinkerArgs(Args, CmdArgs);
     case TTID::Serial:
-      // The serial tapir target does not require additional linker options, so
-      // there is nothing that can be customized
+      // The serial tapir target does not require special linker options.
       return;
     }
     llvm_unreachable("AddKitsuneLinkerArgs: TTID not handled");
@@ -2691,7 +2595,6 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     CmdArgs.push_back("-rpath");
     CmdArgs.push_back(LibDir);
     CmdArgs.push_back("-lkokkoscore");
-    ExtractArgsFromString(KITSUNE_KOKKOS_EXTRA_LINKER_FLAGS, CmdArgs, Args);
   }
 
   // We always link in libkitrt if a tapir target or special Kokkos handling has
