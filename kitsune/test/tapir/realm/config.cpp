@@ -3,11 +3,11 @@
 
 // Check that providing a custom config directory without a target-specific
 // configuration file is ok.
-// RUN: %kitxx -### --tapir=realm --config-kitsune-dir=%S/../ %s 2>&1 | FileCheck %s -check-prefix=CHECK-CUSTOM-NOEXIST
+// RUN: %kitxx -### --tapir=realm --config-system-dir=%S/../ %s 2>&1 | FileCheck %s -check-prefix=CHECK-CUSTOM-NOEXIST
 
 // Check that providing a custom config directory with a target-specific
 // configuration file leads to the file being found and the contents used.
-// RUN: %kitxx -### --tapir=realm --config-kitsune-dir=%S %s 2>&1 | FileCheck %s -check-prefix=CHECK-CUSTOM
+// RUN: %kitxx -### --tapir=realm --config-system-dir=%S %s 2>&1 | FileCheck %s -check-prefix=CHECK-CUSTOM
 
 // CHECK-DEFAULT-CONFIG: Configuration file: {{.*}}/realm.cfg
 // CHECK-CUSTOM-NOEXIST-NOT: Configuration file: {{.*}}/realm.cfg

@@ -1,19 +1,11 @@
 ! REQUIRES: kitfc
 !
 ! ------------------------------------------------------------------------------
-! Check that the default target-specific configuration file is always found.
-!
-! RUN: %kitfc -### --tapir=hip -O1 %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefix=DEFAULT
-!
-! DEFAULT: Configuration file: {{.*}}/hip.cfg
-!
-! ------------------------------------------------------------------------------
 ! Check that providing a custom config directory without a target-specific
 ! configuration file is ok.
 !
 ! RUN: %kitfc -### --tapir=hip --tapir-hip-arch=gfx90a -O1 \
-! RUN:     --config-kitsune-dir=%S %s 2>&1 \
+! RUN:     --config-system-dir=%S %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=CUSTOM-NOEXIST
 !
 ! COM: %kitfc -### --tapir=hip --tapir-hip-arch=gfx90a -O1 \
@@ -27,7 +19,7 @@
 ! configuration file leads to the file being found and the contents used.
 !
 ! RUN: %kitfc -### --tapir=hip --tapir-hip-arch=gfx90a -O1 \
-! RUN:     --config-kitsune-dir=%S/input %s 2>&1 \
+! RUN:     --config-system-dir=%S/input %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=CUSTOM
 !
 ! RUN: %kitfc -### --tapir=hip --tapir-hip-arch=gfx90a -O1 \
@@ -47,9 +39,16 @@
 ! check that the contents of both are used and the default options are
 ! preserved.
 !
+! Lit's configuration sets CLANG_NO_DEFAULT_CONFIG=1 before running these
+! tests. With this set, the configuration files with the default names will not
+! be read, even if a directory in which to look for configuration files has
+! been explicitly provided. In most cases, this is exactly what we want, but
+! here, we are explicitly checking that the default files are read, so this
+! environment variable must be unset.
+!
 ! RUN: env CLANG_NO_DEFAULT_CONFIG= \
 ! RUN: %kitfc -### --tapir=hip --tapir-hip-arch=gfx90a -O1 \
-! RUN:     --config-kitsune-dir=%S/input/cfgs %s 2>&1 \
+! RUN:     --config-system-dir=%S/input/cfgs %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix=BOTH
 !
 ! RUN: env CLANG_NO_DEFAULT_CONFIG= \
