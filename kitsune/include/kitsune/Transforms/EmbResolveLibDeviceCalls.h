@@ -1,4 +1,4 @@
-//==- EmbResolveLibDeviceCalls.h - Resolve libdevice calls ------*- C++ -*--==//
+//===- EmbResolveLibDeviceCalls.h - Resolve libdevice calls ----*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -19,6 +19,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 /// Resolve the calls to functions in the embedded bitcode that have
 /// device-specific implementations in one or more vendor-provided bitcode files
 /// for the device (usually a GPU). This will look for calls to functions that
@@ -35,6 +38,8 @@ public:
 
   using EmbModulePass<EmbResolveLibDeviceCallsPass>::run;
 };
+
+/// @}
 
 } // namespace llvm
 

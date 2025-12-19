@@ -10,3 +10,18 @@ div.related {
 div.sphinxsidebar {
   font-size: 0.85em;
 }
+
+div.error {
+  background-color: #ffe4e4;
+  border: 1px solid #f66;
+}
+
+div.important {
+  background-color: #eee;
+  border: 1px solid #d8dee3;
+}
+
+div.warning {
+  background-color: #ffe4e4;
+  border: 1px solid #e8e;
+}

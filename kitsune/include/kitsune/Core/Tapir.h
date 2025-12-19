@@ -21,6 +21,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 /// The identifiers for the known tapir targets.
 ///
 /// These are some useful constraints that it would be useful to maintain.
@@ -54,7 +57,7 @@ enum class TTID : uint32_t {
   /// primarily useful to generate, LLVM IR containing tapir instructions.
   Nolo = 0x0,
 
-  /// Lower to serial projection.
+  /// Lower to a straightforward serial implementation.
   Serial = 0x1,
 
   /// Lower to Kitsune's NVIDIA GPU runtime (cuda).
@@ -66,8 +69,8 @@ enum class TTID : uint32_t {
   /// Lower to the OpenCilk runtime.
   OpenCilk = 0x8,
 
-  /// Lower to kitsune's JIT-enabled, GPU-agnostic runtime.
-  /// FIXME: This has been disabled for now, but should be re-enabled shortly.
+  // Lower to kitsune's JIT-enabled, GPU-agnostic runtime.
+  // FIXME: This has been disabled for now, but should be re-enabled shortly.
   // GPUABI = 0x10,
 
   /// Lower to the qthreads runtime.
@@ -178,14 +181,16 @@ static constexpr unsigned defaultTapirGrainSize = 0;
 
 /// An enumeration that may be set to a boolean value or unset.
 enum class MaybeBool {
-  Off,    /// The value is set to false
-  On,     /// The value is set to true
-  Any = 3 /// The value is unset
+  Off,    ///< The value is set to false
+  On,     ///< The value is set to true
+  Any = 3 ///< The value is unset
 };
 
 /// Convert the string to a \ref MaybeBool. If the string cannot be converted to
 /// a \ref MaybeBool, return std::nullopt.
 std::optional<MaybeBool> createMaybeBoolFrom(StringRef s);
+
+/// @}
 
 } // namespace llvm
 

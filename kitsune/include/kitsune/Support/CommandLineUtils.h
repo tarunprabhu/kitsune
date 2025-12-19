@@ -1,4 +1,4 @@
-//=- CommandLineUtils.h - Utilities for command line options ------*- C++ -*-=//
+//===- CommandLineUtils.h - Utilities for command line options --*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -17,6 +17,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 // NOTE: Most options that control Kitsune's behavior are defined in
 // TTOptions.cpp. They are private to the file and we intend to keep it that
 // way. These options are in the "Kitsune" option category.
@@ -34,6 +37,8 @@ void clSetOptionVisible(StringRef spelling);
 
 /// Override the description of the option with the given spelling.
 void clSetOptionDescription(StringRef spelling, StringRef descr);
+
+/// @}
 
 } // namespace llvm
 

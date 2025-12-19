@@ -24,6 +24,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class GlobalVariable;
 
 using EmbModulesMapTy = std::map<TTID, std::unique_ptr<Module>>;
@@ -86,6 +89,8 @@ GlobalVariable *getEmbFBGlobal(TTID tt, Module &m);
 /// @param g The global variable to replace with the new global
 /// @returns The newly created global variable.
 GlobalVariable *resetEmbFBGlobal(MemoryBufferRef buf, GlobalVariable &g);
+
+/// @}
 
 } // namespace llvm
 

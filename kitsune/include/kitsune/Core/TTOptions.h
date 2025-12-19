@@ -28,6 +28,9 @@ namespace driver {
 class KitsuneOptions;
 }
 
+/// \addtogroup kitsune
+/// @{
+
 using KitsuneOptions = driver::KitsuneOptions;
 using FPOpFusionMode = FPOpFusion::FPOpFusionMode;
 
@@ -269,6 +272,8 @@ public:
   /// --tapir option is not provided, return std::nullopt.
   static std::optional<TTOptions> createFromCommandLine(char optLevel);
 };
+
+/// @}
 
 } // namespace llvm
 

@@ -27,6 +27,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class LoopInfo;
 class TapirTarget;
 class TapirTargetAnalysis;
@@ -175,6 +178,8 @@ public:
 
 ModulePass *
 createTapirTargetAnalysisWrapperPass(std::optional<TTOptions> ttOpts);
+
+/// @}
 
 } // namespace llvm
 

@@ -18,6 +18,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 /// This will run the standard optimization passes on the embedded module for
 /// the given tapir target.
 class EmbOptimizePass : public EmbModulePass<EmbOptimizePass> {
@@ -26,6 +29,8 @@ public:
 
   using EmbModulePass<EmbOptimizePass>::run;
 };
+
+/// @}
 
 } // namespace llvm
 

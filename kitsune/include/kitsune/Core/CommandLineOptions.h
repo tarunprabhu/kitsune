@@ -1,4 +1,4 @@
-//=- CommandLineOptions.h - Command line options for Kitsune ------*- C++ -*-=//
+//===- CommandLineOptions.h - Command line options for Kitsune --*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -19,6 +19,9 @@ namespace llvm {
 
 namespace cl {
 
+/// \addtogroup kitsune
+/// @{
+
 /// Category for core Kitsune-specific command line options.
 extern cl::OptionCategory catKitClOpts;
 
@@ -28,6 +31,8 @@ extern cl::OptionCategory catKitClOpts;
 /// hidden and are only visible when -help-hidden is used with opt and other
 /// tools.
 extern cl::OptionCategory catKitClDevOpts;
+
+/// @}
 
 } // namespace cl
 

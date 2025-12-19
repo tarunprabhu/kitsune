@@ -18,6 +18,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 /// Some metadata about the kernel being launched is passed to the launch calls.
 /// These may be used to determine launch parameters. Currently, this metadata
 /// includes information about the instruction mix within the kernel - the
@@ -32,6 +35,8 @@ public:
 
   static bool isRequired() { return true; }
 };
+
+// @}
 
 } // namespace llvm
 

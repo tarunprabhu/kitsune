@@ -15,6 +15,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class Module;
 
 // Strip kitsune-specific address spaces from all pointers in the module. These
@@ -22,6 +25,8 @@ class Module;
 // pointer in any of Kitsune's address spaces was found in the module and
 // stripped, false if the module remains unchanged.
 bool stripKitsuneAddrSpaces(Module &m);
+
+/// @}
 
 } // namespace llvm
 

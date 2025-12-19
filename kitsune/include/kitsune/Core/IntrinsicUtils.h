@@ -19,6 +19,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class CallBase;
 class Value;
 
@@ -42,6 +45,8 @@ Value *getStreamFromLaunch(const CallBase &call);
 /// Get the arguments that will be passed to the kernel in the given call to
 /// Kitsune's launch_kernel intrinsic.
 std::vector<Value *> getKernelArgumentsFromLaunch(const CallBase &call);
+
+/// @}
 
 } // namespace llvm
 

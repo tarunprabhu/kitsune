@@ -733,6 +733,8 @@ option(KITSUNE_INCLUDE_TESTS "Generate build targets for Kitsune's tests" ON)
 option(KITSUNE_BUILD_DOCS "Build all Kitsune documentation" OFF)
 option(KITSUNE_ENABLE_DOXYGEN
   "Use doxygen to generate API documentation" OFF)
+option(KITSUNE_ENABLE_LLVM_DOXYGEN
+  "Use doxygen to generate LLVM's API documenatation as well as Kitsune-specific API documentation" OFF)
 option(KITSUNE_ENABLE_SPHINX
   "Use sphinx to generate HTML documentation and man pages" OFF)
 
@@ -743,9 +745,19 @@ if (LLVM_BUILD_DOCS)
   set(KITSUNE_BUILD_DOCS ON)
 endif ()
 
+# If KITSUNE_BUILD_DOCS=ON, enable both Sphinx-based HTML documentation and
+# doxygen-generated API documentation. Since most of the Kitsune-specific API's
+# are extensions to LLVM's API's, it can be useful to build LLVM's documentation
+# as well. However, building LLVM's documentation is very expensive - in terms
+# of both time and disk space. Therefore, do not enable LLVM's API documentation
+# automatically - the user must explicitly request it.
 if (KITSUNE_BUILD_DOCS)
   set(KITSUNE_ENABLE_DOXYGEN ON)
   set(KITSUNE_ENABLE_SPHINX ON)
+endif ()
+
+if (KITSUNE_ENABLE_LLVM_DOXYGEN AND NOT KITSUNE_ENABLE_DOXYGEN)
+  message(WARNING "KITSUNE_ENABLE_LLVM_DOXYGEN has not effect because KITSUNE_ENABLE_DOXYGEN is disabled")
 endif ()
 
 # Kitsune's runtime, libkitrt, used to have a dependence on libLLVM, but it does

@@ -1,4 +1,4 @@
-//===- MetadataUtils.h - Helper functions for LLVM's metadata ----*- C++ -*--=//
+//===- MetadataUtils.h - Helper functions for LLVM's metadata --*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -14,13 +14,14 @@
 #define KITSUNE_CORE_METADATA_UTILS_H
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Metadata.h"
 
 namespace llvm {
 
-// class LLVMContext;
-// class Metadata;
+/// \addtogroup kitsune
+/// @{
+
+class LLVMContext;
+class Metadata;
 
 /// Construct an MDNode for tapir loop metadata.
 ///
@@ -38,6 +39,8 @@ namespace llvm {
 template <typename DstTy, typename SrcTy>
 Metadata *makeTapirLoopMetadata(LLVMContext &ctx, StringRef name,
                                 const SrcTy &val);
+
+/// @}
 
 } // namespace llvm
 

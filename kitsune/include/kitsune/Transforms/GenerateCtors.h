@@ -1,4 +1,4 @@
-//=- GenerateCtors.h - Generate global ctors for Kitsune ----------*- C++ -*-=//
+//===- GenerateCtors.h - Generate global ctors for Kitsune ------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -16,6 +16,9 @@
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
+
+/// \addtogroup kitsune
+/// @{
 
 /// Generates global constructors and destructors needed by Kitsune.
 ///
@@ -39,6 +42,8 @@ public:
 
   static bool isRequired() { return true; }
 };
+
+/// @}
 
 } // namespace llvm
 

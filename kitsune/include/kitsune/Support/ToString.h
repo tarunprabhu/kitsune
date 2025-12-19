@@ -1,15 +1,15 @@
-//==- ToString.h - String and serialization functions ------------*- C++ -*-==//
+//===- ToString.h - String and serialization functions ---------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-///
-/// Additional functions that are useful when dealing with strings. Also
-/// includes utilities that stringify Kitsune-specific types (though not
-/// exclusively Kitsune-specific types).
-///
+//
+// Additional functions that are useful when dealing with strings. Also
+// includes utilities that stringify Kitsune-specific types (though not
+// exclusively Kitsune-specific types).
+//
 //===----------------------------------------------------------------------===//
 
 #ifndef KITSUNE_SUPPORT_TO_STRING_H
@@ -25,6 +25,9 @@
 #include <optional>
 
 namespace llvm {
+
+/// \addtogroup kitsune
+/// @{
 
 class raw_ostream;
 
@@ -73,6 +76,8 @@ raw_ostream &operator<<(raw_ostream &os, const DebugCompressionType &);
 raw_ostream &operator<<(raw_ostream &os,
                         const MCTargetOptions::DwarfDirectory &);
 raw_ostream &operator<<(raw_ostream &os, const EmitDwarfUnwindType &);
+
+/// @}
 
 /// @}
 
