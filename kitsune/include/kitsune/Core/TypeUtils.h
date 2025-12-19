@@ -17,6 +17,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 /// Is the type an array of bytes.
 bool isByteArrayTy(Type *ty);
 
@@ -30,6 +33,8 @@ template <typename T, std::enable_if_t<std::is_pointer_v<T>, int> = 0>
 Type *getLLVMTypeFor(LLVMContext &ctx) {
   return PointerType::getUnqual(ctx);
 }
+
+/// @}
 
 } // namespace llvm
 

@@ -22,6 +22,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class LLVMContext;
 class TTOptions;
 
@@ -57,6 +60,8 @@ Expected<OwnedModule> getSupportModule(TTID tt, const TTOptions &tto,
 /// See \ref getSupportModule for more information.
 Expected<OwnedModule> getLibDeviceModule(TTID tt, const TTOptions &tto,
                                          LLVMContext &ctx);
+
+/// @}
 
 } // namespace llvm
 

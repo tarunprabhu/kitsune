@@ -18,6 +18,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 /// Get all known tapir targets.
 ArrayRef<TTID> ttsAll();
 
@@ -26,6 +29,8 @@ ArrayRef<TTID> ttsGenEmbBC();
 
 /// Check if the given tapir target generates embedded bitcode.
 bool doesTTGenEmbBC(TTID tt);
+
+/// @}
 
 } // namespace llvm
 

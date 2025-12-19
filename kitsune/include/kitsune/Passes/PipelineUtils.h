@@ -23,6 +23,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class PassBuilder;
 class PipelineTuningOptions;
 
@@ -53,6 +56,8 @@ ModulePassManager populateKitPostTapirPasses(PassBuilder &pb,
 /// Populate a pass manager with Kitsune's codegen passes.
 void populateKitCodeGenPasses(legacy::PassManager &pm,
                               std::optional<TTOptions> tto);
+
+/// @}
 
 } // namespace llvm
 

@@ -1,4 +1,4 @@
-//- EmbLinkLibDeviceBitcode.h - Link libdevice & embedded modules --*- C++ -*-//
+//- EmbLinkLibDeviceBitcode.h - Link libdevice & embedded bitcode -*- C++ -*--//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -17,6 +17,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 /// Link the appropriate device bitcode modules into the embedded bitcode.
 class EmbLinkLibDeviceBitcodePass
     : public EmbModulePass<EmbLinkLibDeviceBitcodePass> {
@@ -25,6 +28,8 @@ public:
 
   using EmbModulePass<EmbLinkLibDeviceBitcodePass>::run;
 };
+
+/// @}
 
 } // namespace llvm
 

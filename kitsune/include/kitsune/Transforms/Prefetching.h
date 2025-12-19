@@ -17,6 +17,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 /// This pass generates calls to initiate movement of data between host and
 /// device. This will only generate calls to Kitsne's prefetch intrinsics. This
 /// must should typically be run early in the Kitsune's post-tapir pipeline, but
@@ -29,6 +32,8 @@ public:
 
   static bool isRequired() { return true; }
 };
+
+/// @}
 
 } // namespace llvm
 

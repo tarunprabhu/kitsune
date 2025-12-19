@@ -20,6 +20,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class GlobalVariable;
 
 /// Check if the global variable has an attribute of the given kind. If it
@@ -27,6 +30,8 @@ class GlobalVariable;
 /// return std::nullopt.
 std::optional<TTID> getAttrValueAsTTID(const GlobalVariable &g,
                                        Attribute::AttrKind attr);
+
+/// @}
 
 } // namespace llvm
 

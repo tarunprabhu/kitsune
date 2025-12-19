@@ -18,6 +18,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class ModulePass;
 
 /// This pass is responsible for lowering Kitsune's runtime intrinsics. These
@@ -32,6 +35,8 @@ public:
 
 ModulePass *createLowerKitsuneIntrinsicsLegacyPass();
 
-} // end namespace llvm
+/// @}
+
+} // namespace llvm
 
 #endif // KITSUNE_CODEGEN_LOWER_KITSUNE_INTRINSICS_H

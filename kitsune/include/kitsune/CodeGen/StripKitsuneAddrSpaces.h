@@ -18,6 +18,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class ModulePass;
 
 /// Change the types of entities that are in kitsune-specific address spaces.
@@ -34,6 +37,8 @@ public:
 
 ModulePass *createStripKitsuneAddrSpacesLegacyPass();
 
-} // end namespace llvm
+/// @}
+
+} // namespace llvm
 
 #endif // KITSUNE_CODEGEN_STRIP_KITSUNE_ADDR_SPACES_H

@@ -1,4 +1,4 @@
-//===- AddrSpace.h - Utilities for Kitsune's address spaces ------*- C++ -*_-=//
+//===- AddrSpace.h - Utilities for Kitsune's address spaces ----*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -14,6 +14,9 @@
 #define KITSUNE_SUPPORT_ADDR_SPACE_H
 
 namespace llvm {
+
+/// \addtogroup kitsune
+/// @{
 
 namespace KitAS {
 
@@ -37,6 +40,8 @@ enum {
 // case, don't use more than 8 bits for any of these.
 static_assert(KitAS::Mobile <= 0xFF &&
               "Kitsune's address spaces must occupy no more than 8 bits");
+
+/// @}
 
 } // namespace llvm
 

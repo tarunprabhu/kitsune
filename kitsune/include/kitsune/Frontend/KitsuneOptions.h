@@ -26,6 +26,9 @@ namespace llvm {
 
 namespace driver {
 
+/// \addtogroup kitsune
+/// @{
+
 /// Options that are Kitsune-specific. These affect both the Kitsune "language"
 /// i.e. forall, spawn, sync etc. and the backend code-generation via Tapir.
 /// This is in the llvm::driver namespace because that is where objects that are
@@ -338,6 +341,8 @@ public:
     return openCilkRuntimeBCFile;
   }
 };
+
+/// @}
 
 } // namespace driver
 

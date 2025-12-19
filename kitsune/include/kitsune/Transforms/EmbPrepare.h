@@ -17,6 +17,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 /// Prepare the embedded bitcode for code generation. This should be run
 /// relatively late in the pipeline. This will carry out any
 /// architecture-specific transformations that are unrelated to optimizations
@@ -37,6 +40,8 @@ public:
 
   using EmbModulePass<EmbPreparePass>::run;
 };
+
+/// @}
 
 } // namespace llvm
 

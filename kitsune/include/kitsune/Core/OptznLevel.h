@@ -16,6 +16,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 /// The various optimization levels supported by Kitsune.
 ///
 /// NOTE: The levels supported here are no different from the levels supported
@@ -68,6 +71,8 @@ enum class OptznLevel {
   /// Like -Os, but is more aggessive when it comes to reducing code size
   Oz,
 };
+
+/// @}
 
 } // namespace llvm
 

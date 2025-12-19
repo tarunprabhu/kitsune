@@ -48,8 +48,8 @@ public:
   virtual ~BookendTT() = default;
 
   void lowerSync(SyncInst &) override final {}
-  void postProcessFunction(Function &F, bool) override final {}
-  void postProcessHelper(Function &F) override final {}
+  void postProcessFunction(Function &, bool) override final {}
+  void postProcessHelper(Function &) override final {}
   void preProcessOutlinedTask(Function &, Instruction *, Instruction *, bool,
                               BasicBlock *) override final {}
   void postProcessOutlinedTask(Function &, Instruction *, Instruction *, bool,
@@ -73,7 +73,7 @@ public:
   };
 
   LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL) override final {
+  getLoopOutlineProcessor(const TapirLoopInfo *tl) override final {
     return new BookendLOP(M, this->getOptions());
   }
 };

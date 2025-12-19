@@ -20,6 +20,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class ConstantStruct;
 class Function;
 class GlobalVariable;
@@ -44,6 +47,8 @@ ConstantStruct *getKernelPropertiesConstant(const Function &f);
 /// \param m The host module
 GlobalVariable *createKernelPropertiesGlobal(StringRef kernelName, TTID tt,
                                              Module &m);
+
+/// @}
 
 } // namespace llvm
 

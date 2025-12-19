@@ -62,6 +62,13 @@ and may never be, comprehensive.
 .. toctree::
     :titlesonly:
 
+    API Reference (Doxygen)<doxygen/index.md>
+```
+
+```{eval-rst}
+.. toctree::
+    :titlesonly:
+
     AddingCommandLineOption
     AddingTapirTarget
     AddingKitsuneIntrinsic

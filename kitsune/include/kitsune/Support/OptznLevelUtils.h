@@ -1,5 +1,4 @@
-//=- OptznLevelUtils.h - Utilities for Kitsune's OptznLevel ========---*- C++
-//-*-=//
+//===- OptznLevelUtils.h - Utilities for Kitsune's OptznLevel --*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -18,6 +17,9 @@
 #include "llvm/Support/CodeGen.h"
 
 namespace llvm {
+
+/// \addtogroup kitsune
+/// @{
 
 /// Get the speedup level that the given \ref OptznLevel represents. This will
 /// be an integer in [0,3]. This indicates the level of optimizations that are
@@ -40,6 +42,8 @@ OptznLevel createOptznLevelFrom(char level);
 
 /// Map an optimization level to a CodeGenOptznLevel.
 CodeGenOptLevel createCodeGenOptLevelFrom(OptznLevel optLevel);
+
+/// @}
 
 } // namespace llvm
 

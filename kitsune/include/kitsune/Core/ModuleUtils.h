@@ -20,6 +20,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class Module;
 class NamedMDNode;
 
@@ -51,7 +54,6 @@ class NamedMDNode;
 ///
 ///       is the module identifier as obtained by calling Module::getName()
 ///
-///
 /// \param tt The tapir target that created the device module \ref m
 /// \param m The module
 /// \returns The \ref NamedMDNode that was created or modified.
@@ -82,6 +84,8 @@ std::optional<TTID> getTTIDFromDeviceModuleMetadata(const Module &m);
 
 /// Get the name of the module from the kitsune metadata in the module.
 std::optional<StringRef> getNameFromDeviceModuleMetadata(const Module &m);
+
+/// @}
 
 } // namespace llvm
 

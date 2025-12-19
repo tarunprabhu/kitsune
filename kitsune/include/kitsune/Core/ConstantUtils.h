@@ -18,6 +18,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class ConstantInt;
 class GlobalVariable;
 class LLVMContext;
@@ -38,6 +41,8 @@ ConstantInt *createConstInt(TTID tt, LLVMContext &ctxt);
 /// @param m The module in which to create the string
 /// @param name If a global variable is to be created, the name to give it.
 GlobalVariable *createConstString(StringRef s, Module &m, StringRef name = "");
+
+/// @}
 
 } // namespace llvm
 

@@ -1,4 +1,4 @@
-//==- EmbModulePass.h - Base class for embedded module passes ----*- C++ -*-==//
+//===- EmbModulePass.h - Base class for embedded module passes --*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -45,6 +45,9 @@ template <typename T>
 static constexpr bool needsAnalysisManager = needs_analysis_manager<T>::value;
 
 } // namespace detail
+
+/// \addtogroup kitsune
+/// @{
 
 /// CRTP base class for embedded bitcode passes. These are passes that may
 /// transform the embedded bitcode in some way. The base class provides an
@@ -136,6 +139,8 @@ public:
 
   static bool isRequired() { return true; }
 };
+
+/// @}
 
 } // namespace llvm
 
