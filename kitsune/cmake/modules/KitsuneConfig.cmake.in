@@ -1,14 +1,63 @@
-# This file allows users to call find_package(Kitsune) and pick up our targets.
+# This file provides information and services to the final user. This includes
+# a subset of the information provided by LLVMConfig.cmake that is likely to be
+# useful. This is *not* intended to be a substitute for LLVMConfig.cmake.
 
 @KITSUNE_CONFIG_CODE@
 
-find_package(LLVM REQUIRED CONFIG
-             HINTS "@KITSUNE_CONFIG_LLVM_CMAKE_DIR@")
+# For finding self-installed Find*.cmake packages.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
 
-set(KITSUNE_EXPORTED_TARGETS "@KITSUNE_EXPORTS@")
-set(KITSUNE_CMAKE_DIR "@KITSUNE_CONFIG_CMAKE_DIR@")
+# ------------------------------------------------------------------------------
+# Include some basic LLVM information that may be useful to Kitsune users.
+# This is intentionally incomplete. For all information provided by the LLVM
+# package, users should use FindPackage(LLVM).
+
+set(LLVM_VERSION_MAJOR @LLVM_VERSION_MAJOR@)
+set(LLVM_VERSION_MINOR @LLVM_VERSION_MINOR@)
+set(LLVM_VERSION_PATCH @LLVM_VERSION_PATCH@)
+set(LLVM_VERSION_SUFFIX @LLVM_VERSION_SUFFIX@)
+set(LLVM_PACKAGE_VERSION @PACKAGE_VERSION@)
+
+set(LLVM_ABI_BREAKING_CHECKS @LLVM_ABI_BREAKING_CHECKS@)
+set(LLVM_BUILD_TYPE @CMAKE_BUILD_TYPE@)
+set(LLVM_DEFINITIONS "@LLVM_DEFINITIONS@")
+set(LLVM_ENABLE_PLUGINS @LLVM_ENABLE_PLUGINS@)
+set(LLVM_ENABLE_RTTI @LLVM_ENABLE_RTTI@)
+set(LLVM_HOST_TRIPLE "@LLVM_HOST_TRIPLE@")
+set(LLVM_TARGET_TRIPLE "@LLVM_TARGET_TRIPLE@")
+
+set(LLVM_BINARY_DIR "@LLVM_CONFIG_BINARY_DIR@")
+set(LLVM_CMAKE_DIR "@LLVM_CONFIG_CMAKE_DIR@")
+
+# In the build tree, ${LLVM_INCLUDE_DIRS} will be a list of paths to the
+# top-level include directory in the source and the directory containing
+# generated headers.
+set(LLVM_INCLUDE_DIRS "@LLVM_CONFIG_INCLUDE_DIRS@")
+set(LLVM_LIBRARY_DIRS "@LLVM_CONFIG_LIBRARY_DIRS@")
+
+#-------------------------------------------------------------------------------
+
+set(KITSUNE_VERSION_MAJOR @KITSUNE_VERSION_MAJOR@)
+set(KITSUNE_VERSION_MINOR @KITSUNE_VERSION_MINOR@)
+set(KITSUNE_VERSION_PATCH @KITSUNE_VERSION_PATCH@)
+set(KITSUNE_VERSION_SUFFIX @KITSUNE_VERSION_SUFFIX@)
+set(KITSUNE_PACKAGE_VERSION @KITSUNE_PACKAGE_VERSION@)
+
+# In the build tree, ${KITSUNE_INCLUDE_DIRS} will be a list of paths to both the
+# top-level include directory in the source and the directory containing
+# generated headers.
 set(KITSUNE_INCLUDE_DIRS "@KITSUNE_CONFIG_INCLUDE_DIRS@")
 
-# Provide all our library targets to users.
-include("@KITSUNE_CONFIG_EXPORTS_FILE@")
+# ${KITSUNE_LIBRARY_DIRS} will contain paths to the directories containing both
+# libLLVM and Kitsune's runtime libraries.
+set(KITSUNE_LIBRARY_DIRS "@KITSUNE_CONFIG_LIBRARY_DIRS@")
 
+set(KITSUNE_CMAKE_DIR "@KITSUNE_CONFIG_CMAKE_DIR@")
+
+# It is not clear which users will be interested in the enabled tapir targets
+set(KITSUNE_CUDA_ENABLED @KITSUNE_CUDA_ENABLED@)
+set(KITSUNE_CUSTOM_ENABLED @KITSUNE_CUSTOM_ENABLED@)
+set(KITSUNE_HIP_ENABLED @KITSUNE_HIP_ENABLED@)
+set(KITSUNE_OPENCILK_ENABLED @KITSUNE_OPENCILK_ENABLED@)
+set(KITSUNE_PTHREADS_ENABLED @KITSUNE_PTHREADS_ENABLED@)
+set(KITSUNE_SERIAL_ENABLED @KITSUNE_SERIAL_ENABLED@)

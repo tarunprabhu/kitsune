@@ -21,6 +21,11 @@ div.important {
   border: 1px solid #d8dee3;
 }
 
+div.tip {
+  background-color: #eee;
+  border: 1px solid #d8dee3;
+}
+
 div.warning {
   background-color: #ffe4e4;
   border: 1px solid #e8e;
