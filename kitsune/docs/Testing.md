@@ -6,7 +6,9 @@ parts of Kitsune should be tested.
 ## Overview
 
 Tests for Kitsune are split into two categories, [core](#core-tests) tests and
-[end-to-end](#end-to-end-tests) tests.
+[end-to-end](#end-to-end-tests) tests. As a developer, both the core tests and
+the end-to-end tests should be run regularly. It is not uncommon for the core
+tests to pass but for the end-to-end tests to fail.
 
 ## Core Tests
 
@@ -35,7 +37,10 @@ LLVM-IR is also implemented. Similarly, tests of a specific LLVM pass should
 not require other passes to be run at test-time. It is not always possible
 to satisfy such constraints, but one should make a concerted effort to do so. If
 a test requires more support from other parts of the compiler, errors in
-unrelated areas of the compiler may manifest as spurious test failures [^2].
+unrelated areas of the compiler may manifest as spurious test failures. For
+example, if a test for pass A requires pass B to be run, an error in pass B will
+also result in the failure of the test of pass A. This can result in wasted time
+spent debugging pass A.
 
 ### Writing Core Tests
 
@@ -87,6 +92,8 @@ _not_ `kitsune/test/tools/lld` [^1].
 Some tips for writing core tests are presented here. These are not intended to
 be comprehensive.
 
+[^1]: We do attempt to upstream such code. In this particular case, we did submit a [PR](https://github.com/llvm/llvm-project/pull/170355) to LLVM.
+
 #### Testing the Driver
 
 When testing the handling of command-line options, the `-###` option can be
@@ -133,6 +140,27 @@ void f(float *a, long n) {
   }
 }
 ```
+
+#### Testing Frontends
+
+Some of Kitsune's language extensions apply to both C and C++. Strictly
+speaking, we should test that these are handled correctly by the C and C++
+frontends, that is `kitcc` and `kit++` respectively. However, we generally
+prefer to test with only the C++ frontend for the following reasons:
+
+1. Most of the relevant frontend code operates on the language-independent
+   [clang AST](https://clang.llvm.org/docs/IntroductionToTheClangAST.html).
+   Therefore, it is often sufficient to test with just one frontend.
+
+2. Both C and C++ frontends are _always_ enabled, so it is reasonable to pick
+   one of the two and just test with that. We expect the majority of Kitsune's
+   users to be interested in C++, not C, so we prefer to test with that
+   frontend.
+
+Some of Kitsune's builtins are supported in both C and C++. The lowering of
+these to LLVM-IR is generally tested with the C frontend. Since name-mangling
+does not occur in C code, writing `FileCheck` checks is often easier for C
+code.
 
 #### Testing LLVM-IR Passes
 
@@ -205,6 +233,36 @@ needed. The output of `opt` will be a module containing the updated embedded
 bitcode. This is passed to [kit-mbc](CommandGuide/kit-mbc.md) which will
 extract the embedded bitcode from the host module and write it as human-readable
 LLVM assembly to stdout. This, in turn, is piped into `FileCheck`.
+
+#### Repeated Tests
+
+When testing embedded bitcode passes, one is required to specify which tapir
+target generated the embedded bitcode. Some of these passes behave exactly the
+same regardless of the tapir target that generated the embedded bitcode. In
+such cases, one could, in principle, pick an arbitrary tapir target that uses
+embedded bitcode to test the pass. However, these tapir targets are not
+"universal", so one could choose to not build the target. In this case, the
+test would not run raising the likelihood of inadvertently introducing bugs if
+one is developing Kitsune with only a subset of the supported tapir targets
+enabled.
+
+Therefore, we recommend testing embedded bitcode passes in _each_ of
+the tapir targets that use embedded bitcode. This does result in very similar
+tests that differ only in the tapir target that is used. An alternative would be
+to use
+[conditional substitution](https://llvm.org/docs/TestingGuide.html#substitutions).
+However, these are very limited in functionality; writing complex `RUN:` directives is difficult and the result is hard to read and maintain.
+
+A similar issue arises when testing the handling of tapir-target-specific
+configuration files. While much of the code that deals with these is common to
+all tapir targets, a small amount isn't. While this could be tested with, for
+instance, a unit test, testing the functionality separately with each tapir
+target is more convenient.
+
+The Fortran driver, `kitfc`, shares a lot of code with the C and C++ frontends.
+However, command-line options must be explicitly enabled for each driver.
+Therefore, for tests of command-line options, a Fortran test must be written to
+ensure that the option is enabled (or disabled) in Fortran.
 
 ### Running the Core Tests
 
@@ -281,15 +339,11 @@ to run each test in a directory.
 llvm-lit --time-tests <dir>
 ```
 
-[^1]: We do attempt to upstream such code. In this particular case, we did submit a [PR](https://github.com/llvm/llvm-project/pull/170355) to LLVM.
-
-[^2]: For example, if a test for pass A requires pass B to be run, an error in pass B will also result in the failure of the test of pass A. This can result in wasted time spent debugging pass A.
-
 ## End-to-end Tests
 
 The "end-to-end" tests run the entire compiler pipeline and produce functioning
 executables. These are used to check that the resulting executable both runs
-and produces the correct answer [^3].
+and produces the correct answer [^2].
 
 ```{important}
 The main Kitsune repository does *not* contain _any_ end-to-end tests.
@@ -311,19 +365,32 @@ providing a configuration file to be used from the install directory is known
 to work well.
 
 ```{important}
-End-to-end tests must not be added to the core tests in kitsune/test.
+End-to-end tests must not be added to the core tests in `kitsune/test`.
 ```
 
 All end-to-end tests are in the
-[Kitsune Test Tuite](KitsuneTestSuite.md). As a developer, you should use the
-Kitsune test suite _as well as_ the core tests for greater confidence that your
-changes have not introduced any regressions. It is not uncommon for the core
-kitsune tests to pass but for the kitsune test suite to fail.
+[Kitsune Test Suite](https://github.com/tarunprabhu/kitsune-test-suite). See the
+[documentation](KitsuneTestSuite.md) for the test suite for details on building
+and running the tests.
 
-[^3]: For code that makes extensive use of floating point arithmetic, the results produced when compiling with Kitsune may not be bitwise-identical to those produced by other compilers. This has to do with the fundamental limitations of floating-point arithemtic and its interaction with compiler optimizations.
+```{note}
+There are currently no guidelines on what constitutes a "good" end-to-end test.
+When possible, if an application uncovers a bug in Kitsune, a
+[core test](#core-tests) that exercises the buggy code should be crafted and
+added to Kitsune's repository. An end-to-end test should only be added if it
+exercises a complex path through Kitsune that cannot be reasonably tested in a
+core test.
+```
+
+[^2]: For code that makes extensive use of floating point arithmetic, the results produced when compiling with Kitsune may not be bitwise-identical to those produced by other compilers. This has to do with the fundamental limitations of floating-point arithemtic and its interaction with compiler optimizations.
 
 ## Runtime tests
 
 Currently, Kitsune's runtime has very limited testing. It largely relies on the
 end-to-end tests in the [Kitsune test suite](KitsuneTestSuite.md) to test for
 correctness, but these are, naturally, extremely coarse-grained.
+
+```{note}
+When fine-grained tests are added to Kitsune's runtime, they will be described
+here.
+```
