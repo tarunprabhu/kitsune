@@ -670,6 +670,7 @@ ExternalProject_Add(${KITSUNE_LIBNAME}
 # We do not enter the lib subdirectory here. The contents of lib/ are treated as
 # core LLVM libraries which become part of libLLVM.so. Therefore, the contents
 # are handled in llvm/lib/CMakeLists.txt.
+add_subdirectory(cmake/modules)
 add_subdirectory(include/kitsune)
 add_subdirectory(tools)
 

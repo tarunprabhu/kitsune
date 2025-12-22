@@ -8,15 +8,15 @@
 #          ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}, which is where the symlink will
 #          be created
 #
-#   DEP    The name of the cmake target that created DEST
+#   TARGET The name of the cmake target that created DEST
 #
-function(setup_frontend_symlink name dest dep)
+function(setup_frontend_symlink name dest target)
   set(symlink "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${name}")
   add_custom_target(${name} ALL
     COMMAND ${CMAKE_COMMAND} -E create_symlink ${dest} ${symlink}
     COMMENT "Creating symlink ${name} to ${dest}"
     VERBATIM USES_TERMINAL)
-  add_dependencies(${name} ${dep})
+  add_dependencies(${name} ${target})
   install(FILES
     ${symlink}
     DESTINATION ${CMAKE_INSTALL_BINDIR})

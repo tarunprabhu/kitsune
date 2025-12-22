@@ -1,0 +1,12 @@
+set(PACKAGE_VERSION "@KITSUNE_PACKAGE_VERSION@")
+
+# LLVM - and, by extension, Kitsune - is API-compatible only with matching
+# major.minor versions and patch versions not less than that requested.
+if("@KITSUNE_VERSION_MAJOR@.@KITSUNE_VERSION_MINOR@" VERSION_EQUAL
+    "${PACKAGE_FIND_VERSION_MAJOR}.${PACKAGE_FIND_VERSION_MINOR}"
+   AND NOT "@KITSUNE_VERSION_PATCH@" VERSION_LESS "${PACKAGE_FIND_VERSION_PATCH}")
+  set(PACKAGE_VERSION_COMPATIBLE 1)
+  if("@KITSUNE_VERSION_PATCH@" VERSION_EQUAL "${PACKAGE_FIND_VERSION_PATCH}")
+    set(PACKAGE_VERSION_EXACT 1)
+  endif()
+endif()

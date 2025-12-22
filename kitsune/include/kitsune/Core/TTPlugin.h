@@ -147,7 +147,7 @@ public:
 ///   return {
 ///     LLVM_TTPLUGIN_API_VERSION,
 ///     "MyPlugin",
-///     "v0.1",
+///     "0.1",
 ///     [](Module &hostM, const TTOptions &tto) {
 ///       // return a new tapir target
 ///     },
