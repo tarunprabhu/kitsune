@@ -76,14 +76,14 @@ unsigned clang::getSizeLevel(const opt::ArgList &args,
   return 0;
 }
 
-std::optional<TTID> clang::parseTapirTargetIfValid(const opt::ArgList &args) {
+std::optional<TTID> clang::parseTTIfValid(const opt::ArgList &args) {
   if (!args.hasArg(OPT_tapir_EQ))
     return std::nullopt;
   return createTTIDFrom(args.getLastArgValue(OPT_tapir_EQ));
 }
 
 std::optional<StringRef>
-clang::getTapirTargetConfigFileName(const opt::ArgList &args) {
+clang::getTTConfigFileName(const opt::ArgList &args) {
   if (!args.hasArg(OPT_tapir_EQ))
     return std::nullopt;
 
@@ -100,9 +100,8 @@ clang::getTapirTargetConfigFileName(const opt::ArgList &args) {
   case TTID::Cuda:
     return "cuda.cfg";
   case TTID::Custom:
-    // The custom tapir target does not have a config file since the compiler
-    // knows nothing about the tapir target
-    return "";
+    // The custom tapir target does not use a configuration file.
+    return std::nullopt;
   case TTID::Hip:
     return "hip.cfg";
   case TTID::Lambda:
@@ -120,7 +119,7 @@ clang::getTapirTargetConfigFileName(const opt::ArgList &args) {
   case TTID::Realm:
     return "realm.cfg";
   }
-  llvm_unreachable("getTapirTargetConfigFile: TTID not handled");
+  llvm_unreachable("getTTConfigFile: TTID not handled");
 }
 
 static std::vector<std::string>

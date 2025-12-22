@@ -203,7 +203,7 @@ static bool addExceptionArgs(const ArgList &Args, types::ID InputType,
     // But if it has not, turn exceptions off only if Kokkos mode has been
     // enabled or if a tapir target has been set.
     const Driver &D = TC.getDriver();
-    std::optional<llvm::TTID> TT = parseTapirTargetIfValid(Args);
+    std::optional<llvm::TTID> TT = parseTTIfValid(Args);
     if (ExceptionArg) {
       CXXExceptionsEnabled =
           ExceptionArg->getOption().matches(options::OPT_fcxx_exceptions) ||

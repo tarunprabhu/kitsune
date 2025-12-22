@@ -1634,31 +1634,28 @@ bool Driver::loadConfigFiles() {
   // Then load configuration files specified explicitly.
   SmallString<128> CfgFilePath;
   if (CLOptions) {
-    if (CLOptions->hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init)) {
-      // It is ok if the Kokkos configuration file was not found. It is
-      // intended to be optional just like the top-level clang config file.
-      if (ExpCtx.findConfigFile("kokkos.cfg", CfgFilePath)) {
-        // If an error occurs while reading the file, this will return true.
-        // The diagnostic will already have been emitted.
+    // A Kokkos-specific configuration file may be used to add options that are
+    // only relevant for Kokkos-mode. Since these may not be relevant when
+    // Kokkos mode has not been enabled, they should not be added to a
+    // driver-specific config file. This config file is optional; do not raise
+    // an error if one is not found. However, if one is found, and an error
+    // occurs when reading it, just return. readConfigFile() will have emitted
+    // an appropriate diagnostic.
+    if (CLOptions->hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init))
+      if (ExpCtx.findConfigFile("kokkos.cfg", CfgFilePath))
         if (readConfigFile(CfgFilePath, ExpCtx))
           return true;
-      }
-    }
 
-    // Tapir target-specific configuration files may be used to add options for
-    // specific backends that are not relevant to other backends and therefore
-    // should not be added to a clang-specific config file. It is ok if such a
-    // config file is not found. They are intended to be optional just like the
-    // "top-level" clang config file.
-    if (std::optional<llvm::StringRef> TargetCfgFile =
-            getTapirTargetConfigFileName(*CLOptions)) {
-      if (!TargetCfgFile->empty() &&
-          ExpCtx.findConfigFile(*TargetCfgFile, CfgFilePath))
-        // If an error occurs while reading the file, this will return true.
-        // The diagnostic will already have been emitted.
+    // Tapir-target-specific configuration files may be used to add options for
+    // specific tapir targets. Since these may not be relevant to other tapir
+    // targets, they should not be added to a driver-specific config file. These
+    // config files are optional; do not raise an error if one is not found.
+    // However, if one is found and an error occurs when reading it, just
+    // return. readConfigFile() will have emitted an appropriate diagnostic.
+    if (std::optional<StringRef> CfgFileName = getTTConfigFileName(*CLOptions))
+      if (ExpCtx.findConfigFile(*CfgFileName, CfgFilePath))
         if (readConfigFile(CfgFilePath, ExpCtx))
           return true;
-    }
 
     for (auto CfgFileName : CLOptions->getAllArgValues(options::OPT_config)) {
       // If argument contains directory separator, treat it as a path to

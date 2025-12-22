@@ -54,14 +54,14 @@ unsigned getSizeLevel(const llvm::opt::ArgList &args,
 
 /// Parse the --tapir flag if it is present and get the name of the config file
 /// of the Tapir target that was specified. If the argument of the flag is
-/// invalid, this will return std::nullopt.
+/// invalid, or if the tapir target does not use a configuration file, this will
+/// return std::nullopt.
 std::optional<llvm::StringRef>
-getTapirTargetConfigFileName(const llvm::opt::ArgList &args);
+getTTConfigFileName(const llvm::opt::ArgList &args);
 
 /// Parse the --tapir flag if it is present and return the tapir target ID. This
 /// should only be called when the value of the tapir --tapir flag is valid.
-std::optional<llvm::TTID>
-parseTapirTargetIfValid(const llvm::opt::ArgList &args);
+std::optional<llvm::TTID> parseTTIfValid(const llvm::opt::ArgList &args);
 
 /// Parse the Kitsune-specific command line options into a KitsuneOptions
 /// object.

@@ -2296,7 +2296,7 @@ void ToolChain::AddKitsuneRealmCommonArgs(const ArgList &Args,
 
 void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
                                            ArgStringList &CmdArgs) const {
-  std::optional<TTID> TT = parseTapirTargetIfValid(Args);
+  std::optional<TTID> TT = parseTTIfValid(Args);
   bool IsKokkos = D.CCCIsCXX() &&
                   Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
 
@@ -2353,7 +2353,7 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     Args.AddLastArg(CmdArgs, options::OPT_kokkos_no_init);
   }
 
-  if (std::optional<TTID> TT = parseTapirTargetIfValid(Args)) {
+  if (std::optional<TTID> TT = parseTTIfValid(Args)) {
     Args.AddLastArg(CmdArgs, options::OPT_ffp_contract);
     Args.AddLastArg(CmdArgs, options::OPT_kitrt_verbose);
     Args.AddLastArg(CmdArgs, options::OPT_tapir_verbose);
@@ -2582,7 +2582,7 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     llvm_unreachable("AddKitsuneLinkerArgs: TTID not handled");
   };
 
-  std::optional<TTID> TT = parseTapirTargetIfValid(Args);
+  std::optional<TTID> TT = parseTTIfValid(Args);
   if (TT)
     AddTTArgs(*TT, Args, CmdArgs);
 
@@ -2669,7 +2669,7 @@ void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
     llvm_unreachable("AddKitsuneLTOArgs: TTID not handled");
   };
 
-  if (std::optional<TTID> TT = parseTapirTargetIfValid(Args)) {
+  if (std::optional<TTID> TT = parseTTIfValid(Args)) {
     CmdArgs.push_back(Args.MakeArgString(join_items(
         "", "--lto-O", std::to_string(getSpeedupLevel(Args, D.getDiags())))));
     PushLastArg(CmdArgs, Args, true, options::OPT_tapir_EQ);

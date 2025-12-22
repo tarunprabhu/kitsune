@@ -297,6 +297,18 @@ if (NOT KITSUNE_PACKAGE_VERSION)
     "${KITSUNE_VERSION_MAJOR}.${KITSUNE_VERSION_MINOR}.${KITSUNE_VERSION_PATCH}${KITSUNE_VERSION_SUFFIX}")
 endif()
 
+set(KITSUNE_CONFIG_FILE_USER_DIR "" CACHE STRING
+  "Default value of the --config-user-dir command-line option")
+if (KITSUNE_CONFIG_FILE_USER_DIR)
+  set(CLANG_CONFIG_FILE_USER_DIR "${KITSUNE_CONFIG_FILE_USER_DIR}")
+endif ()
+
+set(KITSUNE_CONFIG_FILE_SYSTEM_DIR "" CACHE STRING
+  "Default value of the --config-system-dir command-line option")
+if (KITSUNE_CONFIG_FILE_SYSTEM_DIR)
+  set(CLANG_CONFIG_FILE_SYSTEM_DIR "${KITSUNE_CONFIG_FILE_SYSTEM_DIR}")
+endif ()
+
 set(KITSUNE_CUDA_PREFIX "" CACHE STRING
   "Path to the cuda installation to use with the cuda tapir target")
 
