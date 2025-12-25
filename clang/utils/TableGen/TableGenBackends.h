@@ -199,6 +199,8 @@ void EmitClangDataCollectors(const llvm::RecordKeeper &Records,
 void EmitTestPragmaAttributeSupportedAttributes(
     const llvm::RecordKeeper &Records, llvm::raw_ostream &OS);
 
+void EmitKitsuneAttrDocs(const llvm::RecordKeeper &Records,
+                         llvm::raw_ostream &OS);
 void EmitKitsuneOptDocs(const llvm::RecordKeeper &Records,
                         llvm::raw_ostream &OS);
 

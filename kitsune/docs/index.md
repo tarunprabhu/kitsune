@@ -25,6 +25,7 @@ and may never be, comprehensive.
     GettingStarted
     BasicUsage
     LanguageExtensions
+    KitAttrDoc
     MemoryManagement
     FortranSupport
     KokkosSupport

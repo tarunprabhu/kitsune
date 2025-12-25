@@ -5505,4 +5505,77 @@ void EmitTestPragmaAttributeSupportedAttributes(const RecordKeeper &Records,
   OS << "End of supported attributes.\n";
 }
 
+void EmitKitsuneAttrDocs(const RecordKeeper &Records, raw_ostream &OS) {
+  // Get the documentation introduction paragraph. This intentionally uses a
+  // different name. Because of the way clang's documentation is organized, we
+  // end up with clang's introduction paragraph at all times. Since that cannot
+  // be overridden, we have to create our own with a different name.
+  const Record *Documentation = Records.getDef("GlobalDocumentationOverride");
+  if (!Documentation) {
+    PrintFatalError("The Documentation top-level definition is missing, "
+                    "no documentation will be generated.");
+    return;
+  }
+  OS << Documentation->getValueAsString("Intro") << "\n";
+
+  // Gather the documentation list from each of the attributes, grouped by
+  // the category. Unlike clang's attribute documentation, we do not expect the
+  // documentation to appear in multiple places, so there is no need to merge
+  // categories. We also do not deal with undocumented attributes since we
+  // expect all Kitsune attributes to be properly documented.
+  std::map<const Record *, std::vector<DocumentationData>> GroupedDocs;
+  for (const Record *Attr : Records.getAllDerivedDefinitions("Attr")) {
+    std::vector<const Record *> Docs =
+        Attr->getValueAsListOfDefs("Documentation");
+
+    for (const Record *Doc : Docs) {
+      const Record *Category = Doc->getValueAsDef("Category");
+
+      // All Kitsune attributes must have the IsKitsune field. This should be
+      // the case provided that the user has inherited from the
+      // KitsuneDocumentation class instead of the Documentation class in the
+      // .td file. We do not check the value of the string because it is a bit
+      // far-fetched to imagine that someone has gone to the trouble of setting
+      // IsKitsune to something other than "true".
+      if (!Doc->getValueAsOptionalString("IsKitsune").has_value())
+        continue;
+
+      // Unlike undocumented attributes, Kitsune may contain InternalOnly
+      // attributes. In this case, there cannot be any other documentation
+      // categories.
+      StringRef Cat = Category->getValueAsString("Name");
+      if (Cat == "InternalOnly") {
+        if (Docs.size() > 1)
+          PrintFatalError(Doc->getLoc(),
+                          "Attribute is \"InternalOnly\", but has multiple "
+                          "documentation categories");
+        continue;
+      }
+
+      GroupedDocs[Category].emplace_back(
+          *Doc, *Attr, GetAttributeHeadingAndSpellings(*Doc, *Attr, Cat));
+    }
+  }
+
+  // Before we write the documentation, we must sort the categories and also
+  // the documentation within each of the categories.
+  std::vector<const Record *> Categories;
+  for (auto &I : GroupedDocs) {
+    Categories.push_back(I.first);
+    sort(I.second, [](const DocumentationData &L, const DocumentationData &R) {
+      return L.Heading < R.Heading;
+    });
+  }
+  sort(Categories, [](const Record *L, const Record *R) {
+    return L->getValueAsString("Name") < R->getValueAsString("Name");
+  });
+
+  // Now, we can write everything out.
+  for (const Record* Category : Categories) {
+    WriteCategoryHeader(Category, OS);
+    for (const DocumentationData &Doc : GroupedDocs[Category])
+      WriteDocumentation(Records, Doc, OS);
+  }
+}
+
 } // end namespace clang

@@ -6,7 +6,17 @@ set_target_properties(kitsune-doc PROPERTIES FOLDER "Kitsune/Docs")
 add_custom_target(kitsune-docs)
 add_dependencies(kitsune-docs kitsune-doc)
 
-function (gen_rst_from_td rst td target)
+function (gen_attrs_rst rst td target)
+  get_filename_component(TABLEGEN_INCLUDE_DIR ${td} DIRECTORY)
+  list(APPEND LLVM_TABLEGEN_FLAGS "-I${TABLEGEN_INCLUDE_DIR}")
+  list(APPEND LLVM_TABLEGEN_FLAGS
+    "-I${CMAKE_CURRENT_SOURCE_DIR}/../../clang/include/")
+  clang_tablegen(${rst} -gen-kitsune-attr-docs
+    SOURCE ${td}
+    TARGET ${target})
+endfunction()
+
+function (gen_options_rst rst td target)
   get_filename_component(TABLEGEN_INCLUDE_DIR ${td} DIRECTORY)
   list(APPEND LLVM_TABLEGEN_FLAGS "-I${TABLEGEN_INCLUDE_DIR}")
   list(APPEND LLVM_TABLEGEN_FLAGS
@@ -83,7 +93,7 @@ if (KITSUNE_ENABLE_DOXYGEN)
   add_dependencies(kitsune-docs-doxygen doxygen-kitsune)
 
   # We install the API documentation together with the rest of the HTML
-  # documentation. This is not what the other LLVM subprojects do. But 
+  # documentation. This is not what the other LLVM subprojects do. However,
   # self-contained documentation is more important for us than compatibility
   # with LLVM in this case.
   if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
@@ -160,12 +170,16 @@ if (KITSUNE_ENABLE_SPHINX)
       add_sphinx_target(html kitsune SOURCE_DIR "${HTML_DIR}"
         ENV_VARS "${ENV_VARS}")
 
-      gen_rst_from_td(${HTML_DIR}/KitClangOptionsDoc.rst
+      gen_attrs_rst(${HTML_DIR}/KitAttrDoc.rst
+        ${CMAKE_CURRENT_SOURCE_DIR}/KitAttrDoc.td
+        kit-attrs-doc)
+
+      gen_options_rst(${HTML_DIR}/KitClangOptionsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitClangOptionsDoc.td
         kit-clang-options-doc)
       add_dependencies(kit-clang-options-doc kitsune-html-dir)
 
-      gen_rst_from_td(${HTML_DIR}/KitFlangOptionsDoc.rst
+      gen_options_rst(${HTML_DIR}/KitFlangOptionsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitFlangOptionsDoc.td
         kit-flang-options-doc)
       add_dependencies(kit-flang-options-doc kitsune-html-dir)
@@ -190,6 +204,7 @@ if (KITSUNE_ENABLE_SPHINX)
         DEPENDS kitsune-html-dir)
 
       add_dependencies(docs-kitsune-html
+        kit-attrs-doc
         kit-clang-options-doc
         kit-flang-options-doc
         copy-html-inputs)
@@ -238,12 +253,12 @@ if (KITSUNE_ENABLE_SPHINX)
       add_sphinx_target(man kitsune SOURCE_DIR "${MAN_DIR}"
         ENV_VARS "${ENV_VARS}")
 
-      gen_rst_from_td(${MAN_DIR}/KitClangOptionsMan.rst
+      gen_options_rst(${MAN_DIR}/KitClangOptionsMan.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitClangOptionsMan.td
         kit-clang-options-man)
       add_dependencies(kit-clang-options-man kitsune-man-dir)
 
-      gen_rst_from_td(${MAN_DIR}/KitFlangOptionsMan.rst
+      gen_options_rst(${MAN_DIR}/KitFlangOptionsMan.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitFlangOptionsMan.td
         kit-flang-options-man)
       add_dependencies(kit-flang-options-man kitsune-man-dir)
