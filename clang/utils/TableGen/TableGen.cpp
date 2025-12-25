@@ -125,9 +125,10 @@ enum ActionType {
   GenBuiltinDocs,
   GenDiagDocs,
   GenOptDocs,
-  GenKitsuneOptDocs,
   GenDataCollectors,
-  GenTestPragmaAttributeSupportedAttributes
+  GenTestPragmaAttributeSupportedAttributes,
+  GenKitsuneAttrDocs,
+  GenKitsuneOptDocs,
 };
 
 namespace {
@@ -366,14 +367,16 @@ cl::opt<ActionType> Action(
         clEnumValN(GenDiagDocs, "gen-diag-docs",
                    "Generate diagnostic documentation"),
         clEnumValN(GenOptDocs, "gen-opt-docs", "Generate option documentation"),
-        clEnumValN(GenKitsuneOptDocs, "gen-kitsune-opt-docs",
-                   "Generate Kitsune option documentation"),
         clEnumValN(GenDataCollectors, "gen-clang-data-collectors",
                    "Generate data collectors for AST nodes"),
         clEnumValN(GenTestPragmaAttributeSupportedAttributes,
                    "gen-clang-test-pragma-attribute-supported-attributes",
                    "Generate a list of attributes supported by #pragma clang "
-                   "attribute for testing purposes")));
+                   "attribute for testing purposes"),
+        clEnumValN(GenKitsuneAttrDocs, "gen-kitsune-attr-docs",
+                   "Generate Kitsune attribute documentation"),
+        clEnumValN(GenKitsuneOptDocs, "gen-kitsune-opt-docs",
+                   "Generate Kitsune option documentation")));
 
 cl::opt<std::string>
 ClangComponent("clang-component",
@@ -690,14 +693,17 @@ bool ClangTableGenMain(raw_ostream &OS, const RecordKeeper &Records) {
   case GenOptDocs:
     EmitClangOptDocs(Records, OS);
     break;
-  case GenKitsuneOptDocs:
-    EmitKitsuneOptDocs(Records, OS);
-    break;
   case GenDataCollectors:
     EmitClangDataCollectors(Records, OS);
     break;
   case GenTestPragmaAttributeSupportedAttributes:
     EmitTestPragmaAttributeSupportedAttributes(Records, OS);
+    break;
+  case GenKitsuneAttrDocs:
+    EmitKitsuneAttrDocs(Records, OS);
+    break;
+  case GenKitsuneOptDocs:
+    EmitKitsuneOptDocs(Records, OS);
     break;
   }
 
