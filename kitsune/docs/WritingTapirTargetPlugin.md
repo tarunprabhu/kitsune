@@ -152,7 +152,7 @@ by the entry point.
 - The third field is a string and is the plugin version. This is only meaningful
   in the context of the plugin itself. Kitsune's does not, currently, examine
   the version. To reduce the risk of issues should Kitsune example this version
-  in the future, we recommend that the version adhering to the
+  in the future, we recommend adhering to the
   [semantic versioning specification](https://semver.org/).
 
 - The fourth field is a callback that creates and returns an instance of the
@@ -196,8 +196,7 @@ by the entry point.
 
 ## Building with CMake
 
-Building a tapir target plugin is fairly straightforward. A very simple,
-minimal `CMakeLists.txt` file to build a tapir target plugin is shown below
+A minimal `CMakeLists.txt` file to build a tapir target plugin is shown below.
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
@@ -250,7 +249,7 @@ load-time.
 If using a `CMakeLists.txt` file such as the one above, the plugin can be
 configured as follows
 
-```
+```shell
 cmake -DCMAKE_C_COMPILER=/path/to/prefix/bin/kitcc \
       -DCMAKE_CXX_COMPILER=/path/to/prefix/bin/kit++ \
       -DCMAKE_PREFIX_PATH='/path/to/prefix/lib/cmake/kitsune;/path/to/prefix/lib/cmake/llvm'
@@ -261,13 +260,12 @@ Here, `/path/to/prefix` is the path to the directory where Kitsune is
 installed. If you have built Kitsune from source, you may also replace
 `/path/to/prefix` with the path to the top-level build directory.
 
-Here, we have used `kit++` i.e. Kitsune's C++ frontend to compile the plugin.
+We have used `kit++` i.e. Kitsune's C++ frontend to compile the plugin.
 This is **_not_** strictly necessary. You could also use `clang++` from the
-Kitsune installation, or the C++ compiler that was used to build Kitsune itself,
-as long as that compiler is either GCC or Clang. This is because when handling
-the `LLVM_ENABLE_RTTI`, we assume that the compiler is either GCC or Clang.
-Using a different compiler here may work, but this has not been tested and is
-not recommended.
+Kitsune installation, or the C++ compiler that was used to build Kitsune itself.
+Note that when determining the RTTI option to add (by examining
+`LLVM_ENABLE_RTTI`), we assume that the compiler is either GCC or Clang.
+Using a different compiler here may work, but this has not been tested.
 
 In the configuration command above, we have also provided two paths to
 `CMAKE_PREFIX_PATH`. These are paths to directories containing
@@ -278,10 +276,10 @@ paths are not in cmake's default search path.
 
 The `CMakeLists.txt` file provided above is only provided as an example. You
 are not required to use [cmake](https://cmake.org) to build a tapir target
-plugin. Any other build system may be used. For single-file plugins, it may be
-convenient to just build it by hand as shown below
+plugin. For single-file plugins, it may be convenient to just build it by hand
+as shown below.
 
-```
+```shell
 kit++ $(/path/to/prefix/bin/llvm-config --cppflags) \
       -fno-rtti \
       -shared -O1 -o CustomTT.so CustomTT.cpp
@@ -290,7 +288,7 @@ kit++ $(/path/to/prefix/bin/llvm-config --cppflags) \
 Here, the invocation of
 [llvm-config](https://llvm.org/docs/CommandGuide/llvm-config.html)
 will return the preprocessor options
-required to compile code that includes llvm headers. This includes the path to
+required to compile code that includes LLVM headers. This includes the path to
 the top-level include directory. You may also consider using the `--cxxflags`
 option which will also set the minimum C++ version required by LLVM.
 
@@ -309,7 +307,7 @@ compilng manually.
 
 The plugin can be used with a Kitsune driver and also with LLVM's `opt` tool.
 
-```
+```shell
 kit++ --tapir=custom --tapir-plugin=/path/to/plugin.so ...
 ```
 
@@ -318,7 +316,7 @@ Note that the plugin can **_only_** be used with the
 other tapir target - or failing to provide the `--tapir=` option will result in
 an error.
 
-```
+```shell
 opt --tapir=custom --tapir-plugin=/path/to/plugin.so ...
 ```
 
