@@ -95,6 +95,7 @@ and may never be, comprehensive.
 # Indices and tables
 
 ```{eval-rst}
+* :doc:`Glossary`
 * :ref:`genindex`
 * :ref:`search`
 ```
