@@ -25,7 +25,6 @@ and may never be, comprehensive.
     GettingStarted
     BasicUsage
     LanguageExtensions
-    KitAttrDoc
     MemoryManagement
     FortranSupport
     KokkosSupport
@@ -33,7 +32,8 @@ and may never be, comprehensive.
     ConfigurationFiles
     StaticLinking
 ```
-# Command-Line Reference
+
+# References
 
 ```{eval-rst}
 .. toctree::
@@ -41,7 +41,12 @@ and may never be, comprehensive.
 
     KitClangOptionsDoc
     KitFlangOptionsDoc
+    API Reference<doxygen/index.md>
+    KitAttrDoc
+    KitLLVMAttrDoc
+    KitIntrinsicDoc
     CommandGuide/index.md
+    Glossary
 ```
 
 # Design Documents
@@ -58,13 +63,6 @@ and may never be, comprehensive.
 ```
 
 # Developer Guides
-
-```{eval-rst}
-.. toctree::
-    :titlesonly:
-
-    API Reference (Doxygen)<doxygen/index.md>
-```
 
 ```{eval-rst}
 .. toctree::
@@ -92,10 +90,9 @@ and may never be, comprehensive.
     ReleaseNotes
 ```
 
-# Indices and tables
+# Indices
 
 ```{eval-rst}
-* :doc:`Glossary`
 * :ref:`genindex`
 * :ref:`search`
 ```

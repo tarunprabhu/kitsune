@@ -67,6 +67,31 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 (glossary-d)=
 ## D
 
+(glossary-device)=
+**device**
+: In the context of GPU-centric [tapir targets](glossary-tapir-target), the
+  device typically refers to a GPU. In principle, it could be used to refer to
+  any accelerator, though, at the time of writing, Kitsune only supports GPUs
+  as accelerators.
+
+(glossary-device-code)=
+**device code**
+: Machine code for an accelerator, typically a GPU. This term is usually used in
+  the context of "embedded device code". This is where a code generation pass
+  generates device code and sets it as the initializer of a global variable
+  in [LLVM-IR](glossary-llvm-ir). When this is compiled to an object file, the
+  device code will be "embedded" in the [host](glossary-host) machine code.
+  The name of the global variable will become the name of a symbol that can be
+  used by Kitsune's runtime to retrieve this device code.
+
+(glossary-device-function)=
+**device function**
+: A function that can only run on an accelerator - typically a GPU.
+  Device functions can only be called by
+  [kernel functions](glossary-kernel-function), or by other device functions.
+  They are almost always
+  private to a [device module](glossary-device-module).
+
 (glossary-device-module)=
 **device module**
 : An LLVM [module](glossary-module) from which accelerator code is generated.
@@ -94,6 +119,17 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 : The serialized [LLVM bitcode](glossary-bitcode) representation of a
   [device module](glossary-device-module) that is stored as the initializer of
   a global variable in a [host module](glossary-host-module).
+  [This document](EmbeddedBitcode.md) contains more information about the
+  design, implementation and use of embedded bitcode in Kitsune.
+
+(glossary-embedded-bitcode-pass)=
+**embedded bitcode pass**
+: Unlike other [LLVM passes](glossary-pass), these are passes that operate
+  exclusively on embedded bitcode. The only change that they will make in the
+  [host module](glossary-host-module) is a change to the initializer of the
+  global variable containing the embedded bitcode.
+  [This document](EmbeddedBitcode.md) contains more information about the
+  design, implementation and use of embedded bitcode in Kitsune.
 
 <!----------------------------------------------------------------------------->
 
@@ -119,6 +155,11 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 (glossary-h)=
 ## H
 
+(glossary-host)=
+**host**
+: In GPU-centric [tapir targets](glossary-tapir-target), the host typically
+  refers to the primary execution unit, that is, the CPU.
+
 (glossary-host-module)=
 **host module**
 : The LLVM [module](glossary-module) from which code that will run on the main
@@ -143,6 +184,24 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 <!----------------------------------------------------------------------------->
 
 (glossary-l)=
+
+(glossary-k)=
+## K
+
+(glossary-kernel-function)=
+**kernel function**
+: A function that can only run on an accelerator - typically a GPU. They can
+  only be called from a function that is already executing on the
+  [host](glossary-host). In other words, they are "launched" by the host to
+  run on a [device](glossary-device). They can neither be called by
+  [device functions](glossary-device-function), nor by other kernel functions.
+  They are usually generated from the body of a
+  [tapir loop](glossary-tapir-loop).
+
+(glossary-kernel-module)=
+**kernel module**
+: Synonym for a [device module](glossary-device-module).
+
 ## L
 
 (glossary-legacy-pass)=
@@ -157,6 +216,14 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   LLVM's [middle-end](glossary-middle-end).
   Currently, this is only used by the [codegen](glossary-codegen)
   [pipeline](glossary-pass-pipeline) in LLVM's [back-end](glossary-back-end).
+
+(glossary-libdevice-bitcode-file)=
+**libdevice bitcode file**
+: Both NVIDIA and AMD provide definitions of library functions, such as the C
+  standard [mathematical functions](https://www.sourceware.org/newlib/libm.html)
+  as [bitcode](glossary-bitcode) files that are to be linked into
+  [LLVM-IR](glossary-llvm-ir) that is being compiled for the corresponding GPU.
+  These files are referred to as "libdevice bitcode files".
 
 (glossary-llvm-assembly)=
 **LLVM assembly**
@@ -317,7 +384,9 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   execute efficiently on a GPU. Others, such as
   [opencilk](tapir-targets-opencilk)
   insert appropriate API calls, in this case to the
-  [OpenCilk runtime](https://github.com/OpenCilk/cheetah).
+  [OpenCilk runtime](https://github.com/OpenCilk/cheetah). For more information,
+  see the [general overview of Kitsune](Overview.md) and the document describing
+  the [supported tapir targets](TapirTargets.md).
 
 (glossary-transformation-pass)=
 **transformation pass**
