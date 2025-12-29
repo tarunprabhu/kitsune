@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 # Limitations
 
 This describes some of the limitations of Kitsune both in terms of the language

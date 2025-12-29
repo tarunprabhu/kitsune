@@ -28,7 +28,6 @@ and may never be, comprehensive.
     MemoryManagement
     FortranSupport
     KokkosSupport
-    Limitations
     ConfigurationFiles
     StaticLinking
 ```
