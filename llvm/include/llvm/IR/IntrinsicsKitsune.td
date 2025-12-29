@@ -129,8 +129,6 @@ def int_kit_async_prefetch_htod
 //   - The Tapir target(s) that are enabled
 //   - The uses of the buffer
 //
-// TODO: This should eventually return a pointer in a specific address space.
-// This may require the returned type to be replaced with an
 // LLVMQualPointerType.
 def int_kit_mobile_alloc
     : Intrinsic<[llvm_mobile_ptr_ty], [llvm_i64_ty],
@@ -158,6 +156,9 @@ def int_kit_enable_refine_launches
                  IntrInaccessibleMemOnly, IntrHasSideEffects]>;
 
 // Call a function in kitsune's runtime that enables verbose mode.
+// FIXME: This should take a tapir target that determines which of Kitsune's
+// runtimes to set in verbose mode. This will make the signature of this
+// intrinsic consistent with the others.
 def int_kit_enable_verbose
     : Intrinsic<[],
                 [llvm_i8_ty], // Non-zero to enable verbose mode, zero otherwise
@@ -166,6 +167,9 @@ def int_kit_enable_verbose
 
 // Enable xnack in the runtime. This is only relevant for the hip tapir target
 // and its associated kitsune runtime.
+// FIXME: This should take a tapir target that determines which of Kitsune's
+// runtimes to set in verbose mode. This will make the signature of this
+// intrinsic consistent with the others.
 def int_kit_enable_xnack
     : Intrinsic<[],
                 [llvm_i8_ty], // Non-zero to enable xnack, zero otherwise
