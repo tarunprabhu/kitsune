@@ -95,7 +95,7 @@ for key in [
 ]:
     v = getenv(key.upper())
     if not v:
-        v = ''
+        v = ""
     myst_substitutions[key] = v.replace(" ", ";")
     myst_substitutions[key + "_list"] = v.replace(" ", ", ")
     myst_substitutions[key + "_alternatives"] = v.replace(" ", " | ")
@@ -347,6 +347,24 @@ git clone  --single-branch --branch {getenv('KITSUNE_REPO_BRANCH')} --depth 1 ht
 ```"""
 
 
+# Load a pygments module
+def load_pygments_module(base):
+    spec = spec_from_file_location(
+        base,
+        path.join(
+            getenv("CMAKE_SOURCE_DIR"),
+            "kitsune",
+            "utils",
+            "pygments",
+            f"{base}.py",
+        ),
+    )
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    return module
+
+
 # This can be treated as its own sphinx extension. setup() will be called by
 # sphinx. In it, register a function to be called when the configuration has
 # been initialized. The configuration will contain the values of the -D options
@@ -355,19 +373,12 @@ git clone  --single-branch --branch {getenv('KITSUNE_REPO_BRANCH')} --depth 1 ht
 # See llvm/cmake/modules/AddSphinxTarget.cmake for details on how sphinx-build
 # is invoked.
 def setup(app):
-    kitll_spec = spec_from_file_location(
-        "kitsune_llvm_lexer",
-        path.join(
-            getenv("CMAKE_SOURCE_DIR"),
-            "kitsune",
-            "utils",
-            "pygments",
-            "kitsune_llvm_lexer.py",
-        ),
-    )
-    kitll = module_from_spec(kitll_spec)
-    kitll_spec.loader.exec_module(kitll)
-    app.add_lexer("kitll", kitll.KitsuneLLVMLexer)
+    module = load_pygments_module("kitsune_llvm_lexer")
+    app.add_lexer("kitll", module.KitsuneLLVMLexer)
+
+    module = load_pygments_module("kitsune_c_cpp_lexer")
+    app.add_lexer("kitc", module.KitsuneCFamilyLexer)
+    app.add_lexer("kit++", module.KitsuneCFamilyLexer)
 
     theme_dir = path.join(path.dirname(__file__), "_themes")
     app.add_html_theme("kitsune-theme", path.join(theme_dir, "kitsune-theme"))
