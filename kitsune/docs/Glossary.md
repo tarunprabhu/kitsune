@@ -27,6 +27,10 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   [vectorization passes](https://llvm.org/docs/Vectorizers.html)
   to check if it is safe to vectorize.
 
+(glossary-asynchronous-intrinsic)
+**asynchronous intrinsic**
+: Same as [non-blocking intrinsic](glossary-non-blocking-intrinsic).
+
 <!----------------------------------------------------------------------------->
 
 (glossary-b)=
@@ -149,6 +153,16 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 (glossary-frontend)=
 **frontend**:
 : See [frontend-end](glossary-front-end)
+
+<!----------------------------------------------------------------------------->
+
+(glossary-g)=
+## G
+
+(glossary-grain-size)=
+**grain size**
+: TODO: Explain how grain size works. Some tapir targets ignore it altogether,
+  others always set it to 1, etc.
 
 <!----------------------------------------------------------------------------->
 
@@ -279,6 +293,13 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   [in LLVM](https://llvm.org/docs/NewPassManager.html) that schedules and
   runs the [middle-end](glossary-middle-end) passes that operate on
   [LLVM-IR](glossary-llvm-ir).
+
+(glossary-non-blocking-intrinsic)=
+**non-blocking intrinsic**
+: An intrinsic function that returns before the operation that it has performed
+  has been completed. The operation will continue in the background. Such
+  intrinsics will typically a (possibly opaque) context object that can be
+  waited on by other intrinsics.
 
 <!----------------------------------------------------------------------------->
 
