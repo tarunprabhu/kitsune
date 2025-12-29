@@ -16,6 +16,18 @@ TODO: Describe Kitsune's extensions to C/C++. Alternative (or perhaps, in
 addition to this), link to the documentation pages generated from the code
 documentation
 
+(extensions-cxx-forall)=
+### forall
+
+(extensions-cxx-forall-syntax)=
+#### Syntax
+
+(extensions-cxx-forall-semantics)=
+#### Semantics
+
+(extensions-cxx-forall-limitations)=
+#### Limitations
+
 ## Fortran Extensions
 
 TODO: Describe extensions to Fortran.
