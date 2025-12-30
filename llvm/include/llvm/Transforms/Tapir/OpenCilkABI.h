@@ -24,6 +24,8 @@ class TapirLoopInfo;
 class TTOptions;
 class Value;
 
+/// Tapir target that lowers a tapir loop to use OpenCilk's runtime.
+/// \ingroup kitsune
 class OpenCilkABI final : public TapirTarget {
   ValueToValueMapTy DetachCtxToStackFrame;
   SmallPtrSet<Function *, 8> Processed;

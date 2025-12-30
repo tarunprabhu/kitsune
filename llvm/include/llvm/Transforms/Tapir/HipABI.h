@@ -69,6 +69,7 @@ class TTOptions;
 
 /// The tapir target to lower tapir loops to kitsune's hip runtime. The tapir
 /// loops will be converted to GPU kernels.
+/// \ingroup kitsune
 class HipABI : public TapirTarget {
 public:
   HipABI(Module &HostM, const TTOptions &TTO);
@@ -148,6 +149,7 @@ private:
 
 /// The loop outline process for transforming a Tapir parallel loop into a
 /// hip kernel function.
+/// \ingroup kitsune
 class HipLoop : public LoopOutlineProcessor {
 public:
   /// @brief Build the HipLoop outline processor.

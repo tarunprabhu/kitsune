@@ -34,6 +34,7 @@ if (KITSUNE_ENABLE_DOXYGEN)
   # doxygen.cfg.in.
   set(abs_srcdir ${CMAKE_CURRENT_SOURCE_DIR})
   set(abs_builddir ${CMAKE_CURRENT_BINARY_DIR})
+  set(tapir_incdir ${CMAKE_SOURCE_DIR}/include/llvm/Transforms/Tapir)
   if (LLVM_DOXYGEN_EXTERNAL_SEARCH)
     set(enable_searchengine "YES")
     set(searchengine_url "${LLVM_DOXYGEN_SEARCHENGINE_URL}")

@@ -20,6 +20,10 @@ namespace llvm {
 
 class TTOptions;
 
+/// Tapir target that lowers a tapir loop such that the iterations execute in
+/// order serially. Essentially, this converts a parallel loop back to a serial
+/// loop.
+/// \ingroup kitsune
 class SerialABI : public TapirTarget {
 public:
   SerialABI(Module &M, const TTOptions &opts);

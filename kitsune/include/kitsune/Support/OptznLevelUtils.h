@@ -31,8 +31,8 @@ unsigned getSpeedupLevel(OptznLevel optLevel);
 /// optimized for size.
 unsigned getSizeLevel(OptznLevel optLevel);
 
-/// Create an OptznLevel from the given speedup and size levels. \ref
-/// speedupLevel must be in [0,3]. \ref sizeLevel must be in [0,2]. It is an
+/// Create an OptznLevel from the given speedup and size levels.
+/// \p speedupLevel must be in [0,3]. \p sizeLevel must be in [0,2]. It is an
 /// error if either of these values is outside the allowed range.
 OptznLevel createOptznLevelFrom(unsigned speedupLevel, unsigned sizeLevel = 0);
 

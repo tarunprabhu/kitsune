@@ -238,7 +238,7 @@ public:
   StringRef getOpenCilkRuntimeBCFile() const { return openCilkRuntimeBCFile; }
   /// @}
 
-  /// Print the options object to the given output stream. If \ref all is true,
+  /// Print the options object to the given output stream. If \p all is true,
   /// all the options will be printed, otherwise only those options relevant to
   /// the primary tapir target will be printed.
   void print(llvm::raw_ostream &os, bool all = false) const;
@@ -267,8 +267,8 @@ public:
   static std::optional<TTOptions> createFromCommandLine(unsigned speedupLevel);
 
   /// Construct an options object initialized from the command line options
-  /// with the given optimization level. \ref optLevel must be one of {0, 1, 2,
-  /// 3, s, z}. It is an error if \ref optLevel is not one of these. If the
+  /// with the given optimization level. \p optLevel must be one of {0, 1, 2,
+  /// 3, s, z}. It is an error if \p optLevel is not one of these. If the
   /// --tapir option is not provided, return std::nullopt.
   static std::optional<TTOptions> createFromCommandLine(char optLevel);
 };

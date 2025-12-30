@@ -22,11 +22,12 @@ namespace llvm {
 
 class TTOptions;
 
+/// \ingroup kitsune
 class PthreadsLoop : public LoopOutlineProcessor {
 public:
   /// Create a loop outline processor for the pthreads tapir target.
-  /// \param M The host module
-  /// \param TTOpts The tapir target options
+  /// \param m The host module
+  /// \param ttOpts The tapir target options
   PthreadsLoop(Module &m, const TTOptions &ttOpts);
   ~PthreadsLoop();
 
@@ -34,11 +35,14 @@ public:
   /// underlying task of a tapir loop should be passed to the task.
   ArgStructMode getArgStructMode() const override final;
 
-  /// Processes a call to an outlined helper function for a tapir loop \ref tl.
+  /// Processes a call to an outlined helper function for a tapir loop \p tl.
   void processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
                                DominatorTree &dt) override final;
 };
 
+/// Tapir target that splits the iterations of tapir loops across a number of
+/// POSIX threads.
+/// \ingroup kitsune
 class PthreadsTT : public TapirTarget {
 public:
   PthreadsTT(Module &m, const TTOptions &ttOpts);
@@ -46,7 +50,7 @@ public:
 
   /// Lower a call to the tapir.loop.grainsize intrinsic into a grainsize
   /// (coarsening) value.
-  Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
+  Value *lowerGrainsizeCall(CallInst *call) override final;
 
   /// Lower a Tapir sync instruction \p si.
   void lowerSync(SyncInst &si) override final;

@@ -42,11 +42,11 @@
 // to be compiled with another compiler and maintain "reasonable" behavior.
 #ifndef __kitsune__
 
-/// Allocate n bytes in a mobile buffer. In Kitsune, this is a builtin that is
-/// replaced with a suitable memory allocation function depending on the tapir
-/// target(s) used. This is here if the code is not compiled with Kitsune, and
-/// simply calls the system's default memory allocator (malloc).
-/// \param  n The number of bytes to allocate.
+/// Allocate \p bytes bytes in a mobile buffer. In Kitsune, this is a builtin
+/// that is replaced with a suitable memory allocation function depending on the
+/// tapir target(s) used. This is here if the code is not compiled with Kitsune,
+/// and simply calls the system's default memory allocator (malloc).
+/// \param bytes The number of bytes to allocate.
 /// \return The pointer ointer to the allocated buffer.
 EXTERN_C inline void *__attribute__((malloc))
 kitsune_mobile_alloc(size_t bytes) {

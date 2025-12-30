@@ -54,10 +54,10 @@ class NamedMDNode;
 ///
 ///       is the module identifier as obtained by calling Module::getName()
 ///
-/// \param tt The tapir target that created the device module \ref m
+/// \param tt The tapir target that created the device module \p m
 /// \param m The module
-/// \returns The \ref NamedMDNode that was created or modified.
-NamedMDNode &addDeviceModuleMetadata(TTID id, Module &m);
+/// \returns The NamedMDNode that was created or modified.
+NamedMDNode &addDeviceModuleMetadata(TTID tt, Module &m);
 
 /// Check if the module has top-level Kitsune metadata.
 bool hasDeviceModuleMetadata(const Module &m);
