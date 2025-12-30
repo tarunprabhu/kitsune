@@ -121,7 +121,7 @@ std::optional<TTID> createTTIDFrom(StringRef s);
 
 /// The loop spawning strategy. For tapir targets that spawn tasks, this
 /// determines how the iteration space of the loop is split up across these
-/// tasks. In the case of the \ref DivideAndConquer strategy, for instance, the
+/// tasks. In the case of the DivideAndConquer strategy, for instance, the
 /// iteration space is recursively divided up across some number of tasks to be
 /// spawned. This also affects the loop outline processor that is used and
 /// whether or not the code in a tapir loop is outlined. Some tapir targets will

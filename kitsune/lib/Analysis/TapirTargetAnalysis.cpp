@@ -33,7 +33,7 @@ static cl::opt<bool>
               cl::Hidden, cl::cat(cl::catKitClOpts));
 
 /// Empty vector of tapir targets to be used when
-/// @ref TapirTargetInfo::getRequiredTTs is called with a function that does not
+/// TapirTargetInfo::getRequiredTTs is called with a function that does not
 /// contain any tapir loops.
 static const std::vector<TTID> noTTs;
 

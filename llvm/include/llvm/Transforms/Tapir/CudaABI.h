@@ -69,6 +69,7 @@ class TTOptions;
 
 /// The tapir target to lower tapir loops to kitsune's cuda runtime. The tapir
 /// loops will be converted to GPU kernels.
+/// \ingroup kitsune
 class CudaABI : public TapirTarget {
 public:
   CudaABI(Module &HostM, const TTOptions &TTO);
@@ -121,6 +122,7 @@ private:
 
 /// The loop outline process for transforming a Tapir parallel loop into a
 /// cuda kernel function.
+/// \ingroup kitsune
 class CudaLoop : public LoopOutlineProcessor {
 private:
   /// The name of the kernel into which the loop is outlined.
@@ -150,11 +152,11 @@ private:
 
 public:
   /// Create a loop outline processor for the cuda tapir target.
-  /// @param M The host module
-  /// @param KernelModule The module into which the device code will be outlined
-  /// @param KernelName The name of the function in the @ref KernelModule into
+  /// \param M The host module
+  /// \param KernelModule The module into which the device code will be outlined
+  /// \param KernelName The name of the function in the \p KernelModule into
   ///                   which the loop is outlined
-  /// @param TTOpts The tapir target options
+  /// \param TTOpts The tapir target options
   CudaLoop(Module &M, Module &KernelModule, const std::string &KernelName,
            const TTOptions &TTOpts);
   ~CudaLoop();

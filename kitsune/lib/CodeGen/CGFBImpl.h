@@ -30,15 +30,15 @@ namespace detail {
 
 /// Options to control code generation of the fat binaries. These are specific
 /// to the way the kit-cgfb pass operates. Target-specific options will be set
-/// in LLVM's \ref TargetOptions object from the \ref TTOptions.
+/// in LLVM's TargetOptions object from the \ref TTOptions.
 struct CGFBOptions {
   /// The optimization level to use with the target machine. This will be set to
-  /// the value in \ref TTOptions if the -cgfb-O<N> option is not
+  /// the value in \ref TTOptions if the -cgfb-O\<N\> option is not
   /// provided. If it is, that values takes precedence.
   CodeGenOptLevel cgOptLevel;
 
   /// The optimization level to use for ptxas. This will be set to the value in
-  /// TTOptions if the -cgfb-ptxas-O<N> option is not used. If it is,
+  /// TTOptions if the -cgfb-ptxas-O\<N\> option is not used. If it is,
   /// that value takes precedence.
   OptznLevel ptxasOptLevel;
 
@@ -51,13 +51,13 @@ struct CGFBOptions {
   /// printed to stderr.
   unsigned debugCommandLines : 1;
 
-  /// Print the \ref MCTargetOptions to stderr.
+  /// Print the MCTargetOptions to stderr.
   unsigned debugMCTargetOptions : 1;
 
-  /// Print some properties of the \ref TargetMachine to stderr.
+  /// Print some properties of the TargetMachine to stderr.
   unsigned debugTargetMachine : 1;
 
-  /// Print the \ref TargetOptions to stderr.
+  /// Print the TargetOptions to stderr.
   unsigned debugTargetOptions : 1;
 };
 
@@ -68,18 +68,18 @@ void debugTargetMachine(const TargetMachine &tm, raw_ostream &os);
 /// initializer of the given global variable.
 void embedFatBinary(ToolOutputFile &fatbinFile, GlobalVariable &g);
 
-/// Codegen a fat binary for NVIDIA GPU's. \ref gfb is the global variable into
-/// which the fat binary will be saved. \ref gbc is the global variable
+/// Codegen a fat binary for NVIDIA GPU's. \p gfb is the global variable into
+/// which the fat binary will be saved. \p gbc is the global variable
 /// containing the bitcode from which the fat binary will be generated. If
-/// \ref keepFiles is true, the intermediate files generated during the
+/// \p keepFiles is true, the intermediate files generated during the
 /// compilation process will not be deleted after use.
 bool cgfbCuda(GlobalVariable &gfb, const GlobalVariable &gbc,
               const TTOptions &tto, const CGFBOptions &cgfbOpts);
 
-/// Codegen a fat binary for AMD GPU's. \ref gfb is the global variable into
-/// which the fat binary will be saved. \ref gbc is the global variable
+/// Codegen a fat binary for AMD GPU's. \p gfb is the global variable into
+/// which the fat binary will be saved. \p gbc is the global variable
 /// containing the bitcode from which the fat binary will be generated. If
-/// \ref keepFiles is true, the intermediate files generated during the
+/// \p keepFiles is true, the intermediate files generated during the
 /// compilation process will not be deleted after use.
 bool cgfbHip(GlobalVariable &gfb, const GlobalVariable &gbc,
              const TTOptions &tto, const CGFBOptions &cgfbOpts);

@@ -28,7 +28,7 @@ namespace llvm {
 /// really why this class exists.
 ///
 /// The motivation for this is to avoid the inevitable circular dependences that
-/// are introduced if we use LLVM's \ref OptimizationLevel object. Instances of
+/// are introduced if we use LLVM's OptimizationLevel object. Instances of
 /// this class are defined in libLLVMPasses. That is "reasonable" in the case of
 /// LLVM since the frontends (clang, flang) don't use it for much and the
 /// middle-end only uses it to construct the pass pipeline. However, Kitsune

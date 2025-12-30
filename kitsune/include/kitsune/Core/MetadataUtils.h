@@ -29,13 +29,13 @@ class Metadata;
 /// a C++ type, e.g. uint32_t if the \tparam SrcType should be appear as a
 /// 32-bit integer in the constructed metadata node
 /// \tparam SrcTy The type of the value to be serialized in the loop metadata
-/// node. This is the type of \param val.
+/// node. This is the type of \p val.
 /// \param ctx The LLVM context object.
 /// \param name A string to use as the first operand of the MDNode that will be
 /// constructed. This will typically be of the form tapir.loop.*
 /// \param val The value to add as the second operand of the MDNode to be
 /// constructed. This is the actual value of the tapir loop metadata whose name
-/// is \param name.
+/// is \p name.
 template <typename DstTy, typename SrcTy>
 Metadata *makeTapirLoopMetadata(LLVMContext &ctx, StringRef name,
                                 const SrcTy &val);

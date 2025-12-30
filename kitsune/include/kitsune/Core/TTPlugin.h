@@ -31,20 +31,18 @@ class TTOptions;
 ///
 /// When a plugin is loaded, the driver will compare the plugin version that it
 /// with that of the plugin. A mismatch is an error. The supported version
-/// will be incremented for ABI-breaking changes to the \ref TTPluginInfo
+/// will be incremented for ABI-breaking changes to the TTPluginInfo
 /// struct, i.e. when callbacks, or any static informational fields are added,
 /// removed, or reordered.
 #define LLVM_TTPLUGIN_API_VERSION 1
-
-extern "C" {
 
 /// Information about a tapir target plugin.
 ///
 /// An instance of this is returned by the \ref llvmGetTTPluginInfo, the
 /// entry-point that all tapir target plugins are required to implement.
-struct TTPluginInfo {
-  /// The API version understood by this plugin, usually \c
-  /// LLVM_TTPLUGIN_API_VERSION
+extern "C" struct TTPluginInfo {
+  /// The API version understood by this plugin, usually
+  /// \c LLVM_TTPLUGIN_API_VERSION
   uint32_t apiVersion;
 
   /// The plugin name. This is only meaningful to plugin developers and users.
@@ -71,8 +69,6 @@ struct TTPluginInfo {
   /// options are required.
   SmallVector<std::string, 4> (*getLinkerOptions)();
 };
-
-} // extern "C"
 
 /// A loaded tapir target plugin.
 ///
@@ -161,7 +157,7 @@ public:
 /// }
 /// ```
 ///
-/// The example above simply constructs a \ref TTPluginInfo object and returns
+/// The example above simply constructs a TTPluginInfo object and returns
 /// it. In principle, though, the function definition can be arbitrarily
 /// complex and could be used to perform any additional setup that the plugin
 /// needs.

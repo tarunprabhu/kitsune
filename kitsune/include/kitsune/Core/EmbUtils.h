@@ -45,12 +45,12 @@ GlobalVariable *createEmbBCGlobal(const Module &devM, TTID tt, Module &hostM);
 /// LLVM bitcode and return the resulting LLVM module.
 std::unique_ptr<Module> parseEmbBCGlobal(const GlobalVariable &g);
 
-/// Get the global variable created by a previous call to @ref createEmbeddedBC
+/// Get the global variable created by a previous call to \ref createEmbBCGlobal
 /// with the given tapir target if one exists.
 GlobalVariable *getEmbBCGlobal(TTID tt, Module &m);
 
-/// Reset the initializer of the given global variable \ref g with the
-/// serialized bitcode of the given module. All uses of \ref g will be replaced
+/// Reset the initializer of the given global variable \p g with the
+/// serialized bitcode of the given module. All uses of \p g will be replaced
 /// with the newly created global. The old global will be erased from its parent
 /// module.
 ///
@@ -77,12 +77,12 @@ EmbModulesMapTy getEmbModules(const Module &m);
 /// @returns The newly created global variable
 GlobalVariable *createEmbFBGlobal(TTID tt, Module &m);
 
-/// Get the global variable created by a previous call to @ref createEmbFBGlobal
+/// Get the global variable created by a previous call to \ref createEmbFBGlobal
 /// with the given tapir target if one exists.
 GlobalVariable *getEmbFBGlobal(TTID tt, Module &m);
 
-/// Reset the initializer of the given global variable \ref g with the given
-/// bytes. All uses of \ref g will be replaced with the newly created global.
+/// Reset the initializer of the given global variable \p g with the given
+/// bytes. All uses of \p g will be replaced with the newly created global.
 /// The old global will be erased from its parent module.
 ///
 /// @param buf The buffer from which to create the global variable initializer

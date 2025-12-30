@@ -23,6 +23,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class BasicBlock;
 class Function;
 class GlobalValue;
@@ -30,18 +33,18 @@ class Loop;
 class Module;
 class TapirLoopInfo;
 
-/// Collect the GlobalValues used in a \ref BasicBlock.
+/// Collect the GlobalValues used in a BasicBlock.
 /// \param bb The basic block
 /// \param seen The set into which to collect the GlobalValue's
 void collectGlobalValues(llvm::BasicBlock &bb,
                          std::set<llvm::GlobalValue *> &seen);
 
-/// Collect the GlobalValues used in a \ref Function.
+/// Collect the GlobalValues used in a Function.
 /// \param f The function
 /// \param seen The set into which to collect the GlobalValue's
 void collectGlobalValues(Function &f, std::set<GlobalValue *> &seen);
 
-/// Get the GlobalValues used in a \ref Loop.
+/// Get the GlobalValues used in a Loop.
 /// \param loop The loop
 /// \param seen The set into which to collect the GlobalValue's
 void collectGlobalValues(Loop &loop, std::set<GlobalValue *> &seen);
@@ -52,7 +55,7 @@ void collectGlobalValues(Loop &loop, std::set<GlobalValue *> &seen);
 /// \param usedGlobalValues The global values used by the tapir loop
 /// \param vmap The ValueMap containing mappings for the global values that are
 ///             cloned into the device module
-/// \param asConstant Address space for constant global variables
+/// \param asConst Address space for constant global variables
 /// \param asNonConst Address space for non-constant global variables
 /// \param visConst Visibility of constant global variables
 /// \param visNonConst Visibility of non-constant global variables
@@ -109,6 +112,8 @@ void copyNonConstGlobalsDToH(const std::set<GlobalValue *> &gvs, TTID tt,
 /// tapir loop, from host to device before launching the kernel.
 void copyNonConstGlobalsHToD(const std::set<GlobalValue *> &gvs, TTID tt,
                              Module &m, IRBuilder<> &builder);
+
+/// @}
 
 } // namespace llvm
 
