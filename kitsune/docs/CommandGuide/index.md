@@ -1,4 +1,4 @@
-# Tools Reference
+# Tool Reference
 
 The pages listed here describe Kitsune-specific tools and utilities, how to
 use them, and their command-line options. They

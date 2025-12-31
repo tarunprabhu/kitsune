@@ -171,8 +171,8 @@ if (KITSUNE_ENABLE_SPHINX)
       add_sphinx_target(html kitsune SOURCE_DIR "${HTML_DIR}"
         ENV_VARS "${ENV_VARS}")
 
-      gen_attrs_rst(${HTML_DIR}/KitAttrDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitAttrDoc.td
+      gen_attrs_rst(${HTML_DIR}/KitAttrsDoc.rst
+        ${CMAKE_CURRENT_SOURCE_DIR}/KitAttrsDoc.td
         kit-attrs-doc)
 
       gen_options_rst(${HTML_DIR}/KitClangOptionsDoc.rst

@@ -42,9 +42,11 @@ and may never be, comprehensive.
     KitClangOptionsDoc
     KitFlangOptionsDoc
     API Reference<doxygen/index.md>
-    KitAttrDoc
-    KitLLVMAttrDoc
-    KitIntrinsicDoc
+    KitAttrsDoc
+    KitLLVMAttrsDoc
+    KitInstructionsDoc
+    KitIntrinsicsDoc
+    KitPassesDoc
     CommandGuide/index.md
     Glossary
 ```

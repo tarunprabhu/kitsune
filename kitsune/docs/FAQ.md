@@ -3,10 +3,15 @@
 The questions here have been raised on several occasions, so we address them
 here.
 
+
+(faq-difference-kitsune-tapir)=
 ## What is the difference between Kitsune and Tapir?
 
 Tapir is an extension to LLVM that allows fork-join parallelism to be exposed
-to LLVM's optimizer. Kitsune uses these extensions and adds
+to LLVM's optimizer. This extension adds some [instructions](Instructions.md)
+and [passes](Passes.md) to LLVM. It also includes modifications to the [standard
+LLVM passes](https://llvm.org/docs/Passes.html) to work correctly with these
+instructions. Kitsune builds on these extensions and adds a number of
 [tapir targets](glossary-tapir-target) for, most notably, NVIDIA
 ([cuda](tapir-targets-cuda)) and AMD ([hip](tapir-targets-hip)) GPUs and also
 other runtime systems ([pthreads](tapir-targets-pthreads)) [^1]. Kitsune's
@@ -26,6 +31,7 @@ begin with `--tapir-`, particularly when the option pertains to a tapir target.
 [here](unsupported-tapir-targets).
 
 
+(faq-terminology-consistency)=
 ## Why is the terminology in the source-level documentation not always consistent with the HTML documentation?
 
 The original architecture of Kitsune bears little resemblance to its current
@@ -39,6 +45,7 @@ comments and variable names to be consistent with this external documentation.
 That is being done, but it will take some time before it is completed.
 
 
+(faq-compiler-id)=
 ## Why does Kitsune identify itself as Clang?
 
 This is most noticeable when using Kitsune with [CMake](https://cmake.org). When
@@ -68,6 +75,7 @@ as "Clang" allows us to easily compile codes that use `cmake` without requiring
 us to also patch `cmake`.
 
 
+(faq-compiler-version)=
 ## What version of Kitsune am I actually using?
 
 Since Kitsune is research prototype, there have been no official "releases" as
@@ -87,6 +95,7 @@ will always be the major version of the LLVM release on which Kitsune has been
 built.
 
 
+(faq-language-support)=
 ## Can Kitsune be used with other languages?
 
 We have shown how this could be done in limited cases with languages such as

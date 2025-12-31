@@ -353,6 +353,13 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   as `opt`. A [meta pass](glossary-meta-pass) can be thought of as a "named"
   pass pipeline that can be explicitly run using `opt`.
 
+(glossary-pass-plugin)=
+**pass plugin**
+: A dynamic shared object containing [LLVM-IR](glossary-llvm-ir)
+  [passes](glossary-pass). A pass plugin can be used to add passes - developed
+  outside Kitsune - to the [pass pipeline](glossary-pass-pipeline) at
+  [use-time](glossary-use-time).
+
 (glossary-primary-tapir-target)=
 **primary tapir target**
 : This is the tapir target provided as the value of the `--tapir` command-line
@@ -432,3 +439,13 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 : A [tapir target](glossary-tapir-target) that is always enabled when Kitsune is
   built. This is the current list of universal tapir target:
   {{kitsune_guaranteed_tapir_targets_list}}
+
+(glosssary-use-time)=
+**use-time**
+: We use the term use-time to indicate when Kitsune is used to compile
+  [user code](glossary-user-code). This is used when the standard terms
+  "compile-time" and "run-time" cannot be used unambiguously.
+
+(glossary-user-code)=
+**user code**
+: Code that is (usually in the process of being) compiled by Kitsune
