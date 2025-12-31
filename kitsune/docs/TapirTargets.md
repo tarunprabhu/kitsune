@@ -284,7 +284,7 @@ forall.detach:
   br i1 %exitcond.not, label %forall.end, label %forall.detach, !llvm.loop !5
 ```
 
-
+(unsupported-tapir-targets)=
 ## Unsupported Tapir Targets
 
 Kitsune's source code currently contains implementations of a number of tapir

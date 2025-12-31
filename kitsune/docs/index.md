@@ -30,6 +30,7 @@ and may never be, comprehensive.
     KokkosSupport
     ConfigurationFiles
     StaticLinking
+    FAQ
 ```
 
 # References
