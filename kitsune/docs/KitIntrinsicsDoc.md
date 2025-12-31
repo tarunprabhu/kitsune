@@ -14,14 +14,15 @@ return before the operation to be performed has completed.
 These intrinsics specifically allocate and free
 [mobile buffers](MemoryManagement.md).
 
+
 (llvm-intrinsics-mobile-alloc)=
 ### llvm.kit.mobile.alloc
 
-```
-ptr addrspace(67) llvm.kit.mobile.alloc(i64 bytes)
-```
-
 Allocate a mobile buffer.
+
+```llvm
+ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %bytes)
+```
 
 **Arguments**
 
@@ -52,15 +53,16 @@ Allocate a mobile buffer.
 
   Pointers to mobile buffers are always in `addrspace(67)`.
 
+
 (llvm-intrinsics-mobile-free)=
 ### llvm.kit.mobile.free
 
-```
-void llvm.kit.mobile.free(ptr addrspace(67) addr)
-```
-
 Deallocate a mobile buffer previously allocated by
 [llvm.kit.mobile.alloc](llvm-intrinsics-mobile-alloc).
+
+```llvm
+void @llvm.kit.mobile.free(ptr addrspace(67) %addr)
+```
 
 **Arguments**
 
@@ -76,14 +78,15 @@ Deallocate a mobile buffer previously allocated by
 These intrinsics perform most general operations that most runtimes are likely
 to support.
 
+
 (llvm-intrinsics-initialize)=
 ### llvm.kit.initialize
 
-```
-void llvm.kit.initialize(i32 tt)
-```
-
 Initialize Kitsune's runtime.
+
+```llvm
+void @llvm.kit.initialize(i32 %tt)
+```
 
 **Arguments**
 
@@ -104,15 +107,16 @@ Initialize Kitsune's runtime.
   runtime to be initialized. In such cases, when lowering the intrinsic, it will
   simply be removed.
 
+
 (llvm-intrinsics-finalize)=
 ### llvm.kit.finalize
 
-```
-void llvm.kit.finalize(i32 tt)
-```
-
 Finalize Kitsune's runtime. This is the opposite of
 [llvm.kit.initialize](llvm-intrinsics-initialize).
+
+```llvm
+void @llvm.kit.finalize(i32 %tt)
+```
 
 **Arguments**
 
@@ -130,14 +134,15 @@ Finalize Kitsune's runtime. This is the opposite of
   [atexit](https://en.cppreference.com/w/c/program/atexit) C standard library
   function.
 
+
 (llvm-intrinsics-enable-verbose)=
 ### llvm.kit.enable.verbose
 
-```
-void llvm.kit.enable.verbose(i8 verbose)
-```
-
 Enable verbose mode in Kitsune's runtime.
+
+```llvm
+void @llvm.kit.enable.verbose(i8 %verbose)
+```
 
 **Arguments**
 
@@ -157,15 +162,16 @@ Enable verbose mode in Kitsune's runtime.
 These are intrinsics generally used by tapir targets that split
 [tapir loop](glossary-tapir-loop) iterations across threads on a CPU.
 
+
 (llvm-intrinsics-async-launch-threads)=
 ### llvm.kit.async.launch.threads
 
-```
-ptr llvm.kit.async.launch.threads(i32 tt, ptr thread_fn, i64 idx_start,
-                                  i64 idx_end, i64 grain_size, ptr args)
-```
-
 Launch a function on one or more CPU threads.
+
+```llvm
+ptr @llvm.kit.async.launch.threads(i32 %tt, ptr %thread_fn, i64 %idx_start,
+                                   i64 %idx_end, i64 %grain_size, ptr %args)
+```
 
 **Arguments**
 
@@ -200,12 +206,12 @@ Launch a function on one or more CPU threads.
 (llvm-intrinsics-sync-threads)=
 ### llvm.kit.sync.threads
 
-```
-void llvm.kit.sync.threads(i32 tt, ptr ctx)
-```
-
 Block waiting for the threads launched in a previous call to
 [llvm.kit.async.launch.threads](llvm-intrinsics-async-launch-threads).
+
+```llvm
+void @llvm.kit.sync.threads(i32 %tt, ptr %ctx)
+```
 
 **Arguments**
 
@@ -221,14 +227,15 @@ Block waiting for the threads launched in a previous call to
 These are intrinsics may only be used by the GPU-centric tapir targets,
 [cuda](tapir-targets-cuda) and [hip](tapir-targets-hip).
 
+
 (llvm-intrinsics-thread-stream)=
 ### llvm.kit.thread.stream
 
-```
-ptr llvm.kit.thread.stream(i32 tt)
-```
-
 Get a GPU thread stream.
+
+```llvm
+ptr @llvm.kit.thread.stream(i32 %tt)
+```
 
 **Arguments**
 
@@ -240,22 +247,23 @@ Get a GPU thread stream.
 
 **Returns**
 
-A (usually opaque) pointer to the thread stream. Callers must not make any
-assumptions about the pointer that is returned. It may be the same as a thread
-stream returned in an earlier call to this intrinsic.
+: A (usually opaque) pointer to the thread stream. Callers must not make any
+  assumptions about the pointer that is returned. It may be the same as a thread
+  stream returned in an earlier call to this intrinsic.
+
 
 (llvm-intrinsics-async-launch-kernel)=
 ### llvm.kit.async.launch.kernel
 
-```
-ptr llvm.kit.async.launch.threads(i32 tt, ptr device_code, ptr name,
-                                  i64 trip_count, i32 threads_per_block,
-                                  ptr kernel_props, ptr stream,
-                                  ...)
-```
-
 Launch a kernel on a GPU. The kernel will have been generated from the body of
 a tapir loop.
+
+```llvm
+ptr @llvm.kit.async.launch.threads(i32 %tt, ptr %device_code, ptr %name,
+                                   i64 %trip_count, i32 %threads_per_block,
+                                   ptr %kernel_props, ptr %stream,
+                                   ...)
+```
 
 **Arguments**
 
@@ -274,26 +282,27 @@ a tapir loop.
 
 **Returns**
 
-A (usually opaque) pointer to the stream on which the kernel was launched. If
-the `stream` argument is not `null`, it will be returned. Otherwise, the stream
-that was automatically created by Kitsune's runtime will be returned.
+: A (usually opaque) pointer to the stream on which the kernel was launched.
+  If the `stream` argument is not `null`, it will be returned. Otherwise, the
+  stream that was automatically created by Kitsune's runtime will be returned.
 
 **Description**
 
-This is a non-blocking call. It will return immediately after launching the
-kernel. It is the caller's responsibility to ensure that any buffers that are
-used by the kernel are not accessed on the host until the kernel has finished
-executing. [llvm.kit.sync.stream](llvm-intrinsics-sync-stream) can be used to
-block until the kernel that was launched on this stream finishes executing.
+: This is a non-blocking call. It will return immediately after launching the
+  kernel. It is the caller's responsibility to ensure that any buffers that are
+  used by the kernel are not accessed on the host until the kernel has finished
+  executing. [llvm.kit.sync.stream](llvm-intrinsics-sync-stream) can be used to
+  block until the kernel that was launched on this stream finishes executing.
+
 
 (llvm-intrinsics-sync-stream)=
 ### llvm.kit.sync.stream
 
-```
-void llvm.kit.sync.stream(i32 tt, ptr stream)
-```
-
 Synchronize a GPU thread stream.
+
+```llvm
+void @llvm.kit.sync.stream(i32 %tt, ptr %stream)
+```
 
 **Arguments**
 
@@ -306,16 +315,17 @@ Synchronize a GPU thread stream.
 
 **Description**
 
-This blocks until the stream is synchronized.
+: This blocks until the stream is synchronized.
+
 
 (llvm-intrinsics-async-prefetch-dtoh)=
 ### llvm.kit.async.prefetch.dtoh
 
-```
-void llvm.kit.async.prefetch.dtoh(i32 tt, ptr addr, i64 bytes, ptr stream)
-```
-
 Issue a prefetch from a GPU to the host.
+
+```llvm
+void @llvm.kit.async.prefetch.dtoh(i32 %tt, ptr %addr, i64 %bytes, ptr %stream)
+```
 
 **Arguments**
 
@@ -330,22 +340,23 @@ Issue a prefetch from a GPU to the host.
 
 **Returns**
 
-A (usually opaque) pointer to the stream on which to issue the prefetch.
-If the `stream` argument is not `null`, it will be returned. Otherwise, the
-stream that was automatically created by Kitsune's runtime will be returned.
+: A (usually opaque) pointer to the stream on which to issue the prefetch.
+  If the `stream` argument is not `null`, it will be returned. Otherwise, the
+  stream that was automatically created by Kitsune's runtime will be returned.
 
 **Description**
 
-This is a non-blocking call. It may return before the prefetch has completed.
+: This is a non-blocking call. It may return before the prefetch has completed.
+
 
 (llvm-intrinsics-async-prefetch-htod)=
 ### llvm.kit.async.prefetch.htod
 
-```
-void llvm.kit.async.prefetch.htod(i32 tt, ptr addr, i64 bytes, ptr stream)
-```
-
 Issue a prefetch from the host to a GPU.
+
+```llvm
+void @llvm.kit.async.prefetch.htod(i32 %tt, ptr %addr, i64 %bytes, ptr %stream)
+```
 
 **Arguments**
 
@@ -360,22 +371,23 @@ Issue a prefetch from the host to a GPU.
 
 **Returns**
 
-A (usually opaque) pointer to the stream on which to issue the prefetch.
-If the `stream` argument is not `null`, it will be returned. Otherwise, the
-stream that was automatically created by Kitsune's runtime will be returned.
+: A (usually opaque) pointer to the stream on which to issue the prefetch.
+  If the `stream` argument is not `null`, it will be returned. Otherwise, the
+  stream that was automatically created by Kitsune's runtime will be returned.
 
 **Description**
 
-This is a non-blocking call. It may return before the prefetch has completed.
+: This is a non-blocking call. It may return before the prefetch has completed.
 
-(llvm-intrinsics-async-memcpy-dtoh)
+
+(llvm-intrinsics-async-memcpy-dtoh)=
 ### llvm.kit.async.memcpy.dtoh
 
-```
-void llvm.kit.async.memcpy.dtoh(i32 tt, ptr dest, ptr source, i64 bytes)
-```
-
 Copies data from GPU memory to host memory.
+
+```llvm
+void @llvm.kit.async.memcpy.dtoh(i32 %tt, ptr %dest, ptr %source, i64 %bytes)
+```
 
 **Arguments**
 
@@ -390,22 +402,23 @@ Copies data from GPU memory to host memory.
 
 **Description**
 
-This is a non-blocking intrinsic.
+: This is a non-blocking intrinsic.
 
-```{warning}
-This intrinsic should not be used. It has been added for symmetry with the
-corresponding blocking `memcpy.*` functions, but we have not yet determined if
-this is a feature that we want to implement and support.
-```
+  ```{warning}
+  This intrinsic should not be used. It has been added for symmetry with the
+  corresponding blocking `memcpy.*` functions, but we have not yet determined
+  if this is a feature that we want to implement and support.
+  ```
+
 
 (llvm-intrinsics-async-memcpy-htod)=
 ### llvm.kit.async.memcpy.htod
 
-```
-void llvm.kit.async.memcpy.htod(i32 tt, ptr dest, ptr source, i64 bytes)
-```
-
 Copies data from host memory to GPU memory.
+
+```llvm
+void @llvm.kit.async.memcpy.htod(i32 %tt, ptr %dest, ptr %source, i64 %bytes)
+```
 
 **Arguments**
 
@@ -420,22 +433,23 @@ Copies data from host memory to GPU memory.
 
 **Description**
 
-This is a non-blocking intrinsic.
+: This is a non-blocking intrinsic.
 
-```{warning}
-This intrinsic should not be used. It has been added for symmetry with the
-corresponding blocking `memcpy.*` functions, but we have not yet determined if
-this is a feature that we want to implement and support.
-```
+  ```{warning}
+  This intrinsic should not be used. It has been added for symmetry with the
+  corresponding blocking `memcpy.*` functions, but we have not yet determined
+  if this is a feature that we want to implement and support.
+  ```
+
 
 (llvm-intrinsics-memcpy-dtoh)=
 ### llvm.memcpy.dtoh
 
-```
-void llvm.kit.memcpy.dtoh(i32 tt, ptr dest, ptr source, i64 bytes)
-```
-
 Copy data from GPU memory to host memory.
+
+```llvm
+void @llvm.kit.memcpy.dtoh(i32 %tt, ptr %dest, ptr %source, i64 %bytes)
+```
 
 **Arguments**
 
@@ -450,16 +464,18 @@ Copy data from GPU memory to host memory.
 
 **Description**
 
-This is a blocking call. It will only return once the memory copy has completed.
+: This is a blocking call. It will only return once the memory copy has
+  completed.
+
 
 (llvm-intrinsics-memcpy-htod)=
 ### llvm.memcpy.htod
 
-```
-void llvm.kit.memcpy.htod(i32 tt, ptr dest, ptr source, i64 bytes)
-```
-
 Copy data from host memory to GPU memory.
+
+```llvm
+void @llvm.kit.memcpy.htod(i32 %tt, ptr %dest, ptr %source, i64 %bytes)
+```
 
 **Arguments**
 
@@ -474,16 +490,18 @@ Copy data from host memory to GPU memory.
 
 **Description**
 
-This is a blocking call. It will only return once the memory copy has completed.
+: This is a blocking call. It will only return once the memory copy has
+  completed.
+
 
 (llvm-intrinsics-symbol-device-ptr)=
 ### llvm.kit.symbol.device.ptr
 
-```
-ptr llvm.kit.symbol.device.ptr(i32 tt, ptr device_code, ptr name)
-```
-
 Get the address of a symbol on the GPU.
+
+```llvm
+ptr @llvm.kit.symbol.device.ptr(i32 %tt, ptr %device_code, ptr %name)
+```
 
 **Arguments**
 
@@ -497,22 +515,22 @@ Get the address of a symbol on the GPU.
 
 **Returns**
 
-The address of the symbol on the GPU.
+: The address of the symbol on the GPU.
 
 **Description**
 
-This is typically used to get the address of a global variable on the device,
-but it could be used to get the address of any kind of symbol.
+: This is typically used to get the address of a global variable on the
+  device, but it could be used to get the address of any kind of symbol.
+
 
 (llvm-intrinsics-symbol-dtoh)=
 ### llvm.kit.symbol.dtoh
 
-```
-void llvm.kit.symbol.dtoh(i32 tt, ptr addr_host, ptr addr_device, i64 bytes)
-```
-
 Copy data from a symbol on the GPU to host memory.
 
+```llvm
+void @llvm.kit.symbol.dtoh(i32 %tt, ptr %addr_host, ptr %addr_device, i64 %bytes)
+```
 
 **Arguments**
 
@@ -527,24 +545,24 @@ Copy data from a symbol on the GPU to host memory.
 
 **Description**
 
-This is a blocking call and will return only after the memory copy has
-completed.
+: This is a blocking call and will return only after the memory copy has
+  completed.
 
-```{warning}
-It is not clear how this is different from a call to
-[llvm.kit.memcpy.dtoh](llvm-intrinsics-memcpy-dtoh). The signature of this
-intrinsic may change in the future. It may also be removed entirely.
-```
+  ```{warning}
+  It is not clear how this is different from a call to
+  [llvm.kit.memcpy.dtoh](llvm-intrinsics-memcpy-dtoh). The signature of this
+  intrinsic may change in the future. It may also be removed entirely.
+  ```
 
 
 (llvm-intrinsics-symbol-htod)=
 ### llvm.kit.symbol.htod
 
-```
-void llvm.kit.symbol.htod(i32 tt, ptr addr_device, ptr addr_host, i64 bytes)
-```
-
 Copy data from host memory to a symbol on the GPU.
+
+```llvm
+void @llvm.kit.symbol.htod(i32 %tt, ptr %addr_device, ptr %addr_host, i64 %bytes)
+```
 
 **Arguments**
 
@@ -557,27 +575,27 @@ Copy data from host memory to a symbol on the GPU.
 | `bytes` | The number of bytes to copy |
 ```
 
-This is a blocking call and will return only after the memory copy has
-completed.
-
 **Description**
 
-```{warning}
-It is not clear how this is different from a call to
-[llvm.kit.memcpy.htod](llvm-intrinsics-memcpy-htod). The signature of this
-intrinsic may change in the future. It may also be removed entirely.
-```
+: This is a blocking call and will return only after the memory copy has
+  completed.
+
+  ```{warning}
+  It is not clear how this is different from a call to
+  [llvm.kit.memcpy.htod](llvm-intrinsics-memcpy-htod). The signature of this
+  intrinsic may change in the future. It may also be removed entirely.
+  ```
 
 
 (llvm-intrinsics-set-fixed-tpb)=
 ### llvm.kit.set.fixed.tpb
 
-```
-void llvm.kit.set.fixed.tpb(i32 tt, i32 threads_per_block)
-```
-
 Set a fixed number of threads per block to use for all kernels launched by
 Kitsune's runtime.
+
+```llvm
+void @llvm.kit.set.fixed.tpb(i32 %tt, i32 %threads_per_block)
+```
 
 **Arguments**
 
@@ -588,15 +606,16 @@ Kitsune's runtime.
 | `threads_per_block` | The number of threads per block |
 ```
 
+
 (llvm-intrinsics-set-max-tpb)=
 ### llvm.kit.set.max.tpb
 
-```
-void llvm.kit.set.max.tpb(i32 tt, i32 threads_per_block)
-```
-
 Set the maximum number of threads per block to use for all kernels launched by
 Kitsune's runtime.
+
+```llvm
+void @llvm.kit.set.max.tpb(i32 %tt, i32 %threads_per_block)
+```
 
 **Arguments**
 
@@ -609,20 +628,21 @@ Kitsune's runtime.
 
 **Description**
 
-This is useful when the number of threads per block to use is calculated by
-Kitsune's runtime based on the properties of the kernel being launched (and
-potentially other considerations as well).
+: This is useful when the number of threads per block to use is calculated
+  by Kitsune's runtime based on the properties of the kernel being launched (and
+  potentially other considerations as well).
+
 
 (llvm-intrinsics-enable-refine-launches)=
 ### llvm.kit.enable.refine.launches
 
-```
-void llvm.kit.enable.refine.launches(i32 tt, i8 enable)
-```
-
 Enable launch refinement. Setting this will cause the runtime to calculate
 a kernel's launch parameters based on a heuristic independent of the kernel's
 properties.
+
+```llvm
+void @llvm.kit.enable.refine.launches(i32 %tt, i8 %enable)
+```
 
 **Arguments**
 
@@ -635,24 +655,25 @@ properties.
 
 **Description**
 
-In the case of NVIDIA GPU's, enabling launch refinement will cause Kitsune's
-runtime to calculate a kernel's launch parameters based an occupancy-based
-heuristic provided by CUDA's API.
+: In the case of NVIDIA GPU's, enabling launch refinement will cause
+  Kitsune's runtime to calculate a kernel's launch parameters based an
+  occupancy-based heuristic provided by CUDA's API.
 
-```{warning}
-This has only been implemented in kitsune's cuda runtime.
-```
+  ```{warning}
+  This has only been implemented in kitsune's `cuda` runtime.
+  ```
+
 
 (llvm-intrinsics-enable-xnack)=
 ### llvm.kit.enable.xnack
 
-```
-void llvm.kit.enable.xnack(i8 enable)
-```
-
 Enable
 [xnack](https://rocm.docs.amd.com/en/docs-6.2.2/conceptual/gpu-memory.html#xnack)
 in the runtime.
+
+```llvm
+void @llvm.kit.enable.xnack(i8 %enable)
+```
 
 **Arguments**
 
@@ -664,17 +685,18 @@ in the runtime.
 
 **Description**
 
-This is only relevant for the hip tapir target and its associated Kitsune
-runtime.
+: This is only relevant for the `hip` tapir target and its associated Kitsune
+  runtime.
+
 
 (llvm-intrinsics-enable-y-axis-launches)=
 ### llvm.kit.enable.y.axis.launches
 
-```
-void llvm.kit.enable.y.axis.launches(i32 tt, i8 enable)
-```
-
 Enable the y-axis launch pattern for all GPU kernels.
+
+```llvm
+void @llvm.kit.enable.y.axis.launches(i32 %tt, i8 %enable)
+```
 
 **Arguments**
 
@@ -687,6 +709,6 @@ Enable the y-axis launch pattern for all GPU kernels.
 
 **Description**
 
-```{warning}
-This has only been implemented in kitsune's hip runtime.
-```
+: ```{warning}
+  This has only been implemented in kitsune's `hip` runtime.
+  ```
