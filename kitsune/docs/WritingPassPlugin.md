@@ -138,6 +138,13 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::PassPluginLibraryInfo llvmGetPassPluginInfo() {
 }
 ```
 
+```{important}
+The name of the entry-point function and its signature must be _exactly_ as
+shown. Otherwise, at [use-time](glossary-use-time), it may seem as if the
+plugin is not being loaded. LLVM may not emit any diagnostic messages warning
+of this.
+```
+
 We now describe the fields of the `llvm::PassPluginLibraryInfo` struct that is
 returned by the entry point.
 
