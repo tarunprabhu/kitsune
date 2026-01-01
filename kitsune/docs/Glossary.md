@@ -27,7 +27,7 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   [vectorization passes](https://llvm.org/docs/Vectorizers.html)
   to check if it is safe to vectorize.
 
-(glossary-asynchronous-intrinsic)
+(glossary-asynchronous-intrinsic)=
 **asynchronous intrinsic**
 : Same as [non-blocking intrinsic](glossary-non-blocking-intrinsic).
 
@@ -379,6 +379,18 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 
 (glossay-s)=
 ## S
+
+(glossary-separate-compilation)=
+**separate compilation**
+: When compiling a project consisting of many source files, this refers to the
+  technique of compiling each source file into a corresponding object file
+  first, then linking the object files to form the final executable (or
+  dynamic shared object). This is the standard technique used in most real
+  world code, especially when using build systems such as
+  [CMake](https://cmake.org) or [Meson](https://mesonbuild.com/). The
+  alternative approach would be to pass all the source files to the compiler
+  in one single invocation. This is occasionally seen in hand-written build
+  systems, and is sometimes used when compiling very small projects by hand.
 
 (glossary-source-language)=
 **source language**
