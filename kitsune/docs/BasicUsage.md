@@ -25,7 +25,7 @@ loop that can be used in C and C++. The
 [semantics](extensions-cxx-forall-semantics) and
 [limitations](extensions-cxx-forall-limitations) are discussed elsewhere.
 
-```kitxx
+```kit++
 #include <kitsune.h>
 
 int main(int argc, char* argv[]) {
@@ -90,7 +90,7 @@ Kitsune provides custom [memory allocation functions](MemoryManagement.md) that
 can be used for this. The code below shows how the example above could be
 modified to use these.
 
-```kitxx
+```kit++
 #include <kitsune.h>
 
 int main(int argc, char* argv[]) {
@@ -141,7 +141,7 @@ An explicit architecture can be specified as follows
 kit++ --tapir=cuda --tapir-cuda-arch=<architecture> -O1 ...
 ```
 
-See the [C/C++ command line reference](KitClangOptionsDoc) for more options
+See the [C/C++ command-line reference](KitClangOptionsDoc) for more options
 that can be used with the `cuda` tapir target. These options will start with
 `tapir-cuda-`. Other options starting with `tapir` can also be used, but the
 ones starting with `tapir-cuda` are specific to the `cuda` tapir target.
@@ -167,7 +167,7 @@ An explicit architecture can be specified as follows
 kit++ --tapir=hip --tapir-hip-arch=<architecture> -O1 ...
 ```
 
-See the [C/C++ command line reference](KitClangOptionsDoc) for more options
+See the [C/C++ command-line reference](KitClangOptionsDoc) for more options
 that can be used with the `hip` tapir target. These options will start with
 `tapir-hip-`. Other options starting with `tapir` can also be used, but the
 ones starting with `tapir-hip-` are specific to the `hip` tapir target.
