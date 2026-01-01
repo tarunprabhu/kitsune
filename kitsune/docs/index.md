@@ -1,6 +1,4 @@
-# Kitsune's Documentation
-
-TODO: Write a reasonable description
+# The Kitsune Compiler Documentation
 
 ```{warning}
 Kitsune is under active development. While we make every effort to
@@ -9,10 +7,21 @@ state of Kitsune. In such cases, the inline documentation in Kitsune's source
 code is more likely to be accurate.
 ```
 
-The user guides are intended for users of Kitsune, while the developer guides
+This is a loosely connected collection of pages that describe the Kitsune
+compiler, it's design and usage. The pages are grouped into collections that are
+likely to be useful for different people. The user guides are intended for users
+of Kitsune, this is those who are interested in using Kitsune to compile their
+code, but are not necessarily interested in how it works, or in contributing to
+its development. The developer guides
 are intended for those interested in contributing to Kitsune's development. The
 design documents describe some aspects of Kitsune's design though they are not,
 and may never be, comprehensive.
+
+The [overview](Overview.md) page provides a (very) high-level description of
+Kitsune and it's use. This is where most readers, especially those unfamiliar
+with Kitsune should probably start. Everything else can be read in any order
+depending on what is of interest to you.
+
 
 # User Guides
 
@@ -59,9 +68,11 @@ and may never be, comprehensive.
 
     BuildSystem
     CodeOrganization
+    CommandLineOptions
     DriverDesign
     EmbeddedBitcode
     PassPipeline
+    LTO
 ```
 
 # Developer Guides
