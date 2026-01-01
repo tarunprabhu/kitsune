@@ -124,7 +124,7 @@ least the `--tapir` command-line option, and probably several others as well.
 #### LLD
 
 Instead of relying on the system's linker and plugins to support linking LLVM
-bitcode, LLVM's own linker, [lld](https://lld.llvm.org/) could be used instead.
+bitcode, LLVM's own linker, [LLD](https://lld.llvm.org/) could be used instead.
 To do this, the `-fuse-ld=lld` command-line option should be used.
 
 ```shell
@@ -159,6 +159,7 @@ kit++ -Xlinker --lto-O2 -flto -fuse-ld=lld -o a.out in1.o in2.o in3.o
 Once again, to enable Kitsune's pass pipeline when linking with LLD, the
 `--tapir` and other command-line options would have to be passed to it.
 
+(lto-implementation)=
 ## Kitsune's Implementation
 
 Kitsune has full support for LTO. The highlights of the implementation are as
