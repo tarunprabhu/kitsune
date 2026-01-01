@@ -8,10 +8,11 @@ here.
 ## What is the difference between Kitsune and Tapir?
 
 Tapir is an extension to LLVM that allows fork-join parallelism to be exposed
-to LLVM's optimizer. This extension adds some [instructions](Instructions.md)
-and [passes](Passes.md) to LLVM. It also includes modifications to the [standard
-LLVM passes](https://llvm.org/docs/Passes.html) to work correctly with these
-instructions. Kitsune builds on these extensions and adds a number of
+to LLVM's optimizer. This extension adds some
+[instructions](KitInstructionsDoc.md) and [passes](KitPassesDoc.md) to LLVM.
+It also includes modifications to the
+[standard LLVM passes](https://llvm.org/docs/Passes.html) to work correctly with
+these instructions. Kitsune builds on these extensions and adds a number of
 [tapir targets](glossary-tapir-target) for, most notably, NVIDIA
 ([cuda](tapir-targets-cuda)) and AMD ([hip](tapir-targets-hip)) GPUs and also
 other runtime systems ([pthreads](tapir-targets-pthreads)) [^1]. Kitsune's
