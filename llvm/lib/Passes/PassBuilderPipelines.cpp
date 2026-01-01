@@ -1902,8 +1902,6 @@ PassBuilder::buildKitsuneLoweringPipeline(OptimizationLevel Level,
                                           ThinOrFullLTOPhase Phase) {
   ModulePassManager MPM;
 
-  // TODO: Implement Kitsune-specific extension points.
-
   MPM.addPass(populateKitPreTapirPasses(*this, Level, Phase, PTO));
   MPM.addPass(buildTapirLoweringPipeline(Level, Phase));
   MPM.addPass(populateKitPostTapirPasses(*this, Level, Phase, PTO));
