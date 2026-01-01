@@ -387,22 +387,31 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   Currently, the only source languages that Kitsune officially supports are
   C, C++ and Fortran.
 
+(glossary-sync-region)=
+**sync region**
+: A sync region is a "tag" associated with [tapir tasks](glossary-tapir-task).
+  All [tapir instructions](glossary-tapir-instruction) take a sync region as an
+  operand. This "tag" is obtained by calling tapir's `llvm.syncregion.start`
+  intrinsic.
+
 <!----------------------------------------------------------------------------->
 
 (glossary-t)=
 ## T
 
-(glossary-tapir-instructions)=
+(glossary-tapir-instruction)=
 **tapir instruction**
 : An [LLVM instruction](https://llvm.org/doxygen/classllvm_1_1Instruction.html)
   that is at the core of the
-  [tapir extensions to LLVM](https://dl.acm.org/doi/10.1145/3365655).
+  [tapir extensions to LLVM](https://dl.acm.org/doi/10.1145/3365655). The list
+  of tapir instructions can be found [here](instructions-tapir).
 
 (glossary-tapir-loop)=
 **tapir loop**
-: An [LLVM loop](https://llvm.org/doxygen/classllvm_1_1Loop.html) that contains
-  tapir instructions that indicate that the iterations of the loop can be
-  safely executed independently of one another.
+: An [LLVM loop](https://llvm.org/doxygen/classllvm_1_1Loop.html) whose body is
+  bounded by a Tapir [detach](instructions-detach) and
+  [reattach](instructions-reattach) instruction. Every iteration of such a loop
+  can be safely executed independently of every other iteration.
 
 (glossary-tapir-target)=
 **tapir target**
@@ -415,6 +424,13 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   [OpenCilk runtime](https://github.com/OpenCilk/cheetah). For more information,
   see the [general overview of Kitsune](Overview.md) and the document describing
   the [supported tapir targets](TapirTargets.md).
+
+(glossary-tapir-task)=
+**tapir task**
+: A tapir task is a region of code bounded by Tapir's.
+  [detach](instructions-detach) and [reattach](instructions-reattach)
+  instructions. This code can, in principle, be run in parallel with other code.
+  All tapir tasks are associated with a [sync region](glossary-sync-region).
 
 (glossary-transformation-pass)=
 **transformation pass**
@@ -440,7 +456,7 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   built. This is the current list of universal tapir target:
   {{kitsune_guaranteed_tapir_targets_list}}
 
-(glosssary-use-time)=
+(glossary-use-time)=
 **use-time**
 : We use the term use-time to indicate when Kitsune is used to compile
   [user code](glossary-user-code). This is used when the standard terms
