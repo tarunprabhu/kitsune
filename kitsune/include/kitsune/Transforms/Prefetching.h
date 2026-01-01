@@ -21,11 +21,11 @@ namespace llvm {
 /// @{
 
 /// This pass generates calls to initiate movement of data between host and
-/// device. This will only generate calls to Kitsne's prefetch intrinsics. This
-/// must should typically be run early in the Kitsune's post-tapir pipeline, but
-/// it is ok to run it later in the pipeline as well. This should only ever
-/// modify the host, but it may be profitable to examine the embedded device
-/// modules when deciding if/when to prefetch.
+/// device. This will only generate calls to Kitsune's prefetch intrinsics. This
+/// is typically run early in Kitsune's post-tapir pipeline, but it may be
+/// run later in the pipeline as well. This should only modify the host,
+/// but it may be profitable to examine the embedded device modules when
+/// deciding if/when to prefetch.
 class PrefetchingPass : public PassInfoMixin<PrefetchingPass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);

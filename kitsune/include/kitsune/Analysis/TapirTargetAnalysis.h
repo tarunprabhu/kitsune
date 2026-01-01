@@ -111,11 +111,15 @@ public:
   friend class TapirTargetAnalysisWrapperPass;
 };
 
-/// Analysis pass to provide information about the "global" tapir targets.
-/// Individual loops and other constructs may require other tapir targets.
-/// Eventually, this should probably contain information about all the tapir
-/// targets that are needed by a given module, but that has not yet been
-/// implemented.
+/// Analysis pass that contains TapirTarget instances required by loop-spawning
+/// and any other passes that might need them. It can be used to query the
+/// tapir targets that have been enabled explicitly (via the --tapir
+/// command-line option passed to a compiler driver or the opt tool).
+///
+/// Eventually, when multi-target execution is supported, this can be used to
+/// determine which tapir targets are required by individual loops and
+/// functions, but that has not been implemented yet.
+///
 class TapirTargetAnalysis : public AnalysisInfoMixin<TapirTargetAnalysis> {
 private:
   /// The TapirTargetInfo that will be populated when @ref run() is called.
