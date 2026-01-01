@@ -1,3 +1,10 @@
+<!-- XXX
+    The bulleted lists do not use consistent bullets because not doing so
+    convinces myst-parser to add space between consecutive bullets. There is
+    probably a better way of doing this, that actually works, but I can't find
+    one.
+-->
+
 # Tapir Targets
 
 Kitsune supports a number of tapir targets that allow parallel loops[^1] to be
@@ -42,7 +49,7 @@ for which to generate code is determined as follows:
 1. If the `--tapir-cuda-arch=<arch>` command line option is specified, code will
    be generated for `<arch>`. `<arch>` will be of the form `sm_NNN`.
 
-2. If `--tapir-cuda-arch=` has not been specified, and an NVIDIA GPU is present
+2) If `--tapir-cuda-arch=` has not been specified, and an NVIDIA GPU is present
    on the machine on which the code is being compiled, the architecture of that
    GPU will be used.
 
@@ -60,14 +67,14 @@ These are listed below:
   not raise an error if such loops are present in the code. Compilation may
   even succeed, but will fail at runtime.
 
-- Any memory that is accessed within the loop must be allocated in
+* Any memory that is accessed within the loop must be allocated in
   [unified memory](https://developer.nvidia.com/blog/unified-memory-cuda-beginners/) (UVM). Kitsune's [memory management](MemoryManagement.md) functions should
   be used for this. In general, variables allocated on the containing function's
   stack may be used as long as their address is not taken.
 
 - Only global variables that are compile-time constants may be used.
 
-- Functions may be called from within a parallel loop, but those functions
+* Functions may be called from within a parallel loop, but those functions
   must be defined in the same translation unit as the parallel loop. There is
   some support for standard library functions. Specifically, most functions
   from [libm](https://sourceware.org/newlib/libm.html) may be used, but most
@@ -117,7 +124,7 @@ for which to generate code is determined as follows:
    be generated for `<arch>`. A list of AMD GPU architectures can be found
    [here](https://llvm.org/docs/AMDGPUUsage.html#processors).
 
-2. If `--tapir-hip-arch=` has not been specified, and an AMD GPU is present
+2) If `--tapir-hip-arch=` has not been specified, and an AMD GPU is present
    on the machine on which the code is being compiled, the architecture of that
    GPU will be used.
 
@@ -135,14 +142,14 @@ These are listed below:
   not raise an error if such loops are present in the code. Compilation may
   even succeed, but will fail at runtime.
 
-- Any memory that is accessed within the loop must be allocated in
+* Any memory that is accessed within the loop must be allocated in
   [unified memory](https://rocm.docs.amd.com/projects/HIP/en/docs-6.2.0/how-to/unified_memory.html) (UVM). Kitsune's [memory management](MemoryManagement.md)
   functions should be used for this. In general, variables allocated on the
   containing function's stack may be used as long as their address is not taken.
 
 - Only global variables that are compile-time constants may be used.
 
-- Functions may be called from within a parallel loop, but those functions
+* Functions may be called from within a parallel loop, but those functions
   must be defined in the same translation unit as the parallel loop. There is
   some support for standard library functions. Specifically, most functions
   from [libm](https://sourceware.org/newlib/libm.html) may be used, but most
