@@ -45,8 +45,8 @@ each of these callbacks, see the inline documentation associated with the
 A custom tapir target may require a custom loop outline processor.
 This is a class that inherits from the
 {{'[`LoopOutlineProcessor`](https://{}/{}/kitsune/tree/{}/llvm/include/llvm/Transforms/Tapir/Loweringutils.h)'.format(kitsune_repo_host, kitsune_repo_owner, kitsune_repo_branch)}}
-class. In this case, the `getLoopOutlineProcessor()` method must be overridden
-as shown.
+class. In this case, the `getLoopOutlineProcessor()` method of the tapir
+target must be overridden as shown.
 
 ```c++
 #include <kitsune/Core/TTPlugin.h>
@@ -75,43 +75,14 @@ public:
 };
 ```
 
-A custom loop outline processor is _not_ required, If one has not been provided,
-that is if the `getLoopOutlineProcessor()` method is not overridden, Kitsune
-will automatically use the default loop outline processor.
+A custom loop outline processor is _**not**_ required, If one has not been
+provided, that is, if the `getLoopOutlineProcessor()` method is not overridden,
+Kitsune will automatically use a default loop outline processor.
 
-Now that the custom tapir target has been defined, create the well-known entry
-point that must be provided in a tapir target plugin.
-The function definition below shows an example
-entry point. This is very similar to the entry point in the
-{{'[sample tapir target plugin](https://{}/{}/kitsune/tree/{}/kitsune/examples/TTPluginDemo/TTPluginDemo.cpp)'.format(kitsune_repo_host, kitsune_repo_owner, kitsune_repo_branch)}}.
+Now that the custom tapir target has been defined, we define the well-known
+entry point function that must be provided in a tapir target plugin.
 
 ```c++
-#include <kitsune/Core/TTPlugin.h>
-#include <llvm/Transforms/Tapir/LoweringUtils.h>
-
-using namespace llvm;
-
-class CustomLOP : public LoopOutlineProcessor {
-public:
-  CustomLOP(Module &m, const TTOptions &tto);
-  ~CustomLOP();
-
-  /* Override virtual functions */
-};
-
-class CustomTT : public TapirTarget {
-public:
-  CustomTT(Module &m, const TTOptions &tto);
-  virtual ~CustomTT() = default;
-
-  /* Override virtual functions */
-
-  LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *tl) override final {
-    return new CustomLOP(M, this->getOptions());
-  }
-};
-
 static TapirTarget* getTapirTarget(Module &hostM, const TTOptions &tto) {
   return new CustomTT(hostM, tto);
 }
@@ -134,6 +105,13 @@ extern "C" ::llvm::TTPluginInfo LLVM_ATTRIBUTE_WEAK llvmGetTTPluginInfo() {
     /* getLinkerOpts= */    getLinkerOptions,
   };
 }
+```
+
+```{important}
+The name of the entry-point function and its signature must be _exactly_ as
+shown. Otherwise, at [use-time](glossary-use-time), it may seem as if the
+plugin is not being loaded. LLVM may not emit any diagnostic messages warning
+of this.
 ```
 
 We now describe the fields of the `llvm::TTPluginInfo` struct that is returned
@@ -193,6 +171,60 @@ by the entry point.
   Kitsune requires it. In this case, `-fuse-ld=lld` must be specified whenever
   this tapir target plugin is used.
   ```
+
+The code below is a complete listing of all the code that has been shown thus
+far.
+
+```c++
+#include <kitsune/Core/TTPlugin.h>
+#include <llvm/Transforms/Tapir/LoweringUtils.h>
+
+using namespace llvm;
+
+class CustomLOP : public LoopOutlineProcessor {
+public:
+  CustomLOP(Module &m, const TTOptions &tto);
+  ~CustomLOP();
+
+  /* Override virtual functions */
+};
+
+class CustomTT : public TapirTarget {
+public:
+  CustomTT(Module &m, const TTOptions &tto);
+  virtual ~CustomTT() = default;
+
+  /* Override virtual functions */
+
+  LoopOutlineProcessor *
+  getLoopOutlineProcessor(const TapirLoopInfo *tl) override final {
+    return new CustomLOP(M, this->getOptions());
+  }
+};
+
+static TapirTarget* getTapirTarget(Module &hostM, const TTOptions &tto) {
+  return new CustomTT(hostM, tto);
+}
+
+static TTPlugin::ExtraArgsList getCompilerOptions() {
+  return { "-O" };
+}
+
+static TTPlugin::ExtraArgsList getLinkerOptions() {
+  return { };
+}
+
+extern "C" ::llvm::TTPluginInfo LLVM_ATTRIBUTE_WEAK llvmGetTTPluginInfo() {
+  return {
+    /* PluginAPIVersion= */ LLVM_TTPLUGIN_API_VERSION,
+    /* PluginName= */       "TTPluginDemo",
+    /* PluginVersion= */    "1.0",
+    /* makeTapirTarget= */  getTapirTarget,
+    /* getCompilerOpts= */  getCompilerOptions,
+    /* getLinkerOpts= */    getLinkerOptions,
+  };
+}
+```
 
 ## Building with CMake
 
