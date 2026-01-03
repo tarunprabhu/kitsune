@@ -55,6 +55,16 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 (glossary-c)=
 ## C
 
+(glossary-cgscc-pass)=
+**cgscc psas**
+: A [pass](glossary-pass) that traverses the callgraph of a
+  [module](glossary-module) from the bottom-up (callees before callers).
+  These are typically analysis passes, but they need not be. They must also
+  satsify the criteria enumerated
+  [here](https://llvm.org/docs/WritingAnLLVMPass.html#the-callgraphsccpass-class).
+  In most cases, a [function pass](glossary-function-pass) should probably be
+  preferred over writing a CallGraphSCC pass.
+
 (glossary-codegen)=
 **codegen**
 : The process of generating machine code from some
@@ -154,6 +164,13 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 **frontend**:
 : See [frontend-end](glossary-front-end)
 
+(glossary-function-pass)=
+**function pass**
+: A [pass](glossary-pass) whose unit is an LLVM function. Such passes may make
+  changes to a function by adding or removing instructions and basic blocks,
+  but may not make add/remove functions from the [module](glossary-module) in
+  which they are contained.
+
 <!----------------------------------------------------------------------------->
 
 (glossary-g)=
@@ -177,7 +194,8 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 (glossary-host-module)=
 **host module**
 : The LLVM [module](glossary-module) from which code that will run on the main
-  execution unit is generated.
+  execution unit is generated. The main execution unit is nearly always a
+  general-purpose CPU.
 
 <!----------------------------------------------------------------------------->
 
@@ -239,6 +257,14 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   [LLVM-IR](glossary-llvm-ir) that is being compiled for the corresponding GPU.
   These files are referred to as "libdevice bitcode files".
 
+(glossary-loop-pass)=
+**loop pass**
+: A [pass](glossary-pass) whose unit is a loop in a function. These are
+  processed in loop-nest order such that the outermost loop is processed last.
+  These passes must only modify the loop that they are operating on. Any
+  parent loops must not be modified. In many cases, it may be more convenient to
+  write a [function pass](glossary-function-pass) instead of a loop pass.
+
 (glossary-llvm-assembly)=
 **LLVM assembly**
 : Human-readable representation of [LLVM-IR](glossary-llvm-ir). These are
@@ -281,6 +307,13 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 : This is the top-level container of all other [LLVM-IR](glossary-llvm-ir)
   objects. A module typically corresponds to a single
   [source](glossary-source-language) file, but they can be built in other ways.
+
+(glossary-module-pass)=
+**module pass**
+: The most general [pass](glossary-pass) that treats the entire LLVM
+  [module](glossary-module) as a unit. Such passes may make changes at all
+  levels of the module, from individual instructions in a function, to
+  adding/removing global variables.
 
 <!----------------------------------------------------------------------------->
 
@@ -327,12 +360,13 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 
 (glossary-pass)=
 **pass**
-: In LLVM, this is a unit of code that operates on an
-  [IR](glossary-intermediate-representation). The most general pass operates on
-  an LLVM [module](glossary-module). Others operate on smaller units contained
-  within a module such as functions and loops. Passes
-  [may](glossary-transformation-pass) or [may not](glossary-analysis-pass)
-  modify the unit of IR on which they operate.
+: In LLVM, this is a unit of code that operates on a unit of
+  [IR](glossary-intermediate-representation). Depending on the IR unit on which
+  a pass operates, it may be characterized as a
+  [module pass](glossary-module-pass), [function pass](glossary-function-pass),
+  [loop pass](glossary-loop-pass), or a [CGSCC pass](glossary-cgscc-pass).
+  Passes [may](glossary-transformation-pass) or
+  [may not](glossary-analysis-pass) modify the unit of IR on which they operate.
 
 (glossary-pass-manager)=
 **pass manager**
