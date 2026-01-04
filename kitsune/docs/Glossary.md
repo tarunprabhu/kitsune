@@ -5,15 +5,25 @@ orphan: true
 # Glossary
 
 This is a quick reference to some terminology used in Kitsune and LLVM. This is
-not intended to be comprehensive. The primary focus on terms that are unique to
-Kitsune. Terms from LLVM that are closely related to Kitsune-specific terms are
-also included. Finally, this includes terminology that is not strictly
-Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
+not intended to be comprehensive. The primary focus is on terms that are unique
+to Kitsune. Terms from LLVM that are closely related to Kitsune-specific terms
+are also included. Finally, this includes terminology that is not strictly
+Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
 
 <!----------------------------------------------------------------------------->
 
 (glossary-a)=
 ## A
+
+(glossary-analysis-manager)=
+**analysis manager**
+: An object that works in conjunction with a
+  [pass manager](glossary-pass-manager) to run
+  [analysis passes](glossary-analysis-pass) as needed, cache the results and
+  make them available to other [passes](glossary-pass). If a pass invalidates an
+  analysis, the analysis manager will recompute the analysis on demand. This
+  improves the performance of the compiler by reducing the number of times
+  analyses are computed.
 
 (glossary-analysis-pass)=
 **analysis pass**
@@ -29,7 +39,7 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 
 (glossary-asynchronous-intrinsic)=
 **asynchronous intrinsic**
-: Same as [non-blocking intrinsic](glossary-non-blocking-intrinsic).
+: Same as a [non-blocking intrinsic](glossary-non-blocking-intrinsic).
 
 <!----------------------------------------------------------------------------->
 
@@ -145,6 +155,12 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   [This document](EmbeddedBitcode.md) contains more information about the
   design, implementation and use of embedded bitcode in Kitsune.
 
+(glossary-embedded-module)=
+**embedded module**
+: The [module](glossary-module) obtained by deserializing the
+  [embedded bitcode](glossary-embedded-bitcode) found in a
+  [host module](glossary-host-module).
+
 <!----------------------------------------------------------------------------->
 
 (glossary-f)=
@@ -163,6 +179,16 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 (glossary-frontend)=
 **frontend**:
 : See [frontend-end](glossary-front-end)
+
+(glossary-function-analysis-manager)=
+**function analysis manager**
+: An [analysis manager](glossary-analysis-manager) specifically for
+  [function analyses](glossary-function-analysis-pass).
+
+(glossary-function-analysis-pass)=
+**function analysis pass**
+: An [analysis pass](glossary-analysis-pass) that computes properties of a
+  function.
 
 (glossary-function-pass)=
 **function pass**
@@ -213,9 +239,16 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   used in the [back-end](glossary-back-end) and
   [MLIR](https://mlir.llvm.org/docs/Dialects/).
 
-<!----------------------------------------------------------------------------->
+(glossary-in-tree-pass)=
+**in-tree pass**
+: A [pass](glossary-pass) that is part of LLVM's source code. This term is
+  nearly always used to refer to a pass that has been developed "downstream"
+  of LLVM i.e. in projects that are not part of LLVM but that build on top of
+  it, such as Kitsune. For instance,
+  [loop-spawning](passes-loop-spawning) is an in-tree pass. These passes are
+  built when LLVM is built.
 
-(glossary-l)=
+<!----------------------------------------------------------------------------->
 
 (glossary-k)=
 ## K
@@ -234,6 +267,7 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 **kernel module**
 : Synonym for a [device module](glossary-device-module).
 
+(glossary-l)=
 ## L
 
 (glossary-legacy-pass)=
@@ -281,13 +315,14 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 ## M
 
 (glossary-meta-pass)=
-**meta pass**
-: A name that can be passed, via the `-passes` option to `opt`. However, this
-  results in a sequence of
-  [passes](glossary-pass) being run, not a single pass. For instance,
-  `tapir-lowering` is a meta-pass that runs the passes to lower a
-  [tapir loop](glossary-tapir-loop). `kitsune-lowering` is a meta-pass that
-  runs both the `tapir-lowering` passes and other, Kitsune-specific passes.
+**meta-pass**
+: A name that, when passed to the `-passes` option to `opt` results in a
+  sequence of [passes](glossary-pass) being run, not a single pass. For instance,
+  [tapir-lowering](passes-tapir-lowering) is a meta-pass that runs the passes to
+  lower a [tapir loop](glossary-tapir-loop).
+  [kit-lowering](passes-kit-lowering) is a meta-pass that
+  runs both the `tapir-lowering` passes and other, Kitsune-specific, passes. One
+  can think of a meta-pass as a "named [pass pipeline](glossary-pass-pipeline)".
 
 (glossary-middle-end)=
 **middle-end**
@@ -307,6 +342,16 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
 : This is the top-level container of all other [LLVM-IR](glossary-llvm-ir)
   objects. A module typically corresponds to a single
   [source](glossary-source-language) file, but they can be built in other ways.
+
+(glossary-module-analysis-manager)=
+**module analysis manager**
+: An [analysis manager](glossary-analysis-manager) specifically for
+  [module analyses](glossary-function-analysis-pass).
+
+(glossary-module-analysis-pass)=
+**module analysis pass**
+: An [analysis pass](glossary-analysis-pass) that computes properties of a
+  [module](glossary-module).
 
 (glossary-module-pass)=
 **module pass**
@@ -352,6 +397,15 @@ Kitsune-specific, but is used, perhaps exclusively in Kitsune's documentation.
   building Kitsune. A tapir target that is not in the list of
   [universal tapir targets](glossary-universal-tapir-target) is, by definition,
   an optional tapir target.
+
+(glossary-out-of-tree-pass)=
+**out-of-tree pass**
+: A [pass](glossary-pass) that is not part of LLVM's source code.
+  code. This is developed and built entirely independently of Kitsune (or LLVM).
+  Such passes are almost always part of a [pass plugin](glossary-pass-plugin)
+  that can be dynamically loaded and used by both LLVM's (and Kitsune's)
+  frontends as well as LLVM tools such as
+  [opt](https://llvm.org/docs/CommandGuild/opt.html).
 
 <!----------------------------------------------------------------------------->
 
