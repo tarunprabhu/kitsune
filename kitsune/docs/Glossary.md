@@ -65,6 +65,14 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
 (glossary-c)=
 ## C
 
+(glossary-call-site)=
+**call site**
+: The location where a function is called.
+
+(glossary-callsite)=
+**callsite**
+: Same as [call site](glossary-call-site).
+
 (glossary-cgscc-pass)=
 **cgscc psas**
 : A [pass](glossary-pass) that traverses the callgraph of a
@@ -228,6 +236,12 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
 (glossary-i)=
 ## I
 
+(glossary-inlining)=
+**inlining**
+: A transformation performed by most compilers that replaces a function
+  [call site](glossary-call-site) with the body of the called function. See
+  also: [outlining](glossary-outlining).
+
 (glossary-intermediate-representation)=
 **intermediate representation**
 : Commonly abbreviated IR, this is the code used internally by a compiler to
@@ -298,6 +312,17 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
   These passes must only modify the loop that they are operating on. Any
   parent loops must not be modified. In many cases, it may be more convenient to
   write a [function pass](glossary-function-pass) instead of a loop pass.
+
+(glossary-lowering)=
+**lowering**
+: The process of transforming code from a higher-level language to a lower-level
+  language. The higher the level of a language, the closer it is to a
+  [source language](glossary-source-language) intended for use by programmers.
+  The lower the level, the closer the language is to machine code. Assembly
+  code is the lowest level language since, unlike machine code, it
+  human-readable.
+: In Kitsune, we also use the term "lowering" to mean
+  [tapir lowering](glossary-tapir-lowering).
 
 (glossary-llvm-assembly)=
 **LLVM assembly**
@@ -397,6 +422,12 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
   building Kitsune. A tapir target that is not in the list of
   [universal tapir targets](glossary-universal-tapir-target) is, by definition,
   an optional tapir target.
+
+(glossary-outlining)=
+**outlining**
+: A transformation where a region of code is replaced with a call to a function.
+  The body of this called function consists of the region of code that was
+  replaced. See also: [inlining](glossary-inlining).
 
 (glossary-out-of-tree-pass)=
 **out-of-tree pass**
@@ -512,6 +543,11 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
   bounded by a Tapir [detach](instructions-detach) and
   [reattach](instructions-reattach) instruction. Every iteration of such a loop
   can be safely executed independently of every other iteration.
+
+(glossary-tapir-lowering)=
+**tapir-lowering**
+: The transformation of a [tapir loop](glossary-tapir-loop) to use a runtime
+  system, or to a form suitable for execution on a [device](glossary-device).
 
 (glossary-tapir-target)=
 **tapir target**
