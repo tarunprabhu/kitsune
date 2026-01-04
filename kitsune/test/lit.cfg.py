@@ -105,6 +105,8 @@ config.substitutions.append(("%kitfc", config.kitfc))
 config.substitutions.append(("%kit-config", config.kit_config))
 config.substitutions.append(("%kit-mbc", config.kit_mbc))
 config.substitutions.append(("%kit-enc", config.kit_enc))
+config.substitutions.append(("%kit-emb-pass-plugin-demo",
+                             config.kitsune_emb_pass_plugin_demo))
 config.substitutions.append(("%kit-pass-plugin-demo",
                              config.kitsune_pass_plugin_demo))
 config.substitutions.append(("%kit-tt-plugin-demo",

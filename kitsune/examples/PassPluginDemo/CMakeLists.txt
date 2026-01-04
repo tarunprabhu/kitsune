@@ -16,7 +16,8 @@ add_llvm_pass_plugin(kit-pass-plugin-demo
 )
 
 # Set the OUTPUT_NAME property because we need to retrieve it for use in the
-# lit tests
+# lit tests. We set the prefix to "" so "lib" is not prefixed to the shared
+# library file name.
 set_target_properties(kit-pass-plugin-demo PROPERTIES
   PREFIX ""
   OUTPUT_NAME "kit-pass-plugin-demo"
