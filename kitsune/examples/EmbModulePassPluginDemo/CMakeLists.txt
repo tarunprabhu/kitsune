@@ -6,19 +6,16 @@ if (WIN32 OR CYGWIN)
   message(FATAL_ERROR "Pass plugins are not supported on Windows")
 endif ()
 
-# Using add_llvm_library is only needed because we are building this within
-# LLVM's build system.
-add_llvm_pass_plugin(kit-pass-plugin-demo
-  PassPluginDemo.cpp
+add_llvm_pass_plugin(kit-emb-pass-plugin-demo
+  EmbModulePassPluginDemo.cpp
   DEPENDS
   intrinsics_gen
-  BUILDTREE_ONLY
-)
+  BUILDTREE_ONLY)
 
 # Set the OUTPUT_NAME property because we need to retrieve it for use in the
 # lit tests. We set the prefix to "" so "lib" is not prefixed to the shared
 # library file name.
-set_target_properties(kit-pass-plugin-demo PROPERTIES
+set_target_properties(kit-emb-pass-plugin-demo PROPERTIES
   PREFIX ""
-  OUTPUT_NAME "kit-pass-plugin-demo"
+  OUTPUT_NAME "kit-emb-pass-plugin-demo"
   LIBRARY_OUTPUT_DIRECTORY ${KITSUNE_EXAMPLES_BINARY_DIR})

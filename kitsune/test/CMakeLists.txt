@@ -18,18 +18,26 @@ llvm_canonicalize_cmake_booleans(
 )
 
 if (KITSUNE_BUILD_EXAMPLES)
+  set(SHLIB_EXT "${CMAKE_SHARED_LIBRARY_SUFFIX}")
+
+  get_target_property(KITSUNE_EMB_PASS_PLUGIN_NAME kit-emb-pass-plugin-demo
+    OUTPUT_NAME)
+  get_target_property(KITSUNE_EMB_PASS_PLUGIN_DIR kit-emb-pass-plugin-demo
+    LIBRARY_OUTPUT_DIRECTORY)
+  set(KITSUNE_EMB_PASS_PLUGIN_DEMO_DYLIB
+    "${KITSUNE_EMB_PASS_PLUGIN_DIR}/${KITSUNE_EMB_PASS_PLUGIN_NAME}${SHLIB_EXT}")
+
   get_target_property(KITSUNE_PASS_PLUGIN_NAME kit-pass-plugin-demo
     OUTPUT_NAME)
   get_target_property(KITSUNE_PASS_PLUGIN_DIR kit-pass-plugin-demo
     LIBRARY_OUTPUT_DIRECTORY)
+  set(KITSUNE_PASS_PLUGIN_DEMO_DYLIB
+    "${KITSUNE_PASS_PLUGIN_DIR}/${KITSUNE_PASS_PLUGIN_NAME}${SHLIB_EXT}")
+
   get_target_property(KITSUNE_TT_PLUGIN_NAME kit-tt-plugin-demo
     OUTPUT_NAME)
   get_target_property(KITSUNE_TT_PLUGIN_DIR kit-tt-plugin-demo
     LIBRARY_OUTPUT_DIRECTORY)
-
-  set(SHLIB_EXT "${CMAKE_SHARED_LIBRARY_SUFFIX}")
-  set(KITSUNE_PASS_PLUGIN_DEMO_DYLIB
-    "${KITSUNE_PASS_PLUGIN_DIR}/${KITSUNE_PASS_PLUGIN_NAME}${SHLIB_EXT}")
   set(KITSUNE_TT_PLUGIN_DEMO_DYLIB
     "${KITSUNE_TT_PLUGIN_DIR}/${KITSUNE_TT_PLUGIN_NAME}${SHLIB_EXT}")
 endif ()
@@ -51,6 +59,7 @@ configure_lit_site_cfg(
   "KITSUNE_SOURCE_DIR"
   "KITSUNE_EXAMPLES_SOURCE_DIR"
   "KITSUNE_EXAMPLES_BINARY_DIR"
+  "KITSUNE_EMB_PASS_PLUGIN_DEMO_DYLIB"
   "KITSUNE_PASS_PLUGIN_DEMO_DYLIB"
   "KITSUNE_TT_PLUGIN_DEMO_DYLIB"
   "CURRENT_TOOLS_DIR"
@@ -123,6 +132,7 @@ if(TARGET llvm-lto)
 endif()
 
 if (KITSUNE_BUILD_EXAMPLES)
+  list(APPEND KITSUNE_TEST_DEPS kit-emb-pass-plugin-demo)
   list(APPEND KITSUNE_TEST_DEPS kit-pass-plugin-demo)
   list(APPEND KITSUNE_TEST_DEPS kit-tt-plugin-demo)
 endif ()
