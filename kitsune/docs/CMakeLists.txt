@@ -6,25 +6,62 @@ set_target_properties(kitsune-doc PROPERTIES FOLDER "Kitsune/Docs")
 add_custom_target(kitsune-docs)
 add_dependencies(kitsune-docs kitsune-doc)
 
-function (gen_attrs_rst rst td target)
+# Generate a .rst file from a .td file that serves as documentation for
+# Kitsune's C/C++ attributes.
+#
+# RST         The output .rst file
+# TD          The input .td file from which the .rst file is generated
+# TARGET_RST  The custom target that builds the .rst file. The target itself
+#             will be created in this function
+# TARGET_DIR  The name of the custom target that makes the directory into which
+#             the .rst file will be written. This target should have been
+#             created before this function is called.
+function (gen_attrs_rst rst td target_rst target_dir)
   get_filename_component(TABLEGEN_INCLUDE_DIR ${td} DIRECTORY)
   list(APPEND LLVM_TABLEGEN_FLAGS "-I${TABLEGEN_INCLUDE_DIR}")
   list(APPEND LLVM_TABLEGEN_FLAGS
     "-I${CMAKE_CURRENT_SOURCE_DIR}/../../clang/include/")
   clang_tablegen(${rst} -gen-kitsune-attr-docs
     SOURCE ${td}
-    TARGET ${target})
+    TARGET ${target_rst})
+  add_dependencies(${target_rst} ${target_dir})
 endfunction()
 
-function (gen_options_rst rst td target)
+# Generate a .rst file from a .td file that serves as documentation for
+# command-line options supported by Kitsune's drivers.
+#
+# RST         The output .rst file
+# TD          The input .td file from which the .rst file is generated
+# TARGET_RST  The custom target that builds the .rst file. The target itself
+#             will be created in this function
+# TARGET_DIR  The name of the custom target that makes the directory into which
+#             the .rst file will be written. This target should have been
+#             created before this function is called.
+function (gen_options_rst rst td target_rst target_dir)
   get_filename_component(TABLEGEN_INCLUDE_DIR ${td} DIRECTORY)
   list(APPEND LLVM_TABLEGEN_FLAGS "-I${TABLEGEN_INCLUDE_DIR}")
   list(APPEND LLVM_TABLEGEN_FLAGS
     "-I${CMAKE_CURRENT_SOURCE_DIR}/../../clang/include/clang/Driver/")
   clang_tablegen(${rst} -gen-kitsune-opt-docs
     SOURCE ${td}
-    TARGET ${target})
+    TARGET ${target_rst})
+  add_dependencies(${target_rst} ${target_dir})
 endfunction()
+
+# Shorter variables for cmake -E commands.
+set(MAKE_DIRECTORY ${CMAKE_COMMAND} -E make_directory)
+set(COPY_IF_DIFFERENT ${CMAKE_COMMAND} -E copy_if_different)
+set(COPY_DIR_IF_DIFFERENT ${CMAKE_COMMAND} -E copy_directory_if_different)
+
+if (KITSUNE_ENABLE_DOXYGEN OR KITSUNE_ENABLE_SPHINX)
+  # The directory where *all* HTML documentation - including the Doxygen
+  # documentation, if enabled - will be collected. The contents of this
+  # directory are suitable to be served by an HTTP server.
+  set(HTML_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/html)
+  add_custom_target(kitsune-html-output-dir
+    COMMAND ${MAKE_DIRECTORY} ${HTML_OUTPUT_DIR}
+    USES_TERMINAL VERBATIM)
+endif ()
 
 if (KITSUNE_ENABLE_DOXYGEN)
   find_package(Doxygen)
@@ -79,34 +116,23 @@ if (KITSUNE_ENABLE_DOXYGEN)
   add_custom_target(doxygen-kitsune
     COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_DEBUG_FLAGS} ${CMAKE_CURRENT_BINARY_DIR}/doxygen.cfg
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    COMMENT "Generating kitsune doxygen documentation."
-    VERBATIM USES_TERMINAL)
+    COMMENT "Generating kitsune doxygen documentation"
+    DEPENDS kitsune-html-output-dir
+    USES_TERMINAL VERBATIM)
   set_target_properties(doxygen-kitsune PROPERTIES FOLDER "Kitsune/Docs")
-
-  add_dependencies(kitsune-docs doxygen-kitsune)
-  if (LLVM_BUILD_DOCS)
-   add_dependencies(doxygen doxygen-kitsune)
-  endif()
 
   # Create an alias for doxygen-kitsune to be consistent with the other
   # documentation-related targets specific to Kitsune
   add_custom_target(kitsune-docs-doxygen)
   add_dependencies(kitsune-docs-doxygen doxygen-kitsune)
 
-  # We install the API documentation together with the rest of the HTML
-  # documentation. This is not what the other LLVM subprojects do. However,
-  # self-contained documentation is more important for us than compatibility
-  # with LLVM in this case.
-  if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
-    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doxygen/html/
-      DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/kitsune/www/doxygen)
+  add_dependencies(kitsune-docs kitsune-docs-doxygen)
+  if (LLVM_BUILD_DOCS)
+   add_dependencies(doxygen kisune-docs-doxygen)
   endif()
 endif ()
 
 if (KITSUNE_ENABLE_SPHINX)
-  set(HTML_DIR ${CMAKE_CURRENT_BINARY_DIR}/SourceHtml)
-  set(MAN_DIR ${CMAKE_CURRENT_BINARY_DIR}/SourceMan)
-
   set(KITSUNE_REPO_HOST "github.com" CACHE INTERNAL
     "URL where the official Kitsune repo is hosted" FORCE)
   set(KITSUNE_REPO_OWNER "lanl" CACHE INTERNAL
@@ -137,8 +163,15 @@ if (KITSUNE_ENABLE_SPHINX)
   set(LLVM_ENABLE_SPHINX ${LLVM_ENABLE_SPHINX_BAK})
 
   if (SPHINX_FOUND)
+    if (KITSUNE_ENABLE_DOXYGEN)
+      set(KITSUNE_API_REFERENCE_LINK "doxygen/html/index.html")
+    else ()
+      set(KITSUNE_API_REFERENCE_LINK "doxygen/APIReferenceUnavailable.html")
+    endif ()
+
     set(ENV_VARS
       CMAKE_SOURCE_DIR="${CMAKE_SOURCE_ROOT_DIR}"
+      KITSUNE_API_REFERENCE_LINK="${KITSUNE_API_REFERENCE_LINK}"
       KITSUNE_REPO_HOST="${KITSUNE_REPO_HOST}"
       KITSUNE_REPO_OWNER="${KITSUNE_REPO_OWNER}"
       KITSUNE_REPO_BRANCH="${KITSUNE_REPO_BRANCH}"
@@ -158,57 +191,109 @@ if (KITSUNE_ENABLE_SPHINX)
       PATHS ${LLVM_TOOLS_BINARY_DIR}
       NO_DEFAULT_PATH)
 
-    # Create the output directories
-    add_custom_target(kitsune-html-dir
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${HTML_DIR})
-    add_custom_target(kitsune-man-dir
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${MAN_DIR})
-
     if (SPHINX_OUTPUT_HTML)
-      # The environment variables here are read directly in conf.py.
+      # The directory to which the .md files from
+      # ${CMAKE_SOURCE_DIR}/kitsune/docs are copied. This will also contain the
+      # .rst files generated from .td files. The is the input to sphinx - all
+      # files in the directory will be converted to HTML.
+      set(HTML_SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/SourceHtml)
+      add_custom_target(kitsune-html-source-dir
+        COMMAND ${MAKE_DIRECTORY} ${HTML_SOURCE_DIR}
+        USES_TERMINAL VERBATIM)
+
+      # The environment variables in ${ENV_VARS} are read directly in conf.py.
       # sphinx-build accepts a SPHINXOPT environment variable, but it seems as
       # if any -D options in that variable are not recognized.
-      add_sphinx_target(html kitsune SOURCE_DIR "${HTML_DIR}"
+      add_sphinx_target(html kitsune SOURCE_DIR "${HTML_SOURCE_DIR}"
         ENV_VARS "${ENV_VARS}")
 
-      gen_attrs_rst(${HTML_DIR}/KitAttrsDoc.rst
+      gen_attrs_rst(${HTML_SOURCE_DIR}/KitAttrsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitAttrsDoc.td
-        kit-attrs-doc)
+        kitsune-attrs-doc
+        kitsune-html-source-dir)
 
-      gen_options_rst(${HTML_DIR}/KitClangOptionsDoc.rst
+      gen_options_rst(${HTML_SOURCE_DIR}/KitClangOptionsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitClangOptionsDoc.td
-        kit-clang-options-doc)
-      add_dependencies(kit-clang-options-doc kitsune-html-dir)
+        kitsune-clang-options-doc
+        kitsune-html-source-dir)
 
-      gen_options_rst(${HTML_DIR}/KitFlangOptionsDoc.rst
+      gen_options_rst(${HTML_SOURCE_DIR}/KitFlangOptionsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitFlangOptionsDoc.td
-        kit-flang-options-doc)
-      add_dependencies(kit-flang-options-doc kitsune-html-dir)
+        kitsune-flang-options-doc
+        kitsune-html-source-dir)
 
-      # Sphinx needs all the input files in one place for it to work. Since
-      # some of the input files, such as the command-line option references,
-      # are generated, they will be in the build directory. This means that the
-      # static (non-generated) files also need to be copied to the build
-      # directory before invoking sphinx-build.
+      set(MDS
+        AddingCommandLineOption.md
+        AddingKitsuneIntrinsic.md
+        AddingTapirTarget.md
+        BasicUsage.md
+        BuildingDocumentation.md
+        BuildSystem.md
+        CodeOrganization.md
+        CommandLineOptions.md
+        ConfigurationFiles.md
+        DriverDesign.md
+        EmbeddedBitcode.md
+        FAQ.md
+        FortranSupport.md
+        GettingStarted.md
+        Glossary.md
+        index.md
+        KitInstructionsDoc.md
+        KitIntrinsicsDoc.md
+        KitLLVMAttrsDoc.md
+        KitPassesDoc.md
+        KitsuneTestSuite.md
+        KokkosSupport.md
+        LanguageExtensions.md
+        LLVMTools.md
+        LTO.md
+        MemoryManagement.md
+        OldReleaseNotes.md
+        Overview.md
+        PassPipeline.md
+        RegisteringLibraryFunction.md
+        ReleaseNotes.md
+        StaticLinking.md
+        TapirTargets.md
+        Testing.md
+        WritingEmbeddedBitcodePass.md
+        WritingPassPlugin.md
+        WritingTapirTargetPlugin.md)
+
       add_custom_target(copy-html-inputs
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/conf.py ${HTML_DIR}
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.md ${HTML_DIR}
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/CommandGuide ${HTML_DIR}/CommandGuide
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/doxygen ${HTML_DIR}/doxygen
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/_themes/kitsune-theme
-        ${HTML_DIR}/_themes/kitsune-theme
-        DEPENDS kitsune-html-dir)
+        COMMAND ${COPY_IF_DIFFERENT} conf.py ${HTML_SOURCE_DIR}
+        COMMAND ${COPY_IF_DIFFERENT} ${MDS} ${HTML_SOURCE_DIR}
+        COMMAND ${COPY_DIR_IF_DIFFERENT} CommandGuide ${HTML_SOURCE_DIR}/CommandGuide
+        COMMAND ${COPY_DIR_IF_DIFFERENT} _themes ${HTML_SOURCE_DIR}/_themes
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDS kitsune-html-source-dir
+        USES_TERMINAL VERBATIM)
 
       add_dependencies(docs-kitsune-html
-        kit-attrs-doc
-        kit-clang-options-doc
-        kit-flang-options-doc
+        kitsune-attrs-doc
+        kitsune-clang-options-doc
+        kitsune-flang-options-doc
         copy-html-inputs)
+
+      # If Kitsune's API reference is to be built, the doxygen/ directory will
+      # be contain the generated documents. Otherwise, copy the contents of
+      # ${CMAKE_CURRENT_SOURCE_DIR}/doxygen. This will contain a single file
+      # that displays an error message saying that Kitsune's API reference is
+      # unavailable.
+      if (KITSUNE_ENABLE_DOXYGEN)
+        add_dependencies(docs-kitsune-html
+          kitsune-docs-doxygen)
+      else ()
+        add_custom_target(copy-api-reference-unavailable
+          COMMAND ${COPY_DIR_IF_DIFFERENT} doxygen ${HTML_SOURCE_DIR}/doxygen
+          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+          DEPENDS kitsune-html-source-dir
+          USES_TERMINAL VERBATIM)
+        add_dependencies(docs-kitsune-html
+          copy-api-reference-unavailable)
+      endif ()
+
       add_dependencies(kitsune-doc docs-kitsune-html)
 
       # docs-kitsune-html is generated by add_sphinx_target. Create an alias
@@ -223,63 +308,59 @@ if (KITSUNE_ENABLE_SPHINX)
         # projects do not adhere to this standard. This change in Kitsune is
         # deliberate since we want both the doxygen-generated API documentation
         # and the HTML documentation to be installed to the same directory.
-        #
-        # ${CMAKE_CURRENT_SOURCE_DIR}/doxygen/index.md is a placeholder file
-        # that displays a message saying that doxygen-generated API
-        # documentation is not available. If the doxygen-generated documentation
-        # is not built, copy ${CMAKE_CURRENT_BINARY_DIR}/html/doxygen/
-        # to doxygen/ in the destination. This way, we will have a valid link in
-        # the table of contents since the index.md placeholder file will have
-        # been used to generate doxygen/index.html.
-        #
-        # If doxygen-generated documentation will be built, do not copy
-        # doxygen/index.html. In this case, the generated doxygen documentation
-        # will be copied to doxygen/ in the destination directory. Doxygen
-        # will have generated doxygen/index.html from the doxygen mainpage file.
-        # This way, we will again have a link to valid page - but this time to
-        # the landing page of the doxygen-generated documentation.
-        #
-        if (KITSUNE_ENABLE_DOXYGEN)
-          install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html/
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/kitsune/www/
-            PATTERN doxygen/index.html EXCLUDE)
-        else ()
-          install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html/
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/kitsune/www/)
-        endif()
+        install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html/
+          DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/kitsune/www/)
       endif()
     endif()
 
     if (SPHINX_OUTPUT_MAN)
-      add_sphinx_target(man kitsune SOURCE_DIR "${MAN_DIR}"
+      # The directory containing the .rst files for man pages generated from
+      # .td files. The actual man pages will be generated from these .rst files.
+      # The directory is the input to sphinx - all files in it will be converted
+      # to HTML.
+      set(MAN_SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/SourceMan)
+      add_custom_target(kitsune-man-source-dir
+        COMMAND ${MAKE_DIRECTORY} ${MAN_SOURCE_DIR}
+        USES_TERMINAL VERBATIM)
+
+      # The environment variables in ${ENV_VARS} are read directly in conf.py.
+      # sphinx-build accepts a SPHINXOPT environment variable, but it seems as
+      # if any -D options in that variable are not recognized.
+      add_sphinx_target(man kitsune SOURCE_DIR "${MAN_SOURCE_DIR}"
         ENV_VARS "${ENV_VARS}")
 
-      gen_options_rst(${MAN_DIR}/KitClangOptionsMan.rst
+      gen_options_rst(${MAN_SOURCE_DIR}/KitClangOptionsMan.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitClangOptionsMan.td
-        kit-clang-options-man)
-      add_dependencies(kit-clang-options-man kitsune-man-dir)
+        kitsune-clang-options-man
+        kitsune-man-source-dir)
 
-      gen_options_rst(${MAN_DIR}/KitFlangOptionsMan.rst
+      gen_options_rst(${MAN_SOURCE_DIR}/KitFlangOptionsMan.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitFlangOptionsMan.td
-        kit-flang-options-man)
-      add_dependencies(kit-flang-options-man kitsune-man-dir)
+        kitsune-flang-options-man
+        kitsune-man-source-dir)
+
+      set(RSTS
+        man/index.rst
+        man/kitcc.rst
+        man/kit++.rst
+        man/kitfc.rst)
 
       add_custom_target(copy-man-inputs
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/conf.py ${MAN_DIR}
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/man/*.rst ${MAN_DIR}
-        DEPENDS kitsune-man-dir)
+        COMMAND ${COPY_IF_DIFFERENT} conf.py ${MAN_SOURCE_DIR}
+        COMMAND ${COPY_IF_DIFFERENT} ${RSTS} ${MAN_SOURCE_DIR}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDS kitsune-man-source-dir
+        USES_TERMINAL VERBATIM)
 
       add_dependencies(docs-kitsune-man
-        kit-clang-options-man
-        kit-flang-options-man
+        kitsune-clang-options-man
+        kitsune-flang-options-man
         copy-man-inputs)
       add_dependencies(kitsune-doc docs-kitsune-man)
 
-      # docs-kitsune-man is generated by add_sphinx_target. Create an alias
-      # for consistency with other documentation-related targets specific to
-      # kitsune
+      # docs-kitsune-man is generated by add_sphinx_target. Create an alias for
+      # consistency with other documentation-related targets specific to
+      # kitsune.
       add_custom_target(kitsune-docs-man)
       add_dependencies(kitsune-docs-man docs-kitsune-man)
 
