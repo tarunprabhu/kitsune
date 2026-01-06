@@ -1,14 +1,14 @@
 /// \mainpage Kitsune
 ///
-/// The documentation here describes the **internal** software i.e. the APIs
-/// that make up Kitsune. There are no instructions here on how to use Kitsune.
-/// For usage instructions and other documentation, please consult Kitsune's
-/// [project website](../index.html). Much of Kitsune is an extension to LLVM.
-/// It may be necessary to consult
+/// The documentation here describes the _internal_ software i.e. the APIs that
+/// make up Kitsune. There are no instructions here on how to use Kitsune.
+/// For usage instructions and other documentation, consult Kitsune's
+/// [project website](../../index.html). Much of Kitsune is an extension to
+/// LLVM. It may be necessary to consult
 /// [LLVM's API documentation](https://llvm.org/doxygen/) as well.
 ///
-/// To begin, \ref kitsune-group "this page" contains a listing of
-/// \ref kitsune-group "Kitsune-specific entities".
+/// \ref kitsune-group "This page" contains a listing of Kitsune-specific
+/// classes, functions, and types.
 ///
 /// **Caveat**
 ///

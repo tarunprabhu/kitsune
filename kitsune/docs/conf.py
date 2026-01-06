@@ -71,6 +71,7 @@ myst_enable_extensions = [
 # recognized. For now, using environment variables directly is a, somewhat ugly,
 # workaround
 myst_substitutions = {
+    "kitsune_api_reference_link": getenv("KITSUNE_API_REFERENCE_LINK"),
     "kitsune_repo_host": getenv("KITSUNE_REPO_HOST"),
     "kitsune_repo_owner": getenv("KITSUNE_REPO_OWNER"),
     "kitsune_repo_branch": getenv("KITSUNE_REPO_BRANCH"),

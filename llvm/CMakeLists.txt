@@ -769,7 +769,7 @@ if (KITSUNE_BUILD_DOCS)
 endif ()
 
 if (KITSUNE_ENABLE_LLVM_DOXYGEN AND NOT KITSUNE_ENABLE_DOXYGEN)
-  message(WARNING "KITSUNE_ENABLE_LLVM_DOXYGEN has not effect because KITSUNE_ENABLE_DOXYGEN is disabled")
+  message(WARNING "KITSUNE_ENABLE_LLVM_DOXYGEN has no effect because KITSUNE_ENABLE_DOXYGEN is disabled")
 endif ()
 
 # Kitsune's runtime, libkitrt, used to have a dependence on libLLVM, but it does

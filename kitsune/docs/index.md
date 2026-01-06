@@ -44,13 +44,20 @@ depending on what is of interest to you.
 
 # References
 
+<!--
+    Using inline HTML here because the target of the link changes depending on
+    whether or not Doxygen documentation has been enabled. The Doxygen
+    documentation is built directly in the output directory, but nothing there
+    can be referenced from here.
+-->
+{{'<ul><li><a href="{}">API Reference</a></li></ul>'.format(kitsune_api_reference_link)}}
+
 ```{eval-rst}
 .. toctree::
     :titlesonly:
 
     KitClangOptionsDoc
     KitFlangOptionsDoc
-    API Reference<doxygen/index.md>
     KitAttrsDoc
     KitLLVMAttrsDoc
     KitInstructionsDoc
