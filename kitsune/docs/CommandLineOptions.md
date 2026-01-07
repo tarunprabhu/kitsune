@@ -16,7 +16,8 @@ adding a command-line option to Kitsune.
    LLVM tools. For instance, `--tapir-cuda-arch`, which specifies the GPU
    architecture for which to generate code when using the
    [cuda](tapir-targets-cuda) tapir target, are available in `kitcc`, `kit++`,
-   and `kitfc`, as well as [opt](https://llvm.org/CommandGuide/opt.html). This
+   and `kitfc`, as well as [opt](https://llvm.org/CommandGuide/opt.html)
+   and [llc](https://llvm.org/CommandGuide/llc.html). This
    is to make it easier to use the drivers with high-level
    [source](glossary-source-language) code, and [LLVM tools](LLVMTools.md) with
    [LLVM-IR](glossary-llvm-ir). The spelling and default values of such options
