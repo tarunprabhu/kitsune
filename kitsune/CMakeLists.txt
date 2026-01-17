@@ -192,6 +192,10 @@ if (KITSUNE_KOKKOS_ENABLED)
     USE_SOURCE_PERMISSIONS)
 endif()
 
+find_library(LIB_DL dl REQUIRED)
+list(APPEND KITSUNE_COMMON_LIB_NAMES dl)
+list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_DL})
+
 # The pthread functions are now part of libc. libpthread was removed from glibc
 # 2.34. There is no need to explicitly link this in unless we have older
 # versions of libc around. We should consider removing this from here at some
@@ -200,10 +204,6 @@ endif()
 #
 # https://developers.redhat.com/articles/2021/12/17/why-glibc-234-removed-libpthread
 #
-find_library(LIB_DL dl REQUIRED)
-list(APPEND KITSUNE_COMMON_LIB_NAMES dl)
-list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_DL})
-
 find_library(LIB_PTHREAD pthread REQUIRED)
 list(APPEND KITSUNE_COMMON_LIB_NAMES pthread)
 list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_PTHREAD})
