@@ -74,7 +74,7 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
 : Same as [call site](glossary-call-site).
 
 (glossary-cgscc-pass)=
-**cgscc psas**
+**cgscc pass**
 : A [pass](glossary-pass) that traverses the callgraph of a
   [module](glossary-module) from the bottom-up (callees before callers).
   These are typically analysis passes, but they need not be. They must also
@@ -168,6 +168,14 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
 : The [module](glossary-module) obtained by deserializing the
   [embedded bitcode](glossary-embedded-bitcode) found in a
   [host module](glossary-host-module).
+
+(glossary-extension-point)=
+**extension point**
+: Locations in a [pass pipeline](glossary-pass-pipeline) at which passes
+  dynamically loaded from a [pass plugin](glossary-pass-plugin) can be
+  scheduled. LLVM provides a number of extension points that allow passes to be
+  added to the standard pass pipeline. Kitsune provides additional extension
+  points intended for [embedded bitcode passes](glossary-embedded-bitcode-pass).
 
 <!----------------------------------------------------------------------------->
 
