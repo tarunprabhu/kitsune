@@ -15,6 +15,7 @@
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "kitsune/CodeGen/LowerKitsuneIntrinsics.h"
 #include "kitsune/CodeGen/StripKitsuneAddrSpaces.h"
+#include "kitsune/Transforms/AnnotateTapirLoops.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
 #include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Transforms/EmbPrepare.h"
@@ -22,6 +23,7 @@
 #include "kitsune/Transforms/GenerateCtors.h"
 #include "kitsune/Transforms/Prefetching.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
+#include "llvm/Transforms/Utils/LoopSimplify.h"
 
 using namespace llvm;
 
@@ -53,11 +55,23 @@ ModulePassManager
 llvm::populateKitPreTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
                                 ThinOrFullLTOPhase ltoPhase,
                                 const PipelineTuningOptions &pto) {
+  FunctionPassManager fpm;
   ModulePassManager mpm;
 
   pb.invokeKitsunePreTapirEarlyEPCallbacks(mpm, optLevel);
 
-  // There are currently no standard pre-tapir passes.
+  // At optimization level O0,, loop spawning will not be run, so there is no
+  // point in running the other Kitsune-specific passes.
+  //
+  // The tapir loop annotator pass requires loop simplify to be run, otherwise
+  // tapir loops may not be identified correctly. While we could simplify
+  // loops explicitly in the pass itself, since we have control over the
+  // pipeline, we might as well run loop simplify here.
+  if (optLevel.getSpeedupLevel() > 0) {
+    fpm.addPass(LoopSimplifyPass());
+  }
+  mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
+  mpm.addPass(AnnotateTapirLoopsPass());
 
   pb.invokeKitsunePreTapirLateEPCallbacks(mpm, optLevel);
 

@@ -10,6 +10,7 @@ add_kitsune_unittest_with_input_files(KitCoreTests
   GlobalVariableUtilsTest.cpp
   IntrinsicUtilsTest.cpp
   KernelPropertiesTest.cpp
+  LoopUtilsTest.cpp
   ModuleUtilsTest.cpp
   TapirCoreTest.cpp
   TypeUtilsTest.cpp

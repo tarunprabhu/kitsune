@@ -21,6 +21,7 @@
 #include "kitsune/CodeGen/StripKitsuneAddrSpaces.h"
 #include "kitsune/Passes/PipelineUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
+#include "kitsune/Transforms/AnnotateTapirLoops.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
 #include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Transforms/EmbPrepare.h"

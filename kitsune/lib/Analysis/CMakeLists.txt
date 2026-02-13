@@ -1,4 +1,5 @@
 add_llvm_component_library(LLVMKitAnalysis
+  TapirLoopNestAnalysis.cpp
   TapirTargetAnalysis.cpp
 
   DEPENDS

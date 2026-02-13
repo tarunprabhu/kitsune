@@ -8,6 +8,8 @@
 // O0:      Running pass:     AlwaysInlinerPass
 // O0-NEXT: Running analysis: ProfileSummaryAnalysis
 // O0-NEXT: Running pass:     CoroConditionalWrapper
+// O0-NEXT: Running pass:     AnnotationRemarksPass
+// O0-NEXT: Running analysis: TargetLibraryAnalysis
 // O0-NEXT: Running pass:     VerifierPass
 // O0-NEXT: Running pass:     BitcodeWriterPass
 //
@@ -34,18 +36,21 @@
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s -check-prefix O123SZ
 //
+// O123SZ:      Running pass:     AnnotationRemarksPass
+// O123SZ-NEXT: Running pass:     LoopSimplifyPass
+// O123SZ-NEXT: Running analysis: LoopAnalysis
+// O123SZ-NEXT: Running analysis: DominatorTreeAnalysis
+// O123SZ:      Running pass:     AnnotateTapirLoopsPass
 // O123SZ:      Running pass:     LoopSpawningPass
-// O123SZ-NEXT: Running analysis: TapirTargetAnalysis
-// O123SZ-NEXT: Running pass:     TapirToTargetPass
-// O123SZ-NEXT: Running pass:     IPSCCPPass
-// O123SZ-NEXT: Running pass:     CalledValuePropagationPass
-// O123SZ-NEXT: Running pass:     GlobalOptPass
-// O123SZ-NEXT: Running pass:     DeadArgumentEliminationPass
-// O123SZ-NEXT: Running pass:     AlwaysInlinerPass
-// O123SZ-NEXT: Running pass:     RequireAnalysisPass
-// O123SZ-NEXT: Running pass:     EliminateAvailableExternallyPass
-// O123SZ-NEXT: Running pass:     ReversePostOrderFunctionAttrs
-// O123SZ-NEXT: Running pass:     GlobalDCEPass
+//
+// FIXME: Remove the comment below once the loop strip-mining pass has been
+// reverted to the original and George's reduction modifications have been moved
+// into its own pass
+// COM: O123SZ-NEXT: Running analysis: TapirTargetAnalysis
+// COM: O123SZ-NEXT: Running analysis: TaskAnalysis
+//
+// O123SZ:      Running pass:     TapirToTargetPass
+// O123SZ:      Running pass:     GlobalDCEPass
 // O123SZ-NEXT: Running pass:     PrefetchingPass
 // O123SZ-NEXT: Running pass:     EmbResolveLibDeviceCallsPass
 // O123SZ-NEXT: Running pass:     EmbPreparePass
@@ -54,4 +59,7 @@
 // O123SZ-NEXT: Running pass:     RecomputeKernelPropertiesPass
 // O123SZ-NEXT: Running pass:     GenerateCtorsPass
 // O123SZ-NEXT: Running pass:     VerifierPass
+// O123SZ-NEXT: Running analysis: VerifierAnalysis
 // O123SZ-NEXT: Running pass:     BitcodeWriterPass
+
+void f() {}
