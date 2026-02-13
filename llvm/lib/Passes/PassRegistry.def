@@ -193,6 +193,7 @@ MODULE_PASS("kit-kernel-properties", RecomputeKernelPropertiesPass())
 MODULE_PASS("kit-prefetch", PrefetchingPass())
 MODULE_PASS("kit-lower-intrinsics", LowerKitsuneIntrinsicsPass())
 MODULE_PASS("kit-strip-addr-spaces", StripKitsuneAddrSpacesPass())
+MODULE_PASS("kit-serialize-tapir-loops", SerializeTapirLoopsPass())
 
 #undef MODULE_PASS
 

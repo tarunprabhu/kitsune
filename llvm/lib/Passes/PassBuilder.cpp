@@ -29,6 +29,7 @@
 #include "kitsune/Transforms/GenerateCtors.h"
 #include "kitsune/Transforms/Prefetching.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
+#include "kitsune/Transforms/SerializeTapirLoops.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/AliasAnalysisEvaluator.h"
 #include "llvm/Analysis/AliasSetTracker.h"

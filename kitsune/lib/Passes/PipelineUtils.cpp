@@ -23,6 +23,8 @@
 #include "kitsune/Transforms/GenerateCtors.h"
 #include "kitsune/Transforms/Prefetching.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
+#include "kitsune/Transforms/SerializeTapirLoops.h"
+#include "llvm/Transforms/Scalar/SimplifyCFG.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
 
 using namespace llvm;
@@ -55,6 +57,9 @@ ModulePassManager
 llvm::populateKitPreTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
                                 ThinOrFullLTOPhase ltoPhase,
                                 const PipelineTuningOptions &pto) {
+  SimplifyCFGOptions simplifyCFGOpts;
+  simplifyCFGOpts.convertSwitchRangeToICmp(true);
+
   FunctionPassManager fpm;
   ModulePassManager mpm;
 
@@ -62,16 +67,25 @@ llvm::populateKitPreTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
 
   // At optimization level O0,, loop spawning will not be run, so there is no
   // point in running the other Kitsune-specific passes.
-  //
-  // The tapir loop annotator pass requires loop simplify to be run, otherwise
-  // tapir loops may not be identified correctly. While we could simplify
-  // loops explicitly in the pass itself, since we have control over the
-  // pipeline, we might as well run loop simplify here.
   if (optLevel.getSpeedupLevel() > 0) {
-    fpm.addPass(LoopSimplifyPass());
+    // The tapir loop annotator pass requires loop simplify to be run, otherwise
+    // tapir loops may not be identified correctly. While we could simplify
+    // loops explicitly in the pass itself, since we have control over the
+    // pipeline, we might as well run loop simplify here.
+    FunctionPassManager fpmPrepare;
+    fpmPrepare.addPass(LoopSimplifyPass());
+    mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpmPrepare)));
+
+    mpm.addPass(AnnotateTapirLoopsPass());
+    mpm.addPass(SerializeTapirLoopsPass());
+
+    // Although serialize-tapir-loops tries to clean up after itself, run
+    // simplifycfg to perform any additional cleanup that might have been
+    // missed.
+    FunctionPassManager fpmCleanup;
+    fpmCleanup.addPass(SimplifyCFGPass(simplifyCFGOpts));
+    mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpmCleanup)));
   }
-  mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
-  mpm.addPass(AnnotateTapirLoopsPass());
 
   pb.invokeKitsunePreTapirLateEPCallbacks(mpm, optLevel);
 
