@@ -38,16 +38,14 @@
 ; RUN: opt -O0 --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix O0 %s
 ;
-; O0:      Running pass:     AnnotateTapirLoopsPass
+; O0:      Running pass:     TapirToTargetPass
 ; O0-NEXT: Running analysis: TapirTargetAnalysis
 ; O0-NEXT: Running analysis: LoopAnalysis
 ; O0-NEXT: Running analysis: DominatorTreeAnalysis
 ; O0-NEXT: Running analysis: TaskAnalysis
-; O0-NEXT: Running analysis: ScalarEvolutionAnalysis
-; O0-NEXT: Running analysis: TargetLibraryAnalysis
-; O0:      Running pass:     TapirToTargetPass
 ; O0-NEXT: Running pass:     AlwaysInlinerPass
 ; O0-NEXT: Running pass:     AnnotationRemarksPass
+; O0-NEXT: Running analysis: TargetLibraryAnalysis
 ; O0-NEXT: Running pass:     VerifierPass
 ; O0-NEXT: Running analysis: VerifierAnalysis
 ; O0-NEXT: Running pass:     BitcodeWriterPass
@@ -75,7 +73,12 @@
 ; O123SZ-NEXT: Running pass:     LoopSimplifyPass
 ; O123SZ-NEXT: Running analysis: LoopAnalysis
 ; O123SZ-NEXT: Running analysis: DominatorTreeAnalysis
-; O123SZ:      Running pass:     AnnotateTapirLoopsPass
+; O123SZ-NEXT: Running pass:     AnnotateTapirLoopsPass
+; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
+; O123SZ-NEXT: Running analysis: TaskAnalysis
+; O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis
+; O123SZ-NEXT: Running pass:     SerializeTapirLoopsPass
+; O123SZ-NEXT: Running pass:     SimplifyCFGPass
 ; O123SZ:      Running pass:     LoopSpawningPass
 ;
 ; FIXME: Remove the comment below once the loop strip-mining pass has been
