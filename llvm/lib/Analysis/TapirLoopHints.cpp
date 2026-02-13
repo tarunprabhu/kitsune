@@ -21,43 +21,43 @@ using namespace llvm;
 
 /// Find hints specified in the loop metadata and update local values.
 void llvm::TapirLoopHints::getHintsFromMetadata() {
-  MDNode *LoopID = theLoop->getLoopID();
-  if (!LoopID)
+  MDNode *loopID = theLoop->getLoopID();
+  if (!loopID)
     return;
 
   // First operand should refer to the loop id itself.
-  assert(LoopID->getNumOperands() > 0 && "requires at least one operand");
-  assert(LoopID->getOperand(0) == LoopID && "invalid loop id");
+  assert(loopID->getNumOperands() > 0 && "requires at least one operand");
+  assert(loopID->getOperand(0) == loopID && "invalid loop id");
 
-  for (unsigned i = 1, ie = LoopID->getNumOperands(); i < ie; ++i) {
-    const MDString *S = nullptr;
-    SmallVector<Metadata *, 4> Args;
+  for (unsigned i = 1, ie = loopID->getNumOperands(); i < ie; ++i) {
+    const MDString *s = nullptr;
+    SmallVector<Metadata *, 4> args;
 
     // The expected hint is either a MDString or a MDNode with the first
     // operand a MDString.
-    if (const MDNode *MD = dyn_cast<MDNode>(LoopID->getOperand(i))) {
-      if (!MD || MD->getNumOperands() == 0)
+    if (const MDNode *md = dyn_cast<MDNode>(loopID->getOperand(i))) {
+      if (!md || md->getNumOperands() == 0)
         continue;
-      S = dyn_cast<MDString>(MD->getOperand(0));
-      for (unsigned i = 1, ie = MD->getNumOperands(); i < ie; ++i)
-        Args.push_back(MD->getOperand(i));
+      s = dyn_cast<MDString>(md->getOperand(0));
+      for (unsigned i = 1, ie = md->getNumOperands(); i < ie; ++i)
+        args.push_back(md->getOperand(i));
     } else {
-      S = dyn_cast<MDString>(LoopID->getOperand(i));
-      assert(Args.size() == 0 && "too many arguments for MDString");
+      s = dyn_cast<MDString>(loopID->getOperand(i));
+      assert(args.size() == 0 && "too many arguments for MDString");
     }
 
-    if (!S)
+    if (!s)
       continue;
 
     // Check if the hint starts with the loop metadata prefix.
-    StringRef Name = S->getString();
-    if (Args.size() == 1)
-      setHint(Name, Args[0]);
+    StringRef name = s->getString();
+    if (args.size() == 1)
+      setHint(name, args[0]);
   }
 }
 
 bool llvm::TapirLoopHints::validate(StringRef name, unsigned v) {
-  if (name == nameStrategy) {
+  if (name == loopMDNameStrategy) {
     switch (TapirSpawnStrategy(v)) {
     case TapirSpawnStrategy::Basic:
     case TapirSpawnStrategy::DivideAndConquer:
@@ -66,13 +66,17 @@ bool llvm::TapirLoopHints::validate(StringRef name, unsigned v) {
       return true;
     }
     return false;
-  } else if (name == nameGrainSize) {
+  } else if (name == loopMDNameGrainSize) {
     return true;
-  } else if (name == nameLoopTarget) {
+  } else if (name == loopMDNameLoopTarget) {
     return createTTIDFrom(v).has_value();
-  } else if (name == nameThreadsPerBlock) {
+  } else if (name == loopMDNameThreadsPerBlock) {
     return v <= KITSUNE_MAX_FIXED_THREADS_PER_BLOCK;
-  } else if (name == nameAutotuneLaunch) {
+  } else if (name == loopMDNameAutotuneLaunch) {
+    return true;
+  } else if (name == loopMDNamePerfectDepth) {
+    return true;
+  } else if (name == loopMDNamePerfectLevel) {
     return true;
   } else {
     llvm_unreachable("TapirLoopHints::validate: Name not handled");
@@ -81,7 +85,7 @@ bool llvm::TapirLoopHints::validate(StringRef name, unsigned v) {
 
 bool llvm::TapirLoopHints::canCreateMetadata(StringRef name,
                                              const ValueType &v) const {
-  if (name == nameLoopTarget)
+  if (name == loopMDNameLoopTarget)
     return getLoopTarget().has_value();
   return true;
 }
@@ -102,7 +106,7 @@ unsigned llvm::TapirLoopHints::toMetadataValue(
 }
 
 void llvm::TapirLoopHints::setHint(StringRef name, Metadata *arg) {
-  if (!name.starts_with(namePrefix))
+  if (!name.starts_with(loopMDNamePrefix))
     return;
   const auto *c = mdconst::dyn_extract<ConstantInt>(arg);
   if (!c)
@@ -111,16 +115,20 @@ void llvm::TapirLoopHints::setHint(StringRef name, Metadata *arg) {
   unsigned val = c->getZExtValue();
   if (not TapirLoopHints::validate(name, val))
     report_fatal_error(Twine("Invalid loop hint value: '") + name + "'");
-  else if (name == nameStrategy)
+  else if (name == loopMDNameStrategy)
     hints[name] = TapirSpawnStrategy(val);
-  else if (name == nameGrainSize)
+  else if (name == loopMDNameGrainSize)
     hints[name] = val;
-  else if (name == nameLoopTarget)
+  else if (name == loopMDNameLoopTarget)
     hints[name] = TTID(val);
-  else if (name == nameThreadsPerBlock)
+  else if (name == loopMDNameThreadsPerBlock)
     hints[name] = val;
-  else if (name == nameAutotuneLaunch)
+  else if (name == loopMDNameAutotuneLaunch)
     hints[name] = bool(val);
+  else if (name == loopMDNamePerfectDepth)
+    hints[name] = val;
+  else if (name == loopMDNamePerfectLevel)
+    hints[name] = val;
   else
     llvm_unreachable("TapirLoopHints::setHint: Hint name not handled");
 }
@@ -179,9 +187,9 @@ void llvm::TapirLoopHints::writeHintsToMetadata(const Hints &hints) {
       mds.push_back(createHintMetadata(name, toMetadataValue(name, v)));
   }
 
-  // Replace current metadata node with new one.
+  // Replace current metadata node with new one. The first operand should refer
+  // to itself.
   MDNode *newLoopID = MDNode::get(ctx, mds);
-  // Set operand 0 to refer to the loop id itself.
   newLoopID->replaceOperandWith(0, newLoopID);
 
   theLoop->setLoopID(newLoopID);
@@ -193,8 +201,7 @@ void llvm::TapirLoopHints::writeHintsToClonedMetadata(const Hints &hints,
   if (hints.size() == 0)
     return;
 
-  LLVMContext &ctx =
-      cast<BasicBlock>(vmap[theLoop->getHeader()])->getContext();
+  LLVMContext &ctx = cast<BasicBlock>(vmap[theLoop->getHeader()])->getContext();
   SmallVector<Metadata *, 4> mds;
 
   // Reserve first location for self reference to the LoopID metadata node.
@@ -258,6 +265,21 @@ void llvm::TapirLoopHints::clearHintsMetadata() {
   newLoopID->replaceOperandWith(0, newLoopID);
 
   theLoop->setLoopID(newLoopID);
+}
+
+void TapirLoopHints::clearStrategy() {
+  hints[loopMDNameStrategy] = defaultTapirSpawnStrategy;
+  writeHintsToMetadata({{loopMDNameStrategy, defaultTapirSpawnStrategy}});
+}
+
+void TapirLoopHints::clearClonedLoopMetadata(ValueToValueMapTy &vmap) {
+  writeHintsToClonedMetadata({{loopMDNameStrategy, defaultTapirSpawnStrategy}},
+                             vmap);
+}
+
+void TapirLoopHints::setAlreadyStripMined() {
+  hints[loopMDNameGrainSize] = 1U;
+  writeHintsToMetadata({{loopMDNameGrainSize, 1U}});
 }
 
 /// Returns true if Tapir-loop hints require loop outlining during lowering.

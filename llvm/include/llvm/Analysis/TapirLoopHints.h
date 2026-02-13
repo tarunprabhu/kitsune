@@ -14,6 +14,7 @@
 #define LLVM_ANALYSIS_TAPIR_LOOP_HINTS_H
 
 #include "kitsune/Config/config.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/ValueHandle.h"
@@ -43,26 +44,17 @@ private:
   using ValueToValueMapTy = ValueMap<const Value *, WeakTrackingVH>;
   using Hints = std::map<StringRef, ValueType>;
 
-  /// The required prefix on all tapir loop metadata.
-  static constexpr StringRef namePrefix = "tapir.loop.";
-
-  // The names of the various hints. These are exactly they appear in the IR.
-  // They *MUST* start with the prefix, tapir.loop.
-  static constexpr StringRef nameStrategy = "tapir.loop.spawn.strategy";
-  static constexpr StringRef nameGrainSize = "tapir.loop.grainsize";
-  static constexpr StringRef nameLoopTarget = "tapir.loop.target";
-  static constexpr StringRef nameThreadsPerBlock =
-      "tapir.loop.threads.per.block";
-  static constexpr StringRef nameAutotuneLaunch = "tapir.loop.autotune.launch";
-
+private:
   /// All tapir loop hints. Every known loop hint must contain an entry in this
   /// map, even if a hint is not found in the metadata. When adding support for
   /// a new hint, a default value *MUST* be added to this map.
-  Hints hints = {{nameStrategy, defaultTapirSpawnStrategy},
-                 {nameGrainSize, defaultTapirGrainSize},
-                 {nameLoopTarget, defaultTapirTarget},
-                 {nameThreadsPerBlock, 0U},
-                 {nameAutotuneLaunch, false}};
+  Hints hints = {{loopMDNameStrategy, defaultTapirSpawnStrategy},
+                 {loopMDNameGrainSize, defaultTapirGrainSize},
+                 {loopMDNameLoopTarget, defaultTapirTarget},
+                 {loopMDNameThreadsPerBlock, 0U},
+                 {loopMDNameAutotuneLaunch, false},
+                 {loopMDNamePerfectDepth, 0U},
+                 {loopMDNamePerfectLevel, 0U}};
 
   /// Check if the value can be serialized to metadata. Some hints cannot
   /// currently be serialized - for instance, those with optional values when
@@ -92,43 +84,46 @@ public:
   }
 
   TapirSpawnStrategy getStrategy() const {
-    return std::get<TapirSpawnStrategy>(hints.at(nameStrategy));
+    return std::get<TapirSpawnStrategy>(hints.at(loopMDNameStrategy));
   }
 
   unsigned getGrainsize() const {
-    return std::get<unsigned>(hints.at(nameGrainSize));
+    return std::get<unsigned>(hints.at(loopMDNameGrainSize));
   }
 
   std::optional<TTID> getLoopTarget() const {
-    return std::get<std::optional<TTID>>(hints.at(nameLoopTarget));
+    return std::get<std::optional<TTID>>(hints.at(loopMDNameLoopTarget));
   }
 
   unsigned getThreadsPerBlock() const {
-    return std::get<unsigned>(hints.at(nameThreadsPerBlock));
+    return std::get<unsigned>(hints.at(loopMDNameThreadsPerBlock));
   }
 
   bool getAutotuneLaunch() const {
-    return std::get<bool>(hints.at(nameAutotuneLaunch));
+    return std::get<bool>(hints.at(loopMDNameAutotuneLaunch));
+  }
+
+  bool getPerfectDepth() const {
+    return std::get<unsigned>(hints.at(loopMDNamePerfectDepth));
+  }
+
+  bool getPerfectLevel() const {
+    return std::get<unsigned>(hints.at(loopMDNamePerfectLevel));
   }
 
   /// Clear Tapir hints from the loop's metadata.
   void clearHintsMetadata();
 
   /// Mark the loop as having no spawning strategy.
-  void clearStrategy() {
-    hints[nameStrategy] = defaultTapirSpawnStrategy;
-    writeHintsToMetadata({{nameStrategy, defaultTapirSpawnStrategy}});
-  }
+  void clearStrategy();
 
-  void clearClonedLoopMetadata(ValueToValueMapTy &VMap) {
-    writeHintsToClonedMetadata({{nameStrategy, defaultTapirSpawnStrategy}},
-                               VMap);
-  }
+  void clearClonedLoopMetadata(ValueToValueMapTy &vmap);
 
-  void setAlreadyStripMined() {
-    hints[nameGrainSize] = 1U;
-    writeHintsToMetadata({{nameGrainSize, 1U}});
-  }
+  /// Set the loop as having already been strip-mined.
+  void setAlreadyStripMined();
+
+  /// Set the attribute indicating that the loop is reduction loop.
+  void setReduction();
 
 private:
   /// Find hints specified in the loop metadata and update local values.

@@ -1,4 +1,5 @@
 add_llvm_component_library(LLVMKitTransforms
+  AnnotateTapirLoops.cpp
   EmbLinkLibDeviceBitcode.cpp
   EmbPrepare.cpp
   EmbPrepareCuda.cpp
