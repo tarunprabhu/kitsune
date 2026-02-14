@@ -1762,6 +1762,8 @@ PassBuilder::buildTapirLoopLoweringPipeline(OptimizationLevel Level,
                                               /*UseBlockFrequencyInfo=*/false));
   MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
 
+  MPM.addPass(populateKitPreLoopSpawningPasses(*this, Level, Phase, PTO));
+
   // Outline Tapir loops as needed.
   MPM.addPass(LoopSpawningPass(Level));
   if (VerifyTapirLowering)

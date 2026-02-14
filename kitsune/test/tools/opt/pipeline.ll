@@ -73,12 +73,11 @@
 ; O123SZ-NEXT: Running pass:     LoopSimplifyPass
 ; O123SZ-NEXT: Running analysis: LoopAnalysis
 ; O123SZ-NEXT: Running analysis: DominatorTreeAnalysis
-; O123SZ-NEXT: Running pass:     AnnotateTapirLoopsPass
+; O123SZ:      Running pass:     AnnotateTapirLoopsPass
 ; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
 ; O123SZ-NEXT: Running analysis: TaskAnalysis
 ; O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis
 ; O123SZ-NEXT: Running pass:     SerializeTapirLoopsPass
-; O123SZ-NEXT: Running pass:     SimplifyCFGPass
 ; O123SZ:      Running pass:     LoopSpawningPass
 ;
 ; FIXME: Remove the comment below once the loop strip-mining pass has been

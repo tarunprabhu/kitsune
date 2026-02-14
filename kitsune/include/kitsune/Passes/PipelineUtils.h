@@ -46,6 +46,14 @@ ModulePassManager populateKitPreTapirPasses(PassBuilder &pb,
                                             const PipelineTuningOptions &pto);
 
 /// Populate a ModulePassManager with the passes that should be run as part of
+/// Kitsune's pre-loop-spawning pipeline. These passes are run immediately
+/// the loop-spawning pass is run.
+ModulePassManager
+populateKitPreLoopSpawningPasses(PassBuilder &pb, OptimizationLevel level,
+                                 ThinOrFullLTOPhase phase,
+                                 const PipelineTuningOptions &pto);
+
+/// Populate a ModulePassManager with the passes that should be run as part of
 /// Kitsune's post-tapir pipeline. These passes are run immediately after tapir
 /// lowering.
 ModulePassManager populateKitPostTapirPasses(PassBuilder &pb,
