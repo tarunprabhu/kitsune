@@ -441,21 +441,22 @@ inline CUcontext __kitcuda_get_context() {
 #endif
 
 extern CUdevice _kitcuda_device;
-extern CUmemLocation _kitcuda_mem_location; 
+extern CUmemLocation _kitcuda_mem_location;
 extern CUcontext _kitcuda_context;
 
 #define CU_SAFE_CALL(x)                                                        \
   {                                                                            \
     CUresult result = x;                                                       \
     if (result != CUDA_SUCCESS) {                                              \
-      const char *msg;                                                         \
-      cuGetErrorName_p(result, &msg);                                          \
-      fprintf(stderr, "kitrt %s:%d:\n", __FILE__, __LINE__);                   \
-      fprintf(stderr, "  %s failed ('%s')\n", #x, msg);                        \
-      cuGetErrorString_p(result, &msg);                                        \
-      fprintf(stderr, "  error: '%s'\n", msg);                                 \
+      const char *errName;                                                     \
+      cuGetErrorName_p(result, &errName);                                      \
+      __kitrt_error("kitcuda", "%s:%d", __FILE__, __LINE__);                   \
       __kitrt_print_stack_trace();                                             \
-      exit(EXIT_FAILURE);                                                      \
+                                                                               \
+      __kitrt_error("kitcuda", "%s failed ('%s')", #x, errName);               \
+      const char *errString;                                                   \
+      cuGetErrorString_p(result, &errString);                                  \
+      __kitrt_fatal("kitcuda", errString);                                     \
     }                                                                          \
   }
 

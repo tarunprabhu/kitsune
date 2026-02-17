@@ -408,13 +408,11 @@ extern bool __kithip_is_initialized();
   {                                                                            \
     hipError_t hip_result = x;                                                 \
     if (hip_result != hipSuccess) {                                            \
-      fprintf(stderr, "kitrt: %s:%d:\n", __FILE__, __LINE__);                  \
-      const char *msg;                                                         \
-      msg = hipGetErrorName(hip_result);                                       \
-      fprintf(stderr, "  %s failed ('%s')\n", #x, msg);                        \
-      msg = hipGetErrorString(hip_result);                                     \
-      fprintf(stderr, "  error: '%s'\n", msg);                                 \
-      abort();                                                                 \
+      __kitrt_error("kithip", "%s:%d", __FILE__, __LINE__);                    \
+      __kitrt_print_stack_trace();                                             \
+      __kitrt_error("kithip", "%s failed ('%s')", #x,                          \
+                    hipGetErrorName(hip_result));                              \
+      __kitrt_fatal("kithip", hipGetErrorString(hip_result));                  \
     }                                                                          \
   }
 

@@ -147,7 +147,7 @@ __kitcuda_mem_calloc_managed(size_t count, size_t element_size) {
     size_t nbytes =
         __kitrt_get_mem_alloc_size((void *)ptr, &read_only, &write_only);
     if (nbytes == 0) {
-      fprintf(stderr, "kitcuda: warning, realloc() on untracked allocation!\n");
+      __kitrt_warn("kitcuda", "realloc() on untracked allocation");
       KIT_NVTX_POP();
       return nullptr;
     }

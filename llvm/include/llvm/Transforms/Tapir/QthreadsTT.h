@@ -13,7 +13,6 @@
 #ifndef LLVM_TAPIR_QTHREADS_TT_H
 #define LLVM_TAPIR_QTHREADS_TT_H
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
 namespace llvm {
@@ -58,7 +57,7 @@ public:
 
   /// Process a generated helper function \p f produced via outlining, at the
   /// end of the lowering process.
-  void postProcessHelper(Function &F) override final {
+  void postProcessHelper(Function &f) override final {
     // Nothing to be done here
   }
 
@@ -102,7 +101,7 @@ public:
 
   /// Create a custom loop outline processor for this tapir target.
   LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *tli) override final;
+  getLoopOutlineProcessor(const TapirLoopInfo *tl) override final;
 };
 
 } // namespace llvm

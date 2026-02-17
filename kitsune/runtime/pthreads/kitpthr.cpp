@@ -1,4 +1,4 @@
-//===- kitpthr.cpp - Kitsune runtime targeting C11 threads ----------------===//
+//===- kitpthr.cpp - Kitsune runtime targeting POSIX threads (pthreads) ---===//
 //
 // Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 // All rights reserved.
@@ -60,65 +60,19 @@
 #include <pthread.h>
 #include <thread>
 
-/// TODO: Move this to a different file because this could be used as a common
-/// utility function to display varying levels of status messages from other
-/// runtimes as well.
-static void log(const char *label, const char *category, const char *msg,
-                va_list args) {
-  // TODO: It would be nice if we could colorize the label.
-  if (label)
-    fprintf(stderr, "%s: ", label);
-  if (category)
-    fprintf(stderr, "%s: ", category);
-  vfprintf(stderr, msg, args);
-  fprintf(stderr, "\n");
-}
-
-/// Print an error message to stderr and terminate the process with an exit
-/// code. \param msg may be a printf-compatible format string. In that case,
-/// any optional arguments must be of the appropriate types.
-[[noreturn]] static void fatal(const char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  log("kitpthr", "ERROR", msg, args);
-  va_end(args);
-
-  std::exit(EXIT_FAILURE);
-}
-
-/// Print a warning message to stderr. \param msg may be a printf-compatible
-/// format string. In that case, any optional arguments must be of the
-/// appropriate types.
-static void warn(const char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  log("kitpthr", "WARNING", msg, args);
-  va_end(args);
-}
-
-/// Display an informational message if verbose mode has been enabled.
-/// \param msg may be a printf-compatible format string. In this case, any
-/// optional arguments must be of the appropriate type.
-static void message(const char *msg, ...) {
-  if (__kitrt_verbose_mode()) {
-    va_list args;
-    va_start(args, msg);
-    log("kitpthr", nullptr, msg, args);
-    va_end(args);
-  }
-}
+#define LABEL "kitphr"
 
 [[noreturn]] static void kitpthrHandleCreateError(int err) {
   const char *lede = "Could not create thread";
   switch (err) {
   case EINVAL:
-    fatal("%s. Invalid attributes", lede);
+    __kitrt_fatal(LABEL, "%s. Invalid attributes", lede);
   case EAGAIN:
-    fatal("%s. Insufficient resources", lede);
+    __kitrt_fatal(LABEL, "%s. Insufficient resources", lede);
   case EPERM:
-    fatal("%s. Insufficient permissions", lede);
+    __kitrt_fatal(LABEL, "%s. Insufficient permissions", lede);
   default:
-    fatal("%s. Unknown error", lede);
+    __kitrt_fatal(LABEL, "%s. Unknown error", lede);
   }
 }
 
@@ -126,13 +80,13 @@ static void message(const char *msg, ...) {
   const char *lede = "Error joining thread";
   switch (err) {
   case EDEADLK:
-    fatal("%s. Deadlock detected", lede);
+    __kitrt_fatal(LABEL, "%s. Deadlock detected", lede);
   case EINVAL:
-    fatal("%s. Thread is not joinable", lede);
+    __kitrt_fatal(LABEL, "%s. Thread is not joinable", lede);
   case ESRCH:
-    fatal("%s. Invalid thread id", lede);
+    __kitrt_fatal(LABEL, "%s. Invalid thread id", lede);
   default:
-    fatal("%s. Unknown error", lede);
+    __kitrt_fatal(LABEL, "%s. Unknown error", lede);
   }
 }
 
@@ -171,13 +125,13 @@ struct KitPthrContext {
 public:
   KitPthrContext() = default;
   KitPthrContext(int64_t thrds) {
-    message("New context: %ld threads", thrds);
+    __kitrt_message(LABEL, "New context: %ld threads", thrds);
     this->thrdInfo = new KitPthrThrdInfo[thrds];
     this->thrds = thrds;
   }
 
   ~KitPthrContext() {
-    message("Delete context");
+    __kitrt_message(LABEL, "Delete context");
     delete[] thrdInfo;
   }
 
@@ -199,7 +153,8 @@ public:
 /// and 1 is returned.
 static int64_t kitpthrGetNumThreads(int64_t start, int64_t end) {
   if (const char *envNumThreads = getenv("KIT_NUM_THREADS")) {
-    message("Environment variable KIT_NUM_THREADS=%s", envNumThreads);
+    __kitrt_message(LABEL, "Environment variable KIT_NUM_THREADS=%s",
+                    envNumThreads);
     char *end = nullptr;
     long numThreads = strtol(envNumThreads, &end, 10);
 
@@ -213,28 +168,30 @@ static int64_t kitpthrGetNumThreads(int64_t start, int64_t end) {
     if (!error)
       return numThreads;
 
-    warn("Invalid number of threads in KIT_NUM_THREADS");
+    __kitrt_warn(LABEL, "Invalid number of threads in KIT_NUM_THREADS");
   }
 
   long numThreads = std::thread::hardware_concurrency();
   if (numThreads <= 0) {
-    warn("Disable threading. Could not determine number of CPUs");
+    __kitrt_warn(LABEL,
+                 "Disable threading. Could not determine number of CPUs");
     return 1;
   } else if (numThreads > KitPthrContext::maxThreads) {
-    warn("Disable threading: Too many CPUs found: %ld", numThreads);
+    __kitrt_warn(LABEL, "Disable threading: Too many CPUs found: %ld",
+                 numThreads);
     return 1;
   }
 
-  message("CPUs on system: %ld", numThreads);
+  __kitrt_message(LABEL, "CPUs on system: %ld", numThreads);
   return numThreads;
 }
 
-/// Run \param f on the main thread. Block until f completes. Always return
-/// nullptr. \param start, \param end and \param args are passed to \param f.
+/// Run \p f on the main thread. Block until f completes. Always return nullptr.
+/// \p start, \p end and \p args are passed to \p f.
 static KitPthrContext *runOnMainThread(KitPthrThrdFn f, int64_t start,
                                        int64_t end, int64_t grainSize,
                                        void *args) {
-  warn("Running on main thread");
+  __kitrt_warn(LABEL, "Running on main thread");
 
   f(start, end, grainSize, args);
 
@@ -242,9 +199,8 @@ static KitPthrContext *runOnMainThread(KitPthrThrdFn f, int64_t start,
 }
 
 /// The function that is launched by each thread. This simply finds the "actual"
-/// function that is to be run in \param thrdInfo and calls it. The arguments
-/// arguments to the actual function are also present in \param thrdInfo. Always
-/// returns 0.
+/// function that is to be run in \p thrdInfo and calls it. The arguments to the
+/// actual function are also present in \p thrdInfo. Always returns 0.
 static void *kitpthrThrdStartFn(KitPthrThrdInfo *thrdInfo) {
   KitPthrThrdFn f = thrdInfo->f;
   int64_t start = thrdInfo->start;
@@ -265,24 +221,24 @@ static void *kitpthrThrdStartFn(KitPthrThrdInfo *thrdInfo) {
 /// number of CPU's on the system if either the environment variable is not set,
 /// or if it is set to a positive integer. If the number of CPU's could not be
 /// determined, or if only a single CPU is available, no threads are launched.
-/// Instead, the \param f is run on the main thread, which will block until
-/// \param f completes.
+/// Instead, the \p f is run on the main thread, which will block until \p f
+/// completes.
 ///
 /// \param f The function to execute on each thread
 /// \param start The start index of the iteration space
 /// \param end The value one greater than the last index of the iteration space
 /// \param grainSize The grainSize
-/// \param args A struct containing data to be passed to \param f
+/// \param args A struct containing data to be passed to \p f
 /// \return An opaque thread context object. It is the caller's responsibility
 /// to call \ref __kitpthr_join with this context object. If no threads are
-/// launched, i.e. \param f is run on the main thread, nullptr will be returned
+/// launched, i.e. \p f is run on the main thread, nullptr will be returned
 /// instead. In this case, the caller is not required to call
 /// \ref __kitpthr_join.
 extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
                                             int64_t end, int64_t grainSize,
                                             void *args) {
-  message("Launching");
-  message("Iteration range: [%ld, %ld)", start, end);
+  __kitrt_message(LABEL, "Launching threads");
+  __kitrt_message(LABEL, "Iteration range: [%ld, %ld)", start, end);
 
   // This is the number of threads that *may* be launched. However, there may
   // not be enough for work for all threads, so the actual number of threads
@@ -301,7 +257,7 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
   // compilation directives that would other wise be needed here.
   constexpr int64_t one = 1;
   const int64_t thrdSpan = std::max((end - start) / availThrds, one);
-  message("Iterations per thread: %ld", thrdSpan);
+  __kitrt_message(LABEL, "Iterations per thread: %ld", thrdSpan);
 
   // The actual number of threads that are to be launched. Adding `thrdSpan - 1`
   // to `end` nicely deals with the case where the range of iterations is not an
@@ -309,7 +265,7 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
   // handle the two cases separately, but this is a fairly standard way of doing
   // such things.
   const int64_t thrds = (end + thrdSpan - 1 - start) / thrdSpan;
-  message("Launching %ld threads", thrds);
+  __kitrt_message(LABEL, "Launching %ld threads", thrds);
 
   KitPthrContext *ctx = new KitPthrContext(thrds);
   for (int64_t i = 0, beg = start; beg < end; beg += thrdSpan, ++i) {
@@ -321,29 +277,30 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
     info.args = args;
 
     if (pthread_attr_init(&info.attr))
-      fatal("Error initializing thread attrs");
+      __kitrt_fatal(LABEL, "Error initializing thread attributes");
 
     if (int err = pthread_create(&info.id, &info.attr,
                                  (pthread_start_t)kitpthrThrdStartFn,
                                  &ctx->thrdInfo[i]))
       kitpthrHandleCreateError(err);
-    message("Launched [%ld, %ld) on thread %ld", info.start, info.end, i);
+    __kitrt_message(LABEL, "Launched [%ld, %ld) on thread %ld", info.start,
+                    info.end, i);
   }
 
   return ctx;
 }
 
 /// Join the threads launched by a previous call to \ref __kitpthr_launch.
-/// \param ctx is the context returned by that call. \param ctx may be nullptr,
-/// in which case, this function does nothing.
+/// \p ctx is the context returned by that call. \p ctx may be nullptr, in which
+/// case, this function does nothing.
 extern "C" void __kitpthr_sync(KitPthrContext *ctx) {
-  message("Joining: %ld threads", ctx->thrds);
+  __kitrt_message(LABEL, "Joining: %ld threads", ctx->thrds);
   for (size_t i = 0; i < ctx->thrds; ++i) {
     if (int err = pthread_join(ctx->thrdInfo[i].id, nullptr))
       kitpthrHandleJoinError(err);
     if (int err = pthread_attr_destroy(&ctx->thrdInfo[i].attr))
-      fatal("Error destroying attributes");
-    message("Joined thread %ld", i);
+      __kitrt_fatal(LABEL, "Error destroying thread attributes");
+    __kitrt_message(LABEL, "Joined thread %ld", i);
   }
   delete ctx;
 }
@@ -355,10 +312,14 @@ extern "C" void __kitpthr_initialize(void) {
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
-  message("Initialized runtime");
+  __kitrt_message(LABEL, "Initializing Kitsune pthreads runtime");
+  __kitrt_message(LABEL, "Initialized Kitsune pthreads runtime");
 }
 
 /// Finalize kitsune's pthreads runtime. This is only present for symmetry with
 /// \ref __kitpthr_initialize. Since the runtime does not maintain any global
 /// state of its own, this does nothing.
-extern "C" void __kitpthr_finalize(void) { message("Finalize runtime"); }
+extern "C" void __kitpthr_finalize(void) {
+  __kitrt_message(LABEL, "Finalizing Kitsune pthreads runtime");
+  __kitrt_message(LABEL, "Finalized Kitsune pthreads runtime");
+}

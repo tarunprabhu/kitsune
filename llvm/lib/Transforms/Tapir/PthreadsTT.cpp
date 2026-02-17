@@ -1,4 +1,4 @@
-//===- PthreadsTT.cpp - Interface to Kitsune's pthreads runtime -----------===//
+//===- PthreadsTT.cpp - Implementation of the pthreads tapir target -------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -23,43 +23,52 @@ using namespace llvm;
 
 #define DEBUG_TYPE "pthreadstt"
 
-PthreadsLoop::PthreadsLoop(Module &m, const TTOptions &ttOpts)
-    : LoopOutlineProcessor(m, m, ttOpts,
-                           CloneFunctionChangeType::GlobalChanges) {}
+/// \ingroup kitsune
+class PthreadsLoop : public LoopOutlineProcessor {
+public:
+  /// Create a loop outline processor for the pthreads tapir target.
+  /// \param m The host module
+  /// \param ttOpts The tapir target options
+  PthreadsLoop(Module &m, const TTOptions &ttOpts)
+      : LoopOutlineProcessor(m, m, ttOpts,
+                             CloneFunctionChangeType::GlobalChanges) {}
 
-PthreadsLoop::~PthreadsLoop() {}
+  ~PthreadsLoop() = default;
 
-PthreadsTT::ArgStructMode PthreadsLoop::getArgStructMode() const {
-  // TODO: We should look at the total size of the inputs to the helper function
-  // and use a dynamic struct if it is "large".
-  return PthreadsTT::ArgStructMode::Static;
-}
+  /// Returns an ArgStructMode enum value describing how inputs to the
+  /// underlying task of a tapir loop should be passed to the task.
+  ArgStructMode getArgStructMode() const override final {
+    // TODO: We should look at the total size of the inputs to the helper
+    // function and use a dynamic struct if it is "large".
+    return PthreadsTT::ArgStructMode::Static;
+  }
 
-void PthreadsLoop::processOutlinedLoopCall(TapirLoopInfo &tl,
-                                           TaskOutlineInfo &toi,
-                                           DominatorTree &dt) {
-  LLVMContext &ctx = M.getContext();
+  /// Processes a call to an outlined helper function for a tapir loop \p tl.
+  void processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
+                               DominatorTree &dt) override final {
+    LLVMContext &ctx = M.getContext();
 
-  ConstantInt *ctt = createConstInt(TTID::Pthreads, ctx);
-  Function *outlined = toi.Outline;
-  CallBase *replCall = cast<CallBase>(toi.ReplCall);
-  IRBuilder<> builder(replCall);
+    ConstantInt *ctt = createConstInt(TTID::Pthreads, ctx);
+    Function *outlined = toi.Outline;
+    CallBase *replCall = cast<CallBase>(toi.ReplCall);
+    IRBuilder<> builder(replCall);
 
-  SmallVector<Value *, 16> launchArgs = {ctt, outlined};
-  for (Value *arg : replCall->args())
-    launchArgs.push_back(arg);
-  Value *thrdCtx =
-      builder.CreateIntrinsic(Intrinsic::kit_async_launch_threads, launchArgs);
+    SmallVector<Value *, 16> launchArgs = {ctt, outlined};
+    for (Value *arg : replCall->args())
+      launchArgs.push_back(arg);
+    Value *thrdCtx = builder.CreateIntrinsic(
+        Intrinsic::kit_async_launch_threads, launchArgs);
 
-  Value *syncArgs[] = {ctt, thrdCtx};
-  (void)builder.CreateIntrinsic(Intrinsic::kit_sync_threads, syncArgs);
+    Value *syncArgs[] = {ctt, thrdCtx};
+    (void)builder.CreateIntrinsic(Intrinsic::kit_sync_threads, syncArgs);
 
-  assert(replCall->getType() == Type::getVoidTy(ctx) &&
-         "The outlined function must not return a value");
-  assert(replCall->getNumUses() == 0 &&
-         "The outlined function must not have any uses");
-  replCall->eraseFromParent();
-}
+    assert(replCall->getType() == Type::getVoidTy(ctx) &&
+           "The outlined function must not return a value");
+    assert(replCall->getNumUses() == 0 &&
+           "The outlined function must not have any uses");
+    replCall->eraseFromParent();
+  }
+};
 
 PthreadsTT::PthreadsTT(Module &m, const TTOptions &ttOpts)
     : TapirTarget(m, ttOpts) {}
@@ -85,6 +94,6 @@ void PthreadsTT::lowerSync(SyncInst &si) {
 }
 
 LoopOutlineProcessor *
-PthreadsTT::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
+PthreadsTT::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
   return new PthreadsLoop(M, this->getOptions());
 }
