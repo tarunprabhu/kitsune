@@ -3,6 +3,7 @@ add_llvm_component_library(LLVMKitCore
   CommandLineOptions.cpp
   ConstantUtils.cpp
   EmbUtils.cpp
+  FunctionUtils.cpp
   GlobalVariableUtils.cpp
   IntrinsicUtils.cpp
   KernelProperties.cpp

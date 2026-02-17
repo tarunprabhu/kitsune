@@ -109,6 +109,25 @@ public:
     // likely to be poor. This is why we create this empty stub instead of
     // just returning false from annotateTapirLoops(). However, neither claim
     // has been tested.
+    //
+    // TODO: Check if we need to do something here, and either do it, or remove
+    // this class altogether.
+    return false;
+  }
+};
+
+/// Annotate tapir loops when the primary tapir target is 'qthreads'.
+class AnnotateTapirLoopsQthreads {
+public:
+  AnnotateTapirLoopsQthreads(LoopInfo &, ScalarEvolution &, TaskInfo &) {}
+
+  bool run(Function &f) {
+    // We don't currently do anything special when lowering nested loops with
+    // the qthreads tapir target. It may be beneficial to do something else
+    // here, but that would require some performance analysis.
+    //
+    // TODO: Check if we need to do something here, and either do it, or remove
+    // this class altogether.
     return false;
   }
 };
@@ -131,6 +150,8 @@ static bool annotateTapirLoops(TTID tt, Function &f, LoopInfo &li,
     return false;
   case TTID::Pthreads:
     return AnnotateTapirLoopsPthreads(li, se, ti).run(f);
+  case TTID::Qthreads:
+    return AnnotateTapirLoopsQthreads(li, se, ti).run(f);
   case TTID::Custom:
     // In principle, the custom tapir target is responsible for handling
     // everything related to lowering, so it is up to the tapir target to
@@ -138,7 +159,6 @@ static bool annotateTapirLoops(TTID tt, Function &f, LoopInfo &li,
     // a callback, or some other hook, that could be defined by the tapir target
     // plugin and used here.
     return false;
-  case TTID::Qthreads:
   case TTID::Realm:
   case TTID::Lambda:
   case TTID::OMPTask:

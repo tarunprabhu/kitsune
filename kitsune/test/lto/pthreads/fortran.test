@@ -6,7 +6,7 @@
 #
 # Check a standard lowering using LTO.
 #
-# RUN: %kitfc -flto --tapir=serial -fno-inline -O2 -o - %sysroot \
+# RUN: %kitfc -flto --tapir=pthreads -fno-inline -O2 -o - %sysroot \
 # RUN:     -Wl,--lto-emit-llvm \
 # RUN:     %S/../input/add.f90 %S/../input/main.f90 \
 # RUN:     | llvm-dis \

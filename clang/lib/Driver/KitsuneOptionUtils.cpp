@@ -307,18 +307,6 @@ static bool parseKitsuneOpenMPArgs(KitsuneOptions &opts, const ArgList &args,
   return diags.getNumErrors() == numErrorsBefore;
 }
 
-static bool parseKitsuneQthreadsArgs(KitsuneOptions &opts, const ArgList &args,
-                                     const OptTable &optTable,
-                                     DiagnosticsEngine &diags) {
-  unsigned numErrorsBefore = diags.getNumErrors();
-
-  // Don't hit unreachable if an error has already occurred
-  if (!numErrorsBefore)
-    llvm_unreachable("NOT IMPLEMENTED: ParseKitsuneQthreadsargs");
-
-  return diags.getNumErrors() == numErrorsBefore;
-}
-
 static bool parseKitsuneRealmArgs(KitsuneOptions &opts, const ArgList &args,
                                   const OptTable &optTable,
                                   DiagnosticsEngine &diags) {
@@ -354,7 +342,7 @@ static bool parseKitsuneTTArgs(KitsuneOptions &kitOpts, TTID tt,
   case llvm::TTID::Pthreads:
     return true;
   case llvm::TTID::Qthreads:
-    return parseKitsuneQthreadsArgs(kitOpts, args, optTable, diags);
+    return true;
   case llvm::TTID::Realm:
     return parseKitsuneRealmArgs(kitOpts, args, optTable, diags);
   case llvm::TTID::Serial:

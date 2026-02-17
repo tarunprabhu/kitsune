@@ -1,0 +1,93 @@
+# Check a "standard" lowering using LTO, but where each file is compiled
+# separately. We check the output of the loop spawning pass rather than the
+# final result which will include the effect of some cleanup passes run after
+# loop spawning.
+#
+# RUN: mkdir -p %t
+#
+# RUN: %kitxx -flto --tapir=qthreads -fno-inline -fno-stripmine -O2 %sysroot \
+# RUN:     -c -o %t/add.o  %S/../input/add.cpp
+#
+# RUN: llvm-dis -o - %t/add.o | FileCheck %s --check-prefix TAPIR
+#
+# TAPIR: detach within
+# TAPIR: reattach within
+# TAPIR: sync within
+#
+# RUN: %kitxx -flto --tapir=qthreads -fno-inline -fno-stripmine -O2 %sysroot \
+# RUN:     -c -o %t/main.o %S/../input/main.cpp \
+# RUN:     -fno-stripmine
+#
+# RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
+#
+# MAIN: call void @_Z6vecadd
+#
+# RUN: %kitxx -flto --tapir=qthreads -fno-inline -fno-stripmine -O2 %sysroot \
+# RUN:     -Wl,--lto-emit-llvm -o /dev/null \
+# RUN:     -Wl,-mllvm -Wl,--print-after=loop-spawning \
+# RUN:     %t/main.o %t/add.o 2>&1 \
+# RUN:     | FileCheck %s --check-prefixes=LOWERED
+#
+# LOWERED: define {{.*}}void @_Z6vecadd{{[^(]+}}(
+# LOWERED-SAME: {{[^%]*}}%[[C:[^,]+]],
+# LOWERED-SAME: {{[^%]*}}%[[A:[^,]+]],
+# LOWERED-SAME: {{[^%]*}}%[[B:[^,]+]],
+# LOWERED-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
+# LOWERED: %[[PACK:.+]] = alloca
+# LOWERED-SAME: ptr addrspace(67)
+# LOWERED-SAME: ptr addrspace(67)
+# LOWERED-SAME: ptr addrspace(67)
+# LOWERED-SAME: {{[}]}}
+# LOWERED: %[[GS:[0-9]+]] = call i64 @llvm.tapir.loop.grainsize
+# LOWERED: %[[ARGA:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# LOWERED: store ptr {{.*}}%[[A]], ptr %[[ARGA]]
+# LOWERED: %[[ARGB:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# LOWERED: store ptr {{.*}}%[[B]], ptr %[[ARGB]]
+# LOWERED: %[[ARGC:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# LOWERED: store ptr {{.*}}%[[C]], ptr %[[ARGC]]
+# LOWERED: call void @llvm.kit.launch.threads(
+# LOWERED-SANE: i32 32,
+# LOWERED-SAME: ptr @[[WRAPPER:_Z6vecadd[^,]+]],
+# LOWERED-SAME: i64 0,
+# LOWERED-SAME: i64 %[[N]],
+# LOWERED-SAME: i64 %[[GS]],
+# LOWERED-SAME: ptr %[[PACK]])
+# LOWERED: ret void
+#
+# LOWERED: define internal fastcc void @[[OUTLINED:_Z6vecaddN7kitsune10mobile_ptrIdEES1_S1_m.outline_.ls1]](
+# LOWERED-SAME: i64 %[[START:[^,]+]],
+# LOWERED-SAME: i64 %[[END:[^,]+]],
+# LOWERED-SAME: i64 %[[GRAINSIZE:[^,]+]],
+# LOWERED-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
+# LOWERED: br label %[[BODY:.+]]
+# LOWERED: [[BODY]]:
+# LOWERED: %[[I:[0-9]+]] = phi i64
+# LOWERED: %[[ARGA:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 0
+# LOWERED: %[[PTRA:.+]] = load ptr addrspace(67), ptr %[[ARGA]]
+# LOWERED: %[[ARGB:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 1
+# LOWERED: %[[PTRB:.+]] = load ptr addrspace(67), ptr %[[ARGB]]
+# LOWERED: %[[ARGC:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 2
+# LOWERED: %[[PTRC:.+]] = load ptr addrspace(67), ptr %[[ARGC]]
+# LOWERED: %[[IDXA:.+]] = {{.*}}call
+# LOWERED: %[[VA:.+]] = load double, ptr %[[IDXA]]
+# LOWERED: %[[IDXB:.+]] = {{.*}}call
+# LOWERED: %[[VB:.+]] = load double, ptr %[[IDXB]]
+# LOWERED: %[[SUM:.+]] = fadd double %[[VA]], %[[VB]]
+# LOWERED: %[[IDXC:.+]] = {{.*}}call
+# LOWERED: store double %[[SUM]], ptr %[[IDXC]]
+# LOWERED: add {{.*}}i64 %[[I]], 1
+# LOWERED: %[[ICMP:.+]] = icmp
+# LOWERED: br i1 %[[ICMP]], label %[[EXIT:.+]], label %[[BODY]]
+# LOWERED: [[EXIT]]:
+# LOWERED: ret void
+#
+# LOWERED: define internal fastcc void @[[WRAPPER]](
+# LOWERED-SAME: i64 %[[START:[^,]+]],
+# LOWERED-SAME: i64 %[[END:[^,]+]],
+# LOWERED-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
+# LOWERED-NEXT: call fastcc {{.*}}void @[[OUTLINED]](
+# LOWERED-SAME: i64 %[[START]],
+# LOWERED-SAME: i64 %[[END]],
+# LOWERED-SAME: i64 0,
+# LOWERED-SAME: ptr %[[ARGS]])
+# LOWERED-NEXT: ret void

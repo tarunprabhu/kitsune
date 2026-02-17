@@ -39,7 +39,7 @@ if (KITSUNE_OPENMP_ENABLED)
 endif ()
 
 if (KITSUNE_QTHREADS_ENABLED)
-  list(APPEND SOURCES QthreadsABI.cpp)
+  list(APPEND SOURCES QthreadsTT.cpp)
 endif ()
 
 if (KITSUNE_REALM_ENABLED)

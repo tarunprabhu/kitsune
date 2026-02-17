@@ -42,7 +42,6 @@ static cl::opt<TTID>
                        clEnumValN(TTID::Serial, "serial", ""),
                        clEnumValN(TTID::Cuda, "cuda", ""),
                        clEnumValN(TTID::Custom, "custom", ""),
-                       // clEnumValN(TTID::GPUABI, "gpuabi", ""),
                        clEnumValN(TTID::Hip, "hip", ""),
                        clEnumValN(TTID::Lambda, "lambda", ""),
                        clEnumValN(TTID::OMPTask, "omptask", ""),
@@ -312,6 +311,7 @@ Error TTOptions::validate() const {
     return validateOpenCilkOptions();
   case TTID::Nolo:
   case TTID::Pthreads:
+  case TTID::Qthreads:
   case TTID::Serial:
     // There are no options specific to these tapir targets that need to be
     // checked.
@@ -319,7 +319,6 @@ Error TTOptions::validate() const {
   case TTID::Lambda:
   case TTID::OMPTask:
   case TTID::OpenMP:
-  case TTID::Qthreads:
   case TTID::Realm:
     // These options are not fully supported.
     break;

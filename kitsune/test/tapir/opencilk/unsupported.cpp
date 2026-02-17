@@ -45,6 +45,6 @@
 // RUN:       | FileCheck --allow-empty -check-prefix ARCH %s \
 // RUN: %}
 //
-// ARCH: opencilk tapir target does not support architecture
-// PLATFORM: opencilk tapir target does not support system
-// SUPPORTED-NOT: opencilk tapir target does not support
+// ARCH: 'opencilk' tapir target does not support architecture
+// PLATFORM: 'opencilk' tapir target does not support system
+// SUPPORTED-NOT: 'opencilk' tapir target does not support

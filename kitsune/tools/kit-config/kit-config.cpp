@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
     else if (arg == "--pthreads-target")
       render((bool)KITSUNE_PTHREADS_ENABLED);
     else if (arg == "--qthreads-target")
-      render((bool)KITSUNE_REALM_ENABLED);
+      render((bool)KITSUNE_QTHREADS_ENABLED);
     else if (arg == "--realm-target")
       render((bool)KITSUNE_REALM_ENABLED);
     else if (arg == "--serial-target")

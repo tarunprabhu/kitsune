@@ -63,6 +63,9 @@
 ; RUN: opt --tapir=pthreads -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck --check-prefix=FREE %s
 ;
+; RUN: opt --tapir=qthreads -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck --check-prefix=FREE %s
+;
 ; RUN: opt -tapir=serial -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck --check-prefix=FREE %s
 ;

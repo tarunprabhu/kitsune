@@ -10,12 +10,20 @@
 !
 ! RUN: %kitfc -### --tapir=nolo -O1 %s
 ! RUN: %kitfc -### --tapir=serial -O1 %s
+! RUN: %kitfc -### --tapir=pthreads -O1 %s
+! RUN: %kitxx -### --tapir=custom --tapir-plugin=plugin-file -O1 %s
 ! RUN: %if kitsune-cuda %{ \
 ! RUN:     %kitfc -### --tapir=cuda --tapir-cuda-arch=sm_80 -O1 %s \
 ! RUN: %}
-! RUN: %if kitsune-hip %{ %kitfc -### --tapir=hip -O1 %s %}
-! RUN: %if kitsune-opencilk %{ %kitfc -### --tapir=opencilk -O1 %s %}
-! RUN: %kitfc -### --tapir=pthreads -O1 %s
+! RUN: %if kitsune-hip %{ \
+! RUN:     %kitfc -### --tapir=hip -O1 %s \
+! RUN: %}
+! RUN: %if kitsune-opencilk %{ \
+! RUN:     %kitfc -### --tapir=opencilk -O1 %s \
+! RUN: %}
+! RUN: %if kitsune-qthreads %{ \
+! RUN:     %kitfc -### --tapir=qthreads -O1 %s \
+! RUN: %}
 !
 ! ------------------------------------------------------------------------------
 ! Unknown tapir targets provided to --tapir= should return an error.
@@ -35,13 +43,9 @@
 ! are ever resurrected, they should be moved to the first set of known tapir
 ! targets.
 !
-! RUN: not %kitfc -### --tapir=gpuabi -O1 %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefix=ERROR
 ! RUN: not %kitfc -### --tapir=lambda -O1 %s 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
 ! RUN: not %kitfc -### --tapir=omptask -O1 %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
-! RUN: not %kitfc -### --tapir=qthreads -O1 %s 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
 ! RUN: not %kitfc -### --tapir=realm -O1 %s 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
