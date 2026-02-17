@@ -2708,36 +2708,7 @@ TLI_DEFINE_SIG_INTERNAL(Void)
 /// @}
 
 /// @{
-/// Runtime library functions for the pthreads tapir target
-
-/// void __kitpthr_finalize(void);
-TLI_DEFINE_ENUM_INTERNAL(kitpthr_finalize)
-TLI_DEFINE_STRING_INTERNAL("__kitpthr_finalize")
-TLI_DEFINE_SIG_INTERNAL(Void)
-
-/// void __kitpthr_initialize(void);
-TLI_DEFINE_ENUM_INTERNAL(kitpthr_initialize)
-TLI_DEFINE_STRING_INTERNAL("__kitpthr_initialize")
-TLI_DEFINE_SIG_INTERNAL(Void)
-
-/// void* __kitpthr_launch(void(*thread_f)(int64_t, int64_t, void*),
-///                        int64_t start,
-///                        int64_t end,
-///                        int64_t grainSize,
-///                        void* args);
-TLI_DEFINE_ENUM_INTERNAL(kitpthr_launch)
-TLI_DEFINE_STRING_INTERNAL("__kitpthr_launch")
-TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Int64, Int64, Int64, Ptr)
-
-/// void __kitpthr_sync(const void* pthrCtxt);
-TLI_DEFINE_ENUM_INTERNAL(kitpthr_sync)
-TLI_DEFINE_STRING_INTERNAL("__kitpthr_sync")
-TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
-
-/// @}
-
-/// @{
-/// Runtime library functions for the cuda tapir target
+/// Kitsune runtime library functions for the cuda tapir target
 
 /// void __kitcuda_enable_launch_refinement(bool enable);
 TLI_DEFINE_ENUM_INTERNAL(kitcuda_enable_refine_launches)
@@ -2828,7 +2799,7 @@ TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
 /// @}
 
 /// @{
-/// Runtime library functions for the hip tapir target
+/// Kitsune runtime library functions for the hip tapir target
 
 /// void __kithip_enable_xnack();
 TLI_DEFINE_ENUM_INTERNAL(kithip_enable_xnack)
@@ -2920,6 +2891,59 @@ TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, SizeT)
 TLI_DEFINE_ENUM_INTERNAL(kithip_sync_stream)
 TLI_DEFINE_STRING_INTERNAL("__kithip_sync_thread_stream")
 TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
+
+/// @}
+
+/// @{
+/// Kitsune runtime library functions for the pthreads tapir target
+
+/// void __kitpthr_finalize(void);
+TLI_DEFINE_ENUM_INTERNAL(kitpthr_finalize)
+TLI_DEFINE_STRING_INTERNAL("__kitpthr_finalize")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void __kitpthr_initialize(void);
+TLI_DEFINE_ENUM_INTERNAL(kitpthr_initialize)
+TLI_DEFINE_STRING_INTERNAL("__kitpthr_initialize")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void* __kitpthr_launch(void(*thread_f)(int64_t, int64_t, void*),
+///                        int64_t start,
+///                        int64_t end,
+///                        int64_t grainSize,
+///                        void* args);
+TLI_DEFINE_ENUM_INTERNAL(kitpthr_launch)
+TLI_DEFINE_STRING_INTERNAL("__kitpthr_launch")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Int64, Int64, Int64, Ptr)
+
+/// void __kitpthr_sync(const void* pthrCtxt);
+TLI_DEFINE_ENUM_INTERNAL(kitpthr_sync)
+TLI_DEFINE_STRING_INTERNAL("__kitpthr_sync")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
+
+/// @}
+
+/// @{
+/// Kitsune runtime library functions for the qthreads tapir target
+
+/// void __kitqthr_finalize(void);
+TLI_DEFINE_ENUM_INTERNAL(kitqthr_finalize)
+TLI_DEFINE_STRING_INTERNAL("__kitqthr_finalize")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void __kitqthr_initialize(void);
+TLI_DEFINE_ENUM_INTERNAL(kitqthr_initialize)
+TLI_DEFINE_STRING_INTERNAL("__kitqthr_initialize")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void* __kitqthr_launch(void(*thread_f)(int64_t, int64_t, void*),
+///                        int64_t start,
+///                        int64_t end,
+///                        int64_t grainSize,
+///                        void* args);
+TLI_DEFINE_ENUM_INTERNAL(kitqthr_launch)
+TLI_DEFINE_STRING_INTERNAL("__kitqthr_launch")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Int64, Int64, Int64, Ptr)
 
 /// @}
 

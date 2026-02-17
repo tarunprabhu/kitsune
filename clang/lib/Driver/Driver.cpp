@@ -288,7 +288,8 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       }
     } else if (*TT == llvm::TTID::OpenCilk) {
       if (!Triple.isOSLinux() && !Triple.isOSFreeBSD() && !Triple.isMacOSX())
-        D.Diag(diag::err_drv_opencilk_platform) << Triple.getOSName();
+        D.Diag(diag::err_drv_tapir_target_system)
+            << "opencilk" << Triple.getOSName();
 
       switch (Triple.getArch()) {
       case llvm::Triple::x86:
@@ -299,7 +300,26 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       case llvm::Triple::aarch64_be:
         break;
       default:
-        D.Diag(diag::err_drv_opencilk_target) << Triple.getArchName();
+        D.Diag(diag::err_drv_tapir_target_arch)
+            << "opencilk" << Triple.getArchName();
+        break;
+      }
+    } else if (*TT == llvm::TTID::Qthreads) {
+      if (!Triple.isOSLinux() && !Triple.isMacOSX())
+        D.Diag(diag::err_drv_tapir_target_system)
+            << "qthreads" << Triple.getOSName();
+
+      switch (Triple.getArch()) {
+      case llvm::Triple::x86:
+      case llvm::Triple::x86_64:
+      case llvm::Triple::arm:
+      case llvm::Triple::armeb:
+      case llvm::Triple::aarch64:
+      case llvm::Triple::aarch64_be:
+        break;
+      default:
+        D.Diag(diag::err_drv_tapir_target_arch)
+            << "qthreads" << Triple.getArchName();
         break;
       }
     }

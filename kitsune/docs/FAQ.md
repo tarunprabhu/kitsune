@@ -28,8 +28,7 @@ the [front-end](glossary-front-end), and later by making some changes to the
 [middle-end](glossary-middle-end). Kitsune's command-line options will often
 begin with `--tapir-`, particularly when the option pertains to a tapir target.
 
-[^1]: Unsupported tapir targets for [Qthreads](https://www.sandia.gov/qthreads/) and [Realm](https://legion.stanford.edu/tutorial/realm/events_basic.html) have also been developed, but these are not supported. More details can be found
-[here](unsupported-tapir-targets).
+[^1]: A Tapir target for [Realm](https://legion.stanford.edu/tutorial/realm/events_basic.html) has also been developed, but is not supported. More details can be found [here](unsupported-tapir-targets).
 
 
 (faq-terminology-consistency)=

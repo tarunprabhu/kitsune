@@ -40,14 +40,6 @@ static const KitsuneRuntimeFuncMap kitFuncs = {
     {Intrinsic::kit_enable_verbose, LibFunc_kitrt_enable_verbose},
 };
 
-/// Kitsune runtime functions for the pthreads tapir target.
-static const KitsuneRuntimeFuncMap kitPthreadsFuncs = {
-    {Intrinsic::kit_finalize, LibFunc_kitpthr_finalize},
-    {Intrinsic::kit_initialize, LibFunc_kitpthr_initialize},
-    {Intrinsic::kit_sync_threads, LibFunc_kitpthr_sync},
-    {Intrinsic::kit_async_launch_threads, LibFunc_kitpthr_launch},
-};
-
 /// Kitsune runtime functions for the cuda tapir target.
 static const KitsuneRuntimeFuncMap kitCudaFuncs = {
     {Intrinsic::kit_async_launch_kernel, LibFunc_kitcuda_launch_kernel},
@@ -89,12 +81,28 @@ static const KitsuneRuntimeFuncMap kitHipFuncs = {
     {Intrinsic::kit_thread_stream, LibFunc_kithip_get_thread_stream},
 };
 
+/// Kitsune runtime functions for the pthreads tapir target.
+static const KitsuneRuntimeFuncMap kitPthreadsFuncs = {
+    {Intrinsic::kit_finalize, LibFunc_kitpthr_finalize},
+    {Intrinsic::kit_initialize, LibFunc_kitpthr_initialize},
+    {Intrinsic::kit_sync_threads, LibFunc_kitpthr_sync},
+    {Intrinsic::kit_async_launch_threads, LibFunc_kitpthr_launch},
+};
+
+/// Kitsune runtime functions for the qthreads tapir target.
+static const KitsuneRuntimeFuncMap kitQthreadsFuncs = {
+    {Intrinsic::kit_finalize, LibFunc_kitqthr_finalize},
+    {Intrinsic::kit_initialize, LibFunc_kitqthr_initialize},
+    {Intrinsic::kit_launch_threads, LibFunc_kitqthr_launch},
+};
+
 /// Runtime library function maps for tapir targets that have a corresponding
 /// kitsune runtime.
 static const std::map<TTID, KitsuneRuntimeFuncMap> kitTTFuncs = {
-    {TTID::Pthreads, kitPthreadsFuncs},
     {TTID::Cuda, kitCudaFuncs},
     {TTID::Hip, kitHipFuncs},
+    {TTID::Pthreads, kitPthreadsFuncs},
+    {TTID::Qthreads, kitQthreadsFuncs},
 };
 
 /// When lowering the kitsune intrinsics, some arguments may need to be dropped
@@ -139,6 +147,7 @@ static const std::map<Intrinsic::ID, std::vector<unsigned>> kitRTArgMap = {
     {Intrinsic::kit_enable_y_axis_launches, {}},
     {Intrinsic::kit_finalize, {}},
     {Intrinsic::kit_initialize, {}},
+    {Intrinsic::kit_launch_threads, {1, 2, 3, 4, 5}},
     {Intrinsic::kit_memcpy_dtoh, {1, 2, 3}},
     {Intrinsic::kit_memcpy_htod, {1, 2, 3}},
     {Intrinsic::kit_set_fixed_tpb, {1}},
@@ -217,10 +226,17 @@ private:
     case TTID::Pthreads:
     case TTID::Serial:
       return getOrInsertLibFunc(m, LibFunc_malloc);
+    case TTID::Qthreads:
+      // There may be some benefit to using the memory allocation functions
+      // provided by qthreads. Those use memory pools and it is not yet clear
+      // if that is something we should consider using.
+      //
+      // TODO: Check if we should be using qthreads memory pools, and if not,
+      // remove this comment.
+      return getOrInsertLibFunc(m, LibFunc_malloc);
     case TTID::Lambda:
     case TTID::OMPTask:
     case TTID::OpenMP:
-    case TTID::Qthreads:
     case TTID::Realm:
       // These tapir targets are not fully supported yet, but add them to this
       // switch to ensure that a warning is emitted when a new tapir target is
@@ -255,10 +271,14 @@ private:
     case TTID::Pthreads:
     case TTID::Serial:
       return getOrInsertLibFunc(m, LibFunc_free);
+    case TTID::Qthreads:
+      // We currently use malloc when allocating memory for use with the
+      // qthreads tapir target. If that is ever changed, this should be changed
+      // to use the corresponding free function instead.
+      return getOrInsertLibFunc(m, LibFunc_free);
     case TTID::Lambda:
     case TTID::OMPTask:
     case TTID::OpenMP:
-    case TTID::Qthreads:
     case TTID::Realm:
       // These tapir targets are not fully supported yet, but add them to this
       // switch to ensure that a warning is emitted when a new tapir target is

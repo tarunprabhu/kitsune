@@ -16,7 +16,12 @@
 // RUN: %if kitsune-hip %{ \
 // RUN:     %kitxx -### --tapir=hip --tapir-hip-arch=gfx90c -O1 %s \
 // RUN: %}
-// RUN: %if kitsune-opencilk %{ %kitxx -### --tapir=opencilk -O1 %s %}
+// RUN: %if kitsune-opencilk %{ \
+// RUN:     %kitxx -### --tapir=opencilk -O1 %s \
+// RUN: %}
+// RUN: %if kitsune-qthreads %{ \
+// RUN:     %kitxx -### --tapir=qthreads -O1 %s \
+// RUN: %}
 //
 // -----------------------------------------------------------------------------
 // Unknown tapir targets provided to --tapir= should return an error.
@@ -36,13 +41,9 @@
 // any are ever resurrected, they should be moved to the first set of known
 // tapir targets.
 //
-// RUN: not %kitxx -### --tapir=gpuabi -O1 %s 2>&1 \
-// RUN:     | FileCheck %s --check-prefix=ERROR
 // RUN: not %kitxx -### --tapir=lambda -O1 %s 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
 // RUN: not %kitxx -### --tapir=omptask -O1 %s 2>&1 \
-// RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
-// RUN: not %kitxx -### --tapir=qthreads -O1 %s 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
 // RUN: not %kitxx -### --tapir=realm -O1 %s 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=NOT-ENABLED

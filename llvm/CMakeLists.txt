@@ -571,7 +571,7 @@ set(KITSUNE_KNOWN_TAPIR_TARGETS
   FORCE)
 
 set(KITSUNE_DEFAULT_TAPIR_TARGETS
-  "cuda;hip;opencilk"
+  "cuda;hip;opencilk;qthreads"
   CACHE INTERNAL
   "The tapir targets that are built by default if a list of targets to build is
 not provided explicitly"

@@ -955,12 +955,6 @@ public:
   AddKitsuneOpenMPLinkerArgs(const llvm::opt::ArgList &Args,
                              llvm::opt::ArgStringList &CmdArgs) const;
 
-  /// Add compiler/LTO options for the qthreads tapir target. If MLLVM is true,
-  /// all options will be prepended with -mllvm.
-  virtual void AddKitsuneQthreadsCommonArgs(const llvm::opt::ArgList &Args,
-                                            llvm::opt::ArgStringList &CmdArgs,
-                                            bool MLLVM = false) const;
-
   /// Add linker options for the qthreads tapir target.
   virtual void
   AddKitsuneQthreadsLinkerArgs(const llvm::opt::ArgList &Args,

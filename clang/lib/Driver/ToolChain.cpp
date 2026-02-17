@@ -2277,15 +2277,6 @@ void ToolChain::AddKitsuneOpenMPCommonArgs(const ArgList &Args,
     llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneOpenMPCommonArgs");
 }
 
-void ToolChain::AddKitsuneQthreadsCommonArgs(const ArgList &Args,
-                                             ArgStringList &CmdArgs,
-                                             bool MLLVM) const {
-  // Don't hit unreachable if an error has already occurred
-  if (!getDriver().getDiags().getNumErrors())
-    llvm_unreachable(
-        "NOT IMPLEMENTED: ToolChain::AddKitsuneQthreadsCommonArgs");
-}
-
 void ToolChain::AddKitsuneRealmCommonArgs(const ArgList &Args,
                                           ArgStringList &CmdArgs,
                                           bool MLLVM) const {
@@ -2333,11 +2324,11 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     case TTID::OpenMP:
       return AddKitsuneOpenMPCommonArgs(Args, CmdArgs);
     case TTID::Pthreads:
-      // There are no options specific to the pthreads tapir target that have
-      // to be handled
+      // There are no options specific to this tapir target that must be handled
       return;
     case TTID::Qthreads:
-      return AddKitsuneQthreadsCommonArgs(Args, CmdArgs);
+      // There are no options specific to this tapir target that must be handled
+      return;
     case TTID::Realm:
       return AddKitsuneRealmCommonArgs(Args, CmdArgs);
     case TTID::Serial:
@@ -2431,7 +2422,10 @@ static void addLibsFromString(StringRef Str, const ArgList &Args,
 
 void ToolChain::AddKitsuneCudaLinkerArgs(const ArgList &Args,
                                          ArgStringList &CmdArgs) const {
-  // Nothing to do here for now.
+  // Nothing to do here for now. At some point, we will fix the issue of
+  // libkitrt requiring dependencies of all tapir target instead of just those
+  // actually being used. When that happens, the libraries required by the
+  // cuda tapir target can be linked here.
 }
 
 void ToolChain::AddKitsuneCustomLinkerArgs(const ArgList &Args,
@@ -2450,7 +2444,10 @@ void ToolChain::AddKitsuneCustomLinkerArgs(const ArgList &Args,
 
 void ToolChain::AddKitsuneHipLinkerArgs(const ArgList &Args,
                                         ArgStringList &CmdArgs) const {
-  // Nothing to do here for now.
+  // Nothing to do here for now. At some point, we will fix the issue of
+  // libkitrt requiring dependencies of all tapir target instead of just those
+  // actually being used. When that happens, the libraries required by the hip
+  // tapir target can be linked here.
 }
 
 void ToolChain::AddKitsuneLambdaLinkerArgs(const ArgList &Args,
@@ -2504,24 +2501,10 @@ void ToolChain::AddKitsuneOpenMPLinkerArgs(const ArgList &Args,
 
 void ToolChain::AddKitsuneQthreadsLinkerArgs(const ArgList &Args,
                                              ArgStringList &CmdArgs) const {
-  // TODO: Fix this when (if) the qthreads tapir target is ever resurrected.
-  //
-  // It is not clear whether the realm libraries need to be linked to the
-  // executable being built. If Kitsune's runtime does not already link them in,
-  // then we will need to link them here. What is below is what was originally
-  // in a cmake file somewhere. It's repeated here for reference but obviously,
-  // we should do the right thing. There is absolutely no need to stick to
-  // exactly these if it doesn't make sense.
-  //
-  // -L${QTHREADS_LIBRARY_DIR} -lqthreads -lhwloc
-  //
-  // Unconditionally fail so that when (if) we ever resurrect the qthreads tapir
-  // target, we know to look here and do whatever is appropriate.
-  //
-  // Don't hit unreachable if an error has already occurred
-  if (!getDriver().getDiags().getNumErrors())
-    llvm_unreachable(
-        "NOT IMPLEMENTED: ToolChain::AddKitsuneQthreadsLinkerArgs");
+  // Nothing to do here for now. At some point, we will fix the issue of
+  // libkitrt requiring dependencies of all tapir target instead of just those
+  // actually being used. When that happens, libraries required by the qthreads
+  // tapir target can be linked here.
 }
 
 void ToolChain::AddKitsuneRealmLinkerArgs(const ArgList &Args,
@@ -2600,6 +2583,18 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
   // We always link in libkitrt if a tapir target or special Kokkos handling has
   // been specified.
   if (TT or IsKokkos) {
+    // This should be linked before libkitrt. At some point, we may have a
+    // static archive, libqthread.a. In that case, it would have to be linked
+    // before uses of the methods in the library in libkitrt.
+    if (KITSUNE_QTHREADS_ENABLED) {
+      const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
+      CmdArgs.push_back("-L");
+      CmdArgs.push_back(LibDir);
+      CmdArgs.push_back("-rpath");
+      CmdArgs.push_back(LibDir);
+      CmdArgs.push_back("-lqthread");
+    }
+
     const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
     CmdArgs.push_back("-L");
     CmdArgs.push_back(LibDir);
@@ -2624,6 +2619,14 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     // the dynamic linker will find them, so the paths need to be set correctly
     // here if libkitrt.so will be linked, regardless of the Tapir target being
     // used.
+    //
+    // FIXME: This really should be fixed. Currently, all the runtimes are
+    // combined into a single shared library, libkitrt. Regardless of the
+    // tapir target in use, then, the dependencies of all must be added when
+    // linking the final executable. A better approach would be to split
+    // libkitrt into separate runtimes for each tapir target. We could then
+    // link only the kitsune runtime and dependencies for the appropriate tapir
+    // target.
     if (KITSUNE_HIP_ENABLED) {
       addDirsFromString(KITSUNE_HIP_LIB_DIRS, Args, CmdArgs);
       addLibsFromString(KITSUNE_HIP_LIB_NAMES, Args, CmdArgs);
@@ -2660,7 +2663,7 @@ void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
     case TTID::Pthreads:
       return;
     case TTID::Qthreads:
-      return AddKitsuneQthreadsCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
+      return;
     case TTID::Realm:
       return AddKitsuneRealmCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
     case TTID::Serial:

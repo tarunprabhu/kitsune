@@ -26,6 +26,21 @@ def llvm_mobile_ptr_ty : LLVMQualPointerType<67>;
 
 //===----------------------------------------------------------------------===//
 
+// Launch a function on one or more CPU threads. This blocks until all threads
+// have completed.
+def int_kit_launch_threads
+    : Intrinsic<[],
+                [llvm_i32_ty,  // tapir target id
+                 llvm_ptr_ty,  // thread function to launch on each thread
+                 llvm_i64_ty,  // start index passed to the thread function
+                 llvm_i64_ty,  // end index passed to the thread function
+                 llvm_i64_ty,  // grain size passed to the thread function
+                 llvm_ptr_ty], // argument bundle passed to the thread function
+                [ImmArg<ArgIndex<0>>,
+                 NonNull<ArgIndex<1>>,
+                 NonNull<ArgIndex<5>>,
+                 IntrInaccessibleMemOrArgMemOnly, IntrHasSideEffects]>;
+
 // Launch a function on one or more CPU threads. An opaque context object is
 // returned which must be used to join the threads.
 def int_kit_async_launch_threads

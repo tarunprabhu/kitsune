@@ -39,7 +39,7 @@
 #endif // KITSUNE_OPENCILK_ENABLED
 
 #if KITSUNE_QTHREADS_ENABLED
-#include "llvm/Transforms/Tapir/QthreadsABI.h"
+#include "llvm/Transforms/Tapir/QthreadsTT.h"
 #endif // KITSUNE_QTHREADS_ENABLED
 
 #if KITSNUE_REALM_ENABLED

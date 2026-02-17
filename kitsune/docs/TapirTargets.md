@@ -26,6 +26,7 @@ usually require dependencies that may not be available on all platforms.
 |[opencilk](#opencilk) | CPU | &cross; | &check; | &check; | &check; | &check; |
 |[nolo](#nolo) | - | &check; | &check; | &check; | &check; | &check; |
 |[pthreads](#pthreads) | CPU | &check; | &check; | &check; | &check; | &check; |
+|[qthreads](#qthreads) | CPU | &cross; | &check; | &check; | &check; | &cross; |
 |[serial](#serial) | CPU | &check; | &check; | &check; | &check; | &check; |
 ```
 
@@ -348,6 +349,23 @@ $ KIT_NUM_THREADS=4 ./a.out
 ```
 
 
+(tapir-targets-qthreads)=
+### qthreads
+
+The [qthreads](#qthreads) tapir target uses the
+[Qthreads](https://www.sandia.gov/qthreads/) library to run iterations of
+tapir loops in parallel on a CPU. In most cases, the number of threads that are
+launched is equal to the number of CPU cores on the system.
+
+The distribution of iterations across threads is handled by the qthreads
+library. Kitsune has a very thin runtime layer that wraps the qthreads API.
+
+```{note}
+The implementation of this tapir target and the runtime is in a very preliminary
+stage. Performance may be below what Qthreads is capable of achieving.
+```
+
+
 (tapir-targets-serial)=
 ### serial
 
@@ -412,12 +430,6 @@ The omptask tapir target lowers parallel loops to use kmpc task runtime calls.
 
 The lambda tapir target lowers parallel loops to use a generic runtime system
 that operates on spawned computations as lambdas.
-
-(tapir-targets-qthreads)=
-### qthreads
-
-The qthreads tapir target lowers parallel loops to use the
-[qthreads](https://github.com/sandialabs/qthreads) user-level threading runtime.
 
 (tapir-targets-realm)=
 ### realm

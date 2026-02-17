@@ -886,6 +886,11 @@ def warn_drv_kitsune_multi_gpu : Warning<
   "multiple %0 GPU architectures detected: '%1'">,
   InGroup<Kitsune>;
 
+def err_drv_tapir_target_system: Error<
+  "'%0' tapir target does not support system '%1'">;
+def err_drv_tapir_target_arch: Error<
+  "'%0' tapir target does not support architecture '%1'">;
+
 def warn_drv_kitsune_cuda_optzns_debug : Warning<
   "ptxas does not support optimized debugging. Setting ptxas optimization "
   "level to -O0. All other optimizations will be performed at level '-O%0'">,
@@ -945,10 +950,6 @@ def err_drv_kitsune_hip: Error<
 def err_drv_kitsune_offload : Error<
   "cannot use offload with a tapir target">;
 
-def err_drv_opencilk_platform: Error<
-  "opencilk tapir target does not support system '%0'">;
-def err_drv_opencilk_target: Error<
-  "opencilk tapir target does not support architecture '%0'">;
 def err_drv_opencilk_missing_abi_bitcode: Error<
   "cannot find OpenCilk runtime ABI bitcode file">;
 

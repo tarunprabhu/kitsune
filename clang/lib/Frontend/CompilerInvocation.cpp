@@ -4809,6 +4809,7 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
       return;
     case llvm::TTID::Nolo:
     case llvm::TTID::Pthreads:
+    case llvm::TTID::Qthreads:
     case llvm::TTID::Serial:
       // These do not have any target-specific options that need to be
       // generated.
@@ -4816,7 +4817,6 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
     case llvm::TTID::OpenMP:
     case llvm::TTID::Lambda:
     case llvm::TTID::OMPTask:
-    case llvm::TTID::Qthreads:
     case llvm::TTID::Realm:
       // These tapir targets are not fully supported. We add them here to
       // avoid compiler warnings about enum values not being handled. By

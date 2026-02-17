@@ -37,6 +37,17 @@ include(KitsuneUtils)
 # But this might result in other issues related to the tests. It would be
 # worth exploring this option though.
 #
+# The dependencies that are built together with Kitsune i.e. Cheetah, Kokkos
+# etc. (but not cuda and hip) are always installed to
+# ${CLANG_RESOURCE_INSTALL_DIR}. This effectively makes these dependencies
+# "internal" to Kitsune. This is intentional. We currently do not support
+# using an external build of these dependencies since the tapir targets and
+# Kitsune's own runtime expects specific interfaces and we do not intend to
+# support ranges of libraries. If we were to install these to
+# ${CMAKE_INSTALL_PREFIX}, i.e. the top-level install directory for Kitsune
+# itself, we may conflict with versions of these libraries that may be installed
+# to the same prefix as Kitsune.
+#
 # ------------------------------------------------------------------------------
 
 # Lookup the unique directories containing the libraries in LIBS and add them
@@ -183,9 +194,6 @@ if (KITSUNE_KOKKOS_ENABLED)
   )
   add_dependencies(kokkos-copy-to-build-dir kokkos)
 
-  # Add a custom target to install Kokkos to the final install directory with
-  # the rest of kitsune.
-  #
   # NOTE: The trailing slash after the directory to copy is required
   install(DIRECTORY ${KITSUNE_KOKKOS_INSTALL_DIR}/
     DESTINATION ${CLANG_RESOURCE_INSTALL_DIR}
@@ -514,18 +522,21 @@ if (KITSUNE_OPENCILK_ENABLED)
   # be copied correctly, we have to copy it to the "top-level" of the build
   # directory.
   add_custom_target(cheetah-copy-to-build-dir ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${KITSUNE_CHEETAH_INSTALL_DIR} ${CMAKE_BINARY_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${KITSUNE_CHEETAH_INSTALL_DIR}
+    ${CMAKE_BINARY_DIR}
     COMMENT "Copying OpenCilk to the 'top-level' build directory"
     VERBATIM USES_TERMINAL)
   add_dependencies(cheetah-copy-to-build-dir cheetah)
 
-  # Add a custom target to install opencilk to the final install directory with
-  # the rest of kitsune. The destination directory is set to ${CMAKE_BINARY_DIR}
-  # since it is the install analog of ${CMAKE_BINARY_DIR}. See the comment
-  # above the cheetah-copy-to-build-dir target for more details.
+  # Cheetah is to be installed to ${CLANG_RESOURCE_INSTALL_DIR}. The root of
+  # this directory is ${CMAKE_INSTALL_PREFIX}. Cheetah's build system ensures
+  # that the directory structure in ${KITSUNE_CHEETAH_INSTALL_DIR} is such that
+  # simply copying the contents of ${KITSUNE_CHEETAH_INSTALL_DIR} to
+  # ${CMAKE_INSTALL_PREFIX} will result in all the files being in the correct
+  # locations.
   #
   # NOTE: The trailing slash after the directory to copy is required.
-  #
   install(DIRECTORY ${KITSUNE_CHEETAH_INSTALL_DIR}/
     DESTINATION ${CMAKE_INSTALL_PREFIX}
     USE_SOURCE_PERMISSIONS)
@@ -541,15 +552,76 @@ if (KITSUNE_OPENMP_ENABLED)
 endif()
 
 if (KITSUNE_QTHREADS_ENABLED)
-  message(FATAL_ERROR "NOT YET IMPLEMENTED: 'qthreads' tapir target")
-  message(STATUS "Kitsune: qthreads tapir target enabled")
+  # We currently don't allow using a pre-built qthreads. It should be ok to do
+  # this since it is not likely that the interface, or behavior, will change.
+  # Since this library is unlikely to be present on the average system on which
+  # we expect Kitsune to be used, we are not particularly keen on supporting
+  # this anytime soon.
+  message(STATUS "Kitsune: qthreads target enabled")
 
-  # FIXME: Do find_package or ExternalProject_add or something else here for
-  # qthreads. Odds are that we will end up building qthreads like we build
-  # Cheetah. In any case, this message is here to ensure that when (if) we ever
-  # resurrect the qthreads tapir target, we don't forget to do the right thing
-  # here.
-  message(FATAL_ERROR "Finding/building QThreads has not been implemented")
+  set(KITSUNE_QTHREADS_C_FLAGS "")
+  if (KITSUNE_SYSROOT)
+    string(APPEND KITSUNE_QTHREADS_C_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+  endif ()
+  string(REPLACE ";" | KITSUNE_QTHREADS_C_FLAGS "${KITSUNE_QTHREADS_C_FLAGS}")
+
+  set(KITSUNE_QTHREADS_CXX_FLAGS "")
+  if (KITSUNE_SYSROOT)
+    string(APPEND KITSUNE_QTHREADS_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+  endif ()
+  string(REPLACE ";" | KITSUNE_QTHREADS_CXX_FLAGS "${KITSUNE_QTHREADS_CXX_FLAGS}")
+
+  set(KITSUNE_QTHREADS_SOURCE_DIR ${KITSUNE_TARGETS_BINARY_DIR}/qthreads/qthreads)
+  set(KITSUNE_QTHREADS_BINARY_DIR ${KITSUNE_TARGETS_BINARY_DIR}/qthreads/build)
+  set(KITSUNE_QTHREADS_INSTALL_DIR ${KITSUNE_TARGETS_BINARY_DIR}/qthreads/install)
+  set(KITSUNE_QTHREADS_BUILD_CMAKE_FLAGS
+    -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
+    -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
+    -DCMAKE_C_FLAGS=${KITSUNE_QTHREADS_C_FLAGS}
+    -DCMAKE_C_COMPILER_WORKS=1
+    -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
+    -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    -DCMAKE_CXX_FLAGS=${KITSUNE_QTHREADS_CXX_FLAGS}
+    -DCMAKE_CXX_COMPILER_WORKS=1
+    -DCMAKE_SIZEOF_VOID_P=${CMAKE_SIZEOF_VOID_P}
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+    -DCMAKE_INSTALL_PREFIX=${KITSUNE_QTHREADS_INSTALL_DIR}
+    -DQTHREADS_TOPOLOGY=hwloc
+    -DQTHREADS_SCHEDULER=distrib)
+
+  # The GIT_TAG must be updated when we wish to support a newer version of
+  # qthreads.
+  ExternalProject_Add(qthreads
+    DEPENDS                 clang lld
+    GIT_REPOSITORY          https://github.com/sandialabs/qthreads.git
+    GIT_TAG                 1.23
+    SOURCE_DIR              ${KITSUNE_QTHREADS_SOURCE_DIR}
+    BINARY_DIR              ${KITSUNE_QTHREADS_BINARY_DIR}
+    CMAKE_ARGS              ${KITSUNE_QTHREADS_BUILD_CMAKE_FLAGS}
+    LIST_SEPARATOR          |
+    TEST_BEFORE_INSTALL     TRUE
+    USES_TERMINAL_PATCH     TRUE
+    USES_TERMINAL_CONFIGURE TRUE
+    USES_TERMINAL_BUILD     TRUE
+    USES_TERMINAL_INSTALL   TRUE
+    UPDATE_DISCONNECTED     TRUE
+    ALWAYS_BUILD            TRUE)
+
+  # Copy the qthreads files into a "staging" area. This allows kitsune to be
+  # run from the build directory.
+  add_custom_target(qthreads-copy-to-build-dir ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${KITSUNE_QTHREADS_INSTALL_DIR}
+    ${CLANG_RESOURCE_INTDIR}
+    COMMENT "Copying Qthreads to the 'top-level' build directory"
+    VERBATIM USES_TERMINAL)
+  add_dependencies(qthreads-copy-to-build-dir qthreads)
+
+  # NOTE: The trailing slash after the directory to copy is required.
+  install(DIRECTORY ${KITSUNE_QTHREADS_INSTALL_DIR}/
+    DESTINATION ${CLANG_RESOURCE_INSTALL_DIR}
+    USE_SOURCE_PERMISSIONS)
 endif()
 
 if (KITSUNE_REALM_ENABLED)
@@ -632,7 +704,8 @@ set(KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DKITSUNE_COMMON_LIB_DIRS=${KITSUNE_COMMON_LIB_DIRS}
   -DKITSUNE_COMMON_LIB_LIBS=${KITSUNE_COMMON_LIB_LIBS}
   -DKITSUNE_CUDA_ENABLED=${KITSUNE_CUDA_ENABLED}
-  -DKITSUNE_HIP_ENABLED=${KITSUNE_HIP_ENABLED})
+  -DKITSUNE_HIP_ENABLED=${KITSUNE_HIP_ENABLED}
+  -DKITSUNE_QTHREADS_ENABLED=${KITSUNE_QTHREADS_ENABLED})
 if (KITSUNE_CUDA_ENABLED)
   list(APPEND KITSUNE_RUNTIME_CONFIGURE_ARGS
     -DKITSUNE_CUDA_INC_DIRS=${KITSUNE_CUDA_INC_DIRS}

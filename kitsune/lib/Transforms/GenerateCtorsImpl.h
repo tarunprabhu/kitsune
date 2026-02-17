@@ -56,6 +56,10 @@ void genCtorHip(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
 void genCtorPthreads(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
                      const GenerateCtorOptions &ctorOpts);
 
+/// Generate a global constructor and destructor for Kitsune's pthreads runtime.
+void genCtorQthreads(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
+                     const GenerateCtorOptions &ctorOpts);
+
 } // namespace detail
 
 } // namespace llvm

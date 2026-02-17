@@ -9,13 +9,13 @@ cmake_minimum_required(VERSION 3.20.0)
 
 project(kitrt C CXX)
 
-# -----------------------------------------------------------------------------
+# ----------------------------------- NOTES -----------------------------------
 #
 # This file cannot use any LLVM_* or CLANG_* or KITSUNE_* variables because this
-# project is built as an external project and does not have any access to
-# variables set in the main LLVM project. Everything needed here, including any
-# configure time options must be passed explicitly to the ExternalProject_Add
-# command in the top-level kitsune/CMakeLists.txt file in ../CMakeLists.txt.
+# project is built as an external project and does not have access to variables
+# set in the main LLVM project. Everything needed here, including any
+# configure-time options must be passed explicitly via the ExternalProject_Add
+# command in the top-level kitsune/CMakeLists.txt file.
 #
 # -----------------------------------------------------------------------------
 
@@ -43,9 +43,6 @@ add_library(${KITSUNE_OBJLIB} OBJECT
   memory.cpp
   memory_map.cpp)
 
-# The KITSUNE_CUDA_* variables are defined in kitsune/CMakeLists.txt. They are
-# passed in via CMake because the Kitsune runtime is treated as an external
-# project.
 if (KITSUNE_CUDA_ENABLED)
   target_sources(${KITSUNE_OBJLIB} PUBLIC
     cuda/kitcuda.cpp
@@ -84,10 +81,6 @@ if (KITSUNE_CUDA_ENABLED)
   endif()
 endif()
 
-# The KITSUNE_HIP_* variables are defined in kitsune/CMakeLists.txt. They are
-# passed in via CMake because the Kitsune runtime is treated as an external
-# project.
-#
 # Note on AMD HIP CMake details...  When is HIP not HIP?  When it is HIP...
 # It is easy to confuse requirements for HIP as the HIP "language" vs. the
 # HIP runtime. Unfortunately, these details seem to be a moving target with
@@ -120,6 +113,11 @@ if (KITSUNE_HIP_ENABLED)
   target_link_libraries(${KITSUNE_OBJLIB} PUBLIC
     ${KITSUNE_HIP_LIB_LIBS})
 endif()
+
+if (KITSUNE_QTHREADS_ENABLED)
+  target_sources(${KITSUNE_OBJLIB} PUBLIC
+    qthreads/kitqthr.cpp)
+endif ()
 
 # The pthreads tapir target is always enabled
 target_sources(${KITSUNE_OBJLIB} PUBLIC

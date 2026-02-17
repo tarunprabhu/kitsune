@@ -66,15 +66,18 @@ static bool shouldGenerateCtor(Module &m, TTID tt) {
     return isCalledWithTTID(m, Intrinsic::kit_async_launch_kernel, tt);
   case TTID::Pthreads:
     return isCalledWithTTID(m, Intrinsic::kit_async_launch_threads, tt);
+  case TTID::Qthreads:
+    return isCalledWithTTID(m, Intrinsic::kit_launch_threads, tt);
   default:
     llvm_unreachable("shouldGenereateCtor: TTID not handled");
   }
 }
 
 static const std::map<TTID, detail::GenerateCtorImplFn> genCtorFns = {
-    {TTID::Pthreads, detail::genCtorPthreads},
     {TTID::Cuda, detail::genCtorCuda},
     {TTID::Hip, detail::genCtorHip},
+    {TTID::Pthreads, detail::genCtorPthreads},
+    {TTID::Qthreads, detail::genCtorQthreads},
 };
 
 PreservedAnalyses GenerateCtorsPass::run(Module &m,

@@ -162,6 +162,42 @@ void @llvm.kit.enable.verbose(i8 %verbose)
 These are intrinsics generally used by tapir targets that split
 [tapir loop](glossary-tapir-loop) iterations across threads on a CPU.
 
+(llvm-intrinsics-launch-threads)=
+### llvm.launch.threads
+
+Launch a function on one or more CPU threads. This blocks until all threads
+that were launched have finished.
+
+```llvm
+void @llvm.kit.launch.threads(i32 %tt, ptr %thread_fn, i64 %idx_start,
+                              i64 %idx_end, i64 %grain_size, ptr %args)
+```
+
+**Arguments**
+
+```{table}
+|||
+|:-|:-|
+|`tt` |  The tapir target |
+|`thread_fn` | Pointer to the function to be launched on each thread |
+|`idx_start` | The start index |
+|`idx_end` | The end index |
+|`grain_size` | The grain size |
+|`args` | The argument bundle used by `thread_fn` |
+```
+
+**Returns**
+
+: Nothing
+
+**Description**
+
+: This is a blocking intrinsic and returns only after all threads finish.
+
+  This is intended to be used by CPU-centric tapir targets when lowering tapir
+  loops. In such cases, `idx_start` and `idx_end` directly correspond to the
+  range of the loop induction variable.
+
 
 (llvm-intrinsics-async-launch-threads)=
 ### llvm.kit.async.launch.threads

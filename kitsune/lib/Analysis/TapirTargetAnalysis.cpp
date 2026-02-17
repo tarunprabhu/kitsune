@@ -87,7 +87,7 @@ static std::unique_ptr<TapirTarget> createTT(TTID id, Module &m,
 
 #if KITSUNE_QTHREADS_ENABLED
   case TTID::Qthreads:
-    return std::make_unique<QthreadsABI>(m);
+    return std::make_unique<QthreadsTT>(m, tto);
 #endif // KITSUNE_QTHREADS_ENABLED
 
 #if KITSUNE_REALM_ENABLED

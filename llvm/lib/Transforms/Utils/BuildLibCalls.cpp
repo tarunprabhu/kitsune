@@ -1385,8 +1385,6 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
     Changed |= setWillReturn(F);
     Changed |= setOnlyWritesArgMemOrErrnoMem(F);
     break;
-  case LibFunc_kitpthr_launch:
-  case LibFunc_kitpthr_sync:
   case LibFunc_kitcuda_enable_refine_launches:
   case LibFunc_kitcuda_finalize:
   case LibFunc_kitcuda_get_thread_stream:
@@ -1414,6 +1412,9 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
   case LibFunc_kithip_symbol_memcpy_dtoh:
   case LibFunc_kithip_symbol_memcpy_htod:
   case LibFunc_kithip_sync_stream:
+  case LibFunc_kitpthr_launch:
+  case LibFunc_kitpthr_sync:
+  case LibFunc_kitqthr_launch:
   case LibFunc_kitrt_enable_verbose:
     Changed |= setOnlyAccessesInaccessibleMemOrArgMem(F);
     Changed |= setDoesNotThrow(F);
@@ -1541,6 +1542,7 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
 
   case LibFunc_kitpthr_launch:
   case LibFunc_kitpthr_sync:
+  case LibFunc_kitqthr_launch:
     setArgExtAttr(*F, 0, TLI);
     setArgExtAttr(*F, 1, TLI);
     break;

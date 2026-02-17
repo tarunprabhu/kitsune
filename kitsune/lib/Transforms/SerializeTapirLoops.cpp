@@ -181,6 +181,30 @@ public:
     // though it is likely that doing so would be profitable. It is for that
     // reason that we create this stub implementation. Otherwise, we could
     // have just returned false from serializeTapirLoops().
+    //
+    // TODO: Do a performance analysis and either serialize loops in certain
+    // cases here, or remove this class altogether and simply return false from
+    // serializeTapirLoops().
+    return false;
+  }
+};
+
+/// Serialize certain tapir loops when the primary tapir target is 'qthreads'.
+class SerializeTapirLoopsQthreads : public SerializeTapirLoopsImpl {
+public:
+  SerializeTapirLoopsQthreads(LoopInfo &li, OptimizationRemarkEmitter &ore,
+                              ScalarEvolution &se, TaskInfo &ti)
+      : SerializeTapirLoopsImpl(li, ore, se, ti) {}
+
+  bool run(Function &f) {
+    // We don't serialize any tapir loops with the qthreads tapir target,
+    // though it is likely that doing so would be profitable. It is for that
+    // reason that we create this stub implementation. Otherwise, we could
+    // have just returned false from serializeTapirLoops().
+    //
+    // TODO: Do a performance analysis and either serialize loops in certain
+    // cases here, or remove this class altogether and simply return false from
+    // serializeTapirLoops().
     return false;
   }
 };
@@ -205,6 +229,8 @@ static bool serializeTapirLoops(Function &f, TTID tt, LoopInfo &li,
     return false;
   case TTID::Pthreads:
     return SerializeTapirLoopsPthreads(li, ore, se, ti).run(f);
+  case TTID::Qthreads:
+    return SerializeTapirLoopsQthreads(li, ore, se, ti).run(f);
   case TTID::Custom:
     // In principle, the custom tapir target is responsible for handling
     // everything related to lowering, so it is up to the tapir target to
@@ -213,7 +239,6 @@ static bool serializeTapirLoops(Function &f, TTID tt, LoopInfo &li,
     // That said, it may be good to have a callback, or some other hook, that
     // could be defined by the tapir target plugin and used here.
     return false;
-  case TTID::Qthreads:
   case TTID::Realm:
   case TTID::Lambda:
   case TTID::OMPTask:

@@ -12,6 +12,7 @@ add_llvm_component_library(LLVMKitTransforms
   GenerateCtorCuda.cpp
   GenerateCtorHip.cpp
   GenerateCtorPthreads.cpp
+  GenerateCtorQthreads.cpp
   Prefetching.cpp
   RecomputeKernelProperties.cpp
   SerializeTapirLoops.cpp

@@ -266,8 +266,8 @@ static bool checkLoopsStructure(const Loop &outerLoop, const Loop &innerLoop,
 
 static bool arePerfectlyNested(const Loop &outerLoop, const Loop &innerLoop,
                                ScalarEvolution &se) {
-  assert(!outerLoop.isInnermost() && "Outer loop should have subloops");
-  assert(!innerLoop.isOutermost() && "Inner loop should have a parent");
+  assert(outerLoop.getSubLoops().size() && "Outer loop should have subloops");
+  assert(innerLoop.getParentLoop() && "Inner loop should have a parent");
   LLVM_DEBUG(dbgs() << "Checking whether loop '" << outerLoop.getName()
                     << "' and '" << innerLoop.getName()
                     << "' are perfectly nested.\n");
@@ -323,11 +323,13 @@ static bool arePerfectlyNested(const Loop &outerLoop, const Loop &innerLoop,
 
 TapirLoopNest::TapirLoopNest(Loop &loop, TaskInfo &ti, ScalarEvolution &se)
     : nest(loop, se) {
+  unsigned outermostDepth = nest.getOutermostLoop().getLoopDepth();
+  unsigned depth = nest.getNestDepth();
   // `loop` is guaranteed to be a tapir loop. It is perfect by definition. At
   // each level, we expect exactly one tapir loop if it is to be a perfect
   // tapir loop nest.
   perfectTapirLoops.push_back(&loop);
-  for (unsigned d = 2; d <= nest.getNestDepth(); ++d) {
+  for (unsigned d = outermostDepth + 1; d < outermostDepth + depth ; ++d) {
     LoopVectorTy loops = nest.getLoopsAtDepth(d);
     assert(!loops.empty() && "Loops at given depth not found");
 
