@@ -1,6 +1,4 @@
-//
-//===- kitrt.cpp - Kitsune runtime high-level support
-//-----------------------===//
+//===- kitrt.cpp - Routines common to several of Kitsune's runtimes -------===//
 //
 // Copyright (c) 2021, Los Alamos National Security, LLC.
 // All rights reserved.
@@ -51,41 +49,221 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitrt.h"
-#include <cassert>
 
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctype.h>
+#include <execinfo.h>
+#include <type_traits>
+
+// FIXME: Combine these global variables into a single struct. This should
+// also be private. However, we expose it because it is examined often by
+// most runtimes to determine whether to print informational messages. Wrapping
+// it in a function may be expensive.
 bool _kitrt_verbose_mode = false;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void __kitrt_enable_verbose_mode() {
-  _kitrt_verbose_mode = true;
-}
+void __kitrt_enable_verbose_mode() { _kitrt_verbose_mode = true; }
+
+void __kitrt_disable_verbose_mode() { _kitrt_verbose_mode = false; }
+
+void __kitrt_set_verbose_mode(bool enable) { _kitrt_verbose_mode = enable; }
 
 void __kitrt_initialize() {
-  // Call will auto-set the verbose state.
   (void)__kitrt_get_env_value("KITRT_VERBOSE", _kitrt_verbose_mode);
+  __kitrt_message("kitrt", "verbose mode enabled from environment variable");
+}
+
+// Write a message to stderr. \p category is optional. If \p is a format string,
+// the variable list of arguments \p args must be of the appropriate types.
+static void __kitrt_log(const char *label, const char *category,
+                        const char *msg, va_list args) {
+  // TODO: It would be nice if we could colorize the label.
+  if (label)
+    fprintf(stderr, "%s: ", label);
+  if (category)
+    fprintf(stderr, "%s: ", category);
+  vfprintf(stderr, msg, args);
+  fprintf(stderr, "\n");
+}
+
+static void __kitrt_log(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  __kitrt_log(label, nullptr, msg, args);
+  va_end(args);
+}
+
+[[noreturn]] void __kitrt_fatal(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  __kitrt_log(label, "ERROR", msg, args);
+  va_end(args);
+
+  std::exit(EXIT_FAILURE);
+}
+
+void __kitrt_error(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  __kitrt_log(label, "ERROR", msg, args);
+  va_end(args);
+}
+
+void __kitrt_warn(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  __kitrt_log(label, "WARNING", msg, args);
+  va_end(args);
+}
+
+void __kitrt_message(const char *label, const char *msg, ...) {
   if (__kitrt_verbose_mode()) {
-    fprintf(stderr, "kitrt: verbose mode enabled by environment.\n");
-    fprintf(stderr, "  kitsune runtime built-in feature set:\n");
+    va_list args;
+    va_start(args, msg);
+    __kitrt_log(label, nullptr, msg, args);
+    va_end(args);
   }
 }
 
 void __kitrt_print_stack_trace(void) {
-  const unsigned int _kitrt_backtrace_depth = 10;
-  void *trace[_kitrt_backtrace_depth];
-  int size = backtrace(trace, _kitrt_backtrace_depth);
-  char **strings = backtrace_symbols(trace, size);
-  if (strings != NULL) {
-    fprintf(stderr, "  kitrt: call stack trace (%d frames).\n", size);
+  const unsigned depth = 25;
+  void *trace[depth];
+  int size = backtrace(trace, depth);
+  if (char **strings = backtrace_symbols(trace, size)) {
+    __kitrt_log("kitrt", "stack trace (%d frames)", size);
     for (int i = 0; i < size; i++)
-      fprintf(stderr, "    %s\n", strings[i]);
-    fprintf(stderr, "  ---- end trace ----\n");
+      __kitrt_log("kitrt", "  %s", strings[i]);
+    __kitrt_log("kitrt", "end stack trace");
+    free(strings);
   }
-  free(strings);
+}
+
+void __kitrt_set_env(const char *varname, const char *value) {
+  assert(varname && "Missing variable name");
+  assert(value && "Missing value destination");
+  if (setenv(varname, value, 0))
+    __kitrt_warn("kitrt", "could not set environment variable '%s'", varname);
+}
+
+void __kitrt_unset_env(const char *varname) {
+  assert(varname && "Missing variable name");
+  if (unsetenv(varname))
+    __kitrt_warn("kitrt", "could not unset environment variable '%s'", varname);
 }
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
+
+template <typename T>
+static bool parse(const char *varname, const char *str, T &out);
+
+template <> bool parse(const char *varname, const char *str, int &out) {
+  out = atoi(str);
+  return true;
+}
+
+template <> bool parse(const char *varname, const char *str, unsigned &out) {
+  out = atoi(str);
+  return true;
+}
+
+template <> bool parse(const char *varname, const char *str, bool &out) {
+  char *lstr = strdup(str);
+  for (int i = 0; str[i]; i++)
+    lstr[i] = tolower(str[i]);
+
+  if (!strcmp(lstr, "true") || !strcmp(lstr, "1")) {
+    out = true;
+  } else if (!strcmp(lstr, "false") || !strcmp(lstr, "0")) {
+    out = false;
+  } else {
+    __kitrt_warn("kitrt",
+                 "environment variable '%s' not set to 'true' or 'false'. "
+                 "Assuming 'true'",
+                 varname);
+    out = true;
+  }
+  return true;
+}
+
+template <> bool parse(const char *varname, const char *str, long &out) {
+  out = atol(str);
+  return true;
+}
+
+template <>
+bool parse(const char *varname, const char *str, unsigned long &out) {
+  out = atol(str);
+  return true;
+}
+
+template <> bool parse(const char *varname, const char *str, long long &out) {
+  out = atoll(str);
+  return true;
+}
+
+template <>
+bool parse(const char *varname, const char *str, unsigned long long &out) {
+  out = atoll(str);
+  return true;
+}
+
+template <> bool parse(const char *varname, const char *str, float &out) {
+  out = (float)atof(str);
+  return true;
+}
+
+template <> bool parse(const char *varname, const char *str, double &out) {
+  out = atof(str);
+  return true;
+}
+
+template <typename ValueType>
+bool __kitrt_get_env_value(const char *varname, ValueType &value) {
+  assert(varname && "Expected variable name");
+
+  if (char *vstr = getenv(varname)) {
+    if constexpr (std::is_same_v<ValueType, int>)
+      return parse<int>(varname, vstr, value);
+    else if constexpr (std::is_same_v<ValueType, unsigned>)
+      return parse<unsigned>(varname, vstr, value);
+    else if constexpr (std::is_same_v<ValueType, bool>)
+      return parse<bool>(varname, vstr, value);
+    else if constexpr (std::is_same_v<ValueType, long>)
+      return parse<long>(varname, vstr, value);
+    else if constexpr (std::is_same_v<ValueType, unsigned long>)
+      return parse<unsigned long>(varname, vstr, value);
+    else if constexpr (std::is_same_v<ValueType, long long>)
+      return parse<long long>(varname, vstr, value);
+    else if constexpr (std::is_same_v<ValueType, unsigned long long>)
+      return parse<unsigned long long>(varname, vstr, value);
+    else if constexpr (std::is_same_v<ValueType, float>)
+      return parse<float>(varname, vstr, value);
+    else if constexpr (std::is_same_v<ValueType, double>)
+      return parse<double>(varname, vstr, value);
+    else
+      static_assert(0 && "No registered environment variable parser for type");
+  }
+
+  return false;
+}
+
+// It is unlikely that we will ever want to parse a non-primitive type from
+// an environment variable. To keep things clean, explicitly initialize all the
+// types that we might care about.
+template bool __kitrt_get_env_value(const char *var, bool &);
+template bool __kitrt_get_env_value(const char *var, int &);
+template bool __kitrt_get_env_value(const char *var, unsigned &);
+template bool __kitrt_get_env_value(const char *var, long &);
+template bool __kitrt_get_env_value(const char *var, unsigned long &);
+template bool __kitrt_get_env_value(const char *var, long long &);
+template bool __kitrt_get_env_value(const char *var, unsigned long long &);
+template bool __kitrt_get_env_value(const char *var, float &);
+template bool __kitrt_get_env_value(const char *var, double &);

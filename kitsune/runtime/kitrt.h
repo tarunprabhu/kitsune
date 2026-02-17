@@ -1,7 +1,4 @@
-//
-//===- kitrt.h - Kitsune ABI runtime debug support     ------------------===//
-//
-// TODO: Need to update LANL/Triad Copyright notice.
+//=- kitrt.h - Routines common to several of Kitsune's runtimes --*- C++ -*--=//
 //
 // Copyright (c) 2021, Los Alamos National Security, LLC.
 // All rights reserved.
@@ -55,13 +52,7 @@
 #define __KITRT_H__
 
 #include <cassert>
-#include <cstdio>
-#include <cstring>
-#include <ctype.h>
-#include <execinfo.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <type_traits>
+#include <cstdint>
 
 #ifdef __cplusplus
 extern "C" {
@@ -76,7 +67,7 @@ extern "C" {
  * this call initialization each target runtime.  It can be called
  * multiple times as it is guarded to avoid repeated initialization.
  */
-extern void __kitrt_initialize();
+void __kitrt_initialize();
 
 /**
  * Set the runtime system to operate in verbose mode.
@@ -86,27 +77,19 @@ void __kitrt_enable_verbose_mode();
 /**
  * Disable the runtime system's verbose reporting mode.
  */
-inline void __kitrt_disable_verbose_mode() {
-  extern bool _kitrt_verbose_mode;
-  _kitrt_verbose_mode = false;
-}
+void __kitrt_disable_verbose_mode();
 
 /**
- * Enable/Disable the runtime's verbose mode.  Note that this can
- * also be enabled at runtime by setting the KITRT_VERBOSE
- * environment variable.
+ * Enable/disable the runtime's verbose mode. __kitrt_initialize() reads the
+ * value of the KITRT_VERBOSE environment variable. This should only be used
+ * if there is need to set that value after the runtime has been initialized.
  *
  * @param enable - if `true` enable verbose mode, disable if `false`.
  */
-inline void __kitrt_set_verbose_mode(bool enable) {
-  extern bool _kitrt_verbose_mode;
-  _kitrt_verbose_mode = enable;
-}
+void __kitrt_set_verbose_mode(bool enable);
 
 /**
- * Return the runtime's verbose operating mode.  If `true` the
- * runtime should provide status details on stderr during execution,
- * otherwise it is quiet.
+ * Check if the verbose mode has been enabled in Kitsune's runtime.
  */
 inline bool __kitrt_verbose_mode() {
   extern bool _kitrt_verbose_mode;
@@ -116,13 +99,49 @@ inline bool __kitrt_verbose_mode() {
 /**
  * Provide a backtrace to stderr to help track down runtime crashes.
  */
-extern void __kitrt_print_stack_trace();
+void __kitrt_print_stack_trace();
 
-extern unsigned __kitrt_getNumPrefetchStreams();
-extern bool __kitrt_prefetchEnabled();
-extern void __kitrt_enablePrefetching();
-extern bool __kitrt_prefetchStreamsEnabled();
-extern void __kitrt_enablePrefetchStreams();
+/**
+ * Set a variable to the given value in the environment. If the variable has
+ * already been set in the environment, the value will be overridden. If any
+ * part of the runtime has read the old value, that value will not be changed.
+ */
+void __kitrt_set_env(const char *varname, const char *value);
+
+/**
+ * Unset the value of an environment variable.
+ * NOTE: This is only available on POSIX systems, but those are the only ones
+ * that we support currently.
+ */
+void __kitrt_unset_env(const char *varname);
+
+/**
+ * Print an error message to stderr and terminate the process with an exit code.
+ * \p msg may be a printf-compatible format string. In that case, any optional
+ * arguments must be of the appropriate types.
+ */
+[[noreturn]] void __kitrt_fatal(const char *label, const char *msg, ...);
+
+/**
+ * Print an error message to stderr. \p msg may be a printf-compatible format
+ * string. In that case, any optional arguments must be of the appropriate
+ * types.
+ */
+void __kitrt_error(const char *label, const char *msg, ...);
+
+/**
+ * Print a warning message to stderr. \p msg may be a printf-compatible format
+ * string. In that case, any optional arguments must be of the appropriate
+ * types.
+ */
+void __kitrt_warn(const char *label, const char *msg, ...);
+
+/**
+ * Print an error message to stderr if verbose mode has been enabled. \p msg may
+ * be a printf-compatible format string. In that case, any optional arguments
+ * must be of the appropriate types.
+ */
+void __kitrt_message(const char *label, const char *msg, ...);
 
 /**
  * *** EXPERIMENTAL: This is a new interface between the compiler and
@@ -147,77 +166,11 @@ typedef struct _kitrt_inst_mix_info {
 #endif
 
 /**
- * Return the value of the given environment variable. If the
- * variable does not exist in the environment return `false`.
- * Otherwise, `true` is returned and the value is returned in
- * the caller provided parameter.
+ * Read the value of an environment variable. If the variable does not exist in
+ * the environment return `false`. Otherwise, return `true` and populate
+ * \p value with the parsed value of the environment variable.
  */
 template <typename ValueType>
-bool __kitrt_get_env_value(const char *var_name, ValueType &value) {
-  assert(var_name && "unexpected null variable name!");
-  bool found = false;
-  char *value_string;
-  if ((value_string = getenv(var_name))) {
-
-    if constexpr (std::is_same_v<ValueType, int>) {
-      value = atoi(value_string);
-      found = true;
-    } else if constexpr (std::is_same_v<ValueType, unsigned>) {
-      value = atoi(value_string);
-      found = true;
-    } else if constexpr (std::is_same_v<ValueType, bool>) {
-      found = true;
-      for (int i = 0; value_string[i]; i++)
-        value_string[i] = tolower(value_string[i]);
-      if (!strcmp(value_string, "true") || !strcmp(value_string, "1"))
-        value = true;
-      else if (!strcmp(value_string, "false") || !strcmp(value_string, "0"))
-        value = false;
-      else {
-        fprintf(stderr,
-                "kitsune_rt: warning, boolean environment variable "
-                "'%s' not set to true or false.\nTreating presence "
-                "as an implied true setting.\n",
-                var_name);
-        value = true;
-      }
-    } else if constexpr (std::is_same_v<ValueType, long>) {
-      value = atol(value_string);
-      found = true;
-    } else if constexpr (std::is_same_v<ValueType, unsigned long>) {
-      value = atol(value_string);
-      found = true;
-    } else if constexpr (std::is_same_v<ValueType, float>) {
-      value = (float)atof(value_string);
-      found = true;
-    } else if constexpr (std::is_same_v<ValueType, double>) {
-      value = atof(value_string);
-      found = true;
-    } else {
-      fprintf(stderr, "kitrt: warning unhandled type encountered.\n");
-      fprintf(stderr, "       location %s:%d\n", __FILE__, __LINE__);
-      __kitrt_print_stack_trace();
-    }
-  }
-
-  return found;
-}
-
-inline void __kitrt_set_env(const char *varname, const char *value) {
-  assert(varname != nullptr && "null variable name parameter!");
-  assert(value != nullptr && "null value parameter!");
-  if (setenv(varname, value, 0) != 0) {
-    fprintf(stderr, "kitrt: failure setting environment variable '%s'!\n",
-            varname);
-  }
-}
-
-inline void __kitrt_unset_env(const char *varname) {
-  assert(varname != nullptr && "null variable name parameter!");
-  if (unsetenv(varname)) {
-    fprintf(stderr, "kitrt: failure unsetting environment variable '%s'!\n",
-            varname);
-  }
-}
+bool __kitrt_get_env_value(const char *varname, ValueType &value);
 
 #endif // __KITRT_H__

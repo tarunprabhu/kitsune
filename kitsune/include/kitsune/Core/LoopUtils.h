@@ -17,6 +17,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 class Loop;
 
 /// The required prefix on the names of all tapir loop metadata.
@@ -61,6 +64,8 @@ void setTapirLoopPerfectDepthMD(Loop &loop, unsigned depth);
 /// root. All loops between the deepest tapir loop and the root must also be
 /// tapir loops. Roots of tapir loop nests will have a level of 1.
 void setTapirLoopPerfectLevelMD(Loop &loop, unsigned level);
+
+/// @}
 
 } // namespace llvm
 

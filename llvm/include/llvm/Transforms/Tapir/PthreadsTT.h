@@ -1,9 +1,8 @@
 //===- PthreadsTT.h - Tapir target using POSIX threads ---------*- C++ -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,30 +14,11 @@
 #ifndef LLVM_TAPIR_PTHREADS_TT_H
 #define LLVM_TAPIR_PTHREADS_TT_H
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
 namespace llvm {
 
 class TTOptions;
-
-/// \ingroup kitsune
-class PthreadsLoop : public LoopOutlineProcessor {
-public:
-  /// Create a loop outline processor for the pthreads tapir target.
-  /// \param m The host module
-  /// \param ttOpts The tapir target options
-  PthreadsLoop(Module &m, const TTOptions &ttOpts);
-  ~PthreadsLoop();
-
-  /// Returns an ArgStructMode enum value describing how inputs to the
-  /// underlying task of a tapir loop should be passed to the task.
-  ArgStructMode getArgStructMode() const override final;
-
-  /// Processes a call to an outlined helper function for a tapir loop \p tl.
-  void processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
-                               DominatorTree &dt) override final;
-};
 
 /// Tapir target that splits the iterations of tapir loops across a number of
 /// POSIX threads.
@@ -76,7 +56,7 @@ public:
 
   /// Process a generated helper function \p f produced via outlining, at the
   /// end of the lowering process.
-  void postProcessHelper(Function &F) override final {
+  void postProcessHelper(Function &f) override final {
     // Nothing to be done here
   }
 
@@ -120,7 +100,7 @@ public:
 
   /// Create a custom loop outline processor for this tapir target.
   LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *tli) override final;
+  getLoopOutlineProcessor(const TapirLoopInfo *tl) override final;
 };
 
 } // namespace llvm
