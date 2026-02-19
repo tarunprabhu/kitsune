@@ -117,15 +117,16 @@ for.i.exit:
 
 ;-------------------------------------------------------------------------------
 ;
-; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 1}
+; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 4}
 ; CHECK-DAG: ![[D1:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 1}
 ; CHECK-DAG: ![[L1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
+; CHECK-DAG: ![[LOWER:[0-9]+]] = !{!"tapir.loop.lowering.enabled", i32 1}
 ;
 ;-------------------------------------------------------------------------------
 ;
 ; forall (i ...)
 ;
-; CHECK-DAG: ![[P]] = distinct !{![[P]], ![[TARGET]], ![[D1]], ![[L1]]}
+; CHECK-DAG: ![[P]] = distinct !{![[P]], ![[TARGET]], ![[LOWER]], ![[D1]], ![[L1]]}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -133,20 +134,20 @@ for.i.exit:
 ;   for (j ...)
 ;
 ; CHECK-DAG: ![[PS_J]] = distinct !{![[PS_J]]}
-; CHECK-DAG: ![[PS_I]] = distinct !{![[PS_I]], ![[TARGET]], ![[D1]], ![[L1]]}
+; CHECK-DAG: ![[PS_I]] = distinct !{![[PS_I]], ![[TARGET]], ![[LOWER]], ![[D1]], ![[L1]]}
 ;
 ;-------------------------------------------------------------------------------
 ;
 ; for (i ...)
 ;   forall (j ...)
 ;
-; CHECK-DAG: ![[SP_J]] = distinct !{![[SP_J]], ![[TARGET]], ![[D1]], ![[L1]]}
+; CHECK-DAG: ![[SP_J]] = distinct !{![[SP_J]], ![[TARGET]], ![[LOWER]], ![[D1]], ![[L1]]}
 ; CHECK-DAG: ![[SP_I]] = distinct !{![[SP_I]]}
 ;
 ;-------------------------------------------------------------------------------
 
 !0 = distinct !{!0, !1}
-!1 = !{!"tapir.loop.target", i32 1}
+!1 = !{!"tapir.loop.target", i32 4}
 !2 = distinct !{!2}
 !3 = distinct !{!3, !1}
 !4 = distinct !{!4, !1}

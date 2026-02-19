@@ -188,11 +188,12 @@ for.i.end:
 
 ;-------------------------------------------------------------------------------
 ;
-; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 1}
+; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 2}
 ; CHECK-DAG: ![[D1:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 1}
 ; CHECK-DAG: ![[D2:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 2}
 ; CHECK-DAG: ![[L1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
 ; CHECK-DAG: ![[L2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
+; CHECK-DAG: ![[LOWER:[0-9]+]] = !{!"tapir.loop.lowering.enabled", i32 1}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -200,7 +201,7 @@ for.i.end:
 ;   forall (j ...)
 ;
 ; CHECK-DAG: ![[PP_J]] = distinct !{![[PP_J]], ![[TARGET]], ![[L2]]}
-; CHECK-DAG: ![[PP_I]] = distinct !{![[PP_I]], ![[TARGET]], ![[D2]], ![[L1]]}
+; CHECK-DAG: ![[PP_I]] = distinct !{![[PP_I]], ![[TARGET]], ![[LOWER]], ![[D2]], ![[L1]]}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -210,7 +211,7 @@ for.i.end:
 ;
 ; CHECK-DAG: ![[PPS_K]] = distinct !{![[PPS_K]]}
 ; CHECK-DAG: ![[PPS_J]] = distinct !{![[PPS_J]], ![[TARGET]], ![[L2]]}
-; CHECK-DAG: ![[PPS_I]] = distinct !{![[PPS_I]], ![[TARGET]], ![[D2]], ![[L1]]}
+; CHECK-DAG: ![[PPS_I]] = distinct !{![[PPS_I]], ![[TARGET]], ![[LOWER]], ![[D2]], ![[L1]]}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -227,12 +228,12 @@ for.i.end:
 ;
 ; CHECK-DAG: ![[PSP_K]] = distinct !{![[PSP_K]], ![[TARGET]]}
 ; CHECK-DAG: ![[PSP_J]] = distinct !{![[PSP_J]]}
-; CHECK-DAG: ![[PSP_I]] = distinct !{![[PSP_I]], ![[TARGET]], ![[D1]], ![[L1]]}
+; CHECK-DAG: ![[PSP_I]] = distinct !{![[PSP_I]], ![[TARGET]], ![[LOWER]], ![[D1]], ![[L1]]}
 ;
 ;-------------------------------------------------------------------------------
 
 !0 = distinct !{!0, !1}
-!1 = !{!"tapir.loop.target", i32 1}
+!1 = !{!"tapir.loop.target", i32 2}
 !2 = distinct !{!2, !1}
 !3 = distinct !{!3}
 !4 = distinct !{!4, !1}

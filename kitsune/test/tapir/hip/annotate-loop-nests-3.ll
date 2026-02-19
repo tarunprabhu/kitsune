@@ -346,13 +346,14 @@ for.i.end:
 
 ;-------------------------------------------------------------------------------
 ;
-; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 1}
+; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 4}
 ; CHECK-DAG: ![[D1:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 1}
 ; CHECK-DAG: ![[D2:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 2}
 ; CHECK-DAG: ![[D3:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 3}
 ; CHECK-DAG: ![[L1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
 ; CHECK-DAG: ![[L2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
 ; CHECK-DAG: ![[L3:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 3}
+; CHECK-DAG: ![[LOWER:[0-9]+]] = !{!"tapir.loop.lowering.enabled", i32 1}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -362,7 +363,7 @@ for.i.end:
 ;
 ; CHECK-DAG: ![[PPP_K]] = distinct !{![[PPP_K]], ![[TARGET]], ![[L3]]}
 ; CHECK-DAG: ![[PPP_J]] = distinct !{![[PPP_J]], ![[TARGET]], ![[L2]]}
-; CHECK-DAG: ![[PPP_I]] = distinct !{![[PPP_I]], ![[TARGET]], ![[D3]], ![[L1]]}
+; CHECK-DAG: ![[PPP_I]] = distinct !{![[PPP_I]], ![[TARGET]], ![[LOWER]], ![[D3]], ![[L1]]}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -374,7 +375,7 @@ for.i.end:
 ; CHECK-DAG: ![[PPPS_L]] = distinct !{![[PPPS_L]]}
 ; CHECK-DAG: ![[PPPS_K]] = distinct !{![[PPPS_K]], ![[TARGET]], ![[L3]]}
 ; CHECK-DAG: ![[PPPS_J]] = distinct !{![[PPPS_J]], ![[TARGET]], ![[L2]]}
-; CHECK-DAG: ![[PPPS_I]] = distinct !{![[PPPS_I]], ![[TARGET]], ![[D3]], ![[L1]]}
+; CHECK-DAG: ![[PPPS_I]] = distinct !{![[PPPS_I]], ![[TARGET]], ![[LOWER]], ![[D3]], ![[L1]]}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -393,7 +394,7 @@ for.i.end:
 ; CHECK-DAG: ![[PPSP_L]] = distinct !{![[PPSP_L]], ![[TARGET]]}
 ; CHECK-DAG: ![[PPSP_K]] = distinct !{![[PPSP_K]]}
 ; CHECK-DAG: ![[PPSP_J]] = distinct !{![[PPSP_J]], ![[TARGET]], ![[L2]]}
-; CHECK-DAG: ![[PPSP_I]] = distinct !{![[PPSP_I]], ![[TARGET]], ![[D2]], ![[L1]]}
+; CHECK-DAG: ![[PPSP_I]] = distinct !{![[PPSP_I]], ![[TARGET]], ![[LOWER]], ![[D2]], ![[L1]]}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -412,12 +413,12 @@ for.i.end:
 ; CHECK-DAG: ![[PSPP_L]] = distinct !{![[PSPP_L]], ![[TARGET]]}
 ; CHECK-DAG: ![[PSPP_K]] = distinct !{![[PSPP_K]], ![[TARGET]]}
 ; CHECK-DAG: ![[PSPP_J]] = distinct !{![[PSPP_J]]}
-; CHECK-DAG: ![[PSPP_I]] = distinct !{![[PSPP_I]], ![[TARGET]], ![[D1]], ![[L1]]}
+; CHECK-DAG: ![[PSPP_I]] = distinct !{![[PSPP_I]], ![[TARGET]], ![[LOWER]], ![[D1]], ![[L1]]}
 ;
 ;-------------------------------------------------------------------------------
 
 !0 = distinct !{!0, !1}
-!1 = !{!"tapir.loop.target", i32 1}
+!1 = !{!"tapir.loop.target", i32 4}
 !2 = distinct !{!2, !1}
 !3 = distinct !{!3, !1}
 !4 = distinct !{!4}

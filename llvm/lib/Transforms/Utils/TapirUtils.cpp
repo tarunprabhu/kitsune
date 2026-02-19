@@ -12,12 +12,12 @@
 
 #include "llvm/Transforms/Utils/TapirUtils.h"
 #include "kitsune/Config/config.h"
+#include "kitsune/Core/TapirLoopAttrs.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/Dominators.h"
@@ -2366,28 +2366,30 @@ Task *llvm::getTaskIfTapirLoop(const Loop *L, TaskInfo *TI) {
   if (!L || !TI)
     return nullptr;
 
-  TapirLoopHints Hints(L);
-
-  LLVM_DEBUG(
-      dbgs() << "Loop hints:\n"
-             << "  strategy          = " << Hints.getStrategy() << "\n"
-             << "  grainsize         = " << Hints.getGrainsize() << "\n"
-             << "  loop target       = " << Hints.getLoopTarget() << "\n"
-             << "  threads per block = " << Hints.getThreadsPerBlock() << "\n"
-             << "  auto tune launch  = " << Hints.getAutotuneLaunch() << "\n");
-
   // Check that this loop has the structure of a Tapir loop.
   Task *T = getTaskIfTapirLoopStructure(L, TI);
   if (!T)
     return nullptr;
 
   // All tapir loops must have a tapir.loop.target attribute.
-  if (!Hints.getLoopTarget())
+  if (!hasTapirLoopTargetAttr(*L))
     return nullptr;
 
   return T;
 }
 
 bool llvm::shouldOutlineTapirLoop(const Loop &L) {
-  return hintsDemandOutlining(TapirLoopHints(&L));
+  if (std::optional<TapirSpawnStrategy> strategy =
+          getTapirLoopSpawnStrategyAttr(L)) {
+    switch (*strategy) {
+    case TapirSpawnStrategy::Basic:
+    case TapirSpawnStrategy::DivideAndConquer:
+    case TapirSpawnStrategy::GPU:
+      return true;
+    case TapirSpawnStrategy::Sequential:
+      return false;
+    }
+    llvm_unreachable("shouldOutlineTapirLoop: SpawningStrategy not handled");
+  }
+  return false;
 }

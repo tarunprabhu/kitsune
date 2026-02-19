@@ -30,7 +30,6 @@
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
-#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/Dominators.h"
@@ -523,20 +522,6 @@ TransformationMode llvm::hasLoopStripmineTransformation(const Loop *L) {
   if (getBooleanLoopAttribute(L, "tapir.loop.stripmine.enable"))
     return TM_ForcedByUser;
 
-  return TM_Unspecified;
-}
-
-TransformationMode llvm::hasLoopSpawningTransformation(const Loop *L) {
-  TapirLoopHints Hints(L);
-
-  switch (Hints.getStrategy()) {
-  case TapirSpawnStrategy::DivideAndConquer:
-    return TM_ForcedByUser;
-  case TapirSpawnStrategy::Basic:
-  case TapirSpawnStrategy::GPU:
-  case TapirSpawnStrategy::Sequential:
-    return TM_Disable;
-  }
   return TM_Unspecified;
 }
 

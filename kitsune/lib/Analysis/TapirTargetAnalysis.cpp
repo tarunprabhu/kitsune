@@ -13,15 +13,14 @@
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/CommandLineOptions.h"
+#include "kitsune/Core/TapirLoopAttrs.h"
 #include "kitsune/Core/TapirTargets.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/Module.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
-
-#include <set>
 
 #define DEBUG_TYPE "tapir-target-analysis"
 
@@ -108,39 +107,33 @@ void TapirTargetInfo::computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
   ttsInFunc.clear();
   ttsInModule.clear();
 
-  std::set<TTID> ttsForModule;
+  SmallSet<TTID, 2> ttsForModule;
   for (Function &f : m.functions()) {
     if (not f.size())
       continue;
 
     LoopInfo &li = getLoopInfo(f);
     TaskInfo &ti = getTaskInfo(f);
-    std::set<TTID> ttsForFunc;
+    SmallSet<TTID, 2> ttsForFunc;
     for (const Loop *tl : li) {
       for (const Loop *loop : post_order(tl)) {
-        if (getTaskIfTapirLoopStructure(loop, &ti)) {
-          TTID tt = ttOpts->getTTID();
-          if (std::optional<TTID> hintTT = TapirLoopHints(loop).getLoopTarget())
-            tt = *hintTT;
+        if (getTaskIfTapirLoop(loop, &ti)) {
+          TTID tt = *getTapirLoopTargetAttr(*loop);
           ttsForFunc.insert(tt);
           ttsForModule.insert(tt);
         }
       }
     }
 
-    // TODO: If there are multiple tapir targets required by a function, they
-    // should be sorted in an "ideal" order for processing. This is because
-    // some targets may change the function in ways that make it more difficult
-    // to process another.
-    //
-    // However, this whole multi-target code needs to be reconsidered. It is not
-    // at all clear that there exists an ordering that will work for any given
-    // pair of tapir targets. We may need to restrict the tapir targets that
-    // loops may be attributed with or the order in which the attributes can
-    // appear.
+    // Simply sort the tapir targets in ascending order so we have some
+    // determinism. For multi-target mode, we won't rely on any particular order
+    // in which these are returned.
     this->ttsInFunc[&f].assign(ttsForFunc.begin(), ttsForFunc.end());
+    std::sort(this->ttsInFunc[&f].begin(), this->ttsInFunc[&f].end());
   }
+
   this->ttsInModule.assign(ttsForModule.begin(), ttsForModule.end());
+  std::sort(this->ttsInModule.begin(), this->ttsInModule.end());
 }
 
 void TapirTargetInfo::addTT(TTID id, TapirTarget *tt) { tts[id] = tt; }

@@ -68,6 +68,32 @@ std::optional<TTID> llvm::createTTIDFrom(uint32_t u) {
   }
 }
 
+std::optional<TapirSpawnStrategy>
+llvm::createTapirSpawnStrategyFrom(uint32_t u) {
+  switch (u) {
+  case 0x1:
+    return TapirSpawnStrategy::Sequential;
+  case 0x2:
+    return TapirSpawnStrategy::DivideAndConquer;
+  case 0x3:
+    return TapirSpawnStrategy::GPU;
+  case 0x4:
+    return TapirSpawnStrategy::Basic;
+  default:
+    return std::nullopt;
+  }
+}
+
+std::optional<TapirSpawnStrategy>
+llvm::createTapirSpawnStrategyFrom(StringRef s) {
+  return StringSwitch<std::optional<TapirSpawnStrategy>>(s)
+      .Case("seq", TapirSpawnStrategy::Sequential)
+      .Case("dac", TapirSpawnStrategy::DivideAndConquer)
+      .Case("gpu", TapirSpawnStrategy::GPU)
+      .Case("basic", TapirSpawnStrategy::Basic)
+      .Default(std::nullopt);
+}
+
 std::optional<MaybeBool> llvm::createMaybeBoolFrom(StringRef s) {
   return StringSwitch<std::optional<MaybeBool>>(s)
       .Case("off", MaybeBool::Off)

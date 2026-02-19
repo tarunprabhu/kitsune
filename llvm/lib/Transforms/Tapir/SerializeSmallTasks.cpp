@@ -11,13 +11,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/SerializeSmallTasks.h"
+#include "kitsune/Core/TapirLoopAttrs.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CodeMetrics.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -51,8 +51,6 @@ static bool trySerializeSmallLoop(
   // Skip any loop for which stripmining is explicitly disabled.
   if (TM_Disable == hasLoopStripmineTransformation(L))
     return Changed;
-
-  TapirLoopHints Hints(L);
 
   TargetTransformInfo::StripMiningPreferences SMP =
       gatherStripMiningPreferences(L, SE, TTI, std::nullopt);
@@ -90,7 +88,7 @@ static bool trySerializeSmallLoop(
            });
   SerializeDetach(cast<DetachInst>(L->getHeader()->getTerminator()), T,
                   /* ReplaceWithTaskFrame = */ taskContainsSync(T), &DT);
-  Hints.clearHintsMetadata();
+  clearTapirLoopAttrs(*L);
   L->setDerivedFromTapirLoop();
   return true;
 }

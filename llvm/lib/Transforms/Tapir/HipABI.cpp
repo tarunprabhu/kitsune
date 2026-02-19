@@ -1,4 +1,4 @@
-//===- CudaABI.cpp - Lower Tapir Kitsune's hip runtime ------------------*-===//
+//===- HipABI.cpp - Tapir target for Kitsune's hip runtime ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -62,9 +62,9 @@
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTOptions.h"
+#include "kitsune/Core/TapirLoopAttrs.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicsAMDGPU.h"
@@ -451,8 +451,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // expression vs. a compile-time constant. For this first step of creating the
   // kernel launch, we take the path of a runtime configuration vs. an
   // attributed launch.
-  TapirLoopHints Hints(TL.getLoop());
-  unsigned TPBHint = Hints.getThreadsPerBlock();
+  unsigned TPBHint = getTapirLoopThreadsPerBlockAttr(*TL.getLoop()).value_or(0);
   unsigned FixedThreadsPerBlock = getOptions().getFixedThreadsPerBlock();
   Value *TPB;
   if (TPBHint)

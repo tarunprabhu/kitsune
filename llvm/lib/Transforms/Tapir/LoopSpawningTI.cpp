@@ -13,6 +13,7 @@
 #include "llvm/Transforms/Tapir/LoopSpawningTI.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TapirLoopAttrs.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -20,7 +21,6 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/BasicBlock.h"
@@ -449,9 +449,8 @@ void LoopOutlineProcessor::moveCilksanInstrumentation(TapirLoopInfo &TL,
 }
 
 namespace {
-static void emitMissedWarning(const Loop *L, const TapirLoopHints &LH,
-                              OptimizationRemarkEmitter *ORE) {
-  switch (LH.getStrategy()) {
+static void emitMissedWarning(const Loop *L, OptimizationRemarkEmitter *ORE) {
+  switch (*getTapirLoopSpawnStrategyAttr(*L)) {
   case TapirSpawnStrategy::Sequential:
     // The sequential spawn strategy does not outline tapir loops. As a result
     // the tapir loop will be ignored since outlineAllTapirLoops will skip
@@ -937,28 +936,28 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
 
   LLVM_DEBUG(dbgs() << "Analyzing for spawning: " << *L);
 
-  TapirLoopHints Hints(L);
+  std::optional<TTID> TT = getTapirLoopTargetAttr(*L);
 
   // Loop must have a preheader.  LoopSimplify should guarantee that the loop
   // preheader is not terminated by a sync.
   const BasicBlock *Preheader = L->getLoopPreheader();
   if (!Preheader) {
     LLVM_DEBUG(dbgs() << "Loop lacks a preheader.\n");
-    if (Hints.getLoopTarget()) {
+    if (TT) {
       ORE.emit(TapirLoopInfo::createMissedAnalysis(LS_NAME, "NoPreheader", L)
                << "loop lacks a preheader");
-      emitMissedWarning(L, Hints, &ORE);
+      emitMissedWarning(L, &ORE);
     }
     return nullptr;
   }
 
   if (!isa<BranchInst>(Preheader->getTerminator())) {
     LLVM_DEBUG(dbgs() << "Loop preheader is not terminated by a branch.\n");
-    if (Hints.getLoopTarget()) {
+    if (TT) {
       ORE.emit(TapirLoopInfo::createMissedAnalysis(LS_NAME, "ComplexPreheader",
                                                    L)
           << "loop preheader not terminated by a branch");
-      emitMissedWarning(L, Hints, &ORE);
+      emitMissedWarning(L, &ORE);
     }
     return nullptr;
   }
@@ -968,11 +967,11 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
           ->isUnconditional()) {
     LLVM_DEBUG(
         dbgs() << "Loop latch is not terminated by a conditional branch.\n");
-    if (Hints.getLoopTarget()) {
+    if (TT) {
       ORE.emit(
           TapirLoopInfo::createMissedAnalysis(LS_NAME, "UnexpectedLatch", L)
           << "loop latch not terminated by a conditional branch");
-      emitMissedWarning(L, Hints, &ORE);
+      emitMissedWarning(L, &ORE);
     }
     return nullptr;
   }
@@ -981,11 +980,11 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
   Task *T = llvm::getTaskIfTapirLoop(L, &TI);
   if (!T) {
     LLVM_DEBUG(dbgs() << "Loop does not match structure of Tapir loop.\n");
-    if (Hints.getLoopTarget()) {
+    if (TT) {
       ORE.emit(TapirLoopInfo::createMissedAnalysis(LS_NAME, "NonCanonicalLoop",
                                                    L)
           << "loop does not have the canonical structure of a Tapir loop");
-      emitMissedWarning(L, Hints, &ORE);
+      emitMissedWarning(L, &ORE);
     }
     return nullptr;
   }
@@ -1002,10 +1001,7 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
 
   Module &M = *F.getParent();
   Loop *L = TL->getLoop();
-  TapirLoopHints Hints(L);
-  TTID TT = TGI.getTTID();
-  if (std::optional<TTID> HintTT = Hints.getLoopTarget())
-    TT = *HintTT;
+  TTID TT = *getTapirLoopTargetAttr(*L);
   const TTOptions &TTOpts = TGI.getOptions();
 
   // Support for multiple targets is currently broken. Some of the frontend
@@ -1020,12 +1016,15 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   if (LoopOutlineProcessor *LOP = TGI.getTT(TT)->getLoopOutlineProcessor(TL))
     return LOP;
 
-  switch (Hints.getStrategy()) {
+  switch (*getTapirLoopSpawnStrategyAttr(*L)) {
   case TapirSpawnStrategy::DivideAndConquer:
     return new DACSpawning(M, TTOpts);
-  default:
+  case TapirSpawnStrategy::Sequential:
+  case TapirSpawnStrategy::GPU:
+  case TapirSpawnStrategy::Basic:
     return new DefaultLoopOutlineProcessor(M, TTOpts);
   }
+  llvm_unreachable("getOutlineProcessor: TapirSpawnStrategy not handled");
 }
 
 /// Associate tasks with Tapir loops that enclose them.
@@ -1277,6 +1276,26 @@ void LoopSpawningImpl::getAllTapirLoopInputs(
       });
     }
   }
+}
+
+static void removeSpawnStrategyFromClonedLoop(const Loop *L,
+                                              ValueToValueMapTy &VMap) {
+  LLVMContext &ctx = L->getHeader()->getContext();
+  StringRef attrName = getTapirLoopAttrName(TapirLoopAttrKind::SpawnStrategy);
+  MDNode *newAttrVal = getMetadataForTapirLoopAttr(
+      ctx, TapirLoopAttrKind::SpawnStrategy, defaultTapirSpawnStrategy);
+
+  auto *clonedLatch = cast<BasicBlock>(VMap[L->getLoopLatch()]);
+  assert(clonedLatch && "Cloned Tapir loop does not have a single latch.");
+
+  Instruction *term = clonedLatch->getTerminator();
+  if (MDNode *loopMD = term->getMetadata(LLVMContext::MD_loop))
+    for (unsigned i = 1, ie = loopMD->getNumOperands(); i < ie; ++i)
+      if (auto *md = dyn_cast<MDNode>(loopMD->getOperand(i)))
+        if (md->getNumOperands() == 2)
+          if (auto *mds = dyn_cast<MDString>(md->getOperand(0)))
+            if (mds->getString() == attrName)
+              loopMD->replaceOperandWith(i, newAttrVal);
 }
 
 static void updateClonedIVs(
@@ -1547,9 +1566,7 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
       bool CanOutline = TL->prepareForOutlining(DT, LI, TI, PSE, AC, LS_NAME,
                                                 ORE, TTI);
       if (!CanOutline || !shouldOutlineTapirLoop(*TL->getLoop())) {
-        const Loop *L = TL->getLoop();
-        TapirLoopHints Hints(L);
-        emitMissedWarning(L, Hints, &ORE);
+        emitMissedWarning(TL->getLoop(), &ORE);
         forgetTapirLoop(TL);
         continue;
       }
@@ -1680,9 +1697,8 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
       NamedRegionTimer NRT("clearMetadata", "Cleanup Tapir-loop metadata",
                            TimerGroupName, TimerGroupDescription,
                            TimePassesIsEnabled);
-      TapirLoopHints Hints(L);
-      Hints.clearClonedLoopMetadata(VMap);
-      Hints.clearStrategy();
+      removeSpawnStrategyFromClonedLoop(L, VMap);
+      removeTapirLoopSpawnStrategyAttr(*L);
     }
 
     // Update subtask outline info to reflect the fact that their spawner was

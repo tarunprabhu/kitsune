@@ -62,9 +62,9 @@
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTOptions.h"
+#include "kitsune/Core/TapirLoopAttrs.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicsNVPTX.h"
@@ -241,8 +241,6 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
   Task *T = TLI.getTask();
   Loop *TL = TLI.getLoop();
 
-  TapirLoopHints Hints(TL);
-
   BasicBlock *Entry = cast<BasicBlock>(VMap[TL->getLoopPreheader()]);
   BasicBlock *Header = cast<BasicBlock>(VMap[TL->getHeader()]);
   BasicBlock *Exit = cast<BasicBlock>(VMap[TLI.getExitBlock()]);
@@ -381,8 +379,8 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // expression vs. a compile-time constant. For this first step of creating the
   // kernel launch, we take the path of a runtime configuration vs. an
   // attributed launch.
-  TapirLoopHints Hints(TL.getLoop());
-  Value *TPB = ConstantInt::get(Int32Ty, Hints.getThreadsPerBlock());
+  unsigned TPBHint = getTapirLoopThreadsPerBlockAttr(*TL.getLoop()).value_or(0);
+  Value *TPB = ConstantInt::get(Int32Ty, TPBHint);
 
   CallBase *CallOutlined = cast<CallBase>(TOI.ReplCall);
   BasicBlock *RCBB = CallOutlined->getParent();

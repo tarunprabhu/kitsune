@@ -12,6 +12,7 @@
 
 #include "llvm/Transforms/Tapir/LoopStripMinePass.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/TapirLoopAttrs.h"
 #include "llvm/ADT/PriorityWorklist.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CodeMetrics.h"
@@ -20,7 +21,6 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -60,6 +60,12 @@ static cl::opt<bool> RequireParallelEpilog(
     "require-parallel-epilog", cl::Hidden, cl::init(false),
     cl::desc("Require stripmined Tapir loops to execute their epilogs in "
              "parallel.  Intended for debugging."));
+
+static void setAlreadyStripMined(Loop &loop) {
+  // Setting the tapir.loop.grainsize attribute to 1 effectively disables the
+  // strip-mining pass, which is the purpose of this function.
+  addTapirLoopGrainSizeAttr(loop, 1U);
+}
 
 /// Create an analysis remark that explains why stripmining failed
 ///
@@ -115,7 +121,6 @@ static bool tryToStripMineLoop(
   Task *T = getTaskIfTapirLoopStructure(L, TI);
   if (!T)
     return false;
-  TapirLoopHints Hints(L);
 
   if (TM_Disable == hasLoopStripmineTransformation(L))
     return false;
@@ -164,14 +169,14 @@ static bool tryToStripMineLoop(
   LLVM_DEBUG(dbgs() << "  Loop Cost = " << LoopCost << "\n");
   if (!ExplicitCount && InstructionCost::getMax() == LoopCost) {
     LLVM_DEBUG(dbgs() << "  Not stripmining loop with very large size.\n");
-    if (Hints.getGrainsize() == 1)
+    if (getTapirLoopGrainSizeAttr(*L) == 1)
       return false;
     ORE.emit([&]() {
                return OptimizationRemark(DEBUG_TYPE, "HugeLoop",
                                          L->getStartLoc(), L->getHeader())
                  << "using grainsize 1 for huge loop";
              });
-    Hints.setAlreadyStripMined();
+    setAlreadyStripMined(*L);
     return true;
   }
 
@@ -179,14 +184,14 @@ static bool tryToStripMineLoop(
   if (!ExplicitCount && IsRecursive) {
     LLVM_DEBUG(dbgs() << "  Not stripmining loop that recursively calls the "
                       << "containing function.\n");
-    if (Hints.getGrainsize() == 1)
+    if (getTapirLoopGrainSizeAttr(*L) == 1)
       return false;
     ORE.emit([&]() {
                return OptimizationRemark(DEBUG_TYPE, "RecursiveCalls",
                                          L->getStartLoc(), L->getHeader())
                  << "using grainsize 1 for loop with recursive calls";
              });
-    Hints.setAlreadyStripMined();
+    setAlreadyStripMined(*L);
     return true;
   }
 
@@ -223,14 +228,14 @@ static bool tryToStripMineLoop(
   if (!isPowerOf2_32(SMP.Count))
     SMP.Count = NextPowerOf2(SMP.Count);
   if (SMP.Count < 2) {
-    if (Hints.getGrainsize() == 1)
+    if (getTapirLoopGrainSizeAttr(*L) == 1)
       return false;
     ORE.emit([&]() {
                return OptimizationRemark(DEBUG_TYPE, "LargeLoop",
                                          L->getStartLoc(), L->getHeader())
                  << "using grainsize 1 for large loop";
              });
-    Hints.setAlreadyStripMined();
+    setAlreadyStripMined(*L);
     return true;
   }
 
@@ -301,8 +306,7 @@ static bool tryToStripMineLoop(
   }
 
   // Mark the new loop as stripmined.
-  TapirLoopHints NewHints(NewLoop);
-  NewHints.setAlreadyStripMined();
+  setAlreadyStripMined(*NewLoop);
 
   return true;
 }

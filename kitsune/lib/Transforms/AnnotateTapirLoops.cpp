@@ -15,7 +15,7 @@
 #include "kitsune/Transforms/AnnotateTapirLoops.h"
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/TapirLoopAttrs.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
@@ -25,20 +25,55 @@
 
 using namespace llvm;
 
-/// Annotate tapir loops for use by the GPU-centric tapir targets, 'cuda' and
-/// 'hip'. This only adds the perfect depth and perfect level annotations to
-/// the appropriate tapir loops.
-class AnnotateTapirLoopsGPU {
-private:
+/// Abstract base class for tapir loop annotator implementations.
+class AnnotateTapirLoopsBase {
+protected:
   LoopInfo &li;
   ScalarEvolution &se;
   TaskInfo &ti;
 
+protected:
+  AnnotateTapirLoopsBase(LoopInfo &li, ScalarEvolution &se, TaskInfo &ti)
+      : li(li), se(se), ti(ti) {}
+
+  bool isTapirLoop(Loop &loop) const { return getTaskIfTapirLoop(&loop, &ti); }
+
+public:
+  /// Annotate all tapir loops in the given function. Returns true if at least
+  /// one loop was annotated, false otherwise.
+  virtual bool run(Function &f, TTID tt) = 0;
+};
+
+/// Default implementation of tapir loop annotation. This simply adds a
+/// tapir.loop.lower annotation to all tapir loops. This is an indication to
+/// the loop spawning pass that will run later that the loops are to be lowered
+/// using the tapir target specified by the tapir.loop.target annotation.
+class AnnotateTapirLoopsDefault : public AnnotateTapirLoopsBase {
 private:
-  bool isTapirLoop(Loop &loop) { return getTaskIfTapirLoop(&loop, &ti); }
+  bool run(Loop &loop) {
+    addTapirLoopLoweringEnabledAttr(loop);
+    return true;
+  }
 
-  bool isTopLevelLoop(const Loop &loop) { return !loop.getParentLoop(); }
+public:
+  AnnotateTapirLoopsDefault(LoopInfo &li, ScalarEvolution &se, TaskInfo &ti)
+      : AnnotateTapirLoopsBase(li, se, ti) {}
 
+  virtual bool run(Function &f, TTID tt) override final {
+    bool changed = false;
+    for (Loop *loop : li.getLoopsInPreorder())
+      if (isTapirLoop(*loop))
+        if (*getTapirLoopTargetAttr(*loop) == tt)
+          changed |= run(*loop);
+    return changed;
+  }
+};
+
+/// Annotate tapir loops for use by the GPU-centric tapir targets, 'cuda' and
+/// 'hip'. This only adds the perfect depth and perfect level annotations to
+/// the appropriate tapir loops.
+class AnnotateTapirLoopsGPU : public AnnotateTapirLoopsBase {
+private:
   /// Return true if any of the ancestors of a loop are tapir loops. The given
   /// loop is not required to be a tapir loop. If the given loop is a top-level
   /// loop, return false.
@@ -64,7 +99,7 @@ private:
 
 public:
   AnnotateTapirLoopsGPU(LoopInfo &li, ScalarEvolution &se, TaskInfo &ti)
-      : li(li), se(se), ti(ti) {}
+      : AnnotateTapirLoopsBase(li, se, ti) {}
 
   bool run(Loop &root) {
     std::unique_ptr<TapirLoopNest> nest = TapirLoopNest::create(root, ti, se);
@@ -80,55 +115,21 @@ public:
     // loops, including the root.
     unsigned depth = nest->getMaxPerfectDepth();
 
-    setTapirLoopPerfectDepthMD(root, depth);
+    addTapirLoopLoweringEnabledAttr(root);
+    addTapirLoopPerfectDepthAttr(root, depth);
     for (unsigned d = 1; d <= depth; ++d)
-      setTapirLoopPerfectLevelMD(*perfectLoops[d - 1], d);
+      addTapirLoopPerfectLevelAttr(*perfectLoops[d - 1], d);
 
     return true;
   }
 
-  bool run(Function &f) {
+  virtual bool run(Function &f, TTID tt) override {
     bool changed = false;
-
     for (Loop *loop : li.getLoopsInPreorder())
       if (isTopLevelTapirLoop(*loop))
-        changed |= run(*loop);
-
+        if (*getTapirLoopTargetAttr(*loop) == tt)
+          changed |= run(*loop);
     return changed;
-  }
-};
-
-/// Annotate tapir loops when the primary tapir target is 'pthreads'.
-class AnnotateTapirLoopsPthreads {
-public:
-  AnnotateTapirLoopsPthreads(LoopInfo &, ScalarEvolution &, TaskInfo &) {}
-
-  bool run(Function &f) {
-    // We don't currently do anything special when lowering nested loops with
-    // the pthreads tapir target. This might work correctly, but performance is
-    // likely to be poor. This is why we create this empty stub instead of
-    // just returning false from annotateTapirLoops(). However, neither claim
-    // has been tested.
-    //
-    // TODO: Check if we need to do something here, and either do it, or remove
-    // this class altogether.
-    return false;
-  }
-};
-
-/// Annotate tapir loops when the primary tapir target is 'qthreads'.
-class AnnotateTapirLoopsQthreads {
-public:
-  AnnotateTapirLoopsQthreads(LoopInfo &, ScalarEvolution &, TaskInfo &) {}
-
-  bool run(Function &f) {
-    // We don't currently do anything special when lowering nested loops with
-    // the qthreads tapir target. It may be beneficial to do something else
-    // here, but that would require some performance analysis.
-    //
-    // TODO: Check if we need to do something here, and either do it, or remove
-    // this class altogether.
-    return false;
   }
 };
 
@@ -139,26 +140,23 @@ static bool annotateTapirLoops(TTID tt, Function &f, LoopInfo &li,
                                ScalarEvolution &se, TaskInfo &ti) {
   switch (tt) {
   case TTID::Nolo:
-  case TTID::Serial:
     return false;
+  case TTID::Serial:
+    return AnnotateTapirLoopsDefault(li, se, ti).run(f, tt);
   case TTID::Cuda:
   case TTID::Hip:
-    return AnnotateTapirLoopsGPU(li, se, ti).run(f);
+    return AnnotateTapirLoopsGPU(li, se, ti).run(f, tt);
   case TTID::OpenCilk:
-    // Nothing to be done for the 'opencilk' tapir target. OpenCilk's runtime
-    // handles this transparently using the standard work-stealing mechanisms.
-    return false;
   case TTID::Pthreads:
-    return AnnotateTapirLoopsPthreads(li, se, ti).run(f);
   case TTID::Qthreads:
-    return AnnotateTapirLoopsQthreads(li, se, ti).run(f);
+    return AnnotateTapirLoopsDefault(li, se, ti).run(f, tt);
   case TTID::Custom:
     // In principle, the custom tapir target is responsible for handling
     // everything related to lowering, so it is up to the tapir target to
     // handle nested parallel loops correctly. That said, it may be good to have
     // a callback, or some other hook, that could be defined by the tapir target
-    // plugin and used here.
-    return false;
+    // plugin and used here. For now, just use the defaults.
+    return AnnotateTapirLoopsDefault(li, se, ti).run(f, tt);
   case TTID::Realm:
   case TTID::Lambda:
   case TTID::OMPTask:
@@ -182,12 +180,8 @@ PreservedAnalyses AnnotateTapirLoopsPass::run(Module &m,
     ScalarEvolution &se = fam.getResult<ScalarEvolutionAnalysis>(f);
     TaskInfo &ti = fam.getResult<TaskAnalysis>(f);
 
-    // At this time, we only examine the primary tapir target when determining
-    // how the loops are to be annotated. At some point, we may do something
-    // more sophisticated such as determining which tapir target to use
-    // automatically depending on the structure and contents of the tapir loops
-    // or for multi-target support.
-    annotateTapirLoops(tgi.getTTID(), f, li, se, ti);
+    for (TTID tt : tgi.getRequiredTTs(m))
+      annotateTapirLoops(tt, f, li, se, ti);
   }
 
   // At best, this pass will only change the metadata on existing loops. It will

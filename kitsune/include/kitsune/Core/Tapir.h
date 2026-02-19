@@ -170,10 +170,18 @@ enum class TapirSpawnStrategy : uint32_t {
 };
 
 /// The default tapir spawn strategy. This is used because a default is needed
-/// by both frontends and the TapirLoopHints object. This reduces the likelihood
-/// of accidentally introducing inconsistencies.
+/// by frontends. This reduces the likelihood of accidentally introducing
+/// inconsistencies.
 static constexpr TapirSpawnStrategy defaultTapirSpawnStrategy =
     TapirSpawnStrategy::Sequential;
+
+/// Convert the integer to a \ref TapirSpawnStrategy. If the integer cannot be
+/// converted to a \ref TapirSpawnStrategy, return std::nullopt.
+std::optional<TapirSpawnStrategy> createTapirSpawnStrategyFrom(uint32_t u);
+
+/// Convert the string to a \ref TapirSpawnStrategy. If the string cannot be
+/// converted to a \ref TapirSpawnStrategy, return std::nullopt.
+std::optional<TapirSpawnStrategy> createTapirSpawnStrategyFrom(StringRef s);
 
 /// The default grain size. This is set to 0 instead of 1 because the value of
 /// zero also doubles up as the absence of an explicitly specified grain size.
