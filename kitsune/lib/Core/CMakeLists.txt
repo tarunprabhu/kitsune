@@ -7,12 +7,12 @@ add_llvm_component_library(LLVMKitCore
   GlobalVariableUtils.cpp
   IntrinsicUtils.cpp
   KernelProperties.cpp
-  LoopUtils.cpp
   MetadataUtils.cpp
   ModuleUtils.cpp
   TTOptions.cpp
   TTPlugin.cpp
   TTUtils.cpp
+  TapirLoopAttrs.cpp
   TargetUtils.cpp
   TypeUtils.cpp
 

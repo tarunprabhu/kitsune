@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/LoopStripMine.h"
+#include "kitsune/Core/TapirLoopAttrs.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AssumptionCache.h"
@@ -19,7 +20,6 @@
 #include "llvm/Analysis/LoopIterator.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DataLayout.h"
@@ -173,8 +173,9 @@ TargetTransformInfo::StripMiningPreferences llvm::gatherStripMiningPreferences(
 // If loop has an grainsize pragma return the (necessarily positive) value from
 // the pragma for stripmining.  Otherwise return 0.
 static unsigned stripMineCountPragmaValue(const Loop *L) {
-  TapirLoopHints Hints(L);
-  return Hints.getGrainsize();
+  if (std::optional<unsigned> GrainSize = getTapirLoopGrainSizeAttr(*L))
+    return *GrainSize;
+  return 0;
 }
 
 // Returns true if stripmine count was set explicitly.
@@ -1455,8 +1456,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
   }
   // Update loop metadata
   NewLoop->setLoopID(L->getLoopID());
-  TapirLoopHints Hints(L);
-  Hints.clearHintsMetadata();
+  clearTapirLoopAttrs(*L);
 
   // Update all of the old PHI nodes
   B2.SetInsertPoint(NewEntry->getTerminator());

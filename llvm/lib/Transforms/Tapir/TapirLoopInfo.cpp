@@ -14,9 +14,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
+#include "kitsune/Core/TapirLoopAttrs.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/TapirLoopHints.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -53,11 +53,9 @@ TapirLoopInfo::createMissedAnalysis(const char *PassName, StringRef RemarkName,
 
 /// Update information on this Tapir loop based on its metadata.
 void TapirLoopInfo::readTapirLoopMetadata(OptimizationRemarkEmitter &ORE) {
-  TapirLoopHints Hints(getLoop());
-
   // Get a grainsize for this Tapir loop from the metadata, if the metadata
   // gives a grainsize.
-  Grainsize = Hints.getGrainsize();
+  Grainsize = getTapirLoopGrainSizeAttr(*getLoop()).value_or(0);
 }
 
 static Type *convertPointerToIntegerType(const DataLayout &DL, Type *Ty) {
