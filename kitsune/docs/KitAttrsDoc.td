@@ -20,7 +20,7 @@
 // GlobalDocumentationOverride.
 //
 // Yes, this is a really lousy workaround, but clang's attribute organization
-// is somewhat awkward. While it is is fixable, it would make it harder to keep
+// is somewhat awkward. While it is fixable, it would make it harder to keep
 // it sync'ed with upstream. Any changes that we make are unlikely to be
 // accepted upstream, so this will have to do.
 //

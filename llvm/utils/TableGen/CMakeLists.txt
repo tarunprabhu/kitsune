@@ -53,7 +53,9 @@ add_tablegen(llvm-tblgen LLVM
   GlobalISelEmitter.cpp
   InstrDocsEmitter.cpp
   InstrInfoEmitter.cpp
-  KitsuneLoopAttrsEmitter.cpp
+  KitsuneLoopAttrDocsEmitter.cpp
+  KitsuneLoopAttrEmitter.cpp
+  KitsuneLoopAttrUtils.cpp
   llvm-tblgen.cpp
   MacroFusionPredicatorEmitter.cpp
   OptionParserEmitter.cpp

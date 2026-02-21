@@ -62,6 +62,7 @@ depending on what is of interest to you.
     KitLLVMAttrsDoc
     KitInstructionsDoc
     KitIntrinsicsDoc
+    KitLoopAttrsDoc
     KitPassesDoc
     CommandGuide/index.md
     Glossary

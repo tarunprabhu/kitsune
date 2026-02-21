@@ -2,9 +2,14 @@
 
 These are Kitsune-specific LLVM attributes. These are either emitted by
 Kitsune's drivers during LLVM-IR generation, or introduced by Kitsune's LLVM
-passes.
+passes. These are "true" LLVM attributes, in the sense that they each have an
+entry in LLVM's `Attribute::AttrKind` enum. In addition to these, Kitsune also
+supports a number of "loop attributes". These are not true attributes since they
+only appear in the metadata attached to an LLVM loop. Nevertheless, Kitsune
+provides a consistent way of defining and accessing these. They are
+documented in a [dedicated page](KitLoopAttrsDoc).
 
-## FunctionAttributes
+## Function Attributes
 
 These are attributes that only apply to functions.
 
@@ -58,6 +63,10 @@ These attributes only apply to global variables.
   the integer representation of the tapir target that generated it. This
   attribute must be accompanied by exactly one of
   [kit\_bc](llvm-attr-kit-bc) or [kit\_fb](llvm-attr-kit-fb).
+
+## Loop Attributes
+
+These are documented [here](KitLoopAttrsDoc).
 
 ## Parameter Attributes
 

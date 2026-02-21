@@ -111,7 +111,24 @@ opt -passes='kit-lowering<O2>' ...
 (passes-kitsune-transformation)=
 ### Transformation Passes
 
-This section describes Kitsune's transformation passes.
+This section describes Kitsune's transformation passes. If any embedded bitcode
+is present in the module, these passes will not modify it. They may modify any
+other part of the IR. The only transformations that these are permitted to carry
+out on any embedded bitcode is to delete it entirely.
+
+
+(passes-kit-annotate-tapir-loops)=
+#### kit-annotate-tapir-loops
+
+Adds attributes to tapir loops that are meant to be read by passes that run
+later in the lowering pipeline. The specific annotations depend on the tapir
+targets that are to be used.
+
+Currently, when using the GPU-centric tapir targets, the pass identifies
+tapir loop nests (where the outermost loop is a tapir loop) and annotates it
+with the perfect tapir loop nest depth. All perfectly nested tapir loops within
+each nest are annotated with their nesting level.
+
 
 (passes-kit-cgfb)=
 #### kit-cgfb
@@ -173,6 +190,19 @@ This is typically run early in Kitsune's post-tapir pipeline.
 
 Some Kitsune-specific intrinsics can be replaced with a call to a function in
 Kitsune's runtime. This pass performs that replacement.
+
+
+(passes-kit-serialize-tapir-loops)=
+#### kit-serialize-tapir-loops
+
+Serializes tapir loops that cannot be profitably lowered by the
+[loop-spawning](passes-loop-spawning) pass. Depending on the tapir targets being
+used, no loops may be serialized.
+
+For instance, when using the GPU tapir target, any loops that are below a
+certain depth within a loop nest are serialized since they cannot be launched
+from within the kernel, nor can they be lowered to a multi-dimensional GPU
+kernel.
 
 
 (passes-kit-strip-addr-spaces)=

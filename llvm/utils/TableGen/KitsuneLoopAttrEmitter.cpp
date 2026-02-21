@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "KitsuneLoopAttrUtils.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/TableGen/Error.h"
@@ -90,7 +91,7 @@ static StringRef getIRType(StringRef kind) {
       .Case("StrAttr", "StringRef");
 }
 
-class TapirLoopAttrsEmitter {
+class LoopAttrsEmitter {
 private:
   const RecordKeeper &records;
 
@@ -120,11 +121,10 @@ private:
     }
 
     for (const Record *r : records.getAllDerivedDefinitions(kind)) {
-      const Record *allowedOn = r->getValueAsDef("AllowedOn");
-      bool tapirLoopsOnly = allowedOn->getName() == "TapirLoopsOnly";
+      bool tapirLoopsOnly = isTapirLoopOnly(*r);
       std::string macro = getMacroName(kind, tapirLoopsOnly);
       StringRef attrName = r->getName();
-      std::string irName = getIRName(attrName, tapirLoopsOnly);
+      std::string irName = getIRName(*r);
 
       os << macro << "(" << attrName << ", \"" << irName << "\"";
       if (kind == "EnumAttr")
@@ -178,7 +178,7 @@ private:
   }
 
 public:
-  TapirLoopAttrsEmitter(const RecordKeeper &records) : records(records) {}
+  LoopAttrsEmitter(const RecordKeeper &records) : records(records) {}
 
   void run(raw_ostream &os) {
     emitAttrs(os);
@@ -189,5 +189,5 @@ public:
   }
 };
 
-static TableGen::Emitter::OptClass<TapirLoopAttrsEmitter>
+static TableGen::Emitter::OptClass<LoopAttrsEmitter>
     X("gen-kitsune-loop-attrs", "Generate Kitsune-specific loop attributes");
