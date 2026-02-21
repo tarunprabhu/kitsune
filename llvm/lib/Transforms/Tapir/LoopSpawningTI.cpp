@@ -13,7 +13,7 @@
 #include "llvm/Transforms/Tapir/LoopSpawningTI.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/Tapir.h"
-#include "kitsune/Core/TapirLoopAttrs.h"
+#include "kitsune/Core/LoopAttrs.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -1281,9 +1281,9 @@ void LoopSpawningImpl::getAllTapirLoopInputs(
 static void removeSpawnStrategyFromClonedLoop(const Loop *L,
                                               ValueToValueMapTy &VMap) {
   LLVMContext &ctx = L->getHeader()->getContext();
-  StringRef attrName = getTapirLoopAttrName(TapirLoopAttrKind::SpawnStrategy);
-  MDNode *newAttrVal = getMetadataForTapirLoopAttr(
-      ctx, TapirLoopAttrKind::SpawnStrategy, defaultTapirSpawnStrategy);
+  StringRef attrName = getLoopAttrName(LoopAttrKind::SpawnStrategy);
+  MDNode *newAttrVal = getMetadataForLoopAttr(
+      ctx, LoopAttrKind::SpawnStrategy, defaultTapirSpawnStrategy);
 
   auto *clonedLatch = cast<BasicBlock>(VMap[L->getLoopLatch()]);
   assert(clonedLatch && "Cloned Tapir loop does not have a single latch.");

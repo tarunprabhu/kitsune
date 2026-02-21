@@ -7,14 +7,19 @@ add_llvm_component_library(LLVMKitCore
   GlobalVariableUtils.cpp
   IntrinsicUtils.cpp
   KernelProperties.cpp
+  LoopAttrs.cpp
+  LoopUtils.cpp
   MetadataUtils.cpp
   ModuleUtils.cpp
   TTOptions.cpp
   TTPlugin.cpp
   TTUtils.cpp
-  TapirLoopAttrs.cpp
   TargetUtils.cpp
   TypeUtils.cpp
+
+  DEPENDS
+  intrinsics_gen
+  kitsune_generated_attrs
 
   # There is a circular dependence here between this library and LLVMCore. For
   # more details, see llvm/lib/IR/CMakeLists.txt. It would be nice if we could

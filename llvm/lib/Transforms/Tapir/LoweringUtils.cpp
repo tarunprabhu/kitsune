@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Config/config.h"
 #include "kitsune/Core/TTOptions.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Demangle/Demangle.h"

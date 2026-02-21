@@ -1,26 +1,16 @@
-#
-# Copyright (c) 2021 Triad National Security, LLC
-#                         All rights reserved.
-#
-# This file is part of the Kitsune project.  It is released under the LLVM
-# license.
-#
-
 include(GetClangResourceDir)
 
-# Kitsune is registered as a project and will show up as a "tool" alongside
-# clang. But we actually want this configuration file in a place where clang
-# will pick it up.
-configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/Config/config.h.cmake
-  ${CMAKE_BINARY_DIR}/include/kitsune/Config/config.h
-  @ONLY)
+add_subdirectory(Config)
+add_subdirectory(Core)
 
 get_clang_resource_dir(CLANG_RESOURCE_INCDIR
   PREFIX ${LLVM_LIBRARY_OUTPUT_INTDIR}/..
   SUBDIR include
 )
 
+# Add a target to copy kitsune.h into clang's resource directory within the
+# build directory. This is needed to run Kitsune from the build directory, most
+# crucially to run the core tests.
 add_custom_command(OUTPUT ${CLANG_RESOURCE_INCDIR}/kitsune.h
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
   ${CMAKE_CURRENT_SOURCE_DIR}/kitsune.h ${CLANG_RESOURCE_INCDIR}/kitsune.h

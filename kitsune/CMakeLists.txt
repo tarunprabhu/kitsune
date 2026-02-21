@@ -78,6 +78,9 @@ set(KITSUNE_INCLUDE_DIR ${KITSUNE_SOURCE_DIR}/include)
 set(KITSUNE_BINARY_DIR  ${PROJECT_BINARY_DIR})
 set(KITSUNE_TARGETS_BINARY_DIR ${KITSUNE_BINARY_DIR}/targets)
 
+# Dependencies for Kitsune's runtime.
+set(KITSUNE_RUNTIME_DEPENDS llvm-config clang LLVM)
+
 # Just in case, check for utilities that are needed to build some of the
 # dependencies. These are not needed for everything, but they are basic enough
 # that we might as well check for them unconditionally and "globally".
@@ -583,10 +586,11 @@ if (KITSUNE_QTHREADS_ENABLED)
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
     -DCMAKE_CXX_FLAGS=${KITSUNE_QTHREADS_CXX_FLAGS}
     -DCMAKE_CXX_COMPILER_WORKS=1
-    -DCMAKE_SIZEOF_VOID_P=${CMAKE_SIZEOF_VOID_P}
-    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-    -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
     -DCMAKE_INSTALL_PREFIX=${KITSUNE_QTHREADS_INSTALL_DIR}
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_COLOR_DIAGNOSTICS=${CMAKE_COLOR_DIAGNOSTICS}
+    -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+    -DCMAKE_SIZEOF_VOID_P=${CMAKE_SIZEOF_VOID_P}
     -DQTHREADS_TOPOLOGY=hwloc
     -DQTHREADS_SCHEDULER=distrib)
 
@@ -622,6 +626,8 @@ if (KITSUNE_QTHREADS_ENABLED)
   install(DIRECTORY ${KITSUNE_QTHREADS_INSTALL_DIR}/
     DESTINATION ${CLANG_RESOURCE_INSTALL_DIR}
     USE_SOURCE_PERMISSIONS)
+
+  list(APPEND KITSUNE_RUNTIME_DEPENDS qthreads-copy-to-build-dir)
 endif()
 
 if (KITSUNE_REALM_ENABLED)
@@ -728,7 +734,7 @@ endif ()
 # be set to TRUE here, otherwise runtime/ will not be checked for changes, which
 # is not terribly helpful for Kitsune developers.
 ExternalProject_Add(${KITSUNE_LIBNAME}
-  DEPENDS                    llvm-config clang LLVM
+  DEPENDS                    ${KITSUNE_RUNTIME_DEPENDS}
   SOURCE_DIR                 ${KITSUNE_SOURCE_DIR}/runtime
   STAMP_DIR                  ${KITSUNE_BINARY_DIR}/stamp
   BINARY_DIR                 ${KITSUNE_BINARY_DIR}/runtime

@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/SerializeSmallTasks.h"
-#include "kitsune/Core/TapirLoopAttrs.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CodeMetrics.h"
 #include "llvm/Analysis/GlobalsModRef.h"

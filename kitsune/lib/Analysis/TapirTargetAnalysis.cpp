@@ -13,7 +13,7 @@
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Config/config.h"
 #include "kitsune/Core/CommandLineOptions.h"
-#include "kitsune/Core/TapirLoopAttrs.h"
+#include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/TapirTargets.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"

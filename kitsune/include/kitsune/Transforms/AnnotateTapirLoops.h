@@ -18,6 +18,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 /// This pass computes properties of tapir loops and adds them to the loop
 /// annotations. These can be read by passes that run later in the
 /// pipeline. These are intended to inform how the loop will be transformed
@@ -38,6 +41,8 @@ public:
   /// not work correctly if the annotations are not computed.
   static bool isRequired() { return true; }
 };
+
+/// @}
 
 } // namespace llvm
 
