@@ -238,7 +238,7 @@ which the tapir loop is a part.
 def SpawnStrategy : EnumAttr<"TapirSpawnStrategy", TapirLoopsOnly> {
   let Documentation = [{
 The spawn strategy attribute mainly determines whether a tapir loop should be
- outlined. At some point, it may be used for something more, but right now, its
+outlined. At some point, it may be used for something more, but right now, its
 use is limited. This attribute is required to be present on all tapir loops.
 }];
 }

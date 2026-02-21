@@ -6,6 +6,29 @@ set_target_properties(kitsune-doc PROPERTIES FOLDER "Kitsune/Docs")
 add_custom_target(kitsune-docs)
 add_dependencies(kitsune-docs kitsune-doc)
 
+# Generate a .rst file from a .td file that contains documentation for
+# Kitsune's loop attributes.
+#
+# RST         The output .rst file
+# TD          The input .td file from which the .rst file is generated
+# TARGET_RST  The custom target that builds the .rst file. The target itself
+#             will be created in this function
+# TARGET_DIR  The name of the custom target that makes the directory into which
+#             the .rst file will be written. This target should have been
+#             created before this function is called
+function(gen_loop_attrs_rst rst td target_rst target_dir)
+  get_filename_component(td_dir ${td} DIRECTORY)
+
+  set(LLVM_TARGET_DEFINITIONS ${td})
+  tablegen(LLVM ${rst}
+    -gen-kitsune-loop-attr-docs
+    -I${td_dir}
+    -I${CMAKE_CURRENT_SOURCE_DIR}/../../kitsune/include)
+  add_public_tablegen_target(${target_rst})
+
+  add_dependencies(${target_rst} ${target_dir})
+endfunction ()
+
 # Generate a .rst file from a .td file that serves as documentation for
 # Kitsune's C/C++ attributes.
 #
@@ -212,6 +235,11 @@ if (KITSUNE_ENABLE_SPHINX)
         kitsune-attrs-doc
         kitsune-html-source-dir)
 
+      gen_loop_attrs_rst(${HTML_SOURCE_DIR}/KitLoopAttrsDoc.rst
+        ${CMAKE_CURRENT_SOURCE_DIR}/KitLoopAttrsDoc.td
+        kitsune-loop-attrs-doc
+        kitsune-html-source-dir)
+
       gen_options_rst(${HTML_SOURCE_DIR}/KitClangOptionsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitClangOptionsDoc.td
         kitsune-clang-options-doc
@@ -274,6 +302,7 @@ if (KITSUNE_ENABLE_SPHINX)
         kitsune-attrs-doc
         kitsune-clang-options-doc
         kitsune-flang-options-doc
+        kitsune-loop-attrs-doc
         copy-html-inputs)
 
       # If Kitsune's API reference is to be built, the doxygen/ directory will
