@@ -17,6 +17,9 @@
 
 namespace llvm {
 
+/// \addtogroup kitsune
+/// @{
+
 /// Pass that analyzes tapir loop nests and serializes any tapir loops that
 /// either cannot be lowered using a tapir target, or that may degrade
 /// performance if lowered using a tapir target. This pass expects the
@@ -26,6 +29,8 @@ class SerializeTapirLoopsPass : public PassInfoMixin<SerializeTapirLoopsPass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
 };
+
+/// @}
 
 } // namespace llvm
 

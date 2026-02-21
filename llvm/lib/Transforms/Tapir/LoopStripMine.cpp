@@ -11,7 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/LoopStripMine.h"
-#include "kitsune/Core/TapirLoopAttrs.h"
+#include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AssumptionCache.h"
@@ -173,9 +174,7 @@ TargetTransformInfo::StripMiningPreferences llvm::gatherStripMiningPreferences(
 // If loop has an grainsize pragma return the (necessarily positive) value from
 // the pragma for stripmining.  Otherwise return 0.
 static unsigned stripMineCountPragmaValue(const Loop *L) {
-  if (std::optional<unsigned> GrainSize = getTapirLoopGrainSizeAttr(*L))
-    return *GrainSize;
-  return 0;
+  return getTapirLoopGrainsizeAttr(*L).value_or(0);
 }
 
 // Returns true if stripmine count was set explicitly.

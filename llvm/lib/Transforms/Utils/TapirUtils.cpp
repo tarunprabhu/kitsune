@@ -11,8 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/TapirUtils.h"
-#include "kitsune/Config/config.h"
-#include "kitsune/Core/TapirLoopAttrs.h"
+#include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/CFG.h"
@@ -2389,7 +2388,7 @@ bool llvm::shouldOutlineTapirLoop(const Loop &L) {
     case TapirSpawnStrategy::Sequential:
       return false;
     }
-    llvm_unreachable("shouldOutlineTapirLoop: SpawningStrategy not handled");
+    llvm_unreachable("shouldOutlineTapirLoop: TapirSpawnStrategy not handled");
   }
   return false;
 }

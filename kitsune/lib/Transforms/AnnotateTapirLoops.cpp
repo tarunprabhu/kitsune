@@ -15,7 +15,7 @@
 #include "kitsune/Transforms/AnnotateTapirLoops.h"
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Core/TapirLoopAttrs.h"
+#include "kitsune/Core/LoopAttrs.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TapirTaskInfo.h"

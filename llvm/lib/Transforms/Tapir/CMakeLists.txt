@@ -62,6 +62,7 @@ add_llvm_component_library(LLVMTapirOpts
 
   DEPENDS
   intrinsics_gen
+  kitsune_generated_attrs
   LLVMLinker
   LLVMBitWriter
 

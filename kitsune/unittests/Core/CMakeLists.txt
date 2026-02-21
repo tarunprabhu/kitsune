@@ -10,10 +10,11 @@ add_kitsune_unittest_with_input_files(KitCoreTests
   FunctionUtilsTest.cpp
   GlobalVariableUtilsTest.cpp
   IntrinsicUtilsTest.cpp
+  LoopAttrsTest.cpp
+  LoopUtilsTest.cpp
   KernelPropertiesTest.cpp
   ModuleUtilsTest.cpp
   TapirCoreTest.cpp
-  TapirLoopAttrsTest.cpp
   TypeUtilsTest.cpp
 
   EXPORT_SYMBOLS
