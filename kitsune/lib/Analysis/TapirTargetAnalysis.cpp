@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Config/config.h"
 #include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/TapirTargets.h"
@@ -35,69 +34,6 @@ static cl::opt<bool>
 /// TapirTargetInfo::getRequiredTTs is called with a function that does not
 /// contain any tapir loops.
 static const std::vector<TTID> noTTs;
-
-static std::unique_ptr<TapirTarget> createTT(TTID id, Module &m,
-                                             const TTOptions &tto) {
-  // Yes, this is absolutely hideous. We should try to find a nicer way than
-  // this horrendous conditionally compiled mess!
-  switch (id) {
-  case TTID::Nolo:
-    return nullptr;
-
-  case TTID::Custom:
-    return std::unique_ptr<TapirTarget>(
-        tto.getTTPlugin()->makeTapirTarget(m, tto));
-
-  case TTID::Pthreads:
-    return std::make_unique<PthreadsTT>(m, tto);
-
-  case TTID::Serial:
-    return std::make_unique<SerialABI>(m, tto);
-
-#if KITSUNE_CUDA_ENABLED
-  case TTID::Cuda:
-    return std::make_unique<CudaABI>(m, tto);
-#endif // KITSUNE_CUDA_ENABLED
-
-#if KITSUNE_HIP_ENABLED
-  case TTID::Hip:
-    return std::make_unique<HipABI>(m, tto);
-#endif // KITSUNE_HIP_ENABLED
-
-#if KITSUNE_LAMBDA_ENABLED
-  case TTID::Lambda:
-    return std::make_unique<LambdaABI>(m, tto);
-#endif // KITSUNE_LAMBDA_ENABLED
-
-#if KITSUNE_OMPTASK_ENABLED
-  case TTID::OMPTask:
-    return std::make_unique<OMPTaskABI>(m, tto);
-#endif // KITSUNE_OMPTASK_ENABLED
-
-#if KITSUNE_OPENCILK_ENABLED
-  case TTID::OpenCilk:
-    return std::make_unique<OpenCilkABI>(m, tto);
-#endif // KITSUNE_OPENCILK_ENABLED
-
-#if KITSUNE_OPENMP_ENABLED
-  case TTID::OpenMP:
-    llvm_unreachable("OpenMP ABI is out of date");
-#endif // KITSUNE_OPENMP_ENABLED
-
-#if KITSUNE_QTHREADS_ENABLED
-  case TTID::Qthreads:
-    return std::make_unique<QthreadsTT>(m, tto);
-#endif // KITSUNE_QTHREADS_ENABLED
-
-#if KITSUNE_REALM_ENABLED
-  case TTID::Realm:
-    return std::make_unique<RealmABI>(m);
-#endif // KITSUNE_REALM_ENABLED
-
-  default:
-    llvm_unreachable("createTT: TTID not handled");
-  }
-}
 
 TapirTargetInfo::TapirTargetInfo(std::optional<TTOptions> ttOpts)
     : ttOpts(ttOpts) {}
@@ -210,7 +146,7 @@ TapirTargetAnalysis::run(Module &m, ModuleAnalysisManager &mam) {
   ids.push_back(ttInfo.getTTID());
   for (TTID id : ids) {
     if (not ttInfo.hasTT(id)) {
-      tts[id] = createTT(id, m, tto);
+      tts[id] = makeTT(id, m, tto);
       ttInfo.addTT(id, tts.at(id).get());
     }
   }

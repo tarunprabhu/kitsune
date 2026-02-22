@@ -1,3 +1,5 @@
+include(KitsuneTableGen)
+
 add_custom_target(kitsune-doc)
 set_target_properties(kitsune-doc PROPERTIES FOLDER "Kitsune/Docs")
 
@@ -17,14 +19,9 @@ add_dependencies(kitsune-docs kitsune-doc)
 #             the .rst file will be written. This target should have been
 #             created before this function is called
 function(gen_loop_attrs_rst rst td target_rst target_dir)
-  get_filename_component(td_dir ${td} DIRECTORY)
-
-  set(LLVM_TARGET_DEFINITIONS ${td})
-  tablegen(LLVM ${rst}
+  kitsune_tablegen(${td} ${rst}
     -gen-kitsune-loop-attr-docs
-    -I${td_dir}
-    -I${CMAKE_CURRENT_SOURCE_DIR}/../../kitsune/include)
-  add_public_tablegen_target(${target_rst})
+    TARGET ${target_rst})
 
   add_dependencies(${target_rst} ${target_dir})
 endfunction ()

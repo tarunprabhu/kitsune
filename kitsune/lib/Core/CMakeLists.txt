@@ -14,6 +14,7 @@ add_llvm_component_library(LLVMKitCore
   TTOptions.cpp
   TTPlugin.cpp
   TTUtils.cpp
+  TapirTargets.cpp
   TargetUtils.cpp
   TypeUtils.cpp
 

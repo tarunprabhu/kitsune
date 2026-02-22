@@ -16,7 +16,7 @@
 
 // -----------------------------------------------------------------------------
 
-#define KITSUNE_LIBNAME "@KITSUNE_LIBNAME@"
+#define KITSUNE_LIBNAME_DSO "@KITSUNE_LIBNAME@"
 #define KITSUNE_LIBNAME_STATIC "@KITSUNE_LIBNAME_STATIC@"
 
 // The default GCC installation directory to use. If this is non-null, Kitsune
@@ -24,9 +24,31 @@
 // --gcc-install-dir on the command line
 #define KITSUNE_GCC_INSTALL_DIR "@KITSUNE_GCC_INSTALL_DIR@"
 
-// When using a fixed number of threads per block, the maximum value that can be
-// specified.
-constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
+// A semicolon-separated list of library names that should always be linked when
+// linking with Kitsune.
+#define KITSUNE_COMMON_LIB_NAMES "@KITSUNE_COMMON_LIB_NAMES@"
+
+// A semicolon-separated list of directories that should always be added to the
+// linker library search paths and the rpath.
+#define KITSUNE_COMMON_LIB_DIRS "@KITSUNE_COMMON_LIB_DIRS@"
+
+// -----------------------------------------------------------------------------
+
+// The names of the Kitsune frontends
+#define KITSUNE_C_FRONTEND "@KITSUNE_C_FRONTEND@"
+#define KITSUNE_CXX_FRONTEND "@KITSUNE_CXX_FRONTEND@"
+#define KITSUNE_Fortran_FRONTEND "@KITSUNE_Fortran_FRONTEND@"
+
+// A space-separated string of all languages for which Kitsune frontends exist
+#define KITSUNE_KNOWN_LANGS "@KITSUNE_KNOWN_LANGS_STR@"
+
+// Kitsune language support that has been enabled
+#cmakedefine01 KITSUNE_C_ENABLED
+#cmakedefine01 KITSUNE_CXX_ENABLED
+#cmakedefine01 KITSUNE_Fortran_ENABLED
+
+// A space-separate dstring of all enabled languages
+#define KITSUNE_ENABLED_LANGS "@KITSUNE_ENABLED_LANGS_STR@"
 
 // -----------------------------------------------------------------------------
 
@@ -38,48 +60,10 @@ constexpr unsigned KITSUNE_MAX_FIXED_THREADS_PER_BLOCK = 1024;
 // this build
 #define KITSUNE_ENABLED_TAPIR_TARGETS "@KITSUNE_ENABLED_TAPIR_TARGETS_STR@"
 
-// Kitsune language support that has been enabled
-#cmakedefine01 KITSUNE_C_ENABLED
-#cmakedefine01 KITSUNE_CXX_ENABLED
-#cmakedefine01 KITSUNE_Fortran_ENABLED
-
-// The names of the Kitsune frontends
-#define KITSUNE_C_FRONTEND "@KITSUNE_C_FRONTEND@"
-#define KITSUNE_CXX_FRONTEND "@KITSUNE_CXX_FRONTEND@"
-#define KITSUNE_Fortran_FRONTEND "@KITSUNE_Fortran_FRONTEND@"
-
-// -----------------------------------------------------------------------------
-
-// A space-separated string of all languages for which Kitsune frontends exist
-#define KITSUNE_KNOWN_LANGS "@KITSUNE_KNOWN_LANGS_STR@"
-
-// A space-separate dstring of all enabled languages
-#define KITSUNE_ENABLED_LANGS "@KITSUNE_ENABLED_LANGS_STR@"
-
 // -----------------------------------------------------------------------------
 
 // Has kokkos support been enabled
 #cmakedefine01 KITSUNE_KOKKOS_ENABLED
-
-// -----------------------------------------------------------------------------
-
-// A space-separated string of all known Tapir targets, including those that
-// have not been enabled
-#define KITSUNE_ALL_TAPIR_TARGETS "@KITSUNE_ALL_TAPIR_TARGETS_STR@"
-
-// A space-separated string with the Tapir targets that have been enabled in
-// this build
-#define KITSUNE_ENABLED_TAPIR_TARGETS "@KITSUNE_ENABLED_TAPIR_TARGETS_STR@"
-
-// -----------------------------------------------------------------------------
-
-// A semicolon-separated list of library names that should always be linked when
-// linking with Kitsune.
-#define KITSUNE_COMMON_LIB_NAMES "@KITSUNE_COMMON_LIB_NAMES@"
-
-// A semicolon-separated list of directories that should always be added to the
-// linker library search paths and the rpath.
-#define KITSUNE_COMMON_LIB_DIRS "@KITSUNE_COMMON_LIB_DIRS@"
 
 // -----------------------------------------------------------------------------
 

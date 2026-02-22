@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Config/config.h"
 #include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
