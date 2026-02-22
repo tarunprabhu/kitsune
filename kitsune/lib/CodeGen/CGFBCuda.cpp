@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CGFBImpl.h"
-#include "kitsune/Config/config.h"
+#include "kitsune/Config/Config.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TargetUtils.h"
@@ -102,7 +102,7 @@ private:
     // Build the command line for ptxas.
     std::vector<StringRef> args;
 
-    StringRef ptxas = KITSUNE_CUDA_PTXAS;
+    StringRef ptxas = kitCudaPtxas();
     args.push_back(ptxas);
 
     // TODO: Do we need/want to add support for generating relocatable code? It
@@ -167,18 +167,19 @@ private:
     auto fatbinFile = std::make_unique<ToolOutputFile>(
         fatbinFilename, ec, sys::fs::OpenFlags::OF_None);
 
-    StringRef fatbin = KITSUNE_CUDA_FATBINARY;
+    StringRef fatbin = kitCudaFatbinary();
     std::vector<StringRef> args;
     args.push_back(fatbin);
     args.push_back("--64");
     args.push_back("--create");
     args.push_back(fatbinFilename);
 
-#if KITSUNE_CUDA_VERSION_MAJOR < 13
-    std::string imgArgs = join_items("", "--image=profile=", tto.getCudaArch(),
-                                     ",file=", asmFile.getFilename());
-    args.push_back(imgArgs);
-#endif // KITSUNE_CUDA_VERSION_MAJOR
+    if constexpr (kitCudaMajorVersion() < 13) {
+      std::string imgArgs =
+          join_items("", "--image=profile=", tto.getCudaArch(),
+                     ",file=", asmFile.getFilename());
+      args.push_back(imgArgs);
+    }
 
     // FIXME: This code looks like it is broken.
     // std::list<std::string> PTXFilesArgList;

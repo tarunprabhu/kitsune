@@ -15,7 +15,7 @@
 #include "Arch/RISCV.h"
 #include "Arch/Sparc.h"
 #include "Arch/SystemZ.h"
-#include "kitsune/Config/config.h" // for KITSUNE_GCC_INSTALL_PREFIX
+#include "kitsune/Config/Config.h"
 #include "clang/Config/config.h" // for GCC_INSTALL_PREFIX
 #include "clang/Driver/CommonArgs.h"
 #include "clang/Driver/Compilation.h"
@@ -2141,11 +2141,11 @@ void Generic_GCC::GCCInstallationDetector::init(
   //
   // WARNING: This is not ideal because it duplicates the handling of
   // --gcc-install-dir, but hopefully that doesn't change too often.
-  if (KITSUNE_GCC_INSTALL_DIR[0] &&
+  if (llvm::kitGCCInstallDir().size() &&
       !Args.hasArg(options::OPT_gcc_install_dir_EQ) &&
       !Args.hasArg(options::OPT_gcc_triple_EQ) &&
       !Args.hasArg(options::OPT_gcc_toolchain) && D.SysRoot.empty()) {
-    StringRef InstallDir = KITSUNE_GCC_INSTALL_DIR;
+    StringRef InstallDir = llvm::kitGCCInstallDir();
     (void)InstallDir.consume_back("/");
     StringRef VersionText = llvm::sys::path::filename(InstallDir);
     StringRef TripleText =

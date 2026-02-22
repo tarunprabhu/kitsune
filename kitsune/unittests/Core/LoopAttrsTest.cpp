@@ -55,29 +55,38 @@ static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
   return m;
 }
 
+template <typename T>
+static void checkLoopGetMetadata(LLVMContext &ctx, LoopAttrKind attr, T val,
+                                 unsigned llvmVal) {
+  MDNode *md = getMetadataForLoopAttr(ctx, attr, val);
+  auto *md0 = dyn_cast<MDString>(md->getOperand(0));
+  auto *md1 = dyn_cast<ConstantAsMetadata>(md->getOperand(1));
+
+  EXPECT_TRUE(md0);
+  EXPECT_TRUE(md1);
+  EXPECT_EQ(md->getNumOperands(), 2U);
+  EXPECT_EQ(md0->getString(), getLoopAttrName(attr));
+  EXPECT_EQ(cast<ConstantInt>(md1->getValue())->getLimitedValue(), llvmVal);
+}
+
+static void checkLoopGetMetadata(LLVMContext &ctx, LoopAttrKind attr) {
+  MDNode *md = getMetadataForLoopAttr(ctx, attr);
+  auto *md0 = dyn_cast<MDString>(md->getOperand(0));
+  auto *md1 = dyn_cast<ConstantAsMetadata>(md->getOperand(1));
+
+  EXPECT_TRUE(md0);
+  EXPECT_TRUE(md1);
+  EXPECT_EQ(md->getNumOperands(), 2U);
+  EXPECT_EQ(md0->getString(), getLoopAttrName(attr));
+  EXPECT_EQ(cast<ConstantInt>(md1->getValue())->getLimitedValue(), 1U);
+}
+
 TEST(LoopAttrsTest, loopGetMetadata) {
   LLVMContext ctx;
 
-  MDNode *md0 = getMetadataForLoopAttr(ctx, LoopAttrKind::Target, TTID::Serial);
-  EXPECT_EQ(md0->getNumOperands(), 2U);
-  EXPECT_EQ(cast<MDString>(md0->getOperand(0))->getString(),
-            getLoopAttrName(LoopAttrKind::Target));
-  Constant *c0 = cast<ConstantAsMetadata>(md0->getOperand(1))->getValue();
-  EXPECT_EQ(cast<ConstantInt>(c0)->getLimitedValue(), 1U);
-
-  MDNode *md1 = getMetadataForLoopAttr(ctx, LoopAttrKind::LoweringEnabled);
-  EXPECT_EQ(md1->getNumOperands(), 2U);
-  EXPECT_EQ(cast<MDString>(md1->getOperand(0))->getString(),
-            getLoopAttrName(LoopAttrKind::LoweringEnabled));
-  Constant *c1 = cast<ConstantAsMetadata>(md1->getOperand(1))->getValue();
-  EXPECT_EQ(cast<ConstantInt>(c1)->getLimitedValue(), 1U);
-
-  MDNode *md2 = getMetadataForLoopAttr(ctx, LoopAttrKind::PerfectDepth, 13);
-  EXPECT_EQ(md2->getNumOperands(), 2U);
-  EXPECT_EQ(cast<MDString>(md2->getOperand(0))->getString(),
-            getLoopAttrName(LoopAttrKind::PerfectDepth));
-  Constant *c2 = cast<ConstantAsMetadata>(md2->getOperand(1))->getValue();
-  EXPECT_EQ(cast<ConstantInt>(c2)->getLimitedValue(), 13U);
+  checkLoopGetMetadata(ctx, LoopAttrKind::LoweringEnabled);
+  checkLoopGetMetadata(ctx, LoopAttrKind::Target, TTID::Serial, 1U);
+  checkLoopGetMetadata(ctx, LoopAttrKind::PerfectDepth, 13, 13U);
 }
 
 TEST(LoopAttrsTest, loopAttrName) {
@@ -85,7 +94,7 @@ TEST(LoopAttrsTest, loopAttrName) {
   EXPECT_EQ(getLoopAttrName(LoopAttrKind::NAME), IRNAME);                      \
   EXPECT_TRUE(getLoopAttrName(LoopAttrKind::NAME).starts_with("loop."));
 #define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
-  EXPECT_EQ(getLoopAttrName(LoopAttrKind::NAME), IRNAME);                   \
+  EXPECT_EQ(getLoopAttrName(LoopAttrKind::NAME), IRNAME);                      \
   EXPECT_TRUE(getLoopAttrName(LoopAttrKind::NAME).starts_with("tapir.loop."));
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
@@ -107,6 +116,64 @@ TEST(LoopAttrsTest, loopAttrTapirOnly) {
   EXPECT_FALSE(isLoopAttrTapirOnly(LoopAttrKind::NAME));
 #define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
   EXPECT_TRUE(isLoopAttrTapirOnly(LoopAttrKind::NAME));
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+}
+
+TEST(LoopAttrsTest, loopAttrsGeneric) {
+  LLVMContext ctx;
+  std::unique_ptr<Module> m = parseIR(ctx, loop1);
+  Function *f = m->getFunction("f");
+  DominatorTree dt(*f);
+  LoopInfo li(dt);
+  [[maybe_unused]] Loop *loop = li.getLoopsInPreorder().front();
+
+  auto checkCommon = [](Loop &loop, LoopAttrKind attr) -> void {
+    EXPECT_TRUE(hasLoopAttr(loop, attr));
+    removeLoopAttr(loop, attr);
+    EXPECT_FALSE(hasLoopAttr(loop, attr));
+  };
+
+#define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
+  EXPECT_FALSE(hasLoopAttr(*loop, LoopAttrKind::NAME));                        \
+  addLoop##NAME##Attr(*loop);                                                  \
+  checkCommon(*loop, LoopAttrKind::NAME);
+
+#define LOOP_ATTRIBUTE_INT32(NAME, IRNAME)                                     \
+  EXPECT_FALSE(hasLoopAttr(*loop, LoopAttrKind::NAME));                        \
+  addLoop##NAME##Attr(*loop, 67);                                              \
+  checkCommon(*loop, LoopAttrKind::NAME);
+
+#define LOOP_ATTRIBUTE_INT64(NAME, IRNAME)                                     \
+  EXPECT_FALSE(hasLoopAttr(*loop, LoopAttrKind::NAME));                        \
+  addLoop##NAME##Attr(*loop, 67L);                                             \
+  checkCommon(*loop, LoopAttrKind::NAME);
+
+#define LOOP_ATTRIBUTE_STR(NAME, IRNAME)                                       \
+  EXPECT_FALSE(hasLoopAttr(*loop, LoopAttrKind::NAME));                        \
+  addLoop##NAME##Attr(*loop, "67");                                            \
+  checkCommon(*loop, LoopAttrKind::NAME);
+
+#define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
+  EXPECT_FALSE(hasLoopAttr(*loop, LoopAttrKind::NAME));                        \
+  addTapirLoop##NAME##Attr(*loop);                                             \
+  checkCommon(*loop, LoopAttrKind::NAME);
+
+#define TAPIR_LOOP_ATTRIBUTE_INT32(NAME, IRNAME)                               \
+  EXPECT_FALSE(hasLoopAttr(*loop, LoopAttrKind::NAME));                        \
+  addTapirLoop##NAME##Attr(*loop, 67);                                         \
+  checkCommon(*loop, LoopAttrKind::NAME);
+
+#define TAPIR_LOOP_ATTRIBUTE_INT64(NAME, IRNAME)                               \
+  EXPECT_FALSE(hasLoopAttr(*loop, LoopAttrKind::NAME));                        \
+  addTapirLoop##NAME##Attr(*loop, 67L);                                        \
+  checkCommon(*loop, LoopAttrKind::NAME);
+
+#define TAPIR_LOOP_ATTRIBUTE_STR(NAME, IRNAME)                                 \
+  EXPECT_FALSE(hasLoopAttr(*loop, LoopAttrKind::NAME));                        \
+  addTapriLoop##NAME##Attr(*loop, "67");                                       \
+  checkCommon(*loop, LoopAttrKind::NAME);
+
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }

@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Config/config.h"
+#include "kitsune/Config/Config.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
@@ -76,6 +76,8 @@ static void render(bool b) { outs() << (b ? "ON" : "OFF") << "\n"; }
 
 static void render(const char *s) { outs() << s << "\n"; }
 
+static void render(StringRef s) { outs() << s << "\n"; }
+
 static void renderIf(bool cond, StringRef s) {
   if (cond)
     outs() << s << "\n";
@@ -83,7 +85,7 @@ static void renderIf(bool cond, StringRef s) {
 
 static void renderVersions() {
   outs() << "LLVM version: " << PACKAGE_VERSION << "\n";
-  outs() << "Kitsune version: " << KITSUNE_PACKAGE_VERSION << "\n";
+  outs() << "Kitsune version: " << kitPackageVersion() << "\n";
 }
 
 static void renderPathIf(bool cond, const char *argv0, StringRef base) {
@@ -102,57 +104,57 @@ int main(int argc, char **argv) {
     if (arg == "--help")
       usage(false);
     else if (arg == "--c")
-      render((bool)KITSUNE_C_ENABLED);
+      render(kitCEnabled());
     else if (arg == "--c-frontend")
-      renderPathIf(KITSUNE_C_ENABLED, argv[0], KITSUNE_C_FRONTEND);
+      renderPathIf(kitCEnabled(), argv[0], kitCFrontend());
     else if (arg == "--cuda-prefix")
-      renderIf(KITSUNE_CUDA_ENABLED, KITSUNE_CUDA_PREFIX);
+      renderIf(kitCudaEnabled(), kitCudaPrefix());
     else if (arg == "--cuda-target")
-      render((bool)KITSUNE_CUDA_ENABLED);
+      render(kitCudaEnabled());
     else if (arg == "--custom-target")
-      render((bool)KITSUNE_CUSTOM_ENABLED);
+      render(kitCustomEnabled());
     else if (arg == "--cxx")
-      render((bool)KITSUNE_CXX_ENABLED);
+      render(kitCXXEnabled());
     else if (arg == "--cxx-frontend")
-      renderPathIf(KITSUNE_CXX_ENABLED, argv[0], KITSUNE_CXX_FRONTEND);
+      renderPathIf(kitCXXEnabled(), argv[0], kitCXXFrontend());
     else if (arg == "--fortran")
-      render((bool)KITSUNE_Fortran_ENABLED);
+      render(kitFortranEnabled());
     else if (arg == "--fortran-frontend")
-      renderPathIf(KITSUNE_Fortran_ENABLED, argv[0], KITSUNE_Fortran_FRONTEND);
+      renderPathIf(kitFortranEnabled(), argv[0], kitFortranFrontend());
     else if (arg == "--hip-prefix")
-      renderIf(KITSUNE_HIP_ENABLED, KITSUNE_HIP_PREFIX);
+      renderIf(kitHipEnabled(), kitHipPrefix());
     else if (arg == "--hip-target")
-      render((bool)KITSUNE_HIP_ENABLED);
+      render(kitHipEnabled());
     else if (arg == "--kitsune-version")
-      render(KITSUNE_PACKAGE_VERSION);
+      render(kitPackageVersion());
     else if (arg == "--kokkos")
-      render((bool)KITSUNE_KOKKOS_ENABLED);
+      render(kitKokkosEnabled());
     else if (arg == "--known-langs")
-      render(KITSUNE_KNOWN_LANGS);
+      render(kitKnownLangs());
     else if (arg == "--known-tapir-targets")
-      render(KITSUNE_KNOWN_TAPIR_TARGETS);
+      render(kitKnownTapirTargets());
     else if (arg == "--lambda-target")
-      render((bool)KITSUNE_LAMBDA_ENABLED);
+      render(kitLambdaEnabled());
     else if (arg == "--langs")
-      render(KITSUNE_ENABLED_LANGS);
+      render(kitEnabledLangs());
     else if (arg == "--llvm-version")
       render(PACKAGE_VERSION);
     else if (arg == "--omptask-target")
-      render((bool)KITSUNE_OMPTASK_ENABLED);
+      render(kitOMPTaskEnabled());
     else if (arg == "--opencilk-target")
-      render((bool)KITSUNE_OPENCILK_ENABLED);
+      render(kitOpenCilkEnabled());
     else if (arg == "--openmp-target")
-      render((bool)KITSUNE_OPENMP_ENABLED);
+      render(kitOpenMPEnabled());
     else if (arg == "--pthreads-target")
-      render((bool)KITSUNE_PTHREADS_ENABLED);
+      render(kitPthreadsEnabled());
     else if (arg == "--qthreads-target")
-      render((bool)KITSUNE_QTHREADS_ENABLED);
+      render(kitQthreadsEnabled());
     else if (arg == "--realm-target")
-      render((bool)KITSUNE_REALM_ENABLED);
+      render(kitRealmEnabled());
     else if (arg == "--serial-target")
-      render((bool)KITSUNE_SERIAL_ENABLED);
+      render(kitSerialEnabled());
     else if (arg == "--tapir-targets")
-      render(KITSUNE_ENABLED_TAPIR_TARGETS);
+      render(kitEnabledTapirTargets());
     else if (arg == "--version")
       renderVersions();
     else

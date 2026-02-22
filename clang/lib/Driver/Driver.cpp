@@ -53,7 +53,7 @@
 #include "ToolChains/WebAssembly.h"
 #include "ToolChains/XCore.h"
 #include "ToolChains/ZOS.h"
-#include "kitsune/Config/config.h"
+#include "kitsune/Config/Config.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/ToString.h"
 #include "clang/Basic/Cuda.h"
@@ -121,8 +121,8 @@ bool driver::IsKitsuneFrontend(StringRef ProgName) {
   // Yes, the name of the compiler is actually the "ModeSuffix". Don't ask ...
   std::string Suffix =
       ToolChain::getTargetAndModeFromProgramName(ProgName).ModeSuffix;
-  return Suffix == KITSUNE_C_FRONTEND || Suffix == KITSUNE_CXX_FRONTEND ||
-         Suffix == KITSUNE_Fortran_FRONTEND;
+  return Suffix == llvm::kitCFrontend() || Suffix == llvm::kitCXXFrontend() ||
+         Suffix == llvm::kitFortranFrontend();
 }
 
 static std::optional<std::string> GetUniqueArgValue(const ArgList &Args,
@@ -141,41 +141,41 @@ static void CheckTTEnabled(const Driver &D, llvm::TTID TT) {
     // The nolo pseudo tapir target is always enabled
     return;
   case llvm::TTID::Cuda:
-    if (!KITSUNE_CUDA_ENABLED)
+    if constexpr (!llvm::kitCudaEnabled())
       D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
     return;
   case llvm::TTID::Custom:
     // The custom tapir target is always enabled
     return;
   case llvm::TTID::Hip:
-    if (!KITSUNE_HIP_ENABLED)
+    if constexpr (!llvm::kitHipEnabled())
       D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
     return;
   case llvm::TTID::Lambda:
-    if (!KITSUNE_LAMBDA_ENABLED)
+    if constexpr (!llvm::kitLambdaEnabled())
       D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
     return;
   case llvm::TTID::OMPTask:
-    if (!KITSUNE_OMPTASK_ENABLED)
+    if constexpr (!llvm::kitOMPTaskEnabled())
       D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
     return;
   case llvm::TTID::OpenCilk:
-    if (!KITSUNE_OPENCILK_ENABLED)
+    if constexpr (!llvm::kitOpenCilkEnabled())
       D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
     return;
   case llvm::TTID::OpenMP:
-    if (!KITSUNE_OPENMP_ENABLED)
+    if constexpr (!llvm::kitOpenMPEnabled())
       D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
     return;
   case llvm::TTID::Pthreads:
     // The pthreads tapir target is always enabled.
     return;
   case llvm::TTID::Qthreads:
-    if (!KITSUNE_QTHREADS_ENABLED)
+    if constexpr (!llvm::kitQthreadsEnabled())
       D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
     return;
   case llvm::TTID::Realm:
-    if (!KITSUNE_REALM_ENABLED)
+    if constexpr (!llvm::kitRealmEnabled())
       D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
     return;
   case llvm::TTID::Serial:
@@ -223,7 +223,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
         StringRef FpContract = A->getValue();
         if (FpContract == "on" || FpContract == "fast-honor-pragmas") {
           D.Diag(diag::err_drv_unsupported_option_argument_for_frontend)
-              << A->getSpelling() << FpContract << KITSUNE_Fortran_FRONTEND;
+            << A->getSpelling() << FpContract << llvm::kitFortranFrontend();
           return;
         }
       }
@@ -239,7 +239,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
   bool IsKokkos = Args.hasArg(options::OPT_kokkos);
   bool IsKokkosNoInit = Args.hasArg(options::OPT_kokkos_no_init);
   if (IsKokkos || IsKokkosNoInit) {
-    if (!KITSUNE_KOKKOS_ENABLED) {
+    if constexpr (!llvm::kitKokkosEnabled()) {
       D.Diag(diag::err_drv_kitsune_kokkos_disabled);
       return;
     }

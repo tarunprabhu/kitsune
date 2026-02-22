@@ -61,6 +61,8 @@ bool hasLoopAttr(const Loop &loop, LoopAttrKind attr);
 /// attribute, this has no effect.
 void removeLoopAttr(Loop &loop, LoopAttrKind attr);
 
+/// @}
+
 // Flag attributes (those that do not have a value) will have a different set of
 // accessors. Mask them by defining LOOP_ATTRIBUTE_FLAG without a body. These
 // accessors are for attributes that may be applied to both tapir loops and

@@ -13,7 +13,7 @@
 #include "ToolChains/Clang.h"
 #include "ToolChains/Flang.h"
 #include "ToolChains/InterfaceStubs.h"
-#include "kitsune/Config/config.h"
+#include "kitsune/Config/Config.h"
 #include "kitsune/Core/TTPlugin.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/ErrorUtils.h"
@@ -433,9 +433,9 @@ static const DriverSuffix *FindDriverSuffix(StringRef ProgName, size_t &Pos) {
       // `flang-new`. This will be removed in the future.
       {"flang-new", "--driver-mode=flang"},
       {"clang-dxc", "--driver-mode=dxc"},
-      {KITSUNE_C_FRONTEND, nullptr},
-      {KITSUNE_CXX_FRONTEND, "--driver-mode=g++"},
-      {KITSUNE_Fortran_FRONTEND, "--driver-mode=flang"},
+      {kitCFrontend().data(), nullptr},
+      {kitCXXFrontend().data(), "--driver-mode=g++"},
+      {kitFortranFrontend().data(), "--driver-mode=flang"},
   };
 
   for (const auto &DS : DriverSuffixes) {
@@ -1992,8 +1992,7 @@ void ToolChain::AddKitsuneCudaCommonArgs(const ArgList &Args,
   // We need to create a temporary NVPTX toolchain in order to determine the
   // set of bitcode files to use among other things. This needs additional
   // command line options to point to the correct cuda installation to use.
-  std::string CudaPath =
-      llvm::join_items("", "--cuda-path=", KITSUNE_CUDA_PREFIX);
+  std::string CudaPath = llvm::join_items("", "--cuda-path=", kitCudaPrefix());
   InputArgList ExtendedArgs = ParseExtendedArgs(D, CmdArgs, CudaPath.c_str());
 
   // TODO: Hardcoding the target triple is probably ok for now, but we may want
@@ -2068,12 +2067,11 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   // around are const char*'s. We don't use MakeArgString on Args because these
   // are not intended to ever "leak" into the actual command line arguments.
   // Instead, just make them local strings.
-  std::string ROCMPath =
-      llvm::join_items("", "--rocm-path=", KITSUNE_HIP_PREFIX);
+  std::string ROCMPath = llvm::join_items("", "--rocm-path=", kitHipPrefix());
   ExtraArgs.push_back(ROCMPath.c_str());
 
   std::string ROCMDeviceLibPath =
-      llvm::join_items("=", "--rocm-device-lib-path", KITSUNE_HIP_BITCODE_DIR);
+      llvm::join_items("=", "--rocm-device-lib-path", kitHipDeviceBitcodeDir());
   ExtraArgs.push_back(ROCMDeviceLibPath.c_str());
 
   // If an explicit object version has been provided, push that argument onto
@@ -2586,7 +2584,7 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     // This should be linked before libkitrt. At some point, we may have a
     // static archive, libqthread.a. In that case, it would have to be linked
     // before uses of the methods in the library in libkitrt.
-    if (KITSUNE_QTHREADS_ENABLED) {
+    if constexpr (kitQthreadsEnabled()) {
       const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
       CmdArgs.push_back("-L");
       CmdArgs.push_back(LibDir);
@@ -2602,17 +2600,17 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     CmdArgs.push_back(LibDir);
 
     if (Args.hasArg(options::OPT_static)) {
-      CmdArgs.push_back("-l" KITSUNE_LIBNAME_STATIC);
+      CmdArgs.push_back(Args.MakeArgString("-l" + kitRuntimeStaticLibName()));
     } else if (Args.hasArg(options::OPT_static_libkitrt)) {
       CmdArgs.push_back("-Bstatic");
-      CmdArgs.push_back("-l" KITSUNE_LIBNAME_STATIC);
+      CmdArgs.push_back(Args.MakeArgString("-l" + kitRuntimeStaticLibName()));
       CmdArgs.push_back("-Bdynamic");
     } else {
-      CmdArgs.push_back("-l" KITSUNE_LIBNAME);
+      CmdArgs.push_back(Args.MakeArgString("-l" + kitRuntimeDSOLibName()));
     }
 
-    addDirsFromString(KITSUNE_COMMON_LIB_DIRS, Args, CmdArgs);
-    addLibsFromString(KITSUNE_COMMON_LIB_NAMES, Args, CmdArgs);
+    addDirsFromString(kitCommonLibDirs(), Args, CmdArgs);
+    addLibsFromString(kitCommonLibNames(), Args, CmdArgs);
 
     // libkitrt links against libcuda if the cuda target is enabled and
     // libamdhip64 if the hip target is enabled. The libraries may not be where
@@ -2627,14 +2625,14 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     // libkitrt into separate runtimes for each tapir target. We could then
     // link only the kitsune runtime and dependencies for the appropriate tapir
     // target.
-    if (KITSUNE_HIP_ENABLED) {
-      addDirsFromString(KITSUNE_HIP_LIB_DIRS, Args, CmdArgs);
-      addLibsFromString(KITSUNE_HIP_LIB_NAMES, Args, CmdArgs);
+    if constexpr (kitHipEnabled()) {
+      addDirsFromString(kitHipLibDirs(), Args, CmdArgs);
+      addLibsFromString(kitHipLibNames(), Args, CmdArgs);
     }
 
-    if (KITSUNE_CUDA_ENABLED) {
-      addDirsFromString(KITSUNE_CUDA_LIB_DIRS, Args, CmdArgs);
-      addLibsFromString(KITSUNE_CUDA_LIB_NAMES, Args, CmdArgs);
+    if constexpr (kitCudaEnabled()) {
+      addDirsFromString(kitCudaLibDirs(), Args, CmdArgs);
+      addLibsFromString(kitCudaLibNames(), Args, CmdArgs);
     }
   }
 }

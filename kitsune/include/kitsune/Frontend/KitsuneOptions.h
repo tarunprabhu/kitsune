@@ -16,7 +16,7 @@
 #ifndef KITSUNE_FRONTEND_KITSUNE_OPTIONS_H
 #define KITSUNE_FRONTEND_KITSUNE_OPTIONS_H
 
-#include "kitsune/Config/config.h"
+#include "kitsune/Config/Config.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -52,12 +52,12 @@ public:
   /// The default NVIDIA GPU architecture for which to generate code. This is
   /// only used if a NVIDIA GPU was not found on the system when using the cuda
   /// tapir target.
-  static constexpr StringRef defaultCudaArch = KITSUNE_CUDA_ARCH_DEFAULT;
+  static constexpr StringRef defaultCudaArch = kitCudaDefaultArch();
 
   /// The default AMD GPU architecture for which to generate code. This is
   /// only used if an AMD GPU was not found on the system when using the hip
   /// tapir target.
-  static constexpr StringRef defaultHipArch = KITSUNE_HIP_ARCH_DEFAULT;
+  static constexpr StringRef defaultHipArch = kitHipDefaultArch();
 
   /// The default value of SRAMECC for hip tapir targets.
   ///

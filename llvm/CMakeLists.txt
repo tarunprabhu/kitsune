@@ -264,16 +264,14 @@ if (NOT CMAKE_SYSTEM_NAME IN_LIST KITSUNE_SUPPORTED_SYSTEMS)
   message(FATAL_ERROR "Kitsune is not supported on ${CMAKE_SYSTEM_NAME}")
 endif ()
 
-set(KITSUNE_MAIN_SRC_DIR     ${CMAKE_SOURCE_DIR}/../kitsune)
-set(KITSUNE_MAIN_INCLUDE_DIR ${KITSUNE_MAIN_SRC_DIR}/include)
-
-include_directories(${KITSUNE_MAIN_INCLUDE_DIR})
-
 # Kitsune is registered as a tool, so it will be built in this directory (unless
 # LLVM changes the location where tools are built, in which case, this should be
 # updated).
-set(KITSUNE_SOURCE_DIR ${KITSUNE_MAIN_SRC_DIR})
+set(KITSUNE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/../kitsune)
 set(KITSUNE_BINARY_DIR ${CMAKE_BINARY_DIR}/tools/kitsune)
+
+include_directories(${KITSUNE_SOURCE_DIR}/include)
+include_directories(${KITSUNE_BINARY_DIR}/include)
 
 # For now, the kitsune version tracks the LLVM version, except that the major
 # version of Kitsune is 0 and the minor version is the same as LLVM's major
