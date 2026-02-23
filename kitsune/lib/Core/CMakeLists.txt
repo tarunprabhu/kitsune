@@ -33,5 +33,6 @@ add_llvm_component_library(LLVMKitCore
   KitSupport
   MC
   Support
+  TapirOpts
   TargetParser
 )

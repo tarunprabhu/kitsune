@@ -60,30 +60,6 @@ static StringRef getAttrType(StringRef kind) {
       .Case("StrAttr", "StringRef");
 }
 
-static std::string getIRName(StringRef attrName, bool tapirLoopsOnly) {
-  auto addDot = [](char c, char prev) -> bool {
-    return (std::isalpha(prev) && std::isdigit(c)) ||
-           (std::isdigit(prev) && std::isalpha(c)) ||
-           (std::islower(prev) && std::isupper(c));
-  };
-
-  std::string buf;
-  raw_string_ostream os(buf);
-
-  if (tapirLoopsOnly)
-    os << "tapir.";
-  os << "loop.";
-  os << (char)std::tolower(attrName[0]);
-  for (unsigned i = 1, ie = attrName.size(); i < ie; ++i) {
-    if (addDot(attrName[i], attrName[i - 1]))
-      os << ".";
-    os << (char)std::tolower(attrName[i]);
-  }
-
-  os.flush();
-  return buf;
-}
-
 static StringRef getIRType(StringRef kind) {
   return StringSwitch<StringRef>(kind)
       .Cases("EnumAttr", "FlagAttr", "Int32Attr", "int32_t")

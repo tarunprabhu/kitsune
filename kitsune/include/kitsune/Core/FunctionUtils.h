@@ -31,10 +31,10 @@ class Function;
 ///  - prefix data
 ///  - prolog data
 ///
-void copyAttrs(Function &dst, Function &src);
+void copyAttrs(Function &dst, const Function &src);
 
 /// Copy attributes from the argument \p src to the argument \p dst.
-void copyAttrs(Argument &dst, Argument &src);
+void copyAttrs(Argument &dst, const Argument &src);
 
 /// @}
 
