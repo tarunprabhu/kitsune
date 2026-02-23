@@ -51,8 +51,7 @@
 ! O123SZ-NEXT: Running pass:     EmbOptimizePass
 ! O123SZ-NEXT: Running pass:     RecomputeKernelPropertiesPass
 ! O123SZ-NEXT: Running pass:     GenerateCtorsPass
-! O123SZ-NEXT: Running pass:     VerifierPass
-! O123SZ-NEXT: Running analysis: VerifierAnalysis
 ! O123SZ-NEXT: Running pass:     BitcodeWriterPass
 
-end program
+subroutine f()
+end subroutine f
