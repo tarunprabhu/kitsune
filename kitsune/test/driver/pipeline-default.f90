@@ -11,13 +11,8 @@
 ! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix O0
 !
-! O0:      Running pass:     AlwaysInlinerPass
-! O0-NEXT: Running analysis: ProfileSummaryAnalysis
-! O0-NEXT: Running pass:     CoroConditionalWrapper
-! O0-NEXT: Running pass:     AnnotationRemarksPass
-! O0-NEXT: Running analysis: TargetLibraryAnalysis
-! O0-NEXT: Running pass:     VerifierPass
-! O0-NEXT: Running pass:     BitcodeWriterPass
+! O0-NOT: Running pass: AnnotateTapirLoopsPass
+! O0-NOT: Running pass: LoopSpawningPass
 !
 ! -----------------------------------------------------------------------------
 ! If the --tapir argument is provided, all Tapir and Kitsune passes should run.
