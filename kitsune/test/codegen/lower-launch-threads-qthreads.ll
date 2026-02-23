@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-qthreads
+;
 ; Check that the launch of threads by the qthreads tapir target is lowered
 ; correctly.
 ;

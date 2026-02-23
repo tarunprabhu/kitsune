@@ -63,8 +63,10 @@
 ; RUN: opt --tapir=pthreads -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck --check-prefix=MALLOC %s
 ;
-; RUN: opt --tapir=qthreads -passes='kit-lower-intrinsics' -S %s \
-; RUN:     | FileCheck --check-prefix=MALLOC %s
+; RUN: %if kitsune-qthreads %{ \
+; RUN:   opt --tapir=qthreads -passes='kit-lower-intrinsics' -S %s \
+; RUN:       | FileCheck --check-prefix=MALLOC %s \
+; RUN: %}
 ;
 ; RUN: opt --tapir=serial -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck --check-prefix=MALLOC %s
