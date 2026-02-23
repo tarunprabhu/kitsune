@@ -15,7 +15,7 @@
 
 using namespace llvm;
 
-void llvm::copyAttrs(Function &dst, Function &src) {
+void llvm::copyAttrs(Function &dst, const Function &src) {
   for (Attribute attr : src.getAttributes().getFnAttrs())
     dst.addAttributeAtIndex(AttributeList::FunctionIndex, attr);
 
@@ -35,7 +35,7 @@ void llvm::copyAttrs(Function &dst, Function &src) {
     dst.setPrologueData(src.getPrologueData());
 }
 
-void llvm::copyAttrs(Argument &dst, Argument &src) {
+void llvm::copyAttrs(Argument &dst, const Argument &src) {
   for (Attribute attr : src.getAttributes())
     dst.addAttr(attr);
 }

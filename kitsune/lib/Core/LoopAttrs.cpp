@@ -73,7 +73,8 @@ std::optional<LoopAttrKind> llvm::getLoopAttrKind(StringRef name) {
 
 bool llvm::isLoopAttrTapirOnly(LoopAttrKind attr) {
   switch (attr) {
-  default:
+#define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
+  case LoopAttrKind::NAME:                                                     \
     return false;
 #define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
   case LoopAttrKind::NAME:                                                     \
@@ -81,6 +82,7 @@ bool llvm::isLoopAttrTapirOnly(LoopAttrKind attr) {
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
   }
+  llvm_unreachable("isLoopAttrTapirOnly: LoopAttrKind not handled");
 }
 
 bool llvm::hasLoopAttr(const Loop &loop, LoopAttrKind attr) {
@@ -108,6 +110,7 @@ static std::optional<T> convertToIntegral(const Constant &c) {
   return std::nullopt;
 }
 
+[[maybe_unused]]
 static std::optional<StringRef> convertToStringRef(const Constant &c) {
   if (const auto *cda = dyn_cast<ConstantDataArray>(&c)) {
     if (cda->isString())

@@ -89,6 +89,8 @@ protected:
       : li(li), ore(ore), se(se), ti(ti) {}
 
 public:
+  virtual ~SerializeTapirLoopsBase() = default;
+
   /// Run the serializer on all tapir loops in the function. Only tapir loops
   /// whose target matches tt must be examined. Returns true if at least one
   /// tapir loop was serialized, false otherwise.
@@ -128,6 +130,7 @@ public:
   SerializeTapirLoopsGPU(LoopInfo &li, OptimizationRemarkEmitter &ore,
                          ScalarEvolution &se, TaskInfo &ti)
       : SerializeTapirLoopsBase(li, ore, se, ti) {}
+  virtual ~SerializeTapirLoopsGPU() = default;
 
   bool run(Function &f, TTID tt) override {
     bool changed = false;

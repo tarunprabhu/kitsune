@@ -1,6 +1,5 @@
 set(SOURCES
   DRFScopedNoAliasAA.cpp
-  GPUABI.cpp
   LoopSpawningTI.cpp
   LoopStripMine.cpp
   LoopStripMinePass.cpp

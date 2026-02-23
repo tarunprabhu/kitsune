@@ -39,6 +39,8 @@ protected:
   bool isTapirLoop(Loop &loop) const { return getTaskIfTapirLoop(&loop, &ti); }
 
 public:
+  virtual ~AnnotateTapirLoopsBase() = default;
+
   /// Annotate all tapir loops in the given function. Returns true if at least
   /// one loop was annotated, false otherwise.
   virtual bool run(Function &f, TTID tt) = 0;
@@ -58,6 +60,7 @@ private:
 public:
   AnnotateTapirLoopsDefault(LoopInfo &li, ScalarEvolution &se, TaskInfo &ti)
       : AnnotateTapirLoopsBase(li, se, ti) {}
+  virtual ~AnnotateTapirLoopsDefault() override = default;
 
   virtual bool run(Function &f, TTID tt) override final {
     bool changed = false;
@@ -100,6 +103,7 @@ private:
 public:
   AnnotateTapirLoopsGPU(LoopInfo &li, ScalarEvolution &se, TaskInfo &ti)
       : AnnotateTapirLoopsBase(li, se, ti) {}
+  virtual ~AnnotateTapirLoopsGPU() override = default;
 
   bool run(Loop &root) {
     std::unique_ptr<TapirLoopNest> nest = TapirLoopNest::create(root, ti, se);
