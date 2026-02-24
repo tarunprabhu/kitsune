@@ -13,6 +13,7 @@
 
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Common/Types.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -23,7 +24,6 @@
 
 #include <map>
 #include <memory>
-#include <set>
 
 using namespace llvm;
 
@@ -55,7 +55,7 @@ private:
   /// Find the functions with definitions that are reachable from the given
   /// function. A set of functions that have already been seen are provided to
   /// ensure that recursive functions (self, or mutual) are only processed once.
-  void reachable(const Function &f, std::set<const Function *> &seen) {
+  void reachable(const Function &f, SmallSet<const Function *, 8> &seen) {
     // insert returns a pair, the second element of which is true if insertion
     // took place, false otherwise. If f has already been seen, the second
     // element will be false indicating that the function has already been seen
@@ -63,7 +63,7 @@ private:
     if (not seen.insert(&f).second)
       return;
 
-    std::set<const Function *> calledFuncs;
+    SmallSet<const Function *, 8> calledFuncs;
     for (const_inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i) {
       if (auto *call = dyn_cast<CallBase>(&*i))
         // In some cases, we see inline assembly being called here, especially
@@ -78,8 +78,8 @@ private:
       reachable(*cf, seen);
   }
 
-  std::set<const Function *> reachable(const Function &f) {
-    std::set<const Function *> seen;
+  SmallSet<const Function *, 8> reachable(const Function &f) {
+    SmallSet<const Function *, 8> seen;
     reachable(f, seen);
     return seen;
   }

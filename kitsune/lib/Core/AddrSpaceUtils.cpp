@@ -12,6 +12,8 @@
 
 #include "kitsune/Core/AddrSpaceUtils.h"
 #include "kitsune/Support/AddrSpace.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/InstIterator.h"
@@ -20,9 +22,6 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/Error.h"
 
-#include <map>
-#include <set>
-
 using namespace llvm;
 
 namespace {
@@ -30,15 +29,15 @@ namespace {
 class StripAddrSpaces {
 private:
   /// The functions whose types have been mutated and their new types.
-  std::map<FunctionType *, FunctionType *> funcTys;
+  SmallDenseMap<FunctionType *, FunctionType *> funcTys;
 
   /// The structs whose types have been mutated and their new types.
-  std::map<StructType *, StructType *> structTys;
+  SmallDenseMap<StructType *, StructType *> structTys;
 
   /// The constants that have been seen so far when mutating their types. The
   /// initializers of global variables can be mutually recursive, so we must be
   /// careful when mutating their types.
-  std::set<Constant *> seen;
+  SmallSet<Constant *, 8> seen;
 
 private:
   bool fixIntrinsic(Function &f, ArrayRef<unsigned> paramIndices) {

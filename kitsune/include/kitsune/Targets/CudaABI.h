@@ -72,100 +72,52 @@ class TTOptions;
 /// \ingroup kitsune
 class CudaABI : public TapirTarget {
 public:
-  CudaABI(Module &HostM, const TTOptions &TTO);
+  CudaABI(Module &hostM, const TTOptions &tto);
   ~CudaABI();
 
-  Value *lowerGrainsizeCall(CallInst *GrainsizeCall) override final;
-  void lowerSync(SyncInst &SI) override final;
+  Value *lowerGrainsizeCall(CallInst *grainsizeCall) override;
+  void lowerSync(SyncInst &si) override;
 
-  void addHelperAttributes(Function &F) override final;
-  void preProcessModule() override final;
-  bool preProcessFunction(Function &F, TaskInfo &TI,
-                          bool OutliningTapirLoops) override final;
-  void postProcessFunction(Function &F,
-                           bool OutliningTapirLoops) override final;
-  void postProcessHelper(Function &F) override final;
+  void addHelperAttributes(Function &f) override {}
+  void preProcessModule() override;
+  bool preProcessFunction(Function &f, TaskInfo &ti,
+                          bool outliningTapirLoops) override {
+    return false;
+  }
+  void postProcessFunction(Function &f, bool outliningTapirLoops) override {}
+  void postProcessHelper(Function &f) override {}
 
-  void preProcessOutlinedTask(Function &F, Instruction *DetachPt,
-                              Instruction *TaskFrameCreate, bool IsSpawner,
-                              BasicBlock *TFEntry) override final;
+  void preProcessOutlinedTask(Function &f, Instruction *detachPt,
+                              Instruction *taskFrameCreate, bool isSpawner,
+                              BasicBlock *tfEntry) override {}
 
-  void postProcessOutlinedTask(Function &F, Instruction *DetachPt,
-                               Instruction *TaskFrameCreate, bool IsSpawner,
-                               BasicBlock *TFEntry) override final;
+  void postProcessOutlinedTask(Function &f, Instruction *detachPt,
+                               Instruction *taskFrameCreate, bool isSpawner,
+                               BasicBlock *tfEntry) override {}
 
-  void preProcessRootSpawner(Function &F, BasicBlock *TFEntry) override final;
-  void postProcessRootSpawner(Function &F, BasicBlock *TFEntry) override final;
+  void preProcessRootSpawner(Function &f, BasicBlock *tfEntry) override {}
+  void postProcessRootSpawner(Function &f, BasicBlock *tfEntry) override {}
 
-  void processSubTaskCall(TaskOutlineInfo &TOI,
-                          DominatorTree &DT) override final;
+  void processSubTaskCall(TaskOutlineInfo &toi, DominatorTree &dt) override {}
 
-  void postProcessModule() override final;
+  void postProcessModule() override;
 
   LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL) override final;
+  getLoopOutlineProcessor(const TapirLoopInfo *tl) override;
 
 private:
   /// Currently, we create a single module into which all tapir loops to be
   /// run on an NVIDIA GPU are outlined. A loop outline processor is created for
   /// each tapir loop which will add the outlined code into this module. This
   /// will eventually be converted to PTX and from there to executable GPU code.
-  Module KernelModule;
+  Module kernelModule;
 
   /// When outlining tapir loops into the \ref KernelModule, we need to generate
   /// a name for the outlined function. This name must be unique. In the absence
   /// of debug information, the computed outlined function name consists of a
   /// fixed base with an integer suffix that is incremented for each tapir loop
   /// that is encountered.
-  unsigned NextKernelID = 0;
-};
-
-/// The loop outline process for transforming a Tapir parallel loop into a
-/// cuda kernel function.
-/// \ingroup kitsune
-class CudaLoop : public LoopOutlineProcessor {
-private:
-  /// The name of the kernel into which the loop is outlined.
-  std::string KernelName;
-
-  /// For GPU targets, we outline the loop into a separate module. This is that
-  /// module.
-  Module &KernelModule;
-
-  // Cuda/PTX thread index access.
-  Function *CUThreadIdxX = nullptr, *CUThreadIdxY = nullptr,
-           *CUThreadIdxZ = nullptr;
-
-  // Cuda/PTX block index and dimensions access.
-  Function *CUBlockIdxX = nullptr, *CUBlockIdxY = nullptr,
-           *CUBlockIdxZ = nullptr;
-
-  Function *CUBlockDimX = nullptr, *CUBlockDimY = nullptr,
-           *CUBlockDimZ = nullptr;
-
-  // Cuda/PTX grid dimensions access.
-  Function *CUGridDimX = nullptr, *CUGridDimY = nullptr, *CUGridDimZ = nullptr;
-
-  /// The GlobalValue's used in the loop that is being outlined. This includes
-  /// functions, global variables, aliases and ifunc's.
-  std::set<GlobalValue *> UsedGlobalValues;
-
-public:
-  /// Create a loop outline processor for the cuda tapir target.
-  /// \param M The host module
-  /// \param KernelModule The module into which the device code will be outlined
-  /// \param KernelName The name of the function in the \p KernelModule into
-  ///                   which the loop is outlined
-  /// \param TTOpts The tapir target options
-  CudaLoop(Module &M, Module &KernelModule, const std::string &KernelName,
-           const TTOptions &TTOpts);
-  ~CudaLoop();
-
-  void preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) override;
-  void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
-                          ValueToValueMapTy &VMap) override final;
-  void processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
-                               DominatorTree &DT) override final;
+  unsigned nextKernelID = 0;
 };
 
 } // namespace llvm

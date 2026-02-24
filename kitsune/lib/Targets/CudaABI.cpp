@@ -93,7 +93,7 @@ using namespace llvm;
 
 // This is meant to be a factor used for additional kernel optimizations but is
 // currently not used this. It should be left in its default state.
-static cl::opt<unsigned> DefaultGrainSize(
+static cl::opt<unsigned> defaultGrainsize(
     "cuabi-default-grainsize", cl::init(1), cl::Hidden,
     cl::desc("The default grain size used by the transform "
              "when analysis fails to determine one (default=1)"),
@@ -152,316 +152,343 @@ static std::string convertNameForPTX(StringRef name, bool addPrefix = true) {
   return buf;
 }
 
-CudaLoop::CudaLoop(Module &M, Module &KernelModule, const std::string &KN,
-                   const TTOptions &TTOpts)
-    : LoopOutlineProcessor(M, KernelModule, TTOpts,
+/// The loop outline process for transforming a Tapir parallel loop into a
+/// cuda kernel function.
+/// \ingroup kitsune
+class CudaLoop : public LoopOutlineProcessor {
+private:
+  /// The name of the kernel into which the loop is outlined.
+  std::string kernelName;
+
+  /// For GPU targets, we outline the loop into a separate module. This is that
+  /// module.
+  Module &kernelModule;
+
+  // Cuda/PTX thread index access.
+  Function *cuThreadIdxX = nullptr, *cuThreadIdxY = nullptr,
+           *cuThreadIdxZ = nullptr;
+
+  // Cuda/PTX block index and dimensions access.
+  Function *cuBlockIdxX = nullptr, *cuBlockIdxY = nullptr,
+           *cuBlockIdxZ = nullptr;
+
+  Function *cuBlockDimX = nullptr, *cuBlockDimY = nullptr,
+           *cuBlockDimZ = nullptr;
+
+  // Cuda/PTX grid dimensions access.
+  Function *cuGridDimX = nullptr, *cuGridDimY = nullptr, *cuGridDimZ = nullptr;
+
+  /// The GlobalValue's used in the loop that is being outlined. This includes
+  /// functions, global variables, aliases and ifunc's.
+  SmallSet<GlobalValue *, 8> usedGlobalValues;
+
+public:
+  CudaLoop(Module &hostM, Module &kernelModule, const std::string &kernelName,
+           const TTOptions &tto);
+  ~CudaLoop();
+
+  void preProcessTapirLoop(TapirLoopInfo &tl, ValueToValueMapTy &vmap) override;
+  void postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
+                          ValueToValueMapTy &vmap) override;
+  void processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
+                               DominatorTree &dt) override;
+};
+
+CudaLoop::CudaLoop(Module &hostM, Module &kernelModule,
+                   const std::string &kernelName, const TTOptions &tto)
+    : LoopOutlineProcessor(hostM, kernelModule, tto,
                            CloneFunctionChangeType::DifferentModule),
-      KernelName(KN), KernelModule(KernelModule) {
+      kernelName(kernelName), kernelModule(kernelModule) {
   LLVM_DEBUG(dbgs() << "debug[cuabi]: creating a cuda loop outliner.\n"
-                    << "  - target kernel name: " << KernelName << "\n");
+                    << "  - target kernel name: " << kernelName << "\n");
 
   // Thread index values -- equivalent to Cuda's builtins:  threadIdx.[x,y,z].
-  CUThreadIdxX = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_tid_x);
-  CUThreadIdxY = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_tid_y);
-  CUThreadIdxZ = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_tid_z);
+  cuThreadIdxX = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_tid_x);
+  cuThreadIdxY = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_tid_y);
+  cuThreadIdxZ = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_tid_z);
 
   // Block index values -- equivalent to Cuda's builtins: blockIndx.[x,y,z].
-  CUBlockIdxX = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_ctaid_x);
-  CUBlockIdxY = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_ctaid_y);
-  CUBlockIdxZ = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_ctaid_z);
+  cuBlockIdxX = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_ctaid_x);
+  cuBlockIdxY = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_ctaid_y);
+  cuBlockIdxZ = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_ctaid_z);
 
   // Block dimensions -- equivalent to Cuda's builtins: blockDim.[x,y,z].
-  CUBlockDimX = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_ntid_x);
-  CUBlockDimY = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_ntid_y);
-  CUBlockDimZ = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_ntid_x);
+  cuBlockDimX = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_ntid_x);
+  cuBlockDimY = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_ntid_y);
+  cuBlockDimZ = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_ntid_x);
 
   // Grid dimensions -- equivalent to Cuda's builtins: gridDim.[x,y,z].
-  CUGridDimX = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_x);
-  CUGridDimY = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_y);
-  CUGridDimZ = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_z);
+  cuGridDimX = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_x);
+  cuGridDimY = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_y);
+  cuGridDimZ = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_z);
 }
 
 CudaLoop::~CudaLoop() {
   LLVM_DEBUG(dbgs() << "debug[cuabi]: destroying loop outliner for kernel '"
-                    << KernelName << "'.\n");
+                    << kernelName << "'.\n");
 }
 
-void CudaLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
+void CudaLoop::preProcessTapirLoop(TapirLoopInfo &tl, ValueToValueMapTy &vmap) {
   LLVM_DEBUG(dbgs() << "debug[cuabi]: -preprocessing loop for kernel '"
-                    << KernelName << "'.\n");
+                    << kernelName << "'.\n");
 
   // Collect the top-level entities (Function, GlobalVariable, GlobalAlias
   // and GlobalIFunc) that are used in the outlined loop. Since the outlined
-  // loop will live in the KernelModule, any GlobalValue's used in it must be
-  // be cloned into the KernelModule and then registered with the cuda runtime.
-  // The registration will be done in the global ctor which will be generated by
-  // a later pass.
-  collectGlobalValues(*TL.getLoop(), UsedGlobalValues);
+  // loop will live in the kernelModule, any GlobalValue's used in it must be
+  // be cloned into the kernelModule and then registered with the cuda
+  // runtime. The registration will be done in the global ctor which will be
+  // generated by a later pass.
+  collectGlobalValues(*tl.getLoop(), usedGlobalValues);
 
-  // NVPTX has a number of different address spaces. We do not use them and the
-  // code seems to work. It is not clear if there is any advantage to using
-  // them, but it may be a good idea to look into it at some point.
-  cloneUsedGlobalVariablesInto(KernelModule, UsedGlobalValues, VMap);
+  // NVPTX has a number of different address spaces. We do not use them and
+  // the code seems to work. It is not clear if there is any advantage to
+  // using them, but it may be a good idea to look into it at some point.
+  cloneUsedGlobalVariablesInto(kernelModule, usedGlobalValues, vmap);
 
   // ptxas imposes restrictions on the names that global entities may have.
   // Ideally, it would be good to do this in a post-processing pass, say the
   // prepare embedded module pass. However, the names of the globals must be
-  // passed to Kitsune's intrinsics, so we have to do this here. The alternative
-  // would involve an unhealthy amount of value chasing across two different
-  // LLVM modules and is almost certainly not worth the trouble.
-  for (GlobalValue *v : UsedGlobalValues)
+  // passed to Kitsune's intrinsics, so we have to do this here. The
+  // alternative would involve an unhealthy amount of value chasing across two
+  // different LLVM modules and is almost certainly not worth the trouble.
+  for (GlobalValue *v : usedGlobalValues)
     if (auto *g = dyn_cast<GlobalVariable>(v))
-      cast<GlobalVariable>(VMap[g])->setName(convertNameForPTX(g->getName()));
+      cast<GlobalVariable>(vmap[g])->setName(convertNameForPTX(g->getName()));
 
-  // The global variables have to be cloned before cloning the functions because
-  // they may be used in the bodies of functions to be cloned.
-  cloneReachableFuncsInto(KernelModule, UsedGlobalValues, VMap);
-  cloneReachableIFuncsInto(KernelModule, UsedGlobalValues, VMap);
+  // The global variables have to be cloned before cloning the functions
+  // because they may be used in the bodies of functions to be cloned.
+  cloneReachableFuncsInto(kernelModule, usedGlobalValues, vmap);
+  cloneReachableIFuncsInto(kernelModule, usedGlobalValues, vmap);
 
   // The aliasee in global aliases is a global value, so they must be cloned
   // after the global variables and functions are in the vmap.
-  cloneUsedGlobalAliasesInto(KernelModule, UsedGlobalValues, VMap);
+  cloneUsedGlobalAliasesInto(kernelModule, usedGlobalValues, vmap);
 }
 
-void CudaLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
-                                  ValueToValueMapTy &VMap) {
-  LLVMContext &Ctx = M.getContext();
-  Task *T = TLI.getTask();
-  Loop *TL = TLI.getLoop();
+void CudaLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
+                                  ValueToValueMapTy &vmap) {
+  LLVMContext &ctx = M.getContext();
+  Task *task = tl.getTask();
+  Loop *loop = tl.getLoop();
 
-  BasicBlock *Entry = cast<BasicBlock>(VMap[TL->getLoopPreheader()]);
-  BasicBlock *Header = cast<BasicBlock>(VMap[TL->getHeader()]);
-  BasicBlock *Exit = cast<BasicBlock>(VMap[TLI.getExitBlock()]);
-  PHINode *PrimaryIV = cast<PHINode>(VMap[TLI.getPrimaryInduction().first]);
-  Value *PrimaryIVInput = PrimaryIV->getIncomingValueForBlock(Entry);
-  Type *PrimaryIVType = PrimaryIV->getType();
+  BasicBlock *bbEntry = cast<BasicBlock>(vmap[loop->getLoopPreheader()]);
+  BasicBlock *bbHeader = cast<BasicBlock>(vmap[loop->getHeader()]);
+  BasicBlock *bbExit = cast<BasicBlock>(vmap[tl.getExitBlock()]);
+  PHINode *iv = cast<PHINode>(vmap[tl.getPrimaryInduction().first]);
+  Type *ivType = iv->getType();
 
   // We no longer need the cloned sync region.
-  auto *ClonedSyncReg =
-      cast<Instruction>(VMap[T->getDetach()->getSyncRegion()]);
-  ClonedSyncReg->eraseFromParent();
+  auto *clonedSyncReg =
+      cast<Instruction>(vmap[task->getDetach()->getSyncRegion()]);
+  clonedSyncReg->eraseFromParent();
 
-  Function *KernelF = Out.Outline;
+  Function *kernelF = toi.Outline;
 
-  // Set the generated name for the kernel. This name is passed to the runtime's
-  // kernel launch function, so it must be set correctly.
-  KernelF->setName(KernelName);
+  // Set the generated name for the kernel. This name is passed to the
+  // runtime's kernel launch function, so it must be set correctly.
+  kernelF->setName(kernelName);
 
   // Set the linkage of the kernel to external to prevent it from being DCE'ed
   // since there will be no caller for the function in the kernel module.
-  KernelF->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
-  KernelF->setCallingConv(CallingConv::PTX_Kernel);
+  kernelF->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
+  kernelF->setCallingConv(CallingConv::PTX_Kernel);
 
-  // Remove all target-related attributes from the kernel function. These may be
-  // present because the frontend believes that the code is being compiled for
-  // the CPU (host) only.
-  KernelF->removeFnAttr("target-cpu");
-  KernelF->removeFnAttr("target-features");
-  KernelF->removeFnAttr("tune-cpu");
+  // Remove all target-related attributes from the kernel function. These may
+  // be present because the frontend believes that the code is being compiled
+  // for the CPU (host) only.
+  kernelF->removeFnAttr("target-cpu");
+  kernelF->removeFnAttr("target-features");
+  kernelF->removeFnAttr("tune-cpu");
 
   // Remove some functions that are relevant for functionality that is not
-  // supported on the GPU. For instance, exceptions are not currently available
-  // on GPU's.
-  KernelF->removeFnAttr("personality");
+  // supported on the GPU. For instance, exceptions are not currently
+  // available on GPU's.
+  kernelF->removeFnAttr("personality");
 
-  // Add an attribute identifying this as a function outlined from a tapir loop.
-  KernelF->addFnAttr(Attribute::KitKernel);
+  // Add an attribute identifying this as a function outlined from a tapir
+  // loop.
+  kernelF->addFnAttr(Attribute::KitKernel);
 
   // Replace some of the target-specific attributes with the correct ones.
-  KernelF->addFnAttr("target-cpu", getOptions().getCudaArch());
-  KernelF->addFnAttr("target-features",
+  kernelF->addFnAttr("target-cpu", getOptions().getCudaArch());
+  kernelF->addFnAttr("target-features",
                      join_items(",", getOptions().getCudaTargetFeatures(),
                                 getOptions().getCudaArch()));
 
   // Add other attributes that are relevant for the target.
-  KernelF->addFnAttr("uniform-work-group-size", "true");
+  kernelF->addFnAttr("uniform-work-group-size", "true");
 
-  NamedMDNode *Annotations =
-      KernelModule.getOrInsertNamedMetadata("nvvm.annotations");
-  SmallVector<Metadata *, 6> AV;
-  AV.push_back(ValueAsMetadata::get(KernelF));
-  AV.push_back(MDString::get(Ctx, "kernel"));
-  AV.push_back(
-      ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 1)));
-  // AV.push_back(MDString::get(Ctx, "maxntidx"));
-  // AV.push_back(ValueAsMetadata::get(
-  //     ConstantInt::get(Type::getInt32Ty(Ctx), MaxThreadsPerBlock)));
-  Annotations->addOperand(MDNode::get(Ctx, AV));
+  NamedMDNode *annotations =
+      kernelModule.getOrInsertNamedMetadata("nvvm.annotations");
+  SmallVector<Metadata *, 6> av;
+  av.push_back(ValueAsMetadata::get(kernelF));
+  av.push_back(MDString::get(ctx, "kernel"));
+  av.push_back(
+      ValueAsMetadata::get(ConstantInt::get(Type::getInt32Ty(ctx), 1)));
+  // av.push_back(MDString::get(ctx, "maxntidx"));
+  // av.push_back(ValueAsMetadata::get(
+  //     ConstantInt::get(Type::getInt32Ty(ctx), MaxThreadsPerBlock)));
+  annotations->addOperand(MDNode::get(ctx, av));
 
-  // Verify that the Thread ID corresponds to a valid iteration. Because Tapir
-  // loops use canonical induction variables, valid iterations range from 0 to
-  // the loop limit with stride 1. The End argument encodes the loop limit. Get
-  // end and grainsize arguments
-
-  // End argument is always the second argument in the kernel function.
-  Argument *End = KernelF->getArg(1);
+  // Tapir uses canonical induction variables in the range [0, end) with
+  // stride 1. `end` is always the second parameter to the kernel function.
+  Argument *end = kernelF->getArg(1);
 
   // Get the grainsize value, which is either constant or the third LC arg.
   // TODO: We only support a grain size of 1 right now. Not clear if this
   // could be a future optimization but strip mining on our current tests only
   // results in degraded performance.
-  // if (unsigned ConstGrainsize = TLI.getGrainsize())
-  //  Grainsize = ConstantInt::get(PrimaryIV->getType(), ConstGrainsize);
+  // if (unsigned gs = tl.getGrainsize())
+  //  grainsize = ConstantInt::get(ivType, gs);
   // else
-  Value *Grainsize =
-      ConstantInt::get(PrimaryIV->getType(), DefaultGrainSize.getValue());
+  Value *grainsize = ConstantInt::get(ivType, defaultGrainsize.getValue());
 
-  IRBuilder<> B(Entry->getTerminator());
+  IRBuilder<> builder(bbEntry->getTerminator());
 
   // Get the thread ID for this invocation of Helper.
   //
   // This is the classic CUDA thread ID calculation:
   //      i = blockDim.x * blockIdx.x + threadIdx.x;
   // For now we only generate 1-D thread IDs.
-  Value *ThreadIdx = B.CreateCall(CUThreadIdxX);
-  Value *BlockIdx = B.CreateCall(CUBlockIdxX);
-  Value *BlockDim = B.CreateCall(CUBlockDimX);
-  Value *BDxBI = B.CreateMul(BlockIdx, BlockDim, "blk_offset");
-  Value *TIpBDxBI = B.CreateAdd(ThreadIdx, BDxBI, "cuthread_id");
-  Value *ThreadIV =
-      B.CreateIntCast(TIpBDxBI, PrimaryIVType, false, "thread_iv");
+  Value *threadIdx = builder.CreateCall(cuThreadIdxX);
+  Value *blockIdx = builder.CreateCall(cuBlockIdxX);
+  Value *blockDim = builder.CreateCall(cuBlockDimX);
+  Value *bdxbi = builder.CreateMul(blockIdx, blockDim, "blk_offset");
+  Value *tipbdxbi = builder.CreateAdd(threadIdx, bdxbi, "cuthread_id");
+  Value *threadIV = builder.CreateIntCast(tipbdxbi, ivType, false, "thread_iv");
 
-  // NOTE/TODO: Assuming that the grainsize is fixed at 1 for the current
-  // codegen.
-  // ThreadID = B.CreateMul(ThreadID, Grainsize);
-  Value *ThreadEnd = B.CreateAdd(ThreadIV, Grainsize, "thread_end");
-  Value *Cond = B.CreateICmpUGE(ThreadIV, End, "cond_thread_end");
-  ReplaceInstWithInst(Entry->getTerminator(),
-                      BranchInst::Create(Exit, Header, Cond));
+  // threadID = builder.CreateMul(ThreadID, Grainsize);
+  Value *threadEnd = builder.CreateAdd(threadIV, grainsize, "thread_end");
+  Value *cond = builder.CreateICmpUGE(threadIV, end, "cond_thread_end");
+  ReplaceInstWithInst(bbEntry->getTerminator(),
+                      BranchInst::Create(bbExit, bbHeader, cond));
 
   // Use the thread ID as the start iteration number for the primary IV.
-  PrimaryIVInput->replaceAllUsesWith(ThreadIV);
+  iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(threadIV);
   // TODO: ???? PrimaryIVInput->eraseFromParent();
 
   // Update cloned loop condition to use the thread-end value.
-  unsigned TripCountIdx = 0;
-  ICmpInst *ClonedCond = cast<ICmpInst>(VMap[TLI.getCondition()]);
-  if (ClonedCond->getOperand(0) != End)
-    ++TripCountIdx;
-  assert(ClonedCond->getOperand(TripCountIdx) == End &&
+  unsigned tripCountIdx = 0;
+  ICmpInst *clonedCond = cast<ICmpInst>(vmap[tl.getCondition()]);
+  if (clonedCond->getOperand(0) != end)
+    ++tripCountIdx;
+  assert(clonedCond->getOperand(tripCountIdx) == end &&
          "End argument not used in condition!");
-  ClonedCond->setOperand(TripCountIdx, ThreadEnd);
+  clonedCond->setOperand(tripCountIdx, threadEnd);
 }
 
-void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
-                                       DominatorTree &DT) {
+void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
+                                       DominatorTree &dt) {
   LLVM_DEBUG(dbgs() << "cudaloop: processing outlined loop call...\n"
-                    << "\tkernel name: " << KernelName << "\n");
+                    << "\tkernel name: " << kernelName << "\n");
 
-  LLVMContext &Ctx = M.getContext();
-  Type *VoidTy = Type::getVoidTy(Ctx);
-  Type *Int32Ty = Type::getInt32Ty(Ctx);
-  Type *Int64Ty = Type::getInt64Ty(Ctx);
-  PointerType *PtrTy = PointerType::getUnqual(Ctx);
+  LLVMContext &ctx = M.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *i64 = Type::getInt64Ty(ctx);
 
-  ConstantInt *CTT = createConstInt(TTID::Cuda, Ctx);
-  GlobalVariable *KProps =
-      createKernelPropertiesGlobal(KernelName, TTID::Cuda, M);
-  Value *KName = createConstString(KernelName, M);
-  GlobalVariable *EmbFB = getEmbFBGlobal(TTID::Cuda, M);
+  ConstantInt *ctt = createConstInt(TTID::Cuda, ctx);
+  GlobalVariable *kprops =
+      createKernelPropertiesGlobal(kernelName, TTID::Cuda, M);
+  Value *kName = createConstString(kernelName, M);
+  GlobalVariable *embFB = getEmbFBGlobal(TTID::Cuda, M);
 
   // At this point we need a threads-per-block value for the launch call. The
   // runtime will determine this value if ThreadsPerBlock is zero but it can
-  // also be overridden via kitsune's forall launch attribute. The catch here is
-  // the launch attribute's value for this is flexible and be a computed
-  // expression vs. a compile-time constant. For this first step of creating the
-  // kernel launch, we take the path of a runtime configuration vs. an
+  // also be overridden via kitsune's forall launch attribute. The catch here
+  // is the launch attribute's value for this is flexible and be a computed
+  // expression vs. a compile-time constant. For this first step of creating
+  // the kernel launch, we take the path of a runtime configuration vs. an
   // attributed launch.
-  unsigned TPBHint = getTapirLoopThreadsPerBlockAttr(*TL.getLoop()).value_or(0);
-  Value *TPB = ConstantInt::get(Int32Ty, TPBHint);
+  unsigned tpbHint = getTapirLoopThreadsPerBlockAttr(*tl.getLoop()).value_or(0);
+  Value *tpb = ConstantInt::get(i32, tpbHint);
 
-  CallBase *CallOutlined = cast<CallBase>(TOI.ReplCall);
-  BasicBlock *RCBB = CallOutlined->getParent();
-  BasicBlock *NewBB = RCBB->splitBasicBlock(CallOutlined);
-  IRBuilder<> Builder(&NewBB->front());
+  CallBase *callOutlined = cast<CallBase>(toi.ReplCall);
+  BasicBlock *bbNew = callOutlined->getParent()->splitBasicBlock(callOutlined);
+  IRBuilder<> builder(&bbNew->front());
 
   // Deal with type mismatches for the trip count.
-  Value *TripCount = CallOutlined->getArgOperand(1);
-  if (TripCount->getType() != Int64Ty)
-    TripCount = Builder.CreateSExtOrBitCast(TripCount, Int64Ty, "cast.tc");
+  Value *tripCount = callOutlined->getArgOperand(1);
+  if (tripCount->getType() != i64)
+    tripCount = builder.CreateSExtOrBitCast(tripCount, i64, "cast.tc");
 
   // We need to explicitly sync non-const globals that are used in the kernel
   // before the kernel is launched.
-  copyNonConstGlobalsHToD(UsedGlobalValues, TTID::Cuda, M, Builder);
+  copyNonConstGlobalsHToD(usedGlobalValues, TTID::Cuda, M, builder);
 
-  Value *CudaStream =
-      Builder.CreateIntrinsic(PtrTy, Intrinsic::kit_thread_stream, {CTT});
-  std::vector<Value *> Args = {CTT, EmbFB,  KName,     TripCount,
-                               TPB, KProps, CudaStream};
-  for (Value *Inp : CallOutlined->args())
-    Args.push_back(Inp);
+  Value *cudaStream =
+      builder.CreateIntrinsic(Intrinsic::kit_thread_stream, {ctt});
+  std::vector<Value *> args = {ctt, embFB,  kName,     tripCount,
+                               tpb, kprops, cudaStream};
+  for (Value *inp : callOutlined->args())
+    args.push_back(inp);
 
   // TODO: We should probably have the launch and sync kitsune intrinsics take
   // a sync region as an argument This may make it easier to do post-outlining
   // analyses to eliminate/delay device synchronization calls instead of
   // always synchronizing immediately after the kernel launch.
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
-  (void)Builder.CreateCall(
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_async_launch_kernel),
-      Args);
-  (void)Builder.CreateIntrinsic(VoidTy, Intrinsic::kit_sync_stream,
-                                {CTT, CudaStream});
+  (void)builder.CreateIntrinsic(Intrinsic::kit_async_launch_kernel, args);
+  (void)builder.CreateIntrinsic(Intrinsic::kit_sync_stream, {ctt, cudaStream});
 
-  // After the kernel is done, copy the non-const globals back to the host. This
-  // is done here to keep this part of the code generation simple. A subsequent
-  // pass will attempt to move this call to the point where the globals are
-  // actually used on the host (or perhaps even delete it if the host never uses
-  // the global again).
-  copyNonConstGlobalsDToH(UsedGlobalValues, TTID::Cuda, M, Builder);
+  // After the kernel is done, copy the non-const globals back to the host.
+  // This is done here to keep this part of the code generation simple. A
+  // subsequent pass will attempt to move this call to the point where the
+  // globals are actually used on the host (or perhaps even delete it if the
+  // host never uses the global again).
+  copyNonConstGlobalsDToH(usedGlobalValues, TTID::Cuda, M, builder);
 
-  CallOutlined->eraseFromParent();
+  callOutlined->eraseFromParent();
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
 }
 
-CudaABI::CudaABI(Module &M, const TTOptions &TTO)
-    : TapirTarget(M, TTO), KernelModule("", M.getContext()), NextKernelID(0) {
+CudaABI::CudaABI(Module &hostM, const TTOptions &tto)
+    : TapirTarget(hostM, tto), kernelModule("", hostM.getContext()),
+      nextKernelID(0) {
   LLVM_DEBUG(dbgs() << "cuabi: CudaABI::CudaABI()\n");
 
-  TargetMachine *TM = createTargetMachine(TTID::Cuda, TTO);
-  KernelModule.setTargetTriple(TM->getTargetTriple());
-  KernelModule.setDataLayout(TM->createDataLayout());
+  TargetMachine *tm = createTargetMachine(TTID::Cuda, tto);
+  kernelModule.setTargetTriple(tm->getTargetTriple());
+  kernelModule.setDataLayout(tm->createDataLayout());
 
-  KernelModule.setModuleIdentifier(getNameForDeviceModule(M, CUABI_PREFIX));
-  addDeviceModuleMetadata(TTID::Cuda, KernelModule);
-  cloneModuleFlagsMetadataInto(M, KernelModule);
-  cloneIdentMetadataInto(M, KernelModule);
-  KernelModule.setModuleFlag(Module::Override, "nvvm-reflect-ftz", clFTZ);
+  kernelModule.setModuleIdentifier(getNameForDeviceModule(M, CUABI_PREFIX));
+  addDeviceModuleMetadata(TTID::Cuda, kernelModule);
+  cloneModuleFlagsMetadataInto(M, kernelModule);
+  cloneIdentMetadataInto(M, kernelModule);
+  kernelModule.setModuleFlag(Module::Override, "nvvm-reflect-ftz", clFTZ);
 }
 
 CudaABI::~CudaABI() { LLVM_DEBUG(dbgs() << "cuabi: destroy tapir target.\n"); }
 
-Value *CudaABI::lowerGrainsizeCall(CallInst *GrainsizeCall) {
+Value *CudaABI::lowerGrainsizeCall(CallInst *grainsizeCall) {
   // TODO: The grainsize on the GPU is a completely different beast than the CPU
   // cases Tapir was originally designed for. At present keeping the grainsize
   // at 1 has almost always shown to yield the best results.  It is obviously
   // not the best choice for all cases...
-  Value *Grainsize =
-      ConstantInt::get(GrainsizeCall->getType(), DefaultGrainSize.getValue());
-  // Replace uses of grainsize intrinsic call with a computed grainsize value.
-  GrainsizeCall->replaceAllUsesWith(Grainsize);
-  GrainsizeCall->eraseFromParent();
-  return Grainsize;
+  Type *gsType = grainsizeCall->getType();
+  Value *gs = ConstantInt::get(gsType, defaultGrainsize.getValue());
+
+  grainsizeCall->replaceAllUsesWith(gs);
+  grainsizeCall->eraseFromParent();
+  return gs;
 }
 
-void CudaABI::lowerSync(SyncInst &SI) {
-  // The CUDA transformation splits the code into two modules, one for the host,
-  // the other for the device. The sync instruction will only be present on the
-  // host module.
+void CudaABI::lowerSync(SyncInst &si) {
+  // This tapir target splits the code into two modules, one for the host, the
+  // other for the device. The sync instruction will only be present on the host
+  // module.
 }
-
-void CudaABI::addHelperAttributes(Function &F) {}
 
 void CudaABI::preProcessModule() {
   // Create the global variable that will eventually contain the fat binary of
@@ -471,28 +498,6 @@ void CudaABI::preProcessModule() {
   (void)createEmbFBGlobal(TTID::Cuda, M);
 }
 
-bool CudaABI::preProcessFunction(Function &F, TaskInfo &TI,
-                                 bool OutliningTapirLoops) {
-  return false;
-}
-
-void CudaABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {}
-
-void CudaABI::postProcessHelper(Function &F) {}
-
-void CudaABI::preProcessOutlinedTask(Function &, Instruction *, Instruction *,
-                                     bool, BasicBlock *) {}
-
-void CudaABI::postProcessOutlinedTask(Function &F, Instruction *DetachPt,
-                                      Instruction *TaskFrameCreate,
-                                      bool IsSpawner, BasicBlock *TFEntry) {}
-
-void CudaABI::postProcessRootSpawner(Function &F, BasicBlock *TFEntry) {}
-
-void CudaABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {}
-
-void CudaABI::preProcessRootSpawner(Function &, BasicBlock *TFEntry) {}
-
 void CudaABI::postProcessModule() {
   LLVM_DEBUG(dbgs() << "cuabi: post processing kernel and host modules...\n");
 
@@ -501,16 +506,16 @@ void CudaABI::postProcessModule() {
   // must be carried out on this module before it can be compiled to GPU code,
   // but those will be done by subsequent passes. The module here is in a state
   // where we can perform combined host/device analyses and optimizations.
-  (void)createEmbBCGlobal(KernelModule, TTID::Cuda, M);
+  (void)createEmbBCGlobal(kernelModule, TTID::Cuda, M);
 }
 
 LoopOutlineProcessor *
-CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
+CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
   LLVM_DEBUG(dbgs() << "cuabi: create loop outlining processor.\n");
   LLVM_DEBUG(saveModuleToFile(&M, M.getName().str() + ".input"));
 
-  std::string KernelName = convertNameForPTX(
-      getNameForTapirLoop(*TL, CUABI_KERNEL_NAME_PREFIX, NextKernelID++),
+  std::string kernelName = convertNameForPTX(
+      getNameForTapirLoop(*tl, CUABI_KERNEL_NAME_PREFIX, nextKernelID++),
       /*AddPrefix=*/false);
-  return new CudaLoop(M, KernelModule, KernelName, this->getOptions());
+  return new CudaLoop(M, kernelModule, kernelName, this->getOptions());
 }
