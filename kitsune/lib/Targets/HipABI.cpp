@@ -85,7 +85,7 @@ using namespace llvm;
 // This transformation is carrying out the prep to convert Tapir to a kernel
 // module suitable for codegen using the AMDGPU target.
 
-static cl::opt<unsigned> DefaultGrainSize(
+static cl::opt<unsigned> defaultGrainsize(
     "hipabi-default-grainsize", cl::init(1), cl::Hidden,
     cl::desc("The default grain size used by the transform "
              "when analysis fails to determine one. (default=1)"),
@@ -102,19 +102,73 @@ cl::opt<bool> clUseYLaunch("hipabi-y-launch", cl::init(false), cl::Hidden,
 static constexpr StringRef HIPABI_PREFIX = "__kithip_";
 static constexpr StringRef HIPABI_KERNEL_NAME_PREFIX = "__kithip_loop_";
 
+/// The loop outline process for transforming a Tapir parallel loop into a
+/// hip kernel function.
+/// \ingroup kitsune
+class HipLoop : public LoopOutlineProcessor {
+private:
+  /// The name of the kernel into which the loop is outlined.
+  std::string kernelName;
+
+  /// For GPU targets, we outline the loop into a separate module. This is that
+  /// module.
+  Module &kernelModule;
+
+  // AMDGCN intrinsics.
+  FunctionCallee hipWorkItemIdFn;
+  FunctionCallee hipWorkItemIdXFn, hipWorkItemIdYFn, hipWorkItemIdZFn;
+  FunctionCallee hipWorkGroupIdFn;
+  FunctionCallee hipWorkGroupIdXFn, hipWorkGroupIdYFn, hipWorkGroupIdZFn;
+  FunctionCallee hipBlockDimFn;
+
+  /// The GlobalValue's used in the loop that is being outlined. This includes
+  /// functions, global variables, aliases and ifunc's.
+  SmallSet<GlobalValue *, 8> usedGlobalValues;
+
+private:
+  Value *emitWorkItemId(IRBuilder<> &builder, int itemIndex);
+  Value *emitWorkGroupId(IRBuilder<> &builder, int itemIndex);
+  Value *emitWorkGroupSize(IRBuilder<> &builder, int itemIndex);
+
+public:
+  /// @brief Build the HipLoop outline processor.
+  /// @param M: Module containing the input code.
+  /// @param KM: The module that will contain the generated kernel.
+  /// @param KernelName: The name of the kernel function that is generated.
+  /// @param TTO: The tapir target options.
+  HipLoop(Module &hostM, Module &kernelModule, StringRef kernelName,
+          const TTOptions &tto);
+  ~HipLoop();
+
+  /// Process the TapirLoop before it is outlined -- just prior to the
+  /// outlining occurs.  This allows the VMap and related details to be
+  /// customized prior to outlining related operations (e.g. cloning of
+  /// LLVM constructs).
+  void preProcessTapirLoop(TapirLoopInfo &tl, ValueToValueMapTy &vmap) override;
+
+  /// Processes an outlined Function Helper for a Tapir loop, just after the
+  /// function has been outlined.
+  void postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
+                          ValueToValueMapTy &vmap) override;
+
+  /// Processes a call to an outlined Function Helper for a Tapir loop.
+  void processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
+                               DominatorTree &dt) override;
+};
+
 /// @brief Return the work item ID for the calling thread. (thread index)
 /// @param Builder - IR builder for code gen assistance.
 /// @param ItemIndex - which work item dimension (x=0,y=1,z=2)
 /// @param Low - Low-end of value range if known.
 /// @param High -- High-end of value range if known.
-Value *HipLoop::emitWorkItemId(IRBuilder<> &Builder, int ItemIndex) {
-  switch (ItemIndex) {
+Value *HipLoop::emitWorkItemId(IRBuilder<> &builder, int itemIndex) {
+  switch (itemIndex) {
   case 0:
-    return Builder.CreateCall(HipWorkItemIdXFn, {}, ".kern.witem.x");
+    return builder.CreateCall(hipWorkItemIdXFn, {}, ".kern.witem.x");
   case 1:
-    return Builder.CreateCall(HipWorkItemIdYFn, {}, ".kern.witem.y");
+    return builder.CreateCall(hipWorkItemIdYFn, {}, ".kern.witem.y");
   case 2:
-    return Builder.CreateCall(HipWorkItemIdZFn, {}, ".kern.witem.z");
+    return builder.CreateCall(hipWorkItemIdZFn, {}, ".kern.witem.z");
   default:
     llvm_unreachable("unexpected item index!");
   }
@@ -123,14 +177,14 @@ Value *HipLoop::emitWorkItemId(IRBuilder<> &Builder, int ItemIndex) {
 /// @brief Return the work group ID for the calling thread. (block index)
 /// @param Builder - IR builder for code gen assistance.
 /// @param ItemIndex - which work item dimension (x=0,y=1,z=2)
-Value *HipLoop::emitWorkGroupId(IRBuilder<> &Builder, int ItemIndex) {
-  switch (ItemIndex) {
+Value *HipLoop::emitWorkGroupId(IRBuilder<> &builder, int itemIndex) {
+  switch (itemIndex) {
   case 0:
-    return Builder.CreateCall(HipWorkGroupIdXFn, {}, ".kern.wgroup.x");
+    return builder.CreateCall(hipWorkGroupIdXFn, {}, ".kern.wgroup.x");
   case 1:
-    return Builder.CreateCall(HipWorkGroupIdYFn, {}, ".kern.wgroup.y");
+    return builder.CreateCall(hipWorkGroupIdYFn, {}, ".kern.wgroup.y");
   case 2:
-    return Builder.CreateCall(HipWorkGroupIdZFn, {}, ".kern.wgroup.z");
+    return builder.CreateCall(hipWorkGroupIdZFn, {}, ".kern.wgroup.z");
   default:
     llvm_unreachable("unexpected item index!");
   }
@@ -139,9 +193,9 @@ Value *HipLoop::emitWorkGroupId(IRBuilder<> &Builder, int ItemIndex) {
 /// @brief Return the work group size for the calling thread. (block size)
 /// @param Builder - IR builder for code gen assistance.
 /// @param ItemIndex - which work item dimension (x=0,y=1,z=2)
-Value *HipLoop::emitWorkGroupSize(IRBuilder<> &Builder, int ItemIndex) {
-  auto GetName = [](int ItemIndex) -> StringRef {
-    switch (ItemIndex) {
+Value *HipLoop::emitWorkGroupSize(IRBuilder<> &builder, int itemIndex) {
+  auto getName = [](int itemIndex) -> StringRef {
+    switch (itemIndex) {
     case 0:
       return ".kern.blkdim.x";
     case 1:
@@ -153,26 +207,27 @@ Value *HipLoop::emitWorkGroupSize(IRBuilder<> &Builder, int ItemIndex) {
     };
   };
 
-  LLVMContext &Ctx = Builder.getContext();
-  Type *Int32Ty = Type::getInt32Ty(Ctx);
-  Constant *Index = ConstantInt::get(Int32Ty, ItemIndex);
-  StringRef Name = GetName(ItemIndex);
-  return Builder.CreateCall(HipBlockDimFn, {Index}, Name);
+  LLVMContext &ctx = builder.getContext();
+  Constant *index = ConstantInt::get(Type::getInt32Ty(ctx), itemIndex);
+  StringRef name = getName(itemIndex);
+
+  return builder.CreateCall(hipBlockDimFn, {index}, name);
 }
 
-HipLoop::HipLoop(Module &M, Module &KM, StringRef Name, const TTOptions &TTO)
-    : LoopOutlineProcessor(M, KM, TTO,
+HipLoop::HipLoop(Module &hostM, Module &kernelModule, StringRef kernelName,
+                 const TTOptions &tto)
+    : LoopOutlineProcessor(hostM, kernelModule, tto,
                            CloneFunctionChangeType::DifferentModule),
-      KernelName(Name), KernelModule(KM) {
+      kernelName(kernelName), kernelModule(kernelModule) {
   LLVM_DEBUG(dbgs() << "hipabi: hip loop outliner creation:\n"
-                    << "\ttransforming loop to kernel: " << KernelName
+                    << "\ttransforming loop to kernel: " << kernelName
                     << "(...)\n"
                     << "\tdevice-side module name    : "
-                    << KernelModule.getName() << "\n\n");
+                    << kernelModule.getName() << "\n\n");
 
-  LLVMContext &Ctx = KernelModule.getContext();
-  Type *Int32Ty = Type::getInt32Ty(Ctx);
-  Type *Int64Ty = Type::getInt64Ty(Ctx);
+  LLVMContext &ctx = kernelModule.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *i64 = Type::getInt64Ty(ctx);
 
   // We use ROCm/HSA/HIP entry points for various runtime calls.  These calls
   // are often at a lower level vs. user-facing entry points.  This follows
@@ -180,65 +235,65 @@ HipLoop::HipLoop(Module &M, Module &KM, StringRef Name, const TTOptions &TTO)
   // tucked into the HIP-centric header files as well a Clang lowering).
 
   // Get the local workitem ID for the calling thread.
-  HipWorkItemIdFn = KernelModule.getOrInsertFunction(
+  hipWorkItemIdFn = kernelModule.getOrInsertFunction(
       "__ockl_get_local_id",
-      Int64Ty,  // return local thread id.
-      Int32Ty); // axis/index select (x=0, y=1, z=2).
+      i64,  // return local thread id.
+      i32); // axis/index select (x=0, y=1, z=2).
 
   // Get the work group ID for the calling thread.
-  HipWorkGroupIdFn = KernelModule.getOrInsertFunction(
+  hipWorkGroupIdFn = kernelModule.getOrInsertFunction(
       "__ockl_get_group_id",
-      Int64Ty,  // return local thread id.
-      Int32Ty); // axis/index select (x=0, y=1, z=2).
+      i64,  // return local thread id.
+      i32); // axis/index select (x=0, y=1, z=2).
 
   // Get the block size for the calling thread.
-  HipBlockDimFn = KernelModule.getOrInsertFunction(
+  hipBlockDimFn = kernelModule.getOrInsertFunction(
       "__ockl_get_local_size",
-      Int64Ty,  // return local thread id.
-      Int32Ty); // axis/index select (x=0, y=1, z=2).
+      i64,  // return local thread id.
+      i32); // axis/index select (x=0, y=1, z=2).
 
   /* threadIdx.x */
-  HipWorkItemIdXFn = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::amdgcn_workitem_id_x);
+  hipWorkItemIdXFn = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::amdgcn_workitem_id_x);
   /* threadIdx.y */
-  HipWorkItemIdYFn = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::amdgcn_workitem_id_y);
+  hipWorkItemIdYFn = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::amdgcn_workitem_id_y);
   /* threadIdx. z */
-  HipWorkItemIdZFn = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::amdgcn_workitem_id_z);
+  hipWorkItemIdZFn = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::amdgcn_workitem_id_z);
 
   /* blockIdx.x */
-  HipWorkGroupIdXFn = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::amdgcn_workgroup_id_x);
+  hipWorkGroupIdXFn = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::amdgcn_workgroup_id_x);
   /* blockIdx.y */
-  HipWorkGroupIdYFn = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::amdgcn_workgroup_id_y);
+  hipWorkGroupIdYFn = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::amdgcn_workgroup_id_y);
   /* blockIdx.z */
-  HipWorkGroupIdZFn = Intrinsic::getOrInsertDeclaration(
-      &KernelModule, Intrinsic::amdgcn_workgroup_id_z);
+  hipWorkGroupIdZFn = Intrinsic::getOrInsertDeclaration(
+      &kernelModule, Intrinsic::amdgcn_workgroup_id_z);
 }
 
 HipLoop::~HipLoop() { /* no-op */ }
 
-void HipLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
-  bool VerboseMode = getOptions().getTapirVerbose();
-  if (VerboseMode) {
+void HipLoop::preProcessTapirLoop(TapirLoopInfo &tl, ValueToValueMapTy &vmap) {
+  bool verboseMode = getOptions().getTapirVerbose();
+  if (verboseMode) {
     errs() << "kitsune[hipabi]: pre-processing tapir loop.\n";
     errs() << "  - collecting global values from loop...\n";
   }
 
   // Collect the top-level entities (Function, GlobalVariable, GlobalAlias
   // and GlobalIFunc) that are used in the outlined loop. Since the outlined
-  // loop will live in the KernelModule, any GlobalValue's used in it must be
-  // be cloned into the KernelModule and then registered with the cuda runtime.
+  // loop will live in the kernelModule, any GlobalValue's used in it must be
+  // be cloned into the kernelModule and then registered with the cuda runtime.
   // The registration will be done in the global ctor which will be generated by
   // a later pass.
-  collectGlobalValues(*TL.getLoop(), UsedGlobalValues);
+  collectGlobalValues(*tl.getLoop(), usedGlobalValues);
 
   // HIP appears to require protected visibility. Without this, attempting to
   // link the fat binary results in a relocation error.
   cloneUsedGlobalVariablesInto(
-      KernelModule, UsedGlobalValues, VMap,
+      kernelModule, usedGlobalValues, vmap,
       /* address space for constant globals */ AMDGPUAS::CONSTANT_ADDRESS,
       /* address space for non-const globals */ AMDGPUAS::GLOBAL_ADDRESS,
       /* visibility for constant globals */ GlobalValue::DefaultVisibility,
@@ -246,203 +301,192 @@ void HipLoop::preProcessTapirLoop(TapirLoopInfo &TL, ValueToValueMapTy &VMap) {
 
   // The global variables have to be cloned before cloning the functions because
   // they may be used in the bodies of functions to be cloned.
-  cloneReachableFuncsInto(KernelModule, UsedGlobalValues, VMap);
-  cloneReachableIFuncsInto(KernelModule, UsedGlobalValues, VMap);
+  cloneReachableFuncsInto(kernelModule, usedGlobalValues, vmap);
+  cloneReachableIFuncsInto(kernelModule, usedGlobalValues, vmap);
 
   // The aliasee in global aliases is a global value, so they must be cloned
   // after the global variables and functions are in the vmap.
-  cloneUsedGlobalAliasesInto(KernelModule, UsedGlobalValues, VMap);
+  cloneUsedGlobalAliasesInto(kernelModule, usedGlobalValues, vmap);
 }
 
-void HipLoop::postProcessOutline(TapirLoopInfo &TLI, TaskOutlineInfo &Out,
-                                 ValueToValueMapTy &VMap) {
-  Task *T = TLI.getTask();
-  Loop *TL = TLI.getLoop();
+void HipLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &Out,
+                                 ValueToValueMapTy &vmap) {
+  Task *task = tl.getTask();
+  Loop *loop = tl.getLoop();
 
-  BasicBlock *Entry = cast<BasicBlock>(VMap[TL->getLoopPreheader()]);
-  BasicBlock *Header = cast<BasicBlock>(VMap[TL->getHeader()]);
-  BasicBlock *Exit = cast<BasicBlock>(VMap[TLI.getExitBlock()]);
-  PHINode *PrimaryIV = cast<PHINode>(VMap[TLI.getPrimaryInduction().first]);
-  Value *PrimaryIVInput = PrimaryIV->getIncomingValueForBlock(Entry);
-  Type *PrimaryIVType = PrimaryIV->getType();
+  BasicBlock *bbEntry = cast<BasicBlock>(vmap[loop->getLoopPreheader()]);
+  BasicBlock *bbHeader = cast<BasicBlock>(vmap[loop->getHeader()]);
+  BasicBlock *bbExit = cast<BasicBlock>(vmap[tl.getExitBlock()]);
+  PHINode *iv = cast<PHINode>(vmap[tl.getPrimaryInduction().first]);
+  Type *ivType = iv->getType();
 
   // We no longer need the cloned sync region.
-  auto *ClonedSyncReg =
-      cast<Instruction>(VMap[T->getDetach()->getSyncRegion()]);
-  ClonedSyncReg->eraseFromParent();
+  auto *clonedSyncReg =
+      cast<Instruction>(vmap[task->getDetach()->getSyncRegion()]);
+  clonedSyncReg->eraseFromParent();
 
   // Get the kernel function for this loop and clean up any stray (target
   // related) attributes. Because of the way we compile the code, those
   // attributes will only be relevant for the host.
-  Function *KernelF = Out.Outline;
-  KernelF->setName(KernelName);
+  Function *kernelF = Out.Outline;
+  kernelF->setName(kernelName);
 
   // Remove any attributes that are only relevant for the host.
-  KernelF->removeFnAttr("target-cpu");
-  KernelF->removeFnAttr("target-features");
-  KernelF->removeFnAttr("tune-cpu");
+  kernelF->removeFnAttr("target-cpu");
+  kernelF->removeFnAttr("target-features");
+  kernelF->removeFnAttr("tune-cpu");
 
   // Remove other attributes that we cannot deal with in any reasonable way in
   // the device
-  KernelF->removeFnAttr(Attribute::UWTable);
+  kernelF->removeFnAttr(Attribute::UWTable);
 
   // Add an attribute identifying this as a function outlined from a tapir loop.
-  KernelF->addFnAttr(Attribute::KitKernel);
+  kernelF->addFnAttr(Attribute::KitKernel);
 
   // Add new target-specific attributes
-  KernelF->addFnAttr("target-cpu", getOptions().getHipArch());
-  KernelF->addFnAttr("target-features", getOptions().getHipTargetFeatures());
+  kernelF->addFnAttr("target-cpu", getOptions().getHipArch());
+  kernelF->addFnAttr("target-features", getOptions().getHipTargetFeatures());
 
   // Add other attributes that are either required or desirable.
-  KernelF->addFnAttr("no-trapping-math", "true");
-  KernelF->addFnAttr(Attribute::MustProgress);
-  KernelF->addFnAttr(Attribute::NoUnwind);
+  kernelF->addFnAttr("no-trapping-math", "true");
+  kernelF->addFnAttr(Attribute::MustProgress);
+  kernelF->addFnAttr(Attribute::NoUnwind);
 
   // This only works when the code object version >= 5, but we have ensured that
   // this is the case in the frontend.
-  KernelF->addFnAttr("uniform-work-group-size", "true");
+  kernelF->addFnAttr("uniform-work-group-size", "true");
 
   // Specify the minimum and maximum flat work group sizes that will be used
   // when the kernel is dispatched.
-  std::string AttrVal;
-  AttrVal = std::string("128,1024");
-  KernelF->addFnAttr("amdgpu-flat-work-group-size", AttrVal);
+  std::string attrVal = "128,1024";
+  kernelF->addFnAttr("amdgpu-flat-work-group-size", attrVal);
 
   // AMD requires that the kernel function have protected visiblity otherwise
   // AMD's runtime is unable to find the kernel function at runtime. This, in
   // turn requires the function to have external linkage. In case the function
   // gets here with a different linkage type, just override it.
-  KernelF->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
-  KernelF->setVisibility(GlobalValue::VisibilityTypes::ProtectedVisibility);
-  KernelF->setCallingConv(CallingConv::AMDGPU_KERNEL);
+  kernelF->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
+  kernelF->setVisibility(GlobalValue::VisibilityTypes::ProtectedVisibility);
+  kernelF->setCallingConv(CallingConv::AMDGPU_KERNEL);
 
 #if 0 // DISABLED FOR TESTING
-  unsigned MaxThreadsPerBlock = getOptions().getMaxThreadsPerBlock();
-  unsigned DefaultThreadsPerBlock = getOptions().getFixedThreadsPerBlock();
+  unsigned maxThreadsPerBlock = getOptions().getMaxThreadsPerBlock();
+  unsigned defaultThreadsPerBlock = getOptions().getFixedThreadsPerBlock();
 
   // Check for programmer-provided launch attribute...
-  if (TPB > 0 && TPB <= MaxThreadsPerBlock) {
-    AttrVal = std::string("1,") + utostr(TPB);
-    KernelF->addFnAttr("amdgpu-flat-work-group-size", AttrVal);
+  if (tpb > 0 && tpb <= maxThreadsPerBlock) {
+    attrVal = std::string("1,") + utostr(TPB);
+    kernelF->addFnAttr("amdgpu-flat-work-group-size", attrVal);
 
     if (clUseYLaunch)
-      AttrVal = std::string("1,") + utostr(TPB) + std::string(",1");
+      attrVal = std::string("1,") + utostr(TPB) + std::string(",1");
     else
-      AttrVal = utostr(TPB) + std::string(",1,1");
-  } else if (DefaultThreadsPerBlock > 0 &&
-             DefaultThreadsPerBlock <= MaxThreadsPerBlock) {
+      attrVal = utostr(TPB) + std::string(",1,1");
+  } else if (defaultThreadsPerBlock > 0 &&
+             defaultThreadsPerBlock <= maxThreadsPerBlock) {
     // Check for command line spec.
-    AttrVal = std::string("1,") + utostr(DefaultThreadsPerBlock);
-    KernelF->addFnAttr("amdgpu-flat-work-group-size", AttrVal);
+    attrVal = std::string("1,") + utostr(defaultThreadsPerBlock);
+    kernelF->addFnAttr("amdgpu-flat-work-group-size", attrVal);
 
     if (clUseYLaunch)
-      AttrVal = std::string("1,") + utostr(DefaultThreadsPerBlock)
+      attrVal = std::string("1,") + utostr(defaultThreadsPerBlock)
                     + std::string(",1");
     else
-      AttrVal = utostr(DefaultThreadsPerBlock) + std::string(",1,1");
+      attrVal = utostr(defaultThreadsPerBlock) + std::string(",1,1");
   } else {
     // Use defaults...
-    AttrVal = std::string("1,") + utostr(MaxThreadsPerBlock);
-    KernelF->addFnAttr("amdgpu-flat-work-group-size", AttrVal);
+    attrVal = std::string("1,") + utostr(maxThreadsPerBlock);
+    kernelF->addFnAttr("amdgpu-flat-work-group-size", attrVal);
 
     if (clUseYLaunch)
-      AttrVal = std::string("1,") + utostr(MaxThreadsPerBlock) +
+      attrVal = std::string("1,") + utostr(maxThreadsPerBlock) +
                 std::string(",1");
     else
-      AttrVal = utostr(MaxThreadsPerBlock) + std::string(",1,1");
+      attrVal = utostr(maxThreadsPerBlock) + std::string(",1,1");
   }
   // Attribute falls through from above conditionals...
-  KernelF->addFnAttr("amdgpu-max-num-workgroups", AttrVal);
+  kernelF->addFnAttr("amdgpu-max-num-workgroups", attrVal);
 #endif
 
-  // Verify that the Thread ID corresponds to a valid iteration. Because Tapir
-  // loops use canonical induction variables, valid iterations range from 0 to
-  // the loop limit with stride 1. The End argument encodes the limit.
-  // Get end and grain size arguments
-
-  // End argument is always the second argument in the kernel function.
-  Argument *End = KernelF->getArg(1);
+  // Tapir uses canonical induction variables in the range [0, end) with
+  // stride 1. `end` is always the second parameter to the kernel function.
+  Argument *end = kernelF->getArg(1);
 
   // Get the grainsize value, which is either constant or the third LC arg.
   // TODO: We only support a grain size of 1 right now. Not clear if this
   // could be a future optimization but strip mining on our current tests only
   // results in degraded performance.
-  // if (unsigned ConstGrainsize = TLI.getGrainsize())
-  //  Grainsize = ConstantInt::get(PrimaryIV->getType(), ConstGrainsize);
+  // if (unsigned gs = tl.getGrainsize())
+  //  grainsize = ConstantInt::get(ivType, gs);
   // else
-  Value *Grainsize =
-      ConstantInt::get(PrimaryIV->getType(), DefaultGrainSize.getValue());
+  Value *grainsize = ConstantInt::get(ivType, defaultGrainsize.getValue());
 
-  IRBuilder<> Builder(Entry->getTerminator());
+  IRBuilder<> builder(bbEntry->getTerminator());
 
   // Get the thread ID for this invocation of Helper.
   //
   // This is the classic thread ID calculation:
   //      i = blockDim.x * blockIdx.x + threadIdx.x;
   // For now we only generate 1-D thread IDs.
-  Value *ThreadIdx;
-  Value *BlockDim;
+  Value *threadIdx;
+  Value *blockDim;
 
   if (not clUseYLaunch) {
-    Value *WorkItemIdX = emitWorkItemId(Builder, 0);
-    ThreadIdx = Builder.CreateIntCast(WorkItemIdX, PrimaryIVType,
+    Value *workItemIdX = emitWorkItemId(builder, 0);
+    threadIdx = builder.CreateIntCast(workItemIdX, ivType,
                                       /*isSigned=*/false, ".kern.tidx.x");
-    Value *WorkGroupSizeX = emitWorkGroupSize(Builder, 0);
-    BlockDim = Builder.CreateIntCast(WorkGroupSizeX, PrimaryIVType,
+    Value *workGroupSizeX = emitWorkGroupSize(builder, 0);
+    blockDim = builder.CreateIntCast(workGroupSizeX, ivType,
                                      /*isSigned=*/false, ".kern.blkdim.x");
   } else {
-    Value *WorkItemIdY = emitWorkItemId(Builder, 1);
-    ThreadIdx = Builder.CreateIntCast(WorkItemIdY, PrimaryIVType,
+    Value *workItemIdY = emitWorkItemId(builder, 1);
+    threadIdx = builder.CreateIntCast(workItemIdY, ivType,
                                       /*isSigned=*/false, ".kern.tidx.y");
-    Value *WorkGroupSizeY = emitWorkGroupSize(Builder, 1);
-    BlockDim = Builder.CreateIntCast(WorkGroupSizeY, PrimaryIVType,
+    Value *workGroupSizeY = emitWorkGroupSize(builder, 1);
+    blockDim = builder.CreateIntCast(workGroupSizeY, ivType,
                                      /*isSigned=*/false, ".kern.blkdim.y");
   }
 
-  Value *WorkGroupIdX = emitWorkGroupId(Builder, 0);
-  Value *BlockIdx = Builder.CreateIntCast(WorkGroupIdX, PrimaryIVType,
+  Value *workGroupIdX = emitWorkGroupId(builder, 0);
+  Value *blockIdx = builder.CreateIntCast(workGroupIdX, ivType,
                                           /*isSigned=*/false, ".kern.blkid.x");
 
-  Value *BlockOff = Builder.CreateMul(BlockIdx, BlockDim, ".kern.blkoff.x");
-  Value *ThreadID = Builder.CreateAdd(ThreadIdx, BlockOff, ".kern.tid");
+  Value *blockOff = builder.CreateMul(blockIdx, blockDim, ".kern.blkoff.x");
+  Value *threadID = builder.CreateAdd(threadIdx, blockOff, ".kern.tid");
 
-  // NOTE/TODO: Assuming that the grainsize is fixed at 1 for the current
-  // codegen.
-  // ThreadID = Builder.CreateMul(ThreadID, Grainsize);
-  Value *ThreadEnd = Builder.CreateAdd(ThreadID, Grainsize, ".kern.last_idx");
-  Value *Cond = Builder.CreateICmpUGE(ThreadID, End, ".kern.at_end");
-  ReplaceInstWithInst(Entry->getTerminator(),
-                      BranchInst::Create(Exit, Header, Cond));
+  // threadID = Builder.CreateMul(threadID, grainsize);
+  Value *threadEnd = builder.CreateAdd(threadID, grainsize, ".kern.last_idx");
+  Value *cond = builder.CreateICmpUGE(threadID, end, ".kern.at_end");
+  ReplaceInstWithInst(bbEntry->getTerminator(),
+                      BranchInst::Create(bbExit, bbHeader, cond));
 
   // Replace the loop's induction variable with the GPU thread id.
-  PrimaryIVInput->replaceAllUsesWith(ThreadID);
+  iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(threadID);
 
   // Update cloned loop condition to use the thread-end value.
-  unsigned TripCountIdx = 0;
-  ICmpInst *ClonedCond = cast<ICmpInst>(VMap[TLI.getCondition()]);
-  if (ClonedCond->getOperand(0) != End)
-    ++TripCountIdx;
-  assert(ClonedCond->getOperand(TripCountIdx) == End &&
+  unsigned tripCountIdx = 0;
+  ICmpInst *clonedCond = cast<ICmpInst>(vmap[tl.getCondition()]);
+  if (clonedCond->getOperand(0) != end)
+    ++tripCountIdx;
+  assert(clonedCond->getOperand(tripCountIdx) == end &&
          "End argument not used in condition!");
-  ClonedCond->setOperand(TripCountIdx, ThreadEnd);
+  clonedCond->setOperand(tripCountIdx, threadEnd);
 }
 
-void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
-                                      DominatorTree &DT) {
+void HipLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
+                                      DominatorTree &dt) {
   LLVM_DEBUG(dbgs() << "hiploop: processing outlined loop call...\n"
-                    << "\tkernel name: " << KernelName << "\n");
+                    << "\tkernel name: " << kernelName << "\n");
 
-  LLVMContext &Ctx = M.getContext();
-  Type *VoidTy = Type::getVoidTy(Ctx);
-  Type *Int32Ty = Type::getInt32Ty(Ctx);
-  Type *Int64Ty = Type::getInt64Ty(Ctx);
-  PointerType *PtrTy = PointerType::getUnqual(Ctx);
+  LLVMContext &ctx = M.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *i64 = Type::getInt64Ty(ctx);
 
-  ConstantInt *CTT = createConstInt(TTID::Hip, Ctx);
-  GlobalVariable *KProps =
-      createKernelPropertiesGlobal(KernelName, TTID::Hip, M);
-  Value *KName = createConstString(KernelName, M);
-  GlobalVariable *EmbFB = getEmbFBGlobal(TTID::Hip, M);
+  ConstantInt *ctt = createConstInt(TTID::Hip, ctx);
+  GlobalVariable *kProps =
+      createKernelPropertiesGlobal(kernelName, TTID::Hip, M);
+  Value *kName = createConstString(kernelName, M);
+  GlobalVariable *embFB = getEmbFBGlobal(TTID::Hip, M);
 
   // At this point we need a threads-per-block value for the launch call. The
   // runtime will determine this value if ThreadsPerBlock is zero but it can
@@ -451,96 +495,95 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   // expression vs. a compile-time constant. For this first step of creating the
   // kernel launch, we take the path of a runtime configuration vs. an
   // attributed launch.
-  unsigned TPBHint = getTapirLoopThreadsPerBlockAttr(*TL.getLoop()).value_or(0);
-  unsigned FixedThreadsPerBlock = getOptions().getFixedThreadsPerBlock();
-  Value *TPB;
-  if (TPBHint)
-    TPB = ConstantInt::get(Int32Ty, TPBHint);
-  else if (FixedThreadsPerBlock)
-    TPB = ConstantInt::get(Int32Ty, FixedThreadsPerBlock);
+  unsigned tpbHint = getTapirLoopThreadsPerBlockAttr(*tl.getLoop()).value_or(0);
+  unsigned fixedTPB = getOptions().getFixedThreadsPerBlock();
+  Value *tpb;
+  if (tpbHint)
+    tpb = ConstantInt::get(i32, tpbHint);
+  else if (fixedTPB)
+    tpb = ConstantInt::get(i32, fixedTPB);
   else
-    TPB = ConstantInt::get(Int32Ty, 0);
+    tpb = ConstantInt::get(i32, 0);
 
-  CallBase *CallOutlined = cast<CallBase>(TOI.ReplCall);
-  BasicBlock *RCBB = CallOutlined->getParent();
-  BasicBlock *NewBB = RCBB->splitBasicBlock(CallOutlined);
-  IRBuilder<> Builder(&NewBB->front());
+  CallBase *callOutlined = cast<CallBase>(toi.ReplCall);
+  BasicBlock *bbNew = callOutlined->getParent()->splitBasicBlock(callOutlined);
+  IRBuilder<> builder(&bbNew->front());
 
   // Deal with type mismatches for the trip count.
-  Value *TripCount = CallOutlined->getArgOperand(1);
-  if (TripCount->getType() != Int64Ty)
-    TripCount = Builder.CreateSExtOrBitCast(TripCount, Int64Ty, "cast.tc");
+  Value *tripCount = callOutlined->getArgOperand(1);
+  if (tripCount->getType() != i64)
+    tripCount = builder.CreateSExtOrBitCast(tripCount, i64, "cast.tc");
 
   // We need to explicitly sync non-const globals that are used in the kernel
   // before the kernel is launched.
-  copyNonConstGlobalsHToD(UsedGlobalValues, TTID::Hip, M, Builder);
+  copyNonConstGlobalsHToD(usedGlobalValues, TTID::Hip, M, builder);
 
-  Value *HipStream =
-      Builder.CreateIntrinsic(PtrTy, Intrinsic::kit_thread_stream, {CTT});
-  std::vector<Value *> Args = {CTT, EmbFB,  KName,    TripCount,
-                               TPB, KProps, HipStream};
-  for (Value *Inp : CallOutlined->args())
-    Args.push_back(Inp);
+  Value *hipStream =
+      builder.CreateIntrinsic(Intrinsic::kit_thread_stream, {ctt});
+  std::vector<Value *> args = {ctt, embFB,  kName,    tripCount,
+                               tpb, kProps, hipStream};
+  for (Value *inp : callOutlined->args())
+    args.push_back(inp);
 
   // TODO: We should probably have the launch and sync kitsune intrinsics take
   // a sync region as an argument This may make it easier to do post-outlining
   // analyses to eliminate/delay device synchronization calls instead of
   // always synchronizing immediately after the kernel launch.
   LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
-  (void)Builder.CreateCall(
-      Intrinsic::getOrInsertDeclaration(&M, Intrinsic::kit_async_launch_kernel),
-      Args);
-  (void)Builder.CreateIntrinsic(VoidTy, Intrinsic::kit_sync_stream,
-                                {CTT, HipStream});
+  (void)builder.CreateIntrinsic(Intrinsic::kit_async_launch_kernel, args);
+  (void)builder.CreateIntrinsic(Intrinsic::kit_sync_stream, {ctt, hipStream});
 
   // After the kernel is done, copy the non-const globals back to the host. This
   // is done here to keep this part of the code generation simple. A subsequent
   // pass will attempt to move this call to the point where the global is
   // actually used on the host (or perhaps even delete it if the host never uses
   // the global again).
-  copyNonConstGlobalsDToH(UsedGlobalValues, TTID::Hip, M, Builder);
+  copyNonConstGlobalsDToH(usedGlobalValues, TTID::Hip, M, builder);
 
-  CallOutlined->eraseFromParent();
+  callOutlined->eraseFromParent();
   LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
 }
 
 // As is the pattern with the GPU targets, the HipABI is setup to process all
 // Tapir constructs within a given input Module (M). It then creates a
 // corresponding module that contains the transformed device-side code. This is
-// the KernelModule that is created below in the target constructor.
-HipABI::HipABI(Module &M, const TTOptions &TTO)
-    : TapirTarget(M, TTO), KernelModule("", M.getContext()), NextKernelID(0) {
+// the kernelModule that is created below in the target constructor.
+HipABI::HipABI(Module &hostM, const TTOptions &tto)
+    : TapirTarget(hostM, tto), kernelModule("", hostM.getContext()),
+      nextKernelID(0) {
   LLVM_DEBUG(dbgs() << "hipABI: HipABI::HipABI()\n");
 
-  TargetMachine *TM = createTargetMachine(TTID::Hip, TTO);
-  KernelModule.setTargetTriple(TM->getTargetTriple());
-  KernelModule.setDataLayout(TM->createDataLayout());
+  TargetMachine *tm = createTargetMachine(TTID::Hip, tto);
+  kernelModule.setTargetTriple(tm->getTargetTriple());
+  kernelModule.setDataLayout(tm->createDataLayout());
 
-  KernelModule.setModuleIdentifier(getNameForDeviceModule(M, HIPABI_PREFIX));
-  addDeviceModuleMetadata(TTID::Hip, KernelModule);
-  cloneModuleFlagsMetadataInto(M, KernelModule);
-  cloneIdentMetadataInto(M, KernelModule);
+  kernelModule.setModuleIdentifier(getNameForDeviceModule(M, HIPABI_PREFIX));
+  addDeviceModuleMetadata(TTID::Hip, kernelModule);
+  cloneModuleFlagsMetadataInto(M, kernelModule);
+  cloneIdentMetadataInto(M, kernelModule);
 }
 
 HipABI::~HipABI() { /* no-op */ }
 
-Value *HipABI::lowerGrainsizeCall(CallInst *GrainsizeCall) {
+Value *HipABI::lowerGrainsizeCall(CallInst *grainsizeCall) {
   // TODO: The grain size on the GPU is a completely different beast than the
   // CPU cases Tapir was originally designed for. At present keeping the grain
   // size at 1 has almost always shown to yield the best results in terms of
   // performance but we should take a closer look...  We have some tweaks for
   // experimenting with this via the command line but it remains unexplored.
-  Value *Grainsize;
-  Grainsize = ConstantInt::get(GrainsizeCall->getType(), DefaultGrainSize);
-  // Replace uses of grain size intrinsic call with a computed grain size value.
-  GrainsizeCall->replaceAllUsesWith(Grainsize);
-  GrainsizeCall->eraseFromParent();
-  return Grainsize;
+  Type *gsType = grainsizeCall->getType();
+  Value *gs = ConstantInt::get(gsType, defaultGrainsize);
+
+  grainsizeCall->replaceAllUsesWith(gs);
+  grainsizeCall->eraseFromParent();
+  return gs;
 }
 
-void HipABI::lowerSync(SyncInst &SI) {}
-
-void HipABI::addHelperAttributes(Function &F) {}
+void HipABI::lowerSync(SyncInst &si) {
+  // This tapir target splits the code into two modules, one for the host, the
+  // other for the device. The sync instruction will only be present on the host
+  // module.
+}
 
 void HipABI::preProcessModule() {
   // Create the global variable that will eventually contain the fat binary of
@@ -550,27 +593,20 @@ void HipABI::preProcessModule() {
   (void)createEmbFBGlobal(TTID::Hip, M);
 }
 
-bool HipABI::preProcessFunction(Function &F, TaskInfo &TI,
-                                bool OutliningTapirLoops) {
-  return false;
-}
-
-void HipABI::postProcessFunction(Function &F, bool OutliningTapirLoops) {}
-
 void HipABI::postProcessModule() {
   // At this point, we are done with the minimum task of outlining the tapir
   // loop into a kernel module. There are still a number of transformations that
   // must be carried out on this module before it can be compiled to GPU code,
   // but those will be done by subsequent passes. The module here is in a state
   // where we can perform combined host/device analyses and optimizations.
-  (void)createEmbBCGlobal(KernelModule, TTID::Hip, M);
+  (void)createEmbBCGlobal(kernelModule, TTID::Hip, M);
 }
 
-LoopOutlineProcessor *HipABI::getLoopOutlineProcessor(const TapirLoopInfo *TL) {
+LoopOutlineProcessor *HipABI::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
   LLVM_DEBUG(dbgs() << "hipabi: create loop outlining processor.\n");
   LLVM_DEBUG(saveModuleToFile(&M, M.getName().str() + ".input"));
 
-  std::string KernelName =
-      getNameForTapirLoop(*TL, HIPABI_KERNEL_NAME_PREFIX, NextKernelID++);
-  return new HipLoop(M, KernelModule, KernelName, this->getOptions());
+  std::string kernelName =
+      getNameForTapirLoop(*tl, HIPABI_KERNEL_NAME_PREFIX, nextKernelID++);
+  return new HipLoop(M, kernelModule, kernelName, this->getOptions());
 }

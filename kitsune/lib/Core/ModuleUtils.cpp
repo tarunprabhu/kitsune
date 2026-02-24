@@ -12,11 +12,10 @@
 
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/ConstantUtils.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
-
-#include <set>
 
 using namespace llvm;
 
@@ -51,15 +50,15 @@ NamedMDNode &llvm::cloneModuleFlagsMetadataInto(const Module &hostM,
                                                 Module &devM) {
   // These are the module flags that should be cloned over. Others will be
   // ignored.
-  std::set<StringRef> flags = {"Debug Info Version", "Dwarf Version",
-                               "PIC Level", "PIE Level", "wchar_size"};
+  SmallSet<StringRef, 8> flags = {"Debug Info Version", "Dwarf Version",
+                                  "PIC Level", "PIE Level", "wchar_size"};
 
   NamedMDNode &nmd = *devM.getOrInsertModuleFlagsMetadata();
   if (const NamedMDNode *hostMD = hostM.getModuleFlagsMetadata())
     for (const MDNode *md : hostMD->operands())
       if (md->getNumOperands() > 1)
         if (auto *mdString = dyn_cast<MDString>(md->getOperand(1)))
-          if (flags.find(mdString->getString()) != flags.end())
+          if (flags.contains(mdString->getString()))
             nmd.addOperand(MDNode::replaceWithPermanent(md->clone()));
   return nmd;
 }

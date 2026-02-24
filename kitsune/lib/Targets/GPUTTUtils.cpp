@@ -28,34 +28,36 @@
 
 using namespace llvm;
 
-static void collectGlobalValues(Constant &c, std::set<GlobalValue *> &seen);
+static void collectGlobalValues(Constant &c, SmallSet<GlobalValue *, 8> &seen);
 
 static void collectGlobalValues(GlobalVariable &g,
-                                std::set<GlobalValue *> &seen) {
+                                SmallSet<GlobalValue *, 8> &seen) {
   seen.insert(&g);
   if (g.hasInitializer())
     collectGlobalValues(*g.getInitializer(), seen);
 }
 
-static void collectGlobalValues(GlobalIFunc &g, std::set<GlobalValue *> &seen) {
+static void collectGlobalValues(GlobalIFunc &g,
+                                SmallSet<GlobalValue *, 8> &seen) {
   seen.insert(&g);
   llvm_unreachable("kitsune: GNU IFUNC not yet supported");
 }
 
-static void collectGlobalValues(GlobalAlias &g, std::set<GlobalValue *> &seen) {
+static void collectGlobalValues(GlobalAlias &g,
+                                SmallSet<GlobalValue *, 8> &seen) {
   seen.insert(&g);
   llvm_unreachable("kitsune: GlobalAlias not yet supported");
 }
 
 static void collectGlobalValues(BlockAddress &blkaddr,
-                                std::set<GlobalValue *> &seen) {
+                                SmallSet<GlobalValue *, 8> &seen) {
   if (Function *f = blkaddr.getFunction())
     collectGlobalValues(*f, seen);
   if (BasicBlock *bb = blkaddr.getBasicBlock())
     collectGlobalValues(*bb, seen);
 }
 
-static void collectGlobalValues(Constant &c, std::set<GlobalValue *> &seen) {
+static void collectGlobalValues(Constant &c, SmallSet<GlobalValue *, 8> &seen) {
   if (GlobalValue *g = dyn_cast<GlobalValue>(&c))
     if (seen.find(g) != seen.end())
       return;
@@ -76,20 +78,21 @@ static void collectGlobalValues(Constant &c, std::set<GlobalValue *> &seen) {
         collectGlobalValues(*cop, seen);
 }
 
-void llvm::collectGlobalValues(BasicBlock &bb, std::set<GlobalValue *> &seen) {
+void llvm::collectGlobalValues(BasicBlock &bb,
+                               SmallSet<GlobalValue *, 8> &seen) {
   for (Instruction &inst : bb)
     for (Use &op : inst.operands())
       if (auto *c = dyn_cast<Constant>(&op))
         ::collectGlobalValues(*c, seen);
 }
 
-void llvm::collectGlobalValues(Function &f, std::set<GlobalValue *> &seen) {
+void llvm::collectGlobalValues(Function &f, SmallSet<GlobalValue *, 8> &seen) {
   seen.insert(&f);
   for (BasicBlock &bb : f)
     collectGlobalValues(bb, seen);
 }
 
-void llvm::collectGlobalValues(Loop &loop, std::set<GlobalValue *> &seen) {
+void llvm::collectGlobalValues(Loop &loop, SmallSet<GlobalValue *, 8> &seen) {
   // Collect the globals used in any subloops.
   for (Loop *subLoop : loop)
     for (BasicBlock *bb : subLoop->blocks())
@@ -101,7 +104,7 @@ void llvm::collectGlobalValues(Loop &loop, std::set<GlobalValue *> &seen) {
 }
 
 void llvm::cloneUsedGlobalVariablesInto(
-    Module &devM, const std::set<GlobalValue *> &usedGlobalValues,
+    Module &devM, const SmallSet<GlobalValue *, 8> &usedGlobalValues,
     ValueToValueMapTy &vmap, unsigned asConst, unsigned asNonConst,
     GlobalValue::VisibilityTypes visConst,
     GlobalValue::VisibilityTypes visNonConst) {
@@ -175,7 +178,7 @@ void llvm::cloneUsedGlobalVariablesInto(
 }
 
 void llvm::cloneReachableFuncsInto(
-    Module &devM, const std::set<GlobalValue *> &usedGlobalValues,
+    Module &devM, const SmallSet<GlobalValue *, 8> &usedGlobalValues,
     ValueToValueMapTy &vmap) {
   // Functions that are called from the tapir loop must be cloned into the
   // kernel module, especially if they contain a body. This is a two-step
@@ -218,7 +221,7 @@ void llvm::cloneReachableFuncsInto(
 }
 
 void llvm::cloneReachableIFuncsInto(
-    Module &devM, const std::set<GlobalValue *> &usedGlobalValues,
+    Module &devM, const SmallSet<GlobalValue *, 8> &usedGlobalValues,
     ValueToValueMapTy &vmap) {
   // IFunc's are a GNU extension, and it is unlikely that we will ever compile
   // code that uses them.
@@ -228,7 +231,7 @@ void llvm::cloneReachableIFuncsInto(
 }
 
 void llvm::cloneUsedGlobalAliasesInto(
-    Module &devM, const std::set<GlobalValue *> &usedGlobalValues,
+    Module &devM, const SmallSet<GlobalValue *, 8> &usedGlobalValues,
     ValueToValueMapTy &vmap) {
   // FIXME: At some point, we should support global aliases, but right now,
   // there are a number of other features that need to be supported.
@@ -287,7 +290,7 @@ std::string llvm::getNameForDeviceModule(const Module &hostM, StringRef pfx) {
   return join_items("", pfx, sys::path::filename(hostM.getName()));
 }
 
-static void copyNonConstGlobals(const std::set<GlobalValue *> &gvs, TTID tt,
+static void copyNonConstGlobals(const SmallSet<GlobalValue *, 8> &gvs, TTID tt,
                                 Intrinsic::ID copyFn, Module &m,
                                 IRBuilder<> &builder) {
   const DataLayout &dl = m.getDataLayout();
@@ -323,12 +326,12 @@ static void copyNonConstGlobals(const std::set<GlobalValue *> &gvs, TTID tt,
   }
 }
 
-void llvm::copyNonConstGlobalsDToH(const std::set<GlobalValue *> &gvs, TTID tt,
-                                   Module &m, IRBuilder<> &builder) {
+void llvm::copyNonConstGlobalsDToH(const SmallSet<GlobalValue *, 8> &gvs,
+                                   TTID tt, Module &m, IRBuilder<> &builder) {
   copyNonConstGlobals(gvs, tt, Intrinsic::kit_symbol_memcpy_dtoh, m, builder);
 }
 
-void llvm::copyNonConstGlobalsHToD(const std::set<GlobalValue *> &gvs, TTID tt,
-                                   Module &m, IRBuilder<> &builder) {
+void llvm::copyNonConstGlobalsHToD(const SmallSet<GlobalValue *, 8> &gvs,
+                                   TTID tt, Module &m, IRBuilder<> &builder) {
   copyNonConstGlobals(gvs, tt, Intrinsic::kit_symbol_memcpy_htod, m, builder);
 }
