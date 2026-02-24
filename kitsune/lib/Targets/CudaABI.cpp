@@ -55,7 +55,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/Tapir/CudaABI.h"
+#include "kitsune/Targets/CudaABI.h"
+#include "GPUTTUtils.h"
 #include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
@@ -70,7 +71,6 @@
 #include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Transforms/Tapir/KitsuneUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 

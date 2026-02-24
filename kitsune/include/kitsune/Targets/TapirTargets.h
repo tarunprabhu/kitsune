@@ -1,4 +1,4 @@
-//===- TapirTargets.h - Utilities to create tapir targets ------*- C++ -*--===//
+//===- TapirTargets.h - Utilities for tapir targets as a whole -*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities to create tapir target objects.
+// Utilities to create tapir target objects, query enabled tapir targets etc.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_CORE_TAPIR_TARGETS_H
-#define KITSUNE_CORE_TAPIR_TARGETS_H
+#ifndef KITSUNE_TARGETS_TAPIR_TARGETS_H
+#define KITSUNE_TARGETS_TAPIR_TARGETS_H
 
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
@@ -26,6 +26,9 @@ namespace llvm {
 /// \param tto  The tapir target options object
 std::unique_ptr<TapirTarget> makeTT(TTID tt, Module &m, const TTOptions &tto);
 
+/// Check if the given tapir target has been enabled in this build.
+bool isTTEnabled(TTID tt);
+
 } // namespace llvm
 
-#endif // KITSUNE_CORE_TAPIR_TARGETS_H
+#endif // KITSUNE_TARGETS_TAPIR_TARGETS_H

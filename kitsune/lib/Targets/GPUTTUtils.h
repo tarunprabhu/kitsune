@@ -1,4 +1,4 @@
-//===- KitsuneUtils.h - Kitsune-specific utilities -------------*- C++ -*--===//
+//===- GPUTTUtils.h - Utilities for GPU-centric tapir targets --*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,13 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities for the Kitsune-specific tapir targets. Moving these to a Kitsune
-// support library is more trouble than it is worth.
+// Utilities for the Kitsune's GPU-centric tapir targets.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_TAPIR_KITSUNE_UTILS_H
-#define LLVM_TRANSFORMS_TAPIR_KITSUNE_UTILS_H
+#ifndef KITSUNE_TARGETS_GPUTT_H
+#define KITSUNE_TARGETS_GPUTT_H
 
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
@@ -117,4 +116,4 @@ void copyNonConstGlobalsHToD(const std::set<GlobalValue *> &gvs, TTID tt,
 
 } // namespace llvm
 
-#endif // LLVM_TRANSFORMS_TAPIR_KITSUNE_UTILS_H
+#endif // KITSUNE_TARGETS_GPUTT_H

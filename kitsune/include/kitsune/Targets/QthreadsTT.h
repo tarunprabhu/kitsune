@@ -1,4 +1,4 @@
-//===- PthreadsTT.h - Tapir target using POSIX threads ---------*- C++ -*--===//
+//===- QthreadsTT.h - Tapir target that lowers to qthreads -----*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,13 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Tapir target that lowers to Kitsune pthreads runtime. This runtime targets
-// POSIX threads.
+// Tapir target that lowers to qthreads.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TAPIR_PTHREADS_TT_H
-#define LLVM_TAPIR_PTHREADS_TT_H
+#ifndef KITSUNE_TARGETS_QTHREADS_TT_H
+#define KITSUNE_TARGETS_QTHREADS_TT_H
 
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
@@ -20,13 +19,15 @@ namespace llvm {
 
 class TTOptions;
 
-/// Tapir target that splits the iterations of tapir loops across a number of
-/// POSIX threads.
+/// Tapir target that lowers to qthreads via a thin wrapper provided by Kitsune.
+/// The underlying qthreads runtime determines how to split the iterations of
+/// a parallel loop across available compute elements ("shepherds" in qthreads
+/// terminology).
 /// \ingroup kitsune
-class PthreadsTT : public TapirTarget {
+class QthreadsTT : public TapirTarget {
 public:
-  PthreadsTT(Module &m, const TTOptions &ttOpts);
-  virtual ~PthreadsTT() = default;
+  QthreadsTT(Module &m, const TTOptions &ttOpts);
+  virtual ~QthreadsTT() = default;
 
   /// Lower a call to the tapir.loop.grainsize intrinsic into a grainsize
   /// (coarsening) value.
@@ -105,4 +106,4 @@ public:
 
 } // namespace llvm
 
-#endif // LLVM_TAPIR_PTHREADS_TT_H
+#endif // KITSUNE_TARGETS_QTHREADS_TT_H

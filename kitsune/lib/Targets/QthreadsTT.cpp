@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/Tapir/QthreadsTT.h"
+#include "kitsune/Targets/QthreadsTT.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/FunctionUtils.h"
 #include "kitsune/Core/Tapir.h"

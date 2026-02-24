@@ -56,8 +56,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_TAPIR_CUDA_ABI_H
-#define LLVM_TRANSFORMS_TAPIR_CUDA_ABI_H
+#ifndef KITSUNE_TARGETS_CUDA_ABI_H
+#define KITSUNE_TARGETS_CUDA_ABI_H
 
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
@@ -170,4 +170,4 @@ public:
 
 } // namespace llvm
 
-#endif // LLVM_TRANSFORMS_TAPIR_CUDA_ABI_H
+#endif // KITSUNE_TARGETS_CUDA_ABI_H

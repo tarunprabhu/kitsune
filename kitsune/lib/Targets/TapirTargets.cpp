@@ -11,17 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Core/TapirTargets.h"
-#include "kitsune/Config/config.h"
+#include "kitsune/Targets/TapirTargets.h"
+#include "kitsune/Config/Config.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Support/ToString.h"
 
 #if KITSUNE_CUDA_ENABLED
-#include "llvm/Transforms/Tapir/CudaABI.h"
+#include "kitsune/Targets/CudaABI.h"
 #endif
 
 #if KITSUNE_HIP_ENABLED
-#include "llvm/Transforms/Tapir/HipABI.h"
+#include "kitsune/Targets/HipABI.h"
 #endif
 
 #if KITSUNE_LAMBDA_ENABLED
@@ -37,15 +37,15 @@
 #endif
 
 #if KITSUNE_PTHREADS_ENABLED
-#include "llvm/Transforms/Tapir/PthreadsTT.h"
+#include "kitsune/Targets/PthreadsTT.h"
 #endif
 
 #if KITSUNE_QTHREADS_ENABLED
-#include "llvm/Transforms/Tapir/QthreadsTT.h"
+#include "kitsune/Targets/QthreadsTT.h"
 #endif
 
 #if KITSNUE_REALM_ENABLED
-#include "llvm/Transforms/Tapir/RealmABI.h"
+#include "kitsune/Targets/RealmABI.h"
 #endif
 
 #if KITSUNE_SERIAL_ENABLED
@@ -191,4 +191,33 @@ std::unique_ptr<TapirTarget> llvm::makeTT(TTID tt, Module &m,
     return makeSerialTT(m, tto);
   }
   llvm_unreachable("makeTT: TTID not handled");
+}
+
+bool llvm::isTTEnabled(TTID tt) {
+  switch (tt) {
+  case TTID::Nolo:
+  case TTID::Serial:
+    return true;
+  case TTID::Cuda:
+    return kitCudaEnabled();
+  case TTID::Custom:
+    return kitCustomEnabled();
+  case TTID::Hip:
+    return kitHipEnabled();
+  case TTID::Lambda:
+    return kitLambdaEnabled();
+  case TTID::OMPTask:
+    return kitOMPTaskEnabled();
+  case TTID::OpenCilk:
+    return kitOpenCilkEnabled();
+  case TTID::OpenMP:
+    return kitOpenMPEnabled();
+  case TTID::Pthreads:
+    return kitPthreadsEnabled();
+  case TTID::Qthreads:
+    return kitQthreadsEnabled();
+  case TTID::Realm:
+    return kitRealmEnabled();
+  }
+  llvm_unreachable("isTTEnabled: TTID not handled");
 }
