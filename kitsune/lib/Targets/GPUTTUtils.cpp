@@ -1,4 +1,4 @@
-//===- KitsuneUtils.cpp - Kitsune-specific utilities ----------------------===//
+//===- GPUTTUtils.cpp - Utilities for GPU-centric tapir targets -----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities for the Kitsune-specific tapir targets. Moving these to a Kitsune
-// support library is more trouble than it is worth.
+// Utilities for the Kitsune's GPU-centric tapir targets.
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/Tapir/KitsuneUtils.h"
+#include "GPUTTUtils.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "llvm/ADT/StringExtras.h"
@@ -261,8 +260,8 @@ std::string llvm::getNameForTapirLoop(const TapirLoopInfo &tl, StringRef pfx,
     // with this until we can make some of the support tooling more robust to
     // allow us to mangle the name to avoid collisions.
     DebugLoc dbgLoc = loop->getStartLoc();
-    const DILocation* loc = dbgLoc.get();
-    if (const DILocation* inlinedLoc = dbgLoc.getInlinedAt())
+    const DILocation *loc = dbgLoc.get();
+    if (const DILocation *inlinedLoc = dbgLoc.getInlinedAt())
       loc = inlinedLoc;
     unsigned line = loc->getLine();
     unsigned col = loc->getColumn();

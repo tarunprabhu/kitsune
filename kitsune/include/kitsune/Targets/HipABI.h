@@ -55,8 +55,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_TAPIR_HIP_ABI_H
-#define LLVM_TRANSFORMS_TAPIR_HIP_ABI_H
+#ifndef KITSUNE_TARGETS_HIP_ABI_H
+#define KITSUNE_TARGETS_HIP_ABI_H
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
@@ -201,4 +201,4 @@ private:
 
 } // namespace llvm
 
-#endif // LLVM_TRANSFORMS_TAPIR_HIP_ABI_H
+#endif // KITSUNE_TARGETS_HIP_ABI_H

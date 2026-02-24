@@ -55,7 +55,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/Tapir/HipABI.h"
+#include "kitsune/Targets/HipABI.h"
+#include "GPUTTUtils.h"
 #include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
@@ -71,7 +72,6 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/AMDGPUAddrSpace.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Transforms/Tapir/KitsuneUtils.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 

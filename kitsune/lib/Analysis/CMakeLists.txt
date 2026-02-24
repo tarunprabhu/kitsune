@@ -15,6 +15,7 @@ add_llvm_component_library(LLVMKitAnalysis
   Core
   KitCore
   KitSupport
+  KitTargets
   Support
   TapirOpts
 )

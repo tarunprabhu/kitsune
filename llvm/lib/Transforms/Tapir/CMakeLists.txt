@@ -4,22 +4,12 @@ set(SOURCES
   LoopStripMine.cpp
   LoopStripMinePass.cpp
   LoweringUtils.cpp
-  KitsuneUtils.cpp
   Outline.cpp
-  PthreadsTT.cpp
   SerialABI.cpp
   SerializeSmallTasks.cpp
   TapirLoopInfo.cpp
   TapirToTarget.cpp
 )
-
-if (KITSUNE_CUDA_ENABLED)
-  list(APPEND SOURCES CudaABI.cpp)
-endif ()
-
-if (KITSUNE_HIP_ENABLED)
-  list(APPEND SOURCES HipABI.cpp)
-endif ()
 
 if (KITSUNE_LAMBDA_ENABLED)
   list(APPEND SOURCES LambdaABI.cpp)
@@ -31,18 +21,6 @@ endif ()
 
 if (KITSUNE_OPENCILK_ENABLED)
   list(APPEND SOURCES OpenCilkABI.cpp)
-endif ()
-
-if (KITSUNE_OPENMP_ENABLED)
-  list(APPEND SOURCES OpenMPABI.cpp)
-endif ()
-
-if (KITSUNE_QTHREADS_ENABLED)
-  list(APPEND SOURCES QthreadsTT.cpp)
-endif ()
-
-if (KITSUNE_REALM_ENABLED)
-  list(APPEND SOURCES RealmABI.cpp)
 endif ()
 
 add_llvm_component_library(LLVMTapirOpts

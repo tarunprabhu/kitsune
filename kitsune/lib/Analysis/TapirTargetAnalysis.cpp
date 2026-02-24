@@ -1,4 +1,4 @@
-//===- ModuleSummaryAnalysis.cpp - Module summary index builder -----------===//
+//===- TapirTargetAnalysis.cpp - Analysis pass for tapir targets ----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -13,7 +13,7 @@
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/LoopAttrs.h"
-#include "kitsune/Core/TapirTargets.h"
+#include "kitsune/Targets/TapirTargets.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
