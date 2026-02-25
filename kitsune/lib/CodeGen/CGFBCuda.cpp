@@ -174,10 +174,14 @@ private:
     args.push_back("--create");
     args.push_back(fatbinFilename);
 
+    // args is a vector of StringRefs. Since it doesn't own the contents, the
+    // contents of args must live at least as long as args. If imgArgs is
+    // declared inside the conditional, it will go out of scope when the body
+    // of the conditional is exited.
+    std::string imgArgs;
     if constexpr (kitCudaMajorVersion() < 13) {
-      std::string imgArgs =
-          join_items("", "--image=profile=", tto.getCudaArch(),
-                     ",file=", asmFile.getFilename());
+      imgArgs = join_items("", "--image=profile=", tto.getCudaArch(),
+                           ",file=", asmFile.getFilename());
       args.push_back(imgArgs);
     }
 
