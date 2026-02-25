@@ -128,9 +128,50 @@ public:
 public:
   /// Create a tapir loop nest object rooted at the given loop. If the loop is
   /// not a tapir loop, this will return nullptr.
+  /// Consider the loop shown here
+  ///
+  /// \code
+  ///     forall (i ...)
+  ///       forall (j ...)
+  ///         forall (k ...)
+  /// \endcode
+  ///
+  /// Here, tapir loop nest objects can be created that are rooted at any of
+  /// the forall loops since each of these is a valid tapir loop nest.
+  ///
   static std::unique_ptr<TapirLoopNest> create(Loop &loop, TaskInfo &ti,
                                                ScalarEvolution &se);
 };
+
+/// Return if the loop is a tapir loop.
+bool isTapirLoop(Loop &loop, TaskInfo &ti);
+
+/// Returns true if the loop is a tapir loop and ANY of the following conditions
+/// hold:
+///
+///   - The loop is a top-level loop
+///   - None of the ancestors of the loop are tapir loops
+///
+bool isTopLevelTapirLoop(Loop &loop, TaskInfo &ti);
+
+/// Returns true if the loop is a tapir loop and ALL of the following
+/// conditions hold:
+///
+///   - The tapir.loop.target attribute of the loop is a GPU-centric tapir
+///     target such as 'cuda', or 'hip'.
+///
+///   - Any tapir loops contained within it have the same tapir.loop.target
+///     attribute.
+///
+/// No assumptions are made about the structure of the subloops. Any non-tapir
+/// subloops are ignored.
+///
+bool isTapirLoopForGPU(Loop &loop, TaskInfo &ti);
+
+/// Returns true if the loop is a top-level tapir loop and isTapirLoopForGPU
+/// returns true for the loop. See the documentation for isTapirLoopForGPU for
+/// more details.
+bool isTopLevelTapirLoopForGPU(Loop &loop, TaskInfo &ti);
 
 } // namespace llvm
 

@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
+#include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -329,7 +331,7 @@ TapirLoopNest::TapirLoopNest(Loop &loop, TaskInfo &ti, ScalarEvolution &se)
   // each level, we expect exactly one tapir loop if it is to be a perfect
   // tapir loop nest.
   perfectTapirLoops.push_back(&loop);
-  for (unsigned d = outermostDepth + 1; d < outermostDepth + depth ; ++d) {
+  for (unsigned d = outermostDepth + 1; d < outermostDepth + depth; ++d) {
     LoopVectorTy loops = nest.getLoopsAtDepth(d);
     assert(!loops.empty() && "Loops at given depth not found");
 
@@ -348,4 +350,45 @@ std::unique_ptr<TapirLoopNest> TapirLoopNest::create(Loop &loop, TaskInfo &ti,
     return nullptr;
 
   return std::unique_ptr<TapirLoopNest>(new TapirLoopNest(loop, ti, se));
+}
+
+bool llvm::isTapirLoop(Loop &loop, TaskInfo &ti) {
+  return getTaskIfTapirLoop(&loop, &ti);
+}
+
+// Return true if any of the ancestors of a loop are tapir loops. The given
+// loop is not required to be a tapir loop. If the given loop is a top-level
+// loop, return false.
+static bool isAnyAncestorTapirLoop(Loop &loop, TaskInfo &ti) {
+  Loop *parentLoop = loop.getParentLoop();
+  if (!parentLoop)
+    return false;
+  else if (isTapirLoop(*parentLoop, ti))
+    return true;
+  else
+    return isAnyAncestorTapirLoop(*parentLoop, ti);
+}
+
+bool llvm::isTopLevelTapirLoop(Loop &loop, TaskInfo &ti) {
+  return isTapirLoop(loop, ti) && not isAnyAncestorTapirLoop(loop, ti);
+}
+
+bool llvm::isTapirLoopForGPU(Loop &loop, TaskInfo &ti) {
+  if (!isTapirLoop(loop, ti))
+    return false;
+
+  TTID tt = *getTapirLoopTargetAttr(loop);
+  if (tt != TTID::Cuda && tt != TTID::Hip)
+    return false;
+
+  for (Loop *subLoop : getAllSubLoops(loop))
+    if (isTapirLoop(*subLoop, ti))
+      if (getTapirLoopTargetAttr(*subLoop) != tt)
+        return false;
+
+  return true;
+}
+
+bool llvm::isTopLevelTapirLoopForGPU(Loop &loop, TaskInfo &ti) {
+  return isTopLevelTapirLoop(loop, ti) && isTapirLoopForGPU(loop, ti);
 }

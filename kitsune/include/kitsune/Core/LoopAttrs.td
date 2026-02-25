@@ -98,7 +98,7 @@ tapir targets.
 }];
 }
 
-// We name thie Grainsize to ensure that the name of the generated attribute is
+// We name this Grainsize to ensure that the name of the generated attribute is
 // tapir.loop.grainsize. This is backwards compatible with the name of the
 // attribute in OpenCilk. We may change this in the future to be more consistent
 // with the other attribute names, but that would require changes to most tests

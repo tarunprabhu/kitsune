@@ -13,6 +13,8 @@
 #ifndef KITSUNE_CORE_LOOP_UTILS_H
 #define KITSUNE_CORE_LOOP_UTILS_H
 
+#include "llvm/ADT/SmallVector.h"
+
 namespace llvm {
 
 /// \addtogroup kitsune
@@ -22,6 +24,9 @@ class Loop;
 
 /// Remove all attributes specific to tapir loops from the given loop.
 void clearTapirLoopAttrs(Loop &loop);
+
+/// Recursively gather all subloops of the given loop.
+SmallVector<Loop *, 4> getAllSubLoops(Loop &loop);
 
 /// @}
 
