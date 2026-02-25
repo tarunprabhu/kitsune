@@ -25,13 +25,3 @@ add_custom_target(kitsune-resource-headers ALL
 install(FILES kitsune.h
   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/clang/${LLVM_VERSION_MAJOR}/include
   COMPONENT kitsune-resource-headers)
-
-# However, the headers in include/kitsune are only installed if we are doing a
-# "non-toolchain-only" installation.
-if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
-  add_custom_target(kitsune-headers)
-
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/include/kitsune
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    COMPONENT kitsune-headers)
-endif ()
