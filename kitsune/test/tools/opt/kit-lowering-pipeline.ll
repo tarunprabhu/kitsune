@@ -41,8 +41,9 @@
 ; RUN:     | FileCheck %s -check-prefix O123SZ
 ;
 ; O123SZ:      Running pass:     AnnotateTapirLoopsPass
+; O123SZ-NEXT: Running pass:     SerializeTapirLoopsPass
+; O123SZ-NEXT: Running pass:     LoopSpawningPass
 ; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
-; O123SZ:      Running pass:     LoopSpawningPass
 ; O123SZ-NEXT: Running pass:     TapirToTargetPass
 ; O123SZ-NEXT: Running pass:     IPSCCPPass
 ; O123SZ-NEXT: Running pass:     CalledValuePropagationPass

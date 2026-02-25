@@ -24,3 +24,17 @@ void llvm::clearTapirLoopAttrs(Loop &loop) {
 
   loop.setLoopID(newLoopMD);
 }
+
+static void collectSubLoops(Loop &loop, SmallVector<Loop *, 4> &subLoops) {
+  for (Loop *subLoop : loop.getSubLoops()) {
+    subLoops.push_back(subLoop);
+    collectSubLoops(*subLoop, subLoops);
+  }
+}
+
+SmallVector<Loop *, 4> llvm::getAllSubLoops(Loop &loop) {
+  SmallVector<Loop *, 4> subLoops;
+  collectSubLoops(loop, subLoops);
+
+  return subLoops;
+}
