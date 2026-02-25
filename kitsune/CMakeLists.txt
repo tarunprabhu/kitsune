@@ -748,6 +748,11 @@ ExternalProject_Add(${KITSUNE_LIBNAME}
   BUILD_ALWAYS               TRUE
   CONFIGURE_HANDLED_BY_BUILD TRUE)
 
+# This is a custom target for any headers that are generated when building
+# Kitsune. This target should be made to depend on the targets that generate the
+# headers to ensure that they are available when installing.
+add_custom_target(kitsune-headers)
+
 # We do not enter the lib subdirectory here. The contents of lib/ are treated as
 # core LLVM libraries which become part of libLLVM.so. Therefore, the contents
 # are handled in llvm/lib/CMakeLists.txt.
