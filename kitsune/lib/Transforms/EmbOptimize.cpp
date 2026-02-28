@@ -12,10 +12,10 @@
 
 #include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Frontend/CommandLineOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/GlobalVariable.h"

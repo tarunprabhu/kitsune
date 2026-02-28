@@ -4,15 +4,27 @@
 ; RUN: opt -passes="kit-serialize-tapir-loops" --tapir=cuda %s -S 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,REMARK
 ;
-; REMARK: serialized tapir loop in function 'pep'
-; REMARK-NEXT: Loop at depth 2
+; RUN: opt -passes="kit-serialize-tapir-loops" --tapir=cuda %s -S \
+; RUN:     -serialize-verbose=1 2>&1 \
+; RUN:     | FileCheck %s --check-prefixes ALL,REMARK --allow-empty
+;
+; REMARK: in function 'pep': serialized loop
+; REMARK-NOT: Loop at depth 2
 ;
 ; ------------------------------------------------------------------------------
 ; RUN: opt -passes="kit-serialize-tapir-loops" --tapir=cuda %s -S \
-; RUN:     -serialize-quiet 2>&1 \
+; RUN:     -serialize-verbose=0 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,QUIET --allow-empty
 ;
-; QUIET-NOT: serialized tapir loop
+; QUIET-NOT: serialized loop
+;
+; ------------------------------------------------------------------------------
+; RUN: opt -passes="kit-serialize-tapir-loops" --tapir=cuda %s -S \
+; RUN:     -serialize-verbose=2 2>&1 \
+; RUN:     | FileCheck %s --check-prefixes ALL,VERBOSE --allow-empty
+;
+; VERBOSE: in function 'pep': serialized loop
+; VERBOSE-NEXT: Loop at depth 2
 ;
 ; ------------------------------------------------------------------------------
 ;

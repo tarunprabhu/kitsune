@@ -1,7 +1,15 @@
 include(GetClangResourceDir)
 
+# Create a single target that other targets, especially those in LLVM, can
+# depend on to ensure that all tablegen files in Kitsune have been processed.
+# This target will depend on the targets created by kitsune_tablegen. Those
+# dependencies will be added in the appropriate subdirectories where
+# kitsune_tablegen is actually called.
+add_custom_target(kitsune_generated)
+
 add_subdirectory(Config)
 add_subdirectory(Core)
+add_subdirectory(Frontend)
 
 get_clang_resource_dir(CLANG_RESOURCE_INCDIR
   PREFIX ${LLVM_LIBRARY_OUTPUT_INTDIR}/..

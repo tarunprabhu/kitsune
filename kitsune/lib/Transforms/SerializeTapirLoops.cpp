@@ -12,68 +12,51 @@
 
 #include "kitsune/Transforms/SerializeTapirLoops.h"
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
-#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
-#include "llvm/ADT/StringExtras.h"
+#include "kitsune/Frontend/CommandLineOptions.h"
+#include "kitsune/Frontend/Diagnostics.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
-#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/WithColor.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
-
-#include <map>
 
 #define DEBUG_TYPE "kit-serialize-tapir-loops"
 
 using namespace llvm;
 
-// We emit a "remark" every time a tapir loop is serialized. This is just for
-// our own sanity because we want to know what Kitsune does, especially with
-// more complex codes. But it can be turned off if needed. It's probably not
-// worth promoting this to a top-level (i.e. frontend) option.
-static cl::opt<bool> clSerializeQuiet(
-    "serialize-quiet", cl::init(false), cl::Hidden,
-    cl::desc("Do not emit remarks when serializing tapir loops"),
+/// How verbose do we want this pass to be. For now, for our own sanity when
+/// working with complex codes, this will always emit a remark when a loop is
+/// serialized. But this verbosity can be controlled if needed. It is probably
+/// not worth promoting this to a frontend option.
+///
+/// The valid values for this option are:
+///
+///   0  Disable all remarks and notes. This is how most other LLVM passes
+///      operate by default.
+///
+///   1  Emit remarks, but not notes. These will only emit a message indicating
+///      that a loop was serialized. If location information is available for
+///      the loop (only if debug information is present), that will be emitted
+///      in the remark.
+///
+///   2  In addition to the remark, print a serialized representation of the
+///      loop that was serialized.
+///
+static cl::opt<unsigned> clSerializeVerbose(
+    "serialize-verbose", cl::init(1U), cl::Hidden,
+    cl::desc("The verbosity level of the kit-serialize-tapir-loops pass. Must "
+             "be 0, 1, 2"),
     cl::cat(cl::catKitClDevOpts));
 
-// static std::string toString(StringRef file, unsigned line, unsigned col) {
-//   std::string buf;
-//   raw_string_ostream os(buf);
+/// Convert the loop to a string representation for diagnostics.
+static SmallString<256> toString(const Loop &loop) {
+  SmallString<256> buf;
+  raw_svector_ostream os(buf);
 
-//   os << file << ":" << line << ":" << col;
-//   os.flush();
-//   return buf;
-// }
-
-static std::string getLoopLoc(const Loop &loop) {
-  if (BasicBlock *latch = loop.getLoopLatch())
-    if (DebugLoc dbg = latch->getTerminator()->getDebugLoc())
-      if (const auto *scope = dyn_cast<DIScope>(dbg.getScope()))
-        return llvm::join_items(":", scope->getFilename(),
-                                std::to_string(dbg.getLine()),
-                                std::to_string(dbg.getCol()));
-  return "";
-}
-
-static void printRemark(StringRef msg, const Loop &loop) {
-  bool hasColors = WithColor(errs()).colorsEnabled();
-  std::string loc = getLoopLoc(loop);
-  WithColor::remark();
-  if (hasColors)
-    errs().changeColor(raw_ostream::SAVEDCOLOR, /*bold=*/true);
-  if (loc.size()) {
-    errs() << loc << ": " << msg << "\n";
-    if (hasColors)
-      errs().resetColor();
-  } else {
-    Function *f = loop.getHeader()->getParent();
-    errs() << msg << " in function '" << f->getName() << "'\n";
-    if (hasColors)
-      errs().resetColor();
-    errs() << "    " << loop << "\n";
-  }
+  os << loop;
+  return buf;
 }
 
 /// If the given syncregion has only a single use, and the user is a sync
@@ -109,15 +92,17 @@ static bool resetMaxPerfectDepth(Loop &loop, unsigned newDepth) {
   return true;
 }
 
-/// Serialize the loop depending on the loop level. Return true if the loop
-/// was serialized, false otherwise.
-static void serializeLoop(Loop &loop, Task &task) {
+/// Serialize the loop depending on the loop level. Always returns true.
+static bool serializeLoop(Loop &loop, Task &task) {
+  if (clSerializeVerbose) {
+    emitDiagnostic(loop, DiagID::RemarkSerializedLoop);
+    if (clSerializeVerbose == 2)
+      emitDiagnostic(DiagID::NoteSerializedLoop, toString(loop));
+  }
+
   unsigned perfectLevel = getTapirLoopPerfectLevelAttr(loop).value_or(0);
   DetachInst *detach = task.getDetach();
   Value *syncRegion = detach->getSyncRegion();
-
-  if (not clSerializeQuiet)
-    printRemark("serialized tapir loop", loop);
 
   SerializeDetach(task.getDetach(), &task);
   removeSyncRegionAndSync(syncRegion);
@@ -129,26 +114,71 @@ static void serializeLoop(Loop &loop, Task &task) {
     // longer contain any tapir loop annotations. These are required by
     // resetMaxPerfectDepth().
     resetMaxPerfectDepth(*loop.getParentLoop(), 3);
+
+  return true;
 }
 
-static bool shouldSerializeLoop(Loop &loop, TaskInfo &ti) {
-  if (!isTapirLoop(loop, ti))
-    return false;
+/// Populate the output parameter \p loopsToSerialize with loops that have
+/// one of the GPU-centric tapir targets, 'cuda' or 'hip', and any of the
+/// following are true:
+///
+///   - It is perfectly nested within a tapir loop nest at a level greater
+///     than 3.
+///
+///   - The loop is part of a tapir loop nest, but is not perfectly nested.
+///
+///   - The loop is perfectly nested within a loop nest, but at a level
+///     greater than the depth of the outer tapir loop nest. This can be
+///     because one of the ancestors of the tapir loop is a non-tapir loop.
+///
+static void populateGPULoopsToSerialize(LoopInfo &li, TaskInfo &ti,
+                                        SetVector<Loop *> &loopsToSerialize) {
+  auto shouldSerializeLoop = [](Loop &loop, TaskInfo &ti) -> bool {
+    if (!isTapirLoop(loop, ti))
+      return false;
 
-  // In cases such as those shown below, the innermost forall loops will not
-  // contain a perfect level annotation.
-  //
-  //   forall (i ...)
-  //     for (j ...)
-  //       forall (k ...)
-  //
-  // In such cases, getTapirLoopPerfectLevelAttr() will return 0.
-  //
-  // At the current time, multidimensional kernel launches can have at most 3
-  // dimensions. If deeper perfectly nested tapir loops are found, serialize
-  // them since there is not much else we can do.
-  unsigned perfectLevel = getTapirLoopPerfectLevelAttr(loop).value_or(0);
-  return perfectLevel == 0 || perfectLevel > 3;
+    // In cases such as those shown below, the innermost forall loops will not
+    // contain a perfect level annotation.
+    //
+    //   forall (i ...)
+    //     for (j ...)
+    //       forall (k ...)
+    //
+    // In such cases, getTapirLoopPerfectLevelAttr() will return 0.
+    //
+    // At the current time, multidimensional kernel launches can have at most 3
+    // dimensions. If deeper perfectly nested tapir loops are found, serialize
+    // them since there is not much else we can do.
+    unsigned perfectLevel = getTapirLoopPerfectLevelAttr(loop).value_or(0);
+    return perfectLevel == 0 || perfectLevel > 3;
+  };
+
+  for (Loop *loop : li.getLoopsInPreorder())
+    if (isTopLevelTapirLoopForGPU(*loop, ti))
+      for (Loop *subLoop : getAllSubLoops(*loop))
+        if (shouldSerializeLoop(*subLoop, ti))
+          loopsToSerialize.insert(subLoop);
+}
+
+SetVector<Loop *> getLoopsToSerialize(LoopInfo &li, TaskInfo &ti) {
+  SetVector<Loop *> loopsToSerialize;
+  populateGPULoopsToSerialize(li, ti, loopsToSerialize);
+
+  return loopsToSerialize;
+}
+
+/// Check the loops in the given function and serialize any that should be
+/// serialized. Return true if at least one loop was serialized, false
+/// otherwise.
+static bool run(Function &f, FunctionAnalysisManager &am) {
+  bool changed = false;
+  LoopInfo &li = am.getResult<LoopAnalysis>(f);
+  TaskInfo &ti = am.getResult<TaskAnalysis>(f);
+
+  for (Loop *loop : getLoopsToSerialize(li, ti))
+    changed |= serializeLoop(*loop, *getTaskIfTapirLoop(loop, &ti));
+
+  return changed;
 }
 
 PreservedAnalyses SerializeTapirLoopsPass::run(Module &m,
@@ -157,38 +187,9 @@ PreservedAnalyses SerializeTapirLoopsPass::run(Module &m,
   FunctionAnalysisManager &fam =
       mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
 
-  for (Function &f : m) {
-    if (!f.size())
-      continue;
-
-    LoopInfo &li = fam.getResult<LoopAnalysis>(f);
-    TaskInfo &ti = fam.getResult<TaskAnalysis>(f);
-
-    // Serialize certain tapir loops when the primary tapir target is one of the
-    // GPU-centric tapir targets, 'cuda' and 'hip'. Currently, a tapir loop is
-    // serialized if any of the following conditions hold:
-    //
-    //   - It is perfectly nested within a tapir loop nest at a level greater
-    //     than 3.
-    //
-    //   - The loop is part of a tapir loop nest, but is not perfectly nested.
-    //
-    //   - The loop is perfectly nested within a loop nest, but at a level
-    //     greater than the depth of the outer tapir loop nest. This can be
-    //     because one of the ancestors of the tapir loop is a non-tapir loop.
-    //
-    std::map<Loop *, Task *> loopsToSerialize;
-    for (Loop *loop : li.getLoopsInPreorder())
-      if (isTopLevelTapirLoopForGPU(*loop, ti))
-        for (Loop *subLoop : getAllSubLoops(*loop))
-          if (shouldSerializeLoop(*subLoop, ti))
-            loopsToSerialize[subLoop] = getTaskIfTapirLoop(subLoop, &ti);
-
-    for (auto &[loop, task] : loopsToSerialize)
-      serializeLoop(*loop, *task);
-
-    changed |= loopsToSerialize.size();
-  }
+  for (Function &f : m)
+    if (f.size())
+      changed |= ::run(f, fam);
 
   if (changed)
     return PreservedAnalyses::none();

@@ -13,7 +13,7 @@
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "EmbPrepareImpl.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Core/CommandLineOptions.h"
+#include "kitsune/Frontend/CommandLineOptions.h"
 
 using namespace llvm;
 

@@ -1,0 +1,108 @@
+//===- Diagnostics.td - Kitsune-specific diagnostics -------*- tablegen -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the diagnostics that Kitsune may emit from the middle-end
+//
+//===----------------------------------------------------------------------===//
+
+// Base class indicating the severity of a diagnostic. Each instance of this
+// class represents a different severity.
+class Severity;
+
+// A note. This is intended to add additional information to a previously
+// emitted diagnostic - usually a remark.
+def SNote : Severity;
+
+// A remark. This is used to indicate the result of an analysis or
+// transformation performed by Kitsune.
+def SRemark : Severity;
+
+// A warning.
+def SWarn : Severity;
+
+// An error.
+def SErr : Severity;
+
+// A diagnostic message.
+class Diag<Severity SevParam, string MsgParam> {
+  // The severity of the diagnostic.
+  Severity Sev = SevParam;
+
+  // The message that this diagnostic emits. This may be a format string that
+  // follows the grammar supported by llvm::formatv.
+  string Msg = MsgParam;
+}
+
+// Base class for all errors.
+class Error<string Msg> : Diag<SErr, Msg>;
+
+// Base class for all warnings.
+class Warning<string Msg> : Diag<SWarn, Msg>;
+
+// Base class for all remarks.
+class Remark<string Msg> : Diag<SRemark, Msg>;
+
+// Base class for all notes.
+class Note<string Msg> : Diag<SNote, Msg>;
+
+
+// -------------------------- Kitsune-specific errors --------------------------
+//
+// Although not strictly required, the names of all errors should be prefixed
+// with Err.
+
+def ErrOptionOccurrences
+  : Error<"option '--{}' must be provided exactly once">;
+
+def ErrOptionValueMissing
+  : Error<"at least one valid value is required for option '--{}'">;
+
+def ErrOptionValueInvalid
+  : Error<"value '{}' is invalid for option '--{}'">;
+
+def ErrOptionValueInvalidRange
+  : Error<"value '{}' in not in expected range [{}, {}] for option '--{}'">;
+
+def ErrTTNotEnabled
+  : Error<"required tapir target '{}' has not been enabled">;
+
+def ErrTTMultiple
+  : Error<"compiling for multiple tapir targets at a time is not supported">;
+
+def ErrTTIncompatible
+  : Error<"tapir targets '{}' and '{}' cannot be used together">;
+
+def ErrTTIncompatibleLoop
+  : Error<"tapir targets '{}' and '{}' cannot be used together in a loop nest">;
+
+
+// ------------------------- Kitsune-specific warnings -------------------------
+//
+// Although not strictly required, the names of all warnings should be prefixed
+// with Warn.
+
+def WarnSerialInParallelLoopNest
+  : Warning<"serial loop between parallel loops in loop nest">;
+
+
+// ------------------------- Kitsune-specific remarks -------------------------
+//
+// Although not strictly required, the names of all remarks should be prefixed
+// with Remark.
+
+def RemarkSerializedLoop
+  : Remark<"serialized loop">;
+
+
+// -------------------------- Kitsune-specific notes --------------------------
+//
+// Although not strictly required, the names of all notes should be prefixed
+// with Note.
+
+def NoteSerializedLoop
+  : Note<"serialized loop: {}">;

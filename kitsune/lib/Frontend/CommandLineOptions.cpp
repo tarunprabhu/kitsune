@@ -1,4 +1,4 @@
-//=- CommandLineOptions.cpp - Command line options for Kitsune tools --------=//
+//===- CommandLineOptions.cpp - Command line options for Kitsune tools ----===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Core/CommandLineOptions.h"
+#include "kitsune/Frontend/CommandLineOptions.h"
 
 using namespace llvm;
 
