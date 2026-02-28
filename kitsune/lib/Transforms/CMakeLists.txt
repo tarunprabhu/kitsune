@@ -34,6 +34,7 @@ add_llvm_component_library(LLVMKitTransforms
   IRReader
   KitAnalysis
   KitCore
+  KitFrontend
   KitSupport
   Linker
   Passes

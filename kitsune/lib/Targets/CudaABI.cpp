@@ -57,7 +57,6 @@
 
 #include "kitsune/Targets/CudaABI.h"
 #include "GPUTTUtils.h"
-#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/KernelProperties.h"
@@ -65,6 +64,7 @@
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Frontend/CommandLineOptions.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"

@@ -1,6 +1,7 @@
 add_subdirectory(Analysis)
 add_subdirectory(CodeGen)
 add_subdirectory(Core)
+add_subdirectory(Frontend)
 add_subdirectory(Passes)
 add_subdirectory(Support)
 add_subdirectory(Targets)

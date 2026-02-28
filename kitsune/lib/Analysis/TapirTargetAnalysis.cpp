@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Core/CommandLineOptions.h"
 #include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Frontend/CommandLineOptions.h"
 #include "kitsune/Targets/TapirTargets.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"

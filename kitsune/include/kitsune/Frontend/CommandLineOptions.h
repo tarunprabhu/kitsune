@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_CORE_COMMAND_LINE_OPTIONS_H
-#define KITSUNE_CORE_COMMAND_LINE_OPTIONS_H
+#ifndef KITSUNE_FRONTEND_COMMAND_LINE_OPTIONS_H
+#define KITSUNE_FRONTEND_COMMAND_LINE_OPTIONS_H
 
 #include "llvm/Support/CommandLine.h"
 
@@ -38,4 +38,4 @@ extern cl::OptionCategory catKitClDevOpts;
 
 } // namespace llvm
 
-#endif // KITSUNE_CORE_COMMAND_LINE_OPTIONS_H
+#endif // KITSUNE_FRONTEND_COMMAND_LINE_OPTIONS_H

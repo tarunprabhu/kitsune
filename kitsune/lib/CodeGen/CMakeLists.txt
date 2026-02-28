@@ -13,6 +13,7 @@ add_llvm_component_library(LLVMKitCodeGen
   Core
   KitAnalysis
   KitCore
+  KitFrontend
   KitSupport
   Support
 )

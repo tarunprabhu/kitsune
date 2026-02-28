@@ -40,7 +40,7 @@ add_llvm_component_library(LLVMKitTargets
 
   DEPENDS
   intrinsics_gen
-  kitsune_generated_attrs
+  kitsune_generated
 
   # There is a circular dependence here between this library and LLVMCore. For
   # more details, see llvm/lib/IR/CMakeLists.txt. It would be nice if we could
@@ -49,6 +49,7 @@ add_llvm_component_library(LLVMKitTargets
   BitReader
   BitWriter
   Core
+  KitFrontend
   KitSupport
   Support
   TapirOpts
