@@ -33,4 +33,4 @@
 # RUN:     -passes='kit-lowering<O1>' %S/input/empty.ll 2>&1 \
 # RUN:     | FileCheck %s
 #
-# CHECK: Wrong API version on plugin
+# CHECK: wrong API version on plugin

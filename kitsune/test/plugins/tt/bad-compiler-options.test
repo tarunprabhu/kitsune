@@ -35,4 +35,4 @@
 # RUN:     -passes='kit-lowering<O1>' %S/input/empty.ll 2>&1 \
 # RUN:     | FileCheck %s
 #
-# CHECK: Missing compiler options callback in plugin
+# CHECK: missing compiler options callback in plugin

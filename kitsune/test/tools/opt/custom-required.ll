@@ -7,7 +7,7 @@
 ; RUN:     -passes='tapir-lowering<O1>' %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=PLUGIN
 ;
-; PLUGIN: error: the --tapir-plugin option must be provided exactly once
+; PLUGIN: error: option '--tapir-plugin' must be provided exactly once
 ;
 ; ------------------------------------------------------------------------------
 ; This runs the loop-vectorize pass instead of loop-spawning. loop-spawning

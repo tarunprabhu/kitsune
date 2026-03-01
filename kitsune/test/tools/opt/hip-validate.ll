@@ -9,7 +9,7 @@
 ; RUN:         -passes='kit-lowering<O1>' -S %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=ARCH
 ;
-; ARCH: error: for the --tapir-hip-arch option: value '' is invalid
+; ARCH: error: option '--tapir-hip-arch' has invalid value ''
 ;
 ; ------------------------------------------------------------------------------
 ; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90c \
@@ -22,8 +22,7 @@
 ; RUN:         -passes='kit-lowering<O1>' -S %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=BC
 ;
-; BC: error: for the --tapir-hip-runtime-bcs option:
-; BC-SAME: at least one valid value is required
+; BC: error: option '--tapir-hip-runtime-bcs' requires at least one valid value
 ;
 ; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:         --tapir-hip-runtime-bcs=noexist \
@@ -35,7 +34,7 @@
 ; RUN:         -passes='kit-lowering<O1>' -S %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=BC-NOEXIST
 ;
-; BC-NOEXIST: error: failed to parse LLVM file
+; BC-NOEXIST: error: could not parse LLVM file
 ; BC-NOEXIST-SAME: Could not open input file
 ; BC-NOEXIST-SAME: No such file or directory
 ;
@@ -44,7 +43,7 @@
 ; RUN:         -passes='kit-lowering<O1>' -S %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=BC-CONTENTS
 ;
-; BC-CONTENTS: error: failed to parse LLVM file
+; BC-CONTENTS: error: could not parse LLVM file
 ; BC-CONTENTS-SAME: expected top-level entity
 ;
 ; ------------------------------------------------------------------------------
@@ -54,7 +53,7 @@
 ; RUN:         -passes='kit-lowering<O1>' -S %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=FEATURES
 ;
-; FEATURES: error: for the --tapir-hip-features option: value '' is invalid
+; FEATURES: error: option '--tapir-hip-features' has invalid value ''
 ;
 ; ------------------------------------------------------------------------------
 ; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90c \
@@ -132,7 +131,6 @@
 ; RUN:     | FileCheck %s --check-prefix=RANGE
 ;
 ; TPB: for the --tapir-gpu{{(-.+)?}}-tpb option: '{{.*}}' value invalid
-; RANGE: error: for the --tapir-gpu{{(-.+)?}}-tpb option:
-; RANGE-SAME: value '{{.+}}' is not in range [1,1024]
+; RANGE: error: option '--tapir-gpu{{(-.+)?}}-tpb' has value '{{.*}}' not in range [1,1024]
 ;
 ; ------------------------------------------------------------------------------
