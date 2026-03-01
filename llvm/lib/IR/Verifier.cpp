@@ -52,6 +52,7 @@
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TypeUtils.h"
+#include "kitsune/Support/ErrorUtils.h"
 #include "kitsune/Support/TTIDUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/APFloat.h"
@@ -745,9 +746,9 @@ void Verifier::visitEmbModule(const Module &EmbM, TTID TTFromHostGV) {
 }
 
 void Verifier::visitEmbFBGlobalVariable(const GlobalVariable &G) {
+  Check(G.hasName(), "global containing device code does not have a name");
   Check(isByteArrayTy(G.getValueType()),
         "incorrect type of global containing fat binary");
-
   Check(G.hasInitializer(),
         "missing initializer in global containing fat binary");
 
@@ -757,6 +758,7 @@ void Verifier::visitEmbFBGlobalVariable(const GlobalVariable &G) {
 }
 
 void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
+  Check(G.hasName(), "global containing embedded bitcode does not have a name");
   Check(isByteArrayTy(G.getValueType()),
         "incorrect type of global containing bitcode");
   Check(G.hasInitializer(), "missing initializer in global containing bitcode");
@@ -850,7 +852,11 @@ void Verifier::visitKPGlobals() {
   if (not hasKPGlobals(M))
     return;
 
-  EmbModulesMapTy EmbMs = getEmbModules(M);
+  Expected<EmbModulesMapTy> EmbMsOrErr = getEmbModules(M);
+  if (!EmbMsOrErr)
+    return ignoreAllErrors(EmbMsOrErr.takeError());
+
+  EmbModulesMapTy EmbMs = std::move(*EmbMsOrErr);
   for (const GlobalVariable &G : M.globals()) {
     // If the global variable has the kit_kernel_props attribute, it must also
     // have kit_tt. We may have a broken module, so check for the presence of

@@ -3,6 +3,6 @@
 ; RUN: not %kit-mbc %s 2>&1 | FileCheck %s
 ; RUN: echo "BC" | not %kit-mbc 2>&1 | FileCheck %s
 ;
-; CHECK: error:
+; CHECK: error: expected top-level entity
 
 BC

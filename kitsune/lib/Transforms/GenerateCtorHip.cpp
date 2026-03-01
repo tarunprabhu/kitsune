@@ -16,6 +16,7 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Support/ErrorHandling.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
@@ -270,8 +271,11 @@ public:
     GlobalVariable *gBC = getEmbBCGlobal(TTID::Hip, m);
     assert(gBC && "Could not find global with embedded bitcode");
 
-    std::unique_ptr<Module> devM = parseEmbBCGlobal(*gBC);
+    Expected<std::unique_ptr<Module>> devMOrErr = parseEmbBCGlobal(*gBC);
+    if (not devMOrErr)
+      exitOnError(devMOrErr.takeError());
 
+    std::unique_ptr<Module> devM = std::move(devMOrErr.get());
     GlobalVariable *gBundle = createBundleGV(m, gFB);
     GlobalVariable *gBundleHandle = createBundleHandleGV(m);
     Function *dtor = createDtor(m, gBundleHandle);

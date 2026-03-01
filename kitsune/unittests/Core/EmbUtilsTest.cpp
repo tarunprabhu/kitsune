@@ -19,6 +19,20 @@ using namespace llvm;
 
 namespace {
 
+static constexpr StringRef fcuda = R"(
+define i32 @fcuda(i32 %n) {
+entry:
+  ret i32 %n
+}
+)";
+
+static constexpr StringRef fhip = R"(
+define i32 @fhip(i32 %n) {
+entry:
+  ret i32 %n
+}
+)";
+
 static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
   SMDiagnostic err;
   std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
@@ -30,38 +44,36 @@ static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
 TEST(KitEmbUtils, createEmbBCGlobal) {
   LLVMContext ctx;
   std::unique_ptr<Module> hostM = parseIR(ctx, R"()");
-  std::unique_ptr<Module> cudaM = parseIR(ctx, R"(
-define i32 @fcuda(i32 %n) {
-entry:
-  ret i32 %n
-}
-)");
 
-  GlobalVariable *g = createEmbBCGlobal(*cudaM, TTID::Cuda, *hostM);
+  std::unique_ptr<Module> cudaM = parseIR(ctx, fcuda);
+  GlobalVariable *gc = createEmbBCGlobal(*cudaM, TTID::Cuda, *hostM);
+  EXPECT_TRUE(gc->hasName());
+  EXPECT_TRUE(gc->hasAttribute(Attribute::KitBC));
+  EXPECT_TRUE(gc->hasAttribute(Attribute::KitTT));
+  EXPECT_EQ(gc->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
+  EXPECT_EQ(gc->getParent(), hostM.get());
+  EXPECT_EQ(getEmbBCGlobal(TTID::Cuda, *hostM), gc);
 
-  // The global variable containing embedded bitcode must have a name, otherwise
-  // it may be deleted by the global variable optimizastion pass.
-  EXPECT_TRUE(g->hasName());
-  EXPECT_TRUE(g->hasAttribute(Attribute::KitBC));
-  EXPECT_TRUE(g->hasAttribute(Attribute::KitTT));
-  EXPECT_EQ(g->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
-  EXPECT_EQ(g->getParent(), hostM.get());
-  EXPECT_EQ(getEmbBCGlobal(TTID::Cuda, *hostM), g);
+  std::unique_ptr<Module> hipM = parseIR(ctx, fhip);
+  GlobalVariable *gh = createEmbBCGlobal(*hipM, TTID::Hip, *hostM);
+  EXPECT_TRUE(gh->hasName());
+  EXPECT_TRUE(gh->hasAttribute(Attribute::KitBC));
+  EXPECT_TRUE(gh->hasAttribute(Attribute::KitTT));
+  EXPECT_EQ(gh->getAttribute(Attribute::KitTT).getTTID(), TTID::Hip);
+  EXPECT_EQ(gh->getParent(), hostM.get());
+  EXPECT_EQ(getEmbBCGlobal(TTID::Hip, *hostM), gh);
 }
 
 TEST(KitEmbUtils, parseEmbBCGlobal) {
   LLVMContext ctx;
   std::unique_ptr<Module> hostM = parseIR(ctx, R"()");
-  std::unique_ptr<Module> cudaM = parseIR(ctx, R"(
-define i32 @fcuda(i32 %n) {
-entry:
-  ret i32 %n
-}
-)");
+  std::unique_ptr<Module> cudaM = parseIR(ctx, fcuda);
 
   GlobalVariable *gCuda = createEmbBCGlobal(*cudaM, TTID::Cuda, *hostM);
-  std::unique_ptr<Module> parseCudaM = parseEmbBCGlobal(*gCuda);
+  Expected<std::unique_ptr<Module>> parseCudaMOrErr = parseEmbBCGlobal(*gCuda);
+  EXPECT_EQ((bool)parseCudaMOrErr, true);
 
+  std::unique_ptr<Module> parseCudaM = std::move(*parseCudaMOrErr);
   EXPECT_TRUE(parseCudaM->getFunction("fcuda"));
   EXPECT_EQ(parseCudaM->getName(), "");
 
@@ -78,8 +90,10 @@ entry:
 )");
 
   GlobalVariable *gHip = createEmbBCGlobal(*hipM, TTID::Hip, *hostM);
-  std::unique_ptr<Module> parseHipM = parseEmbBCGlobal(*gHip);
+  Expected<std::unique_ptr<Module>> parseHipMOrErr = parseEmbBCGlobal(*gHip);
+  EXPECT_EQ((bool)parseHipMOrErr, true);
 
+  std::unique_ptr<Module> parseHipM = std::move(*parseHipMOrErr);
   EXPECT_TRUE(parseHipM->getFunction("fhip"));
   EXPECT_EQ(parseHipM->getName(), "some-silly-name");
 }
@@ -88,31 +102,27 @@ TEST(KitEmbUtils, resetEmbBCGlobal) {
   LLVMContext ctx;
   std::unique_ptr<Module> parseM = nullptr;
   std::unique_ptr<Module> hostM = parseIR(ctx, R"()");
-  std::unique_ptr<Module> cudaM = parseIR(ctx, R"(
-define i32 @fcuda(i32 %n) {
-entry:
-  ret i32 %n
-}
-)");
-  std::unique_ptr<Module> hipM = parseIR(ctx, R"(
-define i32 @fhip(i32 %n) {
-entry:
-  ret i32 %n
-}
-)");
+  std::unique_ptr<Module> cudaM = parseIR(ctx, fcuda);
+  std::unique_ptr<Module> hipM = parseIR(ctx, fhip);
 
   GlobalVariable *g0 = createEmbBCGlobal(*cudaM, TTID::Cuda, *hostM);
   g0->setName("g0");
 
-  parseM = parseEmbBCGlobal(*g0);
+  Expected<std::unique_ptr<Module>> parseMOrErr0 = parseEmbBCGlobal(*g0);
+  EXPECT_EQ((bool)parseMOrErr0, true);
+
+  parseM = std::move(*parseMOrErr0);
   EXPECT_TRUE(hostM->getGlobalVariable("g0"));
   EXPECT_FALSE(hostM->getGlobalVariable("g1"));
   EXPECT_TRUE(parseM->getFunction("fcuda"));
   EXPECT_FALSE(parseM->getFunction("fhip"));
 
   GlobalVariable *g1 = resetEmbBCGlobal(*hipM, *g0);
-  parseM = parseEmbBCGlobal(*g1);
 
+  Expected<std::unique_ptr<Module>> parseMOrErr1 = parseEmbBCGlobal(*g1);
+  EXPECT_EQ((bool)parseMOrErr1, true);
+
+  parseM = std::move(*parseMOrErr1);
   EXPECT_EQ(g1->getName(), "g0");
   EXPECT_TRUE(hostM->getGlobalVariable("g0"));
   EXPECT_EQ(hostM->global_size(), 1U);
@@ -121,40 +131,60 @@ entry:
   EXPECT_EQ(g1->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
 }
 
-TEST(KitEmbUtils, getEmbModules) {
+TEST(KitEmbUtils, getEmbModule) {
   LLVMContext ctx;
-  std::unique_ptr<Module> cudaM = parseIR(ctx, R"(
-define i32 @fcuda(i32 %n) {
-entry:
-  ret i32 %n
-}
-)");
-  std::unique_ptr<Module> hipM = parseIR(ctx, R"(
-define i32 @fhip(i32 %n) {
-entry:
-  ret i32 %n
-}
-)");
   std::unique_ptr<Module> hostM = parseIR(ctx, R"()");
+  std::unique_ptr<Module> cudaM = parseIR(ctx, fcuda);
+  std::unique_ptr<Module> hipM = parseIR(ctx, fhip);
 
   {
-    EmbModulesMapTy embMs = getEmbModules(*hostM);
-    EXPECT_EQ(embMs.size(), 0U);
+    Expected<std::unique_ptr<Module>> embM = getEmbModule(TTID::Cuda, *hostM);
+    EXPECT_EQ((bool)embM, true);
+    EXPECT_FALSE(*embM);
   }
 
   {
     createEmbBCGlobal(*cudaM, TTID::Cuda, *hostM);
-    EmbModulesMapTy embMs = getEmbModules(*hostM);
-    EXPECT_EQ(embMs.size(), 1U);
-    EXPECT_TRUE(embMs[TTID::Cuda]->getFunction("fcuda"));
+    Expected<std::unique_ptr<Module>> embM = getEmbModule(TTID::Cuda, *hostM);
+    EXPECT_EQ((bool)embM, true);
+    EXPECT_EQ((*embM)->size(), 1U);
+    EXPECT_TRUE((*embM)->getFunction("fcuda"));
+  }
+
+  {
+    Expected<std::unique_ptr<Module>> embM = getEmbModule(TTID::Hip, *hostM);
+    EXPECT_EQ((bool)embM, true);
+    EXPECT_FALSE(*embM);
+  }
+}
+
+TEST(KitEmbUtils, getEmbModules) {
+  LLVMContext ctx;
+  std::unique_ptr<Module> hostM = parseIR(ctx, R"()");
+  std::unique_ptr<Module> cudaM = parseIR(ctx, fcuda);
+  std::unique_ptr<Module> hipM = parseIR(ctx, fhip);
+
+  {
+    Expected<EmbModulesMapTy> embMs = getEmbModules(*hostM);
+    EXPECT_EQ((bool)embMs, true);
+    EXPECT_EQ(embMs->size(), 0U);
+  }
+
+  {
+    createEmbBCGlobal(*cudaM, TTID::Cuda, *hostM);
+    Expected<EmbModulesMapTy> embMs = getEmbModules(*hostM);
+    EXPECT_EQ((bool)embMs, true);
+    EXPECT_EQ(embMs->size(), 1U);
+    EXPECT_TRUE((*embMs)[TTID::Cuda]->getFunction("fcuda"));
   }
 
   {
     createEmbBCGlobal(*hipM, TTID::Hip, *hostM);
-    EmbModulesMapTy embMs = getEmbModules(*hostM);
-    EXPECT_EQ(embMs.size(), 2U);
-    EXPECT_TRUE(embMs[TTID::Cuda]->getFunction("fcuda"));
-    EXPECT_TRUE(embMs[TTID::Hip]->getFunction("fhip"));
+    Expected<EmbModulesMapTy> embMs = getEmbModules(*hostM);
+    EXPECT_EQ((bool)embMs, true);
+    EXPECT_EQ(embMs->size(), 2U);
+    EXPECT_TRUE((*embMs)[TTID::Cuda]->getFunction("fcuda"));
+    EXPECT_TRUE((*embMs)[TTID::Hip]->getFunction("fhip"));
   }
 }
 

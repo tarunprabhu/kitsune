@@ -1,5 +1,5 @@
-; The embedded bitcode in this file contains an embedded bitcode global. This
-; is not allowed.
+; The commands below will generate an embedded bitcode module that itself
+; contains embedded bitcode. This is not allowed.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
 ; RUN:     | %kit-enc --tapir=cuda \
