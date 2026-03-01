@@ -18,6 +18,7 @@
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Support/ErrorHandling.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/PassBuilder.h"
@@ -109,7 +110,12 @@ public:
       bool changed = false;
       GlobalVariable *g = std::get<0>(tup);
       TTID tt = std::get<1>(tup);
-      std::unique_ptr<Module> km = parseEmbBCGlobal(*g);
+
+      Expected<std::unique_ptr<Module>> kmOrErr = parseEmbBCGlobal(*g);
+      if (not kmOrErr)
+        exitOnError(kmOrErr.takeError());
+
+      std::unique_ptr<Module> km = std::move(kmOrErr.get());
       if constexpr (detail::needsAnalysisManager<DerivedT>) {
         LoopAnalysisManager lam;
         FunctionAnalysisManager fam;

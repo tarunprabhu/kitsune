@@ -16,6 +16,7 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Support/ErrorHandling.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/SmallString.h"
@@ -233,8 +234,11 @@ public:
       : tto(tto), cgfbOpts(cgfbOpts) {}
 
   bool run(GlobalVariable &gfb, const GlobalVariable &gbc) {
-    std::unique_ptr<Module> km = parseEmbBCGlobal(gbc);
+    Expected<std::unique_ptr<Module>> kmOrErr = parseEmbBCGlobal(gbc);
+    if (not kmOrErr)
+      exitOnError(kmOrErr.takeError());
 
+    std::unique_ptr<Module> km = std::move(kmOrErr.get());
     std::unique_ptr<ToolOutputFile> ptxFile = generatePTX(*km);
     std::unique_ptr<ToolOutputFile> asmFile = assemblePTX(*ptxFile);
     std::unique_ptr<ToolOutputFile> fatbinFile = createFatBinary(*asmFile);

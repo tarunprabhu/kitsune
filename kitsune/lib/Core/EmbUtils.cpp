@@ -13,6 +13,8 @@
 
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/TypeUtils.h"
+#include "kitsune/Frontend/Diagnostics.h"
 #include "kitsune/Support/TTIDUtils.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
@@ -24,8 +26,19 @@
 
 using namespace llvm;
 
-/// Serialize the module to LLVM bitcode. Create a constant byte array with this
-/// serialized result and return it.
+/// Check the attributes on the global variable. If it has both the kit_bc and
+/// kit_tt attributes, it may contain embedded bitcode. Return true only if it
+/// may contain embedded bitcode for the given tapir target.
+static bool mayContainEmbBC(const GlobalVariable &g, TTID tt) {
+  if (g.hasAttribute(Attribute::KitBC))
+    if (g.hasAttribute(Attribute::KitTT))
+      if (g.getAttribute(Attribute::KitTT).getTTID() == tt)
+        return true;
+  return false;
+}
+
+/// Serialize the module to LLVM bitcode. Create a constant byte array with
+/// this serialized result and return it.
 static Constant *serialize(const Module &m) {
   SmallString<4096> buf;
   raw_svector_ostream os(buf);
@@ -37,8 +50,8 @@ static Constant *serialize(const Module &m) {
 
 static GlobalVariable *createEmbBCGlobal(const Module &m, Module &hostM) {
   // The linkage of the global variable is external to prevent it from being
-  // DCE'ed. It must have a name, otherwise a global variable optimization pass
-  // will remove it since it will not be used anywhere.
+  // DCE'ed. It must have a name, otherwise a global variable optimization
+  // pass will remove it since it will not be used anywhere.
   GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
   Constant *init = serialize(m);
   Type *type = init->getType();
@@ -52,7 +65,8 @@ static GlobalVariable *createEmbBCGlobal(const Module &m, Module &hostM) {
 
 static GlobalVariable *createEmbFBGlobal(MemoryBufferRef buf, Module &m) {
   // The linkage of the global variable is external to prevent it from being
-  // DCE'ed.
+  // DCE'ed. For symmetry with the embedded bitcode global, this too is given
+  // a name. But it is not as susceptible to being deleted by the optimizer.
   GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
   StringRef data = buf.getBuffer();
   LLVMContext &ctx = m.getContext();
@@ -65,34 +79,26 @@ static GlobalVariable *createEmbFBGlobal(MemoryBufferRef buf, Module &m) {
   return g;
 }
 
-std::unique_ptr<Module> llvm::parseEmbBCGlobal(const GlobalVariable &g) {
-  assert(g.hasInitializer() &&
-         "Global containing embedded bitcode requires initializer");
-  assert(isa<ConstantDataArray>(g.getInitializer()) &&
-         "Global containing embedded bitcode requires a constant array "
-         "initializer");
-  assert(cast<ConstantDataArray>(g.getInitializer())
-             ->getType()
-             ->getElementType()
-             ->isIntegerTy(8) &&
-         "Global containing embedded bitcode must be a byte array");
+Expected<std::unique_ptr<Module>>
+llvm::parseEmbBCGlobal(const GlobalVariable &g) {
+  if (not g.hasInitializer())
+    return createDiagError(
+        DiagID::ErrParseEmbBC, g.getName(),
+        "initializer missing in global containing embedded bitcode");
+  if (not isByteArrayTy(g.getValueType()))
+    return createDiagError(
+        DiagID::ErrParseEmbBC, g.getName(),
+        "global containing embedded bitcode must be a byte array");
 
   LLVMContext &ctx = g.getContext();
   const Constant *init = g.getInitializer();
   StringRef bytes = cast<ConstantDataArray>(init)->getAsString();
   std::unique_ptr<MemoryBuffer> buf = MemoryBuffer::getMemBuffer(bytes);
-  assert(isBitcode((const unsigned char *)buf->getBufferStart(),
-                   (const unsigned char *)buf->getBufferEnd()) &&
-         "Global does not contain bitcode");
 
   Expected<std::unique_ptr<Module>> moduleOrErr = parseBitcodeFile(*buf, ctx);
-  if (not moduleOrErr) {
-    Error err = moduleOrErr.takeError();
-    handleAllErrors(std::move(err), [&](ErrorInfoBase &e) {
-      errs() << "Error parsing embedded bitcode: " << e.message() << "\n";
-    });
-    report_fatal_error("Could not parse embedded bitcode");
-  }
+  if (not moduleOrErr)
+    return createDiagError(DiagID::ErrParseEmbBC, g.getName(),
+                           toString(moduleOrErr.takeError()));
 
   // When a module is serialized, its identifier is not recorded in the bitcode.
   // We add kitsune-specific metadata to the module that contains this name so
@@ -117,14 +123,9 @@ GlobalVariable *llvm::getEmbBCGlobal(TTID tt, Module &m) {
   // This assumes that only a single embedded bitcode module exists for a given
   // tapir target. This is the current implementation and might change, though
   // that is unlikely.
-  for (GlobalVariable &g : m.globals()) {
-    if (g.hasAttribute(Attribute::KitBC)) {
-      assert(g.hasAttribute(Attribute::KitTT) &&
-             "Attribute 'kit_bc' requires 'kit_tt");
-      if (g.getAttribute(Attribute::KitTT).getTTID() == tt)
-        return &g;
-    }
-  }
+  for (GlobalVariable &g : m.globals())
+    if (mayContainEmbBC(g, tt))
+      return &g;
   return nullptr;
 }
 
@@ -146,19 +147,24 @@ GlobalVariable *llvm::resetEmbBCGlobal(const Module &devM, GlobalVariable &g) {
   return newG;
 }
 
-std::unique_ptr<Module> llvm::getEmbModule(TTID tt, Module &m) {
+Expected<std::unique_ptr<Module>> llvm::getEmbModule(TTID tt, Module &m) {
   if (GlobalVariable *g = getEmbBCGlobal(tt, m))
     return parseEmbBCGlobal(*g);
   return nullptr;
 }
 
-EmbModulesMapTy llvm::getEmbModules(const Module &m) {
+Expected<EmbModulesMapTy> llvm::getEmbModules(const Module &m) {
   EmbModulesMapTy embBCs;
-  for (TTID tt : ttsGenEmbBC())
-    for (const GlobalVariable &g : m.globals())
-      if (g.hasAttribute(Attribute::KitBC) && g.hasAttribute(Attribute::KitTT))
-        if (g.getAttribute(Attribute::KitTT).getTTID() == tt)
-          embBCs.emplace(tt, parseEmbBCGlobal(g));
+  for (TTID tt : ttsGenEmbBC()) {
+    for (const GlobalVariable &g : m.globals()) {
+      if (mayContainEmbBC(g, tt)) {
+        Expected<std::unique_ptr<Module>> devMOrErr = parseEmbBCGlobal(g);
+        if (not devMOrErr)
+          return devMOrErr.takeError();
+        embBCs.emplace(tt, std::move(*devMOrErr));
+      }
+    }
+  }
   return embBCs;
 }
 

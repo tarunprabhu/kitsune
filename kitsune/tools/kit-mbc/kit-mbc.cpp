@@ -133,24 +133,25 @@ int main(int argc, char *argv[]) {
   // Now parse those into modules.
   std::vector<std::unique_ptr<Module>> embs;
   for (GlobalVariable *g : gs) {
-    embs.emplace_back(parseEmbBCGlobal(*g));
-    if (not embs.back()) {
-      WithColor::error() << "Could not parse embedded bitcode\n";
+    Expected<std::unique_ptr<Module>> embMOrErr = parseEmbBCGlobal(*g);
+    if (not embMOrErr) {
+      WithColor::error() << toString(embMOrErr.takeError()) << "\n";
       return 2;
     }
+    embs.emplace_back(std::move(*embMOrErr));
   }
 
   bool outputToStdout = outf->getFilename() == "-";
   raw_ostream &os = outf->os();
   if (embs.empty()) {
-    WithColor::warning() << "No embedded bitcode modules found\n";
+    WithColor::warning() << "no embedded bitcode modules found\n";
   } else if (not outputToStdout and embs.size() > 1) {
     // We are writing to a file, but we cannot write more than one module to
     // the file. The likely common case is that there is only embedded module in
     // the input file, so the user may expect that the resulting file can just
     // be used by the LLVM tools. If there are multiple modules, the output
     // from the terminal can still be redirected to a file.
-    WithColor::error() << "Cannot write " << embs.size()
+    WithColor::error() << "cannot write " << embs.size()
                        << " embedded modules to a single output file\n";
     return 3;
   } else if (not outputToStdout) {

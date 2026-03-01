@@ -15,6 +15,7 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Support/ErrorHandling.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -29,8 +30,6 @@
 #include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
-
-namespace {
 
 static StringRef getSRAMECCFeature(const TTOptions &tto) {
   switch (tto.getHipSRAMECC()) {
@@ -53,6 +52,8 @@ static StringRef getXnackFeature(const TTOptions &tto) {
     return "";
   }
 }
+
+namespace {
 
 /// Helper class to generate code for AMD GPU's from embedded bitcode.
 class CGFBHip {
@@ -182,8 +183,11 @@ public:
       : tto(tto), cgfbOpts(cgfbOpts) {}
 
   bool run(GlobalVariable &gfb, const GlobalVariable &gbc) {
-    std::unique_ptr<Module> km = parseEmbBCGlobal(gbc);
+    Expected<std::unique_ptr<Module>> kmOrErr = parseEmbBCGlobal(gbc);
+    if (not kmOrErr)
+      exitOnError(kmOrErr.takeError());
 
+    std::unique_ptr<Module> km = std::move(kmOrErr.get());
     std::unique_ptr<ToolOutputFile> objFile = createObject(*km);
     std::unique_ptr<ToolOutputFile> soFile = createSharedObject(*objFile);
     detail::embedFatBinary(*soFile, gfb);

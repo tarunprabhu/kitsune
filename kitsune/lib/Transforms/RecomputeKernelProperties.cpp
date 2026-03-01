@@ -15,6 +15,7 @@
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/KernelProperties.h"
+#include "kitsune/Support/ErrorHandling.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalVariable.h"
 
@@ -32,8 +33,11 @@ RecomputeKernelPropertiesPass::run(Module &m, ModuleAnalysisManager &mam) {
   if (not tgi.hasTTID())
     return PreservedAnalyses::all();
 
-  EmbModulesMapTy embMs = getEmbModules(m);
+  Expected<EmbModulesMapTy> embMsOrErr = getEmbModules(m);
+  if (not embMsOrErr)
+    exitOnError(embMsOrErr.takeError());
 
+  EmbModulesMapTy embMs = std::move(*embMsOrErr);
   for (GlobalVariable &g : m.globals()) {
     if (g.hasAttribute("kit_kernel_props")) {
       StringRef kname = g.getAttribute("kit_kernel_props").getValueAsString();
