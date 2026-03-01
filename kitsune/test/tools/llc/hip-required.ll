@@ -10,5 +10,5 @@
 ; RUN:     %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=RUNTIME-BCS
 ;
-; ARCH: error: the --tapir-hip-arch option must be provided exactly once
-; RUNTIME-BCS: error: the --tapir-hip-runtime-bcs option must be provided exactly once
+; ARCH: error: option '--tapir-hip-arch' must be provided exactly once
+; RUNTIME-BCS: error: option '--tapir-hip-runtime-bcs' must be provided exactly once

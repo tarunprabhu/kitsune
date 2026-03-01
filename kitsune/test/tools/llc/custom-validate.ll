@@ -5,7 +5,7 @@
 ; RUN:         -filetype=asm -o /dev/null %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=MISSING
 ;
-; MISSING: error: for the --tapir-plugin option: value '' is invalid
+; MISSING: error: option '--tapir-plugin' has invalid value ''
 ;
 ; RUN: not llc --tapir=custom --tapir-plugin=noexist \
 ; RUN:         -filetype=asm -o /dev/null %s 2>&1 \
@@ -15,10 +15,10 @@
 ; it would be nice if we could check that the correct error message is shown
 ; in such cases, it is probably not worth the extra effort.
 ;
-; NOEXIST: error: Could not load library
+; NOEXIST: error: could not load plugin library
 ;
 ; RUN: not llc --tapir=custom --tapir-plugin=%s \
 ; RUN:         -filetype=asm -o /dev/null %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=CONTENTS
 ;
-; CONTENTS: error: Could not load library
+; CONTENTS: error: could not load plugin library

@@ -19,4 +19,4 @@
 # RUN:     -passes='kit-lowering<O1>' -o /dev/null %S/input/empty.ll 2>&1 \
 # RUN:     | FileCheck %s
 #
-# CHECK: Could not load library
+# CHECK: could not load plugin library

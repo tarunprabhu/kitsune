@@ -56,17 +56,44 @@ class Note<string Msg> : Diag<SNote, Msg>;
 // Although not strictly required, the names of all errors should be prefixed
 // with Err.
 
-def ErrOptionOccurrences
+def ErrParseEmbBC
+  : Error<"could not parse embedded bitcode in global '{}': {}">;
+
+def ErrParseLLVM
+  : Error<"could not parse LLVM file: {}">;
+
+def ErrLinkLLVM
+  : Error<"could not link LLVM file: {}">;
+
+def ErrOptOccurrences
   : Error<"option '--{}' must be provided exactly once">;
 
-def ErrOptionValueMissing
-  : Error<"at least one valid value is required for option '--{}'">;
+def ErrOptValueMissing
+  : Error<"option '--{}' requires at least one valid value">;
 
-def ErrOptionValueInvalid
-  : Error<"value '{}' is invalid for option '--{}'">;
+def ErrOptValueInvalid
+  : Error<"option '--{}' has invalid value '{}'">;
 
-def ErrOptionValueInvalidRange
-  : Error<"value '{}' in not in expected range [{}, {}] for option '--{}'">;
+def ErrOptValueInvalidRange
+  : Error<"option '--{}' has value '{}' not in range [{},{}]">;
+
+def ErrTTPluginAPIVersion
+  : Error<"wrong API version on plugin '{}'. Got version {}, supported version is {}">;
+
+def ErrTTPluginCBConstructor
+  : Error<"missing constructor callback in plugin '{}'">;
+
+def ErrTTPluginCBCompilerOpts
+  : Error<"missing compiler options callback in plugin '{}'">;
+
+def ErrTTPluginCBLinkerOpts
+  : Error<"missing linker options callback in plugin '{}'">;
+
+def ErrTTPluginEntryPoint
+  : Error<"plugin entry point not found in '{}'">;
+
+def ErrTTPluginLoad
+  : Error<"could not load plugin library '{}': {}">;
 
 def ErrTTNotEnabled
   : Error<"required tapir target '{}' has not been enabled">;

@@ -7,4 +7,4 @@
 ; RUN: not llc --tapir=opencilk -filetype=asm -o /dev/null %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=RUNTIME-BC
 ;
-; RUNTIME-BC: error: the --tapir-opencilk-runtime-bc option must be provided exactly once
+; RUNTIME-BC: error: option '--tapir-opencilk-runtime-bc' must be provided exactly once

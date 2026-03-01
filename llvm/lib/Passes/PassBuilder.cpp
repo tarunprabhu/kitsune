@@ -1915,13 +1915,11 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
 #define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)          \
   if (checkParametrizedPassName(Name, NAME)) {                                 \
     if (not PTO.TTOpts)                                                        \
-      return make_error<StringError>(                                          \
-          formatv("{} passes require the --tapir option", NAME).str(),         \
-          inconvertibleErrorCode());                                           \
+      return createStringError(                                                \
+          formatv("{} passes require the --tapir option", NAME).str());        \
     else if (Error Err = PTO.TTOpts->validate())                               \
-      return make_error<StringError>(                                          \
-          formatv("error: {}", toString(std::move(Err))).str(),                \
-          inconvertibleErrorCode());                                           \
+      return createStringError(                                                \
+          formatv("error: {}", toString(std::move(Err))).str());               \
                                                                                \
     Expected<OptimizationLevel> Params =                                       \
         parsePassParameters(PARSER, Name, NAME);                               \

@@ -6,7 +6,7 @@
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=MISSING
 #
-# MISSING: error: for the --tapir-plugin option: value '' is invalid
+# MISSING: error: option '--tapir-plugin' has invalid value ''
 #
 # RUN: not %lld -mllvm --tapir=custom -mllvm --tapir-plugin=noexist \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
@@ -17,11 +17,11 @@
 # it would be nice if we could check that the correct error message is shown
 # in such cases, it is probably not worth the extra effort.
 #
-# NOEXIST: error: Could not load library
+# NOEXIST: error: could not load plugin library
 #
 # RUN: not %lld -mllvm --tapir=custom -mllvm --tapir-plugin=%s \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=CONTENTS
 #
-# CONTENTS: error: Could not load library
+# CONTENTS: error: could not load plugin library

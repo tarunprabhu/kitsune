@@ -35,4 +35,4 @@
 # RUN:     -passes='kit-lowering<O1>' %S/input/empty.ll 2>&1 \
 # RUN:     | FileCheck %s
 #
-# CHECK: Missing constructor callback in plugin
+# CHECK: missing constructor callback in plugin

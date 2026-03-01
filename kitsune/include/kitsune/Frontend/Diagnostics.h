@@ -13,9 +13,11 @@
 #ifndef KITSUNE_FRONTEND_DIAGNOSTICS_H
 #define KITSUNE_FRONTEND_DIAGNOSTICS_H
 
+#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -106,6 +108,11 @@ template <typename IRElement, typename... Args>
 void emitDiagnostic(const IRElement &e, DiagID id, Args &&...args) {
   detail::emitDiagnostic(errs(), e, detail::getSeverity(id),
                          formatv(detail::getMsg(id).data(), args...).str());
+}
+
+/// Create an LLVM Error for a Kitsune-specific diagnostic.
+template <typename... Args> Error createDiagError(DiagID id, Args &&...args) {
+  return createStringError(formatv(detail::getMsg(id).data(), args...).str());
 }
 
 /// @}

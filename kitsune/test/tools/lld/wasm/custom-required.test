@@ -5,4 +5,4 @@
 # RUN:     -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=PLUGIN
 #
-# PLUGIN: error: the --tapir-plugin option must be provided exactly once
+# PLUGIN: error: option '--tapir-plugin' must be provided exactly once

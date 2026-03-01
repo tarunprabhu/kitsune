@@ -9,7 +9,7 @@
 ; RUN:     -passes='tapir-lowering<O1>' %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=RUNTIME-BC
 ;
-; RUNTIME-BC: error: the --tapir-opencilk-runtime-bc option must be provided exactly once
+; RUNTIME-BC: error: option '--tapir-opencilk-runtime-bc' must be provided exactly once
 ;
 ; ------------------------------------------------------------------------------
 ; This runs the loop-spawning pass which does use the tapir target options

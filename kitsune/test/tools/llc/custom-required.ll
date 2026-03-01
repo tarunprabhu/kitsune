@@ -4,4 +4,4 @@
 ; RUN: not llc --tapir=custom -filetype=asm -o /dev/null %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=PLUGIN
 ;
-; PLUGIN: error: the --tapir-plugin option must be provided exactly once
+; PLUGIN: error: option '--tapir-plugin' must be provided exactly once

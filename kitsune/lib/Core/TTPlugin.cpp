@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/TTPlugin.h"
+#include "kitsune/Frontend/Diagnostics.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -20,9 +21,7 @@ Expected<TTPlugin> TTPlugin::load(StringRef dsoPath) {
   std::string err;
   auto dylib = sys::DynamicLibrary::getPermanentLibrary(dsoPath.data(), &err);
   if (!dylib.isValid())
-    return make_error<StringError>(
-        join_items("", "Could not load library '", dsoPath, "': ", err),
-        inconvertibleErrorCode());
+    return createDiagError(DiagID::ErrTTPluginLoad, dsoPath, err);
 
   TTPlugin plugin{dsoPath.data(), dylib};
 
@@ -34,32 +33,23 @@ Expected<TTPlugin> TTPlugin::load(StringRef dsoPath) {
   if (!getDetailsFn)
     // If the symbol isn't found, this is probably a legacy plugin, which is an
     // error
-    return make_error<StringError>(
-        join_items("", "Plugin entry point not found in '", dsoPath, "'"),
-        inconvertibleErrorCode());
+    return createDiagError(DiagID::ErrTTPluginEntryPoint, dsoPath);
 
   plugin.info =
       reinterpret_cast<decltype(llvmGetTTPluginInfo) *>(getDetailsFn)();
 
   if (plugin.getAPIVersion() != LLVM_TTPLUGIN_API_VERSION)
-    return make_error<StringError>(
-        llvm::join_items(
-            "", "Wrong API version on plugin '", dsoPath, "'. Got version ",
-            std::to_string(plugin.getAPIVersion()), ", supported version is ",
-            std::to_string(LLVM_TTPLUGIN_API_VERSION)),
-        inconvertibleErrorCode());
+    return createDiagError(DiagID::ErrTTPluginAPIVersion, dsoPath,
+                           plugin.getAPIVersion(), LLVM_TTPLUGIN_API_VERSION);
 
   if (!plugin.info.makeTapirTarget)
-    return createStringError(join_items(
-        "", "Missing constructor callback in plugin '", dsoPath, "'"));
+    return createDiagError(DiagID::ErrTTPluginCBConstructor, dsoPath);
 
   if (!plugin.info.getCompilerOptions)
-    return createStringError(join_items(
-        "", "Missing compiler options callback in plugin '", dsoPath, "'"));
+    return createDiagError(DiagID::ErrTTPluginCBCompilerOpts, dsoPath);
 
   if (!plugin.info.getLinkerOptions)
-    return createStringError(join_items(
-        "", "Missing linker options callback in plugin '", dsoPath, "'"));
+    return createDiagError(DiagID::ErrTTPluginCBLinkerOpts, dsoPath);
 
   return plugin;
 }

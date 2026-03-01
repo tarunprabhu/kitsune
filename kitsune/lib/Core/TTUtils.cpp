@@ -14,6 +14,7 @@
 
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/TTOptions.h"
+#include "kitsune/Frontend/Diagnostics.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker/Linker.h"
@@ -25,8 +26,7 @@ static Expected<OwnedModule> parseLLVMFile(StringRef file, LLVMContext &ctx) {
   SMDiagnostic diag;
   if (OwnedModule m = parseIRFile(file, diag, ctx))
     return m;
-  return createStringError(
-      join_items("", "failed to parse LLVM file: ", diag.getMessage()));
+  return createDiagError(DiagID::ErrParseLLVM, diag.getMessage());
 }
 
 static Expected<OwnedModule> getLibDeviceModuleCuda(const TTOptions &tto,
@@ -50,8 +50,7 @@ static Expected<OwnedModule> getLibDeviceModuleHip(const TTOptions &tto,
     if (!m)
       return m;
     if (linker.linkInModule(std::move(*m), Linker::OverrideFromSrc))
-      return createStringError(
-          join_items("", "Error linking device bitcode file: ", bcFile));
+      return createDiagError(DiagID::ErrLinkLLVM, bcFile);
   }
   return libDeviceM;
 }

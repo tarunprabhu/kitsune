@@ -14,6 +14,7 @@
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
+#include "kitsune/Frontend/Diagnostics.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/ToString.h"
@@ -197,9 +198,7 @@ static cl::alias
 static Error validateStringOption(const cl::opt<std::string> &clOpt) {
   if (clOpt.getNumOccurrences() == 1)
     if (clOpt.empty())
-      return createStringError(join_items("", "for the --", clOpt.ArgStr,
-                                          " option: value '", clOpt,
-                                          "' is invalid"));
+      return createDiagError(DiagID::ErrOptValueInvalid, clOpt.ArgStr, clOpt);
   return Error::success();
 }
 
@@ -209,17 +208,14 @@ static Error validateListOption(const cl::list<std::string> &clOpt) {
   auto isEmpty = [](const std::string &s) -> bool { return s.empty(); };
 
   if (clOpt.empty() || std::all_of(clOpt.begin(), clOpt.end(), isEmpty))
-    return createStringError(
-        join_items("", "for the --", clOpt.ArgStr,
-                   " option: at least one valid value is required"));
+    return createDiagError(DiagID::ErrOptValueMissing, clOpt.ArgStr);
   return Error::success();
 }
 
 // The given option must be provided exactly once.
 static Error validateRequiredOption(const cl::Option &clOpt) {
   if (clOpt.getNumOccurrences() != 1)
-    return createStringError(join_items(
-        "", "the --", clOpt.ArgStr, " option must be provided exactly once"));
+    return createDiagError(DiagID::ErrOptOccurrences, clOpt.ArgStr);
   return Error::success();
 }
 
@@ -235,8 +231,7 @@ static Error validateRequiredStringOption(const cl::opt<std::string> &clOpt) {
 // at least one non-empty string
 static Error validateRequiredListOption(const cl::list<std::string> &clOpt) {
   if (clOpt.getNumOccurrences() == 0)
-    return createStringError(join_items(
-        "", "the --", clOpt.ArgStr, " option must be provided exactly once"));
+    return createDiagError(DiagID::ErrOptOccurrences, clOpt.ArgStr);
   else if (Error e = validateListOption(clOpt))
     return e;
   else
@@ -249,9 +244,8 @@ static Error validateThreadsPerBlock(const TTOptions &tto) {
   auto validate = [](const cl::opt<unsigned> &clOpt) -> Error {
     if (clOpt.getNumOccurrences())
       if (clOpt < 1 || clOpt > 1024)
-        return createStringError(
-            join_items("", "for the --", clOpt.ArgStr, " option: value '",
-                       std::to_string(clOpt), "' is not in range [1,1024]"));
+        return createDiagError(DiagID::ErrOptValueInvalidRange, clOpt.ArgStr,
+                               clOpt, 1, 1024);
     return Error::success();
   };
 
