@@ -20,6 +20,4 @@ add_kitsune_unittest_with_input_files(KitCoreTests
   EXPORT_SYMBOLS
 )
 
-add_dependencies(KitCoreTests intrinsics_gen)
-
 target_link_libraries(KitCoreTests PRIVATE LLVMTestingSupport)

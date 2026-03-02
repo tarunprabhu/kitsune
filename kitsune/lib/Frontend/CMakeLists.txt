@@ -4,6 +4,7 @@ add_llvm_component_library(LLVMKitFrontend
 
   DEPENDS
   intrinsics_gen
+  kitsune_generated
 
   LINK_COMPONENTS
   Analysis

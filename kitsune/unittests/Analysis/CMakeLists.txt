@@ -18,8 +18,6 @@ add_kitsune_unittest_with_input_files(KitAnalysisTests
   EXPORT_SYMBOLS
 )
 
-add_dependencies(KitAnalysisTests intrinsics_gen)
-
 target_link_libraries(KitAnalysisTests PRIVATE LLVMTestingSupport)
 
 # On AIX, enable run-time linking to allow symbols from the plugins shared
