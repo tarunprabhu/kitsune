@@ -14,20 +14,8 @@
 
 using namespace llvm;
 
-// ----------- THIS MUST BE UPDATED WHEN A NEW TAPIR TARGET IS ADDED -----------
-//
-// All known tapir targets.
-// TODO: Update this when GPUABI is supported.
-// FIXME: Generate a list of known tapir target ID's at configure time.
-static constexpr TTID tts[] = {
-    TTID::Nolo,     TTID::Serial, TTID::Cuda,   TTID::Hip,
-    TTID::OpenCilk, // TTID::GPUABI,
-    TTID::Qthreads, TTID::Realm,  TTID::Lambda, TTID::OMPTask, TTID::OpenMP};
-
 // The tapir targets that generate embedded bitcode.
 static constexpr TTID ttbcs[] = {TTID::Cuda, TTID::Hip};
-
-ArrayRef<TTID> llvm::ttsAll() { return tts; }
 
 ArrayRef<TTID> llvm::ttsGenEmbBC() { return ttbcs; }
 
@@ -36,4 +24,14 @@ bool llvm::doesTTGenEmbBC(TTID tt) {
     if (ttbc == tt)
       return true;
   return false;
+}
+
+bool llvm::isGPUTT(TTID tt) {
+  switch (tt) {
+  case TTID::Cuda:
+  case TTID::Hip:
+    return true;
+  default:
+    return false;
+  }
 }
