@@ -39,13 +39,25 @@ enum class DiagID {
 #include "kitsune/Frontend/Diagnostics.inc"
 };
 
+/// Is the diagnostic an error.
+bool isError(DiagID id);
+
+/// Is the diagnostic a warning.
+bool isWarning(DiagID id);
+
+/// Is the diagnostic a remark.
+bool isRemark(DiagID id);
+
+/// Is the diagnostic a note.
+bool isNote(DiagID id);
+
 namespace detail {
 
-// Get the severity of the given diagnostic.
+/// Get the severity of the given diagnostic.
 DiagnosticSeverity getSeverity(DiagID id);
 
-// Get the message emitted by the given diagnostic. The message may be a format
-// string that is compatible with llvm::formatv.
+/// Get the message emitted by the given diagnostic. The message may be a
+/// format string that is compatible with llvm::formatv.
 StringRef getMsg(DiagID id);
 
 /// Emit a diagnostic.
@@ -53,8 +65,8 @@ raw_ostream &emitDiagnostic(raw_ostream &os, DiagnosticSeverity severity,
                             StringRef msg);
 
 /// Emit a diagnostic for the given value. This will only have a noticeable
-/// effect if the value is a function or an instruction. In all other cases, it
-/// will be ignored.
+/// effect if the value is a function or an instruction. In all other cases,
+/// it will be ignored.
 raw_ostream &emitDiagnostic(raw_ostream &os, const Value &v,
                             DiagnosticSeverity severity, StringRef msg);
 

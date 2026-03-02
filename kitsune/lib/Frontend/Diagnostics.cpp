@@ -160,27 +160,41 @@ raw_ostream &llvm::detail::emitDiagnostic(raw_ostream &os, const Value &v,
 }
 
 DiagnosticSeverity llvm::detail::getSeverity(DiagID id) {
+  switch (id) {
 #define GET_DIAGS
 #define DIAG(NAME, SEVERITY, MSG)                                              \
   case DiagID::NAME:                                                           \
     return SEVERITY;
-
-  switch (id) {
 #include "kitsune/Frontend/Diagnostics.inc"
   }
   llvm_unreachable("getSeverity: DiagID not handled");
 }
 
 StringRef llvm::detail::getMsg(DiagID id) {
+  switch (id) {
 #define GET_DIAGS
 #define DIAG(NAME, SEVERITY, MSG)                                              \
   case DiagID::NAME:                                                           \
     return MSG;
-
-  switch (id) {
 #include "kitsune/Frontend/Diagnostics.inc"
   }
   llvm_unreachable("getMsg: DiagID not handled");
+}
+
+bool llvm::isError(DiagID id) {
+  return detail::getSeverity(id) == DiagnosticSeverity::DS_Error;
+}
+
+bool llvm::isWarning(DiagID id) {
+  return detail::getSeverity(id) == DiagnosticSeverity::DS_Warning;
+}
+
+bool llvm::isRemark(DiagID id) {
+  return detail::getSeverity(id) == DiagnosticSeverity::DS_Remark;
+}
+
+bool llvm::isNote(DiagID id) {
+  return detail::getSeverity(id) == DiagnosticSeverity::DS_Note;
 }
 
 void llvm::emitDiagnostic(DiagID id) {

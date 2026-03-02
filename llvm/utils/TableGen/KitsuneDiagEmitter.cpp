@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
@@ -16,26 +16,36 @@
 
 using namespace llvm;
 
-static raw_ostream &line(raw_ostream &os, StringRef s = "") {
-  os << s << "\n";
+static raw_ostream &line(raw_ostream &os, StringRef s1 = "",
+                         StringRef s2 = "") {
+  os << s1;
+  if (s2.size())
+    os << " " << s2;
+  os << "\n";
+
   return os;
 }
 
-static StringRef getSeverity(const Record &r) {
-  StringRef sev = StringSwitch<StringRef>(r.getName())
-                      .Case("SErr", "DiagnosticSeverity::DS_Error")
-                      .Case("SWarn", "DiagnosticSeverity::DS_Warning")
-                      .Case("SRemark", "DiagnosticSeverity::DS_Remark")
-                      .Case("SNote", "DiagnosticSeverity::DS_Note")
-                      .Default("");
-  if (sev.empty())
-    PrintFatalError(r.getLoc(), "Severity not handled by emitter");
-  return sev;
+static StringRef getMacroName(StringRef sev) {
+  return StringSwitch<StringRef>(sev)
+      .Case("Error", "DIAG_ERROR")
+      .Case("Warning", "DIAG_WARNING")
+      .Case("Remark", "DIAG_REMARK")
+      .Case("Note", "DIAG_NOTE");
+}
+
+static StringRef getSeverity(StringRef sev) {
+  return StringSwitch<StringRef>(sev)
+      .Case("Error", "DiagnosticSeverity::DS_Error")
+      .Case("Warning", "DiagnosticSeverity::DS_Warning")
+      .Case("Remark", "DiagnosticSeverity::DS_Remark")
+      .Case("Note", "DiagnosticSeverity::DS_Note");
 }
 
 class DiagsEmitter {
 private:
-  SmallVector<const Record *, 16> records;
+  SetVector<StringRef> classes;
+  const RecordKeeper &recordKeeper;
 
 private:
   void emitDiags(raw_ostream &os) {
@@ -47,16 +57,27 @@ private:
     line(os, "#endif // DIAG");
     line(os);
 
-    for (const Record *r : records) {
-      StringRef name = r->getName();
-      StringRef msg = r->getValueAsString("Msg");
-      StringRef severity = getSeverity(*r->getValueAsDef("Sev"));
+    for (StringRef klass : classes) {
+      StringRef macro = getMacroName(klass);
+      StringRef severity = getSeverity(klass);
 
-      os << "DIAG(" << name << ", " << severity << ", \"" << msg
-         << "\")\n";
+      line(os, "#ifndef", macro);
+      os << "#define " << macro << "(NAME, MSG) \\\n";
+      os << "    DIAG(NAME, " << severity << ", MSG)\n";
+      line(os, "#endif //", macro);
+      line(os);
+
+      for (const Record *r : recordKeeper.getAllDerivedDefinitions(klass)) {
+        StringRef name = r->getName();
+        StringRef msg = r->getValueAsString("Msg");
+        os << macro << "(" << name << ", \"" << msg << "\")\n";
+      }
+
+      line(os);
+      line(os, "#undef", macro);
+      line(os);
     }
 
-    line(os);
     line(os, "#undef DIAG");
     line(os, "#endif // GET_DIAGS");
   }
@@ -68,9 +89,11 @@ private:
 
     // The first diagnostic id value is 1.
     unsigned val = 1;
-    for (const Record *r : records) {
-      os << r->getName() << " = " << val << ",\n";
-      ++val;
+    for (StringRef klass : classes) {
+      for (const Record *r : recordKeeper.getAllDerivedDefinitions(klass)) {
+        os << r->getName() << " = " << val << ",\n";
+        ++val;
+      }
     }
 
     line(os);
@@ -78,20 +101,23 @@ private:
   }
 
 public:
-  DiagsEmitter(const RecordKeeper &recordKeeper) {
-    for (const Record *r : recordKeeper.getAllDerivedDefinitions("Diag"))
-      records.push_back(r);
-
-    std::sort(records.begin(), records.end(),
-              [](const Record *l, const Record *r) {
-                return l->getName() < r->getName();
-              });
+  DiagsEmitter(const RecordKeeper &recordKeeper) : recordKeeper(recordKeeper) {
+    for (const Record *r : recordKeeper.getAllDerivedDefinitions("Diag")) {
+      const Record *sev = r->getValueAsDef("Sev");
+      StringRef klass = StringSwitch<StringRef>(sev->getName())
+                            .Case("SErr", "Error")
+                            .Case("SWarn", "Warning")
+                            .Case("SRemark", "Remark")
+                            .Case("SNote", "Note")
+                            .Default("");
+      if (klass.empty())
+        PrintFatalError(sev->getLoc(), "Severity not handled by emitter");
+      classes.insert(klass);
+    }
   }
 
   void run(raw_ostream &os) {
     emitDiags(os);
-    line(os);
-    line(os, "// ------------------------------------------------------------");
     line(os);
     emitDiagEnums(os);
   }
