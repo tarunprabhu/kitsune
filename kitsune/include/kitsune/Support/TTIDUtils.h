@@ -21,14 +21,14 @@ namespace llvm {
 /// \addtogroup kitsune
 /// @{
 
-/// Get all known tapir targets.
-ArrayRef<TTID> ttsAll();
-
 /// Get the tapir targets that generate embedded bitcode.
 ArrayRef<TTID> ttsGenEmbBC();
 
 /// Check if the given tapir target generates embedded bitcode.
 bool doesTTGenEmbBC(TTID tt);
+
+/// Does the tapir target generate code that will run on a GPU.
+bool isGPUTT(TTID tt);
 
 /// @}
 
