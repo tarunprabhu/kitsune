@@ -1,6 +1,7 @@
 add_llvm_component_library(LLVMKitCore
   AddrSpaceUtils.cpp
   ConstantUtils.cpp
+  DIUtils.cpp
   EmbUtils.cpp
   FunctionUtils.cpp
   GlobalVariableUtils.cpp
