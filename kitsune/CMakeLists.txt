@@ -78,8 +78,10 @@ set(KITSUNE_INCLUDE_DIR ${KITSUNE_SOURCE_DIR}/include)
 set(KITSUNE_BINARY_DIR  ${PROJECT_BINARY_DIR})
 set(KITSUNE_TARGETS_BINARY_DIR ${KITSUNE_BINARY_DIR}/targets)
 
-# Dependencies for Kitsune's runtime.
-set(KITSUNE_RUNTIME_DEPENDS llvm-config clang LLVM)
+# Dependencies for Kitsune's runtime. lld is only needed if
+# -DLLVM_USE_LINKER=lld is provided at configure-time, but adding it as a
+# dependency unconditionally feels "safer".
+set(KITSUNE_RUNTIME_DEPENDS clang lld llvm-ar llvm-config llvm-link LLVM)
 
 # Just in case, check for utilities that are needed to build some of the
 # dependencies. These are not needed for everything, but they are basic enough
