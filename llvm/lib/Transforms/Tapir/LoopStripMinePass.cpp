@@ -47,8 +47,12 @@ cl::opt<bool> llvm::EnableTapirLoopStripmine(
     "stripmine-loops", cl::init(true), cl::Hidden,
     cl::desc("Run the Tapir Loop stripmining pass"));
 
+// FIXME: The default in OpenCilk is to allow parallel epilogs by default. But
+// Kitsune does not currently support spawning standalone tasks (since only the
+// opencilk tapir target can currently handle this). When we add support for
+// task spawning more generally, the default should be changed back to true.
 static cl::opt<bool> AllowParallelEpilog(
-  "allow-parallel-epilog", cl::Hidden, cl::init(true),
+  "allow-parallel-epilog", cl::Hidden, cl::init(false),
   cl::desc("Allow stripmined Tapir loops to execute their epilogs in parallel."));
 
 static cl::opt<bool> IncludeNestedSync(
