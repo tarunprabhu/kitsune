@@ -194,6 +194,8 @@ MODULE_PASS("kit-prefetch", PrefetchingPass())
 MODULE_PASS("kit-lower-intrinsics", LowerKitsuneIntrinsicsPass())
 MODULE_PASS("kit-strip-addr-spaces", StripKitsuneAddrSpacesPass())
 MODULE_PASS("kit-serialize-tapir-loops", SerializeTapirLoopsPass())
+MODULE_PASS("kit-verify-prelower",
+            PreLowerVerificationPass(/*exitIfError=*/true))
 
 #undef MODULE_PASS
 

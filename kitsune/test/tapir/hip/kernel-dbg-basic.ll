@@ -75,7 +75,7 @@ forall.end:
 
 define void @_Z5xlatePffm(ptr %buf, float %dist, i64 %n) !dbg !293 {
 entry:
-  %syncreg2 = tail call token @llvm.syncregion.start(), !dbg !306
+  %syncreg = tail call token @llvm.syncregion.start(), !dbg !306
     #dbg_value(ptr %buf, !295, !DIExpression(), !306)
     #dbg_value(float %dist, !296, !DIExpression(), !306)
     #dbg_value(i64 %n, !297, !DIExpression(), !306)
@@ -86,7 +86,7 @@ entry:
 forall.detach:
   %i.024 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
     #dbg_value(i64 %i.024, !298, !DIExpression(), !307)
-  detach within %syncreg2, label %forall.body, label %forall.inc, !dbg !309
+  detach within %syncreg, label %forall.body, label %forall.inc, !dbg !309
 
 forall.body:
     #dbg_value(i64 %i.024, !300, !DIExpression(), !310)
@@ -94,7 +94,7 @@ forall.body:
   %0 = load float, ptr %arrayidx, align 4, !dbg !312, !tbaa !281
   %add = fadd float %dist, %0, !dbg !312
   store float %add, ptr %arrayidx, align 4, !dbg !312, !tbaa !281
-  reattach within %syncreg2, label %forall.inc, !dbg !311
+  reattach within %syncreg, label %forall.inc, !dbg !311
 
 forall.inc:
   %inc = add nuw i64 %i.024, 1, !dbg !313
@@ -103,10 +103,11 @@ forall.inc:
   br i1 %exitcond.not, label %forall.sync, label %forall.detach, !dbg !309, !llvm.loop !314
 
 forall.sync:
-  sync within %syncreg2, label %forall.cond4.preheader, !dbg !316
+  sync within %syncreg, label %forall.cond4.preheader, !dbg !316
 
 forall.cond4.preheader:
     #dbg_value(i64 0, !302, !DIExpression(), !317)
+  %syncreg2 = tail call token @llvm.syncregion.start(), !dbg !318
   br i1 %cmp23.not, label %forall.sync14, label %forall.detach7, !dbg !318
 
 forall.detach7:

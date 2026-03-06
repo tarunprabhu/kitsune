@@ -29,11 +29,10 @@ def AnyLoop : AllowedOnLoopKind;
 // by LLVM such as "loop.unroll.*" and others that are not specific to tapir
 // loops.
 //
-// When specializing this class, the name of the specialized class will be the
-// name of the attribute as it appears in the LoopAttrKind enum. This must be
-// in Pascal case i.e. it must start with an uppercase letter and must only
-// consist of letters and digits. The name of the attribute as it would appear
-// in LLVM-IR metadata is derived from this.
+// The names of the concrete instances of this class will be the name of the
+// attribute as it appears in the LoopAttrKind enum. This must be in Pascal
+// case, and consist of letters and digits only. The name of the attribute as it
+// appears in LLVM-IR metadata is derived from this.
 //
 // If AllowedOn is set to TapirLoopsOnly, the attributes would appear in
 // metadata as shown below.
@@ -89,6 +88,13 @@ class Int64Attr<AllowedOnLoopKind AllowedOn> : Attr<"int64_t", AllowedOn>;
 
 // An attribute that takes a string argument.
 class StrAttr<AllowedOnLoopKind AllowedOn> : Attr<"StringRef", AllowedOn>;
+
+def Name : StrAttr<AnyLoop> {
+  let Documentation = [{
+A human-readable name for the loop. This is useful in debugging and diagnostics
+when debug information is not available.
+}];
+}
 
 def AutotuneLaunch : FlagAttr<TapirLoopsOnly> {
   let Documentation = [{

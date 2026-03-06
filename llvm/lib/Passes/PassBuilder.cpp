@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Passes/PassBuilder.h"
+#include "kitsune/Analysis/PreLowerVerification.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "kitsune/CodeGen/LowerKitsuneIntrinsics.h"

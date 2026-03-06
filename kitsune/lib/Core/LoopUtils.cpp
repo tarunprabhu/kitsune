@@ -11,10 +11,30 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/DIUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "llvm/Analysis/LoopInfo.h"
 
 using namespace llvm;
+
+Function *llvm::getLoopFunc(Loop &loop) {
+  return loop.getHeader()->getParent();
+}
+
+const Function *llvm::getLoopFunc(const Loop &loop) {
+  return loop.getHeader()->getParent();
+}
+
+std::string llvm::getLoopName(const Loop &loop, StringRef defawlt) {
+  if (std::optional<StringRef> name = getLoopNameAttr(loop))
+    return name->str();
+  else if (DebugLoc dbgLoc = loop.getStartLoc())
+    return toString(dbgLoc, /*inlinedAt=*/false);
+  else if (loop.getHeader()->hasName())
+    return loop.getHeader()->getName().str();
+  else
+    return defawlt.str();
+}
 
 void llvm::clearTapirLoopAttrs(Loop &loop) {
   LLVMContext &ctx = loop.getHeader()->getContext();
@@ -37,4 +57,18 @@ SmallVector<Loop *, 4> llvm::getAllSubLoops(Loop &loop) {
   collectSubLoops(loop, subLoops);
 
   return subLoops;
+}
+
+SmallVector<BasicBlock *, 8> llvm::getBlocksNotInSubLoops(const Loop &loop) {
+  SmallPtrSet<BasicBlock *, 8> bbsInSubLoops;
+  for (Loop *subLoop : loop.getSubLoops())
+    for (BasicBlock *bb : subLoop->blocks())
+      bbsInSubLoops.insert(bb);
+
+  SmallVector<BasicBlock *, 8> bbsInLoop;
+  for (BasicBlock *bb : loop.blocks())
+    if (!bbsInSubLoops.contains(bb))
+      bbsInLoop.push_back(bb);
+
+  return bbsInLoop;
 }

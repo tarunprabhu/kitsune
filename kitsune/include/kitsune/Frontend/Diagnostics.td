@@ -99,13 +99,43 @@ def ErrTTNotEnabled
   : Error<"required tapir target '{}' has not been enabled">;
 
 def ErrTTMultiple
-  : Error<"compiling for multiple tapir targets at a time is not supported">;
+  : Error<"compiling with multiple tapir targets is not yet supported">;
 
 def ErrTTIncompatible
-  : Error<"tapir targets '{}' and '{}' cannot be used together">;
+  : Error<"tapir targets '{}' and '{}' are incompatible">;
 
 def ErrTTIncompatibleLoop
-  : Error<"tapir targets '{}' and '{}' cannot be used together in a loop nest">;
+  : Error<"tapir targets '{}' and '{}' are incompatible in loop nest">;
+
+def ErrTTIncompatibleLoopGPU
+  : Error<"tapir targets '{}' and '{}' are incompatible in GPU loop nest">;
+
+def ErrTapirInstNotInTapirLoop
+  : Error<"tapir instructions outside tapir loops are not yet supported">;
+
+def ErrTapirLoopSingleIndVar
+  : Error<"tapir loop must have at most one induction variable">;
+
+def ErrTapirLoopNoUniqueDetachInst
+  : Error<"tapir loop does not have a unique detach instruction">;
+
+def ErrTapirLoopNoUniqueReattachInst
+  : Error<"tapir loop does not have a unique reattach instruction">;
+
+def ErrTapirLoopNoUniqueSyncInst
+  : Error<"tapir loop does not have a unique sync instruction">;
+
+def ErrTapirLoopNoUniqueSyncRegion
+  : Error<"tapir loop not associated with a unique sync region">;
+
+def ErrTapirLoopSyncRegionDefn
+  : Error<"syncregion is not the result of an intrinsic call">;
+
+def ErrTapirLoopSyncRegionUses
+  : Error<"unexpected use of sync region associated with tapir loop">;
+
+def ErrTapirLoopSyncMustPostDominate
+  : Error<"tapir loop not post-dominated by sync instruction">;
 
 
 // ------------------------- Kitsune-specific warnings -------------------------
@@ -115,6 +145,9 @@ def ErrTTIncompatibleLoop
 
 def WarnSerialInParallelLoopNest
   : Warning<"serial loop between parallel loops in loop nest">;
+
+def WarnParallelLoopImperfectlyNested
+  : Warning<"parallel loop not perfectly nested">;
 
 
 // ------------------------- Kitsune-specific remarks -------------------------
@@ -130,6 +163,24 @@ def RemarkSerializedLoop
 //
 // Although not strictly required, the names of all notes should be prefixed
 // with Note.
+
+def NoteFromBasicBlock
+  : Note<"from basic block '{}'">;
+
+def NoteFromFunction
+  : Note<"from function '{}'">;
+
+def NoteFromLoop
+  : Note<"from loop '{}'">;
+
+def NoteLoopNestRoot
+  : Note<"root of tapir loop nest is '{}'">;
+
+def NoteAncestorLoopTarget
+  : Note<"target on ancestor loop is '{}'">;
+
+def NoteDescendantLoopTarget
+  : Note<"target on descendant loop is '{}'">;
 
 def NoteSerializedLoop
   : Note<"serialized loop: {}">;

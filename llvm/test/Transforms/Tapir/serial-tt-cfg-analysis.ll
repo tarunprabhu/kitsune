@@ -2,7 +2,7 @@
 ; target, which performs a custom lowering of Tapir instructions
 ; that does not use outlining.
 ;
-; RUN: opt < %s -passes="default<O1>,tapir2target,sroa" -tapir-target=serial -S | FileCheck %s
+; RUN: opt -kit-no-verify-prelower < %s -passes="default<O1>,tapir2target,sroa" -tapir-target=serial -S | FileCheck %s
 
 target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 target triple = "arm64-apple-macosx13.0.0"

@@ -8,7 +8,9 @@
 ; RUN:     -serialize-verbose=1 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,REMARK --allow-empty
 ;
-; REMARK: in function 'pep': serialized loop
+; REMARK: serialized loop
+; REMARK-NEXT: from loop 'loop.j'
+; REMARK-NEXT: from function 'pep'
 ; REMARK-NOT: Loop at depth 2
 ;
 ; ------------------------------------------------------------------------------
@@ -23,7 +25,9 @@
 ; RUN:     -serialize-verbose=2 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,VERBOSE --allow-empty
 ;
-; VERBOSE: in function 'pep': serialized loop
+; VERBOSE: serialized loop
+; VERBOSE-NEXT: from loop 'loop.j'
+; VERBOSE-NEXT: from function 'pep'
 ; VERBOSE-NEXT: Loop at depth 2
 ;
 ; ------------------------------------------------------------------------------
@@ -100,8 +104,10 @@ declare void @ext1(i64)
 
 declare void @ext2(i64, i64)
 
-!0 = distinct !{!0, !2, !3, !4}
-!1 = distinct !{!1, !2}
+!0 = distinct !{!0, !2, !3, !4, !6}
+!1 = distinct !{!1, !2, !5}
 !2 = !{!"tapir.loop.target", i32 2}
 !3 = !{!"tapir.loop.perfect.depth", i32 1}
 !4 = !{!"tapir.loop.perfect.level", i32 1}
+!5 = !{!"loop.name", !"loop.j"}
+!6 = !{!"loop.name", !"loop.i"}
