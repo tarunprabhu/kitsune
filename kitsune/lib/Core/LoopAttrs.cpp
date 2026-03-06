@@ -30,11 +30,22 @@ static Constant *getConstantForValue(LLVMContext &ctx, T val) {
     static_assert(0 && "Constant creation for type not implemented");
 }
 
+template <typename T, std::enable_if_t<std::is_same_v<T, StringRef>, int> = 0>
+static Metadata *toMetadata(LLVMContext &ctx, T val) {
+  return MDString::get(ctx, val);
+}
+
+template <typename T,
+          std::enable_if_t<std::is_enum_v<T> || std::is_integral_v<T>, int> = 0>
+static Metadata *toMetadata(LLVMContext &ctx, T val) {
+  return ConstantAsMetadata::get(getConstantForValue(ctx, val));
+}
+
 template <typename T>
 MDNode *llvm::getMetadataForLoopAttr(LLVMContext &ctx, LoopAttrKind attr,
                                      T val) {
   StringRef name = getLoopAttrName(attr);
-  Metadata *mdVal = ConstantAsMetadata::get(getConstantForValue(ctx, val));
+  Metadata *mdVal = toMetadata(ctx, val);
   Metadata *mdTag = MDString::get(ctx, name);
   MDNode *md = MDNode::get(ctx, {mdTag, mdVal});
 
@@ -89,29 +100,8 @@ bool llvm::hasLoopAttr(const Loop &loop, LoopAttrKind attr) {
   return findOptionMDForLoop(&loop, getLoopAttrName(attr));
 }
 
-template <typename Enum>
-static std::optional<Enum> convertToEnum(const Constant &c) {
-  if (const auto *cint = dyn_cast<ConstantInt>(&c)) {
-    int v = cint->getLimitedValue();
-    if constexpr (std::is_same_v<Enum, TTID>)
-      return createTTIDFrom(v);
-    else if constexpr (std::is_same_v<Enum, TapirSpawnStrategy>)
-      return createTapirSpawnStrategyFrom(v);
-    else
-      static_assert(0 && "Enum value not handled");
-  }
-  return std::nullopt;
-}
-
-template <typename T>
-static std::optional<T> convertToIntegral(const Constant &c) {
-  if (const auto *cint = dyn_cast<ConstantInt>(&c))
-    return cint->getLimitedValue();
-  return std::nullopt;
-}
-
-[[maybe_unused]]
-static std::optional<StringRef> convertToStringRef(const Constant &c) {
+template <typename T, std::enable_if_t<std::is_same_v<T, StringRef>, int> = 0>
+static std::optional<StringRef> convertTo(const Constant &c) {
   if (const auto *cda = dyn_cast<ConstantDataArray>(&c)) {
     if (cda->isString())
       return cda->getAsString();
@@ -121,22 +111,49 @@ static std::optional<StringRef> convertToStringRef(const Constant &c) {
   return std::nullopt;
 }
 
-template <typename T> std::optional<T> convertTo(const Constant &c) {
-  if constexpr (std::is_enum_v<T>)
-    return convertToEnum<T>(c);
-  else if constexpr (std::is_integral_v<T>)
-    return convertToIntegral<T>(c);
-  else if constexpr (std::is_same_v<T, StringRef>)
-    return convertToStringRef(c);
+template <typename T, std::enable_if_t<std::is_same_v<T, TTID>, int> = 0>
+static std::optional<T> convertTo(const Constant &c) {
+  if (const auto *cint = dyn_cast<ConstantInt>(&c))
+    return createTTIDFrom(cint->getLimitedValue());
+  return std::nullopt;
+}
+
+template <typename T,
+          std::enable_if_t<std::is_same_v<T, TapirSpawnStrategy>, int> = 0>
+static std::optional<T> convertTo(const Constant &c) {
+  if (const auto *cint = dyn_cast<ConstantInt>(&c))
+    return createTapirSpawnStrategyFrom(cint->getLimitedValue());
+  return std::nullopt;
+}
+
+template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+static std::optional<T> convertTo(const Constant &c) {
+  if (const auto *cint = dyn_cast<ConstantInt>(&c))
+    return cint->getLimitedValue();
+  return std::nullopt;
+}
+
+template <typename T,
+          std::enable_if_t<std::is_enum_v<T> || std::is_integral_v<T>, int> = 0>
+static std::optional<T> fromMetadata(const Metadata *md) {
+  if (auto *cmd = dyn_cast<ConstantAsMetadata>(md))
+    if (auto *c = dyn_cast<Constant>(cmd->getValue()))
+      return convertTo<T>(*c);
+  return std::nullopt;
+}
+
+template <typename T, std::enable_if_t<std::is_same_v<T, StringRef>, int> = 0>
+static std::optional<T> fromMetadata(const Metadata *md) {
+  if (auto *mdString = dyn_cast<MDString>(md))
+    return mdString->getString();
+  return std::nullopt;
 }
 
 template <typename T>
 static std::optional<T> getLoopAttr(const Loop &loop, StringRef name) {
   MDNode *md = findOptionMDForLoop(&loop, name);
   if (md && md->getNumOperands() == 2)
-    if (auto *cmd = dyn_cast<ConstantAsMetadata>(md->getOperand(1)))
-      if (auto *c = dyn_cast<Constant>(cmd->getValue()))
-        return convertTo<T>(*c);
+    return fromMetadata<T>(md->getOperand(1));
   return std::nullopt;
 }
 

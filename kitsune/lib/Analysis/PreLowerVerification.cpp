@@ -1,0 +1,390 @@
+//===- PreLowerVerification.cpp - Verification before tapir lowering ------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This pass that checks the tapir targets that are required by a module, and
+// the structure of tapir tasks in the functions. This is primarily a sanity
+// check just before we begin lowering tapir loops. It is, therefore, intended
+// to be run relatively late in the overall pipeline, but fairly early in the
+// lowering pipeline.
+//
+// One of the main analyses that this performs on a function is checking the
+// tapir targets associated with tapir loops. For instance, an error will be
+// raised in the following case:
+//
+//     parallel_for (...) {      // tapir.loop.target = "cuda"
+//        parallel_for (...) {   // tapir.loop.target = "hip"
+//        }
+//     }
+//
+// The issue here is not that multiple targets are being used, but that any
+// lowering for this would require an NVIDIA GPU to launch a kernel on an
+// AMDGPU. It is highly unlikely that this can ever be made to work.
+//
+// This pass emits diagnostics (warnings and errors) to stderr. The default
+// behavior is to exit with a system-dependent error code if at least one error
+// was found. This can be overridden to continue as normal even if errors were
+// found. At some point, this may change to an analysis pass that returns the
+// results of the analysis.
+//
+//
+// NOTES FOR MAINTAINERS
+//
+//  1. The tapir-target-analysis pass looks over the tapir loops and collects
+//     the tapir targets that are needed, but does not perform any checks. There
+//     is an open question on whether the tapir target checks should be moved
+//     there leaving only the structure checks here. Alternatively, that pass
+//     could be seen as a simple wrapper for the instances of the tapir target
+//     objects that will be needed during lowering.
+//
+//===----------------------------------------------------------------------===//
+
+#include "kitsune/Analysis/PreLowerVerification.h"
+#include "kitsune/Analysis/TapirLoopNestAnalysis.h"
+#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/InstructionUtils.h"
+#include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Frontend/CommandLineOptions.h"
+#include "kitsune/Frontend/Diagnostics.h"
+#include "kitsune/Support/ErrorHandling.h"
+#include "kitsune/Support/TTIDUtils.h"
+#include "kitsune/Targets/TapirTargets.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/PostDominators.h"
+#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
+#include "llvm/IR/InstIterator.h"
+#include "llvm/Transforms/Utils/TapirUtils.h"
+
+#define DEBUG_TYPE "kit-verify-prelower"
+
+using namespace llvm;
+
+static cl::opt<bool> clDisableVerifyPreLower(
+    "kit-no-verify-prelower", cl::init(false), cl::Hidden,
+    cl::cat(cl::catKitClDevOpts),
+    cl::desc("Disable Kitsune's pre-lowering verifier"));
+
+namespace {
+
+/// Get a unique instruction of type T in a loop, or nullptr if one does not
+/// exist. This will *not* look for such an instruction in any subloops.
+template <typename InstType>
+static const InstType *getUniqueInstInLoop(const Loop &loop) {
+  SmallVector<const InstType *, 4> insts;
+  for (const BasicBlock *bb : getBlocksNotInSubLoops(loop))
+    for (const Instruction &inst : *bb)
+      if (const auto *asType = dyn_cast<InstType>(&inst))
+        insts.push_back(asType);
+  if (insts.size() == 1)
+    return insts.front();
+  return nullptr;
+}
+
+static SmallSet<const SyncInst *, 4> getSyncInstsFor(const Value &syncRegion) {
+  SmallSet<const SyncInst *, 4> syncInsts;
+  for (const Use &use : syncRegion.uses())
+    if (const auto *syncInst = dyn_cast<SyncInst>(use.getUser()))
+      syncInsts.insert(syncInst);
+  return syncInsts;
+}
+
+/// Result of running the tapir verifier. Currently, this only contains counts
+/// of the number of errors and warnings that were emitted.
+struct Log {
+  unsigned errors = 0;
+  unsigned warnings = 0;
+};
+
+template <typename T> class Verifier {
+protected:
+  Log &log;
+
+protected:
+  Verifier(Log &log) : log(log) {}
+
+  void record(DiagID id) {
+    if (isError(id))
+      ++log.errors;
+    else if (isWarning(id))
+      ++log.warnings;
+  }
+
+  template <typename... Args> void emitDiag(DiagID id, Args &&...args) {
+    emitDiagnostic(id, args...);
+    record(id);
+  }
+
+  template <typename IRElement, typename... Args>
+  void emitDiag(const IRElement &e, DiagID id, Args &&...args) {
+    emitDiagnostic(e, id, args...);
+    record(id);
+  }
+};
+
+/// Verifier class for a function. This is only a class because it is a
+/// convenient container for the function-level analyses that the various
+/// checks may use.
+class VerifierF : public Verifier<VerifierF> {
+private:
+  LoopInfo &li;
+  PostDominatorTree &pdt;
+  ScalarEvolution &se;
+  TaskInfo &ti;
+
+private:
+  // Check that the tapir targets on all subloops in a tapir loop nest rooted at
+  // the given loop are consistent. The target of the root must be a GPU-centric
+  // tapir target.
+  void checkConsistentTTsForGPU(Loop &root) {
+    TTID ttRoot = *getTapirLoopTargetAttr(root);
+    for (Loop *subLoop : getAllSubLoops(root)) {
+      if (isTapirLoop(*subLoop, ti)) {
+        TTID tt = *getTapirLoopTargetAttr(*subLoop);
+        if (tt != ttRoot) {
+          emitDiag(*subLoop, DiagID::ErrTTIncompatibleLoopGPU, tt, ttRoot);
+          emitDiag(root, DiagID::NoteAncestorLoopTarget, ttRoot);
+        }
+      }
+    }
+  }
+
+  // Check that the tapir targets on all subloops in a tapir loop nest rooted at
+  // the given loop are consistent. The target of the root must be a CPU-centric
+  // tapir target.
+  void checkConsistentTTsForCPU(Loop &root) {
+    TTID ttRoot = *getTapirLoopTargetAttr(root);
+    for (Loop *subLoop : getAllSubLoops(root)) {
+      if (isTapirLoop(*subLoop, ti)) {
+        TTID tt = *getTapirLoopTargetAttr(*subLoop);
+        if (isGPUTT(tt) || tt != ttRoot) {
+          // FIXME: We don't yet support multi-target compilation anyway, but
+          // GPU's inside parallel CPU loops are particularly thorny. Until we
+          // have a decent plan for handling these, complain about them.
+          //
+          // Although nesting CPU targets should be ok, we need to think about
+          // the consequences of these, so don't allow those either.
+          emitDiag(*subLoop, DiagID::ErrTTIncompatibleLoop, tt, ttRoot);
+          emitDiag(root, DiagID::NoteAncestorLoopTarget, ttRoot);
+        }
+      }
+    }
+  }
+
+  // If the root of a tapir loop nest is a GPU-centric tapir target, any tapir
+  // loops contained within it must be perfectly nested. Otherwise, they are
+  // likely to be serialized.
+  void checkLoopNestStructureForGPU(Loop &root) {
+    std::unique_ptr<TapirLoopNest> nest = TapirLoopNest::create(root, se, ti);
+    assert(nest && "Could not create tapir loop nest object");
+
+    ArrayRef<Loop *> perfectLoops = nest->getPerfectTapirLoops();
+    SmallSetVector<Loop *, 4> perfectSet(perfectLoops.begin(),
+                                         perfectLoops.end());
+    for (Loop *loop : nest->getLoops())
+      if (isTapirLoop(*loop, ti))
+        if (!perfectSet.contains(loop)) {
+          emitDiag(*loop, DiagID::WarnParallelLoopImperfectlyNested);
+          emitDiag(DiagID::NoteLoopNestRoot, getLoopName(root));
+        }
+  }
+
+  void checkTopLevelTapirLoop(Loop &loop) {
+    switch (*getTapirLoopTargetAttr(loop)) {
+    case TTID::Nolo:
+    case TTID::Serial:
+    case TTID::OpenCilk:
+    case TTID::Pthreads:
+    case TTID::Qthreads:
+      checkConsistentTTsForCPU(loop);
+      return;
+    case TTID::Cuda:
+    case TTID::Hip:
+      checkConsistentTTsForGPU(loop);
+      checkLoopNestStructureForGPU(loop);
+      return;
+    case TTID::Custom:
+      // FIXME: We should probably require the custom targets to have a hook
+      // that provides suitable checks.
+      return;
+    case TTID::Lambda:
+    case TTID::OMPTask:
+    case TTID::OpenMP:
+    case TTID::Realm:
+      break;
+    }
+    llvm_unreachable("checkTopLevelTapirLoop: TTID not handled");
+  }
+
+  /// Find the top-level tapir loops in a function and check that they are
+  /// consistent. This primarily checks the tapir targets on the subloops and
+  /// the loop nest structure.
+  void checkTopLevelTapirLoops(Function &f) {
+    for (Loop *loop : getTopLevelTapirLoops(li, ti))
+      checkTopLevelTapirLoop(*loop);
+  }
+
+  /// Check that a given value is a sync region definition.
+  template <typename InstType> void checkSyncRegionDefn(const InstType &inst) {
+    if (const auto *call = dyn_cast<CallBase>(inst.getSyncRegion()))
+      if (Function *f = call->getCalledFunction())
+        if (f->getIntrinsicID() == Intrinsic::syncregion_start)
+          return;
+    emitDiag(inst, DiagID::ErrTapirLoopSyncRegionDefn);
+  }
+
+  /// Check the structure of a tapir loops.
+  ///
+  ///  - It must have a single induction variable. This is strictly required
+  ///    for tapir loops on the GPU. However, those for the CPU may have more
+  ///    than one induction variable, but we do not support this currently.
+  ///
+  ///  - The loop must contain exactly one detach instruction, and exactly one
+  ///    reattach instruction (subloops may also contain detaches and
+  ///    reattaches, but these are ignored). Specifically, we don't allow
+  ///    "free-standing" detaches and reattaches, although Tapir allows them.
+  ///    This is because this represents a form of nested parallelism that we
+  ///    don't yet support.
+  ///
+  ///  - A sync instruction must post-dominate the tapir loop.
+  ///
+  void checkTapirLoop(const Loop &loop, const Task &task) {
+    unsigned numPhis = 0;
+    for (const Instruction &inst : *loop.getHeader())
+      if (isa<PHINode>(inst))
+        ++numPhis;
+    if (numPhis > 1)
+      emitDiag(loop, DiagID::ErrTapirLoopSingleIndVar);
+
+    const DetachInst *detachInst = task.getDetach();
+    if (getUniqueInstInLoop<DetachInst>(loop) != detachInst) {
+      emitDiag(loop, DiagID::ErrTapirLoopNoUniqueDetachInst);
+      return;
+    }
+
+    const ReattachInst *reattachInst = getUniqueInstInLoop<ReattachInst>(loop);
+    if (!reattachInst) {
+      emitDiag(loop, DiagID::ErrTapirLoopNoUniqueReattachInst);
+      return;
+    }
+
+    const Value *syncRegion = detachInst->getSyncRegion();
+    SmallSet<const SyncInst *, 4> syncInsts = getSyncInstsFor(*syncRegion);
+    if (syncInsts.size() < 1) {
+      emitDiag(loop, DiagID::ErrTapirLoopNoUniqueSyncInst);
+      return;
+    } else if (syncInsts.size() > 1) {
+      // We could have multiple sync instructions in a sync since task-simplify
+      // may have merged sync regions. Ideally, we would not want this to be an
+      // error, but we will have to fix the optimization pipeline before we can
+      // do that.
+      return;
+    }
+    const SyncInst *syncInst = *syncInsts.begin();
+    if (!pdt.dominates(syncInst, loop.getLoopLatch()->getTerminator()))
+      emitDiag(loop, DiagID::ErrTapirLoopSyncMustPostDominate);
+
+    checkSyncRegionDefn(*detachInst);
+    checkSyncRegionDefn(*reattachInst);
+  }
+
+  void checkAllTapirLoops(Function &f) {
+    for (const Loop *loop : li.getLoopsInPreorder())
+      if (Task *task = getTaskIfTapirLoop(loop, &ti))
+        checkTapirLoop(*loop, *task);
+  }
+
+  /// Check that detach and reattach instructions may not appear outside tapir
+  /// loops.
+  void checkTapirInsts(const Function &f) {
+    SmallSet<const BasicBlock *, 8> bbs;
+    for (const Loop *loop : getTapirLoops(li, ti))
+      for (const BasicBlock *bb : getBlocksNotInSubLoops(*loop))
+        bbs.insert(bb);
+
+    for (const_inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i) {
+      if (isa<DetachInst>(*i) || isa<ReattachInst>(*i)) {
+        if (!bbs.contains(i->getParent()))
+          emitDiag(*i, DiagID::ErrTapirInstNotInTapirLoop);
+      } else if (const auto *syncInst = dyn_cast<SyncInst>(&*i)) {
+        checkSyncRegionDefn(*syncInst);
+      }
+    }
+  }
+
+public:
+  VerifierF(Log &log, LoopInfo &li, PostDominatorTree &pdt, ScalarEvolution &se,
+            TaskInfo &ti)
+      : Verifier(log), li(li), pdt(pdt), se(se), ti(ti) {}
+
+  void run(Function &f) {
+    checkTapirInsts(f);
+    checkAllTapirLoops(f);
+    checkTopLevelTapirLoops(f);
+  }
+};
+
+/// Verifier for a module. This does not descend into any of the functions, but
+/// only verifies module-level entities such as global variables, module-level
+/// debug information and metadata, etc.
+class VerifierM : public Verifier<VerifierM> {
+private:
+  TapirTargetInfo &ttgi;
+
+private:
+  /// Check if all tapir targets required by the module have been enabled.
+  void checkTTsEnabled(ArrayRef<TTID> tts) {
+    for (TTID tt : tts)
+      if (not isTTEnabled(tt))
+        emitDiag(DiagID::ErrTTNotEnabled);
+  }
+
+public:
+  VerifierM(Log &log, TapirTargetInfo &ttgi) : Verifier(log), ttgi(ttgi) {}
+
+  void run(Module &m) {
+    ArrayRef tts = ttgi.getRequiredTTs(m);
+    checkTTsEnabled(tts);
+
+    /// FIXME: At this time, we do not support multi-target execution.
+    /// Therefore, only one tapir target must be required in the module. Once we
+    /// support multi-target execution, this check can be removed.
+    if (tts.size() > 1)
+      emitDiag(DiagID::ErrTTMultiple);
+  }
+};
+
+} // namespace
+
+PreservedAnalyses PreLowerVerificationPass::run(Module &m,
+                                                ModuleAnalysisManager &mam) {
+  TapirTargetInfo &ttgi = mam.getResult<TapirTargetAnalysis>(m);
+  if (clDisableVerifyPreLower || !ttgi.hasTTID())
+    return PreservedAnalyses::all();
+
+  FunctionAnalysisManager &fam =
+      mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
+
+  Log log;
+  VerifierM(log, ttgi).run(m);
+  for (Function &f : m) {
+    if (f.size()) {
+      LoopInfo &li = fam.getResult<LoopAnalysis>(f);
+      PostDominatorTree &pdt = fam.getResult<PostDominatorTreeAnalysis>(f);
+      ScalarEvolution &se = fam.getResult<ScalarEvolutionAnalysis>(f);
+      TaskInfo &ti = fam.getResult<TaskAnalysis>(f);
+
+      VerifierF(log, li, pdt, se, ti).run(f);
+    }
+  }
+
+  if (log.errors and exitIfError)
+    exitOnError();
+  return PreservedAnalyses::all();
+}

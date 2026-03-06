@@ -79,7 +79,7 @@ for.i.exit:
 !0 = distinct !{!0}
 )";
 
-TEST(LoopUtilsTest, clearTapirLoopAttrs) {
+TEST(LoopUtils, clearTapirLoopAttrs) {
   LoopInfoContext liCtx(loop1, "f");
   LLVMContext &ctx = liCtx.ctx;
   LoopInfo &li = liCtx.li;
@@ -157,7 +157,7 @@ for.i.exit:
 !2 = distinct !{!2}
 !3 = distinct !{!3})";
 
-TEST(LoopUtilsTest, getAllSubLoops) {
+TEST(LoopUtils, getAllSubLoops) {
   std::unique_ptr<LoopInfoContext> liCtx = nullptr;
 
   liCtx.reset(new LoopInfoContext(loop3_2, "f"));
@@ -173,4 +173,26 @@ TEST(LoopUtilsTest, getAllSubLoops) {
 
   liCtx.reset(new LoopInfoContext(loop1, "f"));
   EXPECT_EQ(getAllSubLoops(*liCtx->li.getLoopsInPreorder()[0]).size(), 0U);
+}
+
+TEST(LoopUtils, getBlocksNotInSubLoops) {
+  std::unique_ptr<LoopInfoContext> liCtx = nullptr;
+  Loop *loopI = nullptr;
+  Loop *loopJ = nullptr;
+  Loop *loopK = nullptr;
+  Loop *loopL = nullptr;
+
+  liCtx.reset(new LoopInfoContext(loop1, "f"));
+  loopI = liCtx->li.getLoopsInPreorder()[0];
+  EXPECT_EQ(getBlocksNotInSubLoops(*loopI).size(), 3U);
+
+  liCtx.reset(new LoopInfoContext(loop3_2, "f"));
+  loopI = liCtx->li.getLoopsInPreorder()[0];
+  loopJ = loopI->getSubLoops()[0];
+  loopK = loopJ->getSubLoops()[0];
+  loopL = loopJ->getSubLoops()[1];
+  EXPECT_EQ(getBlocksNotInSubLoops(*loopI).size(), 2U);
+  EXPECT_EQ(getBlocksNotInSubLoops(*loopJ).size(), 3U);
+  EXPECT_EQ(getBlocksNotInSubLoops(*loopK).size(), 1U);
+  EXPECT_EQ(getBlocksNotInSubLoops(*loopL).size(), 1U);
 }

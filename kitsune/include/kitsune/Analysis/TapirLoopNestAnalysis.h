@@ -16,10 +16,12 @@
 #ifndef KITSUNE_ANALYSIS_TAPIR_LOOP_NEST_ANALYSIS_H
 #define KITSUNE_ANALYSIS_TAPIR_LOOP_NEST_ANALYSIS_H
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/LoopNestAnalysis.h"
 
 namespace llvm {
 
+class LoopInfo;
 class TaskInfo;
 
 /// An object that wraps a tapir loop nest. A tapir loop nest is a loop nest
@@ -54,6 +56,16 @@ private:
 
 private:
   TapirLoopNest(Loop &loop, TaskInfo &ti, ScalarEvolution &se);
+
+  /// When constructing the loop nest, check some basic properties of an "outer"
+  /// loop. This is relative to some other "inner" loop. It is not necessarily
+  /// the root of the tapir loop nest. Return false if at least one property
+  /// does not hold, true otherwise.
+  bool sanityCheckOuterLoop(const Loop &loop, ScalarEvolution &se) const;
+
+  /// When constructing the loop nest, check some basic properties of an "inner"
+  /// loop. Return false if at least one property does not hold, true otherwise.
+  bool sanityCheckInnerLoop(const Loop &loop, ScalarEvolution &se) const;
 
 public:
   /// Get the maximum perfect nesting depth of tapir loops in the nest.
@@ -139,8 +151,8 @@ public:
   /// Here, tapir loop nest objects can be created that are rooted at any of
   /// the forall loops since each of these is a valid tapir loop nest.
   ///
-  static std::unique_ptr<TapirLoopNest> create(Loop &loop, TaskInfo &ti,
-                                               ScalarEvolution &se);
+  static std::unique_ptr<TapirLoopNest> create(Loop &loop, ScalarEvolution &se,
+                                               TaskInfo &ti);
 };
 
 /// Return if the loop is a tapir loop.
@@ -172,6 +184,12 @@ bool isTapirLoopForGPU(Loop &loop, TaskInfo &ti);
 /// returns true for the loop. See the documentation for isTapirLoopForGPU for
 /// more details.
 bool isTopLevelTapirLoopForGPU(Loop &loop, TaskInfo &ti);
+
+/// Get the roots of all tapir loop nests in a function.
+SmallVector<Loop *, 4> getTopLevelTapirLoops(LoopInfo &li, TaskInfo &ti);
+
+/// Get all the tapir loops in a function.
+SmallVector<Loop *, 4> getTapirLoops(LoopInfo &li, TaskInfo &ti);
 
 } // namespace llvm
 

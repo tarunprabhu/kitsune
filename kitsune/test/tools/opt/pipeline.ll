@@ -69,18 +69,14 @@
 ; RUN: opt -Oz --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix O123SZ %s
 ;
-; O123SZ:      Running pass:     AnnotateTapirLoopsPass
-; O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis
+; O123SZ:      Running pass:     PreLowerVerificationPass
+; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
 ; O123SZ-NEXT: Running analysis: TaskAnalysis
+; O123SZ-NEXT: Running analysis: PostDominatorTreeAnalysis
+; O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis
+; O123SZ-NEXT: Running pass:     AnnotateTapirLoopsPass
 ; O123SZ-NEXT: Running pass:     SerializeTapirLoopsPass
 ; O123SZ-NEXT: Running pass:     LoopSpawningPass
-;
-; FIXME: Remove the comment below once the loop strip-mining pass has been
-; reverted to the original and George's reduction modifications have been moved
-; into its own pass
-; COM: O123SZ-NEXT: Running analysis: TapirTargetAnalysis
-; COM: O123SZ-NEXT: Running analysis: TaskAnalysis
-;
 ; O123SZ:      Running pass:     TapirToTargetPass
 ; O123SZ:      Running pass:     GlobalDCEPass
 ; O123SZ-NEXT: Running pass:     PrefetchingPass

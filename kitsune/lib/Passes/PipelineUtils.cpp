@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Passes/PipelineUtils.h"
+#include "kitsune/Analysis/PreLowerVerification.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "kitsune/CodeGen/LowerKitsuneIntrinsics.h"
@@ -77,7 +78,9 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
   // At optimization level O0,, loop spawning will not be run, so there is no
   // point in running the other Kitsune-specific passes.
   if (optLevel.getSpeedupLevel() > 0) {
-    // annotate-tapir-loops requires the loops to be simplified and rotated
+    mpm.addPass(PreLowerVerificationPass());
+
+    // annotate-tapir-loops requires the loops to be in simplified and rotated
     // form. Since this pipeline is run just before loop-spawning, both the
     // loop-simplify and loop-rotate passes are guaranteed to have been run.
     mpm.addPass(AnnotateTapirLoopsPass());

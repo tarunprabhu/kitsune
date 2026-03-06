@@ -1,0 +1,78 @@
+; Currently, multiple tapir targets are not supported, even if, as is the case
+; here, one of them is `serial` and the other `pthreads` which should generally
+; be a "safe" combination.
+;
+; When we do support multi-target execution, this test should be removed because
+; the corresponding code in the kit-verify-prelower pass will also have been
+; removed.
+; Tests for valid (and invalid) combinations of tapir targets should be done
+; in other tests.
+;
+; RUN: not opt --tapir=serial -passes='kit-verify-prelower' %s 2>&1 \
+; RUN:     -disable-output \
+; RUN:     | FileCheck %s
+;
+; CHECK: error: compiling with multiple tapir targets is not yet supported
+
+target triple = "x86_64-unknown-linux-gnu"
+
+; forall (i ...)    // serial
+;   forall (j ...)  // pthreads
+;     for (k ...)
+define void @pps(i64 %m, i64 %n, i64 %p) {
+entry:
+  %syncreg.i = tail call token @llvm.syncregion.start()
+  br label %for.i.header
+
+for.i.header:
+  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
+  detach within %syncreg.i, label %for.i.body, label %for.i.latch
+
+for.i.body:
+  %syncreg.j = tail call token @llvm.syncregion.start()
+  br label %for.j.header
+
+for.j.header:
+  %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
+  detach within %syncreg.j, label %for.j.body, label %for.j.latch
+
+for.j.body:
+  br label %for.k.body
+
+for.k.body:
+  %k = phi i64 [ 0, %for.j.body ], [ %inc.k, %for.k.body ]
+  %inc.k = add nuw i64 %k, 1
+  %exitcond.k.not = icmp eq i64 %inc.k, %p
+  br i1 %exitcond.k.not, label %for.k.exit, label %for.k.body, !llvm.loop !2
+
+for.k.exit:
+  reattach within %syncreg.j, label %for.j.latch
+
+for.j.latch:
+  %inc.j = add nuw i64 %j, 1
+  %exitcond.j.not = icmp eq i64 %inc.j, %n
+  br i1 %exitcond.j.not, label %for.j.exit, label %for.j.header, !llvm.loop !1
+
+for.j.exit:
+  sync within %syncreg.j, label %for.j.end
+
+for.j.end:
+  reattach within %syncreg.i, label %for.i.latch
+
+for.i.latch:
+  %inc.i = add nuw i64 %i, 1
+  %exitcond.i.not = icmp eq i64 %inc.i, %m
+  br i1 %exitcond.i.not, label %for.i.exit, label %for.i.header, !llvm.loop !0
+
+for.i.exit:
+  sync within %syncreg.i, label %for.i.end
+
+for.i.end:
+  ret void
+}
+
+!0 = !{!0, !3}
+!1 = !{!1, !4}
+!2 = !{!2}
+!3 = !{!"tapir.loop.target", i32 1}
+!4 = !{!"tapir.loop.target", i32 1024}

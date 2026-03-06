@@ -23,63 +23,28 @@
 
 using namespace llvm;
 
-static CmpInst *getOuterLoopLatchCmp(const Loop &outerLoop) {
-  const BasicBlock *latch = outerLoop.getLoopLatch();
-  assert(latch && "Expecting a valid loop latch");
-
-  const auto *br = dyn_cast<BranchInst>(latch->getTerminator());
-  assert(br && br->isConditional() &&
-         "Loop latch terminator must be a conditional branch instruction");
-
-  return dyn_cast<CmpInst>(br->getCondition());
-}
-
-static CmpInst *getInnerLoopGuardCmp(const Loop &innerLoop) {
-  if (BranchInst *innerGuard = innerLoop.getLoopGuardBranch())
-    if (auto *cmpInst = dyn_cast<CmpInst>(innerGuard->getCondition()))
-      return cmpInst;
-  return nullptr;
-}
-
-static bool checkSafeInstruction(const Instruction &inst,
-                                 const CmpInst *innerLoopGuardCmp,
-                                 const CmpInst *outerLoopLatchCmp,
-                                 const Loop::LoopBounds &outerLoopLB) {
-
-  bool isAllowed = isSafeToSpeculativelyExecute(&inst) || isa<PHINode>(inst) ||
-                   isa<BranchInst>(inst) || isa<DetachInst>(inst);
-  if (!isAllowed)
-    return false;
-
-  // The only binary instruction allowed is the outer loop step instruction,
-  // the only comparison instructions allowed are the inner loop guard
-  // compare instruction and the outer loop latch compare instruction.
-  if (isa<BinaryOperator>(inst) && &inst != &outerLoopLB.getStepInst())
-    return false;
-  else if (isa<CmpInst>(inst) && &inst != outerLoopLatchCmp &&
-           &inst != innerLoopGuardCmp)
-    return false;
-  return true;
-}
-
 /// Check if the given basic block is empty.
 static bool isEmpty(const BasicBlock &bb) { return bb.size() == 1; }
 
+/// Check if the instruction is call to the llvm.syncregion.start() intrinsic.
+static bool isCallSyncRegionStart(const Instruction &inst) {
+  if (const auto *call = dyn_cast<CallBase>(&inst))
+    if (const Function *f = call->getCalledFunction())
+      if (f->getIntrinsicID() == Intrinsic::syncregion_start)
+        return true;
+  return false;
+}
+
 /// Check if the given basic block contains a single call to an intrinsic that
 /// creates a syncregion.
-static bool onlyCreatesSyncRegion(const BasicBlock &bb) {
-  if (bb.size() == 2)
-    if (const auto *call = dyn_cast<CallInst>(&bb.front()))
-      if (Function *f = call->getCalledFunction())
-        if (f->getIntrinsicID() == Intrinsic::syncregion_start)
-          return true;
-  return false;
+static bool onlyCallsSyncRegionStart(const BasicBlock &bb) {
+  return bb.size() == 2 && isCallSyncRegionStart(bb.front());
 }
 
 /// Return true if the given basic block is empty, or contains a single call to
 /// create a syncregion.
-static bool isEmptyOrOnlyCreatesSyncRegion(const BasicBlock &bb) {
-  return isEmpty(bb) || onlyCreatesSyncRegion(bb);
+static bool isEmptyOrOnlyCallsSyncRegionStart(const BasicBlock &bb) {
+  return isEmpty(bb) || onlyCallsSyncRegionStart(bb);
 }
 
 /// Check if there is a unique path between \p from and \p end. All blocks in
@@ -143,27 +108,6 @@ static bool checkLoopsStructure(const Loop &outerLoop, const Loop &innerLoop,
                     << outerLoop.getName() << "' and '" << innerLoop.getName()
                     << "'.\n";);
 
-  // The inner loop must be the only outer loop's child.
-  if (innerLoop.getParentLoop() != &outerLoop) {
-    LLVM_DEBUG(dbgs() << "'" << outerLoop.getName() << "' is not a parent of '"
-                      << innerLoop.getName() << "'.\n";);
-    return false;
-  }
-
-  if (outerLoop.getSubLoops().size() != 1) {
-    LLVM_DEBUG(dbgs() << "'" << outerLoop.getName()
-                      << "' has more than one subloop.\n";);
-    return false;
-  }
-
-  // We expect loops in normal form which have a preheader, header, latch...
-  if (!outerLoop.isLoopSimplifyForm() || !innerLoop.isLoopSimplifyForm()) {
-    LLVM_DEBUG(dbgs() << "Both '" << outerLoop.getName() << "' and '"
-                      << innerLoop.getName()
-                      << "' must be in loop simplify form.\n";);
-    return false;
-  }
-
   const BasicBlock *outerLoopHeader = outerLoop.getHeader();
   const BasicBlock *outerLoopLatch = outerLoop.getLoopLatch();
   const BasicBlock *innerLoopPreheader = innerLoop.getLoopPreheader();
@@ -186,7 +130,7 @@ static bool checkLoopsStructure(const Loop &outerLoop, const Loop &innerLoop,
     });
   };
 
-  // Returns whether the block `BB` qualifies for being an extra Phi block. The
+  // Returns whether the block `bb` qualifies for being an extra Phi block. The
   // extra Phi block is the additional block inserted after the exit block of an
   // "guarded" inner loop which contains "only" Phi nodes corresponding to the
   // LCSSA Phi nodes in the exit block.
@@ -208,7 +152,7 @@ static bool checkLoopsStructure(const Loop &outerLoop, const Loop &innerLoop,
   // guard.
   if (outerLoopHeader != innerLoopPreheader) {
     const BasicBlock *outerLoopHeaderSucc = skipSafeBlocksUntil(
-        outerLoopHeader, innerLoopPreheader, isEmptyOrOnlyCreatesSyncRegion);
+        outerLoopHeader, innerLoopPreheader, isEmptyOrOnlyCallsSyncRegionStart);
 
     // no conditional branch present
     if (outerLoopHeaderSucc != innerLoopPreheader) {
@@ -266,10 +210,65 @@ static bool checkLoopsStructure(const Loop &outerLoop, const Loop &innerLoop,
   return true;
 }
 
+static CmpInst *getInnerLoopGuardCmp(const Loop &innerLoop) {
+  if (BranchInst *innerGuard = innerLoop.getLoopGuardBranch())
+    if (auto *cmpInst = dyn_cast<CmpInst>(innerGuard->getCondition()))
+      return cmpInst;
+  return nullptr;
+}
+
+static bool
+checkInstsInBlock(const BasicBlock &bb,
+                  std::function<bool(const Instruction &)> isInstSafe) {
+  return all_of(bb, isInstSafe);
+}
+
+/// Check if the outer loop header only contains the expected set of
+/// instructions. In addition to a certain set of instructions, the outer loop
+/// header may contain the inner loop guard branch, i.e. the branch that skips
+/// the inner loop entirely if the loop trip count is determined to be <= 0.
+static bool checkOuterLoopHeader(const BasicBlock &header,
+                                 CmpInst *innerLoopGuardCmp) {
+  auto isInstSafe = [&innerLoopGuardCmp](const Instruction &inst) -> bool {
+    // The only comparison instruction allowed is the inner loop guard
+    // comparison. Otherwise, PHINode's, BranchInst's and DetachInst's are
+    // allowed, though we should check that these are exactly those that we
+    // expect.
+    if (isa<CmpInst>(inst))
+      return &inst == innerLoopGuardCmp;
+    else if (isa<PHINode>(inst) || isa<BranchInst>(inst) ||
+             isa<DetachInst>(inst))
+      return true;
+    return false;
+  };
+
+  return checkInstsInBlock(header, isInstSafe);
+}
+
+static bool checkOuterLoopLatch(const BasicBlock &latch,
+                                const CmpInst *latchCmpInst,
+                                const Loop::LoopBounds &bounds) {
+  Instruction *step = &bounds.getStepInst();
+
+  auto isInstSafe = [&latchCmpInst, &step](const Instruction &inst) -> bool {
+    // The only binary instruction allowed is the outer loop step instruction,
+    // the only comparison instruction allowed is the outer loop latch compare
+    // instruction. Otherwise, certain instructions are safe, but nothing else
+    // is.
+    if (isa<CmpInst>(inst))
+      return &inst == latchCmpInst;
+    else if (isa<BinaryOperator>(inst))
+      return &inst == step;
+    else if (isa<BranchInst>(inst))
+      return true;
+    return false;
+  };
+
+  return checkInstsInBlock(latch, isInstSafe);
+}
+
 static bool arePerfectlyNested(const Loop &outerLoop, const Loop &innerLoop,
                                ScalarEvolution &se) {
-  assert(outerLoop.getSubLoops().size() && "Outer loop should have subloops");
-  assert(innerLoop.getParentLoop() && "Inner loop should have a parent");
   LLVM_DEBUG(dbgs() << "Checking whether loop '" << outerLoop.getName()
                     << "' and '" << innerLoop.getName()
                     << "' are perfectly nested.\n");
@@ -279,42 +278,34 @@ static bool arePerfectlyNested(const Loop &outerLoop, const Loop &innerLoop,
     return false;
   }
 
-  // Bail out if we cannot retrieve the outer loop bounds.
-  std::optional<Loop::LoopBounds> outerLoopLB = outerLoop.getBounds(se);
-  if (!outerLoopLB) {
-    LLVM_DEBUG(dbgs() << "Cannot compute loop bounds of outerLoop: "
-                      << outerLoop << "\n";);
-    return false;
-  }
-
-  CmpInst *outerLoopLatchCmp = getOuterLoopLatchCmp(outerLoop);
-  CmpInst *innerLoopGuardCmp = getInnerLoopGuardCmp(innerLoop);
-
-  // Determine whether instructions in a basic block are one of:
-  //  - the inner loop guard comparison
-  //  - the outer loop latch comparison
-  //  - the outer loop induction variable increment
-  //  - a phi node, a cast or a branch
-  auto containsOnlySafeInstructions = [&](const BasicBlock &bb) {
-    return llvm::all_of(bb, [&](const Instruction &inst) {
-      return checkSafeInstruction(inst, innerLoopGuardCmp, outerLoopLatchCmp,
-                                  *outerLoopLB);
-    });
-  };
-
   // Check the code surrounding the inner loop for instructions that are deemed
   // unsafe.
-  const BasicBlock *outerLoopHeader = outerLoop.getHeader();
-  const BasicBlock *outerLoopLatch = outerLoop.getLoopLatch();
-  const BasicBlock *innerLoopPreHeader = innerLoop.getLoopPreheader();
+  const BasicBlock *outerHeader = outerLoop.getHeader();
+  const BasicBlock *outerLatch = outerLoop.getLoopLatch();
+  CmpInst *outerLatchCmp = outerLoop.getLatchCmpInst();
+  const std::optional<Loop::LoopBounds> outerBounds = outerLoop.getBounds(se);
 
-  if (!containsOnlySafeInstructions(*outerLoopHeader) ||
-      !containsOnlySafeInstructions(*outerLoopLatch) ||
-      (innerLoopPreHeader != outerLoopHeader &&
-       !containsOnlySafeInstructions(*innerLoopPreHeader)) ||
-      !containsOnlySafeInstructions(*innerLoop.getExitBlock())) {
-    LLVM_DEBUG(dbgs() << "Not perfectly nested: code surrounding inner loop is "
-                         "unsafe\n";);
+  const BasicBlock *innerPreheader = innerLoop.getLoopPreheader();
+  CmpInst *innerGuardCmp = getInnerLoopGuardCmp(innerLoop);
+
+  bool isSafe = checkOuterLoopHeader(*outerHeader, innerGuardCmp) &&
+                checkOuterLoopLatch(*outerLatch, outerLatchCmp, *outerBounds);
+  if (innerPreheader != outerHeader) {
+    // TODO: In this case, we expect that the inner loop exit block is
+    // terminated with a sync instruction. If the preheader contains a call to
+    // start a syncregion, it must be the one that is associated with the inner
+    // loop. These should be checked here, just to be safe. For now, we are
+    // relying on Kitsune's verifier running and bailing out with an error if
+    // the tapir loops are not structured exactly as we expect.
+    const BasicBlock &innerExit = *innerLoop.getExitBlock();
+    isSafe &= isEmptyOrOnlyCallsSyncRegionStart(*innerPreheader) &&
+              isEmpty(innerExit);
+  }
+
+  if (!isSafe) {
+    LLVM_DEBUG(
+        dbgs() << "Not perfectly nested: code surrounding inner loop is unsafe"
+               << "\n";);
     return false;
   }
 
@@ -323,32 +314,87 @@ static bool arePerfectlyNested(const Loop &outerLoop, const Loop &innerLoop,
   return true;
 }
 
-TapirLoopNest::TapirLoopNest(Loop &loop, TaskInfo &ti, ScalarEvolution &se)
-    : nest(loop, se) {
+static bool checkLoopSimplifyForm(const Loop &loop) {
+  if (!loop.isLoopSimplifyForm()) {
+    LLVM_DEBUG(dbgs() << "'" << loop.getName() << "', at depth "
+                      << loop.getLoopDepth()
+                      << "is not in loop-simplify form.\n";);
+    return false;
+  }
+  return true;
+}
+
+// Sanity check an outer loop. This is just an outerLoop relative to some other
+// "inner" loop. It need not be the outermost loop in a nest. Return false if at
+// least one check fails, true otherwise.
+bool TapirLoopNest::sanityCheckOuterLoop(const Loop &loop,
+                                         ScalarEvolution &se) const {
+  if (!checkLoopSimplifyForm(loop))
+    return false;
+
+  unsigned depth = loop.getLoopDepth();
+  LoopVectorTy subLoops = nest.getLoopsAtDepth(depth + 1);
+  if (subLoops.size() != 1) {
+    LLVM_DEBUG(dbgs() << "'" << loop.getName() << "' at depth " << depth
+                      << "' has more than one subloop.\n";);
+    return false;
+  }
+
+  if (!loop.getBounds(se)) {
+    LLVM_DEBUG(dbgs() << "Cannot compute loop bounds of loop '"
+                      << loop.getName() << "' at depth " << depth << "\n";);
+    return false;
+  }
+
+  return true;
+}
+
+// Sanity check an inner loop. Return false if at least one check fails, true
+// otherwise.
+bool TapirLoopNest::sanityCheckInnerLoop(const Loop &loop,
+                                         ScalarEvolution &se) const {
+  if (!checkLoopSimplifyForm(loop))
+    return false;
+  return true;
+}
+
+TapirLoopNest::TapirLoopNest(Loop &root, TaskInfo &ti, ScalarEvolution &se)
+    : nest(root, se) {
+  assert(getTaskIfTapirLoop(&root, &ti) &&
+         "Root of tapir loop nest must be a tapir loop");
+
+  // `root` is guaranteed to be a tapir loop. It is perfect by definition.
+  perfectTapirLoops.push_back(&root);
+
+  // The depth of the outermost loop is not guaranteed to be 1.
   unsigned outermostDepth = nest.getOutermostLoop().getLoopDepth();
   unsigned depth = nest.getNestDepth();
-  // `loop` is guaranteed to be a tapir loop. It is perfect by definition. At
-  // each level, we expect exactly one tapir loop if it is to be a perfect
-  // tapir loop nest.
-  perfectTapirLoops.push_back(&loop);
   for (unsigned d = outermostDepth + 1; d < outermostDepth + depth; ++d) {
-    LoopVectorTy loops = nest.getLoopsAtDepth(d);
-    assert(!loops.empty() && "Loops at given depth not found");
-
     Loop *outerLoop = perfectTapirLoops.back();
-    Loop *loop = loops.front();
-    if (!getTaskIfTapirLoop(loop, &ti) ||
-        !arePerfectlyNested(*outerLoop, *loop, se))
+    if (!sanityCheckOuterLoop(*outerLoop, se))
       break;
-    perfectTapirLoops.push_back(loop);
+
+    Loop *innerLoop = nest.getLoopsAtDepth(d).front();
+    if (!sanityCheckInnerLoop(*innerLoop, se))
+      break;
+
+    if (!isTapirLoop(*innerLoop, ti))
+      break;
+
+    if (!arePerfectlyNested(*outerLoop, *innerLoop, se))
+      break;
+
+    perfectTapirLoops.push_back(innerLoop);
   }
 }
 
-std::unique_ptr<TapirLoopNest> TapirLoopNest::create(Loop &loop, TaskInfo &ti,
-                                                     ScalarEvolution &se) {
-  if (!getTaskIfTapirLoop(&loop, &ti))
+std::unique_ptr<TapirLoopNest>
+TapirLoopNest::create(Loop &loop, ScalarEvolution &se, TaskInfo &ti) {
+  if (!getTaskIfTapirLoop(&loop, &ti)) {
+    LLVM_DEBUG(dbgs() << "Root of loop nest, '" << loop.getName()
+                      << "', is not a tapir loop.\n");
     return nullptr;
-
+  }
   return std::unique_ptr<TapirLoopNest>(new TapirLoopNest(loop, ti, se));
 }
 
@@ -391,4 +437,20 @@ bool llvm::isTapirLoopForGPU(Loop &loop, TaskInfo &ti) {
 
 bool llvm::isTopLevelTapirLoopForGPU(Loop &loop, TaskInfo &ti) {
   return isTopLevelTapirLoop(loop, ti) && isTapirLoopForGPU(loop, ti);
+}
+
+SmallVector<Loop *, 4> llvm::getTopLevelTapirLoops(LoopInfo &li, TaskInfo &ti) {
+  SmallVector<Loop *, 4> loops;
+  for (Loop *loop : li.getLoopsInPreorder())
+    if (isTopLevelTapirLoop(*loop, ti))
+      loops.push_back(loop);
+  return loops;
+}
+
+SmallVector<Loop *, 4> llvm::getTapirLoops(LoopInfo &li, TaskInfo &ti) {
+  SmallVector<Loop *, 4> loops;
+  for (Loop *loop : li.getLoopsInPreorder())
+    if (isTapirLoop(*loop, ti))
+      loops.push_back(loop);
+  return loops;
 }

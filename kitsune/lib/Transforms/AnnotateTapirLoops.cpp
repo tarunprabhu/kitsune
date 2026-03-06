@@ -33,7 +33,7 @@ using namespace llvm;
 /// annotation to the root.
 static void annotateTapirLoopsForGPU(Loop &root, ScalarEvolution &se,
                                      TaskInfo &ti) {
-  std::unique_ptr<TapirLoopNest> nest = TapirLoopNest::create(root, ti, se);
+  std::unique_ptr<TapirLoopNest> nest = TapirLoopNest::create(root, se, ti);
   assert(nest && "Loop must be a tapir loop");
 
   ArrayRef<Loop *> perfectLoops = nest->getPerfectTapirLoops();
