@@ -482,6 +482,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
   Type *i32 = Type::getInt32Ty(ctx);
   Type *i64 = Type::getInt64Ty(ctx);
 
+  Constant *zero = ConstantInt::get(i64, 0);
   ConstantInt *ctt = createConstInt(TTID::Hip, ctx);
   GlobalVariable *kProps =
       createKernelPropertiesGlobal(kernelName, TTID::Hip, M);
@@ -520,8 +521,9 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
 
   Value *hipStream =
       builder.CreateIntrinsic(Intrinsic::kit_thread_stream, {ctt});
-  std::vector<Value *> args = {ctt, embFB,  kName,    tripCount,
-                               tpb, kProps, hipStream};
+  SmallVector<Value *, 16> args = {
+      ctt, embFB, kName, tripCount, zero, zero, tpb, kProps, hipStream,
+  };
   for (Value *inp : callOutlined->args())
     args.push_back(inp);
 

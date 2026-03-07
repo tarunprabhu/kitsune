@@ -84,7 +84,6 @@ extern "C" {
 // TODO: We need to introduce features beyond the SM
 // utilization for tweaking launch parameters.
 
-
 // Codegen target maximum threads per block -- this is not the hardware
 // limit but a configuration option that can enable more flexiblity
 // for register allocation/usage in compiled kernels.  The compiler
@@ -163,7 +162,7 @@ int next_lowest_factor(int n, int m) {
  * @param blks_per_grid - computed blocks per grid for launch
  */
 void __kitcuda_refine_launch_params(size_t trip_count, CUfunction cu_func,
-                                    int &threads_per_blk, int &blks_per_grid,
+                                    int &threads_per_blk,
                                     const KitRTInstMix *inst_mix) {
   KIT_NVTX_PUSH("kitcuda:get_launch_params", KIT_NVTX_LAUNCH);
 
@@ -235,7 +234,6 @@ void __kitcuda_refine_launch_params(size_t trip_count, CUfunction cu_func,
     }
   }
 
-  blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
   KIT_NVTX_POP();
 }
 
@@ -285,7 +283,7 @@ static int __kitcuda_reg_analysis(int threads_per_blk, int regs_per_thread,
  * @param blks_per_grid - computed blocks per grid for launch
  */
 void __kitcuda_get_launch_params(size_t trip_count, CUfunction cu_func,
-                                 int &threads_per_blk, int &blks_per_grid,
+                                 int &threads_per_blk,
                                  const KitRTInstMix *inst_mix) {
   KIT_NVTX_PUSH("kitcuda:get_launch_params", KIT_NVTX_LAUNCH);
 
@@ -321,7 +319,7 @@ void __kitcuda_get_launch_params(size_t trip_count, CUfunction cu_func,
   } else {
     if (_kitcuda_refine_launches) {
       __kitcuda_refine_launch_params(trip_count, cu_func, threads_per_blk,
-                                     blks_per_grid, inst_mix);
+                                     inst_mix);
       threads_per_blk = __kitcuda_reg_analysis(threads_per_blk, regs_per_thread,
                                                max_regs_per_blk);
     } else {
@@ -344,19 +342,91 @@ void __kitcuda_get_launch_params(size_t trip_count, CUfunction cu_func,
     _kitcuda_launch_param_map[map_entry_name] = threads_per_blk;
   }
 
-  // TODO: This looks redundant with code in launch kernel...
-  blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
   KIT_NVTX_POP();
 }
 
-void *__kitcuda_launch_kernel(const void *fat_bin, const char *kernel_name,
-                              void **kern_args, uint64_t trip_count,
-                              int threads_per_blk, const KitRTInstMix *inst_mix,
-                              void *opaque_stream) {
-  assert(fat_bin && "kitcuda: launch with null fat binary!");
-  assert(kernel_name && "kitcuda: launch with null name!");
-  assert(kern_args && "kitcuda: launch with null args!");
-  assert(trip_count != 0 && "kitcuda: launch with zero trips!");
+static CUstream launchKernel1(CUfunction f, void **args, size_t tcX,
+                              unsigned tpb, CUstream stream) {
+  unsigned tpbX = tpb;
+  unsigned tpbY = 1;
+  unsigned tpbZ = 1;
+  unsigned bpgX = (tcX + tpb - 1) / tpb;
+  unsigned bpgY = 1;
+  unsigned bpgZ = 1;
+  size_t sharedMemSize = 0;
+
+  if (__kitrt_verbose_mode()) {
+    fprintf(stderr, "  trip count (X): %ld\n", tcX);
+    fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
+    fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
+  }
+
+  CU_SAFE_CALL(cuLaunchKernel_p(f, bpgX, bpgY, bpgZ, tpbX, tpbY, tpbZ,
+                                sharedMemSize, stream, args, NULL));
+  return stream;
+}
+
+static CUstream launchKernel2(CUfunction f, void **args, size_t tcX, size_t tcY,
+                              unsigned tpb, CUstream stream) {
+  // FIXME: The threads per block (tpb) value should be split across the
+  // threads launched in each direction.
+  unsigned tpbX = tpb;
+  unsigned tpbY = tpb;
+  unsigned tpbZ = 1;
+  unsigned bpgX = (tcX + tpbX - 1) / tpbX;
+  unsigned bpgY = (tcY + tpbY - 1) / tpbY;
+  unsigned bpgZ = 1;
+  size_t sharedMemSize = 0;
+
+  if (__kitrt_verbose_mode()) {
+    fprintf(stderr, "  trip count (X): %ld\n", tcX);
+    fprintf(stderr, "  trip count (Y): %ld\n", tcY);
+    fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
+    fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
+  }
+
+  assert(0 && "launchKernel2 not yet implemented");
+  CU_SAFE_CALL(cuLaunchKernel_p(f, bpgX, bpgY, bpgZ, tpbX, tpbY, tpbZ,
+                                sharedMemSize, stream, args, NULL));
+  return stream;
+}
+
+static CUstream launchKernel3(CUfunction f, void **args, size_t tcX, size_t tcY,
+                              size_t tcZ, unsigned tpb, CUstream stream) {
+  // FIXME: The threads per block (tpb) value should be split across the
+  // threads launched in each direction.
+  unsigned tpbX = tpb;
+  unsigned tpbY = tpb;
+  unsigned tpbZ = tpb;
+  unsigned bpgX = (tcX + tpbX - 1) / tpbX;
+  unsigned bpgY = (tcY + tpbY - 1) / tpbY;
+  unsigned bpgZ = (tcZ + tpbZ - 1) / tpbZ;
+  size_t sharedMemSize = 0;
+
+  if (__kitrt_verbose_mode()) {
+    fprintf(stderr, "  trip count (X): %ld\n", tcX);
+    fprintf(stderr, "  trip count (Y): %ld\n", tcY);
+    fprintf(stderr, "  trip count (Z): %ld\n", tcZ);
+    fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
+    fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
+  }
+
+  assert(0 && "launchKernel3 not yet implemented");
+  CU_SAFE_CALL(cuLaunchKernel_p(f, bpgX, bpgY, bpgZ, tpbX, tpbY, tpbZ,
+                                sharedMemSize, stream, args, NULL));
+  return stream;
+}
+
+void *__kitcuda_launch_kernel(const void *fatbin, const char *name, void **args,
+                              int64_t tc_x, int64_t tc_y, int64_t tc_z, int tpb,
+                              const KitRTInstMix *inst_mix, void *stream_in) {
+  assert(fatbin && "kitrt[hip]: launch with null fat binary");
+  assert(name && "kitrt[hip]: launch with null name");
+  assert(args && "kitrt[hip]: launch with null args");
+  assert(tpb >= 0 && "kitrt[hip]: launch with negative threads per block");
+  assert(tc_x > 0 && "kitrt[hip]: launch with non-positive trips (x)");
+  assert(tc_y >= 0 && "kitrt[hip]: launch with negative trips (y)");
+  assert(tc_z >= 0 && "kitrt[hip]: launch with negative trips (z)");
 
   KIT_NVTX_PUSH("kitcuda:launch_kernel", KIT_NVTX_LAUNCH);
 
@@ -369,83 +439,78 @@ void *__kitcuda_launch_kernel(const void *fat_bin, const char *kernel_name,
   if (ctx == NULL)
     CU_SAFE_CALL(cuCtxSetCurrent_p(_kitcuda_context));
 
-  CUfunction cu_func;
+  CUfunction func;
   _kitcuda_module_map_mutex.lock();
-  KitCudaKernelMap::iterator kernit = _kitcuda_kernel_map.find(kernel_name);
+  KitCudaKernelMap::iterator kernit = _kitcuda_kernel_map.find(name);
   if (kernit == _kitcuda_kernel_map.end()) {
     // We have not yet encountered this kernel function...  Check to see
     // if we already have a supporting module for the fat binary.
-    CUmodule cu_module;
-    KitCudaModuleMap::iterator modit = _kitcuda_module_map.find(fat_bin);
+    CUmodule module;
+    KitCudaModuleMap::iterator modit = _kitcuda_module_map.find(fatbin);
     if (modit == _kitcuda_module_map.end()) {
       // Create a supporting CUDA module and "register" the fat binary
       // image in the map...
-      CU_SAFE_CALL(cuModuleLoadData_p(&cu_module, fat_bin));
-      _kitcuda_module_map[fat_bin] = cu_module;
+      CU_SAFE_CALL(cuModuleLoadData_p(&module, fatbin));
+      _kitcuda_module_map[fatbin] = module;
     } else
-      cu_module = modit->second;
+      module = modit->second;
 
     // Look up the kernel function.
-    CU_SAFE_CALL(cuModuleGetFunction_p(&cu_func, cu_module, kernel_name));
-    _kitcuda_kernel_map[kernel_name] = cu_func;
-  } else
-    cu_func = kernit->second;
+    CU_SAFE_CALL(cuModuleGetFunction_p(&func, module, name));
+    _kitcuda_kernel_map[name] = func;
+  } else {
+    func = kernit->second;
+  }
 
   _kitcuda_module_map_mutex.unlock();
 
-  int blks_per_grid;
-  if (threads_per_blk == 0) {
-    __kitcuda_get_launch_params(trip_count, cu_func, threads_per_blk,
-                                blks_per_grid, inst_mix);
+  if (tpb == 0) {
+    __kitcuda_get_launch_params(tc_x, func, tpb, inst_mix);
   } else {
-    if (threads_per_blk > _KITCUDA_MAX_THREADS_PER_BLK) {
+    if (tpb > _KITCUDA_MAX_THREADS_PER_BLK) {
       fprintf(stderr,
               "kitcuda: warning, threads-per-block request exceeds bounds.\n");
-      threads_per_blk = _KITCUDA_MAX_THREADS_PER_BLK;
+      tpb = _KITCUDA_MAX_THREADS_PER_BLK;
     }
 
     int func_max_tpb;
     CU_SAFE_CALL(cuFuncGetAttribute_p(
-        &func_max_tpb, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cu_func));
-    if (threads_per_blk > func_max_tpb) {
+        &func_max_tpb, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, func));
+    if (tpb > func_max_tpb) {
       fprintf(stderr,
               "kitcuda: warning, requested threads-per-block exceeds "
               "kernel's compile-time limits, adjusting to max possible "
               "threads-per-block (%d --> %d).\n",
-              threads_per_blk, func_max_tpb);
-      threads_per_blk = func_max_tpb;
+              tpb, func_max_tpb);
+      tpb = func_max_tpb;
     }
   }
 
-  blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
-
-  if (__kitrt_verbose_mode()) {
-    fprintf(stderr, "kitcuda: kernel '%s' launch parameters:\n", kernel_name);
-    fprintf(stderr, "  blocks: %d, 1, 1\n", blks_per_grid);
-    fprintf(stderr, "  threads: %d, 1, 1\n", threads_per_blk);
-    fprintf(stderr, "  trip count: %ld\n\n", trip_count);
-  }
-
-  CUstream cu_stream = nullptr;
-  if (opaque_stream == nullptr) {
-    // create a stream for this launch...
-    cu_stream = (CUstream)__kitcuda_get_thread_stream();
+  CUstream stream = nullptr;
+  if (stream_in) {
+    stream = (CUstream)stream_in;
+    if (__kitrt_verbose_mode())
+      fprintf(stderr, "kitcuda: launch stream is non-null.\n");
+  } else {
+    stream = (CUstream)__kitcuda_get_thread_stream();
     if (__kitrt_verbose_mode())
       fprintf(stderr,
               "kitcuda: launch stream is null, requested a new stream.\n");
-  } else {
-    // use the provided stream for this launch...
-    cu_stream = (CUstream)opaque_stream;
-    if (__kitrt_verbose_mode())
-      fprintf(stderr, "kitcuda: launch stream is non-null.\n");
   }
 
-  CU_SAFE_CALL(cuLaunchKernel_p(cu_func, blks_per_grid, 1, 1, threads_per_blk,
-                                1, 1,
-                                0, // shared mem size
-                                cu_stream, kern_args, NULL));
+  if (__kitrt_verbose_mode()) {
+    fprintf(stderr, "kitcuda: kernel '%s' launch parameters:\n", name);
+  }
+
+  if (!tc_y && !tc_z)
+    (void)launchKernel1(func, args, tc_x, tpb, stream);
+  else if (!tc_z)
+    (void)launchKernel2(func, args, tc_x, tc_y, tpb, stream);
+  else
+    (void)launchKernel3(func, args, tc_x, tc_y, tc_z, tpb, stream);
+
   KIT_NVTX_POP();
-  return (void *)cu_stream;
+  return stream;
 }
 
 uint64_t __kitcuda_get_global_symbol(void *fat_bin, const char *sym_name) {

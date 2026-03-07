@@ -192,7 +192,6 @@ int __kithip_reg_analysis(int threads_per_blk, int regs_per_thread,
 
 void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
                                 const char *kfunc_name, int &threads_per_blk,
-                                int &blks_per_grid,
                                 const KitRTInstMix *inst_mix) {
   assert(kfunc != nullptr && "__kithip_get_launch_params(): null kernel!");
   using namespace kithip_rt;
@@ -233,7 +232,6 @@ void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
       }
     }
 
-    int nblocks = 0;
     // Work with what we know about the kernel to help determine
     // an appropriate set of launch parameters. As a default starting
     // point we use the hip occupancy heuristic to get an initial
@@ -243,13 +241,11 @@ void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
     int min_grid_size;
     HIP_SAFE_CALL(hipModuleOccupancyMaxPotentialBlockSize(
         &min_grid_size, &threads_per_blk, kfunc, 0, 0));
-    blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
     if (__kitrt_verbose_mode()) {
-      fprintf(stderr, "*** BENGIN LAUNCH\n");
+      fprintf(stderr, "*** BEGIN LAUNCH\n");
       fprintf(stderr, "kitrt[hip]: occpancy kernel launch parameters:\n");
       fprintf(stderr, "  threads per block: %d\n", threads_per_blk);
       fprintf(stderr, "  tmin_grid_size: %d\n", min_grid_size);
-      fprintf(stderr, "  blocks per grid: %d\n", blks_per_grid);
       // Estimate how many compute units we can use with the provided
       // threads-per-block value.
       int block_count = (trip_count + threads_per_blk - 1) / threads_per_blk;
@@ -279,8 +275,92 @@ void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
 
     _kithip_launch_param_map[map_entry_name] = threads_per_blk;
   }
+}
 
-  blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
+static hipStream_t launchKernel1(hipFunction_t f, void **args, size_t tcX,
+                                 unsigned tpb, hipStream_t stream) {
+  unsigned tpbX;
+  unsigned tpbY;
+  if (!kithip_rt::useYLaunch()) {
+    tpbX = tpb;
+    tpbY = 1;
+  } else {
+    tpbX = 1;
+    tpbY = tpb;
+  }
+  unsigned tpbZ = 1;
+  unsigned bpgX = (tcX + tpb - 1) / tpb;
+  unsigned bpgY = 1;
+  unsigned bpgZ = 1;
+  size_t sharedMemSize = 0;
+
+  if (__kitrt_verbose_mode()) {
+    fprintf(stderr, "  trip count (X): %ld\n", tcX);
+    fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
+    fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
+  }
+
+  HIP_SAFE_CALL(hipModuleLaunchKernel(f, bpgX, bpgY, bpgZ, tpbX, tpbY, tpbZ,
+                                      sharedMemSize, stream, args, NULL));
+  return stream;
+}
+
+static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcX,
+                                 size_t tcY, unsigned tpb, hipStream_t stream) {
+  assert(kithip_rt::useYLaunch() &&
+         "Y-axis launches not supported for 2D launches");
+
+  // FIXME: The threads per block (tpb) value should be split across the
+  // threads launched in each direction.
+  unsigned tpbX = tpb;
+  unsigned tpbY = tpb;
+  unsigned tpbZ = 1;
+  unsigned bpgX = (tcX + tpbX - 1) / tpbX;
+  unsigned bpgY = (tcY + tpbY - 1) / tpbY;
+  unsigned bpgZ = 1;
+  size_t sharedMemSize = 0;
+
+  if (__kitrt_verbose_mode()) {
+    fprintf(stderr, "  trip count (X): %ld\n", tcX);
+    fprintf(stderr, "  trip count (Y): %ld\n", tcY);
+    fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
+    fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
+  }
+
+  assert(0 && "launchKernel2 not yet implemented");
+  HIP_SAFE_CALL(hipModuleLaunchKernel(f, bpgX, bpgY, bpgZ, tpbX, tpbY, tpbZ,
+                                      sharedMemSize, stream, args, NULL));
+  return stream;
+}
+
+static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcX,
+                                 size_t tcY, size_t tcZ, unsigned tpb,
+                                 hipStream_t stream) {
+  assert(kithip_rt::useYLaunch() &&
+         "Y-axis launches not supported for 3D launches");
+
+  // FIXME: The threads per block (tpb) value should be split across the
+  // threads launched in each direction.
+  unsigned tpbX = tpb;
+  unsigned tpbY = tpb;
+  unsigned tpbZ = tpb;
+  unsigned bpgX = (tcX + tpbX - 1) / tpbX;
+  unsigned bpgY = (tcY + tpbY - 1) / tpbY;
+  unsigned bpgZ = (tcZ + tpbZ - 1) / tpbZ;
+  size_t sharedMemSize = 0;
+
+  if (__kitrt_verbose_mode()) {
+    fprintf(stderr, "  trip count (X): %ld\n", tcX);
+    fprintf(stderr, "  trip count (Y): %ld\n", tcY);
+    fprintf(stderr, "  trip count (Z): %ld\n", tcZ);
+    fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
+    fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
+  }
+
+  assert(0 && "launchKernel3 not yet implemented");
+  HIP_SAFE_CALL(hipModuleLaunchKernel(f, bpgX, bpgY, bpgZ, tpbX, tpbY, tpbZ,
+                                      sharedMemSize, stream, args, NULL));
+  return stream;
 }
 
 // Compiler interface notes: the 'threads_per_blk' parameter passed
@@ -296,14 +376,17 @@ void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
 // parameter when the parameter is <= 0.  Otherwise, the
 // compiler-provided value for the threads-per-block value will be
 // used.
-void *__kithip_launch_kernel(const void *fat_bin, const char *kernel_name,
-                             void **kern_args, uint64_t trip_count,
-                             int threads_per_blk, const KitRTInstMix *inst_mix,
-                             void *opaque_stream) {
-  assert(fat_bin && "kitrt[hip]: launch with null fat binary!");
-  assert(kernel_name && "kitrt[hip]: launch with null name!");
-  assert(kern_args && "kitrt[hip]: launch with null args!");
-  assert(trip_count != 0 && "kitrt[hip]: launch with zero trips!");
+//
+void *__kithip_launch_kernel(const void *fatbin, const char *name, void **args,
+                             int64_t tc_x, int64_t tc_y, int64_t tc_z, int tpb,
+                             const KitRTInstMix *inst_mix, void *stream_in) {
+  assert(fatbin && "kitrt[hip]: launch with null fat binary");
+  assert(name && "kitrt[hip]: launch with null name");
+  assert(args && "kitrt[hip]: launch with null args");
+  assert(tpb >= 0 && "kitrt[hip]: launch with negative threads per block");
+  assert(tc_x > 0 && "kitrt[hip]: launch with non-positive trips (x)");
+  assert(tc_y >= 0 && "kitrt[hip]: launch with negative trips (y)");
+  assert(tc_z >= 0 && "kitrt[hip]: launch with negative trips (z)");
 
   using namespace kithip_rt;
 
@@ -316,30 +399,30 @@ void *__kithip_launch_kernel(const void *fat_bin, const char *kernel_name,
   // for the mutexes within the runtime code...
 
   // LOCK
-  hipFunction_t kern_func;
+  hipFunction_t func;
   _kithip_module_map_mutex.lock();
-  KitHipKernelMap::iterator kernit = _kithip_kernel_map.find(kernel_name);
+  KitHipKernelMap::iterator kernit = _kithip_kernel_map.find(name);
   if (kernit == _kithip_kernel_map.end()) {
     // We have not encountered this kernel before. The next step is to
     // check to see if we have already created a module that corresponds
     // to the fat binary...
-    hipModule_t hip_module;
-    KitHipModuleMap::iterator modit = _kithip_module_map.find(fat_bin);
+    hipModule_t module;
+    KitHipModuleMap::iterator modit = _kithip_module_map.find(fatbin);
     if (modit == _kithip_module_map.end()) {
       // Nope, we need to create the module.
-      HIP_SAFE_CALL(hipModuleLoadData(&hip_module, fat_bin));
-      _kithip_module_map[fat_bin] = hip_module;
+      HIP_SAFE_CALL(hipModuleLoadData(&module, fatbin));
+      _kithip_module_map[fatbin] = module;
     } else {
-      hip_module = modit->second;
+      module = modit->second;
     }
 
     // Now we can look up the kernel function in the module and save it so
     // we can skip hip api calls for the module and kernel searches for the
     // next go-around...
-    HIP_SAFE_CALL(hipModuleGetFunction(&kern_func, hip_module, kernel_name));
-    _kithip_kernel_map[kernel_name] = kern_func;
+    HIP_SAFE_CALL(hipModuleGetFunction(&func, module, name));
+    _kithip_kernel_map[name] = func;
   } else {
-    kern_func = kernit->second;
+    func = kernit->second;
   }
   _kithip_module_map_mutex.unlock();
   // UNLOCK
@@ -350,61 +433,46 @@ void *__kithip_launch_kernel(const void *fat_bin, const char *kernel_name,
   // is no guiance from the compiler/source code so the runtime will
   // determine a (hopefully suitable) value.
 
-  int blks_per_grid;
-  if (threads_per_blk <= 0) {
-    __kithip_get_launch_params(trip_count, kern_func, kernel_name,
-                               threads_per_blk, blks_per_grid, inst_mix);
+  if (tpb <= 0) {
+    __kithip_get_launch_params(tc_x, func, name, tpb, inst_mix);
   } else {
     // Sanity check the compiler's / programmer's guidance...
-    if (threads_per_blk > maxThreadsPerBlock()) {
+    if (tpb > maxThreadsPerBlock()) {
       fprintf(stderr,
               "kitrt[hip]: WARNING! Requested threads-per-block value execeeds "
               "hardware limits.  Adjusting to match limit...\n");
-      threads_per_blk = maxThreadsPerBlock();
+      tpb = maxThreadsPerBlock();
     }
   }
 
-  // With the threads-per-block value nailed down, we can sort out the
-  // number of blocks per grid.
-  blks_per_grid = (trip_count + threads_per_blk - 1) / threads_per_blk;
+  // There is a handshake between the compiler's codegen steps and the streams
+  // associated with kernel launches. Much of the logic about how streams are
+  // managed are part of the codegen but in a nutshell the runtime either
+  // receives a stream or will create a new for this launch (the compiler will
+  // handle the generation of sync calls and stream bindings).
+  hipStream_t stream;
+  if (stream_in) {
+    stream = (hipStream_t)stream_in;
+    if (__kitrt_verbose_mode())
+      fprintf(stderr, "kithip: launch stream is non-null.\n");
+  } else {
+    stream = (hipStream_t)__kithip_get_thread_stream();
+    if (__kitrt_verbose_mode())
+      fprintf(stderr,
+              "kithip: launch stream is null, requested a new stream.\n");
+  }
 
   if (__kitrt_verbose_mode()) {
-    fprintf(stderr, "kitrt[hip]: kernel '%s' launch parameters:\n",
-            kernel_name);
-    fprintf(stderr, "  kernel: %s\n", kernel_name);
-    fprintf(stderr, "  blocks: [%d, 1, 1]\n", blks_per_grid);
-    if (useYLaunch())
-      fprintf(stderr, "  threads: [1, %d, 1]\n", threads_per_blk);
-    else
-      fprintf(stderr, "  threads: [%d, 1, 1]\n", threads_per_blk);
-    fprintf(stderr, "  stream: %p\n", opaque_stream);
+    fprintf(stderr, "kitrt[hip]: kernel '%s' launch parameters:\n", name);
   }
 
-  // There is a handshake between the compiler's codegen steps and the
-  // streams associatd with kernel launches.  Much of the logic about
-  // how streams are managed are part of the codegen but in a nutshell
-  // the runtime either receives a stream or will create a new for this
-  // launch (the compiler will handle the generation of sync calls and
-  // stream bindings).
-  hipStream_t hip_stream = nullptr;
-  if (opaque_stream) {
-    hip_stream = (hipStream_t)opaque_stream;
-  } else {
-    hip_stream = (hipStream_t)__kithip_get_thread_stream();
-  }
-
-  if (!useYLaunch()) {
-    HIP_SAFE_CALL(hipModuleLaunchKernel(kern_func, blks_per_grid, 1, 1,
-                                        threads_per_blk, 1, 1,
-                                        0, // shared mem size
-                                        hip_stream, kern_args, NULL));
-  } else {
-    HIP_SAFE_CALL(hipModuleLaunchKernel(kern_func, blks_per_grid, 1, 1, 1,
-                                        threads_per_blk, 1,
-                                        0, // shared mem size
-                                        hip_stream, kern_args, NULL));
-  }
-  return (void *)hip_stream;
+  if (!tc_y && !tc_z)
+    (void)launchKernel1(func, args, tc_x, tpb, stream);
+  else if (!tc_z)
+    (void)launchKernel2(func, args, tc_x, tc_y, tpb, stream);
+  else
+    (void)launchKernel3(func, args, tc_x, tc_y, tc_z, tpb, stream);
+  return stream;
 }
 
 void *__kithip_get_global_symbol(void *fat_bin, const char *sym_name) {
