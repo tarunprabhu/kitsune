@@ -1,7 +1,7 @@
 ; Check that the serialize tapir loops pass does not serialize any loops when
 ; all loop nests in the function are perfect.
 ;
-; RUN: opt --tapir=hip -passes="kit-serialize-tapir-loops" -S %s \
+; RUN: opt --tapir=hip -passes="kit-serialize" -S %s \
 ; RUN:   | FileCheck %s
 
 ; CHECK-LABEL: @p

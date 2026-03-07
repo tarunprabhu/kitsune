@@ -35,18 +35,17 @@
 // O123SZ-NEXT: Running pass:     LoopSimplifyPass
 // O123SZ-NEXT: Running analysis: LoopAnalysis
 // O123SZ-NEXT: Running analysis: DominatorTreeAnalysis
-// O123SZ:      Running pass:     AnnotateTapirLoopsPass
-// O123SZ:      Running pass:     LoopSpawningPass
-//
-// FIXME: Remove the comment below once the loop strip-mining pass has been
-// reverted to the original and George's reduction modifications have been moved
-// into its own pass
-// COM: O123SZ-NEXT: Running analysis: TapirTargetAnalysis
-// COM: O123SZ-NEXT: Running analysis: TaskAnalysis
-//
+// O123SZ:      Running pass:     PreLowerVerificationPass
+// O123SZ-NEXT: Running analysis: TapirTargetAnalysis
+// O123SZ-NEXT: Running analysis: TaskAnalysis
+// O123SZ-NEXT: Running analysis: PostDominatorTreeAnalysis
+// O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis
+// O123SZ-NEXT: Running pass:     AnnotateTapirLoopsPass
+// O123SZ-NEXT: Running pass:     SerializePass
+// O123SZ-NEXT: Running pass:     LoopSpawningPass
 // O123SZ:      Running pass:     TapirToTargetPass
 // O123SZ:      Running pass:     GlobalDCEPass
-// O123SZ-NEXT: Running pass:     PrefetchingPass
+// O123SZ-NEXT: Running pass:     PrefetchForDevicePass
 // O123SZ-NEXT: Running pass:     EmbResolveLibDeviceCallsPass
 // O123SZ-NEXT: Running pass:     EmbPreparePass
 // O123SZ-NEXT: Running pass:     EmbLinkLibDeviceBitcodePass

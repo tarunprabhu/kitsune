@@ -1,5 +1,5 @@
-; Check that the serialize-tapir-loops pass does not serialize anything when the
-; qthreads tapir target is used.
+; Check that the serialize pass does not serialize anything when the qthreads
+; tapir target is used.
 ;
 ; NOTE: This might change in the future. We need to do more careful performance
 ; analysis to determine if there is a "sweet spot" in the amount of parallelism
@@ -7,7 +7,7 @@
 ; serializing certain loops. In that case, this file should be removed and more
 ; appropriate tests added.
 ;
-; RUN: opt -passes="kit-serialize-tapir-loops" --tapir=qthreads %s -S 2>&1 \
+; RUN: opt -passes="kit-serialize" --tapir=qthreads %s -S 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-NOT: serialized tapir loop
@@ -24,8 +24,6 @@
 ; CHECK: sync within %syncreg.j
 ; CHECK: reattach within %syncreg.i
 ; CHECK: sync within %syncreg.i
-
-target triple = "x86_64-unknown-linux-gnu"
 
 ; forall (i ...) {
 ;     ext1(i);

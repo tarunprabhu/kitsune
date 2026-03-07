@@ -1,7 +1,7 @@
-; Check that the serialize-tapir-loops pass does nothing when the serial tapir
-; target is specified.
+; Check that the serialize pass does nothing when the serial tapir target is
+; specified.
 ;
-; RUN: opt -passes="kit-serialize-tapir-loops" --tapir=serial %s -S 2>&1 \
+; RUN: opt -passes="kit-serialize" --tapir=serial %s -S 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-NOT: serialized tapir loop
@@ -18,8 +18,6 @@
 ; CHECK: sync within %syncreg.j
 ; CHECK: reattach within %syncreg.i
 ; CHECK: sync within %syncreg.i
-
-target triple = "x86_64-unknown-linux-gnu"
 
 ; forall (i ...) {
 ;     ext1(i);

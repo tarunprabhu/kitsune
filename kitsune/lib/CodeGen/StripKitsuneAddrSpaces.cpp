@@ -6,7 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Implementation of passes to strip kitsune address spaces from types.
+// Move pointers in Kitsune-specific address spaces to the default address
+// space. This will mutate the types of the relevant entities in the module.
+// This is done because the backends cannot currently handle Kitsune's address
+// spaces.
 //
 //===----------------------------------------------------------------------===//
 

@@ -1,4 +1,4 @@
-//===- SerializeTapirLoops.cpp - Serialize certain tapir loops ------------===//
+//===- Serialize.cpp - Serialize certain tapir constructs -----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,11 +6,19 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Pass to analyze tapir loop nests and serialize certain tapir loops.
+// This pass serializes certain tapir constructs.
+//
+// Currently, it only serializes certain tapir loops. These either cannot be
+// lowered using a tapir target, or may degrade performance if lowered using a
+// tapir target. This pass expects the annotate-tapir-loops pass to have been
+// run.
+//
+// In the future, it may also be used with standalone tapir tasks that are not
+// currently supported.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/SerializeTapirLoops.h"
+#include "kitsune/Transforms/Serialize.h"
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
@@ -22,7 +30,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
-#define DEBUG_TYPE "kit-serialize-tapir-loops"
+#define DEBUG_TYPE "kit-serialize"
 
 using namespace llvm;
 
@@ -45,10 +53,8 @@ using namespace llvm;
 ///      loop that was serialized.
 ///
 static cl::opt<unsigned> clSerializeVerbose(
-    "serialize-verbose", cl::init(1U), cl::Hidden,
-    cl::desc("The verbosity level of the kit-serialize-tapir-loops pass. Must "
-             "be 0, 1, 2"),
-    cl::cat(cl::catKitClDevOpts));
+    "serialize-verbose", cl::init(1U), cl::Hidden, cl::cat(cl::catKitClDevOpts),
+    cl::desc("The verbosity level of the kit-serialize pass. Must be 0, 1, 2"));
 
 /// Convert the loop to a string representation for diagnostics.
 static SmallString<256> toString(const Loop &loop) {
@@ -181,8 +187,7 @@ static bool run(Function &f, FunctionAnalysisManager &am) {
   return changed;
 }
 
-PreservedAnalyses SerializeTapirLoopsPass::run(Module &m,
-                                               ModuleAnalysisManager &mam) {
+PreservedAnalyses SerializePass::run(Module &m, ModuleAnalysisManager &mam) {
   bool changed = false;
   FunctionAnalysisManager &fam =
       mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();

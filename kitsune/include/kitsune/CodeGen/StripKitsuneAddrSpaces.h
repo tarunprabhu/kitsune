@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Strip kitsune-specific address spaces from pointers and replace them with
-// pointers in the default address space.
+// Move pointers in Kitsune-specific address spaces to the default address
+// space.
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,26 +18,21 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
 class ModulePass;
 
-/// Change the types of entities that are in kitsune-specific address spaces.
-/// Change these to the default address space. This also strips kitsune's
-/// address spaces from any embedded modules. This is done because the backends
-/// do not currently know what to with Kitsune's address spaces.
+/// \ingroup kitsune
+/// Move pointers from Kitsune-specific address spaces to the default address
+/// space. This will mutate the types of the appropriate entities.
 class StripKitsuneAddrSpacesPass
     : public PassInfoMixin<StripKitsuneAddrSpacesPass> {
 public:
-  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+  PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 
   static bool isRequired() { return true; }
 };
 
+/// \ingroup kitsune
 ModulePass *createStripKitsuneAddrSpacesLegacyPass();
-
-/// @}
 
 } // namespace llvm
 

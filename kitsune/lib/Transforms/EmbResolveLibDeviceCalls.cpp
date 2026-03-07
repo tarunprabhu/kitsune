@@ -6,9 +6,18 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Embedded modules may contain calls to library functions for which
-// device-specific implementations exist. This resolves calls to such functions
-// in embedded modules to use the device-specific implementations.
+// Resolve calls to functions in the embedded bitcode that have vendor-provided,
+// device-specific implementations in one or more bitcode files for the device
+// (usually a GPU). This will look for calls to functions that have device
+// equivalents, add declarations to the equivalents, then replace the calls with
+// calls to these equivalents.
+//
+// The bitcode files containing the definitions of these functions are linked
+// to the embedded modules in a separate pass.
+//
+// It is not necessary for the device functions to be present in bitcode files,
+// but, at the time of writing, vendor-provided bitcode files are available for
+// all devices that Kitsune supports.
 //
 //===----------------------------------------------------------------------===//
 

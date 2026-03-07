@@ -19,27 +19,17 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
+/// \ingroup Kitsune
 /// Resolve the calls to functions in the embedded bitcode that have
-/// device-specific implementations in one or more vendor-provided bitcode files
-/// for the device (usually a GPU). This will look for calls to functions that
-/// have device equivalents, add declarations for the called device equivalents,
-/// then replace the calls with these new declarations. In some cases, bitcode
-/// files are provided by vendors containing the definitions of these functions.
-/// Those bitcode files are linked into the embedded bitcode module in a
-/// separate pass.
+/// device-specific implementations in one or more vendor-provided bitcode
+/// files.
 class EmbResolveLibDeviceCallsPass
     : public EmbModulePass<EmbResolveLibDeviceCallsPass> {
 public:
-  bool run(TTID tt, Module &devM, Module &hostM,
-           ModuleAnalysisManager &hostMAM);
+  bool run(TTID tt, Module &devM, Module &hostM, ModuleAnalysisManager &hostAM);
 
   using EmbModulePass<EmbResolveLibDeviceCallsPass>::run;
 };
-
-/// @}
 
 } // namespace llvm
 

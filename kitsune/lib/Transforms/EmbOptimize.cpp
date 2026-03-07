@@ -6,7 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Run the standard sequence of optimization passes on the embedded modules.
+// Run a sequence of optimization passes on any embedded modules. Currently,
+// this is just the standard sequence of optimization passes that are determined
+// by the optimization level specified on the command-line. At some point, this
+// may be replaced with a sequence that is specific to the tapir target that
+// generated the embedded module.
 //
 //===----------------------------------------------------------------------===//
 

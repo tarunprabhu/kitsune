@@ -42,23 +42,15 @@
 ;
 ; O123SZ:      Running pass:     PreLowerVerificationPass
 ; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
+; O123SZ-NEXT: Running analysis: TaskAnalysis
+; O123SZ-NEXT: Running analysis: PostDominatorTreeAnalysis
+; O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis
 ; O123SZ-NEXT: Running pass:     AnnotateTapirLoopsPass
-; O123SZ-NEXT: Running pass:     SerializeTapirLoopsPass
+; O123SZ-NEXT: Running pass:     SerializePass
 ; O123SZ-NEXT: Running pass:     LoopSpawningPass
-; O123SZ-NEXT: Running pass:     TapirToTargetPass
-; O123SZ-NEXT: Running pass:     IPSCCPPass
-; O123SZ-NEXT: Running pass:     CalledValuePropagationPass
-; O123SZ-NEXT: Running pass:     GlobalOptPass
-; O123SZ-NEXT: Running pass:     DeadArgumentEliminationPass
-; O123SZ-NEXT: Running pass:     AlwaysInlinerPass
-; O123SZ-NEXT: Running analysis: ProfileSummaryAnalysis
-; O123SZ:      Running analysis: GlobalsAA
-; O123SZ-NEXT: Running analysis: CallGraphAnalysis
-; O123SZ:      Running analysis: LazyCallGraphAnalysis
-; O123SZ-NEXT: Running pass:     EliminateAvailableExternallyPass
-; O123SZ-NEXT: Running pass:     ReversePostOrderFunctionAttrs
-; O123SZ-NEXT: Running pass:     GlobalDCEPass
-; O123SZ-NEXT: Running pass:     PrefetchingPass
+; O123SZ:      Running pass:     TapirToTargetPass
+; O123SZ:      Running pass:     PrefetchForDevicePass
+; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
 ; O123SZ-NEXT: Running pass:     EmbResolveLibDeviceCallsPass
 ; O123SZ-NEXT: Running pass:     EmbPreparePass
 ; O123SZ-NEXT: Running pass:     EmbLinkLibDeviceBitcodePass
@@ -68,3 +60,7 @@
 ; O123SZ-NEXT: Running pass:     VerifierPass
 ; O123SZ-NEXT: Running analysis: VerifierAnalysis
 ; O123SZ-NEXT: Running pass:     BitcodeWriterPass
+
+define void @f() {
+  ret void
+}

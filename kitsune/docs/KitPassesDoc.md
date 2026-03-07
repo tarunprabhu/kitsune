@@ -192,8 +192,8 @@ Some Kitsune-specific intrinsics can be replaced with a call to a function in
 Kitsune's runtime. This pass performs that replacement.
 
 
-(passes-kit-serialize-tapir-loops)=
-#### kit-serialize-tapir-loops
+(passes-kit-serialize)=
+#### kit-serialize
 
 Serializes tapir loops that cannot be profitably lowered by the
 [loop-spawning](passes-loop-spawning) pass. Depending on the tapir targets being

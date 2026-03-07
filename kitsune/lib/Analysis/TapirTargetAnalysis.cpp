@@ -6,7 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// An interface for information about the tapir targets needed by a module.
+// This pass analyzes the module and determines the tapir targets required by
+// each function. The result of the pass is an object that owns the instances
+// of the tapir target objects that are used to lower tapir constructs.
+//
+// In principle, this pass may be used to automatically determine which tapir
+// targets to use for specific constructs, but that has not been implemented
+// yet.
 //
 //===----------------------------------------------------------------------===//
 
