@@ -14,7 +14,9 @@
 
 using namespace llvm;
 
-TEST(TypeUtils, getLLVMTypeFor) {
+namespace {
+
+TEST(KitTypeUtils, getLLVMTypeFor) {
   LLVMContext ctx;
 
   EXPECT_TRUE(getLLVMTypeFor<int8_t>(ctx)->isIntegerTy(8));
@@ -57,3 +59,5 @@ TEST(TypeUtils, getLLVMTypeFor) {
   EXPECT_TRUE(getLLVMTypeFor<unsigned long long>(ctx)->isIntegerTy(64));
 #endif // __unix__
 }
+
+} // namespace

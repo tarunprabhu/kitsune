@@ -16,7 +16,9 @@
 
 using namespace llvm;
 
-TEST(InstructionUtils, getInstClassName) {
+namespace {
+
+TEST(KitInstructionUtils, getInstClassName) {
   LLVMContext ctx;
   Type *i32 = Type::getInt32Ty(ctx);
   Type *i64 = Type::getInt64Ty(ctx);
@@ -56,3 +58,5 @@ TEST(InstructionUtils, getInstClassName) {
   EXPECT_EQ(getInstClassName(*trunc), "TruncInst");
   EXPECT_EQ(getInstClassName(*phi), "PHINode");
 }
+
+} // namespace

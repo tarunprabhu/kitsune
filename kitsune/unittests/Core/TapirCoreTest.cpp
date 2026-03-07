@@ -12,7 +12,9 @@
 
 using namespace llvm;
 
-TEST(TapirCore, tapirTargetValues) {
+namespace {
+
+TEST(KitTapirCore, tapirTargetValues) {
   // The integer values of the tapir targets should not be changed unless
   // absolutely necessary, so check them here.
   EXPECT_EQ(int(TTID::Nolo), 0x0);
@@ -30,7 +32,7 @@ TEST(TapirCore, tapirTargetValues) {
   EXPECT_EQ(int(TTID::Custom), 0x800);
 }
 
-TEST(TapirCore, createTTIDFromInt) {
+TEST(KitTapirCore, createTTIDFromInt) {
   EXPECT_EQ(*createTTIDFrom(0x0), TTID::Nolo);
   EXPECT_EQ(*createTTIDFrom(0x1), TTID::Serial);
   EXPECT_EQ(*createTTIDFrom(0x2), TTID::Cuda);
@@ -45,7 +47,7 @@ TEST(TapirCore, createTTIDFromInt) {
   EXPECT_EQ(*createTTIDFrom(0x800), TTID::Custom);
 }
 
-TEST(TapirCore, createTTIDFromString) {
+TEST(KitTapirCore, createTTIDFromString) {
   EXPECT_EQ(*createTTIDFrom("nolo"), TTID::Nolo);
   EXPECT_EQ(*createTTIDFrom("serial"), TTID::Serial);
   EXPECT_EQ(*createTTIDFrom("cuda"), TTID::Cuda);
@@ -60,7 +62,7 @@ TEST(TapirCore, createTTIDFromString) {
   EXPECT_EQ(*createTTIDFrom("custom"), TTID::Custom);
 }
 
-TEST(TapirCore, tapirSpawnStrategyValues) {
+TEST(KitTapirCore, tapirSpawnStrategyValues) {
   // The integer values of the spawn strategies should not be changed unless
   // absolutely necessary, so check them here.
   EXPECT_EQ(int(TapirSpawnStrategy::Sequential), 1);
@@ -69,7 +71,7 @@ TEST(TapirCore, tapirSpawnStrategyValues) {
   EXPECT_EQ(int(TapirSpawnStrategy::Basic), 4);
 }
 
-TEST(TapirCore, createTapirSpawnStrategyFromInt) {
+TEST(KitTapirCore, createTapirSpawnStrategyFromInt) {
   EXPECT_EQ(*createTapirSpawnStrategyFrom(1), TapirSpawnStrategy::Sequential);
   EXPECT_EQ(*createTapirSpawnStrategyFrom(2),
             TapirSpawnStrategy::DivideAndConquer);
@@ -77,7 +79,7 @@ TEST(TapirCore, createTapirSpawnStrategyFromInt) {
   EXPECT_EQ(*createTapirSpawnStrategyFrom(4), TapirSpawnStrategy::Basic);
 }
 
-TEST(TapirCore, createTapirSpawnStrategyFromString) {
+TEST(KitTapirCore, createTapirSpawnStrategyFromString) {
   EXPECT_EQ(*createTapirSpawnStrategyFrom("seq"),
             TapirSpawnStrategy::Sequential);
   EXPECT_EQ(*createTapirSpawnStrategyFrom("dac"),
@@ -86,7 +88,7 @@ TEST(TapirCore, createTapirSpawnStrategyFromString) {
   EXPECT_EQ(*createTapirSpawnStrategyFrom("basic"), TapirSpawnStrategy::Basic);
 }
 
-TEST(TapirCore, maybeBoolValues) {
+TEST(KitTapirCore, maybeBoolValues) {
   // The values of the MaybeBool enum need not be the following values, but
   // we do require MaybeBool::Off to be 0. Just in case, check all three.
   EXPECT_EQ(int(MaybeBool::Off), 0);
@@ -94,7 +96,7 @@ TEST(TapirCore, maybeBoolValues) {
   EXPECT_EQ(int(MaybeBool::Any), 3);
 }
 
-TEST(TapirCore, defaults) {
+TEST(KitTapirCore, defaults) {
   // We will probably never have a default tapir target.
   EXPECT_EQ(defaultTapirTarget, std::nullopt);
 
@@ -107,3 +109,5 @@ TEST(TapirCore, defaults) {
   // optional.
   EXPECT_EQ(defaultTapirGrainSize, 0U);
 }
+
+} // namespace

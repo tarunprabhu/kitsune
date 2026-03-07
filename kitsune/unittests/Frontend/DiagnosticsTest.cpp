@@ -12,6 +12,8 @@
 
 using namespace llvm;
 
+namespace {
+
 TEST(KitDiagnostics, isError) {
 #define GET_DIAGS
 #define DIAG_ERROR(NAME, MSG) EXPECT_TRUE(isError(DiagID::NAME));
@@ -47,3 +49,5 @@ TEST(KitDiagnostics, isNote) {
 #define DIAG_NOTE(NAME, MSG) EXPECT_TRUE(isNote(DiagID::NAME));
 #include "kitsune/Frontend/Diagnostics.inc"
 }
+
+} // namespace

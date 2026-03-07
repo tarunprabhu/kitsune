@@ -21,6 +21,8 @@
 
 using namespace llvm;
 
+namespace {
+
 constexpr StringRef moduleNoHints = R"m(
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -158,9 +160,9 @@ end2:
 !6 = !{!"tapir.loop.target", i32 1024}
 )m";
 
-class TapirTargetAnalysisTest : public ::testing::Test {
+class KitTapirTargetAnalysis : public ::testing::Test {
 public:
-  TapirTargetAnalysisTest() {
+  KitTapirTargetAnalysis() {
     InitializeAllTargets();
     InitializeAllTargetMCs();
   }
@@ -168,7 +170,7 @@ public:
 
 // There are no tapir loops. getRequiredTTs() should return an empty list. Even
 // so, a tapir target for the prrimary tapir target must have been created.
-TEST_F(TapirTargetAnalysisTest, noTapirLoops) {
+TEST_F(KitTapirTargetAnalysis, noTapirLoops) {
   constexpr StringRef ir = R"m(
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -264,7 +266,7 @@ sync2:
 
 // None of the tapir loops have a tapir target set on them. getRequiredTTs()
 // should only return the primary tapir target id.
-TEST_F(TapirTargetAnalysisTest, noHints) {
+TEST_F(KitTapirTargetAnalysis, noHints) {
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
@@ -304,7 +306,7 @@ TEST_F(TapirTargetAnalysisTest, noHints) {
 // One of the two tapir loops has a target set, the other does not.
 // getRequiredTTs() should return the primary tapir target ID and the target on
 // the loop.
-TEST_F(TapirTargetAnalysisTest, withHintsMixed) {
+TEST_F(KitTapirTargetAnalysis, withHintsMixed) {
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
@@ -347,7 +349,7 @@ TEST_F(TapirTargetAnalysisTest, withHintsMixed) {
 // All tapir loops have a tapir target set on them. getRequiredTTs() should not
 // return the primary tapir target id. TapirTarget objects should have been
 // created for each of the id's.
-TEST_F(TapirTargetAnalysisTest, withHintsNoDefault) {
+TEST_F(KitTapirTargetAnalysis, withHintsNoDefault) {
   constexpr StringRef ir = R"m(
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -465,7 +467,7 @@ end2:
 // computed correctly for both the functions and the module. In each case, a
 // TapirTarget object should have been created. A tapir target for the primary
 // tapir target will also have been created unconditionally.
-TEST_F(TapirTargetAnalysisTest, withMultipleFuncs) {
+TEST_F(KitTapirTargetAnalysis, withMultipleFuncs) {
   constexpr StringRef ir = R"m(
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -589,7 +591,7 @@ end:
 
 // If a tapir target options object has not been set, getRequiredTTs() will
 // always return an empty vector.
-TEST_F(TapirTargetAnalysisTest, noTTO) {
+TEST_F(KitTapirTargetAnalysis, noTTO) {
   LLVMContext ctx;
   SMDiagnostic err;
   std::optional<TTOptions> tto = std::nullopt;
@@ -622,3 +624,5 @@ TEST_F(TapirTargetAnalysisTest, noTTO) {
     EXPECT_EQ(tgi.getRequiredTTs(*m).size(), 0UL);
   }
 }
+
+} // namespace

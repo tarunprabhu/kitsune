@@ -12,7 +12,9 @@
 
 using namespace llvm;
 
-TEST(PipelineUtils, isKitsuneOrTapirPipelineAlias) {
+namespace {
+
+TEST(KitPipelineUtils, isKitsuneOrTapirPipelineAlias) {
   EXPECT_TRUE(isKitsuneOrTapirPipelineAlias("tapir-lowering"));
   EXPECT_TRUE(isKitsuneOrTapirPipelineAlias("tapir-lowering-loops"));
   EXPECT_TRUE(isKitsuneOrTapirPipelineAlias("kit-lowering"));
@@ -38,3 +40,5 @@ TEST(PipelineUtils, isKitsuneOrTapirPipelineAlias) {
   EXPECT_FALSE(isKitsuneOrTapirPipelineAlias("tapir-loops-lowering"));
   EXPECT_FALSE(isKitsuneOrTapirPipelineAlias("tapir-lowering-O3"));
 }
+
+} // namespace

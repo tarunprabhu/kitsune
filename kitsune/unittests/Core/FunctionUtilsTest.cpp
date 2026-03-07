@@ -15,7 +15,9 @@
 
 using namespace llvm;
 
-TEST(FunctionUtilsTest, copyAttrsFunc) {
+namespace {
+
+TEST(KitFunctionUtils, copyAttrsFunc) {
   LLVMContext ctx;
   Module m("", ctx);
 
@@ -58,7 +60,7 @@ TEST(FunctionUtilsTest, copyAttrsFunc) {
   EXPECT_EQ(dup1->getPrologueData(), cnull);
 }
 
-TEST(FunctionUtilsTest, copyAttrsArgs) {
+TEST(KitFunctionUtils, copyAttrsArgs) {
   LLVMContext ctx;
   Module m("", ctx);
 
@@ -84,3 +86,5 @@ TEST(FunctionUtilsTest, copyAttrsArgs) {
   EXPECT_TRUE(dup1->hasParamAttribute(1, Attribute::NoUndef));
   EXPECT_FALSE(dup1->hasRetAttribute(Attribute::NoAlias));
 }
+
+} // namespace

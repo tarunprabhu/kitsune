@@ -17,6 +17,8 @@
 
 using namespace llvm;
 
+namespace {
+
 static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
   SMDiagnostic err;
   std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
@@ -33,7 +35,7 @@ static const DebugLoc getDebugLocFor(const Function &f) {
   return DebugLoc();
 }
 
-TEST(DIUtils, toString) {
+TEST(KitDIUtils, toString) {
   constexpr StringRef ir = R"(
 target triple = "x86_64-pc-linux-gnu"
 
@@ -101,3 +103,5 @@ define i32 @f(i32 %0) !dbg !10 {
   EXPECT_EQ(toString(loadLoc, /*inlinedAt=*/false), "/tmp/inlined.c:42");
   EXPECT_EQ(toString(loadLoc, /*inlinedAt=*/true), "/tmp/inlined.c:42");
 }
+
+} // namespace

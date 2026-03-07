@@ -14,7 +14,7 @@ using namespace llvm;
 
 namespace {
 
-TEST(TTUtilsTest, ttsGenEmbBC) {
+TEST(KitTTUtils, ttsGenEmbBC) {
   ArrayRef<TTID> tts = ttsGenEmbBC();
 
   EXPECT_EQ(tts.size(), 2U);
@@ -22,7 +22,7 @@ TEST(TTUtilsTest, ttsGenEmbBC) {
   EXPECT_EQ(tts[1], TTID::Hip);
 }
 
-TEST(TTUtilsTest, doesTTGenerateEmbBC) {
+TEST(KitTTUtils, doesTTGenerateEmbBC) {
   EXPECT_FALSE(doesTTGenEmbBC(TTID::Nolo));
   EXPECT_FALSE(doesTTGenEmbBC(TTID::Serial));
   EXPECT_FALSE(doesTTGenEmbBC(TTID::OpenCilk));
@@ -31,7 +31,7 @@ TEST(TTUtilsTest, doesTTGenerateEmbBC) {
   EXPECT_TRUE(doesTTGenEmbBC(TTID::Hip));
 }
 
-TEST(TTUtilsTest, isGPUTT) {
+TEST(KitTTUtils, isGPUTT) {
   EXPECT_TRUE(isGPUTT(TTID::Cuda));
   EXPECT_TRUE(isGPUTT(TTID::Hip));
 
