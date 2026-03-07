@@ -27,8 +27,11 @@ TEST(KitIntrinsicUtils, isKitsuneIntrinsic) {
   EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_async_prefetch_dtoh));
   EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_async_prefetch_htod));
   EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_enable_verbose));
+  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_launch_threads));
   EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_memcpy_dtoh));
   EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_memcpy_htod));
+  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_sync_stream));
+  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_sync_threads));
 
   EXPECT_FALSE(isKitsuneIntrinsic(Intrinsic::prefetch));
   EXPECT_FALSE(isKitsuneIntrinsic(Intrinsic::memcpy));
@@ -44,6 +47,7 @@ TEST(KitIntrinsicUtils, isKitsuneIntrinsicAsync) {
   EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_prefetch_dtoh));
   EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_prefetch_htod));
 
+  EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_sync_stream));
   EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_sync_threads));
   EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_memcpy_dtoh));
   EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_memcpy_htod));
@@ -63,6 +67,8 @@ TEST(KitIntrinsicUtils, isKitsuneIntrinsicBlocking) {
   EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_prefetch_dtoh));
   EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_prefetch_htod));
 
+  EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_sync_stream));
+  EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_launch_threads));
   EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_sync_threads));
   EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_memcpy_dtoh));
   EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_memcpy_htod));
@@ -90,14 +96,16 @@ TEST(KitIntrinsicUtils, getKernelArgumentsFromLaunch) {
   Constant *ctt = ConstantInt::get(i32, unsigned(TTID::Cuda));
   Constant *cfp = ConstantFP::get(f32, 3.14159);
 
-  CallInst *call0 =
-      CallInst::Create(fty, f, {ctt, cnull, cnull, c0_8, c0_4, cnull, cnull});
+  CallInst *call0 = CallInst::Create(
+      fty, f, {ctt, cnull, cnull, c0_8, c0_8, c0_8, c0_4, cnull, cnull});
   CallInst *call1 = CallInst::Create(
-      fty, f, {ctt, cnull, cnull, c0_8, c0_4, cnull, cnull, g});
+      fty, f, {ctt, cnull, cnull, c0_8, c0_8, c0_8, c0_4, cnull, cnull, g});
   CallInst *call2 = CallInst::Create(
-      fty, f, {ctt, cnull, cnull, c0_8, c0_4, cnull, cnull, g, cfp});
+      fty, f,
+      {ctt, cnull, cnull, c0_8, c0_8, c0_8, c0_4, cnull, cnull, g, cfp});
   CallInst *call3 = CallInst::Create(
-      fty, f, {ctt, cnull, cnull, c0_8, c0_4, cnull, cnull, g, cfp, ctt});
+      fty, f,
+      {ctt, cnull, cnull, c0_8, c0_8, c0_8, c0_4, cnull, cnull, g, cfp, ctt});
 
   EXPECT_EQ(getKernelArgumentsFromLaunch(*call0), std::vector<Value *>());
   EXPECT_EQ(getKernelArgumentsFromLaunch(*call1), std::vector<Value *>({g}));
@@ -131,10 +139,10 @@ TEST(KitIntrinsicUtils, getStreamFromLaunch) {
   Constant *ctt = ConstantInt::get(i32, unsigned(TTID::Cuda));
   Constant *cfp = ConstantFP::get(f32, 3.14159);
 
-  CallInst *call0 =
-      CallInst::Create(fty, f, {ctt, cnull, cnull, c0_8, c0_4, cnull, g});
-  CallInst *call1 =
-      CallInst::Create(fty, f, {ctt, cnull, cnull, c0_8, c0_4, cnull, g, cfp});
+  CallInst *call0 = CallInst::Create(
+      fty, f, {ctt, cnull, cnull, c0_8, c0_8, c0_8, c0_4, cnull, g});
+  CallInst *call1 = CallInst::Create(
+      fty, f, {ctt, cnull, cnull, c0_8, c0_8, c0_8, c0_4, cnull, g, cfp});
 
   EXPECT_EQ(getStreamFromLaunch(*call0), g);
   EXPECT_EQ(getStreamFromLaunch(*call1), g);

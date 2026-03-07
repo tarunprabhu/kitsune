@@ -2730,16 +2730,18 @@ TLI_DEFINE_ENUM_INTERNAL(kitcuda_initialize)
 TLI_DEFINE_STRING_INTERNAL("__kitcuda_initialize")
 TLI_DEFINE_SIG_INTERNAL(Void)
 
-/// void* __kitcuda_launch_kernel(void* fat_binary,
-///                               const char* kernel_name,
+/// void* __kitcuda_launch_kernel(void* fatbin,
+///                               const char* name,
 ///                               void* args[],
-///                               int64_t trip_count,
+///                               int64_t tc_x,
+///                               int64_t tc_y,
+///                               int64_t tc_z,
 ///                               int32_t threads_per_block,
-///                               InstrMixInfo* instr_mix_info,
+///                               InstrMixInfo* instr_mix,
 ///                               void* stream);
 TLI_DEFINE_ENUM_INTERNAL(kitcuda_launch_kernel)
 TLI_DEFINE_STRING_INTERNAL("__kitcuda_launch_kernel")
-TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr, Ptr, Int64, Int32, Ptr, Ptr)
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr, Ptr, Int64, Int64, Int64, Int32, Ptr, Ptr)
 
 /// void __kitcuda_mem_free(void*)
 TLI_DEFINE_ENUM_INTERNAL(kitcuda_managed_free)
@@ -2826,16 +2828,18 @@ TLI_DEFINE_ENUM_INTERNAL(kithip_initialize)
 TLI_DEFINE_STRING_INTERNAL("__kithip_initialize")
 TLI_DEFINE_SIG_INTERNAL(Void)
 
-/// void* __kithip_launch_kernel(void* fat_binary,
-///                              const char* kernel_name,
+/// void* __kithip_launch_kernel(void* fatbin,
+///                              const char* name,
 ///                              void* args[],
-///                              int64_t trip_count,
+///                              int64_t tc_x,
+///                              int64_t tc_y,
+///                              int64_t tc_z,
 ///                              int32_t threads_per_block,
-///                              InstrMixInfo* instr_mix_info,
+///                              InstrMixInfo* instr_mix,
 ///                              void* stream);
 TLI_DEFINE_ENUM_INTERNAL(kithip_launch_kernel)
 TLI_DEFINE_STRING_INTERNAL("__kithip_launch_kernel")
-TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr, Ptr, Int64, Int32, Ptr, Ptr)
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr, Ptr, Int64, Int64, Int64, Int32, Ptr, Ptr)
 
 /// void __kithip_mem_free(void*)
 TLI_DEFINE_ENUM_INTERNAL(kithip_managed_free)

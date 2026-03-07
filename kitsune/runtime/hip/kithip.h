@@ -289,30 +289,40 @@ extern void __kithip_memcpy_sym_to_device(void *host_sym, void *dev_sym,
                                           size_t nbytes);
 
 /**
- * Given a pointer to a fat binary, launch the named kernel with the
- * given arguments, and trip count.  For the current Kitsune use cases
- * the compiler will embed the fat binary into the final executable
- * and the arguments will be determined during outlining.
+ * Given a pointer to a fat binary, launch the named kernel with the given
+ * arguments. The kernel will generally have been generated from a loop nest in
+ * source code. The provided trip counts are for the loops from which the kernel
+ * was derived. For the current Kitsune use cases the compiler will embed the
+ * fat binary into the final executable and the arguments will be determined
+ * during outlining.
  *
- * The runtime will determine an underlying target stream based on
- * the calling thread.  It is currently assumed that the calling
- * thread will issue any prefetch, launch, and synchronization calls
- * on its assigned stream.  This implementation path deprecates
- * previous APIs that exposed streams as part of the API.
+ * The runtime will determine an underlying target stream based on the calling
+ * thread. It is currently assumed that the calling thread will issue any
+ * prefetch, launch, and synchronization calls on its assigned stream. This
+ * implementation path deprecates previous APIs that exposed streams as part of
+ * the API.
  *
- * @param fat_bin - The fat binary image containing the compiled kernel.
- * @param kern_name - The name of the kernel to launch.
- * @param kern_args - The argument buffer for the kernel.
- * @param trip_count - Total size of the work to execution (aka trip count).
- * @param threads_per_blk - Use given thread count for launch (== 0 to compute).
- * @param inst_mix - external static code analysis details.
- * @param opaque_stream - externally created stream for execution.
+ * @param fatbin The fat binary image containing the compiled kernel.
+ * @param name The name of the kernel to launch.
+ * @param args The argument buffer for the kernel.
+ * @param tc_x The trip count of the innermost loop in the nest from which
+ *             this kernel was derived.
+ * @param tc_y The trip count of the loop at depth 2. If the depth of the loop
+ *             nest is less than 2, this will be 0.
+ * @param tc_z The trip count of the loop at depth 1, if this loop nest from
+ *             which this loop was derived only if the depth of the loop nest
+ *             is exactly 3. If the depth of the loop nest is less than 3,
+ *             this will be 0.
+ * @param tpb The number of threads per block to use. If this is 0, an
+ *            appropriate value will be calculated.
+ * @param inst_mix external static code analysis details.
+ * @param stream_in externally created stream for execution.
  */
-extern void *__kithip_launch_kernel(const void *fat_bin, const char *kern_name,
-                                    void **kern_args, size_t trip_count,
-                                    int threads_per_blk,
+extern void *__kithip_launch_kernel(const void *fatbin, const char *name,
+                                    void **args, int64_t tc_x, int64_t tc_y,
+                                    int64_t tc_z, int tpb,
                                     const KitRTInstMix *inst_mix,
-                                    void *opaque_stream);
+                                    void *stream_in);
 
 /**
  * Set the runtime's value for the maximum number of threads allowed

@@ -482,13 +482,21 @@ private:
     attrs = addAttrsFrom(attrs, attr0 + 4, call, attr0 + 4);
     attrs = addAttrsFrom(attrs, attr0 + 5, call, attr0 + 5);
     attrs = addAttrsFrom(attrs, attr0 + 6, call, attr0 + 6);
+    attrs = addAttrsFrom(attrs, attr0 + 7, call, attr0 + 7);
+    attrs = addAttrsFrom(attrs, attr0 + 8, call, attr0 + 8);
     attrs = attrs.addAttributeAtIndex(ctx, attr0 + 2, Attribute::NonNull);
 
     FunctionCallee rtFunc = getRuntimeFunc(call);
     Value *args[] = {
-        call.getArgOperand(1), call.getArgOperand(2), argArray,
-        call.getArgOperand(3), call.getArgOperand(4), call.getArgOperand(5),
-        call.getArgOperand(6),
+        call.getArgOperand(1), // fatbin
+        call.getArgOperand(2), // kernel name
+        argArray,              // kernel arguments
+        call.getArgOperand(3), // trip count (x)
+        call.getArgOperand(4), // trip count (y)
+        call.getArgOperand(5), // trip count (z)
+        call.getArgOperand(6), // threads per block
+        call.getArgOperand(7), // instruction mix
+        call.getArgOperand(8), // stream
     };
     CallInst *newCall = createNewCallFor(call, rtFunc, args);
 

@@ -2,13 +2,9 @@
 ;
 ; Check that attributes are preserved when lowering the kit.async.launch.kernel
 ; intrinsic. This intrinsic often has a combination of arguments with and
-; without attributes and the runtime function does not have the same number of
-; arguments as the intrinsic. Unlike the other runtime functions whose signature
-; does not match that of the corresponding intrinsic, in this case, the
-; signature of the runtime function is unlikely to change, so we use this to
-; test that we handle such a complicated case correctly.
-;
-; ------------------------------------------------------------------------------
+; without attributes. The runtime function does not have the same number of
+; arguments as the intrinsic. This is intended to test that the attributes are
+; copied over correctly to the runtime function that is called.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
@@ -18,12 +14,15 @@
 ; CHECK-LABEL: @launch
 ; CHECK: %[[ARRAY2:[0-9]+]] = alloca [3 x ptr]
 ; CHECK: %[[ARRAY1:[0-9]+]] = alloca [4 x ptr]
-; CHECK: call ptr @__kitcuda_launch_kernel(ptr nonnull @fb, ptr nonnull @1, ptr nonnull %[[ARRAY1]], i64 %n, i32 0, ptr nonnull @0, ptr %p)
-; CHECK: call ptr @__kitcuda_launch_kernel(ptr nonnull @fb, ptr nonnull @1, ptr nonnull %[[ARRAY2]], i64 %n, i32 0, ptr nonnull @0, ptr %p) #[[ATTRS:[0-9]+]]
+; CHECK: call ptr @__kitcuda_launch_kernel(ptr @fb, ptr @1, ptr nonnull %[[ARRAY1]], i64 %n, i64 0, i64 -1, i32 0, ptr @0, ptr %p){{$}}
+; CHECK: %[[CTX:[0-9]+]] = call ptr @__kitcuda_launch_kernel(ptr nonnull @fb, ptr nonnull @1, ptr nonnull %[[ARRAY2]], i64 %n, i64 0, i64 -1, i32 0, ptr nonnull @0, ptr %p) #[[LAUNCH:[0-9]+]]
+; CHECK: call void @__kitcuda_sync_thread_stream(ptr %[[CTX]]) #[[SYNC:[0-9]+]]
 ; CHECK: ret void
 ;
-; CHECK: attributes #[[ATTRS]] = { "custom-attr" }
+; CHECK: attributes #[[LAUNCH]] = { "launch" }
+; CHECK: attributes #[[SYNC]] = { "sync" }
 
+; This needs a triple in order to correctly initialize the target library.
 target triple = "x86_64-unknown-linux-gnu"
 
 @fb = external global [23 x i8]
@@ -31,9 +30,11 @@ target triple = "x86_64-unknown-linux-gnu"
 @1 = external global float
 
 define void @launch(ptr %p, ptr nonnull %q, i64 %n, float %f) {
-  call ptr (i32, ptr, ptr, i64, i32, ptr, ptr, ...) @llvm.kit.async.launch.kernel(i32 2, ptr nonnull @fb, ptr nonnull @1, i64 %n, i32 0, ptr nonnull @0, ptr %p, ptr dereferenceable(32) %q, i32 noundef 98, float %f, ptr null)
-  call ptr (i32, ptr, ptr, i64, i32, ptr, ptr, ...) @llvm.kit.async.launch.kernel(i32 2, ptr nonnull @fb, ptr nonnull @1, i64 %n, i32 0, ptr nonnull @0, ptr %p, ptr dereferenceable(32) %q, i32 noundef 98, ptr null) #0
+  %1 = call ptr (i32, ptr, ptr, i64, i64, i64, i32, ptr, ptr, ...) @llvm.kit.async.launch.kernel(i32 2, ptr @fb, ptr @1, i64 %n, i64 0, i64 -1, i32 0, ptr @0, ptr %p, ptr %q, i32 98, float %f, ptr null)
+  %2 = call ptr (i32, ptr, ptr, i64, i64, i64, i32, ptr, ptr, ...) @llvm.kit.async.launch.kernel(i32 2, ptr nonnull @fb, ptr nonnull @1, i64 %n, i64 0, i64 -1, i32 0, ptr nonnull @0, ptr %p, ptr dereferenceable(32) %q, i32 noundef 98, ptr null) #0
+  call void @llvm.kit.sync.stream(i32 2, ptr %2) #1
   ret void
 }
 
-attributes #0 = { "custom-attr" }
+attributes #0 = { "launch" }
+attributes #1 = { "sync" }
