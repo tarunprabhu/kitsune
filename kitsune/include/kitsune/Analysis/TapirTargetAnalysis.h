@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// An interface for information about the tapir targets needed by a module and
-// options to control the behavior of the tapir targets.
+// Pass that determines the tapir targets needed by individual functions and
+// loops in a module.
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,15 +27,13 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
 class LoopInfo;
 class TapirTarget;
 class TapirTargetAnalysis;
 class TapirTargetAnalysisWrapperPass;
 class TaskInfo;
 
+/// \ingroup kitsune
 /// An object that contains information about the tapir targets that are
 /// enabled.
 class TapirTargetInfo {
@@ -111,15 +109,12 @@ public:
   friend class TapirTargetAnalysisWrapperPass;
 };
 
+/// \ingroup kitsune
 /// Analysis pass that contains TapirTarget instances required by loop-spawning
 /// and any other passes that might need them. It can be used to query the
 /// tapir targets that have been enabled explicitly (via the --tapir
-/// command-line option passed to a compiler driver or the opt tool).
-///
-/// Eventually, when multi-target execution is supported, this can be used to
-/// determine which tapir targets are required by individual loops and
-/// functions, but that has not been implemented yet.
-///
+/// command-line option passed to a compiler driver or the opt tool), as well
+/// as the targets attached to individual tapir constructs.
 class TapirTargetAnalysis : public AnalysisInfoMixin<TapirTargetAnalysis> {
 private:
   /// The TapirTargetInfo that will be populated when @ref run() is called.
@@ -180,10 +175,11 @@ public:
   static char ID;
 };
 
+/// \ingroup kitsune
+/// Create a an instance of the tapir target analysis pass for the legacy pass
+/// manager.
 ModulePass *
 createTapirTargetAnalysisWrapperPass(std::optional<TTOptions> ttOpts);
-
-/// @}
 
 } // namespace llvm
 

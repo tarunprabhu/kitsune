@@ -18,25 +18,16 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
-/// Some metadata about the kernel being launched is passed to the launch calls.
-/// These may be used to determine launch parameters. Currently, this metadata
-/// includes information about the instruction mix within the kernel - the
-/// numbers of floating point, integer and memory operations in the kernel's IR.
-/// In the future, this could be expanded to include anything else that could be
-/// useful. This pass is run as late in the pipeline as possible to allow for
-/// all the optimizations to be run on the embedded bitcode.
+/// \ingroup kitsune
+/// Compute properties of kernels in embedded bitcode and update the
+/// initializers of the corresponding global variables with these.
 class RecomputeKernelPropertiesPass
     : public PassInfoMixin<RecomputeKernelPropertiesPass> {
 public:
-  PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
+  PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 
   static bool isRequired() { return true; }
 };
-
-// @}
 
 } // namespace llvm
 

@@ -22,9 +22,9 @@
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "kitsune/Transforms/GenerateCtors.h"
-#include "kitsune/Transforms/Prefetching.h"
+#include "kitsune/Transforms/PrefetchForDevice.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
-#include "kitsune/Transforms/SerializeTapirLoops.h"
+#include "kitsune/Transforms/Serialize.h"
 #include "llvm/Transforms/Scalar/SimplifyCFG.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
 
@@ -84,7 +84,7 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     // form. Since this pipeline is run just before loop-spawning, both the
     // loop-simplify and loop-rotate passes are guaranteed to have been run.
     mpm.addPass(AnnotateTapirLoopsPass());
-    mpm.addPass(SerializeTapirLoopsPass());
+    mpm.addPass(SerializePass());
   }
 
   return mpm;
@@ -101,7 +101,7 @@ llvm::populateKitPostTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
   if (optLevel.getSpeedupLevel() > 0) {
     pb.invokeKitsunePostTapirEarlyEPCallbacks(mpm, optLevel);
 
-    mpm.addPass(PrefetchingPass());
+    mpm.addPass(PrefetchForDevicePass());
     mpm.addPass(EmbResolveLibDeviceCallsPass());
     mpm.addPass(EmbPreparePass());
     mpm.addPass(EmbLinkLibDeviceBitcodePass());

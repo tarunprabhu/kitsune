@@ -13,9 +13,9 @@ add_llvm_component_library(LLVMKitTransforms
   GenerateCtorHip.cpp
   GenerateCtorPthreads.cpp
   GenerateCtorQthreads.cpp
-  Prefetching.cpp
+  PrefetchForDevice.cpp
   RecomputeKernelProperties.cpp
-  SerializeTapirLoops.cpp
+  Serialize.cpp
 
   DEPENDS
   intrinsics_gen

@@ -2,7 +2,7 @@
 ; that are imperfectly nested in a tapir loop nest. In the current
 ; implementation, this results in the innermost loop nests being serialized.
 ;
-; RUN: opt --tapir=hip -passes="kit-serialize-tapir-loops" -S %s \
+; RUN: opt --tapir=hip -passes="kit-serialize" -S %s \
 ; RUN:   | FileCheck %s
 ;
 ; CHECK: %syncreg.i = tail call token @llvm.syncregion.start()

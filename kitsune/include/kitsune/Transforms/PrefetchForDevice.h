@@ -1,4 +1,4 @@
-//===- GenerateCtors.h - Generate global ctors and dtors --------*- C++ -*-===//
+//===- PrefetchForDevice.h - Generate dtoh/htod prefetch calls --*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,20 +6,21 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Generate Kitsune global ctors and dtors
+// Generate prefetch calls to initiate movement of data between host and device.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_TRANSFORMS_GENERATE_CTORS_H
-#define KITSUNE_TRANSFORMS_GENERATE_CTORS_H
+#ifndef KITSUNE_TRANSFORMS_PREFETCH_FOR_DEVICE_H
+#define KITSUNE_TRANSFORMS_PREFETCH_FOR_DEVICE_H
 
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
 
 /// \ingroup kitsune
-/// Generates global constructors and destructors needed by Kitsune.
-class GenerateCtorsPass : public PassInfoMixin<GenerateCtorsPass> {
+/// This pass generates calls to initiate movement of data between host and
+/// device.
+class PrefetchForDevicePass : public PassInfoMixin<PrefetchForDevicePass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 
@@ -28,4 +29,4 @@ public:
 
 } // namespace llvm
 
-#endif // KITSUNE_TRANSFORMS_GENERATE_CTORS_H
+#endif // KITSUNE_TRANSFORMS_PREFETCH_FOR_DEVICE_H

@@ -28,11 +28,14 @@
 //
 // -----------------------------------------------------------------------------
 //
-// CHECK-NOT: LoopSpawning
-// CHECK-NOT: EmbResolveLibDeviceCalls
+// CHECK-NOT: PreLowerVerificationPass
+// CHECK-NOT: AnnotateTapirLoopsPass
+// CHECK-NOT: SerializePass
+// CHECK-NOT: LoopSpawningPass
+// CHECK-NOT: EmbResolveLibDeviceCallsPass
 // CHECK-NOT: EmbPreparePass
-// CHECK-NOT: EmbLinkLibDeviceBitcode
-// CHECK-NOT: EmbOptimize
-// CHECK-NOT: RecomputeKernelProperties
-// CHECK-NOT: GenerateCtors
-// CHECK-NOT: LowerRuntimeIntrinsics
+// CHECK-NOT: EmbLinkLibDeviceBitcodePass
+// CHECK-NOT: EmbOptimizePass
+// CHECK-NOT: RecomputeKernelPropertiesPass
+// CHECK-NOT: GenerateCtorsPass
+// CHECK-NOT: LowerRuntimeIntrinsicsPass

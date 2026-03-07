@@ -23,7 +23,7 @@
 ; DEFAULT-NOT: Running pass:     TapirLoopAnnotatorPass
 ; DEFAULT-NOT: Running pass:     LoopSpawningPass
 ; DEFAULT-NOT: Running pass:     TapirToTargetPass
-; DEFAULT-NOT: Running pass:     PrefetchingPass
+; DEFAULT-NOT: Running pass:     PrefetchForDevicePass
 ; DEFAULT-NOT: Running pass:     EmbResolveLibDeviceCallsPass
 ; DEFAULT-NOT: Running pass:     EmbPreparePass
 ; DEFAULT-NOT: Running pass:     EmbLinkLibDeviceBitcodePass
@@ -75,11 +75,11 @@
 ; O123SZ-NEXT: Running analysis: PostDominatorTreeAnalysis
 ; O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis
 ; O123SZ-NEXT: Running pass:     AnnotateTapirLoopsPass
-; O123SZ-NEXT: Running pass:     SerializeTapirLoopsPass
+; O123SZ-NEXT: Running pass:     SerializePass
 ; O123SZ-NEXT: Running pass:     LoopSpawningPass
 ; O123SZ:      Running pass:     TapirToTargetPass
 ; O123SZ:      Running pass:     GlobalDCEPass
-; O123SZ-NEXT: Running pass:     PrefetchingPass
+; O123SZ-NEXT: Running pass:     PrefetchForDevicePass
 ; O123SZ-NEXT: Running pass:     EmbResolveLibDeviceCallsPass
 ; O123SZ-NEXT: Running pass:     EmbPreparePass
 ; O123SZ-NEXT: Running pass:     EmbLinkLibDeviceBitcodePass

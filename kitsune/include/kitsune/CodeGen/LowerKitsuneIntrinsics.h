@@ -1,4 +1,4 @@
-//===- LowerKitsuneIntrinsics.h - Lower kitsune intrinsics ------*- C++ -*-===//
+//=- LowerKitsuneIntrinsics.h - Lower Kitsune-specific intrinsics -*- C++ -*-=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,8 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Lowers kitsune's intrinsics. These typically correspond to a single function
-// in Kitsune's runtime, but not necessarily.
+// Lower Kitsune-specific intrinsics.
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,24 +17,20 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
 class ModulePass;
 
-/// This pass is responsible for lowering Kitsune's runtime intrinsics. These
-/// are intrinsics that correspond to a function in kitsune's runtime.
+/// \ingroup kitsune
+/// Lower Kitsune-specific intrinsics.
 class LowerKitsuneIntrinsicsPass
     : public PassInfoMixin<LowerKitsuneIntrinsicsPass> {
 public:
-  PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
+  PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 
   static bool isRequired() { return true; }
 };
 
+/// \ingroup kitsune
 ModulePass *createLowerKitsuneIntrinsicsLegacyPass();
-
-/// @}
 
 } // namespace llvm
 

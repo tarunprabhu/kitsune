@@ -1,4 +1,4 @@
-//===- EmbOptimize.h - Optimize embedded modules ---------------*- C++ -*--===//
+//===- EmbOptimize.h - Optimize embedded bitcode modules -------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,8 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Run the standard sequence of optimization passes on the embedded bitcode
-// in the module.
+// Run a sequence of optimization passes on the embedded bitcode in the module.
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,9 +17,7 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
+/// \ingroup kitsune
 /// This will run the standard optimization passes on the embedded module for
 /// the given tapir target.
 class EmbOptimizePass : public EmbModulePass<EmbOptimizePass> {
@@ -29,8 +26,6 @@ public:
 
   using EmbModulePass<EmbOptimizePass>::run;
 };
-
-/// @}
 
 } // namespace llvm
 

@@ -1,7 +1,7 @@
 ; Check that tapir loops at a perfect nesting level greater than 3 are
-; serialized by the kit-serialize-tapir-loops pass.
+; serialized by the kit-serialize pass.
 ;
-; RUN: opt -passes="kit-serialize-tapir-loops" --tapir=hip -S %s \
+; RUN: opt -passes="kit-serialize" --tapir=hip -S %s \
 ; RUN:   | FileCheck %s
 ;
 ; CHECK: %syncreg.i = tail call token @llvm.syncregion.start()

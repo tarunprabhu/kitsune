@@ -1,10 +1,10 @@
-; Check that the serialize-tapir-loops pass reports the loop that was serialized
-; together with location information, if it is available.
+; Check that the serialize pass reports the loop that was serialized together
+; with location information, if it is available.
 ;
-; RUN: opt -passes="kit-serialize-tapir-loops" --tapir=cuda %s -S 2>&1 \
+; RUN: opt -passes="kit-serialize" --tapir=cuda %s -S 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,REMARK
 ;
-; RUN: opt -passes="kit-serialize-tapir-loops" --tapir=cuda %s -S \
+; RUN: opt -passes="kit-serialize" --tapir=cuda %s -S \
 ; RUN:     -serialize-verbose=1 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,REMARK --allow-empty
 ;
@@ -12,14 +12,14 @@
 ; REMARK-NOT: Loop at depth 2
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt -passes="kit-serialize-tapir-loops" --tapir=cuda %s -S \
+; RUN: opt -passes="kit-serialize" --tapir=cuda %s -S \
 ; RUN:     -serialize-verbose=0 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,QUIET --allow-empty
 ;
 ; QUIET-NOT: serialized loop
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt -passes="kit-serialize-tapir-loops" --tapir=cuda %s -S \
+; RUN: opt -passes="kit-serialize" --tapir=cuda %s -S \
 ; RUN:     -serialize-verbose=2 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,VERBOSE --allow-empty
 ;

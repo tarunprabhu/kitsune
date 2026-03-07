@@ -1,4 +1,4 @@
-//===- LowerKitsuneIntrinsics.cpp - Lower kitsune intrinsics --------------===//
+//===- LowerKitsuneIntrinsics.cpp - Lower Kitsune-specific intrinsics -----===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Lower Kitsune's intrinsics
+// This pass is responsible for lowering Kitsune-specific intrinsics. These
+// typically have a corresponding function in Kitsune's runtime, but that is not
+// always the case.
 //
 //===----------------------------------------------------------------------===//
 

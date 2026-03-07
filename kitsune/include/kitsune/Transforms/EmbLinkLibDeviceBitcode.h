@@ -17,9 +17,7 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
+/// \ingroup kitsune
 /// Link the appropriate device bitcode modules into the embedded bitcode.
 class EmbLinkLibDeviceBitcodePass
     : public EmbModulePass<EmbLinkLibDeviceBitcodePass> {
@@ -28,8 +26,6 @@ public:
 
   using EmbModulePass<EmbLinkLibDeviceBitcodePass>::run;
 };
-
-/// @}
 
 } // namespace llvm
 
