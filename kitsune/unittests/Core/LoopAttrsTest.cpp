@@ -18,6 +18,8 @@
 
 using namespace llvm;
 
+namespace {
+
 constexpr StringRef loop1 = R"(
 define void @f(i64 %n) {
 entry:
@@ -81,7 +83,7 @@ static void checkLoopGetMetadata(LLVMContext &ctx, LoopAttrKind attr) {
   EXPECT_EQ(cast<ConstantInt>(md1->getValue())->getLimitedValue(), 1U);
 }
 
-TEST(LoopAttrsTest, loopGetMetadata) {
+TEST(KitLoopAttrs, loopGetMetadata) {
   LLVMContext ctx;
 
   checkLoopGetMetadata(ctx, LoopAttrKind::LoweringEnabled);
@@ -89,7 +91,7 @@ TEST(LoopAttrsTest, loopGetMetadata) {
   checkLoopGetMetadata(ctx, LoopAttrKind::PerfectDepth, 13, 13U);
 }
 
-TEST(LoopAttrsTest, loopAttrName) {
+TEST(KitLoopAttrs, loopAttrName) {
 #define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
   EXPECT_EQ(getLoopAttrName(LoopAttrKind::NAME), IRNAME);                      \
   EXPECT_TRUE(getLoopAttrName(LoopAttrKind::NAME).starts_with("loop."));
@@ -100,7 +102,7 @@ TEST(LoopAttrsTest, loopAttrName) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(LoopAttrsTest, loopAttrKind) {
+TEST(KitLoopAttrs, loopAttrKind) {
   EXPECT_EQ(getLoopAttrKind("whoops"), std::nullopt);
 
 #define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
@@ -111,7 +113,7 @@ TEST(LoopAttrsTest, loopAttrKind) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(LoopAttrsTest, loopAttrTapirOnly) {
+TEST(KitLoopAttrs, loopAttrTapirOnly) {
 #define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
   EXPECT_FALSE(isLoopAttrTapirOnly(LoopAttrKind::NAME));
 #define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
@@ -120,7 +122,7 @@ TEST(LoopAttrsTest, loopAttrTapirOnly) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(LoopAttrsTest, loopAttrsGeneric) {
+TEST(KitLoopAttrs, loopAttrsGeneric) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, loop1);
   Function *f = m->getFunction("f");
@@ -178,7 +180,7 @@ TEST(LoopAttrsTest, loopAttrsGeneric) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(LoopAttrsTest, loopFlagAttrs) {
+TEST(KitLoopAttrs, loopFlagAttrs) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, loop1);
   Function *f = m->getFunction("f");
@@ -214,7 +216,7 @@ TEST(LoopAttrsTest, loopFlagAttrs) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(LoopAttrsTest, loopInt32Test) {
+TEST(KitLoopAttrs, loopInt32Test) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, loop1);
   Function *f = m->getFunction("f");
@@ -258,7 +260,7 @@ TEST(LoopAttrsTest, loopInt32Test) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(LoopAttrsTest, loopInt64Test) {
+TEST(KitLoopAttrs, loopInt64Test) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, loop1);
   Function *f = m->getFunction("f");
@@ -302,7 +304,7 @@ TEST(LoopAttrsTest, loopInt64Test) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(LoopAttrsTest, loopStrTest) {
+TEST(KitLoopAttrs, loopStrTest) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, loop1);
   Function *f = m->getFunction("f");
@@ -345,3 +347,5 @@ TEST(LoopAttrsTest, loopStrTest) {
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
+
+} // namespace

@@ -18,6 +18,8 @@
 
 using namespace llvm;
 
+namespace {
+
 static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
   SMDiagnostic err;
   std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
@@ -79,7 +81,7 @@ for.i.exit:
 !0 = distinct !{!0}
 )";
 
-TEST(LoopUtils, clearTapirLoopAttrs) {
+TEST(KitLoopUtils, clearTapirLoopAttrs) {
   LoopInfoContext liCtx(loop1, "f");
   LLVMContext &ctx = liCtx.ctx;
   LoopInfo &li = liCtx.li;
@@ -157,7 +159,7 @@ for.i.exit:
 !2 = distinct !{!2}
 !3 = distinct !{!3})";
 
-TEST(LoopUtils, getAllSubLoops) {
+TEST(KitLoopUtils, getAllSubLoops) {
   std::unique_ptr<LoopInfoContext> liCtx = nullptr;
 
   liCtx.reset(new LoopInfoContext(loop3_2, "f"));
@@ -175,7 +177,7 @@ TEST(LoopUtils, getAllSubLoops) {
   EXPECT_EQ(getAllSubLoops(*liCtx->li.getLoopsInPreorder()[0]).size(), 0U);
 }
 
-TEST(LoopUtils, getBlocksNotInSubLoops) {
+TEST(KitLoopUtils, getBlocksNotInSubLoops) {
   std::unique_ptr<LoopInfoContext> liCtx = nullptr;
   Loop *loopI = nullptr;
   Loop *loopJ = nullptr;
@@ -196,3 +198,5 @@ TEST(LoopUtils, getBlocksNotInSubLoops) {
   EXPECT_EQ(getBlocksNotInSubLoops(*loopK).size(), 1U);
   EXPECT_EQ(getBlocksNotInSubLoops(*loopL).size(), 1U);
 }
+
+} // namespace

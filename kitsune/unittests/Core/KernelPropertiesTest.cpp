@@ -16,7 +16,7 @@ using namespace llvm;
 
 namespace {
 
-TEST(KitsuneUtils, createKernelPropertiesGlobal) {
+TEST(KitKernelProperties, createKernelPropertiesGlobal) {
   LLVMContext ctx;
   Module m("", ctx);
 

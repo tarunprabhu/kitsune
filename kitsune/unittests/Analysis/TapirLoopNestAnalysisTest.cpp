@@ -19,6 +19,8 @@
 
 using namespace llvm;
 
+namespace {
+
 static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
   SMDiagnostic err;
   std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
@@ -379,7 +381,7 @@ exit:
 !2 = distinct !{!2, !1}
 )";
 
-TEST(TapirLoopNestAnalysisTest, isTapirLoop) {
+TEST(KitTapirLoopNestAnalysis, isTapirLoop) {
   LoopInfoContext liCtx(loop3MixedGPU, "f");
   LoopInfo &li = liCtx.li;
   TaskInfo &ti = liCtx.ti;
@@ -395,7 +397,7 @@ TEST(TapirLoopNestAnalysisTest, isTapirLoop) {
   EXPECT_TRUE(isTapirLoop(*loopL, ti));
 }
 
-TEST(TapirLoopNestAnalysisTest, isTopLevelTapirLoop) {
+TEST(KitTapirLoopNestAnalysis, isTopLevelTapirLoop) {
   LoopInfoContext liCtx(loop3MixedGPU, "f");
   LoopInfo &li = liCtx.li;
   TaskInfo &ti = liCtx.ti;
@@ -411,7 +413,7 @@ TEST(TapirLoopNestAnalysisTest, isTopLevelTapirLoop) {
   EXPECT_FALSE(isTopLevelTapirLoop(*loopL, ti));
 }
 
-TEST(TapirLoopAnalysisTest, isTapirLoopForGPU) {
+TEST(KitTapirLoopAnalysis, isTapirLoopForGPU) {
   {
     LoopInfoContext liCtx(loop3MixedCPU, "f");
     LoopInfo &li = liCtx.li;
@@ -461,7 +463,7 @@ TEST(TapirLoopAnalysisTest, isTapirLoopForGPU) {
   }
 }
 
-TEST(TapirLoopAnalysisTest, isTopLevelTapirLoopForGPU) {
+TEST(KitTapirLoopAnalysis, isTopLevelTapirLoopForGPU) {
   {
     LoopInfoContext liCtx(loop3MixedGPU, "f");
     LoopInfo &li = liCtx.li;
@@ -495,7 +497,7 @@ TEST(TapirLoopAnalysisTest, isTopLevelTapirLoopForGPU) {
   }
 }
 
-TEST(TapirLoopAnalysisTest, getTopLevelTapirLoops) {
+TEST(KitTapirLoopAnalysis, getTopLevelTapirLoops) {
   LoopInfoContext liCtx2(loop2, "f");
   EXPECT_EQ(getTopLevelTapirLoops(liCtx2.li, liCtx2.ti).size(), 2U);
 
@@ -503,10 +505,12 @@ TEST(TapirLoopAnalysisTest, getTopLevelTapirLoops) {
   EXPECT_EQ(getTopLevelTapirLoops(liCtx3.li, liCtx3.ti).size(), 1U);
 }
 
-TEST(TapirLoopAnalysisTest, getTapirLoops) {
+TEST(KitTapirLoopAnalysis, getTapirLoops) {
   LoopInfoContext liCtx2(loop2, "f");
   EXPECT_EQ(getTapirLoops(liCtx2.li, liCtx2.ti).size(), 2U);
 
   LoopInfoContext liCtx3(loop3MixedCPU, "f");
   EXPECT_EQ(getTapirLoops(liCtx3.li, liCtx3.ti).size(), 3U);
 }
+
+} // namespace
