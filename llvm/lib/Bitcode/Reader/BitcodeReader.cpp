@@ -9,6 +9,7 @@
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "MetadataLoader.h"
 #include "ValueList.h"
+#include "kitsune/Support/FromInt.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -2542,7 +2543,7 @@ Error BitcodeReader::parseAttributeGroupBlock() {
             B.addDenormalFPEnvAttr(
                 DenormalFPEnv::createFromIntValue(Record[++i]));
           else if (Kind == Attribute::KitTT) {
-            if (std::optional<TTID> TT = createTTIDFrom(Record[++i]))
+            if (std::optional<TTID> TT = fromInt<TTID>(Record[++i]))
               B.addTTIDAttr(*TT);
             else
               return error("Not a valid tapir target id");

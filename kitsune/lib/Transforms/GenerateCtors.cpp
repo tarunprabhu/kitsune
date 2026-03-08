@@ -66,7 +66,7 @@ static bool isCalledWithTTID(Module &m, Intrinsic::ID id, TTID tt) {
         // at this site is the launch kernel function.
         if (call->getCalledFunction() == f)
           if (auto *cint = dyn_cast<ConstantInt>(call->getArgOperand(0)))
-            if (std::optional<TTID> ttid = createTTIDFrom(*cint))
+            if (std::optional<TTID> ttid = fromConstant<TTID>(*cint))
               if (*ttid == tt)
                 return true;
   return false;

@@ -399,7 +399,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
   Type *i64 = Type::getInt64Ty(ctx);
 
   Constant *zero = ConstantInt::get(i64, 0);
-  ConstantInt *ctt = createConstInt(TTID::Cuda, ctx);
+  Constant *ctt = toConstant(TTID::Cuda, ctx);
   GlobalVariable *kprops =
       createKernelPropertiesGlobal(kernelName, TTID::Cuda, M);
   Value *kName = createConstString(kernelName, M);

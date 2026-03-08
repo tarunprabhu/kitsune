@@ -15,6 +15,7 @@
 
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TypeUtils.h"
+#include "kitsune/Support/FromInt.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Constants.h"
 
@@ -27,13 +28,6 @@ class ConstantInt;
 class GlobalVariable;
 class LLVMContext;
 class Module;
-
-/// Create a TTID from the given constant.
-std::optional<TTID> createTTIDFrom(const ConstantInt &);
-
-/// Generate a ConstantInt for use in Kitsune-specific intrinsics that take a
-/// tapir target id as an argument.
-ConstantInt *createConstInt(TTID tt, LLVMContext &ctxt);
 
 /// Create a private string with the given initializer if one with this
 /// initializer does not already exist in the module. If one does, return that.
@@ -48,17 +42,17 @@ GlobalVariable *createConstString(StringRef s, Module &m, StringRef name = "");
 /// @{
 
 template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
-Constant *toConstant(LLVMContext &ctx, T val) {
+Constant *toConstant(T val, LLVMContext &ctx) {
   return ConstantInt::get(getLLVMTypeFor<int32_t>(ctx), int32_t(val));
 }
 
 template <typename T, std::enable_if_t<std::is_same_v<T, StringRef>, int> = 0>
-Constant *toConstant(LLVMContext &ctx, T val) {
+Constant *toConstant(T val, LLVMContext &ctx) {
   return ConstantDataArray::getString(ctx, val, /*AddNull=*/false);
 }
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-Constant *toConstant(LLVMContext &ctx, T val) {
+Constant *toConstant(T val, LLVMContext &ctx) {
   return ConstantInt::get(getLLVMTypeFor<T>(ctx), val);
 }
 
@@ -77,18 +71,10 @@ std::optional<StringRef> fromConstant(const Constant &c) {
   return std::nullopt;
 }
 
-template <typename T, std::enable_if_t<std::is_same_v<T, TTID>, int> = 0>
+template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
 std::optional<T> fromConstant(const Constant &c) {
   if (const auto *cint = dyn_cast<ConstantInt>(&c))
-    return createTTIDFrom(cint->getLimitedValue());
-  return std::nullopt;
-}
-
-template <typename T,
-          std::enable_if_t<std::is_same_v<T, TapirSpawnStrategy>, int> = 0>
-std::optional<T> fromConstant(const Constant &c) {
-  if (const auto *cint = dyn_cast<ConstantInt>(&c))
-    return createTapirSpawnStrategyFrom(cint->getLimitedValue());
+    return fromInt<T>(cint->getLimitedValue());
   return std::nullopt;
 }
 

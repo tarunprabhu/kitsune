@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/AsmParser/LLParser.h"
+#include "kitsune/Support/FromInt.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
@@ -3028,7 +3029,7 @@ std::optional<TTID> LLParser::parseTTIDAttr() {
   if (parseUInt32(UTT))
     return std::nullopt;
 
-  std::optional<TTID> TT = createTTIDFrom(UTT);
+  std::optional<TTID> TT = fromInt<TTID>(UTT);
   if (!TT) {
     tokError("unknown tapir target");
     return std::nullopt;

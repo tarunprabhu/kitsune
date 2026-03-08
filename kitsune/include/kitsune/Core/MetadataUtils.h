@@ -49,14 +49,14 @@ Metadata *makeTapirLoopMetadata(LLVMContext &ctx, StringRef name,
 /// @{
 
 template <typename T, std::enable_if_t<std::is_same_v<T, StringRef>, int> = 0>
-Metadata *toMetadata(LLVMContext &ctx, T val) {
+Metadata *toMetadata(T val, LLVMContext &ctx) {
   return MDString::get(ctx, val);
 }
 
 template <typename T,
           std::enable_if_t<std::is_enum_v<T> || std::is_integral_v<T>, int> = 0>
-Metadata *toMetadata(LLVMContext &ctx, T val) {
-  return ConstantAsMetadata::get(toConstant(ctx, val));
+Metadata *toMetadata(T val, LLVMContext &ctx) {
+  return ConstantAsMetadata::get(toConstant(val, ctx));
 }
 
 /// @}

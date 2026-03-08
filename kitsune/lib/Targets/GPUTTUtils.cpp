@@ -302,7 +302,7 @@ static void copyNonConstGlobals(const SmallSet<GlobalValue *, 8> &gvs, TTID tt,
   GlobalVariable *fb = getEmbFBGlobal(tt, m);
   assert(fb && "Embedded fat binary must exist");
 
-  Constant *ctt = createConstInt(tt, ctx);
+  Constant *ctt = toConstant(tt, ctx);
   for (GlobalValue *gv : gvs) {
     if (auto *g = dyn_cast<GlobalVariable>(gv)) {
       if (not g->isConstant()) {

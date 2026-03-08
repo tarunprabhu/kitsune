@@ -137,7 +137,7 @@ private:
     Type *i32Ty = Type::getInt32Ty(ctx);
     Type *boolTy = Type::getInt8Ty(ctx);
 
-    ConstantInt *constTT = createConstInt(TTID::Cuda, ctx);
+    Constant *constTT = toConstant(TTID::Cuda, ctx);
     Constant *czero = ConstantInt::get(i32Ty, 0);
 
     FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, false);
@@ -262,7 +262,7 @@ private:
         getOrInsertLibFunc(&m, tli, LibFunc_cuda_unregister_fat_binary);
     builder.CreateCall(cudaUnregisterFatBinary, handle);
 
-    ConstantInt *constTT = createConstInt(TTID::Cuda, ctx);
+    Constant *constTT = toConstant(TTID::Cuda, ctx);
     FunctionCallee kitrtFinalize =
         Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_finalize);
     builder.CreateCall(kitrtFinalize, {constTT});
