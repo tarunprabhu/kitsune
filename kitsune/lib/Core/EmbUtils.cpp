@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/EmbUtils.h"
-#include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Core/TypeUtils.h"
 #include "kitsune/Frontend/Diagnostics.h"
 #include "kitsune/Support/TTIDUtils.h"
@@ -104,7 +104,7 @@ llvm::parseEmbBCGlobal(const GlobalVariable &g) {
   // We add kitsune-specific metadata to the module that contains this name so
   // it can be restored when it is deserialized.
   std::unique_ptr<Module> m = std::move(moduleOrErr.get());
-  if (std::optional<StringRef> name = getNameFromDeviceModuleMetadata(*m))
+  if (std::optional<StringRef> name = getNameFromDeviceModuleFlagsAttr(*m))
     m->setModuleIdentifier(*name);
 
   return m;

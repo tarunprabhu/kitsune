@@ -44,10 +44,12 @@ MDNode *getMetadataForLoopAttr(LLVMContext &ctx, LoopAttrKind attr, T val);
 MDNode *getMetadataForLoopAttr(LLVMContext &ctx, LoopAttrKind attr);
 
 /// Get the name of the loop attribute as it appears in the loop metadata.
+/// The result will start with "tapir.loop." or "loop."
 StringRef getLoopAttrName(LoopAttrKind attr);
 
-/// Get the kind of the loop attribute from the given name, otherwise, return
-/// std::nullopt;
+/// Get the kind of a loop attribute if the given string corresponds to the name
+/// of an attribute as it might appear in loop metadata. If the string does not
+/// correspond to a valid attribute name, return std::nullopt.
 std::optional<LoopAttrKind> getLoopAttrKind(StringRef name);
 
 /// Return true if the attribute can only be applied to a tapir loop, false

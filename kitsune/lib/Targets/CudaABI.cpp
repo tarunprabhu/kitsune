@@ -465,7 +465,7 @@ CudaABI::CudaABI(Module &hostM, const TTOptions &tto)
   kernelModule.setDataLayout(tm->createDataLayout());
 
   kernelModule.setModuleIdentifier(getNameForDeviceModule(M, CUABI_PREFIX));
-  addDeviceModuleMetadata(TTID::Cuda, kernelModule);
+  addDeviceModuleFlagsAttr(kernelModule, TTID::Cuda);
   cloneModuleFlagsMetadataInto(M, kernelModule);
   cloneIdentMetadataInto(M, kernelModule);
   kernelModule.setModuleFlag(Module::Override, "nvvm-reflect-ftz", clFTZ);

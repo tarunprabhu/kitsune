@@ -11,39 +11,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/ModuleUtils.h"
-#include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/ModuleAttrs.h"
 #include "llvm/ADT/SmallSet.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 
 using namespace llvm;
 
-/// Name of a named metadata node Kitsune metadata for device modules.
-static constexpr StringRef mdDeviceModuleFlags = "kitsune.device.module.flags";
-
-bool llvm::hasDeviceModuleMetadata(const Module &m) {
-  return m.getNamedMetadata(mdDeviceModuleFlags);
-}
-
-NamedMDNode &llvm::addDeviceModuleMetadata(TTID tt, Module &m) {
-  auto addOperandAt = [](NamedMDNode &nmd, unsigned i, MDNode *md) -> void {
-    if (nmd.getNumOperands() > i)
-      nmd.setOperand(i, md);
-    else
-      nmd.addOperand(md);
-  };
-
-  LLVMContext &ctx = m.getContext();
-  Type *i32 = Type::getInt32Ty(ctx);
-  NamedMDNode *nmd = m.getOrInsertNamedMetadata(mdDeviceModuleFlags);
-
-  Constant *cTT = ConstantInt::get(i32, int(tt));
-
-  addOperandAt(*nmd, 0, MDNode::get(ctx, ConstantAsMetadata::get(cTT)));
-  addOperandAt(*nmd, 1, MDNode::get(ctx, MDString::get(ctx, m.getName())));
-
-  return *nmd;
+NamedMDNode &llvm::addDeviceModuleFlagsAttr(Module &m, TTID tt) {
+  return addDeviceModuleFlagsAttr(m, tt, m.getName());
 }
 
 NamedMDNode &llvm::cloneModuleFlagsMetadataInto(const Module &hostM,
@@ -69,22 +45,4 @@ NamedMDNode &llvm::cloneIdentMetadataInto(const Module &hostM, Module &devM) {
     for (const MDNode *md : ident->operands())
       nmd.addOperand(MDNode::replaceWithPermanent(md->clone()));
   return nmd;
-}
-
-std::optional<TTID> llvm::getTTIDFromDeviceModuleMetadata(const Module &m) {
-  if (const NamedMDNode *nmd = m.getNamedMetadata(mdDeviceModuleFlags))
-    if (const MDNode *md = nmd->getOperand(0))
-      if (const auto *cmd = dyn_cast<ConstantAsMetadata>(md->getOperand(0)))
-        if (const auto *cint = dyn_cast<ConstantInt>(cmd->getValue()))
-          return createTTIDFrom(*cint);
-  return std::nullopt;
-}
-
-std::optional<StringRef>
-llvm::getNameFromDeviceModuleMetadata(const Module &m) {
-  if (const NamedMDNode *nmd = m.getNamedMetadata(mdDeviceModuleFlags))
-    if (const MDNode *md = nmd->getOperand(1))
-      if (const auto *mds = dyn_cast<MDString>(md->getOperand(0)))
-        return mds->getString();
-  return std::nullopt;
 }

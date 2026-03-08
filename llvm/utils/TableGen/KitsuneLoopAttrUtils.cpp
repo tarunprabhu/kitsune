@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities shared by Kitsune's loop attribute emitters
+// Utilities shared by Kitsune's loop attribute emitters.
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,38 +16,15 @@
 
 using namespace llvm;
 
-std::string getBaseName(const Record &attr) {
-  auto addDot = [](char c, char prev) -> bool {
-    return (std::isalpha(prev) && std::isdigit(c)) ||
-           (std::isdigit(prev) && std::isalpha(c)) ||
-           (std::islower(prev) && std::isupper(c));
-  };
-
-  std::string buf;
-  raw_string_ostream os(buf);
-  StringRef attrName = attr.getName();
-
-  os << (char)std::tolower(attrName[0]);
-  for (unsigned i = 1, ie = attrName.size(); i < ie; ++i) {
-    if (addDot(attrName[i], attrName[i - 1]))
-      os << ".";
-    os << (char)std::tolower(attrName[i]);
-  }
-
-  os.flush();
-  return buf;
-}
-
 std::string getIRName(const Record &attr) {
-  std::string buf;
-  raw_string_ostream os(buf);
+  SmallString<32> buf;
+  raw_svector_ostream os(buf);
 
   if (isTapirLoopOnly(attr))
     os << "tapir.";
   os << "loop." << getBaseName(attr);
 
-  os.flush();
-  return buf;
+  return buf.c_str();
 }
 
 bool isTapirLoopOnly(const Record &attr) {
