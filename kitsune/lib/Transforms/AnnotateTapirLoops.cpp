@@ -53,10 +53,10 @@ static void annotateTapirLoopsForGPU(Loop &root, ScalarEvolution &se,
   // loops, including the root.
   unsigned depth = nest->getMaxPerfectDepth();
 
-  addTapirLoopLoweringEnabledAttr(root);
-  addTapirLoopPerfectDepthAttr(root, depth);
+  addLoweringEnabledAttr(root);
+  addPerfectDepthAttr(root, depth);
   for (unsigned d = 1; d <= depth; ++d)
-    addTapirLoopPerfectLevelAttr(*perfectLoops[d - 1], d);
+    addPerfectLevelAttr(*perfectLoops[d - 1], d);
 }
 
 PreservedAnalyses AnnotateTapirLoopsPass::run(Module &m,
@@ -87,7 +87,7 @@ PreservedAnalyses AnnotateTapirLoopsPass::run(Module &m,
       if (isTopLevelTapirLoopForGPU(*loop, ti))
         annotateTapirLoopsForGPU(*loop, se, ti);
       else if (isTapirLoop(*loop, ti))
-        addTapirLoopLoweringEnabledAttr(*loop);
+        addLoweringEnabledAttr(*loop);
     }
   }
 

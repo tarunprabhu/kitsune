@@ -39,7 +39,7 @@ StringRef getAttrName(ModuleAttrKind attrKind);
 /// Get the kind of a module attribute if the given string corresponds to the
 /// name of an attribute as it might appear in loop metadata. If the string does
 /// not correspond to a valid attribute name, return std::nullopt.
-std::optional<ModuleAttrKind> getAttrKind(StringRef name);
+std::optional<ModuleAttrKind> getModuleAttrKind(StringRef name);
 
 /// Check if the given attribute is present in a module.
 bool hasAttr(const Module &m, ModuleAttrKind attr);

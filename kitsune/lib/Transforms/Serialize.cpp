@@ -89,12 +89,12 @@ static void removeSyncRegionAndSync(Value *syncRegion) {
 /// to which the given loop belongs. Always returns true.
 static bool resetMaxPerfectDepth(Loop &loop, unsigned newDepth) {
   Loop *curr = &loop;
-  while (*getTapirLoopPerfectLevelAttr(*curr) > 1) {
+  while (*getPerfectLevelAttr(*curr) > 1) {
     curr = curr->getParentLoop();
     assert(curr && "Perfectly nested tapir loop at level greater than one "
                    "must have a parent");
   }
-  addTapirLoopPerfectDepthAttr(*curr, newDepth);
+  addPerfectDepthAttr(*curr, newDepth);
   return true;
 }
 
@@ -106,7 +106,7 @@ static bool serializeLoop(Loop &loop, Task &task) {
       emitDiagnostic(DiagID::NoteSerializedLoop, toString(loop));
   }
 
-  unsigned perfectLevel = getTapirLoopPerfectLevelAttr(loop).value_or(0);
+  unsigned perfectLevel = getPerfectLevelAttr(loop).value_or(0);
   DetachInst *detach = task.getDetach();
   Value *syncRegion = detach->getSyncRegion();
 
@@ -155,7 +155,7 @@ static void populateGPULoopsToSerialize(LoopInfo &li, TaskInfo &ti,
     // At the current time, multidimensional kernel launches can have at most 3
     // dimensions. If deeper perfectly nested tapir loops are found, serialize
     // them since there is not much else we can do.
-    unsigned perfectLevel = getTapirLoopPerfectLevelAttr(loop).value_or(0);
+    unsigned perfectLevel = getPerfectLevelAttr(loop).value_or(0);
     return perfectLevel == 0 || perfectLevel > 3;
   };
 

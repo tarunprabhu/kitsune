@@ -31,7 +31,7 @@ StringRef llvm::getAttrName(ModuleAttrKind attrKind) {
 
 /// Get the kind of the module attribute from the name that would appear in
 /// metadata, otherwise, return std::nullopt.
-std::optional<ModuleAttrKind> llvm::getAttrKind(StringRef name) {
+std::optional<ModuleAttrKind> llvm::getModuleAttrKind(StringRef name) {
   return StringSwitch<std::optional<ModuleAttrKind>>(name)
 #define MODULE_ATTR(NAME, IRNAME) .Case(IRNAME, ModuleAttrKind::NAME)
 #define GET_MODULE_ATTRS

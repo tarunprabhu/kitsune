@@ -174,7 +174,7 @@ TargetTransformInfo::StripMiningPreferences llvm::gatherStripMiningPreferences(
 // If loop has an grainsize pragma return the (necessarily positive) value from
 // the pragma for stripmining.  Otherwise return 0.
 static unsigned stripMineCountPragmaValue(const Loop *L) {
-  return getTapirLoopGrainsizeAttr(*L).value_or(0);
+  return getGrainsizeAttr(*L).value_or(0);
 }
 
 // Returns true if stripmine count was set explicitly.

@@ -496,7 +496,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
   // expression vs. a compile-time constant. For this first step of creating the
   // kernel launch, we take the path of a runtime configuration vs. an
   // attributed launch.
-  unsigned tpbHint = getTapirLoopThreadsPerBlockAttr(*tl.getLoop()).value_or(0);
+  unsigned tpbHint = getThreadsPerBlockAttr(*tl.getLoop()).value_or(0);
   unsigned fixedTPB = getOptions().getFixedThreadsPerBlock();
   Value *tpb;
   if (tpbHint)

@@ -143,10 +143,10 @@ private:
   // the given loop are consistent. The target of the root must be a GPU-centric
   // tapir target.
   void checkConsistentTTsForGPU(Loop &root) {
-    TTID ttRoot = *getTapirLoopTargetAttr(root);
+    TTID ttRoot = *getTargetAttr(root);
     for (Loop *subLoop : getAllSubLoops(root)) {
       if (isTapirLoop(*subLoop, ti)) {
-        TTID tt = *getTapirLoopTargetAttr(*subLoop);
+        TTID tt = *getTargetAttr(*subLoop);
         if (tt != ttRoot) {
           emitDiag(*subLoop, DiagID::ErrTTIncompatibleLoopGPU, tt, ttRoot);
           emitDiag(root, DiagID::NoteAncestorLoopTarget, ttRoot);
@@ -159,10 +159,10 @@ private:
   // the given loop are consistent. The target of the root must be a CPU-centric
   // tapir target.
   void checkConsistentTTsForCPU(Loop &root) {
-    TTID ttRoot = *getTapirLoopTargetAttr(root);
+    TTID ttRoot = *getTargetAttr(root);
     for (Loop *subLoop : getAllSubLoops(root)) {
       if (isTapirLoop(*subLoop, ti)) {
-        TTID tt = *getTapirLoopTargetAttr(*subLoop);
+        TTID tt = *getTargetAttr(*subLoop);
         if (isGPUTT(tt) || tt != ttRoot) {
           // FIXME: We don't yet support multi-target compilation anyway, but
           // GPU's inside parallel CPU loops are particularly thorny. Until we
@@ -196,7 +196,7 @@ private:
   }
 
   void checkTopLevelTapirLoop(Loop &loop) {
-    switch (*getTapirLoopTargetAttr(loop)) {
+    switch (*getTargetAttr(loop)) {
     case TTID::Nolo:
     case TTID::Serial:
     case TTID::OpenCilk:

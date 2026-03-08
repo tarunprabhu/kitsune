@@ -55,7 +55,7 @@ TapirLoopInfo::createMissedAnalysis(const char *PassName, StringRef RemarkName,
 void TapirLoopInfo::readTapirLoopMetadata(OptimizationRemarkEmitter &ORE) {
   // Get a grainsize for this Tapir loop from the metadata, if the metadata
   // gives a grainsize.
-  Grainsize = getTapirLoopGrainsizeAttr(*getLoop()).value_or(0);
+  Grainsize = getGrainsizeAttr(*getLoop()).value_or(0);
 }
 
 static Type *convertPointerToIntegerType(const DataLayout &DL, Type *Ty) {

@@ -26,7 +26,7 @@ const Function *llvm::getLoopFunc(const Loop &loop) {
 }
 
 std::string llvm::getLoopName(const Loop &loop, StringRef defawlt) {
-  if (std::optional<StringRef> name = getLoopNameAttr(loop))
+  if (std::optional<StringRef> name = getNameAttr(loop))
     return name->str();
   else if (DebugLoc dbgLoc = loop.getStartLoc())
     return toString(dbgLoc, /*inlinedAt=*/false);
