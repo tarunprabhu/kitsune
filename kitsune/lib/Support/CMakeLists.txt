@@ -9,6 +9,7 @@ add_llvm_component_library(LLVMKitSupport
   FromInt.cpp
   FromString.cpp
   OptznLevelUtils.cpp
+  OstreamUtils.cpp
   ToString.cpp
   TTIDUtils.cpp
 
