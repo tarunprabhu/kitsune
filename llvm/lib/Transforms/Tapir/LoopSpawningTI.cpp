@@ -12,8 +12,8 @@
 
 #include "llvm/Transforms/Tapir/LoopSpawningTI.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
-#include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -450,7 +450,7 @@ void LoopOutlineProcessor::moveCilksanInstrumentation(TapirLoopInfo &TL,
 
 namespace {
 static void emitMissedWarning(const Loop *L, OptimizationRemarkEmitter *ORE) {
-  switch (*getTapirLoopSpawnStrategyAttr(*L)) {
+  switch (*getSpawnStrategyAttr(*L)) {
   case TapirSpawnStrategy::Sequential:
     // The sequential spawn strategy does not outline tapir loops. As a result
     // the tapir loop will be ignored since outlineAllTapirLoops will skip
@@ -936,7 +936,7 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
 
   LLVM_DEBUG(dbgs() << "Analyzing for spawning: " << *L);
 
-  std::optional<TTID> TT = getTapirLoopTargetAttr(*L);
+  std::optional<TTID> TT = getTargetAttr(*L);
 
   // Loop must have a preheader.  LoopSimplify should guarantee that the loop
   // preheader is not terminated by a sync.
@@ -1001,7 +1001,7 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
 
   Module &M = *F.getParent();
   Loop *L = TL->getLoop();
-  TTID TT = *getTapirLoopTargetAttr(*L);
+  TTID TT = *getTargetAttr(*L);
   const TTOptions &TTOpts = TGI.getOptions();
 
   // Support for multiple targets is currently broken. Some of the frontend
@@ -1016,7 +1016,7 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   if (LoopOutlineProcessor *LOP = TGI.getTT(TT)->getLoopOutlineProcessor(TL))
     return LOP;
 
-  switch (*getTapirLoopSpawnStrategyAttr(*L)) {
+  switch (*getSpawnStrategyAttr(*L)) {
   case TapirSpawnStrategy::DivideAndConquer:
     return new DACSpawning(M, TTOpts);
   case TapirSpawnStrategy::Sequential:
@@ -1281,9 +1281,9 @@ void LoopSpawningImpl::getAllTapirLoopInputs(
 static void removeSpawnStrategyFromClonedLoop(const Loop *L,
                                               ValueToValueMapTy &VMap) {
   LLVMContext &ctx = L->getHeader()->getContext();
-  StringRef attrName = getLoopAttrName(LoopAttrKind::SpawnStrategy);
-  MDNode *newAttrVal = getMetadataForLoopAttr(
-      ctx, LoopAttrKind::SpawnStrategy, defaultTapirSpawnStrategy);
+  StringRef attrName = getAttrName(LoopAttrKind::SpawnStrategy);
+  MDNode *newAttrVal = getMetadataForAttr(ctx, LoopAttrKind::SpawnStrategy,
+                                          defaultTapirSpawnStrategy);
 
   auto *clonedLatch = cast<BasicBlock>(VMap[L->getLoopLatch()]);
   assert(clonedLatch && "Cloned Tapir loop does not have a single latch.");
@@ -1698,7 +1698,7 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
                            TimerGroupName, TimerGroupDescription,
                            TimePassesIsEnabled);
       removeSpawnStrategyFromClonedLoop(L, VMap);
-      removeTapirLoopSpawnStrategyAttr(*L);
+      removeSpawnStrategyAttr(*L);
     }
 
     // Update subtask outline info to reflect the fact that their spawner was

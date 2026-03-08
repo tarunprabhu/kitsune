@@ -412,7 +412,7 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
   // expression vs. a compile-time constant. For this first step of creating
   // the kernel launch, we take the path of a runtime configuration vs. an
   // attributed launch.
-  unsigned tpbHint = getTapirLoopThreadsPerBlockAttr(*tl.getLoop()).value_or(0);
+  unsigned tpbHint = getThreadsPerBlockAttr(*tl.getLoop()).value_or(0);
   Value *tpb = ConstantInt::get(i32, tpbHint);
 
   CallBase *callOutlined = cast<CallBase>(toi.ReplCall);

@@ -2371,15 +2371,14 @@ Task *llvm::getTaskIfTapirLoop(const Loop *L, TaskInfo *TI) {
     return nullptr;
 
   // All tapir loops must have a tapir.loop.target attribute.
-  if (!hasTapirLoopTargetAttr(*L))
+  if (!hasTargetAttr(*L))
     return nullptr;
 
   return T;
 }
 
 bool llvm::shouldOutlineTapirLoop(const Loop &L) {
-  if (std::optional<TapirSpawnStrategy> strategy =
-          getTapirLoopSpawnStrategyAttr(L)) {
+  if (std::optional<TapirSpawnStrategy> strategy = getSpawnStrategyAttr(L)) {
     switch (*strategy) {
     case TapirSpawnStrategy::Basic:
     case TapirSpawnStrategy::DivideAndConquer:

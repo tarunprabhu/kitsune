@@ -26,10 +26,10 @@ TEST(KitModuleAttrs, attrName) {
 
 TEST(KitModuleAttrs, attrKind) {
 #define MODULE_ATTR(NAME, IRNAME)                                              \
-  EXPECT_EQ(getAttrKind(IRNAME), ModuleAttrKind::NAME);
+  EXPECT_EQ(getModuleAttrKind(IRNAME), ModuleAttrKind::NAME);
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
-  EXPECT_EQ(getAttrKind("whoops"), std::nullopt);
+  EXPECT_EQ(getModuleAttrKind("whoops"), std::nullopt);
 }
 
 TEST(KitModuleAttrs, attr0) {

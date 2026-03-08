@@ -423,13 +423,13 @@ bool llvm::isTapirLoopForGPU(Loop &loop, TaskInfo &ti) {
   if (!isTapirLoop(loop, ti))
     return false;
 
-  TTID tt = *getTapirLoopTargetAttr(loop);
+  TTID tt = *getTargetAttr(loop);
   if (tt != TTID::Cuda && tt != TTID::Hip)
     return false;
 
   for (Loop *subLoop : getAllSubLoops(loop))
     if (isTapirLoop(*subLoop, ti))
-      if (getTapirLoopTargetAttr(*subLoop) != tt)
+      if (getTargetAttr(*subLoop) != tt)
         return false;
 
   return true;

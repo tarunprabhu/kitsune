@@ -38,14 +38,14 @@ enum class LoopAttrKind : uint32_t {
 
 /// Get a metadata node for a loop attribute that takes a value.
 template <typename T>
-MDNode *getMetadataForLoopAttr(LLVMContext &ctx, LoopAttrKind attr, T val);
+MDNode *getMetadataForAttr(LLVMContext &ctx, LoopAttrKind attr, T val);
 
 /// Get a metadata node for a loop attribute that does not take a value.
-MDNode *getMetadataForLoopAttr(LLVMContext &ctx, LoopAttrKind attr);
+MDNode *getMetadataForAttr(LLVMContext &ctx, LoopAttrKind attr);
 
 /// Get the name of the loop attribute as it appears in the loop metadata.
 /// The result will start with "tapir.loop." or "loop."
-StringRef getLoopAttrName(LoopAttrKind attr);
+StringRef getAttrName(LoopAttrKind attr);
 
 /// Get the kind of a loop attribute if the given string corresponds to the name
 /// of an attribute as it might appear in loop metadata. If the string does not
@@ -54,14 +54,14 @@ std::optional<LoopAttrKind> getLoopAttrKind(StringRef name);
 
 /// Return true if the attribute can only be applied to a tapir loop, false
 /// otherwise.
-bool isLoopAttrTapirOnly(LoopAttrKind attr);
+bool isAttrTapirOnly(LoopAttrKind attr);
 
 /// Check if the given attribute is present on a loop.
-bool hasLoopAttr(const Loop &loop, LoopAttrKind attr);
+bool hasAttr(const Loop &loop, LoopAttrKind attr);
 
 /// Remove the attribute from a loop. If the loop does not contain the
 /// attribute, this has no effect.
-void removeLoopAttr(Loop &loop, LoopAttrKind attr);
+void removeAttr(Loop &loop, LoopAttrKind attr);
 
 /// @}
 
@@ -70,10 +70,10 @@ void removeLoopAttr(Loop &loop, LoopAttrKind attr);
 // accessors are for attributes that may be applied to both tapir loops and
 // regular loops.
 #define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
-  bool hasLoop##NAME##Attr(const Loop &);                                      \
-  std::optional<TYPE> getLoop##NAME##Attr(const Loop &);                       \
-  void addLoop##NAME##Attr(Loop &loop, TYPE val);                              \
-  void removeLoop##NAME##Attr(Loop &loop);
+  bool has##NAME##Attr(const Loop &);                                          \
+  std::optional<TYPE> get##NAME##Attr(const Loop &);                           \
+  void add##NAME##Attr(Loop &loop, TYPE val);                                  \
+  void remove##NAME##Attr(Loop &loop);
 
 #define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)
 #define GET_LOOP_ATTRS
@@ -83,9 +83,9 @@ void removeLoopAttr(Loop &loop, LoopAttrKind attr);
 // accessors from non-flag attributes. These accessors are for attributes that
 // may be applied to both tapir loops and regular loops.
 #define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
-  bool hasLoop##NAME##Attr(const Loop &);                                      \
-  void addLoop##NAME##Attr(Loop &loop);                                        \
-  void removeLoop##NAME##Attr(Loop &loop);
+  bool has##NAME##Attr(const Loop &);                                          \
+  void add##NAME##Attr(Loop &loop);                                            \
+  void remove##NAME##Attr(Loop &loop);
 
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
@@ -95,10 +95,10 @@ void removeLoopAttr(Loop &loop, LoopAttrKind attr);
 // accessors are for attributes that may be applied to tapir loops only.
 #define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)
 #define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
-  bool hasTapirLoop##NAME##Attr(const Loop &);                                 \
-  std::optional<TYPE> getTapirLoop##NAME##Attr(const Loop &);                  \
-  void addTapirLoop##NAME##Attr(Loop &loop, TYPE val);                         \
-  void removeTapirLoop##NAME##Attr(Loop &loop);
+  bool has##NAME##Attr(const Loop &);                                          \
+  std::optional<TYPE> get##NAME##Attr(const Loop &);                           \
+  void add##NAME##Attr(Loop &loop, TYPE val);                                  \
+  void remove##NAME##Attr(Loop &loop);
 
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
@@ -107,9 +107,9 @@ void removeLoopAttr(Loop &loop, LoopAttrKind attr);
 // accessors from non-flag attributes. These accessors are for attributes that
 // may be applied to tapir loops only.
 #define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
-  bool hasTapirLoop##NAME##Attr(const Loop &);                                 \
-  void addTapirLoop##NAME##Attr(Loop &loop);                                   \
-  void removeTapirLoop##NAME##Attr(Loop &loop);
+  bool has##NAME##Attr(const Loop &);                                          \
+  void add##NAME##Attr(Loop &loop);                                            \
+  void remove##NAME##Attr(Loop &loop);
 
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"

@@ -81,29 +81,29 @@ for.i.exit:
 !0 = distinct !{!0}
 )";
 
-TEST(KitLoopUtils, clearTapirLoopAttrs) {
+TEST(KitLoopUtils, clearAttrs) {
   LoopInfoContext liCtx(loop1, "f");
   LLVMContext &ctx = liCtx.ctx;
   LoopInfo &li = liCtx.li;
 
   Loop *loop = li.getLoopsInPreorder().front();
   MDNode *md = MDNode::get(ctx, {MDString::get(ctx, "loop.unroll")});
-  addTapirLoopLoweringEnabledAttr(*loop);
-  addTapirLoopPerfectDepthAttr(*loop, 17U);
-  addTapirLoopTargetAttr(*loop, TTID::Serial);
+  addLoweringEnabledAttr(*loop);
+  addPerfectDepthAttr(*loop, 17U);
+  addTargetAttr(*loop, TTID::Serial);
   loop->setLoopID(
       makePostTransformationMetadata(ctx, loop->getLoopID(), {}, {md}));
 
-  EXPECT_TRUE(hasTapirLoopLoweringEnabledAttr(*loop));
-  EXPECT_TRUE(hasTapirLoopPerfectDepthAttr(*loop));
-  EXPECT_TRUE(hasTapirLoopTargetAttr(*loop));
+  EXPECT_TRUE(hasLoweringEnabledAttr(*loop));
+  EXPECT_TRUE(hasPerfectDepthAttr(*loop));
+  EXPECT_TRUE(hasTargetAttr(*loop));
   EXPECT_TRUE(hasLoopAttr(*loop, "loop.unroll"));
   EXPECT_EQ(loop->getLoopID()->getNumOperands(), 5U);
 
   clearTapirLoopAttrs(*loop);
-  EXPECT_FALSE(hasTapirLoopLoweringEnabledAttr(*loop));
-  EXPECT_FALSE(hasTapirLoopPerfectDepthAttr(*loop));
-  EXPECT_FALSE(hasTapirLoopTargetAttr(*loop));
+  EXPECT_FALSE(hasLoweringEnabledAttr(*loop));
+  EXPECT_FALSE(hasPerfectDepthAttr(*loop));
+  EXPECT_FALSE(hasTargetAttr(*loop));
   EXPECT_TRUE(hasLoopAttr(*loop, "loop.unroll"));
   EXPECT_EQ(loop->getLoopID()->getNumOperands(), 2U);
 }

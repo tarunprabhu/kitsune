@@ -60,7 +60,7 @@ void TapirTargetInfo::computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
     for (const Loop *tl : li) {
       for (const Loop *loop : post_order(tl)) {
         if (getTaskIfTapirLoop(loop, &ti)) {
-          TTID tt = *getTapirLoopTargetAttr(*loop);
+          TTID tt = *getTargetAttr(*loop);
           ttsForFunc.insert(tt);
           ttsForModule.insert(tt);
         }
