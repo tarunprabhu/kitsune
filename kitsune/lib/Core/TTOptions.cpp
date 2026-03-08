@@ -17,6 +17,7 @@
 #include "kitsune/Frontend/Diagnostics.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
+#include "kitsune/Support/OstreamUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/CodeGen/CommandFlags.h"

@@ -14,7 +14,7 @@
 #include "kitsune/Targets/TapirTargets.h"
 #include "kitsune/Config/Config.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Support/ToString.h"
+#include "kitsune/Support/OstreamUtils.h"
 
 #if KITSUNE_CUDA_ENABLED
 #include "kitsune/Targets/CudaABI.h"

@@ -13,7 +13,7 @@
 #ifndef KITSUNE_FRONTEND_DIAGNOSTICS_H
 #define KITSUNE_FRONTEND_DIAGNOSTICS_H
 
-#include "kitsune/Support/ToString.h"
+#include "kitsune/Support/OstreamUtils.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/DiagnosticInfo.h"
