@@ -83,7 +83,7 @@ entry:
   ret i32 %n
 }
 
-!kitsune.device.module.flags = !{!0, !1}
+!kit.module.device.module.flags = !{!0, !1}
 
 !0 = !{i32 4}
 !1 = !{!"some-silly-name"}

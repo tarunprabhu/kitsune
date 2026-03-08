@@ -7,8 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/ModuleUtils.h"
-#include "llvm/IR/Attributes.h"
-#include "llvm/IR/GlobalVariable.h"
+#include "kitsune/Core/ModuleAttrs.h"
 #include "llvm/IR/Module.h"
 
 #include "gtest/gtest.h"
@@ -17,18 +16,14 @@ using namespace llvm;
 
 namespace {
 
-TEST(KitModuleUtils, setAndCheckModuleMD) {
+TEST(KitModuleUtils, deviceModuleMetadata) {
   LLVMContext ctx;
   Module m("modname", ctx);
 
-  EXPECT_FALSE(hasDeviceModuleMetadata(m));
-  EXPECT_FALSE(getTTIDFromDeviceModuleMetadata(m));
-  EXPECT_FALSE(getNameFromDeviceModuleMetadata(m));
-
-  addDeviceModuleMetadata(TTID::Serial, m);
-  EXPECT_TRUE(hasDeviceModuleMetadata(m));
-  EXPECT_EQ(*getTTIDFromDeviceModuleMetadata(m), TTID::Serial);
-  EXPECT_EQ(*getNameFromDeviceModuleMetadata(m), "modname");
+  addDeviceModuleFlagsAttr(m, TTID::Serial);
+  EXPECT_TRUE(hasDeviceModuleFlagsAttr(m));
+  EXPECT_EQ(getTTIDFromDeviceModuleFlagsAttr(m), TTID::Serial);
+  EXPECT_EQ(getNameFromDeviceModuleFlagsAttr(m), "modname");
 }
 
 } // namespace

@@ -32,5 +32,5 @@
 ; RUN:     | FileCheck %s --check-prefix=NAME
 ;
 ; NAME: ModuleID = 'winnie-the-pooh'
-; NAME: !kitsune.device.module.flags = !{!{{[0-9]+}}, ![[NAMEMD:[0-9]+]]}
+; NAME: !kit.module.device.module.flags = !{!{{[0-9]+}}, ![[NAMEMD:[0-9]+]]}
 ; NAME: [[NAMEMD]] = !{!"winnie-the-pooh"}

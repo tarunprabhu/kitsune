@@ -17,7 +17,7 @@
 ; CHECK: define {{.*}}@[[F1:__kitcu_loop_f1[^(]*]](
 ; CHECK: define {{.*}}@[[F2:__kitcu_loop_f2[^(]*]](
 ;
-; CHECK: !kitsune.device.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
+; CHECK: !kit.module.device.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
 ; CHECK: !llvm.module.flags = !{{{.*}}![[FTZ:[0-9]+]]{{.*}}}
 ;
 ; CHECK-DAG: ![[FTZ]] = !{i32 4, !"nvvm-reflect-ftz", i32 0}

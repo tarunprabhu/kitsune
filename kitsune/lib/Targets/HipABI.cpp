@@ -560,7 +560,7 @@ HipABI::HipABI(Module &hostM, const TTOptions &tto)
   kernelModule.setDataLayout(tm->createDataLayout());
 
   kernelModule.setModuleIdentifier(getNameForDeviceModule(M, HIPABI_PREFIX));
-  addDeviceModuleMetadata(TTID::Hip, kernelModule);
+  addDeviceModuleFlagsAttr(kernelModule, TTID::Hip);
   cloneModuleFlagsMetadataInto(M, kernelModule);
   cloneIdentMetadataInto(M, kernelModule);
 }

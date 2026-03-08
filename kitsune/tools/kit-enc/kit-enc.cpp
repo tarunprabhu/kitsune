@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
     embM->setModuleIdentifier(clModuleName);
 
   if (not clSkipMetadata)
-    (void)addDeviceModuleMetadata(tt, *embM);
+    (void)addDeviceModuleFlagsAttr(*embM, tt);
 
   Module hostM("", ctx);
   (void)createEmbBCGlobal(*embM, tt, hostM);

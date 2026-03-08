@@ -17,7 +17,7 @@
 ; CHECK: define {{.*}}@[[F1:__kithip_loop_f1[^(]*]](
 ; CHECK: define {{.*}}@[[F2:__kithip_loop_f2[^(]*]](
 ;
-; CHECK: !kitsune.device.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
+; CHECK: !kit.module.device.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
 ;
 ; CHECK-DAG: ![[MDTT]] = !{i32 4}
 ; CHECK-DAG: ![[MDNAME]] = !{!"__kithip_kernel-module-kit-md.ll"}

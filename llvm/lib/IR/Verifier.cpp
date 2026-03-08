@@ -49,7 +49,7 @@
 
 #include "llvm/IR/Verifier.h"
 #include "kitsune/Core/EmbUtils.h"
-#include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TypeUtils.h"
 #include "kitsune/Support/ErrorUtils.h"
@@ -714,14 +714,14 @@ private:
   } while (false)
 
 void Verifier::visitEmbModuleMetadata(const Module &EmbM) {
-  Check(hasDeviceModuleMetadata(EmbM),
+  Check(hasDeviceModuleFlagsAttr(EmbM),
         "embedded module requires device module metadata");
 
-  std::optional<TTID> TT = getTTIDFromDeviceModuleMetadata(EmbM);
+  std::optional<TTID> TT = getTTIDFromDeviceModuleFlagsAttr(EmbM);
   Check(TT.has_value(), "embedded module requires valid tapir target in "
                         "device module metadata");
 
-  std::optional<StringRef> Name = getNameFromDeviceModuleMetadata(EmbM);
+  std::optional<StringRef> Name = getNameFromDeviceModuleFlagsAttr(EmbM);
   Check(Name.has_value() && Name->size(),
         "embedded module requires non-empty name in device module metadata");
 }
@@ -736,7 +736,7 @@ void Verifier::visitEmbModule(const Module &EmbM, TTID TTFromHostGV) {
   }
 
   visitEmbModuleMetadata(EmbM);
-  if (std::optional<TTID> TT = getTTIDFromDeviceModuleMetadata(EmbM))
+  if (std::optional<TTID> TT = getTTIDFromDeviceModuleFlagsAttr(EmbM))
     Check(*TT == TTFromHostGV,
           "tapir target in embedded module must match tapir target in host "
           "embedded bitcode global variable");

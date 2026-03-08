@@ -15,6 +15,7 @@ add_kitsune_unittest_with_input_files(KitCoreTests
   LoopAttrsTest.cpp
   LoopUtilsTest.cpp
   KernelPropertiesTest.cpp
+  ModuleAttrsTest.cpp
   ModuleUtilsTest.cpp
   TapirCoreTest.cpp
   TypeUtilsTest.cpp
