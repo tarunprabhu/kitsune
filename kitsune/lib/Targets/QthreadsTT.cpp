@@ -116,7 +116,7 @@ public:
                                DominatorTree &dt) override final {
     LLVMContext &ctx = M.getContext();
 
-    ConstantInt *ctt = createConstInt(TTID::Qthreads, ctx);
+    Constant *ctt = toConstant(TTID::Qthreads, ctx);
     Function *outlined = toi.Outline;
     CallBase *replCall = cast<CallBase>(toi.ReplCall);
     IRBuilder<> builder(replCall);

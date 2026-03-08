@@ -15,6 +15,7 @@
 #include "llvm/IR/Attributes.h"
 #include "AttributeImpl.h"
 #include "LLVMContextImpl.h"
+#include "kitsune/Support/FromInt.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/FoldingSet.h"
@@ -524,7 +525,7 @@ FPClassTest Attribute::getNoFPClass() const {
 TTID Attribute::getTTID() const {
   assert(hasAttribute(Attribute::KitTT) &&
          "Can only call getTTID() on kit_tt attributes");
-  return *createTTIDFrom(pImpl->getValueAsInt());
+  return *fromInt<TTID>(pImpl->getValueAsInt());
 }
 
 const ConstantRange &Attribute::getRange() const {

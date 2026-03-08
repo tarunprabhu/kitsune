@@ -55,6 +55,7 @@
 #include "ToolChains/ZOS.h"
 #include "kitsune/Config/Config.h"
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Support/FromString.h"
 #include "kitsune/Support/ToString.h"
 #include "clang/Basic/Cuda.h"
 #include "clang/Basic/DiagnosticDriver.h"
@@ -262,7 +263,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
   // Check that the --tapir flag has a valid value. This stops us from
   // reporting multiple errors because the flag is examined in several places.
   if (const Arg *A = Args.getLastArg(options::OPT_tapir_EQ)) {
-    std::optional<llvm::TTID> TT = llvm::createTTIDFrom(A->getValue());
+    std::optional<llvm::TTID> TT = llvm::fromString<llvm::TTID>(A->getValue());
     if (not TT) {
       D.Diag(diag::err_drv_invalid_value)
           << A->getAsString(Args) << A->getValue();
@@ -415,7 +416,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
       StringRef Val = A->getValue();
       if (Val.empty())
         D.Diag(diag::err_drv_missing_argument) << A->getAsString(Args) << 1;
-      else if (not llvm::createMaybeBoolFrom(A->getValue()))
+      else if (not llvm::fromString<llvm::MaybeBool>(A->getValue()))
         D.Diag(diag::err_drv_invalid_argument_to_option)
             << Val << A->getOption().getName();
     }

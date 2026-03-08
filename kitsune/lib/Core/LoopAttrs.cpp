@@ -21,7 +21,7 @@ using namespace llvm;
 template <typename T>
 MDNode *llvm::getMetadataForAttr(LLVMContext &ctx, LoopAttrKind attr, T val) {
   StringRef name = getAttrName(attr);
-  Metadata *mdVal = toMetadata(ctx, val);
+  Metadata *mdVal = toMetadata(val, ctx);
   Metadata *mdTag = MDString::get(ctx, name);
   MDNode *md = MDNode::get(ctx, {mdTag, mdVal});
 

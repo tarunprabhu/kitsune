@@ -483,7 +483,7 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
   Type *i64 = Type::getInt64Ty(ctx);
 
   Constant *zero = ConstantInt::get(i64, 0);
-  ConstantInt *ctt = createConstInt(TTID::Hip, ctx);
+  Constant *ctt = toConstant(TTID::Hip, ctx);
   GlobalVariable *kProps =
       createKernelPropertiesGlobal(kernelName, TTID::Hip, M);
   Value *kName = createConstString(kernelName, M);

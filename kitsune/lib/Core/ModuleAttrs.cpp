@@ -92,7 +92,7 @@ static NamedMDNode &addAttr(Module &m, ModuleAttrKind kind,
 #define MODULE_ATTR_1(NAME, IRNAME, TY1, V1)                                   \
   NamedMDNode &lvm::add##NAME##Attr(Module &m, TY1 V1) {                       \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(ctx, V1);                                       \
+    Metadata *op0 = toMetadata(V1, ctx);                                       \
     return addAttr(m, ModuleAttrKind::NAME, {op0});                            \
   }                                                                            \
   MODULE_GETTER(NAME, TY1, V1, 0)
@@ -100,8 +100,8 @@ static NamedMDNode &addAttr(Module &m, ModuleAttrKind kind,
 #define MODULE_ATTR_2(NAME, IRNAME, TY1, V1, TY2, V2)                          \
   NamedMDNode &llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2) {              \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(ctx, V1);                                       \
-    Metadata *op1 = toMetadata(ctx, V2);                                       \
+    Metadata *op0 = toMetadata(V1, ctx);                                       \
+    Metadata *op1 = toMetadata(V2, ctx);                                       \
     return addAttr(m, ModuleAttrKind::NAME, {op0, op1});                       \
   }                                                                            \
   MODULE_GETTER(NAME, TY1, V1, 0)                                              \
@@ -110,9 +110,9 @@ static NamedMDNode &addAttr(Module &m, ModuleAttrKind kind,
 #define MODULE_ATTR_3(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3)                 \
   NamedMDNode &llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3) {      \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(ctx, V1);                                       \
-    Metadata *op1 = toMetadata(ctx, V2);                                       \
-    Metadata *op2 = toMetadata(ctx, V3);                                       \
+    Metadata *op0 = toMetadata(V1, ctx);                                       \
+    Metadata *op1 = toMetadata(V2, ctx);                                       \
+    Metadata *op2 = toMetadata(V3, ctx);                                       \
     return addAttr(m, ModuleAttrKind::NAME, {op0, op1, op2});                  \
   }                                                                            \
   MODULE_GETTER(NAME, TY1, V1, 0)                                              \
@@ -123,10 +123,10 @@ static NamedMDNode &addAttr(Module &m, ModuleAttrKind kind,
   NamedMDNode &llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3,        \
                                      TY4 V4) {                                 \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(ctx, V1);                                       \
-    Metadata *op1 = toMetadata(ctx, V2);                                       \
-    Metadata *op2 = toMetadata(ctx, V3);                                       \
-    Metadata *op3 = toMetadata(ctx, V4);                                       \
+    Metadata *op0 = toMetadata(V1, ctx);                                       \
+    Metadata *op1 = toMetadata(V2, ctx);                                       \
+    Metadata *op2 = toMetadata(V3, ctx);                                       \
+    Metadata *op3 = toMetadata(V4, ctx);                                       \
     return addAttr(m, ModuleAttrKind::NAME, {op0, op1, op2, op3});             \
   }                                                                            \
   MODULE_GETTER(NAME, TY1, V1, 0)                                              \
@@ -139,11 +139,11 @@ static NamedMDNode &addAttr(Module &m, ModuleAttrKind kind,
   NamedMDNode &llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3,        \
                                      TY4 V4, TY5 V5) {                         \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(ctx, V1);                                       \
-    Metadata *op1 = toMetadata(ctx, V2);                                       \
-    Metadata *op2 = toMetadata(ctx, V3);                                       \
-    Metadata *op3 = toMetadata(ctx, V4);                                       \
-    Metadata *op4 = toMetadata(ctx, V5);                                       \
+    Metadata *op0 = toMetadata(V1, ctx);                                       \
+    Metadata *op1 = toMetadata(V2, ctx);                                       \
+    Metadata *op2 = toMetadata(V3, ctx);                                       \
+    Metadata *op3 = toMetadata(V4, ctx);                                       \
+    Metadata *op4 = toMetadata(V5, ctx);                                       \
     return addAttr(m, ModuleAttrKind::NAME, {op0, op1, op2, op3, op4});        \
   }                                                                            \
   MODULE_GETTER(NAME, TY1, V1, 0)                                              \
@@ -157,12 +157,12 @@ static NamedMDNode &addAttr(Module &m, ModuleAttrKind kind,
   NamedMDNode &llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3,        \
                                      TY4 V4, TY5 V5, TY6 V6) {                 \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(ctx, V1);                                       \
-    Metadata *op1 = toMetadata(ctx, V2);                                       \
-    Metadata *op2 = toMetadata(ctx, V3);                                       \
-    Metadata *op3 = toMetadata(ctx, V4);                                       \
-    Metadata *op4 = toMetadata(ctx, V5);                                       \
-    Metadata *op5 = toMetadata(ctx, V6);                                       \
+    Metadata *op0 = toMetadata(V1, ctx);                                       \
+    Metadata *op1 = toMetadata(V2, ctx);                                       \
+    Metadata *op2 = toMetadata(V3, ctx);                                       \
+    Metadata *op3 = toMetadata(V4, ctx);                                       \
+    Metadata *op4 = toMetadata(V5, ctx);                                       \
+    Metadata *op5 = toMetadata(V6, ctx);                                       \
     return addAttr(m, ModuleAttrKind::NAME, {op0, op1, op2, op3, op4, op5});   \
   }                                                                            \
   MODULE_GETTER(NAME, TY1, V1, 0)                                              \
@@ -177,13 +177,13 @@ static NamedMDNode &addAttr(Module &m, ModuleAttrKind kind,
   NamedMDNode &llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3,        \
                                      TY4 V4, TY5 V5, TY6 V6, TY7 V7) {         \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(ctx, V1);                                       \
-    Metadata *op1 = toMetadata(ctx, V2);                                       \
-    Metadata *op2 = toMetadata(ctx, V3);                                       \
-    Metadata *op3 = toMetadata(ctx, V4);                                       \
-    Metadata *op4 = toMetadata(ctx, V5);                                       \
-    Metadata *op5 = toMetadata(ctx, V6);                                       \
-    Metadata *op6 = toMetadata(ctx, V7);                                       \
+    Metadata *op0 = toMetadata(V1, ctx);                                       \
+    Metadata *op1 = toMetadata(V2, ctx);                                       \
+    Metadata *op2 = toMetadata(V3, ctx);                                       \
+    Metadata *op3 = toMetadata(V4, ctx);                                       \
+    Metadata *op4 = toMetadata(V5, ctx);                                       \
+    Metadata *op5 = toMetadata(V6, ctx);                                       \
+    Metadata *op6 = toMetadata(V7, ctx);                                       \
     return addAttr(m, ModuleAttrKind::NAME,                                    \
                    {op0, op1, op2, op3, op4, op5, op6});                       \
   }                                                                            \
@@ -200,14 +200,14 @@ static NamedMDNode &addAttr(Module &m, ModuleAttrKind kind,
   NamedMDNode &llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3,        \
                                      TY4 V4, TY5 V5, TY6 V6, TY7 V7, TY8 V8) { \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(ctx, V1);                                       \
-    Metadata *op1 = toMetadata(ctx, V2);                                       \
-    Metadata *op2 = toMetadata(ctx, V3);                                       \
-    Metadata *op3 = toMetadata(ctx, V4);                                       \
-    Metadata *op4 = toMetadata(ctx, V5);                                       \
-    Metadata *op5 = toMetadata(ctx, V6);                                       \
-    Metadata *op6 = toMetadata(ctx, V7);                                       \
-    Metadata *op7 = toMetadata(ctx, V8);                                       \
+    Metadata *op0 = toMetadata(V1, ctx);                                       \
+    Metadata *op1 = toMetadata(V2, ctx);                                       \
+    Metadata *op2 = toMetadata(V3, ctx);                                       \
+    Metadata *op3 = toMetadata(V4, ctx);                                       \
+    Metadata *op4 = toMetadata(V5, ctx);                                       \
+    Metadata *op5 = toMetadata(V6, ctx);                                       \
+    Metadata *op6 = toMetadata(V7, ctx);                                       \
+    Metadata *op7 = toMetadata(V8, ctx);                                       \
     return addAttr(m, ModuleAttrKind::NAME,                                    \
                    {op0, op1, op2, op3, op4, op5, op6, op7});                  \
   }                                                                            \

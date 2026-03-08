@@ -46,7 +46,7 @@ private:
     PointerType *ptrTy = PointerType::getUnqual(ctx);
     Type *boolTy = Type::getInt8Ty(ctx);
 
-    ConstantInt *ctt = createConstInt(TTID::Pthreads, ctx);
+    Constant *ctt = toConstant(TTID::Pthreads, ctx);
 
     FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, false);
     Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
@@ -74,7 +74,7 @@ private:
     Type *voidTy = Type::getVoidTy(ctx);
     PointerType *ptrTy = PointerType::getUnqual(ctx);
 
-    ConstantInt *ctt = createConstInt(TTID::Pthreads, ctx);
+    Constant *ctt = toConstant(TTID::Pthreads, ctx);
 
     FunctionType *dtorTy = FunctionType::get(voidTy, ptrTy, false);
     Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,

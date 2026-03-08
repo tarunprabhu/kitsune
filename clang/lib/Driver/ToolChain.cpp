@@ -17,6 +17,7 @@
 #include "kitsune/Core/TTPlugin.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/ErrorUtils.h"
+#include "kitsune/Support/FromString.h"
 #include "kitsune/Support/ToString.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Basic/Sanitizers.h"
@@ -2138,7 +2139,8 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   std::string DefaultECC = llvm::toString(KitsuneOptions::defaultHipSRAMECC);
   StringRef ArgECC =
       Args.getLastArgValue(options::OPT_tapir_hip_sramecc_EQ, DefaultECC);
-  if (std::optional<MaybeBool> ECC = llvm::createMaybeBoolFrom(ArgECC)) {
+  if (std::optional<MaybeBool> ECC =
+          llvm::fromString<llvm::MaybeBool>(ArgECC)) {
     switch (*ECC) {
     case MaybeBool::Off:
       TargetID.push_back("sramecc-");
@@ -2156,7 +2158,8 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   std::string DefaultXnack = llvm::toString(KitsuneOptions::defaultHipXnack);
   StringRef ArgXnack =
       Args.getLastArgValue(options::OPT_tapir_hip_xnack_EQ, DefaultXnack);
-  if (std::optional<MaybeBool> Xnack = llvm::createMaybeBoolFrom(ArgXnack)) {
+  if (std::optional<MaybeBool> Xnack =
+          llvm::fromString<llvm::MaybeBool>(ArgXnack)) {
     switch (*Xnack) {
     case MaybeBool::Off:
       TargetID.push_back("xnack-");

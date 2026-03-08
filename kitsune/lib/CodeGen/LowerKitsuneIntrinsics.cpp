@@ -14,6 +14,7 @@
 
 #include "kitsune/CodeGen/LowerKitsuneIntrinsics.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
@@ -174,7 +175,7 @@ private:
   /// have a valid tapir target as the first argument.
   TTID getTTID(CallInst &call) const {
     if (auto *cint = dyn_cast<ConstantInt>(call.getArgOperand(0)))
-      if (std::optional<TTID> tt = createTTIDFrom(cint->getZExtValue()))
+      if (std::optional<TTID> tt = fromConstant<TTID>(*cint))
         return *tt;
     llvm_unreachable("getTTID: Not a valid tapir target id");
   }

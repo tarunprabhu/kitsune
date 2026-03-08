@@ -13,6 +13,7 @@
 #include "clang/Driver/KitsuneOptionUtils.h"
 #include "kitsune/Core/TTPlugin.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Support/FromString.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/OptionUtils.h"
@@ -79,16 +80,15 @@ unsigned clang::getSizeLevel(const opt::ArgList &args,
 std::optional<TTID> clang::parseTTIfValid(const opt::ArgList &args) {
   if (!args.hasArg(OPT_tapir_EQ))
     return std::nullopt;
-  return createTTIDFrom(args.getLastArgValue(OPT_tapir_EQ));
+  return fromString<TTID>(args.getLastArgValue(OPT_tapir_EQ));
 }
 
-std::optional<StringRef>
-clang::getTTConfigFileName(const opt::ArgList &args) {
+std::optional<StringRef> clang::getTTConfigFileName(const opt::ArgList &args) {
   if (!args.hasArg(OPT_tapir_EQ))
     return std::nullopt;
 
   // Even if the value of the --tapir option is invalid, this will get called.
-  std::optional<TTID> tt = createTTIDFrom(args.getLastArgValue(OPT_tapir_EQ));
+  std::optional<TTID> tt = fromString<TTID>(args.getLastArgValue(OPT_tapir_EQ));
   if (!tt)
     return std::nullopt;
 
@@ -231,7 +231,8 @@ static bool parseKitsuneHipArgs(KitsuneOptions &opts, const ArgList &args,
 
   if (const Arg *a = args.getLastArg(OPT_tapir_hip_sramecc_EQ)) {
     StringRef val = a->getValue();
-    if (std::optional<llvm::MaybeBool> mb = llvm::createMaybeBoolFrom(val))
+    if (std::optional<llvm::MaybeBool> mb =
+            llvm::fromString<llvm::MaybeBool>(val))
       opts.setHipSramECC(*mb);
     else
       diags.Report(diag::err_drv_invalid_argument_to_option)
@@ -240,7 +241,8 @@ static bool parseKitsuneHipArgs(KitsuneOptions &opts, const ArgList &args,
 
   if (const Arg *a = args.getLastArg(OPT_tapir_hip_xnack_EQ)) {
     StringRef val = a->getValue();
-    if (std::optional<llvm::MaybeBool> mb = llvm::createMaybeBoolFrom(val))
+    if (std::optional<llvm::MaybeBool> mb =
+            llvm::fromString<llvm::MaybeBool>(val))
       opts.setHipXnack(*mb);
     else
       diags.Report(diag::err_drv_invalid_argument_to_option)
@@ -363,7 +365,7 @@ bool clang::parseKitsuneArgs(KitsuneOptions &kitOpts, const char *argv0,
   kitOpts.setKitrtVerbose(args.hasArg(OPT_kitrt_verbose));
 
   if (const Arg *arg = args.getLastArg(OPT_tapir_EQ)) {
-    if (std::optional<llvm::TTID> tt = createTTIDFrom(arg->getValue())) {
+    if (std::optional<llvm::TTID> tt = fromString<TTID>(arg->getValue())) {
       parseKitsuneTTArgs(kitOpts, *tt, args, optTable, diags);
       kitOpts.setTTID(*tt);
     }

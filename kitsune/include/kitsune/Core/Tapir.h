@@ -111,14 +111,6 @@ enum class TTID : uint32_t {
 /// code generation, both in the frontend and directly in the middle-end.
 static constexpr std::optional<llvm::TTID> defaultTapirTarget = std::nullopt;
 
-/// Convert the integer to a \ref TTID. If the integer cannot be converted to a
-/// \ref TTID, return std::nullopt.
-std::optional<TTID> createTTIDFrom(uint32_t u);
-
-/// Convert the string to a \ref TTID. If the string cannot be converted to a
-/// \ref TTID, return std::nullopt.
-std::optional<TTID> createTTIDFrom(StringRef s);
-
 /// The loop spawning strategy. For tapir targets that spawn tasks, this
 /// determines how the iteration space of the loop is split up across these
 /// tasks. In the case of the DivideAndConquer strategy, for instance, the
@@ -175,14 +167,6 @@ enum class TapirSpawnStrategy : uint32_t {
 static constexpr TapirSpawnStrategy defaultTapirSpawnStrategy =
     TapirSpawnStrategy::Sequential;
 
-/// Convert the integer to a \ref TapirSpawnStrategy. If the integer cannot be
-/// converted to a \ref TapirSpawnStrategy, return std::nullopt.
-std::optional<TapirSpawnStrategy> createTapirSpawnStrategyFrom(uint32_t u);
-
-/// Convert the string to a \ref TapirSpawnStrategy. If the string cannot be
-/// converted to a \ref TapirSpawnStrategy, return std::nullopt.
-std::optional<TapirSpawnStrategy> createTapirSpawnStrategyFrom(StringRef s);
-
 /// The default grain size. This is set to 0 instead of 1 because the value of
 /// zero also doubles up as the absence of an explicitly specified grain size.
 static constexpr unsigned defaultTapirGrainSize = 0;
@@ -193,10 +177,6 @@ enum class MaybeBool {
   On,     ///< The value is set to true
   Any = 3 ///< The value is unset
 };
-
-/// Convert the string to a \ref MaybeBool. If the string cannot be converted to
-/// a \ref MaybeBool, return std::nullopt.
-std::optional<MaybeBool> createMaybeBoolFrom(StringRef s);
 
 /// @}
 

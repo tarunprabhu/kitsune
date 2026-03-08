@@ -5,19 +5,18 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-///
-/// Functions to deserialize kitsune-specific options, attributes etc. from
-/// representations that may be used in LLVM .bc or .ll files.
-///
+//
+// Functions to parse Kitsune-specific types from their string representations.
+//
 //===----------------------------------------------------------------------===//
 
+#include "kitsune/Support/FromString.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/Support/Error.h"
 
 using namespace llvm;
 
-std::optional<TTID> llvm::createTTIDFrom(StringRef s) {
+template <> std::optional<TTID> llvm::fromString(StringRef s) {
   return StringSwitch<std::optional<TTID>>(s)
       .Case("nolo", TTID::Nolo)
       .Case("cuda", TTID::Cuda)
@@ -34,58 +33,7 @@ std::optional<TTID> llvm::createTTIDFrom(StringRef s) {
       .Default(std::nullopt);
 }
 
-std::optional<TTID> llvm::createTTIDFrom(uint32_t u) {
-  switch (u) {
-  case 0x0:
-    return TTID::Nolo;
-  case 0x1:
-    return TTID::Serial;
-  case 0x2:
-    return TTID::Cuda;
-  case 0x4:
-    return TTID::Hip;
-  case 0x8:
-    return TTID::OpenCilk;
-  case 0x10:
-    llvm_unreachable("createTTIDFrom: GPUABI has not been enabled");
-    // return TTID::GPUABI;
-  case 0x20:
-    return TTID::Qthreads;
-  case 0x40:
-    return TTID::Realm;
-  case 0x80:
-    return TTID::Lambda;
-  case 0x100:
-    return TTID::OMPTask;
-  case 0x200:
-    return TTID::OpenMP;
-  case 0x400:
-    return TTID::Pthreads;
-  case 0x800:
-    return TTID::Custom;
-  default:
-    return std::nullopt;
-  }
-}
-
-std::optional<TapirSpawnStrategy>
-llvm::createTapirSpawnStrategyFrom(uint32_t u) {
-  switch (u) {
-  case 0x1:
-    return TapirSpawnStrategy::Sequential;
-  case 0x2:
-    return TapirSpawnStrategy::DivideAndConquer;
-  case 0x3:
-    return TapirSpawnStrategy::GPU;
-  case 0x4:
-    return TapirSpawnStrategy::Basic;
-  default:
-    return std::nullopt;
-  }
-}
-
-std::optional<TapirSpawnStrategy>
-llvm::createTapirSpawnStrategyFrom(StringRef s) {
+template <> std::optional<TapirSpawnStrategy> llvm::fromString(StringRef s) {
   return StringSwitch<std::optional<TapirSpawnStrategy>>(s)
       .Case("seq", TapirSpawnStrategy::Sequential)
       .Case("dac", TapirSpawnStrategy::DivideAndConquer)
@@ -94,7 +42,7 @@ llvm::createTapirSpawnStrategyFrom(StringRef s) {
       .Default(std::nullopt);
 }
 
-std::optional<MaybeBool> llvm::createMaybeBoolFrom(StringRef s) {
+template <> std::optional<MaybeBool> llvm::fromString(StringRef s) {
   return StringSwitch<std::optional<MaybeBool>>(s)
       .Case("off", MaybeBool::Off)
       .Case("on", MaybeBool::On)

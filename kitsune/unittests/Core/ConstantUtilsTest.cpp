@@ -26,15 +26,6 @@ static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
   return m;
 }
 
-TEST(KitConstantUtils, createConstIntTT) {
-  LLVMContext ctx;
-  Type *i32 = Type::getInt32Ty(ctx);
-  ConstantInt *cCuda = createConstInt(TTID::Cuda, ctx);
-
-  EXPECT_EQ(cCuda->getType(), i32);
-  EXPECT_EQ(cCuda->getZExtValue(), unsigned(TTID::Cuda));
-}
-
 TEST(KitConstantUtils, createConstString) {
   LLVMContext ctx;
   StringRef s1 = "test1";

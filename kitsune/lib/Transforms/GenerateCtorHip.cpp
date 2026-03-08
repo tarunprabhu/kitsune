@@ -112,7 +112,7 @@ private:
     Type *i32Ty = Type::getInt32Ty(ctx);
     Type *boolTy = Type::getInt8Ty(ctx);
 
-    ConstantInt *constTT = createConstInt(TTID::Hip, ctx);
+    Constant *constTT = toConstant(TTID::Hip, ctx);
     Constant *czero = ConstantInt::get(i32Ty, 0);
 
     FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, false);
@@ -250,7 +250,7 @@ private:
     // of having the test suite actually be useful, don't generate the call to
     // finalize the runtime until we can figure out exactly what is going on
     // there.
-    // ConstantInt *constTT = createConstInt(TTID::Hip, ctx);
+    // Constant *constTT = toConstant(TTID::Hip, ctx);
     // FunctionCallee kitrtFinalize =
     //     Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_finalize);
     // builder.CreateCall(kitrtFinalize, {constTT});
