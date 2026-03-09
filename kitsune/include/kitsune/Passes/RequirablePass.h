@@ -24,10 +24,21 @@ namespace llvm {
 /// run on a module. DependentPass'es that require this pass will use that
 /// method to determine if the pass has been run.
 ///
+/// Passes will typically inherit from this class in addition to inheriting
+/// from PassInfoMixin as shown below:
+///
+/// \code{.cpp}
+///     class Derived
+///         : public PassInfoMixin<Derived>,
+///           public RequirablePass {
+///       ...
+///     };
+/// \endcode
+///
 /// Passes inheriting from this class must provide a definition of this
 /// method as shown below:
 ///
-/// \code
+/// \code{.cpp}
 ///     template<> bool RequirablePass<Derived>::hasRun(const Module &m) {
 ///         ...
 ///     }
