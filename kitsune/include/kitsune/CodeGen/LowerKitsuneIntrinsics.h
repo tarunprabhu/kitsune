@@ -25,8 +25,6 @@ class LowerKitsuneIntrinsicsPass
     : public PassInfoMixin<LowerKitsuneIntrinsicsPass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
-
-  static bool isRequired() { return true; }
 };
 
 /// \ingroup kitsune

@@ -26,10 +26,6 @@ class AnnotateTapirLoopsPass : public PassInfoMixin<AnnotateTapirLoopsPass>,
                                public RequirablePass<AnnotateTapirLoopsPass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
-
-  /// This pass is required because passes that run later in the pipeline may
-  /// not work correctly if the annotations are not computed.
-  static bool isRequired() { return true; }
 };
 
 } // namespace llvm
