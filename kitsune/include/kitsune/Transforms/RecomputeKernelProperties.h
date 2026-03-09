@@ -25,8 +25,6 @@ class RecomputeKernelPropertiesPass
     : public PassInfoMixin<RecomputeKernelPropertiesPass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
-
-  static bool isRequired() { return true; }
 };
 
 } // namespace llvm

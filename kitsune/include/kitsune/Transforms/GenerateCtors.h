@@ -22,8 +22,6 @@ namespace llvm {
 class GenerateCtorsPass : public PassInfoMixin<GenerateCtorsPass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
-
-  static bool isRequired() { return true; }
 };
 
 } // namespace llvm

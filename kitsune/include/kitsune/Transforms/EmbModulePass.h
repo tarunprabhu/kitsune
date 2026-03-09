@@ -142,8 +142,6 @@ public:
     // changed are the types and initializers of one or more global variables.
     return PreservedAnalyses::all();
   }
-
-  static bool isRequired() { return true; }
 };
 
 /// @}
