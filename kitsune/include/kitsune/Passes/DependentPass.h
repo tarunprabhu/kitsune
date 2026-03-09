@@ -14,6 +14,7 @@
 #define KITSUNE_PASSES_DEPENDENT_PASS_H
 
 #include "kitsune/Frontend/Diagnostics.h"
+#include "kitsune/Passes/RequirablePass.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/IR/PassManager.h"
 
@@ -49,23 +50,8 @@ namespace llvm {
 /// \endcode
 ///
 /// In this case, `SerializePass` is a "dependent" pass while
-/// `AnnotateTapirLoopsPass` is a "requireable" pass.
-///
-/// Requireable passes must provide some way to check if they have been run.
-/// In most cases, passes that may be required by others will add an attribute
-/// to the module being compiled. The presence of this attribute will indicate
-/// that the pass has been run. However, passes may use some other mechanism.
-///
-/// Requireable passes must also provide a static hasRun method with the
-/// following signature.
-///
-/// \code{.cpp}
-///
-///     static bool hasRun(const llvm::Module &m);
-///
-/// \endcode
-///
-/// This method is called to determine if all required passes have been run.
+/// `AnnotateTapirLoopsPass` is a "requirable" pass. Requirable passes must
+/// inherit from the RequirablePass base class.
 ///
 /// Dependent passes must call the checkReqdPassesHaveRun() method early in the
 /// the run() methods to ensure that the required passes have run. Currently,
@@ -75,41 +61,25 @@ namespace llvm {
 template <typename Pass, typename... Requires>
 class DependentPass : public PassInfoMixin<Pass> {
 private:
-  // SFINAE helper classes to check if a pass is requireable. A pass is
-  // requireable if it defines a static hasRun method.
-  //
-  // TODO: These checks should be made stronger. We probably also want to check
-  // the following:
-  //
-  //   - The signature of the hasRun method - not just its presence.
-  //   - The class should inherit from PassInfoMixin.
-  //
-  template <typename T, typename = void>
-  struct is_requireable_pass : std::false_type {};
-
-  template <typename T>
-  struct is_requireable_pass<T, std::void_t<decltype(T::hasRun)>>
-      : std::true_type {};
-
-  // Compile-time function that checks that a pass is requireable.
-  template <typename T> static constexpr bool isRequireable() {
-    constexpr bool requireable = is_requireable_pass<T>::value;
-    static_assert(requireable, "Required pass must define a hasRun method");
-    return requireable;
+  // Compile-time function that checks that a pass is requirable.
+  template <typename T> static constexpr bool isRequirable() {
+    constexpr bool requirable = std::is_base_of_v<RequirablePass<T>, T>;
+    static_assert(requirable, "Required pass must define a hasRun method");
+    return requirable;
   }
 
   // Compile-time function that checks that all required passes are
-  // requireable.
-  template <typename T, typename... Ts> static constexpr bool allRequireable() {
-    bool requireable = isRequireable<T>();
+  // requirable.
+  template <typename T, typename... Ts> static constexpr bool allRequirable() {
+    bool requirable = isRequirable<T>();
     if constexpr (sizeof...(Ts))
-      return requireable && allRequireable<Ts...>();
-    return requireable;
+      return requirable && allRequirable<Ts...>();
+    return requirable;
   }
 
-  // Ensure that all required passes are requireable.
-  static_assert(allRequireable<Requires...>(),
-                "All passes required by a dependent pass must be requireable");
+  // Ensure that all required passes are requirable.
+  static_assert(allRequirable<Requires...>(),
+                "All passes required by a dependent pass must be requirable");
 
   // Check that a required pass has run. If it has not, a diagnostic will be
   // emitted to stderr.
