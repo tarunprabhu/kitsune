@@ -23,6 +23,7 @@
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/ModuleAttrs.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -59,7 +60,8 @@ static void annotateTapirLoopsForGPU(Loop &root, ScalarEvolution &se,
     addPerfectLevelAttr(*perfectLoops[d - 1], d);
 }
 
-bool AnnotateTapirLoopsPass::hasRun(const Module &m) {
+template <>
+bool RequirablePass<AnnotateTapirLoopsPass>::hasRun(const Module &m) {
   return hasLoopsAnnotatedAttr(m);
 }
 
