@@ -82,6 +82,8 @@ declare void @ext1(i64)
 
 declare void @ext2(i64, i64)
 
+!kit.module.loops.annotated = !{}
+
 !0 = distinct !{!0, !2, !3, !4}
 !1 = distinct !{!1, !2}
 !2 = !{!"tapir.loop.target", i32 8}

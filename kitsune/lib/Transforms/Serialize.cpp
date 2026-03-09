@@ -10,11 +10,12 @@
 //
 // Currently, it only serializes certain tapir loops. These either cannot be
 // lowered using a tapir target, or may degrade performance if lowered using a
-// tapir target. This pass expects the annotate-tapir-loops pass to have been
-// run.
+// tapir target.
 //
 // In the future, it may also be used with standalone tapir tasks that are not
 // currently supported.
+//
+// REQUIRES: kit-annotate-tapir-loops
 //
 //===----------------------------------------------------------------------===//
 
@@ -188,6 +189,8 @@ static bool run(Function &f, FunctionAnalysisManager &am) {
 }
 
 PreservedAnalyses SerializePass::run(Module &m, ModuleAnalysisManager &mam) {
+  checkReqdPassesHaveRun(m);
+
   bool changed = false;
   FunctionAnalysisManager &fam =
       mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();

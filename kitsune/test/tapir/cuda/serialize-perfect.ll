@@ -183,6 +183,8 @@ for.i.end:
   ret void
 }
 
+!kit.module.loops.annotated = !{}
+
 !0 = distinct !{!0, !6, !7, !10}
 !1 = distinct !{!1, !6, !11}
 !2 = distinct !{!2, !6, !8, !10}
