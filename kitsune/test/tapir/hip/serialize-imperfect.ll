@@ -174,6 +174,8 @@ for2.i.end:
 
 }
 
+!kit.module.loops.annotated = !{}
+
 !0 = distinct !{!0, !1}
 !1 = !{!"tapir.loop.target", i32 4}
 !2 = distinct !{!2}

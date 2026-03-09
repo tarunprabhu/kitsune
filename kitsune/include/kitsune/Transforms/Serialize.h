@@ -13,13 +13,16 @@
 #ifndef KITSUNE_TRANSFORMS_SERIALIZE_H
 #define KITSUNE_TRANSFORMS_SERIALIZE_H
 
+#include "kitsune/Passes/DependentPass.h"
+#include "kitsune/Transforms/AnnotateTapirLoops.h"
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
 
 /// \ingroup kitsune
 /// Serialize certain tapir constructs.
-class SerializePass : public PassInfoMixin<SerializePass> {
+class SerializePass
+    : public DependentPass<SerializePass, AnnotateTapirLoopsPass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 };

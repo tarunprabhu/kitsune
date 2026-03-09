@@ -56,6 +56,9 @@ class Note<string Msg> : Diag<SNote, Msg>;
 // Although not strictly required, the names of all errors should be prefixed
 // with Err.
 
+def ErrRequiredPassNotRun
+  : Error<"'{}': required pass '{}' has not been run">;
+
 def ErrParseEmbBC
   : Error<"could not parse embedded bitcode in global '{}': {}">;
 
