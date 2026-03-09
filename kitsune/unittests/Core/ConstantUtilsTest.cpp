@@ -56,4 +56,32 @@ TEST(KitConstantUtils, createConstString) {
   EXPECT_EQ(g2->getName(), "s2");
 }
 
+TEST(KitConstantUtils, stripCasts) {
+  LLVMContext ctx;
+  Type* i64 = Type::getInt64Ty(ctx);
+  Type* f32 = Type::getFloatTy(ctx);
+  PointerType* ptr = PointerType::getUnqual(ctx);
+  PointerType* ptr11 = PointerType::get(ctx, 11);
+
+  Constant* cnull = ConstantPointerNull::get(ptr);
+  Constant* cint = ConstantInt::get(i64, 79);
+  Constant* cfp = ConstantFP::get(f32, 3.14);
+  Constant* cptr = ConstantExpr::getIntToPtr(cint, ptr);
+  Constant* cptr11 = ConstantExpr::getAddrSpaceCast(cptr, ptr11);
+
+  EXPECT_EQ(stripCasts((const Constant*)nullptr), nullptr);
+
+  EXPECT_EQ(stripCasts(cint), cint);
+  EXPECT_EQ(stripCasts(cnull), cnull);
+  EXPECT_EQ(stripCasts(cfp), cfp);
+  EXPECT_EQ(stripCasts(cptr), cint);
+  EXPECT_EQ(stripCasts(cptr11), cint);
+
+  EXPECT_EQ(stripCasts((const Constant*)cint), cint);
+  EXPECT_EQ(stripCasts((const Constant*)cnull), cnull);
+  EXPECT_EQ(stripCasts((const Constant*)cfp), cfp);
+  EXPECT_EQ(stripCasts((const Constant*)cptr), cint);
+  EXPECT_EQ(stripCasts((const Constant*)cptr11), cint);
+}
+
 } // namespace
