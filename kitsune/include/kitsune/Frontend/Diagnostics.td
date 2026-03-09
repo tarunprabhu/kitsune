@@ -140,6 +140,12 @@ def ErrTapirLoopSyncRegionUses
 def ErrTapirLoopSyncMustPostDominate
   : Error<"tapir loop not post-dominated by sync instruction">;
 
+def ErrTapirLoopNotCanonicalGPU
+  : Error<"tapir loop for GPU is not canonical">;
+
+def ErrTapirNestBoundsVariantGPU
+  : Error<"bounds of GPU loop must be invariant in the nest">;
+
 
 // ------------------------- Kitsune-specific warnings -------------------------
 //
