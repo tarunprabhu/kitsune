@@ -41,12 +41,11 @@ namespace llvm {
 /// case.
 ///
 /// \code{.cpp}
-///
 ///     class SerializePass
-///         : public DependentPass<SerializePass, AnnotateTapirLoopsPass> {
-///        ...
+///         : public PassInfoMixin<SerializePass>,
+///           public DependentPass<SerializePass, AnnotateTapirLoopsPass> {
+///       ...
 ///     };
-///
 /// \endcode
 ///
 /// In this case, `SerializePass` is a "dependent" pass while
@@ -58,8 +57,7 @@ namespace llvm {
 /// there is no way to ensure that this happens automatically, nor is there
 /// any way to check that developers do so themselves.
 ///
-template <typename Pass, typename... Requires>
-class DependentPass : public PassInfoMixin<Pass> {
+template <typename Pass, typename... Requires> class DependentPass {
 private:
   // Compile-time function that checks that a pass is requirable.
   template <typename T> static constexpr bool isRequirable() {

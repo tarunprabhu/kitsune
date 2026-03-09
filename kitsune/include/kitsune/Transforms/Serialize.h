@@ -22,7 +22,8 @@ namespace llvm {
 /// \ingroup kitsune
 /// Serialize certain tapir constructs.
 class SerializePass
-    : public DependentPass<SerializePass, AnnotateTapirLoopsPass> {
+    : public PassInfoMixin<SerializePass>,
+      public DependentPass<SerializePass, AnnotateTapirLoopsPass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 };
