@@ -18,6 +18,7 @@ add_llvm_component_library(LLVMKitCore
   TTUtils.cpp
   TargetUtils.cpp
   TypeUtils.cpp
+  ValueUtils.cpp
 
   DEPENDS
   intrinsics_gen

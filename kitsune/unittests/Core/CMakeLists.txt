@@ -19,6 +19,7 @@ add_kitsune_unittest_with_input_files(KitCoreTests
   ModuleUtilsTest.cpp
   TapirCoreTest.cpp
   TypeUtilsTest.cpp
+  ValueUtilsTest.cpp
 
   EXPORT_SYMBOLS
 )

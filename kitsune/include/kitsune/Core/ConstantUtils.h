@@ -29,6 +29,11 @@ class GlobalVariable;
 class LLVMContext;
 class Module;
 
+/// Strip all casts from \p c and return the innermost constant. If there are no
+/// casts, return the \p c as is.
+Constant *stripCasts(Constant *c);
+const Constant *stripCasts(const Constant *c);
+
 /// Create a private string with the given initializer if one with this
 /// initializer does not already exist in the module. If one does, return that.
 /// This is linear in the number of global variables in the module.
