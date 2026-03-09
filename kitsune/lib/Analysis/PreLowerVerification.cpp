@@ -187,12 +187,32 @@ private:
     ArrayRef<Loop *> perfectLoops = nest->getPerfectTapirLoops();
     SmallSetVector<Loop *, 4> perfectSet(perfectLoops.begin(),
                                          perfectLoops.end());
-    for (Loop *loop : nest->getLoops())
-      if (isTapirLoop(*loop, ti))
+    for (Loop *loop : nest->getLoops()) {
+      if (isTapirLoop(*loop, ti)) {
         if (!perfectSet.contains(loop)) {
           emitDiag(*loop, DiagID::WarnParallelLoopImperfectlyNested);
           emitDiag(DiagID::NoteLoopNestRoot, getLoopName(root));
         }
+      }
+    }
+
+    // All perfectly nested tapir loops for a GPU must be canonical.
+    for (const Loop *loop : perfectLoops)
+      if (!loop->isCanonical(se))
+        emitDiag(*loop, DiagID::ErrTapirLoopNotCanonicalGPU);
+
+    // The loop bounds of all perfectly nested tapir loops in a tapir loop nest
+    // must be loop-invariant with respect to the outer loop.
+    for (const Loop *loop : perfectLoops) {
+      std::optional<Loop::LoopBounds> maybeLB = loop->getBounds(se);
+      assert(maybeLB && "Could not get bounds for loop");
+
+      Loop::LoopBounds lb = *maybeLB;
+      if (!root.isLoopInvariant(&lb.getFinalIVValue())) {
+        emitDiag(*loop, DiagID::ErrTapirNestBoundsVariantGPU);
+        emitDiag(DiagID::NoteLoopNestRoot, getLoopName(root));
+      }
+    }
   }
 
   void checkTopLevelTapirLoop(Loop &loop) {
