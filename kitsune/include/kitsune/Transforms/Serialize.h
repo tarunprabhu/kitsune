@@ -14,6 +14,7 @@
 #define KITSUNE_TRANSFORMS_SERIALIZE_H
 
 #include "kitsune/Passes/DependentPass.h"
+#include "kitsune/Passes/RequirablePass.h"
 #include "kitsune/Transforms/AnnotateTapirLoops.h"
 #include "llvm/IR/PassManager.h"
 
@@ -23,7 +24,8 @@ namespace llvm {
 /// Serialize certain tapir constructs.
 class SerializePass
     : public PassInfoMixin<SerializePass>,
-      public DependentPass<SerializePass, AnnotateTapirLoopsPass> {
+      public DependentPass<SerializePass, AnnotateTapirLoopsPass>,
+      public RequirablePass<SerializePass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 };

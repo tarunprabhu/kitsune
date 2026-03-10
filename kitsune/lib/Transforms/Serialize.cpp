@@ -23,6 +23,7 @@
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
 #include "kitsune/Frontend/Diagnostics.h"
 #include "llvm/ADT/SetVector.h"
@@ -188,8 +189,13 @@ static bool run(Function &f, FunctionAnalysisManager &am) {
   return changed;
 }
 
+template <> bool RequirablePass<SerializePass>::hasRun(const Module &m) {
+  return hasLoopsSerializedAttr(m);
+}
+
 PreservedAnalyses SerializePass::run(Module &m, ModuleAnalysisManager &mam) {
   checkReqdPassesHaveRun(m);
+  addLoopsSerializedAttr(m);
 
   bool changed = false;
   FunctionAnalysisManager &fam =
