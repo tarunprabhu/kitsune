@@ -36,8 +36,7 @@ value for the attribute.
 Kitsune's loop attributes must be one of the following kinds.
 
 * **Flag Attributes**: These are attributes that do not take a value. Only
-  their presence or absence is significant. Despite this, if any are attached to
-  a loop, they will always have the value ``i32 1`` in the loop metadata.
+  their presence or absence is significant.
 
 * **Valued Attributes**: These are attributes that take a value. Currently,
   only certain types of values are supported. These, together with the
@@ -90,7 +89,7 @@ Three attributes have been attached to the loop,
   }
 
   !0 = distinct !{!0, !1, !2, !3}
-  !1 = !{!"tapir.loop.lowering.enabled", i32 1}
+  !1 = !{!"tapir.loop.lowering.enabled"}
   !2 = !{!"tapir.loop.perfect.depth", i32 3}
   !3 = !{!"tapir.loop.target", i32 1024}
 
