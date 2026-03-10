@@ -109,7 +109,7 @@ for.i.end:
 ; CHECK-DAG: ![[L2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
 ; CHECK-DAG: ![[L3:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 3}
 ; CHECK-DAG: ![[L4:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 4}
-; CHECK-DAG: ![[LOWER:[0-9]+]] = !{!"tapir.loop.lowering.enabled", i32 1}
+; CHECK-DAG: ![[LOWER:[0-9]+]] = !{!"tapir.loop.lowering.enabled"}
 ;
 ;-------------------------------------------------------------------------------
 ;

@@ -120,7 +120,7 @@ for.i.exit:
 ; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 4}
 ; CHECK-DAG: ![[D1:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 1}
 ; CHECK-DAG: ![[L1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
-; CHECK-DAG: ![[LOWER:[0-9]+]] = !{!"tapir.loop.lowering.enabled", i32 1}
+; CHECK-DAG: ![[LOWER:[0-9]+]] = !{!"tapir.loop.lowering.enabled"}
 ;
 ;-------------------------------------------------------------------------------
 ;

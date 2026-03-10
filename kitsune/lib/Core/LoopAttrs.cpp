@@ -104,6 +104,17 @@ static void addAttrAs(Loop &loop, LoopAttrKind attr, T val) {
   loop.setLoopID(newLoopMD);
 }
 
+static void addAttr(Loop &loop, LoopAttrKind attr) {
+  LLVMContext &ctx = loop.getHeader()->getContext();
+  StringRef name = getAttrName(attr);
+  MDString *mdTag = MDString::get(ctx, name);
+  MDNode *md = MDNode::get(ctx, mdTag);
+  MDNode *loopMD = loop.getLoopID();
+  MDNode *newLoopMD = makePostTransformationMetadata(ctx, loopMD, {name}, {md});
+
+  loop.setLoopID(newLoopMD);
+}
+
 // Flag attributes (those that do not have a value) will have a different set of
 // accessors. Mask them by defining LOOP_ATTRIBUTE_FLAG by defining it to an
 // empty macro. These attributes may be applied to both tapir and regular loops.
@@ -177,7 +188,7 @@ static void addAttrAs(Loop &loop, LoopAttrKind attr, T val) {
   }                                                                            \
                                                                                \
   void llvm::add##NAME##Attr(Loop &loop) {                                     \
-    addAttrAs(loop, LoopAttrKind::NAME, 1U);                                   \
+    addAttr(loop, LoopAttrKind::NAME);                                         \
   }                                                                            \
                                                                                \
   void llvm::remove##NAME##Attr(Loop &loop) {                                  \
