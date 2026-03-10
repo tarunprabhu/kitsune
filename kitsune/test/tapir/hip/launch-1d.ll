@@ -1,9 +1,9 @@
-; Check that a launch call and a fat binary are present in the host. Check
-; that the launch arguments are as expected.
+; Check that a launch call and a fat binary are present in the host and that
+; the arguments to the launch call are as expected.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='tapir-lowering<O2>' -S %s \
+; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
+; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN:     -passes='tapir-lowering<O1>' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]
@@ -14,7 +14,7 @@
 ;
 ; Create a stream
 ;
-; CHECK: %[[STREAM:.+]] = {{.*}}call {{.+}} @llvm.kit.thread.stream(i32 2)
+; CHECK: %[[STREAM:.+]] = {{.*}}call {{.+}} @llvm.kit.thread.stream(i32 4)
 ; CHECK-NOT: {{.*}}call {{.+}} @llvm.kit.async.prefetch.htod
 ;
 ; The actual launch. The arguments are:
@@ -22,7 +22,9 @@
 ;   - tapir target id
 ;   - fat binary global
 ;   - kernel name global string literal
-;   - trip count
+;   - trip count (loop at depth 1)
+;   - trip count (loop at depth 2, 0 if there is no tapir loop at that depth)
+;   - trip count (loop at depth 3, 0 if there is no tapir loop at that depth)
 ;   - threads per block (zero to indicate that it is unset)
 ;   - kernel properties global
 ;   - thread stream
@@ -39,10 +41,12 @@
 ; we force the grain size to be 1. The start index is always 0.
 ;
 ; CHECK: %{{[0-9]+}} = {{.*}}call {{.+}} @llvm.kit.async.launch.kernel(
-; CHECK-SAME: i32 2,
+; CHECK-SAME: i32 4,
 ; CHECK-SAME: ptr {{.*}}@[[FB]],
 ; CHECK-SAME: ptr {{.*}}@[[G_KNAME]],
 ; CHECK-SAME: i64 %n,
+; CHECK-SAME: i64 0,
+; CHECK-SAME: i64 0,
 ; CHECK-SAME: i32 0,
 ; CHECK-SAME: ptr {{.*}}@[[G_KERNEL_PROPS]],
 ; CHECK-SAME: ptr %[[STREAM]],
@@ -55,26 +59,22 @@
 ;
 ; By default, we always enter a sync immediately after the launch. A later
 ; optimization pass may (re)move this if appropriate
-; CHECK: call {{.+}} @llvm.kit.sync.stream(i32 2, ptr %[[STREAM]])
+; CHECK: call {{.+}} @llvm.kit.sync.stream(i32 4, ptr %[[STREAM]])
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;
-; CHECK-DAG: #[[KPATTR]] = { kit_tt(2) "kit_kernel_props"="[[KNAME]]" }
-; CHECK-DAG: #[[FBATTR]] = { kit_fb kit_tt(2) }
+; CHECK-DAG: #[[FBATTR]] = { kit_fb kit_tt(4) }
+; CHECK-DAG: #[[KPATTR]] = { kit_tt(4) "kit_kernel_props"="[[KNAME]]" }
 
 target triple = "x86_64-pc-linux-gnu"
 
 define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %preheader, label %forall.sync
-
-preheader:
   br label %forall.detach
 
 forall.detach:
-  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
+  %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %forall.inc ]
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
   detach within %syncreg, label %forall.body, label %forall.inc
 
@@ -94,7 +94,6 @@ forall.end:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2, !3}
+!0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
-!2 = !{!"tapir.loop.target", i32 2}
-!3 = !{!"llvm.loop.unroll.disable"}
+!2 = !{!"tapir.loop.target", i32 4}
