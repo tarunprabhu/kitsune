@@ -89,14 +89,13 @@ private:
     return hasRun;
   }
 
-  // Implementation function that checks that all required passes have been
-  // run.
+  // Returns a count of the number of required passes that have *not* been run.
   template <typename P, typename T, typename... Ts>
-  static bool allReqdPassesHaveRun(const Module &m) {
-    bool hasRun = reqdPassHasRun<P, T>(m);
+  static unsigned reqdPassesNotRun(const Module &m) {
+    unsigned notRun = reqdPassHasRun<P, T>(m) ? 0 : 1;
     if constexpr (sizeof...(Ts))
-      return hasRun && allReqdPassesHaveRun<P, Ts...>(m);
-    return hasRun;
+      return notRun + reqdPassesNotRun<P, Ts...>(m);
+    return notRun;
   }
 
 protected:
@@ -105,7 +104,7 @@ protected:
   /// least one pass has been run, this will cause the program to exit
   /// gracefully with a system-dependent error code.
   static void checkReqdPassesHaveRun(const Module &m) {
-    if (!allReqdPassesHaveRun<Pass, Requires...>(m))
+    if (reqdPassesNotRun<Pass, Requires...>(m))
       exitOnError();
   }
 };

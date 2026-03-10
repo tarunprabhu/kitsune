@@ -101,7 +101,14 @@ information if having them is determined to be useful.
 
 def LoopsAnnotated : Attr<[]> {
   let Documentation = [{
-The presence of this attribute indicates the `kit-annotate-tapir-loops` pass has
-been run on the module.
+The presence of this attribute indicates that the `kit-annotate-tapir-loops`
+pass has been run on the module.
+}];
+}
+
+def LoopsSerialized : Attr<[]> {
+  let Documentation = [{
+The presence of this attribute indicates that the `kit-serialize` pass has been
+run on the module.
 }];
 }
