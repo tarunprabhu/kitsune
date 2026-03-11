@@ -2,7 +2,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' -S %s \
+; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -19,8 +19,6 @@
 ; CHECK: store i32 {{[0-9]+}}, ptr addrspace(1) %[[PRINTF_ALLOC_FN]]
 ; CHECK: br label %[[BBEND]]
 
-target triple = "x86_64-pc-linux-gnu"
-
 @.str = private unnamed_addr constant [9 x i8] c"%ld: %s\0A\00", align 1
 @.str.1 = private unnamed_addr constant [12 x i8] c"Hello world\00", align 1
 
@@ -29,33 +27,29 @@ declare i32 @printf(ptr, ...)
 define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %preheader, label %forall.sync
+  br label %header
 
-preheader:
-  br label %forall.detach
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.detach:
-  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
+body:
+  %call7 = call i32 (ptr, ...) @printf(ptr @.str, i64 %i, ptr @.str.1)
+  reattach within %syncreg, label %latch
 
-forall.body:
-  %call7 = call i32 (ptr, ...) @printf(ptr @.str, i64 %indvars.iv, ptr @.str.1)
-  reattach within %syncreg, label %forall.inc
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+sync:
+  sync within %syncreg, label %exit
 
-forall.sync:
-  sync within %syncreg, label %forall.end
-
-forall.end:
+exit:
   ret void
 }
 
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 4}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}

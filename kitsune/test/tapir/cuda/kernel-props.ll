@@ -11,7 +11,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_80 \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='tapir-lowering<O2>,kit-kernel-properties' -S %s \
+; RUN:     -passes='loop-spawning,kit-kernel-properties' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @{{.+}} = private unnamed_addr constant
@@ -22,41 +22,35 @@
 ; CHECK: attributes #[[KERNEL_PROPS]] = {
 ; CHECK-SAME: "kit_kernel_props"="__kitcu_loop_{{.+}}"
 
-target triple = "x86_64-pc-linux-gnu"
-
 define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %preheader, label %forall.sync
+  br label %header
 
-preheader:
-  br label %forall.detach
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.detach:
-  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
-
-forall.body:
-  %arrayidx = getelementptr inbounds float, ptr %c, i64 %indvars.iv
+body:
+  %arrayidx = getelementptr float, ptr %c, i64 %i
   %v = load float, ptr %arrayidx, align 4
   %v2 = fmul float %v, %v
   store float %v2, ptr %arrayidx, align 4
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 2}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}

@@ -14,8 +14,6 @@
 ; CHECK: %[[V0:.+]] = ptrtoint ptr %[[CST1]] to i64
 ; CHECK: %[[V1:.+]] = ptrtoint ptr %[[CST2]] to i64
 
-target triple = "x86_64-unknown-linux-gnu"
-
 %"class.kitsune::mobile_ptr" = type { ptr addrspace(67) }
 
 @stash = global ptr zeroinitializer
@@ -23,42 +21,38 @@ target triple = "x86_64-unknown-linux-gnu"
 define void @_ZL20initialize_variablesiN7kitsune10mobile_ptrIfEES1_(i64 %nelr, ptr %variables, ptr %ff_variable) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp14 = icmp sgt i64 %nelr, 0
-  br i1 %cmp14, label %preheader, label %forall.sync
+  %invariant.gep = getelementptr float, ptr %variables, i64 %nelr
+  br label %header
 
-preheader:
-  %invariant.gep = getelementptr inbounds float, ptr %variables, i64 %nelr
-  br label %forall.detach
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.detach:
-  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
-
-forall.body:
+body:
   %a1 = alloca i64, align 8
   %a2 = alloca i64, align 8
   %0 = ptrtoint ptr %a1 to i64
   %1 = ptrtoint ptr %a2 to i64
   %2 = add i64 %0, %1
-  %3 = add i64 %2, %indvars.iv
+  %3 = add i64 %2, %i
   %4 = load float, ptr %ff_variable, align 4
-  %arrayidx.i = getelementptr inbounds float, ptr %variables, i64 %3
+  %arrayidx.i = getelementptr float, ptr %variables, i64 %3
   store float %4, ptr %arrayidx.i, align 4
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %nelr
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %nelr
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 4}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}

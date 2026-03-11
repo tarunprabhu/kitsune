@@ -1,7 +1,5 @@
 ; RUN: opt -passes "kit-strip-addr-spaces" -S %s | FileCheck %s
 
-target triple = "x86_64-pc-linux-gnu"
-
 ; CHECK: %S1{{.*}} = type { i32, ptr }
 %S1 = type { i32, ptr addrspace(67) }
 

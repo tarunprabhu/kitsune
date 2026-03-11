@@ -12,8 +12,6 @@
 ; CHECK-DAG: @v138 = internal {{.*}}constant i32 11
 ; CHECK-DAG: @v139 = internal {{.*}}constant i32 46
 
-target triple = "x86_64-unknown-linux-gnu"
-
 @v137 = constant i32 921, align 4
 @v138 = private constant i32 11, align 4
 @v139 = internal constant i32 46, align 4
@@ -21,39 +19,35 @@ target triple = "x86_64-unknown-linux-gnu"
 define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp4.not = icmp eq i64 %n, 0
-  br i1 %cmp4.not, label %forall.sync, label %forall.ph
+  br label %header
 
-forall.ph:
-  br label %forall.detach
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.detach:
-  %i.05 = phi i64 [ %inc, %forall.inc ], [ 0, %forall.ph ]
-  detach within %syncreg, label %forall.body, label %forall.inc
-
-forall.body:
+body:
   %0 = load i32, ptr @v137, align 4
   %1 = load i32, ptr @v138, align 4
   %2 = add nuw i32 %0, %1
   %3 = load i32, ptr @v139, align 4
   %4 = add nuw i32 %2, %3
-  %arrayidx = getelementptr inbounds i32, ptr %c, i64 %i.05
+  %arrayidx = getelementptr i32, ptr %c, i64 %i
   store i32 %4, ptr %arrayidx, align 4
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %inc = add nuw i64 %i.05, 1
-  %exitcond.not = icmp eq i64 %inc, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add nuw i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 4}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}

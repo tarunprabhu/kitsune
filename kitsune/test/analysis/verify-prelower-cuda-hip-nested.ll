@@ -13,8 +13,6 @@
 ; CHECK-NEXT: from function 'pps'
 ; CHECK-NEXT: target on ancestor loop is 'cuda'
 
-target triple = "x86_64-unknown-linux-gnu"
-
 define void @pps(i64 %m, i64 %n, i64 %p) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()

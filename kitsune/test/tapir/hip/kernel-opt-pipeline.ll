@@ -1,7 +1,7 @@
 ; ------------------------------------------------------------------------------
 ; Check that specifying explicit optimization levels produces an appropriate
 ; pipeline. This does not attempt to be very thorough. It simply checks that
-; the various optimization levels produce a "reasonably different" pipelines.
+; the various optimization levels produce "reasonably different" pipelines.
 ;
 ; The Kitsune post-tapir passes should not be run, but the mandatory passes
 ; should always be run.
@@ -10,7 +10,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null %s \
+; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     -emb-print-pipeline-passes -emb-O0 \
 ; RUN:     | FileCheck %s --check-prefix=O0
 ;
@@ -25,7 +25,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null %s \
+; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     -emb-print-pipeline-passes -emb-O1 \
 ; RUN:     | FileCheck %s --check-prefix=O1
 ;
@@ -41,7 +41,7 @@
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
 ; RUN:     -emb-print-pipeline-passes -emb-O2 \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null %s \
+; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=O2
 ;
 ; O2: AMDGPUPrintfRuntimeBindingPass
@@ -56,7 +56,7 @@
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
 ; RUN:     -emb-print-pipeline-passes -emb-O3 \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null %s \
+; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=O3
 ;
 ; O3: AMDGPUPrintfRuntimeBindingPass
@@ -71,7 +71,7 @@
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
 ; RUN:     -emb-print-pipeline-passes -emb-Os \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null %s \
+; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=Os
 ;
 ; Os: AMDGPUPrintfRuntimeBindingPass
@@ -87,7 +87,7 @@
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
 ; RUN:     -emb-print-pipeline-passes -emb-Oz \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null \
+; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null \
 ; RUN:     | FileCheck %s --check-prefix=Oz
 ;
 ; Oz: AMDGPUPrintfRuntimeBindingPass
@@ -103,46 +103,40 @@
 ; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
 ; RUN:     -emb-print-pipeline-passes -emb-O4 2>&1 \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null \
+; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null \
 ; RUN:     | FileCheck %s --check-prefix=O4
 ;
 ; O4: Unknown command line argument '-emb-O4'
 ;
 ; ------------------------------------------------------------------------------
 
-target triple = "x86_64-pc-linux-gnu"
-
 define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %preheader, label %forall.sync
+  br label %header
 
-preheader:
-  br label %forall.detach
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.detach:
-  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
-
-forall.body:
-  %arrayidx = getelementptr inbounds i32, ptr %c, i64 %indvars.iv
+body:
+  %arrayidx = getelementptr i32, ptr %c, i64 %i
   store i64 %n, ptr %arrayidx, align 4
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 4}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}

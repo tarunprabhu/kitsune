@@ -3,24 +3,22 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     --passes='tapir-lowering<O2>,emb-prepare' -S %s \
+; RUN:     --passes='loop-spawning,emb-prepare' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-NOT: addrspace(67)
 
-target triple = "x86_64-unknown-linux-gnu"
-
 define void @vecadd(ptr addrspace(67) %c, ptr addrspace(67) %a, ptr addrspace(67) %b, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  br label %forall.detach
+  br label %header
 
-forall.detach:
-  %i = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
-  detach within %syncreg, label %forall.body, label %forall.inc
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.body:
+body:
   %arrayidx.a = getelementptr double, ptr addrspace(67) %a, i64 %i
   %0 = load double, ptr addrspace(67) %arrayidx.a, align 8
   %arrayidx.b = getelementptr double, ptr addrspace(67) %b, i64 %i
@@ -28,20 +26,21 @@ forall.body:
   %add = fadd double %0, %1
   %arrayidx.c = getelementptr double, ptr addrspace(67) %c, i64 %i
   store double %add, ptr addrspace(67) %arrayidx.c, align 8
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %inc = add nuw i64 %i, 1
-  %exitcond.not = icmp eq i64 %inc, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2}
+!0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 4}
+!3 = !{!"tapir.loop.lowering.enabled"}

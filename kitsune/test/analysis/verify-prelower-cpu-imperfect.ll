@@ -20,10 +20,7 @@
 define void @pepp(i64 %m, i64 %n, i64 %p) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
-  %cmp.m.not = icmp eq i64 %m, 0
-  %cmp.n.not = icmp eq i64 %n, 0
-  %cmp.p.not = icmp eq i64 %p, 0
-  br i1 %cmp.m.not, label %for.i.exit, label %for.i.header
+  br label %for.i.header
 
 for.i.header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
@@ -32,7 +29,7 @@ for.i.header:
 for.i.body:
   %syncreg.j = tail call token @llvm.syncregion.start()
   %0 = add i64 %m, %n
-  br i1 %cmp.n.not, label %for.j.exit, label %for.j.header
+  br label %for.j.header
 
 for.j.header:
   %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
@@ -40,7 +37,7 @@ for.j.header:
 
 for.j.body:
   %syncreg.k = tail call token @llvm.syncregion.start()
-  br i1 %cmp.p.not, label %for.k.exit, label %for.k.header
+  br label %for.k.header
 
 for.k.header:
   %k = phi i64 [0, %for.j.body ], [ %inc.k, %for.k.latch ]
@@ -51,8 +48,8 @@ for.k.body:
 
 for.k.latch:
   %inc.k = add i64 %k, 1
-  %exitcond.k.not = icmp eq i64 %inc.k, %p
-  br i1 %exitcond.k.not, label %for.k.exit, label %for.k.header, !llvm.loop !3
+  %cmp.k = icmp eq i64 %inc.k, %p
+  br i1 %cmp.k, label %for.k.exit, label %for.k.header, !llvm.loop !3
 
 for.k.exit:
   sync within %syncreg.k, label %for.k.end
@@ -62,8 +59,8 @@ for.k.end:
 
 for.j.latch:
   %inc.j = add i64 %j, 1
-  %exitcond.j.not = icmp eq i64 %inc.j, %n
-  br i1 %exitcond.j.not, label %for.j.exit, label %for.j.header, !llvm.loop !2
+  %cmp.j = icmp eq i64 %inc.j, %n
+  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !2
 
 for.j.exit:
   sync within %syncreg.j, label %for.j.end
@@ -73,8 +70,8 @@ for.j.end:
 
 for.i.latch:
   %inc.i = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %m
-  br i1 %exitcond.i.not, label %for.i.exit, label %for.i.header, !llvm.loop !1
+  %cmp.i = icmp eq i64 %inc.i, %m
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !1
 
 for.i.exit:
   sync within %syncreg.i, label %for.i.end
@@ -95,10 +92,7 @@ for.i.end:
 define void @pppe(i64 %m, i64 %n, i64 %p) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
-  %cmp.m.not = icmp eq i64 %m, 0
-  %cmp.n.not = icmp eq i64 %n, 0
-  %cmp.p.not = icmp eq i64 %p, 0
-  br i1 %cmp.m.not, label %for.i.exit, label %for.i.header
+  br label %for.i.header
 
 for.i.header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
@@ -106,7 +100,7 @@ for.i.header:
 
 for.i.body:
   %syncreg.j = tail call token @llvm.syncregion.start()
-  br i1 %cmp.n.not, label %for.j.exit, label %for.j.header
+  br label %for.j.header
 
 for.j.header:
   %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
@@ -114,7 +108,7 @@ for.j.header:
 
 for.j.body:
   %syncreg.k = tail call token @llvm.syncregion.start()
-  br i1 %cmp.p.not, label %for.k.exit, label %for.k.header
+  br label %for.k.header
 
 for.k.header:
   %k = phi i64 [0, %for.j.body ], [ %inc.k, %for.k.latch ]
@@ -125,8 +119,8 @@ for.k.body:
 
 for.k.latch:
   %inc.k = add i64 %k, 1
-  %exitcond.k.not = icmp eq i64 %inc.k, %p
-  br i1 %exitcond.k.not, label %for.k.exit, label %for.k.header, !llvm.loop !6
+  %cmp.k = icmp eq i64 %inc.k, %p
+  br i1 %cmp.k, label %for.k.exit, label %for.k.header, !llvm.loop !6
 
 for.k.exit:
   sync within %syncreg.k, label %for.k.end
@@ -137,8 +131,8 @@ for.k.end:
 
 for.j.latch:
   %inc.j = add i64 %j, 1
-  %exitcond.j.not = icmp eq i64 %inc.j, %n
-  br i1 %exitcond.j.not, label %for.j.exit, label %for.j.header, !llvm.loop !5
+  %cmp.j = icmp eq i64 %inc.j, %n
+  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !5
 
 for.j.exit:
   sync within %syncreg.j, label %for.j.end
@@ -148,8 +142,8 @@ for.j.end:
 
 for.i.latch:
   %inc.i = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %m
-  br i1 %exitcond.i.not, label %for.i.exit, label %for.i.header, !llvm.loop !4
+  %cmp.i = icmp eq i64 %inc.i, %m
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !4
 
 for.i.exit:
   sync within %syncreg.i, label %for.i.end

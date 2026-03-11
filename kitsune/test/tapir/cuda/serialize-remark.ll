@@ -45,8 +45,6 @@
 ; ALL: reattach within %syncreg.i
 ; ALL: sync within %syncreg.i
 
-target triple = "x86_64-unknown-linux-gnu"
-
 ; forall (i ...) {
 ;     ext1(i);
 ;     forall (j ...) {

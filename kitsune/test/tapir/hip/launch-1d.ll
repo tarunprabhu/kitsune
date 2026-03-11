@@ -3,7 +3,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='tapir-lowering<O1>' -S %s \
+; RUN:     -passes='loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]
@@ -11,6 +11,8 @@
 ; CHECK-DAG: @[[G_KERNEL_PROPS:.+]] = private unnamed_addr constant {{.+}} zeroinitializer #[[KPATTR:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f(ptr {{.*}}%[[C:.+]], i64 {{.*}}%[[N:.+]])
+;
+; CHECK: %[[GS:[0-9]+]] = call i64 @llvm.tapir.loop.grainsize.i64
 ;
 ; Create a stream
 ;
@@ -52,7 +54,7 @@
 ; CHECK-SAME: ptr %[[STREAM]],
 ; CHECK-SAME: i64 0,
 ; CHECK-SAME: i64 %n,
-; CHECK-SAME: i64 1,
+; CHECK-SAME: i64 %[[GS]],
 ; CHECK-SAME: ptr %c,
 ; CHECK-SAME: i64 %n
 ; CHECK-SAME: )
@@ -66,34 +68,33 @@
 ; CHECK-DAG: #[[FBATTR]] = { kit_fb kit_tt(4) }
 ; CHECK-DAG: #[[KPATTR]] = { kit_tt(4) "kit_kernel_props"="[[KNAME]]" }
 
-target triple = "x86_64-pc-linux-gnu"
-
 define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  br label %forall.detach
+  br label %header
 
-forall.detach:
-  %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.body:
-  %arrayidx = getelementptr inbounds i32, ptr %c, i64 %indvars.iv
+body:
+  %arrayidx = getelementptr i32, ptr %c, i64 %i
   store i64 %n, ptr %arrayidx, align 4
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2}
+!0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 4}
+!3 = !{!"tapir.loop.lowering.enabled"}

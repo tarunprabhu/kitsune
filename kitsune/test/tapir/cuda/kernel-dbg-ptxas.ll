@@ -9,19 +9,17 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_80 \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='kit-lowering<O2>,kit-cgfb' -cgfb-### %s -o /dev/null 2>&1 \
+; RUN:     -passes='loop-spawning,kit-cgfb' -cgfb-### %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,DEFAULT
 ;
 ; RUN: not --crash opt --tapir=cuda --tapir-cuda-arch=sm_80 --cgfb-ptxas-O3 \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='kit-lowering<O2>,kit-cgfb' -cgfb-### %s -o /dev/null 2>&1 \
+; RUN:     -passes='loop-spawning,kit-cgfb' -cgfb-### %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,OVERRIDE
 ;
 ; ALL: /ptxas
 ; DEFAULT-SAME: --opt-level 0
 ; OVERRIDE-SAME: --opt-level 3
-
-target triple = "x86_64-unknown-linux-gnu"
 
 define void @_Z4add1Pfl(ptr %a, i64 %n) !dbg !261 {
 entry:
@@ -29,32 +27,31 @@ entry:
     #dbg_value(ptr %a, !267, !DIExpression(), !273)
     #dbg_value(i64 %n, !268, !DIExpression(), !273)
     #dbg_value(i64 0, !269, !DIExpression(), !274)
-  %cmp4 = icmp sgt i64 %n, 0, !dbg !275
-  br i1 %cmp4, label %forall.detach, label %forall.sync, !dbg !276
+  br label %header, !dbg !276
 
-forall.detach:                                    ; preds = %entry, %forall.inc
-  %i.05 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
-    #dbg_value(i64 %i.05, !269, !DIExpression(), !274)
-  detach within %syncreg, label %forall.body, label %forall.inc, !dbg !276
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+    #dbg_value(i64 %i, !269, !DIExpression(), !274)
+  detach within %syncreg, label %body, label %latch, !dbg !276
 
-forall.body:                                      ; preds = %forall.detach
-    #dbg_value(i64 %i.05, !271, !DIExpression(), !277)
-  %arrayidx = getelementptr inbounds nuw float, ptr %a, i64 %i.05, !dbg !278
+body:
+    #dbg_value(i64 %i, !271, !DIExpression(), !277)
+  %arrayidx = getelementptr nuw float, ptr %a, i64 %i, !dbg !278
   %0 = load float, ptr %arrayidx, align 4, !dbg !279, !tbaa !280
   %add = fadd float %0, 1.000000e+00, !dbg !279
   store float %add, ptr %arrayidx, align 4, !dbg !279, !tbaa !280
-  reattach within %syncreg, label %forall.inc, !dbg !278
+  reattach within %syncreg, label %latch, !dbg !278
 
-forall.inc:                                       ; preds = %forall.body, %forall.detach
-  %inc = add nuw nsw i64 %i.05, 1, !dbg !284
-    #dbg_value(i64 %inc, !269, !DIExpression(), !274)
-  %exitcond.not = icmp eq i64 %inc, %n, !dbg !275
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !dbg !276, !llvm.loop !285
+latch:
+  %i.next = add i64 %i, 1, !dbg !284
+    #dbg_value(i64 %i.next, !269, !DIExpression(), !274)
+  %cmp.i = icmp eq i64 %i.next, %n, !dbg !275
+  br i1 %cmp.i, label %sync, label %header, !dbg !276, !llvm.loop !285
 
-forall.sync:                                      ; preds = %forall.inc, %entry
-  sync within %syncreg, label %forall.end, !dbg !289
+sync:
+  sync within %syncreg, label %exit, !dbg !289
 
-forall.end:                                       ; preds = %forall.sync
+exit:
   ret void, !dbg !290
 }
 
@@ -350,7 +347,7 @@ forall.end:                                       ; preds = %forall.sync
 !285 = distinct !{!285, !276, !286, !287, !291, !288}
 !286 = !DILocation(line: 5, column: 15, scope: !270)
 !287 = !{!"tapir.loop.spawn.strategy", i32 3}
-!288 = !{!"llvm.loop.unroll.disable"}
+!288 = !{!"tapir.loop.lowering.enabled"}
 !289 = !DILocation(line: 4, column: 5, scope: !272)
 !290 = !DILocation(line: 6, column: 1, scope: !261)
 !291 = !{!"tapir.loop.target", i32 2}

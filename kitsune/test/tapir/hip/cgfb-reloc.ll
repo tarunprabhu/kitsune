@@ -9,7 +9,7 @@
 ; RUN: %kit-enc --tapir=hip %s \
 ; RUN:     | opt --tapir=hip --tapir-hip-arch=gfx906 --tapir-lld=ld.lld -S \
 ; RUN:           --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:           -passes='tapir-lowering<O1>,kit-cgfb' \
+; RUN:           -passes='kit-cgfb' \
 ; RUN:           -cgfb-debug-target-machine 2>&1 \
 ; RUN:     | FileCheck %s
 ;

@@ -7,7 +7,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='tapir-lowering<O1>' %s \
+; RUN:     -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -36,30 +36,30 @@
 define void @p(ptr %a, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+  br label %header
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  detach within %syncreg, label %for.i.body, label %for.i.latch
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-for.i.body:
-  %a.i = getelementptr inbounds i64, ptr %a, i64 %i
+body:
+  %a.i = getelementptr i64, ptr %a, i64 %i
   store i64 %i, ptr %a.i
-  reattach within %syncreg, label %for.i.latch
+  reattach within %syncreg, label %latch
 
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %n
-  br i1 %exitcond.i.not, label %for.i.sync, label %for.i.header, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-for.i.sync:
-  sync within %syncreg, label %for.i.exit
+sync:
+  sync within %syncreg, label %exit
 
-for.i.exit:
+exit:
   ret void
 }
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.target", i32 2}
 !2 = !{!"tapir.loop.spawn.strategy", i32 3}
-
+!3 = !{!"tapir.loop.lowering.enabled"}

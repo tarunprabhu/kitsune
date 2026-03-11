@@ -9,15 +9,13 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='tapir-lowering<O2>' -S %s \
+; RUN:     -passes='loop-spawning' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: define {{.+}} @__kithip_loop_test.cpp_6_3(
 ; CHECK-DAG: define {{.+}} @__kithip_loop_test.cpp_11_3(
 ; CHECK-DAG: define {{.+}} @__kithip_loop_test.cpp_14_3(
-
-target triple = "x86_64-unknown-linux-gnu"
 
 define void @_Z5scalePffm(ptr %buf, float %factor, i64 %n) !dbg !261 {
 entry:
@@ -26,32 +24,31 @@ entry:
     #dbg_value(float %factor, !268, !DIExpression(), !274)
     #dbg_value(i64 %n, !269, !DIExpression(), !274)
     #dbg_value(i64 0, !270, !DIExpression(), !275)
-  %cmp4.not = icmp eq i64 %n, 0, !dbg !276
-  br i1 %cmp4.not, label %forall.sync, label %forall.detach, !dbg !277
+  br label %header, !dbg !277
 
-forall.detach:
-  %i.05 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
-    #dbg_value(i64 %i.05, !270, !DIExpression(), !275)
-  detach within %syncreg, label %forall.body, label %forall.inc, !dbg !277
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+    #dbg_value(i64 %i, !270, !DIExpression(), !275)
+  detach within %syncreg, label %body, label %latch, !dbg !277
 
-forall.body:
-    #dbg_value(i64 %i.05, !272, !DIExpression(), !278)
-  %arrayidx = getelementptr inbounds float, ptr %buf, i64 %i.05, !dbg !279
+body:
+    #dbg_value(i64 %i, !272, !DIExpression(), !278)
+  %arrayidx = getelementptr float, ptr %buf, i64 %i, !dbg !279
   %0 = load float, ptr %arrayidx, align 4, !dbg !280, !tbaa !281
   %mul = fmul float %factor, %0, !dbg !280
   store float %mul, ptr %arrayidx, align 4, !dbg !280, !tbaa !281
-  reattach within %syncreg, label %forall.inc, !dbg !279
+  reattach within %syncreg, label %latch, !dbg !279
 
-forall.inc:
-  %inc = add nuw i64 %i.05, 1, !dbg !285
-    #dbg_value(i64 %inc, !270, !DIExpression(), !275)
-  %exitcond.not = icmp eq i64 %inc, %n, !dbg !276
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !dbg !277, !llvm.loop !286
+latch:
+  %i.next = add nuw i64 %i, 1, !dbg !285
+    #dbg_value(i64 %i.next, !270, !DIExpression(), !275)
+  %cmp.i = icmp eq i64 %i.next, %n, !dbg !276
+  br i1 %cmp.i, label %sync, label %header, !dbg !277, !llvm.loop !286
 
-forall.sync:
-  sync within %syncreg, label %forall.end, !dbg !291
+sync:
+  sync within %syncreg, label %exit, !dbg !291
 
-forall.end:
+exit:
   ret void, !dbg !292
 }
 
@@ -62,59 +59,58 @@ entry:
     #dbg_value(float %dist, !296, !DIExpression(), !306)
     #dbg_value(i64 %n, !297, !DIExpression(), !306)
     #dbg_value(i64 0, !298, !DIExpression(), !307)
-  %cmp23.not = icmp eq i64 %n, 0, !dbg !308
-  br i1 %cmp23.not, label %forall.sync, label %forall.detach, !dbg !309
+  br label %header, !dbg !309
 
-forall.detach:
-  %i.024 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
-    #dbg_value(i64 %i.024, !298, !DIExpression(), !307)
-  detach within %syncreg, label %forall.body, label %forall.inc, !dbg !309
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+    #dbg_value(i64 %i, !298, !DIExpression(), !307)
+  detach within %syncreg, label %body, label %latch, !dbg !309
 
-forall.body:
-    #dbg_value(i64 %i.024, !300, !DIExpression(), !310)
-  %arrayidx = getelementptr inbounds float, ptr %buf, i64 %i.024, !dbg !311
+body:
+    #dbg_value(i64 %i, !300, !DIExpression(), !310)
+  %arrayidx = getelementptr float, ptr %buf, i64 %i, !dbg !311
   %0 = load float, ptr %arrayidx, align 4, !dbg !312, !tbaa !281
   %add = fadd float %dist, %0, !dbg !312
   store float %add, ptr %arrayidx, align 4, !dbg !312, !tbaa !281
-  reattach within %syncreg, label %forall.inc, !dbg !311
+  reattach within %syncreg, label %latch, !dbg !311
 
-forall.inc:
-  %inc = add nuw i64 %i.024, 1, !dbg !313
-    #dbg_value(i64 %inc, !298, !DIExpression(), !307)
-  %exitcond.not = icmp eq i64 %inc, %n, !dbg !308
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !dbg !309, !llvm.loop !314
+latch:
+  %i.next = add nuw i64 %i, 1, !dbg !313
+    #dbg_value(i64 %i.next, !298, !DIExpression(), !307)
+  %cmp.i = icmp eq i64 %i.next, %n, !dbg !308
+  br i1 %cmp.i, label %sync, label %header, !dbg !309, !llvm.loop !314
 
-forall.sync:
-  sync within %syncreg, label %forall.cond4.preheader, !dbg !316
+sync:
+  sync within %syncreg, label %preheader2, !dbg !316
 
-forall.cond4.preheader:
+preheader2:
     #dbg_value(i64 0, !302, !DIExpression(), !317)
   %syncreg2 = tail call token @llvm.syncregion.start(), !dbg !318
-  br i1 %cmp23.not, label %forall.sync14, label %forall.detach7, !dbg !318
+  br label %header2, !dbg !318
 
-forall.detach7:
-  %i3.026 = phi i64 [ %inc13, %forall.inc12 ], [ 0, %forall.cond4.preheader ]
-    #dbg_value(i64 %i3.026, !302, !DIExpression(), !317)
-  detach within %syncreg2, label %forall.body8, label %forall.inc12, !dbg !318
+header2:
+  %j = phi i64 [ 0, %preheader2 ], [ %j.next, %latch2 ]
+    #dbg_value(i64 %j, !302, !DIExpression(), !317)
+  detach within %syncreg2, label %body2, label %latch2, !dbg !318
 
-forall.body8:
-    #dbg_value(i64 %i3.026, !304, !DIExpression(), !319)
-  %arrayidx10 = getelementptr inbounds float, ptr %buf, i64 %i3.026, !dbg !320
+body2:
+    #dbg_value(i64 %j, !304, !DIExpression(), !319)
+  %arrayidx10 = getelementptr float, ptr %buf, i64 %j, !dbg !320
   %1 = load float, ptr %arrayidx10, align 4, !dbg !321, !tbaa !281
   %2 = tail call float @llvm.fmuladd.f32(float %dist, float 2.000000e+00, float %1), !dbg !321
   store float %2, ptr %arrayidx10, align 4, !dbg !321, !tbaa !281
-  reattach within %syncreg2, label %forall.inc12, !dbg !320
+  reattach within %syncreg2, label %latch2, !dbg !320
 
-forall.inc12:
-  %inc13 = add nuw i64 %i3.026, 1, !dbg !322
-    #dbg_value(i64 %inc13, !302, !DIExpression(), !317)
-  %exitcond27.not = icmp eq i64 %inc13, %n, !dbg !323
-  br i1 %exitcond27.not, label %forall.sync14, label %forall.detach7, !dbg !318, !llvm.loop !324
+latch2:
+  %j.next = add i64 %j, 1, !dbg !322
+    #dbg_value(i64 %j.next, !302, !DIExpression(), !317)
+  %cmp.j = icmp eq i64 %j.next, %n, !dbg !323
+  br i1 %cmp.j, label %sync2, label %header2, !dbg !318, !llvm.loop !324
 
-forall.sync14:
-  sync within %syncreg2, label %forall.end15, !dbg !326
+sync2:
+  sync within %syncreg2, label %exit, !dbg !326
 
-forall.end15:
+exit:
   ret void, !dbg !327
 }
 
@@ -411,7 +407,7 @@ forall.end15:
 !286 = distinct !{!286, !277, !287, !288, !328, !290}
 !287 = !DILocation(line: 7, column: 15, scope: !271)
 !288 = !{!"tapir.loop.spawn.strategy", i32 3}
-!290 = !{!"llvm.loop.unroll.disable"}
+!290 = !{!"tapir.loop.lowering.enabled"}
 !291 = !DILocation(line: 6, column: 3, scope: !273)
 !292 = !DILocation(line: 8, column: 1, scope: !261)
 !293 = distinct !DISubprogram(name: "xlate", linkageName: "_Z5xlatePffm", scope: !262, file: !262, line: 10, type: !263, scopeLine: 10, flags: DIFlagPrototyped | DIFlagAllCallsDescribed, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !0, retainedNodes: !294)

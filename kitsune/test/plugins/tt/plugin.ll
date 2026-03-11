@@ -1,8 +1,8 @@
 ; REQUIRES: kitsune-examples
 ;
-; Check that a tapir target plugin works as expected on C++ code. We use the
-; tapir target plugin demo for consistency with the way LLVM pass plugins are
-; tested.
+; Check that a tapir target plugin works as expected when run with opt. We use
+; the tapir target plugin demo for consistency with the way LLVM pass plugins
+; are tested.
 ;
 ; RUN: opt --tapir=custom --tapir-plugin=%kit-tt-plugin-demo %s \
 ; RUN:     -S -o - -O2 \
@@ -12,36 +12,34 @@
 ; BOOKEND-NEXT: call {{.*}}void @mset{{[^(]+}}(
 ; BOOKEND-NEXT: call void @bookend
 
-target triple = "x86_64-unknown-linux-gnu"
-
 define void @mset(ptr %a, i64 %n, i64 %v) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %cmp4 = icmp sgt i64 %n, 0
-  br i1 %cmp4, label %forall.detach, label %forall.sync
+  br i1 %cmp4, label %header, label %sync
 
-forall.detach:
-  %i.05 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
-  detach within %syncreg, label %forall.body, label %forall.inc
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.body:
-  %arrayidx = getelementptr inbounds i64, ptr %a, i64 %i.05
+body:
+  %arrayidx = getelementptr i64, ptr %a, i64 %i
   store i64 %v, ptr %arrayidx, align 8
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %inc = add nuw nsw i64 %i.05, 1
-  %exitcond.not = icmp eq i64 %inc, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 4}
 !2 = !{!"tapir.loop.target", i32 2048}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}

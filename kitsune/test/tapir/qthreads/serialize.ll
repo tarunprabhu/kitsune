@@ -34,9 +34,7 @@
 define void @pep(i64 %m, i64 %n) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
-  %cmp.m = icmp sgt i64 %m, 0
-  %cmp.n = icmp sgt i64 %n, 0
-  br i1 %cmp.m, label %for.i.header, label %for.i.exit
+  br label %for.i.header
 
 for.i.header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
@@ -45,7 +43,7 @@ for.i.header:
 for.i.body:
   %syncreg.j = tail call token @llvm.syncregion.start()
   tail call void @ext1(i64 %i)
-  br i1 %cmp.n, label %for.j.header, label %for.j.exit
+  br label %for.j.header
 
 for.j.header:
   %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
