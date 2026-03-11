@@ -1731,7 +1731,8 @@ bool LoopSpawningImpl::run() {
   for (Loop *TopLevelLoop : LI)
     for (Loop *L : post_order(TopLevelLoop))
       if (Task *T = getTaskIfTapirLoop(L))
-        createTapirLoop(L, T);
+        if (hasLoweringEnabledAttr(*L))
+          createTapirLoop(L, T);
 
   if (TapirLoops.empty())
     return false;
