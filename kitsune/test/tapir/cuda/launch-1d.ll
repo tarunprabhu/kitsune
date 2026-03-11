@@ -94,6 +94,7 @@ exit:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2}
+!0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 2}
+!3 = !{!"tapir.loop.lowering.enabled"}
