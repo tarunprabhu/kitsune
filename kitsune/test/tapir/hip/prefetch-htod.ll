@@ -6,7 +6,7 @@
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-gpu-prefetch=true \
-; RUN:     -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
+; RUN:     -passes='loop-spawning,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.+}} @f1
@@ -23,73 +23,63 @@
 ;
 ; -----------------------------------------------------------------------------
 
-target triple = "x86_64-unknown-linux-gnu"
-
 define void @f1(ptr %source, ptr %dest, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %preheader, label %forall.sync
+  br label %header
 
-preheader:
-  br label %forall.detach
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.detach:
-  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
-
-forall.body:
-  %sourceidx = getelementptr inbounds float, ptr %source, i64 %indvars.iv
+body:
+  %sourceidx = getelementptr float, ptr %source, i64 %i
   %v = load float, ptr %sourceidx, align 4
-  %destidx = getelementptr inbounds float, ptr %dest, i64 %indvars.iv
+  %destidx = getelementptr float, ptr %dest, i64 %i
   store float %v, ptr %destidx, align 4
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
 define void @f2(ptr %source, ptr %dest, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %preheader, label %forall.sync
+  br label %header
 
-preheader:
-  br label %forall.detach
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.detach:
-  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
-
-forall.body:
-  %sourceidx = getelementptr inbounds float, ptr %source, i64 %indvars.iv
+body:
+  %sourceidx = getelementptr float, ptr %source, i64 %i
   %v = load float, ptr %sourceidx, align 4
-  %destidx = getelementptr inbounds float, ptr %dest, i64 %indvars.iv
+  %destidx = getelementptr float, ptr %dest, i64 %i
   store float %v, ptr %destidx, align 4
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 4}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}

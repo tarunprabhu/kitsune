@@ -5,7 +5,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 %s \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='tapir-lowering<O2>,emb-prepare' \
+; RUN:     -passes='loop-spawning,emb-prepare' \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,DEFAULT
 ;
@@ -19,7 +19,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 %s \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='tapir-lowering<O2>,emb-prepare' -emb-inline-all \
+; RUN:     -passes='loop-spawning,emb-prepare' -emb-inline-all \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,INLINE
 ;
@@ -28,9 +28,6 @@
 ;
 ; ------------------------------------------------------------------------------
 
-target triple = "x86_64-pc-linux-gnu"
-
-; Function Attrs: noinline
 define i64 @id(i64 %n) #0 {
   ret i64 %n
 }
@@ -46,15 +43,15 @@ define i64 @sieve(i64 %0) {
 
 5:
   %6 = phi i64 [ 0, %1 ], [ %8, %5 ]
-  %7 = getelementptr inbounds [256 x i8], ptr %2, i64 0, i64 %6
+  %7 = getelementptr [256 x i8], ptr %2, i64 0, i64 %6
   store i8 1, ptr %7, align 1
-  %8 = add nuw nsw i64 %6, 1
+  %8 = add i64 %6, 1
   %9 = icmp eq i64 %8, 256
   br i1 %9, label %3, label %5, !llvm.loop !5
 
 10:
   %11 = add nsw i64 %0, -1
-  %12 = getelementptr inbounds [256 x i8], ptr %2, i64 0, i64 %11
+  %12 = getelementptr [256 x i8], ptr %2, i64 0, i64 %11
   %13 = load i8, ptr %12, align 1
   %14 = trunc nuw i8 %13 to i1
   %15 = add nsw i64 %0, -2
@@ -63,7 +60,7 @@ define i64 @sieve(i64 %0) {
 16:
   %17 = phi i64 [ %31, %30 ], [ 2, %3 ]
   %18 = phi i64 [ %32, %30 ], [ 4, %3 ]
-  %19 = getelementptr inbounds [256 x i8], ptr %2, i64 0, i64 %17
+  %19 = getelementptr [256 x i8], ptr %2, i64 0, i64 %17
   %20 = load i8, ptr %19, align 1
   %21 = trunc nuw i8 %20 to i1
   %22 = and i64 %18, 4294967295
@@ -73,20 +70,20 @@ define i64 @sieve(i64 %0) {
 
 25:
   %26 = phi i64 [ %28, %25 ], [ %22, %16 ]
-  %27 = getelementptr inbounds [256 x i8], ptr %2, i64 0, i64 %26
+  %27 = getelementptr [256 x i8], ptr %2, i64 0, i64 %26
   store i8 0, ptr %27, align 1
-  %28 = add nuw nsw i64 %26, %17
+  %28 = add i64 %26, %17
   %29 = icmp sgt i64 %28, %0
   br i1 %29, label %30, label %25, !llvm.loop !6
 
 30:
-  %31 = add nuw nsw i64 %17, 1
-  %32 = mul nuw nsw i64 %31, %31
+  %31 = add i64 %17, 1
+  %32 = mul i64 %31, %31
   %33 = icmp sgt i64 %32, %0
   br i1 %33, label %10, label %16, !llvm.loop !7
 
 34:
-  %35 = getelementptr inbounds [256 x i8], ptr %2, i64 0, i64 %15
+  %35 = getelementptr [256 x i8], ptr %2, i64 0, i64 %15
   %36 = load i8, ptr %35, align 1
   %37 = zext nneg i8 %36 to i64
   %38 = add nsw i64 %37, %0
@@ -101,33 +98,29 @@ define i64 @sieve(i64 %0) {
 define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %preheader, label %forall.sync
+  br label %header
 
-preheader:
-  br label %forall.detach
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.detach:
-  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
-
-forall.body:
-  %arrayidx = getelementptr inbounds i32, ptr %c, i64 %indvars.iv
+body:
+  %arrayidx = getelementptr i32, ptr %c, i64 %i
   %.call1 = call i64 @sieve(i64 %n)
   %.call2 = call i64 @id(i64 %n)
   %.sum = add i64 %.call1, %.call2
   store i64 %.sum, ptr %arrayidx, align 4
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
@@ -136,7 +129,7 @@ attributes #0 = { noinline }
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 2}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}
 !4 = !{!"llvm.loop.mustprogress"}
 !5 = !{!5, !4, !3}
 !6 = distinct !{!6, !4, !3}

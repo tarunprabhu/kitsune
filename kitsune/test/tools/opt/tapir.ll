@@ -1,51 +1,42 @@
 ; Check that both the --tapir and --tapir-target are valid options for opt.
 ;
-; RUN: opt %s --tapir=serial -passes="tapir-lowering<O2>" -S \
-; RUN:     | FileCheck %s
-; RUN: opt %s --tapir-target=serial -passes="tapir-lowering<O2>" -S \
+; RUN: opt --tapir=pthreads -passes="loop-spawning" -disable-output \
+; RUN:     -dump-tapir-target-options 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-LABEL: @mset
-; CHECK: [[ENTRY:.+]]:
-; CHECK: [[BODY:.+]]:
-; CHECK-NEXT:  %[[IV:.+]] = phi i64 [ %[[INC:.+]], %[[BODY]] ], [ 0, %[[ENTRY]] ]
-; CHECK-NEXT:  %[[IDX:.+]] = getelementptr inbounds nuw i64, ptr %{{.}}, i64 %[[IV]]
-; CHECK-NEXT:  store i64 %{{.+}}, ptr %[[IDX]]
-; CHECK-NEXT:  %[[INC]] = add {{.*}}i64 %[[IV]], 1
-; CHECK-NEXT:  %[[COND:.+]] = icmp eq i64 %[[INC]], %{{.+}}
-; CHECK-NEXT:  br i1 %[[COND]], label %[[EXIT:.+]], label %[[BODY]]
-; CHECK: [[EXIT]]:
-
-target triple = "x86_64-unknown-linux-gnu"
+; RUN: opt --tapir-target=pthreads -passes="loop-spawning" -disable-output \
+; RUN:     -dump-tapir-target-options 2>&1 \
+; RUN:     | FileCheck %s
+;
+; CHECK: Primary: pthreads
 
 define void @mset(ptr %a, i64 %n, i64 %v) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp4 = icmp sgt i64 %n, 0
-  br i1 %cmp4, label %forall.detach, label %forall.sync
+  br label %header
 
-forall.detach:
-  %i.05 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
-  detach within %syncreg, label %forall.body, label %forall.inc
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.body:
-  %arrayidx = getelementptr inbounds i64, ptr %a, i64 %i.05
+body:
+  %arrayidx = getelementptr i64, ptr %a, i64 %i
   store i64 %v, ptr %arrayidx, align 8
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %inc = add nuw nsw i64 %i.05, 1
-  %exitcond.not = icmp eq i64 %inc, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 1}
 !2 = !{!"tapir.loop.target", i32 1}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}

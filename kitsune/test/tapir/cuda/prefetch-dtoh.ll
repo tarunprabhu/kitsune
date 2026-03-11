@@ -10,7 +10,7 @@
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:     --tapir-gpu-prefetch=true \
-; RUN:     -passes='tapir-lowering<O2>,kit-prefetch' -S %s \
+; RUN:     -passes='loop-spawning,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.+}} @f
@@ -20,40 +20,34 @@
 ;
 ; -----------------------------------------------------------------------------
 
-target triple = "x86_64-unknown-linux-gnu"
-
 declare void @printf32(float)
 
 define void @f(ptr %c, float %scale, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %preheader, label %forall.sync
+  br label %header
 
-preheader:
-  br label %forall.detach
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.detach:
-  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
-
-forall.body:
-  %arrayidx = getelementptr inbounds float, ptr %c, i64 %indvars.iv
+body:
+  %arrayidx = getelementptr float, ptr %c, i64 %i
   %v = load float, ptr %arrayidx, align 4
   %scaled = fmul float %v, %scale
   store float %scaled, ptr %arrayidx, align 4
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %end
 
-forall.end:
-  %postidx = getelementptr inbounds float, ptr %c, i64 %n
+end:
+  %postidx = getelementptr float, ptr %c, i64 %n
   %w = load float, ptr %postidx, align 4
   call void @printf32(float %w)
   br label %exit
@@ -65,4 +59,4 @@ exit:
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 2}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}

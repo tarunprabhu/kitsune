@@ -1,70 +1,69 @@
 ; Check that the loop bounds of the tapir loop are correctly replaced in the
 ; outlined kernel function when a 1D kernel is launched.
 ;
-; NOTE: Currently, we use a grainsize of 1 i.e. every thread computes a single
-; iteration of the tapir loop, but if that changes, this test must be updated.
+; NOTE: The upper bounds is determined by the grainsize. We deliberately do not
+; check for the actual grainsize here. That will be tested elsewhere. This is
+; only intended to check the bounds.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch="sm_72" \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='tapir-lowering<O2>' -S %s \
+; RUN:     -passes='loop-spawning' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: define {{.+}}(i64 {{.*}}%[[UB:[^,]+]], i64 {{[^,]+}}, i64 {{[^,]+}}, ptr {{.*}}%[[BUF:[^,]+]], i64 {{.*}}%[[N:[^)]+]]) #[[ATTRS:[0-9]+]]
+; CHECK: define {{.+}}(
+; CHECK-SAME: i64 {{[^,]+}},
+; CHECK-SAME: i64 {{[^,]+}},
+; CHECK-SAME: i64 {{[^,]+}},
+; CHECK-SAME: ptr {{.*}}%[[BUF:[^,]+]],
+; CHECK-SAME: i64 {{.*}}%[[N:[^)]+]])
 ; CHECK-NEXT: [[PREHEADER:.+]]:
 ; CHECK: %[[TID:.+]] = {{.*}}call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
 ; CHECK: %[[BIDX:.+]] = {{.*}}call i32 @llvm.nvvm.read.ptx.sreg.ctaid.x()
 ; CHECK: %[[BDIM:.+]] = {{.*}}call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
 ; CHECK: %[[BOFF:.+]] = mul i32 %[[BIDX]], %[[BDIM]]
 ; CHECK: %[[IV32:.+]] = add i32 %[[TID]], %[[BOFF]]
-; CHECK: %[[TIV:.+]] = zext i32 %[[IV32]] to i64
-; CHECK: %[[TEND:.+]] = add i64 %[[TIV]], 1
+; CHECK: %[[IV_START:.+]] = zext i32 %[[IV32]] to i64
+; CHECK: %[[IV_END:.+]] = add i64 %[[IV_START]]
 ;
 ; CHECK: [[HEADER:.+]]:
-; CHECK: %[[IV:.+]] = phi i64 [ %[[IV_NEXT:.+]], %[[LATCH:.+]] ], [ %[[TIV]], %[[PREHEADER]] ]
-; CHECK: %[[IV_NEXT:.+]] = add {{.*}}i64 %[[IV]], 1
-; CHECK: %[[COND:.+]] = icmp eq i64 %[[IV_NEXT]], %[[TEND]]
-; CHECK: br i1 %[[COND]], label %[[BBEXIT:.+]], label %[[HEADER]]
+; CHECK: %[[IV:.+]] = phi i64
+; CHECK-SAME: [ %[[IV_START]], %[[PREHEADER]] ]
+; CHECK-SAME: [ %[[IV_NEXT:.+]], %[[LATCH:.+]] ]
+; CHECK: %[[IV_NEXT:.+]] = add {{.*}}i64 %[[IV]]
+; CHECK: %[[COND:.+]] = icmp eq i64 %[[IV_NEXT]], %[[IV_END]]
+; CHECK: br i1 %[[COND]], label %[[EXIT:.+]], label %[[HEADER]]
 ;
-; CHECK: [[BBEXIT]]:
+; CHECK: [[EXIT]]:
 ; CHECK-NEXT: ret void
-;
-; CHECK: attributes #[[ATTRS]] = {
-; CHECK-SAME: kit_kernel
-
-target triple = "x86_64-pc-linux-gnu"
 
 define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %preheader, label %forall.sync
+  br label %header
 
-preheader:
-  br label %forall.detach
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.detach:
-  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
-
-forall.body:
-  %arrayidx = getelementptr inbounds i32, ptr %c, i64 %indvars.iv
+body:
+  %arrayidx = getelementptr i32, ptr %c, i64 %i
   store i64 %n, ptr %arrayidx, align 4
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 2}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}

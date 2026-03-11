@@ -15,8 +15,6 @@
 ; CHECK-NEXT: from function 'hip_pthreads'
 ; CHECK-NEXT: target on ancestor loop is 'hip'
 
-target triple = "x86_64-unknown-linux-gnu"
-
 define void @hip_pthreads(i64 %m, i64 %n, i64 %p) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()

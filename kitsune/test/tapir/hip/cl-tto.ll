@@ -11,19 +11,18 @@
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-lld="%S/input/ld.lld" 2>&1 \
 ; RUN:     -dump-tapir-target-options \
-; RUN:     -passes="tapir-lowering<O2>" -o /dev/null %s \
+; RUN:     -passes="loop-spawning" -o /dev/null %s \
 ; RUN:     | FileCheck %s -check-prefixes ALL,CHECK
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-gpu-prefetch=true 2>&1 \
 ; RUN:     -dump-tapir-target-options \
-; RUN:     -passes="tapir-lowering<O2>" -o /dev/null %s \
+; RUN:     -passes="loop-spawning" -o /dev/null %s \
 ; RUN:     | FileCheck %s -check-prefixes ALL,PREFETCH
 ;
 ; ALL:       Tapir target options
 ; ALL:       Primary: hip
-; CHECK:     Optimization level: O2
 ; CHECK:     GPU fixed threads/block: 64
 ; CHECK:     GPU max threads/block: 128
 ; CHECK:     GPU prefetch: 0

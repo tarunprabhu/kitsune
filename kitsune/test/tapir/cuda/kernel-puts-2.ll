@@ -3,7 +3,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='tapir-lowering<O2>,emb-resolve-libdevice-calls' %s \
+; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -13,8 +13,6 @@
 ; CHECK: call i32 @vprintf(
 ; CHECK-NOT: @puts
 
-target triple = "x86_64-pc-linux-gnu"
-
 @.str.1 = private unnamed_addr constant [7 x i8] c"Line 1\00", align 1
 @.str.2 = private unnamed_addr constant [7 x i8] c"Line 2\00", align 1
 
@@ -23,34 +21,30 @@ declare i32 @puts(ptr)
 define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %preheader, label %forall.sync
+  br label %header
 
-preheader:
-  br label %forall.detach
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.detach:
-  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
-
-forall.body:
+body:
   %call1 = call i32 @puts(ptr @.str.1)
   %call2 = call i32 @puts(ptr @.str.2)
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 2}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}

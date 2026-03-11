@@ -26,54 +26,48 @@
 ; CHECK: %[[IV:.+]] = phi i64
 ; CHECK: %[[V0:.+]] = tail call fastcc ptr @id(ptr %[[CSTA]])
 ; CHECK: %[[V1:.+]] = ptrtoint ptr %[[CSTB]] to i64
-; CHECK: %[[V2:.+]] = getelementptr inbounds ptr, ptr %[[CSTC]], i64 %[[IV]]
+; CHECK: %[[V2:.+]] = getelementptr ptr, ptr %[[CSTC]], i64 %[[IV]]
 ; CHECK: %[[V3:.+]] = load i64, ptr %[[CSTA]]
 ; CHECK: store ptr %[[V2]], ptr %[[CSTB]]
 ; CHECK: %[[V4:.+]] = add i64 %[[V1]], %[[V3]]
 ; CHECK: store i64 %[[V4]], ptr %[[V2]]
 
-target triple = "x86_64-pc-linux-gnu"
-
 define ptr @id(ptr %p) {
   ret ptr %p
 }
 
-define dso_local void @f(ptr %a, ptr %b, ptr %c, i64 %n) {
+define void @f(ptr %a, ptr %b, ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %preheader, label %forall.sync
+  br label %header
 
-preheader:
-  br label %forall.detach
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+  detach within %syncreg, label %body, label %latch
 
-forall.detach:
-  %indvars.iv = phi i64 [ 0, %preheader ], [ %indvars.iv.next, %forall.inc ]
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  detach within %syncreg, label %forall.body, label %forall.inc
-
-forall.body:
+body:
   %0 = tail call ptr @id(ptr %a)
   %1 = ptrtoint ptr %b to i64
-  %2 = getelementptr inbounds ptr, ptr %c, i64 %indvars.iv
+  %2 = getelementptr ptr, ptr %c, i64 %i
   %3 = load i64, ptr %a
   store ptr %2, ptr %b
   %4 = add i64 %1, %3
   store i64 %4, ptr %2
-  reattach within %syncreg, label %forall.inc
+  reattach within %syncreg, label %latch
 
-forall.inc:
-  %exitcond.not = icmp eq i64 %indvars.iv.next, %n
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !llvm.loop !0
+latch:
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
-forall.sync:
-  sync within %syncreg, label %forall.end
+sync:
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 
 !0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 4}
-!3 = !{!"llvm.loop.unroll.disable"}
+!3 = !{!"tapir.loop.lowering.enabled"}

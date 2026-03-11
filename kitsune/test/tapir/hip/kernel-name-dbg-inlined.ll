@@ -23,7 +23,7 @@
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='module-inline,tapir-lowering<O2>' -S %s \
+; RUN:     -passes='module-inline,loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @[[KERN_VECADD:.+]] = private {{.+}} c"__kithip_loop_test.cpp_4_3\00"
@@ -32,19 +32,17 @@
 ;
 ; CHECK: define void @vecadd
 ; CHECK: call {{.+}} @llvm.kit.async.launch.kernel
-; CHECK-SAME: ptr nonnull @[[KERN_VECADD]]
+; CHECK-SAME: ptr @[[KERN_VECADD]]
 ;
 ; CHECK: define void @f
 ; CHECK: call {{.+}} @llvm.kit.async.launch.kernel
-; CHECK-SAME: ptr nonnull @[[KERN_F]]
+; CHECK-SAME: ptr @[[KERN_F]]
 ;
 ; CHECK: define void @g
 ; CHECK: call {{.+}} @llvm.kit.async.launch.kernel
-; CHECK-SAME: ptr nonnull @[[KERN_G]]
+; CHECK-SAME: ptr @[[KERN_G]]
 
-target triple = "x86_64-unknown-linux-gnu"
-
-define void @vecadd(ptr %c, ptr %a, ptr %b, i64 %n) #0 !dbg !259 {
+define void @vecadd(ptr %c, ptr %a, ptr %b, i64 %n) !dbg !259 {
 entry:
   %syncreg = tail call token @llvm.syncregion.start(), !dbg !273
     #dbg_value(ptr %c, !265, !DIExpression(), !273)
@@ -52,41 +50,38 @@ entry:
     #dbg_value(ptr %b, !267, !DIExpression(), !273)
     #dbg_value(i64 %n, !268, !DIExpression(), !273)
     #dbg_value(i64 0, !269, !DIExpression(), !274)
-  %cmp8 = icmp sgt i64 %n, 0, !dbg !275
-  br i1 %cmp8, label %forall.detach, label %forall.sync, !dbg !276
+  br label %header, !dbg !276
 
-forall.detach:
-  %i.09 = phi i64 [ %inc, %forall.inc ], [ 0, %entry ]
-    #dbg_value(i64 %i.09, !269, !DIExpression(), !274)
-  detach within %syncreg, label %forall.body, label %forall.inc, !dbg !276
+header:
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
+    #dbg_value(i64 %i, !269, !DIExpression(), !274)
+  detach within %syncreg, label %body, label %latch, !dbg !276
 
-forall.body:
-    #dbg_value(i64 %i.09, !271, !DIExpression(), !277)
-  %arrayidx = getelementptr inbounds nuw i32, ptr %a, i64 %i.09, !dbg !278
+body:
+    #dbg_value(i64 %i, !271, !DIExpression(), !277)
+  %arrayidx = getelementptr nuw i32, ptr %a, i64 %i, !dbg !278
   %0 = load i32, ptr %arrayidx, align 4, !dbg !278, !tbaa !280
-  %arrayidx2 = getelementptr inbounds nuw i32, ptr %b, i64 %i.09, !dbg !284
+  %arrayidx2 = getelementptr nuw i32, ptr %b, i64 %i, !dbg !284
   %1 = load i32, ptr %arrayidx2, align 4, !dbg !284, !tbaa !280
   %add = add nsw i32 %1, %0, !dbg !285
-  %arrayidx3 = getelementptr inbounds nuw i32, ptr %c, i64 %i.09, !dbg !286
+  %arrayidx3 = getelementptr nuw i32, ptr %c, i64 %i, !dbg !286
   store i32 %add, ptr %arrayidx3, align 4, !dbg !287, !tbaa !280
-  reattach within %syncreg, label %forall.inc, !dbg !288
+  reattach within %syncreg, label %latch, !dbg !288
 
-forall.inc:
-  %inc = add nuw nsw i64 %i.09, 1, !dbg !289
-    #dbg_value(i64 %inc, !269, !DIExpression(), !274)
-  %exitcond.not = icmp eq i64 %inc, %n, !dbg !275
-  br i1 %exitcond.not, label %forall.sync, label %forall.detach, !dbg !276, !llvm.loop !290
+latch:
+  %i.next = add i64 %i, 1, !dbg !289
+    #dbg_value(i64 %i.next, !269, !DIExpression(), !274)
+  %cmp.i = icmp eq i64 %i.next, %n, !dbg !275
+  br i1 %cmp.i, label %sync, label %header, !dbg !276, !llvm.loop !290
 
-forall.sync:
-  sync within %syncreg, label %forall.end, !dbg !293
+sync:
+  sync within %syncreg, label %exit, !dbg !293
 
-forall.end:
+exit:
   ret void, !dbg !294
 }
 
-declare token @llvm.syncregion.start() #1
-
-define void @f(ptr %c, ptr %a, i64 %n) #0 !dbg !295 {
+define void @f(ptr %c, ptr %a, i64 %n) !dbg !295 {
 entry:
     #dbg_value(ptr %c, !299, !DIExpression(), !302)
     #dbg_value(ptr %a, !300, !DIExpression(), !302)
@@ -95,7 +90,7 @@ entry:
   ret void, !dbg !304
 }
 
-define void @g(ptr %c, ptr %a, ptr %b, i64 %n) #0 !dbg !305 {
+define void @g(ptr %c, ptr %a, ptr %b, i64 %n) !dbg !305 {
 entry:
     #dbg_value(ptr %c, !307, !DIExpression(), !311)
     #dbg_value(ptr %a, !308, !DIExpression(), !311)
@@ -104,9 +99,6 @@ entry:
   call void @vecadd(ptr %c, ptr %a, ptr %b, i64 %n), !dbg !312
   ret void, !dbg !313
 }
-
-attributes #0 = { mustprogress nounwind memory(argmem: readwrite) uwtable }
-attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!251, !252, !253, !254, !255, !256, !257}
@@ -404,7 +396,7 @@ attributes #1 = { mustprogress nounwind willreturn memory(argmem: readwrite) }
 !289 = !DILocation(line: 4, column: 31, scope: !272)
 !290 = distinct !{!290, !276, !291, !292, !314, !315}
 !291 = !DILocation(line: 6, column: 3, scope: !270)
-!292 = !{!"llvm.loop.unroll.disable"}
+!292 = !{!"tapir.loop.lowering.enabled"}
 !293 = !DILocation(line: 4, column: 3, scope: !272)
 !294 = !DILocation(line: 7, column: 1, scope: !259)
 !295 = distinct !DISubprogram(name: "f", scope: !260, file: !260, line: 9, type: !296, scopeLine: 9, flags: DIFlagPrototyped | DIFlagAllCallsDescribed, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !0, retainedNodes: !298)
