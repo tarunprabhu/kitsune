@@ -1,4 +1,4 @@
-//===- PthreadsTT.h - Tapir target using POSIX threads ---------*- C++ -*--===//
+//===- PthreadsTT.h - Tapir target that lowers to pthreads -----*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,8 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Tapir target that lowers to Kitsune pthreads runtime. This runtime targets
-// POSIX threads.
+// Tapir target that lowers to POSIX threads (pthreads).
 //
 //===----------------------------------------------------------------------===//
 
@@ -41,7 +40,7 @@ public:
 
   /// Process function \p f before any function outlining is performed. This
   /// routine should not modify the CFG structure, unless it processes all Tapir
-  /// instructions in \p F itself. Returns true if it modifies the CFG, false
+  /// instructions in \p f itself. Returns true if it modifies the CFG, false
   /// otherwise.
   bool preProcessFunction(Function &f, TaskInfo &ti,
                           bool processingTapirLoops) override final {
@@ -84,7 +83,7 @@ public:
     // target can spawn subtasks.
   }
 
-  /// Post-process the root Function \p F as a function that can spawn subtasks.
+  /// Post-process the root Function \p f as a function that can spawn subtasks.
   void postProcessRootSpawner(Function &f, BasicBlock *tfEntry) override final {
     // Nothing to do here because none of the functions processed by this tapir
     // target can spawn subtasks.

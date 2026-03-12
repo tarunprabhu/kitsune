@@ -1,4 +1,4 @@
-//===- QthreadsTT.cpp - Implementation of the qthreads tapir target -------===//
+//===- QthreadsTT.cpp - Tapir target that lowers to Qthreads --------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,8 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements lowering to convert Tapir instructions into calls to
-// Kitsune's qthreads (POSIX threads) runtime.
+// Tapir target that lowers to Qthreads.
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,16 +20,18 @@
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
-using namespace llvm;
-
 #define DEBUG_TYPE "qthreadstt"
 
-/// Get the actual grainsize that is to be used. In this tapir target, we do
-/// not use a grain size, so always return 0. Otherwise, this will have to be
-/// a call to a function from the runtime that calculates the grainsize, or
-/// the results of the analysis on the loop that determines an appropriate
-/// grainsize to use.
+using namespace llvm;
+
+/// Get the actual grainsize that is to be used. In this tapir target, we do not
+/// use a grain size, so always return 0. Otherwise, this will have to be a call
+/// to a function from the runtime that calculates the grainsize, or the results
+/// of the analysis on the loop that determines an appropriate grainsize value
+/// to use.
 static Value *getGrainSize(Type *type) { return ConstantInt::get(type, 0); }
+
+namespace {
 
 /// \ingroup kitsune
 class QthreadsLoop : public LoopOutlineProcessor {
@@ -95,9 +96,6 @@ protected:
   }
 
 public:
-  /// Create a loop outline processor for the qthreads tapir target.
-  /// \param m The host module
-  /// \param ttOpts The tapir target options
   QthreadsLoop(Module &m, const TTOptions &ttOpts)
       : LoopOutlineProcessor(m, m, ttOpts,
                              CloneFunctionChangeType::GlobalChanges) {}
@@ -134,6 +132,8 @@ public:
     replCall->eraseFromParent();
   }
 };
+
+} // namespace
 
 QthreadsTT::QthreadsTT(Module &m, const TTOptions &ttOpts)
     : TapirTarget(m, ttOpts) {}
