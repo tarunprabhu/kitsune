@@ -60,18 +60,8 @@ static void annotateTapirLoopsForGPU(Loop &root, ScalarEvolution &se,
     addPerfectLevelAttr(*perfectLoops[d - 1], d);
 }
 
-template <>
-bool RequirablePass<AnnotateTapirLoopsPass>::hasRun(const Module &m) {
-  return hasLoopsAnnotatedAttr(m);
-}
-
 PreservedAnalyses AnnotateTapirLoopsPass::run(Module &m,
                                               ModuleAnalysisManager &mam) {
-  // Add an attribute to indicate that the pass has been run. This is added
-  // unconditionally, even if the pass does not change the module in any other
-  // way.
-  addLoopsAnnotatedAttr(m);
-
   FunctionAnalysisManager &fam =
       mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
 
@@ -105,4 +95,10 @@ PreservedAnalyses AnnotateTapirLoopsPass::run(Module &m,
   // At best, this pass will only change the metadata on existing loops and the
   // module. It will not add or remove any loops, or change any other code.
   return PreservedAnalyses::all();
+}
+
+void AnnotateTapirLoopsPass::setHasRun(Module &m) { addLoopsAnnotatedAttr(m); }
+
+bool AnnotateTapirLoopsPass::hasRun(const Module &m) {
+  return hasLoopsAnnotatedAttr(m);
 }

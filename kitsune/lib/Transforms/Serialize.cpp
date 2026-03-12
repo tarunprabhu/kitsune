@@ -189,14 +189,7 @@ static bool run(Function &f, FunctionAnalysisManager &am) {
   return changed;
 }
 
-template <> bool RequirablePass<SerializePass>::hasRun(const Module &m) {
-  return hasLoopsSerializedAttr(m);
-}
-
 PreservedAnalyses SerializePass::run(Module &m, ModuleAnalysisManager &mam) {
-  checkReqdPassesHaveRun(m);
-  addLoopsSerializedAttr(m);
-
   bool changed = false;
   FunctionAnalysisManager &fam =
       mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
@@ -208,4 +201,10 @@ PreservedAnalyses SerializePass::run(Module &m, ModuleAnalysisManager &mam) {
   if (changed)
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
+}
+
+void SerializePass::setHasRun(Module &m) { addLoopsSerializedAttr(m); }
+
+bool SerializePass::hasRun(const Module &m) {
+  return hasLoopsSerializedAttr(m);
 }

@@ -14,7 +14,7 @@
 #ifndef KITSUNE_TRANSFORMS_ANNOTATE_TAPIR_LOOPS_H
 #define KITSUNE_TRANSFORMS_ANNOTATE_TAPIR_LOOPS_H
 
-#include "kitsune/Passes/RequirablePass.h"
+#include "kitsune/Passes/PassUtils.h"
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
@@ -22,11 +22,15 @@ namespace llvm {
 /// \ingroup kitsune
 /// Analyze tapir loops and add annotations that will be used by passes that run
 /// later in the pipeline.
-class AnnotateTapirLoopsPass : public PassInfoMixin<AnnotateTapirLoopsPass>,
-                               public RequirablePass<AnnotateTapirLoopsPass> {
+class AnnotateTapirLoopsPass : public PassInfoMixin<AnnotateTapirLoopsPass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
+
+  void setHasRun(Module &m);
+  static bool hasRun(const Module &m);
 };
+
+static_assert(check_pass_requirable<AnnotateTapirLoopsPass>());
 
 } // namespace llvm
 
