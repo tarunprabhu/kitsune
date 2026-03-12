@@ -49,7 +49,7 @@
 #endif
 
 #if KITSUNE_SERIAL_ENABLED
-#include "llvm/Transforms/Tapir/SerialABI.h"
+#include "kitsune/Targets/SerialTT.h"
 #endif
 
 using namespace llvm;
@@ -156,7 +156,7 @@ static std::unique_ptr<TapirTarget> makeRealmTT(Module &m,
 static std::unique_ptr<TapirTarget> makeSerialTT(Module &m,
                                                  const TTOptions &tto) {
 #if KITSUNE_SERIAL_ENABLED
-  return std::make_unique<SerialABI>(m, tto);
+  return std::make_unique<SerialTT>(m, tto);
 #else
   fatalTTNotEnabled(TTID::Serial);
 #endif
