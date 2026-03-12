@@ -1,8 +1,7 @@
 ; Check that linking libdevice bitcode multiple times does not result in
 ; duplicate definitions or creation of a symbol with an additional LLVM suffix.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
+; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
 ; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls,emb-link-libdevice-bitcode,emb-link-libdevice-bitcode' \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s

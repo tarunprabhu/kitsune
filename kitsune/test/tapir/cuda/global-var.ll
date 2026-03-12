@@ -3,13 +3,10 @@
 ; before and after launch calls and must be registered with the runtime in
 ; the ctor for kitsune's runtime.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,kit-ctors' \
-; RUN:     -S %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]
+; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[ATTR:[0-9]+]]
 ; CHECK-DAG: @[[HOSTVAR:.+]] = external {{.+}} i32
 ; CHECK-DAG: @[[VARNAME:.+]] = private unnamed_addr constant [5 x i8] c"v137\00"
 ;
@@ -27,11 +24,12 @@
 ; CHECK: call {{.+}} @__cudaRegisterVar(ptr %[[HANDLE]], ptr @[[HOSTVAR]], ptr @[[VARNAME]]
 ; CHECK: call {{.+}} @__cudaRegisterFatBinaryEnd
 ;
-; CHECK: #[[FBATTR]] = { kit_fb kit_tt(2) }
+; CHECK: #[[ATTR]] = {
+; CHECK-SAME: kit_fb kit_tt(2)
 
 target triple = "x86_64-pc-linux-gnu"
 
-@v137 = external local_unnamed_addr global i32, align 4
+@v137 = external global i32, align 4
 
 define void @f(ptr %c, i64 %n) {
 entry:

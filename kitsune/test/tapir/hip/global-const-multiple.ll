@@ -1,9 +1,7 @@
 ; Check that if the same constant global is used in two separate tapir loops,
 ; only a single instance of the global is created in the kernel module.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning' %s \
+; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -68,7 +66,7 @@ body:
 latch:
   %i.next = add nuw i64 %i, 1
   %cmp.i = icmp eq i64 %i.next, %n
-  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !4
 
 sync:
   sync within %syncreg, label %exit
@@ -81,3 +79,4 @@ exit:
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 4}
 !3 = !{!"tapir.loop.lowering.enabled"}
+!4 = distinct !{!4, !1, !2, !3}

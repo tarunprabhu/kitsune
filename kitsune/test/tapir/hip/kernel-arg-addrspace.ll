@@ -2,10 +2,7 @@
 ; address space. The arguments to the device functions do not need to be in any
 ; particular address space.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     --tapir-hip-features="+16-bit-insts" \
-; RUN:     -passes='loop-spawning,emb-prepare' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning,emb-prepare' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

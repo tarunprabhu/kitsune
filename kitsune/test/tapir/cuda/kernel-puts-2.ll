@@ -1,8 +1,7 @@
 ; When multiple calls to puts exist, only a single global containing the format
 ; string should be created.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
 ; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s

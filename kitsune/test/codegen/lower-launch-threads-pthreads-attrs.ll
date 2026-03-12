@@ -14,7 +14,7 @@
 ; CHECK: attributes #[[SYNC]] = { "sync" }
 
 ; This needs a triple in order to correctly initialize the target library.
-target triple = "x86_64-unknown-linux-gnu"
+target triple = "x86_64-pc-linux-gnu"
 
 @gbuf = external global [7 x float]
 

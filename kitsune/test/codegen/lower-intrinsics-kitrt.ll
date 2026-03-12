@@ -27,7 +27,7 @@
 ;
 ; ------------------------------------------------------------------------------
 
-target triple = "x86_64-unknown-linux-gnu"
+target triple = "x86_64-pc-linux-gnu"
 
 define void @f() {
   call void @llvm.kit.enable.verbose(i8 1)

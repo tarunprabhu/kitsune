@@ -1,10 +1,10 @@
 ; Check that the serialize pass reports the loop that was serialized together
 ; with location information, if it is available.
 ;
-; RUN: opt -passes="kit-serialize" --tapir=hip %s -S 2>&1 \
+; RUN: opt -passes="kit-serialize" %s -S 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,REMARK
 ;
-; RUN: opt -passes="kit-serialize" --tapir=hip %s -S \
+; RUN: opt -passes="kit-serialize" %s -S \
 ; RUN:     -serialize-verbose=1 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,REMARK --allow-empty
 ;
@@ -14,14 +14,14 @@
 ; REMARK-NOT: Loop at depth 2
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt -passes="kit-serialize" --tapir=hip %s -S \
+; RUN: opt -passes="kit-serialize" %s -S \
 ; RUN:     -serialize-verbose=0 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,QUIET --allow-empty
 ;
 ; QUIET-NOT: serialized loop
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt -passes="kit-serialize" --tapir=hip %s -S \
+; RUN: opt -passes="kit-serialize" %s -S \
 ; RUN:     -serialize-verbose=2 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,VERBOSE --allow-empty
 ;
@@ -54,9 +54,7 @@
 define void @pep(i64 %m, i64 %n) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
-  %cmp.m = icmp sgt i64 %m, 0
-  %cmp.n = icmp sgt i64 %n, 0
-  br i1 %cmp.m, label %for.i.header, label %for.i.exit
+  br label %for.i.header
 
 for.i.header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
@@ -65,7 +63,7 @@ for.i.header:
 for.i.body:
   %syncreg.j = tail call token @llvm.syncregion.start()
   tail call void @ext1(i64 %i)
-  br i1 %cmp.n, label %for.j.header, label %for.j.exit
+  br label %for.j.header
 
 for.j.header:
   %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]

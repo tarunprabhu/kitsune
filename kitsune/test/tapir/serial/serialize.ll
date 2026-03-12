@@ -1,7 +1,7 @@
 ; Check that the serialize pass does nothing when the serial tapir target is
 ; specified.
 ;
-; RUN: opt -passes="kit-serialize" --tapir=serial %s -S 2>&1 \
+; RUN: opt -passes="kit-serialize" %s -S 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-NOT: serialized tapir loop

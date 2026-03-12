@@ -1,9 +1,7 @@
 ; Check that the tapir target copies the correct module flags metadata from the
 ; host module to the device module.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

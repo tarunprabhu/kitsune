@@ -3,9 +3,7 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 %s \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,emb-prepare' \
+; RUN: opt --tapir=cuda -passes='loop-spawning,emb-prepare' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,DEFAULT
 ;
@@ -17,9 +15,8 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 %s \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,emb-prepare' -emb-inline-all \
+; RUN: opt --tapir=cuda -passes='loop-spawning,emb-prepare' %s \
+; RUN:     -emb-inline-all \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,INLINE
 ;
@@ -28,13 +25,14 @@
 ;
 ; ------------------------------------------------------------------------------
 
+; Function Attrs: noinline
 define i64 @id(i64 %n) #0 {
   ret i64 %n
 }
 
 define i64 @sieve(i64 %0) {
   %2 = alloca [256 x i8], align 16
-  call void @llvm.lifetime.start.p0(i64 256, ptr nonnull %2) #2
+  call void @llvm.lifetime.start.p0(i64 256, ptr nonnull %2)
   br label %5
 
 3:
@@ -91,7 +89,7 @@ define i64 @sieve(i64 %0) {
 
 39:
   %40 = phi i64 [ %38, %34 ], [ %15, %10 ]
-  call void @llvm.lifetime.end.p0(i64 256, ptr nonnull %2) #2
+  call void @llvm.lifetime.end.p0(i64 256, ptr nonnull %2)
   ret i64 %40
 }
 

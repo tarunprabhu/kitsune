@@ -1,8 +1,8 @@
 ; Check that device functions are resolved correctly. This is a very basic test.
 ; We really should do something a bit more comprehensive
 ;
-; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' \
+; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

@@ -1,7 +1,7 @@
 ; Check that the passes in a pass plugin are registered at the correct places
 ; in the pass pipeline.
 ;
-; RUN: opt --tapir=serial -O1 -S -o /dev/null -debug-pass-manager %s \
+; RUN: opt --tapir=serial -O1 -o /dev/null -debug-pass-manager %s \
 ; RUN:     --load-pass-plugin=%kit-pass-plugin-demo 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=PASSES
 ;

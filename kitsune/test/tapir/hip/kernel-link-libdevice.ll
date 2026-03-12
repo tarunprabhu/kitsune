@@ -2,9 +2,8 @@
 ; that the LLVM linker object is driven correctly by the
 ; emb-link-libdevice-bitcode pass.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls,emb-link-libdevice-bitcode' %s \
+; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
+; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls,emb-link-libdevice-bitcode' \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

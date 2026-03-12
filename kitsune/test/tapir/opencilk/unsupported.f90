@@ -6,7 +6,7 @@
 ! check that it does not fail on targets that are known to be supported.
 !
 ! RUN: %if x86-registered-target %{ \
-! RUN:   %kitfc --tapir=opencilk --target=x86_64-unknown-linux-gnu \
+! RUN:   %kitfc --tapir=opencilk --target=x86_64-pc-linux-gnu \
 ! RUN:       -Xflang --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
 ! RUN:       -c -O2 %s 2>&1 \
 ! RUN:       | FileCheck --allow-empty -check-prefix SUPPORTED %s \
@@ -34,7 +34,7 @@
 ! RUN: %}
 !
 ! RUN: %if aarch64-registered-target %{ \
-! RUN:   %kitfc --tapir=opencilk --target=aarch64-unknown-linux-gnu \
+! RUN:   %kitfc --tapir=opencilk --target=aarch64-pc-linux-gnu \
 ! RUN:       -Xflang --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
 ! RUN:       -c -O2 %s 2>&1 \
 ! RUN:       | FileCheck --allow-empty -check-prefix SUPPORTED %s \

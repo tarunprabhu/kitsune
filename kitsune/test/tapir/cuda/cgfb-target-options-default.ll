@@ -2,9 +2,7 @@
 ; options are set explicitly. Check that these options are as expected.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
-; RUN:     | opt -o /dev/null --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:           --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:           -passes='loop-spawning,kit-cgfb' \
+; RUN:     | opt --tapir=cuda -passes='kit-cgfb' -disable-output \
 ; RUN:           -cgfb-debug-target-options 2>&1 \
 ; RUN:     | FileCheck %s
 ;

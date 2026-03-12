@@ -1,9 +1,7 @@
 ; Check that the tapir target adds the expected Kitsune-specific module-level
 ; metadata to the kernel module.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

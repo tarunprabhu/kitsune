@@ -21,9 +21,7 @@
 ;      14|   vecadd(c, a, b, n);
 ;      15| }
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='module-inline,loop-spawning' -S %s \
+; RUN: opt --tapir=hip -passes='module-inline,loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @[[KERN_VECADD:.+]] = private {{.+}} c"__kithip_loop_test.cpp_4_3\00"

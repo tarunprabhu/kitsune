@@ -7,7 +7,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -o /dev/null %s \
+; RUN:     -passes='tapir-lowering<O1>,emb-optimize' -disable-output %s \
 ; RUN:     -emb-print-pipeline-passes \
 ; RUN:     | FileCheck %s --check-prefix=O1
 ;
@@ -18,7 +18,7 @@
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
 ; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='tapir-lowering<O2>,emb-optimize' -o /dev/null %s \
+; RUN:     -passes='tapir-lowering<O2>,emb-optimize' -disable-output %s \
 ; RUN:     -emb-print-pipeline-passes \
 ; RUN:     | FileCheck %s --check-prefix=O2
 ;

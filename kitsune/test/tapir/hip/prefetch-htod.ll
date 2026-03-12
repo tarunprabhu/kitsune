@@ -3,9 +3,7 @@
 ; pass -1 indicating that the runtime should compute the number of bytes to be
 ; prefetched. If this changes, this test must be updated.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     --tapir-gpu-prefetch=true \
+; RUN: opt --tapir=hip --tapir-gpu-prefetch=true \
 ; RUN:     -passes='loop-spawning,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s
 ;
@@ -23,7 +21,7 @@
 ;
 ; -----------------------------------------------------------------------------
 
-define void @f1(ptr %source, ptr %dest, i64 %n) {
+define void @f1(ptr %dest, ptr %source, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   br label %header
@@ -51,7 +49,7 @@ exit:
   ret void
 }
 
-define void @f2(ptr %source, ptr %dest, i64 %n) {
+define void @f2(ptr %dest, ptr %source, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   br label %header

@@ -26,7 +26,7 @@
 ;
 ; ------------------------------------------------------------------------------
 
-target triple = "x86_64-unknown-linux-gnu"
+target triple = "x86_64-pc-linux-gnu"
 
 define void @deallocate(ptr addrspace(67) %p) {
   call fastcc void @llvm.kit.mobile.free(ptr addrspace(67) %p)

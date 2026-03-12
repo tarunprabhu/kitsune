@@ -1,9 +1,8 @@
 ; Check that the command line option to force inline all device functions
 ; (including those that have the noinline attribute) is handled correctly.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 %s \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,emb-prepare' -emb-inline-all-force \
+; RUN: opt --tapir=cuda -passes='loop-spawning,emb-prepare' %s \
+; RUN:     -emb-inline-all-force \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

@@ -1,13 +1,7 @@
 ; Check that the global ctor calls the appropriate functions in Kitsune's
 ; runtime depending on the command line arguments passed.
 ;
-; RUN: opt --tapir=hip \
-; RUN:     --tapir-hip-arch=gfx906 \
-; RUN:     --tapir-hip-sramecc=off \
-; RUN:     --tapir-hip-xnack=on \
-; RUN:     --tapir-hip-features="-sramecc,+xnack" \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
 ; Currently, even if a max-threads-per-block option is not used, the max is set
@@ -51,10 +45,8 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     --tapir-gpu-tpb=77 \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: kithip.ctor{{.*}}
@@ -62,10 +54,8 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     --tapir-gpu-max-tpb=29 \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: kithip.ctor{{.*}}
@@ -73,16 +63,12 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     --tapir-verbose \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     --kitrt-verbose \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: kithip.ctor{{.*}}
@@ -90,16 +76,12 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     --tapir-hip-xnack=off \
-; RUN:     -passes='loop-spawning,kit-ctors' \
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     --tapir-hip-xnack=any \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
 ; NOXNACK-LABEL: kithip.ctor{{.*}}
@@ -107,10 +89,8 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     -hipabi-y-launch \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix YLAUNCH
 ;
 ; YLAUNCH-LABEL: kithip.ctor{{.*}}

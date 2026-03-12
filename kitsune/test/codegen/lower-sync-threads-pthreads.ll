@@ -7,7 +7,7 @@
 ; CHECK-LABEL: @launch
 ; CHECK: call void @__kitpthr_sync(ptr nonnull dereferenceable(16) %ctx)
 
-target triple = "x86_64-unknown-linux-gnu"
+target triple = "x86_64-pc-linux-gnu"
 
 define void @launch(ptr nonnull dereferenceable(16) %ctx) {
   call void (i32, ptr) @llvm.kit.sync.threads(i32 1024, ptr nonnull dereferenceable(16) %ctx)

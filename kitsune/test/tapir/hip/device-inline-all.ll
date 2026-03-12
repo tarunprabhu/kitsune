@@ -3,9 +3,7 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning,emb-prepare' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning,emb-prepare' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,DEFAULT
 ;
@@ -17,10 +15,8 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN: opt --tapir=hip -passes='loop-spawning,emb-prepare' %s \
 ; RUN:     -emb-inline-all \
-; RUN:     -passes='loop-spawning,emb-prepare' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,INLINE
 ;
@@ -34,9 +30,9 @@ define i64 @id(i64 %n) #0 {
   ret i64 %n
 }
 
-define dso_local i64 @sieve(i64 %0) {
+define i64 @sieve(i64 %0) {
   %2 = alloca [256 x i8], align 16
-  call void @llvm.lifetime.start.p0(i64 256, ptr nonnull %2) #1
+  call void @llvm.lifetime.start.p0(i64 256, ptr nonnull %2)
   br label %5
 
 3:
@@ -93,7 +89,7 @@ define dso_local i64 @sieve(i64 %0) {
 
 39:
   %40 = phi i64 [ %38, %34 ], [ %15, %10 ]
-  call void @llvm.lifetime.end.p0(i64 256, ptr nonnull %2) #1
+  call void @llvm.lifetime.end.p0(i64 256, ptr nonnull %2)
   ret i64 %40
 }
 

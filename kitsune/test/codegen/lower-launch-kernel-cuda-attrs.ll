@@ -6,9 +6,7 @@
 ; arguments as the intrinsic. This is intended to test that the attributes are
 ; copied over correctly to the runtime function that is called.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='kit-lower-intrinsics' -S %s \
+; RUN: opt --tapir=cuda -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-LABEL: @launch
@@ -23,7 +21,7 @@
 ; CHECK: attributes #[[SYNC]] = { "sync" }
 
 ; This needs a triple in order to correctly initialize the target library.
-target triple = "x86_64-unknown-linux-gnu"
+target triple = "x86_64-pc-linux-gnu"
 
 @fb = external global [23 x i8]
 @0 = external global i32

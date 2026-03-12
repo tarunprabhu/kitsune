@@ -2,9 +2,8 @@
 ; file, is left as it is. While this will eventually cause problems when
 ; generating GPU code, there is nothing wrong with leaving it unresolved here.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' -S %s \
+; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

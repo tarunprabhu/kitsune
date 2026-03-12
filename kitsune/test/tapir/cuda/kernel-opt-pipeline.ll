@@ -8,10 +8,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN: opt --tapir=cuda -disable-output %s \
+; RUN:     -passes='loop-spawning,emb-optimize' \
 ; RUN:     -emb-print-pipeline-passes -emb-O0 \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=O0
 ;
 ; O0: NVVMReflectPass
@@ -23,10 +22,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN: opt --tapir=cuda -disable-output %s \
+; RUN:     -passes='loop-spawning,emb-optimize' \
 ; RUN:     -emb-print-pipeline-passes -emb-O1 \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=O1
 ;
 ; O1: NVVMReflectPass
@@ -38,10 +36,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN: opt --tapir=cuda -disable-output %s \
+; RUN:     -passes='loop-spawning,emb-optimize' \
 ; RUN:     -emb-print-pipeline-passes -emb-O2 \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=O2
 ;
 ; O2: NVVMReflectPass
@@ -53,10 +50,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN: opt --tapir=cuda -disable-output %s \
+; RUN:     -passes='loop-spawning,emb-optimize' \
 ; RUN:     -emb-print-pipeline-passes -emb-O3 \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=O3
 ;
 ; O3: NVVMReflectPass
@@ -68,10 +64,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN: opt --tapir=cuda -disable-output %s \
+; RUN:     -passes='loop-spawning,emb-optimize' \
 ; RUN:     -emb-print-pipeline-passes -emb-Os \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=Os
 ;
 ; Os: NVVMReflectPass
@@ -84,10 +79,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN: opt --tapir=cuda -disable-output %s \
+; RUN:     -passes='loop-spawning,emb-optimize' \
 ; RUN:     -emb-print-pipeline-passes -emb-Oz \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=Oz
 ;
 ; Oz: NVVMReflectPass

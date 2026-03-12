@@ -2,9 +2,7 @@
 ; contains both mangled and demangled function names. This checks that the names
 ; are demangled when generating the outlined kernel name.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning' %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -57,7 +55,7 @@ body:
   reattach within %syncreg, label %latch
 
 latch:
-  %i.next = add nuw i64 %i, 1
+  %i.next = add i64 %i, 1
   %cmp.i = icmp eq i64 %i.next, %n
   br i1 %cmp.i, label %sync, label %header, !llvm.loop !4
 

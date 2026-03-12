@@ -1,5 +1,5 @@
 ; Check that the correct attributes have been added to and removed from the
-; kernel function
+; kernel function.
 ;
 ; NOTE: We don't yet fully understand which attributes are actually needed for
 ; correctness or beneficial for performance. For the immediate future, the
@@ -7,9 +7,8 @@
 ; does.
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx906 \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-hip-features="+wavefrontsize32,+atomic-fadd-rtn-insts" \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN:     -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

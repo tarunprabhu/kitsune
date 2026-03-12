@@ -3,8 +3,7 @@
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
 ; RUN:     | opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:           --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:           -passes='kit-cgfb' -cgfb-### -o /dev/null 2>&1 \
+; RUN:           -passes='kit-cgfb' -cgfb-### -disable-output 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: ptxas

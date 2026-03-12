@@ -5,9 +5,7 @@
 ; check for the actual grainsize here. That will be tested elsewhere. This is
 ; only intended to check the bounds.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch="sm_72" \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

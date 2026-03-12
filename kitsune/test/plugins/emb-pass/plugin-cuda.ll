@@ -22,7 +22,7 @@
 ; CHECK-DAG: external_func
 ; CHECK-DAG: llvm.nvvm.read.ptx.sreg.tid.x
 
-target triple = "x86_64-unknown-linux-gnu"
+target triple = "x86_64-pc-linux-gnu"
 
 declare i64 @external_func(i64)
 

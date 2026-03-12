@@ -1,9 +1,7 @@
 ; Check that a launch call and a fat binary are present in the host and that
 ; the arguments to the launch call are as expected.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]

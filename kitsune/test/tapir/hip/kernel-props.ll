@@ -2,9 +2,7 @@
 ; properties global variable. This intentionally does not check that the
 ; contents of the computed metadata are correct.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx906 \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,kit-kernel-properties' -S %s\
+; RUN: opt --tapir=hip -passes='loop-spawning,kit-kernel-properties' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @{{.+}} = private unnamed_addr constant {{.+}} { {{.+}} } #[[KERNEL_PROPS:[0-9]+]]

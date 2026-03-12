@@ -7,9 +7,7 @@
 ; of name mangling to eliminate the change of collisions. When that happens,
 ; this test may need to be updated/removed.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -40,7 +38,7 @@ body:
   reattach within %syncreg, label %latch, !dbg !279
 
 latch:
-  %i.next = add nuw i64 %i, 1, !dbg !285
+  %i.next = add i64 %i, 1, !dbg !285
     #dbg_value(i64 %i.next, !270, !DIExpression(), !275)
   %cmp.i = icmp eq i64 %i.next, %n, !dbg !276
   br i1 %cmp.i, label %sync, label %header, !dbg !277, !llvm.loop !286
@@ -75,7 +73,7 @@ body:
   reattach within %syncreg, label %latch, !dbg !311
 
 latch:
-  %i.next = add nuw i64 %i, 1, !dbg !313
+  %i.next = add i64 %i, 1, !dbg !313
     #dbg_value(i64 %i.next, !298, !DIExpression(), !307)
   %cmp.i = icmp eq i64 %i.next, %n, !dbg !308
   br i1 %cmp.i, label %sync, label %header, !dbg !309, !llvm.loop !314

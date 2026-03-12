@@ -1,9 +1,7 @@
 ; Check that alloca instructions have the correct address space annotation
 ; added to them.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning,emb-prepare' %s \
+; RUN: opt --tapir=hip -passes='loop-spawning,emb-prepare' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

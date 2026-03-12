@@ -2,9 +2,7 @@
 ; embedded bitcode should be removed after the fat binary is generated.
 ;
 ; RUN: %kit-enc --tapir=hip %s \
-; RUN:     | opt --tapir=hip --tapir-hip-arch=gfx90a --tapir-lld=ld.lld -S \
-; RUN:           --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:           -passes='kit-cgfb' \
+; RUN:     | opt --tapir=hip --tapir-lld=ld.lld -passes='kit-cgfb' -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-NOT: @{{.+}}.bc = constant [{{[0-9]+}} x i8] c"{{.+}}"

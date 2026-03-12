@@ -32,7 +32,7 @@
 # RUN: %}
 #
 # RUN: not opt --tapir=custom --tapir-plugin=%t/bad-constructor%shlibext \
-# RUN:     -passes='kit-lowering<O1>' %S/input/empty.ll 2>&1 \
+# RUN:     -passes='kit-lowering<O1>' -disable-output %S/input/empty.ll 2>&1 \
 # RUN:     | FileCheck %s
 #
 # CHECK: missing constructor callback in plugin

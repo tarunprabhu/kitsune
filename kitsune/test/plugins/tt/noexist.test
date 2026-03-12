@@ -16,7 +16,7 @@
 # RUN: %}
 #
 # RUN: not opt --tapir=custom --tapir-plugin=does-not-exist.file \
-# RUN:     -passes='kit-lowering<O1>' -o /dev/null %S/input/empty.ll 2>&1 \
+# RUN:     -passes='kit-lowering<O1>' -disable-output %S/input/empty.ll 2>&1 \
 # RUN:     | FileCheck %s
 #
 # CHECK: could not load plugin library

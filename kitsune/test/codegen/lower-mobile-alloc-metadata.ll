@@ -24,7 +24,7 @@
 ;
 ; ------------------------------------------------------------------------------
 
-target triple = "x86_64-unknown-linux-gnu"
+target triple = "x86_64-pc-linux-gnu"
 
 define noalias ptr addrspace(67) @allocate(i64 %n) {
   %1 = call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %n), !custom-key !0

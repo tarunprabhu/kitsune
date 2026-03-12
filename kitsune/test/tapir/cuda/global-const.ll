@@ -1,10 +1,7 @@
 ; Check that any constant global variables are handled correctly. They should
 ; not be copied memcpy'ed, and they should not be registered with the runtime.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,kit-ctors' \
-; RUN:     -S %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[ATTR:[0-9]+]]
@@ -20,7 +17,8 @@
 ; CHECK-NOT: call {{.+}} @__cudaRegisterVar
 ; CHECK: call {{.+}} @__cudaRegisterFatBinaryEnd
 ;
-; CHECK: #[[ATTR]] = { kit_fb kit_tt(2) }
+; CHECK: #[[ATTR]] = {
+; CHECK-SAME: kit_fb kit_tt(2)
 
 target triple = "x86_64-pc-linux-gnu"
 

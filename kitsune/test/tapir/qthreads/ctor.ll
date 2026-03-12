@@ -1,8 +1,7 @@
 ; Check that the global ctor calls the appropriate functions in Kitsune's
 ; runtime depending on the command line arguments passed.
 ;
-; RUN: opt --tapir=qthreads -S %s \
-; RUN:     -passes='tapir-lowering<O2>,kit-ctors' \
+; RUN: opt --tapir=qthreads -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
 ; DEFAULT: @llvm.global_ctors = appending global
@@ -19,12 +18,12 @@
 ; DEFAULT-NEXT: ret void
 ; DEFAULT-NEXT: }
 ;
-; RUN: opt --tapir=qthreads -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     -S %s --tapir-verbose \
+; RUN: opt --tapir=qthreads -passes='loop-spawning,kit-ctors' -S %s \
+; RUN:     --tapir-verbose \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
-; RUN: opt --tapir=qthreads -passes='tapir-lowering<O2>,kit-ctors' \
-; RUN:     -S %s --kitrt-verbose \
+; RUN: opt --tapir=qthreads -passes='loop-spawning,kit-ctors' -S %s \
+; RUN:     --kitrt-verbose \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: define {{.+}} @.kitqthr.ctor

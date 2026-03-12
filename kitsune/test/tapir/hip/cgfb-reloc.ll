@@ -7,9 +7,8 @@
 ; constructor.
 ;
 ; RUN: %kit-enc --tapir=hip %s \
-; RUN:     | opt --tapir=hip --tapir-hip-arch=gfx906 --tapir-lld=ld.lld -S \
-; RUN:           --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:           -passes='kit-cgfb' \
+; RUN:     | opt --tapir=hip --tapir-lld=ld.lld \
+; RUN:           -passes='kit-cgfb' -disable-output \
 ; RUN:           -cgfb-debug-target-machine 2>&1 \
 ; RUN:     | FileCheck %s
 ;

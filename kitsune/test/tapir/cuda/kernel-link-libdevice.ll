@@ -1,7 +1,8 @@
-; Check that linking libdevice bitcode works as expected.
+; Check that linking libdevice bitcode works as expected. This mainly checks
+; that the LLVM linker object is driven correctly by the
+; emb-link-libdevice-bitcode pass.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
+; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
 ; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls,emb-link-libdevice-bitcode' \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s

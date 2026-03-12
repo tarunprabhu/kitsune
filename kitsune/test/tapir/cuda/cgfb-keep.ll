@@ -13,11 +13,9 @@
 ; Check that the intermediate files are cleaned up by default.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
-; RUN:     | opt --tapir=cuda --tapir-cuda-arch=sm_80  \
-; RUN:           --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:           -passes='kit-cgfb' \
-; RUN:           -o /dev/null
-; RUN: not ls -l %t/kitcu-*-.*
+; RUN:     | opt --tapir=cuda -disable-output \
+; RUN:            -passes='kit-cgfb'
+; RUN: not ls -l %t/kitcu-*.*
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -26,10 +24,8 @@
 ; deleted after use.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
-; RUN:     | opt --tapir=cuda --tapir-cuda-arch=sm_80 \
-; RUN:           --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:           -passes='kit-cgfb' -cgfb-keep-files \
-; RUN:           -o /dev/null
+; RUN:     | opt --tapir=cuda -disable-output \
+; RUN:           -passes='kit-cgfb' -cgfb-keep-files
 ; RUN: ls -l %t/kitcu-*.* | FileCheck %s -check-prefix=EXT
 ; RUN: ls -l %t/kitcu-*.* | FileCheck %s -check-prefix=COUNT
 ;
