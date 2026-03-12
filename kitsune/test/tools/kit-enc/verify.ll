@@ -2,7 +2,7 @@
 ; verifier succeeds, nothing should be printed.
 ;
 ; RUN: %kit-enc %s \
-; RUN:     | opt -passes=verify -o /dev/null 2>&1 \
+; RUN:     | opt -passes=verify -disable-output 2>&1 \
 ; RUN:     | FileCheck %s --allow-empty
 ;
 ; CHECK-NOT: {{.+}}

@@ -9,10 +9,7 @@
 ; block of the function, after the allocas, and is propagated to the uses of the
 ; arguments in the body of the function.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     --tapir-hip-features="+16-bit-insts" \
-; RUN:     -passes='loop-spawning,emb-prepare' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning,emb-prepare' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

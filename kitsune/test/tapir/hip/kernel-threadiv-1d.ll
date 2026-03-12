@@ -1,9 +1,7 @@
 ; Check that the induction variable for a 1D launch is computed correctly and
 ; bypasses the body of the loop if out of bounds
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx906 \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

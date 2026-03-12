@@ -5,9 +5,7 @@
 ; depend on the grainsize, but we test for the expected grainsize used in a
 ; different test.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning' %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

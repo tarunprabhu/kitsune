@@ -1,9 +1,7 @@
 ; Check that if the same constant global is used in two separate tapir loops,
 ; only a single instance of the global is created in the kernel module.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning' %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -21,7 +19,7 @@ entry:
   br label %header
 
 header:
-  %i = phi i64 [ %inc, %latch ], [ 0, %entry ]
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
   detach within %syncreg, label %body, label %latch
 
 body:
@@ -35,8 +33,8 @@ body:
   reattach within %syncreg, label %latch
 
 latch:
-  %inc = add nuw i64 %i, 1
-  %cmp.i = icmp eq i64 %inc, %n
+  %i.next = add nuw i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
   br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
 sync:
@@ -49,11 +47,10 @@ exit:
 define void @g(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp4.not = icmp eq i64 %n, 0
-  br i1 %cmp4.not, label %sync, label %header
+  br label %header
 
 header:
-  %i = phi i64 [ %inc, %latch ], [ 0, %entry ]
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
   detach within %syncreg, label %body, label %latch
 
 body:
@@ -67,8 +64,8 @@ body:
   reattach within %syncreg, label %latch
 
 latch:
-  %inc = add nuw i64 %i, 1
-  %cmp.i = icmp eq i64 %inc, %n
+  %i.next = add nuw i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
   br i1 %cmp.i, label %sync, label %header, !llvm.loop !4
 
 sync:

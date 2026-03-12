@@ -1,13 +1,11 @@
 ; Check that the kernel generated immediately after lowering of a tapir loop
 ; nest of depth 1 is as expected. In this case, a single loop will be present
 ; in the kernel body. The start index of the loop will be an index computed
-; from cuda's intrinsics that return threadIdx.x and blockIdx.x. The end will
+; from the hip functions that return threadIdx.x and blockIdx.x. The end will
 ; depend on the grainsize, but we test for the expected grainsize used in a
 ; different test.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -49,8 +47,8 @@ body:
 
 latch:
   %i.next = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %i.next, %n
-  br i1 %exitcond.i.not, label %sync, label %header, !llvm.loop !0
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
 sync:
   sync within %syncreg, label %exit

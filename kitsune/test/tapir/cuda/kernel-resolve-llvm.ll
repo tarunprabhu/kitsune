@@ -1,9 +1,8 @@
 ; Check that llvm intrinsics are resolved correctly. This only checks for some
 ; intrinsics which is not terribly useful in the grand scheme of things.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' -S %s \
+; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

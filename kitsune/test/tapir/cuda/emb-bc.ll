@@ -1,15 +1,14 @@
 ; Check that a global variable containing embedded bitcode is added by the
 ; cuda tapir target.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @[[BC:.+]] = unnamed_addr constant [{{[0-9]+}} x i8] c"BC{{.+}}"
 ; CHECK-SAME: #[[ATTR:[0-9]+]]
 ;
-; CHECK: #[[ATTR]] = { kit_bc kit_tt(2) }
+; CHECK: #[[ATTR]] = {
+; CHECK-SAME: kit_bc kit_tt(2)
 
 define void @f(ptr %c, i64 %n) {
 entry:

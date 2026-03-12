@@ -2,8 +2,7 @@
 ; function here contains a single loop nest. Each nest will contain exactly two
 ; tapir loops. The loop nest may contain other, non-tapir loops.
 ;
-; RUN: opt -passes="function(loop-simplify),kit-annotate-tapir-loops" \
-; RUN:     --tapir=cuda -S %s \
+; RUN: opt -passes="kit-annotate-tapir-loops" -S %s \
 ; RUN:     | FileCheck %s
 
 ; CHECK-LABEL: @pp
@@ -16,9 +15,7 @@
 define void @pp(i64 %m, i64 %n) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
-  %cmp.m.not = icmp eq i64 %m, 0
-  %cmp.n.not = icmp eq i64 %n, 0
-  br i1 %cmp.m.not, label %for.i.exit, label %for.i.header
+  br label %for.i.header
 
 for.i.header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
@@ -26,7 +23,7 @@ for.i.header:
 
 for.i.body:
   %syncreg.j = tail call token @llvm.syncregion.start()
-  br i1 %cmp.n.not, label %for.j.exit, label %for.j.header
+  br label %for.j.header
 
 for.j.header:
   %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
@@ -37,8 +34,8 @@ for.j.body:
 
 for.j.latch:
   %inc.j = add i64 %j, 1
-  %exitcond.j.not = icmp eq i64 %inc.j, %n
-  br i1 %exitcond.j.not, label %for.j.exit, label %for.j.header, !llvm.loop !0
+  %cmp.j = icmp eq i64 %inc.j, %n
+  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !0
 
 for.j.exit:
   sync within %syncreg.j, label %for.j.end
@@ -48,8 +45,8 @@ for.j.end:
 
 for.i.latch:
   %inc.i = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %m
-  br i1 %exitcond.i.not, label %for.i.exit, label %for.i.header, !llvm.loop !2
+  %cmp.i = icmp eq i64 %inc.i, %m
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !2
 
 for.i.exit:
   sync within %syncreg.i, label %for.i.end
@@ -70,10 +67,7 @@ for.i.end:
 define dso_local void @pps(i64 %m, i64 %n, i64 %p) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
-  %cmp.m.not = icmp eq i64 %m, 0
-  %cmp.n.not = icmp eq i64 %n, 0
-  %cmp.p.not = icmp eq i64 %p, 0
-  br i1 %cmp.m.not, label %for.i.exit, label %for.i.header
+  br label %for.i.header
 
 for.i.header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
@@ -81,28 +75,28 @@ for.i.header:
 
 for.i.body:
   %syncreg.j = tail call token @llvm.syncregion.start()
-  br i1 %cmp.n.not, label %for.j.exit, label %for.j.header
+  br label %for.j.header
 
 for.j.header:
   %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
   detach within %syncreg.j, label %for.j.body, label %for.j.latch
 
 for.j.body:
-  br i1 %cmp.p.not, label %for.k.exit, label %for.k.body
+  br label %for.k.body
 
 for.k.body:
   %k = phi i64 [ 0, %for.j.body ], [ %inc.k, %for.k.body ]
   %inc.k = add nuw i64 %k, 1
-  %exitcond.k.not = icmp eq i64 %inc.k, %p
-  br i1 %exitcond.k.not, label %for.k.exit, label %for.k.body, !llvm.loop !3
+  %cmp.k = icmp eq i64 %inc.k, %p
+  br i1 %cmp.k, label %for.k.exit, label %for.k.body, !llvm.loop !3
 
 for.k.exit:
   reattach within %syncreg.j, label %for.j.latch
 
 for.j.latch:
   %inc.j = add nuw i64 %j, 1
-  %exitcond.j.not = icmp eq i64 %inc.j, %n
-  br i1 %exitcond.j.not, label %for.j.exit, label %for.j.header, !llvm.loop !4
+  %cmp.j = icmp eq i64 %inc.j, %n
+  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !4
 
 for.j.exit:
   sync within %syncreg.j, label %for.j.end
@@ -112,8 +106,8 @@ for.j.end:
 
 for.i.latch:
   %inc.i = add nuw i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %m
-  br i1 %exitcond.i.not, label %for.i.exit, label %for.i.header, !llvm.loop !5
+  %cmp.i = icmp eq i64 %inc.i, %m
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !5
 
 for.i.exit:
   sync within %syncreg.i, label %for.i.end
@@ -134,10 +128,7 @@ for.i.end:
 define dso_local void @psp(i64 %m, i64 %n, i64 %p) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
-  %cmp.m.not = icmp eq i64 %m, 0
-  %cmp.n.not = icmp eq i64 %n, 0
-  %cmp.p.not = icmp eq i64 %p, 0
-  br i1 %cmp.m.not, label %for.i.exit, label %for.i.header
+  br label %for.i.header
 
 for.i.header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
@@ -145,11 +136,11 @@ for.i.header:
 
 for.i.body:
   %syncreg.k = tail call token @llvm.syncregion.start()
-  br i1 %cmp.n.not, label %for.j.exit, label %for.j.header
+  br label %for.j.header
 
 for.j.header:
   %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
-  br i1 %cmp.p.not, label %for.k.exit, label %for.k.header
+  br label %for.k.header
 
 for.k.header:
   %k = phi i64 [ 0, %for.j.header ], [ %inc.k, %for.k.latch ]
@@ -160,24 +151,24 @@ for.k.body:
 
 for.k.latch:
   %inc.k = add i64 %k, 1
-  %exitcond.k.not = icmp eq i64 %inc.k, %p
-  br i1 %exitcond.k.not, label %for.k.exit, label %for.k.header, !llvm.loop !6
+  %cmp.k = icmp eq i64 %inc.k, %p
+  br i1 %cmp.k, label %for.k.exit, label %for.k.header, !llvm.loop !6
 
 for.k.exit:
   sync within %syncreg.k, label %for.j.latch
 
 for.j.latch:
   %inc.j = add i64 %j, 1
-  %exitcond.j.not = icmp eq i64 %inc.j, %n
-  br i1 %exitcond.j.not, label %for.j.exit, label %for.j.header, !llvm.loop !7
+  %cmp.j = icmp eq i64 %inc.j, %n
+  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !7
 
 for.j.exit:
   reattach within %syncreg.i, label %for.i.latch
 
 for.i.latch:
   %inc.i = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %m
-  br i1 %exitcond.i.not, label %for.i.exit, label %for.i.header, !llvm.loop !8
+  %cmp.i = icmp eq i64 %inc.i, %m
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !8
 
 for.i.exit:
   sync within %syncreg.i, label %for.i.end

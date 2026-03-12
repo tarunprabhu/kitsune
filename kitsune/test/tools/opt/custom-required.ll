@@ -3,8 +3,8 @@
 ; These options are only required when the 'tapir-lowering' or 'kit-lowering'
 ; meta-passes are specified.
 ;
-; RUN: not opt --tapir=custom \
-; RUN:     -passes='tapir-lowering<O1>' %s 2>&1 \
+; RUN: not opt --tapir=custom %s -disable-output \
+; RUN:     -passes='tapir-lowering<O1>' 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=PLUGIN
 ;
 ; PLUGIN: error: option '--tapir-plugin' must be provided exactly once
@@ -17,7 +17,7 @@
 ; combinations of options, but we do provide some error checking for use cases
 ; that are very likely to result in failures.
 ;
-; RUN: opt --tapir=custom -passes='loop-vectorize' %s -o /dev/null 2>&1 \
+; RUN: opt --tapir=custom -passes='loop-vectorize' %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s --allow-empty --check-prefix=NOOUT
 ;
 ; NOOUT-NOT: {{^.+$}}

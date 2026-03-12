@@ -1,7 +1,7 @@
 ; Check that tapir loops at a perfect nesting level greater than 3 are
 ; serialized by the kit-serialize pass.
 ;
-; RUN: opt -passes="kit-serialize" --tapir=cuda -S %s \
+; RUN: opt -passes="kit-serialize" -S %s \
 ; RUN:   | FileCheck %s
 ;
 ; CHECK: %syncreg.i = tail call token @llvm.syncregion.start()
@@ -47,11 +47,7 @@
 define void @pppp(i64 %m, i64 %n, i64 %p, i64 %q) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
-  %cmp.m.not = icmp eq i64 %m, 0
-  %cmp.n.not = icmp eq i64 %n, 0
-  %cmp.p.not = icmp eq i64 %p, 0
-  %cmp.q.not = icmp eq i64 %q, 0
-  br i1 %cmp.m.not, label %for.i.exit, label %for.i.header
+  br label %for.i.header
 
 for.i.header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
@@ -59,7 +55,7 @@ for.i.header:
 
 for.i.body:
   %syncreg.j = tail call token @llvm.syncregion.start()
-  br i1 %cmp.n.not, label %for.j.exit, label %for.j.header
+  br label %for.j.header
 
 for.j.header:
   %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
@@ -67,7 +63,7 @@ for.j.header:
 
 for.j.body:
   %syncreg.k = tail call token @llvm.syncregion.start()
-  br i1 %cmp.p.not, label %for.k.exit, label %for.k.header
+  br label %for.k.header
 
 for.k.header:
   %k = phi i64 [ 0, %for.j.body ], [ %inc.k, %for.k.latch ]
@@ -75,7 +71,7 @@ for.k.header:
 
 for.k.body:
   %syncreg.l = tail call token @llvm.syncregion.start()
-  br i1 %cmp.q.not, label %for.l.exit, label %for.l.header
+  br label %for.l.header
 
 for.l.header:
   %l = phi i64 [ 0, %for.k.body ], [ %inc.l, %for.l.latch ]
@@ -86,8 +82,8 @@ for.l.body:
 
 for.l.latch:
   %inc.l = add i64 %l, 1
-  %exitcond.l.not = icmp eq i64 %inc.l, %q
-  br i1 %exitcond.l.not, label %for.l.exit, label %for.l.header, !llvm.loop !0
+  %cmp.l = icmp eq i64 %inc.l, %q
+  br i1 %cmp.l, label %for.l.exit, label %for.l.header, !llvm.loop !0
 
 for.l.exit:
   sync within %syncreg.l, label %for.l.end
@@ -97,8 +93,8 @@ for.l.end:
 
 for.k.latch:
   %inc.k = add i64 %k, 1
-  %exitcond.k.not = icmp eq i64 %inc.k, %p
-  br i1 %exitcond.k.not, label %for.k.exit, label %for.k.header, !llvm.loop !1
+  %cmp.k = icmp eq i64 %inc.k, %p
+  br i1 %cmp.k, label %for.k.exit, label %for.k.header, !llvm.loop !1
 
 for.k.exit:
   sync within %syncreg.k, label %for.k.end
@@ -108,8 +104,8 @@ for.k.end:
 
 for.j.latch:
   %inc.j = add i64 %j, 1
-  %exitcond.j.not = icmp eq i64 %inc.j, %n
-  br i1 %exitcond.j.not, label %for.j.exit, label %for.j.header, !llvm.loop !2
+  %cmp.j = icmp eq i64 %inc.j, %n
+  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !2
 
 for.j.exit:
   sync within %syncreg.j, label %for.j.end
@@ -119,8 +115,8 @@ for.j.end:
 
 for.i.latch:
   %inc.i = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %m
-  br i1 %exitcond.i.not, label %for.i.exit, label %for.i.header, !llvm.loop !3
+  %cmp.i = icmp eq i64 %inc.i, %m
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !3
 
 for.i.exit:
   sync within %syncreg.i, label %for.i.end

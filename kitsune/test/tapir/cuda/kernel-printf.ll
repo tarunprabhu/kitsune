@@ -1,8 +1,7 @@
 ; Check that calls to printf are lowered correctly.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' -S %s \
+; RUN: opt --tapir=cuda --tapir-cuda-runtime-bc=%S/input/libdevice.ll %s \
+; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -30,7 +29,7 @@ entry:
   br label %header
 
 header:
-  %i = phi i64 [ 0, %entry ], [ %i.inc, %latch ]
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
   detach within %syncreg, label %body, label %latch
 
 body:
@@ -38,14 +37,14 @@ body:
   reattach within %syncreg, label %latch
 
 latch:
-  %i.inc = add nuw nsw i64 %i, 1
-  %exitcond.not = icmp eq i64 %i.inc, %n
-  br i1 %exitcond.not, label %sync, label %header, !llvm.loop !0
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
 sync:
-  sync within %syncreg, label %forall.end
+  sync within %syncreg, label %exit
 
-forall.end:
+exit:
   ret void
 }
 

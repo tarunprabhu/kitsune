@@ -5,7 +5,8 @@
 ; Currently, there are no options specific to the serial tapir target. We just
 ; check that the tapir target ID is set correctly.
 ;
-; RUN: opt --tapir=serial -O2 -dump-tapir-target-options -o /dev/null %s \
+; RUN: opt --tapir=serial %s -disable-output \
+; RUN:     -passes="loop-spawning" -dump-tapir-target-options \
 ; RUN:     | FileCheck %s -check-prefixes ALL
 ;
 ; ALL: Tapir target options

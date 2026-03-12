@@ -1,9 +1,7 @@
 ; Check that the global ctor calls the appropriate functions in Kitsune's
 ; runtime depending on the command line arguments passed.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
 ; Currently, even if a max-threads-per-block option is not used, the max is set
@@ -42,10 +40,8 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     --tapir-gpu-tpb=77 \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: define {{.+}} @.kitcuda.ctor
@@ -53,10 +49,8 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     --tapir-gpu-max-tpb=29 \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: define {{.+}} @.kitcuda.ctor
@@ -64,15 +58,11 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     --tapir-verbose \
+; RUN: opt --tapir=cuda --tapir-verbose \
 ; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     --kitrt-verbose \
+; RUN: opt --tapir=cuda --kitrt-verbose \
 ; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
@@ -81,10 +71,8 @@
 ;
 ; ----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     -cuabi-refine-launches=false \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix NOREFINE
 ;
 ; NOREFINE-LABEL: define {{.+}} @.kitcuda.ctor

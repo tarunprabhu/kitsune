@@ -1,12 +1,11 @@
 ; Check that the loop bounds of the tapir loop are correctly replaced in the
 ; outlined kernel function when a 1D kernel is launched.
 ;
-; NOTE: Currently, we use a grainsize of 1 i.e. every thread computes a single
-; iteration of the tapir loop, but if that changes, this test must be updated.
+; NOTE: The upper bounds is determined by the grainsize. We deliberately do not
+; check for the actual grainsize here. That will be tested elsewhere. This is
+; only intended to check the bounds.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch="gfx90a" \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -24,13 +23,13 @@
 ; CHECK: %[[BIDX:.+]] = zext i32 %[[WGRP]] to i64
 ; CHECK: %[[BOFF:.+]] = mul i64 %[[BIDX]], %[[BDIM]]
 ; CHECK: %[[IV_START:.+]] = add i64 %[[TID]], %[[BOFF]]
-; CHECK: %[[IV_END:.+]] = add i64 %[[IV_START]], 1
+; CHECK: %[[IV_END:.+]] = add i64 %[[IV_START]]
 ;
 ; CHECK: [[HEADER:.+]]:
 ; CHECK: %[[IV:.+]] = phi i64
 ; CHECK-SAME: [ %[[IV_START]], %[[PREHEADER]] ]
 ; CHECK-SAME: [ %[[IV_NEXT:.+]], %[[LATCH:.+]] ]
-; CHECK: %[[IV_NEXT:.+]] = add {{.*}}i64 %[[IV]], 1
+; CHECK: %[[IV_NEXT:.+]] = add {{.*}}i64 %[[IV]]
 ; CHECK: %[[COND:.+]] = icmp eq i64 %[[IV_NEXT]], %[[IV_END]]
 ; CHECK: br i1 %[[COND]], label %[[EXIT:.+]], label %[[HEADER]]
 ;

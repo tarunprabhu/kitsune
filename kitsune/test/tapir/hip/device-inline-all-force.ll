@@ -1,10 +1,8 @@
 ; Check that the command line option to force inline all device functions
 ; (including those that have the noinline attribute) is handled correctly.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90a \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
+; RUN: opt --tapir=hip -passes='loop-spawning,emb-prepare' %s \
 ; RUN:     -emb-inline-all-force \
-; RUN:     -passes='loop-spawning,emb-prepare' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -17,7 +15,7 @@ define i64 @device_func(i64 %n) {
   ret i64 %n
 }
 
-define void @f(ptr writeonly %c, i64 %n) {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   br label %header

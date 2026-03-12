@@ -1,9 +1,7 @@
 ; Check that any constant global variables are handled correctly. They should
 ; not be copied memcpy'ed, and they should not be registered with the runtime.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[ATTR:[0-9]+]]
@@ -18,7 +16,8 @@
 ; CHECK: call {{.+}} @__hipRegisterFatBinary
 ; CHECK-NOT: call {{.+}} @__hipRegisterVar
 ;
-; CHECK: #[[ATTR]] = { kit_fb kit_tt(4) }
+; CHECK: #[[ATTR]] = {
+; CHECK-SAME: kit_fb kit_tt(4)
 
 target triple = "x86_64-pc-linux-gnu"
 

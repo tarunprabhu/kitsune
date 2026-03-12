@@ -1,8 +1,7 @@
 ; Check that calls to printf are lowered correctly.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' -S %s \
+; RUN: opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
+; RUN:     -passes='loop-spawning,emb-resolve-libdevice-calls' \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

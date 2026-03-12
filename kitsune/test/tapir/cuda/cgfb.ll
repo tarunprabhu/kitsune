@@ -2,9 +2,7 @@
 ; embedded bitcode should be removed after the fat binary is generated.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
-; RUN:     | opt --tapir=cuda --tapir-cuda-arch=sm_80 -S \
-; RUN:           --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:           -passes='kit-cgfb' \
+; RUN:     | opt --tapir=cuda -passes='kit-cgfb' -S \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-NOT: @{{.+}}.bc{{.*}} = constant [{{[0-9]+}} x i8] c"{{.+}}"

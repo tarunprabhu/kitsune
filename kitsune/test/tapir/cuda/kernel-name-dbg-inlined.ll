@@ -21,9 +21,7 @@
 ;      14|   vecadd(c, a, b, n);
 ;      15| }
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='module-inline,loop-spawning' -S %s \
+; RUN: opt --tapir=cuda -passes='module-inline,loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @[[KERN_VECADD:.+]] = private {{.+}} c"__kitcu_loop_test_cpp_4_3\00"

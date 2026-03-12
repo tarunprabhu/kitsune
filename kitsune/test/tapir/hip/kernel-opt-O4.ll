@@ -1,6 +1,6 @@
 ; Check that unknown --emb-O<N> options are handled correctly
 ;
-; RUN: not opt --tapir=hip --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
+; RUN: not opt --tapir=hip %s \
 ; RUN:     -passes='emb-optimize' -emb-O4 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=O4
 ;

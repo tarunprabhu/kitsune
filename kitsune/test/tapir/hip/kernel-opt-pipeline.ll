@@ -8,9 +8,8 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
+; RUN: opt --tapir=hip -disable-output %s \
+; RUN:     -passes='loop-spawning,emb-optimize' \
 ; RUN:     -emb-print-pipeline-passes -emb-O0 \
 ; RUN:     | FileCheck %s --check-prefix=O0
 ;
@@ -23,9 +22,8 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
+; RUN: opt --tapir=hip -disable-output %s \
+; RUN:     -passes='loop-spawning,emb-optimize' \
 ; RUN:     -emb-print-pipeline-passes -emb-O1 \
 ; RUN:     | FileCheck %s --check-prefix=O1
 ;
@@ -38,10 +36,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN: opt --tapir=hip -disable-output %s \
+; RUN:     -passes='loop-spawning,emb-optimize' \
 ; RUN:     -emb-print-pipeline-passes -emb-O2 \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=O2
 ;
 ; O2: AMDGPUPrintfRuntimeBindingPass
@@ -53,10 +50,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN: opt --tapir=hip -disable-output %s \
+; RUN:     -passes='loop-spawning,emb-optimize' \
 ; RUN:     -emb-print-pipeline-passes -emb-O3 \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=O3
 ;
 ; O3: AMDGPUPrintfRuntimeBindingPass
@@ -68,10 +64,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN: opt --tapir=hip -disable-output %s \
+; RUN:     -passes='loop-spawning,emb-optimize' \
 ; RUN:     -emb-print-pipeline-passes -emb-Os \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null %s \
 ; RUN:     | FileCheck %s --check-prefix=Os
 ;
 ; Os: AMDGPUPrintfRuntimeBindingPass
@@ -84,10 +79,9 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
+; RUN: opt --tapir=hip -disable-output %s \
+; RUN:     -passes='loop-spawning,emb-optimize' \
 ; RUN:     -emb-print-pipeline-passes -emb-Oz \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null \
 ; RUN:     | FileCheck %s --check-prefix=Oz
 ;
 ; Oz: AMDGPUPrintfRuntimeBindingPass
@@ -97,16 +91,6 @@
 ; Oz-NOT: GenerateCtors
 ; Oz-SAME: GlobalDCEPass
 ; Oz-SAME: VerifierPass
-;
-; ------------------------------------------------------------------------------
-;
-; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll %s \
-; RUN:     -emb-print-pipeline-passes -emb-O4 2>&1 \
-; RUN:     -passes='loop-spawning,emb-optimize' -o /dev/null \
-; RUN:     | FileCheck %s --check-prefix=O4
-;
-; O4: Unknown command line argument '-emb-O4'
 ;
 ; ------------------------------------------------------------------------------
 

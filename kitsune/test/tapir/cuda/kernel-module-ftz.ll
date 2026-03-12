@@ -2,16 +2,12 @@
 ; TODO: Should also add a check that this has the expected effect on the kernel
 ; module as well.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes=ALL,DEFAULT
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
+; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
 ; RUN:     -cuabi-ftz \
-; RUN:     -passes='loop-spawning' -S %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes=ALL,FTZ
 ;

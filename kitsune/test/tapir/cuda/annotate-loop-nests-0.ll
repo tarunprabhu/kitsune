@@ -1,8 +1,7 @@
 ; Check that loop nests that do not contain any tapir loops are not annotated
 ; with any tapir.loop.nest annotations. The loops here are all perfect.
 ;
-; RUN: opt -passes="function(loop-simplify),kit-annotate-tapir-loops" \
-; RUN:     --tapir=cuda -S %s \
+; RUN: opt -passes="kit-annotate-tapir-loops" -S %s \
 ; RUN:     | FileCheck %s
 
 ; CHECK-LABEL: @l1
@@ -12,13 +11,13 @@
 define void @l1(i64 %n) {
 entry:
   %cmp.not = icmp eq i64 %n, 0
-  br i1 %cmp.not, label %for.i.exit, label %for.i
+  br label %for.i
 
 for.i:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i ]
   %inc.i = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %n
-  br i1 %exitcond.i.not, label %for.i.exit, label %for.i, !llvm.loop !0
+  %cmp.i = icmp eq i64 %inc.i, %n
+  br i1 %cmp.i, label %for.i.exit, label %for.i, !llvm.loop !0
 
 for.i.exit:
   ret void
@@ -33,7 +32,7 @@ for.i.exit:
 define void @l2(i64 %n) {
 entry:
   %cmp.not = icmp eq i64 %n, 0
-  br i1 %cmp.not, label %for.i.exit, label %for.i.header
+  br label %for.i.header
 
 for.i.header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
@@ -42,13 +41,13 @@ for.i.header:
 for.j:
   %j = phi i64 [ 0, %for.i.header ], [ %inc.j, %for.j ]
   %inc.j = add i64 %j, 1
-  %exitcond.j.not = icmp eq i64 %inc.j, %n
-  br i1 %exitcond.j.not, label %for.i.latch, label %for.j, !llvm.loop !1
+  %cmp.j = icmp eq i64 %inc.j, %n
+  br i1 %cmp.j, label %for.i.latch, label %for.j, !llvm.loop !1
 
 for.i.latch:
   %inc.i = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %n
-  br i1 %exitcond.i.not, label %for.i.exit, label %for.i.header, !llvm.loop !2
+  %cmp.i = icmp eq i64 %inc.i, %n
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !2
 
 for.i.exit:
   ret void
@@ -65,7 +64,7 @@ for.i.exit:
 define void @l3(i64 %n) {
 entry:
   %cmp.not = icmp eq i64 %n, 0
-  br i1 %cmp.not, label %for.i.exit, label %for.i.header
+  br label %for.i.header
 
 for.i.header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
@@ -78,18 +77,18 @@ for.j.header:
 for.k:
   %k = phi i64 [ 0, %for.j.header ], [ %inc.k, %for.k ]
   %inc.k = add i64 %k, 1
-  %exitcond.not = icmp eq i64 %inc.k, %n
-  br i1 %exitcond.not, label %for.j.latch, label %for.k, !llvm.loop !3
+  %cmp.k = icmp eq i64 %inc.k, %n
+  br i1 %cmp.k, label %for.j.latch, label %for.k, !llvm.loop !3
 
 for.j.latch:
   %inc.j = add i64 %j, 1
-  %exitcond.j.not = icmp eq i64 %inc.j, %n
-  br i1 %exitcond.j.not, label %for.i.latch, label %for.j.header, !llvm.loop !4
+  %cmp.j = icmp eq i64 %inc.j, %n
+  br i1 %cmp.j, label %for.i.latch, label %for.j.header, !llvm.loop !4
 
 for.i.latch:
   %inc.i = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %n
-  br i1 %exitcond.i.not, label %for.i.exit, label %for.i.header, !llvm.loop !5
+  %cmp.i = icmp eq i64 %inc.i, %n
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !5
 
 for.i.exit:
   ret void

@@ -1,18 +1,15 @@
 ; Check that invalid cgfb optimization levels are handled correctly.
 ;
-; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90a --tapir-lld=ld.lld \
-; RUN:     -passes='kit-cgfb' -cgfb-Os \
-; RUN:     -o /dev/null %S/input/empty.ll 2>&1 \
+; RUN: not opt --tapir=hip -passes='kit-cgfb' -disable-output %s \
+; RUN:     -cgfb-Os 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix OS
 ;
-; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90a --tapir-lld=ld.lld \
-; RUN:     -passes='kit-cgfb' -cgfb-Oz \
-; RUN:     -o /dev/null %S/input/empty.ll 2>&1 \
+; RUN: not opt --tapir=hip -passes='kit-cgfb' -disable-output %s \
+; RUN:     -cgfb-Oz 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix OZ
 ;
-; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90a --tapir-lld=ld.lld \
-; RUN:     -passes='kit-cgfb' -cgfb-O4 \
-; RUN:     -o /dev/null %S/input/empty.ll 2>&1 \
+; RUN: not opt --tapir=hip -passes='kit-cgfb' -disable-output %s \
+; RUN:     -cgfb-O4 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix O4
 ;
 ; OS: Unknown command line argument '-cgfb-Os'

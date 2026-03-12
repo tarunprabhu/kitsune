@@ -1,9 +1,7 @@
 ; Check that a launch call and a fat binary are present in the host and that
 ; the arguments to the launch call are as expected.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]
@@ -65,8 +63,8 @@
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;
-; CHECK-DAG: #[[KPATTR]] = { kit_tt(2) "kit_kernel_props"="[[KNAME]]" }
 ; CHECK-DAG: #[[FBATTR]] = { kit_fb kit_tt(2) }
+; CHECK-DAG: #[[KPATTR]] = { kit_tt(2) "kit_kernel_props"="[[KNAME]]" }
 
 define void @f(ptr %c, i64 %n) {
 entry:

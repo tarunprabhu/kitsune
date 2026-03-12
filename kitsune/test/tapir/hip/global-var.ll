@@ -3,9 +3,7 @@
 ; before and after launch calls and must be registered with the runtime in
 ; the ctor for kitsune's runtime.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[ATTR:[0-9]+]]
@@ -28,7 +26,7 @@
 ; CHECK: #[[ATTR]] = {
 ; CHECK-SAME: kit_fb kit_tt(4)
 
-target triple = "x86_64-unknown-linux-gnu"
+target triple = "x86_64-pc-linux-gnu"
 
 @v137 = external global i32, align 4
 

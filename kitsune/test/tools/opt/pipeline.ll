@@ -2,22 +2,22 @@
 ; If the --tapir option is not provided to opt, neither tapir, nor Kitsune
 ; passes are run.
 ;
-; RUN: opt -O0 -debug-pass-manager %s -o /dev/null 2>&1 \
+; RUN: opt -O0 -debug-pass-manager %s -disable-output 2>&1 \
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
-; RUN: opt -O1 -debug-pass-manager %s -o /dev/null 2>&1 \
+; RUN: opt -O1 -debug-pass-manager %s -disable-output 2>&1 \
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
-; RUN: opt -O2 -debug-pass-manager %s -o /dev/null 2>&1 \
+; RUN: opt -O2 -debug-pass-manager %s -disable-output 2>&1 \
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
-; RUN: opt -O3 -debug-pass-manager %s -o /dev/null 2>&1 \
+; RUN: opt -O3 -debug-pass-manager %s -disable-output 2>&1 \
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
-; RUN: opt -Os -debug-pass-manager %s -o /dev/null 2>&1 \
+; RUN: opt -Os -debug-pass-manager %s -disable-output 2>&1 \
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
-; RUN: opt -Oz -debug-pass-manager %s -o /dev/null 2>&1 \
+; RUN: opt -Oz -debug-pass-manager %s -disable-output 2>&1 \
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
 ; DEFAULT-NOT: Running pass:     TapirLoopAnnotatorPass

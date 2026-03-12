@@ -1,9 +1,7 @@
 ; The grainsize is always set to 1 currently. Check that this is the case in
 ; the kernel immediately after loop spawning.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -22,7 +20,7 @@ entry:
   br label %header
 
 header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %latch ]
+  %i = phi i64 [ 0, %entry ], [ %i.next, %latch ]
   detach within %syncreg, label %body, label %latch
 
 body:
@@ -31,9 +29,9 @@ body:
   reattach within %syncreg, label %latch
 
 latch:
-  %inc.i = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %n
-  br i1 %exitcond.i.not, label %sync, label %header, !llvm.loop !0
+  %i.next = add i64 %i, 1
+  %cmp.i = icmp eq i64 %i.next, %n
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
 sync:
   sync within %syncreg, label %exit

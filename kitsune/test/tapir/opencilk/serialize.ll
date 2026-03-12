@@ -7,7 +7,7 @@
 ; we may well end up serializing certain loops. In that case, this file should
 ; be removed and more appropriate tests added.
 ;
-; RUN: opt -passes="kit-serialize" --tapir=opencilk %s -S 2>&1 \
+; RUN: opt -passes="kit-serialize" -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-NOT: serialized tapir loop

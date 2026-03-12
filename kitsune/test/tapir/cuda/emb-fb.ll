@@ -1,9 +1,7 @@
 ; Check that a global variable containing the fat binary is added by the
 ; cuda tapir target.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @[[FB:.+]] = constant [{{[0-9]+}} x i8] zeroinitializer

@@ -7,9 +7,8 @@
 ; does.
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx906 \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-hip-features="+wavefrontsize32,+atomic-fadd-rtn-insts" \
-; RUN:     -passes='loop-spawning,emb-prepare' -S %s \
+; RUN:     -passes='loop-spawning,emb-prepare' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

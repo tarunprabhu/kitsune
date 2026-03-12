@@ -5,8 +5,8 @@
 ; placeholder and is around for consistency with the tests for the other tapir
 ; targets.
 ;
-; RUN: opt --tapir=pthreads -passes="tapir-lowering<O2>" -o /dev/null %s \
-; RUN:     -dump-tapir-target-options \
+; RUN: opt --tapir=pthreads %s -disable-output \
+; RUN:     -passes="loop-spawning" -dump-tapir-target-options \
 ; RUN:     | FileCheck %s -check-prefixes ALL
 ;
 ; ALL:          Tapir target options

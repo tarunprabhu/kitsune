@@ -1,10 +1,7 @@
 ; Check that running the prepare embedded bitcode pass on a kernel module that
 ; it has already been run on does not cause any appreciable changes.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     --tapir-hip-features="+16-bit-insts" \
-; RUN:     -passes='loop-spawning,emb-prepare,emb-prepare' %s \
+; RUN: opt --tapir=hip -passes='loop-spawning,emb-prepare,emb-prepare' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;

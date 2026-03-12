@@ -2,9 +2,7 @@
 ; contains both mangled and demangled function names. This checks that the names
 ; are demangled when generating the outlined kernel name.
 ;
-; RUN: opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
-; RUN:     -passes='loop-spawning' -S %s \
+; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -73,10 +71,10 @@ header2:
   detach within %syncreg2, label %body2, label %latch2
 
 body2:
-  %arrayidx.2 = getelementptr float, ptr %buf, i64 %i
-  %1 = load float, ptr %arrayidx.2, align 4
-  %add.2 = fadd float %dist, %1
-  store float %add.2, ptr %arrayidx.2, align 4
+  %arrayidx2 = getelementptr float, ptr %buf, i64 %i
+  %1 = load float, ptr %arrayidx2, align 4
+  %add2 = fadd float %dist, %1
+  store float %add2, ptr %arrayidx2, align 4
   reattach within %syncreg2, label %latch2
 
 latch2:

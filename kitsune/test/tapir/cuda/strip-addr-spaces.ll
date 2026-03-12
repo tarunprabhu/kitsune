@@ -1,9 +1,7 @@
 ; Check that Kitsune's address spaces are stripped from the kernel module when
 ; the prepare pass is run.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     --passes='loop-spawning,emb-prepare' -S %s \
+; RUN: opt --tapir=cuda --passes='loop-spawning,emb-prepare' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
@@ -29,7 +27,7 @@ body:
   reattach within %syncreg, label %latch
 
 latch:
-  %i.next = add nuw i64 %i, 1
+  %i.next = add i64 %i, 1
   %cmp.i = icmp eq i64 %i.next, %n
   br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 
@@ -40,7 +38,7 @@ exit:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2}
+!0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 2}
-!3 = !{!"tapir.lowering.enabled"}
+!3 = !{!"tapir.loop.lowering.enabled"}

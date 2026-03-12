@@ -27,7 +27,7 @@
 ;
 ; ------------------------------------------------------------------------------
 
-target triple = "x86_64-unknown-linux-gnu"
+target triple = "x86_64-pc-linux-gnu"
 
 define void @deallocate(ptr addrspace(67) %p) !dbg !10 {
     #dbg_value(ptr addrspace(67) %p, !15, !DIExpression(), !16)

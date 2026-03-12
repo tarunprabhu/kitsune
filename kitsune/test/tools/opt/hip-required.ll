@@ -5,12 +5,13 @@
 ; These options are only required when the 'tapir-lowering' or 'kit-lowering'
 ; meta-passes are specified.
 ;
-; RUN: not opt --tapir=hip \
-; RUN:     -passes='tapir-lowering<O1>' %s 2>&1 \
+; RUN: not opt --tapir=hip %s -disable-output \
+; RUN:     -passes='tapir-lowering<O1>' 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=ARCH
 ;
-; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:     -passes='tapir-lowering<O1>' %s 2>&1 \
+; RUN: not opt --tapir=hip %s -disable-output \
+; RUN:     --tapir-hip-arch=gfx90c \
+; RUN:     -passes='tapir-lowering<O1>' 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=RUNTIME-BCS
 ;
 ; ARCH: error: option '--tapir-hip-arch' must be provided exactly once
@@ -21,7 +22,8 @@
 ; object. However, here, the fact that the object does not have all the
 ; "required" options set does not have any negative effects.
 ;
-; RUN: opt --tapir=hip -passes='loop-spawning' %s -o /dev/null 2>&1 \
+; RUN: opt --tapir=hip %s -disable-output \
+; RUN:     -passes='loop-spawning' 2>&1 \
 ; RUN:     | FileCheck %s --allow-empty --check-prefix=NOOUT
 ;
 ; NOOUT-NOT: {{^.+$}}

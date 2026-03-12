@@ -3,8 +3,7 @@
 ;
 ; RUN: %kit-enc --tapir=hip %s \
 ; RUN:     | opt --tapir=hip --tapir-hip-arch=gfx906 --tapir-lld=ld.lld \
-; RUN:           --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:           -passes='kit-cgfb' -cgfb-### -o /dev/null 2>&1 \
+; RUN:           -passes='kit-cgfb' -cgfb-### -disable-output 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: lld{{[^ ]*}}

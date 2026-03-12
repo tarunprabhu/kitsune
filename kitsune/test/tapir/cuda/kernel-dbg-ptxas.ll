@@ -7,14 +7,13 @@
 ; optimization level has been explicitly set by the user. Overriding the ptxas
 ; optimization level will result in a compiler crash.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_80 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,kit-cgfb' -cgfb-### %s -o /dev/null 2>&1 \
+; RUN: opt --tapir=cuda -passes='loop-spawning,kit-cgfb' -disable-output %s \
+; RUN:     -cgfb-### 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,DEFAULT
 ;
-; RUN: not --crash opt --tapir=cuda --tapir-cuda-arch=sm_80 --cgfb-ptxas-O3 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning,kit-cgfb' -cgfb-### %s -o /dev/null 2>&1 \
+; RUN: not --crash \
+; RUN:     opt --tapir=cuda -passes='loop-spawning,kit-cgfb' -disable-output %s \
+; RUN:         -cgfb-### --cgfb-ptxas-O3 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,OVERRIDE
 ;
 ; ALL: /ptxas

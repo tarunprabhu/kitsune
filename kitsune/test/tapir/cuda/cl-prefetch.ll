@@ -2,9 +2,7 @@
 ;
 ; -----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     --tapir-gpu-prefetch=true \
+; RUN: opt --tapir=cuda --tapir-gpu-prefetch=true \
 ; RUN:     -passes='loop-spawning,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s -check-prefix PREFETCH
 ;
@@ -16,9 +14,7 @@
 ;
 ; -----------------------------------------------------------------------------
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     --tapir-gpu-prefetch=false \
+; RUN: opt --tapir=cuda --tapir-gpu-prefetch=false \
 ; RUN:     -passes='loop-spawning,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s -check-prefix NO-PREFETCH
 ;

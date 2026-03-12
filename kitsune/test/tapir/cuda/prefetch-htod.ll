@@ -3,9 +3,7 @@
 ; pass -1 indicating that the runtime should compute the number of bytes to be
 ; prefetched. If this changes, this test must be updated.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     --tapir-gpu-prefetch=true \
+; RUN: opt --tapir=cuda --tapir-gpu-prefetch=true \
 ; RUN:     -passes='loop-spawning,kit-prefetch' -S %s \
 ; RUN:     | FileCheck %s
 ;

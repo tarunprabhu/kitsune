@@ -5,11 +5,8 @@
 ; ever use anything else, or make this configurable.
 ;
 ; RUN: %kit-enc --tapir=hip %s \
-; RUN:     | opt -o /dev/null --tapir=hip --tapir-hip-arch=gfx906 \
-; RUN:           --tapir-lld=ld.lld \
-; RUN:           --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:           -passes='kit-cgfb' \
-; RUN:           -cgfb-debug-target-machine 2>&1 \
+; RUN:     | opt --tapir=hip --tapir-lld=ld.lld -disable-output \
+; RUN:           -passes='kit-cgfb' -cgfb-debug-target-machine 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: Code model: small

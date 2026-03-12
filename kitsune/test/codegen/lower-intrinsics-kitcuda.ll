@@ -4,9 +4,7 @@
 ; correctly. If more intrinsics are created, they should be added here to test
 ; basic intrinsic lowering.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='kit-lower-intrinsics' -S %s \
+; RUN: opt --tapir=cuda -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-LABEL: @f
@@ -50,7 +48,7 @@
 ; CHECK-DAG: #[[ATTRS]] = { nofree nounwind willreturn memory(argmem: readwrite, inaccessiblemem: readwrite) }
 
 ; This needs a triple in order to correctly initialize the target library.
-target triple = "x86_64-unknown-linux-gnu"
+target triple = "x86_64-pc-linux-gnu"
 
 @gbuf = external global [7 x float]
 @.gname = unnamed_addr constant [5 x i8] c "gbuf\00"

@@ -4,7 +4,7 @@
 ; ------------------------------------------------------------------------------
 ; Kitsune lowering is available at O0, but only a limited set of passes are run.
 ;
-; RUN: opt -passes='kit-lowering<O0>' --tapir=serial -debug-pass-manager %s \
+; RUN: opt --tapir=serial -passes='kit-lowering<O0>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O0
 ;
@@ -20,23 +20,23 @@
 ; the same. This may need to change if we ever have optimization-level-dependent
 ; Kitsune lowering pipelines.
 ;
-; RUN: opt -passes='kit-lowering<O1>' --tapir=serial -debug-pass-manager %s \
+; RUN: opt --tapir=serial -passes='kit-lowering<O1>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O123SZ
 ;
-; RUN: opt -passes='kit-lowering<O2>' --tapir=serial -debug-pass-manager %s \
+; RUN: opt --tapir=serial -passes='kit-lowering<O2>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O123SZ
 ;
-; RUN: opt -passes='kit-lowering<O3>' --tapir=serial -debug-pass-manager %s \
+; RUN: opt --tapir=serial -passes='kit-lowering<O3>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O123SZ
 ;
-; RUN: opt -passes='kit-lowering<Os>' --tapir=serial -debug-pass-manager %s \
+; RUN: opt --tapir=serial -passes='kit-lowering<Os>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O123SZ
 ;
-; RUN: opt -passes='kit-lowering<Oz>' --tapir=serial -debug-pass-manager %s \
+; RUN: opt --tapir=serial -passes='kit-lowering<Oz>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O123SZ
 ;

@@ -1,15 +1,17 @@
 ; Check that if the same global is used in two separate tapir loops, only a
 ; single instance of the global is created in the kernel module.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='loop-spawning' %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-COUNT-1: @v137{{[^ ]*}} = {{.*}}global i32
+; CHECK-DAG: @v137{{[^ ]*}} = {{.*}}global i32
+; CHECK-DAG: @v138{{[^ ]*}} = {{.*}}global i32
+; CHECK-NOT: @v137{{.*}} =
+; CHECK-NOT: @v138{{.*}} =
 
 @v137 = external global i32, align 4
+@v138 = internal global i32 zeroinitializer, align 4
 
 define void @f(ptr %c, i64 %n) {
 entry:
@@ -22,8 +24,10 @@ header:
 
 body:
   %0 = load i32, ptr @v137, align 4
+  %1 = load i32, ptr @v138, align 4
+  %2 = add i32 %0, %1
   %arrayidx = getelementptr i32, ptr %c, i64 %i
-  store i32 %0, ptr %arrayidx, align 4
+  store i32 %2, ptr %arrayidx, align 4
   reattach within %syncreg, label %latch
 
 latch:
@@ -49,12 +53,14 @@ header:
 
 body:
   %0 = load i32, ptr @v137, align 4
+  %1 = load i32, ptr @v138, align 4
+  %2 = sub i32 %0, %1
   %arrayidx = getelementptr i32, ptr %c, i64 %i
-  store i32 %0, ptr %arrayidx, align 4
+  store i32 %2, ptr %arrayidx, align 4
   reattach within %syncreg, label %latch
 
 latch:
-  %i.next = add nuw i64 %i, 1
+  %i.next = add i64 %i, 1
   %cmp.i = icmp eq i64 %i.next, %n
   br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 

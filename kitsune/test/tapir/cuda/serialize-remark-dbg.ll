@@ -1,10 +1,10 @@
 ; Check that the serialize pass reports the loop that was serialized together
 ; with location information, if it is available.
 ;
-; RUN: opt -passes="kit-serialize" --tapir=cuda %s -S 2>&1 \
+; RUN: opt -passes="kit-serialize" %s -S 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,REMARK
 ;
-; RUN: opt -passes="kit-serialize" --tapir=cuda %s -S \
+; RUN: opt -passes="kit-serialize" %s -S \
 ; RUN:     -serialize-verbose=1 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,REMARK --allow-empty
 ;
@@ -12,14 +12,14 @@
 ; REMARK-NOT: Loop at depth 2
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt -passes="kit-serialize" --tapir=cuda %s -S \
+; RUN: opt -passes="kit-serialize" %s -S \
 ; RUN:     -serialize-verbose=0 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,QUIET --allow-empty
 ;
 ; QUIET-NOT: serialized loop
 ;
 ; ------------------------------------------------------------------------------
-; RUN: opt -passes="kit-serialize" --tapir=cuda %s -S \
+; RUN: opt -passes="kit-serialize" %s -S \
 ; RUN:     -serialize-verbose=2 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,VERBOSE --allow-empty
 ;
@@ -53,9 +53,7 @@ entry:
     #dbg_value(i64 %m, !16, !DIExpression(), !27)
     #dbg_value(i64 %n, !17, !DIExpression(), !27)
     #dbg_value(i64 0, !18, !DIExpression(), !28)
-  %cmp.m = icmp sgt i64 %m, 0, !dbg !29
-  %cmp.n = icmp sgt i64 %n, 0
-  br i1 %cmp.m, label %for.i.header, label %for.i.exit, !dbg !30
+  br label %for.i.header, !dbg !30
 
 for.i.header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
@@ -67,7 +65,7 @@ for.i.body:
     #dbg_value(i64 %i, !20, !DIExpression(), !32)
   tail call void @ext1(i64 %i), !dbg !33
     #dbg_value(i64 0, !22, !DIExpression(), !34)
-  br i1 %cmp.n, label %for.j.header, label %for.j.exit, !dbg !35
+  br label %for.j.header, !dbg !35
 
 for.j.header:
   %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]

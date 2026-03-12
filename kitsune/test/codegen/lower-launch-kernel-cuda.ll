@@ -2,9 +2,7 @@
 ;
 ; Check that the launch of a cuda kernel is lowered correctly.
 ;
-; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_86 \
-; RUN:     --tapir-cuda-runtime-bc=%S/input/libdevice.ll \
-; RUN:     -passes='kit-lower-intrinsics' -S %s \
+; RUN: opt --tapir=cuda -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-LABEL: @launch
@@ -29,7 +27,7 @@
 ; CHECK-NEXT: ret void
 
 ; This needs a triple in order to correctly initialize the target library.
-target triple = "x86_64-unknown-linux-gnu"
+target triple = "x86_64-pc-linux-gnu"
 
 @fb = external global [23 x i8]
 @0 = external global i32
