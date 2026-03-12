@@ -48,11 +48,11 @@ define i64 @sieve(i64 %0) {
   br i1 %9, label %3, label %5, !llvm.loop !5
 
 10:
-  %11 = add nsw i64 %0, -1
+  %11 = add i64 %0, -1
   %12 = getelementptr [256 x i8], ptr %2, i64 0, i64 %11
   %13 = load i8, ptr %12, align 1
-  %14 = trunc nuw i8 %13 to i1
-  %15 = add nsw i64 %0, -2
+  %14 = trunc i8 %13 to i1
+  %15 = add i64 %0, -2
   br i1 %14, label %39, label %34
 
 16:
@@ -60,7 +60,7 @@ define i64 @sieve(i64 %0) {
   %18 = phi i64 [ %32, %30 ], [ 4, %3 ]
   %19 = getelementptr [256 x i8], ptr %2, i64 0, i64 %17
   %20 = load i8, ptr %19, align 1
-  %21 = trunc nuw i8 %20 to i1
+  %21 = trunc i8 %20 to i1
   %22 = and i64 %18, 4294967295
   %23 = icmp sle i64 %22, %0
   %24 = and i1 %23, %21
@@ -84,7 +84,7 @@ define i64 @sieve(i64 %0) {
   %35 = getelementptr [256 x i8], ptr %2, i64 0, i64 %15
   %36 = load i8, ptr %35, align 1
   %37 = zext nneg i8 %36 to i64
-  %38 = add nsw i64 %37, %0
+  %38 = add i64 %37, %0
   br label %39
 
 39:

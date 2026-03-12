@@ -25,15 +25,15 @@ header:
 body:
   %0 = load i32, ptr @v137, align 4
   %1 = load i32, ptr @v138, align 4
-  %2 = add nsw i32 %0, %1
+  %2 = add i32 %0, %1
   %3 = load i32, ptr @v139, align 4
-  %4 = add nsw i32 %2, %3
+  %4 = add i32 %2, %3
   %arrayidx = getelementptr i32, ptr %c, i64 %i
   store i32 %4, ptr %arrayidx, align 4
   reattach within %syncreg, label %latch
 
 latch:
-  %i.next = add nuw i64 %i, 1
+  %i.next = add i64 %i, 1
   %cmp.i = icmp eq i64 %i.next, %n
   br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 

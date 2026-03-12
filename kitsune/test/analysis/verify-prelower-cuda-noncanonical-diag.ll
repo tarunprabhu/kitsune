@@ -21,7 +21,7 @@ for.i.header:
   detach within %syncreg, label %for.i.body, label %for.i.latch
 
 for.i.body:
-  %a.i = getelementptr inbounds i64, ptr %a, i64 %i
+  %a.i = getelementptr i64, ptr %a, i64 %i
   store i64 %i, ptr %a.i
   reattach within %syncreg, label %for.i.latch
 

@@ -6,7 +6,7 @@
 ; 'kit-lowering' meta-passes are specified.
 ;
 ; RUN: not opt --tapir=opencilk %s -disable-output \
-; RUN:     -passes='kit-lowering<O1>' 2>&1 \
+; RUN:     -passes='tapir-lowering<O1>' 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=RUNTIME-BC
 ;
 ; RUNTIME-BC: error: option '--tapir-opencilk-runtime-bc' must be provided exactly once

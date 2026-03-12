@@ -57,12 +57,12 @@ header:
 
 body:
     #dbg_value(i64 %i, !271, !DIExpression(), !277)
-  %arrayidx = getelementptr nuw i32, ptr %a, i64 %i, !dbg !278
+  %arrayidx = getelementptr i32, ptr %a, i64 %i, !dbg !278
   %0 = load i32, ptr %arrayidx, align 4, !dbg !278, !tbaa !280
-  %arrayidx2 = getelementptr nuw i32, ptr %b, i64 %i, !dbg !284
+  %arrayidx2 = getelementptr i32, ptr %b, i64 %i, !dbg !284
   %1 = load i32, ptr %arrayidx2, align 4, !dbg !284, !tbaa !280
-  %add = add nsw i32 %1, %0, !dbg !285
-  %arrayidx3 = getelementptr nuw i32, ptr %c, i64 %i, !dbg !286
+  %add = add i32 %1, %0, !dbg !285
+  %arrayidx3 = getelementptr i32, ptr %c, i64 %i, !dbg !286
   store i32 %add, ptr %arrayidx3, align 4, !dbg !287, !tbaa !280
   reattach within %syncreg, label %latch, !dbg !288
 

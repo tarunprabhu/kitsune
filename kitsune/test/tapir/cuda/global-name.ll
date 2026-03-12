@@ -26,7 +26,7 @@ body:
   %0 = load i32, ptr @v137.suffix, align 4
   %1 = getelementptr i32, ptr @v138.const, i64 %i
   %2 = load i32, ptr %1, align 4
-  %3 = add nuw i32 %0, %2
+  %3 = add i32 %0, %2
   %arrayidx = getelementptr i32, ptr %c, i64 %i
   store i32 %3, ptr %arrayidx, align 4
   reattach within %syncreg, label %latch

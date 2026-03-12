@@ -1,13 +1,16 @@
-; Check that the serialize pass does not serialize anything when the pthreads
+; Check that the serialize pass does not serialize anything when the custom
 ; tapir target is used.
 ;
-; NOTE: This might change in the future. We need to do more careful performance
-; analysis to determine if there is a "sweet spot" in the amount of parallelism
-; that can be exploited by pthreads. If that happens, we may well end up
-; serializing certain loops. In that case, this file should be removed and more
-; appropriate tests added.
+; FIXME: The serialize pass has no effect with the custom tapir target at the
+; time of writing this test. But this may well change in the future. At that
+; point, this note should be removed.
+;
+; The --tapir=custom option and --tapir-plugin= are required when dealing with
+; loops for the custom tapir target. This is not currently enforced, but that
+; will definitely change at some point.
 ;
 ; RUN: opt -passes="kit-serialize" -S %s \
+; RUN:     --tapir=custom --tapir-plugin=%kit-tt-plugin-demo \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK-NOT: serialized tapir loop
