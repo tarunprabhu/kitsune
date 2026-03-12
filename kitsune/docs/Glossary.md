@@ -99,6 +99,11 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
 (glossary-d)=
 ## D
 
+(glossary-dependent-pass)=
+**dependent pass**
+: A pass that requires one or more "[requirable](glossary-requirable-pass)"
+  passes to have run before it is run.
+
 (glossary-device)=
 **device**
 : In the context of GPU-centric [tapir targets](glossary-tapir-target), the
@@ -501,6 +506,18 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
   [tapir loop](glossary-tapir-loop). This is primarily useful for debugging
   and writing tests. Currently, [nolo](tapir-targets-nolo) is the only such
   tapir target in Kitsune.
+
+<!----------------------------------------------------------------------------->
+
+(glossary-r)=
+## R
+
+(glossary-requirable-pass)=
+**requirable pass**
+: A pass that must be run before a "[dependent pass](glossary-dependent-pass)"
+  that requires it is run. These passes will usually add metadata to the IR
+  unit on which they operate - typically a function or module - indicating when
+  they have been run.
 
 <!----------------------------------------------------------------------------->
 

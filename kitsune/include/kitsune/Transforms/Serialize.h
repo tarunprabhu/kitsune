@@ -13,8 +13,7 @@
 #ifndef KITSUNE_TRANSFORMS_SERIALIZE_H
 #define KITSUNE_TRANSFORMS_SERIALIZE_H
 
-#include "kitsune/Passes/DependentPass.h"
-#include "kitsune/Passes/RequirablePass.h"
+#include "kitsune/Passes/PassUtils.h"
 #include "kitsune/Transforms/AnnotateTapirLoops.h"
 #include "llvm/IR/PassManager.h"
 
@@ -22,13 +21,18 @@ namespace llvm {
 
 /// \ingroup kitsune
 /// Serialize certain tapir constructs.
-class SerializePass
-    : public PassInfoMixin<SerializePass>,
-      public DependentPass<SerializePass, AnnotateTapirLoopsPass>,
-      public RequirablePass<SerializePass> {
+class SerializePass : public PassInfoMixin<SerializePass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
+
+  using Requires = std::tuple<AnnotateTapirLoopsPass>;
+
+  void setHasRun(Module &m);
+  static bool hasRun(const Module &m);
 };
+
+static_assert(check_pass_dependent<SerializePass>());
+static_assert(check_pass_requirable<SerializePass>());
 
 } // namespace llvm
 

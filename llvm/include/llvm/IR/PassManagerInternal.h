@@ -17,6 +17,7 @@
 #ifndef LLVM_IR_PASSMANAGERINTERNAL_H
 #define LLVM_IR_PASSMANAGERINTERNAL_H
 
+#include "kitsune/Passes/PassUtilsInternal.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Analysis.h"
@@ -88,7 +89,22 @@ struct PassModel : PassConcept<IRUnitT, AnalysisManagerT, ExtraArgTs...> {
 
   PreservedAnalyses run(IRUnitT &IR, AnalysisManagerT &AM,
                         ExtraArgTs... ExtraArgs) override {
-    return Pass.run(IR, AM, ExtraArgs...);
+    // If the pass being run is dependent on other passes, check that those have
+    // been run. This will raise an error and exit the process with a
+    // system-dependent error code if a required pass has not run.
+    checkRequiredPassesHaveRun<PassT>(IR);
+
+    PreservedAnalyses pa = Pass.run(IR, AM, ExtraArgs...);
+
+    // Record that the pass has been run even if it changed nothing. We could
+    // probably just do this before the pass has run since passes don't "nest",
+    // and passes are unlikely to turn themselves off if they have already been
+    // run. But this is the "cleaner" way to do it and is "safer" sine we may
+    // end up writing a pass that must be run exactly once and may well disable
+    // itself if it sees that it has been run already.
+    setPassHasRun(Pass, IR);
+
+    return pa;
   }
 
   void printPipeline(
