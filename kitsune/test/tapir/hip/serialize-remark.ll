@@ -74,7 +74,7 @@ for.j.body:
   reattach within %syncreg.j, label %for.j.latch
 
 for.j.latch:
-  %inc.j = add nuw nsw i64 %j, 1
+  %inc.j = add i64 %j, 1
   %j.not = icmp eq i64 %inc.j, %n
   br i1 %j.not, label %for.j.exit, label %for.j.header, !llvm.loop !1
 
@@ -85,7 +85,7 @@ for.j.end:
   reattach within %syncreg.i, label %for.i.latch
 
 for.i.latch:
-  %inc.i = add nuw nsw i64 %i, 1
+  %inc.i = add i64 %i, 1
   %i.not = icmp eq i64 %inc.i, %m
   br i1 %i.not, label %for.i.exit, label %for.i.header, !llvm.loop !0
 

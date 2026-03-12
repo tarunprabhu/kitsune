@@ -35,7 +35,7 @@ for.j.body:
 
 for.k.body:
   %k = phi i64 [ 0, %for.j.body ], [ %inc.k, %for.k.body ]
-  %inc.k = add nuw nsw i64 %k, 1
+  %inc.k = add i64 %k, 1
   %cmp.k = icmp eq i64 %inc.k, %p
   br i1 %cmp.k, label %for.k.exit, label %for.k.body, !llvm.loop !2
 
@@ -43,7 +43,7 @@ for.k.exit:
   reattach within %syncreg.j, label %for.j.latch
 
 for.j.latch:
-  %inc.j = add nuw nsw i64 %j, 1
+  %inc.j = add i64 %j, 1
   %cmp.j = icmp eq i64 %inc.j, %n
   br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !1
 
@@ -54,7 +54,7 @@ for.j.end:
   reattach within %syncreg.i, label %for.i.latch
 
 for.i.latch:
-  %inc.i = add nuw nsw i64 %i, 1
+  %inc.i = add i64 %i, 1
   %cmp.i = icmp eq i64 %inc.i, %m
   br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
 

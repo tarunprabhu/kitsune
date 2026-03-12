@@ -158,7 +158,7 @@ for2.j.exit:
   reattach within %syncreg2.i, label %for2.i.latch
 
 for2.i.latch:
-  %inc.i2 = add nuw i64 %i2, 1
+  %inc.i2 = add i64 %i2, 1
   %cmp.i2 = icmp eq i64 %inc.i2, %m
   br i1 %cmp.i2, label %for2.i.exit, label %for2.i.header, !llvm.loop !7
 

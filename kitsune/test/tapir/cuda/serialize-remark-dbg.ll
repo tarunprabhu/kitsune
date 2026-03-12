@@ -78,7 +78,7 @@ for.j.body:
   reattach within %syncreg.j, label %for.j.latch, !dbg !37
 
 for.j.latch:
-  %inc.j = add nuw nsw i64 %j, 1, !dbg !38
+  %inc.j = add i64 %j, 1, !dbg !38
     #dbg_value(i64 %inc.j, !22, !DIExpression(), !34)
   %j.not = icmp eq i64 %inc.j, %n, !dbg !39
   br i1 %j.not, label %for.j.exit, label %for.j.header, !dbg !35, !llvm.loop !40
@@ -90,7 +90,7 @@ for.j.end:
   reattach within %syncreg.i, label %for.i.latch, !dbg !44
 
 for.i.latch:
-  %inc.i = add nuw nsw i64 %i, 1, !dbg !45
+  %inc.i = add i64 %i, 1, !dbg !45
     #dbg_value(i64 %inc.i, !18, !DIExpression(), !28)
   %i.not = icmp eq i64 %inc.i, %m, !dbg !29
   br i1 %i.not, label %for.i.exit, label %for.i.header, !dbg !30, !llvm.loop !46

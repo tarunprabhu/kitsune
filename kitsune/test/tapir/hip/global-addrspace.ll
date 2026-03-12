@@ -25,7 +25,7 @@ body:
   reattach within %syncreg, label %latch
 
 latch:
-  %i.next = add nuw i64 %i, 1
+  %i.next = add i64 %i, 1
   %cmp.i = icmp eq i64 %i.next, %n
   br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
 

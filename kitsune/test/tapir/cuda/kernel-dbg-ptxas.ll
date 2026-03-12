@@ -35,7 +35,7 @@ header:
 
 body:
     #dbg_value(i64 %i, !271, !DIExpression(), !277)
-  %arrayidx = getelementptr nuw float, ptr %a, i64 %i, !dbg !278
+  %arrayidx = getelementptr float, ptr %a, i64 %i, !dbg !278
   %0 = load float, ptr %arrayidx, align 4, !dbg !279, !tbaa !280
   %add = fadd float %0, 1.000000e+00, !dbg !279
   store float %add, ptr %arrayidx, align 4, !dbg !279, !tbaa !280
