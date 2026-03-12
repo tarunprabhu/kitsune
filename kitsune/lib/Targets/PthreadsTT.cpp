@@ -1,4 +1,4 @@
-//===- PthreadsTT.cpp - Implementation of the pthreads tapir target -------===//
+//===- PthreadsTT.cpp - Tapir target that lowers to pthreads --------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,8 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements lowering to convert Tapir instructions into calls to
-// Kitsune's pthreads (POSIX threads) runtime.
+// Tapir target that lowers to POSIX threads (pthreads).
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,9 +18,11 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
+#define DEBUG_TYPE "pthreadstt"
+
 using namespace llvm;
 
-#define DEBUG_TYPE "pthreadstt"
+namespace {
 
 /// \ingroup kitsune
 class PthreadsLoop : public LoopOutlineProcessor {
@@ -69,6 +70,8 @@ public:
     replCall->eraseFromParent();
   }
 };
+
+} // namespace
 
 PthreadsTT::PthreadsTT(Module &m, const TTOptions &ttOpts)
     : TapirTarget(m, ttOpts) {}
