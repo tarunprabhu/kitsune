@@ -1,4 +1,4 @@
-//===- TapirTargets.h - Utilities for tapir targets as a whole -*- C++ -*--===//
+//===- TapirTargets.h - Utilities for tapir targets objects ----*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.

@@ -1,4 +1,4 @@
-//===- TapirTargets.h - Helper to create tapir targets --------------------===//
+//===- TapirTargets.cpp - Utilities for tapir target objects --------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,15 +6,15 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// The utilities here hide the ugly complexities of handling the cases where
-// one attempts to create tapir targets that may not have been built.
+// Utilities to create tapir target objects, query enabled tapir targets etc.
 //
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Targets/TapirTargets.h"
 #include "kitsune/Config/Config.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Support/OstreamUtils.h"
+#include "kitsune/Frontend/Diagnostics.h"
+#include "kitsune/Support/ErrorHandling.h"
 
 #if KITSUNE_CUDA_ENABLED
 #include "kitsune/Targets/CudaABI.h"
@@ -56,15 +56,8 @@ using namespace llvm;
 
 [[noreturn]]
 static void fatalTTNotEnabled(TTID tt) {
-  std::string buf;
-  raw_string_ostream os(buf);
-
-  os << "'" << tt << "' tapir target not enabled";
-  os.flush();
-
-  // FIXME: Instead of the unreachable call, emit an error message and terminate
-  // cleanly.
-  llvm_unreachable(buf.c_str());
+  emitDiagnostic(DiagID::ErrTTNotEnabled, tt);
+  exitOnError();
 }
 
 static std::unique_ptr<TapirTarget> makeCudaTT(Module &m,

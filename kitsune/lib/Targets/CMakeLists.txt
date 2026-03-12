@@ -1,6 +1,5 @@
 set(SOURCES
   GPUTTUtils.cpp
-  PthreadsTT.cpp
   SerialTT.cpp
   TapirTargets.cpp
 )
