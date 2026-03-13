@@ -42,7 +42,7 @@ exit:
 
 !llvm.module.flags = !{!4, !5, !6, !7, !8, !9}
 
-!0 = distinct !{!0, !1, !2, !3}
+!0 = distinct !{!0, !1, !2, !3, !10, !11}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 4}
 !3 = !{!"tapir.loop.lowering.enabled"}
@@ -52,3 +52,5 @@ exit:
 !7 = !{i32 7, !"uwtable", i32 2}
 !8 = !{i32 7, !"Dwarf Version", i32 5}
 !9 = !{i32 2, !"Debug Info Version", i32 3}
+!10 = !{!"tapir.loop.perfect.depth", i32 1}
+!11 = !{!"tapir.loop.perfect.level", i32 1}

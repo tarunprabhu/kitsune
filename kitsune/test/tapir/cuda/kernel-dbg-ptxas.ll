@@ -343,10 +343,12 @@ exit:
 !282 = !{!"omnipotent char", !283, i64 0}
 !283 = !{!"Simple C++ TBAA"}
 !284 = !DILocation(line: 4, column: 31, scope: !272)
-!285 = distinct !{!285, !276, !286, !287, !291, !288}
+!285 = distinct !{!285, !276, !286, !287, !291, !288, !292, !293}
 !286 = !DILocation(line: 5, column: 15, scope: !270)
 !287 = !{!"tapir.loop.spawn.strategy", i32 3}
 !288 = !{!"tapir.loop.lowering.enabled"}
 !289 = !DILocation(line: 4, column: 5, scope: !272)
 !290 = !DILocation(line: 6, column: 1, scope: !261)
 !291 = !{!"tapir.loop.target", i32 2}
+!292 = !{!"tapir.loop.perfect.depth", i32 1}
+!293 = !{!"tapir.loop.perfect.level", i32 1}

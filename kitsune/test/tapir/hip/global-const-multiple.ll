@@ -66,7 +66,7 @@ body:
 latch:
   %i.next = add i64 %i, 1
   %cmp.i = icmp eq i64 %i.next, %n
-  br i1 %cmp.i, label %sync, label %header, !llvm.loop !4
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !6
 
 sync:
   sync within %syncreg, label %exit
@@ -75,8 +75,10 @@ exit:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2, !3}
+!0 = distinct !{!0, !1, !2, !3, !4, !5}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 4}
 !3 = !{!"tapir.loop.lowering.enabled"}
-!4 = distinct !{!4, !1, !2, !3}
+!4 = !{!"tapir.loop.perfect.depth", i32 1}
+!5 = !{!"tapir.loop.perfect.level", i32 1}
+!6 = distinct !{!6, !1, !2, !3, !4, !5}

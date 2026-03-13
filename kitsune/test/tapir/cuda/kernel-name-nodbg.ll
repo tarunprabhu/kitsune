@@ -89,9 +89,11 @@ exit:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2, !3}
+!0 = distinct !{!0, !1, !2, !3, !6, !7}
 !1 = !{!"tapir.loop.spawn.strategy", i32 3}
 !2 = !{!"tapir.loop.target", i32 2}
 !3 = !{!"tapir.loop.lowering.enabled"}
-!4 = distinct !{!4, !1, !2, !3}
-!5 = distinct !{!5, !1, !2, !3}
+!4 = distinct !{!4, !1, !2, !3, !6, !7}
+!5 = distinct !{!5, !1, !2, !3, !6, !7}
+!6 = !{!"tapir.loop.perfect.depth", i32 1}
+!7 = !{!"tapir.loop.perfect.level", i32 1}
