@@ -392,7 +392,7 @@ entry:
 !287 = !DILocation(line: 5, column: 10, scope: !279)
 !288 = !DILocation(line: 6, column: 3, scope: !279)
 !289 = !DILocation(line: 4, column: 31, scope: !272)
-!290 = distinct !{!290, !276, !291, !292, !314, !315}
+!290 = distinct !{!290, !276, !291, !292, !314, !315, !316, !317}
 !291 = !DILocation(line: 6, column: 3, scope: !270)
 !292 = !{!"tapir.loop.lowering.enabled"}
 !293 = !DILocation(line: 4, column: 3, scope: !272)
@@ -418,3 +418,5 @@ entry:
 !313 = !DILocation(line: 15, column: 1, scope: !305)
 !314 = !{!"tapir.loop.spawn.strategy", i32 3}
 !315 = !{!"tapir.loop.target", i32 2}
+!316 = !{!"tapir.loop.perfect.depth", i32 1}
+!317 = !{!"tapir.loop.perfect.level", i32 1}
