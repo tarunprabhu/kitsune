@@ -12,13 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_TRANSFORMS_EMB_MODULE_PASS_H
-#define KITSUNE_TRANSFORMS_EMB_MODULE_PASS_H
+#ifndef KITSUNE_PASSES_EMB_MODULE_PASS_H
+#define KITSUNE_PASSES_EMB_MODULE_PASS_H
 
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/ErrorHandling.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/PassBuilder.h"
@@ -92,30 +93,27 @@ public:
     if (not tgi.hasTTID())
       return PreservedAnalyses::all();
 
-    // Calling resetEmbeddedBC() will delete the global variable whose
-    // initializer is being reset. Obviously, we can't iterate over the globals
-    // while running passes on them, so collect the globals first, then run the
-    // pass on each.
-    std::vector<std::tuple<GlobalVariable *, TTID>> gs;
-    for (GlobalVariable &g : hostM.globals()) {
-      if (g.hasAttribute(Attribute::KitBC)) {
-        assert(g.hasAttribute(Attribute::KitTT) &&
-               "Attribute 'kit_bc' requires 'kit_tt");
-        gs.emplace_back(&g, g.getAttribute(Attribute::KitTT).getTTID());
-      }
-    }
+    // Calling resetEmbBCGlobal() will delete the global variable whose
+    // initializer is being reset. In this case, we can't iterate over the
+    // globals while running passes on them, so collect the globals first, then
+    // run the pass on each.
+    SmallVector<GlobalVariable *, 4> gs;
+    for (GlobalVariable &g : hostM.globals())
+      if (g.hasAttribute(Attribute::KitBC))
+        gs.push_back(&g);
 
     auto *pass = static_cast<DerivedT *>(this);
-    for (auto &tup : gs) {
-      bool changed = false;
-      GlobalVariable *g = std::get<0>(tup);
-      TTID tt = std::get<1>(tup);
-
+    for (GlobalVariable *g : gs) {
       Expected<std::unique_ptr<Module>> kmOrErr = parseEmbBCGlobal(*g);
       if (not kmOrErr)
         exitOnError(kmOrErr.takeError());
-
       std::unique_ptr<Module> km = std::move(kmOrErr.get());
+
+      assert(g->hasAttribute(Attribute::KitTT) &&
+             "Attribute 'kit_bc' requires 'kit_tt");
+      TTID tt = g->getAttribute(Attribute::KitTT).getTTID();
+
+      bool changed = false;
       if constexpr (detail::needsAnalysisManager<DerivedT>) {
         LoopAnalysisManager lam;
         FunctionAnalysisManager fam;
@@ -148,4 +146,4 @@ public:
 
 } // namespace llvm
 
-#endif // KITSUNE_TRANSFORMS_EMB_MODULE_PASS_H
+#endif // KITSUNE_PASSES_EMB_MODULE_PASS_H

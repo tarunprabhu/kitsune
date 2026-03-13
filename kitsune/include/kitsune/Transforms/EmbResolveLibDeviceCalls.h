@@ -15,7 +15,7 @@
 #ifndef KITSUNE_TRANSFORMS_EMB_RESOLVE_LIB_DEVICE_CALLS_H
 #define KITSUNE_TRANSFORMS_EMB_RESOLVE_LIB_DEVICE_CALLS_H
 
-#include "kitsune/Transforms/EmbModulePass.h"
+#include "kitsune/Passes/EmbModulePass.h"
 
 namespace llvm {
 
