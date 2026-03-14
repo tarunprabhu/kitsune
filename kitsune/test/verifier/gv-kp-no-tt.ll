@@ -5,6 +5,6 @@
 ;
 ; CHECK: Attribute 'kit_kernel_props' requires 'kit_tt'
 
-@.kitsune.emb.fb = constant { i64, i64, i64, i64 } zeroinitializer #0
+@.kit.emb.fb = constant { i64, i64, i64, i64 } zeroinitializer #0
 
 attributes #0 = { "kit_kernel_props"="some_kernel_name" }

@@ -39,7 +39,7 @@ class NamedMDNode;
 ///
 /// Currently, this named metadata node looks like this:
 ///
-///   kitsune.device.module.flags = !{!0, !1}
+///   kit.device.module.flags = !{!0, !1}
 ///
 ///   !0 = !{!i32 [[TTID]]}
 ///   !1 = !{!"[[MODULE_NAME]]"}

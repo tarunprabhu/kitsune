@@ -6,12 +6,12 @@
 ;
 ; RUN: MBC_2=`%kit-enc --tapir=cuda %s \
 ; RUN:     | grep "c\"BC" \
-; RUN:     | sed 's/.kitsune.emb//g' \
+; RUN:     | sed 's/.kit.emb//g' \
 ; RUN:     | sed 's/@.bc/@.bc.2/g'`
 ; RUN:
 ; RUN: MBC_4=`%kit-enc --tapir=hip %s \
 ; RUN:     | grep "c\"BC" \
-; RUN:     | sed 's/.kitsune.emb//g' \
+; RUN:     | sed 's/.kit.emb//g' \
 ; RUN:     | sed 's/@.bc/@.bc.4/g' \
 ; RUN:     | sed 's/#0/#1/g'`
 ; RUN:

@@ -6,13 +6,13 @@
 ; RUN: MBC_2=`echo "@cuda = global i32 2" \
 ; RUN:     | %kit-enc --tapir=cuda \
 ; RUN:     | grep "c\"BC" \
-; RUN:     | sed 's/.kitsune.emb//g' \
+; RUN:     | sed 's/.kit.emb//g' \
 ; RUN:     | sed 's/@.bc/@.bc.2/g'`
 ;
 ; RUN: MBC_4=`echo "@hip = global i32 4" \
 ; RUN:     | %kit-enc --tapir=hip \
 ; RUN:     | grep "c\"BC" \
-; RUN:     | sed 's/.kitsune.emb//g' \
+; RUN:     | sed 's/.kit.emb//g' \
 ; RUN:     | sed 's/@.bc/@.bc.4/g' \
 ; RUN:     | sed 's/#0/#1/g'`
 ;

@@ -4,6 +4,6 @@
 ;
 ; CHECK: Attributes 'kit_fb' and 'kit_kernel_props' are incompatible
 
-@.kitsune.emb.fb = constant [0 x i8] zeroinitializer #0
+@.kit.emb.fb = constant [0 x i8] zeroinitializer #0
 
 attributes #0 = { kit_fb kit_tt(2) "kit_kernel_props"="some_kernel" }

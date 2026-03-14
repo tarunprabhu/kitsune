@@ -10,11 +10,11 @@
 ;   - Add a global variable that contains properties for the kernel
 ;
 ; RUN: %kit-enc --tapir=hip %s \
-; RUN:     | sed -E $'/^[@][.]kitsune[.]emb[.]fb/a\\\n \
+; RUN:     | sed -E $'/^[@][.]kit[.]emb[.]fb/a\\\n \
 ; RUN:         @kp = constant {i64, i64} zeroinitializer #2' \
 ; RUN:     | sed -E $'/^attributes #1/a\\\n \
 ; RUN:         attributes #2 = { kit_tt(4) "kit_kernel_props"="kit_kernel" }' \
-; RUN:     | sed 's/[.]kitsune[.]emb[.]//g' \
+; RUN:     | sed 's/[.]kit[.]emb[.]//g' \
 ; RUN:     | llvm-as -o - \
 ; RUN:     | llvm-dis -o - \
 ; RUN:     | FileCheck %s

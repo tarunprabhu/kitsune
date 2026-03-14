@@ -8,7 +8,7 @@
 ; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s --check-prefix MISSING
 ;
-; MISSING-NOT: kitsune.device.module.flags
+; MISSING-NOT: kit.device.module.flags
 ;
 ; ------------------------------------------------------------------------------
 ; If the input module already contains metadata, ensure that it is not modified
@@ -21,11 +21,11 @@
 ; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s --check-prefix RETAIN
 ;
-; RETAIN: !kitsune.device.module.flags = !{!0, !1}
+; RETAIN: !kit.device.module.flags = !{!0, !1}
 ; RETAIN: !0 = !{i32 2}
-; RETAIN: !1 = !{!""}
+; RETAIN: !1 = !{!"gonville-caius"}
 
-!kitsune.device.module.flags = !{!0, !1}
+!kit.device.module.flags = !{!0, !1}
 
 !0 = !{i32 2}
-!1 = !{!""}
+!1 = !{!"gonville-caius"}
