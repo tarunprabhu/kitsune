@@ -64,6 +64,7 @@
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Core/ValueUtils.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"
@@ -173,6 +174,11 @@ public:
            const TTOptions &tto);
   ~CudaLoop();
 
+  /// Setup the loop-control arguments \p lcArgs and loop-control inputs
+  /// \p lcInputs for the Tapir loop \p tl.
+  void setupLoopControlArgs(TapirLoopInfo *tl, SmallVectorImpl<Value *> &lcArgs,
+                            SmallVectorImpl<Value *> &lcInputs) override;
+
   void preProcessTapirLoop(TapirLoopInfo &tl, ValueToValueMapTy &vmap) override;
   void postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
                           ValueToValueMapTy &vmap) override;
@@ -192,6 +198,41 @@ CudaLoop::CudaLoop(Module &hostM, Module &kernelModule,
 CudaLoop::~CudaLoop() {
   LLVM_DEBUG(dbgs() << "debug[cuabi]: destroying loop outliner for kernel '"
                     << kernelName << "'.\n");
+}
+
+void CudaLoop::setupLoopControlArgs(TapirLoopInfo *tl,
+                                    SmallVectorImpl<Value *> &lcArgs,
+                                    SmallVectorImpl<Value *> &lcInputs) {
+  InductionDescriptor ivDescr = tl->getPrimaryInduction().second;
+
+  // It is not clear if we actually need the step value to be 1, but until we
+  // can be sure of it, we'll be conservative and require it here.
+  assert(ivDescr.getStep()->isOne() &&
+         "Step of tapir loop induction variable must be 1");
+
+  // We require tapir loops to be lowered to the GPU to have canonical
+  // induction variables. This should have been checked before we get here, but
+  // make sure that is the case.
+  Value *ivBeg = ivDescr.getStartValue();
+  assert(isZero(ivBeg) &&
+         "Start value of tapir loop induction variable must be 0");
+
+  Value *tc = tl->getTripCount();
+  assert(tc && "No trip count found for Tapir loop end argument.");
+
+  // Since the start value is 0, we don't strictly need this. However, not
+  // passing this causes issues in loop spawning since that assumes that this
+  // value will be passed. The fixes needed to make this work in loop spawning
+  // are not particularly difficult, but it does feel messy. For now, we just
+  // pass it since the fix to loop spawning will likely require some more
+  // thought.
+  LoopCtlArgs.push_back(new Argument(ivBeg->getType(), "iv0.x"));
+  lcArgs.push_back(LoopCtlArgs.back());
+  lcInputs.push_back(ivBeg);
+
+  LoopCtlArgs.push_back(new Argument(tc->getType(), "tc.x"));
+  lcArgs.push_back(LoopCtlArgs.back());
+  lcInputs.push_back(tc);
 }
 
 void CudaLoop::preProcessTapirLoop(TapirLoopInfo &tl, ValueToValueMapTy &vmap) {
