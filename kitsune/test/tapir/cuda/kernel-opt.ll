@@ -33,22 +33,22 @@
 ; O2-NOT: = phi i64
 ; O2: define {{.+}} @__kitcu_{{[^(]+}}(
 ; O2-SAME: i64 {{[^%]*}}%[[LB:[^,]+]],
-; O2-SAME: i64 {{[^%]*}}%[[UB:[^,]+]],
+; O2-SAME: i64 {{[^%]*}}%[[TC:[^,]+]],
 ; O2-SAME: i64 {{[^%]*}}%[[GRAINSIZE:[^,]+]],
 ; O2-SAME: ptr {{[^%]*}}%[[BUF:[^,]+]],
 ; O2-SAME: i64 {{[^%]*}}%[[N:[^)]+]])
 ; O2-SAME: {{.*}}#[[ATTRS:[0-9]+]]
 ; O2-NEXT: [[BBENTRY:.+]]:
-; O2-NEXT: %[[TID:.+]] = tail call {{(range.+ )?}}i32 @llvm.nvvm.read.ptx.sreg.tid.x()
-; O2-NEXT: %[[BIDX:.+]] = tail call {{(range.+ )?}}i32 @llvm.nvvm.read.ptx.sreg.ctaid.x()
-; O2-NEXT: %[[BDIM:.+]] = tail call {{(range.+ )?}}i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
-; O2-NEXT: %[[BOFF:.+]] = mul i32 %[[BIDX]], %[[BDIM]]
-; O2-NEXT: %[[IV32:.+]] = add i32 %[[BOFF]], %[[TID]]
-; O2-NEXT: %[[TIV:.+]] = zext i32 %[[IV32]] to i64
-; O2-NEXT: %[[COND:.+]] = icmp ugt i64 %[[UB]], %[[TIV]]
-; O2-NEXT: br i1 %[[COND]], label %[[BBBODY:[^,]+]], label %[[BBEXIT:.+]]
+; O2-NEXT: %[[TIDX:.+]] = tail call i32 @llvm.kit.gpu.thread.id.x()
+; O2-NEXT: %[[BIDX:.+]] = tail call i32 @llvm.kit.gpu.block.id.x()
+; O2-NEXT: %[[BDIM:.+]] = tail call i32 @llvm.kit.gpu.block.size.x()
+; O2-NEXT: %[[BOFF:.+]] = mul i32 %[[BDIM]], %[[BIDX]]
+; O2-NEXT: %[[IVBEG32:.+]] = add i32 %[[BOFF]], %[[TIDX]]
+; O2-NEXT: %[[IVBEG:.+]] = zext i32 %[[IVBEG32]] to i64
+; O2-NEXT: %[[IVCOND:.+]] = icmp ugt i64 %[[TC]], %[[IVBEG]]
+; O2-NEXT: br i1 %[[IVCOND]], label %[[BBBODY:[^,]+]], label %[[BBEXIT:.+]]
 ; O2: [[BBBODY]]:
-; O2-NEXT: %[[ARRIDX:.+]] = getelementptr {{.+}}, ptr %[[BUF]], i64 %[[TIV]]
+; O2-NEXT: %[[ARRIDX:.+]] = getelementptr {{.+}}, ptr %[[BUF]], i64 %[[IVBEG]]
 ; O2-NEXT: store i64 %[[N]], ptr %[[ARRIDX]]
 ; O2-NEXT: br label %[[BBEXIT]]
 ; O2: [[BBEXIT]]:

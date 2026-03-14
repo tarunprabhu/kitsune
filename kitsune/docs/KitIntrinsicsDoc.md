@@ -264,6 +264,126 @@ These are intrinsics may only be used by the GPU-centric tapir targets,
 [cuda](tapir-targets-cuda) and [hip](tapir-targets-hip).
 
 
+(llvm-intrinsics-thread-id-x)=
+### llvm.kit.gpu.thread.id.x
+
+Get the thread index in the `x` dimension in a GPU kernel.
+
+```llvm
+i32 @llvm.kit.gpu.thread.id.x()
+```
+
+
+(llvm-intrinsics-thread-id-y)=
+### llvm.kit.gpu.thread.id.y
+
+Get the thread index in the `y` dimension in a GPU kernel.
+
+```llvm
+i32 @llvm.kit.gpu.thread.id.y()
+```
+
+
+(llvm-intrinsics-thread-id-z)=
+### llvm.kit.gpu.thread.id.z
+
+Get the thread index in the `z` dimension in a GPU kernel.
+
+```llvm
+i32 @llvm.kit.gpu.thread.id.z()
+```
+
+
+(llvm-intrinsics-block-id-x)=
+### llvm.kit.gpu.block.id.x
+
+Get the block index in the `x` dimension in a GPU kernel.
+
+```llvm
+i32 @llvm.kit.gpu.block.id.x()
+```
+
+
+(llvm-intrinsics-block-id-y)=
+### llvm.kit.gpu.block.id.y
+
+Get the block index in the `y` dimension in a GPU kernel.
+
+```llvm
+i32 @llvm.kit.gpu.block.id.y()
+```
+
+
+(llvm-intrinsics-block-id-z)=
+### llvm.kit.gpu.block.id.z
+
+Get the block index in the `z` dimension in a GPU kernel.
+
+```llvm
+i32 @llvm.kit.gpu.block.id.z()
+```
+
+
+(llvm-intrinsics-block-size-x)=
+### llvm.kit.gpu.block.size.x
+
+Get the number of blocks in the `x` dimension in a GPU kernel.
+
+```llvm
+i32 @llvm.kit.gpu.block.size.x()
+```
+
+
+(llvm-intrinsics-block-size-y)=
+### llvm.kit.gpu.block.size.y
+
+Get the number of blocks in the `y` dimension in a GPU kernel.
+
+```llvm
+i32 @llvm.kit.gpu.block.size.y()
+```
+
+
+(llvm-intrinsics-block-size-z)=
+### llvm.kit.gpu.block.size.z
+
+Get the number of blocks in the `z` dimension in a GPU kernel.
+
+```llvm
+i32 @llvm.kit.gpu.block.size.z()
+```
+
+
+(llvm-intrinsics-grid-size-x)=
+### llvm.kit.gpu.grid.size.x
+
+Get the number of grids in the `x` dimension in a GPU kernel.
+
+```llvm
+i32 @llvm.kit.gpu.grid.size.x()
+```
+
+
+(llvm-intrinsics-grid-size-y)=
+### llvm.kit.gpu.grid.size.y
+
+Get the number of grids in the `y` dimension in a GPU kernel.
+
+```llvm
+i32 @llvm.kit.gpu.grid.size.y()
+```
+
+
+(llvm-intrinsics-grid-size-z)=
+### llvm.kit.gpu.grid.size.z
+
+Get the number of grids in the `z` dimension in a GPU kernel.
+
+```llvm
+i32 @llvm.kit.gpu.grid.size.z()
+```
+
+
 (llvm-intrinsics-thread-stream)=
 ### llvm.kit.thread.stream
 

@@ -17,11 +17,12 @@
 
 using namespace llvm;
 
-// Pass that prints the names of all functions in an embedded bitcode module.
+// Pass that prints the names of functions and whether they are declarations
+// or definitions.
 struct EmbFuncNamesPass : public EmbModulePass<EmbFuncNamesPass> {
   bool run(TTID tt, Module &m, Module &hostM, ModuleAnalysisManager &hostMAM) {
     for (Function &f : m.functions())
-      outs() << f.getName() << "\n";
+      outs() << (f.size() ? "define" : "declare") << " " << f.getName() << "\n";
     return false;
   }
 

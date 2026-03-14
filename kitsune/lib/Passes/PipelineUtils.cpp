@@ -14,10 +14,12 @@
 #include "kitsune/Analysis/PreLowerVerification.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
+#include "kitsune/CodeGen/EmbLowerKitsuneIntrinsics.h"
 #include "kitsune/CodeGen/LowerKitsuneIntrinsics.h"
 #include "kitsune/CodeGen/StripKitsuneAddrSpaces.h"
 #include "kitsune/Transforms/AnnotateTapirLoops.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
+#include "kitsune/Transforms/EmbLowerKitsuneIntrinsicsLibDevice.h"
 #include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
@@ -102,6 +104,7 @@ llvm::populateKitPostTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
     pb.invokeKitsunePostTapirEarlyEPCallbacks(mpm, optLevel);
 
     mpm.addPass(PrefetchForDevicePass());
+    mpm.addPass(EmbLowerKitsuneIntrinsicsLibDevicePass());
     mpm.addPass(EmbResolveLibDeviceCallsPass());
     mpm.addPass(EmbPreparePass());
     mpm.addPass(EmbLinkLibDeviceBitcodePass());
@@ -122,6 +125,7 @@ void llvm::populateKitCodeGenPasses(legacy::PassManager &pm,
                                     std::optional<TTOptions> tto) {
   if (tto) {
     pm.add(createTapirTargetAnalysisWrapperPass(tto));
+    pm.add(createEmbLowerKitsuneIntrinsicsLegacyPass());
     pm.add(createLowerKitsuneIntrinsicsLegacyPass());
     pm.add(createStripKitsuneAddrSpacesLegacyPass());
     pm.add(createCodeGenFatBinariesLegacyPass());

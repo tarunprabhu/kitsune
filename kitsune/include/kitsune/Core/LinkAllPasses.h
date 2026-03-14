@@ -15,6 +15,7 @@
 
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
+#include "kitsune/CodeGen/EmbLowerKitsuneIntrinsics.h"
 #include "kitsune/CodeGen/LowerKitsuneIntrinsics.h"
 #include "kitsune/CodeGen/StripKitsuneAddrSpaces.h"
 
@@ -32,6 +33,7 @@ struct ForceKitsunePassLinking {
 
     (void)llvm::createTapirTargetAnalysisWrapperPass(std::nullopt);
     (void)llvm::createCodeGenFatBinariesLegacyPass();
+    (void)llvm::createEmbLowerKitsuneIntrinsicsLegacyPass();
     (void)llvm::createLowerKitsuneIntrinsicsLegacyPass();
     (void)llvm::createStripKitsuneAddrSpacesLegacyPass();
   }

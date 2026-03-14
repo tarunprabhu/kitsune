@@ -114,21 +114,9 @@ private:
   /// module.
   Module &kernelModule;
 
-  // AMDGCN intrinsics.
-  FunctionCallee hipWorkItemIdFn;
-  FunctionCallee hipWorkItemIdXFn, hipWorkItemIdYFn, hipWorkItemIdZFn;
-  FunctionCallee hipWorkGroupIdFn;
-  FunctionCallee hipWorkGroupIdXFn, hipWorkGroupIdYFn, hipWorkGroupIdZFn;
-  FunctionCallee hipBlockDimFn;
-
   /// The GlobalValue's used in the loop that is being outlined. This includes
   /// functions, global variables, aliases and ifunc's.
   SmallSet<GlobalValue *, 8> usedGlobalValues;
-
-private:
-  Value *emitWorkItemId(IRBuilder<> &builder, int itemIndex);
-  Value *emitWorkGroupId(IRBuilder<> &builder, int itemIndex);
-  Value *emitWorkGroupSize(IRBuilder<> &builder, int itemIndex);
 
 public:
   /// @brief Build the HipLoop outline processor.
@@ -156,64 +144,6 @@ public:
                                DominatorTree &dt) override;
 };
 
-/// @brief Return the work item ID for the calling thread. (thread index)
-/// @param Builder - IR builder for code gen assistance.
-/// @param ItemIndex - which work item dimension (x=0,y=1,z=2)
-/// @param Low - Low-end of value range if known.
-/// @param High -- High-end of value range if known.
-Value *HipLoop::emitWorkItemId(IRBuilder<> &builder, int itemIndex) {
-  switch (itemIndex) {
-  case 0:
-    return builder.CreateCall(hipWorkItemIdXFn, {}, ".kern.witem.x");
-  case 1:
-    return builder.CreateCall(hipWorkItemIdYFn, {}, ".kern.witem.y");
-  case 2:
-    return builder.CreateCall(hipWorkItemIdZFn, {}, ".kern.witem.z");
-  default:
-    llvm_unreachable("unexpected item index!");
-  }
-}
-
-/// @brief Return the work group ID for the calling thread. (block index)
-/// @param Builder - IR builder for code gen assistance.
-/// @param ItemIndex - which work item dimension (x=0,y=1,z=2)
-Value *HipLoop::emitWorkGroupId(IRBuilder<> &builder, int itemIndex) {
-  switch (itemIndex) {
-  case 0:
-    return builder.CreateCall(hipWorkGroupIdXFn, {}, ".kern.wgroup.x");
-  case 1:
-    return builder.CreateCall(hipWorkGroupIdYFn, {}, ".kern.wgroup.y");
-  case 2:
-    return builder.CreateCall(hipWorkGroupIdZFn, {}, ".kern.wgroup.z");
-  default:
-    llvm_unreachable("unexpected item index!");
-  }
-}
-
-/// @brief Return the work group size for the calling thread. (block size)
-/// @param Builder - IR builder for code gen assistance.
-/// @param ItemIndex - which work item dimension (x=0,y=1,z=2)
-Value *HipLoop::emitWorkGroupSize(IRBuilder<> &builder, int itemIndex) {
-  auto getName = [](int itemIndex) -> StringRef {
-    switch (itemIndex) {
-    case 0:
-      return ".kern.blkdim.x";
-    case 1:
-      return ".kern.blkdim.y";
-    case 2:
-      return ".kern.blkdim.z";
-    default:
-      llvm_unreachable("emitWorkGroupSize: unexpected item index!");
-    };
-  };
-
-  LLVMContext &ctx = builder.getContext();
-  Constant *index = ConstantInt::get(Type::getInt32Ty(ctx), itemIndex);
-  StringRef name = getName(itemIndex);
-
-  return builder.CreateCall(hipBlockDimFn, {index}, name);
-}
-
 HipLoop::HipLoop(Module &hostM, Module &kernelModule, StringRef kernelName,
                  const TTOptions &tto)
     : LoopOutlineProcessor(hostM, kernelModule, tto,
@@ -224,53 +154,6 @@ HipLoop::HipLoop(Module &hostM, Module &kernelModule, StringRef kernelName,
                     << "(...)\n"
                     << "\tdevice-side module name    : "
                     << kernelModule.getName() << "\n\n");
-
-  LLVMContext &ctx = kernelModule.getContext();
-  Type *i32 = Type::getInt32Ty(ctx);
-  Type *i64 = Type::getInt64Ty(ctx);
-
-  // We use ROCm/HSA/HIP entry points for various runtime calls.  These calls
-  // are often at a lower level vs. user-facing entry points.  This follows
-  // lower-level code generation details for HIP (that also include details
-  // tucked into the HIP-centric header files as well a Clang lowering).
-
-  // Get the local workitem ID for the calling thread.
-  hipWorkItemIdFn = kernelModule.getOrInsertFunction(
-      "__ockl_get_local_id",
-      i64,  // return local thread id.
-      i32); // axis/index select (x=0, y=1, z=2).
-
-  // Get the work group ID for the calling thread.
-  hipWorkGroupIdFn = kernelModule.getOrInsertFunction(
-      "__ockl_get_group_id",
-      i64,  // return local thread id.
-      i32); // axis/index select (x=0, y=1, z=2).
-
-  // Get the block size for the calling thread.
-  hipBlockDimFn = kernelModule.getOrInsertFunction(
-      "__ockl_get_local_size",
-      i64,  // return local thread id.
-      i32); // axis/index select (x=0, y=1, z=2).
-
-  /* threadIdx.x */
-  hipWorkItemIdXFn = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::amdgcn_workitem_id_x);
-  /* threadIdx.y */
-  hipWorkItemIdYFn = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::amdgcn_workitem_id_y);
-  /* threadIdx. z */
-  hipWorkItemIdZFn = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::amdgcn_workitem_id_z);
-
-  /* blockIdx.x */
-  hipWorkGroupIdXFn = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::amdgcn_workgroup_id_x);
-  /* blockIdx.y */
-  hipWorkGroupIdYFn = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::amdgcn_workgroup_id_y);
-  /* blockIdx.z */
-  hipWorkGroupIdZFn = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::amdgcn_workgroup_id_z);
 }
 
 HipLoop::~HipLoop() { /* no-op */ }
@@ -410,7 +293,7 @@ void HipLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &Out,
 
   // Tapir uses canonical induction variables in the range [0, end) with
   // stride 1. `end` is always the second parameter to the kernel function.
-  Argument *end = kernelF->getArg(1);
+  Argument *tcX = kernelF->getArg(1);
 
   // Get the grainsize value, which is either constant or the third LC arg.
   // TODO: We only support a grain size of 1 right now. Not clear if this
@@ -432,45 +315,42 @@ void HipLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &Out,
   Value *blockDim;
 
   if (not clUseYLaunch) {
-    Value *workItemIdX = emitWorkItemId(builder, 0);
-    threadIdx = builder.CreateIntCast(workItemIdX, ivType,
-                                      /*isSigned=*/false, ".kern.tidx.x");
-    Value *workGroupSizeX = emitWorkGroupSize(builder, 0);
-    blockDim = builder.CreateIntCast(workGroupSizeX, ivType,
-                                     /*isSigned=*/false, ".kern.blkdim.x");
+    threadIdx = builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_x, {}, {},
+                                        "tid.x");
+    blockDim = builder.CreateIntrinsic(Intrinsic::kit_gpu_block_size_x, {}, {},
+                                       "bsz.x");
   } else {
-    Value *workItemIdY = emitWorkItemId(builder, 1);
-    threadIdx = builder.CreateIntCast(workItemIdY, ivType,
-                                      /*isSigned=*/false, ".kern.tidx.y");
-    Value *workGroupSizeY = emitWorkGroupSize(builder, 1);
-    blockDim = builder.CreateIntCast(workGroupSizeY, ivType,
-                                     /*isSigned=*/false, ".kern.blkdim.y");
+    threadIdx = builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_y, {}, {},
+                                        "tid.x");
+    blockDim = builder.CreateIntrinsic(Intrinsic::kit_gpu_block_size_y, {}, {},
+                                       "bsz.x");
   }
 
-  Value *workGroupIdX = emitWorkGroupId(builder, 0);
-  Value *blockIdx = builder.CreateIntCast(workGroupIdX, ivType,
-                                          /*isSigned=*/false, ".kern.blkid.x");
+  Value *blockIdx =
+      builder.CreateIntrinsic(Intrinsic::kit_gpu_block_id_x, {}, {}, "bid.x");
 
-  Value *blockOff = builder.CreateMul(blockIdx, blockDim, ".kern.blkoff.x");
-  Value *threadID = builder.CreateAdd(threadIdx, blockOff, ".kern.tid");
+  Value *bdxbi = builder.CreateMul(blockIdx, blockDim);
+  Value *tipbdxbi = builder.CreateAdd(threadIdx, bdxbi, ".ivbeg.x");
+  Value *ivBeg =
+      builder.CreateIntCast(tipbdxbi, ivType, /*isSigned=*/false, "ivbeg.x");
 
   // threadID = Builder.CreateMul(threadID, grainsize);
-  Value *threadEnd = builder.CreateAdd(threadID, grainsize, ".kern.last_idx");
-  Value *cond = builder.CreateICmpUGE(threadID, end, ".kern.at_end");
+  Value *ivEnd = builder.CreateAdd(ivBeg, grainsize, "ivend.x");
+  Value *ivCond = builder.CreateICmpUGE(ivBeg, tcX);
   ReplaceInstWithInst(bbEntry->getTerminator(),
-                      BranchInst::Create(bbExit, bbHeader, cond));
+                      BranchInst::Create(bbExit, bbHeader, ivCond));
 
   // Replace the loop's induction variable with the GPU thread id.
-  iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(threadID);
+  iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(ivBeg);
 
   // Update cloned loop condition to use the thread-end value.
   unsigned tripCountIdx = 0;
   ICmpInst *clonedCond = cast<ICmpInst>(vmap[tl.getCondition()]);
-  if (clonedCond->getOperand(0) != end)
+  if (clonedCond->getOperand(0) != tcX)
     ++tripCountIdx;
-  assert(clonedCond->getOperand(tripCountIdx) == end &&
+  assert(clonedCond->getOperand(tripCountIdx) == tcX &&
          "End argument not used in condition!");
-  clonedCond->setOperand(tripCountIdx, threadEnd);
+  clonedCond->setOperand(tripCountIdx, ivEnd);
 }
 
 void HipLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,

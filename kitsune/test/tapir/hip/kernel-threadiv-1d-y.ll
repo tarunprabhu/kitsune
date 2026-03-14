@@ -8,18 +8,17 @@
 ;
 ; CHECK: define {{.+}}(
 ; CHECK-SAME: i64 {{[^%]*}}%[[LB:[^,]+]],
-; CHECK-SAME: i64 {{[^%]*}}%[[UB:[^,]+]],
+; CHECK-SAME: i64 {{[^%]*}}%[[TC:[^,]+]],
 ; CHECK-SAME: i64 {{[^)]+}})
 ; CHECK-SAME: #[[ATTRS:[0-9]+]]
-; CHECK: %[[WITEM:.+]] = {{.*}}call i32 @llvm.amdgcn.workitem.id.y()
-; CHECK: %[[TID:.+]] = zext i32 %[[WITEM]] to i64
-; CHECK: %[[BDIM:.+]] = {{.*}}call i64 @__ockl_get_local_size(i32 1)
-; CHECK: %[[WGRP:.+]] = {{.*}}call i32 @llvm.amdgcn.workgroup.id.x()
-; CHECK: %[[BIDX:.+]] = zext i32 %[[WGRP]] to i64
-; CHECK: %[[BOFF:.+]] = mul i64 %[[BIDX]], %[[BDIM]]
-; CHECK: %[[TIV:.+]] = add i64 %[[TID]], %[[BOFF]]
-; CHECK: %[[COND:.+]] = icmp uge i64 %[[TIV]], %[[UB]]
-; CHECK-NEXT: br i1 %[[COND]], label %[[BBEXIT:[^,]+]],
+; CHECK: %[[TIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.y()
+; CHECK: %[[BDIM:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.y()
+; CHECK: %[[BIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.x()
+; CHECK: %[[BOFF:.+]] = mul i32 %[[BIDX]], %[[BDIM]]
+; CHECK: %[[IVBEG32:.+]] = add i32 %[[TIDX]], %[[BOFF]]
+; CHECK: %[[IVBEG:.+]] = zext i32 %[[IVBEG32]] to i64
+; CHECK: %[[IVCOND:.+]] = icmp uge i64 %[[IVBEG]], %[[TC]]
+; CHECK-NEXT: br i1 %[[IVCOND]], label %[[BBEXIT:[^,]+]],
 ; CHECK: [[BBEXIT]]:
 ; CHECK-NEXT: ret void
 

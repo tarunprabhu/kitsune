@@ -33,24 +33,23 @@
 ; O2-NOT: = phi i64
 ; O2: define {{.+}} @__kithip_{{[^(]+}}(
 ; O2-SAME: i64 {{[^%]*}}%[[LB:[^,]+]],
-; O2-SAME: i64 {{[^%]*}}%[[UB:[^,]+]],
+; O2-SAME: i64 {{[^%]*}}%[[TC:[^,]+]],
 ; O2-SAME: i64 {{[^%]*}}%[[GRAINSIZE:[^,]+]],
 ; O2-SAME: ptr {{[^%]*}}%[[BUF:[^,]+]],
 ; O2-SAME: i64 {{[^%]*}}%[[N:[^)]+]])
 ; O2-SAME: {{.*}}#[[ATTRS:[0-9]+]]
 ; O2-NEXT: [[BBENTRY:.+]]:
 ; O2-NEXT: %[[BUFCST:.+]] = addrspacecast ptr %[[BUF]] to ptr addrspace(1)
-; O2-NEXT: %[[WITEM:.+]] = {{.*}}call i32 @llvm.amdgcn.workitem.id.x()
-; O2-NEXT: %[[TID:.+]] = zext {{.*}}i32 %[[WITEM]] to i64
-; O2-NEXT: %[[BDIM:.+]] = {{.*}}call i64 @__ockl_get_local_size(i32 0)
-; O2-NEXT: %[[WGRP:.+]] = {{.*}}call i32 @llvm.amdgcn.workgroup.id.x()
-; O2-NEXT: %[[BIDX:.+]] = zext {{.*}}i32 %[[WGRP]] to i64
-; O2-NEXT: %[[BOFF:.+]] = mul i64 %[[BDIM]], %[[BIDX]]
-; O2-NEXT: %[[TIV:.+]] = add i64 %[[BOFF]], %[[TID]]
-; O2-NEXT: %[[COND:.+]] = icmp ult i64 %[[TIV]], %[[UB]]
-; O2-NEXT: br i1 %[[COND]], label %[[BBBODY:[^,]+]], label %[[BBEXIT:.+]]
+; O2-NEXT: %[[TIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.x()
+; O2-NEXT: %[[BDIM:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.x()
+; O2-NEXT: %[[BIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.x()
+; O2-NEXT: %[[BOFF:.+]] = mul i32 %[[BIDX]], %[[BDIM]]
+; O2-NEXT: %[[IVBEG32:.+]] = add i32 %[[BOFF]], %[[TIDX]]
+; O2-NEXT: %[[IVBEG:.+]] = zext i32 %[[IVBEG32]] to i64
+; O2-NEXT: %[[IVCOND:.+]] = icmp ugt i64 %[[TC]], %[[IVBEG]]
+; O2-NEXT: br i1 %[[IVCOND]], label %[[BBBODY:[^,]+]], label %[[BBEXIT:.+]]
 ; O2: [[BBBODY]]:
-; O2-NEXT: %[[ARRIDX:.+]] = getelementptr {{.+}}, ptr {{.*}}%[[BUFCST]], i64 %[[TIV]]
+; O2-NEXT: %[[ARRIDX:.+]] = getelementptr {{.+}}, ptr {{.*}}%[[BUFCST]], i64 %[[IVBEG]]
 ; O2-NEXT: store i64 %[[N]], ptr {{.*}}%[[ARRIDX]]
 ; O2-NEXT: br label %[[BBEXIT]]
 ; O2: [[BBEXIT]]:

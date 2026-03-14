@@ -3,10 +3,9 @@
 ; Check that the embedded module passes in a pass plugin is registered with the
 ; Kitsune pipeline when the kit-lowering meta-pass is used.
 ;
-; NOTE: We only check for the presence of external_func called in the forall
-; loop. A second function, the kernel function, will also be present but we
-; do not check for it because the name of that function is not guaranteed to
-; be consistent.
+; NOTE: The only defined function that will be printed will be the "kernel
+; function" - consisting of the body of the tapir loop. We do not check for the
+; precise name because it is not guaranteed to be consistent.
 ;
 ; NOTE: We have separate tests for all tapir targets that use embedded bitcode
 ; to ensure that, if at least one is built, that this functionality is tested.
@@ -19,8 +18,11 @@
 ; RUN:     -passes='kit-lowering<O1>' -disable-output %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: external_func
-; CHECK-DAG: llvm.nvvm.read.ptx.sreg.tid.x
+; CHECK-DAG: declare external_func
+; CHECK-DAG: define {{[^ ]+}}
+; CHECK-DAG: declare llvm.kit.gpu.thread.id.x
+; CHECK-DAG: declare llvm.kit.gpu.block.id.x
+; CHECK-DAG: declare llvm.kit.gpu.block.size.x
 
 target triple = "x86_64-pc-linux-gnu"
 

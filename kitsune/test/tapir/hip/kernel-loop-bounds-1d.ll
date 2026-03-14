@@ -16,21 +16,20 @@
 ; CHECK-SAME: ptr {{.*}}%[[BUF:[^,]+]],
 ; CHECK-SAME: i64 {{.*}}%[[N:[^)]+]])
 ; CHECK-NEXT: [[PREHEADER:.+]]:
-; CHECK: %[[WITEM:.+]] = {{.*}}call i32 @llvm.amdgcn.workitem.id.x()
-; CHECK: %[[TID:.+]] = zext i32 %[[WITEM]] to i64
-; CHECK: %[[BDIM:.+]] = {{.*}}call i64 @__ockl_get_local_size(i32 0)
-; CHECK: %[[WGRP:.+]] = {{.*}}call i32 @llvm.amdgcn.workgroup.id.x()
-; CHECK: %[[BIDX:.+]] = zext i32 %[[WGRP]] to i64
-; CHECK: %[[BOFF:.+]] = mul i64 %[[BIDX]], %[[BDIM]]
-; CHECK: %[[IV_START:.+]] = add i64 %[[TID]], %[[BOFF]]
-; CHECK: %[[IV_END:.+]] = add i64 %[[IV_START]]
+; CHECK: %[[TIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.x()
+; CHECK: %[[BDIM:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.x()
+; CHECK: %[[BIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.x()
+; CHECK: %[[BOFF:.+]] = mul i32 %[[BIDX]], %[[BDIM]]
+; CHECK: %[[IVBEG32:.+]] = add i32 %[[TIDX]], %[[BOFF]]
+; CHECK: %[[IVBEG:.+]] = zext i32 %[[IVBEG32]] to i64
+; CHECK: %[[IVEND:.+]] = add i64 %[[IVBEG]]
 ;
 ; CHECK: [[HEADER:.+]]:
 ; CHECK: %[[IV:.+]] = phi i64
-; CHECK-SAME: [ %[[IV_START]], %[[PREHEADER]] ]
-; CHECK-SAME: [ %[[IV_NEXT:.+]], %[[LATCH:.+]] ]
-; CHECK: %[[IV_NEXT:.+]] = add {{.*}}i64 %[[IV]]
-; CHECK: %[[COND:.+]] = icmp eq i64 %[[IV_NEXT]], %[[IV_END]]
+; CHECK-SAME: [ %[[IVBEG]], %[[PREHEADER]] ]
+; CHECK-SAME: [ %[[IVNEXT:.+]], %[[LATCH:.+]] ]
+; CHECK: %[[IVNEXT:.+]] = add {{.*}}i64 %[[IV]]
+; CHECK: %[[COND:.+]] = icmp eq i64 %[[IVNEXT]], %[[IVEND]]
 ; CHECK: br i1 %[[COND]], label %[[EXIT:.+]], label %[[HEADER]]
 ;
 ; CHECK: [[EXIT]]:

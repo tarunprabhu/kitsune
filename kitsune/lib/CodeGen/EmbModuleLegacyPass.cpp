@@ -1,0 +1,62 @@
+//==- EmbModulePass.cpp - Embedded module pass for the legacy pass manager -==//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Base class for passes that operate on embedded modules for the legacy pass
+// manager. These typically perform transformations on the embedded modules and
+// update the global variables in the parent module that contain them.
+//
+//===----------------------------------------------------------------------===//
+
+#include "kitsune/CodeGen/EmbModuleLegacyPass.h"
+#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Core/EmbUtils.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/Module.h"
+
+using namespace llvm;
+
+EmbModuleLegacyPass::EmbModuleLegacyPass(char ID) : ModulePass(ID) {}
+
+void EmbModuleLegacyPass::getAnalysisUsage(AnalysisUsage &au) const {
+  au.addRequired<TapirTargetAnalysisWrapperPass>();
+}
+
+bool EmbModuleLegacyPass::runOnModule(Module &m) {
+  const TapirTargetInfo &tgi =
+      getAnalysis<TapirTargetAnalysisWrapperPass>().getResult();
+  if (not tgi.hasTTID())
+    return false;
+
+  // Calling resetEmbBCGlobal() will delete the global variable whose
+  // initializer is being reset. In this case, we can't iterate over the
+  // globals while running passes on them, so collect the globals first, then
+  // run the pass on each.
+  SmallVector<GlobalVariable *, 4> gs;
+  for (GlobalVariable &g : m.globals())
+    if (g.hasAttribute(Attribute::KitBC))
+      gs.push_back(&g);
+
+  bool anyChanged = false;
+  for (GlobalVariable *g : gs) {
+    Expected<std::unique_ptr<Module>> embMOrErr = parseEmbBCGlobal(*g);
+    if (not embMOrErr)
+      exitOnError(embMOrErr.takeError());
+    std::unique_ptr<Module> embM = std::move(embMOrErr.get());
+
+    assert(g->hasAttribute(Attribute::KitTT) &&
+           "Attribute 'kit_bc' requires 'kit_tt");
+    TTID tt = g->getAttribute(Attribute::KitTT).getTTID();
+
+    bool thisChanged = this->runOnEmbModule(tt, *embM);
+    if (thisChanged)
+      resetEmbBCGlobal(*embM, *g);
+    anyChanged |= thisChanged;
+  }
+
+  return anyChanged;
+}

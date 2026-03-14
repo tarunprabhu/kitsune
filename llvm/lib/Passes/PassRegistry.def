@@ -183,6 +183,9 @@ MODULE_PASS("wholeprogramdevirt", WholeProgramDevirtPass())
 // Kitsune-specific passes. Keep these separate from the rest because it makes
 // merges a bit easier at times.
 MODULE_PASS("emb-link-libdevice-bitcode", EmbLinkLibDeviceBitcodePass())
+MODULE_PASS("emb-lower-intrinsics", EmbLowerKitsuneIntrinsicsPass())
+MODULE_PASS("emb-lower-intrinsics-libdevice",
+            EmbLowerKitsuneIntrinsicsLibDevicePass())
 MODULE_PASS("emb-optimize", EmbOptimizePass())
 MODULE_PASS("emb-prepare", EmbPreparePass())
 MODULE_PASS("emb-resolve-libdevice-calls", EmbResolveLibDeviceCallsPass())
