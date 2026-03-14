@@ -11,11 +11,11 @@
 ;
 ; CHECK-LABEL: define {{.*}}amdgpu_kernel
 ; CHECK-NEXT: [[ENTRY:.+]]:
-; CHECK: %[[IV_START:.+]] = add {{.*}}i64 %{{.+}}, %{{.+}}
-; CHECK: %[[IV_END:.+]] = add {{.*}}i64 %[[IV_START]]
+; CHECK: %[[IVBEG:.+]] = zext i32 {{.+}} to i64
+; CHECK: %[[IVEND:.+]] = add {{.*}}i64 %[[IVBEG]]
 ; CHECK: [[HEADER:.+]]:
 ; CHECK-NEXT: %[[IV:.+]] = phi i64
-; CHECK-SAME: %[[IV_START]], %[[ENTRY]]
+; CHECK-SAME: %[[IVBEG]], %[[ENTRY]]
 ; CHECK-NEXT: br label %[[BODY:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY]]:
@@ -25,7 +25,7 @@
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH]]:
 ; CHECK-NEXT: %[[INC:.+]] = add {{.*}}i64 %[[IV]], 1
-; CHECK-NEXT: %[[COND:.+]] = icmp eq i64 %[[INC]], %[[IV_END]]
+; CHECK-NEXT: %[[COND:.+]] = icmp eq i64 %[[INC]], %[[IVEND]]
 ; CHECK-NEXT: br i1 %[[COND]], label %[[EXIT:.+]], label %[[HEADER]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT]]:

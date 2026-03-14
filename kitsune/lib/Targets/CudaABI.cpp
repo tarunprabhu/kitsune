@@ -164,20 +164,6 @@ private:
   /// module.
   Module &kernelModule;
 
-  // Cuda/PTX thread index access.
-  Function *cuThreadIdxX = nullptr, *cuThreadIdxY = nullptr,
-           *cuThreadIdxZ = nullptr;
-
-  // Cuda/PTX block index and dimensions access.
-  Function *cuBlockIdxX = nullptr, *cuBlockIdxY = nullptr,
-           *cuBlockIdxZ = nullptr;
-
-  Function *cuBlockDimX = nullptr, *cuBlockDimY = nullptr,
-           *cuBlockDimZ = nullptr;
-
-  // Cuda/PTX grid dimensions access.
-  Function *cuGridDimX = nullptr, *cuGridDimY = nullptr, *cuGridDimZ = nullptr;
-
   /// The GlobalValue's used in the loop that is being outlined. This includes
   /// functions, global variables, aliases and ifunc's.
   SmallSet<GlobalValue *, 8> usedGlobalValues;
@@ -201,38 +187,6 @@ CudaLoop::CudaLoop(Module &hostM, Module &kernelModule,
       kernelName(kernelName), kernelModule(kernelModule) {
   LLVM_DEBUG(dbgs() << "debug[cuabi]: creating a cuda loop outliner.\n"
                     << "  - target kernel name: " << kernelName << "\n");
-
-  // Thread index values -- equivalent to Cuda's builtins:  threadIdx.[x,y,z].
-  cuThreadIdxX = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_tid_x);
-  cuThreadIdxY = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_tid_y);
-  cuThreadIdxZ = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_tid_z);
-
-  // Block index values -- equivalent to Cuda's builtins: blockIndx.[x,y,z].
-  cuBlockIdxX = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_ctaid_x);
-  cuBlockIdxY = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_ctaid_y);
-  cuBlockIdxZ = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_ctaid_z);
-
-  // Block dimensions -- equivalent to Cuda's builtins: blockDim.[x,y,z].
-  cuBlockDimX = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_ntid_x);
-  cuBlockDimY = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_ntid_y);
-  cuBlockDimZ = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_ntid_x);
-
-  // Grid dimensions -- equivalent to Cuda's builtins: gridDim.[x,y,z].
-  cuGridDimX = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_x);
-  cuGridDimY = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_y);
-  cuGridDimZ = Intrinsic::getOrInsertDeclaration(
-      &kernelModule, Intrinsic::nvvm_read_ptx_sreg_nctaid_z);
 }
 
 CudaLoop::~CudaLoop() {
@@ -344,7 +298,7 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
 
   // Tapir uses canonical induction variables in the range [0, end) with
   // stride 1. `end` is always the second parameter to the kernel function.
-  Argument *end = kernelF->getArg(1);
+  Argument *tcX = kernelF->getArg(1);
 
   // Get the grainsize value, which is either constant or the third LC arg.
   // TODO: We only support a grain size of 1 right now. Not clear if this
@@ -362,31 +316,35 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
   // This is the classic CUDA thread ID calculation:
   //      i = blockDim.x * blockIdx.x + threadIdx.x;
   // For now we only generate 1-D thread IDs.
-  Value *threadIdx = builder.CreateCall(cuThreadIdxX);
-  Value *blockIdx = builder.CreateCall(cuBlockIdxX);
-  Value *blockDim = builder.CreateCall(cuBlockDimX);
-  Value *bdxbi = builder.CreateMul(blockIdx, blockDim, "blk_offset");
-  Value *tipbdxbi = builder.CreateAdd(threadIdx, bdxbi, "cuthread_id");
-  Value *threadIV = builder.CreateIntCast(tipbdxbi, ivType, false, "thread_iv");
+  Value *threadIdx =
+      builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_x, {}, {}, "tid.x");
+  Value *blockIdx =
+      builder.CreateIntrinsic(Intrinsic::kit_gpu_block_id_x, {}, {}, "bid.x");
+  Value *blockDim =
+      builder.CreateIntrinsic(Intrinsic::kit_gpu_block_size_x, {}, {}, "bsz.x");
+  Value *bdxbi = builder.CreateMul(blockIdx, blockDim);
+  Value *tipbdxbi = builder.CreateAdd(threadIdx, bdxbi, ".ivbeg.x");
+  Value *ivBeg =
+      builder.CreateIntCast(tipbdxbi, ivType, /*isSigned=*/false, "ivbeg.x");
 
   // threadID = builder.CreateMul(ThreadID, Grainsize);
-  Value *threadEnd = builder.CreateAdd(threadIV, grainsize, "thread_end");
-  Value *cond = builder.CreateICmpUGE(threadIV, end, "cond_thread_end");
+  Value *ivEnd = builder.CreateAdd(ivBeg, grainsize, "ivend.x");
+  Value *ivCond = builder.CreateICmpUGE(ivBeg, tcX);
   ReplaceInstWithInst(bbEntry->getTerminator(),
-                      BranchInst::Create(bbExit, bbHeader, cond));
+                      BranchInst::Create(bbExit, bbHeader, ivCond));
 
   // Use the thread ID as the start iteration number for the primary IV.
-  iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(threadIV);
+  iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(ivBeg);
   // TODO: ???? PrimaryIVInput->eraseFromParent();
 
   // Update cloned loop condition to use the thread-end value.
   unsigned tripCountIdx = 0;
   ICmpInst *clonedCond = cast<ICmpInst>(vmap[tl.getCondition()]);
-  if (clonedCond->getOperand(0) != end)
+  if (clonedCond->getOperand(0) != tcX)
     ++tripCountIdx;
-  assert(clonedCond->getOperand(tripCountIdx) == end &&
+  assert(clonedCond->getOperand(tripCountIdx) == tcX &&
          "End argument not used in condition!");
-  clonedCond->setOperand(tripCountIdx, threadEnd);
+  clonedCond->setOperand(tripCountIdx, ivEnd);
 }
 
 void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,

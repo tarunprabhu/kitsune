@@ -7,12 +7,12 @@
 ;
 ; CHECK-LABEL: define {{.*}}amdgpu_kernel
 ; CHECK: [[ENTRY:[^:]+]]:
-; CHECK: %[[IV_START:.+]] = add {{.*}}i64 %{{.+}}, %{{.+}}
-; CHECK: %[[IV_END:.+]] = add {{.*}}i64 %[[IV_START]], 1
+; CHECK: %[[IVBEG:.+]] = zext i32 {{.+}} to i64
+; CHECK: %[[IVEND:.+]] = add {{.*}}i64 %[[IVBEG]], 1
 ; CHECK: %[[IV:.+]] = phi i64
-; CHECK-SAME: %[[IV_START]], %[[ENTRY]]
+; CHECK-SAME: %[[IVBEG]], %[[ENTRY]]
 ; CHECK: %[[INC:.+]] = add {{.*}}i64 %[[IV]], 1
-; CHECK: icmp eq i64 %[[INC]], %[[IV_END]]
+; CHECK: icmp eq i64 %[[INC]], %[[IVEND]]
 
 define void @p(ptr %a, i64 %n) {
 entry:

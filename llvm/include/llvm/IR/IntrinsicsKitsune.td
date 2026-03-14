@@ -66,6 +66,120 @@ def int_kit_sync_threads
                  NonNull<ArgIndex<1>>, Dereferenceable<ArgIndex<1>, 16>,
                  IntrInaccessibleMemOrArgMemOnly, IntrHasSideEffects]>;
 
+// Get the thread index in the x dimension in a GPU kernel. In a
+// multi-dimensional kernel launch, this will be the fastest-changing index.
+// This is lowered to one of the following intrinsics:
+//
+//      NVPTX   nvvm.read.ptx.sreg.tid.x
+//      AMDGPU  amdgcn.workitem.id.x
+//
+def int_kit_gpu_thread_id_x : Intrinsic<[llvm_i32_ty], [], [IntrNoMem]>;
+
+// Get the thread index in the y dimension in a GPU kernel. In a
+// multi-dimensional kernel launch, this will be the second-fastest-changing
+// index. This is lowered to one of the following intrinsics:
+//
+//      NVPTX   nvvm.read.ptx.sreg.tid.y
+//      AMDGPU  amdgcn.workitem.id.y
+//
+def int_kit_gpu_thread_id_y : Intrinsic<[llvm_i32_ty], [], [IntrNoMem]>;
+
+// Get the thread index in the z dimension in a GPU kernel. In a
+// multi-dimensional kernel launch, this will be the slowest-changing index.
+// This is lowered to the following intrinsics:
+//
+//      NVPTX   nvvm.read.ptx.sreg.tid.z
+//      AMDGPU  amdgcn.workitem.id.z
+//
+def int_kit_gpu_thread_id_z : Intrinsic<[llvm_i32_ty], [], [IntrNoMem]>;
+
+// Get the block index in the x dimension in a GPU kernel. In a
+// multi-dimensional kernel launch, this will be the fastest-changing index.
+// This is lowered to the following intrinsics:
+//
+//      NVPTX   nvvm.read.ptx.sreg.ctaid.x
+//      AMDGPU  amdgcn.workgroup.id.x
+//
+def int_kit_gpu_block_id_x : Intrinsic<[llvm_i32_ty], [], [IntrNoMem]>;
+
+// Get the block index in the y dimension in a GPU kernel. In a
+// multi-dimensional kernel launch, this will be the second-fastest-changing
+// index. This is lowered to the following intrinsics:
+//
+//      NVPTX   nvvm.read.ptx.sreg.ctaid.y
+//      AMDGPU  amdgcn.workgroup.id.y
+//
+def int_kit_gpu_block_id_y : Intrinsic<[llvm_i32_ty], [], [IntrNoMem]>;
+
+// Get the block index in the z dimension in a GPU kernel. In a
+// multi-dimensional kernel launch, this will be the slowest-changing index.
+// This is lowered to the following intrinsics:
+//
+//      NVPTX   nvvm.read.ptx.sreg.ctaid.z
+//      AMDGPU  amdgcn.workgroup.id.z
+//
+def int_kit_gpu_block_id_z : Intrinsic<[llvm_i32_ty], [], [IntrNoMem]>;
+
+// Get the number of blocks in the x dimension in a GPU kernel. In a
+// multi-dimensional kernel launch, this will be the fastest-changing index.
+// This is lowered to one of the following (note that one of these is an
+// intrinsic while the other is a function from a vendor-provided bitcode file):
+//
+//      NVPTX   nvvm.read.ptx.sreg.ntid.x
+//      AMDGPU  __ockl_get_local_size(0)
+//
+def int_kit_gpu_block_size_x : Intrinsic<[llvm_i32_ty], [], [IntrNoMem]>;
+
+// Get the number of blocks in the y dimension in a GPU kernel. In a
+// multi-dimensional kernel launch, this will be the second-fastest changing
+// index. This is lowered to one of the following (note that one of these is an
+// intrinsic while the other is a function from a vendor-provided bitcode file):
+//
+//      NVPTX   nvvm.read.ptx.sreg.ntid.y
+//      AMDGPU  __ockl_get_local_size(1)
+//
+def int_kit_gpu_block_size_y : Intrinsic<[llvm_i32_ty], [], [IntrNoMem]>;
+
+// Get the number of blocks in the x dimension in a GPU kernel. In a
+// multi-dimensional kernel launch, this will be the slowest-changing index.
+// This is lowered to one of the following (note that one of these is an
+// intrinsic while the other is a function from a vendor-provided bitcode file):
+//
+//      NVPTX   nvvm.read.ptx.sreg.ntid.z
+//      AMDGPU  __ockl_get_local_size(2)
+//
+def int_kit_gpu_block_size_z : Intrinsic<[llvm_i32_ty], [], [IntrNoMem]>;
+
+// Get the number of grids in the x dimension in a GPU kernel. In a
+// multi-dimensional kernel launch, this will be the fastest-changing index.
+// This is lowered to one of the following (note that one of these is an
+// intrinsic while the other is a function from a vendor-provided bitcode file):
+//
+//      NVPTX   nvvm.read.ptx.sreg.nctaid.x
+//      AMDGPU  __ockl_get_global_size(0)
+//
+def int_kit_gpu_grid_size_x : Intrinsic<[llvm_i32_ty], [], [IntrNoMem]>;
+
+// Get the number of blocks in the y dimension in a GPU kernel. In a
+// multi-dimensional kernel launch, this will be the second-fastest changing
+// index. This is lowered to one of the following (note that one of these is an
+// intrinsic while the other is a function from a vendor-provided bitcode file):
+//
+//      NVPTX   nvvm.read.ptx.sreg.nctaid.y
+//      AMDGPU  __ockl_get_global_size(1)
+//
+def int_kit_gpu_grid_size_y : Intrinsic<[llvm_i32_ty], [], [IntrNoMem]>;
+
+// Get the number of blocks in the x dimension in a GPU kernel. In a
+// multi-dimensional kernel launch, this will be the slowest-changing index.
+// This is lowered to one of the following (note that one of these is an
+// intrinsic while the other is a function from a vendor-provided bitcode file):
+//
+//      NVPTX   nvvm.read.ptx.sreg.nctaid.z
+//      AMDGPU  __ockl_get_global_size(2)
+//
+def int_kit_gpu_grid_size_z : Intrinsic<[llvm_i32_ty], [], [IntrNoMem]>;
+
 // Launch a kernel on the GPU on the given stream. Returns the same stream. If
 // a stream is not provided, one will be created and returned. The stream is a
 // pointer to an opaque object.

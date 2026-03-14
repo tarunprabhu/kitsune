@@ -48,9 +48,7 @@ static constexpr bool needsAnalysisManager = needs_analysis_manager<T>::value;
 
 } // namespace detail
 
-/// \addtogroup kitsune
-/// @{
-
+/// \ingroup kitsune
 /// CRTP base class for embedded bitcode passes. These are passes that may
 /// transform the embedded bitcode in some way. The base class provides an
 /// implementation for the run() method required by the PassInfoMixin.
@@ -141,8 +139,6 @@ public:
     return PreservedAnalyses::all();
   }
 };
-
-/// @}
 
 } // namespace llvm
 

@@ -7,17 +7,19 @@
 ;
 ; CHECK: define {{[^(]+}}(
 ; CHECK-SAME: i64 {{[^%]*}}%[[LB:[^,]+]],
-; CHECK-SAME: i64 {{[^%]*}}%[[UB:[^,]+]],
+; CHECK-SAME: i64 {{[^%]*}}%[[TC:[^,]+]],
 ; CHECK-SAME: i64 {{[^)]+}})
 ; CHECK-SAME: #[[ATTRS:[0-9]+]]
-; CHECK: %[[TID:.+]] = {{.*}}call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
-; CHECK: %[[BIDX:.+]] = {{.*}}call i32 @llvm.nvvm.read.ptx.sreg.ctaid.x()
-; CHECK: %[[BDIM:.+]] = {{.*}}call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
+; CHECK: %[[TIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.x()
+; CHECK: %[[BIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.x()
+; CHECK: %[[BDIM:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.x()
 ; CHECK: %[[BOFF:.+]] = mul i32 %[[BIDX]], %[[BDIM]]
-; CHECK: %[[IV32:.+]] = add i32 %[[TID]], %[[BOFF]]
-; CHECK: %[[TIV:.+]] = zext i32 %[[IV32]] to i64
-; CHECK: %[[COND:.+]] = icmp uge i64 %[[TIV]], %[[UB]]
-; CHECK-NEXT: br i1 %[[COND]], label %[[BBEXIT:[^,]+]],
+; CHECK: %[[IVBEG32:.+]] = add i32 %[[TIDX]], %[[BOFF]]
+; CHECK: %[[IVBEG:.+]] = zext i32 %[[IVBEG32]] to i64
+; CHECK: %[[IVCOND:.+]] = icmp uge i64 %[[IVBEG]], %[[TC]]
+; CHECK-NEXT: br i1 %[[IVCOND]], label %[[BBEXIT:[^,]+]], label %[[BBHEADER:.+]]
+; CHECK: [[BBHEADER]]:
+; CHECK-NEXT: phi i64
 ; CHECK: [[BBEXIT]]:
 ; CHECK-NEXT: ret void
 ;
