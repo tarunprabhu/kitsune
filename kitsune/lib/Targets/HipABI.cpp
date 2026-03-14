@@ -86,12 +86,6 @@ using namespace llvm;
 // This transformation is carrying out the prep to convert Tapir to a kernel
 // module suitable for codegen using the AMDGPU target.
 
-static cl::opt<unsigned> defaultGrainsize(
-    "hipabi-default-grainsize", cl::init(1), cl::Hidden,
-    cl::desc("The default grain size used by the transform "
-             "when analysis fails to determine one. (default=1)"),
-    cl::cat(cl::catKitClDevOpts));
-
 // FIXME: We really should not be exposing command line options from other
 // source files. This is an experimental option that has been hacked in for the
 // moment. If this is useful, we should consider adding it to the tapir target
@@ -102,6 +96,12 @@ cl::opt<bool> clUseYLaunch("hipabi-y-launch", cl::init(false), cl::Hidden,
 
 static constexpr StringRef HIPABI_PREFIX = "__kithip_";
 static constexpr StringRef HIPABI_KERNEL_NAME_PREFIX = "__kithip_loop_";
+
+/// Get the grainsize to be used when lowering tapir loops. For now, we only
+/// support a grainsize of 1.
+static Value *getGrainsize(Type *ty) {
+  return ConstantInt::get(ty, 1, /*isSigned=*/false);
+}
 
 /// The loop outline process for transforming a Tapir parallel loop into a
 /// hip kernel function.
@@ -332,29 +332,14 @@ void HipLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &Out,
   kernelF->addFnAttr("amdgpu-max-num-workgroups", attrVal);
 #endif
 
-  // Tapir uses canonical induction variables in the range [0, end) with
-  // stride 1. `end` is always the second parameter to the kernel function.
-  Argument *tcX = kernelF->getArg(1);
-
-  // Get the grainsize value, which is either constant or the third LC arg.
-  // TODO: We only support a grain size of 1 right now. Not clear if this
-  // could be a future optimization but strip mining on our current tests only
-  // results in degraded performance.
-  // if (unsigned gs = tl.getGrainsize())
-  //  grainsize = ConstantInt::get(ivType, gs);
-  // else
-  Value *grainsize = ConstantInt::get(ivType, defaultGrainsize.getValue());
-
-  IRBuilder<> builder(bbEntry->getTerminator());
-
   // Get the thread ID for this invocation of Helper.
   //
   // This is the classic thread ID calculation:
   //      i = blockDim.x * blockIdx.x + threadIdx.x;
   // For now we only generate 1-D thread IDs.
+  IRBuilder<> builder(bbEntry->getTerminator());
   Value *threadIdx;
   Value *blockDim;
-
   if (not clUseYLaunch) {
     threadIdx = builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_x, {}, {},
                                         "tid.x");
@@ -375,7 +360,8 @@ void HipLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &Out,
   Value *ivBeg =
       builder.CreateIntCast(tipbdxbi, ivType, /*isSigned=*/false, "ivbeg.x");
 
-  // threadID = Builder.CreateMul(threadID, grainsize);
+  Argument *tcX = kernelF->getArg(1);
+  Value *grainsize = getGrainsize(ivType);
   Value *ivEnd = builder.CreateAdd(ivBeg, grainsize, "ivend.x");
   Value *ivCond = builder.CreateICmpUGE(ivBeg, tcX);
   ReplaceInstWithInst(bbEntry->getTerminator(),
@@ -488,17 +474,10 @@ HipABI::HipABI(Module &hostM, const TTOptions &tto)
 
 HipABI::~HipABI() { /* no-op */ }
 
-Value *HipABI::lowerGrainsizeCall(CallInst *grainsizeCall) {
-  // TODO: The grain size on the GPU is a completely different beast than the
-  // CPU cases Tapir was originally designed for. At present keeping the grain
-  // size at 1 has almost always shown to yield the best results in terms of
-  // performance but we should take a closer look...  We have some tweaks for
-  // experimenting with this via the command line but it remains unexplored.
-  Type *gsType = grainsizeCall->getType();
-  Value *gs = ConstantInt::get(gsType, defaultGrainsize);
-
-  grainsizeCall->replaceAllUsesWith(gs);
-  grainsizeCall->eraseFromParent();
+Value *HipABI::lowerGrainsizeCall(CallInst *call) {
+  Value *gs = getGrainsize(call->getType());
+  call->replaceAllUsesWith(gs);
+  call->eraseFromParent();
   return gs;
 }
 
