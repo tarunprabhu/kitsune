@@ -20,61 +20,61 @@ using namespace llvm;
 
 namespace {
 
-TEST(KitIntrinsicUtils, isKitsuneIntrinsic) {
+TEST(KitIntrinsicUtils, isKitIntrinsic) {
   // This is not a comprehensive list, it just attempts to ensure some sanity.
-  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_async_launch_kernel));
-  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_async_launch_threads));
-  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_async_prefetch_dtoh));
-  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_async_prefetch_htod));
-  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_enable_verbose));
-  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_launch_threads));
-  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_memcpy_dtoh));
-  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_memcpy_htod));
-  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_sync_stream));
-  EXPECT_TRUE(isKitsuneIntrinsic(Intrinsic::kit_sync_threads));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_async_launch_kernel));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_async_launch_threads));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_async_prefetch_dtoh));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_async_prefetch_htod));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_enable_verbose));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_launch_threads));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_memcpy_dtoh));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_memcpy_htod));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_sync_stream));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_sync_threads));
 
-  EXPECT_FALSE(isKitsuneIntrinsic(Intrinsic::prefetch));
-  EXPECT_FALSE(isKitsuneIntrinsic(Intrinsic::memcpy));
-  EXPECT_FALSE(isKitsuneIntrinsic(Intrinsic::memset));
+  EXPECT_FALSE(isKitIntrinsic(Intrinsic::prefetch));
+  EXPECT_FALSE(isKitIntrinsic(Intrinsic::memcpy));
+  EXPECT_FALSE(isKitIntrinsic(Intrinsic::memset));
 }
 
-TEST(KitIntrinsicUtils, isKitsuneIntrinsicAsync) {
+TEST(KitIntrinsicUtils, isKitIntrinsicAsync) {
   // This ought to be a comprehensive list.
-  EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_launch_kernel));
-  EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_launch_threads));
-  EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_memcpy_dtoh));
-  EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_memcpy_htod));
-  EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_prefetch_dtoh));
-  EXPECT_TRUE(isKitsuneIntrinsicAsync(Intrinsic::kit_async_prefetch_htod));
+  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_launch_kernel));
+  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_launch_threads));
+  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_memcpy_dtoh));
+  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_memcpy_htod));
+  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_prefetch_dtoh));
+  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_prefetch_htod));
 
-  EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_sync_stream));
-  EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_sync_threads));
-  EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_memcpy_dtoh));
-  EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_memcpy_htod));
-  EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_enable_verbose));
-  EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_finalize));
-  EXPECT_FALSE(isKitsuneIntrinsicAsync(Intrinsic::kit_initialize));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_sync_stream));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_sync_threads));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_memcpy_dtoh));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_memcpy_htod));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_enable_verbose));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_finalize));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_initialize));
 }
 
-TEST(KitIntrinsicUtils, isKitsuneIntrinsicBlocking) {
+TEST(KitIntrinsicUtils, isKitIntrinsicBlocking) {
   // Most Kitsune intrinsics are blocking. This is mainly here to ensure that
   // this function does not report async calls as blocking. At least the async
   // calls here ought to be comprehensive.
-  EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_launch_kernel));
-  EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_launch_threads));
-  EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_memcpy_dtoh));
-  EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_memcpy_htod));
-  EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_prefetch_dtoh));
-  EXPECT_FALSE(isKitsuneIntrinsicBlocking(Intrinsic::kit_async_prefetch_htod));
+  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_launch_kernel));
+  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_launch_threads));
+  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_memcpy_dtoh));
+  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_memcpy_htod));
+  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_prefetch_dtoh));
+  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_prefetch_htod));
 
-  EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_sync_stream));
-  EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_launch_threads));
-  EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_sync_threads));
-  EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_memcpy_dtoh));
-  EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_memcpy_htod));
-  EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_enable_verbose));
-  EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_finalize));
-  EXPECT_TRUE(isKitsuneIntrinsicBlocking(Intrinsic::kit_initialize));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_sync_stream));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_launch_threads));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_sync_threads));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_memcpy_dtoh));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_memcpy_htod));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_enable_verbose));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_finalize));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_initialize));
 }
 
 TEST(KitIntrinsicUtils, getKernelArgumentsFromLaunch) {

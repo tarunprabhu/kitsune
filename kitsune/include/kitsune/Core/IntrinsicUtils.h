@@ -26,18 +26,18 @@ class CallBase;
 class Value;
 
 /// Check if the intrinsic is a Kitsune intrinsic.
-bool isKitsuneIntrinsic(Intrinsic::ID id);
+bool isKitIntrinsic(Intrinsic::ID id);
 
 /// Check if the given Kitsune intrinsic is asynchronous i.e. when the intrinsic
 /// returns, the operation that it is intended to perform may not have completed
 /// - it may only have been started. It is an error to call this function with
 /// an intrinsic that is not a Kitsune intrinsic.
-bool isKitsuneIntrinsicAsync(Intrinsic::ID id);
+bool isKitIntrinsicAsync(Intrinsic::ID id);
 
 /// Check if the give Kitsune intrinsic is blocking i.e. it only returns when
 /// the operation that it is intended to perform has completed. It is an error
 /// to call this function with an intrinsic that is not a Kitsune intrinsic.
-bool isKitsuneIntrinsicBlocking(Intrinsic::ID id);
+bool isKitIntrinsicBlocking(Intrinsic::ID id);
 
 /// Get the stream from the given call to Kitsune's kernel launch intrinsic.
 Value *getStreamFromLaunch(const CallBase &call);

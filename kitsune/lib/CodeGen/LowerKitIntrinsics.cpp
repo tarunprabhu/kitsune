@@ -597,10 +597,10 @@ public:
     std::vector<CallInst *> calls;
     for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i) {
       if (auto *call = dyn_cast<CallInst>(&*i)) {
-        if (isKitsuneIntrinsic(call->getIntrinsicID()))
+        if (isKitIntrinsic(call->getIntrinsicID()))
           calls.push_back(call);
       } else if (auto *invoke = dyn_cast<InvokeInst>(&*i)) {
-        if (isKitsuneIntrinsic(invoke->getIntrinsicID()))
+        if (isKitIntrinsic(invoke->getIntrinsicID()))
           llvm_unreachable("Invoke of kitsune intrinsic");
       }
     }

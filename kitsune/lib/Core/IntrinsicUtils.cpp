@@ -16,17 +16,17 @@
 
 using namespace llvm;
 
-bool llvm::isKitsuneIntrinsic(Intrinsic::ID id) {
+bool llvm::isKitIntrinsic(Intrinsic::ID id) {
   return Intrinsic::getBaseName(id).starts_with("llvm.kit.");
 }
 
-bool llvm::isKitsuneIntrinsicAsync(Intrinsic::ID id) {
-  assert(isKitsuneIntrinsic(id) && "Must be a kitsune intrinsic");
+bool llvm::isKitIntrinsicAsync(Intrinsic::ID id) {
+  assert(isKitIntrinsic(id) && "Must be a kitsune intrinsic");
   return Intrinsic::getBaseName(id).starts_with("llvm.kit.async.");
 }
 
-bool llvm::isKitsuneIntrinsicBlocking(Intrinsic::ID id) {
-  return not isKitsuneIntrinsicAsync(id);
+bool llvm::isKitIntrinsicBlocking(Intrinsic::ID id) {
+  return not isKitIntrinsicAsync(id);
 }
 
 Value *llvm::getStreamFromLaunch(const CallBase &call) {
