@@ -175,8 +175,6 @@ public:
 
 } // namespace
 
-namespace llvm {
-
 bool EmbOptimizePass::run(TTID tt, Module &devM, Module &hostM,
                           ModuleAnalysisManager &hostMAM) {
   const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
@@ -191,5 +189,3 @@ bool EmbOptimizePass::run(TTID tt, Module &devM, Module &hostM,
     llvm_unreachable("EmbOptimizePass::run: TTID not handled");
   }
 }
-
-} // namespace llvm

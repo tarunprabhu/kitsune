@@ -19,8 +19,6 @@
 
 using namespace llvm;
 
-namespace llvm {
-
 bool EmbLinkLibDeviceBitcodePass::run(TTID tt, Module &devM, Module &hostM,
                                       ModuleAnalysisManager &hostMAM) {
   LLVMContext &ctx = devM.getContext();
@@ -37,5 +35,3 @@ bool EmbLinkLibDeviceBitcodePass::run(TTID tt, Module &devM, Module &hostM,
 
   return true;
 }
-
-} // namespace llvm

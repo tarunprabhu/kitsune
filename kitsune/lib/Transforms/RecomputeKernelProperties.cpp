@@ -32,8 +32,6 @@
 
 using namespace llvm;
 
-namespace llvm {
-
 PreservedAnalyses
 RecomputeKernelPropertiesPass::run(Module &m, ModuleAnalysisManager &mam) {
   // If no primary tapir target has been set, the tapir target options will
@@ -74,5 +72,3 @@ RecomputeKernelPropertiesPass::run(Module &m, ModuleAnalysisManager &mam) {
   // nothing else, so all analyses on the module remain valid.
   return PreservedAnalyses::all();
 }
-
-} // namespace llvm
