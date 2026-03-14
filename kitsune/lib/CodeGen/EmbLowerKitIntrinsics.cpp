@@ -1,4 +1,4 @@
-//===- EmbLowerKitsuneIntrinsics.cpp - Lower Kitsune-specific intrinsics --===//
+//===- EmbLowerKitIntrinsics.cpp - Lower Kitsune-specific intrinsics ------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/CodeGen/EmbLowerKitsuneIntrinsics.h"
+#include "kitsune/CodeGen/EmbLowerKitIntrinsics.h"
 #include "kitsune/CodeGen/EmbModuleLegacyPass.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/IRBuilder.h"
@@ -112,7 +112,7 @@ static bool lowerKitsuneHipIntrinsics(Module &embM) {
   return replaceAllSimple(embM, getNewCallee);
 }
 
-static bool lowerKitsuneIntrinsics(TTID tt, Module &embM) {
+static bool lowerKitIntrinsics(TTID tt, Module &embM) {
   switch (tt) {
   case TTID::Cuda:
     return lowerKitsuneCudaIntrinsics(embM);
@@ -121,16 +121,16 @@ static bool lowerKitsuneIntrinsics(TTID tt, Module &embM) {
   default:
     break;
   }
-  llvm_unreachable("lowerKitsuneIntrinsics: TTID not handled");
+  llvm_unreachable("lowerKitIntrinsics: TTID not handled");
 }
 
 namespace {
 
-/// Legacy pass to compile the embedded bitcode to fat binaries.
-class EmbLowerKitsuneIntrinsicsLegacyPass : public EmbModuleLegacyPass {
+/// Pass, for the legacy pass manager, to lower kitsune-specific intrinsics.
+class EmbLowerKitIntrinsicsLegacyPass : public EmbModuleLegacyPass {
 public:
-  EmbLowerKitsuneIntrinsicsLegacyPass() : EmbModuleLegacyPass(ID) {
-    initializeEmbLowerKitsuneIntrinsicsLegacyPassPass(
+  EmbLowerKitIntrinsicsLegacyPass() : EmbModuleLegacyPass(ID) {
+    initializeEmbLowerKitIntrinsicsLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 
@@ -139,7 +139,7 @@ public:
   }
 
   bool runOnEmbModule(TTID tt, Module &embM) override {
-    return lowerKitsuneIntrinsics(tt, embM);
+    return lowerKitIntrinsics(tt, embM);
   }
 
 public:
@@ -148,19 +148,19 @@ public:
 
 } // namespace
 
-char EmbLowerKitsuneIntrinsicsLegacyPass::ID = 0;
+char EmbLowerKitIntrinsicsLegacyPass::ID = 0;
 
-INITIALIZE_PASS_BEGIN(EmbLowerKitsuneIntrinsicsLegacyPass, DEBUG_TYPE,
+INITIALIZE_PASS_BEGIN(EmbLowerKitIntrinsicsLegacyPass, DEBUG_TYPE,
                       "Lower Kitsune intrinsics (embedded)", false, false)
 INITIALIZE_PASS_DEPENDENCY(TapirTargetAnalysisWrapperPass)
-INITIALIZE_PASS_END(EmbLowerKitsuneIntrinsicsLegacyPass, DEBUG_TYPE,
+INITIALIZE_PASS_END(EmbLowerKitIntrinsicsLegacyPass, DEBUG_TYPE,
                     "Lower Kitsune intrinsics (embedded)", false, false)
 
-ModulePass *llvm::createEmbLowerKitsuneIntrinsicsLegacyPass() {
-  return new EmbLowerKitsuneIntrinsicsLegacyPass();
+ModulePass *llvm::createEmbLowerKitIntrinsicsLegacyPass() {
+  return new EmbLowerKitIntrinsicsLegacyPass();
 }
 
-bool EmbLowerKitsuneIntrinsicsPass::run(TTID tt, Module &embM, Module &hostM,
-                                        ModuleAnalysisManager &hosMAM) {
-  return lowerKitsuneIntrinsics(tt, embM);
+bool EmbLowerKitIntrinsicsPass::run(TTID tt, Module &embM, Module &hostM,
+                                    ModuleAnalysisManager &hosMAM) {
+  return lowerKitIntrinsics(tt, embM);
 }

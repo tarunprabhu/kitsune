@@ -1,4 +1,4 @@
-//===- EmbLowerKitsuneIntrinsicsLibDevice.cpp - Lower embedded intrinsics -===//
+//=- EmbLowerKitIntrinsicsLibDevice.cpp - Lower Kitsune-specific intrinsics -=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Lower Kitsune-specific intrinsics in an embedded module that must use
-// functions provided by a libdevice bitcode file.
+// Lower those Kitsune-specific intrinsics in an embedded module that must be
+// lowered to functions provided by a libdevice bitcode file.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/EmbLowerKitsuneIntrinsicsLibDevice.h"
+#include "kitsune/Transforms/EmbLowerKitIntrinsicsLibDevice.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
@@ -23,7 +23,7 @@
 
 using namespace llvm;
 
-static bool lowerKitsuneCudaIntrinsics(Module &embM) {
+static bool lowerKitIntrinsicsCuda(Module &embM) {
   // There are currently no Kitsune-specific intrinsics that must be lowered
   // to libdevice functions.
   return false;
@@ -81,7 +81,7 @@ static bool lowerHipBlockGridSizeIntrinsics(Module &embM) {
   return calls.size();
 }
 
-static bool lowerKitsuneHipIntrinsics(Module &embM) {
+static bool lowerKitIntrinsicsHip(Module &embM) {
   bool changed = false;
 
   changed |= lowerHipBlockGridSizeIntrinsics(embM);
@@ -89,19 +89,20 @@ static bool lowerKitsuneHipIntrinsics(Module &embM) {
   return changed;
 }
 
-static bool lowerKitsuneIntrinsics(TTID tt, Module &embM) {
+static bool lowerKitIntrinsics(TTID tt, Module &embM) {
   switch (tt) {
   case TTID::Cuda:
-    return lowerKitsuneCudaIntrinsics(embM);
+    return lowerKitIntrinsicsCuda(embM);
   case TTID::Hip:
-    return lowerKitsuneHipIntrinsics(embM);
+    return lowerKitIntrinsicsHip(embM);
   default:
     break;
   }
-  llvm_unreachable("lowerKitsuneIntrinsics: TTID not handled");
+  llvm_unreachable("lowerKitIntrinsics: TTID not handled");
 }
 
-bool EmbLowerKitsuneIntrinsicsLibDevicePass::run(
-    TTID tt, Module &devM, Module &hostM, ModuleAnalysisManager &hostMAM) {
-  return lowerKitsuneIntrinsics(tt, devM);
+bool EmbLowerKitIntrinsicsLibDevicePass::run(TTID tt, Module &devM,
+                                             Module &hostM,
+                                             ModuleAnalysisManager &hostMAM) {
+  return lowerKitIntrinsics(tt, devM);
 }

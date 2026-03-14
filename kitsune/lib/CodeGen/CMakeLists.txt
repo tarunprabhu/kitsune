@@ -2,10 +2,10 @@ add_llvm_component_library(LLVMKitCodeGen
   CGFBCuda.cpp
   CGFBHip.cpp
   CodeGenFatBinaries.cpp
-  EmbLowerKitsuneIntrinsics.cpp
+  EmbLowerKitIntrinsics.cpp
   EmbModuleLegacyPass.cpp
-  LowerKitsuneIntrinsics.cpp
-  StripKitsuneAddrSpaces.cpp
+  LowerKitIntrinsics.cpp
+  StripKitAddrSpaces.cpp
 
   DEPENDS
   intrinsics_gen

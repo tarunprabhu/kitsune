@@ -24,7 +24,7 @@
 ; DEFAULT-NOT: Running pass:     LoopSpawningPass
 ; DEFAULT-NOT: Running pass:     TapirToTargetPass
 ; DEFAULT-NOT: Running pass:     PrefetchForDevicePass
-; DEFAULT-NOT: Running pass:     EmbLowerKitsuneIntrinsicsLibDevicePass
+; DEFAULT-NOT: Running pass:     EmbLowerKitIntrinsicsLibDevicePass
 ; DEFAULT-NOT: Running pass:     EmbResolveLibDeviceCallsPass
 ; DEFAULT-NOT: Running pass:     EmbPreparePass
 ; DEFAULT-NOT: Running pass:     EmbLinkLibDeviceBitcodePass
@@ -81,7 +81,7 @@
 ; O123SZ:      Running pass:     TapirToTargetPass
 ; O123SZ:      Running pass:     GlobalDCEPass
 ; O123SZ-NEXT: Running pass:     PrefetchForDevicePass
-; O123SZ-NEXT: Running pass:     EmbLowerKitsuneIntrinsicsLibDevicePass
+; O123SZ-NEXT: Running pass:     EmbLowerKitIntrinsicsLibDevicePass
 ; O123SZ-NEXT: Running pass:     EmbResolveLibDeviceCallsPass
 ; O123SZ-NEXT: Running pass:     EmbPreparePass
 ; O123SZ-NEXT: Running pass:     EmbLinkLibDeviceBitcodePass

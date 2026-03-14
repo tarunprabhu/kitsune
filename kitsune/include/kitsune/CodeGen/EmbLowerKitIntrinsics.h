@@ -1,4 +1,4 @@
-//===- EmbLowerKitsuneIntrinsics.h - Lower Kitsune's intrinsics -*- C++ -*-===//
+//=- EmbLowerKitIntrinsics.h - Lower Kitsune-specific intrinsics -*- C++ -*--=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_CODEGEN_EMB_LOWER_KITSUNE_INTRINSICS_H
-#define KITSUNE_CODEGEN_EMB_LOWER_KITSUNE_INTRINSICS_H
+#ifndef KITSUNE_CODEGEN_EMB_LOWER_KIT_INTRINSICS_H
+#define KITSUNE_CODEGEN_EMB_LOWER_KIT_INTRINSICS_H
 
 #include "kitsune/Passes/EmbModulePass.h"
 
@@ -21,18 +21,18 @@ class ModulePass;
 
 /// \ingroup kitsune
 /// Lower Kitsune-specific intrinsics in embedded modules.
-class EmbLowerKitsuneIntrinsicsPass
-    : public EmbModulePass<EmbLowerKitsuneIntrinsicsPass> {
+class EmbLowerKitIntrinsicsPass
+    : public EmbModulePass<EmbLowerKitIntrinsicsPass> {
 public:
   bool run(TTID tt, Module &devM, Module &hostM,
            ModuleAnalysisManager &hostMAM);
 
-  using EmbModulePass<EmbLowerKitsuneIntrinsicsPass>::run;
+  using EmbModulePass<EmbLowerKitIntrinsicsPass>::run;
 };
 
 /// \ingroup kitsune
-ModulePass *createEmbLowerKitsuneIntrinsicsLegacyPass();
+ModulePass *createEmbLowerKitIntrinsicsLegacyPass();
 
 } // namespace llvm
 
-#endif // KITSUNE_CODEGEN_EMB_LOWER_KITSUNE_INTRINSICS_H
+#endif // KITSUNE_CODEGEN_EMB_LOWER_KIT_INTRINSICS_H
