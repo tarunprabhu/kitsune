@@ -42,8 +42,6 @@ static cl::opt<bool> clInlineAllForce(
              "those that have the 'noinline' attribute"),
     cl::cat(cl::catKitClDevOpts));
 
-namespace llvm {
-
 bool EmbPreparePass::run(TTID tt, Module &devM, Module &hostM,
                          ModuleAnalysisManager &hostMAM) {
   detail::EmbPrepareOptions prepOpts;
@@ -61,5 +59,3 @@ bool EmbPreparePass::run(TTID tt, Module &devM, Module &hostM,
     llvm_unreachable("EmbPreparePass::run: TTID not handled");
   }
 }
-
-} // namespace llvm
