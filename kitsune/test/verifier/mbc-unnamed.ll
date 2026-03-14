@@ -2,7 +2,7 @@
 ; fails if it is not.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
-; RUN:     | sed 's/[.]kitsune[.]emb[.]bc/0/g' \
+; RUN:     | sed 's/[.]kit[.]emb[.]bc/0/g' \
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;

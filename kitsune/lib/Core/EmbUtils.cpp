@@ -56,7 +56,7 @@ static GlobalVariable *createEmbBCGlobal(const Module &m, Module &hostM) {
   Constant *init = serialize(m);
   Type *type = init->getType();
   GlobalVariable *g = new GlobalVariable(hostM, type, /*isConstant=*/true,
-                                         linkage, init, ".kitsune.emb.bc");
+                                         linkage, init, ".kit.emb.bc");
   g->addAttribute(Attribute::KitBC);
   g->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
 
@@ -73,7 +73,7 @@ static GlobalVariable *createEmbFBGlobal(MemoryBufferRef buf, Module &m) {
   Constant *init = ConstantDataArray::getString(ctx, data, /*AddNull=*/false);
   Type *type = init->getType();
   GlobalVariable *g = new GlobalVariable(m, type, /*isConstant=*/true, linkage,
-                                         init, ".kitsune.emb.fb");
+                                         init, ".kit.emb.fb");
   g->addAttribute(Attribute::KitFB);
 
   return g;
