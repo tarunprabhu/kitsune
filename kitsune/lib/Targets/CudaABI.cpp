@@ -92,14 +92,6 @@ using namespace llvm;
 // lot more that needs to be done before the kernel module can be compiled to
 // GPU code, but those steps are handled in subsequent passes.
 
-// This is meant to be a factor used for additional kernel optimizations but is
-// currently not used this. It should be left in its default state.
-static cl::opt<unsigned> defaultGrainsize(
-    "cuabi-default-grainsize", cl::init(1), cl::Hidden,
-    cl::desc("The default grain size used by the transform "
-             "when analysis fails to determine one (default=1)"),
-    cl::cat(cl::catKitClDevOpts));
-
 // Enable/Disable flush denorms-to-zero code generation.
 static cl::opt<bool> clFTZ("cuabi-ftz", cl::init(false), cl::Hidden,
                            cl::desc("Enable flush-denorms-to-zero"),
@@ -128,6 +120,12 @@ cl::opt<bool> clRefineLaunches(
 /// typically prefixed with __kitcuda.
 static constexpr StringRef CUABI_PREFIX = "__kitcu_";
 static constexpr StringRef CUABI_KERNEL_NAME_PREFIX = "__kitcu_loop_";
+
+/// Get the grainsize to be used when lowering tapir loops. For now, we only
+/// support a grainsize of 1.
+static Value *getGrainsize(Type *ty) {
+  return ConstantInt::get(ty, 1, /*isSigned=*/false);
+}
 
 /// ptxas has several restrictions on the names of symbols, including internal
 /// symbols. If the given name is not valid for PTX, return a modified name.
@@ -337,26 +335,12 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
   //     ConstantInt::get(Type::getInt32Ty(ctx), MaxThreadsPerBlock)));
   annotations->addOperand(MDNode::get(ctx, av));
 
-  // Tapir uses canonical induction variables in the range [0, end) with
-  // stride 1. `end` is always the second parameter to the kernel function.
-  Argument *tcX = kernelF->getArg(1);
-
-  // Get the grainsize value, which is either constant or the third LC arg.
-  // TODO: We only support a grain size of 1 right now. Not clear if this
-  // could be a future optimization but strip mining on our current tests only
-  // results in degraded performance.
-  // if (unsigned gs = tl.getGrainsize())
-  //  grainsize = ConstantInt::get(ivType, gs);
-  // else
-  Value *grainsize = ConstantInt::get(ivType, defaultGrainsize.getValue());
-
-  IRBuilder<> builder(bbEntry->getTerminator());
-
   // Get the thread ID for this invocation of Helper.
   //
   // This is the classic CUDA thread ID calculation:
   //      i = blockDim.x * blockIdx.x + threadIdx.x;
   // For now we only generate 1-D thread IDs.
+  IRBuilder<> builder(bbEntry->getTerminator());
   Value *threadIdx =
       builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_x, {}, {}, "tid.x");
   Value *blockIdx =
@@ -368,15 +352,14 @@ void CudaLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
   Value *ivBeg =
       builder.CreateIntCast(tipbdxbi, ivType, /*isSigned=*/false, "ivbeg.x");
 
-  // threadID = builder.CreateMul(ThreadID, Grainsize);
-  Value *ivEnd = builder.CreateAdd(ivBeg, grainsize, "ivend.x");
+  Argument *tcX = kernelF->getArg(1);
+  Value *ivEnd = builder.CreateAdd(ivBeg, getGrainsize(ivType), "ivend.x");
   Value *ivCond = builder.CreateICmpUGE(ivBeg, tcX);
   ReplaceInstWithInst(bbEntry->getTerminator(),
                       BranchInst::Create(bbExit, bbHeader, ivCond));
 
   // Use the thread ID as the start iteration number for the primary IV.
   iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(ivBeg);
-  // TODO: ???? PrimaryIVInput->eraseFromParent();
 
   // Update cloned loop condition to use the thread-end value.
   unsigned tripCountIdx = 0;
@@ -472,16 +455,10 @@ CudaABI::CudaABI(Module &hostM, const TTOptions &tto)
 
 CudaABI::~CudaABI() { LLVM_DEBUG(dbgs() << "cuabi: destroy tapir target.\n"); }
 
-Value *CudaABI::lowerGrainsizeCall(CallInst *grainsizeCall) {
-  // TODO: The grainsize on the GPU is a completely different beast than the CPU
-  // cases Tapir was originally designed for. At present keeping the grainsize
-  // at 1 has almost always shown to yield the best results.  It is obviously
-  // not the best choice for all cases...
-  Type *gsType = grainsizeCall->getType();
-  Value *gs = ConstantInt::get(gsType, defaultGrainsize.getValue());
-
-  grainsizeCall->replaceAllUsesWith(gs);
-  grainsizeCall->eraseFromParent();
+Value *CudaABI::lowerGrainsizeCall(CallInst *call) {
+  Value *gs = getGrainsize(call->getType());
+  call->replaceAllUsesWith(gs);
+  call->eraseFromParent();
   return gs;
 }
 
