@@ -123,6 +123,73 @@ static bool isSRetInput(const Value *V, const Function &F) {
   return false;
 }
 
+/// Compute the grainsize of the loop, based on the limit.  Currently this
+/// routine injects a call to the tapir_loop_grainsize intrinsic, which is
+/// handled in a target-specific way by subsequent lowering passes.
+static Value *computeGrainsize(TapirLoopInfo *TL) {
+  Value *TripCount = TL->getTripCount();
+  assert(TripCount &&
+         "No trip count found for computing grainsize of Tapir loop.");
+  Type *IdxTy = TripCount->getType();
+  BasicBlock *Preheader = TL->getLoop()->getLoopPreheader();
+  Module *M = Preheader->getModule();
+  IRBuilder<> B(Preheader->getTerminator());
+  B.SetCurrentDebugLocation(TL->getDebugLoc());
+  return B.CreateCall(Intrinsic::getOrInsertDeclaration(
+                          M, Intrinsic::tapir_loop_grainsize, {IdxTy}),
+                      {TripCount});
+}
+
+/// Get the grainsize of this loop either from metadata or by computing the
+/// grainsize.
+static Value *getGrainsizeVal(TapirLoopInfo *TL) {
+  Value *GrainVal;
+  if (unsigned Grainsize = TL->getGrainsize())
+    GrainVal = ConstantInt::get(TL->getTripCount()->getType(), Grainsize);
+  else
+    GrainVal = computeGrainsize(TL);
+
+  LLVM_DEBUG(dbgs() << "Grainsize value: " << *GrainVal << "\n");
+  return GrainVal;
+}
+
+void LoopOutlineProcessor::setupLoopControlArgs(
+    TapirLoopInfo *TL, SmallVectorImpl<Value *> &LCArgs,
+    SmallVectorImpl<Value *> &LCInputs) {
+  // Add an argument for the primary induction variable.
+  auto &PrimaryInduction = TL->getPrimaryInduction();
+  PHINode *PrimaryPhi = PrimaryInduction.first;
+  LoopCtlArgs.push_back(
+      new Argument(PrimaryPhi->getType(), PrimaryPhi->getName() + ".start"));
+  LCArgs.push_back(LoopCtlArgs.back());
+  LCInputs.push_back(PrimaryInduction.second.getStartValue());
+
+  // Add an argument for the trip count.
+  Value *TripCount = TL->getTripCount();
+  assert(TripCount && "No trip count found for Tapir loop end argument.");
+  LoopCtlArgs.push_back(new Argument(TripCount->getType(), "end"));
+  LCArgs.push_back(LoopCtlArgs.back());
+  LCInputs.push_back(TripCount);
+
+  // Add an argument for the grainsize.
+  Value *GrainsizeVal = getGrainsizeVal(TL);
+  LoopCtlArgs.push_back(new Argument(GrainsizeVal->getType(), "grainsize"));
+  LCArgs.push_back(LoopCtlArgs.back());
+  LCInputs.push_back(GrainsizeVal);
+
+  assert(TL->getInductionVars()->size() == 1 &&
+         "Induction vars to process for arguments.");
+  // // Add arguments for the other IV's.
+  // for (auto &InductionEntry : *TL->getInductionVars()) {
+  //   PHINode *Phi = InductionEntry.first;
+  //   InductionDescriptor II = InductionEntry.second;
+  //   if (Phi == PrimaryInduction.first) continue;
+  //   LCArgs.push_back(new Argument(Phi->getType(),
+  //                                 Phi->getName() + ".start"));
+  //   LCInputs.push_back(II.getStartValue());
+  // }
+}
+
 void LoopOutlineProcessor::setupLoopOutlineArgs(
     Function &F, ValueSet &HelperArgs, SmallVectorImpl<Value *> &HelperInputs,
     ValueSet &InputSet, const SmallVectorImpl<Value *> &LCArgs,
@@ -1160,74 +1227,6 @@ void LoopSpawningImpl::getTapirLoopTaskBlocks(
   }
 }
 
-/// Compute the grainsize of the loop, based on the limit.  Currently this
-/// routine injects a call to the tapir_loop_grainsize intrinsic, which is
-/// handled in a target-specific way by subsequent lowering passes.
-static Value *computeGrainsize(TapirLoopInfo *TL) {
-  Value *TripCount = TL->getTripCount();
-  assert(TripCount &&
-         "No trip count found for computing grainsize of Tapir loop.");
-  Type *IdxTy = TripCount->getType();
-  BasicBlock *Preheader = TL->getLoop()->getLoopPreheader();
-  Module *M = Preheader->getModule();
-  IRBuilder<> B(Preheader->getTerminator());
-  B.SetCurrentDebugLocation(TL->getDebugLoc());
-  return B.CreateCall(Intrinsic::getOrInsertDeclaration(
-                          M, Intrinsic::tapir_loop_grainsize, {IdxTy}),
-                      {TripCount});
-}
-
-/// Get the grainsize of this loop either from metadata or by computing the
-/// grainsize.
-static Value *getGrainsizeVal(TapirLoopInfo *TL) {
-  Value *GrainVal;
-  if (unsigned Grainsize = TL->getGrainsize())
-    GrainVal = ConstantInt::get(TL->getTripCount()->getType(), Grainsize);
-  else
-    GrainVal = computeGrainsize(TL);
-
-  LLVM_DEBUG(dbgs() << "Grainsize value: " << *GrainVal << "\n");
-  return GrainVal;
-}
-
-/// Determine the inputs to Tapir loop \p TL for the loop control.
-static void getLoopControlInputs(TapirLoopInfo *TL,
-                                 SmallVectorImpl<Value *> &LCArgs,
-                                 SmallVectorImpl<Value *> &LCInputs) {
-  // Add an argument for the primary induction variable.
-  auto &PrimaryInduction = TL->getPrimaryInduction();
-  PHINode *PrimaryPhi = PrimaryInduction.first;
-  TL->StartIterArg = new Argument(PrimaryPhi->getType(),
-                                  PrimaryPhi->getName() + ".start");
-  LCArgs.push_back(TL->StartIterArg);
-  LCInputs.push_back(PrimaryInduction.second.getStartValue());
-
-  // Add an argument for the trip count.
-  Value *TripCount = TL->getTripCount();
-  assert(TripCount && "No trip count found for Tapir loop end argument.");
-  TL->EndIterArg = new Argument(TripCount->getType(), "end");
-  LCArgs.push_back(TL->EndIterArg);
-  LCInputs.push_back(TripCount);
-
-  // Add an argument for the grainsize.
-  Value *GrainsizeVal = getGrainsizeVal(TL);
-  TL->GrainsizeArg = new Argument(GrainsizeVal->getType(), "grainsize");
-  LCArgs.push_back(TL->GrainsizeArg);
-  LCInputs.push_back(GrainsizeVal);
-
-  assert(TL->getInductionVars()->size() == 1 &&
-         "Induction vars to process for arguments.");
-  // // Add arguments for the other IV's.
-  // for (auto &InductionEntry : *TL->getInductionVars()) {
-  //   PHINode *Phi = InductionEntry.first;
-  //   InductionDescriptor II = InductionEntry.second;
-  //   if (Phi == PrimaryInduction.first) continue;
-  //   LCArgs.push_back(new Argument(Phi->getType(),
-  //                                 Phi->getName() + ".start"));
-  //   LCInputs.push_back(II.getStartValue());
-  // }
-}
-
 /// For all recorded Tapir loops, determine the function arguments and inputs
 /// for the outlined helper functions for those loops.
 ///
@@ -1264,7 +1263,8 @@ void LoopSpawningImpl::getAllTapirLoopInputs(
       });
 
       // Determine loop-control inputs.
-      getLoopControlInputs(TL, LoopCtlArgs[L], LoopCtlInputs[L]);
+      OutlineProcessors[TL]->setupLoopControlArgs(TL, LoopCtlArgs[L],
+                                                  LoopCtlInputs[L]);
 
       LLVM_DEBUG({
         dbgs() << "LoopCtlArgs:\n";
@@ -1301,7 +1301,7 @@ static void removeSpawnStrategyFromClonedLoop(const Loop *L,
 static void updateClonedIVs(
     TapirLoopInfo *TL, BasicBlock *OrigPreheader,
     ValueSet &Args, ValueToValueMapTy &VMap, unsigned IVArgIndex,
-    unsigned NextIVArgOffset = 3) {
+    unsigned NextIVArgOffset) {
   NamedRegionTimer NRT("updateClonedIVs", "Updated IVs in Tapir-loop helper",
                        TimerGroupName, TimerGroupDescription,
                        TimePassesIsEnabled);
@@ -1473,7 +1473,16 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
     delete Mat;
 
   // Rewrite cloned IV's to start at their start-iteration arguments.
-  updateClonedIVs(TL, Preheader, Args, VMap, IVArgIndex);
+  assert(TL->getInductionVars()->size() == 1 &&
+         "Tapir loops with multiple induction variables are not yet supported");
+
+  // FIXME: The last argument to updateClonedIVs below is the distance between
+  // the start values of successive loop induction variables. But a value of 3
+  // assumes that there are exactly three loop control arguments for each tapir
+  // loop. This may not always be the case Since tapir targets have the option
+  // of customizing loop control inputs, the distance between the control
+  // inputs may be some other value.
+  updateClonedIVs(TL, Preheader, Args, VMap, IVArgIndex, 3);
 
   // Add alignment assumptions to arguments of helper, based on alignment of
   // values in old function.

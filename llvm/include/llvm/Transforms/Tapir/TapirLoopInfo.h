@@ -68,13 +68,6 @@ public:
   }
 
   ~TapirLoopInfo() {
-    if (StartIterArg)
-      delete StartIterArg;
-    if (EndIterArg)
-      delete EndIterArg;
-    if (GrainsizeArg)
-      delete GrainsizeArg;
-
     DescendantTasks.clear();
     Inductions.clear();
   }
@@ -234,12 +227,6 @@ private:
   /// Grainsize value to use for loop.  A value of 0 indicates that a call to
   /// Tapir's grainsize intrinsic should be used.
   unsigned Grainsize = 0;
-
-public:
-  /// Placeholder argument values.
-  Argument *StartIterArg = nullptr;
-  Argument *EndIterArg = nullptr;
-  Argument *GrainsizeArg = nullptr;
 };
 
 /// Transforms an induction descriptor into a direct computation of its value at

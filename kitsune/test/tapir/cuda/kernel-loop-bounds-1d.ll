@@ -12,7 +12,6 @@
 ; CHECK: define {{.+}}(
 ; CHECK-SAME: i64 {{[^,]+}},
 ; CHECK-SAME: i64 {{[^,]+}},
-; CHECK-SAME: i64 {{[^,]+}},
 ; CHECK-SAME: ptr {{.*}}%[[BUF:[^,]+]],
 ; CHECK-SAME: i64 {{.*}}%[[N:[^)]+]])
 ; CHECK-NEXT: [[PREHEADER:.+]]:

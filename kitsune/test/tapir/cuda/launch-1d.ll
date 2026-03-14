@@ -10,8 +10,6 @@
 ;
 ; CHECK: define {{.+}} @f(ptr {{.*}}%[[C:.+]], i64 {{.*}}%[[N:.+]])
 ;
-; CHECK: %[[GS:[0-9]+]] = call i64 @llvm.tapir.loop.grainsize.i64
-;
 ; Create a stream
 ;
 ; CHECK: %[[STREAM:.+]] = {{.*}}call {{.+}} @llvm.kit.thread.stream(i32 2)
@@ -52,7 +50,6 @@
 ; CHECK-SAME: ptr %[[STREAM]],
 ; CHECK-SAME: i64 0,
 ; CHECK-SAME: i64 %n,
-; CHECK-SAME: i64 %[[GS]],
 ; CHECK-SAME: ptr %c,
 ; CHECK-SAME: i64 %n
 ; CHECK-SAME: )

@@ -218,8 +218,10 @@ class TapirTarget {
 protected:
   /// The Module of the original Tapir code.
   Module &M;
+
   /// The Module into which the outlined Helper functions will be placed.
   Module &DestM;
+
   /// The type of clone-function change that outlining will make.
   CloneFunctionChangeType Changes = CloneFunctionChangeType::LocalChangesOnly;
 
@@ -434,6 +436,13 @@ protected:
   /// The type of clone-function change that outlining will make.
   CloneFunctionChangeType Changes = CloneFunctionChangeType::LocalChangesOnly;
 
+  /// The loop control arguments. These are typically created by
+  /// setupLoopControlArgs, but may also be created in setupLoopOutlineArgs.
+  /// These are not ever used directly in any function, but are intended to be
+  /// cloned by the outliner. They will be deleted when the outline processor
+  /// goes out of scope.
+  SmallVector<Argument*, 8> LoopCtlArgs;
+
   LoopOutlineProcessor(Module &M, Module &DestM,
                        const TTOptions &TTOpts,
                        CloneFunctionChangeType Changes)
@@ -445,7 +454,11 @@ public:
   LoopOutlineProcessor(Module &M, const TTOptions &TTOpts)
       : M(M), DestM(M), TTOpts(TTOpts),
         Changes(CloneFunctionChangeType::LocalChangesOnly) {}
-  virtual ~LoopOutlineProcessor() = default;
+
+  virtual ~LoopOutlineProcessor() {
+    for (Argument *Arg : LoopCtlArgs)
+      delete Arg;
+  }
 
   const TTOptions &getOptions() const { return TTOpts; }
 
@@ -454,6 +467,12 @@ public:
   /// directly as arguments to the outlined function, or marshalled in a
   /// structure.
   virtual ArgStructMode getArgStructMode() const { return ArgStructMode::None; }
+
+  /// Setup the loop-control arguments \p LCArgs and loop-control inputs
+  /// \p LCInputs for the Tapir loop \p TL.
+  virtual void setupLoopControlArgs(TapirLoopInfo *TL,
+                                    SmallVectorImpl<Value *> &LCArgs,
+                                    SmallVectorImpl<Value *> &LCInputs);
 
   /// Prepares the set \p HelperArgs of function arguments for the outlined
   /// helper function Helper for a Tapir loop.  Also prepares the list \p
@@ -470,6 +489,7 @@ public:
 
   /// Get the Module where outlined Helper will be placed.
   Module &getDestinationModule() const { return DestM; }
+
   /// Get the type of clone-function change that outlining will make.
   CloneFunctionChangeType getCloneFunctionChangeType() const { return Changes; }
 
