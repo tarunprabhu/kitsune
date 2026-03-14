@@ -1,4 +1,4 @@
-//=- LowerKitsuneIntrinsics.h - Lower Kitsune-specific intrinsics -*- C++ -*-=//
+//=- StripKitAddrSpaces.h - Strip Kitsune-specific address spaces -*- C++ -*-=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Lower Kitsune-specific intrinsics.
+// Move pointers in Kitsune-specific address spaces to the default address
+// space.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_CODEGEN_LOWER_KITSUNE_INTRINSICS_H
-#define KITSUNE_CODEGEN_LOWER_KITSUNE_INTRINSICS_H
+#ifndef KITSUNE_CODEGEN_STRIP_KIT_ADDR_SPACES_H
+#define KITSUNE_CODEGEN_STRIP_KIT_ADDR_SPACES_H
 
 #include "llvm/IR/PassManager.h"
 
@@ -20,16 +21,16 @@ namespace llvm {
 class ModulePass;
 
 /// \ingroup kitsune
-/// Lower Kitsune-specific intrinsics.
-class LowerKitsuneIntrinsicsPass
-    : public PassInfoMixin<LowerKitsuneIntrinsicsPass> {
+/// Move pointers from Kitsune-specific address spaces to the default address
+/// space. This will mutate the types of the appropriate entities.
+class StripKitAddrSpacesPass : public PassInfoMixin<StripKitAddrSpacesPass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 };
 
 /// \ingroup kitsune
-ModulePass *createLowerKitsuneIntrinsicsLegacyPass();
+ModulePass *createStripKitAddrSpacesLegacyPass();
 
 } // namespace llvm
 
-#endif // KITSUNE_CODEGEN_LOWER_KITSUNE_INTRINSICS_H
+#endif // KITSUNE_CODEGEN_STRIP_KIT_ADDR_SPACES_H

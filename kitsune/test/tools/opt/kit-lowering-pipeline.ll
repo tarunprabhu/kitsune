@@ -51,7 +51,7 @@
 ; O123SZ:      Running pass:     TapirToTargetPass
 ; O123SZ:      Running pass:     PrefetchForDevicePass
 ; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
-; O123SZ-NEXT: Running pass:     EmbLowerKitsuneIntrinsicsLibDevicePass
+; O123SZ-NEXT: Running pass:     EmbLowerKitIntrinsicsLibDevicePass
 ; O123SZ-NEXT: Running pass:     EmbResolveLibDeviceCallsPass
 ; O123SZ-NEXT: Running pass:     EmbPreparePass
 ; O123SZ-NEXT: Running pass:     EmbLinkLibDeviceBitcodePass

@@ -1,7 +1,7 @@
 add_llvm_component_library(LLVMKitTransforms
   AnnotateTapirLoops.cpp
   EmbLinkLibDeviceBitcode.cpp
-  EmbLowerKitsuneIntrinsicsLibDevice.cpp
+  EmbLowerKitIntrinsicsLibDevice.cpp
   EmbPrepare.cpp
   EmbPrepareCuda.cpp
   EmbPrepareHip.cpp

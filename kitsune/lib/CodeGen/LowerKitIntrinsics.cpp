@@ -1,4 +1,4 @@
-//===- LowerKitsuneIntrinsics.cpp - Lower Kitsune-specific intrinsics -----===//
+//===- LowerKitIntrinsics.cpp - Lower Kitsune-specific intrinsics ---------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,13 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This pass is responsible for lowering Kitsune-specific intrinsics. These
-// typically have a corresponding function in Kitsune's runtime, but that is not
-// always the case.
+// Lower kitsune-specific intrinsics.
+//
+// Most of these are lowered to calls to functions from Kitsune's runtime. But
+// this is not always the case.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/CodeGen/LowerKitsuneIntrinsics.h"
+#include "kitsune/CodeGen/LowerKitIntrinsics.h"
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
@@ -163,7 +164,7 @@ static const std::map<Intrinsic::ID, std::vector<unsigned>> kitRTArgMap = {
 };
 
 /// Main implementation class to lower Kitsune intrinsics.
-class LowerKitsuneIntrinsics {
+class LowerKitIntrinsics {
 private:
   const TapirTargetInfo &tgi;
   TargetLibraryInfo &tli;
@@ -584,7 +585,7 @@ private:
   }
 
 public:
-  LowerKitsuneIntrinsics(const TapirTargetInfo &tgi, TargetLibraryInfo &tli)
+  LowerKitIntrinsics(const TapirTargetInfo &tgi, TargetLibraryInfo &tli)
       : tgi(tgi), tli(tli) {}
 
   bool run(Function &f) {
@@ -611,11 +612,11 @@ public:
   }
 };
 
-/// Legacy pass to compile the embedded bitcode to fat binaries.
-class LowerKitsuneIntrinsicsLegacyPass : public ModulePass {
+/// Pass, for the legacy pass manger, that lowers kitsune-specific intrinsics.
+class LowerKitIntrinsicsLegacyPass : public ModulePass {
 public:
-  LowerKitsuneIntrinsicsLegacyPass() : ModulePass(ID) {
-    initializeLowerKitsuneIntrinsicsLegacyPassPass(
+  LowerKitIntrinsicsLegacyPass() : ModulePass(ID) {
+    initializeLowerKitIntrinsicsLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 
@@ -635,7 +636,7 @@ public:
       TargetLibraryInfo &tli =
           getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(f);
 
-      changed |= LowerKitsuneIntrinsics(tgi, tli).run(f);
+      changed |= LowerKitIntrinsics(tgi, tli).run(f);
     }
 
     return changed;
@@ -647,20 +648,20 @@ public:
 
 } // namespace
 
-char LowerKitsuneIntrinsicsLegacyPass::ID = 0;
+char LowerKitIntrinsicsLegacyPass::ID = 0;
 
-INITIALIZE_PASS_BEGIN(LowerKitsuneIntrinsicsLegacyPass, DEBUG_TYPE,
+INITIALIZE_PASS_BEGIN(LowerKitIntrinsicsLegacyPass, DEBUG_TYPE,
                       "Lower Kitsune intrinsics", false, false)
 INITIALIZE_PASS_DEPENDENCY(TapirTargetAnalysisWrapperPass)
-INITIALIZE_PASS_END(LowerKitsuneIntrinsicsLegacyPass, DEBUG_TYPE,
+INITIALIZE_PASS_END(LowerKitIntrinsicsLegacyPass, DEBUG_TYPE,
                     "Lower Kitsune intrinsics", false, false)
 
-ModulePass *llvm::createLowerKitsuneIntrinsicsLegacyPass() {
-  return new LowerKitsuneIntrinsicsLegacyPass();
+ModulePass *llvm::createLowerKitIntrinsicsLegacyPass() {
+  return new LowerKitIntrinsicsLegacyPass();
 }
 
-PreservedAnalyses LowerKitsuneIntrinsicsPass::run(Module &m,
-                                                  ModuleAnalysisManager &mam) {
+PreservedAnalyses LowerKitIntrinsicsPass::run(Module &m,
+                                              ModuleAnalysisManager &mam) {
   auto &fam = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
   const TapirTargetInfo &tgi = mam.getResult<TapirTargetAnalysis>(m);
 
@@ -668,7 +669,7 @@ PreservedAnalyses LowerKitsuneIntrinsicsPass::run(Module &m,
   for (Function &f : m) {
     TargetLibraryInfo &tli = fam.getResult<TargetLibraryAnalysis>(f);
 
-    changed |= LowerKitsuneIntrinsics(tgi, tli).run(f);
+    changed |= LowerKitIntrinsics(tgi, tli).run(f);
   }
 
   // If any kitsune intrinsics were replaced, the call graph will have changed,

@@ -345,9 +345,9 @@ LLVM_ABI void initializeXRayInstrumentationLegacyPass(PassRegistry &);
 
 // Initialize Kitsune codegen passes
 LLVM_ABI void initializeCodeGenFatBinariesLegacyPassPass(PassRegistry &);
-LLVM_ABI void initializeEmbLowerKitsuneIntrinsicsLegacyPassPass(PassRegistry &);
-LLVM_ABI void initializeLowerKitsuneIntrinsicsLegacyPassPass(PassRegistry &);
-LLVM_ABI void initializeStripKitsuneAddrSpacesLegacyPassPass(PassRegistry &);
+LLVM_ABI void initializeEmbLowerKitIntrinsicsLegacyPassPass(PassRegistry &);
+LLVM_ABI void initializeLowerKitIntrinsicsLegacyPassPass(PassRegistry &);
+LLVM_ABI void initializeStripKitAddrSpacesLegacyPassPass(PassRegistry &);
 LLVM_ABI void initializeTapirTargetAnalysisWrapperPassPass(PassRegistry &);
 
 } // end namespace llvm

@@ -1,4 +1,4 @@
-//===- StripKitsuneAddrSpaces.cpp - Strip Kitsune's address spaces --------===//
+//===- StripKitAddrSpaces.cpp - Strip Kitsune's address spaces ------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -13,7 +13,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/CodeGen/StripKitsuneAddrSpaces.h"
+#include "kitsune/CodeGen/StripKitAddrSpaces.h"
 #include "kitsune/Core/AddrSpaceUtils.h"
 #include "kitsune/Support/AddrSpace.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -27,11 +27,13 @@ using namespace llvm;
 
 namespace {
 
-/// Legacy pass to compile the embedded bitcode to fat binaries.
-class StripKitsuneAddrSpacesLegacyPass : public ModulePass {
+/// Pass, for the legacy pass manager, to strip Kitsune-specific address spaces
+/// from pointers. This essentially puts the pointers into the default address
+/// space.
+class StripKitAddrSpacesLegacyPass : public ModulePass {
 public:
-  StripKitsuneAddrSpacesLegacyPass() : ModulePass(ID) {
-    initializeStripKitsuneAddrSpacesLegacyPassPass(
+  StripKitAddrSpacesLegacyPass() : ModulePass(ID) {
+    initializeStripKitAddrSpacesLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 
@@ -49,19 +51,19 @@ public:
 
 } // namespace
 
-char StripKitsuneAddrSpacesLegacyPass::ID = 0;
+char StripKitAddrSpacesLegacyPass::ID = 0;
 
-INITIALIZE_PASS_BEGIN(StripKitsuneAddrSpacesLegacyPass, DEBUG_TYPE,
+INITIALIZE_PASS_BEGIN(StripKitAddrSpacesLegacyPass, DEBUG_TYPE,
                       "Strip kitsune address spaces", false, false)
-INITIALIZE_PASS_END(StripKitsuneAddrSpacesLegacyPass, DEBUG_TYPE,
+INITIALIZE_PASS_END(StripKitAddrSpacesLegacyPass, DEBUG_TYPE,
                     "Strip kitsune address spaces", false, false)
 
-ModulePass *llvm::createStripKitsuneAddrSpacesLegacyPass() {
-  return new StripKitsuneAddrSpacesLegacyPass();
+ModulePass *llvm::createStripKitAddrSpacesLegacyPass() {
+  return new StripKitAddrSpacesLegacyPass();
 }
 
-PreservedAnalyses StripKitsuneAddrSpacesPass::run(Module &m,
-                                                  ModuleAnalysisManager &mam) {
+PreservedAnalyses StripKitAddrSpacesPass::run(Module &m,
+                                              ModuleAnalysisManager &mam) {
   if (stripKitsuneAddrSpaces(m))
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();

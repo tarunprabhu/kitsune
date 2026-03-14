@@ -183,9 +183,9 @@ MODULE_PASS("wholeprogramdevirt", WholeProgramDevirtPass())
 // Kitsune-specific passes. Keep these separate from the rest because it makes
 // merges a bit easier at times.
 MODULE_PASS("emb-link-libdevice-bitcode", EmbLinkLibDeviceBitcodePass())
-MODULE_PASS("emb-lower-intrinsics", EmbLowerKitsuneIntrinsicsPass())
+MODULE_PASS("emb-lower-intrinsics", EmbLowerKitIntrinsicsPass())
 MODULE_PASS("emb-lower-intrinsics-libdevice",
-            EmbLowerKitsuneIntrinsicsLibDevicePass())
+            EmbLowerKitIntrinsicsLibDevicePass())
 MODULE_PASS("emb-optimize", EmbOptimizePass())
 MODULE_PASS("emb-prepare", EmbPreparePass())
 MODULE_PASS("emb-resolve-libdevice-calls", EmbResolveLibDeviceCallsPass())
@@ -194,8 +194,8 @@ MODULE_PASS("kit-cgfb", CodeGenFatBinariesPass())
 MODULE_PASS("kit-ctors", GenerateCtorsPass())
 MODULE_PASS("kit-kernel-properties", RecomputeKernelPropertiesPass())
 MODULE_PASS("kit-prefetch", PrefetchForDevicePass())
-MODULE_PASS("kit-lower-intrinsics", LowerKitsuneIntrinsicsPass())
-MODULE_PASS("kit-strip-addr-spaces", StripKitsuneAddrSpacesPass())
+MODULE_PASS("kit-lower-intrinsics", LowerKitIntrinsicsPass())
+MODULE_PASS("kit-strip-addr-spaces", StripKitAddrSpacesPass())
 MODULE_PASS("kit-serialize", SerializePass())
 MODULE_PASS("kit-verify-prelower",
             PreLowerVerificationPass(/*exitIfError=*/true))
