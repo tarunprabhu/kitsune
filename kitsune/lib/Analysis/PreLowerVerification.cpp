@@ -44,8 +44,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Analysis/PreLowerVerification.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/InstructionUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
@@ -355,7 +355,7 @@ public:
 /// debug information and metadata, etc.
 class VerifierM : public Verifier<VerifierM> {
 private:
-  TapirTargetInfo &ttgi;
+  TTObjects &ttObjs;
 
 private:
   /// Check if all tapir targets required by the module have been enabled.
@@ -366,10 +366,10 @@ private:
   }
 
 public:
-  VerifierM(Log &log, TapirTargetInfo &ttgi) : Verifier(log), ttgi(ttgi) {}
+  VerifierM(Log &log, TTObjects &ttObjs) : Verifier(log), ttObjs(ttObjs) {}
 
   void run(Module &m) {
-    ArrayRef tts = ttgi.getRequiredTTs(m);
+    ArrayRef tts = ttObjs.getRequiredTTs(m);
     checkTTsEnabled(tts);
 
     /// FIXME: At this time, we do not support multi-target execution.
@@ -384,15 +384,15 @@ public:
 
 PreservedAnalyses PreLowerVerificationPass::run(Module &m,
                                                 ModuleAnalysisManager &mam) {
-  TapirTargetInfo &ttgi = mam.getResult<TapirTargetAnalysis>(m);
-  if (clDisableVerifyPreLower || !ttgi.hasTTID())
+  TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
+  if (clDisableVerifyPreLower || !ttObjs.hasTTID())
     return PreservedAnalyses::all();
 
   FunctionAnalysisManager &fam =
       mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
 
   Log log;
-  VerifierM(log, ttgi).run(m);
+  VerifierM(log, ttObjs).run(m);
   for (Function &f : m) {
     if (f.size()) {
       LoopInfo &li = fam.getResult<LoopAnalysis>(f);

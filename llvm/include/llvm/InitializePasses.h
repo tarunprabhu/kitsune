@@ -348,7 +348,7 @@ LLVM_ABI void initializeCodeGenFatBinariesLegacyPassPass(PassRegistry &);
 LLVM_ABI void initializeEmbLowerKitIntrinsicsLegacyPassPass(PassRegistry &);
 LLVM_ABI void initializeLowerKitIntrinsicsLegacyPassPass(PassRegistry &);
 LLVM_ABI void initializeStripKitAddrSpacesLegacyPassPass(PassRegistry &);
-LLVM_ABI void initializeTapirTargetAnalysisWrapperPassPass(PassRegistry &);
+LLVM_ABI void initializeTTObjectsAnalysisWrapperPassPass(PassRegistry &);
 
 } // end namespace llvm
 

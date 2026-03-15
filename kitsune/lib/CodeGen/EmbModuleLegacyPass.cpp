@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/CodeGen/EmbModuleLegacyPass.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Module.h"
@@ -23,13 +23,13 @@ using namespace llvm;
 EmbModuleLegacyPass::EmbModuleLegacyPass(char ID) : ModulePass(ID) {}
 
 void EmbModuleLegacyPass::getAnalysisUsage(AnalysisUsage &au) const {
-  au.addRequired<TapirTargetAnalysisWrapperPass>();
+  au.addRequired<TTObjectsAnalysisWrapperPass>();
 }
 
 bool EmbModuleLegacyPass::runOnModule(Module &m) {
-  const TapirTargetInfo &tgi =
-      getAnalysis<TapirTargetAnalysisWrapperPass>().getResult();
-  if (not tgi.hasTTID())
+  const TTObjects &ttObjs =
+      getAnalysis<TTObjectsAnalysisWrapperPass>().getResult();
+  if (not ttObjs.hasTTID())
     return false;
 
   // Calling resetEmbBCGlobal() will delete the global variable whose

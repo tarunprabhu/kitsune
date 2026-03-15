@@ -25,7 +25,7 @@
 
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "EmbPrepareImpl.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
 
 using namespace llvm;
@@ -48,8 +48,8 @@ bool EmbPreparePass::run(TTID tt, Module &devM, Module &hostM,
   prepOpts.inlineAll = clInlineAll;
   prepOpts.inlineAllForce = clInlineAllForce;
 
-  const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
-  const TTOptions &tto = tgi.getOptions();
+  const TTObjects &ttObjs = hostMAM.getResult<TTObjectsAnalysis>(hostM);
+  const TTOptions &tto = ttObjs.getOptions();
   switch (tt) {
   case TTID::Cuda:
     return detail::embPrepareCuda(devM, tto, prepOpts);

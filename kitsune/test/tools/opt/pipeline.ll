@@ -40,7 +40,7 @@
 ; RUN:     | FileCheck -check-prefix O0 %s
 ;
 ; O0:      Running pass:     TapirToTargetPass
-; O0-NEXT: Running analysis: TapirTargetAnalysis
+; O0-NEXT: Running analysis: TTObjectsAnalysis
 ; O0-NEXT: Running analysis: LoopAnalysis
 ; O0-NEXT: Running analysis: DominatorTreeAnalysis
 ; O0-NEXT: Running analysis: TaskAnalysis
@@ -71,7 +71,7 @@
 ; RUN:     | FileCheck -check-prefix O123SZ %s
 ;
 ; O123SZ:      Running pass:     PreLowerVerificationPass
-; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
+; O123SZ-NEXT: Running analysis: TTObjectsAnalysis
 ; O123SZ-NEXT: Running analysis: TaskAnalysis
 ; O123SZ-NEXT: Running analysis: PostDominatorTreeAnalysis
 ; O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis

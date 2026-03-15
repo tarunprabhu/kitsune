@@ -1,4 +1,4 @@
-//===- TapirTargetAnalysis.cpp - Analysis pass for tapir targets ----------===//
+//===- TTObjectsAnalysis.cpp - Analysis pass for tapir targets ------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -8,15 +8,12 @@
 //
 // This pass analyzes the module and determines the tapir targets required by
 // each function. The result of the pass is an object that owns the instances
-// of the tapir target objects that are used to lower tapir constructs.
-//
-// In principle, this pass may be used to automatically determine which tapir
-// targets to use for specific constructs, but that has not been implemented
-// yet.
+// of the tapir target objects that are used to lower tapir constructs. It also
+// owns the TTOptions object.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
 #include "kitsune/Targets/TapirTargets.h"
@@ -27,7 +24,7 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
-#define DEBUG_TYPE "tapir-target-analysis"
+#define DEBUG_TYPE "ttobjects"
 
 using namespace llvm;
 
@@ -37,15 +34,14 @@ static cl::opt<bool>
               cl::Hidden, cl::cat(cl::catKitClOpts));
 
 /// Empty vector of tapir targets to be used when
-/// TapirTargetInfo::getRequiredTTs is called with a function that does not
+/// TTObjects::getRequiredTTs is called with a function that does not
 /// contain any tapir loops.
 static const std::vector<TTID> noTTs;
 
-TapirTargetInfo::TapirTargetInfo(std::optional<TTOptions> ttOpts)
-    : ttOpts(ttOpts) {}
+TTObjects::TTObjects(std::optional<TTOptions> ttOpts) : ttOpts(ttOpts) {}
 
-void TapirTargetInfo::computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
-                                         GetTaskInfo getTaskInfo) {
+void TTObjects::computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
+                                   GetTaskInfo getTaskInfo) {
   ttsInFunc.clear();
   ttsInModule.clear();
 
@@ -78,64 +74,62 @@ void TapirTargetInfo::computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
   std::sort(this->ttsInModule.begin(), this->ttsInModule.end());
 }
 
-void TapirTargetInfo::addTT(TTID id, TapirTarget *tt) { tts[id] = tt; }
+void TTObjects::addTT(TTID id, TapirTarget *tt) { tts[id] = tt; }
 
-bool TapirTargetInfo::hasTT(TTID id) const { return tts.find(id) != tts.end(); }
+bool TTObjects::hasTT(TTID id) const { return tts.find(id) != tts.end(); }
 
-TapirTarget *TapirTargetInfo::getTT(TTID id) const {
+TapirTarget *TTObjects::getTT(TTID id) const {
   assert(hasTT(id) && "TapirTarget has been created for ID");
   return tts.at(id);
 }
 
-TTID TapirTargetInfo::getTTID() const {
+TTID TTObjects::getTTID() const {
   assert(ttOpts && "Tapir target options have not been set");
   return ttOpts->getTTID();
 }
 
-std::optional<TTID> TapirTargetInfo::getTTIDOrNull() const {
+std::optional<TTID> TTObjects::getTTIDOrNull() const {
   if (ttOpts)
     return ttOpts->getTTID();
   return std::nullopt;
 }
 
-const TTOptions &TapirTargetInfo::getOptions() const {
+const TTOptions &TTObjects::getOptions() const {
   assert(ttOpts && "Tapir target options have not been set");
   return *ttOpts;
 }
 
-ArrayRef<TTID> TapirTargetInfo::getRequiredTTs(Function &f) const {
+ArrayRef<TTID> TTObjects::getRequiredTTs(Function &f) const {
   if (ttsInFunc.find(&f) == ttsInFunc.end())
     return noTTs;
   return ttsInFunc.at(&f);
 }
 
-ArrayRef<TTID> TapirTargetInfo::getRequiredTTs(Module &) const {
-  return ttsInModule;
-}
+ArrayRef<TTID> TTObjects::getRequiredTTs(Module &) const { return ttsInModule; }
 
-bool TapirTargetInfo::invalidate(Module &, const PreservedAnalyses &pa,
-                                 ModuleAnalysisManager::Invalidator &) {
+bool TTObjects::invalidate(Module &, const PreservedAnalyses &pa,
+                           ModuleAnalysisManager::Invalidator &) {
   // Just checking if the CFG is preserved should work.
   // If loop analyses are not preserved, then this analysis is invalid.
   auto lac = pa.getChecker<LoopAnalysis>();
   return not(lac.preserved() or lac.preservedSet<AllAnalysesOn<Function>>());
 }
 
-AnalysisKey TapirTargetAnalysis::Key;
+AnalysisKey TTObjectsAnalysis::Key;
 
-TapirTargetAnalysis::TapirTargetAnalysis(std::optional<TTOptions> tto)
-    : ttInfo(tto) {
-  if (clDumpTTO and ttInfo.hasTTID())
-    ttInfo.getOptions().print(outs(), /*all=*/true);
+TTObjectsAnalysis::TTObjectsAnalysis(std::optional<TTOptions> tto)
+    : ttObjs(tto) {
+  if (clDumpTTO and ttObjs.hasTTID())
+    ttObjs.getOptions().print(outs(), /*all=*/true);
 }
 
-TapirTargetAnalysis::Result
-TapirTargetAnalysis::run(Module &m, ModuleAnalysisManager &mam) {
+TTObjectsAnalysis::Result
+TTObjectsAnalysis::run(Module &m, ModuleAnalysisManager &mam) {
   // If a primary tapir target has not been set, don't do anything more since
   // the lack of a primary tapir target implies that tapir lowering has not been
   // enabled.
-  if (not ttInfo.hasTTID())
-    return ttInfo;
+  if (not ttObjs.hasTTID())
+    return ttObjs;
 
   auto &fam = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
   auto getLoopInfo = [&](Function &f) -> LoopInfo & {
@@ -145,48 +139,48 @@ TapirTargetAnalysis::run(Module &m, ModuleAnalysisManager &mam) {
     return fam.getResult<TaskAnalysis>(f);
   };
 
-  ttInfo.computeRequiredTTs(m, getLoopInfo, getTaskInfo);
+  ttObjs.computeRequiredTTs(m, getLoopInfo, getTaskInfo);
 
-  const TTOptions &tto = ttInfo.getOptions();
-  std::vector<TTID> ids = ttInfo.getRequiredTTs(m);
-  ids.push_back(ttInfo.getTTID());
+  const TTOptions &tto = ttObjs.getOptions();
+  std::vector<TTID> ids = ttObjs.getRequiredTTs(m);
+  ids.push_back(ttObjs.getTTID());
   for (TTID id : ids) {
-    if (not ttInfo.hasTT(id)) {
+    if (not ttObjs.hasTT(id)) {
       tts[id] = makeTT(id, m, tto);
-      ttInfo.addTT(id, tts.at(id).get());
+      ttObjs.addTT(id, tts.at(id).get());
     }
   }
 
-  return ttInfo;
+  return ttObjs;
 }
 
-char TapirTargetAnalysisWrapperPass::ID = 0;
-INITIALIZE_PASS(TapirTargetAnalysisWrapperPass, DEBUG_TYPE,
+char TTObjectsAnalysisWrapperPass::ID = 0;
+INITIALIZE_PASS(TTObjectsAnalysisWrapperPass, DEBUG_TYPE,
                 "Tapir Target Analysis", false, true)
 
-TapirTargetAnalysisWrapperPass::TapirTargetAnalysisWrapperPass()
-    : ImmutablePass(ID), ttInfo(std::nullopt) {
-  initializeTapirTargetAnalysisWrapperPassPass(
+TTObjectsAnalysisWrapperPass::TTObjectsAnalysisWrapperPass()
+    : ImmutablePass(ID), ttObjs(std::nullopt) {
+  initializeTTObjectsAnalysisWrapperPassPass(
       *PassRegistry::getPassRegistry());
 }
 
-TapirTargetAnalysisWrapperPass::TapirTargetAnalysisWrapperPass(
+TTObjectsAnalysisWrapperPass::TTObjectsAnalysisWrapperPass(
     std::optional<TTOptions> ttOpts)
-    : ImmutablePass(ID), ttInfo(ttOpts) {
-  initializeTapirTargetAnalysisWrapperPassPass(
+    : ImmutablePass(ID), ttObjs(ttOpts) {
+  initializeTTObjectsAnalysisWrapperPassPass(
       *PassRegistry::getPassRegistry());
 }
 
-void TapirTargetAnalysisWrapperPass::getAnalysisUsage(AnalysisUsage &au) const {
+void TTObjectsAnalysisWrapperPass::getAnalysisUsage(AnalysisUsage &au) const {
   au.setPreservesAll();
 }
 
-TapirTargetAnalysisWrapperPass::Result
-TapirTargetAnalysisWrapperPass::getResult() const {
-  return ttInfo;
+TTObjectsAnalysisWrapperPass::Result
+TTObjectsAnalysisWrapperPass::getResult() const {
+  return ttObjs;
 }
 
 ModulePass *
-llvm::createTapirTargetAnalysisWrapperPass(std::optional<TTOptions> ttOpts) {
-  return new TapirTargetAnalysisWrapperPass(ttOpts);
+llvm::createTTObjectsAnalysisWrapperPass(std::optional<TTOptions> ttOpts) {
+  return new TTObjectsAnalysisWrapperPass(ttOpts);
 }

@@ -1,4 +1,4 @@
-//===- TapirTargetAnalysis.h - Analysis pass for tapir targets --*- C++ -*-===//
+//===- TTObjectsAnalysis.h - Analysis pass for tapir targets ----*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_ANALYSIS_TAPIR_TARGET_ANALYSIS_H
-#define KITSUNE_ANALYSIS_TAPIR_TARGET_ANALYSIS_H
+#ifndef KITSUNE_ANALYSIS_TTOBJECTS_ANALYSIS_H
+#define KITSUNE_ANALYSIS_TTOBJECTS_ANALYSIS_H
 
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Tapir.h"
@@ -29,14 +29,15 @@ namespace llvm {
 
 class LoopInfo;
 class TapirTarget;
-class TapirTargetAnalysis;
-class TapirTargetAnalysisWrapperPass;
+class TTObjectsAnalysis;
+class TTObjectsAnalysisWrapperPass;
 class TaskInfo;
 
 /// \ingroup kitsune
 /// An object that contains information about the tapir targets that are
-/// enabled.
-class TapirTargetInfo {
+/// enabled. This also owns the tapir target objects that are used when lowering
+/// tapir constructs.
+class TTObjects {
 public:
   using GetLoopInfo = std::function<LoopInfo &(Function &)>;
   using GetTaskInfo = std::function<TaskInfo &(Function &)>;
@@ -55,18 +56,18 @@ private:
   /// when \ref computeRequiredTTs is run. If computeRequiredTTs is run more
   /// than once, a new TapirTarget object will only be created if one does not
   /// already exist in this map. The actual TapirTarget objects are owned by the
-  /// TapirTargetAnalysis object.
+  /// TTObjectsAnalysis object.
   std::map<TTID, TapirTarget *> tts;
 
 private:
-  TapirTargetInfo(std::optional<TTOptions> ttOpts);
+  TTObjects(std::optional<TTOptions> ttOpts);
 
   /// Compute the tapir target objects required by every function in a module.
   void computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
                           GetTaskInfo getTaskInfo);
 
   /// Add a TapirTarget object for the given ID. The object will be owned by
-  /// the TapirTargetAnalysis object.
+  /// the TTObjectsAnalysis object.
   void addTT(TTID id, TapirTarget *tt);
 
 public:
@@ -105,8 +106,8 @@ public:
   bool invalidate(Module &, const PreservedAnalyses &pa,
                   ModuleAnalysisManager::Invalidator &);
 
-  friend class TapirTargetAnalysis;
-  friend class TapirTargetAnalysisWrapperPass;
+  friend class TTObjectsAnalysis;
+  friend class TTObjectsAnalysisWrapperPass;
 };
 
 /// \ingroup kitsune
@@ -115,29 +116,29 @@ public:
 /// tapir targets that have been enabled explicitly (via the --tapir
 /// command-line option passed to a compiler driver or the opt tool), as well
 /// as the targets attached to individual tapir constructs.
-class TapirTargetAnalysis : public AnalysisInfoMixin<TapirTargetAnalysis> {
+class TTObjectsAnalysis : public AnalysisInfoMixin<TTObjectsAnalysis> {
 private:
-  /// The TapirTargetInfo that will be populated when @ref run() is called.
+  /// The TTObjects instance that will be populated when @ref run() is called.
   /// A copy of this will be returned whenever the analysis is retrieved.
-  TapirTargetInfo ttInfo;
+  TTObjects ttObjs;
 
   /// The tapir targets needed by the module.
   std::map<TTID, std::unique_ptr<TapirTarget>> tts;
 
 public:
-  using Result = TapirTargetInfo;
+  using Result = TTObjects;
 
   /// Construct an analysis pass with an optional TTOptions object.
   /// This may be std::nullopt if the frontend creating this pass has not been
   /// given a tapir target to use.
-  TapirTargetAnalysis(std::optional<TTOptions> ttOpts);
+  TTObjectsAnalysis(std::optional<TTOptions> ttOpts);
 
   Result run(Module &m, ModuleAnalysisManager &mam);
 
 private:
   static AnalysisKey Key;
 
-  friend AnalysisInfoMixin<TapirTargetAnalysis>;
+  friend AnalysisInfoMixin<TTObjectsAnalysis>;
 };
 
 /// Legacy wrapper pass to provide the tapir target analysis results. This is
@@ -148,24 +149,24 @@ private:
 /// those returned by the new pass manager. Specifically, the required tapir
 /// targets will never be computed by this pass. This is ok since during
 /// codegen, we should never need anything other than the tapir target options.
-class TapirTargetAnalysisWrapperPass : public ImmutablePass {
+class TTObjectsAnalysisWrapperPass : public ImmutablePass {
 private:
-  /// The TapirTargetInfo that will be populated when @ref run() is called.
+  /// The TTObjects instance that will be populated when @ref run() is called.
   /// A copy of this will be returned whenever the analysis is retrieved.
-  TapirTargetInfo ttInfo;
+  TTObjects ttObjs;
 
 public:
-  using Result = TapirTargetInfo;
+  using Result = TTObjects;
 
 public:
   /// Create a default constructor because it is needed by the legacy pass
   /// manager, but this should never be used anywhere else.
-  TapirTargetAnalysisWrapperPass();
+  TTObjectsAnalysisWrapperPass();
 
   /// Construct an analysis pass with an optional TTOptions object.
   /// This may be std::nullopt if the frontend creating this pass has not been
   /// given a tapir target to use.
-  TapirTargetAnalysisWrapperPass(std::optional<TTOptions> ttOpts);
+  TTObjectsAnalysisWrapperPass(std::optional<TTOptions> ttOpts);
 
   void getAnalysisUsage(AnalysisUsage &au) const override;
 
@@ -178,9 +179,8 @@ public:
 /// \ingroup kitsune
 /// Create a an instance of the tapir target analysis pass for the legacy pass
 /// manager.
-ModulePass *
-createTapirTargetAnalysisWrapperPass(std::optional<TTOptions> ttOpts);
+ModulePass *createTTObjectsAnalysisWrapperPass(std::optional<TTOptions> ttOpts);
 
 } // namespace llvm
 
-#endif // KITSUNE_ANALYSIS_TAPIR_TARGET_ANALYSIS_H
+#endif // KITSUNE_ANALYSIS_TTOBJECTS_ANALYSIS_H

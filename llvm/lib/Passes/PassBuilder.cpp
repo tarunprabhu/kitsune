@@ -16,7 +16,7 @@
 
 #include "llvm/Passes/PassBuilder.h"
 #include "kitsune/Analysis/PreLowerVerification.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "kitsune/CodeGen/EmbLowerKitIntrinsics.h"
 #include "kitsune/CodeGen/LowerKitIntrinsics.h"
@@ -569,7 +569,7 @@ void PassBuilder::registerModuleAnalyses(ModuleAnalysisManager &MAM) {
   // create a pass pipeline, so we might as well create the pass here instead of
   // requiring the callers to do it. It is the caller's responsibility to set up
   // the TTOptions object correctly.
-  MAM.registerPass([&] { return TapirTargetAnalysis(PTO.TTOpts); });
+  MAM.registerPass([&] { return TTObjectsAnalysis(PTO.TTOpts); });
 
   for (auto &C : ModuleAnalysisRegistrationCallbacks)
     C(MAM);

@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "GenerateCtorsImpl.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TTOptions.h"
@@ -20,7 +19,6 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
