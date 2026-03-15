@@ -36,7 +36,7 @@
 // O123SZ-NEXT: Running analysis: LoopAnalysis
 // O123SZ-NEXT: Running analysis: DominatorTreeAnalysis
 // O123SZ:      Running pass:     PreLowerVerificationPass
-// O123SZ-NEXT: Running analysis: TapirTargetAnalysis
+// O123SZ-NEXT: Running analysis: TTObjectsAnalysis
 // O123SZ-NEXT: Running analysis: TaskAnalysis
 // O123SZ-NEXT: Running analysis: PostDominatorTreeAnalysis
 // O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis

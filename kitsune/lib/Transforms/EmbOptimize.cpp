@@ -15,7 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/EmbOptimize.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/TargetUtils.h"
@@ -177,8 +177,8 @@ public:
 
 bool EmbOptimizePass::run(TTID tt, Module &devM, Module &hostM,
                           ModuleAnalysisManager &hostMAM) {
-  const TapirTargetInfo &tgi = hostMAM.getResult<TapirTargetAnalysis>(hostM);
-  const TTOptions &tto = tgi.getOptions();
+  const TTObjects &ttObjs = hostMAM.getResult<TTObjectsAnalysis>(hostM);
+  const TTOptions &tto = ttObjs.getOptions();
 
   switch (tt) {
   case TTID::Cuda:

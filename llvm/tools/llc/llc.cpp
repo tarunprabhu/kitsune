@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "NewPMDriver.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/PipelineUtils.h"
 #include "llvm/ADT/STLExtras.h"

@@ -1,4 +1,4 @@
-//===- TapirTargetAnalysisTest.cpp - TapirTargetAnalysis tests ------------===//
+//===- TTObjectsAnalysisTest.cpp - TTObjectsAnalysis tests ----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
@@ -160,9 +160,9 @@ end2:
 !6 = !{!"tapir.loop.target", i32 1024}
 )m";
 
-class KitTapirTargetAnalysis : public ::testing::Test {
+class KitTTObjectsAnalysis : public ::testing::Test {
 public:
-  KitTapirTargetAnalysis() {
+  KitTTObjectsAnalysis() {
     InitializeAllTargets();
     InitializeAllTargetMCs();
   }
@@ -170,7 +170,7 @@ public:
 
 // There are no tapir loops. getRequiredTTs() should return an empty list. Even
 // so, a tapir target for the prrimary tapir target must have been created.
-TEST_F(KitTapirTargetAnalysis, noTapirLoops) {
+TEST_F(KitTTObjectsAnalysis, noTapirLoops) {
   constexpr StringRef ir = R"m(
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -250,23 +250,23 @@ sync2:
   mam.registerPass([&] { return FunctionAnalysisManagerModuleProxy(fam); });
   mam.registerPass([&] { return PassInstrumentationAnalysis(); });
 
-  auto tta = std::make_unique<TapirTargetAnalysis>(tto);
-  TapirTargetInfo tgi = tta->run(*m, mam);
+  auto tta = std::make_unique<TTObjectsAnalysis>(tto);
+  TTObjects ttObjs = tta->run(*m, mam);
 
-  EXPECT_TRUE(tgi.hasTTID());
-  EXPECT_TRUE(tgi.getTTIDOrNull());
-  EXPECT_EQ(*tgi.getTTIDOrNull(), TTID::Serial);
-  EXPECT_EQ(tgi.getTTID(), TTID::Serial);
-  EXPECT_EQ(tgi.getOptions().getCudaArch(), StringRef("sm_17"));
-  EXPECT_EQ(tgi.getRequiredTTs(*f).size(), 0UL);
-  EXPECT_EQ(tgi.getRequiredTTs(*m).size(), 0UL);
+  EXPECT_TRUE(ttObjs.hasTTID());
+  EXPECT_TRUE(ttObjs.getTTIDOrNull());
+  EXPECT_EQ(*ttObjs.getTTIDOrNull(), TTID::Serial);
+  EXPECT_EQ(ttObjs.getTTID(), TTID::Serial);
+  EXPECT_EQ(ttObjs.getOptions().getCudaArch(), StringRef("sm_17"));
+  EXPECT_EQ(ttObjs.getRequiredTTs(*f).size(), 0UL);
+  EXPECT_EQ(ttObjs.getRequiredTTs(*m).size(), 0UL);
 
-  EXPECT_TRUE(tgi.hasTT(TTID::Serial));
+  EXPECT_TRUE(ttObjs.hasTT(TTID::Serial));
 }
 
 // None of the tapir loops have a tapir target set on them. getRequiredTTs()
 // should only return the primary tapir target id.
-TEST_F(KitTapirTargetAnalysis, noHints) {
+TEST_F(KitTTObjectsAnalysis, noHints) {
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
@@ -288,25 +288,25 @@ TEST_F(KitTapirTargetAnalysis, noHints) {
   mam.registerPass([&] { return FunctionAnalysisManagerModuleProxy(fam); });
   mam.registerPass([&] { return PassInstrumentationAnalysis(); });
 
-  auto tta = std::make_unique<TapirTargetAnalysis>(tto);
-  TapirTargetInfo tgi = tta->run(*m, mam);
+  auto tta = std::make_unique<TTObjectsAnalysis>(tto);
+  TTObjects ttObjs = tta->run(*m, mam);
 
   // The expected array will be in ascending order. If the order of tapir
   // targets or their numerical values are changed, this will need to be
   // updated.
   TTID expected[] = {TTID::Serial};
-  EXPECT_EQ(tgi.getRequiredTTs(*f), ArrayRef(expected));
-  EXPECT_EQ(tgi.getRequiredTTs(*m), ArrayRef(expected));
+  EXPECT_EQ(ttObjs.getRequiredTTs(*f), ArrayRef(expected));
+  EXPECT_EQ(ttObjs.getRequiredTTs(*m), ArrayRef(expected));
 
-  EXPECT_TRUE(tgi.hasTT(TTID::Serial));
-  EXPECT_FALSE(tgi.hasTT(TTID::Cuda));
-  EXPECT_FALSE(tgi.hasTT(TTID::OpenCilk));
+  EXPECT_TRUE(ttObjs.hasTT(TTID::Serial));
+  EXPECT_FALSE(ttObjs.hasTT(TTID::Cuda));
+  EXPECT_FALSE(ttObjs.hasTT(TTID::OpenCilk));
 }
 
 // One of the two tapir loops has a target set, the other does not.
 // getRequiredTTs() should return the primary tapir target ID and the target on
 // the loop.
-TEST_F(KitTapirTargetAnalysis, withHintsMixed) {
+TEST_F(KitTTObjectsAnalysis, withHintsMixed) {
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
@@ -329,27 +329,27 @@ TEST_F(KitTapirTargetAnalysis, withHintsMixed) {
   mam.registerPass([&] { return FunctionAnalysisManagerModuleProxy(fam); });
   mam.registerPass([&] { return PassInstrumentationAnalysis(); });
 
-  auto tta = std::make_unique<TapirTargetAnalysis>(tto);
-  TapirTargetInfo tgi = tta->run(*m, mam);
+  auto tta = std::make_unique<TTObjectsAnalysis>(tto);
+  TTObjects ttObjs = tta->run(*m, mam);
 
   // The expected array will be in ascending order. If the order of tapir
   // targets or their numerical values are changed, this will need to be
   // updated.
   TTID expected[] = {TTID::Serial, TTID::Pthreads};
-  EXPECT_EQ(tgi.getRequiredTTs(*f), ArrayRef(expected));
-  EXPECT_EQ(tgi.getRequiredTTs(*m), ArrayRef(expected));
+  EXPECT_EQ(ttObjs.getRequiredTTs(*f), ArrayRef(expected));
+  EXPECT_EQ(ttObjs.getRequiredTTs(*m), ArrayRef(expected));
 
-  EXPECT_TRUE(tgi.hasTT(TTID::Serial));
-  EXPECT_TRUE(tgi.hasTT(TTID::Pthreads));
-  EXPECT_FALSE(tgi.hasTT(TTID::Cuda));
-  EXPECT_FALSE(tgi.hasTT(TTID::Hip));
-  EXPECT_FALSE(tgi.hasTT(TTID::OpenCilk));
+  EXPECT_TRUE(ttObjs.hasTT(TTID::Serial));
+  EXPECT_TRUE(ttObjs.hasTT(TTID::Pthreads));
+  EXPECT_FALSE(ttObjs.hasTT(TTID::Cuda));
+  EXPECT_FALSE(ttObjs.hasTT(TTID::Hip));
+  EXPECT_FALSE(ttObjs.hasTT(TTID::OpenCilk));
 }
 
 // All tapir loops have a tapir target set on them. getRequiredTTs() should not
 // return the primary tapir target id. TapirTarget objects should have been
 // created for each of the id's.
-TEST_F(KitTapirTargetAnalysis, withHintsNoDefault) {
+TEST_F(KitTTObjectsAnalysis, withHintsNoDefault) {
   constexpr StringRef ir = R"m(
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -440,20 +440,20 @@ end2:
   mam.registerPass([&] { return FunctionAnalysisManagerModuleProxy(fam); });
   mam.registerPass([&] { return PassInstrumentationAnalysis(); });
 
-  auto tta = std::make_unique<TapirTargetAnalysis>(tto);
-  TapirTargetInfo tgi = tta->run(*m, mam);
+  auto tta = std::make_unique<TTObjectsAnalysis>(tto);
+  TTObjects ttObjs = tta->run(*m, mam);
 
   // The expected array will be in ascending order. If the order of tapir
   // targets or their numerical values are changed, this will need to be
   // updated.
   TTID expected[] = {TTID::Serial, TTID::Pthreads};
-  EXPECT_EQ(tgi.getRequiredTTs(*f), ArrayRef(expected));
-  EXPECT_EQ(tgi.getRequiredTTs(*m), ArrayRef(expected));
+  EXPECT_EQ(ttObjs.getRequiredTTs(*f), ArrayRef(expected));
+  EXPECT_EQ(ttObjs.getRequiredTTs(*m), ArrayRef(expected));
 
-  EXPECT_TRUE(tgi.hasTT(TTID::Serial));
-  EXPECT_TRUE(tgi.hasTT(TTID::Pthreads));
-  EXPECT_FALSE(tgi.hasTT(TTID::Cuda));
-  EXPECT_FALSE(tgi.hasTT(TTID::Hip));
+  EXPECT_TRUE(ttObjs.hasTT(TTID::Serial));
+  EXPECT_TRUE(ttObjs.hasTT(TTID::Pthreads));
+  EXPECT_FALSE(ttObjs.hasTT(TTID::Cuda));
+  EXPECT_FALSE(ttObjs.hasTT(TTID::Hip));
 }
 
 // TODO: The test below requires 3 tapir targets to have been built. Currently,
@@ -467,7 +467,7 @@ end2:
 // computed correctly for both the functions and the module. In each case, a
 // TapirTarget object should have been created. A tapir target for the primary
 // tapir target will also have been created unconditionally.
-TEST_F(KitTapirTargetAnalysis, withMultipleFuncs) {
+TEST_F(KitTTObjectsAnalysis, withMultipleFuncs) {
   constexpr StringRef ir = R"m(
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -568,8 +568,8 @@ end:
   mam.registerPass([&] { return FunctionAnalysisManagerModuleProxy(fam); });
   mam.registerPass([&] { return PassInstrumentationAnalysis(); });
 
-  auto tta = std::make_unique<TapirTargetAnalysis>(tto);
-  TapirTargetInfo tgi = tta->run(*m, mam);
+  auto tta = std::make_unique<TTObjectsAnalysis>(tto);
+  TTObjects ttObjs = tta->run(*m, mam);
 
   // The expected array will be in ascending order. If the order of tapir
   // targets or their numerical values are changed, this will need to be
@@ -577,21 +577,21 @@ end:
   TTID expectedF[] = {TTID::Pthreads};
   TTID expectedG[] = {TTID::OpenCilk};
   TTID expected[] = {TTID::OpenCilk, TTID::Pthreads};
-  EXPECT_EQ(tgi.getRequiredTTs(*f), ArrayRef(expectedF));
-  EXPECT_EQ(tgi.getRequiredTTs(*g), ArrayRef(expectedG));
-  EXPECT_EQ(tgi.getRequiredTTs(*m), ArrayRef(expected));
+  EXPECT_EQ(ttObjs.getRequiredTTs(*f), ArrayRef(expectedF));
+  EXPECT_EQ(ttObjs.getRequiredTTs(*g), ArrayRef(expectedG));
+  EXPECT_EQ(ttObjs.getRequiredTTs(*m), ArrayRef(expected));
 
-  EXPECT_TRUE(tgi.hasTT(TTID::Serial));
-  EXPECT_TRUE(tgi.hasTT(TTID::OpenCilk));
-  EXPECT_TRUE(tgi.hasTT(TTID::Pthreads));
-  EXPECT_FALSE(tgi.hasTT(TTID::Cuda));
-  EXPECT_FALSE(tgi.hasTT(TTID::Hip));
+  EXPECT_TRUE(ttObjs.hasTT(TTID::Serial));
+  EXPECT_TRUE(ttObjs.hasTT(TTID::OpenCilk));
+  EXPECT_TRUE(ttObjs.hasTT(TTID::Pthreads));
+  EXPECT_FALSE(ttObjs.hasTT(TTID::Cuda));
+  EXPECT_FALSE(ttObjs.hasTT(TTID::Hip));
 }
 #endif // KITSUNE_OPENCILK_ENABLED
 
 // If a tapir target options object has not been set, getRequiredTTs() will
 // always return an empty vector.
-TEST_F(KitTapirTargetAnalysis, noTTO) {
+TEST_F(KitTTObjectsAnalysis, noTTO) {
   LLVMContext ctx;
   SMDiagnostic err;
   std::optional<TTOptions> tto = std::nullopt;
@@ -602,12 +602,12 @@ TEST_F(KitTapirTargetAnalysis, noTTO) {
     Function *f = m->getFunction("f");
 
     ModuleAnalysisManager mam;
-    auto tta = std::make_unique<TapirTargetAnalysis>(std::nullopt);
-    TapirTargetInfo tgi = tta->run(*m, mam);
+    auto tta = std::make_unique<TTObjectsAnalysis>(std::nullopt);
+    TTObjects ttObjs = tta->run(*m, mam);
 
-    EXPECT_FALSE(tgi.hasTTID());
-    EXPECT_FALSE(tgi.getTTIDOrNull());
-    EXPECT_EQ(tgi.getRequiredTTs(*f).size(), 0UL);
+    EXPECT_FALSE(ttObjs.hasTTID());
+    EXPECT_FALSE(ttObjs.getTTIDOrNull());
+    EXPECT_EQ(ttObjs.getRequiredTTs(*f).size(), 0UL);
   }
 
   {
@@ -615,13 +615,13 @@ TEST_F(KitTapirTargetAnalysis, noTTO) {
     Function *f = m->getFunction("f");
 
     ModuleAnalysisManager mam;
-    auto tta = std::make_unique<TapirTargetAnalysis>(std::nullopt);
-    TapirTargetInfo tgi = tta->run(*m, mam);
+    auto tta = std::make_unique<TTObjectsAnalysis>(std::nullopt);
+    TTObjects ttObjs = tta->run(*m, mam);
 
-    EXPECT_FALSE(tgi.hasTTID());
-    EXPECT_FALSE(tgi.getTTIDOrNull());
-    EXPECT_EQ(tgi.getRequiredTTs(*f).size(), 0UL);
-    EXPECT_EQ(tgi.getRequiredTTs(*m).size(), 0UL);
+    EXPECT_FALSE(ttObjs.hasTTID());
+    EXPECT_FALSE(ttObjs.getTTIDOrNull());
+    EXPECT_EQ(ttObjs.getRequiredTTs(*f).size(), 0UL);
+    EXPECT_EQ(ttObjs.getRequiredTTs(*m).size(), 0UL);
   }
 }
 

@@ -9,7 +9,6 @@
 #include "clang/CodeGen/BackendUtil.h"
 #include "BackendConsumer.h"
 #include "LinkInModulesPass.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/PipelineUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"

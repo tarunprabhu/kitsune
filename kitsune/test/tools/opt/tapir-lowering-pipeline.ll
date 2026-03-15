@@ -10,7 +10,7 @@
 ;
 ; O0:      Running pass:     TapirToTargetPass
 ; O0-NEXT: Running analysis: InnerAnalysisManagerProxy
-; O0-NEXT: Running analysis: TapirTargetAnalysis
+; O0-NEXT: Running analysis: TTObjectsAnalysis
 ; O0-NEXT: Running pass:     AlwaysInlinerPass
 ; O0-NEXT: Running analysis: ProfileSummaryAnalysis
 ; O0-NEXT: Running pass:     VerifierPass
@@ -41,7 +41,7 @@
 ; RUN:     | FileCheck %s -check-prefix O123SZ
 ;
 ; O123SZ:      Running pass:     PreLowerVerificationPass
-; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
+; O123SZ-NEXT: Running analysis: TTObjectsAnalysis
 ; O123SZ-NEXT: Running pass:     AnnotateTapirLoopsPass
 ; O123SZ-NEXT: Running pass:     SerializePass
 ; O123SZ-NEXT: Running pass:     LoopSpawningPass

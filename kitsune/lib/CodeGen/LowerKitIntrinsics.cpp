@@ -14,7 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/CodeGen/LowerKitIntrinsics.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/Tapir.h"
@@ -166,7 +166,7 @@ static const std::map<Intrinsic::ID, std::vector<unsigned>> kitRTArgMap = {
 /// Main implementation class to lower Kitsune intrinsics.
 class LowerKitIntrinsics {
 private:
-  const TapirTargetInfo &tgi;
+  const TTObjects &ttObjs;
   TargetLibraryInfo &tli;
 
 private:
@@ -210,7 +210,7 @@ private:
     /// target. This will not work correctly in multi-target mode. But that
     /// requires a more sophisticated analysis which should be implemented
     /// eventually.
-    std::optional<TTID> tt = tgi.getTTIDOrNull();
+    std::optional<TTID> tt = ttObjs.getTTIDOrNull();
     if (not tt)
       return getOrInsertLibFunc(m, LibFunc_malloc);
 
@@ -255,7 +255,7 @@ private:
     /// target. This will not work correctly in multi-target mode. But that
     /// requires a more sophisticated analysis which should be implemented
     /// eventually.
-    std::optional<TTID> tt = tgi.getTTIDOrNull();
+    std::optional<TTID> tt = ttObjs.getTTIDOrNull();
     if (not tt)
       return getOrInsertLibFunc(m, LibFunc_free);
 
@@ -585,12 +585,12 @@ private:
   }
 
 public:
-  LowerKitIntrinsics(const TapirTargetInfo &tgi, TargetLibraryInfo &tli)
-      : tgi(tgi), tli(tli) {}
+  LowerKitIntrinsics(const TTObjects &ttObjs, TargetLibraryInfo &tli)
+      : ttObjs(ttObjs), tli(tli) {}
 
   bool run(Function &f) {
     bool changed = false;
-    std::optional<TTID> tt = tgi.getTTIDOrNull();
+    std::optional<TTID> tt = ttObjs.getTTIDOrNull();
     if (not tt or *tt == TTID::Nolo)
       return changed;
 
@@ -623,20 +623,20 @@ public:
   StringRef getPassName() const override { return "Lower Kitsune intrinsics"; }
 
   void getAnalysisUsage(AnalysisUsage &au) const override {
-    au.addRequired<TapirTargetAnalysisWrapperPass>();
+    au.addRequired<TTObjectsAnalysisWrapperPass>();
     au.addRequired<TargetLibraryInfoWrapperPass>();
   }
 
   bool runOnModule(Module &m) override {
-    const TapirTargetInfo &tgi =
-        getAnalysis<TapirTargetAnalysisWrapperPass>().getResult();
+    const TTObjects &ttObjs =
+        getAnalysis<TTObjectsAnalysisWrapperPass>().getResult();
 
     bool changed = false;
     for (Function &f : m) {
       TargetLibraryInfo &tli =
           getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(f);
 
-      changed |= LowerKitIntrinsics(tgi, tli).run(f);
+      changed |= LowerKitIntrinsics(ttObjs, tli).run(f);
     }
 
     return changed;
@@ -652,7 +652,7 @@ char LowerKitIntrinsicsLegacyPass::ID = 0;
 
 INITIALIZE_PASS_BEGIN(LowerKitIntrinsicsLegacyPass, DEBUG_TYPE,
                       "Lower Kitsune intrinsics", false, false)
-INITIALIZE_PASS_DEPENDENCY(TapirTargetAnalysisWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(TTObjectsAnalysisWrapperPass)
 INITIALIZE_PASS_END(LowerKitIntrinsicsLegacyPass, DEBUG_TYPE,
                     "Lower Kitsune intrinsics", false, false)
 
@@ -663,13 +663,13 @@ ModulePass *llvm::createLowerKitIntrinsicsLegacyPass() {
 PreservedAnalyses LowerKitIntrinsicsPass::run(Module &m,
                                               ModuleAnalysisManager &mam) {
   auto &fam = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
-  const TapirTargetInfo &tgi = mam.getResult<TapirTargetAnalysis>(m);
+  const TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
 
   bool changed = false;
   for (Function &f : m) {
     TargetLibraryInfo &tli = fam.getResult<TargetLibraryAnalysis>(f);
 
-    changed |= LowerKitIntrinsics(tgi, tli).run(f);
+    changed |= LowerKitIntrinsics(ttObjs, tli).run(f);
   }
 
   // If any kitsune intrinsics were replaced, the call graph will have changed,

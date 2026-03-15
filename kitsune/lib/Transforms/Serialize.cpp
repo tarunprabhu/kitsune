@@ -112,6 +112,9 @@ static bool serializeLoop(Loop &loop, Task &task) {
   DetachInst *detach = task.getDetach();
   Value *syncRegion = detach->getSyncRegion();
 
+  // TODO: Once there is better multi-target support, rather than serializing
+  // the loop here, we could just set the tapir loop target to `serial` on loops
+  // that are to be serialized and let the loop-spawning pass deal with it.
   SerializeDetach(task.getDetach(), &task);
   removeSyncRegionAndSync(syncRegion);
   clearTapirLoopAttrs(loop);

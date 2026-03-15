@@ -27,7 +27,7 @@
 
 #include "kitsune/Transforms/GenerateCtors.h"
 #include "GenerateCtorsImpl.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
@@ -98,8 +98,8 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
                                          ModuleAnalysisManager &mam) {
   // If no primary tapir target has been set, there will be nothing to do, so
   // bail out immediately.
-  const TapirTargetInfo &tgi = mam.getResult<TapirTargetAnalysis>(m);
-  if (not tgi.hasTTID())
+  const TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
+  if (not ttObjs.hasTTID())
     return PreservedAnalyses::all();
 
   auto &fam = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
@@ -113,7 +113,7 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
   if (&clUseYLaunch)
     genCtorOpts.useYLaunch = clUseYLaunch;
 
-  const TTOptions &ttOpts = tgi.getOptions();
+  const TTOptions &ttOpts = ttObjs.getOptions();
   for (const auto &[tt, genCtorFn] : genCtorFns)
     if (shouldGenerateCtor(m, tt))
       genCtorFn(m, getTLI, ttOpts, genCtorOpts);

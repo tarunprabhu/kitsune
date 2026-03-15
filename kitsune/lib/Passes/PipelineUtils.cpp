@@ -12,7 +12,7 @@
 
 #include "kitsune/Passes/PipelineUtils.h"
 #include "kitsune/Analysis/PreLowerVerification.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "kitsune/CodeGen/EmbLowerKitIntrinsics.h"
 #include "kitsune/CodeGen/LowerKitIntrinsics.h"
@@ -124,7 +124,7 @@ llvm::populateKitPostTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
 void llvm::populateKitCodeGenPasses(legacy::PassManager &pm,
                                     std::optional<TTOptions> tto) {
   if (tto) {
-    pm.add(createTapirTargetAnalysisWrapperPass(tto));
+    pm.add(createTTObjectsAnalysisWrapperPass(tto));
     pm.add(createEmbLowerKitIntrinsicsLegacyPass());
     pm.add(createLowerKitIntrinsicsLegacyPass());
     pm.add(createStripKitAddrSpacesLegacyPass());

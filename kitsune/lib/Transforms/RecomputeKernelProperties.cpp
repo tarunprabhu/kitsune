@@ -21,7 +21,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Support/ErrorHandling.h"
@@ -36,8 +36,8 @@ PreservedAnalyses
 RecomputeKernelPropertiesPass::run(Module &m, ModuleAnalysisManager &mam) {
   // If no primary tapir target has been set, the tapir target options will
   // not have been set, so there is nothing that we can do.
-  const TapirTargetInfo &tgi = mam.getResult<TapirTargetAnalysis>(m);
-  if (not tgi.hasTTID())
+  const TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
+  if (not ttObjs.hasTTID())
     return PreservedAnalyses::all();
 
   Expected<EmbModulesMapTy> embMsOrErr = getEmbModules(m);

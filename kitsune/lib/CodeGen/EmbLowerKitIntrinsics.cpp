@@ -152,7 +152,7 @@ char EmbLowerKitIntrinsicsLegacyPass::ID = 0;
 
 INITIALIZE_PASS_BEGIN(EmbLowerKitIntrinsicsLegacyPass, DEBUG_TYPE,
                       "Lower Kitsune intrinsics (embedded)", false, false)
-INITIALIZE_PASS_DEPENDENCY(TapirTargetAnalysisWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(TTObjectsAnalysisWrapperPass)
 INITIALIZE_PASS_END(EmbLowerKitIntrinsicsLegacyPass, DEBUG_TYPE,
                     "Lower Kitsune intrinsics (embedded)", false, false)
 

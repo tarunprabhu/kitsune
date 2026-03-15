@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/LoopStripMinePass.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "llvm/ADT/PriorityWorklist.h"
 #include "llvm/Analysis/AssumptionCache.h"
@@ -120,7 +120,7 @@ static bool tryToStripMineLoop(
     Loop *L, DominatorTree &DT, LoopInfo *LI, ScalarEvolution &SE,
     const TargetTransformInfo &TTI, AssumptionCache &AC, TaskInfo *TI,
     OptimizationRemarkEmitter &ORE, TargetLibraryInfo *TLI,
-    const TapirTargetInfo &TGI, bool PreserveLCSSA,
+    const TTObjects &TTObjs, bool PreserveLCSSA,
     std::optional<unsigned> ProvidedCount) {
   Task *T = getTaskIfTapirLoopStructure(L, TI);
   if (!T)
@@ -285,8 +285,8 @@ static bool tryToStripMineLoop(
   // Some parallel runtimes, such as OpenCilk, require nested parallel tasks to be
   // synchronized.
   bool NeedNestedSync = IncludeNestedSync;
-  if (!NeedNestedSync && TGI.hasTTID())
-    NeedNestedSync = TGI.getTTID() == TTID::OpenCilk;
+  if (!NeedNestedSync && TTObjs.hasTTID())
+    NeedNestedSync = TTObjs.getTTID() == TTID::OpenCilk;
 
   // Save loop properties before it is transformed.
   MDNode *OrigLoopID = L->getLoopID();
@@ -320,7 +320,7 @@ PreservedAnalyses LoopStripMinePass::run(Function &F,
   Module& M  = *F.getParent();
 
   auto &MAM = AM.getResult<ModuleAnalysisManagerFunctionProxy>(F);
-  const TapirTargetInfo &TGI = *MAM.getCachedResult<TapirTargetAnalysis>(M);
+  const TTObjects &TTObjs = *MAM.getCachedResult<TTObjectsAnalysis>(M);
 
   auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
   auto &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
@@ -373,7 +373,7 @@ PreservedAnalyses LoopStripMinePass::run(Function &F,
     //   AllowPeeling = false;
     std::string LoopName = std::string(L.getName());
     bool LoopChanged =
-      tryToStripMineLoop(&L, DT, &LI, SE, TTI, AC, &TI, ORE, &TLI, TGI,
+      tryToStripMineLoop(&L, DT, &LI, SE, TTI, AC, &TI, ORE, &TLI, TTObjs,
                          /*PreserveLCSSA*/ true, /*Count*/ std::nullopt);
     Changed |= LoopChanged;
 

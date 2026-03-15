@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/LoopSpawningTI.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/DenseMap.h"
@@ -557,8 +557,8 @@ public:
   LoopSpawningImpl(Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
                    ScalarEvolution &SE, AssumptionCache &AC,
                    TargetTransformInfo &TTI, OptimizationRemarkEmitter &ORE,
-                   const TapirTargetInfo &TGI)
-      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TGI(TGI),
+                   const TTObjects &TTObjs)
+      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TTObjs(TTObjs),
         ORE(ORE) {}
 
   ~LoopSpawningImpl() {
@@ -674,7 +674,7 @@ private:
   ScalarEvolution &SE;
   AssumptionCache &AC;
   TargetTransformInfo &TTI;
-  const TapirTargetInfo &TGI;
+  const TTObjects &TTObjs;
   OptimizationRemarkEmitter &ORE;
 
   std::vector<TapirLoopInfo *> TapirLoops;
@@ -1069,7 +1069,7 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   Module &M = *F.getParent();
   Loop *L = TL->getLoop();
   TTID TT = *getTargetAttr(*L);
-  const TTOptions &TTOpts = TGI.getOptions();
+  const TTOptions &TTOpts = TTObjs.getOptions();
 
   // Support for multiple targets is currently broken. Some of the frontend
   // elements have been implemented but the middle-end support is not yet there.
@@ -1080,7 +1080,7 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
          "match the primary tapir target");
 
   // Allow the Tapir target to define a custom loop-outline processor.
-  if (LoopOutlineProcessor *LOP = TGI.getTT(TT)->getLoopOutlineProcessor(TL))
+  if (LoopOutlineProcessor *LOP = TTObjs.getTT(TT)->getLoopOutlineProcessor(TL))
     return LOP;
 
   switch (*getSpawnStrategyAttr(*L)) {
@@ -1750,8 +1750,8 @@ bool LoopSpawningImpl::run() {
   // support. It is badly broken and is unlikely to work properly. It may not be
   // a bad idea to get rid of this and switch back to single-target execution.
   // Perform any Target-dependent preprocessing of F.
-  for (TTID ID : TGI.getRequiredTTs(F))
-    TGI.getTT(ID)->preProcessFunction(F, TI, true);
+  for (TTID ID : TTObjs.getRequiredTTs(F))
+    TTObjs.getTT(ID)->preProcessFunction(F, TI, true);
 
   // Outline all Tapir loops.
   TaskOutlineMapTy TapirLoopOutlines = outlineAllTapirLoops();
@@ -1772,8 +1772,8 @@ bool LoopSpawningImpl::run() {
   // support. It is badly broken and is unlikely to work properly. It may not be
   // a bad idea to get rid of this and switch back to single-target execution.
   // Perform any Target-dependent postprocessing of F.
-  for (TTID ID : TGI.getRequiredTTs(F))
-    TGI.getTT(ID)->postProcessFunction(F, true);
+  for (TTID ID : TTObjs.getRequiredTTs(F))
+    TTObjs.getTT(ID)->postProcessFunction(F, true);
 
   LLVM_DEBUG({
     NamedRegionTimer NRT("verify", "Post-loop-spawning verification",
@@ -1812,7 +1812,7 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
     return FAM.getResult<OptimizationRemarkEmitterAnalysis>(F);
   };
 
-  const TapirTargetInfo &TGI = AM.getResult<TapirTargetAnalysis>(M);
+  const TTObjects &TTObjs = AM.getResult<TTObjectsAnalysis>(M);
 
   SmallVector<Function *, 8> WorkList;
   bool Changed = false;
@@ -1835,21 +1835,21 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
   // FIXME: This code is a remnant from an initial attempt at multi-target
   // support. It is badly broken and is unlikely to work properly. It may not be
   // a bad idea to get rid of this and switch back to single-target execution.
-  for (TTID ID : TGI.getRequiredTTs(M))
-    TGI.getTT(ID)->preProcessModule();
+  for (TTID ID : TTObjs.getRequiredTTs(M))
+    TTObjs.getTT(ID)->preProcessModule();
 
   // Now process each loop.
   for (Function *F : WorkList) {
     Changed |= LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
-                                GetAC(*F), GetTTI(*F), GetORE(*F), TGI)
+                                GetAC(*F), GetTTI(*F), GetORE(*F), TTObjs)
                    .run();
   }
 
   // FIXME: This code is a remnant from an initial attempt at multi-target
   // support. It is badly broken and is unlikely to work properly. It may not be
   // a bad idea to get rid of this and switch back to single-target execution.
-  for (TTID ID : TGI.getRequiredTTs(M))
-    TGI.getTT(ID)->postProcessModule();
+  for (TTID ID : TTObjs.getRequiredTTs(M))
+    TTObjs.getTT(ID)->postProcessModule();
 
   if (Changed)
     return PreservedAnalyses::none();

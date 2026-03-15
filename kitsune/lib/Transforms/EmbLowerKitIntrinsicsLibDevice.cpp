@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/EmbLowerKitIntrinsicsLibDevice.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"

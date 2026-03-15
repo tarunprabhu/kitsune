@@ -41,7 +41,7 @@
 ; RUN:     | FileCheck %s -check-prefix O123SZ
 ;
 ; O123SZ:      Running pass:     PreLowerVerificationPass
-; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
+; O123SZ-NEXT: Running analysis: TTObjectsAnalysis
 ; O123SZ-NEXT: Running analysis: TaskAnalysis
 ; O123SZ-NEXT: Running analysis: PostDominatorTreeAnalysis
 ; O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis
@@ -50,7 +50,7 @@
 ; O123SZ-NEXT: Running pass:     LoopSpawningPass
 ; O123SZ:      Running pass:     TapirToTargetPass
 ; O123SZ:      Running pass:     PrefetchForDevicePass
-; O123SZ-NEXT: Running analysis: TapirTargetAnalysis
+; O123SZ-NEXT: Running analysis: TTObjectsAnalysis
 ; O123SZ-NEXT: Running pass:     EmbLowerKitIntrinsicsLibDevicePass
 ; O123SZ-NEXT: Running pass:     EmbResolveLibDeviceCallsPass
 ; O123SZ-NEXT: Running pass:     EmbPreparePass

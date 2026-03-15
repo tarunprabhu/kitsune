@@ -14,7 +14,7 @@
 
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "CGFBImpl.h"
-#include "kitsune/Analysis/TapirTargetAnalysis.h"
+#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GlobalVariableUtils.h"
 #include "kitsune/Core/TTOptions.h"
@@ -221,16 +221,15 @@ public:
   }
 
   void getAnalysisUsage(AnalysisUsage &au) const override {
-    au.addRequired<TapirTargetAnalysisWrapperPass>();
+    au.addRequired<TTObjectsAnalysisWrapperPass>();
   }
 
   bool runOnModule(Module &m) override {
-    TapirTargetInfo tgi =
-        getAnalysis<TapirTargetAnalysisWrapperPass>().getResult();
-    if (not tgi.hasTTID())
+    TTObjects ttObjs = getAnalysis<TTObjectsAnalysisWrapperPass>().getResult();
+    if (not ttObjs.hasTTID())
       return false;
 
-    const TTOptions &ttOpts = tgi.getOptions();
+    const TTOptions &ttOpts = ttObjs.getOptions();
     return CodeGenFatBinaries(ttOpts).run(m);
   }
 
@@ -243,7 +242,7 @@ public:
 char CodeGenFatBinariesLegacyPass::ID = 0;
 INITIALIZE_PASS_BEGIN(CodeGenFatBinariesLegacyPass, DEBUG_TYPE,
                       "Compile Kitsune fat binaries", false, false)
-INITIALIZE_PASS_DEPENDENCY(TapirTargetAnalysisWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(TTObjectsAnalysisWrapperPass)
 INITIALIZE_PASS_END(CodeGenFatBinariesLegacyPass, DEBUG_TYPE,
                     "Compile Kitsune fat binaries", false, false)
 
@@ -255,11 +254,11 @@ PreservedAnalyses CodeGenFatBinariesPass::run(Module &m,
                                               ModuleAnalysisManager &mam) {
   // If a primary tapir target ID has not been set, then tapir lowering was not
   // enabled and there is nothing to be done.
-  const TapirTargetInfo &tgi = mam.getResult<TapirTargetAnalysis>(m);
-  if (not tgi.hasTTID())
+  const TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
+  if (not ttObjs.hasTTID())
     return PreservedAnalyses::all();
 
-  const TTOptions &ttOpts = tgi.getOptions();
+  const TTOptions &ttOpts = ttObjs.getOptions();
   CodeGenFatBinaries(ttOpts).run(m);
 
   // This does not invalidate any analyses, even if any fat binaries were
