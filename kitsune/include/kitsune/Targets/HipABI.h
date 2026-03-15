@@ -1,4 +1,4 @@
-//===- HipABI.h - Tapir target for Kitsune's hip runtime --------*- C++ -*-===//
+//===- HipABI.h - Tapir target for AMD GPU's --------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -51,101 +51,30 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Tapir target that lowers to Kitsune's hip runtime
+// Tapir target for AMD GPU's.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef KITSUNE_TARGETS_HIP_ABI_H
 #define KITSUNE_TARGETS_HIP_ABI_H
 
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/Transforms/Tapir/LoweringUtils.h"
-
-#include <set>
+#include "kitsune/Targets/GPUTTCommon.h"
 
 namespace llvm {
 
 class TTOptions;
 
-/// The tapir target to lower tapir loops to kitsune's hip runtime. The tapir
-/// loops will be converted to GPU kernels.
 /// \ingroup kitsune
-class HipABI : public TapirTarget {
+/// Tapir target for AMD GPU's.
+class HipABI : public GPUTTBase {
 public:
   HipABI(Module &hostM, const TTOptions &tto);
-  ~HipABI();
+  virtual ~HipABI() = default;
 
-  /// Lower a call to the tapir.loop.grainsize intrinsic into a grain size
-  /// (coarsening) value.
-  Value *lowerGrainsizeCall(CallInst *grainsizeCall) override final;
-
-  /// Lower the given Tapir sync instruction.
-  void lowerSync(SyncInst &si) override final;
-
-  void preProcessModule() override final;
-
-  /// Process Function f before any function outlining is performed.  This
-  /// routine should not modify the CFG structure.
-  bool preProcessFunction(Function &f, TaskInfo &ti,
-                          bool processingTapirLoops) override {
-    return false;
-  }
-
-  // Add attributes to the Function helper produced from outlining a task.
-  void addHelperAttributes(Function &helper) override {}
-
-  // Pre-process the Function f that has just been outlined from a task.  This
-  // routine is executed on each outlined function by traversing in post-order
-  // the tasks in the original function.
-  void preProcessOutlinedTask(Function &f, Instruction *detachPt,
-                              Instruction *tfCreate, bool isSpawner,
-                              BasicBlock *bb) override {}
-
-  // Post-process the Function f that has just been outlined from a task.  This
-  // routine is executed on each outlined function by traversing in post-order
-  // the tasks in the original function.
-  void postProcessOutlinedTask(Function &f, Instruction *detachPtr,
-                               Instruction *tfCreate, bool isSpawner,
-                               BasicBlock *tfEntry) override {}
-
-  // Pre-process the root Function f as a function that can spawn subtasks.
-  void preProcessRootSpawner(Function &f, BasicBlock *tfEntry) override {}
-
-  // Post-process the root Function f as a function that can spawn subtasks.
-  void postProcessRootSpawner(Function &f, BasicBlock *tfEntry) override {}
-
-  // Process the invocation of a task for an outlined function.  This routine is
-  // invoked after processSpawner once for each child subtask.
-  void processSubTaskCall(TaskOutlineInfo &toi, DominatorTree &dt) override {}
-
-  // Process Function f at the end of the lowering process.
-  void postProcessFunction(Function &f, bool outliningTapirLoops) override {}
-
-  // Process the host-side module at the end of lowering all functions within
-  // the module.
-  void postProcessModule() override final;
-
-  // Process a generated helper Function f produced via outlining, at the end of
-  // the lowering process.
-  void postProcessHelper(Function &f) override {}
-
-  // Return the loop outline processor associated with this target.
+  /// Return a loop outline processor to process the given tapir loop. The
+  /// returned object will be owned by the caller.
   LoopOutlineProcessor *
   getLoopOutlineProcessor(const TapirLoopInfo *tl) override final;
-
-private:
-  /// Currently, we create a single module into which all tapir loops to be
-  /// run on an AMD GPU are outlined. A loop outline processor is created for
-  /// each tapir loop which will add the outlined code into this module. This
-  /// will eventually be compiled executable GPU code.
-  Module kernelModule;
-
-  /// When outlining tapir loops into the \ref KernelModule, we need to generate
-  /// a name for the outlined function. This name must be unique. In the absence
-  /// of debug information, the computed outlined function name consists of a
-  /// fixed base with an integer suffix that is incremented for each tapir loop
-  /// that is encountered.
-  unsigned nextKernelID = 0;
 };
 
 } // namespace llvm

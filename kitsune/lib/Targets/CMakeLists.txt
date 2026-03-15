@@ -1,4 +1,5 @@
 set(SOURCES
+  GPUTTCommon.cpp
   GPUTTUtils.cpp
   SerialTT.cpp
   TapirTargets.cpp
