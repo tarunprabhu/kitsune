@@ -1,4 +1,4 @@
-//===- HipABI.cpp - Tapir target for Kitsune's hip runtime ----------------===//
+//===- HipABI.cpp - Tapir target for AMD GPU's ----------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -51,7 +51,21 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Tapir target that lowers to Kitsune's cuda runtime
+// Tapir target for AMD GPU's.
+//
+// This tapir target outlines a tapir loop into a kernel function in a separate
+// device module. This module will eventually be compiled to NVIDIA GPU code.
+// Calls are added in the host module to launch these kernels. However, there is
+// a lot more that that needs to be done before the device module can be
+// compiled. Those steps are deferred to other passes that run later in the
+// pipeline.
+//
+// NOTE: We currently do not support the full range of GPU architectures
+// supported by the AMDGPU backend. This is primarily due to a lack of resources
+// to test every GPU.
+//
+// For some background material see the AMDGPU target documentation
+// at: https://llvm.org/docs/AMDGPUUsage.html
 //
 //===----------------------------------------------------------------------===//
 
@@ -61,30 +75,19 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/LoopAttrs.h"
-#include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/IntrinsicsAMDGPU.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/AMDGPUAddrSpace.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
 
 #define DEBUG_TYPE "hipabi"
-
-// For some background material see the AMDGPU target documentation
-// at: https://llvm.org/docs/AMDGPUUsage.html
-//
-// This transformation is carrying out the prep to convert Tapir to a kernel
-// module suitable for codegen using the AMDGPU target.
 
 // FIXME: We really should not be exposing command line options from other
 // source files. This is an experimental option that has been hacked in for the
@@ -93,9 +96,6 @@ using namespace llvm;
 cl::opt<bool> clUseYLaunch("hipabi-y-launch", cl::init(false), cl::Hidden,
                            cl::desc("Launch kernel using y-axis threading"),
                            cl::cat(cl::catKitClDevOpts));
-
-static constexpr StringRef HIPABI_PREFIX = "__kithip_";
-static constexpr StringRef HIPABI_KERNEL_NAME_PREFIX = "__kithip_loop_";
 
 /// Get the grainsize to be used when lowering tapir loops. For now, we only
 /// support a grainsize of 1.
@@ -458,57 +458,15 @@ void HipLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
 // corresponding module that contains the transformed device-side code. This is
 // the kernelModule that is created below in the target constructor.
 HipABI::HipABI(Module &hostM, const TTOptions &tto)
-    : TapirTarget(hostM, tto), kernelModule("", hostM.getContext()),
-      nextKernelID(0) {
-  LLVM_DEBUG(dbgs() << "hipABI: HipABI::HipABI()\n");
-
-  TargetMachine *tm = createTargetMachine(TTID::Hip, tto);
-  kernelModule.setTargetTriple(tm->getTargetTriple());
-  kernelModule.setDataLayout(tm->createDataLayout());
-
-  kernelModule.setModuleIdentifier(getNameForDeviceModule(M, HIPABI_PREFIX));
-  addDeviceModuleFlagsAttr(kernelModule, TTID::Hip);
-  cloneModuleFlagsMetadataInto(M, kernelModule);
-  cloneIdentMetadataInto(M, kernelModule);
-}
-
-HipABI::~HipABI() { /* no-op */ }
-
-Value *HipABI::lowerGrainsizeCall(CallInst *call) {
-  Value *gs = getGrainsize(call->getType());
-  call->replaceAllUsesWith(gs);
-  call->eraseFromParent();
-  return gs;
-}
-
-void HipABI::lowerSync(SyncInst &si) {
-  // This tapir target splits the code into two modules, one for the host, the
-  // other for the device. The sync instruction will only be present on the host
-  // module.
-}
-
-void HipABI::preProcessModule() {
-  // Create the global variable that will eventually contain the fat binary of
-  // GPU code. This is currently uninitialized, but will be passed to several
-  // of the kitsune runtime intrinsic calls when launching kernels, copying
-  // global variables from host to device etc.
-  (void)createEmbFBGlobal(TTID::Hip, M);
-}
-
-void HipABI::postProcessModule() {
-  // At this point, we are done with the minimum task of outlining the tapir
-  // loop into a kernel module. There are still a number of transformations that
-  // must be carried out on this module before it can be compiled to GPU code,
-  // but those will be done by subsequent passes. The module here is in a state
-  // where we can perform combined host/device analyses and optimizations.
-  (void)createEmbBCGlobal(kernelModule, TTID::Hip, M);
+    : GPUTTBase(TTID::Hip, hostM, tto) {
+  LLVM_DEBUG(dbgs() << "hipabi: HipABI::HipABI()\n");
 }
 
 LoopOutlineProcessor *HipABI::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
-  LLVM_DEBUG(dbgs() << "hipabi: create loop outlining processor.\n");
-  LLVM_DEBUG(saveModuleToFile(&M, M.getName().str() + ".input"));
+  LLVM_DEBUG(dbgs() << "hipabi: create loop outline processor.\n");
+  LLVM_DEBUG(saveModuleToFile(&hostM, hostM.getName().str() + ".input"));
 
   std::string kernelName =
-      getNameForTapirLoop(*tl, HIPABI_KERNEL_NAME_PREFIX, nextKernelID++);
-  return new HipLoop(M, kernelModule, kernelName, this->getOptions());
+      getNameForTapirLoop(*tl, "__kithip_loop_", nextKernelID++);
+  return new HipLoop(hostM, devM, kernelName, getOptions());
 }

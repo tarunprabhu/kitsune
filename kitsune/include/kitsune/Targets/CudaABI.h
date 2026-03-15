@@ -1,4 +1,4 @@
-//===- CudaABI.h - Tapir target for Kitsune's cuda runtime ------*- C++ -*-===//
+//===- CudaABI.h - Tapir target NVIDIA GPU's --------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -52,72 +52,30 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Tapir target that lowers to Kitsune's cuda runtime
+// Tapir target for NVIDIA GPU's.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef KITSUNE_TARGETS_CUDA_ABI_H
 #define KITSUNE_TARGETS_CUDA_ABI_H
 
-#include "llvm/Transforms/Tapir/LoweringUtils.h"
-
-#include <set>
+#include "kitsune/Targets/GPUTTCommon.h"
 
 namespace llvm {
 
 class TTOptions;
 
-/// The tapir target to lower tapir loops to kitsune's cuda runtime. The tapir
-/// loops will be converted to GPU kernels.
 /// \ingroup kitsune
-class CudaABI : public TapirTarget {
+/// Tapir target for NVIDIA GPU's.
+class CudaABI : public GPUTTBase {
 public:
   CudaABI(Module &hostM, const TTOptions &tto);
-  ~CudaABI();
+  virtual ~CudaABI() = default;
 
-  Value *lowerGrainsizeCall(CallInst *grainsizeCall) override;
-  void lowerSync(SyncInst &si) override;
-
-  void addHelperAttributes(Function &f) override {}
-  void preProcessModule() override;
-  bool preProcessFunction(Function &f, TaskInfo &ti,
-                          bool outliningTapirLoops) override {
-    return false;
-  }
-  void postProcessFunction(Function &f, bool outliningTapirLoops) override {}
-  void postProcessHelper(Function &f) override {}
-
-  void preProcessOutlinedTask(Function &f, Instruction *detachPt,
-                              Instruction *taskFrameCreate, bool isSpawner,
-                              BasicBlock *tfEntry) override {}
-
-  void postProcessOutlinedTask(Function &f, Instruction *detachPt,
-                               Instruction *taskFrameCreate, bool isSpawner,
-                               BasicBlock *tfEntry) override {}
-
-  void preProcessRootSpawner(Function &f, BasicBlock *tfEntry) override {}
-  void postProcessRootSpawner(Function &f, BasicBlock *tfEntry) override {}
-
-  void processSubTaskCall(TaskOutlineInfo &toi, DominatorTree &dt) override {}
-
-  void postProcessModule() override;
-
+  /// Return a loop outline processor to process the given tapir loop. The
+  /// returned object will be owned by the caller.
   LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *tl) override;
-
-private:
-  /// Currently, we create a single module into which all tapir loops to be
-  /// run on an NVIDIA GPU are outlined. A loop outline processor is created for
-  /// each tapir loop which will add the outlined code into this module. This
-  /// will eventually be converted to PTX and from there to executable GPU code.
-  Module kernelModule;
-
-  /// When outlining tapir loops into the \ref KernelModule, we need to generate
-  /// a name for the outlined function. This name must be unique. In the absence
-  /// of debug information, the computed outlined function name consists of a
-  /// fixed base with an integer suffix that is incremented for each tapir loop
-  /// that is encountered.
-  unsigned nextKernelID = 0;
+  getLoopOutlineProcessor(const TapirLoopInfo *tl) override final;
 };
 
 } // namespace llvm

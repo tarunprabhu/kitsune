@@ -1,4 +1,4 @@
-//===- CudaABI.cpp - Lower Tapir Kitsune's cuda runtime -----------------*-===//
+//===- CudaABI.cpp - Tapir target for NVIDIA GPU's ------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -51,7 +51,21 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Tapir target that lowers to Kitsune's cuda runtime
+// Tapir target for NVIDIA GPU's.
+//
+// This tapir target outlines a tapir loop into a kernel function in a separate
+// device module. This module will eventually be compiled to NVIDIA GPU code.
+// Calls are added in the host module to launch these kernels. However, there is
+// a lot more that that needs to be done before the device module can be
+// compiled. Those steps are deferred to other passes that run later in the
+// pipeline.
+//
+// NOTE: We currently do not support the full range of GPU architectures
+// supported by the NVPTX backend. This is primarily due to a lack of resources
+// to test every GPU.
+//
+// For some background material see the NVPTX target documentation
+// at https://llvm.org/docs/NVPTXUsage.html.
 //
 //===----------------------------------------------------------------------===//
 
@@ -61,36 +75,19 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/LoopAttrs.h"
-#include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
 
 #define DEBUG_TYPE "cuabi"
-
-// For some background material see the NVPTX target documentation
-// at https://llvm.org/docs/NVPTXUsage.html.
-//
-// NOTE: We currently do not support the full range of GPU architectures
-// supported by the NVPTX backend. This is primarily due to a lack of resources
-// to test every GPU.
-//
-// This transformation outlines a tapir loop into a kernel module that will
-// eventually be compiled to NVIDIA GPU code. Calls are added in the original
-// module to use Kitsune's cuda runtime to launch the tapir loops. There is a
-// lot more that needs to be done before the kernel module can be compiled to
-// GPU code, but those steps are handled in subsequent passes.
 
 // Enable/Disable flush denorms-to-zero code generation.
 static cl::opt<bool> clFTZ("cuabi-ftz", cl::init(false), cl::Hidden,
@@ -113,13 +110,6 @@ cl::opt<bool> clRefineLaunches(
     "cuabi-refine-launches", cl::init(true), cl::Hidden,
     cl::desc("Enable runtime's refinement of launch parameters"),
     cl::cat(cl::catKitClDevOpts));
-
-/// This prefix is intentionally *NOT* __kitcuda to ensure that there is no
-/// confusion - and, more importantly, no collisions - between any names
-/// prefixed with this and the symbols from kitsune's cuda runtime which are
-/// typically prefixed with __kitcuda.
-static constexpr StringRef CUABI_PREFIX = "__kitcu_";
-static constexpr StringRef CUABI_KERNEL_NAME_PREFIX = "__kitcu_loop_";
 
 /// Get the grainsize to be used when lowering tapir loops. For now, we only
 /// support a grainsize of 1.
@@ -145,7 +135,7 @@ static std::string convertNameForPTX(StringRef name, bool addPrefix = true) {
   std::string buf;
   llvm::raw_string_ostream os(buf);
   if (addPrefix)
-    os << CUABI_PREFIX << "_nwnm__";
+    os << "__kitcu__nwnm__";
   for (char c : name)
     os << (isInvalidChar(c) ? '_' : c);
   return buf;
@@ -438,62 +428,19 @@ void CudaLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
 }
 
 CudaABI::CudaABI(Module &hostM, const TTOptions &tto)
-    : TapirTarget(hostM, tto), kernelModule("", hostM.getContext()),
-      nextKernelID(0) {
+    : GPUTTBase(TTID::Cuda, hostM, tto) {
   LLVM_DEBUG(dbgs() << "cuabi: CudaABI::CudaABI()\n");
 
-  TargetMachine *tm = createTargetMachine(TTID::Cuda, tto);
-  kernelModule.setTargetTriple(tm->getTargetTriple());
-  kernelModule.setDataLayout(tm->createDataLayout());
-
-  kernelModule.setModuleIdentifier(getNameForDeviceModule(M, CUABI_PREFIX));
-  addDeviceModuleFlagsAttr(kernelModule, TTID::Cuda);
-  cloneModuleFlagsMetadataInto(M, kernelModule);
-  cloneIdentMetadataInto(M, kernelModule);
-  kernelModule.setModuleFlag(Module::Override, "nvvm-reflect-ftz", clFTZ);
-}
-
-CudaABI::~CudaABI() { LLVM_DEBUG(dbgs() << "cuabi: destroy tapir target.\n"); }
-
-Value *CudaABI::lowerGrainsizeCall(CallInst *call) {
-  Value *gs = getGrainsize(call->getType());
-  call->replaceAllUsesWith(gs);
-  call->eraseFromParent();
-  return gs;
-}
-
-void CudaABI::lowerSync(SyncInst &si) {
-  // This tapir target splits the code into two modules, one for the host, the
-  // other for the device. The sync instruction will only be present on the host
-  // module.
-}
-
-void CudaABI::preProcessModule() {
-  // Create the global variable that will eventually contain the fat binary of
-  // GPU code. This is currently uninitialized, but will be passed to several
-  // of the kitsune runtime intrinsic calls when launching kernels, copying
-  // global variables from host to device etc.
-  (void)createEmbFBGlobal(TTID::Cuda, M);
-}
-
-void CudaABI::postProcessModule() {
-  LLVM_DEBUG(dbgs() << "cuabi: post processing kernel and host modules...\n");
-
-  // At this point, we are done with the minimum task of outlining the tapir
-  // loop into a kernel module. There are still a number of transformations that
-  // must be carried out on this module before it can be compiled to GPU code,
-  // but those will be done by subsequent passes. The module here is in a state
-  // where we can perform combined host/device analyses and optimizations.
-  (void)createEmbBCGlobal(kernelModule, TTID::Cuda, M);
+  devM.setModuleFlag(Module::Override, "nvvm-reflect-ftz", clFTZ);
 }
 
 LoopOutlineProcessor *
 CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
-  LLVM_DEBUG(dbgs() << "cuabi: create loop outlining processor.\n");
-  LLVM_DEBUG(saveModuleToFile(&M, M.getName().str() + ".input"));
+  LLVM_DEBUG(dbgs() << "cuabi: create loop outline processor.\n");
+  LLVM_DEBUG(saveModuleToFile(&hostM, hostM.getName().str() + ".input"));
 
   std::string kernelName = convertNameForPTX(
-      getNameForTapirLoop(*tl, CUABI_KERNEL_NAME_PREFIX, nextKernelID++),
+      getNameForTapirLoop(*tl, "__kitcu_loop_", nextKernelID++),
       /*AddPrefix=*/false);
-  return new CudaLoop(M, kernelModule, kernelName, this->getOptions());
+  return new CudaLoop(hostM, devM, kernelName, getOptions());
 }
