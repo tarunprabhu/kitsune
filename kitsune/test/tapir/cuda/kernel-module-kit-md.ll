@@ -8,19 +8,19 @@
 ; The module identifier is generated a specific way. We don't really need it to
 ; be exactly what it is, but might as well check it.
 ;
-; CHECK: ModuleID = '__kitnv_kernel-module-kit-md.ll'
+; CHECK: ModuleID = '__kitcuda_kernel-module-kit-md.ll'
 ;
 ; CHECK: target triple = "nvptx64-nvidia-cuda"
 ;
-; CHECK: define {{.*}}@[[F1:__kitcu_loop_f1[^(]*]](
-; CHECK: define {{.*}}@[[F2:__kitcu_loop_f2[^(]*]](
+; CHECK: define {{.*}}@[[F1:__kitcuda_loop_f1[^(]*]](
+; CHECK: define {{.*}}@[[F2:__kitcuda_loop_f2[^(]*]](
 ;
 ; CHECK: !kit.module.device.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
 ; CHECK: !llvm.module.flags = !{{{.*}}![[FTZ:[0-9]+]]{{.*}}}
 ;
 ; CHECK-DAG: ![[FTZ]] = !{i32 4, !"nvvm-reflect-ftz", i32 0}
 ; CHECK-DAG: ![[MDTT]] = !{i32 2}
-; CHECK-DAG: ![[MDNAME]] = !{!"__kitnv_kernel-module-kit-md.ll"}
+; CHECK-DAG: ![[MDNAME]] = !{!"__kitcuda_kernel-module-kit-md.ll"}
 
 define void @f1(ptr %c, i64 %n) {
 entry:

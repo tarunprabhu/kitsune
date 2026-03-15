@@ -17,15 +17,15 @@
 
 using namespace llvm;
 
-Function *llvm::getLoopFunc(Loop &loop) {
+Function *llvm::getFunction(Loop &loop) {
   return loop.getHeader()->getParent();
 }
 
-const Function *llvm::getLoopFunc(const Loop &loop) {
+const Function *llvm::getFunction(const Loop &loop) {
   return loop.getHeader()->getParent();
 }
 
-std::string llvm::getLoopName(const Loop &loop, StringRef defawlt) {
+std::string llvm::getName(const Loop &loop, StringRef defawlt) {
   if (std::optional<StringRef> name = getNameAttr(loop))
     return name->str();
   else if (DebugLoc dbgLoc = loop.getStartLoc())

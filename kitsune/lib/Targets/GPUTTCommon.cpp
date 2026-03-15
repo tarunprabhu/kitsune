@@ -11,25 +11,28 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Targets/GPUTTCommon.h"
-#include "GPUTTUtils.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Support/TTIDUtils.h"
+#include "kitsune/Support/ToString.h"
+#include "llvm/Demangle/Demangle.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 
 using namespace llvm;
 
-static StringRef getDeviceModuleNamePrefix(TTID tt) {
-  switch (tt) {
-  case TTID::Cuda:
-    return "__kitnv_";
-  case TTID::Hip:
-    return "__kitamd_";
-  default:
-    break;
-  }
-  llvm_unreachable("getDeviceModuleNamePrefix: TTID not handled");
+/// Construct the name for a device module.
+static std::string getNameForDeviceModule(TTID tt, const Module &hostM) {
+  std::string buf;
+  raw_string_ostream os(buf);
+
+  os << "__kit" << tt << "_" << sys::path::filename(hostM.getName());
+  os.flush();
+
+  return buf;
 }
 
 GPUTTBase::GPUTTBase(TTID tt, Module &hostM, const TTOptions &tto)
@@ -42,23 +45,75 @@ GPUTTBase::GPUTTBase(TTID tt, Module &hostM, const TTOptions &tto)
   devM.setTargetTriple(tm->getTargetTriple());
   devM.setDataLayout(tm->createDataLayout());
 
-  StringRef pfx = getDeviceModuleNamePrefix(tt);
-  std::string name = getNameForDeviceModule(hostM, pfx);
+  std::string name = getNameForDeviceModule(tt, hostM);
   devM.setModuleIdentifier(name);
   addDeviceModuleFlagsAttr(devM, tt);
   cloneModuleFlagsMetadataInto(devM, hostM);
   cloneIdentMetadataInto(devM, hostM);
 }
 
-Constant *GPUTTBase::getConstGrainsize(Type *ty) {
-  return ConstantInt::get(ty, 1, /*isSigned=*/false);
+std::string GPUTTBase::getNameForTapirLoop(const TapirLoopInfo &tl) {
+  std::string buf;
+  raw_string_ostream os(buf);
+  const Loop *loop = tl.getLoop();
+  const Function *f = getFunction(*loop);
+  const Module *m = f->getParent();
+
+  os << "__kit" << tt << "_loop_";
+  if (m->getNamedMetadata("llvm.dbg.cu") || m->getNamedMetadata("llvm.dbg")) {
+    // If we have debug info in the module use the line number to name the
+    // kernel. This is only to make debugging a shade easier since it makes it
+    // easier to associate the kernel function with a loop in source code.
+    //
+    // FIXME: This is risky. In principle, in a large project, we could have
+    // multiple files with the same name in different directories. There is a
+    // small possibility that a forall loop occurs on exactly the same line in
+    // both of these files. Ideally, we should include the full file path which
+    // is guaranteed to be unique. However, that would detract from the
+    // "usefulness" of this name (mainly for debugging). For now, we'll stick
+    // with this until we can make some of the support tooling more robust to
+    // allow us to mangle the name to avoid collisions.
+    //
+    // There is another issue here where inlining through multiple levels may
+    // result in incompatibilities. All this is being done because it makes
+    // "IR-dump debugging" easier. This is less of an issue now that parts of
+    // the compiler are a lot more stable.
+    //
+    // TODO: We should consider using a more robust name mangling method to
+    // generate function names, or just use the method where loops are just
+    // named with a monotonically increasing integer suffix.
+    //
+    DebugLoc dbgLoc = loop->getStartLoc();
+    const DILocation *loc = dbgLoc.get();
+    if (const DILocation *inlinedLoc = dbgLoc.getInlinedAt())
+      loc = inlinedLoc;
+    unsigned line = loc->getLine();
+    unsigned col = loc->getColumn();
+    StringRef filePath = loc->getFile()->getFilename();
+    StringRef fileName = sys::path::filename(filePath);
+    os << fileName << "_" << line << "_" << col;
+  } else {
+    StringRef name = f->getName();
+    std::string demangledName;
+    if (nonMicrosoftDemangle(name, demangledName,
+                             /*CanHaveLeadingDot=*/false,
+                             /*ParseParams=*/false))
+      os << demangledName;
+    else
+      os << name;
+    os << "_" << nextKernelID;
+    ++nextKernelID;
+  }
+
+  return buf;
 }
 
 Value *GPUTTBase::lowerGrainsizeCall(CallInst *call) {
-  Value *gs = getConstGrainsize(call->getType());
-  call->replaceAllUsesWith(gs);
-  call->eraseFromParent();
-  return gs;
+  // This is only called by the tapir-to-target pass, not by loop-spawning.
+  // The tapir-to-target pass should never have anything that will run on a
+  // GPU, so fail catastrophically if that ever happens.
+  llvm_unreachable(
+      "GPUTTBase::lowerGrainsizeCall: did not expect this to be called");
 }
 
 void GPUTTBase::lowerSync(SyncInst &si) {
@@ -68,6 +123,10 @@ void GPUTTBase::lowerSync(SyncInst &si) {
   // spawning is ever modified to actually call this. That way, we can also
   // avoid the sync that is unconditionally added in the processOutlinedLoopCall
   // callback.
+  //
+  // Until then, fail catastrophically so we know if something unexpectedly
+  // changes upstream.
+  llvm_unreachable("GPUTTBase::lowerSync: did not expect this to be called");
 }
 
 void GPUTTBase::preProcessModule() {

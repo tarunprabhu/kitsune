@@ -191,7 +191,7 @@ private:
       if (isTapirLoop(*loop, ti)) {
         if (!perfectSet.contains(loop)) {
           emitDiag(*loop, DiagID::WarnParallelLoopImperfectlyNested);
-          emitDiag(DiagID::NoteLoopNestRoot, getLoopName(root));
+          emitDiag(DiagID::NoteLoopNestRoot, getName(root));
         }
       }
     }
@@ -210,7 +210,7 @@ private:
       Loop::LoopBounds lb = *maybeLB;
       if (!root.isLoopInvariant(&lb.getFinalIVValue())) {
         emitDiag(*loop, DiagID::ErrTapirNestBoundsVariantGPU);
-        emitDiag(DiagID::NoteLoopNestRoot, getLoopName(root));
+        emitDiag(DiagID::NoteLoopNestRoot, getName(root));
       }
     }
   }

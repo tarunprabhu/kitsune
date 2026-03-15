@@ -13,7 +13,7 @@
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s --check-prefix=O0
 ;
-; O0: define {{.+}} @__kitcu_{{.+}}(i64
+; O0: define {{.+}} @__kitcuda_{{.+}}(i64
 ; O0: = phi i64
 ;
 ; ------------------------------------------------------------------------------
@@ -31,7 +31,7 @@
 ; RUN:     | FileCheck %s --check-prefix=O2
 ;
 ; O2-NOT: = phi i64
-; O2: define {{.+}} @__kitcu_{{[^(]+}}(
+; O2: define {{.+}} @__kitcuda_{{[^(]+}}(
 ; O2-SAME: i64 {{[^%]*}}%[[LB:[^,]+]],
 ; O2-SAME: i64 {{[^%]*}}%[[TC:[^,]+]],
 ; O2-SAME: ptr {{[^%]*}}%[[BUF:[^,]+]],

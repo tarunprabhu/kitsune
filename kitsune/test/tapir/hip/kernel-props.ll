@@ -1,11 +1,22 @@
 ; Check that the kernel properties pass updates the initializer of the kernel
-; properties global variable. This intentionally does not check that the
-; contents of the computed metadata are correct.
+; properties global variable.
+;
+; At the time of writing this test, the only properties that are computed are
+; the instruction mix i.e. the counts of various instruction kinds used in the
+; kernel. The first two elements of the properties struct are the number of
+; memory operations and the number of floating point operations. We only check
+; for these since this particular kernel has been crafted such that those values
+; can be computed easily. If we change the kernel properties that are computed,
+; this test, and the type of the global variable will have to be udpated.
 ;
 ; RUN: opt --tapir=hip -passes='loop-spawning,kit-kernel-properties' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: @{{.+}} = private unnamed_addr constant {{.+}} { {{.+}} } #[[KERNEL_PROPS:[0-9]+]]
+; CHECK: @{{.+}} = private unnamed_addr constant {
+; CHECK-SAME: i64, i64, i64, i64 }
+; CHECK-SAME: { i64 2, i64 1, {{.+}} }
+; CHECK-SAME: #[[KERNEL_PROPS:[0-9]+]]
+;
 ; CHECK: attributes #[[KERNEL_PROPS]] = {
 ; CHECK-SAME: "kit_kernel_props"="__kithip_loop_{{.+}}"
 
@@ -19,8 +30,10 @@ header:
   detach within %syncreg, label %body, label %latch
 
 body:
-  %arrayidx = getelementptr i32, ptr %c, i64 %i
-  store i64 %n, ptr %arrayidx, align 4
+  %arrayidx = getelementptr float, ptr %c, i64 %i
+  %v = load float, ptr %arrayidx, align 4
+  %v2 = fmul float %v, %v
+  store float %v2, ptr %arrayidx, align 4
   reattach within %syncreg, label %latch
 
 latch:

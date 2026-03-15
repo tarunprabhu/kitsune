@@ -11,7 +11,7 @@
 ; CHECK-NOT: define {{.+}} @__nv_fast_sinf
 ; CHECK-NOT: define {{.+}} @__nv_cosf
 ;
-; CHECK-LABEL: define {{.+}} @__kitcu_
+; CHECK-LABEL: define {{.+}} @__kitcuda_
 ; CHECK: tail call float @__nv_sinf
 ; CHECK: tail call fast float @__nv_fast_cosf
 ; CHECK-DAG: define {{.+}} @__nv_sinf

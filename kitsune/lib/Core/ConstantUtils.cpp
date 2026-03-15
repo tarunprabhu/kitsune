@@ -37,7 +37,6 @@ GlobalVariable *llvm::createConstString(StringRef s, Module &m,
 }
 
 Constant *llvm::stripCasts(Constant *c) {
-  llvm::errs() << *c << "\n";
   if (auto *cst = dyn_cast_or_null<ConstantExpr>(c))
     if (cst->isCast())
       return stripCasts(cst->getOperand(0));

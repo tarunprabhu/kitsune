@@ -28,8 +28,8 @@ class Loop;
 /// Get the function containing the loop. If this is called while in the middle
 /// of transforming a loop, it is possible that the containing function will
 /// not be found. In this case, nullptr will be returned.
-Function *getLoopFunc(Loop &loop);
-const Function *getLoopFunc(const Loop &loop);
+Function *getFunction(Loop &loop);
+const Function *getFunction(const Loop &loop);
 
 /// Get the "name" of a loop. This will first check if a "loop.name" attribute
 /// is present on for the loop and return the value of that attribute.
@@ -40,7 +40,7 @@ const Function *getLoopFunc(const Loop &loop);
 /// available, the debug information will not be used to compute the name.
 /// If a name has not yet been determined, and the loop header basic block has a
 /// name return that. Otherwise, return the default name.
-std::string getLoopName(const Loop &loop, StringRef defawlt = "<unnamed>");
+std::string getName(const Loop &loop, StringRef defawlt = "<unnamed>");
 
 /// Remove all attributes specific to tapir loops from the given loop.
 void clearTapirLoopAttrs(Loop &loop);

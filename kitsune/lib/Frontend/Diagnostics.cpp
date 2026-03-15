@@ -109,10 +109,10 @@ raw_ostream &llvm::detail::emitDiagnostic(raw_ostream &os, const Loop &loop,
   emitPrefix(os, loc);
   emitMsg(os, msg);
   if (loc.empty() && severity != DiagnosticSeverity::DS_Note) {
-    std::string name = getLoopName(loop);
+    std::string name = getName(loop);
     if (name.size())
       emitDiagnostic(DiagID::NoteFromLoop, name);
-    if (const Function *f = getLoopFunc(loop))
+    if (const Function *f = getFunction(loop))
       emitDiagnostic(DiagID::NoteFromFunction, f->getName());
   }
   return os;

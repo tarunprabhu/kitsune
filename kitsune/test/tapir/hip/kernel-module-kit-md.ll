@@ -8,7 +8,7 @@
 ; The module identifier is generated a specific way. We don't really need it to
 ; be exactly what it is, but might as well check it.
 ;
-; CHECK: ModuleID = '__kitamd_kernel-module-kit-md.ll'
+; CHECK: ModuleID = '__kithip_kernel-module-kit-md.ll'
 ;
 ; CHECK: target triple = "amdgcn-amd-amdhsa"
 ;
@@ -18,7 +18,7 @@
 ; CHECK: !kit.module.device.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
 ;
 ; CHECK-DAG: ![[MDTT]] = !{i32 4}
-; CHECK-DAG: ![[MDNAME]] = !{!"__kitamd_kernel-module-kit-md.ll"}
+; CHECK-DAG: ![[MDNAME]] = !{!"__kithip_kernel-module-kit-md.ll"}
 
 define void @f1(ptr %c, i64 %n) {
 entry:

@@ -49,12 +49,9 @@ protected:
 protected:
   GPUTTBase(TTID tt, Module &hostM, const TTOptions &tto);
 
-  /// Get the grainsize to use with tapir loops. All GPU-centric tapir targets
-  /// currently use the same grainsize, which is 1. This is provided because
-  /// the correct grainsize value must be used by both the tapir target and the
-  /// loop outline processors created by the target. This is one way of sharing
-  /// the implementation between these objects.
-  Constant *getConstGrainsize(Type *ty);
+  /// Construct the name to be used for the function into which the tapir loop
+  /// \p tl will be outlined.
+  std::string getNameForTapirLoop(const TapirLoopInfo &tl);
 
 public:
   virtual ~GPUTTBase() = default;
