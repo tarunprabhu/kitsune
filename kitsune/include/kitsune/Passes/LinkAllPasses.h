@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_CORE_LINK_ALL_PASSES_H
-#define KITSUNE_CORE_LINK_ALL_PASSES_H
+#ifndef KITSUNE_PASSES_LINK_ALL_PASSES_H
+#define KITSUNE_PASSES_LINK_ALL_PASSES_H
 
 #include "kitsune/Analysis/TapirTargetAnalysis.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
@@ -41,4 +41,4 @@ struct ForceKitsunePassLinking {
 
 } // namespace
 
-#endif // KITSUNE_CORE_LINK_ALL_PASSES_H
+#endif // KITSUNE_PASSES_LINK_ALL_PASSES_H

@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "NewPMDriver.h"
-#include "kitsune/Core/LinkAllPasses.h"
+#include "kitsune/Passes/LinkAllPasses.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/CallGraphSCCPass.h"
 #include "llvm/Analysis/LoopPass.h"
