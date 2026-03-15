@@ -1,6 +1,6 @@
 set(SOURCES
   GPUTTCommon.cpp
-  GPUTTUtils.cpp
+  GPUTTLoop.cpp
   SerialTT.cpp
   TapirTargets.cpp
 )

@@ -12,13 +12,13 @@
 ; RUN: opt --tapir=cuda -passes='loop-spawning,kit-kernel-properties' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: @{{.+}} = private unnamed_addr constant
-; CHECK-SAME: { i64, i64, i64, i64 }
+; CHECK: @{{.+}} = private unnamed_addr constant {
+; CHECK-SAME: i64, i64, i64, i64 }
 ; CHECK-SAME: { i64 2, i64 1, {{.+}} }
 ; CHECK-SAME: #[[KERNEL_PROPS:[0-9]+]]
 ;
 ; CHECK: attributes #[[KERNEL_PROPS]] = {
-; CHECK-SAME: "kit_kernel_props"="__kitcu_loop_{{.+}}"
+; CHECK-SAME: "kit_kernel_props"="__kitcuda_loop_{{.+}}"
 
 define void @f(ptr %c, i64 %n) {
 entry:

@@ -6,9 +6,9 @@
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: define {{.+}} @__kitcu_loop_scale_0(
-; CHECK-DAG: define {{.+}} @__kitcu_loop_xlate_1(
-; CHECK-DAG: define {{.+}} @__kitcu_loop_xlate_2(
+; CHECK-DAG: define {{.+}} @__kitcuda_loop_scale_0(
+; CHECK-DAG: define {{.+}} @__kitcuda_loop_xlate_1(
+; CHECK-DAG: define {{.+}} @__kitcuda_loop_xlate_2(
 
 define void @_Z5scalePffm(ptr %buf, float %factor, i64 %n) {
 entry:

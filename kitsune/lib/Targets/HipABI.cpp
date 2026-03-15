@@ -70,7 +70,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Targets/HipABI.h"
-#include "GPUTTUtils.h"
+#include "GPUTTLoop.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/KernelProperties.h"
@@ -97,202 +97,95 @@ cl::opt<bool> clUseYLaunch("hipabi-y-launch", cl::init(false), cl::Hidden,
                            cl::desc("Launch kernel using y-axis threading"),
                            cl::cat(cl::catKitClDevOpts));
 
-/// Get the grainsize to be used when lowering tapir loops. For now, we only
-/// support a grainsize of 1.
-static Value *getGrainsize(Type *ty) {
-  return ConstantInt::get(ty, 1, /*isSigned=*/false);
-}
-
 /// The loop outline process for transforming a Tapir parallel loop into a
 /// hip kernel function.
 /// \ingroup kitsune
-class HipLoop : public LoopOutlineProcessor {
-private:
-  /// The name of the kernel into which the loop is outlined.
-  std::string kernelName;
+class HipLoop : public GPUTTLoopBase {
+protected:
+  /// Get the address space, in the derived module, for constant global
+  /// variables.
+  virtual unsigned getConstAddrSpace() const override;
 
-  /// For GPU targets, we outline the loop into a separate module. This is that
-  /// module.
-  Module &kernelModule;
+  /// get the address space, in the derive module, for non-constant global
+  /// variables.
+  virtual unsigned getNonConstAddrSpace() const override;
 
-  /// The GlobalValue's used in the loop that is being outlined. This includes
-  /// functions, global variables, aliases and ifunc's.
-  SmallSet<GlobalValue *, 8> usedGlobalValues;
+  /// Set the correct attributes on the kernel function \p f.
+  virtual void setKernelFuncAttrs(Function &f) override;
+
+  /// Set the correct calling convention on the kernel function \p f.
+  virtual void setKernelFuncCallingConv(Function &f) override;
+
+  /// Set the correct visibility on the kernel function \p f.
+  virtual void setKernelFuncVisibility(Function &f) override;
 
 public:
-  /// @brief Build the HipLoop outline processor.
-  /// @param M: Module containing the input code.
-  /// @param KM: The module that will contain the generated kernel.
-  /// @param KernelName: The name of the kernel function that is generated.
-  /// @param TTO: The tapir target options.
-  HipLoop(Module &hostM, Module &kernelModule, StringRef kernelName,
-          const TTOptions &tto);
-  ~HipLoop();
+  HipLoop(Module &hostM, Module &devM, const TTOptions &tto,
+          const TapirLoopInfo &tl, StringRef kernelName);
+  virtual ~HipLoop() = default;
 
-  /// Setup the loop-control arguments \p lcArgs and loop-control inputs
-  /// \p lcInputs for the Tapir loop \p tl.
-  void setupLoopControlArgs(TapirLoopInfo *tl, SmallVectorImpl<Value *> &lcArgs,
-                            SmallVectorImpl<Value *> &lcInputs) override;
-
-  /// Process the TapirLoop before it is outlined -- just prior to the
-  /// outlining occurs.  This allows the VMap and related details to be
-  /// customized prior to outlining related operations (e.g. cloning of
-  /// LLVM constructs).
+  /// Process the tapir loop \p tl jut before it is outlined. The \p vmap can
+  /// be modified here for more control over how the outlining is performed.
   void preProcessTapirLoop(TapirLoopInfo &tl, ValueToValueMapTy &vmap) override;
-
-  /// Processes an outlined Function Helper for a Tapir loop, just after the
-  /// function has been outlined.
-  void postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
-                          ValueToValueMapTy &vmap) override;
-
-  /// Processes a call to an outlined Function Helper for a Tapir loop.
-  void processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
-                               DominatorTree &dt) override;
 };
 
-HipLoop::HipLoop(Module &hostM, Module &kernelModule, StringRef kernelName,
-                 const TTOptions &tto)
-    : LoopOutlineProcessor(hostM, kernelModule, tto,
-                           CloneFunctionChangeType::DifferentModule),
-      kernelName(kernelName), kernelModule(kernelModule) {
-  LLVM_DEBUG(dbgs() << "hipabi: hip loop outliner creation:\n"
-                    << "\ttransforming loop to kernel: " << kernelName
-                    << "(...)\n"
-                    << "\tdevice-side module name    : "
-                    << kernelModule.getName() << "\n\n");
+HipLoop::HipLoop(Module &hostM, Module &devM, const TTOptions &tto,
+                 const TapirLoopInfo &tl, StringRef kernelName)
+    : GPUTTLoopBase(hostM, devM, tto, TTID::Hip, tl, kernelName) {
+  LLVM_DEBUG(
+      dbgs() << "hipabi: hip loop outliner creation:\n"
+             << "\ttransforming loop to kernel: " << kernelName << "(...)\n"
+             << "\tdevice-side module name    : " << devM.getName() << "\n\n");
 }
 
-HipLoop::~HipLoop() { /* no-op */ }
+unsigned HipLoop::getConstAddrSpace() const {
+  return AMDGPUAS::CONSTANT_ADDRESS;
+}
 
-void HipLoop::setupLoopControlArgs(TapirLoopInfo *tl,
-                                   SmallVectorImpl<Value *> &lcArgs,
-                                   SmallVectorImpl<Value *> &lcInputs) {
-  InductionDescriptor ivDescr = tl->getPrimaryInduction().second;
-
-  // It is not clear if we actually need the step value to be 1, but until we
-  // can be sure of it, we'll be conservative and require it here.
-  assert(ivDescr.getStep()->isOne() &&
-         "Step of tapir loop induction variable must be 1");
-
-  // We require tapir loops to be lowered to the GPU to have canonical
-  // induction variables. This should have been checked before we get here, but
-  // make sure that is the case.
-  Value *ivBeg = ivDescr.getStartValue();
-  assert(isZero(ivBeg) &&
-         "Start value of tapir loop induction variable must be 0");
-
-  Value *tc = tl->getTripCount();
-  assert(tc && "No trip count found for Tapir loop end argument.");
-
-  // Since the start value is 0, we don't strictly need this. However, not
-  // passing this causes issues in loop spawning since that assumes that this
-  // value will be passed. The fixes needed to make this work in loop spawning
-  // are not particularly difficult, but it does feel messy. For now, we just
-  // pass it since the fix to loop spawning will likely require some more
-  // thought.
-  LoopCtlArgs.push_back(new Argument(ivBeg->getType(), "iv0.x"));
-  lcArgs.push_back(LoopCtlArgs.back());
-  lcInputs.push_back(ivBeg);
-
-  LoopCtlArgs.push_back(new Argument(tc->getType(), "tc.x"));
-  lcArgs.push_back(LoopCtlArgs.back());
-  lcInputs.push_back(tc);
+unsigned HipLoop::getNonConstAddrSpace() const {
+  return AMDGPUAS::GLOBAL_ADDRESS;
 }
 
 void HipLoop::preProcessTapirLoop(TapirLoopInfo &tl, ValueToValueMapTy &vmap) {
-  bool verboseMode = getOptions().getTapirVerbose();
-  if (verboseMode) {
-    errs() << "kitsune[hipabi]: pre-processing tapir loop.\n";
-    errs() << "  - collecting global values from loop...\n";
-  }
-
-  // Collect the top-level entities (Function, GlobalVariable, GlobalAlias
-  // and GlobalIFunc) that are used in the outlined loop. Since the outlined
-  // loop will live in the kernelModule, any GlobalValue's used in it must be
-  // be cloned into the kernelModule and then registered with the cuda runtime.
-  // The registration will be done in the global ctor which will be generated by
-  // a later pass.
-  collectGlobalValues(*tl.getLoop(), usedGlobalValues);
+  GPUTTLoopBase::preProcessTapirLoop(tl, vmap);
 
   // HIP appears to require protected visibility. Without this, attempting to
   // link the fat binary results in a relocation error.
-  cloneUsedGlobalVariablesInto(
-      kernelModule, usedGlobalValues, vmap,
-      /* address space for constant globals */ AMDGPUAS::CONSTANT_ADDRESS,
-      /* address space for non-const globals */ AMDGPUAS::GLOBAL_ADDRESS,
-      /* visibility for constant globals */ GlobalValue::DefaultVisibility,
-      /* visibility for non-const globals */ GlobalValue::ProtectedVisibility);
-
-  // The global variables have to be cloned before cloning the functions because
-  // they may be used in the bodies of functions to be cloned.
-  cloneReachableFuncsInto(kernelModule, usedGlobalValues, vmap);
-  cloneReachableIFuncsInto(kernelModule, usedGlobalValues, vmap);
-
-  // The aliasee in global aliases is a global value, so they must be cloned
-  // after the global variables and functions are in the vmap.
-  cloneUsedGlobalAliasesInto(kernelModule, usedGlobalValues, vmap);
+  for (GlobalValue *v : usedGlobalValues)
+    if (auto *g = dyn_cast<GlobalVariable>(v))
+      if (!g->isConstant())
+        getDevGlobal(g, vmap)->setVisibility(GlobalValue::ProtectedVisibility);
 }
 
-void HipLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &Out,
-                                 ValueToValueMapTy &vmap) {
-  Task *task = tl.getTask();
-  Loop *loop = tl.getLoop();
-
-  BasicBlock *bbEntry = cast<BasicBlock>(vmap[loop->getLoopPreheader()]);
-  BasicBlock *bbHeader = cast<BasicBlock>(vmap[loop->getHeader()]);
-  BasicBlock *bbExit = cast<BasicBlock>(vmap[tl.getExitBlock()]);
-  PHINode *iv = cast<PHINode>(vmap[tl.getPrimaryInduction().first]);
-  Type *ivType = iv->getType();
-
-  // We no longer need the cloned sync region.
-  auto *clonedSyncReg =
-      cast<Instruction>(vmap[task->getDetach()->getSyncRegion()]);
-  clonedSyncReg->eraseFromParent();
-
-  // Get the kernel function for this loop and clean up any stray (target
-  // related) attributes. Because of the way we compile the code, those
-  // attributes will only be relevant for the host.
-  Function *kernelF = Out.Outline;
-  kernelF->setName(kernelName);
-
+void HipLoop::setKernelFuncAttrs(Function &f) {
   // Remove any attributes that are only relevant for the host.
-  kernelF->removeFnAttr("target-cpu");
-  kernelF->removeFnAttr("target-features");
-  kernelF->removeFnAttr("tune-cpu");
+  f.removeFnAttr("target-cpu");
+  f.removeFnAttr("target-features");
+  f.removeFnAttr("tune-cpu");
 
   // Remove other attributes that we cannot deal with in any reasonable way in
   // the device
-  kernelF->removeFnAttr(Attribute::UWTable);
-
-  // Add an attribute identifying this as a function outlined from a tapir loop.
-  kernelF->addFnAttr(Attribute::KitKernel);
+  f.removeFnAttr(Attribute::UWTable);
 
   // Add new target-specific attributes
-  kernelF->addFnAttr("target-cpu", getOptions().getHipArch());
-  kernelF->addFnAttr("target-features", getOptions().getHipTargetFeatures());
+  f.addFnAttr("target-cpu", getOptions().getHipArch());
+  f.addFnAttr("target-features", getOptions().getHipTargetFeatures());
 
   // Add other attributes that are either required or desirable.
-  kernelF->addFnAttr("no-trapping-math", "true");
-  kernelF->addFnAttr(Attribute::MustProgress);
-  kernelF->addFnAttr(Attribute::NoUnwind);
+  f.addFnAttr("no-trapping-math", "true");
+  f.addFnAttr(Attribute::MustProgress);
+  f.addFnAttr(Attribute::NoUnwind);
 
   // This only works when the code object version >= 5, but we have ensured that
   // this is the case in the frontend.
-  kernelF->addFnAttr("uniform-work-group-size", "true");
+  f.addFnAttr("uniform-work-group-size", "true");
 
   // Specify the minimum and maximum flat work group sizes that will be used
   // when the kernel is dispatched.
   std::string attrVal = "128,1024";
-  kernelF->addFnAttr("amdgpu-flat-work-group-size", attrVal);
+  f.addFnAttr("amdgpu-flat-work-group-size", attrVal);
 
-  // AMD requires that the kernel function have protected visiblity otherwise
-  // AMD's runtime is unable to find the kernel function at runtime. This, in
-  // turn requires the function to have external linkage. In case the function
-  // gets here with a different linkage type, just override it.
-  kernelF->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
-  kernelF->setVisibility(GlobalValue::VisibilityTypes::ProtectedVisibility);
-  kernelF->setCallingConv(CallingConv::AMDGPU_KERNEL);
-
+  // FIXME: It is not clear why we are still carrying this around.
 #if 0 // DISABLED FOR TESTING
   unsigned maxThreadsPerBlock = getOptions().getMaxThreadsPerBlock();
   unsigned defaultThreadsPerBlock = getOptions().getFixedThreadsPerBlock();
@@ -300,7 +193,7 @@ void HipLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &Out,
   // Check for programmer-provided launch attribute...
   if (tpb > 0 && tpb <= maxThreadsPerBlock) {
     attrVal = std::string("1,") + utostr(TPB);
-    kernelF->addFnAttr("amdgpu-flat-work-group-size", attrVal);
+    f.addFnAttr("amdgpu-flat-work-group-size", attrVal);
 
     if (clUseYLaunch)
       attrVal = std::string("1,") + utostr(TPB) + std::string(",1");
@@ -310,7 +203,7 @@ void HipLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &Out,
              defaultThreadsPerBlock <= maxThreadsPerBlock) {
     // Check for command line spec.
     attrVal = std::string("1,") + utostr(defaultThreadsPerBlock);
-    kernelF->addFnAttr("amdgpu-flat-work-group-size", attrVal);
+    f.addFnAttr("amdgpu-flat-work-group-size", attrVal);
 
     if (clUseYLaunch)
       attrVal = std::string("1,") + utostr(defaultThreadsPerBlock)
@@ -320,7 +213,7 @@ void HipLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &Out,
   } else {
     // Use defaults...
     attrVal = std::string("1,") + utostr(maxThreadsPerBlock);
-    kernelF->addFnAttr("amdgpu-flat-work-group-size", attrVal);
+    f.addFnAttr("amdgpu-flat-work-group-size", attrVal);
 
     if (clUseYLaunch)
       attrVal = std::string("1,") + utostr(maxThreadsPerBlock) +
@@ -328,130 +221,78 @@ void HipLoop::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &Out,
     else
       attrVal = utostr(maxThreadsPerBlock) + std::string(",1,1");
   }
-  // Attribute falls through from above conditionals...
-  kernelF->addFnAttr("amdgpu-max-num-workgroups", attrVal);
-#endif
 
-  // Get the thread ID for this invocation of Helper.
-  //
-  // This is the classic thread ID calculation:
-  //      i = blockDim.x * blockIdx.x + threadIdx.x;
-  // For now we only generate 1-D thread IDs.
-  IRBuilder<> builder(bbEntry->getTerminator());
-  Value *threadIdx;
-  Value *blockDim;
-  if (not clUseYLaunch) {
-    threadIdx = builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_x, {}, {},
-                                        "tid.x");
-    blockDim = builder.CreateIntrinsic(Intrinsic::kit_gpu_block_size_x, {}, {},
-                                       "bsz.x");
-  } else {
-    threadIdx = builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_y, {}, {},
-                                        "tid.x");
-    blockDim = builder.CreateIntrinsic(Intrinsic::kit_gpu_block_size_y, {}, {},
-                                       "bsz.x");
+  // Attribute falls through from above conditionals...
+  f.addFnAttr("amdgpu-max-num-workgroups", attrVal);
+#endif
+}
+
+void HipLoop::setKernelFuncCallingConv(Function &f) {
+  f.setCallingConv(CallingConv::AMDGPU_KERNEL);
+}
+
+void HipLoop::setKernelFuncVisibility(Function &f) {
+  // AMD requires that the kernel function have protected visiblity otherwise
+  // AMD's runtime is unable to find the kernel function at runtime. This, in
+  // turn requires the function to have external linkage. This is the linkage
+  // set on kernel functions by default anyway.
+  f.setVisibility(GlobalValue::ProtectedVisibility);
+}
+
+// The loop output processor that performs Y-axis launches for 1D loops.
+//
+// This is only here because we want the default loop outline processors to be
+// clean. This isolates some code that was present in the original
+// implementation, but where it wasn't clear if there was any advantage to
+// having it around.
+//
+// FIXME: We should consider if there is any advantage to having this.
+class HipLoop1Y : public HipLoop {
+protected:
+  virtual void processOutlinedIVs(Function &f, TapirLoopInfo &tl,
+                                  ValueToValueMapTy &vmap) override {
+    Loop *loop = tl.getLoop();
+
+    BasicBlock *bbEntry = cast<BasicBlock>(vmap[loop->getLoopPreheader()]);
+    BasicBlock *bbHeader = cast<BasicBlock>(vmap[loop->getHeader()]);
+    BasicBlock *bbExit = cast<BasicBlock>(vmap[tl.getExitBlock()]);
+    PHINode *iv = cast<PHINode>(vmap[tl.getPrimaryInduction().first]);
+    Type *ivType = iv->getType();
+
+    IRBuilder<> bldr(bbEntry->getTerminator());
+    Value *tidX =
+        bldr.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_y, {}, {}, "tid.x");
+    Value *bidX =
+        bldr.CreateIntrinsic(Intrinsic::kit_gpu_block_id_x, {}, {}, "bid.x");
+    Value *bszX =
+        bldr.CreateIntrinsic(Intrinsic::kit_gpu_block_size_y, {}, {}, "bsz.x");
+    Value *bdxbi = bldr.CreateMul(bszX, bidX);
+    Value *tipbdxbi = bldr.CreateAdd(bdxbi, tidX, ".ivbeg.x");
+    Value *ivBeg =
+        bldr.CreateIntCast(tipbdxbi, ivType, /*isSigned=*/false, "ivbeg.x");
+    Value *grainsize = getGrainsize(ivType);
+    Value *ivEnd = bldr.CreateAdd(ivBeg, grainsize, "ivend.x");
+
+    Argument *tcX = f.getArg(1);
+    Value *ivCond = bldr.CreateICmpUGE(ivBeg, tcX);
+    ReplaceInstWithInst(bbEntry->getTerminator(),
+                        BranchInst::Create(bbExit, bbHeader, ivCond));
+
+    iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(ivBeg);
+    ICmpInst *condX = cast<ICmpInst>(vmap[tl.getCondition()]);
+    condX->setOperand(getOpIndex(*condX, tcX), ivEnd);
   }
 
-  Value *blockIdx =
-      builder.CreateIntrinsic(Intrinsic::kit_gpu_block_id_x, {}, {}, "bid.x");
+public:
+  HipLoop1Y(Module &hostM, Module &devM, const TTOptions &tto,
+            const TapirLoopInfo &tl, StringRef kernelName)
+      : HipLoop(hostM, devM, tto, tl, kernelName) {
+    assert(clUseYLaunch && kernelDepth == 1 &&
+           "Loop outline processor can only be used with 1D Y-axis launches");
+  }
 
-  Value *bdxbi = builder.CreateMul(blockIdx, blockDim);
-  Value *tipbdxbi = builder.CreateAdd(threadIdx, bdxbi, ".ivbeg.x");
-  Value *ivBeg =
-      builder.CreateIntCast(tipbdxbi, ivType, /*isSigned=*/false, "ivbeg.x");
-
-  Argument *tcX = kernelF->getArg(1);
-  Value *grainsize = getGrainsize(ivType);
-  Value *ivEnd = builder.CreateAdd(ivBeg, grainsize, "ivend.x");
-  Value *ivCond = builder.CreateICmpUGE(ivBeg, tcX);
-  ReplaceInstWithInst(bbEntry->getTerminator(),
-                      BranchInst::Create(bbExit, bbHeader, ivCond));
-
-  // Replace the loop's induction variable with the GPU thread id.
-  iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(ivBeg);
-
-  // Update cloned loop condition to use the thread-end value.
-  unsigned tripCountIdx = 0;
-  ICmpInst *clonedCond = cast<ICmpInst>(vmap[tl.getCondition()]);
-  if (clonedCond->getOperand(0) != tcX)
-    ++tripCountIdx;
-  assert(clonedCond->getOperand(tripCountIdx) == tcX &&
-         "End argument not used in condition!");
-  clonedCond->setOperand(tripCountIdx, ivEnd);
-}
-
-void HipLoop::processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
-                                      DominatorTree &dt) {
-  LLVM_DEBUG(dbgs() << "hiploop: processing outlined loop call...\n"
-                    << "\tkernel name: " << kernelName << "\n");
-
-  LLVMContext &ctx = M.getContext();
-  Type *i32 = Type::getInt32Ty(ctx);
-  Type *i64 = Type::getInt64Ty(ctx);
-
-  Constant *zero = ConstantInt::get(i64, 0);
-  Constant *ctt = toConstant(TTID::Hip, ctx);
-  GlobalVariable *kProps =
-      createKernelPropertiesGlobal(kernelName, TTID::Hip, M);
-  Value *kName = createConstString(kernelName, M);
-  GlobalVariable *embFB = getEmbFBGlobal(TTID::Hip, M);
-
-  // At this point we need a threads-per-block value for the launch call. The
-  // runtime will determine this value if ThreadsPerBlock is zero but it can
-  // also be overridden via kitsune's forall launch attribute. The catch here is
-  // the launch attribute's value for this is flexible and be a computed
-  // expression vs. a compile-time constant. For this first step of creating the
-  // kernel launch, we take the path of a runtime configuration vs. an
-  // attributed launch.
-  unsigned tpbHint = getThreadsPerBlockAttr(*tl.getLoop()).value_or(0);
-  unsigned fixedTPB = getOptions().getFixedThreadsPerBlock();
-  Value *tpb;
-  if (tpbHint)
-    tpb = ConstantInt::get(i32, tpbHint);
-  else if (fixedTPB)
-    tpb = ConstantInt::get(i32, fixedTPB);
-  else
-    tpb = ConstantInt::get(i32, 0);
-
-  CallBase *callOutlined = cast<CallBase>(toi.ReplCall);
-  BasicBlock *bbNew = callOutlined->getParent()->splitBasicBlock(callOutlined);
-  IRBuilder<> builder(&bbNew->front());
-
-  // Deal with type mismatches for the trip count.
-  Value *tripCount = callOutlined->getArgOperand(1);
-  if (tripCount->getType() != i64)
-    tripCount = builder.CreateSExtOrBitCast(tripCount, i64, "cast.tc");
-
-  // We need to explicitly sync non-const globals that are used in the kernel
-  // before the kernel is launched.
-  copyNonConstGlobalsHToD(usedGlobalValues, TTID::Hip, M, builder);
-
-  Value *hipStream =
-      builder.CreateIntrinsic(Intrinsic::kit_thread_stream, {ctt});
-  SmallVector<Value *, 16> args = {
-      ctt, embFB, kName, tripCount, zero, zero, tpb, kProps, hipStream,
-  };
-  for (Value *inp : callOutlined->args())
-    args.push_back(inp);
-
-  // TODO: We should probably have the launch and sync kitsune intrinsics take
-  // a sync region as an argument This may make it easier to do post-outlining
-  // analyses to eliminate/delay device synchronization calls instead of
-  // always synchronizing immediately after the kernel launch.
-  LLVM_DEBUG(dbgs() << "\t*- code gen kernel launch....\n");
-  (void)builder.CreateIntrinsic(Intrinsic::kit_async_launch_kernel, args);
-  (void)builder.CreateIntrinsic(Intrinsic::kit_sync_stream, {ctt, hipStream});
-
-  // After the kernel is done, copy the non-const globals back to the host. This
-  // is done here to keep this part of the code generation simple. A subsequent
-  // pass will attempt to move this call to the point where the global is
-  // actually used on the host (or perhaps even delete it if the host never uses
-  // the global again).
-  copyNonConstGlobalsDToH(usedGlobalValues, TTID::Hip, M, builder);
-
-  callOutlined->eraseFromParent();
-  LLVM_DEBUG(dbgs() << "*** finished processing outlined call.\n");
-}
+  virtual ~HipLoop1Y() = default;
+};
 
 // As is the pattern with the GPU targets, the HipABI is setup to process all
 // Tapir constructs within a given input Module (M). It then creates a
@@ -466,7 +307,8 @@ LoopOutlineProcessor *HipABI::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
   LLVM_DEBUG(dbgs() << "hipabi: create loop outline processor.\n");
   LLVM_DEBUG(saveModuleToFile(&hostM, hostM.getName().str() + ".input"));
 
-  std::string kernelName =
-      getNameForTapirLoop(*tl, "__kithip_loop_", nextKernelID++);
-  return new HipLoop(hostM, devM, kernelName, getOptions());
+  std::string kernelName = getNameForTapirLoop(*tl);
+  if (clUseYLaunch)
+    return new HipLoop1Y(hostM, devM, getOptions(), *tl, kernelName);
+  return new HipLoop(hostM, devM, getOptions(), *tl, kernelName);
 }

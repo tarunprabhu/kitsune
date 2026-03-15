@@ -40,9 +40,9 @@
 ; O2-NEXT: [[BBENTRY:.+]]:
 ; O2-NEXT: %[[BUFCST:.+]] = addrspacecast ptr %[[BUF]] to ptr addrspace(1)
 ; O2-NEXT: %[[TIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.x()
-; O2-NEXT: %[[BDIM:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.x()
 ; O2-NEXT: %[[BIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.x()
-; O2-NEXT: %[[BOFF:.+]] = mul i32 %[[BIDX]], %[[BDIM]]
+; O2-NEXT: %[[BDIM:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.x()
+; O2-NEXT: %[[BOFF:.+]] = mul i32 %[[BDIM]], %[[BIDX]]
 ; O2-NEXT: %[[IVBEG32:.+]] = add i32 %[[BOFF]], %[[TIDX]]
 ; O2-NEXT: %[[IVBEG:.+]] = zext i32 %[[IVBEG32]] to i64
 ; O2-NEXT: %[[IVCOND:.+]] = icmp ugt i64 %[[TC]], %[[IVBEG]]
