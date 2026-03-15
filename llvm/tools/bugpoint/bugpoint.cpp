@@ -14,7 +14,7 @@
 
 #include "BugDriver.h"
 #include "ToolRunner.h"
-#include "kitsune/Core/LinkAllPasses.h"
+#include "kitsune/Passes/LinkAllPasses.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LegacyPassManager.h"
