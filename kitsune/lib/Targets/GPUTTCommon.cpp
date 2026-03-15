@@ -46,8 +46,8 @@ GPUTTBase::GPUTTBase(TTID tt, Module &hostM, const TTOptions &tto)
   std::string name = getNameForDeviceModule(hostM, pfx);
   devM.setModuleIdentifier(name);
   addDeviceModuleFlagsAttr(devM, tt);
-  cloneModuleFlagsMetadataInto(hostM, devM);
-  cloneIdentMetadataInto(hostM, devM);
+  cloneModuleFlagsMetadataInto(devM, hostM);
+  cloneIdentMetadataInto(devM, hostM);
 }
 
 Constant *GPUTTBase::getConstGrainsize(Type *ty) {
