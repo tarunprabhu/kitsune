@@ -60,20 +60,19 @@ class NamedMDNode;
 NamedMDNode &addDeviceModuleFlagsAttr(Module &m, TTID tt);
 
 /// Clone LLVM's module flags metadata from the host into the device module.
-/// This deliberately will not clone every operand of the metadata, but only
-/// a subset that are guaranteed to be "safe". Some of the operands in that
-/// metadata node are set based on the command line options. However, in our
-/// case, the IR that is generated is assumed to run on the host. As a result,
-/// it may contain options that are only relevant on the host, or, in the worst
-/// case, options that are actually incorrect when set on a module to be
-/// compiled for a GPU.
+/// This will not clone every operand of the metadata, but only a subset that
+/// are guaranteed to be "safe". Some of the operands in that metadata node are
+/// set based on the command line options. However, in our case, the IR that is
+/// generated is assumed to run on the host. As a result, it may contain options
+/// that are only relevant on the host, or, in the worst case, options that are
+/// actually incorrect when set on a module to be compiled for a GPU.
 ///
 /// FIXME: We should try and determine if there is a way to construct a filter
 /// that will copy *all* operands *except* those that are known to be unsafe.
-NamedMDNode &cloneModuleFlagsMetadataInto(const Module &hostM, Module &devM);
+NamedMDNode &cloneModuleFlagsMetadataInto(Module &devM, const Module &hostM);
 
 /// Clone LLVM's ident metadata from the host into the device module.
-NamedMDNode &cloneIdentMetadataInto(const Module &hostM, Module &devM);
+NamedMDNode &cloneIdentMetadataInto(Module &devM, const Module &hostM);
 
 /// @}
 

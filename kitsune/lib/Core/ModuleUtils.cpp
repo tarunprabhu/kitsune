@@ -22,8 +22,8 @@ NamedMDNode &llvm::addDeviceModuleFlagsAttr(Module &m, TTID tt) {
   return addDeviceModuleFlagsAttr(m, tt, m.getName());
 }
 
-NamedMDNode &llvm::cloneModuleFlagsMetadataInto(const Module &hostM,
-                                                Module &devM) {
+NamedMDNode &llvm::cloneModuleFlagsMetadataInto(Module &devM,
+                                                const Module &hostM) {
   // These are the module flags that should be cloned over. Others will be
   // ignored.
   SmallSet<StringRef, 8> flags = {"Debug Info Version", "Dwarf Version",
@@ -39,7 +39,7 @@ NamedMDNode &llvm::cloneModuleFlagsMetadataInto(const Module &hostM,
   return nmd;
 }
 
-NamedMDNode &llvm::cloneIdentMetadataInto(const Module &hostM, Module &devM) {
+NamedMDNode &llvm::cloneIdentMetadataInto(Module &devM, const Module &hostM) {
   NamedMDNode &nmd = *devM.getOrInsertNamedMetadata("llvm.ident");
   if (const NamedMDNode *ident = hostM.getNamedMetadata("llvm.ident"))
     for (const MDNode *md : ident->operands())
