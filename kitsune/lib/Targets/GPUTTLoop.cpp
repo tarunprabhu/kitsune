@@ -361,12 +361,12 @@ void GPUTTLoopBase::setupLoopControlArgs(TapirLoopInfo *tl,
   //
   // The loops are required to be canonical and have a single induction
   // variable.
-  for (unsigned i = getDepth(); i > 0; --i) {
-    Loop *loop = loops[i - 1];
+  for (unsigned i = 0; i < getDepth(); ++i) {
+    Loop *loop = loops[i];
     BasicBlock *ph = loop->getLoopPreheader();
     ICmpInst *cmp = loop->getLatchCmpInst();
     PHINode *iv = loop->getCanonicalInductionVariable();
-    Dirxn dirxn = dirxns[getDepth() - i];
+    Dirxn dirxn = dirxns[i];
     StringRef sfx = suffixes[int(dirxn)];
 
     // Since the start value is 0, we don't strictly need this. However, not
@@ -376,7 +376,7 @@ void GPUTTLoopBase::setupLoopControlArgs(TapirLoopInfo *tl,
     // pass it since the fix to loop spawning will likely require some more
     // thought.
     Value *ivBeg = iv->getIncomingValueForBlock(ph);
-    std::string nameBeg = join_items("", "z", sfx);
+    std::string nameBeg = join_items("", "zero", sfx);
     LoopCtlArgs.push_back(new Argument(ivBeg->getType(), nameBeg));
     lcArgs.push_back(LoopCtlArgs.back());
     lcInputs.push_back(ivBeg);
@@ -502,17 +502,17 @@ void GPUTTLoopBase::processOutlinedIVs(Function &f, TapirLoopInfo &tl,
   //  | Depth |                      Arguments                               |
   //  |----------------------------------------------------------------------|
   //  |   1   | i64 z.x, i64 tc.x, ...                                       |
-  //  |   2   | i64 z.x, i64 tc.x, i64 z.y, i64 tc.y, ...                    |
-  //  |   3   | i64 z.x, i64 tc.x, i64 z.y, i64 tc.y, i64 z.z, i64 tc.z, ... |
+  //  |   2   | i64 z.y, i64 tc.y, i64 z.x, i64 tc.x, ...                    |
+  //  |   3   | i64 z.z, i64 tc.z, i64 z.y, i64 tc.y, i64 z.x, i64 tc.x, ... |
   //  '----------------------------------------------------------------------'
   //
   // Here, z.x, z.y, and z.z are all expected to be 0. The argument names
   // suffixed with .x are intended for the innermost loop, .y for the parent
-  // of the innermost loop, and .z for the parent of that.
+  // of the innermost loop, and .z for the grandparent of the innermost loop.
   //
   SmallVector<Argument *> tcs;
-  for (unsigned i = getDepth(); i > 0; --i)
-    tcs.push_back(f.getArg(2 * i - 1));
+  for (unsigned i = 0; i < getDepth(); ++i)
+    tcs.push_back(f.getArg(2 * i + 1));
 
   // Check that the start of all induction variables are less than the
   // corresponding trip counts.
@@ -615,9 +615,25 @@ void GPUTTLoopBase::processOutlinedLoopCall(TapirLoopInfo &tl,
   // The trip counts will be the second, fourth and sixth arguments to the
   // outlined functions (depending on the depth of the tapir loop).
   Constant *zero = ConstantInt::get(i64, 0);
-  Value *arg1 = call->getArgOperand(1);
-  Value *arg3 = getDepth() > 1 ? call->getArgOperand(3) : zero;
-  Value *arg5 = getDepth() > 2 ? call->getArgOperand(5) : zero;
+  Value* argX = zero;
+  Value* argY = zero;
+  Value *argZ = zero;
+  switch (getDepth()) {
+  case 1:
+    argX = call->getArgOperand(1);
+    break;
+  case 2:
+    argY = call->getArgOperand(1);
+    argX = call->getArgOperand(3);
+    break;
+  case 3:
+    argZ = call->getArgOperand(1);
+    argY = call->getArgOperand(3);
+    argX = call->getArgOperand(5);
+    break;
+  default:
+    llvm_unreachable("Unexpected depth of tapir loop nest");
+  }
 
   // Create a kernel properties global variable. This will be initialized in a
   // later pass. But for now, we only need it to exist.
@@ -631,15 +647,15 @@ void GPUTTLoopBase::processOutlinedLoopCall(TapirLoopInfo &tl,
   copyNonConstGlobalsHToD(builder);
 
   // The trip counts may be an argument or zero.
-  Value *tcX = builder.CreateIntCast(arg1, i64, /*isSigned=*/false);
-  Value *tcY = builder.CreateIntCast(arg3, i64, /*isSigned=*/false);
-  Value *tcZ = builder.CreateIntCast(arg5, i64, /*isSigned=*/false);
+  Value *tcX = builder.CreateIntCast(argX, i64, /*isSigned=*/false);
+  Value *tcY = builder.CreateIntCast(argY, i64, /*isSigned=*/false);
+  Value *tcZ = builder.CreateIntCast(argZ, i64, /*isSigned=*/false);
 
   // Get or create a stream.
   Value *stream = builder.CreateIntrinsic(Intrinsic::kit_thread_stream, {ctt});
 
   SmallVector<Value *, 16> args = {
-      ctt, embFB, kName, tcX, tcY, tcZ, tpb, kProps, stream,
+      ctt, embFB, kName, tcZ, tcY, tcX, tpb, kProps, stream,
   };
   for (Value *inp : call->args())
     args.push_back(inp);

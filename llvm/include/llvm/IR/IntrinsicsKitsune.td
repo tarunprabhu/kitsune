@@ -188,11 +188,11 @@ def int_kit_async_launch_kernel
                 [llvm_i32_ty,  // tapir target id
                  llvm_ptr_ty,  // fat binary
                  llvm_ptr_ty,  // name
-                 llvm_i64_ty,  // trip_count of innermost loop
-                 llvm_i64_ty,  // trip count of loop at depth 2 if loop nest
-                               // depth is at least 2, 0 otherwise
-                 llvm_i64_ty,  // trip count of loop at depth 1 if loop nest
-                               // depth is 3, else 0)
+                 llvm_i64_ty,  // trip_count of the loop at depth 3, or 0 if the
+                               // depth of the loop nest is less than 3.
+                 llvm_i64_ty,  // trip count of the loop at depth 2, or 0 if the
+                               // depth of the loop nest is less than 2.
+                 llvm_i64_ty,  // trip count of the loop at depth 1.
                  llvm_i32_ty,  // threads per block
                  llvm_ptr_ty,  // instruction mix info
                  llvm_ptr_ty,  // stream

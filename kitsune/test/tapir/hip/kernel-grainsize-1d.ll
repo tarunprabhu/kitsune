@@ -12,7 +12,8 @@
 ; CHECK: %[[IV:.+]] = phi i64
 ; CHECK-SAME: %[[IVBEG]], %[[ENTRY]]
 ; CHECK: %[[INC:.+]] = add {{.*}}i64 %[[IV]], 1
-; CHECK: icmp eq i64 %[[INC]], %[[IVEND]]
+; CHECK-NEXT: %[[CMP:.+]] = icmp eq i64 %[[INC]], %[[IVEND]]
+; CHECK-NEXT: br i1 %[[CMP]]
 
 define void @p(ptr %a, i64 %n) {
 entry:
