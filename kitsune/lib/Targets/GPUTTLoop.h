@@ -15,6 +15,7 @@
 #define KITSUNE_TARGETS_GPUTT_LOOP_H
 
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
@@ -31,22 +32,38 @@ class GlobalValue;
 /// targets.
 class GPUTTLoopBase : public LoopOutlineProcessor {
 protected:
-  /// The ID of tapir target that created this loop outline processor.
-  TTID tt;
+  /// Enum for the directions in a multidimensional kernel. The actual values
+  /// of this enum are significant, which is why we explicitly specify them.
+  enum class Dirxn : unsigned { X = 0, Y = 1, Z = 2 };
+  static constexpr Dirxn dirxns[3] = {Dirxn::X, Dirxn::Y, Dirxn::Z};
 
-  /// The "host" module that contains the tapir loop being outlined.
-  Module &hostM;
+  /// Simple struct to collect induction variables in a tapir loop nest.
+  struct IVRange {
+    PHINode *iv;
+    Value *beg;
+    Value *end;
+  };
 
+protected:
   /// The module into which the tapir loops are outlined. This will eventually
   /// be compiled to GPU machine code.
   Module &devM;
 
+  /// The "host" module that contains the tapir loop being outlined.
+  Module &hostM;
+
+  /// The loops in the loop nest being lowered with this loop outline processor.
+  /// The first element of this vector will be the root of the nest, and the
+  /// last will be the innermost loop. There will (obviously) always be at least
+  /// one element in this list. The size of this vector will be the depth of
+  /// the kernel.
+  SmallVector<Loop *, 4> loops;
+
+  /// The ID of tapir target that created this loop outline processor.
+  TTID tt;
+
   /// The name of the kernel into which the loop is outlined.
   std::string kernelName;
-
-  /// The depth of the loop nest that is being outlined. This must be in the
-  /// range [1,3].
-  unsigned kernelDepth = 0;
 
   /// The GlobalValue's used in the loop that is being outlined. This includes
   /// functions, global variables, aliases and ifunc's.
@@ -86,6 +103,18 @@ private:
   /// the cloned global will be a constant if and only if \p g is a constant.
   /// Returns the newly created global variable.
   GlobalVariable *cloneGlobalVariable(GlobalVariable &g);
+
+  /// Emit the index calculations for an induction variable in the given
+  /// direction.
+  /// \param builder The builder to use. This will have been set to the correct
+  ///                insertion point by the caller
+  /// \param iv The induction variable of the (sub)loop for which the
+  ///           calculation is being performed
+  /// \param dirxn The direction for which to emit perform the calculations
+  /// \param ivRanges Adds an IVRange object for each induction variable that
+  ///                 was emitted
+  void emitIndexCalculation(IRBuilder<> &builder, PHINode *iv, Dirxn dirxn,
+                            SmallVector<IVRange, 4> &ivRanges);
 
 protected:
   /// Populate the \ref usedGlobalValues member with the global values used in
@@ -148,10 +177,14 @@ protected:
   GlobalVariable *getDevGlobal(GlobalVariable *g,
                                const ValueToValueMapTy &vmap);
 
-  /// Given a compare instruction, \p inst, that is the condition of a tapir
-  /// loop, return the operand of the instruction that matches the value \p v.
-  /// At least one of the instruction operands is expected to match \p v.
-  unsigned getOpIndex(const Instruction &inst, Value *v);
+  /// Given a compare instruction, \p inst, that is the latch compare
+  /// instruction of a tapir loop, return the operand of the instruction
+  /// that matches the value \p v. At least one of the instruction operands
+  /// is expected to match \p v.
+  unsigned getTripCountIndex(const ICmpInst &cmp, Value *tc);
+
+  /// Get the depth of the loop nest that is being lowered.
+  unsigned getDepth() const;
 
   /// Get the grainsize to use. The default implementation always returns 1.
   virtual Value *getGrainsize(Type *ty);
@@ -205,16 +238,17 @@ protected:
   /// deriving classes.
   virtual unsigned getNonConstAddrSpace() const { return 0; }
 
-public:
   /// \param tt The ID of the tapir target that created this outline processor
-  /// \param loop The tapir loop being outlined
   /// \param hostM The module containing the tapir loop that is to be outlined
   /// \param devM The module into which the loop will be outlined
+  /// \param tl The tapir loop being lowered
   /// \param tto The tapir target options
-  /// \param kernelName The name of the function in the device module into which
-  ///                   the loop will be outlined
-  GPUTTLoopBase(Module &hostM, Module &devM, const TTOptions &tto, TTID tt,
-                const TapirLoopInfo &tl, StringRef kernelName);
+  /// \param name The name of the function in the device module into which the
+  ///             loop will be outlined
+  GPUTTLoopBase(Module &hostM, Module &devM, const TTOptions &tto,
+                const TapirLoopInfo &tl, TTID tt, StringRef name);
+
+public:
   virtual ~GPUTTLoopBase() = default;
 
   /// Setup the loop-control arguments \p lcArgs and loop-control inputs

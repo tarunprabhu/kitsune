@@ -14,27 +14,55 @@
 #include "GPUTTLoop.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/InstructionUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/ValueUtils.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
 
+static const StringRef suffixes[3] = {".x", ".y", ".z"};
+
 GPUTTLoopBase::GPUTTLoopBase(Module &hostM, Module &devM, const TTOptions &tto,
-                             TTID tt, const TapirLoopInfo &tl,
-                             StringRef kernelName)
+                             const TapirLoopInfo &tl, TTID tt, StringRef name)
     : LoopOutlineProcessor(hostM, devM, tto,
                            CloneFunctionChangeType::DifferentModule),
-      tt(tt), hostM(hostM), devM(devM), kernelName(kernelName) {
-  unsigned depth = getPerfectDepthAttr(*tl.getLoop()).value_or(0);
+      devM(devM), hostM(hostM), loops({tl.getLoop()}), tt(tt),
+      kernelName(name) {
+  Loop *root = tl.getLoop();
+  unsigned depth = getPerfectDepthAttr(*root).value_or(0);
   assert(depth >= 1 && depth <= 3 &&
-         "Perfect depth of tapir loop must be in the range [1,3]");
+         "Depth of loop lowered by GPU must be in the range [1,3]");
 
-  this->kernelDepth = depth;
+  // We have already added the root of the loop nest being lowered to the
+  // loops member. Now, add the children. Only after this loop is it safe to use
+  // the getDepth() method.
+  for (unsigned i = 1; i < depth; ++i)
+    loops.push_back(loops.back()->getSubLoops().front());
+
+  // Sanity check the loops. These should have been enforced before we get here,
+  // but check again in case something changes upstream.
+  for (unsigned i = 0; i < depth; ++i) {
+    Loop *loop = loops[i];
+    assert(loop->isLoopSimplifyForm() &&
+           "All loops in a tapir loop nest must be in simplify form");
+    assert(loop->getCanonicalInductionVariable() &&
+           "All loops in a tapir loop nest must be canonical");
+    assert(loop->getLatchCmpInst() &&
+           "Could not get loop latch compare instruction");
+
+    // The loop nest lowered using this tapir target is expected to be perfect.
+    // Each loop being lowered should have exactly one child. The innermost loop
+    // in the nest may have more than one subloops because those will not be
+    // lowered.
+    if (i < depth - 1)
+      assert(loop->getSubLoops().size() == 1 && "Expecting only 1 subloop");
+  }
 }
 
 void GPUTTLoopBase::populateUsedGlobalValues(GlobalVariable &g) {
@@ -269,12 +297,19 @@ GlobalVariable *GPUTTLoopBase::getDevGlobal(GlobalVariable *g,
   return cast<GlobalVariable>(stripCasts(cast<Constant>(vmap.lookup(g))));
 }
 
-unsigned GPUTTLoopBase::getOpIndex(const Instruction &inst, Value *v) {
-  for (unsigned i = 0; i < inst.getNumOperands(); ++i)
-    if (inst.getOperand(i) == v)
+// This could be made into a utility function that simply returns the index of
+// the operand of an instruction that is equal to the value. However, that would
+// have to handle the cases where the value appears in more than one operand, as
+// well as if it doesn't appear at all. It is not clear that there is broader
+// use of such a function.
+unsigned GPUTTLoopBase::getTripCountIndex(const ICmpInst &cmp, Value *tc) {
+  for (unsigned i = 0; i < cmp.getNumOperands(); ++i)
+    if (cmp.getOperand(i) == tc)
       return i;
   llvm_unreachable("Trip count not used in loop condition");
 }
+
+unsigned GPUTTLoopBase::getDepth() const { return loops.size(); }
 
 Value *GPUTTLoopBase::getGrainsize(Type *ty) {
   return ConstantInt::get(ty, 1, /*isSigned=*/false);
@@ -287,36 +322,71 @@ void GPUTTLoopBase::setKernelFuncLinkage(Function &f) {
 void GPUTTLoopBase::setupLoopControlArgs(TapirLoopInfo *tl,
                                          SmallVectorImpl<Value *> &lcArgs,
                                          SmallVectorImpl<Value *> &lcInputs) {
-  InductionDescriptor ivDescr = tl->getPrimaryInduction().second;
+  auto isIncr = [](Value *v, PHINode *iv) -> bool {
+    Type *ty = v->getType();
+    if (auto *inst = dyn_cast<Instruction>(v))
+      if (inst->getOpcode() == Instruction::Add)
+        if ((isIntOne(inst->getOperand(0), ty) && inst->getOperand(1) == iv) ||
+            (isIntOne(inst->getOperand(1), ty) && inst->getOperand(0) == iv))
+          return true;
+    return false;
+  };
 
-  // It is not clear if we actually need the step value to be 1, but until we
-  // can be sure of it, we'll be conservative and require it here.
-  assert(ivDescr.getStep()->isOne() &&
-         "Step of tapir loop induction variable must be 1");
+  // This tries to get the trip count from the compare instruction in the
+  // latch. One of the operands of the instruction must be an increment - the
+  // other, the trip count. This only works because we require the tapir loops
+  // that are being lowered to have unique, canonical induction variables.
+  //
+  // FIXME: It would be good if we could use some of the methods available in
+  // in the loop class to find these. But those require analysis results that
+  // are not available to this object. Making them available may also be tricky
+  // since they may have been invalidated by the transformations of other loops
+  // in the function.
+  //
+  // One possible way to do this may be to pre-compute the loop bounds for the
+  // loops and have those be accessible somewhere.
+  //
+  auto getTripCount = [&isIncr](ICmpInst *cmp, PHINode *iv) -> Value * {
+    Value *op0 = cmp->getOperand(0);
+    Value *op1 = cmp->getOperand(1);
+    if (isIncr(op0, iv))
+      return op1;
+    else if (isIncr(op1, iv))
+      return op0;
+    llvm_unreachable("getTripCount: Didn't find induction variable");
+  };
 
-  // We require tapir loops to be lowered to the GPU to have canonical
-  // induction variables. This should have been checked before we get here, but
-  // make sure that is the case.
-  Value *ivBeg = ivDescr.getStartValue();
-  assert(isZero(ivBeg) &&
-         "Start value of tapir loop induction variable must be 0");
+  // Iterate over the loops in reverse order because the arguments to the
+  // kernel function are always in order from innermost to outermost.
+  //
+  // The loops are required to be canonical and have a single induction
+  // variable.
+  for (unsigned i = getDepth(); i > 0; --i) {
+    Loop *loop = loops[i - 1];
+    BasicBlock *ph = loop->getLoopPreheader();
+    ICmpInst *cmp = loop->getLatchCmpInst();
+    PHINode *iv = loop->getCanonicalInductionVariable();
+    Dirxn dirxn = dirxns[getDepth() - i];
+    StringRef sfx = suffixes[int(dirxn)];
 
-  Value *tc = tl->getTripCount();
-  assert(tc && "No trip count found for Tapir loop end argument.");
+    // Since the start value is 0, we don't strictly need this. However, not
+    // passing this causes issues in loop spawning since that assumes that this
+    // value will be passed. The fixes needed to make this work in loop spawning
+    // are not particularly difficult, but it does feel messy. For now, we just
+    // pass it since the fix to loop spawning will likely require some more
+    // thought.
+    Value *ivBeg = iv->getIncomingValueForBlock(ph);
+    std::string nameBeg = join_items("", "z", sfx);
+    LoopCtlArgs.push_back(new Argument(ivBeg->getType(), nameBeg));
+    lcArgs.push_back(LoopCtlArgs.back());
+    lcInputs.push_back(ivBeg);
 
-  // Since the start value is 0, we don't strictly need this. However, not
-  // passing this causes issues in loop spawning since that assumes that this
-  // value will be passed. The fixes needed to make this work in loop spawning
-  // are not particularly difficult, but it does feel messy. For now, we just
-  // pass it since the fix to loop spawning will likely require some more
-  // thought.
-  LoopCtlArgs.push_back(new Argument(ivBeg->getType(), "iv0.x"));
-  lcArgs.push_back(LoopCtlArgs.back());
-  lcInputs.push_back(ivBeg);
-
-  LoopCtlArgs.push_back(new Argument(tc->getType(), "tc.x"));
-  lcArgs.push_back(LoopCtlArgs.back());
-  lcInputs.push_back(tc);
+    Value *ivEnd = getTripCount(cmp, iv);
+    std::string nameEnd = join_items("", "tc", sfx);
+    LoopCtlArgs.push_back(new Argument(ivEnd->getType(), nameEnd));
+    lcArgs.push_back(LoopCtlArgs.back());
+    lcInputs.push_back(ivEnd);
+  }
 }
 
 void GPUTTLoopBase::preProcessTapirLoop(TapirLoopInfo &tl,
@@ -338,61 +408,153 @@ void GPUTTLoopBase::preProcessTapirLoop(TapirLoopInfo &tl,
   cloneUsedGlobalAliases(vmap);
 }
 
-void GPUTTLoopBase::processOutlinedIVs(Function &f, TapirLoopInfo &tl,
-                                       ValueToValueMapTy &vmap) {
-  Loop *loop = tl.getLoop();
+void GPUTTLoopBase::emitIndexCalculation(IRBuilder<> &builder, PHINode *iv,
+                                         Dirxn dirxn,
+                                         SmallVector<IVRange, 4> &ivRanges) {
+  // clang-format off
+  auto getThreadIdFn = [&dirxn]() -> Intrinsic::ID {
+    switch (dirxn) {
+    case Dirxn::X: return Intrinsic::kit_gpu_thread_id_x;
+    case Dirxn::Y: return Intrinsic::kit_gpu_thread_id_y;
+    case Dirxn::Z: return Intrinsic::kit_gpu_thread_id_z;
+    }
+    llvm_unreachable("getThreadIdFn: Dirxn not handled");
+  };
 
-  BasicBlock *bbEntry = cast<BasicBlock>(vmap[loop->getLoopPreheader()]);
-  BasicBlock *bbHeader = cast<BasicBlock>(vmap[loop->getHeader()]);
-  BasicBlock *bbExit = cast<BasicBlock>(vmap[tl.getExitBlock()]);
-  PHINode *iv = cast<PHINode>(vmap[tl.getPrimaryInduction().first]);
-  Type *ivType = iv->getType();
+  auto getBlockIdFn = [&dirxn]() -> Intrinsic::ID {
+    switch (dirxn) {
+    case Dirxn::X: return Intrinsic::kit_gpu_block_id_x;
+    case Dirxn::Y: return Intrinsic::kit_gpu_block_id_y;
+    case Dirxn::Z: return Intrinsic::kit_gpu_block_id_z;
+    }
+    llvm_unreachable("getBlockIdFn: Dirxn not handled");
+  };
 
-  // The outlined loop runs from [iv0.x, tc.x] where iv0.x and tc.x are bounds
-  // provided as arguments to the kernel function. Convert these to use
-  // threadIdx, blockIdx, blockDim etc.
+  auto getBlockSizeFn = [&dirxn]() -> Intrinsic::ID {
+    switch (dirxn) {
+    case Dirxn::X: return Intrinsic::kit_gpu_block_size_x;
+    case Dirxn::Y: return Intrinsic::kit_gpu_block_size_y;
+    case Dirxn::Z: return Intrinsic::kit_gpu_block_size_z;
+    }
+    llvm_unreachable("getBlockSizeFn: Dirxn not handled");
+  };
+  // clang-format on
+
+  // Construct a name with the given base and suffixing the direction. These are
+  // only intended for convenience if we ever have to read the IR.
+  auto n = [&dirxn](StringRef base) -> std::string {
+    return join_items("", base, suffixes[int(dirxn)]);
+  };
+
+  // The outlined loop runs from [iv0, tc] where iv0 and tc are bounds passed to
+  // the kernel function. Convert these to use threadIdx, blockIdx, blockDim
+  // etc.
   //
   // This is the classic calculation for the induction variable i:
   //
-  //     i = blockDim.x * blockIdx.x + threadDix.x
+  //     i = blockDim.[[D]] * blockIdx.[[D]] + threadId.[[D]]
   //
-  // The calculation below assumes that iv0.x == 0.This is enforced by the rest
-  // of this code and is unlikely to ever change. The runtime will also check
-  // that this invariant holds. If we ever get a non-zero value, there is a lot
-  // that will, at the very least, have to be rethought.
-  IRBuilder<> builder(bbEntry->getTerminator());
-  Value *tidX =
-      builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_x, {}, {}, "tid.x");
-  Value *bidX =
-      builder.CreateIntrinsic(Intrinsic::kit_gpu_block_id_x, {}, {}, "bid.x");
-  Value *bszX =
-      builder.CreateIntrinsic(Intrinsic::kit_gpu_block_size_x, {}, {}, "bsz.x");
-  Value *bdxbi = builder.CreateMul(bszX, bidX);
-  Value *tipbdxbi = builder.CreateAdd(bdxbi, tidX, ".ivbeg.x");
+  // where [[D]] must be one of 'x', 'y', or 'z'.
+  //
+  // The calculation below assumes that iv0.[[D]] == 0.This is enforced earlier
+  // in the lowering process and is unlikely to ever change. If this is ever
+  // non-zero, it will likely cause a lot of problems everwhere.
+  //
+  Value *tid = builder.CreateIntrinsic(getThreadIdFn(), {}, {}, n("tid"));
+  Value *bid = builder.CreateIntrinsic(getBlockIdFn(), {}, {}, n("bid"));
+  Value *bsz = builder.CreateIntrinsic(getBlockSizeFn(), {}, {}, n("bsz"));
+  Value *bdxbi = builder.CreateMul(bsz, bid);
+  Value *bdxbipti = builder.CreateAdd(bdxbi, tid, n(".ivb"));
 
   // This is the computed initial value of the induction variable for the
   // GPU thread on which this being run.
+  Type *ivType = iv->getType();
   Value *ivBeg =
-      builder.CreateIntCast(tipbdxbi, ivType, /*isSigned=*/false, "ivbeg.x");
+      builder.CreateIntCast(bdxbipti, ivType, /*isSigned=*/false, n(".ivb"));
 
   // The final value of the induction variable will be sum of the initial value
-  // and the grainsize. In most cases, this will just be the `ivBeg.x + 1`.
-  Value *ivEnd = builder.CreateAdd(ivBeg, getGrainsize(ivType), "ivend.x");
+  // and the grainsize. In most cases, this will just be the `ivBeg + 1`.
+  Value *ivEnd = builder.CreateAdd(ivBeg, getGrainsize(ivType), n("ive"));
 
-  // If the computed value of the induction variable for the given thread is
-  // larger than the trip count, bypass the body of the loop.
-  // FIXME: Don't assume the first argument here.
-  Argument *tcX = f.getArg(1);
-  Value *ivCond = builder.CreateICmpUGE(ivBeg, tcX);
+  ivRanges.push_back({iv, ivBeg, ivEnd});
+}
+
+void GPUTTLoopBase::processOutlinedIVs(Function &f, TapirLoopInfo &tl,
+                                       ValueToValueMapTy &vmap) {
+  Loop *root = loops.front();
+  BasicBlock *bbEntry = cast<BasicBlock>(vmap[root->getLoopPreheader()]);
+  IRBuilder<> builder(bbEntry->getTerminator());
+
+  // Compute the new ranges of the induction variables of all loops in the nest.
+  SmallVector<IVRange, 4> ivRanges;
+  for (unsigned i = 0; i < getDepth(); ++i) {
+    Loop *loop = loops[i];
+    PHINode *iv = cast<PHINode>(vmap[loop->getCanonicalInductionVariable()]);
+
+    emitIndexCalculation(builder, iv, dirxns[i], ivRanges);
+  }
+
+  // Collect the trip counts for all loops in the next. These are passed in as
+  // arguments to the kernel function. The argument lists for nests with
+  // various depths are summarized below:
+  //
+  //  .----------------------------------------------------------------------.
+  //  | Depth |                      Arguments                               |
+  //  |----------------------------------------------------------------------|
+  //  |   1   | i64 z.x, i64 tc.x, ...                                       |
+  //  |   2   | i64 z.x, i64 tc.x, i64 z.y, i64 tc.y, ...                    |
+  //  |   3   | i64 z.x, i64 tc.x, i64 z.y, i64 tc.y, i64 z.z, i64 tc.z, ... |
+  //  '----------------------------------------------------------------------'
+  //
+  // Here, z.x, z.y, and z.z are all expected to be 0. The argument names
+  // suffixed with .x are intended for the innermost loop, .y for the parent
+  // of the innermost loop, and .z for the parent of that.
+  //
+  SmallVector<Argument *> tcs;
+  for (unsigned i = getDepth(); i > 0; --i)
+    tcs.push_back(f.getArg(2 * i - 1));
+
+  // Check that the start of all induction variables are less than the
+  // corresponding trip counts.
+  SmallVector<Value *, 4> cmps;
+  for (unsigned i = 0; i < getDepth(); ++i) {
+    const IVRange &ivRange = ivRanges[i];
+    Value *ivBeg = ivRange.beg;
+    Value *tc = tcs[i];
+    Value *cmp = builder.CreateICmpULT(ivBeg, tc);
+
+    cmps.push_back(cmp);
+  }
+
+  // If all the induction variables are in range, enter the loop, otherwise,
+  // bypass it altogether.
+  Value *allInRange = builder.CreateAnd(cmps);
+  BasicBlock *bbHeader = cast<BasicBlock>(vmap[root->getHeader()]);
+  BasicBlock *bbExit = cast<BasicBlock>(vmap[tl.getExitBlock()]);
   ReplaceInstWithInst(bbEntry->getTerminator(),
-                      BranchInst::Create(bbExit, bbHeader, ivCond));
+                      BranchInst::Create(bbHeader, bbExit, allInRange));
 
-  // Otherwise, set the initial value of the loop to be this computed value.
-  iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(ivBeg);
+  // Otherwise, set the initial values of the loops to be this computed value.
+  for (unsigned i = 0; i < getDepth(); ++i) {
+    const IVRange &ivRange = ivRanges[i];
+    PHINode *iv = ivRange.iv;
+    Value *ivBeg = ivRange.beg;
+    Loop *loop = loops[i];
+    BasicBlock *ph = cast<BasicBlock>(vmap[loop->getLoopPreheader()]);
+
+    iv->getIncomingValueForBlock(ph)->replaceAllUsesWith(ivBeg);
+  }
 
   // Then change the loop condition to check for the computed final value.
-  ICmpInst *condX = cast<ICmpInst>(vmap[tl.getCondition()]);
-  condX->setOperand(getOpIndex(*condX, tcX), ivEnd);
+  for (unsigned i = 0; i < getDepth(); ++i) {
+    Loop *loop = loops[i];
+    Value *ivEnd = ivRanges[i].end;
+    Value *tc = tcs[i];
+    ICmpInst *latchCmp = cast<ICmpInst>(vmap[loop->getLatchCmpInst()]);
+    unsigned op = getTripCountIndex(*latchCmp, tc);
+
+    latchCmp->setOperand(op, ivEnd);
+  }
 }
 
 void GPUTTLoopBase::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
@@ -454,8 +616,8 @@ void GPUTTLoopBase::processOutlinedLoopCall(TapirLoopInfo &tl,
   // outlined functions (depending on the depth of the tapir loop).
   Constant *zero = ConstantInt::get(i64, 0);
   Value *arg1 = call->getArgOperand(1);
-  Value *arg3 = kernelDepth > 1 ? call->getArgOperand(3) : zero;
-  Value *arg5 = kernelDepth > 2 ? call->getArgOperand(5) : zero;
+  Value *arg3 = getDepth() > 1 ? call->getArgOperand(3) : zero;
+  Value *arg5 = getDepth() > 2 ? call->getArgOperand(5) : zero;
 
   // Create a kernel properties global variable. This will be initialized in a
   // later pass. But for now, we only need it to exist.

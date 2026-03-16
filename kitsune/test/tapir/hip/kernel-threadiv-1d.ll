@@ -16,11 +16,11 @@
 ; CHECK: %[[BOFF:.+]] = mul i32 %[[BDIM]], %[[BIDX]]
 ; CHECK: %[[IVBEG32:.+]] = add i32 %[[BOFF]], %[[TIDX]]
 ; CHECK: %[[IVBEG:.+]] = zext i32 %[[IVBEG32]] to i64
-; CHECK: %[[IVCOND:.+]] = icmp uge i64 %[[IVBEG]], %[[TC]]
-; CHECK-NEXT: br i1 %[[IVCOND]], label %[[BBEXIT:[^,]+]], label %[[HEADER:.+]]
+; CHECK: %[[IVCOND:.+]] = icmp ult i64 %[[IVBEG]], %[[TC]]
+; CHECK-NEXT: br i1 %[[IVCOND]], label %[[HEADER:[^,]+]], label %[[EXIT:.+]]
 ; CHECK: [[HEADER]]:
 ; CHECK-NEXT: phi i64
-; CHECK: [[BBEXIT]]:
+; CHECK: [[EXIT]]:
 ; CHECK-NEXT: ret void
 ;
 ; CHECK: attributes #[[ATTRS]] = {
