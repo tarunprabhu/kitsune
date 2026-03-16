@@ -135,8 +135,8 @@ static std::string convertNameForPTX(StringRef name, bool addPrefix = true) {
   return buf;
 }
 
-/// The loop outline process for transforming a Tapir parallel loop into a
-/// cuda kernel function.
+/// Loop outline processor that transforms tapir loop nests into a kernel
+/// functions for an NVIDIA GPU.
 /// \ingroup kitsune
 class CudaLoop : public GPUTTLoopBase {
 protected:
@@ -161,7 +161,7 @@ public:
 
 CudaLoop::CudaLoop(Module &hostM, Module &devM, const TTOptions &tto,
                    const TapirLoopInfo &tl, StringRef kernelName)
-    : GPUTTLoopBase(hostM, devM, tto, TTID::Cuda, tl, kernelName) {
+    : GPUTTLoopBase(hostM, devM, tto, tl, TTID::Cuda, kernelName) {
   LLVM_DEBUG(dbgs() << "debug[cuabi]: creating a cuda loop outliner.\n"
                     << "  - target kernel name: " << kernelName << "\n");
 }
@@ -237,7 +237,9 @@ CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
   LLVM_DEBUG(dbgs() << "cuabi: create loop outline processor.\n");
   LLVM_DEBUG(saveModuleToFile(&hostM, hostM.getName().str() + ".input"));
 
+  const TTOptions &tto = getOptions();
   std::string kernelName = convertNameForPTX(getNameForTapirLoop(*tl),
                                              /*AddPrefix=*/false);
-  return new CudaLoop(hostM, devM, getOptions(), *tl, kernelName);
+
+  return new CudaLoop(hostM, devM, tto, *tl, kernelName);
 }

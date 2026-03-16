@@ -73,6 +73,7 @@
 #include "GPUTTLoop.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/InstructionUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/TTOptions.h"
@@ -97,8 +98,8 @@ cl::opt<bool> clUseYLaunch("hipabi-y-launch", cl::init(false), cl::Hidden,
                            cl::desc("Launch kernel using y-axis threading"),
                            cl::cat(cl::catKitClDevOpts));
 
-/// The loop outline process for transforming a Tapir parallel loop into a
-/// hip kernel function.
+/// Loop outline processor that transforms tapir loop nests into a kernel
+/// functions for an AMD GPU.
 /// \ingroup kitsune
 class HipLoop : public GPUTTLoopBase {
 protected:
@@ -131,7 +132,7 @@ public:
 
 HipLoop::HipLoop(Module &hostM, Module &devM, const TTOptions &tto,
                  const TapirLoopInfo &tl, StringRef kernelName)
-    : GPUTTLoopBase(hostM, devM, tto, TTID::Hip, tl, kernelName) {
+    : GPUTTLoopBase(hostM, devM, tto, tl, TTID::Hip, kernelName) {
   LLVM_DEBUG(
       dbgs() << "hipabi: hip loop outliner creation:\n"
              << "\ttransforming loop to kernel: " << kernelName << "(...)\n"
@@ -232,10 +233,10 @@ void HipLoop::setKernelFuncCallingConv(Function &f) {
 }
 
 void HipLoop::setKernelFuncVisibility(Function &f) {
-  // AMD requires that the kernel function have protected visiblity otherwise
-  // AMD's runtime is unable to find the kernel function at runtime. This, in
-  // turn requires the function to have external linkage. This is the linkage
-  // set on kernel functions by default anyway.
+  // AMD's runtime requires that the kernel function have protected visibility.
+  // Otherwise, it is unable to find the kernel function at run-time. This, in
+  // turn, requires the function to have external linkage. This is the linkage
+  // set on kernel functions by default.
   f.setVisibility(GlobalValue::ProtectedVisibility);
 }
 
@@ -251,6 +252,9 @@ class HipLoop1Y : public HipLoop {
 protected:
   virtual void processOutlinedIVs(Function &f, TapirLoopInfo &tl,
                                   ValueToValueMapTy &vmap) override {
+    assert(getDepth() == 1 &&
+           "Y-axis launches are only supported on loops with depth 1");
+
     Loop *loop = tl.getLoop();
 
     BasicBlock *bbEntry = cast<BasicBlock>(vmap[loop->getLoopPreheader()]);
@@ -280,16 +284,13 @@ protected:
 
     iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(ivBeg);
     ICmpInst *condX = cast<ICmpInst>(vmap[tl.getCondition()]);
-    condX->setOperand(getOpIndex(*condX, tcX), ivEnd);
+    condX->setOperand(getTripCountIndex(*condX, tcX), ivEnd);
   }
 
 public:
   HipLoop1Y(Module &hostM, Module &devM, const TTOptions &tto,
             const TapirLoopInfo &tl, StringRef kernelName)
-      : HipLoop(hostM, devM, tto, tl, kernelName) {
-    assert(clUseYLaunch && kernelDepth == 1 &&
-           "Loop outline processor can only be used with 1D Y-axis launches");
-  }
+      : HipLoop(hostM, devM, tto, tl, kernelName) {}
 
   virtual ~HipLoop1Y() = default;
 };
@@ -307,8 +308,15 @@ LoopOutlineProcessor *HipABI::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
   LLVM_DEBUG(dbgs() << "hipabi: create loop outline processor.\n");
   LLVM_DEBUG(saveModuleToFile(&hostM, hostM.getName().str() + ".input"));
 
+  const TTOptions &tto = getOptions();
+  unsigned depth = getPerfectDepthAttr(*tl->getLoop()).value_or(0);
   std::string kernelName = getNameForTapirLoop(*tl);
+
+  if (clUseYLaunch && depth > 1)
+    llvm_unreachable(
+        "Y-axis launches are only allowed with loop nests of depth 1");
+
   if (clUseYLaunch)
-    return new HipLoop1Y(hostM, devM, getOptions(), *tl, kernelName);
-  return new HipLoop(hostM, devM, getOptions(), *tl, kernelName);
+    return new HipLoop1Y(hostM, devM, tto, *tl, kernelName);
+  return new HipLoop(hostM, devM, tto, *tl, kernelName);
 }
