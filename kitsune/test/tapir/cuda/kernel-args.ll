@@ -1,21 +1,18 @@
-; The grainsize is always set to 1 currently. Check that this is the case in
-; the kernel immediately after loop spawning.
+; Check that the number and type of arguments in the generated kernel function
+; are as expected.
 ;
 ; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-LABEL: define ptx_kernel
-; CHECK: [[ENTRY:[^:]+]]:
-; CHECK: %[[IVBEG:.+]] = zext i32 %{{.+}} to i64
-; CHECK: %[[IVEND:.+]] = add {{.*}}i64 %[[IVBEG]], 1
-; CHECK: %[[IV:.+]] = phi i64
-; CHECK-SAME: %[[IVBEG]], %[[ENTRY]]
-; CHECK: %[[INC:.+]] = add {{.*}}i64 %[[IV]], 1
-; CHECK-NEXT: %[[CMP:.+]] = icmp eq i64 %[[INC]], %[[IVEND]]
-; CHECK-NEXT: br i1 %[[CMP]]
+; CHECK: define {{.*}}ptx_kernel void
+; CHECK-SAME: (i64 %zero.x{{[^,]*}},
+; CHECK-SAME: i64 %tc.x{{[^,]*}},
+; CHECK-SAME: ptr{{[^%]*}} %c{{[^,]*}},
+; CHECK-SAME: i64 %n{{[^,]*}})
+; CHECK-SAME: #{{[0-9]+}}
 
-define void @p(ptr %a, i64 %n) {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   br label %header
@@ -25,8 +22,8 @@ header:
   detach within %syncreg, label %body, label %latch
 
 body:
-  %a.i = getelementptr i64, ptr %a, i64 %i
-  store i64 %i, ptr %a.i
+  %arrayidx = getelementptr i32, ptr %c, i64 %i
+  store i64 %n, ptr %arrayidx, align 4
   reattach within %syncreg, label %latch
 
 latch:
@@ -42,8 +39,8 @@ exit:
 }
 
 !0 = distinct !{!0, !1, !2, !3, !4, !5}
-!1 = !{!"tapir.loop.target", i32 2}
-!2 = !{!"tapir.loop.spawn.strategy", i32 3}
+!1 = !{!"tapir.loop.spawn.strategy", i32 3}
+!2 = !{!"tapir.loop.target", i32 2}
 !3 = !{!"tapir.loop.lowering.enabled"}
 !4 = !{!"tapir.loop.perfect.depth", i32 1}
 !5 = !{!"tapir.loop.perfect.level", i32 1}

@@ -305,8 +305,8 @@ static hipStream_t launchKernel1(hipFunction_t f, void **args, size_t tcX,
   return stream;
 }
 
-static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcX,
-                                 size_t tcY, unsigned tpb, hipStream_t stream) {
+static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcY,
+                                 size_t tcX, unsigned tpb, hipStream_t stream) {
   assert(kithip_rt::useYLaunch() &&
          "Y-axis launches not supported for 2D launches");
 
@@ -321,8 +321,8 @@ static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcX,
   size_t sharedMemSize = 0;
 
   if (__kitrt_verbose_mode()) {
-    fprintf(stderr, "  trip count (X): %ld\n", tcX);
     fprintf(stderr, "  trip count (Y): %ld\n", tcY);
+    fprintf(stderr, "  trip count (X): %ld\n", tcX);
     fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
     fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
   }
@@ -333,8 +333,8 @@ static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcX,
   return stream;
 }
 
-static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcX,
-                                 size_t tcY, size_t tcZ, unsigned tpb,
+static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcZ,
+                                 size_t tcY, size_t tcX, unsigned tpb,
                                  hipStream_t stream) {
   assert(kithip_rt::useYLaunch() &&
          "Y-axis launches not supported for 3D launches");
@@ -350,9 +350,9 @@ static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcX,
   size_t sharedMemSize = 0;
 
   if (__kitrt_verbose_mode()) {
-    fprintf(stderr, "  trip count (X): %ld\n", tcX);
-    fprintf(stderr, "  trip count (Y): %ld\n", tcY);
     fprintf(stderr, "  trip count (Z): %ld\n", tcZ);
+    fprintf(stderr, "  trip count (Y): %ld\n", tcY);
+    fprintf(stderr, "  trip count (X): %ld\n", tcX);
     fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
     fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
   }
@@ -378,7 +378,7 @@ static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcX,
 // used.
 //
 void *__kithip_launch_kernel(const void *fatbin, const char *name, void **args,
-                             int64_t tc_x, int64_t tc_y, int64_t tc_z, int tpb,
+                             int64_t tc_z, int64_t tc_y, int64_t tc_x, int tpb,
                              const KitRTInstMix *inst_mix, void *stream_in) {
   assert(fatbin && "kitrt[hip]: launch with null fat binary");
   assert(name && "kitrt[hip]: launch with null name");
@@ -469,9 +469,9 @@ void *__kithip_launch_kernel(const void *fatbin, const char *name, void **args,
   if (!tc_y && !tc_z)
     (void)launchKernel1(func, args, tc_x, tpb, stream);
   else if (!tc_z)
-    (void)launchKernel2(func, args, tc_x, tc_y, tpb, stream);
+    (void)launchKernel2(func, args, tc_y, tc_x, tpb, stream);
   else
-    (void)launchKernel3(func, args, tc_x, tc_y, tc_z, tpb, stream);
+    (void)launchKernel3(func, args, tc_z, tc_y, tc_x, tpb, stream);
   return stream;
 }
 

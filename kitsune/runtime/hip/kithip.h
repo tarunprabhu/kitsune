@@ -305,22 +305,20 @@ extern void __kithip_memcpy_sym_to_device(void *host_sym, void *dev_sym,
  * @param fatbin The fat binary image containing the compiled kernel.
  * @param name The name of the kernel to launch.
  * @param args The argument buffer for the kernel.
- * @param tc_x The trip count of the innermost loop in the nest from which
+ * @param tc_z The trip count of the loop at depth 3, or 0 if the kernel being
+ *             launched was derived from a loop nest with depth less than 3.
+ * @param tc_y The trip count of the loop at depth 2, or 0 if the kernel being
+ *             launched was derived from a loop nest with depth less than 2.
+ * @param tc_x The trip count of the loop at depth 1 in the loop nest from which
  *             this kernel was derived.
- * @param tc_y The trip count of the loop at depth 2. If the depth of the loop
- *             nest is less than 2, this will be 0.
- * @param tc_z The trip count of the loop at depth 1, if this loop nest from
- *             which this loop was derived only if the depth of the loop nest
- *             is exactly 3. If the depth of the loop nest is less than 3,
- *             this will be 0.
  * @param tpb The number of threads per block to use. If this is 0, an
  *            appropriate value will be calculated.
  * @param inst_mix external static code analysis details.
  * @param stream_in externally created stream for execution.
  */
 extern void *__kithip_launch_kernel(const void *fatbin, const char *name,
-                                    void **args, int64_t tc_x, int64_t tc_y,
-                                    int64_t tc_z, int tpb,
+                                    void **args, int64_t tc_z, int64_t tc_y,
+                                    int64_t tc_x, int tpb,
                                     const KitRTInstMix *inst_mix,
                                     void *stream_in);
 

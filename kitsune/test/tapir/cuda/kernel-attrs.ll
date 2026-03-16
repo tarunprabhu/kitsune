@@ -2,9 +2,9 @@
 ; kernel function.
 ;
 ; NOTE: We don't yet fully understand which attributes are actually needed for
-; correctness or beneficial for performance. For the immediate future, the
-; checks in this test will have to be updated to correctly reflect what CudaABI
-; does.
+; correctness or beneficial for performance. As a result the attributes on the
+; kernel may change. This test should be kept up to date with the changes made
+; in the cuda tapir target.
 ;
 ; RUN: opt --tapir=cuda --tapir-cuda-arch=sm_72 \
 ; RUN:     --tapir-cuda-features="+ptx87" \

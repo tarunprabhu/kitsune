@@ -2,9 +2,9 @@
 ; kernel function.
 ;
 ; NOTE: We don't yet fully understand which attributes are actually needed for
-; correctness or beneficial for performance. For the immediate future, the
-; checks in this test will have to be updated to correctly reflect what HipABI
-; does.
+; correctness or beneficial for performance. As a result the attributes on the
+; kernel may change. This test should be kept up to date with the changes made
+; in the hip tapir target.
 ;
 ; RUN: opt --tapir=hip --tapir-hip-arch=gfx906 \
 ; RUN:     --tapir-hip-features="+wavefrontsize32,+atomic-fadd-rtn-insts" \

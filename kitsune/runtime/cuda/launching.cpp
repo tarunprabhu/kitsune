@@ -56,7 +56,7 @@
 
 // We maintain a map of modules (think fat binary) to avoid having to
 // reprocess them over and over again.  This mapping actually goes
-// directly from the compiler generated fat binary to the hip runtime
+// directly from the compiler generated fat binary to the cuda runtime
 // module structure required to look up kernel calls.  The hope here
 // is that the map acccess is actually faster than repeatedly loading
 // a module, searching it, and returning a kernel.
@@ -66,7 +66,7 @@ static KitCudaModuleMap _kitcuda_module_map;
 static std::mutex _kitcuda_module_map_mutex;
 
 // Like the module map above, the runtime maintains a map from kernel
-// names to kernel functions (again avoiding a hip-driven lookup
+// names to kernel functions (again avoiding a cuda-driven lookup
 // process).
 typedef std::unordered_map<const char *, CUfunction> KitCudaKernelMap;
 static KitCudaKernelMap _kitcuda_kernel_map;
@@ -366,7 +366,7 @@ static CUstream launchKernel1(CUfunction f, void **args, size_t tcX,
   return stream;
 }
 
-static CUstream launchKernel2(CUfunction f, void **args, size_t tcX, size_t tcY,
+static CUstream launchKernel2(CUfunction f, void **args, size_t tcY, size_t tcX,
                               unsigned tpb, CUstream stream) {
   // FIXME: The threads per block (tpb) value should be split across the
   // threads launched in each direction.
@@ -379,8 +379,8 @@ static CUstream launchKernel2(CUfunction f, void **args, size_t tcX, size_t tcY,
   size_t sharedMemSize = 0;
 
   if (__kitrt_verbose_mode()) {
-    fprintf(stderr, "  trip count (X): %ld\n", tcX);
     fprintf(stderr, "  trip count (Y): %ld\n", tcY);
+    fprintf(stderr, "  trip count (X): %ld\n", tcX);
     fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
     fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
   }
@@ -391,8 +391,8 @@ static CUstream launchKernel2(CUfunction f, void **args, size_t tcX, size_t tcY,
   return stream;
 }
 
-static CUstream launchKernel3(CUfunction f, void **args, size_t tcX, size_t tcY,
-                              size_t tcZ, unsigned tpb, CUstream stream) {
+static CUstream launchKernel3(CUfunction f, void **args, size_t tcZ, size_t tcY,
+                              size_t tcX, unsigned tpb, CUstream stream) {
   // FIXME: The threads per block (tpb) value should be split across the
   // threads launched in each direction.
   unsigned tpbX = tpb;
@@ -404,9 +404,9 @@ static CUstream launchKernel3(CUfunction f, void **args, size_t tcX, size_t tcY,
   size_t sharedMemSize = 0;
 
   if (__kitrt_verbose_mode()) {
-    fprintf(stderr, "  trip count (X): %ld\n", tcX);
-    fprintf(stderr, "  trip count (Y): %ld\n", tcY);
     fprintf(stderr, "  trip count (Z): %ld\n", tcZ);
+    fprintf(stderr, "  trip count (Y): %ld\n", tcY);
+    fprintf(stderr, "  trip count (X): %ld\n", tcX);
     fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
     fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
   }
@@ -418,15 +418,15 @@ static CUstream launchKernel3(CUfunction f, void **args, size_t tcX, size_t tcY,
 }
 
 void *__kitcuda_launch_kernel(const void *fatbin, const char *name, void **args,
-                              int64_t tc_x, int64_t tc_y, int64_t tc_z, int tpb,
+                              int64_t tc_z, int64_t tc_y, int64_t tc_x, int tpb,
                               const KitRTInstMix *inst_mix, void *stream_in) {
-  assert(fatbin && "kitrt[hip]: launch with null fat binary");
-  assert(name && "kitrt[hip]: launch with null name");
-  assert(args && "kitrt[hip]: launch with null args");
-  assert(tpb >= 0 && "kitrt[hip]: launch with negative threads per block");
-  assert(tc_x > 0 && "kitrt[hip]: launch with non-positive trips (x)");
-  assert(tc_y >= 0 && "kitrt[hip]: launch with negative trips (y)");
-  assert(tc_z >= 0 && "kitrt[hip]: launch with negative trips (z)");
+  assert(fatbin && "kitrt[cuda]: launch with null fat binary");
+  assert(name && "kitrt[cuda]: launch with null name");
+  assert(args && "kitrt[cuda]: launch with null args");
+  assert(tpb >= 0 && "kitrt[cuda]: launch with negative threads per block");
+  assert(tc_x > 0 && "kitrt[cuda]: launch with non-positive trips (x)");
+  assert(tc_y >= 0 && "kitrt[cuda]: launch with negative trips (y)");
+  assert(tc_z >= 0 && "kitrt[cuda]: launch with negative trips (z)");
 
   KIT_NVTX_PUSH("kitcuda:launch_kernel", KIT_NVTX_LAUNCH);
 
@@ -505,9 +505,9 @@ void *__kitcuda_launch_kernel(const void *fatbin, const char *name, void **args,
   if (!tc_y && !tc_z)
     (void)launchKernel1(func, args, tc_x, tpb, stream);
   else if (!tc_z)
-    (void)launchKernel2(func, args, tc_x, tc_y, tpb, stream);
+    (void)launchKernel2(func, args, tc_y, tc_x, tpb, stream);
   else
-    (void)launchKernel3(func, args, tc_x, tc_y, tc_z, tpb, stream);
+    (void)launchKernel3(func, args, tc_z, tc_y, tc_x, tpb, stream);
 
   KIT_NVTX_POP();
   return stream;

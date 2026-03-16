@@ -1,9 +1,8 @@
 ; Check that the kernel generated immediately after lowering of a tapir loop
-; nest of depth 1 is as expected. In this case, a single loop will be present
-; in the kernel body. The start index of the loop will be an index computed
-; from cuda's intrinsics that return threadIdx.x and blockIdx.x. The end will
-; depend on the grainsize, but we test for the expected grainsize used in a
-; different test.
+; nest of depth 1 is as expected. In this case, a single loop will be present in
+; the kernel body. The start index of the loop will be an index computed from
+; Kitsune's intrinsics that return threadIdx.x and blockIdx.x. The end will
+; depend on the grainsize, but we test for the grainsize elsewhere.
 ;
 ; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
