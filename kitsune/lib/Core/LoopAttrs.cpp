@@ -19,7 +19,7 @@
 using namespace llvm;
 
 template <typename T>
-MDNode *llvm::getMetadataForAttr(LLVMContext &ctx, LoopAttrKind attr, T val) {
+MDNode *llvm::getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr, T val) {
   StringRef name = getAttrName(attr);
   Metadata *mdVal = toMetadata(val, ctx);
   Metadata *mdTag = MDString::get(ctx, name);
@@ -28,8 +28,17 @@ MDNode *llvm::getMetadataForAttr(LLVMContext &ctx, LoopAttrKind attr, T val) {
   return md;
 }
 
-MDNode *llvm::getMetadataForAttr(LLVMContext &ctx, LoopAttrKind attr) {
-  return getMetadataForAttr(ctx, attr, 1U);
+// Parts of the code use unsigned integers for some attribute values. The
+// definitions of the attributes uses only signed integers for now, so
+// explicitly instantiate the unsigned version.
+template MDNode* llvm::getMDNodeForAttr(LLVMContext &, LoopAttrKind, uint32_t);
+
+MDNode *llvm::getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr) {
+  StringRef name = getAttrName(attr);
+  Metadata *mdTag = MDString::get(ctx, name);
+  MDNode* md = MDNode::get(ctx, mdTag);
+
+  return md;
 }
 
 StringRef llvm::getAttrName(LoopAttrKind attr) {
@@ -97,7 +106,7 @@ template <typename T>
 static void addAttrAs(Loop &loop, LoopAttrKind attr, T val) {
   LLVMContext &ctx = loop.getHeader()->getContext();
   StringRef name = getAttrName(attr);
-  MDNode *md = getMetadataForAttr(ctx, attr, val);
+  MDNode *md = getMDNodeForAttr(ctx, attr, val);
   MDNode *loopMD = loop.getLoopID();
   MDNode *newLoopMD = makePostTransformationMetadata(ctx, loopMD, {name}, {md});
 

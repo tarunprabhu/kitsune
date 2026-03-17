@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CGLoopInfo.h"
-#include "kitsune/Core/MetadataUtils.h"
+#include "kitsune/Core/LoopAttrs.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"
@@ -503,13 +503,13 @@ LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
     // std::nullopt if --tapir=nolo was specified.
     if (std::optional<TTID> TT = TapirAttrs->TapirTarget)
       LoopProperties.push_back(
-          makeTapirLoopMetadata<uint32_t>(Ctx, "tapir.loop.target", *TT));
-    LoopProperties.push_back(makeTapirLoopMetadata<uint32_t>(
-        Ctx, "tapir.loop.spawn.strategy", TapirAttrs->TapirSpawnStrategy));
-    LoopProperties.push_back(makeTapirLoopMetadata<uint32_t>(
-        Ctx, "tapir.loop.grainsize", TapirAttrs->TapirGrainSize));
-    LoopProperties.push_back(makeTapirLoopMetadata<uint32_t>(
-        Ctx, "tapir.loop.threads.per.block", TapirAttrs->ThreadsPerBlock));
+          getMDNodeForAttr(Ctx, LoopAttrKind::Target, *TT));
+    LoopProperties.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::SpawnStrategy,
+                                              TapirAttrs->TapirSpawnStrategy));
+    LoopProperties.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::Grainsize,
+                                              TapirAttrs->TapirGrainSize));
+    LoopProperties.push_back(getMDNodeForAttr(
+        Ctx, LoopAttrKind::ThreadsPerBlock, TapirAttrs->ThreadsPerBlock));
   }
 
   return LoopProperties;
