@@ -118,6 +118,7 @@ static bool serializeLoop(Loop &loop, Task &task) {
   SerializeDetach(task.getDetach(), &task);
   removeSyncRegionAndSync(syncRegion);
   clearTapirLoopAttrs(loop);
+  addSerializedAttr(loop);
 
   if (perfectLevel > 3)
     // In this case, we must adjust the depth annotation at the root of the

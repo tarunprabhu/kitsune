@@ -11,10 +11,13 @@
 ; CHECK-NOT: tail call token @llvm.syncregion.start()
 ; CHECK: %j = phi i64
 ; CHECK: %k = phi i64
+; CHECK: br i1 {{.+}} !llvm.loop ![[LOOP_K:[0-9+]]]
 ; CHECK-NOT: detach within %syncreg.j
 ; CHECK-NOT: reattach within %syncreg.j
 ; CHECK-NOT: sync within %syncreg.j
+; CHECK: br i1 {{.+}} !llvm.loop ![[LOOP_J:[0-9]+]]
 ; CHECK: reattach within %syncreg.i
+; CHECK: br i1 {{.+}} !llvm.loop ![[LOOP_I:[0-9]+]]
 ; CHECK: sync within %syncreg.i
 ;
 ; CHECK: %syncreg2.i = tail call token @llvm.syncregion.start()
@@ -29,10 +32,17 @@
 ; CHECK-NOT: detach within %syncreg.l
 ; CHECK-NOT: reattach within %syncreg.l
 ; CHECK-NOT: sync within %syncreg.l
+; CHECK: br i1 {{.+}} !llvm.loop ![[LOOP_L2:[0-9]+]]
 ; CHECK-NOT: reattach within %syncreg2.k
 ; CHECK-NOT: sync within %syncreg2.k
+; CHECK: br i1 {{.+}} !llvm.loop ![[LOOP_K2:[0-9]+]]
 ; CHECK: reattach within %syncreg2.i
 ; CHECK: sync within %syncreg2.i
+;
+; CHECK-DAG: ![[SERIALIZED:[0-9]+]] = !{!"loop.serialized"}
+; CHECK-DAG: ![[LOOP_K]] = distinct !{![[LOOP_K]], ![[SERIALIZED]]}
+; CHECK-DAG: ![[LOOP_L2]] = distinct !{![[LOOP_L2]], ![[SERIALIZED]]}
+; CHECK-DAG: ![[LOOP_K2]] = distinct !{![[LOOP_K2]], ![[SERIALIZED]]}
 ;
 ; This contains two loop nests
 ;

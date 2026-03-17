@@ -147,7 +147,7 @@ static void addAttr(Loop &loop, LoopAttrKind attr) {
   }                                                                            \
                                                                                \
   void llvm::add##NAME##Attr(Loop &loop) {                                     \
-    addAttrAs(loop, LoopAttrKind::NAME, 1U);                                   \
+    addAttr(loop, LoopAttrKind::NAME);                                         \
   }                                                                            \
                                                                                \
   void llvm::remove##NAME##Attr(Loop &loop) {                                  \

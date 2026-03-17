@@ -70,8 +70,8 @@ void removeAttr(Loop &loop, LoopAttrKind attr);
 // accessors are for attributes that may be applied to both tapir loops and
 // regular loops.
 #define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
-  bool has##NAME##Attr(const Loop &);                                          \
-  std::optional<TYPE> get##NAME##Attr(const Loop &);                           \
+  bool has##NAME##Attr(const Loop &loop);                                      \
+  std::optional<TYPE> get##NAME##Attr(const Loop &loop);                       \
   void add##NAME##Attr(Loop &loop, TYPE val);                                  \
   void remove##NAME##Attr(Loop &loop);
 
@@ -83,7 +83,7 @@ void removeAttr(Loop &loop, LoopAttrKind attr);
 // accessors from non-flag attributes. These accessors are for attributes that
 // may be applied to both tapir loops and regular loops.
 #define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
-  bool has##NAME##Attr(const Loop &);                                          \
+  bool has##NAME##Attr(const Loop &loop);                                      \
   void add##NAME##Attr(Loop &loop);                                            \
   void remove##NAME##Attr(Loop &loop);
 
@@ -95,8 +95,8 @@ void removeAttr(Loop &loop, LoopAttrKind attr);
 // accessors are for attributes that may be applied to tapir loops only.
 #define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)
 #define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
-  bool has##NAME##Attr(const Loop &);                                          \
-  std::optional<TYPE> get##NAME##Attr(const Loop &);                           \
+  bool has##NAME##Attr(const Loop &loop);                                      \
+  std::optional<TYPE> get##NAME##Attr(const Loop &loop);                       \
   void add##NAME##Attr(Loop &loop, TYPE val);                                  \
   void remove##NAME##Attr(Loop &loop);
 
@@ -107,7 +107,7 @@ void removeAttr(Loop &loop, LoopAttrKind attr);
 // accessors from non-flag attributes. These accessors are for attributes that
 // may be applied to tapir loops only.
 #define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
-  bool has##NAME##Attr(const Loop &);                                          \
+  bool has##NAME##Attr(const Loop &loop);                                      \
   void add##NAME##Attr(Loop &loop);                                            \
   void remove##NAME##Attr(Loop &loop);
 
