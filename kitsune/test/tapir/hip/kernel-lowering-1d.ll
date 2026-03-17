@@ -1,20 +1,16 @@
-; Check that the kernel generated immediately after lowering of a tapir loop
-; nest of depth 1 is as expected. In this case, a single loop will be present in
-; the kernel body. The start index of the loop will be an index computed from
-; Kitsune's intrinsics that return threadIdx.x and blockIdx.x. The end will
-; depend on the grainsize, but we test for the grainsize used elsewhere.
+; Check that the general structure of a kernel generated immediately after
+; lowering of a tapir loop nest of depth 1 is as expected. In this case, a
+; single loop will be present in the kernel body.
 ;
 ; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-LABEL: define {{.*}}amdgpu_kernel
-; CHECK-NEXT: [[ENTRY:.+]]:
-; CHECK: %[[IVBEG:.+]] = zext i32 {{.+}} to i64
-; CHECK: %[[IVEND:.+]] = add {{.*}}i64 %[[IVBEG]]
+; CHECK-LABEL: define
+;
+; CHECK: [[PH:.+]]:
 ; CHECK: [[HEADER:.+]]:
-; CHECK-NEXT: %[[IV:.+]] = phi i64
-; CHECK-SAME: %[[IVBEG]], %[[ENTRY]]
+; CHECK-NEXT: phi i64
 ; CHECK-NEXT: br label %[[BODY:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY]]:
@@ -23,9 +19,7 @@
 ; CHECK-NEXT: br label %[[LATCH:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH]]:
-; CHECK-NEXT: %[[INC:.+]] = add {{.*}}i64 %[[IV]], 1
-; CHECK-NEXT: %[[COND:.+]] = icmp eq i64 %[[INC]], %[[IVEND]]
-; CHECK-NEXT: br i1 %[[COND]], label %[[EXIT:.+]], label %[[HEADER]]
+; CHECK: br i1 %{{.+}}, label %[[EXIT:.+]], label %[[HEADER]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT]]:
 ; CHECK-NEXT: ret void

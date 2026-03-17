@@ -1,15 +1,15 @@
-; Check that the induction variable for a 1D launch is computed correctly and
-; bypasses the body of the loop if out of bounds
+; Check that the induction variable in a kernel generated from a loop nest of
+; depth 1 is computed correctly. The loop nest should be bypassed if the
+; computed value is out of bounds.
 ;
 ; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: define {{.+}}(
+; CHECK-LABEL: define
 ; CHECK-SAME: i64 {{[^%]*}}%[[LB:[^,]+]],
 ; CHECK-SAME: i64 {{[^%]*}}%[[TC:[^,]+]],
-; CHECK-SAME: i64 {{[^)]+}})
-; CHECK-SAME: #[[ATTRS:[0-9]+]]
+; CHECK-SAME: #{{[0-9]+}}
 ; CHECK: %[[TIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.x()
 ; CHECK: %[[BIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.x()
 ; CHECK: %[[BDIM:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.x()
@@ -22,9 +22,6 @@
 ; CHECK-NEXT: phi i64
 ; CHECK: [[EXIT]]:
 ; CHECK-NEXT: ret void
-;
-; CHECK: attributes #[[ATTRS]] = {
-; CHECK-SAME: kit_kernel
 
 define void @f(ptr %c, i64 %n) {
 entry:

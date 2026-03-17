@@ -168,6 +168,19 @@ protected:
   ///             cloned ifuncs.
   void cloneReachableIFuncs(ValueToValueMapTy &vmap);
 
+  /// Remove all tapir instructions and calls to syncregion create intrinsics
+  /// from the kernel function, \p f. This function must been constructed from
+  /// the tapir loop nest lowered by this loop outline processor.
+  void serializeKernelFunc(Function &f);
+
+  /// Change the trip count of the loop to \p tc. This will change the compare
+  /// instruction in the loop latch.
+  /// \param loop The loop
+  /// \param iv The loop induction variable
+  /// \param tc The new trip count to set on the loop
+  void updateTripCount(Loop *loop, PHINode *iv, Value *tc,
+                       const ValueToValueMapTy &vmap);
+
   /// Get the global variable in the device module that corresponds to the
   /// global variable \g in the host. Since the global variables in the device
   /// module may be in a different address space from that in the global, the
@@ -176,12 +189,6 @@ protected:
   /// underlying global.
   GlobalVariable *getDevGlobal(GlobalVariable *g,
                                const ValueToValueMapTy &vmap);
-
-  /// Given a compare instruction, \p inst, that is the latch compare
-  /// instruction of a tapir loop, return the operand of the instruction
-  /// that matches the value \p v. At least one of the instruction operands
-  /// is expected to match \p v.
-  unsigned getTripCountIndex(const ICmpInst &cmp, Value *tc);
 
   /// Get the depth of the loop nest that is being lowered.
   unsigned getDepth() const;
@@ -226,7 +233,7 @@ protected:
   /// \param vmap The vmap that maps values from the original host module to
   ///             the device module into which the loop has been outlined.
   virtual void processOutlinedIVs(Function &f, TapirLoopInfo &tl,
-                                  ValueToValueMapTy &vmap);
+                                  const ValueToValueMapTy &vmap);
 
   /// Get the address space, in the device module, for constant global
   /// variables. Assumes the default address space if it is not overridden by

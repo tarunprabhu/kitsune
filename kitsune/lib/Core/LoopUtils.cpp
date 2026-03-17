@@ -72,3 +72,10 @@ SmallVector<BasicBlock *, 8> llvm::getBlocksNotInSubLoops(const Loop &loop) {
 
   return bbsInLoop;
 }
+
+BasicBlock* llvm::getUniqueBackEdge(const Loop &loop) {
+  BasicBlock *incoming = nullptr, *backedge = nullptr;
+  if (loop.getIncomingAndBackEdge(incoming, backedge))
+    return backedge;
+  return nullptr;
+}

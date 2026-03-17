@@ -1,5 +1,6 @@
 ; Check that a launch call and a fat binary are present in the host and that
-; the arguments to the launch call are as expected.
+; the arguments to the launch call are as expected when lowering a tapir loop
+; nest of depth 1.
 ;
 ; RUN: opt --tapir=cuda -passes='loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
@@ -10,33 +11,8 @@
 ;
 ; CHECK: define {{.+}} @f(ptr {{.*}}%[[C:.+]], i64 {{.*}}%[[N:.+]])
 ;
-; Create a stream
-;
 ; CHECK: %[[STREAM:.+]] = {{.*}}call {{.+}} @llvm.kit.thread.stream(i32 2)
 ; CHECK-NOT: {{.*}}call {{.+}} @llvm.kit.async.prefetch.htod
-;
-; The actual launch. The arguments are:
-;
-;   - tapir target id
-;   - fat binary global
-;   - kernel name global string literal
-;   - trip count (loop at depth 1)
-;   - trip count (loop at depth 2, 0 if there is no tapir loop at that depth)
-;   - trip count (loop at depth 3, 0 if there is no tapir loop at that depth)
-;   - threads per block (zero to indicate that it is unset)
-;   - kernel properties global
-;   - thread stream
-;
-; These are followed by a variable number of arguments that are to be passed to
-; the kernel being launched. These are typically in the order
-;
-;   - start index
-;   - trip count
-;   - grain size
-;   - ...
-;
-; where ... are the rest of the arguments to be passed to the kernel. Currently,
-; we force the grain size to be 1. The start index is always 0.
 ;
 ; CHECK: %{{[0-9]+}} = {{.*}}call {{.+}} @llvm.kit.async.launch.kernel(
 ; CHECK-SAME: i32 2,
@@ -44,18 +20,18 @@
 ; CHECK-SAME: ptr {{.*}}@[[G_KNAME]],
 ; CHECK-SAME: i64 0,
 ; CHECK-SAME: i64 0,
-; CHECK-SAME: i64 %n,
+; CHECK-SAME: i64 %[[N]],
 ; CHECK-SAME: i32 0,
 ; CHECK-SAME: ptr {{.*}}@[[G_KERNEL_PROPS]],
 ; CHECK-SAME: ptr %[[STREAM]],
 ; CHECK-SAME: i64 0,
-; CHECK-SAME: i64 %n,
-; CHECK-SAME: ptr %c,
-; CHECK-SAME: i64 %n
-; CHECK-SAME: )
+; CHECK-SAME: i64 %[[N]],
+; CHECK-SAME: ptr %[[C]],
+; CHECK-SAME: i64 %[[N]])
 ;
 ; By default, we always enter a sync immediately after the launch. A later
 ; optimization pass may (re)move this if appropriate
+;
 ; CHECK: call {{.+}} @llvm.kit.sync.stream(i32 2, ptr %[[STREAM]])
 ; CHECK: ret void
 ; CHECK-NEXT: }
