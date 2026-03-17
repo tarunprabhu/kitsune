@@ -96,6 +96,15 @@ when debug information is not available.
 }];
 }
 
+// This can only be attached to normal loops since the process of serializing it
+// will have converted a tapir loop to a regular loop.
+def Serialized : FlagAttr<NormalLoopsOnly> {
+   let Documentation = [{
+The presence of this attribute indicates that the loop on which it is present
+is a tapir loop that was serialized.
+}];
+}
+
 def AutotuneLaunch : FlagAttr<TapirLoopsOnly> {
   let Documentation = [{
 If present, this attribute indicates that the runtime should use autotuning to

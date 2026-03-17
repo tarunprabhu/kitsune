@@ -189,16 +189,16 @@ TEST(KitLoopAttrs, loopFlagAttrs) {
   [[maybe_unused]] Loop *loop = li.getLoopsInPreorder().front();
 
 #define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
-  EXPECT_FALSE(hasLoop##NAME##Attr(*loop));                                    \
+  EXPECT_FALSE(has##NAME##Attr(*loop));                                    \
                                                                                \
   add##NAME##Attr(*loop);                                                      \
-  EXPECT_TRUE(hasLoop##NAME##Attr(*loop));                                     \
+  EXPECT_TRUE(has##NAME##Attr(*loop));                                     \
                                                                                \
   add##NAME##Attr(*loop);                                                      \
-  EXPECT_TRUE(hasLoop##NAME##Attr(*loop));                                     \
+  EXPECT_TRUE(has##NAME##Attr(*loop));                                     \
                                                                                \
   remove##NAME##Attr(*loop);                                                   \
-  EXPECT_FALSE(hasLoop##NAME##Attr(*loop));
+  EXPECT_FALSE(has##NAME##Attr(*loop));
 
 #define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
   EXPECT_FALSE(has##NAME##Attr(*loop));                                        \

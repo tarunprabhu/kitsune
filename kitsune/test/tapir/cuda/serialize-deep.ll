@@ -30,12 +30,13 @@
 ; CHECK: sync within %syncreg.i
 ; CHECK: ret void
 ;
+; CHECK-DAG: ![[SERIALIZED:[0-9]+]] = !{!"loop.serialized"}
 ; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 2}
 ; CHECK-DAG: ![[L3:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 3}
 ; CHECK-DAG: ![[L2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
 ; CHECK-DAG: ![[L1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
 ; CHECK-DAG: ![[D3:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 3}
-; CHECK-DAG: ![[LOOP_L]] = distinct !{![[LOOP_L]]}
+; CHECK-DAG: ![[LOOP_L]] = distinct !{![[LOOP_L]], ![[SERIALIZED]]}
 ; CHECK-DAG: ![[LOOP_K]] = distinct !{![[LOOP_K]], ![[TARGET]], ![[L3]]}
 ; CHECK-DAG: ![[LOOP_J]] = distinct !{![[LOOP_J]], ![[TARGET]], ![[L2]]}
 ; CHECK-DAG: ![[LOOP_I]] = distinct !{![[LOOP_I]], ![[TARGET]], ![[L1]], ![[D3]]}
