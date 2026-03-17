@@ -1282,8 +1282,8 @@ static void removeSpawnStrategyFromClonedLoop(const Loop *L,
                                               ValueToValueMapTy &VMap) {
   LLVMContext &ctx = L->getHeader()->getContext();
   StringRef attrName = getAttrName(LoopAttrKind::SpawnStrategy);
-  MDNode *newAttrVal = getMetadataForAttr(ctx, LoopAttrKind::SpawnStrategy,
-                                          defaultTapirSpawnStrategy);
+  MDNode *newAttrVal = getMDNodeForAttr(ctx, LoopAttrKind::SpawnStrategy,
+                                        defaultTapirSpawnStrategy);
 
   auto *clonedLatch = cast<BasicBlock>(VMap[L->getLoopLatch()]);
   assert(clonedLatch && "Cloned Tapir loop does not have a single latch.");

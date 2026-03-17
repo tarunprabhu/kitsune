@@ -60,7 +60,7 @@ static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
 template <typename T>
 static void checkLoopGetMetadata(LLVMContext &ctx, LoopAttrKind attr, T val,
                                  unsigned llvmVal) {
-  MDNode *md = getMetadataForAttr(ctx, attr, val);
+  MDNode *md = getMDNodeForAttr(ctx, attr, val);
   auto *md0 = dyn_cast<MDString>(md->getOperand(0));
   auto *md1 = dyn_cast<ConstantAsMetadata>(md->getOperand(1));
 
@@ -72,15 +72,12 @@ static void checkLoopGetMetadata(LLVMContext &ctx, LoopAttrKind attr, T val,
 }
 
 static void checkLoopGetMetadata(LLVMContext &ctx, LoopAttrKind attr) {
-  MDNode *md = getMetadataForAttr(ctx, attr);
-  auto *md0 = dyn_cast<MDString>(md->getOperand(0));
-  auto *md1 = dyn_cast<ConstantAsMetadata>(md->getOperand(1));
+  MDNode *md = getMDNodeForAttr(ctx, attr);
+  EXPECT_EQ(md->getNumOperands(), 1U);
 
+  auto *md0 = dyn_cast<MDString>(md->getOperand(0));
   EXPECT_TRUE(md0);
-  EXPECT_TRUE(md1);
-  EXPECT_EQ(md->getNumOperands(), 2U);
   EXPECT_EQ(md0->getString(), getAttrName(attr));
-  EXPECT_EQ(cast<ConstantInt>(md1->getValue())->getLimitedValue(), 1U);
 }
 
 TEST(KitLoopAttrs, loopGetMetadata) {

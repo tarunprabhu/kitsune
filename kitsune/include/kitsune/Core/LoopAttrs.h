@@ -38,10 +38,10 @@ enum class LoopAttrKind : uint32_t {
 
 /// Get a metadata node for a loop attribute that takes a value.
 template <typename T>
-MDNode *getMetadataForAttr(LLVMContext &ctx, LoopAttrKind attr, T val);
+MDNode *getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr, T val);
 
 /// Get a metadata node for a loop attribute that does not take a value.
-MDNode *getMetadataForAttr(LLVMContext &ctx, LoopAttrKind attr);
+MDNode *getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr);
 
 /// Get the name of the loop attribute as it appears in the loop metadata.
 /// The result will start with "tapir.loop." or "loop."
