@@ -69,6 +69,9 @@ SmallVector<Loop *, 4> getAllSubLoops(Loop &loop);
 ///
 SmallVector<BasicBlock *, 8> getBlocksNotInSubLoops(const Loop &loop);
 
+/// Get the unique backedge in the loop, if one exists.
+BasicBlock *getUniqueBackEdge(const Loop &loop);
+
 /// @}
 
 } // namespace llvm

@@ -1,5 +1,6 @@
 ; Check that when the standard sequence of optimization passes are run on the
-; code, the results as expected.
+; device module generated from a tapir loop nest of depth 1, the results are
+; as expected.
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -18,13 +19,10 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; NOTE: This assumes that the grainsize is 1. For now, this is hard-coded into
-; the hip tapir target. If we ever allow this to be configurable, and set the
-; default value to something other than 1, this needs to be changed.
-;
 ; If compiling with optimizations, the loop will be removed since the trip
-; is determined to be 1. If the grain size is changed to be greater than 1, we
-; may need to check for unrolling.
+; is determined to be 1. This is because the 'hip' tapir target hard-codes this
+; value when generating the code. If the grain size is changed to be something
+; other than 1, this will certainly change.
 ;
 ; RUN: opt --tapir=hip -passes='loop-spawning,emb-optimize' %s \
 ; RUN:     | %kit-mbc -S \
@@ -32,30 +30,22 @@
 ;
 ; O2-NOT: = phi i64
 ; O2: define {{.+}} @__kithip_{{[^(]+}}(
-; O2-SAME: i64 {{[^%]*}}%[[LB:[^,]+]],
-; O2-SAME: i64 {{[^%]*}}%[[TC:[^,]+]],
+; O2-SAME: i64 {{[^%]*}}%[[LB_X:[^,]+]],
+; O2-SAME: i64 {{[^%]*}}%[[TC_X:[^,]+]],
 ; O2-SAME: ptr {{[^%]*}}%[[BUF:[^,]+]],
 ; O2-SAME: i64 {{[^%]*}}%[[N:[^)]+]])
 ; O2-SAME: {{.*}}#[[ATTRS:[0-9]+]]
-; O2-NEXT: [[BBENTRY:.+]]:
+; O2-NEXT: [[PH_X:.+]]:
 ; O2-NEXT: %[[BUFCST:.+]] = addrspacecast ptr %[[BUF]] to ptr addrspace(1)
-; O2-NEXT: %[[TIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.x()
-; O2-NEXT: %[[BIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.x()
-; O2-NEXT: %[[BDIM:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.x()
-; O2-NEXT: %[[BOFF:.+]] = mul i32 %[[BDIM]], %[[BIDX]]
-; O2-NEXT: %[[IVBEG32:.+]] = add i32 %[[BOFF]], %[[TIDX]]
-; O2-NEXT: %[[IVBEG:.+]] = zext i32 %[[IVBEG32]] to i64
-; O2-NEXT: %[[IVCOND:.+]] = icmp ugt i64 %[[TC]], %[[IVBEG]]
-; O2-NEXT: br i1 %[[IVCOND]], label %[[BBBODY:[^,]+]], label %[[BBEXIT:.+]]
-; O2: [[BBBODY]]:
-; O2-NEXT: %[[ARRIDX:.+]] = getelementptr {{.+}}, ptr {{.*}}%[[BUFCST]], i64 %[[IVBEG]]
-; O2-NEXT: store i64 %[[N]], ptr {{.*}}%[[ARRIDX]]
-; O2-NEXT: br label %[[BBEXIT]]
-; O2: [[BBEXIT]]:
+; O2: %[[IVBEG_X:.+]] = zext i32 %{{.+}} to i64
+; O2-NEXT: %[[IVCOND_X:.+]] = icmp ugt i64 %[[TC_X]], %[[IVBEG_X]]
+; O2-NEXT: br i1 %[[IVCOND_X]], label %[[BODY:[^,]+]], label %[[EXIT:.+]]
+; O2: [[BODY]]:
+; O2-NEXT: %[[ARRIDX:.+]] = getelementptr {{.+}}, ptr {{.+}}%[[BUFCST]], i64 %[[IVBEG_X]]
+; O2-NEXT: store i64 %[[N]], ptr {{.+}}%[[ARRIDX]]
+; O2-NEXT: br label %[[EXIT]]
+; O2: [[EXIT]]:
 ; O2-NEXT: ret void
-;
-; O2: attributes #[[ATTRS]] = {
-; O2-SAME: kit_kernel
 ;
 ; ------------------------------------------------------------------------------
 

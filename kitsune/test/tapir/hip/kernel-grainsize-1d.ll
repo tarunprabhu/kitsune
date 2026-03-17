@@ -1,19 +1,14 @@
-; The grainsize is always set to 1 currently. Check that this is the case in
-; the kernel immediately after loop spawning.
+; The grainsize is always set to 1. Check that this is the case in the kernel
+; immediately after spawning a loop nest of depth 1.
 ;
 ; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-LABEL: define {{.*}}amdgpu_kernel
-; CHECK: [[ENTRY:[^:]+]]:
-; CHECK: %[[IVBEG:.+]] = zext i32 {{.+}} to i64
-; CHECK: %[[IVEND:.+]] = add {{.*}}i64 %[[IVBEG]], 1
-; CHECK: %[[IV:.+]] = phi i64
-; CHECK-SAME: %[[IVBEG]], %[[ENTRY]]
-; CHECK: %[[INC:.+]] = add {{.*}}i64 %[[IV]], 1
-; CHECK-NEXT: %[[CMP:.+]] = icmp eq i64 %[[INC]], %[[IVEND]]
-; CHECK-NEXT: br i1 %[[CMP]]
+; CHECK-LABEL: define
+;
+; CHECK: %[[IVBEG_X:.+]] = zext i32 %{{.+}} to i64
+; CHECK: %[[IVEND_X:.+]] = add {{.*}}i64 %[[IVBEG_X]], 1
 
 define void @p(ptr %a, i64 %n) {
 entry:

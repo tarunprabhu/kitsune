@@ -1,5 +1,5 @@
 ; Check that the number and type of arguments in the generated kernel function
-; are as expected.
+; are as expected when the source tapir loop nest has depth 1.
 ;
 ; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \

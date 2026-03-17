@@ -17,10 +17,12 @@
 #include "kitsune/Core/InstructionUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
@@ -292,21 +294,66 @@ void GPUTTLoopBase::cloneReachableIFuncs(ValueToValueMapTy &vmap) {
       llvm_unreachable("cloneReachableIFuncsInto: not yet implemented");
 }
 
+void GPUTTLoopBase::serializeKernelFunc(Function &f) {
+  auto shouldRemove = [](const Instruction &inst) -> bool {
+    if (isa<DetachInst>(inst) || isa<ReattachInst>(inst) || isa<SyncInst>(inst))
+      return true;
+    else if (const auto *call = dyn_cast<CallBase>(&inst))
+      if (Intrinsic::ID callee = call->getIntrinsicID())
+        return callee == Intrinsic::syncregion_start;
+    return false;
+  };
+
+  // Collect the instructions to be deleted.
+  SmallVector<Instruction *, 8> del;
+  for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
+    if (shouldRemove(*i))
+      del.push_back(cast<Instruction>(&*i));
+
+  // Fixup the terminator instructions.
+  for (Instruction *inst : del) {
+    if (auto *detach = dyn_cast<DetachInst>(inst))
+      ReplaceInstWithInst(detach, BranchInst::Create(detach->getDetached()));
+    else if (auto *reattach = dyn_cast<ReattachInst>(inst))
+      ReplaceInstWithInst(reattach,
+                          BranchInst::Create(reattach->getDetachContinue()));
+    else if (auto *sync = dyn_cast<SyncInst>(inst))
+      ReplaceInstWithInst(sync, BranchInst::Create(sync->getSuccessor(0)));
+  }
+
+  // Finally, delete the syncregion creation calls.
+  for (Instruction *inst : del)
+    if (isa<CallInst>(inst))
+      inst->eraseFromParent();
+}
+
+void GPUTTLoopBase::updateTripCount(Loop *loop, PHINode *iv, Value *newTC,
+                                    const ValueToValueMapTy &vmap) {
+  // For the outermost loop in a nest that is being lowered, we know what the
+  // expected trip count is because it will be passed in as an argument to the
+  // generated kernel function. However, because tapir does not know about the
+  // inner loops in the nest, the trip counts on those will not have been
+  // wired up to the corresponding kernel function arguments (in effect, we
+  // have generated a function with unused arguments). As a result, we do not
+  // know what the expected trip count is in compare instruction in the loop
+  // latch.
+  //
+  // Therefore, assume that the operand of the latch that is *not* the updated
+  // loop induction variable is the trip count.
+  BasicBlock *be = getUniqueBackEdge(*loop);
+  BasicBlock *backEdge = cast<BasicBlock>(vmap.lookup(be));
+  Value *incr = iv->getIncomingValueForBlock(backEdge);
+  ICmpInst *latchCmp = cast<ICmpInst>(vmap.lookup(loop->getLatchCmpInst()));
+
+  // In C++, the bool is implicitly converted to 1 or 0.
+  unsigned op = latchCmp->getOperand(0) == incr;
+
+  latchCmp->setOperand(op, newTC);
+}
+
 GlobalVariable *GPUTTLoopBase::getDevGlobal(GlobalVariable *g,
                                             const ValueToValueMapTy &vmap) {
   return cast<GlobalVariable>(stripCasts(cast<Constant>(vmap.lookup(g))));
-}
-
-// This could be made into a utility function that simply returns the index of
-// the operand of an instruction that is equal to the value. However, that would
-// have to handle the cases where the value appears in more than one operand, as
-// well as if it doesn't appear at all. It is not clear that there is broader
-// use of such a function.
-unsigned GPUTTLoopBase::getTripCountIndex(const ICmpInst &cmp, Value *tc) {
-  for (unsigned i = 0; i < cmp.getNumOperands(); ++i)
-    if (cmp.getOperand(i) == tc)
-      return i;
-  llvm_unreachable("Trip count not used in loop condition");
 }
 
 unsigned GPUTTLoopBase::getDepth() const { return loops.size(); }
@@ -366,7 +413,7 @@ void GPUTTLoopBase::setupLoopControlArgs(TapirLoopInfo *tl,
     BasicBlock *ph = loop->getLoopPreheader();
     ICmpInst *cmp = loop->getLatchCmpInst();
     PHINode *iv = loop->getCanonicalInductionVariable();
-    Dirxn dirxn = dirxns[i];
+    Dirxn dirxn = dirxns[getDepth() - i - 1];
     StringRef sfx = suffixes[int(dirxn)];
 
     // Since the start value is 0, we don't strictly need this. However, not
@@ -470,7 +517,7 @@ void GPUTTLoopBase::emitIndexCalculation(IRBuilder<> &builder, PHINode *iv,
   // GPU thread on which this being run.
   Type *ivType = iv->getType();
   Value *ivBeg =
-      builder.CreateIntCast(bdxbipti, ivType, /*isSigned=*/false, n(".ivb"));
+      builder.CreateIntCast(bdxbipti, ivType, /*isSigned=*/false, n("ivb"));
 
   // The final value of the induction variable will be sum of the initial value
   // and the grainsize. In most cases, this will just be the `ivBeg + 1`.
@@ -480,18 +527,20 @@ void GPUTTLoopBase::emitIndexCalculation(IRBuilder<> &builder, PHINode *iv,
 }
 
 void GPUTTLoopBase::processOutlinedIVs(Function &f, TapirLoopInfo &tl,
-                                       ValueToValueMapTy &vmap) {
+                                       const ValueToValueMapTy &vmap) {
   Loop *root = loops.front();
-  BasicBlock *bbEntry = cast<BasicBlock>(vmap[root->getLoopPreheader()]);
+  BasicBlock *bbEntry = cast<BasicBlock>(vmap.lookup(root->getLoopPreheader()));
   IRBuilder<> builder(bbEntry->getTerminator());
 
   // Compute the new ranges of the induction variables of all loops in the nest.
   SmallVector<IVRange, 4> ivRanges;
   for (unsigned i = 0; i < getDepth(); ++i) {
     Loop *loop = loops[i];
-    PHINode *iv = cast<PHINode>(vmap[loop->getCanonicalInductionVariable()]);
+    PHINode *iv =
+        cast<PHINode>(vmap.lookup(loop->getCanonicalInductionVariable()));
+    Dirxn dirxn = dirxns[getDepth() - i - 1];
 
-    emitIndexCalculation(builder, iv, dirxns[i], ivRanges);
+    emitIndexCalculation(builder, iv, dirxn, ivRanges);
   }
 
   // Collect the trip counts for all loops in the next. These are passed in as
@@ -529,31 +578,30 @@ void GPUTTLoopBase::processOutlinedIVs(Function &f, TapirLoopInfo &tl,
   // If all the induction variables are in range, enter the loop, otherwise,
   // bypass it altogether.
   Value *allInRange = builder.CreateAnd(cmps);
-  BasicBlock *bbHeader = cast<BasicBlock>(vmap[root->getHeader()]);
-  BasicBlock *bbExit = cast<BasicBlock>(vmap[tl.getExitBlock()]);
+  BasicBlock *bbHeader = cast<BasicBlock>(vmap.lookup(root->getHeader()));
+  BasicBlock *bbExit = cast<BasicBlock>(vmap.lookup(tl.getExitBlock()));
   ReplaceInstWithInst(bbEntry->getTerminator(),
                       BranchInst::Create(bbHeader, bbExit, allInRange));
 
-  // Otherwise, set the initial values of the loops to be this computed value.
+  // Otherwise, set the initial values of the loop induction variables to be
+  // these computed values.
   for (unsigned i = 0; i < getDepth(); ++i) {
     const IVRange &ivRange = ivRanges[i];
     PHINode *iv = ivRange.iv;
     Value *ivBeg = ivRange.beg;
     Loop *loop = loops[i];
-    BasicBlock *ph = cast<BasicBlock>(vmap[loop->getLoopPreheader()]);
+    BasicBlock *ph = cast<BasicBlock>(vmap.lookup(loop->getLoopPreheader()));
 
-    iv->getIncomingValueForBlock(ph)->replaceAllUsesWith(ivBeg);
+    iv->setIncomingValueForBlock(ph, ivBeg);
   }
 
-  // Then change the loop condition to check for the computed final value.
+  // Then change the loop conditions to check for the computed final values.
   for (unsigned i = 0; i < getDepth(); ++i) {
     Loop *loop = loops[i];
+    PHINode *iv = ivRanges[i].iv;
     Value *ivEnd = ivRanges[i].end;
-    Value *tc = tcs[i];
-    ICmpInst *latchCmp = cast<ICmpInst>(vmap[loop->getLatchCmpInst()]);
-    unsigned op = getTripCountIndex(*latchCmp, tc);
 
-    latchCmp->setOperand(op, ivEnd);
+    updateTripCount(loop, iv, ivEnd, vmap);
   }
 }
 
@@ -573,6 +621,8 @@ void GPUTTLoopBase::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
   setKernelFuncLinkage(*kernelF);
   setKernelFuncVisibility(*kernelF);
   setModuleAttrsForKernelFunc(*kernelF);
+
+  serializeKernelFunc(*kernelF);
 
   processOutlinedIVs(*kernelF, tl, vmap);
 }
@@ -615,8 +665,8 @@ void GPUTTLoopBase::processOutlinedLoopCall(TapirLoopInfo &tl,
   // The trip counts will be the second, fourth and sixth arguments to the
   // outlined functions (depending on the depth of the tapir loop).
   Constant *zero = ConstantInt::get(i64, 0);
-  Value* argX = zero;
-  Value* argY = zero;
+  Value *argX = zero;
+  Value *argY = zero;
   Value *argZ = zero;
   switch (getDepth()) {
   case 1:

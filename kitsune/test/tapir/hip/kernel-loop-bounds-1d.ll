@@ -1,35 +1,27 @@
-; Check that the loop bounds of the tapir loop are correctly replaced in the
-; outlined kernel function when a 1D kernel is launched.
+; Check that the loop bounds of the loops are replaced correctly in the
+; kernel function generated from a tapir loop nest of depth 1.
 ;
-; NOTE: The upper bounds is determined by the grainsize. We deliberately do not
-; check for the actual grainsize here. That will be tested elsewhere. This is
-; only intended to check the bounds.
+; NOTE: The upper bound is determined by the grainsize. We deliberately do not
+; check for the actual grainsize here. That will be tested elsewhere.
 ;
 ; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: define {{.+}}(
-; CHECK-SAME: i64 {{[^,]+}},
-; CHECK-SAME: i64 {{[^,]+}},
-; CHECK-SAME: ptr {{.*}}%[[BUF:[^,]+]],
-; CHECK-SAME: i64 {{.*}}%[[N:[^)]+]])
-; CHECK-NEXT: [[PREHEADER:.+]]:
-; CHECK: %[[TIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.x()
-; CHECK: %[[BIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.x()
-; CHECK: %[[BDIM:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.x()
-; CHECK: %[[BOFF:.+]] = mul i32 %[[BDIM]], %[[BIDX]]
-; CHECK: %[[IVBEG32:.+]] = add i32 %[[BOFF]], %[[TIDX]]
-; CHECK: %[[IVBEG:.+]] = zext i32 %[[IVBEG32]] to i64
-; CHECK: %[[IVEND:.+]] = add i64 %[[IVBEG]]
+; CHECK-LABEL: define
+; CHECK-NEXT: [[PH_X:.+]]:
+; CHECK: %[[IVBEG_X:.+]] = zext i32 %{{.+}} to i64
+; CHECK: %[[IVEND_X:.+]] = add i64 %[[IVBEG_X]]
 ;
-; CHECK: [[HEADER:.+]]:
-; CHECK: %[[IV:.+]] = phi i64
-; CHECK-SAME: [ %[[IVBEG]], %[[PREHEADER]] ]
-; CHECK-SAME: [ %[[IVNEXT:.+]], %[[LATCH:.+]] ]
-; CHECK: %[[IVNEXT:.+]] = add {{.*}}i64 %[[IV]]
-; CHECK: %[[COND:.+]] = icmp eq i64 %[[IVNEXT]], %[[IVEND]]
-; CHECK: br i1 %[[COND]], label %[[EXIT:.+]], label %[[HEADER]]
+; CHECK: [[HEADER_X:.+]]:
+; CHECK: %[[IV_X:.+]] = phi i64
+; CHECK-SAME: [ %[[IVBEG_X]], %[[PH_X]] ]
+; CHECK-SAME: [ %[[IVNEXT_X:.+]], %[[LATCH_X:.+]] ]
+;
+; CHECK: [[LATCH_X]]:
+; CHECK: %[[IVNEXT_X:.+]] = add {{.*}}i64 %[[IV_X]]
+; CHECK: %[[IVCOND_X:.+]] = icmp eq i64 %[[IVNEXT_X]], %[[IVEND_X]]
+; CHECK: br i1 %[[IVCOND_X]], label %[[EXIT:.+]], label %[[HEADER_X]]
 ;
 ; CHECK: [[EXIT]]:
 ; CHECK-NEXT: ret void

@@ -251,16 +251,16 @@ void HipLoop::setKernelFuncVisibility(Function &f) {
 class HipLoop1Y : public HipLoop {
 protected:
   virtual void processOutlinedIVs(Function &f, TapirLoopInfo &tl,
-                                  ValueToValueMapTy &vmap) override {
+                                  const ValueToValueMapTy &vmap) override {
     assert(getDepth() == 1 &&
            "Y-axis launches are only supported on loops with depth 1");
 
     Loop *loop = tl.getLoop();
 
-    BasicBlock *bbEntry = cast<BasicBlock>(vmap[loop->getLoopPreheader()]);
-    BasicBlock *bbHeader = cast<BasicBlock>(vmap[loop->getHeader()]);
-    BasicBlock *bbExit = cast<BasicBlock>(vmap[tl.getExitBlock()]);
-    PHINode *iv = cast<PHINode>(vmap[tl.getPrimaryInduction().first]);
+    auto *bbEntry = cast<BasicBlock>(vmap.lookup(loop->getLoopPreheader()));
+    auto *bbHeader = cast<BasicBlock>(vmap.lookup(loop->getHeader()));
+    auto *bbExit = cast<BasicBlock>(vmap.lookup(tl.getExitBlock()));
+    auto *iv = cast<PHINode>(vmap.lookup(tl.getPrimaryInduction().first));
     Type *ivType = iv->getType();
 
     IRBuilder<> bldr(bbEntry->getTerminator());
@@ -283,8 +283,7 @@ protected:
                         BranchInst::Create(bbExit, bbHeader, ivCond));
 
     iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(ivBeg);
-    ICmpInst *condX = cast<ICmpInst>(vmap[tl.getCondition()]);
-    condX->setOperand(getTripCountIndex(*condX, tcX), ivEnd);
+    updateTripCount(loop, iv, ivEnd, vmap);
   }
 
 public:
