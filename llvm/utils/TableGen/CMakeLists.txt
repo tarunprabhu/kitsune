@@ -58,6 +58,7 @@ add_tablegen(llvm-tblgen LLVM
   InstrInfoEmitter.cpp
   KitsuneAttrUtils.cpp
   KitsuneDiagEmitter.cpp
+  KitsuneInstAttrEmitter.cpp
   KitsuneLoopAttrDocsEmitter.cpp
   KitsuneLoopAttrEmitter.cpp
   KitsuneLoopAttrUtils.cpp
