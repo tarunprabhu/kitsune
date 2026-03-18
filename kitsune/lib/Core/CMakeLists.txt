@@ -5,6 +5,7 @@ add_llvm_component_library(LLVMKitCore
   EmbUtils.cpp
   FunctionUtils.cpp
   GlobalVariableUtils.cpp
+  InstAttrs.cpp
   InstructionUtils.cpp
   IntrinsicUtils.cpp
   KernelProperties.cpp
