@@ -17,7 +17,7 @@
 
 using namespace llvm;
 
-std::string getBaseName(const Record &attr) {
+static std::string getName(StringRef base, const Record &attr) {
   auto addDot = [](char c, char prev) -> bool {
     return (isAlpha(prev) && isDigit(c)) || (isDigit(prev) && isAlpha(c)) ||
            (isLower(prev) && isUpper(c));
@@ -27,13 +27,37 @@ std::string getBaseName(const Record &attr) {
   raw_string_ostream os(buf);
   StringRef attrName = attr.getName();
 
+  os << base;
   os << (char)toLower(attrName[0]);
   for (unsigned i = 1, ie = attrName.size(); i < ie; ++i) {
     if (addDot(attrName[i], attrName[i - 1]))
       os << ".";
     os << (char)toLower(attrName[i]);
   }
-
   os.flush();
+
   return buf;
+}
+
+std::string getAttrBaseName(const Record &attr) {
+  return getName("", attr);
+}
+
+std::string getInstAttrIRName(const Record &attr) {
+  return getName("kit.inst.", attr);
+}
+
+std::string getLoopAttrIRName(const Record &attr) {
+  if (isTapirLoopOnly(attr))
+    return getName("tapir.loop.", attr);
+  return getName("loop.", attr);
+}
+
+std::string getModuleAttrIRName(const Record& attr) {
+  return getName("kit.module.", attr);
+}
+
+bool isTapirLoopOnly(const Record &attr) {
+  const Record *allowedOn = attr.getValueAsDef("AllowedOn");
+  return allowedOn->getName() == "TapirLoopsOnly";
 }

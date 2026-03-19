@@ -29,6 +29,19 @@ class Record;
 //    PerfectDepth    perfect.depth
 //    Dim3            dim3
 //
-std::string getBaseName(const llvm::Record &attr);
+std::string getAttrBaseName(const llvm::Record &attr);
+
+// Get the string that will appear in LLVM-IR for an instruction attribute.
+std::string getInstAttrIRName(const llvm::Record &attr);
+
+// Get the string that will appear in LLVM-IR for a loop attribute.
+std::string getLoopAttrIRName(const llvm::Record &attr);
+
+// Get the string that will appear in LLVM-IR metadata for a module attribute.
+std::string getModuleAttrIRName(const llvm::Record &attr);
+
+// Return true if the attribute in the given record only applies to tapir loops,
+// false otherwise.
+bool isTapirLoopOnly(const llvm::Record &attr);
 
 #endif // LLVM_TABLEGEN_KITSUNE_ATTR_UTILS_H

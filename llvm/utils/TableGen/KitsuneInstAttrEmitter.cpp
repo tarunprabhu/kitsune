@@ -17,6 +17,25 @@
 
 using namespace llvm;
 
+namespace {
+
+class InstAttrsEmitter {
+private:
+  const RecordKeeper &records;
+  SmallVector<StringRef, 8> attrKinds;
+
+private:
+  void emitAttrs(raw_ostream &os, StringRef kind);
+  void emitAttrs(raw_ostream &os);
+  void emitAttrEnums(raw_ostream &os);
+
+public:
+  InstAttrsEmitter(const RecordKeeper &records);
+  void run(raw_ostream &os);
+};
+
+} // namespace
+
 static std::string getMacroName(StringRef kind) {
   assert(kind.ends_with("Attr") && "Attribute kind must end in 'Attr'");
   return "INST_ATTRIBUTE_" + kind.drop_back(4).upper();
@@ -39,10 +58,6 @@ static StringRef getValueType(StringRef kind) {
       .Case("StrAttr", "StringRef");
 }
 
-static std::string getIRName(const Record &r) {
-  return "kit.inst." + getBaseName(r);
-}
-
 static StringRef getIRType(StringRef kind) {
   return StringSwitch<StringRef>(kind)
       .Cases("EnumAttr", "FlagAttr", "Int32Attr", "int32_t")
@@ -52,98 +67,86 @@ static StringRef getIRType(StringRef kind) {
       .Case("StrAttr", "StringRef");
 }
 
-class InstAttrsEmitter {
-private:
-  const RecordKeeper &records;
-  SmallVector<StringRef, 8> attrKinds;
+void InstAttrsEmitter::emitAttrs(raw_ostream &os, StringRef kind) {
+  std::string macroName = getMacroName(kind);
+  StringRef macroArgs = getMacroArgs(kind);
+  StringRef valType = getValueType(kind);
+  StringRef irType = getIRType(kind);
 
-private:
-  raw_ostream &emitAttrs(raw_ostream &os, StringRef kind) {
-    std::string macroName = getMacroName(kind);
-    StringRef macroArgs = getMacroArgs(kind);
-    StringRef valType = getValueType(kind);
-    StringRef irType = getIRType(kind);
+  os << "#ifndef " << macroName << "\n";
+  os << "#define " << macroName << macroArgs << " \\\n";
+  os << "  ";
+  os << "INST_ATTR(NAME, " << valType << ", IRNAME, " << irType << ")\n";
+  os << "#endif // " << macroName << "\n";
 
-    os << "#ifndef " << macroName << "\n";
-    os << "#define " << macroName << macroArgs << " \\\n";
-    os << "  ";
-    os << "INST_ATTR(NAME, " << valType << ", IRNAME, " << irType << ")\n";
-    os << "#endif // " << macroName << "\n";
+  for (const Record *r : records.getAllDerivedDefinitions(kind)) {
+    std::string macro = getMacroName(kind);
+    StringRef attrName = r->getName();
+    std::string irName = getInstAttrIRName(*r);
 
-    for (const Record *r : records.getAllDerivedDefinitions(kind)) {
-      std::string macro = getMacroName(kind);
-      StringRef attrName = r->getName();
-      std::string irName = getIRName(*r);
-
-      os << macro << "(" << attrName << ", \"" << irName << "\"";
-      if (kind == "EnumAttr")
-        os << ", " << r->getValueAsString("ValueType");
-      os << ")\n";
-    }
-
-    os << "#undef " << macroName << "\n";
-
-    return os;
+    os << macro << "(" << attrName << ", \"" << irName << "\"";
+    if (kind == "EnumAttr")
+      os << ", " << r->getValueAsString("ValueType");
+    os << ")\n";
   }
 
-  raw_ostream &emitAttrs(raw_ostream &os) {
-    os << "#ifdef GET_INST_ATTRS" << "\n";
-    os << "#undef GET_INST_ATTRS" << "\n";
+  os << "#undef " << macroName << "\n";
+}
+
+void InstAttrsEmitter::emitAttrs(raw_ostream &os) {
+  os << "#ifdef GET_INST_ATTRS" << "\n";
+  os << "#undef GET_INST_ATTRS" << "\n";
+  os << "\n";
+  os << "#ifndef INST_ATTR" << "\n";
+  os << "#define INST_ATTR(NAME, TYPE, IRNAME, IRTYPE)" << "\n";
+  os << "#endif // INST_ATTR" << "\n";
+  os << "\n";
+
+  for (StringRef kind : attrKinds) {
+    emitAttrs(os, kind);
     os << "\n";
-    os << "#ifndef INST_ATTR" << "\n";
-    os << "#define INST_ATTR(NAME, TYPE, IRNAME, IRTYPE)" << "\n";
-    os << "#endif // INST_ATTR" << "\n";
-    os << "\n";
-
-    for (StringRef kind : attrKinds) {
-      emitAttrs(os, kind);
-      os << "\n";
-    }
-
-    os << "#undef INST_ATTR" << "\n";
-    os << "#endif // GET_INST_ATTRS" << "\n";
-
-    return os;
   }
 
-  raw_ostream &emitAttrEnums(raw_ostream &os) {
-    os << "#ifdef GET_INST_ATTR_ENUMS" << "\n";
-    os << "#undef GET_INST_ATTR_ENUMS" << "\n";
-    os << "\n";
+  os << "#undef INST_ATTR" << "\n";
+  os << "#endif // GET_INST_ATTRS" << "\n";
+}
 
-    unsigned val = 1;
-    for (const Record *r : records.getAllDerivedDefinitions("Attr")) {
-      os << r->getName() << " = " << val << ",\n";
-      ++val;
-    }
+void InstAttrsEmitter::emitAttrEnums(raw_ostream &os) {
+  os << "#ifdef GET_INST_ATTR_ENUMS" << "\n";
+  os << "#undef GET_INST_ATTR_ENUMS" << "\n";
+  os << "\n";
 
-    os << "\n";
-    os << "#endif // GET_INST_ATTR_ENUMS" << "\n";
-
-    return os;
+  unsigned val = 1;
+  for (const Record *r : records.getAllDerivedDefinitions("Attr")) {
+    os << r->getName() << " = " << val << ",\n";
+    ++val;
   }
 
-public:
-  InstAttrsEmitter(const RecordKeeper &records) : records(records) {
-    for (const auto &[_, r] : records.getClasses()) {
-      StringRef name = r->getName();
-      if (name == "Attr")
-        continue;
-      if (!r->isSubClassOf("Attr"))
-        PrintFatalError("All classes must be subclasses of Attr");
-      if (!name.ends_with("Attr"))
-        PrintFatalError("All attribute kind names must end in 'Attr'");
-      attrKinds.push_back(name);
-    }
-    std::sort(attrKinds.begin(), attrKinds.end());
-  }
+  os << "\n";
+  os << "#endif // GET_INST_ATTR_ENUMS" << "\n";
+}
 
-  void run(raw_ostream &os) {
-    emitAttrs(os);
-    os << "\n\n";
-    emitAttrEnums(os);
+void InstAttrsEmitter::run(raw_ostream &os) {
+  emitAttrs(os);
+  os << "\n\n";
+  emitAttrEnums(os);
+}
+
+InstAttrsEmitter::InstAttrsEmitter(const RecordKeeper &records)
+    : records(records) {
+  for (const auto &[_, r] : records.getClasses()) {
+    StringRef name = r->getName();
+    if (name == "Attr")
+      continue;
+    if (!r->isSubClassOf("Attr"))
+      PrintFatalError("All classes must be subclasses of Attr");
+    if (!name.ends_with("Attr"))
+      PrintFatalError("All attribute kind names must end in 'Attr'");
+    attrKinds.push_back(name);
   }
-};
+  std::sort(attrKinds.begin(), attrKinds.end());
+}
 
 static TableGen::Emitter::OptClass<InstAttrsEmitter>
-    X("gen-kitsune-inst-attrs", "Generate Kitsune-specific loop attributes");
+    X("gen-kitsune-inst-attrs",
+      "Generate Kitsune-specific instruction attributes");

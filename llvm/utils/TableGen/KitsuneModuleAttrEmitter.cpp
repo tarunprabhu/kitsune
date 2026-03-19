@@ -7,8 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "KitsuneAttrUtils.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
@@ -17,112 +15,104 @@
 
 using namespace llvm;
 
-// The maximum number of values allowed in an attribute.
-constexpr size_t MAXVALS = 8;
-
-static raw_ostream &line(raw_ostream &os, ArrayRef<StringRef> strs = {}) {
-  if (strs.size()) {
-    os << strs[0];
-    for (unsigned i = 1, ie = strs.size(); i < ie; ++i)
-      os << " " << strs[i];
-  }
-  os << "\n";
-  return os;
-}
-
-static raw_ostream &line(raw_ostream &os, StringRef s) {
-  os << s << "\n";
-  return os;
-}
-
-static std::string getIRName(const Record &attr) {
-  return "kit.module." + getBaseName(attr);
-}
-
-static std::string getMacroName(const Record &attr) {
-  SmallString<16> buf;
-  raw_svector_ostream os(buf);
-
-  size_t vals = attr.getValueAsListOfDefs("Values").size();
-  if (vals > MAXVALS)
-    PrintFatalError(attr.getLoc(),
-                    "Maximum allowed values exceeded in attribute");
-
-  os << "MODULE_ATTR_" << vals;
-  return buf.c_str();
-}
+namespace {
 
 class ModuleAttrsEmitter {
 private:
   const RecordKeeper &recordKeeper;
 
 private:
-  void emitAttrs(raw_ostream &os) {
-    line(os, "#ifdef GET_MODULE_ATTRS");
-    line(os, "#undef GET_MODULE_ATTRS");
-    line(os);
-    line(os, "#ifndef MODULE_ATTR");
-    line(os, "#define MODULE_ATTR(NAME, IRNAME)");
-    line(os, "#endif // MODULE_ATTR");
-    line(os);
-
-    for (size_t i = 0; i <= MAXVALS; ++i) {
-      os << "#ifndef MODULE_ATTR_" << i << "\n";
-      os << "#define MODULE_ATTR_" << i << "(NAME, IRNAME";
-      for (size_t j = 1; j <= i; ++j)
-        os << ", TY" << j << ", V" << j;
-      os << ") \\\n";
-      os << "    MODULE_ATTR(NAME, IRNAME)\n";
-      os << "#endif // MODULE_ATTR_" << i;
-      line(os);
-      line(os);
-    }
-
-    for (const Record *attr : recordKeeper.getAllDerivedDefinitions("Attr")) {
-      os << getMacroName(*attr) << "(";
-      os << attr->getName();
-      os << ", \"" << getIRName(*attr) << "\"";
-      for (const Record *v : attr->getValueAsListOfDefs("Values")) {
-        os << ", " << v->getValueAsDef("Type")->getValueAsString("Name");
-        os << ", " << v->getValueAsString("Name");
-      }
-      os << ")";
-      line(os);
-    }
-    line(os);
-
-    for (size_t i = 0; i <= MAXVALS; ++i)
-      os << "#undef MODULE_ATTR_" << (MAXVALS - i) << "\n";
-    line(os, "#undef MODULE_ATTR");
-    line(os);
-    line(os, "#endif // GET_MODULE_ATTRS");
-  }
-
-  void emitAttrEnums(raw_ostream &os) {
-    line(os, "#ifdef GET_MODULE_ATTR_ENUMS");
-    line(os, "#undef GET_MODULE_ATTR_ENUMS");
-    line(os);
-
-    unsigned val = 1;
-    for (const Record *r : recordKeeper.getAllDerivedDefinitions("Attr")) {
-      os << r->getName() << " = " << val << ",\n";
-      ++val;
-    }
-
-    line(os);
-    line(os, "#endif // GET_MODULE_ATTR_ENUMS");
-  }
+  void emitAttrs(raw_ostream &os);
+  void emitAttrEnums(raw_ostream &os);
 
 public:
-  ModuleAttrsEmitter(const RecordKeeper &recordKeeper)
-      : recordKeeper(recordKeeper) {}
+  ModuleAttrsEmitter(const RecordKeeper &recordKeeper);
 
-  void run(raw_ostream &os) {
-    emitAttrs(os);
-    line(os);
-    emitAttrEnums(os);
-  }
+  void run(raw_ostream &os);
 };
+
+} // namespace
+
+// The maximum number of values allowed in an attribute.
+static constexpr size_t MAXVALS = 8;
+
+static std::string getMacroName(const Record &attr) {
+  std::string buf;
+  raw_string_ostream os(buf);
+
+  size_t vals = attr.getValueAsListOfDefs("Values").size();
+  if (vals > MAXVALS)
+    PrintFatalError(attr.getLoc(),
+                    "Maximum allowed values exceeded in attribute");
+  os << "MODULE_ATTR_" << vals;
+  os.flush();
+
+  return buf;
+}
+
+void ModuleAttrsEmitter::emitAttrs(raw_ostream &os) {
+  os << "#ifdef GET_MODULE_ATTRS\n";
+  os << "#undef GET_MODULE_ATTRS\n";
+  os << "\n";
+  os << "#ifndef MODULE_ATTR\n";
+  os << "#define MODULE_ATTR(NAME, IRNAME)\n";
+  os << "#endif // MODULE_ATTR\n";
+  os << "\n";
+
+  for (size_t i = 0; i <= MAXVALS; ++i) {
+    os << "#ifndef MODULE_ATTR_" << i << "\n";
+    os << "#define MODULE_ATTR_" << i << "(NAME, IRNAME";
+    for (size_t j = 1; j <= i; ++j)
+      os << ", TY" << j << ", V" << j;
+    os << ") \\\n";
+    os << "    MODULE_ATTR(NAME, IRNAME)\n";
+    os << "#endif // MODULE_ATTR_" << i << "\n";
+    os << "\n";
+  }
+
+  for (const Record *attr : recordKeeper.getAllDerivedDefinitions("Attr")) {
+    os << getMacroName(*attr) << "(";
+    os << attr->getName();
+    os << ", \"" << getModuleAttrIRName(*attr) << "\"";
+    for (const Record *v : attr->getValueAsListOfDefs("Values")) {
+      os << ", " << v->getValueAsDef("Type")->getValueAsString("Name");
+      os << ", " << v->getValueAsString("Name");
+    }
+    os << ")";
+    os << "\n";
+  }
+  os << "\n";
+
+  for (size_t i = 0; i <= MAXVALS; ++i)
+    os << "#undef MODULE_ATTR_" << (MAXVALS - i) << "\n";
+  os << "#undef MODULE_ATTR\n";
+  os << "\n";
+  os << "#endif // GET_MODULE_ATTRS\n";
+}
+
+void ModuleAttrsEmitter::emitAttrEnums(raw_ostream &os) {
+  os << "#ifdef GET_MODULE_ATTR_ENUMS\n";
+  os << "#undef GET_MODULE_ATTR_ENUMS\n";
+  os << "\n";
+
+  unsigned val = 1;
+  for (const Record *r : recordKeeper.getAllDerivedDefinitions("Attr")) {
+    os << r->getName() << " = " << val << ",\n";
+    ++val;
+  }
+
+  os << "\n";
+  os << "#endif // GET_MODULE_ATTR_ENUMS\n";
+}
+
+void ModuleAttrsEmitter::run(raw_ostream &os) {
+  emitAttrs(os);
+  os << "\n";
+  emitAttrEnums(os);
+}
+
+ModuleAttrsEmitter::ModuleAttrsEmitter(const RecordKeeper &recordKeeper)
+    : recordKeeper(recordKeeper) {}
 
 static TableGen::Emitter::OptClass<ModuleAttrsEmitter>
     X("gen-kitsune-module-attrs",

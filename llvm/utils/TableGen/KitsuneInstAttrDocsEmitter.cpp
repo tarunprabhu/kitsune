@@ -1,4 +1,4 @@
-//===- KitsuneLoopAttrDocsEmitter.cpp - Generate docs for loop attributes -===//
+//===- KitsuneInstAttrDocsEmitter.cpp - Docs for instruction attributes ---===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,18 +7,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "KitsuneAttrUtils.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
 
-#define DEBUG_TYPE "kitsune-loop-attr-docs-emitter"
+#define DEBUG_TYPE "kitsune-inst-attr-docs-emitter"
 
 using namespace llvm;
 
 namespace {
 
-class LoopAttrDocsEmitter {
+class InstAttrDocsEmitter {
 private:
   const RecordKeeper &records;
 
@@ -26,7 +25,7 @@ private:
   void emitAttr(const Record &attr, raw_ostream &os);
 
 public:
-  LoopAttrDocsEmitter(const RecordKeeper &records);
+  InstAttrDocsEmitter(const RecordKeeper &records);
   void run(raw_ostream &os);
 };
 
@@ -68,32 +67,23 @@ static std::string getValueType(const Record &attr) {
   return buf;
 }
 
-static StringRef getAllowedOn(const Record &attr) {
-  const Record *allowedOn = attr.getValueAsDef("AllowedOn");
-  return StringSwitch<StringRef>(allowedOn->getName())
-      .Case("TapirLoopsOnly", "Tapir loops only")
-      .Case("NormalLoopsOnly", "Normal loops only")
-      .Default("All loops");
-}
-
-void LoopAttrDocsEmitter::emitAttr(const Record &attr, raw_ostream &os) {
-  std::string irName = getLoopAttrIRName(attr);
-  os << ".. _loop-attr-" << getSectionLabel(attr) << ":\n\n";
+void InstAttrDocsEmitter::emitAttr(const Record &attr, raw_ostream &os) {
+  std::string irName = getInstAttrIRName(attr);
+  os << ".. _inst-attr-" << getSectionLabel(attr) << ":\n\n";
   os << irName << "\n";
   os << std::string(irName.size(), '-') << "\n";
   os << "\n";
   os << ".. csv-table::\n";
-  os << "  :header: " << quote("Enum") << ", " << quote("Value Type") << ", "
-     << quote("Allowed On") << "\n";
+  os << "  :header: " << quote("Enum") << ", " << quote("Value Type") << "\n";
   os << "\n";
   os << "  " << quote(getAttrName(attr)) << ", " << quote(getValueType(attr))
-     << ", " << quote(getAllowedOn(attr)) << "\n";
+     << "\n";
   os << "\n";
 
   os << attr.getValueAsString("Documentation") << "\n";
 }
 
-void LoopAttrDocsEmitter::run(raw_ostream &os) {
+void InstAttrDocsEmitter::run(raw_ostream &os) {
   std::vector<const Record *> attrRecords;
   for (const Record *r : records.getAllDerivedDefinitions("Attr"))
     attrRecords.push_back(r);
@@ -116,9 +106,9 @@ void LoopAttrDocsEmitter::run(raw_ostream &os) {
   }
 }
 
-LoopAttrDocsEmitter::LoopAttrDocsEmitter(const RecordKeeper &records)
+InstAttrDocsEmitter::InstAttrDocsEmitter(const RecordKeeper &records)
     : records(records) {}
 
-static TableGen::Emitter::OptClass<LoopAttrDocsEmitter>
-    X("gen-kitsune-loop-attr-docs",
-      "Generate documentation for Kitsune-specific loop attributes");
+static TableGen::Emitter::OptClass<InstAttrDocsEmitter>
+    X("gen-kitsune-inst-attr-docs",
+      "Generate documentation for Kitsune-specific instruction attributes");

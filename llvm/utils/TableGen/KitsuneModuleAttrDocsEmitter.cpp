@@ -1,4 +1,4 @@
-//===- KitsuneLoopAttrDocsEmitter.cpp - Generate docs for loop attributes -===//
+//===- KitsuneModuleAttrDocsEmitter.cpp - Docs for module attributes ------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,18 +7,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "KitsuneAttrUtils.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
 
-#define DEBUG_TYPE "kitsune-loop-attr-docs-emitter"
+#define DEBUG_TYPE "kitsune-module-attr-docs-emitter"
 
 using namespace llvm;
 
 namespace {
 
-class LoopAttrDocsEmitter {
+class ModuleAttrDocsEmitter {
 private:
   const RecordKeeper &records;
 
@@ -26,7 +25,7 @@ private:
   void emitAttr(const Record &attr, raw_ostream &os);
 
 public:
-  LoopAttrDocsEmitter(const RecordKeeper &records);
+  ModuleAttrDocsEmitter(const RecordKeeper &records);
   void run(raw_ostream &os);
 };
 
@@ -60,40 +59,32 @@ static std::string getAttrName(const Record &attr) {
 static std::string getValueType(const Record &attr) {
   std::string buf;
   raw_string_ostream os(buf);
-  StringRef valueType = attr.getValueAsString("ValueType");
+  std::vector<const Record *> valueTypes = attr.getValueAsListOfDefs("Values");
 
-  if (valueType.size())
-    os << "``" << valueType << "``";
+  // FIXME: This is not correct.
+  if (valueTypes.size())
+    os << "``" << valueTypes[0]->getName() << "``";
   os.flush();
   return buf;
 }
 
-static StringRef getAllowedOn(const Record &attr) {
-  const Record *allowedOn = attr.getValueAsDef("AllowedOn");
-  return StringSwitch<StringRef>(allowedOn->getName())
-      .Case("TapirLoopsOnly", "Tapir loops only")
-      .Case("NormalLoopsOnly", "Normal loops only")
-      .Default("All loops");
-}
-
-void LoopAttrDocsEmitter::emitAttr(const Record &attr, raw_ostream &os) {
-  std::string irName = getLoopAttrIRName(attr);
-  os << ".. _loop-attr-" << getSectionLabel(attr) << ":\n\n";
+void ModuleAttrDocsEmitter::emitAttr(const Record &attr, raw_ostream &os) {
+  std::string irName = getModuleAttrIRName(attr);
+  os << ".. _module-attr-" << getSectionLabel(attr) << ":\n\n";
   os << irName << "\n";
   os << std::string(irName.size(), '-') << "\n";
   os << "\n";
   os << ".. csv-table::\n";
-  os << "  :header: " << quote("Enum") << ", " << quote("Value Type") << ", "
-     << quote("Allowed On") << "\n";
+  os << "  :header: " << quote("Enum") << ", " << quote("Value Types") << "\n";
   os << "\n";
   os << "  " << quote(getAttrName(attr)) << ", " << quote(getValueType(attr))
-     << ", " << quote(getAllowedOn(attr)) << "\n";
+     << "\n";
   os << "\n";
 
   os << attr.getValueAsString("Documentation") << "\n";
 }
 
-void LoopAttrDocsEmitter::run(raw_ostream &os) {
+void ModuleAttrDocsEmitter::run(raw_ostream &os) {
   std::vector<const Record *> attrRecords;
   for (const Record *r : records.getAllDerivedDefinitions("Attr"))
     attrRecords.push_back(r);
@@ -116,9 +107,9 @@ void LoopAttrDocsEmitter::run(raw_ostream &os) {
   }
 }
 
-LoopAttrDocsEmitter::LoopAttrDocsEmitter(const RecordKeeper &records)
+ModuleAttrDocsEmitter::ModuleAttrDocsEmitter(const RecordKeeper &records)
     : records(records) {}
 
-static TableGen::Emitter::OptClass<LoopAttrDocsEmitter>
-    X("gen-kitsune-loop-attr-docs",
-      "Generate documentation for Kitsune-specific loop attributes");
+static TableGen::Emitter::OptClass<ModuleAttrDocsEmitter>
+    X("gen-kitsune-module-attr-docs",
+      "Generate documentation for Kitsune-specific module attributes");
