@@ -14,7 +14,7 @@
 #define KITSUNE_TRANSFORMS_SERIALIZE_H
 
 #include "kitsune/Passes/PassUtils.h"
-#include "kitsune/Transforms/AnnotateTapirLoops.h"
+#include "kitsune/Transforms/PreLowerAnnotate.h"
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
@@ -25,7 +25,7 @@ class SerializePass : public PassInfoMixin<SerializePass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 
-  using Requires = std::tuple<AnnotateTapirLoopsPass>;
+  using Requires = std::tuple<PreLowerAnnotatePass>;
 
   void setHasRun(Module &m);
   static bool hasRun(const Module &m);

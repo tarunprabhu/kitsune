@@ -9,7 +9,7 @@
 ; loops for the custom tapir target. This is not currently enforced, but that
 ; will definitely change at some point.
 ;
-; RUN: opt -passes="kit-annotate-tapir-loops" -S %s \
+; RUN: opt -passes="kit-annotate-prelower" -S %s \
 ; RUN:     --tapir=custom --tapir-plugin=%kit-tt-plugin-demo \
 ; RUN:     | FileCheck %s
 

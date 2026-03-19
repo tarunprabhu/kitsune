@@ -15,7 +15,7 @@
 // In the future, it may also be used with standalone tapir tasks that are not
 // currently supported.
 //
-// REQUIRES: kit-annotate-tapir-loops
+// REQUIRES: kit-annotate-prelower
 //
 //===----------------------------------------------------------------------===//
 

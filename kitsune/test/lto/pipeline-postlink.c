@@ -35,7 +35,7 @@
 //
 // O23SZ:      Running pass:     PreLowerVerificationPass
 // O23SZ-NEXT: Running analysis: TTObjectsAnalysis
-// O23SZ-NEXT: Running pass:     AnnotateTapirLoopsPass
+// O23SZ-NEXT: Running pass:     PreLowerAnnotate
 // O23SZ-NEXT: Running pass:     SerializePass
 // O23SZ-NEXT: Running pass:     LoopSpawningPass
 // O23SZ-NEXT: Running pass:     TapirToTargetPass

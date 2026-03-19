@@ -1,4 +1,4 @@
-//===- AnnotateTapirLoops.cpp - Annotate tapir loops ----------------------===//
+//===- PreLowerAnnotate.cpp - Add annotations before tapir lowering -------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -19,7 +19,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/AnnotateTapirLoops.h"
+#include "kitsune/Transforms/PreLowerAnnotate.h"
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
@@ -30,7 +30,7 @@
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/Module.h"
 
-#define DEBUG_TYPE "annotate-tapir-loops"
+#define DEBUG_TYPE "kit-annotate-prelower"
 
 using namespace llvm;
 
@@ -60,8 +60,8 @@ static void annotateTapirLoopsForGPU(Loop &root, ScalarEvolution &se,
     addPerfectLevelAttr(*perfectLoops[d - 1], d);
 }
 
-PreservedAnalyses AnnotateTapirLoopsPass::run(Module &m,
-                                              ModuleAnalysisManager &mam) {
+PreservedAnalyses PreLowerAnnotatePass::run(Module &m,
+                                            ModuleAnalysisManager &mam) {
   FunctionAnalysisManager &fam =
       mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
 
@@ -97,8 +97,8 @@ PreservedAnalyses AnnotateTapirLoopsPass::run(Module &m,
   return PreservedAnalyses::all();
 }
 
-void AnnotateTapirLoopsPass::setHasRun(Module &m) { addLoopsAnnotatedAttr(m); }
+void PreLowerAnnotatePass::setHasRun(Module &m) { addLoopsAnnotatedAttr(m); }
 
-bool AnnotateTapirLoopsPass::hasRun(const Module &m) {
+bool PreLowerAnnotatePass::hasRun(const Module &m) {
   return hasLoopsAnnotatedAttr(m);
 }

@@ -2,7 +2,7 @@
 ; function here contains a single loop nest. Each nest will contain exactly
 ; three tapir loops. The loop nest may contain other, non-tapir loops.
 ;
-; RUN: opt -passes="kit-annotate-tapir-loops" -S %s \
+; RUN: opt -passes="kit-annotate-prelower" -S %s \
 ; RUN:     | FileCheck %s
 
 ; CHECK-LABEL: @ppp
