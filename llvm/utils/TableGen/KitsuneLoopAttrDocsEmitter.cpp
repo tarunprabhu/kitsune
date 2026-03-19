@@ -6,8 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "KitsuneLoopAttrUtils.h"
-#include "llvm/ADT/SmallVector.h"
+#include "KitsuneAttrUtils.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
@@ -17,8 +16,24 @@
 
 using namespace llvm;
 
+namespace {
+
+class LoopAttrDocsEmitter {
+private:
+  const RecordKeeper &records;
+
+private:
+  void emitAttr(const Record &attr, raw_ostream &os);
+
+public:
+  LoopAttrDocsEmitter(const RecordKeeper &records);
+  void run(raw_ostream &os);
+};
+
+} // namespace
+
 static std::string getSectionLabel(const Record &attr) {
-  std::string attrName = getBaseName(attr);
+  std::string attrName = getAttrBaseName(attr);
   std::replace(attrName.begin(), attrName.end(), '.', '-');
 
   return attrName;
@@ -61,55 +76,48 @@ static StringRef getAllowedOn(const Record &attr) {
       .Default("All loops");
 }
 
-class LoopAttrDocsEmitter {
-private:
-  const RecordKeeper &records;
+void LoopAttrDocsEmitter::emitAttr(const Record &attr, raw_ostream &os) {
+  std::string irName = getLoopAttrIRName(attr);
+  os << ".. _loop-attr-" << getSectionLabel(attr) << ":\n\n";
+  os << irName << "\n";
+  os << std::string(irName.size(), '-') << "\n";
+  os << "\n";
+  os << ".. csv-table::\n";
+  os << "  :header: " << quote("Enum") << ", " << quote("Value Type") << ", "
+     << quote("Allowed On") << "\n";
+  os << "\n";
+  os << "  " << quote(getAttrName(attr)) << ", " << quote(getValueType(attr))
+     << ", " << quote(getAllowedOn(attr)) << "\n";
+  os << "\n";
 
-private:
-  void emitAttr(const Record &attr, raw_ostream &os) {
-    std::string irName = getIRName(attr);
-    os << ".. _loop-attr-" << getSectionLabel(attr) << ":\n\n";
-    os << irName << "\n";
-    os << std::string(irName.size(), '-') << "\n";
-    os << "\n";
-    os << ".. csv-table::\n";
-    os << "  :header: " << quote("Enum") << ", " << quote("Value Type") << ", "
-       << quote("Allowed On") << "\n";
-    os << "\n";
-    os << "  " << quote(getAttrName(attr)) << ", " << quote(getValueType(attr))
-       << ", " << quote(getAllowedOn(attr)) << "\n";
-    os << "\n";
+  os << attr.getValueAsString("Documentation") << "\n";
+}
 
-    os << attr.getValueAsString("Documentation") << "\n";
+void LoopAttrDocsEmitter::run(raw_ostream &os) {
+  std::vector<const Record *> attrRecords;
+  for (const Record *r : records.getAllDerivedDefinitions("Attr"))
+    attrRecords.push_back(r);
+  std::sort(attrRecords.begin(), attrRecords.end(),
+            [](const Record *l, const Record *r) -> bool {
+              return l->getName() < r->getName();
+            });
+
+  const Record *globalDoc = records.getDef("GlobalDocumentation");
+  if (!globalDoc) {
+    PrintFatalError("The GlobalDocumentation top-level definition is missing, "
+                    "no documentation will be generated.");
+    return;
   }
 
-public:
-  LoopAttrDocsEmitter(const RecordKeeper &records) : records(records) {}
-
-  void run(raw_ostream &os) {
-    std::vector<const Record *> attrRecords;
-    for (const Record *r : records.getAllDerivedDefinitions("Attr"))
-      attrRecords.push_back(r);
-    std::sort(attrRecords.begin(), attrRecords.end(),
-              [](const Record *l, const Record *r) -> bool {
-                return l->getName() < r->getName();
-              });
-
-    const Record *globalDoc = records.getDef("GlobalDocumentation");
-    if (!globalDoc) {
-      PrintFatalError(
-          "The GlobalDocumentation top-level definition is missing, "
-          "no documentation will be generated.");
-      return;
-    }
-
-    os << globalDoc->getValueAsString("Intro");
-    for (const Record *r : attrRecords) {
-      os << "\n";
-      emitAttr(*r, os);
-    }
+  os << globalDoc->getValueAsString("Intro");
+  for (const Record *r : attrRecords) {
+    os << "\n";
+    emitAttr(*r, os);
   }
-};
+}
+
+LoopAttrDocsEmitter::LoopAttrDocsEmitter(const RecordKeeper &records)
+    : records(records) {}
 
 static TableGen::Emitter::OptClass<LoopAttrDocsEmitter>
     X("gen-kitsune-loop-attr-docs",
