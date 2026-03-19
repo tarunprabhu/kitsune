@@ -20,7 +20,7 @@ using namespace llvm;
 
 namespace {
 
-constexpr StringRef loop1 = R"(
+static constexpr StringRef ll = R"(
 define void @f(i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
@@ -89,10 +89,10 @@ TEST(KitLoopAttrs, loopGetMetadata) {
 }
 
 TEST(KitLoopAttrs, loopAttrName) {
-#define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
+#define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
   EXPECT_EQ(getAttrName(LoopAttrKind::NAME), IRNAME);                          \
   EXPECT_TRUE(getAttrName(LoopAttrKind::NAME).starts_with("loop."));
-#define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
+#define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
   EXPECT_EQ(getAttrName(LoopAttrKind::NAME), IRNAME);                          \
   EXPECT_TRUE(getAttrName(LoopAttrKind::NAME).starts_with("tapir.loop."));
 #define GET_LOOP_ATTRS
@@ -102,10 +102,10 @@ TEST(KitLoopAttrs, loopAttrName) {
 TEST(KitLoopAttrs, loopAttrKind) {
   EXPECT_EQ(getLoopAttrKind("whoops"), std::nullopt);
 
-#define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
+#define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
   EXPECT_EQ(getLoopAttrKind(IRNAME), LoopAttrKind::NAME);
-#define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
-  LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)
+#define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
+  LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
@@ -119,85 +119,92 @@ TEST(KitLoopAttrs, loopAttrTapirOnly) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
+#define CHECK_GENERIC(NAME, LOOP, VAL)                                         \
+  EXPECT_FALSE(hasAttr(LOOP, LoopAttrKind::NAME));                             \
+  add##NAME##Attr(LOOP, VAL);                                                  \
+  EXPECT_TRUE(hasAttr(LOOP, LoopAttrKind::NAME));                              \
+  removeAttr(LOOP, LoopAttrKind::NAME);                                        \
+  EXPECT_FALSE(hasAttr(LOOP, LoopAttrKind::NAME));
+
+#define CHECK_ACCESSORS(NAME, INST, VAL1, VAL2)                                \
+  EXPECT_FALSE(has##NAME##Attr(INST));                                         \
+                                                                               \
+  add##NAME##Attr(INST, VAL1);                                                 \
+  EXPECT_TRUE(has##NAME##Attr(INST));                                          \
+  EXPECT_EQ(get##NAME##Attr(INST), (VAL1));                                    \
+                                                                               \
+  add##NAME##Attr(INST, VAL2);                                                 \
+  EXPECT_TRUE(has##NAME##Attr(INST));                                          \
+  EXPECT_EQ(get##NAME##Attr(INST), (VAL2));                                    \
+                                                                               \
+  remove##NAME##Attr(INST);                                                    \
+  EXPECT_FALSE(has##NAME##Attr(INST));
+
 TEST(KitLoopAttrs, loopAttrsGeneric) {
   LLVMContext ctx;
-  std::unique_ptr<Module> m = parseIR(ctx, loop1);
+  std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
   DominatorTree dt(*f);
   LoopInfo li(dt);
-  [[maybe_unused]] Loop *loop = li.getLoopsInPreorder().front();
-
-  auto checkCommon = [](Loop &loop, LoopAttrKind attr) -> void {
-    EXPECT_TRUE(hasAttr(loop, attr));
-    removeAttr(loop, attr);
-    EXPECT_FALSE(hasAttr(loop, attr));
-  };
+  [[maybe_unused]] Loop *loop = *li.begin();
 
 #define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
   EXPECT_FALSE(hasAttr(*loop, LoopAttrKind::NAME));                            \
   add##NAME##Attr(*loop);                                                      \
-  checkCommon(*loop, LoopAttrKind::NAME);
-
-#define LOOP_ATTRIBUTE_INT32(NAME, IRNAME)                                     \
-  EXPECT_FALSE(hasAttr(*loop, LoopAttrKind::NAME));                            \
-  add##NAME##Attr(*loop, 67);                                                  \
-  checkCommon(*loop, LoopAttrKind::NAME);
-
-#define LOOP_ATTRIBUTE_INT64(NAME, IRNAME)                                     \
-  EXPECT_FALSE(hasAttr(*loop, LoopAttrKind::NAME));                            \
-  add##NAME##Attr(*loop, 67L);                                                 \
-  checkCommon(*loop, LoopAttrKind::NAME);
-
-#define LOOP_ATTRIBUTE_STR(NAME, IRNAME)                                       \
-  EXPECT_FALSE(hasAttr(*loop, LoopAttrKind::NAME));                            \
-  add##NAME##Attr(*loop, "67");                                                \
-  checkCommon(*loop, LoopAttrKind::NAME);
-
+  EXPECT_TRUE(hasAttr(*loop, LoopAttrKind::NAME));                             \
+  removeAttr(*loop, LoopAttrKind::NAME);                                       \
+  EXPECT_FALSE(hasAttr(*loop, LoopAttrKind::NAME));
 #define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
-  EXPECT_FALSE(hasAttr(*loop, LoopAttrKind::NAME));                            \
-  add##NAME##Attr(*loop);                                                      \
-  checkCommon(*loop, LoopAttrKind::NAME);
+  LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)
 
+#define LOOP_ATTRIBUTE_ENUM(NAME, IRNAME, TYPE)                                \
+  CHECK_GENERIC(NAME, *loop, (TYPE)1)
+#define LOOP_ATTRIBUTE_INT32(NAME, IRNAME) CHECK_GENERIC(NAME, *loop, 31)
+#define LOOP_ATTRIBUTE_INT64(NAME, IRNAME) CHECK_GENERIC(NAME, *loop, 37L)
+#define LOOP_ATTRIBUTE_STR(NAME, IRNAME) CHECK_GENERIC(NAME, *loop, "birkbeck")
+
+#define TAPIR_LOOP_ATTRIBUTE_ENUM(NAME, IRNAME, TYPE)                          \
+  LOOP_ATTRIBUTE_ENUM(NAME, IRNAME, TYPE)
 #define TAPIR_LOOP_ATTRIBUTE_INT32(NAME, IRNAME)                               \
-  EXPECT_FALSE(hasAttr(*loop, LoopAttrKind::NAME));                            \
-  add##NAME##Attr(*loop, 67);                                                  \
-  checkCommon(*loop, LoopAttrKind::NAME);
-
+  LOOP_ATTRIBUTE_INT32(NAME, IRNAME)
 #define TAPIR_LOOP_ATTRIBUTE_INT64(NAME, IRNAME)                               \
-  EXPECT_FALSE(hasAttr(*loop, LoopAttrKind::NAME));                            \
-  add##NAME##Attr(*loop, 67L);                                                 \
-  checkCommon(*loop, LoopAttrKind::NAME);
+  LOOP_ATTRIBUTE_INT64(NAME, IRNAME)
+#define TAPIR_LOOP_ATTRIBUTE_STR(NAME, IRNAME) LOOP_ATTRIBUTE_STR(NAME, IRNAME)
 
-#define TAPIR_LOOP_ATTRIBUTE_STR(NAME, IRNAME)                                 \
-  EXPECT_FALSE(hasAttr(*loop, LoopAttrKind::NAME));                            \
-  addTapriLoop##NAME##Attr(*loop, "67");                                       \
-  checkCommon(*loop, LoopAttrKind::NAME);
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+}
 
+TEST(KitLoopAttrs, loopEnumAttrs) {
+  LLVMContext ctx;
+  std::unique_ptr<Module> m = parseIR(ctx, ll);
+  Function *f = m->getFunction("f");
+  DominatorTree dt(*f);
+  LoopInfo li(dt);
+  [[maybe_unused]] Loop *loop = *li.begin();
+
+  // WARNING: This is somewhat risky because there is no guarantee that the
+  // integer values 1 and 2 will be valid for every enum type that we may have
+  // an attribute for. If this ever happens, change this test. It may be
+  // sufficient to just check for some enum-valued attribute instead of all of
+  // them.
+#define LOOP_ATTRIBUTE_ENUM(NAME, IRNAME, TYPE)                                \
+  CHECK_ACCESSORS(NAME, *loop, (TYPE)1, (TYPE)2)
+#define TAPIR_LOOP_ATTRIBUTE_ENUM(NAME, IRNAME, TYPE)                          \
+  LOOP_ATTRIBUTE_ENUM(NAME, IRNAME, TYPE)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, loopFlagAttrs) {
   LLVMContext ctx;
-  std::unique_ptr<Module> m = parseIR(ctx, loop1);
+  std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
   DominatorTree dt(*f);
   LoopInfo li(dt);
-  [[maybe_unused]] Loop *loop = li.getLoopsInPreorder().front();
+  [[maybe_unused]] Loop *loop = *li.begin();
 
 #define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                    \
-                                                                               \
-  add##NAME##Attr(*loop);                                                      \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                     \
-                                                                               \
-  add##NAME##Attr(*loop);                                                      \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                     \
-                                                                               \
-  remove##NAME##Attr(*loop);                                                   \
-  EXPECT_FALSE(has##NAME##Attr(*loop));
-
-#define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
   EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
                                                                                \
   add##NAME##Attr(*loop);                                                      \
@@ -208,6 +215,9 @@ TEST(KitLoopAttrs, loopFlagAttrs) {
                                                                                \
   remove##NAME##Attr(*loop);                                                   \
   EXPECT_FALSE(has##NAME##Attr(*loop));
+
+#define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
+  LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)
 
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
@@ -215,132 +225,45 @@ TEST(KitLoopAttrs, loopFlagAttrs) {
 
 TEST(KitLoopAttrs, loopInt32Test) {
   LLVMContext ctx;
-  std::unique_ptr<Module> m = parseIR(ctx, loop1);
+  std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
   DominatorTree dt(*f);
   LoopInfo li(dt);
-  [[maybe_unused]] Loop *loop = li.getLoopsInPreorder().front();
+  [[maybe_unused]] Loop *loop = *li.begin();
 
-#define LOOP_ATTRIBUTE_INT32(NAME, IRNAME)                                     \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
-  EXPECT_EQ(get##NAME##Attr(*loop), std::nullopt);                             \
-                                                                               \
-  add##NAME##Attr(*loop, 42);                                                  \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                         \
-  EXPECT_EQ(*get##NAME##Attr(*loop), 42);                                      \
-                                                                               \
-  add##NAME##Attr(*loop, 97);                                                  \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                         \
-  EXPECT_EQ(*get##NAME##Attr(*loop), 97);                                      \
-                                                                               \
-  remove##NAME##Attr(*loop);                                                   \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
-  EXPECT_EQ(get##NAME##Attr(*loop), std::nullopt);
-
+#define LOOP_ATTRIBUTE_INT32(NAME, IRNAME) CHECK_ACCESSORS(NAME, *loop, 83, 89)
 #define TAPIR_LOOP_ATTRIBUTE_INT32(NAME, IRNAME)                               \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
-  EXPECT_EQ(get##NAME##Attr(*loop), std::nullopt);                             \
-                                                                               \
-  add##NAME##Attr(*loop, 42);                                                  \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                         \
-  EXPECT_EQ(*get##NAME##Attr(*loop), 42);                                      \
-                                                                               \
-  add##NAME##Attr(*loop, 97);                                                  \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                         \
-  EXPECT_EQ(*get##NAME##Attr(*loop), 97);                                      \
-                                                                               \
-  remove##NAME##Attr(*loop);                                                   \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
-  EXPECT_EQ(get##NAME##Attr(*loop), std::nullopt);
-
+  LOOP_ATTRIBUTE_INT32(NAME, IRNAME)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, loopInt64Test) {
   LLVMContext ctx;
-  std::unique_ptr<Module> m = parseIR(ctx, loop1);
+  std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
   DominatorTree dt(*f);
   LoopInfo li(dt);
-  [[maybe_unused]] Loop *loop = li.getLoopsInPreorder().front();
+  [[maybe_unused]] Loop *loop = *li.begin();
 
-#define LOOP_ATTRIBUTE_INT64(NAME, IRNAME)                                     \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
-  EXPECT_EQ(get##NAME##Attr(*loop), std::nullopt);                             \
-                                                                               \
-  add##NAME##Attr(*loop, 42L);                                                 \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                         \
-  EXPECT_EQ(*get##NAME##Attr(*loop), 42L);                                     \
-                                                                               \
-  add##NAME##Attr(*loop, 97L);                                                 \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                         \
-  EXPECT_EQ(*get##NAME##Attr(*loop), 97L);                                     \
-                                                                               \
-  remove##NAME##Attr(*loop);                                                   \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
-  EXPECT_EQ(get##NAME##Attr(*loop), std::nullopt);
-
+#define LOOP_ATTRIBUTE_INT64(NAME, IRNAME) CHECK_ACCESSORS(NAME, *loop, 3L, 5L)
 #define TAPIR_LOOP_ATTRIBUTE_INT64(NAME, IRNAME)                               \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
-  EXPECT_EQ(get##NAME##Attr(*loop), std::nullopt);                             \
-                                                                               \
-  add##NAME##Attr(*loop, 42L);                                                 \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                         \
-  EXPECT_EQ(*get##NAME##Attr(*loop), 42L);                                     \
-                                                                               \
-  add##NAME##Attr(*loop, 97L);                                                 \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                         \
-  EXPECT_EQ(*get##NAME##Attr(*loop), 97L);                                     \
-                                                                               \
-  remove##NAME##Attr(*loop);                                                   \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
-  EXPECT_EQ(get##NAME##Attr(*loop), std::nullopt);
-
+  LOOP_ATTRIBUTE_INT64(NAME, IRNAME)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, loopStrTest) {
   LLVMContext ctx;
-  std::unique_ptr<Module> m = parseIR(ctx, loop1);
+  std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
   DominatorTree dt(*f);
   LoopInfo li(dt);
-  [[maybe_unused]] Loop *loop = li.getLoopsInPreorder().front();
+  [[maybe_unused]] Loop *loop = *li.begin();
 
 #define LOOP_ATTRIBUTE_STR(NAME, IRNAME)                                       \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
-  EXPECT_EQ(get##NAME##Attr(*loop), std::nullopt);                             \
-                                                                               \
-  add##NAME##Attr(*loop, "42");                                                \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                         \
-  EXPECT_EQ(*get##NAME##Attr(*loop), "42");                                    \
-                                                                               \
-  add##NAME##Attr(*loop, "97");                                                \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                         \
-  EXPECT_EQ(*get##NAME##Attr(*loop), "97");                                    \
-                                                                               \
-  remove##NAME##Attr(*loop);                                                   \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
-  EXPECT_EQ(get##NAME##Attr(*loop), std::nullopt);
-
-#define TAPIR_LOOP_ATTRIBUTE_STR(NAME, IRNAME)                                 \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
-  EXPECT_EQ(get##NAME##Attr(*loop), std::nullopt);                             \
-                                                                               \
-  add##NAME##Attr(*loop, "42");                                                \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                         \
-  EXPECT_EQ(*get##NAME##Attr(*loop), "42");                                    \
-                                                                               \
-  add##NAME##Attr(*loop, "97");                                                \
-  EXPECT_TRUE(has##NAME##Attr(*loop));                                         \
-  EXPECT_EQ(*get##NAME##Attr(*loop), "97");                                    \
-                                                                               \
-  remove##NAME##Attr(*loop);                                                   \
-  EXPECT_FALSE(has##NAME##Attr(*loop));                                        \
-  EXPECT_EQ(get##NAME##Attr(*loop), std::nullopt);
-
+  CHECK_ACCESSORS(NAME, *loop, "lse", "soas")
+#define TAPIR_LOOP_ATTRIBUTE_STR(NAME, IRNAME) LOOP_ATTRIBUTE_STR(NAME, IRNAME)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
