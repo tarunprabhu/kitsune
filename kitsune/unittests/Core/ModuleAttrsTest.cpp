@@ -56,6 +56,10 @@ TEST(KitModuleAttrs, attr0) {
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
+// TODO: When adding a module attribute with 1 argument, add a test for it here.
+// TEST(KitModuleAttrs, attr1) {
+// }
+
 TEST(KitModuleAttrs, attr2) {
   LLVMContext ctx;
   Module m("", ctx);
@@ -87,5 +91,29 @@ TEST(KitModuleAttrs, attr2) {
   EXPECT_EQ(getTTIDFromDeviceModuleFlagsAttr(m), std::nullopt);
   EXPECT_EQ(getNameFromDeviceModuleFlagsAttr(m), std::nullopt);
 }
+
+// TODO: When adding a module attribute with 3 arguments, add a test for it.
+// TEST(KitModuleAttrs, attr3) {
+// }
+
+// TODO: When adding a module attribute with 4 arguments, add a test for it.
+// TEST(KitModuleAttrs, attr4) {
+// }
+
+// TODO: When adding a module attribute with 5 arguments, add a test for it.
+// TEST(KitModuleAttrs, attr5) {
+// }
+
+// TODO: When adding a module attribute with 6 arguments, add a test for it.
+// TEST(KitModuleAttrs, attr6) {
+// }
+
+// TODO: When adding a module attribute with 7 arguments, add a test for it.
+// TEST(KitModuleAttrs, attr7) {
+// }
+
+// TODO: When adding a module attribute with 8 arguments, add a test for it.
+// TEST(KitModuleAttrs, attr8) {
+// }
 
 } // namespace
