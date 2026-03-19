@@ -60,9 +60,11 @@ depending on what is of interest to you.
     KitFlangOptionsDoc
     KitAttrsDoc
     KitLLVMAttrsDoc
+    KitInstAttrsDoc
     KitInstructionsDoc
     KitIntrinsicsDoc
     KitLoopAttrsDoc
+    KitModuleAttrsDoc
     KitPassesDoc
     CommandGuide/index.md
     Glossary

@@ -98,9 +98,7 @@ acutal value of the attribute is 3. However ``tapir.loop.target`` is an
 enum attribute. In this case, the value is of type ``TTID``, and the integer
 value of 1024 corresponds to ``TTID::Pthreads``.
 
-Every attribute has a corresponding entry in the ``LoopAttrKind`` enum. The
-names of these enums are provided in the documentation for each attribute.
-
+Every attribute has an entry in the ``LoopAttrKind`` enum.
 }];
 }
 
