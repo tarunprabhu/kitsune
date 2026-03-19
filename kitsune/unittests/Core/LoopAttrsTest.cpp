@@ -88,7 +88,7 @@ TEST(KitLoopAttrs, loopGetMetadata) {
   checkLoopGetMetadata(ctx, LoopAttrKind::PerfectDepth, 13, 13U);
 }
 
-TEST(KitLoopAttrs, loopAttrName) {
+TEST(KitLoopAttrs, attrName) {
 #define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
   EXPECT_EQ(getAttrName(LoopAttrKind::NAME), IRNAME);                          \
   EXPECT_TRUE(getAttrName(LoopAttrKind::NAME).starts_with("loop."));
@@ -99,7 +99,7 @@ TEST(KitLoopAttrs, loopAttrName) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(KitLoopAttrs, loopAttrKind) {
+TEST(KitLoopAttrs, attrKind) {
   EXPECT_EQ(getLoopAttrKind("whoops"), std::nullopt);
 
 #define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
@@ -110,7 +110,7 @@ TEST(KitLoopAttrs, loopAttrKind) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(KitLoopAttrs, loopAttrTapirOnly) {
+TEST(KitLoopAttrs, attrTapirOnly) {
 #define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
   EXPECT_FALSE(isAttrTapirOnly(LoopAttrKind::NAME));
 #define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
@@ -124,23 +124,25 @@ TEST(KitLoopAttrs, loopAttrTapirOnly) {
   add##NAME##Attr(LOOP, VAL);                                                  \
   EXPECT_TRUE(hasAttr(LOOP, LoopAttrKind::NAME));                              \
   removeAttr(LOOP, LoopAttrKind::NAME);                                        \
-  EXPECT_FALSE(hasAttr(LOOP, LoopAttrKind::NAME));
+  EXPECT_FALSE(hasAttr(LOOP, LoopAttrKind::NAME));                             \
+  EXPECT_EXIT(addAttr(LOOP, LoopAttrKind::NAME), ::testing::ExitedWithCode(1), \
+              "error: cannot add attribute");
 
-#define CHECK_ACCESSORS(NAME, INST, VAL1, VAL2)                                \
-  EXPECT_FALSE(has##NAME##Attr(INST));                                         \
+#define CHECK_ACCESSORS(NAME, LOOP, VAL1, VAL2)                                \
+  EXPECT_FALSE(has##NAME##Attr(LOOP));                                         \
                                                                                \
-  add##NAME##Attr(INST, VAL1);                                                 \
-  EXPECT_TRUE(has##NAME##Attr(INST));                                          \
-  EXPECT_EQ(get##NAME##Attr(INST), (VAL1));                                    \
+  add##NAME##Attr(LOOP, VAL1);                                                 \
+  EXPECT_TRUE(has##NAME##Attr(LOOP));                                          \
+  EXPECT_EQ(get##NAME##Attr(LOOP), (VAL1));                                    \
                                                                                \
-  add##NAME##Attr(INST, VAL2);                                                 \
-  EXPECT_TRUE(has##NAME##Attr(INST));                                          \
-  EXPECT_EQ(get##NAME##Attr(INST), (VAL2));                                    \
+  add##NAME##Attr(LOOP, VAL2);                                                 \
+  EXPECT_TRUE(has##NAME##Attr(LOOP));                                          \
+  EXPECT_EQ(get##NAME##Attr(LOOP), (VAL2));                                    \
                                                                                \
-  remove##NAME##Attr(INST);                                                    \
-  EXPECT_FALSE(has##NAME##Attr(INST));
+  remove##NAME##Attr(LOOP);                                                    \
+  EXPECT_FALSE(has##NAME##Attr(LOOP));
 
-TEST(KitLoopAttrs, loopAttrsGeneric) {
+TEST(KitLoopAttrs, attrsGeneric) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
@@ -150,7 +152,7 @@ TEST(KitLoopAttrs, loopAttrsGeneric) {
 
 #define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
   EXPECT_FALSE(hasAttr(*loop, LoopAttrKind::NAME));                            \
-  add##NAME##Attr(*loop);                                                      \
+  addAttr(*loop, LoopAttrKind::NAME);                                          \
   EXPECT_TRUE(hasAttr(*loop, LoopAttrKind::NAME));                             \
   removeAttr(*loop, LoopAttrKind::NAME);                                       \
   EXPECT_FALSE(hasAttr(*loop, LoopAttrKind::NAME));
@@ -170,12 +172,11 @@ TEST(KitLoopAttrs, loopAttrsGeneric) {
 #define TAPIR_LOOP_ATTRIBUTE_INT64(NAME, IRNAME)                               \
   LOOP_ATTRIBUTE_INT64(NAME, IRNAME)
 #define TAPIR_LOOP_ATTRIBUTE_STR(NAME, IRNAME) LOOP_ATTRIBUTE_STR(NAME, IRNAME)
-
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(KitLoopAttrs, loopEnumAttrs) {
+TEST(KitLoopAttrs, enumAttrs) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
@@ -196,7 +197,7 @@ TEST(KitLoopAttrs, loopEnumAttrs) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(KitLoopAttrs, loopFlagAttrs) {
+TEST(KitLoopAttrs, flagAttrs) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
@@ -223,7 +224,7 @@ TEST(KitLoopAttrs, loopFlagAttrs) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(KitLoopAttrs, loopInt32Test) {
+TEST(KitLoopAttrs, int32Test) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
@@ -238,7 +239,7 @@ TEST(KitLoopAttrs, loopInt32Test) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(KitLoopAttrs, loopInt64Test) {
+TEST(KitLoopAttrs, int64Test) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
@@ -253,7 +254,7 @@ TEST(KitLoopAttrs, loopInt64Test) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-TEST(KitLoopAttrs, loopStrTest) {
+TEST(KitLoopAttrs, strTest) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");

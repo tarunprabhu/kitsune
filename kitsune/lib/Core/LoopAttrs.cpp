@@ -13,10 +13,42 @@
 
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/MetadataUtils.h"
+#include "kitsune/Support/Diagnostics.h"
+#include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/LoopInfo.h"
 
 using namespace llvm;
+
+template <typename T>
+static void addAttrAs(Loop &loop, LoopAttrKind attr, T val) {
+  LLVMContext &ctx = loop.getHeader()->getContext();
+  StringRef name = getAttrName(attr);
+  MDNode *md = getMDNodeForAttr(ctx, attr, val);
+  MDNode *loopMD = loop.getLoopID();
+  MDNode *newLoopMD = makePostTransformationMetadata(ctx, loopMD, {name}, {md});
+
+  loop.setLoopID(newLoopMD);
+}
+
+static void addAttr(Loop &loop, LoopAttrKind attr) {
+  LLVMContext &ctx = loop.getHeader()->getContext();
+  StringRef name = getAttrName(attr);
+  MDString *mdTag = MDString::get(ctx, name);
+  MDNode *md = MDNode::get(ctx, mdTag);
+  MDNode *loopMD = loop.getLoopID();
+  MDNode *newLoopMD = makePostTransformationMetadata(ctx, loopMD, {name}, {md});
+
+  loop.setLoopID(newLoopMD);
+}
+
+template <typename T>
+static std::optional<T> getAttr(const Loop &loop, StringRef name) {
+  MDNode *md = findOptionMDForLoop(&loop, name);
+  if (md && md->getNumOperands() == 2)
+    return fromMetadata<T>(md->getOperand(1));
+  return std::nullopt;
+}
 
 template <typename T>
 MDNode *llvm::getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr, T val) {
@@ -31,12 +63,12 @@ MDNode *llvm::getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr, T val) {
 // Parts of the code use unsigned integers for some attribute values. The
 // definitions of the attributes uses only signed integers for now, so
 // explicitly instantiate the unsigned version.
-template MDNode* llvm::getMDNodeForAttr(LLVMContext &, LoopAttrKind, uint32_t);
+template MDNode *llvm::getMDNodeForAttr(LLVMContext &, LoopAttrKind, uint32_t);
 
 MDNode *llvm::getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr) {
   StringRef name = getAttrName(attr);
   Metadata *mdTag = MDString::get(ctx, name);
-  MDNode* md = MDNode::get(ctx, mdTag);
+  MDNode *md = MDNode::get(ctx, mdTag);
 
   return md;
 }
@@ -85,12 +117,19 @@ bool llvm::hasAttr(const Loop &loop, LoopAttrKind attr) {
   return findOptionMDForLoop(&loop, getAttrName(attr));
 }
 
-template <typename T>
-static std::optional<T> getAttr(const Loop &loop, StringRef name) {
-  MDNode *md = findOptionMDForLoop(&loop, name);
-  if (md && md->getNumOperands() == 2)
-    return fromMetadata<T>(md->getOperand(1));
-  return std::nullopt;
+void llvm::addAttr(Loop &loop, LoopAttrKind attr) {
+  switch (attr) {
+  default:
+    emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
+    exitOnError();
+    break;
+#define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME) case LoopAttrKind::NAME:
+#define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
+  LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+    return ::addAttr(loop, attr);
+  }
 }
 
 void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
@@ -98,28 +137,6 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
   StringRef name = getAttrName(attr);
   MDNode *loopMD = loop.getLoopID();
   MDNode *newLoopMD = makePostTransformationMetadata(ctx, loopMD, {name}, {});
-
-  loop.setLoopID(newLoopMD);
-}
-
-template <typename T>
-static void addAttrAs(Loop &loop, LoopAttrKind attr, T val) {
-  LLVMContext &ctx = loop.getHeader()->getContext();
-  StringRef name = getAttrName(attr);
-  MDNode *md = getMDNodeForAttr(ctx, attr, val);
-  MDNode *loopMD = loop.getLoopID();
-  MDNode *newLoopMD = makePostTransformationMetadata(ctx, loopMD, {name}, {md});
-
-  loop.setLoopID(newLoopMD);
-}
-
-static void addAttr(Loop &loop, LoopAttrKind attr) {
-  LLVMContext &ctx = loop.getHeader()->getContext();
-  StringRef name = getAttrName(attr);
-  MDString *mdTag = MDString::get(ctx, name);
-  MDNode *md = MDNode::get(ctx, mdTag);
-  MDNode *loopMD = loop.getLoopID();
-  MDNode *newLoopMD = makePostTransformationMetadata(ctx, loopMD, {name}, {md});
 
   loop.setLoopID(newLoopMD);
 }
@@ -156,7 +173,7 @@ static void addAttr(Loop &loop, LoopAttrKind attr) {
   }                                                                            \
                                                                                \
   void llvm::add##NAME##Attr(Loop &loop) {                                     \
-    addAttr(loop, LoopAttrKind::NAME);                                         \
+    ::addAttr(loop, LoopAttrKind::NAME);                                       \
   }                                                                            \
                                                                                \
   void llvm::remove##NAME##Attr(Loop &loop) {                                  \
@@ -197,7 +214,7 @@ static void addAttr(Loop &loop, LoopAttrKind attr) {
   }                                                                            \
                                                                                \
   void llvm::add##NAME##Attr(Loop &loop) {                                     \
-    addAttr(loop, LoopAttrKind::NAME);                                         \
+    ::addAttr(loop, LoopAttrKind::NAME);                                       \
   }                                                                            \
                                                                                \
   void llvm::remove##NAME##Attr(Loop &loop) {                                  \
