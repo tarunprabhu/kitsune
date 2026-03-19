@@ -13,7 +13,7 @@
 #include "kitsune/Targets/TapirTargets.h"
 #include "kitsune/Config/Config.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Frontend/Diagnostics.h"
+#include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 
 #if KITSUNE_CUDA_ENABLED

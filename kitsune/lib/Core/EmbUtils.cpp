@@ -14,7 +14,7 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Core/TypeUtils.h"
-#include "kitsune/Frontend/Diagnostics.h"
+#include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/TTIDUtils.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"

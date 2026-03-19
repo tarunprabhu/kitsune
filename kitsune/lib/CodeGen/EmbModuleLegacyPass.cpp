@@ -15,6 +15,7 @@
 #include "kitsune/CodeGen/EmbModuleLegacyPass.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Module.h"
 
