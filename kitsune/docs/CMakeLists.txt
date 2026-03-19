@@ -8,19 +8,18 @@ set_target_properties(kitsune-doc PROPERTIES FOLDER "Kitsune/Docs")
 add_custom_target(kitsune-docs)
 add_dependencies(kitsune-docs kitsune-doc)
 
-# Generate a .rst file from a .td file that contains documentation for
-# Kitsune's loop attributes.
+# Generate a .rst file from a .td file from a Kitsune-specific tablegen file.
 #
 # RST         The output .rst file
 # TD          The input .td file from which the .rst file is generated
+# COMMAND     The command to pass to llvm-tblgen
 # TARGET_RST  The custom target that builds the .rst file. The target itself
 #             will be created in this function
 # TARGET_DIR  The name of the custom target that makes the directory into which
 #             the .rst file will be written. This target should have been
 #             created before this function is called
-function(gen_loop_attrs_rst rst td target_rst target_dir)
-  kitsune_tablegen(${td} ${rst}
-    -gen-kitsune-loop-attr-docs
+function(gen_kit_rst rst td command target_rst target_dir)
+  kitsune_tablegen(${td} ${rst} ${command}
     TARGET ${target_rst})
 
   add_dependencies(${target_rst} ${target_dir})
@@ -232,9 +231,22 @@ if (KITSUNE_ENABLE_SPHINX)
         kitsune-attrs-doc
         kitsune-html-source-dir)
 
-      gen_loop_attrs_rst(${HTML_SOURCE_DIR}/KitLoopAttrsDoc.rst
+      gen_kit_rst(${HTML_SOURCE_DIR}/KitInstAttrsDoc.rst
+        ${CMAKE_CURRENT_SOURCE_DIR}/KitInstAttrsDoc.td
+        -gen-kitsune-inst-attr-docs
+        kitsune-inst-attrs-doc
+        kitsune-html-source-dir)
+
+      gen_kit_rst(${HTML_SOURCE_DIR}/KitLoopAttrsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitLoopAttrsDoc.td
+        -gen-kitsune-loop-attr-docs
         kitsune-loop-attrs-doc
+        kitsune-html-source-dir)
+
+      gen_kit_rst(${HTML_SOURCE_DIR}/KitModuleAttrsDoc.rst
+        ${CMAKE_CURRENT_SOURCE_DIR}/KitModuleAttrsDoc.td
+        -gen-kitsune-module-attr-docs
+        kitsune-module-attrs-doc
         kitsune-html-source-dir)
 
       gen_options_rst(${HTML_SOURCE_DIR}/KitClangOptionsDoc.rst
@@ -299,7 +311,9 @@ if (KITSUNE_ENABLE_SPHINX)
         kitsune-attrs-doc
         kitsune-clang-options-doc
         kitsune-flang-options-doc
+        kitsune-inst-attrs-doc
         kitsune-loop-attrs-doc
+        kitsune-module-attrs-doc
         copy-html-inputs)
 
       # If Kitsune's API reference is to be built, the doxygen/ directory will

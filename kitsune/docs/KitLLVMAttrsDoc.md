@@ -3,11 +3,12 @@
 These are Kitsune-specific LLVM attributes. These are either emitted by
 Kitsune's drivers during LLVM-IR generation, or introduced by Kitsune's LLVM
 passes. These are "true" LLVM attributes, in the sense that they each have an
-entry in LLVM's `Attribute::AttrKind` enum. In addition to these, Kitsune also
-supports a number of "loop attributes". These are not true attributes since they
-only appear in the metadata attached to an LLVM loop. Nevertheless, Kitsune
-provides a consistent way of defining and accessing these. They are
-documented in a [dedicated page](KitLoopAttrsDoc).
+entry in LLVM's `Attribute::AttrKind` enum.
+
+In addition to these, Kitsune also attributes on [loops](KitLoopAttrsDoc),
+[instructions](KitInstAttrsDoc) and [modules](KitModuleAttrsDoc). These are not
+true attributes since they are not recognized by LLVM. However, Kitsune provides
+a consistent way of defining and accessing these.
 
 ## Function Attributes
 
@@ -64,9 +65,17 @@ These attributes only apply to global variables.
   attribute must be accompanied by exactly one of
   [kit\_bc](llvm-attr-kit-bc) or [kit\_fb](llvm-attr-kit-fb).
 
+## Instruction Attributes
+
+These are documented [here](KitInstAttrsDoc).
+
 ## Loop Attributes
 
 These are documented [here](KitLoopAttrsDoc).
+
+## Module Attributes
+
+These are documented [here](KitModuleAttrsDoc).
 
 ## Parameter Attributes
 
