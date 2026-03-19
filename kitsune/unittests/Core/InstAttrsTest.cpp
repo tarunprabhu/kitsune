@@ -61,7 +61,7 @@ static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
   return m;
 }
 
-TEST(KitInstAttrs, instAttrName) {
+TEST(KitInstAttrs, attrName) {
 #define INST_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
   EXPECT_EQ(getAttrName(InstAttrKind::NAME), IRNAME);                          \
   EXPECT_TRUE(getAttrName(InstAttrKind::NAME).starts_with("kit.inst."));
@@ -69,7 +69,7 @@ TEST(KitInstAttrs, instAttrName) {
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, instAttrKind) {
+TEST(KitInstAttrs, attrKind) {
   EXPECT_EQ(getInstAttrKind("whoops"), std::nullopt);
 
 #define INST_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
@@ -83,7 +83,9 @@ TEST(KitInstAttrs, instAttrKind) {
   add##NAME##Attr(INST, VAL);                                                  \
   EXPECT_TRUE(hasAttr(INST, InstAttrKind::NAME));                              \
   removeAttr(INST, InstAttrKind::NAME);                                        \
-  EXPECT_FALSE(hasAttr(INST, InstAttrKind::NAME));
+  EXPECT_FALSE(hasAttr(INST, InstAttrKind::NAME));                             \
+  EXPECT_EXIT(addAttr(INST, InstAttrKind::NAME), ::testing::ExitedWithCode(1), \
+              "error: cannot add attribute");
 
 #define CHECK_ACCESSORS(NAME, INST, VAL1, VAL2)                                \
   EXPECT_FALSE(has##NAME##Attr(INST));                                         \
@@ -99,7 +101,7 @@ TEST(KitInstAttrs, instAttrKind) {
   remove##NAME##Attr(INST);                                                    \
   EXPECT_FALSE(has##NAME##Attr(INST));
 
-TEST(KitInstAttrs, instAttrsGeneric) {
+TEST(KitInstAttrs, attrsGeneric) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
@@ -110,7 +112,7 @@ TEST(KitInstAttrs, instAttrsGeneric) {
 
 #define INST_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
   EXPECT_FALSE(hasAttr(*inst, InstAttrKind::NAME));                            \
-  add##NAME##Attr(*inst);                                                      \
+  addAttr(*inst, InstAttrKind::NAME);                                          \
   EXPECT_TRUE(hasAttr(*inst, InstAttrKind::NAME));                             \
   removeAttr(*inst, InstAttrKind::NAME);                                       \
   EXPECT_FALSE(hasAttr(*inst, InstAttrKind::NAME));
@@ -122,15 +124,12 @@ TEST(KitInstAttrs, instAttrsGeneric) {
 #define INST_ATTRIBUTE_STR(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, "queen's")
 #define INST_ATTRIBUTE_MDNODE(NAME, IRNAME)                                    \
   CHECK_GENERIC(NAME, *inst, MDNode::get(ctx, {}))
-#define INST_ATTRIBUTE_LOOP(NAME, IRNAME)                                      \
-  CHECK_GENERIC(NAME, *inst, *loop)                                            \
-  CHECK_GENERIC(NAME, *inst, loop)
-
+#define INST_ATTRIBUTE_LOOP(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, *loop)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, instEnumAttrs) {
+TEST(KitInstAttrs, enumAttrs) {
   LLVMContext ctx;
   [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
 
@@ -146,7 +145,7 @@ TEST(KitInstAttrs, instEnumAttrs) {
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, instFlagAttrs) {
+TEST(KitInstAttrs, flagAttrs) {
   LLVMContext ctx;
   [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
 
@@ -166,7 +165,7 @@ TEST(KitInstAttrs, instFlagAttrs) {
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, instInt32Test) {
+TEST(KitInstAttrs, int32Test) {
   LLVMContext ctx;
   [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
 
@@ -184,7 +183,7 @@ TEST(KitInstAttrs, instInt64Test) {
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, instLoopTest) {
+TEST(KitInstAttrs, loopTest) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
@@ -215,7 +214,7 @@ TEST(KitInstAttrs, instLoopTest) {
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, instMDNodeTest) {
+TEST(KitInstAttrs, MDNodeTest) {
   LLVMContext ctx;
   MDNode *empty = MDNode::get(ctx, {});
   [[maybe_unused]] MDNode *md1 = MDNode::get(ctx, {empty});
@@ -228,7 +227,7 @@ TEST(KitInstAttrs, instMDNodeTest) {
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, instStrTest) {
+TEST(KitInstAttrs, strTest) {
   LLVMContext ctx;
   [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
 

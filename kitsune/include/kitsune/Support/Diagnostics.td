@@ -57,7 +57,7 @@ class Note<string Msg> : Diag<SNote, Msg>;
 // with Err.
 
 def ErrAttrWithoutValues
-  : Error<"Cannot add attribute '{}' without values">;
+  : Error<"cannot add attribute '{}' without values">;
 
 def ErrRequiredPassNotRun
   : Error<"'{}': required pass '{}' has not been run">;

@@ -38,7 +38,7 @@ TEST(KitModuleAttrs, attrGeneric) {
 
 #define MODULE_ATTR(NAME, IRNAME)                                              \
   EXPECT_EXIT(addAttr(m, ModuleAttrKind::NAME), ::testing::ExitedWithCode(1),  \
-              "error: Cannot add attribute");
+              "error: cannot add attribute");
 #define MODULE_ATTR_0(NAME, IRNAME)                                            \
   EXPECT_FALSE(hasAttr(m, ModuleAttrKind::NAME));                              \
   addAttr(m, ModuleAttrKind::NAME);                                            \

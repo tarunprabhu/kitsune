@@ -45,6 +45,11 @@ std::optional<InstAttrKind> getInstAttrKind(StringRef name);
 /// Check if the given attribute is present on an instruction.
 bool hasAttr(const Instruction &inst, InstAttrKind attr);
 
+/// Add an attribute to the instruction. Only attributes that do not take any
+/// values can be added using this function. Adding any other attribute will
+/// result in a catastrophic runtime error.
+void addAttr(Instruction &inst, InstAttrKind attr);
+
 /// Remove the attribute from an instructoin. If the instruction does not
 /// contain the attribute, this has no effect.
 void removeAttr(Instruction &inst, InstAttrKind attr);

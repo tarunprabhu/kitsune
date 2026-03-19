@@ -59,6 +59,11 @@ bool isAttrTapirOnly(LoopAttrKind attr);
 /// Check if the given attribute is present on a loop.
 bool hasAttr(const Loop &loop, LoopAttrKind attr);
 
+/// Add an attribute to the loop. Only attributes that do not take any values
+/// can be added using this function. Adding any other attribute will result in
+/// a catastrophic runtime error.
+void addAttr(Loop &loop, LoopAttrKind attr);
+
 /// Remove the attribute from a loop. If the loop does not contain the
 /// attribute, this has no effect.
 void removeAttr(Loop &loop, LoopAttrKind attr);
