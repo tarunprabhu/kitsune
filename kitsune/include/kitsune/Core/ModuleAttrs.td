@@ -99,14 +99,14 @@ information if having them is determined to be useful.
 }];
 }
 
-def LoopsAnnotated : Attr<[]> {
+def PreLowerAnnotatePass : Attr<[]> {
   let Documentation = [{
 The presence of this attribute indicates that the `kit-annotate-prelower`
 pass has been run on the module.
 }];
 }
 
-def LoopsSerialized : Attr<[]> {
+def SerializePass : Attr<[]> {
   let Documentation = [{
 The presence of this attribute indicates that the `kit-serialize` pass has been
 run on the module.

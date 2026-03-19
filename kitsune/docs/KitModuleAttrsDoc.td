@@ -1,4 +1,4 @@
-//===- KitLInstAttrsDoc.td - Documentation for module attributes ----------===//
+//===- KitModuleAttrsDoc.td - Documentation for module attributes ---------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -35,8 +35,8 @@ are fixed. These values may be integers, strings or enums.
 
 In the example below, two attributes are added to the module,
 :ref:`kit.module.device.module.flags <module-attr-device-module-flags>`, and
-:ref:`kit.module.loops.annotated <module-attr-loops-annotated>`. The first of
-these has a number of values, while the other has no attributes.
+:ref:`kit.module.loops.annotated <module-attr-pre-lower-pass>`. The first of
+these has a number of values, while the other has no values.
 
 .. code :: kitll
 
@@ -44,10 +44,10 @@ these has a number of values, while the other has no attributes.
   target triple = "riscv64-pc-freebsd"
 
   !kit.module.device.metadata.flags = !{!0, !1}
-  !kit.module.loops.annotated = !{}
+  !kit.module.pre.lower.annotate.pass = !{}
 
   !0 = !{i32 2}
-  !1 = !{!"greyfriar's hall"}
+  !1 = !{!"loughborough"}
 
 Every attribute has an entry in the ``ModuleAttrKind`` enum.
 }];
