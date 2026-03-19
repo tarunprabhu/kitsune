@@ -1,5 +1,4 @@
 add_llvm_component_library(LLVMKitTransforms
-  AnnotateTapirLoops.cpp
   EmbLinkLibDeviceBitcode.cpp
   EmbLowerKitIntrinsicsLibDevice.cpp
   EmbPrepare.cpp
@@ -14,6 +13,7 @@ add_llvm_component_library(LLVMKitTransforms
   GenerateCtorHip.cpp
   GenerateCtorPthreads.cpp
   GenerateCtorQthreads.cpp
+  PreLowerAnnotate.cpp
   PrefetchForDevice.cpp
   RecomputeKernelProperties.cpp
   Serialize.cpp

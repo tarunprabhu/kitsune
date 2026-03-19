@@ -45,7 +45,7 @@
 ; O123SZ-NEXT: Running analysis: TaskAnalysis
 ; O123SZ-NEXT: Running analysis: PostDominatorTreeAnalysis
 ; O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis
-; O123SZ-NEXT: Running pass:     AnnotateTapirLoopsPass
+; O123SZ-NEXT: Running pass:     PreLowerAnnotate
 ; O123SZ-NEXT: Running pass:     SerializePass
 ; O123SZ-NEXT: Running pass:     LoopSpawningPass
 ; O123SZ:      Running pass:     TapirToTargetPass

@@ -29,7 +29,7 @@
 // -----------------------------------------------------------------------------
 //
 // CHECK-NOT: PreLowerVerificationPass
-// CHECK-NOT: AnnotateTapirLoopsPass
+// CHECK-NOT: PreLowerAnnotate
 // CHECK-NOT: SerializePass
 // CHECK-NOT: LoopSpawningPass
 // CHECK-NOT: EmbResolveLibDeviceCallsPass

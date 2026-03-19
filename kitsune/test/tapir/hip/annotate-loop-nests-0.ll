@@ -1,7 +1,7 @@
 ; Check that loop nests that do not contain any tapir loops are not annotated
 ; with any tapir.loop.nest annotations. The loops here are all perfect.
 ;
-; RUN: opt -passes="kit-annotate-tapir-loops" -S %s \
+; RUN: opt -passes="kit-annotate-prelower" -S %s \
 ; RUN:     | FileCheck %s
 
 ; CHECK-LABEL: @l1

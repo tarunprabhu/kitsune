@@ -42,7 +42,7 @@
 ;
 ; O123SZ:      Running pass:     PreLowerVerificationPass
 ; O123SZ-NEXT: Running analysis: TTObjectsAnalysis
-; O123SZ-NEXT: Running pass:     AnnotateTapirLoopsPass
+; O123SZ-NEXT: Running pass:     PreLowerAnnotate
 ; O123SZ-NEXT: Running pass:     SerializePass
 ; O123SZ-NEXT: Running pass:     LoopSpawningPass
 ; O123SZ-NEXT: Running pass:     TapirToTargetPass

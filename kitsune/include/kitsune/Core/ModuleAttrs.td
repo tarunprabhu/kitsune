@@ -101,7 +101,7 @@ information if having them is determined to be useful.
 
 def LoopsAnnotated : Attr<[]> {
   let Documentation = [{
-The presence of this attribute indicates that the `kit-annotate-tapir-loops`
+The presence of this attribute indicates that the `kit-annotate-prelower`
 pass has been run on the module.
 }];
 }

@@ -1,7 +1,7 @@
 ; Check that the tapir loop annotator pass annotates loops correctly. Every
 ; function contains a single, imperfect loop nest.
 ;
-; RUN: opt -passes="kit-annotate-tapir-loops" -S %s \
+; RUN: opt -passes="kit-annotate-prelower" -S %s \
 ; RUN:     | FileCheck %s
 
 ; CHECK-LABEL: @pep

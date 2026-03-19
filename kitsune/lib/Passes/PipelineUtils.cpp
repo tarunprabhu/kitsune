@@ -17,13 +17,13 @@
 #include "kitsune/CodeGen/EmbLowerKitIntrinsics.h"
 #include "kitsune/CodeGen/LowerKitIntrinsics.h"
 #include "kitsune/CodeGen/StripKitAddrSpaces.h"
-#include "kitsune/Transforms/AnnotateTapirLoops.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
 #include "kitsune/Transforms/EmbLowerKitIntrinsicsLibDevice.h"
 #include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "kitsune/Transforms/GenerateCtors.h"
+#include "kitsune/Transforms/PreLowerAnnotate.h"
 #include "kitsune/Transforms/PrefetchForDevice.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
 #include "kitsune/Transforms/Serialize.h"
@@ -85,7 +85,7 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     // annotate-tapir-loops requires the loops to be in simplified and rotated
     // form. Since this pipeline is run just before loop-spawning, both the
     // loop-simplify and loop-rotate passes are guaranteed to have been run.
-    mpm.addPass(AnnotateTapirLoopsPass());
+    mpm.addPass(PreLowerAnnotatePass());
     mpm.addPass(SerializePass());
   }
 

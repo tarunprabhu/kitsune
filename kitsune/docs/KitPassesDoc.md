@@ -117,8 +117,8 @@ other part of the IR. The only transformations that these are permitted to carry
 out on any embedded bitcode is to delete it entirely.
 
 
-(passes-kit-annotate-tapir-loops)=
-#### kit-annotate-tapir-loops
+(passes-kit-annotate-prelower)=
+#### kit-annotate-prelower
 
 Adds attributes to tapir loops that are meant to be read by passes that run
 later in the lowering pipeline. The specific annotations depend on the tapir
@@ -129,6 +129,7 @@ tapir loop nests (where the outermost loop is a tapir loop) and annotates it
 with the perfect tapir loop nest depth. All perfectly nested tapir loops within
 each nest are annotated with their nesting level.
 
+This pass is usually run just before tapir lowering.
 
 (passes-kit-cgfb)=
 #### kit-cgfb
