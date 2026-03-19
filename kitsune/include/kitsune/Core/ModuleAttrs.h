@@ -44,6 +44,11 @@ std::optional<ModuleAttrKind> getModuleAttrKind(StringRef name);
 /// Check if the given attribute is present in a module.
 bool hasAttr(const Module &m, ModuleAttrKind attr);
 
+/// Add an attribute to the module. Only attributes that do not take any values
+/// can be added using this function. Adding any other attribute will result in
+/// a catastrophic runtime error.
+void addAttr(Module &m, ModuleAttrKind attr);
+
 /// Remove the attribute from a module. If the module does not contain the
 /// attribute, this has no effect.
 void removeAttr(Module &m, ModuleAttrKind attr);
@@ -57,25 +62,25 @@ void removeAttr(Module &m, ModuleAttrKind attr);
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 
-#define MODULE_ATTR_0(NAME, IRNAME) NamedMDNode &add##NAME##Attr(Module &m);
+#define MODULE_ATTR_0(NAME, IRNAME) void add##NAME##Attr(Module &m);
 
 #define MODULE_ATTR_1(NAME, IRNAME, TY1, V1)                                   \
-  NamedMDNode &add##NAME##Attr(Module &m, TY1 V1);                             \
+  void add##NAME##Attr(Module &m, TY1 V1);                                     \
   std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);
 
 #define MODULE_ATTR_2(NAME, IRNAME, TY1, V1, TY2, V2)                          \
-  NamedMDNode &add##NAME##Attr(Module &m, TY1 V1, TY2 V2);                     \
+  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2);                             \
   std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
   std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);
 
 #define MODULE_ATTR_3(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3)                 \
-  NamedMDNode &add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3);             \
+  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3);                     \
   std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
   std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);               \
   std::optional<TY3> get##V3##From##NAME##Attr(const Module &m);
 
 #define MODULE_ATTR_4(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4)        \
-  NamedMDNode &add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4);     \
+  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4);             \
   std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
   std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);               \
   std::optional<TY3> get##V3##From##NAME##Attr(const Module &m);               \
@@ -83,8 +88,7 @@ void removeAttr(Module &m, ModuleAttrKind attr);
 
 #define MODULE_ATTR_5(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4, TY5,   \
                       V5)                                                      \
-  NamedMDNode &add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4,      \
-                               TY5 V5);                                        \
+  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4, TY5 V5);     \
   std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
   std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);               \
   std::optional<TY3> get##V3##From##NAME##Attr(const Module &m);               \
@@ -93,8 +97,8 @@ void removeAttr(Module &m, ModuleAttrKind attr);
 
 #define MODULE_ATTR_6(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4, TY5,   \
                       V5, TY6, V6)                                             \
-  NamedMDNode &add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4,      \
-                               TY5 V5, TY6 V6);                                \
+  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4, TY5 V5,      \
+                       TY6 V6);                                                \
   std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
   std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);               \
   std::optional<TY3> get##V3##From##NAME##Attr(const Module &m);               \
@@ -104,8 +108,8 @@ void removeAttr(Module &m, ModuleAttrKind attr);
 
 #define MODULE_ATTR_7(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4, TY5,   \
                       V5, TY6, V6, TY7, V7)                                    \
-  NamedMDNode &add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4,      \
-                               TY5 V5, TY6 V6, TY7 V7);                        \
+  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4, TY5 V5,      \
+                       TY6 V6, TY7 V7);                                        \
   std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
   std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);               \
   std::optional<TY3> get##V3##From##NAME##Attr(const Module &m);               \
@@ -116,8 +120,8 @@ void removeAttr(Module &m, ModuleAttrKind attr);
 
 #define MODULE_ATTR_8(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4, TY5,   \
                       V5, TY6, V6, TY7, V7, TY8, V8)                           \
-  NamedMDNode &add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4,      \
-                               TY5 V5, TY6 V6, TY7 V7, TY8 V8);                \
+  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4, TY5 V5,      \
+                       TY6 V6, TY7 V7, TY8 V8);                                \
   std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
   std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);               \
   std::optional<TY3> get##V3##From##NAME##Attr(const Module &m);               \

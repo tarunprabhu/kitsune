@@ -32,6 +32,25 @@ TEST(KitModuleAttrs, attrKind) {
   EXPECT_EQ(getModuleAttrKind("whoops"), std::nullopt);
 }
 
+TEST(KitModuleAttrs, attrGeneric) {
+  LLVMContext ctx;
+  Module m("", ctx);
+
+#define MODULE_ATTR(NAME, IRNAME)                                              \
+  EXPECT_EXIT(addAttr(m, ModuleAttrKind::NAME), ::testing::ExitedWithCode(1),  \
+              "error: Cannot add attribute");
+#define MODULE_ATTR_0(NAME, IRNAME)                                            \
+  EXPECT_FALSE(hasAttr(m, ModuleAttrKind::NAME));                              \
+  addAttr(m, ModuleAttrKind::NAME);                                            \
+  EXPECT_TRUE(hasAttr(m, ModuleAttrKind::NAME));                               \
+  addAttr(m, ModuleAttrKind::NAME);                                            \
+  EXPECT_TRUE(hasAttr(m, ModuleAttrKind::NAME));                               \
+  removeAttr(m, ModuleAttrKind::NAME);                                         \
+  EXPECT_FALSE(hasAttr(m, ModuleAttrKind::NAME));
+#define GET_MODULE_ATTRS
+#include "kitsune/Core/ModuleAttrs.inc"
+}
+
 TEST(KitModuleAttrs, attr0) {
   LLVMContext ctx;
   Module m("", ctx);

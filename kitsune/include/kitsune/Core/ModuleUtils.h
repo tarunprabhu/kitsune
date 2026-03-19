@@ -56,8 +56,7 @@ class NamedMDNode;
 ///
 /// \param m The module
 /// \param tt The tapir target that created the device module \p m
-/// \returns The NamedMDNode that was created or modified.
-NamedMDNode &addDeviceModuleFlagsAttr(Module &m, TTID tt);
+void addDeviceModuleFlagsAttr(Module &m, TTID tt);
 
 /// Clone LLVM's module flags metadata from the host into the device module.
 /// This will not clone every operand of the metadata, but only a subset that
@@ -69,10 +68,10 @@ NamedMDNode &addDeviceModuleFlagsAttr(Module &m, TTID tt);
 ///
 /// FIXME: We should try and determine if there is a way to construct a filter
 /// that will copy *all* operands *except* those that are known to be unsafe.
-NamedMDNode &cloneModuleFlagsMetadataInto(Module &devM, const Module &hostM);
+void cloneModuleFlagsMetadataInto(Module &devM, const Module &hostM);
 
 /// Clone LLVM's ident metadata from the host into the device module.
-NamedMDNode &cloneIdentMetadataInto(Module &devM, const Module &hostM);
+void cloneIdentMetadataInto(Module &devM, const Module &hostM);
 
 /// @}
 

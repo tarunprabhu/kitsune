@@ -18,12 +18,11 @@
 
 using namespace llvm;
 
-NamedMDNode &llvm::addDeviceModuleFlagsAttr(Module &m, TTID tt) {
-  return addDeviceModuleFlagsAttr(m, tt, m.getName());
+void llvm::addDeviceModuleFlagsAttr(Module &m, TTID tt) {
+  addDeviceModuleFlagsAttr(m, tt, m.getName());
 }
 
-NamedMDNode &llvm::cloneModuleFlagsMetadataInto(Module &devM,
-                                                const Module &hostM) {
+void llvm::cloneModuleFlagsMetadataInto(Module &devM, const Module &hostM) {
   // These are the module flags that should be cloned over. Others will be
   // ignored.
   SmallSet<StringRef, 8> flags = {"Debug Info Version", "Dwarf Version",
@@ -36,13 +35,11 @@ NamedMDNode &llvm::cloneModuleFlagsMetadataInto(Module &devM,
         if (auto *mdString = dyn_cast<MDString>(md->getOperand(1)))
           if (flags.contains(mdString->getString()))
             nmd.addOperand(MDNode::replaceWithPermanent(md->clone()));
-  return nmd;
 }
 
-NamedMDNode &llvm::cloneIdentMetadataInto(Module &devM, const Module &hostM) {
+void llvm::cloneIdentMetadataInto(Module &devM, const Module &hostM) {
   NamedMDNode &nmd = *devM.getOrInsertNamedMetadata("llvm.ident");
   if (const NamedMDNode *ident = hostM.getNamedMetadata("llvm.ident"))
     for (const MDNode *md : ident->operands())
       nmd.addOperand(MDNode::replaceWithPermanent(md->clone()));
-  return nmd;
 }
