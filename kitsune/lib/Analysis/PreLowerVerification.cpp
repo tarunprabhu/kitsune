@@ -50,7 +50,7 @@
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
-#include "kitsune/Frontend/Diagnostics.h"
+#include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "kitsune/Support/TTIDUtils.h"
 #include "kitsune/Targets/TapirTargets.h"

@@ -11,10 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Frontend/Diagnostics.h"
+#include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Core/DIUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Support/ErrorHandling.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Function.h"
@@ -135,7 +136,7 @@ DiagnosticSeverity llvm::detail::getSeverity(DiagID id) {
 #define DIAG(NAME, SEVERITY, MSG)                                              \
   case DiagID::NAME:                                                           \
     return SEVERITY;
-#include "kitsune/Frontend/Diagnostics.inc"
+#include "kitsune/Support/Diagnostics.inc"
   }
   llvm_unreachable("getSeverity: DiagID not handled");
 }
@@ -146,7 +147,7 @@ StringRef llvm::detail::getMsg(DiagID id) {
 #define DIAG(NAME, SEVERITY, MSG)                                              \
   case DiagID::NAME:                                                           \
     return MSG;
-#include "kitsune/Frontend/Diagnostics.inc"
+#include "kitsune/Support/Diagnostics.inc"
   }
   llvm_unreachable("getMsg: DiagID not handled");
 }
@@ -170,3 +171,26 @@ bool llvm::isNote(DiagID id) {
 void llvm::emitDiagnostic(DiagID id) {
   detail::emitDiagnostic(errs(), detail::getSeverity(id), detail::getMsg(id));
 }
+
+namespace llvm {
+namespace detail {
+
+// Emit a diagnostic indicating that the pass \p requires needed by the pass
+// \p pass was not run. This is only intended to be used in PassUtilsInternal.h.
+void emitPassNotRunDiagnostic(StringRef pass, StringRef reqd) {
+  DiagID id = DiagID::ErrRequiredPassNotRun;
+  emitDiagnostic(errs(), getSeverity(id),
+                 formatv(getMsg(id).data(), pass, reqd).str());
+}
+
+// Emit a diagnostic indicating stating that some required passes were not run
+// and exit with a system-dependent error code. This function is only intended
+// to be used in PassUtilsInternal.h
+void emitFatalPassesNotRunDiagnostic() {
+  // Despite the name of the function, we don't actually emit a diagnostic
+  // here. Maybe we will at some point.
+  exitOnError();
+}
+
+} // namespace detail
+} // namespace llvm

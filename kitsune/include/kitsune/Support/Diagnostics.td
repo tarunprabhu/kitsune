@@ -56,6 +56,9 @@ class Note<string Msg> : Diag<SNote, Msg>;
 // Although not strictly required, the names of all errors should be prefixed
 // with Err.
 
+def ErrAttrWithoutValues
+  : Error<"Cannot add attribute '{}' without values">;
+
 def ErrRequiredPassNotRun
   : Error<"'{}': required pass '{}' has not been run">;
 

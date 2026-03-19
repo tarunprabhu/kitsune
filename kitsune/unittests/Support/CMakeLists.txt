@@ -4,6 +4,7 @@ set(LLVM_LINK_COMPONENTS
 )
 
 add_kitsune_unittest_with_input_files(KitSupportTests
+  DiagnosticsTest.cpp
   FromIntTest.cpp
   FromStringTest.cpp
   TTIDUtilsTest.cpp

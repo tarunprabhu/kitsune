@@ -22,13 +22,18 @@
 #ifndef KITSUNE_PASSES_PASS_UTILS_INTERNAL_H
 #define KITSUNE_PASSES_PASS_UTILS_INTERNAL_H
 
-#include "kitsune/Frontend/Diagnostics.h"
-#include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 namespace detail {
+
+// We don't include the diagnostics-related headers here since those are likely
+// to change. When they do, a full top-level rebuild will be triggered. Instead,
+// we provide custom functions defined in libKitSupport for use here.
+void emitPassNotRunDiagnostic(StringRef, StringRef);
+void emitFatalPassesNotRunDiagnostic();
 
 // Trait to get the IRUnit type of the run method of the pass.
 template <typename T> struct pass_run_traits;
@@ -128,7 +133,13 @@ private:
   template <typename T> static unsigned countPassIfRun(const IRUnitT &ir) {
     if (T::hasRun(ir))
       return 1;
-    emitDiagnostic(DiagID::ErrRequiredPassNotRun, PassT::name(), T::name());
+
+    // We call the internal diagnostic function directly. Otherwise, we would
+    // have to include "kitsune/Frontend/Diagnostics.h" which would change
+    // every time a new diagnostic was added and trigger a major rebuild. The
+    // internal function is a special case added just to avoid this problem.
+    // Yes, it is absolutely ugly, but there we are.
+    emitPassNotRunDiagnostic(PassT::name(), T::name());
     return 0;
   }
 
@@ -269,7 +280,7 @@ void checkRequiredPassesHaveRun(const IRUnitT &ir) {
     using Requires = typename PassT::Requires;
     unsigned run = detail::passes_run<PassT, IRUnitT, Requires>::countRun(ir);
     if (run != std::tuple_size_v<Requires>)
-      exitOnError();
+      detail::emitFatalPassesNotRunDiagnostic();
   }
 }
 

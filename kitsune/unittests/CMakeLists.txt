@@ -29,6 +29,5 @@ endif ()
 
 add_subdirectory(Analysis)
 add_subdirectory(Core)
-add_subdirectory(Frontend)
 add_subdirectory(Passes)
 add_subdirectory(Support)

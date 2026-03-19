@@ -15,6 +15,7 @@
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Support/OstreamUtils.h"
 #include "kitsune/Support/TTIDUtils.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/Demangle/Demangle.h"

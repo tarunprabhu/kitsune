@@ -14,7 +14,7 @@
 
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Frontend/Diagnostics.h"
+#include "kitsune/Support/Diagnostics.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker/Linker.h"
