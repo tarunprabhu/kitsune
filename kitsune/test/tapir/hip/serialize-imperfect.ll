@@ -180,7 +180,7 @@ for2.i.end:
 
 }
 
-!kit.module.loops.annotated = !{}
+!kit.module.pre.lower.annotate.pass = !{}
 
 !0 = distinct !{!0, !1}
 !1 = !{!"tapir.loop.target", i32 4}

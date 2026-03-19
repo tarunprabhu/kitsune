@@ -97,8 +97,10 @@ PreservedAnalyses PreLowerAnnotatePass::run(Module &m,
   return PreservedAnalyses::all();
 }
 
-void PreLowerAnnotatePass::setHasRun(Module &m) { addLoopsAnnotatedAttr(m); }
+void PreLowerAnnotatePass::setHasRun(Module &m) {
+  addPreLowerAnnotatePassAttr(m);
+}
 
 bool PreLowerAnnotatePass::hasRun(const Module &m) {
-  return hasLoopsAnnotatedAttr(m);
+  return hasPreLowerAnnotatePassAttr(m);
 }

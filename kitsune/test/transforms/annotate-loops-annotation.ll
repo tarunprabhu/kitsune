@@ -4,4 +4,4 @@
 ; RUN: opt -passes='kit-annotate-prelower' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: !kit.module.loops.annotated = !{}
+; CHECK: !kit.module.pre.lower.annotate.pass = !{}

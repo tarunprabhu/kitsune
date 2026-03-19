@@ -4,6 +4,6 @@
 ; RUN: opt -passes='kit-serialize' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: !kit.module.loops.serialized = !{}
+; CHECK: !kit.module.serialize.pass = !{}
 
-!kit.module.loops.annotated = !{}
+!kit.module.pre.lower.annotate.pass = !{}

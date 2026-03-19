@@ -100,7 +100,7 @@ declare void @ext1(i64)
 
 declare void @ext2(i64, i64)
 
-!kit.module.loops.annotated = !{}
+!kit.module.pre.lower.annotate.pass = !{}
 
 !0 = distinct !{!0, !2, !3, !4, !6}
 !1 = distinct !{!1, !2, !5}
