@@ -206,7 +206,3 @@ PreservedAnalyses SerializePass::run(Module &m, ModuleAnalysisManager &mam) {
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
 }
-
-void SerializePass::setHasRun(Module &m) { addSerializePassAttr(m); }
-
-bool SerializePass::hasRun(const Module &m) { return hasSerializePassAttr(m); }

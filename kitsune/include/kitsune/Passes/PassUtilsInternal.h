@@ -27,6 +27,20 @@
 
 namespace llvm {
 
+class Function;
+class Loop;
+class Module;
+enum class FuncAttrKind : uint32_t;
+enum class LoopAttrKind : uint32_t;
+enum class ModuleAttrKind : uint32_t;
+
+// We don't include the attribute-related headers here since those are likely
+// to change. When they do, a full top-level rebuild will be triggered. Instead,
+// just declare what we need.
+void addAttr(Function &func, FuncAttrKind attr);
+void addAttr(Loop &loop, LoopAttrKind attr);
+void addAttr(Module &m, ModuleAttrKind attr);
+
 namespace detail {
 
 // We don't include the diagnostics-related headers here since those are likely
@@ -38,40 +52,67 @@ void emitFatalPassesNotRunDiagnostic();
 // Trait to get the IRUnit type of the run method of the pass.
 template <typename T> struct pass_run_traits;
 template <typename ReturnT, typename ClassT, typename IRUnitT, typename... Args>
-struct pass_run_traits<ReturnT (ClassT::*)(IRUnitT, Args...)> {
+struct pass_run_traits<ReturnT (ClassT::*)(IRUnitT &, Args...)> {
   using irunit_t = IRUnitT;
 };
 
 // Trait to get the IRUnit of a pass.
+// NOTE: This only works on passes that have a single run() method. Some passes
+// may define more than one run method. It is unlikely that we will have such
+// passes in Kitsune.
 template <typename PassT>
 using pass_irunit_t = typename pass_run_traits<decltype(&PassT::run)>::irunit_t;
 
-// Helper to check if a pass has a member with the following signature:
-//
-//     void setHasRun(IRUnitT&);
-//
-// Here, IRUnitT is the IR unit on which the pass operates.
-template <typename T>
-using has_method_record_t =
-    decltype(declval<T &>().setHasRun(declval<pass_irunit_t<T>>()));
-template <typename T>
-constexpr bool has_method_record_v = is_detected<has_method_record_t, T>::value;
+// Helper that checks if a pass is a function pass.
+template <typename PassT> struct is_function_pass_t : std::false_type {};
+template <typename ReturnT, typename ClassT, typename... Args>
+struct is_function_pass_t<ReturnT (ClassT::*)(llvm::Function &, Args...)>
+    : std::true_type {};
+template <typename PassT>
+static constexpr bool is_function_pass_v =
+    is_function_pass_t<decltype(&PassT::run)>::value;
 
-// Helper to check if a pass has a member with the following signature:
-//
-//     static bool setHasRun(const IRUnitT&);
-//
-// Here, IRUnitT is the IR unit on which the pass operates.
-template <typename T>
-using has_method_check_t =
-    decltype(T::hasRun(declval<const pass_irunit_t<T>>()));
-template <typename T>
-constexpr bool has_method_check_v = is_detected<has_method_check_t, T>::value;
+// Helper that checks if a pass is a loop pass.
+template <typename PassT> struct is_loop_pass_t : std::false_type {};
+template <typename ReturnT, typename ClassT, typename... Args>
+struct is_loop_pass_t<ReturnT (ClassT::*)(llvm::Loop &, Args...)>
+    : std::true_type {};
+template <typename PassT>
+static constexpr bool is_loop_pass_v =
+    is_loop_pass_t<decltype(&PassT::run)>::value;
+
+// Helper that checks if a pass is a module pass.
+template <typename PassT> struct is_module_pass_t : std::false_type {};
+template <typename ReturnT, typename ClassT, typename... Args>
+struct is_module_pass_t<ReturnT (ClassT::*)(llvm::Module &, Args...)>
+    : std::true_type {};
+template <typename PassT>
+static constexpr bool is_module_pass_v =
+    is_module_pass_t<decltype(&PassT::run)>::value;
+
+// Helper that checks if a pass has a static member named hasRunAttr.
+template <typename PassT> using has_member_attr_t = decltype(PassT::hasRunAttr);
+template <typename PassT>
+static constexpr bool has_member_attr_v =
+    is_detected<has_member_attr_t, PassT>::value;
+
+template <typename PassT> static constexpr bool pass_requirable_impl() {
+  if constexpr (has_member_attr_v<PassT>) {
+    using AttrType = decltype(PassT::hasRunAttr);
+    if constexpr (is_function_pass_v<PassT>)
+      return std::is_same_v<AttrType, const FuncAttrKind>;
+    else if constexpr (is_loop_pass_v<PassT>)
+      return std::is_same_v<AttrType, const LoopAttrKind>;
+    else if constexpr (is_module_pass_v<PassT>)
+      return std::is_same_v<AttrType, const ModuleAttrKind>;
+    return false;
+  }
+  return false;
+}
 
 // Convience helper to check if a pass is requirable.
-template <typename T>
-constexpr bool pass_requirable_v =
-    has_method_record_v<T> && has_method_check_v<T>;
+template <typename PassT>
+constexpr bool pass_requirable_v = pass_requirable_impl<PassT>();
 
 // Helper that checks that all types in a tuple are requirable passes.
 template <typename... Ts> struct all_requirable_t : std::false_type {};
@@ -131,7 +172,7 @@ private:
   // Check if the pass has been run. Return 1 if it has. Otherwise, emit a
   // diagnostic and return 1.
   template <typename T> static unsigned countPassIfRun(const IRUnitT &ir) {
-    if (T::hasRun(ir))
+    if (hasAttr(ir, T::hasRunAttr))
       return 1;
 
     // We call the internal diagnostic function directly. Otherwise, we would
@@ -159,38 +200,59 @@ public:
 
 } // namespace detail
 
-/// Check that a pass is "requirable". This is true only if the pass defines a
-/// member function with the following members:
+/// Check that a pass is "requirable". A requirable pass must contain a public,
+/// static constant member named hasRunAttr. The type of the member depends on
+/// the IR unit on which the pass operates. The table below lists the required
+/// types depending on the IR unit.
+///
+///     IR unit  | Member Type
+///     -------- | --------------
+///     Loop     | LoopAttrKind
+///     Module   | ModuleAttrKind
+///
+/// The examples below show how various pass kinds of requirable passes may be
+/// declared.
 ///
 /// \code{.cpp}
 ///
-///     class Pass : public PassInfoMixin<Pass> {
+///     class LoopPass : public PassInfoMixin<Pass> {
+///       public:
+///         PreservedAnalyses run(Loop &loop, LoopAnalysisManager &am,
+///                               LoopStandardAnalysisResults&, LPMUpdater&);
 ///         ...
-///         void setHasRun(IRUnit& ir);
-///         static bool hasRun(const IRUnit& ir);
+///         static const LoopAttrKind hasRunAttr = LoopAttrKind::<NAME>;
+///     };
+///
+///     class ModulePass : public PassInfoMixin<Pass> {
+///       public:
+///         PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
+///         ...
+///         static constexpr ModuleAttrKind hasRunAttr = ModuleAttrKind::<NAME>;
 ///     };
 ///
 /// \endcode
 ///
-/// Here, IRUnitT& is the unit of IR on which the pass operates. In practice,
-/// in Kitsune, this is most likely to be an llvm::Module.
+/// Note that the member can be either `const` or `constexpr`.
+///
+/// Currently, only passes that operate on IR units listed in the table above
+/// may be declared requirable.
 ///
 template <typename PassT>
-constexpr bool pass_requirable_v =
-    detail::has_method_check_v<PassT> && detail::has_method_record_v<PassT>;
+constexpr bool pass_requirable_v = detail::pass_requirable_impl<PassT>();
 
 /// Run checks for a pass that is a requirable pass. When defining a requirable
 /// pass, this should be used as follows:
 ///
 /// \code{.cpp}
 ///
-///     class Pass : public PassInfoMixin<Pass> {
+///     class ModulePass : public PassInfoMixin<Pass> {
+///       public:
+///         PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 ///         ...
-///         void setHasRun(IRUnit& ir);
-///         static bool hasRun(const IRUnit& ir);
+///         static constexpr ModuleAttrKind hasRunAttr = ModuleAttrKind::<NAME>;
 ///     };
 ///
-///     static_assert(check_pass_requirable<Pass>());
+///     static_assert(check_pass_requirable<ModulePass>());
 ///
 /// \endcode
 ///
@@ -203,12 +265,27 @@ constexpr bool pass_requirable_v =
 /// requirable. Generally, this should only be used where the pass is defined.
 ///
 template <typename PassT> static constexpr bool check_pass_requirable() {
-  static_assert(detail::has_method_check_v<PassT>,
-                "Requirable pass requires static member "
-                "`bool hasRun(const llvm::Module&)`");
-  static_assert(detail::has_method_record_v<PassT>,
-                "Requirable pass requires non-static member "
-                "`void setHasRun(llvm::Module&)`");
+  static_assert(detail::has_member_attr_v<PassT>,
+                "Requirable pass must have static member named hasRunAttr");
+  if constexpr (detail::is_function_pass_v<PassT>)
+    static_assert(false, "Requirable function passes not yet supported");
+  // static_assert(
+  //     std::is_same_v<decltype(PassT::hasRunAttr), const FuncAttrKind>,
+  //     "Requirable pass missing public static member 'hasRunAttr' with type "
+  //     "'const FuncAttrKind'");
+  else if constexpr (detail::is_loop_pass_v<PassT>)
+    static_assert(
+        std::is_same_v<decltype(PassT::hasRunAttr), const LoopAttrKind>,
+        "Requirable pass missing public static member 'hasRunAttr' with type "
+        "'const LoopAttrKind'");
+  else if constexpr (detail::is_module_pass_v<PassT>)
+    static_assert(
+        std::is_same_v<decltype(PassT::hasRunAttr), const ModuleAttrKind>,
+        "Requirable pass missing public static member 'hasRunAttr' with type "
+        "'const ModuleAttrKind'");
+  else
+    static_assert(false, "Requirable passes are only supported on passes that "
+                         "operate on Function's, Loop's, and Module's");
   return true;
 }
 
@@ -275,7 +352,7 @@ template <typename PassT> static constexpr bool check_pass_dependent() {
 template <typename PassT, typename IRUnitT>
 void checkRequiredPassesHaveRun(const IRUnitT &ir) {
   if constexpr (pass_dependent_v<PassT>) {
-    static_assert(std::is_same_v<IRUnitT &, detail::pass_irunit_t<PassT>>,
+    static_assert(std::is_same_v<IRUnitT, detail::pass_irunit_t<PassT>>,
                   "IR type mismatch");
     using Requires = typename PassT::Requires;
     unsigned run = detail::passes_run<PassT, IRUnitT, Requires>::countRun(ir);
@@ -293,10 +370,10 @@ void checkRequiredPassesHaveRun(const IRUnitT &ir) {
 /// requirable, this has no effect.
 template <typename PassT, typename IRUnitT>
 void setPassHasRun(PassT &pass, IRUnitT &ir) {
-  if constexpr (pass_requirable_v<PassT>) {
-    static_assert(std::is_same_v<IRUnitT &, detail::pass_irunit_t<PassT>>,
+  if constexpr (detail::pass_requirable_impl<PassT>()) {
+    static_assert(std::is_same_v<IRUnitT, detail::pass_irunit_t<PassT>>,
                   "IR type mismatch");
-    pass.setHasRun(ir);
+    addAttr(ir, PassT::hasRunAttr);
   }
 }
 

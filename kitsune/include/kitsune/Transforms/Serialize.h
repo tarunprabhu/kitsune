@@ -13,6 +13,7 @@
 #ifndef KITSUNE_TRANSFORMS_SERIALIZE_H
 #define KITSUNE_TRANSFORMS_SERIALIZE_H
 
+#include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Passes/PassUtils.h"
 #include "kitsune/Transforms/PreLowerAnnotate.h"
 #include "llvm/IR/PassManager.h"
@@ -26,9 +27,7 @@ public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 
   using Requires = std::tuple<PreLowerAnnotatePass>;
-
-  void setHasRun(Module &m);
-  static bool hasRun(const Module &m);
+  static constexpr auto hasRunAttr = ModuleAttrKind::SerializePass;
 };
 
 static_assert(check_pass_dependent<SerializePass>());
