@@ -96,11 +96,3 @@ PreservedAnalyses PreLowerAnnotatePass::run(Module &m,
   // module. It will not add or remove any loops, or change any other code.
   return PreservedAnalyses::all();
 }
-
-void PreLowerAnnotatePass::setHasRun(Module &m) {
-  addPreLowerAnnotatePassAttr(m);
-}
-
-bool PreLowerAnnotatePass::hasRun(const Module &m) {
-  return hasPreLowerAnnotatePassAttr(m);
-}

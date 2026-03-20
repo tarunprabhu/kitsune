@@ -13,6 +13,7 @@
 #ifndef KITSUNE_TRANSFORMS_PRE_LOWER_ANNOTATE_H
 #define KITSUNE_TRANSFORMS_PRE_LOWER_ANNOTATE_H
 
+#include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Passes/PassUtils.h"
 #include "llvm/IR/PassManager.h"
 
@@ -26,8 +27,7 @@ class PreLowerAnnotatePass : public PassInfoMixin<PreLowerAnnotatePass> {
 public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 
-  void setHasRun(Module &m);
-  static bool hasRun(const Module &m);
+  static constexpr auto hasRunAttr = ModuleAttrKind::PreLowerAnnotatePass;
 };
 
 static_assert(check_pass_requirable<PreLowerAnnotatePass>());
