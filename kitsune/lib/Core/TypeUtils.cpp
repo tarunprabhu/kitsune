@@ -22,20 +22,39 @@ bool llvm::isByteArrayTy(Type *Ty) {
   return false;
 }
 
+template <typename T,
+          std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, bool>, int> = 0>
+static Type *getLLVMTypeImpl(LLVMContext &ctx) {
+  llvm_unreachable("NOT IMPLEMENTED: getTypeFor<bool>()");
+}
+
+template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+static Type *getLLVMTypeImpl(LLVMContext &ctx) {
+  return IntegerType::get(ctx, sizeof(T) * 8);
+}
+
+template <typename T,
+          std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, float>, int> = 0>
+static Type *getLLVMTypeImpl(LLVMContext &ctx) {
+  return Type::getFloatTy(ctx);
+}
+
+template <typename T, std::enable_if_t<
+                          std::is_same_v<std::remove_cv_t<T>, double>, int> = 0>
+static Type *getLLVMTypeImpl(LLVMContext &ctx) {
+  return Type::getDoubleTy(ctx);
+}
+
+template <
+    typename T,
+    std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, long double>, int> = 0>
+static Type *getLLVMTypeImpl(LLVMContext &ctx) {
+  llvm_unreachable("NOT IMPLEMENTED: getTypeFor<long double>()");
+}
+
 template <typename T, std::enable_if_t<!std::is_pointer_v<T>, int>>
 Type *llvm::getLLVMTypeFor(LLVMContext &ctx) {
-  if constexpr (std::is_same_v<T, bool>)
-    llvm_unreachable("getTypeFor<bool> has not been implemented");
-  else if constexpr (std::is_pointer_v<T>)
-    return PointerType::getUnqual(ctx);
-  else if constexpr (std::is_integral_v<T>)
-    return IntegerType::get(ctx, sizeof(T) * 8);
-  else if constexpr (std::is_same_v<T, float>)
-    return Type::getFloatTy(ctx);
-  else if constexpr (std::is_same_v<T, double>)
-    return Type::getDoubleTy(ctx);
-  else
-    llvm_unreachable("getTypeFor<T>: unknown type");
+  return getLLVMTypeImpl<T>(ctx);
 }
 
 template Type *llvm::getLLVMTypeFor<int8_t>(LLVMContext &);
@@ -60,6 +79,8 @@ template Type *llvm::getLLVMTypeFor<float>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const float>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<double>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const double>(LLVMContext &);
+template Type *llvm::getLLVMTypeFor<long double>(LLVMContext &);
+template Type *llvm::getLLVMTypeFor<const long double>(LLVMContext &);
 
 template Type *llvm::getLLVMTypeFor<char>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const char>(LLVMContext &);

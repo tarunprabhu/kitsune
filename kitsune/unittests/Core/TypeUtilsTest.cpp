@@ -39,7 +39,9 @@ TEST(KitTypeUtils, getLLVMTypeFor) {
   EXPECT_TRUE(getLLVMTypeFor<uint64_t>(ctx)->isIntegerTy(64));
 
   EXPECT_TRUE(getLLVMTypeFor<float>(ctx)->isFloatTy());
+  EXPECT_TRUE(getLLVMTypeFor<const float>(ctx)->isFloatTy());
   EXPECT_TRUE(getLLVMTypeFor<double>(ctx)->isDoubleTy());
+  EXPECT_TRUE(getLLVMTypeFor<const double>(ctx)->isDoubleTy());
 
   EXPECT_TRUE(getLLVMTypeFor<void *>(ctx)->isPointerTy());
   EXPECT_TRUE(getLLVMTypeFor<int *>(ctx)->isPointerTy());

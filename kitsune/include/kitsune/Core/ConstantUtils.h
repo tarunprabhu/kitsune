@@ -61,6 +61,11 @@ Constant *toConstant(T val, LLVMContext &ctx) {
   return ConstantInt::get(getLLVMTypeFor<T>(ctx), val);
 }
 
+template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
+Constant *toConstant(T val, LLVMContext &ctx) {
+  return ConstantFP::get(getLLVMTypeFor<T>(ctx), val);
+}
+
 /// @}
 
 /// Utilities to convert LLVM Constant's to C++ values.
@@ -89,6 +94,23 @@ std::optional<T> fromConstant(const Constant &c) {
     return cint->getLimitedValue();
   return std::nullopt;
 }
+
+template <typename T,
+          std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, float>, int> = 0>
+std::optional<T> fromConstant(const Constant &c) {
+  if (const auto *cfp = dyn_cast<ConstantFP>(&c))
+    return cfp->getValue().convertToFloat();
+  return std::nullopt;
+}
+
+template <typename T, std::enable_if_t<
+                          std::is_same_v<std::remove_cv_t<T>, double>, int> = 0>
+std::optional<T> fromConstant(const Constant &c) {
+  if (const auto *cfp = dyn_cast<ConstantFP>(&c))
+    return cfp->getValue().convertToDouble();
+  return std::nullopt;
+}
+
 /// @}
 
 /// @}

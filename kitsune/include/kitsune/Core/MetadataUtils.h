@@ -33,7 +33,9 @@ Metadata *toMetadata(T val, LLVMContext &ctx) {
 }
 
 template <typename T,
-          std::enable_if_t<std::is_enum_v<T> || std::is_integral_v<T>, int> = 0>
+          std::enable_if_t<std::is_enum_v<T> || std::is_integral_v<T> ||
+                               std::is_floating_point_v<T>,
+                           int> = 0>
 Metadata *toMetadata(T val, LLVMContext &ctx) {
   return ConstantAsMetadata::get(toConstant(val, ctx));
 }
@@ -51,7 +53,9 @@ std::optional<T> fromMetadata(const Metadata *md) {
 }
 
 template <typename T,
-          std::enable_if_t<std::is_enum_v<T> || std::is_integral_v<T>, int> = 0>
+          std::enable_if_t<std::is_enum_v<T> || std::is_integral_v<T> ||
+                               std::is_floating_point_v<T>,
+                           int> = 0>
 std::optional<T> fromMetadata(const Metadata *md) {
   if (auto *cmd = dyn_cast<ConstantAsMetadata>(md))
     if (auto *c = dyn_cast<Constant>(cmd->getValue()))
