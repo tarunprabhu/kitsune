@@ -10,18 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// Base class whose specializations specify the type of loop to which an
-// attribute can be applied.
-class AllowedOnLoopKind;
-
-// The attribute can only be applied to tapir loops.
-def TapirLoopsOnly : AllowedOnLoopKind;
-
-// The attribute can only be applied to non-tapir loops.
-def NormalLoopsOnly : AllowedOnLoopKind;
-
-// The attribute can be applied to both tapir and non-tapir loops.
-def AnyLoop : AllowedOnLoopKind;
+include "kitsune/Core/AttrCommon.td"
 
 // Base class for all Kitsune-specific loop attributes. These are most likely to
 // be added to tapir loops, but they may be added to regular loops as well.
@@ -34,8 +23,8 @@ def AnyLoop : AllowedOnLoopKind;
 // case, and consist of letters and digits only. The name of the attribute as it
 // appears in LLVM-IR metadata is derived from this.
 //
-// If AllowedOn is set to TapirLoopsOnly, the attributes would appear in
-// metadata as shown below.
+// If AllowedOn is set to TapirOnly, the attributes would appear in metadata as
+// shown below.
 //
 //     .-----------------------------------------.
 //     | Name         | Metadata string          |
@@ -46,8 +35,8 @@ def AnyLoop : AllowedOnLoopKind;
 //     | Dim3         | tapir.loop.dim3          |
 //     '-----------------------------------------'
 //
-// If AllowedOn is set to any value other than TapirLoopsOnly, the attributes
-// would appear in metadata as shown below.
+// If AllowedOn is set to any value other than TapirOnly, the attributes would
+// appear in metadata as shown below.
 //
 //     .-----------------------------------.
 //     | Name         | Metadata string    |
@@ -58,38 +47,14 @@ def AnyLoop : AllowedOnLoopKind;
 //     | Dim3         | loop.dim3          |
 //     '-----------------------------------'
 //
-class Attr<string ValueTypeParam, AllowedOnLoopKind AllowedOnParam> {
-  // If the attribute takes a value, this must be the exact spelling of the
-  // C++ type of the argument. If the attribute does not take an argument, this
-  // must be an empty string.
-  string ValueType = ValueTypeParam;
-
-  // If this is true, the attribute can only be set on tapir loops. Otherwise,
-  // it can be set on both tapir loops and regular loops.
-  AllowedOnLoopKind AllowedOn = AllowedOnParam;
-
-  // Documentation for this attribute. This is used to generate the HTML
-  // documentation.
-  code Documentation = [{}];
+class LoopAttr<AllowedOnKind AllowedOnParam, Type ValueType = VoidTy>
+    : AttrBase<ValueType>{
+  AllowedOnKind AllowedOn = AllowedOnParam;
 }
 
-// An attribute that takes an enum argument.
-class EnumAttr<string ValueType, AllowedOnLoopKind AllowedOn>
-    : Attr<ValueType, AllowedOn>;
+//------------------------------------------------------------------------------
 
-// An attribute that does not take an argument.
-class FlagAttr<AllowedOnLoopKind AllowedOn> : Attr<"", AllowedOn>;
-
-// An attribute that takes a 32-bit integer argument.
-class Int32Attr<AllowedOnLoopKind AllowedOn> : Attr<"int32_t", AllowedOn>;
-
-// An attribute that takes a 64-bit integer argument.
-class Int64Attr<AllowedOnLoopKind AllowedOn> : Attr<"int64_t", AllowedOn>;
-
-// An attribute that takes a string argument.
-class StrAttr<AllowedOnLoopKind AllowedOn> : Attr<"StringRef", AllowedOn>;
-
-def Name : StrAttr<AnyLoop> {
+def Name : LoopAttr<TapirOrNormal, StrTy> {
   let Documentation = [{
 A human-readable name for the loop. This is useful in debugging and diagnostics
 when debug information is not available.
@@ -98,14 +63,14 @@ when debug information is not available.
 
 // This can only be attached to normal loops since the process of serializing it
 // will have converted a tapir loop to a regular loop.
-def Serialized : FlagAttr<NormalLoopsOnly> {
+def Serialized : LoopAttr<NormalOnly> {
    let Documentation = [{
 The presence of this attribute indicates that the loop on which it is present
 is a tapir loop that was serialized.
 }];
 }
 
-def AutotuneLaunch : FlagAttr<TapirLoopsOnly> {
+def AutotuneLaunch : LoopAttr<TapirOnly> {
   let Documentation = [{
 If present, this attribute indicates that the runtime should use autotuning to
 find optimal kernel launch parameters. This is only used by the 'cuda' and 'hip'
@@ -118,7 +83,7 @@ tapir targets.
 // attribute in OpenCilk. We may change this in the future to be more consistent
 // with the other attribute names, but that would require changes to most tests
 // in llvm/lib/Transforms/Tapir.
-def Grainsize : Int32Attr<TapirLoopsOnly> {
+def Grainsize : LoopAttr<TapirOnly, I32Ty> {
   let Documentation = [{
 Certain tapir targets may launch one task per iteration of a parallel loop.
 The overhead of these task launches and syncs can overwhelm any gains obtained
@@ -144,7 +109,7 @@ loops on the right.
 }];
 }
 
-def LoweringEnabled : FlagAttr<TapirLoopsOnly> {
+def LoweringEnabled : LoopAttr<TapirOnly> {
   let Documentation = [{
 If this attribute is present in a tapir loop, it will be lowered using the tapir
 target specified in the value of this attribute. Tapir loops that do not contain
@@ -155,7 +120,7 @@ lowering a parent tapir loop that is passed to a tapir target.
 }];
 }
 
-def PerfectDepth : Int32Attr<TapirLoopsOnly> {
+def PerfectDepth : LoopAttr<TapirOnly, I32Ty> {
   let Documentation = [{
 The value of the perfect depth attribute indicates the level of the deepest
 tapir loop in a tapir loop nest that is perfectly nested relative to the root
@@ -203,7 +168,7 @@ to the root which is why the perfect depth is also 2.
 }];
 }
 
-def PerfectLevel : Int32Attr<TapirLoopsOnly> {
+def PerfectLevel : LoopAttr<TapirOnly, I32Ty> {
   let Documentation = [{
 The value of the perfect level attribute indicates the level of a tapir loop in
 a perfect tapir loop nest.
@@ -250,7 +215,7 @@ which the tapir loop is a part.
 }];
 }
 
-def SpawnStrategy : EnumAttr<"TapirSpawnStrategy", TapirLoopsOnly> {
+def SpawnStrategy : LoopAttr<TapirOnly, SpawnStrategyTy> {
   let Documentation = [{
 The spawn strategy attribute mainly determines whether a tapir loop should be
 outlined. At some point, it may be used for something more, but right now, its
@@ -258,7 +223,7 @@ use is limited. This attribute is required to be present on all tapir loops.
 }];
 }
 
-def Target : EnumAttr<"TTID", TapirLoopsOnly> {
+def Target : LoopAttr<TapirOnly, TTIDTy> {
   let Documentation = [{
 If this attribute is present in a tapir loop, it will be lowered using the tapir
 target specified in the attribute's value. This attribute is required to be
@@ -266,7 +231,7 @@ present on all tapir loops.
 }];
 }
 
-def ThreadsPerBlock : Int32Attr<TapirLoopsOnly> {
+def ThreadsPerBlock : LoopAttr<TapirOnly, I32Ty> {
   let Documentation = [{
 If this attribute is present on a tapir loop, its value will be the number of
 threads per block used when launching the GPU kernel obtained when the loop is

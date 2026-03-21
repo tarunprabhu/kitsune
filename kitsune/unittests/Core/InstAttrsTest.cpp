@@ -62,7 +62,7 @@ static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
 }
 
 TEST(KitInstAttrs, attrName) {
-#define INST_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
+#define INST_ATTR(NAME, TYPE, IRNAME)                                          \
   EXPECT_EQ(getAttrName(InstAttrKind::NAME), IRNAME);                          \
   EXPECT_TRUE(getAttrName(InstAttrKind::NAME).starts_with("kit.inst."));
 #define GET_INST_ATTRS
@@ -72,11 +72,18 @@ TEST(KitInstAttrs, attrName) {
 TEST(KitInstAttrs, attrKind) {
   EXPECT_EQ(getInstAttrKind("whoops"), std::nullopt);
 
-#define INST_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
+#define INST_ATTR(NAME, TYPE, IRNAME)                                          \
   EXPECT_EQ(getInstAttrKind(IRNAME), InstAttrKind::NAME);
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
+
+#define CHECK_GENERIC_FLAG(NAME, INST)                                         \
+  EXPECT_FALSE(hasAttr(INST, InstAttrKind::NAME));                             \
+  addAttr(INST, InstAttrKind::NAME);                                           \
+  EXPECT_TRUE(hasAttr(INST, InstAttrKind::NAME));                              \
+  removeAttr(INST, InstAttrKind::NAME);                                        \
+  EXPECT_FALSE(hasAttr(INST, InstAttrKind::NAME));
 
 #define CHECK_GENERIC(NAME, INST, VAL)                                         \
   EXPECT_FALSE(hasAttr(INST, InstAttrKind::NAME));                             \
@@ -86,6 +93,48 @@ TEST(KitInstAttrs, attrKind) {
   EXPECT_FALSE(hasAttr(INST, InstAttrKind::NAME));                             \
   EXPECT_EXIT(addAttr(INST, InstAttrKind::NAME), ::testing::ExitedWithCode(1), \
               "error: cannot add attribute");
+
+TEST(KitInstAttrs, attrsGeneric) {
+  LLVMContext ctx;
+  std::unique_ptr<Module> m = parseIR(ctx, ll);
+  Function *f = m->getFunction("f");
+  DominatorTree dt(*f);
+  LoopInfo li(dt);
+  Loop *loop = *li.begin();
+  [[maybe_unused]] Instruction *inst = loop->getLatchCmpInst();
+
+#define INST_ATTR_FLAG(NAME, IRNAME) CHECK_GENERIC_FLAG(NAME, *inst)
+#define INST_ATTR_ENUM(NAME, IRNAME, TYPE)                                \
+  CHECK_GENERIC(NAME, *inst, (TYPE)1)
+#define INST_ATTR_F32(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, 3.14F)
+#define INST_ATTR_F64(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, 3.141592653)
+#define INST_ATTR_I32(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, 67)
+#define INST_ATTR_I64(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, 73L)
+#define INST_ATTR_STR(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, "queen's")
+#define INST_ATTR_LOOP(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, *loop)
+#define GET_INST_ATTRS
+#include "kitsune/Core/InstAttrs.inc"
+}
+
+TEST(KitInstAttrs, flagAttrs) {
+  LLVMContext ctx;
+  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
+
+#define INST_ATTR_FLAG(NAME, IRNAME)                                      \
+  EXPECT_FALSE(has##NAME##Attr(INST));                                         \
+                                                                               \
+  add##NAME##Attr(INST);                                                       \
+  EXPECT_TRUE(has##NAME##Attr(INST));                                          \
+                                                                               \
+  add##NAME##Attr(INST);                                                       \
+  EXPECT_TRUE(has##NAME##Attr(INST));                                          \
+                                                                               \
+  remove##NAME##Attr(INST);                                                    \
+  EXPECT_FALSE(has##NAME##Attr(INST));
+
+#define GET_INST_ATTRS
+#include "kitsune/Core/InstAttrs.inc"
+}
 
 #define CHECK_ACCESSORS(NAME, INST, VAL1, VAL2)                                \
   EXPECT_FALSE(has##NAME##Attr(INST));                                         \
@@ -101,34 +150,6 @@ TEST(KitInstAttrs, attrKind) {
   remove##NAME##Attr(INST);                                                    \
   EXPECT_FALSE(has##NAME##Attr(INST));
 
-TEST(KitInstAttrs, attrsGeneric) {
-  LLVMContext ctx;
-  std::unique_ptr<Module> m = parseIR(ctx, ll);
-  Function *f = m->getFunction("f");
-  DominatorTree dt(*f);
-  LoopInfo li(dt);
-  [[maybe_unused]] Loop *loop = *li.begin();
-  [[maybe_unused]] Instruction *inst = loop->getLatchCmpInst();
-
-#define INST_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
-  EXPECT_FALSE(hasAttr(*inst, InstAttrKind::NAME));                            \
-  addAttr(*inst, InstAttrKind::NAME);                                          \
-  EXPECT_TRUE(hasAttr(*inst, InstAttrKind::NAME));                             \
-  removeAttr(*inst, InstAttrKind::NAME);                                       \
-  EXPECT_FALSE(hasAttr(*inst, InstAttrKind::NAME));
-
-#define INST_ATTRIBUTE_ENUM(NAME, IRNAME, TYPE)                                \
-  CHECK_GENERIC(NAME, *inst, (TYPE)1)
-#define INST_ATTRIBUTE_INT32(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, 67)
-#define INST_ATTRIBUTE_INT64(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, 73L)
-#define INST_ATTRIBUTE_STR(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, "queen's")
-#define INST_ATTRIBUTE_MDNODE(NAME, IRNAME)                                    \
-  CHECK_GENERIC(NAME, *inst, MDNode::get(ctx, {}))
-#define INST_ATTRIBUTE_LOOP(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, *loop)
-#define GET_INST_ATTRS
-#include "kitsune/Core/InstAttrs.inc"
-}
-
 TEST(KitInstAttrs, enumAttrs) {
   LLVMContext ctx;
   [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
@@ -138,47 +159,47 @@ TEST(KitInstAttrs, enumAttrs) {
   // an attribute for. If this ever happens, change this test. It may be
   // sufficient to just check for some enum-valued attribute instead of all of
   // them.
-#define INST_ATTRIBUTE_ENUM(NAME, IRNAME, TYPE)                                \
+#define INST_ATTR_ENUM(NAME, IRNAME, TYPE)                                \
   CHECK_ACCESSORS(NAME, *inst, (TYPE)1, (TYPE)2)
 
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, flagAttrs) {
+TEST(KitInstAttrs, f32Test) {
   LLVMContext ctx;
   [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
 
-#define INST_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
-  EXPECT_FALSE(has##NAME##Attr(*inst));                                        \
-                                                                               \
-  add##NAME##Attr(*inst);                                                      \
-  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
-                                                                               \
-  add##NAME##Attr(*inst);                                                      \
-  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
-                                                                               \
-  remove##NAME##Attr(*inst);                                                   \
-  EXPECT_FALSE(has##NAME##Attr(*inst));
-
+#define INST_ATTR_F32(NAME, IRNAME)                                       \
+  CHECK_ACCESSORS(NAME, *inst, 3.14159F, 2.71828F)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, int32Test) {
+TEST(KitInstAttrs, f64Test) {
   LLVMContext ctx;
   [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
 
-#define INST_ATTRIBUTE_INT32(NAME, IRNAME) CHECK_ACCESSORS(NAME, *inst, 42, 97)
+#define INST_ATTR_F64(NAME, IRNAME)                                       \
+  CHECK_ACCESSORS(NAME, *inst, 3.1415926535, 2.71828)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, instInt64Test) {
+TEST(KitInstAttrs, i32Test) {
   LLVMContext ctx;
   [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
 
-#define INST_ATTRIBUTE_INT64(NAME, IRNAME) CHECK_ACCESSORS(NAME, *inst, 2L, 7L)
+#define INST_ATTR_I32(NAME, IRNAME) CHECK_ACCESSORS(NAME, *inst, 42, 97)
+#define GET_INST_ATTRS
+#include "kitsune/Core/InstAttrs.inc"
+}
+
+TEST(KitInstAttrs, i64Test) {
+  LLVMContext ctx;
+  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
+
+#define INST_ATTR_I64(NAME, IRNAME) CHECK_ACCESSORS(NAME, *inst, 2L, 7L)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
@@ -193,19 +214,20 @@ TEST(KitInstAttrs, loopTest) {
   DominatorTree dtg(*g);
   LoopInfo lig(dtg);
   SmallVector<const LoopInfo *, 4> lis = {&lig, &lif};
-  Loop *loop = *lif.begin();
-  [[maybe_unused]] Instruction *inst = loop->getLatchCmpInst();
+  [[maybe_unused]] Loop *loopF = *lif.begin();
+  [[maybe_unused]] Loop *loopG = *lig.begin();
+  [[maybe_unused]] Instruction *inst = ReturnInst::Create(ctx);
 
-#define INST_ATTRIBUTE_LOOP(NAME, IRNAME)                                      \
+#define INST_ATTR_LOOP(NAME, IRNAME)                                      \
   EXPECT_FALSE(has##NAME##Attr(*inst));                                        \
                                                                                \
-  add##NAME##Attr(*inst, loop);                                                \
+  add##NAME##Attr(*inst, loopF);                                               \
   EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
-  EXPECT_EQ(get##NAME##Attr(*inst, lis), loop);                                \
+  EXPECT_EQ(get##NAME##Attr(*inst, lis), loopF);                               \
                                                                                \
-  add##NAME##Attr(*inst, *loop);                                               \
+  add##NAME##Attr(*inst, *loopG);                                              \
   EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
-  EXPECT_EQ(get##NAME##Attr(*inst, lis), loop);                                \
+  EXPECT_EQ(get##NAME##Attr(*inst, lis), loopG);                               \
                                                                                \
   remove##NAME##Attr(*inst);                                                   \
   EXPECT_FALSE(has##NAME##Attr(*inst));
@@ -214,24 +236,11 @@ TEST(KitInstAttrs, loopTest) {
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, MDNodeTest) {
-  LLVMContext ctx;
-  MDNode *empty = MDNode::get(ctx, {});
-  [[maybe_unused]] MDNode *md1 = MDNode::get(ctx, {empty});
-  [[maybe_unused]] MDNode *md2 = MDNode::get(ctx, {empty, empty});
-  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
-
-#define INST_ATTRIBUTE_MDNODE(NAME, IRNAME)                                    \
-  CHECK_ACCESSORS(NAME, *inst, md1, md2)
-#define GET_INST_ATTRS
-#include "kitsune/Core/InstAttrs.inc"
-}
-
 TEST(KitInstAttrs, strTest) {
   LLVMContext ctx;
   [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
 
-#define INST_ATTRIBUTE_STR(NAME, IRNAME)                                       \
+#define INST_ATTR_STR(NAME, IRNAME)                                       \
   CHECK_ACCESSORS(NAME, *inst, "magdalen", "exeter")
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"

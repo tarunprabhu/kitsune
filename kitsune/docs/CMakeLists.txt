@@ -233,19 +233,19 @@ if (KITSUNE_ENABLE_SPHINX)
 
       gen_kit_rst(${HTML_SOURCE_DIR}/KitInstAttrsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitInstAttrsDoc.td
-        -gen-kitsune-inst-attr-docs
+        -gen-kit-inst-attr-doc
         kitsune-inst-attrs-doc
         kitsune-html-source-dir)
 
       gen_kit_rst(${HTML_SOURCE_DIR}/KitLoopAttrsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitLoopAttrsDoc.td
-        -gen-kitsune-loop-attr-docs
+        -gen-kit-loop-attr-doc
         kitsune-loop-attrs-doc
         kitsune-html-source-dir)
 
       gen_kit_rst(${HTML_SOURCE_DIR}/KitModuleAttrsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitModuleAttrsDoc.td
-        -gen-kitsune-module-attr-docs
+        -gen-kit-module-attr-doc
         kitsune-module-attrs-doc
         kitsune-html-source-dir)
 

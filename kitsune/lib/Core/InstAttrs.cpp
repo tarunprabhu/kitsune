@@ -69,7 +69,7 @@ std::optional<Loop *> getAttr(const Instruction &inst, InstAttrKind attr,
 
 StringRef llvm::getAttrName(InstAttrKind attr) {
   switch (attr) {
-#define INST_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
+#define INST_ATTR(NAME, TYPE, IRNAME)                                          \
   case InstAttrKind::NAME:                                                     \
     return IRNAME;
 #define GET_INST_ATTRS
@@ -80,7 +80,7 @@ StringRef llvm::getAttrName(InstAttrKind attr) {
 
 std::optional<InstAttrKind> llvm::getInstAttrKind(StringRef name) {
   return StringSwitch<std::optional<InstAttrKind>>(name)
-#define INST_ATTR(NAME, TYPE, IRNAME, IRTYPE) .Case(IRNAME, InstAttrKind::NAME)
+#define INST_ATTR(NAME, TYPE, IRNAME) .Case(IRNAME, InstAttrKind::NAME)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
       .Default(std::nullopt);
@@ -96,7 +96,7 @@ void llvm::addAttr(Instruction &inst, InstAttrKind attr) {
     emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
     exitOnError();
     break;
-#define INST_ATTRIBUTE_FLAG(NAME, IRNAME) case InstAttrKind::NAME:
+#define INST_ATTR_FLAG(NAME, IRNAME) case InstAttrKind::NAME:
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
     return ::addAttr(inst, attr);
@@ -110,9 +110,9 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
 // Flag attributes (those that do not have a value), and attributes that take
 // Loop's as values will have a different set of accessors. Mask these before
 // generating declarations for the other attributes.
-#define INST_ATTRIBUTE_FLAG(NAME, IRNAME)
-#define INST_ATTRIBUTE_LOOP(NAME, IRNAME)
-#define INST_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
+#define INST_ATTR_FLAG(NAME, IRNAME)
+#define INST_ATTR_LOOP(NAME, IRNAME)
+#define INST_ATTR(NAME, TYPE, IRNAME)                                          \
   bool llvm::has##NAME##Attr(const Instruction &inst) {                        \
     return hasAttr(inst, InstAttrKind::NAME);                                  \
   }                                                                            \
@@ -131,7 +131,7 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 
-#define INST_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
+#define INST_ATTR_FLAG(NAME, IRNAME)                                           \
   bool llvm::has##NAME##Attr(const Instruction &inst) {                        \
     return hasAttr(inst, InstAttrKind::NAME);                                  \
   }                                                                            \
@@ -146,7 +146,7 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 
-#define INST_ATTRIBUTE_LOOP(NAME, IRNAME)                                      \
+#define INST_ATTR_LOOP(NAME, IRNAME)                                           \
   bool llvm::has##NAME##Attr(const Instruction &inst) {                        \
     return hasAttr(inst, InstAttrKind::NAME);                                  \
   }                                                                            \
