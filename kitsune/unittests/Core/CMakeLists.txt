@@ -10,6 +10,7 @@ add_kitsune_unittest_with_input_files(KitCoreTests
   EmbUtilsTest.cpp
   FuncAttrsTest.cpp
   FunctionUtilsTest.cpp
+  GVAttrsTest.cpp
   GlobalVariableUtilsTest.cpp
   InstAttrsTest.cpp
   InstructionUtilsTest.cpp

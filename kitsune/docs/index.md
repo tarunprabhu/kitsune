@@ -61,6 +61,7 @@ depending on what is of interest to you.
     KitAttrsDoc
     KitLLVMAttrsDoc
     KitFuncAttrsDoc
+    KitGVAttrsDoc
     KitInstAttrsDoc
     KitInstructionsDoc
     KitIntrinsicsDoc
