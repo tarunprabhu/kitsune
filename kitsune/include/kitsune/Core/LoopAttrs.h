@@ -71,51 +71,25 @@ void removeAttr(Loop &loop, LoopAttrKind attr);
 /// @}
 
 // Flag attributes (those that do not have a value) will have a different set of
-// accessors. Mask them by defining LOOP_ATTRIBUTE_FLAG without a body. These
+// accessors. Mask them by defining LOOP_ATTR_FLAG without a body. These
 // accessors are for attributes that may be applied to both tapir loops and
 // regular loops.
-#define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
+#define LOOP_ATTR(NAME, TYPE, TAPIRONLY, IRNAME)                               \
   bool has##NAME##Attr(const Loop &loop);                                      \
   std::optional<TYPE> get##NAME##Attr(const Loop &loop);                       \
   void add##NAME##Attr(Loop &loop, TYPE val);                                  \
   void remove##NAME##Attr(Loop &loop);
-
-#define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)
+#define LOOP_ATTR_FLAG(NAME, IRNAME, TAPIRONLY)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 
 // Flag attributes (those that do not have a value) have a different set of
 // accessors from non-flag attributes. These accessors are for attributes that
 // may be applied to both tapir loops and regular loops.
-#define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
+#define LOOP_ATTR_FLAG(NAME, IRNAME, TAPIRONLY)                                \
   bool has##NAME##Attr(const Loop &loop);                                      \
   void add##NAME##Attr(Loop &loop);                                            \
   void remove##NAME##Attr(Loop &loop);
-
-#define GET_LOOP_ATTRS
-#include "kitsune/Core/LoopAttrs.inc"
-
-// Flag attributes (those that do not have a value) will have a different set of
-// accessors. Mask them by defining LOOP_ATTRIBUTE_FLAG without a body. These
-// accessors are for attributes that may be applied to tapir loops only.
-#define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)
-#define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
-  bool has##NAME##Attr(const Loop &loop);                                      \
-  std::optional<TYPE> get##NAME##Attr(const Loop &loop);                       \
-  void add##NAME##Attr(Loop &loop, TYPE val);                                  \
-  void remove##NAME##Attr(Loop &loop);
-
-#define GET_LOOP_ATTRS
-#include "kitsune/Core/LoopAttrs.inc"
-
-// Flag attributes (those that do not have a value) have a different set of
-// accessors from non-flag attributes. These accessors are for attributes that
-// may be applied to tapir loops only.
-#define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
-  bool has##NAME##Attr(const Loop &loop);                                      \
-  void add##NAME##Attr(Loop &loop);                                            \
-  void remove##NAME##Attr(Loop &loop);
-
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 

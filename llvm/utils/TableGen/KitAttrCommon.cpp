@@ -1,4 +1,4 @@
-//===- KitsuneAttrUtils.cpp - Utilities for Kitsune's attributes ----------===//
+//===- KitAttrCommon.cpp - Common code for Kitsune's attributes -----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,14 +10,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "KitsuneAttrUtils.h"
+#include "KitAttrCommon.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TableGen/Record.h"
 
 using namespace llvm;
 
-static std::string getName(StringRef base, const Record &attr) {
+std::string getIRName(StringRef base, const Record &attr) {
   auto addDot = [](char c, char prev) -> bool {
     return (isAlpha(prev) && isDigit(c)) || (isDigit(prev) && isAlpha(c)) ||
            (isLower(prev) && isUpper(c));
@@ -39,25 +39,14 @@ static std::string getName(StringRef base, const Record &attr) {
   return buf;
 }
 
-std::string getAttrBaseName(const Record &attr) {
-  return getName("", attr);
-}
+std::string getIRBaseName(const Record &attr) { return ::getIRName("", attr); }
 
-std::string getInstAttrIRName(const Record &attr) {
-  return getName("kit.inst.", attr);
-}
-
-std::string getLoopAttrIRName(const Record &attr) {
-  if (isTapirLoopOnly(attr))
-    return getName("tapir.loop.", attr);
-  return getName("loop.", attr);
-}
-
-std::string getModuleAttrIRName(const Record& attr) {
-  return getName("kit.module.", attr);
-}
-
-bool isTapirLoopOnly(const Record &attr) {
+bool isTapirOnly(const Record &attr) {
   const Record *allowedOn = attr.getValueAsDef("AllowedOn");
-  return allowedOn->getName() == "TapirLoopsOnly";
+  return allowedOn->getName() == "TapirOnly";
+}
+
+StringRef getTypeName(const Record &attr) {
+  const Record *ty = attr.getValueAsDef("ValueType");
+  return ty->getValueAsString("Name");
 }

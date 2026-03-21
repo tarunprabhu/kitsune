@@ -75,13 +75,9 @@ MDNode *llvm::getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr) {
 
 StringRef llvm::getAttrName(LoopAttrKind attr) {
   switch (attr) {
-#define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
+#define LOOP_ATTR(NAME, TYPE, TAPIRONLY, IRNAME)                               \
   case LoopAttrKind::NAME:                                                     \
     return IRNAME;
-
-#define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
-  LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)
-
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
   }
@@ -90,10 +86,8 @@ StringRef llvm::getAttrName(LoopAttrKind attr) {
 
 std::optional<LoopAttrKind> llvm::getLoopAttrKind(StringRef name) {
   return StringSwitch<std::optional<LoopAttrKind>>(name)
-#define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE) .Case(IRNAME, LoopAttrKind::NAME)
-#define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
-  LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)
-
+#define LOOP_ATTR(NAME, TYPE, TAPIRONLY, IRNAME)                               \
+  .Case(IRNAME, LoopAttrKind::NAME)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
       .Default(std::nullopt);
@@ -101,12 +95,9 @@ std::optional<LoopAttrKind> llvm::getLoopAttrKind(StringRef name) {
 
 bool llvm::isAttrTapirOnly(LoopAttrKind attr) {
   switch (attr) {
-#define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
+#define LOOP_ATTR(NAME, TYPE, TAPIRONLY, IRNAME)                               \
   case LoopAttrKind::NAME:                                                     \
-    return false;
-#define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
-  case LoopAttrKind::NAME:                                                     \
-    return true;
+    return TAPIRONLY;
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
   }
@@ -123,9 +114,7 @@ void llvm::addAttr(Loop &loop, LoopAttrKind attr) {
     emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
     exitOnError();
     break;
-#define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME) case LoopAttrKind::NAME:
-#define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
-  LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)
+#define LOOP_ATTR_FLAG(NAME, IRNAME, TAPIRONLY) case LoopAttrKind::NAME:
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
     return ::addAttr(loop, attr);
@@ -142,10 +131,10 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
 }
 
 // Flag attributes (those that do not have a value) will have a different set of
-// accessors. Mask them by defining LOOP_ATTRIBUTE_FLAG by defining it to an
+// accessors. Mask them by defining LOOP_ATTR_FLAG by defining it to an
 // empty macro. These attributes may be applied to both tapir and regular loops.
-#define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)
-#define LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
+#define LOOP_ATTR_FLAG(NAME, IRNAME, TAPIRONLY)
+#define LOOP_ATTR(NAME, TYPE, TAPIRONLY, IRNAME)                               \
   bool llvm::has##NAME##Attr(const Loop &loop) {                               \
     return hasAttr(loop, LoopAttrKind::NAME);                                  \
   }                                                                            \
@@ -167,48 +156,7 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
 // Flag attributes (those that do not have a value) have a different set of
 // accessors from non-flag attributes. These attributes may be applied to both
 // tapir and regular loops.
-#define LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
-  bool llvm::has##NAME##Attr(const Loop &loop) {                               \
-    return hasAttr(loop, LoopAttrKind::NAME);                                  \
-  }                                                                            \
-                                                                               \
-  void llvm::add##NAME##Attr(Loop &loop) {                                     \
-    ::addAttr(loop, LoopAttrKind::NAME);                                       \
-  }                                                                            \
-                                                                               \
-  void llvm::remove##NAME##Attr(Loop &loop) {                                  \
-    removeAttr(loop, LoopAttrKind::NAME);                                      \
-  }
-#define GET_LOOP_ATTRS
-#include "kitsune/Core/LoopAttrs.inc"
-
-// Flag attributes (those that do not have a value) will have a different set of
-// accessors. Mask them by defining LOOP_ATTRIBUTE_FLAG by defining it to an
-// empty macro. These attributes may be applied to tapir loops only.
-#define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)
-#define TAPIR_LOOP_ATTR(NAME, TYPE, IRNAME, IRTYPE)                            \
-  bool llvm::has##NAME##Attr(const Loop &loop) {                               \
-    return hasAttr(loop, LoopAttrKind::NAME);                                  \
-  }                                                                            \
-                                                                               \
-  std::optional<TYPE> llvm::get##NAME##Attr(const Loop &loop) {                \
-    return getAttr<TYPE>(loop, IRNAME);                                        \
-  }                                                                            \
-                                                                               \
-  void llvm::add##NAME##Attr(Loop &loop, TYPE val) {                           \
-    addAttrAs(loop, LoopAttrKind::NAME, val);                                  \
-  }                                                                            \
-                                                                               \
-  void llvm::remove##NAME##Attr(Loop &loop) {                                  \
-    removeAttr(loop, LoopAttrKind::NAME);                                      \
-  }
-#define GET_LOOP_ATTRS
-#include "kitsune/Core/LoopAttrs.inc"
-
-// Flag attributes (those that do not have a value) have a different set of
-// accessors from non-flag attributes. These attributes may be applied to tapir
-// loops only.
-#define TAPIR_LOOP_ATTRIBUTE_FLAG(NAME, IRNAME)                                \
+#define LOOP_ATTR_FLAG(NAME, IRNAME, TAPIRONLY)                                \
   bool llvm::has##NAME##Attr(const Loop &loop) {                               \
     return hasAttr(loop, LoopAttrKind::NAME);                                  \
   }                                                                            \

@@ -1,15 +1,15 @@
 include(KitsuneTableGen)
 
 kitsune_tablegen(InstAttrs.td InstAttrs.inc
-  -gen-kitsune-inst-attrs
+  -gen-kit-inst-attr-header
   TARGET kitsune_generated_inst_attrs)
 
 kitsune_tablegen(LoopAttrs.td LoopAttrs.inc
-  -gen-kitsune-loop-attrs
+  -gen-kit-loop-attr-header
   TARGET kitsune_generated_loop_attrs)
 
 kitsune_tablegen(ModuleAttrs.td ModuleAttrs.inc
-  -gen-kitsune-module-attrs
+  -gen-kit-module-attr-header
   TARGET kitsune_generated_module_attrs)
 
 add_dependencies(kitsune_generated

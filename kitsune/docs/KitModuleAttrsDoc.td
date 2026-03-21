@@ -35,8 +35,8 @@ are fixed. These values may be integers, strings or enums.
 
 In the example below, two attributes are added to the module,
 :ref:`kit.module.device.module.flags <module-attr-device-module-flags>`, and
-:ref:`kit.module.loops.annotated <module-attr-pre-lower-pass>`. The first of
-these has a number of values, while the other has no values.
+:ref:`kit.module.pre.lower.annotate.pass <module-attr-pre-lower-annotate-pass>`.
+The first of these has a number of values, while the other has no values.
 
 .. code :: kitll
 

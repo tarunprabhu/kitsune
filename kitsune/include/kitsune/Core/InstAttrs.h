@@ -59,9 +59,9 @@ void removeAttr(Instruction &inst, InstAttrKind attr);
 // Flag attributes (those that do not have a value), and attributes that take
 // Loop's as values will have a different set of accessors. Mask these before
 // generating declarations for the other attributes.
-#define INST_ATTRIBUTE_FLAG(NAME, IRNAME)
-#define INST_ATTRIBUTE_LOOP(NAME, IRNAME)
-#define INST_ATTR(NAME, TYPE, IRNAME, IRTYPE)                                  \
+#define INST_ATTR_FLAG(NAME, IRNAME)
+#define INST_ATTR_LOOP(NAME, IRNAME)
+#define INST_ATTR(NAME, TYPE, IRNAME)                                          \
   bool has##NAME##Attr(const Instruction &inst);                               \
   std::optional<TYPE> get##NAME##Attr(const Instruction &inst);                \
   void add##NAME##Attr(Instruction &inst, TYPE val);                           \
@@ -69,14 +69,14 @@ void removeAttr(Instruction &inst, InstAttrKind attr);
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 
-#define INST_ATTRIBUTE_FLAG(NAME, IRNAME)                                      \
+#define INST_ATTR_FLAG(NAME, IRNAME)                                           \
   bool has##NAME##Attr(const Instruction &inst);                               \
   void add##NAME##Attr(Instruction &inst);                                     \
   void remove##NAME##Attr(Instruction &inst);
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 
-#define INST_ATTRIBUTE_LOOP(NAME, IRNAME)                                      \
+#define INST_ATTR_LOOP(NAME, IRNAME)                                           \
   bool has##NAME##Attr(const Instruction &inst);                               \
   std::optional<Loop *> get##NAME##Attr(                                       \
       const Instruction &inst, const SmallVectorImpl<const LoopInfo *> &lis);  \
@@ -85,8 +85,6 @@ void removeAttr(Instruction &inst, InstAttrKind attr);
   void remove##NAME##Attr(Instruction &inst);
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
-
-/// \@}
 
 } // namespace llvm
 

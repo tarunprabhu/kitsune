@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+include "kitsune/Core/AttrCommon.td"
+
 // Base class for all Kitsune-specific instruction attributes. For now, the
 // attributes are not constrained to be applied to only certain instruction
 // kinds, but that might change in the future.
@@ -22,47 +24,16 @@
 //     .-----------------------------------------.
 //     | Name         | Metadata string          |
 //     |-----------------------------------------|
-//     | Safe         | kit.safe                 |
-//     | ImplicitSync | kit.tapir.loop           |
-//     | Reduce3      | kit.reduce3              |
+//     | Safe         | kit.inst.safe            |
+//     | ImplicitSync | kit.inst.tapir.loop      |
+//     | Reduce3      | kit.inst.reduce3         |
 //     '-----------------------------------------'
 //
-class Attr<string ValueTypeParam> {
-  // If the attribute takes a value, this must be the exact spelling of the
-  // C++ type of the argument. If the attribute does not take an argument, this
-  // must be an empty string.
-  string ValueType = ValueTypeParam;
-
-  // Documentation for this attribute. This is used to generate the HTML
-  // documentation.
-  code Documentation = [{}];
-}
-
-// Attribute that takes an enum argument.
-class EnumAttr<string ValueType> : Attr<ValueType>;
-
-// Attribute that does not take an argument.
-class FlagAttr : Attr<"">;
-
-// Attribute that takes a 32-bit integer argument.
-class Int32Attr : Attr<"int32_t">;
-
-// Attribute that takes a 64-bit integer argument.
-class Int64Attr : Attr<"int64_t">;
-
-// Attribute that takes a metadata node that is the ID node of a loop as an
-// argument.
-class LoopAttr : Attr<"Loop*">;
-
-// Attribute that takes a raw metadata node as an argument.
-class MDNodeAttr : Attr<"MDNode*">;
-
-// Attribute that takes a string argument.
-class StrAttr : Attr<"StringRef">;
+class InstAttr<Type ValueType = VoidTy> : AttrBase<ValueType> { }
 
 //------------------------------------------------------------------------------
 
-def SourceLoop : LoopAttr {
+def SourceLoop : InstAttr<Type<"llvm::Loop*">> {
   let Documentation = [{
 This attribute should only be attached to instructions that were originally,
 i.e. at the time of IR-generation, part of a loop. The value is the metadata
