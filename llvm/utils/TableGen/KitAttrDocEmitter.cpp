@@ -54,7 +54,7 @@ std::string KitAttrDocEmitter::getValueType(const Record &attr) const {
 }
 
 void KitAttrDocEmitter::emitAttrHeader(raw_ostream &os, const Record &attr) {
-  std::string irName = getIRName("", attr);
+  std::string irName = getIRName(getIRNamePrefix(attr), attr);
   os << ".. _" << getLabelPrefix() << "-attr-" << getSectionLabel(attr)
      << ":\n\n";
   os << irName << "\n";
