@@ -1,10 +1,12 @@
-; The type of global variables with the kit_fb attribute must be [n x i8] where
-; N could be any positive integer
+; The type of global variables with the device.code attribute must be [n x i8]
+; where N is some positive integer
 ;
 ; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
 ;
-; CHECK: incorrect type of global containing fat binary
+; CHECK-COUNT-2: incorrect type of global containing device code
 
-@fb = constant i256 zeroinitializer #0
+@fb.cuda = constant i256 zeroinitializer, !kit.gv.device.code !0
+@fb.hip = constant i256 zeroinitializer, !kit.gv.device.code !1
 
-attributes #0 = { kit_fb kit_tt(4) }
+!0 = !{i32 2}
+!1 = !{i32 4}

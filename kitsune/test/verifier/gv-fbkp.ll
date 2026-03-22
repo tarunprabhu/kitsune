@@ -1,9 +1,13 @@
-; A global variable cannot have both the kit_fb and kit_kernel_props attributes.
+; A global variable cannot have both the device.code and kernel.properties
+; attributes.
 ;
 ; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
 ;
-; CHECK: Attributes 'kit_fb' and 'kit_kernel_props' are incompatible
+; CHECK-COUNT-2: Attributes 'device.code' and 'kernel.properties' are incompatible
 
-@.kit.emb.fb = constant [0 x i8] zeroinitializer #0
+@g.2 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !0, !kit.gv.kernel.properties !2
+@g.4 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !1, !kit.gv.kernel.properties !2
 
-attributes #0 = { kit_fb kit_tt(2) "kit_kernel_props"="some_kernel" }
+!0 = !{i32 2}
+!1 = !{i32 4}
+!2 = !{!"kname"}

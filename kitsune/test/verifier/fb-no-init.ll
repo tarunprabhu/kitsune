@@ -2,8 +2,10 @@
 ;
 ; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
 ;
-; CHECK: missing initializer in global containing fat binary
+; CHECK-COUNT-2: missing initializer in global containing device code
 
-@fb = external global [0 x i8] #0
+@fb.cuda = external global [0 x i8], !kit.gv.device.code !0
+@fb.hip = external global [0 x i8], !kit.gv.device.code !1
 
-attributes #0 = { kit_fb kit_tt(4) }
+!0 = !{i32 2}
+!1 = !{i32 4}

@@ -15,6 +15,7 @@
 #include "kitsune/CodeGen/EmbModuleLegacyPass.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Module.h"
@@ -39,7 +40,7 @@ bool EmbModuleLegacyPass::runOnModule(Module &m) {
   // run the pass on each.
   SmallVector<GlobalVariable *, 4> gs;
   for (GlobalVariable &g : m.globals())
-    if (g.hasAttribute(Attribute::KitBC))
+    if (hasBitCodeAttr(g))
       gs.push_back(&g);
 
   bool anyChanged = false;
@@ -49,10 +50,7 @@ bool EmbModuleLegacyPass::runOnModule(Module &m) {
       exitOnError(embMOrErr.takeError());
     std::unique_ptr<Module> embM = std::move(embMOrErr.get());
 
-    assert(g->hasAttribute(Attribute::KitTT) &&
-           "Attribute 'kit_bc' requires 'kit_tt");
-    TTID tt = g->getAttribute(Attribute::KitTT).getTTID();
-
+    TTID tt = *getBitCodeAttr(*g);
     bool thisChanged = this->runOnEmbModule(tt, *embM);
     if (thisChanged)
       resetEmbBCGlobal(*embM, *g);

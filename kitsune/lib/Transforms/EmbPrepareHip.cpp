@@ -13,6 +13,7 @@
 
 #include "EmbPrepareImpl.h"
 #include "kitsune/Core/AddrSpaceUtils.h"
+#include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Support/AddrSpace.h"
 #include "llvm/IR/Attributes.h"
@@ -60,7 +61,7 @@ private:
     // in some cases) elsewhere in LLVM. The details are in comments in the body
     // of the loop below.
     for (Function &f : devM.functions()) {
-      if (not f.hasFnAttribute(Attribute::KitKernel))
+      if (not hasKernelAttr(f))
         continue;
 
       // If none of the function arguments are pointers, move on.
@@ -182,7 +183,7 @@ private:
   bool fixDeviceFuncAttrs(Module &devM) {
     bool changed = false;
     for (Function &f : devM.functions()) {
-      if (f.hasFnAttribute(Attribute::KitDevice)) {
+      if (hasDeviceAttr(f)) {
         f.removeFnAttr("target-cpu");
         f.removeFnAttr("target-features");
         f.removeFnAttr("tune-cpu");
@@ -213,7 +214,7 @@ private:
     // Set the calling convention to fast on the device functions because
     // that is what hipcc does.
     for (Function &f : devM.functions()) {
-      if (f.hasFnAttribute(Attribute::KitDevice)) {
+      if (hasDeviceAttr(f)) {
         if (f.getCallingConv() != CallingConv::Fast) {
           f.setCallingConv(CallingConv::Fast);
           changed |= true;

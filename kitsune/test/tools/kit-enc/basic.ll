@@ -3,25 +3,31 @@
 ; ------------------------------------------------------------------------------
 ; The default tapir target to add to the encoded module is cuda.
 ;
-; RUN: %kit-enc %s \
-; RUN:     | FileCheck %s --check-prefix=DEFAULT
+; RUN: %kit-enc %s | FileCheck %s --check-prefix=CUDA
 ;
-; DEFAULT-DAG: @{{.+}} = {{.+}} #[[CUDABC:[0-9]+]]
-; DEFAULT-DAG: @{{.+}} = {{.+}} #[[CUDAFB:[0-9]+]]
-; DEFAULT-DAG: attributes #[[CUDABC]] = { kit_bc kit_tt(2) }
-; DEFAULT-DAG: attributes #[[CUDAFB]] = { kit_fb kit_tt(2) }
+; ------------------------------------------------------------------------------
+; Check that the --tapir option works as expected when the value is the default,
+; i.e. cuda.
+;
+; RUN: %kit-enc --tapir=cuda %s \
+; RUN:     | FileCheck %s --check-prefix=CUDA
+;
+; CUDA-DAG: @{{.+}} = {{.+}}, !kit.gv.bit.code ![[TT:[0-9]+]]
+; CUDA-DAG: @{{.+}} = {{.+}}, !kit.gv.device.code ![[TT]]
+;
+; CUDA: [[TT]] = !{i32 2}
 ;
 ; ------------------------------------------------------------------------------
 ; Check that the --tapir option overrides the default. The default is
 ; --tapir=cuda (integer value == 2)
 ;
-; RUN: %kit-enc -tapir=hip %S/input/empty.ll \
+; RUN: %kit-enc -tapir=hip %s \
 ; RUN:     | FileCheck %s --check-prefix=HIP
 ;
-; HIP-DAG: @{{.+}} = {{.+}} #[[HIPBC:[0-9]+]]
-; HIP-DAG: @{{.+}} = {{.+}} #[[HIPFB:[0-9]+]]
-; HIP-DAG: attributes #[[HIPBC]] = { kit_bc kit_tt(4) }
-; HIP-DAG: attributes #[[HIPFB]] = { kit_fb kit_tt(4) }
+; HIP-DAG: @{{.+}} = {{.+}}, !kit.gv.bit.code ![[TT:[0-9]+]]
+; HIP-DAG: @{{.+}} = {{.+}}, !kit.gv.device.code ![[TT]]
+;
+; HIP: [[TT]] = !{i32 4}
 ;
 ; ------------------------------------------------------------------------------
 ; Check that the --name option overrides the input module name. In this case,

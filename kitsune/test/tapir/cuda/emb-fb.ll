@@ -6,10 +6,8 @@
 ;
 ; CHECK: @[[FB:.+]] = constant [{{[0-9]+}} x i8] zeroinitializer
 ; CHECK-SAME: section ".nv_fatbin"
-; CHECK-SAME: #[[ATTR:[0-9]+]]
-;
-; CHECK: #[[ATTR]] = {
-; CHECK-SAME: kit_fb kit_tt(2)
+; CHECK-SAME: !kit.gv.device.code ![[TT:[0-9]+]]
+; CHECK: ![[TT]] = !{i32 2}
 
 define void @f(ptr %c, i64 %n) {
 entry:

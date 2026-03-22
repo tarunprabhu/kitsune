@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/AsmParser/LLParser.h"
-#include "kitsune/Support/FromInt.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
@@ -1477,14 +1476,13 @@ bool LLParser::parseGlobal(const std::string &Name, unsigned NameID,
   }
 
   AttrBuilder Attrs(M->getContext());
+  LocTy BuiltinLoc;
   std::vector<unsigned> FwdRefAttrGrps;
-  if (parseGlobalAttributeValuePairs(Attrs, FwdRefAttrGrps, false))
+  if (parseFnAttributeValuePairs(Attrs, FwdRefAttrGrps, false, BuiltinLoc))
     return true;
   if (Attrs.hasAttributes() || !FwdRefAttrGrps.empty()) {
     GV->setAttributes(AttributeSet::get(Context, Attrs));
     ForwardRefAttrGroups[GV] = FwdRefAttrGrps;
-    for (unsigned AttrGrpID : FwdRefAttrGrps)
-      ValForAttrGroup[AttrGrpID] = GV;
   }
 
   return false;
@@ -1513,15 +1511,9 @@ bool LLParser::parseUnnamedAttrGrp() {
   if (R == NumberedAttrBuilders.end())
     R = NumberedAttrBuilders.emplace(VarID, AttrBuilder(M->getContext())).first;
 
-  if (dyn_cast_or_null<GlobalVariable>(ValForAttrGroup[VarID])) {
-    if (parseGlobalAttributeValuePairs(R->second, unused, true) ||
-        parseToken(lltok::rbrace, "expected end of attribute group"))
-      return true;
-  } else {
-    if (parseFnAttributeValuePairs(R->second, unused, true, BuiltinLoc) ||
-        parseToken(lltok::rbrace, "expected end of attribute group"))
-      return true;
-  }
+  if (parseFnAttributeValuePairs(R->second, unused, true, BuiltinLoc) ||
+      parseToken(lltok::rbrace, "expected end of attribute group"))
+    return true;
 
   if (!R->second.hasAttributes())
     return error(AttrGrpLoc, "attribute group has no attributes");
@@ -1636,13 +1628,6 @@ bool LLParser::parseEnumAttribute(Attribute::AttrKind Attr, AttrBuilder &B,
 
     return true;
   }
-  case Attribute::KitTT: {
-    std::optional<TTID> TT = parseTTIDAttr();
-    if (!TT)
-      return true;
-    B.addTTIDAttr(*TT);
-    return false;
-  }
   case Attribute::Range:
     return parseRangeAttr(B);
   case Attribute::Initializes:
@@ -1746,59 +1731,6 @@ bool LLParser::parseFnAttributeValuePairs(AttrBuilder &B,
 
   if (ME != MemoryEffects::unknown())
     B.addMemoryAttr(ME);
-  return HaveError;
-}
-
-bool LLParser::parseGlobalAttributeValuePairs(
-    AttrBuilder &B, std::vector<unsigned> &FwdRefAttrGrps, bool InAttrGrp) {
-  bool HaveError = false;
-
-  B.clear();
-
-  while (true) {
-    lltok::Kind Token = Lex.getKind();
-    if (Token == lltok::rbrace)
-      break; // Finished.
-
-    if (Token == lltok::StringConstant) {
-      if (parseStringAttribute(B))
-        return true;
-      continue;
-    }
-
-    if (Token == lltok::AttrGrpID) {
-      // Allow a global variable to reference an attribute group:
-      //   @foo = ... #1 { ... }
-      if (InAttrGrp) {
-        HaveError |= error(
-            Lex.getLoc(),
-            "cannot have an attribute group reference in an attribute group");
-      } else {
-        // Save the reference to the attribute group. We'll fill it in later.
-        FwdRefAttrGrps.push_back(Lex.getUIntVal());
-      }
-      Lex.Lex();
-      continue;
-    }
-
-    SMLoc Loc = Lex.getLoc();
-    Attribute::AttrKind Attr = tokenToAttribute(Token);
-    if (Attr == Attribute::None) {
-      if (!InAttrGrp)
-        break;
-      return error(Lex.getLoc(), "unterminated attribute group");
-    }
-
-    if (parseEnumAttribute(Attr, B, InAttrGrp))
-      return true;
-
-    // As a hack, we allow alignment to be initially parsed as an attribute on
-    // a global variable or added to an attribute group and later moved to the
-    // alignment field.
-    if (!Attribute::canUseAsGlobalAttr(Attr) && Attr != Attribute::Alignment)
-      HaveError |=
-          error(Loc, "this attribute does not apply to global variables");
-  }
   return HaveError;
 }
 
@@ -2739,32 +2671,6 @@ unsigned LLParser::parseNoFPClassAttr() {
   } while (1);
 
   llvm_unreachable("unterminated nofpclass attribute");
-}
-
-std::optional<TTID> LLParser::parseTTIDAttr() {
-  Lex.Lex();
-
-  if (!EatIfPresent(lltok::lparen)) {
-    tokError("expected '('");
-    return std::nullopt;
-  }
-
-  uint32_t UTT = -1;
-  if (parseUInt32(UTT))
-    return std::nullopt;
-
-  std::optional<TTID> TT = fromInt<TTID>(UTT);
-  if (!TT) {
-    tokError("unknown tapir target");
-    return std::nullopt;
-  }
-
-  if (!EatIfPresent(lltok::rparen)) {
-    tokError("expected ')'");
-    return std::nullopt;
-  }
-
-  return TT;
 }
 
 /// parseOptionalCommaAlign
@@ -6909,8 +6815,6 @@ bool LLParser::parseFunctionHeader(Function *&Fn, bool IsDefine,
   Fn->setPrefixData(Prefix);
   Fn->setPrologueData(Prologue);
   ForwardRefAttrGroups[Fn] = FwdRefAttrGrps;
-  for (unsigned AttrGrpID : FwdRefAttrGrps)
-    ValForAttrGroup[AttrGrpID] = Fn;
 
   // Add all of the arguments we parsed to the function.
   Function::arg_iterator ArgIt = Fn->arg_begin();
@@ -7867,8 +7771,6 @@ bool LLParser::parseInvoke(Instruction *&Inst, PerFunctionState &PFS) {
   II->setCallingConv(CC);
   II->setAttributes(PAL);
   ForwardRefAttrGroups[II] = FwdRefAttrGrps;
-  for (unsigned AttrGrpID : FwdRefAttrGrps)
-    ValForAttrGroup[AttrGrpID] = II;
   Inst = II;
   return false;
 }
@@ -8184,8 +8086,6 @@ bool LLParser::parseCallBr(Instruction *&Inst, PerFunctionState &PFS) {
   CBI->setCallingConv(CC);
   CBI->setAttributes(PAL);
   ForwardRefAttrGroups[CBI] = FwdRefAttrGrps;
-  for (unsigned AttrGrpID : FwdRefAttrGrps)
-    ValForAttrGroup[AttrGrpID] = CBI;
   Inst = CBI;
   return false;
 }
@@ -8596,8 +8496,6 @@ bool LLParser::parseCall(Instruction *&Inst, PerFunctionState &PFS,
   }
   CI->setAttributes(PAL);
   ForwardRefAttrGroups[CI] = FwdRefAttrGrps;
-  for (unsigned AttrGrpID : FwdRefAttrGrps)
-    ValForAttrGroup[AttrGrpID] = CI;
   Inst = CI;
   return false;
 }

@@ -4,7 +4,7 @@
 ; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[ATTR:[0-9]+]]
+; CHECK-DAG: @[[FB:.+]] = constant {{.+}} !kit.gv.device.code ![[TT:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f
 ; CHECK-NOT: llvm.kit.symbol.device.ptr
@@ -17,8 +17,7 @@
 ; CHECK-NOT: call {{.+}} @__cudaRegisterVar
 ; CHECK: call {{.+}} @__cudaRegisterFatBinaryEnd
 ;
-; CHECK: #[[ATTR]] = {
-; CHECK-SAME: kit_fb kit_tt(2)
+; CHECK: ![[TT]] = !{i32 2}
 
 target triple = "x86_64-pc-linux-gnu"
 

@@ -28,7 +28,6 @@ static void addAttrAs(GlobalVariable &g, GVAttrKind attr, T val) {
   StringRef attrName = getAttrName(attr);
   MDNode *md = MDNode::get(ctx, {toMetadata(val, ctx)});
   g.addMetadata(attrName, *md);
-  llvm::errs() << g << "\n";
 }
 
 static void addAttr(GlobalVariable &g, GVAttrKind attr) {

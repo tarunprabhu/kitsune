@@ -9,7 +9,7 @@
 ;
 ; DEFAULT: @[[FB:.+]] = constant [0 x i8] zeroinitializer
 ; DEFAULT-SAME: section ".hip_fatbin"
-; DEFAULT-SAME: #[[FBATTR:[0-9]+]]
+; DEFAULT-SAME: !kit.gv.device.code ![[TT:[0-9]+]]
 ;
 ; DEFAULT: @[[BUNDLE:.+]] = internal constant {{.+}} { i32 1212764230, i32 1, ptr @[[FB]], ptr null }
 ; DEFAULT-SAME: section ".hipFatBinSegment"
@@ -40,8 +40,7 @@
 ; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
 ; DEFAULT: }
 ;
-; DEFAULT: attributes #[[FBATTR]] = {
-; DEFAULT-SAME: kit_fb kit_tt(4)
+; DEFAULT: ![[TT:[0-9]+]] = !{i32 4}
 ;
 ; ----------------------------------------------------------------------------
 ;

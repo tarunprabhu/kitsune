@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/EmbUtils.h"
-#include "kitsune/Core/GlobalVariableUtils.h"
+#include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/CommandLineUtils.h"
@@ -111,23 +111,13 @@ int main(int argc, char *argv[]) {
   std::vector<GlobalVariable *> gs;
   if (tto) {
     TTID tt = tto->getTTID();
-    for (GlobalVariable &g : hostM->globals()) {
-      if (g.hasAttribute(Attribute::KitBC)) {
-        assert(g.hasAttribute(Attribute::KitTT) &&
-               "Attribute 'kit_bc' requires 'kit_tt");
-        if (getAttrValueAsTTID(g, Attribute::KitTT) == tt)
-          gs.push_back(&g);
-      }
-    }
+    for (GlobalVariable &g : hostM->globals())
+      if (getBitCodeAttr(g) == tt)
+        gs.push_back(&g);
   } else {
-    for (GlobalVariable &g : hostM->globals()) {
-      if (g.hasAttribute(Attribute::KitBC)) {
-        assert(g.hasAttribute(Attribute::KitTT) &&
-               "Attribute 'kit_bc' requires 'kit_tt");
-        if (g.hasAttribute(Attribute::KitTT))
-          gs.push_back(&g);
-      }
-    }
+    for (GlobalVariable &g : hostM->globals())
+      if (hasBitCodeAttr(g))
+        gs.push_back(&g);
   }
 
   // Now parse those into modules.

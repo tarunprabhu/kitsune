@@ -1,7 +1,12 @@
-; The initializer of global variables with the kit_fb attribute can be zero
+; Global variables with the device.code attribute can have zero initializers
 ;
-; RUN: llvm-as %s -o /dev/null
+; RUN: llvm-as %s -o /dev/null 2>&1 \
+; RUN:     | FileCheck %s --allow-empty
+;
+; CHECK-NOT: {{.+}}
 
-@fb = constant [1 x i8] zeroinitializer #0
+@fb.cuda = constant [1 x i8] zeroinitializer, !kit.gv.device.code !0
+@fb.hip = constant [1 x i8] zeroinitializer, !kit.gv.device.code !1
 
-attributes #0 = { kit_fb kit_tt(4) }
+!0 = !{i32 2}
+!1 = !{i32 4}

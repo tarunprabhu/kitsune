@@ -22,8 +22,6 @@ def ParamAttr : AttrProperty;
 /// Can be used as return attribute.
 def RetAttr : AttrProperty;
 
-/// Can be used as an attribute on global variables.
-def GlobalAttr : AttrProperty;
 
 
 /// Intersection rules. Used for example in sinking/hoisting two
@@ -427,8 +425,6 @@ def LoaderReplaceable : StrBoolAttr<"loader-replaceable">;
 
 def DenormalFPMath : ComplexStrAttr<"denormal-fp-math", [FnAttr]>;
 def DenormalFPMathF32 : ComplexStrAttr<"denormal-fp-math-f32", [FnAttr]>;
-
-include "llvm/IR/AttributesKitsune.td"
 
 // Attribute compatiblity rules are generated to check the attribute of the
 // caller and callee and decide whether inlining should be allowed. CompatRule

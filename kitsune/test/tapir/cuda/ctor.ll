@@ -9,7 +9,7 @@
 ;
 ; DEFAULT: @[[FB:.+]] = constant [0 x i8] zeroinitializer
 ; DEFAULT-SAME: section ".nv_fatbin"
-; DEFAULT-SAME: #[[FBATTR:[0-9]+]]
+; DEFAULT-SAME: !kit.gv.device.code ![[TT:[0-9]+]]
 ;
 ; DEFAULT: @[[BUNDLE:.+]] = internal constant {{.+}} { i32 1180844977, i32 1, ptr @[[FB]], ptr null }
 ; DEFAULT-SAME: section ".nvFatBinSegment"
@@ -36,7 +36,7 @@
 ; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
 ; DEFAULT: }
 ;
-; DEFAULT: #[[FBATTR]] = { kit_fb kit_tt(2) }
+; DEFAULT: ![[TT:[0-9]+]] = !{i32 2}
 ;
 ; ----------------------------------------------------------------------------
 ;

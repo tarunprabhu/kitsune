@@ -13,6 +13,7 @@
 
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Common/Types.h"
+#include "kitsune/Core/GVAttrs.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Constants.h"
@@ -146,8 +147,8 @@ GlobalVariable *llvm::createKernelPropertiesGlobal(StringRef kernelName,
                                GlobalValue::PrivateLinkage, init);
 
   g->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
-  g->addAttribute(Attribute::getWithTTID(ctx, tt));
-  g->addAttribute(Attribute::getWithKernelProps(ctx, kernelName));
+  // g->addAttribute(Attribute::getWithTTID(ctx, tt));
+  addKernelPropertiesAttr(*g, kernelName);
 
   return g;
 }

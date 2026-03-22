@@ -15,8 +15,6 @@
 #include "llvm/IR/Attributes.h"
 #include "AttributeImpl.h"
 #include "LLVMContextImpl.h"
-#include "kitsune/Support/FromInt.h"
-#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/STLExtras.h"
@@ -312,19 +310,6 @@ Attribute Attribute::getWithVScaleRangeArgs(LLVMContext &Context,
   return get(Context, VScaleRange, packVScaleRangeArgs(MinValue, MaxValue));
 }
 
-Attribute Attribute::getWithTTID(LLVMContext &Context, TTID TT) {
-  return get(Context, KitTT, int(TT));
-}
-
-Attribute Attribute::getWithKernelProps(LLVMContext &Context,
-                                        StringRef KernelName) {
-  // The KitKernelProps attribute is a ComplexStrAttr which does not have a
-  // corresponding AttrKind enum. For now, just hard-code the attribute name
-  // here, but if it is something that we can fix downstream, we might do that
-  // at some point.
-  return get(Context, "kit_kernel_props", KernelName);
-}
-
 Attribute::AttrKind Attribute::getAttrKindFromName(StringRef AttrName) {
   return StringSwitch<Attribute::AttrKind>(AttrName)
 #define GET_ATTR_NAMES
@@ -522,12 +507,6 @@ FPClassTest Attribute::getNoFPClass() const {
   return static_cast<FPClassTest>(pImpl->getValueAsInt());
 }
 
-TTID Attribute::getTTID() const {
-  assert(hasAttribute(Attribute::KitTT) &&
-         "Can only call getTTID() on kit_tt attributes");
-  return *fromInt<TTID>(pImpl->getValueAsInt());
-}
-
 const ConstantRange &Attribute::getRange() const {
   assert(hasAttribute(Attribute::Range) &&
          "Trying to get range args from non-range attribute");
@@ -722,14 +701,6 @@ std::string Attribute::getAsString(bool InAttrGrp) const {
     return Result;
   }
 
-  if (hasAttribute(Attribute::KitTT)) {
-    std::string Result;
-    raw_string_ostream OS(Result);
-    OS << "kit_tt(" << int(getTTID()) << ")";
-    OS.flush();
-    return Result;
-  }
-
   // Convert target-dependent attributes to strings of the form:
   //
   //   "kind"
@@ -790,12 +761,11 @@ enum AttributeProperty {
   FnAttr = (1 << 0),
   ParamAttr = (1 << 1),
   RetAttr = (1 << 2),
-  GlobalAttr = (1 << 3),
-  IntersectPreserve = (0 << 4),
-  IntersectAnd = (1 << 4),
-  IntersectMin = (2 << 4),
-  IntersectCustom = (3 << 4),
-  IntersectPropertyMask = (3 << 4),
+  IntersectPreserve = (0 << 3),
+  IntersectAnd = (1 << 3),
+  IntersectMin = (2 << 3),
+  IntersectCustom = (3 << 3),
+  IntersectPropertyMask = (3 << 3),
 };
 
 #define GET_ATTR_PROP_TABLE
@@ -822,10 +792,6 @@ bool Attribute::canUseAsParamAttr(AttrKind Kind) {
 
 bool Attribute::canUseAsRetAttr(AttrKind Kind) {
   return hasAttributeProperty(Kind, AttributeProperty::RetAttr);
-}
-
-bool Attribute::canUseAsGlobalAttr(AttrKind Kind) {
-  return hasAttributeProperty(Kind, AttributeProperty::GlobalAttr);
 }
 
 static bool hasIntersectProperty(Attribute::AttrKind Kind,
@@ -2271,10 +2237,6 @@ AttrBuilder &AttrBuilder::addNoFPClassAttr(FPClassTest Mask) {
     return *this;
 
   return addRawIntAttr(Attribute::NoFPClass, Mask);
-}
-
-AttrBuilder &AttrBuilder::addTTIDAttr(TTID TT) {
-  return addRawIntAttr(Attribute::KitTT, int(TT));
 }
 
 AttrBuilder &AttrBuilder::addAllocKindAttr(AllocFnKind Kind) {

@@ -17,6 +17,7 @@
 
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/SmallVector.h"
@@ -97,7 +98,7 @@ public:
     // run the pass on each.
     SmallVector<GlobalVariable *, 4> gs;
     for (GlobalVariable &g : hostM.globals())
-      if (g.hasAttribute(Attribute::KitBC))
+      if (hasBitCodeAttr(g))
         gs.push_back(&g);
 
     auto *pass = static_cast<DerivedT *>(this);
@@ -107,10 +108,7 @@ public:
         exitOnError(kmOrErr.takeError());
       std::unique_ptr<Module> km = std::move(kmOrErr.get());
 
-      assert(g->hasAttribute(Attribute::KitTT) &&
-             "Attribute 'kit_bc' requires 'kit_tt");
-      TTID tt = g->getAttribute(Attribute::KitTT).getTTID();
-
+      TTID tt = *getBitCodeAttr(*g);
       bool changed = false;
       if constexpr (detail::needsAnalysisManager<DerivedT>) {
         LoopAnalysisManager lam;

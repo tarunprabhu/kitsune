@@ -49,6 +49,8 @@
 
 #include "llvm/IR/Verifier.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/FuncAttrs.h"
+#include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TypeUtils.h"
@@ -727,12 +729,12 @@ void Verifier::visitEmbModuleMetadata(const Module &EmbM) {
 }
 
 void Verifier::visitEmbModule(const Module &EmbM, TTID TTFromHostGV) {
-  // Embedded modules cannot contain any embedded bitcode or fat binaries.
+  // Embedded modules cannot contain any embedded bitcode or device code.
   for (const GlobalVariable &G : EmbM.globals()) {
-    Check(!G.hasAttribute(Attribute::KitBC),
+    Check(!hasBitCodeAttr(G),
           "embedded module cannot contain embedded bitcode");
-    Check(!G.hasAttribute(Attribute::KitFB),
-          "embedded module cannot contain an embedded fat binary");
+    Check(!hasDeviceCodeAttr(G),
+          "embedded module cannot contain embedded device code");
   }
 
   visitEmbModuleMetadata(EmbM);
@@ -748,13 +750,13 @@ void Verifier::visitEmbModule(const Module &EmbM, TTID TTFromHostGV) {
 void Verifier::visitEmbFBGlobalVariable(const GlobalVariable &G) {
   Check(G.hasName(), "global containing device code does not have a name");
   Check(isByteArrayTy(G.getValueType()),
-        "incorrect type of global containing fat binary");
+        "incorrect type of global containing device code");
   Check(G.hasInitializer(),
-        "missing initializer in global containing fat binary");
+        "missing initializer in global containing device code");
 
   const Constant *Init = G.getInitializer();
   Check(isa<ConstantDataArray>(Init) || Init->isZeroValue(),
-        "invalid initializer in global containing fat binary");
+        "invalid initializer in global containing device code");
 }
 
 void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
@@ -785,14 +787,11 @@ void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
     return;
   }
 
-  // An embedded bitcode global variable must have the kit_tt attribute, but the
-  // module could be invalid, so check to avoid a crash. The error will be
-  // caught when the global variable attributes are verified
-  if (G.hasAttribute(Attribute::KitTT)) {
-    TTID TT = G.getAttribute(Attribute::KitTT).getTTID();
-    std::unique_ptr<Module> EmbM = std::move(ModuleOrErr.get());
-    visitEmbModule(*EmbM, TT);
-  }
+  // The value of the tapir target will have been verified already, so it is
+  // safe to just use it here.
+  TTID TT = *getBitCodeAttr(G);
+  std::unique_ptr<Module> EmbM = std::move(ModuleOrErr.get());
+  visitEmbModule(*EmbM, TT);
 }
 
 void Verifier::visitKPGlobalVariable(const GlobalVariable &G) {
@@ -805,46 +804,38 @@ void Verifier::visitKPGlobalVariable(const GlobalVariable &G) {
 }
 
 void Verifier::visitEmbGlobals() {
-  // There can be at most one global variable containing a fat binary per
+  // There can be at most one global variable containing device code per
   // tapir target.
   std::map<TTID, unsigned> FBCounts;
   for (const GlobalVariable &G : M.globals())
-    // If the global variable has the kit_fb attribute, it must also have
-    // kit_tt. We may have a broken module, so check for the presence of the
-    // attribute to avoid a crash.
-    if (G.hasAttribute(Attribute::KitFB) && G.hasAttribute(Attribute::KitTT))
-      ++FBCounts[G.getAttribute(Attribute::KitTT).getTTID()];
+    if (std::optional<TTID> TT = getDeviceCodeAttr(G))
+      ++FBCounts[*TT];
 
   for (const auto &[TT, N] : FBCounts) {
-    Check(N <= 1, "too many embedded fat binary globals for tapir target '" +
+    Check(N <= 1, "too many embedded device code globals for tapir target '" +
                       toString(TT) + "'");
   }
 
-  // If a global variable containing embedded bitcode exists, then a
-  // corresponding global containing a fat binary must exist also. The reverse
-  // is not true. Once the fat binary has been generated, the global variable
-  // containing embedded bitcode is removed.
+  // If a global variable containing bitcode exists, then a corresponding global
+  // containing device code must also exist. The reverse is not true. Once the
+  // device code has been generated, the global containing bitcode is removed.
   std::map<TTID, unsigned> BCCounts;
   for (const GlobalVariable &G : M.globals())
-    if (G.hasAttribute(Attribute::KitBC) && G.hasAttribute(Attribute::KitTT))
-      // If the global variable has the kit_bc attribute, it must also have
-      // kit_tt. We may have a broken module, so check for the presence of the
-      // attribute to avoid a crash.
-      ++BCCounts[G.getAttribute(Attribute::KitTT).getTTID()];
+    if (std::optional<TTID> TT = getBitCodeAttr(G))
+      ++BCCounts[*TT];
 
   for (const auto &[TT, N] : BCCounts) {
     Check(N <= 1, "too many embedded bitcode globals for tapir target '" +
                       toString(TT) + "'");
     Check(FBCounts.find(TT) != FBCounts.end(),
-          "embedded bitcode global without fat binary global");
+          "embedded bitcode global without device code global");
   }
 }
 
 void Verifier::visitKPGlobals() {
   auto hasKPGlobals = [](const Module &M) -> bool {
     for (const GlobalVariable &G : M.globals())
-      if (G.hasAttribute("kit_kernel_props") &&
-          G.hasAttribute(Attribute::KitTT))
+      if (hasKernelPropertiesAttr(G))
         return true;
     return false;
   };
@@ -858,59 +849,45 @@ void Verifier::visitKPGlobals() {
 
   EmbModulesMapTy EmbMs = std::move(*EmbMsOrErr);
   for (const GlobalVariable &G : M.globals()) {
-    // If the global variable has the kit_kernel_props attribute, it must also
-    // have kit_tt. We may have a broken module, so check for the presence of
-    // the attribute to avoid a crash.
-    if (G.hasAttribute("kit_kernel_props") &&
-        G.hasAttribute(Attribute::KitTT)) {
-      TTID TT = G.getAttribute(Attribute::KitTT).getTTID();
-      StringRef F = G.getAttribute("kit_kernel_props").getValueAsString();
-      if (EmbMs.find(TT) != EmbMs.end())
-        Check(EmbMs.at(TT)->getFunction(F),
-              "global containing properties of non-existent kernel function");
+    // FIXME: The kernel.properties attribute currently only has a string. But
+    // we also need the TTID. We would have to change the type of the attribute
+    // value to also include the TTID, or have a second dependent attribute.
+    if (std::optional<StringRef> F = getKernelPropertiesAttr(G)) {
+      // if (EmbMs.find(TT) != EmbMs.end())
+      //   Check(EmbMs.at(TT)->getFunction(F),
+      //         "global containing properties of non-existent kernel function");
     }
   }
 }
 
 void Verifier::verifyGlobalVariableAttrs(AttributeSet Attrs,
                                          const GlobalVariable *G) {
-  Check(!(Attrs.hasAttribute(Attribute::KitBC) &&
-          Attrs.hasAttribute(Attribute::KitFB)),
-        "Attributes 'kit_bc' and 'kit_fb' are incompatible!", G);
+  Check(!(hasBitCodeAttr(*G) && hasDeviceCodeAttr(*G)),
+        "Attributes 'bit.code' and 'device.code' are incompatible!", G);
 
-  Check(!(Attrs.hasAttribute(Attribute::KitBC) &&
-          Attrs.hasAttribute("kit_kernel_props")),
-        "Attributes 'kit_bc' and 'kit_kernel_props' are incompatible!", G);
+  Check(!(hasBitCodeAttr(*G) && hasKernelPropertiesAttr(*G)),
+        "Attributes 'bit.code' and 'kernel.properties' are incompatible!", G);
 
-  Check(!(Attrs.hasAttribute(Attribute::KitFB) &&
-          Attrs.hasAttribute("kit_kernel_props")),
-        "Attributes 'kit_fb' and 'kit_kernel_props' are incompatible!", G);
+  Check(!(hasDeviceCodeAttr(*G) && hasKernelPropertiesAttr(*G)),
+        "Attributes 'device.code' and 'kernel.properties' are incompatible!",
+        G);
 
-  if (Attrs.hasAttribute(Attribute::KitBC))
-    Check(Attrs.hasAttribute(Attribute::KitTT),
-          "Attribute 'kit_bc' requires 'kit_tt'", G);
-
-  if (Attrs.hasAttribute(Attribute::KitFB))
-    Check(Attrs.hasAttribute(Attribute::KitTT),
-          "Attribute 'kit_fb' requires 'kit_tt'", G);
-
-  if (Attrs.hasAttribute("kit_kernel_props")) {
-    Check(Attrs.hasAttribute(Attribute::KitTT),
-          "Attribute 'kit_kernel_props' requires 'kit_tt'", G);
-
-    Attribute Attr = Attrs.getAttribute("kit_kernel_props");
-    StringRef F = Attr.getValueAsString();
-    Check(F.size(),
-          "invalid value of 'kit_kernel_props' attribute. Kernel name cannot "
+  if (std::optional<StringRef> F = getKernelPropertiesAttr(*G))
+    Check(F->size(),
+          "invalid value of 'kernel.properties' attribute. Kernel name cannot "
           "be empty");
-  }
 
-  if (Attrs.hasAttribute(Attribute::KitTT)) {
-    TTID TT = Attrs.getAttribute(Attribute::KitTT).getTTID();
-    Check(doesTTGenEmbBC(TT),
-          "invalid value for 'kit_tt' attribute. Tapir target does not "
+  // TODO: We might have to perform this check for the kernel.properties
+  // attribute as well.
+  if (std::optional<TTID> TT = getBitCodeAttr(*G))
+    Check(doesTTGenEmbBC(*TT),
+          "invalid value for 'bit.code' attribute. Tapir target does not "
           "generate embedded bitcode");
-  }
+
+  if (std::optional<TTID> TT = getDeviceCodeAttr(*G))
+    Check(doesTTGenEmbBC(*TT),
+          "invalid value for 'device.code' attribute. Tapir target does not "
+          "generate embedded bitcode");
 }
 
 void Verifier::visitDbgRecords(Instruction &I) {
@@ -1154,11 +1131,11 @@ void Verifier::visitGlobalVariable(const GlobalVariable &GV) {
         GVType);
 
   verifyGlobalVariableAttrs(GV.getAttributes(), &GV);
-  if (GV.hasAttribute(Attribute::KitBC))
+  if (hasBitCodeAttr(GV))
     visitEmbBCGlobalVariable(GV);
-  else if (GV.hasAttribute(Attribute::KitFB))
+  else if (hasDeviceCodeAttr(GV))
     visitEmbFBGlobalVariable(GV);
-  else if (GV.hasAttribute("kit_kernel_props"))
+  else if (hasKernelPropertiesAttr(GV))
     visitKPGlobalVariable(GV);
 
   if (!GV.hasInitializer()) {
@@ -2760,9 +2737,9 @@ void Verifier::verifyFunctionAttrs(FunctionType *FT, AttributeList Attrs,
                   V);
   }
 
-  Check(!(Attrs.hasFnAttr(Attribute::KitKernel) &&
-          Attrs.hasFnAttr(Attribute::KitDevice)),
-        "Attributes 'kit_kernel and kit_device' are incompatible!", V);
+  if (auto* F = dyn_cast<Function>(V))
+    Check(!(hasKernelAttr(*F) && hasDeviceAttr(*F)),
+          "Attributes 'func.kernel and func.device' are incompatible!", V);
 }
 
 void Verifier::verifyFunctionMetadata(

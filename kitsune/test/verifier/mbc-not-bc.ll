@@ -5,8 +5,10 @@
 ;
 ; CHECK: invalid data in global containing embedded bitcode
 
-@fb = constant [0 x i8] zeroinitializer #0
-@bc = constant [4 x i8] c"BC\C0\DF" #1
+@bc.2 = constant [4 x i8] c"BC\C0\DF", !kit.gv.bit.code !0
+@fb.2 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !0
+@bc.4 = constant [4 x i8] c"BC\C0\DF", !kit.gv.bit.code !1
+@fb.4 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !1
 
-attributes #0 = { kit_fb kit_tt(4) }
-attributes #1 = { kit_bc kit_tt(4) }
+!0 = !{i32 2}
+!1 = !{i32 4}

@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/KernelProperties.h"
+#include "kitsune/Core/GVAttrs.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Module.h"
 
@@ -26,8 +27,8 @@ TEST(KitKernelProperties, createKernelPropertiesGlobal) {
   EXPECT_TRUE(m.getGlobalVariable("g0", true));
   EXPECT_TRUE(g->hasInitializer());
   EXPECT_TRUE(isa<ConstantAggregateZero>(g->getInitializer()));
-  EXPECT_TRUE(g->hasAttribute("kit_kernel_props"));
-  EXPECT_EQ(g->getAttribute("kit_kernel_props").getValueAsString(), "kern_132");
+  EXPECT_TRUE(hasKernelPropertiesAttr(*g));
+  EXPECT_EQ(getKernelPropertiesAttr(*g), "kern_132");
 }
 
 } // namespace

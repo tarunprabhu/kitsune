@@ -1,10 +1,13 @@
-; Multiple fat binaries are allowed in a host module as long as they are from
-; distinct tapir targets.
+; Multiple device code globals are allowed in a host module as long as they are
+; from distinct tapir targets.
 ;
-; RUN: llvm-as %s -o /dev/null
+; RUN: llvm-as %s -o /dev/null 2>&1 \
+; RUN:     | FileCheck %s --allow-empty
+;
+; CHECK-NOT: {{.+}}
 
-@bc.2 = constant [0 x i8] zeroinitializer #0
-@bc.4 = constant [0 x i8] zeroinitializer #1
+@bc.2 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !0
+@bc.4 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !1
 
-attributes #0 = { kit_fb kit_tt(2) }
-attributes #1 = { kit_fb kit_tt(4) }
+!0 = !{i32 2}
+!1 = !{i32 4}

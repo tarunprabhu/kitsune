@@ -2,11 +2,17 @@
 ; but the contents of the initializer cannot be parsed into an LLVM module,
 ; fail with an appropriate error.
 ;
-; RUN: not %kit-mbc -S -o /dev/null %s 2>&1 \
+; RUN: cat %s \
+; RUN:     | not %kit-mbc -o /dev/null 2>&1 \
+; RUN:     | FileCheck %s
+;
+; RUN: cat %s \
+; RUN:     | sed 's/i32 2/i32 4/g' \
+; RUN:     | not %kit-mbc -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: error: could not parse embedded bitcode
 
-@bc = constant [2 x i8] c"BC" #0
+@bc = constant [2 x i8] c"BC", !kit.gv.bit.code !0
 
-attributes #0 = { kit_bc kit_tt(2) }
+!0 = !{i32 2}

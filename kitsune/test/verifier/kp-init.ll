@@ -5,6 +5,6 @@
 ;
 ; CHECK: invalid initializer in global containing kernel properties
 
-@0 = constant { i64, i64, i64, i64 } undef #0
+@0 = constant { i64, i64, i64, i64 } undef, !kit.gv.kernel.properties !0
 
-attributes #0 = { kit_tt(2) "kit_kernel_props"="funcname" }
+!0 = !{!"coventry"}

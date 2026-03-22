@@ -1,10 +1,22 @@
-; If embedded bitcode is present, a corresponding fat binary global must be
-; present too.
+; If embedded bitcode is present, a corresponding global containing device code
+; must be present as well.
 ;
-; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
+; RUN: MBC_2=`%kit-enc --tapir=cuda %s \
+; RUN:     | grep "c\"BC" \
+; RUN:     | sed 's/.kit.emb//g' \
+; RUN:     | sed 's/@.bc/@.bc.2/g'`
+; RUN:
+; RUN: MBC_4=`%kit-enc --tapir=hip %s \
+; RUN:     | grep "c\"BC" \
+; RUN:     | sed 's/.kit.emb//g' \
+; RUN:     | sed 's/@.bc/@.bc.4/g' \
+; RUN:     | sed 's/\!0/\!1/g'`
+; RUN:
+; RUN: printf "%%s\n%%s\n\n%%s\n%%s" \
+; RUN:         "${MBC_2}" \
+; RUN:         "${MBC_4}" \
+; RUN:         "!0 = !{i32 2}" \
+; RUN:         "!1 = !{i32 4}" \
+; RUN:     | not llvm-as -o /dev/null
 ;
-; CHECK: embedded bitcode global without fat binary global
-
-@0 = constant [0 x i8] zeroinitializer #0
-
-attributes #0 = { kit_bc kit_tt(2) }
+; CHECK-COUNT-2: embedded bitcode global without device code global

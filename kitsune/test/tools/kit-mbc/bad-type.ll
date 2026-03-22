@@ -6,6 +6,6 @@
 ;
 ; CHECK: global containing embedded bitcode must be a byte array
 
-@bc = constant [2 x i32] [i32 1, i32 2] #0
+@bc = constant [2 x i32] [i32 1, i32 2], !kit.gv.bit.code !0
 
-attributes #0 = { kit_bc kit_tt(2) }
+!0 = !{i32 2}

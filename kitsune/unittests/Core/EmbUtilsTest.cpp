@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/GVAttrs.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalValue.h"
@@ -48,18 +49,16 @@ TEST(KitEmbUtils, createEmbBCGlobal) {
   std::unique_ptr<Module> cudaM = parseIR(ctx, fcuda);
   GlobalVariable *gc = createEmbBCGlobal(*cudaM, TTID::Cuda, *hostM);
   EXPECT_TRUE(gc->hasName());
-  EXPECT_TRUE(gc->hasAttribute(Attribute::KitBC));
-  EXPECT_TRUE(gc->hasAttribute(Attribute::KitTT));
-  EXPECT_EQ(gc->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
+  EXPECT_TRUE(hasBitCodeAttr(*gc));
+  EXPECT_EQ(getBitCodeAttr(*gc), TTID::Cuda);
   EXPECT_EQ(gc->getParent(), hostM.get());
   EXPECT_EQ(getEmbBCGlobal(TTID::Cuda, *hostM), gc);
 
   std::unique_ptr<Module> hipM = parseIR(ctx, fhip);
   GlobalVariable *gh = createEmbBCGlobal(*hipM, TTID::Hip, *hostM);
   EXPECT_TRUE(gh->hasName());
-  EXPECT_TRUE(gh->hasAttribute(Attribute::KitBC));
-  EXPECT_TRUE(gh->hasAttribute(Attribute::KitTT));
-  EXPECT_EQ(gh->getAttribute(Attribute::KitTT).getTTID(), TTID::Hip);
+  EXPECT_TRUE(hasBitCodeAttr(*gh));
+  EXPECT_EQ(getBitCodeAttr(*gh), TTID::Hip);
   EXPECT_EQ(gh->getParent(), hostM.get());
   EXPECT_EQ(getEmbBCGlobal(TTID::Hip, *hostM), gh);
 }
@@ -128,7 +127,7 @@ TEST(KitEmbUtils, resetEmbBCGlobal) {
   EXPECT_EQ(hostM->global_size(), 1U);
   EXPECT_FALSE(parseM->getFunction("fcuda"));
   EXPECT_TRUE(parseM->getFunction("fhip"));
-  EXPECT_EQ(g1->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
+  EXPECT_EQ(getBitCodeAttr(*g1), TTID::Cuda);
 }
 
 TEST(KitEmbUtils, getEmbModule) {
@@ -202,9 +201,8 @@ TEST(KitEmbUtils, createEmbFBCuda) {
   EXPECT_TRUE(isa<ArrayType>(g->getValueType()));
   EXPECT_EQ(cast<ArrayType>(g->getValueType())->getNumElements(), 0U);
   EXPECT_EQ(g->getSection(), ".nv_fatbin");
-  EXPECT_TRUE(g->hasAttribute(Attribute::KitFB));
-  EXPECT_TRUE(g->hasAttribute(Attribute::KitTT));
-  EXPECT_EQ(g->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
+  EXPECT_TRUE(hasDeviceCodeAttr(*g));
+  EXPECT_EQ(getDeviceCodeAttr(*g), TTID::Cuda);
   EXPECT_EQ(g->getParent(), m.get());
   EXPECT_EQ(getEmbFBGlobal(TTID::Cuda, *m), g);
 }
@@ -225,8 +223,8 @@ TEST(KitEmbUtils, createEmbFBHip) {
   EXPECT_EQ(g->getSection(), ".hip_fatbin");
   EXPECT_EQ(g->getAlign(), Align(4096));
   EXPECT_EQ(g->getUnnamedAddr(), GlobalValue::UnnamedAddr::None);
-  EXPECT_TRUE(g->hasAttribute(Attribute::KitFB));
-  EXPECT_EQ(g->getAttribute(Attribute::KitTT).getTTID(), TTID::Hip);
+  EXPECT_TRUE(hasDeviceCodeAttr(*g));
+  EXPECT_EQ(getDeviceCodeAttr(*g), TTID::Hip);
   EXPECT_EQ(g->getParent(), m.get());
   EXPECT_EQ(getEmbFBGlobal(TTID::Hip, *m), g);
 }
@@ -244,7 +242,7 @@ TEST(KitEmbUtils, resetEmbFB) {
   EXPECT_TRUE(m->getGlobalVariable("g0"));
   EXPECT_EQ(g1->getName(), "g0");
   EXPECT_EQ(m->global_size(), 1U);
-  EXPECT_EQ(g1->getAttribute(Attribute::KitTT).getTTID(), TTID::Cuda);
+  EXPECT_EQ(getDeviceCodeAttr(*g1), TTID::Cuda);
   EXPECT_TRUE(isa<ConstantDataArray>(g1->getInitializer()));
   EXPECT_EQ(cast<ConstantDataArray>(g1->getInitializer())->getAsString(),
             "repl");

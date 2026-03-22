@@ -1,11 +1,11 @@
-; The global containing the device code must be named. Check that the verifier
-; fails if it is not.
+; Globals containing device code must be named.
 ;
-; RUN: not llvm-as %s -o /dev/null 2>&1 \
-; RUN:     | FileCheck %s
+; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
 ;
-; CHECK: global containing device code does not have a name
+; CHECK-COUNT-2: global containing device code does not have a name
 
-@0 = constant [0 x i8] zeroinitializer #0
+@0 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !0
+@1 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !1
 
-attributes #0 = { kit_fb kit_tt(2) }
+!0 = !{i32 2}
+!1 = !{i32 4}

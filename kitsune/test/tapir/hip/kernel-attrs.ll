@@ -12,14 +12,13 @@
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; The visibility and calling convention must be set.
-;
-; CHECK: define protected amdgpu_kernel {{.+}} #[[ATTRS:[0-9]+]]
+; CHECK: define protected amdgpu_kernel void {{[^#]+}}
+; CHECK-SAME: #[[ATTRS:[0-9]+]]
+; CHECK-SAME: !kit.func.kernel ![[MDEMPTY:[0-9]+]]
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
 ; CHECK-NOT: "uwtable"
-; CHECK-SAME: kit_kernel
 ; CHECK-SAME: mustprogress
 ; CHECK-SAME: nounwind
 ; CHECK-SAME: "amdgpu-flat-work-group-size"="128,1024"
@@ -27,6 +26,8 @@
 ; CHECK-SAME: "target-cpu"="gfx906"
 ; CHECK-SAME: "target-features"="+wavefrontsize32,+atomic-fadd-rtn-insts"
 ; CHECK-SAME: "uniform-work-group-size"="true"
+;
+; CHECK: ![[MDEMPTY]] = !{}
 
 define void @f(ptr %c, i64 %n) {
 entry:
