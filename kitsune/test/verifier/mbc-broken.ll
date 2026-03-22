@@ -16,17 +16,15 @@
 ; RUN:     | grep "c\"BC" \
 ; RUN:     | sed 's/.kit.emb//g' \
 ; RUN:     | sed 's/@.bc/@.bc.4/g' \
-; RUN:     | sed 's/#0/#1/g'`
+; RUN:     | sed 's/\!0/\!1/g'`
 ;
-; RUN: printf "%%s\n%%s\n%%s\n%%s\n\n%%s\n%%s\n%%s\n%%s" \
+; RUN: printf "%%s\n%%s\n%%s\n%%s\n\n%%s\n%%s" \
 ; RUN:         "${MBC_2}" \
 ; RUN:         "${MBC_4}" \
-; RUN:         "@fb.2 = constant [0 x i8] zeroinitializer #2" \
-; RUN:         "@fb.4 = constant [0 x i8] zeroinitializer #3" \
-; RUN:         "attributes #0 = { kit_bc kit_tt(2) }" \
-; RUN:         "attributes #1 = { kit_bc kit_tt(4) }" \
-; RUN:         "attributes #2 = { kit_fb kit_tt(2) }" \
-; RUN:         "attributes #3 = { kit_fb kit_tt(4) }" \
+; RUN:         "@fb.2 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !0" \
+; RUN:         "@fb.4 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !1" \
+; RUN:         "!0 = !{i32 2}" \
+; RUN:         "!1 = !{i32 4}" \
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;

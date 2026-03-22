@@ -7,11 +7,16 @@
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,DEFAULT
 ;
-; ALL-DAG: define {{.+}} @sieve{{.+}} #[[ATTRS_SIEVE:[0-9]+]]
-; ALL-DAG: define {{.+}} @id{{.+}} #[[ATTRS_ID:[0-9]+]]
+; ALL-LABEL: define {{.+}} @sieve(
+; ALL-SAME: #[[ATTRS_SIEVE:[0-9]+]]
+; ALL-SAME: !kit.func.device ![[MDEMPTY:[0-9]+]]
 ;
-; DEFAULT-DAG: attributes #[[ATTRS_SIEVE]] = { kit_device "
-; DEFAULT-DAG: attributes #[[ATTRS_ID]] = { kit_device noinline "
+; ALL-LABEL: define {{.+}} @id(
+; ALL-SAME: #[[ATTRS_ID:[0-9]+]]
+; ALL-SAME: !kit.func.device ![[MDEMPTY]]
+;
+; DEFAULT-DAG: attributes #[[ATTRS_SIEVE]] = { "
+; DEFAULT-DAG: attributes #[[ATTRS_ID]] = { noinline "
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -20,8 +25,10 @@
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s -check-prefixes ALL,INLINE
 ;
-; INLINE-DAG: attributes #[[ATTRS_SIEVE]] = { alwaysinline kit_device "
-; INLINE-DAG: attributes #[[ATTRS_ID]] = { kit_device noinline "
+; INLINE-DAG: attributes #[[ATTRS_SIEVE]] = { alwaysinline "
+; INLINE-DAG: attributes #[[ATTRS_ID]] = { noinline "
+;
+; ALL: ![[MDEMPTY]] = !{}
 ;
 ; ------------------------------------------------------------------------------
 

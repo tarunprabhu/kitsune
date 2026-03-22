@@ -14,6 +14,7 @@
 #include "GPUTTLoop.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Core/InstructionUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/LoopAttrs.h"
@@ -220,7 +221,7 @@ void GPUTTLoopBase::cloneReachableFuncs(ValueToValueMapTy &vmap) {
         auto *devf = cast<Function>(vmap[f]);
         CloneFunctionInto(devf, f, vmap,
                           CloneFunctionChangeType::DifferentModule, returns);
-        devf->addFnAttr(Attribute::KitDevice);
+        addDeviceAttr(*devf);
       }
     }
   }
@@ -614,7 +615,7 @@ void GPUTTLoopBase::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
 
   Function *kernelF = toi.Outline;
   kernelF->setName(kernelName);
-  kernelF->addFnAttr(Attribute::KitKernel);
+  addKernelAttr(*kernelF);
 
   setKernelFuncAttrs(*kernelF);
   setKernelFuncCallingConv(*kernelF);

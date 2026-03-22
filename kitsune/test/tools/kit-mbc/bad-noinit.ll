@@ -6,6 +6,6 @@
 ;
 ; CHECK: initializer missing in global containing embedded bitcode
 
-@bc = external global [2 x i8] #0
+@bc = external global [2 x i8], !kit.gv.bit.code !0
 
-attributes #0 = { kit_bc kit_tt(2) }
+!0 = !{i32 2}

@@ -1,11 +1,13 @@
-; Global variables with the kit_bc attribute must have an initializer.
+; Global variables with the bit.code attribute must have a valid initializer.
 ;
 ; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
 ;
 ; CHECK: invalid initializer in global containing bitcode
 
-@bc = constant [1 x i8] undef #0
-@fb = constant [0 x i8] zeroinitializer #1
+@bc.2 = constant [1 x i8] undef, !kit.gv.bit.code !0
+@fb.2 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !0
+@bc.4 = constant [1 x i8] undef, !kit.gv.bit.code !1
+@fb.4 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !1
 
-attributes #0 = { kit_bc kit_tt(8) }
-attributes #1 = { kit_fb kit_tt(8) }
+!0 = !{i32 2}
+!1 = !{i32 4}

@@ -5,9 +5,9 @@
 ; RUN: opt --tapir=hip -passes='loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}} #[[FBATTR:[0-9]+]]
+; CHECK-DAG: @[[FB:.+]] = constant {{.+}} !kit.gv.device.code ![[TT:[0-9]+]]
 ; CHECK-DAG: @[[G_KNAME:.+]] = private unnamed_addr constant [{{[0-9]+}} x i8] c"[[KNAME:.+]]\00"
-; CHECK-DAG: @[[G_KERNEL_PROPS:.+]] = private unnamed_addr constant {{.+}} zeroinitializer #[[KPATTR:[0-9]+]]
+; CHECK-DAG: @[[G_KERNEL_PROPS:.+]] = private unnamed_addr constant {{.+}} zeroinitializer, !kit.gv.kernel.properties ![[KP:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f(ptr {{.*}}%[[C:.+]], i64 {{.*}}%[[N:.+]])
 ;
@@ -36,8 +36,8 @@
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;
-; CHECK-DAG: #[[FBATTR]] = { kit_fb kit_tt(4) }
-; CHECK-DAG: #[[KPATTR]] = { kit_tt(4) "kit_kernel_props"="[[KNAME]]" }
+; CHECK-DAG: ![[TT]] = !{i32 4}
+; CHECK-DAG: ![[KP]] = !{!"[[KNAME]]"}
 
 define void @f(ptr %c, i64 %n) {
 entry:

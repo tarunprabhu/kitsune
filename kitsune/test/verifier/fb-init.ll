@@ -1,10 +1,12 @@
-; The initializer of global variables with the kit_fb attribute must be either
-; a constant array or a zero.
+; The initializer of a global variable with the device.code attribute must be
+; either a constant array or a zero.
 ;
 ; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
 ;
-; CHECK: invalid initializer in global containing fat binary
+; CHECK-COUNT-2: invalid initializer in global containing device code
 
-@fb = constant [1 x i8] undef #0
+@fb.cuda = constant [1 x i8] undef, !kit.gv.device.code !0
+@fb.hip = constant [1 x i8] undef, !kit.gv.device.code !1
 
-attributes #0 = { kit_fb kit_tt(2) }
+!0 = !{i32 2}
+!1 = !{i32 4}

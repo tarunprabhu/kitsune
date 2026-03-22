@@ -12,13 +12,15 @@
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: define {{.+}}@device_func{{.+}} #[[ATTRS:[0-9]+]]
+; CHECK: define {{.+}}@device_func(
+; CHECK-SAME: #[[ATTRS:[0-9]+]]
+; CHECK-SAME: !kit.func.device ![[MDEMPTY:[0-9]+]]
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
-; CHECK-SAME: kit_device
 ; CHECK-SAME: "target-cpu"="sm_72"
 ; CHECK-SAME: "target-features"="+ptx87,sm_72"
+; CHECK: ![[MDEMPTY]] = !{}
 
 define i64 @device_func(i64 %n) {
   ret i64 %n

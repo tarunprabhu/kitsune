@@ -13,6 +13,7 @@
 
 #include "EmbPrepareImpl.h"
 #include "kitsune/Core/AddrSpaceUtils.h"
+#include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Core/TTOptions.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Attributes.h"
@@ -34,7 +35,7 @@ private:
   bool fixDeviceFuncAttrs(Module &devM) {
     bool changed = false;
     for (Function &f : devM.functions()) {
-      if (f.hasFnAttribute(Attribute::KitDevice)) {
+      if (hasDeviceAttr(f)) {
         f.removeFnAttr("target-cpu");
         f.removeFnAttr("target-features");
         f.removeFnAttr("tune-cpu");

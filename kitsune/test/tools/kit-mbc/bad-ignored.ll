@@ -6,6 +6,6 @@
 ;
 ; CHECK: warning: no embedded bitcode modules found
 
-@bc = constant [2 x i8] c"BC" #0
+@bc = constant [2 x i8] c"BC", !kit.gv.bit.code !0
 
-attributes #0 = { kit_bc kit_tt(2) }
+!0 = !{i32 2}

@@ -23,6 +23,7 @@
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/IR/Constants.h"
@@ -46,14 +47,14 @@ RecomputeKernelPropertiesPass::run(Module &m, ModuleAnalysisManager &mam) {
 
   EmbModulesMapTy embMs = std::move(*embMsOrErr);
   for (GlobalVariable &g : m.globals()) {
-    if (g.hasAttribute("kit_kernel_props")) {
-      StringRef kname = g.getAttribute("kit_kernel_props").getValueAsString();
-      TTID tt = g.getAttribute(Attribute::KitTT).getTTID();
-
+    if (std::optional<StringRef> kname = getKernelPropertiesAttr(g)) {
+      // FIXME: Need to figure out how to have a kernel function and a TTID
+      // in the same attribute.
+      TTID tt = TTID::Cuda;
       assert(embMs.find(tt) != embMs.end() &&
              "Embedded module for tapir target not found");
 
-      Function *kf = embMs.at(tt)->getFunction(kname);
+      Function *kf = embMs.at(tt)->getFunction(*kname);
       assert(kf && "Could not find kernel function being launched");
 
       ConstantStruct *c = getKernelPropertiesConstant(*kf);

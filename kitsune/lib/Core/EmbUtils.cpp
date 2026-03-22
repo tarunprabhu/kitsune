@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Core/TypeUtils.h"
 #include "kitsune/Support/Diagnostics.h"
@@ -30,11 +31,7 @@ using namespace llvm;
 /// kit_tt attributes, it may contain embedded bitcode. Return true only if it
 /// may contain embedded bitcode for the given tapir target.
 static bool mayContainEmbBC(const GlobalVariable &g, TTID tt) {
-  if (g.hasAttribute(Attribute::KitBC))
-    if (g.hasAttribute(Attribute::KitTT))
-      if (g.getAttribute(Attribute::KitTT).getTTID() == tt)
-        return true;
-  return false;
+  return getBitCodeAttr(g) == tt;
 }
 
 /// Serialize the module to LLVM bitcode. Create a constant byte array with
@@ -57,7 +54,6 @@ static GlobalVariable *createEmbBCGlobal(const Module &m, Module &hostM) {
   Type *type = init->getType();
   GlobalVariable *g = new GlobalVariable(hostM, type, /*isConstant=*/true,
                                          linkage, init, ".kit.emb.bc");
-  g->addAttribute(Attribute::KitBC);
   g->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
 
   return g;
@@ -74,8 +70,6 @@ static GlobalVariable *createEmbFBGlobal(MemoryBufferRef buf, Module &m) {
   Type *type = init->getType();
   GlobalVariable *g = new GlobalVariable(m, type, /*isConstant=*/true, linkage,
                                          init, ".kit.emb.fb");
-  g->addAttribute(Attribute::KitFB);
-
   return g;
 }
 
@@ -112,9 +106,8 @@ llvm::parseEmbBCGlobal(const GlobalVariable &g) {
 
 GlobalVariable *llvm::createEmbBCGlobal(const Module &devM, TTID tt,
                                         Module &hostM) {
-  LLVMContext &ctx = hostM.getContext();
   GlobalVariable *g = ::createEmbBCGlobal(devM, hostM);
-  g->addAttribute(Attribute::getWithTTID(ctx, tt));
+  addBitCodeAttr(*g, tt);
 
   return g;
 }
@@ -169,10 +162,9 @@ Expected<EmbModulesMapTy> llvm::getEmbModules(const Module &m) {
 }
 
 GlobalVariable *llvm::createEmbFBGlobal(TTID tt, Module &m) {
-  LLVMContext &ctx = m.getContext();
   std::unique_ptr<MemoryBuffer> buf = MemoryBuffer::getMemBuffer("");
   GlobalVariable *g = ::createEmbFBGlobal(*buf, m);
-  g->addAttribute(Attribute::getWithTTID(ctx, tt));
+  addDeviceCodeAttr(*g, tt);
 
   switch (tt) {
   case TTID::Cuda:
@@ -191,14 +183,9 @@ GlobalVariable *llvm::createEmbFBGlobal(TTID tt, Module &m) {
 }
 
 GlobalVariable *llvm::getEmbFBGlobal(TTID tt, Module &m) {
-  for (GlobalVariable &g : m.globals()) {
-    if (g.hasAttribute(Attribute::KitFB)) {
-      assert(g.hasAttribute(Attribute::KitTT) &&
-             "Attribute 'kit_bc' requires 'kit_tt");
-      if (g.getAttribute(Attribute::KitTT).getTTID() == tt)
-        return &g;
-    }
-  }
+  for (GlobalVariable &g : m.globals())
+    if (getDeviceCodeAttr(g) == tt)
+      return &g;
   return nullptr;
 }
 

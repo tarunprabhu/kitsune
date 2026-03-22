@@ -9,7 +9,6 @@
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "MetadataLoader.h"
 #include "ValueList.h"
-#include "kitsune/Support/FromInt.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -2339,16 +2338,6 @@ static Attribute::AttrKind getAttrFromCode(uint64_t Code) {
     return Attribute::NoOutline;
   case bitc::ATTR_KIND_NOIPA:
     return Attribute::NoIPA;
-  case bitc::ATTR_KIND_KIT_TT:
-    return Attribute::KitTT;
-  case bitc::ATTR_KIND_KIT_BC:
-    return Attribute::KitBC;
-  case bitc::ATTR_KIND_KIT_FB:
-    return Attribute::KitFB;
-  case bitc::ATTR_KIND_KIT_KERNEL:
-    return Attribute::KitKernel;
-  case bitc::ATTR_KIND_KIT_DEVICE:
-    return Attribute::KitDevice;
   }
 }
 
@@ -2539,14 +2528,9 @@ Error BitcodeReader::parseAttributeGroupBlock() {
           else if (Kind == Attribute::NoFPClass)
             B.addNoFPClassAttr(
                 static_cast<FPClassTest>(Record[++i] & fcAllFlags));
-          else if (Kind == Attribute::DenormalFPEnv)
+          else if (Kind == Attribute::DenormalFPEnv) {
             B.addDenormalFPEnvAttr(
                 DenormalFPEnv::createFromIntValue(Record[++i]));
-          else if (Kind == Attribute::KitTT) {
-            if (std::optional<TTID> TT = fromInt<TTID>(Record[++i]))
-              B.addTTIDAttr(*TT);
-            else
-              return error("Not a valid tapir target id");
           }
         } else if (Record[i] == 3 || Record[i] == 4) { // String attribute
           bool HasValue = (Record[i++] == 4);

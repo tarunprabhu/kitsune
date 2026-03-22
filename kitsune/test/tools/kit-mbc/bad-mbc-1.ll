@@ -7,6 +7,6 @@
 ;
 ; CHECK: error: could not parse embedded bitcode
 
-@bc = constant [4 x i8] c"BC\C0\DE" #2
+@bc = constant [4 x i8] c"BC\C0\DE", !kit.gv.bit.code !0
 
-attributes #2 = { kit_bc kit_tt(2) }
+!0 = !{i32 2}

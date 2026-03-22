@@ -12,14 +12,17 @@
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: define {{.*}}ptx_kernel void {{.+}} #[[ATTRS:[0-9]+]]
+; CHECK: define {{.*}}ptx_kernel void {{[^#]+}}
+; CHECK-SAME: #[[ATTRS:[0-9]+]]
+; CHECK-SAME: !kit.func.kernel ![[MDEMPTY:[0-9]+]]
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
-; CHECK-SAME: kit_kernel
 ; CHECK-SAME: "target-cpu"="sm_72"
 ; CHECK-SAME: "target-features"="+ptx87,sm_72"
 ; CHECK-SAME: "uniform-work-group-size"="true"
+;
+; CHECK: ![[MDEMPTY]] = !{}
 
 define void @f(ptr %c, i64 %n) {
 entry:

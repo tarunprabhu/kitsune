@@ -5,10 +5,8 @@
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @[[BC:.+]] = unnamed_addr constant [{{[0-9]+}} x i8] c"BC{{.+}}"
-; CHECK-SAME: #[[ATTR:[0-9]+]]
-;
-; CHECK: #[[ATTR]] = {
-; CHECK-SAME: kit_bc kit_tt(2)
+; CHECK-SAME: !kit.gv.bit.code ![[TT:[0-9]+]]
+; CHECK: ![[TT]] = !{i32 2}
 
 define void @f(ptr %c, i64 %n) {
 entry:

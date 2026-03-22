@@ -3,7 +3,12 @@
 ; the global variable in the host that contains the bitcode.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
-; RUN:     | sed 's/kit_bc kit_tt(2)/kit_bc kit_tt(4)/g' \
+; RUN:     | sed 's/i32 2/i32 4/g' \
+; RUN:     | not llvm-as -o /dev/null 2>&1 \
+; RUN:     | FileCheck %s
+;
+; RUN: %kit-enc --tapir=hip %s \
+; RUN:     | sed 's/i32 4/i32 2/g' \
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;

@@ -16,7 +16,6 @@
 #include "CGFBImpl.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
-#include "kitsune/Core/GlobalVariableUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"

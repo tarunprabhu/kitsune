@@ -14,17 +14,19 @@
 ;
 ; The visibility and calling convention must be set.
 ;
-; CHECK: define {{.+}}@device_func{{.+}} #[[ATTRS:[0-9]+]]
+; CHECK: define {{.+}}@device_func(
+; CHECK-SAME: #[[ATTRS:[0-9]+]]
+; CHECK-SAME: !kit.func.device ![[MDEMPTY:[0-9]+]]
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
 ; CHECK-NOT: "uwtable"
-; CHECK-SAME: kit_device
 ; CHECK-SAME: nounwind
 ; CHECK-SAME: "target-cpu"="gfx906"
 ; CHECK-SAME: "target-features"="+wavefrontsize32,+atomic-fadd-rtn-insts"
+; CHECK: ![[MDEMPTY]] = !{}
 
-define i64 @device_func(i64 %n) #2 {
+define i64 @device_func(i64 %n) {
   ret i64 %n
 }
 

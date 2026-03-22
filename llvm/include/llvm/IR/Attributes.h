@@ -15,7 +15,6 @@
 #ifndef LLVM_IR_ATTRIBUTES_H
 #define LLVM_IR_ATTRIBUTES_H
 
-#include "kitsune/Core/Tapir.h"
 #include "llvm-c/Types.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitmaskEnum.h"
@@ -155,7 +154,6 @@ public:
   LLVM_ABI static bool canUseAsFnAttr(AttrKind Kind);
   LLVM_ABI static bool canUseAsParamAttr(AttrKind Kind);
   LLVM_ABI static bool canUseAsRetAttr(AttrKind Kind);
-  LLVM_ABI static bool canUseAsGlobalAttr(AttrKind Kind);
 
   LLVM_ABI static bool intersectMustPreserve(AttrKind Kind);
   LLVM_ABI static bool intersectWithAnd(AttrKind Kind);
@@ -220,9 +218,6 @@ public:
                                                     DeadOnReturnInfo DI);
   LLVM_ABI static Attribute getWithCaptureInfo(LLVMContext &Context,
                                                CaptureInfo CI);
-  LLVM_ABI static Attribute getWithTTID(LLVMContext &Context, TTID TT);
-  LLVM_ABI static Attribute getWithKernelProps(LLVMContext &Context,
-                                               StringRef Name);
 
   /// For a typed attribute, return the equivalent attribute with the type
   /// changed to \p ReplacementTy.
@@ -362,9 +357,6 @@ public:
 
   /// Returns the value of the initializes attribute.
   LLVM_ABI ArrayRef<ConstantRange> getInitializes() const;
-
-  /// Returns the value of the tapir target attribute.
-  TTID getTTID() const;
 
   /// The Attribute is converted to a string of equivalent mnemonic. This
   /// is, presumably, for writing out the mnemonics for the assembly writer.
@@ -1358,9 +1350,6 @@ public:
   /// attached to \p I. e.g. !align -> align. This assumes the argument type is
   /// the same as the original instruction and the attribute is compatible.
   LLVM_ABI AttrBuilder &addFromEquivalentMetadata(const Instruction &I);
-
-  /// Add kit_tt attribute.
-  AttrBuilder &addTTIDAttr(TTID TT);
 
   ArrayRef<Attribute> attrs() const { return Attrs; }
 

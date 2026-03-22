@@ -22,8 +22,6 @@ def ParamAttr : AttrProperty;
 /// Can be used as return attribute.
 def RetAttr : AttrProperty;
 
-/// Can be used as an attribute on global variables.
-def GlobalAttr : AttrProperty;
 
 
 /// Intersection rules. Used for example in sinking/hoisting two
@@ -441,8 +439,6 @@ def NoInlineLineTables : StrBoolAttr<"no-inline-line-tables">;
 def ProfileSampleAccurate : StrBoolAttr<"profile-sample-accurate">;
 def UseSampleProfile : StrBoolAttr<"use-sample-profile">;
 def LoaderReplaceable : StrBoolAttr<"loader-replaceable">;
-
-include "llvm/IR/AttributesKitsune.td"
 
 // Attribute compatiblity rules are generated to check the attribute of the
 // caller and callee and decide whether inlining should be allowed. CompatRule
