@@ -12,14 +12,16 @@
 
 #include "KitAttrHeaderEmitter.h"
 #include "KitAttrCommon.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/StringSwitch.h"
+#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
 
 using namespace llvm;
 
-KitAttrHeaderEmitter::Kind KitAttrHeaderEmitter::getKind(const Record &type) {
+KitAttrHeaderEmitter::Kind
+KitAttrHeaderEmitter::getKind(const Record &type) const {
   StringRef typeName = type.getValueAsString("Name");
 
   if (type.getValueAsDef("IsEnum")->getName() == "True") {
@@ -70,6 +72,12 @@ std::string KitAttrHeaderEmitter::getMacroName(const Kind &kind) const {
   return buf;
 }
 
+std::string KitAttrHeaderEmitter::getMacroName(const Record &attr) const {
+  if (const Record *type = attr.getValueAsDef("ValueType"))
+    return getMacroName(getKind(*type));
+  PrintFatalError("Cannot get name of attribute that does not have a type");
+}
+
 StringRef KitAttrHeaderEmitter::getMacroArgs(const Kind &kind) const {
   if (kind.name == "ENUM")
     return "(NAME, IRNAME, TYPE)";
@@ -81,7 +89,7 @@ std::string KitAttrHeaderEmitter::getIRName(const Record &attr) const {
 }
 
 void KitAttrHeaderEmitter::emitMacroDefn(raw_ostream &os, const Kind &kind) {
-  StringRef baseMacroName = getBaseMacroName();
+  std::string baseMacroName = getBaseMacroName();
   std::string macroName = getMacroName(kind);
   StringRef macroArgs = getMacroArgs(kind);
 

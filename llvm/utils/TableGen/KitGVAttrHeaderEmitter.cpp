@@ -25,6 +25,7 @@ protected:
 
 public:
   KitGVAttrEmitter(const RecordKeeper &records);
+  virtual ~KitGVAttrEmitter() = default;
 };
 
 } // namespace

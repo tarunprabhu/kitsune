@@ -25,14 +25,12 @@ private:
   // general implementation.
   static constexpr size_t MAXVALS = 8;
 
-private:
-  std::string getMacroName(const Record &attr);
-
 protected:
   StringRef getMacroRoot() const override;
   StringRef getIRNamePrefix(const Record &attr) const override;
   StringRef getAttrBase() const override;
   StringRef getBaseMacroArgs() const override;
+  std::string getMacroName(const Record &attr) const override;
 
   void emitMacroDefs(raw_ostream &os) override;
   void emitAttr(raw_ostream &os, const Record &attr) override;
@@ -40,16 +38,16 @@ protected:
 
 public:
   KitModuleAttrEmitter(const RecordKeeper &recordKeeper);
+  virtual ~KitModuleAttrEmitter() = default;
 };
 
 } // namespace
 
-std::string KitModuleAttrEmitter::getMacroName(const Record &attr) {
+std::string KitModuleAttrEmitter::getMacroName(const Record &attr) const {
   std::string buf;
   raw_string_ostream os(buf);
-  StringRef base = getMacroRoot();
 
-  os << base << "_ATTR_" << attr.getValueAsListOfDefs("Values").size();
+  os << getBaseMacroName() << "_" << attr.getValueAsListOfDefs("Values").size();
   os.flush();
 
   return buf;

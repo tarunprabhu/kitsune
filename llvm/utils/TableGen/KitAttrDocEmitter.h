@@ -46,6 +46,8 @@ protected:
   virtual void emitAttrDoc(llvm::raw_ostream &os, const llvm::Record &attr);
 
 public:
+  virtual ~KitAttrDocEmitter() = default;
+
   void run(llvm::raw_ostream &os);
 };
 
