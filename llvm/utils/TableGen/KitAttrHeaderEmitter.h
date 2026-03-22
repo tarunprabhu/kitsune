@@ -89,7 +89,7 @@ protected:
     llvm::StringRef type;
 
     friend bool operator==(const Kind &l, const Kind &r) {
-      return l.name ==r.name;
+      return l.name == r.name;
     }
 
     friend bool operator<(const Kind &l, const Kind &r) {
@@ -110,7 +110,7 @@ protected:
   KitAttrHeaderEmitter(const llvm::RecordKeeper &records);
 
   /// Get the kind of an attribute.
-  Kind getKind(const llvm::Record &attr);
+  Kind getKind(const llvm::Record &attr) const;
 
   /// Get the <MACRO_ROOT>
   virtual llvm::StringRef getMacroRoot() const = 0;
@@ -143,6 +143,9 @@ protected:
   /// Get the <MACRO_NAME_*> for the given KIND.
   virtual std::string getMacroName(const Kind &kind) const;
 
+  /// Get the <MACRO_NAME_*> for an attribute.
+  virtual std::string getMacroName(const llvm::Record &attr) const;
+
   /// Get the arguments for <MACRO_NAME_*> for the given KIND.
   virtual llvm::StringRef getMacroArgs(const Kind &kind) const;
 
@@ -164,6 +167,8 @@ protected:
   virtual void emitEnums(llvm::raw_ostream &os);
 
 public:
+  virtual ~KitAttrHeaderEmitter() = default;
+
   void run(llvm::raw_ostream &os);
 };
 

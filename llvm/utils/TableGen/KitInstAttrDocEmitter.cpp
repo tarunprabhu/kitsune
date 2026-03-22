@@ -25,6 +25,7 @@ protected:
 
 public:
   KitInstAttrDocEmitter(const RecordKeeper &records);
+  virtual ~KitInstAttrDocEmitter() = default;
 };
 
 } // namespace

@@ -28,6 +28,7 @@ protected:
 
 public:
   KitModuleAttrDocEmitter(const RecordKeeper &records);
+  virtual ~KitModuleAttrDocEmitter() = default;
 };
 
 } // namespace
