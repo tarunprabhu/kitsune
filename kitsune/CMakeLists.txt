@@ -375,7 +375,7 @@ if (KITSUNE_HIP_ENABLED)
 
   # The lowest unsupported ROCm version that is greater than the minimum
   # supported version
-  set(KITSUNE_HIP_VERSION_MAX 7.2)
+  set(KITSUNE_HIP_VERSION_MAX 7.3)
 
   set(KITSUNE_HIP_VERSION
     ${HIP_VERSION_MAJOR}.${HIP_VERSION_MINOR}.${HIP_VERSION_PATCH})
