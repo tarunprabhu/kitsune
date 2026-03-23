@@ -59,6 +59,17 @@ std::optional<GVAttrKind> llvm::getGVAttrKind(StringRef name) {
       .Default(std::nullopt);
 }
 
+bool llvm::verifyAttr(const GlobalVariable &g, GVAttrKind attr) {
+  switch (attr) {
+#define GV_ATTR(NAME, IRNAME, TYPE)                                            \
+  case GVAttrKind::NAME:                                                       \
+    return verify##NAME##Attr(g);
+#define GET_GV_ATTRS
+#include "kitsune/Core/GVAttrs.inc"
+  }
+  llvm_unreachable("verifyAttr: Attribute not handled");
+}
+
 bool llvm::hasAttr(const GlobalVariable &g, GVAttrKind attr) {
   return g.hasMetadata(getAttrName(attr));
 }
@@ -88,12 +99,19 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
   void llvm::remove##NAME##Attr(GlobalVariable &g) {                           \
     removeAttr(g, GVAttrKind::NAME);                                           \
   }
+
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 
 #define GV_ATTR_0(NAME, IRNAME)                                                \
   void llvm::add##NAME##Attr(GlobalVariable &g) {                              \
     ::addAttr(g, GVAttrKind::NAME, {});                                        \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const GlobalVariable &g) {                     \
+    if (MDNode *md = g.getMetadata(IRNAME))                                    \
+      return md->getNumOperands() == 0;                                        \
+    return true;                                                               \
   }
 
 #define GV_ATTR_1(NAME, IRNAME, TYPE)                                          \
@@ -105,6 +123,12 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
     LLVMContext &ctx = g.getContext();                                         \
     Metadata *ops[] = {toMetadata(val, ctx)};                                  \
     ::addAttr(g, GVAttrKind::NAME, ops);                                       \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const GlobalVariable &g) {                     \
+    if (has##NAME##Attr(g))                                                    \
+      return get##NAME##Attr(g).has_value();                                   \
+    return true;                                                               \
   }
 
 #define GV_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)          \
@@ -112,6 +136,13 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
     LLVMContext &ctx = g.getContext();                                         \
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx)};              \
     ::addAttr(g, GVAttrKind::NAME, ops);                                       \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const GlobalVariable &g) {                     \
+    if (has##NAME##Attr(g))                                                    \
+      return get##ENAME0##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(g).has_value();                     \
+    return true;                                                               \
   }
 
 #define GV_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
@@ -121,6 +152,14 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
                        toMetadata(e2, ctx)};                                   \
     ::addAttr(g, GVAttrKind::NAME, ops);                                       \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const GlobalVariable &g) {                     \
+    if (has##NAME##Attr(g))                                                    \
+      return get##ENAME0##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(g).has_value();                     \
+    return true;                                                               \
   }
 
 #define GV_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
@@ -131,6 +170,15 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
                        toMetadata(e2, ctx), toMetadata(e3, ctx)};              \
     ::addAttr(g, GVAttrKind::NAME, ops);                                       \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const GlobalVariable &g) {                     \
+    if (has##NAME##Attr(g))                                                    \
+      return get##ENAME0##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(g).has_value();                     \
+    return true;                                                               \
   }
 
 #define GV_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
@@ -142,6 +190,16 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
                        toMetadata(e2, ctx), toMetadata(e3, ctx),               \
                        toMetadata(e4, ctx)};                                   \
     ::addAttr(g, GVAttrKind::NAME, ops);                                       \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const GlobalVariable &g) {                     \
+    if (has##NAME##Attr(g))                                                    \
+      return get##ENAME0##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME4##From##NAME##Attr(g).has_value();                     \
+    return true;                                                               \
   }
 
 #define GV_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
@@ -154,6 +212,17 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
                        toMetadata(e2, ctx), toMetadata(e3, ctx),               \
                        toMetadata(e4, ctx), toMetadata(e5, ctx)};              \
     ::addAttr(g, GVAttrKind::NAME, ops);                                       \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const GlobalVariable &g) {                     \
+    if (has##NAME##Attr(g))                                                    \
+      return get##ENAME0##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME4##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME5##From##NAME##Attr(g).has_value();                     \
+    return true;                                                               \
   }
 
 #define GV_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
@@ -167,6 +236,18 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
                        toMetadata(e4, ctx), toMetadata(e5, ctx),               \
                        toMetadata(e6, ctx)};                                   \
     ::addAttr(g, GVAttrKind::NAME, ops);                                       \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const GlobalVariable &g) {                     \
+    if (has##NAME##Attr(g))                                                    \
+      return get##ENAME0##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME4##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME5##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME6##From##NAME##Attr(g).has_value();                     \
+    return true;                                                               \
   }
 
 #define GV_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
@@ -180,7 +261,21 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
                        toMetadata(e4, ctx), toMetadata(e5, ctx),               \
                        toMetadata(e6, ctx), toMetadata(e7, ctx)};              \
     ::addAttr(g, GVAttrKind::NAME, ops);                                       \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const GlobalVariable &g) {                     \
+    if (has##NAME##Attr(g))                                                    \
+      return get##ENAME0##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME4##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME5##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME6##From##NAME##Attr(g).has_value() &&                   \
+             get##ENAME7##From##NAME##Attr(g).has_value();                     \
+    return true;                                                               \
   }
+
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 

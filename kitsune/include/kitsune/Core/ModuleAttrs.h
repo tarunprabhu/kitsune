@@ -52,9 +52,15 @@ void addAttr(Module &m, ModuleAttrKind attr);
 /// attribute, this has no effect.
 void removeAttr(Module &m, ModuleAttrKind attr);
 
+/// If the attribute is not present on a module, return true. Otherwise, return
+/// if the expected number of values are found for the attribute, and each of
+/// them can be retrieved. In all other cases, return false.
+bool verifyAttr(const Module &m, ModuleAttrKind attr);
+
 /// @}
 
 #define MODULE_ATTR(NAME, IRNAME, TYPE)                                        \
+  bool verify##NAME##Attr(const Module &m);                                    \
   bool has##NAME##Attr(const Module &m);                                       \
   void remove##NAME##Attr(Module &m);
 #define GET_MODULE_ATTRS

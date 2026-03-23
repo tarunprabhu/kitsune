@@ -51,9 +51,16 @@ void addAttr(GlobalVariable &f, GVAttrKind attr);
 /// contain the attribute, this has no effect.
 void removeAttr(GlobalVariable &f, GVAttrKind attr);
 
+/// If the attribute is not present on a global variable, return true.
+/// Otherwise, return if the expected number of values are found for the
+/// attribute, and each of them can be retrieved. In all other cases, return
+/// false.
+bool verifyAttr(const GlobalVariable &g, GVAttrKind attr);
+
 /// @}
 
 #define GV_ATTR(NAME, IRNAME, TYPE)                                            \
+  bool verify##NAME##Attr(const GlobalVariable &g);                            \
   bool has##NAME##Attr(const GlobalVariable &g);                               \
   void remove##NAME##Attr(GlobalVariable &g);
 #define GET_GV_ATTRS

@@ -53,9 +53,15 @@ void addAttr(Instruction &inst, InstAttrKind attr);
 /// contain the attribute, this has no effect.
 void removeAttr(Instruction &inst, InstAttrKind attr);
 
+/// If the attribute is not present on an instruction, return true. Otherwise,
+/// return if the expected number of values are found for the attribute, and
+/// each of them can be retrieved. In all other cases, return false.
+bool verifyAttr(const Instruction &inst, InstAttrKind attr);
+
 /// @}
 
 #define INST_ATTR(NAME, IRNAME, TYPE)                                          \
+  bool verify##NAME##Attr(const Instruction &inst);                            \
   bool has##NAME##Attr(const Instruction &inst);                               \
   void remove##NAME##Attr(Instruction &inst);
 #define GET_INST_ATTRS
@@ -112,7 +118,8 @@ void removeAttr(Instruction &inst, InstAttrKind attr);
   std::optional<Loop *> get##NAME##Attr(                                       \
       const Instruction &inst, const SmallVectorImpl<const LoopInfo *> &lis);  \
   void add##NAME##Attr(Instruction &inst, Loop *loop);                         \
-  void add##NAME##Attr(Instruction &inst, Loop &loop);
+  void add##NAME##Attr(Instruction &inst, Loop &loop);                         \
+  bool verify##NAME##Attr(const Instruction &inst);
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 

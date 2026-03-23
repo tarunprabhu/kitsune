@@ -67,6 +67,17 @@ std::optional<LoopAttrKind> llvm::getLoopAttrKind(StringRef name) {
       .Default(std::nullopt);
 }
 
+bool llvm::verifyAttr(const Loop &loop, LoopAttrKind attr) {
+  switch (attr) {
+#define LOOP_ATTR(NAME, IRNAME, TYPE)                                          \
+  case LoopAttrKind::NAME:                                                     \
+    return verify##NAME##Attr(loop);
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+  }
+  llvm_unreachable("verifyAttr: Attribute not handled");
+}
+
 bool llvm::hasAttr(const Loop &loop, LoopAttrKind attr) {
   return findOptionMDForLoop(&loop, getAttrName(attr));
 }
@@ -107,6 +118,13 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
 #define LOOP_ATTR_0(NAME, IRNAME)                                              \
   void llvm::add##NAME##Attr(Loop &loop) {                                     \
     ::addAttr(loop, LoopAttrKind::NAME, {});                                   \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Loop &loop) {                            \
+    StringRef attrName = getAttrName(LoopAttrKind::NAME);                      \
+    if (MDNode *md = findOptionMDForLoop(&loop, attrName))                     \
+      return md->getNumOperands() == 1;                                        \
+    return true;                                                               \
   }
 
 #define LOOP_ATTR_1(NAME, IRNAME, TYPE)                                        \
@@ -118,6 +136,12 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
     LLVMContext &ctx = getContext(loop);                                       \
     Metadata *ops[] = {toMetadata(val, ctx)};                                  \
     ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Loop &loop) {                            \
+    if (has##NAME##Attr(loop))                                                 \
+      return get##NAME##Attr(loop).has_value();                                \
+    return true;                                                               \
   }
 
 #define LOOP_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
@@ -125,6 +149,13 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
     LLVMContext &ctx = getContext(loop);                                       \
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx)};              \
     ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Loop &loop) {                            \
+    if (has##NAME##Attr(loop))                                                 \
+      return get##ENAME0##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(loop).has_value();                  \
+    return true;                                                               \
   }
 
 #define LOOP_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -134,6 +165,14 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
                        toMetadata(e2, ctx)};                                   \
     ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Loop &loop) {                            \
+    if (has##NAME##Attr(loop))                                                 \
+      return get##ENAME0##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME2##From##NAME##Attr(loop).has_value();                  \
+    return true;                                                               \
   }
 
 #define LOOP_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -143,6 +182,15 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
                        toMetadata(e2, ctx), toMetadata(e3, ctx)};              \
     ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Loop &loop) {                            \
+    if (has##NAME##Attr(loop))                                                 \
+      return get##ENAME0##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME2##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME3##From##NAME##Attr(loop).has_value();                  \
+    return true;                                                               \
   }
 
 #define LOOP_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -154,6 +202,16 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
                        toMetadata(e2, ctx), toMetadata(e3, ctx),               \
                        toMetadata(e4, ctx)};                                   \
     ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Loop &loop) {                            \
+    if (has##NAME##Attr(loop))                                                 \
+      return get##ENAME0##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME2##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME3##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME4##From##NAME##Attr(loop).has_value();                  \
+    return true;                                                               \
   }
 
 #define LOOP_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -166,6 +224,17 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
                        toMetadata(e2, ctx), toMetadata(e3, ctx),               \
                        toMetadata(e4, ctx), toMetadata(e5, ctx)};              \
     ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Loop &loop) {                            \
+    if (has##NAME##Attr(loop))                                                 \
+      return get##ENAME0##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME2##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME3##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME4##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME5##From##NAME##Attr(loop).has_value();                  \
+    return true;                                                               \
   }
 
 #define LOOP_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -179,6 +248,18 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
                        toMetadata(e4, ctx), toMetadata(e5, ctx),               \
                        toMetadata(e6, ctx)};                                   \
     ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Loop &loop) {                            \
+    if (has##NAME##Attr(loop))                                                 \
+      return get##ENAME0##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME2##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME3##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME4##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME5##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME6##From##NAME##Attr(loop).has_value();                  \
+    return true;                                                               \
   }
 
 #define LOOP_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -192,7 +273,21 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
                        toMetadata(e4, ctx), toMetadata(e5, ctx),               \
                        toMetadata(e6, ctx), toMetadata(e7, ctx)};              \
     ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Loop &loop) {                            \
+    if (has##NAME##Attr(loop))                                                 \
+      return get##ENAME0##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME2##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME3##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME4##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME5##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME6##From##NAME##Attr(loop).has_value() &&                \
+             get##ENAME7##From##NAME##Attr(loop).has_value();                  \
+    return true;                                                               \
   }
+
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 

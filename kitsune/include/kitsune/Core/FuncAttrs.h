@@ -50,9 +50,15 @@ void addAttr(Function &f, FuncAttrKind attr);
 /// attribute, this has no effect.
 void removeAttr(Function &f, FuncAttrKind attr);
 
+/// If the attribute is not present on a function, return true. Otherwise,
+/// return if the expected number of values are found for the attribute, and
+/// each of them can be retrieved. In all other cases, return false.
+bool verifyAttr(const Function &f, FuncAttrKind attr);
+
 /// @}
 
 #define FUNC_ATTR(NAME, IRNAME, TYPE)                                          \
+  bool verify##NAME##Attr(const Function &f);                                  \
   bool has##NAME##Attr(const Function &f);                                     \
   void remove##NAME##Attr(Function &f);
 #define GET_FUNC_ATTRS
