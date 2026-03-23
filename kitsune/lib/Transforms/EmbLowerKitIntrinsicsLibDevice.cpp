@@ -69,12 +69,9 @@ static bool lowerHipBlockGridSizeIntrinsics(Module &embM) {
     Value *newCall = builder.CreateCall(newCallee, {farg}, name + ".64");
     Value *newVal = builder.CreateIntCast(newCall, type, /*isSigned=*/false);
 
-    // Set the name after removing the original call. Doing so earlier may
-    // result in it being renamed to avoid a conflict with the name of the call
-    // instruction being replaced.
+    newVal->takeName(call);
     call->replaceAllUsesWith(newVal);
     call->eraseFromParent();
-    newVal->setName(name);
   }
 
   return calls.size();

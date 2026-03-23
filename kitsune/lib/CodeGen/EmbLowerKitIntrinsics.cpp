@@ -41,16 +41,12 @@ replaceAllSimple(Module &embM,
 
   for (auto [call, newCallee] : calls) {
     IRBuilder<> builder(call);
-    StringRef name = call->getName();
     SmallVector<Value *, 4> args(call->arg_begin(), call->arg_end());
     CallInst *newCall = builder.CreateIntrinsic(newCallee, args);
 
-    // Set the name after removing the original call. Doing so earlier may
-    // result in it being renamed to avoid a conflict with the name of the call
-    // instruction being replaced.
+    newCall->takeName(call);
     call->replaceAllUsesWith(newCall);
     call->eraseFromParent();
-    newCall->setName(name);
   }
 
   return calls.size();
