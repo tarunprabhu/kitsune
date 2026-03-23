@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/Tapir.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Module.h"
@@ -58,18 +59,18 @@ TEST(KitConstantUtils, createConstString) {
 
 TEST(KitConstantUtils, stripCasts) {
   LLVMContext ctx;
-  Type* i64 = Type::getInt64Ty(ctx);
-  Type* f32 = Type::getFloatTy(ctx);
-  PointerType* ptr = PointerType::getUnqual(ctx);
-  PointerType* ptr11 = PointerType::get(ctx, 11);
+  Type *i64 = Type::getInt64Ty(ctx);
+  Type *f32 = Type::getFloatTy(ctx);
+  PointerType *ptr = PointerType::getUnqual(ctx);
+  PointerType *ptr11 = PointerType::get(ctx, 11);
 
-  Constant* cnull = ConstantPointerNull::get(ptr);
-  Constant* cint = ConstantInt::get(i64, 79);
-  Constant* cfp = ConstantFP::get(f32, 3.14);
-  Constant* cptr = ConstantExpr::getIntToPtr(cint, ptr);
-  Constant* cptr11 = ConstantExpr::getAddrSpaceCast(cptr, ptr11);
+  Constant *cnull = ConstantPointerNull::get(ptr);
+  Constant *cint = ConstantInt::get(i64, 79);
+  Constant *cfp = ConstantFP::get(f32, 3.14);
+  Constant *cptr = ConstantExpr::getIntToPtr(cint, ptr);
+  Constant *cptr11 = ConstantExpr::getAddrSpaceCast(cptr, ptr11);
 
-  EXPECT_EQ(stripCasts((const Constant*)nullptr), nullptr);
+  EXPECT_EQ(stripCasts((const Constant *)nullptr), nullptr);
 
   EXPECT_EQ(stripCasts(cint), cint);
   EXPECT_EQ(stripCasts(cnull), cnull);
@@ -77,11 +78,88 @@ TEST(KitConstantUtils, stripCasts) {
   EXPECT_EQ(stripCasts(cptr), cint);
   EXPECT_EQ(stripCasts(cptr11), cint);
 
-  EXPECT_EQ(stripCasts((const Constant*)cint), cint);
-  EXPECT_EQ(stripCasts((const Constant*)cnull), cnull);
-  EXPECT_EQ(stripCasts((const Constant*)cfp), cfp);
-  EXPECT_EQ(stripCasts((const Constant*)cptr), cint);
-  EXPECT_EQ(stripCasts((const Constant*)cptr11), cint);
+  EXPECT_EQ(stripCasts((const Constant *)cint), cint);
+  EXPECT_EQ(stripCasts((const Constant *)cnull), cnull);
+  EXPECT_EQ(stripCasts((const Constant *)cfp), cfp);
+  EXPECT_EQ(stripCasts((const Constant *)cptr), cint);
+  EXPECT_EQ(stripCasts((const Constant *)cptr11), cint);
+}
+
+TEST(KitConstantUtils, fromConstant) {
+  LLVMContext ctx;
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *i64 = Type::getInt64Ty(ctx);
+  Type *f32 = Type::getFloatTy(ctx);
+  Type *f64 = Type::getDoubleTy(ctx);
+  PointerType *ptr = PointerType::getUnqual(ctx);
+
+  Constant *cnull = ConstantPointerNull::get(ptr);
+  Constant *ci32 = ConstantInt::get(i32, 99);
+  Constant *ci64 = ConstantInt::get(i64, 79);
+  Constant *cf32 = ConstantFP::get(f32, 3.14F);
+  Constant *cf64 = ConstantFP::get(f64, 2.71828);
+  Constant *cstr = ConstantDataArray::getString(ctx, "glasgow");
+  Constant *one = ConstantInt::get(i32, 1);
+
+  EXPECT_FALSE(fromConstant<int32_t>(*ci64));
+  EXPECT_FALSE(fromConstant<int32_t>(*cf32));
+  EXPECT_FALSE(fromConstant<int64_t>(*ci32));
+  EXPECT_FALSE(fromConstant<int64_t>(*cf64));
+
+  EXPECT_FALSE(fromConstant<float>(*cf64));
+  EXPECT_FALSE(fromConstant<float>(*ci32));
+  EXPECT_FALSE(fromConstant<double>(*cf32));
+  EXPECT_FALSE(fromConstant<double>(*ci64));
+
+  EXPECT_FALSE(fromConstant<int32_t>(*cstr));
+  EXPECT_FALSE(fromConstant<int64_t>(*cnull));
+  EXPECT_FALSE(fromConstant<double>(*cnull));
+  EXPECT_FALSE(fromConstant<StringRef>(*cnull));
+
+  EXPECT_FALSE(fromConstant<TTID>(*ci64));
+  EXPECT_FALSE(fromConstant<TTID>(*cf64));
+  EXPECT_FALSE(fromConstant<TTID>(*cf32));
+  EXPECT_EQ(fromConstant<TTID>(*one), TTID::Serial);
+}
+
+TEST(KitConstantUtils, toConstant) {
+  std::string s = "soas";
+  StringLiteral lit = "lse";
+
+  LLVMContext ctx;
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *i64 = Type::getInt64Ty(ctx);
+  Type *f32 = Type::getFloatTy(ctx);
+  Type *f64 = Type::getDoubleTy(ctx);
+
+  Constant *ci32 = toConstant(1, ctx);
+  Constant *ci64 = toConstant(1L, ctx);
+  Constant *cf32 = toConstant(1.0F, ctx);
+  Constant *cf64 = toConstant(1.0, ctx);
+  Constant *cTTID = toConstant(TTID::Serial, ctx);
+  Constant *cStrat = toConstant(TapirSpawnStrategy::Sequential, ctx);
+  Constant *ccstr = toConstant("edinburgh", ctx);
+  Constant *cstring = toConstant(s, ctx);
+  Constant *clit = toConstant(lit, ctx);
+
+  EXPECT_EQ(ci32->getType(), i32);
+  EXPECT_EQ(ci64->getType(), i64);
+  EXPECT_EQ(cf32->getType(), f32);
+  EXPECT_EQ(cf64->getType(), f64);
+
+  EXPECT_EQ(cTTID->getType(), i32);
+  EXPECT_EQ(cStrat->getType(), i32);
+
+  EXPECT_EQ(fromConstant<int32_t>(*ci32), 1);
+  EXPECT_EQ(fromConstant<int64_t>(*ci64), 1L);
+  EXPECT_EQ(fromConstant<float>(*cf32), 1.0F);
+  EXPECT_EQ(fromConstant<double>(*cf64), 1.0);
+  EXPECT_EQ(fromConstant<TTID>(*cTTID), TTID::Serial);
+  EXPECT_EQ(fromConstant<TapirSpawnStrategy>(*cStrat),
+            TapirSpawnStrategy::Sequential);
+  EXPECT_EQ(fromConstant<StringRef>(*ccstr), "edinburgh");
+  EXPECT_EQ(fromConstant<StringRef>(*cstring), "soas");
+  EXPECT_EQ(fromConstant<StringRef>(*clit), "lse");
 }
 
 } // namespace

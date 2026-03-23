@@ -16,6 +16,7 @@
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TypeUtils.h"
 #include "kitsune/Support/FromInt.h"
+#include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Constants.h"
 
@@ -46,68 +47,54 @@ GlobalVariable *createConstString(StringRef s, Module &m, StringRef name = "");
 /// Utilities to convert C++ values to LLVM constants
 /// @{
 
-template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
-Constant *toConstant(T val, LLVMContext &ctx) {
-  return ConstantInt::get(getLLVMTypeFor<int32_t>(ctx), int32_t(val));
-}
-
-template <typename T, std::enable_if_t<std::is_same_v<T, StringRef>, int> = 0>
-Constant *toConstant(T val, LLVMContext &ctx) {
-  return ConstantDataArray::getString(ctx, val, /*AddNull=*/false);
-}
-
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-Constant *toConstant(T val, LLVMContext &ctx) {
-  return ConstantInt::get(getLLVMTypeFor<T>(ctx), val);
-}
+Constant *toConstant(const T &val, LLVMContext &ctx);
 
 template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-Constant *toConstant(T val, LLVMContext &ctx) {
-  return ConstantFP::get(getLLVMTypeFor<T>(ctx), val);
+Constant *toConstant(const T &val, LLVMContext &ctx);
+
+template <typename T, std::enable_if_t<std::is_same_v<T, StringRef> ||
+                                           std::is_same_v<T, StringLiteral> ||
+                                           std::is_same_v<T, std::string>,
+                                       int> = 0>
+Constant *toConstant(const T &val, LLVMContext &ctx);
+
+template <int N> Constant *toConstant(const char (&s)[N], LLVMContext &ctx) {
+  return toConstant(StringRef(s), ctx);
+}
+
+template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
+Constant *toConstant(const T &val, LLVMContext &ctx) {
+  return ConstantInt::get(getLLVMTypeFor<int32_t>(ctx), int32_t(val));
 }
 
 /// @}
 
 /// Utilities to convert LLVM Constant's to C++ values.
 /// @{
-template <typename T, std::enable_if_t<std::is_same_v<T, StringRef>, int> = 0>
-std::optional<StringRef> fromConstant(const Constant &c) {
-  if (const auto *cda = dyn_cast<ConstantDataArray>(&c)) {
-    if (cda->isString())
-      return cda->getAsString();
-    else if (cda->isCString())
-      return cda->getAsCString();
-  }
-  return std::nullopt;
-}
-
-template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
-std::optional<T> fromConstant(const Constant &c) {
-  if (const auto *cint = dyn_cast<ConstantInt>(&c))
-    return fromInt<T>(cint->getLimitedValue());
-  return std::nullopt;
-}
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-std::optional<T> fromConstant(const Constant &c) {
-  if (const auto *cint = dyn_cast<ConstantInt>(&c))
-    return cint->getLimitedValue();
-  return std::nullopt;
-}
+std::optional<T> fromConstant(const Constant &c);
 
 template <typename T,
           std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, float>, int> = 0>
-std::optional<T> fromConstant(const Constant &c) {
-  if (const auto *cfp = dyn_cast<ConstantFP>(&c))
-    return cfp->getValue().convertToFloat();
-  return std::nullopt;
-}
+std::optional<T> fromConstant(const Constant &c);
 
 template <typename T, std::enable_if_t<
                           std::is_same_v<std::remove_cv_t<T>, double>, int> = 0>
+std::optional<T> fromConstant(const Constant &c);
+
+template <typename T, std::enable_if_t<std::is_same_v<T, StringRef>, int> = 0>
+std::optional<T> fromConstant(const Constant &c);
+
+template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
 std::optional<T> fromConstant(const Constant &c) {
-  if (const auto *cfp = dyn_cast<ConstantFP>(&c))
-    return cfp->getValue().convertToDouble();
+  // We assume that all enums are saved as 32-bit integers. This is generally
+  // true for the enums that we use in Kitsune right now. If this changes, this
+  // could get ugly.
+  if (const auto *cint = dyn_cast<ConstantInt>(&c))
+    if (cint->getBitWidth() == 32)
+      return fromInt<T>(cint->getLimitedValue());
   return std::nullopt;
 }
 
