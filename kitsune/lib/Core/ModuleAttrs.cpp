@@ -63,6 +63,17 @@ std::optional<ModuleAttrKind> llvm::getModuleAttrKind(StringRef name) {
       .Default(std::nullopt);
 }
 
+bool llvm::verifyAttr(const Module &m, ModuleAttrKind attr) {
+  switch (attr) {
+#define MODULE_ATTR(NAME, IRNAME, TYPE)                                        \
+  case ModuleAttrKind::NAME:                                                   \
+    return verify##NAME##Attr(m);
+#define GET_MODULE_ATTRS
+#include "kitsune/Core/ModuleAttrs.inc"
+  }
+  llvm_unreachable("verifyAttr: Attribute not handled");
+}
+
 bool llvm::hasAttr(const Module &m, ModuleAttrKind attr) {
   return m.getNamedMetadata(getAttrName(attr));
 }
@@ -100,6 +111,12 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
 #define MODULE_ATTR_0(NAME, IRNAME)                                            \
   void llvm::add##NAME##Attr(Module &m) {                                      \
     ::addAttr(m, ModuleAttrKind::NAME, {});                                    \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m) {                             \
+    if (NamedMDNode *nmd = m.getNamedMetadata(IRNAME))                         \
+      return nmd->getNumOperands() == 0;                                       \
+    return true;                                                               \
   }
 
 #define MODULE_ATTR_1(NAME, IRNAME, TYPE)                                      \
@@ -111,6 +128,12 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
     LLVMContext &ctx = m.getContext();                                         \
     Metadata *ops[] = {toMetadata(val, ctx)};                                  \
     ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m) {                             \
+    if (has##NAME##Attr(m))                                                    \
+      return get##NAME##Attr(m).has_value();                                   \
+    return true;                                                               \
   }
 
 #define MODULE_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)      \
@@ -118,6 +141,13 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
     LLVMContext &ctx = m.getContext();                                         \
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx)};              \
     ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m) {                             \
+    if (has##NAME##Attr(m))                                                    \
+      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(m).has_value();                     \
+    return true;                                                               \
   }
 
 #define MODULE_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
@@ -127,6 +157,14 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
                        toMetadata(e2, ctx)};                                   \
     ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m) {                             \
+    if (has##NAME##Attr(m))                                                    \
+      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(m).has_value();                     \
+    return true;                                                               \
   }
 
 #define MODULE_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
@@ -136,6 +174,15 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
                        toMetadata(e2, ctx), toMetadata(e3, ctx)};              \
     ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m) {                             \
+    if (has##NAME##Attr(m))                                                    \
+      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(m).has_value();                     \
+    return true;                                                               \
   }
 
 #define MODULE_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
@@ -147,6 +194,16 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
                        toMetadata(e2, ctx), toMetadata(e3, ctx),               \
                        toMetadata(e4, ctx)};                                   \
     ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m) {                             \
+    if (has##NAME##Attr(m))                                                    \
+      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME4##From##NAME##Attr(m).has_value();                     \
+    return true;                                                               \
   }
 
 #define MODULE_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
@@ -159,6 +216,17 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
                        toMetadata(e2, ctx), toMetadata(e3, ctx),               \
                        toMetadata(e4, ctx), toMetadata(e5, ctx)};              \
     ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m) {                             \
+    if (has##NAME##Attr(m))                                                    \
+      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME4##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME5##From##NAME##Attr(m).has_value();                     \
+    return true;                                                               \
   }
 
 #define MODULE_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
@@ -172,6 +240,18 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
                        toMetadata(e4, ctx), toMetadata(e5, ctx),               \
                        toMetadata(e6, ctx)};                                   \
     ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m) {                             \
+    if (has##NAME##Attr(m))                                                    \
+      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME4##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME5##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME6##From##NAME##Attr(m).has_value();                     \
+    return true;                                                               \
   }
 
 #define MODULE_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
@@ -185,7 +265,21 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
                        toMetadata(e4, ctx), toMetadata(e5, ctx),               \
                        toMetadata(e6, ctx), toMetadata(e7, ctx)};              \
     ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m) {                             \
+    if (has##NAME##Attr(m))                                                    \
+      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME4##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME5##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME6##From##NAME##Attr(m).has_value() &&                   \
+             get##ENAME7##From##NAME##Attr(m).has_value();                     \
+    return true;                                                               \
   }
+
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 

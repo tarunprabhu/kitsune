@@ -58,6 +58,17 @@ std::optional<FuncAttrKind> llvm::getFuncAttrKind(StringRef name) {
       .Default(std::nullopt);
 }
 
+bool llvm::verifyAttr(const Function &f, FuncAttrKind attr) {
+  switch (attr) {
+#define FUNC_ATTR(NAME, IRNAME, TYPE)                                          \
+  case FuncAttrKind::NAME:                                                     \
+    return verify##NAME##Attr(f);
+#define GET_FUNC_ATTRS
+#include "kitsune/Core/FuncAttrs.inc"
+  }
+  llvm_unreachable("verifyAttr: Attribute not handled");
+}
+
 bool llvm::hasAttr(const Function &f, FuncAttrKind attr) {
   return f.hasMetadata(getAttrName(attr));
 }
@@ -93,6 +104,12 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
 #define FUNC_ATTR_0(NAME, IRNAME)                                              \
   void llvm::add##NAME##Attr(Function &f) {                                    \
     ::addAttr(f, FuncAttrKind::NAME, {});                                      \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f) {                           \
+    if (MDNode *md = f.getMetadata(IRNAME))                                    \
+      return md->getNumOperands() == 0;                                        \
+    return true;                                                               \
   }
 
 #define FUNC_ATTR_1(NAME, IRNAME, TYPE)                                        \
@@ -103,6 +120,12 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
   void llvm::add##NAME##Attr(Function &f, TYPE val) {                          \
     Metadata *ops[] = {toMetadata(val, ctx)};                                  \
     :addAttr(f, FuncAttrKind::NAME, ops);                                      \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f) {                           \
+    if (has##NAME##Attr(f))                                                    \
+      return get##NAME##Attr(f);                                               \
+    return true;                                                               \
   }
 
 #define FUNC_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
@@ -110,6 +133,13 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
     LLVMContext &ctx = f.getContext();                                         \
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx)};              \
     ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f) {                           \
+    if (has##NAME##Attr(f))                                                    \
+      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(f).has_value();                     \
+    return true;                                                               \
   }
 
 #define FUNC_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -119,6 +149,14 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
                        toMetadata(e2, ctx)};                                   \
     ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f) {                           \
+    if (has##NAME##Attr(f))                                                    \
+      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(f).has_value();                     \
+    return true;                                                               \
   }
 
 #define FUNC_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -129,6 +167,15 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
                        toMetadata(e2, ctx), toMetadata(e3, ctx)};              \
     ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f) {                           \
+    if (has##NAME##Attr(f))                                                    \
+      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(f).has_value();                     \
+    return true;                                                               \
   }
 
 #define FUNC_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -140,6 +187,16 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
                        toMetadata(e2, ctx), toMetadata(e3, ctx),               \
                        toMetadata(e4, ctx)};                                   \
     ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f) {                           \
+    if (has##NAME##Attr(f))                                                    \
+      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME4##From##NAME##Attr(f).has_value();                     \
+    return true;                                                               \
   }
 
 #define FUNC_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -152,6 +209,17 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
                        toMetadata(e2, ctx), toMetadata(e3, ctx),               \
                        toMetadata(e4, ctx), toMetadata(e5, ctx)};              \
     ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f) {                           \
+    if (has##NAME##Attr(f))                                                    \
+      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME4##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME5##From##NAME##Attr(f).has_value();                     \
+    return true;                                                               \
   }
 
 #define FUNC_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -165,6 +233,18 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
                        toMetadata(e4, ctx), toMetadata(e5, ctx),               \
                        toMetadata(e6, ctx)};                                   \
     ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f) {                           \
+    if (has##NAME##Attr(f))                                                    \
+      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME4##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME5##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME6##From##NAME##Attr(f).has_value();                     \
+    return true;                                                               \
   }
 
 #define FUNC_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -178,7 +258,21 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
                        toMetadata(e4, ctx), toMetadata(e5, ctx),               \
                        toMetadata(e6, ctx), toMetadata(e7, ctx)};              \
     ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f) {                           \
+    if (has##NAME##Attr(f))                                                    \
+      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME1##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME2##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME3##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME4##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME5##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME6##From##NAME##Attr(f).has_value() &&                   \
+             get##ENAME7##From##NAME##Attr(f).has_value();                     \
+    return true;                                                               \
   }
+
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 

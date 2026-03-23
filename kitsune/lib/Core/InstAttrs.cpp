@@ -82,6 +82,17 @@ std::optional<InstAttrKind> llvm::getInstAttrKind(StringRef name) {
       .Default(std::nullopt);
 }
 
+bool llvm::verifyAttr(const Instruction &inst, InstAttrKind attr) {
+  switch (attr) {
+#define INST_ATTR(NAME, IRNAME, TYPE)                                          \
+  case InstAttrKind::NAME:                                                     \
+    return verify##NAME##Attr(inst);
+#define GET_INST_ATTRS
+#include "kitsune/Core/InstAttrs.inc"
+  }
+  llvm_unreachable("verifyAttr: Attribute not handled");
+}
+
 bool llvm::hasAttr(const Instruction &inst, InstAttrKind attr) {
   return inst.hasMetadata(getAttrName(attr));
 }
@@ -117,6 +128,12 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
 #define INST_ATTR_0(NAME, IRNAME)                                              \
   void llvm::add##NAME##Attr(Instruction &inst) {                              \
     ::addAttr(inst, InstAttrKind::NAME, {});                                   \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Instruction &inst) {                     \
+    if (MDNode *md = inst.getMetadata(IRNAME))                                 \
+      return md->getNumOperands() == 0;                                        \
+    return true;                                                               \
   }
 
 #define INST_ATTR_1(NAME, IRNAME, TYPE)                                        \
@@ -128,6 +145,12 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
     LLVMContext &ctx = inst.getContext();                                      \
     Metadata *ops[] = {toMetadata(val, ctx)};                                  \
     ::addAttr(inst, InstAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Instruction &inst) {                     \
+    if (has##NAME##Attr(inst))                                                 \
+      return get##NAME##Attr(inst).has_value();                                \
+    return true;                                                               \
   }
 
 #define INST_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
@@ -135,6 +158,13 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
     LLVMContext &ctx = inst.getContext();                                      \
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx)};              \
     ::addAttr(inst, InstAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Instruction &inst) {                     \
+    if (has##NAME##Attr(inst))                                                 \
+      return get##ENAME0##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(inst).has_value();                  \
+    return true;                                                               \
   }
 
 #define INST_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -144,6 +174,14 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
                        toMetadata(e2, ctx)};                                   \
     ::addAttr(inst, InstAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Instruction &inst) {                     \
+    if (has##NAME##Attr(inst))                                                 \
+      return get##ENAME0##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME2##From##NAME##Attr(inst).has_value();                  \
+    return true;                                                               \
   }
 
 #define INST_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -154,6 +192,15 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
     Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
                        toMetadata(e2, ctx), toMetadata(e3, ctx)};              \
     ::addAttr(inst, InstAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Instruction &inst) {                     \
+    if (has##NAME##Attr(inst))                                                 \
+      return get##ENAME0##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME2##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME3##From##NAME##Attr(inst).has_value();                  \
+    return true;                                                               \
   }
 
 #define INST_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -165,6 +212,16 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
                        toMetadata(e2, ctx), toMetadata(e3, ctx),               \
                        toMetadata(e4, ctx)};                                   \
     ::addAttr(inst, InstAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Instruction &inst) {                     \
+    if (has##NAME##Attr(inst))                                                 \
+      return get##ENAME0##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME2##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME3##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME4##From##NAME##Attr(inst).has_value();                  \
+    return true;                                                               \
   }
 
 #define INST_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -177,6 +234,17 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
                        toMetadata(e2, ctx), toMetadata(e3, ctx),               \
                        toMetadata(e4, ctx), toMetadata(e5, ctx)};              \
     ::addAttr(inst, InstAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Instruction &inst) {                     \
+    if (has##NAME##Attr(inst))                                                 \
+      return get##ENAME0##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME2##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME3##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME4##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME5##From##NAME##Attr(inst).has_value();                  \
+    return true;                                                               \
   }
 
 #define INST_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -190,6 +258,18 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
                        toMetadata(e4, ctx), toMetadata(e5, ctx),               \
                        toMetadata(e6, ctx)};                                   \
     ::addAttr(inst, InstAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Instruction &inst) {                     \
+    if (has##NAME##Attr(inst))                                                 \
+      return get##ENAME0##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME2##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME3##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME4##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME5##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME6##From##NAME##Attr(inst).has_value();                  \
+    return true;                                                               \
   }
 
 #define INST_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -203,7 +283,21 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
                        toMetadata(e4, ctx), toMetadata(e5, ctx),               \
                        toMetadata(e6, ctx), toMetadata(e7, ctx)};              \
     ::addAttr(inst, InstAttrKind::NAME, ops);                                  \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Instruction &inst) {                     \
+    if (has##NAME##Attr(inst))                                                 \
+      return get##ENAME0##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME1##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME2##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME3##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME4##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME5##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME6##From##NAME##Attr(inst).has_value() &&                \
+             get##ENAME7##From##NAME##Attr(inst).has_value();                  \
+    return true;                                                               \
   }
+
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 
@@ -227,6 +321,13 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
                                                                                \
   void llvm::add##NAME##Attr(Instruction &inst, Loop &loop) {                  \
     ::addAttr(inst, InstAttrKind::NAME, loop);                                 \
+  }                                                                            \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Instruction &inst) {                     \
+    if (MDNode *md = inst.getMetadata(IRNAME))                                 \
+      return md->getNumOperands() && md->isDistinct() &&                       \
+             md->getOperand(0) == md;                                          \
+    return true;                                                               \
   }
 
 #define GET_INST_ATTRS
