@@ -1,4 +1,4 @@
-//===- MetadataUtils.h - Helper functions for LLVM's metadata --*- C++ -*--===//
+//===- MetadataUtils.h - Utilities for LLVM's metadata ---------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -27,16 +27,23 @@ class Metadata;
 /// Utilities to construct metadata nodes from C++ values.
 /// @{
 
-template <typename T, std::enable_if_t<std::is_same_v<T, StringRef>, int> = 0>
-Metadata *toMetadata(T val, LLVMContext &ctx) {
-  return MDString::get(ctx, val);
+template <typename T,
+          std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>,
+                           int> = 0>
+Metadata *toMetadata(const T &val, LLVMContext &ctx);
+
+template <typename T, std::enable_if_t<std::is_same_v<T, StringRef> ||
+                                           std::is_same_v<T, StringLiteral> ||
+                                           std::is_same_v<T, std::string>,
+                                       int> = 0>
+Metadata *toMetadata(const T &val, LLVMContext &ctx);
+
+template <int N> Metadata *toMetadata(const char (&s)[N], LLVMContext &ctx) {
+  return toMetadata(StringRef(s), ctx);
 }
 
-template <typename T,
-          std::enable_if_t<std::is_enum_v<T> || std::is_integral_v<T> ||
-                               std::is_floating_point_v<T>,
-                           int> = 0>
-Metadata *toMetadata(T val, LLVMContext &ctx) {
+template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
+Metadata *toMetadata(const T &val, LLVMContext &ctx) {
   return ConstantAsMetadata::get(toConstant(val, ctx));
 }
 
@@ -46,16 +53,14 @@ Metadata *toMetadata(T val, LLVMContext &ctx) {
 /// @{
 
 template <typename T, std::enable_if_t<std::is_same_v<T, StringRef>, int> = 0>
-std::optional<T> fromMetadata(const Metadata *md) {
-  if (auto *mdString = dyn_cast<MDString>(md))
-    return mdString->getString();
-  return std::nullopt;
-}
+std::optional<T> fromMetadata(const Metadata *md);
 
 template <typename T,
-          std::enable_if_t<std::is_enum_v<T> || std::is_integral_v<T> ||
-                               std::is_floating_point_v<T>,
+          std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>,
                            int> = 0>
+std::optional<T> fromMetadata(const Metadata *md);
+
+template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
 std::optional<T> fromMetadata(const Metadata *md) {
   if (auto *cmd = dyn_cast<ConstantAsMetadata>(md))
     if (auto *c = dyn_cast<Constant>(cmd->getValue()))
