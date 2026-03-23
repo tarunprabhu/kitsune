@@ -70,6 +70,6 @@ for.i.end:
 !2 = distinct !{!2, !7}
 !3 = !{!"tapir.loop.target", i32 4}
 !4 = !{!"tapir.loop.target", i32 2}
-!5 = !{!"loop.name", !"outer.loop"}
-!6 = !{!"loop.name", !"inner.loop"}
-!7 = !{!"loop.name", !"serial.loop"}
+!5 = !{!"tapir.loop.name", !"outer.loop"}
+!6 = !{!"tapir.loop.name", !"inner.loop"}
+!7 = !{!"tapir.loop.name", !"serial.loop"}

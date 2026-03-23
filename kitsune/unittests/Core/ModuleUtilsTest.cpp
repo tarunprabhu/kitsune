@@ -18,12 +18,12 @@ namespace {
 
 TEST(KitModuleUtils, deviceModuleMetadata) {
   LLVMContext ctx;
-  Module m("modname", ctx);
+  Module m("strathclyde", ctx);
 
   addDeviceModuleFlagsAttr(m, TTID::Serial);
   EXPECT_TRUE(hasDeviceModuleFlagsAttr(m));
   EXPECT_EQ(getTTIDFromDeviceModuleFlagsAttr(m), TTID::Serial);
-  EXPECT_EQ(getNameFromDeviceModuleFlagsAttr(m), "modname");
+  EXPECT_EQ(getNameFromDeviceModuleFlagsAttr(m), "strathclyde");
 }
 
 } // namespace

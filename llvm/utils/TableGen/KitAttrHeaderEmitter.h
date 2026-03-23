@@ -13,7 +13,6 @@
 #ifndef LLVM_TABLEGEN_KIT_ATTR_HEADER_EMITTER_H
 #define LLVM_TABLEGEN_KIT_ATTR_HEADER_EMITTER_H
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
@@ -77,40 +76,24 @@ class raw_ostream;
 ///
 class KitAttrHeaderEmitter {
 protected:
-  /// The kind of an attribute. The kind depends on the argument, if any, that
-  /// the argument takes. The "name" of the kind will be entirely in uppercase
-  /// and may be a type "class". For instance, all attributes that take an enum
-  /// value as an argument will have the name "ENUM". The type is the actual C++
-  /// type of the argument. For instance, attributes ATTR1 and ATTR2 that
-  /// take arguments `enum TTID` and `enum SpawnStrategy` will both have name
-  /// "ENUM", but type's "TTID" and "SpawnStrategy" respectively.
-  struct Kind {
-    std::string name;
-    llvm::StringRef type;
+  /// The minimum number of elements in a tuple. We don't want things wrapped up
+  /// in a tuple if we can help it, neither do we want empty tuples just for
+  /// "completeness".
+  static constexpr unsigned MinTupleElements = 2;
 
-    friend bool operator==(const Kind &l, const Kind &r) {
-      return l.name == r.name;
-    }
-
-    friend bool operator<(const Kind &l, const Kind &r) {
-      return l.name < r.name;
-    }
-  };
+  /// The maximum number of elements that may be added to a tuple that is an
+  /// attribute value. This is an arbitrary limit that can be raised at the
+  /// expense of more boiler plate. It is not clear if we will ever have
+  /// such large tuples.
+  static constexpr unsigned MaxTupleElements = 8;
 
 protected:
   /// All records in the .td file being processed. This will include records
   /// from any included files as well.
   const llvm::RecordKeeper &records;
 
-  /// The "kinds" of attributes. An attribute's kind depends on the argument,
-  /// if any, that the attribute takes.
-  llvm::SmallVector<Kind, 8> attrKinds;
-
 protected:
   KitAttrHeaderEmitter(const llvm::RecordKeeper &records);
-
-  /// Get the kind of an attribute.
-  Kind getKind(const llvm::Record &attr) const;
 
   /// Get the <MACRO_ROOT>
   virtual llvm::StringRef getMacroRoot() const = 0;
@@ -132,7 +115,7 @@ protected:
 
   /// The common base class from which all attributes for a given IR unit
   /// inherit. This will usually be defined in the .td file being processed.
-  virtual llvm::StringRef getAttrBase() const;
+  virtual llvm::StringRef getAttrBase() const = 0;
 
   /// Get the <BASE_MACRO_NAME>
   virtual std::string getBaseMacroName() const;
@@ -140,20 +123,31 @@ protected:
   /// Get the <BASE_MACRO_ARGS>
   virtual llvm::StringRef getBaseMacroArgs() const;
 
-  /// Get the <MACRO_NAME_*> for the given KIND.
-  virtual std::string getMacroName(const Kind &kind) const;
+  virtual std::string getElemMacroName() const;
 
-  /// Get the <MACRO_NAME_*> for an attribute.
-  virtual std::string getMacroName(const llvm::Record &attr) const;
+  virtual llvm::StringRef getElemMacroArgs() const;
 
-  /// Get the arguments for <MACRO_NAME_*> for the given KIND.
-  virtual llvm::StringRef getMacroArgs(const Kind &kind) const;
+  virtual std::string getLoopMacroName() const;
+  virtual llvm::StringRef getLoopMacroArgs() const;
+
+  /// Get the <MACRO_NAME_*> for the given number of tuple elements.
+  virtual std::string getMacroName(unsigned n) const;
+
+  /// Get the <MACRO_NAME_*> from the type of an attribute.
+  virtual std::string getMacroName(const llvm::Record &type) const;
+
+  /// Get the arguments for <MACRO_NAME_*> for the given number of tuple
+  /// elements.
+  virtual std::string getMacroArgs(unsigned n) const;
 
   /// Get the full name of the attribute as it will appear in LLVM-IR.
   virtual std::string getIRName(const llvm::Record &attr) const;
 
-  /// Emit the definition of a macro for the given kind.
-  virtual void emitMacroDefn(llvm::raw_ostream &os, const Kind &kind);
+  /// Emit the definition of a macro for the given number of tuple elements.
+  virtual void emitMacroDefn(llvm::raw_ostream &os, unsigned n);
+
+  /// Emit the definition of a macro for a single loop.
+  virtual void emitLoopMacroDefn(llvm::raw_ostream &os);
 
   virtual void emitAttrsGuardIn(llvm::raw_ostream &os);
   virtual void emitBaseMacroDef(llvm::raw_ostream &os);

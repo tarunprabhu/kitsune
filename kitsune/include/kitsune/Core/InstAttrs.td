@@ -33,7 +33,7 @@ class InstAttr<Type ValueType = VoidTy> : AttrBase<ValueType> { }
 
 //------------------------------------------------------------------------------
 
-def SourceLoop : InstAttr<Type<"llvm::Loop*">> {
+def SourceLoop : InstAttr<LoopTy> {
   let Documentation = [{
 This attribute should only be attached to instructions that were originally,
 i.e. at the time of IR-generation, part of a loop. The value is the metadata

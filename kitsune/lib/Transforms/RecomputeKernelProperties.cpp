@@ -47,14 +47,16 @@ RecomputeKernelPropertiesPass::run(Module &m, ModuleAnalysisManager &mam) {
 
   EmbModulesMapTy embMs = std::move(*embMsOrErr);
   for (GlobalVariable &g : m.globals()) {
-    if (std::optional<StringRef> kname = getKernelPropertiesAttr(g)) {
-      // FIXME: Need to figure out how to have a kernel function and a TTID
-      // in the same attribute.
-      TTID tt = TTID::Cuda;
-      assert(embMs.find(tt) != embMs.end() &&
-             "Embedded module for tapir target not found");
+    if (hasKernelPropertiesAttr(g)) {
+      std::optional<TTID> tt = getTTIDFromKernelPropertiesAttr(g);
+      assert(tt && "Expected TTID name from kernel properties attribute");
 
-      Function *kf = embMs.at(tt)->getFunction(*kname);
+      std::optional<StringRef> kname = getNameFromKernelPropertiesAttr(g);
+      assert(kname && "Expected kernel name from kernel properties attribute");
+
+      assert(embMs.find(*tt) != embMs.end() &&
+             "Embedded module for tapir target not found");
+      Function *kf = embMs.at(*tt)->getFunction(*kname);
       assert(kf && "Could not find kernel function being launched");
 
       ConstantStruct *c = getKernelPropertiesConstant(*kf);

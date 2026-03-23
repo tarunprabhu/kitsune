@@ -37,7 +37,7 @@
 ; CHECK-NEXT: }
 ;
 ; CHECK-DAG: ![[TT]] = !{i32 2}
-; CHECK-DAG: ![[KP]] = !{!"[[KNAME]]"}
+; CHECK-DAG: ![[KP]] = !{i32 2, !"[[KNAME]]"}
 
 define void @f(ptr %c, i64 %n) {
 entry:

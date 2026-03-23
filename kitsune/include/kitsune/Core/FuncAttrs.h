@@ -34,16 +34,15 @@ enum class FuncAttrKind : uint32_t {
 /// metadata. The result will start with "kit.func.".
 StringRef getAttrName(FuncAttrKind attr);
 
-/// Get the kind of an function attribute if the given string corresponds to the
-/// name of a function attribute as it might appear in LLVM-IR. If the string
-/// does not correspond to a valid attribute name, return std::nullopt.
+/// Get the kind of a Kitsune-specific attribute if the given string is how such
+/// an attribute would appear in LLVM-IR. Otherwise, return std::nullopt.
 std::optional<FuncAttrKind> getFuncAttrKind(StringRef name);
 
 /// Check if the given attribute is present on a function.
 bool hasAttr(const Function &f, FuncAttrKind attr);
 
 /// Add an attribute to the function. Only attributes that do not take any
-/// values can be added using this function. Adding any other attribute will
+/// values can be added this way. Providing an attribute that takes values will
 /// result in a catastrophic runtime error.
 void addAttr(Function &f, FuncAttrKind attr);
 
@@ -53,22 +52,56 @@ void removeAttr(Function &f, FuncAttrKind attr);
 
 /// @}
 
-// Flag attributes (those that do not have a value) have a different set of
-// accessors. Mask these before generating declarations for the other
-// attributes.
-#define FUNC_ATTR_FLAG(NAME, IRNAME)
-#define FUNC_ATTR(NAME, TYPE, IRNAME)                                          \
+#define FUNC_ATTR(NAME, IRNAME, TYPE)                                          \
   bool has##NAME##Attr(const Function &f);                                     \
-  std::optional<TYPE> get##NAME##Attr(const Function &f);                      \
-  void add##NAME##Attr(Function &f, TYPE val);                                 \
   void remove##NAME##Attr(Function &f);
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 
-#define FUNC_ATTR_FLAG(NAME, IRNAME)                                           \
-  bool has##NAME##Attr(const Function &f);                                     \
-  void add##NAME##Attr(Function &f);                                           \
-  void remove##NAME##Attr(Function &f);
+#define FUNC_ATTR_0(NAME, IRNAME) void add##NAME##Attr(Function &f);
+
+#define FUNC_ATTR_1(NAME, IRNAME, TYPE)                                        \
+  std::optional<TYPE> get##NAME##Attr(const Function &f);                      \
+  void add##NAME##Attr(Function &f, TYPE val);
+
+#define FUNC_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
+  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1);
+
+#define FUNC_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2)                                               \
+  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2);
+
+#define FUNC_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3)                            \
+  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3);
+
+#define FUNC_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)         \
+  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,        \
+                       ETY4 e4);
+
+#define FUNC_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
+                    ENAME5, EN5)                                               \
+  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,        \
+                       ETY4 e4, ETY5 en5);
+
+#define FUNC_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
+                    ENAME5, EN5, ETY6, ENAME6, EN6)                            \
+  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,        \
+                       ETY4 e4, ETY5 en5, ETY6 en6);
+
+#define FUNC_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
+                    ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
+  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,        \
+                       ETY4 e4, ETY5 en5, ETY6 en6, ETY7 en7);
+#define GET_FUNC_ATTRS
+#include "kitsune/Core/FuncAttrs.inc"
+
+#define FUNC_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                      \
+  std::optional<ETY> get##ENAME##From##NAME##Attr(const Function &f);
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 

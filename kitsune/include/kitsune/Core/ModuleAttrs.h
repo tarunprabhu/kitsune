@@ -24,9 +24,8 @@ namespace llvm {
 
 class LLVMContext;
 class Module;
-class NamedMDNode;
 
-/// Attributes for modules.
+/// Kitsune-specific attributes for modules.
 enum class ModuleAttrKind : uint32_t {
 #define GET_MODULE_ATTR_ENUMS
 #include "kitsune/Core/ModuleAttrs.inc"
@@ -36,17 +35,17 @@ enum class ModuleAttrKind : uint32_t {
 /// result will start with "kit.module.".
 StringRef getAttrName(ModuleAttrKind attrKind);
 
-/// Get the kind of a module attribute if the given string corresponds to the
-/// name of an attribute as it might appear in loop metadata. If the string does
-/// not correspond to a valid attribute name, return std::nullopt.
+/// Get the kind of a Kitsune-specific module attribute if the given string is
+/// how such an attribute would appear in LLVM-IR. Otherwise, return
+/// std::nullopt.
 std::optional<ModuleAttrKind> getModuleAttrKind(StringRef name);
 
 /// Check if the given attribute is present in a module.
 bool hasAttr(const Module &m, ModuleAttrKind attr);
 
 /// Add an attribute to the module. Only attributes that do not take any values
-/// can be added using this function. Adding any other attribute will result in
-/// a catastrophic runtime error.
+/// can be added this way. Providing an attribute that takes values will result
+/// in a catastrophic runtime error.
 void addAttr(Module &m, ModuleAttrKind attr);
 
 /// Remove the attribute from a module. If the module does not contain the
@@ -55,82 +54,55 @@ void removeAttr(Module &m, ModuleAttrKind attr);
 
 /// @}
 
-#define MODULE_ATTR(NAME, IRNAME)                                              \
+#define MODULE_ATTR(NAME, IRNAME, TYPE)                                        \
   bool has##NAME##Attr(const Module &m);                                       \
   void remove##NAME##Attr(Module &m);
-
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 
 #define MODULE_ATTR_0(NAME, IRNAME) void add##NAME##Attr(Module &m);
 
-#define MODULE_ATTR_1(NAME, IRNAME, TY1, V1)                                   \
-  void add##NAME##Attr(Module &m, TY1 V1);                                     \
-  std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);
+#define MODULE_ATTR_1(NAME, IRNAME, TYPE)                                      \
+  std::optional<TYPE> get##NAME##Attr(const Module &m);                        \
+  void add##NAME##Attr(Module &m, TYPE val);
 
-#define MODULE_ATTR_2(NAME, IRNAME, TY1, V1, TY2, V2)                          \
-  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2);                             \
-  std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
-  std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);
+#define MODULE_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)      \
+  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1);
 
-#define MODULE_ATTR_3(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3)                 \
-  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3);                     \
-  std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
-  std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);               \
-  std::optional<TY3> get##V3##From##NAME##Attr(const Module &m);
+#define MODULE_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
+                      ETY2, ENAME2, EN2)                                       \
+  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2);
 
-#define MODULE_ATTR_4(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4)        \
-  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4);             \
-  std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
-  std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);               \
-  std::optional<TY3> get##V3##From##NAME##Attr(const Module &m);               \
-  std::optional<TY4> get##V4##From##NAME##Attr(const Module &m);
+#define MODULE_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
+                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3)                    \
+  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3);
 
-#define MODULE_ATTR_5(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4, TY5,   \
-                      V5)                                                      \
-  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4, TY5 V5);     \
-  std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
-  std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);               \
-  std::optional<TY3> get##V3##From##NAME##Attr(const Module &m);               \
-  std::optional<TY4> get##V4##From##NAME##Attr(const Module &m);               \
-  std::optional<TY5> get##V5##From##NAME##Attr(const Module &m);
+#define MODULE_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
+                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4) \
+  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3, ETY4 e4);
 
-#define MODULE_ATTR_6(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4, TY5,   \
-                      V5, TY6, V6)                                             \
-  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4, TY5 V5,      \
-                       TY6 V6);                                                \
-  std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
-  std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);               \
-  std::optional<TY3> get##V3##From##NAME##Attr(const Module &m);               \
-  std::optional<TY4> get##V4##From##NAME##Attr(const Module &m);               \
-  std::optional<TY5> get##V5##From##NAME##Attr(const Module &m);               \
-  std::optional<TY6> get##V6##From##NAME##Attr(const Module &m);
+#define MODULE_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
+                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, \
+                      ETY5, ENAME5, EN5)                                       \
+  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3, ETY4 e4, \
+                       ETY5 en5);
 
-#define MODULE_ATTR_7(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4, TY5,   \
-                      V5, TY6, V6, TY7, V7)                                    \
-  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4, TY5 V5,      \
-                       TY6 V6, TY7 V7);                                        \
-  std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
-  std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);               \
-  std::optional<TY3> get##V3##From##NAME##Attr(const Module &m);               \
-  std::optional<TY4> get##V4##From##NAME##Attr(const Module &m);               \
-  std::optional<TY5> get##V5##From##NAME##Attr(const Module &m);               \
-  std::optional<TY6> get##V6##From##NAME##Attr(const Module &m);               \
-  std::optional<TY7> get##V7##From##NAME##Attr(const Module &m);
+#define MODULE_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
+                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, \
+                      ETY5, ENAME5, EN5, ETY6, ENAME6, EN6)                    \
+  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3, ETY4 e4, \
+                       ETY5 en5, ETY6 en6);
 
-#define MODULE_ATTR_8(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4, TY5,   \
-                      V5, TY6, V6, TY7, V7, TY8, V8)                           \
-  void add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4, TY5 V5,      \
-                       TY6 V6, TY7 V7, TY8 V8);                                \
-  std::optional<TY1> get##V1##From##NAME##Attr(const Module &m);               \
-  std::optional<TY2> get##V2##From##NAME##Attr(const Module &m);               \
-  std::optional<TY3> get##V3##From##NAME##Attr(const Module &m);               \
-  std::optional<TY4> get##V4##From##NAME##Attr(const Module &m);               \
-  std::optional<TY5> get##V5##From##NAME##Attr(const Module &m);               \
-  std::optional<TY6> get##V6##From##NAME##Attr(const Module &m);               \
-  std::optional<TY7> get##V7##From##NAME##Attr(const Module &m);               \
-  std::optional<TY8> get##V8##From##NAME##Attr(const Module &m);
+#define MODULE_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
+                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, \
+                      ETY5, ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7) \
+  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3, ETY4 e4, \
+                       ETY5 en5, ETY6 en6, ETY7 en7);
+#define GET_MODULE_ATTRS
+#include "kitsune/Core/ModuleAttrs.inc"
 
+#define MODULE_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                    \
+  std::optional<ETY> get##ENAME##From##NAME##Attr(const Module &m);
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 

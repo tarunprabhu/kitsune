@@ -28,7 +28,8 @@ TEST(KitKernelProperties, createKernelPropertiesGlobal) {
   EXPECT_TRUE(g->hasInitializer());
   EXPECT_TRUE(isa<ConstantAggregateZero>(g->getInitializer()));
   EXPECT_TRUE(hasKernelPropertiesAttr(*g));
-  EXPECT_EQ(getKernelPropertiesAttr(*g), "kern_132");
+  EXPECT_EQ(getTTIDFromKernelPropertiesAttr(*g), TTID::Serial);
+  EXPECT_EQ(getNameFromKernelPropertiesAttr(*g), "kern_132");
 }
 
 } // namespace

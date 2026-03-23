@@ -12,70 +12,45 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/MetadataUtils.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/IR/Module.h"
 
 using namespace llvm;
 
-template <typename T>
-static void addAttrAs(Loop &loop, LoopAttrKind attr, T val) {
-  LLVMContext &ctx = loop.getHeader()->getContext();
+static void addAttr(Loop &loop, LoopAttrKind attr, ArrayRef<Metadata *> ops) {
+  LLVMContext &ctx = getContext(loop);
   StringRef name = getAttrName(attr);
-  MDNode *md = getMDNodeForAttr(ctx, attr, val);
-  MDNode *loopMD = loop.getLoopID();
-  MDNode *newLoopMD = makePostTransformationMetadata(ctx, loopMD, {name}, {md});
+  Metadata *mdTag = MDString::get(ctx, name);
 
-  loop.setLoopID(newLoopMD);
-}
+  SmallVector<Metadata *, 8> mdOps = {mdTag};
+  mdOps.append(ops.begin(), ops.end());
 
-static void addAttr(Loop &loop, LoopAttrKind attr) {
-  LLVMContext &ctx = loop.getHeader()->getContext();
-  StringRef name = getAttrName(attr);
-  MDString *mdTag = MDString::get(ctx, name);
-  MDNode *md = MDNode::get(ctx, mdTag);
-  MDNode *loopMD = loop.getLoopID();
-  MDNode *newLoopMD = makePostTransformationMetadata(ctx, loopMD, {name}, {md});
+  MDNode *md = MDNode::get(ctx, mdOps);
+  MDNode *loopID = loop.getLoopID();
+  MDNode *newLoopID = makePostTransformationMetadata(ctx, loopID, {name}, {md});
 
-  loop.setLoopID(newLoopMD);
+  loop.setLoopID(newLoopID);
 }
 
 template <typename T>
-static std::optional<T> getAttr(const Loop &loop, StringRef name) {
-  MDNode *md = findOptionMDForLoop(&loop, name);
-  if (md && md->getNumOperands() == 2)
-    return fromMetadata<T>(md->getOperand(1));
+static std::optional<T> getAttr(const Loop &loop, LoopAttrKind attr, unsigned i,
+                                unsigned n) {
+  StringRef attrName = getAttrName(attr);
+  if (MDNode *md = findOptionMDForLoop(&loop, attrName))
+    if (md->getNumOperands() == n + 1)
+      return fromMetadata<T>(md->getOperand(i + 1));
   return std::nullopt;
-}
-
-template <typename T>
-MDNode *llvm::getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr, T val) {
-  StringRef name = getAttrName(attr);
-  Metadata *mdVal = toMetadata(val, ctx);
-  Metadata *mdTag = MDString::get(ctx, name);
-  MDNode *md = MDNode::get(ctx, {mdTag, mdVal});
-
-  return md;
-}
-
-// Parts of the code use unsigned integers for some attribute values. The
-// definitions of the attributes uses only signed integers for now, so
-// explicitly instantiate the unsigned version.
-template MDNode *llvm::getMDNodeForAttr(LLVMContext &, LoopAttrKind, uint32_t);
-
-MDNode *llvm::getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr) {
-  StringRef name = getAttrName(attr);
-  Metadata *mdTag = MDString::get(ctx, name);
-  MDNode *md = MDNode::get(ctx, mdTag);
-
-  return md;
 }
 
 StringRef llvm::getAttrName(LoopAttrKind attr) {
   switch (attr) {
-#define LOOP_ATTR(NAME, TYPE, TAPIRONLY, IRNAME)                               \
+#define LOOP_ATTR(NAME, IRNAME, TYPE)                                          \
   case LoopAttrKind::NAME:                                                     \
     return IRNAME;
 #define GET_LOOP_ATTRS
@@ -86,22 +61,10 @@ StringRef llvm::getAttrName(LoopAttrKind attr) {
 
 std::optional<LoopAttrKind> llvm::getLoopAttrKind(StringRef name) {
   return StringSwitch<std::optional<LoopAttrKind>>(name)
-#define LOOP_ATTR(NAME, TYPE, TAPIRONLY, IRNAME)                               \
-  .Case(IRNAME, LoopAttrKind::NAME)
+#define LOOP_ATTR(NAME, IRNAME, TYPE) .Case(IRNAME, LoopAttrKind::NAME)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
       .Default(std::nullopt);
-}
-
-bool llvm::isAttrTapirOnly(LoopAttrKind attr) {
-  switch (attr) {
-#define LOOP_ATTR(NAME, TYPE, TAPIRONLY, IRNAME)                               \
-  case LoopAttrKind::NAME:                                                     \
-    return TAPIRONLY;
-#define GET_LOOP_ATTRS
-#include "kitsune/Core/LoopAttrs.inc"
-  }
-  llvm_unreachable("isLoopAttrTapirOnly: LoopAttrKind not handled");
 }
 
 bool llvm::hasAttr(const Loop &loop, LoopAttrKind attr) {
@@ -114,37 +77,25 @@ void llvm::addAttr(Loop &loop, LoopAttrKind attr) {
     emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
     exitOnError();
     break;
-#define LOOP_ATTR_FLAG(NAME, IRNAME, TAPIRONLY) case LoopAttrKind::NAME:
+#define LOOP_ATTR_0(NAME, IRNAME) case LoopAttrKind::NAME:
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
-    return ::addAttr(loop, attr);
+    return ::addAttr(loop, attr, {});
   }
 }
 
 void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
-  LLVMContext &ctx = loop.getHeader()->getContext();
+  LLVMContext &ctx = getContext(loop);
   StringRef name = getAttrName(attr);
-  MDNode *loopMD = loop.getLoopID();
-  MDNode *newLoopMD = makePostTransformationMetadata(ctx, loopMD, {name}, {});
+  MDNode *loopID = loop.getLoopID();
+  MDNode *newLoopID = makePostTransformationMetadata(ctx, loopID, {name}, {});
 
-  loop.setLoopID(newLoopMD);
+  loop.setLoopID(newLoopID);
 }
 
-// Flag attributes (those that do not have a value) will have a different set of
-// accessors. Mask them by defining LOOP_ATTR_FLAG by defining it to an
-// empty macro. These attributes may be applied to both tapir and regular loops.
-#define LOOP_ATTR_FLAG(NAME, IRNAME, TAPIRONLY)
-#define LOOP_ATTR(NAME, TYPE, TAPIRONLY, IRNAME)                               \
+#define LOOP_ATTR(NAME, IRNAME, TYPE)                                          \
   bool llvm::has##NAME##Attr(const Loop &loop) {                               \
     return hasAttr(loop, LoopAttrKind::NAME);                                  \
-  }                                                                            \
-                                                                               \
-  std::optional<TYPE> llvm::get##NAME##Attr(const Loop &loop) {                \
-    return getAttr<TYPE>(loop, IRNAME);                                        \
-  }                                                                            \
-                                                                               \
-  void llvm::add##NAME##Attr(Loop &loop, TYPE val) {                           \
-    addAttrAs(loop, LoopAttrKind::NAME, val);                                  \
   }                                                                            \
                                                                                \
   void llvm::remove##NAME##Attr(Loop &loop) {                                  \
@@ -153,20 +104,101 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 
-// Flag attributes (those that do not have a value) have a different set of
-// accessors from non-flag attributes. These attributes may be applied to both
-// tapir and regular loops.
-#define LOOP_ATTR_FLAG(NAME, IRNAME, TAPIRONLY)                                \
-  bool llvm::has##NAME##Attr(const Loop &loop) {                               \
-    return hasAttr(loop, LoopAttrKind::NAME);                                  \
-  }                                                                            \
-                                                                               \
+#define LOOP_ATTR_0(NAME, IRNAME)                                              \
   void llvm::add##NAME##Attr(Loop &loop) {                                     \
-    ::addAttr(loop, LoopAttrKind::NAME);                                       \
+    ::addAttr(loop, LoopAttrKind::NAME, {});                                   \
+  }
+
+#define LOOP_ATTR_1(NAME, IRNAME, TYPE)                                        \
+  std::optional<TYPE> llvm::get##NAME##Attr(const Loop &loop) {                \
+    return getAttr<TYPE>(loop, LoopAttrKind::NAME, 0, 1);                      \
   }                                                                            \
                                                                                \
-  void llvm::remove##NAME##Attr(Loop &loop) {                                  \
-    removeAttr(loop, LoopAttrKind::NAME);                                      \
+  void llvm::add##NAME##Attr(Loop &loop, TYPE val) {                           \
+    LLVMContext &ctx = getContext(loop);                                       \
+    Metadata *ops[] = {toMetadata(val, ctx)};                                  \
+    ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }
+
+#define LOOP_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
+  void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1) {                   \
+    LLVMContext &ctx = getContext(loop);                                       \
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx)};              \
+    ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }
+
+#define LOOP_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2)                                               \
+  void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2) {          \
+    LLVMContext &ctx = getContext(loop);                                       \
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
+                       toMetadata(e2, ctx)};                                   \
+    ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }
+
+#define LOOP_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3)                            \
+  void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3) { \
+    LLVMContext &ctx = getContext(loop);                                       \
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
+                       toMetadata(e2, ctx), toMetadata(e3, ctx)};              \
+    ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }
+
+#define LOOP_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)         \
+  void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,   \
+                             ETY4 e4) {                                        \
+    LLVMContext &ctx = getContext(loop);                                       \
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
+                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
+                       toMetadata(e4, ctx)};                                   \
+    ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }
+
+#define LOOP_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
+                    ENAME5, EN5)                                               \
+  void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,   \
+                             ETY4 e4, ETY5 e5) {                               \
+    LLVMContext &ctx = getContext(loop);                                       \
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
+                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
+                       toMetadata(e4, ctx), toMetadata(e5, ctx)};              \
+    ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }
+
+#define LOOP_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
+                    ENAME5, EN5, ETY6, ENAME6, EN6)                            \
+  void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,   \
+                             ETY4 e4, ETY5 e5, ETY6 e6) {                      \
+    LLVMContext &ctx = getContext(loop);                                       \
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
+                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
+                       toMetadata(e4, ctx), toMetadata(e5, ctx),               \
+                       toMetadata(e6, ctx)};                                   \
+    ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }
+
+#define LOOP_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
+                    ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
+  void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,   \
+                             ETY4 e4, ETY5 e5, ETY6 e6, ETY7 e7) {             \
+    LLVMContext &ctx = getContext(loop);                                       \
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
+                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
+                       toMetadata(e4, ctx), toMetadata(e5, ctx),               \
+                       toMetadata(e6, ctx), toMetadata(e7, ctx)};              \
+    ::addAttr(loop, LoopAttrKind::NAME, ops);                                  \
+  }
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+
+#define LOOP_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                      \
+  std::optional<ETY> llvm::get##ENAME##From##NAME##Attr(const Loop &loop) {    \
+    return getAttr<ETY>(loop, LoopAttrKind::NAME, EN, NELEMS);                 \
   }
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"

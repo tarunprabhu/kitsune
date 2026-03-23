@@ -15,8 +15,10 @@
 #ifndef KITSUNE_CORE_LOOP_ATTRS_H
 #define KITSUNE_CORE_LOOP_ATTRS_H
 
+#include "kitsune/Core/MetadataUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/Metadata.h"
 
 namespace llvm {
 
@@ -36,60 +38,88 @@ enum class LoopAttrKind : uint32_t {
 #include "kitsune/Core/LoopAttrs.inc"
 };
 
-/// Get a metadata node for a loop attribute that takes a value.
-template <typename T>
-MDNode *getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr, T val);
-
-/// Get a metadata node for a loop attribute that does not take a value.
-MDNode *getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr);
-
 /// Get the name of the loop attribute as it appears in the loop metadata.
 /// The result will start with "tapir.loop." or "loop."
 StringRef getAttrName(LoopAttrKind attr);
 
-/// Get the kind of a loop attribute if the given string corresponds to the name
-/// of an attribute as it might appear in loop metadata. If the string does not
-/// correspond to a valid attribute name, return std::nullopt.
+/// Get the kind of a Kitsune-specific loop attribute if the given string is how
+/// such an attribute would appear in LLVM-IR. Otherwise, return std::nullopt.
 std::optional<LoopAttrKind> getLoopAttrKind(StringRef name);
-
-/// Return true if the attribute can only be applied to a tapir loop, false
-/// otherwise.
-bool isAttrTapirOnly(LoopAttrKind attr);
 
 /// Check if the given attribute is present on a loop.
 bool hasAttr(const Loop &loop, LoopAttrKind attr);
 
 /// Add an attribute to the loop. Only attributes that do not take any values
-/// can be added using this function. Adding any other attribute will result in
-/// a catastrophic runtime error.
+/// can be added this way. Providing an attribute that takes values will result
+/// in a catastrophic runtime error.
 void addAttr(Loop &loop, LoopAttrKind attr);
 
 /// Remove the attribute from a loop. If the loop does not contain the
 /// attribute, this has no effect.
 void removeAttr(Loop &loop, LoopAttrKind attr);
 
+/// Get a metadata node for a loop attribute that takes a value.
+template <typename T>
+MDNode *getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr, T val) {
+  StringRef name = getAttrName(attr);
+  Metadata *mdVal = toMetadata(val, ctx);
+  Metadata *mdTag = MDString::get(ctx, name);
+  MDNode *md = MDNode::get(ctx, {mdTag, mdVal});
+
+  return md;
+}
+
 /// @}
 
-// Flag attributes (those that do not have a value) will have a different set of
-// accessors. Mask them by defining LOOP_ATTR_FLAG without a body. These
-// accessors are for attributes that may be applied to both tapir loops and
-// regular loops.
-#define LOOP_ATTR(NAME, TYPE, TAPIRONLY, IRNAME)                               \
+#define LOOP_ATTR(NAME, IRNAME, TYPE)                                          \
   bool has##NAME##Attr(const Loop &loop);                                      \
-  std::optional<TYPE> get##NAME##Attr(const Loop &loop);                       \
-  void add##NAME##Attr(Loop &loop, TYPE val);                                  \
   void remove##NAME##Attr(Loop &loop);
-#define LOOP_ATTR_FLAG(NAME, IRNAME, TAPIRONLY)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 
-// Flag attributes (those that do not have a value) have a different set of
-// accessors from non-flag attributes. These accessors are for attributes that
-// may be applied to both tapir loops and regular loops.
-#define LOOP_ATTR_FLAG(NAME, IRNAME, TAPIRONLY)                                \
-  bool has##NAME##Attr(const Loop &loop);                                      \
-  void add##NAME##Attr(Loop &loop);                                            \
-  void remove##NAME##Attr(Loop &loop);
+#define LOOP_ATTR_0(NAME, IRNAME) void add##NAME##Attr(Loop &loop);
+
+#define LOOP_ATTR_1(NAME, IRNAME, TYPE)                                        \
+  std::optional<TYPE> get##NAME##Attr(const Loop &loop);                       \
+  void add##NAME##Attr(Loop &loop, TYPE val);
+
+#define LOOP_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
+  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1);
+
+#define LOOP_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2)                                               \
+  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2);
+
+#define LOOP_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3)                            \
+  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3);
+
+#define LOOP_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)         \
+  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3, ETY4 e4);
+
+#define LOOP_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
+                    ENAME5, EN5)                                               \
+  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,         \
+                       ETY4 e4, ETY5 en5);
+
+#define LOOP_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
+                    ENAME5, EN5, ETY6, ENAME6, EN6)                            \
+  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,         \
+                       ETY4 e4, ETY5 en5, ETY6 en6);
+
+#define LOOP_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
+                    ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
+  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,         \
+                       ETY4 e4, ETY5 en5, ETY6 en6, ETY7 en7);
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+
+#define LOOP_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                      \
+  std::optional<ETY> get##ENAME##From##NAME##Attr(const Loop &loop);
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 

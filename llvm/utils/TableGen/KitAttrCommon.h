@@ -42,10 +42,15 @@ std::string getIRName(llvm::StringRef prefix, const llvm::Record &attr);
 /// 'TapirOrNormal'.
 bool isTapirOnly(const llvm::Record &attr);
 
-/// Get value type. Get the type of the value in the record. This assumes that
-/// a field named "ValueType" exists in the record that is an instance of class
-/// "Type". The "Type" class a field named "Name". The value of this field is
-/// returned.
-llvm::StringRef getTypeName(const llvm::Record &attr);
+/// Get the type of the value in the record. This assumes that a field named
+/// "ValueType" exists in the record that is an instance of class "BasicType".
+/// The "BasicType" class a field named "Name". The value of this field is
+/// returned. This should not be used with attributes whose ValueType is a
+/// TupleType.
+llvm::StringRef getBasicTypeName(const llvm::Record &attr);
+
+/// Wrap the string in quotes. By default, a double quote is used to wrap the
+/// string. Otherwise, use the string provided in the second optional parameter.
+std::string quote(llvm::StringRef s, llvm::StringRef q = "\"");
 
 #endif // LLVM_TABLEGEN_KIT_ATTR_COMMON_H

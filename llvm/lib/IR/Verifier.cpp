@@ -848,16 +848,15 @@ void Verifier::visitKPGlobals() {
     return ignoreAllErrors(EmbMsOrErr.takeError());
 
   EmbModulesMapTy EmbMs = std::move(*EmbMsOrErr);
-  for (const GlobalVariable &G : M.globals()) {
-    // FIXME: The kernel.properties attribute currently only has a string. But
-    // we also need the TTID. We would have to change the type of the attribute
-    // value to also include the TTID, or have a second dependent attribute.
-    if (std::optional<StringRef> F = getKernelPropertiesAttr(G)) {
-      // if (EmbMs.find(TT) != EmbMs.end())
-      //   Check(EmbMs.at(TT)->getFunction(F),
-      //         "global containing properties of non-existent kernel function");
-    }
-  }
+  for (const GlobalVariable &G : M.globals())
+    // FIXME: Are these optionals needed? We should have verified the
+    // attribute value by the time we get here, so we should be guaranteed to
+    // find these.
+    if (std::optional<StringRef> F = getNameFromKernelPropertiesAttr(G))
+      if (std::optional<TTID> TT = getTTIDFromKernelPropertiesAttr(G))
+        if (EmbMs.find(*TT) != EmbMs.end())
+          Check(EmbMs.at(*TT)->getFunction(*F),
+                "global containing properties of non-existent kernel function");
 }
 
 void Verifier::verifyGlobalVariableAttrs(AttributeSet Attrs,
@@ -872,10 +871,17 @@ void Verifier::verifyGlobalVariableAttrs(AttributeSet Attrs,
         "Attributes 'device.code' and 'kernel.properties' are incompatible!",
         G);
 
-  if (std::optional<StringRef> F = getKernelPropertiesAttr(*G))
-    Check(F->size(),
+  if (hasKernelPropertiesAttr(*G)) {
+    if (std::optional<TTID> TT = getTTIDFromKernelPropertiesAttr(*G))
+      Check(doesTTGenEmbBC(*TT),
+            "invalid value for 'kernel.properties' attribute. Tapir target "
+            "does not generate embedded bitcode");
+    if (std::optional<StringRef> F = getNameFromKernelPropertiesAttr(*G))
+      Check(
+          F->size(),
           "invalid value of 'kernel.properties' attribute. Kernel name cannot "
           "be empty");
+  }
 
   // TODO: We might have to perform this check for the kernel.properties
   // attribute as well.

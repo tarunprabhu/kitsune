@@ -17,6 +17,16 @@
 
 using namespace llvm;
 
+LLVMContext &llvm::getContext(Loop &loop) {
+  assert(loop.getHeader() && "Loop does not have a header");
+  return loop.getHeader()->getContext();
+}
+
+LLVMContext &llvm::getContext(const Loop &loop) {
+  assert(loop.getHeader() && "Loop does not have a header");
+  return loop.getHeader()->getContext();
+}
+
 Function *llvm::getFunction(Loop &loop) {
   return loop.getHeader()->getParent();
 }
@@ -73,7 +83,7 @@ SmallVector<BasicBlock *, 8> llvm::getBlocksNotInSubLoops(const Loop &loop) {
   return bbsInLoop;
 }
 
-BasicBlock* llvm::getUniqueBackEdge(const Loop &loop) {
+BasicBlock *llvm::getUniqueBackEdge(const Loop &loop) {
   BasicBlock *incoming = nullptr, *backedge = nullptr;
   if (loop.getIncomingAndBackEdge(incoming, backedge))
     return backedge;

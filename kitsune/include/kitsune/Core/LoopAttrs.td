@@ -47,14 +47,11 @@ include "kitsune/Core/AttrCommon.td"
 //     | Dim3         | loop.dim3          |
 //     '-----------------------------------'
 //
-class LoopAttr<AllowedOnKind AllowedOnParam, Type ValueType = VoidTy>
-    : AttrBase<ValueType>{
-  AllowedOnKind AllowedOn = AllowedOnParam;
-}
+class LoopAttr<Type ValueType = VoidTy> : AttrBase<ValueType>{}
 
 //------------------------------------------------------------------------------
 
-def Name : LoopAttr<TapirOrNormal, StrTy> {
+def Name : LoopAttr<StrTy> {
   let Documentation = [{
 A human-readable name for the loop. This is useful in debugging and diagnostics
 when debug information is not available.
@@ -63,14 +60,14 @@ when debug information is not available.
 
 // This can only be attached to normal loops since the process of serializing it
 // will have converted a tapir loop to a regular loop.
-def Serialized : LoopAttr<NormalOnly> {
+def Serialized : LoopAttr<> {
    let Documentation = [{
 The presence of this attribute indicates that the loop on which it is present
 is a tapir loop that was serialized.
 }];
 }
 
-def AutotuneLaunch : LoopAttr<TapirOnly> {
+def AutotuneLaunch : LoopAttr<> {
   let Documentation = [{
 If present, this attribute indicates that the runtime should use autotuning to
 find optimal kernel launch parameters. This is only used by the 'cuda' and 'hip'
@@ -83,7 +80,7 @@ tapir targets.
 // attribute in OpenCilk. We may change this in the future to be more consistent
 // with the other attribute names, but that would require changes to most tests
 // in llvm/lib/Transforms/Tapir.
-def Grainsize : LoopAttr<TapirOnly, I32Ty> {
+def Grainsize : LoopAttr<I32Ty> {
   let Documentation = [{
 Certain tapir targets may launch one task per iteration of a parallel loop.
 The overhead of these task launches and syncs can overwhelm any gains obtained
@@ -109,7 +106,7 @@ loops on the right.
 }];
 }
 
-def LoweringEnabled : LoopAttr<TapirOnly> {
+def LoweringEnabled : LoopAttr<> {
   let Documentation = [{
 If this attribute is present in a tapir loop, it will be lowered using the tapir
 target specified in the value of this attribute. Tapir loops that do not contain
@@ -120,7 +117,7 @@ lowering a parent tapir loop that is passed to a tapir target.
 }];
 }
 
-def PerfectDepth : LoopAttr<TapirOnly, I32Ty> {
+def PerfectDepth : LoopAttr<I32Ty> {
   let Documentation = [{
 The value of the perfect depth attribute indicates the level of the deepest
 tapir loop in a tapir loop nest that is perfectly nested relative to the root
@@ -168,7 +165,7 @@ to the root which is why the perfect depth is also 2.
 }];
 }
 
-def PerfectLevel : LoopAttr<TapirOnly, I32Ty> {
+def PerfectLevel : LoopAttr<I32Ty> {
   let Documentation = [{
 The value of the perfect level attribute indicates the level of a tapir loop in
 a perfect tapir loop nest.
@@ -215,7 +212,7 @@ which the tapir loop is a part.
 }];
 }
 
-def SpawnStrategy : LoopAttr<TapirOnly, SpawnStrategyTy> {
+def SpawnStrategy : LoopAttr<SpawnStrategyTy> {
   let Documentation = [{
 The spawn strategy attribute mainly determines whether a tapir loop should be
 outlined. At some point, it may be used for something more, but right now, its
@@ -223,7 +220,7 @@ use is limited. This attribute is required to be present on all tapir loops.
 }];
 }
 
-def Target : LoopAttr<TapirOnly, TTIDTy> {
+def Target : LoopAttr<TTIDTy> {
   let Documentation = [{
 If this attribute is present in a tapir loop, it will be lowered using the tapir
 target specified in the attribute's value. This attribute is required to be
@@ -231,7 +228,7 @@ present on all tapir loops.
 }];
 }
 
-def ThreadsPerBlock : LoopAttr<TapirOnly, I32Ty> {
+def ThreadsPerBlock : LoopAttr<I32Ty> {
   let Documentation = [{
 If this attribute is present on a tapir loop, its value will be the number of
 threads per block used when launching the GPU kernel obtained when the loop is

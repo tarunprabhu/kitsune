@@ -20,18 +20,33 @@
 
 using namespace llvm;
 
-static void addAttr(Module &m, ModuleAttrKind kind, ArrayRef<Metadata *> mds) {
-  removeAttr(m, kind);
+static void addAttr(Module &m, ModuleAttrKind attr, ArrayRef<Metadata *> mds) {
+  removeAttr(m, attr);
 
   LLVMContext &ctx = m.getContext();
-  NamedMDNode *nmd = m.getOrInsertNamedMetadata(getAttrName(kind));
+  StringRef attrName = getAttrName(attr);
+  NamedMDNode *nmd = m.getOrInsertNamedMetadata(attrName);
   for (Metadata *md : mds)
     nmd->addOperand(MDNode::get(ctx, md));
 }
 
+template <typename T>
+static std::optional<T> getAttr(const Module &m, ModuleAttrKind attr,
+                                unsigned i, unsigned n) {
+  StringRef attrName = getAttrName(attr);
+  if (NamedMDNode *nmd = m.getNamedMetadata(attrName)) {
+    if (nmd->getNumOperands() == n) {
+      MDNode *md = nmd->getOperand(i);
+      if (md->getNumOperands() == 1)
+        return fromMetadata<T>(md->getOperand(0));
+    }
+  }
+  return std::nullopt;
+}
+
 StringRef llvm::getAttrName(ModuleAttrKind attrKind) {
   switch (attrKind) {
-#define MODULE_ATTR(NAME, IRNAME)                                              \
+#define MODULE_ATTR(NAME, IRNAME, TYPE)                                        \
   case ModuleAttrKind::NAME:                                                   \
     return IRNAME;
 #define GET_MODULE_ATTRS
@@ -42,7 +57,7 @@ StringRef llvm::getAttrName(ModuleAttrKind attrKind) {
 
 std::optional<ModuleAttrKind> llvm::getModuleAttrKind(StringRef name) {
   return StringSwitch<std::optional<ModuleAttrKind>>(name)
-#define MODULE_ATTR(NAME, IRNAME) .Case(IRNAME, ModuleAttrKind::NAME)
+#define MODULE_ATTR(NAME, IRNAME, TYPE) .Case(IRNAME, ModuleAttrKind::NAME)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
       .Default(std::nullopt);
@@ -66,11 +81,12 @@ void llvm::addAttr(Module &m, ModuleAttrKind attr) {
 }
 
 void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
-  if (NamedMDNode *md = m.getNamedMetadata(getAttrName(attr)))
-    m.eraseNamedMetadata(md);
+  StringRef attrName = getAttrName(attr);
+  if (NamedMDNode *nmd = m.getNamedMetadata(attrName))
+    m.eraseNamedMetadata(nmd);
 }
 
-#define MODULE_ATTR(NAME, IRNAME)                                              \
+#define MODULE_ATTR(NAME, IRNAME, TYPE)                                        \
   bool llvm::has##NAME##Attr(const Module &m) {                                \
     return hasAttr(m, ModuleAttrKind::NAME);                                   \
   }                                                                            \
@@ -78,161 +94,104 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
   void llvm::remove##NAME##Attr(Module &m) {                                   \
     removeAttr(m, ModuleAttrKind::NAME);                                       \
   }
-
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 
-#define MODULE_GETTER(NAME, TY, V, OP)                                         \
-  std::optional<TY> llvm::get##V##From##NAME##Attr(const Module &m) {          \
-    StringRef attrName = getAttrName(ModuleAttrKind::NAME);                    \
-    if (NamedMDNode *nmd = m.getNamedMetadata(attrName))                       \
-      if (MDNode *md = nmd->getOperand(OP))                                    \
-        if (md->getNumOperands() > 0)                                          \
-          return fromMetadata<TY>(md->getOperand(0));                          \
-    return std::nullopt;                                                       \
-  }
-
 #define MODULE_ATTR_0(NAME, IRNAME)                                            \
   void llvm::add##NAME##Attr(Module &m) {                                      \
-    return ::addAttr(m, ModuleAttrKind::NAME, {});                             \
+    ::addAttr(m, ModuleAttrKind::NAME, {});                                    \
   }
 
-#define MODULE_ATTR_1(NAME, IRNAME, TY1, V1)                                   \
-  void llvm::add##NAME##Attr(Module &m, TY1 V1) {                              \
-    LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(V1, ctx);                                       \
-                                                                               \
-    ::addAttr(m, ModuleAttrKind::NAME, {op0});                                 \
+#define MODULE_ATTR_1(NAME, IRNAME, TYPE)                                      \
+  std::optional<TYPE> llvm::get##NAME##Attr(const Module &m) {                 \
+    return getAttr<TYPE>(m, ModuleAttrKind::NAME, 0, 1);                       \
   }                                                                            \
-  MODULE_GETTER(NAME, TY1, V1, 0)
-
-#define MODULE_ATTR_2(NAME, IRNAME, TY1, V1, TY2, V2)                          \
-  void llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2) {                      \
-    LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(V1, ctx);                                       \
-    Metadata *op1 = toMetadata(V2, ctx);                                       \
                                                                                \
-    ::addAttr(m, ModuleAttrKind::NAME, {op0, op1});                            \
-  }                                                                            \
-  MODULE_GETTER(NAME, TY1, V1, 0)                                              \
-  MODULE_GETTER(NAME, TY2, V2, 1)
-
-#define MODULE_ATTR_3(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3)                 \
-  void llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3) {              \
+  void llvm::add##NAME##Attr(Module &m, TYPE val) {                            \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(V1, ctx);                                       \
-    Metadata *op1 = toMetadata(V2, ctx);                                       \
-    Metadata *op2 = toMetadata(V3, ctx);                                       \
-                                                                               \
-    ::addAttr(m, ModuleAttrKind::NAME, {op0, op1, op2});                       \
-  }                                                                            \
-  MODULE_GETTER(NAME, TY1, V1, 0)                                              \
-  MODULE_GETTER(NAME, TY2, V2, 1)                                              \
-  MODULE_GETTER(NAME, TY3, V3, 2)
+    Metadata *ops[] = {toMetadata(val, ctx)};                                  \
+    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }
 
-#define MODULE_ATTR_4(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4)        \
-  void llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4) {      \
+#define MODULE_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)      \
+  void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1) {                    \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(V1, ctx);                                       \
-    Metadata *op1 = toMetadata(V2, ctx);                                       \
-    Metadata *op2 = toMetadata(V3, ctx);                                       \
-    Metadata *op3 = toMetadata(V4, ctx);                                       \
-                                                                               \
-    ::addAttr(m, ModuleAttrKind::NAME, {op0, op1, op2, op3});                  \
-  }                                                                            \
-  MODULE_GETTER(NAME, TY1, V1, 0)                                              \
-  MODULE_GETTER(NAME, TY2, V2, 1)                                              \
-  MODULE_GETTER(NAME, TY3, V3, 2)                                              \
-  MODULE_GETTER(NAME, TY4, V4, 3)
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx)};              \
+    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }
 
-#define MODULE_ATTR_5(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4, TY5,   \
-                      V5)                                                      \
-  void llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4,        \
-                             TY5 V5) {                                         \
+#define MODULE_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
+                      ETY2, ENAME2, EN2)                                       \
+  void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2) {           \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(V1, ctx);                                       \
-    Metadata *op1 = toMetadata(V2, ctx);                                       \
-    Metadata *op2 = toMetadata(V3, ctx);                                       \
-    Metadata *op3 = toMetadata(V4, ctx);                                       \
-    Metadata *op4 = toMetadata(V5, ctx);                                       \
-                                                                               \
-    ::addAttr(m, ModuleAttrKind::NAME, {op0, op1, op2, op3, op4});             \
-  }                                                                            \
-  MODULE_GETTER(NAME, TY1, V1, 0)                                              \
-  MODULE_GETTER(NAME, TY2, V2, 1)                                              \
-  MODULE_GETTER(NAME, TY3, V3, 2)                                              \
-  MODULE_GETTER(NAME, TY4, V4, 3)                                              \
-  MODULE_GETTER(NAME, TY5, V5, 4)
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
+                       toMetadata(e2, ctx)};                                   \
+    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }
 
-#define MODULE_ATTR_6(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4, TY5,   \
-                      V5, TY6, V6)                                             \
-  void llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4,        \
-                             TY5 V5, TY6 V6) {                                 \
+#define MODULE_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
+                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3)                    \
+  void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3) {  \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(V1, ctx);                                       \
-    Metadata *op1 = toMetadata(V2, ctx);                                       \
-    Metadata *op2 = toMetadata(V3, ctx);                                       \
-    Metadata *op3 = toMetadata(V4, ctx);                                       \
-    Metadata *op4 = toMetadata(V5, ctx);                                       \
-    Metadata *op5 = toMetadata(V6, ctx);                                       \
-                                                                               \
-    ::addAttr(m, ModuleAttrKind::NAME, {op0, op1, op2, op3, op4, op5});        \
-  }                                                                            \
-  MODULE_GETTER(NAME, TY1, V1, 0)                                              \
-  MODULE_GETTER(NAME, TY2, V2, 1)                                              \
-  MODULE_GETTER(NAME, TY3, V3, 2)                                              \
-  MODULE_GETTER(NAME, TY4, V4, 3)                                              \
-  MODULE_GETTER(NAME, TY5, V5, 4)                                              \
-  MODULE_GETTER(NAME, TY6, V6, 5)
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
+                       toMetadata(e2, ctx), toMetadata(e3, ctx)};              \
+    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }
 
-#define MODULE_ATTR_7(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4, TY5,   \
-                      V5, TY6, V6, TY7, V7)                                    \
-  void llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4,        \
-                             TY5 V5, TY6 V6, TY7 V7) {                         \
+#define MODULE_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
+                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4) \
+  void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,    \
+                             ETY4 e4) {                                        \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(V1, ctx);                                       \
-    Metadata *op1 = toMetadata(V2, ctx);                                       \
-    Metadata *op2 = toMetadata(V3, ctx);                                       \
-    Metadata *op3 = toMetadata(V4, ctx);                                       \
-    Metadata *op4 = toMetadata(V5, ctx);                                       \
-    Metadata *op5 = toMetadata(V6, ctx);                                       \
-    Metadata *op6 = toMetadata(V7, ctx);                                       \
-                                                                               \
-    ::addAttr(m, ModuleAttrKind::NAME, {op0, op1, op2, op3, op4, op5, op6});   \
-  }                                                                            \
-  MODULE_GETTER(NAME, TY1, V1, 0)                                              \
-  MODULE_GETTER(NAME, TY2, V2, 1)                                              \
-  MODULE_GETTER(NAME, TY3, V3, 2)                                              \
-  MODULE_GETTER(NAME, TY4, V4, 3)                                              \
-  MODULE_GETTER(NAME, TY5, V5, 4)                                              \
-  MODULE_GETTER(NAME, TY6, V6, 5)                                              \
-  MODULE_GETTER(NAME, TY7, V7, 6)
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
+                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
+                       toMetadata(e4, ctx)};                                   \
+    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }
 
-#define MODULE_ATTR_8(NAME, IRNAME, TY1, V1, TY2, V2, TY3, V3, TY4, V4, TY5,   \
-                      V5, TY6, V6, TY7, V7, TY8, V8)                           \
-  void llvm::add##NAME##Attr(Module &m, TY1 V1, TY2 V2, TY3 V3, TY4 V4,        \
-                             TY5 V5, TY6 V6, TY7 V7, TY8 V8) {                 \
+#define MODULE_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
+                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, \
+                      ETY5, ENAME5, EN5)                                       \
+  void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,    \
+                             ETY4 e4, ETY5 e5) {                               \
     LLVMContext &ctx = m.getContext();                                         \
-    Metadata *op0 = toMetadata(V1, ctx);                                       \
-    Metadata *op1 = toMetadata(V2, ctx);                                       \
-    Metadata *op2 = toMetadata(V3, ctx);                                       \
-    Metadata *op3 = toMetadata(V4, ctx);                                       \
-    Metadata *op4 = toMetadata(V5, ctx);                                       \
-    Metadata *op5 = toMetadata(V6, ctx);                                       \
-    Metadata *op6 = toMetadata(V7, ctx);                                       \
-    Metadata *op7 = toMetadata(V8, ctx);                                       \
-                                                                               \
-    ::addAttr(m, ModuleAttrKind::NAME,                                         \
-              {op0, op1, op2, op3, op4, op5, op6, op7});                       \
-  }                                                                            \
-  MODULE_GETTER(NAME, TY1, V1, 0)                                              \
-  MODULE_GETTER(NAME, TY2, V2, 1)                                              \
-  MODULE_GETTER(NAME, TY3, V3, 2)                                              \
-  MODULE_GETTER(NAME, TY4, V4, 3)                                              \
-  MODULE_GETTER(NAME, TY5, V5, 4)                                              \
-  MODULE_GETTER(NAME, TY6, V6, 5)                                              \
-  MODULE_GETTER(NAME, TY7, V7, 6)                                              \
-  MODULE_GETTER(NAME, TY8, V8, 7)
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
+                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
+                       toMetadata(e4, ctx), toMetadata(e5, ctx)};              \
+    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }
 
+#define MODULE_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
+                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, \
+                      ETY5, ENAME5, EN5, ETY6, ENAME6, EN6)                    \
+  void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,    \
+                             ETY4 e4, ETY5 e5, ETY6 e6) {                      \
+    LLVMContext &ctx = m.getContext();                                         \
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
+                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
+                       toMetadata(e4, ctx), toMetadata(e5, ctx),               \
+                       toMetadata(e6, ctx)};                                   \
+    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }
+
+#define MODULE_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
+                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, \
+                      ETY5, ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7) \
+  void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,    \
+                             ETY4 e4, ETY5 e5, ETY6 e6, ETY7 e7) {             \
+    LLVMContext &ctx = m.getContext();                                         \
+    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
+                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
+                       toMetadata(e4, ctx), toMetadata(e5, ctx),               \
+                       toMetadata(e6, ctx), toMetadata(e7, ctx)};              \
+    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+  }
+#define GET_MODULE_ATTRS
+#include "kitsune/Core/ModuleAttrs.inc"
+
+#define MODULE_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                    \
+  std::optional<ETY> llvm::get##ENAME##From##NAME##Attr(const Module &m) {     \
+    return getAttr<ETY>(m, ModuleAttrKind::NAME, EN, NELEMS);                  \
+  }
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
