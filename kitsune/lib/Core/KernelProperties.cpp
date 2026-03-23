@@ -147,8 +147,7 @@ GlobalVariable *llvm::createKernelPropertiesGlobal(StringRef kernelName,
                                GlobalValue::PrivateLinkage, init);
 
   g->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
-  // g->addAttribute(Attribute::getWithTTID(ctx, tt));
-  addKernelPropertiesAttr(*g, kernelName);
+  addKernelPropertiesAttr(*g, tt, kernelName);
 
   return g;
 }

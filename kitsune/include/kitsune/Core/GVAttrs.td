@@ -58,7 +58,10 @@ zero-initializer.
 }];
 }
 
-def KernelProperties : GVAttr<StrTy> {
+def KernelPropertiesTy
+    : TupleType<[TupleElement<TTIDTy, "TTID">,
+                 TupleElement<StrTy, "Name">]> {}
+def KernelProperties : GVAttr<KernelPropertiesTy> {
   let Documentation = [{
 The global variable contains properties of a kitsune "kernel function". The
 value of the attribute is the name of the kernel function. The function itself

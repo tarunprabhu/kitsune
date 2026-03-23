@@ -8,4 +8,4 @@
 
 @0 = constant { i64, i64, i64, i64 } zeroinitializer, !kit.gv.kernel.properties !0
 
-!0 = !{!""}
+!0 = !{i32 2, !""}

@@ -37,9 +37,7 @@ StringRef KitLoopAttrDocEmitter::getAttrBase() const { return "LoopAttr"; }
 StringRef KitLoopAttrDocEmitter::getLabelPrefix() const { return "loop"; }
 
 StringRef KitLoopAttrDocEmitter::getIRNamePrefix(const Record &attr) const {
-  if (isTapirOnly(attr))
-    return "tapir.loop.";
-  return "loop.";
+  return "tapir.loop.";
 }
 
 KitLoopAttrDocEmitter::KitLoopAttrDocEmitter(const RecordKeeper &records)

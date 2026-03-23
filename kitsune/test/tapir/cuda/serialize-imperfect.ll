@@ -39,7 +39,7 @@
 ; CHECK: reattach within %syncreg2.i
 ; CHECK: sync within %syncreg2.i
 ;
-; CHECK-DAG: ![[SERIALIZED:[0-9]+]] = !{!"loop.serialized"}
+; CHECK-DAG: ![[SERIALIZED:[0-9]+]] = !{!"tapir.loop.serialized"}
 ; CHECK-DAG: ![[LOOP_K]] = distinct !{![[LOOP_K]], ![[SERIALIZED]]}
 ; CHECK-DAG: ![[LOOP_L2]] = distinct !{![[LOOP_L2]], ![[SERIALIZED]]}
 ; CHECK-DAG: ![[LOOP_K2]] = distinct !{![[LOOP_K2]], ![[SERIALIZED]]}

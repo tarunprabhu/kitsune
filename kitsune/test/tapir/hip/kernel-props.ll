@@ -17,7 +17,7 @@
 ; CHECK-SAME: { i64 2, i64 1, {{.+}} }
 ; CHECK-SAME: !kit.gv.kernel.properties ![[PROPS:[0-9]+]]
 ;
-; CHECK: ![[PROPS]] = !{!"__kithip_loop_{{.+}}"}
+; CHECK: ![[PROPS]] = !{i32 4, !"__kithip_loop_{{.+}}"}
 
 define void @f(ptr %c, i64 %n) {
 entry:

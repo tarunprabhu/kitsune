@@ -23,7 +23,14 @@ namespace llvm {
 
 class BasicBlock;
 class Function;
+class LLVMContext;
 class Loop;
+
+/// Get the LLVMContext from the loop. This is only here because we cannot just
+/// call loop.getContext(), but instead have to get the header before we can get
+/// the context.
+LLVMContext &getContext(Loop &loop);
+LLVMContext &getContext(const Loop &loop);
 
 /// Get the function containing the loop. If this is called while in the middle
 /// of transforming a loop, it is possible that the containing function will

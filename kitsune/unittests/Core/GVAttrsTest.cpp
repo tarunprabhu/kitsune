@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/GVAttrs.h"
+#include "TestValues.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/LLVMContext.h"
 
@@ -17,7 +18,7 @@ using namespace llvm;
 namespace {
 
 TEST(KitGVAttrs, attrName) {
-#define GV_ATTR(NAME, TYPE, IRNAME)                                            \
+#define GV_ATTR(NAME, IRNAME, TYPE)                                            \
   EXPECT_EQ(getAttrName(GVAttrKind::NAME), IRNAME);                            \
   EXPECT_TRUE(getAttrName(GVAttrKind::NAME).starts_with("kit.gv."));
 #define GET_GV_ATTRS
@@ -25,29 +26,13 @@ TEST(KitGVAttrs, attrName) {
 }
 
 TEST(KitGVAttrs, attrKind) {
-  EXPECT_EQ(getGVAttrKind("whoops"), std::nullopt);
+  EXPECT_EQ(getGVAttrKind("brasenose"), std::nullopt);
 
-#define GV_ATTR(NAME, TYPE, IRNAME)                                            \
+#define GV_ATTR(NAME, IRNAME, TYPE)                                            \
   EXPECT_EQ(getGVAttrKind(IRNAME), GVAttrKind::NAME);
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
-
-#define CHECK_GENERIC_FLAG(NAME, GV)                                           \
-  EXPECT_FALSE(hasAttr(GV, GVAttrKind::NAME));                                 \
-  addAttr(GV, GVAttrKind::NAME);                                               \
-  EXPECT_TRUE(hasAttr(GV, GVAttrKind::NAME));                                  \
-  removeAttr(GV, GVAttrKind::NAME);                                            \
-  EXPECT_FALSE(hasAttr(GV, GVAttrKind::NAME));
-
-#define CHECK_GENERIC(NAME, GV, VAL)                                           \
-  EXPECT_FALSE(hasAttr(GV, GVAttrKind::NAME));                                 \
-  add##NAME##Attr(GV, VAL);                                                    \
-  EXPECT_TRUE(hasAttr(GV, GVAttrKind::NAME));                                  \
-  removeAttr(GV, GVAttrKind::NAME);                                            \
-  EXPECT_FALSE(hasAttr(GV, GVAttrKind::NAME));                                 \
-  EXPECT_EXIT(addAttr(GV, GVAttrKind::NAME), ::testing::ExitedWithCode(1),     \
-              "error: cannot add attribute");
 
 TEST(KitGVAttrs, attrsGeneric) {
   LLVMContext ctx;
@@ -55,24 +40,32 @@ TEST(KitGVAttrs, attrsGeneric) {
   [[maybe_unused]] GlobalVariable g(i32, /*isConstant=*/false,
                                     GlobalValue::ExternalLinkage);
 
-#define GV_ATTR_FLAG(NAME, IRNAME) CHECK_GENERIC_FLAG(NAME, g)
-#define GV_ATTR_ENUM(NAME, IRNAME, TYPE) CHECK_GENERIC(NAME, g, (TYPE)1)
-#define GV_ATTR_F32(NAME, IRNAME) CHECK_GENERIC(NAME, g, 3.14F)
-#define GV_ATTR_F64(NAME, IRNAME) CHECK_GENERIC(NAME, g, 3.141592653)
-#define GV_ATTR_I32(NAME, IRNAME) CHECK_GENERIC(NAME, g, 277)
-#define GV_ATTR_I64(NAME, IRNAME) CHECK_GENERIC(NAME, g, 409L)
-#define GV_ATTR_STR(NAME, IRNAME) CHECK_GENERIC(NAME, g, "edinburgh")
+#define GV_ATTR_0(NAME, IRNAME)                                                \
+  EXPECT_FALSE(hasAttr(g, GVAttrKind::NAME));                                  \
+  addAttr(GV, GVAttrKind::NAME);                                               \
+  EXPECT_TRUE(hasAttr(g, GVAttrKind::NAME));                                   \
+  addAttr(GV, GVAttrKind::NAME);                                               \
+  EXPECT_TRUE(hasAttr(g, GVAttrKind::NAME));                                   \
+  removeAttr(GV, GVAttrKind::NAME);                                            \
+  EXPECT_FALSE(hasAttr(g, GVAttrKind::NAME));
+#define GET_GV_ATTRS
+#include "kitsune/Core/GVAttrs.inc"
+
+#define GV_ATTR_0(NAME, IRNAME)
+#define GV_ATTR(NAME, IRNAME, TYPE)                                            \
+  EXPECT_EXIT(addAttr(g, GVAttrKind::NAME), ::testing::ExitedWithCode(1),      \
+              "error: cannot add attribute");
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
-TEST(KitGVAttrs, flagAttrs) {
+TEST(KitGVAttrs, attr0) {
   LLVMContext ctx;
   Type *i32 = Type::getInt32Ty(ctx);
   [[maybe_unused]] GlobalVariable g(i32, /*isConstant=*/false,
                                     GlobalValue::ExternalLinkage);
 
-#define GV_ATTR_FLAG(NAME, IRNAME)                                             \
+#define GV_ATTR_0(NAME, IRNAME)                                                \
   EXPECT_FALSE(has##NAME##Attr(g));                                            \
                                                                                \
   add##NAME##Attr(g);                                                          \
@@ -83,96 +76,270 @@ TEST(KitGVAttrs, flagAttrs) {
                                                                                \
   remove##NAME##Attr(g);                                                       \
   EXPECT_FALSE(has##NAME##Attr(g));
-
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
-#define CHECK_ACCESSORS(NAME, GV, VAL1, VAL2)                                  \
-  EXPECT_FALSE(has##NAME##Attr(GV));                                           \
+TEST(KitGVAttrs, attr1) {
+  LLVMContext ctx;
+  Type *i32 = Type::getInt32Ty(ctx);
+  [[maybe_unused]] GlobalVariable g(i32, /*isConstant=*/false,
+                                    GlobalValue::ExternalLinkage);
+
+#define GV_ATTR_1(NAME, IRNAME, TYPE)                                          \
+  EXPECT_FALSE(has##NAME##Attr(g));                                            \
                                                                                \
-  add##NAME##Attr(GV, VAL1);                                                   \
-  EXPECT_TRUE(has##NAME##Attr(GV));                                            \
-  EXPECT_EQ(get##NAME##Attr(GV), (VAL1));                                      \
-  llvm::errs() << g << "\n";                                                   \
+  add##NAME##Attr(g, get<TYPE>(0));                                            \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##NAME##Attr(g), get<TYPE>(0));                                 \
                                                                                \
-  add##NAME##Attr(GV, VAL2);                                                   \
-  EXPECT_TRUE(has##NAME##Attr(GV));                                            \
-  EXPECT_EQ(get##NAME##Attr(GV), (VAL2));                                      \
+  add##NAME##Attr(g, get<TYPE>(1));                                            \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##NAME##Attr(g), get<TYPE>(1));                                 \
                                                                                \
-  remove##NAME##Attr(GV);                                                      \
-  EXPECT_FALSE(has##NAME##Attr(GV));
+  remove##NAME##Attr(g);                                                       \
+  EXPECT_FALSE(has##NAME##Attr(g));
+#define GET_GV_ATTRS
+#include "kitsune/Core/GVAttrs.inc"
+}
 
-TEST(KitGVAttrs, enumAttrs) {
+TEST(KitGVAttrs, attr2) {
   LLVMContext ctx;
   Type *i32 = Type::getInt32Ty(ctx);
   [[maybe_unused]] GlobalVariable g(i32, /*isConstant=*/false,
                                     GlobalValue::ExternalLinkage);
 
-  // WARNING: This is somewhat risky because there is no guarantee that the
-  // integer values 1 and 2 will be valid for every enum type that we may have
-  // an attribute for. If this ever happens, change this test. It may be
-  // sufficient to just check for some enum-valued attribute instead of all of
-  // them.
-#define GV_ATTR_ENUM(NAME, IRNAME, TYPE)                                       \
-  CHECK_ACCESSORS(NAME, g, (TYPE)1, (TYPE)2)
+#define GV_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)          \
+  EXPECT_FALSE(has##NAME##Attr(g));                                            \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(0), get<ETY1>(1));                              \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(0));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(1));                   \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(1), get<ETY1>(0));                              \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(1));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(0));                   \
+                                                                               \
+  remove##NAME##Attr(g);                                                       \
+  EXPECT_FALSE(has##NAME##Attr(g));
 
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
-TEST(KitGVAttrs, f32Test) {
+TEST(KitGVAttrs, attr3) {
   LLVMContext ctx;
   Type *i32 = Type::getInt32Ty(ctx);
   [[maybe_unused]] GlobalVariable g(i32, /*isConstant=*/false,
                                     GlobalValue::ExternalLinkage);
 
-#define GV_ATTR_F32(NAME, IRNAME) CHECK_ACCESSORS(NAME, g, 3.14159F, 2.71828F)
+#define GV_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
+                  ENAME2, EN2)                                                 \
+  EXPECT_FALSE(has##NAME##Attr(g));                                            \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2));                \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(0));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(1));                   \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(g), get<ETY2>(2));                   \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(2), get<ETY1>(1), get<ETY2>(0));                \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(2));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(1));                   \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(g), get<ETY2>(0));                   \
+                                                                               \
+  remove##NAME##Attr(g);                                                       \
+  EXPECT_FALSE(has##NAME##Attr(g));
+
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
-TEST(KitGVAttrs, f64Test) {
+TEST(KitGVAttrs, attr4) {
   LLVMContext ctx;
   Type *i32 = Type::getInt32Ty(ctx);
   [[maybe_unused]] GlobalVariable g(i32, /*isConstant=*/false,
                                     GlobalValue::ExternalLinkage);
 
-#define GV_ATTR_F64(NAME, IRNAME)                                              \
-  CHECK_ACCESSORS(NAME, g, 3.1415926535, 2.71828)
+#define GV_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
+                  ENAME2, EN2, ETY3, ENAME3, EN3)                              \
+  EXPECT_FALSE(has##NAME##Attr(g));                                            \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2), get<ETY3>(3));  \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(0));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(1));                   \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(g), get<ETY2>(2));                   \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(g), get<ETY3>(3));                   \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(3), get<ETY1>(2), get<ETY2>(1), get<ETY3>(0));  \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(3));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(2));                   \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(g), get<ETY2>(1));                   \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(g), get<ETY3>(0));                   \
+                                                                               \
+  remove##NAME##Attr(g);                                                       \
+  EXPECT_FALSE(has##NAME##Attr(g));
+
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
-TEST(KitGVAttrs, i32Test) {
+TEST(KitGVAttrs, attr5) {
   LLVMContext ctx;
   Type *i32 = Type::getInt32Ty(ctx);
   [[maybe_unused]] GlobalVariable g(i32, /*isConstant=*/false,
                                     GlobalValue::ExternalLinkage);
 
-#define GV_ATTR_I32(NAME, IRNAME) CHECK_ACCESSORS(NAME, g, 151, 157)
+#define GV_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
+                  ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)           \
+  EXPECT_FALSE(has##NAME##Attr(g));                                            \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2), get<ETY3>(3),   \
+                  get<ETY4>(4));                                               \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(0));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(1));                   \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(g), get<ETY2>(2));                   \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(g), get<ETY3>(3));                   \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(g), get<ETY4>(4));                   \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(4), get<ETY1>(3), get<ETY2>(2), get<ETY3>(1),   \
+                  get<ETY4>(0));                                               \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(4));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(3));                   \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(g), get<ETY2>(2));                   \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(g), get<ETY3>(1));                   \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(g), get<ETY4>(0));                   \
+                                                                               \
+  remove##NAME##Attr(g);                                                       \
+  EXPECT_FALSE(has##NAME##Attr(g));
+
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
-TEST(KitGVAttrs, i64Test) {
+TEST(KitGVAttrs, attr6) {
   LLVMContext ctx;
   Type *i32 = Type::getInt32Ty(ctx);
   [[maybe_unused]] GlobalVariable g(i32, /*isConstant=*/false,
                                     GlobalValue::ExternalLinkage);
 
-#define GV_ATTR_I64(NAME, IRNAME) CHECK_ACCESSORS(NAME, g, 131L, 137L)
+#define GV_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
+                  ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,     \
+                  ENAME5, EN5)                                                 \
+  EXPECT_FALSE(has##NAME##Attr(g));                                            \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2), get<ETY3>(3),   \
+                  get<ETY4>(4), get<ETY5>(5));                                 \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(0));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(1));                   \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(g), get<ETY2>(2));                   \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(g), get<ETY3>(3));                   \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(g), get<ETY4>(4));                   \
+  EXPECT_EQ(get##ENAME5##From##NAME##Attr(g), get<ETY5>(5));                   \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(5), get<ETY1>(4), get<ETY2>(3), get<ETY3>(2),   \
+                  get<ETY4>(1), get<ETY5>(0));                                 \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(5));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(4));                   \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(g), get<ETY2>(3));                   \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(g), get<ETY3>(2));                   \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(g), get<ETY4>(1));                   \
+  EXPECT_EQ(get##ENAME5##From##NAME##Attr(g), get<ETY5>(0));                   \
+                                                                               \
+  remove##NAME##Attr(g);                                                       \
+  EXPECT_FALSE(has##NAME##Attr(g));
+
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
-TEST(KitGVAttrs, strTest) {
+TEST(KitGVAttrs, attr7) {
   LLVMContext ctx;
   Type *i32 = Type::getInt32Ty(ctx);
   [[maybe_unused]] GlobalVariable g(i32, /*isConstant=*/false,
                                     GlobalValue::ExternalLinkage);
 
-#define GV_ATTR_STR(NAME, IRNAME) CHECK_ACCESSORS(NAME, g, "balliol", "keble")
+#define GV_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
+                  ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,     \
+                  ENAME5, EN5, ETY6, ENAME6, EN6)                              \
+  EXPECT_FALSE(has##NAME##Attr(g));                                            \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2), get<ETY3>(3),   \
+                  get<ETY4>(4), get<ETY5>(5), get<ETY6>(6));                   \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(0));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(1));                   \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(g), get<ETY2>(2));                   \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(g), get<ETY3>(3));                   \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(g), get<ETY4>(4));                   \
+  EXPECT_EQ(get##ENAME5##From##NAME##Attr(g), get<ETY5>(5));                   \
+  EXPECT_EQ(get##ENAME6##From##NAME##Attr(g), get<ETY6>(6));                   \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(6), get<ETY1>(5), get<ETY2>(4), get<ETY3>(3),   \
+                  get<ETY4>(2), get<ETY5>(1), get<ETY6>(0));                   \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(6));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(5));                   \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(g), get<ETY2>(4));                   \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(g), get<ETY3>(3));                   \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(g), get<ETY4>(2));                   \
+  EXPECT_EQ(get##ENAME5##From##NAME##Attr(g), get<ETY5>(1));                   \
+  EXPECT_EQ(get##ENAME6##From##NAME##Attr(g), get<ETY6>(0));                   \
+                                                                               \
+  remove##NAME##Attr(g);                                                       \
+  EXPECT_FALSE(has##NAME##Attr(g));
+
+#define GET_GV_ATTRS
+#include "kitsune/Core/GVAttrs.inc"
+}
+
+TEST(KitGVAttrs, attr8) {
+  LLVMContext ctx;
+  Type *i32 = Type::getInt32Ty(ctx);
+  [[maybe_unused]] GlobalVariable g(i32, /*isConstant=*/false,
+                                    GlobalValue::ExternalLinkage);
+
+#define GV_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
+                  ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,     \
+                  ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)           \
+  EXPECT_FALSE(has##NAME##Attr(g));                                            \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2), get<ETY3>(3),   \
+                  get<ETY4>(4), get<ETY5>(5), get<ETY6>(6), get<ETY7>(7));     \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(0));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(1));                   \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(g), get<ETY2>(2));                   \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(g), get<ETY3>(3));                   \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(g), get<ETY4>(4));                   \
+  EXPECT_EQ(get##ENAME5##From##NAME##Attr(g), get<ETY5>(5));                   \
+  EXPECT_EQ(get##ENAME6##From##NAME##Attr(g), get<ETY6>(6));                   \
+  EXPECT_EQ(get##ENAME7##From##NAME##Attr(g), get<ETY7>(7));                   \
+                                                                               \
+  add##NAME##Attr(g, get<ETY0>(7), get<ETY1>(6), get<ETY2>(5), get<ETY3>(4),   \
+                  get<ETY4>(3), get<ETY5>(2), get<ETY6>(1), get<ETY7>(0));     \
+  EXPECT_TRUE(has##NAME##Attr(g));                                             \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(g), get<ETY0>(7));                   \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(g), get<ETY1>(6));                   \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(g), get<ETY2>(5));                   \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(g), get<ETY3>(4));                   \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(g), get<ETY4>(3));                   \
+  EXPECT_EQ(get##ENAME5##From##NAME##Attr(g), get<ETY5>(2));                   \
+  EXPECT_EQ(get##ENAME6##From##NAME##Attr(g), get<ETY6>(1));                   \
+  EXPECT_EQ(get##ENAME7##From##NAME##Attr(g), get<ETY7>(0));                   \
+                                                                               \
+  remove##NAME##Attr(g);                                                       \
+  EXPECT_FALSE(has##NAME##Attr(g));
+
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }

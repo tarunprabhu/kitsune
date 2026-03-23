@@ -169,9 +169,9 @@ for.i.end:
 !4 = distinct !{!4, !0, !10}
 !5 = distinct !{!5, !0, !11}
 !6 = distinct !{!6, !0, !12}
-!7 = !{!"loop.name", !"pepp.loop.i"}
-!8 = !{!"loop.name", !"pepp.loop.j"}
-!9 = !{!"loop.name", !"pepp.loop.k"}
-!10 = !{!"loop.name", !"pppe.loop.i"}
-!11 = !{!"loop.name", !"pppe.loop.j"}
-!12 = !{!"loop.name", !"pppe.loop.k"}
+!7 = !{!"tapir.loop.name", !"pepp.loop.i"}
+!8 = !{!"tapir.loop.name", !"pepp.loop.j"}
+!9 = !{!"tapir.loop.name", !"pepp.loop.k"}
+!10 = !{!"tapir.loop.name", !"pppe.loop.i"}
+!11 = !{!"tapir.loop.name", !"pppe.loop.j"}
+!12 = !{!"tapir.loop.name", !"pppe.loop.k"}

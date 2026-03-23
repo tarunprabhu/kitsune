@@ -107,5 +107,5 @@ declare void @ext2(i64, i64)
 !2 = !{!"tapir.loop.target", i32 4}
 !3 = !{!"tapir.loop.perfect.depth", i32 1}
 !4 = !{!"tapir.loop.perfect.level", i32 1}
-!5 = !{!"loop.name", !"loop.j"}
-!6 = !{!"loop.name", !"loop.i"}
+!5 = !{!"tapir.loop.name", !"loop.j"}
+!6 = !{!"tapir.loop.name", !"loop.i"}

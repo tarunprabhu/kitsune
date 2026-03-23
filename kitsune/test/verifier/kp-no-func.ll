@@ -11,19 +11,15 @@
 ;     the value of the kit_kernel_props attribute is "g" whereas the embedded
 ;     bitcode contains a function named "f"
 ;
-; FIXME: We do not currently have a tapir target id with the kernel.properties
-; attribute that is required for this test to work.
-; XFAIL: *
-;
 ; RUN: %kit-enc --tapir=cuda %s \
 ; RUN:     | sed '$a\@0 = constant i32 0, \!kit.gv.kernel.properties \!1' \
-; RUN:     | sed '$a\\!1 = \!{\!"g"\}' \
+; RUN:     | sed '$a\\!1 = \!{i32 2, \!"g"\}' \
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; RUN: %kit-enc --tapir=hip %s \
 ; RUN:     | sed '$a\@0 = constant i32 0, \!kit.gv.kernel.properties \!1' \
-; RUN:     | sed '$a\\!1 = \!{\!"g"\}' \
+; RUN:     | sed '$a\\!1 = \!{i32 4, \!"g"\}' \
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;

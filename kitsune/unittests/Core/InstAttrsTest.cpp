@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/InstAttrs.h"
+#include "TestValues.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Constants.h"
@@ -62,7 +63,7 @@ static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
 }
 
 TEST(KitInstAttrs, attrName) {
-#define INST_ATTR(NAME, TYPE, IRNAME)                                          \
+#define INST_ATTR(NAME, IRNAME, TYPE)                                          \
   EXPECT_EQ(getAttrName(InstAttrKind::NAME), IRNAME);                          \
   EXPECT_TRUE(getAttrName(InstAttrKind::NAME).starts_with("kit.inst."));
 #define GET_INST_ATTRS
@@ -70,56 +71,42 @@ TEST(KitInstAttrs, attrName) {
 }
 
 TEST(KitInstAttrs, attrKind) {
-  EXPECT_EQ(getInstAttrKind("whoops"), std::nullopt);
+  EXPECT_EQ(getInstAttrKind("queen's"), std::nullopt);
 
-#define INST_ATTR(NAME, TYPE, IRNAME)                                          \
+#define INST_ATTR(NAME, IRNAME, TYPE)                                          \
   EXPECT_EQ(getInstAttrKind(IRNAME), InstAttrKind::NAME);
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-#define CHECK_GENERIC_FLAG(NAME, INST)                                         \
-  EXPECT_FALSE(hasAttr(INST, InstAttrKind::NAME));                             \
-  addAttr(INST, InstAttrKind::NAME);                                           \
-  EXPECT_TRUE(hasAttr(INST, InstAttrKind::NAME));                              \
-  removeAttr(INST, InstAttrKind::NAME);                                        \
-  EXPECT_FALSE(hasAttr(INST, InstAttrKind::NAME));
-
-#define CHECK_GENERIC(NAME, INST, VAL)                                         \
-  EXPECT_FALSE(hasAttr(INST, InstAttrKind::NAME));                             \
-  add##NAME##Attr(INST, VAL);                                                  \
-  EXPECT_TRUE(hasAttr(INST, InstAttrKind::NAME));                              \
-  removeAttr(INST, InstAttrKind::NAME);                                        \
-  EXPECT_FALSE(hasAttr(INST, InstAttrKind::NAME));                             \
-  EXPECT_EXIT(addAttr(INST, InstAttrKind::NAME), ::testing::ExitedWithCode(1), \
-              "error: cannot add attribute");
-
 TEST(KitInstAttrs, attrsGeneric) {
   LLVMContext ctx;
-  std::unique_ptr<Module> m = parseIR(ctx, ll);
-  Function *f = m->getFunction("f");
-  DominatorTree dt(*f);
-  LoopInfo li(dt);
-  Loop *loop = *li.begin();
-  [[maybe_unused]] Instruction *inst = loop->getLatchCmpInst();
+  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
 
-#define INST_ATTR_FLAG(NAME, IRNAME) CHECK_GENERIC_FLAG(NAME, *inst)
-#define INST_ATTR_ENUM(NAME, IRNAME, TYPE) CHECK_GENERIC(NAME, *inst, (TYPE)1)
-#define INST_ATTR_F32(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, 3.14F)
-#define INST_ATTR_F64(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, 3.141592653)
-#define INST_ATTR_I32(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, 67)
-#define INST_ATTR_I64(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, 73L)
-#define INST_ATTR_STR(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, "queen's")
-#define INST_ATTR_LOOP(NAME, IRNAME) CHECK_GENERIC(NAME, *inst, *loop)
+#define INST_ATTR_0(NAME, IRNAME)                                              \
+  EXPECT_FALSE(hasAttr(*inst, InstAttrKind::NAME));                            \
+  addAttr(*inst, InstAttrKind::NAME);                                          \
+  EXPECT_TRUE(hasAttr(*inst, InstAttrKind::NAME));                             \
+  addAttr(*inst, InstAttrKind::NAME);                                          \
+  EXPECT_TRUE(hasAttr(*inst, InstAttrKind::NAME));                             \
+  removeAttr(*inst, InstAttrKind::NAME);                                       \
+  EXPECT_FALSE(hasAttr(*inst, InstAttrKind::NAME));
+#define GET_INST_ATTRS
+#include "kitsune/Core/InstAttrs.inc"
+
+#define INST_ATTR_0(NAME, IRNAME)
+#define INST_ATTR(NAME, IRNAME, TYPE)                                          \
+  EXPECT_EXIT(addAttr(*inst, InstAttrKind::NAME),                              \
+              ::testing::ExitedWithCode(1), "error: cannot add attribute");
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, flagAttrs) {
+TEST(KitInstAttrs, attr0) {
   LLVMContext ctx;
   [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
 
-#define INST_ATTR_FLAG(NAME, IRNAME)                                           \
+#define INST_ATTR_0(NAME, IRNAME)                                              \
   EXPECT_FALSE(has##NAME##Attr(*inst));                                        \
                                                                                \
   add##NAME##Attr(*inst);                                                      \
@@ -130,80 +117,32 @@ TEST(KitInstAttrs, flagAttrs) {
                                                                                \
   remove##NAME##Attr(*inst);                                                   \
   EXPECT_FALSE(has##NAME##Attr(*inst));
-
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-#define CHECK_ACCESSORS(NAME, INST, VAL1, VAL2)                                \
-  EXPECT_FALSE(has##NAME##Attr(INST));                                         \
+TEST(KitInstAttrs, attr1) {
+  LLVMContext ctx;
+  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
+
+#define INST_ATTR_1(NAME, IRNAME, TYPE)                                        \
+  EXPECT_FALSE(has##NAME##Attr(*inst));                                        \
                                                                                \
-  add##NAME##Attr(INST, VAL1);                                                 \
-  EXPECT_TRUE(has##NAME##Attr(INST));                                          \
-  EXPECT_EQ(get##NAME##Attr(INST), (VAL1));                                    \
+  add##NAME##Attr(*inst, get<TYPE>(0));                                        \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##NAME##Attr(*inst), get<TYPE>(0));                             \
                                                                                \
-  add##NAME##Attr(INST, VAL2);                                                 \
-  EXPECT_TRUE(has##NAME##Attr(INST));                                          \
-  EXPECT_EQ(get##NAME##Attr(INST), (VAL2));                                    \
+  add##NAME##Attr(*inst, get<TYPE>(1));                                        \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##NAME##Attr(*inst), get<TYPE>(1));                             \
                                                                                \
-  remove##NAME##Attr(INST);                                                    \
-  EXPECT_FALSE(has##NAME##Attr(INST));
-
-TEST(KitInstAttrs, enumAttrs) {
-  LLVMContext ctx;
-  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
-
-  // WARNING: This is somewhat risky because there is no guarantee that the
-  // integer values 1 and 2 will be valid for every enum type that we may have
-  // an attribute for. If this ever happens, change this test. It may be
-  // sufficient to just check for some enum-valued attribute instead of all of
-  // them.
-#define INST_ATTR_ENUM(NAME, IRNAME, TYPE)                                     \
-  CHECK_ACCESSORS(NAME, *inst, (TYPE)1, (TYPE)2)
-
+  remove##NAME##Attr(*inst);                                                   \
+  EXPECT_FALSE(has##NAME##Attr(*inst));
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, f32Test) {
-  LLVMContext ctx;
-  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
-
-#define INST_ATTR_F32(NAME, IRNAME)                                            \
-  CHECK_ACCESSORS(NAME, *inst, 3.14159F, 2.71828F)
-#define GET_INST_ATTRS
-#include "kitsune/Core/InstAttrs.inc"
-}
-
-TEST(KitInstAttrs, f64Test) {
-  LLVMContext ctx;
-  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
-
-#define INST_ATTR_F64(NAME, IRNAME)                                            \
-  CHECK_ACCESSORS(NAME, *inst, 3.1415926535, 2.71828)
-#define GET_INST_ATTRS
-#include "kitsune/Core/InstAttrs.inc"
-}
-
-TEST(KitInstAttrs, i32Test) {
-  LLVMContext ctx;
-  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
-
-#define INST_ATTR_I32(NAME, IRNAME) CHECK_ACCESSORS(NAME, *inst, 42, 97)
-#define GET_INST_ATTRS
-#include "kitsune/Core/InstAttrs.inc"
-}
-
-TEST(KitInstAttrs, i64Test) {
-  LLVMContext ctx;
-  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
-
-#define INST_ATTR_I64(NAME, IRNAME) CHECK_ACCESSORS(NAME, *inst, 2L, 7L)
-#define GET_INST_ATTRS
-#include "kitsune/Core/InstAttrs.inc"
-}
-
-TEST(KitInstAttrs, loopTest) {
+TEST(KitInstAttrs, loop) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, ll);
   Function *f = m->getFunction("f");
@@ -235,12 +174,233 @@ TEST(KitInstAttrs, loopTest) {
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, strTest) {
+TEST(KitInstAttrs, attr2) {
   LLVMContext ctx;
   [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
 
-#define INST_ATTR_STR(NAME, IRNAME)                                            \
-  CHECK_ACCESSORS(NAME, *inst, "magdalen", "exeter")
+#define INST_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
+  EXPECT_FALSE(has##NAME##Attr(*inst));                                        \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(0), get<ETY1>(1));                          \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(0));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(1));               \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(1), get<ETY1>(0));                          \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(1));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(0));               \
+                                                                               \
+  remove##NAME##Attr(*inst);                                                   \
+  EXPECT_FALSE(has##NAME##Attr(*inst));
+
+#define GET_INST_ATTRS
+#include "kitsune/Core/InstAttrs.inc"
+}
+
+TEST(KitInstAttrs, attr3) {
+  LLVMContext ctx;
+  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
+
+#define INST_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2)                                               \
+  EXPECT_FALSE(has##NAME##Attr(*inst));                                        \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2));            \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(0));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(1));               \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(*inst), get<ETY2>(2));               \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(2), get<ETY1>(1), get<ETY2>(0));            \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(2));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(1));               \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(*inst), get<ETY2>(0));               \
+                                                                               \
+  remove##NAME##Attr(*inst);                                                   \
+  EXPECT_FALSE(has##NAME##Attr(*inst));
+
+#define GET_INST_ATTRS
+#include "kitsune/Core/InstAttrs.inc"
+}
+
+TEST(KitInstAttrs, attr4) {
+  LLVMContext ctx;
+  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
+
+#define INST_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3)                            \
+  EXPECT_FALSE(has##NAME##Attr(*inst));                                        \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2),             \
+                  get<ETY3>(3));                                               \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(0));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(1));               \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(*inst), get<ETY2>(2));               \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(*inst), get<ETY3>(3));               \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(3), get<ETY1>(2), get<ETY2>(1),             \
+                  get<ETY3>(0));                                               \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(3));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(2));               \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(*inst), get<ETY2>(1));               \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(*inst), get<ETY3>(0));               \
+                                                                               \
+  remove##NAME##Attr(*inst);                                                   \
+  EXPECT_FALSE(has##NAME##Attr(*inst));
+
+#define GET_INST_ATTRS
+#include "kitsune/Core/InstAttrs.inc"
+}
+
+TEST(KitInstAttrs, attr5) {
+  LLVMContext ctx;
+  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
+
+#define INST_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)         \
+  EXPECT_FALSE(has##NAME##Attr(*inst));                                        \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2),             \
+                  get<ETY3>(3), get<ETY4>(4));                                 \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(0));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(1));               \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(*inst), get<ETY2>(2));               \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(*inst), get<ETY3>(3));               \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(*inst), get<ETY4>(4));               \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(4), get<ETY1>(3), get<ETY2>(2),             \
+                  get<ETY3>(1), get<ETY4>(0));                                 \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(4));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(3));               \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(*inst), get<ETY2>(2));               \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(*inst), get<ETY3>(1));               \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(*inst), get<ETY4>(0));               \
+                                                                               \
+  remove##NAME##Attr(*inst);                                                   \
+  EXPECT_FALSE(has##NAME##Attr(*inst));
+
+#define GET_INST_ATTRS
+#include "kitsune/Core/InstAttrs.inc"
+}
+
+TEST(KitInstAttrs, attr6) {
+  LLVMContext ctx;
+  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
+
+#define INST_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
+                    ENAME5, EN5)                                               \
+  EXPECT_FALSE(has##NAME##Attr(*inst));                                        \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2),             \
+                  get<ETY3>(3), get<ETY4>(4), get<ETY5>(5));                   \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(0));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(1));               \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(*inst), get<ETY2>(2));               \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(*inst), get<ETY3>(3));               \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(*inst), get<ETY4>(4));               \
+  EXPECT_EQ(get##ENAME5##From##NAME##Attr(*inst), get<ETY5>(5));               \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(5), get<ETY1>(4), get<ETY2>(3),             \
+                  get<ETY3>(2), get<ETY4>(1), get<ETY5>(0));                   \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(5));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(4));               \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(*inst), get<ETY2>(3));               \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(*inst), get<ETY3>(2));               \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(*inst), get<ETY4>(1));               \
+  EXPECT_EQ(get##ENAME5##From##NAME##Attr(*inst), get<ETY5>(0));               \
+                                                                               \
+  remove##NAME##Attr(*inst);                                                   \
+  EXPECT_FALSE(has##NAME##Attr(*inst));
+
+#define GET_INST_ATTRS
+#include "kitsune/Core/InstAttrs.inc"
+}
+
+TEST(KitInstAttrs, attr7) {
+  LLVMContext ctx;
+  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
+
+#define INST_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
+                    ENAME5, EN5, ETY6, ENAME6, EN6)                            \
+  EXPECT_FALSE(has##NAME##Attr(*inst));                                        \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2),             \
+                  get<ETY3>(3), get<ETY4>(4), get<ETY5>(5), get<ETY6>(6));     \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(0));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(1));               \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(*inst), get<ETY2>(2));               \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(*inst), get<ETY3>(3));               \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(*inst), get<ETY4>(4));               \
+  EXPECT_EQ(get##ENAME5##From##NAME##Attr(*inst), get<ETY5>(5));               \
+  EXPECT_EQ(get##ENAME6##From##NAME##Attr(*inst), get<ETY6>(6));               \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(6), get<ETY1>(5), get<ETY2>(4),             \
+                  get<ETY3>(3), get<ETY4>(2), get<ETY5>(1), get<ETY6>(0));     \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(6));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(5));               \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(*inst), get<ETY2>(4));               \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(*inst), get<ETY3>(3));               \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(*inst), get<ETY4>(2));               \
+  EXPECT_EQ(get##ENAME5##From##NAME##Attr(*inst), get<ETY5>(1));               \
+  EXPECT_EQ(get##ENAME6##From##NAME##Attr(*inst), get<ETY6>(0));               \
+                                                                               \
+  remove##NAME##Attr(*inst);                                                   \
+  EXPECT_FALSE(has##NAME##Attr(*inst));
+
+#define GET_INST_ATTRS
+#include "kitsune/Core/InstAttrs.inc"
+}
+
+TEST(KitInstAttrs, attr8) {
+  LLVMContext ctx;
+  [[maybe_unused]] ReturnInst *inst = ReturnInst::Create(ctx);
+
+#define INST_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
+                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
+                    ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
+  EXPECT_FALSE(has##NAME##Attr(*inst));                                        \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2),             \
+                  get<ETY3>(3), get<ETY4>(4), get<ETY5>(5), get<ETY6>(6),      \
+                  get<ETY7>(7));                                               \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(0));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(1));               \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(*inst), get<ETY2>(2));               \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(*inst), get<ETY3>(3));               \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(*inst), get<ETY4>(4));               \
+  EXPECT_EQ(get##ENAME5##From##NAME##Attr(*inst), get<ETY5>(5));               \
+  EXPECT_EQ(get##ENAME6##From##NAME##Attr(*inst), get<ETY6>(6));               \
+  EXPECT_EQ(get##ENAME7##From##NAME##Attr(*inst), get<ETY7>(7));               \
+                                                                               \
+  add##NAME##Attr(*inst, get<ETY0>(7), get<ETY1>(6), get<ETY2>(5),             \
+                  get<ETY3>(4), get<ETY4>(3), get<ETY5>(2), get<ETY6>(1),      \
+                  get<ETY7>(0));                                               \
+  EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
+  EXPECT_EQ(get##ENAME0##From##NAME##Attr(*inst), get<ETY0>(7));               \
+  EXPECT_EQ(get##ENAME1##From##NAME##Attr(*inst), get<ETY1>(6));               \
+  EXPECT_EQ(get##ENAME2##From##NAME##Attr(*inst), get<ETY2>(5));               \
+  EXPECT_EQ(get##ENAME3##From##NAME##Attr(*inst), get<ETY3>(4));               \
+  EXPECT_EQ(get##ENAME4##From##NAME##Attr(*inst), get<ETY4>(3));               \
+  EXPECT_EQ(get##ENAME5##From##NAME##Attr(*inst), get<ETY5>(2));               \
+  EXPECT_EQ(get##ENAME6##From##NAME##Attr(*inst), get<ETY6>(1));               \
+  EXPECT_EQ(get##ENAME7##From##NAME##Attr(*inst), get<ETY7>(0));               \
+                                                                               \
+  remove##NAME##Attr(*inst);                                                   \
+  EXPECT_FALSE(has##NAME##Attr(*inst));
+
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }

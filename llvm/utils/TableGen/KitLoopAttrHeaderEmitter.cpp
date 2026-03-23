@@ -21,16 +21,11 @@ class KitLoopAttrEmitter : public KitAttrHeaderEmitter {
 protected:
   StringRef getMacroRoot() const override;
   StringRef getIRNamePrefix(const Record &attr) const override;
-
   StringRef getAttrBase() const override;
-  StringRef getBaseMacroArgs() const override;
-  StringRef getMacroArgs(const Kind &kind) const override;
-
-  void emitMacroDefn(raw_ostream &os, const Kind &kind) override;
-  void emitAttr(raw_ostream &os, const Record &attr) override;
 
 public:
   KitLoopAttrEmitter(const RecordKeeper &records);
+  virtual ~KitLoopAttrEmitter() = default;
 };
 
 } // namespace
@@ -38,48 +33,10 @@ public:
 StringRef KitLoopAttrEmitter::getMacroRoot() const { return "LOOP"; }
 
 StringRef KitLoopAttrEmitter::getIRNamePrefix(const Record &attr) const {
-  if (isTapirOnly(attr))
-    return "tapir.loop.";
-  return "loop.";
+  return "tapir.loop.";
 }
 
 StringRef KitLoopAttrEmitter::getAttrBase() const { return "LoopAttr"; }
-
-StringRef KitLoopAttrEmitter::getBaseMacroArgs() const {
-  return "(NAME, TYPE, TAPIRONLY, IRNAME)";
-}
-
-StringRef KitLoopAttrEmitter::getMacroArgs(const Kind &kind) const {
-  if (kind.name == "ENUM")
-    return "(NAME, IRNAME, TAPIRONLY, TYPE)";
-  return "(NAME, IRNAME, TAPIRONLY)";
-}
-
-void KitLoopAttrEmitter::emitMacroDefn(raw_ostream &os, const Kind &kind) {
-  std::string baseMacroName = getBaseMacroName();
-  std::string macroName = getMacroName(kind);
-  StringRef macroArgs = getMacroArgs(kind);
-
-  os << "#ifndef " << macroName << "\n";
-  os << "#define " << macroName << macroArgs << " ";
-  os << baseMacroName << "(NAME, " << kind.type << ", TAPIRONLY, IRNAME)\n";
-  os << "#endif // " << macroName << "\n";
-  os << "\n";
-}
-
-void KitLoopAttrEmitter::emitAttr(raw_ostream &os, const Record &attr) {
-  const Record *type = attr.getValueAsDef("ValueType");
-  Kind kind = getKind(*type);
-  std::string macroName = getMacroName(kind);
-  std::string irName = getIRName(attr);
-  StringRef attrName = attr.getName();
-
-  os << macroName << "(" << attrName << ", \"" << irName << "\"";
-  os << ", " << (isTapirOnly(attr) ? "true" : "false");
-  if (kind.name == "ENUM")
-    os << ", " << type->getValueAsString("Name");
-  os << ")\n";
-}
 
 KitLoopAttrEmitter::KitLoopAttrEmitter(const RecordKeeper &records)
     : KitAttrHeaderEmitter(records) {}

@@ -89,11 +89,11 @@ for.i.end:
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.target", i32 2}
-!2 = !{!"loop.name", !"p.loop.i"}
+!2 = !{!"tapir.loop.name", !"p.loop.i"}
 !3 = distinct !{!3, !1, !5}
 !4 = distinct !{!4, !1, !6}
-!5 = !{!"loop.name", !"pp.loop.i"}
-!6 = !{!"loop.name", !"pp.loop.j"}
+!5 = !{!"tapir.loop.name", !"pp.loop.i"}
+!6 = !{!"tapir.loop.name", !"pp.loop.j"}
 !7 = distinct !{!7, !1, !9}
 !8 = distinct !{!8}
-!9 = !{!"loop.name", !"ps.loop.i"}
+!9 = !{!"tapir.loop.name", !"ps.loop.i"}

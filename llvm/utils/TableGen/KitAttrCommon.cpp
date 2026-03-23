@@ -46,7 +46,17 @@ bool isTapirOnly(const Record &attr) {
   return allowedOn->getName() == "TapirOnly";
 }
 
-StringRef getTypeName(const Record &attr) {
+StringRef getBasicTypeName(const Record &attr) {
   const Record *ty = attr.getValueAsDef("ValueType");
   return ty->getValueAsString("Name");
+}
+
+std::string quote(StringRef s, StringRef q) {
+  std::string buf;
+  raw_string_ostream os(buf);
+
+  os << q << s << q;
+  os.flush();
+
+  return buf;
 }

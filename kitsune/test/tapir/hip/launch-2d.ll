@@ -42,7 +42,7 @@
 ; CHECK-NEXT: }
 ;
 ; CHECK-DAG: ![[TT]] = !{i32 4}
-; CHECK-DAG: ![[KP]] = !{!"[[KNAME]]"}
+; CHECK-DAG: ![[KP]] = !{i32 4, !"[[KNAME]]"}
 
 define void @pp(i64 %m, i64 %n, ptr %c) {
 entry:

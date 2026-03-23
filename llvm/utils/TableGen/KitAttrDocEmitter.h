@@ -31,7 +31,6 @@ protected:
 protected:
   KitAttrDocEmitter(const llvm::RecordKeeper &records);
 
-  std::string quote(llvm::StringRef s, llvm::StringRef q = "\"") const;
   std::string getSectionLabel(const llvm::Record &attr) const;
   std::string getEnum(const llvm::Record &attr) const;
   std::string getValueType(const llvm::Record &attr) const;

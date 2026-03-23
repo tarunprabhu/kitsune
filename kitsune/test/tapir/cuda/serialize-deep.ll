@@ -30,7 +30,7 @@
 ; CHECK: sync within %syncreg.i
 ; CHECK: ret void
 ;
-; CHECK-DAG: ![[SERIALIZED:[0-9]+]] = !{!"loop.serialized"}
+; CHECK-DAG: ![[SERIALIZED:[0-9]+]] = !{!"tapir.loop.serialized"}
 ; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 2}
 ; CHECK-DAG: ![[L3:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 3}
 ; CHECK-DAG: ![[L2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
