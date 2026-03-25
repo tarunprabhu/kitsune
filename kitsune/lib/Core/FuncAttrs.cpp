@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/FuncAttrs.h"
+#include "kitsune/Core/AttrsCommon.h"
+#include "kitsune/Core/FunctionUtils.h"
 #include "kitsune/Core/MetadataUtils.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
@@ -58,11 +60,11 @@ std::optional<FuncAttrKind> llvm::getFuncAttrKind(StringRef name) {
       .Default(std::nullopt);
 }
 
-bool llvm::verifyAttr(const Function &f, FuncAttrKind attr) {
+bool llvm::verifyAttr(const Function &f, FuncAttrKind attr, raw_ostream *os) {
   switch (attr) {
 #define FUNC_ATTR(NAME, IRNAME, TYPE)                                          \
   case FuncAttrKind::NAME:                                                     \
-    return verify##NAME##Attr(f);
+    return verify##NAME##Attr(f, os);
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
   }
@@ -98,17 +100,16 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
   void llvm::remove##NAME##Attr(Function &f) {                                 \
     removeAttr(f, FuncAttrKind::NAME);                                         \
   }
+
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 
 #define FUNC_ATTR_0(NAME, IRNAME)                                              \
-  void llvm::add##NAME##Attr(Function &f) {                                    \
-    ::addAttr(f, FuncAttrKind::NAME, {});                                      \
-  }                                                                            \
+  void llvm::add##NAME##Attr(Function &f) { ADD_0(FuncAttrKind, NAME, f); }    \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Function &f) {                           \
+  bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
     if (MDNode *md = f.getMetadata(IRNAME))                                    \
-      return md->getNumOperands() == 0;                                        \
+      VERIFY_0(md->getNumOperands() == 0, IRNAME, os);                         \
     return true;                                                               \
   }
 
@@ -118,85 +119,54 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
   }                                                                            \
                                                                                \
   void llvm::add##NAME##Attr(Function &f, TYPE val) {                          \
-    Metadata *ops[] = {toMetadata(val, ctx)};                                  \
-    :addAttr(f, FuncAttrKind::NAME, ops);                                      \
+    ADD_1(FuncAttrKind, NAME, f, val);                                         \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Function &f) {                           \
-    if (has##NAME##Attr(f))                                                    \
-      return get##NAME##Attr(f);                                               \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
+    VERIFY_1(os, f, NAME, IRNAME, TYPE);                                       \
   }
 
 #define FUNC_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1) {                  \
-    LLVMContext &ctx = f.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx)};              \
-    ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+    ADD_2(FuncAttrKind, NAME, f, e0, e1);                                      \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Function &f) {                           \
-    if (has##NAME##Attr(f))                                                    \
-      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(f).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
+    VERIFY_2(os, f, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1);                 \
   }
 
 #define FUNC_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
                     ENAME2, EN2)                                               \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2) {         \
-    LLVMContext &ctx = f.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
-                       toMetadata(e2, ctx)};                                   \
-    ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+    ADD_3(FuncAttrKind, NAME, f, e0, e1, e2);                                  \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Function &f) {                           \
-    if (has##NAME##Attr(f))                                                    \
-      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME2##From##NAME##Attr(f).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
+    VERIFY_3(os, f, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2, ENAME2);   \
   }
 
 #define FUNC_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
                     ENAME2, EN2, ETY3, ENAME3, EN3)                            \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2,           \
                              ETY3 e3) {                                        \
-    LLVMContext &ctx = f.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
-                       toMetadata(e2, ctx), toMetadata(e3, ctx)};              \
-    ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+    ADD_4(FuncAttrKind, NAME, f, e0, e1, e2, e3);                              \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Function &f) {                           \
-    if (has##NAME##Attr(f))                                                    \
-      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME2##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME3##From##NAME##Attr(f).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
+    VERIFY_4(os, f, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2, ENAME2,    \
+             ETY3, ENAME3);                                                    \
   }
 
 #define FUNC_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
                     ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)         \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
                              ETY4 e4) {                                        \
-    LLVMContext &ctx = f.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
-                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
-                       toMetadata(e4, ctx)};                                   \
-    ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+    ADD_5(FuncAttrKind, NAME, f, e0, e1, e2, e3, e4);                          \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Function &f) {                           \
-    if (has##NAME##Attr(f))                                                    \
-      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME2##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME3##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME4##From##NAME##Attr(f).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
+    VERIFY_5(os, f, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2, ENAME2,    \
+             ETY3, ENAME3, ETY4, ENAME4);                                      \
   }
 
 #define FUNC_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -204,22 +174,12 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
                     ENAME5, EN5)                                               \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
                              ETY4 e4, ETY5 e5) {                               \
-    LLVMContext &ctx = f.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
-                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
-                       toMetadata(e4, ctx), toMetadata(e5, ctx)};              \
-    ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+    ADD_6(FuncAttrKind, NAME, f, e0, e1, e2, e3, e4, e5);                      \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Function &f) {                           \
-    if (has##NAME##Attr(f))                                                    \
-      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME2##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME3##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME4##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME5##From##NAME##Attr(f).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
+    VERIFY_6(os, f, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2, ENAME2,    \
+             ETY3, ENAME3, ETY4, ENAME4, ETY5, ENAME5);                        \
   }
 
 #define FUNC_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -227,24 +187,12 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
                     ENAME5, EN5, ETY6, ENAME6, EN6)                            \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
                              ETY4 e4, ETY5 e5, ETY6 e6) {                      \
-    LLVMContext &ctx = f.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
-                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
-                       toMetadata(e4, ctx), toMetadata(e5, ctx),               \
-                       toMetadata(e6, ctx)};                                   \
-    ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+    ADD_7(FuncAttrKind, NAME, f, e0, e1, e2, e3, e4, e5, e6);                  \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Function &f) {                           \
-    if (has##NAME##Attr(f))                                                    \
-      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME2##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME3##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME4##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME5##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME6##From##NAME##Attr(f).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
+    VERIFY_7(os, f, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2, ENAME2,    \
+             ETY3, ENAME3, ETY4, ENAME4, ETY5, ENAME5, ETY6, ENAME6);          \
   }
 
 #define FUNC_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
@@ -252,25 +200,13 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
                     ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
                              ETY4 e4, ETY5 e5, ETY6 e6, ETY7 e7) {             \
-    LLVMContext &ctx = f.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
-                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
-                       toMetadata(e4, ctx), toMetadata(e5, ctx),               \
-                       toMetadata(e6, ctx), toMetadata(e7, ctx)};              \
-    ::addAttr(f, FuncAttrKind::NAME, ops);                                     \
+    ADD_8(FuncAttrKind, NAME, f, e0, e1, e2, e3, e4, e5, e6, e7);              \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Function &f) {                           \
-    if (has##NAME##Attr(f))                                                    \
-      return get##ENAME0##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME2##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME3##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME4##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME5##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME6##From##NAME##Attr(f).has_value() &&                   \
-             get##ENAME7##From##NAME##Attr(f).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
+    VERIFY_8(os, f, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2, ENAME2,    \
+             ETY3, ENAME3, ETY4, ENAME4, ETY5, ENAME5, ETY6, ENAME6, ETY7,     \
+             ENAME7);                                                          \
   }
 
 #define GET_FUNC_ATTRS

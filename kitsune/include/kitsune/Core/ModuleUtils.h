@@ -20,11 +20,17 @@
 
 namespace llvm {
 
+class LLVMContext;
+class Module;
+class NamedMDNode;
+
 /// \addtogroup kitsune
 /// @{
 
-class Module;
-class NamedMDNode;
+/// Get the LLVM context from a module. This is useful when generating code from
+/// tablegen macros.
+LLVMContext &getContext(Module &m);
+LLVMContext &getContext(const Module &m);
 
 /// Add a the kit.module.device.module attribute containing information about
 /// the module into itself. This should only be called with a module generated

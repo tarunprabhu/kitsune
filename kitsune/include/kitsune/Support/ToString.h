@@ -16,6 +16,7 @@
 
 #include "kitsune/Core/OptznLevel.h"
 #include "kitsune/Core/Tapir.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
@@ -25,6 +26,10 @@ namespace llvm {
 std::string toString(const TTID &tt);
 std::string toString(const MaybeBool &);
 std::string toString(const OptznLevel &);
+
+/// Convert the name of the type to a string suitable for printing. For example,
+/// int32_t will be rendered to the string "int32_t".
+template <typename T> StringRef toString();
 
 /// @}
 

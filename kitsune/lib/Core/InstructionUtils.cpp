@@ -15,6 +15,12 @@
 
 using namespace llvm;
 
+LLVMContext &llvm::getContext(Instruction &inst) { return inst.getContext(); }
+
+LLVMContext &llvm::getContext(const Instruction &inst) {
+  return inst.getContext();
+}
+
 StringRef llvm::getInstClassName(const Instruction &inst) {
   switch (inst.getOpcode()) {
 #define HANDLE_INST(OPCODE, CLASS)                                             \

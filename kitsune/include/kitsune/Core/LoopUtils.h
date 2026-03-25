@@ -18,13 +18,13 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
 class BasicBlock;
 class Function;
 class LLVMContext;
 class Loop;
+
+/// \addtogroup kitsune
+/// @{
 
 /// Get the LLVMContext from the loop. This is only here because we cannot just
 /// call loop.getContext(), but instead have to get the header before we can get

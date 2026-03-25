@@ -20,9 +20,10 @@
 namespace llvm {
 
 class Function;
+class raw_ostream;
 
 /// \addtogroup kitsune
-/// \@{
+/// @{
 
 /// Kitsune-specific attributes for functions.
 enum class FuncAttrKind : uint32_t {
@@ -52,13 +53,16 @@ void removeAttr(Function &f, FuncAttrKind attr);
 
 /// If the attribute is not present on a function, return true. Otherwise,
 /// return if the expected number of values are found for the attribute, and
-/// each of them can be retrieved. In all other cases, return false.
-bool verifyAttr(const Function &f, FuncAttrKind attr);
+/// each of them can be retrieved. In all other cases, return false. If an
+/// output stream is provided, an error message will be printed to it if the
+/// attribute is invalid.
+bool verifyAttr(const Function &f, FuncAttrKind attr,
+                raw_ostream *os = nullptr);
 
 /// @}
 
 #define FUNC_ATTR(NAME, IRNAME, TYPE)                                          \
-  bool verify##NAME##Attr(const Function &f);                                  \
+  bool verify##NAME##Attr(const Function &f, raw_ostream *os = nullptr);       \
   bool has##NAME##Attr(const Function &f);                                     \
   void remove##NAME##Attr(Function &f);
 #define GET_FUNC_ATTRS
@@ -103,6 +107,7 @@ bool verifyAttr(const Function &f, FuncAttrKind attr);
                     ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
   void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,        \
                        ETY4 e4, ETY5 en5, ETY6 en6, ETY7 en7);
+
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 

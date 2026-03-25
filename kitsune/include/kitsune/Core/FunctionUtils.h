@@ -20,6 +20,12 @@ namespace llvm {
 
 class Argument;
 class Function;
+class LLVMContext;
+
+/// Get the LLVM context from a function. This is useful when generating code
+/// from tablegen macros.
+LLVMContext &getContext(Function &f);
+LLVMContext &getContext(const Function &f);
 
 /// Copy function attributes and other properties from the function \p src to
 /// the function \p dst. This will *NOT* copy attributes on function arguments.

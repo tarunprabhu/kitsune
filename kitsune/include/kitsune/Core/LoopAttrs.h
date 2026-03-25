@@ -28,6 +28,7 @@ namespace llvm {
 class LLVMContext;
 class Loop;
 class MDNode;
+class raw_ostream;
 
 /// The required prefix on the names of loop metadata specific to tapir loops.
 static constexpr StringRef tapirLoopAttrNamePrefix = "tapir.loop.";
@@ -60,8 +61,10 @@ void removeAttr(Loop &loop, LoopAttrKind attr);
 
 /// If the attribute is not present on a loop, return true. Otherwise, return if
 /// the expected number of values are found for the attribute, and each of them
-/// can be retrieved. In all other cases, return false.
-bool verifyAttr(const Loop &loop, LoopAttrKind attr);
+/// can be retrieved. In all other cases, return false. If an output stream is
+/// provided, an error message will be printed to it if the attribute is
+/// invalid.
+bool verifyAttr(const Loop &loop, LoopAttrKind attr, raw_ostream *os = nullptr);
 
 /// Get a metadata node for a loop attribute that takes a value.
 template <typename T>
@@ -77,7 +80,7 @@ MDNode *getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr, T val) {
 /// @}
 
 #define LOOP_ATTR(NAME, IRNAME, TYPE)                                          \
-  bool verify##NAME##Attr(const Loop &loop);                                   \
+  bool verify##NAME##Attr(const Loop &loop, raw_ostream *os = nullptr);        \
   bool has##NAME##Attr(const Loop &loop);                                      \
   void remove##NAME##Attr(Loop &loop);
 #define GET_LOOP_ATTRS
