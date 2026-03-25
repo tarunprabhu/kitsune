@@ -15,6 +15,28 @@
 
 using namespace llvm;
 
+template <> StringRef llvm::toString<int8_t>() { return "int8_t"; }
+template <> StringRef llvm::toString<uint8_t>() { return "uint8_t"; }
+template <> StringRef llvm::toString<int16_t>() { return "int16_t"; }
+template <> StringRef llvm::toString<uint16_t>() { return "uint16_t"; }
+template <> StringRef llvm::toString<int32_t>() { return "int32_t"; }
+template <> StringRef llvm::toString<uint32_t>() { return "uint32_t"; }
+template <> StringRef llvm::toString<int64_t>() { return "int64_t"; }
+template <> StringRef llvm::toString<uint64_t>() { return "uint64_t"; }
+template <> StringRef llvm::toString<float>() { return "float"; }
+template <> StringRef llvm::toString<double>() { return "double"; }
+
+template <> StringRef llvm::toString<std::string>() { return "std::string"; }
+template <> StringRef llvm::toString<StringRef>() { return "llvm::StringRef"; }
+
+template <> StringRef llvm::toString<TTID>() { return "llvm::TTID"; }
+template <> StringRef llvm::toString<TapirSpawnStrategy>() {
+  return "llvm::TapirSpawnStrategy";
+}
+template <> StringRef llvm::toString<OptznLevel>() {
+  return "llvm::OptznLevel";
+}
+
 std::string llvm::toString(const TTID &tt) {
   switch (tt) {
   case TTID::Nolo:

@@ -12,7 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/ModuleAttrs.h"
+#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/MetadataUtils.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -63,11 +65,11 @@ std::optional<ModuleAttrKind> llvm::getModuleAttrKind(StringRef name) {
       .Default(std::nullopt);
 }
 
-bool llvm::verifyAttr(const Module &m, ModuleAttrKind attr) {
+bool llvm::verifyAttr(const Module &m, ModuleAttrKind attr, raw_ostream *os) {
   switch (attr) {
 #define MODULE_ATTR(NAME, IRNAME, TYPE)                                        \
   case ModuleAttrKind::NAME:                                                   \
-    return verify##NAME##Attr(m);
+    return verify##NAME##Attr(m, os);
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
   }
@@ -109,13 +111,11 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
 #include "kitsune/Core/ModuleAttrs.inc"
 
 #define MODULE_ATTR_0(NAME, IRNAME)                                            \
-  void llvm::add##NAME##Attr(Module &m) {                                      \
-    ::addAttr(m, ModuleAttrKind::NAME, {});                                    \
-  }                                                                            \
+  void llvm::add##NAME##Attr(Module &m) { ADD_0(ModuleAttrKind, NAME, m); }    \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Module &m) {                             \
+  bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
     if (NamedMDNode *nmd = m.getNamedMetadata(IRNAME))                         \
-      return nmd->getNumOperands() == 0;                                       \
+      VERIFY_0(nmd->getNumOperands() == 0, IRNAME, os);                        \
     return true;                                                               \
   }
 
@@ -125,85 +125,53 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
   }                                                                            \
                                                                                \
   void llvm::add##NAME##Attr(Module &m, TYPE val) {                            \
-    LLVMContext &ctx = m.getContext();                                         \
-    Metadata *ops[] = {toMetadata(val, ctx)};                                  \
-    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+    ADD_1(ModuleAttrKind, NAME, m, val);                                       \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Module &m) {                             \
-    if (has##NAME##Attr(m))                                                    \
-      return get##NAME##Attr(m).has_value();                                   \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
+    VERIFY_1(os, m, NAME, IRNAME, TYPE);                                       \
   }
 
 #define MODULE_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)      \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1) {                    \
-    LLVMContext &ctx = m.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx)};              \
-    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+    ADD_2(ModuleAttrKind, NAME, m, e0, e1);                                    \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Module &m) {                             \
-    if (has##NAME##Attr(m))                                                    \
-      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(m).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
+    VERIFY_2(os, m, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1);                 \
   }
 
 #define MODULE_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
                       ETY2, ENAME2, EN2)                                       \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2) {           \
-    LLVMContext &ctx = m.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
-                       toMetadata(e2, ctx)};                                   \
-    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+    ADD_3(ModuleAttrKind, NAME, m, e0, e1, e2);                                \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Module &m) {                             \
-    if (has##NAME##Attr(m))                                                    \
-      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME2##From##NAME##Attr(m).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
+    VERIFY_3(os, m, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2, ENAME2);   \
   }
 
 #define MODULE_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
                       ETY2, ENAME2, EN2, ETY3, ENAME3, EN3)                    \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3) {  \
-    LLVMContext &ctx = m.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
-                       toMetadata(e2, ctx), toMetadata(e3, ctx)};              \
-    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+    ADD_4(ModuleAttrKind, NAME, m, e0, e1, e2, e3);                            \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Module &m) {                             \
-    if (has##NAME##Attr(m))                                                    \
-      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME2##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME3##From##NAME##Attr(m).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
+    VERIFY_4(os, m, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2, ENAME2,    \
+             ETY3, ENAME3);                                                    \
   }
 
 #define MODULE_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
                       ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4) \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,    \
                              ETY4 e4) {                                        \
-    LLVMContext &ctx = m.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
-                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
-                       toMetadata(e4, ctx)};                                   \
-    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+    ADD_5(ModuleAttrKind, NAME, m, e0, e1, e2, e3, e4);                        \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Module &m) {                             \
-    if (has##NAME##Attr(m))                                                    \
-      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME2##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME3##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME4##From##NAME##Attr(m).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
+    VERIFY_5(os, m, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2, ENAME2,    \
+             ETY3, ENAME3, ETY4, ENAME4);                                      \
   }
 
 #define MODULE_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
@@ -211,22 +179,12 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
                       ETY5, ENAME5, EN5)                                       \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,    \
                              ETY4 e4, ETY5 e5) {                               \
-    LLVMContext &ctx = m.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
-                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
-                       toMetadata(e4, ctx), toMetadata(e5, ctx)};              \
-    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+    ADD_6(ModuleAttrKind, NAME, m, e0, e1, e2, e3, e4, e5);                    \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Module &m) {                             \
-    if (has##NAME##Attr(m))                                                    \
-      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME2##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME3##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME4##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME5##From##NAME##Attr(m).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
+    VERIFY_6(os, m, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2, ENAME2,    \
+             ETY3, ENAME3, ETY4, ENAME4, ETY5, ENAME5);                        \
   }
 
 #define MODULE_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
@@ -234,24 +192,12 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
                       ETY5, ENAME5, EN5, ETY6, ENAME6, EN6)                    \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,    \
                              ETY4 e4, ETY5 e5, ETY6 e6) {                      \
-    LLVMContext &ctx = m.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
-                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
-                       toMetadata(e4, ctx), toMetadata(e5, ctx),               \
-                       toMetadata(e6, ctx)};                                   \
-    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+    ADD_7(ModuleAttrKind, NAME, m, e0, e1, e2, e3, e4, e5, e6);                \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Module &m) {                             \
-    if (has##NAME##Attr(m))                                                    \
-      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME2##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME3##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME4##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME5##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME6##From##NAME##Attr(m).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
+    VERIFY_7(os, m, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2, ENAME2,    \
+             ETY3, ENAME3, ETY4, ENAME4, ETY5, ENAME5, ETY6, ENAME6);          \
   }
 
 #define MODULE_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
@@ -259,25 +205,13 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
                       ETY5, ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7) \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,    \
                              ETY4 e4, ETY5 e5, ETY6 e6, ETY7 e7) {             \
-    LLVMContext &ctx = m.getContext();                                         \
-    Metadata *ops[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),               \
-                       toMetadata(e2, ctx), toMetadata(e3, ctx),               \
-                       toMetadata(e4, ctx), toMetadata(e5, ctx),               \
-                       toMetadata(e6, ctx), toMetadata(e7, ctx)};              \
-    ::addAttr(m, ModuleAttrKind::NAME, ops);                                   \
+    ADD_8(ModuleAttrKind, NAME, m, e0, e1, e2, e3, e4, e5, e6, e7);            \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const Module &m) {                             \
-    if (has##NAME##Attr(m))                                                    \
-      return get##ENAME0##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME1##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME2##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME3##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME4##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME5##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME6##From##NAME##Attr(m).has_value() &&                   \
-             get##ENAME7##From##NAME##Attr(m).has_value();                     \
-    return true;                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
+    VERIFY_8(os, m, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2, ENAME2,    \
+             ETY3, ENAME3, ETY4, ENAME4, ETY5, ENAME5, ETY6, ENAME6, ETY7,     \
+             ENAME7);                                                          \
   }
 
 #define GET_MODULE_ATTRS

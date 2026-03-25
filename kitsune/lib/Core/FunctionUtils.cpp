@@ -15,6 +15,10 @@
 
 using namespace llvm;
 
+LLVMContext &llvm::getContext(Function &f) { return f.getContext(); }
+
+LLVMContext &llvm::getContext(const Function &f) { return f.getContext(); }
+
 void llvm::copyAttrs(Function &dst, const Function &src) {
   for (Attribute attr : src.getAttributes().getFnAttrs())
     dst.addAttributeAtIndex(AttributeList::FunctionIndex, attr);

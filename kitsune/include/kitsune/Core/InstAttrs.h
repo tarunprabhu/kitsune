@@ -22,9 +22,10 @@ namespace llvm {
 class Instruction;
 class Loop;
 class LoopInfo;
+class raw_ostream;
 
 /// \addtogroup kitsune
-/// \@{
+/// @{
 
 /// Kitsune-specific attributes for instructions.
 enum class InstAttrKind : uint32_t {
@@ -55,13 +56,16 @@ void removeAttr(Instruction &inst, InstAttrKind attr);
 
 /// If the attribute is not present on an instruction, return true. Otherwise,
 /// return if the expected number of values are found for the attribute, and
-/// each of them can be retrieved. In all other cases, return false.
-bool verifyAttr(const Instruction &inst, InstAttrKind attr);
+/// each of them can be retrieved. In all other cases, return false. If an
+/// output stream is provided, an error message will be printed to it if the
+/// attribute is invalid.
+bool verifyAttr(const Instruction &inst, InstAttrKind attr,
+                raw_ostream *os = nullptr);
 
 /// @}
 
 #define INST_ATTR(NAME, IRNAME, TYPE)                                          \
-  bool verify##NAME##Attr(const Instruction &inst);                            \
+  bool verify##NAME##Attr(const Instruction &inst, raw_ostream *os = nullptr); \
   bool has##NAME##Attr(const Instruction &inst);                               \
   void remove##NAME##Attr(Instruction &inst);
 #define GET_INST_ATTRS
@@ -118,8 +122,7 @@ bool verifyAttr(const Instruction &inst, InstAttrKind attr);
   std::optional<Loop *> get##NAME##Attr(                                       \
       const Instruction &inst, const SmallVectorImpl<const LoopInfo *> &lis);  \
   void add##NAME##Attr(Instruction &inst, Loop *loop);                         \
-  void add##NAME##Attr(Instruction &inst, Loop &loop);                         \
-  bool verify##NAME##Attr(const Instruction &inst);
+  void add##NAME##Attr(Instruction &inst, Loop &loop);
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 

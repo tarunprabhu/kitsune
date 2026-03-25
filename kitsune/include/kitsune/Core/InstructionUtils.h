@@ -17,10 +17,16 @@
 
 namespace llvm {
 
+class Instruction;
+class LLVMContext;
+
 /// \addtogroup kitsune
 /// @{
 
-class Instruction;
+/// Get the LLVM context from an instruction. This is useful when generating
+/// code from tablegen macros.
+LLVMContext &getContext(Instruction &inst);
+LLVMContext &getContext(const Instruction &inst);
 
 /// Get the class name of the given instruction. This will be a string literal
 /// representing the C++ name of the concrete class of the instruction. For

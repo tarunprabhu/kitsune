@@ -20,9 +20,10 @@
 namespace llvm {
 
 class GlobalVariable;
+class raw_ostream;
 
 /// \addtogroup kitsune
-/// \@{
+/// @{
 
 /// Kitsune-specific attributes for global variables.
 enum class GVAttrKind : uint32_t {
@@ -54,13 +55,15 @@ void removeAttr(GlobalVariable &f, GVAttrKind attr);
 /// If the attribute is not present on a global variable, return true.
 /// Otherwise, return if the expected number of values are found for the
 /// attribute, and each of them can be retrieved. In all other cases, return
-/// false.
-bool verifyAttr(const GlobalVariable &g, GVAttrKind attr);
+/// false. If an output stream is provided, an error message will be printed to
+/// it if the attribute is invalid.
+bool verifyAttr(const GlobalVariable &g, GVAttrKind attr,
+                raw_ostream *os = nullptr);
 
 /// @}
 
 #define GV_ATTR(NAME, IRNAME, TYPE)                                            \
-  bool verify##NAME##Attr(const GlobalVariable &g);                            \
+  bool verify##NAME##Attr(const GlobalVariable &g, raw_ostream *os = nullptr); \
   bool has##NAME##Attr(const GlobalVariable &g);                               \
   void remove##NAME##Attr(GlobalVariable &g);
 #define GET_GV_ATTRS
