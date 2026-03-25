@@ -13,7 +13,7 @@
 
 #include "kitsune/Core/InstAttrs.h"
 #include "kitsune/Core/AttrsCommon.h"
-#include "kitsune/Core/InstructionUtils.h"
+#include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/MetadataUtils.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"

@@ -1,4 +1,4 @@
-//==- FunctionUtilsTest.cpp - Unit tests for Kitsune's function utilities --==//
+//===- FuncUtilsTest.cpp - Unit tests for Kitsune's function utilities ----===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Core/FunctionUtils.h"
+#include "kitsune/Core/FuncUtils.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"

@@ -1,4 +1,4 @@
-//===- InstructionUtils.h - Utilities for LLVM instructions-----*- C++ -*--===//
+//===- InstUtils.h - Utilities for LLVM instructions -----------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_CORE_INSTRUCTION_UTILS_H
-#define KITSUNE_CORE_INSTRUCTION_UTILS_H
+#ifndef KITSUNE_CORE_INST_UTILS_H
+#define KITSUNE_CORE_INST_UTILS_H
 
 #include "llvm/ADT/StringRef.h"
 
@@ -37,4 +37,4 @@ StringRef getInstClassName(const Instruction &inst);
 
 } // namespace llvm
 
-#endif // KITSUNE_CORE_INSTRUCTION_UTILS_H
+#endif // KITSUNE_CORE_INST_UTILS_H

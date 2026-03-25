@@ -1,4 +1,4 @@
-//===- InstructionUtils.cpp - Utilities for LLVM instructions -------------===//
+//===- InstUtils.cpp - Utilities for LLVM instructions --------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Core/InstructionUtils.h"
+#include "kitsune/Core/InstUtils.h"
 #include "llvm/IR/Instructions.h"
 
 using namespace llvm;

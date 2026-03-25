@@ -9,10 +9,10 @@ add_kitsune_unittest_with_input_files(KitCoreTests
   DIUtilsTest.cpp
   EmbUtilsTest.cpp
   FuncAttrsTest.cpp
-  FunctionUtilsTest.cpp
+  FuncUtilsTest.cpp
   GVAttrsTest.cpp
   InstAttrsTest.cpp
-  InstructionUtilsTest.cpp
+  InstUtilsTest.cpp
   IntrinsicUtilsTest.cpp
   LoopAttrsTest.cpp
   LoopUtilsTest.cpp

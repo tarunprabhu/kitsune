@@ -46,7 +46,7 @@
 #include "kitsune/Analysis/PreLowerVerification.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
-#include "kitsune/Core/InstructionUtils.h"
+#include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
