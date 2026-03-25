@@ -1,4 +1,4 @@
-//===- FunctionUtils.cpp - Utilities for LLVM functions -------------------===//
+//===- FuncUtils.cpp - Utilities for LLVM functions -----------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Core/FunctionUtils.h"
+#include "kitsune/Core/FuncUtils.h"
 #include "llvm/IR/Function.h"
 
 using namespace llvm;

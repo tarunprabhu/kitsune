@@ -28,6 +28,7 @@ class GlobalIFunc;
 class GlobalVariable;
 class GlobalValue;
 
+/// \ingroup kitsune
 /// Base class shared by the loop outline processors of GPU-centric tapir
 /// targets.
 class GPUTTLoopBase : public LoopOutlineProcessor {

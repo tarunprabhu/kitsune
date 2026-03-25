@@ -1,4 +1,4 @@
-//===- FunctionUtils.h - Utilities for LLVM functions ----------*- C++ -*--===//
+//===- FuncUtils.h - Utilities for LLVM functions --------------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,17 +10,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_CORE_FUNCTION_UTILS_H
-#define KITSUNE_CORE_FUNCTION_UTILS_H
+#ifndef KITSUNE_CORE_FUNC_UTILS_H
+#define KITSUNE_CORE_FUNC_UTILS_H
 
 namespace llvm {
-
-/// \addtogroup kitsune
-/// @{
 
 class Argument;
 class Function;
 class LLVMContext;
+
+/// \addtogroup kitsune
+/// @{
 
 /// Get the LLVM context from a function. This is useful when generating code
 /// from tablegen macros.
@@ -46,4 +46,4 @@ void copyAttrs(Argument &dst, const Argument &src);
 
 } // namespace llvm
 
-#endif // KITSUNE_CORE_FUNCTION_UTILS_H
+#endif // KITSUNE_CORE_FUNC_UTILS_H

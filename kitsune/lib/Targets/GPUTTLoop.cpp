@@ -15,7 +15,7 @@
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/FuncAttrs.h"
-#include "kitsune/Core/InstructionUtils.h"
+#include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"

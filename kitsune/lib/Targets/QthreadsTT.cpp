@@ -12,7 +12,7 @@
 
 #include "kitsune/Targets/QthreadsTT.h"
 #include "kitsune/Core/ConstantUtils.h"
-#include "kitsune/Core/FunctionUtils.h"
+#include "kitsune/Core/FuncUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"

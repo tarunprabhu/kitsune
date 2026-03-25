@@ -4,11 +4,11 @@ add_llvm_component_library(LLVMKitCore
   DIUtils.cpp
   EmbUtils.cpp
   FuncAttrs.cpp
-  FunctionUtils.cpp
+  FuncUtils.cpp
   GVAttrs.cpp
   GVUtils.cpp
   InstAttrs.cpp
-  InstructionUtils.cpp
+  InstUtils.cpp
   IntrinsicUtils.cpp
   KernelProperties.cpp
   LoopAttrs.cpp
