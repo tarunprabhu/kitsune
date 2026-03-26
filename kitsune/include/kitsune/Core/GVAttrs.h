@@ -20,6 +20,9 @@
 namespace llvm {
 
 class GlobalVariable;
+class Loop;
+class LoopInfo;
+class MDNode;
 class raw_ostream;
 
 /// \addtogroup kitsune
@@ -30,6 +33,11 @@ enum class GVAttrKind : uint32_t {
 #define GET_GV_ATTR_ENUMS
 #include "kitsune/Core/GVAttrs.inc"
 };
+
+/// Get the metadata node containing the list of Kitsune-specific attributes.
+/// If no Kitsune-specific attributes have been added to the global variable,
+/// this may return nullptr.
+MDNode *getAttrList(const GlobalVariable &g);
 
 /// Get the name of the global variable attribute as it appears in the LLVM-IR
 /// metadata. The result will start with "kit.gv.".
@@ -68,6 +76,11 @@ bool verifyAttr(const GlobalVariable &g, GVAttrKind attr,
   void remove##NAME##Attr(GlobalVariable &g);
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
+
+#define GV_ATTR_LOOP(NAME, IRNAME)                                             \
+  std::optional<Loop *> get##NAME##Attr(                                       \
+      const GlobalVariable &g, const SmallVectorImpl<const LoopInfo *> &lis);  \
+  void add##NAME##Attr(GlobalVariable &g, const Loop &loop);
 
 #define GV_ATTR_0(NAME, IRNAME) void add##NAME##Attr(GlobalVariable &g);
 
@@ -108,6 +121,7 @@ bool verifyAttr(const GlobalVariable &g, GVAttrKind attr,
                   ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)           \
   void add##NAME##Attr(GlobalVariable &g, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
                        ETY4 e4, ETY5 en5, ETY6 en6, ETY7 en7);
+
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 

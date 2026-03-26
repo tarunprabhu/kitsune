@@ -4,6 +4,7 @@
 ;
 ; CHECK: missing initializer in global containing kernel properties
 
-@0 = external global { i64, i64, i64, i64 }, !kit.gv.kernel.properties !0
+@0 = external global { i64, i64, i64, i64 }, !kit.gv !0
 
-!0 = !{!"lancashire"}
+!0 = distinct !{!0, !1}
+!1 = !{!"kit.gv.kernel.properties", i32 2, !"lancashire"}

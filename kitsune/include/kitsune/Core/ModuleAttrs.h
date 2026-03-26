@@ -22,8 +22,10 @@ namespace llvm {
 /// \addtogroup kitsune
 /// @{
 
-class LLVMContext;
+class Loop;
+class LoopInfo;
 class Module;
+class MDNode;
 class raw_ostream;
 
 /// Kitsune-specific attributes for modules.
@@ -31,6 +33,11 @@ enum class ModuleAttrKind : uint32_t {
 #define GET_MODULE_ATTR_ENUMS
 #include "kitsune/Core/ModuleAttrs.inc"
 };
+
+/// Get the metadata node containing the list of Kitsune-specific attributes.
+/// If no Kitsune-specific attributes have been attached to the module, this
+/// may return nullptr.
+MDNode *getAttrList(const Module &m);
 
 /// Get the name of the module attribute as it appears in the metadata. The
 /// result will start with "kit.module.".
@@ -70,6 +77,11 @@ bool verifyAttr(const Module &m, ModuleAttrKind attr,
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 
+#define MODULE_ATTR_LOOP(NAME, IRNAME)                                         \
+  std::optional<Loop *> get##NAME##Attr(                                       \
+      const Module &m, const SmallVectorImpl<const LoopInfo *> &lis);          \
+  void add##NAME##Attr(Module &m, const Loop &loop);
+
 #define MODULE_ATTR_0(NAME, IRNAME) void add##NAME##Attr(Module &m);
 
 #define MODULE_ATTR_1(NAME, IRNAME, TYPE)                                      \
@@ -108,6 +120,7 @@ bool verifyAttr(const Module &m, ModuleAttrKind attr,
                       ETY5, ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7) \
   void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3, ETY4 e4, \
                        ETY5 en5, ETY6 en6, ETY7 en7);
+
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 

@@ -6,7 +6,7 @@
 ;
 ; CHECK: embedded module requires non-empty name in device module metadata
 
-!kit.module.device.module.flags = !{!0, !1}
+!kit.module = !{!0}
 
-!0 = !{i32 4}
-!1 = !{!""}
+!0 = distinct !{!0, !1}
+!1 = !{!"kit.module.device.module.flags", i32 4, !""}

@@ -12,10 +12,13 @@
 ; RUN: %kit-enc --tapir=cuda %s \
 ; RUN:     | FileCheck %s --check-prefix=CUDA
 ;
-; CUDA-DAG: @{{.+}} = {{.+}}, !kit.gv.bit.code ![[TT:[0-9]+]]
-; CUDA-DAG: @{{.+}} = {{.+}}, !kit.gv.device.code ![[TT]]
+; CUDA-DAG: @{{.+}} = {{.+}}, !kit.gv ![[MDBC:[0-9]+]]
+; CUDA-DAG: @{{.+}} = {{.+}}, !kit.gv ![[MDDC:[0-9]+]]
 ;
-; CUDA: [[TT]] = !{i32 2}
+; CUDA-DAG: ![[MDBC]] = distinct !{![[MDBC]], ![[BC:[0-9]+]]}
+; CUDA-DAG: ![[BC]] = !{!"kit.gv.bit.code", i32 2}
+; CUDA-DAG: ![[MDDC]] = distinct !{![[MDDC]], ![[DC:[0-9]+]]}
+; CUDA-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 2}
 ;
 ; ------------------------------------------------------------------------------
 ; Check that the --tapir option overrides the default. The default is
@@ -24,10 +27,13 @@
 ; RUN: %kit-enc -tapir=hip %s \
 ; RUN:     | FileCheck %s --check-prefix=HIP
 ;
-; HIP-DAG: @{{.+}} = {{.+}}, !kit.gv.bit.code ![[TT:[0-9]+]]
-; HIP-DAG: @{{.+}} = {{.+}}, !kit.gv.device.code ![[TT]]
+; HIP-DAG: @{{.+}} = {{.+}}, !kit.gv ![[MDBC:[0-9]+]]
+; HIP-DAG: @{{.+}} = {{.+}}, !kit.gv ![[MDDC:[0-9]+]]
 ;
-; HIP: [[TT]] = !{i32 4}
+; HIP-DAG: ![[MDBC]] = distinct !{![[MDBC]], ![[BC:[0-9]+]]}
+; HIP-DAG: ![[BC]] = !{!"kit.gv.bit.code", i32 4}
+; HIP-DAG: ![[MDDC]] = distinct !{![[MDDC]], ![[DC:[0-9]+]]}
+; HIP-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 4}
 ;
 ; ------------------------------------------------------------------------------
 ; Check that the --name option overrides the input module name. In this case,
@@ -38,5 +44,6 @@
 ; RUN:     | FileCheck %s --check-prefix=NAME
 ;
 ; NAME: ModuleID = 'winnie-the-pooh'
-; NAME: !kit.module.device.module.flags = !{!{{[0-9]+}}, ![[NAMEMD:[0-9]+]]}
-; NAME: [[NAMEMD]] = !{!"winnie-the-pooh"}
+; NAME: !kit.module = !{![[MD:[0-9]+]]}
+; NAME: ![[MD]] = distinct !{![[MD]], ![[FLAGS:[0-9]+]]}
+; NAME: ![[FLAGS]] = !{!"kit.module.device.module.flags", i32 {{[0-9]+}}, !"winnie-the-pooh"}

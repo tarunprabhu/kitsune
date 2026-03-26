@@ -15,12 +15,12 @@
 ; CHECK: define {{.*}}@[[F1:__kitcuda_loop_f1[^(]*]](
 ; CHECK: define {{.*}}@[[F2:__kitcuda_loop_f2[^(]*]](
 ;
-; CHECK: !kit.module.device.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
+; CHECK: !kit.module = !{![[MD:[0-9]+]]}
 ; CHECK: !llvm.module.flags = !{{{.*}}![[FTZ:[0-9]+]]{{.*}}}
 ;
 ; CHECK-DAG: ![[FTZ]] = !{i32 4, !"nvvm-reflect-ftz", i32 0}
-; CHECK-DAG: ![[MDTT]] = !{i32 2}
-; CHECK-DAG: ![[MDNAME]] = !{!"__kitcuda_kernel-module-kit-md.ll"}
+; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[FLAGS:[0-9]+]]}
+; CHECK-DAG: ![[FLAGS]] = !{!"kit.module.device.module.flags", i32 2, !"__kitcuda_kernel-module-kit-md.ll"}
 
 define void @f1(ptr %c, i64 %n) {
 entry:

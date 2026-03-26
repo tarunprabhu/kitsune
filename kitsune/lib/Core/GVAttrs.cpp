@@ -18,28 +18,33 @@
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/GlobalVariable.h"
 
 using namespace llvm;
 
-static void addAttr(GlobalVariable &g, GVAttrKind attr,
-                    ArrayRef<Metadata *> ops) {
-  LLVMContext &ctx = g.getContext();
-  StringRef attrName = getAttrName(attr);
-  MDNode *md = MDNode::get(ctx, ops);
-
-  removeAttr(g, attr);
-  g.addMetadata(attrName, *md);
+static void setAttrList(GlobalVariable &g, MDNode *attrList) {
+  g.setMetadata(LLVMContext::MD_kit_gv_attrs, attrList);
 }
 
-template <typename T>
-static std::optional<T> getAttr(const GlobalVariable &g, GVAttrKind attr,
-                                unsigned i, unsigned n) {
-  StringRef attrName = getAttrName(attr);
-  if (MDNode *md = g.getMetadata(attrName))
-    if (md->getNumOperands() == n)
-      return fromMetadata<T>(md->getOperand(i));
-  return std::nullopt;
+static void addAttr(GlobalVariable &g, StringRef name,
+                    ArrayRef<Metadata *> vals) {
+  LLVMContext &ctx = g.getContext();
+  MDNode *attrList = getAttrList(g);
+  MDNode *newAttrList = getNewAttrListWith(name, vals, attrList, ctx);
+
+  setAttrList(g, newAttrList);
+}
+
+static void removeAttr(GlobalVariable &g, StringRef attrName) {
+  MDNode *attrList = getAttrList(g);
+  MDNode *newAttrList = getNewAttrListWithout(attrName, attrList);
+
+  setAttrList(g, newAttrList);
+}
+
+MDNode *llvm::getAttrList(const GlobalVariable &g) {
+  return g.getMetadata(LLVMContext::MD_kit_gv_attrs);
 }
 
 StringRef llvm::getAttrName(GVAttrKind attr) {
@@ -74,56 +79,65 @@ bool llvm::verifyAttr(const GlobalVariable &g, GVAttrKind attr,
 }
 
 bool llvm::hasAttr(const GlobalVariable &g, GVAttrKind attr) {
-  return g.hasMetadata(getAttrName(attr));
+  return getRawAttr(getAttrName(attr), getAttrList(g));
 }
 
 void llvm::addAttr(GlobalVariable &g, GVAttrKind attr) {
+  StringRef attrName = getAttrName(attr);
   switch (attr) {
   default:
-    emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
+    emitDiagnostic(DiagID::ErrAttrWithoutValues, attrName);
     exitOnError();
     break;
 #define GV_ATTR_0(NAME, IRNAME) case GVAttrKind::NAME:
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
-    return ::addAttr(g, attr, {});
+    return ::addAttr(g, attrName, {});
   }
 }
 
 void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
-  g.setMetadata(getAttrName(attr), nullptr);
+  ::removeAttr(g, getAttrName(attr));
 }
 
 #define GV_ATTR(NAME, IRNAME, TYPE)                                            \
   bool llvm::has##NAME##Attr(const GlobalVariable &g) {                        \
-    return hasAttr(g, GVAttrKind::NAME);                                       \
+    return getRawAttr(IRNAME, getAttrList(g));                                 \
   }                                                                            \
                                                                                \
-  void llvm::remove##NAME##Attr(GlobalVariable &g) {                           \
-    removeAttr(g, GVAttrKind::NAME);                                           \
-  }
+  void llvm::remove##NAME##Attr(GlobalVariable &g) { ::removeAttr(g, IRNAME); }
 
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 
-#define GV_ATTR_0(NAME, IRNAME)                                                \
-  void llvm::add##NAME##Attr(GlobalVariable &g) {                              \
-    ADD_0(GVAttrKind, NAME, g);                                                \
+#define GV_ATTR_LOOP(NAME, IRNAME)                                             \
+  std::optional<Loop *> llvm::get##NAME##Attr(                                 \
+      const GlobalVariable &g, const SmallVectorImpl<const LoopInfo *> &lis) { \
+    return getAttrValue(IRNAME, getAttrList(g), lis);                          \
+  }                                                                            \
+                                                                               \
+  void llvm::add##NAME##Attr(GlobalVariable &g, const Loop &loop) {            \
+    ::addAttr(g, IRNAME, loop.getLoopID());                                    \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const GlobalVariable &g, raw_ostream *os) {    \
-    if (MDNode *md = g.getMetadata(IRNAME))                                    \
-      VERIFY_0(md->getNumOperands() == 0, IRNAME, os);                         \
-    return true;                                                               \
+    return verifyAttrLoop(IRNAME, getAttrList(g), os);                         \
+  }
+
+#define GV_ATTR_0(NAME, IRNAME)                                                \
+  void llvm::add##NAME##Attr(GlobalVariable &g) { ADD_0(IRNAME, g); }          \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const GlobalVariable &g, raw_ostream *os) {    \
+    return verifyAttr0(IRNAME, getAttrList(g), os);                            \
   }
 
 #define GV_ATTR_1(NAME, IRNAME, TYPE)                                          \
   std::optional<TYPE> llvm::get##NAME##Attr(const GlobalVariable &g) {         \
-    return getAttr<TYPE>(g, GVAttrKind::NAME, 0, 1);                           \
+    return ::getAttrValue<TYPE>(IRNAME, getAttrList(g), 0, 1);                 \
   }                                                                            \
                                                                                \
   void llvm::add##NAME##Attr(GlobalVariable &g, TYPE val) {                    \
-    ADD_1(GVAttrKind, NAME, g, val);                                           \
+    ADD_1(IRNAME, g, val);                                                     \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const GlobalVariable &g, raw_ostream *os) {    \
@@ -132,7 +146,7 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
 
 #define GV_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)          \
   void llvm::add##NAME##Attr(GlobalVariable &g, ETY0 e0, ETY1 e1) {            \
-    ADD_2(GVAttrKind, NAME, g, e0, e1);                                        \
+    ADD_2(IRNAME, g, e0, e1);                                                  \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const GlobalVariable &g, raw_ostream *os) {    \
@@ -142,7 +156,7 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
 #define GV_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,    \
                   ENAME2, EN2)                                                 \
   void llvm::add##NAME##Attr(GlobalVariable &g, ETY0 e0, ETY1 e1, ETY2 e2) {   \
-    ADD_3(GVAttrKind, NAME, g, e0, e1, e2);                                    \
+    ADD_3(IRNAME, g, e0, e1, e2);                                              \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const GlobalVariable &g, raw_ostream *os) {    \
@@ -153,7 +167,7 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
                   ENAME2, EN2, ETY3, ENAME3, EN3)                              \
   void llvm::add##NAME##Attr(GlobalVariable &g, ETY0 e0, ETY1 e1, ETY2 e2,     \
                              ETY3 e3) {                                        \
-    ADD_4(GVAttrKind, NAME, g, e0, e1, e2, e3);                                \
+    ADD_4(IRNAME, g, e0, e1, e2, e3);                                          \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const GlobalVariable &g, raw_ostream *os) {    \
@@ -165,7 +179,7 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
                   ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)           \
   void llvm::add##NAME##Attr(GlobalVariable &g, ETY0 e0, ETY1 e1, ETY2 e2,     \
                              ETY3 e3, ETY4 e4) {                               \
-    ADD_5(GVAttrKind, NAME, g, e0, e1, e2, e3, e4);                            \
+    ADD_5(IRNAME, g, e0, e1, e2, e3, e4);                                      \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const GlobalVariable &g, raw_ostream *os) {    \
@@ -178,7 +192,7 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
                   ENAME5, EN5)                                                 \
   void llvm::add##NAME##Attr(GlobalVariable &g, ETY0 e0, ETY1 e1, ETY2 e2,     \
                              ETY3 e3, ETY4 e4, ETY5 e5) {                      \
-    ADD_6(GVAttrKind, NAME, g, e0, e1, e2, e3, e4, e5);                        \
+    ADD_6(IRNAME, g, e0, e1, e2, e3, e4, e5);                                  \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const GlobalVariable &g, raw_ostream *os) {    \
@@ -191,7 +205,7 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
                   ENAME5, EN5, ETY6, ENAME6, EN6)                              \
   void llvm::add##NAME##Attr(GlobalVariable &g, ETY0 e0, ETY1 e1, ETY2 e2,     \
                              ETY3 e3, ETY4 e4, ETY5 e5, ETY6 e6) {             \
-    ADD_7(GVAttrKind, NAME, g, e0, e1, e2, e3, e4, e5, e6);                    \
+    ADD_7(IRNAME, g, e0, e1, e2, e3, e4, e5, e6);                              \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const GlobalVariable &g, raw_ostream *os) {    \
@@ -204,7 +218,7 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
                   ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)           \
   void llvm::add##NAME##Attr(GlobalVariable &g, ETY0 e0, ETY1 e1, ETY2 e2,     \
                              ETY3 e3, ETY4 e4, ETY5 e5, ETY6 e6, ETY7 e7) {    \
-    ADD_8(GVAttrKind, NAME, g, e0, e1, e2, e3, e4, e5, e6, e7);                \
+    ADD_8(IRNAME, g, e0, e1, e2, e3, e4, e5, e6, e7);                          \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const GlobalVariable &g, raw_ostream *os) {    \
@@ -219,7 +233,7 @@ void llvm::removeAttr(GlobalVariable &g, GVAttrKind attr) {
 #define GV_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                        \
   std::optional<ETY> llvm::get##ENAME##From##NAME##Attr(                       \
       const GlobalVariable &g) {                                               \
-    return getAttr<ETY>(g, GVAttrKind::NAME, EN, NELEMS);                      \
+    return getAttrValue<ETY>(IRNAME, getAttrList(g), EN, NELEMS);              \
   }
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"

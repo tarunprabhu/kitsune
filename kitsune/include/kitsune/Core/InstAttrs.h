@@ -22,6 +22,7 @@ namespace llvm {
 class Instruction;
 class Loop;
 class LoopInfo;
+class MDNode;
 class raw_ostream;
 
 /// \addtogroup kitsune
@@ -32,6 +33,11 @@ enum class InstAttrKind : uint32_t {
 #define GET_INST_ATTR_ENUMS
 #include "kitsune/Core/InstAttrs.inc"
 };
+
+/// Get the metadata node containing the list of Kitsune-specific attributes.
+/// If no Kitsune-specific attributes have been added to the instruction, this
+/// may return nullptr.
+MDNode *getAttrList(const Instruction &inst);
 
 /// Get the name of the instruction attribute as it appears in the LLVM-IR
 /// metadata. The result will start with "kit.inst.".
@@ -70,6 +76,11 @@ bool verifyAttr(const Instruction &inst, InstAttrKind attr,
   void remove##NAME##Attr(Instruction &inst);
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
+
+#define INST_ATTR_LOOP(NAME, IRNAME)                                           \
+  std::optional<Loop *> get##NAME##Attr(                                       \
+      const Instruction &inst, const SmallVectorImpl<const LoopInfo *> &lis);  \
+  void add##NAME##Attr(Instruction &inst, const Loop &loop);
 
 #define INST_ATTR_0(NAME, IRNAME) void add##NAME##Attr(Instruction &inst);
 
@@ -115,14 +126,6 @@ bool verifyAttr(const Instruction &inst, InstAttrKind attr,
 
 #define INST_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                      \
   std::optional<ETY> get##ENAME##From##NAME##Attr(const Instruction &inst);
-#define GET_INST_ATTRS
-#include "kitsune/Core/InstAttrs.inc"
-
-#define INST_ATTR_LOOP(NAME, IRNAME)                                           \
-  std::optional<Loop *> get##NAME##Attr(                                       \
-      const Instruction &inst, const SmallVectorImpl<const LoopInfo *> &lis);  \
-  void add##NAME##Attr(Instruction &inst, Loop *loop);                         \
-  void add##NAME##Attr(Instruction &inst, Loop &loop);
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 

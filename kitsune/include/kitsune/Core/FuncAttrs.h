@@ -20,6 +20,9 @@
 namespace llvm {
 
 class Function;
+class Loop;
+class LoopInfo;
+class MDNode;
 class raw_ostream;
 
 /// \addtogroup kitsune
@@ -30,6 +33,16 @@ enum class FuncAttrKind : uint32_t {
 #define GET_FUNC_ATTR_ENUMS
 #include "kitsune/Core/FuncAttrs.inc"
 };
+
+/// Get the metadata node containing the list of Kitsune-specific attributes.
+/// If no Kitsune-specific attributes have been attached to the function, this
+/// may return nullptr.
+MDNode *getAttrList(const Function &f);
+
+/// Get the metadata node containing the list of Kitsune-specific attributes.
+/// If no Kitsune-specific attributes have been attached to the function, this
+/// may return nullptr.
+MDNode *getAttrList(const Function &f);
 
 /// Get the name of the function attribute as it appears in the LLVM-IR
 /// metadata. The result will start with "kit.func.".
@@ -67,6 +80,11 @@ bool verifyAttr(const Function &f, FuncAttrKind attr,
   void remove##NAME##Attr(Function &f);
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
+
+#define FUNC_ATTR_LOOP(NAME, IRNAME)                                           \
+  std::optional<Loop *> get##NAME##Attr(                                       \
+      const Function &f, const SmallVectorImpl<const LoopInfo *> &lis);        \
+  void add##NAME##Attr(Function &f, const Loop &loop);
 
 #define FUNC_ATTR_0(NAME, IRNAME) void add##NAME##Attr(Function &f);
 

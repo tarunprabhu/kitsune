@@ -1,4 +1,4 @@
-//===- LoopUtils.h - Utilities for LLVM loops ------------------*- C++ -*--===//
+//===- LoopUtils.cpp - Utilities for LLVM loops ---------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -16,11 +16,6 @@
 #include "llvm/Analysis/LoopInfo.h"
 
 using namespace llvm;
-
-LLVMContext &llvm::getContext(Loop &loop) {
-  assert(loop.getHeader() && "Loop does not have a header");
-  return loop.getHeader()->getContext();
-}
 
 LLVMContext &llvm::getContext(const Loop &loop) {
   assert(loop.getHeader() && "Loop does not have a header");

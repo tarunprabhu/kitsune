@@ -18,8 +18,6 @@
 
 using namespace llvm;
 
-LLVMContext &llvm::getContext(Module &m) { return m.getContext(); }
-
 LLVMContext &llvm::getContext(const Module &m) { return m.getContext(); }
 
 void llvm::addDeviceModuleFlagsAttr(Module &m, TTID tt) {

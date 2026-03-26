@@ -9,6 +9,7 @@
 #include "kitsune/Core/InstAttrs.h"
 #include "TestAttrsCommon.h"
 #include "TestValues.h"
+#include "kitsune/Core/AttrsCommon.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Constants.h"
@@ -23,24 +24,23 @@ using namespace llvm;
 
 namespace {
 
-// The standard accessors do not allow us to create invalid attributes. To
-// create one, we have to know how these are added to the function. This is not
-// unreasonable since the create functions are a fairly thin wrappers around
-// LLVM's existing support.
-static void addMetadata(Instruction &inst, StringRef name,
-                        ArrayRef<Metadata *> ops) {
+static void addMetadata(Instruction &inst, StringRef attrName,
+                        ArrayRef<Metadata *> attrVals) {
   LLVMContext &ctx = inst.getContext();
-  inst.setMetadata(name, MDNode::get(ctx, ops));
+  MDNode *attrList = getAttrList(inst);
+  MDNode *newAttrList = getNewAttrListWith(attrName, attrVals, attrList, ctx);
+
+  inst.setMetadata(LLVMContext::MD_kit_inst_attrs, newAttrList);
 }
 
 // Create metadata consisting of `n` "empty" operands.
-static void addMetadata(Instruction &inst, StringRef name, unsigned n) {
+static void addMetadata(Instruction &inst, StringRef attrName, unsigned n) {
   LLVMContext &ctx = inst.getContext();
   MDNode *mdEmpty = MDNode::get(ctx, {});
-  SmallVector<Metadata *, 8> ops;
+  SmallVector<Metadata *, 8> attrVals;
 
-  ops.append(n, mdEmpty);
-  addMetadata(inst, name, ops);
+  attrVals.append(n, mdEmpty);
+  addMetadata(inst, attrName, attrVals);
 }
 
 static constexpr StringRef ll = R"(
@@ -104,7 +104,13 @@ TEST(KitInstAttrs, attrKind) {
   std::string buf;                                                             \
   raw_string_ostream OS(buf);                                                  \
   LLVMContext ctx;                                                             \
-  [[maybe_unused]] ReturnInst OBJ = ReturnInst::Create(ctx);
+  Type *voidTy = Type::getVoidTy(ctx);                                         \
+  FunctionType *fty = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);       \
+  Module m("", ctx);                                                           \
+  Function *f = cast<Function>(m.getOrInsertFunction("f", fty).getCallee());   \
+  BasicBlock *bb = BasicBlock::Create(ctx, "entry", f);                        \
+  [[maybe_unused]] ReturnInst OBJ =                                            \
+      ReturnInst::Create(ctx, /*retVal=*/nullptr, bb->getFirstInsertionPt());
 
 TEST(KitInstAttrs, verifyGeneric) {
   DECLS(os, *inst);
@@ -234,13 +240,13 @@ TEST(KitInstAttrs, loop) {
   SmallVector<const LoopInfo *, 4> lis = {&lig, &lif};
   [[maybe_unused]] Loop *loopF = *lif.begin();
   [[maybe_unused]] Loop *loopG = *lig.begin();
-  [[maybe_unused]] Instruction *inst = ReturnInst::Create(ctx);
+  [[maybe_unused]] Instruction *inst = f->getEntryBlock().getTerminator();
 
 #define INST_ATTR_LOOP(NAME, IRNAME)                                           \
   EXPECT_TRUE(verify##NAME##Attr(*inst));                                      \
   EXPECT_FALSE(has##NAME##Attr(*inst));                                        \
                                                                                \
-  add##NAME##Attr(*inst, loopF);                                               \
+  add##NAME##Attr(*inst, *loopF);                                              \
   EXPECT_TRUE(verify##NAME##Attr(*inst));                                      \
   EXPECT_TRUE(has##NAME##Attr(*inst));                                         \
   EXPECT_EQ(get##NAME##Attr(*inst, lis), loopF);                               \

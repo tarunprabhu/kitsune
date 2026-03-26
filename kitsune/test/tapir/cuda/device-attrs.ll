@@ -14,13 +14,15 @@
 ;
 ; CHECK: define {{.+}}@device_func(
 ; CHECK-SAME: #[[ATTRS:[0-9]+]]
-; CHECK-SAME: !kit.func.device ![[MDEMPTY:[0-9]+]]
+; CHECK-SAME: !kit.func ![[MD:[0-9]+]]
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
 ; CHECK-SAME: "target-cpu"="sm_72"
 ; CHECK-SAME: "target-features"="+ptx87,sm_72"
-; CHECK: ![[MDEMPTY]] = !{}
+
+; CHECK: ![[MD]] = distinct !{![[MD]], ![[DEVICE:[0-9]+]]}
+; CHECK: ![[DEVICE]] = !{!"kit.func.device"}
 
 define i64 @device_func(i64 %n) {
   ret i64 %n

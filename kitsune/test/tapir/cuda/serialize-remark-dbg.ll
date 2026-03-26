@@ -112,7 +112,7 @@ declare !dbg !53 void @ext2(i64, i64)
 !llvm.module.flags = !{!2, !3, !4, !5, !6, !7, !8}
 !llvm.ident = !{!9}
 
-!kit.module.pre.lower.annotate.pass = !{}
+!kit.module = !{!56}
 
 !0 = distinct !DICompileUnit(language: DW_LANG_C11, file: !1, producer: "clang version 21.1.3", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
 !1 = !DIFile(filename: "/tmp/pep.c", directory: "/tmp", checksumkind: CSK_MD5, checksum: "bba0de9706a06a896f067baa98c260ee")
@@ -170,3 +170,5 @@ declare !dbg !53 void @ext2(i64, i64)
 !53 = !DISubprogram(name: "ext2", scope: !11, file: !11, line: 6, type: !12, flags: DIFlagPrototyped, spFlags: DISPFlagOptimized)
 !54 = !{!"tapir.loop.perfect.depth", i32 1}
 !55 = !{!"tapir.loop.perfect.level", i32 1}
+!56 = distinct !{!56, !57}
+!57 = !{!"kit.module.pre.lower.annotate.pass"}

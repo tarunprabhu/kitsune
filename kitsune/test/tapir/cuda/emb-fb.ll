@@ -6,8 +6,10 @@
 ;
 ; CHECK: @[[FB:.+]] = constant [{{[0-9]+}} x i8] zeroinitializer
 ; CHECK-SAME: section ".nv_fatbin"
-; CHECK-SAME: !kit.gv.device.code ![[TT:[0-9]+]]
-; CHECK: ![[TT]] = !{i32 2}
+; CHECK-SAME: !kit.gv ![[MD:[0-9]+]]
+;
+; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
+; CHECK-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 2}
 
 define void @f(ptr %c, i64 %n) {
 entry:

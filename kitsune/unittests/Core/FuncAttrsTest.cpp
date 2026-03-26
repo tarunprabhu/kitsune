@@ -9,8 +9,10 @@
 #include "kitsune/Core/FuncAttrs.h"
 #include "TestAttrsCommon.h"
 #include "TestValues.h"
+#include "kitsune/Core/AttrsCommon.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/IR/Module.h"
 
 #include "gtest/gtest.h"
 
@@ -18,25 +20,23 @@ using namespace llvm;
 
 namespace {
 
-// The standard accessors do not allow us to create invalid attributes. To
-// create one, we have to know how these are added to the function. This is not
-// unreasonable since the create functions are a fairly thin wrappers around
-// LLVM's existing support.
-static void addMetadata(Function &f, StringRef name, ArrayRef<Metadata *> ops) {
+static void addMetadata(Function &f, StringRef attrName,
+                        ArrayRef<Metadata *> attrVals) {
   LLVMContext &ctx = f.getContext();
-  MDNode *md = MDNode::get(ctx, ops);
+  MDNode *attrList = getAttrList(f);
+  MDNode *newAttrList = getNewAttrListWith(attrName, attrVals, attrList, ctx);
 
-  f.addMetadata(name, *md);
+  f.setMetadata(LLVMContext::MD_kit_func_attrs, newAttrList);
 }
 
 // Create metadata consisting of `n` "empty" operands.
-static void addMetadata(Function &f, StringRef name, unsigned n) {
+static void addMetadata(Function &f, StringRef attrName, unsigned n) {
   LLVMContext &ctx = f.getContext();
   MDNode *mdEmpty = MDNode::get(ctx, {});
-  SmallVector<Metadata *, 8> ops;
+  SmallVector<Metadata *, 8> attrVals;
 
-  ops.append(n, mdEmpty);
-  addMetadata(f, name, ops);
+  attrVals.append(n, mdEmpty);
+  addMetadata(f, attrName, attrVals);
 }
 
 TEST(KitFuncAttrs, attrName) {
@@ -59,10 +59,11 @@ TEST(KitFuncAttrs, attrKind) {
   std::string buf;                                                             \
   raw_string_ostream OS(buf);                                                  \
   LLVMContext ctx;                                                             \
+  Module m("", ctx);                                                           \
   Type *voidTy = Type::getVoidTy(ctx);                                         \
-  FunctionType *fty = FunctionType::get(voidTy, {}, /*isVarArg=*/false);       \
+  FunctionType *fty = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);       \
   [[maybe_unused]] Function OBJ =                                              \
-      Function::Create(fty, GlobalValue::ExternalLinkage)
+      cast<Function>(m.getOrInsertFunction("f", fty).getCallee());
 
 TEST(KitFuncAttrs, verifyGeneric) {
   DECLS(os, *f);

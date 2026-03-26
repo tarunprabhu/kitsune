@@ -8,6 +8,7 @@
 ; CHECK-NOT: @{{.+}}.bc{{.*}} = constant [{{[0-9]+}} x i8] c"{{.+}}"
 ; CHECK: @{{.+}}.fb{{.*}} = constant [{{[0-9]+}} x i8] c"{{[^,]+}}",
 ; CHECK-SAME: section ".nv_fatbin"
-; CHECK-SAME: !kit.gv.device.code ![[TT:[0-9]+]]
+; CHECK-SAME: !kit.gv ![[MD:[0-9]+]]
 ;
-; CHECK: ![[TT]] = !{i32 2}
+; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
+; CHECK-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 2}

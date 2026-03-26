@@ -180,7 +180,7 @@ for2.i.end:
 
 }
 
-!kit.module.pre.lower.annotate.pass = !{}
+!kit.module = !{!10}
 
 !0 = distinct !{!0, !1}
 !1 = !{!"tapir.loop.target", i32 2}
@@ -192,3 +192,5 @@ for2.i.end:
 !7 = distinct !{!7, !1, !8, !9}
 !8 = !{!"tapir.loop.perfect.depth", i32 1}
 !9 = !{!"tapir.loop.perfect.level", i32 1}
+!10 = distinct !{!10, !11}
+!11 = !{!"kit.module.pre.lower.annotate.pass"}

@@ -4,8 +4,10 @@
 ;
 ; CHECK-COUNT-2: global containing device code does not have a name
 
-@0 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !0
-@1 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !1
+@0 = constant [0 x i8] zeroinitializer, !kit.gv !0
+@1 = constant [0 x i8] zeroinitializer, !kit.gv !1
 
-!0 = !{i32 2}
-!1 = !{i32 4}
+!0 = distinct !{!0, !2}
+!1 = distinct !{!1, !3}
+!2 = !{!"kit.gv.device.code", i32 2}
+!3 = !{!"kit.gv.device.code", i32 4}

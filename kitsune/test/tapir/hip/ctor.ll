@@ -9,7 +9,7 @@
 ;
 ; DEFAULT: @[[FB:.+]] = constant [0 x i8] zeroinitializer
 ; DEFAULT-SAME: section ".hip_fatbin"
-; DEFAULT-SAME: !kit.gv.device.code ![[TT:[0-9]+]]
+; DEFAULT-SAME: !kit.gv ![[MD:[0-9]+]]
 ;
 ; DEFAULT: @[[BUNDLE:.+]] = internal constant {{.+}} { i32 1212764230, i32 1, ptr @[[FB]], ptr null }
 ; DEFAULT-SAME: section ".hipFatBinSegment"
@@ -40,7 +40,8 @@
 ; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
 ; DEFAULT: }
 ;
-; DEFAULT: ![[TT:[0-9]+]] = !{i32 4}
+; DEFAULT-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
+; DEFAULT-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 4}
 ;
 ; ----------------------------------------------------------------------------
 ;

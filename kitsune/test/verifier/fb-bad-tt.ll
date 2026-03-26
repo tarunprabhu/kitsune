@@ -7,6 +7,7 @@
 ;
 ; CHECK: invalid value for 'device.code' attribute. Tapir target does not generate embedded bitcode
 
-@0 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !0
+@0 = constant [0 x i8] zeroinitializer, !kit.gv !0
 
-!0 = !{i32 1}
+!0 = distinct !{!0, !1}
+!1 = !{!"kit.gv.device.code", i32 1}

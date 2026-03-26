@@ -18,32 +18,39 @@
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Module.h"
 
 using namespace llvm;
 
-static void addAttr(Module &m, ModuleAttrKind attr, ArrayRef<Metadata *> mds) {
-  removeAttr(m, attr);
-
-  LLVMContext &ctx = m.getContext();
-  StringRef attrName = getAttrName(attr);
-  NamedMDNode *nmd = m.getOrInsertNamedMetadata(attrName);
-  for (Metadata *md : mds)
-    nmd->addOperand(MDNode::get(ctx, md));
+static void setAttrList(Module &m, MDNode *attrList) {
+  NamedMDNode *nmd = m.getOrInsertNamedMetadata("kit.module");
+  if (nmd->getNumOperands())
+    nmd->setOperand(0, attrList);
+  else
+    nmd->addOperand(attrList);
 }
 
-template <typename T>
-static std::optional<T> getAttr(const Module &m, ModuleAttrKind attr,
-                                unsigned i, unsigned n) {
-  StringRef attrName = getAttrName(attr);
-  if (NamedMDNode *nmd = m.getNamedMetadata(attrName)) {
-    if (nmd->getNumOperands() == n) {
-      MDNode *md = nmd->getOperand(i);
-      if (md->getNumOperands() == 1)
-        return fromMetadata<T>(md->getOperand(0));
-    }
-  }
-  return std::nullopt;
+static void addAttr(Module &m, StringRef name, ArrayRef<Metadata *> vals) {
+  LLVMContext &ctx = m.getContext();
+  MDNode *attrList = getAttrList(m);
+  MDNode *newAttrList = getNewAttrListWith(name, vals, attrList, ctx);
+
+  setAttrList(m, newAttrList);
+}
+
+static void removeAttr(Module &m, StringRef attrName) {
+  MDNode *attrList = getAttrList(m);
+  MDNode *newAttrList = getNewAttrListWithout(attrName, attrList);
+
+  setAttrList(m, newAttrList);
+}
+
+MDNode *llvm::getAttrList(const Module &m) {
+  if (NamedMDNode *nmd = m.getNamedMetadata("kit.module"))
+    if (nmd->getNumOperands())
+      return nmd->getOperand(0);
+  return nullptr;
 }
 
 StringRef llvm::getAttrName(ModuleAttrKind attrKind) {
@@ -77,56 +84,64 @@ bool llvm::verifyAttr(const Module &m, ModuleAttrKind attr, raw_ostream *os) {
 }
 
 bool llvm::hasAttr(const Module &m, ModuleAttrKind attr) {
-  return m.getNamedMetadata(getAttrName(attr));
+  return getRawAttr(getAttrName(attr), getAttrList(m));
 }
 
 void llvm::addAttr(Module &m, ModuleAttrKind attr) {
+  StringRef attrName = getAttrName(attr);
   switch (attr) {
   default:
-    emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
+    emitDiagnostic(DiagID::ErrAttrWithoutValues, attrName);
     exitOnError();
     break;
 #define MODULE_ATTR_0(NAME, IRNAME) case ModuleAttrKind::NAME:
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
-    return ::addAttr(m, attr, {});
+    return ::addAttr(m, attrName, {});
   }
 }
 
 void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
-  StringRef attrName = getAttrName(attr);
-  if (NamedMDNode *nmd = m.getNamedMetadata(attrName))
-    m.eraseNamedMetadata(nmd);
+  ::removeAttr(m, getAttrName(attr));
 }
 
 #define MODULE_ATTR(NAME, IRNAME, TYPE)                                        \
   bool llvm::has##NAME##Attr(const Module &m) {                                \
-    return hasAttr(m, ModuleAttrKind::NAME);                                   \
+    return getRawAttr(IRNAME, getAttrList(m));                                 \
   }                                                                            \
                                                                                \
-  void llvm::remove##NAME##Attr(Module &m) {                                   \
-    removeAttr(m, ModuleAttrKind::NAME);                                       \
-  }
+  void llvm::remove##NAME##Attr(Module &m) { ::removeAttr(m, IRNAME); }
+
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 
-#define MODULE_ATTR_0(NAME, IRNAME)                                            \
-  void llvm::add##NAME##Attr(Module &m) { ADD_0(ModuleAttrKind, NAME, m); }    \
+#define MODULE_ATTR_LOOP(NAME, IRNAME)                                         \
+  std::optional<Loop *> llvm::get##NAME##Attr(                                 \
+      const Module &m, const SmallVectorImpl<const LoopInfo *> &lis) {         \
+    return getAttrValue(IRNAME, getAttrList(m), lis);                          \
+  }                                                                            \
+                                                                               \
+  void llvm::add##NAME##Attr(Module &m, const Loop &loop) {                    \
+    ::addAttr(m, IRNAME, loop.getLoopID());                                    \
+  }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
-    if (NamedMDNode *nmd = m.getNamedMetadata(IRNAME))                         \
-      VERIFY_0(nmd->getNumOperands() == 0, IRNAME, os);                        \
-    return true;                                                               \
+    return verifyAttrLoop(IRNAME, getAttrList(m), os);                         \
+  }
+
+#define MODULE_ATTR_0(NAME, IRNAME)                                            \
+  void llvm::add##NAME##Attr(Module &m) { ADD_0(IRNAME, m); }                  \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
+    return verifyAttr0(IRNAME, getAttrList(m), os);                            \
   }
 
 #define MODULE_ATTR_1(NAME, IRNAME, TYPE)                                      \
   std::optional<TYPE> llvm::get##NAME##Attr(const Module &m) {                 \
-    return getAttr<TYPE>(m, ModuleAttrKind::NAME, 0, 1);                       \
+    return getAttrValue<TYPE>(IRNAME, getAttrList(m), 0, 1);                   \
   }                                                                            \
                                                                                \
-  void llvm::add##NAME##Attr(Module &m, TYPE val) {                            \
-    ADD_1(ModuleAttrKind, NAME, m, val);                                       \
-  }                                                                            \
+  void llvm::add##NAME##Attr(Module &m, TYPE val) { ADD_1(IRNAME, m, val); }   \
                                                                                \
   bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
     VERIFY_1(os, m, NAME, IRNAME, TYPE);                                       \
@@ -134,7 +149,7 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
 
 #define MODULE_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)      \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1) {                    \
-    ADD_2(ModuleAttrKind, NAME, m, e0, e1);                                    \
+    ADD_2(IRNAME, m, e0, e1);                                                  \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
@@ -144,7 +159,7 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
 #define MODULE_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
                       ETY2, ENAME2, EN2)                                       \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2) {           \
-    ADD_3(ModuleAttrKind, NAME, m, e0, e1, e2);                                \
+    ADD_3(IRNAME, m, e0, e1, e2);                                              \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
@@ -154,7 +169,7 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
 #define MODULE_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
                       ETY2, ENAME2, EN2, ETY3, ENAME3, EN3)                    \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3) {  \
-    ADD_4(ModuleAttrKind, NAME, m, e0, e1, e2, e3);                            \
+    ADD_4(IRNAME, m, e0, e1, e2, e3);                                          \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
@@ -166,7 +181,7 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
                       ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4) \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,    \
                              ETY4 e4) {                                        \
-    ADD_5(ModuleAttrKind, NAME, m, e0, e1, e2, e3, e4);                        \
+    ADD_5(IRNAME, m, e0, e1, e2, e3, e4);                                      \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
@@ -179,7 +194,7 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
                       ETY5, ENAME5, EN5)                                       \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,    \
                              ETY4 e4, ETY5 e5) {                               \
-    ADD_6(ModuleAttrKind, NAME, m, e0, e1, e2, e3, e4, e5);                    \
+    ADD_6(IRNAME, m, e0, e1, e2, e3, e4, e5);                                  \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
@@ -192,7 +207,7 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
                       ETY5, ENAME5, EN5, ETY6, ENAME6, EN6)                    \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,    \
                              ETY4 e4, ETY5 e5, ETY6 e6) {                      \
-    ADD_7(ModuleAttrKind, NAME, m, e0, e1, e2, e3, e4, e5, e6);                \
+    ADD_7(IRNAME, m, e0, e1, e2, e3, e4, e5, e6);                              \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
@@ -205,7 +220,7 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
                       ETY5, ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7) \
   void llvm::add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,    \
                              ETY4 e4, ETY5 e5, ETY6 e6, ETY7 e7) {             \
-    ADD_8(ModuleAttrKind, NAME, m, e0, e1, e2, e3, e4, e5, e6, e7);            \
+    ADD_8(IRNAME, m, e0, e1, e2, e3, e4, e5, e6, e7);                          \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Module &m, raw_ostream *os) {            \
@@ -219,7 +234,7 @@ void llvm::removeAttr(Module &m, ModuleAttrKind attr) {
 
 #define MODULE_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                    \
   std::optional<ETY> llvm::get##ENAME##From##NAME##Attr(const Module &m) {     \
-    return getAttr<ETY>(m, ModuleAttrKind::NAME, EN, NELEMS);                  \
+    return getAttrValue<ETY>(IRNAME, getAttrList(m), EN, NELEMS);              \
   }
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
