@@ -15,15 +15,14 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
 class GlobalVariable;
 class LLVMContext;
 
+/// \addtogroup kitsune
+/// @{
+
 /// Get the LLVM context from a global variable. This is useful when generating
 /// code from tablegen macros.
-LLVMContext &getContext(GlobalVariable &g);
 LLVMContext &getContext(const GlobalVariable &g);
 
 /// @}

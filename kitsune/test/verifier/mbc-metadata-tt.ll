@@ -6,7 +6,7 @@
 ;
 ; CHECK: embedded module requires valid tapir target in device module metadata
 
-!kit.module.device.module.flags = !{!0, !1}
+!kit.module = !{!0}
 
-!0 = !{i32 -200000000}
-!1 = !{!"some-silly-name"}
+!0 = distinct !{!0, !1}
+!1 = !{!"kit.module.device.module.flags", i32 -200000000, !"gallumbits"}

@@ -15,8 +15,6 @@
 
 using namespace llvm;
 
-LLVMContext &llvm::getContext(GlobalVariable &g) { return g.getContext(); }
-
 LLVMContext &llvm::getContext(const GlobalVariable &g) {
   return g.getContext();
 }

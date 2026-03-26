@@ -5,18 +5,22 @@
 ; RUN:     | grep "c\"BC" \
 ; RUN:     | sed 's/.kit.emb//g' \
 ; RUN:     | sed 's/@.bc/@.bc.2/g'`
-; RUN:
+;
 ; RUN: MBC_4=`%kit-enc --tapir=hip %s \
 ; RUN:     | grep "c\"BC" \
 ; RUN:     | sed 's/.kit.emb//g' \
 ; RUN:     | sed 's/@.bc/@.bc.4/g' \
 ; RUN:     | sed 's/\!0/\!1/g'`
-; RUN:
-; RUN: printf "%%s\n%%s\n\n%%s\n%%s" \
-; RUN:         "${MBC_2}" \
-; RUN:         "${MBC_4}" \
-; RUN:         "!0 = !{i32 2}" \
-; RUN:         "!1 = !{i32 4}" \
-; RUN:     | not llvm-as -o /dev/null
 ;
-; CHECK-COUNT-2: embedded bitcode global without device code global
+; RUN: printf \
+; RUN:     "%%s\n%%s\n\n%%s\n%%s\n%%s\n%%s" \
+; RUN:     "${MBC_2}" \
+; RUN:     "${MBC_4}" \
+; RUN:     "!0 = distinct !{!0, !2}" \
+; RUN:     "!1 = distinct !{!1, !3}" \
+; RUN:     "!2 = !{!\"kit.gv.bit.code\", i32 2}" \
+; RUN:     "!3 = !{!\"kit.gv.bit.code\", i32 4}" \
+; RUN:     | not llvm-as -o /dev/null 2>&1 \
+; RUN:     | FileCheck %s
+;
+; CHECK: embedded bitcode global without device code global

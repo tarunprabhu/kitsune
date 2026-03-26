@@ -13,6 +13,7 @@
 ;
 ; CHECK: error: could not parse embedded bitcode
 
-@bc = constant [2 x i8] c"BC", !kit.gv.bit.code !0
+@bc = constant [2 x i8] c"BC", !kit.gv !0
 
-!0 = !{i32 2}
+!0 = distinct !{!0, !1}
+!1 = !{!"kit.gv.bit.code", i32 2}

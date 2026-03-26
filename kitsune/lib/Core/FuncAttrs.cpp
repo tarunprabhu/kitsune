@@ -18,27 +18,32 @@
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Function.h"
 
 using namespace llvm;
 
-static void addAttr(Function &f, FuncAttrKind attr, ArrayRef<Metadata *> ops) {
-  LLVMContext &ctx = f.getContext();
-  StringRef attrName = getAttrName(attr);
-  MDNode *md = MDNode::get(ctx, ops);
-
-  removeAttr(f, attr);
-  f.addMetadata(attrName, *md);
+static void setAttrList(Function &f, MDNode *attrList) {
+  f.setMetadata(LLVMContext::MD_kit_func_attrs, attrList);
 }
 
-template <typename T>
-static std::optional<T> getAttr(const Function &f, FuncAttrKind attr,
-                                unsigned i, unsigned n) {
-  StringRef attrName = getAttrName(attr);
-  if (MDNode *md = f.getMetadata(attrName))
-    if (md->getNumOperands() == n)
-      return fromMetadata<T>(md->getOperand(i));
-  return std::nullopt;
+static void addAttr(Function &f, StringRef name, ArrayRef<Metadata *> vals) {
+  LLVMContext &ctx = f.getContext();
+  MDNode *attrList = getAttrList(f);
+  MDNode *newAttrList = getNewAttrListWith(name, vals, attrList, ctx);
+
+  setAttrList(f, newAttrList);
+}
+
+static void removeAttr(Function &f, StringRef attrName) {
+  MDNode *attrList = getAttrList(f);
+  MDNode *newAttrList = getNewAttrListWithout(attrName, attrList);
+
+  setAttrList(f, newAttrList);
+}
+
+MDNode *llvm::getAttrList(const Function &f) {
+  return f.getMetadata(LLVMContext::MD_kit_func_attrs);
 }
 
 StringRef llvm::getAttrName(FuncAttrKind attr) {
@@ -72,55 +77,64 @@ bool llvm::verifyAttr(const Function &f, FuncAttrKind attr, raw_ostream *os) {
 }
 
 bool llvm::hasAttr(const Function &f, FuncAttrKind attr) {
-  return f.hasMetadata(getAttrName(attr));
+  return getRawAttr(getAttrName(attr), getAttrList(f));
 }
 
 void llvm::addAttr(Function &f, FuncAttrKind attr) {
+  StringRef attrName = getAttrName(attr);
   switch (attr) {
   default:
-    emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
+    emitDiagnostic(DiagID::ErrAttrWithoutValues, attrName);
     exitOnError();
     break;
 #define FUNC_ATTR_0(NAME, IRNAME) case FuncAttrKind::NAME:
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
-    return ::addAttr(f, attr, {});
+    return ::addAttr(f, attrName, {});
   }
 }
 
 void llvm::removeAttr(Function &f, FuncAttrKind attr) {
-  f.setMetadata(getAttrName(attr), nullptr);
+  ::removeAttr(f, getAttrName(attr));
 }
 
 #define FUNC_ATTR(NAME, IRNAME, TYPE)                                          \
   bool llvm::has##NAME##Attr(const Function &f) {                              \
-    return hasAttr(f, FuncAttrKind::NAME);                                     \
+    return getRawAttr(IRNAME, getAttrList(f));                                 \
   }                                                                            \
                                                                                \
-  void llvm::remove##NAME##Attr(Function &f) {                                 \
-    removeAttr(f, FuncAttrKind::NAME);                                         \
-  }
+  void llvm::remove##NAME##Attr(Function &f) { ::removeAttr(f, IRNAME); }
 
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 
-#define FUNC_ATTR_0(NAME, IRNAME)                                              \
-  void llvm::add##NAME##Attr(Function &f) { ADD_0(FuncAttrKind, NAME, f); }    \
+#define FUNC_ATTR_LOOP(NAME, IRNAME)                                           \
+  std::optional<Loop *> llvm::get##NAME##Attr(                                 \
+      const Function &f, const SmallVectorImpl<const LoopInfo *> &lis) {       \
+    return getAttrValue(IRNAME, getAttrList(f), lis);                          \
+  }                                                                            \
+                                                                               \
+  void llvm::add##NAME##Attr(Function &f, const Loop &loop) {                  \
+    ::addAttr(f, IRNAME, loop.getLoopID());                                    \
+  }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
-    if (MDNode *md = f.getMetadata(IRNAME))                                    \
-      VERIFY_0(md->getNumOperands() == 0, IRNAME, os);                         \
-    return true;                                                               \
+    return verifyAttrLoop(IRNAME, getAttrList(f), os);                         \
+  }
+
+#define FUNC_ATTR_0(NAME, IRNAME)                                              \
+  void llvm::add##NAME##Attr(Function &f) { ADD_0(IRNAME, f); }                \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
+    return verifyAttr0(IRNAME, getAttrList(f), os);                            \
   }
 
 #define FUNC_ATTR_1(NAME, IRNAME, TYPE)                                        \
   std::optional<TYPE> llvm::get##NAME##Attr(const Function &f) {               \
-    return getAttr<TYPE>(f, FuncAttrKind::NAME, 0, 1);                         \
+    return getAttrValue<TYPE>(IRNAME, getAttrList(f), 0, 1);                   \
   }                                                                            \
                                                                                \
-  void llvm::add##NAME##Attr(Function &f, TYPE val) {                          \
-    ADD_1(FuncAttrKind, NAME, f, val);                                         \
-  }                                                                            \
+  void llvm::add##NAME##Attr(Function &f, TYPE val) { ADD_1(IRNAME, f, val); } \
                                                                                \
   bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
     VERIFY_1(os, f, NAME, IRNAME, TYPE);                                       \
@@ -128,7 +142,7 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
 
 #define FUNC_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1) {                  \
-    ADD_2(FuncAttrKind, NAME, f, e0, e1);                                      \
+    ADD_2(IRNAME, f, e0, e1);                                                  \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
@@ -138,7 +152,7 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
 #define FUNC_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
                     ENAME2, EN2)                                               \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2) {         \
-    ADD_3(FuncAttrKind, NAME, f, e0, e1, e2);                                  \
+    ADD_3(IRNAME, f, e0, e1, e2);                                              \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
@@ -149,7 +163,7 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
                     ENAME2, EN2, ETY3, ENAME3, EN3)                            \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2,           \
                              ETY3 e3) {                                        \
-    ADD_4(FuncAttrKind, NAME, f, e0, e1, e2, e3);                              \
+    ADD_4(IRNAME, f, e0, e1, e2, e3);                                          \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
@@ -161,7 +175,7 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
                     ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)         \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
                              ETY4 e4) {                                        \
-    ADD_5(FuncAttrKind, NAME, f, e0, e1, e2, e3, e4);                          \
+    ADD_5(IRNAME, f, e0, e1, e2, e3, e4);                                      \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
@@ -174,7 +188,7 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
                     ENAME5, EN5)                                               \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
                              ETY4 e4, ETY5 e5) {                               \
-    ADD_6(FuncAttrKind, NAME, f, e0, e1, e2, e3, e4, e5);                      \
+    ADD_6(IRNAME, f, e0, e1, e2, e3, e4, e5);                                  \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
@@ -187,7 +201,7 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
                     ENAME5, EN5, ETY6, ENAME6, EN6)                            \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
                              ETY4 e4, ETY5 e5, ETY6 e6) {                      \
-    ADD_7(FuncAttrKind, NAME, f, e0, e1, e2, e3, e4, e5, e6);                  \
+    ADD_7(IRNAME, f, e0, e1, e2, e3, e4, e5, e6);                              \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
@@ -200,7 +214,7 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
                     ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
   void llvm::add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
                              ETY4 e4, ETY5 e5, ETY6 e6, ETY7 e7) {             \
-    ADD_8(FuncAttrKind, NAME, f, e0, e1, e2, e3, e4, e5, e6, e7);              \
+    ADD_8(IRNAME, f, e0, e1, e2, e3, e4, e5, e6, e7);                          \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Function &f, raw_ostream *os) {          \
@@ -214,7 +228,7 @@ void llvm::removeAttr(Function &f, FuncAttrKind attr) {
 
 #define FUNC_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                      \
   std::optional<ETY> llvm::get##ENAME##From##NAME##Attr(const Function &f) {   \
-    return getAttr<ETY>(f, FuncAttrKind::NAME, EN, NELEMS);                    \
+    return getAttrValue<ETY>(IRNAME, getAttrList(f), EN, NELEMS);              \
   }
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"

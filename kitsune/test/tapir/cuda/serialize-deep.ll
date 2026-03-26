@@ -126,7 +126,7 @@ for.i.end:
   ret void
 }
 
-!kit.module.pre.lower.annotate.pass = !{}
+!kit.module = !{!10}
 
 !0 = distinct !{!0, !4, !9}
 !1 = distinct !{!1, !4, !8}
@@ -138,3 +138,5 @@ for.i.end:
 !7 = !{!"tapir.loop.perfect.level", i32 2}
 !8 = !{!"tapir.loop.perfect.level", i32 3}
 !9 = !{!"tapir.loop.perfect.level", i32 4}
+!10 = distinct !{!10, !11}
+!11 = !{!"kit.module.pre.lower.annotate.pass"}

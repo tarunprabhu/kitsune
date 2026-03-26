@@ -15,10 +15,10 @@
 ; CHECK: define {{.*}}@[[F1:__kithip_loop_f1[^(]*]](
 ; CHECK: define {{.*}}@[[F2:__kithip_loop_f2[^(]*]](
 ;
-; CHECK: !kit.module.device.module.flags = !{![[MDTT:[0-9]+]], ![[MDNAME:[0-9]+]]}
+; CHECK: !kit.module = !{![[MD:[0-9]+]]}
 ;
-; CHECK-DAG: ![[MDTT]] = !{i32 4}
-; CHECK-DAG: ![[MDNAME]] = !{!"__kithip_kernel-module-kit-md.ll"}
+; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[FLAGS:[0-9]+]]}
+; CHECK-DAG: ![[FLAGS]] = !{!"kit.module.device.module.flags", i32 4, !"__kithip_kernel-module-kit-md.ll"}
 
 define void @f1(ptr %c, i64 %n) {
 entry:

@@ -4,7 +4,7 @@
 ; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}} !kit.gv.device.code ![[TT:[0-9]+]]
+; CHECK-DAG: @[[FB:.+]] = constant {{.+}} !kit.gv ![[MD:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f
 ; CHECK-NOT: llvm.kit.symbol.device.ptr
@@ -17,7 +17,8 @@
 ; CHECK-NOT: call {{.+}} @__cudaRegisterVar
 ; CHECK: call {{.+}} @__cudaRegisterFatBinaryEnd
 ;
-; CHECK: ![[TT]] = !{i32 2}
+; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
+; CHECK-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 2}
 
 target triple = "x86_64-pc-linux-gnu"
 

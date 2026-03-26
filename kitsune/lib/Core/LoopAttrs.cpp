@@ -24,30 +24,26 @@
 
 using namespace llvm;
 
-static void addAttr(Loop &loop, LoopAttrKind attr, ArrayRef<Metadata *> ops) {
+static void setAttrList(Loop &loop, MDNode *attrList) {
+  return loop.setLoopID(attrList);
+}
+
+static void addAttr(Loop &loop, StringRef name, ArrayRef<Metadata *> vals) {
   LLVMContext &ctx = getContext(loop);
-  StringRef name = getAttrName(attr);
-  Metadata *mdTag = MDString::get(ctx, name);
+  MDNode *attrList = getAttrList(loop);
+  MDNode *newAttrList = getNewAttrListWith(name, vals, attrList, ctx);
 
-  SmallVector<Metadata *, 8> mdOps = {mdTag};
-  mdOps.append(ops.begin(), ops.end());
-
-  MDNode *md = MDNode::get(ctx, mdOps);
-  MDNode *loopID = loop.getLoopID();
-  MDNode *newLoopID = makePostTransformationMetadata(ctx, loopID, {name}, {md});
-
-  loop.setLoopID(newLoopID);
+  setAttrList(loop, newAttrList);
 }
 
-template <typename T>
-static std::optional<T> getAttr(const Loop &loop, LoopAttrKind attr, unsigned i,
-                                unsigned n) {
-  StringRef attrName = getAttrName(attr);
-  if (MDNode *md = findOptionMDForLoop(&loop, attrName))
-    if (md->getNumOperands() == n + 1)
-      return fromMetadata<T>(md->getOperand(i + 1));
-  return std::nullopt;
+static void removeAttr(Loop &loop, StringRef attrName) {
+  MDNode *attrList = getAttrList(loop);
+  MDNode *newAttrList = getNewAttrListWithout(attrName, attrList);
+
+  setAttrList(loop, newAttrList);
 }
+
+MDNode *llvm::getAttrList(const Loop &loop) { return loop.getLoopID(); }
 
 StringRef llvm::getAttrName(LoopAttrKind attr) {
   switch (attr) {
@@ -80,59 +76,65 @@ bool llvm::verifyAttr(const Loop &loop, LoopAttrKind attr, raw_ostream *os) {
 }
 
 bool llvm::hasAttr(const Loop &loop, LoopAttrKind attr) {
-  return findOptionMDForLoop(&loop, getAttrName(attr));
+  return getRawAttr(getAttrName(attr), getAttrList(loop));
 }
 
 void llvm::addAttr(Loop &loop, LoopAttrKind attr) {
+  StringRef attrName = getAttrName(attr);
   switch (attr) {
   default:
-    emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
+    emitDiagnostic(DiagID::ErrAttrWithoutValues, attrName);
     exitOnError();
     break;
 #define LOOP_ATTR_0(NAME, IRNAME) case LoopAttrKind::NAME:
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
-    return ::addAttr(loop, attr, {});
+    return ::addAttr(loop, attrName, {});
   }
 }
 
 void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
-  LLVMContext &ctx = getContext(loop);
-  StringRef name = getAttrName(attr);
-  MDNode *loopID = loop.getLoopID();
-  MDNode *newLoopID = makePostTransformationMetadata(ctx, loopID, {name}, {});
-
-  loop.setLoopID(newLoopID);
+  ::removeAttr(loop, getAttrName(attr));
 }
 
 #define LOOP_ATTR(NAME, IRNAME, TYPE)                                          \
   bool llvm::has##NAME##Attr(const Loop &loop) {                               \
-    return hasAttr(loop, LoopAttrKind::NAME);                                  \
+    return getRawAttr(IRNAME, getAttrList(loop));                              \
   }                                                                            \
                                                                                \
-  void llvm::remove##NAME##Attr(Loop &loop) {                                  \
-    removeAttr(loop, LoopAttrKind::NAME);                                      \
-  }
+  void llvm::remove##NAME##Attr(Loop &loop) { ::removeAttr(loop, IRNAME); }
+
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 
-#define LOOP_ATTR_0(NAME, IRNAME)                                              \
-  void llvm::add##NAME##Attr(Loop &loop) { ADD_0(LoopAttrKind, NAME, loop); }  \
+#define LOOP_ATTR_LOOP(NAME, IRNAME)                                           \
+  std::optional<Loop *> llvm::get##NAME##Attr(                                 \
+      const Loop &loop, const SmallVectorImpl<const LoopInfo *> &lis) {        \
+    return getAttrValue(IRNAME, getAttrList(loop), lis);                       \
+  }                                                                            \
+                                                                               \
+  void llvm::add##NAME##Attr(Loop &loop, const Loop &l) {                      \
+    ::addAttr(loop, IRNAME, l.getLoopID());                                    \
+  }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Loop &loop, raw_ostream *os) {           \
-    StringRef attrName = getAttrName(LoopAttrKind::NAME);                      \
-    if (MDNode *md = findOptionMDForLoop(&loop, attrName))                     \
-      VERIFY_0(md->getNumOperands() == 1, IRNAME, os);                         \
-    return true;                                                               \
+    return verifyAttrLoop(IRNAME, getAttrList(loop), os);                      \
+  }
+
+#define LOOP_ATTR_0(NAME, IRNAME)                                              \
+  void llvm::add##NAME##Attr(Loop &loop) { ADD_0(IRNAME, loop); }              \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Loop &loop, raw_ostream *os) {           \
+    return verifyAttr0(IRNAME, getAttrList(loop), os);                         \
   }
 
 #define LOOP_ATTR_1(NAME, IRNAME, TYPE)                                        \
   std::optional<TYPE> llvm::get##NAME##Attr(const Loop &loop) {                \
-    return getAttr<TYPE>(loop, LoopAttrKind::NAME, 0, 1);                      \
+    return getAttrValue<TYPE>(IRNAME, getAttrList(loop), 0, 1);                \
   }                                                                            \
                                                                                \
   void llvm::add##NAME##Attr(Loop &loop, TYPE val) {                           \
-    ADD_1(LoopAttrKind, NAME, loop, val);                                      \
+    ADD_1(IRNAME, loop, val);                                                  \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Loop &loop, raw_ostream *os) {           \
@@ -141,7 +143,7 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
 
 #define LOOP_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
   void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1) {                   \
-    ADD_2(LoopAttrKind, NAME, loop, e0, e1);                                   \
+    ADD_2(IRNAME, loop, e0, e1);                                               \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Loop &loop, raw_ostream *os) {           \
@@ -151,7 +153,7 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
 #define LOOP_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
                     ENAME2, EN2)                                               \
   void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2) {          \
-    ADD_3(LoopAttrKind, NAME, loop, e0, e1, e2);                               \
+    ADD_3(IRNAME, loop, e0, e1, e2);                                           \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Loop &loop, raw_ostream *os) {           \
@@ -162,7 +164,7 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
 #define LOOP_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
                     ENAME2, EN2, ETY3, ENAME3, EN3)                            \
   void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3) { \
-    ADD_4(LoopAttrKind, NAME, loop, e0, e1, e2, e3);                           \
+    ADD_4(IRNAME, loop, e0, e1, e2, e3);                                       \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Loop &loop, raw_ostream *os) {           \
@@ -174,7 +176,7 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
                     ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)         \
   void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,   \
                              ETY4 e4) {                                        \
-    ADD_5(LoopAttrKind, NAME, loop, e0, e1, e2, e3, e4);                       \
+    ADD_5(IRNAME, loop, e0, e1, e2, e3, e4);                                   \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Loop &loop, raw_ostream *os) {           \
@@ -187,7 +189,7 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
                     ENAME5, EN5)                                               \
   void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,   \
                              ETY4 e4, ETY5 e5) {                               \
-    ADD_6(LoopAttrKind, NAME, loop, e0, e1, e2, e3, e4, e5);                   \
+    ADD_6(IRNAME, loop, e0, e1, e2, e3, e4, e5);                               \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Loop &loop, raw_ostream *os) {           \
@@ -200,7 +202,7 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
                     ENAME5, EN5, ETY6, ENAME6, EN6)                            \
   void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,   \
                              ETY4 e4, ETY5 e5, ETY6 e6) {                      \
-    ADD_7(LoopAttrKind, NAME, loop, e0, e1, e2, e3, e4, e5, e6);               \
+    ADD_7(IRNAME, loop, e0, e1, e2, e3, e4, e5, e6);                           \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Loop &loop, raw_ostream *os) {           \
@@ -213,7 +215,7 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
                     ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
   void llvm::add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,   \
                              ETY4 e4, ETY5 e5, ETY6 e6, ETY7 e7) {             \
-    ADD_8(LoopAttrKind, NAME, loop, e0, e1, e2, e3, e4, e5, e6, e7);           \
+    ADD_8(IRNAME, loop, e0, e1, e2, e3, e4, e5, e6, e7);                       \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Loop &loop, raw_ostream *os) {           \
@@ -227,7 +229,7 @@ void llvm::removeAttr(Loop &loop, LoopAttrKind attr) {
 
 #define LOOP_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                      \
   std::optional<ETY> llvm::get##ENAME##From##NAME##Attr(const Loop &loop) {    \
-    return getAttr<ETY>(loop, LoopAttrKind::NAME, EN, NELEMS);                 \
+    return getAttrValue<ETY>(IRNAME, getAttrList(loop), EN, NELEMS);           \
   }
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"

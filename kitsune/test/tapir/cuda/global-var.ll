@@ -6,7 +6,7 @@
 ; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}} !kit.gv.device.code ![[TT:[0-9]+]]
+; CHECK-DAG: @[[FB:.+]] = constant {{.+}} !kit.gv ![[MD:[0-9]+]]
 ; CHECK-DAG: @[[HOSTVAR:.+]] = external {{.+}} i32
 ; CHECK-DAG: @[[VARNAME:.+]] = private unnamed_addr constant [5 x i8] c"v137\00"
 ;
@@ -24,7 +24,8 @@
 ; CHECK: call {{.+}} @__cudaRegisterVar(ptr %[[HANDLE]], ptr @[[HOSTVAR]], ptr @[[VARNAME]]
 ; CHECK: call {{.+}} @__cudaRegisterFatBinaryEnd
 ;
-; CHECK: ![[TT]] = !{i32 2}
+; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
+; CHECK-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 2}
 
 target triple = "x86_64-pc-linux-gnu"
 

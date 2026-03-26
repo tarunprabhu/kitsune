@@ -11,6 +11,10 @@
 ;
 ; CHECK: embedded module cannot contain embedded device code
 
-@fb = constant [0 x i8] zeroinitializer, !kit.gv.device.code !0
+@fb.2 = constant [0 x i8] zeroinitializer, !kit.gv !0
+@fb.4 = constant [0 x i8] zeroinitializer, !kit.gv !2
 
-!0 = !{i32 2}
+!0 = distinct !{!0, !1}
+!1 = !{!"kit.gv.device.code", i32 2}
+!2 = distinct !{!2, !3}
+!3 = !{!"kit.gv.device.code", i32 4}

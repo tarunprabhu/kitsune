@@ -22,47 +22,28 @@
 
 using namespace llvm;
 
-static void addAttrImpl(Instruction &inst, InstAttrKind attr, MDNode *md) {
-  StringRef attrName = getAttrName(attr);
-
-  removeAttr(inst, attr);
-  inst.setMetadata(attrName, md);
+static void setAttrList(Instruction &inst, MDNode *attrList) {
+  return inst.setMetadata(LLVMContext::MD_kit_inst_attrs, attrList);
 }
 
-static void addAttr(Instruction &inst, InstAttrKind attr,
-                    ArrayRef<Metadata *> ops) {
+static void addAttr(Instruction &inst, StringRef name,
+                    ArrayRef<Metadata *> vals) {
   LLVMContext &ctx = inst.getContext();
-  MDNode *md = MDNode::get(ctx, ops);
+  MDNode *attrList = getAttrList(inst);
+  MDNode *newAttrList = getNewAttrListWith(name, vals, attrList, ctx);
 
-  addAttrImpl(inst, attr, md);
+  setAttrList(inst, newAttrList);
 }
 
-static void addAttr(Instruction &inst, InstAttrKind attr, Loop &loop) {
-  assert(loop.getLoopID() && "Loop does not have an ID");
+static void removeAttr(Instruction &inst, StringRef attrName) {
+  MDNode *attrList = getAttrList(inst);
+  MDNode *newAttrList = getNewAttrListWithout(attrName, attrList);
 
-  addAttrImpl(inst, attr, loop.getLoopID());
+  setAttrList(inst, newAttrList);
 }
 
-template <typename T>
-static std::optional<T> getAttr(const Instruction &inst, InstAttrKind attr,
-                                unsigned i, unsigned n) {
-  StringRef attrName = getAttrName(attr);
-  if (MDNode *md = inst.getMetadata(attrName))
-    if (md->getNumOperands() == n)
-      return fromMetadata<T>(md->getOperand(i));
-  return std::nullopt;
-}
-
-static std::optional<Loop *>
-getLoopAttr(const Instruction &inst, InstAttrKind attr, unsigned i, unsigned n,
-            const SmallVectorImpl<const LoopInfo *> &lis) {
-  StringRef attrName = getAttrName(attr);
-  if (MDNode *md = inst.getMetadata(attrName))
-    for (const LoopInfo *li : lis)
-      for (Loop *loop : *li)
-        if (loop->getLoopID() == md)
-          return loop;
-  return std::nullopt;
+MDNode *llvm::getAttrList(const Instruction &inst) {
+  return inst.getMetadata(LLVMContext::MD_kit_inst_attrs);
 }
 
 StringRef llvm::getAttrName(InstAttrKind attr) {
@@ -97,55 +78,67 @@ bool llvm::verifyAttr(const Instruction &inst, InstAttrKind attr,
 }
 
 bool llvm::hasAttr(const Instruction &inst, InstAttrKind attr) {
-  return inst.hasMetadata(getAttrName(attr));
+  return getRawAttr(getAttrName(attr), getAttrList(inst));
 }
 
 void llvm::addAttr(Instruction &inst, InstAttrKind attr) {
+  StringRef attrName = getAttrName(attr);
   switch (attr) {
   default:
-    emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
+    emitDiagnostic(DiagID::ErrAttrWithoutValues, attrName);
     exitOnError();
     break;
 #define INST_ATTR_0(NAME, IRNAME) case InstAttrKind::NAME:
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
-    return ::addAttr(inst, attr, {});
+    return ::addAttr(inst, attrName, {});
   }
 }
 
 void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
-  inst.setMetadata(getAttrName(attr), nullptr);
+  ::removeAttr(inst, getAttrName(attr));
 }
 
 #define INST_ATTR(NAME, IRNAME, TYPE)                                          \
   bool llvm::has##NAME##Attr(const Instruction &inst) {                        \
-    return hasAttr(inst, InstAttrKind::NAME);                                  \
+    return getRawAttr(IRNAME, getAttrList(inst));                              \
   }                                                                            \
                                                                                \
   void llvm::remove##NAME##Attr(Instruction &inst) {                           \
-    removeAttr(inst, InstAttrKind::NAME);                                      \
+    ::removeAttr(inst, IRNAME);                                                \
   }
+
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 
-#define INST_ATTR_0(NAME, IRNAME)                                              \
-  void llvm::add##NAME##Attr(Instruction &inst) {                              \
-    ADD_0(InstAttrKind, NAME, inst);                                           \
+#define INST_ATTR_LOOP(NAME, IRNAME)                                           \
+  std::optional<Loop *> llvm::get##NAME##Attr(                                 \
+      const Instruction &inst, const SmallVectorImpl<const LoopInfo *> &lis) { \
+    return getAttrValue(IRNAME, getAttrList(inst), lis);                       \
+  }                                                                            \
+                                                                               \
+  void llvm::add##NAME##Attr(Instruction &inst, const Loop &loop) {            \
+    ::addAttr(inst, IRNAME, loop.getLoopID());                                 \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Instruction &inst, raw_ostream *os) {    \
-    if (MDNode *md = inst.getMetadata(IRNAME))                                 \
-      VERIFY_0(md->getNumOperands() == 0, IRNAME, os);                         \
-    return true;                                                               \
+    return verifyAttrLoop(IRNAME, getAttrList(inst), os);                      \
+  }
+
+#define INST_ATTR_0(NAME, IRNAME)                                              \
+  void llvm::add##NAME##Attr(Instruction &inst) { ADD_0(IRNAME, inst); }       \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const Instruction &inst, raw_ostream *os) {    \
+    return verifyAttr0(IRNAME, getAttrList(inst), os);                         \
   }
 
 #define INST_ATTR_1(NAME, IRNAME, TYPE)                                        \
   std::optional<TYPE> llvm::get##NAME##Attr(const Instruction &inst) {         \
-    return getAttr<TYPE>(inst, InstAttrKind::NAME, 0, 1);                      \
+    return getAttrValue<TYPE>(IRNAME, getAttrList(inst), 0, 1);                \
   }                                                                            \
                                                                                \
   void llvm::add##NAME##Attr(Instruction &inst, TYPE val) {                    \
-    ADD_1(InstAttrKind, NAME, inst, val);                                      \
+    ADD_1(IRNAME, inst, val);                                                  \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Instruction &inst, raw_ostream *os) {    \
@@ -154,7 +147,7 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
 
 #define INST_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
   void llvm::add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1) {            \
-    ADD_2(InstAttrKind, NAME, inst, e0, e1);                                   \
+    ADD_2(IRNAME, inst, e0, e1);                                               \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Instruction &inst, raw_ostream *os) {    \
@@ -164,7 +157,7 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
 #define INST_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
                     ENAME2, EN2)                                               \
   void llvm::add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1, ETY2 e2) {   \
-    ADD_3(InstAttrKind, NAME, inst, e0, e1, e2);                               \
+    ADD_3(IRNAME, inst, e0, e1, e2);                                           \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Instruction &inst, raw_ostream *os) {    \
@@ -176,7 +169,7 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
                     ENAME2, EN2, ETY3, ENAME3, EN3)                            \
   void llvm::add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1, ETY2 e2,     \
                              ETY3 e3) {                                        \
-    ADD_4(InstAttrKind, NAME, inst, e0, e1, e2, e3);                           \
+    ADD_4(IRNAME, inst, e0, e1, e2, e3);                                       \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Instruction &inst, raw_ostream *os) {    \
@@ -188,7 +181,7 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
                     ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)         \
   void llvm::add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1, ETY2 e2,     \
                              ETY3 e3, ETY4 e4) {                               \
-    ADD_5(InstAttrKind, NAME, inst, e0, e1, e2, e3, e4);                       \
+    ADD_5(IRNAME, inst, e0, e1, e2, e3, e4);                                   \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Instruction &inst, raw_ostream *os) {    \
@@ -201,7 +194,7 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
                     ENAME5, EN5)                                               \
   void llvm::add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1, ETY2 e2,     \
                              ETY3 e3, ETY4 e4, ETY5 e5) {                      \
-    ADD_6(InstAttrKind, NAME, inst, e0, e1, e2, e3, e4, e5);                   \
+    ADD_6(IRNAME, inst, e0, e1, e2, e3, e4, e5);                               \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Instruction &inst, raw_ostream *os) {    \
@@ -214,7 +207,7 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
                     ENAME5, EN5, ETY6, ENAME6, EN6)                            \
   void llvm::add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1, ETY2 e2,     \
                              ETY3 e3, ETY4 e4, ETY5 e5, ETY6 e6) {             \
-    ADD_7(InstAttrKind, NAME, inst, e0, e1, e2, e3, e4, e5, e6);               \
+    ADD_7(IRNAME, inst, e0, e1, e2, e3, e4, e5, e6);                           \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Instruction &inst, raw_ostream *os) {    \
@@ -227,7 +220,7 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
                     ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
   void llvm::add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1, ETY2 e2,     \
                              ETY3 e3, ETY4 e4, ETY5 e5, ETY6 e6, ETY7 e7) {    \
-    ADD_8(InstAttrKind, NAME, inst, e0, e1, e2, e3, e4, e5, e6, e7);           \
+    ADD_8(IRNAME, inst, e0, e1, e2, e3, e4, e5, e6, e7);                       \
   }                                                                            \
                                                                                \
   bool llvm::verify##NAME##Attr(const Instruction &inst, raw_ostream *os) {    \
@@ -242,37 +235,7 @@ void llvm::removeAttr(Instruction &inst, InstAttrKind attr) {
 #define INST_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                      \
   std::optional<ETY> llvm::get##ENAME##From##NAME##Attr(                       \
       const Instruction &inst) {                                               \
-    return getAttr<ETY>(inst, InstAttrKind::NAME, EN, NELEMS);                 \
+    return getAttrValue<ETY>(IRNAME, getAttrList(inst), EN, NELEMS);           \
   }
-#define GET_INST_ATTRS
-#include "kitsune/Core/InstAttrs.inc"
-
-#define INST_ATTR_LOOP(NAME, IRNAME)                                           \
-  std::optional<Loop *> llvm::get##NAME##Attr(                                 \
-      const Instruction &inst, const SmallVectorImpl<const LoopInfo *> &lis) { \
-    return getLoopAttr(inst, InstAttrKind::NAME, 0, 1, lis);                   \
-  }                                                                            \
-                                                                               \
-  void llvm::add##NAME##Attr(Instruction &inst, Loop *loop) {                  \
-    add##NAME##Attr(inst, *loop);                                              \
-  }                                                                            \
-                                                                               \
-  void llvm::add##NAME##Attr(Instruction &inst, Loop &loop) {                  \
-    ::addAttr(inst, InstAttrKind::NAME, loop);                                 \
-  }                                                                            \
-                                                                               \
-  bool llvm::verify##NAME##Attr(const Instruction &inst, raw_ostream *os) {    \
-    if (MDNode *md = inst.getMetadata(IRNAME)) {                               \
-      if (!md->getNumOperands() || !md->isDistinct() ||                        \
-          md->getOperand(0) != md) {                                           \
-        if (os)                                                                \
-          (*os) << "Missing value of type 'Loop' in attribute '" << IRNAME     \
-                << "'\n";                                                      \
-        return false;                                                          \
-      }                                                                        \
-    }                                                                          \
-    return true;                                                               \
-  }
-
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"

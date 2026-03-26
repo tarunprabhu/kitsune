@@ -8,6 +8,7 @@
 ;
 ; CHECK: invalid value for 'kernel.properties' attribute. Tapir target does not generate embedded bitcode
 
-@0 = constant { i64, i64, i64, i64 } zeroinitializer, !kit.gv.kernel.properties !0
+@0 = constant { i64, i64, i64, i64 } zeroinitializer, !kit.gv !0
 
-!0 = !{i32 1, !"bristol"}
+!0 = distinct !{!0, !1}
+!1 = !{!"kit.gv.kernel.properties", i32 1, !"bristol"}

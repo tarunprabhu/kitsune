@@ -14,7 +14,8 @@
 ;
 ; CHECK: define protected amdgpu_kernel void {{[^#]+}}
 ; CHECK-SAME: #[[ATTRS:[0-9]+]]
-; CHECK-SAME: !kit.func.kernel ![[MDEMPTY:[0-9]+]]
+; CHECK-SAME: !kit.func ![[MD:[0-9]+]]
+;
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
@@ -27,7 +28,8 @@
 ; CHECK-SAME: "target-features"="+wavefrontsize32,+atomic-fadd-rtn-insts"
 ; CHECK-SAME: "uniform-work-group-size"="true"
 ;
-; CHECK: ![[MDEMPTY]] = !{}
+; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[KERNEL:[0-9+]]]}
+; CHECK-DAG: ![[KERNEL]] = !{!"kit.func.kernel"}
 
 define void @f(ptr %c, i64 %n) {
 entry:

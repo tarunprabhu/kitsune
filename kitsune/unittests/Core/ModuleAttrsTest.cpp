@@ -9,6 +9,7 @@
 #include "kitsune/Core/ModuleAttrs.h"
 #include "TestAttrsCommon.h"
 #include "TestValues.h"
+#include "kitsune/Core/AttrsCommon.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Module.h"
 
@@ -18,29 +19,27 @@ using namespace llvm;
 
 namespace {
 
-// The standard accessors do not allow us to create invalid attributes. To
-// create one, we have to know how these are added to the function. This is not
-// unreasonable since the create functions are a fairly thin wrappers around
-// LLVM's existing support.
-static void addMetadata(Module &m, StringRef name, ArrayRef<Metadata *> ops) {
-  if (NamedMDNode *nmd = m.getNamedMetadata(name))
-    m.eraseNamedMetadata(nmd);
-
+static void addMetadata(Module &m, StringRef attrName,
+                        ArrayRef<Metadata *> attrVals) {
   LLVMContext &ctx = m.getContext();
-  NamedMDNode *nmd = m.getOrInsertNamedMetadata(name);
-  for (Metadata *op : ops)
-    nmd->addOperand(MDNode::get(ctx, op));
+  MDNode *attrList = getAttrList(m);
+  MDNode *newAttrList = getNewAttrListWith(attrName, attrVals, attrList, ctx);
+
+  NamedMDNode *nmd = m.getOrInsertNamedMetadata("kit.module");
+  if (nmd->getNumOperands())
+    nmd->setOperand(0, newAttrList);
+  else
+    nmd->addOperand(newAttrList);
 }
 
 // Create metadata consisting of `n` "empty" operands.
-static void addMetadata(Module &m, StringRef name, unsigned n) {
-  if (NamedMDNode *nmd = m.getNamedMetadata(name))
-    m.eraseNamedMetadata(nmd);
-
+static void addMetadata(Module &m, StringRef attrName, unsigned n) {
   LLVMContext &ctx = m.getContext();
-  NamedMDNode *nmd = m.getOrInsertNamedMetadata(name);
-  for (unsigned i = 0; i < n; ++i)
-    nmd->addOperand(MDNode::get(ctx, {}));
+  MDNode *mdEmpty = MDNode::get(ctx, {});
+  SmallVector<Metadata *, 8> attrVals;
+
+  attrVals.append(n, mdEmpty);
+  addMetadata(m, attrName, attrVals);
 }
 
 TEST(KitModuleAttrs, attrName) {

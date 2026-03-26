@@ -7,8 +7,10 @@
 ; CHECK: @[[FB:.+]] = constant [{{[0-9]+}} x i8] zeroinitializer
 ; CHECK-SAME: section ".hip_fatbin"
 ; CHECK-SAME: align 4096
-; CHECK-SAME: !kit.gv.device.code ![[TT:[0-9]+]]
-; CHECK: ![[TT]] = !{i32 4}
+; CHECK-SAME: !kit.gv ![[MD:[0-9]+]]
+;
+; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
+; CHECK-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 4}
 
 define void @f(ptr %c, i64 %n) {
 entry:

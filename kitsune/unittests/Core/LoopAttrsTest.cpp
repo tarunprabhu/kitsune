@@ -9,6 +9,7 @@
 #include "kitsune/Core/LoopAttrs.h"
 #include "TestAttrsCommon.h"
 #include "TestValues.h"
+#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/AsmParser/Parser.h"
@@ -23,32 +24,23 @@ using namespace llvm;
 
 namespace {
 
-// The standard accessors do not allow us to create invalid attributes. To
-// create one, we have to know how these are added to the function. This is not
-// unreasonable since the create functions are a fairly thin wrappers around
-// LLVM's existing support.
-static void addMetadata(Loop &loop, StringRef name, ArrayRef<Metadata *> ops) {
+static void addMetadata(Loop &loop, StringRef attrName,
+                        ArrayRef<Metadata *> attrVals) {
   LLVMContext &ctx = getContext(loop);
-  Metadata *mdTag = MDString::get(ctx, name);
+  MDNode *attrList = getAttrList(loop);
+  MDNode *newAttrList = getNewAttrListWith(attrName, attrVals, attrList, ctx);
 
-  SmallVector<Metadata *, 8> mdOps = {mdTag};
-  mdOps.append(ops.begin(), ops.end());
-
-  MDNode *md = MDNode::get(ctx, mdOps);
-  MDNode *loopID = loop.getLoopID();
-  MDNode *newLoopID = makePostTransformationMetadata(ctx, loopID, {name}, {md});
-
-  loop.setLoopID(newLoopID);
+  loop.setLoopID(newAttrList);
 }
 
 // Create metadata consisting of `n` "empty" operands.
-static void addMetadata(Loop &loop, StringRef name, unsigned n) {
+static void addMetadata(Loop &loop, StringRef attrName, unsigned n) {
   LLVMContext &ctx = getContext(loop);
   MDNode *mdEmpty = MDNode::get(ctx, {});
-  SmallVector<Metadata *, 8> ops;
+  SmallVector<Metadata *, 8> attrVals;
 
-  ops.append(n, mdEmpty);
-  addMetadata(loop, name, ops);
+  attrVals.append(n, mdEmpty);
+  addMetadata(loop, attrName, attrVals);
 }
 
 static constexpr StringRef ll = R"(

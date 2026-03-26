@@ -4,7 +4,7 @@
 ; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}} !kit.gv.device.code ![[TT:[0-9]+]]
+; CHECK-DAG: @[[FB:.+]] = constant {{.+}} !kit.gv ![[MD:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f
 ; CHECK-NOT: llvm.kit.symbol.device.ptr
@@ -16,7 +16,8 @@
 ; CHECK: call {{.+}} @__hipRegisterFatBinary
 ; CHECK-NOT: call {{.+}} @__hipRegisterVar
 ;
-; CHECK: ![[TT]] = !{i32 4}
+; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
+; CHECK-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 4}
 
 target triple = "x86_64-pc-linux-gnu"
 

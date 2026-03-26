@@ -12,11 +12,9 @@
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; The visibility and calling convention must be set.
-;
 ; CHECK: define {{.+}}@device_func(
 ; CHECK-SAME: #[[ATTRS:[0-9]+]]
-; CHECK-SAME: !kit.func.device ![[MDEMPTY:[0-9]+]]
+; CHECK-SAME: !kit.func ![[MD:[0-9]+]]
 ; CHECK: attributes #[[ATTRS]] = {
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
@@ -24,7 +22,9 @@
 ; CHECK-SAME: nounwind
 ; CHECK-SAME: "target-cpu"="gfx906"
 ; CHECK-SAME: "target-features"="+wavefrontsize32,+atomic-fadd-rtn-insts"
-; CHECK: ![[MDEMPTY]] = !{}
+
+; CHECK: ![[MD]] = distinct !{![[MD]], ![[DEVICE:[0-9]+]]}
+; CHECK: ![[DEVICE]] = !{!"kit.func.device"}
 
 define i64 @device_func(i64 %n) {
   ret i64 %n

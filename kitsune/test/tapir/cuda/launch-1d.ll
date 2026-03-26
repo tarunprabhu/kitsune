@@ -5,9 +5,9 @@
 ; RUN: opt --tapir=cuda -passes='loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: @[[FB:.+]] = constant {{.+}} !kit.gv.device.code ![[TT:[0-9]+]]
+; CHECK-DAG: @[[FB:.+]] = constant {{.+}} !kit.gv ![[MDDC:[0-9]+]]
 ; CHECK-DAG: @[[G_KNAME:.+]] = private unnamed_addr constant [{{[0-9]+}} x i8] c"[[KNAME:.+]]\00"
-; CHECK-DAG: @[[G_KERNEL_PROPS:.+]] = private unnamed_addr constant {{.+}} zeroinitializer, !kit.gv.kernel.properties ![[KP:[0-9]+]]
+; CHECK-DAG: @[[G_KERNEL_PROPS:.+]] = private unnamed_addr constant {{.+}} zeroinitializer, !kit.gv ![[MDKP:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f(ptr {{.*}}%[[C:.+]], i64 {{.*}}%[[N:.+]])
 ;
@@ -36,8 +36,10 @@
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;
-; CHECK-DAG: ![[TT]] = !{i32 2}
-; CHECK-DAG: ![[KP]] = !{i32 2, !"[[KNAME]]"}
+; CHECK-DAG: ![[MDDC]] = distinct !{![[MDDC]], ![[DC:[0-9]+]]}
+; CHECK-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 2}
+; CHECK-DAG: ![[MDKP]] = distinct !{![[MDKP]], ![[KP:[0-9]+]]}
+; CHECK-DAG: ![[KP]] = !{!"kit.gv.kernel.properties", i32 2, !"[[KNAME]]"}
 
 define void @f(ptr %c, i64 %n) {
 entry:

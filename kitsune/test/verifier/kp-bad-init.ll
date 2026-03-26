@@ -5,6 +5,7 @@
 ;
 ; CHECK: invalid initializer in global containing kernel properties
 
-@0 = constant { i64, i64, i64, i64 } undef, !kit.gv.kernel.properties !0
+@0 = constant { i64, i64, i64, i64 } undef, !kit.gv !0
 
-!0 = !{!"coventry"}
+!0 = distinct !{!0, !1}
+!1 = !{!"kit.gv.kernel.properties", i32 2, !"coventry"}

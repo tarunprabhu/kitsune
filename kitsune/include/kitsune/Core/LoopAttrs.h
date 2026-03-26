@@ -27,6 +27,7 @@ namespace llvm {
 
 class LLVMContext;
 class Loop;
+class LoopInfo;
 class MDNode;
 class raw_ostream;
 
@@ -38,6 +39,11 @@ enum class LoopAttrKind : uint32_t {
 #define GET_LOOP_ATTR_ENUMS
 #include "kitsune/Core/LoopAttrs.inc"
 };
+
+/// Get the metadata node containing the list of Kitsune-specific attributes.
+/// If no Kitsune-specific attributes have been added to the loop, this may
+/// return nullptr.
+MDNode *getAttrList(const Loop &loop);
 
 /// Get the name of the loop attribute as it appears in the loop metadata.
 /// The result will start with "tapir.loop." or "loop."
@@ -86,6 +92,11 @@ MDNode *getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr, T val) {
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 
+#define LOOP_ATTR_LOOP(NAME, IRNAME)                                           \
+  std::optional<Loop *> get##NAME##Attr(                                       \
+      const Loop &loop, const SmallVectorImpl<const LoopInfo *> &lis);         \
+  void add##NAME##Attr(Loop &loop, const Loop &l);
+
 #define LOOP_ATTR_0(NAME, IRNAME) void add##NAME##Attr(Loop &loop);
 
 #define LOOP_ATTR_1(NAME, IRNAME, TYPE)                                        \
@@ -124,6 +135,7 @@ MDNode *getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr, T val) {
                     ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
   void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,         \
                        ETY4 e4, ETY5 en5, ETY6 en6, ETY7 en7);
+
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 

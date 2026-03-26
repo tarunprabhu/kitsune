@@ -82,10 +82,10 @@ entry:
   ret i32 %n
 }
 
-!kit.module.device.module.flags = !{!0, !1}
+!kit.module = !{!0}
 
-!0 = !{i32 4}
-!1 = !{!"some-silly-name"}
+!0 = distinct !{!0, !1}
+!1 = !{!"kit.module.device.module.flags", i32 4, !"slartibartfast"}
 )");
 
   GlobalVariable *gHip = createEmbBCGlobal(*hipM, TTID::Hip, *hostM);
@@ -94,7 +94,7 @@ entry:
 
   std::unique_ptr<Module> parseHipM = std::move(*parseHipMOrErr);
   EXPECT_TRUE(parseHipM->getFunction("fhip"));
-  EXPECT_EQ(parseHipM->getName(), "some-silly-name");
+  EXPECT_EQ(parseHipM->getName(), "slartibartfast");
 }
 
 TEST(KitEmbUtils, resetEmbBCGlobal) {

@@ -9,14 +9,18 @@
 ;
 ; ALL-LABEL: define {{.+}} @sieve(
 ; ALL-SAME: #[[ATTRS_SIEVE:[0-9]+]]
-; ALL-SAME: !kit.func.device ![[MDEMPTY:[0-9]+]]
+; ALL-SAME: !kit.func ![[MD_SIEVE:[0-9]+]]
 ;
 ; ALL-LABEL: define {{.+}} @id(
 ; ALL-SAME: #[[ATTRS_ID:[0-9]+]]
-; ALL-SAME: !kit.func.device ![[MDEMPTY]]
+; ALL-SAME: !kit.func ![[MD_ID:[0-9]+]]
 ;
 ; DEFAULT-DAG: attributes #[[ATTRS_SIEVE]] = { "
 ; DEFAULT-DAG: attributes #[[ATTRS_ID]] = { noinline "
+;
+; ALL-DAG: ![[DEVICE:[0-9]+]] = !{!"kit.func.device"}
+; ALL-DAG: ![[MD_SIEVE]] = distinct !{![[MD_SIEVE]], ![[DEVICE]]}
+; ALL-DAG: ![[MD_ID]] = distinct !{![[MD_ID]], ![[DEVICE]]}
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -27,8 +31,6 @@
 ;
 ; INLINE-DAG: attributes #[[ATTRS_SIEVE]] = { alwaysinline "
 ; INLINE-DAG: attributes #[[ATTRS_ID]] = { noinline "
-;
-; ALL: ![[MDEMPTY]] = !{}
 ;
 ; ------------------------------------------------------------------------------
 

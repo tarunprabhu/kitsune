@@ -100,7 +100,7 @@ declare void @ext1(i64)
 
 declare void @ext2(i64, i64)
 
-!kit.module.pre.lower.annotate.pass = !{}
+!kit.module = !{!7}
 
 !0 = distinct !{!0, !2, !3, !4, !6}
 !1 = distinct !{!1, !2, !5}
@@ -109,3 +109,5 @@ declare void @ext2(i64, i64)
 !4 = !{!"tapir.loop.perfect.level", i32 1}
 !5 = !{!"tapir.loop.name", !"loop.j"}
 !6 = !{!"tapir.loop.name", !"loop.i"}
+!7 = distinct !{!7, !8}
+!8 = !{!"kit.module.pre.lower.annotate.pass"}
