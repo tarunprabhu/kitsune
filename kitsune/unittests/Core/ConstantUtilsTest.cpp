@@ -7,25 +7,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/ConstantUtils.h"
+#include "TestUtils.h"
 #include "kitsune/Core/Tapir.h"
-#include "llvm/AsmParser/Parser.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/SourceMgr.h"
 
 #include "gtest/gtest.h"
 
 using namespace llvm;
 
 namespace {
-
-static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
-  SMDiagnostic err;
-  std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
-  if (!m)
-    err.print("parseIR", errs());
-  return m;
-}
 
 TEST(KitConstantUtils, createConstString) {
   LLVMContext ctx;
@@ -47,8 +37,8 @@ TEST(KitConstantUtils, createConstString) {
   // global string with the given initializer already exists, it will be
   // returned.
   EXPECT_EQ(createConstString(s1, *m), g1);
-  EXPECT_EQ(createConstString(s1, *m, "newName"), g1);
-  EXPECT_FALSE(createConstString(s1, *m, "newName")->hasName());
+  EXPECT_EQ(createConstString(s1, *m, "eccentrica"), g1);
+  EXPECT_FALSE(createConstString(s1, *m, "eccentrica")->hasName());
 
   // When asking for a different string, make sure that works too.
   GlobalVariable *g2 = createConstString(s2, *m, "s2");

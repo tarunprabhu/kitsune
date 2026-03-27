@@ -7,12 +7,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/EmbUtils.h"
+#include "TestUtils.h"
 #include "kitsune/Core/GVAttrs.h"
-#include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/MemoryBuffer.h"
 
 #include "gtest/gtest.h"
 
@@ -33,14 +32,6 @@ entry:
   ret i32 %n
 }
 )";
-
-static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
-  SMDiagnostic err;
-  std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
-  if (!m)
-    err.print("parseIR", errs());
-  return m;
-}
 
 TEST(KitEmbUtils, createEmbBCGlobal) {
   LLVMContext ctx;
