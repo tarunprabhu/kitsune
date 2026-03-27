@@ -25,6 +25,17 @@ namespace llvm {
 class Loop;
 class LoopInfo;
 
+namespace detail {
+
+static constexpr StringRef errMsgNoValue =
+    "Could not get value of type '{}' in attribute '{}'";
+
+static constexpr StringRef errMsgNoValueAt =
+    "Could not get value of type '{}' for element '{}' at index '{}' in "
+    "attribute '{}'";
+
+} // namespace detail
+
 /// Create a raw attribute metadata node with name \p attrName and values
 /// \p attrVals. This will be of the form
 ///

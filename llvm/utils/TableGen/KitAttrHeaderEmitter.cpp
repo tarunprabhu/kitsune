@@ -20,16 +20,22 @@
 
 using namespace llvm;
 
+static StringRef toString(bool b) { return b ? "true" : "false"; }
+
 static bool isBasic(const Record &type) {
   return type.isSubClassOf("BasicType");
 }
 
-static bool isLoop(const Record &type) {
-  return type.getName() == "LoopTy";
-}
+static bool isLoop(const Record &type) { return type.getName() == "LoopTy"; }
 
 static bool isTuple(const Record &type) {
   return type.isSubClassOf("TupleType");
+}
+
+static bool isTrue(const Record &v) {
+  if (!v.isSubClassOf("Bool"))
+    PrintFatalError(v.getLoc(), "Can only check if boolean values are true");
+  return v.getName() == "True";
 }
 
 std::string KitAttrHeaderEmitter::getBaseMacroName() const {
@@ -43,7 +49,7 @@ std::string KitAttrHeaderEmitter::getBaseMacroName() const {
 }
 
 StringRef KitAttrHeaderEmitter::getBaseMacroArgs() const {
-  return "(NAME, IRNAME, TYPE)";
+  return "(NAME, IRNAME, CUSTOMVERIFY, TYPE)";
 }
 
 std::string KitAttrHeaderEmitter::getElemMacroName() const {
@@ -59,7 +65,7 @@ std::string KitAttrHeaderEmitter::getLoopMacroName() const {
 }
 
 StringRef KitAttrHeaderEmitter::getLoopMacroArgs() const {
-  return "(NAME, IRNAME)";
+  return "(NAME, IRNAME, CUSTOMVERIFY)";
 }
 
 std::string KitAttrHeaderEmitter::getMacroName(unsigned n) const {
@@ -97,13 +103,13 @@ std::string KitAttrHeaderEmitter::getMacroArgs(unsigned n) const {
 
   switch (n) {
   case 0:
-    os << "(NAME, IRNAME)";
+    os << "(NAME, IRNAME, CUSTOMVERIFY)";
     break;
   case 1:
-    os << "(NAME, IRNAME, TYPE)";
+    os << "(NAME, IRNAME, CUSTOMVERIFY, TYPE)";
     break;
   default:
-    os << "(NAME, IRNAME, ETY0, ENAME0, EN0";
+    os << "(NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0";
     for (unsigned i = 2; i <= n; ++i) {
       unsigned argNo = i - 1;
       os << ", ETY" << argNo << ", ENAME" << argNo << ", EN" << argNo;
@@ -129,13 +135,13 @@ void KitAttrHeaderEmitter::emitMacroDefn(raw_ostream &os, unsigned n) {
   os << "#define " << macroName << macroArgs;
   switch (n) {
   case 0:
-    os << " \\\n    " << baseMacroName << "(NAME, IRNAME,)";
+    os << " \\\n    " << baseMacroName << "(NAME, IRNAME, CUSTOMVERIFY,)";
     break;
   case 1:
-    os << " \\\n    " << baseMacroName << "(NAME, IRNAME, TYPE)";
+    os << " \\\n    " << baseMacroName << "(NAME, IRNAME, CUSTOMVERIFY, TYPE)";
     break;
   default:
-    os << " \\\n    " << baseMacroName << "(NAME, IRNAME,)";
+    os << " \\\n    " << baseMacroName << "(NAME, IRNAME, CUSTOMVERIFY,)";
     for (unsigned i = 0; i < n; ++i)
       os << " \\\n    " << elemMacroName << "(NAME, IRNAME, ETY" << i
          << ", ENAME" << i << ", EN" << i << ", " << n << ")";
@@ -152,7 +158,8 @@ void KitAttrHeaderEmitter::emitLoopMacroDefn(raw_ostream &os) {
 
   os << "#ifndef " << macroName << "\n";
   os << "#define " << macroName << macroArgs << " \\\n";
-  os << "    " << getBaseMacroName() << "(NAME, IRNAME, llvm::Loop*)\n";
+  os << "    " << getBaseMacroName()
+     << "(NAME, IRNAME, CUSTOMVERIFY, llvm::Loop*)\n";
   os << "#endif // " << macroName << "\n";
   os << "\n";
 }
@@ -183,8 +190,11 @@ void KitAttrHeaderEmitter::emitAttr(raw_ostream &os, const Record &attr) {
   StringRef attrName = attr.getName();
   std::string irName = quote(getIRName(attr));
   std::string macroName = getMacroName(*type);
+  bool hasCustomVerifier = isTrue(*attr.getValueAsDef("HasCustomVerifier"));
 
-  os << macroName << "(" << attrName << ", " << irName;
+  os << macroName << "(" << attrName;
+  os << ", " << irName;
+  os << ", " << toString(hasCustomVerifier);
   for (StringRef arg : args)
     os << ", " << arg;
   os << ")\n";

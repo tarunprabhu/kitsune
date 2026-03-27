@@ -22,6 +22,7 @@ add_kitsune_unittest_with_input_files(KitCoreTests
   ModuleAttrsTest.cpp
   ModuleUtilsTest.cpp
   TapirCoreTest.cpp
+  TestUtils.cpp
   TypeUtilsTest.cpp
   ValueUtilsTest.cpp
 

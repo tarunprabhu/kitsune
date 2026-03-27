@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/AttrsCommon.h"
+#include "VerifyImpl.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/LoopInfo.h"
 
@@ -153,33 +154,23 @@ llvm::getAttrValue(StringRef attrName, const MDNode *attrList,
 
 bool llvm::verifyAttr0(StringRef attrName, const MDNode *attrList,
                        raw_ostream *os) {
-  if (MDNode *md = getRawAttr(attrName, attrList)) {
-    if (md->getNumOperands() != 1) {
-      if (os)
-        (*os) << "Unexpected value in attribute '" << attrName << "'\n";
-      return false;
-    }
-  }
+  if (MDNode *md = getRawAttr(attrName, attrList))
+    return detail::check(md->getNumOperands() == 1, os,
+                         "Unexpected value in attribute '{}'", attrName);
   return true;
 }
 
 bool llvm::verifyAttrLoop(StringRef attrName, const MDNode *attrList,
                           raw_ostream *os) {
-  auto printError = [](StringRef attrName, raw_ostream *os) -> bool {
-    if (os)
-      (*os) << "Missing value of type 'Loop' in attribute '" << attrName
-            << "'\n";
-    return false;
-  };
-
   if (MDNode *md = getRawAttr(attrName, attrList)) {
-    if (md->getNumOperands() != 2)
-      return printError(attrName, os);
+    if (!detail::check(md->getNumOperands() == 2, os, detail::errMsgNoValue,
+                       "Loop", attrName))
+      return false;
 
     MDNode *val = dyn_cast<MDNode>(md->getOperand(1));
-    if (!val || !val->getNumOperands() || !val->isDistinct() ||
-        val->getOperand(0) != val)
-      return printError(attrName, os);
+    bool isLoop = val && val->getNumOperands() && val->isDistinct();
+    if (!detail::check(isLoop, os, detail::errMsgNoValue, "Loop", attrName))
+      return false;
   }
   return true;
 }
