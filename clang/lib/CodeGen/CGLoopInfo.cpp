@@ -7,7 +7,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "CGLoopInfo.h"
+#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/MetadataUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"
@@ -485,6 +487,12 @@ clang::CodeGen::LoopInfo::LoopInfo(BasicBlock *Header,
     return;
 
   TempLoopID = MDNode::getTemporary(Header->getContext(), {});
+}
+
+template <typename T>
+static MDNode *getMDNodeForAttr(LLVMContext &Ctx, LoopAttrKind Attr,
+                                const T &Val) {
+  return makeRawAttr(Ctx, getAttrName(Attr), toMetadata(Val, Ctx));
 }
 
 std::vector<Metadata *>

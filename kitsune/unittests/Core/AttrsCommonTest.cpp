@@ -51,6 +51,24 @@ static void checkAttr(Metadata *mdop, StringRef expVal) {
   EXPECT_EQ(cast<MDString>(md1)->getString(), expVal);
 }
 
+TEST(KitAttrsCommon, makeRawAttr) {
+  LLVMContext ctx;
+  MDNode *md = nullptr;
+  Metadata *strOld = MDString::get(ctx, attrOld);
+  Metadata *strNew = MDString::get(ctx, attrNew);
+
+  md = makeRawAttr(ctx, "attr-flag", {});
+  checkAttrFlag(md);
+
+  md = makeRawAttr(ctx, "attr-new", {strOld});
+  checkAttr(md, attrOld);
+
+  md = makeRawAttr(ctx, "attr2", {strOld, strNew});
+  EXPECT_EQ(cast<MDString>(md->getOperand(0))->getString(), "attr2");
+  EXPECT_EQ(cast<MDString>(md->getOperand(1))->getString(), attrOld);
+  EXPECT_EQ(cast<MDString>(md->getOperand(2))->getString(), attrNew);
+}
+
 TEST(KitAttrsCommon, newAttrList) {
   LLVMContext ctx;
   MDNode *md = nullptr;
@@ -63,20 +81,24 @@ TEST(KitAttrsCommon, newAttrListWith) {
   LLVMContext ctx;
   MDNode *md = nullptr;
 
-  md = getNewAttrListWith("attr-new", {MDString::get(ctx, attrOld)}, nullptr,
-                          ctx);
+  md = getAttrListWith("attr-new", {MDString::get(ctx, attrOld)}, nullptr, ctx);
   checkAttrList(md, 1);
   checkAttr(md->getOperand(1), attrOld);
 
-  md = getNewAttrListWith("attr-flag", {}, md, ctx);
+  md = getAttrListWith("attr-flag", {}, md, ctx);
   checkAttrList(md, 2);
   checkAttr(md->getOperand(1), attrOld);
   checkAttrFlag(md->getOperand(2));
 
-  md = getNewAttrListWith("attr-new", {MDString::get(ctx, attrNew)}, md, ctx);
+  md = getAttrListWith("attr-new", {MDString::get(ctx, attrNew)}, md, ctx);
   checkAttrList(md, 2);
+  checkAttr(md->getOperand(1), attrNew);
+  checkAttrFlag(md->getOperand(2));
+
+  md = getNewAttrList(ctx);
+  md = getAttrListWith("attr-flag", {}, md, ctx);
+  checkAttrList(md, 1);
   checkAttrFlag(md->getOperand(1));
-  checkAttr(md->getOperand(2), attrNew);
 }
 
 TEST(KitAttrsCommon, newAttrListWithout) {
@@ -84,24 +106,24 @@ TEST(KitAttrsCommon, newAttrListWithout) {
   MDNode *md = nullptr;
   MDNode *mdEmpty = nullptr;
 
-  EXPECT_FALSE(getNewAttrListWithout("attr-flag", nullptr));
+  EXPECT_FALSE(getAttrListWithout("attr-flag", nullptr));
 
   mdEmpty = getNewAttrList(ctx);
   checkAttrList(mdEmpty, 0);
 
-  md = getNewAttrListWithout("attr-flag", mdEmpty);
+  md = getAttrListWithout("attr-flag", mdEmpty);
   EXPECT_FALSE(md);
 
-  md = getNewAttrListWith("attr-flag", {}, md, ctx);
+  md = getAttrListWith("attr-flag", {}, md, ctx);
   checkAttrList(md, 1);
   checkAttrFlag(md->getOperand(1));
 
-  md = getNewAttrListWithout("attr-flag", md);
+  md = getAttrListWithout("attr-flag", md);
   EXPECT_FALSE(md);
 
-  md = getNewAttrListWith("attr-new", {MDString::get(ctx, attrOld)}, md, ctx);
-  md = getNewAttrListWith("attr-flag", {}, md, ctx);
-  md = getNewAttrListWithout("attr-new", md);
+  md = getAttrListWith("attr-new", {MDString::get(ctx, attrOld)}, md, ctx);
+  md = getAttrListWith("attr-flag", {}, md, ctx);
+  md = getAttrListWithout("attr-new", md);
   checkAttrList(md, 1);
   checkAttrFlag(md->getOperand(1));
 }
@@ -114,7 +136,7 @@ TEST(KitAttrsCommon, getRawAttr) {
   md = getNewAttrList(ctx);
   EXPECT_FALSE(getRawAttr("attr-flag", md));
 
-  md = getNewAttrListWith("attr-flag", {}, md, ctx);
+  md = getAttrListWith("attr-flag", {}, md, ctx);
   mdAttr = getRawAttr("attr-flag", md);
   EXPECT_TRUE(mdAttr);
   checkAttrFlag(mdAttr);
@@ -129,7 +151,7 @@ TEST(KitAttrsCommon, getAttrValue) {
   Metadata *v1 = ConstantAsMetadata::get(ConstantInt::get(i32, 11011010));
   MDNode *md = nullptr;
 
-  md = getNewAttrListWith("attr", {v0, v1}, md, ctx);
+  md = getAttrListWith("attr", {v0, v1}, md, ctx);
 
   EXPECT_FALSE(getAttrValue<StringRef>("attr", nullptr, 0, 2));
   EXPECT_FALSE(getAttrValue<StringRef>("attr", md, 0, 0));

@@ -23,7 +23,7 @@ static void addMetadata(Module &m, StringRef attrName,
                         ArrayRef<Metadata *> attrVals) {
   LLVMContext &ctx = m.getContext();
   MDNode *attrList = getAttrList(m);
-  MDNode *newAttrList = getNewAttrListWith(attrName, attrVals, attrList, ctx);
+  MDNode *newAttrList = getAttrListWith(attrName, attrVals, attrList, ctx);
 
   NamedMDNode *nmd = m.getOrInsertNamedMetadata("kit.module");
   if (nmd->getNumOperands())

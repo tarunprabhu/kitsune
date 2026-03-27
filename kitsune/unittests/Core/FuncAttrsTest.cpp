@@ -24,7 +24,7 @@ static void addMetadata(Function &f, StringRef attrName,
                         ArrayRef<Metadata *> attrVals) {
   LLVMContext &ctx = f.getContext();
   MDNode *attrList = getAttrList(f);
-  MDNode *newAttrList = getNewAttrListWith(attrName, attrVals, attrList, ctx);
+  MDNode *newAttrList = getAttrListWith(attrName, attrVals, attrList, ctx);
 
   f.setMetadata(LLVMContext::MD_kit_func_attrs, newAttrList);
 }
