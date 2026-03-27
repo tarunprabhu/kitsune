@@ -25,7 +25,7 @@ static void addMetadata(GlobalVariable &g, StringRef attrName,
                         ArrayRef<Metadata *> attrVals) {
   LLVMContext &ctx = g.getContext();
   MDNode *attrList = getAttrList(g);
-  MDNode *newAttrList = getNewAttrListWith(attrName, attrVals, attrList, ctx);
+  MDNode *newAttrList = getAttrListWith(attrName, attrVals, attrList, ctx);
 
   g.setMetadata(LLVMContext::MD_kit_gv_attrs, newAttrList);
 }

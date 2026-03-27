@@ -35,53 +35,76 @@ using namespace llvm;
 // These attributes are elements of a distinct "attribute list" MDNode. The list
 // is self-referential. The first operand will always be a reference to itself.
 
-static MDNode *makeMDNodeForAttrList(LLVMContext &ctx,
-                                     ArrayRef<Metadata *> ops) {
-  MDNode *md = MDNode::getDistinct(ctx, ops);
+// Create a new MDNode that will act as an attribute list with the given
+// attributes.
+static MDNode *makeAttrList(LLVMContext &ctx, ArrayRef<Metadata *> attrs) {
+  MDNode *md = MDNode::getDistinct(ctx, attrs);
   md->replaceOperandWith(0, md);
   return md;
 }
 
-static MDNode *makeMDNodeForAttr(LLVMContext &ctx, StringRef name,
-                                 ArrayRef<Metadata *> vals) {
+static std::optional<unsigned> getAttrIndex(StringRef attrName,
+                                            const MDNode *attrList) {
+  if (attrList)
+    for (unsigned i = 1, e = attrList->getNumOperands(); i < e; ++i)
+      if (auto *md = dyn_cast<MDNode>(attrList->getOperand(i)))
+        if (auto *mdStr = dyn_cast<MDString>(md->getOperand(0)))
+          if (mdStr->getString() == attrName)
+            return i;
+  return std::nullopt;
+}
+
+// Replace the element at index \p i in the attribute list \p attrList with
+// \p attr. Return \p attrList.
+static MDNode *replaceInAttrList(MDNode *attrList, unsigned i, Metadata *attr) {
+  assert(attrList && "Cannot replace element of null list");
+  assert(i < attrList->getNumOperands() && "Invalid index in attribute list");
+
+  attrList->replaceOperandWith(i, attr);
+  return attrList;
+}
+
+// Append the element \p attr to the attribute list \p attrList. Return the
+// newly created attribute list. If \p attrList is nullptr, create a singleton
+// list containing only \p attr.
+static MDNode *appendToAttrList(MDNode *attrList, MDNode *attr) {
+  // The first element of the new attribute list must be a self-reference. It
+  // will be replaced when the new attribute list is created.
+  SmallVector<Metadata *, 8> newAttrs = {nullptr};
+  if (attrList)
+    for (Metadata *op : attrList->operands().drop_front())
+      newAttrs.push_back(op);
+  newAttrs.push_back(attr);
+
+  return makeAttrList(attr->getContext(), newAttrs);
+}
+
+MDNode *llvm::makeRawAttr(LLVMContext &ctx, StringRef attrName,
+                          ArrayRef<Metadata *> attrVals) {
   SmallVector<Metadata *, 8> ops;
-  MDString *mdName = MDString::get(ctx, name);
+  MDString *mdName = MDString::get(ctx, attrName);
 
   ops.push_back(mdName);
-  ops.append(vals.begin(), vals.end());
+  ops.append(attrVals.begin(), attrVals.end());
 
   return MDNode::get(ctx, ops);
 }
 
-static void copyAttrsExcept(StringRef attrName, const MDNode &attrList,
-                            SmallVectorImpl<Metadata *> &newAttrs) {
-  for (Metadata *op : attrList.operands().drop_front())
-    if (auto *md = dyn_cast<MDNode>(op))
-      if (auto *mdStr = dyn_cast<MDString>(md->getOperand(0)))
-        if (mdStr->getString() != attrName)
-          newAttrs.push_back(md);
-}
-
 MDNode *llvm::getNewAttrList(LLVMContext &ctx) {
-  return makeMDNodeForAttrList(ctx, {nullptr});
+  return makeAttrList(ctx, {nullptr});
 }
 
-MDNode *llvm::getNewAttrListWith(StringRef attrName,
-                                 const ArrayRef<Metadata *> attrVals,
-                                 const MDNode *attrList, LLVMContext &ctx) {
-  // Since we will always create a new attribute list node, the first element
-  // must be a self-reference. It will be replaced when the new attribute list
-  // is created.
-  SmallVector<Metadata *, 8> newAttrs = {nullptr};
-
-  if (attrList)
-    copyAttrsExcept(attrName, *attrList, newAttrs);
-  newAttrs.push_back(makeMDNodeForAttr(ctx, attrName, attrVals));
-
-  return makeMDNodeForAttrList(ctx, newAttrs);
+MDNode *llvm::getAttrListWith(StringRef attrName,
+                              const ArrayRef<Metadata *> attrVals,
+                              MDNode *attrList, LLVMContext &ctx) {
+  MDNode *attr = makeRawAttr(ctx, attrName, attrVals);
+  if (std::optional<unsigned> i = getAttrIndex(attrName, attrList))
+    return replaceInAttrList(attrList, *i, attr);
+  else
+    return appendToAttrList(attrList, attr);
 }
 
-MDNode *llvm::getNewAttrListWithout(StringRef attrName, MDNode *attrList) {
+MDNode *llvm::getAttrListWithout(StringRef attrName, MDNode *attrList) {
   if (!attrList)
     return nullptr;
 
@@ -91,14 +114,18 @@ MDNode *llvm::getNewAttrListWithout(StringRef attrName, MDNode *attrList) {
   // must be a self-reference. It will be replaced when the new attribute list
   // is created.
   SmallVector<Metadata *, 8> newAttrs = {nullptr};
-  copyAttrsExcept(attrName, *attrList, newAttrs);
+  for (Metadata *op : attrList->operands().drop_front())
+    if (auto *md = dyn_cast<MDNode>(op))
+      if (auto *mdStr = dyn_cast<MDString>(md->getOperand(0)))
+        if (mdStr->getString() != attrName)
+          newAttrs.push_back(md);
 
   if (newAttrs.size() == 1)
     return nullptr;
   else if (newAttrs.size() == attrList->getNumOperands())
     return attrList;
   else
-    return makeMDNodeForAttrList(ctx, newAttrs);
+    return makeAttrList(ctx, newAttrs);
 }
 
 MDNode *llvm::getRawAttr(StringRef attrName, const MDNode *attrList) {

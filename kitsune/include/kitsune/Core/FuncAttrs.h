@@ -14,14 +14,12 @@
 #ifndef KITSUNE_CORE_FUNC_ATTRS_H
 #define KITSUNE_CORE_FUNC_ATTRS_H
 
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class Function;
-class Loop;
-class LoopInfo;
 class MDNode;
 class raw_ostream;
 
@@ -33,11 +31,6 @@ enum class FuncAttrKind : uint32_t {
 #define GET_FUNC_ATTR_ENUMS
 #include "kitsune/Core/FuncAttrs.inc"
 };
-
-/// Get the metadata node containing the list of Kitsune-specific attributes.
-/// If no Kitsune-specific attributes have been attached to the function, this
-/// may return nullptr.
-MDNode *getAttrList(const Function &f);
 
 /// Get the metadata node containing the list of Kitsune-specific attributes.
 /// If no Kitsune-specific attributes have been attached to the function, this
@@ -74,63 +67,24 @@ bool verifyAttr(const Function &f, FuncAttrKind attr,
 
 /// @}
 
-#define FUNC_ATTR(NAME, IRNAME, TYPE)                                          \
-  bool verify##NAME##Attr(const Function &f, raw_ostream *os = nullptr);       \
-  bool has##NAME##Attr(const Function &f);                                     \
-  void remove##NAME##Attr(Function &f);
+#define FUNC_ATTR(...) DECL_ATTR_COMMON(Function, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 
-#define FUNC_ATTR_LOOP(NAME, IRNAME)                                           \
-  std::optional<Loop *> get##NAME##Attr(                                       \
-      const Function &f, const SmallVectorImpl<const LoopInfo *> &lis);        \
-  void add##NAME##Attr(Function &f, const Loop &loop);
-
-#define FUNC_ATTR_0(NAME, IRNAME) void add##NAME##Attr(Function &f);
-
-#define FUNC_ATTR_1(NAME, IRNAME, TYPE)                                        \
-  std::optional<TYPE> get##NAME##Attr(const Function &f);                      \
-  void add##NAME##Attr(Function &f, TYPE val);
-
-#define FUNC_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
-  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1);
-
-#define FUNC_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2)                                               \
-  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2);
-
-#define FUNC_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3)                            \
-  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3);
-
-#define FUNC_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)         \
-  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,        \
-                       ETY4 e4);
-
-#define FUNC_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
-                    ENAME5, EN5)                                               \
-  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,        \
-                       ETY4 e4, ETY5 en5);
-
-#define FUNC_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
-                    ENAME5, EN5, ETY6, ENAME6, EN6)                            \
-  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,        \
-                       ETY4 e4, ETY5 en5, ETY6 en6);
-
-#define FUNC_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
-                    ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
-  void add##NAME##Attr(Function &f, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,        \
-                       ETY4 e4, ETY5 en5, ETY6 en6, ETY7 en7);
-
+#define FUNC_ATTR_LOOP(...) DECL_ATTR_LOOP(Function, __VA_ARGS__)
+#define FUNC_ATTR_0(...) DECL_ATTR_0(Function, __VA_ARGS__)
+#define FUNC_ATTR_1(...) DECL_ATTR_1(Function, __VA_ARGS__)
+#define FUNC_ATTR_2(...) DECL_ATTR_2(Function, __VA_ARGS__)
+#define FUNC_ATTR_3(...) DECL_ATTR_3(Function, __VA_ARGS__)
+#define FUNC_ATTR_4(...) DECL_ATTR_4(Function, __VA_ARGS__)
+#define FUNC_ATTR_5(...) DECL_ATTR_5(Function, __VA_ARGS__)
+#define FUNC_ATTR_6(...) DECL_ATTR_6(Function, __VA_ARGS__)
+#define FUNC_ATTR_7(...) DECL_ATTR_7(Function, __VA_ARGS__)
+#define FUNC_ATTR_8(...) DECL_ATTR_8(Function, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 
-#define FUNC_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                      \
-  std::optional<ETY> get##ENAME##From##NAME##Attr(const Function &f);
+#define FUNC_ATTR_N(...) DECL_ATTR_N(Function, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 

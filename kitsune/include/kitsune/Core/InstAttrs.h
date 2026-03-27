@@ -14,14 +14,12 @@
 #ifndef KITSUNE_CORE_INST_ATTRS_H
 #define KITSUNE_CORE_INST_ATTRS_H
 
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class Instruction;
-class Loop;
-class LoopInfo;
 class MDNode;
 class raw_ostream;
 
@@ -70,62 +68,24 @@ bool verifyAttr(const Instruction &inst, InstAttrKind attr,
 
 /// @}
 
-#define INST_ATTR(NAME, IRNAME, TYPE)                                          \
-  bool verify##NAME##Attr(const Instruction &inst, raw_ostream *os = nullptr); \
-  bool has##NAME##Attr(const Instruction &inst);                               \
-  void remove##NAME##Attr(Instruction &inst);
+#define INST_ATTR(...) DECL_ATTR_COMMON(Instruction, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 
-#define INST_ATTR_LOOP(NAME, IRNAME)                                           \
-  std::optional<Loop *> get##NAME##Attr(                                       \
-      const Instruction &inst, const SmallVectorImpl<const LoopInfo *> &lis);  \
-  void add##NAME##Attr(Instruction &inst, const Loop &loop);
-
-#define INST_ATTR_0(NAME, IRNAME) void add##NAME##Attr(Instruction &inst);
-
-#define INST_ATTR_1(NAME, IRNAME, TYPE)                                        \
-  std::optional<TYPE> get##NAME##Attr(const Instruction &inst);                \
-  void add##NAME##Attr(Instruction &inst, TYPE val);
-
-#define INST_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
-  void add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1);
-
-#define INST_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2)                                               \
-  void add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1, ETY2 e2);
-
-#define INST_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3)                            \
-  void add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3);
-
-#define INST_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)         \
-  void add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
-                       ETY4 e4);
-
-#define INST_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
-                    ENAME5, EN5)                                               \
-  void add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
-                       ETY4 e4, ETY5 en5);
-
-#define INST_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
-                    ENAME5, EN5, ETY6, ENAME6, EN6)                            \
-  void add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
-                       ETY4 e4, ETY5 en5, ETY6 en6);
-
-#define INST_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
-                    ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
-  void add##NAME##Attr(Instruction &inst, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,  \
-                       ETY4 e4, ETY5 en5, ETY6 en6, ETY7 en7);
+#define INST_ATTR_LOOP(...) DECL_ATTR_LOOP(Instruction, __VA_ARGS__)
+#define INST_ATTR_0(...) DECL_ATTR_0(Instruction, __VA_ARGS__)
+#define INST_ATTR_1(...) DECL_ATTR_1(Instruction, __VA_ARGS__)
+#define INST_ATTR_2(...) DECL_ATTR_2(Instruction, __VA_ARGS__)
+#define INST_ATTR_3(...) DECL_ATTR_3(Instruction, __VA_ARGS__)
+#define INST_ATTR_4(...) DECL_ATTR_4(Instruction, __VA_ARGS__)
+#define INST_ATTR_5(...) DECL_ATTR_5(Instruction, __VA_ARGS__)
+#define INST_ATTR_6(...) DECL_ATTR_6(Instruction, __VA_ARGS__)
+#define INST_ATTR_7(...) DECL_ATTR_7(Instruction, __VA_ARGS__)
+#define INST_ATTR_8(...) DECL_ATTR_8(Instruction, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 
-#define INST_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                      \
-  std::optional<ETY> get##ENAME##From##NAME##Attr(const Instruction &inst);
+#define INST_ATTR_N(...) DECL_ATTR_N(Instruction, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 

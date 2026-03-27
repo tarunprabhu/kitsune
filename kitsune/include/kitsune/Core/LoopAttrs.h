@@ -15,21 +15,17 @@
 #ifndef KITSUNE_CORE_LOOP_ATTRS_H
 #define KITSUNE_CORE_LOOP_ATTRS_H
 
-#include "kitsune/Core/MetadataUtils.h"
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/IR/Metadata.h"
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
-class LLVMContext;
 class Loop;
-class LoopInfo;
 class MDNode;
 class raw_ostream;
+
+/// \addtogroup kitsune
+/// @{
 
 /// The required prefix on the names of loop metadata specific to tapir loops.
 static constexpr StringRef tapirLoopAttrNamePrefix = "tapir.loop.";
@@ -72,75 +68,26 @@ void removeAttr(Loop &loop, LoopAttrKind attr);
 /// invalid.
 bool verifyAttr(const Loop &loop, LoopAttrKind attr, raw_ostream *os = nullptr);
 
-/// Get a metadata node for a loop attribute that takes a value.
-template <typename T>
-MDNode *getMDNodeForAttr(LLVMContext &ctx, LoopAttrKind attr, T val) {
-  StringRef name = getAttrName(attr);
-  Metadata *mdVal = toMetadata(val, ctx);
-  Metadata *mdTag = MDString::get(ctx, name);
-  MDNode *md = MDNode::get(ctx, {mdTag, mdVal});
-
-  return md;
-}
-
 /// @}
 
-#define LOOP_ATTR(NAME, IRNAME, TYPE)                                          \
-  bool verify##NAME##Attr(const Loop &loop, raw_ostream *os = nullptr);        \
-  bool has##NAME##Attr(const Loop &loop);                                      \
-  void remove##NAME##Attr(Loop &loop);
+#define LOOP_ATTR(...) DECL_ATTR_COMMON(Loop, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 
-#define LOOP_ATTR_LOOP(NAME, IRNAME)                                           \
-  std::optional<Loop *> get##NAME##Attr(                                       \
-      const Loop &loop, const SmallVectorImpl<const LoopInfo *> &lis);         \
-  void add##NAME##Attr(Loop &loop, const Loop &l);
-
-#define LOOP_ATTR_0(NAME, IRNAME) void add##NAME##Attr(Loop &loop);
-
-#define LOOP_ATTR_1(NAME, IRNAME, TYPE)                                        \
-  std::optional<TYPE> get##NAME##Attr(const Loop &loop);                       \
-  void add##NAME##Attr(Loop &loop, TYPE val);
-
-#define LOOP_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)        \
-  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1);
-
-#define LOOP_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2)                                               \
-  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2);
-
-#define LOOP_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3)                            \
-  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3);
-
-#define LOOP_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4)         \
-  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3, ETY4 e4);
-
-#define LOOP_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
-                    ENAME5, EN5)                                               \
-  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,         \
-                       ETY4 e4, ETY5 en5);
-
-#define LOOP_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
-                    ENAME5, EN5, ETY6, ENAME6, EN6)                            \
-  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,         \
-                       ETY4 e4, ETY5 en5, ETY6 en6);
-
-#define LOOP_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1, ETY2,  \
-                    ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, ETY5,   \
-                    ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7)         \
-  void add##NAME##Attr(Loop &loop, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3,         \
-                       ETY4 e4, ETY5 en5, ETY6 en6, ETY7 en7);
-
+#define LOOP_ATTR_LOOP(...) DECL_ATTR_LOOP(Loop, __VA_ARGS__)
+#define LOOP_ATTR_0(...) DECL_ATTR_0(Loop, __VA_ARGS__)
+#define LOOP_ATTR_1(...) DECL_ATTR_1(Loop, __VA_ARGS__)
+#define LOOP_ATTR_2(...) DECL_ATTR_2(Loop, __VA_ARGS__)
+#define LOOP_ATTR_3(...) DECL_ATTR_3(Loop, __VA_ARGS__)
+#define LOOP_ATTR_4(...) DECL_ATTR_4(Loop, __VA_ARGS__)
+#define LOOP_ATTR_5(...) DECL_ATTR_5(Loop, __VA_ARGS__)
+#define LOOP_ATTR_6(...) DECL_ATTR_6(Loop, __VA_ARGS__)
+#define LOOP_ATTR_7(...) DECL_ATTR_7(Loop, __VA_ARGS__)
+#define LOOP_ATTR_8(...) DECL_ATTR_8(Loop, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 
-#define LOOP_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                      \
-  std::optional<ETY> get##ENAME##From##NAME##Attr(const Loop &loop);
+#define LOOP_ATTR_N(...) DECL_ATTR_N(Loop, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 

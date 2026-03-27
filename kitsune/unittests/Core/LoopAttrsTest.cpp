@@ -28,7 +28,7 @@ static void addMetadata(Loop &loop, StringRef attrName,
                         ArrayRef<Metadata *> attrVals) {
   LLVMContext &ctx = getContext(loop);
   MDNode *attrList = getAttrList(loop);
-  MDNode *newAttrList = getNewAttrListWith(attrName, attrVals, attrList, ctx);
+  MDNode *newAttrList = getAttrListWith(attrName, attrVals, attrList, ctx);
 
   loop.setLoopID(newAttrList);
 }
@@ -78,25 +78,6 @@ static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
   if (!m)
     err.print("parseIR", errs());
   return m;
-}
-
-TEST(KitLoopAttrs, loopGetMetadata) {
-  LLVMContext ctx;
-#define CHECK_METADATA_1(ATTR, VAL, EXP)                                       \
-  {                                                                            \
-    MDNode *md = getMDNodeForAttr(ctx, ATTR, VAL);                             \
-    EXPECT_EQ(md->getNumOperands(), 2U);                                       \
-                                                                               \
-    auto *md0 = dyn_cast<MDString>(md->getOperand(0));                         \
-    EXPECT_TRUE(md0);                                                          \
-    EXPECT_EQ(md0->getString(), getAttrName(ATTR));                            \
-                                                                               \
-    auto *md1 = dyn_cast<ConstantAsMetadata>(md->getOperand(1));               \
-    EXPECT_TRUE(md1);                                                          \
-    EXPECT_EQ(cast<ConstantInt>(md1->getValue())->getLimitedValue(), EXP);     \
-  }
-
-  CHECK_METADATA_1(LoopAttrKind::Target, TTID::Serial, 1U);
 }
 
 TEST(KitLoopAttrs, attrName) {

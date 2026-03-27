@@ -12,6 +12,7 @@
 
 #include "llvm/Transforms/Tapir/LoopSpawningTI.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
+#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/DenseMap.h"
@@ -1278,24 +1279,33 @@ void LoopSpawningImpl::getAllTapirLoopInputs(
   }
 }
 
-static void removeSpawnStrategyFromClonedLoop(const Loop *L,
-                                              ValueToValueMapTy &VMap) {
-  LLVMContext &ctx = L->getHeader()->getContext();
-  StringRef attrName = getAttrName(LoopAttrKind::SpawnStrategy);
-  MDNode *newAttrVal = getMDNodeForAttr(ctx, LoopAttrKind::SpawnStrategy,
-                                        defaultTapirSpawnStrategy);
-
-  auto *clonedLatch = cast<BasicBlock>(VMap[L->getLoopLatch()]);
+// This resets the spawn strategy in the cloned loop to be the default.
+//
+// FIXME:
+//
+// This is an incredibly messy function because it breaks encapsulation in
+// all manner of ugly ways!
+//
+// We don't actually have the cloned loop object. Instead, we look for the
+// loop ID (which is really a list of attributes) in the terminator of the latch
+// of the cloned loop since we know that that is where it will be. Since the
+// spawn strategy attribute will be in this metadata node, we override the
+// value. Even this is done "by hand" by constructing the raw attribute and
+// calling the attribute implementation functions directly. These are not really
+// intended to be used this way.
+static void resetSpawnStrategyInClonedLoop(const Loop *L,
+                                           ValueToValueMapTy &VMap) {
+  auto *clonedLatch = cast_or_null<BasicBlock>(VMap[L->getLoopLatch()]);
   assert(clonedLatch && "Cloned Tapir loop does not have a single latch.");
 
   Instruction *term = clonedLatch->getTerminator();
-  if (MDNode *loopMD = term->getMetadata(LLVMContext::MD_loop))
-    for (unsigned i = 1, ie = loopMD->getNumOperands(); i < ie; ++i)
-      if (auto *md = dyn_cast<MDNode>(loopMD->getOperand(i)))
-        if (md->getNumOperands() == 2)
-          if (auto *mds = dyn_cast<MDString>(md->getOperand(0)))
-            if (mds->getString() == attrName)
-              loopMD->replaceOperandWith(i, newAttrVal);
+  if (MDNode *loopMD = term->getMetadata(LLVMContext::MD_loop)) {
+    LLVMContext &ctx = L->getHeader()->getContext();
+    StringRef attrName = getAttrName(LoopAttrKind::SpawnStrategy);
+    Metadata *attrVal = toMetadata(defaultTapirSpawnStrategy, ctx);
+
+    getAttrListWith(attrName, attrVal, loopMD, ctx);
+  }
 }
 
 static void updateClonedIVs(
@@ -1706,7 +1716,7 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
       NamedRegionTimer NRT("clearMetadata", "Cleanup Tapir-loop metadata",
                            TimerGroupName, TimerGroupDescription,
                            TimePassesIsEnabled);
-      removeSpawnStrategyFromClonedLoop(L, VMap);
+      resetSpawnStrategyInClonedLoop(L, VMap);
       removeSpawnStrategyAttr(*L);
     }
 

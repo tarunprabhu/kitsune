@@ -14,19 +14,17 @@
 #ifndef KITSUNE_CORE_MODULE_ATTRS_H
 #define KITSUNE_CORE_MODULE_ATTRS_H
 
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
-class Loop;
-class LoopInfo;
 class Module;
 class MDNode;
 class raw_ostream;
+
+/// \addtogroup kitsune
+/// @{
 
 /// Kitsune-specific attributes for modules.
 enum class ModuleAttrKind : uint32_t {
@@ -70,62 +68,24 @@ bool verifyAttr(const Module &m, ModuleAttrKind attr,
 
 /// @}
 
-#define MODULE_ATTR(NAME, IRNAME, TYPE)                                        \
-  bool verify##NAME##Attr(const Module &m, raw_ostream *os = nullptr);         \
-  bool has##NAME##Attr(const Module &m);                                       \
-  void remove##NAME##Attr(Module &m);
+#define MODULE_ATTR(...) DECL_ATTR_COMMON(Module, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 
-#define MODULE_ATTR_LOOP(NAME, IRNAME)                                         \
-  std::optional<Loop *> get##NAME##Attr(                                       \
-      const Module &m, const SmallVectorImpl<const LoopInfo *> &lis);          \
-  void add##NAME##Attr(Module &m, const Loop &loop);
-
-#define MODULE_ATTR_0(NAME, IRNAME) void add##NAME##Attr(Module &m);
-
-#define MODULE_ATTR_1(NAME, IRNAME, TYPE)                                      \
-  std::optional<TYPE> get##NAME##Attr(const Module &m);                        \
-  void add##NAME##Attr(Module &m, TYPE val);
-
-#define MODULE_ATTR_2(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1)      \
-  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1);
-
-#define MODULE_ATTR_3(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
-                      ETY2, ENAME2, EN2)                                       \
-  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2);
-
-#define MODULE_ATTR_4(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
-                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3)                    \
-  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3);
-
-#define MODULE_ATTR_5(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
-                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4) \
-  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3, ETY4 e4);
-
-#define MODULE_ATTR_6(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
-                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, \
-                      ETY5, ENAME5, EN5)                                       \
-  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3, ETY4 e4, \
-                       ETY5 en5);
-
-#define MODULE_ATTR_7(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
-                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, \
-                      ETY5, ENAME5, EN5, ETY6, ENAME6, EN6)                    \
-  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3, ETY4 e4, \
-                       ETY5 en5, ETY6 en6);
-
-#define MODULE_ATTR_8(NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1, EN1,      \
-                      ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4, EN4, \
-                      ETY5, ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7, EN7) \
-  void add##NAME##Attr(Module &m, ETY0 e0, ETY1 e1, ETY2 e2, ETY3 e3, ETY4 e4, \
-                       ETY5 en5, ETY6 en6, ETY7 en7);
-
+#define MODULE_ATTR_LOOP(...) DECL_ATTR_LOOP(Module, __VA_ARGS__)
+#define MODULE_ATTR_0(...) DECL_ATTR_0(Module, __VA_ARGS__)
+#define MODULE_ATTR_1(...) DECL_ATTR_1(Module, __VA_ARGS__)
+#define MODULE_ATTR_2(...) DECL_ATTR_2(Module, __VA_ARGS__)
+#define MODULE_ATTR_3(...) DECL_ATTR_3(Module, __VA_ARGS__)
+#define MODULE_ATTR_4(...) DECL_ATTR_4(Module, __VA_ARGS__)
+#define MODULE_ATTR_5(...) DECL_ATTR_5(Module, __VA_ARGS__)
+#define MODULE_ATTR_6(...) DECL_ATTR_6(Module, __VA_ARGS__)
+#define MODULE_ATTR_7(...) DECL_ATTR_7(Module, __VA_ARGS__)
+#define MODULE_ATTR_8(...) DECL_ATTR_8(Module, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 
-#define MODULE_ATTR_N(NAME, IRNAME, ETY, ENAME, EN, NELEMS)                    \
-  std::optional<ETY> get##ENAME##From##NAME##Attr(const Module &m);
+#define MODULE_ATTR_N(...) DECL_ATTR_N(Module, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 

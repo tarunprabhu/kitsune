@@ -22,200 +22,20 @@
 
 namespace llvm {
 
-class LLVMContext;
 class Loop;
 class LoopInfo;
-class MDNode;
-class Metadata;
 
-#define ADD_0(IRNAME, OBJ)                                                     \
-  do {                                                                         \
-    ::addAttr(OBJ, IRNAME, {});                                                \
-  } while (0)
-
-#define ADD_1(IRNAME, OBJ, E0)                                                 \
-  do {                                                                         \
-    LLVMContext &ctx = getContext(OBJ);                                        \
-    Metadata *attrVals[] = {toMetadata(E0, ctx)};                              \
-    ::addAttr(OBJ, IRNAME, attrVals);                                          \
-  } while (0)
-
-#define ADD_2(IRNAME, OBJ, E0, E1)                                             \
-  do {                                                                         \
-    LLVMContext &ctx = getContext(OBJ);                                        \
-    Metadata *attrVals[] = {toMetadata(E0, ctx), toMetadata(E1, ctx)};         \
-    ::addAttr(OBJ, IRNAME, attrVals);                                          \
-  } while (0)
-
-#define ADD_3(IRNAME, OBJ, E0, E1, E2)                                         \
-  do {                                                                         \
-    LLVMContext &ctx = getContext(OBJ);                                        \
-    Metadata *attrVals[] = {toMetadata(E0, ctx), toMetadata(E1, ctx),          \
-                            toMetadata(E2, ctx)};                              \
-    ::addAttr(OBJ, IRNAME, attrVals);                                          \
-  } while (0)
-
-#define ADD_4(IRNAME, OBJ, E0, E1, E2, E3)                                     \
-  do {                                                                         \
-    LLVMContext &ctx = getContext(OBJ);                                        \
-    Metadata *attrVals[] = {toMetadata(E0, ctx), toMetadata(E1, ctx),          \
-                            toMetadata(E2, ctx), toMetadata(E3, ctx)};         \
-    ::addAttr(OBJ, IRNAME, attrVals);                                          \
-  } while (0)
-
-#define ADD_5(IRNAME, OBJ, E0, E1, E2, E3, E4)                                 \
-  do {                                                                         \
-    LLVMContext &ctx = getContext(OBJ);                                        \
-    Metadata *attrVals[] = {toMetadata(E0, ctx), toMetadata(E1, ctx),          \
-                            toMetadata(E2, ctx), toMetadata(E3, ctx),          \
-                            toMetadata(E4, ctx)};                              \
-    ::addAttr(OBJ, IRNAME, attrVals);                                          \
-  } while (0)
-
-#define ADD_6(IRNAME, OBJ, E0, E1, E2, E3, E4, E5)                             \
-  do {                                                                         \
-    LLVMContext &ctx = getContext(OBJ);                                        \
-    Metadata *attrVals[] = {toMetadata(E0, ctx), toMetadata(E1, ctx),          \
-                            toMetadata(E2, ctx), toMetadata(E3, ctx),          \
-                            toMetadata(E4, ctx), toMetadata(E5, ctx)};         \
-    ::addAttr(OBJ, IRNAME, attrVals);                                          \
-  } while (0)
-
-#define ADD_7(IRNAME, OBJ, E0, E1, E2, E3, E4, E5, E6)                         \
-  do {                                                                         \
-    LLVMContext &ctx = getContext(OBJ);                                        \
-    Metadata *attrVals[] = {toMetadata(E0, ctx), toMetadata(E1, ctx),          \
-                            toMetadata(E2, ctx), toMetadata(E3, ctx),          \
-                            toMetadata(E4, ctx), toMetadata(E5, ctx),          \
-                            toMetadata(E6, ctx)};                              \
-    ::addAttr(OBJ, IRNAME, attrVals);                                          \
-  } while (0)
-
-#define ADD_8(IRNAME, OBJ, E0, E1, E2, E3, E4, E5, E6, E7)                     \
-  do {                                                                         \
-    LLVMContext &ctx = getContext(OBJ);                                        \
-    Metadata *attrVals[] = {toMetadata(E0, ctx), toMetadata(E1, ctx),          \
-                            toMetadata(E2, ctx), toMetadata(E3, ctx),          \
-                            toMetadata(E4, ctx), toMetadata(E5, ctx),          \
-                            toMetadata(E6, ctx), toMetadata(E7, ctx)};         \
-    ::addAttr(OBJ, IRNAME, attrVals);                                          \
-  } while (0)
-
-#define VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETYPE, ENAME)                       \
-  do {                                                                         \
-    if (!get##ENAME##From##NAME##Attr(OBJ)) {                                  \
-      if (OS)                                                                  \
-        (*OS) << "Missing value of type '" << toString<ETYPE>()                \
-              << "' for element '" << #ENAME << "' in attribute '" << IRNAME   \
-              << "'\n";                                                        \
-      return false;                                                            \
-    }                                                                          \
-  } while (0)
-
-#define VERIFY_1(OS, OBJ, NAME, IRNAME, TYPE)                                  \
-  do {                                                                         \
-    if (has##NAME##Attr(OBJ)) {                                                \
-      if (!get##NAME##Attr(OBJ).has_value()) {                                 \
-        if (OS)                                                                \
-          (*OS) << "Missing value of type '" << toString<TYPE>()               \
-                << "' in attribute '" << IRNAME << "'\n";                      \
-        return false;                                                          \
-      }                                                                        \
-    }                                                                          \
-    return true;                                                               \
-  } while (0)
-
-#define VERIFY_2(OS, OBJ, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1)            \
-  do {                                                                         \
-    if (has##NAME##Attr(OBJ)) {                                                \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY0, ENAME0);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY1, ENAME1);                        \
-    }                                                                          \
-    return true;                                                               \
-  } while (0)
-
-#define VERIFY_3(OS, OBJ, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2,      \
-                 ENAME2)                                                       \
-  do {                                                                         \
-    if (has##NAME##Attr(OBJ)) {                                                \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY0, ENAME0);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY1, ENAME1);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY2, ENAME2);                        \
-    }                                                                          \
-    return true;                                                               \
-  } while (0)
-
-#define VERIFY_4(OS, OBJ, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2,      \
-                 ENAME2, ETY3, ENAME3)                                         \
-  do {                                                                         \
-    if (has##NAME##Attr(OBJ)) {                                                \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY0, ENAME0);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY1, ENAME1);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY2, ENAME2);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY3, ENAME3);                        \
-    }                                                                          \
-    return true;                                                               \
-  } while (0)
-
-#define VERIFY_5(OS, OBJ, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2,      \
-                 ENAME2, ETY3, ENAME3, ETY4, ENAME4)                           \
-  do {                                                                         \
-    if (has##NAME##Attr(OBJ)) {                                                \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY0, ENAME0);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY1, ENAME1);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY2, ENAME2);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY3, ENAME3);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY4, ENAME4);                        \
-    }                                                                          \
-    return true;                                                               \
-  } while (0)
-
-#define VERIFY_6(OS, OBJ, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2,      \
-                 ENAME2, ETY3, ENAME3, ETY4, ENAME4, ETY5, ENAME5)             \
-  do {                                                                         \
-    if (has##NAME##Attr(OBJ)) {                                                \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY0, ENAME0);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY1, ENAME1);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY2, ENAME2);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY3, ENAME3);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY4, ENAME4);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY5, ENAME5);                        \
-    }                                                                          \
-    return true;                                                               \
-  } while (0)
-
-#define VERIFY_7(OS, OBJ, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2,      \
-                 ENAME2, ETY3, ENAME3, ETY4, ENAME4, ETY5, ENAME5, ETY6,       \
-                 ENAME6)                                                       \
-  do {                                                                         \
-    if (has##NAME##Attr(OBJ)) {                                                \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY0, ENAME0);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY1, ENAME1);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY2, ENAME2);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY3, ENAME3);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY4, ENAME4);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY5, ENAME5);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY6, ENAME6);                        \
-    }                                                                          \
-    return true;                                                               \
-  } while (0)
-
-#define VERIFY_8(OS, OBJ, NAME, IRNAME, ETY0, ENAME0, ETY1, ENAME1, ETY2,      \
-                 ENAME2, ETY3, ENAME3, ETY4, ENAME4, ETY5, ENAME5, ETY6,       \
-                 ENAME6, ETY7, ENAME7)                                         \
-  do {                                                                         \
-    if (has##NAME##Attr(OBJ)) {                                                \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY0, ENAME0);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY1, ENAME1);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY2, ENAME2);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY3, ENAME3);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY4, ENAME4);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY5, ENAME5);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY6, ENAME6);                        \
-      VERIFY_IMPL(OS, OBJ, NAME, IRNAME, ETY7, ENAME7);                        \
-    }                                                                          \
-    return true;                                                               \
-  } while (0)
+/// Create a raw attribute metadata node with name \p attrName and values
+/// \p attrVals. This will be of the form
+///
+/// \code{llvm}
+///     !0 = !{!"<NAME>", ...}
+/// \endcode
+///
+/// where <NAME> is the name of the attribute as specified in \p attrName and
+/// the ellipses denote the metadata in \p attrVals.
+MDNode *makeRawAttr(LLVMContext &ctx, StringRef attrName,
+                    ArrayRef<Metadata *> vals);
 
 /// Create a new empty attribute list. This will be of the form
 ///
@@ -224,9 +44,9 @@ class Metadata;
 /// \endcode
 MDNode *getNewAttrList(LLVMContext &ctx);
 
-/// Create a new attribute list containing the attribute with name \p attrName
-/// and values \p attrVals. \p attrList is the existing attribute list. It may
-/// be null in which case the returned list will contain a single attribute. If
+/// Get an attribute list containing the attribute with name \p attrName and
+/// values \p attrVals. \p attrList is the existing attribute list. It may be
+/// null in which case the returned list will contain a single attribute. If
 /// the attribute already exists in \p attrList, its value(s) will be replaced
 /// with new new value(s).
 ///
@@ -237,7 +57,7 @@ MDNode *getNewAttrList(LLVMContext &ctx);
 /// **New attribute list**
 ///
 /// \code{c++}
-///     getNewAttrListWithAttr("new-attr", {...}, nullptr, ctx);
+///     getAttrListWithAttr("new-attr", {...}, nullptr, ctx);
 /// \endcode
 ///
 /// This will return the following new attribute list.
@@ -257,7 +77,7 @@ MDNode *getNewAttrList(LLVMContext &ctx);
 /// \endcode
 ///
 /// \code{c++}
-///     getNewAttrListWithAttr("new-attr", {...}, <attrList>, ctx);
+///     getAttrListWithAttr("new-attr", {...}, <attrList>, ctx);
 /// \endcode
 ///
 /// \code{c++}
@@ -277,7 +97,7 @@ MDNode *getNewAttrList(LLVMContext &ctx);
 /// \endcode
 ///
 /// \code{c++}
-///     getNewAttrListWithAttr("new-attr", {!"new"}, <attrList>, ctx);
+///     getAttrListWithAttr("new-attr", {!"new"}, <attrList>, ctx);
 /// \endcode
 ///
 /// \code{llvm}
@@ -286,15 +106,14 @@ MDNode *getNewAttrList(LLVMContext &ctx);
 ///     !2 = !{!"new-attr", !"new"}
 /// \endcode
 ///
-MDNode *getNewAttrListWith(StringRef attrName,
-                           const ArrayRef<Metadata *> attrVals,
-                           const MDNode *attrList, LLVMContext &ctx);
+MDNode *getAttrListWith(StringRef attrName, const ArrayRef<Metadata *> attrVals,
+                        MDNode *attrList, LLVMContext &ctx);
 
 /// Remove the attribute named \p attrName from \p attrList. If the attribute
 /// exists in the list, a new MDNode will be created and returned. Otherwise,
 /// \p attrList will be returned. If removing the result would result in an
 /// empty list, return nullptr. If \p attrList is nullptr, returns nullptr.
-MDNode *getNewAttrListWithout(StringRef attrName, MDNode *attrList);
+MDNode *getAttrListWithout(StringRef attrName, MDNode *attrList);
 
 /// If the attribute list \p attrList contains an attribute \p attrName, return
 /// the MDNode for that attribute. Otherwise, return nullptr. If found, the
