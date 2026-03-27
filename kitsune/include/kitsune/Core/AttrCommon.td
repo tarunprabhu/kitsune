@@ -112,7 +112,48 @@ class AttrBase<Type ValueTypeParam = VoidTy> {
   // this must be VoidTy.
   Type ValueType = ValueTypeParam;
 
-  // Documentation for this attribute. This is used to generate the HTML
-  // documentation.
+  // If True, the attribute has a custom verifier. In this case, a custom
+  // verifier function with the appropriate signature must be provided. The
+  // signature of this function depends on the type of the attribute. In the
+  // examples below, IRElem is the type of the LLVM IR entity to which the
+  // attribute can be attached, e.g. llvm::Function, llvm::GlobalVariable,
+  // llvm::Instruction, llvm::Loop, or llvm::Module.
+  //
+  // For flag attributes i.e. those that do not have a value, this must be as
+  // shown below. The hasAttr argument will always be true.
+  //
+  //     bool verify##NAME##Attr(const IRElem &ir, const bool &hasAttr,
+  //                             raw_ostream *os);
+  //
+  // For attributes that take a single value, this must be as shown below.
+  // TYPE is the type of the attribute value. `v` is the vaue of the attribute.
+  //
+  //     bool verify##NAME##Attr(const IRElem &ir, const TYPE &ty,
+  //                             raw_ostream *os);
+  //
+  // Attributes that take a Loop value, however, are different. Loop objects can
+  // only be obtained by running the loop analysis pass. Since the verification
+  // of attributes may be run outside of a pass manager, we cannot always
+  // provide a loop object to a custom verifier. Since the "loop" values in such
+  // attributes is simply the metadata node corresponding to the loop, that will
+  // be provided to the custom verifier.
+  //
+  //     bool verify##NAME##Attr(const IRElem &ir, const MDNode &loopID,
+  //                             raw_ostream *os)
+  //
+  // For attributes that take multiple values, this must be as shown below.
+  // Here, ETY<I> is the type of the I'th value required by the attribute.
+  // N is the number of values that the attribute requires.
+  //
+  //     bool verify##NAME##Attr(const IRElem &ir, const ETY0 &e0, ...
+  //                             const ETY<N> &en, raw_ostream *os);
+  //
+  // In each case, an optional raw_ostream may be provided. In this case, an
+  // error message may be printed to it if the attribute is not valid. The
+  // verifier must return true if the attribute is valid, false otherwise.
+  //
+  Bool HasCustomVerifier = False;
+
+  // Documentation for this attribute. This is used to generate the HTML docs.
   code Documentation = [{}];
 }

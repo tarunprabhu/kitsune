@@ -49,7 +49,7 @@ MDNode *llvm::getAttrList(const Instruction &inst) {
 
 StringRef llvm::getAttrName(InstAttrKind attr) {
   switch (attr) {
-#define INST_ATTR(NAME, IRNAME, TYPE)                                          \
+#define INST_ATTR(NAME, IRNAME, ...)                                           \
   case InstAttrKind::NAME:                                                     \
     return IRNAME;
 #define GET_INST_ATTRS
@@ -60,7 +60,7 @@ StringRef llvm::getAttrName(InstAttrKind attr) {
 
 std::optional<InstAttrKind> llvm::getInstAttrKind(StringRef name) {
   return StringSwitch<std::optional<InstAttrKind>>(name)
-#define INST_ATTR(NAME, IRNAME, TYPE) .Case(IRNAME, InstAttrKind::NAME)
+#define INST_ATTR(NAME, IRNAME, ...) .Case(IRNAME, InstAttrKind::NAME)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
       .Default(std::nullopt);
@@ -69,7 +69,7 @@ std::optional<InstAttrKind> llvm::getInstAttrKind(StringRef name) {
 bool llvm::verifyAttr(const Instruction &inst, InstAttrKind attr,
                       raw_ostream *os) {
   switch (attr) {
-#define INST_ATTR(NAME, IRNAME, TYPE)                                          \
+#define INST_ATTR(NAME, IRNAME, ...)                                           \
   case InstAttrKind::NAME:                                                     \
     return verify##NAME##Attr(inst, os);
 #define GET_INST_ATTRS
@@ -84,7 +84,7 @@ void llvm::addAttr(Instruction &inst, InstAttrKind attr) {
     emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
     exitOnError();
     break;
-#define INST_ATTR_0(NAME, IRNAME)                                              \
+#define INST_ATTR_0(NAME, IRNAME, ...)                                         \
   case InstAttrKind::NAME:                                                     \
     return ::addAttr(inst, IRNAME, {});
 #define GET_INST_ATTRS
@@ -114,3 +114,8 @@ DEFN_ATTR_GENERIC(Instruction, InstAttrKind)
 #define INST_ATTR_N(...) DEFN_ATTR_N(Instruction, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
+
+// -----------------------------------------------------------------------------
+// Add custom attribute verifiers here. In general, you should not modify
+// anything above this line unless you are modifying a core part of the
+// attribute implementation.

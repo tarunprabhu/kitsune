@@ -54,7 +54,7 @@ MDNode *llvm::getAttrList(const Module &m) {
 
 StringRef llvm::getAttrName(ModuleAttrKind attrKind) {
   switch (attrKind) {
-#define MODULE_ATTR(NAME, IRNAME, TYPE)                                        \
+#define MODULE_ATTR(NAME, IRNAME, ...)                                         \
   case ModuleAttrKind::NAME:                                                   \
     return IRNAME;
 #define GET_MODULE_ATTRS
@@ -65,7 +65,7 @@ StringRef llvm::getAttrName(ModuleAttrKind attrKind) {
 
 std::optional<ModuleAttrKind> llvm::getModuleAttrKind(StringRef name) {
   return StringSwitch<std::optional<ModuleAttrKind>>(name)
-#define MODULE_ATTR(NAME, IRNAME, TYPE) .Case(IRNAME, ModuleAttrKind::NAME)
+#define MODULE_ATTR(NAME, IRNAME, ...) .Case(IRNAME, ModuleAttrKind::NAME)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
       .Default(std::nullopt);
@@ -73,7 +73,7 @@ std::optional<ModuleAttrKind> llvm::getModuleAttrKind(StringRef name) {
 
 bool llvm::verifyAttr(const Module &m, ModuleAttrKind attr, raw_ostream *os) {
   switch (attr) {
-#define MODULE_ATTR(NAME, IRNAME, TYPE)                                        \
+#define MODULE_ATTR(NAME, IRNAME, ...)                                         \
   case ModuleAttrKind::NAME:                                                   \
     return verify##NAME##Attr(m, os);
 #define GET_MODULE_ATTRS
@@ -88,7 +88,7 @@ void llvm::addAttr(Module &m, ModuleAttrKind attr) {
     emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
     exitOnError();
     break;
-#define MODULE_ATTR_0(NAME, IRNAME)                                            \
+#define MODULE_ATTR_0(NAME, IRNAME, ...)                                       \
   case ModuleAttrKind::NAME:                                                   \
     return ::addAttr(m, IRNAME, {});
 #define GET_MODULE_ATTRS
@@ -118,3 +118,8 @@ DEFN_ATTR_GENERIC(Module, ModuleAttrKind)
 #define MODULE_ATTR_N(...) DEFN_ATTR_N(Module, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
+
+// -----------------------------------------------------------------------------
+// Add custom attribute verifiers here. In general, you should not modify
+// anything above this line unless you are modifying a core part of the
+// attribute implementation.

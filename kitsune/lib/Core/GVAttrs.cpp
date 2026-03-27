@@ -48,7 +48,7 @@ MDNode *llvm::getAttrList(const GlobalVariable &g) {
 
 StringRef llvm::getAttrName(GVAttrKind attr) {
   switch (attr) {
-#define GV_ATTR(NAME, IRNAME, TYPE)                                            \
+#define GV_ATTR(NAME, IRNAME, ...)                                             \
   case GVAttrKind::NAME:                                                       \
     return IRNAME;
 #define GET_GV_ATTRS
@@ -59,7 +59,7 @@ StringRef llvm::getAttrName(GVAttrKind attr) {
 
 std::optional<GVAttrKind> llvm::getGVAttrKind(StringRef name) {
   return StringSwitch<std::optional<GVAttrKind>>(name)
-#define GV_ATTR(NAME, IRNAME, TYPE) .Case(IRNAME, GVAttrKind::NAME)
+#define GV_ATTR(NAME, IRNAME, ...) .Case(IRNAME, GVAttrKind::NAME)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
       .Default(std::nullopt);
@@ -68,7 +68,7 @@ std::optional<GVAttrKind> llvm::getGVAttrKind(StringRef name) {
 bool llvm::verifyAttr(const GlobalVariable &g, GVAttrKind attr,
                       raw_ostream *os) {
   switch (attr) {
-#define GV_ATTR(NAME, IRNAME, TYPE)                                            \
+#define GV_ATTR(NAME, IRNAME, ...)                                             \
   case GVAttrKind::NAME:                                                       \
     return verify##NAME##Attr(g, os);
 #define GET_GV_ATTRS
@@ -83,7 +83,7 @@ void llvm::addAttr(GlobalVariable &g, GVAttrKind attr) {
     emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
     exitOnError();
     break;
-#define GV_ATTR_0(NAME, IRNAME)                                                \
+#define GV_ATTR_0(NAME, IRNAME, ...)                                           \
   case GVAttrKind::NAME:                                                       \
     return ::addAttr(g, IRNAME, {});
 #define GET_GV_ATTRS
@@ -113,3 +113,8 @@ DEFN_ATTR_GENERIC(GlobalVariable, GVAttrKind)
 #define GV_ATTR_N(...) DEFN_ATTR_N(GlobalVariable, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
+
+// -----------------------------------------------------------------------------
+// Add custom attribute verifiers here. In general, you should not modify
+// anything above this line unless you are modifying a core part of the
+// attribute implementation.

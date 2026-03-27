@@ -47,7 +47,7 @@ MDNode *llvm::getAttrList(const Loop &loop) { return loop.getLoopID(); }
 
 StringRef llvm::getAttrName(LoopAttrKind attr) {
   switch (attr) {
-#define LOOP_ATTR(NAME, IRNAME, TYPE)                                          \
+#define LOOP_ATTR(NAME, IRNAME, ...)                                          \
   case LoopAttrKind::NAME:                                                     \
     return IRNAME;
 #define GET_LOOP_ATTRS
@@ -58,7 +58,7 @@ StringRef llvm::getAttrName(LoopAttrKind attr) {
 
 std::optional<LoopAttrKind> llvm::getLoopAttrKind(StringRef name) {
   return StringSwitch<std::optional<LoopAttrKind>>(name)
-#define LOOP_ATTR(NAME, IRNAME, TYPE) .Case(IRNAME, LoopAttrKind::NAME)
+#define LOOP_ATTR(NAME, IRNAME, ...) .Case(IRNAME, LoopAttrKind::NAME)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
       .Default(std::nullopt);
@@ -66,7 +66,7 @@ std::optional<LoopAttrKind> llvm::getLoopAttrKind(StringRef name) {
 
 bool llvm::verifyAttr(const Loop &loop, LoopAttrKind attr, raw_ostream *os) {
   switch (attr) {
-#define LOOP_ATTR(NAME, IRNAME, TYPE)                                          \
+#define LOOP_ATTR(NAME, IRNAME, ...)                                          \
   case LoopAttrKind::NAME:                                                     \
     return verify##NAME##Attr(loop, os);
 #define GET_LOOP_ATTRS
@@ -81,7 +81,7 @@ void llvm::addAttr(Loop &loop, LoopAttrKind attr) {
     emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
     exitOnError();
     break;
-#define LOOP_ATTR_0(NAME, IRNAME)                                              \
+#define LOOP_ATTR_0(NAME, IRNAME, ...)                                         \
   case LoopAttrKind::NAME:                                                     \
     return ::addAttr(loop, IRNAME, {});
 #define GET_LOOP_ATTRS
@@ -111,3 +111,8 @@ DEFN_ATTR_GENERIC(Loop, LoopAttrKind)
 #define LOOP_ATTR_N(...) DEFN_ATTR_N(Loop, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
+
+// -----------------------------------------------------------------------------
+// Add custom attribute verifiers here. In general, you should not modify
+// anything above this line unless you are modifying a core part of the
+// attribute implementation.

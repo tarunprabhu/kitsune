@@ -13,108 +13,126 @@
 #ifndef KITSUNE_LIB_CORE_ATTRS_IMPL_H
 #define KITSUNE_LIB_CORE_ATTRS_IMPL_H
 
+#include "VerifyImpl.h"
 #include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Support/ToString.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/LoopInfo.h"
 
-#define VERIFY_IMPL(OS, OBJ, V, NAME, IRNAME, ETYPE, ENAME, EN)                \
-  do {                                                                         \
-    if (!V.has_value()) {                                                      \
-      if (OS)                                                                  \
-        (*OS) << "Missing value of type '" << toString<ETYPE>()                \
-              << "' for element '" << #ENAME << "' at index '" << EN           \
-              << "' in attribute '" << IRNAME << "'\n";                        \
-      return false;                                                            \
-    }                                                                          \
-  } while (0)
+#define VERIFY_IMPL(V, OS, ETYPE, ENAME, EN, IRNAME)                           \
+  detail::check(V.has_value(), OS, detail::errMsgNoValueAt, toString<ETYPE>(), \
+                #ENAME, EN, IRNAME)
 
-#define DEFN_ATTR_GENERIC(IRTYPE, ENUMKIND)                                    \
-  static void setAttrList(IRTYPE &, MDNode *attrList);                         \
-  static void addAttr(IRTYPE &, StringRef name, ArrayRef<Metadata *> vals);    \
-  static void removeAttr(IRTYPE &, StringRef attrName);                        \
+#define DEFN_ATTR_GENERIC(IRELEM, ENUMKIND)                                    \
+  static void setAttrList(IRELEM &, MDNode *attrList);                         \
+  static void addAttr(IRELEM &, StringRef name, ArrayRef<Metadata *> vals);    \
+  static void removeAttr(IRELEM &, StringRef attrName);                        \
                                                                                \
-  bool llvm::hasAttr(const IRTYPE &ir, ENUMKIND attr) {                        \
+  bool llvm::hasAttr(const IRELEM &ir, ENUMKIND attr) {                        \
     return getRawAttr(getAttrName(attr), getAttrList(ir));                     \
   }                                                                            \
                                                                                \
-  void llvm::removeAttr(IRTYPE &ir, ENUMKIND attr) {                           \
+  void llvm::removeAttr(IRELEM &ir, ENUMKIND attr) {                           \
     ::removeAttr(ir, getAttrName(attr));                                       \
   }
 
-#define DEFN_ATTR_COMMON(IRTYPE, ENUMKIND, NAME, IRNAME, TYPE)                 \
-  bool llvm::has##NAME##Attr(const IRTYPE &ir) {                               \
+#define DEFN_ATTR_COMMON(IRELEM, ENUMKIND, NAME, IRNAME, CUSTOMVERIFY, TYPE)   \
+  bool llvm::has##NAME##Attr(const IRELEM &ir) {                               \
     return getRawAttr(IRNAME, getAttrList(ir));                                \
   }                                                                            \
                                                                                \
-  void llvm::remove##NAME##Attr(IRTYPE &ir) { ::removeAttr(ir, IRNAME); }
+  void llvm::remove##NAME##Attr(IRELEM &ir) { ::removeAttr(ir, IRNAME); }
 
-#define DEFN_ATTR_LOOP(IRTYPE, NAME, IRNAME)                                   \
+#define DEFN_ATTR_LOOP(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                     \
   std::optional<Loop *> llvm::get##NAME##Attr(                                 \
-      const IRTYPE &ir, const SmallVectorImpl<const LoopInfo *> &lis) {        \
+      const IRELEM &ir, const SmallVectorImpl<const LoopInfo *> &lis) {        \
     return getAttrValue(IRNAME, getAttrList(ir), lis);                         \
   }                                                                            \
                                                                                \
-  void llvm::add##NAME##Attr(IRTYPE &ir, const Loop &loop) {                   \
+  void llvm::add##NAME##Attr(IRELEM &ir, const Loop &loop) {                   \
     ::addAttr(ir, IRNAME, loop.getLoopID());                                   \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRTYPE &ir, raw_ostream *os) {           \
-    return verifyAttrLoop(IRNAME, getAttrList(ir), os);                        \
-  }
-
-#define DEFN_ATTR_0(IRTYPE, NAME, IRNAME)                                      \
-  void llvm::add##NAME##Attr(IRTYPE &ir) { ::addAttr(ir, IRNAME, {}); }        \
+  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
+    bool isValid = true;                                                       \
+    if (has##NAME##Attr(ir)) {                                                 \
+      isValid &= verifyAttrLoop(IRNAME, getAttrList(ir), os);                  \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRTYPE &ir, raw_ostream *os) {           \
-    return verifyAttr0(IRNAME, getAttrList(ir), os);                           \
+      if constexpr (CUSTOMVERIFY) {                                            \
+        MDNode *raw = getRawAttr(IRNAME, getAttrList(ir));                     \
+        MDNode *loopID = cast<MDNode>(raw->getOperand(1));                     \
+        isValid &= verify##NAME##Attr(ir, *loopID, os);                        \
+      }                                                                        \
+    }                                                                          \
+    return isValid;                                                            \
   }
 
-#define DEFN_ATTR_1(IRTYPE, NAME, IRNAME, TYPE)                                \
-  std::optional<TYPE> llvm::get##NAME##Attr(const IRTYPE &ir) {                \
+#define DEFN_ATTR_0(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                        \
+  void llvm::add##NAME##Attr(IRELEM &ir) { ::addAttr(ir, IRNAME, {}); }        \
+                                                                               \
+  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
+    bool isValid = true;                                                       \
+    if (has##NAME##Attr(ir)) {                                                 \
+      isValid &= verifyAttr0(IRNAME, getAttrList(ir), os);                     \
+                                                                               \
+      if constexpr (CUSTOMVERIFY)                                              \
+        isValid &= verify##NAME##Attr(ir, true, os);                           \
+    }                                                                          \
+    return isValid;                                                            \
+  }
+
+#define DEFN_ATTR_1(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
+  std::optional<TYPE> llvm::get##NAME##Attr(const IRELEM &ir) {                \
     return getAttrValue<TYPE>(IRNAME, getAttrList(ir), 0, 1);                  \
   }                                                                            \
                                                                                \
-  void llvm::add##NAME##Attr(IRTYPE &ir, const TYPE &val) {                    \
+  void llvm::add##NAME##Attr(IRELEM &ir, const TYPE &val) {                    \
     LLVMContext &ctx = getContext(ir);                                         \
     Metadata *attrVals[] = {toMetadata(val, ctx)};                             \
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRTYPE &ir, raw_ostream *os) {           \
+  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
+    bool isValid = true;                                                       \
     if (has##NAME##Attr(ir)) {                                                 \
       std::optional<TYPE> v = get##NAME##Attr(ir);                             \
-      if (!v.has_value()) {                                                    \
-        if (os)                                                                \
-          (*os) << "Missing value of type '" << toString<TYPE>()               \
-                << "' in attribute '" << IRNAME << "'\n";                      \
-        return false;                                                          \
-      }                                                                        \
+      isValid &=                                                               \
+          detail::check(v.has_value(), os,                                     \
+                        "Could not get value of type '{}' in attribute '{}'",  \
+                        toString<TYPE>(), IRNAME);                             \
+                                                                               \
+      if constexpr (CUSTOMVERIFY)                                              \
+        isValid &= verify##NAME##Attr(ir, *v, os);                             \
     }                                                                          \
-    return true;                                                               \
+    return isValid;                                                            \
   }
 
-#define DEFN_ATTR_2(IRTYPE, NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1,     \
-                    EN1)                                                       \
-  void llvm::add##NAME##Attr(IRTYPE &ir, const ETY0 &e0, const ETY1 &e1) {     \
+#define DEFN_ATTR_2(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1)                                         \
+  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1) {     \
     LLVMContext &ctx = getContext(ir);                                         \
     Metadata *attrVals[] = {toMetadata(e0, ctx), toMetadata(e1, ctx)};         \
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRTYPE &ir, raw_ostream *os) {           \
+  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
+    bool isValid = true;                                                       \
     if (has##NAME##Attr(ir)) {                                                 \
       std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
       std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
                                                                                \
-      VERIFY_IMPL(os, ir, v0, NAME, IRNAME, ETY0, ENAME0, EN0);                \
-      VERIFY_IMPL(os, ir, v1, NAME, IRNAME, ETY1, ENAME1, EN1);                \
+      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
+      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
+                                                                               \
+      if constexpr (CUSTOMVERIFY)                                              \
+        isValid &= verify##NAME##Attr(ir, *v0, *v1, os);                       \
     }                                                                          \
-    return true;                                                               \
+    return isValid;                                                            \
   }
 
-#define DEFN_ATTR_3(IRTYPE, NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1,     \
-                    EN1, ETY2, ENAME2, EN2)                                    \
-  void llvm::add##NAME##Attr(IRTYPE &ir, const ETY0 &e0, const ETY1 &e1,       \
+#define DEFN_ATTR_3(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1, ETY2, ENAME2, EN2)                      \
+  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,       \
                              const ETY2 &e2) {                                 \
     LLVMContext &ctx = getContext(ir);                                         \
     Metadata *attrVals[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),          \
@@ -122,22 +140,26 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRTYPE &ir, raw_ostream *os) {           \
+  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
+    bool isValid = true;                                                       \
     if (has##NAME##Attr(ir)) {                                                 \
       std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
       std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
       std::optional<ETY2> v2 = get##ENAME2##From##NAME##Attr(ir);              \
                                                                                \
-      VERIFY_IMPL(os, ir, v0, NAME, IRNAME, ETY0, ENAME0, EN0);                \
-      VERIFY_IMPL(os, ir, v1, NAME, IRNAME, ETY1, ENAME1, EN1);                \
-      VERIFY_IMPL(os, ir, v2, NAME, IRNAME, ETY2, ENAME2, EN2);                \
+      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
+      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
+      isValid &= VERIFY_IMPL(v2, os, ETY2, ENAME2, EN2, IRNAME);               \
+                                                                               \
+      if constexpr (CUSTOMVERIFY)                                              \
+        isValid &= verify##NAME##Attr(ir, *v0, *v1, *v2, os);                  \
     }                                                                          \
-    return true;                                                               \
+    return isValid;                                                            \
   }
 
-#define DEFN_ATTR_4(IRTYPE, NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1,     \
-                    EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3)                 \
-  void llvm::add##NAME##Attr(IRTYPE &ir, const ETY0 &e0, const ETY1 &e1,       \
+#define DEFN_ATTR_4(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3)   \
+  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,       \
                              const ETY2 &e2, const ETY3 &e3) {                 \
     LLVMContext &ctx = getContext(ir);                                         \
     Metadata *attrVals[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),          \
@@ -145,25 +167,29 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRTYPE &ir, raw_ostream *os) {           \
+  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
+    bool isValid = true;                                                       \
     if (has##NAME##Attr(ir)) {                                                 \
       std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
       std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
       std::optional<ETY2> v2 = get##ENAME2##From##NAME##Attr(ir);              \
       std::optional<ETY3> v3 = get##ENAME3##From##NAME##Attr(ir);              \
                                                                                \
-      VERIFY_IMPL(os, ir, v0, NAME, IRNAME, ETY0, ENAME0, EN0);                \
-      VERIFY_IMPL(os, ir, v1, NAME, IRNAME, ETY1, ENAME1, EN1);                \
-      VERIFY_IMPL(os, ir, v2, NAME, IRNAME, ETY2, ENAME2, EN2);                \
-      VERIFY_IMPL(os, ir, v3, NAME, IRNAME, ETY3, ENAME3, EN3);                \
+      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
+      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
+      isValid &= VERIFY_IMPL(v2, os, ETY2, ENAME2, EN2, IRNAME);               \
+      isValid &= VERIFY_IMPL(v3, os, ETY3, ENAME3, EN3, IRNAME);               \
+                                                                               \
+      if constexpr (CUSTOMVERIFY)                                              \
+        isValid &= verify##NAME##Attr(ir, *v0, *v1, *v2, *v3, os);             \
     }                                                                          \
-    return true;                                                               \
+    return isValid;                                                            \
   }
 
-#define DEFN_ATTR_5(IRTYPE, NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1,     \
-                    EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4,   \
-                    EN4)                                                       \
-  void llvm::add##NAME##Attr(IRTYPE &ir, const ETY0 &e0, const ETY1 &e1,       \
+#define DEFN_ATTR_5(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
+                    ETY4, ENAME4, EN4)                                         \
+  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,       \
                              const ETY2 &e2, const ETY3 &e3, const ETY4 &e4) { \
     LLVMContext &ctx = getContext(ir);                                         \
     Metadata *attrVals[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),          \
@@ -172,7 +198,8 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRTYPE &ir, raw_ostream *os) {           \
+  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
+    bool isValid = true;                                                       \
     if (has##NAME##Attr(ir)) {                                                 \
       std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
       std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
@@ -180,19 +207,22 @@
       std::optional<ETY3> v3 = get##ENAME3##From##NAME##Attr(ir);              \
       std::optional<ETY4> v4 = get##ENAME4##From##NAME##Attr(ir);              \
                                                                                \
-      VERIFY_IMPL(os, ir, v0, NAME, IRNAME, ETY0, ENAME0, EN0);                \
-      VERIFY_IMPL(os, ir, v1, NAME, IRNAME, ETY1, ENAME1, EN1);                \
-      VERIFY_IMPL(os, ir, v2, NAME, IRNAME, ETY2, ENAME2, EN2);                \
-      VERIFY_IMPL(os, ir, v3, NAME, IRNAME, ETY3, ENAME3, EN3);                \
-      VERIFY_IMPL(os, ir, v4, NAME, IRNAME, ETY4, ENAME4, EN4);                \
+      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
+      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
+      isValid &= VERIFY_IMPL(v2, os, ETY2, ENAME2, EN2, IRNAME);               \
+      isValid &= VERIFY_IMPL(v3, os, ETY3, ENAME3, EN3, IRNAME);               \
+      isValid &= VERIFY_IMPL(v4, os, ETY4, ENAME4, EN4, IRNAME);               \
+                                                                               \
+      if constexpr (CUSTOMVERIFY)                                              \
+        isValid &= verify##NAME##Attr(ir, *v0, *v1, *v2, *v3, *v4, os);        \
     }                                                                          \
-    return true;                                                               \
+    return isValid;                                                            \
   }
 
-#define DEFN_ATTR_6(IRTYPE, NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1,     \
-                    EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4,   \
-                    EN4, ETY5, ENAME5, EN5)                                    \
-  void llvm::add##NAME##Attr(IRTYPE &ir, const ETY0 &e0, const ETY1 &e1,       \
+#define DEFN_ATTR_6(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
+                    ETY4, ENAME4, EN4, ETY5, ENAME5, EN5)                      \
+  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,       \
                              const ETY2 &e2, const ETY3 &e3, const ETY4 &e4,   \
                              const ETY5 &e5) {                                 \
     LLVMContext &ctx = getContext(ir);                                         \
@@ -202,7 +232,8 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRTYPE &ir, raw_ostream *os) {           \
+  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
+    bool isValid = true;                                                       \
     if (has##NAME##Attr(ir)) {                                                 \
       std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
       std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
@@ -211,20 +242,23 @@
       std::optional<ETY4> v4 = get##ENAME4##From##NAME##Attr(ir);              \
       std::optional<ETY5> v5 = get##ENAME5##From##NAME##Attr(ir);              \
                                                                                \
-      VERIFY_IMPL(os, ir, v0, NAME, IRNAME, ETY0, ENAME0, EN0);                \
-      VERIFY_IMPL(os, ir, v1, NAME, IRNAME, ETY1, ENAME1, EN1);                \
-      VERIFY_IMPL(os, ir, v2, NAME, IRNAME, ETY2, ENAME2, EN2);                \
-      VERIFY_IMPL(os, ir, v3, NAME, IRNAME, ETY3, ENAME3, EN3);                \
-      VERIFY_IMPL(os, ir, v4, NAME, IRNAME, ETY4, ENAME4, EN4);                \
-      VERIFY_IMPL(os, ir, v5, NAME, IRNAME, ETY5, ENAME5, EN5);                \
+      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
+      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
+      isValid &= VERIFY_IMPL(v2, os, ETY2, ENAME2, EN2, IRNAME);               \
+      isValid &= VERIFY_IMPL(v3, os, ETY3, ENAME3, EN3, IRNAME);               \
+      isValid &= VERIFY_IMPL(v4, os, ETY4, ENAME4, EN4, IRNAME);               \
+      isValid &= VERIFY_IMPL(v5, os, ETY5, ENAME5, EN5, IRNAME);               \
+                                                                               \
+      if constexpr (CUSTOMVERIFY)                                              \
+        isValid &= verify##NAME##Attr(ir, *v0, *v1, *v2, *v3, *v4, *v5, os);   \
     }                                                                          \
-    return true;                                                               \
+    return isValid;                                                            \
   }
 
-#define DEFN_ATTR_7(IRTYPE, NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1,     \
-                    EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4,   \
-                    EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6)                 \
-  void llvm::add##NAME##Attr(IRTYPE &ir, const ETY0 &e0, const ETY1 &e1,       \
+#define DEFN_ATTR_7(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
+                    ETY4, ENAME4, EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6)   \
+  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,       \
                              const ETY2 &e2, const ETY3 &e3, const ETY4 &e4,   \
                              const ETY5 &e5, const ETY6 &e6) {                 \
     LLVMContext &ctx = getContext(ir);                                         \
@@ -235,7 +269,8 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRTYPE &ir, raw_ostream *os) {           \
+  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
+    bool isValid = true;                                                       \
     if (has##NAME##Attr(ir)) {                                                 \
       std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
       std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
@@ -245,22 +280,26 @@
       std::optional<ETY5> v5 = get##ENAME5##From##NAME##Attr(ir);              \
       std::optional<ETY6> v6 = get##ENAME6##From##NAME##Attr(ir);              \
                                                                                \
-      VERIFY_IMPL(os, ir, v0, NAME, IRNAME, ETY0, ENAME0, EN0);                \
-      VERIFY_IMPL(os, ir, v1, NAME, IRNAME, ETY1, ENAME1, EN1);                \
-      VERIFY_IMPL(os, ir, v2, NAME, IRNAME, ETY2, ENAME2, EN2);                \
-      VERIFY_IMPL(os, ir, v3, NAME, IRNAME, ETY3, ENAME3, EN3);                \
-      VERIFY_IMPL(os, ir, v4, NAME, IRNAME, ETY4, ENAME4, EN4);                \
-      VERIFY_IMPL(os, ir, v5, NAME, IRNAME, ETY5, ENAME5, EN5);                \
-      VERIFY_IMPL(os, ir, v6, NAME, IRNAME, ETY6, ENAME6, EN6);                \
+      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
+      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
+      isValid &= VERIFY_IMPL(v2, os, ETY2, ENAME2, EN2, IRNAME);               \
+      isValid &= VERIFY_IMPL(v3, os, ETY3, ENAME3, EN3, IRNAME);               \
+      isValid &= VERIFY_IMPL(v4, os, ETY4, ENAME4, EN4, IRNAME);               \
+      isValid &= VERIFY_IMPL(v5, os, ETY5, ENAME5, EN5, IRNAME);               \
+      isValid &= VERIFY_IMPL(v6, os, ETY6, ENAME6, EN6, IRNAME);               \
+                                                                               \
+      if constexpr (CUSTOMVERIFY)                                              \
+        isValid &=                                                             \
+            verify##NAME##Attr(ir, *v0, *v1, *v2, *v3, *v4, *v5, *v6, os);     \
     }                                                                          \
-    return true;                                                               \
+    return isValid;                                                            \
   }
 
-#define DEFN_ATTR_8(IRTYPE, NAME, IRNAME, ETY0, ENAME0, EN0, ETY1, ENAME1,     \
-                    EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3, ETY4, ENAME4,   \
-                    EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6, ETY7, ENAME7,   \
-                    EN7)                                                       \
-  void llvm::add##NAME##Attr(IRTYPE &ir, const ETY0 &e0, const ETY1 &e1,       \
+#define DEFN_ATTR_8(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
+                    ETY4, ENAME4, EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6,   \
+                    ETY7, ENAME7, EN7)                                         \
+  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,       \
                              const ETY2 &e2, const ETY3 &e3, const ETY4 &e4,   \
                              const ETY5 &e5, const ETY6 &e6, const ETY7 &e7) { \
     LLVMContext &ctx = getContext(ir);                                         \
@@ -271,7 +310,8 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRTYPE &ir, raw_ostream *os) {           \
+  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
+    bool isValid = true;                                                       \
     if (has##NAME##Attr(ir)) {                                                 \
       std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
       std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
@@ -282,20 +322,24 @@
       std::optional<ETY6> v6 = get##ENAME6##From##NAME##Attr(ir);              \
       std::optional<ETY7> v7 = get##ENAME7##From##NAME##Attr(ir);              \
                                                                                \
-      VERIFY_IMPL(os, ir, v0, NAME, IRNAME, ETY0, ENAME0, EN0);                \
-      VERIFY_IMPL(os, ir, v1, NAME, IRNAME, ETY1, ENAME1, EN1);                \
-      VERIFY_IMPL(os, ir, v2, NAME, IRNAME, ETY2, ENAME2, EN2);                \
-      VERIFY_IMPL(os, ir, v3, NAME, IRNAME, ETY3, ENAME3, EN3);                \
-      VERIFY_IMPL(os, ir, v4, NAME, IRNAME, ETY4, ENAME4, EN4);                \
-      VERIFY_IMPL(os, ir, v5, NAME, IRNAME, ETY5, ENAME5, EN5);                \
-      VERIFY_IMPL(os, ir, v6, NAME, IRNAME, ETY6, ENAME6, EN6);                \
-      VERIFY_IMPL(os, ir, v7, NAME, IRNAME, ETY7, ENAME7, EN7);                \
+      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
+      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
+      isValid &= VERIFY_IMPL(v2, os, ETY2, ENAME2, EN2, IRNAME);               \
+      isValid &= VERIFY_IMPL(v3, os, ETY3, ENAME3, EN3, IRNAME);               \
+      isValid &= VERIFY_IMPL(v4, os, ETY4, ENAME4, EN4, IRNAME);               \
+      isValid &= VERIFY_IMPL(v5, os, ETY5, ENAME5, EN5, IRNAME);               \
+      isValid &= VERIFY_IMPL(v6, os, ETY6, ENAME6, EN6, IRNAME);               \
+      isValid &= VERIFY_IMPL(v7, os, ETY7, ENAME7, EN7, IRNAME);               \
+                                                                               \
+      if constexpr (CUSTOMVERIFY)                                              \
+        isValid &= verify##NAME##Attr(ir, *v0, *v1, *v2, *v3, *v4, *v5, *v6,   \
+                                      *v7, os);                                \
     }                                                                          \
-    return true;                                                               \
+    return isValid;                                                            \
   }
 
-#define DEFN_ATTR_N(IRTYPE, NAME, IRNAME, ETY, ENAME, EN, NELEMS)              \
-  std::optional<ETY> llvm::get##ENAME##From##NAME##Attr(const IRTYPE &ir) {    \
+#define DEFN_ATTR_N(IRELEM, NAME, IRNAME, ETY, ENAME, EN, NELEMS)              \
+  std::optional<ETY> llvm::get##ENAME##From##NAME##Attr(const IRELEM &ir) {    \
     return getAttrValue<ETY>(IRNAME, getAttrList(ir), EN, NELEMS);             \
   }
 
