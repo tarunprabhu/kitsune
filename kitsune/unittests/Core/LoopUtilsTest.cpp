@@ -7,26 +7,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/LoopUtils.h"
+#include "TestUtils.h"
+#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/SourceMgr.h"
 
 #include "gtest/gtest.h"
 
 using namespace llvm;
 
 namespace {
-
-static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
-  SMDiagnostic err;
-  std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
-  if (!m)
-    err.print("parseIR", errs());
-  return m;
-}
 
 struct LoopInfoContext {
   LLVMContext ctx;
@@ -39,17 +31,8 @@ struct LoopInfoContext {
       : m(parseIR(ctx, ir)), f(m->getFunction(fname)), dt(*f), li(dt) {}
 };
 
-static bool hasAttr(const MDNode &loopMD, StringRef attrName) {
-  for (unsigned i = 1, ie = loopMD.getNumOperands(); i < ie; ++i)
-    if (auto *md = dyn_cast<MDNode>(loopMD.getOperand(i)))
-      if (auto *mdStr = dyn_cast<MDString>(md->getOperand(0)))
-        if (mdStr->getString() == attrName)
-          return true;
-  return false;
-}
-
 static bool hasLoopAttr(const Loop &loop, StringRef attrName) {
-  return hasAttr(*loop.getLoopID(), attrName);
+  return getRawAttr(attrName, loop.getLoopID());
 }
 
 constexpr StringRef loop1 = R"(

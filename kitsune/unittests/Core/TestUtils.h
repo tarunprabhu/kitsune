@@ -11,7 +11,8 @@
 
 #include "llvm/IR/Module.h"
 
-// Parse the IR in the string \p ir.
+// Parse the IR in the string \p ir. If the string could be parsed successfully,
+// return an LLVM module, otherwise return nullptr.
 std::unique_ptr<llvm::Module> parseIR(llvm::LLVMContext &ctx,
                                       llvm::StringRef ir);
 

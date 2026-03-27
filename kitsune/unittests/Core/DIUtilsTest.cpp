@@ -7,25 +7,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/DIUtils.h"
-#include "llvm/AsmParser/Parser.h"
+#include "TestUtils.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/SourceMgr.h"
 
 #include "gtest/gtest.h"
 
 using namespace llvm;
 
 namespace {
-
-static std::unique_ptr<Module> parseIR(LLVMContext &ctx, StringRef ir) {
-  SMDiagnostic err;
-  std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
-  if (!m)
-    err.print("parseIR", errs());
-  return m;
-}
 
 template <typename InstType>
 static const DebugLoc getDebugLocFor(const Function &f) {
