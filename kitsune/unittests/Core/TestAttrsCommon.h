@@ -19,8 +19,19 @@
 #define VNULL vnull
 #define VOS vos
 
+// Add an attribute with the given name and of `n` "empty" values.
+template <typename IRElem>
+static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
+  llvm::LLVMContext &ctx = getContext(ir);
+  llvm::MDNode *mdEmpty = llvm::MDNode::get(ctx, {});
+  llvm::SmallVector<llvm::Metadata *, 8> attrVals;
+
+  attrVals.append(n, mdEmpty);
+  llvm::detail::addAttr(ir, attrName, attrVals);
+}
+
 #define TEST_GENERIC_VERIFY_N(OBJ, KIND, NAME, IRNAME)                         \
-  addMetadata(OBJ, IRNAME, {});                                                \
+  detail::addAttr(OBJ, IRNAME, {});                                            \
                                                                                \
   OS.str().clear();                                                            \
   EXPECT_FALSE(verifyAttr(VNULL, OBJ, KIND::NAME));                            \
@@ -30,7 +41,7 @@
   remove##NAME##Attr((OBJ));
 
 #define TEST_GENERIC_VERIFY_0(OBJ, KIND, NAME, IRNAME)                         \
-  addMetadata(OBJ, IRNAME, MDString::get(ctx, ""));                            \
+  detail::addAttr(OBJ, IRNAME, MDString::get(ctx, ""));                        \
                                                                                \
   OS.str().clear();                                                            \
   EXPECT_FALSE(verifyAttr(VNULL, OBJ, KIND::NAME));                            \
@@ -69,7 +80,7 @@
   EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
-  addMetadata(OBJ, IRNAME, 0);                                                 \
+  ::addAttr(OBJ, IRNAME, 0);                                                   \
   EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_TRUE(verify##NAME##Attr(VOS, OBJ));                                   \
   EXPECT_TRUE(OS.str().empty());                                               \
@@ -104,7 +115,7 @@
   EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
-  addMetadata(OBJ, IRNAME, 1);                                                 \
+  ::addAttr(OBJ, IRNAME, 1);                                                   \
   EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
   EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
   EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
@@ -121,7 +132,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1);                                              \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
   }                                                                            \
@@ -132,7 +144,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1);                                              \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
   }                                                                            \
@@ -142,7 +155,7 @@
   EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
-  addMetadata(OBJ, IRNAME, 2);                                                 \
+  ::addAttr(OBJ, IRNAME, 2);                                                   \
   EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
   EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
   EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
@@ -160,7 +173,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1, v2);                                          \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -173,7 +187,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1, v2);                                          \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -184,7 +199,7 @@
   EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
-  addMetadata(OBJ, IRNAME, 3);                                                 \
+  ::addAttr(OBJ, IRNAME, 3);                                                   \
   EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
   EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
   EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
@@ -203,7 +218,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1, v2, v3);                                      \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -218,7 +234,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1, v2, v3);                                      \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -230,7 +247,7 @@
   EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
-  addMetadata(OBJ, IRNAME, 4);                                                 \
+  ::addAttr(OBJ, IRNAME, 4);                                                   \
   EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
   EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
   EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
@@ -251,7 +268,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4);                                  \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -268,7 +286,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4);                                  \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -281,7 +300,7 @@
   EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
-  addMetadata(OBJ, IRNAME, 5);                                                 \
+  ::addAttr(OBJ, IRNAME, 5);                                                   \
   EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
   EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
   EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
@@ -303,7 +322,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5);                              \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -322,7 +342,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5);                              \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -336,7 +357,7 @@
   EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
-  addMetadata(OBJ, IRNAME, 6);                                                 \
+  ::addAttr(OBJ, IRNAME, 6);                                                   \
   EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
   EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
   EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
@@ -359,7 +380,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5, v6);                          \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -380,7 +402,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5, v6);                          \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -395,7 +418,7 @@
   EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
-  addMetadata(OBJ, IRNAME, 7);                                                 \
+  ::addAttr(OBJ, IRNAME, 7);                                                   \
   EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
   EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
   EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
@@ -420,7 +443,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5, v6, v7);                      \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -443,7 +467,8 @@
                                                                                \
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5, v6, v7);                      \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -459,7 +484,7 @@
   EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
-  addMetadata(OBJ, IRNAME, 8);                                                 \
+  ::addAttr(OBJ, IRNAME, 8);                                                   \
   EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
   EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
   EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
@@ -511,18 +536,21 @@ for.i.exit:
   [[maybe_unused]] Loop *LOOP_F = *lif.begin();                                \
   [[maybe_unused]] Loop *LOOP_G = *lig.begin();
 
-#define TEST_ATTR_LOOP(OBJ, LOOP_F, LOOP_G, LIS, NAME, IRNAME, CUSTOMVERIFY)   \
+#define TEST_ATTR_LOOP(OBJ, LOOP_F, LOOP_G, LIS, KIND, NAME, IRNAME,           \
+                       CUSTOMVERIFY)                                           \
   EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
                                                                                \
   add##NAME##Attr(OBJ, *LOOP_F);                                               \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
+  if constexpr (::verifyAttr(KIND::NAME))                                      \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
   EXPECT_EQ(get##NAME##Attr(OBJ, LIS), LOOP_F);                                \
                                                                                \
   add##NAME##Attr(OBJ, *LOOP_G);                                               \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
+  if constexpr (::verifyAttr(KIND::NAME))                                      \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
   EXPECT_EQ(get##NAME##Attr(OBJ, LIS), LOOP_G);                                \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
@@ -530,7 +558,7 @@ for.i.exit:
   EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
-  addMetadata(OBJ, IRNAME, 1);                                                 \
+  ::addAttr(OBJ, IRNAME, 1);                                                   \
   EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
   EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
   EXPECT_TRUE(StringRef(OS.str()).contains("MDNode is not a valid loop id"));  \
@@ -539,11 +567,11 @@ for.i.exit:
 #define TEST_ATTR_ATTRS(OBJ)                                                   \
   SmallVector<StringRef> inp = {"attr-1", "attr-3", "attr-7"};                 \
   for (StringRef name : inp)                                                   \
-    addMetadata(OBJ, name, {});                                                \
+    detail::addAttr(OBJ, name, {});                                            \
                                                                                \
   SmallVector<StringRef> got;                                                  \
   for (const MDNode &attr : attrs(OBJ))                                        \
-    got.push_back(getRawAttrName(attr));                                       \
+    got.push_back(detail::getRawAttrName(attr));                               \
                                                                                \
   EXPECT_EQ(inp, got);
 

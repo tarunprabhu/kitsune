@@ -13,6 +13,7 @@
 
 #include "kitsune/Core/FuncAttrs.h"
 #include "AttrsImpl.h"
+#include "FuncAttrsImpl.h"
 #include "kitsune/Core/FuncUtils.h"
 #include "kitsune/Core/Verifier.h"
 #include "kitsune/Support/Diagnostics.h"
@@ -22,11 +23,16 @@
 
 using namespace llvm;
 
-static void setAttrList(Function &f, MDNode *attrList) {
+MDNode *llvm::detail::getRawAttrList(const Function &f) {
+  return f.getMetadata(LLVMContext::MD_kit_func_attrs);
+}
+
+void llvm::detail::setAttrList(Function &f, MDNode *attrList) {
   f.setMetadata(LLVMContext::MD_kit_func_attrs, attrList);
 }
 
-static void addAttr(Function &f, StringRef name, ArrayRef<Metadata *> vals) {
+void llvm::detail::addAttr(Function &f, StringRef name,
+                           ArrayRef<Metadata *> vals) {
   LLVMContext &ctx = f.getContext();
   MDNode *attrList = getRawAttrList(f);
   MDNode *newAttrList = getAttrListWith(name, vals, attrList, ctx);
@@ -34,19 +40,17 @@ static void addAttr(Function &f, StringRef name, ArrayRef<Metadata *> vals) {
   setAttrList(f, newAttrList);
 }
 
-static void removeAttr(Function &f, StringRef attrName) {
+void llvm::detail::removeAttr(Function &f, StringRef attrName) {
   MDNode *attrList = getRawAttrList(f);
   MDNode *newAttrList = getAttrListWithout(attrName, attrList);
 
   setAttrList(f, newAttrList);
 }
 
+//------------------------------------------------------------------------------
+
 raw_ostream &llvm::operator<<(raw_ostream &os, const FuncAttrKind &attr) {
   return os << getAttrName(attr);
-}
-
-MDNode *llvm::getRawAttrList(const Function &f) {
-  return f.getMetadata(LLVMContext::MD_kit_func_attrs);
 }
 
 StringRef llvm::getAttrName(FuncAttrKind attr) {
@@ -87,7 +91,7 @@ void llvm::addAttr(Function &f, FuncAttrKind attr) {
     break;
 #define FUNC_ATTR_0(NAME, IRNAME, ...)                                         \
   case FuncAttrKind::NAME:                                                     \
-    return ::addAttr(f, IRNAME, {});
+    return detail::addAttr(f, IRNAME, {});
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
   }

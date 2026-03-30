@@ -16,7 +16,6 @@
 #define KITSUNE_CORE_LOOP_ATTRS_H
 
 #include "kitsune/Core/AttrsCommon.h"
-#include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
@@ -36,11 +35,6 @@ enum class LoopAttrKind : uint32_t {
 #define GET_LOOP_ATTR_ENUMS
 #include "kitsune/Core/LoopAttrs.inc"
 };
-
-/// Get the metadata node containing the list of Kitsune-specific attributes.
-/// If no Kitsune-specific attributes have been added to the loop, this may
-/// return nullptr.
-MDNode *getRawAttrList(const Loop &loop);
 
 /// Get the name of a loop attribute as it would appear in LLVM metadata.
 /// The result will start with "tapir.loop."

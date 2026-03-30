@@ -11,12 +11,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/Verifier.h"
+#include "AttrsImpl.h"
 #include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Core/InstAttrs.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/ModuleAttrs.h"
-#include "kitsune/Core/VerifierInternal.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Module.h"
@@ -37,7 +37,7 @@ void KitVerifier::verify(const Function &f) {
     verify(*i);
 
   for (const MDNode &attr : attrs(f)) {
-    StringRef attrName = getRawAttrName(attr);
+    StringRef attrName = detail::getRawAttrName(attr);
     verifyAttr(*this, f, *getFuncAttrKind(attrName));
   }
 }
@@ -52,14 +52,14 @@ void KitVerifier::verify(const GlobalIFunc &g) {
 
 void KitVerifier::verify(const GlobalVariable &g) {
   for (const MDNode &attr : attrs(g)) {
-    StringRef attrName = getRawAttrName(attr);
+    StringRef attrName = detail::getRawAttrName(attr);
     verifyAttr(*this, g, *getGVAttrKind(attrName));
   }
 }
 
 void KitVerifier::verify(const Instruction &inst) {
   for (const MDNode &attr : attrs(inst)) {
-    StringRef attrName = getRawAttrName(attr);
+    StringRef attrName = detail::getRawAttrName(attr);
     verifyAttr(*this, inst, *getInstAttrKind(attrName));
   }
 }
@@ -79,7 +79,7 @@ void KitVerifier::verify(const Module &m) {
     verify(g);
 
   for (const MDNode &attr : attrs(m)) {
-    StringRef attrName = getRawAttrName(attr);
+    StringRef attrName = detail::getRawAttrName(attr);
     verifyAttr(*this, m, *getModuleAttrKind(attrName));
   }
 

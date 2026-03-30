@@ -15,7 +15,6 @@
 #define KITSUNE_CORE_MODULE_ATTRS_H
 
 #include "kitsune/Core/AttrsCommon.h"
-#include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
@@ -32,11 +31,6 @@ enum class ModuleAttrKind : uint32_t {
 #define GET_MODULE_ATTR_ENUMS
 #include "kitsune/Core/ModuleAttrs.inc"
 };
-
-/// Get the metadata node containing the list of Kitsune-specific attributes.
-/// If no Kitsune-specific attributes have been attached to the module, this
-/// may return nullptr.
-MDNode *getRawAttrList(const Module &m);
 
 /// Get the name of a module attribute as it would appear in LLVM metadata.
 /// The result will start with "kit.module.".

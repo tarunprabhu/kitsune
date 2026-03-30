@@ -13,6 +13,7 @@
 
 #include "kitsune/Core/InstAttrs.h"
 #include "AttrsImpl.h"
+#include "InstAttrsImpl.h"
 #include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/MetadataUtils.h"
@@ -24,12 +25,16 @@
 
 using namespace llvm;
 
-static void setAttrList(Instruction &inst, MDNode *attrList) {
+MDNode *llvm::detail::getRawAttrList(const Instruction &inst) {
+  return inst.getMetadata(LLVMContext::MD_kit_inst_attrs);
+}
+
+void llvm::detail::setAttrList(Instruction &inst, MDNode *attrList) {
   return inst.setMetadata(LLVMContext::MD_kit_inst_attrs, attrList);
 }
 
-static void addAttr(Instruction &inst, StringRef name,
-                    ArrayRef<Metadata *> vals) {
+void llvm::detail::addAttr(Instruction &inst, StringRef name,
+                           ArrayRef<Metadata *> vals) {
   LLVMContext &ctx = inst.getContext();
   MDNode *attrList = getRawAttrList(inst);
   MDNode *newAttrList = getAttrListWith(name, vals, attrList, ctx);
@@ -37,19 +42,17 @@ static void addAttr(Instruction &inst, StringRef name,
   setAttrList(inst, newAttrList);
 }
 
-static void removeAttr(Instruction &inst, StringRef attrName) {
+void llvm::detail::removeAttr(Instruction &inst, StringRef attrName) {
   MDNode *attrList = getRawAttrList(inst);
   MDNode *newAttrList = getAttrListWithout(attrName, attrList);
 
   setAttrList(inst, newAttrList);
 }
 
+//------------------------------------------------------------------------------
+
 raw_ostream &llvm::operator<<(raw_ostream &os, const InstAttrKind &attr) {
   return os << getAttrName(attr);
-}
-
-MDNode *llvm::getRawAttrList(const Instruction &inst) {
-  return inst.getMetadata(LLVMContext::MD_kit_inst_attrs);
 }
 
 StringRef llvm::getAttrName(InstAttrKind attr) {
@@ -91,7 +94,7 @@ void llvm::addAttr(Instruction &inst, InstAttrKind attr) {
     break;
 #define INST_ATTR_0(NAME, IRNAME, ...)                                         \
   case InstAttrKind::NAME:                                                     \
-    return ::addAttr(inst, IRNAME, {});
+    return detail::addAttr(inst, IRNAME, {});
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
   }

@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/GVAttrs.h"
+#include "Core/AttrsImpl.h"
+#include "Core/GVAttrsImpl.h"
 #include "TestAttrsCommon.h"
 #include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/GVUtils.h"
@@ -28,6 +30,7 @@ template <typename T, GVAttrKind Attr> static T get(unsigned idx) {
 // if the attribute initializer must be valid bitcode. In such cases, we test
 // everything but the verifier. lit tests must be added to ensure that the
 // verification works correctly.
+[[maybe_unused]]
 static constexpr bool verifyAttr(GVAttrKind attr) {
   switch (attr) {
   case GVAttrKind::BitCode:
@@ -36,25 +39,6 @@ static constexpr bool verifyAttr(GVAttrKind attr) {
   default:
     return true;
   }
-}
-
-static void addMetadata(GlobalVariable &g, StringRef attrName,
-                        ArrayRef<Metadata *> attrVals) {
-  LLVMContext &ctx = g.getContext();
-  MDNode *attrList = getRawAttrList(g);
-  MDNode *newAttrList = getAttrListWith(attrName, attrVals, attrList, ctx);
-
-  g.setMetadata(LLVMContext::MD_kit_gv_attrs, newAttrList);
-}
-
-// Create metadata consisting of `n` "empty" operands.
-static void addMetadata(GlobalVariable &g, StringRef attrName, unsigned n) {
-  LLVMContext &ctx = g.getContext();
-  MDNode *mdEmpty = MDNode::get(ctx, {});
-  SmallVector<Metadata *, 8> attrVals;
-
-  attrVals.append(n, mdEmpty);
-  addMetadata(g, attrName, attrVals);
 }
 
 TEST(KitGVAttrs, attrName) {
@@ -172,7 +156,8 @@ TEST(KitGVAttrs, attr8) {
 
 TEST(KitGVAttrs, attrLoop) {
   DECLS_LOOP(*g, loopF, loopG, lis);
-#define GV_ATTR_LOOP(...) TEST_ATTR_LOOP(*g, loopF, loopG, lis, __VA_ARGS__)
+#define GV_ATTR_LOOP(...)                                                      \
+  TEST_ATTR_LOOP(*g, loopF, loopG, lis, GVAttrKind, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }

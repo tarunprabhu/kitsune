@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/FuncAttrs.h"
+#include "Core/AttrsImpl.h"
+#include "Core/FuncAttrsImpl.h"
 #include "TestAttrsCommon.h"
 #include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/FuncUtils.h"
@@ -28,25 +30,9 @@ template <typename T, FuncAttrKind Attr> static T get(unsigned idx) {
 // if the attribute initializer must be valid bitcode. In such cases, we test
 // everything but the verifier. lit tests must be added to ensure that the
 // verification works correctly.
-static constexpr bool verifyAttr(FuncAttrKind attr) { return true; }
-
-static void addMetadata(Function &f, StringRef attrName,
-                        ArrayRef<Metadata *> attrVals) {
-  LLVMContext &ctx = f.getContext();
-  MDNode *attrList = getRawAttrList(f);
-  MDNode *newAttrList = getAttrListWith(attrName, attrVals, attrList, ctx);
-
-  f.setMetadata(LLVMContext::MD_kit_func_attrs, newAttrList);
-}
-
-// Create metadata consisting of `n` "empty" operands.
-static void addMetadata(Function &f, StringRef attrName, unsigned n) {
-  LLVMContext &ctx = f.getContext();
-  MDNode *mdEmpty = MDNode::get(ctx, {});
-  SmallVector<Metadata *, 8> attrVals;
-
-  attrVals.append(n, mdEmpty);
-  addMetadata(f, attrName, attrVals);
+[[maybe_unused]]
+static constexpr bool verifyAttr(FuncAttrKind attr) {
+  return true;
 }
 
 TEST(KitFuncAttrs, attrName) {
@@ -165,7 +151,8 @@ TEST(KitFuncAttrs, attr8) {
 
 TEST(KitFuncAttrs, attrLoop) {
   DECLS_LOOP(*f, loopF, loopG, lis);
-#define FUNC_ATTR_LOOP(...) TEST_ATTR_LOOP(*f, loopF, loopG, lis, __VA_ARGS__)
+#define FUNC_ATTR_LOOP(...)                                                    \
+  TEST_ATTR_LOOP(*f, loopF, loopG, lis, FuncAttrKind, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 }

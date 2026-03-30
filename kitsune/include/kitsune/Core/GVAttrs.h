@@ -15,7 +15,6 @@
 #define KITSUNE_CORE_GV_ATTRS_H
 
 #include "kitsune/Core/AttrsCommon.h"
-#include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
@@ -32,11 +31,6 @@ enum class GVAttrKind : uint32_t {
 #define GET_GV_ATTR_ENUMS
 #include "kitsune/Core/GVAttrs.inc"
 };
-
-/// Get the metadata node containing the list of Kitsune-specific attributes.
-/// If no Kitsune-specific attributes have been added to the global variable,
-/// this may return nullptr.
-MDNode *getRawAttrList(const GlobalVariable &g);
 
 /// Get the name of a global variable attribute as it would appear in LLVM
 /// metadata. The result will start with "kit.gv.".

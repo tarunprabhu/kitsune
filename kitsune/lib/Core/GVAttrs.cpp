@@ -13,6 +13,7 @@
 
 #include "kitsune/Core/GVAttrs.h"
 #include "AttrsImpl.h"
+#include "GVAttrsImpl.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GVUtils.h"
 #include "kitsune/Core/ModuleAttrs.h"
@@ -28,12 +29,16 @@
 
 using namespace llvm;
 
-static void setAttrList(GlobalVariable &g, MDNode *attrList) {
+MDNode *llvm::detail::getRawAttrList(const GlobalVariable &g) {
+  return g.getMetadata(LLVMContext::MD_kit_gv_attrs);
+}
+
+void llvm::detail::setAttrList(GlobalVariable &g, MDNode *attrList) {
   g.setMetadata(LLVMContext::MD_kit_gv_attrs, attrList);
 }
 
-static void addAttr(GlobalVariable &g, StringRef name,
-                    ArrayRef<Metadata *> vals) {
+void llvm::detail::addAttr(GlobalVariable &g, StringRef name,
+                           ArrayRef<Metadata *> vals) {
   LLVMContext &ctx = g.getContext();
   MDNode *attrList = getRawAttrList(g);
   MDNode *newAttrList = getAttrListWith(name, vals, attrList, ctx);
@@ -41,19 +46,17 @@ static void addAttr(GlobalVariable &g, StringRef name,
   setAttrList(g, newAttrList);
 }
 
-static void removeAttr(GlobalVariable &g, StringRef attrName) {
+void llvm::detail::removeAttr(GlobalVariable &g, StringRef attrName) {
   MDNode *attrList = getRawAttrList(g);
   MDNode *newAttrList = getAttrListWithout(attrName, attrList);
 
   setAttrList(g, newAttrList);
 }
 
+//------------------------------------------------------------------------------
+
 raw_ostream &llvm::operator<<(raw_ostream &os, const GVAttrKind &attr) {
   return os << getAttrName(attr);
-}
-
-MDNode *llvm::getRawAttrList(const GlobalVariable &g) {
-  return g.getMetadata(LLVMContext::MD_kit_gv_attrs);
 }
 
 StringRef llvm::getAttrName(GVAttrKind attr) {
@@ -95,7 +98,7 @@ void llvm::addAttr(GlobalVariable &g, GVAttrKind attr) {
     break;
 #define GV_ATTR_0(NAME, IRNAME, ...)                                           \
   case GVAttrKind::NAME:                                                       \
-    return ::addAttr(g, IRNAME, {});
+    return detail::addAttr(g, IRNAME, {});
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
   }

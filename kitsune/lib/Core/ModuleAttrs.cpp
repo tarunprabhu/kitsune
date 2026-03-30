@@ -13,6 +13,7 @@
 
 #include "kitsune/Core/ModuleAttrs.h"
 #include "AttrsImpl.h"
+#include "ModuleAttrsImpl.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/Verifier.h"
 #include "kitsune/Support/Diagnostics.h"
@@ -23,7 +24,14 @@
 
 using namespace llvm;
 
-static void setAttrList(Module &m, MDNode *attrList) {
+MDNode *llvm::detail::getRawAttrList(const Module &m) {
+  if (NamedMDNode *nmd = m.getNamedMetadata("kit.module"))
+    if (nmd->getNumOperands())
+      return nmd->getOperand(0);
+  return nullptr;
+}
+
+void llvm::detail::setAttrList(Module &m, MDNode *attrList) {
   NamedMDNode *nmd = m.getOrInsertNamedMetadata("kit.module");
   if (nmd->getNumOperands())
     nmd->setOperand(0, attrList);
@@ -31,7 +39,8 @@ static void setAttrList(Module &m, MDNode *attrList) {
     nmd->addOperand(attrList);
 }
 
-static void addAttr(Module &m, StringRef name, ArrayRef<Metadata *> vals) {
+void llvm::detail::addAttr(Module &m, StringRef name,
+                           ArrayRef<Metadata *> vals) {
   LLVMContext &ctx = m.getContext();
   MDNode *attrList = getRawAttrList(m);
   MDNode *newAttrList = getAttrListWith(name, vals, attrList, ctx);
@@ -39,22 +48,17 @@ static void addAttr(Module &m, StringRef name, ArrayRef<Metadata *> vals) {
   setAttrList(m, newAttrList);
 }
 
-static void removeAttr(Module &m, StringRef attrName) {
+void llvm::detail::removeAttr(Module &m, StringRef attrName) {
   MDNode *attrList = getRawAttrList(m);
   MDNode *newAttrList = getAttrListWithout(attrName, attrList);
 
   setAttrList(m, newAttrList);
 }
 
+//------------------------------------------------------------------------------
+
 raw_ostream &llvm::operator<<(raw_ostream &os, const ModuleAttrKind &attr) {
   return os << getAttrName(attr);
-}
-
-MDNode *llvm::getRawAttrList(const Module &m) {
-  if (NamedMDNode *nmd = m.getNamedMetadata("kit.module"))
-    if (nmd->getNumOperands())
-      return nmd->getOperand(0);
-  return nullptr;
 }
 
 StringRef llvm::getAttrName(ModuleAttrKind attrKind) {
@@ -95,7 +99,7 @@ void llvm::addAttr(Module &m, ModuleAttrKind attr) {
     break;
 #define MODULE_ATTR_0(NAME, IRNAME, ...)                                       \
   case ModuleAttrKind::NAME:                                                   \
-    return ::addAttr(m, IRNAME, {});
+    return detail::addAttr(m, IRNAME, {});
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
   }

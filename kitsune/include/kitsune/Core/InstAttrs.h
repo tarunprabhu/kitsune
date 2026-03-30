@@ -15,7 +15,6 @@
 #define KITSUNE_CORE_INST_ATTRS_H
 
 #include "kitsune/Core/AttrsCommon.h"
-#include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
@@ -32,11 +31,6 @@ enum class InstAttrKind : uint32_t {
 #define GET_INST_ATTR_ENUMS
 #include "kitsune/Core/InstAttrs.inc"
 };
-
-/// Get the metadata node containing the list of Kitsune-specific attributes.
-/// If no Kitsune-specific attributes have been added to the instruction, this
-/// may return nullptr.
-MDNode *getRawAttrList(const Instruction &inst);
 
 /// Get the name of an instruction attribute as it appears in LLVM metadata.
 /// The result will start with "kit.inst.".
