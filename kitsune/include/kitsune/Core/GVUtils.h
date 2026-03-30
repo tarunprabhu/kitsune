@@ -13,6 +13,8 @@
 #ifndef KITSUNE_CORE_GV_UTILS_H
 #define KITSUNE_CORE_GV_UTILS_H
 
+#include "llvm/ADT/StringRef.h"
+
 namespace llvm {
 
 class GlobalVariable;
@@ -24,6 +26,11 @@ class LLVMContext;
 /// Get the LLVM context from a global variable. This is useful when generating
 /// code from tablegen macros.
 LLVMContext &getContext(const GlobalVariable &g);
+
+/// Get the name of a global variable. If the global is unnamed, a string of the
+/// form `@<N>` will be returned. This is how the global would appear in
+/// human-readable LLVM-IR.
+std::string getName(const GlobalVariable &g);
 
 /// @}
 

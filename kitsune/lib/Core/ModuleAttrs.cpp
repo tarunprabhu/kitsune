@@ -13,10 +13,11 @@
 
 #include "kitsune/Core/ModuleAttrs.h"
 #include "AttrsImpl.h"
-#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/Verifier.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
+#include "kitsune/Support/TTIDUtils.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/IR/Module.h"
 
@@ -32,20 +33,24 @@ static void setAttrList(Module &m, MDNode *attrList) {
 
 static void addAttr(Module &m, StringRef name, ArrayRef<Metadata *> vals) {
   LLVMContext &ctx = m.getContext();
-  MDNode *attrList = getAttrList(m);
+  MDNode *attrList = getRawAttrList(m);
   MDNode *newAttrList = getAttrListWith(name, vals, attrList, ctx);
 
   setAttrList(m, newAttrList);
 }
 
 static void removeAttr(Module &m, StringRef attrName) {
-  MDNode *attrList = getAttrList(m);
+  MDNode *attrList = getRawAttrList(m);
   MDNode *newAttrList = getAttrListWithout(attrName, attrList);
 
   setAttrList(m, newAttrList);
 }
 
-MDNode *llvm::getAttrList(const Module &m) {
+raw_ostream &llvm::operator<<(raw_ostream &os, const ModuleAttrKind &attr) {
+  return os << getAttrName(attr);
+}
+
+MDNode *llvm::getRawAttrList(const Module &m) {
   if (NamedMDNode *nmd = m.getNamedMetadata("kit.module"))
     if (nmd->getNumOperands())
       return nmd->getOperand(0);
@@ -71,11 +76,11 @@ std::optional<ModuleAttrKind> llvm::getModuleAttrKind(StringRef name) {
       .Default(std::nullopt);
 }
 
-bool llvm::verifyAttr(const Module &m, ModuleAttrKind attr, raw_ostream *os) {
+bool llvm::verifyAttr(KitVerifier &v, const Module &m, ModuleAttrKind attr) {
   switch (attr) {
 #define MODULE_ATTR(NAME, IRNAME, ...)                                         \
   case ModuleAttrKind::NAME:                                                   \
-    return verify##NAME##Attr(m, os);
+    return verify##NAME##Attr(v, m);
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
   }
@@ -85,7 +90,7 @@ bool llvm::verifyAttr(const Module &m, ModuleAttrKind attr, raw_ostream *os) {
 void llvm::addAttr(Module &m, ModuleAttrKind attr) {
   switch (attr) {
   default:
-    emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
+    emitDiagnostic(DiagID::ErrAttrAdd, getAttrName(attr));
     exitOnError();
     break;
 #define MODULE_ATTR_0(NAME, IRNAME, ...)                                       \
@@ -123,3 +128,16 @@ DEFN_ATTR_GENERIC(Module, ModuleAttrKind)
 // Add custom attribute verifiers here. In general, you should not modify
 // anything above this line unless you are modifying a core part of the
 // attribute implementation.
+
+bool llvm::verifyDeviceModuleFlagsAttr(KitVerifier &v, const Module &m,
+                                       const TTID &tt, const StringRef &name) {
+  bool ok = true;
+  ModuleAttrKind attr = ModuleAttrKind::DeviceModuleFlags;
+
+  ok &= v.check(generatesEmbBC(tt), DiagID::ErrAttrBadValueAt, attr, 0,
+                DiagMessage::errTTEmbBC);
+  ok &= v.check(name.size(), DiagID::ErrAttrBadValueAt, attr, 1,
+                "Module name cannot be empty");
+
+  return ok;
+}

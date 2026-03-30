@@ -20,8 +20,12 @@ static constexpr TTID ttbcs[] = {TTID::Cuda, TTID::Hip};
 ArrayRef<TTID> llvm::ttsGenEmbBC() { return ttbcs; }
 
 bool llvm::doesTTGenEmbBC(TTID tt) {
-  for (TTID ttbc : ttsGenEmbBC())
-    if (ttbc == tt)
+  return generatesEmbBC(tt);
+}
+
+bool llvm::generatesEmbBC(TTID tt) {
+  for (TTID t : ttbcs)
+    if (t == tt)
       return true;
   return false;
 }

@@ -8,15 +8,6 @@
 //
 // Utilities shared by Kitsune-specific attributes.
 //
-//===----------------------------------------------------------------------===//
-
-#include "kitsune/Core/AttrsCommon.h"
-#include "VerifyImpl.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Analysis/LoopInfo.h"
-
-using namespace llvm;
-
 // All Kitsune's attributes follow the pattern of LLVM's loop attributes.
 // Consider the example below:
 //
@@ -35,6 +26,90 @@ using namespace llvm;
 //
 // These attributes are elements of a distinct "attribute list" MDNode. The list
 // is self-referential. The first operand will always be a reference to itself.
+//
+//===----------------------------------------------------------------------===//
+
+#include "kitsune/Core/AttrsCommon.h"
+#include "kitsune/Core/Verifier.h"
+#include "kitsune/Support/Diagnostics.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Analysis/LoopInfo.h"
+
+using namespace llvm;
+
+bool llvm::detail::verifyRawAttrValueCount(KitVerifier &v, const MDNode &attr,
+                                           unsigned attrVals) {
+  StringRef attrName = getRawAttrName(attr);
+  unsigned numVals = attr.getNumOperands() - 1;
+  return v.check(numVals == attrVals, DiagID::ErrAttrBadValues, attrName,
+                 numVals, attrVals);
+}
+
+bool llvm::detail::verifyRawAttrValueLoop(KitVerifier &v, const MDNode &attr) {
+  StringRef attrName = getRawAttrName(attr);
+  unsigned n = attr.getNumOperands();
+  if (!v.check(n == 2, DiagID::ErrAttrBadValues, attrName, n - 1, 1))
+    return false;
+
+  MDNode *val = dyn_cast<MDNode>(attr.getOperand(1));
+  bool isLoop = val && val->getNumOperands() && val->isDistinct();
+  if (!v.check(isLoop, DiagID::ErrAttrBadValue, attrName,
+               "MDNode is not a valid loop id"))
+    return false;
+
+  return true;
+}
+
+template <typename T>
+bool llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &attr,
+                                        unsigned i,
+                                        const std::optional<T> &val) {
+  StringRef attrName = cast<MDString>(attr.getOperand(0))->getString();
+  return v.check(val.has_value(), DiagID::ErrAttrNoValueAt, attrName,
+                 toString<T>(), i);
+}
+
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<int8_t> &val);
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<uint8_t> &val);
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<int16_t> &val);
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<uint16_t> &val);
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<int32_t> &val);
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<uint32_t> &val);
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<int64_t> &val);
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<uint64_t> &val);
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<float> &val);
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<double> &val);
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<StringRef> &val);
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<TTID> &val);
+template bool
+llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &, unsigned i,
+                                   const std::optional<TapirSpawnStrategy> &);
+
+// -----------------------------------------------------------------------------
 
 // Create a new MDNode that will act as an attribute list with the given
 // attributes.
@@ -91,6 +166,32 @@ MDNode *llvm::makeRawAttr(LLVMContext &ctx, StringRef attrName,
   return MDNode::get(ctx, ops);
 }
 
+StringRef llvm::getRawAttrName(const MDNode &attr) {
+  return cast<MDString>(attr.getOperand(0))->getString();
+}
+
+std::optional<Loop *>
+llvm::getRawAttrValue(const MDNode &attr,
+                      const SmallVectorImpl<const LoopInfo *> &lis) {
+  if (attr.getNumOperands() == 2) {
+    Metadata *val = attr.getOperand(1);
+    for (const LoopInfo *li : lis)
+      for (Loop *loop : *li)
+        if (val == loop->getLoopID())
+          return loop;
+  }
+  return std::nullopt;
+}
+
+template <typename T>
+std::optional<T> llvm::getRawAttrValue(const MDNode &attr, size_t i) {
+  // The first operand of the attribute will be the name of the attribute.
+  unsigned attrIdx = i + 1;
+  if (attrIdx < attr.getNumOperands())
+    return fromMetadata<T>(attr.getOperand(attrIdx));
+  return std::nullopt;
+}
+
 MDNode *llvm::getNewAttrList(LLVMContext &ctx) {
   return makeAttrList(ctx, {nullptr});
 }
@@ -143,34 +244,66 @@ MDNode *llvm::getRawAttr(StringRef attrName, const MDNode *attrList) {
 std::optional<Loop *>
 llvm::getAttrValue(StringRef attrName, const MDNode *attrList,
                    const SmallVectorImpl<const LoopInfo *> &lis) {
-  if (MDNode *md = getRawAttr(attrName, attrList))
-    if (md->getNumOperands() == 2)
-      for (const LoopInfo *li : lis)
-        for (Loop *loop : *li)
-          if (md->getOperand(1).get() == loop->getLoopID())
-            return loop;
+  if (MDNode *attr = getRawAttr(attrName, attrList))
+    return getRawAttrValue(*attr, lis);
   return std::nullopt;
 }
 
-bool llvm::verifyAttr0(StringRef attrName, const MDNode *attrList,
-                       raw_ostream *os) {
-  if (MDNode *md = getRawAttr(attrName, attrList))
-    return detail::check(md->getNumOperands() == 1, os,
-                         "Unexpected value in attribute '{}'", attrName);
-  return true;
+template <typename T>
+std::optional<T> llvm::getAttrValue(StringRef attrName, const MDNode *attrList,
+                                    unsigned valNo, unsigned vals) {
+  if (attrList && vals && valNo < vals)
+    if (MDNode *attr = getRawAttr(attrName, attrList))
+      // The first operand of the metadata node will be the name of the
+      // attribute.
+      if (attr->getNumOperands() == vals + 1)
+        return fromMetadata<T>(attr->getOperand(valNo + 1));
+  return std::nullopt;
 }
 
-bool llvm::verifyAttrLoop(StringRef attrName, const MDNode *attrList,
-                          raw_ostream *os) {
-  if (MDNode *md = getRawAttr(attrName, attrList)) {
-    if (!detail::check(md->getNumOperands() == 2, os, detail::errMsgNoValue,
-                       "Loop", attrName))
-      return false;
+// We only support a limited number of types that can be in metadata, so just
+// instantiate everything explicitly. All enums have to be explicitly
+// instantiated as well. This is not unreasonable because we don't expect to
+// support completely arbitrary enums as attribute values.
 
-    MDNode *val = dyn_cast<MDNode>(md->getOperand(1));
-    bool isLoop = val && val->getNumOperands() && val->isDistinct();
-    if (!detail::check(isLoop, os, detail::errMsgNoValue, "Loop", attrName))
-      return false;
-  }
-  return true;
-}
+template std::optional<int8_t> llvm::getRawAttrValue(const MDNode &, size_t);
+template std::optional<uint8_t> llvm::getRawAttrValue(const MDNode &, size_t);
+template std::optional<int16_t> llvm::getRawAttrValue(const MDNode &, size_t);
+template std::optional<uint16_t> llvm::getRawAttrValue(const MDNode &, size_t);
+template std::optional<int32_t> llvm::getRawAttrValue(const MDNode &, size_t);
+template std::optional<uint32_t> llvm::getRawAttrValue(const MDNode &, size_t);
+template std::optional<int64_t> llvm::getRawAttrValue(const MDNode &, size_t);
+template std::optional<uint64_t> llvm::getRawAttrValue(const MDNode &, size_t);
+template std::optional<float> llvm::getRawAttrValue(const MDNode &, size_t);
+template std::optional<double> llvm::getRawAttrValue(const MDNode &, size_t);
+template std::optional<StringRef> llvm::getRawAttrValue(const MDNode &, size_t);
+template std::optional<TTID> llvm::getRawAttrValue(const MDNode &, size_t);
+template std::optional<TapirSpawnStrategy> llvm::getRawAttrValue(const MDNode &,
+                                                                 size_t);
+
+template std::optional<int8_t> llvm::getAttrValue(StringRef, const MDNode *,
+                                                  unsigned, unsigned);
+template std::optional<uint8_t> llvm::getAttrValue(StringRef, const MDNode *,
+                                                   unsigned, unsigned);
+template std::optional<int16_t> llvm::getAttrValue(StringRef, const MDNode *,
+                                                   unsigned, unsigned);
+template std::optional<uint16_t> llvm::getAttrValue(StringRef, const MDNode *,
+                                                    unsigned, unsigned);
+template std::optional<int32_t> llvm::getAttrValue(StringRef, const MDNode *,
+                                                   unsigned, unsigned);
+template std::optional<uint32_t> llvm::getAttrValue(StringRef, const MDNode *,
+                                                    unsigned, unsigned);
+template std::optional<int64_t> llvm::getAttrValue(StringRef, const MDNode *,
+                                                   unsigned, unsigned);
+template std::optional<uint64_t> llvm::getAttrValue(StringRef, const MDNode *,
+                                                    unsigned, unsigned);
+template std::optional<float> llvm::getAttrValue(StringRef, const MDNode *,
+                                                 unsigned, unsigned);
+template std::optional<double> llvm::getAttrValue(StringRef, const MDNode *,
+                                                  unsigned, unsigned);
+template std::optional<StringRef> llvm::getAttrValue(StringRef, const MDNode *,
+                                                     unsigned, unsigned);
+template std::optional<TTID> llvm::getAttrValue(StringRef, const MDNode *,
+                                                unsigned, unsigned);
+template std::optional<TapirSpawnStrategy>
+llvm::getAttrValue(StringRef, const MDNode *, unsigned, unsigned);

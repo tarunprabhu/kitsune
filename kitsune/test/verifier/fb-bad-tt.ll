@@ -5,7 +5,8 @@
 ; RUN: not llvm-as %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: invalid value for 'device.code' attribute. Tapir target does not generate embedded bitcode
+; CHECK: attribute 'kit.gv.device.code': invalid value
+; CHECK-SAME: Tapir target does not generate embedded bitcode
 
 @0 = constant [0 x i8] zeroinitializer, !kit.gv !0
 

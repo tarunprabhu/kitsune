@@ -6,5 +6,11 @@
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: global containing embedded bitcode does not have a name
+; RUN: %kit-enc --tapir=hip %s \
+; RUN:     | sed 's/[.]kit[.]emb[.]bc/0/g' \
+; RUN:     | not llvm-as -o /dev/null 2>&1 \
+; RUN:     | FileCheck %s
+;
+; CHECK: global with attribute 'kit.gv.bit.code': missing required name
+; CHECK-NEXT: from global variable '@0'
 

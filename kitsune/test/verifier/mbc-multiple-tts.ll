@@ -7,12 +7,12 @@
 ; RUN: MBC_2=`%kit-enc --tapir=cuda %s \
 ; RUN:     | grep "c\"BC" \
 ; RUN:     | sed 's/.kit.emb//g' \
-; RUN:     | sed 's/@.bc/@.bc.2/g'`
+; RUN:     | sed 's/@.bc/@.bc.cuda/g'`
 ; RUN:
 ; RUN: MBC_4=`%kit-enc --tapir=hip %s \
 ; RUN:     | grep "c\"BC" \
 ; RUN:     | sed 's/.kit.emb//g' \
-; RUN:     | sed 's/@.bc/@.bc.4/g' \
+; RUN:     | sed 's/@.bc/@.bc.hip/g' \
 ; RUN:     | sed 's/\!0/\!1/g'`
 ; RUN:
 ; RUN: printf "%%s\n%%s\n%%s\n%%s\n\n%%s\n%%s" \

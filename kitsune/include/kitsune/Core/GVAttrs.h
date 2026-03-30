@@ -1,4 +1,4 @@
-//===- GVAttrs.h - Kitsune-specific attributes for global vars -*- C++ -*--===//
+//===- GVAttrs.h - Kitsune-specific attributes for global vars --*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -14,6 +14,7 @@
 #ifndef KITSUNE_CORE_GV_ATTRS_H
 #define KITSUNE_CORE_GV_ATTRS_H
 
+#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -35,36 +36,41 @@ enum class GVAttrKind : uint32_t {
 /// Get the metadata node containing the list of Kitsune-specific attributes.
 /// If no Kitsune-specific attributes have been added to the global variable,
 /// this may return nullptr.
-MDNode *getAttrList(const GlobalVariable &g);
+MDNode *getRawAttrList(const GlobalVariable &g);
 
-/// Get the name of the global variable attribute as it appears in the LLVM-IR
+/// Get the name of a global variable attribute as it would appear in LLVM
 /// metadata. The result will start with "kit.gv.".
 StringRef getAttrName(GVAttrKind attr);
 
-/// Get the kind of a Kitsune-specific global variable attribute if the given
-/// string is how such an attribute would appear in LLVM-IR. Otherwise, return
-/// std::nullopt.
+/// Get the kind of a global variable attribute if the given string is how the
+/// attribute would appear in LLVM metadata. Otherwise, return std::nullopt.
 std::optional<GVAttrKind> getGVAttrKind(StringRef name);
 
-/// Check if the given attribute is present on a global variable.
+/// Check if an attribute is present on a global variable.
 bool hasAttr(const GlobalVariable &f, GVAttrKind attr);
 
-/// Add an attribute to the global variable. Only attributes that do not take
-/// any values can be added this way. Providing an attribute that takes values
-/// will result in a catastrophic runtime error.
+/// Add an attribute to a global variable. Only attributes that do not take any
+/// values can be added this way. Adding an attribute that takes values will
+/// result in a catastrophic runtime error.
 void addAttr(GlobalVariable &f, GVAttrKind attr);
 
-/// Remove the attribute from a global variable. If the global variable does not
+/// Remove an attribute from a global variable. If the global variable does not
 /// contain the attribute, this has no effect.
 void removeAttr(GlobalVariable &f, GVAttrKind attr);
 
-/// If the attribute is not present on a global variable, return true.
-/// Otherwise, return if the expected number of values are found for the
-/// attribute, and each of them can be retrieved. In all other cases, return
-/// false. If an output stream is provided, an error message will be printed to
-/// it if the attribute is invalid.
-bool verifyAttr(const GlobalVariable &g, GVAttrKind attr,
-                raw_ostream *os = nullptr);
+/// Verify an attribute \p attr on the global variable \p g. Returns true if any
+/// of the following are true:
+///
+///   - \p attr is not present on \p g
+///   - \p attr is present with the correct number of values, each of which is
+///     of the correct type.
+///
+/// Otherwise, return false.
+///
+bool verifyAttr(KitVerifier &v, const GlobalVariable &g, GVAttrKind attr);
+
+/// Get a range to iterate over the raw global variable attributes.
+iterator_range<AttrIterator> attrs(const GlobalVariable &g);
 
 /// @}
 

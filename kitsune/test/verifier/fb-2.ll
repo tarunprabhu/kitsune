@@ -4,9 +4,9 @@
 ;
 ; CHECK: too many embedded device code globals for tapir target 'cuda'
 
-@bc.2 = constant [0 x i8] zeroinitializer, !kit.gv !0
-@.bc.2 = constant [0 x i8] zeroinitializer, !kit.gv !1
-@bc.4 = constant [0 x i8] zeroinitializer, !kit.gv !2
+@bc.cuda = constant [0 x i8] zeroinitializer, !kit.gv !0
+@bc.cuda.2 = constant [0 x i8] zeroinitializer, !kit.gv !1
+@bc.hip = constant [0 x i8] zeroinitializer, !kit.gv !2
 
 !0 = distinct !{!0, !3}
 !1 = distinct !{!1, !3}

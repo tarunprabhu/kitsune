@@ -4,9 +4,11 @@
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: embedded module requires valid tapir target in device module metadata
+; CHECK: attribute 'kit.module.device.module.flags': invalid value at index '0'
+; CHECK-SAME: Tapir target does not generate embedded bitcode
+; CHECK-NEXT: embedded module: broken module found
 
 !kit.module = !{!0}
 
 !0 = distinct !{!0, !1}
-!1 = !{!"kit.module.device.module.flags", i32 -200000000, !"gallumbits"}
+!1 = !{!"kit.module.device.module.flags", i32 1, !"gallumbits"}

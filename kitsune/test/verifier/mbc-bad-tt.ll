@@ -7,5 +7,5 @@
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: invalid value for 'bit.code' attribute.
+; CHECK: attribute 'kit.gv.bit.code': invalid value
 ; CHECK-SAME: Tapir target does not generate embedded bitcode

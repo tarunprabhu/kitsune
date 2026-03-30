@@ -1,4 +1,4 @@
-//===- ModuleAttrs.h - Module attributes and utilities ---------*- C++ -*--===//
+//===- ModuleAttrs.h - Module attributes and utilities ----------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -14,6 +14,7 @@
 #ifndef KITSUNE_CORE_MODULE_ATTRS_H
 #define KITSUNE_CORE_MODULE_ATTRS_H
 
+#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -35,36 +36,41 @@ enum class ModuleAttrKind : uint32_t {
 /// Get the metadata node containing the list of Kitsune-specific attributes.
 /// If no Kitsune-specific attributes have been attached to the module, this
 /// may return nullptr.
-MDNode *getAttrList(const Module &m);
+MDNode *getRawAttrList(const Module &m);
 
-/// Get the name of the module attribute as it appears in the metadata. The
-/// result will start with "kit.module.".
+/// Get the name of a module attribute as it would appear in LLVM metadata.
+/// The result will start with "kit.module.".
 StringRef getAttrName(ModuleAttrKind attrKind);
 
-/// Get the kind of a Kitsune-specific module attribute if the given string is
-/// how such an attribute would appear in LLVM-IR. Otherwise, return
-/// std::nullopt.
+/// Get the kind of a module attribute if the given string is how the attribute
+/// would appear in LLVM metadata. Otherwise, return std::nullopt.
 std::optional<ModuleAttrKind> getModuleAttrKind(StringRef name);
 
-/// Check if the given attribute is present in a module.
+/// Check if an attribute is present on a module.
 bool hasAttr(const Module &m, ModuleAttrKind attr);
 
-/// Add an attribute to the module. Only attributes that do not take any values
-/// can be added this way. Providing an attribute that takes values will result
-/// in a catastrophic runtime error.
+/// Add an attribute to a module. Only attributes that do not take any values
+/// can be added this way. Adding an attribute that takes values will result in
+/// a catastrophic runtime error.
 void addAttr(Module &m, ModuleAttrKind attr);
 
-/// Remove the attribute from a module. If the module does not contain the
+/// Remove an attribute from a module. If the module does not contain the
 /// attribute, this has no effect.
 void removeAttr(Module &m, ModuleAttrKind attr);
 
-/// If the attribute is not present on a module, return true. Otherwise, return
-/// if the expected number of values are found for the attribute, and each of
-/// them can be retrieved. In all other cases, return false. If an output stream
-/// is provided, an error message will be printed to it if the attribute is
-/// invalid.
-bool verifyAttr(const Module &m, ModuleAttrKind attr,
-                raw_ostream *os = nullptr);
+/// Verify an attribute \p attr on the module \p m. Returns true if any of the
+/// following are true:
+///
+///   - \p attr is not present on \p m
+///   - \p attr is present with the correct number of values, each of which is
+///     of the correct type.
+///
+/// Otherwise, return false.
+///
+bool verifyAttr(KitVerifier &v, const Module &m, ModuleAttrKind attr);
+
+/// Get a range to iterate over the raw module attributes.
+iterator_range<AttrIterator> attrs(const Module &m);
 
 /// @}
 

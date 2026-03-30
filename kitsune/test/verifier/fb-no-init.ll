@@ -2,7 +2,10 @@
 ;
 ; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
 ;
-; CHECK-COUNT-2: missing initializer in global containing device code
+; CHECK: global with attribute 'kit.gv.device.code': missing required initializer
+; CHECK-NEXT: from global variable 'fb.cuda'
+; CHECK: global with attribute 'kit.gv.device.code': missing required initializer
+; CHECK-NEXT: from global variable 'fb.hip'
 
 @fb.cuda = external global [0 x i8], !kit.gv !0
 @fb.hip = external global [0 x i8], !kit.gv !1

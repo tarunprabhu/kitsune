@@ -15,10 +15,19 @@
 
 using namespace llvm;
 
-LLVMContext &llvm::getContext(Instruction &inst) { return inst.getContext(); }
-
 LLVMContext &llvm::getContext(const Instruction &inst) {
   return inst.getContext();
+}
+
+std::string llvm::getName(const Instruction &inst) {
+  if (inst.hasName())
+    return inst.getName().str();
+
+  std::string buf;
+  raw_string_ostream os(buf);
+  inst.printAsOperand(os, /*PrintType=*/false, inst.getModule());
+
+  return buf;
 }
 
 StringRef llvm::getInstClassName(const Instruction &inst) {

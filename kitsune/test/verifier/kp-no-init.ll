@@ -2,7 +2,8 @@
 ;
 ; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
 ;
-; CHECK: missing initializer in global containing kernel properties
+; CHECK: global with attribute 'kit.gv.kernel.properties': missing required initializer
+; CHECK-NEXT: from global variable '@0'
 
 @0 = external global { i64, i64, i64, i64 }, !kit.gv !0
 

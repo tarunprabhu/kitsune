@@ -52,6 +52,7 @@ class LoopAttr<Type ValueType = VoidTy> : AttrBase<ValueType>{}
 //------------------------------------------------------------------------------
 
 def Name : LoopAttr<StrTy> {
+  let HasCustomVerifier = True;
   let Documentation = [{
 A human-readable name for the loop. This is useful in debugging and diagnostics
 when debug information is not available.
@@ -229,6 +230,7 @@ present on all tapir loops.
 }
 
 def ThreadsPerBlock : LoopAttr<I32Ty> {
+  let HasCustomVerifier = True;
   let Documentation = [{
 If this attribute is present on a tapir loop, its value will be the number of
 threads per block used when launching the GPU kernel obtained when the loop is

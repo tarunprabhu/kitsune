@@ -32,6 +32,7 @@ class GVAttr<Type ValueType = VoidTy> : AttrBase<ValueType> { }
 //------------------------------------------------------------------------------
 
 def BitCode : GVAttr<TTIDTy> {
+  let HasCustomVerifier = True;
   let Documentation = [{
 Indicates that the initializer of the global variable contains serialized LLVM
 bitcode. This bitcode will usually be compiled to machine code for a device -
@@ -46,6 +47,7 @@ operate on this module are embedded bitcode passes.
 }
 
 def DeviceCode : GVAttr<TTIDTy> {
+  let HasCustomVerifier = True;
   let Documentation = [{
 Indicates that the initializer of the global variable contains machine code for
 an accelerator, usually a GPU. This variable will have been added by a tapir
@@ -62,6 +64,7 @@ def KernelPropertiesTy
     : TupleType<[TupleElement<TTIDTy, "TTID">,
                  TupleElement<StrTy, "Name">]> {}
 def KernelProperties : GVAttr<KernelPropertiesTy> {
+  let HasCustomVerifier = True;
   let Documentation = [{
 The global variable contains properties of a kitsune "kernel function". The
 value of the attribute is the name of the kernel function. The function itself

@@ -32,6 +32,13 @@ class Loop;
 /// \addtogroup kitsune
 /// @{
 
+/// Wrapper class around diagnostic message strings.
+class DiagMessage {
+public:
+  static constexpr StringRef errTTEmbBC =
+      "Tapir target does not generate embedded bitcode";
+};
+
 /// ID's for the various diagnostics that can be emitted by Kitsune. These are
 /// only those diagnostics emitted in Kitsune's middle-end. Unlike LLVM which
 /// only emits diagnostics in the frontend, and occasionally the back, Kitsune
@@ -59,35 +66,48 @@ bool isNote(DiagID id);
 /// \param id The diagnostic to emit
 void emitDiagnostic(DiagID id);
 
-/// Emit a diagnostic to stderr.
+/// Emit a diagnostic to the given output stream.
+/// \param os The output stream.
+/// \param e  The IR element to be associated with the diagnostic. If valid
+///           debug information is associated with the IR element, it may be
+///           used in the emitted diagnostic. This element may be an attribute
+///           kind
 /// \param id The diagnostic to emit
-template <typename... Args> void emitDiagnostic(DiagID id, Args &&...args) {
-  detail::emitDiagnostic(errs(), detail::getSeverity(id),
+/// \param args Additional arguments required by \p id.
+template <typename IRElement, typename... Args>
+void emitDiagnosticTo(raw_ostream &os, const IRElement &e, DiagID id,
+                      Args &&...args) {
+  detail::emitDiagnostic(os, e, detail::getSeverity(id),
+                         formatv(detail::getMsg(id).data(), args...).str());
+}
+
+/// Emit a diagnostic to the given output stream.
+/// \param os The output stream.
+/// \param id The diagnostic to emit
+/// \param args Additional arguments required by \p id.
+template <typename... Args>
+void emitDiagnosticTo(raw_ostream &os, DiagID id, Args &&...args) {
+  detail::emitDiagnostic(os, detail::getSeverity(id),
                          formatv(detail::getMsg(id).data(), args...).str());
 }
 
 /// Emit a diagnostic to stderr.
-/// \param e  The IR element to be associated with the diagnostic. This may be a
-///           Function, Instruction, or Loop. If valid debug information is
-///           associated with the instruction or loop, it will be emitted in the
-///           diagnostic.
 /// \param id The diagnostic to emit
-template <typename IRElement, typename... Args>
-void emitDiagnostic(const IRElement &e, DiagID id) {
-  detail::emitDiagnostic(errs(), e, detail::getSeverity(id),
-                         detail::getMsg(id));
+/// \param args Additional arguments required by \p id
+template <typename... Args> void emitDiagnostic(DiagID id, Args &&...args) {
+  emitDiagnosticTo(errs(), id, args...);
 }
 
 /// Emit a diagnostic to stderr.
-/// \param e  The IR element to be associated with the diagnostic. This may be a
-///           Function, Instruction, or Loop. If valid debug information is
-///           associated with the instruction or loop, it will be emitted in the
-///           diagnostic.
+/// \param e  The IR element to be associated with the diagnostic. If valid
+///           debug information is associated with the IR element, it may be
+///           used in the emitted diagnostic. The element may be an attribute
+///           kind
 /// \param id The diagnostic to emit
+/// \param args Additional arguments required by \p id.
 template <typename IRElement, typename... Args>
 void emitDiagnostic(const IRElement &e, DiagID id, Args &&...args) {
-  detail::emitDiagnostic(errs(), e, detail::getSeverity(id),
-                         formatv(detail::getMsg(id).data(), args...).str());
+  emitDiagnosticTo(errs(), e, id, args...);
 }
 
 /// Create an LLVM Error for a Kitsune-specific diagnostic.

@@ -10,6 +10,7 @@
 #include "TestAttrsCommon.h"
 #include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/Verifier.h"
 #include "llvm/IR/Module.h"
 
 #include "gtest/gtest.h"
@@ -18,10 +19,23 @@ using namespace llvm;
 
 namespace {
 
+// In some cases, the value of an attribute must be in a range. We cannot use
+// a purely random value to test since it will likely fail. This should be
+// specialized for specific attribute kinds.
+template <typename T, ModuleAttrKind Attr> static T get(unsigned idx) {
+  return get_<T>(idx);
+}
+
+// In some cases, it is difficult to construct a valid attribute - for instance
+// if the attribute initializer must be valid bitcode. In such cases, we test
+// everything but the verifier. lit tests must be added to ensure that the
+// verification works correctly.
+static constexpr bool verifyAttr(ModuleAttrKind attr) { return true; }
+
 static void addMetadata(Module &m, StringRef attrName,
                         ArrayRef<Metadata *> attrVals) {
   LLVMContext &ctx = m.getContext();
-  MDNode *attrList = getAttrList(m);
+  MDNode *attrList = getRawAttrList(m);
   MDNode *newAttrList = getAttrListWith(attrName, attrVals, attrList, ctx);
 
   NamedMDNode *nmd = m.getOrInsertNamedMetadata("kit.module");
@@ -57,24 +71,26 @@ TEST(KitModuleAttrs, attrKind) {
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
-#define DECLS(OS, OBJ)                                                         \
+#define DECLS(OBJ)                                                             \
   std::string buf;                                                             \
   raw_string_ostream OS(buf);                                                  \
+  [[maybe_unused]] KitVerifier VOS(&OS);                                       \
+  [[maybe_unused]] KitVerifier VNULL;                                          \
   LLVMContext ctx;                                                             \
   Module OBJ("", ctx);
 
 TEST(KitModuleAttrs, verifyGeneric) {
-  DECLS(os, m);
+  DECLS(m);
 #define MODULE_ATTR_0(NAME, IRNAME, ...)                                       \
-  TEST_GENERIC_VERIFY_0(os, m, ModuleAttrKind, NAME, IRNAME)
+  TEST_GENERIC_VERIFY_0(m, ModuleAttrKind, NAME, IRNAME)
 #define MODULE_ATTR(NAME, IRNAME, ...)                                         \
-  TEST_GENERIC_VERIFY_N(os, m, ModuleAttrKind, NAME, IRNAME)
+  TEST_GENERIC_VERIFY_N(m, ModuleAttrKind, NAME, IRNAME)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
 TEST(KitModuleAttrs, attrsGeneric) {
-  DECLS(os, m);
+  DECLS(m);
 
 #define MODULE_ATTR_0(NAME, ...) TEST_GENERIC_ATTR_0(m, ModuleAttrKind, NAME)
 #define GET_MODULE_ATTRS
@@ -87,74 +103,78 @@ TEST(KitModuleAttrs, attrsGeneric) {
 }
 
 TEST(KitModuleAttrs, attr0) {
-  DECLS(os, m);
-#define MODULE_ATTR_0(...) TEST_ATTR_0(os, m, __VA_ARGS__)
+  DECLS(m);
+#define MODULE_ATTR_0(...) TEST_ATTR_0(m, ModuleAttrKind, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
 TEST(KitModuleAttrs, attr1) {
-  DECLS(os, m);
-#define MODULE_ATTR_1(...) TEST_ATTR_1(os, m, __VA_ARGS__)
+  DECLS(m);
+#define MODULE_ATTR_1(...) TEST_ATTR_1(m, ModuleAttrKind, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
 TEST(KitModuleAttrs, attr2) {
-  DECLS(os, m);
-#define MODULE_ATTR_2(...) TEST_ATTR_2(os, m, __VA_ARGS__)
+  DECLS(m);
+#define MODULE_ATTR_2(...) TEST_ATTR_2(m, ModuleAttrKind, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
 TEST(KitModuleAttrs, attr3) {
-  DECLS(os, m);
-#define MODULE_ATTR_3(...) TEST_ATTR_3(os, m, __VA_ARGS__)
+  DECLS(m);
+#define MODULE_ATTR_3(...) TEST_ATTR_3(m, ModuleAttrKind, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
 TEST(KitModuleAttrs, attr4) {
-  DECLS(os, m);
-#define MODULE_ATTR_4(...) TEST_ATTR_4(os, m, __VA_ARGS__)
+  DECLS(m);
+#define MODULE_ATTR_4(...) TEST_ATTR_4(m, ModuleAttrKind, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
 TEST(KitModuleAttrs, attr5) {
-  DECLS(os, m);
-#define MODULE_ATTR_5(...) TEST_ATTR_5(os, m, __VA_ARGS__)
+  DECLS(m);
+#define MODULE_ATTR_5(...) TEST_ATTR_5(m, ModuleAttrKind, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
 TEST(KitModuleAttrs, attr6) {
-  DECLS(os, m);
-#define MODULE_ATTR_6(...) TEST_ATTR_6(os, m, __VA_ARGS__)
+  DECLS(m);
+#define MODULE_ATTR_6(...) TEST_ATTR_6(m, ModuleAttrKind, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
 TEST(KitModuleAttrs, attr7) {
-  DECLS(os, m);
-#define MODULE_ATTR_7(...) TEST_ATTR_7(os, m, __VA_ARGS__)
+  DECLS(m);
+#define MODULE_ATTR_7(...) TEST_ATTR_7(m, ModuleAttrKind, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
 TEST(KitModuleAttrs, attr8) {
-  DECLS(os, m);
-#define MODULE_ATTR_8(...) TEST_ATTR_8(os, m, __VA_ARGS__)
+  DECLS(m);
+#define MODULE_ATTR_8(...) TEST_ATTR_8(m, ModuleAttrKind, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
 TEST(KitModuleAttrs, attrLoop) {
-  DECLS_LOOP(os, m, loopF, loopG, lis)
-#define MODULE_ATTR_LOOP(...)                                                  \
-  TEST_ATTR_LOOP(os, m, loopF, loopG, lis, __VA_ARGS__)
+  DECLS_LOOP(m, loopF, loopG, lis);
+#define MODULE_ATTR_LOOP(...) TEST_ATTR_LOOP(m, loopF, loopG, lis, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
+}
+
+TEST(KitModuleAttrs, attrRange) {
+  DECLS(m);
+  TEST_ATTR_ATTRS(m)
 }
 
 } // namespace

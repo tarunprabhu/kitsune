@@ -4,7 +4,9 @@
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: embedded module requires non-empty name in device module metadata
+; CHECK: attribute 'kit.module.device.module.flags': invalid value at index '1'
+; CHECK-SAME: Module name cannot be empty
+; CHECK-NEXT: embedded module: broken module found
 
 !kit.module = !{!0}
 

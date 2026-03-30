@@ -38,7 +38,7 @@ def SourceLoop : InstAttr<LoopTy> {
 This attribute should only be attached to instructions that were originally,
 i.e. at the time of IR-generation, part of a loop. The value is the metadata
 node that is the ID of the loop to which the instruction originally belonged.
-This loop will be the "nearest" parent of the instruction. Consider the exampe
+This loop will be the "nearest" parent of the instruction. Consider the example
 below:
 
 .. code-block::c++

@@ -17,7 +17,18 @@ using namespace llvm;
 
 namespace {
 
-TEST(KitFunctionUtils, copyAttrsFunc) {
+TEST(KitFuncUtils, getName) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  FunctionType *fty = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);
+  Module m("", ctx);
+  Function *f = cast<Function>(m.getOrInsertFunction("", fty).getCallee());
+
+  EXPECT_FALSE(f->hasName());
+  EXPECT_EQ(getName(*f), "@0");
+}
+
+TEST(KitFuncUtils, copyAttrsFunc) {
   LLVMContext ctx;
   Module m("", ctx);
 
@@ -60,7 +71,7 @@ TEST(KitFunctionUtils, copyAttrsFunc) {
   EXPECT_EQ(dup1->getPrologueData(), cnull);
 }
 
-TEST(KitFunctionUtils, copyAttrsArgs) {
+TEST(KitFuncUtils, copyAttrsArgs) {
   LLVMContext ctx;
   Module m("", ctx);
 

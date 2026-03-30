@@ -4,12 +4,12 @@
 ; RUN: MBC_2=`%kit-enc --tapir=cuda %s \
 ; RUN:     | grep "c\"BC" \
 ; RUN:     | sed 's/.kit.emb//g' \
-; RUN:     | sed 's/@.bc/@.bc.2/g'`
+; RUN:     | sed 's/@.bc/@.bc.cuda/g'`
 ;
 ; RUN: MBC_4=`%kit-enc --tapir=hip %s \
 ; RUN:     | grep "c\"BC" \
 ; RUN:     | sed 's/.kit.emb//g' \
-; RUN:     | sed 's/@.bc/@.bc.4/g' \
+; RUN:     | sed 's/@.bc/@.bc.hip/g' \
 ; RUN:     | sed 's/\!0/\!1/g'`
 ;
 ; RUN: printf \
@@ -23,4 +23,5 @@
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: embedded bitcode global without device code global
+; CHECK-DAG: missing device code global for tapir target 'cuda'
+; CHECK-DAG: missing device code global for tapir target 'hip'

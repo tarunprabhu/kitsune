@@ -13,8 +13,8 @@
 
 #include "kitsune/Core/FuncAttrs.h"
 #include "AttrsImpl.h"
-#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/FuncUtils.h"
+#include "kitsune/Core/Verifier.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -28,20 +28,24 @@ static void setAttrList(Function &f, MDNode *attrList) {
 
 static void addAttr(Function &f, StringRef name, ArrayRef<Metadata *> vals) {
   LLVMContext &ctx = f.getContext();
-  MDNode *attrList = getAttrList(f);
+  MDNode *attrList = getRawAttrList(f);
   MDNode *newAttrList = getAttrListWith(name, vals, attrList, ctx);
 
   setAttrList(f, newAttrList);
 }
 
 static void removeAttr(Function &f, StringRef attrName) {
-  MDNode *attrList = getAttrList(f);
+  MDNode *attrList = getRawAttrList(f);
   MDNode *newAttrList = getAttrListWithout(attrName, attrList);
 
   setAttrList(f, newAttrList);
 }
 
-MDNode *llvm::getAttrList(const Function &f) {
+raw_ostream &llvm::operator<<(raw_ostream &os, const FuncAttrKind &attr) {
+  return os << getAttrName(attr);
+}
+
+MDNode *llvm::getRawAttrList(const Function &f) {
   return f.getMetadata(LLVMContext::MD_kit_func_attrs);
 }
 
@@ -64,11 +68,11 @@ std::optional<FuncAttrKind> llvm::getFuncAttrKind(StringRef name) {
       .Default(std::nullopt);
 }
 
-bool llvm::verifyAttr(const Function &f, FuncAttrKind attr, raw_ostream *os) {
+bool llvm::verifyAttr(KitVerifier &v, const Function &f, FuncAttrKind attr) {
   switch (attr) {
 #define FUNC_ATTR(NAME, IRNAME, ...)                                           \
   case FuncAttrKind::NAME:                                                     \
-    return verify##NAME##Attr(f, os);
+    return verify##NAME##Attr(v, f);
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
   }
@@ -78,7 +82,7 @@ bool llvm::verifyAttr(const Function &f, FuncAttrKind attr, raw_ostream *os) {
 void llvm::addAttr(Function &f, FuncAttrKind attr) {
   switch (attr) {
   default:
-    emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
+    emitDiagnostic(DiagID::ErrAttrAdd, getAttrName(attr));
     exitOnError();
     break;
 #define FUNC_ATTR_0(NAME, IRNAME, ...)                                         \
@@ -116,3 +120,25 @@ DEFN_ATTR_GENERIC(Function, FuncAttrKind)
 // Add custom attribute verifiers here. In general, you should not modify
 // anything above this line unless you are modifying a core part of the
 // attribute implementation.
+
+bool llvm::verifyDeviceAttr(KitVerifier &v, const Function &f,
+                            const bool &hasAttr) {
+  bool ok = true;
+  FuncAttrKind attr = FuncAttrKind::Device;
+
+  ok &= v.check(!hasKernelAttr(f), f, DiagID::ErrAttrNotCompatible, attr,
+                FuncAttrKind::Kernel);
+
+  return ok;
+}
+
+bool llvm::verifyKernelAttr(KitVerifier &v, const Function &f,
+                            const bool &hasAttr) {
+  bool ok = true;
+  FuncAttrKind attr = FuncAttrKind::Kernel;
+
+  ok &= v.check(!hasDeviceAttr(f), f, DiagID::ErrAttrNotCompatible, attr,
+                FuncAttrKind::Device);
+
+  return ok;
+}

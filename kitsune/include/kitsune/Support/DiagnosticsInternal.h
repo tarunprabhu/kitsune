@@ -44,16 +44,24 @@ raw_ostream &emitDiagnostic(raw_ostream &os, DiagnosticSeverity severity,
 raw_ostream &emitDiagnostic(raw_ostream &os, const Value &v,
                             DiagnosticSeverity severity, StringRef msg);
 
-/// Emit a diagnostic for the given loop.
-raw_ostream &emitDiagnostic(raw_ostream &os, const Loop &loop,
+/// Emit a diagnostic for the given argument.
+raw_ostream &emitDiagnostic(raw_ostream &os, const Argument &a,
+                            DiagnosticSeverity severity, StringRef msg);
+
+/// Emit a diagnostic for the given function.
+raw_ostream &emitDiagnostic(raw_ostream &os, const Function &f,
+                            DiagnosticSeverity severity, StringRef msg);
+
+/// Emit a diagnostic for the given global variable.
+raw_ostream &emitDiagnostic(raw_ostream &os, const GlobalVariable &g,
                             DiagnosticSeverity severity, StringRef msg);
 
 /// Emit a diagnostic for the given instruction.
 raw_ostream &emitDiagnostic(raw_ostream &os, const Instruction &inst,
                             DiagnosticSeverity severity, StringRef msg);
 
-/// Emit a diagnostic for the given function.
-raw_ostream &emitDiagnostic(raw_ostream &os, const Function &f,
+/// Emit a diagnostic for the given loop.
+raw_ostream &emitDiagnostic(raw_ostream &os, const Loop &loop,
                             DiagnosticSeverity severity, StringRef msg);
 
 } // namespace detail

@@ -13,8 +13,8 @@
 
 #include "kitsune/Core/LoopAttrs.h"
 #include "AttrsImpl.h"
-#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/Verifier.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/SmallVector.h"
@@ -30,24 +30,28 @@ static void setAttrList(Loop &loop, MDNode *attrList) {
 
 static void addAttr(Loop &loop, StringRef name, ArrayRef<Metadata *> vals) {
   LLVMContext &ctx = getContext(loop);
-  MDNode *attrList = getAttrList(loop);
+  MDNode *attrList = getRawAttrList(loop);
   MDNode *newAttrList = getAttrListWith(name, vals, attrList, ctx);
 
   setAttrList(loop, newAttrList);
 }
 
 static void removeAttr(Loop &loop, StringRef attrName) {
-  MDNode *attrList = getAttrList(loop);
+  MDNode *attrList = getRawAttrList(loop);
   MDNode *newAttrList = getAttrListWithout(attrName, attrList);
 
   setAttrList(loop, newAttrList);
 }
 
-MDNode *llvm::getAttrList(const Loop &loop) { return loop.getLoopID(); }
+raw_ostream &llvm::operator<<(raw_ostream &os, const LoopAttrKind &attr) {
+  return os << getAttrName(attr);
+}
+
+MDNode *llvm::getRawAttrList(const Loop &loop) { return loop.getLoopID(); }
 
 StringRef llvm::getAttrName(LoopAttrKind attr) {
   switch (attr) {
-#define LOOP_ATTR(NAME, IRNAME, ...)                                          \
+#define LOOP_ATTR(NAME, IRNAME, ...)                                           \
   case LoopAttrKind::NAME:                                                     \
     return IRNAME;
 #define GET_LOOP_ATTRS
@@ -64,11 +68,11 @@ std::optional<LoopAttrKind> llvm::getLoopAttrKind(StringRef name) {
       .Default(std::nullopt);
 }
 
-bool llvm::verifyAttr(const Loop &loop, LoopAttrKind attr, raw_ostream *os) {
+bool llvm::verifyAttr(KitVerifier &v, const Loop &loop, LoopAttrKind attr) {
   switch (attr) {
-#define LOOP_ATTR(NAME, IRNAME, ...)                                          \
+#define LOOP_ATTR(NAME, IRNAME, ...)                                           \
   case LoopAttrKind::NAME:                                                     \
-    return verify##NAME##Attr(loop, os);
+    return verify##NAME##Attr(v, loop);
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
   }
@@ -78,7 +82,7 @@ bool llvm::verifyAttr(const Loop &loop, LoopAttrKind attr, raw_ostream *os) {
 void llvm::addAttr(Loop &loop, LoopAttrKind attr) {
   switch (attr) {
   default:
-    emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
+    emitDiagnostic(DiagID::ErrAttrAdd, getAttrName(attr));
     exitOnError();
     break;
 #define LOOP_ATTR_0(NAME, IRNAME, ...)                                         \
@@ -116,3 +120,15 @@ DEFN_ATTR_GENERIC(Loop, LoopAttrKind)
 // Add custom attribute verifiers here. In general, you should not modify
 // anything above this line unless you are modifying a core part of the
 // attribute implementation.
+
+bool llvm::verifyNameAttr(KitVerifier &v, const Loop &loop,
+                          const StringRef &name) {
+  return v.check(name.size(), loop, DiagID::ErrAttrBadValue,
+                 "Cannot be an empty string");
+}
+
+bool llvm::verifyThreadsPerBlockAttr(KitVerifier &v, const Loop &loop,
+                                     const int32_t &tpb) {
+  return v.check(tpb >= 0 && tpb <= 1024, loop, DiagID::ErrAttrBadValue,
+                 "Must be in the range [0,1024]");
+}

@@ -56,8 +56,57 @@ class Note<string Msg> : Diag<SNote, Msg>;
 // Although not strictly required, the names of all errors should be prefixed
 // with Err.
 
-def ErrAttrWithoutValues
+def ErrAttrAdd
   : Error<"cannot add attribute '{}' without values">;
+
+def ErrAttrNotCompatible
+  : Error<"attribute '{}': not compatible with '{}'">;
+
+def ErrAttrBadValues
+  : Error<"attribute '{}': incorrect value count '{}' (expecting '{}')">;
+
+def ErrAttrBadValue
+  : Error<"attribute '{}': invalid value. {}">;
+
+def ErrAttrBadValueAt
+  : Error<"attribute '{}': invalid value at index '{}'. {}">;
+
+def ErrAttrNoValue
+  : Error<"attribute '{}': missing value of type '{}'">;
+
+def ErrAttrNoValueAt
+  : Error<"attribute '{}': missing value of type '{}' at index '{}'">;
+
+def ErrAttrGlobalNoName
+  : Error<"global with attribute '{}': missing required name">;
+
+def ErrAttrGlobalBadType
+  : Error<"global with attribute '{}': incorrect type">;
+
+def ErrAttrGlobalNoInit
+  : Error<"global with attribute '{}': missing required initializer">;
+
+def ErrAttrGlobalBadInit
+  : Error<"global with attribute '{}': invalid initializer. {}">;
+
+def ErrTooManyBitCodeGlobals
+  : Error<"too many embedded bitcode globals for tapir target '{}'">;
+
+def ErrTooManyDeviceCodeGlobals
+  : Error<"too many embedded device code globals for tapir target '{}'">;
+
+def ErrMissingDeviceCodeGlobal
+  : Error<"missing device code global for tapir target '{}'">;
+
+// Generic errors that can be used to emit any error message.
+def ErrGeneric
+  : Error<"{}">;
+
+def ErrAttrGeneric
+  : Error<"attribute '{}': {}">;
+
+def ErrEmbModuleGeneric
+  : Error<"embedded module: {}">;
 
 def ErrRequiredPassNotRun
   : Error<"'{}': required pass '{}' has not been run">;
@@ -176,11 +225,23 @@ def RemarkSerializedLoop
 // Although not strictly required, the names of all notes should be prefixed
 // with Note.
 
+def NoteFromArgument
+  : Note<"from argument '{}' of '{}'">;
+
+def NoteFromAttribute
+  : Note<"from attribute '{}' of '{}'">;
+
 def NoteFromBasicBlock
   : Note<"from basic block '{}'">;
 
 def NoteFromFunction
   : Note<"from function '{}'">;
+
+def NoteFromGlobalVariable
+  : Note<"from global variable '{}'">;
+
+def NoteFromInstruction
+  : Note<"from instruction '{}'">;
 
 def NoteFromLoop
   : Note<"from loop '{}'">;

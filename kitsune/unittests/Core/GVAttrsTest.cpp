@@ -10,6 +10,7 @@
 #include "TestAttrsCommon.h"
 #include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/GVUtils.h"
+#include "kitsune/Core/Verifier.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
 
@@ -19,10 +20,28 @@ using namespace llvm;
 
 namespace {
 
+template <typename T, GVAttrKind Attr> static T get(unsigned idx) {
+  return get_<T>(idx);
+}
+
+// In some cases, it is difficult to construct a valid attribute - for instance
+// if the attribute initializer must be valid bitcode. In such cases, we test
+// everything but the verifier. lit tests must be added to ensure that the
+// verification works correctly.
+static constexpr bool verifyAttr(GVAttrKind attr) {
+  switch (attr) {
+  case GVAttrKind::BitCode:
+  case GVAttrKind::DeviceCode:
+    return false;
+  default:
+    return true;
+  }
+}
+
 static void addMetadata(GlobalVariable &g, StringRef attrName,
                         ArrayRef<Metadata *> attrVals) {
   LLVMContext &ctx = g.getContext();
-  MDNode *attrList = getAttrList(g);
+  MDNode *attrList = getRawAttrList(g);
   MDNode *newAttrList = getAttrListWith(attrName, attrVals, attrList, ctx);
 
   g.setMetadata(LLVMContext::MD_kit_gv_attrs, newAttrList);
@@ -54,26 +73,29 @@ TEST(KitGVAttrs, attrKind) {
 #include "kitsune/Core/GVAttrs.inc"
 }
 
-#define DECLS(OS, OBJ)                                                         \
+#define DECLS(OBJ)                                                             \
   std::string buf;                                                             \
-  raw_string_ostream os(buf);                                                  \
+  raw_string_ostream OS(buf);                                                  \
+  [[maybe_unused]] KitVerifier VOS(&OS);                                       \
+  [[maybe_unused]] KitVerifier VNULL;                                          \
   LLVMContext ctx;                                                             \
   Module m("", ctx);                                                           \
   Type *i32 = Type::getInt32Ty(ctx);                                           \
-  [[maybe_unused]] GlobalVariable OBJ = m.getOrInsertGlobal("g", i32);
+  GlobalVariable OBJ = m.getOrInsertGlobal("g", i32);                          \
+  (OBJ).setInitializer(Constant::getNullValue(i32));
 
 TEST(KitGVAttrs, verifyGeneric) {
-  DECLS(os, *g);
+  DECLS(*g);
 #define GV_ATTR_0(NAME, IRNAME, ...)                                           \
-  TEST_GENERIC_VERIFY_0(os, *g, GVAttrKind, NAME, IRNAME)
+  TEST_GENERIC_VERIFY_0(*g, GVAttrKind, NAME, IRNAME)
 #define GV_ATTR(NAME, IRNAME, ...)                                             \
-  TEST_GENERIC_VERIFY_N(os, *g, GVAttrKind, NAME, IRNAME)
+  TEST_GENERIC_VERIFY_N(*g, GVAttrKind, NAME, IRNAME)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
 TEST(KitGVAttrs, attrsGeneric) {
-  DECLS(os, *g);
+  DECLS(*g);
 
 #define GV_ATTR_0(NAME, ...) TEST_GENERIC_ATTR_0(*g, GVAttrKind, NAME)
 #define GET_GV_ATTRS
@@ -86,73 +108,78 @@ TEST(KitGVAttrs, attrsGeneric) {
 }
 
 TEST(KitGVAttrs, attr0) {
-  DECLS(os, *g);
-#define GV_ATTR_0(...) TEST_ATTR_0(os, *g, __VA_ARGS__)
+  DECLS(*g);
+#define GV_ATTR_0(...) TEST_ATTR_0(*g, GVAttrKind, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
 TEST(KitGVAttrs, attr1) {
-  DECLS(os, *g);
-#define GV_ATTR_1(...) TEST_ATTR_1(os, *g, __VA_ARGS__)
+  DECLS(*g);
+#define GV_ATTR_1(...) TEST_ATTR_1(*g, GVAttrKind, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
 TEST(KitGVAttrs, attr2) {
-  DECLS(os, *g);
-#define GV_ATTR_2(...) TEST_ATTR_2(os, *g, __VA_ARGS__)
+  DECLS(*g);
+#define GV_ATTR_2(...) TEST_ATTR_2(*g, GVAttrKind, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
 TEST(KitGVAttrs, attr3) {
-  DECLS(os, *g);
-#define GV_ATTR_3(...) TEST_ATTR_3(os, *g, __VA_ARGS__)
+  DECLS(*g);
+#define GV_ATTR_3(...) TEST_ATTR_3(*g, GVAttrKind, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
 TEST(KitGVAttrs, attr4) {
-  DECLS(os, *g);
-#define GV_ATTR_4(...) TEST_ATTR_4(os, *g, __VA_ARGS__)
+  DECLS(*g);
+#define GV_ATTR_4(...) TEST_ATTR_4(*g, GVAttrKind, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
 TEST(KitGVAttrs, attr5) {
-  DECLS(os, *g);
-#define GV_ATTR_5(...) TEST_ATTR_5(os, *g, __VA_ARGS__)
+  DECLS(*g);
+#define GV_ATTR_5(...) TEST_ATTR_5(*g, GVAttrKind, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
 TEST(KitGVAttrs, attr6) {
-  DECLS(os, *g);
-#define GV_ATTR_6(...) TEST_ATTR_6(os, *g, __VA_ARGS__)
+  DECLS(*g);
+#define GV_ATTR_6(...) TEST_ATTR_6(*g, GVAttrKind, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
 TEST(KitGVAttrs, attr7) {
-  DECLS(os, *g);
-#define GV_ATTR_7(...) TEST_ATTR_7(os, *g, __VA_ARGS__)
+  DECLS(*g);
+#define GV_ATTR_7(...) TEST_ATTR_7(*g, GVAttrKind, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
 TEST(KitGVAttrs, attr8) {
-  DECLS(os, *g);
-#define GV_ATTR_8(...) TEST_ATTR_8(os, *g, __VA_ARGS__)
+  DECLS(*g);
+#define GV_ATTR_8(...) TEST_ATTR_8(*g, GVAttrKind, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }
 
 TEST(KitGVAttrs, attrLoop) {
-  DECLS_LOOP(os, *g, loopF, loopG, lis)
-#define GV_ATTR_LOOP(...) TEST_ATTR_LOOP(os, *g, loopF, loopG, lis, __VA_ARGS__)
+  DECLS_LOOP(*g, loopF, loopG, lis);
+#define GV_ATTR_LOOP(...) TEST_ATTR_LOOP(*g, loopF, loopG, lis, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
+}
+
+TEST(KitGVAttrs, attrRange) {
+  DECLS(*g);
+  TEST_ATTR_ATTRS(*g)
 }
 
 } // namespace

@@ -25,10 +25,17 @@
 
 namespace llvm {
 
+class raw_ostream;
+
 /// \addtogroup kitsune
 /// @{
 
-class raw_ostream;
+enum class ArgAttrKind : uint32_t;
+enum class FuncAttrKind : uint32_t;
+enum class GVAttrKind : uint32_t;
+enum class InstAttrKind : uint32_t;
+enum class LoopAttrKind : uint32_t;
+enum class ModuleAttrKind : uint32_t;
 
 /// @{
 /// Helpers to stream Kitsune-specific types.
@@ -38,6 +45,13 @@ raw_ostream &operator<<(raw_ostream &os, const TTID &v);
 raw_ostream &operator<<(raw_ostream &os, const TapirSpawnStrategy &v);
 raw_ostream &operator<<(raw_ostream &os, const OptznLevel &v);
 raw_ostream &operator<<(raw_ostream &os, const MaybeBool &v);
+
+raw_ostream &operator<<(raw_ostream &os, const ArgAttrKind &v);
+raw_ostream &operator<<(raw_ostream &os, const FuncAttrKind &v);
+raw_ostream &operator<<(raw_ostream &os, const GVAttrKind &v);
+raw_ostream &operator<<(raw_ostream &os, const InstAttrKind &v);
+raw_ostream &operator<<(raw_ostream &os, const LoopAttrKind &v);
+raw_ostream &operator<<(raw_ostream &os, const ModuleAttrKind &v);
 
 /// @}
 

@@ -48,15 +48,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/IR/Verifier.h"
-#include "kitsune/Core/EmbUtils.h"
-#include "kitsune/Core/FuncAttrs.h"
-#include "kitsune/Core/GVAttrs.h"
-#include "kitsune/Core/ModuleAttrs.h"
-#include "kitsune/Core/Tapir.h"
-#include "kitsune/Core/TypeUtils.h"
-#include "kitsune/Support/ErrorUtils.h"
-#include "kitsune/Support/TTIDUtils.h"
-#include "kitsune/Support/ToString.h"
+#include "kitsune/Core/Verifier.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -70,7 +62,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/BinaryFormat/Dwarf.h"
-#include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/AttributeMask.h"
 #include "llvm/IR/Attributes.h"
@@ -129,13 +120,11 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/ModRef.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -492,8 +481,6 @@ public:
     for (const StringMapEntry<Comdat> &SMEC : M.getComdatSymbolTable())
       visitComdat(SMEC.getValue());
 
-    visitEmbGlobals();
-    visitKPGlobals();
     visitModuleFlags();
     visitModuleIdents();
     visitModuleCommandLines();
@@ -518,13 +505,6 @@ private:
   };
 
   // Verification methods...
-  void visitEmbGlobals();
-  void visitKPGlobals();
-  void visitEmbBCGlobalVariable(const GlobalVariable &GV);
-  void visitEmbFBGlobalVariable(const GlobalVariable &GV);
-  void visitKPGlobalVariable(const GlobalVariable &GV);
-  void visitEmbModule(const Module& EmbM, TTID TT);
-  void visitEmbModuleMetadata(const Module &EmbM);
   void visitGlobalValue(const GlobalValue &GV);
   void visitGlobalVariable(const GlobalVariable &GV);
   void visitGlobalAlias(const GlobalAlias &GA);
@@ -659,8 +639,6 @@ private:
                            const Value *V, bool IsIntrinsic, bool IsInlineAsm);
   void verifyFunctionMetadata(ArrayRef<std::pair<unsigned, MDNode *>> MDs);
 
-  void verifyGlobalVariableAttrs(AttributeSet Attrs, const GlobalVariable* V);
-
   void visitConstantExprsRecursively(const Constant *EntryC);
   void visitConstantExpr(const ConstantExpr *CE);
   void visitConstantPtrAuth(const ConstantPtrAuth *CPA);
@@ -714,187 +692,6 @@ private:
       return;                                                                  \
     }                                                                          \
   } while (false)
-
-void Verifier::visitEmbModuleMetadata(const Module &EmbM) {
-  Check(hasDeviceModuleFlagsAttr(EmbM),
-        "embedded module requires device module metadata");
-
-  std::optional<TTID> TT = getTTIDFromDeviceModuleFlagsAttr(EmbM);
-  Check(TT.has_value(), "embedded module requires valid tapir target in "
-                        "device module metadata");
-
-  std::optional<StringRef> Name = getNameFromDeviceModuleFlagsAttr(EmbM);
-  Check(Name.has_value() && Name->size(),
-        "embedded module requires non-empty name in device module metadata");
-}
-
-void Verifier::visitEmbModule(const Module &EmbM, TTID TTFromHostGV) {
-  // Embedded modules cannot contain any embedded bitcode or device code.
-  for (const GlobalVariable &G : EmbM.globals()) {
-    Check(!hasBitCodeAttr(G),
-          "embedded module cannot contain embedded bitcode");
-    Check(!hasDeviceCodeAttr(G),
-          "embedded module cannot contain embedded device code");
-  }
-
-  visitEmbModuleMetadata(EmbM);
-  if (std::optional<TTID> TT = getTTIDFromDeviceModuleFlagsAttr(EmbM))
-    Check(*TT == TTFromHostGV,
-          "tapir target in embedded module must match tapir target in host "
-          "embedded bitcode global variable");
-
-  Check(not verifyModule(EmbM, OS, &BrokenDebugInfo),
-        "broken embedded module found");
-}
-
-void Verifier::visitEmbFBGlobalVariable(const GlobalVariable &G) {
-  Check(G.hasName(), "global containing device code does not have a name");
-  Check(isByteArrayTy(G.getValueType()),
-        "incorrect type of global containing device code");
-  Check(G.hasInitializer(),
-        "missing initializer in global containing device code");
-
-  const Constant *Init = G.getInitializer();
-  Check(isa<ConstantDataArray>(Init) || Init->isZeroValue(),
-        "invalid initializer in global containing device code");
-}
-
-void Verifier::visitEmbBCGlobalVariable(const GlobalVariable &G) {
-  Check(G.hasName(), "global containing embedded bitcode does not have a name");
-  Check(isByteArrayTy(G.getValueType()),
-        "incorrect type of global containing bitcode");
-  Check(G.hasInitializer(), "missing initializer in global containing bitcode");
-  Check(isa<ConstantDataArray>(G.getInitializer()),
-        "invalid initializer in global containing bitcode");
-
-  // Checking the embedded modules requires functions from LLVMBitReader which
-  // results in a circular dependence between LLVMCore and LLVMBitReader.
-  // Obviously, this is very, very bad. However, there is already a very deep
-  // circular dependence between LLVMPasses and LLVMKitTransforms which cannot
-  // be broken easily. Since we're in trouble anyway, adding another circular
-  // dependence doesn't make things markedly worse.
-  StringRef BC = cast<ConstantDataArray>(G.getInitializer())->getAsString();
-  Check(isBitcode(BC.bytes_begin(), BC.bytes_end()),
-        "invalid data in global containing embedded bitcode");
-
-  LLVMContext &Ctx = G.getContext();
-  std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(BC);
-  Expected<std::unique_ptr<Module>> ModuleOrErr = parseBitcodeFile(*Buf, Ctx);
-  if (not ModuleOrErr) {
-    handleAllErrors(ModuleOrErr.takeError(), [&](ErrorInfoBase &e) {
-      Check(false, "could not parse embedded bitcode");
-    });
-    return;
-  }
-
-  // The value of the tapir target will have been verified already, so it is
-  // safe to just use it here.
-  TTID TT = *getBitCodeAttr(G);
-  std::unique_ptr<Module> EmbM = std::move(ModuleOrErr.get());
-  visitEmbModule(*EmbM, TT);
-}
-
-void Verifier::visitKPGlobalVariable(const GlobalVariable &G) {
-  Check(G.hasInitializer(),
-        "missing initializer in global containing kernel properties", &G);
-
-  const Constant *Init = G.getInitializer();
-  Check((isa<ConstantStruct>(Init) || Init->isZeroValue()),
-        "invalid initializer in global containing kernel properties", &G);
-}
-
-void Verifier::visitEmbGlobals() {
-  // There can be at most one global variable containing device code per
-  // tapir target.
-  std::map<TTID, unsigned> FBCounts;
-  for (const GlobalVariable &G : M.globals())
-    if (std::optional<TTID> TT = getDeviceCodeAttr(G))
-      ++FBCounts[*TT];
-
-  for (const auto &[TT, N] : FBCounts) {
-    Check(N <= 1, "too many embedded device code globals for tapir target '" +
-                      toString(TT) + "'");
-  }
-
-  // If a global variable containing bitcode exists, then a corresponding global
-  // containing device code must also exist. The reverse is not true. Once the
-  // device code has been generated, the global containing bitcode is removed.
-  std::map<TTID, unsigned> BCCounts;
-  for (const GlobalVariable &G : M.globals())
-    if (std::optional<TTID> TT = getBitCodeAttr(G))
-      ++BCCounts[*TT];
-
-  for (const auto &[TT, N] : BCCounts) {
-    Check(N <= 1, "too many embedded bitcode globals for tapir target '" +
-                      toString(TT) + "'");
-    Check(FBCounts.find(TT) != FBCounts.end(),
-          "embedded bitcode global without device code global");
-  }
-}
-
-void Verifier::visitKPGlobals() {
-  auto hasKPGlobals = [](const Module &M) -> bool {
-    for (const GlobalVariable &G : M.globals())
-      if (hasKernelPropertiesAttr(G))
-        return true;
-    return false;
-  };
-
-  if (not hasKPGlobals(M))
-    return;
-
-  Expected<EmbModulesMapTy> EmbMsOrErr = getEmbModules(M);
-  if (!EmbMsOrErr)
-    return ignoreAllErrors(EmbMsOrErr.takeError());
-
-  EmbModulesMapTy EmbMs = std::move(*EmbMsOrErr);
-  for (const GlobalVariable &G : M.globals())
-    // FIXME: Are these optionals needed? We should have verified the
-    // attribute value by the time we get here, so we should be guaranteed to
-    // find these.
-    if (std::optional<StringRef> F = getNameFromKernelPropertiesAttr(G))
-      if (std::optional<TTID> TT = getTTIDFromKernelPropertiesAttr(G))
-        if (EmbMs.find(*TT) != EmbMs.end())
-          Check(EmbMs.at(*TT)->getFunction(*F),
-                "global containing properties of non-existent kernel function");
-}
-
-void Verifier::verifyGlobalVariableAttrs(AttributeSet Attrs,
-                                         const GlobalVariable *G) {
-  Check(!(hasBitCodeAttr(*G) && hasDeviceCodeAttr(*G)),
-        "Attributes 'bit.code' and 'device.code' are incompatible!", G);
-
-  Check(!(hasBitCodeAttr(*G) && hasKernelPropertiesAttr(*G)),
-        "Attributes 'bit.code' and 'kernel.properties' are incompatible!", G);
-
-  Check(!(hasDeviceCodeAttr(*G) && hasKernelPropertiesAttr(*G)),
-        "Attributes 'device.code' and 'kernel.properties' are incompatible!",
-        G);
-
-  if (hasKernelPropertiesAttr(*G)) {
-    if (std::optional<TTID> TT = getTTIDFromKernelPropertiesAttr(*G))
-      Check(doesTTGenEmbBC(*TT),
-            "invalid value for 'kernel.properties' attribute. Tapir target "
-            "does not generate embedded bitcode");
-    if (std::optional<StringRef> F = getNameFromKernelPropertiesAttr(*G))
-      Check(
-          F->size(),
-          "invalid value of 'kernel.properties' attribute. Kernel name cannot "
-          "be empty");
-  }
-
-  // TODO: We might have to perform this check for the kernel.properties
-  // attribute as well.
-  if (std::optional<TTID> TT = getBitCodeAttr(*G))
-    Check(doesTTGenEmbBC(*TT),
-          "invalid value for 'bit.code' attribute. Tapir target does not "
-          "generate embedded bitcode");
-
-  if (std::optional<TTID> TT = getDeviceCodeAttr(*G))
-    Check(doesTTGenEmbBC(*TT),
-          "invalid value for 'device.code' attribute. Tapir target does not "
-          "generate embedded bitcode");
-}
 
 void Verifier::visitDbgRecords(Instruction &I) {
   if (!I.DebugMarker)
@@ -1135,14 +932,6 @@ void Verifier::visitGlobalVariable(const GlobalVariable &GV) {
   Check(!GVType->containsNonGlobalTargetExtType(),
         "Global @" + GV.getName() + " has illegal target extension type",
         GVType);
-
-  verifyGlobalVariableAttrs(GV.getAttributes(), &GV);
-  if (hasBitCodeAttr(GV))
-    visitEmbBCGlobalVariable(GV);
-  else if (hasDeviceCodeAttr(GV))
-    visitEmbFBGlobalVariable(GV);
-  else if (hasKernelPropertiesAttr(GV))
-    visitKPGlobalVariable(GV);
 
   if (!GV.hasInitializer()) {
     visitGlobalValue(GV);
@@ -2742,10 +2531,6 @@ void Verifier::verifyFunctionAttrs(FunctionType *FT, AttributeList Attrs,
       CheckFailed("invalid value for 'denormal-fp-math-f32' attribute: " + S,
                   V);
   }
-
-  if (auto* F = dyn_cast<Function>(V))
-    Check(!(hasKernelAttr(*F) && hasDeviceAttr(*F)),
-          "Attributes 'func.kernel and func.device' are incompatible!", V);
 }
 
 void Verifier::verifyFunctionMetadata(
@@ -8010,7 +7795,7 @@ bool llvm::verifyFunction(const Function &f, raw_ostream *OS) {
 
   // Note that this function's return value is inverted from what you would
   // expect of a function called "verify".
-  return !V.verify(F);
+  return !V.verify(F) || !verifyFunction(f, /*kitOnly=*/true, OS);
 }
 
 bool llvm::verifyModule(const Module &M, raw_ostream *OS,
@@ -8027,7 +7812,7 @@ bool llvm::verifyModule(const Module &M, raw_ostream *OS,
     *BrokenDebugInfo = V.hasBrokenDebugInfo();
   // Note that this function's return value is inverted from what you would
   // expect of a function called "verify".
-  return Broken;
+  return Broken || !verifyModule(M, /*kitOnly=*/true, OS);
 }
 
 namespace {
