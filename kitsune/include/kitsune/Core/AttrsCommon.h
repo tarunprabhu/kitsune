@@ -14,7 +14,6 @@
 #define KITSUNE_CORE_ATTRS_COMMON_H
 
 #include "kitsune/Core/MetadataUtils.h"
-#include "kitsune/Core/VerifierInternal.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
@@ -30,52 +29,6 @@ class LoopInfo;
 /// @{
 
 class KitVerifier;
-
-namespace detail {
-
-/// Verify an attribute \p attr that is expected to have a single value. This
-/// value is an MDNode that corresponds to the ID of a loop. Return false if
-/// \p attrName is present in \p attrList and does not have exactly one value.
-/// Without a LoopInfo object, it is impossible to truly verify that the value
-/// is the ID of a loop. Instead, some rudimentary checks are performed - in
-/// particular that the MDNode is distinct and the first operand is a
-/// self-reference. If any of these is not the case, return false. Return true
-/// in all other cases, If false is due to be returned, and the optional output
-/// stream \p os is not nullptr, print an error message to it.
-bool verifyRawAttrValueLoop(KitVerifier &v, const MDNode &attr);
-
-/// Verify that the raw attribute \p attr has the expected number of values,
-/// \p attrVals. If so, return true. Otherwise, if an optional output stream,
-/// \p os, has been provided, write an error message to it.
-bool verifyRawAttrValueCount(KitVerifier &v, const MDNode &attr,
-                             unsigned attrVals);
-
-/// Verify that a raw attribute \p attr has a value of type \p T at index \p i.
-/// \p i must be in the range [0, N) where N is the number of values that the
-/// attribute expects.
-template <typename T>
-bool verifyRawAttrValueAt(KitVerifier &v, const MDNode &attr, unsigned i,
-                          const std::optional<T> &val);
-
-template <typename T, typename... Vals>
-bool verifyRawAttrValuesImpl(KitVerifier &v, const MDNode &attr, unsigned i,
-                             const std::optional<T> &val, const Vals &...vals) {
-  bool ok = verifyRawAttrValueAt(v, attr, i, val);
-  if constexpr (sizeof...(Vals))
-    ok &= detail::verifyRawAttrValuesImpl(v, attr, i + 1, vals...);
-  return ok;
-}
-
-/// Check that the std::optional values, \p vals. If all of them have values,
-/// return true. Otherwise, return false and write an error to the \p os if it
-/// is not nullptr.
-template <typename... Vals>
-bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
-                         const Vals &...vals) {
-  return detail::verifyRawAttrValuesImpl(v, attr, 0, vals...);
-}
-
-} // namespace detail
 
 /// Iterator over a raw attribute list.
 class AttrIterator {
@@ -123,40 +76,6 @@ private:
   const MDNode *attrList = nullptr;
   unsigned curr = 0;
 };
-
-/// Create a raw attribute metadata node with name \p attrName and values
-/// \p attrVals. This will be of the form
-///
-/// \code{llvm}
-///     !0 = !{!"<NAME>", ...}
-/// \endcode
-///
-/// where <NAME> is the name of the attribute as specified in \p attrName and
-/// the ellipses denote the metadata in \p attrVals.
-MDNode *makeRawAttr(LLVMContext &ctx, StringRef attrName,
-                    ArrayRef<Metadata *> vals);
-
-/// Get the name of the attribute \p attr.
-StringRef getRawAttrName(const MDNode &attr);
-
-/// Get the value of the raw attribute that is expected to have a exactly one
-/// value that is an LLVM Loop.
-std::optional<Loop *>
-getRawAttrValue(const MDNode &attr,
-                const SmallVectorImpl<const LoopInfo *> &lis);
-
-/// Get the value of the \p i'th value from the raw attribute \p attr that is
-/// expected to be of type \p T. If the value is not present, or if it is not of
-/// type \p T, return std::nullopt.
-template <typename T>
-std::optional<T> getRawAttrValue(const MDNode &attr, size_t i);
-
-/// Create a new empty attribute list. This will be of the form
-///
-/// \code{llvm}
-///     !0 = distinct !{!0}
-/// \endcode
-MDNode *getNewAttrList(LLVMContext &ctx);
 
 /// Get an attribute list containing the attribute with name \p attrName and
 /// values \p attrVals. \p attrList is the existing attribute list. It may be
@@ -229,32 +148,108 @@ MDNode *getAttrListWith(StringRef attrName, const ArrayRef<Metadata *> attrVals,
 /// empty list, return nullptr. If \p attrList is nullptr, returns nullptr.
 MDNode *getAttrListWithout(StringRef attrName, MDNode *attrList);
 
-/// If the attribute list \p attrList contains an attribute \p attrName, return
-/// the MDNode for that attribute. Otherwise, return nullptr. If found, the
-/// MDNode that is returned will have at least one operand. This will be an
-/// MDString whose value is the name of the attribute. If any other operands
-/// are present, they will be the values accepted by the attribute. If
-/// \p attrList is nullptr, this will also return nullptr.
-MDNode *getRawAttr(StringRef attrName, const MDNode *attrList);
+// /// Get the value of the attribute \p attrName in the attribute list
+// /// \p attrList. This expects the attribute to be single-valued where the value
+// /// of the attribute is an LLVM loop.
+// std::optional<Loop *>
+// getAttrValue(StringRef attrName, const MDNode *attrList,
+//              const SmallVectorImpl<const LoopInfo *> &lis);
 
-/// Get the value of the attribute \p attrName in the attribute list
-/// \p attrList. This expects the attribute to be single-valued where the value
-/// of the attribute is an LLVM loop.
-std::optional<Loop *>
-getAttrValue(StringRef attrName, const MDNode *attrList,
-             const SmallVectorImpl<const LoopInfo *> &lis);
-
-/// Parse the \p i 'th value from the metadata node for the attribute \p attr
-/// in the attribute list \p attrList. \p attrList may be nullptr, in which case
-/// this will return std::nullopt. i must be in [0, \p vals) where \p vals is
-/// the expected number of values permitted for the attribute. If \p vals is 0,
-/// this will always return std::nullopt.
-template <typename T>
-std::optional<T> getAttrValue(StringRef attrName, const MDNode *attrList,
-                              unsigned valNo, unsigned vals);
+// /// Parse the \p i 'th value from the metadata node for the attribute \p attr
+// /// in the attribute list \p attrList. \p attrList may be nullptr, in which case
+// /// this will return std::nullopt. i must be in [0, \p vals) where \p vals is
+// /// the expected number of values permitted for the attribute. If \p vals is 0,
+// /// this will always return std::nullopt.
+// template <typename T>
+// std::optional<T> getAttrValue(StringRef attrName, const MDNode *attrList,
+//                               unsigned valNo, unsigned vals);
 
 /// @}
 
 } // namespace llvm
+
+#define DECL_ATTR_COMMON(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)             \
+  bool has##NAME##Attr(const IRELEM &ir);                                      \
+  void remove##NAME##Attr(IRELEM &ir);                                         \
+  bool verify##NAME##Attr(KitVerifier &v, const IRELEM &ir);
+
+#define DECL_ATTR_LOOP(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                     \
+  std::optional<Loop *> get##NAME##Attr(                                       \
+      const IRELEM &ir, const SmallVectorImpl<const LoopInfo *> &lis);         \
+  void add##NAME##Attr(IRELEM &ir, const Loop &loop);                          \
+  bool verify##NAME##Attr(KitVerifier &v, const IRELEM &ir, const MDNode &md);
+
+#define DECL_ATTR_N(IRELEM, NAME, IRNAME, ETY, ENAME, EN, NELEMS)              \
+  std::optional<ETY> get##ENAME##From##NAME##Attr(const IRELEM &);
+
+#define DECL_ATTR_0(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                        \
+  void add##NAME##Attr(IRELEM &ir);                                            \
+  bool verify##NAME##Attr(KitVerifier &v, const IRELEM &ir, const bool &t);
+
+#define DECL_ATTR_1(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
+  void add##NAME##Attr(IRELEM &ir, const TYPE &val);                           \
+  std::optional<TYPE> get##NAME##Attr(const IRELEM &f);                        \
+  bool verify##NAME##Attr(KitVerifier &v, const IRELEM &ir, const TYPE &val);
+
+#define DECL_ATTR_2(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1)                                         \
+  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1);            \
+  bool verify##NAME##Attr(KitVerifier &v, const IRELEM &ir, const ETY0 &v0,    \
+                          const ETY1 &v1);
+
+#define DECL_ATTR_3(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1, ETY2, ENAME2, EN2)                      \
+  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,             \
+                       const ETY2 &e2);                                        \
+  bool verify##NAME##Attr(KitVerifier &v, const IRELEM &ir, const ETY0 &v0,    \
+                          const ETY1 &v1, const ETY2 &v2);
+
+#define DECL_ATTR_4(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3)   \
+  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,             \
+                       const ETY2 &e2, const ETY3 &e3);                        \
+  bool verify##NAME##Attr(KitVerifier &v, const IRELEM &ir, const ETY0 &v0,    \
+                          const ETY1 &v1, const ETY2 &v2, const ETY3 &v3);
+
+#define DECL_ATTR_5(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
+                    ETY4, ENAME4, EN4)                                         \
+  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,             \
+                       const ETY2 &e2, const ETY3 &e3, const ETY4 &e4);        \
+  bool verify##NAME##Attr(KitVerifier &v, const IRELEM &ir, const ETY0 &v0,    \
+                          const ETY1 &v1, const ETY2 &v2, const ETY3 &v3,      \
+                          const ETY4 &v4);
+
+#define DECL_ATTR_6(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
+                    ETY4, ENAME4, EN4, ETY5, ENAME5, EN5)                      \
+  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,             \
+                       const ETY2 &e2, const ETY3 &e3, const ETY4 &e4,         \
+                       const ETY5 &e5);                                        \
+  bool verify##NAME##Attr(KitVerifier &v, const IRELEM &ir, const ETY0 &v0,    \
+                          const ETY1 &v1, const ETY2 &v2, const ETY3 &v3,      \
+                          const ETY4 &v4, const ETY5 &v5);
+
+#define DECL_ATTR_7(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
+                    ETY4, ENAME4, EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6)   \
+  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,             \
+                       const ETY2 &e2, const ETY3 &e3, const ETY4 &e4,         \
+                       const ETY5 &e5, const ETY6 &e6);                        \
+  bool verify##NAME##Attr(KitVerifier &v, const IRELEM &ir, const ETY0 &v0,    \
+                          const ETY1 &v1, const ETY2 &v2, const ETY3 &v3,      \
+                          const ETY4 &v4, const ETY5 &v5, const ETY6 &v6);
+
+#define DECL_ATTR_8(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
+                    ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
+                    ETY4, ENAME4, EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6,   \
+                    ETY7, ENAME7, EN7)                                         \
+  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,             \
+                       const ETY2 &e2, const ETY3 &e3, const ETY4 &e4,         \
+                       const ETY5 &e5, const ETY6 &e6, const ETY7 &e7);        \
+  bool verify##NAME##Attr(KitVerifier &v, const IRELEM &ir, const ETY0 &v0,    \
+                          const ETY1 &v1, const ETY2 &v2, const ETY3 &v3,      \
+                          const ETY4 &v4, const ETY5 &v5, const ETY6 &v6,      \
+                          const ETY7 &v7);
 
 #endif // KITSUNE_CORE_ATTRS_COMMON_H

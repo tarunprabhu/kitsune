@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/LoopAttrs.h"
+#include "Core/AttrsImpl.h"
+#include "Core/LoopAttrsImpl.h"
 #include "TestAttrsCommon.h"
 #include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/LoopUtils.h"
@@ -34,7 +36,26 @@ template <typename T, LoopAttrKind Attr> static T get(unsigned idx) {
 // if the attribute initializer must be valid bitcode. In such cases, we test
 // everything but the verifier. lit tests must be added to ensure that the
 // verification works correctly.
-static constexpr bool verifyAttr(LoopAttrKind attr) { return true; }
+[[maybe_unused]]
+static constexpr bool verifyAttr(LoopAttrKind attr) {
+  return true;
+}
+
+TEST(KitLoopAttrs, attrName) {
+#define LOOP_ATTR(NAME, IRNAME, ...)                                           \
+  EXPECT_EQ(getAttrName(LoopAttrKind::NAME), IRNAME);                          \
+  EXPECT_TRUE(getAttrName(LoopAttrKind::NAME).starts_with("tapir.loop."));
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+}
+
+TEST(KitLoopAttrs, attrKind) {
+  EXPECT_EQ(getLoopAttrKind("wolfson"), std::nullopt);
+#define LOOP_ATTR(NAME, IRNAME, ...)                                           \
+  EXPECT_EQ(getLoopAttrKind(IRNAME), LoopAttrKind::NAME);
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+}
 
 static constexpr StringRef ll = R"(
 define void @f(i64 %n) {
@@ -64,41 +85,6 @@ for.i.exit:
 
 !0 = distinct !{!0}
 )";
-
-static void addMetadata(Loop &loop, StringRef attrName,
-                        ArrayRef<Metadata *> attrVals) {
-  LLVMContext &ctx = getContext(loop);
-  MDNode *attrList = getRawAttrList(loop);
-  MDNode *newAttrList = getAttrListWith(attrName, attrVals, attrList, ctx);
-
-  loop.setLoopID(newAttrList);
-}
-
-// Create metadata consisting of `n` "empty" operands.
-static void addMetadata(Loop &loop, StringRef attrName, unsigned n) {
-  LLVMContext &ctx = getContext(loop);
-  MDNode *mdEmpty = MDNode::get(ctx, {});
-  SmallVector<Metadata *, 8> attrVals;
-
-  attrVals.append(n, mdEmpty);
-  addMetadata(loop, attrName, attrVals);
-}
-
-TEST(KitLoopAttrs, attrName) {
-#define LOOP_ATTR(NAME, IRNAME, ...)                                           \
-  EXPECT_EQ(getAttrName(LoopAttrKind::NAME), IRNAME);                          \
-  EXPECT_TRUE(getAttrName(LoopAttrKind::NAME).starts_with("tapir.loop."));
-#define GET_LOOP_ATTRS
-#include "kitsune/Core/LoopAttrs.inc"
-}
-
-TEST(KitLoopAttrs, attrKind) {
-  EXPECT_EQ(getLoopAttrKind("wolfson"), std::nullopt);
-#define LOOP_ATTR(NAME, IRNAME, ...)                                           \
-  EXPECT_EQ(getLoopAttrKind(IRNAME), LoopAttrKind::NAME);
-#define GET_LOOP_ATTRS
-#include "kitsune/Core/LoopAttrs.inc"
-}
 
 #define DECLS(OBJ)                                                             \
   std::string buf;                                                             \
@@ -201,7 +187,7 @@ TEST(KitLoopAttrs, attr8) {
 TEST(KitLoopAttrs, attrLoop) {
   DECLS_LOOP(*loop, loopF, loopG, lis);
 #define LOOP_ATTR_LOOP(...)                                                    \
-  TEST_ATTR_LOOP(*loop, loopF, loopG, lis, __VA_ARGS__)
+  TEST_ATTR_LOOP(*loop, loopF, loopG, lis, LoopAttrKind, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }

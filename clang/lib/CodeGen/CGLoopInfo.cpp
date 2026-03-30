@@ -7,7 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "CGLoopInfo.h"
-#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/MetadataUtils.h"
 #include "clang/AST/ASTContext.h"
@@ -489,10 +488,17 @@ clang::CodeGen::LoopInfo::LoopInfo(BasicBlock *Header,
   TempLoopID = MDNode::getTemporary(Header->getContext(), {});
 }
 
+// FIXME: This is a "private" function, and the abstraction really should not
+// leak like this. But this is the easiest thing to do for now.
+namespace llvm {
+namespace detail {
+MDNode *makeRawAttr(LLVMContext &, StringRef, ArrayRef<Metadata *>);
+} // namespace detail
+} // namespace llvm
 template <typename T>
 static MDNode *getMDNodeForAttr(LLVMContext &Ctx, LoopAttrKind Attr,
                                 const T &Val) {
-  return makeRawAttr(Ctx, getAttrName(Attr), toMetadata(Val, Ctx));
+  return detail::makeRawAttr(Ctx, getAttrName(Attr), toMetadata(Val, Ctx));
 }
 
 std::vector<Metadata *>

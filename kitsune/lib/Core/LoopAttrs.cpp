@@ -13,6 +13,7 @@
 
 #include "kitsune/Core/LoopAttrs.h"
 #include "AttrsImpl.h"
+#include "LoopAttrsImpl.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/Verifier.h"
 #include "kitsune/Support/Diagnostics.h"
@@ -24,11 +25,16 @@
 
 using namespace llvm;
 
-static void setAttrList(Loop &loop, MDNode *attrList) {
+MDNode *llvm::detail::getRawAttrList(const Loop &loop) {
+  return loop.getLoopID();
+}
+
+void llvm::detail::setAttrList(Loop &loop, MDNode *attrList) {
   return loop.setLoopID(attrList);
 }
 
-static void addAttr(Loop &loop, StringRef name, ArrayRef<Metadata *> vals) {
+void llvm::detail::addAttr(Loop &loop, StringRef name,
+                           ArrayRef<Metadata *> vals) {
   LLVMContext &ctx = getContext(loop);
   MDNode *attrList = getRawAttrList(loop);
   MDNode *newAttrList = getAttrListWith(name, vals, attrList, ctx);
@@ -36,18 +42,18 @@ static void addAttr(Loop &loop, StringRef name, ArrayRef<Metadata *> vals) {
   setAttrList(loop, newAttrList);
 }
 
-static void removeAttr(Loop &loop, StringRef attrName) {
+void llvm::detail::removeAttr(Loop &loop, StringRef attrName) {
   MDNode *attrList = getRawAttrList(loop);
   MDNode *newAttrList = getAttrListWithout(attrName, attrList);
 
   setAttrList(loop, newAttrList);
 }
 
+//------------------------------------------------------------------------------
+
 raw_ostream &llvm::operator<<(raw_ostream &os, const LoopAttrKind &attr) {
   return os << getAttrName(attr);
 }
-
-MDNode *llvm::getRawAttrList(const Loop &loop) { return loop.getLoopID(); }
 
 StringRef llvm::getAttrName(LoopAttrKind attr) {
   switch (attr) {
@@ -87,7 +93,7 @@ void llvm::addAttr(Loop &loop, LoopAttrKind attr) {
     break;
 #define LOOP_ATTR_0(NAME, IRNAME, ...)                                         \
   case LoopAttrKind::NAME:                                                     \
-    return ::addAttr(loop, IRNAME, {});
+    return detail::addAttr(loop, IRNAME, {});
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
   }

@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/InstAttrs.h"
+#include "Core/AttrsImpl.h"
+#include "Core/InstAttrsImpl.h"
 #include "TestAttrsCommon.h"
 #include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/InstUtils.h"
@@ -28,25 +30,9 @@ template <typename T, InstAttrKind Attr> static T get(unsigned idx) {
 // if the attribute initializer must be valid bitcode. In such cases, we test
 // everything but the verifier. lit tests must be added to ensure that the
 // verification works correctly.
-static constexpr bool verifyAttr(InstAttrKind attr) { return true; }
-
-static void addMetadata(Instruction &inst, StringRef attrName,
-                        ArrayRef<Metadata *> attrVals) {
-  LLVMContext &ctx = inst.getContext();
-  MDNode *attrList = getRawAttrList(inst);
-  MDNode *newAttrList = getAttrListWith(attrName, attrVals, attrList, ctx);
-
-  inst.setMetadata(LLVMContext::MD_kit_inst_attrs, newAttrList);
-}
-
-// Create metadata consisting of `n` "empty" operands.
-static void addMetadata(Instruction &inst, StringRef attrName, unsigned n) {
-  LLVMContext &ctx = inst.getContext();
-  MDNode *mdEmpty = MDNode::get(ctx, {});
-  SmallVector<Metadata *, 8> attrVals;
-
-  attrVals.append(n, mdEmpty);
-  addMetadata(inst, attrName, attrVals);
+[[maybe_unused]]
+static constexpr bool verifyAttr(InstAttrKind attr) {
+  return true;
 }
 
 TEST(KitInstAttrs, attrName) {
@@ -168,7 +154,7 @@ TEST(KitInstAttrs, attr8) {
 TEST(KitInstAttrs, attrLoop) {
   DECLS_LOOP(*inst, loopF, loopG, lis);
 #define INST_ATTR_LOOP(...)                                                    \
-  TEST_ATTR_LOOP(*inst, loopF, loopG, lis, __VA_ARGS__)
+  TEST_ATTR_LOOP(*inst, loopF, loopG, lis, InstAttrKind, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }

@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/ModuleAttrs.h"
+#include "Core/AttrsImpl.h"
+#include "Core/ModuleAttrsImpl.h"
 #include "TestAttrsCommon.h"
 #include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/ModuleUtils.h"
@@ -30,29 +32,9 @@ template <typename T, ModuleAttrKind Attr> static T get(unsigned idx) {
 // if the attribute initializer must be valid bitcode. In such cases, we test
 // everything but the verifier. lit tests must be added to ensure that the
 // verification works correctly.
-static constexpr bool verifyAttr(ModuleAttrKind attr) { return true; }
-
-static void addMetadata(Module &m, StringRef attrName,
-                        ArrayRef<Metadata *> attrVals) {
-  LLVMContext &ctx = m.getContext();
-  MDNode *attrList = getRawAttrList(m);
-  MDNode *newAttrList = getAttrListWith(attrName, attrVals, attrList, ctx);
-
-  NamedMDNode *nmd = m.getOrInsertNamedMetadata("kit.module");
-  if (nmd->getNumOperands())
-    nmd->setOperand(0, newAttrList);
-  else
-    nmd->addOperand(newAttrList);
-}
-
-// Create metadata consisting of `n` "empty" operands.
-static void addMetadata(Module &m, StringRef attrName, unsigned n) {
-  LLVMContext &ctx = m.getContext();
-  MDNode *mdEmpty = MDNode::get(ctx, {});
-  SmallVector<Metadata *, 8> attrVals;
-
-  attrVals.append(n, mdEmpty);
-  addMetadata(m, attrName, attrVals);
+[[maybe_unused]]
+static constexpr bool verifyAttr(ModuleAttrKind attr) {
+  return true;
 }
 
 TEST(KitModuleAttrs, attrName) {
@@ -167,7 +149,8 @@ TEST(KitModuleAttrs, attr8) {
 
 TEST(KitModuleAttrs, attrLoop) {
   DECLS_LOOP(m, loopF, loopG, lis);
-#define MODULE_ATTR_LOOP(...) TEST_ATTR_LOOP(m, loopF, loopG, lis, __VA_ARGS__)
+#define MODULE_ATTR_LOOP(...)                                                  \
+  TEST_ATTR_LOOP(m, loopF, loopG, lis, ModuleAttrKind, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 }

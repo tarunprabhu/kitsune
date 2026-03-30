@@ -15,7 +15,6 @@
 #define KITSUNE_CORE_FUNC_ATTRS_H
 
 #include "kitsune/Core/AttrsCommon.h"
-#include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
@@ -32,14 +31,6 @@ enum class FuncAttrKind : uint32_t {
 #define GET_FUNC_ATTR_ENUMS
 #include "kitsune/Core/FuncAttrs.inc"
 };
-
-/// Get the name of a function attribute as it would appear in LLVM metadata.
-StringRef getName(FuncAttrKind attr);
-
-/// Get the metadata node containing the list of Kitsune-specific attributes.
-/// If no Kitsune-specific attributes have been attached to the function, this
-/// may return nullptr.
-MDNode *getRawAttrList(const Function &f);
 
 /// Get the name of a function attribute as it would appear in LLVM metadata.
 StringRef getAttrName(FuncAttrKind attr);

@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/LoopUtils.h"
+#include "Core/AttrsImpl.h"
 #include "TestUtils.h"
 #include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/LoopAttrs.h"
@@ -32,7 +33,7 @@ struct LoopInfoContext {
 };
 
 static bool hasLoopAttr(const Loop &loop, StringRef attrName) {
-  return getRawAttr(attrName, loop.getLoopID());
+  return detail::getRawAttr(attrName, loop.getLoopID());
 }
 
 constexpr StringRef loop1 = R"(

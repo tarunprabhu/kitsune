@@ -29,4 +29,7 @@ add_kitsune_unittest_with_input_files(KitCoreTests
   EXPORT_SYMBOLS
 )
 
+target_include_directories(KitCoreTests PUBLIC
+  ${KITSUNE_SOURCE_DIR}/lib)
+
 target_link_libraries(KitCoreTests PRIVATE LLVMTestingSupport)
